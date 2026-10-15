@@ -83,7 +83,7 @@ export const SortPill = memo(function SortPill({
           <div className={`border-t ${C.borderLight} my-1`} />
 
           {/* Property change */}
-          <p className={`text-base ${C.text40} px-3 py-1`}>プロパティを変更</p>
+          <p className={`text-base ${C.text60} px-3 py-1`}>プロパティを変更</p>
           <Command>
             <CommandInput placeholder="検索..." />
             <CommandList>

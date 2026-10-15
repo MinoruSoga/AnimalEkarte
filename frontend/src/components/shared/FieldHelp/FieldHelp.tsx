@@ -28,7 +28,7 @@ export function FieldHelp({ label, content, className }: FieldHelpProps) {
       <button
         type="button"
         aria-label={`${label}の説明`}
-        className={`inline-flex size-6 items-center justify-center rounded-xxs ${C.text40} ${C.hoverBgLight} transition-colors cursor-help outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
+        className={`inline-flex size-6 min-h-11 min-w-11 items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgLight} transition-colors cursor-help outline-none focus-visible:ring-2 ${C.focusRingAccent40}`}
       >
         <Info className={ICON.sm} aria-hidden="true" />
       </button>

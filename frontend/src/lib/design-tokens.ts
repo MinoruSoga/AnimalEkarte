@@ -833,7 +833,7 @@ export const STYLE = {
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
-    `size-9 min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text45} ${C.hoverBgMedium} transition-colors`,
+    `size-9 min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgMedium} transition-colors`,
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */

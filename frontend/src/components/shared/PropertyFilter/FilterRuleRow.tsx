@@ -146,10 +146,10 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               </button>
             </InlineSelector>
           ) : (
-            <span className={`text-base ${C.text40} px-1.5`}>絞込</span>
+            <span className={`text-base ${C.text60} px-1.5`}>絞込</span>
           )
         ) : (
-          <span className={`text-base ${C.text40} px-1.5`}>{logicLabel}</span>
+          <span className={`text-base ${C.text60} px-1.5`}>{logicLabel}</span>
         )}
       </div>
 
@@ -161,7 +161,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       {/* Condition column — hidden for date-range (always "期間内");
           EMR-245: text は contains 固定のため静的ラベルのみ */}
       {isDateRange ? null : isText ? (
-        <span className={`text-base ${C.text40} px-2 whitespace-nowrap`}>含む</span>
+        <span className={`text-base ${C.text60} px-2 whitespace-nowrap`}>含む</span>
       ) : (
         <InlineSelector label={currentConditionLabel || "条件"} popoverWidth="w-[140px]">
           {conditionOptions.map((opt) => (
