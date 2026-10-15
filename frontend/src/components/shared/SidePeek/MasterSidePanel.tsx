@@ -29,6 +29,8 @@ interface MasterSidePanelProps {
   isDirty?: boolean;
   /** BUG-158: true の場合、保存・削除ボタンを非表示にし、閲覧モードで表示 */
   readOnly?: boolean;
+  /** EMR-411: list+panel workspace 内では true を渡し、<1280px で overlay にする */
+  tabletOverlay?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -49,6 +51,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
   titleDescription = FIELD_DESCRIPTIONS.title,
   isDirty = false,
   readOnly = false,
+  tabletOverlay = false,
   className,
   children,
 }: MasterSidePanelProps) {
@@ -136,6 +139,7 @@ export const MasterSidePanel = memo(function MasterSidePanel({
       className={className}
       onKeyDown={handleKeyDown}
       ariaLabel={isNew ? "新規登録" : "編集"}
+      tabletOverlay={tabletOverlay}
     >
       <NavigationBlocker
         when={isDirty}

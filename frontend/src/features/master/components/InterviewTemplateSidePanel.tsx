@@ -85,6 +85,7 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.title}
       onTitleChange={handleTitleChange}

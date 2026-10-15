@@ -192,3 +192,26 @@ describe("Pagination wrapping (EMR-411 B20)", () => {
     );
   });
 });
+
+// EMR-411 追加: ページ操作の内側グループ（first/prev/番号/next/last）は狭幅パネル内で
+// 折り返せる必要がある（CampaignSidePanel の PropertyRow 内で ~200px しか取れない）。
+// ページ番号算出ロジック・外側 justify-between 行割りは変更しない。
+describe("Pagination inner controls wrap (EMR-411)", () => {
+  it("内側コントロール群が flex-wrap を持つ", () => {
+    render(
+      <Pagination
+        currentPage={4}
+        totalPages={14}
+        totalCount={100}
+        startIndex={31}
+        endIndex={40}
+        onPageChange={noop}
+        onPrev={noop}
+        onNext={noop}
+      />,
+    );
+
+    const inner = screen.getByTestId("pagination-first").parentElement;
+    expect(inner).toHaveClass("flex", "flex-wrap", "items-center", "gap-1");
+  });
+});

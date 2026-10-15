@@ -91,6 +91,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

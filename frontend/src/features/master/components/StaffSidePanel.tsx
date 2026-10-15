@@ -141,6 +141,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={isNew}
       title={formData.name}
       onTitleChange={handleTitleChange}

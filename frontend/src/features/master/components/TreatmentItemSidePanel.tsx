@@ -137,6 +137,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

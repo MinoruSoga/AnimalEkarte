@@ -111,6 +111,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

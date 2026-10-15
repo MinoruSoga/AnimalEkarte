@@ -182,6 +182,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

@@ -145,6 +145,7 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={isNew}
       title={formData.name}
       onTitleChange={handleTitleChange}

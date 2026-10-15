@@ -433,3 +433,21 @@ describe("SpecialPeriodSection", () => {
     });
   });
 });
+
+// EMR-411 回帰: 特別期間セクションは master workspace ではなくスクロール可能な
+// 設定ページ内の通常セクション。tablet overlay opt-in は対象外のため、開いた
+// パネルは常に relative（in-flow）のままでなければならない。
+describe("SpecialPeriodSection panel positioning (EMR-411 regression)", () => {
+  it("新規登録で開くパネルは relative で max-xl overlay クラスを持たない", () => {
+    renderSection(<SpecialPeriodSection periods={[]} canCreate={true} canDelete={true} />);
+    fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
+
+    const panel = document.querySelector("[data-side-peek]");
+    expect(panel).not.toBeNull();
+    expect(panel).toHaveClass("relative");
+    expect(panel).not.toHaveClass("max-xl:absolute");
+    expect(panel).not.toHaveClass("max-xl:inset-y-0");
+    expect(panel).not.toHaveClass("max-xl:right-0");
+    expect(panel).not.toHaveClass("max-xl:z-20");
+  });
+});

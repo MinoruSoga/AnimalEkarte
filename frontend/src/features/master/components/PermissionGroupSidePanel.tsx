@@ -114,6 +114,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={isNew}
       title={formData.name}
       onTitleChange={handleNameChange}

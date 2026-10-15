@@ -78,6 +78,7 @@ export const OccupationSidePanel = memo(function OccupationSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

@@ -73,7 +73,7 @@ export const Pagination = memo(function Pagination({
         件
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         {/* First page */}
         <Button
           variant="ghost"

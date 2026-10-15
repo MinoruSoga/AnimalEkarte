@@ -78,6 +78,7 @@ export const ChiefComplaintSidePanel = memo(function ChiefComplaintSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

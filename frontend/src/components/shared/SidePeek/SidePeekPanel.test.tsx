@@ -11,7 +11,7 @@ import { SidePeekPanel } from "./SidePeekPanel";
  * （実際のオーバーレイ挙動はブラウザ検証待ち）
  */
 describe("SidePeekPanel responsive overlay contract (EMR-411 C-3)", () => {
-  it("LAYOUT.sidePeek.position / width トークンの全クラスをパネルに適用する", () => {
+  it("tabletOverlay 未指定（デフォルト）では常に relative で overlay しない", () => {
     const { container } = render(
       <SidePeekPanel>
         <div>panel body</div>
@@ -20,8 +20,21 @@ describe("SidePeekPanel responsive overlay contract (EMR-411 C-3)", () => {
 
     const panel = container.querySelector("[data-side-peek]");
     expect(panel).not.toBeNull();
+    // 非 workspace（セクション内など）でも仕様として in-flow を維持する既定値
+    expect(panel).toHaveClass("relative");
+    expect(panel).not.toHaveClass("max-xl:absolute");
+    expect(panel).toHaveClass("w-[520px]", "max-w-full", "shrink-0");
+  });
 
-    // max-xl で absolute overlay（下のリストの上に右寄せ）・xl 以上では通常 flex 配置
+  it("tabletOverlay=true で max-xl absolute overlay 契約を適用する", () => {
+    const { container } = render(
+      <SidePeekPanel tabletOverlay>
+        <div>panel body</div>
+      </SidePeekPanel>,
+    );
+
+    const panel = container.querySelector("[data-side-peek]");
+    expect(panel).not.toBeNull();
     expect(panel).toHaveClass(
       "relative",
       "max-xl:absolute",

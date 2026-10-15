@@ -7,6 +7,12 @@ interface SidePeekPanelProps {
   className?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   ariaLabel?: string;
+  /**
+   * EMR-411: true の場合、viewport <1280px でパネルを absolute overlay にする。
+   * workspace（list+panel flex 親が relative）でのみ成立する契約のため opt-in。
+   * セクション埋め込みなど非 workspace の利用は既定 false（in-flow）のまま。
+   */
+  tabletOverlay?: boolean;
 }
 
 export const SidePeekPanel = memo(function SidePeekPanel({
@@ -14,13 +20,14 @@ export const SidePeekPanel = memo(function SidePeekPanel({
   className,
   onKeyDown,
   ariaLabel,
+  tabletOverlay = false,
 }: SidePeekPanelProps) {
   return (
     <div
       data-side-peek
       role={ariaLabel ? "dialog" : undefined}
       aria-label={ariaLabel}
-      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${LAYOUT.sidePeek.position} ${className ?? ""}`}
+      className={`${STYLE.sidePeekPanel} ${LAYOUT.sidePeek.width} shrink-0 ${tabletOverlay ? LAYOUT.sidePeek.position : "relative"} ${className ?? ""}`}
       onKeyDown={onKeyDown}
     >
       {children}
