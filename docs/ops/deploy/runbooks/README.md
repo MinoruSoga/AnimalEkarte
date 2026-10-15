@@ -16,6 +16,7 @@
 | [BREAK-HOURS-SHAPE-AUDIT.md](BREAK-HOURS-SHAPE-AUDIT.md) | `line_reservation_settings.break_hours` 形状監査（本番デプロイ前ゲート・使い切り） | 本番デプロイ前の監査 SQL 実行時 |
 | [EMR-321_HOTEL_RESERVATION.md](EMR-321_HOTEL_RESERVATION.md) | ホテル予約区分・ケージ選択の医院別手動確認 | EMR-321 対象医院の手動確認時 |
 | [LSTEP_WRITE_API_PAUSE.md](LSTEP_WRITE_API_PAUSE.md) | Lステップ Write API 一時停止（deploy gate + clinic gate の二重 gate） | Write 再有効化の判断時 |
+| [LINE_RESERVATION_CLOSED_WEEKDAYS_RECOVERY.md](LINE_RESERVATION_CLOSED_WEEKDAYS_RECOVERY.md) | `line_reservation_settings.closed_weekdays` 破損時の認証付き API による休診曜日復旧 | closed_weekdays 破損で管理 UI 保存不能・LIFF 予約 fail-closed 発生時 |
 
 ## 運用ルール
 
