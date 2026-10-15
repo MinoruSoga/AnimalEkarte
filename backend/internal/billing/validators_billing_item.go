@@ -17,7 +17,8 @@ func validateItemCategory(v string) error {
 		model.ItemCategorySurgery, model.ItemCategoryMedicine, model.ItemCategoryFood,
 		model.ItemCategoryGoods, model.ItemCategoryOther,
 		model.ItemCategoryVaccine, model.ItemCategoryTrimming, model.ItemCategoryHotel,
-		model.ItemCategoryTraining:
+		model.ItemCategoryTraining,
+		model.ItemCategoryHouseCall:
 		return nil
 	default:
 		return apperrors.WrapInvalidInput(fmt.Sprintf("明細カテゴリの値が不正です: %s", v))

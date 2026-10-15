@@ -364,7 +364,7 @@ var SharedTestSchemaEnumTypes = []EnumType{
 	{"medical_image_type", "CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other')"},
 	{"estimate_status", "CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected')"},
 	{"confirmation_status", "CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned')"},
-	{"item_category", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training')"},
+	{"item_category", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training', 'house_call')"},
 	// G12-2: 'trimming' was missing — billing_item_repository.go:271 persists
 	// Source: model.ItemSourceTrimming, so its integration path was untestable under this schema.
 	{"item_source", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization', 'trimming')"},

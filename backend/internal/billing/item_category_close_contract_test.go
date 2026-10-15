@@ -114,6 +114,7 @@ func TestCloseCategoryContract(t *testing.T) {
 			model.ItemCategoryTrimming,
 			model.ItemCategoryHotel,
 			model.ItemCategoryTraining,
+			model.ItemCategory("house_call"),
 		}
 
 		got := model.AllItemCategories()
