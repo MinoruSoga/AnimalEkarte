@@ -67,3 +67,7 @@ D18の飼主側操作は[別app37](../screens/37-line-reserve-owner-flow.md)、D
 ## 全域の最終同期
 
 [全体の有限完了確認](SPECIFICATION_PROGRESS.md#all-domain-closure-20261015)に、領域別確認の範囲と最後のD06終了条件・旧親確定制限の同期を記録した。D06は[実担当と記録済み施術内容](trimming/lifecycle.md#trimming-end-recorded-performance)を終了時に確認し、コースなしの既存オプション明細を認める。担当／コース未定の途中保存は維持。最新差分の独立内容・構造レビューは重大指摘0で文書範囲の整理を完了。公開一致は反映記録で確認し、実装状態や全過去承認証跡の網羅とは分ける。
+
+## D06の後続合意：実施なし中止
+
+[D06実施なし中止](trimming/lifecycle.md#requirement-fr-trimming-zero-performance-abort)を通常終了条件とは別に接続する。中止理由・実施なしとスタッフの請求判断を保持し、請求ありはD10へ、請求なしは当該中止の新規請求なしで閉じる。D02表示とD10の既存金銭・他診療費の保護を併読する。今回の追加は全業務共同確認完了や実装済みの宣言ではない。

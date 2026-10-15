@@ -367,3 +367,9 @@ stateDiagram-v2
 | PATCH | `/api/v1/reservations/:id` | 予約・受付ステータスの更新 | `reservations` | `edit` |
 | GET | `/api/v1/masters/staffs` | 担当医フィルター用スタッフマスタ取得 | `master-staff` | `view` |
 
+## トリミング開始後・実施なし中止の表示
+
+[D06の実施なし中止](../../trimming/lifecycle.md#requirement-fr-trimming-zero-performance-abort)に従い、請求ありは同じ予約を会計待ちへ進める。請求なしは中止結果を識別し、診療中の未完了として残し続けない。施術完了・会計済み・入金済みへの読み替えは行わず、理由と元専用記録を確認できるようにする。
+
+別診療や既存請求の会計／回収が残る場合、その対象や導線を中止表示によって失わせない。D06の専用中止結果を表示し、通常の開始Undo・逆方向ドラッグや任意status変更を新たに許可しない。列・表示の具体方式は既存状態と中止結果を識別できる設計とし、この追記で新enumや固定列を確定しない。
+

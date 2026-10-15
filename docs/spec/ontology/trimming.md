@@ -26,3 +26,7 @@
 
 - 未定の途中保存: [最新第5項合意](../domains/trimming/lifecycle.md#trimming-partial-save-undecided)により担当だけ・コースだけ・両方未定でも記録を保存し、同じ記録で入力を続けること。取得失敗／未取得とは別。終了時は[追加承認](../domains/trimming/lifecycle.md#trimming-end-recorded-performance)の実担当・記録済み施術内容を別に確認する。
 - 理由付き専用訂正: 完了後の原記録を保持し、理由と変更履歴を関連づける操作。自動返金・在庫巻戻しを含まない。
+
+## 実施なし中止と請求判断
+
+[実施なし中止](../domains/trimming/lifecycle.md#requirement-fr-trimming-zero-performance-abort)は、開始後に施術実績がないまま中止理由を残して閉じる業務結果。予定コースの有無と実施有無を分け、通常の施術完了・開始取消・記録削除と同一視しない。請求あり／なしは今回の中止料等についてのスタッフ判断であり、既存請求・預り金・他診療費の消去／免除を意味しない。中止料等は未実施コースを施術済みとして作る明細ではない。

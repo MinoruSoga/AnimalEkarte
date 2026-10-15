@@ -148,8 +148,9 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | FR-trimming-billing-handoff | AC-trimming-billing-pull / AC-trimming-price-adjustment-save / AC-trimming-price-handoff-before-import / AC-trimming-price-no-double-discount / AC-trimming-price-master-unchanged / AC-trimming-price-imported-preserved / AC-trimming-price-finalized-preserved / AC-trimming-price-unknown-scope / AC-trimming-price-undecided-preserved / AC-trimming-price-zero-line-retained | 未請求pull／施術調整の保存とscope／二重適用防止／追加時snapshot・D10計算と訂正境界 |
 | FR-trimming-delete-and-atomicity | AC-trimming-atomic-write / AC-trimming-delete-dependency | 依存検査・detail/options同一tx・監査 |
 | FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
+| FR-trimming-zero-performance-abort | AC-trimming-zero-abort-record / AC-trimming-zero-abort-charge / AC-trimming-zero-abort-no-charge / AC-trimming-zero-abort-existing-money / AC-trimming-zero-abort-performed-excluded / AC-trimming-zero-abort-failure | 実施なし・中止理由／スタッフ請求判断・通常終了との分離／既存金銭・他診療保護／同一対象・版・結果照合 |
 
-AC prefixはAC-trimming-。FR7件／AC47件（既存42件＋終了条件5件）と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。今回差分は統合時に検査する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。FR8件／AC53件（既存47件＋実施なし中止6件）と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。実施なし中止の後続差分は新基準headへ統合し、独立内容・構造レビューで重大指摘0、8FR／53ACの技術trace一致を確認した。公開先本文一致は別途確認する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界
@@ -161,3 +162,11 @@ AC prefixはAC-trimming-。FR7件／AC47件（既存42件＋終了条件5件）�
 ## 一般更新の同時編集契約（選定仕様）
 
 元表示版と保存時の現在版を比較し、不一致なら現在の原記録を変更せず競合を返す。入力を保持し、再取得した現値と差分を表示してスタッフの再確認を受ける。期待版だけを新版へ置換して無警告再送しない。明確拒否と結果不明を区別し、結果不明は元医院・対象ID・同一操作識別／内容で照合する。別操作IDや別createで救済しない。既存一般PATCH/UPDATEの期待版・永続receipt対応は実装差であり、この選定動作の実装済みを意味しない。
+
+## 開始後・実施なし中止の接続
+
+[実施なし中止の業務正本](../../../spec/domains/trimming/lifecycle.md#requirement-fr-trimming-zero-performance-abort)を通常終了と区別して接続する。同じ医院・患者・予約IDと期待版、型付き専用記録参照と期待版、認可、実施内容、元請求等の関連を照合する。予定コースの存在だけでは実施ありとせず、実施済み内容がある対象は実施なし中止に通さない。取得失敗・不明を実施ゼロへ補完しない。
+
+中止理由・実施なし・請求選択と操作履歴を中止結果へ対応付ける。請求ありの個別金額はD10へ中止料金として引き継ぎ、同じ料金を再送・再取込で複製しない。請求なしは今回の中止に由来する新規請求を生成しない。既存請求・未収・預り金・別診療料金の処理を伴わせない。通常の施術終了条件、確定会計履歴の保護は維持する。
+
+予約・専用記録・料金引継ぎの結果を既存の操作結果／版保護で整合させ、片成功を全体成功と表示しない。失敗・競合は入力保持と再照合、結果不明は元操作照会を行い、別予約・架空明細・開始Undoで救済しない。具体的な状態enum、API、料金項目の保存形式はこの業務合意だけで既存実装済みとせず、実装時に適合を確認する。
