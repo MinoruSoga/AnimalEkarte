@@ -253,13 +253,16 @@ describe("HolidaySection", () => {
     fireEvent.click(screen.getByRole("button", { name: "新規登録" }));
 
     const dateInput = screen.getByRole("textbox", { name: "日付" });
-    fireEvent.invalid(dateInput);
+    const invalidEvent = new Event("invalid", { cancelable: true, bubbles: false });
+    fireEvent(dateInput, invalidEvent);
+    expect(invalidEvent.defaultPrevented).toBe(true);
 
     expect(dateInput).toHaveAttribute("aria-invalid", "true");
     expect(dateInput).toHaveAttribute("aria-describedby", "holiday-date-error");
     expect(document.getElementById("holiday-date-error")).toHaveTextContent(
       "日付を入力してください",
     );
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled();
 
     const user = userEvent.setup();
     await user.type(dateInput, "2026/10/10");
@@ -267,5 +270,14 @@ describe("HolidaySection", () => {
 
     expect(dateInput).not.toHaveAttribute("aria-invalid");
     expect(document.getElementById("holiday-date-error")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "追加" }));
+    await waitFor(() => {
+      expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith({
+      date: "2026-10-10",
+      reason: undefined,
+    });
   });
 });

@@ -139,7 +139,10 @@ export const HolidaySection = memo(function HolidaySection({
                   setDate(v);
                   setDateInvalid(false);
                 }}
-                onInvalid={() => setDateInvalid(true)}
+                onInvalid={(event) => {
+                  event.preventDefault();
+                  setDateInvalid(true);
+                }}
                 ariaInvalid={dateInvalid}
                 ariaDescribedBy={dateInvalid ? "holiday-date-error" : undefined}
               />
