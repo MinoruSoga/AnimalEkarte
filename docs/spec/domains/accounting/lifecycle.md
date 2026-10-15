@@ -274,7 +274,7 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 
 [会計確定歴による通常Undo停止](../../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)を維持する。未納・部分入金・0円でも会計確定歴があれば通常Undo不可。返金・取消・削除後も確定歴を消さない。未保存入力は会計確定ではない。複数ペットをまとめても、正確な予約／記録との対応を失わない。
 
-[カルテ保存正本§2](../medical-records/lifecycle.md#hybrid-sync)は変更しない。カルテ訂正・過去入力・復元から請求・返金・在庫を自動巻戻ししない。金銭処理の成否は会計側で確認し、カルテ保存成功や画面遷移で代用しない。
+[カルテ保存正本§2](../medical-records/lifecycle.md#hybrid-sync)と[最新の通常編集・自動保存／復元](../medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)へ従う。カルテ訂正・過去入力・復元から請求・返金・在庫を自動巻戻ししない。金銭処理の成否は会計側で確認し、カルテ保存成功や画面遷移で代用しない。
 
 再送・競合・結果不明・監査の技術案は[保存契約](../../../design/domains/accounting/technical-spec.md#accounting-operation-contract)を参照。未決の配分・計算条件に依存する操作は推測で実行できる仕様にしない。
 
@@ -285,6 +285,10 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 
 | 条件ID | 前提／操作 | 期待結果 | 要件／確認手順・証跡 |
 |:---|:---|:---|:---|
+| AC-accounting-trimming-adjustment-once |施術側に料金手修正と明細値引きの保存版がある／選択明細を会計へ取り込む| 元ID／版・元価格・調整／値引き根拠を保持しD10の既決計算を一度だけ適用。値引き後単価へ同じ値引きを再適用しない | [FR](#requirement-fr-accounting-calculation-snapshot)・[連携](#accounting-trimming-adjustment-handoff) |
+| AC-accounting-trimming-zero-line |施術の実在未請求明細が調整後0円／候補取得／会計へ選択| master価格>0だけで除外せず実明細と無料理由を保持。空請求で代用しない | [FR](#requirement-fr-accounting-owner-selected-charges)・[連携](#accounting-trimming-adjustment-handoff) |
+| AC-accounting-trimming-source-refresh |会計追加後に元施術の価格／値引きが変更／差分確認／明示再適用| 未確定会計の選択対象だけ現在版を再照合して適用。他手修正を無断上書きせず、確定済み請求は既決訂正経路へ。結果不明は照合 | [FR](#requirement-fr-accounting-calculation-snapshot)・[連携](#accounting-trimming-adjustment-handoff) |
+| AC-accounting-record-edit-no-money-undo |記録の通常編集／タブクリア／履歴複製Undo／記録側の保存／復元が成功| 会計確定歴・請求／実受領・預り・帳票を保持し自動逆実行しない。記録の通常編集許可を会計通常Undo許可に変換しない | [FR](#requirement-fr-accounting-reasoned-financial-correction)・[連携](#accounting-trimming-adjustment-handoff) |
 | AC-accounting-owner-multi-pet | 同一飼主の2ペットの明細を選択し会計 | 合算可能。各行の元ペット・記録情報を保持 | [FR](#requirement-fr-accounting-owner-selected-charges)。合計と行の帰属を照合、実機未実施 |
 | AC-accounting-selected-unbilled | 当日分と過去未請求分の一部を選択 | 選択分だけ合算し、未選択分を勝手に請求しない | [FR](#requirement-fr-accounting-owner-selected-charges)。選択前後と元明細を照合 |
 | AC-accounting-old-bill-collection | 過去の確定請求10,000円から2,000円だけ回収 | 入金を元請求へ記録し残額8,000円。請求を作り直さない | [FR](#requirement-fr-accounting-owner-selected-charges)。請求ID・入金・残額を照合 |
@@ -450,3 +454,15 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 
 [領域入口](README.md)・[予約／受付との横断正本](../../workflows/reservation-to-record-flow.md)・[カルテ保存正本](../medical-records/lifecycle.md#hybrid-sync)を維持。保険会社への請求・入金照合・査定差額管理は第七群の対象外。保険オンライン請求の既存の着手しない判断と外部機器の未実装は[画面の既存記載](pages/accounting-settlement.md#decisions-evidence)を参照。
 
+
+
+<a id="accounting-trimming-adjustment-handoff"></a>
+### 施術側の料金・値引きとカルテ通常編集の受け手
+
+会議追加第3項（質問 Sentinel_9a29cd61be04819188b76ade8dddfafd、回答 Sentinel_e99d06bd6f0c8191b7bd18fd34d562f9「3 ok」）は、D06の施術画面で料金を手修正・値引きし、会計へ引き継ぐ条件。D06のコース／オプションの各明細をD10の既存明細scopeへ対応付け、独自の施術小計割引scopeを追加しない。会計全体値引きは会計側の明示対象・既決順序で扱う。元明細ID・施術ID／版・患者／元飼主・元価格／手修正値・値引条件と実適用額／結果を保持し、金額が0円でも実在する未請求明細を落とさない。無料理由・明細必須は既決第十群へ従う。
+
+施術側の値引き済み結果とその根拠を、会計で同じ値引きとしてもう一度適用しない。根拠からD10の既決計算で再現した結果を一度だけ使い、単に値引き後単価と元値引きを併用して二重控除しない。会計で意図して追加する別の値引きは別の操作・対象として識別する。過去のmaster価格を修正せず、施術の現在値で確定済み請求・帳票を自動再計算しない。
+
+取込前は確認した元施術の保存版から会計snapshotを作る。会計追加後に施術側が変更された場合は自動追従せず、元版・会計現在値・新しい元値の差分を示し、スタッフが対象を明示して再適用する。会計側手修正や別明細を無断で上書きしない。確定済み請求への変更は既決の訂正／取消・再請求経路に従う。元ID／版・割引根拠が不明、同時更新、既請求明細、受渡し結果不明は推測再取込せず現在結果を照合する。
+
+D03の診療終了後の通常編集、自動保存、タブクリア／履歴複製Undoは、会計確定歴・元金銭履歴・受領／配分・預り残高の保護を解除しない。記録復元の成功だけで請求訂正・入金取消・返金・預り復元・実在庫戻しを実行せず、それぞれのownerで明示された別操作とする。診療終了は記録の医師確定や請求／入金の確定と別。未納・部分入金・0円の会計確定歴による通常終了Undo停止も維持する。

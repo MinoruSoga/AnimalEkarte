@@ -26,7 +26,7 @@
 |:---|:---|:---|:---|
 | D01 | [予約](reservations/README.md) | [技術契約](../../design/domains/reservations/technical-spec.md) | 通常予約・ホテル／入院・施術の分類、予定枠・指名・受付／取消・同一操作結果 |
 | D02 | [受付・来院](reception/README.md) | [技術契約](../../design/domains/reception/technical-spec.md) | 来院受付・再受付・準備／読込／開始と通常記録の同時成功 |
-| D03 | [通常カルテ](medical-records/README.md) | [技術契約](../../design/domains/medical-records/technical-spec.md) | 保存§2・確認医師・確定／追記・特別訂正・子記録・臨床master |
+| D03 | [通常カルテ](medical-records/README.md) | [技術契約](../../design/domains/medical-records/technical-spec.md) | 保存§2・目的別医師確認・終了後通常編集・タブ開始時クリア／履歴複製取消・終了時警告・終了履歴・保存版／追記保持・子記録・臨床master |
 | D04 | [飼主・ペット台帳](owners-pets/lifecycle.md) | [技術契約](../../design/domains/owners-pets/technical-spec.md) | 主副飼主・患者ID、検索・同時登録・所有変更と過去帰属／危険情報保護 |
 | D05 | [入院・ホテル](hospitalization/lifecycle.md) | [技術契約](../../design/domains/hospitalization/technical-spec.md) | 滞在／予定実績・担当・ケージ／頭数／延泊、個別料金・退院会計・原本保持訂正 |
 | D06 | [トリミング](trimming/lifecycle.md) | [技術契約](../../design/domains/trimming/technical-spec.md) | 施術と予約・明細／コース／画像・担当・完了／訂正・会計受渡し |
@@ -52,3 +52,11 @@ D18の飼主側操作は[別app37](../screens/37-line-reserve-owner-flow.md)、D
 
 
 後続の6点（LINE開始時刻・指名なし・健診次回日・過去接種の当時次回日・トリミング途中保存・停止支払方法）は[承認と文書候補の状態](SPECIFICATION_PROGRESS.md#additional-business-decisions-six-followup)で管理する。通常診療の営業時間からの生成・トリミングの登録時刻限定と、変更可能・担当者別設定の追加回答を含み、未承認の枠数等は補わない。
+
+## 2026-10-15会議合意の接続：shifts-8
+
+期間・スタッフによる勤務複製とExcel作成CSV取込、差分・エラー・予約影響確認を[シフト正本](../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)へ接続。templateと勤務を分離し、既存勤務の無断上書き禁止と未来・現在診療中の既指名予約保護を維持。
+
+## 2026-10-15会議4点の追加整理
+
+[D03最新通常編集・自動保存](medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、[D02開始／終了導線](reception/pages/reception-board.md#reception-meeting-start-end)、[D06施術・料金](trimming/lifecycle.md)、[D14複製／CSV](../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)の文書差分を統合・独立レビュー済み。D07〜09、D10／11／13、D20／21の別状態・履歴・副作用保護も照合した。今回合意の文書反映と全過去業務承認の網羅を区別し、現在の状態は[全体進捗](SPECIFICATION_PROGRESS.md)へ。

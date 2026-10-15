@@ -16,7 +16,7 @@
 |---|---|---|
 | D01 予約 | appointment ID／版、操作intent／キー、business_class、指名と実担当、予約とtentativeを分離。JST時刻や氏名でIDを代替しない | [閉じた操作契約](../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)の同scope同key／fingerprint、成功結果と現在状態、warning_changed／版競合。未確認結果に別key作成なし |
 | D02 受付 | 予約ID単位のカード、専用owner/kind/id/revision、表示列と実status、本人browser非表示を区別 | [snapshot](../../design/domains/reception/technical-spec.md#reception-read-scope)は全件性・total一致を確認。[操作](../../design/domains/reception/technical-spec.md#reception-operation-contract)はprepare→read→start、結果不明は元context照合。更新失敗を0件とせず古いsnapshotからwriteしない |
-| D03 通常カルテ | record／患者／子ID・固定結果版、確認医師と編集actor、項目実施状態とカルテ確定を分離 | [実型・全writer](../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)。保存§2の個別送信、成功対象のみdirty解除、GET初期化もwriter、未送信/null/clearは型別 |
+| D03 通常カルテ | record／患者／子ID・固定結果版、確認医師と編集actor、項目実施状態・自動保存・診療終了と履歴付き通常編集を分離 | [実型・全writer](../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)。保存§2の個別送信、成功対象のみdirty解除、GET初期化もwriter、未送信/null/clearは型別 |
 | D04 台帳 | owner／petと主飼主／副飼主、D19group・D20LINE linkは別。主飼主移管と過去資金移管は別 | [登録scope](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-register-scope)は新規飼主＋複数pet同時成功。副飼主は[全置換・版](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-secondary)。予約の段階患者登録とは異なる保存単位。結果不明のメール／電話一致をreceiptにしない |
 | D05 入院・ホテル | stay・hospitalization・通常record・日次record・care item・billingを分離。同一宿泊を二重計数しない | [開始](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-entry-and-start)、[ケージ期待割当](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-cage-allocation)、[退院](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)。日次三入力は独立、交換は両側同時、退院会計は状態と明細同時成功。取得不明を空きにしない |
 | D06 トリミング | appointmentと専用detail一件、course/type/option、予約価格と請求snapshotを分離 | [予約detail](../domains/trimming/lifecycle.md#requirement-fr-trimming-reservation-and-detail)は既存を再利用。[画像](../domains/trimming/lifecycle.md#requirement-fr-trimming-image-lifecycle)はupload成功keyとrecord保存別、送信済key保護。[atomicity](../domains/trimming/lifecycle.md#requirement-fr-trimming-delete-and-atomicity)は予約/detail/options／必要監査 |
@@ -34,7 +34,7 @@
 | D18 LINE予約 | LINE customer／本人owner・pet、設定公開／枠／確定予約、医師指名とホテル条件を分離 | [保存再判定](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-confirm-recheck)・[入力保持](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-input-retention)・[設定write](../screens/28-line-reservation.md#line-settings-write-contract)。空き表示だけで成功にせず、設定保存結果と実チャネル稼働を別にする |
 | D19 identity | group ID／member逆引き、親owner group／pet group、関係と台帳mergeを分離 | [関係](../screens/40-identity-links.md#requirement-fr-identity-manual-relation)と[逆引き](../screens/40-identity-links.md#requirement-fr-identity-member-group-resolution)。同集合createは同groupへ、残一名維持／零名groupのみ削除。unlink NotFoundだけで初回失敗としない |
 | D20 健康表示 | 本人LINE認証／単回link token／owner、保存接種・親draftと限定投影を分離 | [単回link](../screens/38-liff-pet-health.md#requirement-fr-liff-health-single-use-link)・[同時成功](../screens/38-liff-pet-health.md#requirement-fr-liff-health-atomic-link)・[公開事実](../screens/38-liff-pet-health.md#requirement-fr-liff-health-published-facts)。使用済tokenは初回失敗の証明でなく、連携状態照会へ |
-| D21 院内レポート | 1頭contextと飼主、page grantとsection grant、finalized診療と他履歴、raw件数と可視件数を分離 | [1頭](../screens/39-owner-report.md#requirement-fr-owner-report-single-pet-context)、[部分取得](../screens/39-owner-report.md#requirement-fr-owner-report-partial-data)、[閲覧のみ](../screens/39-owner-report.md#requirement-fr-owner-report-read-only)。範囲外petは正規同居petへ、0頭は専用表示。印刷・共有機能を新設しない |
+| D21 院内レポート | 1頭contextと飼主、page grantとsection grant、診療終了した通常カルテと他履歴、raw件数と可視件数を分離 | [1頭](../screens/39-owner-report.md#requirement-fr-owner-report-single-pet-context)、[部分取得](../screens/39-owner-report.md#requirement-fr-owner-report-partial-data)、[閲覧のみ](../screens/39-owner-report.md#requirement-fr-owner-report-read-only)。範囲外petは正規同居petへ、0頭は専用表示。印刷・共有機能を新設しない |
 | D22 manual | 静的記事／DB override／公開版／過去版、製品記事と仕様管理文書を分離 | [公開](../domains/internal-manual/README.md#requirement-fr-internal-manual-publication)・[版保持](../domains/internal-manual/README.md#requirement-fr-internal-manual-version-retention)。保存失敗は公開成功にしない、旧版復元は新しい版、override削除と追加記事非表示を区別 |
 | D23 support | 共有ROOM表示単位と永続session、共有READ／報告医院mutation／本人history、院内報告と外部issueを分離 | [共有](../domains/support/README.md#requirement-fr-support-shared-read)・[mutation](../domains/support/README.md#requirement-fr-support-report-mutation)・[外部結果](../domains/support/README.md#requirement-fr-support-external-send)。本人history削除は共有元にも反映。storage先行削除後DB失敗を完了にせず再照会 |
 
@@ -61,7 +61,7 @@
 | D18 | [本人scope](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-auth-scope)、[取消](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-cancel-boundary)、[通知](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-notification-boundary) | 同医院本人owner/pet・死亡を再照合、院内警告overrideをLINEへ適用しない。通知失敗で予約再作成なし。設定／公開保存と外部enableは別 |
 | D19 | [scope](../screens/40-identity-links.md#requirement-fr-identity-authorized-scope)、[必要監査](../screens/40-identity-links.md#requirement-fr-identity-audit-atomicity) | hidden/他医院混在は全体拒否、監査失敗rollback。監査はIDのみ・氏名電話なし。unlinkで元台帳・臨床履歴・元資金を削除／移管しない |
 | D20 | [限定項目](../screens/38-liff-pet-health.md#requirement-fr-liff-health-limited-fields)、[公開事実](../screens/38-liff-pet-health.md#requirement-fr-liff-health-published-facts) | 保存済み接種の限定表示と親draft条件は最新承認。接種単体finalizedを新設せず、診断・処方・検査全面公開なし。死亡status OR deceased_at除外。本人認証にstaff grantを代用しない |
-| D21 | [履歴意味](../screens/39-owner-report.md#requirement-fr-owner-report-history-meaning)、[section認可](../screens/39-owner-report.md#requirement-fr-owner-report-page-section-auth) | finalized診療のみ、取得上限・部分失敗を明示。スタッフ閲覧限定で印刷／共有なし。D20公開条件をこの画面の認可へ流用しない |
+| D21 | [履歴意味](../screens/39-owner-report.md#requirement-fr-owner-report-history-meaning)、[section認可](../screens/39-owner-report.md#requirement-fr-owner-report-page-section-auth) | 実効的な診療終了結果に対応する通常カルテを対象とし、診療中の途中保存は除外。取得上限・部分失敗を明示。スタッフ閲覧限定で印刷／共有なし。D20公開条件をこの画面の認可へ流用しない |
 | D22 | [履歴・復元](../domains/internal-manual/README.md#requirement-fr-internal-manual-version-retention)、[公開](../domains/internal-manual/README.md#requirement-fr-internal-manual-publication) | 旧版保持・復元は新しい版、一般スタッフREADと編集権限別。未保存／未公開案を全スタッフへ出さず、記事を患者原記録の新保管場所としない |
 | D23 | [医院mutation](../domains/support/README.md#requirement-fr-support-report-mutation)、[外部送信](../domains/support/README.md#requirement-fr-support-external-send) | 共有READを他医院mutation許可へ拡張しない。本人history削除範囲と共有元への反映を説明し、外部コピー削除を保証しない。送信前確認と院内保持を現通知先行実装から区別 |
 
@@ -93,3 +93,19 @@ D04の[連絡先重複](../domains/owners-pets/lifecycle.md#requirement-fr-owner
 ### 後続第1・2・6項の接続
 
 D01／D18の[分類別・担当者別開始時刻](../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)は、通常診療の営業時間生成とトリミング登録時刻限定を分離し、時刻変更・担当者別設定・既存予約保護を扱う。[指名なし](../line/reservation-spec.md#line-no-nomination-unassigned)は担当者別設定と既存能力制約で判定しても実担当未定を保持し、仮候補を保存・表示・通知上の実担当にしない。D10の[停止支払方法](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)は新受領のみを制限し、D12／D16の過去支払履歴・集計を保持する。旧資金の再配分・預り充当／解除・返金へ新受領gateを一律適用しない。各ownerのID・版・認可・保存／結果照会と接続し、全過去業務承認や実装適合の網羅確認を表さない。文書候補の状態は[全体進捗](../domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-six-followup)へ。
+
+## 2026-10-15会議合意の接続：trimming-4
+
+D06は型付き施術record ref＋同じappointment ID／版を保持し、開始後はD02診療中列、専用画面終了は同じ予約の会計待ちへ。会計待ちから既存記録を開き、リンク不明はowner確認で停止、推測・架空予約なし。終了receiptと記録保存／請求・入金は分離する。コース／option料金の手修正・行値引きをD10へpullし、元値・調整値・対象scope／版・計算根拠を保持。0円実在行を落とさず、二重適用・master／確定請求の自動上書きなし。追加後は差分確認・明示再適用、確定後は既決訂正へ。
+
+## 2026-10-15会議合意の接続：shifts-3
+
+D14の複製／CSV入力は[新操作の意味契約](../../design/domains/staff-workforce/technical-spec.md#shift-bulk-operation-contract)へ。元／先の医院・スタッフ・期間・勤務ID／旧値、確認差分、現在権限・期待版・保護予約を拘束する。勤務／休憩と必要履歴・監査は一回に確認して確定する範囲全体で原子的に保存し、結果不明は元操作照会、部分結果は対象別に保持する。明示選択した置換だけを対象とし、エラー／未解決衝突は確認範囲全体を止める。範囲選び直しは再プレビュー・再確認とし、自動部分採用・無断上書き・同一効果の再実行を許可しない。CSV形式・一貫性制御・照会wire等の具体設計と実装適合は別工程。
+
+## 2026-10-15の通常編集と復元操作の受け手
+
+[D03](../domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)のタブクリア／複製取消は、現在医院・患者・対象タブ／記録・元操作と基準版・現在版を照合する履歴付き復元。既に保存済みの変更も対象になり、元版を消して戻さない。D07確定結果、D10資金・確定請求、D11見積原本、D13実物入出庫、D15送信済通知は逆実行しない。D08／D09現在版の更新、D20限定表示、D21終了履歴の各consumerは自身の認可・保存版を再取得して参照する。
+
+## 2026-10-15 D03復元snapshotの共通対応
+
+[最新D03技術](../../design/domains/medical-records/technical-spec.md#medical-record-autosave-revert-contract)のタブ開始snapshot／複製直前snapshot、元操作・成功subset・期待版・復元receiptを照合する。旧finalizedだけの通常編集拒否を置換し、元保存版・同ID・既存追記／監査を保持。別ownerの実行や他者版を無警告で巻き戻さず、保存§2の個別送信先と必須ログを維持する。

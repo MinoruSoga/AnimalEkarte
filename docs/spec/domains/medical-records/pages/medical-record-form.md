@@ -1,6 +1,22 @@
 # カルテ詳細・入力 仕様書 (Medical Record Form)
 
-[17:17合意の診療前日付訂正](../../reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction)では、未記入カルテは確認して予約日へ合わせ、記入済みなら通常の日付変更を停止して内容確認の訂正へ渡す。以下の作成後日付固定・直接PATCH拒否は現行実装／通常更新の参照で、この合意の未記入・診療前の確認付き訂正を実装済みとする根拠ではない。確定済みカルテの変更禁止・追記による訂正、保存ルーティング契約は維持する。
+<a id="medical-record-form-autosave-20261015"></a>
+## 最新の操作契約（2026-10-15）
+
+[通常編集・自動保存維持・タブクリア／複製取消・終了・履歴](../lifecycle.md#medical-record-agreement-autosave-20261015)が最新正本。医師確定ボタンを設けず、診療終了後も同じ通常カルテを編集できる。保存ボタン方式への変更は撤回され、従来のhybrid保存を維持する。以下のfinalizedロック・確定ダイアログは現実装の差分であり、現在の通常編集を制限する目標ではない。保存済み版・追記・必要監査、患者訂正や実施取消等の目的別保護は維持する。
+
+| 操作 | 基準・結果 | 保護・失敗 |
+|:---|:---|:---|
+| 入力・既存保存 | 保存§2の自動／即時保存・アクティブタブ保存を維持 | 成功／送信中／失敗／不明を分離。通常保存に医師確定を移植しない |
+| 入力内容クリア | 操作したタブを開いた時点へ戻す。最後の自動保存値を基準にしない | 他タブ不変。自動保存済みなら復元として保存・履歴を残す。他者版／後続作用は無警告で巻き戻さない |
+| 履歴複製の取消 | 対象複製の直前へ戻す | 逐次保存の成功分・失敗／不明を照合。元記録や対象外変更は不変 |
+| 診療終了 | 同じ予約を会計待ちへ。未実施／後日予定は終了時に警告し確認後終了可 | 記録・請求・入金確定なし。警告取消／取得不明は終了成功としない |
+| 会計待ちから開く | 同じ予約に明示リンクされた既存カルテを開く | 新規作成／複製／再開始なし。リンク不明は理由表示・再照合 |
+| スタッフ向け履歴 | 診療終了したカルテを対象に表示 | 診療中の途中保存を載せず、finalized／入金で代用しない |
+
+クリア／複製取消の表示は対象タブ又は複製操作・復帰基準を識別できるものとする。復元中／結果不明を取り消し済みと表示せず、再読込後も成功した復帰状態を確認する。欄自体の空欄化（例：主訴区分null）、既存明細の削除、予約終了Undo、返金・在庫戻しとは異なる。詳しい型・競合・履歴は[技術契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-autosave-revert-contract)へ。
+
+[17:17合意の診療前日付訂正](../../reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction)では、未記入カルテは確認して予約日へ合わせ、記入済みなら通常の日付変更を停止して内容確認の訂正へ渡す。以下の作成後日付固定・直接PATCH拒否は現行実装／通常更新の参照で、この合意の未記入・診療前の確認付き訂正を実装済みとする根拠ではない。保存ルーティング契約と予約訂正・履歴保護は維持する。通常カルテのfinalizedだけを理由とした編集禁止は[最新合意](../lifecycle.md#requirement-fr-medical-records-normal-edit-after-end)へ置換する。
 
 17:23 JSTの[LINE予約6点合意](../../../line/reservation-spec.md#line-agreement-1723)へ従う。公開された診療・トリミング・ホテルは予約対象、入院は医院相談。ホテルには医師指名・医師シフト・通常予約の同日制約を適用しない。受付制限・入力保持・受付前取消・必要設定不足の扱いと受入条件はLINE正本を参照する。ホテル受入基準は17:35合意の医院別同時宿泊頭数・全宿泊期間判定で、実装・実機受入は未確認。
 
@@ -9,7 +25,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.medical-records.medical-record-form／画面仕様 |
-| 決定状態 | 2026-10-14初回5項目は部分合意。最新の業務正本はlifecycle初回合意節。対象外の既存決定状態を保持し、カルテ全体完了／実装受入にしない |
+| 決定状態 | 2026-10-14初回5項目は部分合意。最新の業務正本はlifecycleの2026-10-15合意。初回合意の非変更部分は維持。対象外の既存決定状態を保持し、カルテ全体完了／実装受入にしない |
 | 実装状態 | 合意と現実装は別。main ec4f7146a の必要箇所を静的照合し、差分は予約正本の残差一覧へ記録。実装変更なし |
 | 実機検証状態 | 今回未実施。過去の記録と今回の文書確認を分ける |
 | 文書確認日 | 2026-10-14（合意・参照・語彙の確認。実機受入日ではない） |
@@ -32,7 +48,7 @@
 
 - **アクセス権限**: 新規作成 (`/medical-records/new`) は `medical-records:create` を要求する `RequirePermission` ルートガードあり。編集 (`/medical-records/:id`) は親ルート `/medical-records` の `medical-records:view` ガードのみを継承し、保存可否はコンポーネント内の `usePermission`（`ResourceMedicalRecords`）で制御。
 
-担当医以外の権限あるスタッフの入力、医院が認めた医師の確認・確定・訂正確認と実編集者ログは[初回合意](../lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)。実grantと医師判定の対応は要確認。操作前提の詳細は本書の各操作・保存契約と関連正本を参照する。
+担当医以外の権限あるスタッフの入力、医院が認めた医師の目的別確認・訂正確認と実編集者ログは[初回合意](../lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)。実grantと医師判定の対応は要確認。操作前提の詳細は本書の各操作・保存契約と関連正本を参照する。
 
 <a id="navigation"></a>
 ## 入口・出口
@@ -62,7 +78,7 @@
 | 担当医・来院種別・診療日 | 患者ヘッダーの記録属性 | 未記載／要確認 | 未記載／要確認 | 未記載／要確認 | 既存値、候補の詳細は要確認 | [画面保存操作](#22-保存プロセス) |
 | 次回予定 | 日付のみの未予約意図 | intended_date（日付） | 未記載／要確認 | 未記載／要確認 | 次回予定ボタン | [次回予定契約](../../../workflows/reservation-to-record-flow.md#next-visit-intent) |
 | 画像・資料 | 診療資料の添付 | JPEG／PNG／GIF／PDF | 未記載／要確認 | 未記載／要確認 | ファイル選択 | 下記「画像・資料の選択制限」 |
-| 訂正内容・訂正理由 | 確定後の追記 | 未記載／要確認 | 未記載／要確認 | 未記載／要確認 | 入力 | 下記「臨床安全ガード」（理由500文字以内） |
+| 訂正内容・訂正理由 | 既存追記／目的別訂正の入力。通常本文は終了後も通常編集可 | 未記載／要確認 | 未記載／要確認 | 未記載／要確認 | 入力 | 下記「臨床安全ガード」（理由500文字以内） |
 | 治療明細・投与逸脱理由 | 処置・処方の記録 | 未記載／要確認 | 逸脱理由は条件付き必須 | 未記載／要確認 | 医院マスタ・履歴複写 | 下記「臨床安全ガード」、処置マスタの節 |
 | 他タブの入力 | 予防接種・健診・検査・見積・会計確認 | 未記載／要確認 | 未記載／要確認 | 予防接種は種類別設定または手入力へ統一（具体間隔・初期値は追加確定しない）。健診はパッケージ設定候補または手入力、設定・保存済み日付・手入力日がなければ空欄。他は要確認 | 下記タブ表の関連仕様 | 独立画面・API定義を複製しない。詳細は既存関連仕様／要確認 |
 
@@ -115,8 +131,8 @@
 
 | 操作 | 実行条件 | 成功後状態／遷移 | 失敗挙動 | 根拠 |
 |:---|:---|:---|:---|:---|
-| 保存・確定・訂正 | 権限、保存済み、会計確認状態等 | 保存・finalized・addendum | 未確認状態は確定不可、失敗時挙動は各契約 | 下記「臨床安全ガード」、保存節 |
-| 履歴複写 | コピー可能行・編集ロック条件 | 問診ローカル変更／治療明細の個別保存 | 上書き確認の取消で現在値保持 | 下記「履歴複写」 |
+| 保存・クリア・複製取消・訂正 | 操作権限、対象医院／患者・版、目的別確認 | 保存・基準への復元・必要履歴 | 版競合／影響／結果不明は照合し成功を偽装しない | 最新操作契約・保存節 |
+| 履歴複写 | コピー可能行・操作権限／対象照合 | 問診ローカル変更／治療明細の個別保存、操作単位の取消が可能 | 上書き確認取消は現在値保持。複製取消は直前版を照合 | 下記「履歴複写」・最新操作契約 |
 
 ### 2. 主要な臨床ロジック
 
@@ -124,10 +140,10 @@
 
 #### 2.3 臨床安全ガード
 
-最新の[入力者・編集ログ](../lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)、[必須項目追加なし／未完了プラン警告](../lifecycle.md#requirement-fr-medical-records-explicit-finalize-plan-warning)、[削除・訂正](../lifecycle.md#requirement-fr-medical-records-empty-delete-reviewed-correction)、[評価不能時の医師確認・理由付き手入力](../lifecycle.md#requirement-fr-medical-records-unevaluable-dose-manual)は初回合意が正本。警告確認後は未完了でも確定可。以下のUI・API説明には現行実装参照を含み、合意へ追従済みではない。
+最新の[入力者・編集ログ](../lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)、[必須項目追加なし／未完了プラン警告](../lifecycle.md#requirement-fr-medical-records-explicit-finalize-plan-warning)、[削除・訂正](../lifecycle.md#requirement-fr-medical-records-empty-delete-reviewed-correction)、[評価不能時の医師確認・理由付き手入力](../lifecycle.md#requirement-fr-medical-records-unevaluable-dose-manual)は初回合意が正本。未完了警告は最新合意により自動保存時でなく診療終了時に表示し、確認後は終了可能。以下の確定UI・ロックAPI説明は旧実装参照で、最新合意への追従済みを表さない。
 
-- **確定ロック**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、会計(医師確認)が `confirmed` の場合だけ有効になる。未確認・差戻し・取得中・取得失敗・確認状態なしでは「会計確認が未完了です」として確定を物理ブロックする。有効時は `MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
-- **ロック中の画像タブ（EMR-216）**: `isLocked`（`recordFinalized || !canSubmit`）は `MedicalRecordServiceTabs` から `MedicalRecordImage` へ伝播し、ロック中は `canUpload`/`canDeleteImage` が false になる。「画像アップロード」「撮影」ボタンと file input を描画せず、ドラッグ&ドロップはドロップガイドを出さず `dropEffect=none` で拒否し、画像の削除ボタンも出さない。UI 非表示に加え callback（`handleFilesSelected`/`handleDrop`/`handleDeleteRequest`/`handleDeleteConfirm`）側でも fail-closed に拒否するため、ロック中の画像 mutation API 呼出はゼロ（外側の disabled fieldset は D&D イベントを遮断できないため、この二重防壁が必要）。画像一覧・画像リンクの閲覧は維持され、検索・期間フィルタ等のフォーム入力はタブ共通の disabled fieldset 配下で他タブと同一の境界規則に従う。ロック解除で全操作が復帰する。
+- **旧実装参照：確定ロック（最新の通常編集では置換）**: `finalized`（確定済）ステータスのカルテはバックエンドが更新を拒否し（409）、訂正は追記（addendum）のみ許可することで真正性を担保。確定への遷移は `PATCH /medical-records/:id` の `status` 指定によるもの。画面右下のフローティングアクション（`MedicalRecordFloatingActions`）に「確定する」ボタンが表示され（編集権限あり・保存済み・未確定の場合のみ）、会計(医師確認)が `confirmed` の場合だけ有効になる。未確認・差戻し・取得中・取得失敗・確認状態なしでは「会計確認が未完了です」として確定を物理ブロックする。有効時は `MedicalRecordFinalizeDialog` で不可逆であることを確認した上で確定する。確定取り消し（unfinalize）API は存在しないため、確定後の修正経路は訂正追記（addendum）のみ。会計完了時の自動確定は現状存在しない。確定済みカルテはサイドヘッダーに「確定済」バッジ（`StatusBadge`）を常時表示する。
+- **旧実装参照：ロック中の画像タブ（EMR-216）**: `isLocked`（`recordFinalized || !canSubmit`）は `MedicalRecordServiceTabs` から `MedicalRecordImage` へ伝播し、ロック中は `canUpload`/`canDeleteImage` が false になる。「画像アップロード」「撮影」ボタンと file input を描画せず、ドラッグ&ドロップはドロップガイドを出さず `dropEffect=none` で拒否し、画像の削除ボタンも出さない。UI 非表示に加え callback（`handleFilesSelected`/`handleDrop`/`handleDeleteRequest`/`handleDeleteConfirm`）側でも fail-closed に拒否するため、ロック中の画像 mutation API 呼出はゼロ（外側の disabled fieldset は D&D イベントを遮断できないため、この二重防壁が必要）。画像一覧・画像リンクの閲覧は維持され、検索・期間フィルタ等のフォーム入力はタブ共通の disabled fieldset 配下で他タブと同一の境界規則に従う。ロック解除で全操作が復帰する。
 - **訂正追記モーダル**: `AddendumModal` の修正内容・修正理由は controlled input。バリデーション失敗後も入力済みの値を保持する（React 19 `useActionState` の remount で消えない）。修正理由は 500 文字以内。
 - **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。上限内でも下限未満または推奨値からの著しい乖離は、インラインの逸脱理由（`dose_deviation_reason`、空白のみ不可・500文字以内）が必須。理由を snapshot と同一 transaction の監査へ保存し、actor・監査依存の欠落や監査失敗時は保存しない（`computeDoseGate` / `ensureDoseDeviationAuditReady` / `auditDoseDeviationTx`）。現行実装は体重未記録・species 正規化不能・投与量パラメータ未設定時に評価をスキップして保存を継続する参照で、最新合意の医師確認・理由・編集履歴を満たす証拠ではない。最新契約は評価不能を明示し医師確認・理由付き手入力を認める。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
 - **臨床承認の境界**: コード上のゲートと、対象薬・値・範囲・単位・出典を含む臨床承認は別。#201 の Closed は #261 への承認作業の集約であり、医師による臨床 bundle の承認完了を意味しない（[承認作業 #261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)）。
@@ -138,21 +154,21 @@
 <a id="medical-record-agreement-input-four"></a>
 ## 入力まわり4項目の合意（2026-10-14）
 
-質問 Sentinel_374bdacb47a0819180046f40e27a41dc と回答 Sentinel_6287d7cbcf988191aac47fbe504cfad1「ok／4 基本的にはチェックボックスとモーダルで実施済に切り替える」が根拠。1〜3の提案を承認、4は具体的操作指定を優先する。これは部分合意で、[初回5項目](../lifecycle.md#medical-record-agreement-first-five)・保存§2・予約／受付接続・編集ログ・医師確定・評価不能時手入力を保持し、実装／API／実機受入済みとしない。
+質問 Sentinel_374bdacb47a0819180046f40e27a41dc と回答 Sentinel_6287d7cbcf988191aac47fbe504cfad1「ok／4 基本的にはチェックボックスとモーダルで実施済に切り替える」が根拠。1〜3の提案を承認、4は具体的操作指定を優先する。これは部分合意で、[初回5項目](../lifecycle.md#medical-record-agreement-first-five)・保存§2・予約／受付接続・編集ログ・目的別医師確認・評価不能時手入力を保持し、実装／API／実機受入済みとしない。
 
 <a id="requirement-fr-medical-records-selective-history-copy"></a>
 ### 1. 選択した問診・治療明細の複写
 
 過去カルテから問診と治療明細を選んで複写できる。問診を上書きするときは確認し、取消なら現在入力を保持する。複写元は変更せず、問診は既存どおりローカル入力へ適用し問診保存で永続化する。治療明細は選択した項目だけを既存の個別保存へ渡し、今回の有効マスタの価格を用いる。元カルテの当時価格は元記録に保持する。
 
-無効なマスタや対応しない項目は知らせ、再選択してもらう。旧単価・無型／不一致項目を通知なしで新しい明細へそのまま保存するfallbackは採用しない。対象と現在の医院・患者・grant・確定状態、薬量評価／理由・確認を保存時にも検査する。
+無効なマスタや対応しない項目は知らせ、再選択してもらう。旧単価・無型／不一致項目を通知なしで新しい明細へそのまま保存するfallbackは採用しない。対象と現在の医院・患者・grant・版、薬量評価／理由・確認を保存時にも検査する。旧finalizedだけで通常編集を拒否しない。
 
-現行の治療複写は逐次POSTで、途中失敗時も成功済み行が残る。今回、全件同時成功・全体rollbackへ変更していない。成功済み／失敗／未送信の対象を区別して通知し、再試行で成功済みを重複作成しないよう照合する。結果不明を失敗確定にしない。UIの選択範囲と表示方式・再送方式は設計、全体atomic化は未承認のまま。下の旧履歴複写説明は現行実装参照で、無効／不一致fallback等は本合意へ未追従。
+現行の治療複写は逐次POSTで、途中失敗時も成功済み行が残る。今回、全件同時成功・全体rollbackへ変更していない。成功済み／失敗／未送信の対象を区別して通知し、再試行で成功済みを重複作成しないよう照合する。結果不明を失敗確定にしない。UIの選択範囲と表示方式・再送方式は設計、全体atomic化は未承認のまま。最新合意により[複製直前へ戻す取消](../lifecycle.md#requirement-fr-medical-records-history-copy-undo)を追加し、成功分・直前版・元複製operationを照合する。取消は複製元・他者変更・別ownerの実行を巻き戻さず復元履歴を残す。下の旧履歴複写説明は現行実装参照で、無効／不一致fallback等は本合意へ未追従。
 
 <a id="requirement-fr-medical-records-manual-template-insertion"></a>
 ### 2. 問診テンプレートの挿入・追記／置換
 
-カルテで登録済みテンプレートを手動選択し、問診欄へ挿入できる。基本は追記、置き換える場合だけ確認する。置換確認の取消は既存入力を保持する。適用した内容は問診の未保存入力として扱い、テンプレート選択だけでサーバー保存しない。問診の既存保存・離脱警告・編集権限・確定ロックを継承する。
+カルテで登録済みテンプレートを手動選択し、問診欄へ挿入できる。基本は追記、置き換える場合だけ確認する。置換確認の取消は既存入力を保持する。適用した内容は問診の未保存入力として扱い、テンプレート選択だけでサーバー保存しない。問診の既存保存・離脱警告・編集権限・保存履歴を継承し、旧finalizedだけで挿入を拒否しない。
 
 自動挿入・動的サジェスト、別の診断／処方欄への自動適用は追加しない。テンプレートマスタCRUDとカルテ内の適用を別操作にし、挿入で元テンプレートを書き換えない。具体的問診欄・カテゴリ対応と連続適用の表示はUI／型設計で詰め、今回未指定の必須入力や固定カテゴリを追加しない。
 
@@ -163,21 +179,21 @@
 
 無効化した項目は新規選択できない。既存カルテは対象項目が持つ名称・単位・価格を記録当時の内容で保持し、名称変更／価格改定・無効化で過去記録を置換しない。再診での新しい複写明細は今回価格、複写元／既存明細は当時価格と区別する。全masterへ存在しない単位／価格を新設する意味ではない。
 
-現在master参照しかない既存データの当時内容を最新値から推測補完しない。確認できる資料・保存snapshotの調査／移行は未実施で、取得不能を当時値確定と表示しない。snapshot方式・master版と選択中の無効化／改定競合は技術設計。訂正として内容を変更するときは初回の編集者ログ・医師確認／確定後追記・会計整合へ従う。
+現在master参照しかない既存データの当時内容を最新値から推測補完しない。確認できる資料・保存snapshotの調査／移行は未実施で、取得不能を当時値確定と表示しない。snapshot方式・master版と選択中の無効化／改定競合は技術設計。訂正として内容を変更するときは編集者ログ・目的別の医師確認・保存版保持と会計整合へ従う。通常本文は終了後も通常編集可能。
 
 <a id="requirement-fr-medical-records-plan-execution-states"></a>
 ### 4. 治療プランの項目状態と実施済み操作
 
-通常カルテの治療プラン項目ごとに「未実施・実施済み・後日予定・中止」を管理する。確定時は未実施・後日予定を未完了として警告し、確認した医師は未完了でも確定可能。中止は理由を残し、実施済みへの変更では誰がいつ記録したかを残す。中止と実施済みを同義にせず、確定・診療終了・精算で全項目を実施済みにしない。
+通常カルテの治療プラン項目ごとに「未実施・実施済み・後日予定・中止」を管理する。診療終了時は未実施・後日予定を未完了として警告し、終了権限のあるスタッフが確認すれば未完了でも終了可能。自動保存時にこの警告を出さない。中止は理由を残し、実施済みへの変更では誰がいつ記録したかを残す。中止と実施済みを同義にせず、確定・診療終了・精算で全項目を実施済みにしない。
 
-実施済みへの切替はチェックボックスとモーダルを基本操作とし、項目と実施内容を識別できるよう既存の診察／治療プラン画面へ接続する。両方を必ず順番に経由する二段階業務や、二度の状態writeを必須にしない。チェック解除だけで無条件に戻さず、[追加合意の理由付き取消モーダル](../lifecycle.md#requirement-fr-medical-records-reasoned-plan-execution-undo)へ接続する。実施済みの誤記訂正・確定済みへの追加変更は初回の専用訂正／追記保護へ渡し、逆向きtoggleで解除しない。
+実施済みへの切替はチェックボックスとモーダルを基本操作とし、項目と実施内容を識別できるよう既存の診察／治療プラン画面へ接続する。両方を必ず順番に経由する二段階業務や、二度の状態writeを必須にしない。チェック解除だけで無条件に戻さず、[追加合意の理由付き取消モーダル](../lifecycle.md#requirement-fr-medical-records-reasoned-plan-execution-undo)へ接続する。実施済みの誤記訂正は理由付き取消と保存履歴を保持し、逆向きtoggleだけで解除しない。旧finalizedだけを理由に通常編集を追記専用へ限定しない。
 
 記録者は操作した認証済みスタッフ、記録時刻は状態を記録した時刻。実際の実施者・実施時刻と同義にせず、操作しただけで実施者／実績時刻を自動確定しない。今回指定のない実施者選択・実施時刻入力を必須にしない。実施を記録することと、治療明細・課金生成／取消は別の境界で、チェックだけで新しい請求ルールを作らない。入院・ホテルの専用記録／登録時snapshotには本項目状態を自動適用しない。
 
 <a id="履歴複写"></a>
 ### 履歴複写（従来実装参照）
 
-以下の旧コピー動作には最新合意への未追従を含む。選択複写・無効／不一致項目の通知再選択・今回価格と元記録保持は上記合意を優先し、従来のfallbackを新業務許可にしない。
+以下の旧コピー動作には最新合意への未追従を含む。finalized由来の編集ロックと取消なしの動作は最新目標ではない。選択複写・無効／不一致項目の通知再選択・今回価格と元記録保持は上記合意を優先し、従来のfallbackを新業務許可にしない。
 
 - **問診履歴の前回複写（EMR-182 / EMR-219）**: `InterviewHistory` の各行は、複写可能な問診値または `recordId`（明細複写の起点）を持つ場合に限り行末尾に「コピー」ボタンを表示する（`InterviewHistoryItem` の `copySource` が存在する行のみ。複写不可の行には表示しない）。複写ペイロードは `useGetPetMedicalHistory` 内の `transformToHistoryItem` が `InquirySummaryResponse` の `inquiry.chief_complaint`（主訴詳細）・`inquiry.notes`（治療方針）・`inquiry.chief_complaint_type_id`（主訴区分）に加え、元カルテ `id` を `recordId` として保持する（feature 側の `transforms.ts` も同形）。問診値を持たなくても `recordId` のみの行は治療明細の複写が可能。「コピー」押下時、`MedicalRecordInterview` は現在の主訴詳細・治療方針・主訴区分が未編集の既定値なら即時適用し、いずれかがユーザー編集済みなら `ConfirmDialog` で上書き確認を求める（キャンセルは現在値を保持）。問診項目の複写はローカル state の setter のみを更新して `NavigationBlocker` の未保存警告を有効化し、API 送信は行わない。ボタンは行リンク（`/medical-records/:id` 詳細遷移）の sibling の `<button>` であり、確定済み・送信不可のとき `isLocked` prop で明示的に disabled にする。`InterviewHistory` パネル自体は編集ロック用の disabled fieldset の外に配置するため、確定済みでも履歴検索・行リンクは有効のまま（`ExaminationForm` が読み取り専用パネルを fieldset 外の兄弟に置くのと同じ境界規則で、`MedicalRecordMountedTab` の `internalLock` 指定タブが内部でこの境界を管理する）。
   - **治療明細の複写（EMR-219）**: 複写適用の単一経路（`applyCopySource`）が `onCopyRecordTreatments(recordId)` を発火し、`useCopyTreatmentDetails` が複写元カルテの明細を `GET /v1/medical-records/{sourceId}/treatments` で適用時に lazy fetch する（履歴一覧レスポンスに明細は含まれないため）。各明細行は `buildCopiedTreatmentPayload` で create ペイロードへ変換し、consultation/procedure/medicine 行の `unit_price` は複写元の当時価格を持ち込まず、現行マスタ（`/v1/masters/consultations`・`/v1/masters/procedures`・`/v1/masters/medicines`、キャッシュは共有 master 参照キー）の `id`・`price` で再解決する。マスタ不一致または無型（`item_type=other`）行は複写元の `unit_price`・参照をそのまま維持する。作成は既存の `POST /v1/medical-records/{currentId}/treatments` へソース `sort_order` 昇順で逐次 POST し、`sort_order` は複写先の現在最大値 +1 からのオフセットを加算する。現在カルテに `id` が無い（自動作成前）場合は問診項目の複写のみ適用され明細複写はスキップされる。fetch/create 失敗時はエラートーストを出し、複写元カルテへの書込みは一切行わない（作成済み行はロールバック API が無いため残る）。
@@ -187,6 +203,8 @@
 
 <a id="requirement-fr-medical-records-optional-chief-complaint-type"></a>
 #### 2.2 保存プロセス
+
+最新回答で自動保存を維持する。以下の従来送信先を新しい保存ボタン待ちへ変更しない。[タブクリア](../lifecycle.md#requirement-fr-medical-records-clear-tab-open-state)／[複製取消](../lifecycle.md#requirement-fr-medical-records-history-copy-undo)は自動保存済みの対象も復元する追加操作であり、保存済み原版や監査を削除せず、復元後の状態と操作履歴を保持する。
 
 > **追記（2026-10-07 監査）**: 保存ルーティング（アクティブタブ単位のメイン保存・ヘッダー属性の即時保存・タブ別サブデータの即時保存と各エンドポイント）の契約本文の正本は [保存ルーティング契約](../lifecycle.md#hybrid-sync)（ハイブリッド保存ロジック）。本節は 9 タブ構成（§1）のうち本画面固有の操作仕様のみを残し、ルーティングの重複掲載（旧・送信先表と mermaid 図）をやめた。
 
@@ -201,9 +219,9 @@
 
 | 状況 | 検知／表示 | 利用者の次の操作 | 根拠 |
 |:---|:---|:---|:---|
-| 会計確認が未完了 | 確定ボタンをブロック | 会計確認状態の確認、復旧の詳細は要確認 | 臨床安全ガード |
+| 会計確認が未完了 | 会計ownerの確認状態を表示 | 通常編集／保存・診療終了にカルテ確定ボタンを要求しない。会計の要件はD10へ | 最新操作契約 |
 | 画像件数・容量超過 | 選択分全体を拒否してエラー | 制限内のファイルを選択 | 画像・資料の選択制限 |
-| ヘッダー更新失敗 | ローカルstateをロールバック | 未記載／要確認 | 画面保存操作 |
+| ヘッダー更新失敗 | 現行のローカルstate復帰と失敗表示 | クリア基準と別に、保存結果を照合して再試行。入力や結果不明を成功扱いしない | 画面保存操作 |
 | 予防接種記録0件 | EmptyState | 記録を追加 | 9タブ表 |
 | その他エラー・空状態 | 未記載／要確認 | 未記載／要確認 | タブ別条件の不足は要確認 |
 
@@ -226,9 +244,9 @@
 | AC-medical-records-master-inactive-history | 記録済み項目を無効化／名称単位価格変更 | 新規選択と過去閲覧 | 無効化した項目は新規利用不可。有効のまま改定した項目は今回値で新規選択可。どちらも既存当時内容は保持 | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-master-history-snapshots)。実機未確認 |
 | AC-medical-records-master-scope-grant | master操作権限なし／別医院 | masterを編集 | カルテ編集可だけでmasterを編集させない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-master-history-snapshots)。実機未確認 |
 | AC-medical-records-plan-checkbox-modal | 権限あるスタッフが未完了項目を確認 | チェックボックスとモーダルの導線で実施済みにする | 対象項目を実施済みにし実記録者・記録時刻を残す、二度writeしない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-plan-execution-states)。実機未確認 |
-| AC-medical-records-plan-uncheck-not-undo | 実施済み項目がある | チェックを解除しようとする | 無条件の実施取消・確定ロック解除へ転用しない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-plan-execution-states)。実機未確認 |
+| AC-medical-records-plan-uncheck-not-undo | 実施済み項目がある | チェックを解除しようとする | 無条件の実施取消・以前の保存版消去へ転用しない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-plan-execution-states)。実機未確認 |
 | AC-medical-records-plan-cancel-reason | 中止対象の項目がある | 中止にする | 理由を残し実施済みとは扱わない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-plan-execution-states)。実機未確認 |
-| AC-medical-records-plan-deferred-warning | 未実施／後日予定項目がある | 医師が確定警告を確認 | 警告して確定可、項目を実施済みに自動更新しない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-plan-execution-states)。実機未確認 |
+| AC-medical-records-plan-deferred-warning | 未実施／後日予定項目あり | 診療終了時に警告を確認 | 未完了でも終了可、項目を実施済みに自動更新しない。自動保存時には警告しない | 本ケースを単独確認 | 実機未確認 | [FR](#requirement-fr-medical-records-plan-execution-states) |
 | AC-medical-records-plan-recorder-not-performer | 記録者と実施者が異なり得る | 実施済みを記録 | 記録者／記録時刻を残し実施者へ自動転記せず未指定項目の必須化なし | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-plan-execution-states)。実機未確認 |
 
 <a id="decisions-evidence"></a>
@@ -271,12 +289,12 @@
 <a id="medical-record-agreement-integration-three"></a>
 ## 画像・印刷・後日結果・訂正影響の追加3項目
 
-2026-10-14、質問 Sentinel_f99722e55be0819189e5d50080928914 に対する Sentinel_59d45d62afe08191bc0b289c42486962 の「ok」に基づく3FR／12AC。既存の入力・確定・訂正と保存§2を継承し、実装／実機受入済みを表さない。
+2026-10-14、質問 Sentinel_f99722e55be0819189e5d50080928914 に対する Sentinel_59d45d62afe08191bc0b289c42486962 の「ok」に基づく3FR／12AC。最新の通常編集と目的別訂正・保存§2を継承し、実装／実機受入済みを表さない。
 
 <a id="requirement-fr-medical-records-image-drop-selected-print"></a>
 ### 画像の共通入力検証と対象範囲を選ぶ印刷
 
-画像はファイル選択とドラッグ＆ドロップの両方で登録でき、同じ形式・件数・容量・操作権限・医院／患者照合・確定保護を適用する。JPEG／PNG／GIF／PDF、一度10件まで、1ファイル10MiB以下・合計50MiB以下という既存制限を保持する。選択分に超過があれば全体を受け付けず、D&Dだけで制限を迂回しない。形式の選択補助とファイル内容の検証は別で、保存時の検証も維持する。
+画像はファイル選択とドラッグ＆ドロップの両方で登録でき、同じ形式・件数・容量・操作権限・医院／患者照合・保存版／owner保護を適用する。旧finalizedだけで通常入力を拒否しない。JPEG／PNG／GIF／PDF、一度10件まで、1ファイル10MiB以下・合計50MiB以下という既存制限を保持する。選択分に超過があれば全体を受け付けず、D&Dだけで制限を迂回しない。形式の選択補助とファイル内容の検証は別で、保存時の検証も維持する。
 
 印刷前に対象のカルテと範囲を選びプレビューする。範囲は既存の患者ヘッダー・各タブ・バイタル・画像／資料から選択する設計とし、選択した内容に関係する訂正・追記は元記載との関係と日付／記録時刻、記録者が分かる表示を含める。訂正済みを元のままの記載として印刷しない。範囲選択は未保存draftの自動保存・全タブ一括保存を発火せず、保存済みの内容を対象にする。未保存内容は印刷に反映されないことを表示し、印刷cancelは入力を保持する。
 
@@ -285,27 +303,27 @@
 <a id="requirement-fr-medical-records-late-result-shared-history"></a>
 ### 後日検査結果の共通参照と履歴
 
-作成中カルテには後日結果を追加できる。確定済みカルテは元の記載を保持して結果を追記する。結果訂正は変更前後・理由・操作主体／記録時刻を履歴として保持し、検査画面とカルテで同じ結果とその訂正履歴を参照する。別々の結果本文を二重管理せず、患者・医院・検査・カルテの対応を照合する。
+通常カルテには診療終了後も後日結果を追加できる。以前の記載・保存版・既存追記を保持し、現在の記録と変更履歴を識別する。旧finalizedだけを理由に通常入力を追記専用へ限定しない。結果訂正は変更前後・理由・操作主体／記録時刻を履歴として保持し、検査画面とカルテで同じ結果とその訂正履歴を参照する。別々の結果本文を二重管理せず、患者・医院・検査・カルテの対応を照合する。
 
-確定時に参照した結果版と後日の結果／訂正版を区別し、現在の結果だけで確定時の記載を上書きしない。カルテの確定解除、通常子入力PATCHによる確定記録の変更、別患者結果の取込を認めない。検査ownerの確定／訂正・権限手順は検査正本へ渡し、検査側の確定解除をカルテの確定解除の根拠にしない。作成中で通常入力が必要な結果待ちを自動確定しない。結果の未取得・取得失敗・対応不明は「結果なし」「正常」へ置換しない。
+確定時に参照した結果版と後日の結果／訂正版を区別し、現在の結果だけで確定時の記載を上書きしない。旧finalizedの状態を消して履歴を失う処理や、別患者結果の取込を認めない。通常編集では現在の記録を更新できるが、以前の参照版を破壊しない。検査ownerの確定／訂正・権限手順は検査正本へ渡し、検査側の確定解除をカルテの確定解除の根拠にしない。結果待ちを保存成功・診療終了だけで完了／確定へ変換しない。結果の未取得・取得失敗・対応不明は「結果なし」「正常」へ置換しない。
 
 <a id="requirement-fr-medical-records-correction-owner-impact"></a>
 ### 訂正による会計・在庫への影響表示と受渡し
 
 カルテ訂正だけで確定済み請求・返金・在庫を自動変更しない。変更した記録／項目と理由、関連する請求・在庫等への影響を表示し、各機能の訂正操作へ案内する。対応が不明な影響を「影響なし」「訂正済み」と表示しない。手元で差額・数量を推測して確定処理せず、権限あるownerの確認・操作へ渡す。
 
-精算確定歴がある予約の通常診療終了Undo禁止、確定済み原記録・元日付の保持、当日カード／自動課金なしの過去入力、復元だけで開始／課金しない境界を維持する。締め後会計・返金・在庫増減の内部手順はD10／12／13で詰める。カルテの案内表示や訂正履歴を、返金成功・在庫増減成功の証拠にしない。閲覧権限がないownerの内容は公開せず、操作権限不足は案内先の権限不足として区別する。
+精算確定歴がある予約の通常診療終了Undo禁止、旧確定時を含む以前の保存版・元日付の保持、当日カード／自動課金なしの過去入力、復元だけで開始／課金しない境界を維持する。締め後会計・返金・在庫増減の内部手順はD10／12／13で詰める。カルテの案内表示や訂正履歴を、返金成功・在庫増減成功の証拠にしない。閲覧権限がないownerの内容は公開せず、操作権限不足は案内先の権限不足として区別する。
 
 ### 追加受入条件（実機未確認）
 
 | ID | Given | When | Then | 検証 | 状態 | 正本 |
 |:---|:---|:---|:---|:---|:---|:---|
-| AC-medical-records-image-drop-same-validation | 同じファイル集合 | 選択／D&Dで追加 | 形式・件数・容量・権限・scope・確定保護が同じ | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-image-drop-selected-print) |
+| AC-medical-records-image-drop-same-validation | 同じファイル集合 | 選択／D&Dで追加 | 形式・件数・容量・権限・scope・保存版／owner保護が同じ。親finalizedだけの通常入力拒否は置換 | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-image-drop-selected-print) |
 | AC-medical-records-image-drop-reject-batch | 個別または合計サイズ／件数超過 | どちらの入口でも追加 | その選択分全体を拒否し保存済み添付を保持 | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-image-drop-selected-print) |
 | AC-medical-records-print-range-corrections | 訂正／追記のある保存済み記録 | 範囲を選びプレビュー／印刷 | 選択対象と関係する訂正追記・元記載の関係を識別可能に表示 | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-image-drop-selected-print) |
 | AC-medical-records-print-draft-cancel-scope | 未保存入力または閲覧不可のowner情報あり | 印刷準備／cancel | draft未反映を表示、無断保存・権限外印刷・入力破棄・飼主自動公開なし | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-image-drop-selected-print) |
 | AC-medical-records-late-result-draft | 作成中で患者／医院を照合済み | 後日結果を追加 | 検査ownerの同じ結果を参照し自動確定しない | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-late-result-shared-history) |
-| AC-medical-records-late-result-finalized | 確定済みの結果参照あり | 後日結果／訂正版到着 | 元記載・参照版を保持し追記、unfinalizeや原本文上書きなし | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-late-result-shared-history) |
+| AC-medical-records-late-result-finalized | 旧finalizedの結果参照版あり | 後日結果／訂正版を通常カルテへ反映 | 旧finalizedだけで拒否せず、元記載・保存時参照版・履歴を保持。検査ownerの独自確定／訂正は維持 | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-late-result-shared-history) |
 | AC-medical-records-late-result-revision-history | 結果が訂正される | 検査画面とカルテを開く | 同じ結果IDと履歴を参照し前後・理由・主体／時刻を識別 | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-late-result-shared-history) |
 | AC-medical-records-late-result-unknown-scope | 別患者／医院または必要取得失敗 | 結果取込／再表示 | 取込を止め照合、未取得を正常／結果なしにしない | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-late-result-shared-history) |
 | AC-medical-records-impact-financial-stock-no-auto | 確定請求または在庫関連あり | カルテ訂正 | 影響とowner訂正入口を表示し自動請求変更・返金・在庫増減なし | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-correction-owner-impact) |
@@ -325,8 +343,8 @@
 | AC-medical-records-coverage-child-independent | 親save前のdraftと子入力あり | 許可された子操作 | 既存子保存先へ独立送信し親save待ち／全タブ一括保存へ変更しない | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#hybrid-sync) |
 | AC-medical-records-coverage-vital-read-state | バイタル履歴取得失敗／不完全または患者切替中 | 表示／入力／薬量評価 | 測定なしへ置換せず対象一致と現在情報を再照合 | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#requirement-fr-medical-records-unevaluable-dose-manual) |
 | AC-medical-records-coverage-snapshot-null | 旧master参照・任意null・未取得値あり | 読込／複写／保存 | 当時値を保持し未取得を0／空欄／現masterの当時値へ推測補完しない。APIごとの未送信／null／clear・旧状態を照合 | 全該当経路を照合 | 実機未確認 | [正本](#requirement-fr-medical-records-master-history-snapshots) |
-| AC-medical-records-coverage-finalized-all-writers | finalized親の全子／外部owner経路 | 通常の追加更新削除を要求 | 原記載を変更せず許可された専用追記／訂正へ渡す。GET初期化・関連変更・機器取込を含む全writerを照合 | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#requirement-fr-medical-records-empty-delete-reviewed-correction) |
-| AC-medical-records-coverage-finalize-concurrent-deps | 警告／医師確認後に子や依存が変更 | 確定する | 最新依存を再照合し旧確認で確定しない。未完了確認は確定可、取得不明は停止 | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#requirement-fr-medical-records-explicit-finalize-plan-warning) |
+| AC-medical-records-coverage-finalized-all-writers | 旧finalized親の全子／外部owner経路 | 通常入力／編集又は目的別操作 | 親finalizedだけの通常編集拒否を置換し、以前の保存版・必要監査とowner独自の確定／削除／訂正保護を維持。GET初期化を含む全writerを照合 | 全該当経路を照合 | 実機未確認 | [最新正本](../lifecycle.md#requirement-fr-medical-records-normal-edit-after-end) |
+| AC-medical-records-coverage-finalize-concurrent-deps | 終了警告の確認後に子や依存が変更 | 診療終了する | 最新依存を再照合し旧確認で終了しない。未完了は確認後終了可、取得不明は停止 | 全該当経路を照合 | 実機未確認 | [最新正本](../lifecycle.md#requirement-fr-medical-records-screen-consultation-end) |
 | AC-medical-records-coverage-scope-generation | 旧医院／患者／actorの遅い取得応答あり | 画面／医院／患者を切替 | 新対象へ旧値を適用せずscopeを再取得・照合 | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#requirement-fr-medical-records-authorized-editor-audit) |
 | AC-medical-records-coverage-child-audit-failure | 本体／子／専用操作の必要ログ保存が失敗 | 更新を保存 | 必要ログなしの成功を返さず同じ操作単位をrollback | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#requirement-fr-medical-records-authorized-editor-audit) |
 | AC-medical-records-coverage-save-partial-dirty | 問診成功・他draft／子操作失敗あり | 保存結果を表示 | 成功対象だけdirtyを解除し未保存入力／失敗対象を保持 | 全該当経路を照合 | 実機未確認 | [正本](../lifecycle.md#hybrid-sync) |
@@ -337,4 +355,4 @@
 
 ## 現APIとの最終照合の入口
 
-[実キー・型・null／clearと互換契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)へ接続する。実APIの既存受理範囲を新業務許可へ拡大しない。患者転記・過去入力・復元・確定後結果追記を、通常PATCH／createの代用で提供しない。取得経路にはGetOrCreate初期化があるため、印刷用read modelは副作用のない保存済みprojectionで構成する。共通14ACは全該当writer／read経路への確認条件で、現コードの適合PASSを示さない。
+[実キー・型・null／clearと互換契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)へ接続する。実APIの既存受理範囲を新業務許可へ拡大しない。患者転記・過去入力・復元の目的別条件を汎用PATCH／createで迂回しない。通常本文／後日結果の現在版更新は最新の通常編集契約とowner独自の確定／訂正へ接続する。取得経路にはGetOrCreate初期化があるため、印刷用read modelは副作用のない保存済みprojectionで構成する。共通14ACは全該当writer／read経路への確認条件で、現コードの適合PASSを示さない。

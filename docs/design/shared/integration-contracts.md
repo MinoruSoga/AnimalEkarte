@@ -92,3 +92,7 @@ C01の部品技術、C04の認証／医院scopeと個別Dの操作認可・ID・
 [C03患者状態と死亡後記録](../../spec/shared/clinical-safety.md#requirement-fr-common-safety-patient)のAC-common-safety-posthumous-historyは、D03〜D10の当該操作の期待版・現在認可・対象元事実・理由／監査・結果照会・原子receiptへ接続する。死亡状態を生存へ書き換えて通常新規ゲートを迂回せず、元患者・生前実施事実・原記録を保った専用の後日入力／誤記訂正／退院／精算として識別する。必須履歴を保存できない操作を成功にせず、結果不明時は同じ操作を照会し、新しい操作として二重実行しない。死亡後の新しい臨床実施や未来予約、金銭・在庫・通知の自動作用を追加しない。物理schema／wireの実装状態とは分離する。
 
 [追加9点の進捗](../../spec/domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)の業務承認と文書再整合を別に追跡する。過去の文書完成・静的検査合格から、既存記載全ての業務承認を導かない。
+
+## 2026-10-15会議4点の操作契約
+
+通常カルテの[自動保存・復元](../../spec/domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、[終了と型付き既存記録](../../spec/domains/reception/pages/reception-board.md#reception-meeting-start-end)、[施術料金のD10受渡し](../domains/accounting/technical-spec.md#accounting-trimming-adjustment-adapter)、[勤務一括入力](../domains/staff-workforce/technical-spec.md#shift-bulk-operation-contract)を別intentとして照合する。元対象ID・現在scope／権限・期待版・依存・操作ID／digest・成功receiptと実効current_stateを混同しない。結果不明では元操作を照会し、再送で新しい復元・終了・請求・勤務を二重作成しない。復元は当該タブ／複製の既知対象と基準に限定し、他者編集・別ownerの金銭／在庫／通知へ逆実行しない。具体API名・物理schema・実装適合は後工程だが、これらの意味契約は各owner本文へ定義する。

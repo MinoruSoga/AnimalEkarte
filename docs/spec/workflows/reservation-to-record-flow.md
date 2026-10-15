@@ -2,7 +2,7 @@
 
 > 確定仕様の適用範囲：今回の予約ドメイン合意と本書の接続境界。承認日は各FR要件表・根拠節（2026-10-13〜2026-10-14 17:35）、追加合意は各補足節を参照。[確定FR索引](../domains/reservations/README.md#approved-reservation-scope)に掲載した箇所のみを確定情報として扱う。対象外の継承本文・未承認案・現行実装説明は一括確定しない。実装・実機状態は別管理。
 
-[17:17合意の診療前日付訂正](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction)では、未記入カルテは確認して予約日へ合わせ、記入済みなら通常の日付変更を停止して内容確認の訂正へ渡す。以下の作成後日付固定・直接PATCH拒否は現行実装／通常更新の参照で、この合意の未記入・診療前の確認付き訂正を実装済みとする根拠ではない。確定済みカルテの変更禁止・追記による訂正、保存ルーティング契約は維持する。
+[17:17合意の診療前日付訂正](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction)では、未記入カルテは確認して予約日へ合わせ、記入済みなら通常の日付変更を停止して内容確認の訂正へ渡す。以下の作成後日付固定・直接PATCH拒否は現行実装／通常更新の参照で、この合意の未記入・診療前の確認付き訂正を実装済みとする根拠ではない。通常カルテの通常編集は最新D03合意へ置換し、以前の保存版・変更履歴と保存ルーティングを保持する。会計確定歴や患者／日付の目的別訂正保護は独立に維持する。
 
 17:23 JSTの[LINE予約6点合意](../line/reservation-spec.md#line-agreement-1723)へ従う。公開された診療・トリミング・ホテルは予約対象、入院は医院相談。ホテルには医師指名・医師シフト・通常予約の同日制約を適用しない。受付制限・入力保持・受付前取消・必要設定不足の扱いと受入条件はLINE正本を参照する。ホテル受入基準は17:35合意の医院別同時宿泊頭数・全宿泊期間判定で、実装・実機受入は未確認。
 
@@ -220,7 +220,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 <a id="requirement-fr-reservations-record-reviewed-correction"></a>
 #### 記録確認を伴う予約訂正
 
-記入済みカルテの日付訂正と、受付後の業務分類をまたぐ予約区分変更は、受付担当が訂正理由と変更案を入力し、記録担当が確認して確定する。予約・記録・請求の整合を確認し、同じ予約と既存記録・関連・履歴を保持する。予約だけ先に変更して記録との整合を後回しにしない。確定済みカルテは既存の追記訂正を使い、本文の直接変更・確定解除・削除／再作成を行わない。
+記入済みカルテの日付訂正と、受付後の業務分類をまたぐ予約区分変更は、受付担当が訂正理由と変更案を入力し、記録担当が確認して確定する。予約・記録・請求の整合を確認し、同じ予約と既存記録・関連・履歴を保持する。予約だけ先に変更して記録との整合を後回しにしない。通常カルテの旧finalizedだけで追記専用へ限定せず、最新D03の履歴付き通常編集と目的別訂正を使い分ける。以前の保存版・元日付・既存追記を保持し、患者付替え・削除再作成・履歴消去で迂回しない。
 
 この契約は通常編集の禁止を解除する汎用操作ではない。未記入・診療前の日付訂正、受付前の分類変更、支払い前の誤終了取消は各既存契約を維持する。記録確認は[カルテ初回合意の医院が認めた医師・担当医以外代行可／編集ログ](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)へ従う。具体的な記録訂正項目・未記入判定・実grant対応・請求修正／返金・締め後訂正は関連領域の設計へ委ねる。予約側は理由・変更案・記録確認・整合確認の成否と保存結果を接続する。
 
@@ -487,7 +487,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 | AC-reservations-no-show-reuse-existing-record | 未来院の同じ予約に通常カルテが既にある | 担当再確認・必要修正後に再受付し再試行する | 同じ予約・カルテを再利用し、別予約・カルテを重複作成しない | この反例を単独確認 | 同じ予約・記録・業務境界を保持 | [未来院FR](#requirement-fr-reservations-manual-no-show)・[再確認](#no-show-recheck-1826)。実機未確認 |
 | AC-reservations-reviewed-date-correction | 記入済みカルテに紐付く予約の日付訂正が必要 | 受付担当が理由・変更案を入力し、記録担当が確認する | 予約・記録・請求の整合を確認して確定し、同じ予約・記録と履歴を保持。通常の日付編集で代替しない | 日付訂正を単独確認 | 担当確認と整合確認 | [FR](#requirement-fr-reservations-record-reviewed-correction)。実機未確認 |
 | AC-reservations-reviewed-class-correction | 受付後に診療からホテル等への業務分類変更が必要 | 訂正理由と変更案を受付担当が入力し記録担当へ確認を求める | 記録・請求を確認してから確定。通常編集・自動記録変換や削除を使わない | 分類跨ぎ訂正を単独確認 | 既存関連保持 | [FR](#requirement-fr-reservations-record-reviewed-correction)。実機未確認 |
-| AC-reservations-reviewed-finalized-record | 訂正対象のカルテが確定済み | 記録確認訂正を進める | 確定本文を直接変更・確定解除せず既存追記で訂正し、請求整合を確認 | 確定済み記録を単独確認 | 確定保護維持 | [FR](#requirement-fr-reservations-record-reviewed-correction)。実機未確認 |
+| AC-reservations-reviewed-finalized-record | 訂正対象のカルテが確定済み | 記録確認訂正を進める | 最新D03に従い履歴付き通常編集と目的別訂正を使い分け、以前の版・元患者／日付と請求整合を保持 | 確定済み記録を単独確認 | 元版・請求と目的別訂正保護 | [FR](#requirement-fr-reservations-record-reviewed-correction)。実機未確認 |
 | AC-reservations-undo-finalized-unpaid | 未収が残るが会計を確定済み | 通常の診療終了取消を試す | 残額の有無によらず通常Undoを停止し会計訂正へ案内 | 未収を単独確認 | 会計確定が境界 | [FR](#requirement-fr-reservations-undo-consultation-end)・[境界](#accounting-finalization-undo-boundary)。実機未確認 |
 | AC-reservations-undo-finalized-split | 分割支払で会計を確定済み | 通常の診療終了取消を試す | 通常Undoを停止し会計訂正へ案内 | 分割を単独確認 | 会計確定が境界 | [FR](#requirement-fr-reservations-undo-consultation-end)・[境界](#accounting-finalization-undo-boundary)。実機未確認 |
 | AC-reservations-undo-finalized-zero | 金額0円の会計を確定済み | 通常の診療終了取消を試す | 入金がなくても通常Undoを停止 | 0円を単独確認 | 会計確定が境界 | [FR](#requirement-fr-reservations-undo-consultation-end)・[境界](#accounting-finalization-undo-boundary)。実機未確認 |
@@ -524,11 +524,11 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 
 ## カルテ訂正・例外操作の追加接続
 
-[追加合意4項目](../domains/medical-records/lifecycle.md#medical-record-agreement-correction-four)がカルテ訂正の正本。治療項目取消は診療終了Undoと区別し、精算確定歴の通常Undo禁止を維持。患者訂正は原記録・元患者を保持して医師確認付き必要内容転記、元／先を対応付ける。過去専用入力で当日カードや自動課金を生成せず、空誤作成復元だけで受付／開始／課金しない。通常の選択日受付・準備／読込後開始・確定済み追記保護は継承。会計への影響は会計で別途確認し、自動返金／請求消去を認めない。全owner再照合・実装受入は残件。
+[追加合意4項目](../domains/medical-records/lifecycle.md#medical-record-agreement-correction-four)がカルテ訂正の正本。治療項目取消は診療終了Undoと区別し、精算確定歴の通常Undo禁止を維持。患者訂正は原記録・元患者を保持して医師確認付き必要内容転記、元／先を対応付ける。過去専用入力で当日カードや自動課金を生成せず、空誤作成復元だけで受付／開始／課金しない。通常の選択日受付・準備／読込後開始・以前の保存版・訂正履歴を保ち、通常本文編集は最新D03へ接続。会計への影響は会計で別途確認し、自動返金／請求消去を認めない。全owner再照合・実装受入は残件。
 
 ## 画像印刷・後日結果・会計在庫影響の接続
 
-[追加3項目の正本](../domains/medical-records/pages/medical-record-form.md#medical-record-agreement-integration-three)へ接続。検査画面とカルテは同じ結果／履歴を参照し、確定時版と後日追記を識別する。確定解除や既存子更新の迂回なし。画像D&Dと選択は同じ検証、印刷範囲選択と訂正追記識別は認可された保存済み内容だけで、飼主自動公開なし。カルテ訂正の会計／在庫影響は表示してowner訂正へ案内し、確定請求・返金・在庫を自動変更しない。予約69FRの受付／開始／終了Undo・確定歴と保存§2を維持する。締め後・増減の内部判断と全owner再照合は残件。
+[追加3項目の正本](../domains/medical-records/pages/medical-record-form.md#medical-record-agreement-integration-three)へ接続。検査画面とカルテは同じ結果／履歴を参照し、確定時版と後日追記を識別する。旧カルテfinalizedだけで通常本文編集を拒否せず、固定参照版と履歴を保持する。D07自身の確定／訂正は別保護であり迂回しない。画像D&Dと選択は同じ検証、印刷範囲選択と訂正追記識別は認可された保存済み内容だけで、飼主自動公開なし。カルテ訂正の会計／在庫影響は表示してowner訂正へ案内し、確定請求・返金・在庫を自動変更しない。予約69FRの受付／開始／終了Undo・確定歴と保存§2を維持する。締め後・増減の内部判断と全owner再照合は残件。
 
 ## D03最終照合の接続先
 
@@ -567,7 +567,7 @@ GET初期化、旧auto-create／backfill、子入力、並替、master、会計�
 
 正本：[予約の逆遷移境界](#requirement-fr-reservations-controlled-reverse-transition)、[カルテ専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)、[会計確定歴](#accounting-finalization-undo-boundary)。
 
-誤取消復元／未来院再受付は同じ予約と既存記録を再利用し、現在の適格性を再照合する。予約取消からの自動カルテ削除はしない。draftだけでは空とせず、全子入力・請求／見積等の依存を照合しempty/entered/unknownを分ける。確定後は原記録／元日付を保持した追記・専用訂正へ。患者取り違えは元IDの患者付替えでなく元／先対応付き必要内容転記であり、再診複写とは別。
+誤取消復元／未来院再受付は同じ予約と既存記録を再利用し、現在の適格性を再照合する。予約取消からの自動カルテ削除はしない。draftだけでは空とせず、全子入力・請求／見積等の依存を照合しempty/entered/unknownを分ける。通常カルテは終了後も履歴付き通常編集へ。以前の保存版・元日付と目的別の患者／日付訂正は保持し、会計等の独立保護を解除しない。患者取り違えは元IDの患者付替えでなく元／先対応付き必要内容転記であり、再診複写とは別。
 
 過去入力／復元／転記は当日受付・開始・通常治療createの在庫減算・新請求・外部通知の再発火へ流用しない。未収／部分入金／0円も請求確定歴があれば通常Undo不可で、取消／返金／再請求後も復活させない。旧cancel-cleanup／batch-noshowと最新選定仕様の差はC06の既知差分へ残す。追跡はD03 empty-hide-entered-refusal／wrong-patient-no-reassign／retrospective-no-reception-billing／impact-financial-stock-no-autoとD10 finalization-undo-preserved。
 
@@ -593,7 +593,7 @@ D04台帳、主／副飼主、D19 identity group、D20 LINE本人紐付けは別
 
 正本：[検査](../domains/examinations/lifecycle.md)、[接種](../domains/vaccinations/lifecycle.md)、[健診](../domains/checkups/lifecycle.md)、[健康表示](../screens/38-liff-pet-health.md)、[院内レポート](../screens/39-owner-report.md)。
 
-機器受信job／患者attach／結果persist／検査revision／カルテ確定は別状態。同じjob指紋の再送を同日別測定と混ぜず、未対応コードを捨てない。検査Undoは未使用等の補償条件を満たす時だけで、finalized親や使用receiptの保護を迂回しない。後日結果は同じexam・固定版・版内item対応を保持し、確定原記載を更新しない。
+機器受信job／患者attach／結果persist／検査revision／カルテ確定は別状態。同じjob指紋の再送を同日別測定と混ぜず、未対応コードを捨てない。検査Undoは未使用等の補償条件を満たす時だけで、D07自身の確定結果・使用receiptと対象版の保護を迂回しない。親カルテの旧finalizedだけを通常編集停止条件にはしない。後日結果は同じexam・固定版・版内item対応を保持し、以前の保存版・確定時参照を消さず、現在の表示版更新はD03／D07の別契約へ従う。
 
 接種の独立／カルテ内入口は同資源で、同日複数接種と再送重複を分ける。健診はCheckup系だけを正系統にし、field PUTの未送信/null拒否と明示[]を分ける。独立健診Path Bの親→健診→fieldは現状段階保存であり、後段失敗時に前段存在を照合する。全体atomic化済みとしない。
 
@@ -674,3 +674,23 @@ C05の原本保護は自動cleanupと手動deleteの両方に適用する。D06�
 - X06／X07: D10停止支払方法は新規入金の選択から除外する一方、元の支払記録／方法識別・締め／集計を保持する。既存受領の請求間再配分、預り金の充当／復元、返金を新規受領と同一視せず、方法停止だけを理由とする返金禁止を追加しない。
 
 本節を含む固定39文書の独立内容レビュー・限定構造検査を通過した。接続文書の確認を実装・実機受入や全過去業務承認の網羅へ拡張しない。
+
+## 2026-10-15会議合意の接続：trimming-1
+
+2026-10-15会議追加2（質問 Sentinel_9a29cd61be04819188b76ade8dddfafd、回答 Sentinel_e99d06bd6f0c8191b7bd18fd34d562f9「2 ok」）により、トリミングも明示開始で同じ予約を診療中列へ移す。通常カルテ画面・専用トリミング画面から、それぞれの対象の終了操作で同じ予約を会計待ちへ進める。既存の通常診療カードモーダル／確認DnDは維持する。会計待ちカードは当該予約に明示linkedされた既存記録を開き、新規記録作成や再開始を発火しない。
+
+終了を本文保存／記録確定・請求確定・入金と束ねない。D03の最新自動保存は継続し、治療プラン未実施警告は診療終了時に出して確認すれば終了できる。自動保存では警告せず、D06の施術完了必須条件へ広げない。既存認可・状態・同一対象の版／receipt・結果不明時の入力保持を維持する。型付き記録refと予約ID／版を照合し、予約リンクなし／不明はownerの対象確認へ止め、架空予約の自動作成や患者・日付による推測リンクをしない。
+
+終了成功のoperation_result（operation_id、intent、予約／型付き記録result_refs、committed_versions、committed_at）とcurrent_stateを分け、D21等は実効的な終了結果へ対応する記録を読む。途中保存やlegacy finalized、古い終了receiptだけで現在も終了済みと判定しない。具体契約・受入は[D02](../domains/reception/pages/reception-board.md#reception-meeting-start-end)・[D06](../domains/trimming/lifecycle.md#trimming-meeting-start-end)へ。追加の実装・実機受入は未確認。
+
+## 2026-10-15会議合意の接続：trimming-2
+
+会議追加2・3の接続はD01／D02／D06／D10で照合する。トリミング開始後は診療中列、専用画面終了は会計待ちへ、会計待ちから同じ既存記録を開く。終了結果は型付き記録参照と予約ID／版・成功receiptへ対応し、記録保存・入金の結果を代用しない。料金はコース／オプションの各行調整をD10明細scopeへ渡し、会計全体値引きは会計側の既決対象・順序を維持する。施術小計等の新しいscopeは設けず、同一調整の二重適用なし、0円の実在明細保持、取込前snapshot／取込後差分確認と明示再適用／確定後訂正を区別する。master価格と確定済み請求を施術編集で自動変更しない。
+
+## 2026-10-15会議合意の接続：shifts-2
+
+2026-10-15の[期間・スタッフ複製／Excel作成CSV取込](../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)もD14の勤務writeへ接続する。入力案の差分・エラー・予約影響を反映前に確認し、未来・現在診療中（予定終了超過を含む）の既指名予約を不適格にする変更は解消まで反映不可。医院休診日の警告確認では迂回しない。現在の医院・権限・版と予約状態を反映時に再検査し、無断上書き・自動取消・能力変更を行わない。追跡はAC-shifts-bulk-protected-bookings／scope-permission-version／save-failure／result-unknown／partial-result、保存単位・結果照会は[D14](../../design/domains/staff-workforce/technical-spec.md#shift-bulk-save-recovery)へ。
+
+## 2026-10-15通常編集・復元・履歴の最新接続
+
+[D03の最新合意](../domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)を優先する。保存ボタン方式への変更は撤回、自動／即時保存の既存境界を維持する。タブクリアは当該タブを開いた時点、履歴複製取消は対象複製の直前へ、保存済み変更も履歴付き復元として扱う。他者版・後続操作・他タブ・実入金・在庫・通知を無断で巻き戻さない。診療終了は本文保存・医師確定・支払と別で、未実施プラン警告は終了時だけ、確認すれば終了可。[D21](../screens/39-owner-report.md#owner-report-ended-history)は実効的な終了結果と同じ記録の保存版を参照し、診療中の途中保存を掲載しない。D20限定接種表示とD07検査自体の確定、D11見積原本・D10会計確定歴は各正本を保持する。

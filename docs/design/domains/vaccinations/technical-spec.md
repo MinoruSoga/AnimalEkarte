@@ -48,7 +48,7 @@
 実接種日と現在の登録時刻を分け、D03確定親への原記録保持・専用追記を維持する。次回日の統一合意から死亡後の新しい接種／予約を許可せず、通知の死亡除外も解除しない。
 
 ## writer・失敗と受け手
-- 全入口CRUD、関連変更、カルテ内フォーム、専用訂正／転記／過去入力／復元adapter、タグ同期を列挙する。普通APIで親finalizedや患者取り違え保護を回避しない。
+- 全入口CRUD、関連変更、カルテ内フォーム、専用訂正／転記／過去入力／復元adapter、タグ同期を列挙する。旧親finalizedによる一律拒否は最新D03の通常編集目標へ合わせる適合差であり、現在の患者／医院・権限・版・履歴を検査する。患者取り違え・死亡後専用処理・削除の保護を普通APIで回避しない。
 - フォームのgrant・死亡判定だけでサーバ全経路保護済みとしない。現在clinic/pet/record/doctor/vaccine関係とactorを検査し、scope変更後の古い応答は破棄／再取得する。
 - 送信失敗は入力保持。通信断はunknownとして保存先ID／操作結果を照会。現単件POSTに汎用operation receiptがあると仮定せず、結果不明の再createを止める。既存ID／実操作の照合方式は実装で具体化する。
 - D03から継承する必須編集ログは変更前後・対象・理由・actor／時刻・結果を同じ業務単位で保持する。現delete監査だけを全writeの充足としない。
@@ -61,7 +61,7 @@
 |:---|:---|
 | 同じ資源・単件保存 | standalone, in-chart, same-day, reset, lots |
 | 日付・マスタ候補 | future, master-interval, manual, next-invalid, retrospective-expired-next, normal-new-next-past, retrospective-protection, default-boundary, no-setting-default |
-| write保護・結果 | finalized, scope, deceased, deceased-boundary, delete-one, conflict, unknown, edit-log |
+| write保護・結果 | finalized, scope, deceased, deceased-boundary, delete-one, conflict, unknown, edit-log, clear-copy-guard |
 | 一覧・読取 | filter-scope, navigation, projection |
 | master／他owner | master-history, notify-failure, no-side-effect |
 
@@ -70,3 +70,8 @@
 
 
 D21 Owner Reportはスタッフの閲覧専用であり、同画面からの印刷・共有を設けない。D03や検査自ドメインに既存の印刷経路があることを、D21経由の印刷許可へ拡張しない。
+
+
+### 最新カルテ契約へのadapter
+
+[通常編集・自動保存／復元](../../../spec/domains/vaccinations/lifecycle.md#vaccination-normal-edit-autosave)に従い、旧親finalizedだけを拒否理由にする判定を目標から外す。ただし患者／親recordの同一性、現在grant、対象版、日付制約、死亡後の専用理由／履歴と必要監査は維持する。復元操作は対象の接種ID・基準版・現在版・前後値・操作identityを照合し、必要な変更履歴と保存結果を一体にする。新規接種・別タブ・通知／在庫／会計の操作を復元に連鎖させない。既存PATCHの監査・期待版／receipt不足を対応済みとはせず、結果不明は同一操作照会後に続ける。AC-finalized／clear-copy-guardがこのadapterの受入条件。

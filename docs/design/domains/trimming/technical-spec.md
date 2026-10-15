@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D06-TECH / 技術設計・現行差分 |
-| 決定状態 | 既存契約の継承と安全条件の具体化。完了後専用訂正は2026-10-15追加回答で承認（実装適合は別）。死亡後の生前分専用処理、担当／コース未定の途中保存も最新承認を反映 |
+| 決定状態 | 既存契約の継承と安全条件の具体化。完了後専用訂正は2026-10-15追加回答で承認（実装適合は別）。死亡後の生前分専用処理、担当／コース未定の途中保存を保持。会議追加2・3は業務正本へ追従 |
 | 実装状態 | 2026-10-15に限定ソース静的照合。全writer／HTTP／DB適合未確認 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -32,6 +32,20 @@ reservationがappointment lifecycleの唯一writer。trimmingはCreateForTrimmin
 参照：[service](../../../../backend/internal/trimming/trimming_service.go)、[create](../../../../backend/internal/trimming/trimming_service_create.go)、[update](../../../../backend/internal/trimming/trimming_service_update.go)、[mutate](../../../../backend/internal/trimming/trimming_service_mutate.go)。
 
 CreateInput／UpdateInputはservice型でありHTTP schemaそのものではない。serviceの任意値だけを業務承認の根拠にせず、[最新第5項合意](../../../spec/domains/trimming/lifecycle.md#trimming-partial-save-undecided)の担当／コース未定の途中保存を目標とする。新規経路の旧画面必須条件と既存予約経路の双方を照合し、全体への適合済みとはしない。record_shortcutによる予約制約の適用差はD01の正本を維持し、任意のstatusを指定すれば全制約を回避できるという仕様にしない。
+
+## 会議追加2：開始・終了の接続
+
+[業務正本](../../../spec/domains/trimming/lifecycle.md#trimming-meeting-start-end)の合意に従い、トリミング開始成功後の同じappointmentのin_consultationをD02で診療中列へ投影する。専用画面からの終了は予約writerの対象分類に対応するintentへ接続し、会計待ちaccountingへ進める。通常カルテの作成・臨床Undoや任意status PATCHへ置き換えない。現在の医院・患者・明示record ref・予約／記録版・認可・必要監査・同一操作結果の保護へ参加させる。
+
+終了を本文保存／記録確定・請求確定・入金の一括処理にしない。保存済み値と未保存入力、終了送信のpayloadを分け、終了失敗時も入力と原記録を保持する。結果不明は元操作を照合し、新しい予約/detailでやり直さない。会計待ちからの参照は明示linked既存recordの読取でありcreateやstartを発火しない。API／DTO・receipt・専用入口への実適合は未確認。
+
+### 終了対象と実効的な終了結果
+
+終了対象は認証医院・予約ID／期待版と、通常カルテ／専用トリミング記録のowner/kind/id/revisionによる型付きrefで照合する。専用wireのIDが予約IDを表す場合とdetailの内部IDを区別し、数値一致だけで通常カルテIDへ変換しない。予約リンクなし／不明はownerによる対象確認まで終了を保留し、架空の予約を生成せず、同一患者・日付や最新記録から推測選択しない。
+
+終了成功のoperation_resultは既存のoperation_id・intent・result_refs（予約と型付き記録）・committed_versions・committed_atを保持する。予約状態・終了結果／必要監査と成功receiptを同じcommitへ対応付け、記録保存や入金のreceiptと混用しない。初回成功結果とcurrent_state／現在版を分け、後の終了取消／再開後に古い成功receiptだけで「終了済み」と判定しない。D21等の受け手は実効的な終了結果と同じ記録への明示関連を読み、途中保存・本文のlegacy finalized表示・予定終了時刻を代用しない。本文view権限とscopeも別に照合する。具体的wire／DTO・全writer対応は実装前の適合確認で、既存APIが成立済みとはしない。
+
+通常カルテはD03の最新自動保存を維持する。自動保存の失敗・競合・結果不明を終了成功で解消済みにせず、逆に自動保存成功だけで終了済みにしない。診療終了時の治療プラン未実施警告は確認すれば続行でき、自動保存では警告しない。警告根拠は対象記録・現在版へ結び付け、D06の新しい施術完了必須条件にしない。終了に「保存して終了／破棄して終了」を追加しない。
 
 ## 担当／コース未定の途中保存
 
@@ -75,6 +89,18 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 
 専用訂正の業務方針は2026-10-15追加回答で承認。通常reservation Undo、通常カルテaddendum、トリミングPATCHの存在を完了後訂正の許可として使わない。確定会計の保護・記録依存を「誤り修正」で回避しない。死亡登録済みの生前分は最新合意の理由・履歴付き専用経路へ接続し、死亡gateを通常writeで全面解除しない。
 
+### 会議追加3：料金調整・カテゴリの引継ぎ設計
+
+[業務正本](../../../spec/domains/trimming/lifecycle.md#trimming-meeting-pricing-category)に従い、施術フォームの料金手修正／値引きを保存し会計pullへ渡す。施術detailの元参照・元価格と今回の調整値、値引き条件／対象scope、調整済みかどうかの根拠、保存版を区別できる契約をD10と接続する。既存course/option IDだけではこの保存の成立を保証しない。物理column名・DTO・migrationは今回決定／変更しない。
+
+会計へ初回追加する時点の調整根拠を同じ元明細へ対応付け、D10の明細／全体scopeと既決計算順へ渡す。同じ値引きを差引後単価と未適用条件の双方で二重計算しない。既存取込済みsnapshotと施術側最新版を区別し、再取込・保存応答不明・競合で同じ元明細や調整を重複させない。会計追加後の施術側変更は自動同期にせず、D10の差分表示・対象明細のスタッフ明示再適用・現在版／認可／状態再検査を継承する。会計側手修正との競合は前後差分を再確認し、未確定だけを更新する。確定後は元請求を直接更新せず訂正／取消・再請求の既存境界へ渡す。
+
+税抜計算／税込表示、同scope内の割合合算→金額、明細→全体／配賦→税率別集約、丸め・超過警告・0円下限は[D10](../../../spec/domains/accounting/lifecycle.md#accounting-calculation-order)を再利用する。コース／オプションの各対象行に入力された値引きをD10の明細scopeへ対応付ける。会計全体はD10の会計側で確認し、行値引きを全体へ複製せず、施術小計等の新しいscope・初期値を追加しない。対象不明を会計全体へ広げず、価格根拠欠落を現在masterから補完しない。旧データの価格snapshot欠落・会計追加時の版競合・全writerの適合を確認するまで実装成立としない。
+
+固定HEAD 5a4c292e3d8545b4e7516692ee3c00695569d9b2の[detailモデル](../../../../backend/internal/model/trimming.go)はcourse参照1件とoption関連を持ち、当該構造に価格／値引snapshotはない。[未請求読取](../../../../backend/internal/billing/billing_item_repository_unbilled.go)はコース／optionを別行として現在master価格から生成し、accounting状態・master価格>0を条件にする限定観察。これは新しい施術料金調整・0円実在明細の引継ぎへの適合証拠ではない。調整保存・元行の型付き参照・取込時版・0円根拠・D10計算の照合を後続実装条件にする。全経路の再監査や実機PASSではない。
+
+コース種別はカテゴリとして予約区分マスタに近い一覧・編集UIへ整理するが、既存course-type IDとコースの参照、master認可、無効化後の履歴を保持する。予約区分の固定業務分類や公開／枠設定を複製せず、個別施術の料金変更からmaster writerを呼ばない。
+
 ## 死亡登録後の生前分記録
 
 [死亡後記録の最新合意](../../../spec/domains/trimming/lifecycle.md#requirement-fr-trimming-safety-and-status)に従う。専用経路は死亡状態を維持したまま、生前分であること・対象医院／患者／元記録・必要権限・理由・現在版を保存時に再照合する。実施時点不明は推測せず確認まで停止。原記録と前後差分・理由・actor／確認者・入力時刻・元記録関連を保持し、必要履歴失敗は部分成功にしない。結果不明は元操作を照合し別IDで重複作成しない。現行の通常create/PATCH・一律死亡拒否を専用経路の実装済み証拠にせず、API／版／receipt／権限対応は適合確認に残す。死亡状態の一時解除、通常writeへの無制限な死亡gate解除で代用しない。
@@ -97,7 +123,7 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | 予約枠が一覧へ自動出現 | 予約detailが未作成でも一覧対象になり得る。施術記録全文が既に生成済みとはしない |
 | 完了から会計へ流れる図 | 会計側pullであり完了イベントで会計生成しない。取込可能状態の全実装条件はD10照合 |
 | PatientInfoCardの担当医ラベル | 業務トリマーとwire列名を区別。語彙変更をコード反映済みとはしない |
-| master料金を引き継ぐ | 価格snapshot時点・取込後変更を未検証のまま断定しない |
+| master料金の表示と引継ぎ | 会議追加3で個別施術の手修正・値引き／会計引継ぎを追加。保存根拠、scope、二重適用防止、取込後差分・確定後訂正の実装適合は未確認 |
 | master course-type「スタッフ管理者以上」 | 実resource/actionが正本。職位から権限を推定しない |
 | 保存権限と画像権限 | create/editのupload cleanupと記録deleteを分離 |
 | 完了後の削除／更新 | mutable状態・会計確定歴・既存依存と、承認済み専用訂正の目標契約を分ける |
@@ -107,14 +133,14 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | FR ID | AC ID（全件・一意） | 技術対応 |
 |:---|:---|:---|
 | FR-trimming-reservation-and-detail | AC-trimming-existing-reservation / AC-trimming-duplicate-detail / AC-trimming-direct-time | reservation intent／detail・options・監査同一tx |
-| FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-save-undecided-staff / AC-trimming-save-undecided-course / AC-trimming-save-undecided-both / AC-trimming-undecided-resume / AC-trimming-undecided-scope / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing | 未定の途中保存／既存対象再開／実施完了条件を追加しない境界・有効master／既存無効保持・履歴copy対象限定 |
-| FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版 |
+| FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-save-undecided-staff / AC-trimming-save-undecided-course / AC-trimming-save-undecided-both / AC-trimming-undecided-resume / AC-trimming-undecided-scope / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing / AC-trimming-course-category-ui | 未定の途中保存／既存対象再開／実施完了条件を追加しない境界・有効master／既存無効保持・履歴copy対象限定 |
+| FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update / AC-trimming-start-consulting-column / AC-trimming-form-end-waiting / AC-trimming-end-no-finalization / AC-trimming-end-failure-replay | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版 |
 | FR-trimming-image-lifecycle | AC-trimming-image-inflight / AC-trimming-image-failure / AC-trimming-image-clear / AC-trimming-image-race / AC-trimming-image-cross-clinic / AC-trimming-image-only-dirty / AC-trimming-image-original-retention | 正規key lock／参照・原本保持・送信済key保護 |
-| FR-trimming-billing-handoff | AC-trimming-billing-pull | 未請求pull／追加時snapshotとD10再適用境界 |
+| FR-trimming-billing-handoff | AC-trimming-billing-pull / AC-trimming-price-adjustment-save / AC-trimming-price-handoff-before-import / AC-trimming-price-no-double-discount / AC-trimming-price-master-unchanged / AC-trimming-price-imported-preserved / AC-trimming-price-finalized-preserved / AC-trimming-price-unknown-scope / AC-trimming-price-undecided-preserved / AC-trimming-price-zero-line-retained | 未請求pull／施術調整の保存とscope／二重適用防止／追加時snapshot・D10計算と訂正境界 |
 | FR-trimming-delete-and-atomicity | AC-trimming-atomic-write / AC-trimming-delete-dependency | 依存検査・detail/options同一tx・監査 |
 | FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
 
-AC prefixはAC-trimming-。FR7件／AC28件と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。最新の途中保存承認差分を含め独立内容レビュー・限定構造検査済み。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。FR7件／AC42件（既存28件＋会議追加14件）と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。今回差分は統合時に検査する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界

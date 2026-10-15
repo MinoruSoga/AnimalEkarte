@@ -11,7 +11,7 @@
 <a id="approved-reservation-scope"></a>
 ## 今回の確定仕様索引
 
-基準82aa52f3時点の合意済み固有FRは69件。今回の分類別・担当者別開始時刻1FRを加え、現在は70件、継承参照は別表の2件。過去に70行を70件の確定要件とした集計は、重複3件と継承2件を区別せず訂正した履歴であり、今回の追加による70件とは別。定義アンカーの検査数は承認件数ではない。
+基準82aa52f3時点の合意済み固有FRは69件。今回の分類別・担当者別開始時刻1FRを加え、基準5a4c292eでは70件。今回の勤務複製／CSV取込／プレビュー確認3FRを加え、現在の索引は73件、継承参照は別表の2件。過去に70行を70件の確定要件とした集計は、重複3件と継承2件を区別せず訂正した履歴であり、今回の追加による70件とは別。定義アンカーの検査数は承認件数ではない。
 
 | FR | 承認日・根拠／適用範囲 | 正本の所在 |
 |:---|:---|:---|
@@ -73,6 +73,9 @@
 | FR-shifts-holiday-warning-confirm | 合意済み。2026-10-14 12:43 JST、ユーザー「ok」。院内休診日登録は17:17合意、LINE条件は17:23・17:35・18:26合意のLINE正本へ従う。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [休診日への変更と既存予約警告](../../screens/24-shift-calendar.md#requirement-fr-shifts-holiday-warning-confirm) |
 | FR-shifts-cross-clinic-overlap | 合意済み。2026-10-13 22:44 JST、ユーザー「はい」。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [同一スタッフの医院間勤務重複を拒否](../../screens/24-shift-calendar.md#requirement-fr-shifts-cross-clinic-overlap) |
 | FR-shifts-manual-travel-gap | 合意済み。2026-10-13 22:57 JST、ユーザー「ok」。23:04の「ok」は進行への回答。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [登録者が医院間移動時間を確保](../../screens/24-shift-calendar.md#requirement-fr-shifts-manual-travel-gap) |
+| FR-shifts-copy-selected-range | 合意済み。2026-10-15 Sentinel_e99d06bd6f0c8191b7bd18fd34d562f9「4 ok」。期間・スタッフを選ぶ複製。相対日付保持・全件確認、明示置換、確認範囲原子保存は合意を具体化する選定設計 | [シフト複製](../../screens/24-shift-calendar.md#requirement-fr-shifts-copy-selected-range) |
+| FR-shifts-excel-csv-import | 同第4項でExcel作成CSV取込を合意。形式・列・上限の具体値は未確定 | [CSV取込](../../screens/24-shift-calendar.md#requirement-fr-shifts-excel-csv-import) |
+| FR-shifts-bulk-preview-confirm | 同第4項で差分・エラー・予約影響の反映前確認と無断上書き禁止を合意。既存予約保護・医院scopeを維持 | [確認・反映](../../screens/24-shift-calendar.md#requirement-fr-shifts-bulk-preview-confirm) |
 | FR-line-reservations-public-business-routing | 合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [公開対象と業務分類による接続](../../line/reservation-spec.md#requirement-fr-line-reservations-public-business-routing) |
 | FR-line-reservations-acceptance-bounds | 追加境界は2026-10-14 18:26 JST一括合意。合意済み。17:23回答。実装・実機未確認。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない 最新訂正によりLINEは予定枠基準、実診療状態を空き条件にしない。 | [受付期間・休診日・時間外・対応可能人数](../../line/reservation-spec.md#requirement-fr-line-reservations-acceptance-bounds) |
 | FR-line-reservations-business-start-times | 2026-10-15追加合意1。通常診療は営業時間から生成、トリミングは登録開始時刻限定。時刻変更・担当者別設定を承認。実装・実機未確認 | [分類別・担当者別開始時刻](../../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times) |
@@ -161,7 +164,7 @@ docs/spec/ は置き場を表し、配下全体の承認を表さない。仕様
 | 院内入力・能力警告・編集 | 最小患者入力、照合と任意補完、未定列、15分クリック、所要時間自動入力と手動終了保持、警告確認・休診日、同時編集保護 | [正本](pages/reservation-management.md#display-inputs) |
 | 状態・取消・復元・日付訂正 | 診療開始後の通常変更制限、担当交代と未定、誤取消の同一予約復元／適格性再確認、未来院手動、未記入と記入済みの日付訂正分離 | [正本](pages/reservation-management.md#operations) |
 | 受付・診療開始終了・誤終了訂正 | 受付とカルテ同時成功、作成済み再利用、未作成／失敗・再試行、明示開始終了・確認ドラッグ、支払い前誤終了取消・勤務外時の継続前手動修正 | [正本](../../workflows/reservation-to-record-flow.md#checkin-contract) |
-| 通常カルテ保存・臨床保護 | 保存ルーティング§2、確定後ロックと追記、現行日付固定処理と合意済み限定訂正を区別。臨床承認待ちは対象外のまま保持 | [正本](../medical-records/lifecycle.md#hybrid-sync) |
+| 通常カルテ保存・臨床保護 | 保存ルーティング§2と最新D03の診療終了後通常編集・履歴保持へ従い、旧確定後ロックの現行差、日付固定処理と合意済み限定訂正を区別。臨床承認待ちは対象外のまま保持 | [正本](../medical-records/lifecycle.md#hybrid-sync) |
 | 入院・ホテル管理 | 予定入院と診察後入院の両入口、来院後明示開始、開始までの担当医、開始時記録・失敗未確定再試行、同じ入院重複防止、ホテル担当医師任意（臨床入院の開始前担当医決定は保持） | [正本](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry) |
 | LINE・ホテル全期間上限 | 公開診療／トリミング／ホテル・入院相談、受付制限、指名なし・ホテル医師条件なし、入力保持、受付前取消・直接変更復元なし、設定不足、医院別全期間宿泊上限 | [正本](../../line/reservation-spec.md#line-agreement-1723) |
 | 会計・対象外境界 | 支払い前の終了取消と支払い後の会計訂正を分け、会計・未納・レジ締め本体を改訂しない | [正本](../accounting/README.md#reservation-correction-handoff) |
@@ -274,7 +277,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細]
 
 2026-10-14、当面の保存・廃棄の扱いはユーザー Sentinel_9d85a7955b608191985bb02c2c9356a5 の「ok」で承認。[C05最新方針](../../shared/retention-audit.md)で業務原本・履歴・必要監査を保持し、通常操作は取消／非表示／論理削除とする。年数自動削除・一括物理削除は通常製品範囲外で必要時は別手続とし、原本所在不明を自動／手動の実体削除へ含めない。具体的年数・法令適合・法的無期限保存は決定していない。既存の論理削除・非表示・復元・履歴参照の合意を保持する。
 
-現在の完了範囲は、予約区分／表示group・指名担当者／個人対応・シフト／休憩・院内／LINE・ホテル／予定入院からの予約接続を含む69固有FRと継承参照2件の文書整理、および[技術接続契約](../../../design/domains/reservations/technical-spec.md#reservation-document-completion-gates)。予約側固有の業務判断を残す段階は終え、受付へ進む。全仕様79FR／194ACは全体集計であり、予約69件と混同しない。
+当時の完了範囲は、予約区分／表示group・指名担当者／個人対応・シフト／休憩・院内／LINE・ホテル／予定入院からの予約接続を含む69固有FRと継承参照2件の文書整理、および[技術接続契約](../../../design/domains/reservations/technical-spec.md#reservation-document-completion-gates)。予約側固有の業務判断を残す段階は終え、受付へ進む。全仕様79FR／194ACは全体集計であり、予約69件と混同しない。
 
 関連領域の訂正・精算／返金／締め後処理・専用記録は[D05](../hospitalization/lifecycle.md)・[D04](../owners-pets/lifecycle.md)・[D06](../trimming/lifecycle.md)、[D10](../accounting/README.md)、[D11〜13/16](../../../design/domains/finance-operations/technical-spec.md)の最新正本を参照する。ホテル担当医師は任意、保持は[C05](../../shared/retention-audit.md)に従い、旧未決のまま残さない。実装前の旧データ・preset値・DB制約・API生成／互換／認可・全writer・並行処理・性能検証、全ドメイン確定後の連携再照合は未実施。文書整理完了を実装開始・利用開始・実機受入済みへ読み替えない。
 
@@ -283,3 +286,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細]
 ## 主飼主変更との接続更新
 
 2026-10-15の[D04追加合意4・5](../owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)を参照する。登録時の連絡先重複は警告・候補を示して別飼主登録を許容し、主飼主変更は今後の予約・LINE通知先への影響一覧を確認後に切り替える。予約への引継ぎは[ページ補足](pages/reservation-management.md#owner-transfer-impact-handoff)、保存は[予約技術契約](../../../design/domains/reservations/technical-spec.md#owner-transfer-impact-confirmation)へ。D04所有のFR/ACを本書の69固有FRへ二重計上せず、LINE未連携の自動新規紐付け・過去請求／預り金移管を追加しない。
+
+## 2026-10-15会議4点の索引更新
+
+最新の通常カルテ編集・復元と終了履歴は[D03](../medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、専用施術の開始／終了・料金は[D06](../trimming/lifecycle.md)、勤務の複製／CSVは[D14](../../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)へ。現在73固有FRの索引と技術traceの一致を確認した。旧70／69の検査記録は当時の範囲。新しい予約枠数・時間既定や無断上書き許可は追加しない。

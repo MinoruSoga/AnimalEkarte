@@ -74,3 +74,7 @@ Input readonly視覚、Dialog mobile fullscreen、Select dense size、Table stic
 ## 全ownerへの適用照合
 
 [全23領域の具体的な意味ID・保存・安全・保持・失敗条件との対応](owner-contract-coverage.md)を参照する。原則の再掲だけで個別操作の受入を満たしたとは扱わず、引用先のFR／AC・技術契約と照合する。
+
+## 2026-10-15入力クリアと取消の区別
+
+通常カルテの入力クリアは[D03](../domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)に従い現在タブを開いた時点へ、履歴複製の取消は複製直前へ戻す。自動保存が続くため「未保存入力だけ破棄」の共通閉じる操作と同一視しない。他タブ・他者版・金銭／在庫等の副作用を一括取消しない。自動保存・復元・診療終了の成功／失敗／結果不明を別表示し、記録保存成功を終了成功へ代用しない。

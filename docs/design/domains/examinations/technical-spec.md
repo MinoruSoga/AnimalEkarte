@@ -68,7 +68,7 @@ D03の専用過去入力／確定後追記とD07のofficial revision保護へ接
 ## 権限・全writer
 | 経路 | 既存grant／owner | 継承する照合 |
 |:---|:---|:---|
-| exam CRUD／items／print | examinations view/create/edit/delete、medicalrecord write owner | clinic/pet/record関係、検査ロック、親finalized、必要ログ |
+| exam CRUD／items／print | examinations view/create/edit/delete、medicalrecord write owner | clinic/pet/record関係、検査自身のロック、必要ログ。旧親finalized一律拒否は最新D03目標との差 |
 | unconfirm | examination-unconfirm:edit | actor・理由・official版・親draft |
 | frames／wait／board | lab-import:create | trusted clinic、alive pet、受信consumer排他 |
 | unlinked／station／masters read | lab-import:view | 医院scope、閲覧可能範囲 |
@@ -81,14 +81,14 @@ D03の専用過去入力／確定後追記とD07のofficial revision保護へ接
 <a id="examination-owner-contract"></a>
 ## D03／読取ownerへの返却
 検査結果の受渡し先はD03とD21の認可済みスタッフ読取であり、今回D20へ検査結果を公開しない。D20の限定健康表示とD21のスタッフ専用Owner Report閲覧認可を区別する。D21への返却に飼主公開や新しい公開承認操作を含めない。
-返却は医院、患者／カルテ対応、exam ID、固定revision、版内項目ref、状態、原値・単位・保存範囲、変更前後／理由／actor／時刻、取得状態。取得不能・非開示・旧版不明は区別する。D03の[最終writer／専用intent](../medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、draftは許可された関連保存、finalizedは原記載と確定時参照版を保持する専用結果追記へ渡す。現カルテExamGroupがrevisionを保持しない差、addendumが構造化結果refを持たない差を残す。lab usage receiptは転記／復元／公開のapproval receiptではない。
+返却は医院、患者／カルテ対応、exam ID、固定revision、版内項目ref、状態、原値・単位・保存範囲、変更前後／理由／actor／時刻、取得状態。取得不能・非開示・旧版不明は区別する。D03の[最終writer／専用intent](../medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、診療終了後もD03の認可された通常編集と変更履歴へ接続する。旧親finalizedを一律拒否条件にはせず、過去の原記載／参照版は保持する。検査自身のconfirmed／official版保護と必要な専用訂正は維持する。現カルテExamGroupがrevisionを保持しない差、addendumが構造化結果refを持たない差を残す。lab usage receiptは転記／復元／公開のapproval receiptではない。
 
 ## AC追跡
-以下は業務正本の全40ACを技術契約へ対応する索引。前提／期待結果の正本は業務側のGWT。
+以下は業務正本の全41ACを技術契約へ対応する索引。前提／期待結果の正本は業務側のGWT。
 | 技術部分 | AC suffix |
 |:---|:---|
 | 入口・型・scope | entry, scope, required, doctor-optional, editor-log, deceased-history, deceased-boundary, value, unassessed |
-| 状態・版・必要ログ | confirm-lock, legacy-seal, unconfirm, unconfirm-denied, reconfirm, finalized-parent, cross-version, write-failure |
+| 状態・版・必要ログ | confirm-lock, legacy-seal, unconfirm, unconfirm-denied, reconfirm, finalized-parent, cross-version, write-failure, clear-copy-guard |
 | 日常受信・待機 | browser, lock-denied, unsupported, wait, wait-expired, specimen |
 | mapping・原値 | clock, unknown-code, multiple-types |
 | 冪等・補償 | receive-duplicate, fixture-difference, attach, detach, detach-used |
@@ -101,3 +101,8 @@ D03の専用過去入力／確定後追記とD07のofficial revision保護へ接
 
 
 D21 Owner Reportはスタッフの閲覧専用であり、同画面からの印刷・共有を設けない。D03や検査自ドメインに既存の印刷経路があることを、D21経由の印刷許可へ拡張しない。
+
+
+### 最新カルテ契約へのadapter
+
+[通常編集と検査保護の分離](../../../spec/domains/examinations/lifecycle.md#examination-normal-edit-autosave)を適用する。D03のタブ復元／複製Undoが参照するのは同じカルテ・exam・固定結果版／対象入力で、検査のofficial版を通常更新したり機器jobをdetachしたりしない。検査結果訂正が必要ならD07自身のgrant・理由・版保持・unconfirm／再確定へ従う。旧親draft必須／finalized拒否を最新目標の実装済み保証にせず、親記録の現在版・scope・履歴保護と独立した検査ロックへ判定を分離する。AC-finalized-parent／clear-copy-guardはこの接続を検査する。

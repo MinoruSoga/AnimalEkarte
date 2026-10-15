@@ -213,3 +213,8 @@ FR-liff-health-published-facts: 本人に紐付く生存ペットの保存済み
 ### 来院集計承認との境界
 
 [D16実来院回数](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts)の承認は本画面の公開範囲を拡張しない。既存pet.last_visit投影を新しい実来院sourceへ適合済みとは扱わず、患者・医院・実来院根拠の照合を要する。今回の承認だけで新しい指標を公開したり、最終来院日を最新draftカルテ日から補完したりしない。
+
+
+### カルテの通常編集・タブ復元を受ける範囲
+
+D03の[自動保存維持・通常編集・タブ復元](../domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)でも、本画面は従来どおり同じ患者の保存済み有効接種実績・最終来院日だけを読む。復元に伴う有効状態／保存版の変更はD08の保存結果を再取得して反映し、未保存・結果不明を成功済み投影にしない。D21の診療終了条件を接種公開へ流用せず、親の医師確定や診療終了を新しい公開gateにしない。既に送った通知の回収、診断・処方・検査結果への公開拡大を追加しない。

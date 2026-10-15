@@ -64,9 +64,9 @@ flowchart TB
 
 ## カルテへの後日結果・訂正履歴の接続
 
-2026-10-14の[カルテ追加合意](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-late-result-shared-history)により、検査画面とカルテは同じ検査結果・変更履歴を参照する。カルテ作成中は後日結果を追加、確定済みなら原記載／確定時参照版を保持して結果を追記する。患者／医院／検査／カルテ対応を照合し、結果訂正の前後・理由・操作主体／時刻を履歴へ残す。
+2026-10-14の[カルテ追加合意](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-late-result-shared-history)により、検査画面とカルテは同じ検査結果・変更履歴を参照する。最新の[通常編集契約](../domains/examinations/lifecycle.md#examination-normal-edit-autosave)により診療終了後もカルテ本文を編集できる。原記載・参照版と変更履歴を保持し、検査自身の確定ロックは別に維持する。患者／医院／検査／カルテ対応を照合し、結果訂正の前後・理由・操作主体／時刻を履歴へ残す。
 
-検査ownerの確定／訂正・専用unconfirm権限は[検査入力／結果登録の既存契約](13-examinations-form.md#21-真正性の担保確定ロック)へ従う。検査のunconfirmをカルテ確定解除やfinalizedへの通常関連PATCHの許可にしない。[参照版と追記の技術契約](../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)へ接続し、revisionなし旧結果・機器受信／adapter全経路はD07の文書照合に残す。今回検査内部の新しい解除手順・実装・実機受入を確定しない。
+検査ownerの確定／訂正・専用unconfirm権限は[検査入力／結果登録の既存契約](13-examinations-form.md#21-真正性の担保確定ロック)へ従う。検査のunconfirmは検査自身の専用操作であり、カルテの旧確定履歴の消去や患者関連の普通FK変更を許可しない。カルテ本文の通常編集は最新D03契約へ従う。[参照版と追記の技術契約](../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)へ接続し、revisionなし旧結果・機器受信／adapter全経路はD07の文書照合に残す。今回検査内部の新しい解除手順・実装・実機受入を確定しない。
 
 ### 最終照合の受け手契約
 

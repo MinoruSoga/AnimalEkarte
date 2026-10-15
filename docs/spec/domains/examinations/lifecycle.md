@@ -20,11 +20,11 @@
 機器受信経路の優先順位は、2026-10-14 EMR-402を反映した現行接続正本／ADR008のcurrent daily pathが先。ADR007/008の古い「日常ポート選択ゼロ」「LaunchAgent常駐」を現在の日常受信要件として適用しない。その他の受信同一性・待機・attach/detach・隔離契約は維持する。
 
 ## 業務状態
-検査オーダー・結果入力・検査確定・カルテ確定・機器受信を別の状態として扱う。
+検査オーダー・結果入力・検査確定・カルテの保存／診療終了・機器受信を別の状態として扱う。旧カルテfinalizedは履歴上の値とし、医師確定操作を通常編集・終了の必要条件に戻さない。
 - pending／in_progress／result_enteredは進捗。保存だけを全検査の臨床確定と扱わない。
 - confirmedは検査全体を封印。revisionなしcompletedは結果編集・削除を封印する。
 - revisionありcompletedは確定解除後の作業版となり得る。同じ文字列completedを理由に全件を同じロック状態へ変換しない。
-- 検査確定解除は検査だけの専用手順。カルテfinalizedを解除しない。
+- 検査確定解除は検査だけの専用手順。カルテの診療終了・旧確定履歴を解除／消去しない。
 - 受信済みreceived、患者紐付け／persisted、要確認needs_review、fixtureのrevertedを混同しない。
 
 <a id="fr-examinations-record"></a>
@@ -42,7 +42,7 @@
 ## FR-examinations-revision：確定・訂正で原結果と版履歴を守る
 confirmedは普通のPATCH／項目置換／削除では変更しない。専用unconfirm権限と理由を用いて作業版を作り、修正保存後に再確定する。解除理由は空白のみ不可、既存上限500文字を維持する。revisionのない旧confirmedを架空の版で解除しない。元official版を保持し、変更前後・理由・認証actor・時刻を辿れるようにする。作業変更と再確定を一度の曖昧な保存に混ぜない。
 
-紐付くカルテがfinalizedなら通常の結果更新、unconfirm、再確定で原記載を変更しない。後日結果／訂正結果はD03の専用追記境界へ渡し、同じexamと固定結果版を参照する。原版と後日版を区別し、名前や行位置で跨版項目を同一視しない。
+紐付くカルテが診療終了済み又は旧finalizedであることだけを理由に、カルテ本文の通常編集を一律拒否しない。一方、検査自身のconfirmed／旧封印・official版／専用unconfirm条件は維持し、D03の通常編集やタブクリアで検査原版を上書きしない。後日結果／訂正結果は[最新のD03接続](#examination-normal-edit-autosave)の変更履歴へ渡し、同じexamと固定結果版を参照する。原版と後日版を区別し、名前や行位置で跨版項目を同一視しない。
 
 <a id="fr-examinations-receive"></a>
 ## FR-examinations-receive：転記せず受信し、患者不明は未紐付けに保持する
@@ -93,7 +93,7 @@ confirmedは普通のPATCH／項目置換／削除では変更しない。専用
 | AC-examinations-unconfirm | revisionありconfirmed・専用grantあり | 理由付き解除 | 原officialを保持し作業版、actor／理由／時刻を記録 | revision |
 | AC-examinations-unconfirm-denied | grantなし／理由空白／旧confirmed版なし | 解除 | 拒否し架空revisionを作らない | revision |
 | AC-examinations-reconfirm | 作業版に未保存修正あり | 再確定 | 修正保存と再確定を分離し固定版を生成 | revision |
-| AC-examinations-finalized-parent | 親カルテfinalized | 結果訂正／後日到着 | 原版を保持、通常PATCHやunfinalizeで迂回せず専用追記へ | revision |
+| AC-examinations-finalized-parent | 親カルテは診療終了済み又は旧finalized | カルテ本文の通常編集／結果訂正／後日到着 | カルテの旧確定値だけで本文編集を拒否せず変更履歴を保持する。検査自身のconfirmed／official版は通常PATCHで迂回せず専用訂正し、同じ固定結果版参照を保つ | revision |
 | AC-examinations-cross-version | item対応不明の旧版／新版 | 結果参照 | 名前／位置で補完せず照合停止 | revision |
 | AC-examinations-browser | NX600/AU10V・許可したポート | 日常受信開始 | ページ表示中・受信専用・単一consumer | receive |
 | AC-examinations-lock-denied | 別タブが受信占有 | 開始 | 排他取得前にポートを開かない | receive |
@@ -116,6 +116,7 @@ confirmedは普通のPATCH／項目置換／削除では変更しない。専用
 | AC-examinations-master-history | 基準値改定／当時値欠損 | 過去結果表示 | 保存版を保持、不明値を現在値で補完しない | master |
 | AC-examinations-clinical-approval | マスタ投入／コード完了 | 利用開始判断 | 医師の具体値確認・実機受入済みとしない | master |
 | AC-examinations-list-scope | ページ内絞込み／先頭履歴のみ | 検索 | 全件検索・全履歴と誤表示しない | read |
+| AC-examinations-clear-copy-guard | カルテ検査タブに原結果・機器job・固定結果版の参照あり | タブクリア／履歴複製Undo | カルテ側対象入力の履歴付き復元と、機器受信・attach/detach・検査確定版を分離する。検査原版削除や実行副作用の逆実行をせず、競合／結果不明は停止照合 | revision |
 | AC-examinations-print | 保存済み結果版あり | 印刷 | 同じ保存snapshot、未保存値を自動保存しない | read |
 | AC-examinations-owner-handoff | D03カルテ／D21スタッフレポートが参照 | 受渡し | 同じ医院・患者・exam・固定版・取得状態を認可済みスタッフへ返す。D20への検査結果公開は行わない | read |
 | AC-examinations-write-failure | 必須監査失敗／競合／認証医院変更 | write | 部分成功を避け原記録保持、古い応答を別scopeへ反映しない | revision |
@@ -129,3 +130,13 @@ confirmedは普通のPATCH／項目置換／削除では変更しない。専用
 
 
 D21 Owner Reportはスタッフの閲覧専用であり、同画面からの印刷・共有を設けない。D03や検査自ドメインに既存の印刷経路があることを、D21経由の印刷許可へ拡張しない。
+
+
+<a id="examination-normal-edit-autosave"></a>
+### カルテの通常編集・自動保存・復元との接続
+
+会議追加第1項（Sentinel_e99d06bd6f0c8191b7bd18fd34d562f9）で診療終了後も通常編集できる目標へ変更した。保存ボタン方式は Sentinel_ffce3491042481918ffb701f9d84547b で撤回し、自動保存を維持する。クリアはタブを開いた時点、履歴複製Undoは複製直前の状態へ戻す回答 Sentinel_6583182163e881919433829835fa137e に従う。[D03正本](../medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)の対象／版・変更履歴・現在権限・失敗／結果不明契約へ接続する。
+
+D03の通常編集は、検査自身の確定解除や原結果変更の権限ではない。検査コメント／参照等のカルテ側入力と、機器の受信・患者紐付け・検査結果版のwrite ownerを区別する。受信済みjob、usage receipt、official版の保護は維持し、タブクリア／複製Undoをdevice Undoやfixture revertに変換しない。検査の原結果とカルテに残す表示／記載の変更を別履歴として追跡する。
+
+タブクリア／履歴複製Undoは対象入力の復元であり、患者・親recordの付替え、保存済み原履歴の物理削除、別タブ／別患者／他者変更の消去、通知の回収、会計／入金・実在庫の逆実行へ拡張しない。現在版・対象ID・由来が復元基準から変わっていれば無警告上書きをせず、既存内容と入力を保持して再取得・確認へ進む。保存結果不明を復元成功や未保存扱いにせず、元操作結果を照合してから続ける。復元できた状態とその前後差分も履歴に残す。独立フォーム／機器実行の自動保存方式を、カルテタブの回答だけで新設・変更しない。

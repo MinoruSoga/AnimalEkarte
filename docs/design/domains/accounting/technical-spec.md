@@ -306,7 +306,7 @@ ADR003のENUMとsystem_key／医院master IDの整合は維持する。固定4�
 <a id="accounting-document-completion"></a>
 ## D10文書完成条件と判定外
 
-D03と同じ限定文書基準を適用。対象は9FR／151AC、3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。支払方法停止の追加7ACも今回の固定39文書レビュー・限定構造検査を通過した。既存144ACの判定とは別に追加差分の確認根拠を保持する。既存AC／アンカー・144AC本文を保持し、新旧全ACを一意に追跡する。
+D03と同じ限定文書基準を適用。対象は9FR／155AC、3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。支払方法停止の追加7ACも前段階の固定39文書レビュー・限定構造検査を通過した。今回の会議連携4ACは新しい候補レビュー対象として区別する。既存144ACの判定とは別に追加差分の確認根拠を保持する。既存AC／アンカー・144AC本文を保持し、新旧全ACを一意に追跡する。
 
 文書で選定した意味型・原子保存／receipt・現在認可／不明時停止・画面状態／master参照保護・引継ぎを後決めへ戻さない。物理schema／wire名・採番書式／lock実装・実grant／実旧値・移行・全writer／consumer実装適合・実機／性能／復旧試験・税務／決済規約適合は後続実装／利用開始条件。これらと他owner内部・全体横断最終照合は本領域の文書完成判定外。保険会社請求／査定・自動給付、督促／貸倒、別医院／飼主移管・外部機器連携は対象外。
 
@@ -316,6 +316,9 @@ D03と同じ限定文書基準を適用。対象は9FR／151AC、3画面＋選�
 
 | 業務FR | 正本AC範囲 | 技術照合対象 |
 |:---|:---|:---|
+| FR-accounting-owner-selected-charges（会議連携） | trimming-zero-line | [施術側調整・記録復元の受渡し](#accounting-trimming-adjustment-adapter)。実在0円行と元版／計算snapshot |
+| FR-accounting-calculation-snapshot（会議連携） | trimming-adjustment-once／trimming-source-refresh | [施術側調整・記録復元の受渡し](#accounting-trimming-adjustment-adapter)。根拠付き一度適用・明示再適用と確定保護 |
+| FR-accounting-reasoned-financial-correction（会議連携） | record-edit-no-money-undo | [施術側調整・記録復元の受渡し](#accounting-trimming-adjustment-adapter)。臨床本文復元と金銭操作を分離 |
 | FR-accounting-owner-selected-charges | owner-multi-pet／selected-unbilled／old-bill-collection／no-invented-allocation | 複数元参照・選択・二重請求防止・元請求帰属 |
 | FR-accounting-receivable-partial-zero | unpaid-finalize／partial-finalize／later-payment／zero-no-fake-payment | 請求と入金の別状態・履歴・残額・0円根拠 |
 | FR-accounting-reasoned-financial-correction | correction-authorization／correction-history／refund-received-cap／refund-method-required／cancel-no-money-stock | 認可・理由・監査・実入金上限・方法・owner分離 |
@@ -362,9 +365,19 @@ D03と同じ限定文書基準を適用。対象は9FR／151AC、3画面＋選�
 
 overdiscount-unresolved／overdiscount-post-warning-pending は参照互換の既存識別子であり、期待結果は合意済みの警告・請求額0円下限へ更新する。
 
-AC短名は[正本151AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
+AC短名は[正本155AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
 
-実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、現在151ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
+実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、現在155ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
 
 業務判断と技術設計／検証・対象外の区別は[残件の分類](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)へ。D05／06専用記録、D11見積、D12締め、D13在庫、D16集計、C04権限／C05監査の受け手実装適合・全体横断再照合は別工程。保険会社への請求送信・入金照合・査定差額管理・会社／商品別の自動給付算定、外部支払／印刷機器を追加実装する設計は含めない。
 
+
+
+<a id="accounting-trimming-adjustment-adapter"></a>
+## 施術側調整・記録復元の受渡し
+
+[業務契約](../../../spec/domains/accounting/lifecycle.md#accounting-trimming-adjustment-handoff)に従い、元施術ID／版とコース／optionの元明細IDを会計行に対応付ける。元価格・料金手修正・D10明細scopeの値引条件・算定結果を受け、同じ元調整が一度だけ計算に含まれることを検査する。別の会計全体値引きと同一扱いせず、元施術小計を新しい架空明細にして再控除しない。既請求帰属・0円理由・現在scope／認可・計算snapshotは会計の既存保存契約へ参加する。
+
+確認後の元施術版・会計版・価格／値引きが変われば差分を再確認し、無警告で再取込／再適用しない。受渡しの操作ID・元参照・内容一致と保存結果を対応付け、同一操作の応答不明は先行結果を照会する。明細の追加と根拠／必要監査・操作結果は会計保存単位で一体にし、二重行・二重値引き・一部根拠欠落を成功としない。
+
+現行未請求SQLのmaster価格>0抽出と、施術側料金／値引きsnapshotがない状態は適合差である。元値・調整理由／版・計算範囲が不明なら現在masterから当時のsnapshotを捏造しない。物理wire／schemaと各writerの適合は後続実装で検証する。D03通常編集／クリア／複製Undoのreceiptを会計訂正・返金・在庫補償のreceiptに流用しない。

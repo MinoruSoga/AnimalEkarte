@@ -63,7 +63,7 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 ## 全writer・副作用・返却
 | writer/read | 保護／受け手 |
 |:---|:---|
-| 健診本体CRUD、field PUT | 通常writeは親finalized拒否・clinic/pet/record/checkup/package再照合。D03必要監査・版／結果receiptへ参加 |
+| 健診本体CRUD、field PUT | 旧親finalized拒否は最新D03の通常編集目標との差。clinic/pet/record/checkup/package・現在権限を再照合し、D03必要監査・版／結果receiptへ参加 |
 | 独立親create→子create→field PUT | 部分成功の保存段階、前段ID、unknown停止。各段成功を全体成功にしない |
 | package／field master変更、package import | 対象医院と定義参照。既存結果snapshotを上書きせず、臨床数値確認とマスタ編集者を分離 |
 | D03専用訂正／過去／復元 | 元記録・理由／actor／確認・現親依存。普通PATCHや別IDcreateへfallbackしない |
@@ -78,7 +78,7 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 | 正系統 | canonical, retired-id |
 | 入口・本体型 | chart-entry, quick-entry, edit-entry, required, doctor-clear, next-manual, next-package-candidate, next-no-setting-blank, next-history-preserved, next-setting-unknown |
 | field型・置換 | value-types, field-scope, invalid-choice, replace-missing, replace-empty, replace-failure, master-change, unassessed |
-| 保護・復帰 | deceased-history, deceased-boundary, finalized, scope-grant, partial-save, unknown-result, concurrent, leave-limit |
+| 保護・復帰 | deceased-history, deceased-boundary, finalized, scope-grant, partial-save, unknown-result, concurrent, leave-limit, clear-copy-guard |
 | 一覧・受け手 | alert, list-scope, followup-confirmation, followup-purpose, followup-recovery, notify-failure, publication |
 
 ## 完了判定外
@@ -86,3 +86,8 @@ Checkupのみが健診記録／集計／閾値の正系統。Examinationの退�
 
 
 D21 Owner Reportはスタッフの閲覧専用であり、同画面からの印刷・共有を設けない。D03や検査自ドメインに既存の印刷経路があることを、D21経由の印刷許可へ拡張しない。
+
+
+### 最新カルテ契約へのadapter
+
+[通常編集・自動保存／復元](../../../spec/domains/checkups/lifecycle.md#checkup-normal-edit-autosave)に従う。旧親finalizedを一律編集不可の目標として維持せず、対象checkup・親record・患者・package／field・現在権限・期待版を照合する。復元基準はD03が保持する対象タブ／複製操作と同じID・版の入力値であり、field名や配列位置だけで別対象へ適用しない。変更と必要履歴／操作結果は保存単位で一体にし、原値・復元差分を残す。現状のPath B段階保存を全体atomic済みとせず、保存結果不明・部分成功は既存IDを照会する。新しい通知／会計／在庫操作を自動実行しない。AC-finalized／clear-copy-guardを本adapterへ対応付ける。

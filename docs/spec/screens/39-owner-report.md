@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.owners.clinical-report／D21 業務・画面仕様 |
-| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15整理節の提案・未決は未承認 |
+| 決定状態 | 既存記載を継承し、今回の診療終了済みカルテを履歴対象とする承認を反映。未照合の履歴と現行実装差は別に保持 |
 | 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
 | 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
 | 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
@@ -45,7 +45,7 @@ flowchart TB
 | ① | 診療前の確認 | ペット備考、血液型、直近の薬・処方、最新検査、予防予定 |
 | ② | 今日の来院 | 本日の予約時刻、初診/再診、受付状態、予約内容、担当 |
 | ③ | 次の行動 | 次回予約（確定・実予約）、次回予定（tentative appointment の意図日・時間未定）、予防予定 |
-| ④ | 前回診療 | 最新の確定カルテにある診療日、担当、主訴、評価、方針 |
+| ④ | 前回診療 | 最新の診療終了済みカルテにある診療日、担当、主訴、評価、方針 |
 | ⑤ | 基本情報 | ペット・飼主属性、初診日、前回来院、保険、住所、勤務先、DM |
 | ⑥ | 種類別履歴 | 縦を情報種類、横を新しい日付順とした履歴マトリクス |
 
@@ -92,7 +92,7 @@ flowchart TB
 - 年齢だけは生年月日から `formatPetAge` で導出する。初診日は専用API、前回来院はペットAPIの値を使う。
 - 最新検査の異常件数だけを診療前確認へ表示し、過去の異常を現在の要確認事項として累積しない。
 - 権限なし・読み込み中・取得失敗を0件や「予定なし」として扱わない。
-- 前回診療と診療履歴は `status=finalized` のカルテだけを対象とし、下書きを診療済みとして扱わない。
+- 前回診療と診療履歴は、[最新合意](#owner-report-ended-history)により診療終了したカルテだけを対象とする。自動保存済みでも診療中の記録を診療済み履歴へ載せず、医師確定操作を新たな表示条件にしない。
 - 本画面は読み取り専用で、入力・保存操作を持たない。
 
 ### 3.2 アクセシビリティ
@@ -120,7 +120,7 @@ flowchart TB
 | GET | `/api/v1/owners/:id` | 飼主基本情報 | `owners:view` |
 | GET | `/api/v1/owners/:id/report/pets` | Owner Report用に絞った同居ペット一覧 | `owners:view` |
 | GET | `/api/v1/pets/:id/first-visit` | 初診日 | `medical-records:view` |
-| GET | `/api/v1/medical-records?pet_id=&status=finalized&sort=date&order=desc` | 前回診療・診療履歴（最大100件） | `medical-records:view` |
+| GET | `/api/v1/medical-records?pet_id=&status=finalized&sort=date&order=desc` | 現行の前回診療・診療履歴（最大100件）。目標は診療終了結果に基づく選別へ置換 | `medical-records:view` |
 | GET | `/api/v1/pets/:id/treatment-history?page=` | 薬・処方と処置（filter=all・手動追加読み込み） | `medical-records:view` |
 | GET | `/api/v1/vaccinations?pet_id=` | 予防予定・予防接種履歴 | `vaccinations:view` |
 | GET | `/api/v1/examinations?pet_id=&page=` | 最新検査・検査履歴（手動追加読み込み） | `examinations:view` |
@@ -155,7 +155,7 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 |:---|:---|:---|
 | FR-owner-report-page-section-auth | medical-records:viewとowners:viewの両方をページ前提とし、各sectionは各リソースviewで縮退する | 本文概要・§3 |
 | FR-owner-report-single-pet-context | 同一飼主の1頭だけを選択表示し、URLのpetIdをreplace同期する。範囲外petIdは先頭ペットへfallbackし、複数頭を合算しない | 本文概要・§1〜2 |
-| FR-owner-report-history-meaning | 診療はfinalized、検査は依頼中/検査中を除外、ケアは完了のみ。日付で横断表示しても同一診療IDへ統合した意味にしない | 本文§1.3、§3.1 |
+| FR-owner-report-history-meaning | 診療は診療終了したカルテ、検査は依頼中/検査中を除外、ケアは完了のみ。日付で横断表示しても同一診療IDへ統合した意味にしない | 本文§1.3、§3.1 |
 | FR-owner-report-partial-data | 権限なし/読込中/失敗/0件/明細なし/取得上限を区別し、異常なしや予定なしへ代用しない | 本文§1.3、§3 |
 | FR-owner-report-manual-pagination | 対象3sourceだけ利用者操作で追加取得し、薬/処置は同一sourceを共有する。上限検知はraw行数とtotalで判定する | 本文§1.3 |
 | FR-owner-report-read-only | 別ウィンドウの閲覧に限定し、保存・印刷・共有を新設しない | 本文§2〜3 |
@@ -168,7 +168,7 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 | AC-owner-report-section-denied | ページ権限はあるが検査viewがない | 6領域を見る | 検査部分だけ閲覧権限なしとし他の許可情報を継続表示する | 各section権限対応を照合 |
 | AC-owner-report-pet-switch | 同居ペットが複数いる | 1頭を切り替える | 選択中contextとURLがその1頭に対応し複数頭を合算しない | 本文§1.1/2.2を照合 |
 | AC-owner-report-outside-pet | petIdが当該飼主に属さない | 開く | 同一飼主ペットの先頭へfallbackする | 本文概要/OwnerReport.tsx。空配列は専用0ペット表示、詳細query対象なし |
-| AC-owner-report-finalized | 下書きと確定カルテが混在する | 前回診療/履歴を見る | finalizedだけを診療済みとして使う | 本文§3.1 |
+| AC-owner-report-finalized | 診療中の自動保存済みカルテと診療終了済みカルテが混在する | 前回診療/履歴を見る | 診療終了したカルテだけを診療済み履歴として使い、医師確定の有無や自動保存だけで対象にしない | [最新合意](#owner-report-ended-history)。既存IDを保持して期待条件を更新 |
 | AC-owner-report-no-result-detail | 検査明細が返らない | 最新検査/履歴を見る | 結果明細なしと表示し異常なしを捏造しない | 本文§1.3 |
 | AC-owner-report-truncation | totalがraw取得行数より多い | 履歴を表示する | フィルタ後件数と混同せず打切りを示す | 本文§1.3のraw/可視の区別 |
 | AC-owner-report-more | 追加取得対象sourceに次pageがある | 続きを読むを押す | 対応sourceを追加し、薬/処置は共通制御。初回自動page>1取得をしない | 本文§1.3 |
@@ -191,7 +191,7 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 | 初期表示 | 認証loading中は表示保留、未認証はredirect。owner/pets読取loadingとerrorを分離する |
 | 患者選択 | URL petが現在ownerのpetsに含まれれば選択、なければ先頭へfallback。手動選択はURL replace。fallback自体が必ずURLを書換えるとはしない |
 | 0ペット | 「この飼主に登録されたペットがありません」を表示。pet切替/臨床取得対象を作らない |
-| カルテ読取 | finalizedのみ、取得上限100。未取得がない全履歴とは表示しない |
+| カルテ読取 | 現行はfinalizedのみ、取得上限100。目標との差分であり[診療終了結果](#owner-report-ended-history)へ選別を置換する。未取得がない全履歴とは表示しない |
 | 他領域読取 | 領域viewなしはpet ID undefined/取得disabledとして対応queryを実行しない。画面のviewを各領域viewへ昇格させない |
 | 予約読取 | 当日から731日の窓。従来本文365日は現行2年予定窓へ訂正。D01予定の存在は確定予約や来院実績と同義でない |
 | 追加取得 | 対象3履歴の手動追加読込を個別に扱い、1件の失敗で他取得済セクションを空成功にしない |
@@ -201,5 +201,29 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 |:---|:---|:---|:---|
 | AC-owner-report-no-pets | ownerにpetsなしで開く | 専用空状態、架空patientを選ばない | OwnerReport.tsx |
 | AC-owner-report-invalid-pet | 別owner/不存在のpet queryで開く | 現ownerの先頭petへfallback、指定IDの他患者記録を表示しない | OwnerReport.tsx |
-| AC-owner-report-finalized-only | draftとfinalizedカルテがある | report queryはfinalized・上限100で取得 | clinical briefing hook |
+| AC-owner-report-finalized-only | 旧draft/finalizedと診療終了状態が一致しない記録がある | 目標では診療終了結果を照合して選別し、旧statusだけで対象を決めない。現行queryはfinalized・上限100であり適合差として検出する | clinical briefing hookの現行差・[新読取契約](#owner-report-ended-history) |
 | AC-owner-report-section-query-denied | 予約等のviewなし | 該当queryを実行せず情報を漏らさない | 同hookのenabled/undefined |
+
+
+<a id="owner-report-ended-history"></a>
+## 診療終了を基準にした履歴表示（会議追加合意）
+
+質問 Sentinel_6c374f62ed6c8191bc8da84631b884bd「医師が確定したカルテに代えて診療終了したカルテを表示対象にし、診療中の途中保存は載せない」に対するユーザー Sentinel_8199a97373348191a766a6af966812ff「ok」が根拠。医師確定操作の廃止／診療終了後も通常編集できるD03の最新方針と接続し、D21は診療終了したカルテを前回診療・診療履歴へ表示する。自動保存は終了を意味せず、表示のためにカルテを確定・自動終了させない。
+
+### 読取側の判定と版
+
+同じ医院・患者・カルテIDに対応する実効的な診療終了結果と現在の保存済み内容／版を参照する。D01／D03の終了操作の成功結果、取消／再開関係、取得状態を照合し、終了が結果不明・未取得なら保存時刻、旧finalized値、会計確定や予約予定日時で終了を捏造しない。終了取消で診療中へ戻った記録は、再び終了するまでは診療済み履歴の対象から除く。終了・取消の原履歴は消さない。既存の[終了取消と会計保護](../workflows/reservation-to-record-flow.md#consultation-end-undo-before-payment)をD21から変更しない。
+
+診療終了後の通常編集が保存された場合は、その記録の現在保存済み内容／版を再取得して表示する。変更前の記録・変更者・時刻等の履歴はD03に保持し、D21の読取で書換えや復元を実行しない。常時即時更新や新しい通知を保証せず、既存の再取得・患者切替・遅延応答・section認可を維持する。検査自身のconfirmed／固定版保護、ケア履歴の完了条件、接種公開範囲、同日の別リソースを統合しない条件は変更しない。
+
+現行の `status=finalized` queryは5a4c292e基準の既存仕様から把握する適合差であり、終了結果の照合adapterが既に実装済みとはしない。新しいendpoint文字列や物理status値は本合意から創作しない。判定に必要な終了結果・カルテ対応・現在版が不明なら、未確認／取得失敗として示し、診療中や別患者の記録へfallbackしない。
+
+### 追加受入と技術追跡
+
+以下はFR-owner-report-history-meaning／partial-data／read-onlyに対応し、本節の読取判定・版・認可が技術traceとなる。
+
+| 条件ID | Given | When | Then | 対応 |
+|:---|:---|:---|:---|:---|
+| AC-owner-report-ended-edit | 診療終了済みカルテが通常編集され保存済み | 前回診療／履歴を再取得 | 同じカルテの最新保存版を表示し、元変更履歴は保持。読取からwriteを起こさない | history-meaning／read-only、本節 |
+| AC-owner-report-ended-reopen | 診療終了の取消により同じ記録が診療中へ戻った | 履歴を再取得 | 再終了までは診療済み履歴へ載せず、終了／取消の原履歴を削除しない | history-meaning、本節 |
+| AC-owner-report-ended-unknown | 終了結果・カルテ対応・取得状態が不明 | 履歴を表示 | 旧finalizedや自動保存・会計結果から終了を推定せず未確認を区別。別患者へのfallbackなし | partial-data、本節 |

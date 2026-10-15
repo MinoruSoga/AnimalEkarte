@@ -1,6 +1,97 @@
 # カルテ登録・編集フロー詳細仕様 (Medical Record Lifecycle)
 
-[17:17合意の診療前日付訂正](../reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction)では、未記入カルテは確認して予約日へ合わせ、記入済みなら通常の日付変更を停止して内容確認の訂正へ渡す。以下の作成後日付固定・直接PATCH拒否は現行実装／通常更新の参照で、この合意の未記入・診療前の確認付き訂正を実装済みとする根拠ではない。確定済みカルテの変更禁止・追記による訂正、保存ルーティング契約は維持する。
+<a id="medical-record-agreement-autosave-20261015"></a>
+## 2026-10-15最新合意：通常編集・自動保存維持・タブクリア／複製取消
+
+初回質問 Sentinel_9a29cd61be04819188b76ade8dddfafd と回答 Sentinel_e99d06bd6f0c8191b7bd18fd34d562f9 で、通常カルテは診療終了後も通常編集でき、画面の終了操作で会計待ちへ進むことを合意した。その後の回答 Sentinel_ffce3491042481918ffb701f9d84547b「やはり自動保存は残しましょう 入力内容クリアだけ入れましょう、あと履歴から複製した際の取り消しも」で、保存ボタン方式への変更を撤回した。
+
+クリア／取消の基準は、質問 Sentinel_be87b5fa73088191b11da2e166da6659 への回答 Sentinel_6583182163e881919433829835fa137e「ok」により「そのタブを開いた時点」「複製直前」と確定した。以前の「未保存変更を最後の保存値へ戻す」はこの最新基準に置き換える。スタッフ向け診療履歴は質問 Sentinel_6c374f62ed6c8191bc8da84631b884bd／回答 Sentinel_8199a97373348191a766a6af966812ff「ok」により診療終了したカルテを対象とし、診療中の途中保存は載せない。未実施プラン警告は質問 Sentinel_39c5943da8988191bfc956c465d8d931／回答 Sentinel_f9547be22d788191aba3e379a3b77e35「ok」により診療終了時に表示し、確認すれば終了可能とする。
+
+最新合意は通常カルテの医師確定ボタン・確定後だけの訂正入口を置き換える。以前の保存済み版・必要監査・患者照合・薬量安全条件・確定済み会計の保護は保持する。D05/D06専用記録、D07検査結果自体の確定／訂正、D11見積承認後保護、会計・在庫の実行は各ownerの正本を維持する。旧FR／AC・anchorは追跡用に保持する。API／DB／コード／設定は未変更、実装・実機受入は未確認。
+
+| 以前の契約 | 最新の扱い |
+|:---|:---|
+| 医師の明示確定・finalized後の通常編集禁止 | 通常カルテは診療終了後も通常編集可能。確定ボタンを設けず、保存履歴を保持 |
+| 確定後はaddendumだけ | 通常本文修正の唯一の入口という制限を置換。以前の保存版・追記・訂正履歴と目的別の確認は保持 |
+| 明示保存へ変更する途中提案 | 撤回。既存hybridの自動／即時保存と既存タブ保存を維持。全入力を新たな一括保存待ちにしない |
+| 入力内容クリア | そのタブを開いた時点へ戻す。最後の自動保存値へ戻すこととは異なる |
+| 履歴から複製した操作の取消 | 対象の複製直前へ戻す。複製元や他操作・他者の変更を巻き戻さない |
+| 未完了プランの確定前警告 | 自動保存時でなく診療終了時に警告。確認後は未完了でも終了可、全項目完了へ変換しない |
+| スタッフ向け診療履歴 | 医師確定でなく診療終了を掲載条件とする。診療中の途中保存は非掲載 |
+
+<a id="requirement-fr-medical-records-normal-edit-after-end"></a>
+### FR-medical-records-normal-edit-after-end — 診療終了後も通常編集
+
+操作権限と医院／患者scopeを満たすスタッフは、診療終了後も同じ通常カルテを通常画面で編集できる。カルテ確定ボタンをなくし、終了済み又は旧finalizedであることだけを通常編集不可・addendum専用とする目標は採用しない。新しい医師確認の必須操作を通常保存へ移植しない。薬量評価不能の医師確認、患者取り違えの必要内容転記、予約側の記録確認訂正など目的別の既決確認は残す。
+
+以前の保存済み内容と変更を追跡できる版・実編集者・時刻・必要履歴を保持し、既存addendum・訂正関係・確定時参照版を破壊しない。通常画面から現在の記録を更新することと、過去の保存版を消去することを区別する。旧finalizedの履歴付き通常編集へのadapter／移行は技術設計であり、全レコードのdraft化・確定履歴削除を選定しない。旧ロックがある現実装は未追従差分として扱い、利用開始済みとしない。
+
+<a id="requirement-fr-medical-records-preserve-autosave"></a>
+### FR-medical-records-preserve-autosave — 自動保存を維持
+
+保存ボタン方式への変更は取り下げ、既存の自動／即時保存を残す。[保存§2](#hybrid-sync)のアクティブタブ保存・ヘッダー即時PATCH・子リソース個別保存は現行の保存境界として保持する。「自動保存を残す」は既に明示保存のある問診等を未承認で全自動化したり、全タブを一括保存したりする追加許可ではない。
+
+自動保存の成功・未送信・送信中・失敗・版競合・結果不明を区別し、成功した範囲だけを保存済みと表示する。失敗した入力を保持し、他者変更を無断で上書きしない。結果不明なら同じ操作を照合して重複保存／複製を防ぐ。自動保存で既に永続化された変更も、下記のタブクリア／複製取消が対象にできるため、「未保存だけをローカルに消す」で完了したことにしない。
+
+<a id="requirement-fr-medical-records-clear-tab-open-state"></a>
+### FR-medical-records-clear-tab-open-state — そのタブを開いた時点へ戻す
+
+「入力内容クリア」は操作したタブの入力を、そのタブを開いた時点の状態へ戻す。保存済み値があったタブならその時点の値、空だったタブならその時点の空状態を基準にする。直前の自動保存済み値や毎回の再取得値で基準を差し替えない。同じ医院・患者・記録・タブ・開いた時点の版を識別し、他タブの入力・未保存変更・履歴は変更しない。タブ外の患者識別コンテキストや予約状態をクリアしない。
+
+未送信の変更だけならローカル復帰、自動保存済みの対象があるなら現在版と元の操作を照合した復元として扱い、成功後に再読込しても基準状態であることを確認する。以前の保存版・編集／復元履歴・既存関連は保持し、物理削除や監査廃棄で戻さない。保存済み明細・画像の扱いはC05の論理状態とownerの保護に従い、objectや元記録を無条件に削除しない。
+
+そのタブを開いてからの自分の操作と、他者の編集、関連ownerの確定、後続の実施・会計・在庫等の作用を照合する。他者編集又は後続作用を検出した場合は、それらを無警告で巻き戻さない。影響と復元できない対象を表示し、必要な確認／owner訂正へ渡す。実入金・返金・在庫増減・検査確定・診療終了・既送信通知をクリアの副作用として取り消さない。対象版が不明、保存中又は保存結果不明なら照合までクリア成功を返さず、失敗時は現在表示と基準を保持して再試行を可能にする。
+
+<a id="requirement-fr-medical-records-history-copy-undo"></a>
+### FR-medical-records-history-copy-undo — 履歴複製を複製直前へ戻す
+
+履歴から問診・治療明細等を複製した操作には取り消しを設け、対象の複製直前の状態へ戻せる。複製元は変更しない。複製対象・直前の値／版・実際に成功した対象IDと操作結果を対応付け、他タブや対象外の入力、別の複製・手編集・他者変更をまとめて巻き戻さない。
+
+問診のローカル変更と、治療明細の逐次POST等で自動保存済みの変更を区別する。途中成功ならその複製の既知成功分を対象にし、未送信・失敗・結果不明を成功分と混同しない。不明な送信は元操作を照合し、取消の再送で二重削除／二重復元・新しい複製を生まない。取消そのものの前後・actor・時刻・元複製との対応を必要履歴へ残す。
+
+複製後の対象が手編集済み、他者更新済み又はowner処理に使われた場合は、その変更を無警告で消さず競合・影響を表示する。取消だけで在庫・請求・入金・検査確定等を逆実行しない。安全に照合できない対象は停止し、取消済みと表示しない。タブクリアの基準は「タブを開いた時点」、複製取消の基準は「対象複製の直前」であり、同じUndoとして混用しない。
+
+<a id="requirement-fr-medical-records-screen-consultation-end"></a>
+### FR-medical-records-screen-consultation-end — 通常カルテ画面の診療終了
+
+通常カルテ画面に明示的な終了操作を設け、開いている記録に対応する同じ予約を診療中から会計待ちへ進める。予約／患者／医院と記録リンクを照合し、予約ownerの既存認可・終了可能状態・二重操作／失敗保護に従う。未実施・後日予定の治療プランがあれば終了時に警告し、操作権限のあるスタッフが確認すれば未完了でも終了できる。通常の終了を新たに医師限定へ変更しない。
+
+警告取消は終了を確定せず、入力とプランを保持する。必要なプラン状態・依存の取得失敗／不明を「完了」にせず再確認する。確認後に依存が変われば最新状態を再確認し、古い確認で終了しない。自動保存時はこの未実施警告を出さず、警告確認・診療終了でプランを実施済みに変換しない。
+
+終了だけで記録・会計・入金を確定せず、未送信入力や結果不明の保存を成功扱いにしない。画面を開く／閉じるだけでは終了しない。会計待ちカードから同じ既存カルテを開け、新規作成・複製・診療再開始を発火しない。リンク不明・読込失敗は理由表示と再照合へ渡し、別記録を生成しない。トリミングの開始・終了／専用記録導線はD01/D02/D06の正本で、通常カルテへ変換しない。
+
+<a id="requirement-fr-medical-records-ended-record-history"></a>
+### FR-medical-records-ended-record-history — 診療終了したカルテを履歴へ
+
+スタッフ向けの診療履歴は、医師が確定したことではなく診療終了した通常カルテを表示対象とする。診療中の途中保存を履歴へ載せず、自動保存成功・入金・会計確定を診療終了の代用にしない。終了後の通常編集も保存版・変更履歴を識別できるようにし、古い確定記録だけへ表示対象を固定しない。
+
+受付／予約ownerの終了状態と同じ記録リンクを参照する。終了取消で診療中へ戻った対象は診療中の途中保存を履歴掲載しない条件に従い、履歴の保存事実を削除する意味にはしない。終了状態／記録関連が不明なら掲載対象を推測しない。過去診療の専用入力や移行記録に不足する終了根拠を、架空の当日受付・終了やfinalizedの単純変換で補完しない。スタッフ履歴の変更を飼主への公開許可へ広げない。
+
+### 追加受入条件（実装・実機未確認）
+
+| ID | Given | When | Then | 正本 |
+|:---|:---|:---|:---|:---|
+| AC-medical-records-normal-edit-after-end | 診療終了後の同じ通常カルテ、編集権限あり | 通常編集 | 旧finalizedだけで拒否せず保存でき、以前の版・追記・実編集者履歴を保持 | [FR](#requirement-fr-medical-records-normal-edit-after-end) |
+| AC-medical-records-no-finalize-button | 通常カルテを開く | 操作群を確認 | カルテ確定ボタンはなく、保存状態・クリア・複製取消・診療終了を区別 | [FR](#requirement-fr-medical-records-normal-edit-after-end) |
+| AC-medical-records-autosave-preserved | 既存の即時保存対象を編集 | 保存処理が走る | 従来の送信境界を維持し、新しい保存ボタン待ち／全タブ一括保存にしない | [FR](#requirement-fr-medical-records-preserve-autosave) |
+| AC-medical-records-clear-tab-open | タブ開始時に保存済み値があり編集が自動保存済み | 入力内容クリア | 最後の自動保存値でなくタブ開始時の値へ戻り、再読込でも一致。前後履歴を保持 | [FR](#requirement-fr-medical-records-clear-tab-open-state) |
+| AC-medical-records-clear-empty-open | タブ開始時は空で、その後入力・保存した | 入力内容クリア | 開いた時の空状態へ戻し、識別コンテキスト・元版・監査を保持。物理削除なし | [FR](#requirement-fr-medical-records-clear-tab-open-state) |
+| AC-medical-records-clear-other-tabs | 別タブにも保存済み／未保存変更あり | 現タブをクリア | 他タブは不変 | [FR](#requirement-fr-medical-records-clear-tab-open-state) |
+| AC-medical-records-clear-conflict | タブ開始後に他者が同対象を変更 | クリア | 無警告で他者版を上書きせず競合と対象を示し、未解消を成功表示しない | [FR](#requirement-fr-medical-records-clear-tab-open-state) |
+| AC-medical-records-clear-pending-unknown | 対象の保存が送信中／結果不明 | クリア | 元操作を照合し遅延応答との逆転を防ぐ。未照合の復元を成功表示しない | [FR](#requirement-fr-medical-records-clear-tab-open-state) |
+| AC-medical-records-copy-undo-before-copy | 複製が入力／保存へ適用済み | その複製を取り消す | 複製直前へ戻し元記録・対象外変更は不変、取消履歴を保持 | [FR](#requirement-fr-medical-records-history-copy-undo) |
+| AC-medical-records-copy-undo-partial | 複製の一部成功・失敗／未送信／結果不明あり | 複製取消／再試行 | 同じ複製の成功分と元状態を照合し二重取消・成功分再複製なし | [FR](#requirement-fr-medical-records-history-copy-undo) |
+| AC-medical-records-copy-undo-later-edit | 複製後に対象の手編集／他者変更／別owner利用あり | 複製取消 | 後続変更・副作用を無警告で消さず対象・影響を表示し、必要なowner訂正へ渡す | [FR](#requirement-fr-medical-records-history-copy-undo) |
+| AC-medical-records-revert-keeps-owner-effects | 確定請求・入金・在庫・検査確定等が関連 | クリア／複製取消 | 金銭・在庫・検査等の実行を自動で逆実行せず、元版・履歴を保持 | [クリア](#requirement-fr-medical-records-clear-tab-open-state)・[取消](#requirement-fr-medical-records-history-copy-undo) |
+| AC-medical-records-revert-failure-keeps-state | 復元の保存／必須監査が失敗又は結果不明 | 結果表示／再試行 | 現在入力・復元基準を保持し未完了を成功にせず、同じ操作を照合 | [クリア](#requirement-fr-medical-records-clear-tab-open-state)・[取消](#requirement-fr-medical-records-history-copy-undo) |
+| AC-medical-records-screen-end-waiting | 同じ予約・通常カルテで診療中 | カルテ画面から終了 | 同じ予約が会計待ちへ進み、記録・会計・入金を確定せず新規記録なし | [FR](#requirement-fr-medical-records-screen-consultation-end) |
+| AC-medical-records-waiting-opens-existing | 会計待ちのカードに既存recordリンクあり | カードから開く | 同じ既存カルテを開き、作成／複製／診療再開始なし | [FR](#requirement-fr-medical-records-screen-consultation-end) |
+| AC-medical-records-ended-history-only | 診療中の途中保存と診療終了記録がある | スタッフ向け履歴を表示 | 終了記録を対象とし、途中保存は載せない。finalizedや入金で代用しない | [FR](#requirement-fr-medical-records-ended-record-history) |
+| AC-medical-records-ended-history-edit | 履歴対象の終了済み通常カルテ | 終了後に通常編集して再表示 | 対象は終了条件で維持し、保存版・変更履歴を識別可能にする | [FR](#requirement-fr-medical-records-ended-record-history) |
+| AC-medical-records-no-plan-warning-on-autosave | 未実施／後日予定のプランあり | 自動保存 | 診療終了時の未実施警告を自動保存ごとに出さず、状態を完了へ変えない | [FR](#requirement-fr-medical-records-screen-consultation-end) |
+
+
+[17:17合意の診療前日付訂正](../reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction)では、未記入カルテは確認して予約日へ合わせ、記入済みなら通常の日付変更を停止して内容確認の訂正へ渡す。以下の作成後日付固定・直接PATCH拒否は現行実装／通常更新の参照で、この合意の未記入・診療前の確認付き訂正を実装済みとする根拠ではない。通常カルテの通常編集は[2026-10-15最新合意](#medical-record-agreement-autosave-20261015)へ置換する。保存§2の自動／即時保存と予約日訂正・患者関連・保存済み履歴の保護は維持する。
 
 17:23 JSTの[LINE予約6点合意](../../line/reservation-spec.md#line-agreement-1723)へ従う。公開された診療・トリミング・ホテルは予約対象、入院は医院相談。ホテルには医師指名・医師シフト・通常予約の同日制約を適用しない。受付制限・入力保持・受付前取消・必要設定不足の扱いと受入条件はLINE正本を参照する。ホテル受入基準は17:35合意の医院別同時宿泊頭数・全宿泊期間判定で、実装・実機受入は未確認。
 
@@ -9,7 +100,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | lifecycle.medical-records／保存契約 |
-| 決定状態 | 2026-10-14初回5項目は部分合意。最新の業務正本はlifecycle初回合意節。対象外の既存決定状態を保持し、カルテ全体完了／実装受入にしない |
+| 決定状態 | 2026-10-14初回5項目は部分合意。通常編集・自動保存維持・クリア／複製取消・終了と履歴掲載は2026-10-15最新合意を優先。初回合意の非変更部分は維持。対象外の既存決定状態を保持し、カルテ全体完了／実装受入にしない |
 | 実装状態 | 合意と現実装は別。main ec4f7146a の必要箇所を静的照合し、差分は予約正本の残差一覧へ記録。実装変更なし |
 | 実機検証状態 | 今回未実施。過去の記録と今回の文書確認を分ける |
 | 文書確認日 | 2026-10-14（合意・参照・語彙の確認。実機受入日ではない） |
@@ -19,7 +110,7 @@
 
 | シナリオ | 業務上の価値 | 優先度・理由 |
 |:---|:---|:---|
-| 確定後に訂正追記する | 原記録の真正性を保つ | 未決／要確認（既存文書に優先度の根拠なし） |
+| 診療終了後も通常編集し履歴を保持する | 保存版・実編集者を追跡しながら修正できる | 2026-10-15最新合意。優先順位の追加判定なし |
 
 ### 概要
 
@@ -28,21 +119,21 @@
 <a id="access-preconditions"></a>
 ## 担当者・権限・前提
 
-担当医以外の入力者・医師の確認／確定と編集者ログは[初回合意](#requirement-fr-medical-records-authorized-editor-audit)へ従う。実grantと医師判定の対応は要確認。保存・確定・訂正の操作権限は本書API参照表と [画面の権限前提](pages/medical-record-form.md#access-preconditions)、状態による保護は下記の既存契約を参照する。
+担当医以外の入力者・目的別の医師確認と編集者ログは[初回合意](#requirement-fr-medical-records-authorized-editor-audit)へ従う。実grantと医師判定の対応は要確認。保存・復元・目的別訂正の操作権限は本書API参照表と [画面の権限前提](pages/medical-record-form.md#access-preconditions)、状態による保護は下記の既存契約を参照する。
 
 <a id="navigation"></a>
 ## 契機・入口・出口
 
-新規画面表示・ヘッダー変更・タブ内操作・保存・確定・訂正追記が契機。作成後のURL昇格は下記「登録と ID 確定のプロセス」。入口・出口の画面操作は [カルテ入力画面](pages/medical-record-form.md#navigation)が正本。
+入力・保存・タブクリア・履歴複製取消・画面からの診療終了・目的別訂正が契機。作成後のURL昇格は下記「登録と ID 確定のプロセス」。入口・出口の画面操作は [カルテ入力画面](pages/medical-record-form.md#navigation)が正本。
 
 <a id="transitions-data"></a>
 ## 状態遷移・引継ぎデータ
 
-下表は従来実装参照。新規画面表示だけの通常作成は最新受付接続へ変更し、確定者は初回合意の医院が認めた医師とする。現行経路の一般利用者記載を最新の医師確認の免除へ読み替えない。
+下表は従来実装参照。新規画面表示だけの通常作成は最新受付接続へ変更する。医師確定／finalized遷移は現在の目標ではなく、旧状態と移行対象の説明。目的別に残る医師確認は免除しない。
 
 | 要件ID | 定義の所在 | 決定根拠 |
 |:---|:---|:---|
-| FR-medical-records-finalized-addendum-only | [既存の要件本文](#requirement-fr-medical-records-finalized-addendum-only) | 既存記載を継承。ID付与で合意済みにしない |
+| FR-medical-records-finalized-addendum-only | [旧IDの置換先／実装差](#requirement-fr-medical-records-finalized-addendum-only) | 2026-10-15合意で通常編集へ置換。旧保存版・追記履歴は保持 |
 
 | 担当者 | 前提 | 契機 | 前状態 | 後状態 | 引継ぎデータ | 異常系／根拠 |
 |:---|:---|:---|:---|:---|:---|:---|
@@ -58,23 +149,23 @@
 <a id="requirement-fr-medical-records-authorized-editor-audit"></a>
 ### 1. 担当医以外の入力と編集者ログ
 
-操作権限のあるスタッフは担当医本人でなくても入力・編集できる。既存のview/create/edit/delete等の操作権限・医院scope・確定ロックを保持し、担当医以外への入力許可を全スタッフへの無条件公開へ広げない。臨床内容の確認・カルテ確定・記録確認訂正の確認は医院が認めた医師が行い、担当医以外の医師も代行できる。編集者・確認医師・カルテ担当医・予約指名医師は別に保持し、編集だけで担当を自動交代しない。新たな「臨床責任者」職種・役割・grantは作らない。
+操作権限のあるスタッフは担当医本人でなくても入力・編集できる。既存のview/create/edit/delete等の操作権限・医院scope・保存済み履歴を保持し、担当医以外への入力許可を全スタッフへの無条件公開へ広げない。臨床内容の目的別確認・記録確認訂正の確認は医院が認めた医師が行い、担当医以外の医師も代行できる。編集者・確認医師・カルテ担当医・予約指名医師は別に保持し、編集だけで担当を自動交代しない。新たな「臨床責任者」職種・役割・grantは作らない。
 
 成功した編集には誰が編集したか分かるログを必須とする。本体・ヘッダー・問診・治療プラン・治療／処方・バイタル・関連子入力・追記・許可された削除／過去入力を含め、actorを認証から記録し担当医IDで代用しない。記録項目と保存結果の対応・必要監査の保存方式は技術設計で、ログ未保存を「履歴あり」と扱わない。現行の通常更新best-effort監査だけを本合意の充足証拠にしない。
 
 <a id="requirement-fr-medical-records-explicit-finalize-plan-warning"></a>
 ### 2. 明示確定・記載必須なし・治療プラン未完了警告
 
-診療終了や精算だけで自動確定せず、医師が明示確定する。検査結果待ちで追加の通常入力が必要なら作成中を維持する。確定時に臨床記載の必須項目を追加しない。下書きはSOAP空欄でも保存可、主訴区分は任意という既存条件を保持する。認可・医院／患者／関連整合・保存成功・会計の医師確認・確定保護などの既存検査は臨床記載必須項目と別で、空欄可を検査免除へ読み替えない。
+旧IDと見出しを参照互換のため保持する。2026-10-15に医師確定ボタン・確定後の通常編集禁止は[通常編集](#requirement-fr-medical-records-normal-edit-after-end)へ置換された。臨床欄の新しい必須項目は追加しない。通常保存を会計医師確認済み条件や新しい医師確定の代用にしない。
 
-治療プランに未完了があれば、その内容を確定前に警告する。警告を確認した医師は未完了でも確定できる。警告を確定禁止や全プラン実施必須へ変えない。未完了の警告を確認して確定しても、プランを実施済みに更新しない。結果取得失敗／不明を「全部完了」と表示せず、再取得して判定する。未完了は[入力4項目合意の未実施・後日予定](pages/medical-record-form.md#requirement-fr-medical-records-plan-execution-states)。中止理由・実施記録者／記録時刻とチェックボックス／モーダル操作を守る。既存データの状態値との具体対応は調査・設計へ残し、診療終了／支払済みから推測しない。確定後は下記の本文・子入力ロックと追記訂正を保持する。
+未実施・後日予定のプランは自動保存時ではなく[診療終了時](#requirement-fr-medical-records-screen-consultation-end)に警告する。操作権限を持つスタッフが確認すれば未完了でも終了でき、医師限定や全プラン実施必須へ変えない。警告取消は終了せず入力とプランを保持する。取得失敗／不明を全部完了と表示せず再確認する。警告確認・保存・終了でプランを実施済みに更新しない。中止理由・実記録者／時刻と目的別の実施取消は保持する。
 
 <a id="requirement-fr-medical-records-empty-delete-reviewed-correction"></a>
 ### 3. 空の誤作成削除・記入済み訂正・患者取り違え
 
 空の誤作成で、請求等の関連データがない場合だけ削除を認める。draftという状態だけでは削除可と判定しない。臨床入力・見積／請求・検査・画像等の依存を含め空・関連なしを確認し、判定不能なら削除しない。受付予約リンクの存在だけを空判定と同義にせず、診療中の予約リンク保護・同一予約／記録保持等の既存契約も検査する。通常予約取消からの自動削除は依然禁止。
 
-削除は現行の論理削除・履歴／関連保持を踏まえた仕様で、物理削除・ログ廃棄・無条件復元の新許可ではない。復元業務は[訂正・例外4項目](#medical-record-agreement-correction-four)で合意。専用UI・APIと現行実態の照合は残件。削除対象が記入済みなら履歴を残して訂正し、確定済みは追記のみ。患者取り違えは専用の訂正手順へ渡し、通常ヘッダー編集で患者を付け替えたり、記録を削除／再作成したりしない。患者取り違えは追加合意の必要内容転記・元／先対応に従う。具体的UI／保存対応と会計の返金／締め後手順は残件。理由・提案→医師確認→予約・記録・請求の整合確認という既合意を維持する。
+削除は現行の論理削除・履歴／関連保持を踏まえた仕様で、物理削除・ログ廃棄・無条件復元の新許可ではない。復元業務は[訂正・例外4項目](#medical-record-agreement-correction-four)で合意。専用UI・APIと現行実態の照合は残件。削除対象が記入済みなら削除せず履歴を残して訂正する。通常本文修正は最新の通常編集へ、患者取り違え等は目的別の専用手順へ渡す。既存追記履歴は保持する。患者取り違えは専用の訂正手順へ渡し、通常ヘッダー編集で患者を付け替えたり、記録を削除／再作成したりしない。患者取り違えは追加合意の必要内容転記・元／先対応に従う。具体的UI／保存対応と会計の返金／締め後手順は残件。理由・提案→医師確認→予約・記録・請求の整合確認という既合意を維持する。
 
 <a id="requirement-fr-medical-records-reception-and-retrospective-entry"></a>
 ### 4. 通常の受付接続と過去未登録診療の専用入力
@@ -112,7 +203,7 @@
 
 ### 3. ステータス管理と保護
 
-カルテには以下の 2 つの主要なフェーズが存在します。下の図は従来/new表示自動作成の実装参照で、最新の通常受付接続・医師明示確定の業務正本は初回合意節。
+カルテには以下の 2 つの主要なフェーズが存在します。下の図は従来/new表示自動作成の実装参照で、最新の通常受付接続は初回合意節、通常編集・自動保存維持は2026-10-15最新合意が正本。
 
 #### 3.1 作成中 (Draft)
 
@@ -121,6 +212,8 @@
 
 <a id="requirement-fr-medical-records-finalized-addendum-only"></a>
 #### 3.2 確定済 (Finalized)
+
+旧ID／anchorを保持する。以下のロック・追記限定と図は現行実装参照で、通常カルテの目標ではない。[最新合意](#requirement-fr-medical-records-normal-edit-after-end)は履歴を保持した通常編集へ置換する。旧finalizedの元版・既存追記を削除しない移行が必要であり、APIのunfinalizeを新設したことにはしない。
 
 - 臨床記録としての真正性を担保するため、**編集操作が物理的にロック**されます。
 - **ロックの波及**: 確定されたカルテに紐付く「検査結果」「処置明細」「処方」「バイタル」「健診記録」「カルテ画像」への追加・更新・削除も、バックエンドで拒否されます（健診タブは UI 上も読み取り専用に切り替わります）。
@@ -160,6 +253,8 @@ stateDiagram-v2
 <a id="hybrid-sync"></a>
 ### 2. ハイブリッド保存ロジック (Hybrid Sync)
 
+2026-10-15の[自動保存維持](#requirement-fr-medical-records-preserve-autosave)により、以下の保存ルーティングを維持する。途中提案の「医療記録本文を新しい保存ボタンまで永続化しない」は撤回済み。[タブクリア](#requirement-fr-medical-records-clear-tab-open-state)と[複製取消](#requirement-fr-medical-records-history-copy-undo)は自動保存済みの変更も基準版へ復元する追加操作であり、ローカルdirtyの消去だけで代用しない。
+
 > **追記（2026-10-07 監査）**: 本節をカルテ保存ルーティング（メイン保存の送信先切替・ヘッダー属性の即時保存・タブ別サブデータの即時保存）の契約本文の**正本**とする。[medical-record-form.md §2.2](pages/medical-record-form.md) は本画面固有の操作仕様と正本参照に簡約済み。ルーティング契約の変更は本節のみを更新する。
 
 カルテは 9 つのタブ（問診 / 診察・治療プラン / 治療 / 予防接種 / 定期健診 / 検査 / 画像 / 見積書 / 会計(医師確認)）に分かれた膨大なデータを扱うため、「カルテ本体」と「タブ別サブデータ」を独立して保存します。
@@ -178,7 +273,7 @@ stateDiagram-v2
 - **離脱ブロック (`NavigationBlocker`)**: 未保存の変更（`isDirty=true`）がある状態でページを離れようとすると、破棄の確認を強制します。
 - **二重送信防止**: React 19 の `useActionState` により、保存処理中の重複クリックを無効化します。
 
-元の契約にない取消・再送・異常時のUI手順は未記載／要確認。画面固有の復帰操作は対応するpagesの保存・エラー節を参照し、ここに複製しない。
+タブクリア・複製取消の基準と結果不明時保護は最新合意へ従う。具体的UI配置と複数ownerの復元実装は技術設計。画面固有の復帰操作は対応するpagesの保存・エラー節を参照し、ここに複製しない。
 
 <a id="acceptance"></a>
 ## 受入条件
@@ -187,15 +282,15 @@ stateDiagram-v2
 
 | 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認 | 成功条件 | 確認手順／証跡 |
 |:---|:---|:---|:---|:---|:---|:---|
-| AC-medical-records-finalized-addendum-only | カルテが確定済み | 記録の訂正が必要になる | 直接変更せず訂正追記を用いる | 確定済み記録の訂正経路を確認 | 確定済み本文の直接変更を拒否する | [要件](#requirement-fr-medical-records-finalized-addendum-only)・[カルテ入口の受入手順](README.md#受入条件の所在)。実機未確認 |
+| AC-medical-records-finalized-addendum-only | 旧finalizedの通常カルテと保存済み版／追記あり | 通常編集 | 最新合意に従い通常編集可能、旧保存版・追記・監査を保持 | 旧addendum限定からの置換 | 履歴破壊なし | [最新FR](#requirement-fr-medical-records-normal-edit-after-end)。旧ID保持、実機未確認 |
 | AC-medical-records-non-attending-edit-audit | 担当医以外の権限あるスタッフ | 通常入力を保存 | 担当医一致だけで拒否せず実際の編集者ログを残す | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-authorized-editor-audit)。実機未確認 |
 | AC-medical-records-edit-no-grant | 操作grantなし／別医院のスタッフ | 編集を送信 | 担当医以外可を無条件公開にせず拒否 | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-authorized-editor-audit)。実機未確認 |
-| AC-medical-records-physician-confirmation | 医院が認めた担当医以外の医師 | 確定／訂正確認を行う | 必要権限と医師確認を満たせば代行可、担当医を自動交代しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-authorized-editor-audit)。実機未確認 |
+| AC-medical-records-physician-confirmation | 医院が認めた担当医以外の医師 | 目的別に必要な訂正／薬量等の確認 | 必要権限と医師確認を満たせば代行可。通常保存／終了に新しい医師確定を要求しない | 確認目的と通常保存を分離 | 担当医を自動交代しない | [FR](#requirement-fr-medical-records-authorized-editor-audit)。実機未確認 |
 | AC-medical-records-edit-audit-failure | 必要編集ログを保存できない | 保存結果を確定する | ログなし成功にせず業務writeと必須ログの結果を整合する | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-authorized-editor-audit)。実機未確認 |
-| AC-medical-records-no-clinical-required | 臨床欄は空でも既存整合・保存・会計医師確認条件を満たす | 医師が確定 | 今回の臨床必須項目を追加しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-explicit-finalize-plan-warning)。実機未確認 |
-| AC-medical-records-plan-incomplete-warning | 未完了の治療プランがある | 医師が確定を選び警告を確認 | 未完了内容を表示して確定可、プラン実施済みへ自動更新しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-explicit-finalize-plan-warning)。実機未確認 |
-| AC-medical-records-plan-warning-cancel | 未完了警告を表示中 | 確認を取り消す | 確定せず入力とプランを保持 | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-explicit-finalize-plan-warning)。実機未確認 |
-| AC-medical-records-pending-results-draft | 追加通常入力が必要な検査結果を待つ | 診療終了／精算する | 作成中を維持し自動確定しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-explicit-finalize-plan-warning)。実機未確認 |
+| AC-medical-records-no-clinical-required | 臨床欄は空で既存整合・認可条件を満たす | 通常カルテを保存 | 臨床必須項目や医師確定・会計確認条件を追加しない | 保存と会計を分離 | 既存臨床安全条件は維持 | [FR](#requirement-fr-medical-records-preserve-autosave)。旧ID保持、実機未確認 |
+| AC-medical-records-plan-incomplete-warning | 未実施／後日予定プランあり | 終了操作の警告を権限あるスタッフが確認 | 未完了内容を警告し確認後は終了可、項目は自動完了にしない | 終了時の警告を確認 | 医師限定／全実施必須へ変えない | [FR](#requirement-fr-medical-records-screen-consultation-end)。旧ID保持、実機未確認 |
+| AC-medical-records-plan-warning-cancel | 終了時の未完了警告を表示中 | 確認を取り消す | 終了せず入力とプランを保持 | 取消の副作用を確認 | 終了状態不変 | [FR](#requirement-fr-medical-records-screen-consultation-end)。旧ID保持、実機未確認 |
+| AC-medical-records-pending-results-draft | 後日通常入力が必要な結果待ち | 診療終了／精算する | 通常編集可能性を保持し記録を自動確定しない | 診療状態と入力状態を分離 | 結果待ちを完了と推測しない | [FR](#requirement-fr-medical-records-normal-edit-after-end)。旧ID保持、実機未確認 |
 | AC-medical-records-empty-delete | 空の誤作成で請求等依存なし、既存リンク保護も満たす | 削除権限で削除 | 論理削除と必要履歴を保持、物理削除や予約取消を代行しない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-empty-delete-reviewed-correction)。実機未確認 |
 | AC-medical-records-entered-delete-refusal | 記入済み／請求依存あり／判定不能 | 削除を試す | draftだけで許可せず訂正へ渡す | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-empty-delete-reviewed-correction)。実機未確認 |
 | AC-medical-records-wrong-patient-correction | 記録に患者取り違えがある | 訂正を要求 | 専用確認手順へ渡し通常付替え・削除再作成をしない | 本ケースを単独確認 | 既合意の結果と保護を維持 | [FR](#requirement-fr-medical-records-empty-delete-reviewed-correction)。実機未確認 |
@@ -233,33 +328,33 @@ stateDiagram-v2
 <a id="medical-record-agreement-correction-four"></a>
 ## 訂正・例外操作4項目の追加合意
 
-2026-10-14、質問 Sentinel_8692363061908191a27f52baf0acc030 に対する Sentinel_d24ee1395f8c819196572baa20a16cd5 の「ok」に基づく4FR／14AC。業務判断の部分合意で、実装・実機受入済みを表さない。初回5項目・入力4項目・保存§2・確定済み原記録の保護を継承する。
+2026-10-14、質問 Sentinel_8692363061908191a27f52baf0acc030 に対する Sentinel_d24ee1395f8c819196572baa20a16cd5 の「ok」に基づく4FR／14AC。業務判断の部分合意で、実装・実機受入済みを表さない。初回5項目・入力4項目のうち最新合意で変更していない保護と保存§2を継承する。通常編集は2026-10-15合意へ置換し、以前の保存版・履歴は保持する。
 
 <a id="requirement-fr-medical-records-reasoned-plan-execution-undo"></a>
 ### 治療項目の実施済み取消
 
 実施済みの誤記は取消モーダルで理由を入力して戻す。取消前後の状態・操作したスタッフ・記録時刻・理由を履歴に残す。モーダル取消や保存失敗は状態を変更せず、チェック解除だけで無条件に戻さない。戻す対象と変更前後を明示し、不明な旧状態を推測しない。
 
-確定済みカルテに関わる場合は本文・子入力を直接変更せず訂正追記へ、請求に影響する場合は会計の訂正手続きへ接続する。治療項目の実施取消は予約の診療終了Undoとは別で、精算確定歴のある予約の通常Undo禁止を解除しない。請求取消・返金・未納消去を自動実行しない。
+実施取消は理由・前後状態・履歴を残す目的別操作として維持する。旧finalizedだけを理由に追記専用へ限定しない。以前の保存版・追記を保持し、請求への影響は会計の訂正手続きへ接続する。治療項目の実施取消は予約の診療終了Undoとは別で、精算確定歴のある予約の通常Undo禁止を解除しない。請求取消・返金・未納消去を自動実行しない。
 
 <a id="requirement-fr-medical-records-wrong-patient-linked-transfer"></a>
 ### 患者取り違えの記録訂正
 
 記入済み記録の患者IDを直接付け替えない。元記録の誤記と理由を履歴に残し、医師確認のうえ、必要な内容を正しい患者の記録へ転記する。元記録と転記先を対応付け、元記録・元患者との関係を保持する。全内容の自動複写・元記録の削除・別患者への無条件の関連移動で代用しない。
 
-確定済み原記録は訂正追記や対応履歴を用い本文・元日付を保持する。転記先も認可・医院／患者照合・確定ロック・保存と臨床安全条件に従う。請求・検査・画像など別ownerの関連を勝手に付け替えず、影響する訂正先へ引き継ぐ。転記だけで新しい治療実施や請求を作らない。
+患者取り違えでは元の保存版・本文・元日付と対応履歴を保持する。転記先も認可・医院／患者照合・保存履歴と臨床安全条件に従う。通常編集可能化は患者ID付替えを許可しない。請求・検査・画像など別ownerの関連を勝手に付け替えず、影響する訂正先へ引き継ぐ。転記だけで新しい治療実施や請求を作らない。
 
 <a id="medical-record-deceased-retrospective"></a>
 ### 死亡登録後の生前診療記録への適用
 
-2026-10-15の死亡後取扱い確認（Sentinel_2b63d8f5aad88191aa2b4dff79fb5ac2）に対するユーザー「ok」（Sentinel_45be2cab0fe4819188c7c0f9a211358c）により、死亡状態を戻さず、生前診療の後日入力・誤記訂正を理由と履歴付きで行える。過去診療の専用入力・医師確認・当日カードなし／自動課金なしは既決であり、今回の初回承認として数え直さない。実診療日、現在の入力時刻、入力者、確認医師、元記録との関係を識別し、生前分であることが不明なら確認する。既存記録への誤記訂正は原記録・確定時内容を保持する専用訂正／追記へ渡す。死亡後の新しい医療行為・未来の予約／実施は認めず、死亡登録を取り消して通常作成を通す方法で代用しない。
+2026-10-15の死亡後取扱い確認（Sentinel_2b63d8f5aad88191aa2b4dff79fb5ac2）に対するユーザー「ok」（Sentinel_45be2cab0fe4819188c7c0f9a211358c）により、死亡状態を戻さず、生前診療の後日入力・誤記訂正を理由と履歴付きで行える。過去診療の専用入力・医師確認・当日カードなし／自動課金なしは既決であり、今回の初回承認として数え直さない。実診療日、現在の入力時刻、入力者、確認医師、元記録との関係を識別し、生前分であることが不明なら確認する。死亡後の誤記訂正は生前事実・理由・履歴を確認する目的別条件を維持し、原記録・旧確定時内容を保存版として保持する。通常編集可能化を死亡後の新規行為へ拡張しない。死亡後の新しい医療行為・未来の予約／実施は認めず、死亡登録を取り消して通常作成を通す方法で代用しない。
 
 退院処理はD05、精算はD10の理由・履歴付き経路へ渡す。後日入力／訂正だけで自動課金・返金・在庫戻しを行わない。現行死亡gate・全owner adapterの適合は別工程で、今回実装済み・実機PASSを意味しない。
 
 <a id="requirement-fr-medical-records-retrospective-no-card-no-billing"></a>
 ### 過去診療の専用追加入力
 
-理由と医師確認を伴う専用入力で、実際の診療日と現在の入力日時を分ける。当日の受付カードを作らず、自動課金しない。請求が必要なら会計で別途確認する。患者・既存記録の照合と重複防止を保持し、既存の確定済み記録の訂正は訂正追記に接続する。
+理由と医師確認を伴う専用入力で、実際の診療日と現在の入力日時を分ける。当日の受付カードを作らず、自動課金しない。請求が必要なら会計で別途確認する。患者・既存記録の照合と重複防止を保持し、既存記録の訂正は最新の通常編集と目的別確認条件へ接続し、以前の保存版・追記履歴を保持する。
 
 この例外を通常診療の受付なし作成・自動開始の代用にしない。通常の選択日受付・同一記録・準備／読込成功後の明示開始、専用記録の既存境界を維持する。過去入力成功をカルテ自動確定・当日の診療開始へ変換しない。
 
@@ -276,14 +371,14 @@ stateDiagram-v2
 |:---|:---|:---|:---|:---|:---|:---|
 | AC-medical-records-execution-undo-reason | 実施済み項目 | 理由付き取消を保存 | 変更前後・理由・操作主体・時刻を保持して戻す | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-reasoned-plan-execution-undo) |
 | AC-medical-records-execution-undo-cancel | 実施済み項目 | モーダルを取消／理由なし送信 | 状態を変更せず、理由なし保存を認めない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-reasoned-plan-execution-undo) |
-| AC-medical-records-execution-undo-finalized | 確定済み記録の項目 | 実施取消 | 原本文・子入力を変更せず訂正追記へ接続 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-reasoned-plan-execution-undo) |
+| AC-medical-records-execution-undo-finalized | 旧finalizedの通常カルテに実施済み項目あり | 理由付き実施取消 | 旧finalizedだけで追記専用にせず、元の保存版・前後状態・理由／実編集者を保持 | 個別条件を確認 | 実機未確認 | [FR](#requirement-fr-medical-records-reasoned-plan-execution-undo) |
 | AC-medical-records-execution-undo-billing | 請求影響または予約精算確定歴あり | 項目を訂正 | 請求影響ありは会計訂正へ渡す。精算確定歴だけで項目取消を診療終了Undoと同一視せず、通常Undo禁止・自動返金なしを保持 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-reasoned-plan-execution-undo) |
 | AC-medical-records-wrong-patient-transfer | 記入済み取り違え記録 | 医師が必要内容の転記を確認 | 誤記・理由と元／先対応を保持、必要内容だけを正しい患者へ転記 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-wrong-patient-linked-transfer) |
 | AC-medical-records-wrong-patient-no-reassign | 記入済み取り違え記録 | 通常患者編集／元記録削除で修正しようとする | 患者ID付替え・元記録削除で代用しない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-wrong-patient-linked-transfer) |
-| AC-medical-records-wrong-patient-target-guard | 医院／患者不一致または確認前・確定済み転記先 | 転記要求 | 認可・照合・確認・確定保護を保持し直接上書きしない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-wrong-patient-linked-transfer) |
+| AC-medical-records-wrong-patient-target-guard | 医院／患者不一致又は必要な確認前の転記先 | 転記要求 | 認可・対象照合・目的別確認を守り、以前の保存版を破壊しない。旧finalizedだけで通常入力を拒否する制限は置換 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-wrong-patient-linked-transfer) |
 | AC-medical-records-retrospective-dates | 過去未登録診療 | 理由・医師確認付き専用入力 | 実診療日と現在入力日時を別に保持 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
 | AC-medical-records-retrospective-no-reception-billing | 過去未登録診療 | 追加入力成功 | 当日カード・診療開始・自動課金を生成せず請求は会計で別途確認 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
-| AC-medical-records-retrospective-existing | 既存記録または確定済み記録あり（死亡登録済みを含む） | 追加入力・誤記訂正を要求 | 照合し重複作成で代用せず、確定済み訂正は理由・履歴付き追記へ。死亡状態・原記録を保持 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
+| AC-medical-records-retrospective-existing | 既存記録あり（旧finalized・死亡登録済みを含む） | 追加入力・誤記訂正を要求 | 重複作成で代用せず、目的別の理由・医師確認・履歴を保持。旧finalizedだけの追記限定は置換し、死亡状態・以前の保存版を保持 | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-retrospective-no-card-no-billing) |
 | AC-medical-records-empty-hide-history | 空・関連なし・削除保護充足の誤作成 | 非表示操作 | 元ID・履歴を保持し通常一覧から非表示、物理削除しない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-empty-record-hide-restore) |
 | AC-medical-records-empty-restore-authorized | 復元対象と理由があり権限・現在整合を充足 | 復元 | 同じIDを復元し履歴を残す、診療開始・自動課金なし | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-empty-record-hide-restore) |
 | AC-medical-records-empty-restore-conflict | 関連競合／scope不一致／権限なし／理由なし | 復元 | 停止し別ID再作成・無条件復元を行わない | 本ケースを個別確認 | 実機未確認 | [FR](#requirement-fr-medical-records-empty-record-hide-restore) |
@@ -291,8 +386,8 @@ stateDiagram-v2
 
 ## 後日結果・画像印刷・訂正影響の参照
 
-[追加3項目の正本](pages/medical-record-form.md#medical-record-agreement-integration-three)へ従う。確定済みカルテの後日結果は元記載／参照版を保持して追記し、通常子入力writeや確定解除で代用しない。保存§2の送信先・個別保存は変更しない。検査画面とカルテで結果・履歴のownerを共有し、会計／在庫への影響表示と案内を自動訂正へ変換しない。画像D&Dは同じ検証を通し、印刷範囲選択は無断保存・飼主自動公開なし。
+[追加3項目の正本](pages/medical-record-form.md#medical-record-agreement-integration-three)へ従う。通常カルテは旧finalizedでも後日結果を現在版へ反映できる。元の保存版／参照版・追記履歴を保持し、検査ownerの独自確定／訂正を通常子入力で迂回しない。保存§2の送信先・個別保存は変更しない。検査画面とカルテで結果・履歴のownerを共有し、会計／在庫への影響表示と案内を自動訂正へ変換しない。画像D&Dは同じ検証を通し、印刷範囲選択は無断保存・飼主自動公開なし。
 
 ## 最終照合と利用開始の境界
 
-[実API／DTO・互換・全writer](../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[空／旧値／専用intent](../../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)へ接続する。現deleteのdraft／見積保護だけを空誤作成条件の充足としない。現在医師判定・必要編集ログ・依存版／receipt・旧consumer対応未確認なら、新しい専用操作の利用開始を止める。保存§2、原記録・元日付・同ID・確定後追記、別ownerの処理境界を維持する。文書整理の完了は実装／実機／薬量具体値の医師承認を表さない。
+[実API／DTO・互換・全writer](../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[空／旧値／専用intent](../../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)へ接続する。現deleteのdraft／見積保護だけを空誤作成条件の充足としない。現在医師判定・必要編集ログ・依存版／receipt・旧consumer対応未確認なら、新しい専用操作の利用開始を止める。保存§2、以前の保存版・元日付・同ID・既存追記履歴と別ownerの処理境界を維持する。通常編集・クリア／複製取消・終了警告は2026-10-15最新合意へ従う。文書整理の完了は実装／実機／薬量具体値の医師承認を表さない。

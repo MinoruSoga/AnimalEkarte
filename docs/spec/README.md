@@ -36,7 +36,7 @@ flowchart LR
 | workflows/ | ドメインを跨ぐ業務フローの正本と閲覧入口 |
 | domains/*/README.md | ドメイン概要・ルールと受入条件の所在・未決事項・読む順 |
 | domains/*/pages/ | 予約・受付・カルテ・会計の画面仕様本文 |
-| domains/medical-records/lifecycle.md | カルテ保存・確定・保護の契約（§2 が保存ルーティングの正本） |
+| domains/medical-records/lifecycle.md | カルテの自動保存維持・通常編集・入力復元・診療終了／履歴（§2が保存ルーティングの正本、最新合意を優先） |
 | shared/ | 共通用語・権限・マスタの参照入口 |
 | screens/ | 全画面索引と対象外画面の本文。移設済み旧パスは移動案内のみ |
 
@@ -140,3 +140,7 @@ OpenAPI 列挙 operation（token 保護の local fixture 経路を含み、「�
 ## 2026-10-15 全領域仕様への案内
 
 [全23業務・6共通・8接続](domains/SPECIFICATION_PROGRESS.md)を参照する。既存のルートprimary対応と過去の実行検証記録は保持し、今回の文書検査をruntime／実機合格へ転用しない。
+
+## 2026-10-15会議4点の最新入口
+
+自動保存維持・終了後通常編集・タブ開始時復元／複製直前取消・終了履歴、トリミング開始／終了・料金、勤務複製／CSVの合意を追加整理。[全体進捗](domains/SPECIFICATION_PROGRESS.md#meeting-four-decisions-20261015)と各owner本文を参照。途中の保存ボタン方式は撤回済み。今回差分は独立内容・構造レビューで重大指摘なしを確認し、文書再整合済み。全過去承認の監査完了・実装完了とは扱わない。

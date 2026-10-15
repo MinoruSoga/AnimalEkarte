@@ -14,7 +14,7 @@
 | 決定状態 | 予約の合意は各正本を継承。受付3点は2026-10-14の Sentinel_ea8569c91d8c8191b70e7b2cf8df8db6（2・3）／Sentinel_daeb79f859f48191a38d3a61f4f725d8（1）で承認。非表示設定は Sentinel_67648c4b0030819193d97aacb34e9b16／Sentinel_7fc2cd6f8c708191b6ab1d9160cb836b でスタッフ別ブラウザ保持を追加承認。表示・通信／競合・受入の具体化は Sentinel_6bdf54904d3881918fb3e884820adfea によりdocs限定選定。受付文書整理の現在状態は入口・技術契約で判定し、専用内部の一括承認ではない。実装・実機状態とは別 |
 | 実装状態 | 合意と現実装は別。main ec4f7146a の必要箇所を静的照合し、差分は予約正本の残差一覧へ記録。実装変更なし |
 | 実機検証状態 | 今回未実施。過去の記録と今回の文書確認を分ける |
-| 文書確認日 | 2026-10-14（合意・参照・語彙の確認。実機受入日ではない） |
+| 文書確認日 | 2026-10-15（会議追加2の反映。実機受入日ではない） |
 
 <a id="purpose"></a>
 
@@ -60,17 +60,17 @@
 
 - **ヘッダー「新規予約登録」**: 当日表示時は walk-in（`?reception=1`）。status=`checked_in`・経路=`reception` で受付済列に載る（`reservations:create` が必要）。非本日表示時は `?newReservation=1&date=<選択日>` の通常予約作成になる（EMR-243）。
 - **受付予約列の「+」**: 通常予約（`?newReservation=1`、status=`confirmed`、非本日では `&date=<選択日>` 付き）。**受付済列の「+」**は当日受付 walk-in（`?reception=1`）で、非本日表示では非表示。診療中・会計待ち・会計済列に追加ボタンは無い。
-- **受付済→診療中**: DnD禁止は既存記載を継承。受付時のカルテ作成と診療開始は別状態。開始・終了は[スタッフの実業務に基づく明示確定](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-consultation-state)を正とし、予定開始・終了時刻で自動遷移しない。開始は[10:07 JST合意の当日カードモーダル「カルテ作成」](../../../workflows/reservation-to-record-flow.md#consultation-start-card-modal)が兼ねる。別の開始ボタンへ分離しない。終了は[10:12合意の同じカードモーダル「診察を終了する」](../../../workflows/reservation-to-record-flow.md#consultation-end-card-modal)で確定する。受付時作成済みのカルテがあれば[10:17合意に従い、そのカルテを開いて診療開始を確定し重複作成しない](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)。終了には[確認付きの診療中→会計待ちドラッグ](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-confirmed-drag-consultation-end)も10:43に合意。キャンセルなら診療中を維持する。未作成なら作成し、作成／読み込み失敗時は開始を確定せず理由を表示して再試行できる[10:59契約](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-start-record-failure-retry)に従う。誤終了は[11:56合意のモーダル「診療終了を取り消す」](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)で理由入力・確認を行い、診療中へ戻す。12:07合意により支払い確定前は受付操作可能なスタッフが取消でき、日付制限は設けず理由を記録する。誤終了を戻す逆方向ドラッグは設けず、カルテ・会計を保持する。会計確定後の訂正内部は会計ドメインへ引き継ぐ。未収／分割／0円を含むUndo停止境界とその他逆遷移の記録確認は[業務5点の正本](../../../workflows/reservation-to-record-flow.md#five-business-decisions)、既存grant対応は[技術契約](../../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)へ従い、再び未決にしない。現実装はカード／詳細のカルテ作成・トリミング記録とadvanceStatus、入院系の「診察を開始する」を持つ。専用記録の仕様は別途整理。
+- **受付済→診療中**: DnD禁止は既存記載を継承。受付時のカルテ作成と診療開始は別状態。開始・終了は[スタッフの実業務に基づく明示確定](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-consultation-state)を正とし、予定開始・終了時刻で自動遷移しない。開始は[10:07 JST合意の当日カードモーダル「カルテ作成」](../../../workflows/reservation-to-record-flow.md#consultation-start-card-modal)が兼ねる。別の開始ボタンへ分離しない。終了は[10:12合意の同じカードモーダル「診察を終了する」](../../../workflows/reservation-to-record-flow.md#consultation-end-card-modal)で確定する。受付時作成済みのカルテがあれば[10:17合意に従い、そのカルテを開いて診療開始を確定し重複作成しない](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)。終了には[確認付きの診療中→会計待ちドラッグ](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-confirmed-drag-consultation-end)も10:43に合意。キャンセルなら診療中を維持する。未作成なら作成し、作成／読み込み失敗時は開始を確定せず理由を表示して再試行できる[10:59契約](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-start-record-failure-retry)に従う。誤終了は[11:56合意のモーダル「診療終了を取り消す」](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)で理由入力・確認を行い、診療中へ戻す。12:07合意により支払い確定前は受付操作可能なスタッフが取消でき、日付制限は設けず理由を記録する。誤終了を戻す逆方向ドラッグは設けず、カルテ・会計を保持する。会計確定後の訂正内部は会計ドメインへ引き継ぐ。未収／分割／0円を含むUndo停止境界とその他逆遷移の記録確認は[業務5点の正本](../../../workflows/reservation-to-record-flow.md#five-business-decisions)、既存grant対応は[技術契約](../../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)へ従い、再び未決にしない。現実装はカード／詳細のカルテ作成・トリミング記録とadvanceStatus、入院系の「診察を開始する」を持つ。これは新合意への適合証拠ではなく、[会議追加2](#reception-meeting-start-end)の施術開始列・各記録画面終了・会計待ちからの既存記録参照へ追従を要する。
 - **会計済カードの片付け**: [表示のみの非表示・再表示契約](#requirement-fr-reception-completed-card-visibility)へ従う。片付け操作で会計・来院状態を再確定せず、データを削除しない。端末内除外・再読込復帰は下記の現実装参照であり、新しい医院×スタッフ別ブラウザ保持への実装追従は未検証。
-- **詳細表示**: カードモーダルで来院詳細を確認する。当日の「受付予約」から「受付する」で同じ予約を受付済へ進める契約は[横断フロー](../../../workflows/reservation-to-record-flow.md#checkin-contract)。予約変更は「予約を変更」から[予約管理の対象編集モーダル](../../reservations/pages/reservation-management.md#requirement-fr-reservations-edit-entry)へ遷移し、受付内の独立編集にしない。受付済みで診療前なら従来の変更範囲を維持する。診療開始後／会計完了後の通常操作は[23:21 JSTの予約正本](../../reservations/pages/reservation-management.md#requirement-fr-reservations-post-consultation-edit-limits)へ従い、日時・区分変更と取消は不可、メモ編集は可。別医師への変更は[23:43 JSTの引継ぎ契約](../../reservations/pages/reservation-management.md#requirement-fr-reservations-doctor-handoff)に従い、予約管理で診療終了まで可、終了後の通常操作では不可。終了操作は10:12合意のカードモーダルボタンを正とする。交代先は11:15合意に従い引継ぎ後の担当時間で判定し、過去全体の勤務を要求しない。指名なしへの変更も終了まで可、終了後の通常変更は不可。誤終了取消の既存grant・会計確定境界は[技術契約](../../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)・横断正本へ従う。その他の逆方向／遷移は[記録確認訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)へ渡し、具体的な訂正・精算内部は各ownerへ残す。診療前の誤取消復元は17:10合意へ従い、復元先状態・手動修正は17:17合意、具体的UI・保存方式は設計。開始操作は10:07合意に従い、受付時作成済みカルテの再利用は10:17合意済み。未作成時の作成と作成／読み込み失敗時の開始未確定・理由表示・再試行は10:59合意済み。飼主・ペット詳細と特記表示などその他の既存動作は継承する。現実装のonEditはReservationFormModalを直接開き、合意へ未追従。取消は既存reservations:deleteと状態境界へ従い、具体的UI・実認可検証は別。[予約側の取消・カルテ保持契約](../../reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)へ反する自動削除を行わない。 [12:22合意の判定時間・延長警告](../../reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
+- **詳細表示**: カードモーダルで来院詳細を確認する。当日の「受付予約」から「受付する」で同じ予約を受付済へ進める契約は[横断フロー](../../../workflows/reservation-to-record-flow.md#checkin-contract)。予約変更は「予約を変更」から[予約管理の対象編集モーダル](../../reservations/pages/reservation-management.md#requirement-fr-reservations-edit-entry)へ遷移し、受付内の独立編集にしない。受付済みで診療前なら従来の変更範囲を維持する。診療開始後／会計完了後の通常操作は[23:21 JSTの予約正本](../../reservations/pages/reservation-management.md#requirement-fr-reservations-post-consultation-edit-limits)へ従い、日時・区分変更と取消は不可、メモ編集は可。別医師への変更は[23:43 JSTの引継ぎ契約](../../reservations/pages/reservation-management.md#requirement-fr-reservations-doctor-handoff)に従い、予約管理で診療終了まで可、終了後の通常操作では不可。終了操作は10:12合意のカードモーダルボタンに加え、会議追加2の通常カルテ／専用トリミング画面からも行う。交代先は11:15合意に従い引継ぎ後の担当時間で判定し、過去全体の勤務を要求しない。指名なしへの変更も終了まで可、終了後の通常変更は不可。誤終了取消の既存grant・会計確定境界は[技術契約](../../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)・横断正本へ従う。その他の逆方向／遷移は[記録確認訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)へ渡し、具体的な訂正・精算内部は各ownerへ残す。診療前の誤取消復元は17:10合意へ従い、復元先状態・手動修正は17:17合意、具体的UI・保存方式は設計。開始操作は10:07合意に従い、受付時作成済みカルテの再利用は10:17合意済み。未作成時の作成と作成／読み込み失敗時の開始未確定・理由表示・再試行は10:59合意済み。飼主・ペット詳細と特記表示などその他の既存動作は継承する。現実装のonEditはReservationFormModalを直接開き、合意へ未追従。取消は既存reservations:deleteと状態境界へ従い、具体的UI・実認可検証は別。[予約側の取消・カルテ保持契約](../../reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)へ反する自動削除を行わない。 [12:22合意の判定時間・延長警告](../../reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
 「飼主詳細」は `ownerId` がある予約は `/owners/:id` へ、未連携（`ownerId` 不在）の予約は `/owners?search=<飼主名>` の一覧検索へ遷移します。
 
 患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
 
 現実装の操作権限は取消がreservations:delete、編集がreservations:edit。今回の権限変更は未合意。
 
-- **クイックリンク (ミニアクション、`AppointmentCard`)**: 表示条件はカラム・診療区分により異なります。いずれの遷移も `state.from` に `"/?date=<選択日>"`（当日は `"/"`）を渡す。
-    - **カルテ作成/施術**: トリミング区分は「受付済」列でのみ、それ以外の一般診療区分（入院系を除く）は「受付済」「診療中」列で表示。`petId` があれば `/medical-records/new`（トリミングは `/trimming/new`）へ、なければ `select-pet` 画面へ遷移。
+- **クイックリンク (ミニアクション、`AppointmentCard`)**: 表示条件はカラム・診療区分により異なります。[会議追加2](#reception-meeting-start-end)の既存記録導線を優先し、以下の旧新規URLを会計待ちからの参照に流用しません。いずれの遷移も `state.from` に `"/?date=<選択日>"`（当日は `"/"`）を渡す。
+    - **カルテ作成/施術・記録を開く**: 通常診療・トリミングは受付済／診療中で各既存記録の作成・再利用条件へ従う。会計待ちでは同じ予約に明示的に関連付いた既存の通常カルテ／トリミング記録を開く。`/medical-records/new`／`/trimming/new`への旧新規導線を会計待ちへコピーせず、対象ref・医院・view権限を確認する。参照なし・失敗は再取得／確認し、新規作成や状態再開を行わない。
     - **会計**: 「診療中」列以外で表示。`petId` があれば `/accounting/new?petId=...`、なければ `/accounting/new` へ遷移。
     - **入院**: 「診療中」列以外、かつ診療区分に入院/ホテルが含まれる場合のみ表示。`/hospitalization/new` へ遷移。
 
@@ -106,7 +106,7 @@ Sentinel_6bdf54904d3881918fb3e884820adfea により既合意を実現するUI詳
 | 分類 | 列への投影・識別 | カード／modalの主な導線 |
 |:---|:---|:---|
 | 診療 | 既存5列の予約status対応。受付済→診療中の直接DnDなし | 受付、同じカードの「カルテ作成」、終了／確認DnD、専用Undo、予約管理の変更、会計。各正本の状態・権限で可否を検査 |
-| トリミング | pending/confirmedは受付予約、checked_inは受付済、施術中in_consultationは受付済の「施術中」badge。accounting/completedは会計待ち／会計済 | 「トリミング記録」から同じ専用対象へ。臨床の開始／終了・Undoを施術状態へ流用せず専用管理の条件へ渡す |
+| トリミング | pending/confirmedは受付予約、checked_inは受付済。明示開始後のin_consultationは「診療中」列の施術中badge。accounting/completedは会計待ち／会計済 | 同じ専用記録へ接続し、専用画面の明示終了で会計待ちへ。会計待ちは既存記録を開く。通常カルテの自動生成や臨床Undoの一律流用は行わない |
 | 入院／ホテル | 予約statusのpending/confirmed・checked_in・accounting/completedだけを対応列へ投影。宿泊・入院の専用状態はbadge／詳細で別表示し、予約statusを変換しない | 「入院管理」／「ホテル管理」で明示linked対象へ。管理対象未確定は既存の選択／登録導線へ渡し、自動作成・患者日時による推定リンクをしない |
 | 分類未確認／不一致 | 分類不明、ホテル／入院のin_consultation等は5列の上に同じ選択日の「状態要確認」小区画へ表示。新しい6列目にはしない | 理由と分類／状態確認・専用管理への導線。通常の臨床DnDを無効化し、診療中・受付済等の業務状態へ自動変換しない |
 
@@ -154,9 +154,21 @@ filterはヘッダーの既存「フィルター」内に、分類（全分類�
 
 診療・トリミング・入院・ホテルを受付で確認できるようにし、診療以外はそれぞれの専用管理へつなぐ。選択日の受付対象と既存医院／患者／権限scopeを保持し、分類を増やしたことを別日データの持越し表示の理由にしない。
 
-診療は既存の受付・通常カルテ・明示開始／終了契約へ接続する。トリミングは施術・専用記録、ホテル／入院は同じ宿泊・入院管理へ渡し、通常カルテへ変換しない。ホテル／入院を機械的に診療中へ割り当てない。各分類の列・区画・filter配置は[今回の表示具体化](#reception-display-layout)で選定し、専用業務の開始／終了・記録本文・担当人数を今回一律に確定しない。
+診療は既存の受付・通常カルテ・明示開始／終了契約へ接続する。トリミングは施術・専用記録、ホテル／入院は同じ宿泊・入院管理へ渡し、通常カルテへ変換しない。ホテル／入院を機械的に診療中へ割り当てない。各分類の列・区画・filter配置は[表示具体化](#reception-display-layout)、トリミングの開始列・専用画面終了と会計待ち記録導線は[会議追加2](#reception-meeting-start-end)へ従う。専用記録本文・ホテル／入院の開始終了・担当人数を一律に確定しない。
 
 予約で確定した[分類別接続と担当条件](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)、[入院開始と担当医・開始時記録](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-inpatient-start-confirm)、ホテル担当医師任意の最新条件を保持する。予定入院を日付や受付表示だけで入院中にせず、記録作成失敗時は開始未確定・同じ対象を再試行する。ホテル予約に医師指名／医師勤務を追加必須にせず、任意担当医師の参照は宿泊管理側の条件へ渡す。
+
+<a id="reception-meeting-start-end"></a>
+#### 会議追加2：トリミングの診療中表示と記録画面の終了入口
+
+2026-10-15、質問 Sentinel_9a29cd61be04819188b76ade8dddfafd の第2項へのユーザー Sentinel_e99d06bd6f0c8191b7bd18fd34d562f9「2 ok」を根拠とし、FR-reception-business-class-handoff／FR-reception-dnd-start-restrictionの既存IDを保って補完する。
+
+- トリミングも明示的な施術開始で同じ予約を診療中列へ移す。旧「受付済の施術中badge」配置を置き換え、分類badgeは保持する。表示だけで開始せず、予定時刻や途中保存から自動遷移しない。
+- 通常カルテ画面・専用トリミング画面から、それぞれの対象の終了操作で同じ予約を会計待ちへ進める。従来の通常診療カードモーダル・確認DnDは維持する。臨床の開始／Undoを専用分類へ無条件に流用せず、各ownerの状態・認可・版・結果不明保護へ接続する。
+- 終了操作に記録保存／確定・請求確定・入金を束ねない。通常カルテの既存自動保存はD03の最新合意どおり維持し、「保存して終了／破棄して終了」は追加しない。表示列を変えただけで処理成功とせず、終了成功確認後に再取得する。未保存入力を失わず、終了失敗から記録削除・別記録作成・自動Undoを行わない。
+- 会計待ちカードは同じ医院・予約の明示linked通常カルテ／トリミング記録を開く。新規作成・診療／施術再開は兼ねない。同一患者・日付から推測せず、参照欠落・権限不足・取得失敗なら確認／再取得に留める。終了時も予約リンクがない／不明ならownerの対象確認へ止め、架空予約を自動生成しない。
+
+[施術正本](../../trimming/lifecycle.md#trimming-meeting-start-end)と[D03正本](../../medical-records/lifecycle.md)へ接続する。保存・編集の新合意はD03が所有し、終了を記録確定に置き換えない。通常カルテの治療プラン未実施警告は自動保存時ではなく診療終了時に表示し、確認すれば終了できる最新合意へ従う。トリミングの完了必須条件へ自動的に広げない。追加の画面／API適合・実機受入は未確認。
 
 <a id="requirement-fr-reception-selected-day-only"></a>
 #### FR-reception-selected-day-only：選択日だけの受付表示
@@ -193,14 +205,14 @@ filterはヘッダーの既存「フィルター」内に、分類（全分類�
 
 #### 1. 患者フローの管理 (Kanban)
 
-診療の既存状態対応を下記5カラムで示します。全分類をこの対応へ一律に当てはめず、[分類別確認・専用管理](#requirement-fr-reception-business-class-handoff)の承認を適用します。一部の隣接遷移はドラッグ&ドロップ（DnD）で進めますが、受付済→診療中は DnD 禁止です。
+診療とトリミングの状態対応を下記5カラムで示します。全分類をこの対応へ一律に当てはめず、[分類別確認・専用管理](#requirement-fr-reception-business-class-handoff)の承認を適用します。一部の隣接遷移はドラッグ&ドロップ（DnD）で進めますが、受付済→診療中は DnD 禁止です。
 
 | カラム名 | 説明 | 対応ステータス |
 |:---|:---|:---|
 | **受付予約** | 選択日の来院予定。LINE予約（source=line）と手動予約が含まれます。 | `pending`, `confirmed` |
 | **受付済** | 患者が来院し、待合室で待機している状態。 | `checked_in` |
-| **診療中** | 診察室・処置室・検査室等で医師が対応している状態。 | `in_consultation` |
-| **会計待ち** | 診療が終了し、レジでの精算・処方待ちの状態。 | `accounting` |
+| **診療中** | 医師が診療中、またはトリマーが施術中の状態。業務分類をbadgeで区別する。 | `in_consultation` |
+| **会計待ち** | 診療／施術が終了し会計を待つ状態。終了だけで記録・請求・入金を確定しない。 | `accounting` |
 | **会計済** | 会計確定が完了した状態。実退室・入院開始の確定とは別。 | `completed` |
 
 EMR-308: `status='tentative'`（次回予定・未予約）の appointment は sentinel 行でありカンバンのどのカラムにも載らない（`reception/api/transforms.ts` が除外）。当該ペットが当日来院して実予約・受付が作られると、バックエンドの `createOrPromoteTentative` が active tentative を同一行で実予約へ昇格し、受付時に sentinel 時刻（JST 00:00–00:15）を実時刻へ置き換える。tentative 由来予約をキャンセルすると `had_intended_date` 応答を起点に「次回予定の再設定」導線（`onTentativeCancelled`）が開く（自動再設定はしない）。
@@ -220,7 +232,7 @@ stateDiagram-v2
     [*] --> checkedIn : walk-in 新規予約登録
     reserved --> checkedIn : 来院・受付
     checkedIn --> consulting : 診療開始 (カードモーダルのカルテ作成・DnD禁止)
-    consulting --> billing : モーダル終了ボタンまたはドラッグ確認の確定
+    consulting --> billing : 各記録画面の終了／診療モーダル終了・確認DnD
     consulting --> consulting : ドラッグ確認をキャンセル（終了しない）
     billing --> consulting : 専用モーダルで誤終了取消・理由入力と確認
     billing --> done : 精算完了
@@ -290,7 +302,7 @@ stateDiagram-v2
 | AC-reception-hide-browser-relogin | Aが医院Xのカードを片付けブラウザ保存が成功しデータが残っている | 同じブラウザで再ログイン、別端末／別ブラウザでログインする | 同じブラウザのA×Xでは保持。別端末／別ブラウザへ同期しない。対象日以外を当日に出さない | 保持範囲のみ | browser保存をサーバー同期と混同しない | [FR](#requirement-fr-reception-completed-card-visibility)。実機未確認 |
 | AC-reception-show-hidden-and-restore | A×Xに対象日の片付けたカードがある | 「片付けたカードも表示」で確認し、表示を復元する | 対象日の同じカードを確認でき、本人scopeの非表示状態を解除して通常表示へ戻せる。確認表示だけで別スタッフ／医院の設定を変えず、業務状態・ID・日付を変更しない | 確認と表示復元のみ | 過去対象日の閲覧と表示設定を保つ | [FR](#requirement-fr-reception-completed-card-visibility)。実機未確認 |
 | AC-reception-browser-preference-loss | 保存済設定がある、または片付け時にブラウザ保存できない | ブラウザデータ削除・保存不可・読み取り失敗が起きる | 非表示設定が失われても業務データは不変。設定がなければ通常scope／対象日で表示。未保存を保持成功としない。患者／認証情報を保存せず、会計再実行もしない | 保存境界のみ | browser設定喪失と業務損失を分離 | [FR](#requirement-fr-reception-completed-card-visibility)。実機未確認 |
-| AC-reception-layout-classification | 選択日の4分類と専用状態不一致がある | 受付を表示する | 5列を維持して分類別に識別。trim施術中は受付済badge、hotel／入院不一致は状態要確認で、業務statusは変えない | 表示投影のみ | 不一致を臨床状態に変換しない | [配置](#reception-display-layout)。実機未確認 |
+| AC-reception-layout-classification | 選択日の4分類と専用状態不一致がある | 受付を表示する | 5列を維持して分類別に識別。trim施術中は診療中列のbadge、hotel／入院不一致は状態要確認で、業務statusは変えない | 表示投影のみ | 不一致を臨床状態に変換しない | [配置](#reception-display-layout)。実機未確認 |
 | AC-reception-filter-overlay-total | 同じpetの別予約2件と片付けた会計済がある | 分類filter・確認表示toggleを操作する | 予約ID単位の全体件数と待ち母集団は変わらず、カード表示だけ変わる。未linked滞在からカードを追加しない | 表示と集計のみ | 片付けを業務件数変更にしない | [配置](#reception-display-layout)・[read契約](../../../../design/domains/reception/technical-spec.md#reception-read-scope)。実機未確認 |
 | AC-reception-read-state-distinction | 正常0件・filter0件・初回取得失敗・snapshot不完了がある | 一覧を取得する | 4状態を別表示し、失敗／不完了を0件や完全件数へ置換しない。再取得できる | 取得表示のみ | 不明を正常空一覧にしない | [通信契約](#reception-network-contract)。実機未確認 |
 | AC-reception-context-late-result | 旧contextでread／writeを発行し、日付・医院・staffを変更した | 旧応答やrollbackが遅れて返る | 新ボード・modal・browser設定・戻り先へ旧患者dataを反映しない。Abortだけで元業務失敗と決めない | context隔離のみ | 表示scopeと操作scopeを混同しない | [技術契約](../../../../design/domains/reception/technical-spec.md#reception-operation-contract)。実機未確認 |
@@ -300,6 +312,11 @@ stateDiagram-v2
 | AC-reception-start-prepare-read-failure | 受付済で通常記録を準備／再利用した | 同じ「カルテ作成」で読込に失敗する | 開始を確定せず理由・再試行を表示、同じrecord refを保持。start結果不明は先に照合し自動Undoなし | 開始段階のみ | 準備成功と診療開始成功を混同しない | [通信契約](#reception-network-contract)・横断正本。実機未確認 |
 | AC-reception-grant-navigation | 入口viewはあるが対象操作grantがない、または切替後失効した | 操作／遷移／戻るを試す | 無権限write・本文取得なし。対象医院と選択日を再確認、内部戻り先を保持。患者情報・理由・tokenをURL／browser保存に入れない | 認可と戻り先のみ | reception:viewを全業務権限にしない | [技術契約](../../../../design/domains/reception/technical-spec.md#reception-operation-contract)。実機未確認 |
 | AC-reception-local-storage-tab-failure | 同scope別tabが異なるカードを片付け、またはstorage writeが失敗する | 片付け／表示復元する | 1カード1entryで他カードを上書きせず再照合。失敗は直前overlay保持とerror、全storage削除や会計再実行なし | local保存だけ | browser障害を業務変更へしない | [browser契約](../../../../design/domains/reception/technical-spec.md#reception-browser-storage-contract)。実機未確認 |
+| AC-reception-record-form-end | 通常診療／トリミングの進行中記録を各画面で開いている | 対象画面の終了操作が成功する | 同じ予約が会計待ちになり、記録保存／確定・請求確定・入金は終了だけで行わない | 両画面を別々に確認 | 新入口と状態・金銭境界を保持 | [会議追加2](#reception-meeting-start-end)。実機未確認 |
+| AC-reception-waiting-open-existing | 会計待ち予約に明示linked通常カルテ／専用トリミング記録がある | カードの記録導線を開く | 同じ既存記録を対象grantで開き、新規作成・診療／施術再開をしない | 両分類を別々に確認 | 同じ医院・予約・記録を保持 | [会議追加2](#reception-meeting-start-end)。実機未確認 |
+| AC-reception-waiting-missing-record | 会計待ちの記録ref欠落・読取失敗・grant不足がある | 記録導線を使う | 確認／再取得へ渡し、同一pet・日付で推測接続せず新規作成にfallbackしない | 3異常を別確認 | 欠落と取得失敗を混同しない | [会議追加2](#reception-meeting-start-end)。実機未確認 |
+| AC-reception-end-failure-preserves-input | 記録画面から終了して版競合・通信断が起きる | 結果確認／再試行する | 保存済み記録・未保存入力を保持。同じ対象・操作を照合し、成功未確認で列移動を確定しない | 終了と保存を別確認 | 自動Undo・記録再作成なし | [会議追加2](#reception-meeting-start-end)・既存通信契約。実機未確認 |
+| AC-reception-end-target-and-result | 終了操作に必要な予約／記録リンクがない・不明、または終了成功後に結果を再取得する | 対象を解決し終了結果を照合する | リンク不明はowner確認まで止め、架空予約／推測リンクを作らない。成功は同じ予約・型付き記録ref・確定版・終了receiptと現在状態を対応付ける | 不明リンクと成功を別確認 | 履歴読取へ渡す終了結果を保存／入金と分離 | [会議追加2](#reception-meeting-start-end)・予約技術契約。実機未確認 |
 
 <a id="decisions-evidence"></a>
 ## 未決事項・関連仕様・根拠

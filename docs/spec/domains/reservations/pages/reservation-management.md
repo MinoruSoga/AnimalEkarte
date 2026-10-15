@@ -595,3 +595,7 @@ main ec4f7146a を2026-10-13に静的確認。以下は実装残差であり作�
 2026-10-15の[台帳追加合意](../../owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)に従い、主飼主変更は今後の予約とLINE通知先への影響一覧をスタッフが確認してから確定する。対象は既存の同医院・同pet・JST当日以降pending/confirmedに限り、過去予約・来院受付後・tentative・カルテ付き予約等へ拡大しない。元からLINE customerを持つ予約だけ既存条件で付替え／解除し、manual予約は未リンクと既存customer_fieldsを保つ。過去請求・預り金は元ownerを保持する。
 
 一覧確認後の対象変化・認可／版不一致は再取得・差分確認とし、一部だけ移管しない。pet・対象予約・必要監査の同一transaction、選定済みの予約版保護、NOWAIT等は[予約技術契約](../../../../design/domains/reservations/technical-spec.md)を維持する。固有FR/ACは[D04正本](../../owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)に置き、D01の69固有FRへ重複計上しない。画面・実装・実機適合は未確認。
+
+## 2026-10-15会議追加2：受付・記録画面の状態操作
+
+[受付正本](../../reception/pages/reception-board.md#reception-meeting-start-end)と[施術正本](../../trimming/lifecycle.md#trimming-meeting-start-end)に従い、トリミング開始時も同じ予約を診療中列へ移し、通常カルテ／専用トリミング画面の終了から会計待ちへ進める。会計待ちカードは同じ予約に明示linkedされた既存記録を開く。終了だけで記録・請求・入金を確定せず、読取で新規記録や再開始を発火しない。予約writer・医院／患者／担当適格性・版と再送・確定会計の保護を保持する。D01固有FRを重複追加せず、既存の明示開始／終了契約とD02／D06受入条件へtraceする。実装・実機適合は未確認。

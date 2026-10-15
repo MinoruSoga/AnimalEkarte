@@ -4,7 +4,7 @@
 
 次回日は[最新合意](../domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)のワクチン種類別設定または手入力に統一し、独立／カルテ内の入口差を設けない。一覧は保存済み次回日を表示し、旧入口の固定既定や現在マスタから勝手に再計算しない。[最新第4項合意](../domains/vaccinations/lifecycle.md#vaccination-retrospective-next-date)の過去接種後日入力で保存した、既に過ぎた当時の次回日も履歴として保持・表示する。実装適合は未確認。
 
-業務・例外・GWTは[予防接種ライフサイクル](../domains/vaccinations/lifecycle.md)、現wire／監査等の差は[技術契約](../../design/domains/vaccinations/technical-spec.md)。独立／カルテ内は同じvaccinations資源。単体finalizedを新設せず、親カルテfinalizedには通常CRUDを許可しない。
+業務・例外・GWTは[予防接種ライフサイクル](../domains/vaccinations/lifecycle.md)、現wire／監査等の差は[技術契約](../../design/domains/vaccinations/technical-spec.md)。独立／カルテ内は同じvaccinations資源。単体finalizedを新設しない。最新の[通常編集契約](../domains/vaccinations/lifecycle.md#vaccination-normal-edit-autosave)により親の診療終了／旧finalizedだけで入力・編集を一律拒否せず、現在権限・版・変更履歴と別の削除／患者訂正保護を維持する。
 
 同日複数の単件順次登録は[EMR-105の後続検証記録](../../work/emr/emr-105-vaccine-multi-20261002.md)を参照し、S29の古い「調査中」を現在状態としない。当時の限定検証を今回の実機PASSにしない。以下の担当医フィルタは最大100件内であり、全件検索ではない。接種保存・タグ同期・配信／公開の成功は別に判定する。
 

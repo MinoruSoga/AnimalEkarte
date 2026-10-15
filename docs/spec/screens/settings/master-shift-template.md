@@ -46,6 +46,15 @@ flowchart LR
 
 ---
 
+<a id="shift-template-bulk-boundary"></a>
+### 2.3 期間複製・CSV取込との境界
+
+2026-10-15に合意した[期間・スタッフを選ぶシフト複製とExcel作成CSV取込](../24-shift-calendar.md#shift-copy-csv-agreement-20261015)は、シフト管理 `/shifts` の勤務入力・反映操作である。シフトパターン設定のマスタCRUDや、テンプレートを選んでフォームへ値をコピーする既存操作と区別する。マスタ入口やテンプレート選択が可能なことだけでは、勤務変更の権限を与えない。
+
+テンプレート改訂を登録済み勤務へ遡及反映しない。複製／CSVからテンプレートを自動作成・更新しない。複製／取込の入力案を登録済み勤務へ反映する際は、[差分・エラー・予約影響確認](../24-shift-calendar.md#requirement-fr-shifts-bulk-preview-confirm)と既存の勤務・休憩・予約保護を通る。具体的なCSV形式・列・上限はこのマスタ仕様で追加確定しない。既存勤務はシフト正本の明示選択した置換・確認範囲の原子保存に従い、マスタ側から自動上書きしない。
+
+受入：シフト画面の `AC-shifts-template-copy-boundary` と[D14技術trace](../../../design/domains/staff-workforce/technical-spec.md#shift-bulk-acceptance-trace)を参照する。新操作の実装・実機受入は未確認。
+
 ## 3. 技術仕様
 
 ### 3.1 構成コンポーネント

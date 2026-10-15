@@ -37,7 +37,7 @@
 | マスタ名 | 仕様書 | 概要 |
 |:---|:---|:---|
 | **トリミングコース種別** | [master-trimming-course-type.md](./master-trimming-course-type.md) | シャンプー・カット等、コースカテゴリの分類を管理。 |
-| **トリミング** | [master-trimming.md](./master-trimming.md) | コース・オプションの定義（価格は対象サイズ区分のみ、犬種別ではない）。 |
+| **トリミング** | [master-trimming.md](./master-trimming.md) | コース・オプションの定義（マスタ価格の区分は対象サイズのみ（個別施術の料金手修正・行値引きはD06で扱い、マスタ価格は変えない）、犬種別ではない）。 |
 | **予約区分** | [master-reservation-type.md](./master-reservation-type.md) | 診察、手術等の予約枠と LINE 公開設定。 |
 | **シフトパターン**| [master-shift-template.md](./master-shift-template.md) | よく使う勤務時間と休憩時間のテンプレート。 |
 
@@ -156,3 +156,11 @@ sequenceDiagram
 | [権限group](master-permission-group.md) | C04 | [正本](../../shared/access-control.md) | 現在認可・scope例外・staff割当の境界 |
 
 新規選択可否・参照中の無効化／削除・旧名称／価格保持・明示再適用・現在権限／版は同じ扱いとは限らない。master全体に一律のcascade削除や過去snapshot再計算を追加しない。
+
+## 2026-10-15会議合意の接続：shifts-5
+
+シフトtemplateと[期間複製・CSV取込](../24-shift-calendar.md#shift-copy-csv-agreement-20261015)の接続は[マスタ境界](master-shift-template.md#shift-template-bulk-boundary)へ。テンプレートCRUDと勤務の入力／反映は別操作で、登録済み勤務への自動遡及や勤務権限の拡張を行わない。新操作のFR／ACはシフト画面とD14技術契約に置き、本索引では第二定義を作らない。
+
+## 2026-10-15コースカテゴリの入口
+
+コース種別はコースのカテゴリであり、予約区分マスタに近い一覧・編集UIへ整理する。予約区分の業務分類・枠設定とは別。正本は[コース種別](master-trimming-course-type.md)と[D06](../../domains/trimming/lifecycle.md#trimming-meeting-pricing-category)。
