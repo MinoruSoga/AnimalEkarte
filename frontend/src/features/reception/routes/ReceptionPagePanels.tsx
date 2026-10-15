@@ -1,4 +1,4 @@
-import { Suspense, type ComponentProps, type ReactNode } from "react";
+import { Suspense, useId, type ComponentProps, type ReactNode } from "react";
 import { DndContext, type DragEndEvent } from "@dnd-kit/core";
 import type { CollisionDetection } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
@@ -66,6 +66,7 @@ interface ReceptionPageBodyProps {
   cancelDescription: string;
 }
 
+/** 受付一覧と関連パネルを表示し、フィルターの開閉状態を操作元へ伝える。 */
 export function ReceptionPageBody({
   dateLabel,
   selectedDate,
@@ -110,6 +111,7 @@ export function ReceptionPageBody({
   onConfirmCancel,
   cancelDescription,
 }: ReceptionPageBodyProps) {
+  const filterPanelId = useId();
   return (
     <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
       <FormHeader
@@ -130,8 +132,11 @@ export function ReceptionPageBody({
               variant={isFilterOpen ? "secondary" : "outline"}
               className={`gap-2 ${C.bgWhite} h-11 text-base ${C.text} ${C.borderMedium}`}
               onClick={onToggleFilter}
+              aria-expanded={isFilterOpen}
+              aria-controls={filterPanelId}
             >
               <Filter className={ICON.sm} />
+              {isFilterOpen ? <span aria-hidden="true">✓</span> : null}
               フィルター
             </Button>
             {/* PR669: 新規予約登録は reservations:create のみで表示する（walk-in も同権限）。 */}
@@ -148,17 +153,19 @@ export function ReceptionPageBody({
         isToday={isToday}
       />
 
-      {isFilterOpen ? (
-        <ReceptionFilterPanel
-          selectedVisitTypes={selectedVisitTypes}
-          selectedDoctor={selectedDoctor}
-          doctors={doctors}
-          isTrimmingOnly={isTrimmingOnly}
-          onToggleVisitType={onToggleVisitType}
-          onSelectedDoctorChange={onSelectedDoctorChange}
-          onTrimmingOnlyChange={onTrimmingOnlyChange}
-        />
-      ) : null}
+      <div id={filterPanelId} hidden={!isFilterOpen}>
+        {isFilterOpen ? (
+          <ReceptionFilterPanel
+            selectedVisitTypes={selectedVisitTypes}
+            selectedDoctor={selectedDoctor}
+            doctors={doctors}
+            isTrimmingOnly={isTrimmingOnly}
+            onToggleVisitType={onToggleVisitType}
+            onSelectedDoctorChange={onSelectedDoctorChange}
+            onTrimmingOnlyChange={onTrimmingOnlyChange}
+          />
+        ) : null}
+      </div>
 
       <div className="flex-1 overflow-hidden p-6 pt-4">
         {/* 確定はドロップ時のみ。onDragOver でのライブ移動は measureRects の再計測ループ

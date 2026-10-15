@@ -24,6 +24,7 @@ interface ExaminationHistoryPanelProps {
   onHistoryClear: () => void;
 }
 
+/** 検査履歴の絞り込みと表示切替。選択中の形式をチェックとpressed状態で示す。 */
 export function ExaminationHistoryPanel({
   filteredHistory,
   pivotHistory,
@@ -52,6 +53,7 @@ export function ExaminationHistoryPanel({
             aria-pressed={historyView === "cards"}
             onClick={() => onHistoryViewChange("cards")}
           >
+            {historyView === "cards" ? <span aria-hidden="true">✓</span> : null}
             カード
           </Button>
           <Button
@@ -61,6 +63,7 @@ export function ExaminationHistoryPanel({
             aria-pressed={historyView === "pivot"}
             onClick={() => onHistoryViewChange("pivot")}
           >
+            {historyView === "pivot" ? <span aria-hidden="true">✓</span> : null}
             時系列
           </Button>
         </div>
