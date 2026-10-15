@@ -9,8 +9,6 @@ import type { Resource } from "@/types/generated/models";
 interface MasterTabPageProps {
   /** Page title (e.g. "診断病名マスタ") */
   title: string;
-  /** Page icon element */
-  icon: ReactNode;
   /** 権限バッジ表示用リソース */
   resource?: Resource;
 
@@ -50,7 +48,6 @@ interface MasterTabPageProps {
  */
 export const MasterTabPage = memo(function MasterTabPage({
   title,
-  icon,
   resource,
   onNew,
   sidePanel,
@@ -62,7 +59,6 @@ export const MasterTabPage = memo(function MasterTabPage({
     <>
       <MasterPageShell
         title={title}
-        icon={icon}
         resource={resource}
         onNew={onNew}
         sidePanel={sidePanel}

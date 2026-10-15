@@ -15,9 +15,10 @@ docs/
 ├── product-philosophy.md   … 意思決定原則（何を作るか/作らないか。全文書の上位）
 ├── architecture/           … 説明系: システムがどう作られているか
 ├── spec/                   … 仕様系: システムが何をするか（業務・画面・UI）
+├── design/                 … 技術設計: 確定業務を実現する方式・現行差分
 ├── ops/                    … 運用系: デプロイ・CI・テスト・インフラ
 ├── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
-└── work/                   … 補助メモ・採択済み決裁・今期外索引（実行 SoT ではない）
+└── work/                   … 実施記録（既存の提案・設計資料は当時の配置を保持）
 ```
 
 索引の参照チェーン（本書は入口のみ。ファイル単位の説明は各フォルダ README が正本）:
@@ -30,6 +31,7 @@ flowchart LR
         direction TB
         A["architecture/README.md"]
         S["spec/README.md"]
+        TD["design/README.md"]
         O["ops/README.md"]
         D["delivery/README.md"]
         W["work/README.md"]
@@ -44,9 +46,10 @@ flowchart LR
 | **意思決定原則** | [product-philosophy.md](product-philosophy.md) | 5 ステップの意思決定原則。新機能・仕様変更の着手前に必読 |
 | **説明系** | [architecture/README.md](architecture/README.md) | domain/capability-first modular monolith・package 境界・ERD・RBAC/マルチテナント・データフロー・削除設計・ADR |
 | **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
+| **技術設計** | [design/README.md](design/README.md) | DB・API・画面連携・内部状態・整合性・移行・検証の設計。具体的タスクと進捗はPlane |
 | **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
 | **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
-| **作業記録・提案** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁・今期外索引（実行 SoT は Plane。root 台帳の例外は下記参照） |
+| **実施記録** | [work/README.md](work/README.md) | 補助メモ・採択済み決裁・今期外索引（実行 SoT は Plane。root 台帳の例外は下記参照） |
 > **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表とローカル必須ゲート（`scripts/checks/check-docs-symbol-drift.sh` の TOP_DIR_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは `make ci` が拒否する。
 
 ## 主分類（primary role）の判定
@@ -59,6 +62,7 @@ flowchart LR
 | b | basename `CLAUDE.md` | rules | 4 |
 | c | basename/stem `README`・`index`（大小文字無視） | index | 20 |
 | d | `architecture/adr/**` または `work/decisions/**` | decision | 9 |
+| e0 | `design/**`（README等の上位規則を除く） | technical-design | 新規分類。旧静的集計には含めない |
 | e | `work/**` に加えて `architecture/be9-2a-boundary-map.md`・`architecture/be9-2a-classification-manifest.csv`・`ops/testing/UAT-DOMAIN-STATUS.md` | evidence-or-proposal | 182 |
 | f | 残りの `.sh`/`.mjs`/`.py`/`.json`/`.csv`/`.txt` | tooling-or-fixture | 7 |
 | g | 残りの `.png`/`.jpg`/`.jpeg`/`.svg`/`.pdf` | asset（予約 role。現在 0 件） | 0 |
@@ -130,3 +134,7 @@ flowchart LR
 **最新更新**: 2026-10-11（本索引の構成・参照方針の更新。全ドキュメントの一括受入を意味しない） | **ステータス**: 実行 SoT は Plane（baritechllc / `EMR` / hub `EMR-1`、case_id `BRT-4` 継承・旧 Linear は 2026-09-16 閉鎖）。docs/ は 5 カテゴリ体制で、ファイル単位の説明は各フォルダ README が正本
 
 予約 → 受付 → カルテ入力 → 会計・未納の仕様見直しは [spec/ の読む順](spec/README.md)から開始する。横断フロー・ドメイン・共通用語の入口をまとめている。
+
+予約仕様の確定箇所は[確定FR索引](spec/domains/reservations/README.md#approved-reservation-scope)で識別し、[オントロジー](spec/ontology/README.md)・[旧資料](work/archive/reservations/README.md)・[未承認／設計](work/design/reservations/README.md)を役割別に参照する。既存カテゴリの内側で分離し、spec/全体の承認を意味しない。
+
+新しい配置方針はspec＝確定業務仕様・受入条件、design＝技術設計、work＝実施記録、Plane＝作業・依存関係・進捗。既存specの継承・未決混在は各節の決定状態を保持し、一括承認しない。既存workの計画／提案資料は今回移動していない。designの配置承認に続き、ユーザー Sentinel_34b62bb163b881919e6f2a9fd05edfc3 が検査allowlistへの追加も承認し、TOP_DIR_ALLOWLISTへdesignを追加した。未知カテゴリの拒否と既存検査基準は維持する。

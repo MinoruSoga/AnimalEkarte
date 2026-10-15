@@ -1,11 +1,11 @@
 ---
-title: スタッフ管理
+title: スタッフマスタ
 order: 18.4
 section: システム設定
 keywords_vi: danh sách nhân viên, master nhân viên, quản lý nhân viên, tài khoản nhân viên
 ---
 
-# スタッフ管理
+# スタッフマスタ
 
 ## どんな画面か
 
@@ -13,7 +13,7 @@ keywords_vi: danh sách nhân viên, master nhân viên, quản lý nhân viên,
 
 ## 開き方
 
-サイドバー「**マスタ設定**」→「**スタッフ管理**」
+サイドバー「**マスタ設定**」→「**スタッフマスタ**」
 
 ## 必要な権限
 
@@ -103,6 +103,6 @@ keywords_vi: danh sách nhân viên, master nhân viên, quản lý nhân viên,
 ## 関連する画面・workflow
 
 - 画面マニュアル「**ログイン**」: レート制限・パスワードリセット
-- 画面マニュアル「**権限グループ**」: 権限設定の前提
+- 画面マニュアル「**権限グループマスタ**」: 権限設定の前提
 - 画面マニュアル「**職種マスタ**」: 職種定義
 - 業務フロー「**スタッフアカウント・権限の管理**」: 詳細手順

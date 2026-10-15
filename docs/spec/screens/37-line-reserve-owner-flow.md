@@ -1,5 +1,7 @@
 # LINE予約 飼主側フロー 仕様書 (LINE Reserve Owner Flow)
 
+17:23 JSTの[LINE予約6点合意](../line/reservation-spec.md#line-agreement-1723)へ従う。公開された診療・トリミング・ホテルは予約対象、入院は医院相談。ホテルには医師指名・医師シフト・通常予約の同日制約を適用しない。受付制限・入力保持・受付前取消・必要設定不足の扱いと受入条件はLINE正本を参照する。ホテル受入基準は17:35合意の医院別同時宿泊頭数・全宿泊期間判定で、実装・実機受入は未確認。
+
 > スタッフ管理側（設定・予約枠・文言編集）は [28-line-reservation.md](./28-line-reservation.md) を参照。本書は飼主が LINE アプリ内で操作する予約フロー（`frontend/line-reserve` 別エントリアプリ）のみを扱う。
 
 ## 概要
@@ -61,6 +63,8 @@ flowchart LR
 - **入力サイズ制限**（`liff_validation.go`）: request_text 1,000 文字以内、customer_fields 全体 10KB・キー 20 個・各文字列値 500 文字以内（DoS・DB 肥大化対策）。
 
 ### 2. 枠競合時の挙動（確定時 409）
+
+[状況変化時の入力保持・別日時再選択](../line/reservation-spec.md#requirement-fr-line-reservations-reselect-after-change)が17:23合意の業務契約。現行の画面遷移だけで入力保持まで受入済みとしない。
 確定 POST が 409（SLOT_TAKEN / DAILY_LIMIT / MONTHLY_LIMIT / MAINTENANCE）を返すと、`ConfirmPage` がレスポンスの error 文言と redirect_step を読み取り、指定ステップ（4=日付選択、5=時間選択。不明時は 4）へ戻す。通知はブロッキングダイアログではなく画面上部のインライン赤バナー（`role="alert"`・×で閉じる）で行う（FE5-21）。
 
 ### 3. 予約完了時の連携
@@ -69,6 +73,8 @@ flowchart LR
 - 入力した氏名・電話・ペットは顧客の `additional_fields` に自動保存され、次回予約時に復元される。**氏名+電話番号による `line_customers.owner_id` 自動紐付けは行わない**（SEC-CS2-F02 / `liff_service_reservations.go`）。既に link-token またはスタッフ操作で owner が紐付いている顧客のみ、予約へ `owner_id` / `pet_id` を best-effort で反映する。
 
 ### 4. マイ予約のキャンセル可否ルール
+
+業務正本は[来院受付前の飼主取消](../line/reservation-spec.md#requirement-fr-line-reservations-owner-cancel)。以下は現行実装の確定ステータス限定の説明であり、受付前という全業務状態への対応は未確認。飼主による直接変更・取消復元は設けず、医院へ連絡する。
 - 一覧は本人（LINE 顧客 ID）の予約のみ。ステータスバッジ（確定/確認中/受付済/診察中/会計中/完了/未来院/キャンセル済）を色分け表示。
 - **キャンセルボタンはステータスが「確定」（confirmed）の予約にのみ表示**。来院後ステータス（受付済以降）はこの画面からキャンセル不可。日時による締切はなく、当日でもキャンセル可能。
 - 押下するとカード内インラインで「本当にキャンセルしますか？」の確認を挟み、確定するとバックエンドの `CancelByID` が本人・医院スコープで `status=cancelled` のみに更新する。`deleted_at` は設定せず、マイ予約にはキャンセル済として残る。スタッフ側予約カレンダーは `filterCalendarAppointments` で `cancelled` を非表示にする（#116、[reservation-management.md](../domains/reservations/pages/reservation-management.md)）。成功時はマイ予約のバッジを即時「キャンセル済」に更新し、失敗時は `role="alert"` のエラーを表示する。

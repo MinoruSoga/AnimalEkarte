@@ -1,8 +1,7 @@
 import { useCallback, useContext } from "react";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
-import PawPrint from "lucide-react/dist/esm/icons/paw-print";
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -98,8 +97,7 @@ export function AnimalSpeciesSettings() {
     // 新規登録/side panel の mutation affordance も system admin に限定される。
     <>
       <MasterCRUDPage
-        title="動物種類"
-        icon={<PawPrint className={`${ICON.page} ${C.text}`} />}
+        title="動物種類マスタ"
         entityLabel="動物種類"
         searchPlaceholder="動物種類名で検索..."
         emptyMessage="動物種類が登録されていません"

@@ -1,11 +1,9 @@
-import { Package, Save } from "lucide-react";
-
 import { ErrorFallback } from "@/components/shared/DataStates";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { Button } from "@/components/ui/button";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { ResourceInventory } from "@/types/generated/models";
 import type { InventoryItem } from "@/types";
 import {
@@ -26,9 +24,8 @@ export function InventoryFormStatusView({
     return (
       <PageLayout
         title="在庫編集"
-        icon={<Package className={`${ICON.page} ${C.text}`} />}
         resource={ResourceInventory}
-        maxWidth="max-w-3xl"
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       >
         <div className={`text-sm ${C.text60}`}>読み込み中...</div>
       </PageLayout>
@@ -40,9 +37,8 @@ export function InventoryFormStatusView({
       <PageLayout
         title="在庫"
         onBack={onBack}
-        icon={<Package className={`${ICON.page} ${C.text}`} />}
         resource={ResourceInventory}
-        maxWidth="max-w-3xl"
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       >
         <ErrorFallback message="在庫情報が見つかりません" />
       </PageLayout>
@@ -53,9 +49,8 @@ export function InventoryFormStatusView({
     <PageLayout
       title="在庫"
       onBack={onBack}
-      icon={<Package className={`${ICON.page} ${C.text}`} />}
       resource={ResourceInventory}
-      maxWidth="max-w-3xl"
+      maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
     >
       <div className="space-y-3">
         <ErrorFallback message="在庫情報の取得に失敗しました" />
@@ -106,19 +101,18 @@ export function InventoryFormBody({
 }: InventoryFormBodyProps) {
   return (
     <PageLayout
-      title={isEdit ? "在庫編集" : "在庫登録"}
+      title={isEdit ? (canSubmit ? "在庫編集" : "在庫詳細") : "在庫登録"}
       resource={ResourceInventory}
-      icon={<Package className={`${ICON.page} ${C.text}`} />}
       onBack={onBack}
       headerAction={
-        canSubmit ? (
-          <SubmitButton size="sm" form={INVENTORY_FORM_ID}>
-            <Save className={`mr-1.5 ${ICON.action}`} />
-            {isEdit ? "更新" : "登録"}
-          </SubmitButton>
-        ) : null
+        <FormHeaderActions
+          onCancel={onBack}
+          submitLabel={canSubmit ? (isPending ? "保存中..." : "保存") : undefined}
+          submitDisabled={isPending}
+          submitFormId={INVENTORY_FORM_ID}
+        />
       }
-      maxWidth="max-w-3xl"
+      maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
     >
       <NavigationBlocker when={isDirty ? !isPending : false} />
       {!canSubmit ? (
@@ -167,14 +161,6 @@ export function InventoryFormBody({
             onMarkDirty={onMarkDirty}
           />
         </fieldset>
-        <div className="flex justify-end gap-3">
-          {canSubmit ? (
-            <SubmitButton>
-              <Save className={`mr-1.5 ${ICON.action}`} />
-              {isEdit ? "更新" : "登録"}
-            </SubmitButton>
-          ) : null}
-        </div>
       </form>
     </PageLayout>
   );

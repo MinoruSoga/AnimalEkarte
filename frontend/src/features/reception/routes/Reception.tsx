@@ -167,7 +167,7 @@ export function Reception() {
 
   const { columnElements, appointmentColumnTitleMap, goToNewReservation } = useReceptionColumnView({
     filteredColumns,
-    canCreateReservation,
+    canCreateReservation: canCreateReservation === true,
     canEditReservation,
     advanceStatus,
     onCardClick: handleCardClick,
@@ -192,7 +192,7 @@ export function Reception() {
         onDateChange={handleDateChange}
         isFilterOpen={isFilterOpen}
         onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
-        canCreateReservation={canCreateReservation}
+        canCreateReservation={canCreateReservation === true}
         onNewReception={() =>
           // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
           goToNewReservation(isToday ? "reception=1" : "newReservation=1")

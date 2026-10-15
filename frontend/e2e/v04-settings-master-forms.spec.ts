@@ -217,7 +217,7 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
 
       await settings.deleteButton().click();
       await expect(settings.deleteDialog()).toBeVisible();
-      await settings.deleteConfirmButton("削除する").click();
+      await settings.deleteConfirmButton("削除").click();
       await expect(page.getByText(medicineName)).not.toBeVisible({ timeout: 10000 });
       needsCleanup = false;
     } finally {
@@ -228,7 +228,7 @@ test.describe("V04 設定マスタ disposable CRUD/DELETE", () => {
           "薬剤マスタ",
           "薬品名で検索...",
           medicineName,
-          "削除する",
+          "削除",
         );
       }
       await page.close();
@@ -1190,7 +1190,7 @@ test.describe("V04 設定マスタ §5 予約可能枠（admin）", () => {
       // date input があるため、予約可能枠セクションにスコープして一意にする。
       await slotsSection().getByRole("combobox", { name: "スロット種別" }).click();
       await page.getByRole("option", { name: "特定日", exact: true }).click();
-      await slotsSection().getByLabel("特定日").fill(specificDate);
+      await slotsSection().getByLabel("予約可能枠の特定日").fill(specificDate);
       const specificPostPromise = page.waitForResponse(
         (response) =>
           /\/v1\/masters\/reservation-types\/\d+\/available-slots/.test(response.url()) &&

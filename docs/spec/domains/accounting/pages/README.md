@@ -1,0 +1,16 @@
+# domains/accounting/pages — フォルダの説明
+
+
+## このフォルダの役割と使い方
+
+会計・未納の画面詳細仕様と移設互換案内を置く。
+
+画面の入力・操作・状態・エラー・受入条件と正本への参照を置く。業務領域全体の説明は[領域入口](../README.md)、横断契約・用語・技術モデルはそれぞれの正本へ委ねる。番号付き旧ファイルは移動案内として保持し、本文を二重管理しない。
+
+子フォルダ：現在、子フォルダはありません。
+
+主要文書：[10-accounting-list.md](10-accounting-list.md)、[11-accounting-detail.md](11-accounting-detail.md)、[30-unpaid-list.md](30-unpaid-list.md)、[accounting-list.md](accounting-list.md)、[accounting-settlement.md](accounting-settlement.md)、[unpaid-list.md](unpaid-list.md)
+
+読む順：[領域入口](../README.md)の読む順 → 下記の画面本文。未決・実装・実機状態は各本文の記載を確認する。
+
+正本・状態：[決定状態と検証状態の規約](../../../authoring-guide.md#status)に従い、各節・FRの承認根拠と実装／実機状態を別に読む。READMEへの掲載・フォルダ配置は承認や実装済みを表さず、対象外の既存仕様を新たに確定しない。既存の別名入口・索引の責務は維持し、本書は案内を補う。

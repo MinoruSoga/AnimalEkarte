@@ -1,17 +1,161 @@
-import { useState, useCallback, useActionState, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useActionState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/types/form";
-import type { Estimate, EstimateStatus } from "../types";
+import { calcEstimateTotals } from "@/lib/estimate-totals";
+import type { Estimate, EstimateLineItem, EstimateStatus } from "../types";
 import { useCreateEstimate } from "../api/create-estimate";
 import { useUpdateEstimate } from "../api/update-estimate";
-import type { CreateEstimateRequest, UpdateEstimateRequest } from "../api/types";
+import type {
+  CreateEstimateRequest,
+  EstimateItemRequest,
+  UpdateEstimateRequest,
+} from "../api/types";
 import { CREATE_ALLOWED_STATUSES } from "../constants/estimate-status-options";
 import {
   ESTIMATE_LOCKED_EDIT_MESSAGE,
   isEstimateLockedStatus,
 } from "../lib/is-estimate-locked-status";
+
+export type EstimateItemDraft = Pick<
+  EstimateLineItem,
+  | "id"
+  | "name"
+  | "category"
+  | "unitPrice"
+  | "quantity"
+  | "taxType"
+  | "taxRate"
+  | "discountRate"
+  | "discountAmount"
+  | "isInsuranceApplicable"
+  | "sortOrder"
+> & {
+  localId: string;
+};
+
+let localIdSeq = 0;
+const nextLocalId = () => `local-item-${++localIdSeq}`;
+
+function itemToDraft(item: EstimateLineItem): EstimateItemDraft {
+  return {
+    id: item.id,
+    localId: item.id ? `saved-${item.id}` : nextLocalId(),
+    name: item.name,
+    category: item.category,
+    unitPrice: item.unitPrice,
+    quantity: item.quantity,
+    taxType: item.taxType,
+    taxRate: item.taxRate,
+    discountRate: item.discountRate,
+    discountAmount: item.discountAmount,
+    isInsuranceApplicable: item.isInsuranceApplicable,
+    sortOrder: item.sortOrder,
+  };
+}
+
+function deriveTotals(items: EstimateItemDraft[], headerDiscountAmount = 0, insuranceAmount = 0) {
+  const t = calcEstimateTotals(items);
+  const hasItems = items.length > 0;
+  return {
+    subtotal: t.subtotal,
+    taxTotal: t.tax,
+    totalAmount: t.total - (hasItems ? headerDiscountAmount + insuranceAmount : 0),
+  };
+}
+
+function serializeItems(items: EstimateItemDraft[]): string {
+  return JSON.stringify(items.map((item, index) => draftToRequestItem(item, index)));
+}
+
+function draftToRequestItem(item: EstimateItemDraft, index: number): EstimateItemRequest {
+  const persistedId = Number(item.id);
+  const request: EstimateItemRequest = {
+    name: item.name.trim(),
+    category: item.category,
+    unit_price: item.unitPrice,
+    quantity: item.quantity,
+    tax_type: item.taxType,
+    tax_rate: item.taxRate,
+    discount_rate: item.discountRate,
+    discount_amount: item.discountAmount,
+    is_insurance_applicable: item.isInsuranceApplicable,
+    sort_order: index,
+  };
+  // PR665: 既存行は安定 ID を一致ヒントとして送り、改名・並べ替えでも
+  // サーバ側が同一行として割引権限・既存税設定を判定できるようにする。
+  if (item.id !== "" && Number.isSafeInteger(persistedId) && persistedId > 0) {
+    request.existing_item_id = persistedId;
+  }
+  return request;
+}
+
+function validateItems(items: EstimateItemDraft[]): string | null {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!;
+    // PR665: 置換送信時は未変更行（旧データの不正行を含む）も全行検証する。
+    // メタデータのみの保存（items 未送信）は検証対象外。
+    const label = `${i + 1}行目`;
+    const name = item.name.trim();
+    if (!name) return `${label}: 品目名を入力してください`;
+    if (name.length > 255) return `${label}: 品目名は255文字以内で入力してください`;
+    if (!Number.isSafeInteger(item.unitPrice) || item.unitPrice < 0) {
+      return `${label}: 単価は0以上の整数で入力してください`;
+    }
+    if (
+      !Number.isFinite(item.quantity) ||
+      item.quantity <= 0 ||
+      item.quantity > 999999999.9 ||
+      Math.abs(item.quantity - Math.round(item.quantity * 10) / 10) > 1e-10
+    ) {
+      return `${label}: 数量は0より大きい0.1刻みの値（999999999.9以下）で入力してください`;
+    }
+    if (item.taxType !== "included" && item.taxType !== "excluded" && item.taxType !== "exempt") {
+      return `${label}: 課税区分が不正です`;
+    }
+    if (
+      !Number.isFinite(item.taxRate) ||
+      item.taxRate < 0 ||
+      item.taxRate > 1 ||
+      Math.abs(item.taxRate * 100 - Math.round(item.taxRate * 100)) > 1e-9
+    ) {
+      return `${label}: 税率は0〜1の小数第2位までの値で入力してください`;
+    }
+    if (!Number.isFinite(item.discountRate) || item.discountRate < 0 || item.discountRate > 100) {
+      return `${label}: 割引率は0〜100で入力してください`;
+    }
+    if (!Number.isSafeInteger(item.discountAmount) || item.discountAmount < 0) {
+      return `${label}: 値引額は0以上の整数で入力してください`;
+    }
+    const base = item.unitPrice * item.quantity;
+    if (!Number.isFinite(base) || base > Number.MAX_SAFE_INTEGER) {
+      return `${label}: 単価×数量が上限を超えています`;
+    }
+    if (item.discountAmount > base) {
+      return `${label}: 値引額は単価×数量以下で入力してください`;
+    }
+  }
+  const totals = calcEstimateTotals(items);
+  if (!Number.isSafeInteger(totals.subtotal) || totals.subtotal < 0) {
+    return "小計が安全な金額範囲を超えています";
+  }
+  if (!Number.isSafeInteger(totals.tax) || totals.tax < 0) {
+    return "税額合計が安全な金額範囲を超えています";
+  }
+  if (!Number.isSafeInteger(totals.total) || totals.total < 0) {
+    return "合計が安全な金額範囲を超えています";
+  }
+  return null;
+}
 
 interface EstimateFormState {
   title: string;
@@ -19,14 +163,16 @@ interface EstimateFormState {
   ownerId: string;
   petId: string;
   medicalRecordId: string;
-  subtotal: number;
-  taxTotal: number;
-  totalAmount: number;
   insuranceAmount: number;
   discountAmount: number;
   validUntil: string;
   comment: string;
   notes: string;
+  items: EstimateItemDraft[];
+  /** 明細なし見積（新規・既存）で手入力する金額。明細ありでは導出値が使われる。 */
+  subtotal: number;
+  taxTotal: number;
+  totalAmount: number;
 }
 
 function buildInitialState(estimate?: Estimate): EstimateFormState {
@@ -36,14 +182,15 @@ function buildInitialState(estimate?: Estimate): EstimateFormState {
     ownerId: estimate?.ownerId ?? "",
     petId: estimate?.petId ?? "",
     medicalRecordId: estimate?.medicalRecordId ?? "",
-    subtotal: estimate?.subtotal ?? 0,
-    taxTotal: estimate?.taxTotal ?? 0,
-    totalAmount: estimate?.totalAmount ?? 0,
     insuranceAmount: estimate?.insuranceAmount ?? 0,
     discountAmount: estimate?.discountAmount ?? 0,
     validUntil: estimate?.validUntil ?? "",
     comment: estimate?.comment ?? "",
     notes: estimate?.notes ?? "",
+    items: (estimate?.items ?? []).map(itemToDraft),
+    subtotal: estimate?.subtotal ?? 0,
+    taxTotal: estimate?.taxTotal ?? 0,
+    totalAmount: estimate?.totalAmount ?? 0,
   };
 }
 
@@ -76,6 +223,7 @@ export interface UseEstimateFormArgs {
    * render 側（fieldset disabled + banner）と同じ判定を callback 側でも再検査する（二重防壁）。
    */
   blockCreateReason?: string;
+  standardTaxRate?: number;
 }
 
 export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) {
@@ -83,6 +231,8 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
   // BUG-019: mode is route-param driven, not `!!estimate`
   const isEdit = args.mode === "edit";
   const estimate = args.estimate;
+
+  const standardTaxRate = args.standardTaxRate ?? 0.1;
 
   const [form, setForm] = useState<EstimateFormState>(() => buildInitialState(estimate));
   const formRef = useRef(form);
@@ -119,12 +269,20 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
     }));
   }, [args.initialOwnerId, args.initialPetId, isEdit]);
 
+  const [baseline, setBaseline] = useState(() => ({
+    itemsKey: serializeItems(form.items),
+  }));
+
   // Sync with estimate data if it loads later — previous-value pattern
   const [prevEstimateId, setPrevEstimateId] = useState(estimate?.id);
   if (prevEstimateId !== estimate?.id) {
     setPrevEstimateId(estimate?.id);
     if (estimate) {
-      setForm(buildInitialState(estimate));
+      const hydratedForm = buildInitialState(estimate);
+      setBaseline({
+        itemsKey: serializeItems(hydratedForm.items),
+      });
+      setForm(hydratedForm);
     }
   }
 
@@ -140,6 +298,89 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
           fieldErrors: { title: "タイトルを入力してください" },
           timestamp: Date.now(),
         };
+      }
+
+      const itemsChanged = !isEdit || serializeItems(current.items) !== baseline.itemsKey;
+      if (itemsChanged) {
+        const itemsError = validateItems(current.items);
+        if (itemsError) {
+          return {
+            success: false,
+            fieldErrors: { items: itemsError },
+            timestamp: Date.now(),
+          };
+        }
+      }
+
+      const manualAllowed =
+        current.items.length === 0 && (!isEdit || (estimate?.items?.length ?? -1) === 0);
+
+      if (manualAllowed) {
+        for (const value of [current.subtotal, current.taxTotal, current.totalAmount]) {
+          if (!Number.isSafeInteger(value) || value < 0) {
+            return {
+              success: false,
+              fieldErrors: { items: "小計・税額・合計は0以上の整数で入力してください" },
+              timestamp: Date.now(),
+            };
+          }
+        }
+      }
+
+      // PR669: 控除の上下限検証は「新規作成・明細置換・控除の実変更」のときだけ。
+      // 据え置きの旧データ（超過控除を含む）はクライアント側で再検証・強制置換しない。
+      const deductionsChanged =
+        isEdit &&
+        estimate != null &&
+        (current.discountAmount !== estimate.discountAmount ||
+          current.insuranceAmount !== estimate.insuranceAmount);
+      const validateDeductionBounds =
+        current.items.length > 0 && (!isEdit || itemsChanged || deductionsChanged);
+
+      if (!Number.isSafeInteger(current.discountAmount) || current.discountAmount < 0) {
+        return {
+          success: false,
+          fieldErrors: { items: "一括割引額は0以上の整数で入力してください" },
+          timestamp: Date.now(),
+        };
+      }
+      if (!Number.isSafeInteger(current.insuranceAmount) || current.insuranceAmount < 0) {
+        return {
+          success: false,
+          fieldErrors: { items: "保険適用額は0以上の整数で入力してください" },
+          timestamp: Date.now(),
+        };
+      }
+      if (validateDeductionBounds) {
+        const gross = calcEstimateTotals(current.items).total;
+        if (current.discountAmount > gross) {
+          return {
+            success: false,
+            fieldErrors: { items: "一括割引額は明細合計以下の0以上の整数で入力してください" },
+            timestamp: Date.now(),
+          };
+        }
+        if (current.insuranceAmount > gross - current.discountAmount) {
+          return {
+            success: false,
+            fieldErrors: {
+              items: "保険適用額は明細合計から一括割引を引いた額以下で入力してください",
+            },
+            timestamp: Date.now(),
+          };
+        }
+        const derived = deriveTotals(
+          current.items,
+          current.discountAmount,
+          current.insuranceAmount,
+        );
+        if (derived.totalAmount < 0) {
+          return {
+            success: false,
+            fieldErrors: { items: "控除後の合計が0未満になります" },
+            timestamp: Date.now(),
+          };
+        }
       }
 
       try {
@@ -159,15 +400,35 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
           const req: UpdateEstimateRequest = {
             title: current.title,
             status: current.status,
-            subtotal: current.subtotal,
-            tax_total: current.taxTotal,
-            total_amount: current.totalAmount,
             insurance_amount: current.insuranceAmount,
             discount_amount: current.discountAmount,
             valid_until: current.validUntil || null,
             comment: current.comment,
             notes: current.notes,
           };
+          if (itemsChanged || (deductionsChanged && current.items.length > 0)) {
+            const derived = deriveTotals(
+              current.items,
+              current.discountAmount,
+              current.insuranceAmount,
+            );
+            req.subtotal = derived.subtotal;
+            req.tax_total = derived.taxTotal;
+            req.total_amount = derived.totalAmount;
+          }
+          if (itemsChanged) {
+            req.items = current.items.map(draftToRequestItem);
+          } else if (
+            manualAllowed &&
+            (current.subtotal !== estimate.subtotal ||
+              current.taxTotal !== estimate.taxTotal ||
+              current.totalAmount !== estimate.totalAmount)
+          ) {
+            // 明細なし見積の手入力合計のみ変更（items 置換は送らない）
+            req.subtotal = current.subtotal;
+            req.tax_total = current.taxTotal;
+            req.total_amount = current.totalAmount;
+          }
           // FE-RC-005: 成功 toast は useUpdateEstimate の onSuccess に一元化済み（ここでは通知しない）。
           await updateEstimate({ id: estimate.id, data: req });
         } else {
@@ -187,20 +448,28 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
               timestamp: Date.now(),
             };
           }
+          const derived = manualAllowed
+            ? {
+                subtotal: current.subtotal,
+                taxTotal: current.taxTotal,
+                totalAmount: current.totalAmount,
+              }
+            : deriveTotals(current.items, current.discountAmount, current.insuranceAmount);
           const req: CreateEstimateRequest = {
             title: current.title,
             status: current.status,
             owner_id: current.ownerId ? Number(current.ownerId) : null,
             pet_id: current.petId ? Number(current.petId) : null,
             medical_record_id: current.medicalRecordId ? Number(current.medicalRecordId) : null,
-            subtotal: current.subtotal,
-            tax_total: current.taxTotal,
-            total_amount: current.totalAmount,
+            subtotal: derived.subtotal,
+            tax_total: derived.taxTotal,
+            total_amount: derived.totalAmount,
             insurance_amount: current.insuranceAmount,
             discount_amount: current.discountAmount,
             valid_until: current.validUntil || null,
             comment: current.comment,
             notes: current.notes,
+            items: current.items.map(draftToRequestItem),
           };
           // FE-RC-005: 成功 toast は useCreateEstimate の onSuccess に一元化済み（ここでは通知しない）。
           await createEstimate(req);
@@ -230,5 +499,75 @@ export function useEstimateForm(args: UseEstimateFormArgs = { mode: "create" }) 
     }
   }, [isEdit, estimate, navigate]);
 
-  return { form, handleChange, formAction, formState, handleCancel, isPending, isEdit };
+  const createEmptyItem = useCallback((): EstimateItemDraft => {
+    return {
+      id: "",
+      localId: nextLocalId(),
+      name: "",
+      category: "other",
+      unitPrice: 0,
+      quantity: 1,
+      taxType: "included",
+      taxRate: standardTaxRate,
+      discountRate: 0,
+      discountAmount: 0,
+      isInsuranceApplicable: false,
+      sortOrder: 0,
+    };
+  }, [standardTaxRate]);
+
+  // PR669: 手入力合計が許されるのは「現在の明細が空」かつ
+  // 「新規作成、または読み込んだ見積がもともと明細なし」のときだけ。
+  // もともと明細ありの見積で全行クリアした場合は導出 0 表示のまま読み取り専用。
+  const manualTotalsAllowed =
+    form.items.length === 0 && (!isEdit || (estimate?.items?.length ?? -1) === 0);
+
+  const totals = useMemo(() => {
+    if (manualTotalsAllowed) {
+      return {
+        subtotal: form.subtotal,
+        taxTotal: form.taxTotal,
+        totalAmount: form.totalAmount,
+      };
+    }
+    const itemsUnchanged = serializeItems(form.items) === baseline.itemsKey;
+    const deductionsUnchanged =
+      estimate != null &&
+      form.discountAmount === estimate.discountAmount &&
+      form.insuranceAmount === estimate.insuranceAmount;
+    if (isEdit && estimate && itemsUnchanged && deductionsUnchanged) {
+      // PR669: 明細も控除も据え置きの編集では保存済み合計をそのまま表示する
+      // （旧データの超過控除をクライアント側で再計算しない）。
+      return {
+        subtotal: estimate.subtotal,
+        taxTotal: estimate.taxTotal,
+        totalAmount: estimate.totalAmount,
+      };
+    }
+    return deriveTotals(form.items, form.discountAmount, form.insuranceAmount);
+  }, [
+    manualTotalsAllowed,
+    isEdit,
+    estimate,
+    form.items,
+    form.discountAmount,
+    form.insuranceAmount,
+    form.subtotal,
+    form.taxTotal,
+    form.totalAmount,
+    baseline.itemsKey,
+  ]);
+
+  return {
+    form,
+    handleChange,
+    formAction,
+    formState,
+    handleCancel,
+    isPending,
+    isEdit,
+    totals,
+    manualTotalsAllowed,
+    createEmptyItem,
+  };
 }

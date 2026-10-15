@@ -4645,6 +4645,68 @@ components:
           type: string
         notes:
           type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EstimateItemInput'
+
+    EstimateItemInput:
+      type: object
+      description: 見積明細の作成/置換入力（createEstimateItemRequest と同型）
+      required: [name, quantity]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        category:
+          type: string
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+        unit_price:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 999999999.9
+          multipleOf: 0.1
+        tax_type:
+          type: string
+          enum: *id001
+          default: excluded
+          description: 省略時は従来 API 互換で外税（excluded）。新 UI は明示送信する。既存行との一致時に省略した場合は保存済みの税区分を引き継ぐ。
+        tax_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          multipleOf: 0.01
+          default: 0.1
+          description: 省略時は既存行との一致時は保存済み税率、それ以外は 0.1。
+        discount_rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+        discount_amount:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        is_insurance_applicable:
+          type: boolean
+        sort_order:
+          type: integer
+          format: int32
+        existing_item_id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 既存行との一致ヒント（PATCH の明細置換のみ）。この見積自身の item id と 1:1 で解決できない場合（未知 ID・重複 ID・作成時指定）は 400。一致した行は税フィールド省略時に保存済み値を引き継ぐ。ヒントは保存時の主キーとしては扱われない。
 
     UpdateEstimateRequest:
       type: object
@@ -4692,6 +4754,11 @@ components:
         notes:
           type: string
           nullable: true
+        items:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/EstimateItemInput'
 
     # ─── UserAccount ──────────────────────────────────────────────────────────
     UserResponse:

@@ -150,47 +150,49 @@ export function PatientContextHeader({
 
       {/* Patient Info */}
       <div className="flex flex-col gap-0.5 mr-3 min-w-0">
-        <div className="flex items-baseline gap-2 min-w-0">
+        <div className="flex flex-wrap items-baseline gap-2 min-w-0">
           {onOwnerClick ? (
-            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
+            <Tooltip content={ownerName} className="min-w-0 max-w-full">
               <button
                 type="button"
                 onClick={onOwnerClick}
-                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer truncate w-full`}
+                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 cursor-pointer max-w-full break-words text-left`}
               >
                 {ownerName}
               </button>
             </Tooltip>
           ) : ownerDetailHref ? (
             // EMR-174: onOwnerClick 未指定時は飼主詳細へ link
-            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
+            <Tooltip content={ownerName} className="min-w-0 max-w-full">
               <Link
                 to={ownerDetailHref}
                 aria-label="飼主詳細を開く"
-                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 truncate w-full`}
+                className={`min-h-11 min-w-11 inline-flex items-center px-2 -mx-2 text-base font-medium ${C.text} hover:underline decoration-dotted underline-offset-2 max-w-full break-words`}
               >
                 {ownerName}
               </Link>
             </Tooltip>
           ) : (
-            <Tooltip content={ownerName} className="min-w-0 max-w-[200px]">
-              <span className={`text-base font-medium ${C.text} truncate w-full`}>{ownerName}</span>
+            <Tooltip content={ownerName} className="min-w-0 max-w-full">
+              <span className={`text-base font-medium ${C.text} min-w-0 max-w-full break-words`}>
+                {ownerName}
+              </span>
             </Tooltip>
           )}
           {ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
-          <Tooltip content={petName} className="min-w-0 max-w-[160px]">
+          <Tooltip content={petName} className="min-w-0 max-w-full">
             {petDetailHref ? (
               // EMR-174: ペット詳細（飼主詳細 ?pet=）へ link
               <Link
                 to={petDetailHref}
                 aria-label="ペット詳細を開く"
-                className={`inline-flex min-h-11 items-center text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2 truncate w-full`}
+                className={`inline-flex min-h-11 items-center text-base font-medium ${isDeceased ? C.text60 : C.text} hover:underline decoration-dotted underline-offset-2 min-w-0 max-w-full break-words`}
               >
                 {petName}
               </Link>
             ) : (
               <span
-                className={`text-base font-medium ${isDeceased ? C.text60 : C.text} truncate w-full`}
+                className={`text-base font-medium ${isDeceased ? C.text60 : C.text} min-w-0 max-w-full break-words`}
               >
                 {petName}
               </span>
@@ -207,7 +209,7 @@ export function PatientContextHeader({
           {microchipNumber ? (
             <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
               <span
-                className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4 truncate max-w-[12rem]`}
+                className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4 truncate max-w-[12rem]`}
                 aria-label={`マイクロチップ番号 ${microchipNumber}`}
               >
                 {microchipNumber}
@@ -225,32 +227,32 @@ export function PatientContextHeader({
         <div className={`flex items-center flex-wrap gap-x-3 gap-y-0.5 text-sm ${C.text60}`}>
           {petNumber ? (
             <span
-              className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text40} leading-4`}
+              className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4`}
             >
               #{petNumber}
             </span>
           ) : null}
           {petInfoText ? (
             <Tooltip content={petInfoText}>
-              <span className={`flex items-center gap-1 max-w-[200px] truncate`}>
-                <PawPrint className={ICON.xs} aria-hidden="true" />
-                <span className="truncate">{petInfoText}</span>
+              <span className={`flex items-center gap-1 min-w-0 max-w-full`}>
+                <PawPrint className={`${ICON.xs} shrink-0`} aria-hidden="true" />
+                <span className="min-w-0 break-words">{petInfoText}</span>
               </span>
             </Tooltip>
           ) : null}
           {hasPetAttributes ? (
             <>
               <span className="flex items-center gap-1 whitespace-nowrap">
-                <span className={`text-2xs ${C.text40}`}>性別</span>
+                <span className={`text-2xs ${C.text65}`}>性別</span>
                 <span className={`font-medium ${C.text}`}>{genderText}</span>
               </span>
               <span className="flex items-center gap-1 whitespace-nowrap">
-                <span className={`text-2xs ${C.text40}`}>避妊去勢</span>
+                <span className={`text-2xs ${C.text65}`}>避妊去勢</span>
                 <span className={`font-medium ${C.text}`}>{neuteredStatus}</span>
               </span>
               <Tooltip content={`品種: ${breedText}`} className="min-w-0 max-w-[180px]">
                 <span className="flex items-center gap-1 min-w-0">
-                  <span className={`text-2xs ${C.text40} shrink-0`}>品種</span>
+                  <span className={`text-2xs ${C.text65} shrink-0`}>品種</span>
                   <span className={`font-medium ${C.text} truncate`}>{breedText}</span>
                 </span>
               </Tooltip>

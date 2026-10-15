@@ -63,6 +63,7 @@ interface SearchableSelectProps {
   ariaInvalid?: boolean;
   /** 近傍エラー等との関連付け。FormFieldError の id を渡す。 */
   ariaDescribedBy?: string;
+  ariaRequired?: boolean;
 }
 
 function flattenOptions(
@@ -103,6 +104,7 @@ export function SearchableSelect({
   ariaLabel,
   ariaInvalid = false,
   ariaDescribedBy,
+  ariaRequired,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -155,6 +157,7 @@ export function SearchableSelect({
         aria-label={ariaLabel}
         aria-expanded={open}
         aria-invalid={ariaInvalid}
+        aria-required={ariaRequired || undefined}
         aria-describedby={ariaDescribedBy}
         disabled={disabled}
         data-testid={triggerTestId}

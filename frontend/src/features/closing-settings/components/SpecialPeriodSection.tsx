@@ -3,6 +3,7 @@ import { Calendar, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterSidePanel, PropertyRow } from "@/components/shared/SidePeek";
@@ -44,6 +45,8 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
   // 送信は form action が FormData(DOM 値) から読むため、このプレビュー state とは独立。
   const [amPmBoundary, setAmPmBoundary] = useState("");
   const [pmEnd, setPmEnd] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ClosingSpecialPeriod | null>(null);
   // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
   // 必須判定自体は required 属性（ブラウザ）と backend のまま変更しない。
@@ -70,14 +73,16 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
     setNote("");
     setAmPmBoundary("");
     setPmEnd("");
+    setStartDate("");
+    setEndDate("");
     setInvalidFields(new Set());
   }, []);
 
   // EMR-319: onInvalid でバブルを抑制し、該当 input に aria-invalid + 赤枠を付ける。
   const markInvalid = useCallback((e: React.InvalidEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const { name } = e.currentTarget;
-    setInvalidFields((prev) => new Set(prev).add(name));
+    const { id } = e.currentTarget;
+    setInvalidFields((prev) => new Set(prev).add(id));
   }, []);
   const clearInvalid = useCallback((name: string) => {
     setInvalidFields((prev) => {
@@ -176,19 +181,21 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
           <input type="hidden" name="note" value={note} />
           <PropertyRow label="開始日" description="特別期間が始まる日付です。">
             <div className="flex-1">
-              <input
+              <DatePicker
                 id="start_date"
                 name="start_date"
-                type="date"
-                aria-label="開始日"
-                className={`${STYLE.formInput} w-full rounded-xs border px-3${invalidFields.has("start_date") ? ` ${STYLE.formInputError}` : ""}`}
+                ariaLabel="開始日"
+                value={startDate}
                 required
-                aria-invalid={invalidFields.has("start_date") || undefined}
-                aria-describedby={
+                onChange={(v) => {
+                  setStartDate(v);
+                  clearInvalid("start_date");
+                }}
+                ariaInvalid={invalidFields.has("start_date")}
+                ariaDescribedBy={
                   invalidFields.has("start_date") ? "sp-start-date-error" : undefined
                 }
                 onInvalid={markInvalid}
-                onChange={() => clearInvalid("start_date")}
               />
               <FormFieldError
                 id="sp-start-date-error"
@@ -198,17 +205,19 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
           </PropertyRow>
           <PropertyRow label="終了日" description="特別期間が終わる日付です。">
             <div className="flex-1">
-              <input
+              <DatePicker
                 id="end_date"
                 name="end_date"
-                type="date"
-                aria-label="終了日"
-                className={`${STYLE.formInput} w-full rounded-xs border px-3${invalidFields.has("end_date") ? ` ${STYLE.formInputError}` : ""}`}
+                ariaLabel="終了日"
+                value={endDate}
                 required
-                aria-invalid={invalidFields.has("end_date") || undefined}
-                aria-describedby={invalidFields.has("end_date") ? "sp-end-date-error" : undefined}
+                onChange={(v) => {
+                  setEndDate(v);
+                  clearInvalid("end_date");
+                }}
+                ariaInvalid={invalidFields.has("end_date")}
+                ariaDescribedBy={invalidFields.has("end_date") ? "sp-end-date-error" : undefined}
                 onInvalid={markInvalid}
-                onChange={() => clearInvalid("end_date")}
               />
               <FormFieldError
                 id="sp-end-date-error"

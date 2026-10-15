@@ -21,6 +21,10 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => mocks.permission,
 }));
 
+vi.mock("@/hooks/use-animal-species", () => ({
+  useAnimalSpecies: () => ({ activeSpecies: [], isLoading: false, isError: true }),
+}));
+
 vi.mock("../api/get-checkup-sync-preview", () => ({
   useGetCheckupSyncPreview: () => mocks.preview,
 }));
@@ -90,7 +94,7 @@ describe("CheckupSyncPage", () => {
   it("DESIGN.md の canvas-soft shell 上に表示する", () => {
     render(<CheckupSyncPage />);
 
-    const heading = screen.getByRole("heading", { name: "健診リマインダー抽出" });
+    const heading = screen.getByRole("heading", { name: "健診対象者抽出" });
     expect(hasClassInAncestry(heading, C.bgPage)).toBe(true);
   });
 

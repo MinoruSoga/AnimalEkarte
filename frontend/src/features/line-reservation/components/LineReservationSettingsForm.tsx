@@ -12,10 +12,12 @@ import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
@@ -34,6 +36,8 @@ import {
 } from "./LineReservationSettingsFormSections";
 import {
   asJsonb,
+  parseClosedWeekdays,
+  sameClosedWeekdays,
   isStringArray,
   isBusinessHours,
   isBreakHourArray,
@@ -50,6 +54,8 @@ interface SettingsFormProps {
 }
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+const INVALID_CLOSED_WEEKDAYS_MESSAGE =
+  "定休日の設定を読み込めません。内容を確認して修正してください。";
 
 export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormProps) {
   const { canEdit } = usePermission("reservations");
@@ -68,11 +74,50 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   // BUG-028: defaultValue のままだと form action 完了後に初期 props へリセットされ、
   // 保存済みの新値（0 含む）が UI に残らない。controlled で保持する。
   const [bookingWindowMinDays, setBookingWindowMinDays] = useState(setting.booking_window_min_days);
+  const [bookingWindowMaxDays, setBookingWindowMaxDays] = useState<number | string>(
+    setting.booking_window_max_days,
+  );
+  const [calendarMonths, setCalendarMonths] = useState<number | string>(setting.calendar_months);
+  const [timeSlotIntervalMinutes, setTimeSlotIntervalMinutes] = useState<number | string>(
+    setting.time_slot_interval_minutes,
+  );
 
   // JSONB フィールド（lazy init — 初回レンダー時のみパース）
-  const [closedWeekdays, setClosedWeekdays] = useState<string[]>(() =>
-    asJsonb<string[]>(setting.closed_weekdays, [], isStringArray),
+  const [closedWeekdays, setClosedWeekdays] = useState<number[] | null>(() =>
+    parseClosedWeekdays(setting.closed_weekdays),
   );
+  // 直近にサーバーから受け取った定休曜日。ユーザー編集とサーバー更新を区別する基準値。
+  const [closedWeekdaysBaseline, setClosedWeekdaysBaseline] = useState(closedWeekdays);
+  // 編集中にサーバー側も更新された場合の最新値。undefined は競合なし（null は不正値との競合）。
+  const [closedWeekdaysConflict, setClosedWeekdaysConflict] = useState<number[] | null | undefined>(
+    undefined,
+  );
+  const hasInvalidClosedWeekdays = closedWeekdays === null;
+  const hasClosedWeekdaysConflict = closedWeekdaysConflict !== undefined;
+
+  // 再取得で setting.closed_weekdays が変わったときローカル状態へ反映する。
+  // props変化時にsetStateで調整するReact推奨パターン。未編集なら自動同期し、
+  // 編集中にサーバー側も変わった場合は編集を保持して保存を止める。
+  const [prevRawClosedWeekdays, setPrevRawClosedWeekdays] = useState(setting.closed_weekdays);
+  if (prevRawClosedWeekdays !== setting.closed_weekdays) {
+    setPrevRawClosedWeekdays(setting.closed_weekdays);
+    const incoming = parseClosedWeekdays(setting.closed_weekdays);
+    if (!sameClosedWeekdays(incoming, closedWeekdaysBaseline)) {
+      if (sameClosedWeekdays(closedWeekdays, closedWeekdaysBaseline)) {
+        setClosedWeekdays(incoming);
+      } else {
+        setClosedWeekdaysConflict(incoming);
+      }
+      setClosedWeekdaysBaseline(incoming);
+    }
+  }
+
+  const handleLoadLatestClosedWeekdays = useCallback(() => {
+    if (closedWeekdaysConflict === undefined) return;
+    setClosedWeekdays(closedWeekdaysConflict);
+    setClosedWeekdaysBaseline(closedWeekdaysConflict);
+    setClosedWeekdaysConflict(undefined);
+  }, [closedWeekdaysConflict]);
   const [businessHours, setBusinessHours] = useState<BusinessHours>(() =>
     asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }, isBusinessHours),
   );
@@ -104,7 +149,11 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
   }, []);
 
   const handleWeekdayToggle = useCallback((day: string, checked: boolean) => {
-    setClosedWeekdays((prev) => (checked ? [...prev, day] : prev.filter((d) => d !== day)));
+    const numericDay = Number(day);
+    setClosedWeekdays((prev) => {
+      if (prev === null) return null;
+      return checked ? [...prev, numericDay] : prev.filter((weekday) => weekday !== numericDay);
+    });
   }, []);
 
   const handleBusinessHoursChange = useCallback((field: "start" | "end", t: string) => {
@@ -116,6 +165,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
+    if (closedWeekdays === null || closedWeekdaysConflict !== undefined) return null;
     const payload = {
       status,
       national_holiday_closed: nationalHolidayClosed,
@@ -154,6 +204,14 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           ? updated.booking_window_min_days
           : bookingWindowMinDays,
       );
+      // 保存値を新しい baseline にし、直後の再取得を競合として扱わない
+      const savedWeekdays =
+        updated?.closed_weekdays === undefined
+          ? closedWeekdays
+          : parseClosedWeekdays(updated.closed_weekdays);
+      setClosedWeekdays(savedWeekdays);
+      setClosedWeekdaysBaseline(savedWeekdays);
+      setClosedWeekdaysConflict(undefined);
       toast.success("設定を保存しました");
     } catch (err) {
       handleApiError(err, "設定保存");
@@ -189,14 +247,35 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
                 <Checkbox
                   id={`closed-weekday-${day}`}
                   touchTarget
-                  checked={closedWeekdays.includes(day)}
+                  disabled={hasInvalidClosedWeekdays}
+                  checked={closedWeekdays?.includes(Number(day)) ?? false}
                   onCheckedChange={(checked) => handleWeekdayToggle(day, checked === true)}
                 />
-                <Label htmlFor={`closed-weekday-${day}`} className={`text-sm ${C.text}`}>
+                <Label htmlFor={`closed-weekday-${day}`} className={`${C.text}`}>
                   {label}
                 </Label>
               </div>
             ))}
+            {hasInvalidClosedWeekdays ? (
+              <p role="alert" className={`text-sm ${C.danger}`}>
+                {INVALID_CLOSED_WEEKDAYS_MESSAGE}
+              </p>
+            ) : null}
+            {hasClosedWeekdaysConflict ? (
+              <div className="flex w-full flex-col items-start gap-2">
+                <p role="alert" className={`text-sm ${C.danger}`}>
+                  定休曜日がサーバー上で更新されています。未保存の変更を上書きしないよう保存を停止しています。
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLoadLatestClosedWeekdays}
+                >
+                  最新の定休曜日を読み込む
+                </Button>
+              </div>
+            ) : null}
           </div>
         </FieldRow>
 
@@ -271,37 +350,36 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       {/* 予約枠設定 */}
       <Section title="予約枠設定">
         <FieldRow label="最短予約受付（日前）">
-          <Input
+          <NumberInput
             name="booking_window_min_days"
             aria-label="最短予約受付（日数）"
-            type="number"
             min={0}
             value={bookingWindowMinDays}
-            onChange={(e) => {
-              const n = e.target.valueAsNumber;
+            onChange={(value) => {
+              const n = Number(value);
               setBookingWindowMinDays(Number.isNaN(n) ? 0 : n);
             }}
             className="max-w-[120px]"
           />
         </FieldRow>
         <FieldRow label="最長予約受付（日前）">
-          <Input
+          <NumberInput
             name="booking_window_max_days"
             aria-label="最長予約受付（日数）"
-            type="number"
             min={1}
-            defaultValue={setting.booking_window_max_days}
+            value={bookingWindowMaxDays}
+            onChange={setBookingWindowMaxDays}
             className="max-w-[120px]"
           />
         </FieldRow>
         <FieldRow label="表示カレンダー月数">
-          <Input
+          <NumberInput
             name="calendar_months"
             aria-label="表示カレンダー月数"
-            type="number"
             min={1}
             max={6}
-            defaultValue={setting.calendar_months}
+            value={calendarMonths}
+            onChange={setCalendarMonths}
             className="max-w-[120px]"
           />
         </FieldRow>
@@ -314,13 +392,13 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
           </Select>
         </FieldRow>
         <FieldRow label="スロット間隔（分）">
-          <Input
+          <NumberInput
             name="time_slot_interval_minutes"
             aria-label="スロット間隔（分）"
-            type="number"
             min={5}
             step={5}
-            defaultValue={setting.time_slot_interval_minutes}
+            value={timeSlotIntervalMinutes}
+            onChange={setTimeSlotIntervalMinutes}
             className="max-w-[120px]"
           />
         </FieldRow>
@@ -380,7 +458,9 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       </Section>
 
       <div className="pt-2">
-        <SubmitButton>設定を保存</SubmitButton>
+        <SubmitButton disabled={hasInvalidClosedWeekdays || hasClosedWeekdaysConflict}>
+          保存
+        </SubmitButton>
       </div>
     </form>
   );

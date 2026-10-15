@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: master phòng khám, thông tin phòng khám, danh mục bệnh viện thú y, chi nhánh phòng khám
 ---
 
-# 医院
+# 医院マスタ
 
 医院の基本情報（院名・住所・連絡先）に加えて、消費税率や **明細兼領収書の表示設定**、**インボイス登録番号** を管理するマスタです。領収書・診断書などの出力レイアウトに直接影響します。
 

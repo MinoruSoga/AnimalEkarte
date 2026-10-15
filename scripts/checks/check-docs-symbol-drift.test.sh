@@ -135,6 +135,11 @@ mutate_incomplete_erd_domain_inventory() {
   mv "$1/docs/architecture/erd.md.tmp" "$1/docs/architecture/erd.md"
 }
 
+mutate_allowed_design_topdir() {
+  mkdir -p "$1/docs/design/domains/reservations"
+  printf '%s\n' '# Technical design' > "$1/docs/design/domains/reservations/technical-spec.md"
+}
+
 mutate_disallowed_topdir() {
   # docs/ 直下 allowlist 外のフォルダ（旧 docs/infra/ 復活の再発防止）
   mkdir -p "$1/docs/infra"
@@ -170,6 +175,7 @@ run_case "phantom-lifecycle"    1 mutate_phantom_lifecycle
 run_case "phantom-workflow"     1 mutate_phantom_workflow
 run_case "wrong-table-total"    1 mutate_wrong_table_total
 run_case "incomplete-erd-domain-inventory" 1 mutate_incomplete_erd_domain_inventory
+run_case "allowed-design-topdir" 0 mutate_allowed_design_topdir
 run_case "disallowed-topdir"    1 mutate_disallowed_topdir
 run_case "disallowed-topfile"   1 mutate_disallowed_topfile
 

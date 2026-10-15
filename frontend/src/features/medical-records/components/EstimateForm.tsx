@@ -20,7 +20,7 @@ export const EstimateForm = memo(function EstimateForm({
   const subjectId = useId();
   return (
     <div className="flex flex-col gap-1.5 w-[300px]">
-      <Label htmlFor={subjectId} className={`text-sm font-medium ${C.text60}`}>
+      <Label htmlFor={subjectId} className={`font-medium ${C.text60}`}>
         見積書件名
       </Label>
       <Input

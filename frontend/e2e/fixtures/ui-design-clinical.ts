@@ -427,6 +427,7 @@ const SYNTHETIC_MEDICAL_RECORD = {
   owner: SYNTHETIC_OWNER,
   pet: SYNTHETIC_PET,
   doctor: SYNTHETIC_STAFF,
+  weight_measurements: [],
 } satisfies BackendMedicalRecord;
 
 const {

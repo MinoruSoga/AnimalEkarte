@@ -270,7 +270,9 @@ export function AccountingItemRow({
       </TableCell>
       {/* EMR-230: 金額 = 単価×数量−割引額（税抜。領収書 AccountingDocument の行金額 recordedLineNet と同式）。
           手入力/社販明細は金額を直接編集でき、サーバ側で unit_price へ換算・再計算される。 */}
-      <TableCell className="text-right font-medium">
+      <TableCell
+        className={`sticky right-[80px] z-10 ${C.bgWhite} min-w-[130px] whitespace-nowrap text-right font-medium`}
+      >
         {canEditLineAmounts && onUpdateItemAmount !== undefined ? (
           <Input
             key={item.subtotal}
@@ -291,7 +293,7 @@ export function AccountingItemRow({
           formatCurrency(item.subtotal)
         )}
       </TableCell>
-      <TableCell>
+      <TableCell className={`sticky right-0 z-10 ${C.bgWhite} w-[80px]`}>
         {accountingId === undefined || (item.source === "manual" && canDelete) ? (
           <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
         ) : null}

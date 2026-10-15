@@ -4,7 +4,11 @@ import { toast } from "sonner";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { Pagination } from "@/components/shared/Pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/shared/DatePicker";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -161,6 +165,10 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
     }
     return result;
   }, [merchandiseItems, merchandiseSearch]);
+  const pagination = usePagination(filteredMerchandise, {
+    pageSize: 50,
+    resetKey: merchandiseSearch,
+  });
 
   // 日付前後エラー（missing 空・periodError 有）はペア課題として両欄 invalid。
   const periodOrderError = periodError !== "" && periodMissing.size === 0;
@@ -192,34 +200,32 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
         label="開始日"
         description="キャンペーンの適用開始日です。この日以降の会計に割引が適用されます。"
       >
-        <Input
-          type="date"
-          aria-label="開始日"
+        <DatePicker
+          ariaLabel="開始日"
           value={formData.startDate}
-          disabled={readOnly}
-          onChange={(e) => {
-            setFormDataDirty((prev) => ({ ...prev, startDate: e.target.value }));
+          onChange={(v) => {
+            setFormDataDirty((prev) => ({ ...prev, startDate: v }));
             clearPeriodMissing("start");
           }}
-          aria-invalid={startDateInvalid || undefined}
-          aria-describedby={startDateInvalid ? "campaign-period-error" : undefined}
+          ariaInvalid={startDateInvalid}
+          ariaDescribedBy={startDateInvalid ? "campaign-period-error" : undefined}
+          disabled={readOnly}
         />
       </PropertyRow>
       <PropertyRow
         label="終了日"
         description="キャンペーンの適用終了日です。この日を過ぎると割引は適用されません。"
       >
-        <Input
-          type="date"
-          aria-label="終了日"
+        <DatePicker
+          ariaLabel="終了日"
           value={formData.endDate}
-          disabled={readOnly}
-          onChange={(e) => {
-            setFormDataDirty((prev) => ({ ...prev, endDate: e.target.value }));
+          onChange={(v) => {
+            setFormDataDirty((prev) => ({ ...prev, endDate: v }));
             clearPeriodMissing("end");
           }}
-          aria-invalid={endDateInvalid || undefined}
-          aria-describedby={endDateInvalid ? "campaign-period-error" : undefined}
+          ariaInvalid={endDateInvalid}
+          ariaDescribedBy={endDateInvalid ? "campaign-period-error" : undefined}
+          disabled={readOnly}
         />
       </PropertyRow>
       <FormFieldError id="campaign-period-error" message={periodError} />
@@ -251,17 +257,16 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
             : "対象品目の価格から割り引く金額（円）です。"
         }
       >
-        <Input
-          type="number"
+        <NumberInput
+          aria-label={formData.discountType === "rate" ? "割引率(%)" : "割引額(円)"}
           min={0}
           max={formData.discountType === "rate" ? 100 : undefined}
-          aria-label={formData.discountType === "rate" ? "割引率(%)" : "割引額(円)"}
           value={formData.discountValue}
           disabled={readOnly}
-          onChange={(e) =>
+          onChange={(v) =>
             setFormDataDirty((prev) => ({
               ...prev,
-              discountValue: Math.max(0, Number(e.target.value) || 0),
+              discountValue: Math.max(0, Number(v) || 0),
             }))
           }
         />
@@ -299,7 +304,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
             {filteredMerchandise.length === 0 ? (
               <p className={`text-xs ${C.text50}`}>商品がありません</p>
             ) : (
-              filteredMerchandise.map((mItem) => (
+              pagination.paginatedData.map((mItem) => (
                 <label key={mItem.id} className="flex items-center gap-2 text-sm min-h-11">
                   <Checkbox
                     checked={formData.targetItemIds.includes(mItem.id)}
@@ -312,6 +317,16 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
               ))
             )}
           </div>
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalCount={pagination.totalCount}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.goToPage}
+            onPrev={pagination.prevPage}
+            onNext={pagination.nextPage}
+          />
         </div>
       </PropertyRow>
     </MasterSidePanel>

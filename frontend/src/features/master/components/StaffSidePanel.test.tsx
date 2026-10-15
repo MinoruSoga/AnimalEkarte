@@ -223,7 +223,7 @@ describe("StaffSidePanel 新規作成タイトル (EMR-386)", () => {
     expect(capturedPanelProps?.titlePlaceholder).toBe("新規スタッフ登録");
   });
 
-  it("既存スタッフ編集では共有既定値（無題）を変えず titlePlaceholder を渡さない", () => {
+  it("既存スタッフ編集では共有既定値を変えず titlePlaceholder を渡さない", () => {
     renderPanel();
 
     expect(capturedPanelProps?.titlePlaceholder).toBeUndefined();

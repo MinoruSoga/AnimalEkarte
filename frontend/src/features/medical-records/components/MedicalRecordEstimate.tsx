@@ -1,9 +1,19 @@
-import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
+import {
+  memo,
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { EstimateForm } from "./EstimateForm";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
@@ -13,6 +23,7 @@ import {
   useUpdateEstimateRecord,
 } from "../api/save-estimate";
 import { C } from "@/lib/design-tokens";
+import { calcEstimateTotals } from "@/lib/estimate-totals";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import type { Estimate, EstimateItem } from "@/types/generated/models";
@@ -20,7 +31,7 @@ import type { Estimate, EstimateItem } from "@/types/generated/models";
 // EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
 // 旧実装の `as any` キャストはフィールド名非互換 (name→content, unit_price→unitPrice 等) を
 // 隠蔽しており、items が返るケースで項目名・単価が undefined になる潜在バグだった。
-function toTreatmentItem(item: EstimateItem): TreatmentItem {
+function toTreatmentItem(item: EstimateItem, standardTaxRate: number): TreatmentItem {
   return {
     id: item.id,
     content: item.name,
@@ -30,16 +41,20 @@ function toTreatmentItem(item: EstimateItem): TreatmentItem {
     quantity: item.quantity,
     discountRate: item.discount_rate,
     discountAmount: item.discount_amount,
+    taxType: item.tax_type ?? "excluded",
+    taxRate: item.tax_rate ?? standardTaxRate,
   };
 }
 
 function hydrateFromEstimate(
   estimate: Estimate,
+  standardTaxRate: number,
   setters: {
     setSubject: (v: string) => void;
     setComment: (v: string) => void;
     setRemarks: (v: string) => void;
     setGlobalDiscountAmount: (v: number) => void;
+    setInsuranceAmount: (v: number) => void;
     setItems: (v: TreatmentItem[]) => void;
   },
 ) {
@@ -47,7 +62,8 @@ function hydrateFromEstimate(
   setters.setComment(estimate.comment ?? "");
   setters.setRemarks(estimate.notes ?? "");
   setters.setGlobalDiscountAmount(estimate.discount_amount ?? 0);
-  setters.setItems((estimate.items ?? []).map(toTreatmentItem));
+  setters.setInsuranceAmount(estimate.insurance_amount ?? 0);
+  setters.setItems((estimate.items ?? []).map((item) => toTreatmentItem(item, standardTaxRate)));
 }
 
 interface MedicalRecordEstimateProps {
@@ -68,9 +84,12 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   const [comment, setComment] = useState("");
   const [remarks, setRemarks] = useState("");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
+  const [insuranceAmount, setInsuranceAmount] = useState(0);
+  const insuranceInputId = useId();
   const [items, setItems] = useState<TreatmentItem[]>([]);
 
   const { canEdit } = usePermission("medical-records");
+  const { canCreate: canCreateDiscount, canEdit: canEditDiscount } = usePermission("discount");
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定を正本にする。
   const { standardTaxRate } = useClinicTaxRates();
 
@@ -85,20 +104,34 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
   // create 成功直後も PATCH できるよう id を ref で保持
   const estimateIdRef = useRef<number | null>(null);
 
+  // PR665: UI 行 id → 現在の見積に保存済みと証明された item id の対応。
+  // 取得時（行 id = 保存済み id）と保存応答（sort_order + name で突合）でのみ追加する。
+  const persistedItemIdByRowIdRef = useRef(new Map<number, number>());
+  const boundEstimateIdRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (existingEstimate?.id == null) return;
+    estimateIdRef.current = existingEstimate.id;
+    if (boundEstimateIdRef.current === existingEstimate.id) return;
+    persistedItemIdByRowIdRef.current = new Map(
+      (existingEstimate.items ?? []).map((item) => [item.id, item.id]),
+    );
+    boundEstimateIdRef.current = existingEstimate.id;
+  }, [existingEstimate]);
+
   // id が変わったときだけ hydrate（refetch の参照変更で入力を巻き戻さない）
   const [hydratedEstimateId, setHydratedEstimateId] = useState<number | null>(null);
+  const canChangeDiscount =
+    (existingEstimate?.id ?? hydratedEstimateId ?? 0) > 0 ? canEditDiscount : canCreateDiscount;
   if (existingEstimate?.id != null && existingEstimate.id !== hydratedEstimateId) {
     setHydratedEstimateId(existingEstimate.id);
-    estimateIdRef.current = existingEstimate.id;
-    hydrateFromEstimate(existingEstimate, {
+    hydrateFromEstimate(existingEstimate, standardTaxRate, {
       setSubject,
       setComment,
       setRemarks,
       setGlobalDiscountAmount,
+      setInsuranceAmount,
       setItems,
     });
-  } else if (existingEstimate?.id != null) {
-    estimateIdRef.current = existingEstimate.id;
   }
 
   const handleAddItem = useCallback(() => {
@@ -113,9 +146,11 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
         quantity: 1,
         discountRate: 0,
         discountAmount: 0,
+        taxType: "included",
+        taxRate: standardTaxRate,
       },
     ]);
-  }, []);
+  }, [standardTaxRate]);
 
   const handleRemoveItem = useCallback((id: number) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
@@ -128,17 +163,26 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     [],
   );
 
-  // Calculate totals
+  // PR665: 表示・payload・検証は同じ「内容入力済み行」述語を共有する。
+  // 空名行は保存されないため、合計や割引検証に寄与してはならない。
+  const activeItems = useMemo(() => items.filter((item) => item.content.trim()), [items]);
   const { subtotal, tax, total } = useMemo(() => {
-    const sub = items.reduce((sum, item) => {
-      const price = Number(item.unitPrice) || 0;
-      const qty = Number(item.quantity) || 0;
-      const discount = Number(item.discountAmount) || 0;
-      return sum + (price * qty - discount);
-    }, 0);
-    const taxAmount = Math.floor(sub * standardTaxRate);
-    return { subtotal: sub, tax: taxAmount, total: sub + taxAmount };
-  }, [items, standardTaxRate]);
+    const t = calcEstimateTotals(
+      activeItems.map((item) => ({
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        discountAmount: item.discountAmount,
+        taxType: item.taxType,
+        taxRate: item.taxRate,
+      })),
+    );
+    return { subtotal: t.subtotal, tax: t.tax, total: t.total };
+  }, [activeItems]);
+
+  // PR669: 正味請求額は明細総額から値引・保険の実効控除を差し引く。
+  // 行なしはレガシー契約どおり 0。保存時の bounds 検証で負にはならない。
+  const netTotal =
+    activeItems.length === 0 ? 0 : Math.max(total - globalDiscountAmount - insuranceAmount, 0);
 
   /**
    * BUG-016: メイン保存 post-save から await される。
@@ -156,38 +200,93 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     }
     setSubjectError("");
 
+    // PR665: ヘッダー割引は mutation 前に検証する（負・非安全整数・明細総額超過は拒否）。
+    if (!Number.isSafeInteger(globalDiscountAmount) || globalDiscountAmount < 0) {
+      toast.error("値引額は0以上の整数で入力してください");
+      throw new Error("invalid discount amount");
+    }
+    if (activeItems.length > 0 && globalDiscountAmount > total) {
+      toast.error("値引額が合計金額を超えています");
+      throw new Error("discount exceeds total");
+    }
+    // PR669: 保険適用額も mutation 前に検証する（負・非安全整数・値引後残額超過は拒否）。
+    if (!Number.isSafeInteger(insuranceAmount) || insuranceAmount < 0) {
+      toast.error("保険適用額は0以上の整数で入力してください");
+      throw new Error("invalid insurance amount");
+    }
+    if (activeItems.length > 0 && insuranceAmount > total - globalDiscountAmount) {
+      toast.error("保険適用額が値引後の合計金額を超えています");
+      throw new Error("insurance exceeds total after discount");
+    }
+    // 行なし置換は Create と同じレガシー契約: 正味合計 0、有効な割引・保険メタデータは
+    // 保持し、明細総額に対する超過チェックのみ適用しない。
+
+    const sentRows = activeItems.map((item, index) => {
+      const persistedId = persistedItemIdByRowIdRef.current.get(item.id);
+      const row = {
+        name: item.content.trim(),
+        category: "other",
+        unit_price: Number(item.unitPrice) || 0,
+        quantity: Number(item.quantity) || 1,
+        discount_rate: Number(item.discountRate) || 0,
+        discount_amount: Number(item.discountAmount) || 0,
+        is_insurance_applicable: Boolean(item.is_insurance),
+        tax_type: item.taxType ?? "excluded",
+        tax_rate: item.taxRate ?? standardTaxRate,
+        sort_order: index,
+      };
+      return {
+        rowId: item.id,
+        row: persistedId === undefined ? row : { ...row, existing_item_id: persistedId },
+      };
+    });
+
     const payload = {
       title: subject,
       subtotal,
       tax_total: tax,
-      total_amount: total - globalDiscountAmount,
+      total_amount: netTotal,
       discount_amount: globalDiscountAmount,
+      insurance_amount: insuranceAmount,
       comment,
       notes: remarks,
       medical_record_id: Number(medicalRecordId),
-      items: items
-        .filter((item) => item.content.trim())
-        .map((item, index) => ({
-          name: item.content,
-          category: "other",
-          unit_price: Number(item.unitPrice) || 0,
-          quantity: Number(item.quantity) || 1,
-          discount_rate: Number(item.discountRate) || 0,
-          discount_amount: Number(item.discountAmount) || 0,
-          is_insurance_applicable: Boolean(item.is_insurance),
-          sort_order: index,
-        })),
+      items: sentRows.map((sent) => sent.row),
     };
 
     try {
       const knownId = estimateIdRef.current ?? existingEstimate?.id ?? null;
+      let saved: Estimate | undefined;
+      let created = false;
       if (knownId != null && knownId > 0) {
-        const updated = await updateEstimate.mutateAsync({ id: knownId, payload });
-        estimateIdRef.current = updated.id;
+        saved = await updateEstimate.mutateAsync({ id: knownId, payload });
       } else {
-        const created = await createEstimate.mutateAsync(payload);
-        estimateIdRef.current = created.id;
-        setHydratedEstimateId(created.id);
+        saved = await createEstimate.mutateAsync(payload);
+        created = true;
+      }
+      const isCurrentEstimate =
+        boundEstimateIdRef.current === null || boundEstimateIdRef.current === saved.id;
+      if (isCurrentEstimate) {
+        estimateIdRef.current = saved.id;
+        if (created) setHydratedEstimateId(saved.id);
+      }
+      // PR665: 応答の items を送信行と突合（sort_order + name）。配列位置や
+      // 編集可能フィールドだけに頼らず、await 中の編集を壊さないよう map のみ更新する。
+      if (Array.isArray(saved?.items) && isCurrentEstimate) {
+        const nextBindings = new Map(persistedItemIdByRowIdRef.current);
+        for (const responseItem of saved.items) {
+          if (typeof responseItem?.id !== "number") continue;
+          const match = sentRows.find(
+            (sent) =>
+              sent.row.sort_order === responseItem.sort_order &&
+              sent.row.name === responseItem.name,
+          );
+          if (match) {
+            nextBindings.set(match.rowId, responseItem.id);
+          }
+        }
+        persistedItemIdByRowIdRef.current = nextBindings;
+        boundEstimateIdRef.current = saved.id;
       }
       toast.success("見積書を保存しました");
     } catch (error) {
@@ -201,12 +300,15 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
     tax,
     total,
     globalDiscountAmount,
+    insuranceAmount,
+    netTotal,
     comment,
     remarks,
     existingEstimate?.id,
     updateEstimate,
     createEstimate,
-    items,
+    activeItems,
+    standardTaxRate,
   ]);
 
   useEffect(() => {
@@ -238,18 +340,37 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
       <TreatmentDetailedSummary
         subtotal={subtotal}
         tax={tax}
-        total={total}
+        total={netTotal}
         discountRate={ownerDiscountRate}
         discountAmount={globalDiscountAmount}
+        insuranceAmount={insuranceAmount}
         onUpdateDiscountAmount={setGlobalDiscountAmount}
         isDiscountRateReadonly
-        disabled={!canEdit}
+        disabled={!canEdit || !canChangeDiscount}
       />
+
+      {/* PR669: 保険適用額はカルテ編集権限で編集する（discount 権限とは独立）。 */}
+      <div className="flex items-center gap-2 -mt-4 mb-4">
+        <Label htmlFor={insuranceInputId} className={`font-medium ${C.text60}`}>
+          保険適用額
+        </Label>
+        <NumberInput
+          id={insuranceInputId}
+          className="w-28"
+          value={insuranceAmount}
+          min={0}
+          step={1}
+          suffix="円"
+          align="right"
+          disabled={!canEdit}
+          onChange={(v) => setInsuranceAmount(Number(v))}
+        />
+      </div>
 
       {/* Comments & Remarks */}
       <div className="grid grid-cols-1 gap-3">
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>コメント</Label>
+          <Label className={`font-medium ${C.text60}`}>コメント</Label>
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
@@ -258,7 +379,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className={`text-sm font-medium ${C.text60}`}>備考</Label>
+          <Label className={`font-medium ${C.text60}`}>備考</Label>
           <Textarea
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}

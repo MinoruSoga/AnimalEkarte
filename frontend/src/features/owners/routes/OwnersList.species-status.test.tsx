@@ -128,7 +128,7 @@ describe("OwnersList species status", () => {
     expect(alert).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText(rawError)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "新規登録" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "新規飼主登録" })).toBeEnabled();
     expect(
       screen.getByPlaceholderText("飼主名、ペット名、電話番号、飼主No、ペット番号..."),
     ).toBeEnabled();
@@ -158,7 +158,7 @@ describe("OwnersList species status", () => {
     expect(status).toHaveAttribute("aria-atomic", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByText("動物種類が登録されていません。")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "新規登録" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "新規飼主登録" })).toBeEnabled();
     expect(
       screen.getByPlaceholderText("飼主名、ペット名、電話番号、飼主No、ペット番号..."),
     ).toBeEnabled();
@@ -198,7 +198,7 @@ describe("OwnersList species status", () => {
     const user = userEvent.setup();
     renderOwnersList();
 
-    expect(await screen.findByText("データが見つかりません")).toBeInTheDocument();
+    expect(await screen.findByText("飼主データが見つかりません")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 

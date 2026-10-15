@@ -11,6 +11,8 @@ interface TreatmentDetailedSummaryProps {
   total: number;
   discountRate: number;
   discountAmount: number;
+  /** PR669: 見積の保険適用額を「保険請求額」行へ表示する。未指定は 0（後方互換）。 */
+  insuranceAmount?: number;
   onUpdateDiscountRate?: (value: number) => void;
   onUpdateDiscountAmount: (value: number) => void;
   isDiscountRateReadonly?: boolean;
@@ -24,6 +26,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
   total,
   discountRate,
   discountAmount,
+  insuranceAmount = 0,
   onUpdateDiscountRate,
   onUpdateDiscountAmount,
   isDiscountRateReadonly = false,
@@ -104,7 +107,9 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
         <div className={`grid grid-cols-2 ${C.bgWhite}`}>
           <div className={`p-2 border-r ${C.borderMedium} flex justify-between items-center h-10`}>
             <span className={`font-normal ${C.text} text-sm`}>保険請求額</span>
-            <span className={`${C.text} font-mono font-medium`}>0</span>
+            <span className={`${C.text} font-mono font-medium`}>
+              ￥{insuranceAmount.toLocaleString()}
+            </span>
           </div>
           <div className="p-2 flex justify-between items-center h-10">
             <span className={`font-normal ${C.text} text-sm`}>飼主請求額</span>

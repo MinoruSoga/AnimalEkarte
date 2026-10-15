@@ -14,6 +14,7 @@ import { updateLineReservationSetting } from "../api/update-line-reservation-set
 import type { ReservationSetting } from "../api/types";
 import {
   asJsonb,
+  parseClosedWeekdays,
   isStringArray,
   isBusinessHours,
   isBreakHourArray,
@@ -71,6 +72,8 @@ const FIELDS: Array<{
 ];
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
+const INVALID_CLOSED_WEEKDAYS_MESSAGE =
+  "定休日の設定を読み込めません。内容を確認して修正してください。";
 
 function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
   const { canEdit } = usePermission("reservations");
@@ -79,6 +82,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
     canEditRef.current = canEdit;
   }, [canEdit]);
   const [fieldValues, setFieldValues] = useState<Partial<ReservationSetting>>({});
+  const closedWeekdays = parseClosedWeekdays(setting.closed_weekdays);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const key = e.target.name as keyof ReservationSetting;
@@ -91,6 +95,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
       toast.error(PERMISSION_DENIED_MESSAGE);
       return null;
     }
+    if (closedWeekdays === null) return null;
     const merged = { ...setting, ...fieldValues };
     try {
       await updateLineReservationSetting(clinicId, {
@@ -99,7 +104,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
         reservation_notice: merged.reservation_notice,
         cancel_notice: merged.cancel_notice,
         privacy_policy: merged.privacy_policy,
-        closed_weekdays: asJsonb<string[]>(merged.closed_weekdays, [], isStringArray),
+        closed_weekdays: closedWeekdays,
         closed_dates: asJsonb<string[]>(merged.closed_dates, [], isStringArray),
         national_holiday_closed: merged.national_holiday_closed,
         business_hours: asJsonb<BusinessHours>(
@@ -142,9 +147,14 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
 
   return (
     <form action={formAction} className="space-y-6 max-w-[720px]">
+      {closedWeekdays === null ? (
+        <p role="alert" className={`text-sm ${C.danger}`}>
+          {INVALID_CLOSED_WEEKDAYS_MESSAGE}
+        </p>
+      ) : null}
       {FIELDS.map((field) => (
         <div key={field.key} className="space-y-1.5">
-          <Label htmlFor={`field-${field.key}`} className={`text-sm font-medium ${C.text}`}>
+          <Label htmlFor={`field-${field.key}`} className={`font-medium ${C.text}`}>
             {field.label}
           </Label>
           <Textarea
@@ -160,7 +170,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
       ))}
 
       <div className="pt-2">
-        <SubmitButton>変更を保存</SubmitButton>
+        <SubmitButton disabled={closedWeekdays === null}>保存</SubmitButton>
       </div>
       {formState !== undefined ? null : null}
     </form>

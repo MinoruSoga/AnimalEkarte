@@ -20,8 +20,6 @@ import type { Resource } from "@/types/generated/models";
 interface MasterListPageProps {
   /** Page title (e.g. "ケージマスタ") */
   title: string;
-  /** Page icon element */
-  icon: ReactNode;
   /** 権限バッジ表示用リソース */
   resource?: Resource;
 
@@ -30,7 +28,7 @@ interface MasterListPageProps {
   onSearchChange: (term: string) => void;
   searchPlaceholder: string;
   /** Filtered item count displayed in PropertyFilter */
-  count: number;
+  count: number | undefined;
   /** Handler for "新規登録" button */
   onNew: () => void;
 
@@ -73,7 +71,6 @@ interface MasterListPageProps {
 
 export const MasterListPage = memo(function MasterListPage({
   title,
-  icon,
   resource,
   searchTerm,
   onSearchChange,
@@ -99,7 +96,6 @@ export const MasterListPage = memo(function MasterListPage({
     <>
       <MasterPageShell
         title={title}
-        icon={icon}
         resource={resource}
         onNew={onNew}
         sidePanel={sidePanel}

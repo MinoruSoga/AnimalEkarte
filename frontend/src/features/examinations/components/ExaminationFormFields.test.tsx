@@ -4,37 +4,31 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { ExaminationFormFields } from "./ExaminationFormFields";
 
+type FieldsProps = Parameters<typeof ExaminationFormFields>[0];
+
 describe("ExaminationFormFields", () => {
   function renderFields({
-    isEdit = false,
-    canCreate = true,
-    canEdit = true,
+    formData = { date: "2026-07-21T00:00:00+09:00", status: "依頼中" },
+    isConfirmed = false,
+    isCompletedLocked = false,
     fieldErrors,
     onSetFormData = vi.fn(),
-  }: {
-    isEdit?: boolean;
-    canCreate?: boolean;
-    canEdit?: boolean;
-    fieldErrors?: Record<string, string>;
-    onSetFormData?: (next: Record<string, unknown>) => void;
+  }: Partial<
+    Pick<FieldsProps, "formData" | "isConfirmed" | "isCompletedLocked" | "fieldErrors">
+  > & {
+    onSetFormData?: Parameters<typeof ExaminationFormFields>[0]["onSetFormData"];
   } = {}) {
     return render(
       <MemoryRouter>
         <ExaminationFormFields
-          formData={{ date: "2026-07-21T00:00:00+09:00", status: "依頼中" }}
+          formData={formData}
           examTypes={[{ id: "5", name: "血液検査（院内）" }]}
           staffList={[{ id: "3", name: "林文明" }]}
           masterLoading={false}
-          isEdit={isEdit}
-          isDeleting={false}
-          isConfirmed={false}
-          canEdit={canEdit}
-          canCreate={canCreate}
-          canDelete
+          isConfirmed={isConfirmed}
+          isCompletedLocked={isCompletedLocked}
           fieldErrors={fieldErrors}
           onSetFormData={onSetFormData}
-          onBack={vi.fn()}
-          onDeleteClick={vi.fn()}
         />
       </MemoryRouter>,
     );
@@ -98,160 +92,101 @@ describe("ExaminationFormFields", () => {
     expect(screen.getByRole("textbox", { name: "備考・所見" })).toBeInTheDocument();
   });
 
-  it("削除・キャンセル・保存buttonでh-10 overrideを再導入しない", () => {
-    renderFields({ isEdit: true });
+  it("未確定でローカルステータスが確定でも入力とステータスを有効に保つ（A-S02-01）", () => {
+    renderFields({ formData: { date: "2026-07-21T00:00:00+09:00", status: "確定" } });
 
-    for (const name of ["削除", "キャンセル", "保存"]) {
-      const button = screen.getByRole("button", { name });
-      expect(button).toHaveClass("h-11", "min-h-11");
-      expect(button).not.toHaveClass("h-10");
+    for (const name of ["検査種別", "担当医", "ステータス"]) {
+      expect(screen.getByRole("combobox", { name })).toBeEnabled();
     }
+    expect(screen.getByRole("textbox", { name: "検査日" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "カレンダーを開く" })).toBeEnabled();
+    expect(screen.getByRole("textbox", { name: "備考・所見" })).toBeEnabled();
   });
 
-  it("新規作成は作成権限があっても編集権限なしなら保存buttonを表示しない", () => {
-    renderFields({ canCreate: true, canEdit: false });
+  it("サーバ確定済みでは日付・カレンダー・結果・ステータスをロックする", () => {
+    renderFields({
+      isConfirmed: true,
+      formData: { date: "2026-07-21T00:00:00+09:00", status: "確定" },
+    });
 
-    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    expect(screen.getByText("確定済みのため編集できません。")).toBeInTheDocument();
+    for (const name of ["検査種別", "担当医", "ステータス"]) {
+      expect(screen.getByRole("combobox", { name })).toBeDisabled();
+    }
+    expect(screen.getByRole("textbox", { name: "検査日" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "カレンダーを開く" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "備考・所見" })).toBeDisabled();
   });
 
-  it("FE-RC-002: 死亡ペット（isPetDeceased）では権限があっても保存buttonを表示しない", () => {
+  it.each(["完了", "確定"] as const)(
+    "BUG-033: 完了シールはローカルステータス%sでも結果をロックしステータスだけ変更可",
+    (status) => {
+      renderFields({
+        isCompletedLocked: true,
+        formData: { date: "2026-07-21T00:00:00+09:00", status },
+      });
+
+      expect(screen.getByText(/完了済みのため結果の編集・削除はできません/)).toBeInTheDocument();
+      for (const name of ["検査種別", "担当医"]) {
+        expect(screen.getByRole("combobox", { name })).toBeDisabled();
+      }
+      expect(screen.getByRole("textbox", { name: "検査日" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "カレンダーを開く" })).toBeDisabled();
+      expect(screen.getByRole("textbox", { name: "備考・所見" })).toBeDisabled();
+      expect(screen.getByRole("combobox", { name: "ステータス" })).toBeEnabled();
+    },
+  );
+
+  it("BUG-033: 完了シールでステータスを確定に変えたフォームはネイティブ送信できる（日付が妨げない）", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => event.preventDefault());
+    const onSetFormData = vi.fn();
     render(
       <MemoryRouter>
-        <ExaminationFormFields
-          formData={{ date: "2026-07-21T00:00:00+09:00", status: "依頼中" }}
-          examTypes={[{ id: "5", name: "血液検査（院内）" }]}
-          staffList={[{ id: "3", name: "林文明" }]}
-          masterLoading={false}
-          isEdit={false}
-          isDeleting={false}
-          isConfirmed={false}
-          isPetDeceased
-          canEdit
-          canCreate
-          canDelete
-          onSetFormData={vi.fn()}
-          onBack={vi.fn()}
-          onDeleteClick={vi.fn()}
-        />
+        <form onSubmit={onSubmit}>
+          <ExaminationFormFields
+            formData={{ date: "2026-10-13T00:00:00+09:00", status: "確定" }}
+            examTypes={[]}
+            staffList={[]}
+            masterLoading={false}
+            isConfirmed={false}
+            isCompletedLocked
+            onSetFormData={onSetFormData}
+          />
+          <button type="submit">送信</button>
+        </form>
       </MemoryRouter>,
     );
 
-    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+    const dateInput = screen.getByLabelText("検査日");
+    expect(dateInput).toBeDisabled();
+    expect(screen.getByRole("button", { name: "カレンダーを開く" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "送信" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSetFormData).not.toHaveBeenCalled();
   });
 
-  it("FE-RC-002: isPetDeceased=false（既定値）では他条件が揃えば保存buttonを表示する", () => {
-    renderFields();
-
-    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
-  });
-
-  it("編集は作成権限なしでも編集権限があれば保存buttonを表示する", () => {
-    renderFields({ isEdit: true, canCreate: false, canEdit: true });
-
-    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
-  });
-
-  it("未確定（isConfirmed=false）でステータスが確定でも保存buttonを表示する（A-S02-01）", () => {
+  it("BUG-033: ロックなしの過去検査日ではネイティブ送信が通る基準値", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => event.preventDefault());
     render(
       <MemoryRouter>
-        <ExaminationFormFields
-          formData={{ date: "2026-07-21T00:00:00+09:00", status: "確定" }}
-          examTypes={[]}
-          staffList={[]}
-          masterLoading={false}
-          isEdit
-          isDeleting={false}
-          isConfirmed={false}
-          canEdit
-          canCreate
-          canDelete
-          onSetFormData={vi.fn()}
-          onBack={vi.fn()}
-          onDeleteClick={vi.fn()}
-        />
+        <form onSubmit={onSubmit}>
+          <ExaminationFormFields
+            formData={{ date: "2026-10-13T00:00:00+09:00", status: "依頼中" }}
+            examTypes={[]}
+            staffList={[]}
+            masterLoading={false}
+            isConfirmed={false}
+            onSetFormData={vi.fn()}
+          />
+          <button type="submit">送信</button>
+        </form>
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "ステータス" })).not.toBeDisabled();
-  });
-
-  it("サーバ確定済み（isConfirmed=true）では保存buttonを消しステータスを無効化する", () => {
-    render(
-      <MemoryRouter>
-        <ExaminationFormFields
-          formData={{ date: "2026-07-21T00:00:00+09:00", status: "確定" }}
-          examTypes={[]}
-          staffList={[]}
-          masterLoading={false}
-          isEdit
-          isDeleting={false}
-          isConfirmed
-          canEdit
-          canCreate
-          canDelete
-          onSetFormData={vi.fn()}
-          onBack={vi.fn()}
-          onDeleteClick={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "ステータス" })).toBeDisabled();
-  });
-
-  it("BUG-033: 完了シールでは結果ロック文言・保存/削除非表示、ステータスは変更可", () => {
-    render(
-      <MemoryRouter>
-        <ExaminationFormFields
-          formData={{ date: "2026-07-21T00:00:00+09:00", status: "完了" }}
-          examTypes={[]}
-          staffList={[]}
-          masterLoading={false}
-          isEdit
-          isDeleting={false}
-          isConfirmed={false}
-          isCompletedLocked
-          canEdit
-          canCreate
-          canDelete
-          onSetFormData={vi.fn()}
-          onBack={vi.fn()}
-          onDeleteClick={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText(/完了済みのため結果の編集・削除はできません/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "ステータス" })).not.toBeDisabled();
-  });
-
-  it("BUG-033: 完了シールでステータスを確定に変えると保存buttonが再表示される", () => {
-    render(
-      <MemoryRouter>
-        <ExaminationFormFields
-          formData={{ date: "2026-07-21T00:00:00+09:00", status: "確定" }}
-          examTypes={[]}
-          staffList={[]}
-          masterLoading={false}
-          isEdit
-          isDeleting={false}
-          isConfirmed={false}
-          isCompletedLocked
-          canEdit
-          canCreate
-          canDelete
-          onSetFormData={vi.fn()}
-          onBack={vi.fn()}
-          onDeleteClick={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "送信" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });

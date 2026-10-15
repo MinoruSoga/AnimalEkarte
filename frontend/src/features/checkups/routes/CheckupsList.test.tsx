@@ -383,7 +383,7 @@ describe("CheckupsList — medical record permission boundary", () => {
 
       render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
 
-      expect(screen.queryByRole("button", { name: /新規登録/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /新規定期健診登録/ })).not.toBeInTheDocument();
       expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "create");
       expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
     },
@@ -399,7 +399,7 @@ describe("CheckupsList — medical record permission boundary", () => {
 
     render(<CheckupsList />, { wrapper: createWrapper(hasPermission) });
 
-    expect(screen.getByRole("button", { name: /新規登録/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /新規定期健診登録/ })).toBeInTheDocument();
     expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "create");
     expect(hasPermission).toHaveBeenCalledWith(ResourceMedicalRecords, "edit");
   });
@@ -547,5 +547,29 @@ describe("CheckupsList — F: 動物種フィルタ (EMR-223)", () => {
       expect(screen.queryByText("ポチ")).not.toBeInTheDocument();
       expect(screen.queryByText("たろう")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("CheckupsList — 担当医カラムのレイアウト契約 (EMR-399)", () => {
+  it("長い担当医名でもヘッダはnowrap+min幅を維持し、bodyセルは全文を折り返し表示する", async () => {
+    const longDoctorName = "非常に長い担当医氏名テスト太郎";
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: makeCheckupsResult([makeCheckupRecord({ doctorName: longDoctorName })]),
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    const doctorHeader = screen.getByRole("columnheader", { name: "担当医" });
+    expect(doctorHeader).toHaveClass("w-[100px]");
+    expect(doctorHeader).toHaveClass("min-w-[100px]");
+    expect(doctorHeader).toHaveClass("whitespace-nowrap");
+    expect(doctorHeader).toHaveClass("hidden", "md:table-cell");
+
+    const doctorCell = await screen.findByText(longDoctorName);
+    expect(doctorCell).toHaveClass("hidden", "md:table-cell");
+    expect(doctorCell).not.toHaveClass("whitespace-nowrap");
+    expect(doctorCell).not.toHaveClass("truncate");
   });
 });

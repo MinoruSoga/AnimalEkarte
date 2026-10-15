@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { useDraggable, useDroppable } from "@dnd-kit/core";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
@@ -15,13 +16,13 @@ import { HospitalizationListPageView } from "./HospitalizationListPanels";
 const dndHarness = vi.hoisted(() => ({
   onDragEnd: undefined as ((event: unknown) => void) | undefined,
   active: null as unknown,
-  useDraggable: vi.fn(() => ({
+  useDraggable: vi.fn((_options: Parameters<typeof useDraggable>[0]) => ({
     attributes: { "data-drag-attributes": "enabled" },
     listeners: { "data-drag-listener": "enabled" },
     setNodeRef: vi.fn(),
     isDragging: false,
   })),
-  useDroppable: vi.fn(() => ({
+  useDroppable: vi.fn((_options: Parameters<typeof useDroppable>[0]) => ({
     setNodeRef: vi.fn(),
     isOver: false,
   })),
@@ -139,6 +140,16 @@ beforeEach(() => {
   );
 });
 
+describe("HospitalizationListPageView empty board", () => {
+  it("患者0件でも空状態とケージ操作を残す", () => {
+    renderPageView({ boardHospitalizations: [], cages: mergeCages });
+
+    expect(screen.getByText("入院データが見つかりません")).toBeInTheDocument();
+    expect(screen.getByText("ケージ10")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ケージ10.*空き枠に入院/ })).toBeInTheDocument();
+  });
+});
+
 afterEach(() => {
   server.resetHandlers();
   localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
@@ -253,10 +264,8 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
 
     // 占有ルックアップで cage 11 は occupied → disabled
     await waitFor(() => {
-      const calls = dndHarness.useDraggable.mock.calls.filter(
-        (c) => (c[0] as { id?: string }).id === "merge-cage-11",
-      );
-      expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+      const calls = dndHarness.useDraggable.mock.calls.filter((c) => c[0].id === "merge-cage-11");
+      expect(calls.at(-1)?.[0].disabled).toBe(true);
     });
     // 空きの 13 は引き続き source 適格
     await waitFor(() =>
@@ -316,9 +325,9 @@ describe("HospitalizationListPanels EMR-306 merge mode toggle", () => {
       expect(screen.getByRole("status")).toHaveTextContent("連結できません");
       for (const id of ["11", "13"]) {
         const calls = dndHarness.useDraggable.mock.calls.filter(
-          (c) => (c[0] as { id?: string }).id === `merge-cage-${id}`,
+          (c) => c[0].id === `merge-cage-${id}`,
         );
-        expect((calls.at(-1)?.[0] as { disabled?: boolean }).disabled).toBe(true);
+        expect(calls.at(-1)?.[0].disabled).toBe(true);
       }
       act(() => {
         dndHarness.onDragEnd?.({

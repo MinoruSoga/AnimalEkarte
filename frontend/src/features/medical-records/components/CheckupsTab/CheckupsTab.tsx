@@ -229,8 +229,8 @@ export const CheckupsTab = memo(function CheckupsTab({
         onClose={() => setDeletingId(null)}
         onConfirm={handleDeleteConfirm}
         title="健診記録を削除しますか？"
-        description="この健診記録を削除します。この操作は元に戻せません。"
-        confirmLabel={deleteMutation.isPending ? "削除中..." : "削除する"}
+        description="この健診記録を削除します。この操作は取り消せません。"
+        confirmLabel={deleteMutation.isPending ? "削除中..." : "削除"}
         cancelLabel="キャンセル"
         variant="destructive"
         isPending={deleteMutation.isPending}

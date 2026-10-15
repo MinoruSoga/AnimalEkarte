@@ -51,7 +51,7 @@ export const HospitalizationListView = memo(function HospitalizationListView({
       headerCellClassName={STYLE.sectionLabel}
       columns={COLUMNS}
       data={hospitalizations}
-      emptyMessage="入院データがありません"
+      emptyMessage="入院データが見つかりません"
       renderRow={(h) => (
         // EMR-227: 死亡ペット行は opacity で薄めず、死亡センチネルバッジのみで識別する（行の可読性維持）
         <DataTableRow key={h.id}>

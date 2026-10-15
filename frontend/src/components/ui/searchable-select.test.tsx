@@ -42,6 +42,28 @@ describe("SearchableSelect", () => {
     expect(trigger).toHaveAttribute("aria-describedby", "testTypeId-error");
   });
 
+  it("ariaRequired をトリガーの aria-required に転送し、未指定時は付かない", () => {
+    const { rerender } = render(
+      <SearchableSelect
+        value=""
+        onValueChange={vi.fn()}
+        options={[]}
+        ariaLabel="健診種別"
+        ariaRequired
+      />,
+    );
+
+    expect(screen.getByRole("combobox", { name: "健診種別" })).toHaveAttribute(
+      "aria-required",
+      "true",
+    );
+
+    rerender(
+      <SearchableSelect value="" onValueChange={vi.fn()} options={[]} ariaLabel="健診種別" />,
+    );
+    expect(screen.getByRole("combobox", { name: "健診種別" })).not.toHaveAttribute("aria-required");
+  });
+
   it("options に無い value は fallbackLabel を表示し、未指定時は placeholder", () => {
     const { rerender } = render(
       <SearchableSelect

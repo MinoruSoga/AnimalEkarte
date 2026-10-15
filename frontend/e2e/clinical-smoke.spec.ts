@@ -101,7 +101,7 @@ test.describe("臨床ページ smoke E2E", () => {
     const page = await context.newPage();
     try {
       await page.goto("/checkups", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: "定期健診" })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "定期健診管理" })).toBeVisible({
         timeout: 15000,
       });
     } finally {

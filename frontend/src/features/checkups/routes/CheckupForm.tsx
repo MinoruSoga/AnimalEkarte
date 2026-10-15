@@ -1,8 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import { ClipboardCheck } from "lucide-react";
-
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel";
@@ -77,7 +75,6 @@ export function CheckupForm() {
       <PageLayout
         title="定期健診登録"
         resource={ResourceMedicalRecords}
-        icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
         onBack={handleBack}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
         headerAction={

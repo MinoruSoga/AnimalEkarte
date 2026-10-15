@@ -16,7 +16,7 @@ export class EstimatesPage extends BasePage {
   }
 
   newFormHeading(): Locator {
-    return this.heading("新規見積書作成", 1);
+    return this.heading("見積書登録", 1);
   }
 
   /** Detail heading "見積書 <estimateNo>" (title may be empty in seed). */
@@ -33,7 +33,7 @@ export class EstimatesPage extends BasePage {
   }
 
   createButton(): Locator {
-    return this.page.getByRole("button", { name: "作成" });
+    return this.page.getByRole("button", { name: "保存" });
   }
 
   editButton(): Locator {

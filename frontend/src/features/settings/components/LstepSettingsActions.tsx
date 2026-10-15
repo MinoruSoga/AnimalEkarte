@@ -149,13 +149,13 @@ export function LstepActionFooter({
             type="button"
             variant="ghost-danger"
             onClick={onDeleteOpen}
-            className={`h-10 text-sm px-4 border ${C.borderDanger}`}
+            className={`h-10 px-4 border ${C.borderDanger}`}
           >
             <Trash2 className={ICON.action} />
             設定削除
           </Button>
         ) : null}
-        <SubmitButton className="h-10 text-sm px-4">保存</SubmitButton>
+        <SubmitButton className="h-10 px-4">保存</SubmitButton>
       </div>
     </div>
   );

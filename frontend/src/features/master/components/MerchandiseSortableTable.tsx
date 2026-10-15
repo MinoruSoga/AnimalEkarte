@@ -1,7 +1,11 @@
 import { type ComponentProps, useMemo } from "react";
 import { DndContext, DragOverlay, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { ArrowDown, ArrowUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { RowActionButton } from "@/components/shared/RowActionButton";
+import { Pagination } from "@/components/shared/Pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
@@ -13,8 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE, TABLE_STYLES, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
+import { type MerchandiseMoveDirection } from "../lib/merchandise-reorder";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
@@ -30,7 +35,8 @@ const TABLE_COLUMNS = [
   { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
   { key: "taxRate", label: "税率", className: "w-[80px] text-center" },
   { key: "status", label: "ステータス", className: "w-[100px] text-center" },
-  { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
+  // PR665: 移動2 + 編集1 の44pxボタンが1行に収まる幅（パディング含め160px）。
+  { key: "action", label: "操作", className: "w-[160px] min-w-[160px] text-right pr-2" },
 ];
 
 interface MerchandiseSortableTableProps {
@@ -41,7 +47,15 @@ interface MerchandiseSortableTableProps {
   onDragEnd: NonNullable<ComponentProps<typeof DndContext>["onDragEnd"]>;
   onDragCancel: NonNullable<ComponentProps<typeof DndContext>["onDragCancel"]>;
   canEdit: boolean;
+  canReorder?: boolean;
   onEdit: (item: FrontendMerchandiseItem) => void;
+  /**
+   * PR665 / EMR-401 C2-5: 50 行ページング維持のため、ページをまたぐ並べ替えは
+   * 明示的な「前へ / 後へ」ボタンで行う。未指定または !canEdit では表示しない。
+   */
+  onMoveItem?: (item: FrontendMerchandiseItem, direction: MerchandiseMoveDirection) => void;
+  /** PR665: 並べ替え API 実行中は移動ボタンを無効化する。 */
+  isReordering?: boolean;
 }
 
 export function MerchandiseSortableTable({
@@ -52,8 +66,12 @@ export function MerchandiseSortableTable({
   onDragEnd,
   onDragCancel,
   canEdit,
+  canReorder = canEdit,
   onEdit,
+  onMoveItem,
+  isReordering = false,
 }: MerchandiseSortableTableProps) {
+  const pagination = usePagination(items, { pageSize: 50 });
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeId) ?? null,
     [items, activeId],
@@ -88,15 +106,15 @@ export function MerchandiseSortableTable({
                 </TableRow>
               ) : null}
               <SortableContext
-                items={items.map((item) => item.id)}
+                items={pagination.paginatedData.map((item) => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                {items.map((item) => (
+                {pagination.paginatedData.map((item) => (
                   <SortableDataTableRow
                     key={item.id}
                     id={item.id}
                     dragLabel={`並べ替え: 品目 ${item.name} (ID ${item.id})`}
-                    dragDisabled={!canEdit}
+                    dragDisabled={!canReorder || isReordering}
                   >
                     <TableCell className={`font-medium ${C.text}`}>
                       <DataTableRowButton
@@ -118,12 +136,45 @@ export function MerchandiseSortableTable({
                     <TableCell className="text-center">
                       <StatusPill isActive={item.isActive} />
                     </TableCell>
-                    <TableCell className="text-right pr-2">
+                    <TableCell className="text-right pr-2 whitespace-nowrap">
                       {canEdit ? (
-                        <RowActionButton
-                          aria-label={`編集: 品目 ${item.name} (ID ${item.id})`}
-                          onClick={() => onEdit(item)}
-                        />
+                        <div className="flex items-center justify-end gap-1">
+                          {onMoveItem ? (
+                            <>
+                              {/* PR665: 移動ボタンは並べ替え中に無効化する（共有 RowActionButton は disabled を持たないため直接 Button を使う）。 */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`前へ移動: 品目 ${item.name} (ID ${item.id})`}
+                                disabled={!canReorder || isReordering}
+                                className={TABLE_STYLES.actionButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onMoveItem(item, "up");
+                                }}
+                              >
+                                <ArrowUp className={ICON.page} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`後へ移動: 品目 ${item.name} (ID ${item.id})`}
+                                disabled={!canReorder || isReordering}
+                                className={TABLE_STYLES.actionButton}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onMoveItem(item, "down");
+                                }}
+                              >
+                                <ArrowDown className={ICON.page} />
+                              </Button>
+                            </>
+                          ) : null}
+                          <RowActionButton
+                            aria-label={`編集: 品目 ${item.name} (ID ${item.id})`}
+                            onClick={() => onEdit(item)}
+                          />
+                        </div>
                       ) : null}
                     </TableCell>
                   </SortableDataTableRow>
@@ -136,6 +187,16 @@ export function MerchandiseSortableTable({
           </DragOverlay>
         </DndContext>
       </div>
+      <Pagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        totalCount={pagination.totalCount}
+        startIndex={pagination.startIndex}
+        endIndex={pagination.endIndex}
+        onPageChange={pagination.goToPage}
+        onPrev={pagination.prevPage}
+        onNext={pagination.nextPage}
+      />
     </div>
   );
 }

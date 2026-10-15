@@ -1,10 +1,10 @@
 // React/Framework
-import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 // External
-import { ClipboardCheck, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -123,15 +123,14 @@ export function CheckupsList() {
 
   return (
     <PageLayout
-      title="定期健診"
+      title="定期健診管理"
       resource={ResourceCheckups}
-      icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
       maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         canCreateCheckup ? (
           <PrimaryButton colorVariant="primary" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
-            新規登録
+            新規定期健診登録
           </PrimaryButton>
         ) : null
       }

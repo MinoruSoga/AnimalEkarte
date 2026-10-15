@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { CheckupType } from "../api/get-checkup-sync-preview";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const CHECKUP_TYPE_LABELS: Record<CheckupType, string> = {
   annual: "定期健診",
@@ -57,9 +58,12 @@ export function CheckupSyncConfirmDialog({
         <div className="space-y-4 py-1">
           {/* タグ名入力 */}
           <div className="space-y-1.5">
-            <label htmlFor="checkup-sync-tag-name" className={STYLE.formLabel}>
+            <label
+              htmlFor="checkup-sync-tag-name"
+              className={`${STYLE.formLabel} inline-flex items-center gap-2`}
+            >
               付与するタグ名
-              <span className={`ml-1 ${C.textRequired}`}>*</span>
+              <RequiredMark />
             </label>
             <input
               id="checkup-sync-tag-name"

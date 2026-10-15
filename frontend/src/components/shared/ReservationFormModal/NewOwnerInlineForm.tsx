@@ -7,6 +7,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
 import type { NewOwnerFormData } from "@/types/reservation-form";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface NewOwnerInlineFormProps {
   value: NewOwnerFormData;
@@ -30,11 +31,8 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="new-owner-name" className={`text-xs ${C.text60}`}>
-          飼主名{" "}
-          <span aria-hidden="true" className={C.textRequired}>
-            *
-          </span>
+        <Label htmlFor="new-owner-name" className={`${C.text60}`}>
+          飼主名 <RequiredMark />
         </Label>
         <Input
           id="new-owner-name"
@@ -50,11 +48,8 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="new-owner-phone" className={`text-xs ${C.text60}`}>
-          電話番号{" "}
-          <span aria-hidden="true" className={C.textRequired}>
-            *
-          </span>
+        <Label htmlFor="new-owner-phone" className={`${C.text60}`}>
+          電話番号 <RequiredMark />
         </Label>
         <Input
           id="new-owner-phone"
@@ -71,11 +66,8 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="new-owner-pet-name" className={`text-xs ${C.text60}`}>
-          ペット名{" "}
-          <span aria-hidden="true" className={C.textRequired}>
-            *
-          </span>
+        <Label htmlFor="new-owner-pet-name" className={`${C.text60}`}>
+          ペット名 <RequiredMark />
         </Label>
         <Input
           id="new-owner-pet-name"
@@ -91,11 +83,8 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="new-owner-species" className={`text-xs ${C.text60}`}>
-          動物種{" "}
-          <span aria-hidden="true" className={C.textRequired}>
-            *
-          </span>
+        <Label htmlFor="new-owner-species" className={`${C.text60}`}>
+          動物種 <RequiredMark />
         </Label>
         <SearchableSelect
           id="new-owner-species"
@@ -126,11 +115,8 @@ export function NewOwnerInlineForm({ value, onChange, errors }: NewOwnerInlineFo
       </div>
 
       <div className="flex flex-col gap-1">
-        <Label htmlFor="new-owner-chief-complaint" className={`text-xs ${C.text60}`}>
-          主訴{" "}
-          <span aria-hidden="true" className={C.textRequired}>
-            *
-          </span>
+        <Label htmlFor="new-owner-chief-complaint" className={`${C.text60}`}>
+          主訴 <RequiredMark />
         </Label>
         <Textarea
           id="new-owner-chief-complaint"

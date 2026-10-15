@@ -8,6 +8,7 @@ import {
   ResourceCheckups,
   ResourceClosingSettings,
   ResourceExaminations,
+  ResourceEstimates,
   ResourceHospitalSettings,
   ResourceHospitalization,
   ResourceIdentityLinks,
@@ -146,6 +147,12 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
         resource: ResourceAccounting,
       },
       {
+        icon: <FileText className={ICON.toolbar} />,
+        label: "見積書管理",
+        path: paths.estimates.getHref(),
+        resource: ResourceEstimates,
+      },
+      {
         icon: <CreditCard className={ICON.toolbar} />,
         label: "レジ締め",
         path: paths.accounting.close.getHref(),
@@ -270,13 +277,13 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
         subItems: [
           {
             icon: <Building2 className={ICON.toolbar} />,
-            label: "医院",
+            label: "医院マスタ",
             path: paths.settings.clinic.getHref(),
             resource: ResourceHospitalSettings,
           },
           {
             icon: <PawPrint className={ICON.toolbar} />,
-            label: "動物種類",
+            label: "動物種類マスタ",
             path: paths.settings.animalSpecies.getHref(),
             resource: ResourceMasterAnimalSpecies,
           },
@@ -288,7 +295,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
             subItems: [
               {
                 icon: <ClipboardList className={ICON.toolbar} />,
-                label: "診療項目",
+                label: "診療項目マスタ",
                 path: paths.settings.treatmentItems.getHref(),
                 resource: ResourceMasterMedical,
               },
@@ -300,13 +307,13 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
               },
               {
                 icon: <ClipboardCheck className={ICON.toolbar} />,
-                label: "問診設定",
+                label: "問診テンプレートマスタ",
                 path: paths.settings.inquiryTemplates.getHref(),
                 resource: ResourceMasterMedical,
               },
               {
                 icon: <MessageSquareText className={ICON.toolbar} />,
-                label: "主訴カテゴリ",
+                label: "主訴カテゴリマスタ",
                 path: paths.settings.interview.chiefComplaint.getHref(),
                 resource: ResourceMasterMedical,
               },
@@ -332,7 +339,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Activity className={ICON.toolbar} />,
-            label: "予約区分",
+            label: "予約区分マスタ",
             path: paths.settings.reservationType.getHref(),
             resource: ResourceMasterReservationType,
           },
@@ -378,7 +385,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Lock className={ICON.toolbar} />,
-            label: "権限グループ",
+            label: "権限グループマスタ",
             path: paths.settings.permissionGroups.getHref(),
             resource: ResourceMasterPermission,
           },
@@ -390,7 +397,7 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Users className={ICON.toolbar} />,
-            label: "スタッフ管理",
+            label: "スタッフマスタ",
             path: paths.settings.staff.getHref(),
             resource: ResourceMasterStaff,
           },
@@ -402,19 +409,19 @@ export const sidebarMenuSections: SidebarMenuSection[] = [
           },
           {
             icon: <Package className={ICON.toolbar} />,
-            label: "物販・フード",
+            label: "物販・フードマスタ",
             path: paths.settings.merchandiseItems.getHref(),
             resource: ResourceMasterMerchandise,
           },
           {
             icon: <CreditCard className={ICON.toolbar} />,
-            label: "支払方法",
+            label: "支払方法マスタ",
             path: paths.settings.paymentMethods.getHref(),
             resource: ResourcePaymentMethod,
           },
           {
             icon: <Tag className={ICON.toolbar} />,
-            label: "割引キャンペーン",
+            label: "割引キャンペーンマスタ",
             path: paths.settings.campaigns.getHref(),
             resource: ResourceAccounting,
           },
@@ -479,6 +486,7 @@ export const sidebarItemDescriptions: Readonly<Record<string, string>> = {
     "ペットの身体測定や一般健診の履歴を管理し、次回予定日に基づく受診漏れを防止する。",
   [paths.accounting.getHref()]:
     "院内で行われた全診療・サービスの請求レコードを一覧表示・管理し、未精算の把握や過去の会計参照を行う。",
+  [paths.estimates.getHref()]: "見積書を検索し、診療・サービスの明細と金額を作成・管理する。",
   [paths.accounting.close.getHref()]: closingPurpose,
   [paths.accounting.closeHistory.getHref()]: closingPurpose,
   [paths.accounting.reports.getHref()]:

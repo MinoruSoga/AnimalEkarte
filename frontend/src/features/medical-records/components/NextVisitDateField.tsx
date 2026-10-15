@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { formatJSTWallDate, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import { validateNextVisitIntentDate } from "../lib/next-visit";
 
@@ -69,11 +70,12 @@ export function NextVisitDateField({
   const isValid = errorMessage === null;
 
   const handleChange = (newValue: string) => {
+    if (newValue === value || (newValue === "" ? clearDisabled : setDisabled)) return;
     onChange(newValue);
   };
 
   const handleQuickSelect = (getValue: () => string) => {
-    onChange(getValue());
+    handleChange(getValue());
   };
 
   const isInputInvalid = !isValid && value !== "";
@@ -97,19 +99,21 @@ export function NextVisitDateField({
       </div>
 
       {/* Date input */}
-      <input
-        id={inputId}
-        type="date"
-        value={value}
-        min={today()}
-        onChange={(e) => handleChange(e.target.value)}
-        disabled={setDisabled}
-        aria-invalid={isInputInvalid}
-        aria-describedby={showError ? `${inputId}-error` : undefined}
-        className={`${STYLE.formInput} rounded-xs border px-3 w-full max-w-[220px] focus-visible:ring-offset-1 ${
-          isInputInvalid ? STYLE.formInputError : ""
-        }`}
-      />
+      <div className="w-full max-w-[220px]">
+        <DatePicker
+          id={inputId}
+          ariaLabel="次回来院推奨日"
+          value={value}
+          onChange={handleChange}
+          min={today()}
+          disabledDays={{ before: toJSTWallDate(new Date(`${today()}T00:00:00+09:00`)) }}
+          ariaInvalid={isInputInvalid}
+          ariaDescribedBy={showError ? `${inputId}-error` : undefined}
+          validationMessage={errorMessage ?? undefined}
+          disabled={setDisabled}
+          showClearButton={false}
+        />
+      </div>
 
       {/* Quick select buttons */}
       <div className="flex flex-wrap gap-1.5">

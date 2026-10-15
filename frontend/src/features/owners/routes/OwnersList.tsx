@@ -227,13 +227,13 @@ export function OwnersList() {
 
   return (
     <PageLayout
-      title="飼主・ペット一覧"
+      title="飼主・ペット管理"
       resource={ResourceOwners}
       headerAction={
         canCreate ? (
           <PrimaryButton colorVariant="primary" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
-            新規登録
+            新規飼主登録
           </PrimaryButton>
         ) : null
       }

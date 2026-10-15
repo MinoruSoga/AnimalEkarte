@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 import { usePermission } from "@/hooks/use-permission";
 import { useModalState } from "@/hooks/use-modal-state";
 import { usePagination } from "@/hooks/use-pagination";
-import { Plus, FileText } from "lucide-react";
+import { Plus } from "lucide-react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -80,7 +80,6 @@ export function EstimateList() {
     <PageLayout
       title="見積書管理"
       resource={ResourceEstimates}
-      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
           <PrimaryButton
@@ -114,7 +113,7 @@ export function EstimateList() {
         open={deleteModal.isOpen}
         onClose={deleteModal.close}
         onConfirm={handleDeleteConfirm}
-        title="見積書を削除しますか?"
+        title="見積書を削除しますか？"
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"

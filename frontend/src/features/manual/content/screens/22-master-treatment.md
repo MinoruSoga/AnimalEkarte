@@ -5,7 +5,7 @@ section: システム設定
 keywords_vi: danh mục khám chữa bệnh, master hạng mục điều trị, hạng mục khám, danh mục điều trị
 ---
 
-# 診療項目
+# 診療項目マスタ
 
 ## どんな画面か
 

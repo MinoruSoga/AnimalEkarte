@@ -85,9 +85,14 @@ export function mapExamResultsToFormRows(existingItems: readonly ExamResult[]): 
 export function createBlankExaminationForm(
   doctorId: string | null,
   localOverrides: Partial<ExaminationRecord>,
+  // PR665: 既定日はフォームを開いた時点で 1 度だけ確定させる。
+  // 呼び出し側の state スナップショットを渡し、JST 日付変更後の再描画で
+  // 未編集の検査日が翌日に動くのを防ぐ。明示的な上書きは localOverrides が優先。
+  defaultDate: string = todayJSTISO(),
 ): Partial<ExaminationRecord> {
   return {
     status: "依頼中" as const,
+    date: defaultDate,
     ownerName: "",
     petName: "",
     ...(doctorId && { doctorId }),
@@ -204,12 +209,15 @@ export function buildCreateExaminationRequest(input: {
   petId: string;
   items: UpsertExamItemRequest[];
 }): CreateExaminationRequest {
+  // PR665: BE の date は RFC3339 (time.Time) のため、YYYY-MM-DD のフォーム値は
+  // update builder と同じ JST 開始 RFC3339 へ変換する。明示的な RFC3339 はそのまま。
+  const date = input.current.date ?? todayJSTISO();
   return {
     medical_record_id: input.medicalRecordId ? Number(input.medicalRecordId) : null,
     pet_id: Number(input.petId) || null,
     exam_type_id: Number(input.current.testTypeId) || 0,
     doctor_id: input.current.doctorId ? Number(input.current.doctorId) : null,
-    date: input.current.date ?? jstDateStartISOString(todayJSTISO()),
+    date: date && !date.includes("T") ? jstDateStartISOString(date) : date,
     result_summary: input.current.resultSummary,
     machine: input.current.machine,
     // 新規は常に items を送る（作成時点で「確定」を選んでもロック対象はサーバ確定後のみ）

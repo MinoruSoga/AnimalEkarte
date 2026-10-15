@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { usePermission } from "@/hooks/use-permission";
+import { RESOURCE_MASTER_PERMISSION } from "../constants/permission-resources";
 
 import { useGetStaffs, useGetClinicsList, useGetAllStaffPermissionGroupMap } from "../api/staffs";
 import { useGetPermissionGroups } from "../api/permission-groups";
@@ -14,8 +16,13 @@ export function useStaffSettingsLookups() {
   const { data } = useGetStaffs();
   const { data: allOccupationsData } = useGetAllOccupations();
   const allOccupations = useMemo(() => allOccupationsData ?? [], [allOccupationsData]);
-  const { data: allGroupsData } = useGetPermissionGroups();
-  const allGroups = useMemo(() => allGroupsData ?? [], [allGroupsData]);
+  const { canView } = usePermission(RESOURCE_MASTER_PERMISSION);
+  const canViewGroups = canView === true;
+  const { data: allGroupsData } = useGetPermissionGroups(canViewGroups);
+  const allGroups = useMemo(
+    () => (canViewGroups ? (allGroupsData ?? []) : []),
+    [canViewGroups, allGroupsData],
+  );
   const { data: allReservationTypesData } = useGetReservationTypes();
   const allReservationTypes = useMemo(
     () => allReservationTypesData ?? [],
@@ -24,10 +31,14 @@ export function useStaffSettingsLookups() {
   const { data: allClinicsData } = useGetClinicsList("all");
   const allClinics = useMemo(() => allClinicsData ?? [], [allClinicsData]);
   const staffIds = useMemo(() => buildStaffIds(data), [data]);
-  const { data: staffGroupMap } = useGetAllStaffPermissionGroupMap(staffIds);
+  const { data: staffGroupMap } = useGetAllStaffPermissionGroupMap(staffIds, canViewGroups);
   const groupsByStaffId = useMemo(
-    () => buildGroupsByStaffId({ staffGroupMap, groups: allGroups }),
-    [staffGroupMap, allGroups],
+    () =>
+      buildGroupsByStaffId({
+        staffGroupMap: canViewGroups ? staffGroupMap : undefined,
+        groups: allGroups,
+      }),
+    [canViewGroups, staffGroupMap, allGroups],
   );
   const staffFilterProperties = useMemo(
     () => buildStaffFilterProperties(allOccupations),

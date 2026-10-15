@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 
 // Types
 import type { ApiVitalRecord, CreateVitalRecordRequest } from "../../api/daily-records-types";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface DailyVitalsSectionProps {
   vitals: ApiVitalRecord[];
@@ -179,7 +180,7 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({
             <div className="space-y-3 py-2">
               <div>
                 <Label htmlFor="vital-time" className="text-xs">
-                  時刻 <span className={C.textRequired}>*</span>
+                  時刻 <RequiredMark />
                 </Label>
                 <Input
                   id="vital-time"

@@ -20,11 +20,11 @@ export class VaccinationsPage extends BasePage {
   }
 
   detailHeading(): Locator {
-    return this.heading("予防接種詳細・編集");
+    return this.heading("予防接種編集");
   }
 
   newButton(): Locator {
-    return this.page.getByRole("button", { name: "新規登録" });
+    return this.page.getByRole("button", { name: "新規予防接種登録" });
   }
 
   searchInput(): Locator {

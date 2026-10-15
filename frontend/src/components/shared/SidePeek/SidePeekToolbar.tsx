@@ -19,8 +19,8 @@ export const SidePeekToolbar = memo(function SidePeekToolbar({
 }: SidePeekToolbarProps) {
   return (
     <div className={STYLE.sidePeekToolbar}>
-      <span className={`text-xs ${C.text35} pl-1 select-none`}>
-        {readOnly ? "詳細" : isNew ? "新規作成" : "編集"}
+      <span className={`text-xs ${C.text65} pl-1 select-none`}>
+        {readOnly ? "詳細" : isNew ? "新規登録" : "編集"}
       </span>
       <div className="flex items-center gap-1">
         {onDelete ? (

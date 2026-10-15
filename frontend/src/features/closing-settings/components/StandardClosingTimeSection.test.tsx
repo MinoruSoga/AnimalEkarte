@@ -27,7 +27,7 @@ function makeSettings(overrides: Partial<ClinicSettings> = {}): ClinicSettings {
     closing_weekday_end: "18:30:00",
     closing_sunday_end: "17:30:00",
     closing_am_start: "09:00:00", // #215
-    closed_weekdays: [0],
+    closed_weekdays: [],
     ...overrides,
   } as ClinicSettings;
 }
@@ -36,6 +36,35 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
   beforeEach(() => {
     mockUpdateClosingSettings.mockReset().mockResolvedValue(undefined);
     mockToastError.mockClear();
+  });
+
+  it("Sunday closure hides ranges immediately but retains the configured submitted end time", async () => {
+    render(
+      <StandardClosingTimeSection settings={makeSettings({ closed_weekdays: [0] })} canEdit />,
+    );
+    const sunday = screen.getByRole("checkbox", { name: "日" });
+    expect(screen.getAllByRole("cell", { name: "休診" })).toHaveLength(3);
+    const end = screen.getByLabelText("日曜 終了時間");
+    expect(end).toHaveValue("17:30");
+    expect(end).toHaveAttribute("aria-describedby", "sunday-closed-guidance");
+    expect(
+      screen.getByText("日曜は休診日のため、この終了時間は適用されません"),
+    ).toBeInTheDocument();
+    fireEvent.invalid(end);
+    expect(end.getAttribute("aria-describedby")).toContain("closing-sunday-end-error");
+    fireEvent.change(end, { target: { value: "17:30" } });
+    await act(async () => end.closest("form")?.requestSubmit());
+    await waitFor(() =>
+      expect(mockUpdateClosingSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ closing_sunday_end: "17:30", closed_weekdays: [0] }),
+      ),
+    );
+    fireEvent.click(sunday);
+    expect(screen.queryByRole("cell", { name: "休診" })).not.toBeInTheDocument();
+    expect(screen.getByText("12:00:00～17:29:59")).toBeInTheDocument();
+    expect(end).toHaveValue("17:30");
+    fireEvent.click(sunday);
+    expect(screen.getAllByRole("cell", { name: "休診" })).toHaveLength(3);
   });
 
   it("休診曜日checkboxのfocusable targetを44px以上に保つ", () => {

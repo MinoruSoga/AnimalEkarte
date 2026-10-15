@@ -44,6 +44,9 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
     toTimeInputValue(settings.closing_weekday_end),
   );
   const [sundayEnd, setSundayEnd] = useState(() => toTimeInputValue(settings.closing_sunday_end));
+  const [closedDays, setClosedDays] = useState<ReadonlySet<number>>(
+    () => new Set(settings.closed_weekdays ?? []),
+  );
   // EMR-319: ネイティブ required のブラウザバブルの代わりにアプリ側の赤枠+エラー文を表示する。
   const [invalidFields, setInvalidFields] = useState<ReadonlySet<string>>(new Set());
   const canEditRef = useRef(canEdit);
@@ -203,10 +206,20 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                 required
                 aria-invalid={invalidFields.has("closing_sunday_end") || undefined}
                 aria-describedby={
-                  invalidFields.has("closing_sunday_end") ? "closing-sunday-end-error" : undefined
+                  [
+                    invalidFields.has("closing_sunday_end") ? "closing-sunday-end-error" : "",
+                    closedDays.has(0) ? "sunday-closed-guidance" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
                 }
                 onInvalid={markInvalid}
               />
+              {closedDays.has(0) ? (
+                <p id="sunday-closed-guidance" className={`mt-1 text-sm ${C.text65}`}>
+                  日曜は休診日のため、この終了時間は適用されません
+                </p>
+              ) : null}
               <FormFieldError
                 id="closing-sunday-end-error"
                 message={
@@ -248,7 +261,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                       {formatRangeText(weekdayRanges[row.key])}
                     </TableCell>
                     <TableCell className={`tabular-nums whitespace-nowrap ${C.text}`}>
-                      {formatRangeText(sundayRanges[row.key])}
+                      {closedDays.has(0) ? "休診" : formatRangeText(sundayRanges[row.key])}
                     </TableCell>
                   </tr>
                 ))}
@@ -273,7 +286,15 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
                   <input
                     type="checkbox"
                     name={`closed_weekday_${day}`}
-                    defaultChecked={(settings.closed_weekdays ?? []).includes(day)}
+                    checked={closedDays.has(day)}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setClosedDays((previous) =>
+                        checked
+                          ? new Set([...previous, day])
+                          : new Set([...previous].filter((value) => value !== day)),
+                      );
+                    }}
                     className="peer absolute inset-0 size-full cursor-pointer opacity-0"
                   />
                   <span

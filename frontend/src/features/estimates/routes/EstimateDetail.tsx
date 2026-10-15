@@ -1,4 +1,4 @@
-import { ICON, C } from "@/lib/design-tokens";
+import { LAYOUT } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { useBackNavigation } from "@/hooks/use-back-navigation";
@@ -6,7 +6,7 @@ import { LoadingFallback, EmptyState } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
 import { resolveEntityReadResult } from "@/lib/entity-read-result";
 import { useNavigate, useParams } from "react-router";
-import { FileText } from "lucide-react";
+
 import { useState, useCallback, useActionState, useTransition, type ReactNode } from "react";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -37,9 +37,8 @@ function EstimateDetailStatusPage({ onBack, children }: EstimateDetailStatusPage
     <PageLayout
       title="見積書"
       resource={ResourceEstimates}
-      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       onBack={onBack}
-      maxWidth="max-w-4xl"
+      maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
     >
       {children}
     </PageLayout>
@@ -185,7 +184,6 @@ export function EstimateDetail() {
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
       resource={ResourceEstimates}
-      icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         <EstimateDetailHeaderActions
           onBack={handleBack}
@@ -199,7 +197,7 @@ export function EstimateDetail() {
           successorBusy={successorBusy}
         />
       }
-      maxWidth="max-w-4xl"
+      maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
     >
       <EstimateDetailInfo estimate={estimate} isExpired={isExpired} />
 
@@ -207,7 +205,7 @@ export function EstimateDetail() {
         open={showDeleteDialog}
         onClose={() => setShowDeleteDialog(false)}
         onConfirm={handleDelete}
-        title="見積書を削除しますか?"
+        title="見積書を削除しますか？"
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"

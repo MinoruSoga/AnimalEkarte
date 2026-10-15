@@ -40,6 +40,24 @@ func TestToEstimateItemResponse(t *testing.T) {
 			wantTaxAmount: 200,
 		},
 		{
+			name: "fractional line rounds to match calculateEstimateTotals (PR665)",
+			item: &model.EstimateItem{
+				ID:                    4,
+				EstimateID:            10,
+				Name:                  "部分数量",
+				Category:              model.ItemCategoryOther,
+				UnitPrice:             105,
+				Quantity:              0.5,
+				TaxType:               model.TaxTypeExcluded,
+				TaxRate:               0.10,
+				IsInsuranceApplicable: false,
+				SortOrder:             0,
+				CreatedAt:             createdAt,
+			},
+			wantSubtotal:  53,
+			wantTaxAmount: 5,
+		},
+		{
 			name: "included tax computes tax amount from gross subtotal",
 			item: &model.EstimateItem{
 				ID:         2,

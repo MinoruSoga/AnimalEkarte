@@ -11,11 +11,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { C, ICON } from "@/lib/design-tokens";
-import { todayJSTISO } from "@/lib/jst-date";
+import { todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import { nextVisitIntentMaxDate, validateNextVisitIntentDate } from "./next-visit-intent-date";
 
 interface NextVisitResetDialogProps {
@@ -101,21 +101,22 @@ export function NextVisitResetDialog({
         </DialogHeader>
 
         <div className="space-y-2 px-1">
-          <Label htmlFor="next-visit-reset-date" className={`text-xs font-semibold ${C.text}`}>
+          <Label htmlFor="next-visit-reset-date" className={`font-semibold ${C.text}`}>
             予定日
           </Label>
-          <Input
+          <DatePicker
             id="next-visit-reset-date"
-            type="date"
+            ariaLabel="予定日"
             value={date}
-            min={todayJSTISO()}
-            max={nextVisitIntentMaxDate()}
-            onChange={(e) => {
-              setDate(e.target.value);
+            disabledDays={{
+              before: toJSTWallDate(new Date(`${todayJSTISO()}T00:00:00+09:00`)),
+              after: toJSTWallDate(new Date(`${nextVisitIntentMaxDate()}T00:00:00+09:00`)),
+            }}
+            onChange={(value) => {
+              setDate(value);
               setError(null);
             }}
             disabled={isPending}
-            className="h-11"
           />
           <FormFieldError message={error ?? undefined} />
         </div>

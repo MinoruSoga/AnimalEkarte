@@ -47,7 +47,10 @@ export function SidebarClinicHeader({
                   <ChevronDown className={`${ICON.xs} opacity-40 shrink-0`} />
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-[200px] p-1">
+              <PopoverContent
+                align="start"
+                className="w-max max-w-[calc(100vw-2rem)] overflow-x-auto p-1"
+              >
                 {user?.clinics.map((c) => {
                   const isCurrentClinic = c.clinicId === currentClinicId;
                   return (
@@ -57,7 +60,7 @@ export function SidebarClinicHeader({
                       onClick={() => onRequestSwitch(c.clinicId)}
                       aria-pressed={isCurrentClinic}
                       disabled={isCurrentClinic}
-                      className={`flex min-h-11 min-w-11 w-full items-center gap-2 rounded-xxs px-2.5 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 ${C.focusRingAccent40} ${
+                      className={`flex min-h-11 min-w-max w-full whitespace-nowrap items-center gap-2 rounded-xxs px-2.5 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 ${C.focusRingAccent40} ${
                         isCurrentClinic
                           ? `font-medium ${C.text} ${C.bgBrand10}`
                           : `${C.text65} ${C.hoverBgLight}`
@@ -125,20 +128,22 @@ export function SidebarUserFooter({
       {!collapsed ? (
         <>
           <div
-            className={`flex items-center gap-2 px-2 py-1 rounded-xxs ${C.hoverBgLight} transition-colors`}
+            className={`grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-2 px-2 py-1 rounded-xxs ${C.hoverBgLight} transition-colors`}
           >
             <div
-              className={`${ICON.avatar} rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}
+              className={`${ICON.avatar} row-start-1 col-start-1 rounded-full flex items-center justify-center shrink-0 ${C.bgHoverMd}`}
             >
               <User className={`${ICON.avatarGlyph} ${C.text50}`} />
             </div>
-            <p className={`flex-1 min-w-0 text-base ${C.text} truncate`}>{displayName}</p>
+            <p className={`col-start-2 col-span-3 min-w-0 text-base ${C.text} break-words`}>
+              {displayName}
+            </p>
             <button
               type="button"
               onClick={() => onChangePasswordOpenChange(true)}
               aria-label="パスワード変更"
               title="パスワード変更"
-              className={`${STYLE.iconBtn28} ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
+              className={`${STYLE.iconBtn28} row-start-2 col-start-3 ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
             >
               <KeyRound className={ICON.action} />
             </button>
@@ -147,7 +152,7 @@ export function SidebarUserFooter({
               onClick={onLogout}
               aria-label="ログアウト"
               title="ログアウト"
-              className={`${STYLE.iconBtn28} ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
+              className={`${STYLE.iconBtn28} row-start-2 col-start-4 ${C.text35} ${C.hoverText} ${C.hoverBgMedium} shrink-0`}
             >
               <LogOut className={ICON.action} />
             </button>

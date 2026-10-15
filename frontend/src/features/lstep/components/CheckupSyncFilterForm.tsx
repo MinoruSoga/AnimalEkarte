@@ -1,9 +1,11 @@
 import { useActionState } from "react";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
 import { C, STYLE } from "@/lib/design-tokens";
 import { getFormString } from "@/lib/form-data";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import type { CheckupSyncParams, CheckupType } from "../api/get-checkup-sync-preview";
 import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const CHECKUP_TYPE_OPTIONS: { value: CheckupType; label: string }[] = [
   { value: "annual", label: "定期健診" },
@@ -44,6 +46,13 @@ function parseOptionalInt(
 }
 
 export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilterFormProps) {
+  const {
+    activeSpecies,
+    isLoading: isSpeciesLoading,
+    isError: isSpeciesError,
+  } = useAnimalSpecies();
+  const speciesOptions = activeSpecies.filter((species) => species.is_active === true);
+  const speciesUnavailable = isSpeciesError || speciesOptions.length === 0;
   const [state, formAction] = useActionState(
     async (_prev: FilterFormState, formData: FormData): Promise<FilterFormState> => {
       const checkupType = getFormString(formData, "checkup_type");
@@ -55,8 +64,9 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
         checkup_type: checkupType as CheckupType,
       };
 
-      const species = getFormString(formData, "species");
-      if (species.trim()) params.species = species.trim();
+      // PR665: 貼り付けた前後空白を正規化し、空白のみは未指定として扱う。
+      const species = getFormString(formData, "species").trim();
+      if (species) params.species = species;
 
       const lastVisitBefore = getFormString(formData, "last_visit_before");
       if (lastVisitBefore) params.last_visit_before = lastVisitBefore;
@@ -122,9 +132,12 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {/* 検診種別 */}
         <div className="space-y-1.5">
-          <label htmlFor="checkup_type" className={STYLE.formLabel}>
+          <label
+            htmlFor="checkup_type"
+            className={`${STYLE.formLabel} inline-flex items-center gap-2`}
+          >
             検診種別
-            <span className={`ml-1 ${C.textRequired}`}>*</span>
+            <RequiredMark />
           </label>
           <select
             id="checkup_type"
@@ -147,13 +160,45 @@ export function CheckupSyncFilterForm({ onSearch, isLoading }: CheckupSyncFilter
             <span className="whitespace-nowrap">動物種</span>
             <span className="whitespace-nowrap">（任意）</span>
           </label>
-          <input
-            id="species"
-            type="text"
-            name="species"
-            placeholder="例: dog, cat"
-            className={`w-full ${STYLE.formInput} border rounded-xs px-3 ${C.textPlaceholder}`}
-          />
+          {isSpeciesLoading ? (
+            <select
+              id="species"
+              name="species"
+              disabled
+              className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
+            >
+              <option value="">指定しない</option>
+            </select>
+          ) : speciesUnavailable ? (
+            <>
+              {/* PR665: マスタ権限がない owners:view ユーザーでも preview を使えるよう、
+                  権限拒否・エラー・空マスタ時は自由入力へフォールバックする（サーバ権限は広げない）。 */}
+              <input
+                id="species"
+                name="species"
+                type="text"
+                placeholder="動物種を直接入力（任意）"
+                aria-describedby="species-lookup-guidance"
+                className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
+              />
+              <p id="species-lookup-guidance" className={`text-sm ${C.text65}`}>
+                動物種マスタを取得できないため、直接入力できます
+              </p>
+            </>
+          ) : (
+            <select
+              id="species"
+              name="species"
+              className={`w-full ${STYLE.formInput} border rounded-xs px-3`}
+            >
+              <option value="">指定しない</option>
+              {speciesOptions.map((species) => (
+                <option key={species.id} value={species.name}>
+                  {species.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* 最終来院日 from */}

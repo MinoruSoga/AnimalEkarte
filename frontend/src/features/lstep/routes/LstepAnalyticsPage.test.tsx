@@ -328,14 +328,15 @@ describe("LstepAnalyticsPage — D: CSV インポート履歴", () => {
 // ─────────────────────────────────────────────────────────────
 
 describe("LstepAnalyticsPage — E: CSV アップロード", () => {
-  it("ファイルなしで送信すると「CSVファイルを選択してください」エラーが表示される", async () => {
+  it("ファイルなしでは送信ボタンが無効でアップロードしない", async () => {
     await renderAndWait();
+    const postSpy = vi.spyOn(axios, "post");
     const user = userEvent.setup();
     const submitBtn = screen.getByRole("button", { name: "アップロード" });
+    expect(submitBtn).toBeDisabled();
     await user.click(submitBtn);
-    await waitFor(() => {
-      expect(screen.getByText("CSVファイルを選択してください")).toBeInTheDocument();
-    });
+    expect(postSpy).not.toHaveBeenCalled();
+    postSpy.mockRestore();
   });
 
   it("アップロード成功時に「アップロードが完了しました」が表示される", async () => {

@@ -37,15 +37,15 @@ describe("LineReservationSettingsFormSections responsive layout", () => {
   it("特定定休日はmobileで縦積み・入力全幅、sm以上で横並びに戻る", () => {
     render(<ClosedDatesEditor value={["2026-07-21"]} onChange={vi.fn()} />);
 
-    const input = screen.getByDisplayValue("2026-07-21");
-    expect(input.parentElement).toHaveClass(
+    const input = screen.getByRole("textbox", { name: "特定定休日 1" });
+    expect(input.parentElement?.parentElement?.parentElement).toHaveClass(
       "flex-col",
       "items-stretch",
       "sm:flex-row",
       "sm:items-center",
     );
-    expect(input).toHaveClass("w-full", "sm:max-w-[160px]");
-    expect(input).not.toHaveClass("max-w-[160px]");
+    expect(input.parentElement?.parentElement).toHaveClass("w-full", "sm:max-w-[160px]");
+    expect(input.parentElement?.parentElement).not.toHaveClass("max-w-[160px]");
     expect(screen.getByRole("button", { name: "削除" })).toHaveClass("w-full", "sm:w-auto");
   });
 

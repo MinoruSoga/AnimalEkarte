@@ -57,3 +57,11 @@ flowchart TB
 | DELETE | `/api/v1/inventory/:id` | 在庫品目の論理削除（バックエンドには実装済みだが、`InventoryList`/`InventoryForm` に削除UIは未実装のため現状フロントエンドから未呼出） | `inventory` | `delete` |
 
 ---
+
+## カルテ訂正からの影響確認
+
+[カルテ追加合意](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-correction-owner-impact)では、訂正だけで在庫を自動増減せず、影響を表示して在庫側の訂正操作へ案内する。元記録／項目・訂正履歴・関連在庫ID／現在版を照合し、案内や臨床訂正成功を在庫変更成功とみなさない。増減・実績取消・返却等の具体的ルールはD13で詰め、今回カルテ文書だけで新しい増減や権限を認めない。対応不明は影響なしへ置換せずowner確認へ残す。
+
+### 通常治療createの副作用との分離
+
+[全writer参加表](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)で、現通常治療createはinventory ID指定時に在庫減算することを静的確認した。患者転記／過去入力／カルテ訂正の保存をこの入口へ無条件流用しない。[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)は歴史的記録と新しい在庫実績を分離し、影響表示・関連inventory ID／現在版・元訂正ref・理由を在庫ownerへ渡す。実増減・返却・取消の内部ルールとreceiptはD13で確認し、今回新しい増減を確定しない。

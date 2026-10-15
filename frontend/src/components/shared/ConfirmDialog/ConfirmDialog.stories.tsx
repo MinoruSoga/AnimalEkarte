@@ -20,9 +20,9 @@ type Story = StoryObj<typeof ConfirmDialog>;
 export const Default: Story = {};
 
 export const Destructive: Story = {
-  args: { variant: "destructive", confirmLabel: "削除する" },
+  args: { variant: "destructive", confirmLabel: "削除" },
 };
 
 export const Pending: Story = {
-  args: { isPending: true, confirmLabel: "削除する" },
+  args: { isPending: true, confirmLabel: "削除" },
 };

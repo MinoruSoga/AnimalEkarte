@@ -8,6 +8,7 @@ import { canAddColumnEntryOnDate, receptionColumnAddKind } from "../routes/recep
 
 interface UseReceptionColumnViewArgs {
   filteredColumns: ColumnData[];
+  /** 通常予約・当日 walk-in 受付ともに reservations:create のみ要求する（PR669）。 */
   canCreateReservation: boolean;
   canEditReservation: boolean;
   advanceStatus: (appointment: ReceptionAppointment) => void;
@@ -53,6 +54,8 @@ export function useReceptionColumnView({
   // EMR-243: 非本日表示では予約作成クエリへ選択日を付与し、戻り先にも ?date= を保持する。
   const goToNewReservation = useCallback(
     (query: string) => {
+      // PR669: walk-in (reception=1) も通常予約も reservations:create のみ要求する。
+      if (canCreateReservation !== true) return;
       const datedQuery = isToday ? query : `${query}&date=${selectedDate}`;
       navigate(`${paths.reservations.getHref()}?${datedQuery}`, {
         state: {
@@ -60,7 +63,7 @@ export function useReceptionColumnView({
         },
       });
     },
-    [navigate, isToday, selectedDate],
+    [navigate, isToday, selectedDate, canCreateReservation],
   );
 
   // 受付予約ボード → 通常の新規予約（confirmed → 受付予約カラム）。
@@ -75,14 +78,15 @@ export function useReceptionColumnView({
 
   const addClickHandlers = useMemo(() => {
     const handlers = new Map<string, (() => void) | undefined>();
-    // BUG-132: create 権限がない場合は「新規追加」ボタンを非表示
-    if (canCreateReservation !== true) return handlers;
     for (const column of filteredColumns) {
+      if (!canAddColumnEntryOnDate(column.title, isToday)) {
+        handlers.set(column.title, undefined);
+        continue;
+      }
+      // PR669: walk-in 列も受付予約列も reservations:create のみで「＋」を出す。
       handlers.set(
         column.title,
-        canAddColumnEntryOnDate(column.title, isToday)
-          ? () => handleAddClick(column.title)
-          : undefined,
+        canCreateReservation === true ? () => handleAddClick(column.title) : undefined,
       );
     }
     return handlers;

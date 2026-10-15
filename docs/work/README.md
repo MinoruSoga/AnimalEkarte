@@ -123,3 +123,13 @@ flowchart TB
 - 秘密 · 臨床数値の発明
 - root への作業台帳フル再構築
 - UAT ランナー・スクショ・agent loop の git 追跡
+
+### 予約仕様整理の分離資料
+
+- [予約の旧資料](archive/reservations/README.md)：置換済みの対話・レビュー記録。現行仕様の正本ではない。
+- [予約の未承認／設計事項](design/reservations/README.md)：設計・調査・移行・未実施受入と未承認案。
+- [確定仕様の入口](../spec/domains/reservations/README.md#approved-reservation-scope)：業務ルール本文をwork/へ複製しない。
+
+## 今後の技術設計との分担
+
+今後の技術設計は[design/](../design/README.md)、確定業務仕様は[spec/](../spec/README.md)、具体的作業・依存関係・進捗はPlane。本workは実施した調査・変更・検証の記録を保持する。既存のdesign・spec-kit等に計画／提案が混在する実態は維持し、今回一括移動しない。予約の新しい技術仕様は[design/domains/reservations](../design/domains/reservations/README.md)を参照し、旧資料を第二正本にしない。

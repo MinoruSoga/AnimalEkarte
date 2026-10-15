@@ -26,13 +26,15 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
   id,
   value,
   onChange,
-  placeholder = "無題",
+  placeholder = "名称を入力",
   autoFocus = true,
   onSave,
   error,
   maxLength = 255,
   description,
 }: SidePeekTitleInputProps) {
+  const errorId = id ? `${id}-error` : undefined;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       if (onSave) {
@@ -66,10 +68,12 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
           autoFocus={autoFocus}
           maxLength={maxLength}
           aria-invalid={!!error}
+          aria-required="true"
+          aria-describedby={error ? errorId : undefined}
         />
         {description ? <FieldHelp label={placeholder} content={description} /> : null}
       </div>
-      {error ? <FormFieldError message={error} /> : null}
+      {error ? <FormFieldError id={errorId} message={error} /> : null}
     </div>
   );
 });

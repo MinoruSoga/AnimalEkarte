@@ -44,6 +44,7 @@ import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import type { AccountingItem, AddAccountingItemInput, ItemCategory } from "../types";
 
 import { AccountingItemRow } from "./AccountingItemRow";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
   { value: "all", label: "すべて" },
@@ -370,8 +371,8 @@ export const ItemListCard = memo(function ItemListCard({
               ) : (
                 <div className="flex flex-col gap-4 py-4">
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-name" className="text-sm">
-                      品目名 <span className={C.textRequired}>*</span>
+                    <Label htmlFor="manual-name">
+                      品目名 <RequiredMark />
                     </Label>
                     <Input
                       id="manual-name"
@@ -388,8 +389,8 @@ export const ItemListCard = memo(function ItemListCard({
                     <FormFieldError id="manual-name-error" message={manualNameError} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-category" className="text-sm">
-                      カテゴリ <span className={C.textRequired}>*</span>
+                    <Label htmlFor="manual-category">
+                      カテゴリ <RequiredMark />
                     </Label>
                     <Select value={manualCategory} onValueChange={handleManualCategoryChange}>
                       <SelectTrigger
@@ -406,8 +407,8 @@ export const ItemListCard = memo(function ItemListCard({
                   </div>
                   {manualCategory === "other" ? (
                     <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="manual-other-reason" className="text-sm">
-                        その他理由 <span className={C.textRequired}>*</span>
+                      <Label htmlFor="manual-other-reason">
+                        その他理由 <RequiredMark />
                       </Label>
                       <Input
                         id="manual-other-reason"
@@ -430,8 +431,9 @@ export const ItemListCard = memo(function ItemListCard({
                     </div>
                   ) : null}
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="manual-price" className="text-sm">
-                      単価（円）<span className={C.textRequired}>*</span>
+                    <Label htmlFor="manual-price">
+                      単価（円）
+                      <RequiredMark />
                     </Label>
                     <Input
                       id="manual-price"
@@ -458,7 +460,15 @@ export const ItemListCard = memo(function ItemListCard({
           </Dialog>
         ) : null}
       </CardHeader>
-      <CardContent className="p-0 overflow-auto flex-1">
+      <p className={`px-4 py-2 text-sm ${C.text65}`}>
+        横にスクロールしてすべての項目を確認できます
+      </p>
+      <CardContent
+        role="region"
+        aria-label="会計明細"
+        tabIndex={0}
+        className="p-0 overflow-auto flex-1 [&>div]:overflow-visible"
+      >
         <Table>
           <TableHeader className={`sticky top-0 ${C.bgPage} z-10 shadow-level1`}>
             <TableRow>
@@ -471,8 +481,12 @@ export const ItemListCard = memo(function ItemListCard({
               <TableHead className="text-center w-[150px] whitespace-nowrap">税率</TableHead>
               <TableHead className="text-right w-[90px] whitespace-nowrap">税額</TableHead>
               <TableHead className="text-center w-[70px] whitespace-nowrap">保険</TableHead>
-              <TableHead className="text-right w-[130px] whitespace-nowrap">金額</TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead
+                className={`sticky right-[80px] z-20 ${C.bgWhite} text-right min-w-[130px] w-[130px] whitespace-nowrap`}
+              >
+                金額
+              </TableHead>
+              <TableHead className={`sticky right-0 z-20 ${C.bgWhite} w-[80px]`} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -495,9 +509,9 @@ export const ItemListCard = memo(function ItemListCard({
           </TableBody>
         </Table>
       </CardContent>
-      <div className={`p-4 ${C.bgPage} border-t flex justify-end gap-6 text-sm`}>
-        <span>税抜小計: {formatCurrency(subtotal)}</span>
-        <span>消費税: {formatCurrency(taxTotal)}</span>
+      <div className={`p-4 ${C.bgPage} border-t flex flex-wrap justify-end gap-6 text-sm`}>
+        <span>小計（明細合計）: {formatCurrency(subtotal)}</span>
+        <span>消費税（内税分を含む）: {formatCurrency(taxTotal)}</span>
         <span className="font-semibold text-xl">合計: {formatCurrency(totalAmount)}</span>
       </div>
     </Card>

@@ -24,7 +24,7 @@ export class TrimmingPage extends BasePage {
   }
 
   newButton(): Locator {
-    return this.page.getByRole("button", { name: "新規登録" });
+    return this.page.getByRole("button", { name: "新規トリミング登録" });
   }
 
   irisText(): Locator {

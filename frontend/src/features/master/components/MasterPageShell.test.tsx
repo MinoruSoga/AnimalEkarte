@@ -23,12 +23,7 @@ describe("MasterPageShell maxWidth forwarding (EMR-333)", () => {
   it("maxWidth 未指定時はデフォルトで max-w-full を PageLayout に渡す", () => {
     pageLayoutPropsSpy.mockClear();
     render(
-      <MasterPageShell
-        title="テストマスタ"
-        icon={<span aria-hidden="true" />}
-        onNew={vi.fn()}
-        sidePanel={null}
-      >
+      <MasterPageShell title="テストマスタ" onNew={vi.fn()} sidePanel={null}>
         <div>コンテンツ</div>
       </MasterPageShell>,
     );
@@ -43,13 +38,7 @@ describe("MasterPageShell maxWidth forwarding (EMR-333)", () => {
   it("maxWidth 指定時はその値が PageLayout に渡される", () => {
     pageLayoutPropsSpy.mockClear();
     render(
-      <MasterPageShell
-        title="テストマスタ"
-        icon={<span aria-hidden="true" />}
-        onNew={vi.fn()}
-        sidePanel={null}
-        maxWidth="max-w-5xl"
-      >
+      <MasterPageShell title="テストマスタ" onNew={vi.fn()} sidePanel={null} maxWidth="max-w-5xl">
         <div>コンテンツ</div>
       </MasterPageShell>,
     );

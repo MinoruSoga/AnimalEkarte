@@ -18,6 +18,7 @@ import { toJSTWallDate } from "@/lib/jst-date";
 import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationCard } from "./VaccinationCard";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 
 interface VaccineOption {
   value: string;
@@ -83,7 +84,8 @@ export function VaccinationFieldsPanel({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="vaccination-date">
-              接種日<span className={`${C.textRequired} ml-1`}>*</span>
+              接種日
+              <RequiredMark />
             </Label>
             <DatePicker
               id="vaccination-date"
@@ -101,7 +103,8 @@ export function VaccinationFieldsPanel({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="vaccine-select">
-                ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
+                ワクチン
+                <RequiredMark />
               </Label>
               <MasterLink category="vaccine" label="編集" className="text-2xs" />
             </div>
@@ -143,18 +146,20 @@ export function VaccinationFieldsPanel({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="vaccination-supplemental">補助説明</Label>
-          <Input
-            id="vaccination-supplemental"
-            value={supplemental}
-            onChange={(event) => {
-              onMarkDirty();
-              onSupplementalChange(event.target.value);
-            }}
-            placeholder="補助説明を入力"
-          />
-        </div>
+        {/^\s*src:YOBO(?:\s|\/|$)/.test(supplemental) ? null : (
+          <div className="space-y-2">
+            <Label htmlFor="vaccination-supplemental">補助説明</Label>
+            <Input
+              id="vaccination-supplemental"
+              value={supplemental}
+              onChange={(event) => {
+                onMarkDirty();
+                onSupplementalChange(event.target.value);
+              }}
+              placeholder="補助説明を入力"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>LOT番号</Label>
@@ -236,7 +241,7 @@ interface LotInputProps {
 function LotInput({ id, label, value, onChange, onMarkDirty }: LotInputProps) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={id} className={`text-xs ${C.text60}`}>
+      <Label htmlFor={id} className={`${C.text60}`}>
         {label}
       </Label>
       <Input

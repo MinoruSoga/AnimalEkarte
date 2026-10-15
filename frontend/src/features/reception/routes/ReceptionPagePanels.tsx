@@ -134,6 +134,7 @@ export function ReceptionPageBody({
               <Filter className={ICON.sm} />
               フィルター
             </Button>
+            {/* PR669: 新規予約登録は reservations:create のみで表示する（walk-in も同権限）。 */}
             {canCreateReservation === true ? (
               <PrimaryButton onClick={onNewReception}>新規予約登録</PrimaryButton>
             ) : null}
@@ -165,7 +166,7 @@ export function ReceptionPageBody({
         <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={onDragEnd}>
           {/* タブレット: 2-3列グリッド、デスクトップ: 5列flex */}
           <div
-            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex gap-4 h-full w-full overflow-y-auto relative lg:overflow-x-auto lg:overflow-y-hidden pb-20 lg:pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}
+            className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 h-full w-full overflow-y-auto relative pb-20 lg:pb-2 bg-transparent transition-opacity${isUpdatingStatus ? " opacity-70 pointer-events-none" : ""}`}
           >
             {columnElements}
           </div>

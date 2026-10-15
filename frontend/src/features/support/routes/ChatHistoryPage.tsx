@@ -12,12 +12,11 @@ import { useState } from "react";
 import { Link } from "react-router";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MessagesSquare } from "lucide-react";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { EmptyState, ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { formatJSTDate, formatJSTTime } from "@/lib/jst-date";
 
 import { useGetSupportChatRooms } from "../api/get-support-chat-rooms";
@@ -113,7 +112,6 @@ export function ChatHistoryPage() {
     <PageLayout
       title="チャット履歴"
       description="ヘルプチャットの会話履歴です（全医院・全スタッフに公開。同一スタッフの連続した発言を会話単位にまとめて表示します）"
-      icon={<MessagesSquare className={`${ICON.page} ${C.text}`} />}
       maxWidth="max-w-6xl"
     >
       {isLoading ? (

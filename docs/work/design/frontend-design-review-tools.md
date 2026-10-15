@@ -69,6 +69,8 @@ Codexの `skill-installer` のPythonヘルパーで、確認したコミット�
 | `improve-ui` | `~/.codex/skills/improve-ui/` | [`f2264c30213a8a55bd0a6a7668d0438e4564e090`](https://github.com/ibelick/ui-skills/commit/f2264c30213a8a55bd0a6a7668d0438e4564e090) |
 | `visual-qa` | `~/.codex/skills/visual-qa/` | [`b97a48f8f7bc0b5cef09f219cd79217190d6817e`](https://github.com/dylanfeltus/skills/commit/b97a48f8f7bc0b5cef09f219cd79217190d6817e) |
 
+2026-10-14、Claude Code用に `~/.claude/skills/improve-ui` と `~/.claude/skills/visual-qa` から上記の導入済みディレクトリへの参照リンクを追加した。スキル本体と参照ファイルの到達性を確認済み。Claudeでの実行確認は未実施。Claude Codeでは `/improve-ui` / `/visual-qa` を使い、新しいセッションの `/skills` で読み込みを確認する。
+
 Codexでは次のターンから利用する。呼び出し例:
 
 ```text

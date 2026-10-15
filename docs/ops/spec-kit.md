@@ -33,3 +33,7 @@ Git拡張・任意の第三者拡張・新規認証・権限設定変更は導�
 - [公式カスタマイズ](https://github.github.io/spec-kit/guides/customization.html)
 
 公式既存プロジェクト手順のforce/commit/stash/branch例は、今回のユーザー指定に合わせて使用せず、隔離生成・衝突検査・新規ファイルのみの持込みに置き換えた。
+
+## 技術設計の新しい配置方針（設定未追従）
+
+予約の技術仕様は[docs/design/domains/reservations/](../design/domains/reservations/README.md)へ、具体的作業・依存関係・進捗はPlaneへ置く。tasks.md・docs/planを作らない。上記docs/work/spec-kitの開始例は導入時の設定を保持したもので、新しい配置方針へ未追従。preset原本・生成skills・出力先は今回変更していない。root allowlistのdesign追加だけは、後続の個別承認（Sentinel_34b62bb163b881919e6f2a9fd05edfc3）で対応済み。coreのspec.md／plan.md固定参照と今回のtechnical-spec.mdとの対応を、将来の許可された運用変更で整える必要がある。業務spec本文や第二技術正本を複製せず、全workflowによる実装開始を今回の文書作成許可へ含めない。

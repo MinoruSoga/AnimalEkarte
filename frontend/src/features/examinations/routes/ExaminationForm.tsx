@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo } from "react";
+import { Trash2 } from "lucide-react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
+import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { LoadingFallback, EmptyState } from "@/components/shared/DataStates";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { parseInternalPath } from "@/lib/internal-navigation";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { useGetMasterItems } from "@/hooks/use-master-items";
 import { useGetStaffs } from "@/hooks/use-staffs";
 import { paths } from "@/config/paths";
@@ -28,6 +30,7 @@ import { buildExaminationPrintModel } from "../lib/examination-print-model";
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const EXAMINATION_PRIORITY_FIELDS = ["testTypeId", "doctorId"] as const;
+const EXAMINATION_FORM_ID = "examination-form";
 
 export function ExaminationForm() {
   const { id } = useParams();
@@ -154,6 +157,8 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
   const selectedPet = selectedPets[0];
   const isConfirmed = isPersistedConfirmed;
   const isCompletedLocked = isPersistedCompletedLocked;
+  const showFormActions = !(isCompletedLocked && formData.status === "完了");
+  const showCompletedOnly = isCompletedLocked && formData.status === "完了";
   const isResultsLocked = isPersistedResultsLocked;
 
   // 現在のペットID（履歴フィルタ用）
@@ -264,11 +269,46 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
 
   return (
     <PageLayout
-      title={isEdit ? "検査詳細・編集" : "新規検査登録"}
+      title={
+        isEdit
+          ? canSubmit && !isConfirmed && showFormActions
+            ? "検査編集"
+            : "検査詳細"
+          : "検査登録"
+      }
       resource={ResourceExaminations}
       onBack={handleBack}
       maxWidth={LAYOUT.pageContentMaxWidth.formMid}
       align="left"
+      headerAction={
+        <FormHeaderActions
+          onCancel={handleBack}
+          cancelLabel={showCompletedOnly ? "戻る" : "キャンセル"}
+          submitLabel={
+            showFormActions && canSubmit && !isConfirmed
+              ? isSaving
+                ? "保存中..."
+                : "保存"
+              : undefined
+          }
+          submitDisabled={isSaving}
+          submitFormId={EXAMINATION_FORM_ID}
+          extra={
+            showFormActions && canDelete && isEdit && !isCompletedLocked && !isConfirmed ? (
+              <Button
+                variant="ghost"
+                type="button"
+                className={`${STYLE.btnDangerGhost} px-4 h-10`}
+                onClick={handleDeleteClick}
+                disabled={isDeleting || isPetDeceased}
+              >
+                <Trash2 className={`mr-1.5 ${ICON.action}`} />
+                {isDeleting ? "削除中..." : "削除"}
+              </Button>
+            ) : null
+          }
+        />
+      }
     >
       <NavigationBlocker when={isDirty ? !isSaving : false} />
       <div className="flex flex-col gap-4">
@@ -289,7 +329,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
         {/* 2カラムレイアウト: 左 3/5（フォーム）・右 2/5（履歴） */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
           {/* 左カラム: フォームフィールド + 検査項目テーブル */}
-          <form action={formAction} className="min-w-0 lg:col-span-3">
+          <form id={EXAMINATION_FORM_ID} action={formAction} className="min-w-0 lg:col-span-3">
             <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
               <div className="space-y-4">
                 <ExaminationFormFields
@@ -297,18 +337,10 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                   examTypes={examTypes}
                   staffList={staffList}
                   masterLoading={masterLoading}
-                  isEdit={isEdit}
-                  isDeleting={isDeleting}
                   isConfirmed={isConfirmed}
                   isCompletedLocked={isCompletedLocked}
-                  isPetDeceased={isPetDeceased}
-                  canEdit={canEdit}
-                  canCreate={canCreate}
-                  canDelete={canDelete}
                   fieldErrors={fieldErrors}
                   onSetFormData={handleSetFormData}
-                  onBack={handleBack}
-                  onDeleteClick={handleDeleteClick}
                 />
 
                 <div className="space-y-2">
@@ -362,7 +394,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
         onConfirm={handleDeleteConfirm}
         title="検査記録を削除しますか？"
         description="この操作は取り消せません。"
-        confirmLabel="削除する"
+        confirmLabel="削除"
         cancelLabel="キャンセル"
         variant="destructive"
       />

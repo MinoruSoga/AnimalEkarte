@@ -33,8 +33,6 @@ interface SidePanelRenderProps<T, TForm = Record<string, unknown>> {
 interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unknown>> {
   /** Page title (e.g. "役職マスタ") */
   title: string;
-  /** Page icon element */
-  icon: ReactNode;
   /** 権限バッジ表示用リソース */
   resource?: Resource;
   /** Entity label for delete dialog (e.g. "役職") */
@@ -74,6 +72,7 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
 
   /** PageLayout の maxWidth を明示指定（未指定時は columns.length <= 5 のとき tableNarrow(max-w-5xl)、それ以外は full(max-w-full)） */
   maxWidth?: string;
+  isLoading?: boolean;
 }
 
 // ─────────────────────────────────────────────────
@@ -85,7 +84,6 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
   TForm = Record<string, unknown>,
 >({
   title,
-  icon,
   entityLabel,
   searchPlaceholder,
   emptyMessage,
@@ -101,6 +99,7 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
   sortProperties,
   resource,
   maxWidth,
+  isLoading = false,
 }: MasterCRUDPageProps<T, TForm>) {
   // BUG-158: action-specific 権限で保存・削除ボタンの表示を制御
   // FE6-2: resource は任意。フック呼び出し順序維持のための sentinel（"" は未定義扱い）。
@@ -119,13 +118,12 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<
   return (
     <MasterListPage
       title={title}
-      icon={icon}
       resource={resource}
       maxWidth={effectiveMaxWidth}
       searchTerm={crud.searchTerm}
       onSearchChange={crud.setSearchTerm}
       searchPlaceholder={searchPlaceholder}
-      count={crud.filteredItems.length}
+      count={isLoading ? undefined : crud.filteredItems.length}
       onNew={crud.handleNew}
       filterProperties={filterProperties}
       activeFilters={crud.activeFilters}

@@ -1,41 +1,74 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { Estimate } from "../types";
 import { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS } from "../constants/estimate-status-options";
 import { EstimateForm } from "./EstimateForm";
 
-const { mockEstimate, mockGetState, mockNavigate, mockToast, mockFormState, mockPetQuery } =
-  vi.hoisted(() => ({
-    mockEstimate: { current: null as Estimate | null },
-    mockGetState: {
-      current: {
-        isLoading: false,
-        isError: false,
-        error: null as unknown,
-        refetch: vi.fn(),
-      },
+const {
+  mockEstimate,
+  mockGetState,
+  mockNavigate,
+  mockHandleChange,
+  mockToast,
+  mockFormState,
+  mockPetQuery,
+  mockAmounts,
+  mockPermissions,
+} = vi.hoisted(() => ({
+  mockEstimate: { current: null as Estimate | null },
+  mockGetState: {
+    current: {
+      isLoading: false,
+      isError: false,
+      error: null as unknown,
+      refetch: vi.fn(),
     },
-    mockPetQuery: {
-      current: null as {
-        data: { status?: string; deceasedAt?: string | null } | null;
-        isPending: boolean;
-        isSuccess: boolean;
-        isError: boolean;
-      } | null,
+  },
+  mockPetQuery: {
+    current: null as {
+      data: { status?: string; deceasedAt?: string | null } | null;
+      isPending: boolean;
+      isSuccess: boolean;
+      isError: boolean;
+    } | null,
+  },
+  mockNavigate: vi.fn(),
+  mockHandleChange: vi.fn(),
+  mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+  mockFormState: {
+    current: {
+      success: false,
+      timestamp: 0,
+      fieldErrors: undefined as Record<string, string> | undefined,
     },
-    mockNavigate: vi.fn(),
-    mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
-    mockFormState: {
-      current: {
-        success: false,
-        timestamp: 0,
-        fieldErrors: undefined as Record<string, string> | undefined,
-      },
+  },
+  mockAmounts: {
+    current: { insuranceAmount: 0, discountAmount: 0 },
+  },
+  mockPermissions: {
+    current: {
+      canCreateEstimates: true,
+      canCreateDiscount: true,
+      canEditDiscount: true,
+      withItem: false,
     },
-  }));
+  },
+}));
+
+vi.mock("@/hooks/use-permission", () => ({
+  usePermission: (resource: string) => ({
+    canView: true,
+    canCreate:
+      resource === "discount"
+        ? mockPermissions.current.canCreateDiscount
+        : mockPermissions.current.canCreateEstimates,
+    canEdit: resource === "discount" ? mockPermissions.current.canEditDiscount : true,
+    canDelete: true,
+  }),
+}));
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
@@ -80,16 +113,46 @@ vi.mock("../hooks/use-estimate-form", () => ({
       status: mockEstimate.current?.status ?? "draft",
       ownerId: "",
       medicalRecordId: "",
-      subtotal: 0,
-      taxTotal: 0,
-      totalAmount: 0,
-      insuranceAmount: 0,
-      discountAmount: 0,
+      insuranceAmount: mockAmounts.current.insuranceAmount,
+      discountAmount: mockAmounts.current.discountAmount,
       validUntil: "",
       comment: "",
       notes: "",
+      items: mockPermissions.current.withItem
+        ? [
+            {
+              id: "1",
+              localId: "row-1",
+              name: "診察",
+              category: "other",
+              unitPrice: 1000,
+              quantity: 1,
+              taxType: "excluded",
+              taxRate: 0.1,
+              discountRate: 0,
+              discountAmount: 0,
+              isInsuranceApplicable: false,
+              sortOrder: 0,
+            },
+          ]
+        : [],
     },
-    handleChange: vi.fn(),
+    totals: { subtotal: 0, taxTotal: 0, totalAmount: 0 },
+    createEmptyItem: vi.fn(() => ({
+      id: "",
+      localId: "mock-new",
+      name: "",
+      category: "other",
+      unitPrice: 0,
+      quantity: 1,
+      taxType: "included",
+      taxRate: 0.1,
+      discountRate: 0,
+      discountAmount: 0,
+      isInsuranceApplicable: false,
+      sortOrder: 0,
+    })),
+    handleChange: mockHandleChange,
     formAction: vi.fn(),
     formState: mockFormState.current,
     handleCancel: vi.fn(),
@@ -110,6 +173,12 @@ function makeEstimate(status: Estimate["status"]): Estimate {
     id: "1",
     clinicId: "1",
     estimateNo: "EST-001",
+    medicalRecordId: null,
+    ownerId: null,
+    ownerName: undefined,
+    petId: null,
+    petName: undefined,
+    createdBy: null,
     title: "テスト見積書",
     status,
     subtotal: 1000,
@@ -185,7 +254,37 @@ describe("EstimateForm statusError aria-describedby", () => {
     vi.clearAllMocks();
     mockEstimate.current = null;
     mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+    mockAmounts.current = { insuranceAmount: 0, discountAmount: 0 };
+    mockPermissions.current = {
+      canCreateEstimates: true,
+      canCreateDiscount: true,
+      canEditDiscount: true,
+      withItem: false,
+    };
   });
+
+  it.each([
+    [false, true, false, true],
+    [false, false, true, false],
+    [true, false, true, true],
+    [true, true, false, false],
+  ])(
+    "割引のヘッダーと明細は保存モードの権限に一致する edit=%s create=%s editPermission=%s",
+    (edit, createPermission, editPermission, allowed) => {
+      mockPermissions.current.canCreateDiscount = createPermission;
+      mockPermissions.current.canEditDiscount = editPermission;
+      mockPermissions.current.withItem = true;
+      if (edit) {
+        mockEstimate.current = makeEstimate("draft");
+        renderEditForm();
+      } else {
+        renderCreateForm();
+      }
+      const header = screen.getByRole("spinbutton", { name: "割引額" });
+      expect(header).toHaveProperty("disabled", !allowed);
+      expect(screen.queryByRole("spinbutton", { name: "値引（円）" }) !== null).toBe(allowed);
+    },
+  );
 
   it("statusError があるとき SelectTrigger に aria-describedby=status-error を接続する", () => {
     mockFormState.current = {
@@ -203,6 +302,18 @@ describe("EstimateForm statusError aria-describedby", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "作成時は下書きまたは送付済みのみ選択できます",
     );
+  });
+
+  it("エラー表示前からタイトルだけを必須と通知し任意の有効期限・備考は必須にしない", () => {
+    renderCreateForm();
+
+    const title = screen.getByRole("textbox", { name: /タイトル/ });
+    expect(title).toHaveAttribute("aria-required", "true");
+    expect(title).not.toHaveAttribute("required");
+    expect(title).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByLabelText("有効期限")).not.toHaveAttribute("aria-required");
+    expect(screen.getByRole("textbox", { name: /備考/ })).not.toHaveAttribute("aria-required");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("statusError がないとき aria-describedby を付けない", () => {
@@ -279,11 +390,75 @@ describe("EstimateForm mobile-first layout", () => {
 
     const statusTrigger = screen.getByRole("combobox");
     const validUntilInput = screen.getByLabelText("有効期限");
-    const amountGrid = screen.getByLabelText("小計（税抜）").closest('[class*="grid-cols"]');
+    const amountGrid = screen.getByText("小計（明細合計）").closest('[class*="grid-cols"]');
 
     expect(statusTrigger).toHaveClass("w-full", "sm:w-[200px]");
     expect(validUntilInput.parentElement).toHaveClass("w-full", "sm:w-[220px]");
     expect(amountGrid).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+  });
+
+  it("ヘッダー金額サマリ: 小計/税/合計は読み取り専用、保険適用額と割引額のみ入力可 (PR665)", () => {
+    renderCreateForm();
+
+    expect(screen.getByText("小計（明細合計）")).toBeInTheDocument();
+    expect(screen.getByText("消費税（内税分を含む）")).toBeInTheDocument();
+    expect(screen.getByText("合計金額")).toBeInTheDocument();
+    // 導出金額は spinbutton を持たない
+    for (const label of ["小計（明細合計）", "消費税（内税分を含む）", "合計金額"]) {
+      expect(screen.queryByRole("spinbutton", { name: label })).not.toBeInTheDocument();
+    }
+    // 保険適用額・割引額のみ独立入力
+    expect(screen.getByRole("spinbutton", { name: "保険適用額" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "割引額" })).toBeInTheDocument();
+    expect(screen.getAllByRole("spinbutton")).toHaveLength(2);
+  });
+
+  it("PR665: 保険適用額・割引額の変更とクリアが form state へ流れる", () => {
+    renderCreateForm();
+
+    const insuranceInput = screen.getByRole("spinbutton", { name: "保険適用額" });
+    fireEvent.change(insuranceInput, { target: { value: "500" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("insuranceAmount", 500);
+    fireEvent.change(insuranceInput, { target: { value: "" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("insuranceAmount", 0);
+
+    const discountInput = screen.getByRole("spinbutton", { name: "割引額" });
+    fireEvent.change(discountInput, { target: { value: "200" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("discountAmount", 200);
+    fireEvent.change(discountInput, { target: { value: "" } });
+    expect(mockHandleChange).toHaveBeenCalledWith("discountAmount", 0);
+  });
+
+  it("PR665: discount:create 権限なしでは割引額は disabled で既存値を保持し、保険適用額は入力可", () => {
+    mockPermissions.current.canCreateDiscount = false;
+    mockAmounts.current.discountAmount = 300;
+    renderCreateForm();
+
+    expect(screen.getByRole("spinbutton", { name: "割引額" })).toBeDisabled();
+    expect((screen.getByRole("spinbutton", { name: "割引額" }) as HTMLInputElement).value).toBe(
+      "300",
+    );
+    expect(screen.getByRole("spinbutton", { name: "保険適用額" })).not.toBeDisabled();
+  });
+
+  it("明細行エディタを表示する（行追加アクションあり）", () => {
+    renderCreateForm();
+    expect(screen.getByRole("button", { name: "明細行を追加" })).toBeInTheDocument();
+  });
+
+  it("明細行を追加クリック → createEmptyItem の行が handleChange('items') で渡る", () => {
+    renderCreateForm();
+    fireEvent.click(screen.getByRole("button", { name: "明細行を追加" }));
+    expect(mockHandleChange).toHaveBeenCalledWith("items", [
+      expect.objectContaining({
+        localId: "mock-new",
+        name: "",
+        category: "other",
+        quantity: 1,
+        taxType: "included",
+        taxRate: 0.1,
+      }),
+    ]);
   });
 });
 
@@ -323,8 +498,7 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "作成" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("403 相当: 404 と同一の非開示メッセージ（見積書が見つかりません）", () => {
@@ -336,7 +510,7 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     };
     renderEditForm();
     expect(screen.getByText("見積書が見つかりません")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("network error: 取得失敗 + 再試行、blank form ではない", () => {
@@ -352,13 +526,13 @@ describe("EstimateForm BUG-019 not-found / network gate", () => {
     expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
     screen.getByRole("button", { name: "再試行" }).click();
     expect(refetch).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "更新" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
   });
 
   it("create route /estimates/new は従来どおり新規フォームを開く", () => {
     renderCreateForm();
-    expect(screen.getByText("新規見積書作成")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "作成" })).toBeInTheDocument();
+    expect(screen.getByText("見積書登録")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
   });
 
   it("正常 edit: draft 見積で編集フォームを開く", async () => {

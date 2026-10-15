@@ -6,7 +6,6 @@ import { ChevronLeft } from "lucide-react";
 interface FormHeaderProps {
   title: string;
   description?: string;
-  icon?: React.ReactNode;
   onBack?: () => void;
   action?: React.ReactNode;
 }
@@ -14,7 +13,6 @@ interface FormHeaderProps {
 export const FormHeader = memo(function FormHeader({
   title,
   description,
-  icon,
   onBack,
   action,
 }: FormHeaderProps) {
@@ -34,7 +32,6 @@ export const FormHeader = memo(function FormHeader({
           </Button>
         ) : null}
         <div className="flex min-w-0 items-center gap-2">
-          {icon ? <div className="shrink-0">{icon}</div> : null}
           <div className="flex min-w-0 flex-col">
             <h1 className={`text-xl font-semibold ${C.text} break-words`}>{title}</h1>
             {description ? (

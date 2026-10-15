@@ -61,6 +61,22 @@ describe("InventoryFormSections responsive layout", () => {
 });
 
 describe("StockInfoSection clinical state and form surface", () => {
+  it("pristine new stock does not warn until quantity or minimum is edited", async () => {
+    const user = userEvent.setup();
+    render(
+      <StockInfoSection
+        defaultQuantity={undefined}
+        defaultMinStockLevel={undefined}
+        defaultLocation={undefined}
+        resolvedExpiry=""
+        onExpiryChange={vi.fn()}
+        onMarkDirty={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("status", { name: "在庫状態" })).not.toBeInTheDocument();
+    await user.type(screen.getByRole("spinbutton", { name: /最低在庫数/ }), "2");
+    expect(screen.getByRole("status", { name: "在庫状態" })).toHaveTextContent("在庫切れ");
+  });
   it("現在庫が最低在庫以下なら非色依存の在庫不足表示を出す", () => {
     render(
       <StockInfoSection

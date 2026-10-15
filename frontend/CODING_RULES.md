@@ -73,6 +73,7 @@ src/
 │       ├── ConfirmDialog/                 # 確認ダイアログ
 │       ├── DateRangePicker/               # 日付範囲選択
 │       ├── DatePicker/                    # 日付ピッカー
+│       ├── NumberInput/                   # 数値入力
 │       ├── HistoryFilterPanel/            # 履歴フィルタUI
 │       ├── MasterSelectModal/             # マスタ選択モーダル
 │       ├── NavigationBlocker/             # 未保存変更時のナビゲーションブロック
@@ -89,6 +90,7 @@ src/
 │       ├── StatusBadge/                   # ステータスバッジ
 │       ├── StatusPill/                    # ステータスピル
 │       └── TreatmentSearchDialog/         # 処置検索ダイアログ
+
 │
 ├── hooks/                                 # 共有カスタムフック（全feature横断）
 │   ├── use-master-items.ts               # マスタデータ取得
@@ -150,6 +152,10 @@ src/
     ├── setup.ts
     └── server/                            # MSW handlers
 ```
+
+### DatePicker / NumberInput の使い分け
+
+業務フォームと設定フォームの日付・数値欄は共有 `DatePicker` / `NumberInput` を使う。検索・一覧フィルター、表の行内編集、時刻欄はネイティブ入力を許容する。価格・金額欄は共有 `MoneyInput` を使い、画面側で必要な `min` などの制約を明示する。
 
 ### 1.2 コードフローの方向（単方向依存）
 

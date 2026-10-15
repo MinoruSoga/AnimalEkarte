@@ -185,7 +185,11 @@ describe("useReceptionColumnView — 日付切替 (EMR-243)", () => {
   ];
 
   it("本日表示ではクエリをそのまま navigate し from は /", () => {
-    const { result } = renderColumnView({ columns: twoColumns, isToday: true });
+    const { result } = renderColumnView({
+      columns: twoColumns,
+      canCreateReservation: true,
+      isToday: true,
+    });
 
     result.current.goToNewReservation("reception=1");
 
@@ -194,9 +198,16 @@ describe("useReceptionColumnView — 日付切替 (EMR-243)", () => {
     });
   });
 
+  it("create denial guards direct navigation callbacks", () => {
+    const { result } = renderColumnView({ columns: twoColumns, canCreateReservation: false });
+    result.current.goToNewReservation("reception=1");
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
   it("非本日表示ではクエリに date を付与し from は /?date= を指す", () => {
     const { result } = renderColumnView({
       columns: twoColumns,
+      canCreateReservation: true,
       selectedDate: "2026-06-05",
       isToday: false,
     });
@@ -237,5 +248,38 @@ describe("useReceptionColumnView — 日付切替 (EMR-243)", () => {
     expect(navigateMock).toHaveBeenCalledWith("/reservations?newReservation=1&date=2026-06-05", {
       state: { from: "/?date=2026-06-05" },
     });
+  });
+
+  it("PR669: walk-in(受付済) の＋は reservations:create のみで出る（reception:create 不要）", () => {
+    // reception:create を持たないロールでも walk-in 導線を出す。
+    renderColumnView({
+      columns: twoColumns,
+      canCreateReservation: true,
+    });
+    expect(screen.getByRole("button", { name: "add-受付済" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "add-受付予約" })).toBeInTheDocument();
+  });
+
+  it("PR669: reception=1 の checked_in 「＋」は reservations:create で reception=1 を発行する", () => {
+    renderColumnView({
+      columns: twoColumns,
+      canCreateReservation: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "add-受付済" }));
+    expect(navigateMock).toHaveBeenCalledWith("/reservations?reception=1", {
+      state: { from: "/" },
+    });
+  });
+
+  it("PR669: reservations:create なしでは walk-in/通常予約ともボタンも遷移も出さない", () => {
+    const { result } = renderColumnView({
+      columns: twoColumns,
+      canCreateReservation: false,
+    });
+    expect(screen.queryByRole("button", { name: "add-受付済" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "add-受付予約" })).not.toBeInTheDocument();
+    result.current.goToNewReservation("reception=1");
+    result.current.goToNewReservation("newReservation=1");
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 });

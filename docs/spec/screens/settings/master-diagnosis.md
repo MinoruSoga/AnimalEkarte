@@ -1,5 +1,7 @@
 # 診断・傷病名マスタ 仕様書 (Diagnosis Management)
 
+2026-10-14、入力4項目合意の[診療master権限編集・無効化と当時内容保持](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-master-history-snapshots)が業務正本。対象masterの操作grant・医院scopeを保持し、無効項目を新規選択せず、既存記録に保存した名称・対象が持つ単位／価格は当時内容を保持する。旧実装説明だけでsnapshot保持済みと判断しない。
+
 ## 概要
 - **画面の目的**: 臨床現場で使用される標準的な診断名、および疾患カテゴリの体系的管理。
 - **URLパターン**: `/settings/diagnosis`

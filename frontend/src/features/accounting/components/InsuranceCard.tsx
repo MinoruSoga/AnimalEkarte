@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 
 interface InsuranceCardProps {
   useInsurance: boolean;
@@ -79,7 +80,7 @@ export const InsuranceCard = memo(function InsuranceCard({
       {useInsurance ? (
         <CardContent className="p-4 space-y-4">
           <div className="space-y-2">
-            <Label className="text-xs">負担割合（保険会社が支払う割合）</Label>
+            <Label>負担割合（保険会社が支払う割合）</Label>
             <Select value={insuranceRatio} onValueChange={onInsuranceRatioChange}>
               <SelectTrigger className="h-11" aria-label="負担割合">
                 <SelectValue />
@@ -92,7 +93,7 @@ export const InsuranceCard = memo(function InsuranceCard({
           >
             <span>保険負担額</span>
             {/* EMR-62: insuranceAmount は正の magnitude で保存・表示する */}
-            <span>{Math.abs(insuranceAmount).toLocaleString()} 円</span>
+            <span>{formatCurrency(Math.abs(insuranceAmount))}</span>
           </div>
           {showPreservedNote ? (
             <p className={`text-xs ${C.text60}`}>保険情報は既存の値が保持されます</p>
