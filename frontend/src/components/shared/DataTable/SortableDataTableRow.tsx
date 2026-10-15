@@ -64,7 +64,7 @@ export const SortableDataTableRow = memo(function SortableDataTableRow({
           {...listeners}
           aria-label={dragLabel}
           disabled={dragDisabled}
-          className={`flex min-h-11 min-w-11 touch-none items-center justify-center rounded-xs ${C.text20} ${C.hoverBgMedium} outline-none focus-visible:ring-2 ${C.focusRingAccent40} disabled:cursor-default disabled:opacity-30 ${dragDisabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
+          className={`flex min-h-11 min-w-11 touch-none items-center justify-center rounded-xs ${C.text60} ${C.hoverBgMedium} outline-none focus-visible:ring-2 ${C.focusRingAccent40} disabled:cursor-default disabled:opacity-30 ${dragDisabled ? "cursor-default" : "cursor-grab active:cursor-grabbing"}`}
         >
           <GripVertical className={ICON.action} aria-hidden="true" />
         </button>
