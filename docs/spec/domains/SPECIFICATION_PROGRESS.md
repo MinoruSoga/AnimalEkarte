@@ -50,7 +50,7 @@
 | D07 検査・機器受信 | 検査結果・確定／訂正・機器受信／対応付け、検査マスタ／機器項目。[一覧](../screens/12-examinations-list.md)・[フォーム](../screens/13-examinations-form.md)・[検査マスタ](../screens/settings/master-examinations.md) | 既存[ADR007](../../architecture/adr/007-lab-device-receive-and-commit.md)・[ADR008](../../architecture/adr/008-local-lab-device-agent.md)。今回全域レビュー未着手 | 未着手。機器受信画面だけで結果確定／訂正・重複・失敗時契約全体の完了としない。健診正系統はD09 |
 | D08 予防接種 | 接種記録・次回予定・担当帰属、ワクチン項目。[一覧](../screens/14-vaccinations-list.md)・[フォーム](../screens/15-vaccinations-form.md) | 今回専用技術整理未着手。既存medicalrecord owner・ERD | 未着手。独立フォーム／カルテ内入力の関係、履歴・訂正・健康表示の受渡しを確認する |
 | D09 健診 | 健診パッケージ・項目／結果・担当、健診記録。[健診仕様](../screens/25-checkups-list.md)。配信対象同期はD15 | 既存[ADR004 正系統](../../architecture/adr/004-checkup-canonical-system.md)。今回全域レビュー未着手 | 未着手。旧検査系との二重管理禁止を保持。現行Acceptedと今回整理完了を別に読む |
-| D10 会計・未納 | 請求／入金・未納／部分入金／0円・飼主預り金／任意予約前金・返金／訂正、支払／保険／割引／物販マスタ。[会計入口](accounting/README.md)・[初回〜第四群8FR／66AC](accounting/lifecycle.md#accounting-agreement-fourth)。締め内部D12、見積D11 | [会計部分設計](../../design/domains/accounting/README.md)・既存[ADR003](../../architecture/adr/003-payment-method-identity-and-consistency.md)／billing owner | 進行中。第四群 Sentinel_e7c15be2b17081918c35bdc4fc8f937bで両粒度割引・超過警告・会計取消時の預り金残高復元／別返金を追加。第三群 Sentinel_2925c6a799a08191b2b6d43efcdc66dc／Sentinel_ea9c25aa96208191bd320999a81a97d6を追加。飼主単位預り金／予約任意・同飼主別予約／ペット確認付き利用、割合合算→金額→割引後保険、作成順／理由付き再配分、非現金超過、別方法返金／金額追加承認なし、用途別帳票・番号維持を反映。[未決5群](accounting/lifecycle.md#accounting-open-decisions)・税端数／併用順序／配賦／警告後金額・減額時の充当調整・全master／具体権限／帳票詳細・他owner整合・実装／実機は残件。通常Undo停止・カルテ保存§2を維持 |
+| D10 会計・未納 | 請求／入金・未納／部分入金／0円・飼主預り金／任意予約前金・返金／訂正、支払／保険／割引／物販マスタ。[会計入口](accounting/README.md)・[初回〜第四群8FR／66AC](accounting/lifecycle.md#accounting-agreement-fourth)。締め内部D12、見積D11 | [会計部分設計](../../design/domains/accounting/README.md)・既存[ADR003](../../architecture/adr/003-payment-method-identity-and-consistency.md)／billing owner | 進行中。第四群 Sentinel_e7c15be2b17081918c35bdc4fc8f937bで両粒度割引・超過警告・会計取消時の預り金残高復元／別返金を追加。追加回答 Sentinel_2fd30155c5a88191956dc21f6f7a7740で警告を承認して進めた請求額0円下限を確定し、有効充当額に取消の解除・復元を反映。第三群 Sentinel_2925c6a799a08191b2b6d43efcdc66dc／Sentinel_ea9c25aa96208191bd320999a81a97d6を追加。飼主単位預り金／予約任意・同飼主別予約／ペット確認付き利用、割合合算→金額→割引後保険、作成順／理由付き再配分、非現金超過、別方法返金／金額追加承認なし、用途別帳票・番号維持を反映。[未決5群](accounting/lifecycle.md#accounting-open-decisions)・税端数／併用順序／配賦・減額時の充当調整・全master／具体権限／帳票詳細・他owner整合・実装／実機は残件。通常Undo停止・カルテ保存§2を維持 |
 | D11 見積 | 見積作成／変更／詳細と会計受渡し。[一覧](../screens/22-estimate-list.md)・[フォーム](../screens/23-estimate-form.md)・[詳細](../screens/26-estimate-detail.md) | 今回専用技術整理未着手。既存billing owner・ERD | 未着手。見積状態と会計確定を同義にせず、転記・訂正・金額契約を確認する |
 | D12 レジ締め | 締め・実査・過不足・AM/PM/EMG境界、締め時間設定。[締め仕様](../cash-register.md)・[画面](../screens/29-closing-aggregation.md) | 今回専用技術整理未着手。既存billing owner・ERD | 未着手。今回ここまで改訂範囲を広げていない。会計確定D10・帳票読取D16との境界を確認する |
 | D13 在庫 | 在庫記録／残数・登録／変更。[一覧](../screens/18-inventory-list.md)・[フォーム](../screens/27-inventory-form.md) | 今回専用技術整理未着手。既存inventory owner・ERD | 未着手。物販マスタD10との実際の関係を確認し、在庫連動を推測しない |
@@ -199,3 +199,11 @@ main appの88製品leafは業務84＋C04認証／権限4へ一度ずつ配賦。
 ## 会計第四群の部分反映
 
 2026-10-15、[第四群](accounting/lifecycle.md#accounting-agreement-fourth)のユーザー Sentinel_e7c15be2b17081918c35bdc4fc8f937bに基づき、明細と会計全体の両割引、100%超／商品額超の値引きは入力エラーでなく警告、会計取消で充当済み預り金を飼主残高へ戻し実返金は別操作を反映。既存8FRを更新し6AC追加、計8FR／66AC。警告後の0円下限／負額は回答待ちで確定せず、税端数・両粒度併用順序／配賦も未決。取消／充当解除／残高復元の一度処理・原子的保存／監査を扱い、新受領／実返金／通常Undo再開を副作用にしない。D10は進行中、管理37行の集計は変更しない。実mainのHEAD 09e28ddbを基準に既存12docsの第三群変更を保持し、実装・docs外・設定・起票・commit／push／公開は行わない。過去の記録は当時の履歴、今回検査は別記する。
+
+## 会計第四群の追加回答と残高式の訂正
+
+2026-10-15、[第四群の追加回答](accounting/lifecycle.md#accounting-agreement-fourth) Sentinel_2fd30155c5a88191956dc21f6f7a7740に基づき、超過値引きは警告のまま承認して進められ、その請求額はマイナスにせず0円下限と確定した。上の部分反映時点の「回答待ち」は履歴として保持し、現在の決定状態は本項と正本を参照する。既存AC識別子を保持して期待結果・語彙・画面参照・技術traceを更新し、計8FR／66ACは変わらない。
+
+預り金の残高式は受領累計−有効充当額−未充当分の実返金累計へ訂正。有効充当額は会計取消で解除・残高復元済みの額を充当累計から差し引き、元飼主へ戻す残高を反映する。新受領・実返金と復元を区別し、実返金／復元済み分の二重計上を防ぐ。税・端数、両粒度割引の併用順序／配賦、取消以外の減額や既実返金等が混在する訂正手順は未決。D10は進行中、予約領域の完了判定と管理37行の集計は変更しない。
+
+今回の基準はリモートmain 7309b3a048cb781298c5ed315f6a653d0dfdda1b。GitHub上のdocs限定ブランチからmain向けDraft PRとする。実装・API／DB・設定・移行・実機・税務適合の検証は行わない。過去のローカル検査記録を今回の合格証拠へ転用せず、今回のリモート文書検査・独立レビューの結果と実行できない検査はPRに分けて記録する。
