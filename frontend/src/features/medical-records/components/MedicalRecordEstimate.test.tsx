@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement, startTransition, Suspense, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +15,7 @@ let mockExisting: {
   comment?: string;
   notes?: string;
   discount_amount?: number;
+  insurance_amount?: number;
   items?: unknown[];
 } | null = null;
 
@@ -32,7 +33,12 @@ vi.mock("@/lib/handle-api-error", () => ({
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: (resource: string) => ({
-    canEdit: resource === "discount" ? mockDiscount.current.canEdit : true,
+    canEdit:
+      resource === "discount"
+        ? mockDiscount.current.canEdit
+        : resource === "medical-records"
+          ? mockMedicalRecords.current.canEdit
+          : true,
     canCreate: resource === "discount" ? mockDiscount.current.canCreate : true,
     canDelete: true,
   }),
@@ -40,8 +46,9 @@ vi.mock("@/hooks/use-permission", () => ({
 
 // FE-RC-048: useClinicTaxRates は独立に useAuth() を呼ぶため最小モックが必要。
 // mockClinic は医院マスタの税率設定をテストごとに切り替えるための可変参照。
-const { mockClinic, mockDiscount } = vi.hoisted(() => ({
+const { mockClinic, mockDiscount, mockMedicalRecords } = vi.hoisted(() => ({
   mockDiscount: { current: { canCreate: true, canEdit: true } },
+  mockMedicalRecords: { current: { canEdit: true } },
   mockClinic: { current: {} as { standardTaxRate?: number; reducedTaxRate?: number } },
 }));
 
@@ -71,6 +78,7 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     vi.mocked(toast.error).mockClear();
     mockClinic.current = {};
     mockDiscount.current = { canCreate: true, canEdit: true };
+    mockMedicalRecords.current = { canEdit: true };
   });
 
   it.each([
@@ -807,5 +815,262 @@ describe("MedicalRecordEstimate BUG-016 resave", () => {
     ).rejects.toThrow();
 
     expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+describe("MedicalRecordEstimate PR669 insurance (保険適用額)", () => {
+  const grossExcluded = {
+    id: 1,
+    name: "外税処置",
+    unit_price: 1000,
+    quantity: 1,
+    discount_rate: 0,
+    discount_amount: 0,
+    is_insurance_applicable: false,
+    tax_type: "excluded",
+    tax_rate: 0.1,
+  };
+  const grossIncluded = {
+    ...grossExcluded,
+    name: "内税処置",
+    unit_price: 1100,
+    tax_type: "included",
+  };
+
+  beforeEach(() => {
+    mockExisting = null;
+    mockCreateMutateAsync.mockReset();
+    mockUpdateMutateAsync.mockReset();
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+    mockDiscount.current = { canCreate: true, canEdit: true };
+    mockMedicalRecords.current = { canEdit: true };
+    mockClinic.current = {};
+  });
+
+  function renderWithSave() {
+    const registered: Array<() => Promise<void>> = [];
+    render(
+      createElement(MedicalRecordEstimate, {
+        medicalRecordId: "1",
+        onRegisterSave: (fn) => {
+          registered.push(fn);
+        },
+      }),
+      { wrapper },
+    );
+    return { save: () => registered[registered.length - 1]() };
+  }
+
+  it.each([
+    ["excluded", grossExcluded],
+    ["included", grossIncluded],
+  ])(
+    "loaded estimate: gross1100 discount100 insurance200 → 保険請求額200・請求額800 (%s)",
+    async (_t, item) => {
+      mockExisting = {
+        id: 5,
+        title: "見積",
+        discount_amount: 100,
+        insurance_amount: 200,
+        items: [item],
+      };
+      const { save } = renderWithSave();
+
+      const insuranceInput = screen.getByLabelText("保険適用額");
+      expect(insuranceInput).toHaveValue(200);
+      expect(screen.getByText("保険請求額").parentElement).toHaveTextContent("￥200");
+      // gross 1100 - discount 100 - insurance 200 = 800（請求額列と飼主請求額行の2箇所）
+      expect(screen.getAllByText("￥800").length).toBeGreaterThanOrEqual(2);
+
+      mockUpdateMutateAsync.mockResolvedValue({ id: 5, title: "見積", items: [item] });
+      await act(async () => {
+        await save();
+      });
+      expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            total_amount: 800,
+            discount_amount: 100,
+            insurance_amount: 200,
+          }),
+        }),
+      );
+    },
+  );
+
+  it("insurance を100に変更すると請求額900、PATCH に insurance_amount=100 を送る", async () => {
+    const user = userEvent.setup();
+    mockExisting = {
+      id: 5,
+      title: "見積",
+      discount_amount: 100,
+      insurance_amount: 200,
+      items: [grossExcluded],
+    };
+    const { save } = renderWithSave();
+
+    const insuranceInput = screen.getByLabelText("保険適用額");
+    await user.clear(insuranceInput);
+    await user.type(insuranceInput, "100");
+    expect(screen.getAllByText("￥900").length).toBeGreaterThanOrEqual(2);
+
+    mockUpdateMutateAsync.mockResolvedValue({
+      id: 5,
+      title: "見積",
+      discount_amount: 100,
+      insurance_amount: 100,
+      items: [grossExcluded],
+    });
+    await act(async () => {
+      await save();
+    });
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ total_amount: 900, insurance_amount: 100 }),
+      }),
+    );
+  });
+
+  it("控除が明細総額を超えると保存前に拒否し、保険を下げれば保存できる", async () => {
+    const user = userEvent.setup();
+    mockExisting = {
+      id: 5,
+      title: "見積",
+      discount_amount: 100,
+      insurance_amount: 200,
+      items: [grossExcluded],
+    };
+    const { save } = renderWithSave();
+
+    // gross1100 - discount100 = 1000 を超える insurance1001 は拒否
+    const insuranceInput = screen.getByLabelText("保険適用額");
+    await user.clear(insuranceInput);
+    await user.type(insuranceInput, "1001");
+    await expect(
+      act(async () => {
+        await save();
+      }),
+    ).rejects.toThrow();
+    expect(toast.error).toHaveBeenCalledWith("保険適用額が値引後の合計金額を超えています");
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+
+    // 保険を値引後残額内に下げると保存できる（gross1100 - 100 - 900 = 100）
+    await user.clear(insuranceInput);
+    await user.type(insuranceInput, "900");
+    mockUpdateMutateAsync.mockResolvedValue({ id: 5, title: "見積", items: [grossExcluded] });
+    await act(async () => {
+      await save();
+    });
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ total_amount: 100, insurance_amount: 900 }),
+      }),
+    );
+  });
+
+  it("full deduction で請求額0、insurance0 据え置き、行なしは0で保険メタデータ保持", async () => {
+    const user = userEvent.setup();
+    mockExisting = {
+      id: 5,
+      title: "見積",
+      discount_amount: 0,
+      insurance_amount: 0,
+      items: [grossExcluded],
+    };
+    const { save } = renderWithSave();
+
+    // gross1100 に insurance1100 → 0
+    const insuranceInput = screen.getByLabelText("保険適用額");
+    await user.clear(insuranceInput);
+    await user.type(insuranceInput, "1100");
+    expect(screen.getAllByText("￥0").length).toBeGreaterThanOrEqual(2);
+    mockUpdateMutateAsync.mockResolvedValue({ id: 5, title: "見積", items: [grossExcluded] });
+    await act(async () => {
+      await save();
+    });
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({ total_amount: 0, insurance_amount: 1100 }),
+      }),
+    );
+
+    // 行なし（empty-items）でも bounds チェックなしで total0・insurance メタデータ送信
+    mockExisting = {
+      id: 6,
+      title: "見積",
+      discount_amount: 5000,
+      insurance_amount: 200,
+      items: [],
+    };
+    const { save: save2 } = renderWithSave();
+    mockUpdateMutateAsync.mockResolvedValue({ id: 6, title: "見積", items: [] });
+    await act(async () => {
+      await save2();
+    });
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 6,
+        payload: expect.objectContaining({ total_amount: 0, insurance_amount: 200 }),
+      }),
+    );
+  });
+
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])(
+    "invalid insurance %s は API 送信前に拒否される",
+    async (invalid) => {
+      mockExisting = {
+        id: 5,
+        title: "見積",
+        discount_amount: 0,
+        insurance_amount: 0,
+        items: [grossExcluded],
+      };
+      const { save } = renderWithSave();
+      const insuranceInput = screen.getByLabelText("保険適用額");
+      const user = userEvent.setup();
+      if (invalid === -1) {
+        // NumberInput の min=0 がマイナス入力を阻止するため、change で直接入れる
+        fireEvent.change(insuranceInput, { target: { value: "-1" } });
+      } else {
+        await user.clear(insuranceInput);
+        await user.type(insuranceInput, String(invalid));
+      }
+      await expect(
+        act(async () => {
+          await save();
+        }),
+      ).rejects.toThrow();
+      expect(toast.error).toHaveBeenCalledWith("保険適用額は0以上の整数で入力してください");
+      expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+    },
+  );
+
+  it("discount 権限なしでも medical-records 編集権限で保険適用額は編集できる", () => {
+    mockDiscount.current = { canCreate: false, canEdit: false };
+    mockExisting = {
+      id: 5,
+      title: "見積",
+      discount_amount: 300,
+      insurance_amount: 200,
+      items: [grossExcluded],
+    };
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "1" }), { wrapper });
+    expect(screen.getByLabelText("保険適用額")).not.toBeDisabled();
+    const discountInput = screen.getByText("値引額").closest("div")!.querySelector("input")!;
+    expect(discountInput).toBeDisabled();
+  });
+
+  it("medical-records 編集権限なしでは保険適用額も disabled", () => {
+    mockMedicalRecords.current = { canEdit: false };
+    mockExisting = {
+      id: 5,
+      title: "見積",
+      discount_amount: 300,
+      insurance_amount: 200,
+      items: [grossExcluded],
+    };
+    render(createElement(MedicalRecordEstimate, { medicalRecordId: "1" }), { wrapper });
+    expect(screen.getByLabelText("保険適用額")).toBeDisabled();
   });
 });

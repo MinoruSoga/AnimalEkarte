@@ -29,6 +29,8 @@ export interface SaveEstimatePayload {
   tax_total: number;
   total_amount: number;
   discount_amount: number;
+  /** PR669: 保険適用額。省略時は既存互換（BE は保存済み値を保持）。 */
+  insurance_amount?: number;
   comment: string;
   notes: string;
   medical_record_id?: number;
