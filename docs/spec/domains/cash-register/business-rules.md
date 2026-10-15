@@ -27,6 +27,8 @@ cash-register-close の view／create は別権限。同医院内の締め全体
 
 医院のJST境界によりAM=[開始,午前午後境界)、PM=[午前午後境界,終了)、EMG=[終了,翌開始)とする。午前0時からAM開始前は前営業日EMG。境界ぴったりは次区分に一度だけ含まれる。特別期間は標準AM開始を引き継ぎ境界／終了を上書きする。現行AM開始は09:00固定で画面・PATCHでは変更できない。既定値・説明例と#252の全院裁定値は別。今回医院設定を書き換えない。
 
+2026-10-15追加承認：締め済み保護の対象は実際に締めた区分だけとする。午前を締めても、未締めの午後・夜間を締め済み扱いにしない。午前09:00〜12:00・午後12:00〜18:30・夜間18:30〜翌09:00という確認済み区分と、当該区分で採用した境界に従って判定する。時刻設定を今回変更する操作ではない。会計自体の確定後訂正条件は区分が未締めでも維持する。旧実装の日全体保護をこの目標の例外にしない。
+
 確定済み締めは後日の境界変更で再計算しない。設定の休診日／特別期間は締めの責務であり、LINE予約の休診設定へ伝播しない。特別期間重複・不正な時刻順序の拒否、どの設定版を採用するかは現行検証／技術設計で明示する。未確認の優先順位を新しい業務合意にしない。
 
 <a id="requirement-fr-closing-movement-consumer"></a>
@@ -47,7 +49,7 @@ cash-register-close の view／create は別権限。同医院内の締め全体
 
 既存継承：実査額は有限・0以上、金種別入力はない。差額は実査−理論。旧仕様の理論値は現金決済会計額−返金で開始残・補充・回収を持たない。この旧理論値を物理的なレジ全残高と同義にしない。
 
-承認済みC1：開始時のレジ現金、レジへの補充／レジからの回収を理由・担当・日時付きで記録し、理論現金＝開始残＋現金実入金−現金実返金＋補充−回収。実入金には現金での預り金実受領を含む。補充／回収は売上・飼主入金でない。開始残と前区分の終了残の二重加算を防ぎ、どの残高を開始値に採用したか確認する。実査差額が存在するだけで架空の入出金・売上を作らない。
+承認済みC1：開始時のレジ現金、レジへの補充／レジからの回収を理由・担当・日時付きで記録し、理論現金＝開始残＋現金実入金−現金実返金＋補充−回収。実入金には現金での預り金実受領を含む。補充／回収は売上・飼主入金でない。開始残と前区分の終了残の二重加算を防ぎ、どの残高を開始値に採用したか確認する。実査差額が存在するだけで架空の入出金・売上を作らない。2026-10-15追加承認：現金の差額が残っていても、その差額を記録して締められる。差額が0でないときはメモを必須とし、「原因不明」「確認中」も受け付ける。原因の解明や架空の補充／回収での差額解消を締めの前提にしない。差額0の場合に新たなメモ必須条件は追加しない。
 
 <a id="requirement-fr-closing-append-only"></a>
 ### FR-closing-append-only：原締めと訂正差分
@@ -110,9 +112,20 @@ cash-register-close の view／create は別権限。同医院内の締め全体
 | AC-closing-zero-v-error | 集計取得失敗後に締め操作 | 取得失敗を0円とみなして確定しない | 異常系。失敗／0件を比較、未実施 |
 | AC-closing-opening-cash | C1の目標で、開始10,000・入金3,000・返金1,000・補充2,000・回収4,000 | 理論10,000、実査9,900なら不足100 | 承認C1。各移動と差額を照合、未実施 |
 | AC-closing-no-fake-revenue | C1の目標で、レジ補充／回収・過不足を登録 | 診療売上・飼主入金を捏造しない | 承認C1。売上／現金内訳を照合、未実施 |
+| AC-closing-closed-segment-only | 午前だけ締め済みで同営業日の午後・夜間を扱う | 未締め区分を締め済み扱いにしない。午前原締め保護は維持 | [FR-closing-period-boundary](#requirement-fr-closing-period-boundary)。追加承認目標、未実施 |
+| AC-closing-closed-segment-finalized-invoice | 未締め区分に確定済み会計がある | 区分が未締めでも会計自体の確定後訂正条件を維持する | [FR-closing-period-boundary](#requirement-fr-closing-period-boundary)。追加承認目標、未実施 |
+| AC-closing-cash-difference-note | 理論10,000円・実査9,900円で「原因不明・確認中」を記載して締める | 不足100円とメモを保持して締められる。架空入出金は生成しない | [FR-closing-cash-reconciliation](#requirement-fr-closing-cash-reconciliation)。追加承認目標、未実施 |
+| AC-closing-cash-difference-note-empty | 差額が0でなくメモが空／空白だけ | 保存を拒否しメモ入力を求める。原因判明までは要求しない | [FR-closing-cash-reconciliation](#requirement-fr-closing-cash-reconciliation)。追加承認目標、未実施 |
+| AC-closing-cash-difference-zero-note | 差額0でメモなし | 他の締め条件を満たせば、差額メモ不足を理由に拒否しない | [FR-closing-cash-reconciliation](#requirement-fr-closing-cash-reconciliation)。追加承認目標、未実施 |
+| AC-closing-cash-difference-repreview | プレビュー後の入出金更新で差額が変化する | 再集計と差額再確認を行い、保存時の非0差額にメモを必須とする | [FR-closing-cash-reconciliation](#requirement-fr-closing-cash-reconciliation)。追加承認目標、未実施 |
 
 ## 未決事項・関連仕様・根拠
 
 C1（開始残高・現金実入出金・補充／回収による理論現金と実査比較、預り金充当を再入金にしない）は2026-10-15に依頼者承認済み。質問 Sentinel_75a3a1bf81b481919ba4c34aa633feb4 の「3. 在庫とレジ締め」、未回答群の確認 Sentinel_8d0032ca45b881919b3d2ceb5339f792 に対する Sentinel_7a67fd30e47c819192cd36d416f0a2bf「ok」が根拠。cash-register.md・画面29・締め時間設定の既存契約、D10の承認済み実移動境界を根拠にする。締めと月次の既存配賦は無条件に新台帳へ互換とせず、[技術整理](../../../design/domains/finance-operations/technical-spec.md#closing-consumer-gap)でadapterと検査を定義する。月次・税務適合、実決済との照合を完了扱いしない。
 
 実査誤入力の訂正は2026-10-15追加確認8（Sentinel_a408975ce6408191be7a25734aae0aab）へのユーザー「ok」（Sentinel_4f050b1c0ed08191b5ca67deeaeec843）に基づく。承認範囲は元締めを保持する権限者・理由付き訂正で、取消／再開や現金移動の自動生成は含まない。
+
+<a id="closing-segment-difference-agreement-20261015"></a>
+### 追加合意の根拠
+
+2026-10-15、質問 Sentinel_c1016545a11c8191b7149324731079ff の締めた区分だけの保護・非0現金差額のメモ必須に対し、依頼者 Sentinel_f90aa49cf1c0819185758f699732539b が「1 yes / 2 yes」と承認。原因不明／確認中でも締められる。既存の確定済み会計訂正、原締め不変、権限者・理由付き実査誤入力訂正、実入出金分離、保存時再集計は維持する。

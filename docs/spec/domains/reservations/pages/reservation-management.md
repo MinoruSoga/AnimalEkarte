@@ -72,7 +72,7 @@
 | 終了時刻 | 予約終了 | 通常の時間指定予約は開始と同日 | 必須、開始より後 | 開始＋予約区分の所要時間 | 自動入力後に手動編集可 | [終了保持](#requirement-fr-reservations-end-time-preservation)・[同日予定](#requirement-fr-reservations-same-day-schedule) |
 | 予約区分 | 予約の種類と所要時間・対応適格性 | 共通予約区分マスタ参照 | 必須。区分無効・所属グループ無効は新規選択不可 | 未記載／要確認 | [マスタ正本](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-group-disable-new-use) | 未来日を含む保存済み予約・履歴は保持。LINE条件は[現正本](../../../line/reservation-spec.md#line-scheduled-slot-basis)へ従う。設定不足・新規選択不可の業務は合意済み、実装／検証は別 |
 | 担当者・指名 | 区分に応じた指名 | 共通スタッフ・シフト参照 | 指名なし可。非勤務者は選択不可 | 列担当者（適格時）／未定列は空欄 | [時間全体の適格性](#requirement-fr-reservations-duty-staff-selection) | [区分別ラベル](#requirement-fr-reservations-staff-role-label)。全アプリの一括renameはしない |
-| 来院区分 | 初診／再診の区分 | 既存仕様参照 | 本対話では変更なし | 作成モード別（下記詳細） | 初診／再診 | 既存の初診／再診入力支援・引継ぎを維持。経路の実装整合は検証 |
+| 来院区分 | 初診／再診の区分 | ペットの実受診歴に基づく候補 | スタッフが訂正可 | ペットごとの候補。登録状態・入力モードで固定しない | 初診／再診 | [受診歴による候補](#requirement-fr-reservations-pet-history-visit-type)。保存済み値と手動訂正を保持し、経路の実装整合は検証 |
 | 予約内容 | 予約に付随する内容（notes） | 型・文字数は未確認 | 通常予約では任意（現実装）。新規主訴も任意へ合意 | 既存値を表示 | 入力 | 下記「予約詳細の入力」 |
 | 予約経路 | 入口の記録 | 既存仕様参照 | 未記載／要確認（編集モードのみ表示） | 未記載／要確認 | LINE／電話／受付／診察室／記録入力 | 下記「予約詳細の入力」 |
 
@@ -117,9 +117,18 @@
 
 #### 予約詳細の入力
 
-- **来院区分の入力支援**（EMR-274）: 通常の新規作成では、新規飼主モードを「初診」、既存ペット選択中を「再診」に固定し、表示値と送信値を一致させる。同一飼主の複数ペット選択・別飼主への切替も再診、新規飼主への切替は初診となる。患者未選択時は選択制限なし。予約編集・次回予定の確定では既存値を維持し、来院区分を変更可能。新規飼主の登録成功後、予約保存のみ失敗した場合も新規飼主モードを維持して初診を送信する。
-  - この入力支援は受診履歴の判定やAPI制約を追加しない。未受診でも登録済みペットを選べば再診となる。予約の来院区分は予約連携カルテ作成時の初診ウェルカム通知判定へ伝わる。一方、3日後・7日後フォローは飼主の最初のカルテ日による別判定（EMR-276の通知条件整備は別票）。訂正は予約編集で行う。
-  - 予約フォーム内に既存飼主への新規ペット追加機能はない。飼主詳細等で登録後、既存ペットとして選択する場合も再診扱い。
+<a id="requirement-fr-reservations-pet-history-visit-type"></a>
+- **来院区分の入力支援（2026-10-15合意）**: 初診／再診はペットごとの実受診歴から候補を出し、スタッフが訂正できる。受診歴がないペットは初診、あるペットは再診を候補とし、飼主・ペットが登録済みか、予約フォームが新規飼主／既存患者のどちらの入力モードかでは固定しない。同じ飼主の別ペットや複数ペットの同時予約でも、各ペットを別に判定する。
+  - 予約だけ・未受診の受付／準備済み空カルテを実受診済みの代用にしない。患者未確定・履歴取得失敗・判定材料不足を「受診歴なし」に変換せず、候補未確認と示してスタッフが確認・選択できる。読取範囲の認可と患者照合は維持する。
+  - 表示値と送信値を一致させ、スタッフの訂正を再取得・入力モード切替・予約保存の再試行で上書きしない。予約編集・次回予定の確定では保存済み値を維持して訂正可とし、履歴増加だけで既存予約・カルテの来院区分を一括再計算しない。登録成功後に予約保存だけ失敗した場合も同じ患者IDと選択値を保持する。
+  - 予約フォーム内に既存飼主への新規ペット追加機能がない現状は別のUI制約。飼主詳細等で登録した未受診ペットを既存患者として選んでも初診候補になる。EMR-274の入力モード固定・既存選択なら再診という旧挙動は置換対象で、実装済みとしない。
+  - 来院区分のカルテへの引継ぎと、[D15の確認付きフォロー](../../../line/lstep-integration.md#crm-followup-confirmation)は別契約。初診候補やカルテ作成だけでwelcome／follow-up送信を確定せず、今回の候補変更から通知条件を増やさない。旧説明では3日後・7日後フォローは飼主の最初のカルテ日による別判定（EMR-276）だったが、現在の通知条件はD15正本へ従い、この履歴を新しい候補方式からの自動送信許可にしない。
+
+<a id="visit-history-included-types"></a>
+受診歴には通常診療・ワクチン・健診を含め、トリミング・ホテルだけの利用は含めない。これらの実施済み受診があるペットは再診候補、トリミング・ホテルだけで対象受診がないペットは初診候補とする。根拠は2026-10-15、対象範囲を確認した質問 Sentinel_0cfe19c6936881918fdeaf851ab09042 へのユーザー回答 Sentinel_ff5f2f7a9b8481918f976fda892e3478「yes」。種別名の文字列一致や予約だけで実施を推定せず、具体的な履歴の取得元・患者対応・実受診の判定根拠は[技術契約](../../../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)で照合する。
+
+決定根拠は2026-10-15の4点確認（Sentinel_0755eb8b662c8191939153f29229607e）への回答 Sentinel_5bade7ee85988191b8e0ab59a6e81fd7「1 yes 2 yes 3 yes 4 yes」の第1項。対象種別は上記の追加回答で確定。実装・実機受入は未確認。
+
 - **予約内容**（EMR-275）: 作成・編集フォームと予約詳細は同じ表示名称を使う。既存値を表示・保存し、DB/APIの項目名は `notes` のまま。受付側（EMR-278）も表示名称は「予約内容」。
 - **スマート・スナップ**: カレンダーのクリック位置は15分単位。[担当者別カレンダー](#requirement-fr-reservations-staff-calendar)が合意仕様。空き枠API中心の候補・15分fallbackは現実装の情報であり、新しい院内仕様の正本ではない。
 <a id="requirement-fr-reservations-end-time-preservation"></a>
@@ -351,7 +360,7 @@
 予約詳細（`ReservationDetailModal`）から、来院後のステータスをシームレスに更新できます。
 
 - **ステータス**: 来院後の主経路は予約確定→受付済→診療中→会計待ち→完了。未来院は[手動変更と再受付](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-no-show)、受付は[受付契約](../../../workflows/reservation-to-record-flow.md#checkin-contract)が正本。詳細画面で全状態へ自由に変更できる合意ではない。
-- **tentative（EMR-308）**: `status='tentative'` の appointment は「次回予定・未予約」— 日付のみ確定（`intended_date`）で時間・枠・担当医は未定。カレンダー（`MonthView`/`WeekViewAppointmentCard`）は色ではなく明示テキスト「次回予定・未予約」（`TENTATIVE_APPOINTMENT_LABEL`）で識別し、空き枠・定員を消費しない。カルテヘッダーの「次回予定」ボタン（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で作成・取消され、詳細モーダルではステータス変更でなく「予約を確定」で実予約へ昇格する。当日受付への昇格は [reservation-to-record-flow.md](../../../workflows/reservation-to-record-flow.md) を参照。
+- **tentative（EMR-308）**: `status='tentative'` の appointment は「次回予定・未予約」— 日付のみ確定（`intended_date`）で時間・枠・担当医は未定。カレンダー（`MonthView`/`WeekViewAppointmentCard`）は色ではなく明示テキスト「次回予定・未予約」（`TENTATIVE_APPOINTMENT_LABEL`）で識別し、空き枠・定員を消費しない。カルテヘッダーの「次回予定」ボタン（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で作成・取消され、詳細モーダルではステータス変更でなく「予約を確定」で実予約へ昇格する。日時が決まるまで当日の受付ボードへ出さない。別件来院で自動消化せず、スタッフによる今回来院への消化判断・取消後の手動再設定は[次回予定契約](../../../workflows/reservation-to-record-flow.md#next-visit-intent)へ従う。
 - **期限超過の次回予定一覧（EMR-308）**: `use-reservation-management` が `GET /v1/reservations` に `status=tentative` の等値フィルタを付けて tentative を取得し、`ExpiredTentativePanel` が `intended_date` が JST 当日より前の行を actionable list として表示する。各行の「確定」は `POST /v1/reservations/:id/confirm-tentative`（`reservations:edit`）で実予約へ昇格し、死亡ペットでは確定ボタンを出さない。次回予定の管理面は LINE reminder ではなくこの院内 API/画面が担う。
 - **受付への反映**: プッシュではない。受付側の 30 秒ポーリングとフォーカス再取得。
 - **レコード作成**: 診察予約の通常カルテは[受付時の同時成功契約](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-atomicity)へ変更する。予約時には作成しない。ホテル・入院・トリミングの専用記録は別途仕様整理。
@@ -492,6 +501,17 @@ stateDiagram-v2
 | AC-reservations-cross-class-before-checkin | 未受付の診療予約から有効なホテル区分等へ変える | 担当者・時間・変更先分類の条件を再確認して変更する | 条件を満たせば変更できる。旧医師を世話担当へ自動転記せず、既存記録を自動削除・変換しない | この反例を単独確認 | 同じ予約・記録・業務境界を保持 | [FR](#requirement-fr-reservations-cross-business-type-change)。実機未確認 |
 | AC-reservations-cross-class-after-clinical-checkin | 診療で受付済み・通常カルテ作成済み、診療開始前 | 通常編集でホテル／トリミング／入院の区分へ変更する | 通常編集では変更不可。スタッフが記録を確認する訂正として扱い、既存カルテを自動削除・変換しない | この反例を単独確認 | 同じ予約・記録・業務境界を保持 | [FR](#requirement-fr-reservations-cross-business-type-change)。実機未確認 |
 | AC-reservations-cross-class-after-hotel-checkin | ホテルで受付済み | 通常編集で診療区分へ変更する | 通常編集では変更不可。受付状態の保持だけで診療受付時のカルテ同時成功を成立したと扱わない。記録確認訂正へ委ねる | この反例を単独確認 | 同じ予約・記録・業務境界を保持 | [FR](#requirement-fr-reservations-cross-business-type-change)。実機未確認 |
+
+### 受診歴による初診／再診候補の受入条件
+
+| 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認 | 成功条件 | 確認手順／証跡 |
+|:---|:---|:---|:---|:---|:---|:---|
+| AC-reservations-visit-type-registered-unseen | 登録済みで実受診歴のないペットと、受診済みの同一飼主の別ペットがいる | 既存患者選択／複数ペット予約で選ぶ | 未受診ペットは初診、受診済みペットは再診の候補。飼主の履歴を共有しない | ペット単位の差 | 表示と送信も各ペットの選択値が一致 | [FR](#requirement-fr-reservations-pet-history-visit-type)。対象種別は通常診療・ワクチン・健診。実機未確認 |
+| AC-reservations-visit-type-included-services | 通常診療だけ、ワクチンだけ、健診だけの実受診歴を持つペットがそれぞれいる | 次の来院区分候補を出す | 3ケースとも対象受診歴として含め、再診を候補にする。スタッフが訂正できる | 各種別を個別確認 | 予約や未実施記録だけから受診済みにしない | [FR](#requirement-fr-reservations-pet-history-visit-type)・[対象種別](#visit-history-included-types)。実機未確認 |
+| AC-reservations-visit-type-nonclinical-only | トリミングだけ／ホテルだけ／両方だけの利用歴があるペットと、それに対象診療の実受診歴もあるペットがいる | 次の来院区分候補を出す | トリミング・ホテルだけなら初診、通常診療・ワクチン・健診も実施済みなら再診を候補にする。スタッフ訂正可 | 除外と混在を個別確認 | 登録済みや非診療利用だけで再診にしない | [FR](#requirement-fr-reservations-pet-history-visit-type)・[対象種別](#visit-history-included-types)。実機未確認 |
+| AC-reservations-visit-type-staff-correction | ペットの候補をスタッフが訂正した | 再取得・入力モード切替・登録後の予約保存失敗から再試行する | 同じ患者の手動訂正と成功済み患者IDを保持し、候補で無断上書きしない | 訂正と再試行 | 画面・保存・カルテ引継ぎの値が一致し重複患者なし | [FR](#requirement-fr-reservations-pet-history-visit-type)。実機未確認 |
+| AC-reservations-visit-type-no-actual-history | 予約のみ／受付準備の空カルテだけのペット、または履歴取得失敗がある | 初診／再診候補を確認する | 予約・空カルテだけで再診にしない。取得失敗は履歴なしと断定せず候補未確認・スタッフ確認とする | 未受診と不明を区別 | 不明から誤候補を確定せず手動訂正可 | [FR](#requirement-fr-reservations-pet-history-visit-type)。実機未確認 |
+| AC-reservations-visit-type-existing-preservation | 保存済み予約／次回予定の来院区分と後から増えた受診歴がある | 編集・次回予定確定を開く | 保存済み値を保持してスタッフが訂正可。履歴再取得だけで既存予約・カルテや通知を変更しない | 保存済み値 | 候補支援から無断更新・自動通知なし | [FR](#requirement-fr-reservations-pet-history-visit-type)。実機未確認 |
 
 <a id="decisions-evidence"></a>
 

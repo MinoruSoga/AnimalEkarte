@@ -1,5 +1,7 @@
 # カルテ詳細・入力 仕様書 (Medical Record Form)
 
+2026-10-15の[診断2区分の各複数登録・最新バイタルの測定時刻と履歴](#medical-record-agreement-diagnosis-vitals-20261015)を追加合意として反映する。以下の自動保存・終了後通常編集・復元保護は維持し、旧単件診断APIと時刻なし表示は現実装差として扱う。実装・実機受入済みを意味しない。
+
 <a id="medical-record-form-autosave-20261015"></a>
 ## 最新の操作契約（2026-10-15）
 
@@ -28,7 +30,7 @@
 | 決定状態 | 2026-10-14初回5項目は部分合意。最新の業務正本はlifecycleの2026-10-15合意。初回合意の非変更部分は維持。対象外の既存決定状態を保持し、カルテ全体完了／実装受入にしない |
 | 実装状態 | 合意と現実装は別。main ec4f7146a の必要箇所を静的照合し、差分は予約正本の残差一覧へ記録。実装変更なし |
 | 実機検証状態 | 今回未実施。過去の記録と今回の文書確認を分ける |
-| 文書確認日 | 2026-10-14（合意・参照・語彙の確認。実機受入日ではない） |
+| 文書確認日 | 2026-10-15（診断・バイタル追加合意の範囲で合意・参照・語彙を確認。実機受入日ではない） |
 
 <a id="purpose"></a>
 ## 目的・対象範囲
@@ -89,7 +91,7 @@
 | タブ | 名称 | 内容 |
 |:---:|:---|:---|
 | 1 | **問診** | 飼主からの主訴、現在の症状、生活環境のヒアリング記録。 |
-| 2 | **診察/治療プラン** | 身体検査所見（SOAPのS/O/A）、診断名（第1・第2）、今後の治療方針（Plan）。 |
+| 2 | **診察/治療プラン** | 身体検査所見（SOAPのS/O/A）、診断名（第1・第2を保持し、それぞれ複数登録）、今後の治療方針（Plan）。 |
 | 3 | **治療** | 実施した処置、処置項目、および処方薬の明細。 |
 | 4 | **予防接種** | 左ペインに当該ペットの接種記録一覧（`GET /vaccinations?pet_id=` + `page`/`limit`）。空なら EmptyState、「記録を追加」で入力フォーム。右カラムは `VaccinationHistory`。カルテネストの `/medical-records/:id/vaccinations` は存在せず使わない。次回日は[D08最新合意](../../vaccinations/lifecycle.md#fr-vaccinations-schedule)の種類別設定または手入力へ統一する。現行 `calculateNextDate` 配線とカルテ既定 `4weeks`／独立既定 `1year` は解消対象の実装差であり、目標の固定既定ではない。[過去接種の専用後日入力](../../vaccinations/lifecycle.md#vaccination-retrospective-next-date)では、実接種日より後の当時の次回日が既に過ぎていても保持する。通常入力の制約全面解除はしない。 |
 | 5 | **定期健診** | 健康診断の結果記録。`/checkups` の編集は `?tab=定期健診&checkupId=` で本タブを開き、該当行を編集状態にする。[最新第3項合意](../../checkups/lifecycle.md#checkup-next-date-approved)により、次回日はパッケージ設定候補または手入力。設定・保存済み日付・手入力日がなければ空欄とし、一律1年後を補完しない。 |
@@ -102,9 +104,9 @@
 
 9 タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientContextHeader` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
 
-- **今回カルテのバイタルチップ**: `useGetVitals` で当該カルテのバイタルを取得し、最新 1 件を `latestVisitVitalChips` が `vitalsSummary` へ変換して `PatientContextHeader` へ渡す。体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（`weightUnit` 付き）を、ペット名行直下の属性行へ**計測時刻を付けずに常時表示**する。当該カルテにバイタル記録が無い、または 4 項目すべて未入力の場合はチップ自体を表示しない。
+- **今回カルテのバイタルチップ**: [最新合意](#requirement-fr-medical-records-vital-measured-time-history)に従い、体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（単位付き）の最新値を、それぞれの値に対応する測定時刻とともにペット名行直下へ常時表示する。同日を含む以前の測定は履歴から確認できる。測定日も識別できる表示とし、欠測／未取得の値・時刻を補完しない。取得済みで当該カルテの測定がない、又は4項目すべて未入力の場合は値チップを表示しないが、取得失敗・不完全を測定なしへ置換しない。現行の `useGetVitals` → 最新1件を使う `latestVisitVitalChips` → `vitalsSummary` → `PatientContextHeader` の時刻なし表示は未追従差分で、最新値・測定時刻・全履歴の対応を[技術契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)で照合する。
 - **マイクロチップ番号**: ペットの `microchip_number`（props 名 `microchipNumber`）が存在する場合、ペット名の右隣にモノスペースのチップとして表示する（`aria-label` は「マイクロチップ番号 <値>」）。未登録または空白のみの場合はチップを表示しない。
-- **次回予定ボタン（`NextVisitButton`、EMR-308）**: ヘッダーの「次回予定」はペットの tentative appointment（`status='tentative'`、日付のみ `intended_date`）を `PUT /v1/reservations/pets/:petId/next-visit-intent` で upsert、`DELETE` 同パス（`reservations:edit`）で取消する。カルテ PATCH ではない。権限は操作別（新規=`reservations:create`・既存 tentative の上書き=`create`+`edit`・確定=`edit`）で、write 契約の正本は [reservation-to-record-flow.md](../../../workflows/reservation-to-record-flow.md) §2.3、一覧・確定の管理面は [reservation-management.md](../../reservations/pages/reservation-management.md) を参照。
+- **次回予定ボタン（`NextVisitButton`、EMR-308）**: ヘッダーの「次回予定」はペットの tentative appointment（`status='tentative'`、日付のみ `intended_date`）を `PUT /v1/reservations/pets/:petId/next-visit-intent` で upsert、`DELETE` 同パス（`reservations:edit`）で取消する。カルテ PATCH ではない。権限は操作別（新規=`reservations:create`・既存 tentative の上書き=`create`+`edit`・確定=`edit`）で、write 契約の正本は [reservation-to-record-flow.md](../../../workflows/reservation-to-record-flow.md) §2.3、一覧・確定の管理面は [reservation-management.md](../../reservations/pages/reservation-management.md) を参照。 日付だけの予定は枠を確保せず受付ボードへ出さない。別件来院では自動消化せずスタッフが今回消化を選び、由来予約の取消では自動復活しない。必要時の手動再設定・安全な保存条件は[2026-10-15合意](../../../workflows/reservation-to-record-flow.md#next-visit-intent-agreement-20261015)へ従う。
 
 #### 2.1 SOAPS 形式の採用
 
@@ -128,6 +130,8 @@
 | 要件ID | 定義の所在 | 決定根拠 |
 |:---|:---|:---|
 | FR-medical-records-optional-chief-complaint-type | [既存の要件本文](#requirement-fr-medical-records-optional-chief-complaint-type) | 既存記載を継承。ID付与で合意済みにしない |
+| FR-medical-records-diagnoses-multiple-per-category | [第1・第2ごとの複数診断](#requirement-fr-medical-records-diagnoses-multiple-per-category) | 2026-10-15、Sentinel_4ec55f21a17c819199d16ad1add270a4 の回答1 |
+| FR-medical-records-vital-measured-time-history | [最新値・測定時刻と測定履歴](#requirement-fr-medical-records-vital-measured-time-history) | 同回答2 |
 
 | 操作 | 実行条件 | 成功後状態／遷移 | 失敗挙動 | 根拠 |
 |:---|:---|:---|:---|:---|
@@ -356,3 +360,47 @@
 ## 現APIとの最終照合の入口
 
 [実キー・型・null／clearと互換契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)へ接続する。実APIの既存受理範囲を新業務許可へ拡大しない。患者転記・過去入力・復元の目的別条件を汎用PATCH／createで迂回しない。通常本文／後日結果の現在版更新は最新の通常編集契約とowner独自の確定／訂正へ接続する。取得経路にはGetOrCreate初期化があるため、印刷用read modelは副作用のない保存済みprojectionで構成する。共通14ACは全該当writer／read経路への確認条件で、現コードの適合PASSを示さない。
+
+
+<a id="medical-record-agreement-diagnosis-vitals-20261015"></a>
+## 診断・バイタルの追加2項目（2026-10-15）
+
+質問 Sentinel_14ca8cf17a2881919135ac55b7828ef6 の診察中の記録2項目に対し、Sentinel_4ec55f21a17c819199d16ad1add270a4 が「1 そうですね、複数登録にしましょう、ただ第一、第二をそれぞれ複数登録で。2 yes」と回答したことを根拠とする。第1・第2を一つの診断一覧と単一の主診断指定へ置換する案は採用しない。この回答1・2は診断・バイタルを対象とし、初診判定に含める受診歴の対象は[予約／受付の別合意](../../reservations/pages/reservation-management.md#visit-history-included-types)へ従う。2FR／12ACを追加し、既存合意・保存§2と[最新の通常編集／復元契約](../lifecycle.md#medical-record-agreement-autosave-20261015)を保持する。実装・DB／API変更・実機検証は未実施。
+
+<a id="requirement-fr-medical-records-diagnoses-multiple-per-category"></a>
+### FR-medical-records-diagnoses-multiple-per-category — 第1・第2それぞれに複数診断を登録
+
+「診察/治療プラン」タブの第1診断・第2診断の区分を保持し、各区分へ複数の診断名を登録・表示・編集できる。各診断が属する第1／第2を保存と再表示でも識別し、一方の操作で他方の診断を上書きしない。単一の主診断を選ぶ仕組みに集約せず、第1が1件だけ又は両区分合計2件までという制限にしない。今回の合意から新たな必須件数・件数上限・自動順位付け・重複禁止条件を追加しない。
+
+第1／第2という記録上の区分と、診断病名マスタの疾患カテゴリは別概念である。個々の診断名とマスタ所属カテゴリの整合・医院／権限・有効性・当時名称の保持は[既存master契約](#requirement-fr-medical-records-master-history-snapshots)へ従う。既存の第1・第2単件データは元の区分と内容を保ち、複数化を理由に消去・改名・別区分へ移動しない。
+
+保存先と送信境界は既存の診察／治療プラン保存に従い、自動保存を廃止したり全タブ一括保存へ変えたりしない。診療終了後も同じ通常カルテで編集でき、以前の保存版と実編集者履歴を保持する。タブクリアはタブ開始時、既存の履歴複製取消が対象とする入力の取消はその複製直前へ戻す既決保護を維持し、新しい診断複製機能の許可には広げない。旧単件APIで複数分を欠落させる保存は成功扱いにせず、未対応・競合・失敗・結果不明を区別して入力を保持する。保存済み診断の変更・復元により元版・他者変更・別ownerの確定内容を無警告で消去しない。
+
+<a id="requirement-fr-medical-records-vital-measured-time-history"></a>
+### FR-medical-records-vital-measured-time-history — 最新バイタルの測定時刻と以前の測定履歴
+
+通常カルテの体温・体重等のバイタルは、表示する最新値にその値の測定時刻を添える。同日の測定を一つに集約せず、同日を含めた以前の測定も履歴で確認できる。値・単位・測定日時と対象患者／カルテの対応を保持し、別々の測定由来の値へ同じ時刻を一律に付けない。過去日の測定を当日の値と誤認させないよう測定日も識別できるようにする。
+
+「最新」は実際の測定日時に基づき、登録・編集日時が新しいだけの過去測定を最新測定へ昇格させない。測定日時不明を現在時刻で補完せず、最新と特定できない場合は不明を識別する。未入力値・単位不明・取得中／失敗・不完全な履歴を、0・正常・測定なし又は全件取得済みへ置換しない。最新表示の対象値と元の測定を辿れ、複数測定や同時刻の記録を一件へ無条件に統合・削除しない。
+
+履歴は同じ患者・カルテの認可済み記録を参照し、開く・閉じるだけで記録作成・複製・保存・診療終了を行わない。診療中でもそのカルテの以前のバイタル測定を確認でき、[終了したカルテを対象とするスタッフ診療履歴](../lifecycle.md#requirement-fr-medical-records-ended-record-history)とは区別する。測定記録・変更履歴・元版を保持し、終了後の通常編集、既存のバイタル個別保存、競合／結果不明と監査の保護を維持する。タブのクリアでタブ外の測定を巻き戻さない。体重の薬量評価への適用可否・評価不能／再評価と医師承認は既存正本に従い、最新表示から有効期限や医学的な閾値を新設しない。
+
+<a id="medical-record-diagnosis-vitals-ac"></a>
+### 追加受入条件（実装・実機未確認）
+
+| ID | Given | When | Then | 独立確認・状態 | 正本 |
+|:---|:---|:---|:---|:---|:---|
+| AC-medical-records-diagnoses-both-multiple | 診察タブで第1・第2へそれぞれ2件以上の診断を入力 | 保存後に再読込 | 両区分の全件を元の区分で表示し、各1件／合計2件へ切り捨てず単一主診断への集約なし | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-diagnoses-multiple-per-category) |
+| AC-medical-records-diagnoses-category-isolation | 両区分に複数の診断がある | 第1又は第2の一件を編集 | 対象区分・項目を識別して反映し、他方の診断を上書き・移動しない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-diagnoses-multiple-per-category) |
+| AC-medical-records-diagnoses-legacy-preservation | 既存の単件第1・第2又は未設定の区分がある | 読込・再表示 | 元区分・当時内容・未設定を保ち、架空の診断や主診断指定を補完しない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-diagnoses-multiple-per-category) |
+| AC-medical-records-diagnoses-master-boundary | 無効masterの過去診断又は名称／疾患カテゴリ不一致の新規選択がある | 表示・選択・保存 | 過去の当時内容は保持し、新規選択は既存の有効性・関係整合・医院／権限条件へ従う。第1／第2と疾患カテゴリを混同しない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-diagnoses-multiple-per-category) |
+| AC-medical-records-diagnoses-save-no-truncation | 複数診断と、単件のみ対応するAPI又は競合／失敗／結果不明がある | 保存・再試行 | 全件保存できない状態を成功とせず入力を保持。黙った切捨て・他者上書き・盲目的再送なし | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-diagnoses-multiple-per-category) |
+| AC-medical-records-diagnoses-ended-revert-safety | 終了済み通常カルテで診断編集・保存後、タブ開始基準がある | 通常編集又はタブクリア | 旧finalizedだけで拒否せず既存保存境界を維持。クリアは基準と現版を照合し元版・必要ログ・他者／別owner保護を保持 | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-diagnoses-multiple-per-category) |
+| AC-medical-records-vital-latest-measured-time | 同じカルテに測定値と実測日時がある | ヘッダーを表示 | 最新値・単位に対応する測定日時を識別でき、別測定の時刻や編集時刻を付けない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
+| AC-medical-records-vital-same-day-history | 同日中に複数回の測定と過去日の測定がある | 履歴を開く | 以前の測定も値・単位・測定日時で確認でき、同日を1件に集約せず元記録を保持 | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
+| AC-medical-records-vital-measurement-order | 以前の実測日時の記録を後から登録又は編集した | 最新値と履歴を再表示 | 登録／編集日時だけで最新測定へ昇格しない。測定日時不明は現在時刻で補完せず、同時刻の別測定を消さない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
+| AC-medical-records-vital-partial-values-time | 値・単位・測定時刻に欠損又は項目間で測定元の違いがある | 最新表示 | 不明を識別し0・正常・架空時刻へ補完しない。表示値とその測定元を対応付け、異なる測定を同一時刻に見せない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
+| AC-medical-records-vital-history-read-scope | 履歴取得失敗／不完全又は医院・患者切替後の遅延応答がある | 最新値／履歴を表示 | 測定なし・全件取得済みとせず再照合し、旧患者／医院の値を新対象に表示しない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
+| AC-medical-records-vital-history-edit-boundary | 診療中又は終了後の同じ通常カルテに複数測定がある | 履歴閲覧・許可された測定編集・別タブクリア | 診療中も測定履歴を閲覧でき閲覧だけのwriteなし。編集は既存個別保存と元版／認証actor履歴を保持し、別タブクリアでタブ外測定を復元しない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
+
+用語と多重度は[オントロジー](../../../ontology/medical-records.md#medical-record-diagnosis-vitals-ontology)、現単件wireとの差分・全件保持・時刻と履歴の取得／表示・FR/AC対応は[技術契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)へ接続する。番号付き旧画面は互換案内のまま保持する。

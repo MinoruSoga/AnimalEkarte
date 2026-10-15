@@ -54,3 +54,19 @@
 | 復元操作 | 自動保存済みの変更も基準へ戻し、新しい変更履歴を記録する操作。物理削除や他者／別owner効果の逆実行ではない | 同上 |
 | 診療終了 | 同じ予約を診療中から会計待ちへ進める明示操作。通常カルテ・請求・入金の確定と別 | [画面から終了](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-screen-consultation-end) |
 | スタッフ向け診療履歴 | 診療終了したカルテを表示する履歴。診療中の途中保存やfinalizedだけでは対象にしない | [終了済み履歴](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-ended-record-history) |
+
+
+<a id="medical-record-diagnosis-vitals-ontology"></a>
+## 第1・第2の複数診断とバイタル測定履歴
+
+2026-10-15、Sentinel_4ec55f21a17c819199d16ad1add270a4 の回答1・2に基づく概念更新。業務と受入の正本は[診断・バイタル2項目](../domains/medical-records/pages/medical-record-form.md#medical-record-agreement-diagnosis-vitals-20261015)。初診判定の受診歴対象は[予約／受付の別合意](../domains/reservations/pages/reservation-management.md#visit-history-included-types)へ従い、この診断・バイタル回答から定義しない。
+
+| 用語 | 定義・関係／多重度 | 制約・正本 |
+|:---|:---|:---|
+| 第1診断・第2診断 | 通常カルテの診断を分ける既存の2区分。各区分に複数の診断を登録でき、単一の主診断指定へ統合しない | [複数診断](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-diagnoses-multiple-per-category)。既存の未設定を保持し、新たな必須件数・上限を追加しない |
+| 診断病名の疾患カテゴリ | 個々の診断病名がマスタ上で属する分類。第1／第2という記録上の区分とは別 | 同上。名称と所属カテゴリ整合・医院scope・当時名称を維持 |
+| バイタル測定 | 対象患者・カルテに対応する測定値／単位・測定日時を持つ記録。一つのカルテに同日を含め複数測定があり得る | [最新値・履歴](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-vital-measured-time-history)。未入力と0、実測日時と登録／編集日時を分離 |
+| 最新バイタル値・測定時刻 | 表示する最新の値と、その値の測定元に属する時刻。測定日も識別できる表示にする | 同上。異なる測定の値を同じ時刻へ混同せず、日時不明・不完全履歴を補完しない |
+| バイタル測定履歴 | 同日を含む以前の測定を参照する履歴。測定ごとの変更履歴とも、終了済みカルテを並べるスタッフ診療履歴とも別 | 同上。診療中も当該カルテの測定履歴を参照でき、閲覧だけのwriteなし |
+
+保存・終了後通常編集・基準への復元・元版／必要ログ・別owner保護は既存概念を継承する。診断の多重度追加を新しい疾患分類や自動診断へ拡張せず、最新測定表示から薬量評価の医学的期限・閾値を導出しない。

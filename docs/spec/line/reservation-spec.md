@@ -47,6 +47,8 @@
 医院設定の受付期間内で受け付ける。休診日・時間外・対応可能人数を超える予約は不可とし、院内の警告確認による例外登録を飼主側に設けない。診療・トリミングの担当可否は登録済みシフトと医院別対応可能区分等の既存適格性で判定する。ホテルの休診日・時間外制限は選択する入室・退室日時に適用し、滞在途中の休診日だけで宿泊不可にしない（18:26合意）。ホテルへ医師人数・医師シフトの計算を代用適用しない。ホテルは17:35合意の医院別同時宿泊頭数上限で宿泊期間全体を判定する。ケージ・任意担当医師割当とは別で、計算・保存方式は設計へ分ける。
 
 
+飼主の会員区分変更だけで予約受付条件を自動変更しない。[D04共同確認](../domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)に従い、退亡者・他診/準から予約拒否を推定しない。上記の医院／枠／勤務・能力等の独立した既存条件は維持する。
+
 <a id="requirement-fr-line-reservations-business-start-times"></a>
 ### 分類別・担当者別の開始時刻と変更（2026-10-15追加合意1）
 
@@ -273,6 +275,8 @@ flowchart LR
 空き枠表示後に状態が変わり得るため、LIFF の確定は `liff_service_reservations.go` から `ValidateAndCreate` を呼ぶ。予約種別・appointment conflict を transaction 内で再検証し、明示 staff の医院所属・capability・LINE 公開/active を検査する。追記（2026-10-07 監査）: **選択時刻の勤務 shift 再検証は未実装**という既知 source gap の正本は [reservation-to-record-flow.md §7](../workflows/reservation-to-record-flow.md)（Deferred / known gaps）。空き枠表示を保存時の shift 保証と扱わない点は同節に従う。
 
 ## 5. 通知のライフサイクル
+
+予約確認・変更・予約リマインドの飼主LINEは、DM未設定／不要だけで除外しない。[D15目的別条件](lstep-integration.md#crm-dm-purpose-contract)と既存のLINE連携・アカウント・ブロック・本人／宛先・独立停止等を満たすことが前提。日付だけの未予約予定を名前だけで予約通知例外へ含めない。これは病院メールの配信希望変更や以下の未実装機能の実装済み宣言ではない。
 
 - **予約完了時**: 病院への受付通知 ＋ 飼主への完了メッセージ。
 - **キャンセル時**: DB のキャンセル状態は同期的に更新する。飼主 LINE / 病院メール通知は設定済みの場合の bounded background best-effort であり、即時到達や成功を保証しない。

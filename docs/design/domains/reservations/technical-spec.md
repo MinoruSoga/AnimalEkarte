@@ -18,7 +18,7 @@
 
 ## 1. 目的・正本・制約
 
-[予約の合意索引](../../../spec/domains/reservations/README.md#approved-reservation-scope)の既存69固有FRに、2026-10-15追加合意1のFR-line-reservations-business-start-timesを加えた基準70固有FRに今回のD14複製／CSV／プレビュー3FRを加えた73固有FRと、[継承参照](../../../spec/domains/reservations/README.md#inherited-reservation-references)2件を実現する方式を検討する。件数は今回参照した索引の値であり、全仕様定義数や実装済み数ではない。[語彙](../../../spec/ontology/reservations.md)、[横断契約](../../../spec/workflows/reservation-to-record-flow.md)、[18:26是正](../../../spec/domains/reservations/README.md#mece-corrections-1826)を参照し、業務ルール本文を複製しない。
+[予約の合意索引](../../../spec/domains/reservations/README.md#approved-reservation-scope)の既存69固有FRに、2026-10-15追加合意1のFR-line-reservations-business-start-timesを加えた基準70固有FRにD14複製／CSV／プレビュー3FRと初診／再診・次回予定4FRを加えた77固有FRと、[継承参照](../../../spec/domains/reservations/README.md#inherited-reservation-references)2件を実現する方式を検討する。件数は今回参照した索引の値であり、全仕様定義数や実装済み数ではない。[語彙](../../../spec/ontology/reservations.md)、[横断契約](../../../spec/workflows/reservation-to-record-flow.md)、[18:26是正](../../../spec/domains/reservations/README.md#mece-corrections-1826)を参照し、業務ルール本文を複製しない。
 
 Spec Kitの[導入済み技術計画テンプレート](../../../../.specify/presets/animalekarte-canonical/templates/plan-template.md)のTechnical Context、Constitution Check、調査／判断待ち、Design and Contracts、Verification Planを参考にした。Task HandoffはPlaneへの参照へ置き換え、Spec Kitコマンド・全workflow・生成スクリプトは実行していない。
 
@@ -258,7 +258,7 @@ Sentinel_087e713d04548191b371bfdc4e19dbeaで許可された文書具体化。下
 
 | 操作／operationId | 閉じた入力（共通headerに再送キー） | 既存grant／actor |
 |:---|:---|:---|
-| createReservation／createReservationBatch（予約intent） | owner_id、pet_id、reservation_type_id、start_time、end_time、doctor_id（正ID/null）、visit_type（first/revisit）、is_designated（bool）、任意notes、必要warning_receipt。batchは共通予定枠・区分・指名・visit_type・is_designated・notesと、順序保持pets配列（各owner_id/pet_id）のclosed schemaで全体atomic。同一枠の既存multi-pet業務を維持し、各petごと異なる日時・区分・指名を許可する新用途へ広げない。sourceはstaff入口manual／LIFF入口lineをserver決定、初期pending／confirmedは既存予約intentから決め任意statusを受け付けない | reservations:create。受付を兼ね記録を新規作成する場合medical-records:createも検査 |
+| createReservation／createReservationBatch（予約intent） | owner_id、pet_id、reservation_type_id、start_time、end_time、doctor_id（正ID/null）、visit_type（first/revisit）、is_designated（bool）、任意notes、必要warning_receipt。batchは共通予定枠・区分・指名・is_designated・notesと、順序保持pets配列（各owner_id/pet_id/visit_type）のclosed schemaで全体atomic。visit_typeはペットごとの候補とスタッフ選択値であり、共通値で全ペットを上書きしない。同一枠の既存multi-pet業務を維持し、各petごと異なる日時・区分・指名を許可する新用途へ広げない。sourceはstaff入口manual／LIFF入口lineをserver決定、初期pending／confirmedは既存予約intentから決め任意statusを受け付けない | reservations:create。受付を兼ね記録を新規作成する場合medical-records:createも検査 |
 | createAndCheckInReservation／Batch（推奨専用check-in-create入口） | createと同じ患者・予定・区分入力、受付intentをURLで選択。checked_inと記録作成／再利用を同時commit。prevent_duplicate_receptionはclientで解除できずserverの重複受付保護を必須にする | reservations:create、診療の通常記録新規作成時のみmedical-records:create。他分類は専用owner grant、受付画面入口reception:view |
 | updateReservationRoute（既存PATCH /api/v1/reservations/{id}/reservation-route） | expected_version、route（line/phone/reception/exam_room/record_shortcut）。独立した即時保存のintentと再送キーを持つ | reservations:edit。route表示変更をsource／LIFF本人認可・任意初期状態の代用にしない |
 | reassignReservationPatient（推奨専用reassign-patient入口） | expected_version、owner_id、pet_id、必要warning_receipt。現在scope・owner/pet関連・死亡判定・状態／記録関連の既存保護を再照合 | reservations:edit＋患者検索owners:view。別pet付替えは継承正本どおりintended_date／source_medical_record_idを同じlock下で除去。記録の患者を黙って変更しない |
@@ -303,6 +303,29 @@ fingerprintは目的・対象・業務変更・理由・順序に意味がある
 終了成功のoperation_resultは既存のoperation_id・intent・result_refs（予約と型付き記録）・committed_versions・committed_atを保持する。予約状態・終了結果／必要監査と成功receiptを同じcommitへ対応付け、記録保存や入金のreceiptと混用しない。初回成功結果とcurrent_state／現在版を分け、後の終了取消／再開後に古い成功receiptだけで「終了済み」と判定しない。D21等の受け手は実効的な終了結果と同じ記録への明示関連を読み、途中保存・本文のlegacy finalized表示・予定終了時刻を代用しない。本文view権限とscopeも別に照合する。具体的wire／DTO・全writer対応は実装前の適合確認で、既存APIが成立済みとはしない。
 
 通常カルテはD03の最新自動保存を維持する。自動保存の失敗・競合・結果不明を終了成功で解消済みにせず、逆に自動保存成功だけで終了済みにしない。診療終了時の治療プラン未実施警告は確認すれば続行でき、自動保存では警告しない。警告根拠は対象記録・現在版へ結び付け、D06の新しい施術完了必須条件にしない。終了に「保存して終了／破棄して終了」を追加しない。
+
+<a id="reservation-visit-history-intent-contract"></a>
+### 4.8 ペットの実受診歴による候補と次回予定の明示消化
+
+[4点合意](../../../spec/workflows/reservation-to-record-flow.md#next-visit-intent-agreement-20261015)を実現する設計差分で、API／DB変更済みではない。既存の操作別grant・対象版・UUIDキー／receipt・全writer gate・患者同一性・受付と通常カルテの同時commitを継承する。
+
+来院区分の候補readは認可済みclinic contextと確定pet IDに結び付け、実受診の有無と確認できた根拠を返す。登録状態・入力モード・飼主の別ペット・予約件数・準備済み空カルテから受診済みを推測しない。履歴取得失敗／未確定はunknownとし、falseへ変換しない。[対象種別の合意](../../../spec/domains/reservations/pages/reservation-management.md#visit-history-included-types)は通常診療・ワクチン・健診を含み、トリミング・ホテルだけの利用を含めない。予約区分の表示名や固定4分類だけでワクチン・健診の実施を推定せず、明示的な実施記録へ対応付ける。具体的な履歴owner／実施根拠・認可scope・訂正履歴への適合を実装前に照合する。新しい他院閲覧権限や過去区分の一括補正は作らない。
+
+候補とスタッフの選択値を分離し、選択変更後の遅いread・mode切替・pollで上書きしない。患者変更時は対象petを再照合し前の患者の候補を流用しない。通常createとbatch各petのvisit_type（first/revisit）へ最終選択値を渡し、表示・保存・カルテ引継ぎを一致させる。既存予約編集／次回予定確定では保存値を保持して訂正可。候補不明を理由に新しい必須患者情報を増やさず、スタッフ確認を可能にする。通知判定はD15の実施済み／送信対象確認へ委ねる。
+
+| 入口／操作 | 目標契約と対象照合 | 既存安全条件・失敗時 |
+|:---|:---|:---|
+| 日付のみset／clear | intended_dateを保持しsentinelを実時刻・枠占有・受付対象へ投影しない。setのexpected_target（noneまたはid＋version）、clearの対象id＋expected_versionを必須にする | 新規create・上書きcreate＋edit・clear edit。医院／pet・既存予定の競合・UUID結果照会を継承 |
+| 日時付きconfirm | 対象次回予定id＋expected_version・確定日時・区分・担当・visit_type等を明示。同じ行を昇格し由来を保持する | reservations:edit、既存の時間／担当／警告receipt／患者保護。結果不明で別keyの新規予約を作らない |
+| 一般create／batch／walk-in／LIFF | staffによる明示消化指示がない限りtentativeを検索吸収しない。batchでもpet単位で対象を区別する。LINE予約作成をスタッフ選択の代用にしない | 通常予約の既存create／受付grantと記録participantを維持。予定を残しても同じ来院の実予約重複を許可する意味ではない |
+| 今回来院への明示消化 | 目的別intentで次回予定id＋expected_version、同じ医院・petの今回来院refとその期待版、スタッフの消化選択を受ける設計。新規今回予約なら同じtentative IDを昇格し、既存今回予約ならそのID・記録を保持して消化関係と予定終了を一体で保存する | 対象予定のeditと今回来院の既存操作grantを検査。全writer gate・pet intent lock・予約版／参加recordを同じtransactionへ接続。既存2予約の無断統合や記録削除なし |
+| 由来予約の取消／再設定 | 取消は元予定を新設／復活させず、由来を保持。had_intended_date等は再設定案内の材料に限る。再設定はスタッフの別の明示set操作 | 取消結果receiptと再設定receiptを分ける。再設定時に現存予定・対象版を再取得し、古い案内から上書きしない |
+
+明示消化のwire名／routeは実装前にAPI正本で選定・検証するが、必要な対象と版・意味は上表に固定する。選択と対象refは操作fingerprintに含め、同keyで消化対象や選択を変えない。no-consumeの一般操作で予定を変更しないこともserver側で保証する。関連状態・消化関係・必要監査・成功receiptを同一commitに対応付ける。409では入力・選択を保持して現在版と内容を比較し再確認、timeout／abortでは同じkeyの結果照会を行い、失敗確定前に消化解除・新規予約・新予定を自動作成しない。再受付・受付時通常カルテ・取消履歴の既存契約を迂回しない。
+
+EMR-274のmode固定と、EMR-308のcreateOrPromoteTentativeによる全同pet作成時自動吸収は実装差分。内部Create・CreateBatch・admin/walk-in・LIFF・confirm-tentative・カルテの次回予定入口・受付の全consumerを切替対象とし、未参加旧writerが意図を自動消化する抜け道を残さない。具体的API/DTO・保存形式・全writer適合は未実施の検証であり、確定済み対象種別の業務判断と混同しない。
+
+検証はAC-reservations-visit-type-registered-unseen／included-services／nonclinical-only／staff-correction／no-actual-history／existing-preservationと、AC-reservations-next-intent-date-only／earlier-visit-preserved／explicit-consume／consume-conflict-unknown／cancel-no-revival／manual-resetへtraceする。異なるペットのbatch、患者切替の遅い応答、予定の同時変更・消化、同key再送、旧API経路、取消と再設定競合を含む。今回は文書の整合確認だけで、実装・実機試験は未実施。
 
 ## 5. 状態と処理の接続
 
@@ -435,7 +458,7 @@ receiptを使う操作は先に短いmetadata-only claim transactionを完了す
 | 通常POST／PATCH／DELETE、batch、reservation-route：[route](../../../../backend/internal/reservation/routes.go)・[更新](../../../../backend/internal/reservation/reservation_service_update.go) | 作成／通常編集／状態intentを分離。メモ・経路変更も版を増分、制限項目を省略して迂回しない。削除は履歴保持の取消契約へ | 旧status・timestamp-only更新を新経路へ黙って変換せず拒否。任意の新分類を旧2値に保存しない |
 | 医院別admin予約POST／DELETE：[admin repo](../../../../backend/internal/reservation/appointment_admin_repository.go) | 同じ予約owner・医院認可・分類・版・lock・取消保持へ接続 | 通常APIだけの追従でこの入口を残さない |
 | LIFF空き／作成／本人取消：[LIFF service](../../../../backend/internal/reservation/liff_service_reservations.go) | customer scope・結果照会・版／再送と保存時算法。空きは予定枠、ホテルは別全期間計数 | 旧勤務／休憩取得失敗fallbackや2分類dispatchを使わない。分類別・担当者別開始時刻を表示／確定の両方へ適用し、トリミングの旧加算計算を停止する。指名なしは担当未定で保存し、旧no_staff_modeによる実担当自動委譲writeは停止する。判定用仮割当は維持するが、保存・応答・表示・通知・担当履歴へ実担当として流さない |
-| tentative・次回予定確定／当日受付／吸収：[intent repo](../../../../backend/internal/reservation/reservation_intent_repository.go)・[handler](../../../../backend/internal/reservation/reservation_intent_handler.go) | 同じ予約・pet provenance・intent lock／CASを保全し、受付record participant・版／再送へ参加 | 新通常予約だけに適用して旧confirm／受付で誤記録を生成しない |
+| tentative・次回予定確定／当日受付／明示消化：[intent repo](../../../../backend/internal/reservation/reservation_intent_repository.go)・[handler](../../../../backend/internal/reservation/reservation_intent_handler.go) | 同じ予約・pet provenance・intent lock／CASを保全し、明示対象・消化選択・受付record participant・版／再送へ参加 | 選択なしの旧createOrPromoteTentative自動吸収を停止。新通常予約だけでなく旧confirm／受付／batch／LIFFにも適用し誤記録を生成しない |
 | trimmingの予約作成／更新／削除participant（CreateForTrimming／UpdateForTrimming／DeleteForTrimming）：[intent repo](../../../../backend/internal/reservation/reservation_intent_repository.go) | 専用記録・予約の型付き最小interfaceを保持。共通版／分類・必要booking lockへ参加 | 通常診療状態・通常カルテへfallbackしない |
 | カルテからの予約補完／確定／削除：[crud](../../../../backend/internal/medicalrecord/medical_record_crud.go) | 既存ID・appointment関連・確定保護、予約補完writeの版・切替状態、§6.3の順序 | 新分類の未対応記録を作らず、通常予約handlerの名前判定だけで救済しない |
 | 会計完了による予約状態更新：[complete](../../../../backend/internal/billing/accounting_complete_tx.go)・[予約participant](../../../../backend/internal/reservation/reservation_intent_repository.go) | ambientを維持し、共通lock・予約版・会計確定履歴・必要監査を同時照合 | 参加前に新Undo等を利用開始しない。会計側保護を削除して合わせない |
@@ -497,6 +520,8 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 
 **基準82aa52f3時点の旧判定では、予約側の確定業務と技術接続契約の文書整理は完了としていた。今回の追加合意1・2の差分も固定39文書の独立内容レビュー・限定構造検査を通過し、今回の追加1FRを含む70FR索引と技術traceを照合した。旧判定と今回の検査根拠は分ける。当面の自動削除停止は承認済みだが、全ドメイン文書の完成・全writerの保持適合・実装可能という判定ではない。** 関連ドメイン内部の未決を予約APIの「schema未決」へ戻さず、各ownerの文書完了条件へ渡す。
 
+2026-10-15の初診／再診・次回予定4点の差分は§4.8と77FR索引へ追加した。受診歴の対象種別は追加回答Sentinel_ff5f2f7a9b8481918f976fda892e3478で確定し、この改訂を既完了の過去レビューへ混ぜない。新差分の文書レビュー、API/DTO・全writer・実機検証は別途必要。
+
 ### 9.3 業務判断と検証項目を分離する
 
 当面自動削除しない扱いは Sentinel_9d85a7955b608191985bb02c2c9356a5 で承認済み。[C05共通方針](../../../spec/shared/retention-audit.md)で業務原本・履歴・必要監査を保持し、通常は取消／非表示／論理削除とする。年数による自動削除・一括物理削除は通常製品範囲外で必要時は別手続とし、新たな法定年数を置かない。これを予約固有の残る業務質問へ戻さず、法的年数を技術側で選ばない。ホテル担当医師は任意で、別責任担当・非医師担当・一名必須は追加しない。責任者の既存権限への割当・確定後訂正・請求修正／返金・締め後精算・専用記録は各ownerの最新正本へ従う。既決を未決の業務質問へ戻さず、実装適合を別途照合する。受付／記録担当という合意を、権限を持つ全員の役割へ自動拡張しない。
@@ -513,10 +538,14 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 
 ## 11. 合意FRへの対応索引
 
-以下は業務本文のコピーではなく、既存69固有FR＋開始時刻1件＋今回D14の3件＝73固有FRから本書の検討責務を辿る索引。継承2件と対象外の業務正本は別扱い。索引の網羅は実装完了を示さない。
+以下は業務本文のコピーではなく、既存69固有FR＋開始時刻1件＋D14の3件＋初診／再診・次回予定4件＝77固有FRから本書の検討責務を辿る索引。継承2件と対象外の業務正本は別扱い。索引の網羅は実装完了を示さない。
 
 | 要件ID | 業務正本 | 技術設計の参照範囲 |
 |:---|:---|:---|
+| FR-reservations-pet-history-visit-type | [ペットの実受診歴による初診／再診候補](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-pet-history-visit-type) | [§4.8の候補／明示消化契約](#reservation-visit-history-intent-contract)・§6〜§8 |
+| FR-reservations-date-only-next-intent | [日付だけの次回予定](../../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-date-only-next-intent) | [§4.8の候補／明示消化契約](#reservation-visit-history-intent-contract)・§6〜§8 |
+| FR-reservations-next-intent-explicit-consumption | [今回来院への明示消化](../../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-next-intent-explicit-consumption) | [§4.8の候補／明示消化契約](#reservation-visit-history-intent-contract)・§6〜§8 |
+| FR-reservations-next-intent-cancel-no-revival | [予約取消後の手動再設定](../../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-next-intent-cancel-no-revival) | [§4.8の候補／明示消化契約](#reservation-visit-history-intent-contract)・§6〜§8 |
 | FR-reservations-preconsultation-date-record-correction | [診療前の日付訂正とカルテ](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction) | §4〜§6・§8 |
 | FR-reservations-staff-role-label | [区分別の指名表示名](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-staff-role-label) | §4〜§6・§8 |
 | FR-reservations-duty-staff-selection | [全時間の勤務・休憩適格性](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-duty-staff-selection) | §4〜§6・§8 |

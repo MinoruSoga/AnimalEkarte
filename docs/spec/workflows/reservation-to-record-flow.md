@@ -97,6 +97,9 @@ staff CRUD の一部 request/response 名は `ExcludedTypeIDs` / `excluded_cours
 
 | 要件ID | 定義の所在 | 決定根拠 |
 |:---|:---|:---|
+| FR-reservations-date-only-next-intent | [日付のみの未予約意図](#requirement-fr-reservations-date-only-next-intent) | 2026-10-15の4点合意。Sentinel_5bade7ee85988191b8e0ab59a6e81fd7。実装・実機未確認 |
+| FR-reservations-next-intent-explicit-consumption | [今回来院への明示消化](#requirement-fr-reservations-next-intent-explicit-consumption) | 2026-10-15の4点合意。Sentinel_5bade7ee85988191b8e0ab59a6e81fd7。実装・実機未確認 |
+| FR-reservations-next-intent-cancel-no-revival | [取消後の非自動復活・手動再設定](#requirement-fr-reservations-next-intent-cancel-no-revival) | 2026-10-15の4点合意。Sentinel_5bade7ee85988191b8e0ab59a6e81fd7。実装・実機未確認 |
 | FR-reservations-active-general-record-unique | [既存の要件本文](#requirement-fr-reservations-active-general-record-unique) | 既存記載を継承。ID付与で合意済みにしない |
 | FR-reservations-start-record-failure-retry | [未作成時の作成と作成／読み込み失敗時の開始未確定・再試行](#requirement-fr-reservations-start-record-failure-retry) | 合意済み。2026-10-14 10:59 JST、直前の明示確認へユーザー「ok」。結果不明時の技術方法は実装判断 |
 | FR-reservations-checkin-record-reuse | [受付時作成カルテの再利用・重複なし](#requirement-fr-reservations-checkin-record-reuse) | 合意済み。2026-10-14 10:17 JST、ユーザー「ok」。未作成／失敗時は10:59の作成・読み込み失敗契約へ従う |
@@ -273,6 +276,29 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 予約編集とシフト／適格設定保存・スタッフ無効化の同時実行で制約をすり抜けない必要があるが、ロック等の実装方式は未決。データ不整合救済・シフト未登録時のカレンダー列構成は決めず、非勤務者の列を警告付きで残す案を承認済みにしない。
 
 <a id="next-visit-intent"></a>
+<a id="next-visit-intent-agreement-20261015"></a>
+### 2026-10-15合意：日付のみの次回予定・明示消化・取消後の再設定
+
+<a id="requirement-fr-reservations-date-only-next-intent"></a>
+#### 日付だけの次回予定は未予約として分ける
+
+「来週また来てください」等の日付だけの次回予定は、時刻付き予約と分ける。日付を設定しても予約枠・定員を確保せず、当日の受付ボードのどの列にも出さない。日時が決まったら予約にする。予定日当日になったことだけで受付カードを作成・受付済化せず、日付だけの意図を実来院・実受診として数えない。実予約への確定後は、その予約の通常の対象日・受付・容量条件へ従う。
+
+<a id="requirement-fr-reservations-next-intent-explicit-consumption"></a>
+#### 別件来院では自動消化せず、スタッフが今回来院への消化を選ぶ
+
+同じペットが次回予定より前に別件で来院しても、次回予定を自動で消さない。スタッフが「今回の来院で消化するか」を対象の次回予定と来院を確認して選ぶ。消化しない場合やまだ選択していない場合は次回予定を保持し、今回の来院・予約を別に扱う。同じペット・日付・区分という一致や、実予約／当日受付／walk-inの作成だけを消化選択の代用にしない。
+
+消化する選択を保存する場合も、同じ来院の予約・カルテを重複作成しない。次回予定から今回の実予約を作る場合は同じ予定の予約ID・由来を引き継ぎ、すでに今回来院の予約／受付がある場合はその対象を維持して明示的な消化関係を記録する。二つの既存予約・記録を自動統合／削除して救済しない。失敗・競合・結果不明は選択を保持して結果照合し、予定だけ先に消化済みと扱わない。具体的な保存方式・全入口対応は技術契約で検証する。
+
+<a id="requirement-fr-reservations-next-intent-cancel-no-revival"></a>
+#### 次回予定から作った予約の取消で元予定を自動復活させない
+
+次回予定から作った予約を取り消しても、元の次回予定を自動復活させない。必要ならスタッフが次回予定を設定し直す。再設定案内を開くことと保存することは別で、案内の表示・閉じる操作だけでは次回予定を新設しない。取消予約・由来・関連記録・履歴は保持し、既存の誤取消復元と新しい次回予定の再設定を混同しない。
+
+3FRの決定根拠は2026-10-15の4点確認（Sentinel_0755eb8b662c8191939153f29229607e）への回答 Sentinel_5bade7ee85988191b8e0ab59a6e81fd7「1 yes 2 yes 3 yes 4 yes」の第2〜4項。来院区分は[ペットの実受診歴による候補](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-pet-history-visit-type)へ。権限・医院／ペット照合・対象版・同じ操作キーとreceipt・受付と通常カルテの同時成功を維持する。実装・実機受入は未確認。
+
+
 #### 2.3 当日受付
 
 <a id="checkin-contract"></a>
@@ -312,9 +338,11 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 `cancelled` / `no_show` / `tentative` は通常の進行列には表示しない。
 
-EMR-308: `tentative`（次回予定・未予約）はカルテヘッダーの「次回予定」（`PUT/DELETE /v1/reservations/pets/:petId/next-visit-intent`）で書かれる sentinel 行で、実時刻を持たず（`start_time`/`end_time` は `intended_date` の JST 00:00–00:15 sentinel）カンバン・空き枠・定員計算に参加しない。実予約への遷移は2経路ある。(a) 予約詳細の「予約を確定」（`POST /v1/reservations/:id/confirm-tentative`）で明示時刻・担当を付けて `pending`/`confirmed` へ昇格、(b) 同一ペットへの実予約・当日受付・walk-in 作成経路（内部 Create・CreateBatch・admin/walk-in・LIFF）が `createOrPromoteTentative` で active tentative を同一行昇格し、受付時に sentinel 時刻を実時刻へ置き換える。`DELETE next-visit-intent` は tentative を論理削除する。通常予約の完了通知の対象外であり、別途 Lステップの3日前・当日リマインダー定義がある。
+EMR-308の既存保存表現は `appointments.status='tentative'`、`intended_date` が正本、JST 00:00–00:15は実時刻を表さないserver sentinelである。[日付のみの次回予定FR](#requirement-fr-reservations-date-only-next-intent)に従い、受付ボード・空き枠・定員計算へ参加しない。「予約を確定」（既存 `POST /v1/reservations/:id/confirm-tentative`）は対象の次回予定・版を指定して日時等を確定し、同じIDで実予約へ昇格する。`DELETE next-visit-intent` は明示取消であり、実予約の取消による元予定の自動復活はしない。通常予約の完了通知の対象外で、別途のLステップ通知はD15の正本へ従う。
 
-予約管理の終了確認では、表示行の `id` と `updated_at`（小数秒を保持）を `expected_reservation_id` / `expected_updated_at` として送る。サーバーは intent / row lock 下で両方を照合し、更新・削除・再作成済みなら409で終了を拒否する。両方省略した従来のペット単位取消は冪等性を維持する。
+旧 `createOrPromoteTentative` は同一ペットへの実予約・当日受付・walk-in作成（内部Create・CreateBatch・admin/walk-in・LIFF）でactive tentativeを自動昇格する実装参照だった。これは[スタッフの明示消化選択](#requirement-fr-reservations-next-intent-explicit-consumption)へ追従が必要な差分であり、現在の目標仕様として自動吸収を許可しない。選択なしの一般予約作成・受付では元予定を維持する。API・DTO・全writerの適合は[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)へ。
+
+旧実装の終了確認は表示行の `id` と `updated_at`（小数秒を保持）を `expected_reservation_id` / `expected_updated_at` として送り、intent／row lock下で照合した。切替後の目標契約は[操作別APIの対象版・同一操作キー](../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)であり、旧の無前提ペット単位取消・時刻からの版推測変換を許可しない。更新・削除・再作成済みなら競合として再確認し、別の次回予定を消化／取消しない。
 
 `tentative` は同一医院のペットに属する意図であり、飼主移管後も現在のペット飼主として管理画面から操作できる。旧飼主・現在飼主・ペットの医院境界は維持し、通常予約の所有者整合条件は変更しない。昇格後の実予約を別ペットへ付け替える場合は、元ペット由来の `intended_date` と `source_medical_record_id` を同じロック下の更新で除去し、誤ったペットへの意図再設定を提示しない。
 
@@ -332,8 +360,8 @@ stateDiagram-v2
     pending --> checked_in : 来院受付
     confirmed --> checked_in : 来院受付
     tentative --> pending : 予約を確定 (confirm-tentative)
-    tentative --> confirmed : 実予約作成時の同一行昇格
-    tentative --> checked_in : 当日受付/walk-in 昇格
+    tentative --> confirmed : 対象予定を選んで日時付き予約へ確定
+    tentative --> checked_in : スタッフが今回消化を選択し当日受付が成功
     tentative --> [*] : next-visit-intent 取消 (論理削除)
     [*] --> checked_in : 予約なし来院 (route=reception)
     [*] --> in_consultation : direct consultation / record_shortcut
@@ -347,7 +375,7 @@ stateDiagram-v2
     confirmed --> cancelled
 ```
 
-上図の次回予定・shortcut・診療／会計の既存経路は継承した参照情報。今回の合意は[受付契約](#checkin-contract)に限定し、専用記録や未決の状態条件を確定しない。
+上図の次回予定は[2026-10-15合意](#next-visit-intent-agreement-20261015)へ更新した。選択なしの別件予約／来院ではtentativeを維持し、取消予約からtentativeへ自動復活する遷移は設けない。shortcut・専用記録や未決の状態条件は継承参照であり、一括確定しない。
 
 #### 2.4 受付から通常カルテ / トリミング
 
@@ -454,6 +482,12 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 
 | 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認 | 成功条件 | 確認手順／証跡 |
 |:---|:---|:---|:---|:---|:---|:---|
+| AC-reservations-next-intent-date-only | 日付だけの次回予定がある | 予定日前・当日に予約カレンダーと受付を読む | 未予約と表示し枠・容量を消費せず、当日の受付ボードに出さない。時刻付き確定後だけ通常予約として扱う | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-date-only-next-intent)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
+| AC-reservations-next-intent-earlier-visit-preserved | 次週の予定があるペットが別件で今日来院する | 消化未選択／消化しない選択で通常予約・walk-in・受付を保存する | 今回来院を別に扱い元予定を保持。一般Create・batch・LIFFからも自動吸収しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
+| AC-reservations-next-intent-explicit-consume | 対象予定と今回来院をスタッフが確認した | 今回の来院で消化することを明示選択し保存する | 新しい今回予約なら対象予定の同じIDを使い、既存今回予約ならそのID・記録を保持して消化関係を記録。余分な予約・カルテなし | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
+| AC-reservations-next-intent-consume-conflict-unknown | 消化選択後に対象版変更・二重操作・通信断が起きる | 保存・再送・結果照会を行う | 競合は入力保持と再確認、結果不明は同じキーで照合。別の予定を消さず予定だけ先に消化済みとせず、予約・記録も増殖しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
+| AC-reservations-next-intent-cancel-no-revival | 次回予定から作った日時付き予約がある | 予約を取り消し再設定案内を表示／閉じる | 元予定は自動復活せず、取消予約・由来・記録・履歴を保持。案内だけでは保存しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-cancel-no-revival)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
+| AC-reservations-next-intent-manual-reset | 由来予約の取消後に次回予定が必要になった | スタッフが新日付を確認し設定し直す | 既存create／上書き権限・対象版・receiptで明示保存し、取消済み予約はそのまま。再送で予定が増殖しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-cancel-no-revival)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
 | AC-reservations-active-general-record-unique | 同一general appointmentがある | 通常カルテを作成する | そのappointmentのactive recordは最大1件 | このappointmentの作成契約を確認 | 同一来院の有効な通常カルテは1件以下 | [要件](#requirement-fr-reservations-active-general-record-unique)・[各ドメインの受入手順](../README.md)。実機未確認 |
 | AC-reservations-future-assignment-protection | 未来指名予約と現在15:30に診療中の15:00〜16:00予約、過去対応済み・取消済・未来院履歴がある | 対応不能にするシフト変更／個人対応区分解除／スタッフ無効化を保存する | 未来予約と開始済みでも現在診療中の予約は影響判定対象。影響予約は解消まで保存不可、履歴は対象外で不変。理由と対象一覧を示す | この条件を単独確認 | Thenの業務結果 | [FR](#requirement-fr-reservations-future-assignment-protection)。実機未確認 |
 | AC-reservations-future-assignment-protection-overtime | 予定15:00〜16:00の指名予約が16:15でも診療中 | 対応不能にするシフト変更／個人対応区分解除／スタッフ無効化を試す | 3操作で影響チェック対象に残し解消まで保存不可。予定時刻だけで診療終了・対象外とせず、予約時間を自動延長しない | 予定終了超過を単独確認 | 予定終了超過で保護が消えない | [FR](#requirement-fr-reservations-future-assignment-protection)・[合意例](#consultation-overtime)。実機未確認 |

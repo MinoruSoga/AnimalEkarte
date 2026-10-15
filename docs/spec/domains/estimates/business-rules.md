@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | domain.estimates.business-rules／業務仕様 |
-| 決定状態 | 既存契約を継承。E1は依頼者2026-10-15承認（Sentinel_5b14560fa7308191a92a2882c517a23d）。 |
+| 決定状態 | 既存契約を継承。E1は依頼者2026-10-15承認（Sentinel_5b14560fa7308191a92a2882c517a23d）。期限内の提示単価・提示後の改訂は追加承認（Sentinel_1fda6cf121048191943efab56cc16a23）。 |
 | 実装状態 | 現行差を分離。今回実装変更・網羅監査なし |
 | 実機検証状態 | 未実施。受入条件は検査定義 |
 | 文書確認日 | 2026-10-15 |
@@ -25,12 +25,12 @@ D11は費用の説明、見積の保存・提示・承認／却下・後継訂�
 <a id="requirement-fr-estimates-state-protection"></a>
 ### FR-estimates-state-protection：状態と確定保護
 
-既存契約を継承。新規作成は下書き／送付済み。下書き・送付済みは権限付きで編集でき、承認済み／却下へ移行すると原見積を編集・削除・下書きへ戻せない。送付済みという状態変更だけで外部へ自動送信したことにはならない。見積の状態とカルテの確定状態は別で、親カルテ確定後の通常子更新禁止も保持する。
+現行実装では新規作成は下書き／送付済みで、下書き・送付済みは権限付きで編集でき、承認済み／却下へ移行すると原見積を編集・削除・下書きへ戻せない。2026-10-15追加承認の目標では、飼主へ提示済みなら返答待ちでも提示原本を保持し、金額・明細の直接上書きや削除で失わせない。変更は理由付き後継を作り再提示する。提示版を識別して承認／却下を記録する状態遷移は可能だが、内容の改変とは分離する。未提示下書きの通常編集は維持し、送付済みの現行編集可を新目標の例外にしない。送付済みという状態変更だけで外部へ自動送信したことにはならない。見積の状態とカルテの確定状態は別に扱う。親draftを要求する旧更新gateは現行実装との差として扱い、目標では未提示下書きの通常編集を親カルテの確定状態だけで禁止しない。見積自身の提示状態・期待版・医院と親子関係・権限を検査し、提示原本や確定見積の保護を維持する。通常削除における親カルテ未確定条件は更新とは別の保護として維持する。
 
 <a id="requirement-fr-estimates-successor"></a>
 ### FR-estimates-successor：原本を残す後継訂正
 
-既存契約を継承。承認済み／却下見積の訂正は理由付きの新しい後継下書きとして作る。原番号・状態・明細を保持し、新ID／番号から原見積を参照する。元明細・ヘッダ値・宛先・有効期限等のコピーと、今回の変更を区別する。承認済み目標では、親カルテが確定済みでも親や原見積を再開せず、専用の後継訂正経路で必要な変更を保存し、確認した内容を未確定会計へ受け渡すところまで可能にする。現行は後継createのみ親draft保護の例外で、その後の通常updateが親確定を理由に拒否する実装差がある。専用経路でこの差を解消し、一般unlockは追加しない。後継が作れたことだけで編集・会計化の完了としない。
+承認済み／却下見積の訂正は理由付きの新しい後継下書きとして作る。追加承認により、提示済み・返答待ちの見積も金額・明細を変更する場合は同じ後継方式に含め、変更内容を再提示する。元見積への承認を内容の異なる後継の承認へ自動継承しない。原番号・状態・明細を保持し、新ID／番号から原見積を参照する。元明細・ヘッダ値・宛先・有効期限等のコピーと、今回の変更を区別する。承認済み目標では、親カルテが確定済みでも親や原見積を再開せず、専用の後継訂正経路で必要な変更を保存し、確認した内容を未確定会計へ受け渡すところまで可能にする。現行は後継createのみ親draft保護の例外で、その後の通常updateが親確定を理由に拒否する実装差がある。後継は元版・後継関係・理由・権限・未提示の編集可能状態を専用経路で検査し、この現行差を解消する。通常の未提示下書き編集も親確定だけを拒否理由にしないが、提示原本・確定見積を通常編集へ戻す一般unlockは追加しない。後継が作れたことだけで編集・会計化の完了としない。
 
 <a id="requirement-fr-estimates-money-source"></a>
 ### FR-estimates-money-source：金額の出所を明示
@@ -44,12 +44,17 @@ D11は費用の説明、見積の保存・提示・承認／却下・後継訂�
 
 D10／D03の既決境界を継承：見積保存／承認／後継作成のみで請求・実入金・在庫実績を生成しない。請求確定はD10、臨床実施はD03等、在庫実績はD13が所有する。
 
-承認済みE1：スタッフが飼主・対象ペット・実際に請求する明細・金額を確認して未確定会計へ受け渡す。元見積／版／明細の参照を保持し、現在の価格／税／割引との相違を確認する。見積承認や転記を実施記録の作成に代用せず、既に請求した同一実績を再請求しない。会計化の成功判定は受渡し先の保存結果で行う。
+承認済みE1：スタッフが飼主・対象ペット・実際に請求する明細・金額を確認して未確定会計へ受け渡す。元見積／版／明細の参照を保持し、現在の価格／税／割引との相違を確認する。期限内の承認済み見積と内容・数量が同じ場合は、マスタ単価が変わっていても提示した単価を使用する。追加処置や内容・数量の変更は改めて説明し、提示済み見積を修正する場合は後継を再提示する。差分確認だけを理由に保証対象の単価を現在マスタへ自動置換しない。見積承認や転記を実施記録の作成に代用せず、既に請求した同一実績を再請求しない。会計化の成功判定は受渡し先の保存結果で行う。
 
 <a id="requirement-fr-estimates-validity"></a>
 ### FR-estimates-validity：有効期限と説明
 
 既存の有効期限は見積提示条件を確認する日付であり、期限到来で自動入金・自動取消を行う契約はない。承認済みE1：期限切れを警告し、条件を再確認して後継見積を作る。無回答を期限延長や旧価格保証の承認としない。
+
+<a id="estimate-price-presentation-agreement-20261015"></a>
+### 2026-10-15追加合意：期限内の提示単価と提示原本
+
+承認済み・有効期限内・内容と数量が同じという条件を満たす場合に提示単価を使う。今回の価格保証は単価の取り扱いであり、税率・保険負担額・割引の適用条件や請求総額を無条件で固定する承認ではない。D10の適用計算・概算保険の窓口再確認・既存割引条件を維持し、単価とその他の差分を分けて確認する。税務条件の新規決定や自動請求確定を追加しない。返答待ちを承認済みとせず、期限切れは従来どおり条件再確認と後継再提示へ進む。提示原本の単価・数量・明細・当時の計算根拠は、後継や会計の再計算で書き換えない。
 
 ## 異常系・保存・取消
 
@@ -70,7 +75,7 @@ D10／D03の既決境界を継承：見積保存／承認／後継作成のみ�
 | AC-estimates-no-unlock | 承認済み見積を下書きへ変更／削除 | 原本を保持して拒否 | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)。保存値を照合、未実施 |
 | AC-estimates-successor | 確定見積に理由付き後継作成 | 別番号の下書きと原見積参照、原本不変 | [FR-estimates-successor](#requirement-fr-estimates-successor)。新旧ID／項目を照合、未実施 |
 | AC-estimates-successor-audit | 後継作成の監査保存失敗 | 後継を成功として残さない | [FR-estimates-successor](#requirement-fr-estimates-successor)。rollback境界を照合、未実施 |
-| AC-estimates-parent-finalized | 確定カルテ配下の原見積へ通常変更 | 通常更新を拒否、専用後継との違いを保持 | [FR-estimates-successor](#requirement-fr-estimates-successor)。現行編集差を検出、未実施 |
+| AC-estimates-parent-finalized | 確定カルテ配下で未提示下書きと提示済み原見積の金額・明細変更をそれぞれ要求 | 未提示下書きは見積自身の状態・版・関係・権限が適合すれば親確定だけで拒否しない。提示済み原見積は直接変更を拒否し専用後継へ。通常削除の親未確定条件は維持 | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)・[FR-estimates-successor](#requirement-fr-estimates-successor)。旧親draft更新gateとの現行差を検査、未実施 |
 | AC-estimates-successor-edit-handoff | 確定親の承認済み見積から後継を作り必要箇所を変更 | 親・原見積は不変、専用経路で変更保存後に確認して未確定会計へ渡せる | [FR-estimates-successor](#requirement-fr-estimates-successor)。承認E1目標と現行update拒否差を検査、未実施 |
 | AC-estimates-items-omitted | 明細あり見積へヘッダのみ変更 | 既存明細を消さず明細由来金額の整合を保つ | [FR-estimates-money-source](#requirement-fr-estimates-money-source)。nilと空配列を別ケース、未実施 |
 | AC-estimates-items-empty | 明細空配列を明示して保存 | 省略扱いせず現行全行置換契約を適用 | [FR-estimates-money-source](#requirement-fr-estimates-money-source)。旧合計残留を確認、未実施 |
@@ -81,6 +86,14 @@ D10／D03の既決境界を継承：見積保存／承認／後継作成のみ�
 | AC-estimates-unified-calculation | E1の目標で、同明細を二つの入口で保存 | 同じD10計算結果と根拠を保持 | 承認E1。両入口のsnapshot比較、未実施 |
 | AC-estimates-handoff-confirm | E1の目標で、見積から会計へ受渡し | 対象確認と元明細参照付き未確定会計、二重請求なし | 承認E1。受渡し元／先結果を照合、未実施 |
 | AC-estimates-expired | E1の目標で、有効期限を過ぎて再利用 | 警告し再確認・後継へ、無断価格保証なし | 承認E1。境界日と後継を照合、未実施 |
+| AC-estimates-quoted-price | 承認済み・期限内・内容と数量が同じ見積を会計へ受け渡し、現在マスタ単価だけが変更済み | 提示単価を使い、元版・行参照と単価の出所を保持する | [FR-estimates-validity](#requirement-fr-estimates-validity)。追加承認目標、未実施 |
+| AC-estimates-changed-content-explain | 追加処置または見積内容・数量を変更する | 改めて説明し、提示済み見積の変更は後継を作り再提示する。旧原本は不変 | [FR-estimates-successor](#requirement-fr-estimates-successor)。追加承認目標、未実施 |
+| AC-estimates-presented-pending-original | 提示済み・返答待ちの見積で金額・明細の直接更新／原本削除を要求 | 原本を保持して直接変更を拒否し、後継改訂の経路を示す | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)。追加承認目標、未実施 |
+| AC-estimates-presented-pending-successor | 提示済み・返答待ちの見積から理由付き改訂を作成 | 別ID／番号・原版参照を持つ後継を作り再提示。旧承認や返答を新内容へ自動継承しない | [FR-estimates-successor](#requirement-fr-estimates-successor)。追加承認目標、未実施 |
+| AC-estimates-presentation-edit-race | 同じ未提示下書きに提示と明細変更を同時要求 | 提示した版を固定し、提示後の変更が原本へ混入しない。競合は再読取・再確認する | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)。追加承認目標、未実施 |
+| AC-estimates-quoted-price-other-rules | 提示単価保証対象の見積で税・保険・割引の条件を確認 | 提示単価を保持しつつD10適用計算と保険再確認を維持。単価保証を総額や保険額の無条件固定としない | [FR-estimates-billing-handoff](#requirement-fr-estimates-billing-handoff)。追加承認目標、未実施 |
+| AC-estimates-quoted-price-no-approval | 期限内でも返答待ちの見積を扱う | 承認済み限定の単価保証条件を満たしたと推定しない。原本保護は維持する | [FR-estimates-validity](#requirement-fr-estimates-validity)。追加承認目標、未実施 |
+| AC-estimates-presented-successor-retry | 返答待ち原本からの後継作成で応答消失後に同じ操作を再送 | 結果照会／同一操作IDで同じ後継へ収束し、重複後継や外部自動送信を作らない | [FR-estimates-successor](#requirement-fr-estimates-successor)。追加承認目標、未実施 |
 
 ## 未決事項・関連仕様・根拠
 
@@ -90,3 +103,5 @@ E1（明細統一・会計受渡し・期限切れ）は2026-10-15に依頼者�
 ### カルテ本文の通常編集／復元との区別
 
 [D03の会議追加合意](../medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)はカルテ本文の通常編集・自動保存・タブ復元を扱う。見積の承認／却下原本・専用後継・会計転記の既決条件を解除する承認ではない。カルテタブに見積を表示していても、タブクリア／複製Undoから原見積削除・後継取消・請求の逆実行を行わない。旧親finalizedの現行write gateと、見積自身の原本／後継保護を区別し、カルテ旧値の一括解除で財務系writerを解禁しない。D11の対象操作は現在の見積状態・版・医院／患者・操作権限と専用経路で照合する。
+
+追加合意の根拠：質問 Sentinel_ff8ad168acec8191be01b7c559dfa858 の「期限内の価格」「提示後の変更」に対し、依頼者 Sentinel_1fda6cf121048191943efab56cc16a23 が「1 yes / 2 yes」と回答。今回2点を超える税率固定・保険額保証・実施／請求の自動確定は承認範囲に含めない。

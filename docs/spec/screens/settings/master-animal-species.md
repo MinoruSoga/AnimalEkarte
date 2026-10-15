@@ -1,6 +1,8 @@
 # 動物種類マスタ 仕様書 (Animal Species Management)
 
 > 領域正本: [業務契約](../../domains/owners-pets/lifecycle.md)・[技術契約](../../../design/domains/owners-pets/technical-spec.md)。以下は既存画面／API観察を継承する。削除endpointの存在は無条件削除の許可ではなく、参照・必要履歴・現在認可を検査し、業務原本や分類不明を通常物理削除しない。無効化後も既存記録の参照を保持する。master変更は過去記録・追加済会計明細へ自動反映せず、会計の再適用はD10の明示確認契約へ従う。
+2026-10-15の[共同確認](../../domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)で、全医院共通と追加・名称変更・無効化のシステム管理者限定を確認済み。以下の並び替え・削除・監査・画面配置等は既存条件を継承し、今回の共同確認を削除権限の拡大や全既存挙動の一括承認に使わない。
+
 ## 概要
 - **画面の目的**: システムで取り扱う動物種（犬、猫、うさぎ等）の定義。
 - **URLパターン**: `/settings/animal-species`

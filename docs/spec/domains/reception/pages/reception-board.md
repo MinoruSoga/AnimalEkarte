@@ -215,7 +215,12 @@ filterはヘッダーの既存「フィルター」内に、分類（全分類�
 | **会計待ち** | 診療／施術が終了し会計を待つ状態。終了だけで記録・請求・入金を確定しない。 | `accounting` |
 | **会計済** | 会計確定が完了した状態。実退室・入院開始の確定とは別。 | `completed` |
 
-EMR-308: `status='tentative'`（次回予定・未予約）の appointment は sentinel 行でありカンバンのどのカラムにも載らない（`reception/api/transforms.ts` が除外）。当該ペットが当日来院して実予約・受付が作られると、バックエンドの `createOrPromoteTentative` が active tentative を同一行で実予約へ昇格し、受付時に sentinel 時刻（JST 00:00–00:15）を実時刻へ置き換える。tentative 由来予約をキャンセルすると `had_intended_date` 応答を起点に「次回予定の再設定」導線（`onTentativeCancelled`）が開く（自動再設定はしない）。
+<a id="next-visit-intent-reception"></a>
+[2026-10-15の次回予定合意](../../../workflows/reservation-to-record-flow.md#next-visit-intent-agreement-20261015)に従う。日付のみの次回予定（EMR-308の既存status='tentative'／sentinel）は予約枠を確保せず、当日の受付ボードのどの列にも出さない。日時が決まって実予約へ確定した後に通常の対象日条件で表示する。同じペットの別件来院だけでは自動昇格・消化しない。スタッフが「今回の来院で消化するか」を対象予定と来院を確認して選び、選択なし／消化しない場合は元予定を残す。既存の今回予約・カルテがある場合は同じ対象を使い、重複作成しない。
+
+次回予定由来の予約を取り消しても元予定を自動復活させず、必要ならスタッフが設定し直す。had_intended_date／onTentativeCancelled等の再設定案内だけでは保存しない。旧createOrPromoteTentativeの自動吸収説明は目標仕様への追従対象。版競合・結果不明では予定を先に消さず、[同じ操作の照合](../../../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)へ従う。
+
+初診／再診バッジは[ペットの実受診歴による候補とスタッフ訂正](../../reservations/pages/reservation-management.md#requirement-fr-reservations-pet-history-visit-type)の保存値を使い、登録済みという理由で再診へ置換しない。対象種別は通常診療・ワクチン・健診を含み、トリミング・ホテルだけの利用を含めない。受入は予約／横断フローの当該ACへtraceし、受付固有ACへ重複計上しない。
 
 **カラム遷移イメージ:**
 

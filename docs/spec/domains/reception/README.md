@@ -72,3 +72,7 @@ pagesに画面詳細を置き、保存契約など領域固有本文は既存の
 ## 2026-10-15会議追加2
 
 [開始列・各記録画面終了・会計待ちの記録導線](pages/reception-board.md#reception-meeting-start-end)を新しい業務合意として反映する。トリミングの開始後は診療中列へ、通常カルテ／専用トリミング画面の終了から同じ予約を会計待ちへ進める。会計待ちでは既存記録を開き、終了だけで記録・請求・入金を確定しない。旧表示設計の「受付済の施術中badge」は置き換える。既存4FR／21ACのIDを維持して5ACを追加し、4FR／26ACを文書候補とする。過去の文書整理完了は今回差分のレビュー完了を示さず、実装・実機検証は未実施。
+
+### 初診／再診・次回予定の接続（2026-10-15）
+
+[ペットごとの受診歴による候補](../reservations/pages/reservation-management.md#requirement-fr-reservations-pet-history-visit-type)と[日付のみの次回予定・明示消化・取消後の手動再設定](../../workflows/reservation-to-record-flow.md#next-visit-intent-agreement-20261015)を参照する。画面は[受付への反映](pages/reception-board.md#next-visit-intent-reception)、技術接続は[予約§4.8](../../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)へ。4FR／受入条件は予約側で数え、受付へ重複定義しない。受診歴は通常診療・ワクチン・健診を含み、トリミング・ホテルだけの利用は除外。実装・実機未確認。

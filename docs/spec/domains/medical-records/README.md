@@ -1,5 +1,7 @@
 # カルテ
 
+**診断・バイタルの追加合意（2026-10-15）**：[第1・第2それぞれの複数診断、最新値＋測定時刻・同日を含む以前の測定履歴](pages/medical-record-form.md#medical-record-agreement-diagnosis-vitals-20261015) → [概念と多重度](../../ontology/medical-records.md#medical-record-diagnosis-vitals-ontology) → [技術契約／trace](../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)。2FR／12ACを追加し合意追跡は24FR／101AC（旧継承ID・C05追加1ACは別計数）。自動保存・終了後通常編集・復元保護は維持。初診判定に含める受診歴の対象は[予約／受付の別合意](../reservations/pages/reservation-management.md#visit-history-included-types)へ従う。実装／実機は未確認。
+
 **最新の読む順**：[2026-10-15会議合意](lifecycle.md#medical-record-agreement-autosave-20261015)を先に確認する。自動保存維持・診療終了後の通常編集・履歴付きタブ開始時復元／複製直前取消・終了時警告／終了履歴を追加し、旧医師確定必須と本文ロックの目標を置換。以下の完了記録は当時の範囲で、今回の統合レビューは重大指摘なしで完了。保存済み版・会計確定歴・検査自体の確定等の独立保護は保持する。全過去の承認証跡網羅や実装完了は意味しない。
 
 カルテ一覧・入力画面・自動保存・通常編集と履歴の契約を確認する入口です。2026-10-14初回5項目・入力4項目・訂正／例外4項目・追加3項目の合意範囲を反映。合意16FR／71ACと関連する通常カルテ・D03master・受け手技術契約の明示範囲は文書整理完了。実装・利用開始・全体横断最終確認・実機は未確認。
@@ -91,4 +93,4 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 
 ## 最新差分の件数と実装検証の扱い
 
-今回6FR／18ACを追加し、当時の16FR／71ACのIDを保持して対象期待値を置換。合意追跡は22FR／89AC、旧継承IDとC05追加1ACは別計数。最新技術は[自動保存・復元・終了](../../../design/domains/medical-records/technical-spec.md#medical-record-autosave-revert-contract)。S06等の既存ロック試験は現実装の確認先であり、旧finalized拒否を最新目標の合格条件として採用しない。実装時に最新版の通常編集・元版保持を受入へ対応付ける。
+今回6FR／18ACを追加し、当時の16FR／71ACのIDを保持して対象期待値を置換。この6項目の時点では合意追跡22FR／89AC、診断・バイタルの追加後は冒頭の24FR／101AC。旧継承IDとC05追加1ACは別計数。最新技術は[自動保存・復元・終了](../../../design/domains/medical-records/technical-spec.md#medical-record-autosave-revert-contract)。S06等の既存ロック試験は現実装の確認先であり、旧finalized拒否を最新目標の合格条件として採用しない。実装時に最新版の通常編集・元版保持を受入へ対応付ける。

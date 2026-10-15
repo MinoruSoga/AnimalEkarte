@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D04-TECH / 技術設計・現行差分 |
-| 決定状態 | 既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。具体的wire／DB変更は未実施 |
+| 決定状態 | 既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。[台帳・会員区分・LINE希望の共同確認](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)を追加。具体的wire／DB変更は未実施 |
 | 実装状態 | 下記限定ソースを2026-10-15に静的照合。全writer・HTTP型・DB・実権限の再監査は未実施 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -65,6 +65,15 @@
 
 [FR-owners-pets-primary-transfer](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-primary-transfer)の実装／実機受入は未実施。max1000件等の現行制約を新しい業務上限と承認したり、影響一覧の導入から移管対象や通知の送信権限を拡大したりしない。
 
+<a id="owner-membership-dm-contract"></a>
+## 会員区分・DMの保存とD15への受渡し
+
+D04がclinic／owner IDに属する会員区分とDM希望の正本を持つ。表示ラベル、ペットの生死、個別値引率、独立した停止／配信除外、LINE本人紐付けを別に扱う。副飼主リンクの追加もこれらのwriterや通知先変更を呼ばない。会員区分変更だけで価格再計算・予約可否変更・LINE配信可否変更を発生させない。退亡者と死亡を相互変換せず、他診/準から未知の動作を導かない。
+
+DM未設定を必要へ自動移行・補完しない。未設定から必要への保存は希望確認後の明示変更として扱い、取得失敗を未設定・必要のどちらにもすり替えない。保存は既存owner編集認可と医院scope、元表示版／現在版、操作結果照合へ参加し、競合時は原値を保持して再取得・差分確認する。省略した別項目や他者変更を上書きしない。保存成功と外部配信は別で、値変更だけから送信・過去結果不明の再送・独立停止解除を起動しない。
+
+D15は送信対象の現在clinic／owner・現在DM値と[D15目的別判定](../../../spec/line/lstep-integration.md#crm-dm-purpose-contract)を送信前に照合する。旧LstepOptOut／delivery_excludedとの対応を今回新設・同一視しない。wire field・移行の具体形は実装設計で照合し、現行ゲートがこの目的別契約へ適合済みとは報告しない。主飼主移管の明示影響確認やD10過去資金帰属は保持する。
+
 ## 更新・null・版・参照保護
 
 | 項目／経路 | 現行契約 | 誤用の防止 |
@@ -98,12 +107,13 @@
 | FR-owners-pets-safety-and-private-notes | AC-owners-pets-danger-privacy | 死亡専用writer／staff・公開DTO境界 |
 | FR-owners-pets-delete-dependencies | AC-owners-pets-delete-guard | 参照依存／不明停止・原記録保持 |
 | FR-owners-pets-species-master | AC-owners-pets-species-authority / AC-owners-pets-species-reference-audit | global species／system-admin・参照拒否・監査 |
+| FR-owners-pets-membership-dm | AC-owners-pets-membership-labels / AC-owners-pets-membership-independent / AC-owners-pets-dm-line-preference / AC-owners-pets-dm-unset-confirmation | [会員・DM保存と受渡し](#owner-membership-dm-contract)：独立値／現在版・認可／希望確認／送信目的の再照合 |
 
 参照ソース：[owner service](../../../../backend/internal/owner/service_core.go)、[副飼主service](../../../../backend/internal/pet/pet_owner_service.go)、[同時登録カタログ](../../../architecture/cross-domain-orchestration-catalog.md)。確認refは41fcf3eb0a8befb7c0b5f613d1df749a60e30be8。動作テスト・実DBの既存不整合・全writer依存・移管時の外部通知の実稼働は未確認。
 
 ## 文書整理の完了境界
 
-既存3画面・台帳FR8件／AC23件・語彙・保存単位・移管／副飼主／死亡writer・主要異常系・他ownerへの引継ぎを記述した範囲。追加合意4・5の目標と現行差を反映し、既存IDは保持する。独立レビューとリンク確認を経て判定する。実装／receipt導入・全参照ガード・認可設定・保存期間・全体横断X04/X06の完了を本書から宣言しない。
+既存3画面・台帳FR9件／AC27件・語彙・保存単位・移管／副飼主／死亡writer・主要異常系・他ownerへの引継ぎを記述した範囲。追加合意4・5の目標と現行差を反映し、既存IDは保持する。独立レビューとリンク確認を経て判定する。実装／receipt導入・全参照ガード・認可設定・保存期間・全体横断X04/X06の完了を本書から宣言しない。
 
 
 ## 一般更新の同時編集契約（選定仕様）

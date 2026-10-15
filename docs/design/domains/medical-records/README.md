@@ -1,5 +1,7 @@
 # カルテの技術設計
 
+**診断・バイタルの追加差分（2026-10-15）**：[各区分で複数診断・最新値の測定時刻／同日履歴の業務2FR／12AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-agreement-diagnosis-vitals-20261015) → [論理契約・旧wireとの差分](technical-spec.md#medical-record-diagnosis-vitals-contract) → [追加trace](technical-spec.md#medical-record-diagnosis-vitals-trace)。合意追跡は24FR／101AC（旧継承ID・C05追加1ACは別計数）。以下の過去完了記録は当時の範囲。第1・第2の区分・各複数件、時刻付き表示と以前の測定履歴を文書化し、自動保存・終了後通常編集・復元保護を保持。実装／API・DB・実機検証は未実施。
+
 **最新の読む順**：[2026-10-15会議合意](../../../spec/domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)を先に確認する。自動保存維持・診療終了後の通常編集・履歴付きタブ開始時復元／複製直前取消・終了時警告／終了履歴を追加し、旧医師確定必須と本文ロックの目標を置換。以下の完了記録は当時の範囲で、今回の統合レビューは重大指摘なしで完了。保存済み版・会計確定歴・検査自体の確定等の独立保護は保持する。全過去の承認証跡網羅や実装完了は意味しない。
 
 通常カルテの初回5項目と入力4項目について[部分技術仕様](technical-spec.md)を整理する。読む順は[業務入口](../../../spec/domains/medical-records/README.md) → [保存・初回合意](../../../spec/domains/medical-records/lifecycle.md) → 技術仕様 → 既存コード参照。予約／受付・専用記録・会計の正本を複製しない。

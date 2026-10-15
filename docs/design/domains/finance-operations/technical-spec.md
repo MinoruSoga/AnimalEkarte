@@ -21,7 +21,7 @@ D11 [見積](../../../spec/domains/estimates/business-rules.md)、D12 [締め](.
 | [estimate_service_tx.go](../../../../backend/internal/billing/estimate_service_tx.go) | 親カルテdraft保護、関連FKと医院所属検査、採番・作成・明細置換・再取得をtransactionで行う | 原見積snapshotと新計算根拠の保存を分離。既存ヘッダのみの履歴を無断で再計算・明細化しない |
 | 同update path | LockEditableByID後にitemsを再取得し、明細省略でも保存明細があればヘッダ再計算。items空配列は全行置換／0合計。省略時と同じでない | 明細方式の旧値移行、競合、部分更新を試験。discount権限がない操作で権限対象値を黙って初期化しない |
 | [estimate_service_successor.go](../../../../backend/internal/billing/estimate_service_successor.go)・[tx](../../../../backend/internal/billing/estimate_service_successor_tx.go) | 承認／却下のみ後継作成。理由trim後必須・500文字以内、所属検査、新番号、元参照と明細コピー、監査失敗rollback | 下記選定契約の操作ID／receiptで同じ後継へ収束。原番号保持と新番号付与を再発行と混同しない |
-| 親カルテ確定と後継 | 後継createは親draftロックを例外的に省略する一方、作った後継の通常updateは親draftを要求 | 下記選定契約の専用後継編集で完了させる。原カルテ／原見積保護を外す一般unlockへ逃がさない |
+| 親カルテ確定と後継 | 後継createは親draftロックを例外的に省略する一方、作った後継の通常updateは親draftを要求 | 旧親draft更新gateは現行差。未提示下書きは親確定だけで通常編集を禁止せず、見積自身の状態・版・関係・権限で検査する。後継は下記専用条件で編集し、提示原本保護と通常削除の親条件は維持する |
 | 通常CRUD監査 | best-effort。後継のみfail-closed | 現行保証の差を維持し、下記目標では操作変更と必要監査／receiptを原子的に保存 |
 | 会計受渡し | 見積serviceのCRUD／successorだけではD10新契約の確認付き転記を証明できない | 元見積ID／版・選択行・飼主／ペット・価格税割引根拠・概算保険の再確認、先draft会計ID／結果を対応させる。下記選定契約で受渡しの必須意味・原子保存・結果照会を確定。物理wire名は実装選択 |
 
@@ -123,10 +123,10 @@ sourceが不足・矛盾・取得失敗なら実来院の値を未確定とし�
 
 | intent・owner | 必須意味と保存前検査 | 原子的な保存と結果 |
 |:---|:---|:---|
-| 見積新規／下書き編集・D11 | 見積期待版（新規はなし）、飼主／ペット／任意親記録、明細ID・数量単価・税区分・割引／除外snapshot・概算保険、有効期限。通常編集は編集可能状態と親draftを再検査。明細省略は保持、明示[]は全行削除とし、下書き0行を請求確定と混同しない | 見積・明細・計算根拠版・履歴／監査・receiptを同時保存。D10算定契約に従うサーバー再計算で返し、クライアント合計を正本にしない |
+| 見積新規／下書き編集・D11 | 見積期待版（新規はなし）、飼主／ペット／任意親記録、明細ID・数量単価・税区分・割引／除外snapshot・概算保険、有効期限。通常編集は未提示の編集可能状態・期待版・医院／親子関係・権限を再検査する。旧親draft更新gateは現行差で、目標では親確定だけで未提示下書きを拒否しない。提示済み金額／明細の変更は後継へ分離する。明細省略は保持、明示[]は全行削除とし、下書き0行を請求確定と混同しない | 見積・明細・計算根拠版・履歴／監査・receiptを同時保存。D10算定契約に従うサーバー再計算で返し、クライアント合計を正本にしない |
 | 承認／却下・D11 | 見積と全明細の期待版、選択状態、現在の内容。編集と同じ資源境界で直列化 | 状態と固定snapshot・履歴／receiptを同時保存。先に確定した後の通常編集／削除は拒否。外部送信・診療・会計・在庫は生成しない |
-| 後継作成・D11 | 元見積ID／版、理由、同医院／飼主／ペット。承認／却下原本の変更または期限切れ再提示という専用intentを検証 | 新ID／番号・元ID／版・行の由来・後継draft・履歴／監査・receiptを同時保存。原本不変。同一操作の再送は同じ後継ID。別intentの複数後継を同じ原本という理由だけで統合しない |
-| 後継専用編集・D11 | 後継ID／期待版・元見積ID／版・後継関係・編集可能状態・変更項目／理由。親確定はこのintentに限り許容し、原見積や親記録への変更は要求として拒否 | 後継だけの計算snapshot／明細・変更履歴／必要監査・receiptを同時保存。専用経路でも承認済み後継を通常編集せず、さらに後継へ |
+| 後継作成・D11 | 元見積ID／版、理由、同医院／飼主／ペット。提示済み・返答待ち原本の金額／明細変更、承認／却下原本の変更、または期限切れ再提示という専用intentを検証 | 新ID／番号・元ID／版・行の由来・後継draft・履歴／監査・receiptを同時保存。原本不変。同一操作の再送は同じ後継ID。別intentの複数後継を同じ原本という理由だけで統合しない |
+| 後継専用編集・D11 | 後継ID／期待版・元見積ID／版・後継関係・編集可能状態・変更項目／理由。親確定だけでは拒否せず、後継の未提示状態・権限とこの専用後継条件を検査する。原見積や親記録への変更は要求として拒否 | 後継だけの計算snapshot／明細・変更履歴／必要監査・receiptを同時保存。専用経路でも承認済み後継を通常編集せず、さらに後継へ |
 | 確認付き会計転記・D11→D10 | 見積ID／版・選択行ID／由来・飼主／ペット・実際の請求対象確認・価格税割引差分確認・概算保険再確認、あれば元臨床実績の型付きID。期限切れは後継で再提示し、古い版のまま進めない | D10が未確定会計を保存し、先会計ID／版と元見積／行対応・履歴／receiptを同一transactionで確定。D11側の転記対応だけ成功／先draft不在を作らない。請求確定・受領・在庫は0 |
 | 削除・D11 | 対象期待版・編集可能状態・親draft・明細／受渡し依存なしと削除権限を現在検査 | 削除と履歴／receiptを同時保存し、承認済み原本・転記元を失わせない |
 
@@ -210,3 +210,39 @@ D16はD10の請求snapshot／差分と実移動event、D12の締めsnapshotを�
 ### D03の通常編集／自動保存／復元と財務owner
 
 [D03会議追加合意](../../../spec/domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)のタブ復元結果をD11の原見積／後継、D12の原締め／訂正、D13の実在庫イベントへ共通のrollback命令として配信しない。各ownerの状態・元ID／版・現在権限・必要監査・操作receiptを維持する。カルテの旧finalizedを解除したからといって、見積承認済み原本の通常updateや確定済み会計・締めのUPDATEを許可しない。D16実来院sourceは受付／実来院の保存結果であり、診療終了やカルテ本文の自動保存・復元で来院回数を増減させない。既存writerがカルテ側フラグを機械的に共用する差は実装適合で分離して検査する。
+
+<a id="estimate-price-presentation-selected-contract"></a>
+## D11追加合意：提示原本の競合保護と会計単価
+
+[追加業務合意](../../../spec/domains/estimates/business-rules.md#estimate-price-presentation-agreement-20261015)に従う。提示操作は対象見積・全明細の期待版を検証し、提示内容snapshot／提示版と履歴・receiptを同じ保存境界で固定する。通常編集と提示を直列化し、編集が先なら旧版での提示を再確認し、提示が先ならその原本の金額・明細編集を後継へ誘導する。返答は対象提示版を識別して記録する。状態を下書きへ戻す、カルテタブから保存する等の別writerでも原本保護を迂回しない。提示というローカル記録だけでは外部送信成功を主張しない。具体的なwire／保存フィールドは実装設計で適合を確認する。
+
+返答待ち原本からの改訂も既存の理由付き後継・新ID／番号・元版参照・同医院／飼主／ペット・監査・操作receipt契約を使う。原本への回答を別内容の後継へ継承せず、改訂版の再提示とその版への返答を分ける。現行successorが承認／却下だけを許す点、送付済みのupdateを許す点は実装差であり、適合済みとはしない。
+
+D10転記保存時に承認状態・有効期限・提示版・明細内容／数量の一致を再照合する。適格なら提示単価を使い、現在マスタとの差を表示しても自動置換しない。前提が変われば旧確認のまま保存せず再読取・再説明へ戻す。追加処置／内容変更は後継再提示、期限切れは既存の再確認・後継条件に従う。D10の税／割引計算と窓口保険再確認は維持し、単価と各適用条件の出所を分離して保存する。元見積snapshotは不変、転記成功は先draft保存結果で判定し、請求確定・実入金・在庫実績は生成しない。
+
+### 追加AC追跡（D11）
+
+- [AC-estimates-quoted-price](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-validity)：提示単価を使い、元版・行参照と単価の出所を保持する
+- [AC-estimates-changed-content-explain](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-successor)：改めて説明し、提示済み見積の変更は後継を作り再提示する。旧原本は不変
+- [AC-estimates-presented-pending-original](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-state-protection)：原本を保持して直接変更を拒否し、後継改訂の経路を示す
+- [AC-estimates-presented-pending-successor](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-successor)：別ID／番号・原版参照を持つ後継を作り再提示。旧承認や返答を新内容へ自動継承しない
+- [AC-estimates-presentation-edit-race](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-state-protection)：提示した版を固定し、提示後の変更が原本へ混入しない。競合は再読取・再確認する
+- [AC-estimates-quoted-price-other-rules](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-billing-handoff)：提示単価を保持しつつD10適用計算と保険再確認を維持。単価保証を総額や保険額の無条件固定としない
+- [AC-estimates-quoted-price-no-approval](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-validity)：承認済み限定の単価保証条件を満たしたと推定しない。原本保護は維持する
+- [AC-estimates-presented-successor-retry](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-successor)：結果照会／同一操作IDで同じ後継へ収束し、重複後継や外部自動送信を作らない
+
+<a id="closing-segment-difference-selected-contract"></a>
+## D12追加合意：区分判定と差額メモ
+
+締め済み保護は実際に締めた区分だけに適用し、午前締めだけで未締めの午後・夜間を保護対象にしない。確定済み会計の訂正条件は維持する。現金差額が残っていても締められるが、非0差額ではメモ必須とし「原因不明・確認中」も許容する。差額合わせの架空入出金は作らない。 [承認根拠](../../../spec/domains/cash-register/business-rules.md#closing-segment-difference-agreement-20261015)。保護判定は対象医院・営業日／区分・その区分で採用した実時間範囲とclose IDへ解決する。単純な同日close有無を全区分の保護判定に使わず、越日夜間の実日時と営業日を取り違えない。会計自体の確定状態による保護と締め区分の保護を独立検査する。過去原締めを後の設定値で再計算しない。
+
+締め保存時の最新理論額・実査額から差額を算出し、非0なら空白だけでないメモを検証する。原因不明／確認中の記載を拒否せず、原因特定や調整入出金を保存の前提にしない。差額0はメモ任意。プレビュー後の変化は再確認対象とし、変化後の差額にメモ条件を適用する。差額・メモ・対象区分・原snapshot・必要履歴／receiptを同じ保存境界で確定し、応答不明では同一結果照会／再送へ収束する。原締め直接更新・取消や架空金銭イベントは生成しない。既存実査訂正の理由・権限・原値保持は継続する。
+
+### 追加AC追跡（D12）
+
+- [AC-closing-closed-segment-only](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-period-boundary)：未締め区分を締め済み扱いにしない。午前原締め保護は維持
+- [AC-closing-closed-segment-finalized-invoice](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-period-boundary)：区分が未締めでも会計自体の確定後訂正条件を維持する
+- [AC-closing-cash-difference-note](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：不足100円とメモを保持して締められる。架空入出金は生成しない
+- [AC-closing-cash-difference-note-empty](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：保存を拒否しメモ入力を求める。原因判明までは要求しない
+- [AC-closing-cash-difference-zero-note](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：他の締め条件を満たせば、差額メモ不足を理由に拒否しない
+- [AC-closing-cash-difference-repreview](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：再集計と差額再確認を行い、保存時の非0差額にメモを必須とする

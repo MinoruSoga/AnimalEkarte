@@ -1,5 +1,7 @@
 # カルテ初回合意の部分技術設計
 
+2026-10-15の[診断2区分の各複数登録・最新バイタルと測定時刻／履歴](#medical-record-diagnosis-vitals-contract)を追加する。旧単件診断wireと時刻なしチップは現実装との差分として保持し、対応済みを意味しない。以下の自動保存・終了後通常編集・復元保護は変更しない。
+
 <a id="medical-record-autosave-revert-contract"></a>
 ## 2026-10-15最新差分：通常編集・自動保存・復元操作・診療終了
 
@@ -14,7 +16,7 @@
 | 旧finalizedの通常編集 | 同じrecord／子IDの現在の内容を通常画面で更新し、変更前版とactor／時刻・必要理由を履歴へ対応付ける | 現親draft-only gateを単に削除せず、履歴付き更新・目的別保護・版競合のgateへ置換。旧client迂回・履歴欠落を許可しない。schema／移行方式は未実装 |
 | 既存addendum／後日結果 | 以前の本文・参照版・追記と現在の内容の対応を保持 | addendum APIを廃止／データ削除せず、通常入力の唯一の道にも固定しない。結果ID／revisionはD07正本を維持 |
 | 目的別の医師確認・患者訂正・実施取消・生前過去入力・非表示／復元 | 既決の理由・確認・同ID・元先関係・依存を保持 | 通常編集可を患者ID付替え、記入済み削除、死亡後新規行為、確定済会計の変更許可へ流用しない |
-| D07検査confirmed、D11見積承認後、D05/D06専用記録、会計／在庫 | 各ownerの独自状態・確定／訂正・履歴を保持 | カルテ親finalizedロックの置換と、別ownerの保護解除を混同しない |
+| D07検査confirmed、D11[提示済み見積原本](../../../spec/domains/estimates/business-rules.md#estimate-price-presentation-agreement-20261015)（返答待ち含む。未提示下書きは対象外）、D05/D06専用記録、会計／在庫 | 各ownerの独自状態・確定／訂正・履歴を保持 | カルテ親finalizedロックの置換と、別ownerの保護解除を混同しない |
 
 ### タブクリア／複製取消の復元契約
 
@@ -177,7 +179,7 @@
 | 対象・主要データ | draft／保存と認可 | 確定・異常系と受入の所在 |
 |:---|:---|:---|
 | 問診：主訴text・任意主訴区分ID/null・治療方針text | [現問診request](../../../../frontend/src/features/medical-records/api/inquiries.ts)のchief_complaint／chief_complaint_type_id／notesへ明示adapter。local draftとactive-tab save、medical-records edit | 空SOAP／任意区分を保持。失敗はdraft保持、成功した版だけdirty解除。複写選択・上書きcancel・template追記／置換は入力4ACへ |
-| 診察／方針：身体所見text・診断区分／名称ID/null（第1／2）・診断詳細text・治療方針text・版 | [現clinical-plan request](../../../../frontend/src/features/medical-records/api/clinical-plan.ts)へ明示adapter。active-tab saveとmedical-records edit。診断名称とカテゴリ整合は既存条件 | ClinicalPlan本文と項目の4状態を混同しない。旧版競合は再取得し入力保持、旧finalizedだけの通常write禁止は置換し、以前の保存版と変更履歴を保持。未完了警告は初回AC、取消は専用ACへ |
+| 診察／方針：身体所見text・診断の第1／第2それぞれの複数項目（各項目の疾患カテゴリ／名称参照）・診断詳細text・治療方針text・版 | [現clinical-plan request](../../../../frontend/src/features/medical-records/api/clinical-plan.ts)へ明示adapter。active-tab saveとmedical-records edit。診断名称と疾患カテゴリ整合は既存条件。旧単件wireへの切捨ては不可、[複数化契約](#medical-record-diagnosis-vitals-contract)へ | ClinicalPlan本文と項目の4状態を混同しない。旧版競合は再取得し入力保持、旧finalizedだけの通常write禁止は置換し、以前の保存版と変更履歴を保持。未完了警告は初回AC、取消は専用ACへ |
 | 治療：item type・consultation／procedure／medicine／inventory master ID・名称／単位／価格snapshot・数量・内容／memo・投与経路・保険／割引・現status／順序・逸脱理由・版 | 個別create/edit/delete、並び替えだけ既存bulk sortへ。複写は選択済み逐次saveの成功subset。現在grantとsnapshot／価格sourceを照合 | 量・単位は現有データ／既存検査へ照合、評価不能・上限拒否・現在体重再評価を保持。課金／在庫自動処理は追加しない |
 | 予防接種：接種ID・患者／record ID・接種日・ワクチン・医師・次回日／schedule・lot1〜4・remarks・版 | pet単位vaccinations view/create/edit/delete。カルテ画面のネストAPIを仮設しない。次回予定はD08最新合意に従い種類別設定または手入力へ統一。旧4weeks／独立1yearは実装差として解消対象とし、具体間隔・初期値・新たな優先順位を追加しない | patient照合・保存履歴と接種ownerの保護を全入口で維持。親finalizedだけの通常編集拒否は置換。予防接種結果を今回の検査revisionへ無条件統合しない。内部条件はD08 |
 | 定期健診：健診ID・record ID・checkup type・実施日／次回日・医師・結果・field ID／値／単位／所見 | 一覧checkups viewとrecordネストCRUD／field-resultsは[現routes](../../../../backend/internal/medicalrecord/routes_records.go)のmedical-records操作grant。既存checkupId編集を再利用 | 別患者／旧recordの結果を反映しない。field replacementの全体保存境界を問診saveと混同しない。健診内部条件はD09 |
@@ -185,7 +187,7 @@
 | 画像／資料：image ID・record ID・検証済みfile・名称／形式／size・image type・撮影日・exam ref・staff・順序・保存結果 | medical-records view／upload create／delete。ファイル選択とD&Dを共通検証・個別uploadへ。uploadはactive-tab main saveを待たない | 現server検証・保存版／owner保護・成功subset照合を保持し、親finalizedだけの通常編集拒否は置換。外部URLの無制限保存や新形式なし。画像印刷は追加3AC |
 | 見積：estimate ID・record ID・title・comment／notes・itemsの名称／単価／数量／割引／保険／順序snapshot・金額・確認可能な版 | estimates view/create/edit、既存items同一tx保存／置換。別owner保存で全タブ一括txへ変更しない | 権限・医院／患者／record対応・金額整合と保存失敗を保持。依存ある空カルテを非表示しない。請求へ移す内部はD11／10 |
 | 会計医師確認：confirmation ID＋record ID・pending／confirmed／returned・確認依存版・確認／差戻しactor／時刻・理由／memo（accounting IDは別owner参照） | accounting view/editの既存境界で取得／確認。カルテ編集grantで決済を代行しない。確認結果receiptは会計ownerへ渡し、通常編集・診療終了の医師確定条件へ流用しない | 未確認・差戻し・取得中／失敗／不明は会計ownerの確認条件で扱う。カルテ確定ボタンは廃止。終了時の未完了警告は別で、支払済みから終了・記録確定を推定しない |
-| バイタル（タブ外）：vital ID・record／患者ID・recorded at・staff ID・体温／心拍／呼吸／体重・kg／g・notes・版／入力日時 | モーダル個別POSTはmedical-records edit、update edit／delete delete。全履歴取得状態と選択record／患者一致を確認 | 取得失敗・不完全履歴を測定なしにしない。単位／日付・現在薬量評価への反映を照合し、以前の保存版・必須ログを保持し、親finalizedだけの通常編集拒否は置換 |
+| バイタル（タブ外）：vital ID・record／患者ID・recorded at・staff ID・体温／心拍／呼吸／体重・kg／g・notes・版／入力日時 | モーダル個別POSTはmedical-records edit、update edit／delete delete。全履歴取得状態と選択record／患者一致を確認。最新値に元測定時刻を付け、同日を含む以前の測定は履歴参照 | 取得失敗・不完全履歴を測定なしにしない。単位／日付・現在薬量評価への反映を照合し、以前の保存版・必須ログを保持し、親finalizedだけの通常編集拒否は置換 |
 | ヘッダー／次回予定：担当医ID・来院種別・実診療日、tentative予定日 | ヘッダー即時PATCHと予約owner PUT/DELETEは保存§2のまま。元record医院を使用。患者ID変更は専用転記へ | appointment付のdate／再紐付け拒否は既存参照、合意済み診療前訂正は専用確認へ。医師／編集者の混同なし。予約69traceの外へ新遷移を追加しない |
 | 一覧／共通：record ID・患者／医院・条件・頁・状態・非表示履歴 | 認可済みview取得、filter／pageとcache対象を区別。行を開くだけで作成／受付／startしない。空誤作成復元は専用intent | 一覧のshortcut・患者切替・権限失効・結果不明を停止／再照合へ。非表示＝物理削除／個人表示設定ではない。元ID・履歴・依存を保持 |
 
@@ -239,7 +241,7 @@
 | 本体update | owner_id／pet_id／doctor_id／appointment_idは数値pointer、dateは日時、status／visit_typeはstring pointer、versionは任意int | FE型のnumber／string unionをBEに無条件送信しない。未送信は保持、pointerへのJSON nullは保持と区別できないため解除に流用しない。患者取り違えはpatient PATCHへ流さない |
 | 作成時診断1 | FE CreateMedicalRecordRequestはdiagnosis_1_type_id、BE create requestはdiagnosis_1_category_id | 旧キー差を明示し、対応が未照合なら診断初期値を保存成功としない。主訴／診断を専用保存へ渡す既存§2を維持し、古いcreate型だけで全臨床情報を保存しない |
 | 問診 | chief_complaint／notesはstring pointer。治療方針→notes。chief_complaint_type_idはnullable fieldで存在有無を保持。詳細responseと本体要約は異なる | 未送信は既存保持、主訴区分nullは明示解除、数値は指定。textの空文字と未送信を分離。SOAP空欄可／区分任意を維持。response省略と値不明を未設定確定にしない |
-| 診察／診断 | physical_exam／diagnosis_details／treatment_policy。診断1 diagnosis_type_id／diagnosis_name_idはuint64 pointer、診断2 diagnosis_2_type_id／diagnosis_2_name_idはnullable field。response IDはstring | 診断1のnullは現行では未送信同様、診断2のnullは解除。名称／カテゴリの整合を照合し、全IDが同じnull動作と書かない。旧APIが解除を表現できない欄は解除済みと表示しない |
+| 診察／診断 | physical_exam／diagnosis_details／treatment_policy。診断1 diagnosis_type_id／diagnosis_name_idはuint64 pointer、診断2 diagnosis_2_type_id／diagnosis_2_name_idはnullable field。response IDはstring | 診断1のnullは現行では未送信同様、診断2のnullは解除。名称／カテゴリの整合を照合し、全IDが同じnull動作と書かない。旧APIが解除を表現できない欄は解除済みと表示しない。これらは第1・第2各単件の現契約で、[最新合意の各複数登録](#medical-record-diagnosis-vitals-contract)の充足としない |
 | 治療／プラン | consultation／procedure／medicine／inventory ID、unit_price int64、quantity float64、is_selected／is_insurance、内容／memo／投与経路／割引／sort／dose理由。更新versionは任意。TreatmentPlanは内容／価格／数量／割引等で完了状態なし | 未送信・0・false・空文字を区別。旧治療status3値／is_selectedを新プラン4状態に変換しない。quantityを整数へ丸めない。inventory ID指定の通常createはquantity整数必須で小数を拒否する現条件を保持し、整数丸めで救済しない。master ID／revision・当時内容の欠損はEの照合へ |
 | バイタル | recorded_at日時、staff_id、体温／心拍／呼吸／体重／kg・g／notes。各optional値、更新version。現createの監査actorはinput.StaffID、deleteはnil、PATCHだけ認証actorを分離。staff_idは測定記録側の属性 | 未送信を0測定にしない。目標は全CRUDで認証編集actorを必須とし測定staffで代用しない、欠落時停止。実測日時と現在編集日時・測定staffと編集者を分離。単位未取得の値をkgと決めず、記録日時・患者・医院を確認して薬量へ接続 |
 | 接種 | 独立vaccinations：患者／record ID、vaccine、日付、doctor、next_date／schedule、supplemental、lot1〜4、remarks、更新version | pointer nullは解除と推定しない。既存日付／次回予定・医師／患者の条件はD08へ。接種を検査revisionへ統合せず、同じ親の保存版・履歴保護を全入口で維持し、親finalizedだけの通常編集拒否は置換 |
@@ -395,3 +397,40 @@ HTTP methodだけでwriteを分類しない。現GETの初期行作成、内部p
 ### 最終文書レビュー結果
 
 根拠／trace、状態・副作用、現型／APIの独立レビュー3名で、未送信PATCH／PUT定義、会計return主体の医師限定誤読、バイタルcreate／delete監査actorの現状差・健診field PUTの未送信／null／[]・検査PATCHと旧PUT全消去の差・在庫連動createの整数数量・基幹DTO集計範囲を修正し再確認、未解消阻害なし。A〜Gと16FR／71ACの明示範囲は文書完成。旧wire／旧値／実認可・全writer実装適合・他owner内部・薬量具体値・実機性能の未確認を保持する。
+
+
+<a id="medical-record-diagnosis-vitals-contract"></a>
+## 診断2区分の各複数登録・バイタル時刻／履歴の追加技術契約
+
+[業務2FR／12AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-agreement-diagnosis-vitals-20261015)へのdocs限定対応。用語は[概念正本](../../../spec/ontology/medical-records.md#medical-record-diagnosis-vitals-ontology)。既存22FR／89ACに2FR／12ACを追加し合意追跡は24FR／101AC。旧継承IDとC05追加1ACは別計数。既存API／DBを複数対応済みとはせず、実wire・schema・移行方式の実装は未実施。
+
+### 診断の論理契約と旧単件wire
+
+| 境界 | 目標の対応 | 現契約との差分・停止／保護 |
+|:---|:---|:---|
+| 診察タブの入力／読取 | 第1・第2を明示した独立の項目集合を持ち、各項目の同一性・所属区分・診断名参照・疾患カテゴリ参照／当時表示内容と版を保持。空の区分と未取得を区別する | 第1／第2は疾患カテゴリIDではない。UIの行順・先頭行・単一primary flagで区分や全件を代用しない。新しい件数上限・必須件数・並替機能・重複禁止を追加しない |
+| 旧読取／保存 | 既存の第1単件、第2単件は対応する区分の項目として読み、元データ・当時名称・未設定を保持する | Aの診断1／診断2のnull／未送信差を維持。複数を旧2組のscalarへ切り捨てるadapter、全件取得できない旧応答による空置換を禁止。表現不能な保存は入力保持と未対応表示。新endpoint／field名やDB migrationの選定を本書から実装済みにしない |
+| 保存／編集履歴 | 既存clinical-plan保存境界とmedical-records認可、医院／患者／record・項目の対応・期待版・認証actor／必要ログを継承。成功した全件／区分と保存版を読戻しで確認する | 失敗・競合・結果不明でdirtyを解除しない。片側を更新する意図で他区分を消さず、旧clientの単件更新が複数を消す互換経路は利用開始前に排除する |
+| master・復元・終了後編集 | 各項目に名称／疾患カテゴリ整合・有効な新規候補と当時名称保持を適用。終了後も通常編集し以前の版を残す。タブ開始基準には両区分の項目と存在状態・版を対応付ける | 無効化で履歴を消さない。自動保存値を復元基準へ上書きしない。他者／後続作用・別ownerの保護、復元と必要ログ同時成功は既存契約を継承。診断の履歴複製機能は新設しない |
+| consumer／印刷 | カルテ画面・既存の診断参照・選択範囲印刷が同じ保存済み区分／全件と版を参照する | 先頭項目だけを全診断として表示・印刷しない。未対応は欠落を隠さず識別。印刷の範囲・訂正識別・閲覧認可・未保存draft非対象は既存契約を維持。集計指標や飼主公開を追加しない |
+
+### バイタルの最新値・測定元と全履歴
+
+| 境界 | 目標の対応 | 現契約との差分・停止／保護 |
+|:---|:---|:---|
+| 測定元参照 | 表示値ごとに同じ医院／患者／recordのvital ID、項目、値／単位、実測recorded_at、記録の版を対応付ける。入力／編集日時と測定staff／認証編集actorは別属性 | 現requestのrecorded_atを実測日時として扱う意味を照合し、欠損を現在時刻やupdated_atで補完しない。部分項目を別測定から表示する場合も元ID／実測日時を保持し、最新一件の時刻を一律転用しない |
+| 最新projection | 対象範囲と取得完全性を照合し、測定日時に基づく最新値を測定時刻・識別可能な日付と表示する | 現latestVisitVitalChipsの最新1件／時刻なし表示は差分。実測順と登録／編集順を区別し、同時刻の別IDを統合しない。最新が確定できない履歴は不明として照合し、表示順だけで臨床的優先順位を作らない |
+| 履歴read | 同じカルテの測定記録一覧から同日を含む以前の値・単位・測定日時を辿る。最新projectionの選択範囲と元測定を対応付け、測定記録とその訂正版を識別する | 全履歴取得／頁の完全性・empty／未取得／不完全／失敗を分離。1日1件の集約や最新一件だけの取得を全履歴対応と扱わない。表示／閉じる操作でPOST／保存／複製を起動しない |
+| 保存と安全consumer | 既存VitalsModalの個別保存／CRUD、必要ログ、医院／患者・期待版／結果不明照合を継承。終了後編集と以前の版保持を両立する | 本体GETの体重投影と全Vitals取得を同一視しない。測定履歴は終了済みカルテ一覧の条件で隠さず、タブクリアの対象にタブ外vitalを入れない。薬量consumerは既存の単位・日時・評価可能性／現在体重再評価を別途照合し、最新表示だけで評価可としない |
+
+現wire／UIの説明は既存静的照合の記録であり、今回新たな実装適合を確認したものではない。将来の実装では全診断consumer／writerとバイタルprojection・履歴取得・薬量／印刷参照を照合する。受入前の切替条件、認可・ログ失敗・scope世代・復元の送信中／不明照合は[既存共通契約](#medical-record-full-coverage-contract)・[自動保存復元契約](#medical-record-autosave-revert-contract)を継承する。受付・初診の受診歴範囲、専用記録の新入力、医学的なcutoffや薬量値は本差分に含めない。
+
+<a id="medical-record-diagnosis-vitals-trace"></a>
+### 追加2FR／12ACの技術trace
+
+| 正本FR | 技術対応 | AC-medical-records- を共通prefixとする受入ID suffix |
+|:---|:---|:---|
+| [FR-medical-records-diagnoses-multiple-per-category](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-diagnoses-multiple-per-category) | 上記診断論理契約・旧scalar互換・全件読戻し・master／復元・consumer | diagnoses-both-multiple, diagnoses-category-isolation, diagnoses-legacy-preservation, diagnoses-master-boundary, diagnoses-save-no-truncation, diagnoses-ended-revert-safety |
+| [FR-medical-records-vital-measured-time-history](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-vital-measured-time-history) | 上記測定元参照・最新projection・全履歴read・保存／安全consumer | vital-latest-measured-time, vital-same-day-history, vital-measurement-order, vital-partial-values-time, vital-history-read-scope, vital-history-edit-boundary |
+
+受入条件本文の正本は[追加12AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-diagnosis-vitals-ac)。既存FR／AC・固定アンカーは保持し、今回の静的文書検査を実装／実機PASSへ加算しない。

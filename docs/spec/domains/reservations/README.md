@@ -11,10 +11,14 @@
 <a id="approved-reservation-scope"></a>
 ## 今回の確定仕様索引
 
-基準82aa52f3時点の合意済み固有FRは69件。今回の分類別・担当者別開始時刻1FRを加え、基準5a4c292eでは70件。今回の勤務複製／CSV取込／プレビュー確認3FRを加え、現在の索引は73件、継承参照は別表の2件。過去に70行を70件の確定要件とした集計は、重複3件と継承2件を区別せず訂正した履歴であり、今回の追加による70件とは別。定義アンカーの検査数は承認件数ではない。
+基準82aa52f3時点の合意済み固有FRは69件。今回の分類別・担当者別開始時刻1FRを加え、基準5a4c292eでは70件。勤務複製／CSV取込／プレビュー確認3FRまでの索引は73件。2026-10-15の初診／再診・次回予定4FRを加え、現在の索引は77件、継承参照は別表の2件。過去に70行を70件の確定要件とした集計は、重複3件と継承2件を区別せず訂正した履歴であり、今回の追加による70件とは別。定義アンカーの検査数は承認件数ではない。
 
 | FR | 承認日・根拠／適用範囲 | 正本の所在 |
 |:---|:---|:---|
+| FR-reservations-pet-history-visit-type | 2026-10-15、Sentinel_5bade7ee85988191b8e0ab59a6e81fd7第1項と、対象種別の追加回答Sentinel_ff5f2f7a9b8481918f976fda892e3478「yes」。実装・実機未確認 | [ペットの実受診歴による初診／再診候補](pages/reservation-management.md#requirement-fr-reservations-pet-history-visit-type) |
+| FR-reservations-date-only-next-intent | 2026-10-15、Sentinel_5bade7ee85988191b8e0ab59a6e81fd7「1 yes 2 yes 3 yes 4 yes」。実装・実機未確認 | [日付だけの次回予定](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-date-only-next-intent) |
+| FR-reservations-next-intent-explicit-consumption | 2026-10-15、Sentinel_5bade7ee85988191b8e0ab59a6e81fd7「1 yes 2 yes 3 yes 4 yes」。実装・実機未確認 | [今回来院への明示消化](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-next-intent-explicit-consumption) |
+| FR-reservations-next-intent-cancel-no-revival | 2026-10-15、Sentinel_5bade7ee85988191b8e0ab59a6e81fd7「1 yes 2 yes 3 yes 4 yes」。実装・実機未確認 | [予約取消後の手動再設定](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-next-intent-cancel-no-revival) |
 | FR-reservations-preconsultation-date-record-correction | 合意済み。2026-10-14 17:17 JST「ok」。具体的保存・表示は設計。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [診療前の日付訂正とカルテ](pages/reservation-management.md#requirement-fr-reservations-preconsultation-date-record-correction) |
 | FR-reservations-staff-role-label | 合意済み。2026-10-13、追加対話。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [区分別の指名表示名](pages/reservation-management.md#requirement-fr-reservations-staff-role-label) |
 | FR-reservations-duty-staff-selection | 合意済み。2026-10-13、追加対話。今回の予約業務と接続境界のみ、対象外の既存本文を一括確定しない | [全時間の勤務・休憩適格性](pages/reservation-management.md#requirement-fr-reservations-duty-staff-selection) |
@@ -289,4 +293,8 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細]
 
 ## 2026-10-15会議4点の索引更新
 
-最新の通常カルテ編集・復元と終了履歴は[D03](../medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、専用施術の開始／終了・料金は[D06](../trimming/lifecycle.md)、勤務の複製／CSVは[D14](../../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)へ。現在73固有FRの索引と技術traceの一致を確認した。旧70／69の検査記録は当時の範囲。新しい予約枠数・時間既定や無断上書き許可は追加しない。
+最新の通常カルテ編集・復元と終了履歴は[D03](../medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、専用施術の開始／終了・料金は[D06](../trimming/lifecycle.md)、勤務の複製／CSVは[D14](../../screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)へ。当時の73固有FRの索引と技術traceの一致を確認した。旧70／69の検査記録は当時の範囲。新しい予約枠数・時間既定や無断上書き許可は追加しない。
+
+### 初診／再診・次回予定の4点追加合意（2026-10-15）
+
+2026-10-15の4点確認（Sentinel_0755eb8b662c8191939153f29229607e）への回答 Sentinel_5bade7ee85988191b8e0ab59a6e81fd7「1 yes 2 yes 3 yes 4 yes」を上記77件の索引・FR／受入条件・技術traceへ接続した。初診／再診の[受診歴対象種別](pages/reservation-management.md#visit-history-included-types)も2026-10-15、対象範囲を確認した質問 Sentinel_0cfe19c6936881918fdeaf851ab09042 へのユーザー回答 Sentinel_ff5f2f7a9b8481918f976fda892e3478「yes」で確定。4点と対象種別の業務決定、API適合・実装前検証を分ける。今回の文書検査／独立レビュー結果は別途報告し、過去のレビュー記録を今回の検証済み証拠にしない。
