@@ -31,7 +31,7 @@
 
 ### 品目別保険設定の追加合意（2026-10-15）
 
-[品目別保険設定の業務正本](../../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)と[保存・会計引継ぎ設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)を適用する。診察・処置・予防・健診も品目ごとの対象／対象外を保存・読取する目標で、薬剤・検査の既存明示値を維持する。個別会計での実適用・資格・補償の保証ではなく、全体割引除外・税・明細値引きとも独立。新規4種別の初期選択と従来未保存の既存品目の扱いは未決で、全体割引除外のfalse既定を流用しない。
+[品目別保険設定の業務正本](../../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)と[保存・会計引継ぎ設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)を適用する。診察・処置・予防・健診も品目ごとの対象／対象外を保存・読取する目標で、薬剤・検査の既存明示値を維持する。個別会計での実適用・資格・補償の保証ではなく、全体割引除外・税・明細値引きとも独立。新規登録の診察・処置・予防・健診品目は保険対象外を初期値とし、必要に応じ権限のあるスタッフが対象へ変更できる。既存明示値は保持し、旧欠落値の一括対象外変換は未承認。全体割引除外のfalse既定とは別契約である。
 
 現在の対象変更grant・医院scope／版を保存時に検査し、設定と前後値・操作者／時刻を追跡する。取得失敗・旧欠落・未保存を明示値と区別し、未保存編集を保護。会計の追加時snapshot・スタッフ確認修正値をmaster変更で自動更新せず、明示再適用／確定後訂正へ。今回の文書変更だけでUI／API／DB・実grant・移行が対応済みとはしない。
 

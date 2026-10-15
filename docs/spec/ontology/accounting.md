@@ -28,7 +28,7 @@
 | 割引scope | 割合合算と定額適用の範囲。各明細と会計全体を別に扱い、明細→全体の順 | [順序](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 全体値引きの配賦 | 明細割引後の対象税抜額比で配ること。各配賦を切捨て、残円は剰余降順で調整。過大値引きの他行転用とは別 | [配賦](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 会計全体割引の除外品目 | 品目マスタで指定し、全体割引の対象額・配賦先から除外。明細割引不可・保険対象外・税区分と別 | [除外指定](../domains/accounting/lifecycle.md#accounting-insurance-and-exclusion) |
-| 品目マスタの保険対象設定 | 診察・処置・予防・健診と既存薬剤・検査で保持する品目側の対象／対象外。全体割引除外・税・会計での確認修正値・資格／補償保証と別。新規4種別の初期値／旧欠落の解釈は未決 | [品目設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting) |
+| 品目マスタの保険対象設定 | 診察・処置・予防・健診と既存薬剤・検査で保持する品目側の対象／対象外。全体割引除外・税・会計での確認修正値・資格／補償保証と別。新規4種別の新規登録初期値は保険対象外。既存明示値保持、旧欠落の一括解釈は未決 | [品目設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting) |
 | 取扱保険会社／商品 | 複数会社を扱う前提。アニコムは例で固定一覧ではない。資格／残限度・負担額はスタッフ確認・記録。商品ごとの自動給付算式は将来の対象 | [保険](../domains/accounting/lifecycle.md#accounting-insurance-and-exclusion) |
 | 保険確認結果／保険負担額 | スタッフが外部画面等で確認した資格・残限度と今回保険が負担する額。未確認／不明は有効と別、窓口利用不可は補償対象外と別。保険会社の実入金ではない | [窓口保険](../domains/accounting/lifecycle.md#accounting-insurance-window-scope) |
 | 今回利用する保険契約 | 保険を使うペットごとに1回の会計で1契約。同じ診療費への複数契約併用・給付調整は対象外 | [契約の単位](../domains/accounting/lifecycle.md#accounting-insurance-window-scope) |
