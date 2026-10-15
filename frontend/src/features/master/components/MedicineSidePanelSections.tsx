@@ -104,7 +104,7 @@ export function MedicinePriceTaxSection({
     <>
       {isCategory ? (
         <PropertyRow label="単価(税込)" description={FIELD_DESCRIPTIONS.unitPrice}>
-          <span className={`text-base ${C.text35} select-none`}>子項目に金額を設定</span>
+          <span className={`text-base ${C.text60} select-none`}>子項目に金額を設定</span>
         </PropertyRow>
       ) : (
         <MoneyInput

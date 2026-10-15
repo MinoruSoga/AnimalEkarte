@@ -39,10 +39,9 @@ export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSetting
               {visibleGroups.map((g) => (
                 <span
                   key={g.id}
-                  className={`inline-flex items-center gap-1 ${LAYOUT.inputCompact} text-xs`}
+                  className={`inline-flex items-center gap-1 ${LAYOUT.inputCompact} text-xs ${C.text70}`}
                   style={{
                     backgroundColor: g.color ? `${g.color}18` : `${PALETTE.primary}0f`,
-                    color: g.color ?? PALETTE.primary,
                   }}
                 >
                   <span

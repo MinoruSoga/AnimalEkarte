@@ -92,7 +92,7 @@ export function StaffExcludedReservationTypesSection({
         <div className="space-y-3">
           {Array.from(grouped.entries()).map(([label, reservationTypes]) => (
             <div key={label} className="space-y-0.5">
-              <p className={`text-2xs font-medium ${C.text40} px-0.5`}>{label}</p>
+              <p className={`text-2xs font-medium ${C.text60} px-0.5`}>{label}</p>
               {reservationTypes.map((reservationType) => {
                 const isCapable = capableIdSet.has(reservationType.id);
                 return (

@@ -34,7 +34,11 @@ const TABLE_COLUMNS = [
   { key: "category", label: "カテゴリ", className: "w-[90px] text-center" },
   { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
   { key: "taxRate", label: "税率", className: "w-[80px] text-center" },
-  { key: "status", label: "ステータス", className: "w-[100px] text-center" },
+  {
+    key: "status",
+    label: "ステータス",
+    className: "w-[100px] min-w-[100px] whitespace-nowrap text-center",
+  },
   // PR665: 移動2 + 編集1 の44pxボタンが1行に収まる幅（パディング含め160px）。
   { key: "action", label: "操作", className: "w-[160px] min-w-[160px] text-right pr-2" },
 ];

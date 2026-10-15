@@ -119,7 +119,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
               placeholder={PALETTE.pickerDefaultBlue}
             />
           </div>
-          <p className={`text-xs ${C.text40}`}>
+          <p className={`text-xs ${C.text60}`}>
             予約管理カレンダーでこのグループに属する区分の予約枠を色別表示します。
           </p>
         </div>

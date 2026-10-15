@@ -6,6 +6,7 @@ import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { Button } from "@/components/ui/button";
 import { ErrorFallback, LoadingFallback } from "@/components/shared/DataStates";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -127,9 +128,9 @@ function LabDeviceItemMasterHeaderActions({
   return (
     <div className="flex items-center gap-2">
       {canEdit ? (
-        <PrimaryButton onClick={onEnsure} disabled={ensurePending}>
+        <Button variant="secondary" onClick={onEnsure} disabled={ensurePending}>
           既定項目を用意
-        </PrimaryButton>
+        </Button>
       ) : null}
       {canCreate ? (
         <PrimaryButton onClick={onNew}>
