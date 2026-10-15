@@ -29,8 +29,6 @@ interface ReceptionPageBodyProps {
   isFilterOpen: boolean;
   onToggleFilter: () => void;
   canCreateReservation: boolean;
-  /** PR665: 当日のヘッダーボタンは walk-in 受付のため reception:create も要求する。非当日は通常予約のみ。 */
-  canCreateWalkInReception?: boolean;
   onNewReception: () => void;
   telemetry: ReceptionTelemetryResult;
   selectedVisitTypes: string[];
@@ -76,7 +74,6 @@ export function ReceptionPageBody({
   isFilterOpen,
   onToggleFilter,
   canCreateReservation,
-  canCreateWalkInReception = true,
   onNewReception,
   telemetry,
   selectedVisitTypes,
@@ -137,8 +134,8 @@ export function ReceptionPageBody({
               <Filter className={ICON.sm} />
               フィルター
             </Button>
-            {/* PR665: 通常予約は reservations:create、当日 walk-in は reception:create も必要。権限のない受付アクションは表示しない。 */}
-            {canCreateReservation === true && (!isToday || canCreateWalkInReception === true) ? (
+            {/* PR669: 新規予約登録は reservations:create のみで表示する（walk-in も同権限）。 */}
+            {canCreateReservation === true ? (
               <PrimaryButton onClick={onNewReception}>新規予約登録</PrimaryButton>
             ) : null}
           </div>

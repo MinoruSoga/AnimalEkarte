@@ -300,7 +300,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                 type="button"
                 className={`${STYLE.btnDangerGhost} px-4 h-10`}
                 onClick={handleDeleteClick}
-                disabled={!canSubmit || isDeleting}
+                disabled={isDeleting || isPetDeceased}
               >
                 <Trash2 className={`mr-1.5 ${ICON.action}`} />
                 {isDeleting ? "削除中..." : "削除"}

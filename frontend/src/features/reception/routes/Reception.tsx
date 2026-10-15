@@ -12,7 +12,6 @@ import { formatDateWithWeekday } from "@/lib/format/date";
 import { buildJSTWallDateTime, todayJSTISO } from "@/lib/jst-date";
 import {
   ResourceReservations,
-  ResourceReception,
   ResourceMedicalRecords,
   ResourceAccounting,
   ResourceHospitalization,
@@ -62,8 +61,6 @@ export function Reception() {
     canEdit: canEditReservation,
     canDelete: canDeleteReservation,
   } = usePermission(ResourceReservations);
-  const { canCreate: canCreateReception } = usePermission(ResourceReception);
-  // PR665: 通常予約は reservations:create のみ、当日 walk-in 受付は両権限（列ビュー/ヘッダーで分岐）。
   const { canCreate: canCreateMedicalRecord } = usePermission(ResourceMedicalRecords);
   const { canCreate: canCreateAccounting } = usePermission(ResourceAccounting);
   const { canCreate: canCreateHospitalization } = usePermission(ResourceHospitalization);
@@ -170,9 +167,7 @@ export function Reception() {
 
   const { columnElements, appointmentColumnTitleMap, goToNewReservation } = useReceptionColumnView({
     filteredColumns,
-    // PR665: 通常予約は reservations:create のみ、当日 walk-in 受付は両権限。
     canCreateReservation: canCreateReservation === true,
-    canCreateReception: canCreateReception === true,
     canEditReservation,
     advanceStatus,
     onCardClick: handleCardClick,
@@ -198,7 +193,6 @@ export function Reception() {
         isFilterOpen={isFilterOpen}
         onToggleFilter={() => setIsFilterOpen((prev) => !prev)}
         canCreateReservation={canCreateReservation === true}
-        canCreateWalkInReception={canCreateReception === true}
         onNewReception={() =>
           // 本日: 従来通り当日受付（checked_in）。非本日: 選択日の通常予約作成。
           goToNewReservation(isToday ? "reception=1" : "newReservation=1")
