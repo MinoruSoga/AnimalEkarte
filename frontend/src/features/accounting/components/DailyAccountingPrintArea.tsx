@@ -13,7 +13,8 @@ interface DailyPrintAreaProps {
 }
 
 export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
-  const hospitalTotal = totals.medical + totals.surgery + totals.rv + totals.food + totals.goods;
+  const hospitalTotal =
+    totals.medical + totals.surgery + totals.rv + totals.food + totals.goods + totals.houseCall;
   const trimmingTotal = totals.trimming + totals.hotel;
 
   // EMR-205: 自前の portal + hidden 属性は Tailwind v4 preflight の
@@ -58,6 +59,9 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
               用品他
             </th>
+            <th className={`border ${C.borderGray300} px-1 py-0.5 text-right whitespace-nowrap`}>
+              往診
+            </th>
             <th className={`border ${C.borderGray300} px-1 py-0.5 text-center whitespace-nowrap`}>
               支払方法
             </th>
@@ -95,6 +99,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
                 <CatCell detail={detailedBreakdown.trimming} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.hotel} isMixed={isMixed} />
                 <CatCell detail={detailedBreakdown.goods} isMixed={isMixed} />
+                <CatCell detail={detailedBreakdown.houseCall} isMixed={isMixed} />
                 <td
                   className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt] text-center whitespace-nowrap`}
                 >
@@ -136,6 +141,9 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.goods)}
             </td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
+              {formatCurrencyIfNonzero(totals.houseCall)}
+            </td>
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-bold`}>
               {formatCurrency(hospitalTotal)}
@@ -158,6 +166,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.hotel)}
             </td>
+            <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-center text-[9pt]`}>-</td>
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-[9pt]`} />
             <td className={`border ${C.borderGray300} px-1 py-0.5 text-right text-[9pt] font-bold`}>
@@ -191,6 +200,9 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             </td>
             <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
               {formatCurrencyIfNonzero(totals.goods)}
+            </td>
+            <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[9pt]`}>
+              {formatCurrencyIfNonzero(totals.houseCall)}
             </td>
             <td className={`border ${C.borderGray300} px-1 py-1 text-[9pt]`} />
             <td className={`border ${C.borderGray300} px-1 py-1 text-right text-[10pt] font-bold`}>

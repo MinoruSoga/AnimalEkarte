@@ -35,7 +35,7 @@ func (q unbilledItemsQuery) toPetID() (uint64, error) {
 // createBillingItemRequest は明細作成リクエスト。
 type createBillingItemRequest struct {
 	BillingID             uint64  `json:"billing_id" binding:"required"`
-	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
+	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training house_call"`
 	Name                  string  `json:"name"      binding:"required,max=255"`
 	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
 	Quantity              float64 `json:"quantity"   binding:"min=0"`

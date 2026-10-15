@@ -64,6 +64,41 @@ describe("buildUnifiedClosingRows (#153 統合テーブル)", () => {
     expect(rows).toEqual([{ label: "トリミング", count: 1, byMethod: {}, rowTotal: 0 }]);
   });
 
+  it("refund-only house_call with count 0 survives and contributes to signed totals", () => {
+    const rows = buildUnifiedClosingRows({ house_call: { 現金: -1000 } }, [], undefined, {
+      house_call: 0,
+    });
+
+    expect(rows).toEqual([{ label: "往診", count: 0, byMethod: { 現金: -1000 }, rowTotal: -1000 }]);
+    expect(buildUnifiedClosingTotals(rows)).toEqual({
+      count: 0,
+      byMethod: { 現金: -1000 },
+      grandTotal: -1000,
+    });
+  });
+
+  it("negative house_call survives beside a positive goods row without changing counts", () => {
+    const rows = buildUnifiedClosingRows(
+      { goods: { 現金: 500 }, house_call: { 現金: -1000 } },
+      [],
+      undefined,
+      { goods: 1, house_call: 0 },
+    );
+
+    expect(rows.map((row) => row.label)).toEqual(["用品", "往診"]);
+    expect(rows.find((row) => row.label === "往診")).toEqual({
+      label: "往診",
+      count: 0,
+      byMethod: { 現金: -1000 },
+      rowTotal: -1000,
+    });
+    expect(buildUnifiedClosingTotals(rows)).toEqual({
+      count: 1,
+      byMethod: { 現金: -500 },
+      grandTotal: -500,
+    });
+  });
+
   it("金額も件数も無い部門は除外する", () => {
     expect(buildUnifiedClosingRows({ surgery: { 現金: 0 } }, [])).toEqual([]);
   });
@@ -126,6 +161,24 @@ describe("buildUnifiedClosingRows DEC-40 未分類・要確認", () => {
       rowTotal: 500,
     });
     expect(formatClosingCount(null)).toBe("記録なし");
+  });
+
+  it("negative other with a null legacy count remains visible as 記録なし", () => {
+    const rows = buildUnifiedClosingRows({ other: { 現金: -200 } }, [], null);
+    const other = rows.find((row) => row.label === UNCLASSIFIED_OTHER_LABEL);
+
+    expect(other).toEqual({
+      label: UNCLASSIFIED_OTHER_LABEL,
+      count: null,
+      byMethod: { 現金: -200 },
+      rowTotal: -200,
+    });
+    expect(formatClosingCount(other!.count)).toBe("記録なし");
+    expect(buildUnifiedClosingTotals(rows)).toEqual({
+      count: 0,
+      byMethod: { 現金: -200 },
+      grandTotal: -200,
+    });
   });
 
   it("件数 0・金額 0 の other 行は除外する", () => {

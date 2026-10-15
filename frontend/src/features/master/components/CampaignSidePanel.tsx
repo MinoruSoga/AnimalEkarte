@@ -39,6 +39,7 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "hotel", label: "ホテル" },
   { value: "training", label: "しつけ" },
   { value: "other", label: "その他" },
+  { value: "house_call", label: "往診" },
 ];
 
 /** Returns a new selection array with `value` toggled, without mutating the input array. */

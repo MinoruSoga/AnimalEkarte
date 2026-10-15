@@ -48,6 +48,7 @@ const (
 	ItemCategoryTrimming    ItemCategory = "trimming"
 	ItemCategoryHotel       ItemCategory = "hotel"
 	ItemCategoryTraining    ItemCategory = "training"
+	ItemCategoryHouseCall   ItemCategory = "house_call"
 )
 
 // AllItemCategories returns every supported billing item category in declaration order.
@@ -65,6 +66,7 @@ func AllItemCategories() []ItemCategory {
 		ItemCategoryTrimming,
 		ItemCategoryHotel,
 		ItemCategoryTraining,
+		ItemCategoryHouseCall,
 	}
 }
 

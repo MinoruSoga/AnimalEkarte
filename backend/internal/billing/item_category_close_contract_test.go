@@ -4,15 +4,79 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+type openAPICategoryContractDocument struct {
+	Components struct {
+		Schemas map[string]openAPICategoryContractSchema `yaml:"schemas"`
+	} `yaml:"components"`
+}
+
+type openAPICategoryContractSchema struct {
+	Enum       []string                                   `yaml:"enum"`
+	Properties map[string]openAPICategoryContractProperty `yaml:"properties"`
+}
+
+type openAPICategoryContractProperty struct {
+	Enum []string `yaml:"enum"`
+	Ref  string   `yaml:"$ref"`
+}
+
+func TestItemCategoryOpenAPIContract(t *testing.T) {
+	spec, err := os.ReadFile("../../docs/api.yaml")
+	require.NoError(t, err)
+
+	var document openAPICategoryContractDocument
+	require.NoError(t, yaml.Unmarshal(spec, &document))
+
+	want := make([]string, 0, len(model.AllItemCategories()))
+	for _, category := range model.AllItemCategories() {
+		want = append(want, string(category))
+	}
+
+	for _, schemaName := range []string{"EstimateItemInput", "EstimateItems", "BillingItems", "BillingItem"} {
+		t.Run(schemaName, func(t *testing.T) {
+			schema, exists := document.Components.Schemas[schemaName]
+			require.True(t, exists, "schema %s must exist", schemaName)
+			category, exists := schema.Properties["category"]
+			require.True(t, exists, "schema %s must define category", schemaName)
+			if schemaName == "BillingItem" {
+				const canonicalCategoryRef = "#/components/schemas/ItemCategory"
+				require.Equal(t, canonicalCategoryRef, category.Ref)
+				resolvedSchemaName := strings.TrimPrefix(category.Ref, "#/components/schemas/")
+				resolvedSchema, exists := document.Components.Schemas[resolvedSchemaName]
+				require.True(t, exists, "referenced schema %s must exist", resolvedSchemaName)
+				assert.ElementsMatch(t, want, resolvedSchema.Enum)
+				return
+			}
+			assert.ElementsMatch(t, want, category.Enum)
+		})
+	}
+
+	t.Run("ItemCategory is the canonical enum schema", func(t *testing.T) {
+		schema, exists := document.Components.Schemas["ItemCategory"]
+		require.True(t, exists)
+		assert.ElementsMatch(t, want, schema.Enum)
+	})
+
+	t.Run("MerchandiseItem preserves restricted inventory inputs", func(t *testing.T) {
+		schema, exists := document.Components.Schemas["MerchandiseItem"]
+		require.True(t, exists)
+		category, exists := schema.Properties["category"]
+		require.True(t, exists)
+		assert.ElementsMatch(t, []string{"food", "goods", "other"}, category.Enum)
+	})
+}
 
 func declaredItemCategories(t *testing.T) map[string]string {
 	t.Helper()
@@ -114,6 +178,7 @@ func TestCloseCategoryContract(t *testing.T) {
 			model.ItemCategoryTrimming,
 			model.ItemCategoryHotel,
 			model.ItemCategoryTraining,
+			model.ItemCategory("house_call"),
 		}
 
 		got := model.AllItemCategories()

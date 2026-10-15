@@ -202,7 +202,7 @@ components:
           type: integer
           format: int64
         category:
-          type: string
+          $ref: '#/components/schemas/ItemCategory'
         name:
           type: string
         unit_price:
@@ -2331,7 +2331,7 @@ components:
       properties:
         category:
           type: string
-          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
         name:
           type: string
         unit_price:
@@ -3334,7 +3334,7 @@ components:
           type: array
           items:
             type: string
-            enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+            enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
         target_item_ids:
           type: array
           items:
@@ -3753,6 +3753,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ItemCategory:
+      type: string
+      enum: &id003
+        - examination
+        - test
+        - procedure
+        - surgery
+        - medicine
+        - food
+        - goods
+        - other
+        - vaccine
+        - trimming
+        - hotel
+        - training
+        - house_call
     MerchandiseItem:
       type: object
       required: [name]
@@ -3769,15 +3785,7 @@ components:
           type: string
         category:
           type: string
-          enum: &id003
-            - examination
-            - test
-            - procedure
-            - surgery
-            - medicine
-            - food
-            - goods
-            - other
+          enum: [food, goods, other]
           default: goods
           description: カテゴリ（item_category ENUM）
         unit_price:
@@ -4661,7 +4669,7 @@ components:
           maxLength: 255
         category:
           type: string
-          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
         unit_price:
           type: integer
           format: int64
@@ -14326,7 +14334,7 @@ paths:
                   format: int64
                 category:
                   type: string
-                  enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+                  enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
                 name:
                   type: string
                 unit_price:

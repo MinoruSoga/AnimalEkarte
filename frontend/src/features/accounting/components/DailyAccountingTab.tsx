@@ -115,6 +115,7 @@ export function DailyAccountingTab({
         trimming: acc.trimming + r.breakdown.trimming,
         hotel: acc.hotel + r.breakdown.hotel,
         goods: acc.goods + r.breakdown.goods,
+        houseCall: acc.houseCall + r.breakdown.houseCall,
         subtotal: acc.subtotal + r.subtotal,
         tax: acc.tax + r.tax,
         discount: acc.discount + r.discount,
@@ -128,6 +129,7 @@ export function DailyAccountingTab({
         trimming: 0,
         hotel: 0,
         goods: 0,
+        houseCall: 0,
         subtotal: 0,
         tax: 0,
         discount: 0,
@@ -257,6 +259,9 @@ export function DailyAccountingTab({
                       用品他
                     </TableHead>
                     <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
+                      往診
+                    </TableHead>
+                    <TableHead className={`text-right ${C.text60} whitespace-nowrap`}>
                       売上合計
                     </TableHead>
                     <TableHead className={`text-center ${C.text60} whitespace-nowrap`}>
@@ -297,6 +302,9 @@ export function DailyAccountingTab({
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
                         {formatCurrencyIfNonzero(breakdown.goods)}
+                      </TableCell>
+                      <TableCell className={`text-right text-sm font-mono ${C.text60}`}>
+                        {formatCurrencyIfNonzero(breakdown.houseCall)}
                       </TableCell>
                       <TableCell className={`text-right text-sm font-mono font-semibold ${C.text}`}>
                         {formatCurrency(total)}
@@ -344,6 +352,9 @@ export function DailyAccountingTab({
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
                       {formatCurrencyIfNonzero(totals.goods)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-mono">
+                      {formatCurrencyIfNonzero(totals.houseCall)}
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
                       <span className="font-semibold">{formatCurrency(totals.total)}</span>

@@ -81,7 +81,7 @@ export function buildUnifiedClosingRows(
 
     return { label: group.label, count, byMethod, rowTotal };
   }).filter((row) => {
-    if (row.rowTotal > 0) return true;
+    if (row.rowTotal !== 0) return true;
     // 件数未記録のみ・金額 0 の行は出さない（旧 snapshot で other 金額も無い場合）
     if (row.count === null) return false;
     return row.count > 0;
