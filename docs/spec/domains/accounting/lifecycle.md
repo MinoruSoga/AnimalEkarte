@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | lifecycle.accounting／業務・保存境界 |
-| 決定状態 | 初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。未決・未照合は末尾と全体進捗に分離 |
+| 決定状態 | 初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離 |
 | 実装状態 | 未確認。現行との差分は技術仕様に明示 |
 | 実機検証状態 | 未実施 |
 | 文書確認日 | 2026-10-15 |
@@ -15,7 +15,7 @@
 
 決定者は依頼ユーザー。根拠は Sentinel_51dfbdb2423c8191a01a32d1f934b91b の「1 はい はい（過去の未払い分などいくら払うかは自由に決められる）／2〜5 ok」、単価手修正・複数割引併用の追加確認 Sentinel_dd33527fe92c8191ab9b6c0f85b0e2d6 の「yes」。docs反映承認は Sentinel_c71afbfafbe0819198fb3f69dab9f53a。2026-10-14に反映。個人名の追記・優先度・数値目標は未確認で、コードや旧文書から補完しない。
 
-本書が初回5点〜第十群と追加の死亡後精算・[支払方法停止](#accounting-inactive-payment-method)の業務正本。[語彙](../../ontology/accounting.md)は定義・関係、[技術仕様](../../../design/domains/accounting/technical-spec.md)は実現案と現行差分。[画面](pages/accounting-settlement.md)の継承本文・API表は旧挙動の参照で、今回の合意と異なる箇所を現行制約として区別する。保険オンライン請求や機器連携を追加しない。
+本書が初回5点〜第十群と追加の死亡後精算・[支払方法停止](#accounting-inactive-payment-method)・[品目別保険設定](#requirement-fr-accounting-item-insurance-setting)の業務正本。[語彙](../../ontology/accounting.md)は定義・関係、[技術仕様](../../../design/domains/accounting/technical-spec.md)は実現案と現行差分。[画面](pages/accounting-settlement.md)の継承本文・API表は旧挙動の参照で、今回の合意と異なる箇所を現行制約として区別する。保険オンライン請求や機器連携を追加しない。
 
 第二群の根拠は Sentinel_e6565c89fd488191982ad524c997fe6c の質問へのユーザー Sentinel_6d647c8c719c81919daecc6db67d9455（1は前金を使う旨の修正、3 yes／4 ok／5 yes）と、Sentinel_b4d6e8ae144081919d9e19d797a2faba の訂正例・表示・前金説明へのユーザー Sentinel_67776f0e70c881919019002d47011b1e のok。前金を扱わない案は不採用。第2問の「どういうこと？」は承認とせず、後続説明へのokを根拠とする。下記の更新を第二群として2026-10-14に反映。
 
@@ -203,6 +203,18 @@
 価格・割引・保険・支払方法のマスタ変更は管理者に加え、その対象の変更権限を付与されたスタッフにも許可する。無権限スタッフ、閲覧権限だけのスタッフ、通常の会計操作だけが許可されたスタッフへ一律に変更を認めない。管理者も所属医院の範囲・現在認可・原記録保護を守る。特定の職種名だけで変更可否を決めない。
 
 変更時に対象マスタと操作権限・医院scopeをサーバー側で検査し、対象・変更前後・操作者・時刻を監査へ対応させる。マスタ編集権限と個別会計での手修正、権限グループの付与／変更、削除等の別操作を同一の許可にしない。実際のgrant／職種mappingと失効時の扱いはC04と照合し、現行grantを自動で追加・変更する承認ではない。マスタ変更後も会計時点の価格・割引・保険・支払方法の参照と履歴を保持し、保存済み会計や旧帳票を現値で上書きしない。
+
+<a id="requirement-fr-accounting-item-insurance-setting"></a>
+### FR-accounting-item-insurance-setting：診察・処置・予防・健診の品目別保険対象設定
+
+2026-10-15、質問「診察・処置・予防・健診も、品目マスタごとに保険対象／対象外を設定する方針で採用しますか？」に対するユーザー Sentinel_03d710da77408191ad91e022d77b6493 の「1 yes」が根拠。[原要望](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=273137386&range=F2:G2)の存在だけを採用根拠とはせず、この直接回答の範囲で追加する。薬剤・検査の既存契約と揃え、別の臨床機能や保険会社連携は追加しない。
+
+- 診察・処置・予防・健診も、各品目マスタで保険対象／対象外を設定し、保存後の読取・再編集に同じ設定を保持できる。予防の既存画面入口は診療項目の予防接種タブ、健診は定期健診タブ。薬剤・検査の既存明示設定を保持し、カテゴリ名や行為名から対象区分を自動決定しない。
+- これは品目側の保険対象設定であり、その患者・診療・契約に実際に保険を適用できる、資格が有効、補償される、という保証ではない。個別会計の対象項目・割合・上限のスタッフ確認修正と[第七群](#accounting-insurance-window-scope)の資格／残限度確認・負担額記録を維持する。品目が「対象」でも未確認／不明を有効にせず、品目の明示値と会計で確認修正した値を区別する。
+- 全体割引除外・税区分・明細値引きとは独立。保険対象外を全体割引対象外へ、全体割引対象外を保険対象外へ相互変換しない。[第十群](#accounting-empty-rounding-master)の全体割引除外の初期値／欠落時falseを、保険対象設定の初期値や旧値補完へ転用しない。
+- 会計に取り込む品目ID・種別／医院・参照版と対象設定、その会計で確認修正した値を計算根拠へ保持する。追加済み会計行はmaster変更で自動更新せず、編集中の変更はスタッフの明示的再適用と前後値の保持へ。確定済み請求・旧帳票・再請求元snapshotは直接書き換えず既決の訂正／再請求・保険再確認へ接続する。master変更だけで保険負担額や資格を再判定しない。
+- 設定変更は既存の[マスタ変更権限](#requirement-fr-accounting-master-authorized-maintenance)と医院scope・現在版・履歴保護に従う。閲覧／通常会計の権限だけでは変更不可。薬量・基準値・臨床判定を変更する権限や実grantを新たに与えない。
+- 新規品目の初期選択、および従来保険設定を保存していない診察・処置・予防・健診の既存品目の扱いは、この回答では未決。未保存・欠落・取得失敗を明示的な対象／対象外へ推測変換せず、導入時に必要な業務判断と技術移行を区別する。全品目への新しい入力必須化や過去会計の一括再計算も追加しない。
 
 <a id="accounting-inactive-payment-method"></a>
 #### 追加合意：支払方法の利用停止と新しい入金
@@ -441,12 +453,29 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 | AC-accounting-payment-inactive-no-receipt | 利用できる方法がない状態で実入金を伴わない未納／明細あり0円請求を確定する | 方法停止だけで請求確定を拒否せず、架空の入金や有効方法への付替えを要求しない。明細・0円理由等の既決を維持 | [FR](#requirement-fr-accounting-receivable-partial-zero)・[停止合意](#accounting-inactive-payment-method)。請求確定と受領の分離を照合、実機未実施 |
 | AC-accounting-payment-inactive-idempotent-result | 入金操作の保存成功後に方法が停止し、同一操作の結果を照会／再送する | 保存済み結果を保持し、新受領や新たな入金拒否結果へ置き換えない。未成立の操作は現在状態を再検査し、結果不明時に別操作で受領を重ねない | [FR](#requirement-fr-accounting-master-authorized-maintenance)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-inactive-payment-design)。成立済み再送と未成立の保存を区別、実機未実施 |
 
+### 品目別保険設定の追加受入条件
+
+| 条件ID | 前提／操作 | 期待結果 | 要件／確認手順・証跡 |
+|:---|:---|:---|:---|
+| AC-accounting-item-insurance-four-masters | 診察・処置・予防・健診の各品目で対象／対象外を選択して保存し再取得 | 各種別・各品目で設定が往復保持される。共通パネルの表示だけや保存時の無視で代替せず、別品目・別種別の値を変えない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-existing-med-exam | 薬剤・検査の明示された既存対象／対象外設定を読む／更新 | 既存の意味・値を保持し、追加4種別と同じ品目設定として扱う。検査プランの設定を測定項目の臨床判定へ広げない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-not-guarantee | 対象設定の品目を、資格・残限度が未確認の個別会計へ選択 | 品目設定と実適用・確認結果を分離し、自動で利用可／補償保証にしない。スタッフの対象項目確認修正・負担額記録とペットごと1利用契約を維持 | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-independent-discount | 保険対象／対象外と全体割引除外の各組合せを設定・変更 | 一方の変更で他方を反転／上書きせず、税・明細値引きも独立。各区分をsnapshotへ保持し保険対象外行を保険対象額へ混ぜない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-authorized-save | 管理者・対象変更権限付きスタッフ・閲覧のみ・失効・別医院の各条件で保存 | 現在grant／医院scope・対象版をサーバーで検査。許可された対象だけ変更し、拒否時は書換えない。成功時の対象・前後値・操作者・時刻を追跡 | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-snapshot-stable | 会計追加後に元masterの保険対象設定を変更し、編集中／保存済み会計を開く | 追加時snapshotと会計で確認修正した値を保持し、保険対象額・負担額・過去帳票を自動更新しない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-explicit-reapply | 未確定会計で対象行を指定して最新masterの保険設定を明示再適用 | 元値／今回値・元品目参照を確認して履歴保持。対象外行や手修正を無断上書きせず、資格／補償の確認済み化を伴わない。別編集・確定競合時は保存停止 | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-finalized-correction | 確定済み会計・旧帳票または再請求元の保険設定を変更したい | master再適用で直接書換えず既決の理由付き訂正／取消・再請求へ。元snapshot・原取引履歴を保持し、再請求は今回ペット／契約・対象明細で保険再確認 | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-default-unresolved | 新規4種別の作成初期値を設計する | この追加合意だけでは対象／対象外の既定値や必須入力を確定しない。全体割引除外のfalse既定や旧UIの初期表示を保険設定の承認根拠にしない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-legacy-missing | 既存4種別の設定欠落／未保存値と明示値を読み、移行を検討 | 欠落と明示値を分け、カテゴリ・現master・既存booleanの偶然の初期値から補完しない。旧会計・薬剤／検査の明示値を保護し、必要な解釈を合意する前に一括変換しない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-read-failure | 設定取得が失敗、または別医院／品目切替前の応答が遅延して到着 | 欠落／0件／取得失敗を分離し、古い応答や推測値で現在の設定・入力を上書きしない。未保存編集を保護し、取得成功・保存成功と誤表示しない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+| AC-accounting-item-insurance-atomic-retry | 保険設定保存が同時編集と競合、通信切断で結果不明、または同一操作を再送 | 設定と必要履歴を一体で扱い、競合は前後を部分保存せず再取得へ。結果不明は同一操作の結果へ照合し、成立済み変更を重複記録したり別変更で上書きしたりしない | [FR](#requirement-fr-accounting-item-insurance-setting)・[設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)。設定／元品目・会計snapshot／履歴を照合、実機未実施 |
+
 <a id="accounting-open-decisions"></a>
 ## 未決事項・関連仕様・根拠
 
-初回・第二群の40ACはIDを保持し、第三群で更新された予約必須・未決配分／割引等の条件を最新合意へ追従。第三群20AC・第四群6AC・第五群12ACに加え、第六群でマスタ変更1FR・14ACを追加して9FR／92AC。第七群は既存9FR／92ACの識別子を保持し7ACを追加して9FR／99AC。第八群はその全識別子を保持して17ACを追加して9FR／116AC。第九群は既存116ACを保持して12AC追加、9FR／128AC。第十群はその全識別子を保持して14AC追加、計9FR／142AC。追加の死亡後精算承認で既存142AC本文を保持して2AC追加し9FR／144AC。支払方法停止の追加合意では既存9FRと144AC本文・識別子を保持して7AC追加し、現在の文書対象は9FR／151AC。追加7ACの文書レビューと後続実機検証を既存144ACのレビュー状態へ混同しない。overdiscount-unresolved／overdiscount-post-warning-pending の既存AC識別子は参照互換のため保持するが、警告後の請求額0円下限は第四群の追加回答で合意済み。列挙済み実務判断は第十群までで解消。D10の[文書完成境界](../../../design/domains/accounting/technical-spec.md#accounting-document-completion)と後続実装／検証・他責務を分離する。予約任意・同飼主の別予約／ペット利用、割合合算・割引後保険、保存後配分変更、別方法返金と金額追加承認なし、帳票番号維持、両粒度の割引利用・超過警告と承認後の請求額0円下限、会計取消の残高復元と別返金、第五群の明細→全体・比例配賦・税抜計算／税込表示・割合額四捨五入と税率別税切捨て・実値引き上限／他行転用なし、第六群の複数保険会社・品目マスタの全体割引除外・飼主宛名／ペット別明細・元取引と今回変更額・管理者と権限付きスタッフのマスタ変更、第七群の外部画面等でのスタッフ確認／結果と保険負担額記録・窓口会計限定・ペットごと1利用契約、第八群の減額時の残高復元／スタッフによる内訳確認・自動失効なし／同医院同飼主限定・選択確認による新番号再請求／元請求リンク・新規会計と過去回収の同時扱い／請求別指定・共通料金別枠、第九群の元価格／税／割引の継承とスタッフ修正・旧入金の確認充当／保険再確認・資金内訳と理由登録まで返金確定不可、第十群の空明細確定不可／0円理由・値引き前行別四捨五入・除外初期値／欠落時false・追加後明示的再適用を再質問しない。
+初回・第二群の40ACはIDを保持し、第三群で更新された予約必須・未決配分／割引等の条件を最新合意へ追従。第三群20AC・第四群6AC・第五群12ACに加え、第六群でマスタ変更1FR・14ACを追加して9FR／92AC。第七群は既存9FR／92ACの識別子を保持し7ACを追加して9FR／99AC。第八群はその全識別子を保持して17ACを追加して9FR／116AC。第九群は既存116ACを保持して12AC追加、9FR／128AC。第十群はその全識別子を保持して14AC追加、計9FR／142AC。追加の死亡後精算承認で既存142AC本文を保持して2AC追加し9FR／144AC。支払方法停止の追加合意では既存9FRと144AC本文・識別子を保持して7AC追加し、支払方法停止までの文書対象は9FR／151AC。会議連携4ACを加えた基準155ACをすべて保持し、品目別保険設定1FR・12ACを追加した現在の正本は10FR／167AC。追加差分の文書検査と実装／実機受入は別。追加7ACの文書レビューと後続実機検証を既存144ACのレビュー状態へ混同しない。overdiscount-unresolved／overdiscount-post-warning-pending の既存AC識別子は参照互換のため保持するが、警告後の請求額0円下限は第四群の追加回答で合意済み。列挙済み実務判断は第十群までで解消。D10の[文書完成境界](../../../design/domains/accounting/technical-spec.md#accounting-document-completion)と後続実装／検証・他責務を分離する。予約任意・同飼主の別予約／ペット利用、割合合算・割引後保険、保存後配分変更、別方法返金と金額追加承認なし、帳票番号維持、両粒度の割引利用・超過警告と承認後の請求額0円下限、会計取消の残高復元と別返金、第五群の明細→全体・比例配賦・税抜計算／税込表示・割合額四捨五入と税率別税切捨て・実値引き上限／他行転用なし、第六群の複数保険会社・品目マスタの全体割引除外・飼主宛名／ペット別明細・元取引と今回変更額・管理者と権限付きスタッフのマスタ変更、第七群の外部画面等でのスタッフ確認／結果と保険負担額記録・窓口会計限定・ペットごと1利用契約、第八群の減額時の残高復元／スタッフによる内訳確認・自動失効なし／同医院同飼主限定・選択確認による新番号再請求／元請求リンク・新規会計と過去回収の同時扱い／請求別指定・共通料金別枠、第九群の元価格／税／割引の継承とスタッフ修正・旧入金の確認充当／保険再確認・資金内訳と理由登録まで返金確定不可、第十群の空明細確定不可／0円理由・値引き前行別四捨五入・除外初期値／欠落時false・追加後明示的再適用を再質問しない。
 
-1. **合意範囲の実務判断**：第十群までに列挙した実務未決は解消した。追加の重大な矛盾が見つかった場合のみ別判断として挙げ、設計詳細を小分けの業務質問へ戻さない。
+1. **合意範囲の実務判断**：第十群までに列挙した実務未決は解消した。今回の品目別保険設定では、新規4種別の初期選択と従来未保存の既存品目の設定解釈だけは未決。具体値を勝手に選ばず、薬剤・検査の既存明示値と過去snapshotを保持する。追加の重大な矛盾が見つかった場合のみ別判断として挙げ、設計詳細を小分けの業務質問へ戻さない。
 2. **設定・移行の実現検証**：除外初期値／欠落時false、追加済み行は明示的再適用と確定済み。新規／欠落／明示true・false、編集中／確定済み／再請求を分け、実データ補完・物理移行は後続実装で検証する。
 3. **後続実装・利用開始条件**：[D10全体契約](../../../design/domains/accounting/technical-spec.md#accounting-reconciled-contract)で状態／意味型・ID、操作別保存・認可／版、再送／結果不明、3画面／4master、旧値adapter・不明時停止、writer／consumer・受け手を選定。物理schema／wire・実grant・移行・実装適合・実機／性能は後続であり、業務未決へ戻さない。
 4. **既存責務・適合確認**：ホテル必要額／時期／キャンセル料D05（スタッフ個別確認入力、日数自動課金・取消時自動請求／返金なし）、施術D06・見積D11の受渡し、D12締め／D16集計、D13在庫、実機器／決済規約、品目別税務分類・適格請求書全体・保険扱いの医院責任者等による確認。会計仕様の承認を税務／決済規約適合の保証へ広げない。

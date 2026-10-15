@@ -119,3 +119,18 @@ D15は送信対象の現在clinic／owner・現在DM値と[D15目的別判定](.
 ## 一般更新の同時編集契約（選定仕様）
 
 元表示版と保存時の現在版を比較し、不一致なら現在の原記録を変更せず競合を返す。入力を保持し、再取得した現値と差分を表示してスタッフの再確認を受ける。期待版だけを新版へ置換して無警告再送しない。明確拒否と結果不明を区別し、結果不明は元医院・対象ID・同一操作識別／内容で照合する。別操作IDや別createで救済しない。既存一般PATCH/UPDATEの期待版・永続receipt対応は実装差であり、この選定動作の実装済みを意味しない。
+
+<a id="owner-infection-summary-read-contract"></a>
+## 患者トップの感染症結果：D07読取adapter
+
+[追加FR](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-infection-summary)はD04の新しいスタッフ向けread consumerで、結果のwrite ownerはD07のまま。D04取得contextのtrusted clinic・pet・species・現在認証世代を[D07 projection](../examinations/technical-spec.md#examination-infection-summary-contract)へ渡す。owners:viewに加えD07結果閲覧認可を検証し、台帳DTOを持つだけで検査結果を取得可能にしない。
+
+D07が返す原値・各検査日／精度・院内／他院・固定結果／item ref・版／訂正状態・曖昧さ／取得結果をそのまま表示する。台帳の備考・danger_level、保存／更新日時へ置換しない。未取得／error／権限不足を未検査・陰性へ変換せず、医院／患者／種／認証世代をまたぐ遅延応答は破棄する。手入力入口はD07のcreate／edit・期待版・履歴／結果不明照合へ渡し、owners:editをD07 write権限として代用しない。
+
+主飼主移管はpet IDの結果履歴を複製／移管しない。過去結果の原医院／患者／版帰属を保持する。D20、LIFF／line-reserve公開DTOのallowlistは拡張せず、D21の検査履歴sectionにも印刷／共有を加えない。別途採用の予防薬専用2帳票とは区別する。UI表示以外の自動通知・予約・課金・在庫副作用はない。現行owner/pet DTO・query・D07 endpointでの実装適合は未検証。
+
+| 追加FR | 追加AC（全4件） | 技術対応 |
+|:---|:---|:---|
+| FR-owners-pets-infection-summary | AC-owners-pets-infection-top-reference / AC-owners-pets-infection-ambiguity / AC-owners-pets-infection-write-boundary / AC-owners-pets-infection-privacy | 本節のD07元ref・出典／日付精度・取得状態・両owner認可・台帳write分離・公開DTO境界 |
+
+先行9FR／27ACに本節の1FR／4ACを追加し、計10FR／31ACの文書契約となる。先行ID・既存の業務採否／実装検証状態を保持し、追加分の実機受入は未実施。

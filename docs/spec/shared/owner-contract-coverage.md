@@ -61,13 +61,13 @@
 | D18 | [本人scope](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-auth-scope)、[取消](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-cancel-boundary)、[通知](../screens/37-line-reserve-owner-flow.md#requirement-fr-line-channel-notification-boundary) | 同医院本人owner/pet・死亡を再照合、院内警告overrideをLINEへ適用しない。通知失敗で予約再作成なし。設定／公開保存と外部enableは別 |
 | D19 | [scope](../screens/40-identity-links.md#requirement-fr-identity-authorized-scope)、[必要監査](../screens/40-identity-links.md#requirement-fr-identity-audit-atomicity) | hidden/他医院混在は全体拒否、監査失敗rollback。監査はIDのみ・氏名電話なし。unlinkで元台帳・臨床履歴・元資金を削除／移管しない |
 | D20 | [限定項目](../screens/38-liff-pet-health.md#requirement-fr-liff-health-limited-fields)、[公開事実](../screens/38-liff-pet-health.md#requirement-fr-liff-health-published-facts) | 保存済み接種の限定表示と親draft条件は最新承認。接種単体finalizedを新設せず、診断・処方・検査全面公開なし。死亡status OR deceased_at除外。本人認証にstaff grantを代用しない |
-| D21 | [履歴意味](../screens/39-owner-report.md#requirement-fr-owner-report-history-meaning)、[section認可](../screens/39-owner-report.md#requirement-fr-owner-report-page-section-auth) | 実効的な診療終了結果に対応する通常カルテを対象とし、診療中の途中保存は除外。取得上限・部分失敗を明示。スタッフ閲覧限定で印刷／共有なし。D20公開条件をこの画面の認可へ流用しない |
+| D21 | [履歴意味](../screens/39-owner-report.md#requirement-fr-owner-report-history-meaning)、[section認可](../screens/39-owner-report.md#requirement-fr-owner-report-page-section-auth) | 実効的な診療終了結果に対応する通常カルテを対象とし、診療中の途中保存は除外。取得上限・部分失敗を明示。一般履歴はスタッフ閲覧限定で印刷／共有なし。追加採用の予防薬専用処方箋・年間投薬表の印刷だけを別契約とし、全sectionへ広げない。D20公開条件をこの画面の認可へ流用しない |
 | D22 | [履歴・復元](../domains/internal-manual/README.md#requirement-fr-internal-manual-version-retention)、[公開](../domains/internal-manual/README.md#requirement-fr-internal-manual-publication) | 旧版保持・復元は新しい版、一般スタッフREADと編集権限別。未保存／未公開案を全スタッフへ出さず、記事を患者原記録の新保管場所としない |
 | D23 | [医院mutation](../domains/support/README.md#requirement-fr-support-report-mutation)、[外部送信](../domains/support/README.md#requirement-fr-support-external-send) | 共有READを他医院mutation許可へ拡張しない。本人history削除範囲と共有元への反映を説明し、外部コピー削除を保証しない。送信前確認と院内保持を現通知先行実装から区別 |
 
 ## 仕様照合の残差と判定
 
-- D21への印刷認可記述は今回横断監査で検出し、D07〜D09／C02／X05を閲覧のみに同期した。D03・D07自領域の印刷は維持する。
+- 前段階の横断監査ではD21への包括的な印刷認可記述をD07〜D09／C02／X05の閲覧契約へ同期した。今回の予防薬専用2帳票の明示採用だけを限定例外として追加し、一般履歴の印刷／共有は解禁しない。D03・D07自領域の印刷は維持する。
 - ホテルの旧必須care_assignment gateは任意担当医師へ修正し、臨床入院開始時の担当医決定条件は保持する。
 - D15任意ファイルを全件一時コピーと推定できないため、原本不明cleanupを拒否する選定条件をC05へ具体化した。実装の143h一律対象、分類／元原本証跡の保存対応、実file判定は未適合／未検証。
 - 全操作の実schema・lock・監査sink・実grant・旧データ適合はこのリンク表の存在だけで完了としない。各技術正本が示す拒否・不明時停止・成功保存単位を、全writer／旧client／直接writerに実装する後続検証が必要。
@@ -119,3 +119,7 @@ D14の複製／CSV入力は[新操作の意味契約](../../design/domains/staff
 - D11の[提示価格と原本保護](../domains/estimates/business-rules.md#estimate-price-presentation-agreement-20261015)は、承認済み・期限内・同内容数量の単価と、提示済み返答待ちを含む原版を保持する。D10の税・割引・保険確認、確認転記、実授受とは別。D12の[締め区分と現金差額](../domains/cash-register/business-rules.md#closing-segment-difference-agreement-20261015)は締めた区分だけを保護し、非0差額はメモ付きで残す。原因不明可とし架空入出金を作らない。
 
 今回の合意と独立レビュー済み文書の接続を示す表であり、全既存業務の共同確認完了ではない。文書整合・独立レビュー・公開結果・実装適合はそれぞれ[全体進捗](../domains/SPECIFICATION_PROGRESS.md#joint-walkthrough-batch-20261015)で区別する。
+
+### 追加採用の検査・初診問診・予防帳票の接続
+
+[D07の保存結果・選択印刷・感染症投影](../domains/examinations/lifecycle.md#fr-examinations-infection-summary)では、D04／D03患者トップが同じ固定結果版・項目ref・検査日・出典・訂正／取得状態を読む。台帳PATCHや問診自己申告で原結果を上書き・確認済みに昇格させず、陰性／0・未実施・結果待ち・不明／取得失敗を区別する。D20へ公開しない。D03は初診問診と予防薬記録のowner、D21は既存レポート入口から許可された専用2帳票だけを参照・印刷する。印刷による処方、投薬、会計、通知の副作用を追加しない。

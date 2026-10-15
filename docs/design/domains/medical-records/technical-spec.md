@@ -434,3 +434,61 @@ HTTP methodだけでwriteを分類しない。現GETの初期行作成、内部p
 | [FR-medical-records-vital-measured-time-history](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-vital-measured-time-history) | 上記測定元参照・最新projection・全履歴read・保存／安全consumer | vital-latest-measured-time, vital-same-day-history, vital-measurement-order, vital-partial-values-time, vital-history-read-scope, vital-history-edit-boundary |
 
 受入条件本文の正本は[追加12AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-diagnosis-vitals-ac)。既存FR／AC・固定アンカーは保持し、今回の静的文書検査を実装／実機PASSへ加算しない。
+
+<a id="medical-record-exam-read-contract"></a>
+## 検査項目印刷・患者ヘッダーの共通read adapter
+
+[追加FR](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-examination-read-adapter)を[D07選択印刷](../examinations/technical-spec.md#examination-selected-print-contract)・[感染症結果projection](../examinations/technical-spec.md#examination-infection-summary-contract)へ接続する。D03のsection selectionとD07の版内item selectionを別々に保持し、一検査の固定snapshotをD07 ownerへ渡す。親record・clinic/pet・固定結果版・選択item集合・preview世代を対応付け、項目名や表示位置をID代替にしない。print projectionは通常保存・GetOrCreateを呼ばず、現在の各owner閲覧認可・原版／訂正識別を保つ。
+
+患者ヘッダーはD04と同じclinic/pet/speciesのD07 read projectionを使用し、原値・各検査日／精度・出典・固定ref／版状態・不明／複数候補／取得状態を受け取る。D03の当日カルテ・バイタル・担当医・最終更新日時で検査の意味や日付を補完しない。medical-records:viewだけでD07を公開せず、医院／患者／認証世代が変わった応答を破棄する。トップの既存値をカルテsave payloadや履歴copy／tab復元の書戻し対象に含めない。
+
+院内結果の保存成功・他院手入力・訂正／再確定等に対する再取得はD07と同じ版を返し、再取得不能は更新未確認として扱う。D03が独自の臨床結果テーブルや出典優先順位を持たない。旧ExamGroupが固定revisionを保持しない差は引き続き未解消であり、今回の文書追加でadapter実装済みとはしない。問診と診察／治療プランの別タブ・既存保存／クリア単位を維持し、LINE公開や複数日比較帳票を追加しない。
+
+| FR | AC（追加3件） | 技術対応 |
+|:---|:---|:---|
+| FR-medical-records-examination-read-adapter | AC-medical-records-exam-item-print-adapter | section/item選択の分離、固定snapshot、各owner認可・no-write印刷 |
+| 同FR | AC-medical-records-infection-top-shared-ref | D04/D03共通D07 projection、各結果の日付／出典／版、scope世代、更新未確認、復元対象外 |
+| 同FR | AC-medical-records-infection-tabs-boundary | 既存別タブ／保存単位、D07原版保護とD20非公開 |
+
+この1FR／3ACを先行合意のtraceへ追加する。物理wire／schema・grant設定・旧データ適合・実機受入は未確認。
+
+<a id="medical-record-intake-prevention-contract"></a>
+## 初診問診・予防薬の追加技術契約
+
+2026-10-15採用の[初診問診2FR／13AC](../../../spec/domains/medical-records/pages/initial-intake.md)と[予防薬3FR／15AC](../../../spec/domains/medical-records/pages/preventive-medication.md)へ接続するdocs限定設計。新API・physical field・DB migration・実装済みgrantを創作しない。[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)と[自動保存／復元](#medical-record-autosave-revert-contract)は不変。
+
+### 論理項目・writer・reader
+
+| 境界 | 目標契約 | 適合差と停止条件 |
+|:---|:---|:---|
+| 問診入力 | 独立問診タブ内で患者・カルテ・種別／紙版・項目群／項目identity・回答状態・詳細・出所・時期精度を保持。原紙6頁の対応表と一対一又は明示した複数対応で追跡 | 既存自由文だけ、未対応scalarへの切り捨て、bool初期falseによる未回答消失を禁止。現DTO適合は未検証。表現不能は入力保持・未対応表示 |
+| 時期と出所 | 出来事の年／年月／日付／概略、聞取時点、編集actor／記録時刻、参照元ID／版・原紙頁を別に保持 | 現在時刻・月初・推定年月を補完しない。根拠なしの確認済みフラグを立てない。原紙・不明状態を保全して移行する |
+| 問診保存／復元 | 既存問診保存ownerと同じ医院／患者／record・権限・期待版・必要監査。タブ開始基準と履歴複製直前基準に構造化項目と存在状態／元参照版を含める | 自動保存成功値を開始基準へ上書きしない。部分成功は成功対象だけ照合。旧writerが構造化回答を消す互換経路を切替前に排除。通常終了後編集を旧finalizedで一律拒否しない |
+| 他owner参照 | D04属性、D07検査ID／結果版、D08接種IDは各ownerの読取／認可で参照。問診自己申告は別sourceとして返す | 問診保存から各owner create／confirmを起動しない。出所・版不明は参照不明とし、陰性や実績へ変換しない |
+| 予防処方write | D03の処方記録identity・患者・関連カルテ、処方箋名／日・薬剤参照と当時名・条件／期間・既往歴copy元／版・備考・担当・編集actor／版を保持 | 一般treatment行と対応する場合は同一処方を参照し、帳票用duplicate createをしない。未保存を印刷readから保存しない。用量／頻度の自動選定なし |
+| 投薬確認write | 元処方との対応、確認対象の時期／精度、状態・確認元・確認時点・実編集者／保存版を保持。処方予定・交付と別の意味 | API／DB表現は実装工程。月単位boolで不明・複数記録・訂正履歴を落とさない。結果不明時は同じ意図の結果照会、会計／在庫の二重生成なし |
+| 年間projection | 医院／患者・対象年1〜12月・薬剤／処方と各元投薬確認ID／版・状態／凡例を返す。選択範囲の取得完全性を返す | 一般薬歴100件だけで年間全件としない。薬名一致・月の○・交付数量から投薬済みを作らない。旧連続薬数は意味確認まで計算しない |
+| D21 readerと管理引継ぎ | 既存レポートURL・患者選択を再利用。現在ページ／section認可、医院・owner・pet・選択年と対象record／版を読み直す。管理はD03へ同scopeの明示参照を渡す | D21自体は臨床writeを所有しない。閲覧から編集権限の付与なし。切替前の遅延応答・古いプレビューを破棄し、他患者へfallback出力しない |
+| 専用印刷projection | 対象処方又は年／薬剤範囲、取得済み保存版集合、訂正識別、現在閲覧認可を固定して同じpreview／出力を生成 | GetOrCreateなし、副作用なしread。対象版・権限・scope変更で再取得／再確認。不完全取得・不明な版で出力停止。未入力と確定した欄は凡例付きで可 |
+
+全write候補は問診の自動／タブ保存・通常編集・履歴コピー／取消・タブクリア・転記／過去入力、予防処方と投薬確認の入力／訂正・復元、旧client・移行adapter。必要な元版・ログ・現在依存を各経路で検査する。readerはカルテ問診／過去回答、一般薬歴との参照、予防専用管理、年間表、D21、専用印刷。sourceが違う記録を統合済みと偽らず、D07感染症結果の患者上部表示へ問診自己申告を正式結果として混ぜない。
+
+### 固定headで確認したレポート入口と実装差
+
+基準 `908b1def96c91885c01b038bd71af44f500207bf`。`frontend/src/features/medical-records/components/MedicalRecordStickyHeader.tsx` の「レポート」は `openOwnerReport(selectedPet.ownerId, selectedPet.id)`。`frontend/src/lib/owner-report-window.ts` は既存owners report URLへ `petId` を渡して別ウィンドウを開く。`features/owner-report/routes/OwnerReport.tsx` はmedical-records:view＋owners:viewと選択患者を扱う。`components/OwnerClinicalHistoryPanel.tsx`／`lib/clinical-briefing.ts` は一般treatment履歴からmedicineを「薬・処方」として日付別表示する。
+
+これはユーザー指定の入口がD21である静的根拠。ユーザーの現在表示に関する申告と区別し、この読取箇所に専用処方箋／年間表・印刷の実装は確認できない。全repository機能不存在や実機現況は断定しない。D21一般画面の非印刷／非共有を維持し、[専用2帳票の例外](../../../spec/screens/39-owner-report.md#owner-report-preventive-output)だけに対応するadapterを実装前に照合する。D08接種、D07検査、D09健診sectionへ出力許可を波及させない。
+
+### 追加5FR／28ACのtrace
+
+| FR（FR-medical-records-を共通prefix） | AC-medical-records-を共通prefixとするsuffix | 本節の対応 |
+|:---|:---|:---|
+| structured-initial-intake | intake-input-read, intake-separate-tab, intake-unknown, intake-partial-date, intake-multiple, intake-reaction-detail, intake-autosave-clear, intake-save-failure | 問診入力・時期と出所・問診保存／復元 |
+| intake-provenance | intake-source, intake-infection-boundary, intake-copy-undo, intake-ended-history, intake-scope | 問診保存／復元・他owner参照・全writer／reader |
+| preventive-prescription | prevention-fields, prevention-history-copy, prevention-no-auto-dose, prevention-write-boundary, prevention-write-failure | 予防処方write・同一処方参照・既存監査／復元 |
+| annual-preventive-medication | prevention-annual-grid, prevention-state-meaning, prevention-month-multiple, prevention-legacy-unknown, prevention-correction | 投薬確認write・年間projection・旧データの未知保持 |
+| preventive-report-output | prevention-report-entry, prevention-two-print, prevention-print-stale, prevention-print-cancel, prevention-report-view | D21 reader／管理引継ぎ・専用印刷projection・固定head観察 |
+
+### 利用開始前の残件
+
+入力schema・全writer互換とmigration、原紙6頁の全項目round-trip、旧データの年月／不明／○の意味、source間参照・重複防止、医院実grant・期待版／ログatomicity、年度全件取得と専用出力の欠け／改頁／凡例、患者・版切替／遅延・印刷取消の実機を検証する。技術受入を新たな業務承認待ちとしない。薬用量・臨床閾値、対象薬／種・頻度具体値の承認は既存別工程。旧○／連続薬数の自動移行は追加の出典照合が必要で、未確認のまま実績へ変換しない。

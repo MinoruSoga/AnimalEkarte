@@ -114,3 +114,11 @@ flowchart LR
 
 ---
 
+<a id="owner-patient-top-infection-results"></a>
+## 患者トップの検査結果（2026-10-15追加採用）
+
+スタッフが開くペット詳細の上部に、猫はFIV／FeLV、犬はmf／HWの結果と各検査日を並べる。原値・日付・院内／他院の出典と版／訂正中の状態を確認でき、権限内の元結果へ辿れる。特記マークやdanger_levelとは別の表示で、別種へ転用しない。結果の医学的意味・有効期限・判定閾値は作らない。
+
+院内の保存済みD07結果から自動反映し、他院結果はD07の手入力へ渡す。D04通常保存のpayloadへ結果本文を混ぜず、owners:editだけではD07を更新できない。未保存draft・未紐付け受信を反映しない。検査日不明、同日複数候補／不一致、結果待ち、記録なし、取得失敗／権限不足を区別し、入力日の新しさや出典の固定順位で一件へ潰さない。
+
+現在のD04・D07閲覧認可と医院／患者scopeを満たすスタッフ用に限定する。LINE健康表示・LIFF／line-reserve、飼主への自動送信を追加しない。業務GWTは[患者トップFR](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-infection-summary)、技術は[D04 read adapter](../../design/domains/owners-pets/technical-spec.md#owner-infection-summary-read-contract)。現行DTO／画面での実装・実機受入は未確認。

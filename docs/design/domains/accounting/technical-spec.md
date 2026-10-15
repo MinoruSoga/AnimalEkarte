@@ -5,12 +5,12 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | design.accounting.partial／技術設計 |
-| 決定状態 | 業務9FRは合意済み。本書の実現方式は提案設計、未決業務を補完しない |
+| 決定状態 | 業務10FRは合意済み（品目別保険設定の初期値／既存欠落値の扱いを除く）。本書の実現方式は提案設計、未決業務を補完しない |
 | 実装状態 | 未確認。静的に確認した現行制約は下記。API wire／DB正本は変更なし |
 | 実機検証状態 | 未実施。移行・並行性・性能も未検証 |
 | 文書確認日 | 2026-10-15 |
 
-[業務・AC正本](../../../spec/domains/accounting/lifecycle.md)と[語彙](../../../spec/ontology/accounting.md)を参照。対象は初回5点〜第十群と追加の死亡後精算・[支払方法停止](#accounting-inactive-payment-design)のD10文書設計。完成境界は[末尾](#accounting-document-completion)へ。実装適合／利用開始を表さない。
+[業務・AC正本](../../../spec/domains/accounting/lifecycle.md)と[語彙](../../../spec/ontology/accounting.md)を参照。対象は初回5点〜第十群と追加の死亡後精算・[支払方法停止](#accounting-inactive-payment-design)・[品目別保険設定](#accounting-item-insurance-design)のD10文書設計。完成境界は[末尾](#accounting-document-completion)へ。実装適合／利用開始を表さない。
 
 <a id="accounting-current-gap"></a>
 ## 現行実装と確定業務の差分
@@ -256,7 +256,7 @@ API wireの正本は[現行API](../../../../backend/docs/api.yaml)、DBはbacken
 <a id="accounting-master-coverage"></a>
 ### 4マスタと関連品目の文書範囲
 
-D10は物販・保険・支払方法・キャンペーンを持ち、診療／薬剤は価格／税・割引除外の会計接続のみ。臨床設定D03、入口D17の権限を編集許可へ転用しない。
+D10は物販・保険・支払方法・キャンペーンを持ち、診療／薬剤は価格／税・割引除外・品目別保険設定の会計接続のみ。臨床設定D03、入口D17の権限を編集許可へ転用しない。
 
 | master | 正本と受渡し | 保護 |
 |:---|:---|:---|
@@ -264,9 +264,31 @@ D10は物販・保険・支払方法・キャンペーンを持ち、診療／�
 | 保険 | [保険](../../../spec/screens/settings/master-insurance.md)の名称・補償率／連絡先・参照ID。会計の資格／負担額は別 | 補償率と飼主負担率を反転せず、masterだけで有効判定しない |
 | 支払 | [支払方法](../../../spec/screens/settings/payment-methods.md)の名称／有効状態・安定識別を受領／返金・集計へ | ADR003保持。固定4種拡張／ENUM廃止を発明しない。承認済みの停止方法の新受領利用不可と過去記録／集計保持は[追加設計](#accounting-inactive-payment-design)へ |
 | 割引 | [campaign](../../../spec/screens/settings/master-campaigns.md)の期間・対象・割合／額・有効状態・元ID | 最大割引の現行経路を併用適合済みにせずscope／除外／snapshot対応へ |
-| 診療／薬剤 | 品目ID・価格／税／除外と追加時snapshot | 投薬量・臨床パラメータを会計丸め／再適用で変更しない |
+| 診療／薬剤 | 品目ID・価格／税／全体割引除外・品目別保険対象設定と追加時snapshot | 投薬量・臨床パラメータを会計丸め／再適用で変更しない |
 
 既存CRUD／reorder・入力表は現行参照として保持。目標create／editは対象変更許可・clinic／版、delete等は別操作許可を検査。名称変更／無効化／削除でも過去取引／帳票参照を保持し、保護できない削除は拒否、別masterへ勝手に付替えない。支払方法の有効設定と選択肢の効果は、現行の固定4種／状態非連動と[追加合意の目標](#accounting-inactive-payment-design)を区別する。ADR003の安定識別・医院分離は保持し、停止済み方法を新受領で許可する根拠にしない。取得／失敗／競合／未保存保護は画面共通契約へ。現grant不足は[権限mapping](#accounting-master-permission-map)へ。
+
+<a id="accounting-item-insurance-design"></a>
+## 品目別保険設定の保存・読取・会計引継ぎ（追加設計）
+
+[追加FRとAC](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)の実現案。2026-10-15、PR #670の固定head `908b1def96c91885c01b038bd71af44f500207bf` で下記3画面仕様とD10文書を再取得した。製品コード・DBや実grantの再監査ではない。診療共通パネルの継承説明では保険対象外の保存対応は検査のみで、診察・処置・予防・健診には保存されない。これは目標とのgapであり、表示だけで保存対応済みとしない。
+
+| 対象／既存入口 | 設定writer・読取 | 保存・会計consumerへの契約 |
+|:---|:---|:---|
+| 診察／処置：consultations・procedures | [診療項目](../../../spec/screens/settings/master-treatment.md)の既存作成／更新、master-medicalの操作grant | 品目別対象設定の保存と一覧／詳細・再編集読取を接続する目標。現行保存対応なしの説明を将来の非対応方針にしない |
+| 予防接種：vaccines | 同じ診療項目画面、master-medicalの操作grant | 同上。品目名から補償可否を推定せず、次回日／接種済み記録を変更しない |
+| 定期健診：checkup-types | 同じ診療項目画面、checkupsの操作grant | 同上。パッケージ設定の保険区分を扱い、結果判定・次回日へ連動しない |
+| 薬剤：medicines | [薬剤マスタ](../../../spec/screens/settings/master-medicine.md)、master-medicalの操作grant | 既存の対象／対象外と明示値を保持し同じ意味の会計引継ぎへ。投薬量・dose gateは変更しない |
+| 検査：examination-types／exam_types | [検査マスタ](../../../spec/screens/settings/master-examinations.md)、master-medicalの操作grant | 既存 `exam_types.is_non_insurance` の明示値を保持。測定field／結果／基準値の判定と混同せず検査プラン品目の設定を受け渡す |
+
+意味型は「品目側の明示された保険対象／対象外」と「未取得／取得失敗／未保存・旧欠落」を区別する。前者はboolean等の物理形式へ写像できるが、既存の `is_non_insurance` の反転意味を誤らず、欠落を一律false／trueへ補完しない。新規4種別の初期値と旧欠落値の業務解釈は正本の未決に従う。既存薬剤／検査の明示値を変更せず、物理field名・nullable形式・wire／migration SQLは本設計だけから確定しない。全体割引除外のfalse既定は別fieldの別契約である。
+
+- 保存commandは品目種別・ID／医院・期待版・指定値を識別し、既存の操作権限と医院scopeをサーバーで再検査する。対象設定の変更と変更前後・actor／時刻の必要履歴を一体で扱い、通常会計grantをmaster編集権限へ昇格させない。create／edit／delete等の既存操作区分を維持する。
+- 一覧／詳細・編集初期表示は実際に保存された同じ品目設定を読める契約とする。取得中／失敗・成功0件・旧欠落を区別し、clinic／種別／ID・request世代の違う遅延応答は捨てる。失敗で入力を空／対象へ戻さず未保存編集を保持し、未対応APIのsilent dropを成功扱いしない。
+- 会計候補取得・行追加は元品目種別／ID・医院・参照版と設定を受け渡し、会計snapshotでは品目由来値とスタッフの確認修正値を区別する。元診療／専用記録から既に保存済みの根拠を受けた場合は来歴を維持し、最新masterによる暗黙置換をしない。手入力や元masterのない行へ架空の品目設定を作らない。物販等への新しい設定拡張を本承認から追加しない。
+- 編集中行の変更は第十群の明示再適用へ接続し、対象行・前後値・依存版を照合する。確定済み／再請求元は旧snapshotを保持して既決訂正経路へ。帳票・再表示も保存根拠を読み、現在masterで保険額を再算定しない。master側「対象」を資格／残限度／実適用や補償保証に変換せず、会計の既存スタッフ確認と負担額記録をconsumer側で維持する。
+- 競合・失効は保存不成立として未保存入力を保護し再取得／再確認へ。結果不明は同じ操作のreceipt／保存版へ照合し、成立済みの同一再送を新しい変更へ複製しない。operation識別・永続receiptと原子保存の実現は既存[D10契約](#accounting-operation-contract)と対象master writerへ適合確認が必要で、現行CRUDが対応済みと断言しない。
+- 新規4種別の設定が全writer／read API／会計adapterで往復保持でき、認可・競合・履歴・旧値保護を検証するまでは、その新経路を対応済みとして利用開始しない。独立した既存薬剤／検査や保険を使わない会計まで一律停止する条件を新設しない。業務未決の初期値／旧欠落値をmigration実装で暗黙裁定しない。
 
 <a id="accounting-inactive-payment-design"></a>
 ### 支払方法停止：新受領と過去参照を分離する設計
@@ -306,7 +328,7 @@ ADR003のENUMとsystem_key／医院master IDの整合は維持する。固定4�
 <a id="accounting-document-completion"></a>
 ## D10文書完成条件と判定外
 
-D03と同じ限定文書基準を適用。対象は9FR／155AC、3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。支払方法停止の追加7ACも前段階の固定39文書レビュー・限定構造検査を通過した。今回の会議連携4ACは新しい候補レビュー対象として区別する。既存144ACの判定とは別に追加差分の確認根拠を保持する。既存AC／アンカー・144AC本文を保持し、新旧全ACを一意に追跡する。
+D03と同じ限定文書基準を適用。対象は10FR／167AC（基準9FR／155AC＋品目別保険設定1FR／12AC）、3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。支払方法停止の追加7ACも前段階の固定39文書レビュー・限定構造検査を通過した。会議連携4ACと今回の品目別保険設定1FR／12ACは、それぞれ追加差分の文書確認として区別する。今回の品目設定の初期値／旧欠落値の業務未決を既存完成判定で覆わない。既存144ACの判定とは別に追加差分の確認根拠を保持する。既存AC／アンカー・144AC本文を保持し、新旧全ACを一意に追跡する。
 
 文書で選定した意味型・原子保存／receipt・現在認可／不明時停止・画面状態／master参照保護・引継ぎを後決めへ戻さない。物理schema／wire名・採番書式／lock実装・実grant／実旧値・移行・全writer／consumer実装適合・実機／性能／復旧試験・税務／決済規約適合は後続実装／利用開始条件。これらと他owner内部・全体横断最終照合は本領域の文書完成判定外。保険会社請求／査定・自動給付、督促／貸倒、別医院／飼主移管・外部機器連携は対象外。
 
@@ -316,6 +338,7 @@ D03と同じ限定文書基準を適用。対象は9FR／155AC、3画面＋選�
 
 | 業務FR | 正本AC範囲 | 技術照合対象 |
 |:---|:---|:---|
+| FR-accounting-item-insurance-setting（品目設定） | item-insurance-four-masters／item-insurance-existing-med-exam／item-insurance-not-guarantee／item-insurance-independent-discount／item-insurance-authorized-save／item-insurance-snapshot-stable／item-insurance-explicit-reapply／item-insurance-finalized-correction／item-insurance-default-unresolved／item-insurance-legacy-missing／item-insurance-read-failure／item-insurance-atomic-retry | [追加設計](#accounting-item-insurance-design)。6種別の設定往復・実適用分離・独立区分・現在認可／版・snapshot／訂正・未決既定値／旧欠落・取得失敗／原子再送 |
 | FR-accounting-owner-selected-charges（会議連携） | trimming-zero-line | [施術側調整・記録復元の受渡し](#accounting-trimming-adjustment-adapter)。実在0円行と元版／計算snapshot |
 | FR-accounting-calculation-snapshot（会議連携） | trimming-adjustment-once／trimming-source-refresh | [施術側調整・記録復元の受渡し](#accounting-trimming-adjustment-adapter)。根拠付き一度適用・明示再適用と確定保護 |
 | FR-accounting-reasoned-financial-correction（会議連携） | record-edit-no-money-undo | [施術側調整・記録復元の受渡し](#accounting-trimming-adjustment-adapter)。臨床本文復元と金銭操作を分離 |
@@ -365,9 +388,9 @@ D03と同じ限定文書基準を適用。対象は9FR／155AC、3画面＋選�
 
 overdiscount-unresolved／overdiscount-post-warning-pending は参照互換の既存識別子であり、期待結果は合意済みの警告・請求額0円下限へ更新する。
 
-AC短名は[正本155AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
+AC短名は[正本167AC](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
 
-実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、現在155ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
+実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、現在167ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
 
 業務判断と技術設計／検証・対象外の区別は[残件の分類](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)へ。D05／06専用記録、D11見積、D12締め、D13在庫、D16集計、C04権限／C05監査の受け手実装適合・全体横断再照合は別工程。保険会社への請求送信・入金照合・査定差額管理・会社／商品別の自動給付算定、外部支払／印刷機器を追加実装する設計は含めない。
 

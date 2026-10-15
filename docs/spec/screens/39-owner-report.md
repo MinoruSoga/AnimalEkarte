@@ -3,8 +3,8 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.owners.clinical-report／D21 業務・画面仕様 |
-| 決定状態 | 既存記載を継承し、今回の診療終了済みカルテを履歴対象とする承認を反映。未照合の履歴と現行実装差は別に保持 |
-| 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
+| 決定状態 | 既存記載・診療終了済みカルテの履歴対象を継承し、2026-10-15の予防薬専用2帳票の表示・印刷入口を限定追加。未照合の履歴と現行実装差は別に保持 |
+| 実装状態 | 既存記載を継承。今回レポート入口と一般薬歴を固定headで静的照合。専用2帳票の実装適合・他部分の再監査は未確認 |
 | 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
 | 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
 
@@ -82,7 +82,7 @@ flowchart TB
 
 ### 2.3 印刷
 
-画面閲覧専用で、印刷ボタン・印刷用スタイル・共有機能は設けない。固定ビューポートと内部スクロールのためブラウザ標準印刷では長い履歴が切れ得るが、印刷は要件外とする。
+一般レポート全体は画面閲覧専用で、全体印刷・共有機能は設けない。固定ビューポートのブラウザ標準印刷を帳票機能の代替としない。2026-10-15の[予防薬専用処方箋・年間投薬表](#owner-report-preventive-output)だけは明示採用された限定例外として、保存済み範囲を選ぶ専用出力入口を持つ。他sectionや一般レポート全体の印刷解禁ではない。
 
 ## 3. 臨床安全・アクセシビリティ
 
@@ -135,7 +135,7 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 
 ### 目的・対象範囲と状態
 
-診療前の院内スタッフ向け複合読取画面。飼主本人向け公開、共有、印刷、臨床記録のwriteを追加しない。本文のページ権限・section別権限・1頭context・6領域・履歴の取得制約を既存記載として継承する。現コード再監査／実機再受入は行っていない。
+診療前の院内スタッフ向け複合読取画面。飼主本人向け公開、共有、一般画面全体の印刷、臨床記録のwriteを追加しない。[予防薬専用2帳票](#owner-report-preventive-output)の参照・出力入口だけを最新採用の限定例外とする。本文のページ権限・section別権限・1頭context・6領域・履歴の取得制約を既存記載として継承する。現コード再監査／実機再受入は行っていない。
 
 ### 操作・境界
 
@@ -158,7 +158,7 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 | FR-owner-report-history-meaning | 診療は診療終了したカルテ、検査は依頼中/検査中を除外、ケアは完了のみ。日付で横断表示しても同一診療IDへ統合した意味にしない | 本文§1.3、§3.1 |
 | FR-owner-report-partial-data | 権限なし/読込中/失敗/0件/明細なし/取得上限を区別し、異常なしや予定なしへ代用しない | 本文§1.3、§3 |
 | FR-owner-report-manual-pagination | 対象3sourceだけ利用者操作で追加取得し、薬/処置は同一sourceを共有する。上限検知はraw行数とtotalで判定する | 本文§1.3 |
-| FR-owner-report-read-only | 別ウィンドウの閲覧に限定し、保存・印刷・共有を新設しない | 本文§2〜3 |
+| FR-owner-report-read-only | 別ウィンドウの臨床読取を維持し、保存・一般レポート全体印刷・共有を新設しない。予防薬専用2帳票の参照／出力入口だけを限定追加 | 本文§2〜3・[専用出力](#owner-report-preventive-output) |
 
 ### 受入条件
 
@@ -173,7 +173,7 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 | AC-owner-report-truncation | totalがraw取得行数より多い | 履歴を表示する | フィルタ後件数と混同せず打切りを示す | 本文§1.3のraw/可視の区別 |
 | AC-owner-report-more | 追加取得対象sourceに次pageがある | 続きを読むを押す | 対応sourceを追加し、薬/処置は共通制御。初回自動page>1取得をしない | 本文§1.3 |
 | AC-owner-report-errors | 一部sourceが取得失敗 | 表示する | 失敗を0件/予定なしへ置き換えない | 本文§3.1とrole=alert |
-| AC-owner-report-readonly | レポートを開く | 操作を確認する | 閲覧・患者切替・追加読取だけで、臨床writeや新しい公開操作がない | 本文§2.3/3.1。ブラウザ標準印刷の品質は対象外 |
+| AC-owner-report-readonly | レポートを開く | 操作を確認する | 臨床write・公開・共有・一般レポート全体印刷がない。専用2帳票の参照／出力だけを明示例外とする | 本文§2.3/3.1・[予防薬出力AC](../domains/medical-records/pages/preventive-medication.md#preventive-medication-ac)。ブラウザ標準印刷の品質とは別 |
 
 ### 保存・再取得・遅延応答と引継ぎ
 
@@ -227,3 +227,12 @@ clinic隔離・論理削除除外は各バックエンドAPIが担保する。
 | AC-owner-report-ended-edit | 診療終了済みカルテが通常編集され保存済み | 前回診療／履歴を再取得 | 同じカルテの最新保存版を表示し、元変更履歴は保持。読取からwriteを起こさない | history-meaning／read-only、本節 |
 | AC-owner-report-ended-reopen | 診療終了の取消により同じ記録が診療中へ戻った | 履歴を再取得 | 再終了までは診療済み履歴へ載せず、終了／取消の原履歴を削除しない | history-meaning、本節 |
 | AC-owner-report-ended-unknown | 終了結果・カルテ対応・取得状態が不明 | 履歴を表示 | 旧finalizedや自動保存・会計結果から終了を推定せず未確認を区別。別患者へのfallbackなし | partial-data、本節 |
+
+<a id="owner-report-preventive-output"></a>
+## カルテ右上レポートから予防薬専用2帳票を扱う限定追加
+
+Sentinel_0adf405e47508191abf775b6c4af22a3 の回答2により、[D03予防薬専用管理](../domains/medical-records/pages/preventive-medication.md)の参照・予防処方箋／1〜12月年間投薬表の印刷入口を本画面に接続する。固定headのMedicalRecordStickyHeader → openOwnerReport → OwnerReportで同じ入口を確認した。現在表示に関するユーザー申告と静的観察はD03正本で分離しており、一般薬歴表示を専用2帳票の実装済み証拠にしない。
+
+ページ権限・section認可と一頭contextを維持し、選択患者の予防薬専用記録と年表を一般薬歴と区別して表示する。管理・訂正はD03 ownerへ同患者・対象recordを渡す。D21に臨床保存を追加せず、閲覧権限からD03編集権限を作らない。専用2帳票だけ選択・保存済み版のプレビュー・出力を可能にし、D21全体や検査・接種・健診等のsectionを一括印刷・公開・共有しない。
+
+受入本文はD03のFR-medical-records-preventive-report-outputとAC-medical-records-prevention-report-entry／two-print／print-stale／print-cancel／report-viewへ単一管理する。FR-owner-report-read-onlyはこの限定例外と両立させる。scope／版変更・取得失敗・不完全な年間表は出力停止、未保存の自動保存なし、再印刷・取消・完了不明から投薬実績／請求／在庫／配信を生まない。[技術trace](../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)のD21 reader／専用印刷projectionが対応し、API・実装・実機受入は未実施。

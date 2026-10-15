@@ -109,6 +109,13 @@
 
 DMはLINEの配信希望で、未設定・必要・不要を区別する。未設定／不要では案内・販促を送らず、未設定から必要へは希望を確認して明示変更する。既存未設定値を必要へ自動補完しない。予約確認・変更・予約リマインドは未設定／不要だけでは除外せず、[D15目的別条件](../../line/lstep-integration.md#crm-dm-purpose-contract)と既存のアカウント・ブロック・本人／宛先等の安全条件へ渡す。DM値変更自体は送信・過去通知の再送・配信停止の解除・LINE紐付け変更を起動しない。
 
+<a id="requirement-fr-owners-pets-infection-summary"></a>
+### FR-owners-pets-infection-summary
+
+[2026-10-15の直接採用](../examinations/lifecycle.md#examination-print-infection-agreement-20261015)に基づき、スタッフの患者トップ（ペット詳細の上部）に猫FIV／FeLV・犬mf／HWの保存結果と各検査日を表示する。結果の記録・出典・訂正の正本はD07であり、D04は同じ固定結果refを読む。院内保存結果の自動反映と他院手入力は[D07正本](../examinations/lifecycle.md#fr-examinations-infection-summary)へ従い、owners編集・ペット通常PATCHで検査結果を上書きしない。
+
+院内／他院・手入力、検査日不明、複数候補・訂正中、記録なし／結果待ち／取得失敗を識別する。過去の陰性等を現在の感染状態の保証にせず、danger_level／danger_reasonや任意備考に混ぜない。表示は現在のD04とD07の閲覧認可を満たす範囲に限定し、他医院行の操作・LINE健康公開・LIFF／line-reserve応答を追加しない。主飼主変更・台帳保存だけでは結果移管／複製／更新・通知を起動しない。
+
 ## 異常系・保存・取消
 
 | 状況 | 検知／表示と次の操作 | 境界 |
@@ -156,6 +163,15 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 | AC-owners-pets-membership-independent | 会員区分のみ変更する | 料金・予約受付・LINE配信可否を自動変更しない。独立した値引率／停止／本人条件は保持 | 同FR。変更前後の各ownerを比較。未実施 |
 | AC-owners-pets-dm-line-preference | DMを未設定／必要／不要で保存する | LINE希望として区別。郵送設定へ置換せず、値変更だけで送信・再送・停止解除・宛先変更しない | 同FR・D15目的別条件。未実施 |
 | AC-owners-pets-dm-unset-confirmation | DM未設定の飼主の配信希望を確認し必要へ明示変更する | 確認前は案内・販促対象外。自動補完なし。変更後も送信時の既存安全条件と目的を検証 | 同FR・D15。予約通知例外は維持。未実施 |
+
+### 患者トップの追加受入条件
+
+| AC ID | 操作・前提 | 期待結果 | FR・検証 |
+|:---|:---|:---|:---|
+| AC-owners-pets-infection-top-reference | 猫／犬の院内保存結果と他院手入力結果がある患者トップを開く | 同じD07の固定ref・原値・検査日・出典／訂正状態を表示し、別の結果本文を台帳に保存しない | [FR](#requirement-fr-owners-pets-infection-summary)。元結果と表示の照合。未実施 |
+| AC-owners-pets-infection-ambiguity | 日付不明・同日複数候補・結果待ち・取得失敗がある | 不明／複数／待ち／失敗を区別。陰性保証や未検査断定・danger_levelへの混同なし | 同FR。各状態別。未実施 |
+| AC-owners-pets-infection-write-boundary | owners:editだけを持つスタッフが台帳保存／主飼主変更する | D07結果を通常pet PATCHで更新・移管・複製せず、必要な結果入力はD07認可の専用入口へ | 同FR。D07原版／履歴を比較。未実施 |
+| AC-owners-pets-infection-privacy | D07閲覧権限不足・医院切替・LINE／LIFF応答 | 権限不足と記録なしを分離し、旧scope応答・公開DTOへ結果を漏らさない | 同FR。DTO・遅延応答を確認。未実施 |
 
 ## 未決事項・関連仕様・根拠
 

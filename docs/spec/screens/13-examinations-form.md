@@ -120,3 +120,13 @@ stateDiagram-v2
 
 [最終型／writer契約](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、院内scope・検査ID・患者／record対応・固定revision／版内item ref・変更理由／actor／時刻・取得結果を返す。原記載の確定時参照版と後日版を分離。現在のrevision／print-snapshotの存在だけでカルテadapter実装済みとしない。診療終了後のカルテ本文編集を、患者関連の普通FK変更／旧確定履歴消去で代用しない。旧結果／項目の明示対応を確認できなければ停止し、既存の検査内部確定／訂正手順を保持する。
 
+<a id="examination-selected-print-ui"></a>
+## 項目選択印刷・患者トップへの結果連動（2026-10-15追加採用）
+
+[直接回答による追加採用](../domains/examinations/lifecycle.md#examination-print-infection-agreement-20261015)の目標。§2.1の保存済みprint-snapshotを基礎として、同じ検査・固定版内で印刷項目を選択し、プレビューと出力を一致させる。実施済みを初期選択し未実施を候補から除外する。陰性・0・不等式・定性値を空欄扱いしない。実施済み結果待ちと実施不明は別表示とし、不明行は自動選択せず理由を表示して元記録照合へ。選択0件は印刷対象なし、取消は入力保持。未保存入力は反映されないと表示し、印刷で保存・確定・解除・送信しない。
+
+項目を絞っても患者・検査日・出典／保存版・訂正識別と保存当時の原値／単位／基準範囲を保持する。別検査日・別結果版は一つの帳票へ合成しない。新しい複数日比較帳票・全検歴UI・グラフは対象外。対象版／scopeが変われば選択を新結果へ流用せず再プレビューする。GWTはAC-examinations-print-item-selection〜single-snapshot、[技術契約](../../design/domains/examinations/technical-spec.md#examination-selected-print-contract)へ。
+
+院内の猫FIV／FeLV・犬mf／HWの保存結果は患者トップへ自動反映する。他院はD07の結果記録として手入力し、原値・判明検査日・出典と入力者／入力時刻を保存する。未判明日付は「検査日不明」、他院は「他院・手入力」と表示する。現行フォームに日付不明／出典を表現できる保証はなく、架空日付や台帳備考への転記で代用しない。
+
+保存結果と同じ固定refを読むので、未保存値や未紐付け受信は患者トップへ出さない。訂正／作業版の状態、同日複数候補・出典の違い、記録なし／結果待ち／取得失敗を区別する。保存成功後の再取得失敗は更新未確認として扱う。検査自身の訂正保護と担当医任意は維持し、LINE公開・送付を追加しない。受入はAC-examinations-infection-*、[結果projection契約](../../design/domains/examinations/technical-spec.md#examination-infection-summary-contract)へ。

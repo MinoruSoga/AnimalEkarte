@@ -56,7 +56,7 @@
 | D18 | 院内設定と飼主予約app、公開枠と空き判定 | [予約チャネル](../line/reservation-spec.md) |
 | D19 | 手動link/unlinkと台帳統合、自動同一判定を追加しない | [identity](../screens/40-identity-links.md) |
 | D20 | 自己認証／紐付け／健康公開とstaff認可、原記録write | [健康手帳](../screens/38-liff-pet-health.md) |
-| D21 | スタッフ専用閲覧のみ（印刷・共有機能なし）・複合読取／section縮退と記録更新、患者context。飼主公開はD20、D03等の既存印刷とは別 | [飼主レポート](../screens/39-owner-report.md) |
+| D21 | スタッフ専用の複合読取／section縮退と記録更新、患者context。一般履歴は印刷・共有なし、最新採用の予防薬専用処方箋・年間投薬表だけ印刷を許容。飼主公開はD20、D03等の既存印刷とは別 | [飼主レポート](../screens/39-owner-report.md) |
 | D22 | 製品manual記事／版と仕様管理文書 | [manual](../screens/35-internal-manual.md) |
 | D23 | 共有ボードREAD／報告医院mutation／個人history | [support本文](../screens/settings/README.md) |
 

@@ -33,7 +33,7 @@
 | D04 | [飼主・ペット](owners-pets.md) |
 | D05 | [入院・ホテル](hospitalization.md) |
 | D06 | [トリミング](trimming.md) |
-| D07／08／09 | [検査](../domains/examinations/lifecycle.md)・[接種](../domains/vaccinations/lifecycle.md)・[健診](../domains/checkups/lifecycle.md) |
+| D07／08／09 | [検査結果・項目選択印刷・感染症結果投影](examinations.md)・[接種](../domains/vaccinations/lifecycle.md)・[健診](../domains/checkups/lifecycle.md) |
 | D10 | [会計・金銭](accounting.md) |
 | D11／12／13／16 | [見積・締め・在庫・集計](finance-operations.md) |
 | D14／D17 | [職員・勤務](../domains/staff-workforce/README.md)・[医院](../domains/clinic-settings/README.md) |
@@ -50,3 +50,7 @@ D06の語彙はコース種別＝コースのカテゴリ、コース／option�
 ## 2026-10-15会議4点の最新入口
 
 自動保存維持・終了後通常編集・タブ開始時復元／複製直前取消・終了履歴、トリミング開始／終了・料金、勤務複製／CSVの合意を追加整理。[全体進捗](../domains/SPECIFICATION_PROGRESS.md#meeting-four-decisions-20261015)と各owner本文を参照。途中の保存ボタン方式は撤回済み。今回差分は独立内容・構造レビューで重大指摘なしを確認し、文書再整合済み。全過去承認の監査完了・実装完了とは扱わない。
+
+## 追加採用5点の意味境界
+
+[採用根拠・状態](../domains/SPECIFICATION_PROGRESS.md#additional-adopted-five-20261015)に従い、[会計](accounting.md)の品目保険対象設定、[検査](examinations.md)の保存結果版・選択印刷・出典付き感染症結果、[通常カルテ](medical-records.md)の初診問診と予防薬専用帳票を参照する。自己申告と確認済み検査結果、処方予定と実投薬、検査未実施と陰性／ゼロは異なる概念。問診と診察／治療プランは別タブを維持し、旧資料の統合案を採用しない。D21の専用2帳票の印刷だけを限定採用し、一般履歴やD20公開へ拡張しない。

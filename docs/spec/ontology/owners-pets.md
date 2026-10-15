@@ -22,3 +22,7 @@
 | 主飼主変更の影響一覧 | 保存前に確認する対象予約とLINE通知先の変更内容 | 確認対象と保存対象を一致させる。新しいLINE本人紐付けや過去資金移管ではない |
 
 参照・多重度は業務正本のprimary-secondary／primary-transferへ。医院横断readは他医院writeの許可ではない。メール／電話／氏名の一致は同一IDの証明や保存receiptの代わりにならない。
+
+## スタッフ患者トップの感染症結果
+
+[D07の追加採用](../domains/examinations/lifecycle.md#examination-print-infection-agreement-20261015)による結果のread projection。猫FIV／FeLV・犬mf／HWの原値と検査日、院内／他院の出典、固定結果版・訂正状態を参照する。台帳の独立した検査結果本文、danger_level、現在の感染状態の診断とは異なる。日付不明・複数候補・記録なし・結果待ち・取得失敗を区別する。結果記録のwrite ownerはD07であり、他院手入力も台帳属性PATCHにはしない。[用語詳細](examinations.md)・[D04 read契約](../../design/domains/owners-pets/technical-spec.md#owner-infection-summary-read-contract)。

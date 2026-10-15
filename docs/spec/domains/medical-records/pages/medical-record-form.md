@@ -404,3 +404,32 @@
 | AC-medical-records-vital-history-edit-boundary | 診療中又は終了後の同じ通常カルテに複数測定がある | 履歴閲覧・許可された測定編集・別タブクリア | 診療中も測定履歴を閲覧でき閲覧だけのwriteなし。編集は既存個別保存と元版／認証actor履歴を保持し、別タブクリアでタブ外測定を復元しない | 本ケースを単独確認。実機未確認 | [FR](#requirement-fr-medical-records-vital-measured-time-history) |
 
 用語と多重度は[オントロジー](../../../ontology/medical-records.md#medical-record-diagnosis-vitals-ontology)、現単件wireとの差分・全件保持・時刻と履歴の取得／表示・FR/AC対応は[技術契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)へ接続する。番号付き旧画面は互換案内のまま保持する。
+
+<a id="medical-record-examination-read-adapter"></a>
+## 検査項目印刷・患者トップへの接続（2026-10-15追加採用）
+
+<a id="requirement-fr-medical-records-examination-read-adapter"></a>
+### FR-medical-records-examination-read-adapter
+
+[D07追加採用](../../examinations/lifecycle.md#examination-print-infection-agreement-20261015)により、カルテで検査結果を印刷する場合も、一つの保存済み検査snapshot内の項目選択・未実施除外を[D07正本](../../examinations/lifecycle.md#fr-examinations-selected-print)へ渡す。既存の患者ヘッダー／タブ等の範囲選択と項目選択は別の粒度であり、セクションを選ぶだけで項目選択を満たしたことにしない。原値・0／陰性・検査日・保存範囲・訂正識別・同じ固定版を保持し、未保存入力の自動保存・確定／解除・送付なし。新たな複数日比較帳票は設けない。
+
+カルテ上部の患者コンテキストにも猫FIV／FeLV・犬mf／HWの原値と各検査日を表示し、D04患者トップと同じD07結果projection・版／出典・訂正／不明の識別を使う。今回カルテの日付やバイタル測定時刻を検査日へ代用せず、院内保存結果の自動反映と他院手入力はD07を通す。カルテ自動保存・タブクリア／複製取消はこの患者全体の結果を巻き戻したり複製したりしない。通常カルテの終了後編集可をD07原版保護の解除へ使わない。
+
+患者トップは現在のD03とD07の閲覧認可内で読み、権限不足・取得失敗・不明・複数候補を記録なし／陰性へ変換しない。D20／LINE公開は追加しない。2026-10-15のユーザーによる問診タブ統合不採用を維持し、問診と診察／治療プランは既存の別タブのままとする。
+
+| ID | Given | When | Then | 検証状態 |
+|:---|:---|:---|:---|:---|
+| AC-medical-records-exam-item-print-adapter | 保存済み検査の実施済み・未実施・陰性／0・訂正版あり | カルテから検査項目を選択印刷 | D07と同じsnapshot／項目集合・未実施除外・訂正識別。セクション選択だけで代用せず、無断保存・複数日帳票化なし | 未実施 |
+| AC-medical-records-infection-top-shared-ref | D04とカルテ患者ヘッダーを同患者で開き、結果訂正／取得失敗を起こす | 保存結果を表示／更新 | 同じD07 ref・日付・出典／版状態を表示。更新未確認を識別し、D03保存／復元から結果を変更しない。現在の両owner閲覧認可を維持 | 未実施 |
+| AC-medical-records-infection-tabs-boundary | 問診と診察／治療プランがある | 追加表示・印刷を利用 | 既存別タブ・保存／クリア単位を維持。D07保護・D20非公開を拡張しない | 未実施 |
+
+技術追跡は[同じ結果を読むadapter](../../../../design/domains/medical-records/technical-spec.md#medical-record-exam-read-contract)。実装・実機適合や既存の全履歴取得制限の解消を表明しない。
+
+<a id="medical-record-intake-prevention-adopted"></a>
+## 初診問診項目・予防薬専用管理の追加合意（2026-10-15）
+
+Sentinel_0adf405e47508191abf775b6c4af22a3 の回答1・2に基づき、[初診問診の画面入力・参照（2FR／13AC）](initial-intake.md)と[予防薬専用処方箋・1〜12月年間表の管理／印刷（3FR／15AC）](preventive-medication.md)を追加する。問診タブは独立維持。自動保存・タブ開始時クリア・複製直前取消・診療終了後通常編集と元版保持を変更しない。自己申告を確認済み検査・接種・投薬実績へ自動昇格しない。
+
+予防薬はD03の処方／投薬管理で、D08接種とは区別する。表示・専用2帳票の出力入口は、カルテ右上レポートから開く[既存D21](../../../screens/39-owner-report.md#owner-report-preventive-output)。D21全体の印刷・共有・臨床writeを解禁せず、一般薬歴だけで専用機能を代替しない。新しい別メニューは設ける要件にしない。旧資料・ユーザー申告と固定headの静的観察は予防薬正本で区別する。
+
+原紙対応表・FR／AC本文は上記2正本、[語彙](../../../ontology/medical-records.md#medical-record-intake-prevention-ontology)、[保存／参照／印刷の技術trace](../../../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)へ接続。今回5FR／28ACは追加採用範囲の計数で、既存の診断／バイタル・他領域の合意件数や実装／実機PASSに加算しない。

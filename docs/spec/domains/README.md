@@ -1,6 +1,8 @@
 # domains — フォルダの説明
 
-最新の[共同確認batch](SPECIFICATION_PROGRESS.md#joint-walkthrough-batch-20261015)は、台帳／DM・受付・診察・見積／締めの回答済み範囲を文書へ反映し、独立レビュー済み。全業務の共同確認は継続中で、以下の過去の文書整合完了とは別に扱う。公開後の本文一致は別段階で確認する。
+最新差分は[追加採用5点](SPECIFICATION_PROGRESS.md#additional-adopted-five-20261015)。採用とdocs公開は承認済み。固定35文書の統合検査・独立内容／構造レビューで重大指摘なしを確認し、限定文書範囲を再整合した。公開先の本文一致確認は別段階で行う。
+
+前段階の[共同確認batch](SPECIFICATION_PROGRESS.md#joint-walkthrough-batch-20261015)は、台帳／DM・受付・診察・見積／締めの回答済み範囲を文書へ反映し、独立レビュー済み。全業務の共同確認は継続中で、以下の過去の文書整合完了とは別に扱う。公開後の本文一致は別段階で確認する。
 
 
 ## このフォルダの役割と使い方
@@ -46,7 +48,7 @@
 | D18 | [LINE予約チャネル](../screens/28-line-reservation.md) | [技術契約](../screens/28-line-reservation.md) | 院内設定／editor／枠と飼主appの予約・変更／取消・本人認証／通知 |
 | D19 | [同一飼主・ペット連携](../screens/40-identity-links.md) | [技術契約](../screens/40-identity-links.md) | 既存IDの手動group連携／解除・同一集合／親子／残数と履歴 |
 | D20 | [LIFF診察券・健康情報](../screens/38-liff-pet-health.md) | [技術契約](../screens/38-liff-pet-health.md) | 本人紐付け／単回token・診察券／保存済接種／最終来院の限定表示 |
-| D21 | [飼主カルテレポート](../screens/39-owner-report.md) | [技術契約](../screens/39-owner-report.md) | スタッフ専用・section別読取認可／失敗縮退・患者context・印刷共有なし |
+| D21 | [飼主カルテレポート](../screens/39-owner-report.md) | [技術契約](../screens/39-owner-report.md) | スタッフ専用・section別読取認可／失敗縮退・患者context。一般履歴は印刷共有なし、今回採用の予防薬専用2帳票のみ印刷対象 |
 | D22 | [院内マニュアル](internal-manual/README.md) | [技術契約](../../design/domains/internal-manual/technical-spec.md) | 公開最新版のスタッフ閲覧／検索／印刷と認可付き編集・公開／履歴復元 |
 | D23 | [サポート](support/README.md) | [技術契約](../../design/domains/support/technical-spec.md) | 報告／共有READ／報告医院mutation・個人history・確認付き外部通知と結果分離 |
 
@@ -71,3 +73,7 @@ D18の飼主側操作は[別app37](../screens/37-line-reserve-owner-flow.md)、D
 ## D06の後続合意：実施なし中止
 
 [D06実施なし中止](trimming/lifecycle.md#requirement-fr-trimming-zero-performance-abort)を通常終了条件とは別に接続する。中止理由・実施なしとスタッフの請求判断を保持し、請求ありはD10へ、請求なしは当該中止の新規請求なしで閉じる。D02表示とD10の既存金銭・他診療費の保護を併読する。今回の追加は全業務共同確認完了や実装済みの宣言ではない。
+
+## 追加採用5点の文書整理（2026-10-15）
+
+[追加採用5点の進捗](SPECIFICATION_PROGRESS.md#additional-adopted-five-20261015)では、品目マスタの保険対象設定、検査項目の選択印刷、スタッフ患者トップの感染症結果、初診問診の画面項目、既存レポート入口での予防薬専用処方箋・年間投薬表を整理する。業務回答は採用済み、本文は独立レビューと限定静的検査済み。公開先の本文一致は別検査とする。問診と診察／治療プランのタブ統合は不採用で別タブを維持し、旧資料の他の要望を自動採用しない。既存版／金銭／臨床原本とLINE公開範囲は各ownerの保護を保持する。

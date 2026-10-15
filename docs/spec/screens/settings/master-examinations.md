@@ -6,6 +6,14 @@
 
 マスタ変更で過去結果の保存範囲／単位／公式版を自動上書きしない。当時値欠損は現在マスタから補完せず照合へ。機器項目対応と検査基準値はそれぞれ既存grantを検査し、結果編集権限だけで全マスタを開放しない。
 
+### 品目別保険設定の追加合意（2026-10-15）
+
+[品目別保険設定の業務正本](../../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)と[保存・会計引継ぎ設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)を適用する。診察・処置・予防・健診も品目ごとの対象／対象外を保存・読取する目標で、薬剤・検査の既存明示値を維持する。個別会計での実適用・資格・補償の保証ではなく、全体割引除外・税・明細値引きとも独立。新規4種別の初期選択と従来未保存の既存品目の扱いは未決で、全体割引除外のfalse既定を流用しない。
+
+現在の対象変更grant・医院scope／版を保存時に検査し、設定と前後値・操作者／時刻を追跡する。取得失敗・旧欠落・未保存を明示値と区別し、未保存編集を保護。会計の追加時snapshot・スタッフ確認修正値をmaster変更で自動更新せず、明示再適用／確定後訂正へ。今回の文書変更だけでUI／API／DB・実grant・移行が対応済みとはしない。
+
+検査はプラン本体 `exam_types.is_non_insurance` の既存設定を維持する。測定項目 `exam_type_fields`・検査結果・基準値の正常／異常や医師確認と別であり、field別の保険可否や臨床判定の自動化を追加しない。
+
 ## 概要
 - **画面の目的**: 血液検査や生化学検査等、検査プラン（`exam_types`）の名称・価格の定義、および測定項目（`exam_type_fields`）と基準値の管理。
 - **URLパターン**: `/settings/treatment-items?tab=examination`
@@ -94,3 +102,7 @@ Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）
 | R-5 | 定性基準値の FE ピボット表示（`qualitative_min/max`） | DONE | feature-local transform が `qualitativeMin/Max` を写像。`formatStoredReference` 優先度: `referenceValue` > `refMin/refMax` > `qualitativeMin/Max` > `-`。`ExamPivotTable` に配線済み（open end は `(-)-` / `-(+)`）。ExamItemsTable/ExaminationGroup の parity は任意延期。scoped green: examinations vitest 9 files / 118 tests |
 | R-6 | Phase 2 seed/COPY redesign を伴う追加 migration | BLOCKED | 現行 seed は `clinic_id` 列付き。追加 DDL が seed 列衝突を起こす場合は redesign 後のみ |
 
+
+### 感染症結果の項目対応
+
+猫FIV／FeLV・犬mf／HWの結果投影では、検査種別と保存fieldの明示的な対応を使い、名称の類似から推定したり、現在マスタで過去の結果版を書き換えたりしない。[D07の結果投影契約](../../../design/domains/examinations/technical-spec.md#examination-infection-summary-contract)に従う。具体的なcode／対応表・旧値の適合は後続技術確認であり、今回の品目保険対象設定や医師の臨床判断とは独立する。

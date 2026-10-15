@@ -94,3 +94,7 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 ## 最新差分の件数と実装検証の扱い
 
 今回6FR／18ACを追加し、当時の16FR／71ACのIDを保持して対象期待値を置換。この6項目の時点では合意追跡22FR／89AC、診断・バイタルの追加後は冒頭の24FR／101AC。旧継承IDとC05追加1ACは別計数。最新技術は[自動保存・復元・終了](../../../design/domains/medical-records/technical-spec.md#medical-record-autosave-revert-contract)。S06等の既存ロック試験は現実装の確認先であり、旧finalized拒否を最新目標の合格条件として採用しない。実装時に最新版の通常編集・元版保持を受入へ対応付ける。
+
+## 初診問診・予防薬の追加採用
+
+[初診問診の構造化記録・原紙6頁対応](pages/initial-intake.md)と[予防薬専用処方箋・年間表](pages/preventive-medication.md)をSentinel_0adf405e47508191abf775b6c4af22a3 の回答に基づき追加。今回5FR／28AC。問診は独立タブ、自動保存・復元・終了後通常編集を維持。予防薬の表示・専用2帳票の入口はカルテ右上から開く既存D21で、D21一般レポート全体の印刷／共有を追加しない。D08接種と区別し、[概念](../../ontology/medical-records.md#medical-record-intake-prevention-ontology)・[技術trace](../../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)へ接続する。文書候補の追加であり、実装・実機受入は未実施。
