@@ -27,6 +27,7 @@ interface AnimalSpeciesSortableTableProps {
   onEdit: (item: AnimalSpecies) => void;
 }
 
+/** 動物種の詳細導線を保ち、編集権限がある場合だけ並べ替えと操作列を出す。 */
 export function AnimalSpeciesSortableTable({
   items,
   sensors,

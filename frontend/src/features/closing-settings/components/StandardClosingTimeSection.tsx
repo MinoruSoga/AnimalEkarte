@@ -31,6 +31,7 @@ interface StandardClosingTimeSectionProps {
   canEdit: boolean;
 }
 
+/** 標準の締め時刻を設定し、その設定に基づく締め範囲をプレビューする。 */
 export const StandardClosingTimeSection = memo(function StandardClosingTimeSection({
   settings,
   canEdit,

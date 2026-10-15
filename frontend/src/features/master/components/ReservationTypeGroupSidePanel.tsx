@@ -16,6 +16,7 @@ export interface GroupFormData {
   isActive: boolean;
 }
 
+/** 予約種別グループの名称・表示設定をサイドパネルで編集する。 */
 export const GroupSidePanel = memo(function GroupSidePanel({
   item,
   onClose,

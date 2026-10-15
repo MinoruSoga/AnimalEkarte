@@ -19,6 +19,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+/** 有効・無効を文字とドットで示し、狭い表の列でも一行に保つ。 */
 export const StatusPill = memo(function StatusPill({ isActive }: { isActive: boolean }) {
   const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
   return (

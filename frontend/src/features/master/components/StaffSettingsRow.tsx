@@ -15,6 +15,7 @@ interface StaffSettingsRowProps {
   canEdit: boolean;
 }
 
+/** スタッフ一覧の一行。所属色は背景とドットに使い、文字の可読性を保つ。 */
 export function StaffSettingsRow({ item, groups, onEdit, canEdit }: StaffSettingsRowProps) {
   const displayName = formatStaffListDisplayName(item.name);
   const visibleGroups = groups.slice(0, 2);

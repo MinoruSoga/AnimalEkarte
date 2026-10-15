@@ -87,6 +87,7 @@ export function TrimmingOptionRow({ item, canEdit, onEdit }: TrimmingOptionRowPr
   );
 }
 
+/** トリミング項目を他項目と併用できるか、文字で明示する。 */
 export function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
     return (

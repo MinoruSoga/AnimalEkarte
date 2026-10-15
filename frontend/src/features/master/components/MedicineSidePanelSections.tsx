@@ -95,6 +95,7 @@ interface MedicinePriceTaxSectionProps {
   setFormDataDirty: SetMedicineFormDataDirty;
 }
 
+/** 薬剤の価格・税区分を編集し、親カテゴリでは子項目への単価設定を案内する。 */
 export function MedicinePriceTaxSection({
   formData,
   isCategory,

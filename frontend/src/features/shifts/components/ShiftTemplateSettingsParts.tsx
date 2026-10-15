@@ -82,6 +82,7 @@ interface ShiftTemplateSidePanelProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
+/** シフトテンプレートの登録・編集と未保存変更の通知を担う。 */
 export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
   item,
   onClose,

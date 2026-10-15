@@ -27,6 +27,7 @@ interface FilterAddPopoverProps {
   onAdd: (filter: ActiveFilter) => void;
 }
 
+/** プロパティの種類に応じた条件を選び、一覧のフィルターへ追加する。 */
 export const FilterAddPopover = memo(function FilterAddPopover({
   properties,
   activeFilters,

@@ -32,6 +32,7 @@ interface FilterRuleRowProps {
   onRemove: () => void;
 }
 
+/** 適用中のフィルター条件を編集・削除する一行の操作。 */
 export const FilterRuleRow = memo(function FilterRuleRow({
   filter,
   property,

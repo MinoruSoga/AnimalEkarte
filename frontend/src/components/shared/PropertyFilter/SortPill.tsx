@@ -19,6 +19,7 @@ interface SortPillProps {
   onRemove: (key: string) => void;
 }
 
+/** 並び順の対象と方向を表示し、変更・解除の操作を提供する。 */
 export const SortPill = memo(function SortPill({
   sort,
   sortProperties,

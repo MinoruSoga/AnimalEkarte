@@ -118,6 +118,7 @@ interface LabDeviceItemMasterHeaderActionsProps {
   onNew: () => void;
 }
 
+/** 既定項目の準備を副操作、新規項目の登録を主操作として表示する。 */
 function LabDeviceItemMasterHeaderActions({
   canEdit,
   canCreate,

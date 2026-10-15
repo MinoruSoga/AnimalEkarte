@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { AnimalSpeciesSortableTable } from "./AnimalSpeciesSortableTable";
 import type { AnimalSpecies } from "../api/animal-species";
 
+/** 並び替えと権限の検証に必要な最小の動物種データを作る。 */
 function speciesFixture(id: number, name: string): AnimalSpecies {
   return {
     id: String(id),
@@ -18,6 +19,7 @@ function speciesFixture(id: number, name: string): AnimalSpecies {
 
 const ITEMS = [speciesFixture(1, "イヌ"), speciesFixture(2, "ネコ")];
 
+/** 同じ一覧データを指定した編集権限で描画する。 */
 function renderTable({ canEdit }: { canEdit: boolean }) {
   const onEdit = vi.fn();
   render(

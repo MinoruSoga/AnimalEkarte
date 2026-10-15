@@ -22,6 +22,7 @@ interface FieldHelpProps {
   className?: string;
 }
 
+/** ラベル外に置き、ホバー・フォーカスで説明を開く44pxのヘルプ操作。 */
 export function FieldHelp({ label, content, className }: FieldHelpProps) {
   return (
     <Tooltip content={content} className={cn("shrink-0 self-center", className)}>

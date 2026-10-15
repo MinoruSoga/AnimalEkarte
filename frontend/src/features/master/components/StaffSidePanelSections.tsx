@@ -37,6 +37,7 @@ function reservationCategoryLabel(category: string): string {
   }
 }
 
+/** スタッフの予約受付から除外する予約種別を選択する。 */
 export function StaffExcludedReservationTypesSection({
   activeReservationTypes,
   allReservationTypes,

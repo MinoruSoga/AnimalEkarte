@@ -30,6 +30,7 @@ interface ClinicMasterSidePanelProps {
   onDeleteClick: (item: Clinic) => void;
 }
 
+/** 医院マスタの詳細・編集を表示し、削除操作を危険色で区別する。 */
 export function ClinicMasterSidePanel({
   selectedItem,
   formData,
