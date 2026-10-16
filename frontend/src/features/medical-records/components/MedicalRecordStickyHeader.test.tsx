@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -539,5 +539,38 @@ describe("MedicalRecordStickyHeader 最新バイタル要約の配置 (PR679-REV
     renderHeader({ medicalRecordId: "99", recordClinicId: "clinic-7" });
 
     expect(vi.mocked(useGetVitals).mock.calls[0]).toEqual(["99", "clinic-7"]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// PR679-REVIEW-R6: ペット体重が未登録/空でも実 PatientInfoCard の属性行に
+// 体重プレースホルダ「-」を表示する（Activity アイコンだけの裸表示にしない）。
+// ─────────────────────────────────────────────────────────────
+
+describe("MedicalRecordStickyHeader 体重未登録の表示 (PR679-REVIEW-R6)", () => {
+  it.each([
+    ["weight 未登録", undefined],
+    ["weight が空文字", ""],
+  ])("%s でも属性行に体重プレースホルダ「-」を出す", (_label, weight) => {
+    renderHeader({ selectedPet: makePet({ petNumber: "P-MISSING", weight }) });
+
+    const attributeRow = screen.getByText("#P-MISSING").closest("div");
+    expect(attributeRow).not.toBeNull();
+    if (!attributeRow) throw new Error("属性行が見つかりません");
+    expect(within(attributeRow).getByText("-")).toBeVisible();
+  });
+
+  it("ペット体重が空でも今回の測定体重は別項目として併記する", () => {
+    vitalsMock.data = [makeVital({ weight: 4.2 })];
+    renderHeader({
+      medicalRecordId: "99",
+      selectedPet: makePet({ petNumber: "P-MISSING", weight: "" }),
+    });
+
+    const attributeRow = screen.getByText("#P-MISSING").closest("div");
+    expect(attributeRow).not.toBeNull();
+    if (!attributeRow) throw new Error("属性行が見つかりません");
+    expect(within(attributeRow).getByText("-")).toBeVisible();
+    expect(within(attributeRow).getAllByText("測定体重 4.2Kg")).toHaveLength(1);
   });
 });

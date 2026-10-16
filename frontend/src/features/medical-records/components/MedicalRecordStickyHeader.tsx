@@ -283,7 +283,7 @@ export function MedicalRecordStickyHeader({
         ownerName={selectedPet.ownerName}
         petName={selectedPet.name}
         petNumber={selectedPet.petNumber || selectedPet.id}
-        weight={selectedPet.weight ?? ""}
+        weight={selectedPet.weight || "-"}
         status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
         insuranceName={selectedPet.insuranceName ?? undefined}

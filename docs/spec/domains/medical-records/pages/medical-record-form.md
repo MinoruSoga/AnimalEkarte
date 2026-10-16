@@ -78,9 +78,9 @@
 
 #### 1.1 スティッキー患者ヘッダー (Sticky Patient Header)
 
-9 タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientContextHeader` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
+9 タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientInfoCard` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
 
-- **今回カルテのバイタルチップ**: `useGetVitals` で当該カルテのバイタルを取得し、最新 1 件を `latestVisitVitalChips` が `vitalsSummary` へ変換して `PatientContextHeader` へ渡す。体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（`weightUnit` 付き）を、ペット名行直下の属性行へ**計測時刻を付けずに常時表示**する。当該カルテにバイタル記録が無い、または 4 項目すべて未入力の場合はチップ自体を表示しない。
+- **今回カルテのバイタルチップ**: `useGetVitals` で当該カルテのバイタルを取得し、最新 1 件を `latestVisitVitalChips` が `vitalsSummary` へ変換する（`PatientInfoCard` に `vitalsSummary` props は渡さない）。`MedicalRecordStickyHeader` は変換結果を `PetAttributesLine` とともに `PatientInfoCard` の `petAttributes`（ReactNode）スロットへ渡し、ペット名行直下の属性行へ**計測時刻を付けずに常時表示**する。体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（`weightUnit` 付き）を表示し、当該カルテにバイタル記録が無い、または 4 項目すべて未入力の場合はチップ自体を表示しない。ペット属性側の登録体重は未登録または空のとき `-` を表示し、今回測定体重は独立したチップとして扱う（登録体重を測定値で代用しない）。
 - **マイクロチップ番号**: ペットの `microchip_number`（props 名 `microchipNumber`）が存在する場合、ペット名の右隣にモノスペースのチップとして表示する（`aria-label` は「マイクロチップ番号 <値>」）。未登録または空白のみの場合はチップを表示しない。
 - **次回予定ボタン（`NextVisitButton`、EMR-308）**: ヘッダーの「次回予定」はペットの tentative appointment（`status='tentative'`、日付のみ `intended_date`）を `PUT /v1/reservations/pets/:petId/next-visit-intent` で upsert、`DELETE` 同パス（`reservations:edit`）で取消する。カルテ PATCH ではない。権限は操作別（新規=`reservations:create`・既存 tentative の上書き=`create`+`edit`・確定=`edit`）で、write 契約の正本は [reservation-to-record-flow.md](../../../workflows/reservation-to-record-flow.md) §2.3、一覧・確定の管理面は [reservation-management.md](../../reservations/pages/reservation-management.md) を参照。
 

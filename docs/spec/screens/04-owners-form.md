@@ -62,7 +62,7 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 - **表示ルール**: 「高」= 赤の八角形アイコン、「中」= 黄の三角形アイコン、`低`・未設定 = バッジ非表示。文言を出さず、色だけに依存せず形と色で段階を識別します。
 - **メモの開示**: アイコンバッジは、クリック / タップ / Enter / Space のいずれか1操作で開くアクセシブルな Popover とし、「特記レベル: 高/中」の見出しと `danger_reason` を表示します。理由が空の既存データでは `内容未登録` を表示します。トリガーの支援技術向け名前は「〈ペット名〉の詳細を表示」など分類を含まない中立表現です。
 - **飼主の特記マーク**: `owners.is_dangerous` が true の飼主は氏名横に文言なしの赤い八角形アイコンを表示します（支援技術向け代替名は「特記」。Popover なし・ペット特記レベルとは別概念）。
-- **表示サーフェス**: `PetSelectionResultsTable`（ペット選択一覧）、`OwnersListTable`（飼主一覧）、`AppointmentCard` および `ReceptionDialogBody`（受付カンバン・詳細）、`PatientContextHeader`（カルテ sticky ヘッダー）、`PatientInfoCard`（健診・検査・入院・予防接種・トリミング各フォームの患者ヘッダー）。いずれもスタッフ向け画面で、LIFF・owner 向け契約には出しません。
+- **表示サーフェス**: `PetSelectionResultsTable`（ペット選択一覧）、`OwnersListTable`（飼主一覧）、`AppointmentCard` および `ReceptionDialogBody`（受付カンバン・詳細）、`PatientInfoCard`（`MedicalRecordStickyHeader` 内のカルテ sticky ヘッダー、および健診・検査・入院・予防接種・トリミング各フォームの患者ヘッダー）。いずれもスタッフ向け画面で、LIFF・owner 向け契約には出しません。
 - **フォームの折りたたみ**: 飼主フォームの「特記対象」スイッチと備考、ペットフォームの「特記レベル」「理由」は、いずれも中立ラベルの折りたたみ行「スタッフ向け特記」（`StaffNoteDisclosure`）の内側にあり既定で畳まれています。理由フィールドのバリデーションエラー時は一度だけ自動展開します。
 
 **特記の二概念（混同禁止）:**
