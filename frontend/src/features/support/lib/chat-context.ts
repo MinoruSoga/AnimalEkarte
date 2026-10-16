@@ -36,7 +36,9 @@
  */
 import type { ManualArticle, ScoredManualArticle } from "@/lib/manual-index";
 
-import type { SupportChatContextItem } from "../types";
+import searchDict from "@/constants/manual-search-dict.json";
+
+import type { SupportChatContextItem, SupportChatKeywordCandidate } from "../types";
 
 import { expandJaTerm, segmentJaTerm } from "./ja-synonyms";
 
@@ -49,147 +51,13 @@ const TOKEN_SPLIT = /[\s、。，．！？!?,・「」『』（）()【】.:;の
  * 長い語尾ほど先に置く（してください より ください を先に食わせない）。
  * extractSearchTermGroups が繰り返し適用するので、連なった語尾は多段で剥がれる。
  */
-const SUFFIX_STRIP =
-  /(してください|してほしい|しています|できました|できます|されました|されます|しまいました|しました|します|ません|したい|ませ|です|ます|たい|って|とは|かな|ください|さま|さん|する|方法|手順|やり方|使い方|か|方)$/u;
+const SUFFIX_STRIP = new RegExp(
+  `(${searchDict.suffixes.map((sfx) => sfx.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})$`,
+  "u",
+);
 
 /** 検索語として意味を持たない一般語・質問表現 */
-const STOPWORDS = new Set([
-  "方法",
-  "手順",
-  "使い方",
-  "つかいかた",
-  "やり方",
-  "やりかた",
-  "操作",
-  "設定",
-  "どう",
-  "どうやって",
-  "どうすればいい",
-  "どうすれば",
-  "どこ",
-  "何",
-  "なに",
-  "なん",
-  "教えて",
-  "おしえて",
-  "ください",
-  "です",
-  "ます",
-  "いい",
-  "こと",
-  "ついて",
-  "できますか",
-  "可能",
-  "分かり",
-  "わかり",
-  "分からない",
-  "わからない",
-  "知りたい",
-  "しりたい",
-  // ── VN 機能語・疑問語・汎用動詞（意味語として扱わない）──
-  "làm",
-  "sao",
-  "cách",
-  "cho",
-  "của",
-  "là",
-  "gì",
-  "nào",
-  "ở",
-  "đâu",
-  "không",
-  "có",
-  "được",
-  "muốn",
-  "cần",
-  "hỏi",
-  "xin",
-  "hãy",
-  "giúp",
-  "xem",
-  "biết",
-  "về",
-  "trong",
-  "trên",
-  "vào",
-  "ra",
-  "này",
-  "đó",
-  "kia",
-  "đây",
-  "các",
-  "một",
-  "những",
-  "mấy",
-  "tất",
-  "cả",
-  "mỗi",
-  "thì",
-  "mà",
-  "và",
-  "hay",
-  "hoặc",
-  "với",
-  "theo",
-  "khi",
-  "nếu",
-  "bao",
-  "nhiêu",
-  "thế",
-  "như",
-  "vậy",
-  "ai",
-  "tại",
-  "tôi",
-  "mình",
-  "em",
-  "anh",
-  "chị",
-  "bạn",
-  "người",
-  "ạ",
-  "à",
-  "ừ",
-  "nhé",
-  "nhỉ",
-  "hôm",
-  "nay",
-  "mai",
-  "ngày",
-  "tháng",
-  "năm",
-  "tuần",
-  "giờ",
-  "bây",
-  "lúc",
-  "quy",
-  "trình",
-  "thông",
-  "tin",
-  "để",
-  "sau",
-  "trước",
-  "từ",
-  "đến",
-  "cũng",
-  "đang",
-  "đã",
-  "sẽ",
-  "bị",
-  "nên",
-  "phải",
-  "rồi",
-  "đi",
-  "lại",
-  "gồm",
-  "lấy",
-  "đưa",
-  "dùng",
-  "chỉ",
-  "còn",
-  "vẫn",
-  "mới",
-]);
+const STOPWORDS = new Set<string>(searchDict.stopwords);
 
 /** SUFFIX_STRIP が収束するまで繰り返し剥がす */
 function stripSuffixes(term: string): string {
@@ -337,4 +205,42 @@ export function buildChatContext(
     slug: article.slug,
     text: article.content.slice(0, excerptLength),
   }));
+}
+
+/**
+ * EMR-410: ハイブリッド検索用の keyword 候補 ID 一覧（上位20・順位順・重複なし）。
+ * pre-evidence（根拠ゲート前）の Fuse 候補をそのまま ID 化して送り、
+ * 採否は BE が正本コーパス上で決定する。本文は送らない。
+ */
+export function buildKeywordCandidates(
+  search: (query: string) => ManualArticle[],
+  message: string,
+): SupportChatKeywordCandidate[] {
+  const groups = extractSearchTermGroups(message);
+  if (groups.length === 0) return [];
+
+  const candidates = new Map<string, { article: ManualArticle; best: number }>();
+  const collect = (results: ManualArticle[]) => {
+    for (const article of results) {
+      const key = `${article.category}/${article.slug}`;
+      const score = scoreOf(article);
+      const existing = candidates.get(key);
+      if (!existing || score < existing.best) {
+        candidates.set(key, { article, best: score });
+      }
+    }
+  };
+  collect(search(message));
+  const queried = new Set<string>([message]);
+  for (const group of groups) {
+    for (const variant of group) {
+      if (queried.has(variant)) continue;
+      queried.add(variant);
+      collect(search(variant));
+    }
+  }
+  return [...candidates.values()]
+    .sort((a, b) => a.best - b.best)
+    .slice(0, 20)
+    .map(({ article }) => ({ category: article.category, slug: article.slug }));
 }

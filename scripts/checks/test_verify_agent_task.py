@@ -91,6 +91,114 @@ class VerificationTests(unittest.TestCase):
             [{'service': 'host', 'command': ['node', '--test', 'scripts/ci/check-workflow-contracts.test.mjs']}],
         )
 
+    def test_manual_artifacts_select_read_only_generator_check(self) -> None:
+        command = ['go', 'run', './cmd/manual-corpus',
+                   '-frontend', '/frontend', '-backend', '/app', '-check']
+        paths = [
+            'backend/internal/manualarticle/corpus.generated.json',
+            'frontend/src/constants/manual-search-dict.json',
+            'frontend/src/constants/manual-corpus.generated.ts',
+            'backend/internal/support/search_dict.go',
+            'backend/internal/manualarticle/corpus.go',
+            'backend/cmd/manual-corpus/main.go',
+            'frontend/src/features/manual/content/screens/01-login.md',
+        ]
+        for path in paths:
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                self.assertEqual([job['command'] for job in jobs].count(command), 1)
+        jobs, blocked = verify.plan(paths)
+        self.assertFalse(blocked)
+        self.assertEqual([job['command'] for job in jobs].count(command), 1)
+        jobs, blocked = verify.plan(['frontend/src/constants/manual-search-dict.json'])
+        self.assertFalse(blocked)
+        self.assertTrue(any(job['service'] == 'frontend'
+                            and 'src/features/support' in job['command']
+                            and job.get('require_frontend_tests') for job in jobs))
+
+    def test_retrieval_fixture_selects_integrity_not_live_quality(self) -> None:
+        jobs, blocked = verify.plan(['backend/internal/support/testdata/retrieval-eval-cases.json'])
+        self.assertFalse(blocked)
+        self.assertEqual(jobs, [{
+            'service': 'backend',
+            'command': [
+                'go', 'test', '-json', '-race', '-p=1', '-count=1',
+                './internal/support', '-run=^TestRetrievalEvalFixture$',
+            ],
+            'require_completed_test': True,
+        }])
+
+    def test_support_rollout_configs_select_policy_and_freeze_both_inputs(self) -> None:
+        configs = ['backend/wrangler.jsonc', 'backend/wrangler.production.jsonc']
+        source = 'scripts/checks/check-support-manual-config.py'
+        suite = 'scripts/checks/test_support_manual_config.py'
+        for path in [*configs, source, suite]:
+            with self.subTest(path=path):
+                jobs, blocked = verify.plan([path])
+                self.assertFalse(blocked)
+                commands = [job['command'] for job in jobs]
+                self.assertEqual(commands.count(['python3', '-B', source]), 1)
+                self.assertEqual(commands.count(['python3', '-B', suite]), 1)
+                self.assertEqual(
+                    verify.scoped_contract_documents([path]), sorted([*configs, source, suite]),
+                )
+
+    def test_manual_generator_exposes_only_required_frontend_files(self) -> None:
+        command = ['go', 'run', './cmd/manual-corpus',
+                   '-frontend', '/frontend', '-backend', '/app', '-check']
+        expected = [
+            'frontend/src/constants/manual-corpus.generated.ts',
+            'frontend/src/constants/manual-search-dict.json',
+            'frontend/src/features/manual/content/screens/accounting.md',
+            'frontend/src/features/manual/content/workflows/check-in.md',
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name in [*expected, 'frontend/.env', 'frontend/src/unrelated.ts']:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('fixture\n')
+            with mock.patch.object(verify, 'ROOT', root):
+                self.assertEqual(verify.backend_contract_documents(command), expected)
+                invocation = verify.image_command('sha256:fixture', 'backend', command)
+            for name in expected:
+                self.assertIn(f'type=bind,src={root / name},dst=/{name},readonly', invocation)
+            self.assertFalse(any(f'src={root},' in value for value in invocation))
+            self.assertFalse(any(f'src={root / "frontend"},' in value for value in invocation))
+            self.assertFalse(any('/.env' in value or '/unrelated.ts' in value for value in invocation))
+            self.assertFalse(verify.backend_contract_documents(['go', 'test', './cmd/manual-corpus']))
+
+    def test_manual_generator_inputs_fail_closed_when_missing_or_symlinked(self) -> None:
+        command = ['go', 'run', './cmd/manual-corpus',
+                   '-frontend', '/frontend', '-backend', '/app', '-check']
+        names = [
+            'frontend/src/constants/manual-corpus.generated.ts',
+            'frontend/src/constants/manual-search-dict.json',
+            'frontend/src/features/manual/content/screens/a.md',
+            'frontend/src/features/manual/content/workflows/b.md',
+        ]
+        for missing in names:
+            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                for name in names:
+                    if name != missing:
+                        path = root / name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text('fixture\n')
+                with mock.patch.object(verify, 'ROOT', root), self.assertRaises(ValueError):
+                    verify.backend_contract_documents(command)
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name in names:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('fixture\n')
+            extra = root / 'frontend/src/features/manual/content/screens/link.md'
+            extra.symlink_to(root / names[-1])
+            with mock.patch.object(verify, 'ROOT', root), self.assertRaisesRegex(ValueError, 'symlink'):
+                verify.backend_contract_documents(command)
+
     def test_ci_order_pairing_selects_paired_regression(self):
         for path in (
             'scripts/ci/run-local-ci.sh',
@@ -129,7 +237,7 @@ class VerificationTests(unittest.TestCase):
 
     def test_docs_skip_and_unknown_script_blocks(self):
         self.assertEqual(verify.plan(['docs/ops/example.md']), ([], []))
-        self.assertEqual(verify.plan(['frontend/src/features/manual/content/screens/01-login.md']), ([], []))
+        self.assertEqual(verify.plan(['frontend/src/features/manual/README.md']), ([], []))
         self.assertTrue(verify.plan(['scripts/new-script.sh'])[1])
         self.assertTrue(verify.plan(['frontend/src/content/manual.md'])[1])
 
@@ -322,6 +430,9 @@ class VerificationTests(unittest.TestCase):
                 'docs/ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md',
                 'docs/architecture/adr/007-lab-device-receive-and-commit.md',
             ],
+            './internal/apicontract': [
+                'frontend/src/types/generated/medicalrecord-responses.ts',
+            ],
             './cmd/api': [],
         }.items():
             with self.subTest(package=package):
@@ -331,6 +442,37 @@ class VerificationTests(unittest.TestCase):
                 for document in documents:
                     self.assertIn('type=bind,src=' + str(verify.ROOT / document)
                                   + ',dst=/' + document + ',readonly', mounts)
+
+    def test_apicontract_generated_input_affects_fingerprint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / 'backend/internal/apicontract/example_test.go'
+            source.parent.mkdir(parents=True)
+            source.write_text('fixture')
+            document = root / 'frontend/src/types/generated/medicalrecord-responses.ts'
+            document.parent.mkdir(parents=True)
+            document.write_text('before')
+            with mock.patch.object(verify, 'ROOT', root), mock.patch.object(verify, 'git', return_value=''):
+                paths = ['backend/internal/apicontract/example_test.go']
+                self.assertIn(str(document.relative_to(root)), verify.scoped_contract_documents(paths))
+                before = verify.scope_fingerprint(paths)
+                document.write_text('after')
+                self.assertNotEqual(before, verify.scope_fingerprint(paths))
+
+    def test_apicontract_generated_input_missing_or_symlink_blocks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            command = ['go', 'test', './internal/apicontract']
+            with mock.patch.object(verify, 'ROOT', root):
+                with self.assertRaisesRegex(ValueError, 'document'):
+                    verify.image_command('sha256:fixture', 'backend', command)
+                source = root / 'source.ts'
+                source.write_text('fixture')
+                document = root / 'frontend/src/types/generated/medicalrecord-responses.ts'
+                document.parent.mkdir(parents=True)
+                document.symlink_to(source)
+                with self.assertRaisesRegex(ValueError, 'symlink'):
+                    verify.image_command('sha256:fixture', 'backend', command)
 
     def test_backend_contract_missing_or_external_document_blocks(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:

@@ -245,3 +245,108 @@ func TestHTTPHandler_RequirePermissionAllowingAssignedClinicGrant_AllowsGETWhenA
 	assert.True(t, postCtx.IsAborted())
 	assert.Equal(t, http.StatusForbidden, post.Code)
 }
+
+// ---- EMR-410 CheckPermission tri-state ----
+
+func TestHTTPHandler_CheckPermission_RepositoryErrorSurfacesError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	sentinel := errors.New("permission repository unavailable")
+	response := httptest.NewRecorder()
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				assert.Equal(t, uint64(17), staffID)
+				assert.Equal(t, uint64(23), clinicID)
+				return nil, sentinel
+			},
+		},
+	}, CookieConfigForProduction(false))
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Set("is_system_admin", false)
+	c.Set("user_id", "17")
+	c.Set("clinic_id", "23")
+	allowed, err := handler.CheckPermission(c, string(model.ResourceDiscount), "edit")
+	assert.False(t, allowed)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, sentinel)
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.Empty(t, response.Body.String())
+	assert.False(t, c.Writer.Written())
+	// bool API は同じ request で fail closed（既存挙動）。
+	assert.False(t, handler.HasPermission(c, string(model.ResourceDiscount), "edit"))
+	assert.False(t, c.Writer.Written())
+}
+
+func TestHTTPHandler_CheckPermission_DenyAndGrant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				assert.Equal(t, uint64(17), staffID)
+				assert.Equal(t, uint64(23), clinicID)
+				return []model.PermissionGroupRule{{Resource: string(model.ResourceOwners), CanView: true}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+	c := authPermissionContext(t)
+	ok, err := handler.CheckPermission(c, string(model.ResourceOwners), "view")
+	assert.True(t, ok)
+	assert.NoError(t, err)
+	assert.False(t, c.Writer.Written())
+	denied, err := handler.CheckPermission(c, string(model.ResourceDiscount), "delete")
+	assert.False(t, denied)
+	assert.NoError(t, err)
+	assert.False(t, c.Writer.Written())
+}
+
+func TestHTTPHandler_CheckPermission_SystemAdminNilRepo(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewHTTPHandler(HTTPDependencies{}, CookieConfigForProduction(false))
+	c := authPermissionContext(t)
+	c.Set("is_system_admin", true)
+	c.Request = nil
+	ok, err := handler.CheckPermission(c, "any", "any")
+	assert.True(t, ok)
+	assert.NoError(t, err)
+	assert.False(t, c.Writer.Written())
+}
+
+func TestHTTPHandler_CheckPermission_MissingDependency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := NewHTTPHandler(HTTPDependencies{}, CookieConfigForProduction(false))
+	c := authPermissionContext(t)
+	ok, err := handler.CheckPermission(c, "owners", "view")
+	assert.False(t, ok)
+	assert.Error(t, err)
+	assert.False(t, c.Writer.Written())
+}
+
+// repo error は memo しない。成功 memo は legacy bool 呼出と共有する。
+func TestHTTPHandler_CheckPermission_ErrorNotMemoized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	calls := 0
+	handler := NewHTTPHandler(HTTPDependencies{
+		EffectivePermissions: authServiceEffectivePermissionStub{
+			getFn: func(_ context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
+				assert.Equal(t, uint64(17), staffID)
+				assert.Equal(t, uint64(23), clinicID)
+				calls++
+				if calls == 1 {
+					return nil, errors.New("transient")
+				}
+				return []model.PermissionGroupRule{{Resource: "owners", CanView: true}}, nil
+			},
+		},
+	}, CookieConfigForProduction(false))
+	c := authPermissionContext(t)
+	_, err := handler.CheckPermission(c, "owners", "view")
+	assert.Error(t, err)
+	ok, err := handler.CheckPermission(c, "owners", "view")
+	assert.True(t, ok)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, calls)
+	// 成功 memo は legacy bool と共有（追加クエリなし）。
+	assert.True(t, handler.HasPermission(c, "owners", "view"))
+	assert.Equal(t, 2, calls)
+}

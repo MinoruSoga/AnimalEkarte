@@ -9,11 +9,11 @@
  * pre-gate 候補数は検索関数をラップして collect() と同じ重複排除で計測する
  * （内部 Map を直接触らず、本番経路を変えずに観測する）。
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createManualSearcher, screenArticles, workflowArticles } from "@/lib/manual-index";
 
-import { buildChatContext } from "./chat-context";
+import { buildChatContext, buildKeywordCandidates } from "./chat-context";
 import { evalCases } from "./eval-cases";
 
 const articles = [...screenArticles, ...workflowArticles];
@@ -83,6 +83,15 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
       EXCERPT_LENGTH,
     );
     expect(items).toEqual([]);
+  });
+
+  it("意味語のない質問は強い候補が検索可能でも検索関数を呼ばない", () => {
+    const search = vi.fn((_query: string) => articles);
+    for (const question of ["方法", "cách"]) {
+      search.mockClear();
+      expect(buildKeywordCandidates(search, question)).toEqual([]);
+      expect(search).not.toHaveBeenCalled();
+    }
   });
 
   it("根拠ゲート通過時は弱ヒット候補を混ぜない（text 空の項目は出ない）", () => {

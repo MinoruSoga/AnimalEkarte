@@ -3,6 +3,7 @@ package support
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type reviewRoundTripper func(*http.Request) (*http.Response, error)
+
+func (f reviewRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
 func TestNewChatCompleter(t *testing.T) {
 	t.Run("returns nil without api key", func(t *testing.T) {
 		assert.Nil(t, NewChatCompleter("https://api.openai.com/v1", "", "gpt-5-nano", time.Second))
@@ -22,6 +29,46 @@ func TestNewChatCompleter(t *testing.T) {
 	t.Run("returns client with api key", func(t *testing.T) {
 		assert.NotNil(t, NewChatCompleter("https://api.openai.com/v1", "sk-test", "gpt-5-nano", time.Second))
 	})
+}
+
+func TestEMR410Review_TransportErrorPreservesCause(t *testing.T) {
+	cause := errors.New("transport failure sentinel")
+	completer := NewChatCompleter("https://provider.invalid/v1", "test-api-key", "test-model", time.Second)
+	client, ok := completer.(*openAICompatibleClient)
+	require.True(t, ok)
+	client.httpClient = &http.Client{Transport: reviewRoundTripper(func(*http.Request) (*http.Response, error) {
+		return nil, cause
+	})}
+
+	_, err := client.Complete(context.Background(), []ChatMessage{{Role: "user", Content: "test"}})
+
+	var upstream *upstreamError
+	require.ErrorAs(t, err, &upstream)
+	assert.Equal(t, 0, upstream.status)
+	assert.ErrorIs(t, err, cause)
+	assert.NotContains(t, err.Error(), cause.Error())
+	assert.NotContains(t, err.Error(), "test-api-key")
+}
+
+func TestEMR410Review_MalformedResponseIsTypedUpstream(t *testing.T) {
+	const apiKey = "test-api-key"
+	const providerMarker = "provider-body-marker"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"choices":[{"message":{"content":"`+providerMarker)
+	}))
+	defer server.Close()
+
+	completer := NewChatCompleter(server.URL, apiKey, "test-model", time.Second)
+	_, err := completer.Complete(context.Background(), []ChatMessage{{Role: "user", Content: "test"}})
+
+	var upstream *upstreamError
+	require.ErrorAs(t, err, &upstream)
+	assert.Equal(t, 0, upstream.status)
+	assert.NotNil(t, errors.Unwrap(upstream))
+	assert.NotContains(t, err.Error(), apiKey)
+	assert.NotContains(t, err.Error(), providerMarker)
+	assert.NotContains(t, err.Error(), "content")
 }
 
 func TestOpenAICompatibleClient_Complete(t *testing.T) {

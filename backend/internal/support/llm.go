@@ -30,13 +30,19 @@ type ChatCompleter interface {
 	Complete(ctx context.Context, messages []ChatMessage) (string, error)
 }
 
-// upstreamError は LLM プロバイダの非 2xx 応答を表す。
+// upstreamError は LLM 上流の transport・protocol・非2xx 失敗を表す。
+// Error は status のみ、cause は Unwrap で判定用に保持する。
 type upstreamError struct {
 	status int
+	cause  error
 }
 
 func (e *upstreamError) Error() string {
 	return fmt.Sprintf("llm upstream returned status %d", e.status)
+}
+
+func (e *upstreamError) Unwrap() error {
+	return e.cause
 }
 
 var errUpstreamEmpty = errors.New("llm upstream returned empty content")
@@ -85,12 +91,18 @@ func NewChatCompleter(baseURL, apiKey, model string, timeout time.Duration) Chat
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &openAICompatibleClient{
-		baseURL:    baseURL,
-		apiKey:     apiKey,
-		model:      model,
-		maxTokens:  chatMaxCompletionTokens,
-		profile:    llmProfileFor(baseURL),
-		httpClient: &http.Client{Timeout: timeout},
+		baseURL:   baseURL,
+		apiKey:    apiKey,
+		model:     model,
+		maxTokens: chatMaxCompletionTokens,
+		profile:   llmProfileFor(baseURL),
+		httpClient: &http.Client{
+			Timeout: timeout,
+			// 承認外エンドポイント（例: GLM→Sarashina）へのリダイレクト転送を防ぐ。
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 	}
 }
 
@@ -118,7 +130,8 @@ func (c *openAICompatibleClient) buildPayload(messages []ChatMessage) ([]byte, e
 }
 
 // Complete は chat/completions を呼び出して回答テキストを返す。
-// 非 2xx は *upstreamError で返し、ハンドラ側で 502 にマッピングする。
+// 上流 transport・protocol・非2xx 失敗は *upstreamError で返す。
+// ハンドラ側で cause の deadline は504、それ以外の上流失敗は502へ分類する。
 // temperature は指定しない（gpt-5 系の reasoning モデルは非デフォルト値を拒否するため）。
 func (c *openAICompatibleClient) Complete(ctx context.Context, messages []ChatMessage) (string, error) {
 	payload, err := c.buildPayload(messages)
@@ -140,7 +153,7 @@ func (c *openAICompatibleClient) Complete(ctx context.Context, messages []ChatMe
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("llm request failed: %w", err)
+		return "", &upstreamError{cause: err}
 	}
 	defer resp.Body.Close() //nolint:errcheck // クローズ失敗は復旧不可
 
@@ -152,7 +165,7 @@ func (c *openAICompatibleClient) Complete(ctx context.Context, messages []ChatMe
 
 	var parsed chatCompletionResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, llmResponseMaxBytes)).Decode(&parsed); err != nil {
-		return "", fmt.Errorf("failed to decode llm response: %w", err)
+		return "", &upstreamError{cause: err}
 	}
 	if len(parsed.Choices) == 0 {
 		return "", errUpstreamEmpty

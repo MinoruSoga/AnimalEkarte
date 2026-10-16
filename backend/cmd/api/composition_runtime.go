@@ -77,6 +77,7 @@ type trimmingRuntime struct {
 }
 
 type runtimeComposition struct {
+	config            *config.Config
 	db                *gorm.DB
 	audit             audit.Kernel
 	auth              authComposition
@@ -241,6 +242,7 @@ func newRuntimeDomainCompositions(
 	)
 
 	return runtimeComposition{
+		config:        dependencies.Config,
 		db:            dependencies.DB,
 		audit:         auditKernel,
 		auth:          authComposition,
@@ -260,13 +262,8 @@ func newRuntimeDomainCompositions(
 			auditKernel,
 			lstepApplication.TagSync,
 		),
-		lstep: lstepApplication,
-		supportChat: support.NewChatCompleter(
-			dependencies.Config.SupportLLMBaseURL,
-			dependencies.Config.SupportLLMAPIKey,
-			dependencies.Config.SupportLLMModel,
-			time.Duration(dependencies.Config.SupportLLMTimeoutMS)*time.Millisecond,
-		),
+		lstep:       lstepApplication,
+		supportChat: newSupportChatCompleter(dependencies.Config),
 		// Plane 連携は PLANE_API_KEY 未設定の場合 nil（連携無効）を返す。
 		// 報告自体は連携の有無に関わらずローカル保存される。
 		planeTimeout: time.Duration(dependencies.Config.PlaneTimeoutMS) * time.Millisecond,
@@ -626,6 +623,20 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			rate.Limit(supportChatRequestsPerMinute)/60.0,
 			supportChatBurst,
 		),
+	).WithManualSearch(
+		support.NewManualSearchDeps(
+			c.config.SupportHybridSearchEnabled,
+			manualarticle.NewCorpusSource(manualarticle.NewManualArticleService(manualarticle.New(c.db))),
+			func(ginC *gin.Context) (bool, error) {
+				return c.auth.Handler.CheckPermission(ginC, "manual-edit", "view")
+			},
+			newSupportEmbedder(c.config),
+			support.NewManualEmbeddingCache(c.db, c.config.SupportEmbeddingModel),
+			c.config.SupportEmbeddingModel,
+		),
+	).WithLLMBudget(
+		support.NewLLMBudgetGranter(c.db),
+		c.config.SupportLLMModel,
 	).RegisterRoutes(protected)
 	identitylink.NewHandler(
 		identitylink.NewService(
@@ -772,4 +783,33 @@ func (a trimmingAuditTxAdapter) LogEntryTx(
 		NewValue:   entry.NewValue,
 		Metadata:   entry.Metadata,
 	})
+}
+
+// newSupportChatCompleter は既存 OpenAI 互換 completer を返す。
+// Sarashina (api.sarashina.ai) の場合は SUPPORT_EXTERNAL_DATA_APPROVED=true の
+// 承認済み環境のみ生成し、未承認なら nil（= status unavailable / 検索 UI へ縮退）。
+func newSupportChatCompleter(cfg *config.Config) support.ChatCompleter {
+	if support.IsSarashinaURL(cfg.SupportLLMBaseURL) && !cfg.SupportExternalDataApproved {
+		return nil
+	}
+	return support.NewChatCompleter(
+		cfg.SupportLLMBaseURL,
+		cfg.SupportLLMAPIKey,
+		cfg.SupportLLMModel,
+		time.Duration(cfg.SupportLLMTimeoutMS)*time.Millisecond,
+	)
+}
+
+// newSupportEmbedder は embeddings クライアントを返す。
+// hybrid 無効・未承認・キー未設定なら nil（意味検索は index_missing/縮退）。
+func newSupportEmbedder(cfg *config.Config) support.ManualEmbedder {
+	if !cfg.SupportHybridSearchEnabled || !cfg.SupportExternalDataApproved {
+		return nil
+	}
+	return support.NewSarashinaEmbedder(
+		cfg.SupportEmbeddingBaseURL,
+		cfg.SupportEmbeddingAPIKey,
+		cfg.SupportEmbeddingModel,
+		time.Duration(cfg.SupportEmbeddingTimeoutMS)*time.Millisecond,
+	)
 }

@@ -1,3 +1,4 @@
+import searchDict from "@/constants/manual-search-dict.json";
 /**
  * ja-synonyms.ts — JA 検索クエリの表記ゆれ・同義語グループ
  *
@@ -8,16 +9,7 @@
  * グループ内の語は相互に言い換え可能として、検索語・根拠判定の両方で展開する。
  */
 
-const JA_SYNONYM_GROUPS: readonly (readonly string[])[] = [
-  // 飼い主さん → 飼い主 は suffix strip で処理するため不要
-  ["飼い主", "飼主", "オーナー"],
-  ["作り", "作る", "作成"],
-  ["新しい", "新規"],
-  ["ワクチン", "ワクチン接種", "予防接種"],
-  ["締め方", "締め", "レジ締め"],
-  ["会計処理", "会計"],
-  ["手続き", "手続", "手順"],
-];
+const JA_SYNONYM_GROUPS: readonly (readonly string[])[] = searchDict.synonym_groups;
 
 /**
  * 1 語を同義語グループへ展開する。どのグループにも属さなければその語だけを返す。

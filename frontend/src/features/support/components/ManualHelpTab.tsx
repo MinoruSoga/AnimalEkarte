@@ -5,7 +5,7 @@
  * 無効な環境では Fuse.js による検索型 UI を表示する。
  * どちらも共有のマニュアル索引（@/lib/manual-index）+ DB オーバーライドを使う。
  */
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ChevronRight, Search } from "lucide-react";
 
@@ -37,7 +37,12 @@ export function ManualHelpTab({ onClose }: ManualHelpTabProps) {
   const { data: chatStatus } = useGetSupportChatStatus();
   // DB オーバーライドは manual-edit 権限保持者のみ取得（ManualPage と同じ条件）
   const { canView: canViewOverrides } = usePermission("manual-edit");
-  const { data: fetchedOverrides } = useGetManualArticleOverrides(canViewOverrides);
+  const {
+    data: fetchedOverrides,
+    refetch: refetchOverrides,
+    isPending: overridesPending,
+    isError: overridesError,
+  } = useGetManualArticleOverrides(canViewOverrides, true);
   const overrides = canViewOverrides ? fetchedOverrides : undefined;
 
   const articles = useMemo(
@@ -54,8 +59,68 @@ export function ManualHelpTab({ onClose }: ManualHelpTabProps) {
     [overrides],
   );
 
+  // EMR-410: 409（manual_revision 不一致）時に overrides を再取得して
+  // 最新の実効 snapshot を返す。権限チェックを再評価し、refetch 失敗や
+  // data 欠落は throw する（stale base で回答しない）。
+  const canViewOverridesRef = useRef(canViewOverrides);
+  const overridesPendingRef = useRef(overridesPending);
+  const overridesErrorRef = useRef(overridesError);
+  const articlesRef = useRef<ManualArticle[]>([]);
+  useLayoutEffect(() => {
+    canViewOverridesRef.current = canViewOverrides;
+    overridesPendingRef.current = overridesPending;
+    overridesErrorRef.current = overridesError;
+    articlesRef.current = articles;
+  }, [canViewOverrides, overridesPending, overridesError, articles]);
+  const refetchArticles = async (): Promise<ManualArticle[]> => {
+    const initiallyPermitted = canViewOverridesRef.current;
+    const res = initiallyPermitted ? await refetchOverrides() : { data: undefined, isError: false };
+    // await 後に権限を再評価。剥奪されたら base のみ返し、付与後初回は stale 回避で throw。
+    if (!canViewOverridesRef.current) {
+      return [...screenArticles, ...workflowArticles];
+    }
+    if (!initiallyPermitted) {
+      throw new Error("permission granted during refetch; retry required");
+    }
+    if (res.isError || res.data === undefined) {
+      throw new Error("failed to refetch manual overrides");
+    }
+    const next = res.data;
+    return [
+      ...applyOverrides(
+        screenArticles,
+        next.filter((o) => o.category === "screens"),
+      ),
+      ...applyOverrides(
+        workflowArticles,
+        next.filter((o) => o.category === "workflows"),
+      ),
+    ];
+  };
+
+  // 権限ありで strict 取得が pending/error の間は stale base で回答させない。
+  const canSubmit =
+    !canViewOverrides || (!overridesPending && !overridesError && fetchedOverrides !== undefined);
+
+  const getCurrentArticles = (): ManualArticle[] => {
+    if (canViewOverridesRef.current && (overridesPendingRef.current || overridesErrorRef.current)) {
+      throw new Error("manual overrides are not ready");
+    }
+    return articlesRef.current;
+  };
+
   if (chatStatus?.enabled) {
-    return <HelpChat articles={articles} onClose={onClose} />;
+    return (
+      <HelpChat
+        // 権限境界の変化で旧スナップショット由来の進行中送信を必ず中断する。
+        key={canViewOverrides ? "overrides" : "base"}
+        articles={articles}
+        onClose={onClose}
+        onRevisionConflict={refetchArticles}
+        canSubmit={canSubmit}
+        getCurrentArticles={getCurrentArticles}
+      />
+    );
   }
   return <ManualSearchView articles={articles} onClose={onClose} />;
 }

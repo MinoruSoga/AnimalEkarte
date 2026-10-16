@@ -51,6 +51,21 @@ interface SupportChatSource {
 export interface SupportChatResponse {
   reply: string;
   sources: SupportChatSource[];
+  retrieval?: SupportChatRetrieval;
+}
+
+/** EMR-410: ハイブリッド検索の mode/reason/revision（非機密の監査分類） */
+export interface SupportChatRetrieval {
+  mode: "hybrid" | "keyword" | "none";
+  reason:
+    "ok" | "disabled" | "index_missing" | "embedding_unavailable" | "capacity" | "no_evidence";
+  manual_revision: string;
+}
+
+/** EMR-410: FE が送る keyword 候補 ID（本文は送らない・BE が正本で再解決） */
+export interface SupportChatKeywordCandidate {
+  category: "screens" | "workflows";
+  slug: string;
 }
 
 /** ヘルプチャットの表示用1ターン。API 契約ではなく UI 状態。 */
