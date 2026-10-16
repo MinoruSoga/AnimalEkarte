@@ -305,7 +305,34 @@ export function MedicalRecordStickyHeader({
             : undefined
         }
         petDetails={selectedPet.species || undefined}
-        petAttributes={<PetAttributesLine pet={selectedPet} />}
+        petAttributes={
+          <>
+            {/* PR679-REVIEW-R4: 最新バイタルは操作欄の下の独立帯ではなく、患者属性行に置く */}
+            <PetAttributesLine pet={selectedPet} />
+            {vitalsSummary ? (
+              <span
+                aria-label="今回のバイタル"
+                className="flex items-center flex-wrap gap-x-2 gap-y-0.5"
+              >
+                {vitalsSummary.temperature != null ? (
+                  <span className="whitespace-nowrap">T {vitalsSummary.temperature}</span>
+                ) : null}
+                {vitalsSummary.heartRate != null ? (
+                  <span className="whitespace-nowrap">HR {vitalsSummary.heartRate}</span>
+                ) : null}
+                {vitalsSummary.respirationRate != null ? (
+                  <span className="whitespace-nowrap">RR {vitalsSummary.respirationRate}</span>
+                ) : null}
+                {vitalsSummary.weight != null ? (
+                  <span className="whitespace-nowrap">
+                    測定体重 {vitalsSummary.weight}
+                    {vitalsSummary.weightUnit ?? ""}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </>
+        }
         microchipNumber={selectedPet.microchipNumber?.trim() || undefined}
       />
       {/* EMR-412 K1/X13: 確定済・来院種別・診療日・次回予定・レポート・担当医の操作欄。flex-wrap で折返す。 */}
@@ -313,30 +340,6 @@ export function MedicalRecordStickyHeader({
         <div className="flex flex-wrap items-center gap-2 min-w-0">{scrollingControls}</div>
         <div className="flex items-center gap-2 shrink-0 ml-auto">{pinnedControls}</div>
       </div>
-      {vitalsSummary ? (
-        <div className={`px-4 pb-1.5 -mt-1 flex items-center gap-2 text-sm ${C.text60}`}>
-          <span
-            aria-label="今回のバイタル"
-            className="flex items-center flex-wrap gap-x-2 gap-y-0.5"
-          >
-            {vitalsSummary.temperature != null ? (
-              <span className="whitespace-nowrap">T {vitalsSummary.temperature}</span>
-            ) : null}
-            {vitalsSummary.heartRate != null ? (
-              <span className="whitespace-nowrap">HR {vitalsSummary.heartRate}</span>
-            ) : null}
-            {vitalsSummary.respirationRate != null ? (
-              <span className="whitespace-nowrap">RR {vitalsSummary.respirationRate}</span>
-            ) : null}
-            {vitalsSummary.weight != null ? (
-              <span className="whitespace-nowrap">
-                測定体重 {vitalsSummary.weight}
-                {vitalsSummary.weightUnit ?? ""}
-              </span>
-            ) : null}
-          </span>
-        </div>
-      ) : null}
       {!isNewRecord && cohabitingPets.length > 0 ? (
         <CohabitingPetChips pets={cohabitingPets} />
       ) : null}
