@@ -30,8 +30,9 @@ export function ClinicScopeFilter({ clinics, selectedIds, onToggle }: ClinicScop
             variant={selected ? "default" : "outline"}
             aria-pressed={selected}
             className={
+              // EMR-412 K8: 選択時も rounded-md（button variant 既定）。rounded-full との不統一を解消。
               selected
-                ? `${C.bgActionPrimarySolid} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} rounded-full transition-colors shadow-none border-transparent text-sm px-3`
+                ? `${C.bgActionPrimarySolid} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.textOnActionPrimary} transition-colors shadow-none border-transparent text-sm px-3`
                 : `text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
             }
             onClick={() => onToggle(membership.clinicId)}

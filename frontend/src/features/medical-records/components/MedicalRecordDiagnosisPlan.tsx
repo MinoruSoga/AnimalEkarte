@@ -256,7 +256,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {/* Bottom Section: Treatment Plan */}
       <div className="flex-1 min-h-0 flex flex-col">
-        <h2 className={`text-sm font-bold ${C.text} mb-2`}>治療プラン</h2>
+        <h2 className={`text-sm font-semibold ${C.text} mb-2`}>治療プラン</h2>
 
         <div
           className={`flex-1 min-h-0 flex flex-col ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto relative pb-20`}

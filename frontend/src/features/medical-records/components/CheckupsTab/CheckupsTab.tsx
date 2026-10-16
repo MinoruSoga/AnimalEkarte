@@ -200,6 +200,7 @@ export const CheckupsTab = memo(function CheckupsTab({
         canCreate={Boolean(canCreate && !isPetDeceased)}
         canEdit={Boolean(canEdit && !isPetDeceased)}
         canDelete={Boolean(canDelete && !isPetDeceased)}
+        emptyReason={isPetDeceased ? DECEASED_CHECKUPS_MESSAGE : undefined}
         createPending={createMutation.isPending}
         updatePending={updateMutation.isPending}
         deletePending={deleteMutation.isPending}

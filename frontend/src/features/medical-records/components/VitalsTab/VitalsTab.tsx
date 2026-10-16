@@ -24,6 +24,7 @@ import type { CreateVitalInput, UpdateVitalInput, Vital } from "../../types";
 // ON 時のみ描画されるため遅延ロードし、医療記録ルートの初期バンドルから外す。
 const VitalsGraph = lazy(() => import("./VitalsGraph").then((m) => ({ default: m.VitalsGraph })));
 import { VitalsTable } from "./VitalsTabTable";
+import { getLockedEmptyStateMessage } from "../../lib/record-empty-state";
 import {
   EMPTY_VITALS_ADD_FORM,
   parseVitalsNumber,
@@ -39,14 +40,24 @@ interface VitalsTabProps {
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
   isPetDeceased?: boolean;
+  /** EMR-412 R6: 確定済み。空状態文言「確定済のため変更できません」。 */
+  isFinalized?: boolean;
+  /** EMR-412 R6: 編集権限なし。空状態文言「編集権限がありません」。 */
+  isLocked?: boolean;
 }
 
 export const VitalsTab = memo(function VitalsTab({
   medicalRecordId,
   recordClinicId,
   isPetDeceased = false,
+  isFinalized = false,
+  isLocked = false,
 }: VitalsTabProps) {
-  const { canCreate, canEdit, canDelete } = usePermission("medical-records");
+  const permission = usePermission("medical-records");
+  const canWrite = !isFinalized && !isLocked;
+  const canCreate = permission.canCreate && canWrite;
+  const canEdit = permission.canEdit && canWrite;
+  const canDelete = permission.canDelete && canWrite;
   const { data: vitals, isLoading, isError } = useGetVitals(medicalRecordId, recordClinicId);
   const { mutateAsync: createVital, isPending: createPending } = useCreateVital(
     medicalRecordId,
@@ -61,6 +72,12 @@ export const VitalsTab = memo(function VitalsTab({
     recordClinicId,
   );
 
+  // EMR-412 R6/K5: ロック状態は親（モーダル経由）から伝搬し、空状態の理由文言を分ける。
+  // 死亡ガードが最優先。確定済 > 編集権限なし > 通常文言。
+  const lockedEmptyMessage = isPetDeceased
+    ? DECEASED_VITALS_MESSAGE
+    : (getLockedEmptyStateMessage({ isFinalized, isLocked }) ??
+      (!canCreate ? "編集権限がありません" : undefined));
   const canCreateRef = useRef(canCreate);
   const canEditRef = useRef(canEdit);
   const canDeleteRef = useRef(canDelete);
@@ -262,11 +279,12 @@ export const VitalsTab = memo(function VitalsTab({
 
       <VitalsTable
         vitals={sortedVitals}
-        editingId={editingId}
+        editingId={canWrite ? editingId : null}
+        lockedEmptyMessage={lockedEmptyMessage}
         canCreate={Boolean(canCreate && !isPetDeceased)}
         canEdit={Boolean(canEdit && !isPetDeceased)}
         canDelete={Boolean(canDelete && !isPetDeceased)}
-        isAdding={isAdding}
+        isAdding={canWrite ? isAdding : false}
         addForm={addForm}
         addFormErrors={addFormErrors}
         addFormError={addFormState.error}

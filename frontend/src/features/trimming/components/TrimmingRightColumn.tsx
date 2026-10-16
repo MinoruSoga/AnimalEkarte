@@ -1,32 +1,48 @@
 import { memo, useMemo } from "react";
 
-import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
+import { PastRecordHistoryPanel } from "@/components/shared/PastRecordHistoryPanel/PastRecordHistoryPanel";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { C } from "@/lib/design-tokens";
 
 import type { TrimmingRightColumnProps } from "../lib/trimming-form-column-types";
 
+/**
+ * EMR-412 T2: トリミング編集の履歴は共有 PastRecordHistoryPanel へ統一。
+ * 日付はパネル内 formatDate、見出し「過去の施術履歴」もパネル側へ移管。
+ * クリック時は従来どおりコース・オプション等をフォームへ写す。
+ * PR679 F7: 外部フィルタ props はパネル内フィルタに完全統一のため削除済み。
+ */
 export const TrimmingRightColumn = memo(function TrimmingRightColumn({
   sortedHistory,
   isHistoryLoading,
-  historySearchTerm,
-  historySortOrder,
-  historyDateRange,
-  onSearchTermChange,
-  onSortOrderChange,
-  onClear,
-  onFilterStartDateChange,
-  onFilterEndDateChange,
   onHistoryClick,
 }: TrimmingRightColumnProps) {
-  const historyCards = useMemo(
+  const itemsById = useMemo(
+    () => new Map(sortedHistory.map((history) => [history.id, history])),
+    [sortedHistory],
+  );
+  const historyItems = useMemo(
     () =>
-      sortedHistory.map((history) => (
-        <button
-          key={history.id}
-          type="button"
-          className={`block w-full text-left p-3 border ${C.borderMedium} rounded-lg ${C.bgWhite} ${C.hoverBgPage} transition-colors cursor-pointer`}
-          onClick={() =>
+      sortedHistory.map((history) => ({
+        id: history.id,
+        date: history.date,
+        title: history.styleRequest,
+        subtitle: history.staff,
+      })),
+    [sortedHistory],
+  );
+
+  return (
+    <div className="lg:col-span-2">
+      {isHistoryLoading ? (
+        <LoadingFallback />
+      ) : (
+        <PastRecordHistoryPanel
+          title="過去の施術履歴"
+          searchPlaceholder="スタイル希望で検索..."
+          items={historyItems}
+          onItemClick={(item) => {
+            const history = itemsById.get(item.id);
+            if (!history) return;
             onHistoryClick({
               courseId: history.courseId,
               optionIds: history.optionIds,
@@ -35,49 +51,10 @@ export const TrimmingRightColumn = memo(function TrimmingRightColumn({
               usedRibbon: history.usedRibbon,
               remarks: history.remarks,
               staffName: history.staff,
-            })
-          }
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <div className={`text-xs ${C.text60} mb-1`}>{history.date}</div>
-              <div className={`text-sm ${C.text} font-medium truncate`}>{history.styleRequest}</div>
-              <div className={`text-xs ${C.text60} mt-1`}>{history.staff}</div>
-            </div>
-          </div>
-        </button>
-      )),
-    [sortedHistory, onHistoryClick],
-  );
-
-  return (
-    <div className={`lg:col-span-2 ${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
-      <div>
-        <h3 className={`text-base font-semibold ${C.text} mb-2`}>過去の施術履歴</h3>
-        <HistoryFilterPanel
-          searchTerm={historySearchTerm}
-          onSearchTermChange={onSearchTermChange}
-          sortOrder={historySortOrder}
-          onSortOrderChange={onSortOrderChange}
-          onClear={onClear}
-          showDateRange={true}
-          filterStartDate={historyDateRange.from}
-          onFilterStartDateChange={onFilterStartDateChange}
-          filterEndDate={historyDateRange.to}
-          onFilterEndDateChange={onFilterEndDateChange}
-          searchPlaceholder="スタイル希望で検索..."
+            });
+          }}
         />
-      </div>
-
-      <div className="space-y-2 max-h-[600px] overflow-y-auto">
-        {isHistoryLoading ? (
-          <LoadingFallback />
-        ) : sortedHistory.length === 0 ? (
-          <div className={`text-center py-8 text-sm ${C.text60}`}>施術履歴がありません</div>
-        ) : (
-          historyCards
-        )}
-      </div>
+      )}
     </div>
   );
 });

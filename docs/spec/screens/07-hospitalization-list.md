@@ -36,7 +36,7 @@
 
 ### 2. ステータス・フィルタタブ
 最上部のタブで、患者の状態ごとに表示を切り替えられます。
-- **入院中**: `active`（wire 上は admitted。FE 定数に「一時帰宅」があるが BE status は admitted|discharged|reserved のみで、一時帰宅は生成されない）の患者。
+- **入院・預かり中**: `active`（wire 上は admitted。入院区分の admitted は「入院中」、ホテル区分の admitted は「預かり中」と表示する — EMR-412。FE 定数に「一時帰宅」があるが BE status は admitted|discharged|reserved のみで、一時帰宅は生成されない）の患者。
 - **予約**: 入院予定の予約レコード。
 - **退院済**: 過去の入院履歴。
 - **すべて**: 全てのレコード。

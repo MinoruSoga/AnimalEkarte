@@ -6,10 +6,10 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormHeaderActions } from "@/components/shared/Form/FormHeaderActions";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { ICON, C, LAYOUT } from "@/lib/design-tokens";
+import { ICON, C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { ResourceTrimming } from "@/types/generated/models";
-import type { MasterItem, SortOrder } from "@/types";
+import type { MasterItem } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 import type { TrimmingHistoryItem } from "../lib/trimming-form-column-types";
 import type { MasterSelectItem } from "@/components/shared/MasterSelectModal";
@@ -77,9 +77,6 @@ interface TrimmingFormBodyProps {
   completedImagePreview: string | null;
   sortedHistory: TrimmingHistoryItem[];
   isHistoryLoading: boolean;
-  historySearchTerm: string;
-  historySortOrder: SortOrder;
-  historyDateRange: { from: string; to: string };
   courseModalOpen: boolean;
   staffModalOpen: boolean;
   deleteConfirmOpen: boolean;
@@ -98,11 +95,6 @@ interface TrimmingFormBodyProps {
   onCompletedImageChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveStyleImage: () => void;
   onRemoveCompletedImage: () => void;
-  onHistorySearchTermChange: (value: string) => void;
-  onHistorySortOrderChange: (value: SortOrder) => void;
-  onHistoryClear: () => void;
-  onHistoryStartDateChange: (value: string) => void;
-  onHistoryEndDateChange: (value: string) => void;
   onHistoryClick: (updates: Partial<TrimmingFormData>) => void;
 }
 
@@ -125,9 +117,6 @@ export function TrimmingFormBody({
   completedImagePreview,
   sortedHistory,
   isHistoryLoading,
-  historySearchTerm,
-  historySortOrder,
-  historyDateRange,
   courseModalOpen,
   staffModalOpen,
   deleteConfirmOpen,
@@ -146,11 +135,6 @@ export function TrimmingFormBody({
   onCompletedImageChange,
   onRemoveStyleImage,
   onRemoveCompletedImage,
-  onHistorySearchTermChange,
-  onHistorySortOrderChange,
-  onHistoryClear,
-  onHistoryStartDateChange,
-  onHistoryEndDateChange,
   onHistoryClick,
 }: TrimmingFormBodyProps) {
   // rerender-memo: MasterSelectModal は memo。onSelect を inline arrow で渡すと
@@ -219,7 +203,10 @@ export function TrimmingFormBody({
         ) : null}
         {/* 保存中も画像操作を無効化 — 送信済みキーの remove/置換は対象外だが、
             isSaving 中の入力変更はペイロードに反映されないため一貫して止める。 */}
-        <fieldset disabled={!canSubmit || isSaving} className="border-0 p-0 m-0 min-w-0">
+        <fieldset
+          disabled={!canSubmit || isSaving}
+          className={`border-0 p-0 m-0 min-w-0 ${STYLE.readonlyInputs}`}
+        >
           {selectedPet ? (
             <TrimmingFormColumns
               selectedPet={selectedPet}
@@ -231,10 +218,8 @@ export function TrimmingFormBody({
               completedImagePreview={completedImagePreview}
               sortedHistory={sortedHistory}
               isHistoryLoading={isHistoryLoading}
-              historySearchTerm={historySearchTerm}
-              historySortOrder={historySortOrder}
-              historyDateRange={historyDateRange}
               showInitialStatusSelector={mode === "new" ? !hasExistingAppointment : false}
+              showRequiredMarks={mode === "new"}
               onFormChange={onFormChange}
               onOpenCourseModal={onOpenCourseModal}
               onOpenStaffModal={onOpenStaffModal}
@@ -242,11 +227,6 @@ export function TrimmingFormBody({
               onCompletedImageChange={onCompletedImageChange}
               onRemoveStyleImage={onRemoveStyleImage}
               onRemoveCompletedImage={onRemoveCompletedImage}
-              onHistorySearchTermChange={onHistorySearchTermChange}
-              onHistorySortOrderChange={onHistorySortOrderChange}
-              onHistoryClear={onHistoryClear}
-              onHistoryStartDateChange={onHistoryStartDateChange}
-              onHistoryEndDateChange={onHistoryEndDateChange}
               onHistoryClick={onHistoryClick}
             />
           ) : null}

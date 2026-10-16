@@ -47,7 +47,7 @@ export const HOSPITALIZATION_SORT_PROPERTIES: SortProperty[] = [
 ];
 
 export const HOSPITALIZATION_TAB_ITEMS = [
-  { value: HOSPITALIZATION_FILTER_STATUS.ACTIVE, label: "入院中" },
+  { value: HOSPITALIZATION_FILTER_STATUS.ACTIVE, label: "入院・預かり中" },
   { value: HOSPITALIZATION_FILTER_STATUS.RESERVED, label: "予約" },
   { value: HOSPITALIZATION_FILTER_STATUS.DISCHARGED, label: "退院済" },
   { value: HOSPITALIZATION_FILTER_STATUS.ALL, label: "すべて" },

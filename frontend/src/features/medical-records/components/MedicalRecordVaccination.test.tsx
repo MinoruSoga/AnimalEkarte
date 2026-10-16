@@ -170,9 +170,9 @@ describe("MedicalRecordVaccination 編集ロック（BUG-035）", () => {
     mockHistoryItems.current = [{ id: 11, name: "混合ワクチン", date: "26/8/1" }];
     renderPanel(() => {}, true);
 
-    const addButton = screen.getByRole("button", { name: "記録を追加" });
-    expect(addButton).toBeDisabled();
-    expect(addButton.closest("fieldset")).toBeDisabled();
+    // EMR-412 K4: ロック中は追加ボタン自体を出さない（定期健診と同じ）。fieldset は無効のまま。
+    expect(screen.queryByRole("button", { name: "記録を追加" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group")).toBeDisabled();
 
     // 履歴パネル自体はロック外で描画されるが、複写は mutation なので canCreate=false
     expect(screen.getByTestId("vaccination-history").closest("fieldset")).toBeNull();

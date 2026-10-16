@@ -321,7 +321,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     <div className="flex flex-col gap-4 relative h-full">
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
+          <h2 className={`text-sm font-semibold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
             <div
               className={`px-2 py-1 rounded ${BADGE.greenNoBorder} text-xs font-semibold flex items-center gap-1`}

@@ -65,7 +65,7 @@ export const ClinicalPlanSection = memo(function ClinicalPlanSection({
 
   return (
     <div className={`${C.bgWhite} border ${C.borderMedium} rounded-lg p-4`}>
-      <h2 className={`text-sm font-bold ${C.text} mb-4`}>診察所見・診断・治療方針</h2>
+      <h2 className={`text-sm font-semibold ${C.text} mb-4`}>診察所見・診断・治療方針</h2>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">

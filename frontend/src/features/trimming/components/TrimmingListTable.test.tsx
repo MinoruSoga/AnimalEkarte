@@ -93,16 +93,17 @@ describe("TrimmingListTable 犬種列 (#231)", () => {
     renderTable([makeRecord({ date: "2026-10-14", weight: "0", staff: "" })]);
     expect(screen.getByRole("cell", { name: "2026/10/14" })).toHaveClass("whitespace-nowrap");
     expect(screen.getByRole("cell", { name: "0" })).toHaveClass("whitespace-nowrap");
-    expect(screen.getAllByRole("cell", { name: "—" }).length).toBeGreaterThan(0);
+    // EMR-412 X15: 空欄記号は「-」に統一。
+    expect(screen.getAllByRole("cell", { name: "-" }).length).toBeGreaterThan(0);
   });
   it("犬種が設定されている場合はその値を表示する", () => {
     renderTable([makeRecord({ breed: "トイプードル" })]);
     expect(screen.getByText("トイプードル")).toBeInTheDocument();
   });
 
-  it("犬種が空文字の場合は「—」を表示する", () => {
+  it("犬種が空文字の場合は「-」を表示する (EMR-412 X15)", () => {
     renderTable([makeRecord({ breed: "" })]);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("-")).toBeInTheDocument();
   });
 });
 
@@ -129,13 +130,14 @@ describe("TrimmingListTable row navigation accessibility", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 
-  it("無効な担当staffの警告をscreen readerへ文脈付きで説明する", () => {
+  it("無効な担当staffは（無効）の文字で文脈を伝える (EMR-412 X3)", () => {
     renderTable([makeRecord({ staff: "退職者" })], {
       isValidStaff: () => false,
     });
 
-    const warning = screen.getByLabelText(/無効/);
-    expect(warning).toHaveAccessibleName(/退職者/);
+    // 色警告・aria-label に依存せず、氏名に「（無効）」を併記する。
+    expect(screen.getByText("退職者（無効）")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /無効/ })).not.toBeInTheDocument();
   });
 
   it("行操作buttonのaccessible nameにトリミングIDを含める", () => {

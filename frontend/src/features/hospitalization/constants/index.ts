@@ -5,6 +5,10 @@ export const HOSPITALIZATION_STATUS = {
   TEMP_DISCHARGE: "一時帰宅",
 } as const;
 
+/** EMR-412 N3: ホテル区分の admitted は「預かり中」。入院区分は従来どおり「入院中」。 */
+export const HOSPITALIZATION_HOTEL_STATUS = {
+  ACTIVE: "預かり中",
+} as const;
 export const HOSPITALIZATION_FILTER_STATUS = {
   ALL: "all",
   ACTIVE: "active",

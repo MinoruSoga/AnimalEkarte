@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
+import { getSortOrderLabel } from "@/lib/status-helpers";
 
 // Relative
 import {
@@ -27,10 +28,11 @@ import {
 } from "../lib/image-upload-files";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+// EMR-412 X9: 並び順ラベルは共有 getSortOrderLabel（「新→古/古→新」）に揃える。
 const SORT_ORDER_SELECT_ITEMS = (
   <>
-    <SelectItem value="desc">降順</SelectItem>
-    <SelectItem value="asc">昇順</SelectItem>
+    <SelectItem value="desc">{getSortOrderLabel("desc")}</SelectItem>
+    <SelectItem value="asc">{getSortOrderLabel("asc")}</SelectItem>
   </>
 );
 

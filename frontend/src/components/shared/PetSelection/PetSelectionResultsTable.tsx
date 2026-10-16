@@ -79,41 +79,36 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
       <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
         <Table>
           <TableHeader>
-            <TableRow
-              className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
-            >
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+            <TableRow className={STYLE.tableHeaderRow}>
+              <TableHead className={`min-w-[80px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 飼主No
               </TableHead>
-              <TableHead className={`min-w-[140px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[140px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 飼主名
               </TableHead>
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[80px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 ペット番号
               </TableHead>
-              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[100px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 ペット名
               </TableHead>
-              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
-                生死
-              </TableHead>
-              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[50px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 種
               </TableHead>
-              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[90px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 生年月日
               </TableHead>
-              <TableHead className={`min-w-[60px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[60px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 体重
               </TableHead>
-              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[100px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 環境
               </TableHead>
-              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[90px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 前回来院
               </TableHead>
               <TableHead
-                className={`sticky right-0 z-20 ${C.bgWhite} min-w-[120px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}
+                className={`sticky right-0 z-20 ${C.bgPage} min-w-[120px] ${STYLE.tableHeaderCell} whitespace-nowrap`}
               >
                 操作
               </TableHead>
@@ -148,6 +143,19 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                     <span className="flex items-center gap-1.5">
                       <span>{pet.name}</span>
+                      {/* EMR-412 X2: 生死はペット名セルへ移動（カルテ一覧と同じ配置。sticky 操作列の下に隠れない） */}
+                      {pet.status ? (
+                        <Badge
+                          variant="secondary"
+                          className={
+                            pet.status === "生存"
+                              ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen} text-xs px-2 py-0 h-7`
+                              : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} ${C.hoverBgStatusGray} text-xs px-2 py-0 h-7`
+                          }
+                        >
+                          {pet.status}
+                        </Badge>
+                      ) : null}
                       <DangerBadge
                         variant="pet"
                         level={pet.dangerLevel}
@@ -159,20 +167,6 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                         <BirthdayBadge birthDate={pet.birthDate} subjectName={pet.name} />
                       ) : null}
                     </span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {pet.status ? (
-                      <Badge
-                        variant="secondary"
-                        className={
-                          pet.status === "生存"
-                            ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen} text-xs px-2 py-0 h-7`
-                            : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} ${C.hoverBgStatusGray} text-xs px-2 py-0 h-7`
-                        }
-                      >
-                        {pet.status}
-                      </Badge>
-                    ) : null}
                   </TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                     {pet.species}
@@ -231,7 +225,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             {items.length === 0 ? (
               <TableRow>
                 {/* 取得失敗 > 取得中 > 該当0件 の優先順。色に依存せず文言で状態を区別する。 */}
-                <TableCell colSpan={11} className={STYLE.tableEmpty}>
+                <TableCell colSpan={10} className={STYLE.tableEmpty}>
                   {isError ? (
                     <span role="alert" className={C.danger}>
                       ペット一覧の取得に失敗しました

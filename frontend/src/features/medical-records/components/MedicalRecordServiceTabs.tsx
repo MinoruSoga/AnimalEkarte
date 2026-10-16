@@ -37,6 +37,7 @@ export function MedicalRecordServiceTabs({
             medicalRecordId={recordId ?? ""}
             lstepStatus={lstepStatus}
             isLocked={isLocked}
+            isFinalized={isFinalized}
           />
         </MedicalRecordSaveRequired>
       </MedicalRecordMountedTab>
@@ -65,6 +66,8 @@ export function MedicalRecordServiceTabs({
           isNewRecord={isNewRecord}
           petId={selectedPet.id}
           medicalRecordId={recordId}
+          isLocked={isLocked}
+          isFinalized={isFinalized}
         />
       </MedicalRecordMountedTab>
       <MedicalRecordMountedTab

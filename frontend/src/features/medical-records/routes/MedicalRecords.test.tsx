@@ -348,13 +348,14 @@ describe("MedicalRecords identifier columns (EMR-379)", () => {
     expect(petCell?.className).toContain("min-w-[140px]");
   });
 
-  it("担当医セルは氏名が読める最小幅を持ち、折り返して全文を表示する (T003)", () => {
+  it("担当医セルは氏名が読める最小幅を持ち、氏名を折り返さない (T003/EMR-412 X3)", () => {
     mockMedicalRecords([makeMedicalRecord()]);
     renderPage();
 
     const doctorCell = screen.getByText("佐藤医師").closest("td");
     expect(doctorCell?.className).toContain("min-w-[160px]");
-    expect(doctorCell?.className).not.toContain("whitespace-nowrap");
+    // EMR-412 X3: 氏名は whitespace-nowrap（折返しではなく省略なしの1行表示）。
+    expect(doctorCell?.className).toContain("whitespace-nowrap");
   });
 
   it("診療日セルは折り返さない", () => {
@@ -392,13 +393,14 @@ describe("MedicalRecords contextual actions", () => {
     expect(screen.getByRole("button", { name: /カルテ操作:.*mr-1/ })).toBeInTheDocument();
   });
 
-  it("無効な担当医の警告をscreen readerへ文脈付きで説明する", () => {
+  it("無効な担当医は（無効）の文字で文脈を伝える (EMR-412 X3)", () => {
     mockIsValidStaff.mockReturnValue(false);
     mockMedicalRecords([makeMedicalRecord({ doctor: "退職医" })]);
     renderPage();
 
-    const warning = screen.getByLabelText(/無効/);
-    expect(warning).toHaveAccessibleName(/退職医/);
+    // 色警告・aria-label に依存せず、氏名に「（無効）」を併記する。
+    expect(screen.getByText("退職医（無効）")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /無効/ })).not.toBeInTheDocument();
   });
 
   it("他院のカルテ行では会計導線を表示しない", () => {

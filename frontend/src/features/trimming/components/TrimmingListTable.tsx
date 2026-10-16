@@ -1,4 +1,4 @@
-import { AlertTriangle, Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -17,7 +17,8 @@ import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { StaffNameCell } from "@/components/shared/StaffNameCell";
+import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import type { TrimmingUI } from "@/types";
 import { getTrimmingStatusColor } from "@/lib/status-helpers";
@@ -223,7 +224,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
   return (
     <DataTableRow>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "—"}
+        {record.date ? formatDate(record.date) : "-"}
       </TableCell>
       <TableCell className={`${C.text} min-w-[140px]`}>{record.ownerName}</TableCell>
       <TableCell className="min-w-[160px]">
@@ -239,27 +240,15 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
         </div>
       </TableCell>
       <TableCell className={`${C.text} hidden lg:table-cell`}>{record.species}</TableCell>
-      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.breed || "—"}</TableCell>
+      <TableCell className={`${C.text} hidden lg:table-cell`}>{record.breed || "-"}</TableCell>
       <TableCell className={`${C.text} hidden lg:table-cell whitespace-nowrap`}>
-        {record.weight === "" ? "—" : (record.weight ?? "—")}
+        {record.weight === "" ? "-" : (record.weight ?? "-")}
       </TableCell>
       <TableCell className={`${C.text} truncate max-w-[200px] hidden lg:table-cell`}>
         {record.styleRequest}
       </TableCell>
-      <TableCell className={`${C.text} min-w-[120px]`}>
-        <div className="flex items-center gap-1.5">
-          {!isValidStaff(record.staff) ? (
-            <span
-              role="img"
-              aria-label={`無効な担当スタッフ: ${record.staff}（退職等）`}
-              title="担当スタッフが無効（退職等）に設定されています"
-            >
-              <AlertTriangle className={`${ICON.action} ${C.textWarningIcon}`} aria-hidden="true" />
-            </span>
-          ) : null}
-          {record.staff || "—"}
-        </div>
-      </TableCell>
+      {/* EMR-412 X3: 担当者セルは共有 StaffNameCell へ統一 */}
+      <StaffNameCell staff={record.staff} isValidStaff={isValidStaff} />
       <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getTrimmingStatusColor(record.status)}>
           {record.status}

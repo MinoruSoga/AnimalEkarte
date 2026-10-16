@@ -501,3 +501,43 @@ describe("CheckupAddRow 必須エラー表示 (EMR-319)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// PR679 F1: 死亡ペットの空状態は「編集権限がありません」ではなく死亡理由を出す。
+// canCreate が死亡フィルタで false 化されるため、原因を分離してテーブルへ伝搬する。
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — 死亡ペットの空状態理由 (PR679 F1)", () => {
+  it("権限あり・未確定・死亡ペットで健診記録が空なら、権限拒否ではなく死亡理由を表示する", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isPetDeceased={true} />);
+
+    expect(screen.getByText(/死亡したペット/)).toBeInTheDocument();
+    expect(screen.queryByText("編集権限がありません")).not.toBeInTheDocument();
+  });
+
+  it("確定済み+死亡では死亡理由を優先する（death は他の拒否理由より先）", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isFinalized={true} isPetDeceased={true} />);
+
+    expect(screen.getByText(/死亡したペット/)).toBeInTheDocument();
+    expect(screen.queryByText("確定済のため変更できません")).not.toBeInTheDocument();
+  });
+
+  it("生存・作成権限なしの空状態は従来どおり「編集権限がありません」を出す", () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+    });
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    expect(screen.getByText("編集権限がありません")).toBeInTheDocument();
+    expect(screen.queryByText(/死亡したペット/)).not.toBeInTheDocument();
+  });
+
+  it("死亡ペットでは「記録を追加」ボタンを出さない（mutation 抑止は維持）", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isPetDeceased={true} />);
+
+    expect(screen.queryByText("記録を追加")).not.toBeInTheDocument();
+  });
+});

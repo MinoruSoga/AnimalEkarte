@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 // Internal
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { STYLE } from "@/lib/design-tokens";
 
 // Relative
 import { InterviewChiefComplaint } from "./InterviewChiefComplaint";
@@ -140,7 +141,7 @@ export const MedicalRecordInterview = memo(function MedicalRecordInterview({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-1 gap-3 flex-1 min-h-0 h-full">
-      <fieldset disabled={isLocked} className="contents">
+      <fieldset disabled={isLocked} className={`contents ${STYLE.readonlyInputs}`}>
         {/* Left Column: 主訴情報 (Chief Complaint) */}
         <InterviewChiefComplaint
           className="col-span-1 lg:col-span-3 h-full"

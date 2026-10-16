@@ -436,6 +436,8 @@ function MedicalRecordFormReadyOverlays({
         onVitalsOpenChange={ready.modals.setIsVitalsOpen}
         recordClinicId={ready.recordClinicId}
         isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+        isFinalized={ready.recordFinalized}
+        isLocked={ready.recordFinalized || !canSubmit}
         isStaffModalOpen={ready.modals.isStaffModalOpen}
         staffName={ready.staffName}
         onSelectStaff={ready.handleSelectStaff}

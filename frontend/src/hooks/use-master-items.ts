@@ -113,10 +113,11 @@ function useGetMasterItemsByCategory(category: string, clinicId?: string) {
 /** Read-only master data hook for cross-feature consumption. Returns filtered items by category. */
 export function useGetMasterItems(category?: string, searchTerm?: string, clinicId?: string) {
   const resolvedCategory = category && category !== "all" ? category : "";
-  const { data: categoryItems = [], isLoading } = useGetMasterItemsByCategory(
-    resolvedCategory,
-    clinicId,
-  );
+  const {
+    data: categoryItems = [],
+    isLoading,
+    isError,
+  } = useGetMasterItemsByCategory(resolvedCategory, clinicId);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return categoryItems;
@@ -130,5 +131,5 @@ export function useGetMasterItems(category?: string, searchTerm?: string, clinic
     );
   }, [categoryItems, searchTerm]);
 
-  return { data: filteredItems, isLoading };
+  return { data: filteredItems, isLoading, isError };
 }

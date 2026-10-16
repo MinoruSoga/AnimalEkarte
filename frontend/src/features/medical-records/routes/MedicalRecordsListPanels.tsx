@@ -1,4 +1,4 @@
-import { Edit, Trash2, Receipt, AlertTriangle, Plus } from "lucide-react";
+import { Edit, Trash2, Receipt, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { TableCell } from "@/components/ui/table";
@@ -12,6 +12,7 @@ import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
+import { StaffNameCell } from "@/components/shared/StaffNameCell";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor, getPetStatusColor } from "@/lib/status-helpers";
 import { paths } from "@/config/paths";
@@ -115,7 +116,7 @@ function MedicalRecordsListRow({
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{record.species}</TableCell>
       <TableCell
-        className={`${STYLE.tableCell} max-w-[200px] truncate hidden md:table-cell`}
+        className={`${STYLE.tableCell} max-w-[200px] truncate hidden lg:table-cell`}
         title={record.chiefComplaint}
       >
         {record.chiefComplaint}
@@ -138,22 +139,12 @@ function MedicalRecordsListRow({
           <span className={`text-sm ${C.text60}`}>—</span>
         )}
       </TableCell>
-      <TableCell className={`${STYLE.tableCell} min-w-[160px] hidden md:table-cell`}>
-        <div className="flex items-center gap-1">
-          <span className={!isValidStaff(record.doctor) ? `${C.textWarningIcon} font-medium` : ""}>
-            {record.doctor}
-          </span>
-          {!isValidStaff(record.doctor) ? (
-            <span
-              role="img"
-              aria-label={`無効な担当医: ${record.doctor}（退職等）`}
-              title="担当医が無効（退職等）に設定されています"
-            >
-              <AlertTriangle className={`${ICON.xs} ${C.textWarningIcon}`} aria-hidden="true" />
-            </span>
-          ) : null}
-        </div>
-      </TableCell>
+      {/* EMR-412 X3: 担当者セルは共有 StaffNameCell へ統一 */}
+      <StaffNameCell
+        staff={record.doctor}
+        isValidStaff={isValidStaff}
+        className="hidden lg:table-cell"
+      />
       <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getMedicalRecordStatusColor(record.status)}>
           {record.status}
@@ -165,7 +156,7 @@ function MedicalRecordsListRow({
           data-testid="mr-row-clinic"
         >
           <span className={isOtherClinic ? `text-xs ${C.text60}` : "text-xs"}>
-            {record.clinicId ? (clinicNameById.get(record.clinicId) ?? record.clinicId) : "—"}
+            {record.clinicId ? (clinicNameById.get(record.clinicId) ?? record.clinicId) : "-"}
           </span>
         </TableCell>
       ) : null}

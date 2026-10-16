@@ -2,7 +2,7 @@
 
 > **目的**: カルテ編集の患者コンテキストヘッダーにマイクロチップ番号が正しく表示され、長い番号でも truncate + ツールチップで読め、死亡マーク等の他要素と共存して破綻しないことを納品前に証明する。
 > **所要目安**: 10分 / **深度**: 薄い
-> **仕様正本**: [domains/medical-records/pages/medical-record-form.md](../../../spec/domains/medical-records/pages/medical-record-form.md)。検証キュー: `SLACK-MICROCHIP`（[todo-verification.md](../../../../todo.md#verification-ledger)）。実装参照: `frontend/src/components/shared/PatientContextHeader/PatientContextHeader.tsx`。
+> **仕様正本**: [domains/medical-records/pages/medical-record-form.md](../../../spec/domains/medical-records/pages/medical-record-form.md)。検証キュー: `SLACK-MICROCHIP`（[todo-verification.md](../../../../todo.md#verification-ledger)）。実装参照: `frontend/src/components/shared/PatientInfoCard/PatientInfoCard.tsx`（利用側: `frontend/src/features/medical-records/components/MedicalRecordStickyHeader.tsx`）。
 
 ## 前提条件
 
@@ -24,7 +24,7 @@
 ヘッダー要素の構成と表示条件:
 
 ```text
-PatientContextHeader（全タブで一貫・再読込で値は変わらない）
+MedicalRecordStickyHeader → PatientInfoCard（全タブで一貫・再読込で値は変わらない）
 ├─ 飼主名・ペット名 …… 長い値は truncate + ツールチップで全文
 ├─ 【死亡】マーク …… 死亡ペットのみ。赤 + ミュート色で他要素と共存
 └─ マイクロチップ番号 …… 番号があるペットのみ（なしなら欄自体を出さない）
@@ -34,7 +34,7 @@ PatientContextHeader（全タブで一貫・再読込で値は変わらない）
 
 ## 確認観点
 
-- `PatientContextHeader` は飼主名・ペット名・MC 番号を表示し、長い値は truncate + ツールチップ、死亡ペットは赤い「【死亡】」マーク + ミュート色。
+- `PatientInfoCard`（`MedicalRecordStickyHeader` 内）は飼主名・ペット名・MC 番号を表示し、長い値は truncate + ツールチップ、死亡ペットは赤い「【死亡】」マーク + ミュート色。
 - MC 番号は個体識別の安全情報。誤った番号・別ペットの番号・桁落ちが出るのは臨床安全上の FAIL。
 - 表示だけでなく識別性（等幅・ラベル）も確認する。どの番号か判別できない表示は不十分。
 - 狭い viewport での truncate は S19 と連携。ここではヘッダー要素の表示契約を確認する。
@@ -42,5 +42,5 @@ PatientContextHeader（全タブで一貫・再読込で値は変わらない）
 ## 実装突合
 
 - 変更サマリ:
-  - `PatientContextHeader` の `microchipNumber` 表示（`font-mono`・aria-label・`max-w-[12rem]` truncate）と死亡マーク・ミュート表示を現行コードと突合
+  - `PatientInfoCard`（`MedicalRecordStickyHeader` 内）の `microchipNumber` 表示（`font-mono`・aria-label・`max-w-[12rem]` truncate）と死亡マーク・ミュート表示を現行コードと突合
   - MC なし・長い番号・死亡ペット共存を手順 3–4 に対応づけ

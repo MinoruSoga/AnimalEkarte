@@ -47,14 +47,35 @@ export function HospitalizationDetail() {
     [dischargeHospitalization, navigate, hospitalizationPetId],
   );
 
-  if (isLoading) return <LoadingFallback />;
-  if (isNotFound || !id) return <ErrorFallback message="入院情報が見つかりません" />;
-  if (isError) return <ErrorFallback />;
-  if (!hospitalization) return <ErrorFallback message="入院情報が見つかりません" />;
+  // EMR-412 N6: 読込中・見つからない時・取得失敗も PageLayout（タイトル＋戻る）で包む。
+  // カルテ・トリミングの FormStatusPanels と同じ体裁に揃える。
+  // 見つからない時は取得失敗より優先（旧実装と同じ優先順位を維持）。
+  // PR679: 未解決（読込中/該当なし/取得失敗）は区分を断定しない中立タイトルを使い、
+  // 保存済みレコードのみ下の detailTitle で区分固有（入院／ホテル）のタイトルにする。
+  const isDetailNotFound = isNotFound || !id || (!isLoading && !isError && !hospitalization);
+  if (isLoading || isError || isDetailNotFound || !hospitalization) {
+    return (
+      <PageLayout
+        title="入院・ホテル詳細・カルテ"
+        onBack={handleBack}
+        resource={ResourceHospitalization}
+        maxWidth={LAYOUT.pageContentMaxWidth.detailWide}
+      >
+        {isLoading ? (
+          <LoadingFallback />
+        ) : (
+          <ErrorFallback message={isDetailNotFound ? "入院情報が見つかりません" : undefined} />
+        )}
+      </PageLayout>
+    );
+  }
+
+  // EMR-412 N2: 保存済みの区分名を詳細タイトルに使う（ホテル記録でも「入院詳細」にならない）。
+  const detailTitle = `${hospitalization.hospitalizationType}詳細・カルテ`;
 
   return (
     <PageLayout
-      title="入院詳細・カルテ"
+      title={detailTitle}
       onBack={handleBack}
       resource={ResourceHospitalization}
       headerAction={

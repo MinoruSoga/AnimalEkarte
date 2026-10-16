@@ -30,7 +30,7 @@ export const useHospitalizationList = (canEdit = false) => {
     canEditRef.current = canEdit;
   }, [canEdit]);
 
-  const { data: cages } = useGetMasterItems("cage");
+  const { data: cages, isLoading: cagesLoading, isError: cagesError } = useGetMasterItems("cage");
 
   // H1: source/target は HospitalizationBoard が「表示中の行」のスナップショットを渡す。
   // any-cache scan で拾った stale/別クリニックの行ではなく、ユーザーが見ていた行を
@@ -105,6 +105,8 @@ export const useHospitalizationList = (canEdit = false) => {
     viewMode,
     setViewMode,
     cages,
+    cagesLoading,
+    cagesError,
     movePet,
     handleNavigateToForm,
   };

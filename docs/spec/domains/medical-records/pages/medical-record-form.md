@@ -78,9 +78,9 @@
 
 #### 1.1 スティッキー患者ヘッダー (Sticky Patient Header)
 
-9 タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientContextHeader` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
+9 タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientInfoCard` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
 
-- **今回カルテのバイタルチップ**: `useGetVitals` で当該カルテのバイタルを取得し、最新 1 件を `latestVisitVitalChips` が `vitalsSummary` へ変換して `PatientContextHeader` へ渡す。体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（`weightUnit` 付き）を、ペット名行直下の属性行へ**計測時刻を付けずに常時表示**する。当該カルテにバイタル記録が無い、または 4 項目すべて未入力の場合はチップ自体を表示しない。
+- **今回カルテのバイタルチップ**: `useGetVitals` で当該カルテのバイタルを取得し、最新 1 件を `latestVisitVitalChips` が `vitalsSummary` へ変換する（`PatientInfoCard` に `vitalsSummary` props は渡さない）。`MedicalRecordStickyHeader` は変換結果を `PetAttributesLine` とともに `PatientInfoCard` の `petAttributes`（ReactNode）スロットへ渡し、ペット名行直下の属性行へ**計測時刻を付けずに常時表示**する。体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（`weightUnit` 付き）を表示し、当該カルテにバイタル記録が無い、または 4 項目すべて未入力の場合はチップ自体を表示しない。ペット属性側の登録体重は未登録または空のとき `-` を表示し、今回測定体重は独立したチップとして扱う（登録体重を測定値で代用しない）。
 - **マイクロチップ番号**: ペットの `microchip_number`（props 名 `microchipNumber`）が存在する場合、ペット名の右隣にモノスペースのチップとして表示する（`aria-label` は「マイクロチップ番号 <値>」）。未登録または空白のみの場合はチップを表示しない。
 - **次回予定ボタン（`NextVisitButton`、EMR-308）**: ヘッダーの「次回予定」はペットの tentative appointment（`status='tentative'`、日付のみ `intended_date`）を `PUT /v1/reservations/pets/:petId/next-visit-intent` で upsert、`DELETE` 同パス（`reservations:edit`）で取消する。カルテ PATCH ではない。権限は操作別（新規=`reservations:create`・既存 tentative の上書き=`create`+`edit`・確定=`edit`）で、write 契約の正本は [reservation-to-record-flow.md](../../../workflows/reservation-to-record-flow.md) §2.3、一覧・確定の管理面は [reservation-management.md](../../reservations/pages/reservation-management.md) を参照。
 
@@ -126,7 +126,7 @@
 - **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。上限内でも下限未満または推奨値からの著しい乖離は、インラインの逸脱理由（`dose_deviation_reason`、空白のみ不可・500文字以内）が必須。理由を snapshot と同一 transaction の監査へ保存し、actor・監査依存の欠落や監査失敗時は保存しない（`computeDoseGate` / `ensureDoseDeviationAuditReady` / `auditDoseDeviationTx`）。現行実装は体重未記録・species 正規化不能・投与量パラメータ未設定時に評価をスキップして保存を継続する参照で、最新合意の医師確認・理由・編集履歴を満たす証拠ではない。最新契約は評価不能を明示し医師確認・理由付き手入力を認める。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
 - **臨床承認の境界**: コード上のゲートと、対象薬・値・範囲・単位・出典を含む臨床承認は別。#201 の Closed は #261 への承認作業の集約であり、医師による臨床 bundle の承認完了を意味しない（[承認作業 #261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)）。
 - **未保存警告**: 変更がある状態でページを離れようとすると `NavigationBlocker` が警告を表示。
-- **特記マーク（EMR-173/231）**: スティッキーヘッダー（`PatientContextHeader`）に共有 `DangerBadge` で表示: ペット名横に `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。医療記録中もマークを常時視認できるようにするための安全表示。
+- **特記マーク（EMR-173/231）**: スティッキーヘッダー内の共有患者カード（`PatientInfoCard`）に共有 `DangerBadge` で表示: ペット名横に `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。医療記録中もマークを常時視認できるようにするための安全表示。
 
 
 <a id="medical-record-agreement-input-four"></a>

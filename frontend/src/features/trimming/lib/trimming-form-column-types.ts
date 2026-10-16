@@ -1,6 +1,5 @@
 import type { ChangeEvent } from "react";
 
-import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 
 interface TrimmingMasterItem {
@@ -34,6 +33,8 @@ export interface TrimmingLeftColumnProps {
   courseError?: string;
   /** #233: カルテ画面から直接新規作成する場合のみ true。登録時ステータス選択の表示可否。 */
   showInitialStatusSelector: boolean;
+  /** EMR-412 X14: トリミング新規のみコースラベルに必須印。既定 false。 */
+  courseRequiredMark?: boolean;
 }
 
 export interface TrimmingMiddleColumnProps {
@@ -44,16 +45,10 @@ export interface TrimmingMiddleColumnProps {
   onRemoveCompletedImage: () => void;
 }
 
+// PR679 F7: 検索/ソート/日付フィルタは共有 PastRecordHistoryPanel 内蔵のため、
+// 親経由の外部フィルタ props・ハンドラは削除済み。
 export interface TrimmingRightColumnProps {
   sortedHistory: TrimmingHistoryItem[];
   isHistoryLoading: boolean;
-  historySearchTerm: string;
-  historySortOrder: SortOrder;
-  historyDateRange: { from: string; to: string };
-  onSearchTermChange: (value: string) => void;
-  onSortOrderChange: (value: SortOrder) => void;
-  onClear: () => void;
-  onFilterStartDateChange: (value: string) => void;
-  onFilterEndDateChange: (value: string) => void;
   onHistoryClick: (updates: Partial<TrimmingFormData>) => void;
 }

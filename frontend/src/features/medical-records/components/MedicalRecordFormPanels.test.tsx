@@ -10,9 +10,11 @@ import type { PetResponse } from "@/types/generated/pet-responses";
 import { selectCohabitingPets } from "../hooks/use-medical-record-form";
 import { MedicalRecordStickyHeader } from "./MedicalRecordFormPanels";
 
-vi.mock("@/components/shared/PatientContextHeader", () => ({
-  PatientContextHeader: ({ microchipNumber }: { microchipNumber?: string }) => (
-    <div data-testid="patient-context-header">{microchipNumber ?? ""}</div>
+// EMR-412 R1/X13: カルテの患者属性は PatientInfoCard へ描画先が移った。
+// microchip props 伝搬と描画順（ヘッダ → 同居ペット → タブ）の契約はこの mock で検証する。
+vi.mock("@/components/shared/PatientInfoCard", () => ({
+  PatientInfoCard: ({ microchipNumber }: { microchipNumber?: string }) => (
+    <div data-testid="patient-info-card">{microchipNumber ?? ""}</div>
   ),
 }));
 
@@ -79,14 +81,14 @@ function renderHeader({
 }
 
 describe("MedicalRecordStickyHeader cohabiting pets", () => {
-  it("selectedPet.microchipNumber を PatientContextHeader へ渡す", () => {
+  it("selectedPet.microchipNumber を PatientInfoCard へ渡す", () => {
     renderHeader({ selectedPet: makePet({ microchipNumber: "392140000123456" }) });
-    expect(screen.getByTestId("patient-context-header")).toHaveTextContent("392140000123456");
+    expect(screen.getByTestId("patient-info-card")).toHaveTextContent("392140000123456");
   });
 
   it("microchipNumber が無いときはヘッダーへ空を渡す", () => {
     renderHeader({ selectedPet: makePet({ microchipNumber: undefined }) });
-    expect(screen.getByTestId("patient-context-header")).toHaveTextContent("");
+    expect(screen.getByTestId("patient-info-card")).toHaveTextContent("");
   });
 
   it("同居ペット2匹を名前（種別）でヘッダ直下・タブ直上に表示する", () => {
@@ -98,13 +100,17 @@ describe("MedicalRecordStickyHeader cohabiting pets", () => {
     });
 
     const row = screen.getByRole("region", { name: "同居ペット" });
-    const patientHeader = screen.getByTestId("patient-context-header");
+    const patientHeader = screen.getByTestId("patient-info-card");
     const tabs = screen.getByTestId("medical-record-tabs");
 
     expect(screen.getByText("ソラ（猫）")).toBeInTheDocument();
     expect(screen.getByText("ハル（犬）")).toBeInTheDocument();
-    expect(row.previousElementSibling).toBe(patientHeader);
-    expect(row.nextElementSibling).toContainElement(tabs);
+    // EMR-412 K1/X13: ヘッダ（PatientInfoCard と操作欄）の後に同居ペット、その後にタブ。
+    // 操作欄行が間に入るため DOM 順序契約で検証する。
+    expect(
+      row.compareDocumentPosition(patientHeader) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy();
+    expect(row.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("自分自身・死亡ペット・別飼主のペットを除外する", () => {
