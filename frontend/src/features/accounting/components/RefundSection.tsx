@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
@@ -161,14 +162,14 @@ export const RefundSection = memo(function RefundSection({
                   <div className="space-y-4 py-2">
                     <div className="space-y-2">
                       <Label htmlFor="refund-amount">返金金額（円）</Label>
-                      <Input
+                      <MoneyInput
+                        variant="inline"
                         id="refund-amount"
-                        type="number"
                         step={1}
                         min={1}
-                        value={refundAmount}
-                        onChange={(e) => {
-                          setRefundAmount(e.target.value);
+                        stringValue={refundAmount}
+                        onStringChange={(v) => {
+                          setRefundAmount(v);
                           setAmountError(null);
                         }}
                         placeholder="0"

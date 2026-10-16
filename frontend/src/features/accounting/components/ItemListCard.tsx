@@ -31,6 +31,7 @@ import {
 import { EmptyState } from "@/components/shared/DataStates";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
+import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import { formatCurrency } from "@/lib/format/number";
@@ -435,14 +436,14 @@ export const ItemListCard = memo(function ItemListCard({
                       単価（円）
                       <RequiredMark />
                     </Label>
-                    <Input
+                    <MoneyInput
+                      variant="inline"
                       id="manual-price"
-                      type="number"
                       step={1}
                       min={0}
-                      value={manualPrice}
-                      onChange={(e) => {
-                        setManualPrice(e.target.value);
+                      stringValue={manualPrice}
+                      onStringChange={(v) => {
+                        setManualPrice(v);
                         if (manualPriceError) setManualPriceError("");
                       }}
                       placeholder="例: 3000"
