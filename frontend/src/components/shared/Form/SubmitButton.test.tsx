@@ -24,8 +24,10 @@ describe("SubmitButton", () => {
     expect(button.className).toContain(C.bgBrandIdentity);
     expect(button.className).toContain("text-white");
     expect(button.className).not.toContain("text-black");
-    expect(button.className).toContain("text-xl");
-    expect(button.className).toContain("font-bold");
+    expect(button.className).toContain("text-base");
+    expect(button.className).toContain("font-medium");
+    expect(button.className).not.toContain("text-xl");
+    expect(button.className).not.toContain("font-bold");
     expect(button.className).not.toContain("font-semibold");
     expect(button.className).toContain("rounded-full");
   });

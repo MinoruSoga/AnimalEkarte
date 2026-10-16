@@ -62,6 +62,12 @@ describe("ResetPasswordPage recovery behavior", () => {
     expect(screen.getByRole("link", { name: "ログインページに戻る" })).toHaveClass("min-h-11");
     expect(screen.getByPlaceholderText("8文字以上で入力")).toHaveClass("pr-12");
     expect(screen.getByPlaceholderText("同じパスワードを入力")).toHaveClass("pr-12");
+    expect(screen.getByText("新しいパスワード", { selector: "label" })).toHaveClass("text-base");
+    expect(screen.getByText("新しいパスワード", { selector: "label" })).not.toHaveClass("text-sm");
+    expect(screen.getByText("パスワード（確認）", { selector: "label" })).toHaveClass("text-base");
+    expect(screen.getByText("パスワード（確認）", { selector: "label" })).not.toHaveClass(
+      "text-sm",
+    );
   });
 
   it("有効なリンク画面のCTAとロゴは brand identity teal を明示する", () => {

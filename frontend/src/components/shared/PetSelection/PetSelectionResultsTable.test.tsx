@@ -574,6 +574,8 @@ describe("PetSelectionResultsTable row actions", () => {
     const selectButton = screen.getByRole("button", { name: "選択: ポチ (ID pet-1)" });
     expect(selectButton.tagName).toBe("BUTTON");
     expect(selectButton).toHaveClass("min-h-11", "min-w-11");
+    expect(selectButton).toHaveClass("text-base");
+    expect(selectButton).not.toHaveClass("text-sm");
     await user.click(selectButton);
     expect(onSelect).toHaveBeenCalledWith(PET);
   });

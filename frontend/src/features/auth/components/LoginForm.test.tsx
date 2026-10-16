@@ -43,6 +43,10 @@ describe("LoginForm touch targets", () => {
       "min-h-11",
     );
     expect(screen.getByPlaceholderText("パスワードを入力")).toHaveClass("pr-12");
+    expect(screen.getByText("メールアドレス", { selector: "label" })).toHaveClass("text-base");
+    expect(screen.getByText("メールアドレス", { selector: "label" })).not.toHaveClass("text-sm");
+    expect(screen.getByText("パスワード", { selector: "label" })).toHaveClass("text-base");
+    expect(screen.getByText("パスワード", { selector: "label" })).not.toHaveClass("text-sm");
   });
 
   it("ログインCTAは brand teal と認証向け文字スタイルを明示する", () => {
@@ -54,9 +58,9 @@ describe("LoginForm touch targets", () => {
 
     const loginButton = screen.getByRole("button", { name: "ログイン" });
     expect(loginButton).toHaveClass(C.bgBrandIdentity, C.hoverBgBrandIdentity);
-    expect(loginButton).toHaveClass("text-white", "text-xl", "font-bold");
+    expect(loginButton).toHaveClass("text-white", "text-base", "font-medium");
     expect(loginButton).not.toHaveClass("font-semibold");
-    expect(loginButton).not.toHaveClass("text-black", "text-base", "font-medium");
+    expect(loginButton).not.toHaveClass("text-black", "text-xl", "font-bold");
   });
 
   it("backslashを使うcross-origin fromをhomeへ縮退する", async () => {
