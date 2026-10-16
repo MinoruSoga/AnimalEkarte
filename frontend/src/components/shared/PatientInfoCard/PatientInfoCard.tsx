@@ -188,6 +188,16 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 </span>
               )}
             </Tooltip>
+            {microchipNumber ? (
+              <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
+                <span
+                  className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4 truncate max-w-[12rem]`}
+                  aria-label={`マイクロチップ番号 ${microchipNumber}`}
+                >
+                  {microchipNumber}
+                </span>
+              </Tooltip>
+            ) : null}
             <DangerBadge
               variant="pet"
               level={petDangerLevel}
@@ -205,16 +215,6 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             ) : null}
           </div>
           <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${C.text60}`}>
-            {microchipNumber ? (
-              <Tooltip content={microchipNumber} className="min-w-0 max-w-[200px]">
-                <span
-                  className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4 truncate max-w-[12rem]`}
-                  aria-label={`マイクロチップ番号 ${microchipNumber}`}
-                >
-                  {microchipNumber}
-                </span>
-              </Tooltip>
-            ) : null}
             {petNumber ? (
               <span
                 className={`font-mono text-2xs px-1 py-0 rounded ${C.bgPage} border ${C.borderMediumLight} ${C.text65} leading-4`}

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 
 import { C } from "@/lib/design-tokens";
 import { PatientInfoCard } from "./PatientInfoCard";
@@ -258,5 +259,65 @@ describe("PatientInfoCard 担当者必須マーク (EMR-412 X14)", () => {
     expect(plainButton).toHaveAttribute("aria-invalid", "true");
     await user.click(plainButton);
     expect(onClick).toHaveBeenCalledTimes(2);
+  });
+});
+
+// PR679: 提供されたマイクロチップ番号は付帯属性行ではなく、ペット名と同じ既存の名前行に表示する
+// （旧 PatientContextHeader と同じ扱い。petDetails・体重などの付帯属性と混在させない）。
+describe("PatientInfoCard マイクロチップ番号の行 (PR679)", () => {
+  const microchipNumber = "392140000123456";
+  const petDetails = "13歳7ヶ月 / 雄 / 不明";
+  const chipProps = { microchipNumber, petDetails };
+
+  it("テキスト表示でもペット名と同じ行にマイクロチップ番号を置く", () => {
+    render(<PatientInfoCard {...baseProps} {...chipProps} />);
+
+    const chip = screen.getByLabelText(`マイクロチップ番号 ${microchipNumber}`);
+    const nameLeaf = screen.getByText(baseProps.petName, { selector: "span.truncate" });
+    const row = nameLeaf.closest("div");
+
+    expect(row).toContainElement(chip);
+    expect(row).not.toContainElement(screen.getByText(petDetails));
+    expect(row).not.toContainElement(screen.getByText(baseProps.weight));
+  });
+
+  it("ペット詳細リンク表示でも同じ行にマイクロチップ番号を置く", () => {
+    render(
+      <MemoryRouter>
+        <PatientInfoCard {...baseProps} {...chipProps} petDetailHref="/owners/1/pets/2" />
+      </MemoryRouter>,
+    );
+
+    const chip = screen.getByLabelText(`マイクロチップ番号 ${microchipNumber}`);
+    const row = screen.getByLabelText("ペット詳細を開く").closest("div");
+
+    expect(row).toContainElement(chip);
+    expect(row).not.toContainElement(screen.getByText(petDetails));
+    expect(row).not.toContainElement(screen.getByText(baseProps.weight));
+  });
+
+  it("表示書式（font-mono・truncate・aria-label）と全文保持を維持する", () => {
+    render(<PatientInfoCard {...baseProps} microchipNumber={microchipNumber} />);
+
+    const chip = screen.getByLabelText(`マイクロチップ番号 ${microchipNumber}`);
+    expect(chip).toHaveClass("font-mono");
+    expect(chip).toHaveClass("truncate");
+    expect(chip).toHaveTextContent(microchipNumber);
+    // 省略は CSS のみ。チップ本体と Tooltip 内容の両方に全文が残る
+    expect(screen.getAllByText(microchipNumber).length).toBeGreaterThan(1);
+  });
+
+  it("未指定・空文字では表示せず、rerender で外しても取り残さない", () => {
+    const { rerender } = render(<PatientInfoCard {...baseProps} />);
+    expect(screen.queryByLabelText(/マイクロチップ番号/)).not.toBeInTheDocument();
+
+    rerender(<PatientInfoCard {...baseProps} microchipNumber="" />);
+    expect(screen.queryByLabelText(/マイクロチップ番号/)).not.toBeInTheDocument();
+
+    rerender(<PatientInfoCard {...baseProps} microchipNumber={microchipNumber} />);
+    expect(screen.getByLabelText(`マイクロチップ番号 ${microchipNumber}`)).toBeInTheDocument();
+
+    rerender(<PatientInfoCard {...baseProps} />);
+    expect(screen.queryByLabelText(/マイクロチップ番号/)).not.toBeInTheDocument();
   });
 });
