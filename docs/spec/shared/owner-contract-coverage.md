@@ -123,3 +123,9 @@ D14の複製／CSV入力は[新操作の意味契約](../../design/domains/staff
 ### 追加採用の検査・初診問診・予防帳票の接続
 
 [D07の保存結果・選択印刷・感染症投影](../domains/examinations/lifecycle.md#fr-examinations-infection-summary)では、D04／D03患者トップが同じ固定結果版・項目ref・検査日・出典・訂正／取得状態を読む。台帳PATCHや問診自己申告で原結果を上書き・確認済みに昇格させず、陰性／0・未実施・結果待ち・不明／取得失敗を区別する。D20へ公開しない。D03は初診問診と予防薬記録のowner、D21は既存レポート入口から許可された専用2帳票だけを参照・印刷する。印刷による処方、投薬、会計、通知の副作用を追加しない。
+
+## 原資料追加採用6点のowner接続
+
+[D14職員](../domains/staff-workforce/README.md#staff-source-adoption-20261015)の属性と休業期間はD01の新規指名候補／既存予約保護へ渡し、認可roleや既存予約を自動変更しない。[D10月次未納](../domains/accounting/pages/unpaid-list.md#unpaid-monthly-source-adoption)は元請求・実入金・預り金充当／解除・訂正を区別し、調整表示の未決を残す。[D12日次内訳](../screens/29-closing-aggregation.md#closing-source-breakdown)はD10の保存済み会計額から参照し、税再計算writeを行わない。[D03薬量](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)は承認済み単純計算範囲と今回選択版を保持し、原資料OCRや一般yesを臨床値承認へ変換しない。
+
+今回の追加ACは12、既存FR／ACの保護を継承する。新しい全owner再レビュー完了を意味しない。

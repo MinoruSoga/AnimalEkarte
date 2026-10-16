@@ -89,3 +89,7 @@ flowchart TB
 | GET | `/api/v1/reports/monthly/csv` | 集計データの CSV 出力（同じく年月・期間の両指定に対応） | `accounting-reports` | `view` |
 
 ---
+
+## 日次集計の追加内訳
+
+[原資料採用正本・追加2AC](29-closing-aggregation.md#closing-source-breakdown)へ従い、往診／トレセンを独立表示し、病院／トリミング別の保存済み税・値引きを表示する。分類・税・値引き・支払実額は別概念で、表示配賦で元会計総額を変えない。金額配賦の契約本文は画面29の唯一正本へ維持し、旧分類数を目標の固定数にしない。

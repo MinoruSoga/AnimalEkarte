@@ -433,3 +433,7 @@ Sentinel_0adf405e47508191abf775b6c4af22a3 の回答1・2に基づき、[初診�
 予防薬はD03の処方／投薬管理で、D08接種とは区別する。表示・専用2帳票の出力入口は、カルテ右上レポートから開く[既存D21](../../../screens/39-owner-report.md#owner-report-preventive-output)。D21全体の印刷・共有・臨床writeを解禁せず、一般薬歴だけで専用機能を代替しない。新しい別メニューは設ける要件にしない。旧資料・ユーザー申告と固定headの静的観察は予防薬正本で区別する。
 
 原紙対応表・FR／AC本文は上記2正本、[語彙](../../../ontology/medical-records.md#medical-record-intake-prevention-ontology)、[保存／参照／印刷の技術trace](../../../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)へ接続。今回5FR／28ACは追加採用範囲の計数で、既存の診断／バイタル・他領域の合意件数や実装／実機PASSに加算しない。
+
+## 薬量の自動範囲・複数パターン
+
+[薬量追加採用の正本・追加4AC](../lifecycle.md#dose-source-adoption-20261015)へ従う。用量パターンは薬剤／動物種に加え目的・経路で区別する承認対象で、今回の明示選択と当時版を持つ。薬剤masterの1件と一対一に限定しない。単純体重計算から1回製剤量を得る範囲と、医師確認・理由付き手入力を区別する。目的／経路別選択は複雑protocol自動実行ではなく、具体値の臨床承認#261も代替しない。現行単一用量パラメータの記述は実装参照で、複数パターン対応済みの根拠ではない。

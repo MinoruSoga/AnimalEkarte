@@ -393,3 +393,24 @@ stateDiagram-v2
 ## 最終照合と利用開始の境界
 
 [実API／DTO・互換・全writer](../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[空／旧値／専用intent](../../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)へ接続する。現deleteのdraft／見積保護だけを空誤作成条件の充足としない。現在医師判定・必要編集ログ・依存版／receipt・旧consumer対応未確認なら、新しい専用操作の利用開始を止める。保存§2、以前の保存版・元日付・同ID・既存追記履歴と別ownerの処理境界を維持する。通常編集・クリア／複製取消・終了警告は2026-10-15最新合意へ従う。文書整理の完了は実装／実機／薬量具体値の医師承認を表さない。
+
+<a id="dose-source-adoption-20261015"></a>
+## 薬量原資料からの追加採用（2026-10-15）
+
+[薬用量原資料DOCX](https://docs.google.com/document/d/1PbKqhZg-Y5tc7CxLucHnYUWlJSDin78Z/edit)・[原資料PDF](https://drive.google.com/file/d/1slw60X9-2I0LPIe333CZxia1y29eiZpq/view)との照合に対するユーザーの2項目yes（Sentinel_e1272a0f140c8191a2cd465e822364d4）は次の機能範囲の採用である。資料中の具体的な投薬値・OCR・手書き追記の臨床承認ではない。
+
+1. 自動計算は犬・猫の確認済み体重と承認済み単純体重用量から1回製剤量を求める範囲とする。用量basis、単位、製剤含量、必要な回数を明示検証する。1日量basisなら承認された投与回数によって1回量へ変換し、総日数分の処方総量と混同しない。欠落単位・頻度を推定しない。
+2. 同じ薬剤・動物種でも目的／投与経路別に複数の用量パターンを登録し、今回のパターンを明示選択できる。先頭・最近使用・薬名だけから自動確定しない。選択した承認済みパターンと計算条件・結果の当時内容を追跡する。
+
+他種、体表面積m²、CRI、検査値依存は自動範囲外として医師確認・理由付き手入力へ渡す。mg/kgの記載があっても固定量・体重帯・初期／維持・漸減・累積上限・併用／前投与依存・効果調節を新たに自動化しない。複雑protocolを目的／経路別パターン選択で自動実行する許可ではない。吸入の噴霧回数と呼吸回数も独立した手順情報であり、噴霧量×回数×呼吸回数という計算へ変換しない。
+
+[評価不能時の既存境界](#requirement-fr-medical-records-unevaluable-dose-manual)を継承する。評価可能な絶対上限超過は丸め後も拒否、下限／逸脱理由条件は保持する。通信失敗・認可／医院／患者／薬剤不一致を医師手入力で迂回しない。対象薬・種・数値・範囲・単位・出典の承認#261は別工程のままで、今回のyesを代用しない。初診問診の旧感染症既定値は真の結果へ自動変換しない。
+
+既存FR-medical-records-unevaluable-dose-manualの追加受入（実機未実施）：
+
+| AC | Given / When | Then |
+|:---|:---|:---|
+| AC-dose-source-simple-scope | 犬猫・承認済み単純体重用量・整合した単位／含量／必要回数で計算する | 選択条件から1回製剤量を得て、根拠と当時版を追跡する。総処方量と区別する |
+| AC-dose-source-outside-scope | 他種／m²／CRI／検査依存／複雑protocolの値を入力する | 自動安全評価済みとせず既存の医師確認・理由付き手入力へ渡す。取得失敗や照合不一致は迂回しない |
+| AC-dose-source-pattern-choice | 同薬同種に目的／経路の異なる承認済みパターンがある | 明示選択まで自動確定しない。目的・経路・版の違いを保持し、master改訂で過去結果を変えない |
+| AC-dose-source-approval-limit | 未承認値・丸め後上限超過・必要単位欠落がある | yesや登録操作を数値承認と扱わず、既存の承認／評価不能／拒否境界を維持する |

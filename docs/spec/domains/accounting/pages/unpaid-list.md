@@ -166,4 +166,19 @@ flowchart LR
 | GET | `/api/v1/accountings/unpaid-period` | 月末未納者一覧の期間集計（`start_date`/`end_date` 必須）取得 | `accounting` | `view` |
 | GET | `/api/v1/accountings/unpaid-balance` | 特定飼主の未入金残高と件数の取得（本画面からは未呼出。実際は会計詳細画面 `/accounting/:id` の `OwnerUnpaidBalanceCard` から呼び出される） | `accounting` | `view` |
 
+<a id="unpaid-monthly-source-adoption"></a>
+## 月次未納帳票の追加採用
 
+[backlog「例）5月の未納者の出力」A1:K10](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=806555289&range=A1:K10)と2026-10-15の採用回答に基づく。前月末残・当月未払い・当月入金・翌月繰越を月次帳票へ表示する。毎月1日に前月分を期間指定して手動印刷できることが目標で、自動配信／自動印刷や全画面の現在月既定値の変更ではない。
+
+元請求・実入金と各訂正のidentity／発生日を維持する。預り金の受領と充当を二重に入金計上せず、請求減額・取消を現金入金へ変換しない。帳票表示のために請求残高や実収支を変更しない。単純な請求・入金だけの月は前月末残＋当月未払い−当月入金＝翌月繰越で照合する。
+
+預り金充当／解除・請求訂正を含む月の4列への表示対応は追加判断が必要。これらを黙って当月入金へ混入させず、調整内訳を別掲する案は未採用として設計に記録する。残高不一致の帳票を照合済み扱いにしない。
+
+既存FR-accounting-document-and-aged-debtの追加受入（実機未実施）：
+
+| AC | Given / When | Then |
+|:---|:---|:---|
+| AC-unpaid-source-month | 月初に前月期間を指定して印刷する | 指定月の4列と対象期間が出力され、当月既定検索／自動印刷は変更されない |
+| AC-unpaid-source-reconcile | 単純な請求・実入金だけの月を表示する | 前月末残＋当月未払い−当月入金が翌月繰越と一致する |
+| AC-unpaid-source-adjustment-boundary | 預り金充当や請求減額を含む月を照合する | 実入金を偽装せず元残高と突合する。未決の表示対応を検出し、完成／受入済みとしない |
