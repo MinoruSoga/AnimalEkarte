@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 
 // Internal
 import { normalizedIncludes } from "@/lib/normalize-kana";
+import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useGetRecordExaminations } from "../api/get-record-examinations";
@@ -45,6 +46,10 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const examId = searchParams.get(MEDICAL_RECORD_EXAM_ID_PARAM);
+  const { canCreate } = usePermission("medical-records");
+  // EMR-412 K5: 作成権限なしもロック扱いにし、取り込み導線を出さない。
+  const isImportLocked = isLocked || !canCreate;
+  const canImport = !isNewRecord && !isImportLocked;
 
   const {
     data: examinationResult,
@@ -65,15 +70,16 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   }, [apiExamGroups, deferredSearch, examId]);
 
   const handleImportClick = useCallback(() => {
+    if (!canImport) return;
     setIsImportDialogOpen(true);
-  }, []);
+  }, [canImport]);
 
   const handleImported = useCallback(() => {
     void refetch();
   }, [refetch]);
 
   // EMR-412 K5: ロック中（確定済/編集権限なし）は理由で文言を分ける。
-  const lockedEmptyMessage = getLockedEmptyStateMessage({ isFinalized, isLocked });
+  const lockedEmptyMessage = getLockedEmptyStateMessage({ isFinalized, isLocked: isImportLocked });
 
   return (
     <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1">
@@ -86,7 +92,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
         onDateStartChange={setDateStart}
         dateEnd={dateEnd}
         onDateEndChange={setDateEnd}
-        onImport={isNewRecord ? undefined : handleImportClick}
+        onImport={canImport ? handleImportClick : undefined}
       />
 
       {/* Results Title */}
@@ -115,12 +121,12 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
                 "検査記録がありません。「記録を追加」ボタンから追加してください。")}
           </p>
           {/* EMR-412 K4: 追加ボタンは STYLE.inlineAddBtn に統一。ロック中は定期健診と同じく出さない。 */}
-          {isNewRecord || isLocked ? null : (
+          {canImport ? (
             <button type="button" className={STYLE.inlineAddBtn} onClick={handleImportClick}>
               <Plus className={ICON.xs} />
               <span>記録を追加</span>
             </button>
-          )}
+          ) : null}
         </div>
       ) : null}
       <div className="flex flex-col gap-4 pl-1">
@@ -137,7 +143,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
       </div>
 
       {/* Examination Import Dialog */}
-      {isImportDialogOpen ? (
+      {canImport && isImportDialogOpen ? (
         <Suspense fallback={null}>
           <ExaminationImportDialog
             open={isImportDialogOpen}

@@ -38,7 +38,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        {canCreate ? (
+        {canCreate && onImport ? (
           <Button
             type="button"
             size="sm"
