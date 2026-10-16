@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { screenArticles, workflowArticles } from "@/lib/manual-index";
 import { canonicalCorpusJson, baseCorpusRevision, verifyBaseCorpusRevision } from "./manual-corpus";
 
 describe("manual corpus constants", () => {
@@ -7,7 +8,13 @@ describe("manual corpus constants", () => {
     expect(baseCorpusRevision).not.toBe("");
   });
 
-  it("verifyBaseCorpusRevision matches computed hash to the generated constant", async () => {
+  it("bundled base corpus hashes to baseCorpusRevision", async () => {
+    const base = [...screenArticles, ...workflowArticles];
+    expect(base.length).toBeGreaterThan(0);
+    await expect(verifyBaseCorpusRevision(base)).resolves.toBe(true);
+  });
+
+  it("returns false for a corpus that differs from the generated base", async () => {
     const articles = [
       {
         category: "screens" as const,
@@ -19,8 +26,7 @@ describe("manual corpus constants", () => {
         keywords_vi: [],
       },
     ];
-    const matches = await verifyBaseCorpusRevision(articles);
-    expect(typeof matches).toBe("boolean");
+    await expect(verifyBaseCorpusRevision(articles)).resolves.toBe(false);
   });
 });
 

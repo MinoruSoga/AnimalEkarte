@@ -38,6 +38,10 @@ const SEND_ERROR_MESSAGE =
 const SEND_CANCELED_MESSAGE =
   "送信が中断されました。必要であれば「もう一度送信」を選んでください。";
 const RESET_ERROR_MESSAGE = "履歴の削除に失敗しました。時間をおいて再度お試しください。";
+// backend chatMessageMaxLength と同一契約（UTF-8 バイト数。文字数ではない）。
+const MESSAGE_MAX_BYTES = 2000;
+const MESSAGE_TOO_LONG_MESSAGE =
+  "メッセージが長すぎます。2000バイト以内に短くしてから送信してください。";
 
 // アシスタント回答はマークダウンで返るため react-markdown で描画する。
 // components 上書きは lib/chat-markdown-components で履歴ページと共有する。
@@ -246,9 +250,18 @@ export function HelpChat({
     });
   };
 
+  const inputTooLong = new TextEncoder().encode(input).length > MESSAGE_MAX_BYTES;
+
   const handleSend = () => {
     const text = input.trim();
-    if (text.length === 0 || send.isPending || sendingRef.current || !hydrated || !canSubmit)
+    if (
+      text.length === 0 ||
+      inputTooLong ||
+      send.isPending ||
+      sendingRef.current ||
+      !hydrated ||
+      !canSubmit
+    )
       return;
     setInput("");
     sendMessage(text);
@@ -398,6 +411,11 @@ export function HelpChat({
           </Link>
         </p>
       )}
+      {inputTooLong ? (
+        <p role="alert" className={`text-2xs ${C.danger}`}>
+          {MESSAGE_TOO_LONG_MESSAGE}
+        </p>
+      ) : null}
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
@@ -419,12 +437,11 @@ export function HelpChat({
           rows={1}
           placeholder="例: レジ締めの手順は？"
           aria-label="使い方を質問"
-          maxLength={2000}
           className="max-h-32 flex-1"
         />
         <button
           type="submit"
-          disabled={input.trim().length === 0 || isBusy || !hydrated || !canSubmit}
+          disabled={input.trim().length === 0 || inputTooLong || isBusy || !hydrated || !canSubmit}
           aria-label="送信"
           className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} p-2 transition-colors disabled:opacity-50 disabled:pointer-events-none`}
         >

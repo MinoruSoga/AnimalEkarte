@@ -802,8 +802,12 @@ func newSupportChatCompleter(cfg *config.Config) support.ChatCompleter {
 
 // newSupportEmbedder は embeddings クライアントを返す。
 // hybrid 無効・未承認・キー未設定なら nil（意味検索は index_missing/縮退）。
+// 承認済み Sarashina 以外のエンドポイントも nil（support-index と同一の完全一致ゲート）。
 func newSupportEmbedder(cfg *config.Config) support.ManualEmbedder {
 	if !cfg.SupportHybridSearchEnabled || !cfg.SupportExternalDataApproved {
+		return nil
+	}
+	if cfg.SupportEmbeddingBaseURL != "https://api.sarashina.ai/v1" {
 		return nil
 	}
 	return support.NewSarashinaEmbedder(

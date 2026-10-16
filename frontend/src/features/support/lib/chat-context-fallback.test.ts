@@ -12,6 +12,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createManualSearcher, screenArticles, workflowArticles } from "@/lib/manual-index";
+import type { ManualArticle } from "@/lib/manual-index";
 
 import { buildChatContext, buildKeywordCandidates } from "./chat-context";
 import { evalCases } from "./eval-cases";
@@ -116,5 +117,39 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
         `control "${c.question}" に pre-gate 候補 — ノーマッチではなく弱ヒット`,
       ).toBe(0);
     }
+  });
+});
+
+describe("buildKeywordCandidates slug contract", () => {
+  // backend candidateSlugRe (^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$) と同一契約。
+  // upsert は slug 非空のみ検証するため、契約外 slug のオーバーライド記事が
+  // Fuse 候補に混ざっても 400 "invalid keyword candidate" にならないことを検証。
+  const mkArticle = (slug: string): ManualArticle => ({
+    category: "screens",
+    slug,
+    title: slug,
+    order: 1,
+    section: "s",
+    content: "c",
+    searchText: slug,
+    keywords: [],
+    keywords_vi: [],
+  });
+
+  it("契約外 slug の記事は候補から除外される", () => {
+    const pool = [
+      mkArticle("ok-slug"),
+      mkArticle("日本語"),
+      mkArticle("-draft"),
+      mkArticle("a.b"),
+      mkArticle("also_ok-1"),
+    ];
+    const got = buildKeywordCandidates(() => pool, "カルテの作成方法は？");
+    expect(got.map((c) => c.slug).sort()).toEqual(["also_ok-1", "ok-slug"]);
+  });
+
+  it("全候補が契約外なら空配列（400 にならない）", () => {
+    const pool = [mkArticle("日本語"), mkArticle("a.b")];
+    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？")).toEqual([]);
   });
 });

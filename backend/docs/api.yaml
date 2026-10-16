@@ -73,7 +73,6 @@ components:
         message:
           type: string
           minLength: 1
-          maxLength: 2000
           description: ユーザーの質問（UTF-8 で最大 2000 バイト。スクリーニングで機微情報検出時は 400）
         manual_revision:
           type: string

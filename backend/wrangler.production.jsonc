@@ -114,7 +114,7 @@
     "SUPPORT_LLM_BASE_URL": "https://api.z.ai/api/paas/v4",
     "SUPPORT_LLM_MODEL": "glm-4.5-flash",
     // EMR-410 ハイブリッド検索（既定: 無効）。SUPPORT_EMBEDDING_API_KEY はシークレット
-    // （backend/.env → `pnpm cf:secrets`、required 外）。有効化は別途承認手順のみ。
+    // （backend/.env → `pnpm cf:secrets:prod`、required 外）。有効化は別途承認手順のみ。
     "SUPPORT_HYBRID_SEARCH_ENABLED": "false",
     "SUPPORT_EXTERNAL_DATA_APPROVED": "false",
     "SUPPORT_EMBEDDING_BASE_URL": "https://api.sarashina.ai/v1",
