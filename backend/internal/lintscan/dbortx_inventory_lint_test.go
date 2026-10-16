@@ -835,6 +835,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// authorization decision observes the caller's ambient-tx snapshot (link_write_auth.go).
 	// Runtime: link_write_auth_test.go service-level authorization cases.
 	"identitylink/link_write_auth.go|dbLinkWriteAuthorizer.AuthorizeLinkWrite": {},
+	// Support shared cache/quota: participate in the caller's ambient transaction.
+	// SQL coverage: TestRealDB_SupportManualSearchAmbientTx (explicit integration opt-in).
+	"support/llm_budget.go|llmBudgetGranter.GrantAll":           {},
+	"support/manual_cache.go|manualEmbeddingCache.Load":         {},
+	"support/manual_cache.go|manualEmbeddingCache.StoreWithKey": {},
 	// trimming detail (uniform dbOrTx)
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming/trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
