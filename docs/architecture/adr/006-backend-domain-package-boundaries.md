@@ -56,6 +56,8 @@ backend/internal/
 
 > 2026-09-29 amendment: `support/` をサポートウィジェット（バグ報告 + LLMヘルプチャット）の vertical slice として target domain に追加（**15 target package**。実装は 2026-09-26 に追加済み。`domainImportAllowlist` の許可 edge は `support → httpapi` のみ。`PermissionMiddleware` / `fileUploader` / `ChatCompleter` は consumer-side interface で composition root が注入し、`apperrors` / `model` 以外の他 domain への production import はない）。
 
+> EMR-410 amendment: backend-authoritative manual retrieval のため `support → manualarticle` を追加で許可する。利用対象は公開 corpus/chunk API に限り、記事 CRUD の write owner は `manualarticle`、認可済み corpus の検索と派生 embedding/quota の所有者は `support` とする。逆方向の `manualarticle → support` は禁止したまま、許可 graph の acyclicity と両方向の fixture を `TestDomainImportAllowlistLint` で検証する。既存の provider 承認・tenant/permission・transaction 境界は変更しない。
+
 ### Product philosophyに基づく運用境界（project decision）
 
 [`docs/product-philosophy.md`](../../product-philosophy.md)はproductのWHAT / WHYと判断順序を定める文書であり、このfolder tree自体を要求しない。本ADRは、業務workflowの一貫性と変更cycle timeをpackage境界へ反映するため、上記構成を**domain/capability-firstのmodular monolith**として運用する。

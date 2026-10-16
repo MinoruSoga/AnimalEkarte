@@ -247,6 +247,8 @@ file分割、typed adapter、domain-owned composition/test helperの追加によ
 - **route**: Yes — `/manual/articles`(+`/:category/:slug`,`/versions`)。
 - **tenant boundary**: global-master(clinic横断共通、リスクなし)。
 
+> EMR-410 追記（現行依存）: `support` は `manualarticle` の公開 corpus/chunk API を読み取り用途で利用する。`support` の domain 依存は `httpapi` と `manualarticle`。記事 CRUD の write owner は `manualarticle` のままで、`manualarticle → support` は許可しない。上記の consumer/fan-in は分類時点の履歴値である。
+
 ### 3.13 httpapi (`target:httpapi` 12 source rows)
 
 汎用Gin response/binding/validation helper。生成的で高fan-inかつビジネスドメイン知識ゼロという条件を満たす: `response.go`(RespondError 92 file)、`bind_errors.go`(parseBindError 81 file)、`context_helpers.go`(extractClinicID 85 file、extractStaffID 20 file)、`query_helpers.go`(parseIDParam 72 file)、`slice_helpers.go`(mapSlice 63 file)、`time_response.go`(localTime 59 file)、`date.go`、`list_query_request.go`、`response_pg.go`。
@@ -323,7 +325,7 @@ fan-out: 0(依存先を持たない純粋リーフ)。route: N/A(自身はルー
 
 ### 5.0 acyclicity機械検証（round2 santa dual-reviewで要求されたコマンド+出力の明示）
 
-この 13 node / 45 edge は **BE9-2A 当時の historical design snapshot** である。現行 mechanical allowlist は `identitylink`・`support` を含む 15 domain / 47 edge で、§5.2 の lint source を正とする。DESIGNされた許可依存グラフ（13 target package、下記10cycleの解消後に残るedgeのみ）に対し、使い捨てPythonスクリプト（Kahnのtopological sortアルゴリズム、scratchpadのみに配置・repo非コミット——本タスクの制約「使い捨てmeasurement scriptはscratchpadのみ・repo非コミット」に従う）でcycle detectionを実行した。**検証対象はDESIGNされた許可グラフであり、生の現行コード参照グラフではない**——後者は10組のraw cycleを含むため意図的にacyclicではない（advisorの助言通り、acyclicity証明はDESIGNされたグラフに対してのみ行う）。
+この 13 node / 45 edge は **BE9-2A 当時の historical design snapshot** である。現行 mechanical allowlist は `identitylink`・`support` を含む 15 domain / 48 edge で、§5.2 の lint source を正とする。DESIGNされた許可依存グラフ（13 target package、下記10cycleの解消後に残るedgeのみ）に対し、使い捨てPythonスクリプト（Kahnのtopological sortアルゴリズム、scratchpadのみに配置・repo非コミット——本タスクの制約「使い捨てmeasurement scriptはscratchpadのみ・repo非コミット」に従う）でcycle detectionを実行した。**検証対象はDESIGNされた許可グラフであり、生の現行コード参照グラフではない**——後者は10組のraw cycleを含むため意図的にacyclicではない（advisorの助言通り、acyclicity証明はDESIGNされたグラフに対してのみ行う）。
 
 ```
 $ python3 be92a_toposort.py
@@ -390,6 +392,7 @@ flowchart TB
     manualarticle --> httpapi
     identitylink --> httpapi
     support --> httpapi
+    support --> manualarticle
 ```
 
 ### 5.1 生cycleの解消方式一覧

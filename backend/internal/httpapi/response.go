@@ -98,6 +98,15 @@ func ResolveErrorResponse(err error) (status int, message, code string) {
 		if hasApp {
 			code = appErr.Code
 		}
+	case errors.Is(err, apperrors.ErrTooManyRequests):
+		status = http.StatusTooManyRequests
+		message, code = appMessageAndCode(hasApp, appErr, "too many requests")
+	case errors.Is(err, apperrors.ErrServiceUnavailable):
+		status = http.StatusServiceUnavailable
+		message, code = appMessageAndCode(hasApp, appErr, "service unavailable")
+	case errors.Is(err, apperrors.ErrGatewayTimeout):
+		status = http.StatusGatewayTimeout
+		message, code = appMessageAndCode(hasApp, appErr, "gateway timeout")
 	case errors.Is(err, apperrors.ErrBadGateway):
 		status = http.StatusBadGateway
 		message, code = appMessageAndCode(hasApp, appErr, "bad gateway")

@@ -92,8 +92,9 @@ OFFLINE_GO_PACKAGE_FLAGS = {
 }
 
 # Fixed source inputs for Go contracts that read outside the backend module.
-# Only these individual worktree documents are exposed; never mount the repo root.
+# Expose only individual allowlisted files; never mount the repo root.
 BACKEND_CONTRACT_DOCUMENTS = {
+    './internal/apicontract': ('frontend/src/types/generated/medicalrecord-responses.ts',),
     './internal/auth': ('docs/ops/deploy/accounts/FIRST_SYSTEM_ADMIN.md',),
     './internal/medicalrecord': (
         'docs/ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md',
@@ -101,15 +102,73 @@ BACKEND_CONTRACT_DOCUMENTS = {
     ),
 }
 
+MANUAL_CORPUS_CHECK_COMMAND = (
+    'go', 'run', './cmd/manual-corpus',
+    '-frontend', '/frontend', '-backend', '/app', '-check',
+)
+MANUAL_CORPUS_ARTIFACTS = frozenset({
+    'backend/internal/manualarticle/corpus.generated.json',
+    'backend/internal/support/search_dict.go',
+    'frontend/src/constants/manual-corpus.generated.ts',
+    'frontend/src/constants/manual-search-dict.json',
+})
+SUPPORT_ROLLOUT_CHECK_COMMAND = (
+    'python3', '-B', 'scripts/checks/check-support-manual-config.py',
+)
+SUPPORT_ROLLOUT_TEST_COMMAND = (
+    'python3', '-B', 'scripts/checks/test_support_manual_config.py',
+)
+SUPPORT_ROLLOUT_INPUTS = (
+    'backend/wrangler.jsonc',
+    'backend/wrangler.production.jsonc',
+    SUPPORT_ROLLOUT_CHECK_COMMAND[-1],
+    SUPPORT_ROLLOUT_TEST_COMMAND[-1],
+)
+
+
+def manual_corpus_input_path(relative: str) -> pathlib.Path:
+    validate_path(relative)
+    current = ROOT
+    for part in pathlib.PurePosixPath(relative).parts:
+        current /= part
+        if current.is_symlink():
+            raise ValueError('Manual corpus inputs must not use symlinks')
+    return current
+
+
+def manual_corpus_contract_documents() -> list[str]:
+    documents = [
+        'frontend/src/constants/manual-corpus.generated.ts',
+        'frontend/src/constants/manual-search-dict.json',
+    ]
+    for category in ('screens', 'workflows'):
+        relative = f'frontend/src/features/manual/content/{category}'
+        directory = manual_corpus_input_path(relative)
+        entries = sorted(directory.glob('*.md'))
+        if not entries:
+            raise ValueError('Manual corpus Markdown category is empty: ' + category)
+        documents.extend(path.relative_to(ROOT).as_posix() for path in entries)
+    for document in documents:
+        if not manual_corpus_input_path(document).is_file():
+            raise ValueError('Required manual corpus input is missing: ' + document)
+    return sorted(documents)
+
 
 def backend_contract_documents(command):
-    return sorted({document for package, documents in BACKEND_CONTRACT_DOCUMENTS.items()
-                   if package in command for document in documents})
+    documents = {document for package, documents in BACKEND_CONTRACT_DOCUMENTS.items()
+                 if package in command for document in documents}
+    if tuple(command) == MANUAL_CORPUS_CHECK_COMMAND:
+        documents.update(manual_corpus_contract_documents())
+    return sorted(documents)
 
 
 def scoped_contract_documents(paths):
-    return sorted({document for job in plan(paths)[0] if job['service'] == 'backend'
-                   for document in backend_contract_documents(job['command'])})
+    jobs = plan(paths)[0]
+    documents = {document for job in jobs if job['service'] == 'backend'
+                 for document in backend_contract_documents(job['command'])}
+    if any(tuple(job['command']) == SUPPORT_ROLLOUT_CHECK_COMMAND for job in jobs):
+        documents.update(SUPPORT_ROLLOUT_INPUTS)
+    return sorted(documents)
 
 
 E2E_TSCONFIG_BOOTSTRAP = (
@@ -774,6 +833,32 @@ def plan(paths):
             ]})
         elif path.startswith('backend/worker/') or path == 'backend/wrangler.jsonc':
             jobs.append({'service': 'host', 'command': ['bash', 'scripts/ci/check-test-worker-makefile.test.sh']})
+        elif path in SUPPORT_ROLLOUT_INPUTS:
+            jobs.append({'service': 'host', 'command': list(SUPPORT_ROLLOUT_CHECK_COMMAND)})
+        elif path in ('backend/internal/manualarticle/corpus.generated.json',
+                      'frontend/src/constants/manual-search-dict.json'):
+            job = {'service': 'backend', 'command': list(MANUAL_CORPUS_CHECK_COMMAND)}
+            if job not in jobs:
+                jobs.append(job)
+            if path == 'frontend/src/constants/manual-search-dict.json':
+                jobs.append({
+                    'service': 'frontend',
+                    'command': [
+                        'node', 'node_modules/vitest/vitest.mjs', 'run',
+                        '--configLoader', 'native', '--reporter=json', 'src/features/support',
+                    ],
+                    'require_frontend_tests': True,
+                })
+        elif path == 'backend/internal/support/testdata/retrieval-eval-cases.json':
+            # Integrity/spans only; this does not execute or grade any model.
+            jobs.append({
+                'service': 'backend',
+                'command': [
+                    'go', 'test', '-json', '-race', '-p=1', '-count=1',
+                    './internal/support', '-run=^TestRetrievalEvalFixture$',
+                ],
+                'require_completed_test': True,
+            })
         elif path.startswith('.claude/skills/') and path.endswith('.md'):
             jobs.append({'service': 'host', 'command': ['python3', '-B', '.claude/scripts/test_instruction_safety_contracts.py'], 'requires_mirrors': True})
         elif path == 'backend/docs/api.yaml':
@@ -841,6 +926,24 @@ def plan(paths):
             ]})
         else:
             blocked.append(path)
+    if any(
+        path in MANUAL_CORPUS_ARTIFACTS
+        or path == 'backend/internal/manualarticle/corpus.go'
+        or (path.startswith('backend/cmd/manual-corpus/')
+            and path.endswith('.go') and not path.endswith('_test.go'))
+        or (path.startswith(('frontend/src/features/manual/content/screens/',
+                             'frontend/src/features/manual/content/workflows/'))
+            and path.endswith('.md'))
+        for path in paths
+    ):
+        job = {'service': 'backend', 'command': list(MANUAL_CORPUS_CHECK_COMMAND)}
+        if job not in jobs:
+            jobs.append(job)
+    if any(path in SUPPORT_ROLLOUT_INPUTS for path in paths):
+        for command in (SUPPORT_ROLLOUT_CHECK_COMMAND, SUPPORT_ROLLOUT_TEST_COMMAND):
+            job = {'service': 'host', 'command': list(command)}
+            if job not in jobs:
+                jobs.append(job)
     for path in paths:
         if (path.startswith(('.claude/agents/', '.claude/rules/')) and path.endswith('.md')
                 or pathlib.PurePosixPath(path).name in ('CLAUDE.md', 'AGENTS.md')):

@@ -126,6 +126,15 @@ type Config struct {
 	SupportLLMModel     string
 	SupportLLMTimeoutMS int
 
+	// EMR-410: ハイブリッド検索・外部送信承認（既定はすべて無効/false）。
+	// SupportExternalDataApproved=false の間は Sarashina への質問・文書送信を行わない。
+	SupportHybridSearchEnabled  bool
+	SupportEmbeddingBaseURL     string
+	SupportEmbeddingAPIKey      string
+	SupportEmbeddingModel       string
+	SupportEmbeddingTimeoutMS   int
+	SupportExternalDataApproved bool
+
 	// Plane* はバグ報告の Plane ワークアイテム自動起票設定。
 	// PLANE_API_KEY 未設定の場合は連携無効（報告はローカル保存のみ、
 	// 管理画面からの手動起票は 501）。BaseURL は Plane REST API、
@@ -235,6 +244,13 @@ func Load() *Config {
 		SupportLLMAPIKey:    os.Getenv("SUPPORT_LLM_API_KEY"),
 		SupportLLMModel:     getEnv("SUPPORT_LLM_MODEL", "gpt-5-nano"),
 		SupportLLMTimeoutMS: getEnvInt("SUPPORT_LLM_TIMEOUT_MS", 30000),
+		// EMR-410: ハイブリッド検索・外部送信承認（既定はすべて無効/false）。
+		SupportHybridSearchEnabled:  getEnvBool("SUPPORT_HYBRID_SEARCH_ENABLED", false),
+		SupportEmbeddingBaseURL:     getEnv("SUPPORT_EMBEDDING_BASE_URL", "https://api.sarashina.ai/v1"),
+		SupportEmbeddingAPIKey:      os.Getenv("SUPPORT_EMBEDDING_API_KEY"),
+		SupportEmbeddingModel:       getEnv("SUPPORT_EMBEDDING_MODEL", "sarashina3-embedding"),
+		SupportEmbeddingTimeoutMS:   getEnvInt("SUPPORT_EMBEDDING_TIMEOUT_MS", 1200),
+		SupportExternalDataApproved: getEnvBool("SUPPORT_EXTERNAL_DATA_APPROVED", false),
 
 		PlaneBaseURL:           getEnv("PLANE_BASE_URL", "https://api.plane.so/api"),
 		PlaneWebBaseURL:        getEnv("PLANE_WEB_BASE_URL", "https://app.plane.so"),
@@ -381,6 +397,9 @@ func (c *Config) Validate() error {
 	}
 	if c.SupportLLMAPIKey != "" {
 		if err := validateOptionalReleaseHTTPSURL("SUPPORT_LLM_BASE_URL", c.SupportLLMBaseURL); err != nil {
+			return err
+		}
+		if err := validateOptionalReleaseHTTPSURL("SUPPORT_EMBEDDING_BASE_URL", c.SupportEmbeddingBaseURL); err != nil {
 			return err
 		}
 	}
@@ -570,6 +589,14 @@ func getEnv(key, defaultVal string) string {
 
 // getEnvInt は正の整数として解釈できる場合のみ環境変数値を採用する。
 // 不正値でプール上限が 0(=無制限相当の誤設定)になる事故を防ぐため、失敗時は既定値へフォールバックする。
+func getEnvBool(key string, defaultVal bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return defaultVal
+	}
+	return v == "1" || v == "true" || v == "yes"
+}
+
 func getEnvInt(key string, defaultVal int) int {
 	val := os.Getenv(key)
 	if val == "" {

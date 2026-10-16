@@ -40,10 +40,22 @@ async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
   }
 }
 
-export function useGetManualArticleOverrides(enabled: boolean) {
+// strict 経路: graceful fallback なし。レスポンスの data 配列欠落も失敗扱い。
+async function getManualArticleOverridesStrict(): Promise<ManualArticleOverride[]> {
+  const { data } = await axios.get<ListResponse>("/v1/manual/articles");
+  if (!Array.isArray(data.data)) {
+    throw new Error("manual articles response is missing the data array");
+  }
+  return data.data;
+}
+
+export function useGetManualArticleOverrides(enabled: boolean, strict = false) {
   return useQuery({
-    queryKey: queryKeys.manualArticles.all(),
-    queryFn: getManualArticleOverrides,
+    // strict は別キーに分離し、graceful cache[] と strict 失敗を区別する。
+    queryKey: strict
+      ? [...queryKeys.manualArticles.all(), "strict"]
+      : queryKeys.manualArticles.all(),
+    queryFn: strict ? getManualArticleOverridesStrict : getManualArticleOverrides,
     enabled,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.STANDARD,

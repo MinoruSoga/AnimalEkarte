@@ -3,7 +3,6 @@ package support
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -24,9 +22,6 @@ const (
 	chatHistoryMaxMessages  = 16
 	chatHistoryMaxLength    = 4000
 	chatContextMaxItems     = 6
-	chatContextTitleMaxLen  = 200
-	chatContextFieldMaxLen  = 100
-	chatContextTextMaxLen   = 6000
 	chatMaxCompletionTokens = 1024
 )
 
@@ -56,6 +51,9 @@ type chatContextItem struct {
 type chatRequest struct {
 	Message string            `json:"message"`
 	Context []chatContextItem `json:"context"`
+	// EMR-410 ハイブリッド検索契約。
+	ManualRevision    string            `json:"manual_revision,omitempty"`
+	KeywordCandidates []ManualCandidate `json:"keyword_candidates,omitempty"`
 }
 
 // ChatSource は回答の根拠となったマニュアル記事（レスポンス・履歴保存の双方で使う）
@@ -67,8 +65,9 @@ type ChatSource struct {
 
 // chatResponse は POST /support/chat のレスポンス
 type chatResponse struct {
-	Reply   string       `json:"reply"`
-	Sources []ChatSource `json:"sources"`
+	Reply     string         `json:"reply"`
+	Sources   []ChatSource   `json:"sources"`
+	Retrieval *RetrievalInfo `json:"retrieval,omitempty"`
 }
 
 // chatHistoryItem は GET /support/chat/history の履歴1件
@@ -216,36 +215,6 @@ func (h *Handler) ListChatRooms(c *gin.Context) {
 	c.JSON(http.StatusOK, chatRoomListResponse{Data: items})
 }
 
-// parseChatRequest はチャットリクエストをバインド・検証する。
-func parseChatRequest(c *gin.Context) (*chatRequest, error) {
-	var req chatRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid request body")
-	}
-	req.Message = strings.TrimSpace(req.Message)
-	if req.Message == "" {
-		return nil, apperrors.WrapInvalidInput("message is required")
-	}
-	if len(req.Message) > chatMessageMaxLength {
-		return nil, apperrors.WrapInvalidInput("message is too long")
-	}
-	if len(req.Context) > chatContextMaxItems {
-		return nil, apperrors.WrapInvalidInput("context has too many items")
-	}
-	for _, item := range req.Context {
-		if len(item.Title) > chatContextTitleMaxLen ||
-			len(item.Category) > chatContextFieldMaxLen ||
-			len(item.Slug) > chatContextFieldMaxLen ||
-			len(item.Text) > chatContextTextMaxLen {
-			return nil, apperrors.WrapInvalidInput("context item is too long")
-		}
-	}
-	if err := screenChatOutbound(&req); err != nil {
-		return nil, err
-	}
-	return &req, nil
-}
-
 // chatOutboundScreeningPatterns は外部 LLM へ送信する前に拒否する機微情報パターン。
 // ヒューリスティックな best-effort 分類（完全な検出は保証しない）— 方針として
 // 個人情報・認証情報らしき入力は外部 LLM へ送らず invalid input で拒否する。
@@ -262,25 +231,6 @@ var chatOutboundScreeningPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)(password|passwd|api[_-]?key|secret|token|authorization)\s*[:=]\s*\S+`),
 	// Bearer トークン
 	regexp.MustCompile(`(?i)bearer\s+[a-z0-9._\-]{8,}`),
-}
-
-// screenChatOutbound は外部 LLM へ送信する新規入力（message・context 抜粋）に
-// 機微情報らしき内容が含まれないか検査する。該当時は汎用 invalid_input を返し
-// （どのパターンに当たったかは開示しない）、LLM 呼び出し自体を行わない。
-func screenChatOutbound(req *chatRequest) error {
-	texts := make([]string, 0, len(req.Context)*2+1)
-	texts = append(texts, req.Message)
-	for _, item := range req.Context {
-		texts = append(texts, item.Title, item.Text)
-	}
-	for _, text := range texts {
-		for _, pattern := range chatOutboundScreeningPatterns {
-			if pattern.MatchString(text) {
-				return apperrors.WrapInvalidInput("sensitive information is not allowed in support chat")
-			}
-		}
-	}
-	return nil
 }
 
 // buildChatMessages はシステムプロンプト + 会話履歴 + 最新質問（マニュアル抜粋注入）を組み立てる。
@@ -303,9 +253,15 @@ func buildChatMessages(req *chatRequest, history []ChatMessage) []ChatMessage {
 }
 
 func toChatSources(items []chatContextItem) []ChatSource {
-	sources := make([]ChatSource, len(items))
-	for i, item := range items {
-		sources[i] = ChatSource{Title: item.Title, Category: item.Category, Slug: item.Slug}
+	seen := map[string]struct{}{}
+	sources := make([]ChatSource, 0, len(items))
+	for _, item := range items {
+		key := item.Category + "/" + item.Slug
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		sources = append(sources, ChatSource{Title: item.Title, Category: item.Category, Slug: item.Slug})
 	}
 	return sources
 }
@@ -377,51 +333,15 @@ func (h *Handler) Chat(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapNotImplemented("support chat is not configured"))
 		return
 	}
-	req, err := parseChatRequest(c)
-	if err != nil {
-		httpapi.RespondError(c, err)
+	// EMR-410: 本番経路は manualSearch 依存必須。欠落は 503。
+	if h.manualSearch == nil {
+		httpapi.RespondError(c, apperrors.WrapServiceUnavailable("manual search is unavailable"))
 		return
 	}
-	reply, err := h.chat.Complete(c.Request.Context(), buildChatMessages(req, h.loadChatHistory(c.Request.Context(), clinicID, staffID)))
-	if err != nil {
-		var upstream *upstreamError
-		switch {
-		case errors.As(err, &upstream):
-			slog.WarnContext(c.Request.Context(), "support chat upstream error", "status", upstream.status)
-			httpapi.RespondError(c, apperrors.WrapBadGateway("support chat upstream error"))
-		case errors.Is(err, errUpstreamEmpty):
-			slog.WarnContext(c.Request.Context(), "support chat upstream returned empty content")
-			httpapi.RespondError(c, apperrors.WrapBadGateway("support chat returned empty response"))
-		default:
-			slog.WarnContext(c.Request.Context(), "support chat failed", "error", err)
-			httpapi.RespondError(c, apperrors.WrapInternalServerError("support chat failed"))
-		}
-		return
-	}
-	sources := toChatSources(req.Context)
-	// 履歴保存は回答返却が主契約のため best-effort とする。保存失敗時は当該やり取りが
-	// 次回セッションの履歴に出ないだけなので、WARN を残し回答は通常どおり返す。
-	// service はテストで nil にできるため nil ガードを挟む。
-	if h.service != nil {
-		// プロバイダ側の退行で過大な応答が返ってきても text 列へ無制限には書き込まない。
-		if len(reply) > chatHistoryMaxLength {
-			slog.WarnContext(c.Request.Context(), "support chat reply too long; skipping persistence", "reply_length", len(reply), "clinic_id", clinicID, "staff_id", staffID)
-		} else if err := h.service.RecordChatExchange(c.Request.Context(), clinicID, staffID, req.Message, reply, sources); err != nil {
-			logChatPersistFailure(c.Request.Context(), err, clinicID, staffID)
-		}
-	}
-	c.JSON(http.StatusOK, chatResponse{Reply: reply, Sources: sources})
-}
-
-// logChatPersistFailure は履歴保存失敗を WARN で残す。pg エラーの DETAIL/WHERE は
-// 行内容を含み得るため、Message と SQLSTATE のみ記録する。
-func logChatPersistFailure(ctx context.Context, err error, clinicID, staffID uint64) {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		slog.WarnContext(ctx, "failed to persist support chat history", "error", pgErr.Message, "pg_code", pgErr.Code, "clinic_id", clinicID, "staff_id", staffID)
-		return
-	}
-	slog.WarnContext(ctx, "failed to persist support chat history", "error", err, "clinic_id", clinicID, "staff_id", staffID)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), chatRequestDeadline)
+	defer cancel()
+	c.Request = c.Request.WithContext(ctx)
+	h.runHybridChat(c, clinicID, staffID)
 }
 
 // ChatHistory はログイン中スタッフ（選択clinic内）の会話履歴を古い順で返す。

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"mime/multipart"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,14 @@ type Handler struct {
 	audit         AuditLogger
 	chat          ChatCompleter
 	chatRateLimit gin.HandlerFunc
+	// EMR-410 ハイブリッド検索依存（nil/disabled なら従来 context 経路のみ）。
+	manualSearch *ManualSearchDeps
+	// chatBudget は生成 quota の共有 grant。nil は quota 未配線（grant 失敗=503）。
+	chatBudget LLMBudgetGranter
+	chatModel  string
+	// chatInflight は利用者単位の生成中ガード（clinic/staff キー）。
+	chatInflight   map[string]struct{}
+	chatInflightMu sync.Mutex
 }
 
 // NewHandler initializes a Handler. uploader may be nil (screenshot upload then fails closed).

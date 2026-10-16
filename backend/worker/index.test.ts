@@ -634,3 +634,50 @@ describe("container envVars PLANE label ID forwarding", () => {
     expect(envVars.PLANE_LANE_LABEL_ID).toBe("");
   });
 });
+
+describe("container envVars EMR-410 hybrid search / embedding forwarding", () => {
+  const KEYS = [
+    "SUPPORT_HYBRID_SEARCH_ENABLED",
+    "SUPPORT_EXTERNAL_DATA_APPROVED",
+    "SUPPORT_EMBEDDING_BASE_URL",
+    "SUPPORT_EMBEDDING_API_KEY",
+    "SUPPORT_EMBEDDING_MODEL",
+    "SUPPORT_EMBEDDING_TIMEOUT_MS",
+  ] as const;
+
+  afterEach(() => {
+    for (const k of KEYS) delete workerEnv[k];
+  });
+
+  it("defaults all unset vars (flags false, key empty, Sarashina URL/model, 1200ms)", () => {
+    for (const k of KEYS) delete workerEnv[k];
+    const envVars = buildContainerEnvVars(workerEnv);
+    expect(envVars.SUPPORT_HYBRID_SEARCH_ENABLED).toBe("false");
+    expect(envVars.SUPPORT_EXTERNAL_DATA_APPROVED).toBe("false");
+    expect(envVars.SUPPORT_EMBEDDING_BASE_URL).toBe("https://api.sarashina.ai/v1");
+    expect(envVars.SUPPORT_EMBEDDING_API_KEY).toBe("");
+    expect(envVars.SUPPORT_EMBEDDING_MODEL).toBe("sarashina3-embedding");
+    expect(envVars.SUPPORT_EMBEDDING_TIMEOUT_MS).toBe("1200");
+  });
+
+  it("forwards explicit values unchanged incl. dummy secret", () => {
+    workerEnv.SUPPORT_HYBRID_SEARCH_ENABLED = "true";
+    workerEnv.SUPPORT_EXTERNAL_DATA_APPROVED = "true";
+    workerEnv.SUPPORT_EMBEDDING_BASE_URL = "https://api.sarashina.ai/v1";
+    workerEnv.SUPPORT_EMBEDDING_API_KEY = "dummy-fixture-key";
+    workerEnv.SUPPORT_EMBEDDING_MODEL = "sarashina3-embedding";
+    workerEnv.SUPPORT_EMBEDDING_TIMEOUT_MS = "800";
+    const envVars = buildContainerEnvVars(workerEnv);
+    expect(envVars.SUPPORT_HYBRID_SEARCH_ENABLED).toBe("true");
+    expect(envVars.SUPPORT_EXTERNAL_DATA_APPROVED).toBe("true");
+    expect(envVars.SUPPORT_EMBEDDING_API_KEY).toBe("dummy-fixture-key");
+    expect(envVars.SUPPORT_EMBEDDING_TIMEOUT_MS).toBe("800");
+  });
+
+  it("leaves existing SUPPORT_LLM forwarding untouched", () => {
+    delete workerEnv.SUPPORT_LLM_BASE_URL;
+    const envVars = buildContainerEnvVars(workerEnv);
+    expect(envVars.SUPPORT_LLM_BASE_URL).toBe("");
+    expect(envVars.SUPPORT_LLM_API_KEY).toBe("");
+  });
+});

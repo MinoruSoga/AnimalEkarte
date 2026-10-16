@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "f48e50d110b3e066c85ededa9d08c9d26d328568bbf495cb2828b5a887351a73",
+  "source_digest": "ccfe4aa18396773b30d2440631167a6b87330f028c6e77f9d984c9f81e0a76a7",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,8 +17,8 @@
     }
   ],
   "counts": {
-    "tables": 136,
-    "columns": 1641,
+    "tables": 138,
+    "columns": 1651,
     "foreign_keys": 323
   },
   "migrations": [
@@ -157,6 +157,10 @@
     {
       "name": "036_hospitalizations_next_visit.sql",
       "sha256": "0d119d3506a81b0707fa5af3e77658661bb63e5267542f1c8b993b2ed28915b2"
+    },
+    {
+      "name": "037_support_manual_search.sql",
+      "sha256": "868487fd07d1d5aa3ba506bf120ba2c4ec666b94f13d4571e3d3eb786529848d"
     }
   ],
   "reviewed_do_blocks": [
@@ -302,6 +306,8 @@
     "staffs.md",
     "support_bug_reports.md",
     "support_chat_messages.md",
+    "support_llm_budgets.md",
+    "support_manual_embeddings.md",
     "token_blacklist.md",
     "treatment_plans.md",
     "treatments.md",
