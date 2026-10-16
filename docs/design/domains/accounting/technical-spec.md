@@ -409,7 +409,9 @@ AC短名は[正本167AC](../../../spec/domains/accounting/lifecycle.md#accountin
 
 [業務正本と追加3AC](../../../spec/domains/accounting/pages/unpaid-list.md#unpaid-monthly-source-adoption)を参照する。請求残高projectionとpayment／deposit application／release／billing correctionは別イベントidentityとして照合し、前月末cutoff・対象月・翌月繰越の同一医院／飼主／請求範囲を揃える。請求表示日へ実入金日を付け替えず、未来の訂正を当時残高へ無根拠に遡及しない。入金合計へ預り金充当／請求減額を混在させて4列を形式的に一致させない。
 
-未決候補：4列を保持し、残高増減のうち実入金以外の調整を別内訳で表示して連続式を説明する。採用前に列追加や「当月入金」の意味変更を実装しない。既存APIの現在残高だけでは過去cutoffを再現できない場合、snapshot／event projectionの実装差分として残す。
+2026-10-16の承認により、4列を保持し、当月入金を実受領のみ、非入金の残高増減を別掲「調整内訳」とする。元event／請求／資金identity・発生日・種別・残高影響の符号と根拠をread projectionへ渡す。充当／解除・訂正／取消を一度だけ反映し、当月発生額への訂正反映と調整行の二重控除を防ぐ。印刷と画面は同じ対象・cutoff・調整内訳を使い、翌月開始残との連続性も照合する。正本の数値例と3ACが受入基準であり、実装済みの宣言ではない。
+
+未充当受領・非現金超過は実受領総額と請求帰属額の差を区別し、既存資金の再配分を新受領にしない。実返金の詳細表示／当月入金との相殺方針は今回新設しない。限定式の対象外の金銭eventを含む月では既存contractに基づく差額説明が必要で、説明不能を0円へ丸めたり照合成功にしない。既存APIの現在残高だけでは過去cutoffを再現できない場合、snapshot／event projectionの実装差分として残す。保存済み税額・請求額を表示のためにwriteしない。
 
 ## 日次集計内訳の設計接続
 

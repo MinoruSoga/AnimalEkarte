@@ -126,6 +126,6 @@ D14の複製／CSV入力は[新操作の意味契約](../../design/domains/staff
 
 ## 原資料追加採用6点のowner接続
 
-[D14職員](../domains/staff-workforce/README.md#staff-source-adoption-20261015)の属性と休業期間はD01の新規指名候補／既存予約保護へ渡し、認可roleや既存予約を自動変更しない。[D10月次未納](../domains/accounting/pages/unpaid-list.md#unpaid-monthly-source-adoption)は元請求・実入金・預り金充当／解除・訂正を区別し、調整表示の未決を残す。[D12日次内訳](../screens/29-closing-aggregation.md#closing-source-breakdown)はD10の保存済み会計額から参照し、税再計算writeを行わない。[D03薬量](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)は承認済み単純計算範囲と今回選択版を保持し、原資料OCRや一般yesを臨床値承認へ変換しない。
+[D14職員](../domains/staff-workforce/README.md#staff-source-adoption-20261015)の属性と休業期間はD01の新規指名候補／既存予約保護へ渡し、認可roleや既存予約を自動変更しない。[D10月次未納](../domains/accounting/pages/unpaid-list.md#unpaid-monthly-source-adoption)は元請求・実入金・預り金充当／解除・訂正を区別し、2026-10-16承認の実受領のみの当月入金と別掲調整内訳を受け渡す。元ID／発生日・符号付き残高影響とcutoffを揃え、充当と受領を重複させない。実返金の新規方針・税額変更は含めない。[D12日次内訳](../screens/29-closing-aggregation.md#closing-source-breakdown)はD10の保存済み会計額から参照し、税再計算writeを行わない。[D03薬量](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)は承認済み単純計算範囲と今回選択版を保持し、原資料OCRや一般yesを臨床値承認へ変換しない。
 
 今回の追加ACは12、既存FR／ACの保護を継承する。新しい全owner再レビュー完了を意味しない。
