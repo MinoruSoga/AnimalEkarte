@@ -273,7 +273,11 @@ describe("PatientInfoCard マイクロチップ番号の行 (PR679)", () => {
     render(<PatientInfoCard {...baseProps} {...chipProps} />);
 
     const chip = screen.getByLabelText(`マイクロチップ番号 ${microchipNumber}`);
-    const nameLeaf = screen.getByText(baseProps.petName, { selector: "span.truncate" });
+    // Tooltip は非表示の portal に同名テキストを複製するため、その role を除外して一意に引く
+    // （既定の script/style ignore は維持する）。
+    const nameLeaf = screen.getByText(baseProps.petName, {
+      ignore: 'script, style, [role="tooltip"]',
+    });
     const row = nameLeaf.closest("div");
 
     expect(row).toContainElement(chip);
