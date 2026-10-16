@@ -14,8 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/dbconn"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
@@ -23,7 +21,7 @@ import (
 )
 
 // 注入可能な opener（テストは config 境界だけを検証し、実 DB/network を呼ばない）。
-var openDB = func(cfg *config.Config) (*gorm.DB, error) { return dbconn.OpenGORM(cfg) }
+var openDB = dbconn.OpenGORM
 
 // validateIndexConfig は DB/network 到達前の純粋ゲート。key/URL を戻さない。
 func validateIndexConfig(cfg *config.Config) error {
@@ -58,7 +56,11 @@ func run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("db open failed")
 	}
 	if sqlDB, derr := db.DB(); derr == nil {
-		defer sqlDB.Close()
+		defer func() {
+			if closeErr := sqlDB.Close(); closeErr != nil {
+				fmt.Fprintln(os.Stderr, `{"event":"support_index","status":"warning","reason":"db_close_failed"}`)
+			}
+		}()
 	}
 	overrides, err := manualarticle.New(db).FindAll(ctx)
 	if err != nil {
@@ -89,21 +91,22 @@ func (e *indexRunFailure) Unwrap() error { return e.cause }
 
 // writeIndexFailure は失敗を構造化 JSON で stderr へ書く。
 // 原因の詳細（URL/key/本文/DB エラー）は一切出力しない。
-func writeIndexFailure(w io.Writer, err error) {
+func writeIndexFailure(w io.Writer, err error) error {
 	var failure *indexRunFailure
 	var res support.IndexResult
 	if errors.As(err, &failure) {
 		res = failure.result
 	}
-	fmt.Fprintf(w, `{"event":"support_index","status":"failed","reason":"index_failed","chunks":%d,"existing":%d,"stored":%d}`+"\n", res.Chunks, res.Existing, res.Stored)
+	_, writeErr := fmt.Fprintf(w, `{"event":"support_index","status":"failed","reason":"index_failed","chunks":%d,"existing":%d,"stored":%d}`+"\n", res.Chunks, res.Existing, res.Stored)
+	return writeErr
 }
 
-func main() {
+func mainExitCode() int {
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall index timeout (<=24h)")
 	flag.Parse()
 	if *timeout <= 0 || *timeout > 24*time.Hour {
 		fmt.Fprintln(os.Stderr, `{"error":"invalid timeout"}`)
-		os.Exit(1)
+		return 1
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -112,10 +115,17 @@ func main() {
 	cfg := config.Load()
 	if cfg == nil {
 		fmt.Fprintln(os.Stderr, `{"error":"config load failed"}`)
-		os.Exit(1)
+		return 1
 	}
 	if err := run(ctx, cfg); err != nil {
-		writeIndexFailure(os.Stderr, err)
-		os.Exit(1)
+		if writeErr := writeIndexFailure(os.Stderr, err); writeErr != nil {
+			fmt.Fprintln(os.Stderr, `{"error":"index failure reporting failed"}`)
+		}
+		return 1
 	}
+	return 0
+}
+
+func main() {
+	os.Exit(mainExitCode())
 }

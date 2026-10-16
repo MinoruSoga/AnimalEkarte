@@ -77,6 +77,85 @@ func TestGenerateRevisionConstantMatchesFrontendFormatting(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsExternalSourceSymlinks(t *testing.T) {
+	generated := func(fe, be string) []string {
+		return []string{
+			filepath.Join(be, "internal/manualarticle/corpus.generated.json"),
+			filepath.Join(fe, "src/constants/manual-corpus.generated.ts"),
+			filepath.Join(be, "internal/support/search_dict.go"),
+		}
+	}
+
+	t.Run("markdown escape", func(t *testing.T) {
+		fe, be, outside := t.TempDir(), t.TempDir(), t.TempDir()
+		writeFixture(t, fe, be)
+		external := filepath.Join(outside, "external.md")
+		if err := os.WriteFile(external, []byte("---\ntitle: E\n---\nexternal body"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		link := filepath.Join(fe, "src/features/manual/content/screens/escape.md")
+		if err := os.Symlink(external, link); err != nil {
+			t.Fatal(err)
+		}
+		if err := generate(fe, be, false); err == nil {
+			t.Fatal("generate must reject a screens symlink escaping the frontend root")
+		}
+		for _, path := range generated(fe, be) {
+			if _, err := os.Lstat(path); !os.IsNotExist(err) {
+				t.Fatalf("rejected generation must not leave artifact %s", path)
+			}
+		}
+	})
+
+	t.Run("dictionary escape", func(t *testing.T) {
+		fe, be, outside := t.TempDir(), t.TempDir(), t.TempDir()
+		writeFixture(t, fe, be)
+		dict := filepath.Join(fe, "src/constants/manual-search-dict.json")
+		raw, err := os.ReadFile(dict)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(dict); err != nil {
+			t.Fatal(err)
+		}
+		external := filepath.Join(outside, "dict.json")
+		if err := os.WriteFile(external, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(external, dict); err != nil {
+			t.Fatal(err)
+		}
+		if err := generate(fe, be, false); err == nil {
+			t.Fatal("generate must reject a dictionary symlink escaping the frontend root")
+		}
+		for _, path := range generated(fe, be) {
+			if _, err := os.Lstat(path); !os.IsNotExist(err) {
+				t.Fatalf("rejected generation must not leave artifact %s", path)
+			}
+		}
+	})
+
+	t.Run("internal relative alias is allowed", func(t *testing.T) {
+		fe, be := t.TempDir(), t.TempDir()
+		writeFixture(t, fe, be)
+		target := filepath.Join(fe, "src/features/manual/content/screens/01-a.md")
+		link := filepath.Join(fe, "src/features/manual/content/screens/alias.md")
+		rel, err := filepath.Rel(filepath.Dir(link), target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(rel, link); err != nil {
+			t.Fatal(err)
+		}
+		if err := generate(fe, be, false); err != nil {
+			t.Fatalf("in-root relative alias must still generate: %v", err)
+		}
+		if err := generate(fe, be, true); err != nil {
+			t.Fatalf("--check after in-root alias generation: %v", err)
+		}
+	})
+}
+
 func TestGenerateErrors(t *testing.T) {
 	fe, be := t.TempDir(), t.TempDir()
 	writeFixture(t, fe, be)

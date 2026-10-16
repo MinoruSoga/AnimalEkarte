@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,11 +32,21 @@ type searchDict struct {
 	SynonymGroups [][]string `json:"synonym_groups"`
 }
 
+// readManualSource confines reads, including symlinks, to the operator-selected root.
+func readManualSource(frontendDir, name string) ([]byte, error) {
+	root, err := os.OpenRoot(frontendDir)
+	if err != nil {
+		return nil, err
+	}
+	raw, readErr := fs.ReadFile(root.FS(), filepath.ToSlash(name))
+	return raw, errors.Join(readErr, root.Close())
+}
+
 func loadMarkdownCorpus(frontendDir string) ([]manualarticle.CorpusArticle, error) {
 	var out []manualarticle.CorpusArticle
 	seen := map[string]struct{}{}
 	for _, category := range []string{"screens", "workflows"} {
-		dir := filepath.Join(frontendDir, "src/features/manual/content", category)
+		dir := filepath.Join(frontendDir, "src", "features", "manual", "content", category)
 		entries, err := filepath.Glob(filepath.Join(dir, "*.md"))
 		if err != nil {
 			return nil, err
@@ -45,7 +56,11 @@ func loadMarkdownCorpus(frontendDir string) ([]manualarticle.CorpusArticle, erro
 		}
 		sort.Strings(entries)
 		for _, path := range entries {
-			raw, err := os.ReadFile(path)
+			relative, err := filepath.Rel(frontendDir, path)
+			if err != nil {
+				return nil, err
+			}
+			raw, err := readManualSource(frontendDir, relative)
 			if err != nil {
 				return nil, err
 			}
@@ -146,7 +161,7 @@ func generate(frontendDir, backendDir string, check bool) error {
 	if err != nil {
 		return err
 	}
-	dictRaw, err := os.ReadFile(filepath.Join(frontendDir, "src/constants/manual-search-dict.json"))
+	dictRaw, err := readManualSource(frontendDir, filepath.Join("src", "constants", "manual-search-dict.json"))
 	if err != nil {
 		return err
 	}
@@ -170,9 +185,9 @@ func generate(frontendDir, backendDir string, check bool) error {
 		path string
 		data []byte
 	}{
-		{filepath.Join(backendDir, "internal/manualarticle/corpus.generated.json"), corpusJSON},
-		{filepath.Join(frontendDir, "src/constants/manual-corpus.generated.ts"), tsConst},
-		{filepath.Join(backendDir, "internal/support/search_dict.go"), goDict},
+		{filepath.Join(backendDir, "internal", "manualarticle", "corpus.generated.json"), corpusJSON},
+		{filepath.Join(frontendDir, "src", "constants", "manual-corpus.generated.ts"), tsConst},
+		{filepath.Join(backendDir, "internal", "support", "search_dict.go"), goDict},
 	}
 	for _, t := range targets {
 		existing, rerr := os.ReadFile(t.path)
@@ -185,6 +200,7 @@ func generate(frontendDir, backendDir string, check bool) error {
 			}
 			continue
 		}
+		// #nosec G306 -- These public, checked-in corpus/dictionary assets must be readable by build consumers.
 		if err := os.WriteFile(t.path, t.data, 0o644); err != nil {
 			return err
 		}

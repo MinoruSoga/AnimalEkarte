@@ -7,9 +7,10 @@ import (
 	"errors"
 	"testing"
 
+	"gorm.io/gorm"
+
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/support"
-	"gorm.io/gorm"
 )
 
 func TestIndexGateBlocksBeforeDB(t *testing.T) {
@@ -64,10 +65,12 @@ func TestValidateIndexConfig(t *testing.T) {
 // writeIndexFailure は部分集計だけを出し、原因詳細を漏らさない。
 func TestWriteIndexFailureClassification(t *testing.T) {
 	var buf bytes.Buffer
-	writeIndexFailure(&buf, &indexRunFailure{
+	if err := writeIndexFailure(&buf, &indexRunFailure{
 		result: support.IndexResult{Chunks: 2, Existing: 1, Stored: 1},
 		cause:  errors.New("SECRET_URL_PATIENT_TEXT"),
-	})
+	}); err != nil {
+		t.Fatalf("writeIndexFailure: %v", err)
+	}
 	var out map[string]any
 	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
 		t.Fatalf("output must be JSON: %v", err)
@@ -82,12 +85,52 @@ func TestWriteIndexFailureClassification(t *testing.T) {
 		t.Fatal("cause details must not leak")
 	}
 	var buf2 bytes.Buffer
-	writeIndexFailure(&buf2, errors.New("unrelated"))
+	if err := writeIndexFailure(&buf2, errors.New("unrelated")); err != nil {
+		t.Fatalf("writeIndexFailure: %v", err)
+	}
 	var out2 map[string]any
 	if err := json.Unmarshal(buf2.Bytes(), &out2); err != nil {
 		t.Fatal(err)
 	}
 	if out2["chunks"] != float64(0) {
 		t.Fatal("generic error must report zero counts")
+	}
+}
+
+type failingWriter struct {
+	err       error
+	attempted []byte
+}
+
+func (w *failingWriter) Write(p []byte) (int, error) {
+	w.attempted = append(w.attempted, p...)
+	return 0, w.err
+}
+
+// writer 失敗は呼び出し側へ伝播し、payload は依然として集計のみ。
+func TestWriteIndexFailureWriterError(t *testing.T) {
+	sentinel := errors.New("writer broken")
+	for name, cause := range map[string]error{
+		"indexRunFailure": &indexRunFailure{
+			result: support.IndexResult{Chunks: 2, Existing: 1, Stored: 1},
+			cause:  errors.New("SECRET_URL_PATIENT_TEXT"),
+		},
+		"generic": errors.New("SECRET_URL_PATIENT_TEXT"),
+	} {
+		w := &failingWriter{err: sentinel}
+		err := writeIndexFailure(w, cause)
+		if !errors.Is(err, sentinel) {
+			t.Fatalf("%s: writer error must propagate, got %v", name, err)
+		}
+		var out map[string]any
+		if jerr := json.Unmarshal(w.attempted, &out); jerr != nil {
+			t.Fatalf("%s: attempted payload must be JSON: %v", name, jerr)
+		}
+		if out["status"] != "failed" || out["reason"] != "index_failed" {
+			t.Fatalf("%s: attempted payload missing safe classification: %v", name, out)
+		}
+		if bytes.Contains(w.attempted, []byte("SECRET")) {
+			t.Fatalf("%s: attempted payload must not contain the cause", name)
+		}
 	}
 }
