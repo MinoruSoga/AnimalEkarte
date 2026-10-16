@@ -93,3 +93,9 @@ flowchart TB
 
 ---
 
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../domains/vaccinations/lifecycle.md#certificate-editions-20261017)。通常縦横・狂犬病の3様式は旧見本に従う。訂正後新発行・旧版履歴保持、再印刷は最新版、旧訂正版は有効印刷不可。共通基本情報更新で発行版は自動変更しない。旧印刷時自動登録等は復活させない。専用証明書実装の所在・適合と仕様採用を分ける。

@@ -33,7 +33,7 @@ flowchart LR
 | 01 | **当日の受付** | [reception-board.md](../domains/reception/pages/reception-board.md) | カンバン形式による院内稼働状況の管理。 |
 | 02 | **予約管理** | [reservation-management.md](../domains/reservations/pages/reservation-management.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
 | 05 | **カルテ一覧** | [medical-record-list.md](../domains/medical-records/pages/medical-record-list.md) | 全カルテの時系列検索。 |
-| 06 | **カルテ詳細・入力** | [medical-record-form.md](../domains/medical-records/pages/medical-record-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
+| 06 | **カルテ詳細・入力** | [medical-record-form.md](../domains/medical-records/pages/medical-record-form.md) | SOAPS 形式の診療録作成（問診を治療プランへ統合する構成（2026-10-17））。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
 | 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
 | — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md)・ローカル受信 agent [ADR-008](../../architecture/adr/008-local-lab-device-agent.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |

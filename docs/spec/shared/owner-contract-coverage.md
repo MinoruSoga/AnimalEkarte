@@ -4,7 +4,7 @@
 |---|---|
 | 文書ID | shared.owner-contract-coverage |
 | 確認範囲 | D01〜D23の重要な識別・語彙・保存単位・安全・履歴・画面失敗と既存正本の対応 |
-| 決定状態 | 個別正本の既決／継承／現行差を参照する索引。新業務の承認ではない |
+| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：個別正本の既決／継承／現行差を参照する索引。新業務の承認ではない |
 | 基準 | PR #670 head 41fcf3ebと2026-10-15の統合文書候補。最新承認は各ownerの根拠節 |
 | 実装／実機 | 未実施。コード全writer・実grant・旧データ・外部処理の網羅適合を宣言しない |
 
@@ -129,3 +129,10 @@ D14の複製／CSV入力は[新操作の意味契約](../../design/domains/staff
 [D14職員](../domains/staff-workforce/README.md#staff-source-adoption-20261015)の属性と休業期間はD01の新規指名候補／既存予約保護へ渡し、認可roleや既存予約を自動変更しない。[D10月次未納](../domains/accounting/pages/unpaid-list.md#unpaid-monthly-source-adoption)は元請求・実入金・預り金充当／解除・訂正を区別し、2026-10-16承認の実受領のみの当月入金と別掲調整内訳を受け渡す。元ID／発生日・符号付き残高影響とcutoffを揃え、充当と受領を重複させない。実返金の新規方針・税額変更は含めない。[D12日次内訳](../screens/29-closing-aggregation.md#closing-source-breakdown)はD10の保存済み会計額から参照し、税再計算writeを行わない。[D03薬量](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)は承認済み単純計算範囲と今回選択版を保持し、原資料OCRや一般yesを臨床値承認へ変換しない。
 
 今回の追加ACは12、既存FR／ACの保護を継承する。新しい全owner再レビュー完了を意味しない。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。D04共通基本情報・自院利用をD01受付／D03カルテ／D10会計／D11見積／D19手動連携／D20本人LINE認証へ接続する。各院の診療金銭記録と現在認可・原本保護は保持し、物理ID統合やunlink再設計を承認済みにしない。

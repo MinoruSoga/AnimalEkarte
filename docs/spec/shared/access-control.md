@@ -83,3 +83,9 @@ resource/actionの許可、現在の医院所属、対象データの所有医�
 - Supportの共有READ・医院mutation・個人history、manualの全員公開READ案、global company、LIFF本人認証、横断一覧は明示例外。例外を全GETや全clinicへの無制限アクセスへ一般化しない。
 - 旧移行staffの複数行は権威identity mapで扱う。氏名一致だけの統合や自己申告メールによる特権付与はしない。最後のsystem_admin／自己無効化の既存保護を緩和しない。
 
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。共通基本情報・確認済み自院利用と、院別の診療資源認可を区別する。医院所属・操作権限・患者照合・本人LINE認証・区画別公開は維持し、他院資源の無権限操作／公開を許可しない。旧院別患者ID検査と共通患者対応は設計で接続する。

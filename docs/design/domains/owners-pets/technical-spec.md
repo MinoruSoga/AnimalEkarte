@@ -3,10 +3,10 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D04-TECH / 技術設計・現行差分 |
-| 決定状態 | 既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。[台帳・会員区分・LINE希望の共同確認](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)を追加。具体的wire／DB変更は未実施 |
+| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。[台帳・会員区分・LINE希望の共同確認](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)を追加。具体的wire／DB変更は未実施 |
 | 実装状態 | 下記限定ソースを2026-10-15に静的照合。全writer・HTTP型・DB・実権限の再監査は未実施 |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-15 |
+| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15） |
 
 業務FRとACは[台帳lifecycle](../../../spec/domains/owners-pets/lifecycle.md)が正本。画面詳細の重複、API YAML・DB定義の複製をしない。wireは[API](../../../../backend/docs/api.yaml)、DBはmigrations、writer境界は[カタログ](../../../architecture/model-write-owner-catalog.md)。
 
@@ -134,3 +134,10 @@ D07が返す原値・各検査日／精度・院内／他院・固定結果／it
 | FR-owners-pets-infection-summary | AC-owners-pets-infection-top-reference / AC-owners-pets-infection-ambiguity / AC-owners-pets-infection-write-boundary / AC-owners-pets-infection-privacy | 本節のD07元ref・出典／日付精度・取得状態・両owner認可・台帳write分離・公開DTO境界 |
 
 先行9FR／27ACに本節の1FR／4ACを追加し、計10FR／31ACの文書契約となる。先行ID・既存の業務採否／実装検証状態を保持し、追加分の実機受入は未実施。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../../../spec/domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。氏名または動物種＋ペット名の候補をスタッフ確認し、同一飼主は警告して新規停止、別人は可、新ペットは既存飼主へ追加する。他院既存患者の自院利用と共通最新基本情報を採用し、院別診療・金銭記録と認可は維持する。旧他院行／ID一律拒否を自院利用へ機械適用しない。共有ID・既存重複移行・link/unlink方式は未選定で、重複作成を自院利用条件にしない。

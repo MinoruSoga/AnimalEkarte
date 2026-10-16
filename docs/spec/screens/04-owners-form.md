@@ -24,7 +24,7 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 - **住所管理**: 会社・自宅それぞれの郵便番号と住所1/2。地図連携は未実装。
 - **飼主生年月日とサイグラム**: `OwnerAddressFields` で生年月日 DatePicker の下にサイグラムを縦積みする（`flex-col`）。空・不正時は視覚表示なし（読み上げは「サイグラム分類なし」）。横並びで入力欄幅を潰さない。生年月日は `birth_date` として保存し、編集時の消去は JSON null を送信する。サイグラムは生年月日からの派生表示で DB へ保存しない（#262）。
 - **保存 form**: `noValidate`。HTML5 email/max が Action 前に黙って止めない。他の必須項目・形式・認可の検証は維持する。
-- **電話・メール重複（追加合意4）**: 同医院の重複を警告して権限内の既存飼主候補を示し、家族等の共用連絡先でも別飼主として登録可能にする。候補だけで既存飼主へ自動置換／統合しない。閾値・新たな正規化方式・追加の必須確認は選定していない。従来の「重複はBE409」は[現行実装差](../../design/domains/owners-pets/technical-spec.md#owner-contact-duplicate-target)であり、目標仕様の登録拒否として残さない。受入条件は[領域正本](../domains/owners-pets/lifecycle.md#owners-pets-acceptance)。
+- **電話・メール重複（追加合意4）**: 同医院の重複を警告して権限内の既存飼主候補を示し、家族等の共用連絡先でも別人なら別飼主として登録可能。同一飼主とスタッフ確認した場合は警告して新規登録を止める。候補だけで既存飼主へ自動置換／統合しない。閾値・新たな正規化方式・追加の必須確認は選定していない。従来の「重複はBE409」は[現行実装差](../../design/domains/owners-pets/technical-spec.md#owner-contact-duplicate-target)であり、目標仕様の登録拒否として残さない。受入条件は[領域正本](../domains/owners-pets/lifecycle.md#owners-pets-acceptance)。
 
 ### 1.2 ペット管理セクション (Pet Management)
 一人の飼主に紐付く複数のペットをテーブル形式の一覧で管理します。
@@ -122,3 +122,10 @@ flowchart LR
 院内の保存済みD07結果から自動反映し、他院結果はD07の手入力へ渡す。D04通常保存のpayloadへ結果本文を混ぜず、owners:editだけではD07を更新できない。未保存draft・未紐付け受信を反映しない。検査日不明、同日複数候補／不一致、結果待ち、記録なし、取得失敗／権限不足を区別し、入力日の新しさや出典の固定順位で一件へ潰さない。
 
 現在のD04・D07閲覧認可と医院／患者scopeを満たすスタッフ用に限定する。LINE健康表示・LIFF／line-reserve、飼主への自動送信を追加しない。業務GWTは[患者トップFR](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-infection-summary)、技術は[D04 read adapter](../../design/domains/owners-pets/technical-spec.md#owner-infection-summary-read-contract)。現行DTO／画面での実装・実機受入は未確認。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。氏名または動物種＋ペット名の候補をスタッフ確認し、同一飼主は警告して新規停止、別人は可、新ペットは既存飼主へ追加する。他院既存患者の自院利用と共通最新基本情報を採用し、院別診療・金銭記録と認可は維持する。旧他院行／ID一律拒否を自院利用へ機械適用しない。共有ID・既存重複移行・link/unlink方式は未選定で、重複作成を自院利用条件にしない。

@@ -72,3 +72,9 @@ flowchart TB
 
 [型・互換](../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)と[専用結果追記](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)を参照する。医院＋検査IDを結果全体の同一性、revision／versionを固定版、item IDを版内参照として返す。現カルテExamGroupはrevisionを保持しないため、同じ版の参照へ追従済みとしない。revisionなし旧結果・跨版item対応不明は元記載／元参照を保持して照合し、名前や行位置で補完しない。機器取込／attach／revertもwriter参加の対象で、現receiptを患者転記／カルテ復元のreceiptへ流用しない。検査内部の訂正／解除は検査正本へ残す。
 
+<a id="list-filters-20261017"></a>
+## 一覧条件の確定（2026-10-17）
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[一覧の共通正本・4受入条件](../shared/ui-contracts.md#list-filter-contract-20261017)へ従う。台帳・カルテ履歴の初回医院は権限内全医院で次回選択保持。日付付き通常業務6一覧はメニュー当日・詳細復帰で条件保持、行ペットはID指定・日付解除全期間・医院維持。入院ホテル／見積は当日初期化除外、受付は選択日、未納は繰越表示、台帳マスタは当日対象外。表示ページだけを全期間検索結果としない。

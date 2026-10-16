@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | page.identity-links.workbench／D19 業務・画面仕様 |
-| 決定状態 | 既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15整理節の提案・未決は未承認 |
+| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：既存記載を継承。明示済み合意と現行実装説明を分け、2026-10-15整理節の提案・未決は未承認 |
 | 実装状態 | 既存記載を継承（今回の再監査なし）。既知gapを保持 |
 | 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
-| 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
+| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15）。本文・参照・FR/AC整理。独立レビュー前 |
 
 
 ## 概要
@@ -147,7 +147,7 @@ OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート dri
 | AC-5 | 権限 fail-closed（view/edit） | routes: GET=view, link/unlink=edit。FE: view なし → `/` Navigate、edit なし → 閲覧バナー。Tests: `handler_permission_test.go`, `IdentityLinksPage.test.tsx` |
 | AC-6 | OpenAPI と RegisterRoutes の route 一致 | identity-links 全 13 ルートを `api.yaml` に記載。reverse-lookup 2 本を known-missing allowlist から除去済み |
 
-**Out of scope (Phase 2 / DEC-46)**: 自動 link、merge、候補提示 UI。
+**Out of scope (Phase 2 / DEC-46)**: 自動link・merge。候補提示は2026-10-17にD04登録時の同一確認用途として採用済みで、一律Phase2除外を置換する。手動groupの既存操作と自院利用は区別する。
 
 ---
 
@@ -156,7 +156,7 @@ OpenAPI 正本: `backend/docs/api.yaml`（`/identity-links/*`）。ルート dri
 
 ### 対象・用語・責務
 
-identity groupは複数の既存飼主／ペット記録を手動で関連付ける関係であり、元レコードのmerge・患者ID付替え・削除ではない。氏名類似による自動統合、自動候補提示は既存Phase 2対象外のまま。LINEアカウント紐付けはD20、基本台帳登録はD04、各臨床記録writeは各ownerが所有する。
+identity groupは複数の既存飼主／ペット記録を手動で関連付ける関係であり、元レコードのmerge・患者ID付替え・削除ではない。氏名類似による自動統合は採用しない。D04の氏名／動物種＋ペット名候補表示とスタッフ確認は採用済みで、手動group再設計を意味しない。LINEアカウント紐付けはD20、基本台帳登録はD04、各臨床記録writeは各ownerが所有する。
 
 本節は本文とPhase 1 ACの既存記載を業務条件に対応付ける。所属医院内の既存scopeを保持する。本文にあるanchorと全member clinic集合のサーバ検証はscope防御の技術契約であり、本整理が医院間利用や閲覧範囲を新たに許可するものではない。実際のstaff所属／grant・実装適合は未確認。
 
@@ -174,7 +174,7 @@ identity groupは複数の既存飼主／ペット記録を手動で関連付け
 
 | 要件ID | 操作・契約 | 根拠と決定状態 |
 |:---|:---|:---|
-| FR-identity-manual-relation | 2件以上の飼主を手動選択してgroupを作る。ペットgroupは親owner groupを必要とする。元台帳/診療記録の統合を兼ねない | 本文§1〜2・Phase 2除外の既存継承 |
+| FR-identity-manual-relation | 既存重複の手動関係操作では2件以上の飼主を選択してgroupを作る。共通患者の自院利用の前提として2件目の重複登録を要求しない。ペットgroupは親owner groupを必要とする。元台帳/診療記録の統合を兼ねない | 本文§1〜2・Phase 2除外の既存継承 |
 | FR-identity-member-group-resolution | unlinkは対象メンバー自身のgroup逆引き成功後にのみ有効にする。他メンバーのsession group IDを流用しない | 本文§1.2/1.3、§2 |
 | FR-identity-authorized-scope | view/editを分離し、hidden/許可外clinic混在は全体拒否、部分書込をしない。親groupの必要clinic集合を満たさないmutationを拒否する | 本文§2、既存AC-3/3b/5 |
 | FR-identity-audit-atomicity | business writeと監査は同一transactionで、監査失敗/依存欠落時fail-closed。監査payloadはIDのみでname/phoneを載せない | 既存AC-4 |
@@ -227,3 +227,9 @@ identity groupは複数の既存飼主／ペット記録を手動で関連付け
 
 本画面の既存Phase 1 AC、API表、[文書状態規約](../authoring-guide.md#status)を参照する。台帳D04とLINE本人紐付けD20の利用範囲は別々に確認し、D19の操作権限から他ownerのwrite権限を導出しない。
 
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。氏名または動物種＋ペット名の候補をスタッフ確認し、同一飼主は警告して新規停止、別人は可、新ペットは既存飼主へ追加する。他院既存患者の自院利用と共通最新基本情報を採用し、院別診療・金銭記録と認可は維持する。旧他院行／ID一律拒否を自院利用へ機械適用しない。共有ID・既存重複移行・link/unlink方式は未選定で、重複作成を自院利用条件にしない。

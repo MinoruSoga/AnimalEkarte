@@ -16,8 +16,15 @@
 
 ## 追加3項目と全タブの契約
 
-[業務3FR／12AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-agreement-integration-three) → [共通14AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-shared-coverage-ac) → [追加技術契約](technical-spec.md#medical-record-integration-contracts) → [全9タブ＋バイタルの型・操作](technical-spec.md#medical-record-full-coverage-contract)。合意計16FR／71ACを文書整理。通常業務の追加質問は不要、実wire／全DTO・旧値／grant／全writerの最終照合と他owner契約は文書残件。D03は進行中、薬量具体値の別承認・実機未実施を維持する。
+[業務3FR／12AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-agreement-integration-three) → [共通14AC](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-shared-coverage-ac) → [追加技術契約](technical-spec.md#medical-record-integration-contracts) → [統合前の全9タブ＋バイタルの型・操作](technical-spec.md#medical-record-full-coverage-contract)。合意計16FR／71ACを文書整理。通常業務の追加質問は不要、実wire／全DTO・旧値／grant／全writerの最終照合と他owner契約は文書残件。D03は進行中、薬量具体値の別承認・実機未実施を維持する。
 
 ## 最終照合と完成判定
 
 [API／DTO・互換](technical-spec.md#medical-record-reconciled-contract) → [writer／監査／gate](technical-spec.md#medical-record-writer-matrix) → [旧値／専用intent](technical-spec.md#medical-record-legacy-and-special-contract) → [合意16FR／71AC trace](technical-spec.md#medical-record-final-trace) → [文書判定範囲](technical-spec.md#medical-record-document-completion)。初期の部分設計時点の残件はこの最終contractへ接続する。独立レビュー3名・限定文書検査を通過し、明示範囲を文書完成と判定。実権限・実旧値・薬量数値承認・全writer適合／利用開始・実機性能・他owner内部／全体統合の未確認を保持する。次の推奨はD10会計。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../../../spec/domains/medical-records/lifecycle.md#integrated-plan-20261017)。問診統合・右側履歴移設、飼主原文保護、非表示の来院別要約保存、1回量／用法／処方総量表示、価格入り4種明細の実施前後単価変更を適用する。旧9タブ／問診単独送信の記述は統合前の保存先・実装参照で、画面を別タブへ戻す根拠としない。統合した保存単位と同時編集は未選定。通常の単価割引理由は任意、その他行・取消・提示済み見積・確定会計の必要理由と既決薬量安全条件は維持する。

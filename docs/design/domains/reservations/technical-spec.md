@@ -644,3 +644,10 @@ JST当日以降pending/confirmed、既存カルテ時拒否、pet／owner行保�
 ## 2026-10-15通常編集・復元writerのD03 participant
 
 D03 participantは現在版・以前の保存版・既存追記を区別し、終了後も履歴付き通常編集を受け付ける。親finalizedだけの拒否は[最新D03](../medical-records/technical-spec.md#medical-record-autosave-revert-contract)へ置換し、旧確定履歴を削除／draft化しない。予約日・患者等の目的別確認と同ID・医院／患者・依存版／必要ログを維持する。タブクリア／複製取消は元操作・基準snapshot・現在期待版・復元receiptを持つwriterとしてgateへ参加し、予約状態や会計確定歴の通常Undo禁止を解除しない。終了時のプラン警告はD03確認と依存版を終了operationに結び付け、自動保存／会計確認receiptを終了の代用にしない。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../../../spec/domains/reservations/pages/reservation-management.md#line-revisit-intake-20261017)。予約完了・予約詳細から任意の再診問診へ進み、受付前に訂正する。予約選択ペットごと7項目を自動取込し、カルテ未作成でも別保存、飼主由来・最新／旧回答と日時を保持する。未回答で予約・受付を止めない。日時変更は継承、新予約・ペット変更は未回答、取消履歴保持。既存のプロフィール転記・入力保持だけを問診本文取込済みの証拠にしない。本人LINE認証・対象患者認可を維持し、共通患者の自院利用を他院記録への認可免除としない。

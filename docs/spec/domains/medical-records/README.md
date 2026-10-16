@@ -76,7 +76,7 @@ Sentinel_59d45d62afe08191bc0b289c42486962 により[3FR／12AC](pages/medical-re
 | 区分 | 現在の状態・残件 | 次の扱い |
 |:---|:---|:---|
 | 今回業務・文書範囲 | 通常受付接続・入力／ログ・確定・コピー／template／master履歴・4状態・訂正／患者転記／過去入力／復元・画像／印刷／後日結果／影響表示は合意済み | [初回正本](lifecycle.md#medical-record-agreement-first-five) → [入力4](pages/medical-record-form.md#medical-record-agreement-input-four) → [訂正4](lifecycle.md#medical-record-agreement-correction-four) → [追加3](pages/medical-record-form.md#medical-record-agreement-integration-three) → [共通AC](pages/medical-record-form.md#medical-record-shared-coverage-ac) |
-| 技術契約の整理 | 全9タブ＋バイタル・一覧／ヘッダー、型の意味・保存／取消／失敗／競合／結果不明・ownerごとの認可と参照を具体化 | [全タブ対応](../../../design/domains/medical-records/technical-spec.md#medical-record-full-coverage-contract)・[追加3契約](../../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)。新API／DBの反映済みとはしない |
+| 技術契約の整理 | 統合前の全9タブ＋バイタル・一覧／ヘッダー、型の意味・保存／取消／失敗／競合／結果不明・ownerごとの認可と参照を具体化 | [全タブ対応](../../../design/domains/medical-records/technical-spec.md#medical-record-full-coverage-contract)・[追加3契約](../../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)。新API／DBの反映済みとはしない |
 | D03文書の判定範囲 | 実wire／DTO差分、旧値・版・認可の未知への停止、全writer／consumer・受け手contractを最終照合A〜Fへ反映 | [完成条件と判定外](../../../design/domains/medical-records/technical-spec.md#medical-record-document-completion)。独立レビューと限定文書検査を通過し、この明示範囲を文書完了と判定。実装／実機・全体横断確認は別 |
 | 他領域への引継ぎ | D07検査revision／機器受信・D08接種／D09健診、D10／11／12／13の未納・返金・締め後・金額／在庫増減、D05／06専用記録、D20／21公開 | [引継ぎ表](../../../design/domains/medical-records/technical-spec.md#文書判定範囲と関連領域への引継ぎ)。カルテ合意で他領域内部を確定しない |
 | 別承認・実装受入 | 薬量の具体値・対象・単位・出典#261、C04実権限・C05保存期間／削除規約、実装・実データ／実機・並行性／性能 | 未承認／未検証のまま保持。Issue Closedや静的読取を医師の数値承認・実機PASSにしない |
@@ -97,4 +97,11 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 
 ## 初診問診・予防薬の追加採用
 
-[初診問診の構造化記録・原紙6頁対応](pages/initial-intake.md)と[予防薬専用処方箋・年間表](pages/preventive-medication.md)をSentinel_0adf405e47508191abf775b6c4af22a3 の回答に基づき追加。今回5FR／28AC。問診は独立タブ、自動保存・復元・終了後通常編集を維持。予防薬の表示・専用2帳票の入口はカルテ右上から開く既存D21で、D21一般レポート全体の印刷／共有を追加しない。D08接種と区別し、[概念](../../ontology/medical-records.md#medical-record-intake-prevention-ontology)・[技術trace](../../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)へ接続する。文書候補の追加であり、実装・実機受入は未実施。
+[初診問診の構造化記録・原紙6頁対応](pages/initial-intake.md)と[予防薬専用処方箋・年間表](pages/preventive-medication.md)をSentinel_0adf405e47508191abf775b6c4af22a3 の回答に基づき追加。今回5FR／28AC。問診は2026-10-17決定で治療プランへ統合する。既存保存先・自動保存・復元・終了後通常編集を維持し、飼主事前問診の別保存と保護を接続する。予防薬の表示・専用2帳票の入口はカルテ右上から開く既存D21で、D21一般レポート全体の印刷／共有を追加しない。D08接種と区別し、[概念](../../ontology/medical-records.md#medical-record-intake-prevention-ontology)・[技術trace](../../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)へ接続する。文書候補の追加であり、実装・実機受入は未実施。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](lifecycle.md#integrated-plan-20261017)。問診統合・右側履歴移設、飼主原文保護、非表示の来院別要約保存、1回量／用法／処方総量表示、価格入り4種明細の実施前後単価変更を適用する。旧9タブ／問診単独送信の記述は統合前の保存先・実装参照で、画面を別タブへ戻す根拠としない。統合した保存単位と同時編集は未選定。通常の単価割引理由は任意、その他行・取消・提示済み見積・確定会計の必要理由と既決薬量安全条件は維持する。

@@ -19,3 +19,10 @@
 [全体進捗](../SPECIFICATION_PROGRESS.md)・[共通方針](../../shared/README.md)・[記述規約](../../authoring-guide.md#status)。
 
 死亡後の追加合意は[安全・状態境界](lifecycle.md#requirement-fr-owners-pets-safety-and-private-notes)へ反映。生前診療の後日入力・誤記訂正・退院処理・精算は死亡状態を保ち、理由／履歴付きの各領域専用経路へ接続する。未来の新規予約・施術を認める追加ではない。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](lifecycle.md#common-owner-pet-20261017)。氏名または動物種＋ペット名の候補をスタッフ確認し、同一飼主は警告して新規停止、別人は可、新ペットは既存飼主へ追加する。他院既存患者の自院利用と共通最新基本情報を採用し、院別診療・金銭記録と認可は維持する。旧他院行／ID一律拒否を自院利用へ機械適用しない。共有ID・既存重複移行・link/unlink方式は未選定で、重複作成を自院利用条件にしない。
