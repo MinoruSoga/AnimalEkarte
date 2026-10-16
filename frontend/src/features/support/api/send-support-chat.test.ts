@@ -4,10 +4,23 @@ import { createElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/axios", () => ({
-  axios: { post: vi.fn(async () => ({ data: { reply: "ok", sources: [] } })) },
+  axios: {
+    post: vi.fn(async () => ({
+      data: {
+        reply: "ok",
+        sources: [],
+        retrieval: {
+          mode: "keyword",
+          reason: "disabled",
+          manual_revision: "f".repeat(64),
+        } satisfies SupportChatRetrieval,
+      },
+    })),
+  },
 }));
 import { axios } from "@/lib/axios";
 import { sendSupportChat, useSendSupportChat } from "./send-support-chat";
+import type { SupportChatRetrieval } from "../types";
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(

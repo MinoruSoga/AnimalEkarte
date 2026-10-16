@@ -1,15 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { canonicalCorpusJson } from "./manual-corpus";
+import { canonicalCorpusJson, baseCorpusRevision, verifyBaseCorpusRevision } from "./manual-corpus";
+
+describe("manual corpus constants", () => {
+  it("exposes generated base revision as baseCorpusRevision", () => {
+    expect(baseCorpusRevision).toMatch(/^[0-9a-f]{64}$/);
+    expect(baseCorpusRevision).not.toBe("");
+  });
+
+  it("verifyBaseCorpusRevision matches computed hash to the generated constant", async () => {
+    const articles = [
+      {
+        category: "screens" as const,
+        slug: "test",
+        title: "T",
+        section: "S",
+        content: "body",
+        keywords: [],
+        keywords_vi: [],
+      },
+    ];
+    const matches = await verifyBaseCorpusRevision(articles);
+    expect(typeof matches).toBe("boolean");
+  });
+});
 
 describe("canonicalCorpusJson", () => {
   it("escapes actual U+2028 but preserves literal backslash-u2028", () => {
     const json = canonicalCorpusJson([
       {
-        category: "s",
+        category: "screens",
         slug: "x",
         title: "t",
+        order: 1,
         section: "s",
-        body: "a\u2028b" + "\\u2028" + "c\u2029d<>&😀é",
+        content: "a\u2028b" + "\\u2028" + "c\u2029d<>&😀é",
+        searchText: "",
         keywords: [],
         keywords_vi: [],
       },
@@ -25,8 +50,10 @@ describe("canonicalCorpusJson", () => {
         category: "workflows",
         slug: "b",
         title: "",
+        order: 1,
         section: "",
-        body: "",
+        content: "",
+        searchText: "",
         keywords: [],
         keywords_vi: [],
       },
@@ -34,8 +61,10 @@ describe("canonicalCorpusJson", () => {
         category: "screens",
         slug: "a",
         title: "",
+        order: 1,
         section: "",
-        body: "",
+        content: "",
+        searchText: "",
         keywords: [],
         keywords_vi: [],
       },

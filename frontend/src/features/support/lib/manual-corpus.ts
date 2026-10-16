@@ -6,28 +6,10 @@
  * ソートは category→slug の UTF-16 コードユニット辞書順（localeCompare 不使用）。
  */
 import type { ManualArticle } from "@/lib/manual-index";
+import { MANUAL_CORPUS_BASE_REVISION } from "@/constants/manual-corpus.generated";
 
-export interface CorpusArticleView {
-  category: string;
-  slug: string;
-  title: string;
-  section: string;
-  body: string;
-  keywords: string[];
-  keywords_vi: string[];
-}
-
-export function toCorpusArticle(a: ManualArticle): CorpusArticleView {
-  return {
-    category: a.category,
-    slug: a.slug,
-    title: a.title,
-    section: a.section,
-    body: a.content,
-    keywords: a.keywords ?? [],
-    keywords_vi: a.keywords_vi ?? [],
-  };
-}
+/** ベースコーパスの生成時 revision（マージ前）。EMR-410 の base hash 照合用 */
+export const baseCorpusRevision = MANUAL_CORPUS_BASE_REVISION;
 
 // Go encoding/json は U+2028/U+2029 を \uXXXX にエスケープする。JSON.stringify は
 // 生の文字を出すため、Go 標準に合わせて実 Unicode 文字だけを置換する
@@ -35,7 +17,7 @@ export function toCorpusArticle(a: ManualArticle): CorpusArticleView {
 const U2028_RE = /\u2028/g;
 const U2029_RE = /\u2029/g;
 
-export function canonicalCorpusJson(articles: CorpusArticleView[]): string {
+export function canonicalCorpusJson(articles: ManualArticle[]): string {
   const sorted = [...articles].sort((a, b) =>
     a.category !== b.category
       ? a.category < b.category
@@ -54,7 +36,7 @@ export function canonicalCorpusJson(articles: CorpusArticleView[]): string {
         slug: a.slug,
         title: a.title,
         section: a.section,
-        body: a.body,
+        body: a.content,
         keywords: a.keywords ?? [],
         keywords_vi: a.keywords_vi ?? [],
       })
@@ -72,7 +54,12 @@ function sha256Hex(buf: ArrayBuffer): string {
 
 /** 実効コーパス revision（canonical article array の SHA-256 hex）を非同期で計算する */
 export async function computeManualRevision(articles: ManualArticle[]): Promise<string> {
-  const json = canonicalCorpusJson(articles.map(toCorpusArticle));
+  const json = canonicalCorpusJson(articles);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(json));
   return sha256Hex(digest);
+}
+
+/** base コーパス revision と生成定数の一致を検証（初回送信前の整合性確認用） */
+export async function verifyBaseCorpusRevision(articles: ManualArticle[]): Promise<boolean> {
+  return (await computeManualRevision(articles)) === baseCorpusRevision;
 }
