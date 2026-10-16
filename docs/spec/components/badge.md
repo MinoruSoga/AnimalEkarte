@@ -24,3 +24,15 @@
 ## 既知のギャップ（重要）
 
 - **コントラスト是正済み（2026-09-30 実装）**: 是正前の実測（6/8 コンボが AA 通常文字未達、`BADGE.gray` 死亡 sentinel は 2.38:1）は design-states.md §2.1 のベースライン表に記録済み。実装は §2.3 のとおり `C.textBadge*`（`BADGE.*` の text 参照を差替え、パステル背景は据え置き。`design-tokens.ts` の `C` セクションにメンバ定義）。機械検証は design-token-layers.md §6 C23（全 `BADGE.*` コンボ ≥4.5:1 を design-audit が検証）。
+
+## shared StatusBadge（`components/shared/StatusBadge/StatusBadge.tsx`）
+
+業務ステータス表示の共有ラッパー。`ui/badge` の `outline` variant に次の固定値を載せる:
+
+| 項目           | 値                                         |
+| -------------- | ------------------------------------------ |
+| タイポグラフィ | `text-2xs`（12px）/ `font-semibold`（600） |
+| 高さ           | `h-7`（28px）                              |
+| 水平パディング | `px-2`（8px）                              |
+
+色は呼び出し側の `colorClass`（`BADGE.*` コンボ等）で与え、`className` による追加調整も末尾に適用される。実測の視認性はここでは主張しない。
