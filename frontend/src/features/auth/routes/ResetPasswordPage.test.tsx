@@ -78,7 +78,7 @@ describe("ResetPasswordPage recovery behavior", () => {
     );
 
     const submit = screen.getByRole("button", { name: "パスワードを設定する" });
-    expect(submit).toHaveClass(C.bgBrandIdentity, C.hoverBgBrandIdentity);
+    expect(submit).toHaveClass(C.bgBrandIdentitySolid, C.hoverBgBrandIdentitySolid);
     expect(screen.getByTestId("reset-password-brand-mark")).toHaveClass(C.bgBrandIdentity);
   });
 

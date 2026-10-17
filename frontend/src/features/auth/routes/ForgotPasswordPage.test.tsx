@@ -113,8 +113,8 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
     );
 
     expect(screen.getByRole("button", { name: "リセットリンクを送信" })).toHaveClass(
-      C.bgBrandIdentity,
-      C.hoverBgBrandIdentity,
+      C.bgBrandIdentitySolid,
+      C.hoverBgBrandIdentitySolid,
     );
     expect(screen.getByTestId("forgot-password-brand-mark")).toHaveClass(C.bgBrandIdentity);
   });
