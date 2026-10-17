@@ -17,7 +17,7 @@ import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { useGetPet } from "@/hooks/use-pet";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import type { VaccinationRecord } from "@/types";
 import {
