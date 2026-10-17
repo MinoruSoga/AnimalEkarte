@@ -202,11 +202,13 @@ export function vaccinationOverridesOnScheduleType(
   scheduleType: string,
   currentDate: string,
 ): Partial<VaccinationFormState> {
-  const calculated = calculateNextDate(currentDate, scheduleType);
+  // レビュー指摘（EMR-431）: 間隔の切替時は次回予定日を必ず再計算する。
+  // 計算できない場合（以外（手動）・実施日空）は既定で自動計算した日付を
+  // 「手動」の値として残さないよう、空文字で上書きする。
   return {
     ...prev,
     nextScheduleType: scheduleType,
-    ...(calculated ? { nextDate: calculated } : {}),
+    nextDate: calculateNextDate(currentDate, scheduleType),
   };
 }
 

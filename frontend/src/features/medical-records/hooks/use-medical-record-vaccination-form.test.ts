@@ -308,3 +308,25 @@ describe("useMedicalRecordVaccinationForm EMR-431 next date default", () => {
     expect(result.current.nextDate).toBe("2026-09-26");
   });
 });
+
+// レビュー指摘（EMR-431）: 間隔を「以外（手動）」に変えたとき、既定で自動計算された
+// 次回予定日が残り、手入力していない日付が「手動」の値として保存されていた。
+describe("useMedicalRecordVaccinationForm レビュー指摘 — other 切替で次回予定日をクリア", () => {
+  it("other に切り替えたら既定の次回予定日をクリアし、プリセットに戻すと再計算する", () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+    expect(result.current.nextScheduleType).toBe("4weeks");
+    expect(result.current.nextDate).toBe("2026-09-26");
+
+    act(() => {
+      result.current.setNextScheduleType("other");
+    });
+    expect(result.current.nextScheduleType).toBe("other");
+    expect(result.current.nextDate).toBe("");
+
+    act(() => {
+      result.current.setNextScheduleType("4weeks");
+    });
+    expect(result.current.nextScheduleType).toBe("4weeks");
+    expect(result.current.nextDate).toBe("2026-09-26");
+  });
+});
