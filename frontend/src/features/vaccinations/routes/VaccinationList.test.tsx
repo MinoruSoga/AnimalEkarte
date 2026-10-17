@@ -477,7 +477,7 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
 
     const cell = getNextDateCell();
     expect(cell).not.toHaveClass(C.danger);
-    expect(cell).toHaveTextContent(/^—$/);
+    expect(cell).toHaveTextContent(/^-$/);
     expect(cell).not.toHaveTextContent("期限切れ");
   });
 

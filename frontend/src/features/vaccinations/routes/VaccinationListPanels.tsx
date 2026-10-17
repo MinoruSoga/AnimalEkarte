@@ -92,11 +92,11 @@ function VaccinationListRow({
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "—"}
+        {record.date ? formatDate(record.date) : "-"}
       </TableCell>
       <TableCell className={`font-mono whitespace-nowrap ${C.text}`}>
         <div className="flex items-center gap-1.5">
-          {record.nextDate ? formatDate(record.nextDate) : "—"}
+          {record.nextDate ? formatDate(record.nextDate) : "-"}
           <CheckupAlertBadge nextDate={record.nextDate} />
         </div>
       </TableCell>
@@ -111,7 +111,7 @@ function VaccinationListRow({
         </DataTableRowLink>
       </TableCell>
       <TableCell className={`font-medium ${C.text} min-w-[160px]`}>
-        {record.vaccineName || "—"}
+        {record.vaccineName || "-"}
       </TableCell>
       <TableCell className="text-right">
         {canEdit || canDelete ? (
@@ -186,6 +186,7 @@ export function VaccinationListContent({
             label="実施日"
             direction={directionFor("date")}
             onToggle={() => toggleSort("date")}
+            variant="eyebrow"
           />
         ),
         className: "w-[120px] whitespace-nowrap",
@@ -196,6 +197,7 @@ export function VaccinationListContent({
             label="次回予定"
             direction={directionFor("nextDate")}
             onToggle={() => toggleSort("nextDate")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[200px] whitespace-nowrap",
@@ -206,6 +208,7 @@ export function VaccinationListContent({
             label="飼主名"
             direction={directionFor("ownerName")}
             onToggle={() => toggleSort("ownerName")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[140px] whitespace-nowrap",
@@ -216,6 +219,7 @@ export function VaccinationListContent({
             label="ペット名"
             direction={directionFor("petName")}
             onToggle={() => toggleSort("petName")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[160px] whitespace-nowrap",
@@ -226,6 +230,7 @@ export function VaccinationListContent({
             label="予防接種名"
             direction={directionFor("vaccineName")}
             onToggle={() => toggleSort("vaccineName")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[160px] whitespace-nowrap",

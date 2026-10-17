@@ -344,7 +344,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                 />
 
                 <div className="space-y-2">
-                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
+                  <h3 className={`text-sm font-medium ${C.text} px-1`}>検査項目</h3>
                   {formState.fieldErrors?.examItems ? (
                     <p
                       id="examItems"
