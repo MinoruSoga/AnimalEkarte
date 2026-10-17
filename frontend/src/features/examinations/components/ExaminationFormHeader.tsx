@@ -1,7 +1,4 @@
-import {
-  PatientInfoCard,
-  formatPatientPetDetails,
-} from "@/components/shared/PatientInfoCard";
+import { PatientInfoCard, formatPatientPetDetails } from "@/components/shared/PatientInfoCard";
 import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";

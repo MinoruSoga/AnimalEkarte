@@ -830,16 +830,7 @@ describe("VaccinationList 列順 (EMR-415 V4)", () => {
   it("列は 実施日→次回予定→飼主名→ペット名→予防接種名→操作 の順", () => {
     renderPage();
 
-    const headerTexts = screen
-      .getAllByRole("columnheader")
-      .map((cell) => cell.textContent ?? "");
-    expect(headerTexts).toEqual([
-      "実施日",
-      "次回予定",
-      "飼主名",
-      "ペット名",
-      "予防接種名",
-      "操作",
-    ]);
+    const headerTexts = screen.getAllByRole("columnheader").map((cell) => cell.textContent ?? "");
+    expect(headerTexts).toEqual(["実施日", "次回予定", "飼主名", "ペット名", "予防接種名", "操作"]);
   });
 });
