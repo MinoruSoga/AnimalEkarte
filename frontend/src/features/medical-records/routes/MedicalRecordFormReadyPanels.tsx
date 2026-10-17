@@ -4,6 +4,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useAuth } from "@/hooks/use-auth";
@@ -235,6 +236,7 @@ export function MedicalRecordFormReadyPanels({
         resource={ResourceMedicalRecords}
         maxWidth={LAYOUT.pageContentMaxWidth.full}
         scrollContainerRef={ready.scrollContainerRef}
+        contentClassName={MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}
         headerAction={
           <PartnerRecordLink
             kind="trimming"

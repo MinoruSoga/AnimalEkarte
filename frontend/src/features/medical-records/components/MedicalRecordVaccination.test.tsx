@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 
 const { mockCreateVaccination } = vi.hoisted(() => ({
   mockCreateVaccination: vi.fn(),
@@ -138,6 +139,8 @@ describe("MedicalRecordVaccination responsive layout", () => {
     expect(layout).not.toHaveClass("grid-cols-12");
     expect(layout).not.toHaveClass("min-h-[500px]");
     expect(layout).toHaveClass("min-h-0");
+    // EMR-432: 右下固定ボタン群が末尾の履歴表を覆わない下余白
+    expect(layout).toHaveClass(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance);
     expect(screen.getByTestId("vaccination-history").parentElement).toBe(layout);
     expect(screen.getByTestId("vaccination-history").closest("fieldset")).toBeNull();
   });

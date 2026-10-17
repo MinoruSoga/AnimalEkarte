@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 
 import { MedicalRecordExamination } from "./MedicalRecordExamination";
 import { useGetRecordExaminations } from "../api/get-record-examinations";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import type { ExamGroup } from "../api/get-record-examinations";
 import type { ExamResult } from "@/lib/transforms/examination";
 
@@ -92,6 +93,8 @@ describe("MedicalRecordExamination — カナ混同検索", () => {
     expect(root.className).not.toContain("min-h-[500px]");
     expect(root.className).toContain("min-h-0");
     expect(root.className).toContain("overflow-y-auto");
+    // EMR-432: 右下固定ボタン群が末尾の要素を覆わない下余白
+    expect(root.className).toContain(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance);
   });
 
   it("100件で打ち切られた場合は履歴の省略を表示する", () => {
