@@ -264,3 +264,47 @@ describe("useMedicalRecordVaccinationForm EMR-105 same-day sequential registrati
     );
   });
 });
+
+// EMR-431: カルテの予防接種タブの追加フォームも、開いた時点で「当日＋既定間隔」の
+// 次回予定日を持つ。日付に触れずに保存しても next_date が送られる
+// （EMR-427 の LINE 期限配信は next_date で判定するため、空のまま保存されると漏れる）。
+describe("useMedicalRecordVaccinationForm EMR-431 next date default", () => {
+  it("初期表示で、当日と既定間隔から計算した次回予定日を持つ", () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    expect(result.current.date).toBe("2026-08-29");
+    expect(result.current.nextScheduleType).toBe("4weeks");
+    // 2026-08-29 + 4週 = 2026-09-26
+    expect(result.current.nextDate).toBe("2026-09-26");
+  });
+
+  it("日付に触れずに保存すると next_date を送り、保存後も同じ初期値に戻る", async () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setIsAdding(true);
+    });
+    act(() => {
+      result.current.setVaccineName("7");
+    });
+    submit(result.current.formAction);
+
+    // 既存テストと同じく、create 完了後の resetForm まで進んだことを成功トーストで待つ
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("接種記録を追加しました");
+    });
+    expect(mockCreateVaccination).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: "2026-08-29",
+        next_date: "2026-09-26",
+        next_schedule_type: "4weeks",
+      }),
+    );
+
+    // 保存後の resetForm も同じ「当日＋既定間隔」に戻る（前レコードの値を残さない）
+    expect(result.current.isAdding).toBe(false);
+    expect(result.current.date).toBe("2026-08-29");
+    expect(result.current.nextScheduleType).toBe("4weeks");
+    expect(result.current.nextDate).toBe("2026-09-26");
+  });
+});

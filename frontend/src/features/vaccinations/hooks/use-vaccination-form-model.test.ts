@@ -73,6 +73,7 @@ describe("validateVaccinationForm — JST date compare (FE-RC-003)", () => {
 
 import {
   mergeVaccinationFormData,
+  buildCreateVaccinationRequest,
   buildUpdateVaccinationRequest,
 } from "./use-vaccination-form-model";
 import { jstDateStartISOString } from "@/lib/jst-date";
@@ -178,5 +179,39 @@ describe("mergeVaccinationFormData — 編集時の nextScheduleType 再判定�
     const req = buildUpdateVaccinationRequest(merged, 1);
     expect(req.next_schedule_type).toBe("other");
     expect(req.next_date).toBe(jstDateStartISOString("2026-08-29"));
+  });
+});
+
+// EMR-431: 新規フォームは「当日＋既定間隔」の次回予定日を開いた時点で持つ。
+// 日付に触れずに保存しても next_date が送られる（EMR-427 の LINE 期限配信は
+// next_date で判定するため、空のまま保存されると配信対象から漏れる）。
+describe("mergeVaccinationFormData — 新規フォームの次回予定日初期化（EMR-431）", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // UTC 16:00 = JST 翌日 01:00。JST 当日が 2026-10-15 になる瞬間を固定する。
+    vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("既定間隔 1年後 で 当日+1年 の次回予定日を初期化する", () => {
+    const merged = mergeVaccinationFormData(false, undefined, {});
+    expect(merged.nextScheduleType).toBe("1year");
+    expect(merged.date).toBe("2026-10-15");
+    expect(merged.nextDate).toBe("2027-10-15");
+  });
+
+  it("日付に触れずに保存しても create request が next_date を送る", () => {
+    const merged = mergeVaccinationFormData(false, undefined, {});
+    const req = buildCreateVaccinationRequest(merged, "5");
+    expect(req.next_date).toBe(jstDateStartISOString("2027-10-15"));
+    expect(req.next_schedule_type).toBe("1year");
+  });
+
+  it("localOverrides の nextDate は初期値より優先される", () => {
+    const merged = mergeVaccinationFormData(false, undefined, { nextDate: "2026-11-01" });
+    expect(merged.nextDate).toBe("2026-11-01");
   });
 });
