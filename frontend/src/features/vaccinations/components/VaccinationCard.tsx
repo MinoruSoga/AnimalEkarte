@@ -8,12 +8,15 @@ import type { VaccinationRecord } from "@/types";
 
 interface VaccinationCardProps {
   vaccination: VaccinationRecord;
+  /** EMR-428: 同じワクチンでより新しい接種がある等で警告を出すべきでないとき true（日付は表示する） */
+  isReplaced?: boolean;
   onClick?: () => void;
   className?: string;
 }
 
 export const VaccinationCard = memo(function VaccinationCard({
   vaccination,
+  isReplaced = false,
   onClick,
   className,
 }: VaccinationCardProps) {
@@ -52,7 +55,7 @@ export const VaccinationCard = memo(function VaccinationCard({
           <div className={`flex items-center gap-1.5 mt-1.5 text-sm ${C.text60}`}>
             <Calendar className={`${ICON.xs} shrink-0`} />
             <span>次回: {formatDate(vaccination.nextDate)}</span>
-            <CheckupAlertBadge nextDate={vaccination.nextDate} />
+            {!isReplaced ? <CheckupAlertBadge nextDate={vaccination.nextDate} /> : null}
           </div>
         ) : null}
       </CardContent>

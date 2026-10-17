@@ -75,3 +75,28 @@ describe("VaccinationCard 次回予定の期限バッジと日付表記 (EMR-415
     expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
   });
 });
+
+describe("VaccinationCard 置き換わり記録の警告抑制 (EMR-428)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T06:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("置き換わった記録（isReplaced）は期限切れでもバッジを出さず、日付は表示する", () => {
+    render(<VaccinationCard vaccination={{ ...vaccination, nextDate: "2026-07-23" }} isReplaced />);
+
+    expect(screen.getByText(/次回: 2026\/07\/23/)).toBeInTheDocument();
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
+  });
+
+  it("最新の記録（isReplaced 省略）は従来どおりバッジを出す", () => {
+    render(<VaccinationCard vaccination={{ ...vaccination, nextDate: "2026-07-23" }} />);
+
+    expect(screen.getByText("期限切れ")).toBeInTheDocument();
+  });
+});
