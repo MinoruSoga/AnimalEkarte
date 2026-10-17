@@ -90,10 +90,7 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
               />
             </div>
             <div className="space-y-1 min-w-0">
-              <Label
-                htmlFor={`item-category-${item.localId}`}
-                className="whitespace-nowrap"
-              >
+              <Label htmlFor={`item-category-${item.localId}`} className="whitespace-nowrap">
                 カテゴリ
               </Label>
               <Select
@@ -136,10 +133,7 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
               />
             </div>
             <div className="space-y-1 min-w-0">
-              <Label
-                htmlFor={`item-tax-type-${item.localId}`}
-                className="whitespace-nowrap"
-              >
+              <Label htmlFor={`item-tax-type-${item.localId}`} className="whitespace-nowrap">
                 課税区分
               </Label>
               <Select
@@ -160,10 +154,7 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
               </Select>
             </div>
             <div className="space-y-1 min-w-0">
-              <Label
-                htmlFor={`item-tax-rate-${item.localId}`}
-                className="whitespace-nowrap"
-              >
+              <Label htmlFor={`item-tax-rate-${item.localId}`} className="whitespace-nowrap">
                 税率
               </Label>
               <Select
@@ -185,10 +176,7 @@ export const EstimateItemsEditor = memo(function EstimateItemsEditor({
             </div>
             {(item.id ? canEditDiscount : canCreateDiscount) ? (
               <div className="space-y-1 min-w-0">
-                <Label
-                  htmlFor={`item-discount-${item.localId}`}
-                  className="whitespace-nowrap"
-                >
+                <Label htmlFor={`item-discount-${item.localId}`} className="whitespace-nowrap">
                   値引（円）
                 </Label>
                 <NumberInput

@@ -35,7 +35,9 @@ export const OwnerUnpaidBalanceCard = memo(function OwnerUnpaidBalanceCard({
             未入金 {data.unpaidCount.toLocaleString()} 件
           </span>
         </div>
-        <span className={`text-xl font-normal ${C.danger}`}>{formatCurrency(data.unpaidTotal)}</span>
+        <span className={`text-xl font-normal ${C.danger}`}>
+          {formatCurrency(data.unpaidTotal)}
+        </span>
       </CardContent>
     </Card>
   );
