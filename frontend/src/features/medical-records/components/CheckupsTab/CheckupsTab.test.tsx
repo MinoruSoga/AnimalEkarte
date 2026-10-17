@@ -542,6 +542,38 @@ describe("CheckupsTab — 死亡ペットの空状態理由 (PR679 F1)", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────
+// EMR-429: 日付表示は共有フォーマッタの YYYY/MM/DD
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — date display (EMR-429)", () => {
+  it("実施日は YYYY/MM/DD で表示し、next_date=null は '-' を表示する", () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [CHECKUP_WITH_DOCTOR],
+      isLoading: false,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    const row = screen.getByText("2026/05/01").closest("tr");
+    expect(row).not.toBeNull();
+    expect(screen.queryByText("2026-05-01")).toBeNull();
+    expect(row?.textContent).toContain("-");
+  });
+
+  it("next_date がある行は YYYY/MM/DD で表示する", () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [{ ...CHECKUP_WITH_DOCTOR, next_date: "2026-06-01" }],
+      isLoading: false,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    const row = screen.getByText("2026/05/01").closest("tr");
+    expect(row?.textContent).toContain("2026/06/01");
+  });
+});
+
 // レビュー指摘（EMR-431）: タブはマウントされ続けるため、追加行を開く時点で
 // 当日ベースの既定を作り直さないと、日跨ぎ後に前日の実施日・次回予定日が残る。
 describe("CheckupsTab — 追加行を開く時点の既定値（レビュー指摘）", () => {
