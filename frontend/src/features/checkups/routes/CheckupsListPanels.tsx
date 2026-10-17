@@ -123,6 +123,7 @@ export function CheckupsListContent({
             label="実施日"
             direction={directionFor("date")}
             onToggle={() => toggleSort("date")}
+            variant="eyebrow"
           />
         ),
         className: "w-[120px]",
@@ -133,6 +134,7 @@ export function CheckupsListContent({
             label="飼主名"
             direction={directionFor("ownerName")}
             onToggle={() => toggleSort("ownerName")}
+            variant="eyebrow"
           />
         ),
         className: "whitespace-nowrap",
@@ -143,6 +145,7 @@ export function CheckupsListContent({
             label="ペット名"
             direction={directionFor("petName")}
             onToggle={() => toggleSort("petName")}
+            variant="eyebrow"
           />
         ),
         className: "whitespace-nowrap",
@@ -153,6 +156,7 @@ export function CheckupsListContent({
             label="健診種別"
             direction={directionFor("checkupTypeName")}
             onToggle={() => toggleSort("checkupTypeName")}
+            variant="eyebrow"
           />
         ),
         className: "whitespace-nowrap hidden md:table-cell",
@@ -163,6 +167,7 @@ export function CheckupsListContent({
             label="次回予定"
             direction={directionFor("nextDate")}
             onToggle={() => toggleSort("nextDate")}
+            variant="eyebrow"
           />
         ),
         className: "w-[120px] hidden md:table-cell",

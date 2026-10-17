@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { AlertTriangle, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type {
   ActiveFilter,
   ActiveSort,
@@ -15,9 +15,9 @@ import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActi
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
+import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { useGetPet } from "@/hooks/use-pet";
-import { isPastJSTDate } from "@/lib/jst-date";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import type { VaccinationRecord } from "@/types";
 import {
@@ -89,11 +89,16 @@ function VaccinationListRow({
   onEdit,
   onDelete,
 }: VaccinationListRowProps) {
-  const overdue = isPastJSTDate(record.nextDate);
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "—"}
+        {record.date ? formatDate(record.date) : "-"}
+      </TableCell>
+      <TableCell className={`font-mono whitespace-nowrap ${C.text}`}>
+        <div className="flex items-center gap-1.5">
+          {record.nextDate ? formatDate(record.nextDate) : "-"}
+          <CheckupAlertBadge nextDate={record.nextDate} />
+        </div>
       </TableCell>
       <TableCell className={`${C.text} min-w-[140px]`}>{record.ownerName}</TableCell>
       <TableCell className={`${C.text} min-w-[160px]`}>
@@ -106,22 +111,7 @@ function VaccinationListRow({
         </DataTableRowLink>
       </TableCell>
       <TableCell className={`font-medium ${C.text} min-w-[160px]`}>
-        {record.vaccineName || "—"}
-      </TableCell>
-      <TableCell className={`font-mono whitespace-nowrap ${overdue ? C.danger : C.text}`}>
-        {overdue ? (
-          <span className="inline-flex items-center gap-1.5">
-            <AlertTriangle className={`${ICON.xs} shrink-0`} />
-            <span>
-              {record.nextDate ? formatDate(record.nextDate) : "—"}
-              <span className="ml-1.5 text-xs font-medium">（期限超過）</span>
-            </span>
-          </span>
-        ) : record.nextDate ? (
-          formatDate(record.nextDate)
-        ) : (
-          "—"
-        )}
+        {record.vaccineName || "-"}
       </TableCell>
       <TableCell className="text-right">
         {canEdit || canDelete ? (
@@ -196,6 +186,7 @@ export function VaccinationListContent({
             label="実施日"
             direction={directionFor("date")}
             onToggle={() => toggleSort("date")}
+            variant="eyebrow"
           />
         ),
         className: "w-[120px] whitespace-nowrap",
@@ -203,9 +194,21 @@ export function VaccinationListContent({
       {
         header: (
           <SortableHeader
+            label="次回予定"
+            direction={directionFor("nextDate")}
+            onToggle={() => toggleSort("nextDate")}
+            variant="eyebrow"
+          />
+        ),
+        className: "min-w-[200px] whitespace-nowrap",
+      },
+      {
+        header: (
+          <SortableHeader
             label="飼主名"
             direction={directionFor("ownerName")}
             onToggle={() => toggleSort("ownerName")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[140px] whitespace-nowrap",
@@ -216,6 +219,7 @@ export function VaccinationListContent({
             label="ペット名"
             direction={directionFor("petName")}
             onToggle={() => toggleSort("petName")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[160px] whitespace-nowrap",
@@ -226,19 +230,10 @@ export function VaccinationListContent({
             label="予防接種名"
             direction={directionFor("vaccineName")}
             onToggle={() => toggleSort("vaccineName")}
+            variant="eyebrow"
           />
         ),
         className: "min-w-[160px] whitespace-nowrap",
-      },
-      {
-        header: (
-          <SortableHeader
-            label="次回予定"
-            direction={directionFor("nextDate")}
-            onToggle={() => toggleSort("nextDate")}
-          />
-        ),
-        className: "min-w-[200px] whitespace-nowrap",
       },
       { header: "操作", className: "w-[100px] whitespace-nowrap", align: "right" as const },
     ],

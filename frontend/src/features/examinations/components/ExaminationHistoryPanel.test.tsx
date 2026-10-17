@@ -100,3 +100,13 @@ describe("ExaminationHistoryPanel", () => {
     expect(screen.getByRole("button", { name: "時系列" })).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+describe("EMR-415 X5: 見出しの様式", () => {
+  it("履歴パネル見出しは text-base font-semibold C.text に揃う", () => {
+    render(<HistoryPanelHarness />);
+
+    const heading = screen.getByText("過去の検査履歴");
+    expect(heading).toHaveClass("text-base", "font-semibold", "text-[#000000]");
+    expect(heading).not.toHaveClass("text-sm");
+  });
+});

@@ -573,3 +573,22 @@ describe("CheckupsList — 担当医カラムのレイアウト契約 (EMR-399)"
     expect(doctorCell).not.toHaveClass("truncate");
   });
 });
+
+describe("CheckupsList ヘッダの文字色 (EMR-415 X2)", () => {
+  it("ソート可能ヘッダは eyebrow variant（#615D59・uppercase）で描画する", async () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: makeCheckupsResult([makeCheckupRecord({})]),
+      isLoading: false,
+      error: null,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsList />, { wrapper: createWrapper() });
+
+    const buttons = await screen.findAllByRole("button", { name: /でソート/ });
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button).toHaveClass("text-[#615D59]");
+      expect(button).toHaveClass("uppercase");
+    }
+  });
+});

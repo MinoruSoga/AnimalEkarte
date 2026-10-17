@@ -57,10 +57,21 @@ describe("Vaccination displayed date and name", () => {
     show("2026-10-14", "2000-01-01");
     expect(screen.getByRole("cell", { name: "2026/10/14" })).toHaveClass("whitespace-nowrap");
     expect(screen.getByText("2000/01/01")).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "—" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "-" })).toBeInTheDocument();
   });
   it("missing dates and vaccine name are em dashes", () => {
     show("", "");
-    expect(screen.getAllByRole("cell", { name: "—" })).toHaveLength(3);
+    expect(screen.getAllByRole("cell", { name: "-" })).toHaveLength(3);
+  });
+});
+
+describe("EMR-415 X2: 一覧ヘッダの文字色", () => {
+  it("ソート可能ヘッダは eyebrow variant（#615D59・uppercase）で描画する", () => {
+    show("2026-10-14", "2026-11-14");
+
+    for (const button of screen.getAllByRole("button", { name: /でソート/ })) {
+      expect(button).toHaveClass("text-[#615D59]");
+      expect(button).toHaveClass("uppercase");
+    }
   });
 });

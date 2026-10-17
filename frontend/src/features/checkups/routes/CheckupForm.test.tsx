@@ -442,3 +442,25 @@ describe("CheckupForm 必須エラー表示 (EMR-319)", () => {
     expect(screen.queryByText("健診種別を選択してください")).not.toBeInTheDocument();
   });
 });
+
+describe("CheckupForm layout (EMR-415 C1)", () => {
+  it("実施日・健診種別・次回予定・担当医は全幅行で、2カラム折り返しの wrapper を持たない", () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: true,
+      canEdit: true,
+      canDelete: false,
+    });
+    renderForm();
+
+    const controls = [
+      screen.getByRole("textbox", { name: "実施日" }),
+      screen.getByRole("combobox", { name: "健診種別" }),
+      screen.getByRole("combobox", { name: "次回の予定" }),
+      screen.getByRole("combobox", { name: "担当医" }),
+    ];
+    for (const control of controls) {
+      expect(control.closest('div[class*="md:grid-cols-2"]')).toBeNull();
+    }
+  });
+});
