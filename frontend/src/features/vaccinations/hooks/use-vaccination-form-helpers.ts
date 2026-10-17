@@ -6,6 +6,7 @@ import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { EntityReadResult } from "@/lib/entity-read-result";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/components/shared/NextScheduleField";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
 import type {
   VaccinationFormState,
@@ -14,7 +15,6 @@ import type {
 import {
   buildCreateVaccinationRequest,
   buildUpdateVaccinationRequest,
-  DEFAULT_NEXT_SCHEDULE_TYPE,
   validateVaccinationForm,
   vaccinationOverridesOnDate,
   vaccinationOverridesOnNextDate,

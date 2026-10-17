@@ -1,2 +1,6 @@
 export { NextScheduleField } from "./NextScheduleField";
-export { calculateNextDate, resolveScheduleTypeAfterManualDate } from "./next-schedule";
+export {
+  DEFAULT_NEXT_SCHEDULE_TYPE,
+  calculateNextDate,
+  resolveScheduleTypeAfterManualDate,
+} from "./next-schedule";
