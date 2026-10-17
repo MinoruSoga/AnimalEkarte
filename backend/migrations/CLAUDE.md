@@ -19,6 +19,13 @@
 > 禁止（未適用扱いとなり DDL が重複実行されて失敗する）。この2本は共存を維持する。
 > 新たな番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で
 > 検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
+>
+> **リネームの記録（2026-10-18）**: `037` が並行ブランチで衝突した（#678 の
+> `037_house_call_item_category.sql` と #680 の `037_support_manual_search.sql`）。
+> staging・本番に未適用で、両ファイルとも冪等（`IF NOT EXISTS`）なため、ユーザー判断で
+> 後発の後者を `038_support_manual_search.sql` に改名した。ローカルで適用済みの DB では
+> `schema_migrations` に旧名が残り（`reconcile_keys.go` は情報扱いで起動は止めない）、
+> 新名が未適用として再実行されるが、冪等なので失敗しない。
 
 ## 必須チェック
 

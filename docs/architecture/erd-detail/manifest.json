@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "ccfe4aa18396773b30d2440631167a6b87330f028c6e77f9d984c9f81e0a76a7",
+  "source_digest": "883245f64087072c8138f71114b8ea70a114ae20f34a5c5209a86e4476003c31",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -159,7 +159,11 @@
       "sha256": "0d119d3506a81b0707fa5af3e77658661bb63e5267542f1c8b993b2ed28915b2"
     },
     {
-      "name": "037_support_manual_search.sql",
+      "name": "037_house_call_item_category.sql",
+      "sha256": "72a99d3f7fb06e091ee08747d13524c0b68d3377a52f3f5c7f6288feed03cb82"
+    },
+    {
+      "name": "038_support_manual_search.sql",
       "sha256": "868487fd07d1d5aa3ba506bf120ba2c4ec666b94f13d4571e3d3eb786529848d"
     }
   ],
