@@ -100,7 +100,7 @@ func TestRealDB_SupportManualSearch(t *testing.T) {
 	}
 
 	db := testdb.SetupTestDB(t)
-	migration, err := os.ReadFile("../../migrations/037_support_manual_search.sql")
+	migration, err := os.ReadFile("../../migrations/038_support_manual_search.sql")
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(migration)).Error)
 	namespace := reviewManualSearchNamespace(t)

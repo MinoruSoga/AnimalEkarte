@@ -2,7 +2,7 @@
 
 ## DB変更の追加方針
 
-**今後のDB変更は新しい連番のmigrationファイルで行う。`001_init.sql`への追記・編集や、後続migrationの再統合は禁止。** 一度コミットされたmigration SQLは変更・削除・リネームせず、訂正も新規ファイルで行う。手順と理由は[README.md](README.md)を参照する。
+**今後のDB変更は新しい連番のmigrationファイルで行う。`001_init.sql`への追記・編集や、後続migrationの再統合は禁止。** 一度コミットされたmigration SQLは変更・削除・リネームせず、訂正も新規ファイルで行う。唯一の例外は、並行採番の衝突で、どの環境（staging・本番）にも未適用かつ冪等なファイルの番号だけを改名する場合で、ユーザーの明示判断を要する（下の「リネームの記録」）。手順と理由は[README.md](README.md)を参照する。
 
 ## 命名規則
 
@@ -19,6 +19,13 @@
 > 禁止（未適用扱いとなり DDL が重複実行されて失敗する）。この2本は共存を維持する。
 > 新たな番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で
 > 検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
+>
+> **リネームの記録（2026-10-18）**: `037` が2026-10-16に並行ブランチで衝突した（#678 の
+> `037_house_call_item_category.sql` と #680 の `037_support_manual_search.sql`）。
+> staging・本番に未適用で、両ファイルとも冪等（`IF NOT EXISTS`）なため、ユーザー判断で
+> 後発の後者を `038_support_manual_search.sql` に改名した。ローカルで適用済みの DB では
+> `schema_migrations` に旧名が残り（`reconcile_keys.go` は情報扱いで起動は止めない）、
+> 新名が未適用として再実行されるが、冪等なので失敗しない。
 
 ## 必須チェック
 

@@ -225,7 +225,7 @@ class SchemaTests(unittest.TestCase):
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
         self.assertEqual(len(schema.tables), 138)
-        self.assertEqual(len(schema.migrations), 35)
+        self.assertEqual(len(schema.migrations), 36)
         embeddings = schema.tables['support_manual_embeddings']
         self.assertEqual({c.name for c in embeddings.columns}, {'cache_key', 'model', 'task_type', 'chunker_version', 'dimensions', 'embedding', 'created_at'})
         self.assertTrue(all(not c.nullable for c in embeddings.columns))

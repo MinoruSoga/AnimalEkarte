@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cache_key` | `text` | NOT NULL | — | PK | [037_support_manual_search.sql:6](../../../backend/migrations/037_support_manual_search.sql#L6) |
-| `model` | `text` | NOT NULL | — | — | [037_support_manual_search.sql:7](../../../backend/migrations/037_support_manual_search.sql#L7) |
-| `task_type` | `text` | NOT NULL | — | — | [037_support_manual_search.sql:8](../../../backend/migrations/037_support_manual_search.sql#L8) |
-| `chunker_version` | `integer` | NOT NULL | — | — | [037_support_manual_search.sql:9](../../../backend/migrations/037_support_manual_search.sql#L9) |
-| `dimensions` | `integer` | NOT NULL | — | — | [037_support_manual_search.sql:10](../../../backend/migrations/037_support_manual_search.sql#L10) |
-| `embedding` | `real[]` | NOT NULL | — | — | [037_support_manual_search.sql:11](../../../backend/migrations/037_support_manual_search.sql#L11) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [037_support_manual_search.sql:12](../../../backend/migrations/037_support_manual_search.sql#L12) |
+| `cache_key` | `text` | NOT NULL | — | PK | [038_support_manual_search.sql:6](../../../backend/migrations/038_support_manual_search.sql#L6) |
+| `model` | `text` | NOT NULL | — | — | [038_support_manual_search.sql:7](../../../backend/migrations/038_support_manual_search.sql#L7) |
+| `task_type` | `text` | NOT NULL | — | — | [038_support_manual_search.sql:8](../../../backend/migrations/038_support_manual_search.sql#L8) |
+| `chunker_version` | `integer` | NOT NULL | — | — | [038_support_manual_search.sql:9](../../../backend/migrations/038_support_manual_search.sql#L9) |
+| `dimensions` | `integer` | NOT NULL | — | — | [038_support_manual_search.sql:10](../../../backend/migrations/038_support_manual_search.sql#L10) |
+| `embedding` | `real[]` | NOT NULL | — | — | [038_support_manual_search.sql:11](../../../backend/migrations/038_support_manual_search.sql#L11) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [038_support_manual_search.sql:12](../../../backend/migrations/038_support_manual_search.sql#L12) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -48,11 +48,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_manual_embeddings_pkey` | primary | `PRIMARY KEY` | [037_support_manual_search.sql:6](../../../backend/migrations/037_support_manual_search.sql#L6) |
-| `support_manual_embeddings_dimensions_chk` | check | `CONSTRAINT support_manual_embeddings_dimensions_chk CHECK (dimensions = 1536)` | [037_support_manual_search.sql:13](../../../backend/migrations/037_support_manual_search.sql#L13) |
-| `support_manual_embeddings_length_chk` | check | `CONSTRAINT support_manual_embeddings_length_chk CHECK (         array_ndims(embedding) = 1 AND cardinality(embedding) = 1536 AND array_lower(embedding, 1) = 1     )` | [037_support_manual_search.sql:14](../../../backend/migrations/037_support_manual_search.sql#L14) |
-| `support_manual_embeddings_task_chk` | check | `CONSTRAINT support_manual_embeddings_task_chk CHECK (task_type = 'RETRIEVAL_DOCUMENT')` | [037_support_manual_search.sql:17](../../../backend/migrations/037_support_manual_search.sql#L17) |
-| `support_manual_embeddings_version_chk` | check | `CONSTRAINT support_manual_embeddings_version_chk CHECK (chunker_version = 1)` | [037_support_manual_search.sql:18](../../../backend/migrations/037_support_manual_search.sql#L18) |
+| `support_manual_embeddings_pkey` | primary | `PRIMARY KEY` | [038_support_manual_search.sql:6](../../../backend/migrations/038_support_manual_search.sql#L6) |
+| `support_manual_embeddings_dimensions_chk` | check | `CONSTRAINT support_manual_embeddings_dimensions_chk CHECK (dimensions = 1536)` | [038_support_manual_search.sql:13](../../../backend/migrations/038_support_manual_search.sql#L13) |
+| `support_manual_embeddings_length_chk` | check | `CONSTRAINT support_manual_embeddings_length_chk CHECK (         array_ndims(embedding) = 1 AND cardinality(embedding) = 1536 AND array_lower(embedding, 1) = 1     )` | [038_support_manual_search.sql:14](../../../backend/migrations/038_support_manual_search.sql#L14) |
+| `support_manual_embeddings_task_chk` | check | `CONSTRAINT support_manual_embeddings_task_chk CHECK (task_type = 'RETRIEVAL_DOCUMENT')` | [038_support_manual_search.sql:17](../../../backend/migrations/038_support_manual_search.sql#L17) |
+| `support_manual_embeddings_version_chk` | check | `CONSTRAINT support_manual_embeddings_version_chk CHECK (chunker_version = 1)` | [038_support_manual_search.sql:18](../../../backend/migrations/038_support_manual_search.sql#L18) |
 
 ## インデックス
 

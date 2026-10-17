@@ -121,7 +121,7 @@ func TestRealDB_SupportManualSearchAmbientTx(t *testing.T) {
 		t.Skip("requires an isolated PostgreSQL instance and explicit human approval; set SUPPORT_MANUAL_SQL_INTEGRATION=1")
 	}
 	db := testdb.SetupTestDB(t)
-	migration, err := os.ReadFile("../../migrations/037_support_manual_search.sql")
+	migration, err := os.ReadFile("../../migrations/038_support_manual_search.sql")
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(migration)).Error)
 
