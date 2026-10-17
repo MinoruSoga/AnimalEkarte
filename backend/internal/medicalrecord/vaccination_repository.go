@@ -22,6 +22,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
+const GenericVaccineNamePrefix = "他院"
+
 type VaccinationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, search string, page, limit int) ([]model.Vaccination, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccination, error)
@@ -406,6 +408,15 @@ func vaccinationPatientRelationsScope(clinicID uint64) func(*gorm.DB) *gorm.DB {
 	}
 }
 
+func vaccinationCurrentDeadlineScope(db *gorm.DB) *gorm.DB {
+	return db.
+		Joins("LEFT JOIN vaccines AS deadline_vaccine ON deadline_vaccine.clinic_id = vaccinations.clinic_id AND deadline_vaccine.id = vaccinations.vaccine_id").
+		Where(
+			"vaccinations.vaccine_id IS NULL OR vaccinations.vaccine_id = 0 OR deadline_vaccine.name LIKE ? OR NOT EXISTS (SELECT 1 FROM vaccinations AS newer WHERE newer.clinic_id = vaccinations.clinic_id AND newer.pet_id = vaccinations.pet_id AND newer.vaccine_id = vaccinations.vaccine_id AND newer.date > vaccinations.date AND newer.deleted_at IS NULL)",
+			GenericVaccineNamePrefix+"%",
+		)
+}
+
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 // pets/owners を clinic_id 一致で JOIN し、生存ペット経由で飼い主IDを取得する。
 func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
@@ -414,6 +425,7 @@ func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context,
 	var rows []row
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
+		Scopes(vaccinationCurrentDeadlineScope).
 		// EMR-290: 生存判定は status=deceased または deceased_at 非NULL の OR 契約。
 		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased).
 		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
@@ -441,6 +453,7 @@ func (r *vaccinationRepository) OwnerHasAliveVaccineDeadline(ctx context.Context
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
+		Scopes(vaccinationCurrentDeadlineScope).
 		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.clinic_id = vaccinations.clinic_id AND pets.deleted_at IS NULL AND pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased).
 		Joins("JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = vaccinations.clinic_id AND owners.deleted_at IS NULL").
 		Where("vaccinations.clinic_id = ? AND vaccinations.deleted_at IS NULL", clinicID).
