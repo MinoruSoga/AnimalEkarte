@@ -15,6 +15,8 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { getSortOrderLabel } from "@/lib/status-helpers";
 import { normalizedIncludes } from "@/lib/normalize-kana";
+import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
+import { collectReplacedVaccinationIds } from "@/lib/vaccination-replacement";
 import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
@@ -73,6 +75,23 @@ export const VaccinationHistory = memo(function VaccinationHistory({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
   const deferredSearch = useDeferredValue(searchTerm);
+
+  // EMR-433: 置き換わり判定は絞り込み前の全 item で行う（EMR-428 の純関数）。
+  // item は同じペットの履歴のみ（use-pet-vaccinations）なので petId は共有値でよい。
+  // 判定には表示文字列（YY/M/D）ではなく ISO の dateISO / vaccineId / name を渡す。
+  const replacedVaccinationIds = useMemo(
+    () =>
+      collectReplacedVaccinationIds(
+        historyItems.map((item) => ({
+          id: String(item.id),
+          petId: "same-pet",
+          date: item.dateISO,
+          vaccineId: String(item.vaccineId),
+          vaccineName: item.name,
+        })),
+      ),
+    [historyItems],
+  );
 
   const filteredItems = useMemo(() => {
     const filtered = historyItems.filter((item) => {
@@ -196,7 +215,7 @@ export const VaccinationHistory = memo(function VaccinationHistory({
             ? filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
+                  className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} min-h-12 ${C.hoverBgPageHalf} transition-colors`}
                 >
                   <div className="flex-1 px-3 truncate font-medium">{item.name}</div>
                   <div
@@ -205,9 +224,14 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                     {formatDate(item.dateISO)}
                   </div>
                   <div
-                    className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} font-mono text-sm whitespace-nowrap`}
+                    className={`w-[110px] shrink-0 px-2 py-1 text-center border-l ${C.borderMedium} font-mono text-sm`}
                   >
-                    {formatDate(item.nextDate)}
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="whitespace-nowrap">{formatDate(item.nextDate)}</span>
+                      {!replacedVaccinationIds.has(String(item.id)) ? (
+                        <CheckupAlertBadge nextDate={item.nextDate} />
+                      ) : null}
+                    </div>
                   </div>
                   <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
                     {canCreate ? (
