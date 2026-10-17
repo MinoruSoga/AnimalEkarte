@@ -8,7 +8,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useGetRecordExaminations } from "../api/get-record-examinations";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
 import { ExaminationImportDialog } from "./MedicalRecordLazyModals";

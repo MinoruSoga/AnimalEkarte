@@ -10,7 +10,7 @@ import { normalizedIncludes } from "@/lib/normalize-kana";
 // Relative
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
 import { useCreateMedicalRecordImages, useDeleteImage } from "../api/medical-record-images";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { validateUploadFiles } from "../lib/image-upload-files";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";

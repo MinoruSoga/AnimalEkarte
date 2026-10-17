@@ -4,7 +4,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { MedicalRecordPrintView } from "./MedicalRecordPrintView";
 import type { BillingConfirmation, Treatment } from "../types";
 

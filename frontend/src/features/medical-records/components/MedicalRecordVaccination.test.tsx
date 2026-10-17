@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 
 const { mockCreateVaccination } = vi.hoisted(() => ({
   mockCreateVaccination: vi.fn(),

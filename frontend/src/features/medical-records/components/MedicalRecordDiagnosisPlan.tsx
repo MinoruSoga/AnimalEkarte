@@ -12,7 +12,7 @@ import { DiagnosisHeader } from "./DiagnosisHeader";
 import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetClinicalPlan } from "../api/clinical-plan";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import {
   useGetTreatments,
   useCreateTreatment,

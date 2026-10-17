@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
 
 vi.mock("@/hooks/use-permission", () => ({
