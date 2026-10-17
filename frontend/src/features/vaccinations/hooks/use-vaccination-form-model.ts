@@ -87,7 +87,16 @@ export function mergeVaccinationFormData(
       ...localOverrides,
     };
   }
-  return { ...DEFAULT_VACCINATION_FORM, date: todayJSTISO(), ...localOverrides };
+  // EMR-431: 新規フォームも開いた時点で「当日＋既定間隔」の次回予定日を持つ。
+  // 日付に触れずに保存しても next_date が送られる（EMR-427 の LINE 期限配信は
+  // next_date で判定するため、空のまま保存されると配信対象から漏れる）。
+  const date = todayJSTISO();
+  return {
+    ...DEFAULT_VACCINATION_FORM,
+    date,
+    nextDate: calculateNextDate(date, DEFAULT_VACCINATION_FORM.nextScheduleType),
+    ...localOverrides,
+  };
 }
 
 export function validateVaccinationForm(
@@ -193,11 +202,13 @@ export function vaccinationOverridesOnScheduleType(
   scheduleType: string,
   currentDate: string,
 ): Partial<VaccinationFormState> {
-  const calculated = calculateNextDate(currentDate, scheduleType);
+  // レビュー指摘（EMR-431）: 間隔の切替時は次回予定日を必ず再計算する。
+  // 計算できない場合（以外（手動）・実施日空）は既定で自動計算した日付を
+  // 「手動」の値として残さないよう、空文字で上書きする。
   return {
     ...prev,
     nextScheduleType: scheduleType,
-    ...(calculated ? { nextDate: calculated } : {}),
+    nextDate: calculateNextDate(currentDate, scheduleType),
   };
 }
 
