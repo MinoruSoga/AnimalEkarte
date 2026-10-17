@@ -262,6 +262,7 @@ function LotInput({ id, label, value, onChange, onMarkDirty }: LotInputProps) {
 
 interface VaccinationHistoryPanelProps {
   petHistory: VaccinationRecord[];
+  replacedVaccinationIds: Set<string>;
   filterStartDate: string;
   filterEndDate: string;
   historySearchTerm: string;
@@ -275,6 +276,7 @@ interface VaccinationHistoryPanelProps {
 
 export function VaccinationHistoryPanel({
   petHistory,
+  replacedVaccinationIds = new Set<string>(),
   filterStartDate,
   filterEndDate,
   historySearchTerm,
@@ -308,7 +310,11 @@ export function VaccinationHistoryPanel({
           <p className={`text-sm ${C.text60} py-4 text-center`}>履歴がありません</p>
         ) : (
           petHistory.map((vaccination) => (
-            <VaccinationCard key={vaccination.id} vaccination={vaccination} />
+            <VaccinationCard
+              key={vaccination.id}
+              vaccination={vaccination}
+              isReplaced={replacedVaccinationIds.has(vaccination.id)}
+            />
           ))
         )}
       </div>

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { VaccinationHistory } from "./VaccinationHistory";
 import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
@@ -132,7 +132,160 @@ describe("VaccinationHistory — 日付表示 (EMR-429)", () => {
       .find((el) => el.classList.contains("w-[110px]"));
     expect(headerDate).toBeDefined();
     expect(headerNext).toBeDefined();
-    expect(screen.getByText("2026/01/01")).toHaveClass("w-[110px]");
-    expect(screen.getByText("2027/01/01")).toHaveClass("w-[110px]");
+    // EMR-433: 次予定セルは日付（nowrap span）とバッジの縦積み。日付の span は折り返さず、セルは w-[110px] のまま
+    for (const dateText of ["2026/01/01", "2027/01/01"]) {
+      const text = screen.getByText(dateText);
+      expect(text).toHaveClass("whitespace-nowrap");
+      expect(text.closest('[class*="w-[110px]"]')).not.toBeNull();
+    }
+  });
+});
+
+describe("VaccinationHistory 次予定の期限バッジ (EMR-433)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T06:00:00Z")); // JST 2026-07-24
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function makeItem(overrides: Record<string, unknown>) {
+    return {
+      ...BLANK,
+      id: 0,
+      name: "ワクチン",
+      date: "",
+      dateISO: "",
+      next: "",
+      nextDate: "",
+      ...overrides,
+    } as (typeof ITEMS)[number];
+  }
+
+  function nextCellOf(dateText: string) {
+    const dateEl = screen.getByText(dateText);
+    const cell = dateEl.closest('[class*="w-[110px]"]');
+    expect(cell).not.toBeNull();
+    return { cell: cell as HTMLElement, row: (cell as HTMLElement).parentElement as HTMLElement };
+  }
+
+  it("(a) 次回予定日が過去の記録（最新）に期限切れバッジを日付の下に出す", () => {
+    render(
+      <VaccinationHistory
+        historyItems={[makeItem({ id: 1, dateISO: "2026-01-01", nextDate: "2026-07-23" })]}
+      />,
+    );
+
+    const { cell } = nextCellOf("2026/07/23");
+    expect(cell).toHaveClass("w-[110px]");
+    expect(cell.textContent).toContain("期限切れ");
+    // 日付とバッジは縦に並ぶ
+    expect(cell.querySelector(".flex-col")).not.toBeNull();
+  });
+
+  it("(b) 次回予定日が30日以内の記録に期限間近バッジを出す", () => {
+    render(
+      <VaccinationHistory
+        historyItems={[makeItem({ id: 1, dateISO: "2026-01-01", nextDate: "2026-07-25" })]}
+      />,
+    );
+
+    const { cell } = nextCellOf("2026/07/25");
+    expect(cell.textContent).toContain("期限間近");
+    expect(cell.textContent).not.toContain("期限切れ");
+  });
+
+  it("(c) 置き換わった記録にはバッジを出さず、最新の記録には出す", () => {
+    render(
+      <VaccinationHistory
+        historyItems={[
+          makeItem({
+            id: 1,
+            name: "混合ワクチン",
+            vaccineId: 10,
+            dateISO: "2026-01-01",
+            nextDate: "2026-07-23",
+          }),
+          makeItem({
+            id: 2,
+            name: "混合ワクチン",
+            vaccineId: 10,
+            dateISO: "2026-02-01",
+            nextDate: "2026-07-20",
+          }),
+        ]}
+      />,
+    );
+
+    const oldRow = nextCellOf("2026/07/23").row;
+    const newRow = nextCellOf("2026/07/20").row;
+    expect(oldRow.textContent).not.toContain("期限切れ");
+    expect(oldRow.textContent).not.toContain("期限間近");
+    expect(newRow.textContent).toContain("期限切れ");
+  });
+
+  it("(d) 名前が「他院」で始まる記録は置き換わらず記録ごとにバッジを出す", () => {
+    render(
+      <VaccinationHistory
+        historyItems={[
+          makeItem({
+            id: 1,
+            name: "他院で接種したワクチン",
+            vaccineId: 10,
+            dateISO: "2026-01-01",
+            nextDate: "2026-07-23",
+          }),
+          makeItem({
+            id: 2,
+            name: "混合ワクチン",
+            vaccineId: 10,
+            dateISO: "2026-02-01",
+            nextDate: "2026-07-20",
+          }),
+        ]}
+      />,
+    );
+
+    const externalRow = nextCellOf("2026/07/23").row;
+    const newRow = nextCellOf("2026/07/20").row;
+    expect(externalRow.textContent).toContain("期限切れ");
+    expect(newRow.textContent).toContain("期限切れ");
+  });
+
+  it("(e) 絞り込みで新しい記録が隠れても、古い記録にバッジが戻らない", () => {
+    render(
+      <VaccinationHistory
+        historyItems={[
+          makeItem({
+            id: 1,
+            name: "混合ワクチン",
+            vaccineId: 10,
+            dateISO: "2026-01-01",
+            nextDate: "2026-07-23",
+          }),
+          makeItem({
+            id: 2,
+            name: "フィラリア",
+            vaccineId: 10,
+            dateISO: "2026-02-01",
+            nextDate: "2026-07-20",
+          }),
+        ]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("検索単語"), { target: { value: "混合" } });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    // 新しい記録（フィラリア）は検索で隠れる
+    expect(screen.queryByText("2026/07/20")).not.toBeInTheDocument();
+    // それでも古い記録にバッジは戻らない
+    const oldRow = nextCellOf("2026/07/23").row;
+    expect(oldRow.textContent).not.toContain("期限切れ");
+    expect(oldRow.textContent).not.toContain("期限間近");
   });
 });

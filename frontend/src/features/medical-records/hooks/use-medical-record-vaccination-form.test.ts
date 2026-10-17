@@ -363,8 +363,8 @@ describe("useMedicalRecordVaccinationForm EMR-430 duplicate rejudges interval", 
 describe("useMedicalRecordVaccinationForm レビュー指摘 — other 切替で次回予定日をクリア", () => {
   it("other に切り替えたら既定の次回予定日をクリアし、プリセットに戻すと再計算する", () => {
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
-    expect(result.current.nextScheduleType).toBe("4weeks");
-    expect(result.current.nextDate).toBe("2026-09-26");
+    expect(result.current.nextScheduleType).toBe("1year");
+    expect(result.current.nextDate).toBe("2027-08-29");
 
     act(() => {
       result.current.setNextScheduleType("other");
@@ -373,9 +373,9 @@ describe("useMedicalRecordVaccinationForm レビュー指摘 — other 切替で
     expect(result.current.nextDate).toBe("");
 
     act(() => {
-      result.current.setNextScheduleType("4weeks");
+      result.current.setNextScheduleType("1year");
     });
-    expect(result.current.nextScheduleType).toBe("4weeks");
-    expect(result.current.nextDate).toBe("2026-09-26");
+    expect(result.current.nextScheduleType).toBe("1year");
+    expect(result.current.nextDate).toBe("2027-08-29");
   });
 });

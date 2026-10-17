@@ -15,6 +15,7 @@ import {
   resolveVaccinationFormGate,
 } from "./vaccination-form-model";
 import { VaccinationFormBody, VaccinationFormStatusView } from "./VaccinationFormPagePanels";
+import { collectReplacedVaccinationIds } from "@/lib/vaccination-replacement";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
@@ -78,6 +79,10 @@ export const VaccinationForm = memo(function VaccinationForm() {
     petId: historyPetId ?? "",
   });
   const { historySearchTerm, filterStartDate, filterEndDate, sortOrder } = historyFilter;
+  const replacedVaccinationIds = useMemo(
+    () => collectReplacedVaccinationIds(petVaccinations),
+    [petVaccinations],
+  );
   const petHistory = useMemo(
     () =>
       filterVaccinationHistory({
@@ -125,6 +130,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       form={form}
       fieldErrors={fieldErrors}
       petHistory={petHistory}
+      replacedVaccinationIds={replacedVaccinationIds}
       historyFilter={historyFilter}
       deleteConfirmOpen={deleteConfirmOpen}
       formAction={formAction}
