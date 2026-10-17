@@ -1,3 +1,4 @@
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import {
   calculateNextDate as calculateSharedNextDate,
   resolveScheduleTypeAfterManualDate,
@@ -31,7 +32,7 @@ export const DENIED_MUTATION_PERMISSIONS: Readonly<VaccinationMutationPermission
   canDelete: false,
 };
 
-export const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
+// EMR-430: 既定間隔は constants/next-schedule の DEFAULT_NEXT_SCHEDULE_TYPE に一本化した。
 
 const DEFAULT_VACCINATION_FORM: VaccinationFormState = {
   vaccineId: "",

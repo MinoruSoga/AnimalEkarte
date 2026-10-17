@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
 import { useMedicalRecordVaccinationForm } from "./use-medical-record-vaccination-form";
+import type { VaccinationHistoryItem } from "../components/VaccinationHistory";
 
 // useActionState の formAction は <form action> 経由の呼び出しを前提とするため、
 // フックのみを直接テストする場合は startTransition でラップしないと
@@ -268,14 +269,15 @@ describe("useMedicalRecordVaccinationForm EMR-105 same-day sequential registrati
 // EMR-431: カルテの予防接種タブの追加フォームも、開いた時点で「当日＋既定間隔」の
 // 次回予定日を持つ。日付に触れずに保存しても next_date が送られる
 // （EMR-427 の LINE 期限配信は next_date で判定するため、空のまま保存されると漏れる）。
+// EMR-430: 既定の間隔を独立画面・健診タブと同じ 1年後（DEFAULT_NEXT_SCHEDULE_TYPE）にそろえる。
 describe("useMedicalRecordVaccinationForm EMR-431 next date default", () => {
   it("初期表示で、当日と既定間隔から計算した次回予定日を持つ", () => {
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
 
     expect(result.current.date).toBe("2026-08-29");
-    expect(result.current.nextScheduleType).toBe("4weeks");
-    // 2026-08-29 + 4週 = 2026-09-26
-    expect(result.current.nextDate).toBe("2026-09-26");
+    expect(result.current.nextScheduleType).toBe("1year");
+    // 2026-08-29 + 1年 = 2027-08-29
+    expect(result.current.nextDate).toBe("2027-08-29");
   });
 
   it("日付に触れずに保存すると next_date を送り、保存後も同じ初期値に戻る", async () => {
@@ -296,16 +298,63 @@ describe("useMedicalRecordVaccinationForm EMR-431 next date default", () => {
     expect(mockCreateVaccination).toHaveBeenCalledWith(
       expect.objectContaining({
         date: "2026-08-29",
-        next_date: "2026-09-26",
-        next_schedule_type: "4weeks",
+        next_date: "2027-08-29",
+        next_schedule_type: "1year",
       }),
     );
 
     // 保存後の resetForm も同じ「当日＋既定間隔」に戻る（前レコードの値を残さない）
     expect(result.current.isAdding).toBe(false);
     expect(result.current.date).toBe("2026-08-29");
+    expect(result.current.nextScheduleType).toBe("1year");
+    expect(result.current.nextDate).toBe("2027-08-29");
+  });
+});
+
+function historyItem(overrides: Partial<VaccinationHistoryItem> = {}): VaccinationHistoryItem {
+  return {
+    id: 1,
+    name: "ワクチンA",
+    date: "2026-08-29",
+    next: "",
+    vaccineId: 7,
+    lot1: "",
+    lot2: "",
+    lot3: "",
+    lot4: "",
+    nextDate: "",
+    remarks: "",
+    ...overrides,
+  };
+}
+
+// EMR-430: 複製は次回予定日だけを写すため、写した日付と食い違う間隔をそのまま見せない。
+// 次回予定日のある記録は「以外（手動）」、無い記録は間隔を変えない。
+describe("useMedicalRecordVaccinationForm EMR-430 duplicate rejudges interval", () => {
+  it("次回予定日のある記録を複製すると「以外（手動）」になり、写した日付を表示する", () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.handleDuplicate(historyItem({ nextDate: "2026-12-24" }));
+    });
+
+    expect(result.current.isAdding).toBe(true);
+    expect(result.current.nextDate).toBe("2026-12-24");
+    expect(result.current.nextScheduleType).toBe("other");
+  });
+
+  it("次回予定日の無い記録を複製すると間隔は変わらない", () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setNextScheduleType("4weeks");
+    });
+    act(() => {
+      result.current.handleDuplicate(historyItem({ nextDate: "" }));
+    });
+
+    expect(result.current.nextDate).toBe("");
     expect(result.current.nextScheduleType).toBe("4weeks");
-    expect(result.current.nextDate).toBe("2026-09-26");
   });
 });
 

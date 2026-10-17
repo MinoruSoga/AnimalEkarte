@@ -1,5 +1,6 @@
 import { todayJSTISO } from "@/lib/jst-date";
 import { calculateNextDate } from "@/components/shared/NextScheduleField";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 
 export interface AddCheckupFormState {
   checkup_type_id: string;
@@ -13,7 +14,7 @@ export interface AddCheckupFormState {
 const EMPTY_ADD_FORM: AddCheckupFormState = {
   checkup_type_id: "",
   date: "",
-  next_schedule_type: "1year",
+  next_schedule_type: DEFAULT_NEXT_SCHEDULE_TYPE,
   next_date: "",
   doctor_id: "",
   result: "",
