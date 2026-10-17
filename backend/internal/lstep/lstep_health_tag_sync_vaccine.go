@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -45,6 +47,8 @@ func (s *lstepTagSyncService) syncVaccineDeadlineTagWithInputs(
 			return apperrors.Wrap(err, "failed to find vaccinations")
 		}
 	}
+
+	vaccinations = currentVaccineDeadlineRecords(vaccinations)
 
 	now := time.Now()
 	deadline := now.AddDate(0, 0, thresholds.VaccineDeadline)
@@ -94,3 +98,49 @@ func (s *lstepTagSyncService) syncVaccineDeadlineTagWithInputs(
 
 // SyncFilariaTag はフィラリア検査・予防薬処方に基づき PREV_フィラリア未完了 を同期する（FEAT-379）。
 // 犬を飼育する飼い主のみ対象。検査・処方どちらかが完了していればタグを解除する。
+
+func currentVaccineDeadlineRecords(vaccinations []model.Vaccination) []model.Vaccination {
+	type vaccineSeriesKey struct {
+		clinicID  uint64
+		petID     uint64
+		vaccineID uint64
+	}
+	isGenericVaccine := func(v *model.Vaccination) bool {
+		return v.Vaccine != nil &&
+			v.Vaccine.ClinicID == v.ClinicID &&
+			strings.HasPrefix(v.Vaccine.Name, medicalrecord.GenericVaccineNamePrefix)
+	}
+	isSupersessionTarget := func(v *model.Vaccination) bool {
+		return v.PetID != nil && v.VaccineID != 0 && !isGenericVaccine(v)
+	}
+
+	latest := make(map[vaccineSeriesKey]time.Time, len(vaccinations))
+	for i := range vaccinations {
+		v := &vaccinations[i]
+		if v.DeletedAt.Valid || !isSupersessionTarget(v) {
+			continue
+		}
+		k := vaccineSeriesKey{clinicID: v.ClinicID, petID: *v.PetID, vaccineID: v.VaccineID}
+		if d, ok := latest[k]; !ok || v.Date.After(d) {
+			latest[k] = v.Date
+		}
+	}
+
+	out := make([]model.Vaccination, 0, len(vaccinations))
+	for i := range vaccinations {
+		v := &vaccinations[i]
+		if v.DeletedAt.Valid {
+			continue
+		}
+		if !isSupersessionTarget(v) {
+			out = append(out, *v)
+			continue
+		}
+		k := vaccineSeriesKey{clinicID: v.ClinicID, petID: *v.PetID, vaccineID: v.VaccineID}
+		if d, ok := latest[k]; ok && v.Date.Before(d) {
+			continue
+		}
+		out = append(out, *v)
+	}
+	return out
+}

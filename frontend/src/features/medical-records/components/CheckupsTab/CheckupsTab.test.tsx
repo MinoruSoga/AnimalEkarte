@@ -573,3 +573,24 @@ describe("CheckupsTab — date display (EMR-429)", () => {
     expect(row?.textContent).toContain("2026/06/01");
   });
 });
+
+// レビュー指摘（EMR-431）: タブはマウントされ続けるため、追加行を開く時点で
+// 当日ベースの既定を作り直さないと、日跨ぎ後に前日の実施日・次回予定日が残る。
+describe("CheckupsTab — 追加行を開く時点の既定値（レビュー指摘）", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("日跨ぎ後に追加行を開くと、その時点の当日と1年後を作り直す", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-14T15:01:00Z")); // JST 2026-10-15（マウント時）
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    // マウント後に JST 日跨ぎ
+    vi.setSystemTime(new Date("2026-10-15T15:01:00Z")); // JST 2026-10-16
+    fireEvent.click(screen.getByText("記録を追加"));
+
+    expect(screen.getByLabelText("実施日")).toHaveValue("2026年10月16日（金）");
+    expect(screen.getByLabelText("次回予定日")).toHaveValue("2027年10月16日（土）");
+  });
+});
