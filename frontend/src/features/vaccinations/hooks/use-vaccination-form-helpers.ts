@@ -6,7 +6,7 @@ import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { paths } from "@/config/paths";
 import type { Pet } from "@/types";
 import type { EntityReadResult } from "@/lib/entity-read-result";
-import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/components/shared/NextScheduleField";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import type { CreateVaccinationRequest, UpdateVaccinationRequest } from "../api/types";
 import type {
   VaccinationFormState,

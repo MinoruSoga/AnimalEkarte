@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useCreateVaccination } from "@/hooks/use-create-vaccination";
 import { todayJSTISO } from "@/lib/jst-date";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import {
-  DEFAULT_NEXT_SCHEDULE_TYPE,
   calculateNextDate,
   resolveScheduleTypeAfterManualDate,
 } from "@/components/shared/NextScheduleField";
