@@ -68,16 +68,21 @@ export function mergeVaccinationFormData(
   localOverrides: Partial<VaccinationFormState>,
 ): VaccinationFormState {
   if (isEdit && existingVaccination) {
+    const date = existingVaccination.date ? existingVaccination.date.slice(0, 10) : "";
+    const nextDate = existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "";
+    const nextScheduleType = existingVaccination.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
     return {
       vaccineId: existingVaccination.vaccineId,
-      date: existingVaccination.date ? existingVaccination.date.slice(0, 10) : "",
+      date,
       supplemental: existingVaccination.supplemental ?? "",
       lot1: existingVaccination.lot1 ?? "",
       lot2: existingVaccination.lot2 ?? "",
       lot3: existingVaccination.lot3 ?? "",
       lot4: existingVaccination.lot4 ?? "",
-      nextScheduleType: existingVaccination.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE,
-      nextDate: existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "",
+      nextScheduleType: nextDate
+        ? resolveScheduleTypeAfterManualDate(date, nextScheduleType, nextDate)
+        : nextScheduleType,
+      nextDate,
       remarks: existingVaccination.remarks ?? "",
       ...localOverrides,
     };
