@@ -20,7 +20,7 @@
 > 新たな番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で
 > 検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
 >
-> **リネームの記録（2026-10-18）**: `037` が並行ブランチで衝突した（#678 の
+> **リネームの記録（2026-10-18）**: `037` が2026-10-16に並行ブランチで衝突した（#678 の
 > `037_house_call_item_category.sql` と #680 の `037_support_manual_search.sql`）。
 > staging・本番に未適用で、両ファイルとも冪等（`IF NOT EXISTS`）なため、ユーザー判断で
 > 後発の後者を `038_support_manual_search.sql` に改名した。ローカルで適用済みの DB では
