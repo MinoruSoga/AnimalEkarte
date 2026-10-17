@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "./fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "./medical-record-fixed-action-layout";
 
 /**
  * EMR-432: カルテ編集画面の右下固定ボタン群が、スクロール末尾の入力・表を覆わないこと。

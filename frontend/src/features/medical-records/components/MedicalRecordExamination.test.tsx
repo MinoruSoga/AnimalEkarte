@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router";
 
 import { MedicalRecordExamination } from "./MedicalRecordExamination";
 import { useGetRecordExaminations } from "../api/get-record-examinations";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import type { ExamGroup } from "../api/get-record-examinations";
 import type { ExamResult } from "@/lib/transforms/examination";
 

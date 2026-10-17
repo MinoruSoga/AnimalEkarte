@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { MedicalRecordImage } from "./MedicalRecordImage";
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import type { ImageGalleryGroup } from "../api/get-medical-record-images";
 
 vi.mock("../api/get-medical-record-images");

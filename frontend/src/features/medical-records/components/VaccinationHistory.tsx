@@ -17,7 +17,7 @@ import { getSortOrderLabel } from "@/lib/status-helpers";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { collectReplacedVaccinationIds } from "@/lib/vaccination-replacement";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 // EMR-412 X9: 並び順ラベルは共有 getSortOrderLabel（「新→古/古→新」）に揃える。

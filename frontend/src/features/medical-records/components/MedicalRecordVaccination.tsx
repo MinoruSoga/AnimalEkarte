@@ -9,7 +9,7 @@ import { getLockedEmptyStateMessage } from "../lib/record-empty-state";
 
 // Relative
 import { EmptyState } from "@/components/shared/DataStates";
-import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 import { useMedicalRecordVaccinationForm } from "../hooks/use-medical-record-vaccination-form";
