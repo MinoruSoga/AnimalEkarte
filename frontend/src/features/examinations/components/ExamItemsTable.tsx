@@ -141,13 +141,13 @@ export const ExamItemsTable = memo(function ExamItemsTable({
         >
           {/* ヘッダー */}
           <div
-            className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr_0.8fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-semibold ${C.text80} h-11 items-center`}
+            className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1.2fr_1fr_1.8fr_0.8fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-semibold ${C.text80} h-11 items-center`}
           >
             <div className={`p-2 border-r ${C.borderMedium} pl-3`}>項目名</div>
             <div className={`p-2 border-r ${C.borderMedium} text-right`}>結果値</div>
+            <div className={`p-2 border-r ${C.borderMedium} text-center`}>判定</div>
             <div className={`p-2 border-r ${C.borderMedium} text-center`}>単位</div>
             <div className={`p-2 border-r ${C.borderMedium} text-center`}>基準値</div>
-            <div className={`p-2 border-r ${C.borderMedium} text-center`}>判定</div>
             <div className="p-2 text-center">操作</div>
           </div>
           {items.map((item, idx) => (
@@ -155,7 +155,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
               key={item.key}
               data-testid="exam-item-row"
               data-abnormal={String(!!item.isAbnormal)}
-              className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr_0.8fr] gap-0 ${
+              className={`min-w-[700px] grid grid-cols-[2fr_1.5fr_1.2fr_1fr_1.8fr_0.8fr] gap-0 ${
                 idx !== items.length - 1 ? `border-b ${C.borderMedium}` : ""
               } ${
                 item.isAbnormal
@@ -211,14 +211,14 @@ export const ExamItemsTable = memo(function ExamItemsTable({
                   aria-label={`${item.name.trim() || `検査項目${idx + 1}`}の結果値`}
                 />
               </div>
+              <div className={`p-2 border-r ${C.borderMedium} flex justify-center items-center`}>
+                <ExamStatusBadge status={item.status} isAssessed={item.isAssessed} />
+              </div>
               <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
                 {item.unit || "-"}
               </div>
               <div className={`p-2 border-r ${C.borderMedium} text-center ${C.text60} text-sm`}>
                 {item.referenceValue || item.normalValue || "-"}
-              </div>
-              <div className={`p-2 border-r ${C.borderMedium} flex justify-center items-center`}>
-                <ExamStatusBadge status={item.status} isAssessed={item.isAssessed} />
               </div>
               <div className="p-0.5 flex justify-center items-center">
                 {onRemoveItem ? (

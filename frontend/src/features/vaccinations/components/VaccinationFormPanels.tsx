@@ -81,59 +81,58 @@ export function VaccinationFieldsPanel({
   return (
     <div className="lg:col-span-3">
       <div className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6`}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="vaccination-date">
-              接種日
-              <RequiredMark />
-            </Label>
-            <DatePicker
-              id="vaccination-date"
-              value={date}
-              onChange={(value) => {
-                onMarkDirty();
-                onDateChange(value);
-              }}
-              ariaInvalid={Boolean(fieldErrors.date)}
-              ariaDescribedBy={fieldErrors.date ? "vaccine-date-error" : undefined}
-              disabledDays={{ after: toJSTWallDate(new Date()) }}
-            />
-            <FormFieldError id="vaccine-date-error" message={fieldErrors.date} />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="vaccine-select">
-                ワクチン
-                <RequiredMark />
-              </Label>
-              <MasterLink category="vaccine" label="編集" className="text-2xs" />
-            </div>
-            <Select
-              value={vaccineId}
-              onValueChange={(value) => {
-                if (value === "") return;
-                onMarkDirty();
-                onVaccineIdChange(value);
-              }}
-            >
-              <SelectTrigger
-                id="vaccine-select"
-                aria-invalid={Boolean(fieldErrors.vaccineId)}
-                aria-describedby={fieldErrors.vaccineId ? "vaccine-id-error" : undefined}
-              >
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {vaccineOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormFieldError id="vaccine-id-error" message={fieldErrors.vaccineId} />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="vaccination-date">
+            接種日
+            <RequiredMark />
+          </Label>
+        <DatePicker
+          id="vaccination-date"
+          value={date}
+          onChange={(value) => {
+            onMarkDirty();
+            onDateChange(value);
+          }}
+          ariaInvalid={Boolean(fieldErrors.date)}
+          ariaDescribedBy={fieldErrors.date ? "vaccine-date-error" : undefined}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
+        />
+        <FormFieldError id="vaccine-date-error" message={fieldErrors.date} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="vaccine-select">
+            ワクチン
+            <RequiredMark />
+          </Label>
+          <MasterLink category="vaccine" label="編集" className="text-2xs" />
         </div>
+        <Select
+          value={vaccineId}
+          onValueChange={(value) => {
+            if (value === "") return;
+            onMarkDirty();
+            onVaccineIdChange(value);
+          }}
+        >
+          <SelectTrigger
+            id="vaccine-select"
+            aria-invalid={Boolean(fieldErrors.vaccineId)}
+            aria-describedby={fieldErrors.vaccineId ? "vaccine-id-error" : undefined}
+          >
+            <SelectValue placeholder="選択してください" />
+          </SelectTrigger>
+          <SelectContent>
+            {vaccineOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <FormFieldError id="vaccine-id-error" message={fieldErrors.vaccineId} />
+      </div>
 
         {doctorName ? (
           <div className="space-y-2">

@@ -29,7 +29,7 @@ function renderCard(nextDate: string) {
   return render(<VaccinationCard vaccination={{ ...vaccination, nextDate }} />);
 }
 
-describe("VaccinationCard 期限超過表示", () => {
+describe("VaccinationCard 次回予定の期限バッジと日付表記 (EMR-415 Q2/X4)", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-24T06:00:00Z"));
@@ -39,32 +39,40 @@ describe("VaccinationCard 期限超過表示", () => {
     vi.useRealTimers();
   });
 
-  it("JST当日は期限超過にならない", () => {
+  it("X4: 接種日と次回予定日を YYYY/MM/DD で表示する", () => {
     renderCard("2026-07-24");
 
-    expect(screen.getByText("次回: 2026-07-24")).toBeInTheDocument();
+    expect(screen.getByText("接種: 2026/07/23")).toBeInTheDocument();
+    expect(screen.getByText(/次回: 2026\/07\/24/)).toBeInTheDocument();
+    expect(screen.queryByText(/次回: 2026-07-24/)).not.toBeInTheDocument();
+  });
+
+  it("JST当日は期限切れにならず、30日以内なら期限間近バッジ (Q2)", () => {
+    renderCard("2026-07-24");
+
+    expect(screen.getByText("期限間近")).toBeInTheDocument();
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
     expect(screen.queryByText("（期限超過）")).not.toBeInTheDocument();
   });
 
-  it("過去日は既存のdanger表現で期限超過になる", () => {
+  it("過去日は期限切れバッジで、「（期限超過）」の文言は出さない (Q2)", () => {
     renderCard("2026-07-23");
 
-    const overdueLabel = screen.getByText("（期限超過）");
-    expect(overdueLabel).toBeInTheDocument();
-    expect(overdueLabel.closest("div")).toHaveClass(C.danger);
+    expect(screen.getByText("期限切れ")).toBeInTheDocument();
+    expect(screen.queryByText("（期限超過）")).not.toBeInTheDocument();
   });
 
-  it("未来日は期限超過にならない", () => {
-    renderCard("2026-07-25");
+  it("30日超の未来日はバッジなし (Q2)", () => {
+    renderCard("2026-12-01");
 
-    expect(screen.getByText("次回: 2026-07-25")).toBeInTheDocument();
-    expect(screen.queryByText("（期限超過）")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限間近")).not.toBeInTheDocument();
   });
 
   it("次回日が空欄なら次回表示を出さない", () => {
     renderCard("");
 
     expect(screen.queryByText(/次回:/)).not.toBeInTheDocument();
-    expect(screen.queryByText("（期限超過）")).not.toBeInTheDocument();
+    expect(screen.queryByText("期限切れ")).not.toBeInTheDocument();
   });
 });

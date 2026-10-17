@@ -70,6 +70,16 @@ describe("ExamItemsTable", () => {
       expect(screen.getByText("判定")).toBeInTheDocument();
     });
 
+    it("E1: 判定列は結果値の隣（項目名→結果値→判定→単位→基準値→操作の順）", () => {
+      render(<ExamItemsTable items={[makeItem()]} onChangeInspectionValue={vi.fn()} />);
+      const header = screen.getByText("項目名").parentElement;
+      expect(header).not.toBeNull();
+      const headerTexts = Array.from(header?.children ?? []).map(
+        (cell) => cell.textContent ?? "",
+      );
+      expect(headerTexts).toEqual(["項目名", "結果値", "判定", "単位", "基準値", "操作"]);
+    });
+
     it("項目名・単位・基準値を表示する", () => {
       render(
         <ExamItemsTable

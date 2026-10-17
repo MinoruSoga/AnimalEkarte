@@ -1,4 +1,7 @@
-import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
+import {
+  PatientInfoCard,
+  formatPatientPetDetails,
+} from "@/components/shared/PatientInfoCard";
 import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
@@ -43,8 +46,8 @@ export function ExaminationFormHeader({
       {selectedPet ? (
         <PatientInfoCard
           ownerName={selectedPet.ownerName}
-          petName={`${selectedPet.name}${selectedPet.species ? `(${selectedPet.species})` : ""}`}
-          petNumber={selectedPet.petNumber || selectedPet.id}
+          petName={selectedPet.name}
+          petNumber={selectedPet.petNumber ?? ""}
           ownerDetailHref={
             selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
           }
@@ -53,10 +56,15 @@ export function ExaminationFormHeader({
               ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
               : undefined
           }
-          weight={selectedPet.weight || "-"}
+          weight={selectedPet.weight ?? ""}
           staffName={selectedDoctorName}
           reservationType="検査"
-          petDetails={`${selectedPet.birthDate ? `${selectedPet.birthDate}生` : ""} / ${selectedPet.species}`}
+          petDetails={formatPatientPetDetails({
+            species: selectedPet.species,
+            birthDate: selectedPet.birthDate,
+            gender: selectedPet.gender,
+            neuteredDate: selectedPet.neuteredDate,
+          })}
           insuranceName={selectedPet.insuranceName}
           insuranceDetails={selectedPet.insuranceDetails}
           ownerIsDangerous={selectedPet.ownerIsDangerous}

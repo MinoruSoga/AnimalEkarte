@@ -331,3 +331,12 @@ describe("VaccinationFieldsPanel — 必須エラー表示 (EMR-319)", () => {
     expect(screen.getByText("次回予定日を入力してください")).toBeInTheDocument();
   });
 });
+
+describe("VaccinationFieldsPanel layout (EMR-415 V5)", () => {
+  it("接種日は全幅行で、2カラム折り返しの wrapper を持たない", () => {
+    renderPanel([]);
+
+    const date = screen.getByLabelText(/接種日/);
+    expect(date.closest('div[class*="md:grid-cols-2"]')).toBeNull();
+  });
+});

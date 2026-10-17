@@ -440,39 +440,48 @@ describe("VaccinationList 次回予定の期限超過表示", () => {
 
   function getNextDateCell() {
     const row = screen.getByText(vaccination.petName).closest("tr");
-    return row?.querySelectorAll("td")[4] ?? null;
+    return row?.querySelectorAll("td")[1] ?? null;
   }
 
-  it("過去日だけをdanger表現で期限超過表示する", () => {
+  it("過去日の次回予定に期限切れバッジを出し、（期限超過）の文言を表示しない (Q2)", () => {
     renderWithNextDate("2026-07-23");
 
     const cell = getNextDateCell();
-    expect(cell).toHaveClass("font-mono", C.danger);
     expect(cell).toHaveTextContent("2026/07/23");
-    expect(cell).toHaveTextContent("（期限超過）");
+    expect(cell).toHaveTextContent("期限切れ");
+    expect(cell).not.toHaveTextContent("期限超過");
+    expect(cell).not.toHaveClass(C.danger);
   });
 
-  it("未来日は現状の通常表示を維持する", () => {
-    renderWithNextDate("2026-07-25");
+  it("当日は期限切れにならず、30日以内なら期限間近バッジ (Q2)", () => {
+    renderWithNextDate("2026-07-24");
 
     const cell = getNextDateCell();
-    expect(cell).toHaveClass("font-mono", C.text);
+    expect(cell).toHaveTextContent("2026/07/24");
+    expect(cell).toHaveTextContent("期限間近");
+    expect(cell).not.toHaveTextContent("期限切れ");
+  });
+
+  it("30日超の未来日はバッジなしの通常表示 (Q2)", () => {
+    renderWithNextDate("2026-12-01");
+
+    const cell = getNextDateCell();
+    expect(cell).toHaveTextContent("2026/12/01");
+    expect(cell).not.toHaveTextContent("期限切れ");
+    expect(cell).not.toHaveTextContent("期限間近");
     expect(cell).not.toHaveClass(C.danger);
-    expect(cell).toHaveTextContent("2026/07/25");
-    expect(cell).not.toHaveTextContent("期限超過");
   });
 
   it("空欄は未設定プレースホルダーを表示する", () => {
     renderWithNextDate("");
 
     const cell = getNextDateCell();
-    expect(cell).toHaveClass("font-mono", C.text);
     expect(cell).not.toHaveClass(C.danger);
     expect(cell).toHaveTextContent(/^—$/);
-    expect(cell).not.toHaveTextContent("期限超過");
+    expect(cell).not.toHaveTextContent("期限切れ");
   });
 
-  it("日付+期限超過バッジは1行表示する (EMR-378)", () => {
+  it("日付+期限バッジは1行表示する (EMR-378)", () => {
     renderWithNextDate("2026-07-23");
 
     const cell = getNextDateCell();
@@ -814,5 +823,23 @@ describe("VaccinationList registration return", () => {
 
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/vaccinations\?petId=10$/);
     expect(screen.getByTestId("nav-state")).toHaveTextContent('{"from":"/?date=2026-05-29"}');
+  });
+});
+
+describe("VaccinationList 列順 (EMR-415 V4)", () => {
+  it("列は 実施日→次回予定→飼主名→ペット名→予防接種名→操作 の順", () => {
+    renderPage();
+
+    const headerTexts = screen
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent ?? "");
+    expect(headerTexts).toEqual([
+      "実施日",
+      "次回予定",
+      "飼主名",
+      "ペット名",
+      "予防接種名",
+      "操作",
+    ]);
   });
 });
