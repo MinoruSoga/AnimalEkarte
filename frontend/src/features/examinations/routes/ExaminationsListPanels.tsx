@@ -44,7 +44,7 @@ function ExaminationsListRow({
       <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>
         {record.date ? formatDate(record.date) : "-"}
       </TableCell>
-      <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
         <DataTableRowLink
           to={examinationListDetailHref({

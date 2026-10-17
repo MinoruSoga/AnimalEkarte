@@ -141,3 +141,12 @@ describe("VaccinationFormPagePanels 誕生月バッジ (EMR-301)", () => {
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });
+
+describe("VaccinationFormPagePanels レイアウト (EMR-415 V3)", () => {
+  it("患者カードとフォームの間に上余白 16px（mt-4）がある", () => {
+    renderBody({ selectedPet: { ...basePet } });
+
+    const formGrid = screen.getByTestId("vaccination-form-grid");
+    expect(formGrid).toHaveClass("mt-4");
+  });
+});

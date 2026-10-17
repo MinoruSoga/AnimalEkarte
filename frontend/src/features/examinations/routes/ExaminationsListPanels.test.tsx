@@ -62,3 +62,16 @@ describe("EMR-415 X2: 一覧ヘッダの文字色", () => {
     }
   });
 });
+
+describe("EMR-415 E5: 飼主名セルの折返し", () => {
+  it("飼主名セルは whitespace-nowrap を持つ", () => {
+    show("2026-10-14");
+
+    const cell = screen
+      .getByRole("cell", { name: "2026/10/14" })
+      .closest("tr")
+      ?.querySelectorAll("td")[1];
+    expect(cell).not.toBeUndefined();
+    expect(cell).toHaveClass("whitespace-nowrap");
+  });
+});

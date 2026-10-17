@@ -12,6 +12,7 @@ import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/s
 import { MasterLink } from "@/components/shared/MasterLink";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 import { C } from "@/lib/design-tokens";
 import { jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { ExaminationRecord } from "../api/transforms";
@@ -78,6 +79,7 @@ function ExaminationFormFieldsBase({
           <div className="flex items-center justify-between">
             <Label htmlFor="testTypeId" className={`${C.text60}`}>
               検査種別
+              <RequiredMark />
             </Label>
             <MasterLink category="examination" label="編集" className="text-2xs" />
           </div>
@@ -105,6 +107,7 @@ function ExaminationFormFieldsBase({
           <div className="flex items-center justify-between">
             <Label htmlFor="doctorId" className={`${C.text60}`}>
               担当医
+              <RequiredMark />
             </Label>
             <MasterLink category="staff" label="編集" className="text-2xs" />
           </div>

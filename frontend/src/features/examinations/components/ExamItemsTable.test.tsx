@@ -74,9 +74,7 @@ describe("ExamItemsTable", () => {
       render(<ExamItemsTable items={[makeItem()]} onChangeInspectionValue={vi.fn()} />);
       const header = screen.getByText("項目名").parentElement;
       expect(header).not.toBeNull();
-      const headerTexts = Array.from(header?.children ?? []).map(
-        (cell) => cell.textContent ?? "",
-      );
+      const headerTexts = Array.from(header?.children ?? []).map((cell) => cell.textContent ?? "");
       expect(headerTexts).toEqual(["項目名", "結果値", "判定", "単位", "基準値", "操作"]);
     });
 
@@ -679,5 +677,37 @@ describe("ExamItemsTable", () => {
         "aria-invalid",
       );
     });
+  });
+});
+
+describe("EMR-415 E2: 表の様式と役割", () => {
+  it("ヘッダ行は eyebrow 様式（text-2xs font-semibold text55）で描画する", () => {
+    render(<ExamItemsTable items={[makeItem()]} onChangeInspectionValue={vi.fn()} />);
+
+    const headerRow = screen.getByRole("columnheader", { name: "項目名" }).closest('[role="row"]');
+    expect(headerRow).not.toBeNull();
+    expect(headerRow).toHaveClass("text-2xs", "font-semibold", "text-[#615D59]");
+  });
+
+  it("外枠に role=table、ヘッダ行と各行に role=row、セルに role=cell を付与する", () => {
+    render(<ExamItemsTable items={[makeItem()]} onChangeInspectionValue={vi.fn()} />);
+
+    const table = document.querySelector('[role="table"]');
+    expect(table).not.toBeNull();
+    expect(screen.getAllByRole("row").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByRole("columnheader").length).toBe(6);
+    expect(screen.getAllByRole("cell").length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("罫線は hairline（borderLight）で、入力欄の枠は変えない", () => {
+    const { container } = render(
+      <ExamItemsTable items={[makeItem()]} onChangeInspectionValue={vi.fn()} />,
+    );
+
+    const table = container.querySelector('[role="table"]');
+    expect(table?.className).toContain("border-[#E6E6E6]");
+    expect(table?.className).not.toContain("border-[#DDDDDD]");
+    const borderedInputs = container.querySelectorAll('input[class*="border-[#DDDDDD]"]');
+    expect(borderedInputs.length).toBeGreaterThan(0);
   });
 });
