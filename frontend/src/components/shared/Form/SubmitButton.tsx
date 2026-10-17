@@ -31,7 +31,7 @@ export function SubmitButton({
 
   const baseClassName =
     colorVariant === "brand"
-      ? `${C.bgBrandIdentity} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentity} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentity} ${C.activeTextOnBrandIdentity} h-11 text-xl font-bold rounded-full transition-colors shadow-none border-transparent`
+      ? `${C.bgBrandIdentitySolid} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentitySolid} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentitySolid} ${C.activeTextOnBrandIdentity} h-11 text-base font-medium rounded-full transition-colors shadow-none border-transparent`
       : colorVariant === "destructive"
         ? `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 text-base rounded-full transition-colors shadow-none border-transparent`
         : `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-11 text-base rounded-full transition-colors shadow-none border-transparent`;

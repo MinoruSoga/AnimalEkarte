@@ -211,7 +211,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       }
                       // docs/spec/design-system.md button-primary: pill。白文字塗りは
                       // design-states.md §2.3 の Solid コンボ（#027078 系）を使う。
-                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} text-sm px-4${deceasedDim}`}
+                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} px-4${deceasedDim}`}
                       onClick={() => onSelect(pet)}
                     >
                       {isSelectable ? (

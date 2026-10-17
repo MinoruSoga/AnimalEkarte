@@ -18,14 +18,17 @@ describe("SubmitButton", () => {
     expect(button.className).toContain("rounded-full");
   });
 
-  it('colorVariant="brand" は brand teal を明示的に使う', () => {
+  it('colorVariant="brand" は AA 適合の brand Solid 塗りを使う', () => {
     renderInForm(<SubmitButton colorVariant="brand">保存</SubmitButton>);
     const button = screen.getByRole("button", { name: "保存" });
-    expect(button.className).toContain(C.bgBrandIdentity);
+    expect(button.className).toContain(C.bgBrandIdentitySolid);
+    expect(button.className).not.toContain(C.bgBrandIdentity);
     expect(button.className).toContain("text-white");
     expect(button.className).not.toContain("text-black");
-    expect(button.className).toContain("text-xl");
-    expect(button.className).toContain("font-bold");
+    expect(button.className).toContain("text-base");
+    expect(button.className).toContain("font-medium");
+    expect(button.className).not.toContain("text-xl");
+    expect(button.className).not.toContain("font-bold");
     expect(button.className).not.toContain("font-semibold");
     expect(button.className).toContain("rounded-full");
   });

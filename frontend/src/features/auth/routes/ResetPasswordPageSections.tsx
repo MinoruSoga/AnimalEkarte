@@ -71,7 +71,7 @@ export function ResetPasswordFields({
   return (
     <>
       <div className="space-y-1.5">
-        <label htmlFor="reset-password" className={`text-sm block ${C.text65}`}>
+        <label htmlFor="reset-password" className={`text-base block ${C.text65}`}>
           新しいパスワード
         </label>
         <div className="relative">
@@ -97,7 +97,7 @@ export function ResetPasswordFields({
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="reset-confirm-password" className={`text-sm block ${C.text65}`}>
+        <label htmlFor="reset-confirm-password" className={`text-base block ${C.text65}`}>
           パスワード（確認）
         </label>
         <div className="relative">

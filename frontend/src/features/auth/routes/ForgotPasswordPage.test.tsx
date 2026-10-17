@@ -33,6 +33,9 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByText("メールアドレス", { selector: "label" })).toHaveClass("text-base");
+    expect(screen.getByText("メールアドレス", { selector: "label" })).not.toHaveClass("text-sm");
+
     await user.type(screen.getByLabelText("メールアドレス"), "notfound@example.com");
     await act(async () => {
       await user.click(screen.getByRole("button", { name: /送信/ }));
@@ -110,8 +113,8 @@ describe("FE6-6: ForgotPasswordPage anti-enumeration", () => {
     );
 
     expect(screen.getByRole("button", { name: "リセットリンクを送信" })).toHaveClass(
-      C.bgBrandIdentity,
-      C.hoverBgBrandIdentity,
+      C.bgBrandIdentitySolid,
+      C.hoverBgBrandIdentitySolid,
     );
     expect(screen.getByTestId("forgot-password-brand-mark")).toHaveClass(C.bgBrandIdentity);
   });
