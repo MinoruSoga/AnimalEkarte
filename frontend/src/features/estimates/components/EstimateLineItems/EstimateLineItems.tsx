@@ -55,7 +55,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
                   : `${item.taxType === "included" ? "内税" : "外税"} ${Math.round(item.taxRate * 100)}%`}
               </TableCell>
               <TableCell className="text-right">
-                {item.discountAmount > 0 ? `-${formatCurrency(item.discountAmount)}` : "-"}
+                {item.discountAmount > 0 ? formatCurrency(-item.discountAmount) : "-"}
               </TableCell>
               <TableCell className="text-right font-mono font-medium">
                 {formatCurrency(lineTotal)}
@@ -108,13 +108,13 @@ export const EstimateLineItems = memo(function EstimateLineItems({
           {insuranceAmount > 0 ? (
             <div className={`flex justify-between ${C.text60}`}>
               <span>保険適用額</span>
-              <span className="font-mono">-{formatCurrency(insuranceAmount)}</span>
+              <span className="font-mono">{formatCurrency(-insuranceAmount)}</span>
             </div>
           ) : null}
           {discountAmount > 0 ? (
             <div className={`flex justify-between ${C.text60}`}>
               <span>割引</span>
-              <span className="font-mono">-{formatCurrency(discountAmount)}</span>
+              <span className="font-mono">{formatCurrency(-discountAmount)}</span>
             </div>
           ) : null}
           <div

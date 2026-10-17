@@ -90,8 +90,8 @@ describe("AccountingDocument 移行負額", () => {
         clinic={{ name: "テスト病院" }}
       />,
     );
-    expect(screen.getAllByText("¥-3,000").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("¥-3,300").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("-¥3,000").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("-¥3,300").length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -207,5 +207,22 @@ describe("AccountingDocument #190 セクション表示/非表示と順序", () 
 
     // unknown_key は無視され、clinic_header は正常に描画される
     expect(screen.getByRole("heading", { name: "明細兼領収書" })).toBeInTheDocument();
+  });
+});
+
+describe("AccountingDocument 保険・割引の符号", () => {
+  it("保険適用と明細割引を -¥ 順で表示する", () => {
+    render(
+      <AccountingDocument
+        accounting={{
+          ...ACCOUNTING,
+          items: [{ ...ACCOUNTING.items[0], discountAmount: 300 }],
+        }}
+        paymentInfo={{ ...PAYMENT, insuranceAmount: 2500 }}
+        clinic={{ name: "テスト病院" }}
+      />,
+    );
+    expect(screen.getByText("-¥2,500")).toBeInTheDocument();
+    expect(screen.getByText("割引 -¥300")).toBeInTheDocument();
   });
 });

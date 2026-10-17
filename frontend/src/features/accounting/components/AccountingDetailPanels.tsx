@@ -300,7 +300,7 @@ export function AccountingDetailColumns({
                   支払額と請求額の差額（クレジット訂正などを含む）
                 </span>
               </div>
-              <span className={`text-xl font-bold ${C.danger}`}>
+              <span className={`text-xl font-normal ${C.danger}`}>
                 {formatCurrency(accounting.outstandingAmount)}
               </span>
             </CardContent>

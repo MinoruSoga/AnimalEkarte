@@ -179,10 +179,10 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
     const summaryTable = within(area).getByText("件数").closest("table")!;
     const houseCallRow = within(summaryTable).getByText("往診").closest("tr")!;
     expect(within(houseCallRow).getByText("0件")).toBeInTheDocument();
-    expect(within(houseCallRow).getAllByText("¥-1,000")).toHaveLength(2);
+    expect(within(houseCallRow).getAllByText("-¥1,000")).toHaveLength(2);
 
     const summaryFooter = within(summaryTable).getAllByRole("row").at(-1)!;
-    expect(within(summaryFooter).getAllByText("¥-1,000")).toHaveLength(2);
+    expect(within(summaryFooter).getAllByText("-¥1,000")).toHaveLength(2);
     expect(within(area).getByText("会計明細がありません")).toBeInTheDocument();
   });
 

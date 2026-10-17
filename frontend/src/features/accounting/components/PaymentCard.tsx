@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { MoneyInput } from "@/components/shared/SidePeek/MoneyInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
@@ -183,11 +183,12 @@ export const PaymentCard = memo(function PaymentCard({
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor={`payment-split-${idx}-amount`}>支払{idx + 1}の金額</Label>
-                    <NumberInput
+                    <MoneyInput
+                      variant="inline"
                       id={`payment-split-${idx}-amount`}
-                      className="h-12 text-xl font-bold"
-                      value={split.amount}
-                      onChange={(v) => handleAmountChange(idx, v)}
+                      className="h-12"
+                      stringValue={split.amount}
+                      onStringChange={(v) => handleAmountChange(idx, v)}
                       suffix="円"
                       align="right"
                     />
@@ -198,11 +199,12 @@ export const PaymentCard = memo(function PaymentCard({
                         <Label htmlFor={`payment-split-${idx}-received`}>
                           支払{idx + 1}のお預かり金額
                         </Label>
-                        <NumberInput
+                        <MoneyInput
+                          variant="inline"
                           id={`payment-split-${idx}-received`}
-                          className="h-12 text-xl font-bold"
-                          value={split.receivedAmount}
-                          onChange={(v) => handleReceivedChange(idx, v)}
+                          className="h-12"
+                          stringValue={split.receivedAmount}
+                          onStringChange={(v) => handleReceivedChange(idx, v)}
                           suffix="円"
                           align="right"
                         />
@@ -252,7 +254,7 @@ export const PaymentCard = memo(function PaymentCard({
                       </div>
                       <div className={`${C.bgPrimary5} p-3 rounded-lg space-y-2`}>
                         <div className="flex justify-between items-center">
-                          <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
+                          <span className={`text-sm font-normal ${C.text60}`}>お釣り</span>
                           <button
                             type="button"
                             onClick={() => handleToggleChangeOverride(idx)}
@@ -263,10 +265,12 @@ export const PaymentCard = memo(function PaymentCard({
                         </div>
                         {split.changeOverride ? (
                           <>
-                            <NumberInput
-                              className="h-11 text-xl font-bold"
-                              value={split.changeAmount ?? ""}
-                              onChange={(v) => handleChangeAmountChange(idx, v)}
+                            <MoneyInput
+                              variant="inline"
+                              aria-label={`支払${idx + 1}のお釣り`}
+                              className="h-11"
+                              stringValue={split.changeAmount ?? ""}
+                              onStringChange={(v) => handleChangeAmountChange(idx, v)}
                               suffix="円"
                               align="right"
                               min={0}
@@ -285,7 +289,7 @@ export const PaymentCard = memo(function PaymentCard({
                         ) : (
                           <div className="flex justify-end">
                             <span
-                              className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}
+                              className={`text-xl font-normal ${splitChange < 0 ? C.danger : C.text}`}
                             >
                               {formatCurrency(splitChange)}
                             </span>
