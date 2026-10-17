@@ -62,7 +62,9 @@ describe("MedicalRecordFloatingActions", () => {
 
     const actionButtons = within(group)
       .getAllByRole("button")
-      .filter((button) => button.classList.contains(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.buttonHeightClass));
+      .filter((button) =>
+        button.classList.contains(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.buttonHeightClass),
+      );
     // 削除・バイタル記録・印刷・確定する（保存は SubmitButton 既定の min-h-11）
     expect(actionButtons).toHaveLength(4);
   });

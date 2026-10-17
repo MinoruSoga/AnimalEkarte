@@ -8,9 +8,8 @@ import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "./fixed-action-layout";
  */
 describe("MEDICAL_RECORD_FIXED_ACTION_LAYOUT", () => {
   it("footprintPx は position(bottom-N) + buttonHeightClass(h-N) の算術と一致する", () => {
-    const bottomOffsetPx = Number(
-      MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position.match(/bottom-(\d+)/)?.[1],
-    ) * 4;
+    const bottomOffsetPx =
+      Number(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position.match(/bottom-(\d+)/)?.[1]) * 4;
     const buttonHeightPx =
       Number(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.buttonHeightClass.match(/^h-(\d+)$/)?.[1]) * 4;
     expect(bottomOffsetPx).toBeGreaterThan(0);
@@ -22,8 +21,7 @@ describe("MEDICAL_RECORD_FIXED_ACTION_LAYOUT", () => {
 
   it("scrollBottomClearance は footprintPx + slackPx と一致し、pb-N の px 換算とも揃う", () => {
     const clearancePx =
-      Number(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance.match(/^pb-(\d+)$/)?.[1]) *
-      4;
+      Number(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance.match(/^pb-(\d+)$/)?.[1]) * 4;
     expect(clearancePx).toBeGreaterThan(0);
     expect(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearancePx).toBe(clearancePx);
     expect(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearancePx).toBe(

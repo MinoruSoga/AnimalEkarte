@@ -139,8 +139,7 @@ describe("MedicalRecordBillCheck EMR-432 右下固定ボタンの下余白", () 
       ),
     ).toBe(true);
 
-    const group = screen.getByRole("button", { name: "チェック完了" })
-      .parentElement as HTMLElement;
+    const group = screen.getByRole("button", { name: "チェック完了" }).parentElement as HTMLElement;
     expect(group).toHaveClass(...MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position.split(" "));
   });
 });
