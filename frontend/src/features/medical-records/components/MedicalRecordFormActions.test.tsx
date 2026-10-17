@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import {
   MedicalRecordFloatingActions,
   MedicalRecordFinalizeDialog,
@@ -50,6 +51,20 @@ describe("MedicalRecordFloatingActions", () => {
   it("編集権限があり未確定の既存カルテでは確定ボタンを表示する", () => {
     render(<MedicalRecordFloatingActions {...baseProps} />);
     expect(screen.getByRole("button", { name: "確定する" })).toBeInTheDocument();
+  });
+
+  // EMR-432: ボタン群の位置・高さは、カルテ編集ページが末尾に付ける下余白の算術元になる
+  it("右下固定ボタン群は共有レイアウト定数の位置と高さで描画される", () => {
+    render(<MedicalRecordFloatingActions {...baseProps} />);
+    const group = screen.getByRole("button", { name: "確定する" }).parentElement as HTMLElement;
+
+    expect(group).toHaveClass(...MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position.split(" "));
+
+    const actionButtons = within(group)
+      .getAllByRole("button")
+      .filter((button) => button.classList.contains(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.buttonHeightClass));
+    // 削除・バイタル記録・印刷・確定する（保存は SubmitButton 既定の min-h-11）
+    expect(actionButtons).toHaveLength(4);
   });
 
   it("確定済みカルテでは確定ボタンを表示しない", () => {

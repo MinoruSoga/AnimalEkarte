@@ -14,6 +14,7 @@ import {
 import { C, STYLE } from "@/lib/design-tokens";
 import { getSortOrderLabel } from "@/lib/status-helpers";
 import { normalizedIncludes } from "@/lib/normalize-kana";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 // EMR-412 X9: 並び順ラベルは共有 getSortOrderLabel（「新→古/古→新」）に揃える。
@@ -168,7 +169,9 @@ export const VaccinationHistory = memo(function VaccinationHistory({
         </div>
 
         {/* Scrollable Rows */}
-        <div className="flex-1 overflow-y-auto relative pb-20">
+        <div
+          className={`flex-1 overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}`}
+        >
           {isLoading ? (
             <LoadingFallback />
           ) : filteredItems.length === 0 ? (

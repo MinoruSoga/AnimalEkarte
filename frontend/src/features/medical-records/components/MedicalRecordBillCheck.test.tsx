@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -112,6 +113,35 @@ describe("MedicalRecordBillCheck FE-RC-027 item_type 判定", () => {
     expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
       expect.objectContaining({ item_type: "medicine" }),
     );
+  });
+});
+
+// EMR-432: 会計（医師確認）タブも同じ右下固定ボタン群を描くため、スクロール末尾の明細表が
+// ボタン群に隠れない下余白（共有レイアウト定数）をスクロール領域へ付ける。
+describe("MedicalRecordBillCheck EMR-432 右下固定ボタンの下余白", () => {
+  it("スクロール領域と固定ボタン群が共有レイアウト定数を使う", () => {
+    server.use(
+      http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+        HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
+      ),
+    );
+
+    const { container } = render(
+      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />,
+      { wrapper: createTestWrapper() },
+    );
+
+    const scrollers = Array.from(container.querySelectorAll<HTMLElement>(".overflow-y-auto"));
+    expect(scrollers.length).toBeGreaterThan(0);
+    expect(
+      scrollers.some((el) =>
+        el.className.includes(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance),
+      ),
+    ).toBe(true);
+
+    const group = screen.getByRole("button", { name: "チェック完了" })
+      .parentElement as HTMLElement;
+    expect(group).toHaveClass(...MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position.split(" "));
   });
 });
 

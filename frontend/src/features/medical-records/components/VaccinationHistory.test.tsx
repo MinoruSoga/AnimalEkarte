@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { VaccinationHistory } from "./VaccinationHistory";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 
 const BLANK = { vaccineId: 1, lot1: "", lot2: "", lot3: "", lot4: "", nextDate: "", remarks: "" };
 
@@ -16,6 +17,11 @@ describe("VaccinationHistory — カナ混同検索", () => {
 
     expect(container.firstElementChild).toHaveClass("col-span-1", "lg:col-span-2");
     expect(container.firstElementChild).not.toHaveClass("col-span-2");
+
+    // EMR-432: 右下固定ボタン群が過去の接種履歴の表を覆わない下余白
+    const scroller = container.querySelector(".overflow-y-auto") as HTMLElement;
+    expect(scroller).not.toBeNull();
+    expect(scroller.className).toContain(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance);
   });
 
   it("空の検索語は全件表示する", () => {
