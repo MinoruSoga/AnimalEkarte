@@ -1,6 +1,6 @@
 import { addMonths, addWeeks, addYears, format } from "date-fns";
 
-type NextScheduleType = "3weeks" | "4weeks" | "6weeks" | "6months" | "1year" | "other";
+import type { NextScheduleType } from "@/constants/next-schedule";
 
 export interface NextScheduleOption {
   value: NextScheduleType;

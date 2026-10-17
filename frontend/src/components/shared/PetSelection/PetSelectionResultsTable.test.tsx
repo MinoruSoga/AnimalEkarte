@@ -597,9 +597,30 @@ describe("PetSelectionResultsTable row actions", () => {
     expect(selectButton).toBeEnabled();
     expect(selectButton).toHaveTextContent("選択");
     expect(screen.getByText("死亡")).toBeInTheDocument();
-    expect(selectButton.closest("tr")).toHaveClass("opacity-60", "grayscale-[0.5]");
+    // EMR-415 X7: グレーアウトは行ではなくセル内容と選択ボタンに掛ける
+    expect(selectButton).toHaveClass("opacity-60", "grayscale-[0.5]");
+    expect(selectButton.closest("tr")).not.toHaveClass("opacity-60");
+    expect(selectButton.closest("tr")).not.toHaveClass("grayscale-[0.5]");
     await user.click(selectButton);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ status: "死亡" }));
+  });
+
+  // EMR-415 X7: 死亡バッジは getPetStatusColor（#615D59）で読める色にし、バッジには opacity を掛けない
+  it("死亡バッジは textBadgeGray で opacity 掛からず、ペット名だけ薄くなる", () => {
+    render(
+      <PetSelectionResultsTable
+        pets={createResults([{ ...PET, status: "死亡" }])}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const badge = screen.getByText("死亡");
+    expect(badge).toHaveClass("text-[#615D59]");
+    expect(badge.className).not.toContain("text-[#9B9A97]");
+    expect(badge.className).not.toContain("opacity-60");
+
+    const nameSpan = screen.getByText("ポチ");
+    expect(nameSpan).toHaveClass("opacity-60", "grayscale-[0.5]");
   });
 
   it("生死不明の個体もfail-closedで選択不可になる", () => {

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useCreateVaccination } from "@/hooks/use-create-vaccination";
 import { todayJSTISO } from "@/lib/jst-date";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import {
   calculateNextDate,
   resolveScheduleTypeAfterManualDate,
@@ -18,8 +19,9 @@ interface VaccinationSaveState {
 
 const INITIAL_SAVE_STATE: VaccinationSaveState = { success: false, timestamp: 0 };
 
+// EMR-430: 既定間隔は独立画面（予防接種）・健診タブと同じ 1年後 にそろえる。
 function makeDefaultNextScheduleType() {
-  return "4weeks";
+  return DEFAULT_NEXT_SCHEDULE_TYPE;
 }
 
 /**
@@ -38,7 +40,11 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const [lot3, setLot3] = useState("");
   const [lot4, setLot4] = useState("");
   const [nextScheduleType, setNextScheduleTypeRaw] = useState(makeDefaultNextScheduleType);
-  const [nextDate, setNextDateRaw] = useState("");
+  const [nextDate, setNextDateRaw] = useState(() =>
+    // EMR-431: 開いた時点で「当日＋既定間隔」の次回予定日を持たせる。
+    // 日付に触れずに保存しても next_date が送られるようにする。
+    calculateNextDate(todayJSTISO(), makeDefaultNextScheduleType()),
+  );
   const [remarks, setRemarks] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   // BUG-015: 未選択のまま追加すると early return で無音失敗していた → 明示 fieldErrors
@@ -56,30 +62,44 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const resetForm = useCallback(() => {
     setVaccineNameRaw("");
     // フォームをリセット（実施日は次回追加でも当日デフォルト）
-    setDateRaw(todayJSTISO());
+    const today = todayJSTISO();
+    setDateRaw(today);
     setSupplemental("");
     setLot1("");
     setLot2("");
     setLot3("");
     setLot4("");
     setNextScheduleTypeRaw(makeDefaultNextScheduleType());
-    setNextDateRaw("");
+    // EMR-431: 次回予定日も同じ日付から「当日＋既定間隔」で戻す（前レコードの値を残さない）
+    setNextDateRaw(calculateNextDate(today, makeDefaultNextScheduleType()));
     setRemarks("");
     setFieldErrors({});
     setIsAdding(false);
   }, []);
 
-  const handleDuplicate = useCallback((item: VaccinationHistoryItem) => {
-    setIsAdding(true);
-    setVaccineNameRaw(String(item.vaccineId));
-    setDateRaw(""); // 実施日は新しく入力させる
-    setLot1(item.lot1);
-    setLot2(item.lot2);
-    setLot3(item.lot3);
-    setLot4(item.lot4);
-    setNextDateRaw(item.nextDate);
-    setRemarks(item.remarks);
-  }, []);
+  const handleDuplicate = useCallback(
+    (item: VaccinationHistoryItem) => {
+      setIsAdding(true);
+      setVaccineNameRaw(String(item.vaccineId));
+      setDateRaw(""); // 実施日は新しく入力させる
+      setLot1(item.lot1);
+      setLot2(item.lot2);
+      setLot3(item.lot3);
+      setLot4(item.lot4);
+      setNextDateRaw(item.nextDate);
+      // EMR-430: 複製するのは次回予定日だけで実施日は複製しない。写した次回予定日と
+      // 現在の間隔が食い違ったまま表示・保存されないよう、間隔を再判定する
+      // （実施日が無いので日付からは判定できず、次回予定日があるときだけ「以外（手動）」になる）。
+      // 次回予定日が無い記録では間隔を変えない。
+      if (item.nextDate) {
+        setNextScheduleTypeRaw(
+          resolveScheduleTypeAfterManualDate("", nextScheduleType, item.nextDate),
+        );
+      }
+      setRemarks(item.remarks);
+    },
+    [nextScheduleType],
+  );
 
   const setVaccineName = useCallback((value: string) => {
     setVaccineNameRaw(value);
@@ -107,8 +127,10 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const setNextScheduleType = useCallback(
     (value: string) => {
       setNextScheduleTypeRaw(value);
-      const calculated = calculateNextDate(date, value);
-      if (calculated) setNextDateRaw(calculated);
+      // レビュー指摘（EMR-431）: 間隔の切替時は次回予定日を必ず再計算する。
+      // 計算できない場合（以外（手動）・実施日空）も既定で自動計算した日付を
+      // 「手動」の値として残さないよう、空文字で上書きする。
+      setNextDateRaw(calculateNextDate(date, value));
     },
     [date],
   );

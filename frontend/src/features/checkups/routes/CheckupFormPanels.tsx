@@ -52,70 +52,66 @@ export function CheckupFieldsPanel({
       disabled={!canSubmit}
       className={`lg:col-span-3 ${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6 min-w-0`}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="checkup-date">
-            実施日
-            <RequiredMark />
-          </Label>
-          <DatePicker
-            id="checkup-date"
-            value={form.date}
-            onChange={onDateChange}
-            ariaRequired
-            ariaInvalid={Boolean(fieldErrors.date)}
-            ariaDescribedBy={fieldErrors.date ? "checkup-date-error" : undefined}
-            disabledDays={{ after: toJSTWallDate(new Date()) }}
-          />
-          <FormFieldError id="checkup-date-error" message={fieldErrors.date} />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="checkup-type-select">
-            健診種別
-            <RequiredMark />
-          </Label>
-          <SearchableSelect
-            id="checkup-type-select"
-            value={form.checkupTypeId}
-            onValueChange={onCheckupTypeIdChange}
-            options={checkupTypes.map((checkupType) => ({
-              value: String(checkupType.id),
-              label: checkupType.name,
-            }))}
-            placeholder="選択してください"
-            searchPlaceholder="健診種別を検索..."
-            ariaInvalid={Boolean(fieldErrors.checkupTypeId)}
-            ariaRequired
-            ariaDescribedBy={fieldErrors.checkupTypeId ? "checkup-type-error" : undefined}
-          />
-          <FormFieldError id="checkup-type-error" message={fieldErrors.checkupTypeId} />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="checkup-date">
+          実施日
+          <RequiredMark />
+        </Label>
+        <DatePicker
+          id="checkup-date"
+          value={form.date}
+          onChange={onDateChange}
+          ariaRequired
+          ariaInvalid={Boolean(fieldErrors.date)}
+          ariaDescribedBy={fieldErrors.date ? "checkup-date-error" : undefined}
+          disabledDays={{ after: toJSTWallDate(new Date()) }}
+        />
+        <FormFieldError id="checkup-date-error" message={fieldErrors.date} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <NextScheduleField
-          typeId="checkup-next-schedule"
-          dateId="checkup-next-date"
-          scheduleType={form.nextScheduleType}
-          nextDate={form.nextDate}
-          onScheduleTypeChange={onNextScheduleTypeChange}
-          onNextDateChange={onNextDateChange}
+      <div className="space-y-2">
+        <Label htmlFor="checkup-type-select">
+          健診種別
+          <RequiredMark />
+        </Label>
+        <SearchableSelect
+          id="checkup-type-select"
+          value={form.checkupTypeId}
+          onValueChange={onCheckupTypeIdChange}
+          options={checkupTypes.map((checkupType) => ({
+            value: String(checkupType.id),
+            label: checkupType.name,
+          }))}
+          placeholder="選択してください"
+          searchPlaceholder="健診種別を検索..."
+          ariaInvalid={Boolean(fieldErrors.checkupTypeId)}
+          ariaRequired
+          ariaDescribedBy={fieldErrors.checkupTypeId ? "checkup-type-error" : undefined}
         />
+        <FormFieldError id="checkup-type-error" message={fieldErrors.checkupTypeId} />
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="checkup-doctor-select">担当医</Label>
-          <SearchableSelect
-            id="checkup-doctor-select"
-            value={form.doctorId}
-            onValueChange={onDoctorIdChange}
-            options={staffs
-              .filter((staff) => staff.isActive && staff.staffType === "doctor")
-              .map((staff) => ({ value: staff.id, label: staff.name }))}
-            placeholder="選択してください"
-            searchPlaceholder="担当医を検索..."
-          />
-        </div>
+      <NextScheduleField
+        typeId="checkup-next-schedule"
+        dateId="checkup-next-date"
+        scheduleType={form.nextScheduleType}
+        nextDate={form.nextDate}
+        onScheduleTypeChange={onNextScheduleTypeChange}
+        onNextDateChange={onNextDateChange}
+      />
+
+      <div className="space-y-2">
+        <Label htmlFor="checkup-doctor-select">担当医</Label>
+        <SearchableSelect
+          id="checkup-doctor-select"
+          value={form.doctorId}
+          onValueChange={onDoctorIdChange}
+          options={staffs
+            .filter((staff) => staff.isActive && staff.staffType === "doctor")
+            .map((staff) => ({ value: staff.id, label: staff.name }))}
+          placeholder="選択してください"
+          searchPlaceholder="担当医を検索..."
+        />
       </div>
 
       {checkupFields.length > 0 ? (

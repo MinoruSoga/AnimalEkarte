@@ -124,7 +124,7 @@ function buildPivotRows(
 
 function PivotValueCell({ item }: { item: ExamResult | undefined }) {
   if (!item) {
-    return <TableCell className={`min-w-24 border-l text-center ${C.borderMedium}`}>-</TableCell>;
+    return <TableCell className={`min-w-24 border-l text-center ${C.borderLight}`}>-</TableCell>;
   }
 
   const statusClass =
@@ -133,7 +133,7 @@ function PivotValueCell({ item }: { item: ExamResult | undefined }) {
   return (
     <TableCell
       data-status={item.status}
-      className={`min-w-24 border-l text-center ${C.borderMedium} ${statusClass}`}
+      className={`min-w-24 border-l text-center ${C.borderLight} ${statusClass}`}
     >
       <div className="flex min-h-8 items-center justify-center gap-2">
         <span className="font-mono">{item.inspectionValue}</span>
@@ -249,22 +249,22 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
       </div>
 
       {visibleRows.length > 0 ? (
-        <div className={`overflow-x-auto rounded-lg border ${C.borderMedium} ${C.bgWhite}`}>
+        <div className={`overflow-x-auto rounded-lg border ${C.borderLight} ${C.bgWhite}`}>
           <table className={`min-w-full border-collapse text-sm ${C.text}`}>
             <thead>
               <tr className={`${C.bgPage} ${STYLE.sectionLabel}`}>
                 <TableHead className="min-w-36">項目名</TableHead>
-                <TableHead className={`min-w-20 border-l text-center ${C.borderMedium}`}>
+                <TableHead className={`min-w-20 border-l text-center ${C.borderLight}`}>
                   単位
                 </TableHead>
-                <TableHead className={`min-w-24 border-l text-center ${C.borderMedium}`}>
+                <TableHead className={`min-w-24 border-l text-center ${C.borderLight}`}>
                   基準値
                 </TableHead>
                 {displayedExaminations.map((examination) => (
                   <TableHead
                     key={examination.id}
                     aria-label={getExaminationColumnLabel(examination, displayedExaminations)}
-                    className={`min-w-24 border-l text-center ${C.borderMedium}`}
+                    className={`min-w-24 border-l text-center ${C.borderLight}`}
                   >
                     {examination.date}
                   </TableHead>
@@ -273,7 +273,7 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
             </thead>
             <tbody>
               {visibleRows.map((row) => (
-                <tr key={row.key} className={`border-t ${C.borderMedium}`}>
+                <tr key={row.key} className={`border-t ${C.borderLight}`}>
                   <TableHead scope="row">
                     <span>{row.label}</span>
                     {row.isLegacy ? (
@@ -282,10 +282,10 @@ export function ExamPivotTable({ examinations, sortOrder }: ExamPivotTableProps)
                       </Badge>
                     ) : null}
                   </TableHead>
-                  <TableCell className={`border-l text-center ${C.borderMedium} ${C.text60}`}>
+                  <TableCell className={`border-l text-center ${C.borderLight} ${C.text60}`}>
                     {row.unit}
                   </TableCell>
-                  <TableCell className={`border-l text-center ${C.borderMedium} ${C.text60}`}>
+                  <TableCell className={`border-l text-center ${C.borderLight} ${C.text60}`}>
                     {row.reference}
                   </TableCell>
                   {displayedExaminations.map((examination) => (

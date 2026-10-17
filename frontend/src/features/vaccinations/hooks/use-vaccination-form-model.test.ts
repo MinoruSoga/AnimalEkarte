@@ -70,3 +70,174 @@ describe("validateVaccinationForm — JST date compare (FE-RC-003)", () => {
     expect(errors.nextDate).toBe("次回予定日は本日以降の日付を入力してください");
   });
 });
+
+import {
+  mergeVaccinationFormData,
+  buildCreateVaccinationRequest,
+  buildUpdateVaccinationRequest,
+  vaccinationOverridesOnScheduleType,
+} from "./use-vaccination-form-model";
+import { jstDateStartISOString } from "@/lib/jst-date";
+import type { VaccinationRecord } from "@/types";
+
+function existingVaccination(overrides: Partial<VaccinationRecord> = {}): VaccinationRecord {
+  return {
+    id: "10",
+    petId: "5",
+    medicalRecordId: undefined,
+    ownerName: "",
+    petName: "",
+    vaccineId: "1",
+    vaccineName: "",
+    doctor: "",
+    date: "2026-08-08",
+    nextDate: "2026-08-29",
+    nextScheduleType: "1year",
+    lot1: undefined,
+    lot2: undefined,
+    lot3: undefined,
+    lot4: undefined,
+    supplemental: undefined,
+    remarks: undefined,
+    version: 1,
+    ...overrides,
+  };
+}
+
+describe("mergeVaccinationFormData — 編集時の nextScheduleType 再判定（EMR-417）", () => {
+  it("保存済み 1year に対し nextDate が不一致なら other に再判定し date/nextDate は保持する", () => {
+    const merged = mergeVaccinationFormData(true, existingVaccination(), {});
+    expect(merged.nextScheduleType).toBe("other");
+    expect(merged.date).toBe("2026-08-08");
+    expect(merged.nextDate).toBe("2026-08-29");
+  });
+
+  it.each([
+    { type: "1year", nextDate: "2027-08-08", expected: "1year" },
+    { type: "3weeks", nextDate: "2026-08-29", expected: "3weeks" },
+    { type: "4weeks", nextDate: "2026-08-29", expected: "other" },
+  ])("保存 type=$type + nextDate=$nextDate → $expected", ({ type, nextDate, expected }) => {
+    const merged = mergeVaccinationFormData(
+      true,
+      existingVaccination({ nextScheduleType: type, nextDate }),
+      {},
+    );
+    expect(merged.nextScheduleType).toBe(expected);
+    expect(merged.nextDate).toBe(nextDate);
+  });
+
+  it.each([{ nextDate: "" }, { nextDate: undefined }])(
+    "nextDate 未設定なら保存済み type を維持する（%j）",
+    ({ nextDate }) => {
+      const merged = mergeVaccinationFormData(
+        true,
+        existingVaccination({ nextScheduleType: "1year", nextDate }),
+        {},
+      );
+      expect(merged.nextScheduleType).toBe("1year");
+      expect(merged.nextDate).toBe("");
+    },
+  );
+
+  it("nextScheduleType 未設定なら DEFAULT(1year) にフォールバックしてから再判定する", () => {
+    const merged = mergeVaccinationFormData(
+      true,
+      existingVaccination({ nextScheduleType: undefined, nextDate: "2027-08-08" }),
+      {},
+    );
+    expect(merged.nextScheduleType).toBe("1year");
+  });
+
+  it("タイムスタンプ形式の date/nextDate を YYYY-MM-DD に正規化してから再判定する", () => {
+    const merged = mergeVaccinationFormData(
+      true,
+      existingVaccination({
+        date: "2026-08-08T00:00:00+09:00",
+        nextDate: "2026-08-29T00:00:00+09:00",
+        nextScheduleType: "1year",
+      }),
+      {},
+    );
+    expect(merged.date).toBe("2026-08-08");
+    expect(merged.nextDate).toBe("2026-08-29");
+    expect(merged.nextScheduleType).toBe("other");
+  });
+
+  it("localOverrides は再判定結果より優先される", () => {
+    const merged = mergeVaccinationFormData(true, existingVaccination(), {
+      nextScheduleType: "4weeks",
+    });
+    expect(merged.nextScheduleType).toBe("4weeks");
+  });
+
+  it("新規作成はこれまで通り DEFAULT(1year) のまま", () => {
+    const merged = mergeVaccinationFormData(false, undefined, {});
+    expect(merged.nextScheduleType).toBe("1year");
+  });
+
+  it("修正後フォームの update request は next_schedule_type=other と保持された next_date を送る", () => {
+    const merged = mergeVaccinationFormData(true, existingVaccination(), {});
+    const req = buildUpdateVaccinationRequest(merged, 1);
+    expect(req.next_schedule_type).toBe("other");
+    expect(req.next_date).toBe(jstDateStartISOString("2026-08-29"));
+  });
+});
+
+// EMR-431: 新規フォームは「当日＋既定間隔」の次回予定日を開いた時点で持つ。
+// 日付に触れずに保存しても next_date が送られる（EMR-427 の LINE 期限配信は
+// next_date で判定するため、空のまま保存されると配信対象から漏れる）。
+describe("mergeVaccinationFormData — 新規フォームの次回予定日初期化（EMR-431）", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // UTC 16:00 = JST 翌日 01:00。JST 当日が 2026-10-15 になる瞬間を固定する。
+    vi.setSystemTime(new Date("2026-10-14T15:01:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("既定間隔 1年後 で 当日+1年 の次回予定日を初期化する", () => {
+    const merged = mergeVaccinationFormData(false, undefined, {});
+    expect(merged.nextScheduleType).toBe("1year");
+    expect(merged.date).toBe("2026-10-15");
+    expect(merged.nextDate).toBe("2027-10-15");
+  });
+
+  it("日付に触れずに保存しても create request が next_date を送る", () => {
+    const merged = mergeVaccinationFormData(false, undefined, {});
+    const req = buildCreateVaccinationRequest(merged, "5");
+    expect(req.next_date).toBe(jstDateStartISOString("2027-10-15"));
+    expect(req.next_schedule_type).toBe("1year");
+  });
+
+  it("localOverrides の nextDate は初期値より優先される", () => {
+    const merged = mergeVaccinationFormData(false, undefined, { nextDate: "2026-11-01" });
+    expect(merged.nextDate).toBe("2026-11-01");
+  });
+});
+
+// レビュー指摘（EMR-431）: 「以外（手動）」へ切り替えたとき、EMR-431 が既定で
+// 自動計算した次回予定日が残ったまま保存されていた。間隔の切替時は必ず再計算し、
+// 計算できない場合（other・実施日空）はクリアして手入力の余地を残す。
+describe("vaccinationOverridesOnScheduleType — other 切替で次回予定日をクリア（レビュー指摘）", () => {
+  it("other に切り替えたら既定で入った次回予定日をクリアする", () => {
+    const overrides = vaccinationOverridesOnScheduleType(
+      { date: "2026-08-29", nextDate: "2027-08-29" },
+      "other",
+      "2026-08-29",
+    );
+    expect(overrides.nextScheduleType).toBe("other");
+    expect(overrides.nextDate).toBe("");
+  });
+
+  it("プリセットへ切り替えたら実施日から再計算する（従来どおり）", () => {
+    const overrides = vaccinationOverridesOnScheduleType(
+      { date: "2026-08-29", nextDate: "" },
+      "1year",
+      "2026-08-29",
+    );
+    expect(overrides.nextScheduleType).toBe("1year");
+    expect(overrides.nextDate).toBe("2027-08-29");
+  });
+});

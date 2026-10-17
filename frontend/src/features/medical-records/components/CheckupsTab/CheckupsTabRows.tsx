@@ -17,6 +17,7 @@ import { NextScheduleField, calculateNextDate } from "@/components/shared/NextSc
 import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { Label } from "@/components/ui/label";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 import type { CheckupTypeFieldRow } from "@/hooks/use-checkup-fields";
@@ -162,14 +163,14 @@ export function CheckupDisplayRow({
 }: CheckupDisplayRowProps) {
   return (
     <tr className={`border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors h-12`}>
-      <TableCell className={C.text}>{checkup.date}</TableCell>
+      <TableCell className={`${C.text} whitespace-nowrap`}>{formatDate(checkup.date)}</TableCell>
       <TableCell className={C.text}>
         {checkup.checkup_type?.name ?? checkup.checkup_type_id}
       </TableCell>
-      <TableCell className={C.text60}>
+      <TableCell className={`${C.text60} whitespace-nowrap`}>
         {checkup.next_date ? (
           <div className="flex items-center gap-1.5">
-            <span>{checkup.next_date}</span>
+            <span>{formatDate(checkup.next_date)}</span>
             <CheckupAlertBadge nextDate={checkup.next_date} />
           </div>
         ) : (

@@ -190,3 +190,32 @@ describe("ExaminationFormFields", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("EMR-415 E4: 必須印", () => {
+  function renderFieldsPanel() {
+    return render(
+      <MemoryRouter>
+        <ExaminationFormFields
+          formData={{ date: "2026-07-21T00:00:00+09:00", status: "依頼中" }}
+          examTypes={[{ id: "5", name: "血液検査（院内）" }]}
+          staffList={[{ id: "3", name: "林文明" }]}
+          masterLoading={false}
+          isConfirmed={false}
+          isCompletedLocked={false}
+          onSetFormData={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("検査種別と担当医のラベルに必須印（*）を表示する", () => {
+    renderFieldsPanel();
+
+    const typeLabel = screen.getByText("検査種別").closest("label");
+    expect(typeLabel).not.toBeNull();
+    expect(typeLabel?.textContent).toContain("*");
+    const doctorLabel = screen.getByText("担当医").closest("label");
+    expect(doctorLabel).not.toBeNull();
+    expect(doctorLabel?.textContent).toContain("*");
+  });
+});

@@ -108,7 +108,7 @@ describe("AccountingListTable recorded amounts", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("¥-3,000")).toBeInTheDocument();
+    expect(screen.getByText("-¥3,000")).toBeInTheDocument();
   });
 });
 

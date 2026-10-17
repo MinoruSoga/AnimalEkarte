@@ -1,4 +1,5 @@
 import { C } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 
 export function parseHighlightDate(
   dateParam: string | null,
@@ -14,5 +15,5 @@ export function diffClass(diff: number): string {
 }
 
 export function formatDiff(diff: number): string {
-  return `${diff >= 0 ? "+" : ""}${diff.toLocaleString()}`;
+  return formatCurrency(diff);
 }

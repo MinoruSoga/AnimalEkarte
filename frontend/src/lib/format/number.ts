@@ -28,7 +28,7 @@ export function formatWeight(weight: number | string | undefined | null): string
 export function formatCurrency(amount: number | undefined | null): string {
   if (amount === undefined || amount === null) return "-";
 
-  return `¥${amount.toLocaleString("ja-JP")}`;
+  return `${amount < 0 ? "-" : ""}¥${Math.abs(amount).toLocaleString("ja-JP")}`;
 }
 
 /**

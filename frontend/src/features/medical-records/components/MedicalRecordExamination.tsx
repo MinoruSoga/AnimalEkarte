@@ -8,6 +8,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 // Relative
 import { useGetRecordExaminations } from "../api/get-record-examinations";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
 import { ExaminationImportDialog } from "./MedicalRecordLazyModals";
@@ -82,7 +83,9 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
   const lockedEmptyMessage = getLockedEmptyStateMessage({ isFinalized, isLocked: isImportLocked });
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1">
+    <div
+      className={`flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance} pr-1`}
+    >
       {petId && !isNewRecord ? <LabDeviceUnlinkedBanner petId={petId} /> : null}
       {/* Search & Actions Header */}
       <ExaminationFilter

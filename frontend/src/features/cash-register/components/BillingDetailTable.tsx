@@ -41,7 +41,7 @@ function DetailDataRow({ row }: { row: BillingDetailDisplayRow }) {
         {formatCurrency(row.totalAmount)}
       </TableCell>
       <TableCell className={`text-right whitespace-nowrap ${C.text}`}>
-        {row.refundAmount > 0 ? `-${formatCurrency(row.refundAmount)}` : "-"}
+        {row.refundAmount > 0 ? formatCurrency(-row.refundAmount) : "-"}
       </TableCell>
       <TableCell className={`text-right whitespace-nowrap ${C.text}`}>
         {formatCurrency(row.netAmount)}
@@ -137,7 +137,7 @@ export function BillingDetailTable({
                 {formatCurrency(totals.totalAmount)}
               </TableCell>
               <TableCell className={`text-right font-semibold whitespace-nowrap ${C.text}`}>
-                {totals.refundAmount > 0 ? `-${formatCurrency(totals.refundAmount)}` : "-"}
+                {totals.refundAmount > 0 ? formatCurrency(-totals.refundAmount) : "-"}
               </TableCell>
               <TableCell className={`text-right font-semibold whitespace-nowrap ${C.text}`}>
                 {formatCurrency(totals.netAmount)}

@@ -42,9 +42,9 @@ function ExaminationsListRow({
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "—"}
+        {record.date ? formatDate(record.date) : "-"}
       </TableCell>
-      <TableCell className={STYLE.tableCell}>{record.ownerName}</TableCell>
+      <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>
         <DataTableRowLink
           to={examinationListDetailHref({
@@ -61,13 +61,13 @@ function ExaminationsListRow({
         </DataTableRowLink>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} font-medium hidden sm:table-cell`}>
-        {record.testType || "—"}
+        {record.testType || "-"}
       </TableCell>
       <TableCell className={`${C.text60} truncate max-w-[200px] hidden lg:table-cell`}>
-        {record.resultSummary == null || record.resultSummary === "" ? "—" : record.resultSummary}
+        {record.resultSummary == null || record.resultSummary === "" ? "-" : record.resultSummary}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} hidden md:table-cell`}>
-        {record.doctor || "—"}
+        {record.doctor || "-"}
       </TableCell>
       <TableCell className={LIST_TABLE_COL.status}>
         <StatusBadge colorClass={getExaminationStatusColor(record.status)}>
@@ -133,6 +133,7 @@ export function ExaminationsListContent({
             label="日時"
             direction={directionFor("date")}
             onToggle={() => toggleSort("date")}
+            variant="eyebrow"
           />
         ),
         className: "w-[120px] whitespace-nowrap",
@@ -143,6 +144,7 @@ export function ExaminationsListContent({
             label="飼主名"
             direction={directionFor("ownerName")}
             onToggle={() => toggleSort("ownerName")}
+            variant="eyebrow"
           />
         ),
         className: "whitespace-nowrap",
@@ -153,6 +155,7 @@ export function ExaminationsListContent({
             label="ペット名"
             direction={directionFor("petName")}
             onToggle={() => toggleSort("petName")}
+            variant="eyebrow"
           />
         ),
         className: "whitespace-nowrap",
@@ -163,6 +166,7 @@ export function ExaminationsListContent({
             label="検査種別"
             direction={directionFor("testType")}
             onToggle={() => toggleSort("testType")}
+            variant="eyebrow"
           />
         ),
         className: "hidden sm:table-cell whitespace-nowrap",
@@ -174,6 +178,7 @@ export function ExaminationsListContent({
             label="担当医"
             direction={directionFor("doctor")}
             onToggle={() => toggleSort("doctor")}
+            variant="eyebrow"
           />
         ),
         className: "w-[100px] hidden md:table-cell whitespace-nowrap",
@@ -184,6 +189,7 @@ export function ExaminationsListContent({
             label="ステータス"
             direction={directionFor("status")}
             onToggle={() => toggleSort("status")}
+            variant="eyebrow"
           />
         ),
         className: LIST_TABLE_COL.status,

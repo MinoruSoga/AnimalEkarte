@@ -255,7 +255,10 @@ export function VaccinationFormBody({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div
+            data-testid="vaccination-form-grid"
+            className="mt-4 grid grid-cols-1 lg:grid-cols-5 gap-6"
+          >
             <VaccinationFieldsPanel
               doctorName={form.doctorName}
               date={form.date}

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/format/date";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
+import { getPetStatusColor } from "@/lib/status-helpers";
 import type { PetSelectionResultPage } from "@/hooks/use-pet-selection-page";
 import type { Pet } from "@/types";
 
@@ -121,37 +122,38 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
               // 「不明」等の既知外 status は fail-closed で選択不可のまま。
               const isSelectable =
                 (pet.status === "生存" || pet.status === "死亡") && !isError && !isLoading;
+              // EMR-415 X7: グレーアウトは行全体ではなく、死亡行のセル内容と選択ボタンに掛ける。
+              // ペット名セルは名前の span だけに掛け、生死バッジは読める色のままにする。
+              const deceasedDim = isDeceased ? " opacity-60 grayscale-[0.5]" : "";
               return (
                 <TableRow
                   key={pet.id}
                   className={`transition-colors ${C.hoverBgMedium} h-12 ${
                     index < items.length - 1 ? `border-b ${C.borderLight}` : "border-none"
-                  } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
+                  }`}
                 >
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     {pet.ownerId}
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     <span className="flex items-center gap-1.5">
                       <span>{pet.ownerName}</span>
                       {pet.ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
                     </span>
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {pet.petNumber || "-"}
                   </TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                     <span className="flex items-center gap-1.5">
-                      <span>{pet.name}</span>
+                      <span className={deceasedDim.trim()}>{pet.name}</span>
                       {/* EMR-412 X2: 生死はペット名セルへ移動（カルテ一覧と同じ配置。sticky 操作列の下に隠れない） */}
                       {pet.status ? (
                         <Badge
                           variant="secondary"
-                          className={
-                            pet.status === "生存"
-                              ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen} text-xs px-2 py-0 h-7`
-                              : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} ${C.hoverBgStatusGray} text-xs px-2 py-0 h-7`
-                          }
+                          className={`${getPetStatusColor(pet.status)} text-xs px-2 py-0 h-7`}
                         >
                           {pet.status}
                         </Badge>
@@ -168,19 +170,25 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       ) : null}
                     </span>
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     {pet.species}
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {formatDate(pet.birthDate)}
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {pet.weight || "-"}
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     {pet.environment || "-"}
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {formatDate(pet.lastVisit)}
                   </TableCell>
                   <TableCell
@@ -203,7 +211,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       }
                       // docs/spec/design-system.md button-primary: pill。白文字塗りは
                       // design-states.md §2.3 の Solid コンボ（#027078 系）を使う。
-                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} px-4`}
+                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} px-4${deceasedDim}`}
                       onClick={() => onSelect(pet)}
                     >
                       {isSelectable ? (

@@ -63,3 +63,25 @@ describe("EstimateLineItems DESIGN.md table contract", () => {
     }
   });
 });
+
+describe("EstimateLineItems 割引・保険の符号", () => {
+  it("行割引・保険適用額・割引合計を -¥ 順で表示する", () => {
+    render(
+      <EstimateLineItems
+        items={[{ ...item, discountAmount: 300 }]}
+        subtotal={1000}
+        taxTotal={100}
+        insuranceAmount={2500}
+        discountAmount={100}
+        totalAmount={1100}
+      />,
+    );
+    const row = screen.getByText("診察料").closest("tr");
+    if (!row) throw new Error("missing row");
+    expect(within(row).getAllByRole("cell")[6]).toHaveTextContent("-¥300");
+    expect(screen.getByText("保険適用額").closest("div")).toHaveTextContent("-¥2,500");
+    expect(screen.getByText("割引", { selector: "span" }).closest("div")).toHaveTextContent(
+      "-¥100",
+    );
+  });
+});

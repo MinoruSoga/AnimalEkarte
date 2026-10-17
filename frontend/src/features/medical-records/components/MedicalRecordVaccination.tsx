@@ -3,11 +3,13 @@ import { memo } from "react";
 
 // Internal
 import { BADGE, C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import { Plus } from "lucide-react";
 import { getLockedEmptyStateMessage } from "../lib/record-empty-state";
 
 // Relative
 import { EmptyState } from "@/components/shared/DataStates";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 import { useMedicalRecordVaccinationForm } from "../hooks/use-medical-record-vaccination-form";
@@ -108,7 +110,9 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       {/* EMR-212: MedicalRecordFormReadyPanels がページ全体を <form action>（カルテ保存）で
           包むため、ここに <form> を置くとネスト form となりブラウザが破棄する。form 要素は
           使わず、VaccinationForm 内の SubmitButton の formAction で送信する（EMR-208 と同型） */}
-      <div className="grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1 lg:grid-cols-5">
+      <div
+        className={`grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance} pr-1 lg:grid-cols-5`}
+      >
         <fieldset disabled={isLocked} className={`contents ${STYLE.readonlyInputs}`}>
           {isAdding ? (
             <VaccinationForm
@@ -144,7 +148,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
                 {historyItems.map((item) => (
                   <li key={item.id} className="px-3 py-2 text-sm">
                     <div className={`font-medium ${C.text}`}>{item.name}</div>
-                    <div className={C.text60}>接種日 {item.date}</div>
+                    <div className={C.text60}>接種日 {formatDate(item.dateISO)}</div>
                   </li>
                 ))}
               </ul>

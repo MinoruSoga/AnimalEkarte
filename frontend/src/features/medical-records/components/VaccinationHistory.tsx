@@ -12,8 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import { getSortOrderLabel } from "@/lib/status-helpers";
 import { normalizedIncludes } from "@/lib/normalize-kana";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
 // EMR-412 X9: 並び順ラベルは共有 getSortOrderLabel（「新→古/古→新」）に揃える。
@@ -43,6 +45,7 @@ export interface VaccinationHistoryItem {
   name: string;
   date: string;
   next: string;
+  dateISO: string;
   vaccineId: number;
   lot1: string;
   lot2: string;
@@ -162,13 +165,23 @@ export const VaccinationHistory = memo(function VaccinationHistory({
           className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 shrink-0`}
         >
           <div className="flex-1 px-3 text-center">予防接種名</div>
-          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>実施日</div>
-          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>次予定</div>
+          <div
+            className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} whitespace-nowrap`}
+          >
+            実施日
+          </div>
+          <div
+            className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} whitespace-nowrap`}
+          >
+            次予定
+          </div>
           <div className={`w-[70px] px-2 text-center border-l ${C.borderMedium}`}>操作</div>
         </div>
 
         {/* Scrollable Rows */}
-        <div className="flex-1 overflow-y-auto relative pb-20">
+        <div
+          className={`flex-1 overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}`}
+        >
           {isLoading ? (
             <LoadingFallback />
           ) : filteredItems.length === 0 ? (
@@ -187,14 +200,14 @@ export const VaccinationHistory = memo(function VaccinationHistory({
                 >
                   <div className="flex-1 px-3 truncate font-medium">{item.name}</div>
                   <div
-                    className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}
+                    className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} font-mono text-sm whitespace-nowrap`}
                   >
-                    {item.date}
+                    {formatDate(item.dateISO)}
                   </div>
                   <div
-                    className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}
+                    className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} font-mono text-sm whitespace-nowrap`}
                   >
-                    {item.next}
+                    {formatDate(item.nextDate)}
                   </div>
                   <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
                     {canCreate ? (

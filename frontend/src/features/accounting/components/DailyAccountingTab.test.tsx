@@ -197,7 +197,7 @@ describe("DailyAccountingTab", () => {
     expect(row).not.toBeNull();
     const cells = within(row as HTMLElement).getAllByRole("cell");
     // EMR-186: 飼主名・ペット名が最右端へ移動したため診療列は index 1
-    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(cells[1]).toHaveTextContent("-¥3,000");
   });
 
   it("支払方法が表示される", async () => {

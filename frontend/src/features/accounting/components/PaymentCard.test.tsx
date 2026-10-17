@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
@@ -40,7 +40,7 @@ describe("PaymentCard 移行負額", () => {
       />,
     );
     expect(screen.getByText("今回の請求金額")).toBeInTheDocument();
-    expect(screen.getAllByText("¥-3,000").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("-¥3,000").length).toBeGreaterThanOrEqual(2);
   });
 
   it("負の請求で split が足りないときは差額を符号のまま出す", () => {
@@ -55,7 +55,7 @@ describe("PaymentCard 移行負額", () => {
         isEditMode={false}
       />,
     );
-    expect(screen.getByText("差額 ¥-3,000")).toBeInTheDocument();
+    expect(screen.getByText("差額 -¥3,000")).toBeInTheDocument();
     expect(screen.queryByText(/超過/)).not.toBeInTheDocument();
   });
 });
@@ -130,8 +130,8 @@ describe("PaymentCard お釣り整合 (#182 ②: 現行整合厳格を維持)", 
 
   it("お預かり < 請求 の場合はお釣りが負値（不足）として表示される", () => {
     renderCard([{ method: "cash", amount: "1000", receivedAmount: "800" }], 1000);
-    // 表示は ¥ の後に符号（toLocaleString は負号を数値前に付ける）
-    expect(screen.getByText("¥-200")).toBeInTheDocument();
+    // 負の金額は formatCurrency が符号を円記号の前に置く。
+    expect(screen.getByText("-¥200")).toBeInTheDocument();
   });
 
   it("「丁度」ボタンはお預かり金額を請求額に揃える（お釣り0・整合維持）", async () => {
@@ -280,5 +280,57 @@ describe("PaymentCard permission and labels", () => {
   it("手動修正buttonは44px以上の操作領域を持つ", () => {
     renderCard([{ method: "cash", amount: "1000", receivedAmount: "1000" }], 1000);
     expect(screen.getByRole("button", { name: "手動修正" })).toHaveClass("min-h-11", "min-w-11");
+  });
+});
+
+describe("PaymentCard MoneyInput 移行回帰", () => {
+  it("金額・お預かり入力は生文字列ドラフトを維持し文字列 '0' と '' をそのまま通知する", async () => {
+    const { onSplitsChange } = renderCard(
+      [{ method: "cash", amount: "1000", receivedAmount: "1500" }],
+      1000,
+    );
+    const amount = screen.getByRole("spinbutton", { name: "支払1の金額" });
+    const received = screen.getByRole("spinbutton", { name: "支払1のお預かり金額" });
+    expect(amount).toHaveClass("h-12", "text-base", "font-normal", "text-right");
+    expect(received).toHaveClass("h-12", "text-base", "font-normal", "text-right");
+    expect(screen.getAllByText("円").length).toBeGreaterThanOrEqual(2);
+
+    fireEvent.change(amount, { target: { value: "0" } });
+    expect(onSplitsChange).toHaveBeenLastCalledWith([
+      { method: "cash", amount: "0", receivedAmount: "1500" },
+    ]);
+    fireEvent.change(received, { target: { value: "" } });
+    // 制御コンポーネントのため props は更新されず、通知だけ検証する
+    expect(onSplitsChange).toHaveBeenLastCalledWith([
+      { method: "cash", amount: "1000", receivedAmount: "" },
+    ]);
+  });
+
+  it("お釣り手動修正入力は aria-label を持ち生文字列で通知する", async () => {
+    const { onSplitsChange } = renderCard(
+      [
+        {
+          method: "cash",
+          amount: "1000",
+          receivedAmount: "1500",
+          changeOverride: true,
+          changeAmount: "500",
+        },
+      ],
+      1000,
+    );
+    const change = screen.getByRole("spinbutton", { name: "支払1のお釣り" });
+    expect(change).toHaveClass("h-11", "text-base", "font-normal", "text-right");
+    expect(change).toHaveAttribute("min", "0");
+    fireEvent.change(change, { target: { value: "250" } });
+    expect(onSplitsChange).toHaveBeenLastCalledWith([
+      {
+        method: "cash",
+        amount: "1000",
+        receivedAmount: "1500",
+        changeOverride: true,
+        changeAmount: "250",
+      },
+    ]);
   });
 });

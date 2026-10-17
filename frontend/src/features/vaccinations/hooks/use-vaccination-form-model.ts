@@ -1,3 +1,4 @@
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import {
   calculateNextDate as calculateSharedNextDate,
   resolveScheduleTypeAfterManualDate,
@@ -31,7 +32,7 @@ export const DENIED_MUTATION_PERMISSIONS: Readonly<VaccinationMutationPermission
   canDelete: false,
 };
 
-export const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
+// EMR-430: 既定間隔は constants/next-schedule の DEFAULT_NEXT_SCHEDULE_TYPE に一本化した。
 
 const DEFAULT_VACCINATION_FORM: VaccinationFormState = {
   vaccineId: "",
@@ -68,21 +69,35 @@ export function mergeVaccinationFormData(
   localOverrides: Partial<VaccinationFormState>,
 ): VaccinationFormState {
   if (isEdit && existingVaccination) {
+    const date = existingVaccination.date ? existingVaccination.date.slice(0, 10) : "";
+    const nextDate = existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "";
+    const nextScheduleType = existingVaccination.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
     return {
       vaccineId: existingVaccination.vaccineId,
-      date: existingVaccination.date ? existingVaccination.date.slice(0, 10) : "",
+      date,
       supplemental: existingVaccination.supplemental ?? "",
       lot1: existingVaccination.lot1 ?? "",
       lot2: existingVaccination.lot2 ?? "",
       lot3: existingVaccination.lot3 ?? "",
       lot4: existingVaccination.lot4 ?? "",
-      nextScheduleType: existingVaccination.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE,
-      nextDate: existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "",
+      nextScheduleType: nextDate
+        ? resolveScheduleTypeAfterManualDate(date, nextScheduleType, nextDate)
+        : nextScheduleType,
+      nextDate,
       remarks: existingVaccination.remarks ?? "",
       ...localOverrides,
     };
   }
-  return { ...DEFAULT_VACCINATION_FORM, date: todayJSTISO(), ...localOverrides };
+  // EMR-431: 新規フォームも開いた時点で「当日＋既定間隔」の次回予定日を持つ。
+  // 日付に触れずに保存しても next_date が送られる（EMR-427 の LINE 期限配信は
+  // next_date で判定するため、空のまま保存されると配信対象から漏れる）。
+  const date = todayJSTISO();
+  return {
+    ...DEFAULT_VACCINATION_FORM,
+    date,
+    nextDate: calculateNextDate(date, DEFAULT_VACCINATION_FORM.nextScheduleType),
+    ...localOverrides,
+  };
 }
 
 export function validateVaccinationForm(
@@ -188,11 +203,13 @@ export function vaccinationOverridesOnScheduleType(
   scheduleType: string,
   currentDate: string,
 ): Partial<VaccinationFormState> {
-  const calculated = calculateNextDate(currentDate, scheduleType);
+  // レビュー指摘（EMR-431）: 間隔の切替時は次回予定日を必ず再計算する。
+  // 計算できない場合（以外（手動）・実施日空）は既定で自動計算した日付を
+  // 「手動」の値として残さないよう、空文字で上書きする。
   return {
     ...prev,
     nextScheduleType: scheduleType,
-    ...(calculated ? { nextDate: calculated } : {}),
+    nextDate: calculateNextDate(currentDate, scheduleType),
   };
 }
 

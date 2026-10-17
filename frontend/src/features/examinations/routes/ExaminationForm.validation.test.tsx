@@ -185,7 +185,8 @@ vi.mock("@/components/shared/ConfirmDialog", () => ({
   ConfirmDialog: () => null,
 }));
 
-vi.mock("@/components/shared/PatientInfoCard", () => ({
+vi.mock("@/components/shared/PatientInfoCard", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/shared/PatientInfoCard")>()),
   PatientInfoCard: () => null,
 }));
 

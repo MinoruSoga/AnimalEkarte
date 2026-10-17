@@ -130,7 +130,7 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     const dataRow = within(area).getByText("赤伝").closest("tr")!;
     const cells = dataRow.querySelectorAll("td");
     // EMR-186: 飼主名・ペット名が最右端へ移動したため診療列は index 1
-    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(cells[1]).toHaveTextContent("-¥3,000");
   });
 
   it("科目合計が負でも符号のまま印字する", () => {
@@ -149,7 +149,7 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     const area = screen.getByTestId("daily-print-area");
     const hospitalRow = within(area).getByText("医院合計").closest("tr")!;
     const cells = hospitalRow.querySelectorAll("td");
-    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(cells[1]).toHaveTextContent("-¥3,000");
     expect(within(hospitalRow).queryByText("¥0")).not.toBeInTheDocument();
   });
 

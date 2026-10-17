@@ -10,6 +10,7 @@ import { normalizedIncludes } from "@/lib/normalize-kana";
 // Relative
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
 import { useCreateMedicalRecordImages, useDeleteImage } from "../api/medical-record-images";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import { validateUploadFiles } from "../lib/image-upload-files";
 import { ImageGalleryFilter } from "./ImageGalleryFilter";
 import { ImageGalleryGroup } from "./ImageGalleryGroup";
@@ -182,7 +183,9 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto pb-20 pr-1">
+      <div
+        className={`flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance} pr-1`}
+      >
         {/* Search & Upload Header */}
         <ImageGalleryFilter
           searchTerm={searchTerm}

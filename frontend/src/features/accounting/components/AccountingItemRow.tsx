@@ -99,7 +99,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
                         : formatCurrency(s.discount_value)}
                     </span>
                     <span className={`float-right font-mono ${C.textRedIcon}`}>
-                      -{formatCurrency(s.amount)}
+                      {formatCurrency(-s.amount)}
                     </span>
                   </button>
                 </li>
@@ -263,7 +263,7 @@ export function AccountingItemRow({
       </TableCell>
       <TableCell className="text-center">
         {item.isInsuranceApplicable ? (
-          <span className={`${C.textStatusGreen} font-bold text-xs`}>●</span>
+          <span className={`${C.textStatusGreen} font-normal text-xs`}>●</span>
         ) : (
           <span className={`${C.text20} text-xs`}>-</span>
         )}

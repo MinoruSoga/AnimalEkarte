@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "../constants/fixed-action-layout";
 import type { Pet } from "@/types";
 import type { PetResponse } from "@/types/generated/pet-responses";
 
@@ -110,7 +111,17 @@ vi.mock("../hooks/use-medical-record-form-modals", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageLayout: ({
+    children,
+    contentClassName,
+  }: {
+    children: ReactNode;
+    contentClassName?: string;
+  }) => (
+    <div data-testid="page-layout" data-content-class-name={contentClassName}>
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/shared/UnifiedTabs", () => ({
@@ -459,5 +470,17 @@ describe("MedicalRecordFormReadyPanels EMR-356 過去体重の時系列境界", 
     renderPanels();
 
     expect(screen.getByTestId("tabs-area").getAttribute("data-history-incomplete")).toBe("true");
+  });
+});
+
+// EMR-432: 右下固定ボタン群（バイタル記録・印刷・確定する・保存）がページ下端の入力・表に
+// 重なるため、ページ内容の最外側へ下余白を足す。PageLayout の既定余白は他画面と共有のため触らない。
+describe("MedicalRecordFormReadyPanels EMR-432 右下固定ボタンの下余白", () => {
+  it("ページ内容の最外側に固定ボタン群ぶんの下余白を付ける", () => {
+    renderPanels();
+
+    expect(screen.getByTestId("page-layout").getAttribute("data-content-class-name")).toBe(
+      MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance,
+    );
   });
 });
