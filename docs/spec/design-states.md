@@ -73,6 +73,7 @@ WCAG 2.2 AA: 通常文字 4.5:1 / 大文字（18pt+ または 14pt bold+）3:1 /
 | green | `#0C6E5F`（`textBadgeGreen`） | 5.09:1 | |
 | muted | `#615D59`（`textBadgeMuted`） | 5.77:1 | |
 | primary CTA | 塗り `#027078`（`bgActionPrimarySolid`）、hover/active `#025F66`（`*Solid` 系）| 5.85:1 | **適用済み**（製品決裁）。button-variants の default/primary + `STYLE.confirmPrimary` が移行。`bgActionPrimary`（#038B94）は装飾・focus ring 等の非テキスト用途に残留 |
+| 認証 brand CTA | 塗り `#027078`（`bgBrandIdentitySolid`）、hover/active `#025F66`（`*BrandIdentitySolid` 系）| 5.85:1 | **適用済み**（製品決裁）。`SubmitButton` brand 分岐（16px/500）を AA 適合へ移行。`bgBrandIdentity`（#038B94）は装飾等の非テキスト用途に残留 |
 
 ## 3. Loading 状態（新規標準 — FE-DS1）
 

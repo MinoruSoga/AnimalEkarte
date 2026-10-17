@@ -57,7 +57,7 @@ describe("LoginForm touch targets", () => {
     );
 
     const loginButton = screen.getByRole("button", { name: "ログイン" });
-    expect(loginButton).toHaveClass(C.bgBrandIdentity, C.hoverBgBrandIdentity);
+    expect(loginButton).toHaveClass(C.bgBrandIdentitySolid, C.hoverBgBrandIdentitySolid);
     expect(loginButton).toHaveClass("text-white", "text-base", "font-medium");
     expect(loginButton).not.toHaveClass("font-semibold");
     expect(loginButton).not.toHaveClass("text-black", "text-xl", "font-bold");

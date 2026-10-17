@@ -233,6 +233,10 @@ export const C = {
   bgBrandIdentity: "bg-[#038B94]",
   hoverBgBrandIdentity: "hover:bg-[#027078]",
   activeBgBrandIdentity: "active:bg-[#027078]",
+  /* Brand CTA の塗り（design-states.md §2 決裁: 白文字 AA 適合のため #027078、hover/active は Solid 系と同一値） */
+  bgBrandIdentitySolid:       "bg-[#027078]",
+  hoverBgBrandIdentitySolid:  "hover:bg-[#025F66]",
+  activeBgBrandIdentitySolid: "active:bg-[#025F66]",
   textOnBrandIdentity: "text-white",
   hoverTextOnBrandIdentity: "hover:text-white",
   activeTextOnBrandIdentity: "active:text-white",
