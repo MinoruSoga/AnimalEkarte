@@ -3,6 +3,7 @@ import { memo } from "react";
 
 // Internal
 import { BADGE, C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
 import { Plus } from "lucide-react";
 import { getLockedEmptyStateMessage } from "../lib/record-empty-state";
 
@@ -144,7 +145,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
                 {historyItems.map((item) => (
                   <li key={item.id} className="px-3 py-2 text-sm">
                     <div className={`font-medium ${C.text}`}>{item.name}</div>
-                    <div className={C.text60}>接種日 {item.date}</div>
+                    <div className={C.text60}>接種日 {formatDate(item.dateISO)}</div>
                   </li>
                 ))}
               </ul>

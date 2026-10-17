@@ -39,6 +39,7 @@ function transformToHistoryItem(v: Vaccination) {
     price: v.vaccine?.price ?? null,
     date: formatDate(v.date),
     next: formatDate(v.next_date),
+    dateISO: toNextDateISO(v.date),
     vaccineId: v.vaccine_id ?? 0,
     lot1: v.lot1 ?? "",
     lot2: v.lot2 ?? "",

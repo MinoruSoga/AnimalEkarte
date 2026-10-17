@@ -52,6 +52,8 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
     expect(item.next).toBe("26/4/26");
     // SD-19: 判定用 nextDate も表示 next と同じ JST 暦日（UTC 切り出し禁止）
     expect(item.nextDate).toBe("2026-04-26");
+    // EMR-429: 表示フォーマット用の JST 正規化 ISO 日付
+    expect(item.dateISO).toBe("2026-03-26");
   });
 
   it("UTC 境界 instant の nextDate は formatJSTDate と同じ JST 壁日付になる", async () => {
@@ -88,10 +90,12 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
     expect(byId[1].date).toBe("26/3/26");
     expect(byId[1].next).toBe("26/3/26");
     expect(byId[1].nextDate).toBe("2026-03-26");
+    expect(byId[1].dateISO).toBe("2026-03-26");
 
     expect(byId[2].date).toBe("26/3/26");
     expect(byId[2].next).toBe("26/3/26");
     expect(byId[2].nextDate).toBe("2026-03-26");
+    expect(byId[2].dateISO).toBe("2026-03-26");
   });
 
   it("未設定の日付は '-' を表示する", async () => {
@@ -109,6 +113,23 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
 
     expect(result.current.data?.[0].next).toBe("-");
     expect(result.current.data?.[0].nextDate).toBe("");
+  });
+
+  it("未設定の実施日は dateISO を空にし表示側で '-' になる", async () => {
+    server.use(
+      http.get("/api/v1/vaccinations", () =>
+        HttpResponse.json({ data: [makeVaccination({ date: undefined as unknown as string })] }),
+      ),
+    );
+
+    const { result } = renderHook(() => useGetPetVaccinations("7"), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.[0].date).toBe("-");
+    expect(result.current.data?.[0].dateISO).toBe("");
   });
 
   it("不正な next_date は判定用 nextDate を空にし期限判定に載せない", async () => {
