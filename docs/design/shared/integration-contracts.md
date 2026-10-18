@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | design.shared.integration-contracts／共通契約の整理候補 |
-| 決定状態 | 既存記載の継承。新業務承認を含まない。根拠不明は未確認のまま。未回答案は別節 |
+| 決定状態 | 既存記載を継承。12:53 UTCの3業務決定は各正本へ接続。内部方式・wire・DCは提案で、文書全体の本人承認や実装済みを表さない |
 | 実装状態 | 既存資料の記載を継承（コード全体の再監査なし）。選定仕様と既存挙動の差を明記 |
 | 実機検証状態 | 未実施 |
 | 文書確認日・基準 | 2026-10-15／PR #670 commit 41fcf3eb0a8befb7c0b5f613d1df749a60e30be8 |
@@ -85,6 +85,68 @@ C01の部品技術、C04の認証／医院scopeと個別Dの操作認可・ID・
 ## 全ownerへの適用照合
 
 [全23領域の具体ID・保存単位・再送／旧値・安全と保持](../../spec/shared/owner-contract-coverage.md)と[横断8接続](../../spec/workflows/reservation-to-record-flow.md#cross-domain-review-20261015)を参照する。全writerの実装適合とは別に、呼出側／受け手が意味契約を推測しない文書境界を照合する。
+
+<a id="detail-design-proposals-20261018"></a>
+## 残件の詳細設計案と採用境界（2026-10-18）
+
+基準は `509f050902766de3d356e187f61388f4530282d8`。本人の「改善して」に基づく文書整備であり、以下の内部方式・候補wire・DC検証ケースは**設計提案**。後続の12:53 UTC本人「1A・2A・3A」の業務決定は各業務正本へ反映し、内部方式の承認と混同しない。直接承認済み業務、既存の選定技術、現行実装観察と区別する。API YAML・DDL・コードへ適用していない。以前の「具体方式未選定」は当時の状態で、下表の提案まで具体化したが、実装・移行の成立や全残件解消を表さない。
+
+| 範囲／責任owner | 既決として保持すること | 今回の詳細設計案の正本／残件 |
+|:---|:---|:---|
+| D01＋D03・LINE問診 | 予約×ペット別、受付前訂正・旧回答保持、任意、スタッフ原文変更不可 | [回答世代と予約gate](../domains/reservations/technical-spec.md#revisit-answer-storage-proposal)。受付／対象変更との競合を直列化 |
+| D03・統合入力／編集権 | hybrid保存・子owner・通常終了後編集、閲覧取得なし、単独編集、確認付き強制取得 | [保存単位とfence](../domains/medical-records/technical-spec.md#integrated-save-edit-right-proposal)。自動失効秒数は新設しない |
+| D04／D19／D20・共通患者とLINE | 自院利用／共通基本情報と院別記録、認可・手動同一確認、既存link/unlinkの安全条件 | [共通参照と解除](../domains/owners-pets/technical-spec.md#common-subject-link-proposal)。物理ID移行は計画・dry-run適合が必要 |
+| D03＋D10・確認と同期 | 金額のみ変更は警告了承、臨床／数量は再確認、未確定同期3分岐、確定後訂正 | [臨床世代と同期台帳](../domains/accounting/technical-spec.md#review-version-sync-proposal)。既決条件を全体version一つへ潰さない |
+| D08／帳票reader・証明書 | 3様式、発行版固定、訂正新発行・旧版履歴、最新版再印刷、旧自動登録なし | [固定版と出力](../domains/vaccinations/technical-spec.md#certificate-edition-proposal)。通常縦横の最新版共有Q-V1は本人確定、旧版停止Q-V2は既決の技術適用として訂正保存成功へ結ぶ |
+| D05＋D12・退院帳票 | 実退院のJST日・4項目、金額を再加算しない | [退院projection](../domains/finance-operations/technical-spec.md#discharge-report-projection-proposal)。行粒度は技術案 |
+
+### 操作・版・失敗の接続案
+
+今回詳述しないownerの残件も、[既存23領域対応表](../../spec/shared/owner-contract-coverage.md)へ戻して管理する。下表は既存契約から実装・検証へ渡す入口で、新しい未承認業務の一覧ではない。今回コードを限定再読した領域と、従来文書を参照するだけの領域を同じ実装調査済み件数にしない。
+
+| 領域 | 次に検証／具体実装する対象と、今回保持する境界 |
+|:---|:---|
+| D01／D02／D18 | 回答target案と受付／既存record再利用・開始read・候補再判定の接続。全writer gate・旧auto-create/cleanup排出は未実装検証 |
+| D03／D07／D09 | 編集fenceと独立検査／健診結果の依存projectionを分離。診断・構造化問診・結果revision・旧未知値のround-trip、機器／旧client／移行writerを実装前に全列挙 |
+| D04／D19／D20 | common/local mappingとLINE binding案。既存group依存／単回token、他院認可・本人公開範囲は維持。Q-I1は具体的矛盾移行／分割が必要な時だけの条件付き検討、独立解除Q-I2は本人確定：予約／患者関連保持・通知停止・再連携後staff選択 |
+| D05／D06 | stay／専用記録／予約の同一性・ケージ交換・料金snapshot／元調整一度適用・退院会計の原子性。通常カルテの編集権や退院帳票から新しい取消／復帰操作を作らない |
+| D08 | 固定発行版案、本人確定Q-V1と既決適用Q-V2、種類別次回日と過去当時日。旧見本の項目対応と描画・旧client互換の実装検証 |
+| D10／D11 | 確認世代・同期3分岐、金銭履歴・既請求防止、見積提示原本／後継と確認転記。同期から確定済み請求や提示原本を更新しない |
+| D12／D13／D16 | 退院read案、締めsnapshot／差分、実物移動と数量版、実来院と集計source。実入金・充当・実返金を二重加算しない。実査precision／通貨の実装適合は在庫整数と別検証 |
+| D14／D17 | シフト確認集合／CSV一括保存、個人能力・勤務・医院設定の保存版。設定や勤務の変更と予約保存の逆順競合、実grant／旧値移行を検証 |
+| D15／D21 | dispatch claim案と停止／結果不明、院内レポートの1頭・section認可と専用2帳票。新たな配信再開や全区画印刷・飼主公開は追加しない |
+| D22／D23 | 公開記事版と旧版復元、shared READ／報告医院mutation／本人履歴、外部issue結果照合。原本／添付blob保持、外部投稿の認可と再送は各ownerの既存契約を実装検証 |
+
+Q-C2のlogout後本人専用保持・同本人再ログイン回収は本人確定。新しい保持期限・自動破棄・別主体／患者への回収は追加しない。既存の保存年数・廃棄手続、薬量の具体値／対象／単位の医師承認、外部契約・実grantの実装確認は別工程であり、今回の3回答を未決へ戻さない。未取得2資料は本人指示どおりスキップのまま。数値・法的保存年数や未読資料固有条件を推測で補わない。
+
+予約の[既存操作／receipt契約](../domains/reservations/technical-spec.md#reservation-api-matrix)を参照し、以下の新adapterだけに対応案を定める。全APIに新しい共通必須fieldを一括導入する承認ではない。既存数値IDと増分版は新wireでは正規形の十進文字列、operation key・新規common subject等のUUID識別子は種別付きUUIDとし数値へ変換しない提案とする。いずれもref kindで区別し、既存数値IDは精度保証可能なadapterで照合する。tokenやstampのopaque値をactor／認可の代用にしない。
+
+| 意味field（候補名） | 具体的契約 |
+|:---|:---|
+| `subject_ref` | owner/kind/idと必要clinic、関係先pet/record/appointmentをownerが照合。clientから任意clinic/actor/statusをwriteしない |
+| `expected_revision`／`dependencies` | 各ownerの現在版と依存版を区別。更新時に比較・更新・増分を同じtxへ。子依存版・臨床世代・編集fenceを本体versionで代用しない |
+| `operation_key`／fingerprint | 認証clinic＋actor kind/id＋intent＋keyで一意。同keyで対象・業務内容が異なれば拒否。前提版・現在の編集権証明はfingerprintと分け、再照合する |
+| `operation_result` | 初回成功の対象ID・確定版・必要監査参照。現在状態は別の`current_state`。後の取消・権限変更を成功時状態へ巻き戻さない |
+| 未成功／成功のbinding | 内容bindingの短いtxと、binding行lock＋業務write＋必須監査＋成功結果のtxを分ける既存予約案を再利用。前者の残存は業務成功ではない。同内容再試行は前提を再検証し、先行処理の終了前に追越さない |
+| 結果照会 | 作成後IDを受け取れなくても同scope/keyで照会可能。現在の対象・操作の閲覧認可を再検査し、認可失効なら結果本文を漏らさない。処理中は待機表示、成功は初回結果、rollback後は未成功として同内容の再試行候補、再構成不能は結果不明のまま停止 |
+
+同内容未成功の前提版を更新する場合も、現値との差分を人が確認する。業務内容変更は先行結果を解決してから別key、未解決操作を同内容の別keyへ分裂させない。ID一意制約・元対象の既請求等も併用し、keyだけで二重実行を防いだとしない。未成功bindingもresponse cache期限で再利用せず、保存・廃棄はC05の当面自動削除なしと別途年数判断に接続する。監査へ本文・LINE識別子・tokenを無目的に複製しない。
+
+| 結果区分（候補code、未実装） | client／serverの扱い |
+|:---|:---|
+| validation／not-authorized／scope-not-found | writeなし。入力は許可されたローカル範囲で保持し、認可外の現値を返さない。404/403の使い分けは既存ownerの非開示方針を維持 |
+| version-conflict／dependency-changed | writeなし。現値・差分を認可付き再取得、再確認。期待版だけ自動差替えしない |
+| edit-right-lost | 新write拒否、元入力保持。再取得後に最新比較・明示選択。元権でcommit済みの事実は取り消さない |
+| busy／operation-in-progress | 必須lockを無期限に待たず、結果を同keyで再照会。別key再createなし |
+| transport-unknown／result-unavailable | timeout/abortはrollbackの証拠ではない。成功／未成功が判明するまで自動補償・再create・外部再送を止める |
+
+### lock・切替・検証の責任
+
+既存[予約の全writer取得規約](../domains/reservations/technical-spec.md#reservation-global-lock-contract)を優先し、予約が関係する経路は同じ共通gateへ参加する。非予約writeの局所lockはowner内で安定ID順、共通gateを取得する処理より外側で逆順に取らない。新participantのreceipt/binding・編集権・子依存を含めた順序は各Dで具体化し、DB deadlock検出を整合性保証の代用にしない。未参加旧writerを残したまま新方式を稼働させない。
+
+切替前に、全writer一覧（UI／旧client／GetOrCreate／移行／batch／機器・外部取込）→必要gate・版・権限・監査・receipt→readerの対応をownerが登録する。既存ID／履歴を保持するadapterを先に検査し、新方式で表現不能な旧値を架空の正常へ補完しない。移行途中のread可と、新write可の開始条件を分ける。
+
+DC-C01：同key同内容の並行実行・成功後対象版変更・rollback後再試行・同key異内容を別々に検査。DC-C02：commit直後切断、結果取得失敗、権限失効、遅延応答、再構成不能でも二重write／情報漏洩なし。DC-C03：旧writerと新writerの同時write、監査失敗、依存版更新、逆順lockの両先行順序を検査。各DCは実装時の検証設計であり、本人の追加業務承認や実行PASSではない。
 
 <a id="posthumous-operation-contract"></a>
 ## 追加承認の死亡後記録と専用操作の接続

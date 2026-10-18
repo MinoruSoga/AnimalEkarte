@@ -38,6 +38,21 @@
 | 重複候補と同一確認 | 氏名、又は動物種＋ペット名から示す候補と、スタッフが本人/個体を確認する判断は別 | AC-owners-pets-duplicate-confirm。同一飼主なら警告し新規停止、別人なら可。文字一致を同一IDの証拠にしない |
 | 同じ飼主の新ペット | 確認済み既存飼主へ追加する別個体 | AC-owners-pets-new-pet-existing-owner。新ペット登録を重複飼主作成へ変換しない |
 
+<a id="common-subject-technical-relations"></a>
+## 共通患者と本人対応の技術案への対応
+
+[D04詳細設計案](../../design/domains/owners-pets/technical-spec.md#common-subject-link-proposal)の識別を既決業務へ対応付ける。共通UUID／mappingの採用・移行済み・本人の物理統合承認とはしない。
+
+| 概念 | 関係・境界 |
+|:---|:---|
+| 共通subjectと医院利用 | 一subjectを複数医院で利用する既決。提案は各clinic/subjectにactive利用最大1と元local ID対応を持ち、元院の診療/金銭を移動しない |
+| 共通基本情報版と院別業務版 | 住所電話・pet基本情報の現在値は共通、診療/請求・過去発行snapshotは元医院・元版を保持。認可のscopeを共通IDで拡大しない |
+| identity groupとcommon subject | groupは既存の手動対応関係で、共通subjectの物理IDではない。group unlink・患者分割・自院利用解除を同じ操作へ潰さない |
+| LINE binding版と本人確認 | 確認は当該clinic/ownerの当該bindingに対応。別LINE IDへ旧確認を継承せず、共通患者・主飼主・customerを別識別 |
+| 移管previewと保存対象 | 対象集合・元新owner・LINE結果と版を確認する。保存時に対象追加/除外も再検査し、古い確認から自動実行しない |
+
+Q-I1は具体的な矛盾データ移行／患者分割が必要になった時だけの条件付き検討で、現在の全体blockerではない。スタッフ同一確認は既決。Q-I2は[12:53 UTC本人第2項A](../line/lstep-integration.md#line-unlink-future-notification-20261018)により、予約と患者関連・参照履歴を保持しLINE通知を停止、再連携後は再開する予約をstaffが確認する。旧JSONのBと意味対応する。連携状態・残存参照と現在送信許可を同義にせず、自動再開や結果不明再送を追加しない。
+
 <a id="saigram-derived-result-concept"></a>
 ## サイグラムの派生保存と時点
 

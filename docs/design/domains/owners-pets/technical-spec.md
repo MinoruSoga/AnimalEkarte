@@ -155,6 +155,60 @@ D07が返す原値・各検査日／精度・院内／他院・固定結果／it
 
 上記は[業務正本](../../../spec/domains/owners-pets/lifecycle.md#common-owner-pet-20261017)の意味対応であり、共有ID・移行・link/unlink再設計を選定せず、実装・実機検証は未実施。
 
+<a id="common-subject-link-proposal"></a>
+## 共通患者・移管・LINE解除の詳細設計案
+
+[C06提案状態・再送契約](../../shared/integration-contracts.md#detail-design-proposals-20261018)を適用する未実装の内部方式案。[共通最新基本情報・自院利用](../../../spec/domains/owners-pets/lifecycle.md#common-owner-pet-20261017)の既決と、本人の物理ID統合承認を混同しない。既存D19 groupとLINE本人対応を別に維持する。
+
+| 論理資源／writer | ID・版・多重度の提案 | 不変条件 |
+|:---|:---|:---|
+| 共通飼主／共通ペット：D04 | 種類別opaque UUID＋基本情報revision | スタッフ同一確認又は明示新規で対応。氏名・電話・LINE ID一致から自動確定しない |
+| 医院利用binding：D04 | clinic＋common subjectにactive利用は最大1。元clinic/local IDとのmapping版を保持 | 自院利用で診療・請求の元patient ID／医院／履歴を一括更新しない。利用解除・患者分割をこのintentへ追加しない |
+| 共通基本情報：D04 | subject＋expected revision＋項目別changes | 現在の自院利用と既存owner/pet編集grantを再検査。過去診療・請求宛名・発行証明書snapshotは更新しない |
+| identity group：D19 | 既存clinic/local member、生成院anchor・group版 | 共通subjectの物理PKへ流用せず、group unlinkで元台帳・履歴を削除しない |
+| LINE binding：D04/D20 | clinic/local owner＋binding版、本人確認が対応する版とactor/時刻 | 共通患者・主飼主・LINE customer・外部本人IDを区別。旧bindingの確認を別LINE IDへ継承しない |
+
+### 自院利用と移行
+
+候補readは権限内の共通refと必要最小項目だけ返す。保存時は現在認可・候補版・スタッフ同一確認・既存利用を再照合し、利用binding／必要local adapter／監査／成功receiptを同時commit。同じclinic/subjectの別key同時利用も一意制約で同じ利用へ収束し、患者を二重createしない。mapping不明／複数は停止し、他院の診療内容を同一確認の材料として無認可公開しない。
+
+全consumerはcommon ref→自院local refと、原資源のorigin clinic/local refを分離する。臨床・金銭read/writeは元資源の医院scope/grantで再認可。旧APIの他院ID拒否を単純解除せず、専用自院利用intentへ限定する。移行案は既存ID対応のread-only一覧→矛盾検出→スタッフ同一確認→mapping dry-run→対象限定切替。最新updated_atだけで基本情報の採用値を選ばず、過去請求・預り金・診療を移管しない。旧writer停止・全reader対応・mappingの一意性／件数確認が前提。実DB／移行実行は未実施。
+
+### 主飼主移管のpreviewとphantom保護
+
+既存[影響確認](#owner-transfer-target)の対象条件、LINE条件付き付替え／解除を維持する。previewはpet/旧新owner・予約ID集合と各版・LINE binding版・選定基準JST日・確認digestを返すread-only操作。保存は共通gate→receipt→既存pet/owner保護→対象予約NOWAITへ参加し、対象を**再検索して集合差分も比較**する。preview後の予約新設・受付・取消・LINE変更・日付境界通過は、既存行のversion一致だけで無変更としない。
+
+対象／宛先結果が変われば元台帳を変更せず新影響一覧へ戻す。同じgateへ新予約writerも参加させ、検査後のphantomを防ぐ。既存上限・NOWAIT拒否・カルテ関連拒否・過去資金不変を保ち、pet＋予約帰属／LINE参照＋版＋必須監査＋成功receiptを同時commit。post-commit tag sync失敗で移管を再実行しない。
+
+### LINE本人対応と解除
+
+入力案は現在binding版・検証済み変更先ref又は明示解除・必要な影響確認・key。生token／LINE IDを監査や表示cacheへ追加しない。D20のtoken consume、対応保存、必須監査、成功結果を同じtxへ結ぶ。token期限切れ／再利用拒否だけでは初回保存失敗と判定せず、同認証主体/keyの結果を照会する。変更先IDへ旧確認を自動継承しない。
+
+解除previewはbinding・未来予約参照・保留配送・D19依存をreadし、保存時に版と対象集合を再検査する。D19のowner member unlinkは子pet group依存があれば拒否し、対象医院の認可・同tx監査・元台帳保持を維持。D19 unlink、独立LINE解除、主飼主移管を一つの汎用unlinkへ統合しない。
+
+送信reader D15には永続dispatch claimを提案する。clinic/owner/binding版・送信目的・payload digest・attempt ID・状態（準備／発信中／結果既知／結果不明）を持ち、認証／本人対応／停止policyを検査してbinding rowと同じgate下で発信認可を確定する。解除要求は同じrowで新claimを止め、発信前claimを取消可能かCASで照合する。先行する発信中／結果不明attemptがあれば解除完了を返さず処理中として照合へ。結果既知で発信が終了し、今後発信可能なclaimがないことを確認してからbinding解除と成功receiptをcommitする。claimの解放やworker再起動だけで外部再送しない。
+
+内部tx中に外部HTTPを待たない。外部呼出直前の単純な再読だけでは、再読直後のunlinkを防げないため、上記claim／解除完了の線形化点を実装検証する。解除要求より先に認可・発信開始されたattemptは到達し得るが、既送信を回収可能と保証せず、結果不明を自動で未送信にしない。解除完了後の旧版新発信を止める契約と、解除要求前に始まった発信の回収不能を分ける。D15の既存結果不明保留／非冪等外部write再送禁止は維持する。このclaimは新たな配信や送信許可を採用するものではない。Q-I2は[実際の表示第2項A](../../../spec/line/lstep-integration.md#line-unlink-future-notification-20261018)により確定。予約自体・患者関連・参照履歴は保持し、通知は停止する。旧比較JSONのBに対応するため旧Aの宛先参照解除へ取り違えない。再連携だけでは再開せず、スタッフが再開する予約を確認する。
+
+### 再開対象確認の技術adapter案
+
+独立解除はreservation/customer参照を削除するwriteではなく、bindingの連携状態と通知資格を変更し、停止状態・必要履歴・成功receiptを同時保存する。残存参照は出所として保持するだけで送信許可に使わない。再連携時は新しいbinding版に対して再開未確認の状態を維持し、一括再開しない。
+
+再開previewは明示対象の予約ID集合・各版・患者/owner・binding版・既存停止／結果不明状態を現在認可付きreadで返す。保存入力案は選択した予約ref/期待版集合＋binding版＋確認意思＋operation key。共通gate→receipt→binding/対象予約の既存安定順で選択集合・現在認可を再検査し、版／所属／宛先が変化すれば再previewへ。成功は確認した予約集合とactor/時刻・binding版への再開確認receiptを同時保存する。未選択予約、独立停止、結果不明attemptを変更しない。外部送信は既存D15が後で現在資格を判定し、確認txから起動しない。
+
+再開確認receiptは古いbindingや別予約に転用せず、並行解除／再連携・予約変更・通知claimを同じgateへ接続する。応答不明は同keyで照会し、新keyの一括再開や再送で救済しない。保管／API fieldは技術提案で、本人がwireを承認した意味ではない。
+
+### 限定コード観察・条件付き事項と確定済み回答
+
+基準HEADの`backend/internal/identitylink/service_owner.go`はgroup lock・子依存拒否・論理削除・同tx監査。`backend/internal/owner/service_line.go`は手動LINE更新の監査best-effortで、当該repository更新からbinding版／確認解除までは確認できない。`backend/internal/lstep/line_link_service.go`のtoken linkはconsume・owner更新・監査を同txで行う。前者を後者と同じ原子監査済みとはしない。`reservation/pet_owner_transfer.go`のupdated_at更新は明示予約version増分と別。新案に適合済みの証拠ではない。
+
+| 事項／根拠 | 現在の決定・扱い | 適用範囲 |
+|:---|:---|:---|
+| 条件付きQ-I1：具体的な矛盾データ移行／患者分割が必要になった場合の採用値・確認責任。[共通最新と内部方式留保](../../../spec/domains/owners-pets/lifecycle.md#common-owner-pet-20261017) | スタッフ同一確認・共通最新・自院利用は既決で聞き直さない。実データの矛盾や新たな分割要求が具体化した場合だけ対象一覧・採用案を提示する。更新日時のみの自動統合／患者分割を今回追加しない | 現在の本人確認待ち・全体blockerから除外。具体的な移行／分割対象が発生した時の条件付き検討に限定 |
+| Q-I2：12:53 UTC本人の表示第2項Aで確定。[独立LINE解除と再開](../../../spec/line/lstep-integration.md#line-unlink-future-notification-20261018) | 予約・患者関連・参照履歴保持、LINE通知停止。再連携後に再開予約をstaff確認。元JSONのBと意味対応し、宛先参照も消す元Aは不採用 | 自動再開・即時送信・結果不明再送なし。主飼主移管とD19 unlinkの独自契約は維持 |
+
+DC-I01：同一／別人／新ペット、自院利用の二重要求・mapping不明。DC-I02：2院同時基本情報変更、権限失効、過去記録不変。DC-I03：preview後の予約新設／受付／JST境界／binding変更を両順実行。DC-I04：D19子依存拒否、同key再送・異内容・応答断。DC-I05：付替え後の旧本人確認、token再送、必須監査失敗、旧宛先配送、結果不明再連携。DC-I06：dispatch claimと解除要求を両先行順序で実行し、発信中／結果不明は解除完了にせず、新claimを止め、worker停止・遅延HTTP・結果照会後も旧版を新発信しない。DC-I07：解除／再連携／staff選択／予約変更を両順実行。予約ID・患者関連保持、再連携のみの再開なし、未選択予約と独立停止／不明保持、古い版での確認拒否、確認保存だけの送信なしを検査。実装時の検証案で未実行。
+
 ## 本人指定サイグラム計算基準との接続
 
 [計算・保存の業務正本・固定表・9AC](../../../spec/domains/owners-pets/lifecycle.md#saigram-calculation-reference-20261018)を参照する。2026-07-16保存Drive版が本人の現在の指定基準であり、旧Slack添付の同一性や旧ソフト一致を実証済みとはしない。UTC暦日差と非負mod・固定表を仕様どおり扱う方式は実装設計へ渡すが、今回コード適合は未確認。

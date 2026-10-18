@@ -89,6 +89,19 @@
 | 実退院JST暦日/金銭営業日/請求日/実入出金日 | 退院一覧の[D00:00,翌D00:00)と、締めの営業日区分・金銭移動日の帰属 | [日次退院](finance-operations.md#discharge-report-and-accounting-time)。AC-closing-discharge-calendar-day-not-closing-period |
 | 検索日付/医院filter | 画面表示条件であり業務発生日時/認可の代用ではない | FR-common-ui-list-filter。詳細復帰/当日初期値/ペット全期間/医院保持を区別 |
 
+## 残件の詳細設計案への対応（2026-10-18）
+
+[C06の責任ownerと提案／未回答境界](../../design/shared/integration-contracts.md#detail-design-proposals-20261018)へ接続する。業務正本・既存FR/ACを置換せず、版と操作結果の混同を防ぐ照合である。
+
+| 関係 | 今回具体化した制約・正本 |
+|:---|:---|
+| 統合タブ→各owner保存、予約×pet→回答世代 | 画面一つ≠tx一つ。原文は独立reader、旧targetの遅延送信を新petへ適用しない。[D03/D01](medical-records.md#record-technical-version-relations) |
+| record→編集権、保存operation→初回結果／現在状態 | 保持0..1と保存版・actorを分離。強制取得前成功は保持、取得後旧世代write拒否。成功receiptで現在状態を巻き戻さない。logout下書きは本人専用で同本人再ログイン後だけ回収し、別主体／患者へ適用しない |
+| common subject→医院利用、LINE binding→本人確認 | 共通IDは他院認可・LINE本人確認ではない。[D04](owners-pets.md#common-subject-technical-relations)の条件付き移行Q-I1と本人確定の独立解除Q-I2を区別。解除しても予約／患者関連は保持、再連携後はstaffが選択確認 |
+| 臨床対象集合→確認receipt→会計確定 | 金額変更と臨床変更を別世代へ。未手修正／手修正／確定後の3分岐と確定歴保持。[D10](accounting.md#accounting-review-version-relations) |
+| 接種→証明系譜→発行版→artifact | 保存事実・発行・描画・物理印刷を分離。旧訂正版は有効出力不可。Q-V2は既決適用として訂正保存成功で停止、失敗時は保持し競合版を照合。Q-V1は本人確定で通常縦横の同じ最新版を共有し印刷時に選択、固有項目保持。[D08](../../design/domains/vaccinations/technical-spec.md#certificate-edition-proposal) |
+| 退院事実→日次帳票行 | 元stayと有効事実／版を一度だけ参照し金銭へwriteしない。[D12](../../design/domains/finance-operations/technical-spec.md#discharge-report-projection-proposal) |
+
 <a id="cross-domain-invariants"></a>
 ## 横断不変条件と設計を残す境界
 

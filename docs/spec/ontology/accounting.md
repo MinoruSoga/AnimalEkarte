@@ -104,6 +104,21 @@
 | 当日請求対象 | 院内投薬注射は実施後、持帰薬物販は内容数量確定し準備できた時点 | [FR-accounting-billable-performance](../domains/accounting/lifecycle.md#requirement-fr-accounting-billable-performance)、AC-accounting-billable-boundary／AC-accounting-ready-not-stock。未実施/後日予定/中止は当日請求外、予定額を分離。個別中止料等は維持 |
 | 準備完了／実引渡し／実出庫 | 対象内容を用意できた事実、飼主へ渡した事実、在庫から出た事実 | 同FR。請求確定・取消・返金だけで実引渡/在庫移動を生成しない |
 
+<a id="accounting-review-version-relations"></a>
+## 確認対象の世代と同期由来の技術案
+
+[D10詳細設計案](../../design/domains/accounting/technical-spec.md#review-version-sync-proposal)を参照する。以下は版を分離する技術案で、医師確認対象の追加承認ではない。
+
+| 概念 | 関係・制約 |
+|:---|:---|
+| 臨床確認世代 | 確認対象の薬剤／処置identity・追加削除・数量の変更を識別。金額・割引・表示順だけの版と別 |
+| 医師確認receipt | 対象record集合と各D03臨床世代、D10側臨床変更世代、実確認医師・時刻を固定。一つの確認は複数対象を持ち得る |
+| 有効確認／確認履歴 | 最新対象世代との一致が現在有効。過去確認は消去しない。診療終了・予約status・単純な保存成功から生成しない |
+| 取込版と手修正由来 | source kind/安定項目ID・適用版と会計行版を対応。手修正済み行は差異表示し自動上書きしない。差異は臨床変更と金額変更を区別 |
+| 同期と確定歴 | 未確定の未手修正行だけ自動同期。確定後は会計訂正、元refと確定歴を維持。取消／返金で通常予約Undoを再開しない |
+
+金額差異を全て医師再確認へ拡張せず、検査／物販への新たな包括確認条件も今回採用しない。具体的field・tx・検証はD10を正本とする。
+
 <a id="excess-receipt-concept"></a>
 ## 預かり額・釣銭・実受領・過受領
 

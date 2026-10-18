@@ -380,6 +380,23 @@ Messaging手動send inputには共通operation receiptがない。外部結果�
 | AC-crm-customers-truncated | TotalがLimit超 | Truncatedを全件取得済みとしない | customer service |
 | AC-crm-customer-link-reload | owner link保存後reload失敗 | 保存済み参照更新を成功として扱い二重実行を誘発しない | customer service |
 
+<a id="line-unlink-future-notification-20261018"></a>
+<a id="requirement-fr-crm-line-unlink-future"></a>
+### FR-crm-line-unlink-future：独立LINE解除後の未来予約と通知再開
+
+質問 Sentinel_78cd352c4c14819196c27eac9109ed6a（2026-10-18 12:44 UTC、分精度）への本人回答 Sentinel_247ecbc4fd888191bc3293478f7f7c4b（同日12:53 UTC、分精度）「1 A／2 A／3 A」の第2項Aを採用する。実際の表示Aは「予約自体と患者への紐付けは残し、LINE通知を停止。再連携後、通知を再開する予約をスタッフが確認する」。以前の比較JSONのBに対応し、番号だけから旧A（予約のLINE宛先参照も解除）を採用しない。
+
+LINE連携だけを解除しても、未来予約そのもの、予約と患者の関連、元の参照・履歴を保持する。予約を取消・複製・再登録したり、原飼主・患者・過去メッセージを削除したりしない。LINE通知は停止し、残ったcustomer／宛先参照を現在の送信許可として使わない。独立LINE解除、主飼主移管、D19 group unlink、D20本人linkは既存どおり別操作。
+
+再連携しただけでは通知を自動再開しない。スタッフが再開する予約を確認し、その対象を現在の本人対応・宛先・医院／患者・予約状態・既存通知権限／独立停止条件と照合する。確認は既存の配信資格や結果不明保留を解除せず、確認操作そのものから通知を即時送信しない。結果不明attemptを未送信にして自動再送しない。解除前に発信開始したものの回収を保証しない。
+
+| 条件ID | 前提／操作 | 期待結果 | 根拠・検証状態 |
+|:---|:---|:---|:---|
+| AC-crm-unlink-reservations-preserved | 未来予約のあるownerのLINE連携だけ解除する | 同じ予約ID・患者関連・参照履歴を保持し、予約取消／再create／患者付替えなし。通知は停止 | 12:53 UTC表示第2項A、未実施 |
+| AC-crm-relink-no-auto-resume | 解除後にLINEを再連携する | 未来予約の通知を一括自動再開しない。残った旧customer参照だけで送信しない | 同回答、未実施 |
+| AC-crm-resume-selected-reservations | 権限あるstaffが再開する予約を確認する | 確認対象だけを現在版・本人対応・宛先・状態・認可と照合。未選択予約は再開せず、確認保存だけで即時送信なし | 同回答・既存送信gate、未実施 |
+| AC-crm-resume-safety-holds | 再開確認後に対象版／bindingが変わる、又は独立停止・結果不明が残る | 古い確認を再利用せず再確認。別停止や結果不明を解除せず、重複送信・旧宛先送信を許可しない | 同回答・既存安全条件、未実施 |
+
 <a id="requirement-fr-crm-notification-unknown"></a>
 FR-crm-notification-unknown: 通知送信結果不明は照合まで再送保留。通知失敗だけで予約本体を作り直さない。外部結果を未取得/ログ不在/HTTP timeoutだけで未送信と推定しない。
 

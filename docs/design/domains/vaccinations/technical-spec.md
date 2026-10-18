@@ -76,6 +76,60 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 
 [通常編集・自動保存／復元](../../../spec/domains/vaccinations/lifecycle.md#vaccination-normal-edit-autosave)に従い、旧親finalizedだけを拒否理由にする判定を目標から外す。ただし患者／親recordの同一性、現在grant、対象版、日付制約、死亡後の専用理由／履歴と必要監査は維持する。復元操作は対象の接種ID・基準版・現在版・前後値・操作identityを照合し、必要な変更履歴と保存結果を一体にする。新規接種・別タブ・通知／在庫／会計の操作を復元に連鎖させない。既存PATCHの監査・期待版／receipt不足を対応済みとはせず、結果不明は同一操作照会後に続ける。AC-vaccinations-finalized／AC-vaccinations-clear-copy-guardがこのadapterの受入条件。
 
+<a id="certificate-edition-proposal"></a>
+## 証明書の固定版・訂正・再出力の詳細設計案
+
+[発行内容と履歴の業務正本](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)を実現する[C06設計提案](../../shared/integration-contracts.md#detail-design-proposals-20261018)。通常縦横／狂犬病の旧見本の項目・配置を維持し、以下の内部ID・生成順・検証DCを本人の直接承認としない。専用実装の所在／適合は以前のGitHub調査で未確認、今回も既存一般PDFの存在だけから証明書実装済みとしない。
+
+### 発行版と描画資源
+
+| 資源／責任 | 保存する識別・版の提案 | 制約 |
+|:---|:---|:---|
+| 接種事実／D08 | vaccination ID・記録版・元医院/pet・接種日と当時の値 | 発行操作から接種create／実施／会計を起動しない。独立接種も同じ型で照合 |
+| 証明系譜／D08 | clinic＋対象接種ref＋証明種別＋不変series ID、series revision | 通常縦横は本人第3項Aにより同じ証明書の最新版を共有する。内部seriesはその共通管理を表す技術案。狂犬病を同じ系譜へ統合せず、LINE／飼主／表示名をkeyにしない |
+| 発行版／D08 | 不変edition ID、系譜内単調版、元接種版・発行時基本情報snapshot、issuer actor/時刻・訂正元edition | 発行後payloadを上書きしない。基本情報の現在値から再構築しない。未発行draftと有効発行を区別 |
+| 描画定義／帳票adapter | 3様式のtemplate版、font/asset・renderer版、項目対応・表示ルール、snapshot digest | 旧見本と版付きgolden fixtureで照合。現在templateで過去発行版を黙って描き直さない |
+| 出力artifact／帳票adapter | edition＋様式＋template/renderer版＋digest、immutable blob参照・状態 | blobの所在不明／digest不一致は失敗。新しいblank artifactや別接種へfallbackしない |
+| 発行／再印刷操作結果 | operation keyとedition/印刷attempt ID・出力版・必要履歴 | 印刷dialogを開いたことと物理印刷完了を区別。取消・通信断で接種や発行を二重登録しない |
+
+snapshotは正本で採用した項目だけ。原見本の縦横差を共通化で消さず、未取得2資料や法定必須項目を推測追加しない。新しい証明番号の業務規則は選定せず、内部edition IDと印字番号を区別する。番号が必要なら既存の印字仕様と利用院の確認を行い、内部UUIDを勝手に法的証明番号として印字しない。
+
+### 同じ発行版からの縦横出力
+
+[本人第3項A](../../../spec/domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018)は業務決定、内部方式は本案と分ける。通常証明書のeditionは両様式で必要な採用項目の保存値を保持し、縦横別のtemplate版・field projectionを参照する。LOT欄／E-Mail等の差を消さず、現在master/基本情報から欠けた値を黙って補わない。旧editionが他方の様式を表現できるか不明なら未対応／取得不明を返し、推測で成功させない。具体移行の調査は実装課題で、新しい必須入力や新規発行の強制をこの決定から作らない。
+
+再印刷入力のlayout選択は同じcurrent editionとartifact（edition＋layout＋template/renderer版）を参照する。別layout artifactを未生成なら同じ不変snapshot・固定描画版から生成し、有効性／現在認可を再検査して渡す。layout切替だけで発行operationやedition増分を起動しない。発行時に両layout artifactの事前生成を新しい業務必須条件にしない。訂正時の有効性gateは縦横で共通であり、旧版を別layoutから有効出力しない。
+
+### 発行の準備・commit・再試行
+
+1. 発行writeの候補は既存のvaccinations:edit、出力readはvaccinations:viewへ対応付け、医院/pet/接種、source版と表示対象版をownerで照合する。このgrant対応は技術提案で現行専用routeの存在を意味せず、医院の実grant・既存認可正本との適合が必要。閲覧権限だけで発行へ昇格せず、新たな医師資格必須やgrant名を作らない。提案入力はsource ref/版、series期待版又は新規none、様式、必要訂正元ref、operation key。
+2. read-only previewのsnapshot・templateを固定し、生成する。大きな描画・storage uploadはDB lock保持中に実行しない。描画中は未発行候補で、有効版として提示しない。private artifactを準備し、描画失敗は発行状態・原接種を変更せず再試行状態へ。訂正保存で既に有効出力を停止した旧版を描画失敗で復活させない。
+3. 必要artifactが揃った後、共通gate・receipt・D08の既存parent/child順・series lockで認可・元版・series版を再検査する。同じtxで不変発行版＋current参照＋旧editionのsuperseded関係＋必要監査＋成功結果を保存する。発行確定が失敗した候補artifactは有効出力へ公開しない。
+4. 発行commit後の応答断は同key照会で同editionを再利用。元情報が変わった描画候補はそのままcommitせず再取得・確認する。業務payload変更は先行結果を解決後に別key。renderだけ再試行する場合も同候補identityとdigestを保持する。
+
+描画準備とDB commitを跨ぐorchestrationなので、一つのACID transactionと呼ばない。未参照artifactのcleanupはC05の原本所在確認へ従い、発行済み原本・必要履歴を通常cleanupで消さない。正本artifactが失われた場合は出力不能を明示し、元snapshot/描画版からの再構成を検証する専用回復へ。参照を現在基本情報へ付替えて成功にしない。
+
+### 再印刷と訂正の同時操作
+
+再印刷要求は現在認可とseries/current editionを解決し、対象editionとartifact digestへ固定。出力を渡す直前にもcurrent／有効性を再確認し、訂正新版が先にcommitしたなら旧版の有効出力を拒否して最新版へ再取得する。履歴readerと有効証明出力readerを分離し、旧訂正版のartifact URL直接指定・旧previewからの再出力でも同じgateを通す。private blobを無認可の恒久公開URLにしない。既に受け渡した紙・ダウンロードの回収や複製防止は保証しない。
+
+発行後の共通住所電話／pet基本情報更新はeditionを自動変更せず、最新版の意味も「現在基本情報で再描画」にしない。Q-V2は既決「訂正前の版は有効な証明書として印刷しない」の適用として扱い、新たな本人承認待ちにしない。**接種訂正保存が成功した時点で、その訂正前の発行内容の有効出力を止める**。訂正保存失敗／rollback時まで旧版を無効にせず、原接種と対応する有効性を変更しない。
+
+技術案は接種の現在版とeditionが参照する元版・訂正関係を有効性gateにする。訂正writeは既存共通gateとD08の取得順へ参加し、期待する接種版／必要なseries依存版・現在認可を再検査し、接種の新版・変更履歴・必要監査・成功receiptを同じtxでcommitする。旧版停止はこのcommit済み訂正事実に結び付け、非同期workerや新版発行完了を待たせない。未保存入力・訂正要求の受付・client予測だけで無効化しない。
+
+preview／render／artifact直参照／再印刷の有効出力gateは、現在接種版とedition元版・訂正関係を同じ整合読取で照合する。訂正が先にcommitしていれば旧版を拒否し、新発行待ちと表示。出力認可が先行した場合に既に渡した出力を回収可能とは保証しないが、古い版を新しい要求へ再認可しない。競合・結果不明は版と同key結果を再取得し、版未取得を有効と推定しない。訂正成功後の新発行がrender／監査／応答で失敗しても、訂正前版を有効へ戻さず同じ新発行候補の結果を照合する。新発行commitでは元editionとの訂正関係と新current参照を同時保存し、旧内容履歴は保持する。
+
+### 本人決定Q-V1と既決を適用したQ-V2
+
+| 決定／原文と出典 | 現在の適用 |
+|:---|:---|
+| Q-V1：12:53 UTC本人の表示第3項Aで確定。[通常縦横の共有版](../../../spec/domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018) | 同じ通常証明書の最新版を共有し、印刷時に縦横を選択。固有項目は維持し、切替で別発行版を作らない。物理series ID／描画方式は技術提案 |
+| Q-V2：既決「訂正前の版は有効な証明書として印刷しません」の技術適用 | 訂正保存成功時点で旧内容の有効出力停止。保存失敗／rollbackでは停止せず、競合時は現在接種版とedition元版・訂正関係を照合する。新たな本人承認・未回答候補として扱わない |
+
+### 設計検証（未実行）
+
+DC-V01：3様式の項目／配置・改頁・font、旧見本とのgolden比較。DC-V02：発行後基本情報変更で旧snapshot/digest不変。DC-V03：render失敗・upload失敗・監査失敗・commit応答断で未発行を成功表示せず同editionへ収束。DC-V04：2端末同時発行／訂正／再印刷、古いseries版・artifact直参照・認可失効で旧有効出力なし。DC-V05：物理印刷取消・同key再送で接種createや会計なし。DC-V06：訂正保存と旧版出力／新版発行を両先行順序で実行し、訂正commit後の旧版出力拒否、訂正rollback時の旧版有効性保持、古い期待版・元版不明の停止を検査。DC-V07：訂正commit後応答断・同key照会・新版render/監査失敗でも旧版復活なし。DC-V08：同じeditionを縦横交互に出力し、版増殖なし・最新版共有・固有欄と固定snapshot維持を検査。仕様採用・実装所在・runtime／法令適合は別判定。
+
 <a id="decision-alignment-20261017"></a>
 ## 2026-10-17確定仕様との接続
 

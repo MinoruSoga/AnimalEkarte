@@ -103,6 +103,20 @@
 | 承認済用量パターン | 薬剤・種・目的・経路等に対応する計算根拠の候補とその版 | [薬量採用正本](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)、AC-dose-source-simple-scope／AC-dose-source-outside-scope／AC-dose-source-pattern-choice／AC-dose-source-approval-limit。1薬剤=1パターンと固定しない。犬猫単純体重計算、未承認値/評価不能/上限超過の安全境界を維持 |
 | 個別明細単価 | 薬剤・処置・検査・物販の今回行に適用する単価。マスタ現在価格と別 | 同FR、AC-medical-records-priced-line-edit。権限内で実施前後に変更でき、通常理由任意・変更者日時前後値保持。その他手入力行・確定済会計訂正の理由必須を解除しない |
 
+<a id="record-technical-version-relations"></a>
+## 保存単位・編集世代・発行版の技術案への対応
+
+以下は既決概念を実現する[詳細設計案](../../design/domains/medical-records/technical-spec.md#integrated-save-edit-right-proposal)の語彙対応。物理PK・API採用・業務追加承認ではない。
+
+| 識別する概念 | 関係・制約 | 実現方式の正本 |
+|:---|:---|:---|
+| 統合画面と保存単位 | 一つのタブが複数ownerの保存結果を参照する。画面統合は全owner一括txと同義でない | [D03保存単位](../../design/domains/medical-records/technical-spec.md#integrated-save-edit-right-proposal)。成功subsetと未保存／不明を区別 |
+| 飼主回答target世代 | 予約×petの有効対象に一つの現世代、各世代に0..n回答版。petを戻しても旧版を自動再採用しない提案 | [D01回答設計](../../design/domains/reservations/technical-spec.md#revisit-answer-storage-proposal)。スタッフ原文編集・copy・clearの対象外 |
+| 編集権世代／編集session | 一recordに有効保持0..1、移転／解放後の旧世代は新write不可。同actorの複数sessionも別 | [D03 fence案](../../design/domains/medical-records/technical-spec.md#integrated-save-edit-right-proposal)。閲覧権・実編集者・保存版・医師確認とは別 |
+| ローカル下書き／保存結果 | 未保存値・元版・未解決操作を持つ。臨床保存版・編集権・監査の代用ではない | [logout保持の本人決定](../domains/medical-records/lifecycle.md#draft-logout-recovery-20261018)で、logout後も本人専用・同じ本人の再ログイン後だけ回収。他staff／別患者への表示適用なし。回収と編集権／保存成功は別、最新比較・明示選択を維持 |
+| 医師確認の臨床世代 | [D10の確認対象](accounting.md#accounting-review-version-relations)を参照。全保存版や金額版と別 | 金額のみ変更で医師再確認にしない。D03/D10の対象集合・世代を確認receiptへ対応 |
+| 証明系譜・発行版・artifact | 一系譜に複数の不変発行版、有効currentは高々一つという技術案。描画候補は有効発行ではない | [D08固定版案](../../design/domains/vaccinations/technical-spec.md#certificate-edition-proposal)。Q-V1は本人決定で通常縦横の同じ最新版を共有し印刷時に様式選択、固有項目保持。Q-V2は既決適用として訂正保存成功で旧内容の有効出力停止、失敗時は保持 |
+
 <a id="record-edit-right-concept"></a>
 ## 編集権と未保存入力
 
@@ -122,4 +136,4 @@
 
 接種実績はD08の記録、証明書は認可された保存済み内容を発行時に固定した版である。通常予防接種縦/横、狂犬病予防注射済証という3様式を、別の接種事実3件とは扱わない。訂正後は新発行し旧内容を履歴に保持する。再印刷は最新版、旧訂正版は有効証明として印刷しない。共通基本情報の更新で発行版を自動変更せず、同じ発行版の再印刷は当時内容の再現である。発行番号書式・記録との物理多重度・版保存方式は本整理で決めない。
 
-正本：[証明書の版と3様式](../domains/vaccinations/lifecycle.md#certificate-editions-20261017)、AC-vaccinations-certificate-three-layouts／AC-vaccinations-certificate-correction／AC-vaccinations-certificate-basic-update／AC-vaccinations-certificate-no-side-effect。未保存印刷・印刷時自動登録・preview省略を復活しない。専用実装の所在/適合と採用仕様を区別する。
+正本：[証明書の版と3様式](../domains/vaccinations/lifecycle.md#certificate-editions-20261017)、AC-vaccinations-certificate-three-layouts／AC-vaccinations-certificate-correction／AC-vaccinations-certificate-basic-update／AC-vaccinations-certificate-no-side-effect。12:53 UTC本人第3項Aによる[縦横の最新版共有](../domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018)は同じ通常証明書の同じ版から印刷様式を選ぶ業務関係で、layout変更と新発行を区別する。未保存印刷・印刷時自動登録・preview省略を復活しない。専用実装の所在/適合と採用仕様を区別する。
