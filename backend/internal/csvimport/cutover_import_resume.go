@@ -283,6 +283,11 @@ func importOneCutoverTable(
 	if occupied {
 		return 0, fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
 	}
+	if spec.Name == "appointments" {
+		if err := validateCutoverAppointmentTimes(ctx, tx, bundle, seeds); err != nil {
+			return 0, err
+		}
+	}
 	path := cutoverCSVPath(bundle.SourceDir, manifestTable)
 	count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds,
 		rehearsalContractDrift(bundle.Manifest, bundle.Provenance.Mode))

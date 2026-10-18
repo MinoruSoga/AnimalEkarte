@@ -99,6 +99,9 @@ func applyCutoverWithBegin(
 	if err := validateCutoverUniqueMasterTargetNames(ctx, tx, bundle, seeds, false); err != nil {
 		return CutoverResult{}, err
 	}
+	if err := validateCutoverAppointmentTimes(ctx, tx, bundle, seeds); err != nil {
+		return CutoverResult{}, err
+	}
 	drift := append([]string(nil), bundle.ToleratedDrift...)
 	drift = append(drift, targetNotes...)
 
