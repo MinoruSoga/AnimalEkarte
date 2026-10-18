@@ -88,7 +88,7 @@ describe("resolveMasterSelectionDose", () => {
     if (result.kind === "blocked") expect(result.retryable).toBe(true);
   });
 
-  it("一致マスタが inactive/不在なら retryable blocked（silent qty1 にしない）", async () => {
+  it("一致マスタが inactive/不在なら非リトライの再選択 blocks（silent qty1 にしない）", async () => {
     server.use(
       http.get("*/v1/masters/medicines", () =>
         HttpResponse.json([{ id: 42, name: "薬A", price: 100, is_active: false }]),
@@ -103,9 +103,38 @@ describe("resolveMasterSelectionDose", () => {
     });
     expect(result.kind).toBe("blocked");
     if (result.kind === "blocked") {
-      expect(result.retryable).toBe(true);
-      expect(result.message).toContain("投与量パラメータ");
+      expect(result.retryable).toBe(false);
+      expect(result.message).toContain("再選択");
     }
+  });
+
+  it("計算種別 none の薬剤は vitals を引かず、vitals 障害でも ready qty=1", async () => {
+    let vitalsRequests = 0;
+    server.use(
+      http.get("*/v1/masters/medicines", () =>
+        HttpResponse.json([
+          {
+            id: 42,
+            name: "薬A",
+            price: 100,
+            is_active: true,
+            calculation_type: "none",
+          },
+        ]),
+      ),
+      http.get("*/v1/medical-records/10/vitals", () => {
+        vitalsRequests += 1;
+        return HttpResponse.json({}, { status: 500 });
+      }),
+    );
+    const result = await resolveMasterSelectionDose({
+      item: { id: "42", name: "薬A", unitPrice: 100, category: "薬剤", medicineId: "42" },
+      medicalRecordId: "10",
+      recordClinicId: "3",
+      queryClient: qc(),
+    });
+    expect(result).toEqual({ kind: "ready", quantity: 1 });
+    expect(vitalsRequests).toBe(0);
   });
 
   it("HTTP 失敗（masters GET 500）は retryable blocked", async () => {

@@ -181,7 +181,14 @@ describe("useTreatmentsTab", () => {
     server.use(
       http.get("*/v1/masters/medicines", () =>
         HttpResponse.json([
-          { id: 1, name: "薬A", price: 100, medicine_unit: "per_tablet", is_active: true },
+          {
+            id: 1,
+            name: "薬A",
+            price: 100,
+            medicine_unit: "per_tablet",
+            is_active: true,
+            calculation_type: "per_weight",
+          },
         ]),
       ),
       http.get("*/v1/medical-records/:id/vitals", () =>
@@ -437,6 +444,7 @@ describe("useTreatmentsTab", () => {
             price: 100,
             is_active: true,
             sort_order: 0,
+            calculation_type: "per_weight",
           },
         ]),
       ),
@@ -499,6 +507,7 @@ describe("useTreatmentsTab", () => {
             price: 100,
             is_active: true,
             sort_order: 0,
+            calculation_type: "per_weight",
           },
         ]),
       ),

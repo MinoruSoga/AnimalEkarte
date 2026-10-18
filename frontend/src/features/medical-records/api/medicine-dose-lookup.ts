@@ -125,13 +125,21 @@ export function resolveLatestVitalWeight(vitals: Vital[]): ResolvedVitalWeight |
  * （= 手動入力へフェイルクローズ）。calculateDose（プリフィル）・evaluateSubmittedDose
  * （現在値の安全域チェック）の両方がこの入力を共有する。
  */
+/**
+ * 用量計算が体重あたり（per_weight）の薬剤か。undefined/null も非対象として扱う。
+ * TASK-444-S1: 生成モデル定数の新規 import を増やさないため、per_weight 判定はここに集約する。
+ */
+export function isPerWeightMedicine(medicine: Medicine | undefined | null): medicine is Medicine {
+  return medicine?.calculationType === MedicineCalculationTypePerWeight;
+}
+
 export function buildDoseCalcInput(
   medicine: Medicine | undefined,
   doseParams: MedicineDoseParam[] | undefined,
   speciesFreeText: string | null | undefined,
   weightKg: number | null,
 ): DoseCalcInput | null {
-  if (!medicine || medicine.calculationType !== MedicineCalculationTypePerWeight) return null;
+  if (!isPerWeightMedicine(medicine)) return null;
   if (weightKg == null || weightKg <= 0) return null;
   const species = normalizeDoseSpecies(speciesFreeText);
   if (!species) return null;

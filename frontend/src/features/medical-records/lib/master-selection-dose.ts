@@ -13,7 +13,14 @@ import {
   DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
 } from "../api/medicine-dose-lookup";
 import { computeDoseGate, type DoseGateSource } from "./treatment-row-dose-gate";
-import { resolveLatestVitalWeight } from "../api/medicine-dose-lookup";
+import { isPerWeightMedicine, resolveLatestVitalWeight } from "../api/medicine-dose-lookup";
+
+/**
+ * 選択した薬剤が記録のクリニックで無効・不在のときの固定文言。
+ * 再試行では解決しないため非リトライ扱いとする（CodeRabbit 4307602167）。
+ */
+const INACTIVE_MEDICINE_MESSAGE =
+  "選択した薬剤は記録のクリニックで有効ではありません。マスタを確認して再選択してください";
 
 export async function resolveMasterSelectionDose(params: {
   item: TreatmentMasterItem;
@@ -38,23 +45,18 @@ export async function resolveMasterSelectionDose(params: {
   }
 
   const medicineId = item.medicineId;
+
+  // 薬剤マスタを先に引く。用量計算が per_weight の薬剤だけバイタル/用量パラメータを
+  // 後続で引く（Codex 4307600239: none 薬の作成を vitals 障害で止めない）。
   let medicines;
-  let vitals;
   try {
-    [medicines, vitals] = await Promise.all([
-      queryClient.fetchQuery({
-        queryKey: recordClinicId
-          ? queryKeys.masters.categoryForClinic("medicines", recordClinicId)
-          : queryKeys.masters.category("medicines"),
-        queryFn: () => getAllMedicinesMaster(recordClinicId),
-        staleTime: QUERY_STALE_TIMES.STATIC,
-      }),
-      queryClient.fetchQuery({
-        queryKey: queryKeys.medicalRecords.vitals(medicalRecordId, recordClinicId),
-        queryFn: () => getVitals(medicalRecordId, recordClinicId),
-        staleTime: QUERY_STALE_TIMES.REALTIME,
-      }),
-    ]);
+    medicines = await queryClient.fetchQuery({
+      queryKey: recordClinicId
+        ? queryKeys.masters.categoryForClinic("medicines", recordClinicId)
+        : queryKeys.masters.category("medicines"),
+      queryFn: () => getAllMedicinesMaster(recordClinicId),
+      staleTime: QUERY_STALE_TIMES.STATIC,
+    });
   } catch {
     return {
       kind: "blocked",
@@ -63,7 +65,14 @@ export async function resolveMasterSelectionDose(params: {
     };
   }
 
-  if (!Array.isArray(medicines) || !Array.isArray(vitals)) {
+  if (!Array.isArray(medicines)) {
+    return {
+      kind: "blocked",
+      message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+      retryable: true,
+    };
+  }
+  if (medicines.some((entry) => entry == null || typeof entry !== "object")) {
     return {
       kind: "blocked",
       message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
@@ -71,30 +80,63 @@ export async function resolveMasterSelectionDose(params: {
     };
   }
 
+  // 記録のクリニックで有効な薬剤のみ選択可能。無効・不在は再試行では解決しないため
+  // 非リトライの再選択案内にする（CodeRabbit 4307602167: リトライ無限ループを避ける）。
+  const medicine = medicines.find(
+    (m) => String(m.id) === String(medicineId) && m.isActive === true,
+  );
+  if (!medicine) {
+    return {
+      kind: "blocked",
+      message: INACTIVE_MEDICINE_MESSAGE,
+      retryable: false,
+    };
+  }
+
   // #201: 薬剤選択時、体重・species・薬マスタの投与量パラメータが揃えば quantity をプリフィルする。
   // いずれか欠けている場合は既定値 1（従来通りの手動入力・保存継続）とする。
   // TASK-025: technical failure（fetch/HTTP/parse）は missing data と型で区別し、通常保存を止める。
-  try {
-    if ([...medicines, ...vitals].some((entry) => entry == null || typeof entry !== "object")) {
-      throw new Error("invalid-authority-entry");
+  let quantity = 1;
+  let doseGateSource: DoseGateSource = { kind: "missing" };
+  if (isPerWeightMedicine(medicine)) {
+    let vitals;
+    let doseParams;
+    try {
+      [vitals, doseParams] = await Promise.all([
+        queryClient.fetchQuery({
+          queryKey: queryKeys.medicalRecords.vitals(medicalRecordId, recordClinicId),
+          queryFn: () => getVitals(medicalRecordId, recordClinicId),
+          staleTime: QUERY_STALE_TIMES.REALTIME,
+        }),
+        queryClient.fetchQuery({
+          queryKey: medicineDoseParamsQueryKey(medicineId, recordClinicId),
+          queryFn: () => fetchMedicineDoseParamsOnce(medicineId, recordClinicId),
+          staleTime: QUERY_STALE_TIMES.STATIC,
+        }),
+      ]);
+    } catch {
+      return {
+        kind: "blocked",
+        message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+        retryable: true,
+      };
     }
-    let quantity = 1;
-    let doseGateSource: DoseGateSource = { kind: "missing" };
-    const medicine = medicines.find(
-      (m) => String(m.id) === String(medicineId) && m.isActive === true,
-    );
-    if (!medicine) throw new Error("inactive-or-missing");
+    if (!Array.isArray(vitals) || !Array.isArray(doseParams)) {
+      return {
+        kind: "blocked",
+        message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+        retryable: true,
+      };
+    }
+    if ([...vitals, ...doseParams].some((entry) => entry == null || typeof entry !== "object")) {
+      return {
+        kind: "blocked",
+        message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+        retryable: true,
+      };
+    }
     const resolvedWeight = resolveLatestVitalWeight(vitals);
     if (resolvedWeight) {
-      const doseParams = await queryClient.fetchQuery({
-        queryKey: medicineDoseParamsQueryKey(medicineId, recordClinicId),
-        queryFn: () => fetchMedicineDoseParamsOnce(medicineId, recordClinicId),
-        staleTime: QUERY_STALE_TIMES.STATIC,
-      });
-      if (!Array.isArray(doseParams)) throw new Error("dose-params-not-array");
-      if (doseParams.some((entry) => entry == null || typeof entry !== "object")) {
-        throw new Error("invalid-dose-params-entry");
-      }
       const doseCalcInput = buildDoseCalcInput(
         medicine,
         doseParams,
@@ -115,31 +157,23 @@ export async function resolveMasterSelectionDose(params: {
       // （既定値 1 の手動入力とし、実際の保存値を下の物理ブロック判定に通す）。
       if (preview && !preview.exceedsMax && !preview.belowMin) quantity = preview.quantity;
     }
-    // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
-    // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
-    // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
-    // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
-    const gate = computeDoseGate(doseGateSource, quantity);
-    if (gate.isBlocked) {
-      return { kind: "blocked", message: gate.blockReason, retryable: false };
-    }
-    if (gate.requiresDeviationReason) {
-      return {
-        kind: "blocked",
-        message: gate.reason
-          ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
-          : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください",
-        retryable: false,
-      };
-    }
-    return { kind: "ready", quantity };
-  } catch {
-    // technical failure: quantity=1 の silent fallback で create しない。
-    // upstream body は画面に出さない（固定文言のみ）。
+  }
+  // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
+  // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
+  // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
+  // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
+  const gate = computeDoseGate(doseGateSource, quantity);
+  if (gate.isBlocked) {
+    return { kind: "blocked", message: gate.blockReason, retryable: false };
+  }
+  if (gate.requiresDeviationReason) {
     return {
       kind: "blocked",
-      message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
-      retryable: true,
+      message: gate.reason
+        ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
+        : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください",
+      retryable: false,
     };
   }
+  return { kind: "ready", quantity };
 }
