@@ -13,17 +13,26 @@ import type { ReservationType } from "../api/reservation-types";
 // StaffBasicInfoSection が使う PropertyRow / StatusToggleButton もここで供給する。
 // ──────────────────────────────────────────────────────────
 let capturedPanelProps: {
-  onSave?: () => Promise<void> | void;
+  action?: (formData: FormData) => void;
   titlePlaceholder?: string;
 } | null = null;
 vi.mock("@/components/shared/SidePeek", () => ({
+  /**
+   * 実際のネイティブ <form action> + submit を使う薄いモック。
+   * React 19 の pending 状態を維持し、使われなくなった onSave 直接呼び出し経路を排除する。
+   */
   MasterSidePanel: (props: {
     children: ReactNode;
-    onSave?: () => Promise<void> | void;
+    action?: (formData: FormData) => void;
     titlePlaceholder?: string;
   }) => {
     capturedPanelProps = props;
-    return <div>{props.children}</div>;
+    return (
+      <form action={props.action}>
+        {props.children}
+        <button type="submit">パネル保存</button>
+      </form>
+    );
   },
   StatusToggleButton: () => null,
   PropertyRow: ({ label, children }: { label?: ReactNode; children: ReactNode }) => (
@@ -100,6 +109,10 @@ const TYPES = [
   reservationType({ id: "2", name: "シャンプー", category: "trimming" }),
 ];
 
+/**
+ * パネルを描画する。関連付けスパイは await 可能な真偽値成功契約を観測可能に保ち、
+ * 合成のマスタ/対応区分フィクスチャを使う。
+ */
 function renderPanel({
   item = makeStaff(),
   onSave = vi.fn(async () => true),
@@ -111,9 +124,9 @@ function renderPanel({
   allReservationTypes?: ReservationType[];
   onDirtyChange?: (dirty: boolean) => void;
 } = {}) {
-  const onSaveGroups = vi.fn();
-  const onSaveClinics = vi.fn();
-  const onSaveCapableReservationTypes = vi.fn();
+  const onSaveGroups = vi.fn(async () => true);
+  const onSaveClinics = vi.fn(async () => true);
+  const onSaveCapableReservationTypes = vi.fn(async () => true);
   render(
     <MemoryRouter>
       <StaffSidePanel
@@ -152,7 +165,7 @@ describe("StaffSidePanel 対応区分（capableIds 単一書き込みモデル�
     await user.click(screen.getByRole("checkbox", { name: /一般診療/ }));
 
     await act(async () => {
-      await capturedPanelProps?.onSave?.();
+      screen.getByRole("button", { name: "パネル保存" }).click();
     });
 
     expect(onSaveCapableReservationTypes).toHaveBeenCalledTimes(1);
@@ -178,7 +191,7 @@ describe("StaffSidePanel 対応区分（capableIds 単一書き込みモデル�
 
     await user.click(screen.getByRole("checkbox", { name: /シャンプー/ }));
     await act(async () => {
-      await capturedPanelProps?.onSave?.();
+      screen.getByRole("button", { name: "パネル保存" }).click();
     });
 
     expect(onSaveCapableReservationTypes).not.toHaveBeenCalled();
@@ -190,13 +203,26 @@ describe("StaffSidePanel 対応区分（capableIds 単一書き込みモデル�
     expect(screen.getByText("予約区分が登録されていません")).toBeInTheDocument();
 
     await act(async () => {
-      await capturedPanelProps?.onSave?.();
+      screen.getByRole("button", { name: "パネル保存" }).click();
     });
 
     // 全有効区分が未取得の状態で「全件 − 除外選択」の逆算保存をしていれば [] になる。
     // 単一モデル方式では編集経路が存在しないためサーバー値が素通りする。
-    expect(onSaveCapableReservationTypes).toHaveBeenCalledTimes(1);
-    expect(onSaveCapableReservationTypes).toHaveBeenCalledWith("1", ["1"]);
+    expect(onSaveCapableReservationTypes).not.toHaveBeenCalled();
+  });
+
+  it("サーバー capableIds が未取得(undefined)の場合はチェックボックスを編集不可にし保存でも送らない", async () => {
+    capableQuery.data = undefined;
+    const { onSaveCapableReservationTypes } = renderPanel();
+
+    const checkbox = screen.getByRole("checkbox", { name: /一般診療/ });
+    expect(checkbox.closest("fieldset")).toHaveProperty("disabled", true);
+
+    await act(async () => {
+      screen.getByRole("button", { name: "パネル保存" }).click();
+    });
+
+    expect(onSaveCapableReservationTypes).not.toHaveBeenCalled();
   });
 
   it("新規スタッフでは「スタッフ登録後に設定できます」を表示し、保存しても capableIds は送らない", async () => {
@@ -205,7 +231,7 @@ describe("StaffSidePanel 対応区分（capableIds 単一書き込みモデル�
     expect(screen.getByText("スタッフ登録後に設定できます")).toBeInTheDocument();
 
     await act(async () => {
-      await capturedPanelProps?.onSave?.();
+      screen.getByRole("button", { name: "パネル保存" }).click();
     });
 
     expect(onSaveCapableReservationTypes).not.toHaveBeenCalled();

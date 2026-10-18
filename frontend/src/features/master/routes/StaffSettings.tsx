@@ -48,6 +48,10 @@ const COLUMNS = [
   },
 ];
 
+/**
+ * CRUD と権限チェック済みの関連付けコールバックを子パネルへ束ねる。
+ * 同期 dirty クリーンアップ・完了通知・クローズは子パネル側が担う。
+ */
 export function StaffSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
   const { canEdit: canEditPermission } = usePermission(ResourceMasterPermission);
@@ -60,11 +64,11 @@ export function StaffSettings() {
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
   const setGroupsMutation = useUpdateStaffPermissionGroups();
-  const { mutate: setGroupsFn } = setGroupsMutation;
+  const { mutateAsync: setGroupsAsync } = setGroupsMutation;
   const setClinicsMutation = useUpdateStaffClinics();
-  const { mutate: setClinicsFn } = setClinicsMutation;
+  const { mutateAsync: setClinicsAsync } = setClinicsMutation;
   const setCapableMutation = useUpdateStaffCapableReservationTypes();
-  const { mutate: setCapableFn } = setCapableMutation;
+  const { mutateAsync: setCapableAsync } = setCapableMutation;
 
   const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<Staff>({
@@ -85,7 +89,7 @@ export function StaffSettings() {
     [dirty],
   );
 
-  const { handleSave } = useMasterSave<
+  const { handleSave, handleSaveWithResult } = useMasterSave<
     Staff,
     StaffFormData,
     CreateStaffRequest,
@@ -101,6 +105,8 @@ export function StaffSettings() {
     toCreateRequest: buildStaffCreateRequest,
     toUpdateRequest: buildStaffUpdateRequest,
     permissions: { canCreate, canEdit },
+    closeOnSuccess: false,
+    showSuccessToast: false,
   });
 
   const associationPermissionsRef = useRef({ canEdit, canEditPermission });
@@ -108,34 +114,65 @@ export function StaffSettings() {
     associationPermissionsRef.current = { canEdit, canEditPermission };
   }, [canEdit, canEditPermission]);
 
+  /**
+   * 書き込み直前に最新権限を再確認する（権限グループは staff-edit AND permission-edit の両方が必要）。
+   * 拒否または失敗は false を返し、後続の保存を未完のまま止める。
+   */
   const handleSaveGroups = useCallback(
-    (staffId: string, groupIds: string[]) => {
+    async (staffId: string, groupIds: string[]) => {
       const current = associationPermissionsRef.current;
       if (!current.canEdit || !current.canEditPermission) {
         toast.error("権限グループを変更する権限がありません");
-        return;
+        return false;
       }
-      setGroupsFn({ staffId, groupIds });
+      try {
+        await setGroupsAsync({ staffId, groupIds });
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [setGroupsFn],
+    [setGroupsAsync],
   );
 
+  /**
+   * 書き込み直前に最新の staff-edit 権限を再確認する。
+   * 拒否または失敗は false を返し、後続の保存を未完のまま止める。
+   */
   const handleSaveClinics = useCallback(
-    (staffId: string, clinicIds: string[]) => {
+    async (staffId: string, clinicIds: string[]) => {
       if (!associationPermissionsRef.current.canEdit) {
         toast.error("所属医院を変更する権限がありません");
-        return;
+        return false;
       }
-      setClinicsFn({ staffId, clinicIds });
+      try {
+        await setClinicsAsync({ staffId, clinicIds });
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [setClinicsFn],
+    [setClinicsAsync],
   );
 
+  /**
+   * 書き込み直前に最新の staff-edit 権限を再確認する。
+   * 拒否または失敗は false を返し、後続の保存を未完のまま止める。
+   */
   const handleSaveCapableReservationTypes = useCallback(
-    (staffId: string, reservationTypeIds: string[]) => {
-      setCapableFn({ staffId, reservationTypeIds });
+    async (staffId: string, reservationTypeIds: string[]) => {
+      if (!associationPermissionsRef.current.canEdit) {
+        toast.error("対応区分を変更する権限がありません");
+        return false;
+      }
+      try {
+        await setCapableAsync({ staffId, reservationTypeIds });
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [setCapableFn],
+    [setCapableAsync],
   );
 
   return (
@@ -164,6 +201,8 @@ export function StaffSettings() {
             item={item}
             onClose={onClose}
             onSave={onSave}
+            onSaveWithResult={handleSaveWithResult}
+            canEditPersisted={canEdit}
             onDeleteRequest={onDeleteRequest}
             readOnly={readOnly}
             onDirtyChange={handleDirtyChange}

@@ -18,6 +18,7 @@ interface SubmitButtonProps extends Omit<ButtonProps, "variant"> {
 /**
  * React 19 useFormStatus を使用して、
  * 親フォームの送信状態に応じて自動で disabled/loading 表示を切り替えるボタン。
+ * 各色バリアントは高さクラスを含まない。高さは Button の size と呼び出し側の className に委ねる。
  */
 export function SubmitButton({
   children,
@@ -31,10 +32,10 @@ export function SubmitButton({
 
   const baseClassName =
     colorVariant === "brand"
-      ? `${C.bgBrandIdentitySolid} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentitySolid} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentitySolid} ${C.activeTextOnBrandIdentity} h-11 text-base font-medium rounded-full transition-colors shadow-none border-transparent`
+      ? `${C.bgBrandIdentitySolid} ${C.textOnBrandIdentity} ${C.hoverBgBrandIdentitySolid} ${C.hoverTextOnBrandIdentity} ${C.activeBgBrandIdentitySolid} ${C.activeTextOnBrandIdentity} text-base font-medium rounded-full transition-colors shadow-none border-transparent`
       : colorVariant === "destructive"
-        ? `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 text-base rounded-full transition-colors shadow-none border-transparent`
-        : `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} h-11 text-base rounded-full transition-colors shadow-none border-transparent`;
+        ? `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} text-base rounded-full transition-colors shadow-none border-transparent`
+        : `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} text-base rounded-full transition-colors shadow-none border-transparent`;
 
   return (
     <Button

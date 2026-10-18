@@ -34,14 +34,23 @@ interface StaffBasicInfoSectionProps {
   formData: StaffFormData;
   setFormDataDirty: Dispatch<SetStateAction<StaffFormData>>;
   allOccupations: Occupation[];
+  disableCreateCredentials?: boolean;
 }
 
+/**
+ * 基本情報とアカウント関連の入力群を描画する。
+ * disableCreateCredentials は新規作成中フラグが立ったときのみ、
+ * 新規用メールアドレス/パスワード入力を無効化する。
+ * 既存スタッフのパスワード更新や他の属性はこのフラグの対象外。
+ * 新規作成用の pending 判定は親から渡される。
+ */
 export function StaffBasicInfoSection({
   item,
   isNew,
   formData,
   setFormDataDirty,
   allOccupations,
+  disableCreateCredentials = false,
 }: StaffBasicInfoSectionProps) {
   const { user } = useAuth();
   const attachAccount = useAttachStaffAccount();
@@ -163,6 +172,7 @@ export function StaffBasicInfoSection({
               value={formData.email}
               onChange={handleEmailChange}
               placeholder="例: staff@clinic.com"
+              disabled={disableCreateCredentials}
             />
           </PropertyRow>
           <PropertyRow
@@ -176,6 +186,7 @@ export function StaffBasicInfoSection({
               value={formData.password}
               onChange={handlePasswordChange}
               placeholder="8文字以上"
+              disabled={disableCreateCredentials}
             />
           </PropertyRow>
         </>
