@@ -97,7 +97,7 @@ D15は送信対象の現在clinic／owner・現在DM値と[D15目的別判定](.
 
 ## 受け渡しと検証対応
 
-| FR ID | AC ID（全件・一意） | 技術対応 |
+| FR ID | 先行台帳FRのAC ID（追加分は後続節の対応表） | 技術対応 |
 |:---|:---|:---|
 | FR-owners-pets-register-scope | AC-owners-pets-owner-number-auto / AC-owners-pets-register-atomic / AC-owners-pets-scope / AC-owners-pets-optional-clear / AC-owners-pets-unknown-result / AC-owners-pets-stale-update | owner→pet typed draft／同一tx・所属検証。新規飼主番号の自動割当・保存後読戻しを追跡し、既存番号再採番や結果不明時の別createをしない。採番の物理方式は未選定 |
 | FR-owners-pets-contact-duplicate-warning | AC-owners-pets-contact-duplicate-warning / AC-owners-pets-contact-duplicate-separate | 警告候補と別登録の分離・医院／認可scope・独立owner ID・receipt非代替 |
@@ -214,3 +214,21 @@ DC-I01：同一／別人／新ペット、自院利用の二重要求・mapping�
 [計算・保存の業務正本・固定表・9AC](../../../spec/domains/owners-pets/lifecycle.md#saigram-calculation-reference-20261018)を参照する。2026-07-16保存Drive版が本人の現在の指定基準であり、旧Slack添付の同一性や旧ソフト一致を実証済みとはしない。UTC暦日差と非負mod・固定表を仕様どおり扱う方式は実装設計へ渡すが、今回コード適合は未確認。
 
 2026-10-18 02:59:05 UTCの本人回答（Sentinel_01ed294ac8988191b77e6c33e4a92bbf）により、サイグラム結果をDB保存する方針へ変更する。生年月日を正本とし、保存する派生結果と計算ルールのバージョンを対応付ける。生年月日の有効な変更を保存するときは同じ計算基準で結果を再計算し、結果だけを手入力・独立修正しない。未保存の入力中表示を保存済み結果へ混同しない。生年月日を明示消去して保存した場合は派生結果も消去し、分類なしとする。未入力・不正・削除済みの生年月日に古い結果を有効分類として残さない。不正入力の保存は既存検証で拒否し、その場合に保存済みの有効な生年月日と対応結果を片方だけ変更しない。既存データの不正・欠落が判明した場合もその古い結果を表示根拠にしない。DOB未送信は既存の保持契約を維持する。将来の絞り込み・集計を見据えた保存であり、その検索・集計UI／機能は今回は追加しない。実際のDB・schema・コード変更、移行・再計算処理の実行は今回行わない。 具体列・API契約・整合性を満たすトランザクション方式は未選定。既存飼主についても導入時に有効DOBから算出し結果とルール版を保存、未登録・不正DOBは未設定とする業務方針が03:05:29 UTC本人承認で確定した。導入処理の具体手順・検証は未選定であり、実データ処理は今回実行しない。将来の計算ルール改定は具体要求がないため改定時の技術・運用設計事項であり、現行リリースの必須業務判断待ちとしない。現在の画面縦積み、DOBの保存/null/省略保持と既存認可を維持する。
+
+
+<a id="saigram-acceptance-trace"></a>
+### 既存サイグラム9ACの技術対応
+
+上記の[業務正本・固定表・9ACへの委譲](../../../spec/domains/owners-pets/lifecycle.md#saigram-calculation-reference-20261018)は維持する。以下は既存の計算参照規則・保存／初期投入説明への対応を明示するもので、新しい算法・業務採否・実装完了を追加しない。先行の台帳・追加感染症・共通利用の37ACと合わせ、現行46ACの追跡範囲を示す。
+
+| 正本AC（prefix AC-owners-pets-saigram-） | 本節の既存説明への接続・確認点 |
+|:---|:---|
+| AC-owners-pets-saigram-base-negative-cycle | 本節のUTC暦日差・非負modを正本の基準日前後／±60日の期待値へ照合し、負番号・0へ補正する独自算法を足さない。 |
+| AC-owners-pets-saigram-fixed-mapping | 正本の固定表60エントリを参照して結果を解決し、表示名や並び替えから対応を再生成しない。 |
+| AC-owners-pets-saigram-code-group-ha | 既存のタイプ→コード／グループ／派の変換を正本へ照合する。画面縦積みの既決を保ち、計算定義を新しい配置義務にしない。 |
+| AC-owners-pets-saigram-five-examples | 正本の5例について生年月日から派まで同じ参照規則を通し、例の一致とコード適合・実機合格を分けて記録する。 |
+| AC-owners-pets-saigram-utc-leap | 端末timezoneに依存しない暦日差と正本の閏日期待値へ対応付ける。既存日付検証を迂回した不正日の補完をしない。 |
+| AC-owners-pets-saigram-persist-consistency | 本節のDOB正本・派生結果・ルール版の保存説明へ接続し、登録／有効変更と再読取で対応を照合する。片側更新や未保存入力を保存済みとしない。 |
+| AC-owners-pets-saigram-clear-invalid | 本節の明示消去時の結果消去、不正保存拒否、既存欠落／不正の旧結果不採用へ接続する。DOB未送信は既存値保持を維持する。 |
+| AC-owners-pets-saigram-storage-scope | 本節の保存対象はDOB対応結果とルール版であり、新しい絞込み・集計UI、独立結果編集や外部連携を追加しない。 |
+| AC-owners-pets-saigram-initial-population | 本節の導入方針に従い、有効DOBは同じ基準で算出して結果／ルール版を保存する対象、未登録／不正は未設定として分ける。具体移行手順は未選定で、今回実データ処理を行わない。 |
