@@ -30,10 +30,11 @@ import {
  * EMR-219（スプシ44 残作業）: 問診履歴「コピー」で元カルテの治療明細行も複製する。
  *
  * - 単価は当時価格を持ち込まず、現行マスタ一覧（/v1/masters/*）の価格へ再解決する。
- *   masters の query key と transform は src/hooks/use-treatment-master.ts の
- *   useGetAllConsultations / useGetAllProcedures / useGetAllMedicinesMaster と同一で、
- *   STATIC staleTime の共有キャッシュをそのまま利用する（lazy fetch のため hook は
- *   mount せず、適用時に fetchQuery で同一キーを引く）。
+ *   transform は src/hooks/use-treatment-master.ts と同一。query key は recordClinicId
+ *   が truthy なら複写先クリニック別キー（categoryForClinic）、空なら従来のグローバル
+ *   キー。STATIC staleTime の共有キャッシュを利用し、適用時に fetchQuery で引く
+ *   （hook は mount しない）。create 前に全行のペイロードを検証構築するため、
+ *   複写先マスタ不一致時は 1 件も POST しない。
  * - wire 型は @/types/generated/models の新規 import 禁止（TASK-444-S1）に抵触しないよう
  *   `Parameters<typeof transform>[0]` から引き出す。fetcher はフル shape の transform を
  *   通すため、キャッシュ shape が shared hook の応答と常に一致する。
@@ -48,24 +49,38 @@ import {
  *   呼び出し側で既に適用済み）。
  */
 
-// use-treatment-master.ts の useGetAll*Master と同一 endpoint/transform/key。
+// use-treatment-master.ts の useGetAll*Master と同一 endpoint/transform。明示 clinicId では複写先キーを使う。
 type ConsultationWire = Parameters<typeof transformConsultation>[0];
-const fetchConsultationsOnce = async (): Promise<ConsultationItem[]> => {
-  const { data } = await axios.get<ConsultationWire[]>("/v1/masters/consultations");
+const fetchConsultationsOnce = async (clinicId?: string): Promise<ConsultationItem[]> => {
+  const { data } = clinicId
+    ? await axios.get<ConsultationWire[]>("/v1/masters/consultations", {
+        headers: { "X-Clinic-ID": clinicId },
+      })
+    : await axios.get<ConsultationWire[]>("/v1/masters/consultations");
   return data.map(transformConsultation);
 };
 
 type ProcedureWire = Parameters<typeof transformProcedure>[0];
-const fetchProceduresOnce = async (): Promise<ProcedureItem[]> => {
-  const { data } = await axios.get<ProcedureWire[]>("/v1/masters/procedures");
+const fetchProceduresOnce = async (clinicId?: string): Promise<ProcedureItem[]> => {
+  const { data } = clinicId
+    ? await axios.get<ProcedureWire[]>("/v1/masters/procedures", {
+        headers: { "X-Clinic-ID": clinicId },
+      })
+    : await axios.get<ProcedureWire[]>("/v1/masters/procedures");
   return data.map(transformProcedure);
 };
 
 type MedicineWire = Parameters<typeof transformBackendMedicineToFrontend>[0];
-const fetchMedicinesOnce = async (): Promise<Medicine[]> => {
-  const { data } = await axios.get<MedicineWire[]>("/v1/masters/medicines");
+const fetchMedicinesOnce = async (clinicId?: string): Promise<Medicine[]> => {
+  const { data } = clinicId
+    ? await axios.get<MedicineWire[]>("/v1/masters/medicines", {
+        headers: { "X-Clinic-ID": clinicId },
+      })
+    : await axios.get<MedicineWire[]>("/v1/masters/medicines");
   return data.map(transformBackendMedicineToFrontend);
 };
+
+const COPY_REJECT_MESSAGE = "複写先のマスタを確認し、治療明細を再選択してください";
 
 export function useCopyTreatmentDetails(
   medicalRecordId: string | undefined,
@@ -102,24 +117,34 @@ export function useCopyTreatmentDetails(
               staleTime: QUERY_STALE_TIMES.REALTIME,
             }),
             queryClient.fetchQuery({
-              queryKey: queryKeys.masters.category("consultations"),
-              queryFn: fetchConsultationsOnce,
+              queryKey: recordClinicId
+                ? queryKeys.masters.categoryForClinic("consultations", recordClinicId)
+                : queryKeys.masters.category("consultations"),
+              queryFn: () => fetchConsultationsOnce(recordClinicId),
               staleTime: QUERY_STALE_TIMES.STATIC,
             }),
             queryClient.fetchQuery({
-              queryKey: queryKeys.masters.category("procedures"),
-              queryFn: fetchProceduresOnce,
+              queryKey: recordClinicId
+                ? queryKeys.masters.categoryForClinic("procedures", recordClinicId)
+                : queryKeys.masters.category("procedures"),
+              queryFn: () => fetchProceduresOnce(recordClinicId),
               staleTime: QUERY_STALE_TIMES.STATIC,
             }),
             queryClient.fetchQuery({
-              queryKey: queryKeys.masters.category("medicines"),
-              queryFn: fetchMedicinesOnce,
+              queryKey: recordClinicId
+                ? queryKeys.masters.categoryForClinic("medicines", recordClinicId)
+                : queryKeys.masters.category("medicines"),
+              queryFn: () => fetchMedicinesOnce(recordClinicId),
               staleTime: QUERY_STALE_TIMES.STATIC,
             }),
           ]);
           sourceRows = source;
           destRows = dest;
-          masters = { consultations, procedures, medicines };
+          masters = {
+            consultations: consultations.filter((m) => m.isActive),
+            procedures: procedures.filter((m) => m.isActive),
+            medicines: medicines.filter((m) => m.isActive),
+          };
         } catch (err) {
           handleApiError(err, "治療明細の複写");
           return;
@@ -134,16 +159,28 @@ export function useCopyTreatmentDetails(
         const sortOrderOffset =
           destRows.reduce((max, row) => Math.max(max, row.sort_order), -1) + 1;
 
+        // 複写先マスタ検証済みのペイロードを最初の create 前に全行構築する。
+        // 不正参照がある行で部分 POST しないため zero-write で中断する。
+        let payloads: ReturnType<typeof buildCopiedTreatmentPayload>[];
+        try {
+          payloads = sortedSource.map((row) =>
+            buildCopiedTreatmentPayload({ source: row, masters, sortOrderOffset }),
+          );
+        } catch (err) {
+          if (err instanceof Error && err.message === COPY_REJECT_MESSAGE) {
+            toast.error(COPY_REJECT_MESSAGE);
+            return;
+          }
+          handleApiError(err, "治療明細の複写");
+          return;
+        }
+
         let copied = 0;
         let createFailed = false;
         let createFailure: unknown;
-        for (const row of sortedSource) {
+        for (const payload of payloads) {
           try {
-            await createTreatment(
-              medicalRecordId,
-              buildCopiedTreatmentPayload({ source: row, masters, sortOrderOffset }),
-              recordClinicId,
-            );
+            await createTreatment(medicalRecordId, payload, recordClinicId);
             copied += 1;
           } catch (err) {
             createFailed = true;

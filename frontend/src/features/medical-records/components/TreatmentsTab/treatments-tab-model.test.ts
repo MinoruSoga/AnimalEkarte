@@ -153,34 +153,32 @@ describe("buildCopiedTreatmentPayload", () => {
     expect(payload.unit_price).toBe(120);
   });
 
-  it("マスタ不一致の consultation 行はソースの unit_price と参照を維持する", () => {
-    const payload = buildCopiedTreatmentPayload({
-      source: { ...baseSource, consultation_id: "999" },
-      masters,
-      sortOrderOffset: 0,
-    });
-
-    expect(payload.consultation_id).toBe(999);
-    expect(payload.unit_price).toBe(1500);
+  it("PR670: マスタ不一致の consultation 行は旧価格を持ち込まず例外で拒否する", () => {
+    expect(() =>
+      buildCopiedTreatmentPayload({
+        source: { ...baseSource, consultation_id: "999" },
+        masters,
+        sortOrderOffset: 0,
+      }),
+    ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
   });
 
-  it("マスタ不一致の medicine 行はソース medicine_id を number 化して送る", () => {
-    const payload = buildCopiedTreatmentPayload({
-      source: {
-        ...baseSource,
-        item_type: "medicine",
-        medicine_id: "55",
-        consultation_id: undefined,
-      },
-      masters,
-      sortOrderOffset: 0,
-    });
-
-    expect(payload.medicine_id).toBe(55);
-    expect(payload.unit_price).toBe(1500);
+  it("PR670: マスタ不一致の medicine 行はソース ID を送らず例外で拒否する", () => {
+    expect(() =>
+      buildCopiedTreatmentPayload({
+        source: {
+          ...baseSource,
+          item_type: "medicine",
+          medicine_id: "55",
+          consultation_id: undefined,
+        },
+        masters,
+        sortOrderOffset: 0,
+      }),
+    ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
   });
 
-  it("other（無型）行は単価・参照を含めソース値をそのまま保持する", () => {
+  it("正規手入力 other（参照なし）行は単価・業務値をそのまま保持する", () => {
     const payload = buildCopiedTreatmentPayload({
       source: {
         ...baseSource,
@@ -232,12 +230,213 @@ describe("buildCopiedTreatmentPayload", () => {
 
   it("sort_order は複写先の現在最大 +1（offset）をソース値へ加算する", () => {
     const payload = buildCopiedTreatmentPayload({
-      source: { ...baseSource, sort_order: 0 },
+      source: { ...baseSource, consultation_id: "7", sort_order: 0 },
       masters,
       sortOrderOffset: 5,
     });
 
     expect(payload.sort_order).toBe(5);
+  });
+
+  it.each([
+    ["consultation", "consultation_id", "missing", undefined],
+    ["consultation", "consultation_id", "empty", ""],
+    ["consultation", "consultation_id", "malformed", "abc"],
+    ["procedure", "procedure_id", "missing", undefined],
+    ["procedure", "procedure_id", "empty", ""],
+    ["procedure", "procedure_id", "malformed", "xyz"],
+    ["medicine", "medicine_id", "missing", undefined],
+    ["medicine", "medicine_id", "empty", ""],
+    ["medicine", "medicine_id", "malformed", "med-1"],
+  ])(
+    "PR670: %s 行の ref が %s のとき例外で拒否する（旧価格・不正 ID を送らない）",
+    (itemType, refKey, _label, refValue) => {
+      expect(() =>
+        buildCopiedTreatmentPayload({
+          source: {
+            ...baseSource,
+            item_type: itemType as Treatment["item_type"],
+            consultation_id: undefined,
+            procedure_id: undefined,
+            medicine_id: undefined,
+            [refKey]: refValue,
+          } as Treatment,
+          masters,
+          sortOrderOffset: 0,
+        }),
+      ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+    },
+  );
+
+  it.each([
+    {
+      itemType: "consultation",
+      refKey: "consultation_id" as const,
+      masterKey: "consultations" as const,
+      refId: "7",
+    },
+    {
+      itemType: "procedure",
+      refKey: "procedure_id" as const,
+      masterKey: "procedures" as const,
+      refId: "8",
+    },
+    {
+      itemType: "medicine",
+      refKey: "medicine_id" as const,
+      masterKey: "medicines" as const,
+      refId: "42",
+    },
+  ])(
+    "PR670: %s の一致マスタ価格/id 非有限・ref 非有限は例外で拒否する",
+    ({ itemType, refKey, masterKey, refId }) => {
+      const base = {
+        ...baseSource,
+        item_type: itemType as Treatment["item_type"],
+        consultation_id: undefined,
+        procedure_id: undefined,
+        medicine_id: undefined,
+        [refKey]: refId,
+      } as Treatment;
+      for (const bad of [
+        [{ id: refId, price: NaN }],
+        [{ id: refId, price: Infinity }],
+        [{ id: refId, price: -Infinity }],
+        [{ id: "NaN", price: 2500 }],
+        [{ id: "Infinity", price: 2500 }],
+      ]) {
+        expect(() =>
+          buildCopiedTreatmentPayload({
+            source: { ...base, [refKey]: bad[0].id },
+            masters: { ...masters, [masterKey]: bad },
+            sortOrderOffset: 0,
+          }),
+        ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+      }
+    },
+  );
+
+  it("PR670: 成功/失敗いずれもソース行と masters を変更しない", () => {
+    const source = {
+      ...baseSource,
+      item_type: "consultation" as const,
+      consultation_id: "7",
+    };
+    const srcFrozen = structuredClone(source);
+    const mastersFrozen = structuredClone(masters);
+    buildCopiedTreatmentPayload({ source, masters, sortOrderOffset: 0 });
+    expect(source).toEqual(srcFrozen);
+    expect(masters).toEqual(mastersFrozen);
+    expect(() =>
+      buildCopiedTreatmentPayload({
+        source: { ...baseSource, consultation_id: "999" },
+        masters,
+        sortOrderOffset: 0,
+      }),
+    ).toThrowError();
+    expect(masters).toEqual(mastersFrozen);
+  });
+
+  it("PR670: 未知の item_type は other へ畳まず例外で拒否する", () => {
+    expect(() =>
+      buildCopiedTreatmentPayload({
+        source: { ...baseSource, item_type: "vaccine" as Treatment["item_type"] },
+        masters,
+        sortOrderOffset: 0,
+      }),
+    ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+  });
+
+  it.each(["consultation_id", "procedure_id", "medicine_id", "inventory_id"])(
+    "PR670: other 行が %s を持つ場合は例外で拒否する（0/非空文字も参照扱い）",
+    (refKey) => {
+      for (const ref of ["7", "0"]) {
+        expect(() =>
+          buildCopiedTreatmentPayload({
+            source: {
+              ...baseSource,
+              item_type: "other",
+              consultation_id: undefined,
+              procedure_id: undefined,
+              medicine_id: undefined,
+              inventory_id: undefined,
+              [refKey]: ref,
+            } as Treatment,
+            masters,
+            sortOrderOffset: 0,
+          }),
+        ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+      }
+    },
+  );
+
+  describe("PR700: medicine 複写は複写先 inventoryId だけを採用する", () => {
+    const medSource = {
+      ...baseSource,
+      item_type: "medicine" as const,
+      medicine_id: "42",
+      consultation_id: undefined,
+      procedure_id: undefined,
+    };
+
+    it("複写先 inventoryId=77 でソース 999 を上書きする", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, inventory_id: "999" },
+        masters: {
+          ...masters,
+          medicines: [{ id: "42", price: 120, inventoryId: "77" }],
+        },
+        sortOrderOffset: 0,
+      });
+      expect(payload.inventory_id).toBe(77);
+    });
+
+    it("複写先に inventoryId があればソース未設定でも付与する", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, inventory_id: undefined },
+        masters: {
+          ...masters,
+          medicines: [{ id: "42", price: 120, inventoryId: "77" }],
+        },
+        sortOrderOffset: 0,
+      });
+      expect(payload.inventory_id).toBe(77);
+    });
+
+    it("両方無ければ stockless で inventory_id は送らない", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, inventory_id: undefined },
+        masters,
+        sortOrderOffset: 0,
+      });
+      expect(payload.inventory_id).toBeUndefined();
+    });
+
+    it("ソースに在庫参照があるのに複写先に無い場合は拒否する", () => {
+      expect(() =>
+        buildCopiedTreatmentPayload({
+          source: { ...medSource, inventory_id: "999" },
+          masters,
+          sortOrderOffset: 0,
+        }),
+      ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+    });
+
+    it.each([["0"], ["abc"], ["Infinity"], ["-1"], ["1.5"], ["9007199254740993"]])(
+      "複写先 inventoryId=%s は reject（正の safe integer のみ）",
+      (badId) => {
+        expect(() =>
+          buildCopiedTreatmentPayload({
+            source: { ...medSource, inventory_id: undefined },
+            masters: {
+              ...masters,
+              medicines: [{ id: "42", price: 120, inventoryId: badId }],
+            },
+            sortOrderOffset: 0,
+          }),
+        ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+      },
+    );
   });
 
   it("dose_param_snapshot の dose_deviation_reason をペイロードへ引き継ぐ", () => {

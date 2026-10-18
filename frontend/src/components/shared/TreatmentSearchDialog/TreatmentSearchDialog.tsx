@@ -38,6 +38,7 @@ interface TreatmentSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (item: TreatmentMasterItem) => void;
+  clinicId?: string;
 }
 
 // --- Constants ---
@@ -45,10 +46,16 @@ const CATEGORY_ORDER = ["診察", "検査", "処置", "予防", "入院", "薬�
 
 // --- Main Component ---
 
+/**
+ * 治療マスタ検索ダイアログ。空でない `clinicId` が渡された場合、診察/処置/薬剤カテゴリを
+ * そのクリニックのマスタを scoped fetch する（記録の所属クリニックで選ぶ用途）。
+ * それ以外のカテゴリ（予防/検査等）は従来どおりグローバル選択中クリニックのまま。
+ */
 export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   open,
   onOpenChange,
   onSelect,
+  clinicId,
 }: TreatmentSearchDialogProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,11 +63,11 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   const isFiltering = searchTerm !== deferredSearchTerm;
 
   // Fetch master data from APIs
-  const { data: consultations = [] } = useGetAllConsultations();
-  const { data: procedures = [] } = useGetAllProcedures();
+  const { data: consultations = [] } = useGetAllConsultations({ clinicId });
+  const { data: procedures = [] } = useGetAllProcedures({ clinicId });
   const { data: vaccines = [] } = useGetAllVaccinesMaster();
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
-  const { data: medicines = [] } = useGetAllMedicinesMaster();
+  const { data: medicines = [] } = useGetAllMedicinesMaster({ clinicId });
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {

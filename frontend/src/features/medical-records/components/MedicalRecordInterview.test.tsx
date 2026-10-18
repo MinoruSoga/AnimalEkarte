@@ -32,7 +32,7 @@ vi.mock("sonner", () => ({
 // EMR-325: 明細複写の価格注意（チケット最新コメントの訂正文）。
 // 確認ダイアログ説明文と全コピー経路の toast で同一文が使われる。
 const COPY_PRICE_CAUTION =
-  "対応するマスタが見つかる明細は取得済みのマスタ価格で追加されます。その他・対応マスタが見つからない明細は元の単価を引き継ぎます。コピー後に単価をご確認ください。";
+  "診察・処置・薬剤の明細は、複写先の有効なマスタと照合し、現在の単価で追加します。参照が見つからない・無効な明細がある場合、治療明細の複写は中止されます。複写先のマスタを確認し、治療明細を再選択してください。マスタ参照のない「その他」の明細は元の単価を引き継ぎます。";
 
 type InterviewProps = ComponentProps<typeof MedicalRecordInterview>;
 
@@ -227,14 +227,12 @@ describe("MedicalRecordInterview — 前回複写（コピー）", () => {
     const dialog = await screen.findByRole("alertdialog");
     // EMR-219: 治療明細も追加される旨をダイアログ説明文で告知する
     expect(dialog).toHaveTextContent("前回の治療明細も追加されます");
-    // EMR-325: 価格解決の両分岐（マスタ一致→取得済みマスタ価格 / 不一致・その他→元単価
-    // 引継ぎ）とコピー後の単価確認を説明文で正確に告知する（「すべて現行マスタ価格に更新」
+    // EMR-325: 価格解決（有効マスタ一致→現在価格 / 不一致→中断 / 参照なしその他→元単価
+    // 引継ぎ）を説明文で正確に告知する（「すべて現行マスタ価格に更新」
     // は言い過ぎのため使わない）
-    expect(dialog).toHaveTextContent(
-      "対応するマスタが見つかる明細は取得済みのマスタ価格で追加されます",
-    );
-    expect(dialog).toHaveTextContent("対応マスタが見つからない明細は元の単価を引き継ぎます");
-    expect(dialog).toHaveTextContent("コピー後に単価をご確認ください");
+    expect(dialog).toHaveTextContent("複写先の有効なマスタと照合し、現在の単価で追加します");
+    expect(dialog).toHaveTextContent("治療明細の複写は中止されます");
+    expect(dialog).toHaveTextContent("マスタ参照のない「その他」の明細は元の単価を引き継ぎます");
     expect(dialog).not.toHaveTextContent("すべて現行マスタ価格");
     await user.click(within(dialog).getByRole("button", { name: "コピー" }));
 
