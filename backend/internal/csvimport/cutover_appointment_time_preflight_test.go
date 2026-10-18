@@ -690,18 +690,22 @@ func TestCutoverAppointmentTimesLegacyFailureRetainsPrefix(t *testing.T) {
 			appointmentIndex = i
 		}
 	}
-	if appointmentIndex < 1 || len(session.txs) != appointmentIndex+1 {
+	if appointmentIndex < 1 || len(session.txs) != appointmentIndex+2 {
 		t.Fatal("did not reach intended appointment transaction")
 	}
-	for _, tx := range session.txs[:appointmentIndex] {
+	early := session.txs[0]
+	if !early.rolledBack || early.committed || early.copyCalls != 0 {
+		t.Fatal("early source tx must roll back with no writes")
+	}
+	for _, tx := range session.txs[1 : appointmentIndex+1] {
 		if !tx.committed || tx.copyCalls != 1 || len(tx.calls) != 0 {
 			t.Fatal("earlier table commit was erased or received temporal queries")
 		}
 	}
-	appointmentTimeAssertTrace(t, session.txs[appointmentIndex], false)
+	appointmentTimeAssertTrace(t, session.txs[appointmentIndex+1], false)
 }
 
-// TestCutoverAppointmentTimesCompletedPrefixSkipsSelf avoids probing already-adopted appointment rows on legacy resume.
+// TestCutoverAppointmentTimesCompletedPrefixSkipsSelf avoids target-probing already-adopted appointment rows on legacy resume.
 func TestCutoverAppointmentTimesCompletedPrefixSkipsSelf(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	complete := map[string]int64{}
@@ -711,12 +715,17 @@ func TestCutoverAppointmentTimesCompletedPrefixSkipsSelf(t *testing.T) {
 			break
 		}
 	}
-	session := &appointmentTimeSession{fakeCutoverSession: fakeCutoverSession{inspectCounts: complete}}
+	session := &appointmentTimeSession{fakeCutoverSession: fakeCutoverSession{inspectCounts: complete},
+		epochs: map[string]string{"2026-07-22T00:00:00.000000Z": "0", "2026-07-22T01:00:00.000000Z": "3600"}}
 	_, err := applyCutoverCommittingEachTable(context.Background(), session, bundle, validCutoverSeeds(), pgx.RepeatableRead)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tx := range session.txs {
+	if len(session.txs) < 2 || !reflect.DeepEqual(session.txs[0].events, []string{"begin", "epoch", "rollback"}) ||
+		session.txs[0].copyCalls != 0 || session.txs[0].committed {
+		t.Fatal("completed prefix did not receive only the early source transaction")
+	}
+	for _, tx := range session.txs[1:] {
 		if len(tx.calls) != 0 {
 			t.Fatal("completed appointments were temporally re-probed")
 		}
@@ -753,4 +762,200 @@ type appointmentTimeOneTxSession struct {
 // Begin supplies the preconfigured appointment transaction for the occupied-band regression.
 func (s *appointmentTimeOneTxSession) Begin(context.Context, pgx.TxIsoLevel) (cutoverTransaction, error) {
 	return s.tx, nil
+}
+
+// appointmentTimeRound3Session records every transaction Begin and answers
+// only the canonical epoch query inside each tx via an explicit per-text map.
+type appointmentTimeRound3Session struct {
+	fakeCutoverSession
+	beginErr      error
+	epochs        map[string]string
+	txs           []*appointmentTimeFakeTx
+	queryErr      error
+	reverseActual bool
+	events        []string
+}
+
+// Begin records the early transaction separately and refuses to hide an unclosed source transaction.
+func (s *appointmentTimeRound3Session) Begin(ctx context.Context, iso pgx.TxIsoLevel) (cutoverTransaction, error) {
+	s.events = append(s.events, "begin")
+	if s.beginErr != nil {
+		return nil, s.beginErr
+	}
+	if len(s.txs) == 1 && (!s.txs[0].rolledBack || s.txs[0].committed || s.txs[0].copyCalls != 0) {
+		return nil, errors.New("source transaction was not rolled back before a write Begin")
+	}
+	inner := &fakeCutoverTransaction{}
+	tx := &appointmentTimeFakeTx{fakeCutoverTransaction: inner, epochs: s.epochs}
+	tx.events = append(tx.events, "begin")
+	isEarly := len(s.txs) == 0
+	if s.queryErr != nil && isEarly {
+		tx.queryFn = func(query string, _ ...any) pgx.Row {
+			if query != appointmentTimeExpectedEpochQuery {
+				return staticRow{err: errUnexpectedQuery}
+			}
+			return staticRow{err: s.queryErr}
+		}
+	}
+	if s.reverseActual && !isEarly {
+		tx.queryFn = func(query string, args ...any) pgx.Row {
+			if query != appointmentTimeExpectedEpochQuery || len(args[0].([]string)) != 1 {
+				return staticRow{err: errUnexpectedQuery}
+			}
+			return staticRow{values: []any{[]string{"1"}, []string{"0"}}}
+		}
+	}
+	s.txs = append(s.txs, tx)
+	return tx, nil
+}
+
+// QueryRow rejects session-level canonicalization and target temporal probes.
+func (s *appointmentTimeRound3Session) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
+	if query == appointmentTimeExpectedEpochQuery || query == appointmentTimeExpectedCollisionQuery {
+		return staticRow{err: errors.New("temporal query outside explicit transaction")}
+	}
+	return s.fakeCutoverSession.QueryRow(ctx, query, args...)
+}
+
+// appointmentTimeRound3Bundle rewrites the appointments CSV to the given raw
+// (start,end) pairs, keeps the manifest digest/row-count consistent, and maps
+// each raw timestamp string to a synthetic canonical epoch.
+func appointmentTimeRound3Bundle(t *testing.T, rows [][2]string) CutoverBundle {
+	t.Helper()
+	bundle := targetUniqueApplyBundle(t, CutoverProfileLegacy21, nil)
+	newHash := rewriteTableCSV(t, bundle, "appointments", func(header []string, csvRows [][]string) [][]string {
+		si, ei := columnIndex(header, "start_time"), columnIndex(header, "end_time")
+		di, st := columnIndex(header, "doctor_id"), columnIndex(header, "status")
+		out := make([][]string, len(rows))
+		for i, tr := range rows {
+			r := append([]string(nil), csvRows[i%len(csvRows)]...)
+			r[si], r[ei], r[di], r[st] = tr[0], tr[1], "1000001", "confirmed"
+			r[columnIndex(header, "id")] = strconv.Itoa(1000001 + i)
+			out[i] = r
+		}
+		return out
+	})
+	return updateManifestEntry(t, bundle, "appointments", newHash, int64(len(rows)))
+}
+
+// TestCutoverAppointmentTimesRound3SourceFailuresNoPrefix stops known source errors before any legacy table write.
+func TestCutoverAppointmentTimesRound3SourceFailuresNoPrefix(t *testing.T) {
+	cases := []struct {
+		name   string
+		rows   [][2]string
+		epochs map[string]string
+		want   string
+	}{
+		{"malformed-pg", [][2]string{{"T0", "T1"}}, nil, "temporal preflight"},
+		{"reversed", [][2]string{{"T1", "T0"}}, map[string]string{"T0": "0", "T1": "1"}, "end_time"},
+		{"duplicate-start", [][2]string{{"T0", "T1"}, {"T0", "T1"}}, map[string]string{"T0": "0", "T1": "1"}, "start_time"},
+		{"overlap", [][2]string{{"T0", "T3"}, {"T1", "T2"}}, map[string]string{"T0": "0", "T1": "1", "T2": "2", "T3": "3"}, "start_time"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			bundle := appointmentTimeRound3Bundle(t, c.rows)
+			s := &appointmentTimeRound3Session{epochs: c.epochs}
+			_, err := applyCutoverCommittingEachTable(context.Background(), s, bundle, validCutoverSeeds(), pgx.RepeatableRead)
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("%s: error = %v, want %q", c.name, err, c.want)
+			}
+			if len(s.txs) != 1 {
+				t.Fatalf("txs = %d, want exactly 1 early source tx", len(s.txs))
+			}
+			tx := s.txs[0]
+			if tx.copyCalls != 0 || tx.committed || !tx.rolledBack ||
+				!reflect.DeepEqual(tx.events, []string{"begin", "epoch", "rollback"}) {
+				t.Fatalf("early tx must not copy/commit: copies=%d commit=%v", tx.copyCalls, tx.committed)
+			}
+		})
+	}
+}
+
+// TestCutoverAppointmentTimesRound3EarlyFailures preserves safe causes without beginning a write transaction.
+func TestCutoverAppointmentTimesRound3EarlyFailures(t *testing.T) {
+	for _, phase := range []string{"begin", "query"} {
+		t.Run(phase, func(t *testing.T) {
+			cause := errors.New("DRIVER_SOURCE_SECRET /private/path")
+			session := &appointmentTimeRound3Session{}
+			if phase == "begin" {
+				session.beginErr = cause
+			} else {
+				session.queryErr = cause
+			}
+			bundle := appointmentTimeBundle(t, CutoverProfileLegacy21, "confirmed",
+				"2026-07-22T00:00:00.000000Z", "2026-07-22T01:00:00.000000Z")
+			_, err := applyCutoverCommittingEachTable(context.Background(), session,
+				bundle, validCutoverSeeds(), pgx.RepeatableRead)
+			if !errors.Is(err, cause) || strings.Contains(err.Error(), "SECRET") ||
+				strings.Contains(err.Error(), "/private/path") {
+				t.Fatalf("cause not safely preserved: %v", err)
+			}
+			if len(session.events) != 1 {
+				t.Fatalf("write Begin after early failure: %v", session.events)
+			}
+			for _, tx := range session.txs {
+				if !tx.rolledBack || tx.copyCalls != 0 || tx.committed ||
+					!reflect.DeepEqual(tx.events, []string{"begin", "epoch", "rollback"}) {
+					t.Fatal("early query failure wrote or failed to roll back")
+				}
+			}
+		})
+	}
+}
+
+// TestCutoverAppointmentTimesRound3EarlySuccessAndRevalidation separates early parsing from locked COPY-time parsing.
+func TestCutoverAppointmentTimesRound3EarlySuccessAndRevalidation(t *testing.T) {
+	for _, reverseActual := range []bool{false, true} {
+		t.Run(strconv.FormatBool(reverseActual), func(t *testing.T) {
+			session := &appointmentTimeRound3Session{
+				epochs:        map[string]string{"2026-07-22T00:00:00.000000Z": "0", "2026-07-22T01:00:00.000000Z": "3600"},
+				reverseActual: reverseActual,
+			}
+			bundle := appointmentTimeBundle(t, CutoverProfileLegacy21, "confirmed",
+				"2026-07-22T00:00:00.000000Z", "2026-07-22T01:00:00.000000Z")
+			_, err := applyCutoverCommittingEachTable(context.Background(), session,
+				bundle, validCutoverSeeds(), pgx.RepeatableRead)
+			if reverseActual && (err == nil || !strings.Contains(err.Error(), "end_time")) || !reverseActual && err != nil {
+				t.Fatalf("actual revalidation reverse=%v error=%v", reverseActual, err)
+			}
+			early := session.txs[0]
+			if !reflect.DeepEqual(early.events, []string{"begin", "epoch", "rollback"}) ||
+				early.copyCalls != 0 || early.committed || !early.rolledBack {
+				t.Fatal("early transaction targeted or wrote appointments")
+			}
+			var actual *appointmentTimeFakeTx
+			for _, tx := range session.txs[1:] {
+				if len(tx.calls) > 0 {
+					if actual != nil {
+						t.Fatal("multiple actual appointment transactions")
+					}
+					actual = tx
+				}
+			}
+			if actual == nil {
+				t.Fatal("no fresh canonicalization in the appointments transaction")
+			}
+			if reverseActual {
+				if !reflect.DeepEqual(actual.events, []string{"begin", "lock", "epoch", "rollback"}) ||
+					actual.committed || actual.copyCalls != 0 {
+					t.Fatal("early canonical values were reused at COPY time")
+				}
+			} else {
+				appointmentTimeAssertTrace(t, actual, true)
+			}
+		})
+	}
+}
+
+// TestCutoverAppointmentTimesRound3CandidateKeepsSingleTransaction excludes the legacy source-only transaction from candidates.
+func TestCutoverAppointmentTimesRound3CandidateKeepsSingleTransaction(t *testing.T) {
+	session := &candidateFreshApplySession{}
+	bundle := targetUniqueApplyBundle(t, CutoverProfileMedicinesCandidate, nil)
+	_, err := applyCutoverCommittingEachTable(context.Background(), session, bundle, validCutoverSeeds(), pgx.RepeatableRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(session.txs) != 1 || !session.txs[0].committed || session.txs[0].copyCalls == 0 {
+		t.Fatal("candidate gained an extra source-only transaction")
+	}
 }

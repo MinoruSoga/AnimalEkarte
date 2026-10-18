@@ -44,6 +44,9 @@ func cutoverTargetUniqueContext(rule cutoverTargetUniqueRule) string {
 // validateCutoverTargetUniqueValues verifies the complete opened CSV before probing selected keys for seeds.ClinicID. It retains raw selected values and binds batches of at most 256; filtered-out rows still participate in hashing.
 func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, rule cutoverTargetUniqueRule) error {
 	context := cutoverTargetUniqueContext(rule)
+	if err := ctx.Err(); err != nil {
+		return &cutoverNamePreflightError{message: context + ": cancelled", cause: err}
+	}
 	table, err := cutoverManifestTableByName(bundle.Manifest, rule.table)
 	if err != nil {
 		return &cutoverNamePreflightError{message: context + ": manifest entry is missing", cause: err}
@@ -77,6 +80,9 @@ func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bu
 	defer func() { _ = f.Close() }()
 	hash := sha256.New()
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(io.LimitReader(f, maxCutoverCSVBytes+1), hash)))
+	if err := ctx.Err(); err != nil {
+		return &cutoverNamePreflightError{message: context + ": cancelled", cause: err}
+	}
 	header, err := reader.Read()
 	if err != nil {
 		return &cutoverNamePreflightError{message: context + ": source csv header is not readable", cause: err}
@@ -90,6 +96,9 @@ func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bu
 	var values []string
 	rowCount := int64(0)
 	for {
+		if err := ctx.Err(); err != nil {
+			return &cutoverNamePreflightError{message: context + ": cancelled", cause: err}
+		}
 		row, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
 			break
@@ -123,6 +132,9 @@ func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bu
 		return fmt.Errorf("%s: source csv sha256 does not match manifest", context)
 	}
 	for start := 0; start < len(values); start += cutoverMedicineNameBatchSize {
+		if err := ctx.Err(); err != nil {
+			return &cutoverNamePreflightError{message: context + ": cancelled", cause: err}
+		}
 		end := start + cutoverMedicineNameBatchSize
 		if end > len(values) {
 			end = len(values)

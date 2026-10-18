@@ -3,6 +3,7 @@ package csvimport
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -755,4 +756,102 @@ func (s *targetUniqueApplyErrSession) QueryRow(ctx context.Context, query string
 		}
 	}
 	return s.candidateFreshApplySession.QueryRow(ctx, query, args...)
+}
+
+// cancelledContext deterministically reports its cause after cancelAt Err() checks.
+type cancelledContext struct {
+	context.Context
+	checks   int
+	cancelAt int
+	cause    error
+}
+
+func (c *cancelledContext) Err() error {
+	c.checks++
+	if c.checks >= c.cancelAt {
+		return c.cause
+	}
+	return nil
+}
+
+func TestTargetUniqueCancelDuringScan(t *testing.T) {
+	bundle := targetUniqueApplyBundle(t, CutoverProfileLegacy21, func(f *fixtureBundle) {
+		setFixtureCell(t, f, "merchandise_items", "is_active", "false", CutoverProfileLegacy21)
+		for i := 0; i < 32; i++ {
+			addFixtureRow(t, f, "merchandise_items", fmt.Sprintf("%d", 1000030+i), map[string]string{
+				"name":      fmt.Sprintf("SOURCE_SECRET-%d", i),
+				"is_active": "false",
+			}, CutoverProfileLegacy21)
+		}
+	})
+	for _, cause := range []error{context.Canceled, context.DeadlineExceeded} {
+		t.Run(cause.Error(), func(t *testing.T) {
+			ctx := &cancelledContext{Context: context.Background(), cancelAt: 5, cause: cause}
+			r := &targetUniqueRecorder{}
+			err := validateCutoverTargetUniqueValues(ctx, r, bundle, validCutoverSeeds(), targetUniqueRuleByName(t, "merchandise-active-name"))
+			if !errors.Is(err, cause) {
+				t.Fatalf("err = %v, want errors.Is %v", err, cause)
+			}
+			if !strings.Contains(err.Error(), ": cancelled") {
+				t.Fatalf("missing fixed cancel context: %v", err)
+			}
+			if len(r.queries) != 0 {
+				t.Fatalf("queries ran during cancelled scan: %v", r.queries)
+			}
+			if ctx.checks != ctx.cancelAt {
+				t.Fatalf("checks = %d, want exactly %d (stop during read)", ctx.checks, ctx.cancelAt)
+			}
+		})
+	}
+}
+
+// TestTargetUniqueCancelBeforeOpen prefers the safe cancellation cause over opening a missing source.
+func TestTargetUniqueCancelBeforeOpen(t *testing.T) {
+	bundle := targetUniqueApplyBundle(t, CutoverProfileLegacy21, nil)
+	bundle.SourceDir = "/SOURCE_SECRET-missing"
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	recorder := &targetUniqueRecorder{}
+	err := validateCutoverTargetUniqueValues(ctx, recorder, bundle, validCutoverSeeds(), targetUniqueRuleByName(t, "owner-email"))
+	if !errors.Is(err, context.Canceled) || err.Error() != "table owners column email unique preflight: cancelled" ||
+		len(recorder.queries) != 0 {
+		t.Fatalf("pre-open cancellation = %v", err)
+	}
+}
+
+type targetUniqueCancelBatchQuerier struct {
+	t      *testing.T
+	cancel context.CancelFunc
+	calls  int
+}
+
+// QueryRow cancels only after the first explicitly matched batch, independently of driver cancellation behavior.
+func (q *targetUniqueCancelBatchQuerier) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
+	q.calls++
+	if query != targetUniqueExpectedOwnerEmailQuery || len(args) != 2 || len(args[1].([]string)) != 256 {
+		q.t.Fatal("unexpected query or batch after cancellation")
+	}
+	q.cancel()
+	return staticRow{values: []any{false}}
+}
+
+// TestTargetUniqueCancelBetweenBatches prevents a second query when the first successful batch cancels the context.
+func TestTargetUniqueCancelBetweenBatches(t *testing.T) {
+	bundle := targetUniqueApplyBundle(t, CutoverProfileLegacy21, nil)
+	digest := rewriteTableCSV(t, bundle, "owners", func(header []string, rows [][]string) [][]string {
+		out := make([][]string, 257)
+		for i := range out {
+			out[i] = append([]string(nil), rows[0]...)
+			out[i][columnIndex(header, "email")] = fmt.Sprintf("SOURCE_SECRET-%d@example.test", i)
+		}
+		return out
+	})
+	bundle = updateManifestEntry(t, bundle, "owners", digest, 257)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	q := &targetUniqueCancelBatchQuerier{t: t, cancel: cancel}
+	err := validateCutoverTargetUniqueValues(ctx, q, bundle, validCutoverSeeds(), targetUniqueRuleByName(t, "owner-email"))
+	if !errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "SOURCE_SECRET") || q.calls != 1 {
+		t.Fatalf("between-batch cancellation error=%v calls=%d", err, q.calls)
+	}
 }

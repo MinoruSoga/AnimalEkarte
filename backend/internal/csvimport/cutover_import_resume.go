@@ -207,6 +207,9 @@ func applyCutoverCommittingEachTable(
 	if err := validateCutoverUniqueMasterTargetNames(ctx, session, bundle, seeds, true); err != nil {
 		return CutoverResult{}, err
 	}
+	if err := validateCutoverAppointmentSourceBeforeWrite(ctx, session, bundle, iso); err != nil {
+		return CutoverResult{}, err
+	}
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
 	seenEmpty := false
 	for _, spec := range CutoverTableSpecs(bundle.Manifest.profile) {
@@ -251,6 +254,19 @@ func applyCutoverCommittingEachTable(
 		Counts:         counts,
 		ToleratedDrift: drift,
 	}, nil
+}
+
+// validateCutoverAppointmentSourceBeforeWrite runs the source-only appointment
+// temporal checks inside one read-only early transaction; no locks, target
+// collisions, COPY, or commit happen here.
+func validateCutoverAppointmentSourceBeforeWrite(ctx context.Context, session cutoverSession, bundle CutoverBundle, iso pgx.TxIsoLevel) error {
+	tx, err := session.Begin(ctx, iso)
+	if err != nil {
+		return &cutoverNamePreflightError{message: "table appointments temporal preflight: source transaction could not be started", cause: err}
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	_, err = validateCutoverAppointmentSourceTimes(ctx, tx, bundle)
+	return err
 }
 
 func importOneCutoverTable(

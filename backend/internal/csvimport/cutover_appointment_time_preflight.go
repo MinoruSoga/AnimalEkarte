@@ -93,13 +93,12 @@ type cutoverAppointmentRow struct {
 	eligible  bool
 }
 
-// validateCutoverAppointmentTimes checks appointment storage constraints using PostgreSQL parsing in the
-// locked COPY transaction. It permits historical empty ranges and preserves original timestamp cells.
-func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs) error {
+// validateCutoverAppointmentSourceTimes returns all canonical rows in CSV order after source-only checks; it does not query target appointments.
+func validateCutoverAppointmentSourceTimes(ctx context.Context, q cutoverQuerier, bundle CutoverBundle) ([]cutoverAppointmentRow, error) {
 	const context0 = "table appointments temporal preflight"
 	table, err := cutoverManifestTableByName(bundle.Manifest, "appointments")
 	if err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": manifest entry is missing", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": manifest entry is missing", cause: err}
 	}
 	var spec CutoverTableSpec
 	for _, c := range CutoverTableSpecs(bundle.Manifest.profile) {
@@ -109,46 +108,46 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 	}
 	resolved, err := resolveCutoverAccountCSV(cutoverCSVPath(bundle.SourceDir, table))
 	if err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": source csv path is not resolvable", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": source csv path is not resolvable", cause: err}
 	}
 	info, err := os.Lstat(resolved)
 	if err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": source csv is not inspectable", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": source csv is not inspectable", cause: err}
 	}
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return fmt.Errorf("%s: csv must be a regular file", context0)
+		return nil, fmt.Errorf("%s: csv must be a regular file", context0)
 	}
 	f, err := openStableOwnerOnlyFile(resolved)
 	if err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": source csv is not readable", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": source csv is not readable", cause: err}
 	}
 	defer func() { _ = f.Close() }()
 	hash := sha256.New()
 	limited := &io.LimitedReader{R: f, N: maxCutoverCSVBytes + 1}
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(limited, hash)))
 	if err := ctx.Err(); err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
 	}
 	header, err := reader.Read()
 	if err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": source csv header is not readable", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": source csv header is not readable", cause: err}
 	}
 	indexes, _, err := cutoverColumnIndexes(spec, header, rehearsalContractDrift(bundle.Manifest, bundle.Provenance.Mode))
 	if err != nil {
-		return &cutoverNamePreflightError{message: context0 + ": source csv header does not match the expected columns", cause: err}
+		return nil, &cutoverNamePreflightError{message: context0 + ": source csv header does not match the expected columns", cause: err}
 	}
 	var rows []cutoverAppointmentRow
 	rowCount := int64(0)
 	for {
 		if err := ctx.Err(); err != nil {
-			return &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
+			return nil, &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
 		}
 		row, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
 			break
 		}
 		if readErr != nil {
-			return &cutoverNamePreflightError{message: fmt.Sprintf("%s: source csv row %d is not parseable", context0, rowCount+2), cause: readErr}
+			return nil, &cutoverNamePreflightError{message: fmt.Sprintf("%s: source csv row %d is not parseable", context0, rowCount+2), cause: readErr}
 		}
 		rowCount++
 		dr := row[indexes["doctor_id"]]
@@ -156,20 +155,20 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 		if dr != "" {
 			n, perr := strconv.ParseInt(dr, 10, 64)
 			if perr != nil {
-				return &cutoverNamePreflightError{message: fmt.Sprintf("table appointments column doctor_id row %d: invalid staff id", rowCount+1), cause: perr}
+				return nil, &cutoverNamePreflightError{message: fmt.Sprintf("table appointments column doctor_id row %d: invalid staff id", rowCount+1), cause: perr}
 			}
 			doctor = strconv.FormatInt(n, 10)
 		}
 		rows = append(rows, cutoverAppointmentRow{line: rowCount + 1, doctor: doctor, status: row[indexes["status"]], startText: row[indexes["start_time"]], endText: row[indexes["end_time"]]})
 	}
 	if limited.N <= 0 {
-		return fmt.Errorf("%s: source csv exceeds size limit", context0)
+		return nil, fmt.Errorf("%s: source csv exceeds size limit", context0)
 	}
 	if rowCount != table.RowCount {
-		return fmt.Errorf("%s: source row count mismatch: got %d, want %d", context0, rowCount, table.RowCount)
+		return nil, fmt.Errorf("%s: source row count mismatch: got %d, want %d", context0, rowCount, table.RowCount)
 	}
 	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), table.SHA256) {
-		return fmt.Errorf("%s: source csv sha256 does not match manifest", context0)
+		return nil, fmt.Errorf("%s: source csv sha256 does not match manifest", context0)
 	}
 	starts := make([]string, len(rows))
 	ends := make([]string, len(rows))
@@ -179,7 +178,7 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 	var scanStart, scanEnd []string
 	for s := 0; s < len(rows); s += cutoverMedicineNameBatchSize {
 		if err := ctx.Err(); err != nil {
-			return &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
+			return nil, &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
 		}
 		e := s + cutoverMedicineNameBatchSize
 		if e > len(rows) {
@@ -187,26 +186,26 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 		}
 		var a, b []string
 		if err := q.QueryRow(ctx, cutoverAppointmentEpochQuery, starts[s:e], ends[s:e]).Scan(&a, &b); err != nil {
-			return &cutoverNamePreflightError{message: context0 + ": canonicalization failed", cause: err}
+			return nil, &cutoverNamePreflightError{message: context0 + ": canonicalization failed", cause: err}
 		}
 		if len(a) != e-s || len(b) != e-s {
-			return fmt.Errorf("%s: canonicalization returned wrong shape", context0)
+			return nil, fmt.Errorf("%s: canonicalization returned wrong shape", context0)
 		}
 		scanStart, scanEnd = append(scanStart, a...), append(scanEnd, b...)
 	}
 	for i := range rows {
 		if err := ctx.Err(); err != nil {
-			return &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
+			return nil, &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
 		}
 		var err error
 		if rows[i].start, err = parseCutoverAppointmentInstant(scanStart[i]); err != nil {
-			return &cutoverNamePreflightError{message: fmt.Sprintf("table appointments column start_time row %d: non-canonical instant", rows[i].line), cause: err}
+			return nil, &cutoverNamePreflightError{message: fmt.Sprintf("table appointments column start_time row %d: non-canonical instant", rows[i].line), cause: err}
 		}
 		if rows[i].end, err = parseCutoverAppointmentInstant(scanEnd[i]); err != nil {
-			return &cutoverNamePreflightError{message: fmt.Sprintf("table appointments column end_time row %d: non-canonical instant", rows[i].line), cause: err}
+			return nil, &cutoverNamePreflightError{message: fmt.Sprintf("table appointments column end_time row %d: non-canonical instant", rows[i].line), cause: err}
 		}
 		if rows[i].end.cmp(rows[i].start) < 0 {
-			return fmt.Errorf("table appointments column end_time row %d: end precedes start", rows[i].line)
+			return nil, fmt.Errorf("table appointments column end_time row %d: end precedes start", rows[i].line)
 		}
 		rows[i].eligible = rows[i].status != "" && rows[i].status != "cancelled" && rows[i].doctor != ""
 	}
@@ -221,7 +220,7 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 			seen[r.doctor] = m
 		}
 		if prev, dup := m[r.start.identity()]; dup {
-			return fmt.Errorf("table appointments column start_time row %d: duplicates row %d for the same doctor", r.line, prev)
+			return nil, fmt.Errorf("table appointments column start_time row %d: duplicates row %d for the same doctor", r.line, prev)
 		}
 		m[r.start.identity()] = r.line
 	}
@@ -237,7 +236,7 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 	}
 	for _, rs := range groups {
 		if err := ctx.Err(); err != nil {
-			return &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
+			return nil, &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
 		}
 		sort.Slice(rs, func(i, j int) bool {
 			if c := rs[i].start.cmp(rs[j].start); c != 0 {
@@ -251,12 +250,32 @@ func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bund
 		var maxEnd *cutoverAppointmentInstant
 		for _, r := range rs {
 			if maxEnd != nil && r.end.cmp(r.start) > 0 && r.start.cmp(*maxEnd) < 0 {
-				return fmt.Errorf("table appointments column start_time row %d: overlaps a prior appointment for the same doctor", r.line)
+				return nil, fmt.Errorf("table appointments column start_time row %d: overlaps a prior appointment for the same doctor", r.line)
 			}
 			if r.end.cmp(r.start) > 0 && (maxEnd == nil || r.end.cmp(*maxEnd) > 0) {
 				e := r.end
 				maxEnd = &e
 			}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, &cutoverNamePreflightError{message: context0 + ": cancelled", cause: err}
+	}
+	return rows, nil
+}
+
+// validateCutoverAppointmentTimes checks appointment storage constraints using PostgreSQL parsing in the
+// locked COPY transaction. It permits historical empty ranges and preserves original timestamp cells.
+func validateCutoverAppointmentTimes(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs) error {
+	const context0 = "table appointments temporal preflight"
+	rows, err := validateCutoverAppointmentSourceTimes(ctx, q, bundle)
+	if err != nil {
+		return err
+	}
+	eligible := make([]cutoverAppointmentRow, 0, len(rows))
+	for _, r := range rows {
+		if r.eligible {
+			eligible = append(eligible, r)
 		}
 	}
 	if err := ctx.Err(); err != nil {
