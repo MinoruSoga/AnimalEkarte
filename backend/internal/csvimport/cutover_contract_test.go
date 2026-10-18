@@ -1223,10 +1223,15 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "merchandise_items" {
 					row[i] = "true"
 				}
+				if spec.Name == "staffs" || spec.Name == "procedures" || spec.Name == "vaccines" {
+					row[i] = "true"
+				}
 			case "is_non_insurance":
 				if spec.Name == "medicines" {
 					row[i] = "f"
 				}
+			case "reservation_visible", "is_surgery", "is_dangerous":
+				row[i] = "false"
 			case "name":
 				// The candidate synthetic bundle needs a non-blank
 				// medicines name: blank source names are needs_review

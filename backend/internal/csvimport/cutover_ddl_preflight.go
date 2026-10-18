@@ -69,6 +69,22 @@ var cutoverDDLRequiredColumns = map[string][]string{
 	"appointment_trimming_details": {"appointment_id"},
 }
 
+type cutoverDDLBooleanRule struct {
+	column   string
+	nullable bool
+}
+
+var cutoverDDLBooleanColumns = map[string][]cutoverDDLBooleanRule{
+	"staffs":            {{"is_active", false}, {"reservation_visible", false}},
+	"procedures":        {{"is_active", false}, {"is_surgery", false}},
+	"medicines":         {{"is_active", false}, {"is_non_insurance", false}},
+	"merchandise_items": {{"is_active", false}},
+	"owners":            {{"is_dangerous", false}, {"dm_preference", true}},
+	"billing_items":     {{"is_insurance_applicable", true}},
+	"estimate_items":    {{"is_insurance_applicable", true}},
+	"vaccines":          {{"is_active", false}},
+}
+
 var cutoverKanaColumns = map[string][]string{
 	"owners": {"name_kana"},
 	"pets":   {"name_kana"},
@@ -112,9 +128,13 @@ func validateCutoverDDLRow(spec CutoverTableSpec, row []string, indexes map[stri
 			return err
 		}
 	}
-	if spec.Name == "merchandise_items" {
-		if _, ok := cutoverPGBoolean(row[indexes["is_active"]]); !ok {
-			return fmt.Errorf("table %s column is_active row %d: value must be a boolean literal", spec.Name, csvLine)
+	for _, rule := range cutoverDDLBooleanColumns[spec.Name] {
+		value := row[indexes[rule.column]]
+		if value == "" && rule.nullable {
+			continue
+		}
+		if _, ok := cutoverPGBoolean(value); !ok {
+			return fmt.Errorf("table %s column %s row %d: value must be a boolean literal", spec.Name, rule.column, csvLine)
 		}
 	}
 	return nil
