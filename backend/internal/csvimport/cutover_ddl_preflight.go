@@ -413,24 +413,8 @@ func (state *cutoverUniqueState) check(spec CutoverTableSpec, row []string, inde
 	return nil
 }
 
-var cutoverPetOwnerPairTables = map[string]struct{}{
-	"appointments": {}, "medical_records": {}, "billings": {}, "estimates": {},
-}
-
 var cutoverRecordPetPairTables = map[string]struct{}{
 	"vital_records": {}, "exams": {}, "vaccinations": {},
-}
-
-func validateCutoverPetOwnerPair(table string, row []string, indexes map[string]int, petOwners map[uint64]uint64, csvLine int64) error {
-	ownerID, okOwner := cutoverReferenceID(row[indexes["owner_id"]])
-	petID, okPet := cutoverReferenceID(row[indexes["pet_id"]])
-	if !okOwner || !okPet {
-		return nil
-	}
-	if petOwners[petID] != ownerID {
-		return fmt.Errorf("table %s column pet_id row %d: pet does not belong to the referenced owner", table, csvLine)
-	}
-	return nil
 }
 
 func validateCutoverRecordPetPair(table string, row []string, indexes map[string]int, recordPets map[uint64]*uint64, csvLine int64) error {

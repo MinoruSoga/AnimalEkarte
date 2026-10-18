@@ -93,7 +93,6 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 		return err
 	}
 	parents := make(map[string]map[uint64]struct{})
-	petOwners := make(map[uint64]uint64)
 	recordPets := make(map[uint64]*uint64)
 	saleMasterOwners := make(map[uint64]string)
 	candidateSaleMasters := manifest.profile == CutoverProfileMedicinesCandidate
@@ -146,13 +145,6 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 					return err
 				}
 			}
-			if spec.Name == "pets" {
-				if id, ok := cutoverReferenceID(row[indexes["id"]]); ok {
-					if ownerID, ok := cutoverReferenceID(row[indexes["owner_id"]]); ok {
-						petOwners[id] = ownerID
-					}
-				}
-			}
 			if spec.Name == "medical_records" {
 				if id, ok := cutoverReferenceID(row[indexes["id"]]); ok {
 					var petID *uint64
@@ -160,11 +152,6 @@ func validateCutoverReferenceGraph(sourceDir string, manifest CutoverManifest, a
 						petID = &pet
 					}
 					recordPets[id] = petID
-				}
-			}
-			if _, pairs := cutoverPetOwnerPairTables[spec.Name]; pairs {
-				if err := validateCutoverPetOwnerPair(spec.Name, row, indexes, petOwners, csvLine); err != nil {
-					return err
 				}
 			}
 			if _, pairs := cutoverRecordPetPairTables[spec.Name]; pairs {

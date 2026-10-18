@@ -394,19 +394,15 @@ func TestPreflightCutoverTentativePetUnique(t *testing.T) {
 	}
 }
 
-func TestPreflightCutoverPetOwnerPairing(t *testing.T) {
+func TestPreflightCutoverPetOwnerHistoryPreserved(t *testing.T) {
 	for _, table := range []string{"appointments", "medical_records", "billings", "estimates"} {
-		t.Run(table+"-mismatch", func(t *testing.T) {
+		t.Run(table+"-transferred-owner-preserved", func(t *testing.T) {
 			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 				addFixtureRow(t, f, "owners", "300002", nil)
 				setFixtureCell(t, f, table, "owner_id", "300002")
 			})
-			_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
-			if err == nil || !strings.Contains(err.Error(), "pet does not belong to the referenced owner") {
-				t.Fatalf("owner/pet mismatch in %s accepted: %v", table, err)
-			}
-			if err != nil && !strings.Contains(err.Error(), "table "+table+" ") {
-				t.Fatalf("mismatch diagnostic names wrong table: %v", err)
+			if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
+				t.Fatalf("historical snapshot owner in %s rejected: %v", table, err)
 			}
 		})
 		t.Run(table+"-null-owner", func(t *testing.T) {
@@ -431,6 +427,59 @@ func TestPreflightCutoverPetOwnerPairing(t *testing.T) {
 			}
 		})
 	}
+	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
+		t.Run("independent-snapshots-"+string(profile), func(t *testing.T) {
+			mutate := func(f *fixtureBundle) {
+				addFixtureRow(t, f, "owners", "300002", nil, profile)
+				addFixtureRow(t, f, "owners", "300003", nil, profile)
+				setFixtureCell(t, f, "pets", "owner_id", "300003", profile)
+				setFixtureCell(t, f, "medical_records", "owner_id", "300001", profile)
+				setFixtureCell(t, f, "billings", "owner_id", "300002", profile)
+				setFixtureCell(t, f, "estimates", "owner_id", "300001", profile)
+				setFixtureCell(t, f, "appointments", "owner_id", "300002", profile)
+				setFixtureCell(t, f, "appointments", "status", "tentative", profile)
+				for _, table := range []string{"appointments", "medical_records", "billings", "estimates"} {
+					setFixtureCell(t, f, table, "pet_id", "1000001", profile)
+				}
+			}
+			var dir, digest string
+			var source ExpectedCutoverSource
+			if profile == CutoverProfileMedicinesCandidate {
+				dir, digest = writeMedicinesCandidateFixture(t, mutate)
+				source = candidateExpectedSource(digest)
+			} else {
+				dir, digest = writeCutoverFixture(t, mutate, profile)
+				source = referenceFixtureSource(digest)
+			}
+			if _, err := PreflightCutoverBundle(dir, source); err != nil {
+				t.Fatalf("independent historical snapshots rejected under %s: %v", profile, err)
+			}
+		})
+	}
+	t.Run("tentative-stale-owner-preserved", func(t *testing.T) {
+		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			addFixtureRow(t, f, "owners", "300002", nil)
+			setFixtureCell(t, f, "appointments", "status", "tentative")
+			setFixtureCell(t, f, "appointments", "owner_id", "300002")
+		})
+		if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
+			t.Fatalf("tentative appointment with stale snapshot owner rejected: %v", err)
+		}
+	})
+	t.Run("tentative-duplicate-pet-regardless-of-snapshot", func(t *testing.T) {
+		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+			addFixtureRow(t, f, "owners", "300002", nil)
+			setFixtureCell(t, f, "appointments", "status", "tentative")
+			setFixtureCell(t, f, "appointments", "owner_id", "300002")
+			addFixtureRow(t, f, "appointments", "1000002", map[string]string{
+				"status": "tentative", "pet_id": "1000001", "owner_id": "300001",
+			})
+		})
+		_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
+		if err == nil || !strings.Contains(err.Error(), "duplicate tentative appointment") {
+			t.Fatalf("duplicate tentative pet accepted or wrong diagnostic: %v", err)
+		}
+	})
 }
 
 func TestPreflightCutoverPairingDistinctFromAbsentParent(t *testing.T) {
@@ -567,13 +616,13 @@ func TestPreflightCutoverDDLBundleWiringBothProfiles(t *testing.T) {
 			t.Fatal("invalid quantity accepted in candidate profile")
 		}
 	})
-	t.Run("candidate-pairing", func(t *testing.T) {
-		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+	t.Run("candidate-history-preserved", func(t *testing.T) {
+		dir, digest := writeMedicinesCandidateFixture(t, func(f *fixtureBundle) {
 			addFixtureRow(t, f, "owners", "300002", nil, CutoverProfileMedicinesCandidate)
 			setFixtureCell(t, f, "appointments", "owner_id", "300002", CutoverProfileMedicinesCandidate)
-		}, CutoverProfileMedicinesCandidate)
-		if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err == nil {
-			t.Fatal("owner/pet mismatch accepted in candidate profile")
+		})
+		if _, err := PreflightCutoverBundle(dir, candidateExpectedSource(digest)); err != nil {
+			t.Fatalf("historical snapshot owner rejected in candidate profile: %v", err)
 		}
 	})
 	t.Run("candidate-procedures-name-unique", func(t *testing.T) {
