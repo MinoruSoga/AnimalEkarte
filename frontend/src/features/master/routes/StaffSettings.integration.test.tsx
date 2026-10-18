@@ -62,6 +62,10 @@ vi.mock("../api/staffs", () => ({
 }));
 
 vi.mock("@/hooks/use-auth", () => ({
+  /**
+   * 制御可能な権限チェックの差し替え。実認証を介さず、
+   * 権限の剥奪・付与をテストからモデル化する。
+   */
   useAuth: () => ({
     user: { isSystemAdmin: false },
     currentClinicId: "1",
@@ -75,6 +79,10 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
+/**
+ * 合成した完全なクリニック内スタッフフィクスチャを返す。
+ * ID・氏名などはオーバーライド可能。実在データは含まない。
+ */
 function makeStaff(overrides: Partial<Staff> = {}): Staff {
   return {
     id: "1",
@@ -162,6 +170,10 @@ const RESERVATION_TYPES: ReservationType[] = [
 ];
 
 vi.mock("../hooks/use-staff-settings-lookups", () => ({
+  /**
+   * 合成の一覧・関連マスタのみを供給する。
+   * 実際の親子保存オーケストレーションはそのまま残す。
+   */
   useStaffSettingsLookups: () => ({
     data: STAFFS,
     allOccupations: [],
@@ -179,6 +191,10 @@ interface Deferred<T> {
   reject: (reason?: unknown) => void;
 }
 
+/**
+ * 外部から解決を制御できる deferred Promise。
+ * 基本保存・関連付けの pending/失敗/順不同解決をモデル化する。
+ */
 function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
@@ -218,6 +234,10 @@ const ASSOCIATION_EXPECTED_IDS: Record<AssociationKey, string[]> = {
   capable: ["100"],
 };
 
+/**
+ * 旧 mutate と現 mutateAsync 両方のスパイ呼び出しを合算する。
+ * 移行期に「書き込み無し」の誤判定を防ぐ。
+ */
 function associationCalls(key: AssociationKey): unknown[][] {
   const mocks = ASSOCIATION_MOCKS[key];
   return [...mocks.mutate().mock.calls, ...mocks.mutateAsync().mock.calls];
@@ -226,6 +246,10 @@ function associationCalls(key: AssociationKey): unknown[][] {
 let pendingAssoc: Deferred<unknown> | null = null;
 let basicUpdate: Deferred<Staff> | null = null;
 
+/**
+ * 指定した関連付けだけを pending に残し、他は即時 settle させる。
+ * コールバック経路と Promise 経路の両方をモデル化する。
+ */
 function installAssociationMutate(target: AssociationKey | null) {
   for (const key of Object.keys(ASSOCIATION_MOCKS) as AssociationKey[]) {
     const mocks = ASSOCIATION_MOCKS[key];
@@ -254,6 +278,10 @@ function installAssociationMutate(target: AssociationKey | null) {
   }
 }
 
+/**
+ * この spec の合成 I/O の下で、実際の StaffSettings/StaffSidePanel を
+ * メモリルーターで描画する。HTTP/バックエンドは張らない。
+ */
 function renderPage() {
   const router = createMemoryRouter([{ path: "*", element: <StaffSettings /> }], {
     initialEntries: ["/"],
@@ -262,25 +290,48 @@ function renderPage() {
   return { router, ...utils };
 }
 
+/**
+ * アクセシブルな詳細ボタンラベルに一致する名前を返す。
+ * 同名スタッフは ID で区別する。
+ */
 const rowButtonName = (staff: Staff) => `詳細: スタッフ ${staff.name} (ID ${staff.id})`;
 
+/**
+ * 実際の行を開き、タイトル入力がマウントされるまで待つ。
+ */
 async function openRow(user: ReturnType<typeof userEvent.setup>, staff: Staff) {
   await user.click(await screen.findByRole("button", { name: rowButtonName(staff) }));
   await waitFor(() => expect(document.getElementById("master-title")).not.toBeNull());
 }
 
+/**
+ * 実際のユーザーイベントでタイトルを編集し、dirty/編集バージョンを発生させる。
+ * DOM 値の直接代入はしない。
+ */
 async function editTitle(user: ReturnType<typeof userEvent.setup>, value: string) {
   const title = document.getElementById("master-title") as HTMLInputElement;
   await user.clear(title);
   await user.type(title, value);
 }
 
+/**
+ * 実際のフッターの SUBMIT（ネイティブ form action）で保存を実行する。
+ * コールバックの直接呼び出しはしない。
+ */
 async function clickSave(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "保存" }));
 }
 
+/**
+ * タイトル入力の DOM 存在をパネルの開放状態として観察する。
+ * レイアウト上の見え方の主張ではない。
+ */
 const panelOpen = () => document.getElementById("master-title") !== null;
 
+/**
+ * クローズ要求の発火だけでなく、タイトル入力が消えるまで待ってから
+ * 次のエディタを開けるようにする。
+ */
 async function waitPanelClosed() {
   await waitFor(() => expect(document.getElementById("master-title")).toBeNull());
 }

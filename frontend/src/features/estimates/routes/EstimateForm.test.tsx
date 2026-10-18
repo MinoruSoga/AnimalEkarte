@@ -589,6 +589,10 @@ describe("EstimateForm deceased pet gate (deceasedAt)", () => {
 });
 
 describe("EstimateForm page width (EMR-400)", () => {
+  /**
+   * status が undefined ならネットワーク断を、定義済みなら合成 HTTP エラーを返す。
+   * 実ネットワークには接続しない。
+   */
   function axiosError(status: number | undefined) {
     const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
     if (status === undefined) {
@@ -603,6 +607,10 @@ describe("EstimateForm page width (EMR-400)", () => {
     });
   }
 
+  /**
+   * jsdom 内でクラス文字列の存在を観察するヘルパ。
+   * ブラウザの computed CSS や実寸法を測るものではない。
+   */
   const hasWidthClass = (container: HTMLElement, cls: string) =>
     Array.from(container.querySelectorAll("*")).some((el) => el.classList.contains(cls));
 

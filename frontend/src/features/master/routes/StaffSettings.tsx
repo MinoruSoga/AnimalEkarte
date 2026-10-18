@@ -48,6 +48,10 @@ const COLUMNS = [
   },
 ];
 
+/**
+ * CRUD と権限チェック済みの関連付けコールバックを子パネルへ束ねる。
+ * 同期 dirty クリーンアップ・完了通知・クローズは子パネル側が担う。
+ */
 export function StaffSettings() {
   const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterStaff);
   const { canEdit: canEditPermission } = usePermission(ResourceMasterPermission);
@@ -110,6 +114,10 @@ export function StaffSettings() {
     associationPermissionsRef.current = { canEdit, canEditPermission };
   }, [canEdit, canEditPermission]);
 
+  /**
+   * 書き込み直前に最新権限を再確認する（権限グループは staff-edit AND permission-edit の両方が必要）。
+   * 拒否または失敗は false を返し、後続の保存を未完のまま止める。
+   */
   const handleSaveGroups = useCallback(
     async (staffId: string, groupIds: string[]) => {
       const current = associationPermissionsRef.current;
@@ -127,6 +135,10 @@ export function StaffSettings() {
     [setGroupsAsync],
   );
 
+  /**
+   * 書き込み直前に最新の staff-edit 権限を再確認する。
+   * 拒否または失敗は false を返し、後続の保存を未完のまま止める。
+   */
   const handleSaveClinics = useCallback(
     async (staffId: string, clinicIds: string[]) => {
       if (!associationPermissionsRef.current.canEdit) {
@@ -143,6 +155,10 @@ export function StaffSettings() {
     [setClinicsAsync],
   );
 
+  /**
+   * 書き込み直前に最新の staff-edit 権限を再確認する。
+   * 拒否または失敗は false を返し、後続の保存を未完のまま止める。
+   */
   const handleSaveCapableReservationTypes = useCallback(
     async (staffId: string, reservationTypeIds: string[]) => {
       if (!associationPermissionsRef.current.canEdit) {

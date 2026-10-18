@@ -78,10 +78,13 @@ vi.mock("../api/staffs", () => ({
   useUpdateStaff: () => ({ mutateAsync: mockUpdateMutate }),
   useAttachStaffAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteStaff: () => ({ mutate: vi.fn() }),
+  /** mutateAsync await 経路と旧 mutate 経路を同一スパイで観測し、権限境界の書き込みを捕捉する。 */
   useUpdateStaffClinics: () => ({ mutate: mockSetClinics, mutateAsync: mockSetClinics }),
   useGetClinicsList: () => ({ data: [] }),
   useGetAllStaffPermissionGroupMap: () => ({ data: new Map() }),
+  /** mutateAsync await 経路と旧 mutate 経路をそれぞれ別 vi.fn で観測し、権限境界の書き込みを捕捉する。 */
   useUpdateStaffCapableReservationTypes: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+  /** mutateAsync await 経路と旧 mutate 経路を同一スパイで観測し、権限境界の書き込みを捕捉する。 */
   useUpdateStaffPermissionGroups: () => ({ mutate: mockSetGroups, mutateAsync: mockSetGroups }),
 }));
 

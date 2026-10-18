@@ -54,6 +54,11 @@ interface StaffSidePanelProps {
   ) => Promise<boolean>;
 }
 
+/**
+ * 作成成功の ID をこのマウント内で採用し、ドラフト全体を再初期化したり React key を切り替えたりしない。
+ * 送信時と一致するパスワードだけは採用時にクリアする。
+ * 採用後の更新可否は、新規モードの作成権限ではなく、その時点の最新の編集権限で判定する。
+ */
 export const StaffSidePanel = memo(function StaffSidePanel({
   item,
   onClose,
@@ -95,6 +100,9 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
+  /**
+   * 編集バージョンを進め、親の未保存破棄ガードを次の描画を待たずに同期で有効化する。
+   */
   const markDirty = useCallback(() => {
     editVersionRef.current += 1;
     setIsDirty(true);
@@ -134,6 +142,9 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     handleToggle: handleCapabilityToggle,
   } = useEditableIdSelection({ serverIds: serverCapableIds, markDirty });
 
+  /**
+   * ID の順序と重複を無視して集合を比較し、関連先が同じなら不要な更新を避ける。
+   */
   const setsEqual = useCallback((a: string[], b: string[]) => {
     const setA = new Set(a);
     const setB = new Set(b);
@@ -144,6 +155,13 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     return true;
   }, []);
 
+  /**
+   * 基本保存を await してから、変更された関連付けのみを順次書き込む。
+   * 部分失敗時は dirty 状態を保持し、完了済みの書き込みはロールバックしない。
+   * 観測された新規作成エンティティは新しいドラフトがあっても採用するが、
+   * dirty 解除とクローズは同じ編集バージョンかつマウント済みの場合のみ行う。
+   * 未観測のネットワーク結果に対する冪等性は保証しない。
+   */
   const runSaveSequence = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("氏名を入力してください");
@@ -218,6 +236,10 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     onClose,
   ]);
 
+  /**
+   * pending 表示は React 19 のネイティブ form action に委ねる。
+   * 同時実行の再入はローカル inflight ガードで拒否する。
+   */
   const [, formAction, isPending] = useActionState(async (_previous: null, _formData: FormData) => {
     if (savingRef.current) return null;
     savingRef.current = true;
@@ -239,6 +261,9 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     [setFormDataDirty],
   );
 
+  /**
+   * ここで dirty をクリアしない。閉じる/破棄確認は親の既存ガードに委譲する。
+   */
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);

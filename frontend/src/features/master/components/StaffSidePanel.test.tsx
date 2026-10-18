@@ -17,6 +17,10 @@ let capturedPanelProps: {
   titlePlaceholder?: string;
 } | null = null;
 vi.mock("@/components/shared/SidePeek", () => ({
+  /**
+   * 実際のネイティブ <form action> + submit を使う薄いモック。
+   * React 19 の pending 状態を維持し、使われなくなった onSave 直接呼び出し経路を排除する。
+   */
   MasterSidePanel: (props: {
     children: ReactNode;
     action?: (formData: FormData) => void;
@@ -105,6 +109,10 @@ const TYPES = [
   reservationType({ id: "2", name: "シャンプー", category: "trimming" }),
 ];
 
+/**
+ * パネルを描画する。関連付けスパイは await 可能な真偽値成功契約を観測可能に保ち、
+ * 合成のマスタ/対応区分フィクスチャを使う。
+ */
 function renderPanel({
   item = makeStaff(),
   onSave = vi.fn(async () => true),

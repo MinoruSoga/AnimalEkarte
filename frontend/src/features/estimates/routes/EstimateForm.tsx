@@ -28,6 +28,11 @@ import {
 import { AmountSection, BasicInfoSection, TextSection } from "../components/EstimateFormSections";
 import { EstimateItemsEditor } from "../components/EstimateItemsEditor";
 
+/**
+ * 通常入力とデータ取得待ち・取得失敗の PageLayout を同じ formNarrow 幅に揃える。
+ * 非公開などの読み取り状態は新規フォームではなく既存のフォールバックを返す。
+ * 編集不可ステータスで詳細へリダイレクトする間の表示は、この幅揃えの対象外。
+ */
 function EstimateFormContent({ id }: { id?: string }) {
   const navigate = useNavigate();
   // BUG-019: mode from route param; found state from classified read result

@@ -493,6 +493,10 @@ describe("useMasterSave showSuccessToast / closeOnSuccess (EMR-403)", () => {
     vi.clearAllMocks();
   });
 
+  /**
+   * CREATE が即時成功するハーネス。オプション既定値の検証用であり、
+   * すべての UPDATE が自動成功するわけではない。
+   */
   function buildSave(
     options: { showSuccessToast?: boolean; closeOnSuccess?: boolean },
     editTarget: TestEntity | "new" | null = null,
@@ -564,6 +568,10 @@ describe("useMasterSave handleSaveWithResult (review-702)", () => {
     vi.clearAllMocks();
   });
 
+  /**
+   * 呼び出しごとの create/update 完了コールバックを捕捉する。
+   * 解決順序や失敗は各テストが制御し、自動的には settle しない。
+   */
   function buildResultSave(
     options: { showSuccessToast?: boolean; closeOnSuccess?: boolean } = {},
     editTarget: TestEntity | "new" | null = null,

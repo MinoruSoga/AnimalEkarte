@@ -51,6 +51,12 @@ interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> 
 // Hook
 // ─────────────────────────────────────────────────
 
+/**
+ * Validates the form, enforces the latest live action permissions at the
+ * mutation boundary, and performs the create/update mutation.
+ * Returns an entity-aware result method plus the legacy Boolean save method;
+ * callers may own notification and close behavior via options.
+ */
 export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   crud,
   createMutation,
@@ -88,6 +94,15 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   const { mutateAsync: createAsync } = createMutation;
   const { mutateAsync: updateAsync } = updateMutation;
 
+  /**
+   * Saves and returns the persisted entity for this invocation.
+   * The optional targetId overrides the CRUD edit target for this call only,
+   * selecting both the mutation and the latest permission gate without
+   * changing crud.editTarget. Returns the entity after onSuccess, or null on
+   * validation error, permission denial, transition start failure, mutation
+   * rejection, or post-save failure. An unobserved response carries no
+   * idempotency guarantee.
+   */
   const handleSaveWithResult = useCallback(
     async (data: TForm, targetId?: string): Promise<T | null> => {
       const error = validate(data);
@@ -110,6 +125,12 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
         const isUpdate = effectiveTargetId !== null;
         const actionLabel = isUpdate ? "更新" : "登録";
 
+        /**
+         * Awaits the mutation and the post-save hook, then performs the
+         * optional notification/close and settles this invocation's outer
+         * promise — not any global last result. API errors are already
+         * notified by the mutation hooks and are not toasted twice.
+         */
         const save = async () => {
           let saved: T;
           try {
@@ -168,6 +189,10 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
     ],
   );
 
+  /**
+   * Legacy Boolean compatibility wrapper. Identity-aware callers should use
+   * handleSaveWithResult instead.
+   */
   const handleSave = useCallback(
     async (data: TForm): Promise<boolean> => {
       return Boolean(await handleSaveWithResult(data));
