@@ -141,7 +141,7 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 
 | FR ID | AC ID（全件・一意） | 技術対応 |
 |:---|:---|:---|
-| FR-trimming-reservation-and-detail | AC-trimming-existing-reservation / AC-trimming-duplicate-detail / AC-trimming-direct-time | reservation intent／detail・options・監査同一tx |
+| FR-trimming-reservation-and-detail | AC-trimming-existing-reservation / AC-trimming-duplicate-detail / AC-trimming-direct-time / AC-trimming-reservation-duration-source / AC-trimming-partner-record-shortcut | reservation intent／detail・options・監査同一tx。予約採用時間と選択変更の再計算は予約正本へ接続。相方記録は同日同一ペットの既存対象へ遷移し、なければ現在認可・受付接続条件を満たす既存作成経路を使う。日付一致だけで別記録を推測作成しない |
 | FR-trimming-input-master-history | AC-trimming-new-required / AC-trimming-save-undecided-staff / AC-trimming-save-undecided-course / AC-trimming-save-undecided-both / AC-trimming-undecided-resume / AC-trimming-undecided-scope / AC-trimming-inactive-master / AC-trimming-history-copy / AC-trimming-size-pricing / AC-trimming-course-category-ui | 未定の途中保存／既存対象再開／終了時の実担当・施術内容との分離・有効master／既存無効保持・履歴copy対象限定 |
 | FR-trimming-safety-and-status | AC-trimming-deceased-loading / AC-trimming-deceased-history / AC-trimming-context-result / AC-trimming-stale-update / AC-trimming-start-consulting-column / AC-trimming-form-end-waiting / AC-trimming-end-no-finalization / AC-trimming-end-failure-replay / AC-trimming-end-actual-performer / AC-trimming-end-performed-content / AC-trimming-end-option-without-course / AC-trimming-end-current-record / AC-trimming-end-condition-boundary | 現在患者／新たな施術拒否・死亡状態保持の生前分専用記録／状態・版・[終了時実担当／施術内容](#trimming-end-performance-contract) |
 | FR-trimming-image-lifecycle | AC-trimming-image-inflight / AC-trimming-image-failure / AC-trimming-image-clear / AC-trimming-image-race / AC-trimming-image-cross-clinic / AC-trimming-image-only-dirty / AC-trimming-image-original-retention | 正規key lock／参照・原本保持・送信済key保護 |
@@ -150,7 +150,7 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
 | FR-trimming-zero-performance-abort | AC-trimming-zero-abort-record / AC-trimming-zero-abort-charge / AC-trimming-zero-abort-no-charge / AC-trimming-zero-abort-existing-money / AC-trimming-zero-abort-performed-excluded / AC-trimming-zero-abort-failure | 実施なし・中止理由／スタッフ請求判断・通常終了との分離／既存金銭・他診療保護／同一対象・版・結果照合 |
 
-AC prefixはAC-trimming-。FR8件／AC53件（既存47件＋実施なし中止6件）と既存画面・master2件、現在の型／保存／画像・原子性・他owner境界を整理した文書範囲。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。実施なし中止の後続差分は新基準headへ統合し、独立内容・構造レビューで重大指摘0、8FR／53ACの技術trace一致を確認した。公開先本文一致は別途確認する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時間採用/相方記録2件）の追跡範囲で、既存画面・master2件、型／保存／画像・原子性・他owner境界を整理する。下記8FR／53AC一致はその追加前の検査履歴であり現在件数ではない。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。実施なし中止の後続差分は新基準headへ統合し、独立内容・構造レビューで重大指摘0、8FR／53ACの技術trace一致を確認した。公開先本文一致は別途確認する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界

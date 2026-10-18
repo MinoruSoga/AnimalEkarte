@@ -272,7 +272,7 @@
 | AC-medical-records-copy-select | 問診／治療明細がある過去カルテ | 対象を選び複写 | 選択対象だけ今回入力に適用し元記録は不変 | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-selective-history-copy)。実機未確認 |
 | AC-medical-records-copy-overwrite-cancel | 問診に既存入力あり | 上書き確認を取り消す | 現在入力を保持し上書きしない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-selective-history-copy)。実機未確認 |
 | AC-medical-records-copy-current-price | 過去明細と今回有効masterの価格が異なる | 治療明細を複写 | 新明細は今回価格、元の当時価格は保持 | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-selective-history-copy)。実機未確認 |
-| AC-medical-records-copy-invalid-master | 複写対象が無効／対応masterなし | 複写を適用 | 知らせて再選択し、旧価格fallbackで新規保存しない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-selective-history-copy)。実機未確認 |
+| AC-medical-records-copy-invalid-master | マスタ参照が必要な複写対象で、参照が無効／欠落／取得不能／不一致 | 複写を適用し、正規の手入力その他行の複写と比較する | 前者は知らせて再選択／拒否し、旧価格fallbackやその他行への読み替えで保存しない。元々マスタ参照を持たない定義済み手入力その他行の元単価継承は別契約として維持する | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-selective-history-copy)。実機未確認 |
 | AC-medical-records-copy-partial-failure | 逐次保存で一部成功・後続失敗／不明 | 結果を確認して再試行 | 成功済みを保持・照合し重複作成しない、全件rollbackへ変えない | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-selective-history-copy)。実機未確認 |
 | AC-medical-records-template-append | 問診に入力あり | templateを手動選択して追記 | 既存入力を保ち未保存問診に追記、即時API保存なし | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-manual-template-insertion)。実機未確認 |
 | AC-medical-records-template-replace-cancel | 問診内容をtemplateで置換しようとする | 確認を取り消す | 既存問診を保持 | 本ケースを単独確認 | 合意結果と既存保護を維持 | [FR](#requirement-fr-medical-records-manual-template-insertion)。実機未確認 |

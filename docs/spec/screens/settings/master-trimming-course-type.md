@@ -4,7 +4,7 @@
 ## 概要
 - **画面の目的**: トリミングコースのカテゴリ（シャンプー、シャンプー+カットなど）を管理し、トリミングコース管理画面の分類基盤を整える。
 - **URLパターン**: `/settings/trimming-course-type`
-- **アクセス権限**: スタッフ管理者以上（`ResourceMasterTrimming`）
+- **アクセス権限**: `ResourceMasterTrimming`（`master-trimming`）の操作別権限。閲覧は`view`、登録は`create`、変更/並替えは`edit`、削除は`delete`を既存の医院scopeとともに検査する。職位名「スタッフ管理者以上」だけで許可を推定しない（下記API対応が正本）。
 
 ---
 

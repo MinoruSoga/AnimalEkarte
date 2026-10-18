@@ -31,7 +31,7 @@
 | D16分析←請求/実移動/来院/配信ログ | 元指標と母集団・時点に基づくread計算 | 結果表示による配信/売上/金銭移動の生成、未提供画面の新採用ではない。[金融周辺](finance-operations.md) |
 | D17設定入口→各master | 各masterのscope・権限と有効状態を個別に扱う | 設定ページ閲覧だけで全master/global動物種の編集を許可しない。[医院設定](../domains/clinic-settings/README.md) |
 | D22公開manual記事←編集/公開版 | 製品内manualの草稿・公開版・履歴を区別 | 開発仕様書や未公開草稿を自動公開しない。[D22](../domains/internal-manual/README.md) |
-| D23共有ROOM←報告 | 共有read、報告元医院のmutation、個人historyを区別 | 共有閲覧から他院報告の変更/外部送信許可を生まない。[D23](../domains/support/README.md) |
+| D23共有報告一覧／ROOM←各報告／chat元メッセージ | 報告の共有readと報告元医院のmutation、個人chat履歴、同一clinic×staffのchat元メッセージを30分超の空白で区切るROOM表示を区別 | ROOMはバグ報告由来の記録や新しい永続session IDではない。報告元医院のmutation条件は報告に対応し、共有閲覧から他院報告の変更/外部送信許可を生まない。[D23](../domains/support/README.md)・[設定入口](../screens/settings/README.md) |
 
 <a id="retention-and-visibility-concepts"></a>
 ## 履歴・非表示・物理保存

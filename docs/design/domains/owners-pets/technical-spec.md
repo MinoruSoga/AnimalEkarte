@@ -99,7 +99,7 @@ D15は送信対象の現在clinic／owner・現在DM値と[D15目的別判定](.
 
 | FR ID | AC ID（全件・一意） | 技術対応 |
 |:---|:---|:---|
-| FR-owners-pets-register-scope | AC-owners-pets-register-atomic / AC-owners-pets-scope / AC-owners-pets-optional-clear / AC-owners-pets-unknown-result / AC-owners-pets-stale-update | owner→pet typed draft／同一tx・所属検証 |
+| FR-owners-pets-register-scope | AC-owners-pets-owner-number-auto / AC-owners-pets-register-atomic / AC-owners-pets-scope / AC-owners-pets-optional-clear / AC-owners-pets-unknown-result / AC-owners-pets-stale-update | owner→pet typed draft／同一tx・所属検証。新規飼主番号の自動割当・保存後読戻しを追跡し、既存番号再採番や結果不明時の別createをしない。採番の物理方式は未選定 |
 | FR-owners-pets-contact-duplicate-warning | AC-owners-pets-contact-duplicate-warning / AC-owners-pets-contact-duplicate-separate | 警告候補と別登録の分離・医院／認可scope・独立owner ID・receipt非代替 |
 | FR-owners-pets-identity-and-search | AC-owners-pets-search / AC-owners-pets-checkup-boundary / AC-owners-pets-read-only / AC-owners-pets-cross-clinic-list | 検索query／ページ・権限・遅延応答分離 |
 | FR-owners-pets-primary-secondary | AC-owners-pets-secondary-replace / AC-owners-pets-secondary-conflict | 主副重複／全置換version・監査 |

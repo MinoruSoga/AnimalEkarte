@@ -327,7 +327,7 @@
 決定者はユーザー。4案と文書不整合3点をまとめた質問（Sentinel_71abdb50fcec8191988196aeb8e25f04）への2026-10-14 18:26 JST「ok」（Sentinel_4e15997c948081918e456378427a7091）が根拠。定時報告とは別の個別承認編集。実装・移行・実機受入は未確認。
 
 
-記入済み日付訂正と受付後分類変更の申請・記録担当確認・予約／記録／請求の整合確認は[横断正本の記録確認訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)へ従う。確定済み記録は追記訂正。その他の逆遷移は[専用訂正への境界](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)、会計確定後の通常Undo停止は[会計境界](../../../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)を参照する。
+記入済み日付訂正と受付後分類変更の申請・記録担当確認・予約／記録／請求の整合確認は[横断正本の記録確認訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)へ従う。各記録ownerの最新訂正契約と以前の保存版保持へ従う。通常カルテは[D03の終了後通常編集](../../medical-records/lifecycle.md#requirement-fr-medical-records-normal-edit-after-end)を適用し、旧finalizedだけで追記専用に限定しない。患者／日付／分類の目的別確認と、検査・見積・確定会計の独自保護は維持する。その他の逆遷移は[専用訂正への境界](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)、会計確定後の通常Undo停止は[会計境界](../../../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)を参照する。
 
 <a id="requirement-fr-reservations-doctor-handoff"></a>
 ### 診療終了までの指名医師変更と引継ぎ（合意済み）

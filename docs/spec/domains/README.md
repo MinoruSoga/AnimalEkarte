@@ -1,6 +1,6 @@
 # domains — フォルダの説明
 
-2026-10-17追加：ユーザー確定9群の[正本・受入条件・C01〜C13訂正対照](SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)。問診統合・共通患者・医師確認／会計同期等はこの最新参照に従う。実装・実機未確認、未公開の文書差分。オントロジーの旧記述は変更禁止で保留。
+2026-10-17追加：ユーザー確定9群の[正本・受入条件・C01〜C13訂正対照](SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)。問診統合・共通患者・医師確認／会計同期等はこの最新参照に従う。初回反映時の未公開/ontology保留という段階は履歴。後続承認により業務69文書とontology11文書をDraft PR #670のcommit `7e4171725c24c5be9807ddcf8c09b323aca31442`へ公開し、公開時の対象本文一致を確認済み。現在の語彙は[ontologyの適用境界](../ontology/README.md#ontology-current-20261018)へ接続する。以後のローカル改善差分は公開済み版と区別し、実装・実機未確認と除外原資料の未読は維持する。
 
 最新差分は[追加採用5点](SPECIFICATION_PROGRESS.md#additional-adopted-five-20261015)。採用とdocs公開は承認済み。固定35文書の統合検査・独立内容／構造レビューで重大指摘なしを確認し、限定文書範囲を再整合した。公開先の本文一致確認は別段階で行う。
 

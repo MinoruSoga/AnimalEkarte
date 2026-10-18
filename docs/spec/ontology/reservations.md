@@ -61,7 +61,7 @@
 |:---|:---|:---|:---|
 | 業務分類をまたぐ予約区分変更 | 予約が別の業務分類の区分を選ぶ変更。区分マスタ自体の分類変更とは別 | 受付前は担当者・時間等の再確認で可、受付後は通常編集不可・記録確認訂正 | [18:26契約](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-cross-business-type-change)。既存記録を自動削除・変換しない |
 | 未来院からの再受付 | 遅刻来院を同じ予約で受付へ戻す | 取消復元・診療終了取消とは別 | [18:26担当再確認](../workflows/reservation-to-record-flow.md#no-show-recheck-1826)。不適格なら別の適格医師／未定へ手動変更後に受付、既存カルテ再利用 |
-| 記録確認訂正 | 受付担当が理由・変更案を入力し記録担当が確認する専用訂正 | 通常編集・自動記録変換・削除／再作成と区別 | [日付・分類訂正の正本](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)。予約・記録・請求整合、確定記録は追記 |
+| 記録確認訂正 | 受付担当が理由・変更案を入力し記録担当が確認する専用訂正 | 通常編集・自動記録変換・削除／再作成と区別 | [日付・分類訂正の正本](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)。予約・記録・請求の整合と旧保存版保持。通常カルテはD03の終了後通常編集に従い、旧finalizedだけで追記専用へ戻さない。患者・日付・分類の目的別確認と検査結果版・提示済み見積・確定会計の独自保護は維持 |
 | 通常Undoの会計確定境界 | 未収・分割・0円でも会計確定後は通常Undo停止 | 残額ゼロ・未保存入力・現在の取消statusと区別 | [会計境界](../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)。返金／取消後も自動再開しない |
 | その他逆遷移の訂正 | 合意済み3操作以外を通常状態変更で戻さず記録確認へ渡す | 汎用status変更や逆方向dragと区別 | [正本](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition) |
 | 延泊希望・実滞在・延泊確定 | 希望・実際の滞在・調整後の確定予定は別の事実 | 希望保存を受入確定や退室と同一視しない | [超過時の正本](../line/reservation-spec.md#hotel-extension-over-capacity)。初期仕様は例外承認なし |
