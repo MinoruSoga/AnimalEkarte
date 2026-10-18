@@ -39,7 +39,10 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const [lot2, setLot2] = useState("");
   const [lot3, setLot3] = useState("");
   const [lot4, setLot4] = useState("");
-  const [nextScheduleType, setNextScheduleTypeRaw] = useState(makeDefaultNextScheduleType);
+  // make ci blocker (EMR-435): 型指定なしの useState はリテラル型 "1year" を推論し、
+  // resolveScheduleTypeAfterManualDate (string) や UI からの string 代入で TS2345 になる。
+  // NextScheduleField・他フォームモデル・payload も string 扱いのため、状態は string として明示する。
+  const [nextScheduleType, setNextScheduleTypeRaw] = useState<string>(makeDefaultNextScheduleType);
   const [nextDate, setNextDateRaw] = useState(() =>
     // EMR-431: 開いた時点で「当日＋既定間隔」の次回予定日を持たせる。
     // 日付に触れずに保存しても next_date が送られるようにする。
