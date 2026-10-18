@@ -363,6 +363,11 @@ func (q *masterReaderProbeQuerier) QueryRow(_ context.Context, query string, arg
 		}
 		return staticRow{values: []any{q.exists}}
 	}
+	for _, expected := range targetUniqueAllExpectedQueries() {
+		if query == expected {
+			return staticRow{values: []any{q.exists}}
+		}
+	}
 	return staticRow{err: errors.New("unexpected query: " + query)}
 }
 

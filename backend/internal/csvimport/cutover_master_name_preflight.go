@@ -27,13 +27,25 @@ const cutoverProcedureNameQuery = `SELECT EXISTS (SELECT 1 FROM public.procedure
 const cutoverVaccineNameQuery = `SELECT EXISTS (SELECT 1 FROM public.vaccines WHERE clinic_id = $1 AND deleted_at IS NULL AND name = ANY($2::text[]))`
 
 func validateCutoverMasterTargetNames(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, tableName string, nameQuery string) error {
-	table, err := cutoverManifestTableByName(bundle.Manifest, tableName)
+	return validateCutoverTargetUniqueValues(ctx, q, bundle, seeds, cutoverTargetUniqueRule{table: tableName, column: "name", query: nameQuery})
+}
+
+func cutoverTargetUniqueContext(rule cutoverTargetUniqueRule) string {
+	if rule.column == "name" && (rule.table == "medicines" || rule.table == "procedures" || rule.table == "vaccines") {
+		return fmt.Sprintf("table %s name preflight", rule.table)
+	}
+	return fmt.Sprintf("table %s column %s unique preflight", rule.table, rule.column)
+}
+
+func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, rule cutoverTargetUniqueRule) error {
+	context := cutoverTargetUniqueContext(rule)
+	table, err := cutoverManifestTableByName(bundle.Manifest, rule.table)
 	if err != nil {
-		return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: manifest entry is missing", tableName), cause: err}
+		return &cutoverNamePreflightError{message: context + ": manifest entry is missing", cause: err}
 	}
 	var spec CutoverTableSpec
 	for _, candidate := range CutoverTableSpecs(bundle.Manifest.profile) {
-		if candidate.Name == tableName {
+		if candidate.Name == rule.table {
 			spec = candidate
 			break
 		}
@@ -41,36 +53,36 @@ func validateCutoverMasterTargetNames(ctx context.Context, q cutoverQuerier, bun
 	path := cutoverCSVPath(bundle.SourceDir, table)
 	resolved, err := resolveCutoverAccountCSV(path)
 	if err != nil {
-		return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: source csv path is not resolvable", tableName), cause: err}
+		return &cutoverNamePreflightError{message: context + ": source csv path is not resolvable", cause: err}
 	}
 	info, err := os.Lstat(resolved)
 	if err != nil {
-		return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: source csv is not inspectable", tableName), cause: err}
+		return &cutoverNamePreflightError{message: context + ": source csv is not inspectable", cause: err}
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("table %s name preflight: csv must not be a symbolic link", tableName)
+		return fmt.Errorf("%s: csv must not be a symbolic link", context)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("table %s name preflight: csv must be a regular file", tableName)
+		return fmt.Errorf("%s: csv must be a regular file", context)
 	}
 	f, err := openStableOwnerOnlyFile(resolved)
 	if err != nil {
-		return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: source csv is not readable", tableName), cause: err}
+		return &cutoverNamePreflightError{message: context + ": source csv is not readable", cause: err}
 	}
 	defer func() { _ = f.Close() }()
 	hash := sha256.New()
 	reader := csv.NewReader(bufio.NewReader(io.TeeReader(io.LimitReader(f, maxCutoverCSVBytes+1), hash)))
 	header, err := reader.Read()
 	if err != nil {
-		return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: source csv header is not readable", tableName), cause: err}
+		return &cutoverNamePreflightError{message: context + ": source csv header is not readable", cause: err}
 	}
 	allowPermutation := rehearsalContractDrift(bundle.Manifest, bundle.Provenance.Mode)
 	indexes, _, err := cutoverColumnIndexes(spec, header, allowPermutation)
 	if err != nil {
-		return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: source csv header does not match the expected columns", tableName), cause: err}
+		return &cutoverNamePreflightError{message: context + ": source csv header does not match the expected columns", cause: err}
 	}
-	nameIdx := indexes["name"]
-	var names []string
+	valueIdx := indexes[rule.column]
+	var values []string
 	rowCount := int64(0)
 	for {
 		row, readErr := reader.Read()
@@ -78,49 +90,65 @@ func validateCutoverMasterTargetNames(ctx context.Context, q cutoverQuerier, bun
 			break
 		}
 		if readErr != nil {
-			return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: source csv row %d is not parseable", tableName, rowCount+2), cause: readErr}
+			return &cutoverNamePreflightError{message: fmt.Sprintf("%s: source csv row %d is not parseable", context, rowCount+2), cause: readErr}
 		}
 		rowCount++
-		names = append(names, row[nameIdx])
+		value := row[valueIdx]
+		if rule.nonemptyOnly && value == "" {
+			continue
+		}
+		if rule.activeOnly {
+			active, ok := cutoverPGBoolean(row[indexes["is_active"]])
+			if !ok {
+				return fmt.Errorf("table %s column is_active row %d: value is not a PostgreSQL boolean", rule.table, rowCount+1)
+			}
+			if !active {
+				continue
+			}
+		}
+		if rule.tentativeOnly && row[indexes["status"]] != "tentative" {
+			continue
+		}
+		values = append(values, value)
 	}
 	if rowCount != table.RowCount {
-		return fmt.Errorf("table %s name preflight: source row count mismatch: got %d, want %d", tableName, rowCount, table.RowCount)
+		return fmt.Errorf("%s: source row count mismatch: got %d, want %d", context, rowCount, table.RowCount)
 	}
 	if digest := hex.EncodeToString(hash.Sum(nil)); !strings.EqualFold(digest, table.SHA256) {
-		return fmt.Errorf("table %s name preflight: source csv sha256 does not match manifest", tableName)
+		return fmt.Errorf("%s: source csv sha256 does not match manifest", context)
 	}
-	for start := 0; start < len(names); start += cutoverMedicineNameBatchSize {
+	for start := 0; start < len(values); start += cutoverMedicineNameBatchSize {
 		end := start + cutoverMedicineNameBatchSize
-		if end > len(names) {
-			end = len(names)
+		if end > len(values) {
+			end = len(values)
 		}
 		var exists bool
-		if err := q.QueryRow(ctx, nameQuery, seeds.ClinicID, names[start:end]).Scan(&exists); err != nil {
-			return &cutoverNamePreflightError{message: fmt.Sprintf("table %s name preflight: target name check failed", tableName), cause: err}
+		if err := q.QueryRow(ctx, rule.query, seeds.ClinicID, values[start:end]).Scan(&exists); err != nil {
+			if rule.column == "name" && (rule.table == "medicines" || rule.table == "procedures" || rule.table == "vaccines") {
+				return &cutoverNamePreflightError{message: context + ": target name check failed", cause: err}
+			}
+			return &cutoverNamePreflightError{message: context + ": target check failed", cause: err}
 		}
 		if exists {
-			return fmt.Errorf("%s: candidate %s name already exists in the target clinic (deleted_at IS NULL)", CutoverRefBandOccupied, tableName)
+			if rule.column == "name" && (rule.table == "medicines" || rule.table == "procedures" || rule.table == "vaccines") {
+				return fmt.Errorf("%s: candidate %s %s already exists in the target clinic (deleted_at IS NULL)", CutoverRefBandOccupied, rule.table, rule.column)
+			}
+			return fmt.Errorf("%s: table %s column %s unique check failed: candidate value already exists in the target clinic", CutoverRefBandOccupied, rule.table, rule.column)
 		}
 	}
 	return nil
 }
 
 func validateCutoverUniqueMasterTargetNames(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, skipComplete bool) error {
-	for _, probe := range []struct {
-		table string
-		query string
-	}{
-		{"procedures", cutoverProcedureNameQuery},
-		{"vaccines", cutoverVaccineNameQuery},
-	} {
+	for _, rule := range cutoverTargetUniqueRules {
 		if skipComplete {
-			manifestTable, err := cutoverManifestTableByName(bundle.Manifest, probe.table)
+			manifestTable, err := cutoverManifestTableByName(bundle.Manifest, rule.table)
 			if err != nil {
 				return err
 			}
 			var spec CutoverTableSpec
 			for _, candidate := range CutoverTableSpecs(bundle.Manifest.profile) {
-				if candidate.Name == probe.table {
+				if candidate.Name == rule.table {
 					spec = candidate
 					break
 				}
@@ -133,7 +161,7 @@ func validateCutoverUniqueMasterTargetNames(ctx context.Context, q cutoverQuerie
 				continue
 			}
 		}
-		if err := validateCutoverMasterTargetNames(ctx, q, bundle, seeds, probe.table, probe.query); err != nil {
+		if err := validateCutoverTargetUniqueValues(ctx, q, bundle, seeds, rule); err != nil {
 			return err
 		}
 	}
