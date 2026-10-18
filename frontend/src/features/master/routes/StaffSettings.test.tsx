@@ -78,11 +78,14 @@ vi.mock("../api/staffs", () => ({
   useUpdateStaff: () => ({ mutateAsync: mockUpdateMutate }),
   useAttachStaffAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteStaff: () => ({ mutate: vi.fn() }),
-  useUpdateStaffClinics: () => ({ mutate: mockSetClinics }),
+  /** mutateAsync await 経路と旧 mutate 経路を同一スパイで観測し、権限境界の書き込みを捕捉する。 */
+  useUpdateStaffClinics: () => ({ mutate: mockSetClinics, mutateAsync: mockSetClinics }),
   useGetClinicsList: () => ({ data: [] }),
   useGetAllStaffPermissionGroupMap: () => ({ data: new Map() }),
-  useUpdateStaffCapableReservationTypes: () => ({ mutate: vi.fn() }),
-  useUpdateStaffPermissionGroups: () => ({ mutate: mockSetGroups }),
+  /** mutateAsync await 経路と旧 mutate 経路をそれぞれ別 vi.fn で観測し、権限境界の書き込みを捕捉する。 */
+  useUpdateStaffCapableReservationTypes: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }),
+  /** mutateAsync await 経路と旧 mutate 経路を同一スパイで観測し、権限境界の書き込みを捕捉する。 */
+  useUpdateStaffPermissionGroups: () => ({ mutate: mockSetGroups, mutateAsync: mockSetGroups }),
 }));
 
 // MasterCRUDPage は PageLayout/DataTable/PropertyFilter 等の重い依存を持つため、
@@ -165,7 +168,7 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
     }).props;
   }
 
-  it("権限グループ割当: master-permission:edit が無ければ mutation を発行しない", () => {
+  it("権限グループ割当: master-permission:edit が無ければ mutation を発行しない", async () => {
     permissionByResource = {
       "master-permission": { ...ALL_ALLOWED, canEdit: false },
     };
@@ -173,35 +176,41 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
     const onSaveGroups = sidePanelProps().onSaveGroups as (
       staffId: string,
       groupIds: string[],
-    ) => void;
+    ) => Promise<boolean>;
 
-    act(() => onSaveGroups("1", ["10"]));
+    await act(async () => {
+      await onSaveGroups("1", ["10"]);
+    });
 
     expect(mockSetGroups).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("権限グループを変更する権限がありません");
   });
 
-  it("権限グループ割当: 両権限が揃えば mutation を発行する", () => {
+  it("権限グループ割当: 両権限が揃えば mutation を発行する", async () => {
     render(<StaffSettings />);
     const onSaveGroups = sidePanelProps().onSaveGroups as (
       staffId: string,
       groupIds: string[],
-    ) => void;
+    ) => Promise<boolean>;
 
-    act(() => onSaveGroups("1", ["10"]));
+    await act(async () => {
+      await onSaveGroups("1", ["10"]);
+    });
 
     expect(mockSetGroups).toHaveBeenCalledTimes(1);
   });
 
-  it("所属医院割当: master-staff:edit が無ければ mutation を発行しない", () => {
+  it("所属医院割当: master-staff:edit が無ければ mutation を発行しない", async () => {
     permissionByResource = { "master-staff": { ...ALL_ALLOWED, canEdit: false } };
     render(<StaffSettings />);
     const onSaveClinics = sidePanelProps().onSaveClinics as (
       staffId: string,
       clinicIds: string[],
-    ) => void;
+    ) => Promise<boolean>;
 
-    act(() => onSaveClinics("1", ["1"]));
+    await act(async () => {
+      await onSaveClinics("1", ["1"]);
+    });
 
     expect(mockSetClinics).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("所属医院を変更する権限がありません");

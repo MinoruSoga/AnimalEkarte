@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"time"
@@ -47,6 +48,63 @@ type AvailableDatesSettings struct {
 	ReservationDayOption  string // "none" | "saturday" | "weekday" | "anyday"
 }
 
+func parseClosedWeekdaysJSON(data []byte) ([]int, error) {
+	invalidInput := apperrors.WrapInvalidInput("closed_weekdays は 0〜6 の整数配列である必要があります")
+	if len(data) == 0 {
+		return []int{}, nil
+	}
+	data = bytes.TrimSpace(data)
+	if bytes.Equal(data, []byte("null")) {
+		return []int{}, nil
+	}
+
+	var rawWeekdays []json.RawMessage
+	if err := json.Unmarshal(data, &rawWeekdays); err != nil {
+		return nil, invalidInput
+	}
+
+	weekdays := make([]int, 0, len(rawWeekdays))
+	for _, rawWeekday := range rawWeekdays {
+		rawWeekday = bytes.TrimSpace(rawWeekday)
+		if bytes.Equal(rawWeekday, []byte("null")) {
+			return nil, invalidInput
+		}
+
+		weekday := 0
+		if len(rawWeekday) > 0 && rawWeekday[0] == '"' {
+			var legacyWeekday string
+			if err := json.Unmarshal(rawWeekday, &legacyWeekday); err != nil {
+				return nil, invalidInput
+			}
+			switch legacyWeekday {
+			case "0":
+				weekday = 0
+			case "1":
+				weekday = 1
+			case "2":
+				weekday = 2
+			case "3":
+				weekday = 3
+			case "4":
+				weekday = 4
+			case "5":
+				weekday = 5
+			case "6":
+				weekday = 6
+			default:
+				return nil, invalidInput
+			}
+		} else if err := json.Unmarshal(rawWeekday, &weekday); err != nil {
+			return nil, invalidInput
+		}
+		if weekday < 0 || weekday > 6 {
+			return nil, invalidInput
+		}
+		weekdays = append(weekdays, weekday)
+	}
+	return weekdays, nil
+}
+
 // ParseAvailableDatesSettings は LineReservationSetting の JSONB フィールドから設定を解析する。
 func ParseAvailableDatesSettings(
 	closedWeekdaysJSON []byte,
@@ -55,8 +113,8 @@ func ParseAvailableDatesSettings(
 	bookingWindowMinDays, bookingWindowMaxDays, calendarMonths int,
 	reservationDayOption string,
 ) (AvailableDatesSettings, error) {
-	var closedWeekdays []int
-	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
+	closedWeekdays, err := parseClosedWeekdaysJSON(closedWeekdaysJSON)
+	if err != nil {
 		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の形式が正しくありません")
 	}
 	var closedDates []string

@@ -18,6 +18,10 @@ interface TextValueEditorProps {
   onApply: (value: string, displayValue: string) => void;
 }
 
+/**
+ * Collects a text-filter draft and commits only a non-empty trimmed value on Enter or confirmation.
+ * Typing never applies the draft; Enter is ignored during IME composition or key repeat.
+ */
 export const TextValueEditor = memo(function TextValueEditor({
   label,
   currentValue = "",
@@ -54,7 +58,7 @@ export const TextValueEditor = memo(function TextValueEditor({
         type="button"
         onClick={apply}
         disabled={trimmed === ""}
-        className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm ${C.text40} ${C.hoverText80} ${C.hoverBgMedium} transition-colors disabled:opacity-40`}
+        className={`flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-sm ${C.text60} ${C.hoverText80} ${C.hoverBgMedium} transition-colors disabled:opacity-40`}
         aria-label={`${label}フィルタを適用`}
       >
         <Check className={ICON.smXs} />

@@ -81,64 +81,66 @@ export function VaccinationFieldsPanel({
   return (
     <div className="lg:col-span-3">
       <div className={`${C.bgWhite} p-6 rounded-lg border ${C.borderLight} space-y-6`}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="vaccination-date">
-              接種日
+        <div className="space-y-2">
+          <Label htmlFor="vaccination-date">
+            接種日
+            <RequiredMark />
+          </Label>
+          <DatePicker
+            id="vaccination-date"
+            value={date}
+            onChange={(value) => {
+              onMarkDirty();
+              onDateChange(value);
+            }}
+            ariaInvalid={Boolean(fieldErrors.date)}
+            ariaDescribedBy={fieldErrors.date ? "vaccine-date-error" : undefined}
+            disabledDays={{ after: toJSTWallDate(new Date()) }}
+          />
+          <FormFieldError id="vaccine-date-error" message={fieldErrors.date} />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="vaccine-select">
+              ワクチン
               <RequiredMark />
             </Label>
-            <DatePicker
-              id="vaccination-date"
-              value={date}
-              onChange={(value) => {
-                onMarkDirty();
-                onDateChange(value);
-              }}
-              ariaInvalid={Boolean(fieldErrors.date)}
-              ariaDescribedBy={fieldErrors.date ? "vaccine-date-error" : undefined}
-              disabledDays={{ after: toJSTWallDate(new Date()) }}
-            />
-            <FormFieldError id="vaccine-date-error" message={fieldErrors.date} />
+            <MasterLink category="vaccine" label="編集" className="text-2xs" />
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="vaccine-select">
-                ワクチン
-                <RequiredMark />
-              </Label>
-              <MasterLink category="vaccine" label="編集" className="text-2xs" />
-            </div>
-            <Select
-              value={vaccineId}
-              onValueChange={(value) => {
-                if (value === "") return;
-                onMarkDirty();
-                onVaccineIdChange(value);
-              }}
+          <Select
+            value={vaccineId}
+            onValueChange={(value) => {
+              if (value === "") return;
+              onMarkDirty();
+              onVaccineIdChange(value);
+            }}
+          >
+            <SelectTrigger
+              id="vaccine-select"
+              aria-invalid={Boolean(fieldErrors.vaccineId)}
+              aria-describedby={fieldErrors.vaccineId ? "vaccine-id-error" : undefined}
             >
-              <SelectTrigger
-                id="vaccine-select"
-                aria-invalid={Boolean(fieldErrors.vaccineId)}
-                aria-describedby={fieldErrors.vaccineId ? "vaccine-id-error" : undefined}
-              >
-                <SelectValue placeholder="選択してください" />
-              </SelectTrigger>
-              <SelectContent>
-                {vaccineOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormFieldError id="vaccine-id-error" message={fieldErrors.vaccineId} />
-          </div>
+              <SelectValue placeholder="選択してください" />
+            </SelectTrigger>
+            <SelectContent>
+              {vaccineOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FormFieldError id="vaccine-id-error" message={fieldErrors.vaccineId} />
         </div>
 
         {doctorName ? (
           <div className="space-y-2">
-            <span className={`block text-sm ${C.text60}`}>担当医</span>
+            <span id="vaccination-doctor-label" className={`block text-base ${C.text65}`}>
+              担当医
+            </span>
             <p
+              aria-labelledby="vaccination-doctor-label"
               className={`min-h-11 flex items-center rounded-md border ${C.borderLight} ${C.bgPage} px-3 text-sm ${C.text}`}
             >
               {doctorName}
@@ -161,8 +163,8 @@ export function VaccinationFieldsPanel({
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label>LOT番号</Label>
+        <fieldset className="space-y-2">
+          <legend className={`text-base ${C.text65} mb-2`}>LOT番号</legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <LotInput
               id="vaccination-lot-1"
@@ -193,7 +195,7 @@ export function VaccinationFieldsPanel({
               onMarkDirty={onMarkDirty}
             />
           </div>
-        </div>
+        </fieldset>
 
         <NextScheduleField
           typeId="vaccination-next-schedule"
@@ -260,6 +262,7 @@ function LotInput({ id, label, value, onChange, onMarkDirty }: LotInputProps) {
 
 interface VaccinationHistoryPanelProps {
   petHistory: VaccinationRecord[];
+  replacedVaccinationIds: Set<string>;
   filterStartDate: string;
   filterEndDate: string;
   historySearchTerm: string;
@@ -273,6 +276,7 @@ interface VaccinationHistoryPanelProps {
 
 export function VaccinationHistoryPanel({
   petHistory,
+  replacedVaccinationIds = new Set<string>(),
   filterStartDate,
   filterEndDate,
   historySearchTerm,
@@ -306,7 +310,11 @@ export function VaccinationHistoryPanel({
           <p className={`text-sm ${C.text60} py-4 text-center`}>履歴がありません</p>
         ) : (
           petHistory.map((vaccination) => (
-            <VaccinationCard key={vaccination.id} vaccination={vaccination} />
+            <VaccinationCard
+              key={vaccination.id}
+              vaccination={vaccination}
+              isReplaced={replacedVaccinationIds.has(vaccination.id)}
+            />
           ))
         )}
       </div>

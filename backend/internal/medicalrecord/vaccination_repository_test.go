@@ -10,6 +10,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -569,4 +570,157 @@ func TestVaccinationRepository_OwnerHasAliveVaccineDeadline(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestVaccinationRepository_VaccineDeadlineSupersession(t *testing.T) {
+	db := setupVaccinationRepoTestDB(t)
+	repo := NewVaccinationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	target := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	oldDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	newDate := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	species := &model.AnimalSpecies{Name: "supersession検証種別"}
+	require.NoError(t, db.WithContext(ctx).Create(species).Error)
+
+	mkPet := func(clinicID, ownerID uint64, name string) *model.Pet {
+		t.Helper()
+		p := &model.Pet{ClinicID: clinicID, OwnerID: ownerID, AnimalSpeciesID: species.ID, Name: name}
+		require.NoError(t, db.WithContext(ctx).Create(p).Error)
+		return p
+	}
+	mkVac := func(clinicID, petID, vaccineID uint64, date time.Time, next *time.Time, deleted bool) {
+		t.Helper()
+		v := &model.Vaccination{ClinicID: clinicID, PetID: &petID, VaccineID: vaccineID, Date: date, NextDate: next}
+		require.NoError(t, db.WithContext(ctx).Create(v).Error)
+		if deleted {
+			require.NoError(t, db.WithContext(ctx).Delete(v).Error)
+		}
+	}
+
+	nextTarget := target
+	nextBeyond := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+
+	assertEligibility := func(t *testing.T, clinicID, ownerID uint64, want bool) {
+		t.Helper()
+		ids, err := repo.FindOwnersByVaccineDeadline(ctx, clinicID, target)
+		require.NoError(t, err)
+		if want {
+			assert.Contains(t, ids, ownerID, "FindOwnersByVaccineDeadline")
+		} else {
+			assert.NotContains(t, ids, ownerID, "FindOwnersByVaccineDeadline")
+		}
+		got, err := repo.OwnerHasAliveVaccineDeadline(ctx, clinicID, ownerID, target)
+		require.NoError(t, err)
+		assert.Equal(t, want, got, "OwnerHasAliveVaccineDeadline")
+	}
+
+	t.Run("同pet+同vaccineの新レコードがnil NextDateでも古い期限を無効化", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-nil新飼主")
+		pet := mkPet(clinicA, owner.ID, "super-nil新ペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-nil新ワクチン")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicA, pet.ID, vaccine.ID, newDate, nil, false)
+		assertEligibility(t, clinicA, owner.ID, false)
+	})
+
+	t.Run("同pet+同vaccineの新レコードが窓外next_dateでも古い期限を無効化", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-beyond新飼主")
+		pet := mkPet(clinicA, owner.ID, "super-beyond新ペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-beyond新ワクチン")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicA, pet.ID, vaccine.ID, newDate, &nextBeyond, false)
+		assertEligibility(t, clinicA, owner.ID, false)
+	})
+
+	t.Run("別vaccineの新レコードは無効化しない", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-別vaccine飼主")
+		pet := mkPet(clinicA, owner.ID, "super-別vaccineペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-別vaccineワクチンA")
+		otherVaccine := makeVaccineMaster(t, db, clinicA, "super-別vaccineワクチンB")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicA, pet.ID, otherVaccine.ID, newDate, nil, false)
+		assertEligibility(t, clinicA, owner.ID, true)
+	})
+
+	t.Run("他院prefixのgenericワクチンは各レコードが現行のまま", func(t *testing.T) {
+		for i, name := range []string{"他院", "他院接種", "他院（混合ワクチン）"} {
+			owner := makeTestOwner(t, db, clinicA, fmt.Sprintf("super-generic飼主%d", i))
+			pet := mkPet(clinicA, owner.ID, fmt.Sprintf("super-genericペット%d", i))
+			vaccine := makeVaccineMaster(t, db, clinicA, name)
+			mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+			mkVac(clinicA, pet.ID, vaccine.ID, newDate, nil, false)
+			assertEligibility(t, clinicA, owner.ID, true)
+		}
+	})
+
+	t.Run("prefixでない他院含有名はsupersessionされる", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-非prefix飼主")
+		pet := mkPet(clinicA, owner.ID, "super-非prefixペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "混合他院ワクチン")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicA, pet.ID, vaccine.ID, newDate, nil, false)
+		assertEligibility(t, clinicA, owner.ID, false)
+	})
+
+	t.Run("別petの新レコードは無効化しない", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-別pet飼主")
+		petA := mkPet(clinicA, owner.ID, "super-別petペットA")
+		petB := mkPet(clinicA, owner.ID, "super-別petペットB")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-別petワクチン")
+		mkVac(clinicA, petA.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicA, petB.ID, vaccine.ID, newDate, nil, false)
+		assertEligibility(t, clinicA, owner.ID, true)
+	})
+
+	t.Run("削除済みの新レコードは無効化しない", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-削除飼主")
+		pet := mkPet(clinicA, owner.ID, "super-削除ペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-削除ワクチン")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicA, pet.ID, vaccine.ID, newDate, nil, true)
+		assertEligibility(t, clinicA, owner.ID, true)
+	})
+
+	t.Run("同dateのレコードは相互に無効化しない", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-同date飼主")
+		pet := mkPet(clinicA, owner.ID, "super-同dateペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-同dateワクチン")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, nil, false)
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		assertEligibility(t, clinicA, owner.ID, true)
+	})
+
+	t.Run("別医院の新レコードは自医院レコードを無効化しない", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-別医院飼主")
+		pet := mkPet(clinicA, owner.ID, "super-別医院ペット")
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-別医院ワクチン")
+		mkVac(clinicA, pet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		mkVac(clinicB, pet.ID, vaccine.ID, newDate, nil, false)
+		assertEligibility(t, clinicA, owner.ID, true)
+	})
+
+	t.Run("vaccine_id=0のレコードはsupersession対象外", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-zero飼主")
+		pet := mkPet(clinicA, owner.ID, "super-zeroペット")
+		v0 := &model.Vaccination{ClinicID: clinicA, PetID: &pet.ID, VaccineID: 0, Date: oldDate, NextDate: &nextTarget}
+		if err := db.WithContext(ctx).Create(v0).Error; err != nil {
+			t.Skipf("vaccinations.vaccine_id=0 is rejected by fixture DB constraints: %v", err)
+		}
+		v1 := &model.Vaccination{ClinicID: clinicA, PetID: &pet.ID, VaccineID: 0, Date: newDate}
+		require.NoError(t, db.WithContext(ctx).Create(v1).Error)
+		assertEligibility(t, clinicA, owner.ID, true)
+	})
+
+	t.Run("生存判定と医院境界はsupersession後も維持される", func(t *testing.T) {
+		owner := makeTestOwner(t, db, clinicA, "super-死亡飼主")
+		deceasedAt := newDate.Add(-24 * time.Hour)
+		deadPet := &model.Pet{ClinicID: clinicA, OwnerID: owner.ID, AnimalSpeciesID: species.ID, Name: "super-死亡ペット", Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}
+		require.NoError(t, db.WithContext(ctx).Create(deadPet).Error)
+		vaccine := makeVaccineMaster(t, db, clinicA, "super-死亡ワクチン")
+		mkVac(clinicA, deadPet.ID, vaccine.ID, oldDate, &nextTarget, false)
+		assertEligibility(t, clinicA, owner.ID, false)
+	})
 }

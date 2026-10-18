@@ -224,8 +224,23 @@ class SchemaTests(unittest.TestCase):
 
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
-        self.assertEqual(len(schema.tables), 136)
-        self.assertEqual(len(schema.migrations), 34)
+        self.assertEqual(len(schema.tables), 138)
+        self.assertEqual(len(schema.migrations), 36)
+        embeddings = schema.tables['support_manual_embeddings']
+        self.assertEqual({c.name for c in embeddings.columns}, {'cache_key', 'model', 'task_type', 'chunker_version', 'dimensions', 'embedding', 'created_at'})
+        self.assertTrue(all(not c.nullable for c in embeddings.columns))
+        self.assertEqual(next(c for c in embeddings.constraints if c.kind == 'primary').columns, ('cache_key',))
+        self.assertEqual(next(c for c in embeddings.columns if c.name == 'embedding').type_sql, 'real[]')
+        self.assertEqual({c.name for c in embeddings.constraints if c.kind == 'check'}, {
+            'support_manual_embeddings_dimensions_chk', 'support_manual_embeddings_length_chk',
+            'support_manual_embeddings_task_chk', 'support_manual_embeddings_version_chk',
+        })
+        budgets = schema.tables['support_llm_budgets']
+        self.assertEqual({c.name for c in budgets.columns}, {'scope', 'model', 'next_allowed_at'})
+        self.assertTrue(all(not c.nullable for c in budgets.columns))
+        self.assertEqual(next(c for c in budgets.constraints if c.kind == 'primary').columns, ('scope', 'model'))
+        for table in (embeddings, budgets):
+            self.assertFalse(any(c.kind == 'foreign' for c in table.constraints))
         deletions = schema.tables['trimming_image_deletions']
         self.assertEqual({c.name for c in deletions.columns}, {'clinic_id', 'object_key', 'actor_staff_id', 'created_at', 'storage_deleted_at', 'last_attempt_at'})
         self.assertEqual({c.name for c in deletions.columns if not c.nullable}, {'clinic_id', 'object_key', 'actor_staff_id', 'created_at'})

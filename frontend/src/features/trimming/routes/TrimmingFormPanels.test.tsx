@@ -74,9 +74,6 @@ function renderBody(overrides: Partial<Parameters<typeof TrimmingFormBody>[0]> =
       completedImagePreview={null}
       sortedHistory={[]}
       isHistoryLoading={false}
-      historySearchTerm=""
-      historySortOrder="desc"
-      historyDateRange={{ from: "", to: "" }}
       courseModalOpen={false}
       staffModalOpen={false}
       deleteConfirmOpen={false}
@@ -95,11 +92,6 @@ function renderBody(overrides: Partial<Parameters<typeof TrimmingFormBody>[0]> =
       onCompletedImageChange={vi.fn()}
       onRemoveStyleImage={vi.fn()}
       onRemoveCompletedImage={vi.fn()}
-      onHistorySearchTermChange={vi.fn()}
-      onHistorySortOrderChange={vi.fn()}
-      onHistoryClear={vi.fn()}
-      onHistoryStartDateChange={vi.fn()}
-      onHistoryEndDateChange={vi.fn()}
       onHistoryClick={vi.fn()}
       {...overrides}
     />,

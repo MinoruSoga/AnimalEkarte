@@ -200,12 +200,19 @@ export const CheckupsTab = memo(function CheckupsTab({
         canCreate={Boolean(canCreate && !isPetDeceased)}
         canEdit={Boolean(canEdit && !isPetDeceased)}
         canDelete={Boolean(canDelete && !isPetDeceased)}
+        emptyReason={isPetDeceased ? DECEASED_CHECKUPS_MESSAGE : undefined}
         createPending={createMutation.isPending}
         updatePending={updateMutation.isPending}
         deletePending={deleteMutation.isPending}
         checkupFields={checkupFields}
         fieldValues={fieldValues}
-        onStartAdd={() => setIsAdding(true)}
+        onStartAdd={() => {
+          // レビュー指摘（EMR-431）: タブはマウントされ続けるため、追加行を開く時点で
+          // 当日＋既定間隔の既定を作り直す（日跨ぎ後に前日の日付が残らないように）。
+          setAddForm(makeDefaultCheckupAddForm());
+          setAddFormErrors({});
+          setIsAdding(true);
+        }}
         onAddFormChange={handleAddFormChange}
         onFieldValueChange={handleFieldValueChange}
         onAddSubmit={handleAddSubmit}

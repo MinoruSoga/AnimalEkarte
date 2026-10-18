@@ -29,6 +29,9 @@ export const getHospitalizationStatusColor = (status: Hospitalization["status"])
   switch (status) {
     case "入院中":
       return BADGE.purple;
+    // EMR-412 N3/R7: ホテル区分の admitted も「入院中」と同じ admitted セマンティクス色。
+    case "預かり中":
+      return BADGE.purple;
     case "退院済":
       return BADGE.green;
     case "予約":
@@ -40,8 +43,9 @@ export const getHospitalizationStatusColor = (status: Hospitalization["status"])
   }
 };
 
-export const getHospitalizationTypeColor = (type: Hospitalization["hospitalizationType"]) => {
-  return type === "入院" ? BADGE.purple : BADGE.blue;
+// EMR-412 N4/R7: 区分バッジは入院・ホテルとも BADGE.gray（状態バッジは各セマンティクス色のまま）。
+export const getHospitalizationTypeColor = (_type: Hospitalization["hospitalizationType"]) => {
+  return BADGE.gray;
 };
 
 interface ReceptionColumnColorSet {

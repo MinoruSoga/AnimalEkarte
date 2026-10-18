@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { MedicalRecordImage } from "./MedicalRecordImage";
 import { useGetMedicalRecordImages } from "../api/get-medical-record-images";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import type { ImageGalleryGroup } from "../api/get-medical-record-images";
 
 vi.mock("../api/get-medical-record-images");
@@ -104,6 +105,8 @@ describe("MedicalRecordImage — カナ混同検索", () => {
     expect(scroller).not.toBeNull();
     expect(scroller.className).not.toContain("min-h-[500px]");
     expect(scroller.className).toContain("min-h-0");
+    // EMR-432: 右下固定ボタン群が末尾の要素を覆わない下余白
+    expect(scroller.className).toContain(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance);
   });
 
   it("ひらがな「れんとげん」でカタカナ画像名「レントゲン画像」にヒットする", async () => {

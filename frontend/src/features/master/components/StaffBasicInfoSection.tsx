@@ -10,6 +10,7 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -33,14 +34,23 @@ interface StaffBasicInfoSectionProps {
   formData: StaffFormData;
   setFormDataDirty: Dispatch<SetStateAction<StaffFormData>>;
   allOccupations: Occupation[];
+  disableCreateCredentials?: boolean;
 }
 
+/**
+ * 基本情報とアカウント関連の入力群を描画する。
+ * disableCreateCredentials は新規作成中フラグが立ったときのみ、
+ * 新規用メールアドレス/パスワード入力を無効化する。
+ * 既存スタッフのパスワード更新や他の属性はこのフラグの対象外。
+ * 新規作成用の pending 判定は親から渡される。
+ */
 export function StaffBasicInfoSection({
   item,
   isNew,
   formData,
   setFormDataDirty,
   allOccupations,
+  disableCreateCredentials = false,
 }: StaffBasicInfoSectionProps) {
   const { user } = useAuth();
   const attachAccount = useAttachStaffAccount();
@@ -139,7 +149,7 @@ export function StaffBasicInfoSection({
         label="資格番号"
         description="獣医師免許番号などの資格番号です。必要な場合に記録します（任意）。"
       >
-        <input
+        <Input
           type="text"
           aria-label="資格番号"
           className={MASTER_INPUT_CLASS}
@@ -155,26 +165,28 @@ export function StaffBasicInfoSection({
             label="メールアドレス"
             description="このスタッフのログイン用メールアドレスです。アカウントのIDとして使われます。"
           >
-            <input
+            <Input
               type="email"
               aria-label="メールアドレス"
               className={MASTER_INPUT_CLASS}
               value={formData.email}
               onChange={handleEmailChange}
               placeholder="例: staff@clinic.com"
+              disabled={disableCreateCredentials}
             />
           </PropertyRow>
           <PropertyRow
             label="パスワード"
             description="ログイン用パスワードです。8文字以上で設定してください。"
           >
-            <input
+            <Input
               type="password"
               aria-label="パスワード"
               className={MASTER_INPUT_CLASS}
               value={formData.password}
               onChange={handlePasswordChange}
               placeholder="8文字以上"
+              disabled={disableCreateCredentials}
             />
           </PropertyRow>
         </>
@@ -192,7 +204,7 @@ export function StaffBasicInfoSection({
                 label="ログインアカウント"
                 description="ログインアカウントとして追加するメールアドレスです。システム管理者のみ設定できます。"
               >
-                <input
+                <Input
                   type="email"
                   aria-label="追加するメールアドレス"
                   className={MASTER_INPUT_CLASS}
@@ -217,7 +229,7 @@ export function StaffBasicInfoSection({
               label="パスワード"
               description="パスワードを変更する場合のみ新しいパスワードを入力します。空欄のままだと変更されません。"
             >
-              <input
+              <Input
                 type="password"
                 aria-label="パスワード"
                 className={MASTER_INPUT_CLASS}

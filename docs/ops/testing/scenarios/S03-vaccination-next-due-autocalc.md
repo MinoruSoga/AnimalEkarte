@@ -55,7 +55,7 @@ flowchart TB
 
 ### 確認観点
 
-- 接種間隔の計算ロジックはフロントの `calculateNextDate`。選択肢 UI は `3weeks` / `4weeks` / `1year` / `other`。独立画面の既定は `1year`。カルテ予防接種タブも同じ算出を配線済み（既定は `4weeks`）。
+- 接種間隔の計算ロジックはフロントの `calculateNextDate`。選択肢 UI は `3weeks` / `4weeks` / `1year` / `other`。独立画面の既定は `1year`。カルテ予防接種タブも同じ算出を配線済み（既定は `1year` に統一）。
 - **#125 / BUG-401 回帰**: API から取得したワクチンマスタを選び、保存後の名称が選択どおりであること。固定 ID 表は使わない。フィラリアリマインドが混合ワクチン接種に対して発火しないこと。
 - 種によるマスタ絞り込みは未実装（BUG-408 残置）— 犬/猫製品が combobox に混在しうるのは現状仕様。
 - 接種期限接近の飼主通知は LINE 配信トリガー `vaccine_deadline_60d` / `vaccine_deadline_30d` が担う（[14 §2](../../../spec/screens/14-vaccinations-list.md)。受付画面での自動アラート表示はない）。
@@ -76,5 +76,5 @@ flowchart TB
 ### 実装突合
 
 - 変更サマリ:
-  - 次回予定 value（`3weeks`/`4weeks`/`1year`/`other`）。独立画面既定 `1year`、カルテタブ既定 `4weeks`
+  - 次回予定 value（`3weeks`/`4weeks`/`1year`/`other`）。独立画面・カルテタブとも既定 `1year`
   - マスタ種フィルタなし（BUG-408）・`petId` クエリ・未来日 `disabledDays` を追記

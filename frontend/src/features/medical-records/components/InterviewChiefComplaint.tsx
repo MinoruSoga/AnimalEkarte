@@ -69,7 +69,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
   return (
     <div className={`flex flex-col ${className ?? ""}`}>
       <div className="pb-1.5">
-        <h4 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
+        <h4 className={`text-sm font-semibold ${C.text} flex items-center gap-2`}>
           <FileText className={ICON.action} />
           主訴情報
         </h4>

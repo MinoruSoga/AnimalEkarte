@@ -601,7 +601,7 @@ func TestEstimateService_Update(t *testing.T) {
 	}
 }
 
-func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t *testing.T) {
+func TestEstimateService_Update_TotalsOnlyPatchPreservesStoredTotals(t *testing.T) {
 	requestedSubtotal := int64(1)
 	requestedTaxTotal := int64(2)
 	requestedTotalAmount := int64(3)
@@ -609,6 +609,9 @@ func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t 
 		ID:              1,
 		ClinicID:        1,
 		Status:          model.EstimateStatusDraft,
+		Subtotal:        1800,
+		TaxTotal:        180,
+		TotalAmount:     1500,
 		InsuranceAmount: 700,
 		DiscountAmount:  300,
 		Items: []model.EstimateItem{
@@ -645,10 +648,11 @@ func TestEstimateService_Update_TotalsOnlyPatchDerivesTotalsFromExistingItems(t 
 	require.NotNil(t, updatedCmd.Subtotal)
 	require.NotNil(t, updatedCmd.TaxTotal)
 	require.NotNil(t, updatedCmd.TotalAmount)
+	// PR669: 控除据え置きの totals-only PATCH は保存済み合計を保持し、
+	// 改ざんされたクライアント合計は保存済み値へ置き換える（再計算しない）。
 	assert.Equal(t, int64(1800), *updatedCmd.Subtotal)
 	assert.Equal(t, int64(180), *updatedCmd.TaxTotal)
-	// PR665: ヘッダー割引(300)は合計から控除される（subtotal/tax は総額のまま）。
-	assert.Equal(t, int64(1680), *updatedCmd.TotalAmount)
+	assert.Equal(t, int64(1500), *updatedCmd.TotalAmount)
 	assert.Nil(t, updatedCmd.InsuranceAmount)
 	assert.Nil(t, updatedCmd.DiscountAmount)
 }

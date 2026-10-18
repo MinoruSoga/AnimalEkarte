@@ -5,6 +5,8 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { FieldHelp } from "@/components/shared/FieldHelp";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 import type { CheckupFieldType } from "@/types/checkup";
 
@@ -31,7 +33,7 @@ export function CheckupFieldTypeSelect({ value, onChange }: CheckupFieldTypeSele
           content="この健診項目の入力形式です。数値・選択式・チェックリストなどから選びます。"
         />
       </div>
-      <select
+      <NativeSelect
         aria-label="健診項目の種別"
         value={value}
         onChange={(event) => onChange(event.target.value as CheckupFieldType)}
@@ -42,7 +44,7 @@ export function CheckupFieldTypeSelect({ value, onChange }: CheckupFieldTypeSele
             {option.label}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </div>
   );
 }
@@ -109,14 +111,14 @@ export function CheckupFieldOptionsEditor({
         </legend>
         {options.map((option, index) => (
           <div key={index} className="flex items-center gap-2">
-            <input
+            <Input
               value={option.value}
               onChange={(event) => onChange(index, { value: event.target.value })}
               placeholder="値"
               aria-label={`選択肢${index + 1}の値`}
               className={`min-h-11 w-full rounded-xs border px-2 text-sm ${C.borderMedium} ${C.bgWhite} ${C.text}`}
             />
-            <input
+            <Input
               value={option.label}
               onChange={(event) => onChange(index, { label: event.target.value })}
               placeholder="表示名"

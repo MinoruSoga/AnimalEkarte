@@ -49,7 +49,7 @@ export function LoginFormCredentialFields({
   return (
     <>
       <div className="space-y-1.5">
-        <label htmlFor="login-email" className={`text-sm block ${C.text65}`}>
+        <label htmlFor="login-email" className={`text-base block ${C.text65}`}>
           メールアドレス
         </label>
         <input
@@ -68,7 +68,7 @@ export function LoginFormCredentialFields({
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="login-password" className={`text-sm block ${C.text65}`}>
+        <label htmlFor="login-password" className={`text-base block ${C.text65}`}>
           パスワード
         </label>
         <div className="relative">

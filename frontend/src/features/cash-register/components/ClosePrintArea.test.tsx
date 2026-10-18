@@ -99,6 +99,93 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
     expect(within(area).getByText("+500")).toBeInTheDocument();
   });
 
+  it("normal house_call and goods remain separate in printed summary and detail footers", () => {
+    renderPrint({
+      categories: { house_call: { 現金: 1000 }, goods: { 現金: 200 } },
+      categoryCounts: { house_call: 1, goods: 1 },
+      billingDetails: [
+        detail({
+          billingId: 20,
+          ownerName: "往診飼主",
+          petName: "往診ペット",
+          category: "house_call",
+          billingAmount: 1000,
+          refundAmount: 0,
+          netAmount: 1000,
+          categoryAmounts: { house_call: 1000 },
+        }),
+        detail({
+          billingId: 21,
+          ownerName: "物販飼主",
+          petName: "物販ペット",
+          category: "goods",
+          billingAmount: 200,
+          refundAmount: 0,
+          netAmount: 200,
+          categoryAmounts: { goods: 200 },
+        }),
+      ],
+      theoreticalCash: 1200,
+    });
+    const area = screen.getByTestId("close-print-area");
+    const summaryTable = within(area).getByText("件数").closest("table")!;
+    const summaryHouseCallRow = within(summaryTable).getByText("往診").closest("tr")!;
+    const summaryGoodsRow = within(summaryTable).getByText("用品").closest("tr")!;
+    expect(within(summaryHouseCallRow).getByText("1件")).toBeInTheDocument();
+    expect(within(summaryHouseCallRow).getAllByText("¥1,000")).toHaveLength(2);
+    expect(within(summaryGoodsRow).getByText("1件")).toBeInTheDocument();
+    expect(within(summaryGoodsRow).getAllByText("¥200")).toHaveLength(2);
+
+    const summaryFooter = within(summaryTable).getAllByRole("row").at(-1)!;
+    expect(within(summaryFooter).getByText("2件")).toBeInTheDocument();
+    expect(within(summaryFooter).getAllByText("¥1,200")).toHaveLength(2);
+
+    const detailsTable = within(area).getByText("領収No").closest("table")!;
+    const headers = within(detailsTable)
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent);
+    const houseCallIndex = headers.indexOf("往診");
+    const goodsIndex = headers.indexOf("用品他");
+    expect(houseCallIndex).toBe(goodsIndex + 1);
+
+    const houseCallDetail = within(detailsTable).getByText("往診飼主").closest("tr")!;
+    const houseCallCells = within(houseCallDetail)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(houseCallCells[houseCallIndex]).toBe("¥1,000");
+    expect(houseCallCells[goodsIndex]).toBe("-");
+
+    const goodsDetail = within(detailsTable).getByText("物販飼主").closest("tr")!;
+    const goodsCells = within(goodsDetail)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(goodsCells[houseCallIndex]).toBe("-");
+    expect(goodsCells[goodsIndex]).toBe("¥200");
+
+    const detailsFooter = within(detailsTable).getAllByRole("row").at(-1)!;
+    expect(within(detailsFooter).getByText("¥1,000")).toBeInTheDocument();
+    expect(within(detailsFooter).getByText("¥200")).toBeInTheDocument();
+    expect(within(detailsFooter).getAllByText("¥1,200")).toHaveLength(2);
+  });
+
+  it("refund-only house_call summary and footer remain printable while detail rows are empty", () => {
+    renderPrint({
+      categories: { house_call: { 現金: -1000 } },
+      categoryCounts: { house_call: 0 },
+      billingDetails: [],
+      theoreticalCash: -1000,
+    });
+    const area = screen.getByTestId("close-print-area");
+    const summaryTable = within(area).getByText("件数").closest("table")!;
+    const houseCallRow = within(summaryTable).getByText("往診").closest("tr")!;
+    expect(within(houseCallRow).getByText("0件")).toBeInTheDocument();
+    expect(within(houseCallRow).getAllByText("-¥1,000")).toHaveLength(2);
+
+    const summaryFooter = within(summaryTable).getAllByRole("row").at(-1)!;
+    expect(within(summaryFooter).getAllByText("-¥1,000")).toHaveLength(2);
+    expect(within(area).getByText("会計明細がありません")).toBeInTheDocument();
+  });
+
   // FE5-14: yen() インライン定義を formatCurrency に置換する前の印字固定
   it("統合テーブルの部門合計・支払方法別金額は ¥ 区切りで出力する", () => {
     renderPrint({

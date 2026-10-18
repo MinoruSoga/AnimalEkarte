@@ -172,7 +172,7 @@ type createAccountingRequest struct {
 
 // completeAccountingItemRequest は BUG-018 complete command の明細1行。
 type completeAccountingItemRequest struct {
-	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
+	Category              string  `json:"category"  binding:"omitempty,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training house_call"`
 	Name                  string  `json:"name"      binding:"required,max=255"`
 	UnitPrice             int64   `json:"unit_price" binding:"min=0"`
 	Quantity              float64 `json:"quantity"   binding:"required,gt=0"`

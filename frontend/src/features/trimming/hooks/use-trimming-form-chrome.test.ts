@@ -23,14 +23,6 @@ vi.mock("./use-trimming-history", () => ({
   useTrimmingHistory: () => ({
     sortedHistory: [],
     isHistoryLoading: false,
-    historySearchTerm: "",
-    historySortOrder: "desc",
-    historyDateRange: { from: "", to: "" },
-    setHistorySearchTerm: vi.fn(),
-    setHistorySortOrder: vi.fn(),
-    handleHistoryClear: vi.fn(),
-    setHistoryDateRangeFrom: vi.fn(),
-    setHistoryDateRangeTo: vi.fn(),
     handleHistoryClick: (updates: Record<string, unknown>) => updates,
   }),
 }));

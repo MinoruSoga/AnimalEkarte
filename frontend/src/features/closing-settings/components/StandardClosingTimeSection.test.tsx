@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { StandardClosingTimeSection } from "./StandardClosingTimeSection";
 import type { ClinicSettings } from "@/types/generated/models";
@@ -42,7 +43,6 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
     render(
       <StandardClosingTimeSection settings={makeSettings({ closed_weekdays: [0] })} canEdit />,
     );
-    const sunday = screen.getByRole("checkbox", { name: "日" });
     expect(screen.getAllByRole("cell", { name: "休診" })).toHaveLength(3);
     const end = screen.getByLabelText("日曜 終了時間");
     expect(end).toHaveValue("17:30");
@@ -59,11 +59,11 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
         expect.objectContaining({ closing_sunday_end: "17:30", closed_weekdays: [0] }),
       ),
     );
-    fireEvent.click(sunday);
+    fireEvent.click(screen.getByRole("checkbox", { name: "日" }));
     expect(screen.queryByRole("cell", { name: "休診" })).not.toBeInTheDocument();
     expect(screen.getByText("12:00:00～17:29:59")).toBeInTheDocument();
     expect(end).toHaveValue("17:30");
-    fireEvent.click(sunday);
+    fireEvent.click(screen.getByRole("checkbox", { name: "日" }));
     expect(screen.getAllByRole("cell", { name: "休診" })).toHaveLength(3);
   });
 
@@ -73,6 +73,52 @@ describe("StandardClosingTimeSection (#151 時間帯プレビュー・#215 越�
     const sunday = screen.getByRole("checkbox", { name: "日" });
     expect(sunday).toHaveClass("absolute", "inset-0", "size-full");
     expect(sunday.closest("label")).toHaveClass("relative", "min-h-11", "min-w-11");
+  });
+
+  it("keeps focus on the same weekday checkbox after its controlled value changes", async () => {
+    const user = userEvent.setup();
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
+
+    const monday = screen.getByRole("checkbox", { name: "月" });
+    monday.focus();
+    expect(monday).toHaveFocus();
+
+    await user.click(monday);
+    const updatedMonday = screen.getByRole("checkbox", { name: "月" });
+    expect(updatedMonday).toBe(monday);
+    expect(updatedMonday).toBeChecked();
+    expect(updatedMonday).toHaveFocus();
+  });
+
+  it("toggles with Space, activates the next weekday label, and submits checked weekdays", async () => {
+    const user = userEvent.setup();
+    render(<StandardClosingTimeSection settings={makeSettings()} canEdit={true} />);
+
+    const monday = screen.getByRole("checkbox", { name: "月" });
+    const form = monday.closest("form");
+    expect(form).not.toBeNull();
+    monday.focus();
+    await user.tab({ shift: true });
+    expect(monday).not.toHaveFocus();
+    await user.tab();
+    expect(monday).toHaveFocus();
+    await user.keyboard(" ");
+
+    const updatedMonday = screen.getByRole("checkbox", { name: "月" });
+    expect(updatedMonday).toBe(monday);
+    expect(updatedMonday).toBeChecked();
+    expect(updatedMonday).toHaveFocus();
+
+    await user.click(screen.getByText("火"));
+    expect(screen.getByRole("checkbox", { name: "火" })).toBeChecked();
+
+    await act(async () => form?.requestSubmit());
+
+    await waitFor(() =>
+      expect(mockUpdateClosingSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ closed_weekdays: [1, 2] }),
+      ),
+    );
   });
 
   it("初期設定から平日・日曜の AM/PM/EMG レンジを表示する", () => {

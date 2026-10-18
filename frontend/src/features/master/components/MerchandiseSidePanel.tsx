@@ -99,6 +99,7 @@ export const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

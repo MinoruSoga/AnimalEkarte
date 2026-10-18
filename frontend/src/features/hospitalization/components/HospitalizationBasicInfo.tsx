@@ -198,6 +198,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
 
       {/* 保険 */}
       <div className="mb-3">
+        {/* EMR-412 N7: この行だけ 16px の箱の中心を文言の中心へ揃える（44px の当たりは Checkbox 側に残す）。 */}
         <div className="flex items-center gap-2 mb-1.5">
           <Checkbox
             id="is_insurance"
@@ -214,7 +215,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           />
           <Label
             htmlFor="is_insurance"
-            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex min-h-11 items-center gap-1`}
+            className={`${H_STYLES.text.sm} ${C.text} cursor-pointer flex items-center gap-1 mb-0`}
           >
             <ShieldCheck className={`${ICON.action} ${C.text60}`} />
             保険適用

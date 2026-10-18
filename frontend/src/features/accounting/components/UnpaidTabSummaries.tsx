@@ -28,19 +28,19 @@ export function UnpaidTabSummaries({ groupBy, summary, periodSummary }: UnpaidTa
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className={`text-xs ${C.text50} mb-1`}>期間前繰越</p>
-              <p className="text-xl font-bold">
+              <p className="text-xl font-normal">
                 {formatCurrency(periodSummary.prev_period_carryover)}
               </p>
             </div>
             <div>
               <p className={`text-xs ${C.text50} mb-1`}>期間内未納</p>
-              <p className="text-xl font-bold">
+              <p className="text-xl font-normal">
                 {formatCurrency(periodSummary.current_period_unpaid)}
               </p>
             </div>
             <div>
               <p className={`text-xs ${C.text50} mb-1`}>期末繰越</p>
-              <p className="text-xl font-bold">
+              <p className="text-xl font-normal">
                 {formatCurrency(periodSummary.period_end_carryover)}
               </p>
             </div>

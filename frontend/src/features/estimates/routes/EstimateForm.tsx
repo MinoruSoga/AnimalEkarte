@@ -28,6 +28,11 @@ import {
 import { AmountSection, BasicInfoSection, TextSection } from "../components/EstimateFormSections";
 import { EstimateItemsEditor } from "../components/EstimateItemsEditor";
 
+/**
+ * 通常入力とデータ取得待ち・取得失敗の PageLayout を同じ formNarrow 幅に揃える。
+ * 非公開などの読み取り状態は新規フォームではなく既存のフォールバックを返す。
+ * 編集不可ステータスで詳細へリダイレクトする間の表示は、この幅揃えの対象外。
+ */
 function EstimateFormContent({ id }: { id?: string }) {
   const navigate = useNavigate();
   // BUG-019: mode from route param; found state from classified read result
@@ -103,6 +108,7 @@ function EstimateFormContent({ id }: { id?: string }) {
     handleCancel,
     isPending,
     totals,
+    manualTotalsAllowed,
     createEmptyItem,
   } = useEstimateForm({
     mode: isEdit ? "edit" : "create",
@@ -158,7 +164,15 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
 
   if (isEdit && entityRead.status === "loading") {
-    return <LoadingFallback />;
+    return (
+      <PageLayout
+        title="見積書"
+        resource={ResourceEstimates}
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
   }
 
   // BUG-019: missing / other-clinic / forbidden → Not Found (non-disclosure), never blank form
@@ -210,7 +224,7 @@ function EstimateFormContent({ id }: { id?: string }) {
             submitDisabled={!form.title.trim()}
           />
         }
-        maxWidth={LAYOUT.pageContentMaxWidth.form}
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       >
         <NavigationBlocker when={isDirty ? !isPending : false} />
         {/* FE-RC-002/004: 死亡・生死不明ペットの新規見積書作成を render 側で拒否する（callback 側は use-estimate-form.ts）。 */}
@@ -259,6 +273,15 @@ function EstimateFormContent({ id }: { id?: string }) {
               onInsuranceAmountChange={(v) => handleChangeWithDirty("insuranceAmount", v)}
               onDiscountAmountChange={(v) => handleChangeWithDirty("discountAmount", v)}
               canCreateDiscount={canChangeDiscount}
+              onSubtotalChange={
+                manualTotalsAllowed ? (v) => handleChangeWithDirty("subtotal", v) : undefined
+              }
+              onTaxTotalChange={
+                manualTotalsAllowed ? (v) => handleChangeWithDirty("taxTotal", v) : undefined
+              }
+              onTotalAmountChange={
+                manualTotalsAllowed ? (v) => handleChangeWithDirty("totalAmount", v) : undefined
+              }
             />
 
             {/* rerender-memo: TextSection — 基本情報/金額変更では再レンダーしない */}

@@ -1,4 +1,4 @@
-import { Suspense, type ComponentProps, type ReactNode } from "react";
+import { Suspense, useId, type ComponentProps, type ReactNode } from "react";
 import { DndContext, type DragEndEvent } from "@dnd-kit/core";
 import type { CollisionDetection } from "@dnd-kit/core";
 import Filter from "lucide-react/dist/esm/icons/filter";
@@ -29,8 +29,6 @@ interface ReceptionPageBodyProps {
   isFilterOpen: boolean;
   onToggleFilter: () => void;
   canCreateReservation: boolean;
-  /** PR665: 当日のヘッダーボタンは walk-in 受付のため reception:create も要求する。非当日は通常予約のみ。 */
-  canCreateWalkInReception?: boolean;
   onNewReception: () => void;
   telemetry: ReceptionTelemetryResult;
   selectedVisitTypes: string[];
@@ -68,6 +66,7 @@ interface ReceptionPageBodyProps {
   cancelDescription: string;
 }
 
+/** 受付一覧と関連パネルを表示し、フィルターの開閉状態を操作元へ伝える。 */
 export function ReceptionPageBody({
   dateLabel,
   selectedDate,
@@ -76,7 +75,6 @@ export function ReceptionPageBody({
   isFilterOpen,
   onToggleFilter,
   canCreateReservation,
-  canCreateWalkInReception = true,
   onNewReception,
   telemetry,
   selectedVisitTypes,
@@ -113,6 +111,7 @@ export function ReceptionPageBody({
   onConfirmCancel,
   cancelDescription,
 }: ReceptionPageBodyProps) {
+  const filterPanelId = useId();
   return (
     <div className={`flex-1 flex flex-col h-full ${C.bgPage}`}>
       <FormHeader
@@ -133,12 +132,15 @@ export function ReceptionPageBody({
               variant={isFilterOpen ? "secondary" : "outline"}
               className={`gap-2 ${C.bgWhite} h-11 text-base ${C.text} ${C.borderMedium}`}
               onClick={onToggleFilter}
+              aria-expanded={isFilterOpen}
+              aria-controls={filterPanelId}
             >
               <Filter className={ICON.sm} />
+              {isFilterOpen ? <span aria-hidden="true">✓</span> : null}
               フィルター
             </Button>
-            {/* PR665: 通常予約は reservations:create、当日 walk-in は reception:create も必要。権限のない受付アクションは表示しない。 */}
-            {canCreateReservation === true && (!isToday || canCreateWalkInReception === true) ? (
+            {/* PR669: 新規予約登録は reservations:create のみで表示する（walk-in も同権限）。 */}
+            {canCreateReservation === true ? (
               <PrimaryButton onClick={onNewReception}>新規予約登録</PrimaryButton>
             ) : null}
           </div>
@@ -151,17 +153,19 @@ export function ReceptionPageBody({
         isToday={isToday}
       />
 
-      {isFilterOpen ? (
-        <ReceptionFilterPanel
-          selectedVisitTypes={selectedVisitTypes}
-          selectedDoctor={selectedDoctor}
-          doctors={doctors}
-          isTrimmingOnly={isTrimmingOnly}
-          onToggleVisitType={onToggleVisitType}
-          onSelectedDoctorChange={onSelectedDoctorChange}
-          onTrimmingOnlyChange={onTrimmingOnlyChange}
-        />
-      ) : null}
+      <div id={filterPanelId} hidden={!isFilterOpen}>
+        {isFilterOpen ? (
+          <ReceptionFilterPanel
+            selectedVisitTypes={selectedVisitTypes}
+            selectedDoctor={selectedDoctor}
+            doctors={doctors}
+            isTrimmingOnly={isTrimmingOnly}
+            onToggleVisitType={onToggleVisitType}
+            onSelectedDoctorChange={onSelectedDoctorChange}
+            onTrimmingOnlyChange={onTrimmingOnlyChange}
+          />
+        ) : null}
+      </div>
 
       <div className="flex-1 overflow-hidden p-6 pt-4">
         {/* 確定はドロップ時のみ。onDragOver でのライブ移動は measureRects の再計測ループ

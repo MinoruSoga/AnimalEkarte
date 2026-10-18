@@ -169,7 +169,12 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/components/shared/PageLayout/PageLayout", () => ({
-  PageLayout: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageLayout: ({ children, headerAction }: { children: ReactNode; headerAction?: ReactNode }) => (
+    <div>
+      {headerAction}
+      {children}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/shared/NavigationBlocker", () => ({
@@ -180,7 +185,8 @@ vi.mock("@/components/shared/ConfirmDialog", () => ({
   ConfirmDialog: () => null,
 }));
 
-vi.mock("@/components/shared/PatientInfoCard", () => ({
+vi.mock("@/components/shared/PatientInfoCard", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/shared/PatientInfoCard")>()),
   PatientInfoCard: () => null,
 }));
 

@@ -235,7 +235,7 @@ const InterviewWeightEditor = function InterviewWeightEditor({
     <div
       className={`col-span-1 lg:col-span-12 border ${C.borderMedium} ${C.bgWhite} rounded-lg p-3 ${className ?? ""}`}
     >
-      <h3 className={`text-sm font-bold ${C.text} mb-2`}>体重</h3>
+      <h3 className={`text-sm font-semibold ${C.text} mb-2`}>体重</h3>
 
       {vitalsLoading ? (
         <p role="status" className={`text-sm ${C.text60} mb-2`}>

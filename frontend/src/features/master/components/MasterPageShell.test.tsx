@@ -50,3 +50,30 @@ describe("MasterPageShell maxWidth forwarding (EMR-333)", () => {
     );
   });
 });
+
+// EMR-411 C-3: side peek が viewport <1280px で absolute overlay になるため、
+// その定位コンテキストとしてルート flex wrapper は relative を持つ必要がある。
+// 既存の flex h-full / リスト側 flex-1 min-w-0 の契約は維持する。
+describe("MasterPageShell workspace positioning (EMR-411 C-3)", () => {
+  it("ルートが relative flex h-full、リスト側が flex-1 min-w-0、sidePanel が兄弟要素として残る", () => {
+    const { container } = render(
+      <MasterPageShell
+        title="テストマスタ"
+        onNew={vi.fn()}
+        sidePanel={<div data-testid="side-panel-marker" />}
+      >
+        <div>コンテンツ</div>
+      </MasterPageShell>,
+    );
+
+    const root = container.firstElementChild;
+    expect(root).toHaveClass("relative", "flex", "h-full");
+
+    const listArea = container.querySelector('[data-testid="page-layout-mock"]')?.parentElement;
+    expect(listArea).toHaveClass("flex-1", "min-w-0");
+
+    const sidePanel = container.querySelector('[data-testid="side-panel-marker"]');
+    expect(sidePanel).not.toBeNull();
+    expect(sidePanel?.parentElement).toBe(root);
+  });
+});

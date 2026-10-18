@@ -114,14 +114,19 @@ func (s *estimateService) updateEstimateInTx(
 			cmd.TaxTotal = &taxTotal
 			cmd.TotalAmount = &totalAmount
 		} else {
-			// PR665: 実効ヘッダー割引は「入力指定値、省略時は保存済み値」。合計のみ控除する。
+			// PR665/PR669: 実効控除は「入力指定値、省略時は保存済み値」を割引・保険それぞれに
+			// 適用する。合計のみ控除する。
 			effectiveDiscount := result.existing.DiscountAmount
 			if input.DiscountAmount != nil {
 				effectiveDiscount = *input.DiscountAmount
 			}
-			subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
-			if discountErr != nil {
-				return result, discountErr
+			effectiveInsurance := result.existing.InsuranceAmount
+			if input.InsuranceAmount != nil {
+				effectiveInsurance = *input.InsuranceAmount
+			}
+			subtotal, taxTotal, totalAmount, adjustErr := applyEstimateHeaderAdjustments(subtotal, taxTotal, totalAmount, effectiveDiscount, effectiveInsurance)
+			if adjustErr != nil {
+				return result, adjustErr
 			}
 			cmd.Subtotal = &subtotal
 			cmd.TaxTotal = &taxTotal
@@ -133,19 +138,44 @@ func (s *estimateService) updateEstimateInTx(
 	if input.Items == nil && len(result.existing.Items) > 0 {
 		// Active persisted items are the source of truth for estimate totals. Header-only
 		// PATCHes must not allow client-supplied totals to drift from those items.
-		subtotal, taxTotal, totalAmount := calculateEstimateTotals(result.existing.Items)
-		// PR665: ヘッダーのみの更新（割引のみ変更を含む）でも合計は割引控除後。
-		effectiveDiscount := result.existing.DiscountAmount
-		if input.DiscountAmount != nil {
-			effectiveDiscount = *input.DiscountAmount
+		// PR669: メタデータ/ステータスのみ・控除据え置きの PATCH は保存済み合計をそのまま
+		// 保持する。保存時点より前の旧データ（超過控除を含む）を再計算・再検証しない。
+		// 再計算するのは割引または保険の実効値が変わる時だけ。
+		discountChanged := input.DiscountAmount != nil && *input.DiscountAmount != result.existing.DiscountAmount
+		insuranceChanged := input.InsuranceAmount != nil && *input.InsuranceAmount != result.existing.InsuranceAmount
+		if discountChanged || insuranceChanged {
+			subtotal, taxTotal, totalAmount := calculateEstimateTotals(result.existing.Items)
+			effectiveDiscount := result.existing.DiscountAmount
+			if input.DiscountAmount != nil {
+				effectiveDiscount = *input.DiscountAmount
+			}
+			effectiveInsurance := result.existing.InsuranceAmount
+			if input.InsuranceAmount != nil {
+				effectiveInsurance = *input.InsuranceAmount
+			}
+			subtotal, taxTotal, totalAmount, adjustErr := applyEstimateHeaderAdjustments(subtotal, taxTotal, totalAmount, effectiveDiscount, effectiveInsurance)
+			if adjustErr != nil {
+				return result, adjustErr
+			}
+			cmd.Subtotal = &subtotal
+			cmd.TaxTotal = &taxTotal
+			cmd.TotalAmount = &totalAmount
+		} else {
+			// クライアント提示の合計が保存済み値と乖離しても適用しない。
+			// 送られてきた total 系ポインタは保存済み値へ置き換え、未送信は nil のまま。
+			if cmd.Subtotal != nil {
+				stored := result.existing.Subtotal
+				cmd.Subtotal = &stored
+			}
+			if cmd.TaxTotal != nil {
+				stored := result.existing.TaxTotal
+				cmd.TaxTotal = &stored
+			}
+			if cmd.TotalAmount != nil {
+				stored := result.existing.TotalAmount
+				cmd.TotalAmount = &stored
+			}
 		}
-		subtotal, taxTotal, totalAmount, discountErr := applyEstimateHeaderDiscount(subtotal, taxTotal, totalAmount, effectiveDiscount)
-		if discountErr != nil {
-			return result, discountErr
-		}
-		cmd.Subtotal = &subtotal
-		cmd.TaxTotal = &taxTotal
-		cmd.TotalAmount = &totalAmount
 	}
 	result.isBecomingApproved = input.Status != nil && *input.Status == model.EstimateStatusApproved &&
 		result.existing.Status != model.EstimateStatusApproved

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  parseClosedWeekdays,
+  sameClosedWeekdays,
   asJsonb,
   isStringArray,
   isBusinessHours,
@@ -102,6 +104,80 @@ describe("asJsonb", () => {
 
   it("非string値: 型不一致なら fallback を返す", () => {
     expect(asJsonb({ foo: "bar" }, ["fallback"], isStringArray)).toEqual(["fallback"]);
+  });
+});
+
+describe("parseClosedWeekdays", () => {
+  it("normalizes numeric and exact legacy weekday values from arrays and JSON", () => {
+    const legacyWeekdays = ["0", "2", "6"];
+
+    expect(parseClosedWeekdays([])).toEqual([]);
+    expect(parseClosedWeekdays([0])).toEqual([0]);
+    expect(parseClosedWeekdays([2, 6])).toEqual([2, 6]);
+    expect(parseClosedWeekdays(legacyWeekdays)).toEqual([0, 2, 6]);
+    expect(parseClosedWeekdays(`[0,"2",6]`)).toEqual([0, 2, 6]);
+    expect(parseClosedWeekdays(`["0","2","6"]`)).toEqual([0, 2, 6]);
+    expect(parseClosedWeekdays([2, "2"])).toEqual([2, 2]);
+    expect(legacyWeekdays).toEqual(["0", "2", "6"]);
+  });
+
+  it("returns an empty array for omitted or whole-null values", () => {
+    expect(parseClosedWeekdays(undefined)).toEqual([]);
+    expect(parseClosedWeekdays(null)).toEqual([]);
+    expect(parseClosedWeekdays("null")).toEqual([]);
+  });
+
+  it("returns null for malformed, invalid, or noncanonical stored values", () => {
+    const invalidValues: unknown[] = [
+      {},
+      "{not-json",
+      "{}",
+      [null],
+      [true],
+      [{}],
+      [2.5],
+      [-1],
+      [7],
+      ["02"],
+      [" 2"],
+      ["7"],
+    ];
+
+    invalidValues.forEach((value) => expect(parseClosedWeekdays(value)).toBeNull());
+  });
+});
+
+describe("sameClosedWeekdays", () => {
+  it("重複の多重度が異なる配列は等値と判定しない", () => {
+    expect(sameClosedWeekdays([1, 1], [1, 2])).toBe(false);
+    expect(sameClosedWeekdays([1, 2], [1, 1])).toBe(false);
+    expect(sameClosedWeekdays([1, 1, 2], [1, 2, 2])).toBe(false);
+  });
+
+  it("順序が違っても多重度が一致すれば等値と判定する", () => {
+    expect(sameClosedWeekdays([1, 2], [2, 1])).toBe(true);
+    expect(sameClosedWeekdays([1, 1], [1, 1])).toBe(true);
+    expect(sameClosedWeekdays([1, 2, 2], [2, 2, 1])).toBe(true);
+  });
+
+  it("要素数が異なる配列は等値と判定しない", () => {
+    expect(sameClosedWeekdays([1], [1, 1])).toBe(false);
+    expect(sameClosedWeekdays([], [1])).toBe(false);
+  });
+
+  it("引数の配列を書き換えない", () => {
+    const a = [2, 1];
+    const b = [1, 2];
+
+    expect(sameClosedWeekdays(a, b)).toBe(true);
+    expect(a).toEqual([2, 1]);
+    expect(b).toEqual([1, 2]);
+  });
+
+  it("null は null 同士のみ等値", () => {
+    expect(sameClosedWeekdays(null, null)).toBe(true);
+    expect(sameClosedWeekdays(null, [])).toBe(false);
+    expect(sameClosedWeekdays([], null)).toBe(false);
   });
 });
 

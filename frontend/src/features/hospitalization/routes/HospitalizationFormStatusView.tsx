@@ -8,17 +8,24 @@ import type { HospitalizationFormGate } from "./hospitalization-form-model";
 export function HospitalizationFormStatusView({
   gate,
   onBack,
+  savedHospitalizationType,
 }: {
   gate: HospitalizationFormGate | { kind: "new-deceased" };
   onBack: () => void;
+  /** EMR-412 R4: 保存済み区分。ロード中/不在の状態では推測せず汎用見出しにする。 */
+  savedHospitalizationType?: "入院" | "ホテル";
 }) {
+  // EMR-412 R4: 保存済みが確認できるときだけ区分名を使う。それ以外は汎用「入院・ホテル編集」。
+  const editTitle = savedHospitalizationType
+    ? `${savedHospitalizationType}編集`
+    : "入院・ホテル編集";
   if (gate.kind === "new-pet-loading") return <LoadingFallback />;
   if (gate.kind === "new-no-pet") return null;
 
   if (gate.kind === "edit-loading") {
     return (
       <PageLayout
-        title="入院"
+        title={editTitle}
         onBack={onBack}
         resource={ResourceHospitalization}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
@@ -30,7 +37,7 @@ export function HospitalizationFormStatusView({
   if (gate.kind === "edit-not-found") {
     return (
       <PageLayout
-        title="入院"
+        title={editTitle}
         onBack={onBack}
         resource={ResourceHospitalization}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
@@ -42,18 +49,18 @@ export function HospitalizationFormStatusView({
   if (gate.kind === "new-deceased") {
     return (
       <PageLayout
-        title="入院登録"
+        title="入院・ホテル登録"
         onBack={onBack}
         resource={ResourceHospitalization}
         maxWidth={LAYOUT.pageContentMaxWidth.form}
       >
-        <ErrorFallback message="死亡したペットは入院登録できません" />
+        <ErrorFallback message="死亡したペットは入院・ホテル登録できません" />
       </PageLayout>
     );
   }
   return (
     <PageLayout
-      title="入院"
+      title={editTitle}
       onBack={onBack}
       resource={ResourceHospitalization}
       maxWidth={LAYOUT.pageContentMaxWidth.form}

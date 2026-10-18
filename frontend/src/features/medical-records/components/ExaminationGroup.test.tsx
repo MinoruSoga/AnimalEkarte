@@ -77,6 +77,22 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("DRI-CHEM")).toBeInTheDocument();
   });
 
+  it("machine が空白パディング付きでもトリムして表示する", () => {
+    renderGroup(makeGroup({ machine: "  IDEXX SediVue Dx  " }));
+    expect(screen.getByText("IDEXX SediVue Dx").textContent).toBe("IDEXX SediVue Dx");
+    expect(screen.queryByText("手入力")).not.toBeInTheDocument();
+  });
+
+  it("machine が空文字のときバッジに 手入力 を表示する", () => {
+    renderGroup(makeGroup({ machine: "" }));
+    expect(screen.getByText("手入力")).toBeInTheDocument();
+  });
+
+  it("machine が空白のみのときバッジに 手入力 を表示する", () => {
+    renderGroup(makeGroup({ machine: "   " }));
+    expect(screen.getByText("手入力")).toBeInTheDocument();
+  });
+
   // M4 (SLACK-MANUAL-URINE): chart exam-tab must show manual urine fixture
   // strings; empty machine is not a missing-data signal (≠ 目視 / ≠ 欠落).
   it("M4: 手入力 FIXTURE-STRIP の inspection/unit/reference を表示し空 machine を欠落扱いにしない", () => {

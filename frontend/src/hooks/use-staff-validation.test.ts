@@ -38,12 +38,27 @@ describe("useStaffValidation (STG P0-3)", () => {
       wrapper: createWrapper(client),
     });
 
-    await waitFor(() => expect(result.current.isValidStaff("Active Doctor")).toBe(true));
+    await waitFor(() => expect(result.current.validStaffNames).toBeDefined());
+    expect(result.current.isValidStaff("Active Doctor")).toBe(true);
 
     expect(result.current.isValidStaff("Inactive Doctor")).toBe(false);
     expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(axios.get).mock.calls[0]?.[0]).toBe("/v1/masters/staffs");
     expect(client.getQueryData(queryKeys.masters.category("staffs"))).toBeDefined();
     expect(client.getQueryData(queryKeys.masters.category("staff"))).toBeUndefined();
+  });
+
+  it("マスタ取得中は既知の氏名を「無効」と断定しない (EMR-412 R5)", async () => {
+    // 未解決（loading 中）は true を返し、取得済みのときだけ判定する。
+    vi.mocked(axios.get).mockReturnValue(new Promise(() => {}));
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(() => useStaffValidation(), {
+      wrapper: createWrapper(client),
+    });
+
+    expect(result.current.isValidStaff("Active Doctor")).toBe(true);
+    expect(result.current.isValidStaff("Inactive Doctor")).toBe(true);
   });
 });

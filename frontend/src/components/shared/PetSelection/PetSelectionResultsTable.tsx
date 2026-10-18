@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/format/date";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
+import { getPetStatusColor } from "@/lib/status-helpers";
 import type { PetSelectionResultPage } from "@/hooks/use-pet-selection-page";
 import type { Pet } from "@/types";
 
@@ -79,41 +80,36 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
       <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
         <Table>
           <TableHeader>
-            <TableRow
-              className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
-            >
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+            <TableRow className={STYLE.tableHeaderRow}>
+              <TableHead className={`min-w-[80px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 飼主No
               </TableHead>
-              <TableHead className={`min-w-[140px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[140px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 飼主名
               </TableHead>
-              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[80px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 ペット番号
               </TableHead>
-              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[100px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 ペット名
               </TableHead>
-              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
-                生死
-              </TableHead>
-              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[50px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 種
               </TableHead>
-              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[90px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 生年月日
               </TableHead>
-              <TableHead className={`min-w-[60px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[60px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 体重
               </TableHead>
-              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[100px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 環境
               </TableHead>
-              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>
+              <TableHead className={`min-w-[90px] ${STYLE.tableHeaderCell} whitespace-nowrap`}>
                 前回来院
               </TableHead>
               <TableHead
-                className={`sticky right-0 z-20 ${C.bgWhite} min-w-[120px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}
+                className={`sticky right-0 z-20 ${C.bgPage} min-w-[120px] ${STYLE.tableHeaderCell} whitespace-nowrap`}
               >
                 操作
               </TableHead>
@@ -126,28 +122,42 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
               // 「不明」等の既知外 status は fail-closed で選択不可のまま。
               const isSelectable =
                 (pet.status === "生存" || pet.status === "死亡") && !isError && !isLoading;
+              // EMR-415 X7: グレーアウトは行全体ではなく、死亡行のセル内容と選択ボタンに掛ける。
+              // ペット名セルは名前の span だけに掛け、生死バッジは読める色のままにする。
+              const deceasedDim = isDeceased ? " opacity-60 grayscale-[0.5]" : "";
               return (
                 <TableRow
                   key={pet.id}
                   className={`transition-colors ${C.hoverBgMedium} h-12 ${
                     index < items.length - 1 ? `border-b ${C.borderLight}` : "border-none"
-                  } ${isDeceased ? "opacity-60 grayscale-[0.5]" : ""}`}
+                  }`}
                 >
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     {pet.ownerId}
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     <span className="flex items-center gap-1.5">
                       <span>{pet.ownerName}</span>
                       {pet.ownerIsDangerous ? <DangerBadge variant="owner" /> : null}
                     </span>
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {pet.petNumber || "-"}
                   </TableCell>
                   <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
                     <span className="flex items-center gap-1.5">
-                      <span>{pet.name}</span>
+                      <span className={deceasedDim.trim()}>{pet.name}</span>
+                      {/* EMR-412 X2: 生死はペット名セルへ移動（カルテ一覧と同じ配置。sticky 操作列の下に隠れない） */}
+                      {pet.status ? (
+                        <Badge
+                          variant="secondary"
+                          className={`${getPetStatusColor(pet.status)} text-xs px-2 py-0 h-7`}
+                        >
+                          {pet.status}
+                        </Badge>
+                      ) : null}
                       <DangerBadge
                         variant="pet"
                         level={pet.dangerLevel}
@@ -160,33 +170,25 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       ) : null}
                     </span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {pet.status ? (
-                      <Badge
-                        variant="secondary"
-                        className={
-                          pet.status === "生存"
-                            ? `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreen} ${C.hoverBgStatusGreen} text-xs px-2 py-0 h-7`
-                            : `${C.bgStatusGray} ${C.textStatusGray} ${C.borderStatusGray} ${C.hoverBgStatusGray} text-xs px-2 py-0 h-7`
-                        }
-                      >
-                        {pet.status}
-                      </Badge>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     {pet.species}
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {formatDate(pet.birthDate)}
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {pet.weight || "-"}
                   </TableCell>
-                  <TableCell className={`text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell className={`text-sm ${C.text} whitespace-nowrap${deceasedDim}`}>
                     {pet.environment || "-"}
                   </TableCell>
-                  <TableCell className={`font-mono text-sm ${C.text} whitespace-nowrap`}>
+                  <TableCell
+                    className={`font-mono text-sm ${C.text} whitespace-nowrap${deceasedDim}`}
+                  >
                     {formatDate(pet.lastVisit)}
                   </TableCell>
                   <TableCell
@@ -209,7 +211,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       }
                       // docs/spec/design-system.md button-primary: pill。白文字塗りは
                       // design-states.md §2.3 の Solid コンボ（#027078 系）を使う。
-                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} text-sm px-4`}
+                      className={`h-11 min-w-11 gap-1 ${isSelectable ? `${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} rounded-full` : C.textStatusGray} px-4${deceasedDim}`}
                       onClick={() => onSelect(pet)}
                     >
                       {isSelectable ? (
@@ -231,7 +233,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             {items.length === 0 ? (
               <TableRow>
                 {/* 取得失敗 > 取得中 > 該当0件 の優先順。色に依存せず文言で状態を区別する。 */}
-                <TableCell colSpan={11} className={STYLE.tableEmpty}>
+                <TableCell colSpan={10} className={STYLE.tableEmpty}>
                   {isError ? (
                     <span role="alert" className={C.danger}>
                       ペット一覧の取得に失敗しました

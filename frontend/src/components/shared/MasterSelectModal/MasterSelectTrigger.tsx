@@ -20,6 +20,8 @@ interface MasterSelectTriggerProps {
   variant?: "inline" | "block";
   /** EMR-319: true でトリガーに aria-invalid + 赤枠を付与する */
   ariaInvalid?: boolean;
+  /** PR679 F6: 追加の説明要素 id（必須説明など）。未指定なら属性自体を出さない。 */
+  ariaDescribedBy?: string;
 }
 
 /** EMR-319: エラー表示用の追加クラス */
@@ -33,6 +35,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
   onClick,
   variant = "inline",
   ariaInvalid = false,
+  ariaDescribedBy,
 }: MasterSelectTriggerProps) {
   if (selectedItem) {
     // --- Selected state ---
@@ -43,6 +46,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
           type="button"
           onClick={onClick}
           aria-invalid={ariaInvalid || undefined}
+          aria-describedby={ariaDescribedBy || undefined}
           className={`w-full p-3 border ${ariaInvalid ? INVALID_CLASSES : C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors text-left`}
         >
           <div className="flex items-center justify-between">
@@ -72,6 +76,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
         type="button"
         onClick={onClick}
         aria-invalid={ariaInvalid || undefined}
+        aria-describedby={ariaDescribedBy || undefined}
         className={`w-full h-11 px-3 border ${ariaInvalid ? INVALID_CLASSES : C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between text-left`}
       >
         <div className="flex items-center gap-2 min-w-0">
@@ -100,6 +105,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
         type="button"
         onClick={onClick}
         aria-invalid={ariaInvalid || undefined}
+        aria-describedby={ariaDescribedBy || undefined}
         className={`w-full p-3 border-2 border-dashed ${ariaInvalid ? INVALID_CLASSES : C.borderMedium} rounded-md ${C.bgPage} ${C.hoverBgMedium} transition-colors text-center cursor-pointer`}
       >
         <div className="flex flex-col items-center">
@@ -117,6 +123,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
       type="button"
       onClick={onClick}
       aria-invalid={ariaInvalid || undefined}
+      aria-describedby={ariaDescribedBy || undefined}
       className={`w-full h-11 px-3 border ${ariaInvalid ? INVALID_CLASSES : C.borderMedium} rounded-md bg-white ${C.hoverBgPageHalf} transition-colors text-left cursor-pointer flex items-center gap-2`}
     >
       <span className={C.text30}>{icon}</span>

@@ -8,19 +8,23 @@
 ## 1. 臨床安全・ナビゲーション
 
 ### 1.1 患者情報カード (`PatientInfoCard`)
-トリミング・定期健診・検査・入院・予防接種の各フォーム画面上部に常駐する「単一の真実」（`features/trimming`, `features/checkups`, `features/examinations`, `features/hospitalization`, `features/vaccinations`）。
+トリミング・定期健診・検査・入院・予防接種の各フォーム画面上部に常駐し、カルテ画面では `MedicalRecordStickyHeader` に内蔵される「単一の真実」（`features/trimming`, `features/checkups`, `features/examinations`, `features/hospitalization`, `features/vaccinations`, `features/medical-records`）。
 - **臨床アラート**: 死亡 (`deceased`) ステータスを【死亡】バッジで強調。
-- **属性表示**: 名前、年齢、性別、最新体重、担当医、保険、次回来院予定。`petDetails` は `formatPatientPetDetails` が組み立てる。`species` があるときは先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」。独立登録（予防接種・定期健診・入院新規）も同じ関数を使う。
-- **クイックアクション**: `onOwnerClick` / `onStaffClick` 等のクリックコールバックを任意で受け取る。現状 `onOwnerClick` を渡す利用画面はない。担当者変更はトリミングフォームの担当スタッフ選択と、入院登録・編集フォームの担当医選択で使用する（入院は `canSubmit` 時のみ）。飼主付け替えの `OwnerSearchModal` 起動はカルテ画面側（下記例外）の導線であり、本カード経由の実装は存在しない。
-- **例外**: カルテ画面（medical-record-form.md）は `PatientInfoCard` を使わず、専用の `MedicalRecordStickyHeader` が共有 `PatientContextHeader` を組み込んで同等の飼主（`OwnerSearchModal` 起動）/担当医クリック導線を実装している。
+以下のカルテ内蔵・クリック条件は現行mainの実装対応。旧finalizedによるUI制限を、[終了後通常編集・目的別訂正の業務目標](../domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)の代わりに採用しない。
+
+- **属性表示**: 名前、年齢、性別、最新体重、担当医、保険、次回来院予定。`petDetails` は `formatPatientPetDetails` が組み立てる。`species` があるときは先頭に実データを出す。欠損の年齢・性別・去勢避妊だけ「不明」。カルテでは登録体重が未登録または空のとき `-` を表示する。独立登録（予防接種・定期健診・入院新規）も同じ関数を使う。
+- **カルテ側の例外**: カルテ画面は `MedicalRecordStickyHeader` が `PatientInfoCard` を内蔵し、年齢・性別・避妊去勢・品種と今回カルテのバイタル（T / HR / RR / 測定体重）を `petAttributes`（ReactNode）スロットで差し込みます。担当医・来院種別などカルテ側の操作はカード外の専用コントロールに置くため、カードの該当フィールドは `hideStaff` / `hideReservationType` で隠します。他フォームは従来どおり `formatPatientPetDetails` の契約を使います。
+- **クイックアクション**: `onOwnerClick` / `onStaffClick` 等のクリックコールバックを任意で受け取る。`onOwnerClick` を渡すのはカルテ画面（`MedicalRecordStickyHeader`）のみで、既存カルテかつ `medical-records` の `canEdit` かつ未確定のときだけ関数を渡し、呼び出し元の `OwnerSearchModal`（飼主付け替え）を開きます。新規・閲覧専用・確定済みでは渡さず、飼主名はボタンになりません（詳細リンクは残ります）。担当者変更はトリミングフォームの担当スタッフ選択と、入院登録・編集フォームの担当医選択で使用する（入院は `canSubmit` 時のみ）。カルテの担当医クリックは本カードの `onStaffClick` ではなく、`MedicalRecordStickyHeader` 側の専用コントロール（`canEdit` かつ未確定のときのみ）です。
+- **関連仕様**: カルテ画面での内蔵方法・バイタルチップ・担当医導線の正本は `domains/medical-records/pages/medical-record-form.md` のスティッキー患者ヘッダー節です。
 - **通常カルテのバイタル表示**: [D03の最新値・測定時刻／履歴](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-vital-measured-time-history)に従い、同カルテの値と元の測定時刻を対応付け、同日を含む以前の測定は履歴で参照する。カルテの旧時刻なしチップは未追従差分。専用記録フォームへの新入力機能・飼主公開・薬量基準をこの参照から追加しない。
 
 ```mermaid
 flowchart LR
     Forms["トリミング / 定期健診 / 検査 / 入院 / 予防接種 の各フォーム"] --> PIC["PatientInfoCard（患者情報カード）"]
-    MR["カルテ画面"] -. 例外 .-> MSH["MedicalRecordStickyHeader（専用ヘッダー）"]
-    MSH --> PCH["共有 PatientContextHeader を組み込む"]
-    MSH --> Act["飼主（OwnerSearchModal 起動）/ 担当医のクリック導線"]
+    MR["カルテ画面"] --> MSH["MedicalRecordStickyHeader（専用ヘッダー）"]
+    MSH -->|"petAttributes（属性 / 今回カルテのバイタル）"| PIC
+    PIC -->|"onOwnerClick（既存・canEdit・未確定のみ）"| OSM["OwnerSearchModal（飼主付け替え）"]
+    MSH --> StaffCtl["担当医コントロール（canEdit かつ未確定のみ）"]
 ```
 
 ### 1.2 離脱防止ガード (`NavigationBlocker`)

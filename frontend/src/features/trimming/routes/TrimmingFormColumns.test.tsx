@@ -34,11 +34,13 @@ const basePatient: TrimmingPatient = {
 function renderColumns(
   patient: TrimmingPatient = basePatient,
   fieldErrors: Record<string, string> = {},
+  extraProps: { showRequiredMarks?: boolean } = {},
 ) {
   return render(
     <MemoryRouter>
       <TrimmingFormColumns
         selectedPet={patient}
+        showRequiredMarks={extraProps.showRequiredMarks}
         formData={baseFormData}
         fieldErrors={fieldErrors}
         courses={[]}
@@ -47,9 +49,6 @@ function renderColumns(
         completedImagePreview={null}
         sortedHistory={[]}
         isHistoryLoading={false}
-        historySearchTerm=""
-        historySortOrder="desc"
-        historyDateRange={{ from: "", to: "" }}
         showInitialStatusSelector={false}
         onFormChange={vi.fn()}
         onOpenCourseModal={vi.fn()}
@@ -58,11 +57,6 @@ function renderColumns(
         onCompletedImageChange={vi.fn()}
         onRemoveStyleImage={vi.fn()}
         onRemoveCompletedImage={vi.fn()}
-        onHistorySearchTermChange={vi.fn()}
-        onHistorySortOrderChange={vi.fn()}
-        onHistoryClear={vi.fn()}
-        onHistoryStartDateChange={vi.fn()}
-        onHistoryEndDateChange={vi.fn()}
         onHistoryClick={vi.fn()}
       />
     </MemoryRouter>,
@@ -76,6 +70,59 @@ describe("TrimmingFormColumns", () => {
     const staffButton = screen.getByRole("button", { name: "担当鈴木 一郎" });
     expect(staffButton).toBeInTheDocument();
     expect(staffButton).not.toHaveAccessibleName(/担当医/);
+  });
+
+  it("EMR-412 X14: トリミング新規のみ担当ボタンとコースラベルに必須印を出す", () => {
+    const { unmount } = renderColumns(basePatient, {}, { showRequiredMarks: true });
+
+    const staffButton = screen.getByRole("button", { name: /担当鈴木 一郎/ });
+    expect(staffButton).toHaveTextContent("*");
+    const courseLabel = screen.getByText("コース");
+    expect(courseLabel).toHaveTextContent("*");
+    unmount();
+
+    // 既存編集では必須印を出さない（既定 false）。
+    renderColumns(basePatient, {});
+    expect(screen.getByRole("button", { name: /担当鈴木 一郎/ })).not.toHaveTextContent("*");
+    expect(screen.getByText("コース")).not.toHaveTextContent("*");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// PR679 F6: コース必須印は aria-hidden の装飾のみではなく、
+// トリガーボタンへ（必須）の支援技術説明を aria-describedby で結び付ける。
+// ─────────────────────────────────────────────────────────────
+
+describe("TrimmingFormColumns コース必須の支援技術説明 (PR679 F6)", () => {
+  it("showRequiredMarks のときコーストリガーが（必須）説明を aria-describedby で参照し Label と対応付く", () => {
+    renderColumns(basePatient, {}, { showRequiredMarks: true });
+
+    const trigger = document.getElementById("courseId");
+    expect(trigger).not.toBeNull();
+    const describedBy = trigger?.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    const description = describedBy ? document.getElementById(describedBy) : null;
+    expect(description).not.toBeNull();
+    expect(description).toHaveTextContent("（必須）");
+
+    // ラベルとも対応付く（htmlFor → ボタン id、または aria-labelledby のいずれか）
+    const label = screen.getByText("コース");
+    const isLabelled =
+      label.getAttribute("for") === "courseId" ||
+      trigger?.getAttribute("aria-labelledby") === label.id;
+    expect(isLabelled).toBe(true);
+  });
+
+  it("showRequiredMarks=false なら（必須）説明も aria-describedby も付けない", () => {
+    renderColumns(basePatient, {});
+
+    const trigger = document.getElementById("courseId");
+    expect(trigger).not.toBeNull();
+    expect(screen.queryByText("（必須）")).not.toBeInTheDocument();
+    const describedBy = trigger?.getAttribute("aria-describedby");
+    if (describedBy) {
+      expect(document.getElementById(describedBy)).not.toHaveTextContent("（必須）");
+    }
   });
 });
 

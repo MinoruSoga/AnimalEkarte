@@ -194,7 +194,7 @@ export const PropertyFilter = memo(function PropertyFilter({
           <button
             type="button"
             onClick={handleSearchCommit}
-            className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text50} ${C.hoverText80} ${C.hoverBgMedium} transition-colors`}
+            className={`absolute right-0 top-1/2 flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-sm ${C.text50} ${C.hoverText80} ${C.hoverBgMedium} transition-colors border-l ${C.borderLight}`}
             aria-label="検索を実行"
           >
             <Search className={ICON.smXs} />

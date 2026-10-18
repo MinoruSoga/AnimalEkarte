@@ -68,7 +68,15 @@ export const HospitalizationListView = memo(function HospitalizationListView({
             )}
           </TableCell>
           <TableCell className={STYLE.tableCell}>{h.ownerName}</TableCell>
-          <TableCell className={STYLE.tableCell}>{h.petName}</TableCell>
+          <TableCell className={STYLE.tableCell}>
+            {/* EMR-412 X6: 死亡バッジはペット名の横へ（カルテ一覧と同じ配置。操作列を置換しない） */}
+            <span className="flex items-center gap-1.5">
+              {h.petName}
+              {h.petIsDeceased ? (
+                <StatusBadge colorClass={getPetStatusColor("死亡")}>死亡</StatusBadge>
+              ) : null}
+            </span>
+          </TableCell>
           <TableCell className={`${STYLE.tableCell} hidden lg:table-cell`}>{h.species}</TableCell>
           <TableCell>
             <StatusBadge colorClass={getHospitalizationTypeColor(h.hospitalizationType)}>
@@ -94,10 +102,8 @@ export const HospitalizationListView = memo(function HospitalizationListView({
             </StatusBadge>
           </TableCell>
           <TableCell className="text-right">
-            {h.petIsDeceased ? (
-              // EMR-227: 死亡センチネルは低コントラスト text40 ではなく StatusBadge で明示する
-              <StatusBadge colorClass={getPetStatusColor("死亡")}>死亡</StatusBadge>
-            ) : canEdit ? (
+            {/* EMR-227/X6: 死亡センチネルはペット名横へ移動。行操作はカルテ一覧と同じく出さない */}
+            {canEdit && !h.petIsDeceased ? (
               <RowActionButton
                 onClick={() => onNavigate(h.id)}
                 aria-label={`入院「${h.hospitalizationNo} ${h.petName}」(ID: ${h.id}) を開く`}

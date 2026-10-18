@@ -80,6 +80,7 @@ export const PaymentMethodSidePanel = memo(function PaymentMethodSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

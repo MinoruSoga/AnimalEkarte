@@ -120,11 +120,15 @@ interface AmountSectionProps {
   insuranceAmount: number;
   discountAmount: number;
   totalAmount: number;
-  /** PR665: 保険適用額・ヘッダー割引額は独立入力（小計/税/合計は導出読み取り専用のまま）。 */
+  /** PR665: 保険適用額・ヘッダー割引額は独立入力。小計/税/合計は明細ありでは導出読み取り専用、明細なしでは onSubtotalChange 等で手入力になる。 */
   onInsuranceAmountChange?: (value: number) => void;
   onDiscountAmountChange?: (value: number) => void;
   /** discount:create 権限。権限なしでも既存値は disabled 表示で保持する。 */
   canCreateDiscount?: boolean;
+  /** PR669: 明細なし見積では小計/税/合計を手入力に切り替える。指定がなければ読み取り専用。 */
+  onSubtotalChange?: (value: number) => void;
+  onTaxTotalChange?: (value: number) => void;
+  onTotalAmountChange?: (value: number) => void;
 }
 
 function AmountInputRow({
@@ -180,11 +184,32 @@ export const AmountSection = memo(function AmountSection({
   onInsuranceAmountChange,
   onDiscountAmountChange,
   canCreateDiscount = false,
+  onSubtotalChange,
+  onTaxTotalChange,
+  onTotalAmountChange,
 }: AmountSectionProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <AmountSummaryRow label="小計（明細合計）" value={subtotal} />
-      <AmountSummaryRow label="消費税（内税分を含む）" value={taxTotal} />
+      {onSubtotalChange ? (
+        <AmountInputRow
+          label="小計"
+          inputId="estimate-subtotal"
+          value={subtotal}
+          onChange={onSubtotalChange}
+        />
+      ) : (
+        <AmountSummaryRow label="小計（明細合計）" value={subtotal} />
+      )}
+      {onTaxTotalChange ? (
+        <AmountInputRow
+          label="消費税"
+          inputId="estimate-tax-total"
+          value={taxTotal}
+          onChange={onTaxTotalChange}
+        />
+      ) : (
+        <AmountSummaryRow label="消費税（内税分を含む）" value={taxTotal} />
+      )}
       <AmountInputRow
         label="保険適用額"
         inputId="estimate-insurance-amount"
@@ -199,7 +224,16 @@ export const AmountSection = memo(function AmountSection({
         onChange={onDiscountAmountChange}
         disabled={!canCreateDiscount}
       />
-      <AmountSummaryRow label="合計金額" value={totalAmount} />
+      {onTotalAmountChange ? (
+        <AmountInputRow
+          label="合計金額"
+          inputId="estimate-total-amount"
+          value={totalAmount}
+          onChange={onTotalAmountChange}
+        />
+      ) : (
+        <AmountSummaryRow label="合計金額" value={totalAmount} />
+      )}
     </div>
   );
 });

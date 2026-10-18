@@ -38,6 +38,8 @@ interface CheckupsTableProps {
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /** PR679 F1: 権限・確定以外のロック理由（死亡など）。指定時は最優先で空状態に出す。 */
+  emptyReason?: string;
   createPending: boolean;
   updatePending: boolean;
   deletePending: boolean;
@@ -66,6 +68,7 @@ export function CheckupsTable({
   canCreate,
   canEdit,
   canDelete,
+  emptyReason,
   createPending,
   updatePending,
   deletePending,
@@ -89,7 +92,14 @@ export function CheckupsTable({
           {checkups.length === 0 ? (
             <tr>
               <TableCell data-empty-state colSpan={6} className={STYLE.tableEmptySm}>
-                健診記録がありません。下の「記録を追加」ボタンから追加してください。
+                {/* EMR-412 K5 + PR679 F1: ロック中は理由で分ける。死亡理由は確定・権限より優先。
+                    通常時は実ボタン名を書く。 */}
+                {emptyReason ??
+                  (isFinalized
+                    ? "確定済のため変更できません"
+                    : !canCreate
+                      ? "編集権限がありません"
+                      : "健診記録がありません。「記録を追加」ボタンから追加してください。")}
               </TableCell>
             </tr>
           ) : (

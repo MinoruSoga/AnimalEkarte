@@ -14,4 +14,5 @@ export const CATEGORY_LABELS: Partial<Record<ItemCategory, string>> = {
   hotel: "ホテル",
   training: "トレセン",
   other: "その他",
+  house_call: "往診",
 };

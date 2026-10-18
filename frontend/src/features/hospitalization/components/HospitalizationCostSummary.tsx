@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { H_STYLES } from "../lib/styles";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/lib/format/number";
 
 interface HospitalizationCostSummaryProps {
   totals: {
@@ -23,7 +24,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
           <span className={`${H_STYLES.text.base} ${C.text60}`}>診療費 小計（明細合計）</span>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
-            ￥{totals.subtotalBeforeDiscount.toLocaleString()}
+            {formatCurrency(totals.subtotalBeforeDiscount)}
           </span>
         </div>
 
@@ -31,7 +32,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
         <div className={`flex items-center justify-between py-1.5 border-b ${C.borderLight}`}>
           <span className={`${H_STYLES.text.base} ${C.text60}`}>消費税（内税分を含む）</span>
           <span className={`${H_STYLES.text.base} font-medium tabular-nums ${C.text}`}>
-            ￥{totals.consumptionTax.toLocaleString()}
+            {formatCurrency(totals.consumptionTax)}
           </span>
         </div>
 
@@ -41,7 +42,7 @@ export const HospitalizationCostSummary = memo(function HospitalizationCostSumma
             診療費の目安（税込）
           </span>
           <span className={`text-xl font-semibold tabular-nums ${C.text}`}>
-            ￥{totals.total.toLocaleString()}
+            {formatCurrency(totals.total)}
           </span>
         </div>
 

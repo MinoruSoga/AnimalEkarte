@@ -162,7 +162,7 @@ describe("ItemListCard merchandise selection", () => {
     await user.type(screen.getByLabelText(/品目名/), "手入力商品");
     await user.type(screen.getByLabelText(/単価/), "500");
     await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
-    expect(screen.getAllByRole("option")).toHaveLength(12);
+    expect(screen.getAllByRole("option")).toHaveLength(13);
     await user.click(screen.getByRole("option", { name: "検査" }));
     await user.click(screen.getByRole("button", { name: "追加する" }));
 
@@ -170,6 +170,26 @@ describe("ItemListCard merchandise selection", () => {
       name: "手入力商品",
       price: "500",
       category: "test",
+    });
+  });
+
+  it("手動入力で往診を選ぶとhouse_callとして追加し、商品マスタ ID を渡さない", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    renderEditableItemListCard(onAddItem);
+
+    await user.click(screen.getByRole("button", { name: "手動入力" }));
+    await user.type(screen.getByLabelText(/品目名/), "往診料");
+    await user.type(screen.getByLabelText(/単価/), "1000");
+    await user.click(screen.getByRole("combobox", { name: "カテゴリ" }));
+    expect(screen.getAllByRole("option")).toHaveLength(13);
+    await user.click(screen.getByRole("option", { name: "往診" }));
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+
+    expect(onAddItem).toHaveBeenCalledWith({
+      name: "往診料",
+      price: "1000",
+      category: "house_call",
     });
   });
 

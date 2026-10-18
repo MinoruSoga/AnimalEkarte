@@ -16,7 +16,7 @@ type createCampaignRequest struct {
 	DiscountValue    float64  `json:"discount_value" binding:"min=0"`
 	IsActive         bool     `json:"is_active"`
 	SortOrder        int      `json:"sort_order"`
-	TargetCategories []string `json:"target_categories" binding:"omitempty,dive,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
+	TargetCategories []string `json:"target_categories" binding:"omitempty,dive,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training house_call"`
 	TargetItemIDs    []uint64 `json:"target_item_ids"`
 }
 
@@ -55,7 +55,7 @@ type updateCampaignRequest struct {
 	DiscountValue    *float64  `json:"discount_value" binding:"omitempty,min=0"`
 	IsActive         *bool     `json:"is_active"`
 	SortOrder        *int      `json:"sort_order"`
-	TargetCategories *[]string `json:"target_categories" binding:"omitempty,dive,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training"`
+	TargetCategories *[]string `json:"target_categories" binding:"omitempty,dive,oneof=examination test procedure surgery medicine food goods other vaccine trimming hotel training house_call"`
 	TargetItemIDs    *[]uint64 `json:"target_item_ids"`
 }
 

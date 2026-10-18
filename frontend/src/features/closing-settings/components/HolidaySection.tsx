@@ -8,6 +8,7 @@ import { FieldHelp } from "@/components/shared/FieldHelp";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { EmptyState } from "@/components/shared/DataStates";
+import { Input } from "@/components/ui/input";
 import { getFormString } from "@/lib/form-data";
 import type { ClosingHoliday } from "../api/holidays";
 import { useCreateHoliday, useDeleteHoliday } from "../api/holidays";
@@ -161,7 +162,7 @@ export const HolidaySection = memo(function HolidaySection({
                   content="休診の理由やメモです（任意）。院内研修・祝日などを記録できます。"
                 />
               </div>
-              <input
+              <Input
                 id="holiday_reason"
                 name="reason"
                 type="text"

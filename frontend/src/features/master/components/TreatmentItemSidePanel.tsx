@@ -5,6 +5,7 @@ import {
   MoneyInput,
   PropertyInput,
   PropertyRow,
+  PropertyToggleButton,
   StatusToggleButton,
 } from "@/components/shared/SidePeek";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -137,6 +138,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}
@@ -203,16 +205,16 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
         label="保険対象外"
         description="この項目が保険適用の対象外かどうかです。対象外にすると保険計算から除外されます。"
       >
-        <button
-          type="button"
-          onClick={() =>
-            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))
+        <PropertyToggleButton
+          label="保険対象外"
+          pressed={formData.isNonInsurance}
+          onPressedChange={(value) =>
+            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: value }))
           }
-          aria-label="保険対象外を切り替え"
-          className={`inline-flex min-h-11 items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          className={`text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
-          {formData.isNonInsurance ? "対象外" : "対象"}
-        </button>
+          {formData.isNonInsurance ? "はい" : "いいえ"}
+        </PropertyToggleButton>
       </PropertyRow>
       {hasChildren ? (
         <PropertyRow

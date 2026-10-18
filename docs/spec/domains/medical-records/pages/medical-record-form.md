@@ -82,7 +82,7 @@
 | 画像・資料 | 診療資料の添付 | JPEG／PNG／GIF／PDF | 未記載／要確認 | 未記載／要確認 | ファイル選択 | 下記「画像・資料の選択制限」 |
 | 訂正内容・訂正理由 | 既存追記／目的別訂正の入力。通常本文は終了後も通常編集可 | 未記載／要確認 | 未記載／要確認 | 未記載／要確認 | 入力 | 下記「臨床安全ガード」（理由500文字以内） |
 | 治療明細・投与逸脱理由 | 処置・処方の記録 | 未記載／要確認 | 逸脱理由は条件付き必須 | 未記載／要確認 | 医院マスタ・履歴複写 | 下記「臨床安全ガード」、処置マスタの節 |
-| 他タブの入力 | 予防接種・健診・検査・見積・会計確認 | 未記載／要確認 | 未記載／要確認 | 予防接種は種類別設定または手入力へ統一（具体間隔・初期値は追加確定しない）。健診はパッケージ設定候補または手入力、設定・保存済み日付・手入力日がなければ空欄。他は要確認 | 下記タブ表の関連仕様 | 独立画面・API定義を複製しない。詳細は既存関連仕様／要確認 |
+| 他タブの入力 | 予防接種・健診・検査・見積・会計確認 | 未記載／要確認 | 未記載／要確認 | 予防接種は種類別設定または手入力へ統一（具体間隔・初期値は追加確定しない）。現行mainのカルテ・独立画面は1year既定へ統一済みだが、目標の固定既定を採用した意味ではない。健診はパッケージ設定候補または手入力、設定・保存済み日付・手入力日がなければ空欄。他は要確認 | 下記タブ表の関連仕様 | 独立画面・API定義を複製しない。詳細は既存関連仕様／要確認 |
 
 ### 1. 画面構成（問診を治療プランへ統合）
 
@@ -92,7 +92,7 @@
 |:---:|:---|:---|
 | 統合 | **治療プラン** | スタッフ問診・主訴・症状・生活環境と、別区画の飼主事前問診、移設した右側の過去カルテ履歴。身体検査所見（SOAPのS/O/A）、診断名（第1・第2を保持し、それぞれ複数登録）、今後の治療方針（Plan）。 |
 | 維持 | **治療** | 実施した処置、処置項目、および処方薬の明細。 |
-| 維持 | **予防接種** | 左ペインに当該ペットの接種記録一覧（`GET /vaccinations?pet_id=` + `page`/`limit`）。空なら EmptyState、「記録を追加」で入力フォーム。右カラムは `VaccinationHistory`。カルテネストの `/medical-records/:id/vaccinations` は存在せず使わない。次回日は[D08最新合意](../../vaccinations/lifecycle.md#fr-vaccinations-schedule)の種類別設定または手入力へ統一する。現行 `calculateNextDate` 配線とカルテ既定 `4weeks`／独立既定 `1year` は解消対象の実装差であり、目標の固定既定ではない。[過去接種の専用後日入力](../../vaccinations/lifecycle.md#vaccination-retrospective-next-date)では、実接種日より後の当時の次回日が既に過ぎていても保持する。通常入力の制約全面解除はしない。 |
+| 維持 | **予防接種** | 左ペインに当該ペットの接種記録一覧（`GET /vaccinations?pet_id=` + `page`/`limit`）。空なら EmptyState、「記録を追加」で入力フォーム。右カラムは `VaccinationHistory`。カルテネストの `/medical-records/:id/vaccinations` は存在せず使わない。次回日は[D08最新合意](../../vaccinations/lifecycle.md#fr-vaccinations-schedule)の種類別設定または手入力へ統一する。現行mainはEMR-430により `calculateNextDate` 配線の既定がカルテ・独立画面とも `1year` に統一された。これは実装観察で、種類別設定／手入力の目標に対する固定既定の採用ではない。[過去接種の専用後日入力](../../vaccinations/lifecycle.md#vaccination-retrospective-next-date)では、実接種日より後の当時の次回日が既に過ぎていても保持する。通常入力の制約全面解除はしない。 |
 | 維持 | **定期健診** | 健康診断の結果記録。`/checkups` の編集は `?tab=定期健診&checkupId=` で本タブを開き、該当行を編集状態にする。[最新第3項合意](../../checkups/lifecycle.md#checkup-next-date-approved)により、次回日はパッケージ設定候補または手入力。設定・保存済み日付・手入力日がなければ空欄とし、一律1年後を補完しない。 |
 | 維持 | **検査** | 検査結果の一覧表示と既存検査の取込（カルテへの紐付け）、基準値との比較（HIGH/LOW判定ハイライト）。[D07最新合意](../../examinations/lifecycle.md#fr-examinations-record)に従い担当医未選択でも保存可、入力者ログは担当医と別に保持する。 |
 | 維持 | **画像** | 患部写真、レントゲン、エコー画像、PDF資料のファイル選択によるアップロード・管理。ドラッグ&ドロップ追加は[追加3項目合意](#requirement-fr-medical-records-image-drop-selected-print)で業務採用。#235の現実装・価値実測の状態は今回更新／確認していない。 |
@@ -101,9 +101,11 @@
 
 #### 1.1 スティッキー患者ヘッダー (Sticky Patient Header)
 
-タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientContextHeader` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
+タブの上部には `MedicalRecordStickyHeader` が画面上部に sticky 固定で常時表示され、内部の `PatientInfoCard` が患者コンテキストを保持する。タブ切替・スクロールに関係なく以下をクリック不要で確認できる。
 
-- **今回カルテのバイタルチップ**: [最新合意](#requirement-fr-medical-records-vital-measured-time-history)に従い、体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（単位付き）の最新値を、それぞれの値に対応する測定時刻とともにペット名行直下へ常時表示する。同日を含む以前の測定は履歴から確認できる。測定日も識別できる表示とし、欠測／未取得の値・時刻を補完しない。取得済みで当該カルテの測定がない、又は4項目すべて未入力の場合は値チップを表示しないが、取得失敗・不完全を測定なしへ置換しない。現行の `useGetVitals` → 最新1件を使う `latestVisitVitalChips` → `vitalsSummary` → `PatientContextHeader` の時刻なし表示は未追従差分で、最新値・測定時刻・全履歴の対応を[技術契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)で照合する。
+- **今回カルテのバイタルチップ**: [最新合意](#requirement-fr-medical-records-vital-measured-time-history)に従い、体温 T / 心拍数 HR / 呼吸数 RR / 測定体重（単位付き）の最新値を、それぞれの値に対応する測定時刻とともにペット名行直下へ常時表示する。同日を含む以前の測定は履歴から確認できる。測定日も識別できる表示とし、欠測／未取得の値・時刻を補完しない。取得済みで当該カルテの測定がない、又は4項目すべて未入力の場合は値チップを表示しないが、取得失敗・不完全を測定なしへ置換しない。現行mainの `useGetVitals` → 最新1件を使う `latestVisitVitalChips` → `vitalsSummary` は `PatientInfoCard` の `petAttributes` に時刻なしで表示する実装で、測定時刻・全履歴は未追従差分。[技術契約](../../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)で照合する。
+
+現行mainの配線では、カルテ固有属性を `PetAttributesLine` とバイタルから組み立てて `PatientInfoCard` の `petAttributes`（ReactNode）へ渡し、`vitalsSummary` propsをカードへ直接渡さない。登録体重の未登録／空は `-` とし、今回測定体重の代用にしない。担当医・来院種別は `hideStaff`／`hideReservationType` でカード内を隠し、カルテ側の専用操作として扱う。これらは実装対応の記録で、旧9タブの維持や計測時刻なし表示の目標採用ではない。
 - **マイクロチップ番号**: ペットの `microchip_number`（props 名 `microchipNumber`）が存在する場合、ペット名の右隣にモノスペースのチップとして表示する（`aria-label` は「マイクロチップ番号 <値>」）。未登録または空白のみの場合はチップを表示しない。
 - **次回予定ボタン（`NextVisitButton`、EMR-308）**: ヘッダーの「次回予定」はペットの tentative appointment（`status='tentative'`、日付のみ `intended_date`）を `PUT /v1/reservations/pets/:petId/next-visit-intent` で upsert、`DELETE` 同パス（`reservations:edit`）で取消する。カルテ PATCH ではない。権限は操作別（新規=`reservations:create`・既存 tentative の上書き=`create`+`edit`・確定=`edit`）で、write 契約の正本は [reservation-to-record-flow.md](../../../workflows/reservation-to-record-flow.md) §2.3、一覧・確定の管理面は [reservation-management.md](../../reservations/pages/reservation-management.md) を参照。 日付だけの予定は枠を確保せず受付ボードへ出さない。別件来院では自動消化せずスタッフが今回消化を選び、由来予約の取消では自動復活しない。必要時の手動再設定・安全な保存条件は[2026-10-15合意](../../../workflows/reservation-to-record-flow.md#next-visit-intent-agreement-20261015)へ従う。
 
@@ -176,7 +178,7 @@
 - **薬量自動計算と絶対上限ゲート（#201）**: 「治療」タブの処方明細（`TreatmentRow`）は、対象ペットの species と当日 vital 体重から数量を自動プリフィルする（`calculateDose`）。保存値がマスタ上限（体重連動上限 weight×max_mg/kg と体重非依存の絶対上限 absolute_max_dose の小さい方）を超える場合、フロントエンドは理由をインライン表示して追加・更新を送信せず、バックエンドも Create/Update の永続化前に 400 で拒否する。`ConfirmDialog` による解除経路は設けない。上限内でも下限未満または推奨値からの著しい乖離は、インラインの逸脱理由（`dose_deviation_reason`、空白のみ不可・500文字以内）が必須。理由を snapshot と同一 transaction の監査へ保存し、actor・監査依存の欠落や監査失敗時は保存しない（`computeDoseGate` / `ensureDoseDeviationAuditReady` / `auditDoseDeviationTx`）。現行実装は体重未記録・species 正規化不能・投与量パラメータ未設定時に評価をスキップして保存を継続する参照で、最新合意の医師確認・理由・編集履歴を満たす証拠ではない。最新契約は評価不能を明示し医師確認・理由付き手入力を認める。パラメータ取得の非 NotFound エラーと species 不一致は既存どおり fail-closed とする。権限付き例外フロー（Design B）は実装しない。
 - **臨床承認の境界**: コード上のゲートと、対象薬・値・範囲・単位・出典を含む臨床承認は別。#201 の Closed は #261 への承認作業の集約であり、医師による臨床 bundle の承認完了を意味しない（[承認作業 #261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)）。
 - **未保存警告**: 変更がある状態でページを離れようとすると `NavigationBlocker` が警告を表示。
-- **特記マーク（EMR-173/231）**: スティッキーヘッダー（`PatientContextHeader`）に共有 `DangerBadge` で表示: ペット名横に `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。医療記録中もマークを常時視認できるようにするための安全表示。
+- **特記マーク（EMR-173/231）**: スティッキーヘッダー内の共有患者カード（`PatientInfoCard`）に共有 `DangerBadge` で表示: ペット名横に `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。医療記録中もマークを常時視認できるようにするための安全表示。
 
 
 <a id="medical-record-agreement-input-four"></a>

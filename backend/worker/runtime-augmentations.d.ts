@@ -34,6 +34,14 @@ interface Env {
   SUPPORT_LLM_API_KEY?: string;
   SUPPORT_LLM_MODEL?: string;
   SUPPORT_LLM_TIMEOUT_MS?: string;
+  // EMR-410 hybrid search / embedding. Defaults are applied in index.ts;
+  // API_KEY is a `wrangler secret put` value (never in wrangler vars).
+  SUPPORT_HYBRID_SEARCH_ENABLED?: string;
+  SUPPORT_EXTERNAL_DATA_APPROVED?: string;
+  SUPPORT_EMBEDDING_BASE_URL?: string;
+  SUPPORT_EMBEDDING_API_KEY?: string;
+  SUPPORT_EMBEDDING_MODEL?: string;
+  SUPPORT_EMBEDDING_TIMEOUT_MS?: string;
   // Optional Plane integration (bug-report ticketing + plane_sync state sync).
   // API_KEY via `wrangler secret put` only; unset disables the integration.
   PLANE_BASE_URL?: string;
@@ -82,6 +90,12 @@ declare namespace Cloudflare {
     SUPPORT_LLM_API_KEY?: string;
     SUPPORT_LLM_MODEL?: string;
     SUPPORT_LLM_TIMEOUT_MS?: string;
+    SUPPORT_HYBRID_SEARCH_ENABLED?: string;
+    SUPPORT_EXTERNAL_DATA_APPROVED?: string;
+    SUPPORT_EMBEDDING_BASE_URL?: string;
+    SUPPORT_EMBEDDING_API_KEY?: string;
+    SUPPORT_EMBEDDING_MODEL?: string;
+    SUPPORT_EMBEDDING_TIMEOUT_MS?: string;
     PLANE_BASE_URL?: string;
     PLANE_WEB_BASE_URL?: string;
     PLANE_API_KEY?: string;

@@ -39,8 +39,10 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "hotel", label: "ホテル" },
   { value: "training", label: "しつけ" },
   { value: "other", label: "その他" },
+  { value: "house_call", label: "往診" },
 ];
 
+/** Returns a new selection array with `value` toggled, without mutating the input array. */
 function toggleSelection(values: string[], value: string): string[] {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
@@ -182,6 +184,7 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

@@ -34,4 +34,14 @@ describe("cash-register category labels DEC-40", () => {
     expect(otherGroup?.label).toBe(UNCLASSIFIED_OTHER_LABEL);
     expect(DISPLAY_CATEGORIES.some((g) => g.label === "その他")).toBe(false);
   });
+
+  it("house_call は往診ラベルと表示グループを持つ", () => {
+    expect(CATEGORY_LABELS.house_call).toBe("往診");
+    const g = DISPLAY_CATEGORIES.find((g) => g.keys.includes("house_call"));
+    expect(g?.label).toBe("往診");
+    expect(DISPLAY_CATEGORIES[DISPLAY_CATEGORIES.length - 1]).toEqual({
+      label: "往診",
+      keys: ["house_call"],
+    });
+  });
 });

@@ -15,6 +15,7 @@ import type {
 
 // ─── Condition label helpers ──────────────────────────────
 
+/** Returns the localized label for a filter condition, falling back to its raw key. */
 function getConditionLabel(condition: FilterCondition, filterType: string): string {
   const conditions = FILTER_CONDITIONS[filterType as keyof typeof FILTER_CONDITIONS];
   return conditions?.find((c) => c.value === condition)?.label ?? condition;
@@ -32,6 +33,7 @@ interface FilterRuleRowProps {
   onRemove: () => void;
 }
 
+/** 適用中のフィルター条件を編集・削除する一行の操作。 */
 export const FilterRuleRow = memo(function FilterRuleRow({
   filter,
   property,
@@ -146,10 +148,10 @@ export const FilterRuleRow = memo(function FilterRuleRow({
               </button>
             </InlineSelector>
           ) : (
-            <span className={`text-base ${C.text40} px-1.5`}>絞込</span>
+            <span className={`text-base ${C.text60} px-1.5`}>絞込</span>
           )
         ) : (
-          <span className={`text-base ${C.text40} px-1.5`}>{logicLabel}</span>
+          <span className={`text-base ${C.text60} px-1.5`}>{logicLabel}</span>
         )}
       </div>
 
@@ -161,7 +163,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       {/* Condition column — hidden for date-range (always "期間内");
           EMR-245: text は contains 固定のため静的ラベルのみ */}
       {isDateRange ? null : isText ? (
-        <span className={`text-base ${C.text40} px-2 whitespace-nowrap`}>含む</span>
+        <span className={`text-base ${C.text60} px-2 whitespace-nowrap`}>含む</span>
       ) : (
         <InlineSelector label={currentConditionLabel || "条件"} popoverWidth="w-[140px]">
           {conditionOptions.map((opt) => (
@@ -221,7 +223,7 @@ export const FilterRuleRow = memo(function FilterRuleRow({
       <button
         type="button"
         onClick={onRemove}
-        className={`ml-auto min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text30} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 transition-opacity`}
+        className={`ml-auto min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverText60} ${C.hoverBgMedium} opacity-0 group-hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity`}
         aria-label={`${property?.label ?? filter.key} フィルタを削除`}
       >
         <X className={ICON.page} />

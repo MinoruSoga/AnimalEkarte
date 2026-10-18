@@ -130,8 +130,15 @@ func validateBreakHoursShape(data []byte) error {
 }
 
 func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+	closedWeekdays, err := parseClosedWeekdaysJSON(input.ClosedWeekdays)
+	if err != nil {
+		return nil, false, err
+	}
+	canonicalClosedWeekdays, err := json.Marshal(closedWeekdays)
+	if err != nil {
+		return nil, false, apperrors.WrapInvalidInput("closed_weekdays は 0〜6 の整数配列である必要があります")
+	}
 	if err := validateJSONFields(map[string][]byte{
-		"closed_weekdays":           input.ClosedWeekdays,
 		"closed_dates":              input.ClosedDates,
 		"business_hours":            input.BusinessHours,
 		"business_hours_by_weekday": input.BusinessHoursByWeekday,
@@ -141,7 +148,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		return nil, false, err
 	}
 
-	closedWeekdays := defaultJSONIfEmptyOrNull(input.ClosedWeekdays, emptyJSONArray)
 	closedDates := defaultJSONIfEmptyOrNull(input.ClosedDates, emptyJSONArray)
 	businessHours := defaultJSONIfEmptyOrNull(input.BusinessHours, defaultBusinessHoursJSON)
 	breakHours := defaultJSONIfEmptyOrNull(input.BreakHours, emptyJSONArray)
@@ -183,7 +189,7 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ReservationNotice:       input.ReservationNotice,
 		CancelNotice:            input.CancelNotice,
 		PrivacyPolicy:           input.PrivacyPolicy,
-		ClosedWeekdays:          closedWeekdays,
+		ClosedWeekdays:          canonicalClosedWeekdays,
 		ClosedDates:             closedDates,
 		NationalHolidayClosed:   input.NationalHolidayClosed,
 		BusinessHours:           businessHours,

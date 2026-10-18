@@ -300,7 +300,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                 type="button"
                 className={`${STYLE.btnDangerGhost} px-4 h-10`}
                 onClick={handleDeleteClick}
-                disabled={!canSubmit || isDeleting}
+                disabled={isDeleting || isPetDeceased}
               >
                 <Trash2 className={`mr-1.5 ${ICON.action}`} />
                 {isDeleting ? "削除中..." : "削除"}
@@ -344,7 +344,7 @@ function ExaminationFormContent({ id }: { id: string | undefined }) {
                 />
 
                 <div className="space-y-2">
-                  <h3 className={`text-sm font-medium ${C.text60} px-1`}>検査項目</h3>
+                  <h3 className={`text-sm font-medium ${C.text} px-1`}>検査項目</h3>
                   {formState.fieldErrors?.examItems ? (
                     <p
                       id="examItems"

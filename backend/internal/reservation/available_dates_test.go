@@ -96,6 +96,57 @@ func TestParseAvailableDatesSettings(t *testing.T) {
 	})
 }
 
+func TestParseAvailableDatesSettings_ClosedWeekdays(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		want    []int
+		wantErr bool
+	}{
+		{name: "empty array", input: []byte(`[]`), want: []int{}},
+		{name: "numeric weekdays", input: []byte(`[0,2,6]`), want: []int{0, 2, 6}},
+		{name: "legacy string weekdays", input: []byte(`["0","2","6"]`), want: []int{0, 2, 6}},
+		{name: "mixed numeric and legacy string weekdays", input: []byte(`[0,"2",6]`), want: []int{0, 2, 6}},
+		{name: "duplicates are preserved", input: []byte(`[2,"2"]`), want: []int{2, 2}},
+		{name: "omitted defaults to empty", input: nil, want: []int{}},
+		{name: "whole null defaults to empty", input: []byte(`null`), want: []int{}},
+		{name: "malformed JSON", input: []byte(`not-json`), wantErr: true},
+		{name: "whitespace-only malformed JSON", input: []byte(" \t\n"), wantErr: true},
+		{name: "object instead of array", input: []byte(`{}`), wantErr: true},
+		{name: "null element", input: []byte(`[null]`), wantErr: true},
+		{name: "boolean element", input: []byte(`[true]`), wantErr: true},
+		{name: "object element", input: []byte(`[{}]`), wantErr: true},
+		{name: "fractional number", input: []byte(`[2.5]`), wantErr: true},
+		{name: "weekday above range", input: []byte(`[7]`), wantErr: true},
+		{name: "weekday below range", input: []byte(`[-1]`), wantErr: true},
+		{name: "noncanonical leading zero string", input: []byte(`["02"]`), wantErr: true},
+		{name: "noncanonical whitespace string", input: []byte(`[" 2"]`), wantErr: true},
+		{name: "legacy string above range", input: []byte(`["7"]`), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings, err := ParseAvailableDatesSettings(tt.input, []byte(`[]`), false, 0, 0, 0, "none")
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, AvailableDatesSettings{}, settings)
+				assert.True(t, apperrors.IsInvalidInput(err))
+				var appErr *apperrors.AppError
+				if !assert.ErrorAs(t, err, &appErr) {
+					return
+				}
+				assert.Equal(t, "休診設定の形式が正しくありません", appErr.Message)
+				if len(tt.input) > 0 {
+					assert.NotContains(t, err.Error(), string(tt.input))
+				}
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, settings.ClosedWeekdays)
+		})
+	}
+}
+
 // TestOrEmptyJSONArray は orEmptyJSONArray の nil/空/非空バイト列の分岐を直接検証する。
 func TestOrEmptyJSONArray(t *testing.T) {
 	tests := []struct {

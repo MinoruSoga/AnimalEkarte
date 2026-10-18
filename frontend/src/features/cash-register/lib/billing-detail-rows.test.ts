@@ -27,7 +27,7 @@ function detail(overrides: Partial<CloseBillingDetail>): CloseBillingDetail {
 }
 
 describe("projectBillingDetailRows — 部門バケット", () => {
-  it("日次7バケットへ全カテゴリが折り畳まれる（goods/training/other は用品他）", () => {
+  it("日次8バケットへ全カテゴリが折り畳まれる（goods/training/other は用品他）", () => {
     const rows = projectBillingDetailRows([
       detail({
         categoryAmounts: {
@@ -43,6 +43,7 @@ describe("projectBillingDetailRows — 部門バケット", () => {
           goods: 700,
           training: 800,
           other: 900,
+          house_call: 1000,
         },
       }),
     ]);
@@ -55,6 +56,7 @@ describe("projectBillingDetailRows — 部門バケット", () => {
       trimming: 500,
       hotel: 600,
       goodsOther: 2400, // goods+training+other
+      houseCall: 1000,
     });
   });
 
@@ -126,6 +128,42 @@ describe("projectBillingDetailRows — 集約・不変性", () => {
     expect(Object.isFrozen(frozenMap)).toBe(true);
     expect(frozenMap).toEqual({ examination: 600, food: 400 });
   });
+
+  it("same invoice splits project house_call separately and coalesce scalar/payment totals", () => {
+    const rows = projectBillingDetailRows([
+      detail({
+        billingId: 73,
+        paymentMethodName: "現金",
+        billingAmount: 700,
+        refundAmount: 0,
+        categoryAmounts: { house_call: 600, goods: 100 },
+      }),
+      detail({
+        billingId: 73,
+        paymentMethodName: "クレジットカード",
+        billingAmount: 500,
+        refundAmount: 0,
+        categoryAmounts: { house_call: 400, goods: 100 },
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].departments).toEqual(
+      expect.objectContaining({ houseCall: 1000, goodsOther: 200 }),
+    );
+    expect(rows[0].totalAmount).toBe(1200);
+    expect(rows[0].refundAmount).toBe(0);
+    expect(rows[0].netAmount).toBe(1200);
+    expect(rows[0].paymentMethodLabel).toBe("現金/クレジットカード");
+
+    const totals = sumBillingDetailRowTotals(rows);
+    expect(totals.departments).toEqual(
+      expect.objectContaining({ houseCall: 1000, goodsOther: 200 }),
+    );
+    expect(totals.totalAmount).toBe(1200);
+    expect(totals.refundAmount).toBe(0);
+    expect(totals.netAmount).toBe(1200);
+  });
 });
 
 describe("sumBillingDetailRowTotals — フッタ", () => {
@@ -161,6 +199,7 @@ describe("sumBillingDetailRowTotals — フッタ", () => {
       trimming: 0,
       hotel: 0,
       goodsOther: 200,
+      houseCall: 0,
     });
   });
 

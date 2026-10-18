@@ -201,7 +201,8 @@ describe("estimate header discount projection", () => {
     await submit(result.current.formAction);
     expect(mockUpdateMutateAsync.mock.calls[0]?.[0].data).toMatchObject({ discount_amount: 300 });
     expect(mockUpdateMutateAsync.mock.calls[0]?.[0].data).not.toHaveProperty("items");
-    expect(mockUpdateMutateAsync.mock.calls[0]?.[0].data).not.toHaveProperty("total_amount");
+    // PR669: 控除の実変更は導出合計を再計算して送る（保険0: gross1000-300=700）
+    expect(mockUpdateMutateAsync.mock.calls[0]?.[0].data).toMatchObject({ total_amount: 700 });
     act(() => {
       result.current.handleChange("discountAmount", 0);
     });

@@ -127,6 +127,7 @@ export const CageSidePanel = memo(function CageSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

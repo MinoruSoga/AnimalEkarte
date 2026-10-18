@@ -154,7 +154,8 @@ describe("PetEditModal species status", () => {
     expect(speciesSelect).toBeDisabled();
     expect(speciesSelect).toHaveTextContent(/^取得に失敗しました$/);
 
-    const petNameInput = screen.getByRole("textbox", { name: /^ペット名 \*$/ });
+    const petNameInput = screen.getByRole("textbox", { name: /^ペット名$/ });
+    expect(petNameInput).toHaveAttribute("aria-required", "true");
     await user.type(petNameInput, "ポチ");
     expect(petNameInput).toHaveValue("ポチ");
     expect(screen.getByRole("button", { name: "キャンセル" })).toBeEnabled();

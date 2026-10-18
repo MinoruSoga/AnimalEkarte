@@ -20,7 +20,7 @@ export function DiagnosisHeaderSection({
 }: DiagnosisHeaderSectionProps) {
   return (
     <section className={cn("grid grid-rows-subgrid row-span-3 min-h-0", className)}>
-      <h3 className={`text-sm font-bold ${C.text} flex items-center gap-2 min-h-0`}>
+      <h3 className={`text-sm font-semibold ${C.text} flex items-center gap-2 min-h-0`}>
         {icon}
         {title}
       </h3>

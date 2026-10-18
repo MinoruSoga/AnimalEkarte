@@ -91,3 +91,22 @@ describe("ExaminationFormHeader 誕生月バッジ (EMR-301)", () => {
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
   });
 });
+
+describe("ExaminationFormHeader 患者属性 (EMR-415 E3)", () => {
+  it("名前に種を含めず、petDetails に年齢・性別・去勢避妊を出し、id 代用しない", () => {
+    renderHeader({
+      selectedPet: {
+        ...basePet,
+        birthDate: "2018-04-01",
+        gender: "メス",
+        neuteredDate: "2020-01-01",
+        weight: "5.2",
+      } as Pet,
+    });
+
+    expect(screen.getAllByText("ポチ").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/ポチ\(/)).not.toBeInTheDocument();
+    expect(screen.getByText(/犬 \/ .+/)).toBeInTheDocument();
+    expect(screen.queryByText("pet-1")).not.toBeInTheDocument();
+  });
+});

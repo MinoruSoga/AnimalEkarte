@@ -11,8 +11,9 @@
  * 初回マウント時に GET /v1/support/chat/history で復元する。
  * 空状態では質問例チップを表示し、送信失敗ターンは「もう一度送信」で再送できる。
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { Link } from "react-router";
+import { isAxiosError } from "axios";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { BookOpen, Loader2, RotateCcw, Send } from "lucide-react";
@@ -26,18 +27,21 @@ import { createManualSearcher, type ManualArticle } from "@/lib/manual-index";
 import { useClearSupportChatHistory } from "../api/clear-support-chat-history";
 import { useGetSupportChatHistory } from "../api/get-support-chat-history";
 import { useSendSupportChat } from "../api/send-support-chat";
-import { buildChatContext } from "../lib/chat-context";
+import { buildKeywordCandidates } from "../lib/chat-context";
+import { computeManualRevision } from "../lib/manual-corpus";
 import { CHAT_MARKDOWN_COMPONENTS } from "../lib/chat-markdown-components";
 import { useHelpChatHistory } from "../lib/help-chat-history";
-import type { SupportChatHistoryRecord, SupportChatTurn } from "../types";
+import type { SupportChatHistoryRecord, SupportChatResponse, SupportChatTurn } from "../types";
 
-/** 1回の送信でコンテキストに含めるマニュアル記事数 */
-const CONTEXT_TOP_K = 3;
-/** 各記事の抜粋文字数（バックエンド上限 6000 内で 3 件に収まるサイズ） */
-const CONTEXT_EXCERPT_LENGTH = 1800;
 const SEND_ERROR_MESSAGE =
   "送信に失敗しました。時間をおいて再度お試しください。マニュアル検索で代わりに調べることもできます。";
+const SEND_CANCELED_MESSAGE =
+  "送信が中断されました。必要であれば「もう一度送信」を選んでください。";
 const RESET_ERROR_MESSAGE = "履歴の削除に失敗しました。時間をおいて再度お試しください。";
+// backend chatMessageMaxLength と同一契約（UTF-8 バイト数。文字数ではない）。
+const MESSAGE_MAX_BYTES = 2000;
+const MESSAGE_TOO_LONG_MESSAGE =
+  "メッセージが長すぎます。2000バイト以内に短くしてから送信してください。";
 
 // アシスタント回答はマークダウンで返るため react-markdown で描画する。
 // components 上書きは lib/chat-markdown-components で履歴ページと共有する。
@@ -53,13 +57,30 @@ const SUGGESTED_QUESTIONS = ["レジ締めの手順は？", "予約の変更方�
 interface HelpChatProps {
   articles: ManualArticle[];
   onClose: () => void;
+  /**
+   * EMR-410: 409（manual_revision 不一致）時に呼び、最新記事 snapshot を返す。
+   * ManualHelpTab が overrides refetch + 再構築を担う。未指定なら再送しない。
+   */
+  onRevisionConflict?: () => Promise<ManualArticle[]>;
+  /** strict 上書き取得が未完了なら false（送信ボタン非活性 + 理由表示）。 */
+  canSubmit?: boolean;
+  /** 送信直前に実効 snapshot を返す。strict 未完了なら throw（送信しない）。 */
+  getCurrentArticles?: () => ManualArticle[];
 }
 
-export function HelpChat({ articles, onClose }: HelpChatProps) {
+const RELOAD_GUIDANCE_MESSAGE =
+  "マニュアルが更新されました。ページを再読み込みしてから再度お試しください。";
+
+export function HelpChat({
+  articles,
+  onClose,
+  onRevisionConflict,
+  canSubmit = true,
+  getCurrentArticles,
+}: HelpChatProps) {
   const { turns, setTurns, hydrated, markHydrated } = useHelpChatHistory();
   const [input, setInput] = useState("");
   const [resetError, setResetError] = useState(false);
-  const search = useMemo(() => createManualSearcher(articles), [articles]);
   const send = useSendSupportChat();
   const historyQuery = useGetSupportChatHistory();
   const clearHistory = useClearSupportChatHistory();
@@ -67,6 +88,24 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
+  // mutation.isPending は同一レンダリングで遅れるため同期ガードを ref で持つ。
+  const sendingRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const articlesRef = useRef(articles);
+  const getCurrentArticlesRef = useRef(getCurrentArticles);
+  const canSubmitRef = useRef(canSubmit);
+  const [isSending, startTransition] = useTransition();
+  const isBusy = send.isPending || isSending;
+  useLayoutEffect(() => {
+    articlesRef.current = articles;
+    getCurrentArticlesRef.current = getCurrentArticles;
+    canSubmitRef.current = canSubmit;
+  });
+  useLayoutEffect(() => () => abortRef.current?.abort(), []);
+  // canSubmit が true→false に倒れたら進行中の送信を中断する。
+  useEffect(() => {
+    if (!canSubmit) abortRef.current?.abort();
+  }, [canSubmit]);
 
   // 保存済み履歴を初回だけローカルへ反映する。ロード中に送信されたターンが
   // 既にある場合やロード失敗時はローカル状態を優先し、以後は再適用しない。
@@ -103,38 +142,127 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
    * リクエストには message と検索コンテキストのみを送る。
    */
   const sendMessage = (text: string) => {
-    if (text.length === 0 || send.isPending || !hydrated) return;
+    if (text.length === 0 || send.isPending || sendingRef.current || !hydrated || !canSubmit) {
+      return;
+    }
+    sendingRef.current = true;
+    const controller = new AbortController(); // 全体で1つ。409 再送も同一 signal。
+    abortRef.current = controller;
+    const optimisticTurn: SupportChatTurn = { role: "user", content: text };
+    const assertActive = () => {
+      if (controller.signal.aborted || !canSubmitRef.current) {
+        throw controller.signal.reason ?? new DOMException("aborted", "AbortError");
+      }
+    };
+    const appendCanceledTurn = () => {
+      setTurns((prev) => {
+        const turnIndex = prev.indexOf(optimisticTurn);
+        if (turnIndex < 0 || prev[turnIndex + 1]?.role === "assistant") {
+          return prev;
+        }
+        return [
+          ...prev.slice(0, turnIndex + 1),
+          {
+            role: "assistant",
+            content: SEND_CANCELED_MESSAGE,
+            isError: true,
+            retryMessage: text,
+          },
+          ...prev.slice(turnIndex + 1),
+        ];
+      });
+    };
 
-    const context = buildChatContext(search, text, CONTEXT_TOP_K, CONTEXT_EXCERPT_LENGTH);
+    const doSend = async (snapshot: ManualArticle[]): Promise<SupportChatResponse> => {
+      const searcher = createManualSearcher(snapshot);
+      const revision = await computeManualRevision(snapshot);
+      assertActive();
+      return send.mutateAsync({
+        message: text,
+        manual_revision: revision,
+        keyword_candidates: buildKeywordCandidates(searcher, text),
+        signal: controller.signal,
+      });
+    };
 
-    setTurns((prev) => [...prev, { role: "user", content: text }]);
-    send.mutate(
-      { message: text, context },
-      {
-        onSuccess: (res) => {
+    setTurns((prev) => [...prev, optimisticTurn]);
+    startTransition(async () => {
+      const isAborted = (err: unknown): boolean =>
+        (err instanceof DOMException && err.name === "AbortError") ||
+        (isAxiosError(err) && err.code === "ERR_CANCELED") ||
+        abortRef.current?.signal.aborted === true;
+      try {
+        let snapshot = articlesRef.current;
+        if (getCurrentArticlesRef.current) {
+          snapshot = getCurrentArticlesRef.current();
+          articlesRef.current = snapshot;
+        }
+        try {
+          const res = await doSend(snapshot);
+          assertActive();
           setTurns((prev) => [
             ...prev,
             { role: "assistant", content: res.reply, sources: res.sources },
           ]);
-        },
-        onError: () => {
-          setTurns((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: SEND_ERROR_MESSAGE,
-              isError: true,
-              retryMessage: text,
-            },
-          ]);
-        },
-      },
-    );
+          return;
+        } catch (err: unknown) {
+          if (isAborted(err)) {
+            appendCanceledTurn();
+            return;
+          }
+          const status = isAxiosError(err) ? err.response?.status : undefined;
+          if (status === 409 && onRevisionConflict) {
+            // 409 は一度だけ最新 snapshot で再送。二度目は再読込案内（ループしない）。
+            const fresh = await onRevisionConflict();
+            assertActive();
+            articlesRef.current = fresh;
+            const res = await doSend(fresh);
+            assertActive();
+            setTurns((prev) => [
+              ...prev,
+              { role: "assistant", content: res.reply, sources: res.sources },
+            ]);
+            return;
+          }
+          throw err;
+        }
+      } catch (err: unknown) {
+        if (isAborted(err)) {
+          appendCanceledTurn();
+          return;
+        }
+        const status = isAxiosError(err) ? err.response?.status : undefined;
+        setTurns((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: status === 409 ? RELOAD_GUIDANCE_MESSAGE : SEND_ERROR_MESSAGE,
+            isError: true,
+            retryMessage: text,
+          },
+        ]);
+      } finally {
+        sendingRef.current = false;
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+        }
+      }
+    });
   };
+
+  const inputTooLong = new TextEncoder().encode(input).length > MESSAGE_MAX_BYTES;
 
   const handleSend = () => {
     const text = input.trim();
-    if (text.length === 0 || send.isPending || !hydrated) return;
+    if (
+      text.length === 0 ||
+      inputTooLong ||
+      send.isPending ||
+      sendingRef.current ||
+      !hydrated ||
+      !canSubmit
+    )
+      return;
     setInput("");
     sendMessage(text);
   };
@@ -144,7 +272,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
    * 残したままエラーを表示する（見た目だけ消えると再ロードで復活するため）。
    */
   const handleReset = () => {
-    if (clearHistory.isPending) return;
+    if (clearHistory.isPending || sendingRef.current || isBusy) return;
     clearHistory.mutate(undefined, {
       onSuccess: () => {
         setTurns([]);
@@ -160,7 +288,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
    */
   const handleRetry = (errorIndex: number) => {
     const retryMessage = turns[errorIndex]?.retryMessage;
-    if (retryMessage === undefined || send.isPending) return;
+    if (retryMessage === undefined || sendingRef.current || send.isPending || !canSubmit) return;
     const failedUserIndex = turns[errorIndex - 1]?.role === "user" ? errorIndex - 1 : -1;
     const remaining = turns.filter((_, i) => i !== errorIndex && i !== failedUserIndex);
     setTurns(remaining);
@@ -192,7 +320,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                 <button
                   key={question}
                   type="button"
-                  disabled={send.isPending}
+                  disabled={isBusy || !canSubmit}
                   onClick={() => sendMessage(question)}
                   className={`inline-flex min-h-11 items-center rounded-full border ${C.borderLight} px-3 py-1.5 text-xs ${C.textActionPrimary} ${C.hoverBgLight} transition-colors disabled:opacity-50 disabled:pointer-events-none`}
                 >
@@ -232,7 +360,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
                   <button
                     type="button"
                     onClick={() => handleRetry(i)}
-                    disabled={send.isPending}
+                    disabled={isBusy || !canSubmit}
                     className={`mt-1.5 flex min-h-11 items-center gap-1 text-xs font-semibold ${C.textActionPrimary} underline underline-offset-2 transition-opacity disabled:opacity-50 disabled:pointer-events-none`}
                   >
                     <RotateCcw className="size-3" aria-hidden="true" />
@@ -261,7 +389,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
             ))}
           </>
         )}
-        {send.isPending ? (
+        {isBusy ? (
           <div
             className={`self-start flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${C.bgMuted} ${C.textMuted}`}
           >
@@ -271,6 +399,23 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
         ) : null}
       </div>
 
+      {canSubmit ? null : (
+        <p role="status" className={`text-xs ${C.textMuted}`}>
+          マニュアルを読み込めないため、現在は送信できません。
+          <Link
+            to={paths.manual.getHref()}
+            onClick={onClose}
+            className={`underline underline-offset-2 ${C.textActionPrimary}`}
+          >
+            マニュアルを開く
+          </Link>
+        </p>
+      )}
+      {inputTooLong ? (
+        <p role="alert" className={`text-2xs ${C.danger}`}>
+          {MESSAGE_TOO_LONG_MESSAGE}
+        </p>
+      ) : null}
       <form
         className="flex items-end gap-2"
         onSubmit={(e) => {
@@ -292,12 +437,11 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
           rows={1}
           placeholder="例: レジ締めの手順は？"
           aria-label="使い方を質問"
-          maxLength={2000}
           className="max-h-32 flex-1"
         />
         <button
           type="submit"
-          disabled={input.trim().length === 0 || send.isPending || !hydrated}
+          disabled={input.trim().length === 0 || inputTooLong || isBusy || !hydrated || !canSubmit}
           aria-label="送信"
           className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} p-2 transition-colors disabled:opacity-50 disabled:pointer-events-none`}
         >
@@ -310,7 +454,7 @@ export function HelpChat({ articles, onClose }: HelpChatProps) {
             type="button"
             onClick={() => setResetConfirmOpen(true)}
             ref={resetButtonRef}
-            disabled={clearHistory.isPending}
+            disabled={clearHistory.isPending || isBusy}
             className={`inline-flex min-h-11 shrink-0 items-center text-2xs ${C.textMuted} ${C.hoverText} underline underline-offset-2 transition-colors disabled:opacity-50 disabled:pointer-events-none`}
           >
             会話をリセット

@@ -5,7 +5,6 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { formatDate } from "@/lib/format/date";
 import { paths } from "@/config/paths";
-import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 import {
   TrimmingLeftColumn,
@@ -49,10 +48,9 @@ interface TrimmingFormColumnsProps {
   completedImagePreview: string | null;
   sortedHistory: TrimmingHistoryItem[];
   isHistoryLoading: boolean;
-  historySearchTerm: string;
-  historySortOrder: SortOrder;
-  historyDateRange: { from: string; to: string };
   showInitialStatusSelector: boolean;
+  /** EMR-412 X14: トリミング新規のみ担当・コースに必須印。既定 false。 */
+  showRequiredMarks?: boolean;
   onFormChange: (updates: Partial<TrimmingFormData>) => void;
   onOpenCourseModal: () => void;
   onOpenStaffModal: () => void;
@@ -60,11 +58,6 @@ interface TrimmingFormColumnsProps {
   onCompletedImageChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveStyleImage: () => void;
   onRemoveCompletedImage: () => void;
-  onHistorySearchTermChange: (value: string) => void;
-  onHistorySortOrderChange: (value: SortOrder) => void;
-  onHistoryClear: () => void;
-  onHistoryStartDateChange: (value: string) => void;
-  onHistoryEndDateChange: (value: string) => void;
   onHistoryClick: (updates: Partial<TrimmingFormData>) => void;
 }
 
@@ -78,10 +71,8 @@ export function TrimmingFormColumns({
   completedImagePreview,
   sortedHistory,
   isHistoryLoading,
-  historySearchTerm,
-  historySortOrder,
-  historyDateRange,
   showInitialStatusSelector,
+  showRequiredMarks = false,
   onFormChange,
   onOpenCourseModal,
   onOpenStaffModal,
@@ -89,11 +80,6 @@ export function TrimmingFormColumns({
   onCompletedImageChange,
   onRemoveStyleImage,
   onRemoveCompletedImage,
-  onHistorySearchTermChange,
-  onHistorySortOrderChange,
-  onHistoryClear,
-  onHistoryStartDateChange,
-  onHistoryEndDateChange,
   onHistoryClick,
 }: TrimmingFormColumnsProps) {
   return (
@@ -113,6 +99,7 @@ export function TrimmingFormColumns({
         weight={selectedPet.weight || ""}
         staffName={formData.staffName}
         staffLabel="担当"
+        staffRequiredMark={showRequiredMarks}
         staffButtonId="staffId"
         staffInvalid={Boolean(fieldErrors.staffId)}
         reservationType="トリミング"
@@ -150,6 +137,7 @@ export function TrimmingFormColumns({
             onRemoveStyleImage={onRemoveStyleImage}
             courseError={fieldErrors.courseId}
             showInitialStatusSelector={showInitialStatusSelector}
+            courseRequiredMark={showRequiredMarks}
           />
           <TrimmingMiddleColumn
             formData={formData}
@@ -162,14 +150,6 @@ export function TrimmingFormColumns({
         <TrimmingRightColumn
           sortedHistory={sortedHistory}
           isHistoryLoading={isHistoryLoading}
-          historySearchTerm={historySearchTerm}
-          historySortOrder={historySortOrder}
-          historyDateRange={historyDateRange}
-          onSearchTermChange={onHistorySearchTermChange}
-          onSortOrderChange={onHistorySortOrderChange}
-          onClear={onHistoryClear}
-          onFilterStartDateChange={onHistoryStartDateChange}
-          onFilterEndDateChange={onHistoryEndDateChange}
           onHistoryClick={onHistoryClick}
         />
       </div>

@@ -3,6 +3,7 @@ import { memo } from "react";
 
 // Internal
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
+import { formatCurrency } from "@/lib/format/number";
 import { C, STYLE } from "@/lib/design-tokens";
 
 interface TreatmentDetailedSummaryProps {
@@ -11,6 +12,8 @@ interface TreatmentDetailedSummaryProps {
   total: number;
   discountRate: number;
   discountAmount: number;
+  /** PR669: 見積の保険適用額を「保険請求額」行へ表示する。未指定は 0（後方互換）。 */
+  insuranceAmount?: number;
   onUpdateDiscountRate?: (value: number) => void;
   onUpdateDiscountAmount: (value: number) => void;
   isDiscountRateReadonly?: boolean;
@@ -24,6 +27,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
   total,
   discountRate,
   discountAmount,
+  insuranceAmount = 0,
   onUpdateDiscountRate,
   onUpdateDiscountAmount,
   isDiscountRateReadonly = false,
@@ -50,7 +54,7 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div
             className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}
           >
-            ￥{subtotal.toLocaleString()}
+            {formatCurrency(subtotal)}
           </div>
           <div
             className={`p-2 border-r ${C.borderMedium} h-full flex items-center justify-end gap-1`}
@@ -91,12 +95,12 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
           <div
             className={`p-2 text-right ${C.text} border-r ${C.borderMedium} h-full flex items-center justify-end font-mono font-medium`}
           >
-            ￥{tax.toLocaleString()}
+            {formatCurrency(tax)}
           </div>
           <div
             className={`p-2 text-right ${C.text} h-full flex items-center justify-end font-mono font-semibold text-xl`}
           >
-            ￥{total.toLocaleString()}
+            {formatCurrency(total)}
           </div>
         </div>
 
@@ -104,12 +108,14 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
         <div className={`grid grid-cols-2 ${C.bgWhite}`}>
           <div className={`p-2 border-r ${C.borderMedium} flex justify-between items-center h-10`}>
             <span className={`font-normal ${C.text} text-sm`}>保険請求額</span>
-            <span className={`${C.text} font-mono font-medium`}>0</span>
+            <span className={`${C.text} font-mono font-medium`}>
+              {formatCurrency(insuranceAmount)}
+            </span>
           </div>
           <div className="p-2 flex justify-between items-center h-10">
             <span className={`font-normal ${C.text} text-sm`}>飼主請求額</span>
             <span className={`font-semibold ${C.text} font-mono text-base`}>
-              ￥{total.toLocaleString()}
+              {formatCurrency(total)}
             </span>
           </div>
         </div>

@@ -50,4 +50,15 @@ function Checkbox({ className, touchTarget = false, ...props }: CheckboxProps) {
   );
 }
 
-export { Checkbox };
+function NativeCheckbox({ className, ...props }: Omit<React.ComponentProps<"input">, "type">) {
+  return (
+    <input
+      data-slot="native-checkbox"
+      type="checkbox"
+      className={cn("peer", className)}
+      {...props}
+    />
+  );
+}
+
+export { Checkbox, NativeCheckbox };

@@ -8,13 +8,8 @@ import { canAddColumnEntryOnDate, receptionColumnAddKind } from "../routes/recep
 
 interface UseReceptionColumnViewArgs {
   filteredColumns: ColumnData[];
-  /** 通常予約（reservations:create）。受付予約列の「＋」はこれだけで出る。 */
+  /** 通常予約・当日 walk-in 受付ともに reservations:create のみ要求する（PR669）。 */
   canCreateReservation: boolean;
-  /**
-   * PR665: 当日 walk-in 受付（reception=1 / checked_in）は予約権限に加えて
-   * reception:create を要求する。通常予約の導線は狭めない。
-   */
-  canCreateReception: boolean;
   canEditReservation: boolean;
   advanceStatus: (appointment: ReceptionAppointment) => void;
   onCardClick: (appointment: ReceptionAppointment) => void;
@@ -27,7 +22,6 @@ interface UseReceptionColumnViewArgs {
 export function useReceptionColumnView({
   filteredColumns,
   canCreateReservation,
-  canCreateReception = true,
   canEditReservation,
   advanceStatus,
   onCardClick,
@@ -60,12 +54,8 @@ export function useReceptionColumnView({
   // EMR-243: 非本日表示では予約作成クエリへ選択日を付与し、戻り先にも ?date= を保持する。
   const goToNewReservation = useCallback(
     (query: string) => {
-      // PR665: walk-in (reception=1) は両権限、通常予約 (newReservation=1) は予約権限のみ。
-      const isWalkIn = query.startsWith("reception=");
-      const allowed = isWalkIn
-        ? canCreateReservation === true && canCreateReception === true
-        : canCreateReservation === true;
-      if (!allowed) return;
+      // PR669: walk-in (reception=1) も通常予約も reservations:create のみ要求する。
+      if (canCreateReservation !== true) return;
       const datedQuery = isToday ? query : `${query}&date=${selectedDate}`;
       navigate(`${paths.reservations.getHref()}?${datedQuery}`, {
         state: {
@@ -73,7 +63,7 @@ export function useReceptionColumnView({
         },
       });
     },
-    [navigate, isToday, selectedDate, canCreateReservation, canCreateReception],
+    [navigate, isToday, selectedDate, canCreateReservation],
   );
 
   // 受付予約ボード → 通常の新規予約（confirmed → 受付予約カラム）。
@@ -93,15 +83,14 @@ export function useReceptionColumnView({
         handlers.set(column.title, undefined);
         continue;
       }
-      // PR665: 列種別で必要権限が変わる。受付予約=通常予約、その他=当日 walk-in。
-      const isWalkInColumn = receptionColumnAddKind(column.title) === "reception";
-      const allowed = isWalkInColumn
-        ? canCreateReservation === true && canCreateReception === true
-        : canCreateReservation === true;
-      handlers.set(column.title, allowed ? () => handleAddClick(column.title) : undefined);
+      // PR669: walk-in 列も受付予約列も reservations:create のみで「＋」を出す。
+      handlers.set(
+        column.title,
+        canCreateReservation === true ? () => handleAddClick(column.title) : undefined,
+      );
     }
     return handlers;
-  }, [filteredColumns, handleAddClick, canCreateReservation, canCreateReception, isToday]);
+  }, [filteredColumns, handleAddClick, canCreateReservation, isToday]);
 
   const columnElements = useMemo(
     () =>

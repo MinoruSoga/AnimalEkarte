@@ -45,7 +45,8 @@ export function transformExamination(data: Examination) {
     medicalRecordId: data.medical_record_id ? String(data.medical_record_id) : undefined,
     testType: data.exam_type?.name ?? "",
     testTypeId: String(data.exam_type_id ?? ""),
-    doctor: data.doctor?.name ?? String(data.doctor_id ?? ""),
+    // EMR-412 X3/R5: 未解決の doctor_id を氏名として見せない（ExaminationImportDialog にも ID を出さない）。
+    doctor: data.doctor?.name ?? (data.doctor_id ? "担当者不明" : ""),
     doctorId: String(data.doctor_id ?? ""),
     status: EXAM_STATUS_EN_TO_JA[data.status ?? ""] ?? "依頼中",
     currentRevisionVersion: data.current_revision_version,

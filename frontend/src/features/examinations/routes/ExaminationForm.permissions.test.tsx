@@ -1,5 +1,5 @@
 import { useActionState, useEffect, type ReactNode } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -107,10 +107,28 @@ vi.mock("@/components/shared/NavigationBlocker", () => ({
 }));
 
 vi.mock("@/components/shared/ConfirmDialog", () => ({
-  ConfirmDialog: () => null,
+  ConfirmDialog: (props: {
+    open: boolean;
+    onConfirm: () => void;
+    onClose: () => void;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    title?: string;
+  }) =>
+    props.open ? (
+      <div role="dialog" aria-label={props.title}>
+        <button type="button" onClick={props.onConfirm}>
+          {props.confirmLabel ?? "確認"}
+        </button>
+        <button type="button" onClick={props.onClose}>
+          {props.cancelLabel ?? "キャンセル"}
+        </button>
+      </div>
+    ) : null,
 }));
 
-vi.mock("@/components/shared/PatientInfoCard", () => ({
+vi.mock("@/components/shared/PatientInfoCard", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/shared/PatientInfoCard")>()),
   PatientInfoCard: (props: unknown) => {
     mocks.patientInfoCard(props);
     return null;
@@ -303,7 +321,13 @@ describe("ExaminationForm — mutation permission wiring", () => {
     expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
   });
 
-  it("閲覧者は削除を実行できず、既存レコードを詳細として表示する", () => {
+  it("PR669: 削除権限は編集権限と独立し、閲覧者でも削除ボタンを実行できる", async () => {
+    const user = userEvent.setup();
+    const handleDelete = vi.fn();
+    mocks.useExaminationForm.mockImplementation(() => ({
+      ...hookReturn(),
+      handleDelete,
+    }));
     mocks.id = "examination-1";
     mocks.canEdit = false;
     mocks.canDelete = true;
@@ -311,8 +335,40 @@ describe("ExaminationForm — mutation permission wiring", () => {
     render(<ExaminationForm />);
 
     expect(screen.getByRole("heading", { name: "検査詳細" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
+
+    const deleteButton = screen.getByRole("button", { name: "削除" });
+    expect(deleteButton).toBeEnabled();
+    await user.click(deleteButton);
+    // 確認ダイアログが開き、confirm で handleDelete が呼ばれる
+    const dialog = screen.getByRole("dialog", { name: "検査記録を削除しますか？" });
+    await user.click(within(dialog).getByRole("button", { name: "削除" }));
+    expect(handleDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("PR669: 削除実行中（isDeleting）は削除ボタンを disabled にする", () => {
+    mocks.useExaminationForm.mockImplementation(() => ({
+      ...hookReturn(),
+      isDeleting: true,
+    }));
+    mocks.id = "examination-1";
+    mocks.canEdit = false;
+    mocks.canDelete = true;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "削除中..." })).toBeDisabled();
+  });
+
+  it("PR669: 編集権限のみでは削除ボタンを表示しない", () => {
+    mocks.id = "examination-1";
+    mocks.canEdit = true;
+    mocks.canDelete = false;
+
+    render(<ExaminationForm />);
+
+    expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
   });
 
   it("完了封印中は詳細、ステータス変更後に保存可能なら編集として表示する", () => {
@@ -465,6 +521,7 @@ describe("ExaminationForm — 死亡ペット render側二重防壁 (FE-RC-002)"
     render(<ExaminationForm />);
 
     expect(document.querySelector("fieldset")).toBeDisabled();
+    // 死亡ペットは handler 側再検査に加え render 側でも削除を無効化する（二重防壁）。
     expect(screen.getByRole("button", { name: "削除" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.getByText("死亡したペットの検査記録は保存できません")).toBeInTheDocument();

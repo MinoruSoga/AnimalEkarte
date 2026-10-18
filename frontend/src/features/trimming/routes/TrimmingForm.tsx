@@ -97,9 +97,6 @@ export function TrimmingForm() {
       completedImagePreview={completedImagePreview}
       sortedHistory={chrome.history.sortedHistory}
       isHistoryLoading={chrome.history.isHistoryLoading}
-      historySearchTerm={chrome.history.historySearchTerm}
-      historySortOrder={chrome.history.historySortOrder}
-      historyDateRange={chrome.history.historyDateRange}
       courseModalOpen={chrome.courseModalOpen}
       staffModalOpen={chrome.staffModalOpen}
       deleteConfirmOpen={chrome.deleteConfirmOpen}
@@ -118,11 +115,6 @@ export function TrimmingForm() {
       onCompletedImageChange={handleCompletedImageChange}
       onRemoveStyleImage={removeStyleImage}
       onRemoveCompletedImage={removeCompletedImage}
-      onHistorySearchTermChange={chrome.history.setHistorySearchTerm}
-      onHistorySortOrderChange={chrome.history.setHistorySortOrder}
-      onHistoryClear={chrome.history.handleHistoryClear}
-      onHistoryStartDateChange={chrome.history.setHistoryDateRangeFrom}
-      onHistoryEndDateChange={chrome.history.setHistoryDateRangeTo}
       onHistoryClick={chrome.handleHistoryClick}
     />
   );

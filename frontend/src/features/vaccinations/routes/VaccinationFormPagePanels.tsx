@@ -152,6 +152,7 @@ interface VaccinationFormBodyProps {
   form: VaccinationFormFieldsState;
   fieldErrors: Record<string, string>;
   petHistory: VaccinationRecord[];
+  replacedVaccinationIds: Set<string>;
   historyFilter: VaccinationHistoryFilterState;
   deleteConfirmOpen: boolean;
   formAction: (payload: FormData) => void;
@@ -174,6 +175,7 @@ export function VaccinationFormBody({
   form,
   fieldErrors,
   petHistory,
+  replacedVaccinationIds,
   historyFilter,
   deleteConfirmOpen,
   formAction,
@@ -255,7 +257,10 @@ export function VaccinationFormBody({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div
+            data-testid="vaccination-form-grid"
+            className="mt-4 grid grid-cols-1 lg:grid-cols-5 gap-6"
+          >
             <VaccinationFieldsPanel
               doctorName={form.doctorName}
               date={form.date}
@@ -284,6 +289,7 @@ export function VaccinationFormBody({
             />
             <VaccinationHistoryPanel
               petHistory={petHistory}
+              replacedVaccinationIds={replacedVaccinationIds}
               filterStartDate={historyFilter.filterStartDate}
               filterEndDate={historyFilter.filterEndDate}
               historySearchTerm={historyFilter.historySearchTerm}

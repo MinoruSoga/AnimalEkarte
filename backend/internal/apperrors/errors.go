@@ -23,6 +23,10 @@ var (
 	ErrUnauthorized    = errors.New("unauthorized")
 	ErrForbidden       = errors.New("forbidden")
 	ErrNotImplemented  = errors.New("not implemented")
+	// EMR-410: support chat の quota・依存欠落・生成期限用センチネル。
+	ErrTooManyRequests    = errors.New("too many requests")
+	ErrServiceUnavailable = errors.New("service unavailable")
+	ErrGatewayTimeout     = errors.New("gateway timeout")
 )
 
 // Stable domain conflict codes (HTTP 409). FE maps these to localized messages.
@@ -362,6 +366,21 @@ func WrapNotImplemented(message string) error {
 
 // ErrBadGateway は上流サービス（LINE等）のエラーを表す（502 Bad Gateway）。
 var ErrBadGateway = errors.New("bad gateway")
+
+// WrapTooManyRequests は 429（quota 超過・inflight 競合）用。
+func WrapTooManyRequests(message string) error {
+	return &AppError{Err: ErrTooManyRequests, Message: message, Code: "TOO_MANY_REQUESTS"}
+}
+
+// WrapServiceUnavailable は 503（依存欠落・fail-closed）用。
+func WrapServiceUnavailable(message string) error {
+	return &AppError{Err: ErrServiceUnavailable, Message: message, Code: "SERVICE_UNAVAILABLE"}
+}
+
+// WrapGatewayTimeout は 504（生成 deadline）用。
+func WrapGatewayTimeout(message string) error {
+	return &AppError{Err: ErrGatewayTimeout, Message: message, Code: "GATEWAY_TIMEOUT"}
+}
 
 // WrapBadGateway は上流サービスエラーを AppError でラップする。
 func WrapBadGateway(message string) error {

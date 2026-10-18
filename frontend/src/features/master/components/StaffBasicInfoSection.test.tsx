@@ -166,3 +166,31 @@ describe("StaffBasicInfoSection occupation empty master", () => {
     expect(screen.queryByRole("option", { name: "動物看護師" })).not.toBeInTheDocument();
   });
 });
+
+describe("StaffBasicInfoSection disableCreateCredentials (review-702)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("default(false)では新規email/passwordはenabled", () => {
+    renderSection({ isNew: true });
+    expect(screen.getByLabelText("メールアドレス")).not.toBeDisabled();
+    expect(screen.getByLabelText("パスワード")).not.toBeDisabled();
+  });
+
+  it("disableCreateCredentials=trueで新規email/passwordのみdisabled", () => {
+    renderSection({ isNew: true, disableCreateCredentials: true });
+    expect(screen.getByLabelText("メールアドレス")).toBeDisabled();
+    expect(screen.getByLabelText("パスワード")).toBeDisabled();
+    expect(screen.getByLabelText("資格番号")).not.toBeDisabled();
+  });
+
+  it("既存スタッフのupdate password入力はdisableCreateCredentialsに影響されない", () => {
+    renderSection({
+      item: staffWithoutEmail({ email: "synth@example.com" }),
+      isNew: false,
+      disableCreateCredentials: true,
+    });
+    expect(screen.getByLabelText("パスワード")).not.toBeDisabled();
+  });
+});

@@ -9,11 +9,12 @@
  * pre-gate 候補数は検索関数をラップして collect() と同じ重複排除で計測する
  * （内部 Map を直接触らず、本番経路を変えずに観測する）。
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createManualSearcher, screenArticles, workflowArticles } from "@/lib/manual-index";
+import type { ManualArticle } from "@/lib/manual-index";
 
-import { buildChatContext } from "./chat-context";
+import { buildChatContext, buildKeywordCandidates } from "./chat-context";
 import { evalCases } from "./eval-cases";
 
 const articles = [...screenArticles, ...workflowArticles];
@@ -85,6 +86,15 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
     expect(items).toEqual([]);
   });
 
+  it("意味語のない質問は強い候補が検索可能でも検索関数を呼ばない", () => {
+    const search = vi.fn((_query: string) => articles);
+    for (const question of ["方法", "cách"]) {
+      search.mockClear();
+      expect(buildKeywordCandidates(search, question)).toEqual([]);
+      expect(search).not.toHaveBeenCalled();
+    }
+  });
+
   it("根拠ゲート通過時は弱ヒット候補を混ぜない（text 空の項目は出ない）", () => {
     const items = buildChatContext(
       createManualSearcher(articles),
@@ -107,5 +117,39 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
         `control "${c.question}" に pre-gate 候補 — ノーマッチではなく弱ヒット`,
       ).toBe(0);
     }
+  });
+});
+
+describe("buildKeywordCandidates slug contract", () => {
+  // backend candidateSlugRe (^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$) と同一契約。
+  // upsert は slug 非空のみ検証するため、契約外 slug のオーバーライド記事が
+  // Fuse 候補に混ざっても 400 "invalid keyword candidate" にならないことを検証。
+  const mkArticle = (slug: string): ManualArticle => ({
+    category: "screens",
+    slug,
+    title: slug,
+    order: 1,
+    section: "s",
+    content: "c",
+    searchText: slug,
+    keywords: [],
+    keywords_vi: [],
+  });
+
+  it("契約外 slug の記事は候補から除外される", () => {
+    const pool = [
+      mkArticle("ok-slug"),
+      mkArticle("日本語"),
+      mkArticle("-draft"),
+      mkArticle("a.b"),
+      mkArticle("also_ok-1"),
+    ];
+    const got = buildKeywordCandidates(() => pool, "カルテの作成方法は？");
+    expect(got.map((c) => c.slug).sort()).toEqual(["also_ok-1", "ok-slug"]);
+  });
+
+  it("全候補が契約外なら空配列（400 にならない）", () => {
+    const pool = [mkArticle("日本語"), mkArticle("a.b")];
+    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？")).toEqual([]);
   });
 });

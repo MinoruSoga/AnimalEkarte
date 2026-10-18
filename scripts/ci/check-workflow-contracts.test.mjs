@@ -332,6 +332,24 @@ test("make ci wires the gates retired from remote CI", () => {
   );
 });
 
+test("manual search CLI packages belong to exactly one backend test shard", () => {
+  const script = read("scripts/ci/run-local-ci.sh");
+  const shards = [...script.matchAll(/^BACKEND_TEST_SHARD_([1-4])="([^"]+)"$/gm)];
+  assert.deepEqual(
+    shards.map((match) => Number(match[1])).sort(),
+    [1, 2, 3, 4],
+    "all four shard declarations must be present exactly once",
+  );
+  const members = shards.flatMap((match) => match[2].trim().split(/\s+/));
+  for (const pkg of ["cmd/manual-corpus", "cmd/support-index"]) {
+    assert.equal(
+      members.filter((member) => member === pkg).length,
+      1,
+      `${pkg} must be assigned to exactly one shard`,
+    );
+  }
+});
+
 function runMockHandoffStep(profileExit) {
   const step = read("scripts/ci/run-local-ci.sh").match(/^s11\(\) \{[\s\S]*?^\}/m)?.[0];
   assert.ok(step, "missing handoff step");

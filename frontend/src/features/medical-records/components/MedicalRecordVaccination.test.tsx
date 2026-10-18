@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
 import { MedicalRecordVaccination } from "./MedicalRecordVaccination";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 
 const { mockCreateVaccination } = vi.hoisted(() => ({
   mockCreateVaccination: vi.fn(),
@@ -138,6 +139,8 @@ describe("MedicalRecordVaccination responsive layout", () => {
     expect(layout).not.toHaveClass("grid-cols-12");
     expect(layout).not.toHaveClass("min-h-[500px]");
     expect(layout).toHaveClass("min-h-0");
+    // EMR-432: 右下固定ボタン群が末尾の履歴表を覆わない下余白
+    expect(layout).toHaveClass(MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance);
     expect(screen.getByTestId("vaccination-history").parentElement).toBe(layout);
     expect(screen.getByTestId("vaccination-history").closest("fieldset")).toBeNull();
   });
@@ -170,9 +173,9 @@ describe("MedicalRecordVaccination 編集ロック（BUG-035）", () => {
     mockHistoryItems.current = [{ id: 11, name: "混合ワクチン", date: "26/8/1" }];
     renderPanel(() => {}, true);
 
-    const addButton = screen.getByRole("button", { name: "記録を追加" });
-    expect(addButton).toBeDisabled();
-    expect(addButton.closest("fieldset")).toBeDisabled();
+    // EMR-412 K4: ロック中は追加ボタン自体を出さない（定期健診と同じ）。fieldset は無効のまま。
+    expect(screen.queryByRole("button", { name: "記録を追加" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group")).toBeDisabled();
 
     // 履歴パネル自体はロック外で描画されるが、複写は mutation なので canCreate=false
     expect(screen.getByTestId("vaccination-history").closest("fieldset")).toBeNull();

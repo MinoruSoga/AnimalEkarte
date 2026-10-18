@@ -76,7 +76,7 @@ export const DailyStaffNotesSection = memo(function DailyStaffNotesSection({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h4 className={`flex items-center gap-1.5 text-sm font-bold ${C.text}`}>
+        <h4 className={`flex items-center gap-1.5 text-sm font-semibold ${C.text}`}>
           <MessageSquare className={`${ICON.action} ${C.textAccentDark}`} />
           スタッフメモ
         </h4>

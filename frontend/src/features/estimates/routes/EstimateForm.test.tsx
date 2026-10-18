@@ -587,3 +587,99 @@ describe("EstimateForm deceased pet gate (deceasedAt)", () => {
     expect(container.querySelector("fieldset")).toHaveProperty("disabled", false);
   });
 });
+
+describe("EstimateForm page width (EMR-400)", () => {
+  /**
+   * status が undefined ならネットワーク断を、定義済みなら合成 HTTP エラーを返す。
+   * 実ネットワークには接続しない。
+   */
+  function axiosError(status: number | undefined) {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    if (status === undefined) {
+      return new AxiosError("Network Error", AxiosError.ERR_NETWORK, config, undefined, undefined);
+    }
+    return new AxiosError("request failed", AxiosError.ERR_BAD_RESPONSE, config, undefined, {
+      config,
+      data: { error: "not found" },
+      headers: new AxiosHeaders(),
+      status,
+      statusText: "Error",
+    });
+  }
+
+  /**
+   * jsdom 内でクラス文字列の存在を観察するヘルパ。
+   * ブラウザの computed CSS や実寸法を測るものではない。
+   */
+  const hasWidthClass = (container: HTMLElement, cls: string) =>
+    Array.from(container.querySelectorAll("*")).some((el) => el.classList.contains(cls));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEstimate.current = null;
+    mockPetQuery.current = null;
+    mockGetState.current = {
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+    mockAmounts.current = { insuranceAmount: 0, discountAmount: 0 };
+    mockPermissions.current = {
+      canCreateEstimates: true,
+      canCreateDiscount: true,
+      canEditDiscount: true,
+      withItem: false,
+    };
+  });
+
+  it("新規作成フォームは狭い単票幅 max-w-[900px] を使う", () => {
+    const { container } = renderCreateForm();
+    expect(hasWidthClass(container, "max-w-[900px]")).toBe(true);
+    expect(hasWidthClass(container, "max-w-[1400px]")).toBe(false);
+  });
+
+  it("編集フォームは狭い単票幅 max-w-[900px] を使う", async () => {
+    mockEstimate.current = makeEstimate("draft");
+    const { container } = renderEditForm();
+    await waitFor(() => expect(screen.getByText("見積書編集")).toBeInTheDocument());
+    expect(hasWidthClass(container, "max-w-[900px]")).toBe(true);
+    expect(hasWidthClass(container, "max-w-[1400px]")).toBe(false);
+  });
+
+  it("loading 中も PageLayout の狭い単票幅 max-w-[900px] を使う", () => {
+    mockGetState.current = {
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    const { container } = renderEditForm();
+    expect(screen.getByLabelText("読み込み中")).toBeInTheDocument();
+    expect(hasWidthClass(container, "max-w-[900px]")).toBe(true);
+    expect(hasWidthClass(container, "max-w-[1400px]")).toBe(false);
+  });
+
+  it("not-found フォールバックは max-w-[900px] を使う", () => {
+    mockGetState.current = {
+      isLoading: false,
+      isError: true,
+      error: axiosError(404),
+      refetch: vi.fn(),
+    };
+    const { container } = renderEditForm();
+    expect(hasWidthClass(container, "max-w-[900px]")).toBe(true);
+  });
+
+  it("error フォールバックは max-w-[900px] を使う", () => {
+    mockGetState.current = {
+      isLoading: false,
+      isError: true,
+      error: axiosError(undefined),
+      refetch: vi.fn(),
+    };
+    const { container } = renderEditForm();
+    expect(hasWidthClass(container, "max-w-[900px]")).toBe(true);
+  });
+});

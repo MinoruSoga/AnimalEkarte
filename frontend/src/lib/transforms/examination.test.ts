@@ -71,8 +71,15 @@ describe("transformExamination", () => {
     expect(result.doctor).toBe("山田医師");
   });
 
-  it("doctor が未設定のとき doctor_id の文字列表現を使う", () => {
-    expect(transformExamination({ ...minimal, doctor: undefined, doctor_id: 7 }).doctor).toBe("7");
+  // EMR-412 R5/X3: 未解決の doctor_id を氏名として見せず「担当者不明」。割当なしは空欄。
+  it("doctor が未設定で doctor_id があるときは担当者不明を返す", () => {
+    expect(transformExamination({ ...minimal, doctor: undefined, doctor_id: 7 }).doctor).toBe(
+      "担当者不明",
+    );
+  });
+
+  it("doctor も doctor_id も無いときは空文字を返す", () => {
+    expect(transformExamination({ ...minimal, doctor: undefined, doctor_id: 0 }).doctor).toBe("");
   });
 
   it("items を変換して返す", () => {

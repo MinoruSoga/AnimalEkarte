@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useId, useMemo } from "react";
 import { Scissors } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,7 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { NextScheduleField, calculateNextDate } from "@/components/shared/NextScheduleField";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal/MasterSelectTrigger";
 import { C, ICON } from "@/lib/design-tokens";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 import { formatCurrency } from "@/lib/format/number";
 
 import type { TrimmingLeftColumnProps } from "../lib/trimming-form-column-types";
@@ -44,8 +45,11 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
   onRemoveStyleImage,
   courseError,
   showInitialStatusSelector,
+  courseRequiredMark = false,
 }: TrimmingLeftColumnProps) {
   const selectedCourse = courses.find((course) => course.id === formData.courseId);
+  // PR679 F6: 必須印は視覚装飾のみだったため、SR 向けに安定 id の説明要素を trigger に紐付ける
+  const courseRequiredDescId = useId();
   const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
 
   return (
@@ -69,7 +73,9 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
 
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Label className={`${C.text60}`}>コース</Label>
+          <Label htmlFor="courseId" className={`${C.text60}`}>
+            コース{courseRequiredMark ? <RequiredMark /> : null}
+          </Label>
           <MasterLink category="trimming_course" label="マスタ管理" />
         </div>
         <MasterSelectTrigger
@@ -82,7 +88,14 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
           onClick={onCourseModalOpen}
           variant="block"
           ariaInvalid={Boolean(courseError)}
+          ariaDescribedBy={courseRequiredMark ? courseRequiredDescId : undefined}
         />
+        {/* PR679 F6: 新規のみ必須説明を trigger に関連付ける（既存の courseError 系属性はそのまま） */}
+        {courseRequiredMark ? (
+          <span id={courseRequiredDescId} className="sr-only">
+            （必須）
+          </span>
+        ) : null}
         <FormFieldError message={courseError} />
       </div>
 

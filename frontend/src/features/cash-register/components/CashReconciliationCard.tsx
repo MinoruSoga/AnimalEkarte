@@ -30,8 +30,7 @@ export const CashReconciliationCard = memo(function CashReconciliationCard({
         <span
           className={`text-base font-semibold ${difference === 0 ? C.textStatusGreen : C.danger}`}
         >
-          {difference >= 0 ? "+" : ""}
-          {difference.toLocaleString()}
+          {formatCurrency(difference)}
         </span>
       </div>
     </div>

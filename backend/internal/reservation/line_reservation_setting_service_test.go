@@ -282,6 +282,74 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 		}
 	})
 
+	t.Run("legacy closed weekdays are persisted as canonical numeric JSON without input mutation", func(t *testing.T) {
+		var persisted *model.LineReservationSetting
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+				return nil, apperrors.WrapNotFound("setting", "")
+			},
+			saveFn: func(_ context.Context, _ uint64, setting *model.LineReservationSetting) error {
+				persisted = setting
+				return nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+		closedWeekdays := []byte(`["0",2,"6"]`)
+		original := append([]byte(nil), closedWeekdays...)
+
+		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
+			Status:         "running",
+			ClosedWeekdays: closedWeekdays,
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, original, closedWeekdays)
+		if assert.NotNil(t, persisted) {
+			assert.Equal(t, `[0,2,6]`, string(persisted.ClosedWeekdays))
+		}
+	})
+
+	t.Run("invalid closed weekdays are rejected before repository operations", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input []byte
+		}{
+			{name: "weekday out of range", input: []byte(`[2,7]`)},
+			{name: "whitespace-only malformed JSON", input: []byte(" \t\n")},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var repositoryCalls int
+				repo := &mockLineReservationSettingRepository{
+					findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+						repositoryCalls++
+						return nil, apperrors.WrapNotFound("setting", "")
+					},
+					saveFn: func(_ context.Context, _ uint64, _ *model.LineReservationSetting) error {
+						repositoryCalls++
+						return nil
+					},
+				}
+				svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
+				inputJSON := append([]byte(nil), tt.input...)
+				input := &UpsertLineReservationSettingInput{ClosedWeekdays: tt.input}
+
+				setting, isNew, err := svc.Save(ctx, 1, input)
+
+				assert.Nil(t, setting)
+				assert.False(t, isNew)
+				if !assert.Error(t, err) {
+					return
+				}
+				assert.True(t, apperrors.IsInvalidInput(err))
+				assert.NotContains(t, err.Error(), string(inputJSON))
+				assert.Equal(t, 0, repositoryCalls)
+				assert.Equal(t, inputJSON, input.ClosedWeekdays)
+			})
+		}
+	})
+
 	t.Run("invalid json fields", func(t *testing.T) {
 		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{

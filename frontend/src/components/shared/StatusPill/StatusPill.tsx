@@ -19,11 +19,12 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+/** 有効・無効を文字とドットで示し、狭い表の列でも一行に保つ。 */
 export const StatusPill = memo(function StatusPill({ isActive }: { isActive: boolean }) {
   const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-base ${cfg.bg} ${cfg.text}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-sm text-base ${cfg.bg} ${cfg.text}`}
     >
       <span className={`size-[7px] rounded-full ${cfg.dot}`} />
       {cfg.label}

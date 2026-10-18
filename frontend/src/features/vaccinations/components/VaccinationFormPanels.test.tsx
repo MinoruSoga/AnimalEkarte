@@ -268,7 +268,7 @@ describe("VaccinationHistoryPanel", () => {
     );
 
     expect(screen.getByText("合成監査ワクチン")).toBeInTheDocument();
-    expect(screen.getByText(/接種: 2026-07-23/)).toBeInTheDocument();
+    expect(screen.getByText(/接種: 2026\/07\/23/)).toBeInTheDocument();
     expect(screen.getByText(/担当医: 合成監査スタッフ/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("検索単語"), { target: { value: "監査" } });
     await user.click(screen.getByRole("button", { name: "クリア" }));
@@ -329,5 +329,39 @@ describe("VaccinationFieldsPanel — 必須エラー表示 (EMR-319)", () => {
     const nextDateInput = document.getElementById("vaccination-next-date");
     expect(nextDateInput).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText("次回予定日を入力してください")).toBeInTheDocument();
+  });
+});
+
+describe("VaccinationFieldsPanel layout (EMR-415 V5)", () => {
+  it("接種日は全幅行で、2カラム折り返しの wrapper を持たない", () => {
+    renderPanel([]);
+
+    const date = screen.getByLabelText(/接種日/);
+    expect(date.closest('div[class*="md:grid-cols-2"]')).toBeNull();
+  });
+});
+
+describe("VaccinationFieldsPanel 担当医ラベル (EMR-415 V1)", () => {
+  it("担当医ラベルに id を付け、値の p が aria-labelledby で参照する", () => {
+    renderPanel([], { doctorName: "合成監査スタッフ" });
+
+    const label = screen.getByText("担当医");
+    expect(label).toHaveClass("text-base", "text-[#615D59]");
+    expect(label).toHaveAttribute("id", "vaccination-doctor-label");
+
+    const value = screen.getByText("合成監査スタッフ");
+    expect(value).toHaveAttribute("aria-labelledby", "vaccination-doctor-label");
+  });
+});
+
+describe("VaccinationFieldsPanel LOT番号 (EMR-415 V2)", () => {
+  it("LOT番号は fieldset/legend のまとまりになり legend はラベル様式を持つ", () => {
+    renderPanel([]);
+
+    const group = screen.getByRole("group", { name: "LOT番号" });
+    expect(group.tagName).toBe("FIELDSET");
+    const legend = group.querySelector("legend");
+    expect(legend).not.toBeNull();
+    expect(legend).toHaveClass("text-base", "text-[#615D59]", "mb-2");
   });
 });

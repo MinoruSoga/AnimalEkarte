@@ -116,6 +116,17 @@ export const STATE = {
   focusRingActionPrimary: "focus:shadow-focus-primary",
   /** Explicit brand-surface focus shadow. Generic inputs must use focusRingActionPrimary. */
   focusRingBrand: "focus:shadow-focus-brand",
+  /**
+   * EMR-412 R7/X7: 閲覧専用（fieldset disabled）でも入力欄の文字は ink のまま（opacity 1）で
+   * 読める状態を維持し、境界線は hairline（C.borderLight と同値 #E6E6E6）へ落とす。
+   * 操作自体は引き続き無効。ボタン等の既定 disabled 演出は変えない
+   * （実際の disabled アクションボタンを劣化させない）。Select trigger（button）も対象。
+   * 完全なクラス名リテラルで保持する（Tailwind が全文走査で検出できるため）。
+   */
+  readonlyInputs:
+    "[&_input:disabled]:opacity-100 [&_textarea:disabled]:opacity-100 [&_select:disabled]:opacity-100 [&_[role=combobox]:disabled]:opacity-100 [&_input:disabled]:border-[#E6E6E6] [&_textarea:disabled]:border-[#E6E6E6] [&_select:disabled]:border-[#E6E6E6] [&_[role=combobox]:disabled]:border-[#E6E6E6]",
+  /** EMR-412 R7/N5: ToggleGroup on 状態の文字色（C.textActionPrimaryDark と同じ primary 値）。 */
+  toggleOnTextPrimary: "data-[state=on]:text-[#025F66]",
 } as const;
 
 /* ================================================================== */
@@ -222,6 +233,10 @@ export const C = {
   bgBrandIdentity: "bg-[#038B94]",
   hoverBgBrandIdentity: "hover:bg-[#027078]",
   activeBgBrandIdentity: "active:bg-[#027078]",
+  /* Brand CTA の塗り（design-states.md §2 決裁: 白文字 AA 適合のため #027078、hover/active は Solid 系と同一値） */
+  bgBrandIdentitySolid:       "bg-[#027078]",
+  hoverBgBrandIdentitySolid:  "hover:bg-[#025F66]",
+  activeBgBrandIdentitySolid: "active:bg-[#025F66]",
   textOnBrandIdentity: "text-white",
   hoverTextOnBrandIdentity: "hover:text-white",
   activeTextOnBrandIdentity: "active:text-white",
@@ -327,7 +342,6 @@ export const C = {
 
   /* ── Cost summary (Material) ── */
   bgCostBlue:    "bg-[#E3F2FD]",
-  textCostBlue:  "text-[#1565C0]",
   bgCostGreen:   "bg-[#E8F5E9]",
   textCostGreen: "text-[#2E7D32]",
 
@@ -652,6 +666,8 @@ export const LAYOUT = {
   sidePeek: {
     width:         "w-[520px] max-w-full",
     widthPx:       520,
+    /** EMR-411: viewport <1280px ではリスト全面の上に右寄せ overlay する位置契約 */
+    position:      "relative max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20",
   },
 
   /** Master-detail nav panel width (tree/list side panel, e.g. LINE予約枠) */
@@ -757,6 +773,8 @@ export const STYLE = {
   page:            `${C.bgPage} overflow-hidden`,
   pageContent:     "flex-1 overflow-y-auto flex flex-col w-full px-3 py-6",
   sectionDivider:  `border-t ${C.borderLight}`,
+  /* ── Read-only fieldset (EMR-412 X7) ── STATE.readonlyInputs（L2.5）を合成。 */
+  readonlyInputs: STATE.readonlyInputs,
 
   /* ── Form Header ── */
   formHeader:
@@ -833,7 +851,7 @@ export const STYLE = {
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
-    `size-9 min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text45} ${C.hoverBgMedium} transition-colors`,
+    `size-9 min-h-11 min-w-11 flex items-center justify-center rounded-xxs ${C.text60} ${C.hoverBgMedium} transition-colors`,
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */

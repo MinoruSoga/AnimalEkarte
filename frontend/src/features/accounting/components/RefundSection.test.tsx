@@ -62,7 +62,7 @@ describe("RefundSection — 移行負額", () => {
       { wrapper: createWrapper() },
     );
 
-    expect(await screen.findByText(/記録金額 ¥-3,000/)).toBeInTheDocument();
+    expect(await screen.findByText(/記録金額 -¥3,000/)).toBeInTheDocument();
     const register = screen.getByRole("button", { name: /返金を登録/ });
     expect(register).toBeDisabled();
     expect(register).toHaveAttribute("aria-describedby", "refund-recorded-amount");

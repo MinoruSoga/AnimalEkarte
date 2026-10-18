@@ -24,6 +24,11 @@ import {
   TRIGGER_BASE,
 } from "./DatePickerModel";
 
+/**
+ * Controlled single-date picker using an ISO `YYYY-MM-DD` value.
+ * Calendar selections and typed commits respect `min`, `max`, and `disabledDays`; invalid values
+ * are reported through the input's native validity state.
+ */
 export function SinglePicker({
   value,
   onChange,
@@ -203,7 +208,7 @@ export function SinglePicker({
               className="-my-px min-h-11 min-w-11 shrink-0 cursor-pointer bg-transparent border-none p-0"
               aria-label={ariaLabel ? `${ariaLabel}を選択` : "カレンダーを開く"}
             >
-              <CalendarIcon className={`${ICON.action} ${C.text40}`} />
+              <CalendarIcon className={`${ICON.action} ${C.text60}`} />
             </button>
           </PopoverTrigger>
           <input
