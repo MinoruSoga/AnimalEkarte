@@ -16,7 +16,7 @@
 | [予約・受付](reservations.md#reservation-ontology) | 同じ予約と対象ペット、医院、業務分類、予定時間、実進行 | カード表示位置・一覧の日付・カルテ番号を予約IDの代用にしない。FR-reservations-checkin-record-reuse |
 | [飼主事前回答](reservations.md#revisit-intake-concept) | 予約×対象ペット、原文の現回答/旧回答と日時 | スタッフ聞取/通常カルテ/同じ飼主の別頭の回答と別。FR-reservations-line-revisit-intake |
 | [通常カルテ・編集権](medical-records.md#record-edit-right-concept) | 記録の同一性、保存版、現在の編集権、未保存入力、実編集者 | 担当医/確認医師/閲覧者/権保持端末を同一にしない。FR-medical-records-single-editor |
-| [治療プラン](medical-records.md#medical-record-current-concepts-20261018) | 今回項目、元マスタ/複写元、項目状態、当時の値 | 統合画面タブと保存単位を同一視しない。FR-medical-records-integrated-plan |
+| [通常診療の治療プラン項目集合](medical-records.md#outpatient-treatment-plan-concept) | 今回項目、元マスタ/複写元、項目状態、当時の値 | 統合画面タブと保存単位を同一視しない。FR-medical-records-integrated-plan |
 | [滞在](hospitalization.md#stay-identity-and-time-concept) | 入院/宿泊の実滞在、予定・実開始終了、日次記録 | 同じペット/日付だけで別滞在を統合しない。FR-hospitalization-entry-and-start |
 | [トリミング記録](trimming.md) | 予約の施術detail、実担当、コース/option、要望/結果 | 通常カルテ・予約notes・希望/完成写真を同義にしない。FR-trimming-reservation-and-detail |
 | [検査結果・健診](examinations.md#clinical-results-and-certificates-boundary) | 検査ID/固定結果版/版内項目、出典、健診の独立result set | 同名項目・受信日時・表示先・自己申告と確認結果を同一にしない。FR-examinations-revision、FR-checkups-canonical |

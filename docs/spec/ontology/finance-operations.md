@@ -8,12 +8,14 @@
 | 実機検証状態 | 未実施。受入条件は検査定義 |
 | 文書確認日 | 2026-10-15 |
 
+<a id="estimate-ontology"></a>
 ## 定義
 
 | 推奨語 | 意味／混同しないもの | 業務正本 |
 |:---|:---|:---|
 | 見積 | 診療等の予想費用・提示条件を記録するもの。請求／領収書でない | [D11](../domains/estimates/business-rules.md) |
-| 見積承認／却下 | 原見積をロックする状態。臨床実施・請求確定を意味しない | [状態](../domains/estimates/business-rules.md#requirement-fr-estimates-state-protection) |
+| 提示済み原本 | 飼主へ示した見積の内容版。提示時点から返答待ちでも金額・明細を直接上書きせず、変更は元版を保持する後継・再提示で扱う | [提示版の保護](../domains/estimates/business-rules.md#requirement-fr-estimates-state-protection) |
+| 見積承認／却下 | 当該提示版への返答を記録する状態。原本保護の開始とは別で、臨床実施・請求確定を意味しない | [回答状態と内容保護の分離](../domains/estimates/business-rules.md#requirement-fr-estimates-state-protection) |
 | 後継見積 | 元見積を保持し別ID／番号で修正内容を作る下書き。unlock／同番号再発行でない | [後継](../domains/estimates/business-rules.md#requirement-fr-estimates-successor) |
 | 見積の概算保険額 | 提示時点の概算。窓口の確認済み保険負担額や保険会社実入金ではない | [金額](../domains/estimates/business-rules.md#requirement-fr-estimates-money-source) |
 | 営業日／区分 | AM開始から翌AM開始までをAM／PM／EMGに分割した帰属。JST暦日と別 | [締め境界](../domains/cash-register/business-rules.md#requirement-fr-closing-period-boundary) |
@@ -51,7 +53,7 @@
 
 ## 見積の提示・単価保証（2026-10-15追加承認）
 
-「提示済み原本」は飼主へ示した版であり、返答待ちでも金額・明細を上書きしない。変更は元版を参照する後継改訂と再提示で扱う。「期限内の提示単価」は承認済み・同内容・同数量を条件に使う単価であり、保険負担や総額の無条件固定ではない。2026-10-15追加承認：承認済み・期限内で内容と数量が同じなら提示単価を使う。追加処置や内容・数量変更は再説明し、提示済み見積は返答待ちでも原本を残して後継改訂・再提示する。税・保険・割引は既存適用条件を維持し、総額の無条件固定や自動請求確定に拡張しない。 [D11正本](../domains/estimates/business-rules.md#estimate-price-presentation-agreement-20261015)。
+提示済み原本と承認／却下の意味は[定義表](#estimate-ontology)を参照する。「期限内の提示単価」は承認済み・同内容・同数量を条件に使う単価であり、保険負担や総額の無条件固定ではない。2026-10-15追加承認：承認済み・期限内で内容と数量が同じなら提示単価を使う。追加処置や内容・数量変更は再説明し、提示版の変更は同じ原本保護・後継の契約へ従う。税・保険・割引は既存適用条件を維持し、総額の無条件固定や自動請求確定に拡張しない。 [D11正本](../domains/estimates/business-rules.md#estimate-price-presentation-agreement-20261015)。
 
 ## 締め区分・差額メモの追加合意
 

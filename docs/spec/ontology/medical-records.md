@@ -91,12 +91,19 @@
 
 [薬量追加採用の正本・追加4AC](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)へ従う。用量パターンは薬剤／動物種に加え目的・経路で区別する承認対象で、今回の明示選択と当時版を持つ。薬剤masterの1件と一対一に限定しない。単純体重計算から1回製剤量を得る範囲と、医師確認・理由付き手入力を区別する。目的／経路別選択は複雑protocol自動実行ではなく、具体値の臨床承認#261も代替しない。現行単一用量パラメータの記述は実装参照で、複数パターン対応済みの根拠ではない。
 
+<a id="outpatient-treatment-plan-concept"></a>
+## 通常診療の治療プラン項目集合
+
+通常カルテに属する、薬剤・処置・検査・物販など今回の治療項目の集合。各項目の状態、今回の単価・数量等、元マスタ／複写元と当時の値を区別する。項目と状態の業務契約は[既存入力契約](../domains/medical-records/pages/medical-record-form.md#medical-record-agreement-input-four)、現在単価等は[薬量表示・明細単価](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-dose-display-unit-price)へ従う。
+
+[統合治療プラン画面](#medical-record-current-concepts-20261018)はこの項目集合を表示・編集し、スタッフ問診・予約由来の飼主原文・過去履歴も扱う画面責務である。画面内の情報すべてをこの項目集合や一つの保存単位に含めない。[入院治療プラン](hospitalization.md#inpatient-treatment-plan-concept)はD05の別概念・保存責務で、その完了後訂正条件を通常診療へ自動適用しない。物理的な集約・多重度・一括transactionはこの区別から選定しない。
+
 <a id="medical-record-current-concepts-20261018"></a>
 ## 統合プラン・原文・要約・薬量の最新定義
 
 | 推奨語／別名 | 意味・識別・関係 | 制約・追跡先 |
 |:---|:---|:---|
-| 統合した治療プラン | 問診入力と既存右側の過去カルテ履歴を移した画面責務。治療明細・保存単位と同義ではない | [FR-medical-records-integrated-plan](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-integrated-plan)、AC-medical-records-integrated-history。入力と履歴同時参照・選択複写を維持。統合保存単位は設計 |
+| 統合治療プラン画面（画面上の「治療プラン」） | 問診入力と既存右側の過去カルテ履歴を移し、[通常診療の治療項目集合](#outpatient-treatment-plan-concept)も表示・編集する画面責務。治療明細・保存単位と同義ではない | [FR-medical-records-integrated-plan](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-integrated-plan)、AC-medical-records-integrated-history。入力と履歴同時参照・選択複写を維持。統合保存単位は設計 |
 | 飼主由来再診事前問診 | 予約×対象ペットの原文。スタッフ聞取の初診問診・診療本文とは別 | [予約語彙](reservations.md#revisit-intake-concept)。AC-medical-records-owner-intake-protected：スタッフ原文編集・clear・過去複写で上書き/消去/他予約へ流用しない |
 | 会話要約専用保存項目 | 来院カルテ単位に保存する要約。診療本文、録音、文字起こし全文、スタッフ貼付フォームと別 | [FR-medical-records-conversation-summary](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-conversation-summary)、AC-medical-records-summary-hidden。今回は非表示、音声入力・外部連携はPhase2、自動診療本文上書きなし |
 | 1回量／用法／処方総量 | 一回の製剤量／投与方法・回数等／処方する総量という異なる値 | [FR-medical-records-dose-display-unit-price](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-dose-display-unit-price)、AC-medical-records-dose-three-values。薬剤行で常時区別し根拠は詳細、新用法templateや日数から総量計算は採用しない |
