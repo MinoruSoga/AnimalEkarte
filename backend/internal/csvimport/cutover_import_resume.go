@@ -189,6 +189,9 @@ func applyCutoverCommittingEachTable(
 		if err := validateCutoverMedicinesTargetNames(ctx, session, bundle, seeds); err != nil {
 			return CutoverResult{}, err
 		}
+		if err := validateCutoverUniqueMasterTargetNames(ctx, session, bundle, seeds, false); err != nil {
+			return CutoverResult{}, err
+		}
 		// The name probe cannot serialize application writers. Keep all
 		// candidate writes in one transaction with the existing table locks;
 		// a late unique conflict then rolls back the preceding tables too.
@@ -200,6 +203,9 @@ func applyCutoverCommittingEachTable(
 	drift := append([]string(nil), bundle.ToleratedDrift...)
 	drift = append(drift, targetNotes...)
 
+	if err := validateCutoverUniqueMasterTargetNames(ctx, session, bundle, seeds, true); err != nil {
+		return CutoverResult{}, err
+	}
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
 	seenEmpty := false
 	for _, spec := range CutoverTableSpecs(bundle.Manifest.profile) {

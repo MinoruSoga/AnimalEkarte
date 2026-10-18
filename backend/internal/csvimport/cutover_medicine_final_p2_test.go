@@ -123,7 +123,10 @@ func TestMedicineFinalNameProbeQueryErrorFailsBeforeBegin(t *testing.T) {
 	session := &medicineNameProbeSession{probeErr: errors.New("catalog lookup failed")}
 	_, err := applyCutoverCommittingEachTable(context.Background(), session, bundle, validCutoverSeeds(), pgx.RepeatableRead)
 	if err == nil || !errors.Is(err, session.probeErr) {
-		t.Fatalf("applyCutoverCommittingEachTable() error = %v, want wrapped probe error", err)
+		t.Fatalf("applyCutoverCommittingEachTable() error = %v, want preserved probe cause", err)
+	}
+	if strings.Contains(err.Error(), "catalog lookup failed") {
+		t.Fatalf("diagnostic leaks driver detail: %v", err)
 	}
 	if len(session.txs) != 0 {
 		t.Fatalf("transactions = %d, want 0 before denial", len(session.txs))

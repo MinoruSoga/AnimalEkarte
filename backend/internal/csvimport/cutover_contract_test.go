@@ -1166,6 +1166,12 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "appointments" {
 					row[i] = "2026-07-22T01:00:00.000000Z"
 				}
+			case "date":
+				row[i] = "2026-08-26"
+			case "scheduled_date":
+				row[i] = "2026-08-26"
+			case "recorded_at":
+				row[i] = "2026-08-26T01:02:03Z"
 			case "quantity":
 				if spec.Name == "billing_items" || spec.Name == "estimate_items" {
 					row[i] = "1"
@@ -1179,23 +1185,27 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 					row[i] = "1000"
 				} else if spec.Name == "payments" || spec.Name == "payment_splits" {
 					row[i] = "1000"
+				} else if spec.Name == "estimates" {
+					row[i] = "0"
 				}
 			case "tax_total", "insurance_ratio", "insurance_amount", "discount_amount", "change_amount":
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
+					row[i] = "0"
+				} else if spec.Name == "estimates" && column == "tax_total" {
 					row[i] = "0"
 				}
 			case "created_at":
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
 					row[i] = "2026-07-22T00:00:00.000000Z"
+				} else {
+					row[i] = "2026-08-26T01:02:03Z"
 				}
 			case "completed_at":
 				if spec.Name == "billings" {
 					row[i] = "2026-07-22T00:00:00.000000Z"
 				}
 			case "unit_price":
-				if spec.Name == "merchandise_items" {
-					row[i] = "0"
-				}
+				row[i] = "0"
 			case "default_quantity":
 				if spec.Name == "medicines" {
 					row[i] = "1.0"
@@ -1205,13 +1215,17 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				// the synthetic candidate bundle states it explicitly.
 				row[i] = "excluded"
 			case "tax_rate":
-				if spec.Name == "medicines" {
+				if spec.Name == "medicines" || spec.Name == "procedures" || spec.Name == "merchandise_items" {
 					row[i] = "0.10"
 				}
 			case "sort_order":
 				// DESIGN 3.2 keeps the legacy sort order; the synthetic
 				// medicines row carries the canonical 0.
-				if spec.Name == "medicines" {
+				if spec.Name == "medicines" || spec.Name == "merchandise_items" {
+					row[i] = "0"
+				}
+			case "discount_rate":
+				if spec.Name == "owners" {
 					row[i] = "0"
 				}
 			case "is_active":

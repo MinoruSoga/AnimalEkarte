@@ -63,7 +63,14 @@ var cutoverDDLEnumColumns = map[string][]cutoverDDLEnumRule{
 
 var cutoverDDLRequiredColumns = map[string][]string{
 	"appointments":                 {"start_time", "end_time"},
-	"vital_records":                {"medical_record_id"},
+	"medical_records":              {"date"},
+	"vital_records":                {"medical_record_id", "recorded_at"},
+	"billings":                     {"scheduled_date"},
+	"exams":                        {"date"},
+	"vaccinations":                 {"date"},
+	"estimates":                    {"created_at"},
+	"payments":                     {"created_at"},
+	"payment_splits":               {"created_at"},
 	"inquiries":                    {"medical_record_id"},
 	"clinical_plans":               {"medical_record_id"},
 	"appointment_trimming_details": {"appointment_id"},
@@ -97,7 +104,7 @@ var cutoverDDLQuantityColumns = map[string][]string{
 
 func validateCutoverDDLRow(spec CutoverTableSpec, row []string, indexes map[string]int, csvLine int64) error {
 	for _, column := range cutoverDDLRequiredColumns[spec.Name] {
-		if row[indexes[column]] == "" {
+		if strings.TrimSpace(row[indexes[column]]) == "" {
 			return fmt.Errorf("table %s column %s row %d: value must not be empty", spec.Name, column, csvLine)
 		}
 	}
@@ -137,7 +144,7 @@ func validateCutoverDDLRow(spec CutoverTableSpec, row []string, indexes map[stri
 			return fmt.Errorf("table %s column %s row %d: value must be a boolean literal", spec.Name, rule.column, csvLine)
 		}
 	}
-	return nil
+	return validateCutoverDDLScalarRow(spec, row, indexes, csvLine)
 }
 
 func validateCutoverScaledQuantity(table, column, text string, csvLine int64) error {
@@ -213,7 +220,7 @@ func validateCutoverVitalRow(row []string, indexes map[string]int, csvLine int64
 			if value.sign <= 0 {
 				return fmt.Errorf("table vital_records column weight row %d: value must be a numeric greater than zero", csvLine)
 			}
-			if value.decPos > 131072 || int64(len(value.digits))-value.decPos > 16383 {
+			if value.decPos > cutoverPGNumericMaxIntegerDigits || int64(len(value.digits))-value.decPos > cutoverPGNumericMaxFractionalDigits {
 				return fmt.Errorf("table vital_records column weight row %d: value exceeds PostgreSQL numeric bounds", csvLine)
 			}
 		}
@@ -236,6 +243,7 @@ type cutoverDecimal struct {
 	sign   int
 	digits string
 	decPos int64
+	dscale int64
 }
 
 func parseCutoverPGNumeric(text string) (cutoverDecimal, cutoverNumericClass) {
@@ -315,11 +323,12 @@ func parseCutoverPGNumeric(text string) (cutoverDecimal, cutoverNumericClass) {
 		leadingZeros++
 	}
 	significant := digits[leadingZeros:]
+	dscale := max(int64(0), int64(len(fracPart))-exp)
 	if significant == "" {
-		return cutoverDecimal{sign: 0}, cutoverNumericFinite
+		return cutoverDecimal{sign: 0, dscale: dscale}, cutoverNumericFinite
 	}
 	decPos := int64(len(intPart)) + exp - int64(leadingZeros)
-	return cutoverDecimal{sign: sign, digits: significant, decPos: decPos}, cutoverNumericFinite
+	return cutoverDecimal{sign: sign, digits: significant, decPos: decPos, dscale: dscale}, cutoverNumericFinite
 }
 
 func cutoverDecimalCompare(d cutoverDecimal, boundDigits string, boundDecPos int64) int {

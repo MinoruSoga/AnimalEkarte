@@ -92,6 +92,37 @@ func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 	}
 }
 
+func TestPreflightCutoverBundleAllowsNullableVitalRecordStaff(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		originalRows := len(f.rows["vital_records"])
+		originalManifestRows := f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount
+		if originalRows == 0 || originalManifestRows == 0 {
+			t.Fatalf("fixture produced no vital_records rows: rows=%d manifest=%d", originalRows, originalManifestRows)
+		}
+		spec := cutoverSpecByName(t, "vital_records")
+		recordRef := f.rows["vital_records"][0][columnIndex(spec.Columns, "medical_record_id")]
+		if recordRef == "" {
+			t.Fatal("required medical_record_id empty before staff clear")
+		}
+		setReferenceFixtureCell(f, "vital_records", "staff_id", "")
+		if got := f.rows["vital_records"][0][columnIndex(spec.Columns, "staff_id")]; got != "" {
+			t.Fatalf("staff_id clear failed: %q", got)
+		}
+		if len(f.rows["vital_records"]) != originalRows {
+			t.Fatalf("vital_records row count changed: %d, want %d", len(f.rows["vital_records"]), originalRows)
+		}
+		if got := f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount; got != originalManifestRows {
+			t.Fatalf("manifest vital_records RowCount changed: %d, want %d", got, originalManifestRows)
+		}
+		if got := f.rows["vital_records"][0][columnIndex(spec.Columns, "medical_record_id")]; got != recordRef {
+			t.Fatalf("required medical_record_id mutated: %q", got)
+		}
+	})
+	if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
+		t.Fatalf("NULL vital_records.staff_id rejected: %v", err)
+	}
+}
+
 func TestPreflightCutoverBundleRejectsNonImportedParents(t *testing.T) {
 	for _, tc := range []struct{ table, column string }{
 		{"estimate_items", "consultation_id"},
