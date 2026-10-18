@@ -4,7 +4,7 @@
 
 ホテル頭数の状態・同一宿泊の重複排除・延泊・未退室と、LINE入退室の休診日／時間外条件は[18:26のLINE正本](../line/reservation-spec.md#hotel-counting-boundaries-1826)・[日時条件](../line/reservation-spec.md#hotel-entry-exit-hours-1826)へ従う。宿泊管理内部の保存方式は設計。
 
-17:35合意の[ホテル受付上限](../line/reservation-spec.md#requirement-fr-line-reservations-hotel-concurrent-stay-limit)は、医院別の同時宿泊頭数を宿泊期間全体で判定し、未設定・超過時はLINE確定せず医院相談へ案内する。ケージと世話担当は宿泊管理側で割り当て、医師指名／医師シフトで代用しない。技術方式は設計、実装・実機受入は未確認。
+17:35合意の[ホテル受付上限](../line/reservation-spec.md#requirement-fr-line-reservations-hotel-concurrent-stay-limit)は、医院別の同時宿泊頭数を宿泊期間全体で判定し、未設定・超過時はLINE確定せず医院相談へ案内する。ケージ割当と[任意の担当医師設定](settings/master-reservation-type.md#internal-batch-hotel-care)は宿泊管理で扱い、担当医師未設定だけで受入開始を拒否せず、別責任担当・非医師担当・一名必須を追加しない。ホテルの受付を医師指名／医師シフトで代用しない。技術方式は設計、実装・実機受入は未確認。
 
 17:23 JSTの[LINE予約6点合意](../line/reservation-spec.md#line-agreement-1723)へ従う。公開された診療・トリミング・ホテルは予約対象、入院は医院相談。ホテルには医師指名・医師シフト・通常予約の同日制約を適用しない。受付制限・入力保持・受付前取消・必要設定不足の扱いと受入条件はLINE正本を参照する。ホテル受入基準は17:35合意の医院別同時宿泊頭数・全宿泊期間判定で、実装・実機受入は未確認。
 
