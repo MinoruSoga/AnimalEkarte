@@ -60,11 +60,11 @@ export function StaffSettings() {
   const updateMutation = useUpdateStaff();
   const deleteMutation = useDeleteStaff();
   const setGroupsMutation = useUpdateStaffPermissionGroups();
-  const { mutate: setGroupsFn } = setGroupsMutation;
+  const { mutateAsync: setGroupsAsync } = setGroupsMutation;
   const setClinicsMutation = useUpdateStaffClinics();
-  const { mutate: setClinicsFn } = setClinicsMutation;
+  const { mutateAsync: setClinicsAsync } = setClinicsMutation;
   const setCapableMutation = useUpdateStaffCapableReservationTypes();
-  const { mutate: setCapableFn } = setCapableMutation;
+  const { mutateAsync: setCapableAsync } = setCapableMutation;
 
   const dirty = useSidePeekDirty();
   const crud = useMasterCRUD<Staff>({
@@ -101,6 +101,8 @@ export function StaffSettings() {
     toCreateRequest: buildStaffCreateRequest,
     toUpdateRequest: buildStaffUpdateRequest,
     permissions: { canCreate, canEdit },
+    closeOnSuccess: false,
+    showSuccessToast: false,
   });
 
   const associationPermissionsRef = useRef({ canEdit, canEditPermission });
@@ -109,33 +111,52 @@ export function StaffSettings() {
   }, [canEdit, canEditPermission]);
 
   const handleSaveGroups = useCallback(
-    (staffId: string, groupIds: string[]) => {
+    async (staffId: string, groupIds: string[]) => {
       const current = associationPermissionsRef.current;
       if (!current.canEdit || !current.canEditPermission) {
         toast.error("権限グループを変更する権限がありません");
-        return;
+        return false;
       }
-      setGroupsFn({ staffId, groupIds });
+      try {
+        await setGroupsAsync({ staffId, groupIds });
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [setGroupsFn],
+    [setGroupsAsync],
   );
 
   const handleSaveClinics = useCallback(
-    (staffId: string, clinicIds: string[]) => {
+    async (staffId: string, clinicIds: string[]) => {
       if (!associationPermissionsRef.current.canEdit) {
         toast.error("所属医院を変更する権限がありません");
-        return;
+        return false;
       }
-      setClinicsFn({ staffId, clinicIds });
+      try {
+        await setClinicsAsync({ staffId, clinicIds });
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [setClinicsFn],
+    [setClinicsAsync],
   );
 
   const handleSaveCapableReservationTypes = useCallback(
-    (staffId: string, reservationTypeIds: string[]) => {
-      setCapableFn({ staffId, reservationTypeIds });
+    async (staffId: string, reservationTypeIds: string[]) => {
+      if (!associationPermissionsRef.current.canEdit) {
+        toast.error("対応区分を変更する権限がありません");
+        return false;
+      }
+      try {
+        await setCapableAsync({ staffId, reservationTypeIds });
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [setCapableFn],
+    [setCapableAsync],
   );
 
   return (

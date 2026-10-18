@@ -1,5 +1,16 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  memo,
+  useActionState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { UserRound } from "lucide-react";
+import { toast } from "sonner";
+import { handleApiError } from "@/lib/handle-api-error";
 import { MasterSidePanel } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 import {
@@ -31,11 +42,14 @@ interface StaffSidePanelProps {
   onDirtyChange?: (dirty: boolean) => void;
   allOccupations: Occupation[];
   allGroups: PermissionGroup[];
-  onSaveGroups: (staffId: string, groupIds: string[]) => void;
+  onSaveGroups: (staffId: string, groupIds: string[]) => Promise<boolean>;
   allClinics: ClinicSummary[];
-  onSaveClinics: (staffId: string, clinicIds: string[]) => void;
+  onSaveClinics: (staffId: string, clinicIds: string[]) => Promise<boolean>;
   allReservationTypes: ReservationType[];
-  onSaveCapableReservationTypes: (staffId: string, reservationTypeIds: string[]) => void;
+  onSaveCapableReservationTypes: (
+    staffId: string,
+    reservationTypeIds: string[],
+  ) => Promise<boolean>;
 }
 
 export const StaffSidePanel = memo(function StaffSidePanel({
@@ -59,12 +73,26 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   const [formData, setFormData] = useState<StaffFormData>(() => staffToFormData(item));
   const [isDirty, setIsDirty] = useState(false);
   const [nameError, setNameError] = useState("");
+  const mountedRef = useRef(true);
+  const savingRef = useRef(false);
+  const editVersionRef = useRef(0);
+
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const markDirty = useCallback(() => setIsDirty(true), []);
+  const markDirty = useCallback(() => {
+    editVersionRef.current += 1;
+    setIsDirty(true);
+    onDirtyChange?.(true);
+  }, [onDirtyChange]);
   const setFormDataDirty = useCallback<typeof setFormData>(
     (updater) => {
       setFormData(updater);
@@ -99,20 +127,60 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     handleToggle: handleCapabilityToggle,
   } = useEditableIdSelection({ serverIds: serverCapableIds, markDirty });
 
-  const handleSave = useCallback(async () => {
+  const setsEqual = useCallback((a: string[], b: string[]) => {
+    const setA = new Set(a);
+    const setB = new Set(b);
+    if (setA.size !== setB.size) return false;
+    for (const id of setA) {
+      if (!setB.has(id)) return false;
+    }
+    return true;
+  }, []);
+
+  const runSaveSequence = useCallback(async () => {
     if (!formData.name.trim()) {
       setNameError("氏名を入力してください");
       return;
     }
     setNameError("");
-    const saved = await onSave(formData);
-    if (!saved) return;
-    if (!isNew && staffId) {
-      onSaveGroups(staffId, groupIds);
-      onSaveClinics(staffId, clinicIds);
-      onSaveCapableReservationTypes(staffId, capableIds);
+    const startVersion = editVersionRef.current;
+    const snapshot = {
+      isNew,
+      staffId,
+      groupIds,
+      clinicIds,
+      capableIds,
+      groupsChanged: serverGroupIds !== undefined && !setsEqual(groupIds, serverGroupIds),
+      clinicsChanged: serverClinicIds !== undefined && !setsEqual(clinicIds, serverClinicIds),
+      capableChanged: serverCapableIds !== undefined && !setsEqual(capableIds, serverCapableIds),
+    };
+    try {
+      const saved = await onSave(formData);
+      if (!saved) return;
+      if (!snapshot.isNew && snapshot.staffId) {
+        const steps: Array<[boolean, (id: string, ids: string[]) => Promise<boolean>, string[]]> = [
+          [snapshot.groupsChanged, onSaveGroups, snapshot.groupIds],
+          [snapshot.clinicsChanged, onSaveClinics, snapshot.clinicIds],
+          [snapshot.capableChanged, onSaveCapableReservationTypes, snapshot.capableIds],
+        ];
+        for (const [changed, saveAssoc, ids] of steps) {
+          if (!changed) continue;
+          if (!mountedRef.current || editVersionRef.current !== startVersion) return;
+          const ok = await saveAssoc(snapshot.staffId, ids);
+          if (!ok) return;
+        }
+      }
+      if (!mountedRef.current) return;
+      if (editVersionRef.current !== startVersion) return;
+      onDirtyChange?.(false);
+      setIsDirty(false);
+      toast.success(snapshot.isNew ? "登録しました" : "更新しました");
+      onClose();
+    } catch (error) {
+      if (mountedRef.current) {
+        handleApiError(error, "保存");
+      }
     }
-    setIsDirty(false);
   }, [
     formData,
     isNew,
@@ -120,11 +188,30 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     groupIds,
     clinicIds,
     capableIds,
+    serverGroupIds,
+    serverClinicIds,
+    serverCapableIds,
+    setsEqual,
     onSave,
     onSaveGroups,
     onSaveClinics,
     onSaveCapableReservationTypes,
+    onDirtyChange,
+    onClose,
   ]);
+
+  const [, formAction, isPending] = useActionState(async (_previous: null, _formData: FormData) => {
+    if (savingRef.current) return null;
+    savingRef.current = true;
+    try {
+      await runSaveSequence();
+    } finally {
+      if (mountedRef.current) {
+        savingRef.current = false;
+      }
+    }
+    return null;
+  }, null);
 
   const handleTitleChange = useCallback(
     (value: string) => {
@@ -135,7 +222,6 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   );
 
   const handleClose = useCallback(() => {
-    setIsDirty(false);
     onClose();
   }, [onClose]);
 
@@ -146,10 +232,11 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={handleClose}
-      onSave={handleSave}
+      action={formAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<UserRound className={LAYOUT.pageIcon.innerIcon} />}
       isDirty={isDirty}
+      isPending={isPending}
       titleError={nameError}
       titleMaxLength={100}
       titleDescription="スタッフの氏名です。カルテ・予約・シフトなど各画面で担当者名として表示されます。"
@@ -168,27 +255,42 @@ export const StaffSidePanel = memo(function StaffSidePanel({
 
       <StaffLineReservationSection formData={formData} setFormDataDirty={setFormDataDirty} />
 
-      <StaffExcludedReservationTypesSection
-        activeReservationTypes={activeReservationTypes}
-        allReservationTypes={allReservationTypes}
-        capableIdSet={capableIdSet}
-        isNew={isNew}
-        onToggle={handleCapabilityToggle}
-      />
+      <fieldset
+        className="min-w-0 border-0 p-0 m-0"
+        disabled={readOnly || (!isNew && serverCapableIds === undefined)}
+      >
+        <StaffExcludedReservationTypesSection
+          activeReservationTypes={activeReservationTypes}
+          allReservationTypes={allReservationTypes}
+          capableIdSet={capableIdSet}
+          isNew={isNew}
+          onToggle={handleCapabilityToggle}
+        />
+      </fieldset>
 
-      <StaffClinicsSection
-        allClinics={allClinics}
-        clinicIdSet={clinicIdSet}
-        isNew={isNew}
-        onToggle={handleClinicToggle}
-      />
+      <fieldset
+        className="min-w-0 border-0 p-0 m-0"
+        disabled={readOnly || (!isNew && serverClinicIds === undefined)}
+      >
+        <StaffClinicsSection
+          allClinics={allClinics}
+          clinicIdSet={clinicIdSet}
+          isNew={isNew}
+          onToggle={handleClinicToggle}
+        />
+      </fieldset>
 
-      <StaffPermissionGroupsSection
-        allGroups={allGroups}
-        groupIdSet={groupIdSet}
-        isNew={isNew}
-        onToggle={handleGroupToggle}
-      />
+      <fieldset
+        className="min-w-0 border-0 p-0 m-0"
+        disabled={readOnly || (!isNew && serverGroupIds === undefined)}
+      >
+        <StaffPermissionGroupsSection
+          allGroups={allGroups}
+          groupIdSet={groupIdSet}
+          isNew={isNew}
+          onToggle={handleGroupToggle}
+        />
+      </fieldset>
     </MasterSidePanel>
   );
 });

@@ -42,6 +42,7 @@ interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> 
   onSuccess?: (saved: T, formData: TForm) => Promise<void> | void;
   /** Set false when the caller must clear local dirty state before closing. */
   closeOnSuccess?: boolean;
+  showSuccessToast?: boolean;
   /** Action-specific permissions enforced at the mutation boundary. */
   permissions: MasterSavePermissions;
 }
@@ -59,6 +60,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   toUpdateRequest,
   onSuccess,
   closeOnSuccess = true,
+  showSuccessToast = true,
   permissions,
 }: UseMasterSaveOptions<T, TForm, TCreate, TUpdate>) {
   // rerender-dependencies: extract primitives from crud.editTarget object
@@ -131,7 +133,9 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
             return;
           }
 
-          toast.success(isUpdate ? "更新しました" : "登録しました");
+          if (showSuccessToast) {
+            toast.success(isUpdate ? "更新しました" : "登録しました");
+          }
           if (closeOnSuccess) {
             crudSetEditTarget(null);
           }
@@ -159,6 +163,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
       toUpdateRequest,
       onSuccess,
       closeOnSuccess,
+      showSuccessToast,
     ],
   );
 

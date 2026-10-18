@@ -487,3 +487,74 @@ describe("useMasterSave", () => {
     expect(setEditTarget).not.toHaveBeenCalled();
   });
 });
+
+describe("useMasterSave showSuccessToast / closeOnSuccess (EMR-403)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function buildSave(
+    options: { showSuccessToast?: boolean; closeOnSuccess?: boolean },
+    editTarget: TestEntity | "new" | null = null,
+  ) {
+    const { crud, setEditTarget } = buildCrud(editTarget);
+    const { mutation: createMutation } = buildMutation<TestCreateReq>((_vars, opts) =>
+      opts?.onSuccess?.(savedEntity),
+    );
+    const { mutation: updateMutation } = buildMutation<{ id: string; req: TestUpdateReq }>();
+    const { result } = renderHook(() =>
+      useMasterSave<TestEntity, TestForm, TestCreateReq, TestUpdateReq>({
+        crud,
+        createMutation,
+        updateMutation,
+        permissions: allowSavePermissions,
+        validate: () => null,
+        toCreateRequest: (d) => ({ name: d.name }),
+        toUpdateRequest: (d) => ({ name: d.name }),
+        ...options,
+      }),
+    );
+    return { result, setEditTarget };
+  }
+
+  it("showSuccessToast 省略時は既存どおり成功 toast.success を出す", async () => {
+    const { result } = buildSave({});
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.handleSave({ name: "新規" });
+    });
+
+    expect(saved).toBe(true);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("showSuccessToast: false は成功 toast を出さずに true と既存 close を維持する", async () => {
+    const { result, setEditTarget } = buildSave({ showSuccessToast: false });
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.handleSave({ name: "新規" });
+    });
+
+    expect(saved).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(setEditTarget).toHaveBeenCalledWith(null);
+  });
+
+  it("closeOnSuccess: false かつ showSuccessToast: false は toast も close もしない", async () => {
+    const { result, setEditTarget } = buildSave({
+      showSuccessToast: false,
+      closeOnSuccess: false,
+    });
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.handleSave({ name: "新規" });
+    });
+
+    expect(saved).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(setEditTarget).not.toHaveBeenCalled();
+  });
+});

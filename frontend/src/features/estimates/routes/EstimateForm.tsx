@@ -159,7 +159,15 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
 
   if (isEdit && entityRead.status === "loading") {
-    return <LoadingFallback />;
+    return (
+      <PageLayout
+        title="見積書"
+        resource={ResourceEstimates}
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
+      >
+        <LoadingFallback />
+      </PageLayout>
+    );
   }
 
   // BUG-019: missing / other-clinic / forbidden → Not Found (non-disclosure), never blank form
@@ -211,7 +219,7 @@ function EstimateFormContent({ id }: { id?: string }) {
             submitDisabled={!form.title.trim()}
           />
         }
-        maxWidth={LAYOUT.pageContentMaxWidth.form}
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
       >
         <NavigationBlocker when={isDirty ? !isPending : false} />
         {/* FE-RC-002/004: 死亡・生死不明ペットの新規見積書作成を render 側で拒否する（callback 側は use-estimate-form.ts）。 */}
