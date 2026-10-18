@@ -882,3 +882,320 @@ describe("StaffSettings integration — contract cases", () => {
     expect(m.updateMutateAsync).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("StaffSettings integration — create adoption (review-702)", () => {
+  it("新規作成成功後の再編集は同一エンティティへUPDATEし、重複CREATEしない", async () => {
+    const created = deferred<Staff>();
+    m.createMutateAsync.mockImplementationOnce(() => created.promise);
+    m.createMutateAsync.mockResolvedValue(makeStaff({ id: "3" }));
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    await waitFor(() => expect(panelOpen()).toBe(true));
+    await user.type(document.getElementById("master-title") as HTMLElement, "First Name");
+    await clickSave(user);
+
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+    await user.clear(document.getElementById("master-title") as HTMLElement);
+    await user.type(document.getElementById("master-title") as HTMLElement, "Newer Name");
+    await act(async () => {
+      created.resolve(makeStaff({ id: "9", name: "First Name" }));
+    });
+    await act(async () => {});
+
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(panelOpen()).toBe(true);
+    await user.click(screen.getByRole("button", { name: rowButtonName(STAFFS[1]) }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(panelOpen()).toBe(true);
+
+    await clickSave(user);
+    await waitFor(() => {
+      expect(m.createMutateAsync).toHaveBeenCalledTimes(1);
+      expect(m.updateMutateAsync).toHaveBeenCalledTimes(1);
+    });
+    expect(m.updateMutateAsync.mock.calls[0][0]).toMatchObject({
+      id: "9",
+      req: { name: "Newer Name" },
+    });
+    await act(async () => {
+      basicUpdate!.resolve(makeStaff({ id: "9", name: "Newer Name" }));
+    });
+    await waitPanelClosed();
+    expect(m.createMutateAsync).toHaveBeenCalledTimes(1);
+    expect(m.updateMutateAsync).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("作成pending中は新規credential入力のみdisabled、氏名は編集可能。失敗で再enabled", async () => {
+    const created = deferred<Staff>();
+    m.createMutateAsync.mockImplementationOnce(() => created.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    await user.type(document.getElementById("master-title") as HTMLElement, "Staff");
+    await user.type(screen.getByLabelText("メールアドレス"), "synth@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password9");
+    await clickSave(user);
+
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText("メールアドレス")).toBeDisabled();
+    expect(screen.getByLabelText("パスワード")).toBeDisabled();
+    expect(document.getElementById("master-title")).not.toBeDisabled();
+
+    await act(async () => {
+      created.reject(new Error("create failed"));
+    });
+    await act(async () => {});
+    expect(panelOpen()).toBe(true);
+    expect(screen.getByLabelText("メールアドレス")).not.toBeDisabled();
+    expect((document.getElementById("master-title") as HTMLInputElement).value).toBe("Staff");
+  });
+
+  it("採用したエンティティの既存account viewとなり、submitted passwordだけクリアしてdraftは保持", async () => {
+    const created = deferred<Staff>();
+    m.createMutateAsync.mockImplementationOnce(() => created.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    await user.type(document.getElementById("master-title") as HTMLElement, "Staff");
+    await user.type(screen.getByLabelText("メールアドレス"), "synth@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password9");
+    await clickSave(user);
+
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+    const titleInput = document.getElementById("master-title") as HTMLInputElement;
+    await user.clear(titleInput);
+    await user.type(titleInput, "Newer Title");
+    await act(async () => {
+      created.resolve(makeStaff({ id: "9", name: "Staff", email: "synth@example.com" }));
+    });
+    await act(async () => {});
+
+    expect(panelOpen()).toBe(true);
+    expect((screen.getByLabelText("パスワード") as HTMLInputElement).value).toBe("");
+    expect(toast.success).not.toHaveBeenCalled();
+    expect((document.getElementById("master-title") as HTMLInputElement).value).toBe("Newer Title");
+
+    await clickSave(user);
+    await waitFor(() => expect(m.updateMutateAsync).toHaveBeenCalledTimes(1));
+    const updateCall = m.updateMutateAsync.mock.calls[0][0] as {
+      id: string;
+      req: { name: string; password?: string };
+    };
+    expect(updateCall.id).toBe("9");
+    expect(updateCall.req.name).toBe("Newer Title");
+    expect(updateCall.req.password === undefined || updateCall.req.password === "").toBe(true);
+    expect(m.createMutateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      basicUpdate!.resolve(makeStaff({ id: "9" }));
+    });
+    await waitPanelClosed();
+  });
+});
+
+describe("StaffSettings integration — create adoption extended", () => {
+  it("重なり合う新規作成: 遅れて解決した旧createは新パネルを採用・閉じない", async () => {
+    const createdA = deferred<Staff>();
+    const createdB = deferred<Staff>();
+    m.createMutateAsync
+      .mockImplementationOnce(() => createdA.promise)
+      .mockImplementationOnce(() => createdB.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    const titleA = document.getElementById("master-title") as HTMLInputElement;
+    await user.type(titleA, "Draft A");
+    await clickSave(user);
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+    await user.clear(titleA);
+    await user.type(titleA, "Draft A newer");
+
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+    const discard = await screen.findByRole("alertdialog");
+    await user.click(within(discard).getByRole("button", { name: "確認" }));
+    await waitFor(() => expect(panelOpen()).toBe(false));
+
+    await user.click(screen.getByRole("button", { name: "新規登録" }));
+    await waitFor(() => expect(panelOpen()).toBe(true));
+    const titleB = document.getElementById("master-title") as HTMLInputElement;
+    await user.type(titleB, "Draft B");
+    await clickSave(user);
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(2));
+    await user.clear(titleB);
+    await user.type(titleB, "Draft B newer");
+
+    await act(async () => {
+      createdB.resolve(makeStaff({ id: "20", name: "Draft B" }));
+    });
+    await act(async () => {
+      createdA.resolve(makeStaff({ id: "19", name: "Draft A" }));
+    });
+    await act(async () => {});
+
+    expect(panelOpen()).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect((document.getElementById("master-title") as HTMLInputElement).value).toBe(
+      "Draft B newer",
+    );
+
+    await user.click(screen.getByRole("button", { name: rowButtonName(STAFFS[1]) }));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "キャンセル" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(panelOpen()).toBe(true);
+
+    await clickSave(user);
+    await waitFor(() => expect(m.updateMutateAsync).toHaveBeenCalledTimes(1));
+    const updateCall = m.updateMutateAsync.mock.calls[0][0] as {
+      id: string;
+      req: { name: string };
+    };
+    expect(updateCall.id).toBe("20");
+    expect(updateCall.req.name).toBe("Draft B newer");
+    expect(m.createMutateAsync).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      basicUpdate!.resolve(makeStaff({ id: "20" }));
+    });
+    await waitPanelClosed();
+  });
+
+  it("canCreate=true/canEdit=false: create採用後はreadonly保持し、late grantで同IDへUPDATE", async () => {
+    permState.check = (resource, action) => !(resource === "master-staff" && action === "edit");
+    const created = deferred<Staff>();
+    m.createMutateAsync.mockImplementationOnce(() => created.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    const titleInput = document.getElementById("master-title") as HTMLInputElement;
+    await user.type(titleInput, "Staff CreateOnly");
+    await clickSave(user);
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+    await user.clear(titleInput);
+    await user.type(titleInput, "CreateOnly Newer");
+    await act(async () => {
+      created.resolve(makeStaff({ id: "21", name: "Staff CreateOnly" }));
+    });
+    await act(async () => {});
+
+    expect(panelOpen()).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "保存" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "削除" })).toBeNull();
+
+    (document.getElementById("master-title") as HTMLInputElement).focus();
+    await user.keyboard("{Enter}");
+    await act(async () => {});
+    expect(m.updateMutateAsync).toHaveBeenCalledTimes(0);
+    expect(m.createMutateAsync).toHaveBeenCalledTimes(1);
+
+    permState.check = () => true;
+    const searchInput = screen.getByPlaceholderText("氏名、職種で検索...");
+    await user.type(searchInput, "x{Enter}");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: rowButtonName(STAFFS[0]) })).toBeNull(),
+    );
+    await waitFor(() => expect(screen.queryByRole("button", { name: "保存" })).not.toBeNull());
+
+    await clickSave(user);
+    await waitFor(() => expect(m.updateMutateAsync).toHaveBeenCalledTimes(1));
+    const updateCall = m.updateMutateAsync.mock.calls[0][0] as {
+      id: string;
+      req: { name: string };
+    };
+    expect(updateCall.id).toBe("21");
+    expect(updateCall.req.name).toBe("CreateOnly Newer");
+    expect(m.createMutateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      basicUpdate!.resolve(makeStaff({ id: "21" }));
+    });
+    await waitPanelClosed();
+  });
+
+  it("作成失敗は採用せずcredential再enabled、password保持、retryは再度CREATE", async () => {
+    const created = deferred<Staff>();
+    m.createMutateAsync.mockImplementationOnce(() => created.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    await user.type(document.getElementById("master-title") as HTMLElement, "Staff");
+    await user.type(screen.getByLabelText("メールアドレス"), "synth@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "password9");
+    await clickSave(user);
+
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      created.reject(new Error("create failed"));
+    });
+    await act(async () => {});
+
+    expect(panelOpen()).toBe(true);
+    expect(screen.getByLabelText("メールアドレス")).not.toBeDisabled();
+    const passwordInput = screen.getByLabelText("パスワード") as HTMLInputElement;
+    expect(passwordInput).not.toBeDisabled();
+    expect(passwordInput.value === "password9").toBe(true);
+
+    await clickSave(user);
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(2));
+    expect(m.updateMutateAsync).toHaveBeenCalledTimes(0);
+    await waitPanelClosed();
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("StaffSettings integration — create adoption inverse permission", () => {
+  it("canCreate剥奪・canEdit残存: 採用済みcreateはreadonly化せず同IDへUPDATEする", async () => {
+    const created = deferred<Staff>();
+    m.createMutateAsync.mockImplementationOnce(() => created.promise);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "新規登録" }));
+    const titleInput = document.getElementById("master-title") as HTMLInputElement;
+    await user.type(titleInput, "Staff Inverse");
+    await clickSave(user);
+    await waitFor(() => expect(m.createMutateAsync).toHaveBeenCalledTimes(1));
+
+    await user.clear(titleInput);
+    await user.type(titleInput, "Inverse Newer");
+    permState.check = (resource, action) => !(resource === "master-staff" && action === "create");
+    await user.type(screen.getByPlaceholderText("氏名、職種で検索..."), "x{Enter}");
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: rowButtonName(STAFFS[0]) })).toBeNull(),
+    );
+
+    await act(async () => {
+      created.resolve(makeStaff({ id: "22", name: "Staff Inverse" }));
+    });
+    await act(async () => {});
+
+    expect(panelOpen()).toBe(true);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "保存" })).not.toBeNull();
+    expect((document.getElementById("master-title") as HTMLInputElement).value).toBe(
+      "Inverse Newer",
+    );
+
+    await clickSave(user);
+    await waitFor(() => expect(m.updateMutateAsync).toHaveBeenCalledTimes(1));
+    const updateCall = m.updateMutateAsync.mock.calls[0][0] as {
+      id: string;
+      req: { name: string };
+    };
+    expect(updateCall.id).toBe("22");
+    expect(updateCall.req.name).toBe("Inverse Newer");
+    expect(m.createMutateAsync).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      basicUpdate!.resolve(makeStaff({ id: "22" }));
+    });
+    await waitPanelClosed();
+  });
+});

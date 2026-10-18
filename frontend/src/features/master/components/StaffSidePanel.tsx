@@ -37,6 +37,8 @@ interface StaffSidePanelProps {
   item: Staff | null;
   onClose: () => void;
   onSave: (data: StaffFormData) => Promise<boolean> | boolean;
+  onSaveWithResult?: (data: StaffFormData, targetId?: string) => Promise<Staff | null>;
+  canEditPersisted?: boolean;
   onDeleteRequest?: (item: Staff) => void;
   readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -56,6 +58,8 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   item,
   onClose,
   onSave,
+  onSaveWithResult,
+  canEditPersisted = true,
   onDeleteRequest,
   readOnly,
   onDirtyChange,
@@ -67,8 +71,11 @@ export const StaffSidePanel = memo(function StaffSidePanel({
   allReservationTypes,
   onSaveCapableReservationTypes,
 }: StaffSidePanelProps) {
-  const isNew = item === null;
-  const staffId = item?.id ?? null;
+  const [committedStaff, setCommittedStaff] = useState<Staff | null>(null);
+  const effectiveItem = item ?? committedStaff;
+  const isNew = effectiveItem === null;
+  const staffId = effectiveItem?.id ?? null;
+  const effectiveReadOnly = committedStaff !== null ? canEditPersisted !== true : readOnly === true;
 
   const [formData, setFormData] = useState<StaffFormData>(() => staffToFormData(item));
   const [isDirty, setIsDirty] = useState(false);
@@ -150,13 +157,22 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       groupIds,
       clinicIds,
       capableIds,
+      formPassword: formData.password,
       groupsChanged: serverGroupIds !== undefined && !setsEqual(groupIds, serverGroupIds),
       clinicsChanged: serverClinicIds !== undefined && !setsEqual(clinicIds, serverClinicIds),
       capableChanged: serverCapableIds !== undefined && !setsEqual(capableIds, serverCapableIds),
     };
     try {
-      const saved = await onSave(formData);
-      if (!saved) return;
+      const savedEntity = onSaveWithResult
+        ? await onSaveWithResult(formData, committedStaff?.id)
+        : await onSave(formData);
+      if (!savedEntity) return;
+      if (onSaveWithResult && snapshot.isNew && savedEntity !== true && mountedRef.current) {
+        setCommittedStaff(savedEntity);
+        setFormData((prev) =>
+          prev.password === snapshot.formPassword ? { ...prev, password: "" } : prev,
+        );
+      }
       if (!snapshot.isNew && snapshot.staffId) {
         const steps: Array<[boolean, (id: string, ids: string[]) => Promise<boolean>, string[]]> = [
           [snapshot.groupsChanged, onSaveGroups, snapshot.groupIds],
@@ -193,6 +209,8 @@ export const StaffSidePanel = memo(function StaffSidePanel({
     serverCapableIds,
     setsEqual,
     onSave,
+    onSaveWithResult,
+    committedStaff,
     onSaveGroups,
     onSaveClinics,
     onSaveCapableReservationTypes,
@@ -243,11 +261,12 @@ export const StaffSidePanel = memo(function StaffSidePanel({
       // EMR-386: 新規作成時は共有既定の「無題」ではなく用途が分かる仮タイトルを渡す。
       // 既存スタッフは未指定（undefined）のまま共有既定を維持する。
       titlePlaceholder={isNew ? "新規スタッフ登録" : undefined}
-      readOnly={readOnly}
+      readOnly={effectiveReadOnly}
     >
       <StaffBasicInfoSection
-        item={item}
+        item={effectiveItem}
         isNew={isNew}
+        disableCreateCredentials={isNew === true && isPending === true ? true : undefined}
         formData={formData}
         setFormDataDirty={setFormDataDirty}
         allOccupations={allOccupations}
@@ -257,7 +276,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
 
       <fieldset
         className="min-w-0 border-0 p-0 m-0"
-        disabled={readOnly || (!isNew && serverCapableIds === undefined)}
+        disabled={effectiveReadOnly || (!isNew && serverCapableIds === undefined)}
       >
         <StaffExcludedReservationTypesSection
           activeReservationTypes={activeReservationTypes}
@@ -270,7 +289,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
 
       <fieldset
         className="min-w-0 border-0 p-0 m-0"
-        disabled={readOnly || (!isNew && serverClinicIds === undefined)}
+        disabled={effectiveReadOnly || (!isNew && serverClinicIds === undefined)}
       >
         <StaffClinicsSection
           allClinics={allClinics}
@@ -282,7 +301,7 @@ export const StaffSidePanel = memo(function StaffSidePanel({
 
       <fieldset
         className="min-w-0 border-0 p-0 m-0"
-        disabled={readOnly || (!isNew && serverGroupIds === undefined)}
+        disabled={effectiveReadOnly || (!isNew && serverGroupIds === undefined)}
       >
         <StaffPermissionGroupsSection
           allGroups={allGroups}

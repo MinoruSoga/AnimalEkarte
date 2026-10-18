@@ -85,7 +85,7 @@ export function StaffSettings() {
     [dirty],
   );
 
-  const { handleSave } = useMasterSave<
+  const { handleSave, handleSaveWithResult } = useMasterSave<
     Staff,
     StaffFormData,
     CreateStaffRequest,
@@ -185,6 +185,8 @@ export function StaffSettings() {
             item={item}
             onClose={onClose}
             onSave={onSave}
+            onSaveWithResult={handleSaveWithResult}
+            canEditPersisted={canEdit}
             onDeleteRequest={onDeleteRequest}
             readOnly={readOnly}
             onDirtyChange={handleDirtyChange}

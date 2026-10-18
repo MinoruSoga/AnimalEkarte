@@ -34,6 +34,7 @@ interface StaffBasicInfoSectionProps {
   formData: StaffFormData;
   setFormDataDirty: Dispatch<SetStateAction<StaffFormData>>;
   allOccupations: Occupation[];
+  disableCreateCredentials?: boolean;
 }
 
 export function StaffBasicInfoSection({
@@ -42,6 +43,7 @@ export function StaffBasicInfoSection({
   formData,
   setFormDataDirty,
   allOccupations,
+  disableCreateCredentials = false,
 }: StaffBasicInfoSectionProps) {
   const { user } = useAuth();
   const attachAccount = useAttachStaffAccount();
@@ -163,6 +165,7 @@ export function StaffBasicInfoSection({
               value={formData.email}
               onChange={handleEmailChange}
               placeholder="例: staff@clinic.com"
+              disabled={disableCreateCredentials}
             />
           </PropertyRow>
           <PropertyRow
@@ -176,6 +179,7 @@ export function StaffBasicInfoSection({
               value={formData.password}
               onChange={handlePasswordChange}
               placeholder="8文字以上"
+              disabled={disableCreateCredentials}
             />
           </PropertyRow>
         </>

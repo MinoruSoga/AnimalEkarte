@@ -88,25 +88,26 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
   const { mutateAsync: createAsync } = createMutation;
   const { mutateAsync: updateAsync } = updateMutation;
 
-  const handleSave = useCallback(
-    async (data: TForm): Promise<boolean> => {
+  const handleSaveWithResult = useCallback(
+    async (data: TForm, targetId?: string): Promise<T | null> => {
       const error = validate(data);
       if (error) {
         setValidationError(error);
         toast.error(error);
-        return false;
+        return null;
       }
       setValidationError(null);
 
+      const effectiveTargetId = targetId ?? editTargetId;
       const currentPermissions = permissionsRef.current;
       const isAllowed =
-        editTargetId !== null
+        effectiveTargetId !== null
           ? currentPermissions.canEdit === true
           : currentPermissions.canCreate === true;
-      if (!isAllowed) return false;
+      if (!isAllowed) return null;
 
-      return new Promise<boolean>((resolve) => {
-        const isUpdate = editTargetId !== null;
+      return new Promise<T | null>((resolve) => {
+        const isUpdate = effectiveTargetId !== null;
         const actionLabel = isUpdate ? "更新" : "登録";
 
         const save = async () => {
@@ -114,14 +115,14 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           try {
             saved = isUpdate
               ? await updateAsync({
-                  id: editTargetId,
+                  id: effectiveTargetId,
                   req: toUpdateRequest(data),
                 })
               : await createAsync(toCreateRequest(data));
           } catch {
             // create/updateMutation の onError で handleApiError 済み（master/api/*.ts）。
             // ここで再通知すると二重 toast になるため状態遷移のみ行う。
-            resolve(false);
+            resolve(null);
             return;
           }
 
@@ -129,7 +130,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
             await onSuccess?.(saved, data);
           } catch (error) {
             handleApiError(error, "保存");
-            resolve(false);
+            resolve(null);
             return;
           }
 
@@ -139,7 +140,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           if (closeOnSuccess) {
             crudSetEditTarget(null);
           }
-          resolve(true);
+          resolve(saved);
         };
 
         try {
@@ -148,7 +149,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           });
         } catch (error) {
           handleApiError(error, actionLabel);
-          resolve(false);
+          resolve(null);
         }
       });
     },
@@ -167,5 +168,12 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
     ],
   );
 
-  return { handleSave, validationError };
+  const handleSave = useCallback(
+    async (data: TForm): Promise<boolean> => {
+      return Boolean(await handleSaveWithResult(data));
+    },
+    [handleSaveWithResult],
+  );
+
+  return { handleSave, handleSaveWithResult, validationError };
 }
