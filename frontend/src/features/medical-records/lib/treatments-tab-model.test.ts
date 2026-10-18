@@ -4,6 +4,7 @@ import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDia
 
 import { buildMasterSelectionPayload } from "./treatments-tab-model";
 
+/** 既定選択フィクスチャ。overrides でテスト対象フィールドだけを変える。 */
 function masterItem(overrides: Partial<TreatmentMasterItem> = {}): TreatmentMasterItem {
   return {
     id: "1",

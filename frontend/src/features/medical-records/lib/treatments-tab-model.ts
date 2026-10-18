@@ -17,6 +17,10 @@ export function resolveItemTypeFromCategory(category: string): TreatmentItemType
  * `*uint64`（JSON number）を期待する（`backend/internal/medicalrecord/treatment_request.go`）。
  * 文字列のまま送ると `ShouldBindJSON` が失敗し 400 になり、薬剤選択からの治療行追加が
  * 常に失敗する（一度この回帰が発生した）。ここで必ず `Number(...)` に変換すること。
+ *
+ * 診察/処置カテゴリも同様に `consultation_id` / `procedure_id` を有限数値へ変換して
+ * 紐付ける（複写時の現行マスタ価格再解決に必要）。数値化できない ID は参照を送らない。
+ * 他カテゴリには診察/処置の参照を設定せず、薬剤の既存 `medicine_id` は維持する。
  */
 export function buildMasterSelectionPayload(params: {
   item: TreatmentMasterItem;

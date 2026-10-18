@@ -250,6 +250,7 @@ describe("useCopyTreatmentDetails", () => {
     let destPostHeaders: Array<string | null> = [];
     let destGetHeaders: Array<string | null> = [];
 
+    /** create 要求の数値参照を wire 応答の文字列参照へ変換する合成 wire 行の組立（実 backend 証明ではない）。 */
     const toWireRow = (recordId: string, body: Record<string, unknown>): Treatment => ({
       id: `${recordId}-row-${destStore.length + sourceStore.length}`,
       medical_record_id: recordId,

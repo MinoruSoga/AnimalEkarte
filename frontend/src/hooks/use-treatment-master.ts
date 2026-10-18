@@ -57,6 +57,11 @@ export function useGetAllCheckupTypes() {
   });
 }
 
+/**
+ * 診察マスタ一覧。truthy な `clinicId` を明示するとクリニック別キーと
+ * `X-Clinic-ID` ヘッダ付き GET になる。省略・空文字なら従来のグローバルキーと
+ * 暗黙の共通ヘッダを維持し、他クリニックデータへのフォールバックはしない。
+ */
 export function useGetAllConsultations({ clinicId }: { clinicId?: string } = {}) {
   return useQuery({
     queryKey: clinicId
@@ -75,6 +80,11 @@ export function useGetAllConsultations({ clinicId }: { clinicId?: string } = {})
   });
 }
 
+/**
+ * 処置マスタ一覧。truthy な `clinicId` でクリニック別キー＋`X-Clinic-ID` 付き GET、
+ * 省略・空文字なら従来のグローバルキーと暗黙ヘッダ。`enabled: false` の間は
+ * 自動取得を止める（手動 refetch は可能）。他クリニックデータへのフォールバックはしない。
+ */
 export function useGetAllProcedures({
   enabled = true,
   clinicId,

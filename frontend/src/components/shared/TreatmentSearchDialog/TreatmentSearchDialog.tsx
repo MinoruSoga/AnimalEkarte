@@ -46,6 +46,11 @@ const CATEGORY_ORDER = ["診察", "検査", "処置", "予防", "入院", "薬�
 
 // --- Main Component ---
 
+/**
+ * 治療マスタ検索ダイアログ。空でない `clinicId` が渡された場合、診察/処置カテゴリのみ
+ * そのクリニックのマスタを scoped fetch する（記録の所属クリニックで選ぶ用途）。
+ * それ以外のカテゴリ（予防/検査/薬剤等）は従来どおりグローバル選択中クリニックのまま。
+ */
 export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   open,
   onOpenChange,

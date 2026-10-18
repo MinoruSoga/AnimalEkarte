@@ -37,6 +37,7 @@ export const queryKeys = {
   masters: {
     /** 汎用マスタカテゴリキー。"masterItems" の代わりにこれを使う */
     category: (name: string) => ["masters", name] as const,
+    /** クリニック別にマスタキャッシュを分離するキー。第2要素が category(name) と同じなので、["masters", name] の prefix invalidate はこのキーもカバーする。 */
     categoryForClinic: (name: string, clinicId: string) => ["masters", name, { clinicId }] as const,
     /**
      * 旧セレクト専用キー。hooks/use-staffs と master CRUD は raw `category("staffs")`

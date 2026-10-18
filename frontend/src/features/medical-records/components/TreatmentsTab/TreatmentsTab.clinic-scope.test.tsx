@@ -78,10 +78,16 @@ let rejectedPosts: PostCall[];
 let getHeadersByEndpoint: Record<"consultations" | "procedures", Array<string | null>>;
 let clinic2GateByCategory: Partial<Record<"consultations" | "procedures", Promise<void>>>;
 
+/** リクエストの X-Clinic-ID を返す。ヘッダ欠落時のみフィクスチャの clinic1 扱い。 */
 function clinicOf(request: Request): string {
   return request.headers.get("X-Clinic-ID") ?? CLINIC1;
 }
 
+/**
+ * MSW 合成ハンドラ。マスタ GET はヘッダのクリニックで 2 拠点フィクスチャを返し、
+ * POST はヘッダと参照 ID の一致を合成判定して accepted/rejected に記録する
+ * （実 DB・実テナント判定ではない）。
+ */
 function useBaseHandlers() {
   server.use(
     http.get(`*/v1/medical-records/${RECORD_ID}/treatments`, () => HttpResponse.json([])),
@@ -134,16 +140,19 @@ function useBaseHandlers() {
   );
 }
 
+/** 呼び出し側の QueryClient を共有する wrapper。キャッシュ境界の観測用。 */
 function makeWrapper(queryClient: QueryClient) {
   return ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }
 
+/** テストごとにキャッシュを分離し retry を切って終端 error を即時にする。 */
 function newQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
+/** 実 TreatmentsTab を呼び出し側 QueryClient で描画し、実ダイアログを開く。 */
 async function renderTreatmentsTab(recordClinicId: string | undefined, queryClient: QueryClient) {
   const view = render(
     <TreatmentsTab medicalRecordId={RECORD_ID} recordClinicId={recordClinicId} />,

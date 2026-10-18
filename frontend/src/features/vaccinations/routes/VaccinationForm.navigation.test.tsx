@@ -85,6 +85,7 @@ interface WireVaccination {
 let vaccinationStore: WireVaccination[];
 let medicalRecordWrites: number;
 
+/** 合成 wire フィクスチャ。overrides で検証対象フィールドだけを差し替える。 */
 function wireVaccination(index: number, overrides: Partial<WireVaccination> = {}): WireVaccination {
   return {
     id: index,
@@ -109,6 +110,7 @@ function wireVaccination(index: number, overrides: Partial<WireVaccination> = {}
   };
 }
 
+/** page2 に対象行が来る 26 行（他ペット行も混ぜ、pet_id 絞込の欠落を検出する）。 */
 function seedStore(): WireVaccination[] {
   const firstPageRows = Array.from({ length: 24 }, (_v, i) => {
     const day = String(i + 1).padStart(2, "0");
@@ -125,6 +127,7 @@ function seedStore(): WireVaccination[] {
   ];
 }
 
+/** MSW 合成ハンドラ。予防接種の読取/PATCH と表示用フィクスチャを合成し、medical-records への書込みは counter で捕捉する（実 backend ではない）。 */
 function useApiHandlers() {
   server.use(
     http.get("*/v1/vaccinations", ({ request }) => {
@@ -175,6 +178,7 @@ function useApiHandlers() {
   );
 }
 
+/** 現在の router URL/state を data-testid で露出し、遷移後の復元を検証する。 */
 function LocationProbe() {
   const location = useLocation();
   return (
@@ -186,10 +190,12 @@ function LocationProbe() {
   );
 }
 
+/** テストごとにキャッシュを分離し retry を切る。 */
 function newQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
+/** 実 VaccinationList / VaccinationForm を memory router で通す。initialEntries は呼び出し側が履歴・state を指定する。 */
 function renderFlow(initialEntries: InitialEntry[]) {
   const queryClient = newQueryClient();
   const router = createMemoryRouter(
@@ -213,20 +219,24 @@ function renderFlow(initialEntries: InitialEntry[]) {
   return { router, view, queryClient };
 }
 
+/** probe が捉えた現在の pathname+search。 */
 function navLocation() {
   return screen.getByTestId("nav-location").textContent;
 }
 
+/** probe が捉えた現在の location.state（JSON パース済み）。 */
 function navState(): unknown {
   return JSON.parse(screen.getByTestId("nav-state").textContent ?? "null");
 }
 
+/** 一覧の実行リンクから対象予防接種の編集フォームへ遷移する。 */
 async function openTargetFromList(user: ReturnType<typeof userEvent.setup>) {
   const link = await screen.findByRole("link", { name: new RegExp(`ID ${TARGET_ID}$`) });
   await user.click(link);
   await screen.findByRole("heading", { name: "予防接種編集" });
 }
 
+/** 指定した戻り系ボタンを押し、一覧 URL へ戻るまで待つ。 */
 async function backToList(user: ReturnType<typeof userEvent.setup>, buttonName: string) {
   await user.click(await screen.findByRole("button", { name: buttonName }));
   await waitFor(() => expect(navLocation()).toBe(LIST_URL));

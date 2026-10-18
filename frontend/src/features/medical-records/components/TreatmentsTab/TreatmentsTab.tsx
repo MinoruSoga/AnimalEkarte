@@ -41,6 +41,10 @@ interface TreatmentsTabProps {
 
 // ── Component ─────────────────────────────────────────────────────────
 
+/**
+ * 治療明細タブ。`recordClinicId` を検索ダイアログにも引き継ぎ、診察/処置マスタを
+ * カルテの所属クリニックで取得する。他カテゴリの取得スコープは変更しない。
+ */
 export const TreatmentsTab = memo(function TreatmentsTab({
   medicalRecordId,
   ownerDiscountRate = 0,
