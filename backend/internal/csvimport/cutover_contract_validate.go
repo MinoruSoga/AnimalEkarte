@@ -587,6 +587,7 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 	seenIDs := make(map[int64]struct{})
 	nameColumn, checkNames := cutoverUniqueNameColumns()[spec.Name]
 	seenNames := make(map[string]struct{})
+	uniqueState := newCutoverUniqueState(spec.Name)
 	for {
 		row, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
@@ -614,6 +615,11 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 		}
 		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1, profile); err != nil {
 			return false, err
+		}
+		if uniqueState != nil {
+			if err := uniqueState.check(spec, row, columnIndexes, rowCount+1); err != nil {
+				return false, err
+			}
 		}
 	}
 	if rowCount != table.RowCount {
@@ -712,7 +718,7 @@ func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, in
 			return err
 		}
 	}
-	return nil
+	return validateCutoverDDLRow(spec, row, indexes, csvLine)
 }
 
 func placeholderAllowed(table, column, value, token string) bool {

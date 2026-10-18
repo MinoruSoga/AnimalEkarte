@@ -150,6 +150,7 @@ func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 			parent := append([]string(nil), f.rows[spec.Name][0]...)
 			parent[columnIndex(spec.Columns, "id")] = "1000002"
 			parent[columnIndex(spec.Columns, "parent_id")] = ""
+			parent[columnIndex(spec.Columns, "name")] = "parent-row"
 			f.rows[spec.Name] = append(f.rows[spec.Name], parent)
 			f.manifest.Tables[i].RowCount++
 		}
@@ -172,6 +173,7 @@ func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 			cycle := append([]string(nil), f.rows[spec.Name][0]...)
 			cycle[columnIndex(spec.Columns, "id")] = "1000002"
 			cycle[columnIndex(spec.Columns, "parent_id")] = "1000001"
+			cycle[columnIndex(spec.Columns, "name")] = "cycle-row"
 			f.rows[spec.Name] = append(f.rows[spec.Name], cycle)
 			f.manifest.Tables[i].RowCount++
 		}
@@ -199,6 +201,7 @@ func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 					parent := append([]string(nil), f.rows[spec.Name][0]...)
 					parent[columnIndex(spec.Columns, "id")] = "1000002"
 					parent[columnIndex(spec.Columns, ref.column)] = ""
+					parent[columnIndex(spec.Columns, "name")] = "parent-row"
 					f.rows[spec.Name] = append(f.rows[spec.Name], parent)
 					f.manifest.Tables[i].RowCount++
 					setReferenceFixtureCell(f, spec.Name, ref.column, "+001000002")

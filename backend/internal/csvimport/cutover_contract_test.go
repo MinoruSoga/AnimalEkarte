@@ -1139,6 +1139,37 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "billings" {
 					row[i] = "completed"
 				}
+				if spec.Name == "pets" {
+					row[i] = "alive"
+				}
+			case "gender":
+				if spec.Name == "pets" {
+					row[i] = "male"
+				}
+			case "membership_type":
+				if spec.Name == "owners" {
+					row[i] = "non_member"
+				}
+			case "visit_type":
+				if spec.Name == "appointments" {
+					row[i] = "first"
+				}
+			case "source":
+				if spec.Name == "appointments" {
+					row[i] = "manual"
+				}
+			case "start_time":
+				if spec.Name == "appointments" {
+					row[i] = "2026-07-22T00:00:00.000000Z"
+				}
+			case "end_time":
+				if spec.Name == "appointments" {
+					row[i] = "2026-07-22T01:00:00.000000Z"
+				}
+			case "quantity":
+				if spec.Name == "billing_items" || spec.Name == "estimate_items" {
+					row[i] = "1"
+				}
 			case "payment_method_id":
 				if spec.Name == "payments" || spec.Name == "payment_splits" {
 					row[i] = "{{PAYMENT_METHOD_CASH_ID}}"
@@ -1172,9 +1203,7 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 			case "tax_type":
 				// Current MIG-38/MIG-34 producer mapping permits excluded/exempt;
 				// the synthetic candidate bundle states it explicitly.
-				if spec.Name == "medicines" {
-					row[i] = "excluded"
-				}
+				row[i] = "excluded"
 			case "tax_rate":
 				if spec.Name == "medicines" {
 					row[i] = "0.10"
@@ -1191,6 +1220,9 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 				if spec.Name == "medicines" {
 					row[i] = "t"
 				}
+				if spec.Name == "merchandise_items" {
+					row[i] = "true"
+				}
 			case "is_non_insurance":
 				if spec.Name == "medicines" {
 					row[i] = "f"
@@ -1205,8 +1237,18 @@ func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...
 			case "category":
 				// The candidate default estimate row is the
 				// contract-consistent medicine rewrite row (DESIGN 3.4).
-				if spec.Name == "estimate_items" && selectedCutoverProfile(profiles) == CutoverProfileMedicinesCandidate {
-					row[i] = "medicine"
+				if spec.Name == "estimate_items" {
+					if selectedCutoverProfile(profiles) == CutoverProfileMedicinesCandidate {
+						row[i] = "medicine"
+					} else {
+						row[i] = "procedure"
+					}
+				}
+				if spec.Name == "billing_items" {
+					row[i] = "procedure"
+				}
+				if spec.Name == "merchandise_items" {
+					row[i] = "goods"
 				}
 			}
 		}
