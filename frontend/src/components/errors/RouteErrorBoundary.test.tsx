@@ -138,6 +138,10 @@ describe("stale-chunk-recovery 実装統合 (EMR-271)", () => {
   let assignMock: ReturnType<typeof vi.fn>;
   let replaceMock: ReturnType<typeof vi.fn>;
 
+  /**
+   * 再読み込み・代替遷移を記録する疑似 location を設定し、他の window API は実体へ委譲する。
+   * 実際のページ再取得は行わず、各テスト後に vi.unstubAllGlobals() で解除する。
+   */
   function stubBrowserLocation() {
     reloadMock = vi.fn();
     assignMock = vi.fn();
@@ -160,6 +164,10 @@ describe("stale-chunk-recovery 実装統合 (EMR-271)", () => {
     );
   }
 
+  /**
+   * 予約コンテキスト付きのカルテルートで lazy 失敗を発生させ、指定の境界を StrictMode 下で描画する。
+   * 戻り値の router と unmount で、同一セッション内の再マウント前後を検証できる。
+   */
   function renderLazyChartRejection(error: unknown, boundary: ReactNode) {
     const router = createMemoryRouter(
       [

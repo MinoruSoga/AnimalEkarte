@@ -20,6 +20,9 @@ const { navigateMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
 }));
 
+/**
+ * 他のルーター API は実装を維持し、useNavigate だけを通常の呼出記録／実遷移で切替可能にする。
+ */
 vi.mock("react-router", async () => {
   const actual = await vi.importActual<typeof import("react-router")>("react-router");
   return { ...actual, useNavigate: vi.fn(() => navigateMock) };
@@ -552,6 +555,10 @@ describe("AppointmentCard", () => {
   });
 
   describe("実ルーター遷移統合 (EMR-271)", () => {
+    /**
+     * 遷移先の pathname・query・state を可視化する検証用の到達点。
+     * 実際のカルテ／会計画面の読込や既存レコード再利用は検証しない。
+     */
     function RouteSentinel() {
       const location = useLocation();
       return (
@@ -561,11 +568,19 @@ describe("AppointmentCard", () => {
       );
     }
 
+    /**
+     * useNavigate の差し替えを実実装へ切り替え、MemoryRouter 内の遷移を検証可能にする。
+     * 通常テスト用のモック実装は afterEach で復元する。
+     */
     async function enableRealNavigation() {
       const actual = await vi.importActual<typeof import("react-router")>("react-router");
       mockedUseNavigate.mockImplementation(actual.useNavigate);
     }
 
+    /**
+     * DndContext と実ルーターで受付カードを描画し、予約日付きボードからの遷移を検証する。
+     * 到達先は RouteSentinel のみとし、作成した router を返す。
+     */
     function renderCardInRouter(
       appointment: ReceptionAppointment,
       columnTitle: string,
