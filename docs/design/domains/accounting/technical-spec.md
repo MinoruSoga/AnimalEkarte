@@ -469,3 +469,17 @@ DC-A01：医師確認前準備可・請求確定／精算拒否、確認と金�
 [決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](../../../spec/domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)。会計ページは医師確認前から準備し待ち・金額未確定を表示する。確定精算は医師確認後。会計タブチェックが医師確認、診療終了で会計待ちへ進み、受付カードの確認状態は別軸とする。確認後の金額だけの変更は警告了承で可、薬剤処置追加削除・数量変更は再確認まで停止。未確定未手修正はプラン自動同期、手修正済みは値保護と差異判断、確定後は専用訂正。会計からプランへの自動逆書換えなし。通常請求対象は実施済み、持帰薬物販は内容数量確定・準備完了で、予定・実引渡し・在庫出庫と分離する。
+
+
+<a id="accounting-document-default-trace"></a>
+## 帳票・初期値の補足AC接続
+
+本文181ACとsubpage固有20ACは異なる母集団である。3画面・帳票契約に対し、後続の下記3ACの具体的な取得／初期適用を補足する。他のsubpage条件は既存の意味契約・正本参照を維持し、単価／割引認可・医師確認・確定後訂正・発行履歴を変更しない。
+
+| 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
+|:---|:---|:---|
+| AC-accounting-invoice-registration-number-output | 対象医院の登録番号設定と対象帳票／保存対象の関連を照合して出力へ渡す。請求と実受領を別に扱い、再発行・旧版への値適用は既存の発行履歴に従う。別医院の設定で補完しない。 | [正本](../../../spec/domains/accounting/pages/accounting-settlement.md) |
+| AC-accounting-a4-document-output | 同じ保存対象の登録番号・税率別内訳を既存A4明細兼領収書projectionへ渡し、ブラウザ印刷／PDFを確認する。請求／実受領の別帳票を維持し、直接ロール印字・ドロアー連動を追加しない。 | [正本](../../../spec/domains/accounting/pages/accounting-settlement.md) |
+| AC-accounting-owner-discount-default | 飼主の登録値引率を今回会計の初期値に使い、未登録時は0とする。既存の割引計算・認可に渡し、飼主設定の後日変更や再取得で手修正・確定snapshotを上書きしない。ペット別の新マスタを作らない。 | [正本](../../../spec/domains/accounting/pages/accounting-settlement.md) |
+
+各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。

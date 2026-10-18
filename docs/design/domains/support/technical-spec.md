@@ -63,3 +63,19 @@ ownerはsupport。報告ID／現在版、送信operation ID、確認した内容
 | AC-support-12 | [業務正本の追加受入条件](../../../spec/domains/support/README.md)と本書の操作ID／原子保存・競合・結果照合・保持条件を照合。実機未実施 |
 | AC-support-13 | [業務正本の追加受入条件](../../../spec/domains/support/README.md)と本書の操作ID／原子保存・競合・結果照合・保持条件を照合。実機未実施 |
 | AC-support-14 | [業務正本の追加受入条件](../../../spec/domains/support/README.md)と本書の操作ID／原子保存・競合・結果照合・保持条件を照合。実機未実施 |
+
+
+<a id="support-supplemental-acceptance-trace"></a>
+## 支援widgetの補足AC接続
+
+既存の支援widget・記事参照・報告／配送／保持契約に接続する。日本語言換え・ベトナム語入力は既採用のEMR-294を維持し、別の採否判断・数値品質目標・新しい自動操作権限を設けない。
+
+| 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
+|:---|:---|:---|
+| AC-support-widget-purpose-tabs | 使い方質問とバグ報告の既存入口・read／mutationを区別する。質問で報告起票をせず、報告で臨床・金銭操作を実行しないことを別の操作列で確認する。 | [正本](../../../spec/domains/support/README.md) |
+| AC-support-japanese-paraphrase | 同じ既存記事の内容を日本語の異なる表現で問い合わせ、説明・関連項目との対応を確認する。未記載・取得失敗を回答済みとせず、架空手順で埋めない。新しい回答方式・正答率を選定しない。 | [正本](../../../spec/domains/support/README.md) |
+| AC-support-vietnamese-question | 既存の使い方問い合わせへベトナム語入力を渡し、同じ記事／関連項目の参照を確認する。未記載・取得失敗を区別し、参考回答を臨床／会計確定のwriteに接続しない。 | [正本](../../../spec/domains/support/README.md) |
+| AC-support-report-form-preview | 件名・詳細・現在画面スクリーンショットと確認した内容／送信先を既存の送信前確認snapshotへ束ねる。取得・院内保存・外部配送の成否を分離し、保存前送信や応答不明の新規再送をしない。 | [正本](../../../spec/domains/support/README.md) |
+| AC-support-report-history-status | 認可された共有一覧／詳細の元報告IDとopen／resolved状態をread表示する。報告元医院mutationと個人chat履歴scopeを分離し、取得失敗を空一覧・解決済みへ置換しない。 | [正本](../../../spec/domains/support/README.md) |
+
+各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。

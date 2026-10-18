@@ -127,3 +127,17 @@ save/read例外・quota・データ削除時は「表示設定を保存できま
 [決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](../../../spec/domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)。会計ページは医師確認前から準備し待ち・金額未確定を表示する。確定精算は医師確認後。会計タブチェックが医師確認、診療終了で会計待ちへ進み、受付カードの確認状態は別軸とする。確認後の金額だけの変更は警告了承で可、薬剤処置追加削除・数量変更は再確認まで停止。未確定未手修正はプラン自動同期、手修正済みは値保護と差異判断、確定後は専用訂正。会計からプランへの自動逆書換えなし。通常請求対象は実施済み、持帰薬物販は内容数量確定・準備完了で、予定・実引渡し・在庫出庫と分離する。
+
+
+<a id="reception-style-read-trace"></a>
+## 仕上がり要望の読取接続
+
+先行の受入表への委譲に加え、[後続の仕上がり要望3AC](../../../spec/domains/reception/pages/reception-board.md)を同じ受付カードprojectionへ接続する。表示のための予約・施術writeや、通常notesへの複写を設けない。
+
+| 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
+|:---|:---|:---|
+| AC-reception-trimming-style-display | 既存の仕上がり要望の保存元を同じ予約参照で読み、カードの専用表示へ渡す。通常notesとの異なる値を用いた照合で取り違え・複写がないことを確認する。 | [正本](../../../spec/domains/reception/pages/reception-board.md) |
+| AC-reception-trimming-style-target | 選択日・現在認可内医院・同じ予約／petの組でread対象を拘束する。別日・同居別pet・別予約の応答を採用せず、表示で記録を作らない。 | [正本](../../../spec/domains/reception/pages/reception-board.md) |
+| AC-reception-trimming-style-empty-failure | 保存元の未記入と未取得／取得失敗を別の取得状態でカードへ渡す。通常notes・以前の要望で埋めず、既存の異常時表示と原値保持へ接続する。 | [正本](../../../spec/domains/reception/pages/reception-board.md) |
+
+各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。

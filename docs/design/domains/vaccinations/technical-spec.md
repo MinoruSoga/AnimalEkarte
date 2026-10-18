@@ -12,7 +12,7 @@
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
 ## 範囲
-[業務正本](../../../spec/domains/vaccinations/lifecycle.md)の5FR／28AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の静的照合で、今回runtime未実施。D03[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)・[型／writer契約](../medical-records/technical-spec.md#medical-record-reconciled-contract)を保持。
+[業務正本](../../../spec/domains/vaccinations/lifecycle.md)の現行6FR／39ACを対象とする。先行5FR／28ACは旧読取範囲であり、後続条件を含む現在の件数ではない。先行の基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の静的照合で、今回runtime未実施。D03[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)・[型／writer契約](../medical-records/technical-spec.md#medical-record-reconciled-contract)を保持。
 
 ## 入口・資源・保存結果
 独立とカルテ内は同じGET/POST/PATCH/DELETE /api/v1/vaccinations。カルテ内GETはpet_id＋page/limit、POSTは保存済みmedical_record_idを送る。独立はrecord NULLで保存し得る。接種自身にfinalized状態を新設しない。同日複数は単件POSTの順次実行、バッチAPIを推定しない。[EMR-105](../../../work/emr/emr-105-vaccine-multi-20261002.md)の過去検証は保存済みカルテ内3件実DB／2件モックフォーム等の限定証拠で、今回の再実行や全UI受入とは別。
@@ -136,3 +136,18 @@ DC-V01：3様式の項目／配置・改頁・font、旧見本とのgolden比較
 [決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)。通常縦横・狂犬病の3様式は旧見本に従う。訂正後新発行・旧版履歴保持、再印刷は最新版、旧訂正版は有効印刷不可。共通基本情報更新で発行版は自動変更しない。旧印刷時自動登録等は復活させない。専用証明書実装の所在・適合と仕様採用を分ける。
+
+
+<a id="vaccination-supplemental-read-trace"></a>
+## 履歴順序・種類ラベルの技術接続
+
+先行の明示trace29ACに下記4ACを加えた33ACと、[証明書6ACへの限定委譲](#certificate-edition-proposal)で現行39ACを追跡する。種類別名称ラベル色は対象一覧の表示契約であり、未承認の配色・色管理UIを選定しない。
+
+| 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
+|:---|:---|:---|
+| AC-vaccinations-history-order | 同じ保存履歴を接種日降順の履歴projectionと、次予定日昇順・未設定末尾の既定一覧projectionへ分ける。既存の指定ソートを優先し、並び替えから保存値を変更しない。 | [正本](../../../spec/domains/vaccinations/lifecycle.md) |
+| AC-vaccinations-type-name-label-color | 対象の患者情報内一覧で既存種類identityと名称をラベルへ対応付ける。名称文字を残して色だけに依存させず、異なる種類の表示を比較する。具体色値は推測で固定しない。 | [正本](../../../spec/domains/vaccinations/lifecycle.md) |
+| AC-vaccinations-type-color-warning-separation | 種類識別の表示と既存の期限等の警告状態を別の意味として投影し、種類色だけで警告を置換しない。今回の表示から新しい期限判定・警告生成を追加しない。 | [正本](../../../spec/domains/vaccinations/lifecycle.md) |
+| AC-vaccinations-type-color-record-scope | 認可された同一患者・接種のreadだけに適用し、前後の名称・実施日・次予定・履歴を保持する。記録writeをせず、独立画面・LINE・証明書の表示へ適用範囲を拡張しない。 | [正本](../../../spec/domains/vaccinations/lifecycle.md) |
+
+各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。

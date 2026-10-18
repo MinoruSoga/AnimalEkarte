@@ -581,3 +581,38 @@ Q-C2は[12:53 UTC第1項Aの本人決定](../../../spec/domains/medical-records/
 | DC-M09 | 他staff／同名別account／別患者／権限失効→下書き非表示・非引渡し。対象が再認可されても別対象へ自動付替えしない |
 
 Q-C2の本人専用保持／再ログイン回収は確定済み。Q-C1は対象機能を導入する場合だけの条件付き事項で、現在のblockerではない。物理schema・DTO生成・旧writer排出・quota/共有端末の実機、並行性・全writer実装適合は未完。具体例のDCは既存業務ACの実現検査で、新しい業務FR/ACではない。
+
+
+<a id="medical-record-supplemental-reader-trace"></a>
+## 後続補足ACのreader・入力・表示接続
+
+[通常編集・全writer保護](#record-edit-exclusivity-design-20261018)、既存の型／選択複写・画像・バイタル・予防薬契約を継承する。候補24件のうち主訴区分とマスタ単価初期値は既存説明への追跡を明確にするもので、別の要件やwriterを追加しない。read表示は新たな編集権限を与えず、writeは現在の認可・編集権・版／必要履歴・結果不明照合へ従う。
+
+| 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
+|:---|:---|:---|
+| AC-medical-records-accounting-link-visibility | 一覧readの関連会計有無を導線へ投影し、紐付きは会計ボタン、なしは—とする。表示判定から請求作成・精算を起動しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-list.md) |
+| AC-medical-records-addendum-author-name | 追記の認証入力者と担当医を別参照で保持し、保存した追記と同じ入力者氏名を表示する。既存変更履歴・必須監査失敗の保存停止へ接続し、担当医を変更しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-camera-attach | 撮影結果を既存の添付保存経路へ渡す前に同じ医院・患者・カルテと編集権限、形式・容量を検査する。取消／失敗は既存添付を保持し、再取得と撮影取消を分けて確認する。健診専用writerを追加しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-chip-context | ペット基本情報の番号を同じ患者の名前横へread投影する。未登録は非表示、編集はペット基本情報ownerの既存権限へ渡す。別患者・発行済み版を変更しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-copy-price-notice | 選択複写の価格照合／元単価継承契約へ価格確認通知を接続し、既存上書き確認にも表示する。マスタ対応・非対応・無効・取得不能を分け、取消では現入力と元版を保持する。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-drug-kana-search | 同じ既存薬剤検索のquery／結果対応をひらがな・カタカナの対で確認する。別の英語あいまい検索・頻度順ソートや新しい検索対象を追加しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-history-includes-trimming | 同一pet・認可内の履歴readで通常診療とトリミングの元種別／記録参照を区別して時系列へ渡す。通常カルテだけに限定するprojectionで既存の掲載対象を落とさない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-household-pet-navigation | 同じ飼主の同居pet参照から、現在認可された対象カルテへ遷移する。未保存入力の離脱保護と患者再照合を適用し、閲覧／選択で受付・カルテ作成・開始を発火しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-input-wrap | 表示枠の折返しを保存本文の改行・文字列とは分離する。枠幅変更前後の保存値を比較し、表示変更を本文更新intentにしない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-ipad-report-entry | 既存の右上レポート導線と予防薬専用2帳票のread／出力契約へ接続する。13インチiPadの向き・viewport・ブラウザ／倍率を記録して同患者への遷移を確認し、他端末の合格や一般レポート印刷・共有許可へ広げない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-list-search-preserves-results | 一覧queryと取得状態を別に保持し、飼主／pet名の再取得中も検索語と直前の結果を残す。成功した現queryの結果だけ反映し、薬剤検索や個別pet履歴検索とは別の入口として確認する。 | [正本](../../../spec/domains/medical-records/pages/medical-record-list.md) |
+| AC-medical-records-main-author-names | 本体の最初の認証入力者・最終更新者を既存編集者履歴と対応付けてread表示する。初回Aの保存後は両氏名A、担当医／指名医師は別参照とする。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-main-author-names-unknown | 旧入力者の欠落・氏名／履歴取得異常を未確認状態で表示し、担当医や受付者から架空の入力者を補わない。既存監査・応答不明照合を削らず成功表示にも変換しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-main-author-names-update | 既存の本体編集保存・履歴へBの更新を接続し、最初Aを維持して最終Bを投影する。追記者・変更履歴を最新者1名へ集約して消さない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-manual-plan-line-indicator | 保存明細の手入力由来とマスタ参照の有無を区別して手入力バッジへ投影する。未照合のマスタ行をその他へ変換せず、旧モード名から新業務分類を作らない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-manual-plan-line-reason | 正規の手入力その他行の追加intentで名称・単価・既存必須理由を同じ明細へ保持し、空白理由は拒否する。マスタ行の通常単価／割引変更の理由任意とは別の検査とする。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-optional-chief-complaint-type | 既存の問診型・任意主訴区分の保存契約へ追跡する。空欄を既定の区分で補完せず保存／再読取で空欄を保つ。この行から新しい保存方式や必須入力を作らない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-other-pet-unpaid-header-entry | 同一飼主の認可内他petの未納readをヘッダーへ投影し、同じ飼主の既存D10精算導線へ対象contextを渡す。元請求帰属・遷移先の既存選択を保持し、クリックだけで回収・請求・カルテ保存を起動しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-other-pet-unpaid-header-scope | 未納情報取得の医院／飼主／petと現在権限を照合し、別飼主・認可外情報を表示しない。失敗／不明を未納なし・精算完了とせず、現入力・通常自動保存とD10確定条件を維持する。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-patient-history-search | 同じpetの認可内履歴readへ薬名・処置名／OPE等のqueryを渡し、日付・元記録・内容を対応させる。飼主／pet名の一覧queryへ混ぜず、別petや認可外医院の履歴を返さない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-patient-profile-context | 既存患者headerのreadへプロフィール各値をまとめ、体重の測定元／日時・実来院回数・保険表示の正本を維持する。欠落を推定せず、保険表示から会計の資格／適用確認を代行しない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-plan-master-price-initialization | 既存の治療プラン型・価格入り4種明細の契約へ追跡する。同医院で利用可能な選択品目とマスタ単価を同じ明細初期値へ渡し、保存／再表示を照合する。既存手修正・会計同期・履歴を保持し、選択だけで実施・請求確定にしない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-saved-attachment-view | 既存添付readで保存object参照と同医院／患者／カルテを照合し、画像・PDFの内容へ渡す。未取得／取得失敗を添付なしへ置換せず、閲覧で臨床writeをせず、OCRを前提にしない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+| AC-medical-records-vital-entry-context | 既存バイタル測定時刻／履歴契約へ入力ボタンと名前近くのT/HR/RR/BW常時表示を接続する。同じカルテの測定を保存／再取得し、旧登録体重や欠測を今回値へ補わない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
+
+各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。

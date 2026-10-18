@@ -264,3 +264,16 @@ D10転記保存時に承認状態・有効期限・提示版・明細内容／�
 - [AC-closing-cash-difference-note-empty](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：保存を拒否しメモ入力を求める。原因判明までは要求しない
 - [AC-closing-cash-difference-zero-note](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：他の締め条件を満たせば、差額メモ不足を理由に拒否しない
 - [AC-closing-cash-difference-repreview](../../../spec/domains/cash-register/business-rules.md#requirement-fr-closing-cash-reconciliation)：再集計と差額再確認を行い、保存時の非0差額にメモを必須とする
+
+
+<a id="analytics-scope-exclusion-trace"></a>
+## D16の提供範囲・月次出力の制約
+
+D16のread adapterがD12締めsnapshotを受け取れることと、月次帳票へ全フィールドを出せることを分ける。下記は[既存分析正本](../../../spec/domains/analytics/business-rules.md)のconsumer制約で、集計指標や画面を新設しない。
+
+| 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
+|:---|:---|:---|
+| AC-analytics-current-scope | 既存の今期提供対象である月次レポートと、対象外のランキング／犬種別画面・CSV、CPM人数／一覧を出力先として区別する。共通read/export adapterの存在や旧対応済み報告から、対象外の公開を許可しない。 | [正本](../../../spec/domains/analytics/business-rules.md) |
+| AC-analytics-monthly-no-cash-difference | 月次画面／PDF／CSVのprojectionから実現金・差額を除外し、締め／実査訂正の差額を売上補正へ使わない。締め・履歴・日次締め帳票での区別表示は保持する。元締め／snapshotや実金銭eventへwriteしない。 | [正本](../../../spec/domains/analytics/business-rules.md) |
+
+各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。
