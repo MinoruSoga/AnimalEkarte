@@ -105,7 +105,7 @@ D21の検査履歴sectionはスタッフの閲覧専用であり、同sectionか
 
 ### 最新カルテ契約へのadapter
 
-[通常編集と検査保護の分離](../../../spec/domains/examinations/lifecycle.md#examination-normal-edit-autosave)を適用する。D03のタブ復元／複製Undoが参照するのは同じカルテ・exam・固定結果版／対象入力で、検査のofficial版を通常更新したり機器jobをdetachしたりしない。検査結果訂正が必要ならD07自身のgrant・理由・版保持・unconfirm／再確定へ従う。旧親draft必須／finalized拒否を最新目標の実装済み保証にせず、親記録の現在版・scope・履歴保護と独立した検査ロックへ判定を分離する。AC-finalized-parent／clear-copy-guardはこの接続を検査する。
+[通常編集と検査保護の分離](../../../spec/domains/examinations/lifecycle.md#examination-normal-edit-autosave)を適用する。D03のタブ復元／複製Undoが参照するのは同じカルテ・exam・固定結果版／対象入力で、検査のofficial版を通常更新したり機器jobをdetachしたりしない。検査結果訂正が必要ならD07自身のgrant・理由・版保持・unconfirm／再確定へ従う。旧親draft必須／finalized拒否を最新目標の実装済み保証にせず、親記録の現在版・scope・履歴保護と独立した検査ロックへ判定を分離する。AC-examinations-finalized-parent／AC-examinations-clear-copy-guardはこの接続を検査する。
 
 <a id="examination-selected-print-contract"></a>
 ## 追加採用の技術契約：項目選択印刷

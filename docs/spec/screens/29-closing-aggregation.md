@@ -61,7 +61,7 @@
 
 ### 2. 日次報告書の出力
 
-[Backlog No.4の対象確認](../domains/cash-register/business-rules.md#closing-daily-discharge-information-20261017)により、日次集計・レジ締め帳票へ対象日の退院情報を掲載し印刷する。退院日を支払日へ置き換えず、情報掲載で金額を再計上しない。退院情報は[22:09:14 UTCの実退院日承認](../domains/cash-register/business-rules.md#closing-discharge-actual-jst-day-20261017)に従いJST当日0時以上・翌日0時未満で抽出し、支払日・締め対象期間とは独立させる。退院一覧には[22:15:37 UTC承認の退院日時・飼主名・ペット名・入院日](../domains/cash-register/business-rules.md#closing-discharge-four-fields-20261017)を掲載・印刷する。具体配置は未確定で、下記既存会計表の列を独断で差し替えない。入院管理の独立印刷追加とはしない。
+[Backlog No.4の対象確認](../domains/cash-register/business-rules.md#closing-daily-discharge-information-20261017)により、日次集計・レジ締め帳票へ対象日の退院情報を掲載し印刷する。退院日を支払日へ置き換えず、情報掲載で金額を再計上しない。退院情報は[22:09:11 UTCの実退院日承認](../domains/cash-register/business-rules.md#closing-discharge-actual-jst-day-20261017)に従いJST当日0時以上・翌日0時未満で抽出し、支払日・締め対象期間とは独立させる。退院一覧には[22:15:33 UTC承認の退院日時・飼主名・ペット名・入院日](../domains/cash-register/business-rules.md#closing-discharge-four-fields-20261017)を掲載・印刷する。具体配置は未確定で、下記既存会計表の列を独断で差し替えない。入院管理の独立印刷追加とはしない。
 レジ締め画面のプレビュー表示（未締め時）から、「印刷 / PDF出力」ボタンで A4 横形式の「レジ締めサマリー」を印刷・PDF保存できます（`PrintPortal` 基盤を再利用）。院内保管用や本部への提出資料として使用します。締め履歴の詳細ダイアログには印刷導線はありません。
 
 <a id="closing-allocation-contract"></a>

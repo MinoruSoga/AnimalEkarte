@@ -201,8 +201,8 @@ LSTEP の失敗時挙動は経路ごとに 1 契約だけを持つ。
 | AC-crm-deploy-disabled | deploy gateが無効 | write処理に到達する | 外部HTTP 0、ErrWriteDisabled。firedや成功receiptへ進まない | pause runbookの契約照合。実環境変更なし |
 | AC-crm-clinic-disabled | 医院gateが無効 | 同期対象を処理する | client未構築のskip/設定エラーとdeploy gateエラーを区別する | architecture§4.3との照合 |
 | AC-crm-secondary-failure | 会計等の本処理が成功済み | 副次タグ同期に失敗する | 本処理は成功のまま、失敗を規定先へ記録しtrigger logへ混入しない | architecture§3と経路別ログ責務を照合 |
-| AC-crm-batch-partial | 複数医院/飼主のbatchで1件失敗する | 残りを処理する | 他resourceを継続し、Processed=Succeeded+Failedと耐久失敗計上が整合する | architecture§4の集計契約。実行件数未測定 |
-| AC-crm-webhook-invalid | destination欠落/不一致または署名不成立 | Webhookを受ける | 医院推測や複数secret試行をせずbusiness副作用を拒否する | architecture§2の順序とfail-closedを照合 |
+| AC-crm-batch-partial | 複数医院/飼主のbatchで1件失敗し、その内部又は単独のsingle-owner同期本体でdesired Add/Remove失敗・stale除去部分失敗を比較 | owner単位処理とbatchの残り処理を確認する | single-owner本体の失敗は呼出元へerrorを返し成功へ握り潰さない。stale除去部分失敗でもdesired addは継続し失敗計上を残す。batchは他resourceを継続し、Processed=Succeeded+Failedと耐久失敗計上を整合させる。本処理成功後のrequest-local副次通知wrapperは別ACの非fatal契約に従う | FR-crm-failure-classesとarchitecture§3〜4の三分法。single-owner/batch/副次wrapperを別々に確認、実行未実施 |
+| AC-crm-webhook-invalid | 有効なdestination/署名でfollow・unfollow・その他eventを各受信し、destination欠落/不一致・署名不成立とも比較 | Webhookを受ける | destination/署名の照合をevent種別によるskipより先に行う。有効なfollow/unfollowだけ既存business副作用を扱い、有効な署名等の条件を満たすその他eventは副作用なしでskipする。不正条件では医院推測や複数secret試行をせずbusiness副作用を拒否し、新event処理やreplyを追加しない | FR-crm-webhook-scopeとarchitecture§2の境界を照合。IDは互換保持し正常/未知/不正を個別確認、executable SoTのcode/contract testを置換せず実行未実施 |
 | AC-crm-monitor-scope | ordinaryタグ同期とtrigger結果がある | 監視画面を開く | trigger結果だけを示し、ordinary同期成否を代用しない | 監視画面概要・更新ボタン/非pollingを照合 |
 | AC-crm-preview-not-send | 健診対象者をpreviewした | 対象を見る | previewだけで外部タグ付与や送信完了としない | 管理画面のGET previewとPOST同期を分けて照合 |
 | AC-crm-probe-limit | 接続テストが2xxを返す | 運用可否を判断する | component結果・Webhook/LIFF・gateの別確認を省略しない | setup§5の既知gap。実環境受入は別 |

@@ -90,4 +90,4 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 
 ### 最新カルテ契約へのadapter
 
-[通常編集・自動保存／復元](../../../spec/domains/checkups/lifecycle.md#checkup-normal-edit-autosave)に従う。旧親finalizedを一律編集不可の目標として維持せず、対象checkup・親record・患者・package／field・現在権限・期待版を照合する。復元基準はD03が保持する対象タブ／複製操作と同じID・版の入力値であり、field名や配列位置だけで別対象へ適用しない。変更と必要履歴／操作結果は保存単位で一体にし、原値・復元差分を残す。現状のPath B段階保存を全体atomic済みとせず、保存結果不明・部分成功は既存IDを照会する。新しい通知／会計／在庫操作を自動実行しない。AC-finalized／clear-copy-guardを本adapterへ対応付ける。
+[通常編集・自動保存／復元](../../../spec/domains/checkups/lifecycle.md#checkup-normal-edit-autosave)に従う。旧親finalizedを一律編集不可の目標として維持せず、対象checkup・親record・患者・package／field・現在権限・期待版を照合する。復元基準はD03が保持する対象タブ／複製操作と同じID・版の入力値であり、field名や配列位置だけで別対象へ適用しない。変更と必要履歴／操作結果は保存単位で一体にし、原値・復元差分を残す。現状のPath B段階保存を全体atomic済みとせず、保存結果不明・部分成功は既存IDを照会する。新しい通知／会計／在庫操作を自動実行しない。AC-checkups-finalized／AC-checkups-clear-copy-guardを本adapterへ対応付ける。

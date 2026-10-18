@@ -24,7 +24,7 @@
 
 
 
-16:36合意の[入院開始の明示確定と二重登録防止](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-inpatient-start-confirm)へ従う。予定入院は予約だけで入院中にせず、来院後にスタッフが「入院開始」を確定する。診察後の入院決定も同じ入院管理へつなぎ、同じ入院を二重登録しない。担当医・入院記録は16:44合意の段階条件へ従う。具体的画面配置・重複防止の技術方式・記録作成失敗時の開始未確定・理由表示・再試行は17:17合意。具体的保存方式は設計として分ける。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
+16:33合意の[入院開始の明示確定と二重登録防止](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-inpatient-start-confirm)へ従う。予定入院は予約だけで入院中にせず、来院後にスタッフが「入院開始」を確定する。診察後の入院決定も同じ入院管理へつなぎ、同じ入院を二重登録しない。担当医・入院記録は16:44合意の段階条件へ従う。具体的画面配置・重複防止の技術方式・記録作成失敗時の開始未確定・理由表示・再試行は17:17合意。具体的保存方式は設計として分ける。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
 
 
 
@@ -229,7 +229,7 @@
 
 新規予約入力では、[所要時間未設定の区分を設定完了まで選択不可](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-unset-duration-new-use)とし、「所要時間が未設定です」と予約区分の設定画面へ進むボタンを表示する。登録済み予約の扱いは変えず、所要時間設定だけで個別／グループ無効を解除しない。対象区分への引継ぎ方法、権限不足時の案内、設定からの戻り方と設定時期は設計。補完担当は[旧マスタ確認・補完](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-legacy-review)で確定。LINE利用者にこの管理画面ボタンを出す仕様へ拡張しない。
 
-2026-10-18 02:32:09 UTCの本人回答「yes」（Sentinel_9a3169acf0cc81918b19188e65c2b41a）により、10/13議事録の「マスタの遷移ボタンがない」は、上記の所要時間未設定の予約区分から予約区分設定へ進む既決ボタンで解消すると確認した。一般のマスタすべてへの導線を追加する要求ではない。既存のAC-reservation-types-unset-duration-new-useへ対応付け、実装・実機で解消済みとは扱わない。
+2026-10-18 02:32:06 UTCの本人回答「yes」（Sentinel_9a3169acf0cc81918b19188e65c2b41a）により、10/13議事録の「マスタの遷移ボタンがない」は、上記の所要時間未設定の予約区分から予約区分設定へ進む既決ボタンで解消すると確認した。一般のマスタすべてへの導線を追加する要求ではない。既存のAC-reservation-types-unset-duration-new-useへ対応付け、実装・実機で解消済みとは扱わない。
 
 #### ユーザーインタラクション
 
@@ -285,7 +285,7 @@
 
 復元時点で、指名医師の対応可否・勤務を再確認する。予約先医院ごとの対応可能区分、個人の有効性、予約時間全体が同院の勤務内かつ休憩外等の既存適格性を照合し、取消前に選べたという事実だけで現在も適格と扱わない。医院別指名停止や全員／一部シフト未登録の既存条件も維持する。適格性再確認を省略した指名復活や、医師・指名の自動差替え／自動解除は今回承認しない。17:17合意により不適格な指名は別の対応可能な医師または未定へ手動変更して復元する。既存の指名なし許容、予約重複の警告確認、無効区分を保持する既存予約の編集契約も解除しない。
 
-対象は診療前の誤取消。診療開始後・診療後・支払い確定後の訂正へ拡張しない。[誤った診療終了の取消](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)とは別操作であり、そちらの支払い前・受付操作可能スタッフ・日付非制限・理由入力確認を予約復元へ自動適用しない。復元先は17:17合意で取消前の状態とする。実行者・日付制限等は既存の認可・予約契約を照合し、UI、保存・再試行・履歴の技術方式は設計へ分ける。復元だけで診療開始／終了を自動確定せず、作成済みカルテ・会計・専用記録の自動変換／削除を行わない。
+対象は診療前の誤取消。診療開始後・診療後・支払い確定後の訂正へ拡張しない。[誤った診療終了の取消](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)とは別操作であり、そちらの会計確定歴がない場合に限る境界・受付操作可能スタッフ・日付非制限・理由入力確認を予約復元へ自動適用しない。復元先は17:17合意で取消前の状態とする。実行者・日付制限等は既存の認可・予約契約を照合し、UI、保存・再試行・履歴の技術方式は設計へ分ける。復元だけで診療開始／終了を自動確定せず、作成済みカルテ・会計・専用記録の自動変換／削除を行わない。
 
 決定者はユーザー。質問「次に、診療前に誤って取り消した予約は、同じ予約として復元できるようにしてよいですか？ 復元時に指名医師の対応可否・勤務を再確認し、作成済みカルテがあれば再利用する案です。」（Sentinel_d949f07438cc81919622bce586559268）への2026-10-14 17:10 JST「ok」（Sentinel_c8520295cd648191978c0c031f8a87c9）が根拠。本更新は個別合意の文書反映で、定時報告は引き続き読み取りのみ。実装・実機受入は未確認、予約ドメイン全体は未完了。
 
@@ -315,7 +315,7 @@
 
 予約区分マスタ自身の業務分類変更と、予約で別の予約区分を選ぶ操作を区別する。受付前は、業務分類をまたぐ予約区分変更も担当者・時間等を再確認して変更できる。選択先の有効状態、医院・対応可能区分、勤務・休憩、日時・所要時間、同日制約やホテル期間等の分類別既存条件を維持する。担当種類や接続先を旧分類から推測せず、医師指名をホテル世話担当へ自動転記しない。
 
-受付後は、業務分類をまたぐ変更を通常の予約編集では認めず、スタッフが記録を確認する訂正として扱う。既存カルテ・記録を自動削除・変換しない。同じ分類内の区分変更も、診療段階・有効状態・担当適格性等の既存制限を維持する。診療開始後の通常区分変更禁止、支払い確定後の会計訂正境界も免除しない。訂正は[受付担当の理由・変更案と記録担当の確認](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)で確定し、予約・記録・請求を整合させる。具体的権限識別子・画面・記録内部／保存方式は関連領域の設計で、内部変更を追加許可しない。
+受付後は、業務分類をまたぐ変更を通常の予約編集では認めず、スタッフが記録を確認する訂正として扱う。既存カルテ・記録を自動削除・変換しない。同じ分類内の区分変更も、診療段階・有効状態・担当適格性等の既存制限を維持する。診療開始後の通常区分変更禁止、会計確定歴に基づく会計訂正境界も免除しない。訂正は[受付担当の理由・変更案と記録担当の確認](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)で確定し、予約・記録・請求を整合させる。具体的権限識別子・画面・記録内部／保存方式は関連領域の設計で、内部変更を追加許可しない。
 
 | 状態／変更 | 通常編集での扱い | 担当・記録の扱い |
 |:---|:---|:---|
@@ -338,7 +338,7 @@
 
 診療中の交代先は、引継ぎ後に担当する時間の勤務・休憩・対応可能区分で判定する。過去の予約時間全体について交代先に勤務を要求しない。新規予約・診療前の通常指名の[全時間の勤務・休憩条件](#requirement-fr-reservations-duty-staff-selection)と区別する。[12:22合意の判定時間・延長警告](#handoff-time-and-extension)へ従う。勤務・休憩・対応区分という条件自体は維持し、開始・終了は[実業務に基づくスタッフの明示確定](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-manual-consultation-state)を正とし、予定開始・終了時刻で自動遷移しない。開始は[当日カードモーダル「カルテ作成」](../../../workflows/reservation-to-record-flow.md#consultation-start-card-modal)を採用。終了は[同じカードモーダル「診察を終了する」](../../../workflows/reservation-to-record-flow.md#consultation-end-card-modal)で確定。[確認付きの診療中→会計待ちドラッグ](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-confirmed-drag-consultation-end)での終了も採用し、キャンセルなら診療中を維持する。誤終了取消は[11:56の専用操作](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)へ従う。その他逆遷移は[専用訂正の正本](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)、権限識別子・訂正内部は関連設計。受付時作成済みカルテは[10:17合意で再利用して開き、診療開始を確定し重複作成しない](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)。未作成なら作成し、作成／読み込み失敗時は開始を確定せず理由表示・再試行とする[10:59契約](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-start-record-failure-retry)へ従う。
 
-11:15合意により、診療終了までは予約管理で指名なしへの変更もできる。終了後は通常操作での医師変更・指名解除を認めない。[未来・現在診療中の影響予約保護](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection)を別の適格者または指名なしへの変更で解消する既存合意も維持する。誤終了取消は[11:56の専用状態訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)として扱い、終了後の通常変更不可を解除する一般操作にしない。終了取消は12:07合意の支払い確定前・受付操作可能なスタッフ・日付制限なし・理由記録に従う。会計確定後の通常Undo停止は[最新の会計境界](../../../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)に従う。確定後訂正内部と具体的権限識別子は関連領域の設計。LINE固有条件やトリミング等の別担当者変更へ自動的に拡張しない。
+11:15合意により、診療終了までは予約管理で指名なしへの変更もできる。終了後は通常操作での医師変更・指名解除を認めない。[未来・現在診療中の影響予約保護](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection)を別の適格者または指名なしへの変更で解消する既存合意も維持する。誤終了取消は[11:56の専用状態訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)として扱い、終了後の通常変更不可を解除する一般操作にしない。終了取消は最新の会計確定境界に従い、会計確定歴がない場合に限って、12:07合意の受付操作可能なスタッフ・日付制限なし・理由記録を適用する。会計確定後の通常Undo停止は[最新の会計境界](../../../workflows/reservation-to-record-flow.md#accounting-finalization-undo-boundary)に従う。確定後訂正内部と具体的権限識別子は関連領域の設計。LINE固有条件やトリミング等の別担当者変更へ自動的に拡張しない。
 
 決定者はユーザー。2026-10-13 23:43 JSTに「指名医師の変更は診療中の引継ぎに備えて診療終了までは可能、診療終了後は通常操作では変更不可。変更先は勤務・対応区分の条件を満たす医師に限る」という質問へ「ok」と回答。2026-10-14 11:15 JSTに、交代先を引継ぎ後の担当時間で判定すること、診療終了まで指名なしへの変更も可・終了後の通常変更不可を追加合意。11:23 JSTの再開確認へのユーザー「ok」（Sentinel_206abfedca1c81919fc117c11bdc8d7a）は文書反映の再開許可として記録し、新しい業務判断にしない。その他の有効性・医院・対応区分・権限・予約管理の入口は維持する。実装対応・実機受入は未確認。
 
@@ -355,7 +355,7 @@
 
 一方、[シフト編集](../../../screens/24-shift-calendar.md#requirement-fr-shifts-protect-assigned-bookings)等で保護対象の既指名予約を不適格にする変更は、別の適格者または指名なしへ変更して解消するまで保存不可という既存契約を維持する。自然経過の警告を、シフト編集の警告確認による保存許可へ読み替えない。予定終了を過ぎても現在診療中は[保護対象](../../../workflows/reservation-to-record-flow.md#consultation-overtime)に残し、影響しない編集は一律拒否しない。具体的な影響時間幅の計算は実装設計として区別する。
 
-決定者はユーザー。2026-10-14 12:22 JSTの質問「医師交代と診療延長は、次の扱いでよいですか？ 交代時は、現在時刻から予約の予定終了まで対応できる医師を選択／予定終了を過ぎている場合は、交代時点で対応可能かを確認／診療が延びて勤務終了・休憩に入る場合は警告し、自動終了や自動交代はしない」（Sentinel_237600816f14819193d6169052fa3b98）への明示返信「ok」（Sentinel_f53539e0631c8191bfbb58695fc9f1fc）が根拠。現在時刻の一致は上記の既存端点と矛盾しない比較として整理した。勤務外担当医の誤終了取消と継続前の手動担当修正は17:17合意。会計確定後の訂正とLINE固有条件は、この12:22合意だけの採用範囲には含めず、[会計確定境界と専用訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)・[会計正本](../../accounting/lifecycle.md)・[LINEの予定枠基準と後続合意](../../../line/reservation-spec.md#line-scheduled-slot-basis)へ従う。後続で確定した条件を未承認へ戻さない。実装対応・実機受入は未確認。
+決定者はユーザー。2026-10-14 12:19:19 JSTの質問「医師交代と診療延長は、次の扱いでよいですか？ 交代時は、現在時刻から予約の予定終了まで対応できる医師を選択／予定終了を過ぎている場合は、交代時点で対応可能かを確認／診療が延びて勤務終了・休憩に入る場合は警告し、自動終了や自動交代はしない」（Sentinel_237600816f14819193d6169052fa3b98）への明示返信「ok」（Sentinel_f53539e0631c8191bfbb58695fc9f1fc）が根拠。現在時刻の一致は上記の既存端点と矛盾しない比較として整理した。勤務外担当医の誤終了取消と継続前の手動担当修正は17:17合意。会計確定後の訂正とLINE固有条件は、この12:22合意だけの採用範囲には含めず、[会計確定境界と専用訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)・[会計正本](../../accounting/lifecycle.md)・[LINEの予定枠基準と後続合意](../../../line/reservation-spec.md#line-scheduled-slot-basis)へ従う。後続で確定した条件を未承認へ戻さない。実装対応・実機受入は未確認。
 
 ### ステータス管理と連携
 
@@ -541,7 +541,7 @@ stateDiagram-v2
 
 12:56合意の[予約区分の所属0または1・グループ階層なし](../../../screens/settings/master-reservation-type.md#group-membership-cardinality)に従う。色は唯一の所属先から継承し、未所属は共通標準色とする。業務分類・予約区分自体の親子分類、削除／復元時の所属変更等をこの合意で推定しない。個人対応可能区分・有効意図の既存条件を維持し、実装・実機受入は未確認。受入条件は区分マスタ正本へ置く。
 
-16:07合意の[ホテル担当と入院の両入口](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)に従う。ホテル予約は指名医師を選ばず、宿泊管理の担当医師は任意。入院は予約区分からの予定入院と診察後の入院決定の両方を入院管理へつなぐ。入院開始は16:36合意の来院後スタッフ明示確定で、同じ入院を二重登録しない。予定入院の予約時は指名医師未定可、開始までに担当医決定、開始確定時に入院記録作成は16:44合意。旧17:17合意のホテル受入前担当必須条件は2026-10-15最新承認で任意へ更新済み。別責任担当・非医師担当・一名必須を追加しない。具体的画面・宿泊管理内部は設計／関連領域へ残す。既存の診療カルテ作成・関連保持の契約は維持し、受入条件は区分マスタ正本へ置く。
+16:07合意の[ホテル担当と入院の両入口](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)に従う。ホテル予約は指名医師を選ばず、宿泊管理の担当医師は任意。入院は予約区分からの予定入院と診察後の入院決定の両方を入院管理へつなぐ。入院開始は16:33合意の来院後スタッフ明示確定で、同じ入院を二重登録しない。予定入院の予約時は指名医師未定可、開始までに担当医決定、開始確定時に入院記録作成は16:44合意。旧17:17合意のホテル受入前担当必須条件は2026-10-15最新承認で任意へ更新済み。別責任担当・非医師担当・一名必須を追加しない。具体的画面・宿泊管理内部は設計／関連領域へ残す。既存の診療カルテ作成・関連保持の契約は維持し、受入条件は区分マスタ正本へ置く。
 
 13:14合意の[予約区分の業務分類と担当者・記録接続](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-routing)を参照する。表示グループとは別に区分へ設定し、診療は指名医師・通常カルテ、トリミングはトリマー・トリミング記録、ホテルは宿泊管理へ接続する。診療の受付時カルテ作成・同時成功・再利用と個人対応区分／勤務等の既存条件を維持する。[14:14合意](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-lock)により過去を含む既存予約がある区分の分類変更は不可で、別分類は新しい区分を作成する。既存予約・担当者・作成済み記録の関連を保持する。名称・表示グループは別契約に従う。[15:58合意](../../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-initialization)により未使用区分は分類変更可、未設定区分は新規選択不可で理由表示、既存予約・記録がある未設定区分は内容確認後に補完し、担当者・記録を自動変換／再作成しない。補完担当は業務5点合意で確定。具体的権限識別子・資料照合、17:17までに確定したホテル・入院接続を満たす画面／保存方式と専用管理内部・専用記録内部は未決。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
 

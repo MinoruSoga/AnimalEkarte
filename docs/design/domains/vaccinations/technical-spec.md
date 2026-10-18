@@ -74,7 +74,7 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 
 ### 最新カルテ契約へのadapter
 
-[通常編集・自動保存／復元](../../../spec/domains/vaccinations/lifecycle.md#vaccination-normal-edit-autosave)に従い、旧親finalizedだけを拒否理由にする判定を目標から外す。ただし患者／親recordの同一性、現在grant、対象版、日付制約、死亡後の専用理由／履歴と必要監査は維持する。復元操作は対象の接種ID・基準版・現在版・前後値・操作identityを照合し、必要な変更履歴と保存結果を一体にする。新規接種・別タブ・通知／在庫／会計の操作を復元に連鎖させない。既存PATCHの監査・期待版／receipt不足を対応済みとはせず、結果不明は同一操作照会後に続ける。AC-finalized／clear-copy-guardがこのadapterの受入条件。
+[通常編集・自動保存／復元](../../../spec/domains/vaccinations/lifecycle.md#vaccination-normal-edit-autosave)に従い、旧親finalizedだけを拒否理由にする判定を目標から外す。ただし患者／親recordの同一性、現在grant、対象版、日付制約、死亡後の専用理由／履歴と必要監査は維持する。復元操作は対象の接種ID・基準版・現在版・前後値・操作identityを照合し、必要な変更履歴と保存結果を一体にする。新規接種・別タブ・通知／在庫／会計の操作を復元に連鎖させない。既存PATCHの監査・期待版／receipt不足を対応済みとはせず、結果不明は同一操作照会後に続ける。AC-vaccinations-finalized／AC-vaccinations-clear-copy-guardがこのadapterの受入条件。
 
 <a id="decision-alignment-20261017"></a>
 ## 2026-10-17確定仕様との接続

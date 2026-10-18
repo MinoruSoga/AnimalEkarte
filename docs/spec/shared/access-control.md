@@ -80,7 +80,7 @@ resource/actionの許可、現在の医院所属、対象データの所有医�
 - 別端末のUIは権限を古く表示し得るがAPIの最終認可は別。UI同期未完を認可迂回の理由にしない。
 - 院切替中の保存は元の対象医院・入力を拘束し、旧画面の入力を新医院に自動保存しない。復旧後のGETと失敗writeの再送を分離。未保存離脱確認の共通UI方式はC01、並行保存・監査はC05へ接続する。
 - group作成／metadata変更／rules変更／有効無効／並替／削除と職員割当変更を区別。いずれも現在の対象grant・scope、自己ロックアウト保護を確認する。実行時の権限表は既存architecture／permission modelが正本。
-- Supportの共有READ・医院mutation・個人history、manualの全員公開READ案、global company、LIFF本人認証、横断一覧は明示例外。例外を全GETや全clinicへの無制限アクセスへ一般化しない。
+- Supportの共有READ・医院mutation・個人history、manualの認証済み全スタッフ向け公開版READ（D22採用済み）、global company、LIFF本人認証、横断一覧は明示例外。例外を全GETや全clinicへの無制限アクセスへ一般化しない。
 - 旧移行staffの複数行は権威identity mapで扱う。氏名一致だけの統合や自己申告メールによる特権付与はしない。最後のsystem_admin／自己無効化の既存保護を緩和しない。
 
 <a id="decision-alignment-20261017"></a>

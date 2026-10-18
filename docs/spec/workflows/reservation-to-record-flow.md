@@ -22,7 +22,7 @@
 
 <a id="purpose"></a>
 
-16:36合意の[入院開始の明示確定と二重登録防止](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-inpatient-start-confirm)へ従う。予定入院は予約だけで入院中にせず、来院後にスタッフが「入院開始」を確定する。診察後の入院決定も同じ入院管理へつなぎ、同じ入院を二重登録しない。担当医・入院記録は16:44合意の段階条件へ従う。具体的画面配置・重複防止の技術方式・記録作成失敗時の開始未確定・理由表示・再試行は17:17合意。具体的保存方式は設計として分ける。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
+16:33合意の[入院開始の明示確定と二重登録防止](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-inpatient-start-confirm)へ従う。予定入院は予約だけで入院中にせず、来院後にスタッフが「入院開始」を確定する。診察後の入院決定も同じ入院管理へつなぎ、同じ入院を二重登録しない。担当医・入院記録は16:44合意の段階条件へ従う。具体的画面配置・重複防止の技術方式・記録作成失敗時の開始未確定・理由表示・再試行は17:17合意。具体的保存方式は設計として分ける。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
 
 
 
@@ -150,7 +150,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 12:56合意の[予約区分の所属0または1・グループ階層なし](../screens/settings/master-reservation-type.md#group-membership-cardinality)に従う。色は唯一の所属先から継承し、未所属は共通標準色とする。業務分類・予約区分自体の親子分類、削除／復元時の所属変更等をこの合意で推定しない。個人対応可能区分・有効意図の既存条件を維持し、実装・実機受入は未確認。受入条件は区分マスタ正本へ置く。
 
-16:07合意の[ホテル担当と入院の両入口](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)に従う。ホテル予約は指名医師を選ばず、宿泊管理の担当医師は任意。入院は予約区分からの予定入院と診察後の入院決定の両方を入院管理へつなぐ。入院開始は16:36合意の来院後スタッフ明示確定で、同じ入院を二重登録しない。予定入院の予約時は指名医師未定可、開始までに担当医決定、開始確定時に入院記録作成は16:44合意。旧17:17合意のホテル受入前担当必須条件は2026-10-15最新承認で任意へ更新済み。別責任担当・非医師担当・一名必須は追加しない。具体的画面・宿泊管理内部は設計／関連領域へ残す。既存の診療カルテ作成・関連保持の契約は維持し、受入条件は区分マスタ正本へ置く。
+16:07合意の[ホテル担当と入院の両入口](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)に従う。ホテル予約は指名医師を選ばず、宿泊管理の担当医師は任意。入院は予約区分からの予定入院と診察後の入院決定の両方を入院管理へつなぐ。入院開始は16:33合意の来院後スタッフ明示確定で、同じ入院を二重登録しない。予定入院の予約時は指名医師未定可、開始までに担当医決定、開始確定時に入院記録作成は16:44合意。旧17:17合意のホテル受入前担当必須条件は2026-10-15最新承認で任意へ更新済み。別責任担当・非医師担当・一名必須は追加しない。具体的画面・宿泊管理内部は設計／関連領域へ残す。既存の診療カルテ作成・関連保持の契約は維持し、受入条件は区分マスタ正本へ置く。
 
 13:14合意の[予約区分の業務分類と担当者・記録接続](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-routing)を参照する。表示グループとは別に区分へ設定し、診療は指名医師・通常カルテ、トリミングはトリマー・トリミング記録、ホテルは宿泊管理へ接続する。診療の受付時カルテ作成・同時成功・再利用と個人対応区分／勤務等の既存条件を維持する。[14:14合意](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-lock)により過去を含む既存予約がある区分の分類変更は不可で、別分類は新しい区分を作成する。既存予約・担当者・作成済み記録の関連を保持する。名称・表示グループは別契約に従う。[15:58合意](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-business-classification-initialization)により未使用区分は分類変更可、未設定区分は新規選択不可で理由表示、既存予約・記録がある未設定区分は内容確認後に補完し、担当者・記録を自動変換／再作成しない。補完担当は業務5点合意で確定。具体的権限識別子・資料照合、17:17までに確定したホテル・入院接続を満たす画面／保存方式と専用管理内部・専用記録内部は未決。受入条件は区分マスタ正本へ置き、実装・実機受入は未確認。
 
@@ -159,7 +159,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 シフト変更・担当区分解除・スタッフ無効化／退職に伴う無効化で対応不能になる既指名予約は、17:17合意により予定時刻を過ぎても取消・未来院・診療終了が確定するまで保護する。従来の未来予約・現在診療中保護も維持する。開始済みでも現在診療中なら含める。過去対応済みの履歴はチェック範囲外とし変更しない。診療済・取消済・未来院の履歴も対象外。2026-10-13 20:08:53のユーザー「未来のみで過去はチェック範囲外」の明確化が根拠。当日これから開始する予約に加え、現在15:30で15:00〜16:00の予約がまだ診療中なら対象に含める。2026-10-13 20:16のユーザー「含める」（Sentinel_b0118c66bccc8191aff135e600a28b43）が追加根拠。予定終了時刻を過ぎても現在診療中なら対象に残す点は22:00 JSTに合意。開始時刻を過ぎた診療前も17:17合意で保護対象とし、時刻・状態の具体的照合方式は設計へ分け、予定時刻だけで診療終了を自動判定しない。
 
-対象予約がある場合は、他の適格者または指名なしへの予約編集で解消するまで変更を保存しない。勝手な指名解除・取消はしない。保存不可理由と対象予約の日時／患者／区分の一覧、[予約管理の編集入口](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-edit-entry)への導線を提示する。シフトの入力案保持と再保存は[シフト正本](../screens/24-shift-calendar.md#requirement-fr-shifts-protect-assigned-bookings)、担当区分解除は[スタッフ正本](../screens/settings/master-staff.md#requirement-fr-staff-capability-booking-guard)が詳細の正本。診療開始後／会計完了後の通常予約操作は[23:21 JSTの制限](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-post-consultation-edit-limits)へ従う。別医師への変更は[23:43 JSTの引継ぎ契約](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-doctor-handoff)により診療終了まで可、終了後の通常操作では不可。変更先は勤務・対応区分等を満たす医師だけ。11:15合意により交代先は引継ぎ後に担当する時間の勤務・休憩・対応区分で判定し、過去の予約時間全体の勤務は要求しない。指名なしへの変更も診療終了まで可、終了後の通常の医師変更・指名解除は不可。別適格者または指名なしで保護を解消する既存合意は維持する。誤終了取消は[11:56の専用操作](#requirement-fr-reservations-undo-consultation-end)と12:07の実行条件へ従う。具体的ロール・支払い確定後の訂正等は未決。 [12:22合意の判定時間・延長警告](../domains/reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
+対象予約がある場合は、他の適格者または指名なしへの予約編集で解消するまで変更を保存しない。勝手な指名解除・取消はしない。保存不可理由と対象予約の日時／患者／区分の一覧、[予約管理の編集入口](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-edit-entry)への導線を提示する。シフトの入力案保持と再保存は[シフト正本](../screens/24-shift-calendar.md#requirement-fr-shifts-protect-assigned-bookings)、担当区分解除は[スタッフ正本](../screens/settings/master-staff.md#requirement-fr-staff-capability-booking-guard)が詳細の正本。診療開始後／会計完了後の通常予約操作は[23:21 JSTの制限](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-post-consultation-edit-limits)へ従う。別医師への変更は[23:43 JSTの引継ぎ契約](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-doctor-handoff)により診療終了まで可、終了後の通常操作では不可。変更先は勤務・対応区分等を満たす医師だけ。11:15合意により交代先は引継ぎ後に担当する時間の勤務・休憩・対応区分で判定し、過去の予約時間全体の勤務は要求しない。指名なしへの変更も診療終了まで可、終了後の通常の医師変更・指名解除は不可。別適格者または指名なしで保護を解消する既存合意は維持する。誤終了取消は[11:56の専用操作](#requirement-fr-reservations-undo-consultation-end)と12:07の実行条件を、[最新の会計確定歴の境界](#accounting-finalization-undo-boundary)に従って適用する。具体的ロール・会計確定後の訂正内部は設計事項。 [12:22合意の判定時間・延長警告](../domains/reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
 
 12:43合意で、[シフト削除](../screens/24-shift-calendar.md#shift-deletion-protection)も未来・現在診療中の既指名予約を保護し、別の適格者または指名なしへ変更して解消するまで確定不可とする。過去完了の履歴は保護対象へ広げず保持する。[休診日への変更](../screens/24-shift-calendar.md#requirement-fr-shifts-holiday-warning-confirm)は既存予約一覧の警告・確認で確定可能であり、予約を自動取消しない。休診日設定をシフトの自動削除や、勤務・休憩・対応区分・診療施設等の適格性の免除にしない。院内休診日の警告確認・指名未定登録は17:17合意。LINE条件は17:23・17:35・18:26合意のLINE正本へ従う。受入条件はシフト正本へ置き、実装・実機受入は未確認。
 
@@ -209,9 +209,9 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 決定者はユーザー。2026-10-14 11:56 JSTの質問「次は誤って診療終了にした場合です。カードを逆方向へドラッグして戻す操作は設けず、モーダルの『診療終了を取り消す』で理由入力・確認を行い、診療中に戻す形でよいですか？ カルテ・会計データは保持し、会計完了後の訂正は別に扱う案です。」（Sentinel_a03e5b3c0ddc81919541f84f97c3cd50）への明示返信「ok」（Sentinel_4604a5ed0dc0819187f1ce5dc53906e9）が根拠。実装対応・実機受入は未確認。
 
 <a id="consultation-end-undo-before-payment"></a>
-診療終了取消は、会計で支払いを確定するまでは受付を操作できるスタッフが実行できる。日付による制限は設けず、入力した理由を記録する。受付ページで対象予約のカードを開き、既存の「診療終了を取り消す」の理由入力・確認で診療中へ戻す。カルテ・会計データは保持する。
+診療終了取消は、[会計確定歴がない場合](#accounting-finalization-undo-boundary)に限り受付を操作できるスタッフが実行できる。日付による制限は設けず、入力した理由を記録する。受付ページで対象予約のカードを開き、既存の「診療終了を取り消す」の理由入力・確認で診療中へ戻す。カルテ・会計データは保持する。
 
-この日付制限なしは診療終了取消の条件であり、当日受付・診療開始の既存条件を変更しない。支払い確定後の訂正手順は[会計ドメインへの引継ぎ](../domains/accounting/README.md#reservation-correction-handoff)として扱い、この取消操作で通常の終了取消を実行する条件に含めない。
+この日付制限なしは診療終了取消の条件であり、当日受付・診療開始の既存条件を変更しない。会計確定歴がある場合（未収・分割払い・0円を含み、返金・会計取消後も自動復帰しない）の訂正手順は[会計ドメインへの引継ぎ](../domains/accounting/README.md#reservation-correction-handoff)として扱い、この取消操作で通常の終了取消を実行する条件に含めない。
 
 決定者はユーザー。2026-10-14 12:07 JSTの質問「取消できる条件は、次の整理でよいですか？ 会計で支払いを確定するまでは、受付を操作できるスタッフが取消可能／日付による制限は設けず、理由を記録／支払い確定後の訂正手順は、会計ドメインで決める」（Sentinel_495c9727645c81918b1a5e96d3557104）への明示返信「ok」（Sentinel_ddfa747c806c81919c02d19e0c4c4368）が根拠。
 
@@ -225,7 +225,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 記入済みカルテの日付訂正と、受付後の業務分類をまたぐ予約区分変更は、受付担当が訂正理由と変更案を入力し、記録担当が確認して確定する。予約・記録・請求の整合を確認し、同じ予約と既存記録・関連・履歴を保持する。予約だけ先に変更して記録との整合を後回しにしない。通常カルテの旧finalizedだけで追記専用へ限定せず、最新D03の履歴付き通常編集と目的別訂正を使い分ける。以前の保存版・元日付・既存追記を保持し、患者付替え・削除再作成・履歴消去で迂回しない。
 
-この契約は通常編集の禁止を解除する汎用操作ではない。未記入・診療前の日付訂正、受付前の分類変更、支払い前の誤終了取消は各既存契約を維持する。記録確認は[カルテ初回合意の医院が認めた医師・担当医以外代行可／編集ログ](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)へ従う。具体的な記録訂正項目・未記入判定・実grant対応・請求修正／返金・締め後訂正は関連領域の設計へ委ねる。予約側は理由・変更案・記録確認・整合確認の成否と保存結果を接続する。
+この契約は通常編集の禁止を解除する汎用操作ではない。未記入・診療前の日付訂正、受付前の分類変更、会計確定歴のない場合の誤終了取消は[最新の会計確定境界](#accounting-finalization-undo-boundary)と各既存契約を維持する。記録確認は[カルテ初回合意の医院が認めた医師・担当医以外代行可／編集ログ](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-authorized-editor-audit)へ従う。具体的な記録訂正項目・未記入判定・実grant対応・請求修正／返金・締め後訂正は関連領域の設計へ委ねる。予約側は理由・変更案・記録確認・整合確認の成否と保存結果を接続する。
 
 <a id="accounting-finalization-undo-boundary"></a>
 #### 誤終了取消の会計確定境界
@@ -464,7 +464,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 <a id="internal-batch-end-undo"></a>
 ### 勤務時間外の担当医がいる誤終了取消（17:17一括合意）
 
-誤った診療終了の取消は、担当医が勤務時間外でも可能とする。診療を続ける前に対応可能な医師または未定へ手動変更し、過去の担当履歴は残す。勤務外を理由に誤終了取消そのものを拒否せず、取消を勤務外の医師による診療継続の許可にも扱わない。支払い確定前・受付操作可能スタッフ・日付制限なし・理由入力確認・カルテ／会計保持という既合意を維持し、支払い確定後の訂正へ広げない。担当変更の判定は既存の引継ぎ後担当時間契約へ従い、自動交代・自動解除しない。
+誤った診療終了の取消は、担当医が勤務時間外でも可能とする。診療を続ける前に対応可能な医師または未定へ手動変更し、過去の担当履歴は残す。勤務外を理由に誤終了取消そのものを拒否せず、取消を勤務外の医師による診療継続の許可にも扱わない。[会計確定歴がない場合](#accounting-finalization-undo-boundary)に限る境界と、受付操作可能スタッフ・日付制限なし・理由入力確認・カルテ／会計保持という既合意を維持し、会計確定後の通常取消へ広げない。担当変更の判定は既存の引継ぎ後担当時間契約へ従い、自動交代・自動解除しない。
 
 要件は [FR](#requirement-fr-reservations-undo-consultation-end)。決定者はユーザー。院内予約8点を明示した一括確認「この8点を仕様に反映してよいですか？変更したい番号だけでも大丈夫です。その後、LINE予約をまとめて確認します。」（Sentinel_99085f0f5aa4819187183153215846b9）への2026-10-14 17:17 JST「ok」（Sentinel_5010e24570b88191a4d6bd204ab00163）が根拠。個別承認編集であり、定時報告は読み取りのみ。この17:17時点でLINE案は未承認だった。現在は17:23合意に従う。実装・実機受入は未確認、予約ドメイン全体は未完了。
 
@@ -505,12 +505,12 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 | AC-reservations-start-record-create-if-missing | 当日の受付カードに対応する通常カルテが未作成で、スタッフが実際に診療を開始する | モーダルの「カルテ作成」で作成・読み込みが成功する | 同じ受付・予約のカルテを作成して開き、診療開始を確定する。同一受付のカルテを重複作成せず、正常の受付時原子的作成ルールも変更しない | 未作成時の正常経路を単独確認 | 未作成なら作成して診療を開始する | [FR](#requirement-fr-reservations-start-record-failure-retry)。実機未確認 |
 | AC-reservations-start-record-failure-no-start | 当日の受付カードから実際に診療を開始しようとしている | 「カルテ作成」でカルテ作成失敗と読み込み失敗をそれぞれ発生させる | いずれも診療開始を確定せず、失敗理由を表示して再試行できる。同一受付のカルテを増殖させない | 作成／読み込みの失敗をそれぞれ単独確認 | 失敗時に開始未確定と理由・再試行を維持する | [FR](#requirement-fr-reservations-start-record-failure-retry)。実機未確認・結果不明時の整合方法は実装判断 |
 | AC-reservations-start-record-retry-existing | 同じ受付のカルテRが作成済みで、その読み込みに失敗して開始未確定となった | 再試行してカルテRの読み込みが成功する | カルテRを再利用して開き診療開始を確定する。再試行で新しいカルテを重複作成しない | 既存カルテの再試行を単独確認 | 同じカルテで失敗から再開できる | [FR](#requirement-fr-reservations-start-record-failure-retry)。実機未確認 |
-| AC-reservations-undo-consultation-end | 受付で対象予約を誤って診療終了にし、支払い確定前で受付操作可能なスタッフが操作する。カルテ・会計データがある | カードモーダルの「診療終了を取り消す」で理由を入力し確認する | 診療中へ戻し、カルテ・会計データを保持する。通常の予約内容変更や会計完了後訂正と区別する | 誤終了の専用取消を単独確認 | 理由・確認を経て診療中へ戻りデータを失わない | [FR](#requirement-fr-reservations-undo-consultation-end)。実機未確認・実行条件は12:07合意。具体的ロール等は未決 |
+| AC-reservations-undo-consultation-end | 受付で対象予約を誤って診療終了にし、会計確定歴がない場合に限り受付操作可能なスタッフが操作する。カルテ・会計データがある | カードモーダルの「診療終了を取り消す」で理由を入力し確認する | 診療中へ戻し、カルテ・会計データを保持する。通常の予約内容変更や会計完了後訂正と区別する | 誤終了の専用取消を単独確認 | 理由・確認を経て診療中へ戻りデータを失わない | [FR](#requirement-fr-reservations-undo-consultation-end)。実機未確認・実行条件は12:07合意と[最新の会計確定境界](#accounting-finalization-undo-boundary)。具体的ロール等は未決 |
 | AC-reservations-no-reverse-drag-for-end-undo | 当日の受付で対象予約が誤終了後の会計待ちにある | 診療中へ逆方向ドラッグして誤終了を戻そうとする | 誤終了を戻す逆方向ドラッグ操作は設けず、専用モーダルの取消を用いる。その他の逆方向遷移の可否はこの条件で確定しない | 誤終了を戻すドラッグだけを単独確認 | 誤終了取消の入口を専用操作に限定する | [FR](#requirement-fr-reservations-undo-consultation-end)。実機未確認 |
-| AC-reservations-end-undo-before-payment-no-date-limit | 支払い確定前の誤終了予約があり、予約日が当日以外でも受付操作可能なスタッフが対象カードを開く | 「診療終了を取り消す」で理由入力・確認を行う | 日付だけを理由に制限せず取消でき、理由を記録して診療中へ戻す。カルテ・会計データを保持する | 支払い前と日付非制限を単独確認 | 受付操作可能なスタッフが日付に依存せず支払い前に取消できる | [FR](#requirement-fr-reservations-undo-consultation-end)・[12:07条件](#consultation-end-undo-before-payment)。実機未確認・具体的ロール等は未決 |
-| AC-reservations-end-undo-after-payment-handoff | 会計で支払いを確定した予約がある | 受付の通常の診療終了取消で戻そうとする | 支払い前の取消条件には含めず、確定後の訂正は会計ドメインで扱う。カルテ・会計データを保持し、分割／未収等の詳細や訂正手順をこの条件で推定しない | 支払い確定後の境界を単独確認 | 確定後訂正を受付の通常終了取消に混ぜない | [FR](#requirement-fr-reservations-undo-consultation-end)・[12:07条件](#consultation-end-undo-before-payment)。実機未確認・会計訂正詳細は未決 |
-| AC-reservations-end-undo-reception-operator | 支払い確定前の誤終了予約があるが、利用者は受付操作を許可されていない | 診療終了取消を実行しようとする | 受付操作可能なスタッフという実行条件を満たさず取消しない。具体的ロール名・権限識別子はこの条件で追加確定しない | 実行者の業務条件を単独確認 | 受付操作可否を終了取消の実行条件にする | [FR](#requirement-fr-reservations-undo-consultation-end)・[12:07条件](#consultation-end-undo-before-payment)。実機未確認 |
-| AC-reservations-batch-end-undo | 勤務時間外の担当医がいる誤終了取消の対象で既存の適用条件を満たす | [勤務時間外の担当医がいる誤終了取消](#internal-batch-end-undo)の操作を実行する | 誤った診療終了の取消は、担当医が勤務時間外でも可能とする。診療を続ける前に対応可能な医師または未定へ手動変更し、過去の担当履歴は残す。勤務外を理由に誤終了取消そのものを拒否せず、取消を勤務外の医師による診療継続の許可にも扱わない。支払い確定前・受付操作可能スタッフ・日付制限なし・理由入力確認・カルテ／会計保持という既合意を維持し、支払い確定後の訂正へ広げない。担当変更の判定は既存の引継ぎ後担当時間契約へ従い、自動交代・自動解除しない。 | 合意した業務結果を単独確認 | 同じ予約・記録・履歴を保持する | [FR](#requirement-fr-reservations-undo-consultation-end)・[17:17条件](#internal-batch-end-undo)。実機未確認 |
+| AC-reservations-end-undo-before-payment-no-date-limit | 会計確定歴がない誤終了予約があり、予約日が当日以外でも受付操作可能なスタッフが対象カードを開く | 「診療終了を取り消す」で理由入力・確認を行う | 日付だけを理由に制限せず取消でき、理由を記録して診療中へ戻す。カルテ・会計データを保持する | 会計確定歴なしと日付非制限を単独確認 | 受付操作可能なスタッフが会計確定歴がなければ日付に依存せず取消できる | [FR](#requirement-fr-reservations-undo-consultation-end)・[12:07条件](#consultation-end-undo-before-payment)。[最新の会計確定境界](#accounting-finalization-undo-boundary)を適用。実機未確認・具体的ロール等は未決 |
+| AC-reservations-end-undo-after-payment-handoff | 会計確定歴のある予約がある（未収・分割払い・0円、返金・会計取消後を含む） | 受付の通常の診療終了取消で戻そうとする | 通常の終了取消を止め、会計ドメインの訂正へ渡す。未保存の支払入力は会計確定扱いにせず、返金・会計取消後も通常取消を自動再開しない。カルテ・会計データを保持し、訂正内部をこの条件で推定しない | 会計確定歴による境界を単独確認 | 確定後訂正を受付の通常終了取消に混ぜない | [FR](#requirement-fr-reservations-undo-consultation-end)・[12:07条件](#consultation-end-undo-before-payment)。[最新の会計確定境界](#accounting-finalization-undo-boundary)を適用。実機未確認・会計訂正内部は設計事項 |
+| AC-reservations-end-undo-reception-operator | 会計確定歴がない誤終了予約があるが、利用者は受付操作を許可されていない | 診療終了取消を実行しようとする | 受付操作可能なスタッフという実行条件を満たさず取消しない。具体的ロール名・権限識別子はこの条件で追加確定しない | 実行者の業務条件を単独確認 | 受付操作可否を終了取消の実行条件にする | [FR](#requirement-fr-reservations-undo-consultation-end)・[12:07条件](#consultation-end-undo-before-payment)。[最新の会計確定境界](#accounting-finalization-undo-boundary)を適用。実機未確認 |
+| AC-reservations-batch-end-undo | 勤務時間外の担当医がいる誤終了取消の対象で既存の適用条件を満たす | [勤務時間外の担当医がいる誤終了取消](#internal-batch-end-undo)の操作を実行する | 誤った診療終了の取消は、担当医が勤務時間外でも可能とする。診療を続ける前に対応可能な医師または未定へ手動変更し、過去の担当履歴は残す。勤務外を理由に誤終了取消そのものを拒否せず、取消を勤務外の医師による診療継続の許可にも扱わない。[会計確定歴がない場合](#accounting-finalization-undo-boundary)に限る境界と、受付操作可能スタッフ・日付制限なし・理由入力確認・カルテ／会計保持という既合意を維持し、会計確定後の通常取消へ広げない。担当変更の判定は既存の引継ぎ後担当時間契約へ従い、自動交代・自動解除しない。 | 合意した業務結果を単独確認 | 同じ予約・記録・履歴を保持する | [FR](#requirement-fr-reservations-undo-consultation-end)・[17:17条件](#internal-batch-end-undo)。実機未確認 |
 | AC-reservations-batch-protection | 予定時刻を過ぎた未終了予約の保護の対象で既存の適用条件を満たす | [予定時刻を過ぎた未終了予約の保護](#internal-batch-protection)の操作を実行する | 予定時刻を過ぎても、取消・未来院・診療終了が確定するまでは、指名医師が対応できなくなるシフト変更・削除、対応区分解除、無効化・医院別指名停止等から予約を保護する。開始時刻を過ぎた診療前／受付済の指名予約も対象に含める。対象予約を別の適格医師または未定へ手動変更して解消するまで、影響する変更を確定しない。予定時刻だけで診療終了・未来院を自動判定せず、無関係な変更の一律拒否もしない。診療終了済・取消済・未来院の履歴は保持対象で、この未終了予約保護の対象から除く。 | 合意した業務結果を単独確認 | 同じ予約・記録・履歴を保持する | [FR](#requirement-fr-reservations-future-assignment-protection)・[17:17条件](#internal-batch-protection)。実機未確認 |
 
 ### 18:26合意の反例受入条件

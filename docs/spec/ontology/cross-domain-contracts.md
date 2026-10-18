@@ -34,7 +34,7 @@
 |:---|:---|:---|
 | 飼主→ペット、ペット→主飼主 | 一飼主に複数ペット、現在主飼主は一人、副飼主は複数可 | [飼主正本](owners-pets.md)。FR-owners-pets-primary-transfer、過去請求/預り帰属を現在主飼主へ自動移動しない |
 | 共通患者↔利用医院 | 複数医院での利用可という業務関係 | [共通患者](owners-pets.md#common-patient-concept)。AC-owners-pets-other-clinic-use／AC-owners-pets-common-denied。共有ID/物理統合方式は未選定 |
-| 予約→区分→固定業務分類 | 通常登録1区分、区分は1分類。表示グループは0..1で別 | [予約関係](reservations.md#reservation-concept-relations)。分類ごとの記録ownerへ接続し、グループ名/色でroutingしない |
+| 予約→区分→固定業務分類 | 通常の予約登録は1区分、新規利用する自由登録区分は固定業務分類1つが必須。未設定の旧区分は個別正本の内容確認・補完/新規利用停止と履歴保持へ従い、架空の分類を補わない。表示グループは0..1で別 | [予約関係](reservations.md#reservation-concept-relations)。分類ごとの記録ownerへ接続し、グループ名/色でroutingしない |
 | 通常診療の予約→active通常カルテ | 作成前/失敗は0、active最大1。正常受付は同じ予約の受付と作成/再利用の成功が整合 | [check-in](../workflows/reservation-to-record-flow.md#checkin-contract)、FR-reservations-checkin-record-reuse。全分類/過去専用入力へ一律適用しない |
 | 予約×ペット→飼主原文 | 任意のペット別回答、回答訂正履歴は複数あり得る | [問診関係](reservations.md#revisit-intake-concept)、AC-reservations-revisit-multi-pet。物理予約モデル全体の多重度をこの問診契約から決めない |
 | 通常カルテ→編集権 | ある時点の有効保持0..1、閲覧者人数の上限は新設しない | [編集権](medical-records.md#record-edit-right-concept)、AC-medical-records-single-editor-header。強制取得でも同時に2権利を作らない |
