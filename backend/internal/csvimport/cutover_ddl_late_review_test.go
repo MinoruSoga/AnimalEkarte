@@ -56,8 +56,12 @@ func TestPreflightCutoverLateReviewBillingStatus(t *testing.T) {
 			dir, source := lateReviewFixture(t, profile, func(f *fixtureBundle) {
 				setFixtureCell(t, f, "billings", "status", "sentinel-invalid-status", profile)
 			})
-			if _, err := PreflightCutoverBundle(dir, source); err == nil {
-				t.Fatalf("invalid billings.status accepted under %s", profile)
+			_, err := PreflightCutoverBundle(dir, source)
+			if err == nil || !strings.Contains(err.Error(), "table billings column status row 2") {
+				t.Fatalf("invalid billings.status accepted under %s: %v", profile, err)
+			}
+			if err != nil && strings.Contains(err.Error(), "sentinel-invalid-status") {
+				t.Fatalf("diagnostic echoes source value: %v", err)
 			}
 		})
 	}
@@ -74,7 +78,7 @@ func TestPreflightCutoverLateReviewRecordAppointmentUnique(t *testing.T) {
 				}, profile)
 			})
 			_, err := PreflightCutoverBundle(dir, source)
-			if err == nil || !strings.Contains(err.Error(), "table medical_records column appointment_id row 3") {
+			if err == nil || !strings.Contains(err.Error(), "table medical_records column appointment_id row 3") || !strings.Contains(err.Error(), "duplicate value") {
 				t.Fatalf("duplicate appointment_id accepted under %s: %v", profile, err)
 			}
 		})
@@ -87,7 +91,7 @@ func TestPreflightCutoverLateReviewRecordAppointmentUnique(t *testing.T) {
 				}, profile)
 			})
 			_, err := PreflightCutoverBundle(dir, source)
-			if err == nil || !strings.Contains(err.Error(), "table medical_records column appointment_id row 3") {
+			if err == nil || !strings.Contains(err.Error(), "table medical_records column appointment_id row 3") || !strings.Contains(err.Error(), "duplicate value") {
 				t.Fatalf("aliased duplicate appointment_id accepted under %s: %v", profile, err)
 			}
 		})
@@ -113,7 +117,7 @@ func TestPreflightCutoverLateReviewBillingRecordUnique(t *testing.T) {
 				addFixtureRow(t, f, "billings", "1000002", nil, profile)
 			})
 			_, err := PreflightCutoverBundle(dir, source)
-			if err == nil || !strings.Contains(err.Error(), "table billings column medical_record_id row 3") {
+			if err == nil || !strings.Contains(err.Error(), "table billings column medical_record_id row 3") || !strings.Contains(err.Error(), "duplicate non-null medical_record_id") {
 				t.Fatalf("duplicate billing medical_record_id accepted under %s: %v", profile, err)
 			}
 		})
@@ -124,7 +128,7 @@ func TestPreflightCutoverLateReviewBillingRecordUnique(t *testing.T) {
 				}, profile)
 			})
 			_, err := PreflightCutoverBundle(dir, source)
-			if err == nil || !strings.Contains(err.Error(), "table billings column medical_record_id row 3") {
+			if err == nil || !strings.Contains(err.Error(), "table billings column medical_record_id row 3") || !strings.Contains(err.Error(), "duplicate non-null medical_record_id") {
 				t.Fatalf("aliased duplicate billing medical_record_id accepted under %s: %v", profile, err)
 			}
 		})
@@ -138,7 +142,7 @@ func TestPreflightCutoverLateReviewVitalRecordRequired(t *testing.T) {
 				setFixtureCell(t, f, "vital_records", "medical_record_id", "", profile)
 			})
 			_, err := PreflightCutoverBundle(dir, source)
-			if err == nil || !strings.Contains(err.Error(), "table vital_records column medical_record_id row 2") {
+			if err == nil || !strings.Contains(err.Error(), "table vital_records column medical_record_id row 2") || !strings.Contains(err.Error(), "must not be empty") {
 				t.Fatalf("empty vital medical_record_id accepted under %s: %v", profile, err)
 			}
 		})
@@ -164,6 +168,8 @@ func TestPreflightCutoverLateReviewWeightBounds(t *testing.T) {
 			{"max-fraction", "1." + strings.Repeat("0", 16383), true},
 			{"nan", "NaN", true},
 			{"pos-inf", "Infinity", true},
+			{"pos-inf-signed", "+Infinity", true},
+			{"leading-zeros", "0001.0", true},
 			{"over-exponent", "1e131072", false},
 			{"huge-exponent", "1e200000", false},
 			{"under-exponent", "1e-16384", false},
@@ -180,6 +186,9 @@ func TestPreflightCutoverLateReviewWeightBounds(t *testing.T) {
 				if !tc.want {
 					if err == nil || !strings.Contains(err.Error(), "table vital_records column weight row 2") {
 						t.Fatalf("weight %s accepted under %s: %v", tc.name, profile, err)
+					}
+					if err != nil && len(tc.value) >= 4 && strings.Contains(err.Error(), tc.value) {
+						t.Fatalf("diagnostic echoes raw lexeme: %v", err)
 					}
 				}
 			})
