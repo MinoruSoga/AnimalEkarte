@@ -14,20 +14,28 @@ import type { Vital } from "../types";
 // 書込・薬マスタ UI は features/master/api/medicine-dose-params.ts が別途持つ（本ファイルは GET のみ）。
 // queryKey は queryKeys.masters.medicineDoseParams(medicineId) を共有し、マスタ側の
 // upsert/delete mutation の invalidate 対象と一致させる（キャッシュ無効化の一貫性）。
-export const medicineDoseParamsQueryKey = queryKeys.masters.medicineDoseParams;
+export const medicineDoseParamsQueryKey = (medicineId: string, clinicId?: string) =>
+  clinicId
+    ? [...queryKeys.masters.medicineDoseParams(medicineId), clinicId]
+    : queryKeys.masters.medicineDoseParams(medicineId);
 
-const getMedicineDoseParams = async (medicineId: string): Promise<MedicineDoseParam[]> => {
-  const { data } = await axios.get<MedicineDoseParam[]>(
-    `/v1/masters/medicines/${medicineId}/dose-params`,
-  );
+const getMedicineDoseParams = async (
+  medicineId: string,
+  clinicId?: string,
+): Promise<MedicineDoseParam[]> => {
+  const { data } = clinicId
+    ? await axios.get<MedicineDoseParam[]>(`/v1/masters/medicines/${medicineId}/dose-params`, {
+        headers: { "X-Clinic-ID": clinicId },
+      })
+    : await axios.get<MedicineDoseParam[]>(`/v1/masters/medicines/${medicineId}/dose-params`);
   return data;
 };
 
 /** カルテの治療行が継続的に参照するための React Query 版（キャッシュ共有・自動再取得）。 */
-export const useMedicineDoseParams = (medicineId: string | null | undefined) => {
+export const useMedicineDoseParams = (medicineId: string | null | undefined, clinicId?: string) => {
   return useQuery({
-    queryKey: medicineDoseParamsQueryKey(medicineId ?? ""),
-    queryFn: () => getMedicineDoseParams(medicineId as string),
+    queryKey: medicineDoseParamsQueryKey(medicineId ?? "", clinicId),
+    queryFn: () => getMedicineDoseParams(medicineId as string, clinicId),
     enabled: !!medicineId,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -176,4 +184,5 @@ export interface MedicineDoseContext {
   petSpecies: string | null;
   /** 当日 vital から解決した体重(kg)。未記録なら null（手動入力にフェイルクローズ）。 */
   weightKg: number | null;
+  clinicId?: string;
 }

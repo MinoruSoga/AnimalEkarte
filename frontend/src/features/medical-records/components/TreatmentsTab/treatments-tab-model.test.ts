@@ -370,6 +370,75 @@ describe("buildCopiedTreatmentPayload", () => {
     },
   );
 
+  describe("PR700: medicine 複写は複写先 inventoryId だけを採用する", () => {
+    const medSource = {
+      ...baseSource,
+      item_type: "medicine" as const,
+      medicine_id: "42",
+      consultation_id: undefined,
+      procedure_id: undefined,
+    };
+
+    it("複写先 inventoryId=77 でソース 999 を上書きする", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, inventory_id: "999" },
+        masters: {
+          ...masters,
+          medicines: [{ id: "42", price: 120, inventoryId: "77" }],
+        },
+        sortOrderOffset: 0,
+      });
+      expect(payload.inventory_id).toBe(77);
+    });
+
+    it("複写先に inventoryId があればソース未設定でも付与する", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, inventory_id: undefined },
+        masters: {
+          ...masters,
+          medicines: [{ id: "42", price: 120, inventoryId: "77" }],
+        },
+        sortOrderOffset: 0,
+      });
+      expect(payload.inventory_id).toBe(77);
+    });
+
+    it("両方無ければ stockless で inventory_id は送らない", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, inventory_id: undefined },
+        masters,
+        sortOrderOffset: 0,
+      });
+      expect(payload.inventory_id).toBeUndefined();
+    });
+
+    it("ソースに在庫参照があるのに複写先に無い場合は拒否する", () => {
+      expect(() =>
+        buildCopiedTreatmentPayload({
+          source: { ...medSource, inventory_id: "999" },
+          masters,
+          sortOrderOffset: 0,
+        }),
+      ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+    });
+
+    it.each([["0"], ["abc"], ["Infinity"], ["-1"], ["1.5"], ["9007199254740993"]])(
+      "複写先 inventoryId=%s は reject（正の safe integer のみ）",
+      (badId) => {
+        expect(() =>
+          buildCopiedTreatmentPayload({
+            source: { ...medSource, inventory_id: undefined },
+            masters: {
+              ...masters,
+              medicines: [{ id: "42", price: 120, inventoryId: badId }],
+            },
+            sortOrderOffset: 0,
+          }),
+        ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+      },
+    );
+  });
+
   it("dose_param_snapshot の dose_deviation_reason をペイロードへ引き継ぐ", () => {
     const payload = buildCopiedTreatmentPayload({
       source: {

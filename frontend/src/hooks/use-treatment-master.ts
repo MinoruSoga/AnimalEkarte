@@ -109,17 +109,28 @@ export function useGetAllProcedures({
 
 /**
  * #201: TreatmentSearchDialog（薬剤カテゴリ）・カルテ投与量プレビューの両方から参照する薬剤マスタ。
- * queryKey は features/master/api/medicines.ts の useGetAllMedicines と同一
- * (queryKeys.masters.category("medicines")) にしてキャッシュを共有する。
+ * clinicId 指定時はクリニック別の queryKey とヘッダを使い、省略時は
+ * features/master/api/medicines.ts と同じグローバルキーのキャッシュを共有する。
  */
-export function useGetAllMedicinesMaster({ enabled = true }: { enabled?: boolean } = {}) {
+export const getAllMedicinesMaster = async (clinicId?: string): Promise<Medicine[]> => {
+  const { data } = clinicId
+    ? await axios.get<MedicineModel[]>("/v1/masters/medicines", {
+        headers: { "X-Clinic-ID": clinicId },
+      })
+    : await axios.get<MedicineModel[]>("/v1/masters/medicines");
+  return data.map(transformBackendMedicineToFrontend);
+};
+
+export function useGetAllMedicinesMaster({
+  enabled = true,
+  clinicId,
+}: { enabled?: boolean; clinicId?: string } = {}) {
   return useQuery({
     enabled,
-    queryKey: queryKeys.masters.category("medicines"),
-    queryFn: async (): Promise<Medicine[]> => {
-      const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
-      return data.map(transformBackendMedicineToFrontend);
-    },
+    queryKey: clinicId
+      ? queryKeys.masters.categoryForClinic("medicines", clinicId)
+      : queryKeys.masters.category("medicines"),
+    queryFn: () => getAllMedicinesMaster(clinicId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

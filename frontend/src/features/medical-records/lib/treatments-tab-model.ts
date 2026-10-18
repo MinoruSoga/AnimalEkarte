@@ -49,7 +49,7 @@ export function buildMasterSelectionPayload(params: {
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * 明細複写で参照する現行マスタの最小形（id と現在価格のみ使用）。
+ * 明細複写で参照する現行マスタの最小形（id・現在価格・薬剤の在庫参照を使用）。
  * ConsultationItem / ProcedureItem / Medicine はいずれも { id: string; price: number }
  * を含むためそのまま代入可能。wire 上の治療明細 *_id は number で返る実態に合わせ、
  * マスタ照合は String 正規化で行う（GET treatments 応答は transform を通さない）。
@@ -57,6 +57,7 @@ export function buildMasterSelectionPayload(params: {
 interface CopyTreatmentMasterRef {
   id: string;
   price: number;
+  inventoryId?: string | null;
 }
 
 export interface CopyTreatmentMasters {
@@ -96,7 +97,7 @@ function toNumericId(id: string | null | undefined): number | undefined {
  *   item_type は例外で拒否し、呼び出し側は create 前に全行検証して中断する。
  *   参照を持たない手入力 other 行のみソースの単価・業務値を維持する。
  * - 一致した typed 参照のみ number 化して送る（BE は *uint64=JSON number を期待）。
- *   other/未一致の参照は送信自体を省略し、inventory 等の無関係参照は伝播しない。
+ *   薬剤の inventory は複写先マスタの正当な参照のみ採用し、ソース参照は伝播しない。
  * - dose_deviation_reason は wire 上 dose_param_snapshot 内に保持される
  *   （backend/internal/model/treatment.go:56 / treatment_request.go:25）ため、
  *   snapshot から取り出して create ペイロードの同キーへ引き継ぐ。同一用量の複写は
@@ -130,7 +131,7 @@ export function buildCopiedTreatmentPayload(params: {
     refId: string | null | undefined,
     list: CopyTreatmentMasterRef[],
     refKey: "consultation_id" | "procedure_id" | "medicine_id",
-  ) => {
+  ): CopyTreatmentMasterRef => {
     const master = findCopyMaster(list, refId);
     const numericId = master ? Number(master.id) : NaN;
     if (!master || !Number.isFinite(numericId) || !Number.isFinite(master.price)) {
@@ -138,6 +139,7 @@ export function buildCopiedTreatmentPayload(params: {
     }
     payload[refKey] = numericId;
     payload.unit_price = master.price;
+    return master;
   };
 
   if (source.item_type === "consultation") {
@@ -145,7 +147,17 @@ export function buildCopiedTreatmentPayload(params: {
   } else if (source.item_type === "procedure") {
     resolveTypedRef(source.procedure_id, masters.procedures, "procedure_id");
   } else if (source.item_type === "medicine") {
-    resolveTypedRef(source.medicine_id, masters.medicines, "medicine_id");
+    const master = resolveTypedRef(source.medicine_id, masters.medicines, "medicine_id");
+    const srcInv = source.inventory_id;
+    const destInv = master.inventoryId;
+    const srcHas = srcInv != null && srcInv !== "";
+    const destHas = destInv != null && destInv !== "";
+    if (srcHas && !destHas) throw new Error(REJECT);
+    if (destHas) {
+      const n = Number(destInv);
+      if (!Number.isSafeInteger(n) || n <= 0) throw new Error(REJECT);
+      payload.inventory_id = n;
+    }
   } else if (source.item_type === "other") {
     const hasRef = (v: string | null | undefined) => v != null && v !== "";
     if (

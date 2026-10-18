@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+  medicineDoseParamsQueryKey,
+} from "../api/medicine-dose-lookup";
 import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
 
@@ -159,23 +165,87 @@ describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
         { wrapper: createTestWrapper() },
       );
 
+      server.use(
+        http.get("*/v1/masters/medicines", () =>
+          HttpResponse.json([{ id: 42, name: "抗生剤A", price: 3303, is_active: true }]),
+        ),
+        http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+      );
+
       await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
       await user.click(screen.getByRole("button", { name: label }));
 
-      expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          [refKey]: refId,
-          content: expect.any(String),
-          memo,
-          is_insurance: true,
-          quantity: 1,
-          unit_price: price,
-        }),
+      await waitFor(() =>
+        expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            [refKey]: refId,
+            content: expect.any(String),
+            memo,
+            is_insurance: true,
+            quantity: 1,
+            unit_price: price,
+          }),
+        ),
       );
       const call = mockCreateTreatmentMutate.mock.calls[0][0] as Record<string, unknown>;
       expect(typeof call[refKey]).toBe("number");
       expect(call.sort_order).toBe(1);
       expect(mockDialogProps.current.clinicId).toBe("2");
+    },
+  );
+
+  it.each(["lock", "permission", "deceased", "record", "clinic", "species"] as const)(
+    "PR700 deferred: %s during lookup prevents create",
+    async (change) => {
+      let releaseGet: (() => void) | undefined;
+      let getSeen = false;
+      server.use(
+        http.get("*/v1/medical-records/10/clinical-plan", () => HttpResponse.json({})),
+        http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+          HttpResponse.json({ id: "1", medical_record_id: "10", status: "pending" }),
+        ),
+        http.get("*/v1/masters/medicines", () => {
+          getSeen = true;
+          return new Promise<HttpResponse>((resolve) => {
+            releaseGet = () =>
+              resolve(HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]));
+          });
+        }),
+        http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+      );
+      const { rerender } = render(
+        <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" recordClinicId="2" />,
+        { wrapper: createTestWrapper() },
+      );
+      let select: ((item: unknown) => void) | undefined;
+      await waitFor(() => {
+        select = mockDialogProps.current.onSelect as ((item: unknown) => void) | undefined;
+        expect(select).toBeDefined();
+      });
+      let resolveDone = false;
+      const promise = Promise.resolve(
+        select!({ id: "42", name: "薬A", unitPrice: 3303, category: "薬剤", medicineId: "42" }),
+      ).finally(() => {
+        resolveDone = true;
+      });
+      await waitFor(() => expect(getSeen).toBe(true), { timeout: 3000 });
+      if (change === "permission") mockPermission.current.canEdit = false;
+      rerender(
+        <MedicalRecordBillCheck
+          medicalRecordId={change === "record" ? "11" : MEDICAL_RECORD_ID}
+          petId="1"
+          recordClinicId={change === "clinic" ? "3" : "2"}
+          petSpecies={change === "species" ? "猫" : undefined}
+          isPetDeceased={change === "deceased"}
+          isWriteBlocked={change === "lock"}
+        />,
+      );
+      await act(async () => {
+        releaseGet!();
+        await promise;
+      });
+      expect(resolveDone).toBe(true);
+      expect(mockCreateTreatmentMutate).not.toHaveBeenCalled();
     },
   );
 
@@ -197,6 +267,7 @@ describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
         />,
         { wrapper: createTestWrapper() },
       );
+      await waitFor(() => expect(mockDialogProps.current.onSelect).toBeDefined());
       const select = mockDialogProps.current.onSelect as ((item: unknown) => void) | undefined;
       expect(select).toBeDefined();
       select?.({ id: "7", name: "初診", unitPrice: 3307, category: "診察" });
@@ -207,12 +278,127 @@ describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
   );
 });
 
+describe("PR700 BillCheck real dose selection", () => {
+  it.each(["recommended", "cap", "reason", "http", "missing-weight", "missing-params"] as const)(
+    "%s uses scoped authority and the actual dose gate",
+    async (mode) => {
+      const headers: string[] = [];
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const globalMasters = [{ id: "42", isActive: false, price: 1 }];
+      queryClient.setQueryData(queryKeys.masters.category("medicines"), globalMasters);
+      server.use(
+        http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+          HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
+        ),
+        http.get("*/v1/masters/medicines", ({ request }) => {
+          headers.push(`medicine:${request.headers.get("X-Clinic-ID")}`);
+          return HttpResponse.json([
+            {
+              id: 42,
+              name: "薬A",
+              price: 3303,
+              is_active: true,
+              calculation_type: "per_weight",
+              medicine_unit: "per_tablet",
+              strength: 100,
+            },
+          ]);
+        }),
+        http.get("*/v1/medical-records/10/vitals", ({ request }) => {
+          headers.push(`vitals:${request.headers.get("X-Clinic-ID")}`);
+          return HttpResponse.json(
+            mode === "missing-weight"
+              ? []
+              : [
+                  {
+                    id: "v1",
+                    medical_record_id: "10",
+                    recorded_at: "2026-10-18T12:00:00Z",
+                    weight: 10,
+                    weight_unit: "Kg",
+                  },
+                ],
+          );
+        }),
+        http.get("*/v1/masters/medicines/42/dose-params", ({ request }) => {
+          headers.push(`dose:${request.headers.get("X-Clinic-ID")}`);
+          if (mode === "http") return HttpResponse.json({ error: "private" }, { status: 500 });
+          return HttpResponse.json(
+            mode === "missing-params"
+              ? []
+              : [
+                  {
+                    species: "dog",
+                    dose_basis: "per_dose",
+                    dose_per_kg: 20,
+                    min_mg_per_kg: mode === "reason" ? 20 : 1,
+                    max_mg_per_kg: 100,
+                    absolute_max_dose: mode === "cap" ? 50 : mode === "reason" ? 150 : 1000,
+                    rounding_step: 1,
+                    rounding_mode: "up",
+                  },
+                ],
+          );
+        }),
+      );
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MedicalRecordBillCheck
+            medicalRecordId={MEDICAL_RECORD_ID}
+            petId="1"
+            recordClinicId="2"
+            petSpecies="犬"
+          />
+        </QueryClientProvider>,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
+      await user.click(await screen.findByRole("button", { name: "薬剤Aを選択" }));
+      if (mode === "cap" || mode === "reason" || mode === "http") {
+        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+        expect(mockCreateTreatmentMutate).not.toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalledWith(
+          mode === "http"
+            ? DOSE_PARAMS_LOOKUP_FAILED_MESSAGE
+            : expect.stringContaining(mode === "cap" ? "絶対上限" : "推奨値付近で追加"),
+        );
+      } else {
+        await waitFor(() =>
+          expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+            expect.objectContaining({
+              medicine_id: 42,
+              quantity: mode === "recommended" ? 2 : 1,
+              memo: "薬剤",
+              is_insurance: true,
+              sort_order: 1,
+            }),
+          ),
+        );
+      }
+      expect(headers).toEqual(expect.arrayContaining(["medicine:2", "vitals:2"]));
+      if (mode !== "missing-weight") expect(headers).toContain("dose:2");
+      expect(queryClient.getQueryData(queryKeys.masters.category("medicines"))).toEqual(
+        globalMasters,
+      );
+      expect(
+        queryClient.getQueryData(queryKeys.masters.categoryForClinic("medicines", "2")),
+      ).toBeDefined();
+      if (mode === "recommended")
+        expect(queryClient.getQueryData(medicineDoseParamsQueryKey("42", "2"))).toBeDefined();
+    },
+  );
+});
+
 describe("MedicalRecordBillCheck FE-RC-027 item_type 判定", () => {
   it("マスタ検索で category=薬剤 を選択すると item_type=medicine で作成される", async () => {
     server.use(
       http.get("*/v1/medical-records/:id/billing-confirmation", () =>
         HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
       ),
+      http.get("*/v1/masters/medicines", () =>
+        HttpResponse.json([{ id: 42, name: "抗生剤A", price: 3303, is_active: true }]),
+      ),
+      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
     );
 
     const user = userEvent.setup();
@@ -224,8 +410,10 @@ describe("MedicalRecordBillCheck FE-RC-027 item_type 判定", () => {
     await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
     await user.click(screen.getByRole("button", { name: "薬剤Aを選択" }));
 
-    expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ item_type: "medicine", medicine_id: 42 }),
+    await waitFor(() =>
+      expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ item_type: "medicine", medicine_id: 42 }),
+      ),
     );
     expect(mockDialogProps.current.clinicId).toBe("2");
   });

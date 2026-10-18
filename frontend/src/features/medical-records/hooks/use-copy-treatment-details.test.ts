@@ -754,6 +754,90 @@ describe("useCopyTreatmentDetails", () => {
     });
   });
 
+  it("PR700 inventory: 複写先マスタの inventoryId=77 を採用しソース 999 は使わない", async () => {
+    const postBodies = useCopyHandlers({
+      sourceRows: [
+        sourceTreatment({
+          item_type: "medicine",
+          medicine_id: "42",
+          consultation_id: undefined,
+          inventory_id: "999",
+          unit_price: 80,
+        }),
+      ],
+      medicines: [{ id: 42, name: "抗生剤A", price: 3303, is_active: true, inventory_id: 77 }],
+    });
+
+    const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
+      wrapper: createTestWrapper(),
+    });
+    await act(async () => {
+      await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+    });
+
+    expect(postBodies).toHaveLength(1);
+    const body = postBodies[0] as Record<string, unknown>;
+    expect(body.inventory_id).toBe(77);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([undefined, "0", "abc"])(
+    "PR700 inventory: later invalid destination inventory %s is zero-write",
+    async (inventoryId) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children);
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      const global = [{ id: "42", price: 80, isActive: true, inventoryId: "999" }];
+      const destination = [{ id: "42", price: 3303, isActive: true, inventoryId }];
+      queryClient.setQueryData(queryKeys.masters.category("medicines"), structuredClone(global));
+      queryClient.setQueryData(
+        queryKeys.masters.categoryForClinic("medicines", "3"),
+        structuredClone(destination),
+      );
+      const sourceRows = [
+        sourceTreatment({
+          id: "first",
+          item_type: "other",
+          consultation_id: undefined,
+          sort_order: 0,
+        }),
+        sourceTreatment({
+          id: "second",
+          item_type: "medicine",
+          medicine_id: "42",
+          consultation_id: undefined,
+          inventory_id: "999",
+          unit_price: 80,
+          sort_order: 1,
+        }),
+      ];
+      const original = structuredClone(sourceRows);
+      const postBodies = useCopyHandlers({
+        sourceRows,
+        medicines: [{ id: 42, name: "抗生剤A", price: 3303, is_active: true }],
+      });
+
+      const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
+        wrapper,
+      });
+      await act(async () => {
+        await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+      });
+
+      expect(postBodies).toHaveLength(0);
+      expect(toast.error).toHaveBeenCalledWith(
+        "複写先のマスタを確認し、治療明細を再選択してください",
+      );
+      expect(invalidateSpy).not.toHaveBeenCalled();
+      expect(sourceRows).toEqual(original);
+      expect(queryClient.getQueryData(queryKeys.masters.category("medicines"))).toEqual(global);
+      expect(
+        queryClient.getQueryData(queryKeys.masters.categoryForClinic("medicines", "3")),
+      ).toEqual(destination);
+    },
+  );
+
   describe("PR700 inactive: 複写先マスタの inactive 行は再選択促進で拒否する", () => {
     const TYPES = [
       {

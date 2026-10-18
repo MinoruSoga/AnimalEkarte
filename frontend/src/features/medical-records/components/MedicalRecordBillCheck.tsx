@@ -1,4 +1,14 @@
-import { lazy, memo, Suspense, useState, useMemo, useCallback, useTransition } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useState,
+  useMemo,
+  useCallback,
+  useTransition,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -18,6 +28,8 @@ import {
 } from "../api/billing-confirmation";
 import type { UpdateTreatmentInput } from "../types";
 import { buildMasterSelectionPayload } from "../lib/treatments-tab-model";
+import { resolveMasterSelectionDose } from "../lib/master-selection-dose";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { CheckCircle2, RotateCcw } from "lucide-react";
@@ -51,6 +63,8 @@ interface BillCheckProps {
   recordClinicId?: string;
   /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
   isPetDeceased?: boolean;
+  petSpecies?: string | null;
+  isWriteBlocked?: boolean;
 }
 
 function ExtraLinesList({ title, lines }: { title: string; lines: BillCheckExtraLine[] }) {
@@ -83,6 +97,8 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   ownerDiscountRate = 0,
   recordClinicId,
   isPetDeceased = false,
+  petSpecies,
+  isWriteBlocked = false,
 }: BillCheckProps) {
   const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
@@ -260,21 +276,83 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     [treatments],
   );
 
+  const queryClient = useQueryClient();
+  const latestCtxRef = useRef({
+    canEdit,
+    isPetDeceased,
+    isWriteBlocked,
+    medicalRecordId,
+    recordClinicId,
+    petSpecies,
+    nextOrder,
+  });
+  useLayoutEffect(() => {
+    latestCtxRef.current = {
+      canEdit,
+      isPetDeceased,
+      isWriteBlocked,
+      medicalRecordId,
+      recordClinicId,
+      petSpecies,
+      nextOrder,
+    };
+  }, [
+    canEdit,
+    isPetDeceased,
+    isWriteBlocked,
+    medicalRecordId,
+    recordClinicId,
+    petSpecies,
+    nextOrder,
+  ]);
+
   const handleSelectTreatment = useCallback(
-    (item: TreatmentMasterItem) => {
-      if (isPetDeceased) {
+    async (item: TreatmentMasterItem) => {
+      if (latestCtxRef.current.isPetDeceased) {
         toast.error(DECEASED_BILLING_MESSAGE);
         return;
       }
-      if (!canEdit) return;
+      if (!latestCtxRef.current.canEdit || latestCtxRef.current.isWriteBlocked) return;
+      if (
+        latestCtxRef.current.medicalRecordId !== medicalRecordId ||
+        latestCtxRef.current.recordClinicId !== recordClinicId ||
+        latestCtxRef.current.petSpecies !== petSpecies
+      )
+        return;
+      const doseResult = await resolveMasterSelectionDose({
+        item,
+        medicalRecordId: medicalRecordId ?? "",
+        recordClinicId,
+        petSpecies,
+        queryClient,
+      });
+      const latest = latestCtxRef.current;
+      if (
+        !latest.canEdit ||
+        latest.isPetDeceased ||
+        latest.isWriteBlocked ||
+        latest.medicalRecordId !== medicalRecordId ||
+        latest.recordClinicId !== recordClinicId ||
+        latest.petSpecies !== petSpecies
+      ) {
+        return;
+      }
+      if (doseResult.kind === "blocked") {
+        toast.error(doseResult.message);
+        return;
+      }
       createTreatment({
-        ...buildMasterSelectionPayload({ item, quantity: 1, sortOrder: nextOrder }),
+        ...buildMasterSelectionPayload({
+          item,
+          quantity: doseResult.quantity,
+          sortOrder: latest.nextOrder,
+        }),
         memo: item.category,
         is_insurance: true,
       });
       setIsSearchOpen(false);
     },
-    [canEdit, isPetDeceased, nextOrder, createTreatment],
+    [medicalRecordId, recordClinicId, petSpecies, queryClient, createTreatment],
   );
 
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定（useClinicTaxRates）を正本にする。

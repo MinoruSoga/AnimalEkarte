@@ -251,6 +251,35 @@ describe("clinic-scoped マスタ hooks（実 axios + MSW 境界, PR700）", () 
 });
 
 describe("TreatmentsTab マスタ選択のレコードクリニックスコープ (PR700)", () => {
+  it.each([false, true])(
+    "real medicine dialog uses clinic2 IDs/prices with warm destination=%s",
+    async (warm) => {
+      const queryClient = newQueryClient();
+      const global = [{ id: "101", name: "薬C1", price: 10, isActive: true }];
+      const scoped = [{ id: "242", name: "薬C2", price: 3303, isActive: true }];
+      queryClient.setQueryData(queryKeys.masters.category("medicines"), global);
+      if (warm)
+        queryClient.setQueryData(queryKeys.masters.categoryForClinic("medicines", CLINIC2), scoped);
+      const headers: Array<string | null> = [];
+      server.use(
+        http.get("*/v1/masters/medicines", ({ request }) => {
+          headers.push(request.headers.get("X-Clinic-ID"));
+          return HttpResponse.json([{ id: 242, name: "薬C2", price: 3303, is_active: true }]);
+        }),
+      );
+      await renderTreatmentsTab(CLINIC2, queryClient);
+      expect(screen.queryByText("薬C1")).not.toBeInTheDocument();
+      await userEvent.setup().click(await screen.findByText("薬C2"));
+      await waitFor(() => expect(acceptedPosts).toHaveLength(1));
+      expect(acceptedPosts[0]).toMatchObject({
+        header: CLINIC2,
+        body: { medicine_id: 242, unit_price: 3303, quantity: 1 },
+      });
+      expect(headers).toEqual(warm ? [] : [CLINIC2]);
+      expect(queryClient.getQueryData(queryKeys.masters.category("medicines"))).toEqual(global);
+      expect(rejectedPosts).toHaveLength(0);
+    },
+  );
   it.each(CATEGORIES)(
     "recordClinicId=2 の $category 選択は clinic2 マスタを表示し scoped ID で POST する",
     async ({ globalName, scopedName, refKey, refId, price }) => {

@@ -8,6 +8,11 @@ import { server } from "@/testing/mocks/node";
 import { useTreatmentsTab } from "./use-treatments-tab";
 import type { Treatment, UpdateTreatmentInput } from "../types";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+import { queryKeys } from "@/lib/query-keys";
+import {
+  DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+  medicineDoseParamsQueryKey,
+} from "../api/medicine-dose-lookup";
 
 // PR679 F5 カバレッジ補完: TreatmentsTab 統合テストで covered な確定/死亡経路に加え、
 // フックの最新値ゲート（権限喪失・キャプチャ済みコールバック・await 後再検査）と
@@ -169,6 +174,52 @@ describe("useTreatmentsTab", () => {
 
   afterEach(() => {
     server.resetHandlers();
+  });
+
+  it("PR700 scoped doseContext and retry use recordClinicId, never the global dose cache", async () => {
+    const headers: Array<string | null> = [];
+    server.use(
+      http.get("*/v1/masters/medicines", () =>
+        HttpResponse.json([
+          { id: 1, name: "薬A", price: 100, medicine_unit: "per_tablet", is_active: true },
+        ]),
+      ),
+      http.get("*/v1/medical-records/:id/vitals", () =>
+        HttpResponse.json([
+          { id: "1", recorded_at: "2026-10-18T00:00:00Z", weight: 4, weight_unit: "Kg" },
+        ]),
+      ),
+      http.get("*/v1/masters/medicines/1/dose-params", ({ request }) => {
+        headers.push(request.headers.get("X-Clinic-ID"));
+        return HttpResponse.json({ private: "not shown" }, { status: 500 });
+      }),
+    );
+    const { result, queryClient } = renderTreatmentsTab();
+    queryClient.setQueryData(medicineDoseParamsQueryKey("1"), []);
+    const resetSpy = vi.spyOn(queryClient, "resetQueries");
+    await waitForLoaded(result);
+    await act(async () => {
+      await result.current.handleSelectFromMaster(MED_MASTER_ITEM);
+    });
+    expect(result.current.masterDoseBlockReason).toBe(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
+    expect(result.current.doseContext.clinicId).toBe(RECORD_CLINIC_ID);
+    expect(counts.post).toBe(0);
+    server.use(
+      http.get("*/v1/masters/medicines/1/dose-params", ({ request }) => {
+        headers.push(request.headers.get("X-Clinic-ID"));
+        return HttpResponse.json([]);
+      }),
+    );
+    act(() => result.current.handleRetryMasterDoseLookup());
+    await waitFor(() => expect(counts.post).toBe(1));
+    expect(resetSpy).toHaveBeenCalledWith({
+      queryKey: medicineDoseParamsQueryKey("1", RECORD_CLINIC_ID),
+    });
+    expect(headers).toEqual([RECORD_CLINIC_ID, RECORD_CLINIC_ID]);
+    expect(queryClient.getQueryData(medicineDoseParamsQueryKey("1"))).toEqual([]);
+    expect(
+      queryClient.getQueryData(queryKeys.masters.categoryForClinic("medicines", RECORD_CLINIC_ID)),
+    ).toBeDefined();
   });
 
   it("sort_order 昇順で並べ、選択行だけの小計/件数と飼主割引+税込み合計を返す", async () => {

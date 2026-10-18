@@ -180,18 +180,19 @@ describe("TreatmentSearchDialog", () => {
 });
 
 describe("clinicId フォワード (PR700)", () => {
-  it("clinicId prop は consultations/procedures フックにのみ渡される", () => {
+  it("clinicId prop は consultations/procedures/medicines フックに渡される", () => {
     render(<TreatmentSearchDialog open clinicId="2" onOpenChange={() => {}} onSelect={() => {}} />);
     expect(useGetAllConsultations).toHaveBeenCalledWith({ clinicId: "2" });
     expect(useGetAllProcedures).toHaveBeenCalledWith({ clinicId: "2" });
+    expect(useGetAllMedicinesMaster).toHaveBeenCalledWith({ clinicId: "2" });
     expect(useGetAllVaccinesMaster).toHaveBeenCalledWith();
     expect(useGetAllCheckupTypes).toHaveBeenCalledWith();
-    expect(useGetAllMedicinesMaster).toHaveBeenCalledWith();
   });
 
   it("clinicId 省略の既存呼び出しは既存シグネチャを維持する", () => {
     renderDialog();
     expect(useGetAllConsultations).toHaveBeenCalledWith({ clinicId: undefined });
     expect(useGetAllProcedures).toHaveBeenCalledWith({ clinicId: undefined });
+    expect(useGetAllMedicinesMaster).toHaveBeenCalledWith({ clinicId: undefined });
   });
 });
