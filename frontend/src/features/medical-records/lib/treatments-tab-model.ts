@@ -30,6 +30,8 @@ export function buildMasterSelectionPayload(params: {
     unit_price: item.unitPrice,
     quantity,
     medicine_id: item.medicineId ? Number(item.medicineId) : undefined,
+    consultation_id: item.category === "診察" ? toNumericId(item.id) : undefined,
+    procedure_id: item.category === "処置" ? toNumericId(item.id) : undefined,
     is_selected: true,
     is_insurance: false,
     discount_amount: 0,
