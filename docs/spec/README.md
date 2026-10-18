@@ -57,6 +57,7 @@ settings/ の共通マスタ、入院・トリミング・LINE 等の既存仕�
 | [components/](components/README.md) | UI プリミティブのコンポーネント契約（badge / button / input / select 等の Anatomy・状態表・既知ギャップ。テンプレート: `_TEMPLATE.md`） | コンポーネント実装・変更前 |
 | [ui-design-compliance.md](ui-design-compliance.md) | UI デザイン規約の準拠状況と機械検査（design-audit）の対応表 | 新規ページ追加時（§2 の表を同コミットで更新） |
 | [line/](line/README.md) | LINE / Lステップ連携（CPM・配信トリガー・LIFF 予約・コスト分析） | LINE/Lステップ関連の実装前 |
+| [lab-device-integration/](lab-device-integration/README.md) | 院内検査機器連携（生化学・血球・尿・IDEXX）の仕様と旧Drワン解析記録 | 検査機器連携の実装・仕様確認・機器解析時 |
 
 ## 実装 → 文書カバレッジ（2026-10-11 静的棚卸し）
 
