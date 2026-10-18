@@ -87,7 +87,7 @@ global dataやsystem-admin横断操作は、table/file名による暗黙例外�
 
 ### MEDIUM — 監査ログのtx境界
 
-[SECURITY.mdのAUDIT-1](../../SECURITY.md) と [Backend Application Invariants](../refs/backend-application-invariants.md) で、経路ごとの監査sink・必須性・失敗contractを特定する。必須と定めたclinical/financial監査は本体writeと同一transactionへ参加し、監査dependency欠落/write失敗時はrollbackする。明示されたLSTEP等のbest-effort/非audit経路を一律の負債とせず、失敗通知・再試行・外部副作用のcommit後contractを確認する。外部HTTPまで同じDB transactionに包む指示ではない。refundの `AuditTxLogger` + `LogEntryTx` は必須監査の実装例であり、helper名自体を全経路の要件としない。
+[AUDIT-1](../../SECURITY.md) と [backend不変条件](../refs/backend-application-invariants.md) で経路別sink・必須性を確認。必須監査は本体と同一tx、依存欠落/保存失敗はrollback。明示best-effort/非auditは一律負債とせず、失敗通知・再試行・commit後副作用を確認。外部HTTPはtx外。AuditTxLogger/LogEntryTxはrefundの例で、全経路に必須ではない。
 
 ## 診断コマンド
 
