@@ -12,8 +12,8 @@ model: opus
 ## 審査責務
 
 1. **動物患者記録の整合性** — 誤削除・不正変更の防止
-2. **クリニック間データ隔離** — clinic_id スコープの徹底（P4パターン）
-3. **医療記録ロック** — 確定済み記録の変更禁止（addendum のみ許可）
+2. **クリニック間データ隔離** — [Backend Application Invariants](../refs/backend-application-invariants.md) と [SECURITY.md](../../SECURITY.md) のdata class・操作別scopeと明示例外を確認
+3. **医療記録の変更保護** — [D03普通カルテ](../../docs/spec/domains/medical-records/lifecycle.md)の履歴付き通常編集と、検査確定・提示済み原本・確定会計等のowner別訂正契約を区別する
 4. **監査証跡** — 全臨床データ操作の記録
 5. **オーナー個人情報保護** — PII の不適切露出防止
 6. **投薬安全** — 動物種・体重に基づく投薬量バリデーション
@@ -22,14 +22,14 @@ model: opus
 
 ### 動物患者記録保護
 - [ ] 動物記録 (animals テーブル) に CASCADE DELETE なし
-- [ ] 医療記録の確定後は更新禁止（ステータスチェック必須）
+- [ ] D03は終了済み/旧finalizedだけで通常編集不可・addendum専用とせず、現行権限・版・実編集者・時刻・以前の保存内容・必要監査を保持。旧finalized gateは現行差として区別し、D07検査confirmed、D11提示原本、D10確定会計などの個別保護を一括解除しない
 - [ ] 削除前に依存関係チェック（診療記録・処方・請求）
 - [ ] `apperrors.WrapConflict()` で 409 を返すパターン実装済み
 
-### clinic_id 隔離（P4パターン）
-- [ ] 全クエリに `db.Where("clinic_id = ?", clinicID)` スコープ適用
-- [ ] Repository 関数の第1引数に `clinicID` 存在確認
-- [ ] クロスクリニックデータアクセスが不可能な構造
+### data class・操作別の医院境界
+- [ ] clinic所有データの全pathに同等のtenant/ownership保証。global/common dataと明示認可された共有scopeは正本別に確認し、特定predicateの有無だけで判定しない
+- [ ] 各data pathの認証済みscope・ownershipの受渡しを確認し、引数位置や特定helperを一律要件にしない
+- [ ] 無認可の他院情報アクセスを拒否。承認済みSupport共有read/createと報告元医院の変更操作、共通患者基本情報/自院利用と医院別診療・会計を区別する
 - [ ] X-Clinic-ID ヘッダーの検証と一致確認
 
 ### 個人情報保護
@@ -62,7 +62,7 @@ model: opus
 - 監査証跡: [確認済み/不完全]
 
 ### clinic_id 隔離
-- P4スコープ: [全適用/漏れあり]
+- data class・操作別scope: [確認済み/不足/未確認]
 - クロスアクセス: [防止済み/リスクあり]
 
 ### 問題点
@@ -76,7 +76,7 @@ model: opus
 ## ルール
 
 - 臨床データの正確性に疑問がある場合、NEEDS REVIEW とマークする
-- clinic_id 漏れは常に CRITICAL
+- clinic所有データのtenant/ownership保証欠落は重大な指摘対象。明示共有・global/common dataを列名やhelper名だけで誤検出せず、侵害される境界と影響で重大度を判定する
 - 動物患者記録の CASCADE DELETE は絶対に許可しない
 - CDSS（投薬量チェック等）のエラーをサイレントキャッチするコードは承認しない
 

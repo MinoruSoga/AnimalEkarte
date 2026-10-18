@@ -22,7 +22,7 @@ backend の任意のpackage、migration、background jobで、次のいずれか
 ## Invariants summary
 
 1. **Read**: base query、join、preload、countを含む全read pathで、認証済みclinicまたは明示的に認可された横断scopeを保証する。
-2. **Write**: target rowとrequest由来のparent/master FKが同じ認証済みclinicに属することを、永続化前またはatomic predicateで保証する。
+2. **Write**: clinic所有target/FKは同院のownershipを永続化前またはatomic predicateで保証する。global/common data・共有read/create・医院別mutationは [Backend Application Invariants](../../refs/backend-application-invariants.md) と [SECURITY.md](../../../SECURITY.md) のdata class・操作別契約を適用し、全tableへのclinic列追加や一般的なtenant bypassを作らない。
 3. **Delete/bulk/background**: interactive requestと同じtenant/ownership条件を維持し、scope外resourceの存在を漏らさない。
 4. **Verification**: helper名やcodeの見た目だけで合格にせず、cross-tenant runtime testで実際の拒否を証明する。
 

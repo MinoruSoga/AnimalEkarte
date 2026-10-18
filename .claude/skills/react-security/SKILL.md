@@ -162,7 +162,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 - [ ] iframe の信頼済みソースのみ
 
 ### CSRF 対策
-- [ ] CSRF token 実装
+- [ ] 経路別CSRF契約：保護対象staff mutationの `X-Requested-With` と既存Origin/Cookie条件、公開経路の明示除外を確認（[SECURITY.md](../../../SECURITY.md)）
 - [ ] SameSite Cookie 設定
 - [ ] Origin ヘッダー検証
 
@@ -202,12 +202,12 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 
 ### ✅ Passed
 - XSS protection: ✅
-- CSRF token: ✅
+- 経路別CSRF契約: [実行証拠がある場合だけ結果を記載]
 - Dependency audit: 0 critical
 
 ### 推奨修正リスト
 1. [Critical] dangerouslySetInnerHTML 削除 (30分)
-2. [High] CSRF token 実装 (1時間)
+2. [High] 現行経路別CSRF契約に対する不足だけを修正（保護方式の新設を前提にしない）
 3. [Medium] CSP ヘッダー設定 (30分)
 ```
 

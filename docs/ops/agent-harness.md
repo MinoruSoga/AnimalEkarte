@@ -54,6 +54,12 @@ flowchart LR
 
 `make up` は既存サービスを停止し、backend entrypointがmigrationを適用する。安全な検証準備のコマンドとして自動実行しない。`make migrate` はユーザー手動。起動・停止・依存導入・全体検証の禁止コマンドは `.claude/CLAUDE.md` を参照する。
 
+## 編集後hookの境界
+
+Go整形hookは対象project/backend/fileのrealpath・通常ファイル・単一linkと、ローカルDocker endpoint・単一稼働container・同じbackendを指す書込可bind mountを確認した場合だけ、確認済みUnix endpointとcontainer IDを固定して対象file限定のgofmtを行う。symlink、対象外、nested mount、不明/不一致、検査中の置換はSKIPし理由だけを報告する。実行開始後の失敗/timeoutは変更有無を断定せずUNKNOWNとし、自動再試行せず担当差分を確認する。チェックとexec間の競合を完全防止するものではなく、実効hookのロード・OS隔離は別確認。container起動・migration・依存追加の許可は与えない。
+
+TS編集hookはプロセスを起動せず、限定検証への案内だけを出す。対象worktree/diff/mountを確認したrunnerでの実行証跡がなければ検証済みにしない。フックの登録設定・sandbox・一般tool権限はこの説明で変更しない。
+
 ## ブラウザ受入
 
 UI動作、フォーム、ルーティング、アクセシビリティに変更があれば、関連する [受入シナリオ](testing/scenarios/README.md)を実操作で確認する。専用テストプロファイル、対象URL、合成データと許可された操作範囲を確認する。認証済み個人ブラウザ・実患者データを流用しない。ブラウザ MCP はユーザースコープの設定を使い、プロジェクトに共有設定を追加しない（repo の `.mcp.json` の `mcpServers` は空）。Chrome DevTools の loopback CDP 接続は対象 URL の明示承認がある場合だけ利用する。Playwrightは Docker runner による再現テスト、DevToolsは調査、Computer Useは必要な操作に使う。現在呼べるtoolを確認する。
