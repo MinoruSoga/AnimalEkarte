@@ -30,3 +30,20 @@
 ## 実施なし中止と請求判断
 
 [実施なし中止](../domains/trimming/lifecycle.md#requirement-fr-trimming-zero-performance-abort)は、開始後に施術実績がないまま中止理由を残して閉じる業務結果。予定コースの有無と実施有無を分け、通常の施術完了・開始取消・記録削除と同一視しない。請求あり／なしは今回の中止料等についてのスタッフ判断であり、既存請求・預り金・他診療費の消去／免除を意味しない。中止料等は未実施コースを施術済みとして作る明細ではない。
+
+<a id="trimming-course-option-concept"></a>
+## 予約選択・施術実績・料金の意味境界
+
+コースは任意の基本施術、追加optionは許可された組合せから選ぶ別施術。コースカテゴリはコースでも予約の業務分類でもない。予約でコース0..1、異種追加option0..複数、同一option1回・数量なしという[予約側の多重度](reservations.md#booking-course-option-concept)と、施術保存/会計数量の契約を同一にしない。コース内包施術と追加optionの重複を認めず、コースなし用候補を区別する。現在master/予約採用時の時間/施術当時内容/会計snapshotは異なる時点の値である。予約時間と料金を自動連動させない。
+
+<a id="trimming-style-projection-concept"></a>
+## 要望と当日受付への参照
+
+| 用語 | 定義・区別 | 追跡先 |
+|:---|:---|:---|
+| 予約メモ／notes | 予約の一般連絡。仕上がり要望専用情報とは別 | [FR-reception-trimming-style-request](../domains/reception/pages/reception-board.md#requirement-fr-reception-trimming-style-request) |
+| 仕上がり要望 | 飼主の希望する施術結果についての情報。過去の施術内容・完成写真と同一ではない | 同FR、AC-reception-trimming-style-display |
+| 希望画像／完成画像 | 前者は希望を示す原資料、後者は結果を示す画像。保存keyと表示URLは別 | [画像保護](../domains/trimming/lifecycle.md#requirement-fr-trimming-image-lifecycle) |
+| 当日受付の要望表示 | 同じ予約・ペット・対象日に対応する要望の読取projection | AC-reception-trimming-style-target／AC-reception-trimming-style-empty-failure。表示だけで記録作成・notes転記・原文更新を起こさず、未記入/失敗/別個体/別日/認可外を区別 |
+
+希望画像を参照できることと紙の記録票への画像印刷採用は別。記録票の現採用範囲を専用仕様から参照し、希望/完成写真を必ず印刷する新条件を作らない。

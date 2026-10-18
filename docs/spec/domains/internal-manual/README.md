@@ -19,7 +19,7 @@ P2：操作案内を全スタッフが同じ公開版で参照できるように
 <a id="requirement-fr-internal-manual-reading"></a>
 ### FR-internal-manual-reading — 記事閲覧・検索・印刷
 
-認証済み全スタッフが画面別／業務別の記事を閲覧・検索し、表示中の記事を印刷できる。記事がない場合は未発見と示し、別記事を目的の記事として表示しない。マニュアル閲覧から診療情報の変更権限を得ない。
+認証済み全スタッフが画面別／業務別の記事を閲覧・検索し、表示中の記事を印刷できる。操作を確認しやすいよう説明対象の画面スクリーンショットを記事に添える。根拠は[10月14日メモ](https://docs.google.com/document/d/1UnyGdGyIU8tSZnwRrAXZAxXBk61YrShCH2Eqaz7GoaU)の「取説ページ／急ぎではないが、画面スクショ付きで」（2026-10-14 13:57:02 JSTに曽我稔がSlackで共有。メモの原発言者は未記載）。新しい納期・全記事全画面の収録義務・自動撮影機能を推定しない。記事がない場合は未発見と示し、別記事を目的の記事として表示しない。マニュアル閲覧から診療情報の変更権限を得ない。
 
 決定状態・根拠：既存仕様継承。印刷は現行画面実装の参照（実機未確認）。上記の該当既存正本に基づく整理で、新たな承認を捏造しない。
 
@@ -43,7 +43,7 @@ P2：操作案内を全スタッフが同じ公開版で参照できるように
 
 | 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認 | 成功条件 | 確認手順／証跡 |
 |:---|:---|:---|:---|:---|:---|:---|
-| AC-internal-manual-01 | 記事が存在する認証済み利用者 | 画面別・業務別検索から記事を開き印刷 | 選択した記事の内容を閲覧・印刷できる | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-internal-manual-reading](#requirement-fr-internal-manual-reading)。実機未実施 |
+| AC-internal-manual-01 | 記事が存在する認証済み利用者 | 画面別・業務別検索から記事を開き印刷 | 選択した記事本文と説明対象の画面スクリーンショットを閲覧・印刷できる | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-internal-manual-reading](#requirement-fr-internal-manual-reading)。実機未実施 |
 | AC-internal-manual-02 | 存在しないcategory/slug | 直接記事URLを開く | 未発見と表示する | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-internal-manual-reading](#requirement-fr-internal-manual-reading)。実機未実施 |
 | AC-internal-manual-03 | 編集権限のないスタッフ | 公開済み改訂記事を読む／編集を試す | 最新版閲覧は可、編集は拒否 | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-internal-manual-publication](#requirement-fr-internal-manual-publication)。実機未実施 |
 | AC-internal-manual-04 | 編集内容入力済みで保存失敗 | 保存する | 公開成功を表示せず入力を保持 | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-internal-manual-publication](#requirement-fr-internal-manual-publication)。実機未実施 |
@@ -80,3 +80,11 @@ P2：操作案内を全スタッフが同じ公開版で参照できるように
 | AC-internal-manual-12 | 旧overrideの公開状態または復元元が不明 | 全員公開または復元する | 自動公開・架空履歴で補完せず対象確認まで停止 | 単独確認 | Thenの結果と失敗時の不変 | [選定保存契約](../../../design/domains/internal-manual/technical-spec.md#manual-selected-save-contract)。実機未実施 |
 
 公開／編集／復元の操作ID・期待版・原子的な内容／履歴／監査／receipt保存、旧版競合・結果不明時停止は[選定技術契約](../../../design/domains/internal-manual/technical-spec.md#manual-selected-save-contract)へ従う。技術方式を後決めの業務未決に戻さない。
+
+## 複数ページ記事の印刷の補足受入条件
+
+保存済みSlack SLK-043〜046（6/10 深澤・曽我）の「1ページしか印刷されない」という不具合と修正報告を、既存の表示中記事印刷契約へ接続する。修正予定・テスト環境反映の報告を実機合格へ転用しない。SLK-047の「左の部分」は添付PDFの対象箇所を未確認であり、記事中の説明用スクリーンショットを切除する許可にはしない。
+
+| 条件ID | 前提／操作 | 期待結果 | 根拠・検証状態 |
+|:---|:---|:---|:---|
+| AC-internal-manual-multipage-print | 複数ページにわたる公開記事を表示し、ブラウザ印刷／PDF保存する | 選択記事の本文・説明対象スクリーンショットを最後のページまで出力でき、先頭1ページだけに欠落しない。別記事や未公開編集案を混ぜない | SLK-043〜046、既存記事印刷契約。未実施 |

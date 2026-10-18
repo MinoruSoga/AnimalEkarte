@@ -60,3 +60,12 @@
 ## 日次集計の追加内訳
 
 [原資料採用正本・追加2AC](../screens/29-closing-aggregation.md#closing-source-breakdown)へ従い、往診／トレセンを独立表示し、病院／トリミング別の保存済み税・値引きを表示する。分類・税・値引き・支払実額は別概念で、表示配賦で元会計総額を変えない。金額配賦の契約本文は画面29の唯一正本へ維持し、旧分類数を目標の固定数にしない。
+
+<a id="discharge-report-and-accounting-time"></a>
+## 日次退院情報・一覧日付・金銭日付
+
+[滞在の時点](hospitalization.md#stay-identity-and-time-concept)で定義する実退院日時のJST暦日と、締めのAM/PM/EMG営業日・請求日・実受領日・実返金日を分離する。[退院情報](../domains/cash-register/business-rules.md#closing-daily-discharge-information-20261017)の退院日時/飼主名/ペット名/入院日という4項目は読取projectionで、会計がないこと/別日の入金を理由に別の退院日へ帰属させない。AC-closing-discharge-actual-jst-day-interval／AC-closing-discharge-calendar-day-not-closing-period／AC-closing-discharge-four-fields。退院情報行を追加しても売上・入出金やホテル頭数を増減しない。
+
+[一覧条件](../shared/ui-contracts.md#requirement-fr-common-ui-list-filter)は表示コンテキストである。日付付き対象業務一覧はメニューから当日、詳細から戻る場合は日付・患者等検索条件を保持。「このペットで絞り込む」は全期間にして医院filterを保持。台帳/マスタ/入院/見積を当日対象へ一律化せず、受付の選択日と未納繰越の既存契約も保持する。
+
+月次の実現金・現金差額の非掲載は[D16](../domains/analytics/business-rules.md#requirement-fr-analytics-matrix-report)、AC-analytics-monthly-no-cash-differenceへ。日次締めの実査/差額と月次売上内訳は別projection。CPM分類語彙や年間/犬種等の旧集計語彙があることを、今期対象外画面の提供承認へ読み替えない。今期の提供範囲は[D16業務正本](../domains/analytics/business-rules.md)を参照する。

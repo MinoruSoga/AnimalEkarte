@@ -64,7 +64,7 @@ stateDiagram-v2
 2.  **LINE 未連携**: 飼主に LINE ユーザー ID が紐付いていない場合（`no_line_user_id`）。
 3.  **配信停止タグ**: 飼主に配信停止タグが付与されている場合（`excl_tag_delivery_stop`）。
 
-なお、ペット死亡時はライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）が動く。ただし最終除外確認は pet status を直接読まず、全頭死亡時 cleanup は best-effort のため、死亡・転院関連の絶対遮断は保証しない。既知の gap と是正契約は [lstep-integration.md §4](../line/lstep-integration.md) を正本とする。
+上記の `checkExclusion` によるownerフラグ等の判定と、[D15 §4のイベントsource再検証](../line/lstep-integration.md#4-配信安全ガード-safety-controls)を分ける。EMR-330後の非tentativeトリガーは、claim前と送信直前にtyped sourceの生存・現飼主・医院等を再読し、別の生存ペットで死亡した元イベントを救済しない。一方、ペットIDを持たないタグ系の帰属、死亡時の全タグcleanupのbest-effort、生死遷移と外部writeの瞬間競合は残るため、死亡・転院関連の絶対遮断は保証しない。既知gapと正確な再検証範囲はD15正本へ従う。
 
 ### 2.2 優先順位制御 (Priority Suppression)
 `lstep_trigger_priorities` マスタの設定に基づき、同日に優先度の高い別トリガーがある場合、低優先度のトリガーはログの `suppressed_by_priority` フラグ（+`suppression_reason`）が立てられ配信されません（`excluded_reason` とは別カラムで管理）。

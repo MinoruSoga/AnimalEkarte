@@ -12,6 +12,10 @@
 
 D16は月次／任意期間レポート、飼主集計、Lステップ分析の読取・出力を扱う。請求／入金・預り金残高の更新はD10、締め確定はD12、LINE配信・タグ変更・CSV取込はD15、臨床記録はD03等。集計閲覧やCSV出力を自動配信の承認にしない。税務申告や外部会計ソフトへの適合を保証しない。
 
+### 今期の提供範囲
+
+[Backlog Phase1 No.25・27 F26:G26／F28:G28](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=0&range=F26:G28)の2026-10-15曽我回答により、年間売上・来院回数ランキングと犬種別集計の画面表示／CSV出力、集計画面のCPMセグメント別人数／一覧表示は今期対象外。以前の「対応済」やサーバエラー修正待ちという記述を今期提供契約へ戻さない。月次売上レポートを今期の集計画面の中心とする（No.28 F29:G29）。以下の対象外機能の計数・母集団・CSVの記述とACは将来再開時の保持条件・既存説明として残し、今期の表示／出力提供や新しい実装完了を意味しない。実来院日を数える後続承認は指標の意味を定めたもので、対象外画面の公開承認ではない。
+
 ## 担当者・権限・前提
 
 /accounting/reports は accounting-reports:view、/aggregation は owners:view、/lstep/analytics は lstep-analytics:view。医院scopeを維持する。締め履歴ドリルダウンには cash-register-close:view を追加確認。税率設定リンクは対象設定の閲覧権限が必要。同じ分析画面のCSV取込には独立した lstep-csv-import 権限が必要で、分析閲覧から許可を派生しない。
@@ -38,6 +42,8 @@ D10の既決区分を継承。請求確定額、今回の実入金、実返金�
 
 <a id="requirement-fr-analytics-matrix-report"></a>
 ### FR-analytics-matrix-report：同一条件での表示・出力
+
+月次レポートの画面・印刷／PDF・CSVにはレジの実現金・現金差額を記載しない。これらはレジ締め画面・締め履歴・日次締め帳票で参照する。[Backlog Phase1 No.30 F31:G31](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=0&range=F31:G31)が根拠で、実査誤入力訂正や非0差額メモの後続合意でもこの出力範囲は変更しない。
 
 月次の日次明細・部門×支払方法表・KPI／内訳、CSV／印刷は同じ選択条件を使う。C7-7の既決に従い、午前／午後の件数・売上4列は廃止対象で、会計件数・日計へ集約しAM／PM締め状態は保持する。EMG集計を含めた日次件数を『午前＋午後』という表示文言だけで誤定義しない。現行合算のEMG網羅性は設計検査へ。
 
@@ -84,12 +90,14 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 
 | 条件ID | 前提／操作（Given / When） | 期待結果（Then） | 確認手順／証跡 |
 |:---|:---|:---|:---|
+| AC-analytics-current-scope | 今期の集計画面・出力対象を確認する | 月次売上レポートと対象外のランキング／犬種別画面・CSV、CPM人数／一覧を区別する。旧対応済報告から公開済みと判定しない | 上記「今期の提供範囲」、No.25・27・28。文書／画面照合、未実施 |
 | AC-analytics-midnight-basis | 翌02時の会計を月次と営業日締めで比較 | JST暦日と前日EMGの差を説明できる | [FR-analytics-period-basis](#requirement-fr-analytics-period-basis)。両基準を照合、未実施 |
 | AC-analytics-year-v-365 | 暦年とrolling365日が異なる日で集計 | 売上期間と年次来院の別定義を維持 | [FR-analytics-period-basis](#requirement-fr-analytics-period-basis)。年初境界、未実施 |
 | AC-analytics-old-period-column | カルテ日と完了日が別月の既存会計 | 現行顧客SQLのカルテ日帰属と完了状態を区別 | [FR-analytics-period-basis](#requirement-fr-analytics-period-basis)。旧SQL契約比較、未実施 |
 | AC-analytics-old-ar | 過去未納を今日回収 | 今日入金と過去請求、売上再生成なし | [FR-analytics-money-separation](#requirement-fr-analytics-money-separation)。D10移動と請求比較、未実施 |
 | AC-analytics-deposit | 預り受領→充当→取消復元 | 売上／実入金を各段階で重複加算しない | [FR-analytics-money-separation](#requirement-fr-analytics-money-separation)。元資金参照、未実施 |
 | AC-analytics-refund-dates | 前月会計へ当月返金 | 発生日matrixと親会計帰属KPIの差を保持 | [FR-analytics-matrix-report](#requirement-fr-analytics-matrix-report)。正本の例を比較、未実施 |
+| AC-analytics-monthly-no-cash-difference | 現金差額を含む締め・実査訂正がある月を画面／PDF／CSVへ出力する | 月次には実現金・差額を載せず、売上を差額で補正しない。締め／履歴／日次締め帳票では区別して確認できる | FR-analytics-matrix-report、Phase1 No.30。未実施 |
 | AC-analytics-export-consistency | 同一医院／期間で画面・CSV・印刷 | 同じ集計対象・条件と円単位合計 | [FR-analytics-matrix-report](#requirement-fr-analytics-matrix-report)。出力3種比較、未実施 |
 | AC-analytics-distinct-billing | 複合決済と複数部門を持つ会計 | 総件数をsplit数・部門行件数の合計にしない | [FR-analytics-matrix-report](#requirement-fr-analytics-matrix-report)。元ID比較、未実施 |
 | AC-analytics-same-day-pets | 同飼主の2ペットが同日に実来院し、各々複数予約／カルテがある | 飼主1回、各ペット1回。予約・記録・会計の数で増やさない | [FR-analytics-owner-counts](#requirement-fr-analytics-owner-counts)。医院／飼主／日と医院／ペット／日を比較、未実施 |

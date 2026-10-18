@@ -60,6 +60,8 @@ flowchart TB
 
 ---
 
+実現金・現金差額は月次の画面・印刷／PDF・CSVへ掲載しない。[業務正本](../domains/analytics/business-rules.md#requirement-fr-analytics-matrix-report)とAC-analytics-monthly-no-cash-differenceを参照し、締め履歴・日次締め帳票の表示とは分離する。
+
 ## 主要な機能
 
 ### 1. CSVエクスポート
@@ -93,3 +95,13 @@ flowchart TB
 ## 日次集計の追加内訳
 
 [原資料採用正本・追加2AC](29-closing-aggregation.md#closing-source-breakdown)へ従い、往診／トレセンを独立表示し、病院／トリミング別の保存済み税・値引きを表示する。分類・税・値引き・支払実額は別概念で、表示配賦で元会計総額を変えない。金額配賦の契約本文は画面29の唯一正本へ維持し、旧分類数を目標の固定数にしない。
+
+## Backlog原条文の補足受入条件
+
+保存済み原Q/Aと既存業務契約の照合による補足。対応済みという旧回答は実装・実機検証の合格証明に用いない。後続の本人合意、医院scope、権限、履歴・会計訂正の既存条件を維持する。
+
+### 月次日次明細から締め履歴へ
+
+| 条件ID | 受入条件 | 根拠 | 検証状態 |
+|:---|:---|:---|:---|
+| AC-analytics-daily-closing-drilldown | 月次日次明細に対象日があり締め履歴の閲覧認可がある／当該行をクリックまたはEnterする／同じ日付を指定した締め履歴へ移動し、別日や当日既定へ落とさない。 | Phase1 F31:G31 | 未実施 |

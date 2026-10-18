@@ -88,7 +88,7 @@ flowchart LR
 ## 主要な機能
 
 ### 1. カレンダー・スケジューリング
-ここで設定された「標準所要時間」は、予約作成時のデフォルト枠サイズとして適用され、スムーズな予約入力を支援します。
+ここで設定された標準所要時間は、[最新8点](../../domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)のコース未選択時の基礎時間として院内／LINEで共通に用いる。コース選択時はコース時間を基礎にし、選択追加オプション時間を加算する。
 
 ### 2. カラーコーディング
 区分グループ単位の色分け（例：診察系グループは赤、トリミング系グループは緑）により、カレンダーを俯瞰した際の院内の忙しさやリソース配置を一目で把握可能にします（色は区分グループに設定するもので、予約区分単体には設定できません）。
@@ -116,10 +116,10 @@ flowchart LR
 | FR-reservation-types-unset-duration-new-use | [未設定区分の新規利用停止](#requirement-fr-reservation-types-unset-duration-new-use) | 合意済み。2026-10-13 21:41 JST、ユーザー「ok」。実データ有無は未確認 |
 | FR-reservation-types-delete-restore-history | [削除・復元と履歴保持](#requirement-fr-reservation-types-delete-restore-history) | 合意済み。2026-10-14 12:51 JST、ユーザー「ok」。所属保持・配下新規利用停止・復元有効化後の個別有効だけ再開は13:00合意。無効中個別編集は17:17合意、保存方式は設計 |
 | FR-reservation-types-disable-history | [無効化と履歴保持](#requirement-fr-reservation-types-disable-history) | 合意済み。2026-10-13、ユーザー対話。根拠は下記 |
-| FR-reservation-types-name-history | [名称変更の未来反映・過去保持](#requirement-fr-reservation-types-name-history) | 合意済み。2026-10-13 21:14 JSTの原則と21:19 JSTの開始日時境界。取得／補完方式は未決 |
+| FR-reservation-types-name-history | [名称変更の未来反映・過去保持](#requirement-fr-reservation-types-name-history) | 合意済み。2026-10-13 21:14 JSTの原則と21:19 JSTの開始日時境界。名称revision／予約snapshotと根拠不明値の保持は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)で選定。実旧値調査・物理実装・移行は未実施 |
 | FR-reservation-types-inactive-existing-edit | [既存予約の無効区分保持と変更](#requirement-fr-reservation-types-inactive-existing-edit) | 合意済み。2026-10-13 20:58 JST、ユーザー「ok」。指名条件は維持 |
-| FR-reservation-types-group-disable-new-use | [グループ無効化と新規利用停止](#requirement-fr-reservation-types-group-disable-new-use) | 合意済み。2026-10-13、ユーザーのグループ無効化回答。実装方式は未決 |
-| FR-reservation-types-group-reactivation-intent | [再有効化と個別有効意図の保持](#requirement-fr-reservation-types-group-reactivation-intent) | 合意済み。2026-10-13 20:55 JST、ユーザー「ok」。実装方式は未決 |
+| FR-reservation-types-group-disable-new-use | [グループ無効化と新規利用停止](#requirement-fr-reservation-types-group-disable-new-use) | 合意済み。2026-10-13、ユーザーのグループ無効化回答。個別意図とgroup状態の分離は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)で選定。物理フラグ／更新SQLは実装設計 |
+| FR-reservation-types-group-reactivation-intent | [再有効化と個別有効意図の保持](#requirement-fr-reservation-types-group-reactivation-intent) | 合意済み。2026-10-13 20:55 JST、ユーザー「ok」。意味保持は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)で選定。物理フラグ／移行は実装設計 |
 | FR-reservation-types-group-inheritance | [任意所属とグループ継承](#requirement-fr-reservation-types-group-inheritance) | 合意済み。2026-10-13の色継承と2026-10-14 12:56 JSTの所属0または1・グループ階層なし。業務分類は13:14以降の接続契約へ従う |
 | FR-reservation-types-group-color-picker | [10presetと詳細RGB](#requirement-fr-reservation-types-group-color-picker) | 合意済み。2026-10-13、ユーザー対話。根拠は下記 |
 | FR-reservation-types-legacy-review | [正本](#requirement-fr-reservation-types-legacy-review) | 業務5点一括合意 Sentinel_c713c4fdc74c819182979c4b8d2fef07。内部設計・実機未確認 |
@@ -222,7 +222,7 @@ flowchart LR
 <a id="requirement-fr-reservation-types-shared-duration"></a>
 ### 共通所要時間と既存予約
 
-標準所要時間は院内／LINEで共通とする。マスタの所要時間変更は新規予約のみへ適用し、保存済み予約の終了時刻を変更しない。予約入力の自動終了と手動終了保持は[予約正本](../../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-end-time-preservation)を参照。予約編集では既合意の開始＋所要時間の自動入力・手動終了保持に従う。未設定durationの実在・UI／判定方式は調査・設計。
+標準所要時間は院内／LINEで共通とし、[最新8点](../../domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)のコース未選択時の基礎時間として使う。マスタの所要時間変更は新規予約のみへ適用し、保存済み予約の終了時刻を変更しない。予約入力の自動終了と手動終了保持は[予約正本](../../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-end-time-preservation)を参照。区分／開始の編集に関する既存の手動終了保持は維持し、コース／オプション変更時は最新8点に従い再計算・保存前の新終了表示・延長時も既決の重複／空き枠チェックを適用する。未設定durationの実在・UI／判定方式は調査・設計。
 
 <a id="requirement-fr-reservation-types-duration-required"></a>
 ### 作成時の所要時間必須
@@ -274,7 +274,7 @@ flowchart LR
 <a id="requirement-fr-reservation-types-disable-history"></a>
 ### 無効化と履歴保持
 
-無効化した区分は新規予約の選択肢へ出さず、既存予約と履歴を保持する。既存予約の無効区分保持は下記合意に従う。削除・復元は12:51・13:00合意の復元可能な非表示・履歴保持・復元直後無効・明示有効化に従う。名称変更は[未来反映・過去保持](#requirement-fr-reservation-types-name-history)を合意し、開始日時と名称変更確定時点の境界は21:19合意に従い、取得・補完方式は未決。グループ無効化の新規利用停止は[別の合意要件](#requirement-fr-reservation-types-group-disable-new-use)へ従い、再有効化は[個別意図保持の合意](#requirement-fr-reservation-types-group-reactivation-intent)に従い、フラグ更新等の方式は未決。
+無効化した区分は新規予約の選択肢へ出さず、既存予約と履歴を保持する。既存予約の無効区分保持は下記合意に従う。削除・復元は12:51・13:00合意の復元可能な非表示・履歴保持・復元直後無効・明示有効化に従う。名称変更は[未来反映・過去保持](#requirement-fr-reservation-types-name-history)を合意し、開始日時と名称変更確定時点の境界は21:19合意に従う。名称revision・予約snapshotと復元可能値だけの補完／unknown保持は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)で選定済み。実旧値の調査・物理実装・移行は未実施。グループ無効化の新規利用停止は[別の合意要件](#requirement-fr-reservation-types-group-disable-new-use)へ従い、再有効化は[個別意図保持の合意](#requirement-fr-reservation-types-group-reactivation-intent)に従う。個別意図・削除・group状態・明示再開待ちの意味保持は同§3.2で選定済み。物理カラムや更新SQLを本書で確定せず、実装設計・移行検証へ残す。
 
 <a id="requirement-fr-reservation-types-delete-restore-history"></a>
 ### 予約区分・グループの削除・復元と履歴保持（12:51合意）
@@ -313,7 +313,7 @@ flowchart LR
 
 画面を閲覧する時点で予約が過去になったことを理由に、新名称を変更前名称へ巻き戻さない。名称変更確定時点で対象が決まり、その時点で新名称を反映した予約は、後日開始済みになってもその名称を表示する。複数回の名称変更でも「変更前の名称」を初期の名称まで戻す意味ではない。
 
-履歴名称の保存・取得方式と既存データの補完は未決。旧名の根拠がない場合に推測で旧名を作らない。今回の合意をグループ名・スタッフ名・LINE表示名・略称等の名称変更へ自動的に拡張しない。実装変更や既存予約データの書換えは行わない。
+履歴名称は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)の名称revisionと予約表示名snapshot・採用revision・出所を保持する設計に従う。旧データは復元できる値だけを補完し、確認不能はunknownとして保持する。物理保存・取得API・実旧値調査・移行は未実施。旧名の根拠がない場合に推測で旧名を作らない。今回の合意をグループ名・スタッフ名・LINE表示名・略称等の名称変更へ自動的に拡張しない。実装変更や既存予約データの書換えは行わない。
 
 
 
@@ -337,7 +337,7 @@ flowchart LR
 
 未来日を含めて既存予約と履歴は保持し、グループ無効化を原因とする自動取消・日時変更などを行わない。無効化確定前の確認アラートを必須とする。対象の所属区分一覧と「新規予約で選択できなくなり、未来日を含む既存予約には影響しない」旨を表示し、「キャンセル」と「無効化する」の操作を置く。キャンセル時は変更を保存せず、無効化も確定しない。2026-10-13 20:55 JSTのユーザー「無効化する際はアラート表示させる必要がありますね」による具体化。
 
-区分のactiveフラグを一括変更するかグループ状態との論理積で判定するかという実装方式は未決。既存予約の無効区分保持と日時・指名・メモ変更は[20:58の既存編集契約](#requirement-fr-reservation-types-inactive-existing-edit)に従う。再有効化時は下記の個別有効意図保持を守り、無効化前の意図を失う方式を採用しない。既存個人適格性や予約を勝手に変える方式を推定しない。
+意味保持方式は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)で、個別有効意図・削除状態・group有効／削除・明示再開待ちを別事実として保持すると選定済み。区分の個別有効意図を一括上書きして失わない。物理activeカラムの配置・更新SQL・既存値の移行は実装設計／調査へ残し、本書で実装済みとはしない。既存予約の無効区分保持と日時・指名・メモ変更は[20:58の既存編集契約](#requirement-fr-reservation-types-inactive-existing-edit)に従う。再有効化時は下記の個別有効意図保持を守り、無効化前の意図を失う方式を採用しない。既存個人適格性や予約を勝手に変える方式を推定しない。
 
 決定者はユーザー、合意日は2026-10-13。根拠は「グループを無効にしたら中の予約区分も無効」「警告でその旨を表示」「未来日で予約済みはよいが新規予約が無効」という明示回答。仕様の合意をコード／DBへの反映完了にしない。
 
@@ -348,7 +348,7 @@ flowchart LR
 
 グループを再び有効にしたときは、もともと個別に有効だった予約区分だけ新規予約を再開し、個別に無効にしていた区分は無効のままとする。グループ無効化と再有効化を通じ、区分個別の有効・無効の意図を保持し、一律に全区分を有効化しない。
 
-決定者はユーザー、2026-10-13 20:55 JSTにこの再開・個別無効維持の提案へ「ok」と回答。意図の保持方法、グループ無効中の個別編集は17:17合意済み。activeフラグの更新方式は未決。未来日を含む既存予約への自動変更を認める合意ではない。
+決定者はユーザー、2026-10-13 20:55 JSTにこの再開・個別無効維持の提案へ「ok」と回答。意図の保持方法、グループ無効中の個別編集は17:17合意済み。個別意図と実効利用可否の分離は[予約D01の技術契約§3.2](../../../design/domains/reservations/technical-spec.md#reservation-storage-details)の選定に従う。物理activeカラムや更新SQL・移行は実装設計／調査として残す。未来日を含む既存予約への自動変更を認める合意ではない。
 
 <a id="requirement-fr-reservation-types-group-inheritance"></a>
 ### 任意所属とグループ継承
@@ -519,3 +519,25 @@ flowchart LR
 | PATCH | `/api/v1/masters/reservation-type-groups/reorder` | 区分グループ表示順の一括保存（BE実装済みだが本画面からは未呼出） | `master-reservation-type` | `edit` |
 
 ---
+
+## 追加・変更後の選択肢反映（Backlog No.51・56）
+
+予約区分の作成・有効化・更新の保存成功後は、予約作成が参照する区分一覧を再取得し、ブラウザ全体の再読み込みなしで最新の有効候補を選べるようにする。既存の医院・公開範囲・業務分類・対応条件を維持し、保存失敗や取得失敗を反映成功と表示しない。保存済み区分を取得失敗だけで再作成せず、入力中予約の選択や他項目を無断で書換えない。根拠はPhase1 F52:G52／F57:G57の修正回答で、今回の実機合格ではない。
+
+| 条件ID | 前提／操作 | 期待結果 | 検証状態 |
+|:---|:---|:---|:---|
+| AC-master-reservation-candidate-refresh | 区分を作成／有効化／更新して保存後、開いている予約作成の候補を確認する | 全体reloadなしに最新の有効候補を取得でき、医院・公開・適格条件は不変。失敗時は入力を保持し再取得へ渡す | No.51・56。未実施 |
+
+
+<a id="reservation-type-price-owner-decision"></a>
+## No.20追加決定：料金の管理先とコース紐付けの未確定範囲
+
+2026-10-17 05:03 UTC、予約区分を名称・所要時間の管理とし、料金を診療項目やトリミングコース側で管理する選択肢Aに、本人 Sentinel_d6b42125daa481918b0057f7b00669b7 が「A」と回答した。予約区分自体に料金を設けない。Backlog No.20 G21の10月15日回答「予約区分の所要時間・名称・料金は、予約区分マスタ管理画面より各医院にて設定・変更が可能です」の料金管理先については、この最新本人決定を優先する。名称・所要時間の管理、業務分類・有効状態・表示グループ・公開設定等の既存契約は維持する。
+
+料金は各診療項目・トリミングコース等の既存マスタと明細の責務に従い、予約区分に別の料金値を二重管理しない。料金管理先の決定を、予約だけから請求や実施記録を自動作成する決定へ広げない。[院内／LINE共通の予約区分所要時間](#requirement-fr-reservation-types-shared-duration)と、[予約入力の終了時刻候補・手動終了保持](../../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-end-time-preservation)は維持する。料金責務自体は不変で、所要時間の根拠は後続の[8点承認](../../domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)に更新する。選択コース時間を基礎にできるが、マスタ改定で保存済み予約の終了は動かさない。
+
+同じ本人回答の「ただ予約とコースなどは紐付けた方がいいかと思います／どう思いますか？」は提案として記録する。05:03時点では適用範囲を確認中だった。その後の8点承認で下記時間計算・任意最大1コース・追加オプション対応は確定済み。具体的な対応データと設定UI/APIは設計残件とし、ワクチン・検査等への未指定の一般化を承認済みと推定しない。コースは最大1つ・全予約一律必須にしないことは後続承認で確定済み。この提案だけで一般的な紐付け範囲や自動選択・課金を確定しない。後続8点で承認されたコース／オプションの時間計算・保存は採用済みで、1件の予約で異なるオプションを複数選択でき、同じオプションは1回までとし、数量指定は設けない。選択した各オプションの時間を1回ずつ合計する。コースごとに追加選択できるオプションを設定し、予約画面には選択コースに対応するものだけを表示する。コースに内包された施術は追加オプションとして重複選択できない。コース未選択で選べるオプションは、コース別の設定とは別に設定できる。個別対応データ・設定UI／保存方式の設計と区別する。既存予約のコース／オプション情報・参照契約を撤回する意味にも使わない。料金管理先の確定と、今回提案された紐付けの未確定を分けて扱う。
+
+| 条件ID | 前提／操作 | 期待結果 | 検証状態 |
+|:---|:---|:---|:---|
+| AC-reservation-types-price-owner-separation | 予約区分の名称・標準所要時間と、既存の診療項目／トリミングコース側の料金設定をそれぞれ確認する | 予約区分自身の料金を設定・二重保持する仕様にせず、料金は各既存マスタ／明細の責務で管理する。予約時間は後続8点のコース有無・追加オプションの契約、手動終了は既存保持に従い、料金管理先の整理だけで保存済み予約時刻や請求を変更しない | No.20、本人A。紐付け提案の範囲・詳細の承認や実装・実機合格とは別。未実施 |

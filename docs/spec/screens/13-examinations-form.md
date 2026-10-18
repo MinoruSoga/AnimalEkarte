@@ -80,7 +80,7 @@ stateDiagram-v2
 
 ### 2.4 削除の保護と権限制御
 - **削除**: `ConfirmDialog`（destructive）を経由し、取り消せない旨を明示してから実行します。
-- **権限**: 編集権限（新規は `create`・編集は `edit`）が無い場合はフォーム全体が入力不可になります。
+- **権限**: 新規ルート入口の `create` と、保存mutationの認可を区別する。新規保存は `examinations:create` と `examinations:edit` の両方、既存編集は `edit` を要求する。フォームの入力不可表示だけで保存認可を代用しない。
 - **バリデーションエラー時のフォーカス移動**: 保存失敗時は最初のエラーフィールドへ自動フォーカス・スクロールします（アクセシビリティ対応）。
 
 ---
@@ -98,7 +98,7 @@ stateDiagram-v2
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/examinations/:id` | 検査基本情報の取得（項目リストは `/:id/items` で別途取得） | `examinations` | `view` |
-| POST | `/api/v1/examinations` | 新規保存 | `examinations` | `create` |
+| POST | `/api/v1/examinations` | 新規保存 | `examinations` | `create` かつ `edit` |
 | PATCH | `/api/v1/examinations/:id` | 数値・判定・ステータスの更新 | `examinations` | `edit` |
 | DELETE | `/api/v1/examinations/:id` | 検査記録の削除（編集時のみ削除ボタンを表示） | `examinations` | `delete` |
 | GET | `/api/v1/examinations/:id/items` | 検査項目（結果）のリスト取得 | `examinations` | `view` |

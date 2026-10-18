@@ -25,6 +25,8 @@ flowchart LR
 
 ### 1. 検索契約（実装正本）
 
+[共通の患者検索契約](../shared/ui-contracts.md#requirement-fr-common-ui-pet-selection)に従い、単一欄と飼主姓名の空白吸収／ペット名＋飼主名の空白区切りを使う。各一覧の述語完全統一はPhase2であり、本中間画面の統一と混同しない。対応報告を今回の実機合格と扱わない。
+
 - **入力**: ラベル「検索（ペット名・飼主名・よみ・電話）」の単一フリーテキスト `search`、任意の「飼主No」（`owner_id` = owners.id）、種別はマスタ id の select（種別名テキスト部分一致ではない）。住所フィールドは無い（BUG-451）。
 - **取得**: サーバ側 page（20 件）+ 300ms debounce（テナント全ペット初期ロードではない）。死亡ペットも一覧に出す（`includeDeceased: true`）。死亡ペットは生死列の「死亡」バッジと行のグレーアウトで識別する。
 - **特記マーク（EMR-173/231、共有 `DangerBadge`）**: ペット特記レベルはペット名列に表示 — `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、クリック/Enter/Space で `danger_reason` の補足メモを Popover 開示、空は `内容未登録`）、低・未設定は非表示。飼主 `is_dangerous` は飼主名列の氏名横に文言なしの赤い八角形アイコン（ペット特記レベルとは別概念・Popover なし、代替名「特記」）。いずれもスタッフ向け表示で、分類が伝わる文言は画面・aria-label・title に出さず、LIFF・owner 向け契約にも出さない。
@@ -32,4 +34,3 @@ flowchart LR
   - 現行遷移の参照: カルテ登録の selector（`/medical-records/select-pet`）で死亡ペットを選択すると、新規作成画面ではなく `/medical-records?pet_id=<id>`（そのペットのカルテ一覧）へ遷移する。一覧から既存カルテを開けば閲覧でき、確定済みカルテには追記（addendum）で連絡記録を残せる。
 - **結果列**: 飼主No／飼主名／ペット番号／ペット名／生死／種／生年月日／体重／環境／前回来院／操作。
 - **権限**: 通常は遷移元機能の`<Resource>:create`。checkupsは`ResourceMedicalRecords:create` **かつ** `ResourceMedicalRecords:edit`。
-

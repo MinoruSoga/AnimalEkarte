@@ -21,7 +21,7 @@
 ### 1.3 法人情報セクション (`CompanyInvoiceSection`)
 - 医院一覧の上部に表示される、法人（シングルトン、`companies` テーブル）のインボイス登録番号のみを編集する小セクション。
 - 医院（`Clinic`）ごとの「登録番号」（1.2）とは別エンティティ。法人単位でインボイス発行事業者登録番号を1つだけ保持する。
-- 保存すると全医院の会計伝票・領収書（`AccountingDetailPage` 経由）へ即座に反映される。
+- 法人共通設定として全医院から参照する。発行済み会計伝票・領収書の保存内容を設定保存だけで書き換えず、過去帳票・再印刷は[D10の会計時点snapshot](../domains/accounting/lifecycle.md#requirement-fr-accounting-calculation-snapshot)と既決の訂正手順へ従う。新しい設定の参照と発行済み原本の保持を区別する。
 
 ---
 
@@ -38,14 +38,14 @@ flowchart TB
         Panel["詳細編集サイドパネル<br>医院ごとの登録番号・基本情報"]
         List --> Panel
     end
-    Company -->|保存すると即座に反映| Doc["全医院の会計伝票・領収書"]
+    Company -->|法人共通設定を参照| Doc["全医院の帳票生成<br/>発行済み内容はD10のsnapshot保持"]
     Panel --> Clinic["医院レコード"]
     Clinic -->|所属の選択肢| Staff["スタッフの所属"]
     Clinic -->|テナント分離の源泉| Tenant["診療・会計データの clinic_id 境界"]
 ```
 
 ### 2.2 帳票の適格性保証
-登録された所在地、代表者名、インボイス番号は、システムから発行される全ての領収書・明細書へ正確に反映され、臨床以外の事務コストを大幅に削減します。
+帳票生成で使う所在地、代表者名、インボイス番号は、医院固有情報と法人共通情報を区別して参照します。採用値と発行済み内容の再現・訂正は[D10正本](../domains/accounting/lifecycle.md#requirement-fr-accounting-calculation-snapshot)へ従い、基本情報や法人設定の変更で過去帳票を自動再解釈しません。
 
 ---
 

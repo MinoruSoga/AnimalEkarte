@@ -32,7 +32,7 @@
 - [Badge](../components/badge.md)は識別用で、クリック操作はButton等へ。非色cueを維持。
 - [Button](../components/button.md)は既定type=button、loading中に操作を起動せず、アイコン単独には名前を付ける。
 - [Dialog](../components/dialog.md)はタイトル・説明・focus復元・ESC等の契約を保持。確認必須操作はAlertDialog。X占有領域を入力や操作ボタンへ重ねない。閉じる操作そのものに業務取消・保存・削除の意味を与えない。
-- [Input](../components/input.md)／[Select](../components/select.md)はinvalidの文字説明とlabel接続を保持。Selectの選択肢取得中制御は親の責務。空文字value禁止。検索式選択は適切な検索部品へ。
+- [Input](../components/input.md)／[Select](../components/select.md)等の必須入力には必須マークを示し、未入力・検証エラーは赤枠と文字メッセージで対象欄を識別できるようにする。Backlog Phase1 No.86 F87:G87、2026-10-15曽我回答が根拠。既存の任意項目を必須化せず、色だけに頼らない。invalidの文字説明とlabel接続を保持。Selectの選択肢取得中制御は親の責務。空文字value禁止。検索式選択は適切な検索部品へ。
 - [Table](../components/table.md)の行全体onClickは禁止。明示した行内actionを使い、ヘッダ意味論・空／読込表示と既存例外を保つ。
 - [Tabs](../components/tabs.md)は同一データの切替。別ページ遷移にはナビを使い、disabled理由を補う。
 
@@ -43,8 +43,12 @@ PatientInfoCard利用フォームはtrimming/checkups/examinations/hospitalizati
 
 NavigationBlockerはdirty時のSPA内遷移、併用useUnsavedChangesはブラウザ離脱を担当する。ガードの存在は全writerの永続保存済みを意味しない。OwnerSearchModalの汎用変更確認と、OwnerForm側の会員区分／値引差の警告を混同しない。飼主の付替えを許可する対象・金銭影響・医院scopeはD03/D04/C04の正本へ渡す。
 
+左メニューの各項目には画面の役割・説明を用意し、マウスホバーとキーボードフォーカスのどちらからも確認できる。[Backlog Phase1 F74:G74（No.73）](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=0&range=F74:G74)、2026-10-15曽我回答が根拠。説明を読むだけで画面遷移や保存を起動せず、既存のフォーカス可視性・メニュー表示権限を維持する。対応完了の原文報告を今回の実機合格にしない。
+
 <a id="requirement-fr-common-ui-pet-selection"></a>
 ### FR-common-ui-pet-selection — 選択と作成の分離
+
+予約作成・各カルテ作成時の患者選択は、ペット名・飼主名・よみ・電話番号を扱う単一の横断検索欄へ統一する。飼主の姓と名は空白の有無を吸収するが、ペット名と飼主名の2語は空白で区切り、両者の連結入力を対象にしない。予防接種の飼主検索でも姓名間の空白を吸収する。各一覧の検索述語の完全統一はPhase2で、既存の画面固有検索・認可・ページングを一律変更しない。根拠はBacklog Phase1 No.74・77・81（F75:G75、F78:G78、F82:G82）の2026-10-15回答。
 
 対象はmedical-records/hospitalization/trimming/examinations/checkups/accounting/vaccinations。検索はsearch・owner_id=owners.id・動物種マスタID、20件サーバページング・300ms debounceという既存実装参照を保持し、住所検索は追加しない。通常は利用機能create、checkupsはmedical-recordsのcreateかつeditという既存例外を維持し、C04で再照合する。
 
@@ -56,6 +60,9 @@ NavigationBlockerはdirty時のSPA内遷移、併用useUnsavedChangesはブラ�
 
 | 条件ID | Given／When | Then／独立確認・成功条件 | 確認手順／根拠 |
 |:---|:---|:---|:---|
+| AC-common-ui-menu-purpose | 左メニューの各項目へホバー／キーボードフォーカス | 両経路で画面の役割を読め、説明表示だけで遷移・保存しない | Phase1 No.73、FR-common-ui-context。未実施 |
+| AC-common-ui-patient-search | 予約／各カルテ作成の患者選択と予防接種の飼主検索で検索する | 患者選択は単一欄でペット名・飼主名・よみ・電話を扱い、飼主姓名の空白有無を吸収。ペット名＋飼主名は空白区切りを用い、各一覧の完全統一へ拡大しない | FR-common-ui-pet-selection、No.74・77・81。未実施 |
+| AC-common-ui-required-error | 必須欄と任意欄のあるフォームで必須未入力／形式不正を検証する | 必須マーク・対象欄の赤枠・文字メッセージを示す。任意欄の新規必須化なし | FR-common-ui-primitives、No.86。未実施 |
 | AC-common-ui-focus | 各interactive部品をキーボードで巡回 | focusが見え、disabled操作が発火しない | state＋各primitiveの状態表／UI確認は未実施 |
 | AC-common-ui-pending | 保存ボタンのloading中に再押下 | ラベルとbusy表示を保ち同ボタン操作は抑止 | Button／サーバ冪等性は各D |
 | AC-common-ui-readable | readonly／invalid／死亡を表示 | 読取り・拒否・sentinelを区別でき、色だけに依存しない | 状態正本／Input実装ギャップは残す |
@@ -110,3 +117,31 @@ Input readonly視覚、Dialog mobile fullscreen、Select dense size、Table stic
 | AC-common-ui-list-entry-return | 対象6一覧をメニュー起動／詳細復帰 | 当日の日付軸／既検索条件保持を区別 | 各一覧で確認、未実施 |
 | AC-common-ui-list-pet-all-time | 別ページの過去対象行もある | ペットID全期間・医院維持、ページ外対象も取得 | 同名・別頭・解除も確認、未実施 |
 | AC-common-ui-list-exceptions | 入院ホテル・見積・受付・未納・台帳マスタ | 上表の例外・既存責務保持 | 各一覧で確認、未実施 |
+
+## Backlog原条文の補足受入条件
+
+保存済み原Q/Aと既存業務契約の照合による補足。対応済みという旧回答は実装・実機検証の合格証明に用いない。後続の本人合意、医院scope、権限、履歴・会計訂正の既存条件を維持する。
+
+### FR-common-ui-pet-selection
+
+| 条件ID | 受入条件 | 根拠 | 検証状態 |
+|:---|:---|:---|:---|
+| AC-common-ui-deceased-history-navigation | 死亡登録済みペットを死亡表示／グレーで区別し、通常カルテselectorで選ぶと該当ペットのカルテ履歴へ進む。閲覧だけで新規記録や生死状態変更を起動せず、生前分後日入力は既存の理由・履歴付き専用経路へ分ける。 | Phase1 F43:G43 | 未実施 |
+
+
+<a id="enter-input-unintended-save-20261017"></a>
+## 入力中のEnterによる誤保存を防ぐ（2026-10-17本人確認）
+
+入力中のEnterを、本人が意図していないフォーム送信・保存確定へつなげない。全入力欄に一律「Enterを2回押す」操作を要求する方針にはしない。対象画面・入力欄、IMEが原因かどうか、既に実装修正済みかは未特定であり、特定画面で発生・再現・解消したという事実を補わない。
+
+原要望は2026-09-15 16:56:45 JSTの城東PC（SLK-291、ts1789459005.162369）の「エンターを一回押すと入力確定してしまうのでエンター2回で確定にしてほしい」、19:30:30 JSTの曽我返信は「こちら修正対応を行います」。本人Sentinel_fd16cb27f1b4819192fee859e0ed3d7b「保存されてしまうということでは？」を受け、「入力中のEnterで誤保存しないこと」と整理し全入力欄に一律Enter2回を要求しない方針を確認、2026-10-17 21:52:59 UTCの本人Sentinel_245605c234d08191913aba96a2c85a4b「そうですね」で承認された。旧文言から全アプリのEnter回数仕様やIME原因を推測する解釈は、この本人確認に置き換える。
+
+[通常カルテの既決自動保存](../domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)は維持する。入力変更に伴う正規の自動保存と、意図しないフォーム送信・明示保存の発火を区別し、保存通信があるという理由だけで誤保存と判定しない。複数行入力の改行、候補の選択・確定、既存のキーボード操作を一律禁止しない。保存ボタン等へフォーカスした明示的な実行まで禁止する意味にせず、入力部品内の操作とフォームの保存確定を区別する。
+
+対象画面・入力欄と、変換中／変換確定後・候補選択中等の条件、保存操作の種類、イベントの伝達・制御、具体的な操作回数は実態調査・設計で照合する。今回の承認だけで「1回目は必ずIME変換、2回目は必ず保存」と確定しない。臨床記録・会計等の既存保存契約、認可・競合検査・状態保護は維持し、実装や実機合格とは分ける。
+
+| 条件ID | 前提／操作 | 期待結果 | 検証状態 |
+|:---|:---|:---|:---|
+| AC-common-ui-enter-no-unintended-save | 対象画面・入力欄を調査で特定し、入力中のEnter操作とフォーム送信／保存確定の発火を確認する | 意図しないフォーム送信・保存確定を起こさず、一律Enter2回を強制しない。対象未特定の現在を再現確認済み・修正済みとはしない | 対象未特定・未実施 |
+| AC-common-ui-enter-keeps-input-operations | 複数行入力、候補選択、保存操作をそれぞれ区別してEnterの役割を確認する | 改行や候補確定を一律禁止せず、入力操作を誤って保存確定へ流さない。IME原因や回数の具体動作は実態確認前に固定しない | 対象未特定・未実施 |
+| AC-common-ui-enter-autosave-boundary | 通常カルテの既決自動保存がある入力変更と、Enterによるフォーム送信の経路を比較する | 正規の自動保存を維持し、意図しない送信／保存確定と区別する。自動保存停止や全保存通信禁止をこの承認の合格条件にしない | 対象未特定・未実施 |

@@ -31,7 +31,7 @@
 | 治療プラン項目状態 | 未実施・実施済み・後日予定・中止の4状態 | 未実施／後日予定を終了時警告、中止は理由。警告確認後終了可、自動保存時警告なし |
 | 実施記録者／記録時刻 | 実施済み等を記録した操作主体とその記録時刻 | 実際の実施者／実績時刻と区別し、未指定項目を必須化しない |
 
-項目ごとの状態と記録履歴を持ち、checkbox解除を実施取消へ変換しない。理由付き実施取消は追加合意の専用手順へ。実施記録と治療明細／課金の具体的連動は別ownerの接続判断。入院snapshotへ通常カルテの状態を自動適用しない。
+項目ごとの状態と記録履歴を持ち、checkbox解除を実施取消へ変換しない。理由付き実施取消は追加合意の専用手順へ。実施・準備完了の請求対象時点とプラン同期の業務境界は[D10最新合意](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)で確定し、各writerの具体対応は設計。入院snapshotへ通常カルテの状態を自動適用しない。
 
 ## 訂正・例外4項目の概念
 
@@ -39,7 +39,7 @@
 
 ## 追加3項目の概念
 
-[業務正本](../domains/medical-records/pages/medical-record-form.md#medical-record-agreement-integration-three)。画像の選択／D&Dは同一の入力検証へ渡す2入口。印刷対象範囲は認可された保存済み情報の選択で、関係する訂正・追記の識別を保持し公開範囲を拡大しない。同一検査結果は検査ownerの結果ID・結果版・変更履歴を持ち、複数画面から参照する。旧確定時を含む保存時参照版と後日結果版は別で、以前の保存版を不変とし現在の記録更新と区別する。訂正影響は関連ownerへの確認・操作の必要性で、金額／在庫の増減確定や実行済み状態と同義ではない。影響未確認・取得失敗と、照合済み影響なしを分離する。
+[業務正本](../domains/medical-records/pages/medical-record-form.md#medical-record-agreement-integration-three)。画像の撮影／選択／D&Dは同一の入力検証へ渡す入口（最新画面正本）であり、端末撮影からの保存も原本保護へ従う。印刷対象範囲は認可された保存済み情報の選択で、関係する訂正・追記の識別を保持し公開範囲を拡大しない。同一検査結果は検査ownerの結果ID・結果版・変更履歴を持ち、複数画面から参照する。旧確定時を含む保存時参照版と後日結果版は別で、以前の保存版を不変とし現在の記録更新と区別する。訂正影響は関連ownerへの確認・操作の必要性で、金額／在庫の増減確定や実行済み状態と同義ではない。影響未確認・取得失敗と、照合済み影響なしを分離する。
 
 ## 最終照合の境界用語
 
@@ -90,3 +90,36 @@
 ## 薬量の自動範囲・複数パターン
 
 [薬量追加採用の正本・追加4AC](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)へ従う。用量パターンは薬剤／動物種に加え目的・経路で区別する承認対象で、今回の明示選択と当時版を持つ。薬剤masterの1件と一対一に限定しない。単純体重計算から1回製剤量を得る範囲と、医師確認・理由付き手入力を区別する。目的／経路別選択は複雑protocol自動実行ではなく、具体値の臨床承認#261も代替しない。現行単一用量パラメータの記述は実装参照で、複数パターン対応済みの根拠ではない。
+
+<a id="medical-record-current-concepts-20261018"></a>
+## 統合プラン・原文・要約・薬量の最新定義
+
+| 推奨語／別名 | 意味・識別・関係 | 制約・追跡先 |
+|:---|:---|:---|
+| 統合した治療プラン | 問診入力と既存右側の過去カルテ履歴を移した画面責務。治療明細・保存単位と同義ではない | [FR-medical-records-integrated-plan](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-integrated-plan)、AC-medical-records-integrated-history。入力と履歴同時参照・選択複写を維持。統合保存単位は設計 |
+| 飼主由来再診事前問診 | 予約×対象ペットの原文。スタッフ聞取の初診問診・診療本文とは別 | [予約語彙](reservations.md#revisit-intake-concept)。AC-medical-records-owner-intake-protected：スタッフ原文編集・clear・過去複写で上書き/消去/他予約へ流用しない |
+| 会話要約専用保存項目 | 来院カルテ単位に保存する要約。診療本文、録音、文字起こし全文、スタッフ貼付フォームと別 | [FR-medical-records-conversation-summary](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-conversation-summary)、AC-medical-records-summary-hidden。今回は非表示、音声入力・外部連携はPhase2、自動診療本文上書きなし |
+| 1回量／用法／処方総量 | 一回の製剤量／投与方法・回数等／処方する総量という異なる値 | [FR-medical-records-dose-display-unit-price](../domains/medical-records/lifecycle.md#requirement-fr-medical-records-dose-display-unit-price)、AC-medical-records-dose-three-values。薬剤行で常時区別し根拠は詳細、新用法templateや日数から総量計算は採用しない |
+| 承認済用量パターン | 薬剤・種・目的・経路等に対応する計算根拠の候補とその版 | [薬量採用正本](../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)、AC-dose-source-simple-scope／AC-dose-source-outside-scope／AC-dose-source-pattern-choice／AC-dose-source-approval-limit。1薬剤=1パターンと固定しない。犬猫単純体重計算、未承認値/評価不能/上限超過の安全境界を維持 |
+| 個別明細単価 | 薬剤・処置・検査・物販の今回行に適用する単価。マスタ現在価格と別 | 同FR、AC-medical-records-priced-line-edit。権限内で実施前後に変更でき、通常理由任意・変更者日時前後値保持。その他手入力行・確定済会計訂正の理由必須を解除しない |
+
+<a id="record-edit-right-concept"></a>
+## 編集権と未保存入力
+
+| 概念 | 定義・多重度／区別 | 制約・受入への追跡 |
+|:---|:---|:---|
+| カルテ編集権 | 一つの通常カルテを現在編集できる権利の保持。ある時点の有効保持は0または1 | [FR-medical-records-single-editor](../domains/medical-records/lifecycle.md#medical-record-edit-exclusivity-20261018)。閲覧認可、編集操作の権限、実編集者履歴と別。同じユーザーの別端末も迂回しない |
+| 閲覧／編集開始 | 開くのみは閲覧、「編集を開始」は取得操作。取得成立後に編集する | [最新3点の正本](../domains/medical-records/lifecycle.md#record-edit-right-lifecycle-20261018)、AC-medical-records-editor-view-no-acquire／AC-medical-records-editor-explicit-start。全項目保存ボタン方式にはしない |
+| 保持／通常解放 | 同カルテのタブ移動・単なる無操作では維持。別画面離脱時は保存結果確認後に解放 | 同正本、AC-medical-records-editor-tab-and-idle／AC-medical-records-editor-leave-result。失敗・結果不明を成功表示しない |
+| 強制取得／移転 | 既存医院scopeと対象編集権限を持つスタッフの確認付き取得。旧権利を移す操作 | 同FR、AC-medical-records-single-editor-force-acquire／AC-medical-records-force-acquire-editor-permission／AC-medical-records-force-acquire-confirm-cancel。確認取消は非取得・元状態不変。旧端末の編集保存停止・移転表示、遅延保存受理拒否、移転前成立済保存保持 |
+| 切断／再接続 | 通信状態の変化。業務の診療終了や編集権移転の証明ではない | AC-medical-records-editor-disconnect-stop／AC-medical-records-editor-reconnect-check。入力保持・編集送信停止、復帰時の権と直前保存結果照合。単なる再接続で自動再送しない |
+| 未保存入力の回復 | 保存済み版と別に保持する入力を再読み込み後も復元可能にすること | AC-medical-records-editor-reload-recover／AC-medical-records-editor-reacquire-select。再取得後に最新内容と比較して必要部分を明示選択適用。自動上書き・破棄・再送なし。タブ開始時クリア/複製直前取消とは別基準 |
+
+編集権のAPI・セッション識別・原子取得/解放・保存受理の実現、切断失効回収方式・秒数、入力の保存場所・保持期間・比較選択UIは未選定。業務上の維持・停止・再取得後比較を未決へ戻さず、端末間下書き共有や理由必須化も追加しない。既存hybrid保存と他ownerの保護を維持する。
+
+<a id="certificate-edition-concept"></a>
+## 接種事実と証明書版
+
+接種実績はD08の記録、証明書は認可された保存済み内容を発行時に固定した版である。通常予防接種縦/横、狂犬病予防注射済証という3様式を、別の接種事実3件とは扱わない。訂正後は新発行し旧内容を履歴に保持する。再印刷は最新版、旧訂正版は有効証明として印刷しない。共通基本情報の更新で発行版を自動変更せず、同じ発行版の再印刷は当時内容の再現である。発行番号書式・記録との物理多重度・版保存方式は本整理で決めない。
+
+正本：[証明書の版と3様式](../domains/vaccinations/lifecycle.md#certificate-editions-20261017)、AC-vaccinations-certificate-three-layouts／AC-vaccinations-certificate-correction／AC-vaccinations-certificate-basic-update／AC-vaccinations-certificate-no-side-effect。未保存印刷・印刷時自動登録・preview省略を復活しない。専用実装の所在/適合と採用仕様を区別する。

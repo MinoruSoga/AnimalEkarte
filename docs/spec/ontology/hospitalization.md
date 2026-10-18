@@ -32,3 +32,18 @@
 - 理由付き専用訂正: 完了後の原記録を保持し、理由と変更履歴を関連づける操作。自動返金・在庫巻戻しを含まない。
 - 必要前金: スタッフが個別確認入力する必要額。D10で受領した残高とは別。
 - 取消料: スタッフが個別確認入力する料金。予約取消だけで自動請求・返金しない。
+
+<a id="stay-identity-and-time-concept"></a>
+## 滞在の同一性・時間・日次参照
+
+一つの実滞在は対象ペットと医院に対応する。予定入院と診察後決定は同じ入院へ合流する入口で、予約ID/通常カルテID/入院ID/日次記録ID/会計IDを同一にしない。正確な予約↔滞在↔請求の物理多重度が未記載なら未選定のまま保持し、全入口を1:1外部キーと固定しない。
+
+| 概念／関係 | 意味・時間 | 正本・受入への追跡 |
+|:---|:---|:---|
+| 予定受入/退院と実滞在 | 予定区間と実際の開始/終了は別。未退室は予定超過後も滞在中 | [FR-hospitalization-hotel-stay-capacity](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-hotel-stay-capacity)、ホテルは頭数/全期間/二重計数防止を継承 |
+| 入院開始→入院記録 | 来院後担当医決定済みで明示開始、記録作成と整合。失敗は開始成功としない | [FR-hospitalization-entry-and-start](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-entry-and-start)、受入は同書[hospitalization-acceptance](../domains/hospitalization/lifecycle.md#hospitalization-acceptance) |
+| 入院治療プラン/ケアプラン/日次記録 | 診療明細計画/継続ケア項目/日付別実績入力という独立概念 | [FR-hospitalization-distinct-plans-and-records](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-distinct-plans-and-records)。変更を実施・金銭・在庫へ自動変換しない |
+| 実退院日時 | 実際の臨床入院終了日時。予定退院・操作入力日時・支払日時とは別 | [FR-hospitalization-discharge-and-billing](../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)。退院と会計作成/確定/入金は分離 |
+| 退院情報の日次projection | 実退院のJST暦日[Dの00:00,翌日00:00)に属する退院日時・飼主名・ペット名・入院日 | [実日正本](../domains/cash-register/business-rules.md#closing-discharge-actual-jst-day-20261017)、AC-closing-discharge-actual-jst-day-interval／AC-closing-discharge-calendar-day-not-closing-period／AC-closing-discharge-four-fields。予定日や金銭営業日で代用しない |
+
+退院情報の表示は金銭計上・請求・件数を変更せず、ホテル退室やD05独立帳票へ対象を拡張しない。退院情報の行粒度・固定版の保存方式は設計で、未知の日時を当日で埋めない。

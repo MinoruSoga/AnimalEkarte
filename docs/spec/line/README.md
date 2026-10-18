@@ -57,6 +57,10 @@ flowchart LR
 
 ---
 
+## 納品Phaseの読む順
+
+Lステップ連携・DMはBacklog Phase1 G24の2026/10/15曽我回答で今期スコープ外。[D15の納品Phase境界](lstep-integration.md#crm-delivery-phase-boundary-20261017)を参照する。以下の既存再開条件・実装説明と納品範囲は別で、G29の画面仕様肯定を今期納品への変更と解釈しない。LINE予約・再診問診へ除外を広げない。
+
 ## 3. 再開条件（#259）
 
 [#259](https://github.com/MinoruSoga/AnimalEkarte/issues/259) は 2026-09-06 取得時 **OPEN**。最新コメントの判定は **BLOCKED_EXTERNAL**（先方 enable、STG 少数 live-send、cron/stop 実測待ち）。納品後対応とする PO 決定は維持されており、仕様書の「実装済み」は外部再開・稼働・受入済みを意味しない。Linear BRT-50 の現在値は 2026-09-06 時点で未取得だった。（2026-09-29 訂正: Linear は 2026-09-16 に閉鎖済みで、BRT-50 の現在値は今後も Linear からは取得不可。実行 SoT は Plane workspace `baritechllc` / project `EMR` で、関連する Lステップ実送信 UAT 項目は `EMR-132`（QA-UAT-LSTEP-REAL、plane-md-migration receipt 2026-09-23 時点で Blocked））

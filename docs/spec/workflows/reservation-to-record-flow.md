@@ -260,7 +260,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 正常の受付は[受付済への変更と通常カルテ作成の両方が成功した場合だけ確定](#requirement-fr-reservations-checkin-record-atomicity)する既存ルールを維持する。今回の開始ボタンの未作成時対応を根拠に、受付だけを成功扱いにしたり、受付時作成を診療開始時だけの作成へ置き換えたりしない。
 
-通信断で結果が不明な場合の成功結果の照合・再取得・再送・冪等性などの具体的な整合方法は、正常経路と失敗時の業務結果・重複防止を満たす実装判断として残す。技術方法の未決を、作成／読み込み失敗時にも診療開始を確定できる許可へ読み替えない。誤終了取消は11:56合意に従うが、他の逆遷移は[専用訂正の正本](#requirement-fr-reservations-controlled-reverse-transition)へ従い、権限識別子・訂正内部は設計。 [12:22合意の判定時間・延長警告](../domains/reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
+通信断で結果が不明な場合の成功結果の照合・再取得・再送は、[予約D01の選定済み技術契約§4.4・§4.7](../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)と[受付D02の操作契約](../../design/domains/reception/technical-spec.md#reception-operation-contract)に従う。同じ操作キーで結果照合し、準備・認可付き読込・明示開始を分け、結果不明を失敗確定や自動Undoへ変えない。正常経路と失敗時の業務結果・重複防止を維持し、実装・実機検証は未実施。選定済み方法を未決へ戻さず、作成／読み込み失敗時にも診療開始を確定できる許可へ読み替えない。誤終了取消は11:56合意に従うが、他の逆遷移は[専用訂正の正本](#requirement-fr-reservations-controlled-reverse-transition)へ従い、権限識別子・訂正内部は設計。 [12:22合意の判定時間・延長警告](../domains/reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
 
 <a id="consultation-overtime"></a>
 #### 予定終了超過でも現在診療中なら保護対象（合意済み）
@@ -273,7 +273,7 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 
 2026-10-13 21:06 JST合意の[スタッフ無効化・退職時保護](../screens/settings/master-staff.md#requirement-fr-staff-deactivation-booking-guard)も本契約の範囲へ揃える。未来・現在診療中の指名予約を解消するまで無効化不可。過去完了履歴だけで永久禁止せず、スタッフと履歴を保持する。履歴削除や予約の自動取消・指名解除はしない。
 
-予約編集とシフト／適格設定保存・スタッフ無効化の同時実行で制約をすり抜けない必要があるが、ロック等の実装方式は未決。データ不整合救済・シフト未登録時のカレンダー列構成は決めず、非勤務者の列を警告付きで残す案を承認済みにしない。
+予約編集とシフト／適格設定保存・スタッフ無効化の同時実行は、[予約D01の全writer取得規約§6.4](../../design/domains/reservations/technical-spec.md#reservation-global-lock-contract)で選定済みの共通transaction gate・owner別下位順序・取得後再照合に従う。既存row lock・NOWAIT・必要監査を保持し、未参加writerは利用開始を止める。全writer実装・性能・deadlockの実機検証は未実施であり、方式選定を実装適合済みとは扱わない。データ不整合救済・シフト未登録時のカレンダー列構成は決めず、非勤務者の列を警告付きで残す案を承認済みにしない。
 
 <a id="next-visit-intent"></a>
 <a id="next-visit-intent-agreement-20261015"></a>

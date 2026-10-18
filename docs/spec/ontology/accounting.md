@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.accounting／語彙正本 |
-| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)の範囲。文書完成境界と実装判定外は設計へ |
+| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ |
 | 実装状態 | 未確認。概念と現モデルを同一視しない |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-15 |
+| 文書確認日 | 2026-10-18（後続業務正本の用語追従） |
 
 <a id="accounting-ontology"></a>
 ## 定義と別名
@@ -58,7 +58,7 @@
 | 支払方法→新受領／過去支払記録 | 現在の選択可否と既存参照を分離 | 停止方法は新入金で選べず、過去履歴・集計の方法ID／医院対応と金額を保持。返金・誤記訂正へ新受領のgateを一律適用しない |
 | 請求→元明細 | 確定時は選択明細1件以上 | 未請求と確定済み未納を混ぜて再請求しない。専用記録の内部は各owner |
 | 請求→入金履歴 | 0件から複数件 | 0件でも確定可。後日回収も元請求へ。0円で架空入金なし |
-| 一回の入金→複数請求への配分 | 元請求へ複数帰属。古い請求順、同日作成順。保存後も理由付き変更可 | 実入金額／日を再配分で変えない。現金超過は釣銭、非現金超過は返金必要。預り金へ無断転用しない |
+| 一回の入金→複数請求への配分 | 元請求へ複数帰属。古い請求順、同日作成順。保存後も理由付き変更可 | 実入金額／日を再配分で変えない。通常の現金回収では超過を釣銭とし、非現金超過は返金必要。[過受領の後続承認](#excess-receipt-concept)による入力訂正・実返金・飼主了承付き明示預りと区別し、預り金へ無断転用しない |
 | 預り金→飼主／予約 | 受領ごとの元飼主は必須、元予約は0または1の任意参照 | 同医院／飼主を保持。指定予約の所属を検査。同飼主の別予約／ペット利用可。自動失効なし、別医院移行・別飼主譲渡は今回対象外 |
 | 前金→充当／実返金 | 受領後、有効充当額・取消／減額による解除／復元・実返金を履歴で追跡。未充当残の式は業務正本へ | 充当は新受領ではない。使用済み残を再充当／再返金しない |
 | 訂正後料金→未払額／返金必要額 | 請求帰属の入金・実返金・前金充当から別々に表示 | 未実行返金は返金済みではない。未充当前金を請求入金へ混ぜない |
@@ -85,8 +85,30 @@
 
 [精算詳細](../domains/accounting/pages/accounting-settlement.md)の「未精算」「精算済み」と支払状態を無条件に同一視しない。現行の単一ペット／カルテ参照や全額入金制約は[現行差分](../../design/domains/accounting/technical-spec.md#accounting-current-gap)へ。API／DB識別子や画面ラベルの改名は今回行わない。
 
-予約の[語彙正本](reservations.md)・カルテの[語彙正本](medical-records.md)を再利用し、確認医師／編集者・項目実施取消と会計操作を混同しない。今回の定義・関係・制約は[10FR／167AC](../domains/accounting/lifecycle.md#accounting-acceptance)へ照合する。初回〜第十群142AC・死亡後精算2ACの履歴を保持し、支払方法停止の追加7AC、会議連携4AC、今回の品目別保険設定1FR／12ACを区別する。第三群で飼主単位預り金／予約任意・同飼主別予約／ペット利用、割合合算→金額→割引後保険、同日作成順／理由付き保存後配分変更、非現金超過の返金必要、別方法返金・金額追加承認なし、受領／充当／今回入金／返金の帳票と元番号維持を追加。旧FR識別子のreservation-advanceは参照互換のため保持し、最新概念をAPI／コード改名としない。第四群で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の残高復元と別返金を追加。有効充当額は取消・減額による解除・復元を反映し、未充当残との整合を照合する。第五群で明細→全体のscope分離と比例配賦、税抜計算／税込表示、割合値引き額四捨五入と請求書税率別税切捨て、超過の実値引き上限・他行転用なしを反映。同率配賦の固定順は技術案。第六群で複数保険会社、品目マスタの全体割引除外、飼主宛名・ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を追加。第七群で外部画面等によるスタッフの資格／残限度確認と結果・保険負担額の記録、窓口会計限定、ペットごと1利用契約を追加。会社／商品別の自動給付算式は将来の別スコープで現在の記録運用の前提にしない。第八群で減額時の解除・残高復元と併用時のスタッフ内訳確認、自動失効なし・同医院同飼主限定、取消元明細の選択確認・新番号再請求／元請求リンク、同時回収と元請求別配分、共通料金別枠を追加。督促・貸倒、別医院移行・別飼主譲渡は今回対象外。第九群で元価格／税／割引の継承と必要箇所のスタッフ修正、残入金の確認充当と保険再確認、返金元資金内訳と理由の登録まで返金確定不可を追加。元資金と実返金方法を区別し、新受領・二重使用や金額別追加承認を作らない。第十群で空明細確定不可／0円理由、値引き前行別四捨五入、除外初期値／欠落時false・追加後明示的再適用を合意。[全体の状態・master・帳票と受け手](../../design/domains/accounting/technical-spec.md#accounting-reconciled-contract)、[文書完成境界](../../design/domains/accounting/technical-spec.md#accounting-document-completion)へ対応。実装／利用開始条件は業務未決と分ける。
+予約の[語彙正本](reservations.md)・カルテの[語彙正本](medical-records.md)を再利用し、確認医師／編集者・項目実施取消と会計操作を混同しない。今回の定義・関係・制約は[従来段階10FR／167ACと現在13FR／181AC](../domains/accounting/lifecycle.md#accounting-acceptance)へ照合する。初回〜第十群142AC・死亡後精算2ACの履歴を保持し、支払方法停止の追加7AC、会議連携4AC、今回の品目別保険設定1FR／12ACを区別する。第三群で飼主単位預り金／予約任意・同飼主別予約／ペット利用、割合合算→金額→割引後保険、同日作成順／理由付き保存後配分変更、非現金超過の返金必要、別方法返金・金額追加承認なし、受領／充当／今回入金／返金の帳票と元番号維持を追加。旧FR識別子のreservation-advanceは参照互換のため保持し、最新概念をAPI／コード改名としない。第四群で両粒度の割引・超過警告と承認後の請求額0円下限、会計取消時の残高復元と別返金を追加。有効充当額は取消・減額による解除・復元を反映し、未充当残との整合を照合する。第五群で明細→全体のscope分離と比例配賦、税抜計算／税込表示、割合値引き額四捨五入と請求書税率別税切捨て、超過の実値引き上限・他行転用なしを反映。同率配賦の固定順は技術案。第六群で複数保険会社、品目マスタの全体割引除外、飼主宛名・ペット別明細と元取引／今回変更額、管理者と権限付きスタッフのマスタ変更を追加。第七群で外部画面等によるスタッフの資格／残限度確認と結果・保険負担額の記録、窓口会計限定、ペットごと1利用契約を追加。会社／商品別の自動給付算式は将来の別スコープで現在の記録運用の前提にしない。第八群で減額時の解除・残高復元と併用時のスタッフ内訳確認、自動失効なし・同医院同飼主限定、取消元明細の選択確認・新番号再請求／元請求リンク、同時回収と元請求別配分、共通料金別枠を追加。督促・貸倒、別医院移行・別飼主譲渡は今回対象外。第九群で元価格／税／割引の継承と必要箇所のスタッフ修正、残入金の確認充当と保険再確認、返金元資金内訳と理由の登録まで返金確定不可を追加。元資金と実返金方法を区別し、新受領・二重使用や金額別追加承認を作らない。第十群で空明細確定不可／0円理由、値引き前行別四捨五入、除外初期値／欠落時false・追加後明示的再適用を合意。[全体の状態・master・帳票と受け手](../../design/domains/accounting/technical-spec.md#accounting-reconciled-contract)、[文書完成境界](../../design/domains/accounting/technical-spec.md#accounting-document-completion)へ対応。実装／利用開始条件は業務未決と分ける。
 
 ## 月次未納の追加接続
 
 [月次帳票正本・追加3AC](../domains/accounting/pages/unpaid-list.md#unpaid-monthly-source-adoption)へ接続する。月末残高・当月発生未払い・実入金・翌月繰越を区別し、預り金充当と入金、減額と返金を同一化しない。期間指定・手動印刷の追加目標であり、元請求訂正や実収支の帰属は既存契約を継承する。2026-10-16の追加承認により、4列を保持し、当月入金は実受領のみ、預り金充当／解除・請求減額／取消は別掲の調整内訳へ対応する。調整増減・同一cutoffの残高連続性、既存資金の二重受領禁止は正本の3ACを更新して照合する。実返金等の詳細表示と実装検証は別であり、税額や金銭履歴を変更しない。
+
+<a id="doctor-review-and-charge-concept"></a>
+## 医師確認・会計準備・請求対象・同期
+
+| 概念 | 定義・方向／条件 | 正本と追跡AC |
+|:---|:---|:---|
+| 会計準備 | 医師確認前から会計ページを用意し内容を確認する状態。請求確定やデータ永続化の時点と別 | [FR-accounting-doctor-review](../domains/accounting/lifecycle.md#requirement-fr-accounting-doctor-review)、AC-accounting-before-doctor-review。「医師確認待ち・金額未確定」を表示 |
+| 医師確認 | 会計タブのチェックによる確認。予約進行状態とは独立の軸 | 同FR、AC-accounting-review-card-axis。診療終了で会計待ち、新たな受付statusを作らない。通常カルテ保存の必須条件へ一般化しない |
+| 確認後の金額変更 | 単価/割引等のみの変更。臨床内容変更と異なる | AC-accounting-reviewed-price-only。警告了承で保存、医師再確認不要。通常理由任意でも必要履歴を保持 |
+| 確認後の臨床内容変更 | 薬剤/処置の追加削除・数量変更 | AC-accounting-reviewed-clinical-change。再確認まで確定精算停止、医師が差分確認し必要プラン修正。会計からプランを自動逆書換えしない |
+| プラン由来の会計明細 | 元プランと今回会計値の関係を保持する明細。マスタ改定による追従とは別 | [FR-accounting-plan-sync](../domains/accounting/lifecycle.md#requirement-fr-accounting-plan-sync)、AC-accounting-plan-sync-three-branches。未確定未手修正は自動同期、未確定手修正済は値保持と差異判断、確定後は専用訂正 |
+| 当日請求対象 | 院内投薬注射は実施後、持帰薬物販は内容数量確定し準備できた時点 | [FR-accounting-billable-performance](../domains/accounting/lifecycle.md#requirement-fr-accounting-billable-performance)、AC-accounting-billable-boundary／AC-accounting-ready-not-stock。未実施/後日予定/中止は当日請求外、予定額を分離。個別中止料等は維持 |
+| 準備完了／実引渡し／実出庫 | 対象内容を用意できた事実、飼主へ渡した事実、在庫から出た事実 | 同FR。請求確定・取消・返金だけで実引渡/在庫移動を生成しない |
+
+<a id="excess-receipt-concept"></a>
+## 預かり額・釣銭・実受領・過受領
+
+預かり額は渡された額、釣銭はその場で返す額、釣銭後の実受領は残る資金、請求への充当は元請求へ対応付ける額で、同一ではない。[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)のAC-accounting-manual-change-unreconciled-completion／no-fabricated-adjustment／preserves-partial-and-noncashは未確認差額のまま完了させず、部分入金・非現金の既決を保持する。
+
+[過受領承認](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)では入力ミス訂正、実返金、飼主了承の明示預り金登録を区別する。AC-accounting-excess-input-correction／AC-accounting-excess-actual-refund-once／AC-accounting-excess-consented-deposit-single-receipt。一実受領8,500円を請求8,000円と預り500円に対応付けても実入金は一度だけで、架空の追加入金500円を作らない。了承なしの自動預り金化・売上加算・返金未実行の返金済み化をしない。元額/方法/実受領日/返金日/配分を保持し、同じ返却を釣銭と返金で二重控除しない。
+
+個別会計の割引変更権限と価格マスタ変更権限は別（AC-accounting-individual-discount-permission）。通常単価/割引の理由任意と、手入力その他行/実施中止/確定会計訂正/実返金等の既存理由必須は操作別の制約で、一律理由必須又は一律任意へまとめない。

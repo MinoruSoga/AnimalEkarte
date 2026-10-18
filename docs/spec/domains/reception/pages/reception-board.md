@@ -65,6 +65,8 @@
 - **詳細表示**: カードモーダルで来院詳細を確認する。当日の「受付予約」から「受付する」で同じ予約を受付済へ進める契約は[横断フロー](../../../workflows/reservation-to-record-flow.md#checkin-contract)。予約変更は「予約を変更」から[予約管理の対象編集モーダル](../../reservations/pages/reservation-management.md#requirement-fr-reservations-edit-entry)へ遷移し、受付内の独立編集にしない。受付済みで診療前なら従来の変更範囲を維持する。診療開始後／会計完了後の通常操作は[23:21 JSTの予約正本](../../reservations/pages/reservation-management.md#requirement-fr-reservations-post-consultation-edit-limits)へ従い、日時・区分変更と取消は不可、メモ編集は可。別医師への変更は[23:43 JSTの引継ぎ契約](../../reservations/pages/reservation-management.md#requirement-fr-reservations-doctor-handoff)に従い、予約管理で診療終了まで可、終了後の通常操作では不可。終了操作は10:12合意のカードモーダルボタンに加え、会議追加2の通常カルテ／専用トリミング画面からも行う。交代先は11:15合意に従い引継ぎ後の担当時間で判定し、過去全体の勤務を要求しない。指名なしへの変更も終了まで可、終了後の通常変更は不可。誤終了取消の既存grant・会計確定境界は[技術契約](../../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)・横断正本へ従う。その他の逆方向／遷移は[記録確認訂正](../../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition)へ渡し、具体的な訂正・精算内部は各ownerへ残す。診療前の誤取消復元は17:10合意へ従い、復元先状態・手動修正は17:17合意、具体的UI・保存方式は設計。開始操作は10:07合意に従い、受付時作成済みカルテの再利用は10:17合意済み。未作成時の作成と作成／読み込み失敗時の開始未確定・理由表示・再試行は10:59合意済み。飼主・ペット詳細と特記表示などその他の既存動作は継承する。現実装のonEditはReservationFormModalを直接開き、合意へ未追従。取消は既存reservations:deleteと状態境界へ従い、具体的UI・実認可検証は別。[予約側の取消・カルテ保持契約](../../reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)へ反する自動削除を行わない。 [12:22合意の判定時間・延長警告](../../reservations/pages/reservation-management.md#handoff-time-and-extension)へ従う。
 「飼主詳細」は `ownerId` がある予約は `/owners/:id` へ、未連携（`ownerId` 不在）の予約は `/owners?search=<飼主名>` の一覧検索へ遷移します。
 
+受付詳細のペット名から、対象ペットの既存詳細を現在の閲覧権限で開く。権限がなければリンクにせず、未確定の患者IDを推測しない。「予防接種」からは対象ペットの予防履歴を閲覧でき、履歴を見るだけで新しいカルテ・接種記録や診療開始を作らない。既存の医院・患者scopeと対象view grant・選択日への戻り先を維持する。根拠は[Backlog Phase1 No.68、No.71](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit)、2026-10-15曽我回答。これらの対応完了報告を今回の実機受入済みとはしない。
+
 患者情報セクション（`ReceptionDialogBody`）にも同じ `DangerBadge` マークを表示: ペット名横に特記アイコンバッジ（高=赤い八角形/中=黄い三角形、文言なし・Popover で補足メモ）、飼主名横に文言なしの赤い八角形アイコン（`is_dangerous`、代替名「特記」）。
 
 現実装の操作権限は取消がreservations:delete、編集がreservations:edit。今回の権限変更は未合意。
@@ -94,6 +96,8 @@
 | 項目 | 説明 |
 |:---|:---|
 | **時刻** | 予約時刻（HH:mm）。 |
+| **予約内容（来院理由）** | 予約のnotesをカードに1行、受付詳細に全文表示する。LINEの飼主事前問診7項目の原文とは別データのまま扱い、notesへ原文を複写しない。根拠はBacklog Phase1 No.67、2026-10-15曽我回答。 |
+| **トリミングの仕上がり要望** | 同じトリミング予約・ペットに対応するスタイル要望を当日の受付カードへ表示する。通常の予約notesとは区別する。[今回採用の本文・受入条件](#requirement-fr-reception-trimming-style-request)を参照。 |
 | **患者・飼主** | 飼主名が上、続けて `種 - ペット名`。死亡は【死亡】バッジを表示し、DnD／クリック不可。特記マークは共有 `DangerBadge`（EMR-173/231）: ペット `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ、カード操作へ伝播しない）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。 |
 | **区分バッジ** | 初診/再診、および診療区分（一般診察、ワクチン、トリミング等）。 |
 | **分類別担当** | 診療の指名医師・trimの担当トリマー、ホテル／入院の専用管理上の担当を分離。[配置](#reception-display-layout)へ従い、医師未設定を全分類へ出さない。 |
@@ -139,6 +143,7 @@ filterはヘッダーの既存「フィルター」内に、分類（全分類�
 | FR-reception-business-class-handoff | [分類別確認・専用管理](#requirement-fr-reception-business-class-handoff) | Sentinel_daeb79f859f48191a38d3a61f4f725d8 |
 | FR-reception-selected-day-only | [選択日限定](#requirement-fr-reception-selected-day-only) | Sentinel_ea8569c91d8c8191b70e7b2cf8df8db6 の2への回答 |
 | FR-reception-completed-card-visibility | [片付けと再表示](#requirement-fr-reception-completed-card-visibility) | 同回答の3への「ok」 |
+| FR-reception-trimming-style-request | [仕上がり要望のカード表示](#requirement-fr-reception-trimming-style-request) | Sentinel_bf552e5fdbc48191a68d56ceba35611b の「A」 |
 
 | 操作 | 実行条件 | 成功後状態／遷移 | 失敗挙動 | 根拠 |
 |:---|:---|:---|:---|:---|
@@ -297,6 +302,9 @@ stateDiagram-v2
 | 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認 | 成功条件 | 確認手順／証跡 |
 |:---|:---|:---|:---|:---|:---|:---|
 | AC-reception-dnd-start-restriction | 患者が受付済の列にいる | 診療中へドラッグする | 遷移せず「カルテ作成が必要です」を表示 | このDnD操作だけを確認 | 記録作成を経ない診療開始が拒否される | [要件](#requirement-fr-reception-dnd-start-restriction)・[既存UATの所在](../README.md#受入条件の所在)。実機未確認 |
+| AC-reception-reservation-notes-display | 予約内容notesに複数行の内容がある | カードと受付詳細を開く | カードは1行、詳細は全文を表示する。飼主事前問診原文をnotesへ統合・編集しない | 両面を比較 | 保存済み内容と原文分離を保持 | Backlog Phase1 No.67、本書「患者カード」。実機未実施 |
+| AC-reception-pet-detail-read | 対象ペットが確定しview権限がある／ない | 受付詳細のペット名を操作する | 権限ありは同じ対象の既存詳細へ進み選択日へ戻れる。なしはリンクにせず、閲覧から記録作成・状態変更をしない | 権限有無を別確認 | 本人選択と認可・戻り先維持 | Backlog Phase1 No.68、本書「詳細表示」。実機未実施 |
+| AC-reception-prevention-history-read | 対象ペットと予防履歴view権限がある | 受付詳細の「予防接種」から履歴を開く | 対象履歴を閲覧し、新しいカルテ・接種記録や診療開始を作らない。医院／患者scope・権限・戻り先を保持 | 保存副作用なしを単独確認 | 閲覧と記録作成を分離 | Backlog Phase1 No.71、本書「詳細表示」。実機未実施 |
 | AC-reception-business-class-visible | 同医院の選択日に4分類の受付対象がある | 受付を確認する | 診療・トリミング・入院・ホテルを確認できる。ホテル／入院を一律に診療中へ割り当てない | 分類表示のみ | 分類別確認と専用状態を混同しない | [FR](#requirement-fr-reception-business-class-handoff)。実機未確認 |
 | AC-reception-specialized-handoff | 選択日に診療以外の受付対象がある | 専用管理へ進む | トリミングは専用記録、ホテル／入院は同じ管理対象へ接続。通常カルテへ変換せず、既合意の担当・明示開始・記録時点と失敗時未確定を保持 | 引継ぎ境界のみ | 表示から専用業務を自動開始しない | [FR](#requirement-fr-reception-business-class-handoff)・予約正本。実機未確認 |
 | AC-reception-exclude-previous-unfinished | 前日以前に未完了がある | 当日の受付を表示する | そのデータをカード・モーダル・件数へ混ぜず、当日の残件案内／持越し表示も作らない | 当日表示のみ | 未完了を理由に日付境界を迂回しない | [FR](#requirement-fr-reception-selected-day-only)。実機未確認 |
@@ -379,3 +387,21 @@ stateDiagram-v2
 [決定根拠・適用範囲](../../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](../../accounting/lifecycle.md#doctor-review-sync-billing-20261017)。会計ページは医師確認前から準備し待ち・金額未確定を表示する。確定精算は医師確認後。会計タブチェックが医師確認、診療終了で会計待ちへ進み、受付カードの確認状態は別軸とする。確認後の金額だけの変更は警告了承で可、薬剤処置追加削除・数量変更は再確認まで停止。未確定未手修正はプラン自動同期、手修正済みは値保護と差異判断、確定後は専用訂正。会計からプランへの自動逆書換えなし。通常請求対象は実施済み、持帰薬物販は内容数量確定・準備完了で、予定・実引渡し・在庫出庫と分離する。
+
+
+<a id="requirement-fr-reception-trimming-style-request"></a>
+## 追加決定：トリミングの仕上がり要望を受付カードへ表示
+
+Backlog Phase1 No.99（F100:G100）の10月15日回答は、通常の予約メモ表示を対応済み、スタイルリクエスト表示を追加検討として区別していた。2026-10-17、曽我稔への質問 Sentinel_0e74a3558abc819180c4beebc54716f2「トリミングの『仕上がりの要望』も、当日の受付カードに表示しますか？」の選択肢A「今回、受付カードにも表示する」に対し、ユーザー Sentinel_bf552e5fdbc48191a68d56ceba35611b が「A」と回答したため、今回採用とする。Phase2見送り・採否未決とは扱わない。これは目標仕様の確定であり、実装・実機合格の報告ではない。
+
+FR-reception-trimming-style-request: 受付スタッフが当日のカード上でトリミングの仕上がり要望を確認できるよう、同じ予約・ペットに対応する既存のスタイル要望を表示する。別画面への確認・受付への再入力を要しない表示とし、通常の予約notesと識別できるようにする。予約メモへ要望を複写・統合せず、既存スタイル要望の所有・保存契約を維持する。表示のために新しい予約・施術記録を生成しない。
+
+カードの対象日・医院scope・閲覧権限と同一予約／ペットの照合を維持する。他の日・予約・ペットの要望や過去施術を推測表示しない。要望未記入と取得不能を同一視せず、取得失敗時は既存の異常時表示契約へ従う。要望表示の採用から、希望画像のカード掲載・受付内での要望編集・詳細モーダルの新表示・リアルタイム同期方式・表示行数を追加決定しない。
+
+### 仕上がり要望表示の受入条件
+
+| 条件ID | 前提／操作 | 期待結果 | 検証状態 |
+|:---|:---|:---|:---|
+| AC-reception-trimming-style-display | 同じトリミング予約に通常notesと仕上がり要望を異なる内容で保存し、対象日の受付カードを表示する | カード上で仕上がり要望を確認でき、通常notesと取り違えない。要望をnotesへ複写せず、既存保存値を保持する | 未実施 |
+| AC-reception-trimming-style-target | 同一飼主の別ペット・別予約・別日、認可外医院の要望もある状態で対象カードを表示する | 対象日・認可内の同じ予約／ペットの要望だけを表示し、他の対象へ混在させない。表示だけで予約・施術記録を作らない | 未実施 |
+| AC-reception-trimming-style-empty-failure | 対象の要望が未記入の場合と取得失敗の場合をそれぞれ確認する | 未記入を通常notes・過去要望で補完しない。取得失敗は未記入と断定せず既存の異常時表示へ渡し、原値を変更しない | 未実施 |

@@ -128,3 +128,27 @@ flowchart LR
 ## 職員属性・休業期間の追加接続
 
 [社員リスト採用正本](../domains/staff-workforce/README.md#staff-source-adoption-20261015)へ従う。職種・役職・雇用区分・認可roleは別概念で自動連動しない。休業は退職と異なる在籍期間属性で、対象期間の新規勤務／指名候補を除外する。既存指名予約は自動取消せず、復帰時も同一人物・所属・履歴を保持する。予約指名は任意のままで、担当医の意味や未定受付を変更しない。
+
+<a id="revisit-intake-concept"></a>
+## LINE再診事前問診の同一性と履歴
+
+飼主由来再診事前問診は「同じ予約・その予約で選んだペット」の回答である。一つの複数頭予約に複数のペット別回答があり得るが、1回答を共通コピーしない。カルテ作成前も保存でき、予約詳細と統合治療プランの別欄から同じ由来を参照する。現回答と旧回答・回答/訂正日時を区別し、物理テーブル数・版番号・保存形式をこの多重度から決めない。
+
+提出全体は任意、送信時の来院目的だけ必須。未回答と空欄を異常回答へ変換せず、未提出で予約を止めない。7項目の内容・単一選択/自由入力と6/3江添さん原文選択肢は[予約正本](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-line-revisit-intake)を唯一参照し、本書へ再定義しない。回答入口は予約完了・詳細、訂正は受付前まで。スタッフの補足はスタッフ記録で、原文編集ではない。
+
+| 関係／出来事 | 同一性・保持するもの | 追跡AC（同正本） |
+|:---|:---|:---|
+| 予約×対象ペット→回答 | 回答は任意、回答時は対象ペットごと。通常カルテ未作成でも予約側に保持 | AC-reservations-revisit-optional／AC-reservations-revisit-multi-pet／AC-reservations-revisit-provenance |
+| 同じ予約の日時変更 | 同じ対象の回答を引き継ぐ | AC-reservations-revisit-reschedule |
+| 受付前の回答訂正 | 旧回答と日時を保持し、現在回答と区別 | AC-reservations-revisit-revisions |
+| 予約取消 | 旧回答の履歴を保持。取消で原文削除しない | 同FRの取消保持契約 |
+| 新予約／対象ペット変更 | 未回答へ戻す。元履歴は元対象のまま、他個体へコピーしない | AC-reservations-revisit-new-target |
+
+<a id="booking-course-option-concept"></a>
+## コース・オプション・採用時間
+
+コース/追加オプションの意味は[トリミング語彙](trimming.md#trimming-course-option-concept)。予約側ではコース0または1、追加optionは異種を複数選べるが同じものは1回・数量なし。施術実績行や会計数量と同じ多重度とはしない。コース↔許可optionの対応とコース内包施術を分け、内包の重複追加不可、コースなし用候補は別設定。具体対応表・保存形式は設計。
+
+採用する予約時間はコース時間（なしなら区分時間）と選択option時間の合計。マスタ現在値と予約採用時の値を区別し、保存済み予約をマスタ改定で自動変更しない。選択変更時の再計算・終了候補表示・延長時既決チェックは[予約正本](../domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)へ。AC-reservations-single-course-limit／AC-reservations-course-option-time-unset／AC-reservations-course-option-edit-duration／AC-reservations-course-option-compatibility／AC-reservations-no-course-option-configuration等を追跡する。時間計算を価格計算へ連動させない。
+
+[利用者ごとの日次/月次予約件数制限](../screens/28-line-reservation.md#line-no-user-daily-monthly-limits-20261017)は引き継がない。コース最大1・個人対応可能性・医院能力・ホテル同時宿泊頭数の既決制約は別で、撤回しない。
