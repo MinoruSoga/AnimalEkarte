@@ -108,7 +108,7 @@ Codexのanimalekarte-test-strategistは既存read-onlyのまま設計・patch案
 | formatter | 呼出のstaged diff | Read/Edit整形 + posthooks | なし | 呼出/実装者が実行可能なformat/検証 | なし | 非保有 |
 | database-reviewer | 呼出diff+コード/スキーマ | なし | なし | 診断は別途承認されたユーザー/実行者 | なし | 非保有 |
 
-横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit Go hookは`CLAUDE_PROJECT_DIR`/現在cwdからdocker composeでgofmtを起動し`/app`マウントを仮定、TS hookは現在cwdからdockerを起動しfrontendマウントを仮定するが、マウント/ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Claudeのtools指定からBashを除いた範囲と、Codexの実効shell制限は別契約である。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
+横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit hookの対象・mount検証・SKIP/UNKNOWN条件は「編集後hookの境界」節を正本とする（TS hookはプロセスを起動しない）。実効hookロード・ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Claudeのtools指定からBashを除いた範囲と、Codexの実効shell制限は別契約である。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
 
 ## Claude backend 起動入口
 

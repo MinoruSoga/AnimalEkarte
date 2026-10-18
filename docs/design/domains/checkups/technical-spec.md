@@ -12,7 +12,7 @@
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
 ## 対象
-[業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／35AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
+[業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／36AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
 
 ## 正系統・入口・権限
 Checkupのみが健診記録／集計／閾値の正系統。Examinationの退役seed IDを再利用しない。masterはcheckup_types／fields、実績はcheckups／field_resultsで医院scopeを保つ。

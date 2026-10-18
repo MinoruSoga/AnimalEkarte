@@ -84,7 +84,7 @@ D03の専用過去入力／確定後追記とD07のofficial revision保護へ接
 返却は医院、患者／カルテ対応、exam ID、固定revision、版内項目ref、状態、原値・単位・保存範囲、変更前後／理由／actor／時刻、取得状態。取得不能・非開示・旧版不明は区別する。D03の[最終writer／専用intent](../medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、診療終了後もD03の認可された通常編集と変更履歴へ接続する。旧親finalizedを一律拒否条件にはせず、過去の原記載／参照版は保持する。検査自身のconfirmed／official版保護と必要な専用訂正は維持する。現カルテExamGroupがrevisionを保持しない差、addendumが構造化結果refを持たない差を残す。lab usage receiptは転記／復元／公開のapproval receiptではない。
 
 ## AC追跡
-以下は先行41ACを技術契約へ対応する索引。追加19ACは末尾の追加AC追跡へ分離する。前提／期待結果の正本は業務側のGWT。
+以下は先行41ACを技術契約へ対応する索引。追加採用19ACと既存受信権限前提の補足1ACは末尾の追加AC追跡へ分離する。前提／期待結果の正本は業務側のGWT。
 | 技術部分 | AC suffix |
 |:---|:---|
 | 入口・型・scope | entry, scope, required, doctor-optional, editor-log, deceased-history, deceased-boundary, value, unassessed |
@@ -152,9 +152,10 @@ D21の検査履歴sectionはスタッフの閲覧専用であり、同sectionか
 
 ### 追加AC追跡
 
-以下は追加19ACのみ。先行41ACの技術traceは前節を保持する。前提・期待結果の正本はD07業務GWTであり、全60ACの実機PASSを表すものではない。
+以下は追加採用19ACと既存受信権限前提の補足1AC。先行41ACの技術traceは前節を保持する。前提・期待結果の正本はD07業務GWTであり、全61ACの実機PASSを表すものではない。
 
 | FR | 技術節・照合点 | AC-examinations- を共通prefixとするsuffix |
 |:---|:---|:---|
+| receive | 受信画面の閲覧と受信・attach・detach・切戻しのwriteを操作別grantで分離。不足時の案内・拒否を確認し、新ロールを追加しない。実機未実施 | receive-access-separation |
 | selected-print | 選択input・実施／結果の分離・固定snapshot・read認可・取消 | print-item-selection, print-item-unknown, print-item-snapshot, print-item-empty, print-item-version-change, print-item-access, print-item-cancel-draft, print-item-single-snapshot |
 | infection-summary | 元結果ref・種／項目mapping・日付精度／出典・再投影・D04/D03認可・手入力write | infection-species, infection-auto-saved, infection-external-source, infection-date-order, infection-ambiguous, infection-revision-refresh, infection-result-states, infection-no-record-failure, infection-access-boundary, infection-mapping-unknown, infection-write-safety |

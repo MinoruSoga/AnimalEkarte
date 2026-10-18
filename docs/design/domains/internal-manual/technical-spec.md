@@ -53,3 +53,4 @@
 | AC-internal-manual-10 | [業務正本の追加受入条件](../../../spec/domains/internal-manual/README.md)と本書の操作ID／原子保存・競合・結果照合・保持条件を照合。実機未実施 |
 | AC-internal-manual-11 | [業務正本の追加受入条件](../../../spec/domains/internal-manual/README.md)と本書の操作ID／原子保存・競合・結果照合・保持条件を照合。実機未実施 |
 | AC-internal-manual-12 | [業務正本の追加受入条件](../../../spec/domains/internal-manual/README.md)と本書の操作ID／原子保存・競合・結果照合・保持条件を照合。実機未実施 |
+| AC-internal-manual-multipage-print | 同じ公開版の選択記事を複数ページで表示しブラウザ印刷／PDF保存する際、本文・説明用スクリーンショットが最終ページまで出力され先頭1ページだけに欠落しないこと、別記事・未公開編集案を混ぜないことを確認。実機未実施 |
