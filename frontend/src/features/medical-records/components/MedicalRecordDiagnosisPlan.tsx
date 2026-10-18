@@ -20,7 +20,7 @@ import {
   useDeleteTreatment,
 } from "../api/treatments";
 import type { UpdateTreatmentInput } from "../types";
-import { resolveItemTypeFromCategory } from "../lib/treatments-tab-model";
+import { buildMasterSelectionPayload } from "../lib/treatments-tab-model";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { C, LAYOUT } from "@/lib/design-tokens";
@@ -180,15 +180,9 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       }
       if (!canCreate) return;
       createTreatmentFn({
-        item_type: resolveItemTypeFromCategory(item.category),
-        content: item.name,
+        ...buildMasterSelectionPayload({ item, quantity: 1, sortOrder: nextOrder }),
         memo: item.category,
-        unit_price: item.unitPrice,
-        quantity: 1,
-        is_selected: true,
         is_insurance: true,
-        discount_amount: 0,
-        sort_order: nextOrder,
       });
     },
     [canCreate, isPetDeceased, nextOrder, createTreatmentFn],
@@ -301,6 +295,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
           open={isSearchOpen}
           onOpenChange={setIsSearchOpen}
           onSelect={handleSelectTreatment}
+          clinicId={recordClinicId}
         />
       </Suspense>
     </div>

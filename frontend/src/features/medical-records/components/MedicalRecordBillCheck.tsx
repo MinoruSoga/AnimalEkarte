@@ -16,8 +16,8 @@ import {
   useCreateBillingConfirmation,
   useCreateBillingReturn,
 } from "../api/billing-confirmation";
-import type { CreateTreatmentInput, UpdateTreatmentInput } from "../types";
-import { resolveItemTypeFromCategory } from "../lib/treatments-tab-model";
+import type { UpdateTreatmentInput } from "../types";
+import { buildMasterSelectionPayload } from "../lib/treatments-tab-model";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { CheckCircle2, RotateCcw } from "lucide-react";
@@ -267,18 +267,11 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         return;
       }
       if (!canEdit) return;
-      const input: CreateTreatmentInput = {
-        item_type: resolveItemTypeFromCategory(item.category),
-        content: item.name,
+      createTreatment({
+        ...buildMasterSelectionPayload({ item, quantity: 1, sortOrder: nextOrder }),
         memo: item.category,
-        unit_price: item.unitPrice,
-        quantity: 1,
-        is_selected: true,
         is_insurance: true,
-        discount_amount: 0,
-        sort_order: nextOrder,
-      };
-      createTreatment(input);
+      });
       setIsSearchOpen(false);
     },
     [canEdit, isPetDeceased, nextOrder, createTreatment],
@@ -432,6 +425,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           open={isSearchOpen}
           onOpenChange={setIsSearchOpen}
           onSelect={handleSelectTreatment}
+          clinicId={recordClinicId}
         />
       </Suspense>
     </div>

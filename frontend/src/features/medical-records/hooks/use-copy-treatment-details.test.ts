@@ -1,4 +1,9 @@
+import { createElement } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
+import { queryKeys } from "@/lib/query-keys";
+import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -112,8 +117,8 @@ describe("useCopyTreatmentDetails", () => {
           sort_order: 4,
         }),
       ],
-      consultations: [{ id: 7, name: "初診料", price: 2500 }],
-      medicines: [{ id: 42, name: "アモキシシリン", price: 120 }],
+      consultations: [{ id: 7, name: "初診料", price: 2500, is_active: true }],
+      medicines: [{ id: 42, name: "アモキシシリン", price: 120, is_active: true }],
     });
 
     const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
@@ -145,7 +150,10 @@ describe("useCopyTreatmentDetails", () => {
 
   it("複写先が空なら offset なしでソース sort_order を保持する", async () => {
     const postBodies = useCopyHandlers({
-      sourceRows: [sourceTreatment({ consultation_id: "999", sort_order: 2 })],
+      // 参照を持たない手入力 other 行はソース値をそのまま複写する（offset=0 で sort_order 維持）
+      sourceRows: [
+        sourceTreatment({ item_type: "other", consultation_id: undefined, sort_order: 2 }),
+      ],
     });
 
     const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID), {
@@ -156,13 +164,12 @@ describe("useCopyTreatmentDetails", () => {
       await result.current.copyTreatmentsFromRecord(SOURCE_ID);
     });
 
-    // マスタ不一致 (999) → 当時価格は参照維持だが「マスタ不一致行のみ」。
-    // sort_order は offset=0 でソース値 2 のまま。
     expect(postBodies).toHaveLength(1);
     const body = postBodies[0] as Record<string, unknown>;
+    expect(body.item_type).toBe("other");
     expect(body.sort_order).toBe(2);
     expect(body.unit_price).toBe(1500);
-    expect(body.consultation_id).toBe(999);
+    expect(body.consultation_id).toBeUndefined();
   });
 
   it("現在の recordId が無いときは fetch/create とも行わず早期 return する", async () => {
@@ -203,10 +210,11 @@ describe("useCopyTreatmentDetails", () => {
   it("create が途中で失敗したとき後続行を POST せず中断する（作成済み行は残る）", async () => {
     const postBodies = useCopyHandlers({
       sourceRows: [
-        sourceTreatment({ id: "501", sort_order: 0 }),
-        sourceTreatment({ id: "502", sort_order: 1 }),
-        sourceTreatment({ id: "503", sort_order: 2 }),
+        sourceTreatment({ id: "501", sort_order: 0, consultation_id: "7" }),
+        sourceTreatment({ id: "502", sort_order: 1, consultation_id: "7" }),
+        sourceTreatment({ id: "503", sort_order: 2, consultation_id: "7" }),
       ],
+      consultations: [{ id: 7, name: "初診料", price: 2500, is_active: true }],
       postResponder: (_body, index) =>
         index === 1
           ? HttpResponse.json({ message: "conflict" }, { status: 500 })
@@ -330,19 +338,6 @@ describe("useCopyTreatmentDetails", () => {
     sourceStore = sourceStore.map((row, index) =>
       index < overriddenPrices.length ? { ...row, unit_price: overriddenPrices[index] } : row,
     );
-    sourceStore = [
-      ...sourceStore,
-      {
-        ...toWireRow(SOURCE_ID, {
-          item_type: "consultation",
-          consultation_id: 999,
-          content: "初診",
-          unit_price: 1500,
-          sort_order: 4,
-        }),
-        id: `${SOURCE_ID}-row-legacy`,
-      },
-    ];
 
     const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
       wrapper: createTestWrapper(),
@@ -354,6 +349,9 @@ describe("useCopyTreatmentDetails", () => {
         result.current.copyTreatmentsFromRecord(SOURCE_ID),
       ]);
     });
+
+    // 複写先マスタの GET は複写先 recordClinicId="3" でスコープされる（全3系統）
+    // ※後続の clinic-scope describe で GET ヘッダを直接観測する
 
     const savedDestRows = await getTreatments(DEST_ID, "3");
 
@@ -380,21 +378,14 @@ describe("useCopyTreatmentDetails", () => {
         sort_order: 2,
       },
       { item_type: "other", content: "検査キット", unit_price: 2000, sort_order: 3 },
-      {
-        item_type: "consultation",
-        consultation_id: "999",
-        content: "初診",
-        unit_price: 1500,
-        sort_order: 4,
-      },
     ]);
-    expect(savedDestRows).toHaveLength(5);
+    expect(savedDestRows).toHaveLength(4);
 
     expect(sourcePostHeaders).toHaveLength(4);
     expect(sourcePostHeaders.every((h) => h !== "3")).toBe(true);
     expect(sourceGetHeaders.length).toBeGreaterThan(0);
     expect(sourceGetHeaders.every((h) => h !== "3")).toBe(true);
-    expect(destPostHeaders).toHaveLength(5);
+    expect(destPostHeaders).toHaveLength(4);
     expect(destPostHeaders.every((h) => h === "3")).toBe(true);
     expect(destGetHeaders.length).toBeGreaterThan(0);
     expect(destGetHeaders.every((h) => h === "3")).toBe(true);
@@ -405,5 +396,493 @@ describe("useCopyTreatmentDetails", () => {
 
     expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  describe("PR670: 複写先マスタは recordClinicId でスコープし不一致は zero-write で拒否する", () => {
+    it("recordClinicId='3' のとき3系統のマスタ GET に X-Clinic-ID=3 を送る", async () => {
+      const masterGetHeaders: Array<string | null> = [];
+      server.use(
+        http.get(`*/v1/medical-records/${SOURCE_ID}/treatments`, () =>
+          HttpResponse.json([sourceTreatment({ consultation_id: "7" })]),
+        ),
+        http.get(`*/v1/medical-records/${DEST_ID}/treatments`, () => HttpResponse.json([])),
+        http.get("*/v1/masters/consultations", ({ request }) => {
+          masterGetHeaders.push(`consultations:${request.headers.get("X-Clinic-ID")}`);
+          return HttpResponse.json([{ id: 7, name: "初診料", price: 2500, is_active: true }]);
+        }),
+        http.get("*/v1/masters/procedures", ({ request }) => {
+          masterGetHeaders.push(`procedures:${request.headers.get("X-Clinic-ID")}`);
+          return HttpResponse.json([]);
+        }),
+        http.get("*/v1/masters/medicines", ({ request }) => {
+          masterGetHeaders.push(`medicines:${request.headers.get("X-Clinic-ID")}`);
+          return HttpResponse.json([]);
+        }),
+        http.post(`*/v1/medical-records/${DEST_ID}/treatments`, async () =>
+          HttpResponse.json({ id: "x" }, { status: 201 }),
+        ),
+      );
+
+      const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
+        wrapper: createTestWrapper(),
+      });
+      await act(async () => {
+        await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+      });
+
+      expect(masterGetHeaders).toEqual(["consultations:3", "procedures:3", "medicines:3"]);
+      expect(toast.success).toHaveBeenCalledTimes(1);
+    });
+
+    it("PR670: 拒否理由は安全な固定メッセージを toast.error へ出す（generic ではない）", async () => {
+      const postBodies = useCopyHandlers({
+        sourceRows: [sourceTreatment({ consultation_id: "999" })],
+        consultations: [{ id: 7, name: "初診料", price: 2500, is_active: true }],
+      });
+
+      const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
+        wrapper: createTestWrapper(),
+      });
+      await act(async () => {
+        await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+      });
+
+      expect(postBodies).toHaveLength(0);
+      expect(toast.error).toHaveBeenCalledWith(
+        "複写先のマスタを確認し、治療明細を再選択してください",
+      );
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("複写先マスタ不一致の typed 行がある場合、ペイロード構築段で例外 → POST 0件", async () => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children);
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      // 999 はグローバルキャッシュにだけ存在 → scoped dest では不一致のまま拒否される
+      queryClient.setQueryData(queryKeys.masters.category("consultations"), [
+        { id: "999", name: "旧診察", price: 1 },
+      ]);
+      const postBodies = useCopyHandlers({
+        sourceRows: [
+          sourceTreatment({ id: "501", sort_order: 0, consultation_id: "7" }),
+          sourceTreatment({ id: "502", sort_order: 1, consultation_id: "999" }),
+        ],
+        consultations: [{ id: 7, name: "初診料", price: 2500, is_active: true }],
+      });
+
+      const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+      await act(async () => {
+        await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+      });
+
+      // 先行の正当行(501)も POST されない: 全ペイロードを create 前に構築する
+      expect(postBodies).toHaveLength(0);
+      expect(invalidateSpy).not.toHaveBeenCalled();
+      await waitFor(() => expect(toast.error).toHaveBeenCalled());
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("cold scoped fetch: グローバル1キャッシュを毒しても dest=3 の値だけ使いヘッダを分離する", async () => {
+      localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+      try {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const wrapper = ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children);
+        for (const cat of ["consultations", "procedures", "medicines"]) {
+          queryClient.setQueryData(queryKeys.masters.category(cat), [
+            { id: "999", name: "X", price: 11 },
+          ]);
+        }
+
+        const sourceRows = [
+          sourceTreatment({
+            id: "503",
+            item_type: "medicine",
+            medicine_id: "42",
+            consultation_id: undefined,
+            unit_price: 1,
+            sort_order: 2,
+          }),
+          sourceTreatment({
+            id: "502",
+            item_type: "procedure",
+            procedure_id: "8",
+            consultation_id: undefined,
+            unit_price: 1,
+            sort_order: 1,
+          }),
+          sourceTreatment({ id: "501", consultation_id: "7", unit_price: 1, sort_order: 0 }),
+        ];
+        const sourceSnapshot = structuredClone(sourceRows);
+        const postBodies: Array<Record<string, unknown>> = [];
+        const seen: string[] = [];
+
+        server.use(
+          http.get(`*/v1/medical-records/${SOURCE_ID}/treatments`, ({ request }) => {
+            seen.push(`src:${request.headers.get("X-Clinic-ID")}`);
+            return HttpResponse.json(sourceRows);
+          }),
+          http.get(`*/v1/medical-records/${DEST_ID}/treatments`, ({ request }) => {
+            seen.push(`dstGet:${request.headers.get("X-Clinic-ID")}`);
+            return HttpResponse.json([
+              sourceTreatment({ id: "900", medical_record_id: DEST_ID, sort_order: 4 }),
+            ]);
+          }),
+          http.get("*/v1/masters/consultations", ({ request }) => {
+            seen.push(`cons:${request.headers.get("X-Clinic-ID")}`);
+            return HttpResponse.json([{ id: 7, name: "初診料", price: 3307, is_active: true }]);
+          }),
+          http.get("*/v1/masters/procedures", ({ request }) => {
+            seen.push(`proc:${request.headers.get("X-Clinic-ID")}`);
+            return HttpResponse.json([{ id: 8, name: "処置X", price: 3306, is_active: true }]);
+          }),
+          http.get("*/v1/masters/medicines", ({ request }) => {
+            seen.push(`med:${request.headers.get("X-Clinic-ID")}`);
+            return HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]);
+          }),
+          http.post(`*/v1/medical-records/${DEST_ID}/treatments`, async ({ request }) => {
+            seen.push(`post:${request.headers.get("X-Clinic-ID")}`);
+            const body = (await request.json()) as Record<string, unknown>;
+            postBodies.push(body);
+            return HttpResponse.json(body, { status: 201 });
+          }),
+        );
+
+        const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+        await act(async () => {
+          await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+        });
+
+        expect(seen.filter((x) => x.startsWith("src:"))).toEqual(["src:1"]);
+        expect(seen.filter((x) => x.startsWith("dstGet:"))).toEqual(["dstGet:3"]);
+        expect(seen.filter((x) => x === "post:3")).toHaveLength(3);
+        expect(seen).toEqual(expect.arrayContaining(["cons:3", "proc:3", "med:3"]));
+        expect(seen.every((x) => !x.endsWith(":999"))).toBe(true);
+
+        expect(postBodies.map((b) => b.sort_order)).toEqual([5, 6, 7]);
+        expect(postBodies[0].consultation_id).toBe(7);
+        expect(postBodies[0].unit_price).toBe(3307);
+        expect(postBodies[1].procedure_id).toBe(8);
+        expect(postBodies[1].unit_price).toBe(3306);
+        expect(postBodies[2].medicine_id).toBe(42);
+        expect(postBodies[2].unit_price).toBe(3303);
+        expect(postBodies.every((b) => b.consultation_id !== 999)).toBe(true);
+        expect(sourceRows).toEqual(sourceSnapshot);
+        expect(toast.success).toHaveBeenCalledTimes(1);
+      } finally {
+        localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
+      }
+    });
+
+    it("複写先 scoped キャッシュが温まっている場合、マスタ GET は一切発行しない", async () => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children);
+
+      for (const cat of ["consultations", "procedures", "medicines"]) {
+        queryClient.setQueryData(queryKeys.masters.category(cat), [
+          { id: "999", name: "X", price: 11 },
+        ]);
+      }
+      queryClient.setQueryData(queryKeys.masters.categoryForClinic("consultations", "3"), [
+        { id: "7", name: "初診料", price: 3307, isActive: true },
+      ]);
+      queryClient.setQueryData(queryKeys.masters.categoryForClinic("procedures", "3"), [
+        { id: "8", name: "処置X", price: 3306, isActive: true },
+      ]);
+      queryClient.setQueryData(queryKeys.masters.categoryForClinic("medicines", "3"), [
+        { id: "42", name: "薬A", price: 3303, isActive: true },
+      ]);
+
+      let masterRequests = 0;
+      const postBodies = useCopyHandlers({
+        sourceRows: [
+          sourceTreatment({
+            id: "503",
+            item_type: "medicine",
+            medicine_id: "42",
+            consultation_id: undefined,
+            unit_price: 1,
+            sort_order: 2,
+          }),
+          sourceTreatment({
+            id: "502",
+            item_type: "procedure",
+            procedure_id: "8",
+            consultation_id: undefined,
+            unit_price: 1,
+            sort_order: 1,
+          }),
+          sourceTreatment({ id: "501", consultation_id: "7", unit_price: 1, sort_order: 0 }),
+        ],
+      });
+      server.use(
+        http.get("*/v1/masters/consultations", () => {
+          masterRequests += 1;
+          return HttpResponse.json([]);
+        }),
+        http.get("*/v1/masters/procedures", () => {
+          masterRequests += 1;
+          return HttpResponse.json([]);
+        }),
+        http.get("*/v1/masters/medicines", () => {
+          masterRequests += 1;
+          return HttpResponse.json([]);
+        }),
+      );
+
+      const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+      await act(async () => {
+        await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+      });
+
+      expect(masterRequests).toBe(0);
+      expect(postBodies).toHaveLength(3);
+      const [c, pr, m] = postBodies as Array<Record<string, unknown>>;
+      expect(c.consultation_id).toBe(7);
+      expect(c.unit_price).toBe(3307);
+      expect(pr.procedure_id).toBe(8);
+      expect(pr.unit_price).toBe(3306);
+      expect(m.medicine_id).toBe(42);
+      expect(m.unit_price).toBe(3303);
+      expect(toast.success).toHaveBeenCalledTimes(1);
+    });
+
+    it("複写先マスタ GET が 403 でもグローバルキャッシュへフォールバックせず 0 POST", async () => {
+      localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+      try {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        queryClient.setQueryData(queryKeys.masters.category("consultations"), [
+          { id: "7", name: "初診料", price: 11 },
+        ]);
+        const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+        const wrapper = ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children);
+        const postBodies = useCopyHandlers({
+          sourceRows: [sourceTreatment({ consultation_id: "7" })],
+        });
+        server.use(
+          http.get("*/v1/masters/consultations", () =>
+            HttpResponse.json({ message: "forbidden" }, { status: 403 }),
+          ),
+        );
+
+        const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+        await act(async () => {
+          await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+        });
+
+        expect(postBodies).toHaveLength(0);
+        expect(invalidateSpy).not.toHaveBeenCalled();
+        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+        expect(toast.error).toHaveBeenCalledTimes(1);
+        expect(toast.success).not.toHaveBeenCalled();
+      } finally {
+        localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
+      }
+    });
+
+    it("recordClinicId 省略・空文字は従来のグローバルキー/暗黙ヘッダを維持する", async () => {
+      const masterGetHeaders: Array<string | null> = [];
+      server.use(
+        http.get(`*/v1/medical-records/${SOURCE_ID}/treatments`, () =>
+          HttpResponse.json([sourceTreatment({ consultation_id: "7" })]),
+        ),
+        http.get(`*/v1/medical-records/${DEST_ID}/treatments`, () => HttpResponse.json([])),
+        http.get("*/v1/masters/consultations", ({ request }) => {
+          masterGetHeaders.push(request.headers.get("X-Clinic-ID"));
+          return HttpResponse.json([{ id: 7, name: "初診料", price: 2500, is_active: true }]);
+        }),
+        http.get("*/v1/masters/procedures", () => HttpResponse.json([])),
+        http.get("*/v1/masters/medicines", () => HttpResponse.json([])),
+        http.post(`*/v1/medical-records/${DEST_ID}/treatments`, async () =>
+          HttpResponse.json({ id: "x" }, { status: 201 }),
+        ),
+      );
+
+      localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+      try {
+        for (const clinicId of [undefined, ""]) {
+          const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, clinicId), {
+            wrapper: createTestWrapper(),
+          });
+          await act(async () => {
+            await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+          });
+        }
+      } finally {
+        localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
+      }
+      expect(masterGetHeaders.length).toBeGreaterThanOrEqual(2);
+      expect(masterGetHeaders.every((h) => h === "1")).toBe(true);
+    });
+
+    it("ネットワーク途中失敗でも作成済み分は 1 回だけ invalidate する", async () => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client: queryClient }, children);
+      const postBodies = useCopyHandlers({
+        sourceRows: [
+          sourceTreatment({ id: "501", sort_order: 0, consultation_id: "7" }),
+          sourceTreatment({ id: "502", sort_order: 1, consultation_id: "7" }),
+          sourceTreatment({ id: "503", sort_order: 2, consultation_id: "7" }),
+        ],
+        consultations: [{ id: 7, name: "初診料", price: 2500, is_active: true }],
+        postResponder: (_body, index) =>
+          index === 1
+            ? HttpResponse.json({ message: "conflict" }, { status: 500 })
+            : HttpResponse.json({ id: index + 1 }, { status: 201 }),
+      });
+
+      const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+      await act(async () => {
+        await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+      });
+
+      expect(postBodies).toHaveLength(2);
+      expect(invalidateSpy).toHaveBeenCalledTimes(1);
+      expect(invalidateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          queryKey: queryKeys.medicalRecords.treatments(DEST_ID),
+        }),
+      );
+      await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    });
+  });
+
+  describe("PR700 inactive: 複写先マスタの inactive 行は再選択促進で拒否する", () => {
+    const TYPES = [
+      {
+        key: "consultations" as const,
+        refKey: "consultation_id" as const,
+        refId: "7",
+        itemType: "consultation" as const,
+      },
+      {
+        key: "procedures" as const,
+        refKey: "procedure_id" as const,
+        refId: "8",
+        itemType: "procedure" as const,
+      },
+      {
+        key: "medicines" as const,
+        refKey: "medicine_id" as const,
+        refId: "42",
+        itemType: "medicine" as const,
+      },
+    ];
+
+    it.each(TYPES)(
+      "PR700 inactive: %s cold GET (is_active:false) は一致扱いせず zero-write で拒否する",
+      async ({ key, refId, itemType }) => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const wrapper = ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children);
+        const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+        // グローバルキャッシュに同名 active マスタを置いても scoped dest の inactive を拾い拒否する
+        queryClient.setQueryData(queryKeys.masters.category(key), [
+          { id: refId, name: "X", price: 3307, isActive: true },
+        ]);
+        const globalCacheBefore = structuredClone(
+          queryClient.getQueryData(queryKeys.masters.category(key)),
+        );
+
+        const sourceRows = [
+          sourceTreatment({
+            item_type: itemType,
+            consultation_id: undefined,
+            procedure_id: undefined,
+            medicine_id: undefined,
+            ...(key === "consultations" ? { consultation_id: refId } : {}),
+            ...(key === "procedures" ? { procedure_id: refId } : {}),
+            ...(key === "medicines" ? { medicine_id: refId } : {}),
+          }),
+        ];
+        const sourceSnapshot = structuredClone(sourceRows);
+        const postBodies = useCopyHandlers({
+          sourceRows,
+          [key]: [
+            {
+              id: Number(refId),
+              name: "X",
+              price: 3307,
+              is_active: false,
+            },
+          ],
+        });
+
+        const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+        await act(async () => {
+          await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+        });
+
+        expect(postBodies).toHaveLength(0);
+        expect(invalidateSpy).not.toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalledWith(
+          "複写先のマスタを確認し、治療明細を再選択してください",
+        );
+        expect(toast.error).toHaveBeenCalledTimes(1);
+        expect(toast.success).not.toHaveBeenCalled();
+        expect(sourceRows).toEqual(sourceSnapshot);
+        expect(queryClient.getQueryData(queryKeys.masters.category(key))).toEqual(
+          globalCacheBefore,
+        );
+      },
+    );
+
+    it.each(TYPES.flatMap((t) => [false, undefined].map((activity) => ({ ...t, activity }))))(
+      "PR700 inactive: %s warm dest キャッシュ isActive=$activity は一致扱いせず拒否する",
+      async ({ key, refId, itemType, activity }) => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const wrapper = ({ children }: { children: ReactNode }) =>
+          createElement(QueryClientProvider, { client: queryClient }, children);
+        const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+        for (const cat of ["consultations", "procedures", "medicines"]) {
+          queryClient.setQueryData(queryKeys.masters.categoryForClinic(cat, "3"), []);
+        }
+        queryClient.setQueryData(queryKeys.masters.categoryForClinic(key, "3"), [
+          { id: refId, name: "X", price: 3307, isActive: activity },
+        ]);
+        const scopedCacheBefore = structuredClone(
+          queryClient.getQueryData(queryKeys.masters.categoryForClinic(key, "3")),
+        );
+
+        const sourceRows = [
+          sourceTreatment({
+            item_type: itemType,
+            consultation_id: undefined,
+            procedure_id: undefined,
+            medicine_id: undefined,
+            ...(key === "consultations" ? { consultation_id: refId } : {}),
+            ...(key === "procedures" ? { procedure_id: refId } : {}),
+            ...(key === "medicines" ? { medicine_id: refId } : {}),
+          }),
+        ];
+        const sourceSnapshot = structuredClone(sourceRows);
+        const postBodies = useCopyHandlers({ sourceRows });
+
+        const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), { wrapper });
+        await act(async () => {
+          await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+        });
+
+        expect(postBodies).toHaveLength(0);
+        expect(invalidateSpy).not.toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalledWith(
+          "複写先のマスタを確認し、治療明細を再選択してください",
+        );
+        expect(toast.error).toHaveBeenCalledTimes(1);
+        expect(toast.success).not.toHaveBeenCalled();
+        expect(sourceRows).toEqual(sourceSnapshot);
+        // filter はキャッシュ配列を変更しない（コピー側のみ）
+        expect(queryClient.getQueryData(queryKeys.masters.categoryForClinic(key, "3"))).toEqual(
+          scopedCacheBefore,
+        );
+      },
+    );
   });
 });

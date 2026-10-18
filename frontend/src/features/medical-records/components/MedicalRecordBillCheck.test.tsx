@@ -9,8 +9,13 @@ import { createTestWrapper } from "@/testing/TestUtils";
 import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { MedicalRecordBillCheck } from "./MedicalRecordBillCheck";
 
+const { mockPermission } = vi.hoisted(() => ({
+  mockPermission: {
+    current: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+  },
+}));
 vi.mock("@/hooks/use-permission", () => ({
-  usePermission: () => ({ canView: true, canCreate: true, canEdit: true, canDelete: true }),
+  usePermission: () => mockPermission.current,
 }));
 
 // usePermission をモックしても useClinicTaxRates は独立に useAuth() を呼ぶため最小モックが必要
@@ -57,19 +62,57 @@ vi.mock("../api/get-pet-vaccinations", () => ({
   useGetPetVaccinations: () => ({ data: [] }),
 }));
 
+const { mockDialogProps } = vi.hoisted(() => ({
+  mockDialogProps: { current: {} as Record<string, unknown> },
+}));
+
 vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () => ({
-  TreatmentSearchDialog: ({
-    onSelect,
-  }: {
-    onSelect: (item: { id: string; name: string; unitPrice: number; category: string }) => void;
-  }) => (
-    <button
-      type="button"
-      onClick={() => onSelect({ id: "med-1", name: "抗生剤A", unitPrice: 500, category: "薬剤" })}
-    >
-      薬剤Aを選択
-    </button>
-  ),
+  TreatmentSearchDialog: (props: {
+    clinicId?: string;
+    onSelect: (item: {
+      id: string;
+      name: string;
+      unitPrice: number;
+      category: string;
+      medicineId?: string;
+    }) => void;
+  }) => {
+    mockDialogProps.current = props as unknown as Record<string, unknown>;
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() =>
+            props.onSelect({ id: "7", name: "初診", unitPrice: 3307, category: "診察" })
+          }
+        >
+          診察Aを選択
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.onSelect({ id: "8", name: "処置X", unitPrice: 3306, category: "処置" })
+          }
+        >
+          処置Xを選択
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.onSelect({
+              id: "42",
+              name: "抗生剤A",
+              unitPrice: 3303,
+              category: "薬剤",
+              medicineId: "42",
+            })
+          }
+        >
+          薬剤Aを選択
+        </button>
+      </>
+    );
+  },
 }));
 
 vi.mock("sonner", () => ({
@@ -85,6 +128,8 @@ beforeEach(() => {
   vi.mocked(toast.success).mockClear();
   vi.mocked(toast.error).mockClear();
   mockCreateTreatmentMutate.mockClear();
+  mockDialogProps.current = {};
+  mockPermission.current = { canView: true, canCreate: true, canEdit: true, canDelete: true };
 });
 
 afterEach(() => {
@@ -94,6 +139,74 @@ afterEach(() => {
 // FE-RC-027: マスタ検索から選択した明細の item_type 判定は "薬品"（誤字。マスタの実カテゴリは
 // "薬剤"）と比較していたため常に一致せず "other" にフォールバックしていた。
 // TreatmentsTab と同じ共有 resolveItemTypeFromCategory に統一し、"薬剤" → "medicine" を保証する。
+describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
+  it.each([
+    { label: "診察Aを選択", refKey: "consultation_id", refId: 7, memo: "診察", price: 3307 },
+    { label: "処置Xを選択", refKey: "procedure_id", refId: 8, memo: "処置", price: 3306 },
+    { label: "薬剤Aを選択", refKey: "medicine_id", refId: 42, memo: "薬剤", price: 3303 },
+  ])(
+    "$label → 実ビルダーで数値参照・memo=カテゴリ・is_insurance=true・nextOrder で作成する",
+    async ({ label, refKey, refId, memo, price }) => {
+      server.use(
+        http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+          HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
+        ),
+      );
+
+      const user = userEvent.setup();
+      render(
+        <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" recordClinicId="2" />,
+        { wrapper: createTestWrapper() },
+      );
+
+      await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
+      await user.click(screen.getByRole("button", { name: label }));
+
+      expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          [refKey]: refId,
+          content: expect.any(String),
+          memo,
+          is_insurance: true,
+          quantity: 1,
+          unit_price: price,
+        }),
+      );
+      const call = mockCreateTreatmentMutate.mock.calls[0][0] as Record<string, unknown>;
+      expect(typeof call[refKey]).toBe("number");
+      expect(call.sort_order).toBe(1);
+      expect(mockDialogProps.current.clinicId).toBe("2");
+    },
+  );
+
+  it.each(["deceased", "permission"] as const)(
+    "ガード (%s) はキャプチャした選択コールバックでも create を拒否する",
+    async (guard) => {
+      server.use(
+        http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+          HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
+        ),
+      );
+      if (guard === "permission") mockPermission.current.canEdit = false;
+      const view = render(
+        <MedicalRecordBillCheck
+          medicalRecordId={MEDICAL_RECORD_ID}
+          petId="1"
+          recordClinicId="2"
+          isPetDeceased={guard === "deceased"}
+        />,
+        { wrapper: createTestWrapper() },
+      );
+      const select = mockDialogProps.current.onSelect as ((item: unknown) => void) | undefined;
+      expect(select).toBeDefined();
+      select?.({ id: "7", name: "初診", unitPrice: 3307, category: "診察" });
+      expect(mockCreateTreatmentMutate).not.toHaveBeenCalled();
+      if (guard === "deceased") expect(toast.error).toHaveBeenCalled();
+      view.unmount();
+    },
+  );
+});
+
 describe("MedicalRecordBillCheck FE-RC-027 item_type 判定", () => {
   it("マスタ検索で category=薬剤 を選択すると item_type=medicine で作成される", async () => {
     server.use(
@@ -103,16 +216,18 @@ describe("MedicalRecordBillCheck FE-RC-027 item_type 判定", () => {
     );
 
     const user = userEvent.setup();
-    render(<MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" />, {
-      wrapper: createTestWrapper(),
-    });
+    render(
+      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" recordClinicId="2" />,
+      { wrapper: createTestWrapper() },
+    );
 
     await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
     await user.click(screen.getByRole("button", { name: "薬剤Aを選択" }));
 
     expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ item_type: "medicine" }),
+      expect.objectContaining({ item_type: "medicine", medicine_id: 42 }),
     );
+    expect(mockDialogProps.current.clinicId).toBe("2");
   });
 });
 

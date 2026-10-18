@@ -91,11 +91,12 @@ function toNumericId(id: string | null | undefined): number | undefined {
  * - item_type/content/memo/quantity/is_selected/is_insurance/discount_rate/
  *   discount_amount/status はソース行をそのまま引き継ぐ。
  * - unit_price は当時価格を持ち込まず、consultation/procedure/medicine は
- *   対応マスタに一致する行があれば master.id + master.price（現行価格）へ再解決する。
- *   マスタ不一致または item_type=other（無型）行はソースの unit_price・参照を維持する。
- * - 参照系 id（consultation/procedure/medicine/inventory）はいずれも BE が *uint64
- *   （JSON number）を期待するため Number 化する（buildMasterSelectionPayload と同じ
- *   ts-review-201 回帰防止）。wire 応答は *string で返るため文字列のまま送ると 400。
+ *   複写先の現行マスタと ID 一致した場合だけ master.id + master.price（現行価格）へ
+ *   再解決する。参照欠落・不一致・非有限の typed 行、参照を持つ other 行、未知の
+ *   item_type は例外で拒否し、呼び出し側は create 前に全行検証して中断する。
+ *   参照を持たない手入力 other 行のみソースの単価・業務値を維持する。
+ * - 一致した typed 参照のみ number 化して送る（BE は *uint64=JSON number を期待）。
+ *   other/未一致の参照は送信自体を省略し、inventory 等の無関係参照は伝播しない。
  * - dose_deviation_reason は wire 上 dose_param_snapshot 内に保持される
  *   （backend/internal/model/treatment.go:56 / treatment_request.go:25）ため、
  *   snapshot から取り出して create ペイロードの同キーへ引き継ぐ。同一用量の複写は
@@ -120,34 +121,43 @@ export function buildCopiedTreatmentPayload(params: {
     discount_amount: source.discount_amount,
     status: source.status,
     unit_price: source.unit_price,
-    consultation_id: toNumericId(source.consultation_id),
-    procedure_id: toNumericId(source.procedure_id),
-    inventory_id: toNumericId(source.inventory_id),
     sort_order: source.sort_order + sortOrderOffset,
     dose_deviation_reason: typeof deviationReason === "string" ? deviationReason : undefined,
   };
 
+  const REJECT = "複写先のマスタを確認し、治療明細を再選択してください";
+  const resolveTypedRef = (
+    refId: string | null | undefined,
+    list: CopyTreatmentMasterRef[],
+    refKey: "consultation_id" | "procedure_id" | "medicine_id",
+  ) => {
+    const master = findCopyMaster(list, refId);
+    const numericId = master ? Number(master.id) : NaN;
+    if (!master || !Number.isFinite(numericId) || !Number.isFinite(master.price)) {
+      throw new Error(REJECT);
+    }
+    payload[refKey] = numericId;
+    payload.unit_price = master.price;
+  };
+
   if (source.item_type === "consultation") {
-    const master = findCopyMaster(masters.consultations, source.consultation_id);
-    if (master) {
-      payload.consultation_id = Number(master.id);
-      payload.unit_price = master.price;
-    }
+    resolveTypedRef(source.consultation_id, masters.consultations, "consultation_id");
   } else if (source.item_type === "procedure") {
-    const master = findCopyMaster(masters.procedures, source.procedure_id);
-    if (master) {
-      payload.procedure_id = Number(master.id);
-      payload.unit_price = master.price;
-    }
+    resolveTypedRef(source.procedure_id, masters.procedures, "procedure_id");
   } else if (source.item_type === "medicine") {
-    const master = findCopyMaster(masters.medicines, source.medicine_id);
-    if (master) {
-      payload.medicine_id = Number(master.id);
-      payload.unit_price = master.price;
-    } else if (source.medicine_id != null && source.medicine_id !== "") {
-      const numericId = Number(source.medicine_id);
-      if (Number.isFinite(numericId)) payload.medicine_id = numericId;
+    resolveTypedRef(source.medicine_id, masters.medicines, "medicine_id");
+  } else if (source.item_type === "other") {
+    const hasRef = (v: string | null | undefined) => v != null && v !== "";
+    if (
+      hasRef(source.consultation_id) ||
+      hasRef(source.procedure_id) ||
+      hasRef(source.medicine_id) ||
+      hasRef(source.inventory_id)
+    ) {
+      throw new Error(REJECT);
     }
+  } else {
+    throw new Error(REJECT);
   }
   return payload;
 }
