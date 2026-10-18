@@ -84,6 +84,8 @@ func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 				}
 			}
 		}
+		f.rows["vital_records"] = nil
+		f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount = 0
 	})
 	if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
 		t.Fatalf("nullable references rejected: %v", err)

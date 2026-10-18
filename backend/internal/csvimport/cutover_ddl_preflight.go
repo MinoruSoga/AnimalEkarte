@@ -56,13 +56,14 @@ var cutoverDDLEnumColumns = map[string][]cutoverDDLEnumRule{
 	"billing_items":     {{"category", "item_category", false}, {"tax_type", "tax_type", false}},
 	"estimates":         {{"status", "estimate_status", true}},
 	"estimate_items":    {{"category", "item_category", false}, {"tax_type", "tax_type", false}},
-	"merchandise_items": {{"category", "item_category", false}},
+	"merchandise_items": {{"category", "item_category", false}, {"tax_type", "tax_type", false}},
 	"vaccinations":      {{"next_schedule_type", "next_schedule_type", true}},
 	"vaccines":          {{"species", "vaccine_species", true}},
 }
 
 var cutoverDDLRequiredColumns = map[string][]string{
 	"appointments":                 {"start_time", "end_time"},
+	"vital_records":                {"medical_record_id"},
 	"inquiries":                    {"medical_record_id"},
 	"clinical_plans":               {"medical_record_id"},
 	"appointment_trimming_details": {"appointment_id"},
@@ -191,6 +192,9 @@ func validateCutoverVitalRow(row []string, indexes map[string]int, csvLine int64
 		case cutoverNumericFinite:
 			if value.sign <= 0 {
 				return fmt.Errorf("table vital_records column weight row %d: value must be a numeric greater than zero", csvLine)
+			}
+			if value.decPos > 131072 || int64(len(value.digits))-value.decPos > 16383 {
+				return fmt.Errorf("table vital_records column weight row %d: value exceeds PostgreSQL numeric bounds", csvLine)
 			}
 		}
 	}
@@ -354,6 +358,7 @@ func newCutoverUniqueState(table string) *cutoverUniqueState {
 		state.textKeys = map[string]map[string]struct{}{"email": {}, "phone": {}}
 	case "medical_records":
 		state.textKeys = map[string]map[string]struct{}{"record_no": {}}
+		state.idKeys = map[string]map[uint64]struct{}{"appointment_id": {}}
 	case "estimates":
 		state.textKeys = map[string]map[string]struct{}{"estimate_no": {}}
 	case "inquiries", "clinical_plans":

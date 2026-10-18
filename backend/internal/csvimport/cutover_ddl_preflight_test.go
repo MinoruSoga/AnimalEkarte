@@ -417,7 +417,9 @@ func TestPreflightCutoverPetOwnerHistoryPreserved(t *testing.T) {
 			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 				setFixtureCell(t, f, table, "pet_id", "")
 				if table == "medical_records" {
-					for _, child := range []string{"vital_records", "exams", "vaccinations"} {
+					f.rows["vital_records"] = nil
+					f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount = 0
+					for _, child := range []string{"exams", "vaccinations"} {
 						setFixtureCell(t, f, child, "medical_record_id", "")
 					}
 				}
@@ -518,7 +520,14 @@ func TestPreflightCutoverRecordPetPairing(t *testing.T) {
 			dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 				setFixtureCell(t, f, table, "medical_record_id", "")
 			})
-			if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
+			_, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest))
+			if table == "vital_records" {
+				if err == nil || !strings.Contains(err.Error(), "table vital_records column medical_record_id row 2") || !strings.Contains(err.Error(), "must not be empty") {
+					t.Fatalf("empty required vital medical_record_id accepted: %v", err)
+				}
+				return
+			}
+			if err != nil {
 				t.Fatalf("NULL record in %s rejected: %v", table, err)
 			}
 		})
@@ -528,6 +537,11 @@ func TestPreflightCutoverRecordPetPairing(t *testing.T) {
 				for _, earlier := range tables {
 					if earlier == table {
 						break
+					}
+					if earlier == "vital_records" {
+						f.rows["vital_records"] = nil
+						f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount = 0
+						continue
 					}
 					setFixtureCell(t, f, earlier, "medical_record_id", "")
 				}
@@ -578,7 +592,8 @@ func TestPreflightCutoverRecordPetPairing(t *testing.T) {
 	t.Run("record-null-pet-child-null-pet", func(t *testing.T) {
 		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 			setFixtureCell(t, f, "medical_records", "pet_id", "")
-			setFixtureCell(t, f, "vital_records", "medical_record_id", "")
+			f.rows["vital_records"] = nil
+			f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount = 0
 			setFixtureCell(t, f, "exams", "pet_id", "")
 			setFixtureCell(t, f, "vaccinations", "pet_id", "")
 		})
