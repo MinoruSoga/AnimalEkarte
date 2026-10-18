@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestPreflightCutoverDDLScalarMapCoverage pins the frozen 137-rule scalar map's table/column union across both profiles.
 func TestPreflightCutoverDDLScalarMapCoverage(t *testing.T) {
 	seen := map[string]struct{}{}
 	allCols := map[string]map[string]struct{}{}
@@ -65,6 +66,7 @@ func TestPreflightCutoverDDLScalarMapCoverage(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarIntegers covers signed int32/int64 literal acceptance and limit/lexical rejection.
 func TestPreflightCutoverDDLScalarIntegers(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -106,6 +108,7 @@ func TestPreflightCutoverDDLScalarIntegers(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarNumericBounds covers unconstrained-numeric digit/scale bounds and typmod threshold comparisons.
 func TestPreflightCutoverDDLScalarNumericBounds(t *testing.T) {
 	numeric := func(p, s int) cutoverDDLScalarRule {
 		return cutoverDDLScalarRule{kind: cutoverDDLNumeric, precision: p, scale: s}
@@ -167,6 +170,7 @@ func TestPreflightCutoverDDLScalarNumericBounds(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarRulesReject proves every pinned rule rejects a non-numeric sentinel with fixed coordinates and no value echo.
 func TestPreflightCutoverDDLScalarRulesReject(t *testing.T) {
 	for table, rules := range cutoverDDLScalarColumns {
 		for _, rule := range rules {
@@ -191,6 +195,7 @@ func TestPreflightCutoverDDLScalarRulesReject(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarInteger64 covers int64 lexical variants, limits, and rejections mirroring the int32 matrix.
 func TestPreflightCutoverDDLScalarInteger64(t *testing.T) {
 	rule := cutoverDDLScalarRule{column: "id", kind: cutoverDDLInt64}
 	for _, tc := range []struct {
@@ -229,6 +234,7 @@ func TestPreflightCutoverDDLScalarInteger64(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarNumericSymmetry checks sign symmetry and equivalent spellings at the configured numeric typmod boundaries.
 func TestPreflightCutoverDDLScalarNumericSymmetry(t *testing.T) {
 	numeric := func(p, s int) cutoverDDLScalarRule {
 		return cutoverDDLScalarRule{column: "tax_rate", kind: cutoverDDLNumeric, precision: p, scale: s}
@@ -262,6 +268,7 @@ func TestPreflightCutoverDDLScalarNumericSymmetry(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarPlaceholders proves approved placeholder tokens bypass scalar parsing only in bound columns and forged/misplaced tokens are rejected.
 func TestPreflightCutoverDDLScalarPlaceholders(t *testing.T) {
 	id := func(col string) cutoverDDLScalarRule {
 		return cutoverDDLScalarRule{column: col, kind: cutoverDDLInt64}
@@ -294,6 +301,7 @@ func TestPreflightCutoverDDLScalarPlaceholders(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarUnknownKindFailsClosed proves an unmapped scalar kind fails with a fixed coordinate error rather than passing silently.
 func TestPreflightCutoverDDLScalarUnknownKindFailsClosed(t *testing.T) {
 	err := validateCutoverDDLScalarValue("owners", cutoverDDLScalarRule{column: "discount_rate", kind: cutoverDDLScalarKind(255)}, "123", 2)
 	if err == nil || !strings.Contains(err.Error(), "table owners column discount_rate row 2:") {

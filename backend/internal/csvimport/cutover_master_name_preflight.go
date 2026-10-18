@@ -18,18 +18,22 @@ type cutoverNamePreflightError struct {
 	cause   error
 }
 
+// Error returns only the fixed safe diagnostic message, never the wrapped cause.
 func (e *cutoverNamePreflightError) Error() string { return e.message }
 
+// Unwrap returns the preserved underlying cause for errors.Is/As callers.
 func (e *cutoverNamePreflightError) Unwrap() error { return e.cause }
 
 const cutoverProcedureNameQuery = `SELECT EXISTS (SELECT 1 FROM public.procedures WHERE clinic_id = $1 AND deleted_at IS NULL AND name = ANY($2::text[]))`
 
 const cutoverVaccineNameQuery = `SELECT EXISTS (SELECT 1 FROM public.vaccines WHERE clinic_id = $1 AND deleted_at IS NULL AND name = ANY($2::text[]))`
 
+// validateCutoverMasterTargetNames is the compatibility wrapper probing one master table's name column with its exact static query.
 func validateCutoverMasterTargetNames(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, tableName string, nameQuery string) error {
 	return validateCutoverTargetUniqueValues(ctx, q, bundle, seeds, cutoverTargetUniqueRule{table: tableName, column: "name", query: nameQuery})
 }
 
+// cutoverTargetUniqueContext returns the fixed diagnostic label, preserving the original name-preflight wording only for medicines/procedures/vaccines.
 func cutoverTargetUniqueContext(rule cutoverTargetUniqueRule) string {
 	if rule.column == "name" && (rule.table == "medicines" || rule.table == "procedures" || rule.table == "vaccines") {
 		return fmt.Sprintf("table %s name preflight", rule.table)
@@ -37,6 +41,7 @@ func cutoverTargetUniqueContext(rule cutoverTargetUniqueRule) string {
 	return fmt.Sprintf("table %s column %s unique preflight", rule.table, rule.column)
 }
 
+// validateCutoverTargetUniqueValues verifies the complete opened CSV before probing selected keys for seeds.ClinicID. It retains raw selected values and binds batches of at most 256; filtered-out rows still participate in hashing.
 func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, rule cutoverTargetUniqueRule) error {
 	context := cutoverTargetUniqueContext(rule)
 	table, err := cutoverManifestTableByName(bundle.Manifest, rule.table)
@@ -139,6 +144,7 @@ func validateCutoverTargetUniqueValues(ctx context.Context, q cutoverQuerier, bu
 	return nil
 }
 
+// validateCutoverUniqueMasterTargetNames runs every target-unique rule in order, optionally skipping complete legacy band tables.
 func validateCutoverUniqueMasterTargetNames(ctx context.Context, q cutoverQuerier, bundle CutoverBundle, seeds CutoverSeedIDs, skipComplete bool) error {
 	for _, rule := range cutoverTargetUniqueRules {
 		if skipComplete {

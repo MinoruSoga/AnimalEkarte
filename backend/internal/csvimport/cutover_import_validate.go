@@ -59,6 +59,7 @@ func ApplyCutoverWithIsolation(
 	}, bundle, seeds)
 }
 
+// applyCutoverWithBegin runs the atomic import inside one transaction: locks, target validation, and target-unique probes all run after Begin and before the first COPY.
 func applyCutoverWithBegin(
 	ctx context.Context,
 	begin func(context.Context) (cutoverTransaction, error),

@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestPreflightCutoverDDLTemporalRequired rejects blank values in the ten required temporal columns under both profiles.
 func TestPreflightCutoverDDLTemporalRequired(t *testing.T) {
 	cells := []struct{ table, column string }{
 		{"appointments", "start_time"},
@@ -37,6 +38,7 @@ func TestPreflightCutoverDDLTemporalRequired(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLOptionalTemporalAllowed proves optional temporal columns accept empty values under both profiles.
 func TestPreflightCutoverDDLOptionalTemporalAllowed(t *testing.T) {
 	cells := []struct{ table, column string }{
 		{"owners", "birth_date"},
@@ -60,6 +62,7 @@ func TestPreflightCutoverDDLOptionalTemporalAllowed(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarPublicFields exercises scalar validation end-to-end on representative public numeric fields.
 func TestPreflightCutoverDDLScalarPublicFields(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, tc := range []struct {
@@ -107,6 +110,7 @@ func TestPreflightCutoverDDLScalarPublicFields(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarPublicFieldsExtra covers additional public scalar fields (sort_order, tax_rate, insurance_ratio, unit_price) with valid and invalid literals.
 func TestPreflightCutoverDDLScalarPublicFieldsExtra(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, tc := range []struct {
@@ -163,6 +167,7 @@ func TestPreflightCutoverDDLScalarPublicFieldsExtra(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBillingPendingCompletedAtAllowed proves a waiting billing row may leave completed_at empty under both profiles.
 func TestPreflightCutoverBillingPendingCompletedAtAllowed(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile), func(t *testing.T) {
@@ -181,6 +186,7 @@ func TestPreflightCutoverBillingPendingCompletedAtAllowed(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLScalarOptionalDiscountAllowed proves estimate_items.discount_rate may be empty under both profiles.
 func TestPreflightCutoverDDLScalarOptionalDiscountAllowed(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile), func(t *testing.T) {

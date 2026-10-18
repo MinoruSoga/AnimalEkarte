@@ -102,6 +102,7 @@ var cutoverDDLQuantityColumns = map[string][]string{
 	"estimate_items": {"quantity"},
 }
 
+// validateCutoverDDLRow applies the DDL-floor checks (required non-empty, boolean literal, scaled quantity, vitals, scalar kinds) to a parsed row before row-graph and uniqueness checks.
 func validateCutoverDDLRow(spec CutoverTableSpec, row []string, indexes map[string]int, csvLine int64) error {
 	for _, column := range cutoverDDLRequiredColumns[spec.Name] {
 		if strings.TrimSpace(row[indexes[column]]) == "" {
@@ -147,6 +148,7 @@ func validateCutoverDDLRow(spec CutoverTableSpec, row []string, indexes map[stri
 	return validateCutoverDDLScalarRow(spec, row, indexes, csvLine)
 }
 
+// validateCutoverScaledQuantity accepts NaN or positive line-item quantities representable after numeric(10,1) rounding, without rewriting the source cell.
 func validateCutoverScaledQuantity(table, column, text string, csvLine int64) error {
 	if text == "" {
 		return fmt.Errorf("table %s column %s row %d: value must not be empty", table, column, csvLine)
@@ -166,6 +168,7 @@ func validateCutoverScaledQuantity(table, column, text string, csvLine int64) er
 	return nil
 }
 
+// cutoverScaledQuantityPositive checks whether an already-positive decimal magnitude rounds to a nonzero value within the line-item quantity storage range.
 func cutoverScaledQuantityPositive(d cutoverDecimal) bool {
 	if d.decPos > 9 || d.decPos < -1 {
 		return false
@@ -193,6 +196,7 @@ func cutoverScaledQuantityPositive(d cutoverDecimal) bool {
 	return scaled >= 1 && scaled <= 9_999_999_999
 }
 
+// validateCutoverVitalRow checks optional temperature and integer-rate ranges, and finite weights for positivity and PostgreSQL numeric bounds. Weight NaN and +Infinity retain their existing acceptance.
 func validateCutoverVitalRow(row []string, indexes map[string]int, csvLine int64) error {
 	if text := row[indexes["temperature"]]; text != "" {
 		value, class := parseCutoverPGNumeric(text)
@@ -228,6 +232,7 @@ func validateCutoverVitalRow(row []string, indexes map[string]int, csvLine int64
 	return nil
 }
 
+// validateCutoverVitalInteger checks signed-decimal measurement text against the inclusive range from one to upper.
 func validateCutoverVitalInteger(text string, upper int64) error {
 	if !cutoverIntegerLiteral.MatchString(strings.TrimSpace(text)) {
 		return fmt.Errorf("not an integer")
@@ -246,6 +251,7 @@ type cutoverDecimal struct {
 	dscale int64
 }
 
+// parseCutoverPGNumeric parses PostgreSQL numeric text into a positional decimal (digits, decimal position, display scale) without evaluating exponent-sized values or coercing source bytes.
 func parseCutoverPGNumeric(text string) (cutoverDecimal, cutoverNumericClass) {
 	trimmed := strings.TrimSpace(text)
 	switch strings.ToLower(trimmed) {
@@ -331,6 +337,7 @@ func parseCutoverPGNumeric(text string) (cutoverDecimal, cutoverNumericClass) {
 	return cutoverDecimal{sign: sign, digits: significant, decPos: decPos, dscale: dscale}, cutoverNumericFinite
 }
 
+// cutoverDecimalCompare compares a decimal to a positive digit/position bound with virtual zero padding instead of exponent-sized expansion.
 func cutoverDecimalCompare(d cutoverDecimal, boundDigits string, boundDecPos int64) int {
 	if d.sign <= 0 {
 		return -1
@@ -360,6 +367,7 @@ func cutoverDecimalCompare(d cutoverDecimal, boundDigits string, boundDecPos int
 	return 0
 }
 
+// cutoverPGBoolean recognizes the importer's supported PostgreSQL-style boolean spellings and reports validity separately from the value.
 func cutoverPGBoolean(text string) (bool, bool) {
 	switch strings.ToLower(strings.TrimSpace(text)) {
 	case "1", "t", "tr", "tru", "true", "y", "ye", "yes", "on":
@@ -378,6 +386,7 @@ type cutoverUniqueState struct {
 	tentativePets map[uint64]struct{}
 }
 
+// newCutoverUniqueState allocates empty per-table source-key sets, returning nil for tables without additional tracked keys.
 func newCutoverUniqueState(table string) *cutoverUniqueState {
 	state := &cutoverUniqueState{}
 	switch table {
@@ -402,6 +411,7 @@ func newCutoverUniqueState(table string) *cutoverUniqueState {
 	return state
 }
 
+// check records eligible source keys and rejects prior claims, using exact text and numeric ID identity.
 func (state *cutoverUniqueState) check(spec CutoverTableSpec, row []string, indexes map[string]int, csvLine int64) error {
 	for column, seen := range state.textKeys {
 		value := row[indexes[column]]
@@ -451,6 +461,7 @@ var cutoverRecordPetPairTables = map[string]struct{}{
 	"vital_records": {}, "exams": {}, "vaccinations": {},
 }
 
+// validateCutoverRecordPetPair rejects conflicting pet IDs when the child and linked medical record both supply them; it does not require current ownership.
 func validateCutoverRecordPetPair(table string, row []string, indexes map[string]int, recordPets map[uint64]*uint64, csvLine int64) error {
 	recordID, okRecord := cutoverReferenceID(row[indexes["medical_record_id"]])
 	petID, okPet := cutoverReferenceID(row[indexes["pet_id"]])

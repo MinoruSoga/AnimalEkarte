@@ -1048,6 +1048,7 @@ type fixtureBundle struct {
 	afterManifest func(string)
 }
 
+// writeCutoverFixture writes profile-specific synthetic CSVs and a manifest after filling fixture defaults and applying the caller mutations.
 func writeCutoverFixture(t *testing.T, mutate func(*fixtureBundle), profiles ...CutoverProfile) (string, string) {
 	t.Helper()
 	dir := t.TempDir()

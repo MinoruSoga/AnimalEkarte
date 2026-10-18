@@ -540,6 +540,8 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	return notes, nil
 }
 
+// validateCutoverCSV validates the manifest-bound header, rows, row count, and digest. Its boolean
+// result reports whether a rehearsal header permutation was tolerated.
 func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool, profile CutoverProfile) (bool, error) {
 	path, err := resolveCutoverAccountCSV(path)
 	if err != nil {
@@ -662,6 +664,8 @@ func cutoverColumnIndexes(spec CutoverTableSpec, header []string, allowPermutati
 	return indexes, !exact, nil
 }
 
+// validateCutoverRow applies the per-row contract floors (placeholders, required non-empty fields,
+// boolean literals, domain values, and numeric bounds) to one parsed CSV row.
 func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64, profile CutoverProfile) error {
 	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
 		return err

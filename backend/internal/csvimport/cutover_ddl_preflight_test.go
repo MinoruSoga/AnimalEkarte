@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// ddlSpecByName looks up a copied table in the selected profile's specs and fails the test if it is absent.
 func ddlSpecByName(t *testing.T, table string, profiles ...CutoverProfile) CutoverTableSpec {
 	t.Helper()
 	for _, spec := range CutoverTableSpecs(profiles...) {
@@ -16,12 +17,14 @@ func ddlSpecByName(t *testing.T, table string, profiles ...CutoverProfile) Cutov
 	return CutoverTableSpec{}
 }
 
+// setFixtureCell replaces one cell in a fixture row for the given profile's bundle.
 func setFixtureCell(t *testing.T, f *fixtureBundle, table, column, value string, profiles ...CutoverProfile) {
 	t.Helper()
 	spec := ddlSpecByName(t, table, profiles...)
 	f.rows[table][0][columnIndex(spec.Columns, column)] = value
 }
 
+// addFixtureRow appends a fixture row with a new id and explicit cell overrides for the given profile.
 func addFixtureRow(t *testing.T, f *fixtureBundle, table, newID string, edits map[string]string, profiles ...CutoverProfile) {
 	t.Helper()
 	spec := ddlSpecByName(t, table, profiles...)
@@ -34,6 +37,7 @@ func addFixtureRow(t *testing.T, f *fixtureBundle, table, newID string, edits ma
 	f.manifest.Tables[manifestTableIndex(t, f, table)].RowCount++
 }
 
+// TestPreflightCutoverQuantityNumericTypmod exercises line-item quantity acceptance and rejection at numeric(10,1) rounding boundaries, including NaN and malformed literals.
 func TestPreflightCutoverQuantityNumericTypmod(t *testing.T) {
 	for _, table := range []string{"billing_items", "estimate_items"} {
 		for _, tc := range []struct {
@@ -71,6 +75,7 @@ func TestPreflightCutoverQuantityNumericTypmod(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverVitalBounds pins the vital measurement floors, ranges, and numeric bounds for each vitals column.
 func TestPreflightCutoverVitalBounds(t *testing.T) {
 	for _, tc := range []struct {
 		column string
@@ -117,6 +122,7 @@ func TestPreflightCutoverVitalBounds(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverKanaCheck rejects its katakana cases and accepts the hiragana and empty name_kana controls.
 func TestPreflightCutoverKanaCheck(t *testing.T) {
 	for _, tc := range []struct {
 		table string
@@ -145,6 +151,7 @@ func TestPreflightCutoverKanaCheck(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverEnumDomains exercises accepted and rejected enum spellings for the copied source columns.
 func TestPreflightCutoverEnumDomains(t *testing.T) {
 	for _, tc := range []struct {
 		table, column string
@@ -206,6 +213,7 @@ func TestPreflightCutoverEnumDomains(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverRequiredTimestamps proves required timestamp columns reject blank values only; no date grammar or ordering is asserted.
 func TestPreflightCutoverRequiredTimestamps(t *testing.T) {
 	for _, column := range []string{"start_time", "end_time"} {
 		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
@@ -217,6 +225,7 @@ func TestPreflightCutoverRequiredTimestamps(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverMerchandiseActiveBoolean pins is_active boolean literal acceptance and rejection for merchandise_items.
 func TestPreflightCutoverMerchandiseActiveBoolean(t *testing.T) {
 	for _, tc := range []struct {
 		value string
@@ -241,6 +250,7 @@ func TestPreflightCutoverMerchandiseActiveBoolean(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverMasterNameUnique rejects duplicate procedure and vaccine names inside the source bundle.
 func TestPreflightCutoverMasterNameUnique(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table, func(t *testing.T) {
@@ -269,6 +279,7 @@ func TestPreflightCutoverMasterNameUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverMerchandiseActiveOnlyUnique proves duplicate names among inactive merchandise do not collide while active duplicates do.
 func TestPreflightCutoverMerchandiseActiveOnlyUnique(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "merchandise_items", "name", "snack")
@@ -290,6 +301,7 @@ func TestPreflightCutoverMerchandiseActiveOnlyUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverOwnerContactUnique pins owner email/phone uniqueness semantics, including empty-value handling.
 func TestPreflightCutoverOwnerContactUnique(t *testing.T) {
 	for _, column := range []string{"email", "phone"} {
 		t.Run(column+"-duplicate", func(t *testing.T) {
@@ -316,6 +328,7 @@ func TestPreflightCutoverOwnerContactUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverNumberUniqueIncludesEmpty proves record_no/estimate_no uniqueness also binds empty text values because the DDL unique constraint covers them.
 func TestPreflightCutoverNumberUniqueIncludesEmpty(t *testing.T) {
 	for _, tc := range []struct {
 		table, column string
@@ -343,6 +356,7 @@ func TestPreflightCutoverNumberUniqueIncludesEmpty(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverOneToOneUnique rejects shared non-empty reference keys across the one-to-one child tables.
 func TestPreflightCutoverOneToOneUnique(t *testing.T) {
 	for _, tc := range []struct {
 		table, column, parent string
@@ -370,6 +384,7 @@ func TestPreflightCutoverOneToOneUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverTentativePetUnique rejects two tentative appointments for the same pet while other statuses do not collide.
 func TestPreflightCutoverTentativePetUnique(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "appointments", "status", "tentative")
@@ -394,6 +409,7 @@ func TestPreflightCutoverTentativePetUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverPetOwnerHistoryPreserved proves historical owner snapshots survive pet transfers without requiring current-owner pairing.
 func TestPreflightCutoverPetOwnerHistoryPreserved(t *testing.T) {
 	for _, table := range []string{"appointments", "medical_records", "billings", "estimates"} {
 		t.Run(table+"-transferred-owner-preserved", func(t *testing.T) {
@@ -484,6 +500,7 @@ func TestPreflightCutoverPetOwnerHistoryPreserved(t *testing.T) {
 	})
 }
 
+// TestPreflightCutoverPairingDistinctFromAbsentParent separates missing-parent errors from same-pet mismatch errors on record-pet pairing.
 func TestPreflightCutoverPairingDistinctFromAbsentParent(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "appointments", "pet_id", "1000084")
@@ -500,6 +517,7 @@ func TestPreflightCutoverPairingDistinctFromAbsentParent(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverRecordPetPairing pins medical_record/pet pairing acceptance and cross-pet rejection cases.
 func TestPreflightCutoverRecordPetPairing(t *testing.T) {
 	tables := []string{"vital_records", "exams", "vaccinations"}
 	for _, table := range tables {
@@ -603,6 +621,7 @@ func TestPreflightCutoverRecordPetPairing(t *testing.T) {
 	})
 }
 
+// TestPreflightCutoverInactiveHistoricalActorsPreserved preserves historical rows referencing inactive staff and deceased owners/pets.
 func TestPreflightCutoverInactiveHistoricalActorsPreserved(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "staffs", "is_active", "false")
@@ -614,6 +633,7 @@ func TestPreflightCutoverInactiveHistoricalActorsPreserved(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverDDLBundleWiringBothProfiles exercises the DDL floor end-to-end through PreflightCutoverBundle under both profiles.
 func TestPreflightCutoverDDLBundleWiringBothProfiles(t *testing.T) {
 	t.Run("legacy-quantity", func(t *testing.T) {
 		dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
@@ -651,6 +671,7 @@ func TestPreflightCutoverDDLBundleWiringBothProfiles(t *testing.T) {
 	})
 }
 
+// TestPreflightCutoverDDLRulesUnderPermutedHeader keeps DDL checks bound to the named column after an allowed rehearsal header permutation.
 func TestPreflightCutoverDDLRulesUnderPermutedHeader(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		mutateRehearsalOnlyHandoff(f)

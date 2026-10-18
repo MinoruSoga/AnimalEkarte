@@ -211,10 +211,12 @@ var cutoverDDLScalarColumns = map[string][]cutoverDDLScalarRule{
 	},
 }
 
+// cutoverASCIITrimSpace removes only ASCII PostgreSQL whitespace; the scalar validator separately rejects Unicode outer whitespace.
 func cutoverASCIITrimSpace(text string) string {
 	return strings.Trim(text, " \t\n\r\f\v")
 }
 
+// validateCutoverDDLScalarValue checks nullability, approved column-bound placeholders, integer limits, and numeric storage bounds without rewriting cells. Failures expose only table, column, and CSV row.
 func validateCutoverDDLScalarValue(table string, rule cutoverDDLScalarRule, text string, csvLine int64) error {
 	if text == "" {
 		if rule.nullable {
@@ -274,6 +276,7 @@ func validateCutoverDDLScalarValue(table string, rule cutoverDDLScalarRule, text
 	return fmt.Errorf("table %s column %s row %d: unsupported scalar kind", table, rule.column, csvLine)
 }
 
+// validateCutoverDDLScalarRow applies every scalar rule bound to the row's table and reports the first violation as a fixed coordinate error.
 func validateCutoverDDLScalarRow(spec CutoverTableSpec, row []string, indexes map[string]int, csvLine int64) error {
 	for _, rule := range cutoverDDLScalarColumns[spec.Name] {
 		if err := validateCutoverDDLScalarValue(spec.Name, rule, row[indexes[rule.column]], csvLine); err != nil {

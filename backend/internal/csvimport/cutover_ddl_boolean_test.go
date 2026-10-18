@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+// TestPreflightCutoverDDLBooleanColumns pins the PostgreSQL boolean literal matrix: accepted spellings per column under both profiles and rejection of non-boolean source text.
 func TestPreflightCutoverDDLBooleanColumns(t *testing.T) {
 	columns := []struct {
 		table    string

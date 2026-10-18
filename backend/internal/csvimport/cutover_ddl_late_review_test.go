@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// lateReviewFixture selects a profile-specific fixture factory and expected-source contract, preserving defaults-before-mutation ordering.
 func lateReviewFixture(t *testing.T, profile CutoverProfile, mutate func(*fixtureBundle)) (string, ExpectedCutoverSource) {
 	t.Helper()
 	if profile == CutoverProfileMedicinesCandidate {
@@ -15,6 +16,7 @@ func lateReviewFixture(t *testing.T, profile CutoverProfile, mutate func(*fixtur
 	return dir, referenceFixtureSource(digest)
 }
 
+// TestPreflightCutoverLateReviewMerchandiseTaxType rejects merchandise tax_type values outside the accepted domain and accepts the valid spellings.
 func TestPreflightCutoverLateReviewMerchandiseTaxType(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, tc := range []struct {
@@ -50,6 +52,7 @@ func TestPreflightCutoverLateReviewMerchandiseTaxType(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverLateReviewBillingStatus rejects an out-of-domain billing status with fixed coordinates and no source-value echo in both profiles.
 func TestPreflightCutoverLateReviewBillingStatus(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile), func(t *testing.T) {
@@ -67,6 +70,7 @@ func TestPreflightCutoverLateReviewBillingStatus(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverLateReviewRecordAppointmentUnique rejects two medical_records rows claiming the same non-empty appointment_id within the source bundle.
 func TestPreflightCutoverLateReviewRecordAppointmentUnique(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile)+"/duplicate", func(t *testing.T) {
@@ -110,6 +114,7 @@ func TestPreflightCutoverLateReviewRecordAppointmentUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverLateReviewBillingRecordUnique rejects two billings rows claiming the same non-empty medical_record_id within the source bundle.
 func TestPreflightCutoverLateReviewBillingRecordUnique(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile)+"/duplicate", func(t *testing.T) {
@@ -135,6 +140,7 @@ func TestPreflightCutoverLateReviewBillingRecordUnique(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverLateReviewVitalRecordRequired keeps medical_record_id mandatory in source vital rows despite nullable target metadata, with a baseline positive control.
 func TestPreflightCutoverLateReviewVitalRecordRequired(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile)+"/empty", func(t *testing.T) {
@@ -155,6 +161,7 @@ func TestPreflightCutoverLateReviewVitalRecordRequired(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverLateReviewWeightBounds pins the positive weight floor and the PostgreSQL numeric upper bound for vital weights.
 func TestPreflightCutoverLateReviewWeightBounds(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, tc := range []struct {

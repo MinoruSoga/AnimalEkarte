@@ -32,6 +32,7 @@ type masterNameProbeSession struct {
 	probeErr      error
 }
 
+// QueryRow simulates procedure/vaccine name lookups, recording their SQL and arguments before delegating other queries.
 func (s *masterNameProbeSession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "public.procedures") && strings.Contains(query, "name = ANY") {
 		s.procProbes++
@@ -66,6 +67,7 @@ func (s *masterNameProbeSession) QueryRow(ctx context.Context, query string, arg
 	return s.candidateFreshApplySession.QueryRow(ctx, query, args...)
 }
 
+// TestMasterNameProcedureCollisionCandidateRejected proves a same-clinic procedures name collision is denied before Begin under the candidate profile.
 func TestMasterNameProcedureCollisionCandidateRejected(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	session := &masterNameProbeSession{procExists: true}
@@ -81,6 +83,7 @@ func TestMasterNameProcedureCollisionCandidateRejected(t *testing.T) {
 	}
 }
 
+// TestMasterNameVaccineCollisionCandidateRejected proves a same-clinic vaccines name collision is denied before Begin under the candidate profile.
 func TestMasterNameVaccineCollisionCandidateRejected(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	session := &masterNameProbeSession{vaccExists: true}
@@ -96,6 +99,7 @@ func TestMasterNameVaccineCollisionCandidateRejected(t *testing.T) {
 	}
 }
 
+// TestMasterNameProbeBindsExactQueryAndNames asserts the exact static query text, clinic seed, verbatim names, and procedures-before-vaccines order.
 func TestMasterNameProbeBindsExactQueryAndNames(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	session := &masterNameProbeSession{}
@@ -134,6 +138,7 @@ func TestMasterNameProbeBindsExactQueryAndNames(t *testing.T) {
 	}
 }
 
+// TestMasterNameProbeQueryErrorFailsClosed proves a probe error surfaces a fixed name-preflight context without driver/path detail, before Begin.
 func TestMasterNameProbeQueryErrorFailsClosed(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	session := &masterNameProbeSession{probeErr: errors.New("DRIVER-SECRET-/tmp/patient-phi-path lookup failed")}
@@ -158,6 +163,7 @@ type legacyNameProbeSession struct {
 	probeErr   error
 }
 
+// QueryRow simulates legacy name lookups and records whether pending procedure/vaccine tables were probed.
 func (s *legacyNameProbeSession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "public.procedures") && strings.Contains(query, "name = ANY") {
 		s.procProbes++
@@ -176,6 +182,7 @@ func (s *legacyNameProbeSession) QueryRow(ctx context.Context, query string, arg
 	return s.fakeCutoverSession.QueryRow(ctx, query, args...)
 }
 
+// TestMasterNameProcedureCollisionLegacyPendingRejected proves a pending procedures name collision denies the legacy path before any transaction.
 func TestMasterNameProcedureCollisionLegacyPendingRejected(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	session := &legacyNameProbeSession{procExists: true}
@@ -189,6 +196,7 @@ func TestMasterNameProcedureCollisionLegacyPendingRejected(t *testing.T) {
 	}
 }
 
+// TestMasterNameVaccineCollisionLegacyPendingRejected proves a pending vaccines name collision denies the legacy path before any transaction.
 func TestMasterNameVaccineCollisionLegacyPendingRejected(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	session := &legacyNameProbeSession{vaccExists: true}
@@ -202,6 +210,7 @@ func TestMasterNameVaccineCollisionLegacyPendingRejected(t *testing.T) {
 	}
 }
 
+// TestMasterNameCompleteProcedurePrefixSkipsOwnNames proves a complete staffs+procedures prefix skips its own name probe while pending vaccines are still probed.
 func TestMasterNameCompleteProcedurePrefixSkipsOwnNames(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	session := &legacyNameProbeSession{procExists: true}
@@ -225,6 +234,7 @@ func TestMasterNameCompleteProcedurePrefixSkipsOwnNames(t *testing.T) {
 	}
 }
 
+// TestMasterNameAtomicCollisionAfterBeginRollsBack proves a procedures collision inside the atomic transaction rolls back before any COPY or commit.
 func TestMasterNameAtomicCollisionAfterBeginRollsBack(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	tx := &atomicNameProbeTx{fakeCutoverTransaction: &fakeCutoverTransaction{}, procExists: true}
@@ -257,6 +267,7 @@ type atomicNameProbeTx struct {
 	probes     int
 }
 
+// QueryRow injects procedure/vaccine name collisions inside the fake transaction and delegates other target checks.
 func (tx *atomicNameProbeTx) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "public.procedures") && strings.Contains(query, "name = ANY") {
 		tx.probes++
@@ -269,6 +280,7 @@ func (tx *atomicNameProbeTx) QueryRow(ctx context.Context, query string, args ..
 	return tx.fakeCutoverTransaction.QueryRow(ctx, query, args...)
 }
 
+// TestMasterNameAtomicVaccineCollisionRollsBack proves a vaccines collision inside the atomic transaction rolls back before any COPY or commit.
 func TestMasterNameAtomicVaccineCollisionRollsBack(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	tx := &atomicNameProbeTx{fakeCutoverTransaction: &fakeCutoverTransaction{}, vaccExists: true}
@@ -291,6 +303,7 @@ func TestMasterNameAtomicVaccineCollisionRollsBack(t *testing.T) {
 	}
 }
 
+// TestMasterNameLegacyQueryErrorBeforeBegin proves a legacy probe failure returns the fixed context with no Begin.
 func TestMasterNameLegacyQueryErrorBeforeBegin(t *testing.T) {
 	bundle := validCutoverBundleForApply(t)
 	session := &legacyNameProbeSession{probeErr: errors.New("driver failure")}
@@ -304,6 +317,7 @@ func TestMasterNameLegacyQueryErrorBeforeBegin(t *testing.T) {
 	}
 }
 
+// sourceCSVNames reads the fixture CSV for a table and returns the verbatim name-column values in row order.
 func sourceCSVNames(t *testing.T, bundle CutoverBundle, table string) []string {
 	t.Helper()
 	manifestTable, err := cutoverManifestTableByName(bundle.Manifest, table)
@@ -342,6 +356,7 @@ type masterReaderProbeQuerier struct {
 	exists        bool
 }
 
+// QueryRow records procedure/vaccine names and chunk sizes, answers enumerated extra unique-key probes, and rejects unknown SQL.
 func (q *masterReaderProbeQuerier) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
 	if strings.Contains(query, "public.procedures") && strings.Contains(query, "name = ANY") {
 		q.procProbes++
@@ -371,6 +386,7 @@ func (q *masterReaderProbeQuerier) QueryRow(_ context.Context, query string, arg
 	return staticRow{err: errors.New("unexpected query: " + query)}
 }
 
+// corruptManifestHash replaces a manifest table's digest with an all-zero hash.
 func corruptManifestHash(t *testing.T, bundle CutoverBundle, table string) CutoverBundle {
 	t.Helper()
 	for i := range bundle.Manifest.Tables {
@@ -381,6 +397,7 @@ func corruptManifestHash(t *testing.T, bundle CutoverBundle, table string) Cutov
 	return bundle
 }
 
+// corruptManifestRowCount bumps a manifest table's declared row count by one.
 func corruptManifestRowCount(t *testing.T, bundle CutoverBundle, table string) CutoverBundle {
 	t.Helper()
 	for i := range bundle.Manifest.Tables {
@@ -391,6 +408,7 @@ func corruptManifestRowCount(t *testing.T, bundle CutoverBundle, table string) C
 	return bundle
 }
 
+// TestMasterNameReaderCorruptHashFailsBeforeQuery checks that a digest mismatch prevents probing the affected table's names.
 func TestMasterNameReaderCorruptHashFailsBeforeQuery(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table, func(t *testing.T) {
@@ -410,6 +428,7 @@ func TestMasterNameReaderCorruptHashFailsBeforeQuery(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderRowCountMismatchFailsBeforeQuery proves a declared row-count mismatch is rejected before the affected table's target query.
 func TestMasterNameReaderRowCountMismatchFailsBeforeQuery(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table, func(t *testing.T) {
@@ -423,6 +442,7 @@ func TestMasterNameReaderRowCountMismatchFailsBeforeQuery(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderMalformedCSVFailsPrivacy proves unparseable CSV returns fixed context with no lexeme or path echo.
 func TestMasterNameReaderMalformedCSVFailsPrivacy(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	manifestTable, err := cutoverManifestTableByName(bundle.Manifest, "procedures")
@@ -449,6 +469,7 @@ func TestMasterNameReaderMalformedCSVFailsPrivacy(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderWrongHeaderRejected proves a wrong header is rejected without echoing header bytes.
 func TestMasterNameReaderWrongHeaderRejected(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	manifestTable, err := cutoverManifestTableByName(bundle.Manifest, "procedures")
@@ -474,6 +495,7 @@ func TestMasterNameReaderWrongHeaderRejected(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderUppercaseDigestAccepted proves uppercase manifest digests still match the computed lowercase hash.
 func TestMasterNameReaderUppercaseDigestAccepted(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	for i := range bundle.Manifest.Tables {
@@ -485,6 +507,7 @@ func TestMasterNameReaderUppercaseDigestAccepted(t *testing.T) {
 	}
 }
 
+// rewriteTableCSV applies a row-level edit to one fixture CSV, rewrites it, and returns the new SHA-256 for manifest updates.
 func rewriteTableCSV(t *testing.T, bundle CutoverBundle, table string, edit func(header []string, rows [][]string) [][]string) string {
 	t.Helper()
 	manifestTable, err := cutoverManifestTableByName(bundle.Manifest, table)
@@ -514,6 +537,7 @@ func rewriteTableCSV(t *testing.T, bundle CutoverBundle, table string, edit func
 	return fmt.Sprintf("%x", sha256.Sum256(content))
 }
 
+// updateManifestEntry overwrites one manifest table's digest and row count to match a rewritten CSV.
 func updateManifestEntry(t *testing.T, bundle CutoverBundle, table, digest string, rowCount int64) CutoverBundle {
 	t.Helper()
 	for i := range bundle.Manifest.Tables {
@@ -525,6 +549,7 @@ func updateManifestEntry(t *testing.T, bundle CutoverBundle, table, digest strin
 	return bundle
 }
 
+// rehearsalBundle builds a candidate apply bundle with local-rehearsal provenance so header permutations are tolerated.
 func rehearsalBundle(t *testing.T) CutoverBundle {
 	t.Helper()
 	bundle := candidateFreshBundleForApply(t)
@@ -532,6 +557,7 @@ func rehearsalBundle(t *testing.T) CutoverBundle {
 	return bundle
 }
 
+// TestMasterNameReaderHeaderPermutation proves a header-column swap is accepted under rehearsal provenance and rejected under formal provenance for both tables.
 func TestMasterNameReaderHeaderPermutation(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table+"/rehearsal-allowed", func(t *testing.T) {
@@ -580,6 +606,7 @@ func TestMasterNameReaderHeaderPermutation(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderChunkingBothTables uses 257-row fixtures to check 256-name batching and exact bound-name order for both master tables.
 func TestMasterNameReaderChunkingBothTables(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table, func(t *testing.T) {
@@ -643,6 +670,7 @@ func TestMasterNameReaderChunkingBothTables(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderEmptySelectedTableNoQuery proves a zero-row source skips its own query while the other table is still probed.
 func TestMasterNameReaderEmptySelectedTableNoQuery(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table, func(t *testing.T) {
@@ -671,6 +699,7 @@ func TestMasterNameReaderEmptySelectedTableNoQuery(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderMalformedPrivacyBothTables proves malformed rows and wrong headers fail with fixed context for both tables, never leaking cell or path detail.
 func TestMasterNameReaderMalformedPrivacyBothTables(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		t.Run(table+"/malformed", func(t *testing.T) {
@@ -731,6 +760,7 @@ func TestMasterNameReaderMalformedPrivacyBothTables(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderExplicitNamesBoundVerbatim proves mixed-case, whitespace-padded, and quoted Unicode source names reach the bind slice verbatim for both tables.
 func TestMasterNameReaderExplicitNamesBoundVerbatim(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	probe := &masterNameProbeSession{}
@@ -770,6 +800,7 @@ func TestMasterNameReaderExplicitNamesBoundVerbatim(t *testing.T) {
 	}
 }
 
+// TestMasterNameProbePreservesSafeCauses proves probe causes (cancel or driver error) survive errors.Is while Error() keeps the fixed safe text, before Begin.
 func TestMasterNameProbePreservesSafeCauses(t *testing.T) {
 	for _, table := range []string{"procedures", "vaccines"} {
 		for _, cause := range []error{context.Canceled, errors.New("DRIVER-SECRET-/tmp/patient-phi-path")} {
@@ -794,6 +825,7 @@ func TestMasterNameProbePreservesSafeCauses(t *testing.T) {
 	}
 }
 
+// TestMasterNameReaderMalformedCSVClassifiesParseCause proves malformed CSV unwraps to *csv.ParseError while Error() stays sanitized.
 func TestMasterNameReaderMalformedCSVClassifiesParseCause(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	manifestTable, err := cutoverManifestTableByName(bundle.Manifest, "procedures")

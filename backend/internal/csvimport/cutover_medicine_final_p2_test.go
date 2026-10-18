@@ -118,6 +118,7 @@ func TestMedicineFinalNameProbeBindsClinicAndExactNames(t *testing.T) {
 	}
 }
 
+// TestMedicineFinalNameProbeQueryErrorFailsBeforeBegin proves a medicine name probe error preserves its cause, leaks no driver detail, and denies before Begin.
 func TestMedicineFinalNameProbeQueryErrorFailsBeforeBegin(t *testing.T) {
 	bundle := candidateFreshBundleForApply(t)
 	session := &medicineNameProbeSession{probeErr: errors.New("catalog lookup failed")}

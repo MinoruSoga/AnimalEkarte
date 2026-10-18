@@ -43,6 +43,7 @@ type targetUniqueRuleCase struct {
 	mutate func(t *testing.T, f *fixtureBundle, profile CutoverProfile)
 }
 
+// targetUniqueRuleCases lists the new unique-key rules with test-side expected SQL literals and the fixture mutation making each key probeable.
 func targetUniqueRuleCases() []targetUniqueRuleCase {
 	set := func(table, column, value string) func(*testing.T, *fixtureBundle, CutoverProfile) {
 		return func(t *testing.T, f *fixtureBundle, profile CutoverProfile) {
@@ -71,6 +72,7 @@ func targetUniqueRuleCases() []targetUniqueRuleCase {
 	}
 }
 
+// targetUniqueAllExpectedQueries returns every expected query literal so fakes can route only the enumerated probes.
 func targetUniqueAllExpectedQueries() []string {
 	queries := make([]string, 0, len(targetUniqueRuleCases()))
 	for _, c := range targetUniqueRuleCases() {
@@ -79,6 +81,7 @@ func targetUniqueAllExpectedQueries() []string {
 	return queries
 }
 
+// targetUniqueApplyBundle builds a real preflight-verified apply bundle for a profile with the caller's fixture mutation.
 func targetUniqueApplyBundle(t *testing.T, profile CutoverProfile, mutate func(*fixtureBundle)) CutoverBundle {
 	t.Helper()
 	if profile == CutoverProfileMedicinesCandidate {
@@ -109,6 +112,7 @@ type targetUniqueProbeSession struct {
 	probes       []string
 }
 
+// QueryRow simulates configured new-key collisions and records recognized queries before delegating candidate catalog and band lookups.
 func (s *targetUniqueProbeSession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	for _, expected := range targetUniqueAllExpectedQueries() {
 		if query == expected {
@@ -125,6 +129,7 @@ type targetUniqueLegacyProbeSession struct {
 	probes       []string
 }
 
+// QueryRow simulates new-key conflicts while delegating band inspection to the legacy-session fake.
 func (s *targetUniqueLegacyProbeSession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	for _, expected := range targetUniqueAllExpectedQueries() {
 		if query == expected {
@@ -135,6 +140,7 @@ func (s *targetUniqueLegacyProbeSession) QueryRow(ctx context.Context, query str
 	return s.fakeCutoverSession.QueryRow(ctx, query, args...)
 }
 
+// TestTargetUniqueNewKeyCollisionBeforeBegin proves each of the 12 new unique keys denies apply before Begin under both profiles, with fixed table/column context and no value echo.
 func TestTargetUniqueNewKeyCollisionBeforeBegin(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, c := range targetUniqueRuleCases() {
@@ -173,6 +179,7 @@ func TestTargetUniqueNewKeyCollisionBeforeBegin(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueLegacyParentPrefixCollisionBeforeWrite proves ID-key collisions deny the legacy resume before writing, even with a complete parent prefix.
 func TestTargetUniqueLegacyParentPrefixCollisionBeforeWrite(t *testing.T) {
 	legacyRules := []targetUniqueRuleCase{}
 	for _, c := range targetUniqueRuleCases() {
@@ -220,6 +227,7 @@ type targetUniqueRecorder struct {
 	err     error
 }
 
+// QueryRow captures seed IDs and raw batches for recognized queries, can inject a chosen cause, and rejects unknown SQL.
 func (r *targetUniqueRecorder) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
 	for _, expected := range targetUniqueAllExpectedQueries() {
 		if query == expected {
@@ -239,6 +247,7 @@ func (r *targetUniqueRecorder) QueryRow(_ context.Context, query string, args ..
 	return staticRow{err: errors.New("unexpected query: " + query)}
 }
 
+// targetUniqueRuleByName looks up the actual production rule for a named test case so tests bind the real configured rule.
 func targetUniqueRuleByName(t *testing.T, name string) cutoverTargetUniqueRule {
 	t.Helper()
 	for _, c := range targetUniqueRuleCases() {
@@ -255,6 +264,7 @@ func targetUniqueRuleByName(t *testing.T, name string) cutoverTargetUniqueRule {
 	return cutoverTargetUniqueRule{}
 }
 
+// TestTargetUniqueRuleMapPinned pins the production rule list to the 14 distinct table/column pairs including the two original name rules.
 func TestTargetUniqueRuleMapPinned(t *testing.T) {
 	seen := map[string]bool{}
 	for _, rule := range cutoverTargetUniqueRules {
@@ -277,6 +287,7 @@ func TestTargetUniqueRuleMapPinned(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueRuleBindingExact asserts each production rule's query equals the independent expected literal and binds seeds.ClinicID plus the raw fixture value.
 func TestTargetUniqueRuleBindingExact(t *testing.T) {
 	for _, c := range targetUniqueRuleCases() {
 		t.Run(c.name, func(t *testing.T) {
@@ -302,6 +313,7 @@ func TestTargetUniqueRuleBindingExact(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueSelectionFilters proves empty owner contacts are skipped while whitespace, quotes, and Unicode values bind verbatim under both profiles.
 func TestTargetUniqueSelectionFilters(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, c := range []targetUniqueRuleCase{targetUniqueRuleCases()[1], targetUniqueRuleCases()[2]} {
@@ -349,6 +361,7 @@ func TestTargetUniqueSelectionFilters(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueEmptyTextStillProbed proves empty record_no/estimate_no still bind as raw empty strings because the DDL uniqueness covers them.
 func TestTargetUniqueEmptyTextStillProbed(t *testing.T) {
 	for _, c := range []targetUniqueRuleCase{targetUniqueRuleCases()[3], targetUniqueRuleCases()[4]} {
 		bundle := targetUniqueApplyBundle(t, CutoverProfileMedicinesCandidate, func(f *fixtureBundle) {
@@ -373,6 +386,7 @@ func TestTargetUniqueEmptyTextStillProbed(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueMerchActiveOnlyFilter pins the merchandise active-only selector across PostgreSQL boolean spellings and invalid-literal rejection.
 func TestTargetUniqueMerchActiveOnlyFilter(t *testing.T) {
 	for _, tc := range []struct {
 		value string
@@ -420,6 +434,7 @@ func TestTargetUniqueMerchActiveOnlyFilter(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueLeadingZeroRawBind proves leading-zero ID spellings reach the bind slice verbatim for the SQL cast to compare numerically.
 func TestTargetUniqueLeadingZeroRawBind(t *testing.T) {
 	bundle := targetUniqueApplyBundle(t, CutoverProfileMedicinesCandidate, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "medical_records", "appointment_id", "0001000001", CutoverProfileMedicinesCandidate)
@@ -433,6 +448,7 @@ func TestTargetUniqueLeadingZeroRawBind(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueAtomicCollisionRollsBack proves a new-key collision inside the atomic transaction rolls back after Begin with no COPY or commit.
 func TestTargetUniqueAtomicCollisionRollsBack(t *testing.T) {
 	bundle := targetUniqueApplyBundle(t, CutoverProfileLegacy21, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "owners", "email", "SOURCE_SECRET@example.test", CutoverProfileLegacy21)
@@ -451,6 +467,7 @@ func TestTargetUniqueAtomicCollisionRollsBack(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueNonNameCausePreserved proves a non-name probe error preserves its cause while Error() stays sanitized.
 func TestTargetUniqueNonNameCausePreserved(t *testing.T) {
 	bundle := targetUniqueApplyBundle(t, CutoverProfileMedicinesCandidate, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "owners", "email", "SOURCE_SECRET@example.test", CutoverProfileMedicinesCandidate)
@@ -471,6 +488,7 @@ type targetUniqueAtomicTx struct {
 	collideQuery string
 }
 
+// QueryRow supplies in-transaction unique-key collision responses and delegates the remaining target checks.
 func (tx *targetUniqueAtomicTx) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	for _, expected := range targetUniqueAllExpectedQueries() {
 		if query == expected {
@@ -480,6 +498,7 @@ func (tx *targetUniqueAtomicTx) QueryRow(ctx context.Context, query string, args
 	return tx.fakeCutoverTransaction.QueryRow(ctx, query, args...)
 }
 
+// merchSpec resolves the merchandise_items spec for the bundle's profile.
 func merchSpec(t *testing.T, bundle CutoverBundle) CutoverTableSpec {
 	t.Helper()
 	for _, spec := range CutoverTableSpecs(bundle.Manifest.profile) {
@@ -491,6 +510,7 @@ func merchSpec(t *testing.T, bundle CutoverBundle) CutoverTableSpec {
 	return CutoverTableSpec{}
 }
 
+// bindsContain reports whether the bound slice contains the wanted value.
 func bindsContain(bound []string, want string) bool {
 	for _, v := range bound {
 		if v == want {
@@ -500,6 +520,7 @@ func bindsContain(bound []string, want string) bool {
 	return false
 }
 
+// expectedTargetValue returns the fixture-mutated key value each case expects bound verbatim.
 func expectedTargetValue(name string) string {
 	switch name {
 	case "merchandise-active-name":
@@ -518,6 +539,7 @@ func expectedTargetValue(name string) string {
 	return ""
 }
 
+// TestTargetUniqueExcludedRowsStillHashed proves filtered-out rows still consume the full CSV so tampered data and wrong row counts are rejected before any query.
 func TestTargetUniqueExcludedRowsStillHashed(t *testing.T) {
 	t.Run("stale-hash-on-excluded-row", func(t *testing.T) {
 		bundle := targetUniqueApplyBundle(t, CutoverProfileMedicinesCandidate, func(f *fixtureBundle) {
@@ -552,6 +574,7 @@ func TestTargetUniqueExcludedRowsStillHashed(t *testing.T) {
 	})
 }
 
+// TestTargetUniqueNullableNumericEmptySkipped proves empty nullable numeric keys are skipped rather than queried.
 func TestTargetUniqueNullableNumericEmptySkipped(t *testing.T) {
 	for _, c := range []targetUniqueRuleCase{targetUniqueRuleCases()[5], targetUniqueRuleCases()[9]} {
 		t.Run(c.name, func(t *testing.T) {
@@ -571,6 +594,7 @@ func TestTargetUniqueNullableNumericEmptySkipped(t *testing.T) {
 	}
 }
 
+// TestTargetUniqueTentativeSelector pins pet binding to tentative status only; confirmed, cancelled, and empty statuses are excluded.
 func TestTargetUniqueTentativeSelector(t *testing.T) {
 	for _, tc := range []struct {
 		status string
@@ -604,6 +628,7 @@ type targetUniqueOrderTx struct {
 	events  []string
 }
 
+// Exec records LOCK TABLE statements in the event log and delegates to the wrapped transaction.
 func (tx *targetUniqueOrderTx) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 	if strings.HasPrefix(query, "LOCK TABLE ") {
 		tx.events = append(tx.events, "table-lock")
@@ -611,6 +636,7 @@ func (tx *targetUniqueOrderTx) Exec(ctx context.Context, query string, args ...a
 	return tx.fakeCutoverTransaction.Exec(ctx, query, args...)
 }
 
+// QueryRow records recognized unique-key probes before returning the simulated owner-email conflict or delegating catalog checks.
 func (tx *targetUniqueOrderTx) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	for _, expected := range targetUniqueAllExpectedQueries() {
 		if query == expected {
@@ -624,11 +650,13 @@ func (tx *targetUniqueOrderTx) QueryRow(ctx context.Context, query string, args 
 	return tx.fakeCutoverTransaction.QueryRow(ctx, query, args...)
 }
 
+// CopyFrom records COPY calls in the event log and delegates to the wrapped transaction.
 func (tx *targetUniqueOrderTx) CopyFrom(ctx context.Context, reader io.Reader, sql string) (pgconn.CommandTag, error) {
 	tx.events = append(tx.events, "copy")
 	return tx.fakeCutoverTransaction.CopyFrom(ctx, reader, sql)
 }
 
+// TestTargetUniqueAtomicLocksBeforeProbeBeforeCopy proves the single LOCK TABLE runs before the target-unique probe and denied probes never reach COPY, under both profiles.
 func TestTargetUniqueAtomicLocksBeforeProbeBeforeCopy(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		t.Run(string(profile), func(t *testing.T) {
@@ -637,6 +665,7 @@ func TestTargetUniqueAtomicLocksBeforeProbeBeforeCopy(t *testing.T) {
 	}
 }
 
+// targetUniqueAtomicCollisionOnce drives one atomic-seam collision for a profile and asserts the observed lock/probe/copy ordering.
 func targetUniqueAtomicCollisionOnce(t *testing.T, profile CutoverProfile) {
 	bundle := targetUniqueApplyBundle(t, profile, func(f *fixtureBundle) {
 		setFixtureCell(t, f, "owners", "email", "SOURCE_SECRET@example.test", profile)
@@ -685,6 +714,7 @@ func targetUniqueAtomicCollisionOnce(t *testing.T, profile CutoverProfile) {
 	}
 }
 
+// TestTargetUniqueNonNameCauseApplyMatrix proves non-name probe causes (cancel or driver error) survive errors.Is with sanitized Error() and no Begin, under both profiles.
 func TestTargetUniqueNonNameCauseApplyMatrix(t *testing.T) {
 	for _, profile := range []CutoverProfile{CutoverProfileLegacy21, CutoverProfileMedicinesCandidate} {
 		for _, cause := range []error{context.Canceled, errors.New("DRIVER-SECRET-/tmp/patient-phi-path")} {
@@ -714,6 +744,7 @@ type targetUniqueApplyErrSession struct {
 	probeErrQuery string
 }
 
+// QueryRow injects the configured cause only for its selected unique-key probe and delegates other session lookups.
 func (s *targetUniqueApplyErrSession) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	for _, expected := range targetUniqueAllExpectedQueries() {
 		if query == expected {

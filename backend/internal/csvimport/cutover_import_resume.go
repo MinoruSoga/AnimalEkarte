@@ -150,6 +150,7 @@ func ApplyCutoverCommittingEachTable(
 	return applyCutoverCommittingEachTable(ctx, pgxPoolCutoverSession{conn: conn}, bundle, seeds, iso)
 }
 
+// applyCutoverCommittingEachTable preserves legacy per-table commits and completed-prefix resume. Candidates require an empty band and are delegated to the atomic path; pre-Begin probes do not serialize concurrent application writers.
 func applyCutoverCommittingEachTable(
 	ctx context.Context,
 	session cutoverSession,

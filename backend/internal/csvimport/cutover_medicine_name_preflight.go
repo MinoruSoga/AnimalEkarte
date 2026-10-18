@@ -10,8 +10,8 @@ import (
 const cutoverMedicineNameBatchSize = 256
 
 // validateCutoverMedicinesTargetNames implements the pre-Begin leg of
-// Codex 4266290426 for user decision A: before the first table transaction
-// of a candidate22 table-per-commit apply, the bundle's medicines CSV is
+// Codex 4266290426 for user decision A: before candidate22's atomic
+// transaction, the bundle's medicines CSV is
 // re-read (row count and SHA-256 bound to the exact opened bytes; header
 // permutation only under the existing rehearsal contract drift) and every
 // exact source name is checked against the target clinic's undeleted

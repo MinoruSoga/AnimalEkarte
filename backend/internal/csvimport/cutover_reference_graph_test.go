@@ -75,6 +75,7 @@ func TestPreflightCutoverBundleRejectsEmptyRequiredReferences(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleAllowsNullableReferences proves optional reference columns may be empty while the bundle stays valid.
 func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for table, refs := range cutoverCSVReferences() {
@@ -92,6 +93,7 @@ func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleAllowsNullableVitalRecordStaff proves vital_records.staff_id may be empty while required medical_record_id stays populated and row/manifest counts are retained.
 func TestPreflightCutoverBundleAllowsNullableVitalRecordStaff(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		originalRows := len(f.rows["vital_records"])
@@ -173,6 +175,7 @@ func TestPreflightCutoverBundleAcceptsPinnedSpecies(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleAcceptsForwardSelfReferences proves a table's self-reference to a later row resolves without a false cycle.
 func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
@@ -193,6 +196,7 @@ func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleRejectsSelfReferenceCycle proves true self-reference cycles are rejected.
 func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
@@ -220,6 +224,7 @@ func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleUsesNumericReferenceIdentity proves reference matching uses numeric identity so leading-zero spellings still resolve.
 func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
