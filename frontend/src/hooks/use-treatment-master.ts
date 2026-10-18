@@ -57,11 +57,17 @@ export function useGetAllCheckupTypes() {
   });
 }
 
-export function useGetAllConsultations() {
+export function useGetAllConsultations({ clinicId }: { clinicId?: string } = {}) {
   return useQuery({
-    queryKey: queryKeys.masters.category("consultations"),
+    queryKey: clinicId
+      ? queryKeys.masters.categoryForClinic("consultations", clinicId)
+      : queryKeys.masters.category("consultations"),
     queryFn: async (): Promise<ConsultationItem[]> => {
-      const { data } = await axios.get<Consultation[]>("/v1/masters/consultations");
+      const { data } = clinicId
+        ? await axios.get<Consultation[]>("/v1/masters/consultations", {
+            headers: { "X-Clinic-ID": clinicId },
+          })
+        : await axios.get<Consultation[]>("/v1/masters/consultations");
       return data.map(transformConsultation);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -69,12 +75,21 @@ export function useGetAllConsultations() {
   });
 }
 
-export function useGetAllProcedures({ enabled = true }: { enabled?: boolean } = {}) {
+export function useGetAllProcedures({
+  enabled = true,
+  clinicId,
+}: { enabled?: boolean; clinicId?: string } = {}) {
   return useQuery({
     enabled,
-    queryKey: queryKeys.masters.category("procedures"),
+    queryKey: clinicId
+      ? queryKeys.masters.categoryForClinic("procedures", clinicId)
+      : queryKeys.masters.category("procedures"),
     queryFn: async (): Promise<ProcedureItem[]> => {
-      const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
+      const { data } = clinicId
+        ? await axios.get<Procedure[]>("/v1/masters/procedures", {
+            headers: { "X-Clinic-ID": clinicId },
+          })
+        : await axios.get<Procedure[]>("/v1/masters/procedures");
       return data.map(transformProcedure);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,

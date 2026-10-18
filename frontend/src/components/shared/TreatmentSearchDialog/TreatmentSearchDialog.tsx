@@ -38,6 +38,7 @@ interface TreatmentSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (item: TreatmentMasterItem) => void;
+  clinicId?: string;
 }
 
 // --- Constants ---
@@ -49,6 +50,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   open,
   onOpenChange,
   onSelect,
+  clinicId,
 }: TreatmentSearchDialogProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -56,8 +58,8 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   const isFiltering = searchTerm !== deferredSearchTerm;
 
   // Fetch master data from APIs
-  const { data: consultations = [] } = useGetAllConsultations();
-  const { data: procedures = [] } = useGetAllProcedures();
+  const { data: consultations = [] } = useGetAllConsultations({ clinicId });
+  const { data: procedures = [] } = useGetAllProcedures({ clinicId });
   const { data: vaccines = [] } = useGetAllVaccinesMaster();
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
   const { data: medicines = [] } = useGetAllMedicinesMaster();

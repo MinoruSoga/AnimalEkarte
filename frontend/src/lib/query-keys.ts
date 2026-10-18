@@ -37,6 +37,7 @@ export const queryKeys = {
   masters: {
     /** 汎用マスタカテゴリキー。"masterItems" の代わりにこれを使う */
     category: (name: string) => ["masters", name] as const,
+    categoryForClinic: (name: string, clinicId: string) => ["masters", name, { clinicId }] as const,
     /**
      * 旧セレクト専用キー。hooks/use-staffs と master CRUD は raw `category("staffs")`
      * を共有し、select で形を分ける。このキーは残すが新規 fetch には使わない。

@@ -199,6 +199,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({
           open={t.isSearchOpen}
           onOpenChange={t.setIsSearchOpen}
           onSelect={guardedSelectFromMaster}
+          clinicId={recordClinicId}
         />
       </Suspense>
 
