@@ -25,7 +25,7 @@
 | ID | [request](../../../../backend/internal/medicalrecord/vaccination_request.go)：pet／record／doctor optional数値pointer、vaccine必須 | 医院＋IDと認証actorを分離。不正IDを0へ補完しない |
 | 接種日 | date必須、serviceはJST暦日で未来拒否 | UTC instant差と暦日を混同しない。新規予定を接種実績にしない |
 | 次回日 | optional、serviceは指定時に接種日より後を検証 | 通常独立新規の本日以降条件と、専用後日入力での当時の期限経過日保存を分離。APIに同じ本日条件／専用例外が実装済みと断定しない |
-| 間隔 | 旧UIの標準候補3weeks／4weeks／1year／other、独立既定1year・カルテ内4weeks | 目標は両入口ともワクチン種類別設定または手入力。入口固有の固定既定を解消し手入力値を黙って上書きしない。具体間隔・設定なしの初期値・新たな優先順位はこの合意で決めない。実装適合未確認 |
+| 間隔 | 現行実装は独立・カルテ内とも[共通定数](../../../../frontend/src/constants/next-schedule.ts) `DEFAULT_NEXT_SCHEDULE_TYPE` による `1year`（EMR-430）。旧カルテ内 `4weeks` は統一前の履歴 | 目標は両入口ともワクチン種類別設定または手入力。現行の1year統一だけで目標適合済みとはせず、手入力値を黙って上書きしない。具体間隔・設定なしの初期値・新たな優先順位はこの合意で決めない。実装適合未確認 |
 | LOT等 | lot1〜4、supplemental、remarks | 空文字と未送信を区別、他行に値を持ち越さない |
 | PATCH nullable | optional pointerのnullは未送信と区別できない | doctor／next_date／record解除済みと誤表示しない。対応する専用clearが未定義なら解除を送らない |
 | 期待版 | version任意、nilは互換上照合skip | 新adapterは期待版を保持。旧clientが無版で更新できることを競合防止完成としない |
@@ -33,7 +33,7 @@
 
 現vaccines masterは[master routes](../../../../backend/internal/medicalrecord/routes_masters.go)のmaster-medical操作別grantによるCRUD/reorder。接種実績のvaccinations grantとは別で、checkup masterのcheckups grantとも区別する。
 
-次回日の統一は[最新の業務合意](../../../spec/domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)へ従う。種類設定の参照と手入力日を両入口で同じ意味に対応させる。既存schedule値を新しい既定・臨床的標準として固定しない。設定の保存／読取・入力状態の保持・両フォームadapter・再表示を照合し、現行の入口別初期化を対応済みと扱わない。設定変更から過去の保存済み接種／次回日を自動再計算しない。技術対応はAPI／DBの適合調査で具体化し、本docs-only変更でwire schemaや実装を追加しない。
+次回日の統一は[最新の業務合意](../../../spec/domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)へ従う。種類設定の参照と手入力日を両入口で同じ意味に対応させる。既存schedule値を新しい既定・臨床的標準として固定しない。設定の保存／読取・入力状態の保持・両フォームadapter・再表示を照合し、両入口の既定が共通の1yearになったことと、種類設定／手入力の目標に適合することを分けて確認する。設定変更から過去の保存済み接種／次回日を自動再計算しない。技術対応はAPI／DBの適合調査で具体化し、本docs-only変更でwire schemaや実装を追加しない。
 
 ## 過去接種の当時の次回日を保持するadapter
 
