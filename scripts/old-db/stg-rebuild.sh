@@ -18,7 +18,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_DIR="${RUN_DIR:-$ROOT/sensitive-local/stg-rebuild/$(date -u +%Y%m%dT%H%M%SZ)}"
-ROLE_NAME="${ROLE_NAME:-emr443-rebuild-$(date -u +%Y%m%dT%H%M%SZ)}"
+ROLE_NAME="${ROLE_NAME:-emr443-rebuild-$(date -u +%Y%m%d%H%M%S)}"
 ROLE_JSON="$RUN_DIR/pscale-role.json"
 LOG="$RUN_DIR/migrate.log"
 
@@ -56,21 +56,40 @@ PY
 trap cleanup EXIT
 
 echo "Creating short-lived role $ROLE_NAME"
-pscale role create animalekarte-stg main "$ROLE_NAME" \
-  --org noah-animalekarte --inherited-roles postgres --ttl 4h -f json > "$ROLE_JSON"
+CREATE_ERR="$RUN_DIR/pscale-create.err"
+if ! pscale role create animalekarte-stg main "$ROLE_NAME" \
+  --org noah-animalekarte --inherited-roles postgres --ttl 4h --no-color -f json \
+  2> "$CREATE_ERR" | sed -n '/^[[:space:]]*{/,$p' > "$ROLE_JSON"; then
+  echo "BLOCKED: pscale role create failed" >&2
+  [[ -s "$CREATE_ERR" ]] && sed -n '1,20p' "$CREATE_ERR" >&2
+  exit 1
+fi
 chmod 600 "$ROLE_JSON"
+if [[ ! -s "$ROLE_JSON" ]]; then
+  echo "BLOCKED: pscale role create returned no JSON" >&2
+  [[ -s "$CREATE_ERR" ]] && sed -n '1,20p' "$CREATE_ERR" >&2
+  exit 1
+fi
 
 CONN="$(python3 - "$ROLE_JSON" <<'PY'
 import json
 import sys
 import urllib.parse
-d = json.load(open(sys.argv[1]))
-host = d["access_host_url"]
-if "://" in host:
-    host = urllib.parse.urlparse(host).hostname or ""
-print("\t".join([host, d["username"], d["password"]]))
+
+try:
+    d = json.load(open(sys.argv[1]))
+    host = d["access_host_url"]
+    if "://" in host:
+        host = urllib.parse.urlparse(host).hostname or ""
+    values = [host, d["username"], d["password"]]
+    if not all(values):
+        raise ValueError("empty connection field")
+    print("\t".join(values))
+except Exception as exc:
+    print(f"BLOCKED: role JSON parse failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
 PY
-)"
+)" || die "could not parse role JSON"
 IFS=$'\t' read -r DB_HOST DB_USER DB_PASSWORD <<< "$CONN"
 [[ -n "$DB_HOST" && -n "$DB_USER" && -n "$DB_PASSWORD" ]] || die "could not read role connection fields"
 
