@@ -51,7 +51,9 @@
   * [`lab_device_urine.go`](../../../backend/internal/medicalrecord/lab_device_urine.go): 尿分析装置 PU-4010 の電文パース
   * [`lab_device_idexx.go`](../../../backend/internal/medicalrecord/lab_device_idexx.go), [`lab_device_idexx_pims.go`](../../../backend/internal/medicalrecord/lab_device_idexx_pims.go): IDEXX VetLab の PIMS シリアルセッション管理（STX/ETX、チェックサム、ACK/NAK応答）
 * **受信・永続化サービス**: [`lab_device_receive_service.go`](../../../backend/internal/medicalrecord/lab_device_receive_service.go)
-  * テナント（`clinic_id`）分離。本日診療中カルテカードで明示選択した有効待機の患者へ自動persistする。医院ごとの有効待機は1件で、待機なし・期限切れは未紐付け。電文の検体ID・旧CLID/PTID・氏名・同日受診だけで患者を自動決定しない。後付けはjob＋petの現在医院・関連を照合する（[D07受信](../domains/examinations/lifecycle.md#fr-examinations-receive)）
+  * **目標仕様**: 本日診療中カルテカードで明示選択した有効待機の患者へ自動persistする。電文の検体ID・旧CLID/PTID・氏名・同日受診だけで患者を自動決定しない（[D07受信](../domains/examinations/lifecycle.md#fr-examinations-receive)）。
+  * **現行UI経路**: [`LabDeviceBoard.tsx`](../../../frontend/src/features/lab-device/routes/LabDeviceBoard.tsx)の当日受診カードから選択し、[`usePutLabDeviceWait`](../../../frontend/src/features/lab-device/api/lab-device.ts)が`pet_id`を送る。一覧取得はサービスの`todayVisits`で`ListTodayDraft`を使う。
+  * **サーバ実装との差**: `PutWait`は`pet_id`の生存・現在医院所属を検査するが、当日の対象カルテかどうかをサーバー側で検証する処理は未実装。API直接呼出しや一覧取得後の状態変化でも目標条件を保証するには、この検証が必要であり、UIの選択候補だけを実装適合の証拠にしない。現行の医院ごとの有効待機1件、待機なし・期限切れの未紐付け、後付け時のjob＋petの現在医院・関連照合は維持する。読取基準は2026-10-19のPR head `1ae07d6885863c4ab82b526f2c33acb67a6cc327`。今回コード変更・実機検証は行っていない。
 * **マッピング・LLM推論補助**: [`lab_device_mapping_draft.go`](../../../backend/internal/medicalrecord/lab_device_mapping_draft.go), [`lab_device_mapping_llm.go`](../../../backend/internal/medicalrecord/lab_device_mapping_llm.go)
   * clinic＋source＋機器原コードと院内マスタの対応を管理・推薦。名称一致やLLM候補だけで対応を確定しない（[D07技術契約](../../design/domains/examinations/technical-spec.md#examination-device-contract)）
 

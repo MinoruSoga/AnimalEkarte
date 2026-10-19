@@ -386,10 +386,24 @@ D03と同じ限定文書基準を適用。ここまでの基準は13FR／174AC�
 | FR-accounting-oldest-payment-allocation・FR-accounting-reservation-advance（支払方法停止） | payment-inactive-existing-allocation | [追加設計](#accounting-inactive-payment-design)。既存資金の配分・充当／解除と新受領を分離し既決の保護を維持 |
 | FR-accounting-reasoned-financial-correction（支払方法停止） | payment-inactive-refund-correction-boundary | [追加設計](#accounting-inactive-payment-design)。返金・金額不変訂正に新受領のgateを一律適用しない |
 | FR-accounting-receivable-partial-zero（支払方法停止） | payment-inactive-no-receipt | [追加設計](#accounting-inactive-payment-design)。未納／0円確定と実受領を分離 |
+| FR-accounting-doctor-review | before-doctor-review | [医師確認の版・確定gate](#review-version-sync-proposal)。未確認でも会計準備は可、請求確定／精算は停止 |
+| FR-accounting-doctor-review | review-card-axis | [確認状態projection](#review-version-sync-proposal)。診療終了の会計待ちと、受付カードの医師確認表示を別軸で照合 |
+| FR-accounting-doctor-review | reviewed-price-only | [金額変更了承](#review-version-sync-proposal)。金額のみは警告了承・変更履歴、医師再確認不要 |
+| FR-accounting-doctor-review | reviewed-clinical-change | [臨床世代・再確認gate](#review-version-sync-proposal)。直接変更／同期とも薬剤・処置追加削除／数量変更は再確認まで確定・精算停止、プランへの逆自動書換えなし |
+| FR-accounting-plan-sync | plan-sync-three-branches | [同期の参加順と行版](#review-version-sync-proposal)。未確定未手修正／手修正済／確定済の3分岐と変更種別の医師再確認gate |
+| FR-accounting-billable-performance | billable-boundary | [実施・準備の元事実](#review-version-sync-proposal)。未実施／予定／中止と請求対象・予定額を分け、個別中止料を保持 |
+| FR-accounting-billable-performance | ready-not-stock | [実施・準備と実出庫の分離](#review-version-sync-proposal)。持帰り準備・請求／取消／返金から実引渡し・在庫出庫を自動実行しない |
+| FR-accounting-calculation-snapshot（個別割引権限） | individual-discount-permission | [現在認可・保存単位](#accounting-reconciled-contract)と[正本の個別割引権限](../../../spec/domains/accounting/lifecycle.md#利用者権限個別会計の割引入力)。通常会計／マスタ変更権限だけで許可せず、無許可は元値保持 |
+| FR-accounting-oldest-payment-allocation（釣銭整合） | manual-change-unreconciled-completion | [受領・配分の保存単位](#accounting-reconciled-contract)と[釣銭の正本](../../../spec/domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)。実受領・請求充当・残額・過受領の扱いを照合してから完了 |
+| FR-accounting-post-close-separate-movement（釣銭整合） | manual-change-no-fabricated-adjustment | [金額と実移動の分離](#accounting-operation-contract)と[釣銭の正本](../../../spec/domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)。架空の売上・値引き・入出金・自動預り金化を作らず、締めは釣銭後の実受領 |
+| FR-accounting-oldest-payment-allocation（釣銭整合） | manual-change-preserves-partial-and-noncash | [部分入金・非現金超過の既存契約](#accounting-second-design)と[釣銭の正本](../../../spec/domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)。部分入金／残額を維持し、非現金超過は実入金・充当・返金必要／実返金を分離 |
+| FR-accounting-post-close-separate-movement（過受領） | excess-input-correction | [訂正と実移動の分離](#accounting-operation-contract)と[過受領の正本](../../../spec/domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)。実際の預かり・返却額へ訂正し、入力訂正で架空移動を作らない |
+| FR-accounting-reasoned-financial-correction（過受領） | excess-actual-refund-once | [返金元・実返金の既存契約](#accounting-third-design)と[過受領の正本](../../../spec/domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)。実返金は一度だけ記録し、未実行／釣銭修正との二重控除を防ぐ |
+| FR-accounting-reservation-advance（過受領） | excess-consented-deposit-single-receipt | [元資金・預り残高の既存契約](#accounting-reconciled-contract)と[過受領の正本](../../../spec/domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)。飼主了承の明示預りを元実受領へ対応付け、追加入金／後日充当の再受領を作らない |
 
 overdiscount-unresolved／overdiscount-post-warning-pending は参照互換の既存識別子であり、期待結果は合意済みの警告・請求額0円下限へ更新する。
 
-AC短名は[正本の基準174AC（後続補足を含むライフサイクル本文181AC）](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。
+AC短名は[正本の基準174AC（後続補足を含むライフサイクル本文181AC）](../../../spec/domains/accounting/lifecycle.md#accounting-acceptance)のAC-accounting-接頭辞に続く名称。ここに第二の期待結果を作らない。 対応表はライフサイクル本文181ACを各1回収録する。2026-10-19の追記14AC（医師確認等7・個別割引権限1・釣銭整合3・過受領3）は既存ACと既存設計／業務正本の接続補足で、新しいFR/AC・保存方式の採用・実装／実機合格を表さない。subpage固有20ACは別の母集団として下記の補足接続等へ分ける。
 
 実装前に、確定と入金の競合、同時返金による上限超過、同時二重請求、失効認可／異医院参照、通信切断後の遅延commit、複数記録と締め参加、マスタ変更とsnapshotを対象に正常／拒否／再送／結果不明を照合する必要がある。既存S08／S21／S33は現行手順で、現在のライフサイクル本文181ACの実行済み証拠ではない。runtime・API／DB改訂・移行・利用開始・性能は未実施。
 
