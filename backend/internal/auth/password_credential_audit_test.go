@@ -39,44 +39,6 @@ func (a *credentialAuditCapture) LogEntry(
 	return a.err
 }
 
-type passwordResetCompletionStub struct {
-	result    *PasswordResetCompletion
-	err       error
-	calls     *int
-	lastAudit CredentialMutationAudit
-}
-
-func (passwordResetCompletionStub) ForgotPassword(context.Context, string) error {
-	return nil
-}
-
-func (s passwordResetCompletionStub) ResetPassword(
-	ctx context.Context,
-	rawToken, newPassword string,
-) error {
-	_, err := s.ResetPasswordWithResult(
-		ctx,
-		rawToken,
-		newPassword,
-		testPasswordResetAudit(),
-	)
-	return err
-}
-
-func (s passwordResetCompletionStub) ResetPasswordWithResult(
-	_ context.Context,
-	_, _ string,
-	audit CredentialMutationAudit,
-) (*PasswordResetCompletion, error) {
-	if s.calls != nil {
-		*s.calls++
-	}
-	s.lastAudit = audit
-	return s.result, s.err
-}
-
-func (passwordResetCompletionStub) Wait() {}
-
 type passwordResetAuditStaffReader struct {
 	staff *model.Staff
 	err   error

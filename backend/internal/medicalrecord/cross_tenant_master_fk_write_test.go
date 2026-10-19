@@ -83,12 +83,6 @@ func (passthroughTxForCrossTenant) WithTx(ctx context.Context, fn func(context.C
 	return fn(ctx)
 }
 
-type draftMedicalRecordLocker struct{}
-
-func (draftMedicalRecordLocker) LockByIDForUpdate(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
-}
-
 func TestVaccinationService_Create_RejectsCrossClinicVaccine(t *testing.T) {
 	const clinicID = uint64(1)
 	const ownedVaccineID = uint64(10)

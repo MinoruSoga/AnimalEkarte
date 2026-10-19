@@ -351,10 +351,6 @@ func TestC15_OwnerPetLinkCrossTenantRejected(t *testing.T) {
 // captured as evidence (static citations for the non-exported CAS gates live
 // in c15-order-idempotency.md).
 func TestC15_DeterministicOrderScript(t *testing.T) {
-	type step struct {
-		label string
-		got   bool // true = guard permits the write-side action
-	}
 	var got []string
 	record := func(label string, ok bool) {
 		got = append(got, label+"="+map[bool]string{true: "allow", false: "deny"}[ok])

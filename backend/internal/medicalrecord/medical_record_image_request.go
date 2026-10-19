@@ -93,11 +93,6 @@ func (r medicalRecordImageUploadRequest) validate() (medicalRecordImageUploadMet
 	}, nil
 }
 
-func medicalRecordImageMIMETypeFromExt(fileExt string) (string, bool) {
-	mimeType, ok := medicalRecordImageMIMEByExt[fileExt]
-	return mimeType, ok
-}
-
 // verifySniffedContent は先頭バイトの content-sniff が検証済み mimeType と一致するか確認する。
 // 宣言 Content-Type 偽装（.html を image/png 申告）を実バイトで検出する SEC-CS3-O6 の第二層。
 func (m medicalRecordImageUploadMeta) verifySniffedContent(file multipart.File) error {

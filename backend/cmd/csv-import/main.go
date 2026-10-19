@@ -431,10 +431,6 @@ func createAuditReport(path string, root string, report auditReport) (*os.File, 
 	return csvimport.CreateAuditReport(path, root, report)
 }
 
-func pathWithinRoot(root string, candidate string) bool {
-	return csvimport.PathWithinRoot(root, candidate)
-}
-
 func replaceAuditReport(file *os.File, report auditReport) error {
 	return csvimport.ReplaceAuditReport(file, report)
 }

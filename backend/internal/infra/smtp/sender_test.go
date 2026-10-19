@@ -22,26 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestModeForPortNormalizesSubmissionPort(t *testing.T) {
-	tests := []struct {
-		name     string
-		port     string
-		wantMode transportMode
-	}{
-		{name: "submission leading plus", port: "+587", wantMode: requiredSTARTTLS},
-		{name: "submission leading zeroes", port: "00587", wantMode: requiredSTARTTLS},
-		{name: "submission plus and zeroes", port: "+00587", wantMode: requiredSTARTTLS},
-		{name: "implicit TLS leading plus", port: "+465", wantMode: implicitTLS},
-		{name: "implicit TLS leading zeroes", port: "00465", wantMode: implicitTLS},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantMode, modeForPort(tt.port))
-		})
-	}
-}
-
 func TestModeForConfigResolvesImplicitTLSServiceAliases(t *testing.T) {
 	for _, alias := range []string{"submissions", "ssmtp", "urd"} {
 		t.Run(alias, func(t *testing.T) {

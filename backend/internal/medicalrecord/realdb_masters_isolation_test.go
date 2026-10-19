@@ -22,12 +22,6 @@ type namedClinicDTO struct {
 	Name     string `json:"name"`
 }
 
-type titledClinicDTO struct {
-	ID       uint64 `json:"id"`
-	ClinicID uint64 `json:"clinic_id"`
-	Title    string `json:"title"`
-}
-
 type realDBMastersFixture struct {
 	fx            testdb.ClinicGrantFixture
 	chiefA        *model.ChiefComplaintType

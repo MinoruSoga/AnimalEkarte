@@ -769,23 +769,6 @@ func TestValidateApplyConfirmations(t *testing.T) {
 	}
 }
 
-func TestPathWithinRoot(t *testing.T) {
-	if !pathWithinRoot("/migration-reports", "/migration-reports/report.json") {
-		t.Fatal("expected direct-child report path to be accepted")
-	}
-	for _, candidate := range []string{
-		"relative.json",
-		"/migration-reports",
-		"/migration-reports/run/report.json",
-		"/migration-reports/../outside.json",
-		"/migration-reports-suffix/report.json",
-	} {
-		if pathWithinRoot("/migration-reports", candidate) {
-			t.Fatalf("unsafe candidate accepted: %s", candidate)
-		}
-	}
-}
-
 func TestCreateAuditReportIsOwnerOnlyAndNoClobber(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "reports")
 	if err := os.Mkdir(root, 0o700); err != nil {

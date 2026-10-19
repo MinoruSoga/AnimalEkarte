@@ -511,16 +511,6 @@ func merchSpec(t *testing.T, bundle CutoverBundle) CutoverTableSpec {
 	return CutoverTableSpec{}
 }
 
-// bindsContain reports whether the bound slice contains the wanted value.
-func bindsContain(bound []string, want string) bool {
-	for _, v := range bound {
-		if v == want {
-			return true
-		}
-	}
-	return false
-}
-
 // expectedTargetValue returns the fixture-mutated key value each case expects bound verbatim.
 func expectedTargetValue(name string) string {
 	switch name {

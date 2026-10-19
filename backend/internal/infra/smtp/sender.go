@@ -120,14 +120,6 @@ func Send(ctx context.Context, cfg Config, from, to string, message []byte) erro
 	return nil
 }
 
-func modeForPort(port string) transportMode {
-	mode, err := modeForPortWithLookup(port, net.LookupPort)
-	if err != nil {
-		return requiredSTARTTLS
-	}
-	return mode
-}
-
 type lookupPortFunc func(network, service string) (int, error)
 
 func modeForPortWithLookup(

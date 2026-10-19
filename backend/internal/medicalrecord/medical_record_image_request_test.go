@@ -155,32 +155,6 @@ func TestMedicalRecordImageUploadRequest_Validate_RejectsUnknownContentTypeWithU
 	}
 }
 
-func TestMedicalRecordImageMIMETypeFromExt(t *testing.T) {
-	tests := []struct {
-		name     string
-		ext      string
-		wantMIME string
-		wantOK   bool
-	}{
-		{"jpg", ".jpg", "image/jpeg", true},
-		{"jpeg", ".jpeg", "image/jpeg", true},
-		{"png", ".png", "image/png", true},
-		{"gif", ".gif", "image/gif", true},
-		{"pdf", ".pdf", "application/pdf", true},
-		{"unsupported extension", ".bmp", "", false},
-		{"empty extension", "", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mime, ok := medicalRecordImageMIMETypeFromExt(tt.ext)
-			if mime != tt.wantMIME || ok != tt.wantOK {
-				t.Errorf("medicalRecordImageMIMETypeFromExt(%q) = (%q, %v), want (%q, %v)", tt.ext, mime, ok, tt.wantMIME, tt.wantOK)
-			}
-		})
-	}
-}
-
 func TestMedicalRecordImageUploadMeta_UploadKey(t *testing.T) {
 	m := medicalRecordImageUploadMeta{fileExt: ".png"}
 

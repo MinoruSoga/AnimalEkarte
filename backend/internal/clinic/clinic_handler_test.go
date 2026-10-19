@@ -245,9 +245,7 @@ func (m *mockService) DeleteClinic(ctx context.Context, id uint64) error {
 	return m.deleteClinicFn(ctx, id)
 }
 
-type mockEffectivePermissionService struct {
-	getEffectivePermissionsFn func(context.Context, uint64, uint64) ([]model.PermissionGroupRule, error)
-}
+type mockEffectivePermissionService struct{}
 
 // ---- test helpers ----
 

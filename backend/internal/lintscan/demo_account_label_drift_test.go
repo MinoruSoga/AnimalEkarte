@@ -63,13 +63,6 @@ type demoAccountUILabels struct {
 	isSystemAdmin   bool
 }
 
-type demoAccountSeedLabels struct {
-	occupationLabel string
-	permissionLabel string
-	clinicLabel     string
-	isSystemAdmin   bool
-}
-
 type demoAccountSeedCSVTable struct {
 	bundle  string
 	table   string
@@ -801,60 +794,6 @@ func errIfSeedCSVLFSPointer(bundle, csvFile, firstLine string) error {
 		)
 	}
 	return nil
-}
-
-func (table demoAccountSeedCSVTable) rowsWhere(column, value string) ([][]string, error) {
-	index, ok := table.col[column]
-	if !ok {
-		return nil, fmt.Errorf(
-			"seed CSV %s/%s table %s missing column %s (fail closed)",
-			table.bundle,
-			table.csvFile,
-			table.table,
-			column,
-		)
-	}
-	var matches [][]string
-	for _, row := range table.rows {
-		if index < len(row) && row[index] == value {
-			matches = append(matches, row)
-		}
-	}
-	return matches, nil
-}
-
-func (table demoAccountSeedCSVTable) field(row []string, column string) (string, error) {
-	index, ok := table.col[column]
-	if !ok {
-		return "", fmt.Errorf(
-			"seed CSV %s/%s table %s missing column %s (fail closed)",
-			table.bundle,
-			table.csvFile,
-			table.table,
-			column,
-		)
-	}
-	if index >= len(row) {
-		return "", fmt.Errorf(
-			"seed CSV %s/%s table %s row is too short for column %s (fail closed)",
-			table.bundle,
-			table.csvFile,
-			table.table,
-			column,
-		)
-	}
-	return row[index], nil
-}
-
-func parseDemoAccountSeedBool(raw string) (bool, error) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "t", "true":
-		return true, nil
-	case "f", "false":
-		return false, nil
-	default:
-		return false, fmt.Errorf("invalid boolean %q (fail closed)", raw)
-	}
 }
 
 func mustFindDemoAccountLoginFormPath(t *testing.T, moduleRoot string) string {
