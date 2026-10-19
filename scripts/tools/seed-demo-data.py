@@ -335,7 +335,7 @@ def build_plan() -> list[str]:
     lines.append(f"owners: {len(OWNERS)}")
     lines.append(f"pets: {sum(len(owner['pets']) for owner in OWNERS)}")
     lines.append("reservations: 3")
-    lines.append("medical records / billing / hospitalization / trimming: W3b (not implemented yet)")
+    lines.append("scenario: medical records / billing / vaccines / checkups / exams / trimming / hospitalization (seed_scenario on --apply)")
     return lines
 
 
