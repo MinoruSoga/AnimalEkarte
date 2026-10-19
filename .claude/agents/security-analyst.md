@@ -54,7 +54,7 @@ Edit/Write後のhookは別の実行経路である。Bashがないことをコ�
 
 ### React Frontend
 - [ ] XSS 対策（dangerouslySetInnerHTML 禁止）
-- [ ] CSRF トークン検証
+- [ ] [SECURITY.md](../../SECURITY.md) とreact-securityの現行経路別CSRF契約（staff mutationのcustom header・既存Origin/Cookie条件・公開経路除外）を確認。token方式の新設を一律要求しない
 - [ ] localStorage の安全性（トークン管理）
 - [ ] 依存関係の脆弱性
 - [ ] CSP ヘッダー設定

@@ -39,6 +39,9 @@ db.Where("id = ?", userID).Find(&result)
 ```
 
 #### A5: Broken Access Control — clinic_id検証実装
+
+次はclinic所有の診療記録の例。[Backend Application Invariants](../../refs/backend-application-invariants.md) と [SECURITY.md](../../../SECURITY.md) に従い、共通患者基本情報・動物種・Support等の明示共有scopeは操作別に確認する。共有readを医院別診療/会計への一般bypassへ拡張しない。
+
 ```go
 // clinic_id マルチテナント検証
 if visitRecord.ClinicID != clinicID {

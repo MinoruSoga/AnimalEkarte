@@ -4,6 +4,10 @@
 > **Scope**: Documentation only. Does not rewrite domain packages, revive Clean Architecture/layer-first layout, or change reservation appointment write ownership (ADR-006).
 > **Related**: [ADR-006](adr/006-backend-domain-package-boundaries.md), [Architecture Overview](overview.md), [Go/Gin Backend Guidelines](../../.claude/rules/go-gin-backend-guidelines.md).
 
+## 目標仕様と固定時点の実装観察
+
+以下のcatalogとbest-effort節は既存コードの接続・移行経緯の参照であり、後続の業務合意を上書きしない。[C06の選定仕様と現行実装資料の差](../design/shared/integration-contracts.md#selected-vs-current)に従い、通常予約時のカルテ自動作成は採用せず、受付と通常カルテ作成の同時成功を目標とする。通常予約取消からのdraftカルテ自動削除も採用しない。既存path・監査・失敗観測は旧writer停止／移行の照合用に保持する。仕様変更だけで実装が切替済みとはしない。
+
 ## Catalog table
 
 | Path ID | Initiator | Owner operation | Transaction boundary | Fail-closed vs best-effort | Failure recovery | Audit participation | Test anchors |

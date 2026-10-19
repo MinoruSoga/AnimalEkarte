@@ -1,5 +1,16 @@
 # レジ締め・売上集計業務 仕様書 (Cash Register Operations)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | business.cash-register.legacy-reference／既存契約参照 |
+| 決定状態 | 既存記載を継承（決定根拠未確認の部分を含む）。個別の承認範囲と根拠は業務正本を参照。 |
+| 実装状態 | 現行差を分離。今回実装変更・網羅監査なし |
+| 実機検証状態 | 未実施。受入条件は検査定義 |
+| 文書確認日 | 2026-10-15 |
+
+[業務正本・FR／受入条件・例外・未決](domains/cash-register/business-rules.md)。本書の集計式は旧実装の説明。D10の承認済み部分入金・後日回収・預り受領・実返金に対応する業務契約とconsumer差は新しい正本へ。特にcompleted会計額を実受領額に読み替えない。
+
+
 > **目的**: レジ締め・日次/月次売上集計の業務仕様(AM/PM/EMG境界含む)を定義する。
 > **読者**: 会計機能の実装者・経理担当。
 > **タイミング**: レジ締めロジックの実装・仕様確認時。
@@ -52,7 +63,11 @@ stateDiagram-v2
 
 ---
 
-## 3. レジ締めフロー
+## 承認済みの実査誤入力訂正（2026-10-15）
+
+[D12の実査誤入力訂正](domains/cash-register/business-rules.md#requirement-fr-closing-actual-input-correction)に従い、権限者が理由付きで訂正を追記できる。原close・原実査／差額を保持し、訂正後の有効実査／差額を別表示する。単なる入力訂正は現金移動・売上・会計訂正ではなく、元締めの再開／取消／再締めを行わない。以下の専用訂正routeがない説明は現行差であり、この承認済み目標を禁止する意味ではない。
+
+## 3. レジ締めフロー（旧実装の集計基準）
 
 1.  **プレビュー**: 指定期間（AM/PM/EMG）内の `completed_at` を持つ完了会計（`status = completed`、未削除）を集計し、理論上の売上高を表示。下書き・未確定会計は集計しない。
 2.  **実査**: レジ内の現金を実際に数え、実査金額の合計を入力（金種別の内訳入力欄はない）。
@@ -79,6 +94,10 @@ stateDiagram-v2
   - `(clinic_id, close_date, period)` は **完全 UNIQUE**（`deleted_at` を見ない）。soft-delete で同じ区分を再締めする経路は塞がれている。
   - DB 層でも `cash_register_closes` / `cash_register_close_adjustments` の UPDATE/DELETE を immutability trigger で拒否する（`backend/migrations/001_init.sql` の append-only 統合ブロック。コメント上の旧 migration 003）。
 - **締め後訂正モデル**: 会計編集の差分は `cash_register_close_adjustments`（`close_id` 参照・NO CASCADE DELETE）へ append-only 追記。`accounting_delta` は合計変更が分かる場合の best-effort 差分、会計のみの訂正では `cash_movement_amount=0`。
-- **権限**: `cash-register-close` 権限(`view`/`create`)は医院単位で付与され、この権限を持つスタッフは同一医院の全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 自体は権限の有無にかかわらず誰も修正・取消できない。締め後会計編集は `accounting-post-close-edit`。
+- **権限**: `cash-register-close` 権限(`view`/`create`)は医院単位で付与され、この権限を持つスタッフは同一医院の全締め記録を閲覧・作成できる(担当者本人の記録に限定する制御はない)。確定済み close 原本は権限の有無にかかわらず誰も直接修正・取消できない。承認済みの実査誤入力訂正は別の追記操作で、既存view/createを持つだけでは許可を推定しない。締め後会計編集は `accounting-post-close-edit`。
 
 ---
+
+## 追加合意：区分保護・現金差額（2026-10-15）
+
+締め済み保護は実際に締めた区分だけに適用し、午前締めだけで未締めの午後・夜間を保護対象にしない。確定済み会計の訂正条件は維持する。現金差額が残っていても締められるが、非0差額ではメモ必須とし「原因不明・確認中」も許容する。差額合わせの架空入出金は作らない。 [D12の追加合意](domains/cash-register/business-rules.md#closing-segment-difference-agreement-20261015)を目標とする。旧日単位ロックやメモ常時任意の実装は適合済みとはしない。原締めの不変・同区分再締め不可・締め後訂正の必要監査と追記は維持する。

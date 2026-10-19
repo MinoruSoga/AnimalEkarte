@@ -35,8 +35,8 @@ Edit/Write後のhookは別の実行経路である。Bashがないことをコ�
 
 ## コーディング原則
 
-- **React 19 Actions**: Use `useActionState` and `<form action>` for all data mutations.
-- **Feature Indexing**: Always export/import via feature `index.ts`. No deep imports.
+- **React 19 Actions**: フォーム送信は単純・複雑を問わず `useActionState` + `<form action>` を標準とする。非フォーム非同期操作は [Frontend Coding Rules §2.2](../../frontend/CODING_RULES.md) の既存方式に従い、すべてのmutationをフォーム化しない。
+- **Feature Indexing**: アプリ側などfeature外のconsumerは公開 `index.ts` を使い、同feature内部は相対パスで直接importする。他featureへの依存は [Frontend規約](../../frontend/CLAUDE.md) の禁止・明示例外に従い、barrel経由を一律の許可としない。
 - **Design Tokens**: Mandatory use of `C` and `STYLE` constants for all styling.
 - **Backend Errors**: Use `apperrors.FromGORM` in repositories and `apperrors.Wrap` in services.
 - **Flat Thinking**: Be direct, rational, and unfiltered.

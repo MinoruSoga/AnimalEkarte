@@ -64,7 +64,7 @@ stateDiagram-v2
 2.  **LINE 未連携**: 飼主に LINE ユーザー ID が紐付いていない場合（`no_line_user_id`）。
 3.  **配信停止タグ**: 飼主に配信停止タグが付与されている場合（`excl_tag_delivery_stop`）。
 
-なお、ペット死亡時はライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）が動く。ただし最終除外確認は pet status を直接読まず、全頭死亡時 cleanup は best-effort のため、死亡・転院関連の絶対遮断は保証しない。既知の gap と是正契約は [lstep-integration.md §4](../line/lstep-integration.md) を正本とする。
+上記の `checkExclusion` によるownerフラグ等の判定と、[D15 §4のイベントsource再検証](../line/lstep-integration.md#4-配信安全ガード-safety-controls)を分ける。EMR-330後の非tentativeトリガーは、claim前と送信直前にtyped sourceの生存・現飼主・医院等を再読し、別の生存ペットで死亡した元イベントを救済しない。一方、ペットIDを持たないタグ系の帰属、死亡時の全タグcleanupのbest-effort、生死遷移と外部writeの瞬間競合は残るため、死亡・転院関連の絶対遮断は保証しない。既知gapと正確な再検証範囲はD15正本へ従う。
 
 ### 2.2 優先順位制御 (Priority Suppression)
 `lstep_trigger_priorities` マスタの設定に基づき、同日に優先度の高い別トリガーがある場合、低優先度のトリガーはログの `suppressed_by_priority` フラグ（+`suppression_reason`）が立てられ配信されません（`excluded_reason` とは別カラムで管理）。
@@ -95,3 +95,12 @@ stateDiagram-v2
 | GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs` | 配信ログ履歴の取得 | `lstep-analytics` | `view` |
 
 ---
+
+<a id="crm-monitor-meaning"></a>
+## 監視結果の読み方と受入（2026-10-15）
+
+本画面の監視範囲・失敗分類・受入は[CRM正本のD15整理](../line/lstep-integration.md#crm-document-contract)を参照する。firedは本文状態図の『配信API成功』の観測であり、端末への到達・既読や全外部シナリオ完了の保証ではない。fired_atの既存表示ラベルから配信到達を推測しない。failedの抽出は再送検討であり、自動再送命令ではない。結果不明時はD15の承認済み方針に従い、照合まで再送を保留する。ordinaryタグ同期の監視を新たに含めない。
+
+### 初診・健診後の確認結果と送信ログ
+
+[D15の確認付きフォロー](../line/lstep-integration.md#crm-followup-confirmation)は承認済み目標。記録作成だけで送らず、スタッフの実施済み・対象確認と、医療的案内の場合の医師要フォロー指定を送信前に照合する。既存scheduled／fired等のログだけで確認・指定の成立を推定せず、監視viewを確認／送信権限へ拡張しない。確認欄や新ステータスが既存画面にあるとは記載しない。結果不明時は照合まで再送を保留し、確認の再入力・ログ表示更新を再送許可にしない。受入はD15のAC-crm-followup-source-changed／duplicate-unknownへ追跡する。

@@ -54,6 +54,12 @@ flowchart LR
 
 `make up` は既存サービスを停止し、backend entrypointがmigrationを適用する。安全な検証準備のコマンドとして自動実行しない。`make migrate` はユーザー手動。起動・停止・依存導入・全体検証の禁止コマンドは `.claude/CLAUDE.md` を参照する。
 
+## 編集後hookの境界
+
+Go整形hookは対象project/backend/fileのrealpath・通常ファイル・単一linkと、ローカルDocker endpoint・単一稼働container・同じbackendを指す書込可bind mountを確認した場合だけ、確認済みUnix endpointとcontainer IDを固定して対象file限定のgofmtを行う。symlink、対象外、nested mount、不明/不一致、検査中の置換はSKIPし理由だけを報告する。実行開始後の失敗/timeoutは変更有無を断定せずUNKNOWNとし、自動再試行せず担当差分を確認する。チェックとexec間の競合を完全防止するものではなく、実効hookのロード・OS隔離は別確認。container起動・migration・依存追加の許可は与えない。
+
+TS編集hookはプロセスを起動せず、限定検証への案内だけを出す。対象worktree/diff/mountを確認したrunnerでの実行証跡がなければ検証済みにしない。フックの登録設定・sandbox・一般tool権限はこの説明で変更しない。
+
 ## ブラウザ受入
 
 UI動作、フォーム、ルーティング、アクセシビリティに変更があれば、関連する [受入シナリオ](testing/scenarios/README.md)を実操作で確認する。専用テストプロファイル、対象URL、合成データと許可された操作範囲を確認する。認証済み個人ブラウザ・実患者データを流用しない。ブラウザ MCP はユーザースコープの設定を使い、プロジェクトに共有設定を追加しない（repo の `.mcp.json` の `mcpServers` は空）。Chrome DevTools の loopback CDP 接続は対象 URL の明示承認がある場合だけ利用する。Playwrightは Docker runner による再現テスト、DevToolsは調査、Computer Useは必要な操作に使う。現在呼べるtoolを確認する。
@@ -102,7 +108,7 @@ Codexのanimalekarte-test-strategistは既存read-onlyのまま設計・patch案
 | formatter | 呼出のstaged diff | Read/Edit整形 + posthooks | なし | 呼出/実装者が実行可能なformat/検証 | なし | 非保有 |
 | database-reviewer | 呼出diff+コード/スキーマ | なし | なし | 診断は別途承認されたユーザー/実行者 | なし | 非保有 |
 
-横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit Go hookは`CLAUDE_PROJECT_DIR`/現在cwdからdocker composeでgofmtを起動し`/app`マウントを仮定、TS hookは現在cwdからdockerを起動しfrontendマウントを仮定するが、マウント/ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Claudeのtools指定からBashを除いた範囲と、Codexの実効shell制限は別契約である。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
+横断的事実: Codexマニフェストのread-only役割には今回対象のclinic/database/go/react/security/typescriptの他、animalekarte-planner/healthcare-reviewer/silent-failure-hunter/animalekarte-test-strategistも含まれる（6役割の列挙は網羅ではなく今回対象）。debugger/formatter/reviewerはマニフェスト不在。非read-only役割は親設定を継承し、read-only sandboxはshell/egress非保有の証明ではない。hookフィクスチャが証明するのはexit 2のJSON出力のみで、ホスト側の実効拒否ではない。PostEdit hookの対象・mount検証・SKIP/UNKNOWN条件は「編集後hookの境界」節を正本とする（TS hookはプロセスを起動しない）。実効hookロード・ソケット/資格情報/実行時権限はUNKNOWN。設定保護hookはexit 0の警告のみでセキュリティ設定変更は強制境界ではない。Claudeのtools指定からBashを除いた範囲と、Codexの実効shell制限は別契約である。ランタイム受入の責任はプロジェクト運用者/メンテナ（リポジトリオーナー）に残り、署名済みリスク受容を意味しない。
 
 ## Claude backend 起動入口
 

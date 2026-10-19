@@ -1,5 +1,13 @@
 # 予防接種一覧 仕様書 (Vaccinations List)
 
+## 2026-10-15 D08仕様整理の優先順位
+
+次回日は[最新合意](../domains/vaccinations/lifecycle.md#fr-vaccinations-schedule)のワクチン種類別設定または手入力に統一し、独立／カルテ内の入口差を設けない。一覧は保存済み次回日を表示し、旧入口の固定既定や現在マスタから勝手に再計算しない。[最新第4項合意](../domains/vaccinations/lifecycle.md#vaccination-retrospective-next-date)の過去接種後日入力で保存した、既に過ぎた当時の次回日も履歴として保持・表示する。実装適合は未確認。
+
+業務・例外・GWTは[予防接種ライフサイクル](../domains/vaccinations/lifecycle.md)、現wire／監査等の差は[技術契約](../../design/domains/vaccinations/technical-spec.md)。独立／カルテ内は同じvaccinations資源。単体finalizedを新設しない。最新の[通常編集契約](../domains/vaccinations/lifecycle.md#vaccination-normal-edit-autosave)により親の診療終了／旧finalizedだけで入力・編集を一律拒否せず、現在権限・版・変更履歴と別の削除／患者訂正保護を維持する。
+
+同日複数の単件順次登録は[EMR-105の後続検証記録](../../work/emr/emr-105-vaccine-multi-20261002.md)を参照し、S29の古い「調査中」を現在状態としない。当時の限定検証を今回の実機PASSにしない。以下の担当医フィルタは最大100件内であり、全件検索ではない。接種保存・タグ同期・配信／公開の成功は別に判定する。
+
 ## 概要
 - **画面の目的**: 院内で行われた全予防接種（混合ワクチン、狂犬病ワクチン、フィラリア・ノミダニ予防等）の実績管理。
 - **URLパターン**: `/vaccinations`
@@ -10,8 +18,9 @@
 ## 1. 画面構成
 
 ### 1.1 高機能検索・フィルタ (`PropertyFilter`)
+飼主検索は姓名間の空白有無を吸収する。ペット名と飼主名の2語は空白で区切る。[共通契約とAC](../shared/ui-contracts.md#requirement-fr-common-ui-pet-selection)、Backlog No.81の範囲であり、他の一覧との全述語統一は採用しない。
 - **実施日・全文検索**: `start_date` / `end_date` と遅延した `search` を API に送信する。終了日未指定時は JST 当日を `end_date` とし、未来の記録が最大 `HISTORY_FETCH_LIMIT`（100）件の取得枠を消費しないようにする。
-- **担当医**: 取得済み最大 100 件内でクライアント絞り込み。死亡ペットの記録は編集・削除しない。
+- **担当医**: 取得済み最大 100 件内でクライアント絞り込み。現行通常画面は死亡ペットの編集・削除を拒否する。最新合意の生前接種の後日入力／誤記訂正は、死亡状態を維持した理由・履歴付き専用経路へ。新たな接種を許可しない。
 - **既定順**: 次回予定日（`next_date`）が近い順。未設定は末尾。ユーザーが列ソートを選んだ場合はその指定を優先する。
 
 ### 1.2 接種実績テーブル (`DataTable`)
@@ -55,3 +64,10 @@ flowchart TB
 | DELETE | `/api/v1/vaccinations/:id` | 誤登録データの論理削除 | `vaccinations` | `delete` |
 
 ---
+
+<a id="list-filters-20261017"></a>
+## 一覧条件の確定（2026-10-17）
+
+[決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[一覧の共通正本・4受入条件](../shared/ui-contracts.md#list-filter-contract-20261017)へ従う。台帳・カルテ履歴の初回医院は権限内全医院で次回選択保持。日付付き通常業務6一覧はメニュー当日・詳細復帰で条件保持、行ペットはID指定・日付解除全期間・医院維持。入院ホテル／見積は当日初期化除外、受付は選択日、未納は繰越表示、台帳マスタは当日対象外。表示ページだけを全期間検索結果としない。

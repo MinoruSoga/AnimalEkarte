@@ -75,7 +75,7 @@ flowchart LR
 | `Lstep*` settings/tags/csv/delivery counters | lstep tables | `lstep` | |
 | `OwnerIdentityGroup*`, `PetIdentityGroup*` | identity group tables | `identitylink` | No Go import of owner/pet packages |
 | `ManualArticle`, `ManualArticleVersion` | manual tables | `manualarticle` | |
-| `SupportBugReport`, `SupportChatMessage` | `support_bug_reports`, `support_chat_messages` | `support` | サポートウィジェット（2026-09-26 実装追加の 15 番目 domain）。bug report は `clinic_id`×`reporter_staff_id` を provenance として記録するが **全医院共有ボード**（2026-10 の製品判断で権限ゲート・医院絞りを意図的に撤廃 — 全スタッフが全医院の報告を一覧・更新・削除・Plane 起票できる）。chat history は `clinic_id`×`staff_id` スコープを維持 |
+| `SupportBugReport`, `SupportChatMessage` | `support_bug_reports`, `support_chat_messages` | `support` | 認証済みスタッフの報告一覧／ROOM読取は全医院共有。報告の更新・状態変更・削除・明示Plane起票は報告元医院に限定し、共有READから他医院mutation権限を推定しない。widget履歴は `clinic_id`×`staff_id` スコープを維持し、履歴soft deleteが共有元にも反映する範囲と添付原本保持は [D23正本](../spec/domains/support/README.md#requirement-fr-support-report-mutation)へ従う。現行実装差を承認済み権限拡張としない |
 | `AuditLog` | `audit_logs` | `audit` (cross-cutting) | Prefer `LogEntryTx` with ambient tx when integrity requires fail-closed |
 
 ### Explicit non-owners (do not write these tables from other domains)
@@ -93,4 +93,4 @@ flowchart LR
 - [ ] This catalog updated if a **new** major fact or owner change  
 - [ ] No new generic map-based mutator for owner-owned tables exposed outside owner  
 - [ ] No duplicated enum/ID type for an existing shared concept  
-- [ ] Cross-domain write appears in [cross-domain-orchestration-catalog](cross-domain-orchestration-catalog.md) if multi-package  
+- [ ] Cross-domain write appears in [cross-domain-orchestration-catalog](cross-domain-orchestration-catalog.md) if multi-package

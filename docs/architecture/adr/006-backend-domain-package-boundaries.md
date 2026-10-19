@@ -107,6 +107,8 @@ LIFF予約はtransactor・reservation repositoryを必須とし、public/active�
 
 通常カルテのsoft deleteは対象カルテを`FOR UPDATE`したtransaction内で見積依存を再確認し、`clinic_id + id + status=draft`を単一DELETE条件に含める。見積Createも親カルテ行を先にlockするため両者は直列化され、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定処理が先行した場合や既に非draftの場合もConflictとし、確定済みカルテを削除しない。
 
+> **後続業務合意との境界**: 次段落のcancel cleanupは固定時点の実装・移行記録として保持する。[C06の選定仕様と現行差](../../design/shared/integration-contracts.md#selected-vs-current)では通常予約取消からのdraftカルテ自動削除を採用しない。受付と通常カルテ作成の同時成功等も同正本を優先し、本ADRの旧経路を現行目標の受入条件へ流用しない。既存コードの変更・適合検証をこの注記で実施済みとしない。
+
 予約キャンセル後のdraftカルテcleanupもこの通常削除経路へ委譲し、旧repository bypassは持たない。一方、予約更新とカルテcleanupは既存contractどおり別transactionのbest-effortであり、部分成功時の再収束方式はBE9-2Eまでのcross-domain orchestration判断としてgit履歴（旧`BE-refactor.md`・2026-07-24退役）に記録済みである。これはowner外の`appointments` write例外ではない。
 
 締め後の会計編集はtransaction内監査を必須とし、監査dependency欠落または監査write失敗時は編集自体をrollbackする。

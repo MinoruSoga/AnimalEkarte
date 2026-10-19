@@ -118,3 +118,18 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 `SyncNextVisitTag` は外部タグ操作前に、医院・飼主単位の `lstep_next_visit_sync_retries` を独立 commit する。owner lock 内で現在の予約・LINE連携先・同意を読み直し、全タグ操作とcache更新が成功した場合だけ、自身が enqueue した revision をcacheと同じtransactionで削除する。cache保存・commit・取消・外部操作の失敗は再試行記録を保持し、別の同期が追加した新しいrevisionは消さない。日次 tentative reconciliation は期限切れcacheと再試行記録をUNIONし、医院ごとに重複排除したowner IDのkeyset paginationで処理する。以前のcacheがない飼主も対象となる。
 
 連携解除・opt-out・同期停止中は既存の再試行記録を保持し、再開時に現在のsourceと連携先を再評価する。通常の再試行記録は過去のタグやLINE IDのsnapshotを持たないため、LINE ID変更前の旧アカウントに残ったタグの除去は保証しない。例外は飼主削除で、削除transaction内で確定したLINE宛先が `cleanup_line_user_id` として不変に記録され、削除commit後の `SyncNextVisitTag` は外部操作をremove-onlyの `next_visit_*` 除去に限定する（予約参照・AddTagは行わない）。宛先が別のactive飼主へ再連携済みなら外部操作を行わず記録を保持する。新規migration `033` / `034` は通常のmigration手順で適用してからこの同期コードを稼働させる。臨床記録ではない再試行用の技術テーブルだけを成功時にhard deleteする。
+
+<a id="followup-confirmation-adapter"></a>
+## 初診・健診後フォローの確認adapter（2026-10-15目標）
+
+[D15の承認済みFR-crm-followup-confirmation](lstep-integration.md#requirement-fr-crm-followup-confirmation)を実現する境界。既存の作成後welcome／checkup followupと定時初診候補は現行経路であり、記録作成だけで送らない目標への追従を完了扱いしない。コード／DB／配信設定は今回変更していない。
+
+| 接続点 | 目標と現行差 | D15 AC suffix（AC-crm-followup-） |
+|:---|:---|:---|
+| D03／D09保存後→候補 | 保存済み元事象とスタッフの実施済み・送信対象確認を別に識別。Path Bは段階保存で全体atomicに変えず、未確定段階は送信へ進めない | record-only, partial-record |
+| 案内目的／医師指定 | 一般お礼と医療的再検査・受診案内を区別。同一対象への医師要フォロー指定を医療的案内で検証し、結果数値や担当医を代用しない。現checkup callのpredicate不在は適合差 | general, medical |
+| 確認保存／認可 | 元clinic・owner・pet・record／checkup・案内目的・保存結果に確認者／時点を結び、必要監査と同じ保存結果。既存grant・認証世代・依存照合／receiptを継承。DTO／route／格納形式は未実装・要適合確認 | confirmation-failure |
+| claim前／外部作用直前 | 既存source再読へ確認・目的・医師指定の現状態を接続し、欠損／不明／取消で停止。直接sendだけでなく該当配信を起動する外部タグ／シナリオにも適用。opt-out・死亡由来・LINE・既存gate・優先度を緩和しない。現生死遷移との瞬間競合gapは保持 | source-changed |
+| 再実行／結果unknown | 元事象と確認の反復を送信重複へ変換せず、現claimと送信結果照合へ接続。外部試行後blockingを保持し、臨床保存と外部HTTPを一つのtransactionにしたとは扱わない | duplicate-unknown |
+
+送信に必要な確認・監査／結果の対応が読み取れない場合は保留する。旧ログのscheduled／firedだけではスタッフ確認や医師指定の成立証明にならない。新しい同意条件・臨床閾値・送信時刻をこのadapterで決定しない。

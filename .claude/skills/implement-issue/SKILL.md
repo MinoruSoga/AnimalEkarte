@@ -7,7 +7,7 @@ description: "Plane Issue を指定して、コード規約準拠の実装 → �
 
 Plane の該当 Issue を読み込み、コード規約に準拠した実装 → セルフレビュー → 証跡更新までを実行する。
 
-> **SoT の注意**: 実行タスク、仕様、受け入れ条件、状態、依存関係は Plane Issue が正本。今期外・見送りの索引は [`docs/work/decisions/phase2-deferred.md`](../../../docs/work/decisions/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
+> **SoT の注意**: Plane Issueは実行範囲・状態・依存関係・実行証跡の正本。業務仕様・FR/ACは最新のdocs/spec、意味関係はontology、実現方式はdocs/designを参照し、[正本の責務](../../../docs/spec/shared/document-contracts.md#requirement-fr-common-doc-identity)と[記述規約](../../../docs/spec/authoring-guide.md)に従う。票と最新合意が食い違う場合は範囲と決定根拠を照合する。業務仕様・FR/ACは最新docs/specを優先し、票の記述で仕様を巻き戻さない。今期外・見送りの索引は [`docs/work/decisions/phase2-deferred.md`](../../../docs/work/decisions/phase2-deferred.md) であり、実装台帳ではない。削除済み root ledger や旧 HTML を現在の依存関係・完了状態の根拠に使わない。
 >
 > GitHub Issue（`#NNN`）が Plane Issue から参照される場合は、仕様・受け入れ条件について該当 Issue 本文とコメント（`gh issue view <NNN>`）も確認する。
 
@@ -51,7 +51,7 @@ Plane Issue 本文・コメント・リンク先仕様を読み込み、以下�
 
 ### タスクセクション記載の実測再検証（着手前必須）
 
-タスクセクションの行番号・「現状のコード」・残タスク認識は起票時点のスナップショットであり陳腐化前提。着手前に現行コードを grep/Read で突合し、既に解消済みの項目は「陳腐化・実測訂正」として報告する。タスク本文の「Context 要約」と「行番号・Constraints」が食い違ったら後者（実コード）を優先する。
+タスクセクションの行番号・「現状のコード」・残タスク認識は起票時点のスナップショットであり陳腐化前提。着手前に現行コードを grep/Read で突合し、既に解消済みの項目は「陳腐化・実測訂正」として報告する。現行実装の事実・行番号に関する矛盾は実コードで訂正する。ただし実コードは現行観測であり、合意済みの目標・業務制約・FR/ACを上書きしない。目標との差は実装ギャップとして保持する。
 
 （出典: memory be_refactor_execution_20260702 / closed_issue_reaudit_20260707 / issue_g3_1_phase1_food_lstep_tag_helpers_20260709）
 

@@ -72,3 +72,7 @@ sequenceDiagram
 | POST | `/api/v1/auth/reset-password` | トークン検証と新パスワードの確定 | なし | なし |
 
 ---
+
+## 共通認証・医院切替との接続
+
+[共通C04](../shared/access-control.md)へ従う。認証と業務権限を分け、医院失効の復旧で失敗した書込みを他医院へ自動再送しない。実権限付与・credential発行・実環境設定は今回実施しない。

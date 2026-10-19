@@ -14,7 +14,7 @@
 ### 1.1 カテゴリ・ナビゲーション (左パネル)
 - **2 モード**: トップは `screens`（画面別）と `workflows`（業務フロー）。
 - **グループ名**: 各 Markdown の frontmatter `section`。固定の「基本／診療業務…」ラベルではない。
-- **閲覧**: 認証済みなら静的バンドルを読む。`GET /manual/articles` の override 取得は `ResourceManualEdit` があるときだけ。
+- **閲覧**: 認証済みなら静的バンドルを読む。公開済み版を全認証スタッフが読む。現行実装は `manual-edit:view` がある利用者だけDB overrideを取得するため、公開READ分離への追従は未確認。
 
 ### 1.2 記事ビューア (中央パネル)
 - **Markdown レンダリング**: 表、リスト、コードブロック、画像を含むリッチなドキュメント表示（`react-markdown` + `remark-gfm`）。
@@ -42,14 +42,14 @@
 3.  ビルド時に自動的にシステムへ取り込まれます。
 
 ### 3.2 DB 連携（編集オーバーライド）
-静的 Markdown ファイルを基本としつつ、`ResourceManualEdit` 権限を持つユーザーはシステム画面上（`ManualEditor`）から直接編集が可能です。編集内容は `manual_articles` テーブルにオーバーライド版として保存され、次回表示時に MD ファイル版より優先して読み込まれます。
+静的 Markdown ファイルを基本としつつ、`ResourceManualEdit` 権限を持つユーザーはシステム画面上（`ManualEditor`）から直接編集が可能です。現行実装の編集内容は `manual_articles` にオーバーライド版として保存されます。2026-10-15合意後の目標は、編集権限者が公開確定した版を全認証スタッフが閲覧・検索・印刷することです。編集・公開・過去版復元の履歴を残し、公開未確定の編集案は一般閲覧に出しません。現行の権限付きoverride取得と履歴APIの存在だけで、この公開・復元の実装済みを主張しません。
 
 ```mermaid
 flowchart LR
     Dev["開発者が Markdown を作成"] --> F["features/manual/content/*.md"]
     F -->|"ビルド時に静的バンドルへ取り込み"| V["記事ビューア<br/>（認証済み全員が閲覧）"]
     Ed["ManualEditor<br/>（ResourceManualEdit 権限）"] -->|"編集を保存"| DB["manual_articles テーブル"]
-    DB -->|"override があれば MD 版より優先"| V
+    DB -->|"目標: 公開確定版を全認証スタッフへ<br/>現行override閲覧は権限付き"| V
 ```
 
 ---
@@ -65,3 +65,9 @@ flowchart LR
 
 ---
 
+
+## 2026-10-15 公開・履歴の合意
+
+[業務正本](../domains/internal-manual/README.md)・[技術差分](../../design/domains/internal-manual/technical-spec.md)へ従う。編集権限者が公開した版を職員が閲覧し、編集・公開・過去版復元の履歴を残す。ユーザー Sentinel_7a67fd30e47c819192cd36d416f0a2bf の「ok」（確認文 Sentinel_75a3a1bf81b481919ba4c34aa633feb4、対象確認 Sentinel_8d0032ca45b881919b3d2ceb5339f792）。未認証公開・新しい下書き承認workflow・実権限付与を承認したものではない。上のAPI表は現行実装の参照であり、目標の公開READを証明しない。
+
+公開の内容版・公開pointer・履歴・必須監査・receiptは[選定保存契約](../../design/domains/internal-manual/technical-spec.md#manual-selected-save-contract)の同一commit。版競合は原本不変と入力保持、応答不明は同じoperation照合とし、旧版の上書き／重複復元で救済しない。

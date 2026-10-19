@@ -92,11 +92,13 @@ db.Where(fmt.Sprintf("name = '%s'", userInput)).Find(&owners)
 
 ## 4. 認証・認可
 
+先に [SECURITY.md](../../../SECURITY.md) の経路別境界を分類する。以下はstaff保護ルート群の例であり、login/health、LIFFのLINE identity、Webhookのdestination/HMAC、内部運用の専用credentialをstaff Authで置き換えない。認証成功とaction/clinic/ownershipの認可は別に検証する。Supportの承認済み共有scopeも既存正本に従う。
+
 ```go
-// ✅ middleware で全ルートに認証チェック（実在 API: backend/internal/middleware/auth.go:30）
+// ✅ 保護対象staffルート群だけに認証チェック（実在 API: backend/internal/middleware/auth.go:30）
 // clinic_id スコープは Auth middleware 内で c.Set("clinic_id", ...) される
 // （ClinicScope という middleware は存在しない）
-router.Use(middleware.Auth(secret, isProduction, auditSvc, staffSvc))
+staffRoutes.Use(middleware.Auth(secret, isProduction, auditSvc, staffSvc))
 
 // ✅ Handler で clinic_id を middleware から取得（ユーザー入力信用禁止）
 clinicID := c.GetString("clinic_id") // context 値は string（auth.go が c.Set("clinic_id", string) している）。uint64 が必要なら strconv.ParseUint
@@ -188,7 +190,7 @@ rg -l --glob='*.go' --glob='*.ts' --glob='*.tsx' 'sk-|api_key|password\s*=' back
 - [ ] シークレットがソースコードにない（環境変数使用）
 - [ ] 全入力にバリデーション（binding tag または Zod）
 - [ ] GORM パラメータ化クエリ使用
-- [ ] middleware で全 API に認証チェック
+- [ ] 各APIの公開/staff/LINE/Webhook/特権運用の分類に従う認証と、独立した認可・ownership検証
 - [ ] clinic_id は middleware から取得（ユーザー入力不使用）
 - [ ] XSS: dangerouslySetInnerHTML に非サニタイズ入力なし
 - [ ] エラーメッセージに内部詳細が含まれない

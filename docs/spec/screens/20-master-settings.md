@@ -1,5 +1,20 @@
 # マスタ設定トップ 仕様書 (Master Settings Index)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.settings.master-index／画面仕様 |
+| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
+| 実機検証状態 | 未実施 |
+| 文書確認日 | 2026-10-15 |
+
+### 会計第六群との対応
+
+[第六群の業務正本](../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。価格・割引・保険・支払方法の変更者は管理者と対象変更権限付きスタッフ。ポータル閲覧可能と編集可能を同一視しない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+
+
+会計masterの保存・参照保護は[D10設計](../../design/domains/accounting/technical-spec.md#accounting-master-coverage)、初期値／会計追加後反映は[第十群](../domains/accounting/lifecycle.md#accounting-empty-rounding-master)へ。本入口の他領域master内部は変更しない。
+
 ## 概要
 - **画面の目的**: 診療、トリミング、入院、スタッフ、権限、および外部連携など、システム全体で共通利用される定義データ（マスタ）を一元的に管理するポータル。
 - **URLパターン**: `/settings` (トップ)
@@ -108,3 +123,15 @@ flowchart LR
 - **`PermissionFilteredCard`** / **`CardRow`**: 個別マスタへのリンク・サマリ表示部品。
 
 ---
+
+## 医院・設定入口と認可の接続
+
+[医院・設定入口D17](../domains/clinic-settings/README.md)と[共通C04](../shared/access-control.md)を参照する。ポータルの表示権限は編集権限ではない。医院切替前の入力を切替先へ自動保存しない。個別マスタの業務要件は各owner正本へ委ねる。
+
+## 2026-10-15会議合意の接続：trimming-7
+
+コース種別はコースのカテゴリとして扱い、予約区分マスタに近い一覧・編集UIへ整理する。予約区分の業務分類や枠設定とは別。個別施術の料金手修正／値引きは施術画面で扱い、本マスタ価格を変更しない。
+
+## 2026-10-15会議合意の接続：shifts-4
+
+シフトパターンのマスタ入口と、シフト管理 `/shifts` の[期間・スタッフ複製／Excel作成CSV取込](./24-shift-calendar.md#shift-copy-csv-agreement-20261015)は別の操作を開く。新操作はD14の勤務入力案→差分・エラー・予約影響の確認→明示反映へ接続し、マスタ閲覧やファイル選択から勤務変更権限を導かない。テンプレートの[非遡及境界](./settings/master-shift-template.md#shift-template-bulk-boundary)を保持し、新たな設定カードの配置・権限を本入口で確定しない。
