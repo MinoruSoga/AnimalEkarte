@@ -20,14 +20,14 @@ P2：不具合共有と支援履歴の参照。AI回答は参考で、臨床・�
 <a id="requirement-fr-support-shared-read"></a>
 ### FR-support-shared-read — 共有閲覧と個人履歴
 
-認証済みスタッフは専用resource grantなしでバグ報告と全医院・全スタッフのROOMボードを共有閲覧できる。ROOMは同一医院×スタッフの30分超の空白による表示単位。widgetの個人history取得・削除は認証医院×本人の別経路であり、全chatを個人限定に変えない。
+認証済みスタッフは専用resource grantなしで、個人・臨床情報を含まないバグ報告と全医院・全スタッフのROOMボードを共有閲覧できる。患者・飼主を識別できる情報や臨床情報を含む未redactedの報告・chat・添付は報告元医院内に限定し、他医院へ返さない。医院横断で共有する必要がある場合は、共有前に明示的なredaction確認を行い、承認されたredacted内容だけを公開する。ROOMは同一医院×スタッフの30分超の空白による表示単位。widgetの個人history取得・削除は認証医院×本人の別経路であり、全chatを個人限定に変えない。
 
 決定状態・根拠：既存製品決定・既存画面契約継承。上記の該当既存正本に基づく整理で、新たな承認を捏造しない。
 
 <a id="requirement-fr-support-report-mutation"></a>
 ### FR-support-report-mutation — 報告元医院の操作
 
-バグ報告作成はwidget、一覧は閲覧・状態変更・明示Plane起票・削除の入口。状態変更・起票・削除は報告元医院のみ。別医院からの操作を拒否し、削除は明示確認する。臨床情報への共有READ例外を臨床writeや他医院mutationへ拡張しない。
+バグ報告作成はwidget、一覧は閲覧・状態変更・明示Plane起票・削除の入口。状態変更・起票・削除は報告元医院のみ。別医院からの操作を拒否し、削除は明示確認する。未redactedの患者・飼主・臨床情報は報告元医院だけに返し、医院横断の共有READには明示的なredaction確認済み内容だけを含める。この共有境界を臨床writeや他医院mutationへ拡張しない。
 
 決定状態・根拠：既存製品決定継承。上記の該当既存正本に基づく整理で、新たな承認を捏造しない。
 
@@ -44,14 +44,14 @@ P2：不具合共有と支援履歴の参照。AI回答は参考で、臨床・�
 
 | 条件ID | Given（前提） | When（操作） | Then（期待結果） | 独立確認 | 成功条件 | 確認手順／証跡 |
 |:---|:---|:---|:---|:---|:---|:---|
-| AC-support-01 | A院の報告とB院の認証スタッフ | 共有一覧・ROOMを見る | 共有READできる。個人historyとは別の範囲 | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-shared-read](#requirement-fr-support-shared-read)。実機未実施 |
+| AC-support-01 | A院の報告とB院の認証スタッフ | 共有一覧・ROOMを見る | 個人・臨床情報を含まない内容だけを共有READできる。未redactedの患者・飼主・臨床情報はA院内に限定し、redaction確認済みの共有用内容だけを他院へ返す。個人historyとは別の範囲 | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-shared-read](#requirement-fr-support-shared-read)。実機未実施 |
 | AC-support-02 | B院がA院報告を参照している | 状態変更・起票・削除APIを直接呼ぶ | 拒否し報告は不変 | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-report-mutation](#requirement-fr-support-report-mutation)。実機未実施 |
 | AC-support-03 | 報告医院の利用者 | 削除確認を取りやめる | 報告を残す | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-report-mutation](#requirement-fr-support-report-mutation)。実機未実施 |
 | AC-support-04 | 送信先と内容を確認できる報告フォーム | 送信を確定する | 承認された送信契約だけを実行し、確認前に外部へ送らない | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-external-send](#requirement-fr-support-external-send)。実機未実施 |
 | AC-support-05 | Plane未設定または外部失敗 | 明示起票する | 未設定／失敗を示し成功リンクを捏造しない | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-external-send](#requirement-fr-support-external-send)。実機未実施 |
 | AC-support-06 | A院本人履歴とB院別人履歴がある | widgetの本人履歴を削除 | A院×本人だけを削除しB院・他人を消さない。削除対象の共有ROOM元データにも反映する | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-shared-read](#requirement-fr-support-shared-read)。実機未実施 |
 | AC-support-07 | 外部起票済みか応答だけでは不明 | 再送を試す | 作成済みの有無を照合し無条件に再起票しない | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-external-send](#requirement-fr-support-external-send)。実機未実施 |
-| AC-support-08 | 他院の報告を共有一覧で読む | 詳細と添付を開く | 許可された共有READ範囲だけを返し報告元以外のmutation権限は得ない | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-report-mutation](#requirement-fr-support-report-mutation)。実機未実施 |
+| AC-support-08 | 他院の報告を共有一覧で読む | 詳細と添付を開く | redaction確認済みの共有用内容だけを返し、未redactedの患者・飼主・臨床情報を含む原報告・添付は他院へ返さない。報告元以外のmutation権限は得ない | 単独ケースで確認 | Thenの結果と失敗時の不変 | [FR-support-report-mutation](#requirement-fr-support-report-mutation)。実機未実施 |
 
 ## 未決・責務境界
 
@@ -65,8 +65,8 @@ P2：不具合共有と支援履歴の参照。AI回答は参考で、臨床・�
 
 | surface | read | write/delete・状態境界 |
 |:---|:---|:---|
-| bug report一覧・詳細／添付 | 全医院の認証スタッフへ共有 | 作成はwidget。status／Plane起票／削除は報告医院のみ。削除確認取消は不変 |
-| ROOMボード | 全医院・全スタッフの会話 | 閲覧専用。30分超空白で表示ROOM分割、永続session IDと混同しない |
+| bug report一覧・詳細／添付 | 非機微・redaction確認済みの共有用内容だけを全医院の認証スタッフへ共有。未redactedの患者・飼主・臨床情報を含む原内容は報告元医院内 | 作成はwidget。status／Plane起票／削除は報告医院のみ。削除確認取消は不変 |
+| ROOMボード | 個人・臨床情報を含まない会話だけを全医院・全スタッフへ共有 | 閲覧専用。30分超空白で表示ROOM分割、永続session IDと混同しない |
 | chat exchanges | 共有の質問回答ペア | ROOM画面の取得元とは別 |
 | widget history | 現在医院×本人 | 取得／削除。元メッセージsoft deleteが共有READにも反映。全院削除不可 |
 | widget chat質問 | 認証スタッフの質問・回答 | rate limitあり。回答失敗／制限を回答成功にしない。臨床・会計・権限writeの自動実行機能を新設しない |
@@ -101,5 +101,5 @@ Loading／Error／Emptyを区別し、共有ROOMに選択IDがない場合の先
 | AC-support-widget-purpose-tabs | 認証済みスタッフが既存支援widgetを開き、使い方質問とバグ報告の各入口を選ぶ | 質問と報告作成を区別して利用できる。質問だけで報告を起票せず、報告だけで臨床・金銭操作を実行しない | SLK-340・344、既存widget契約。未実施 |
 | AC-support-japanese-paraphrase | マニュアルに該当記事がある同じ意図を、日本語の異なる言い回しで質問する | 近い内容の説明・関連項目から該当する使い方を確認できる。未記載や取得失敗を区別し架空の手順を確定情報として補わない | SLK-342、既決EMR-294。未実施 |
 | AC-support-vietnamese-question | 認証済みスタッフがベトナム語で使い方を質問する | 入力を扱い既存の使い方回答・関連項目を確認できる。未記載・取得失敗を区別し、回答を臨床・会計の自動確定へ使わない | SLK-342、既決EMR-294。未実施 |
-| AC-support-report-form-preview | 既存バグ報告タブで件名・詳細と現在画面のスクリーンショットを確認し送信する | 件名・詳細・自動取得した画面を報告内容として確認でき、既決の送信前内容／送信先確認を経て送信する。取得・送信失敗を成功扱いせず院内報告と外部配送結果を分ける | SLK-344、既存送信前確認・保持契約。未実施 |
+| AC-support-report-form-preview | 既存バグ報告タブで件名・詳細と現在画面のスクリーンショットを確認し送信する | 件名・詳細・自動取得した画面を報告内容として確認できる。患者・飼主・臨床情報が含まれる場合はredactionを明示確認し、未redactedの内容を他院へ共有しない。redactionできない場合は共有用公開を停止する。既決の送信前内容／送信先確認を経て送信し、取得・送信失敗を成功扱いせず院内報告と外部配送結果を分ける | SLK-344、既存送信前確認・保持契約。未実施 |
 | AC-support-report-history-status | 許可された共有一覧で保存済みのopen／resolved報告とその詳細を読む | 元報告と対応状態を確認でき、再報告を要せず履歴を参照できる。報告元医院だけのmutation・個人chat履歴との別scopeを維持。取得失敗を解決済み／空一覧へ置換しない | SLK-353、既存一覧のstatus表示。未実施 |
