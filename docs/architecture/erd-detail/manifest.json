@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "e700fa8b094d1e18c6749fcba83234c3965592f14706ec551f87cf6bfd4c750c",
+  "source_digest": "37ccec60a0102602f31b863e6641df687241e832b65535791932113f244b026e",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,14 +17,14 @@
     }
   ],
   "counts": {
-    "tables": 138,
-    "columns": 1651,
-    "foreign_keys": 323
+    "tables": 141,
+    "columns": 1686,
+    "foreign_keys": 333
   },
   "migrations": [
     {
       "name": "001_init.sql",
-      "sha256": "8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e"
+      "sha256": "f002b3dc35a6788dea618f41199726dfb1ab4070d1f03fffbc5c8fe55a006832"
     }
   ],
   "reviewed_do_blocks": [
@@ -157,6 +157,9 @@
     "reservation_type_occupations.md",
     "reservation_type_unavailable_times.md",
     "reservation_types.md",
+    "revisit_intake_answers.md",
+    "revisit_intake_submit_receipts.md",
+    "revisit_intake_targets.md",
     "shared_files.md",
     "shift_entries.md",
     "shift_entry_breaks.md",

@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **1ファイル** から **138テーブル・1651カラム・323外部キー** を静的に導出しています。
+マイグレーション **1ファイル** から **141テーブル・1686カラム・333外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -34,7 +34,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [animal_species](animal_species.md) | 6 | 0 |
 | [appointment_trimming_details](appointment_trimming_details.md) | 15 | 4 |
 | [appointment_trimming_options](appointment_trimming_options.md) | 6 | 4 |
-| [appointments](appointments.md) | 25 | 9 |
+| [appointments](appointments.md) | 26 | 9 |
 | [audit_logs](audit_logs.md) | 13 | 2 |
 | [billing_confirmations](billing_confirmations.md) | 11 | 3 |
 | [billing_items](billing_items.md) | 26 | 10 |
@@ -143,6 +143,9 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [reservation_type_occupations](reservation_type_occupations.md) | 5 | 3 |
 | [reservation_type_unavailable_times](reservation_type_unavailable_times.md) | 10 | 2 |
 | [reservation_types](reservation_types.md) | 23 | 3 |
+| [revisit_intake_answers](revisit_intake_answers.md) | 18 | 5 |
+| [revisit_intake_submit_receipts](revisit_intake_submit_receipts.md) | 10 | 2 |
+| [revisit_intake_targets](revisit_intake_targets.md) | 6 | 3 |
 | [shared_files](shared_files.md) | 12 | 3 |
 | [shift_entries](shift_entries.md) | 10 | 2 |
 | [shift_entry_breaks](shift_entry_breaks.md) | 4 | 1 |
@@ -171,11 +174,11 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `e700fa8b094d1e18c6749fcba83234c3965592f14706ec551f87cf6bfd4c750c`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `37ccec60a0102602f31b863e6641df687241e832b65535791932113f244b026e`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `f002b3dc35a6788dea618f41199726dfb1ab4070d1f03fffbc5c8fe55a006832` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

@@ -7588,3 +7588,238 @@ CREATE TABLE IF NOT EXISTS support_llm_budgets (
     next_allowed_at  timestamptz NOT NULL,
     PRIMARY KEY (scope, model)
 );
+
+-- EMR-460 S1: reservation/pet intake history and submission receipt.
+-- Authorized 001 baseline edit; no automatic upgrade of existing checksum baselines.
+-- No API/UI, global gate, staff writer participation or S2 record binding in this change.
+ALTER TABLE appointments
+    ADD COLUMN revisit_intake_generation bigint NOT NULL DEFAULT 1
+    CHECK (revisit_intake_generation > 0);
+
+CREATE TABLE revisit_intake_targets (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    appointment_id bigint NOT NULL,
+    pet_id bigint NOT NULL,
+    target_generation bigint NOT NULL CHECK (target_generation > 0),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (clinic_id, id),
+    UNIQUE (clinic_id, appointment_id, target_generation),
+    FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, pet_id)
+        REFERENCES pets(clinic_id, id) ON DELETE RESTRICT
+);
+
+-- A short, completed claim transaction precedes the business transaction.
+-- No target/answer/owner FK in the claim, no free text, no token or LINE subject.
+-- author_customer_id is a scoped authenticated identity value, checked on success.
+CREATE TABLE revisit_intake_submit_receipts (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    author_customer_id bigint NOT NULL CHECK (author_customer_id > 0),
+    operation_key uuid NOT NULL,
+    author_subject_hash bytea NOT NULL CHECK (octet_length(author_subject_hash) = 32),
+    fingerprint_version smallint NOT NULL DEFAULT 1 CHECK (fingerprint_version = 1),
+    request_hash bytea NOT NULL CHECK (octet_length(request_hash) = 32),
+    state text NOT NULL DEFAULT 'claimed' CHECK (state IN ('claimed', 'succeeded')),
+    result_answer_id bigint,
+    claimed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    committed_at timestamptz,
+    PRIMARY KEY (clinic_id, author_customer_id, operation_key),
+    CHECK ((state = 'claimed' AND result_answer_id IS NULL AND committed_at IS NULL)
+        OR (state = 'succeeded' AND result_answer_id IS NOT NULL AND committed_at IS NOT NULL)),
+    CHECK (committed_at IS NULL OR committed_at >= claimed_at)
+);
+
+CREATE TABLE revisit_intake_answers (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    target_id bigint NOT NULL,
+    revision bigint NOT NULL CHECK (revision > 0),
+    form_definition_version smallint NOT NULL CHECK (form_definition_version = 1),
+    visit_purpose text NOT NULL CHECK (btrim(visit_purpose) <> ''),
+    onset text,
+    energy text CHECK (energy IN ('usual', 'slightly_reduced', 'markedly_reduced')),
+    appetite text CHECK (appetite IN ('usual', 'slightly_reduced', 'markedly_reduced')),
+    current_symptoms text,
+    improvement text CHECK (improvement IN
+        ('improved', 'slightly_improved', 'unchanged', 'worse', 'new_symptoms')),
+    examination_preference text CHECK (examination_preference IN
+        ('consultation_only', 'medication_only', 'examination', 'decide_with_vet')),
+    main_concern text,
+    author_customer_id bigint NOT NULL,
+    author_subject_hash bytea NOT NULL CHECK (octet_length(author_subject_hash) = 32),
+    author_owner_id_at_submit bigint NOT NULL,
+    operation_key uuid NOT NULL,
+    received_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (clinic_id, id),
+    UNIQUE (clinic_id, target_id, revision),
+    UNIQUE (clinic_id, author_customer_id, operation_key),
+    FOREIGN KEY (clinic_id, target_id)
+        REFERENCES revisit_intake_targets(clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (author_customer_id, clinic_id)
+        REFERENCES line_customers(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, author_owner_id_at_submit)
+        REFERENCES owners(clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, author_customer_id, operation_key)
+        REFERENCES revisit_intake_submit_receipts(clinic_id, author_customer_id, operation_key)
+        ON DELETE RESTRICT
+);
+
+ALTER TABLE revisit_intake_submit_receipts
+    ADD CONSTRAINT fk_revisit_receipt_answer
+    FOREIGN KEY (clinic_id, result_answer_id)
+    REFERENCES revisit_intake_answers(clinic_id, id) ON DELETE RESTRICT;
+
+-- Target is immutable; latest = highest revision in this target, no mutable pointer.
+-- Existing UNIQUE(clinic_id,target_id,revision) serves latest/history reverse scans.
+CREATE INDEX idx_revisit_answers_clinic_author
+    ON revisit_intake_answers(clinic_id, author_customer_id, received_at, id);
+
+CREATE FUNCTION app_private.revisit_intake_generation_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.pet_id IS DISTINCT FROM OLD.pet_id THEN
+        NEW.revisit_intake_generation := OLD.revisit_intake_generation + 1;
+    ELSIF NEW.revisit_intake_generation IS DISTINCT FROM OLD.revisit_intake_generation THEN
+        RAISE EXCEPTION 'revisit target generation cannot be set directly' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER revisit_intake_generation_guard
+    BEFORE UPDATE OF pet_id, revisit_intake_generation ON appointments
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_generation_guard();
+
+CREATE FUNCTION app_private.revisit_intake_reject_mutation()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'revisit intake history is immutable' USING ERRCODE = '23514';
+END;
+$$;
+
+CREATE TRIGGER revisit_targets_immutable
+    BEFORE UPDATE OR DELETE ON revisit_intake_targets
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_reject_mutation();
+CREATE TRIGGER revisit_answers_immutable
+    BEFORE UPDATE OR DELETE ON revisit_intake_answers
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_reject_mutation();
+CREATE TRIGGER revisit_receipts_no_delete
+    BEFORE DELETE ON revisit_intake_submit_receipts
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_reject_mutation();
+
+-- Structural defense, not a replacement for authenticated application scope,
+-- the common gate, current patient authorization, or writer participation.
+CREATE FUNCTION app_private.revisit_intake_target_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE a appointments%ROWTYPE;
+BEGIN
+    SELECT * INTO a FROM appointments
+      WHERE clinic_id = NEW.clinic_id AND id = NEW.appointment_id FOR UPDATE;
+    IF NOT FOUND OR a.deleted_at IS NOT NULL OR a.status = 'cancelled'
+       OR a.pet_id IS DISTINCT FROM NEW.pet_id
+       OR a.revisit_intake_generation <> NEW.target_generation THEN
+        RAISE EXCEPTION 'revisit target does not match current reservation' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_target_insert_guard BEFORE INSERT ON revisit_intake_targets
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_target_guard();
+
+CREATE FUNCTION app_private.revisit_intake_answer_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE t revisit_intake_targets%ROWTYPE;
+        a appointments%ROWTYPE;
+        prior bigint;
+BEGIN
+    SELECT * INTO STRICT t FROM revisit_intake_targets
+      WHERE clinic_id = NEW.clinic_id AND id = NEW.target_id;
+    SELECT * INTO STRICT a FROM appointments
+      WHERE clinic_id = NEW.clinic_id AND id = t.appointment_id FOR UPDATE;
+    -- No new calendar deadline/no-show restriction, and no permanent
+    -- "ever checked in" flag. New lifecycle states need a reviewed adapter.
+    IF a.deleted_at IS NOT NULL
+       OR a.status IS NULL
+       OR a.status NOT IN ('pending', 'confirmed', 'tentative', 'no_show')
+       OR a.pet_id IS DISTINCT FROM t.pet_id
+       OR a.revisit_intake_generation <> t.target_generation
+       OR a.line_customer_id IS DISTINCT FROM NEW.author_customer_id
+       OR a.owner_id IS DISTINCT FROM NEW.author_owner_id_at_submit THEN
+        RAISE EXCEPTION 'revisit answer target or phase changed' USING ERRCODE = '23514';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM revisit_intake_submit_receipts r
+        WHERE r.clinic_id = NEW.clinic_id AND r.author_customer_id = NEW.author_customer_id
+          AND r.operation_key = NEW.operation_key AND r.state = 'claimed'
+          AND r.author_subject_hash = NEW.author_subject_hash) THEN
+        RAISE EXCEPTION 'revisit answer requires matching claim' USING ERRCODE = '23514';
+    END IF;
+    SELECT COALESCE(MAX(revision), 0) INTO prior FROM revisit_intake_answers
+      WHERE clinic_id = NEW.clinic_id AND target_id = NEW.target_id;
+    IF NEW.revision <> prior + 1 THEN
+        RAISE EXCEPTION 'revisit answer revision is not consecutive' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_answer_insert_guard BEFORE INSERT ON revisit_intake_answers
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_answer_guard();
+
+CREATE FUNCTION app_private.revisit_intake_receipt_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.state <> 'claimed' OR NEW.result_answer_id IS NOT NULL OR NEW.committed_at IS NOT NULL THEN
+            RAISE EXCEPTION 'revisit receipt must begin as an uncommitted claim' USING ERRCODE = '23514';
+        END IF;
+        RETURN NEW;
+    END IF;
+    IF OLD.state <> 'claimed' OR NEW.state <> 'succeeded'
+       OR (NEW.clinic_id, NEW.author_customer_id, NEW.operation_key,
+           NEW.author_subject_hash, NEW.fingerprint_version, NEW.request_hash, NEW.claimed_at)
+          IS DISTINCT FROM
+          (OLD.clinic_id, OLD.author_customer_id, OLD.operation_key,
+           OLD.author_subject_hash, OLD.fingerprint_version, OLD.request_hash, OLD.claimed_at)
+       OR NOT EXISTS (SELECT 1 FROM revisit_intake_answers a
+           WHERE a.clinic_id = NEW.clinic_id AND a.id = NEW.result_answer_id
+             AND a.author_customer_id = NEW.author_customer_id
+             AND a.author_subject_hash = NEW.author_subject_hash
+             AND a.operation_key = NEW.operation_key) THEN
+        RAISE EXCEPTION 'invalid revisit receipt transition' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_receipt_write_guard BEFORE INSERT OR UPDATE ON revisit_intake_submit_receipts
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_receipt_guard();
+
+SELECT app_private.apply_rls_policy('revisit_intake_targets'::regclass,
+    'revisit_intake_targets_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('revisit_intake_answers'::regclass,
+    'revisit_intake_answers_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('revisit_intake_submit_receipts'::regclass,
+    'revisit_intake_submit_receipts_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+-- Finalize the matching claim in the answer INSERT's own transaction. Failure
+-- aborts the INSERT; no independently committed answer can lack its receipt.
+CREATE FUNCTION app_private.revisit_intake_answer_finish_receipt()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE revisit_intake_submit_receipts
+        SET state = 'succeeded', result_answer_id = NEW.id, committed_at = clock_timestamp()
+        WHERE clinic_id = NEW.clinic_id AND author_customer_id = NEW.author_customer_id
+          AND operation_key = NEW.operation_key AND state = 'claimed'
+          AND author_subject_hash = NEW.author_subject_hash;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'revisit answer requires claim finalization' USING ERRCODE = '23514';
+    END IF;
+    RETURN NULL;
+END;
+$$;
+CREATE TRIGGER revisit_answer_finish_receipt
+    AFTER INSERT ON revisit_intake_answers
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_answer_finish_receipt();

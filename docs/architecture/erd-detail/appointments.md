@@ -36,6 +36,7 @@
 | `checked_in_at` | `timestamptz` | NULL | — | — | [001_init.sql:1351](../../../backend/migrations/001_init.sql#L1351) |
 | `intended_date` | `date` | NULL | — | — | [001_init.sql:7207](../../../backend/migrations/001_init.sql#L7207) |
 | `source_medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:7208](../../../backend/migrations/001_init.sql#L7208) |
+| `revisit_intake_generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7596](../../../backend/migrations/001_init.sql#L7596) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -73,6 +74,7 @@ erDiagram
         timestamptz checked_in_at
         date intended_date
         bigint source_medical_record_id FK
+        bigint revisit_intake_generation
     }
     clinics {
         BIGSERIAL id PK
@@ -145,6 +147,7 @@ erDiagram
 | `chk_reservation_times` | check | `CONSTRAINT chk_reservation_times CHECK (end_time >= start_time)` | [001_init.sql:1352](../../../backend/migrations/001_init.sql#L1352) |
 | `excl_appointments_doctor_timerange` | exclude | `CONSTRAINT excl_appointments_doctor_timerange     EXCLUDE USING gist (         clinic_id WITH =,         doctor_id WITH =,         tstzrange(start_time, end_time, '[)') WITH &&     )     WHERE (deleted_at IS NULL AND status <> 'cancelled' AND doctor_id IS NOT NULL)` | [001_init.sql:4592](../../../backend/migrations/001_init.sql#L4592) |
 | `uq_appointments_id_clinic` | unique | `CONSTRAINT uq_appointments_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:5736](../../../backend/migrations/001_init.sql#L5736) |
+| `appointments_revisit_intake_generation_check` | check | `CHECK (revisit_intake_generation > 0)` | [001_init.sql:7596](../../../backend/migrations/001_init.sql#L7596) |
 
 ## インデックス
 

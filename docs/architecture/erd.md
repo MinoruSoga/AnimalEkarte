@@ -1,23 +1,23 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全138テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
+> **目的**: 全141テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
 > **詳細**: [全カラム・全外部キーの詳細ERD](erd-detail/index.md) はマイグレーションから静的に生成する。型・NULL可否・複合FKの列順・削除動作・部分uniqueの述語をテーブル別に記録し、`python3 -B scripts/tools/generate-erd-detail.py --check` で更新漏れを確認できる。
 
-<!-- ERD:TABLE_COUNT=138 -->
+<!-- ERD:TABLE_COUNT=141 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（138テーブル。001〜038 を1ファイルへ統合済み。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
+> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（141テーブル。001〜038 を1ファイルへ統合済み。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
 ---
 
-## 1. データモデルの全体像 (全 138 テーブル)
+## 1. データモデルの全体像 (全 141 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 138 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 141 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -27,7 +27,7 @@
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `medical_record_image_deletions`, `clinical_plans`, `treatment_plans`, `treatments`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
 | **検査・予防 (29)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_devices`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings`, `lab_device_mapping_drafts`, `lab_device_mapping_draft_items`, `lab_device_mapping_specs`, `lab_device_mapping_generation` |
-| **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
+| **予約・シフト (15)** | `appointments`, `revisit_intake_targets`, `revisit_intake_answers`, `revisit_intake_submit_receipts`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
 | **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (4)** | `trimming_course_types`, `trimming_courses`, `trimming_options`, `trimming_image_deletions` |
 | **在庫 (1)** | `inventory_items` |
@@ -39,6 +39,16 @@
 ---
 
 `038_support_manual_search.sql` の2表は共有技術状態であり、臨床データではない。`support_manual_embeddings` は本文・質問・スタッフ詳細を保持しない派生キャッシュ、`support_llm_budgets` は `(scope, model)` ごとの次回許可時刻を保持するquota状態で、両表に `clinic_id` 列は置かない。
+
+## EMR-460 S1：予約ペット別の飼主原文保存基盤
+
+ユーザー承認に基づき001へ3表と `appointments.revisit_intake_generation` だけを追加。S2のカルテ参照列、API/UI、共通gateと関連writer参加は未実装。旧baselineのchecksumは自動補修せず拒否する。既存/共有DBの保全・適用は別承認で、本差分の公開を適用済みとは扱わない。
+
+対象は医院・予約・pet・世代。pet実変更で世代増分、日時変更では保持。回答はtarget内連番で追記し、通常UPDATE/DELETE不可。最新はMAX(revision)から導出する。submit receiptは認証主体scope＋UUIDキーに結び付け、回答INSERTと同じTXのtriggerで成功を確定する。専用原文監査sinkは不変answerとreceiptであり、既存staff/system監査へLINE本人を偽装しない。FKはRESTRICT、取消/soft-deleteで履歴を消さない。RLSはENABLEのみでアプリの医院/患者/本人認可を代替しない。
+
+`inquiries`・プロフィール・顧客JSONからのbackfillなし、原文seedなし。世代1は新機構の初期値で、旧回答の存在や旧対象変更履歴を証明しない。未回答はanswer0件。DB guardは現在pet/世代・受付後/取消後の新回答拒否、連番/immutable/receipt原子性を検査するが、token認証・患者grant・期待回答版・hash一致・成功再送のread応答はconsumer責務。機能利用開始は関連writerとreaderの接続・認可/競合/再送検証後。
+
+隔離PostgreSQLでの検証結果と限界はPRの検証欄を参照。既存DB・STG/本番・実データは今回未検証。
 
 ## 2. 主要リレーション（抜粋・Mermaid）
 
@@ -67,6 +77,13 @@ erDiagram
     pets ||--o{ estimates : "(clinic_id, pet_id)"
     appointments ||--o{ medical_records : "(appointment_id, clinic_id)"
     medical_records ||--o{ appointments : "(source_medical_record_id, clinic_id) (次回予定の元のカルテ)"
+    appointments ||--o{ revisit_intake_targets : "(appointment_id, clinic_id) / target generation"
+    pets ||--o{ revisit_intake_targets : "(clinic_id, pet_id) historical target"
+    revisit_intake_targets ||--o{ revisit_intake_answers : "(clinic_id, target_id) / append revision"
+    line_customers ||--o{ revisit_intake_answers : "(author_customer_id, clinic_id)"
+    owners ||--o{ revisit_intake_answers : "(clinic_id, author_owner_id_at_submit)"
+    revisit_intake_submit_receipts ||--o| revisit_intake_answers : "(clinic_id, author_customer_id, operation_key)"
+    revisit_intake_answers o|--|| revisit_intake_submit_receipts : "(clinic_id, result_answer_id) nullable before success"
     appointments ||--o| appointment_trimming_details : "(appointment_id, clinic_id)"
     appointments ||--o{ appointment_trimming_options : "(appointment_id, clinic_id)"
     billings ||--o{ billing_items : "billing_id"
