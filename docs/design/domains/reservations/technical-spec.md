@@ -709,3 +709,14 @@ IR-11は既存writer一覧を出発点に実route/DTO/生成型/DDL・旧client�
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+<a id="booked-duration-storage-20261019"></a>
+## 採用時間の保存（EMR-448/452 案・2026-10-19・確定001整合）
+
+予約時に採用したコース／オプション時間の保存構造は、確定001が既に持つ`trimming_booking_revisions`（appointment_id／pet_id／revision／course_id＋course_version＋course_duration_minutes／rule_set_id＋rule_set_version／total_duration_minutes／option_count／recorded_by）と`trimming_booking_revision_options`（booking_revision_id／option_id／option_version／duration_minutes）を正本とする。appointmentsへ新列を追加せず、既存`start_time`／`end_time`（CHECK end_time >= start_time）に保存時点の採用値を確定保存する。
+
+マスタ時間の改定は新規予約から適用し、既存予約の採用値・開始／終了を自動更新しない。旧予約の欠落値を現在マスタから推測生成しない（AC-reservations-booked-duration-snapshotどおり）。option_countとbooking_revision単位のoption一意性が1option1回の固定根拠となる。
+
+合算は区分＋コース＋オプション（revisionのduration適用後）の合計で、固定例は区分30＋コース60＋オプション10＋オプション0 → 終了=開始+70分。オプション0分は明示0として扱う。区分時間の採用はreservation_type側の契約を維持する。
+
+未実装なのはコード層（BE model・service・wire・FE）であり、EMR-457/458/461の実装対象。候補であり実装・実機未確認。区分時間のマスタ改定適用はreservation_type契約（本書既存節）に従う。

@@ -185,3 +185,14 @@ AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時�
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+<a id="trimming-course-option-relation-20261019"></a>
+## コース×オプション対応と内包識別（EMR-458 案・2026-10-19・確定001整合）
+
+コース別オプションの許可集合・内包施術の識別・所要時間は、確定001が既に持つ次のテーブル群を正本として実装する（新テーブルの追加は不要）。
+
+- `trimming_option_rule_sets`（course_id NULL可・contract_version付き）＋`trimming_option_rules`（rule_set×optionの許可集合）: コース別オプション対応とルールの収容先。course_id NULLは全コース共通ルール
+- `trimming_course_included_services`（course_id×service_identity_id）: コース内包施術の識別。内包の判定はコースNULLではなく本表の参照で行う
+- `trimming_service_identities`: 施術の同一性参照
+
+未実装なのはコード層（Go model／DTO／service／FE builder）であり、EMR-458の実装対象はこれら既存テーブルの読み書きを各層へ新設することである。1option1回・二重選択防止は利用側writerの契約（コース/options検証のtx内SHARE lock再検査を流用）とし、予約時点への採用は[採用時間の保存](../reservations/technical-spec.md#booked-duration-storage-20261019)の契約に従う。trimming_optionsとservice_identityの接続確認、rule_setsのcourse_id NULL運用の実装差は実装調査事項。候補であり実装・実機未確認。

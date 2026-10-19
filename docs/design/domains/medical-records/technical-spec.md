@@ -665,3 +665,16 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+<a id="doctor-confirm-gate-and-price-ack-20261019"></a>
+## 医師確認 gate と金額了承の保存形態（EMR-452/462 案・2026-10-19）
+
+医師確認と会計確定の接続は2段で設計する。
+
+第1段（最小 gate）: Complete（`POST /v1/accountings/complete`）の前提条件に既存`billing_confirmations.status`の医師確認状態を追加する。確認前は確定・精算を停止し、確認前の準備操作と未確定表示は可（AC-accounting-before-doctor-review）。新テーブル・汎用version/operation基盤は新設しない。
+
+金額了承の保存正本は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key一意・acknowledged_by/at）と`billing_change_events`（intent別のbefore/after・reason）を使用し、新設しない。確定001に両テーブルは存在済み。金額変更と臨床数量変更は別intentとして分離し、確認後の金額変更は再確認を要求する。臨床数量変更が医師確認版を無効化する範囲は受入条件で固定する。
+
+固定期待値: 確認前Complete→拒否／確認後の金額変更→再確認必要／確認準備・未確定表示は可。billing_itemsの行版（line_version）は確定001済み。
+
+候補であり実装・実機未確認。会計側のComplete経路の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ掲載する。
