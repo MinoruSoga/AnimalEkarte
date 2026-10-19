@@ -115,11 +115,10 @@ SELECT format('DROP VIEW IF EXISTS public.%I CASCADE', viewname)
   FROM pg_views WHERE schemaname = 'public' \gexec
 SELECT format('DROP SEQUENCE IF EXISTS public.%I CASCADE', sequencename)
   FROM pg_sequences WHERE schemaname = 'public' \gexec
+SELECT format('DROP EXTENSION IF EXISTS %I CASCADE', extname)
+  FROM pg_extension WHERE extname IN ('pg_trgm', 'btree_gist') \gexec
 SELECT format('DROP TYPE IF EXISTS public.%I CASCADE', typname)
   FROM pg_type WHERE typtype = 'e' AND typnamespace = 'public'::regnamespace \gexec
-SELECT format('DROP FUNCTION IF EXISTS %s CASCADE', p.oid::regprocedure)
-  FROM pg_proc p
- WHERE p.pronamespace IN ('public'::regnamespace, 'app_private'::regnamespace) \gexec
 SQL
 
 EXTRA_ENV=()
