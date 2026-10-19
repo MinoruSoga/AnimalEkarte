@@ -212,6 +212,7 @@ def export(args: argparse.Namespace) -> None:
             ),
         )
         rows = table_count(env, table)
+        csv_path.chmod(0o600)
         tables.append(
             {
                 "name": table,
