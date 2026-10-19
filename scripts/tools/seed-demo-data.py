@@ -809,6 +809,40 @@ def create_clinical_extras(client: ApiClient, state: State, ids: dict[str, dict[
         state.created.append({"kind": "trimming", "id": int(trimming["id"]), "name": "【デモ】トリミング"})
         print(f"created trimming: #{trimming['id']}")
 
+    hospitalization_payload = {
+        "owner_id": int(record["owner_id"]),
+        "pet_id": pet_id,
+        "hospitalization_type": "hospitalization",
+        "start_date": datetime.combine(today, datetime.min.time()).replace(hour=9, tzinfo=JST).isoformat(),
+        "end_date": datetime.combine(today + timedelta(days=3), datetime.min.time()).replace(hour=9, tzinfo=JST).isoformat(),
+        "status": "admitted",
+        "doctor_id": doctor_id,
+        "memo": f"{RUN_TAG} synthetic hospitalization",
+        "owner_request": "【デモ】入院希望",
+    }
+    code, body = client.request("POST", "/api/v1/hospitalizations", hospitalization_payload)
+    if code not in (200, 201):
+        print(f"warning: hospitalization not created: HTTP {code} {str(body)[:200]}")
+    else:
+        data = body.get("data") if isinstance(body, dict) and isinstance(body.get("data"), dict) else body
+        hospitalization_id = int(data["id"])
+        state.created.append(
+            {
+                "kind": "hospitalization",
+                "id": hospitalization_id,
+                "name": "【デモ】入院",
+                "retained": True,
+            }
+        )
+        for item in state.created:
+            if item["kind"] == "owner" and item["id"] == int(record["owner_id"]):
+                item["retained"] = True
+            if item["kind"] == "pet" and item["id"] == pet_id:
+                item["retained"] = True
+            if item["kind"] == "reservation" and item.get("pet_id") == pet_id:
+                item["retained"] = True
+        print(f"created hospitalization: #{hospitalization_id} (retained as history on cleanup)")
+
 
 def seed_scenario(client: ApiClient, state: State, ids: dict[str, dict[str, int]]) -> None:
     reservations = [row for row in state.created if row["kind"] == "reservation"]
@@ -844,6 +878,16 @@ def cleanup(client: ApiClient, state: State) -> None:
             print(f"FAIL cleanup: checkup #{checkup['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
         else:
             print(f"deleted checkup: #{checkup['id']}")
+    for hospitalization in [row for row in state.created if row["kind"] == "hospitalization"]:
+        code, body = client.request(
+            "PATCH",
+            f"/api/v1/hospitalizations/{hospitalization['id']}",
+            {"status": "discharged"},
+        )
+        if code not in (200, 204):
+            print(f"WARN cleanup: hospitalization #{hospitalization['id']} not discharged: HTTP {code} {str(body)[:120]}")
+        else:
+            print(f"discharged hospitalization: #{hospitalization['id']} (retained as history)")
     for billing in [row for row in state.created if row["kind"] == "billing"]:
         code, body = client.request("POST", f"/api/v1/accountings/{billing['id']}/cancel")
         if code not in (200, 204, 404, 409):
@@ -864,7 +908,10 @@ def cleanup(client: ApiClient, state: State) -> None:
     reservation_ids = {
         row["id"] for row in state.created if row["kind"] == "reservation"
     }
-    pet_ids = {row["id"] for row in state.created if row["kind"] == "pet"}
+    pet_ids = {
+        row["id"] for row in state.created
+        if row["kind"] == "pet" and not row.get("retained")
+    }
     for pet_id in sorted(pet_ids):
         code, body = client.request(
             "GET",
@@ -909,7 +956,8 @@ def cleanup(client: ApiClient, state: State) -> None:
     order = ["reservation", "shift", "vaccination", "exam", "trimming", "pet", "owner", "diagnosis_name", "chief_complaint", "diagnosis_type", "procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "trimming_course", "reservation_type_group"]
     resources = [
         row for row in state.created
-        if row["kind"] not in {"staff_capability", "billing", "estimate", "checkup"}
+        if row["kind"] not in {"staff_capability", "billing", "estimate", "checkup", "hospitalization"}
+        and not row.get("retained")
     ]
     failures = []
     for kind in order:
@@ -998,7 +1046,7 @@ def main() -> None:
     finally:
         state.save(state_path)
     print(f"state: {state_path}")
-    print("W3b-2 (vaccination / checkup / exam / trimming) applied; hospitalization / inventory movements remain.")
+    print("W3b-3 applied; the hospitalization scenario is retained on cleanup. Inventory movements are not seeded (no movement API).")
 
 
 if __name__ == "__main__":
