@@ -22,6 +22,12 @@
 
 ---
 
+## Spec Kit routing
+
+For feature-change requests (new capability or behavior change), check whether `docs/work/spec-kit/<feature>/spec.md` exists for the change. If not, invoke `$speckit-specify` first (`SPECIFY_FEATURE_DIRECTORY=docs/work/spec-kit/<meaningful-name>`), then `$speckit-clarify` before planning. Bug fixes, docs-only edits, and existing scoped Plane tickets do not require this. Skill invocation is not implementation permission; Plane remains execution SoT. Operating procedure: [spec-kit.md](../docs/ops/spec-kit.md).
+
+---
+
 ## 🔧 Mandatory Operational Rules
 
 - **Docker Required**: npm/go commands prohibited locally. Use verified containers or isolated Docker runners bound to the target worktree
