@@ -12,7 +12,8 @@ import (
 // IterateParagraphs は記事本文（frontmatter 除去・フェンス内 # 非見出し）を
 // 段落単位で fn へ渡す。fn が false または ctx 終了で打ち切る。
 func IterateParagraphs(ctx context.Context, article CorpusArticle, fn func(heading, paragraph string) bool) {
-	_, _, _, _, body := ParseFrontmatter(article.Body)
+	// EMR-438: Body は正規化済み本文のため再パースしない（chunk_iter.go の EMR-438 参照）。
+	body := article.Body
 	var headingStack []string
 	var paragraph strings.Builder
 	fenceMarker := ""

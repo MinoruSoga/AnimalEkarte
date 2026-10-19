@@ -91,13 +91,21 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
       setLot4(item.lot4);
       setNextDateRaw(item.nextDate);
       // EMR-430: 複製するのは次回予定日だけで実施日は複製しない。写した次回予定日と
-      // 現在の間隔が食い違ったまま表示・保存されないよう、間隔を再判定する
-      // （実施日が無いので日付からは判定できず、次回予定日があるときだけ「以外（手動）」になる）。
-      // 次回予定日が無い記録では間隔を変えない。
+      // 現在の間隔が食い違ったまま表示・保存されないよう、間隔を再判定する。
+      // EMR-438: 再判定の基準は複製元の実施日（空 baseDate だと常に「以外（手動）」に
+      // 落ち、写した次回予定日が新しい実施日入力後も残って backend 拒否や誤リマインダ
+      // の原因になる — Codex P2）。間隔が解決できない（手動）場合は旧実施日基準の
+      // 次回予定日を残さない。
       if (item.nextDate) {
-        setNextScheduleTypeRaw(
-          resolveScheduleTypeAfterManualDate("", nextScheduleType, item.nextDate),
+        const resolvedType = resolveScheduleTypeAfterManualDate(
+          item.date,
+          nextScheduleType,
+          item.nextDate,
         );
+        setNextScheduleTypeRaw(resolvedType);
+        if (resolvedType === "other") {
+          setNextDateRaw("");
+        }
       }
       setRemarks(item.remarks);
     },

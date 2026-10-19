@@ -34,6 +34,8 @@ func TestChunkReconstruction_NoLostRunes(t *testing.T) {
 }
 
 func TestChunkFencePreservesHashAndBlankLines(t *testing.T) {
+	// EMR-438: Body は正規化済み本文（frontmatter は BaseCorpusArticleFromMarkdown のみで
+	// 剥ぐ）。`---` で始まる有効な Markdown 本文は metadata 誤認識せずそのまま保持する。
 	body := "---\ntitle: X\n---\npara1\n\n```\n# not heading\n\nline2\n```\nafter"
 	a := CorpusArticle{Category: "screens", Slug: "s2", Title: "t", Body: body, Hash: "h"}
 	chunks, err := ChunkArticle(a)
@@ -48,8 +50,8 @@ func TestChunkFencePreservesHashAndBlankLines(t *testing.T) {
 	if !strings.Contains(all.String(), "# not heading") {
 		t.Fatalf("heading inside fence dropped: %q", all.String())
 	}
-	if strings.Contains(all.String(), "title: X") {
-		t.Fatalf("frontmatter leaked")
+	if !strings.Contains(all.String(), "title: X") {
+		t.Fatalf("valid markdown section dropped by frontmatter reparse: %q", all.String())
 	}
 }
 

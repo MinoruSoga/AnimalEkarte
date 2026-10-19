@@ -13,7 +13,10 @@ import (
 // 辞書データ（stopwords/suffixes/synonym_groups）は search_dict.go に
 // 人間実行 codegen で生成される（FE search-dict.json が正本）。
 
-var searchTokenSplitRe = regexp.MustCompile(`[\s、。，．！？!?,・「」『』（）()【】.:;のをにがはでとへもや]+`)
+// EMR-438: JS \s（chat-context.ts の分割契約）に合わせ Unicode 空白（U+3000 全角
+// スペース等）も分割対象にする。Go の \s は ASCII のみのため、全角スペース入りの
+// クエリが keyword-only モードで 1 語句扱いになり誤応答する問題への対応。
+var searchTokenSplitRe = regexp.MustCompile(`[\s\p{Zs}\x{2028}\x{2029}\x{FEFF}、。，．！？!?,・「」『』（）()【】.:;のをにがはでとへもや]+`)
 
 var searchSuffixRe = func() *regexp.Regexp {
 	quoted := make([]string, len(searchDictSuffixes))

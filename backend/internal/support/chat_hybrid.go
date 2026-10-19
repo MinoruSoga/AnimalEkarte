@@ -35,7 +35,6 @@ const (
 	chatFallbackSourceLimit  = 3
 )
 
-var candidateSlugRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$`)
 var revisionHexRe = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 var errNotGranted = errors.New("llm budget not granted")
@@ -109,8 +108,10 @@ func parseHybridChatRequest(c *gin.Context) (*hybridChatRequest, error) {
 	}
 	seen := map[string]struct{}{}
 	for _, cnd := range out.KeywordCandidates {
+		// EMR-438: slug は upsert 契約（非空・100バイト以下）のみ要求する。
+		// charset で絞ると DB 記事の日本語 slug 等が keyword 検索候補から漏れる。
 		if !model.IsValidManualCategory(cnd.Category) || len(cnd.Category) > chatCandidateFieldMaxLen ||
-			len(cnd.Slug) > chatCandidateFieldMaxLen || !candidateSlugRe.MatchString(cnd.Slug) {
+			cnd.Slug == "" || len(cnd.Slug) > chatCandidateFieldMaxLen {
 			return nil, apperrors.WrapInvalidInput("invalid keyword candidate")
 		}
 		key := cnd.Category + "/" + cnd.Slug
@@ -156,8 +157,9 @@ func (h *Handler) runHybridChat(c *gin.Context, clinicID, staffID uint64) {
 			return
 		}
 		for _, item := range req.Context {
+			// EMR-438: keyword candidates と同じ slug 契約（非空・長さ上限のみ）。
 			if !model.IsValidManualCategory(item.Category) || len(item.Category) > chatCandidateFieldMaxLen ||
-				len(item.Slug) > chatCandidateFieldMaxLen || !candidateSlugRe.MatchString(item.Slug) {
+				item.Slug == "" || len(item.Slug) > chatCandidateFieldMaxLen {
 				httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid context item"))
 				return
 			}
@@ -317,8 +319,14 @@ func (h *Handler) runHybridChat(c *gin.Context, clinicID, staffID uint64) {
 	contextItems := make([]chatContextItem, 0, len(selected))
 	for _, ch := range selected {
 		a := articleByID[ch.ArticleID]
+		// EMR-438: 見出しで証拠に一致した chunk の LLM コンテキストに見出しを含める
+		// （keyword/embedding は Heading を見ているが Body のみだと操作的文脈が欠ける）。
+		text := ch.Body
+		if ch.Heading != "" {
+			text = ch.Heading + "\n" + ch.Body
+		}
 		contextItems = append(contextItems, chatContextItem{
-			Title: a.Title, Category: a.Category, Slug: a.Slug, Text: ch.Body,
+			Title: a.Title, Category: a.Category, Slug: a.Slug, Text: text,
 		})
 	}
 	// 実際に外部へ送る本文（解決済みチャンク）のみ screen — 送信はしない。

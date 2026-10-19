@@ -53,6 +53,8 @@ const TreatmentSearchDialog = lazy(() =>
 );
 
 const DECEASED_BILLING_MESSAGE = "死亡したペットの会計確認は変更できません";
+// EMR-438: 確定済み等で書き込みがブロックされたカルテの明細操作へのフィードバック。
+const LOCKED_BILLING_MESSAGE = "確定済みのカルテは会計確認を変更できません";
 
 interface BillCheckProps {
   isNewRecord?: boolean;
@@ -226,6 +228,11 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         toast.error(DECEASED_BILLING_MESSAGE);
         return;
       }
+      // EMR-438: 確定済み等の書き込みブロックは行編集にも適用する（Codex P2）。
+      if (isWriteBlocked) {
+        toast.error(LOCKED_BILLING_MESSAGE);
+        return;
+      }
       if (!canEdit) return;
       const target = treatments.find((t) => Number(t.id) === id);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
@@ -247,7 +254,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
       updateTreatment({ treatmentId: String(id), input });
     },
-    [canEdit, isPetDeceased, treatments, updateTreatment],
+    [canEdit, isPetDeceased, isWriteBlocked, treatments, updateTreatment],
   );
 
   const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId, recordClinicId);
@@ -258,10 +265,15 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         toast.error(DECEASED_BILLING_MESSAGE);
         return;
       }
+      // EMR-438: 確定済み等の書き込みブロックは削除にも適用する（Codex P2）。
+      if (isWriteBlocked) {
+        toast.error(LOCKED_BILLING_MESSAGE);
+        return;
+      }
       if (!canDelete) return;
       deleteTreatmentFn(String(id));
     },
-    [canDelete, deleteTreatmentFn, isPetDeceased],
+    [canDelete, deleteTreatmentFn, isPetDeceased, isWriteBlocked],
   );
 
   // rerender-memo: TreatmentTable は memo。onOpenSearch を inline arrow で
@@ -417,9 +429,11 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
               onUpdate={handleUpdateItem}
               onRemove={handleRemoveItem}
               onOpenSearch={
-                canEdit && !isConfirmed && !isPetDeceased ? handleOpenSearch : undefined
+                canEdit && !isConfirmed && !isPetDeceased && !isWriteBlocked
+                  ? handleOpenSearch
+                  : undefined
               }
-              disabled={isConfirmed || isPetDeceased || (!canEdit && !canDelete)}
+              disabled={isConfirmed || isPetDeceased || isWriteBlocked || (!canEdit && !canDelete)}
             />
           </div>
         </div>
