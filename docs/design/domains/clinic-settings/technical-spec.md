@@ -28,4 +28,4 @@
 - 必須の履歴／監査があるwriteは対応する既存ownerの原子的保存契約へ接続する。全CUDに同一audit要件があるとは仮定しない。
 - UI表示／API拒否／DB保存／外部送信の成功は別々に確認し、ソース静的照合だけで実機PASSにしない。
 - staff/account付与・医院新規・group新規等の送信後結果不明は、成功と失敗を推測せず対象ID／操作識別子・現在状態を照会する。receipt対応がなく照合不能なら停止し、同じcreateを無条件に再送しない。C05の保存・監査正本に接続し、既存APIに未対応のidempotency機能があるとは主張しない。
-- 19-clinic-settingsのscope=allの旧説明はarchitecture/auth §4.10に反する。非system_adminは所属院のみ、system_adminは全院という最新正本へ説明を修正する。新たな実権限付与は不要。
+- [19-clinic-settingsのAPI連携説明](../../../spec/screens/19-clinic-settings.md#api連携)は、非system_adminは所属院のみ、system_adminは全院という[認可正本 §4.10](../../../architecture/auth.md)へ訂正済み。説明訂正を未完の残件として扱わず、新たな実権限付与は不要。文書の一致はAPI認可・実権限・実機検証の完了を意味しない。
