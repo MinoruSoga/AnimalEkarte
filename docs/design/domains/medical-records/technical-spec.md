@@ -667,17 +667,15 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
 
 <a id="doctor-confirm-gate-and-price-ack-20261019"></a>
-## 医師確認 gate と金額了承の保存形態（EMR-452/462 案・2026-10-19）
+## 医師確認gateと金額了承：本人決定と最終DDLへの接続
 
-医師確認と会計確定の接続は2段で設計する。
+本人の確定回答と最終001を優先する。`billing_confirmations.status`を残してCompleteへ追加する旧「最小gate」案は失効しており、最終DDLで廃止された表・モデルを復活させない。調査コメントへの旧案再掲を回答撤回や採用根拠にしない。
 
-第1段（最小 gate）: Complete（`POST /v1/accountings/complete`）の前提条件に既存`billing_confirmations.status`の医師確認状態を追加する。確認前は確定・精算を停止し、確認前の準備操作と未確定表示は可（AC-accounting-before-doctor-review）。新テーブル・汎用version/operation基盤は新設しない。
+医師確認の保存形状は既存`doctor_review_sets`・`doctor_review_records`と`billings.doctor_review_set_id`へ対応させる。Complete（`POST /v1/accountings/complete`）の前提では、医院・会計・対象カルテ集合と、確認時／現在の臨床世代・digestの整合を照合する。表の存在や参照IDだけを現在有効な医師確認の証明にしない。確認前・確認不明／失効時は請求確定・精算を停止し、確認前の準備操作と金額未確定表示は可（AC-accounting-before-doctor-review）。具体的な接続・transaction参加・全writer適合は後続実装で確認し、今回新しいDDLやoperation基盤を設けない。
 
-金額了承の保存正本は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key一意・acknowledged_by/at）と`billing_change_events`（intent別のbefore/after・reason）を使用し、新設しない。確定001に両テーブルは存在済み。金額変更と臨床数量変更は別intentとして分離し、確認後の金額変更は再確認を要求する。臨床数量変更が医師確認版を無効化する範囲は受入条件で固定する。
+金額了承は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key・acknowledged_by/at）と`billing_change_events`（intent別before/after・reason）へ接続する。**確認後の金額変更は警告了承で可能、医師再確認は不要**。薬剤・処置の追加削除や数量変更は別intentとし、医師再確認まで確定・精算を停止する。会計から治療プランを自動書換えせず、医師が差分を確認して必要な修正を行う既決境界を維持する。
 
-固定期待値: 確認前Complete→拒否／確認後の金額変更→再確認必要／確認準備・未確定表示は可。billing_itemsの行版（line_version）は確定001済み。
-
-候補であり実装・実機未確認。会計側のComplete経路の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ掲載する。
+受入は「確認前Completeは拒否」「確認後の金額変更だけなら警告了承・医師再確認なし」「薬剤処置追加削除／数量変更は再確認まで停止」「準備操作・金額未確定表示は可」を分ける。billing_items.line_version等の保存形状は存在するが、今回のモデル整合をgate・各writer・画面の実装／実機合格と扱わない。会計側の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ対応させる。
 
 ## EMR-368／452の後続実装境界
 

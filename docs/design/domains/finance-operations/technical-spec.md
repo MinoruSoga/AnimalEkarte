@@ -343,4 +343,4 @@ preview版を出力時にも照合し、版変化は再取得、0件確認は空
 <a id="doctor-confirm-gate-20261019"></a>
 ## 医師確認 gate と金額了承の設計接続（EMR-462 案・2026-10-19）
 
-Complete経路の前提条件へ`billing_confirmations.status`の医師確認状態を追加する第1段gate、および金額了承の保存正本（`billing_price_acknowledgements`＋`billing_change_events`を新設せず使用・billing_itemsはline_version済み）の契約は[medical-records側](../medical-records/technical-spec.md#doctor-confirm-gate-and-price-ack-20261019)を正本として接続する。金額変更と臨床数量変更の分離、確認後の金額変更に対する再確認要求、固定期待値も同節に従う。候補であり実装・実機未確認。
+Completeの医師確認gateは[medical-records側の本人決定・最終DDL接続](../medical-records/technical-spec.md#doctor-confirm-gate-and-price-ack-20261019)へ従う。廃止済み`billing_confirmations.status`を残す旧最小gate案は使用せず、`doctor_review_sets`・`doctor_review_records`・会計の確認参照と現在の対象集合／臨床世代を照合する。金額了承は既存`billing_price_acknowledgements`＋`billing_change_events`へ接続する。確認後の金額変更は警告了承で可能・医師再確認不要とし、薬剤処置追加削除／数量変更は医師再確認まで請求確定・精算を停止する。確認前の準備／金額未確定表示は可。会計からプランを自動書換えしない。旧調査案の再掲は本人回答の撤回ではない。保存形状の存在をComplete・全writer・画面の実装／実機合格とせず、API／業務処理・DDLは今回変更しない。

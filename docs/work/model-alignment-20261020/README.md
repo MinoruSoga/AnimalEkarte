@@ -1,6 +1,6 @@
 # EMR-445：仕様回答と最終migrationへのモデル整合
 
-基準SHA `7f164f8a71baf5bfb23207ddce5b3049939e81a3`。PR #727はmerge済み（merge SHA `81b9f076f6d592b6003a1b8589bbc06843bde65d`）で、未mergeを作業条件にしていない。専用branch `docs-models/emr445-followup-20261020`、専用worktreeを使用。共有mainと他の既存作業は変更しない。今回の成果は未commitの文書・モデル差分であり、公開・利用開始・実機合格の報告ではない。
+基準SHA `7f164f8a71baf5bfb23207ddce5b3049939e81a3`。PR #727はmerge済み（merge SHA `81b9f076f6d592b6003a1b8589bbc06843bde65d`）で、未mergeを作業条件にしていない。専用branch `docs-models/emr445-followup-20261020`、専用worktreeを使用。共有mainと他の既存作業は変更しない。本書はローカル修正・静的確認の記録で、公開状態は[PR #729](https://github.com/MinoruSoga/AnimalEkarte/pull/729)で追跡する。公開を利用開始・実機合格の証拠にはしない。
 
 ## レビューする成果物
 
@@ -65,3 +65,7 @@ Plane本文/最新コメントをread-onlyで確認した。下記は2026-10-19�
 既存DBのchecksum guardを回避せず、resetや切替の許可は推定しない。現行システムとの計算同等性は未確認なので、条件付きのSTG制約緩和の成立も未確認。本番過去取引・発行物、医院/飼主/pet/staff境界、原文の不変履歴、認可・write owner・監査/operation receiptの契約を維持する。今回の保存型定義から実装や権限成立を推定しない。
 
 共有checkoutは最終読取時点で別作業の `feat/emr-465-inactive-payment-gate` と未commitのbilling変更を持っていた。今回の専用worktreeとは分離されており、これらの差分には触れていない。
+
+## 旧調査案の再掲に対する追加照合
+
+本人回答の撤回ではない旧調査コメントの再掲と照合した結果、カルテ設計とリンク先の財務設計に、廃止billing_confirmationsを残す最小Complete gateと、金額変更時に医師再確認を求める旧文が残っていた。2文書だけを訂正し、最終001のdoctor_review_sets/doctor_review_recordsと現在の対象集合・臨床世代の照合へ接続。金額だけの変更は警告了承で可・医師再確認不要、薬剤処置追加削除/数量変更は再確認まで確定精算停止という本人決定を維持した。API/業務処理/DDLの実装は追加していない。別担当が局所修正と4決定の維持を再読確認した。既存文書の変更対象は、この直接のリンク先1件を加えて18件である。

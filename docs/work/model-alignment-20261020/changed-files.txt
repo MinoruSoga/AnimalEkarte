@@ -101,6 +101,7 @@ docs/architecture/erd-detail/index.md
 docs/architecture/erd-detail/manifest.json
 docs/architecture/erd.md
 docs/design/domains/accounting/technical-spec.md
+docs/design/domains/finance-operations/technical-spec.md
 docs/design/domains/hospitalization/technical-spec.md
 docs/design/domains/medical-records/technical-spec.md
 docs/design/domains/reservations/technical-spec.md

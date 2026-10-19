@@ -1,10 +1,10 @@
 {
   "baseline": "7f164f8a71baf5bfb23207ddce5b3049939e81a3",
-  "changed_file_count": 124,
+  "changed_file_count": 125,
   "production_model_files": 97,
-  "existing_documentation_files": 17,
+  "existing_documentation_files": 18,
   "report_files": 10,
-  "local_links_checked": 267,
+  "local_links_checked": 269,
   "missing_targets": [],
   "static_checks": 30020,
   "static_errors": 0,
@@ -30,5 +30,11 @@
       "worst": "P2",
       "resolved_and_rereviewed": 2
     }
+  },
+  "follow_up_old_gate_review": {
+    "files": 2,
+    "obsolete_contract_corrected": true,
+    "independently_rereviewed": true,
+    "other_layer_changes": false
   }
 }
