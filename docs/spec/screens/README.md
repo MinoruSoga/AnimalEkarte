@@ -132,3 +132,7 @@ flowchart LR
 読む順：[全体仕様](../README.md) → 本索引または[88ルート対応](../ui-design-compliance.md) → 該当正本。[settings](settings/README.md)は共通マスタ・設定の入口。
 
 正本・状態：[決定状態と検証状態の規約](../authoring-guide.md#status)に従い、各節・FRの承認根拠と実装／実機状態を別に読む。READMEへの掲載・フォルダ配置は承認や実装済みを表さず、対象外の既存仕様を新たに確定しない。既存の別名入口・索引の責務は維持し、本書は案内を補う。
+
+## 10/19同種操作・検索方式の最新適用
+
+[共通FRと8受入条件](../shared/ui-contracts.md#interaction-consistency-20261019)・[対象/異用途台帳](../shared/interaction-scope.md)へ接続。同じ用途の実行/clear/保持/戻る/失敗を揃え、既存業務一覧・飼主pet選択のkeywordは検索ボタンで適用する。個別正本と台帳行を照合し、原則一文や共通部品だけで全画面適合としない。既存認可/取得範囲/自動保存・異用途の境界を維持する。

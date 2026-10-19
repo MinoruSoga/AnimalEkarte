@@ -183,3 +183,9 @@ write権限を持たず、device mountとprivileged accessを持たないこと�
 - [ ] CLI引数によるソース除外・親overrideによるhook無効化が成立しないこと
 - [ ] hookタイムアウト・起動失敗・依存読み込み失敗時の挙動
 - [ ] 全agent実行ユーザー・runner・hook context（PostEdit含む）がraw device mount・privileged・write権限を持たないこと
+
+## ランタイム受入の再現票（REM-OPS-13）
+
+運用者は既存チェックリストの各行に、runtime/version、起動cwd、launcher、実効設定ソースとprecedence、読み込まれたhook、親overrideの有無、期待拒否、実際のhost応答を対応付ける。root直接、backend launcher、backend直接、空白を含むworktreeを別caseにする。設定・秘密値のdumpや実デバイスへの危険操作を試験に使わない。
+
+非危険fixtureによるparser/JSONのexit 2と、実tool呼出に対するhost拒否は別欄とする。hook未読込・依存欠落・timeout・起動失敗を拒否したかも個別記録する。shell/egress/raw device権限はOS・runnerの実効権限を別確認し、role manifestのread-only表示から推定しない。確認できない行はUNKNOWN、必要設定/環境が不足する行はBLOCKEDとする。証跡が揃うまで安全な実効拒否をPASSとしない。

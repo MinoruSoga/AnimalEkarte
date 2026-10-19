@@ -158,3 +158,26 @@ DC-C01：同key同内容の並行実行・成功後対象版変更・rollback後
 ## 2026-10-15会議4点の操作契約
 
 通常カルテの[自動保存・復元](../../spec/domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、[終了と型付き既存記録](../../spec/domains/reception/pages/reception-board.md#reception-meeting-start-end)、[施術料金のD10受渡し](../domains/accounting/technical-spec.md#accounting-trimming-adjustment-adapter)、[勤務一括入力](../domains/staff-workforce/technical-spec.md#shift-bulk-operation-contract)を別intentとして照合する。元対象ID・現在scope／権限・期待版・依存・操作ID／digest・成功receiptと実効current_stateを混同しない。結果不明では元操作を照会し、再送で新しい復元・終了・請求・勤務を二重作成しない。復元は当該タブ／複製の既知対象と基準に限定し、他者編集・別ownerの金銭／在庫／通知へ逆実行しない。具体API名・物理schema・実装適合は後工程だが、これらの意味契約は各owner本文へ定義する。
+
+
+<a id="remaining-design-evidence-20261019"></a>
+## 2026-10-19 残件の具体化と適合判定の入口
+
+基準main `563353287ebb08af55056e3fbfba2aca3531e599` の残作業は[文書対応の照合記録](../../work/docs-audit/docs-perfection/REMAINING-RESPONSE-20261019.md)へ接続する。各owner正本へ追補した資源・wire・列・一意性・移行adapterは内部候補で、既決業務やD01の既選定gate/schemaを置換しない。候補を採用したという記録、実API/DDLとの適合、実データ移行、実機の各状態を別々に記録する。
+
+臨床CL-R01、金銭FIN-R12、予約/受付IR-11はそれぞれのownerの更新経路を受け持つ。共通gateの証跡は再利用し、各ownerについて実symbol/版・認可・依存/監査/成功結果照会/reader/旧caller切替条件を埋める。今回の限定route/DTO読取を全writer参加の証明にはしない。未知入口・未対応旧writerを利用開始可にせず、実装工程で根拠と停止条件を明示する。
+
+未検証31項目は[環境・対象・操作・期待の引継ぎ](../../work/docs-audit/docs-perfection/REMAINING-VERIFICATION-20261019.md)へ。静的観察で旧挙動と目標の差を確認しても、文書をその旧挙動へ戻さない。実機/DB/外部送信/運用操作が未実施なら未検証のままとし、今回の文書対応をGo-live・法令適合の証拠にしない。
+
+<a id="cross-ui-search-adapter-20261019"></a>
+## 横断キーワード検索の状態・取得adapter（10/19）
+
+[業務FR/8AC](../../spec/shared/ui-contracts.md#interaction-consistency-20261019)と[適用台帳](../../spec/shared/interaction-scope.md)へ接続。clientはdraft keyword群、applied keyword群、独立filter/sort/page、医院/pet等のscope、要求世代、取得状態を分離する設計候補。検索actionだけでdraftをappliedへ移し、既存predicate adapterへ渡す。ローカル検索は取得済み集合＋appliedで評価し、server検索はappliedをquery/loaderへ。入力effect/debounceからの自動適用は目標にしない。全API/DTO/共通hookの新設や実装済みを意味しない。
+
+ページングがあるconsumerはapplied変更でpage1、pageのみ変更時はapplied維持。server page/取得上限/クライアントsubsetを変更しない。絞込み範囲ラベルや失敗状態はconsumerが明示し、`useDeferredValue`を使う場合もapplied由来の描画だけに使う。旧keywordが未適用入力と混じるquery keyを作らない。医院/pet/権限/世代とapplied/filter/pageをquery identityに含め、応答採用時に再照合する。
+
+消去入力とreset actionを別にし、resetの既存解除対象だけをdraft/appliedへ反映。URLを持つ画面はappliedだけを既存復帰条件へ、local-onlyは復帰時のapplied文脈を既存navigation ownerのstate等で保持する方式を実装時に選ぶ。新しい永続storageや全画面URL化は選定しない。メニュー初期値/日付例外/医院選択保持を維持する。戻る処理でdraftをfetchへ流さない。
+
+未取得/loading/success-empty/success-data/error/deniedを区別。errorで前回結果を残す場合は元条件を識別し、新条件成功のように扱わない。retryは現在認可下の同一applied read、write結果照会とは別。scope失効時は旧候補を操作不可にし、対象変更/失敗/未適用keyword不一致中の新候補確定を拒否。入力と結果の保持を、認可外データの保持公開へ使わない。
+
+Owner/pet特有のAND/カナ/空白等、D19 trim/min1/非page、マスタの取得済み集合、履歴の同一petと上限は各domain adapterへ残す。補完/項目候補Eは既存predicate/タイミングを継承する別consumer。各L/M/H/Sの8AC＋既存AC、N/Eの非回帰を照合し、共通部品だけの単体試験で全consumer合格にしない。実装変更・実機・全caller適合は未実施。

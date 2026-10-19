@@ -151,3 +151,24 @@ DC-V01：3様式の項目／配置・改頁・font、旧見本とのgolden比較
 | AC-vaccinations-type-color-record-scope | 認可された同一患者・接種のreadだけに適用し、前後の名称・実施日・次予定・履歴を保持する。記録writeをせず、独立画面・LINE・証明書の表示へ適用範囲を拡張しない。 | [正本](../../../spec/domains/vaccinations/lifecycle.md) |
 
 各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。
+
+<a id="vaccination-date-certificate-review-20261019"></a>
+## CL-R11／12：両入口の日付・証明専用経路の確認境界
+
+基準 `563353287ebb08af55056e3fbfba2aca3531e599`。カルテ内[追加hook](../../../../frontend/src/features/medical-records/hooks/use-medical-record-vaccination-form.ts)は初期1year候補、複製時の実施日clear、元実施日と現在間隔による再判定、other時のnextDate clearを持つ限定観察。独立[form model](../../../../frontend/src/features/vaccinations/hooks/use-vaccination-form-model.ts)は保存日／次回日を復元する別入口である。コード上の1yearや複製clearを新しい業務承認にしない。元実績を開く編集と、新しい接種を作る履歴複製は別caseで検査する。
+
+実装適合の比較表には、入口kind、create／edit／duplicate、元接種ID／版、種類設定の有無・取得状態、保存済み当時日、明示手入力、実施日変更後候補、送信next_date／next_schedule_type、保存再読取結果を置く。設定なし旧行、手入力、過去当時日、元間隔不明、取得失敗を別fixtureにし、旧値を黙ってclear・1year補完しない期待を正本へ結ぶ。新規複製を既存実績の無変更編集と同じ期待にせず、追加の優先順位や具体intervalを推定しない。臨床間隔承認と日付validation実装は別判定。
+
+CL-R12の限定検索はmedicalrecord route群とvaccinationsのroute／component範囲で証明書専用route／画面を確認できなかった。一般のexamination print-snapshotは証明書専用経路ではない。repository全体の不存在証明や専用実装済み判定はしない。
+
+固定版案の実装引継ぎ表は、採用済み3様式の項目→不変snapshot field→template版／field projection→golden fixture→出力receiptとする。通常縦横のLOT／E-Mail等の固有欄は別projectionで、snapshot欠落を現在共通情報から埋めない。初回発行、縦横切替、同版再印刷、基本情報変更、接種訂正commit、render／upload／監査失敗、応答断、artifact直参照の各行をDC-V01〜08へ対応付ける。訂正後新版render失敗でも旧版を復活させず、両順競合と物理印刷の記録を分離する。見本項目・配置を読取照合した証跡と、実描画golden／実印刷の証跡は別に必要で、今回後者は未実施。
+
+### CL-R12の保存済み見本照合証跡の再利用
+
+2026-10-19の文書再照合では、保存済みの独立原資料確認（元XLS SHA-256 `027572bcf6c83882b0d085872f05cd532d0ef79a6fb99bcb07fb97c390bf4e07`、3見本の全項目／配置・画像hash）を再利用し、[既存正本の見本対応表](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)と一致した。通常縦H127:K148、通常横F148:K158、狂犬病B235:F246は画像描画アンカーで、B162:B220の操作説明本文とは別。縦LOT.1〜4、横E-Mail、狂犬病に独立発行日欄がない差を保持する。項目／配置の文書照合は確認済みで、新しいpixel読解・描画golden・実印刷は実施していない。
+
+repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語・英語名で検索した範囲では、専用発行経路を特定できなかった。TLS設定・SMTP証明書test・生成マニュアル・運用証跡の一致を診療証明書実装と誤認しない。命名の異なる実装や未公開コード／実環境の不存在を証明する検索ではない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

@@ -94,3 +94,22 @@ CSV列・表現・上限等は[具体設計の残件](../../../spec/screens/24-s
 [業務・追加3AC](../../../spec/domains/staff-workforce/README.md#staff-source-adoption-20261015)が正本。職種／役職／雇用区分を独立したidentityまたは属性として保持し、人物・医院所属と認可roleを別に照合する。現DTOが単一分類しか持たない場合は対応済みとせず、移行時の分類対応・旧値由来を保持する。資料略称を推測展開しない。
 
 休業期間の判定は医院／人物と候補日時に対して行い、新規作成だけでなく変更・複製・CSV一括の既存サーバー検証へ接続する。期間変更と勤務／予約更新の競合を再照合し、衝突を黙って解消しない。日付境界・既存勤務衝突の応答は既存の医院時刻／勤務保護へ合わせる。取得失敗を休業なしと扱わない。履歴・前後値・操作者を保持し、アカウント無効化を副作用にしない。AC-staff-source-attributes／leave／returnの実装・移行・実機受入は未確認。
+
+
+<a id="staff-bulk-physical-adapter-candidates-20261019"></a>
+## 2026-10-19 複製・CSV・職員属性の内部候補
+
+IR-14/15の具体候補であり、列名・API・DDLの実装済み保証、追加grantやCSV利用者側形式の承認ではない。既選定の「一回の確認範囲全体を原子保存」「相対日付」「明示置換」「全体拒否」を維持する。
+
+| 対象 | 内部候補 | 失敗・移行・照会 |
+|:---|:---|:---|
+| 複製/CSV共通preview | parser出力を`ShiftBulkDraft{operation_kind,clinic_scope,source_snapshot_ref,rows:[{source_row,staff_ref,date,existing_shift_ref/expected_revision,shift_type,start,end,breaks,replace_confirmed}]}`へ正規化。source snapshotは選択時の元勤務/休憩を不変内容として参照し、元先重複でも変更済み先セルから連鎖copyしない。preview結果は差分digest・元/先の版/不存在・依存revision・エラー/予約衝突を返す | CSV文字コード/列/上限は利用者の実入力と照合する別技術設計。未知列/曖昧staff/同一file重複/不正形式は元行へ対応して拒否。空欄を削除命令にしない。元CSV全体の恒久保存/保持期間をここで選ばない |
+| 一括反映とreceipt | 候補`shift_bulk_operations`は医院/actor/intent/key・payload digest・preview digest・結果ref。確認済みrows全体を一つのambient txへ渡し、既存共通gate→必要staff-global/clinic-booking→staff/assignment→勤務/休憩等の正本順を守る | 既存単日APIの逐次commitは使わない。新規予約/他院勤務/所属/能力/休業変更のphantomも再検索。エラーなら全体rollback。応答断はoperation key照会、確定対象ID/版と現在状態を別返却。無条件再POST・無断正常行除外・自動補償削除なし |
+| 職員3属性 | 現OccupationIDを職種として保持し、候補position_ref/employment_category_refを別のnullable属性にする。参照表を使う場合もclinic scope・安定ID・表示名/旧元値由来を分ける。staff_typeは予約技術分類であり職種・役職・雇用や認可roleの代用にしない | 現staff DTO/modelのoccupation_id/staff_typeだけで3属性対応済みとはしない。旧略称の対応は出典付きmapping、unknownは未分類のまま。変更でrole/grant/capability/accountを自動変更しない |
+| 休業期間 | 候補`staff_leave_periods{clinic_id,staff_id,開始日,終了日,revision,元値由来}`。医院JST日付を勤務/指名候補日時へ解決し、既存の医院時刻・期間端点契約へ正規化。取得失敗を休業なしにしない | 作成・更新・copy・CSV・LINE候補すべてで現在期間を再照合。変更previewに既存勤務/保護予約を出し既存owner操作へ渡す。自動予約取消/退職/ログイン停止なし。復帰は同一staff/所属/履歴を保持し新勤務を作らない。期間端点の実表現と全caller適合は検証残件 |
+
+限定読取：`backend/internal/staff/staff_request.go`と`model/staff.go`はoccupation_id/staff_type・所属/能力と勤務/休憩を持つ。前者の読取範囲で独立役職/雇用/休業期間の入力は確認できない。`shift_entry_repository.go`のstaff/assignment lock、(staff,date)読取、既存break置換は再利用調査の起点で、一括原子保存対応済みの証拠ではない。12ACと追加3ACの実機結果は未取得。CSV上限・保持・期間端点等の内部選定を、職種/休業の業務採否の聞き直しへ変換しない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

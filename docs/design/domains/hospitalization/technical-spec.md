@@ -101,13 +101,13 @@ clinic＋hospitalization IDを滞在の内部参照とし、予約ref・通常me
 | FR-hospitalization-entry-and-start | AC-hospitalization-planned-not-started / AC-hospitalization-start-doctor / AC-hospitalization-start-failure / AC-hospitalization-two-entry-id / AC-hospitalization-context | 同一滞在ID／担当医・入院記録同時成功 |
 | FR-hospitalization-hotel-stay-capacity | AC-hospitalization-hotel-deduplicate / AC-hospitalization-hotel-overdue / AC-hospitalization-hotel-extension / AC-hospitalization-hotel-role | 予定／実滞在重複排除・全期間再判定・ホテル医師任意 |
 | FR-hospitalization-distinct-plans-and-records | AC-hospitalization-plan-immutable / AC-hospitalization-plan-add-change-stop / AC-hospitalization-plan-change-failure / AC-hospitalization-plan-change-boundary / AC-hospitalization-care-manual / AC-hospitalization-daily-independent | 原履歴保持のプラン追加・変更・中止／ケア・日次との分離／完了後専用訂正・副作用境界 |
-| FR-hospitalization-cage-allocation | AC-hospitalization-cage-null / AC-hospitalization-cage-stale / AC-hospitalization-merge-unknown | 期待ケージ検証・二件交換同一tx・占有不明停止 |
+| FR-hospitalization-cage-allocation | AC-hospitalization-cage-null / AC-hospitalization-cage-stale / AC-hospitalization-merge-unknown / AC-hospitalization-cage-available-select / AC-hospitalization-cage-current-retain / AC-hospitalization-cage-unknown-race | 期待ケージ検証・二件交換同一tx・占有不明停止 |
 | FR-hospitalization-discharge-and-billing | AC-hospitalization-discharge-no-bill / AC-hospitalization-discharge-atomic / AC-hospitalization-bill-source | 退院＋billing同一tx／明細source・取消元保持 |
 | FR-hospitalization-delete-and-preserve | AC-hospitalization-delete-dependency / AC-hospitalization-deceased / AC-hospitalization-deceased-record / AC-hospitalization-deceased-discharge | 親依存・新たな実施拒否／死亡状態保持の生前分専用記録・退院・精算 |
 | FR-hospitalization-special-correction | AC-hospitalization-correction-history / AC-hospitalization-correction-no-side-effects | 元ID／理由・actor履歴・同一操作照合 |
 | FR-hospitalization-hotel-manual-pricing | AC-hospitalization-manual-hotel-price / AC-hospitalization-cancel-no-auto-money | 個別確認料金／必要前金と実残高分離・自動課金なし |
 
-AC prefixはAC-hospitalization-。本文のFR8件／AC29件を扱う。D01の継承FR・ACは新規承認件数へ二重加算しない。独立レビュー済み候補（追加承認差分は再レビュー）であり、現行差分修正・人数等の未確認と訂正／料金の実装差分・全体横断X03/X06・実装／実機を完了としない。
+AC prefixはAC-hospitalization-。本文のFR8件／AC32件を扱う。D01の継承FR・ACは新規承認件数へ二重加算しない。独立レビュー済み候補（追加承認差分は再レビュー）であり、現行差分修正・人数等の未確認と訂正／料金の実装差分・全体横断X03/X06・実装／実機を完了としない。
 
 
 ## 追加承認の実装契約と保存境界
@@ -117,3 +117,31 @@ AC prefixはAC-hospitalization-。本文のFR8件／AC29件を扱う。D01の継
 専用訂正は元記録IDと対象医院を固定し、理由・変更差分・actor・時刻・原記録関連を保存する設計目標とする。保存時に対象・権限・現在版を再評価し、原記録保護と訂正履歴を一体で確定する。理由欠落・権限不足・版競合は原記録を変更せず拒否する。通信結果不明は同じ対象の結果を照合し、新しい訂正を追加して重複させない。成功・確定失敗・結果不明を区別し、入力を保持して同一操作として再送する。現行汎用PATCHの存在はこの専用契約への適合証拠ではなく、API/receipt/履歴・権限の実装確認が必要。訂正に金銭返却・在庫戻しを含めず、各所有領域の操作へ引き継ぐ。
 
 料金・必要前金・取消料の確認入力も同じ医院／滞在・予約／飼主を照合して保存する。必要額の保存とD10受領は別操作であり、前者成功を入金成功と表示しない。取消の状態変更と料金確認は自動請求・返金を発火させない。現行CarePlanItem単価変換を、新しいホテル料金フォーム・必要前金receipt・取消料入力が実装済みの証拠にしない。
+
+<a id="hospitalization-change-receipt-candidate-20261019"></a>
+## CL-R07：滞在内変更と訂正の資源案（2026-10-19）
+
+既存routeは[入院・治療プラン登録](../../../../backend/internal/medicalrecord/routes_hospitalization.go)、金額inputは[plan service](../../../../backend/internal/medicalrecord/treatment_plan_service.go)。inputの存在は履歴付き変更・完了後専用訂正の実装成立を証明しない。基準 `563353287ebb08af55056e3fbfba2aca3531e599` の限定静的参照。
+
+候補は滞在refに属する安定plan item ref＋revisionと、不変の変更event refを分離する。eventは追加／変更／中止intent、元版、前後payload、認証actor／時刻、必要時の理由／確認者、operation結果refを持つ。現在内容projectionの更新・変更event・必要監査・成功receiptを同じtxへ置き、完了後は同じeventを通常PATCHへ流さず専用訂正intentで元履歴を参照する。既存データを現masterから遡及復元せず、履歴不明を不明として移行する。
+
+ホテル料金候補は滞在・予約・飼主refに対する料金確認ref／版と、通常料金・必要前金額・取消料の区別を持つ。料金保存receiptからD10の入金receiptを生成しない。D10への引継ぎは型付き元行refと保存版を使い、請求済み元行を二重追加せず、確定後は既存会計訂正へ渡す。日数masterからの自動課金・取消自動返金・在庫巻戻しを追加しない。
+
+検証は入院中同時変更、中止と別編集の両順、完了後理由欠落、履歴監査失敗、保存commit後切断、死亡後生前分、料金保存後未入金を分ける。原版不変・最新projection整合・同key結果収束・金銭／在庫副作用なしを記録し、実行前は未検証とする。
+
+<a id="cage-availability-read-20261019"></a>
+## 空きケージ候補と現在割当のadapter（10/19目標への接続）
+
+[業務目標・3追加AC](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)に従う。限定コード読取（基準 `14100df845e14813f99b02aad0b38f589b2f26a4`）では、`cage_repository.go`の占有集合は同院・未削除admitted/reservedで、日付重なり条件を持たない。`hospitalization_service.go`のvalidateCageAssignmentGuardは構成員422、連結グループ占有409、自己占有除外を持つが、未連結ケージはlen(group)<=1で占有検査を行わない。この既存差を「全ケージの重複拒否実装済み」と説明しない。
+
+候補readは既存のケージ候補参照認可・医院scopeで、ケージID/連結関係/空き既知または不明と判定contextを返すadapter案とする。連結ピッカー専用`master-hospitalization:edit`のoccupancy APIを登録フォームへ無条件転用し、新たな管理者権限を登録条件にしない。全ページ/表示filter外を含む占有集合と対象医院/編集対象refを対応し、患者名等の不要な占有明細を公開しない。新API名・DTO・grant・DDLはこの文書で実装しない。
+
+自己占有除外は編集対象入院IDに対応する占有1件だけを根拠付きで除外し、同ケージ/グループに別滞在があれば占有を残す。占有ケージID集合だけから「自分以外なし」と判断せず、対象別の照合能力をreaderへ持たせる案とする。
+
+clientは現在割当表示と新規候補集合を分離し、自己以外の占有で選べない値と、過去に保存された現値の表示を混同しない。医院/対象入院が変われば旧候補応答を捨て、占有取得不明時に空き候補を捏造しない。期間入力は既存の日時検証へ渡すだけで、未採用の期間予約アルゴリズムを作らない。新規割当保存では同じ医院/対象/連結・占有を現在状態で再照合する必要があり、未連結を含む競合拒否・同時保存の適合は実装残件。既存group lock順・期待割当・二件交換同時成功を弱めず、新ロック/物理方式は実装設計で照合する。
+
+実機は空き/占有/別院/取得失敗/現在値/自己除外/連結後旧値/選択後競合/期間だけ変更/医院切替の遅延応答を3ACへ対応し、候補表示と保存結果・元割当不変を別々に記録する。未割当可の既存ACを併用し、候補制限だけで実装・実機合格を宣言しない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

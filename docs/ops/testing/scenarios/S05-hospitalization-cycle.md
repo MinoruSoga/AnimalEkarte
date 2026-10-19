@@ -44,7 +44,7 @@ flowchart LR
 - 退院前の最終確認は `DischargeAlertDialog`（タイトル「退院処理を行いますか？」・チェック「退院後、そのまま会計画面へ進む」既定 OFF）。
 - 二重退院（`discharge-with-billing`）は行ロック（FOR UPDATE）で直列化し `hospitalization is already discharged`（InvalidInput → 4xx）で拒否。
 - 入院登録・ケア記録・退院が `audit_logs` に記録されること（[specification.md §2.1](../../../spec/specification.md)）— DB 参照は USER 実施。会計ありは `hospitalization.discharge_with_billing`。
-- 入院フォームのケージ割り当ては空き状況によるフィルタリングを行わない（[09 §1](../../../spec/screens/09-hospitalization-form.md)）— 占有中ケージが選択できても仕様どおりであり逸脱ではない。
+- 入院フォームは[10/19目標と3追加AC](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)に従い空き候補のみ新規選択可能。旧「フィルタなし・占有中も仕様どおり」は旧実装観察で、現目標の合格へ使わない。未割当/現値保持/自己除外/不明/選択後競合を別fixtureで確認する。実機未実施。
 - ペット選択クエリは `petId`（camelCase）。退院後の新規会計遷移も `?petId=`。
 
 ## 異常系

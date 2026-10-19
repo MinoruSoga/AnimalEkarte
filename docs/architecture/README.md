@@ -42,3 +42,11 @@ flowchart LR
 - docs-symbol-drift は ADR 本文の narrative 整合、status 文言、歴史的 snapshot の全面 alignment を検証しない。narrative の正本は各 ADR 本体と boundary map を読むこと。
 
 領域ごとの新しい実現方式・現行差分は[design/](../design/README.md)へ置く。既存architecture・ADR・API／DBの正本は保持し、新しい技術設計から参照する。
+
+## 新業務目標と既存構造の照合（REM-OPS-15）
+
+既存architectureは現実装の説明、新しい実現案はdesign、業務目標はspecを正本とする。例えば詳細ERDの `billing_confirmations` は現DDLのmedical_record_id一意・nullable status・既存FKを示すが、確認対象世代/同期由来の新設計が実装済みとの証明ではない。`inquiries` の既存構造も予約単位・pet単位の飼主原文と版の格納先を選定した証拠にしない。
+
+意味照合では、最初に保存済み読了証跡と変更diffを対応させ、未確認または意味変更のあるfactだけを選ぶ。factごとに現FR/AC、write owner、現DDL/生成ページ、API、採用済み設計と内部提案の区別を一行へ接続する。複合FKの列順、NULL、部分uniqueのpredicate、削除動作はDDL原文と比較する。図の関連線だけで最大件数や保持方針を補完しない。生成ページは手編集しない。
+
+既存DDLのCASCADE表記を新設計の物理削除許可として扱わず、[保持・監査](../spec/shared/retention-audit.md)と[削除pathの説明](delete-soft-delete-patterns.md)に照合する。schemaの生成一致、限定静的解析器のテスト、稼働DBの適用、業務意味の適合は別判定とする。報告済み `make ci` 全30段階成功を未実行へ戻さず、新しい変更箇所に必要な静的検査と、未実施のDB/実機確認を分ける。

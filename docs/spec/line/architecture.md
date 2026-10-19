@@ -133,3 +133,13 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 | 再実行／結果unknown | 元事象と確認の反復を送信重複へ変換せず、現claimと送信結果照合へ接続。外部試行後blockingを保持し、臨床保存と外部HTTPを一つのtransactionにしたとは扱わない | duplicate-unknown |
 
 送信に必要な確認・監査／結果の対応が読み取れない場合は保留する。旧ログのscheduled／firedだけではスタッフ確認や医師指定の成立証明にならない。新しい同意条件・臨床閾値・送信時刻をこのadapterで決定しない。
+
+
+<a id="future-phase-followup-adapter-20261019"></a>
+## 対象Phase開始時の内部adapter候補（未実行）
+
+IR-07/IR-D01/IR-D02はLSTEP/DM対象Phase開始時だけの残工程で、今期必須gateへ加算しない。現PhaseのLINE予約・問診を対象外へ広げない。
+
+将来の初診/健診後followup入力候補はsource owner/record ref・source revision・実施済みstaff確認ref・医療目的の医師指定ref・binding revision・operation key。D03/D09の保存済み事象をreadするadapterであり、単なるrecord作成やtag付与を実施確認・送信許可としない。source取消/訂正・確認版変更ならclaim前に再照合、旧版/結果不明を発火可へ変換しない。送信caller表に事象/目的/DM現在値/独立停止/binding/claim/外部結果を列別に持ち、未分類callerを予約通知例外へ落とさない。DM nullable、lstep_opt_out、delivery_excludedは独立に維持する。
+
+将来のenable判定は先方確認・実送受信・cron停止・件数の同一版証跡で行う。HTTP成功やrepo配線だけで稼働済みにしない。今回は実送信・外部enable・cron操作なし。採用済みの実施確認/医師目的の業務を再質問せず、具体DTO/保存ref/全17trigger対応と実機証跡を対象Phaseの技術作業へ残す。

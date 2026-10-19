@@ -201,3 +201,38 @@ sequenceDiagram
   - §1 値引率境界を 0/100/101 の三点に明確化（FE BUG-066・BE 0〜100）
   - §6 権限マトリクス: 列（view/create/edit/delete）と `ALL_PERMISSION_RESOURCES` 由来の固定行を明記。`identity-links` 行の永続を手順 5 で確認し、業務フローは S13 へ委譲
   - ルート（`/owners`・`/settings/staff`・`/settings/permission-groups`・`/settings/clinic`）を `paths.ts` と一致確認
+
+## 慢性疾患フォームの追加受入（既実装送出観察・未実行）
+
+`FORM-FIELD-INVENTORY` のpet-chronic-conditionを対象にする。永続petの承認済みfixture、作成・編集・削除それぞれの権限、pre/post件数とcleanupを先に記録する。pending petや固定IDを使わない。
+
+| 操作 | 確認する結果 |
+|:--|:--|
+| condition_code/name/diagnosed_atを一欄ずつ空にする | 既実装の入力検証で保存されず、理由が表示される。全必須F1を個別に記録 |
+| 有効値で作成し再読込・編集再open | 5keyの保存値と初期値が一致。作成時is_activeはtrue |
+| notesを空白へ、is_activeをfalseへ更新 | notes=null、is_active=falseとして再表示。省略とクリアを同一視しない |
+| 編集開始後の権限喪失、別pet/別clinicの操作 | 最新の認可で拒否し、対象外資源を変更・開示しない。UI disabledのみでserver合格にしない |
+| 削除操作と応答断 | 対象・件数・結果を照合し、無条件の重複再送や別petの削除をしない。結果不明は成功へ変えない |
+
+ここで確認した静的request keyの収録と、全項目F・Cの実行完了は別である。
+
+## 現行目標の受入差分（REM-OPS-16・未実行）
+
+旧手順を現在の合否へ転用する前に次を適用する。実装観察を保持し、差分は未適合として別記する。
+
+| 旧入口 | 現正本・操作 | 現目標 |
+|:--|:--|:--|
+| §1手順7の連絡先重複 | [FR-owners-pets-contact-duplicate-warning](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-contact-duplicate-warning)で同メール/電話・別人と同一飼主を分ける | 連絡先重複だけで別人登録を拒否しない。スタッフ同一確認済みなら新規登録を止める。候補は認可内で表示 |
+| §1〜3共通患者利用 | [自院利用](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-common-use)で他院既存患者選択と既存飼主への新pet追加 | 共通最新基本情報と院別独立診療記録を分け、認可外公開や独自unlink再設計を足さない |
+| §5/9スタッフ能力 | [職員正本](../../../spec/domains/staff-workforce/README.md)と現在認可を照合し、新規/編集/複製/CSVを別caseへ | 職種・役職・雇用・医院別能力を混同せず、旧候補や失権による許可拡大をしない |
+| §6/7権限・医院 | [auth](../../../architecture/auth.md)と[D17](../../../spec/domains/clinic-settings/README.md)のAC01〜07 | 自己剥奪と最後の管理権限を分け、無効化/医院切替時のauthorityを再評価。医院と法人番号を混同せず発行済版を保護 |
+
+慢性疾患追補は既実装送出keyの収録であり、新しい業務承認ではない。
+
+## 10/19検索の追加受入（未実機）
+
+飼主・ペット一覧/既存飼主・ペット候補選択は[S14の4追加AC実行](S14-search-and-multi-word.md)へ接続する。登録時の連絡先重複検出、同一確認、主副飼主保存、identity link/unlinkの成功判定は検索とは別で、入力後の検索方式変更を理由に自動実行しない。
+
+## 10/19横断操作の受入接続
+
+本フォーム内のowner/pet選択・保存済み履歴・関連一覧は[適用台帳](../../../spec/shared/interaction-scope.md)の対象IDごとに[S14の8AC手順](S14-search-and-multi-word.md#cross-ui-search-20261019)を実施する。検索/候補補完/保存/コピー/取消を区別し、既存のフォーム権限/安全・保存ACと併用する。文書更新時点では未実行。

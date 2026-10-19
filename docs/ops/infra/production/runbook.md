@@ -91,3 +91,16 @@ The allowlisted host/database and disposable provider ID must come from the appr
 - [ ] live issue/date/billing status verified in Plane/provider systems by a human
 
 Unchecked items mean stop. This document does not assert current external state.
+
+## 承認記録と実行receiptを分ける（REM-OPS-02〜05）
+
+以下は実行前の記録契約であり、構築・backup・restore・切替を実施した記録ではない。現在の運用記録が別保管なら先に参照し、文書の未チェックだけから未実施と断定しない。
+
+| 単位 | 実行前の確定事項 | 実行後の非機密receipt | 停止・復旧条件 |
+|:--|:--|:--|:--|
+| provider/setup | 承認者・操作者、account/project/zone/DBの管理上の識別子、Environment保護、対象ref、frontend/API target | setup.md §1/§6/§8ごとの確認時刻・確認者・実対象ID・保護設定の参照。secretは名称と保護経路だけ | 対象相違、権限・保護・DB接続未確認はHOLD。process healthだけで解除しない |
+| backup方式 | ownerがmanaged backupまたはレビュー済みdump手順を選定。正確な対象、保護保存先、アクセス者、保持/expiry、restore責任者を承認記録へ | artifact識別子、取得時刻、size、checksum、receipt、restore link | 方式・保存先・保持等が未選定なら取得開始前HOLD。推測の保存先や期限を埋めない |
+| restore rehearsal | 同一backup artifactと承認済み使い捨てtarget、host/name/provider IDの同一性確認、schema互換、cleanup方法 | restore終了値、schema/代表値/アプリ互換、所要時間、操作者、cleanup receipt | target相違・非0終了・結果不明は停止。backupを保全し、復元済みともrollback済みとも推定しない |
+| cutover/rollback | 構築開始日と別に切替日・作業窓・判断者・連絡経路を記入。GOOD_SHAと適用migration互換をレビュー | 実workflow headSha、Environment承認、route、migration、DB確認、frontend target、当日のGo/No-Go | headSha不一致・保護欠落・互換不明は止める。AWSを切戻し先にしない。DB rollbackは別承認 |
+
+backup方式の候補比較では、providerからの取得可否、取得対象の完全性、保護先へ受渡し可能か、復元方法と互換性、保持・削除の責任を同じ欄で比較する。どちらも取得後の復元成功を省略できない。選定前の提案に承認済みの表示を付けない。実行receiptがなければ方式決定だけでNo-Goを解除しない。Go-liveの時刻・当日判断は [GOLIVE_RUNBOOK](../../../delivery/GOLIVE_RUNBOOK.md) を正本とし、ここに二重日程を作らない。

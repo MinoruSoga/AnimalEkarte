@@ -277,3 +277,65 @@ D16のread adapterがD12締めsnapshotを受け取れることと、月次帳票
 | AC-analytics-monthly-no-cash-difference | 月次画面／PDF／CSVのprojectionから実現金・差額を除外し、締め／実査訂正の差額を売上補正へ使わない。締め・履歴・日次締め帳票での区別表示は保持する。元締め／snapshotや実金銭eventへwriteしない。 | [正本](../../../spec/domains/analytics/business-rules.md) |
 
 各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。
+
+<a id="finance-operations-candidates-20261019"></a>
+## 財務運用の保存資源・投影候補（2026-10-19・内部提案）
+
+以下はFIN-R16〜R19・R22の既存意味契約を実装へ接続する候補。実在table/APIや採用済み物理設計と扱わない。列名、wire、索引、transaction実装、実grant・データ適合は未確認。全writeは既存共通gate/取得順、操作key同内容収束、現在認可、期待版、監査/receipt同時保存へ参加する。新業務要件、実送信、DB変更、実機合格を追加しない。
+
+### D11・FIN-R16：提示原本・後継・会計転記
+
+| 候補資源 | キーと制約 | 操作・結果/失敗 |
+|:--|:--|:--|
+| `estimate_presentation` | `(clinic_id,estimate_id,presentation_version)`、全明細版集合/内容digest・単価・数量・税/割引根拠・有効期限・表示宛先snapshot | 提示と編集が同じ見積資源で直列化。提示先行なら金額明細は後継、編集先行なら旧版提示を止める。提示記録は外部送信成功ではない |
+| `estimate_reply` | 対象提示版・返答状態・既存actor/time、元見積ref | 旧提示への承認を後継へコピーしない。提示snapshotと返答を対応させ、旧原本不変 |
+| `estimate_successor_link` | 元ID/提示版・後継ID/番号・理由・操作ref。操作key一意で同key→同後継 | 別intentの後継を元IDだけで統合しない。後継作成/編集/再提示/転記の結果を別receiptへ |
+| `estimate_handoff` | 提示版・選択行ID/元由来・受け手会計ID/行ID・各版・操作ref。実績がある行はtyped元実績IDも保持 | D10が先draftと対応を同時保存。元実績の有効請求帰属制約を後継コピーで失わず、同keyまたは同じ有効転記の別keyで重複draftなし |
+
+転記previewは現提示版・承認・期限・内容/数量一致・今回保険再確認・選択元明細の未請求性を返す。commitはこれらをD10側で再検査し、適格なら提示単価、税/割引はD10契約のsnapshotへ。承認後の数量変更・期限切れは古いpreviewで転記せず後継再提示へ。旧headerだけの見積を架空行へ自動分解しない。検査は提示/編集、返答/後継、転記/別請求、転記成功応答断を両順で実施し、親カルテ確定だけで未提示下書きを一律拒否しない。
+
+### D12・FIN-R17：実移動イベント受入と区分締め
+
+候補`finance_source_event`の一意キーを `(clinic_id,source_owner,event_id)` とし、版・内容digest、種別、元請求/資金/元event、実日時/記録日時、実方法、実移動額、請求差分を別列に持つ。訂正は新event ID+元ref。D12受入表も同じsourceキーを一意とし、同内容はno-op/別内容は照合停止。通知再送で新eventを作らず、欠落した投影だけを同IDから再建する。
+
+`cash_segment_projection`候補は医院/営業日/区分/採用境界設定版/source世代をキー参照とし、開始残・現金実受領・現金実返金・補充・回収を元ID付きで集計する。理論現金＝開始残＋現金実受領−現金実返金＋補充−回収。非現金受領、請求金額差分、預り充当/解除/再配分は現金増減0。元カードを現金で実返金した時は実返金方法で減少。過受領は実釣銭後の受領を一度だけ用い、了承預りと請求配分の二重現金計上をしない。
+
+preview応答候補は`boundary_version/source_generation/source_set_digest/opening_version/cash_adjustment_version/theoretical_amount`。締めcommitは全版と完全性を再検査し、その区分へのイベント受入と直列化して原close snapshotを一度保存。イベント先行なら原締め、締め先行なら後日差分の一方へ。遅着を実日時変更で原締めへ押し込まない。非0差額のメモ必須・0差額任意、原因不明/確認中可の既決を維持する。原close/訂正列は追記、実査訂正は絶対値の後継なので複数実査額を合算しない。
+
+検査：8,000請求に5,000実受領、預り5,000受領→充当→取消復元→実返金、元カード/現金返金、AMのみ締め、越日EMG、source重複/欠落/同ID異内容、preview後イベント、二重締め、監査失敗。原締め不変、receipt同一、差分帰属と各実方法の一度計上を照合する。
+
+### FIN-R18：月次未納のcutoff・調整内訳
+
+候補queryは`clinic, authorized_scope, period_start_JST, period_end_exclusive_JST, owner_filter, source_generation`。未納は原請求IDと元owner/petに帰属し、今月売上0の繰越請求を母集団から落とさない。各請求への元受領配分と非金銭調整を別eventで投影する。現残だけのAPIは過去cutoffを証明しない。
+
+月次投影行の候補は `owner/pet群、前月末残、当月発生、当月実受領の請求帰属、非入金調整行[]、翌月繰越、cutoff/世代、complete`。調整行は元event ID/版・請求/資金ref・発生日・種別・符号付き残高影響・根拠を保持。同じ減額を当月発生へ控除し調整でも控除しない。正本の限定対象だけを含む月は、前月末残＋当月未払い−当月入金＋調整増減＝翌月繰越。次月の前月末残は同じ境界へ連続する。
+
+実返金・未充当受領・非現金超過を含む月は、実受領総額と請求に帰属した額の照合差を元資金/eventから説明する。正本が決めていない返金の当月入金相殺方式を候補schemaから決めない。未説明差は`complete=false`で理由を返し、表示writeや架空調整で閉じない。画面/印刷は同じquery/世代/調整内訳を用い、確認済み0件と欠落/失敗を区別。
+
+検査：10,000＋5,000−4,000−2,000−1,000＝8,000、充当済み5,000の同月発生/解除/取消→残0/実入金0、月末JST直前直後、翌月連続性、future訂正、ページ欠落と医院切替遅延。実返金等の表示が未確認なら限定式の成功を全月へ拡張しない。
+
+### FIN-R19：退院4項目・固定出力
+
+候補read adapter応答は `query_ref, source_generation, complete, next_cursor, items[{clinic_id,stay_id,discharge_fact_id,fact_version,effective_relation,actual_discharge_at,admission_date,owner_ref,pet_ref,owner_display_snapshot,pet_display_snapshot}]`。これはD05に提供能力を求める内部案で、現在APIの存在説明ではない。完全性には全ページの同一世代・欠落検出を含め、最後のpageだけで成功にしない。
+
+D12はJSTの実退院日で抽出し、内部キー`clinic+stay+有効退院事実`、安定順`実退院時刻→stay ID→fact ID`を使う候補。紙面では既存日次帳票内に対象日見出しと4列「退院日時/飼主名/ペット名/入院日」を同じ行で配置し、改頁ごとに見出しを繰返す案。金額/担当医等の新列や単独帳票を追加しない。長い名はwrapし、別petへ省略統合しない。
+
+preview版を出力時にも照合し、版変化は再取得、0件確認は空表示可、不完全は出力停止。許可済み訂正を現在有効事実へ投影し、未知の退院取消/再開writerを作らない。DC-F01〜04で同名別pet/再入院/JST境界/全ページ/遅延応答/preview後変更/再印刷write0を確認。請求用ケアquantity=1を退院一覧粒度や実退院日の代用にしない。
+
+### D13・FIN-R22：数量版・元出庫返却と旧値
+
+候補`inventory_quantity_head`は`clinic+inventory_item_id`一意、管理単位/quantity/version/基準snapshot_ref。`inventory_movement`は実績ID・操作ref・種別・正整数量・前後数量/版・実日時/記録日時・理由/actor・元臨床ref・元出庫refを保持する。物理単位との換算を確認できない臨床小数量は在庫移動停止で、臨床量を丸めない。
+
+棚卸は実査絶対値を入力しても、保存時には期待版の現数量との差分と理由を持つ実績へ変換する候補。出庫/返却/棚卸/訂正は同じ数量headを直列化し、CAS更新＋実績＋必要監査＋receiptを同時保存する。返却は元出庫headも同順で保護し、有効返却累計≤元出庫の未返却量。数量非負、同操作→同実績ID、元実績訂正は追記で累計再検査。属性PATCHの絶対quantityを裏口にしない。
+
+限定静的根拠：`backend/internal/inventory/repository.go:132–150`は更新と再読取のtransaction、`:161–209`は通常DeleteIfUnusedの依存条件、`:211–233`は正整数/不足同UPDATE減算、`:236–260`は名称/medicine分類による別削除・名称更新。既存正整数保護は維持し、通常削除と名称補助経路を同じ保証と断言しない。理由実績・数量版・元出庫返却・receiptの全経路成立は未検証。
+
+旧数量は品目/単位/確認数量/旧ref/確認actor日時の基準snapshotにし、架空入荷実績を作らない。旧版なしwriteは最新head取得から開始。元出庫不明の返却、単位不明・名称だけの対応は停止。物販名称一致による自動在庫連動、ロット管理等を追加しない。検査は棚卸/出庫両順、同元出庫二重返却、同操作再送、属性変更/出庫、名称同期/使用中削除競合、旧値不明停止。
+
+### FIN-R23〜R25：実行待ちの証跡単位
+
+実API/DB二session試験は各intentに`環境/版/clinic/fixture/必要grant/操作key/前後残・数量/監査/receipt/両先行順/結果`を保存する。PDFと実プリンタ、帳票項目と税務適用、手動返金記録と決済事業者の実返金は別レーン・別判定。帳票matrixは請求、実受領領収、預り受領、最終会計充当、訂正/実返金/再発行、月次未納4列+調整、日次退院4列ごとに元取引/版・宛名/登録番号/税内訳・pet別/共通・今回差分・期間を対応させる。未実行・fixture不足・実設定未確認はPARTIAL/BLOCKEDで、本文精査やCI成功からPASSを転記しない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

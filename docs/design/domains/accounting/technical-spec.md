@@ -497,3 +497,290 @@ DC-A01：医師確認前準備可・請求確定／精算拒否、確認と金�
 | AC-accounting-owner-discount-default | 飼主の登録値引率を今回会計の初期値に使い、未登録時は0とする。既存の割引計算・認可に渡し、飼主設定の後日変更や再取得で手修正・確定snapshotを上書きしない。ペット別の新マスタを作らない。 | [正本](../../../spec/domains/accounting/pages/accounting-settlement.md) |
 
 各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。
+
+<a id="finance-physical-candidates-20261019"></a>
+## 財務残件の保存資源・実装適合候補（2026-10-19・内部提案）
+
+FIN-R11〜R20の具体化。以下の資源名・列名・操作名はレビュー用候補であり、既存APIや採用済みDDLの説明ではない。既決の意味契約・認可・保持条件を変更せず、実schema/wireとデータ桁数・索引・実grant・移行・全writer・性能の適合は後続工程で照合する。本書だけでmigrationや新業務操作を許可しない。
+
+### 候補の共通形と失敗
+
+候補`financial_operation`のキーを `(clinic_id, domain, actor_ref, intent, operation_id)` とし、`intent, canonical_payload_digest, expected_versions, status, result_ref, actor_ref, committed_at`を保持する。digest対象に意図・対象ref・期待版・入力・確認対象版を含める。既存操作keyのlookupは書込再実行より先に行い、保存済み結果の参照は現在のread認可を検査する。同key別digestは内容競合。未検出・処理中・照会障害は保存失敗の確定ではなく、同key同内容へ照合する。確定拒否後の内容修正は旧結果を参照する新操作。receipt、必要監査、各owner参加の業務変更を一commitにする。実装方式は既存transaction/gate順を使い、domain別の新たな逆lock順を作らない。
+
+候補APIの役割は `preview(intent, refs, versions, input)`、`commit(intent, operation_id, preview_ref, expected_versions, input)`、`get_result(operation_id)`。この名称の実在routeを主張せず、既存routeが必要意味を満たす時だけadapterへ対応させる。preview_ref単独を認可や完全性の証明にせず、保存直前の現在版・scope・認可を再照合する。結果不明中に新key再作成・実受領/返金の再実行を指示しない。
+
+### FIN-R11：医師確認世代・手修正保護の候補資源
+
+| 候補資源 | キー・値・制約 | 検証期待 |
+|:--|:--|:--|
+| `clinical_review_generation` | `(clinic_id, record_id)`、世代、対象薬剤/処置ID・数量の集合digest。変更writerは世代CAS。削除/追加で元に戻しても世代は戻さない | 単価/割引/表示順だけは世代不変、薬剤処置追加削除/数量は世代増分。D03の全dependency版を流用しない |
+| `billing_clinical_generation` | `(clinic_id,billing_id)`、会計側薬剤処置変更世代・対象元record集合。D10直接変更とD03由来同期を同じ判定へ | 一つの親recordだけで確認済みと判定せず、現在集合を再検査 |
+| `doctor_review_receipt` | `(clinic_id,review_id)`、billing_ref、record別世代集合、会計側世代、actor、時刻、操作key。履歴追記。actorは認証・医師確認権限から検査 | 現集合/両側世代とreceipt一致時だけ有効。金額変更了承は別receipt/会計版で、医師再確認は要求しない |
+| `billing_source_binding` | `(clinic_id,billing_line_id)`、typed source ID・最後の適用版・行版・manual_override・原値。元行の有効請求帰属一意性は別制約 | 手編集と同期は行版CAS。先手編集なら自動上書きなし/差異、先同期なら手編集を再確認。確定済みは同期不可 |
+| `billing_source_difference` | bindingとsource現在版、削除tombstone、差異field、臨床/金額区分、反映先会計版、解決操作ref | 金額差異のみを新しい確定禁止へしない。臨床差異は再確認gate。source不明を0円へしない |
+
+確定は共通gate下で依存版集合を決め、下位lock前の参加順に従って現認可・有効確認・請求対象・行版・金額了承を検査する。同時同期/医師確認/確定を両先行順でDC-A01〜06へ接続。旧billing_confirmationのbool相当status/actor/timeだけでは世代成立を証明できない。
+
+### FIN-R14：十進値・算定snapshot・発行版の候補
+
+入力単価/数量/率は正規十進文字列から整数係数＋桁へ変換する候補。演算は任意精度整数/有理数で行い、行積のhalf-up、同scope割合額half-up、最大剰余、税率別floorを明示した段階関数にする。binary floatのepsilonで0.5判定しない。許容最大桁数は実値・API payload上限/overflow試験で確定し、未確認の業務金額上限を追加しない。桁超過・表現不能は明示拒否して丸め込まない。
+
+`calculation_snapshot`は `(clinic_id,billing_id,revision)`、規則版・安定行identity/順序・元値・各scope条件/要求/実額・警告了承・除外/保険区分・配賦整数額・税率別合計/税・最終額を保持する候補。配賦同率端数の順序は、確定した行順ordinalと一意行IDの組を固定保存する案で、表示並替後も過去再計算結果を変えない。元請求の部分集合再請求は選択行の元snapshotと今回条件から計算し、元請求総税額を複製しない。
+
+`document_edition`は `(clinic_id,document_id,edition)`、対象取引種別/ID・元取引番号・snapshot_ref・当時の宛名/登録番号/必要表示値・出力layout版・発行actor/timeを固定する候補。再発行は元取引番号を維持して発行履歴を追加し、新受領を作らない。修正前版を現在masterで再生成しない。税の分類・適格請求書全体の法的適合は別の確認者/根拠/判定を必要とする。
+
+数値検査は正本の101×0.5→51→46→税4→税込50、1×0.5の2行→2円、100円配賦33/67、同率の安定順、全除外でも元正額残存、10%/8%別税を各caseでsnapshotまで照合する。
+
+### FIN-R12・R13・R15・R20：限定した静的根拠と追従台帳
+
+基準main `563353287ebb08af55056e3fbfba2aca3531e599` の限定読取。route宣言や一関数の存在は、呼出全経路・保存/監査・race・実grantの合格証拠ではない。
+
+| 範囲・現根拠 | 限定して確認した事実 | 対応する後続検査 |
+|:--|:--|:--|
+| `backend/internal/billing/routes.go:95–106,114–146` | 見積create/successor/update/delete、確認GET/confirm/return、明細create/update/delete、accounting create/complete/update/correction/cancel/refund、closeを列挙。確認writeはaccounting edit、返金writeはaccounting createという現route | handler→service→repo→tx→監査/receipt→consumerを各入口で追跡。現在grantを新医師確認資格・新返金権限へ自動転用しない。GET確認の初期化もwriterとして配賦 |
+| `backend/internal/model/billing_confirmation.go:17–34`、`billing_confirmation_service.go:104–124` | status/actor/time等の保存とGetOrCreateの作成分岐。読取modelに臨床世代集合はない | 上記候補との列/参照差、current認可、確認と子変更の共通gate、同keyreceiptを個別照合。全呼出からの欠如とは断定しない |
+| `backend/internal/medicalrecord/hospitalization_discharge_tx.go:53–90` | CreateAccounting=falseは請求生成なし。既存非取消会計は再利用し、取消会計はSoftDeleteCancelled後に新規へ進む | 元取消ID/番号/元明細/確定歴が通常検索・履歴・再請求リンクから消えないかを専用検査。D10目標の理由付き選択再請求へ同等とみなさない |
+| 同`:93–161` | carePlan由来待ち会計・明細・合計と退院会計監査をtransaction内で作成 | D05の実退院事実、ケア行、D10元明細identityと新番号/元取消refを対応。専用終了と通常医師確認を区別し、自動返金/在庫戻しを起動しない |
+
+全writer台帳の1行は `入口(route/import/repair/job/GET初期化)→関数→対象表/資源→transaction initiator→予約/臨床/資金participant→取得順→認可→期待版→監査sink→receipt/照会→差分→受入case` とする。上表を全writer完了へ水増ししない。共通gate証拠は他領域と共有し、金銭の入口責任だけをFIN-R12で追う。
+
+移行候補manifestは旧ID/clinic/owner/source_kind/source_ID、旧状態、請求額/受領/返金/配分/預り/確定歴、日時基準、method安定識別、snapshot有無、既存明示保険/除外/欠落の分類、照合状態・未解決理由、新ref/旧ref・適用版を持つ。分類別に件数と金額を前後集計し、FK/一意性・元資金上限・二重帰属・同一操作再実行・復旧参照を検査する。新規保険4種初期値と旧欠落値の一括変換を同一化しない。欠落保険の意味に資料不足が残った時だけ、実データ分類・影響と既存回答の原文を添えて判断質問にする。データ未読の段階で一律対象外を提案しない。
+
+
+<a id="finance-ac-execution-trace-20261019"></a>
+## 財務ACの実行準備対応（2026-10-19・未実行）
+
+FIN-R01〜R10の文書精査として、本文181ACとsubpage固有20ACを別母集団のまま下表へ収録した。新しいAC、期待結果の置換、実行済み判定ではない。各行のGiven/When/Thenは参照先正本の当該AC全文を用い、検証群のfixtureはその前提を満たすものだけを組み合わせる。F01等は本節内の検証群ラベルで、製品仕様IDや既存scenario IDを再採番しない。
+
+既存S/Vは旧実装の観測を含む。該当画面・APIが目標未対応なら、そのケースは実行前の未適合／BLOCKEDとして残す。全ACの実行結果、実UI/DTO全項目、全writer、税務・実決済・物理印刷の適合を本表で証明しない。フォーム外の資金配分・医師確認・帳票出力などは47項目に架空のfieldKeyを付けず、AC/操作/receipt単位で記録する。
+
+| 検証群 | 受渡し先 | fixture・照合対象 |
+|:--|:--|:--|
+| F01 請求・任意額回収 | S08 #1/#6/#9、V02 §1、S21 | 同飼主2pet、当日/過去明細、10,000請求/0・3,000入金/後日2,000、空明細と実在0円を別fixture。元ID・請求状態・実受領・配分・残・確定歴を比較 |
+| F02 訂正・取消・実返金・再請求 | S08 #2–5/#10、V02 §3–4、S21 | 入金3,000/既返金1,000の残上限2,000、10,000→9,000、取消元の選択再請求、原資不明を別fixture。元資金・元/新番号・履歴・実移動を比較 |
+| F03 預り・充当・解除・再配分 | S08 #6/#8–10の拡張、S21 | 飼主預り5,000、充当3,000、取消/減額/既返金、別pet/予約・別owner/clinic。元受領日・有効配分・残・確認・二重使用を比較 |
+| F04 算定・snapshot・単価/割引 | V02 §1–2、S20 | 業務正本の各数値例をそのままcase入力に使用。行積/割合/定額/最大剰余/税率別税/0円・手修正を段階別に比較。小数量の臨床値不変 |
+| F05 窓口保険・品目/方法master認可 | S20、V04の対象master、V02 §1 | 4追加品目と薬剤/検査の明示値、未確認/不明、1pet1契約、対象grantあり/なし/失効/別clinic。保存版・独立区分・外部作用0を比較 |
+| F06 帳票・未納・締め/期間 | S08 #7–10、S09、S33 | 売上なし過去未納、実受領と充当、元/差分、複数pet/共通料金、AM締め/PM未締め、JST境界を別fixture。画面/PDF/履歴を照合、物理印刷は別結果 |
+| F07 医師確認・同期・請求対象 | DC-A01–06、V02 §1行編集、S21 | 未確認/確認済×金額のみ/薬剤処置追加削除/数量変更×未手修正/手修正/確定済。確認先行/変更先行両順と元削除・再追加・取得失敗を検査 |
+| F08 臨床・専用記録の受渡し境界 | S11、D05退院検証、S21 | 施術0円/手修正値引き・退院既存/取消会計・死亡後生前分・記録復元を分離。元ID/版・金銭/在庫副作用・履歴不変を比較 |
+| F09 新受領の支払方法停止 | V02 §1、V04支払方法、S21 | 有効選択→保存前停止、保存済み成功→停止→同key照会、新入金/後日回収/預り受領と既資金配分/返金を区別 |
+
+実行記録には `AC-ID / source revision / fixture ID / scenario・操作 / formId.fieldKey.Fx（実在する場合） / API・保存対象 / 前後snapshot・監査・operation receipt / 結果 / 未実行理由 / 担当・時刻` を対応させる。同一証跡を複数ACへ参照してよいが、各ACのThenを個別に判定する。競合を含む各writeは同key同内容、同key別内容、応答消失、遅延commit中の未検出、認可失効、監査失敗を追加し、別key再作成で回避しない。
+
+### ライフサイクル本文181AC
+
+以下の正本行位置は基準main `563353287ebb08af55056e3fbfba2aca3531e599` の所在補助で、IDを主参照とする。全行の実機状態は未実行。
+
+| 正本AC | 所在（基準版） | 検証群 | 個別結果キー |
+|:--|:--|:--|:--|
+| AC-accounting-trimming-adjustment-once | lifecycle.md:305 | F08 | `AC-accounting-trimming-adjustment-once` |
+| AC-accounting-trimming-zero-line | lifecycle.md:306 | F08 | `AC-accounting-trimming-zero-line` |
+| AC-accounting-trimming-source-refresh | lifecycle.md:307 | F08 | `AC-accounting-trimming-source-refresh` |
+| AC-accounting-record-edit-no-money-undo | lifecycle.md:308 | F08 | `AC-accounting-record-edit-no-money-undo` |
+| AC-accounting-owner-multi-pet | lifecycle.md:309 | F01 | `AC-accounting-owner-multi-pet` |
+| AC-accounting-selected-unbilled | lifecycle.md:310 | F01 | `AC-accounting-selected-unbilled` |
+| AC-accounting-old-bill-collection | lifecycle.md:311 | F01 | `AC-accounting-old-bill-collection` |
+| AC-accounting-no-invented-allocation | lifecycle.md:312 | F01 | `AC-accounting-no-invented-allocation` |
+| AC-accounting-unpaid-finalize | lifecycle.md:313 | F01 | `AC-accounting-unpaid-finalize` |
+| AC-accounting-partial-finalize | lifecycle.md:314 | F01 | `AC-accounting-partial-finalize` |
+| AC-accounting-later-payment | lifecycle.md:315 | F01 | `AC-accounting-later-payment` |
+| AC-accounting-zero-no-fake-payment | lifecycle.md:316 | F01 | `AC-accounting-zero-no-fake-payment` |
+| AC-accounting-finalization-undo-preserved | lifecycle.md:317 | F01 | `AC-accounting-finalization-undo-preserved` |
+| AC-accounting-correction-authorization | lifecycle.md:318 | F02 | `AC-accounting-correction-authorization` |
+| AC-accounting-correction-history | lifecycle.md:319 | F02 | `AC-accounting-correction-history` |
+| AC-accounting-refund-received-cap | lifecycle.md:320 | F02 | `AC-accounting-refund-received-cap` |
+| AC-accounting-refund-method-required | lifecycle.md:321 | F02 | `AC-accounting-refund-method-required` |
+| AC-accounting-cancel-no-money-stock | lifecycle.md:322 | F02 | `AC-accounting-cancel-no-money-stock` |
+| AC-accounting-post-close-preserve | lifecycle.md:323 | F06 | `AC-accounting-post-close-preserve` |
+| AC-accounting-correction-no-cash-movement | lifecycle.md:324 | F06 | `AC-accounting-correction-no-cash-movement` |
+| AC-accounting-master-change-stable | lifecycle.md:325 | F04 | `AC-accounting-master-change-stable` |
+| AC-accounting-manual-unit-price | lifecycle.md:326 | F04 | `AC-accounting-manual-unit-price` |
+| AC-accounting-discounts-combinable | lifecycle.md:327 | F04 | `AC-accounting-discounts-combinable` |
+| AC-accounting-clinical-no-auto-finance | lifecycle.md:328 | F08 | `AC-accounting-clinical-no-auto-finance` |
+| AC-accounting-oldest-default | lifecycle.md:329 | F03 | `AC-accounting-oldest-default` |
+| AC-accounting-allocation-staff-change | lifecycle.md:330 | F03 | `AC-accounting-allocation-staff-change` |
+| AC-accounting-collection-change-return | lifecycle.md:331 | F01 | `AC-accounting-collection-change-return` |
+| AC-accounting-advance-owner-reservation | lifecycle.md:332 | F03 | `AC-accounting-advance-owner-reservation` |
+| AC-accounting-advance-unallocated-balance | lifecycle.md:333 | F03 | `AC-accounting-advance-unallocated-balance` |
+| AC-accounting-advance-apply-no-double-receipt | lifecycle.md:334 | F03 | `AC-accounting-advance-apply-no-double-receipt` |
+| AC-accounting-advance-surplus-pending | lifecycle.md:335 | F03 | `AC-accounting-advance-surplus-pending` |
+| AC-accounting-advance-actual-refund | lifecycle.md:336 | F03 | `AC-accounting-advance-actual-refund` |
+| AC-accounting-advance-duplicate-use | lifecycle.md:337 | F03 | `AC-accounting-advance-duplicate-use` |
+| AC-accounting-advance-context-mismatch | lifecycle.md:338 | F03 | `AC-accounting-advance-context-mismatch` |
+| AC-accounting-paid-reduction-refund-pending | lifecycle.md:339 | F02 | `AC-accounting-paid-reduction-refund-pending` |
+| AC-accounting-paid-reduction-actual-refund | lifecycle.md:340 | F02 | `AC-accounting-paid-reduction-actual-refund` |
+| AC-accounting-partial-paid-reduction | lifecycle.md:341 | F02 | `AC-accounting-partial-paid-reduction` |
+| AC-accounting-payment-method-correction-no-money | lifecycle.md:342 | F02 | `AC-accounting-payment-method-correction-no-money` |
+| AC-accounting-percent-before-fixed | lifecycle.md:343 | F04 | `AC-accounting-percent-before-fixed` |
+| AC-accounting-insurance-staff-review | lifecycle.md:344 | F05 | `AC-accounting-insurance-staff-review` |
+| AC-accounting-invoice-receipt-separated | lifecycle.md:345 | F06 | `AC-accounting-invoice-receipt-separated` |
+| AC-accounting-document-reissue-history | lifecycle.md:346 | F06 | `AC-accounting-document-reissue-history` |
+| AC-accounting-aged-debt-without-current-sales | lifecycle.md:347 | F06 | `AC-accounting-aged-debt-without-current-sales` |
+| AC-accounting-original-bill-and-movement-date | lifecycle.md:348 | F06 | `AC-accounting-original-bill-and-movement-date` |
+| AC-accounting-deposit-without-reservation | lifecycle.md:349 | F03 | `AC-accounting-deposit-without-reservation` |
+| AC-accounting-deposit-other-reservation | lifecycle.md:350 | F03 | `AC-accounting-deposit-other-reservation` |
+| AC-accounting-deposit-other-pet | lifecycle.md:351 | F03 | `AC-accounting-deposit-other-pet` |
+| AC-accounting-deposit-other-owner-denied | lifecycle.md:352 | F03 | `AC-accounting-deposit-other-owner-denied` |
+| AC-accounting-deposit-allocation-confirmation | lifecycle.md:353 | F03 | `AC-accounting-deposit-allocation-confirmation` |
+| AC-accounting-deposit-available-balance | lifecycle.md:354 | F03 | `AC-accounting-deposit-available-balance` |
+| AC-accounting-percentage-summed | lifecycle.md:355 | F04 | `AC-accounting-percentage-summed` |
+| AC-accounting-discount-then-insurance | lifecycle.md:356 | F04 | `AC-accounting-discount-then-insurance` |
+| AC-accounting-overdiscount-unresolved | lifecycle.md:357 | F04 | `AC-accounting-overdiscount-unresolved` |
+| AC-accounting-same-day-created-order | lifecycle.md:358 | F03 | `AC-accounting-same-day-created-order` |
+| AC-accounting-saved-reallocation-reason | lifecycle.md:359 | F03 | `AC-accounting-saved-reallocation-reason` |
+| AC-accounting-reallocation-no-new-money | lifecycle.md:360 | F03 | `AC-accounting-reallocation-no-new-money` |
+| AC-accounting-reallocation-correction-conflict | lifecycle.md:361 | F03 | `AC-accounting-reallocation-correction-conflict` |
+| AC-accounting-noncash-excess-refund-pending | lifecycle.md:362 | F01 | `AC-accounting-noncash-excess-refund-pending` |
+| AC-accounting-refund-different-method | lifecycle.md:363 | F02 | `AC-accounting-refund-different-method` |
+| AC-accounting-refund-no-amount-extra-approval | lifecycle.md:364 | F02 | `AC-accounting-refund-no-amount-extra-approval` |
+| AC-accounting-deposit-receipt | lifecycle.md:365 | F03 / F06 | `AC-accounting-deposit-receipt` |
+| AC-accounting-final-document-deposit-current | lifecycle.md:366 | F06 | `AC-accounting-final-document-deposit-current` |
+| AC-accounting-refund-original-transaction | lifecycle.md:367 | F06 | `AC-accounting-refund-original-transaction` |
+| AC-accounting-reissue-original-number | lifecycle.md:368 | F06 | `AC-accounting-reissue-original-number` |
+| AC-accounting-line-and-bill-discount | lifecycle.md:369 | F04 | `AC-accounting-line-and-bill-discount` |
+| AC-accounting-overdiscount-warning | lifecycle.md:370 | F04 | `AC-accounting-overdiscount-warning` |
+| AC-accounting-overdiscount-post-warning-pending | lifecycle.md:371 | F04 | `AC-accounting-overdiscount-post-warning-pending` |
+| AC-accounting-cancel-restore-deposit | lifecycle.md:372 | F03 | `AC-accounting-cancel-restore-deposit` |
+| AC-accounting-cancel-deposit-no-cash-refund | lifecycle.md:373 | F03 | `AC-accounting-cancel-deposit-no-cash-refund` |
+| AC-accounting-cancel-deposit-once-atomic | lifecycle.md:374 | F03 | `AC-accounting-cancel-deposit-once-atomic` |
+| AC-accounting-line-before-invoice | lifecycle.md:375 | F04 | `AC-accounting-line-before-invoice` |
+| AC-accounting-discount-scope-separated | lifecycle.md:376 | F04 | `AC-accounting-discount-scope-separated` |
+| AC-accounting-percent-discount-round-yen | lifecycle.md:377 | F04 | `AC-accounting-percent-discount-round-yen` |
+| AC-accounting-invoice-proportional-remainder | lifecycle.md:378 | F04 | `AC-accounting-invoice-proportional-remainder` |
+| AC-accounting-invoice-zero-discount-base | lifecycle.md:379 | F04 | `AC-accounting-invoice-zero-discount-base` |
+| AC-accounting-overdiscount-line-no-spill | lifecycle.md:380 | F04 | `AC-accounting-overdiscount-line-no-spill` |
+| AC-accounting-overdiscount-invoice-effective-cap | lifecycle.md:381 | F04 | `AC-accounting-overdiscount-invoice-effective-cap` |
+| AC-accounting-tax-invoice-rate-once | lifecycle.md:382 | F04 | `AC-accounting-tax-invoice-rate-once` |
+| AC-accounting-tax-rate-separated | lifecycle.md:383 | F04 | `AC-accounting-tax-rate-separated` |
+| AC-accounting-tax-exclusive-consumer-inclusive | lifecycle.md:384 | F04 | `AC-accounting-tax-exclusive-consumer-inclusive` |
+| AC-accounting-tax-category-snapshot | lifecycle.md:385 | F04 | `AC-accounting-tax-category-snapshot` |
+| AC-accounting-calculation-audit-replay | lifecycle.md:386 | F04 | `AC-accounting-calculation-audit-replay` |
+| AC-accounting-insurance-multiple-carriers | lifecycle.md:387 | F05 | `AC-accounting-insurance-multiple-carriers` |
+| AC-accounting-invoice-exclusion-master | lifecycle.md:388 | F04 | `AC-accounting-invoice-exclusion-master` |
+| AC-accounting-invoice-excluded-base-and-allocation | lifecycle.md:389 | F04 | `AC-accounting-invoice-excluded-base-and-allocation` |
+| AC-accounting-invoice-all-excluded-zero-base | lifecycle.md:390 | F04 | `AC-accounting-invoice-all-excluded-zero-base` |
+| AC-accounting-invoice-exclusion-not-insurance | lifecycle.md:391 | F04 | `AC-accounting-invoice-exclusion-not-insurance` |
+| AC-accounting-invoice-exclusion-snapshot-stable | lifecycle.md:392 | F04 | `AC-accounting-invoice-exclusion-snapshot-stable` |
+| AC-accounting-document-owner-addressee | lifecycle.md:393 | F06 | `AC-accounting-document-owner-addressee` |
+| AC-accounting-document-pet-separated | lifecycle.md:394 | F06 | `AC-accounting-document-pet-separated` |
+| AC-accounting-document-correction-original-delta | lifecycle.md:395 | F06 | `AC-accounting-document-correction-original-delta` |
+| AC-accounting-document-partial-refund-original-delta | lifecycle.md:396 | F06 | `AC-accounting-document-partial-refund-original-delta` |
+| AC-accounting-master-admin-edit | lifecycle.md:397 | F05 | `AC-accounting-master-admin-edit` |
+| AC-accounting-master-authorized-staff-edit | lifecycle.md:398 | F05 | `AC-accounting-master-authorized-staff-edit` |
+| AC-accounting-master-ungranted-staff-denied | lifecycle.md:399 | F05 | `AC-accounting-master-ungranted-staff-denied` |
+| AC-accounting-master-permission-rechecked | lifecycle.md:400 | F05 | `AC-accounting-master-permission-rechecked` |
+| AC-accounting-insurance-staff-result-burden | lifecycle.md:401 | F05 | `AC-accounting-insurance-staff-result-burden` |
+| AC-accounting-insurance-unknown-not-valid | lifecycle.md:402 | F05 | `AC-accounting-insurance-unknown-not-valid` |
+| AC-accounting-insurance-window-not-coverage | lifecycle.md:403 | F05 | `AC-accounting-insurance-window-not-coverage` |
+| AC-accounting-insurance-one-contract-per-pet | lifecycle.md:404 | F05 | `AC-accounting-insurance-one-contract-per-pet` |
+| AC-accounting-insurance-window-only-scope | lifecycle.md:405 | F05 | `AC-accounting-insurance-window-only-scope` |
+| AC-accounting-insurance-local-correction-no-external | lifecycle.md:406 | F05 | `AC-accounting-insurance-local-correction-no-external` |
+| AC-accounting-insurance-manual-no-formula-prerequisite | lifecycle.md:407 | F05 | `AC-accounting-insurance-manual-no-formula-prerequisite` |
+| AC-accounting-deposit-reduction-restore | lifecycle.md:408 | F03 | `AC-accounting-deposit-reduction-restore` |
+| AC-accounting-deposit-mixed-reduction-choice | lifecycle.md:409 | F03 | `AC-accounting-deposit-mixed-reduction-choice` |
+| AC-accounting-deposit-reduction-no-money | lifecycle.md:410 | F03 | `AC-accounting-deposit-reduction-no-money` |
+| AC-accounting-deposit-reduction-current-once | lifecycle.md:411 | F03 | `AC-accounting-deposit-reduction-current-once` |
+| AC-accounting-deposit-no-auto-expiry | lifecycle.md:412 | F03 | `AC-accounting-deposit-no-auto-expiry` |
+| AC-accounting-deposit-clinic-owner-boundary | lifecycle.md:413 | F03 | `AC-accounting-deposit-clinic-owner-boundary` |
+| AC-accounting-rebill-selected-new-link | lifecycle.md:414 | F02 | `AC-accounting-rebill-selected-new-link` |
+| AC-accounting-rebill-no-duplicate | lifecycle.md:415 | F02 | `AC-accounting-rebill-no-duplicate` |
+| AC-accounting-rebill-no-money-copy | lifecycle.md:416 | F02 | `AC-accounting-rebill-no-money-copy` |
+| AC-accounting-rebill-history-undo | lifecycle.md:417 | F02 | `AC-accounting-rebill-history-undo` |
+| AC-accounting-combined-collection-allocation | lifecycle.md:418 | F01 | `AC-accounting-combined-collection-allocation` |
+| AC-accounting-combined-collection-no-rebilling | lifecycle.md:419 | F01 | `AC-accounting-combined-collection-no-rebilling` |
+| AC-accounting-combined-collection-order-override | lifecycle.md:420 | F01 | `AC-accounting-combined-collection-order-override` |
+| AC-accounting-combined-collection-current-state | lifecycle.md:421 | F01 | `AC-accounting-combined-collection-current-state` |
+| AC-accounting-collection-dunning-writeoff-out | lifecycle.md:422 | F01 | `AC-accounting-collection-dunning-writeoff-out` |
+| AC-accounting-document-common-charges | lifecycle.md:423 | F06 | `AC-accounting-document-common-charges` |
+| AC-accounting-common-charge-provenance | lifecycle.md:424 | F06 | `AC-accounting-common-charge-provenance` |
+| AC-accounting-rebill-original-price-tax-discount | lifecycle.md:425 | F02 | `AC-accounting-rebill-original-price-tax-discount` |
+| AC-accounting-rebill-staff-adjustment-history | lifecycle.md:426 | F02 | `AC-accounting-rebill-staff-adjustment-history` |
+| AC-accounting-rebill-old-payment-confirmed | lifecycle.md:427 | F03 | `AC-accounting-rebill-old-payment-confirmed` |
+| AC-accounting-rebill-old-payment-no-receipt | lifecycle.md:428 | F03 | `AC-accounting-rebill-old-payment-no-receipt` |
+| AC-accounting-rebill-old-payment-current-cap | lifecycle.md:429 | F03 | `AC-accounting-rebill-old-payment-current-cap` |
+| AC-accounting-rebill-restored-deposit-separate | lifecycle.md:430 | F03 | `AC-accounting-rebill-restored-deposit-separate` |
+| AC-accounting-rebill-insurance-rechecked | lifecycle.md:431 | F02 / F05 | `AC-accounting-rebill-insurance-rechecked` |
+| AC-accounting-rebill-insurance-scope-preserved | lifecycle.md:432 | F02 / F05 | `AC-accounting-rebill-insurance-scope-preserved` |
+| AC-accounting-refund-source-unknown-blocked | lifecycle.md:433 | F02 | `AC-accounting-refund-source-unknown-blocked` |
+| AC-accounting-refund-source-record-before-finalize | lifecycle.md:434 | F02 | `AC-accounting-refund-source-record-before-finalize` |
+| AC-accounting-refund-source-history-no-double | lifecycle.md:435 | F02 | `AC-accounting-refund-source-history-no-double` |
+| AC-accounting-refund-source-scope-not-method | lifecycle.md:436 | F02 | `AC-accounting-refund-source-scope-not-method` |
+| AC-accounting-empty-invoice-blocked | lifecycle.md:437 | F01 | `AC-accounting-empty-invoice-blocked` |
+| AC-accounting-zero-invoice-line-reason | lifecycle.md:438 | F01 | `AC-accounting-zero-invoice-line-reason` |
+| AC-accounting-collection-no-empty-invoice | lifecycle.md:439 | F01 | `AC-accounting-collection-no-empty-invoice` |
+| AC-accounting-pre-discount-round-half | lifecycle.md:440 | F04 | `AC-accounting-pre-discount-round-half` |
+| AC-accounting-pre-discount-round-per-line | lifecycle.md:441 | F04 | `AC-accounting-pre-discount-round-per-line` |
+| AC-accounting-pre-discount-round-before-discount | lifecycle.md:442 | F04 | `AC-accounting-pre-discount-round-before-discount` |
+| AC-accounting-pre-discount-round-provenance | lifecycle.md:443 | F04 | `AC-accounting-pre-discount-round-provenance` |
+| AC-accounting-exclusion-default-included | lifecycle.md:444 | F04 | `AC-accounting-exclusion-default-included` |
+| AC-accounting-exclusion-missing-included | lifecycle.md:445 | F04 | `AC-accounting-exclusion-missing-included` |
+| AC-accounting-exclusion-existing-preserved | lifecycle.md:446 | F04 | `AC-accounting-exclusion-existing-preserved` |
+| AC-accounting-master-draft-no-auto-update | lifecycle.md:447 | F04 | `AC-accounting-master-draft-no-auto-update` |
+| AC-accounting-master-explicit-reapply | lifecycle.md:448 | F04 | `AC-accounting-master-explicit-reapply` |
+| AC-accounting-master-reapply-finalized-boundary | lifecycle.md:449 | F04 | `AC-accounting-master-reapply-finalized-boundary` |
+| AC-accounting-master-reapply-current-check | lifecycle.md:450 | F04 | `AC-accounting-master-reapply-current-check` |
+| AC-accounting-posthumous-settlement-history | lifecycle.md:451 | F08 | `AC-accounting-posthumous-settlement-history` |
+| AC-accounting-posthumous-owner-no-side-effect | lifecycle.md:452 | F08 | `AC-accounting-posthumous-owner-no-side-effect` |
+| AC-accounting-payment-inactive-new-receipt | lifecycle.md:453 | F09 | `AC-accounting-payment-inactive-new-receipt` |
+| AC-accounting-payment-inactive-save-recheck | lifecycle.md:454 | F09 | `AC-accounting-payment-inactive-save-recheck` |
+| AC-accounting-payment-inactive-history-aggregation | lifecycle.md:455 | F09 | `AC-accounting-payment-inactive-history-aggregation` |
+| AC-accounting-payment-inactive-existing-allocation | lifecycle.md:456 | F09 | `AC-accounting-payment-inactive-existing-allocation` |
+| AC-accounting-payment-inactive-refund-correction-boundary | lifecycle.md:457 | F09 | `AC-accounting-payment-inactive-refund-correction-boundary` |
+| AC-accounting-payment-inactive-no-receipt | lifecycle.md:458 | F09 | `AC-accounting-payment-inactive-no-receipt` |
+| AC-accounting-payment-inactive-idempotent-result | lifecycle.md:459 | F09 | `AC-accounting-payment-inactive-idempotent-result` |
+| AC-accounting-item-insurance-four-masters | lifecycle.md:465 | F05 | `AC-accounting-item-insurance-four-masters` |
+| AC-accounting-item-insurance-existing-med-exam | lifecycle.md:466 | F05 | `AC-accounting-item-insurance-existing-med-exam` |
+| AC-accounting-item-insurance-not-guarantee | lifecycle.md:467 | F05 | `AC-accounting-item-insurance-not-guarantee` |
+| AC-accounting-item-insurance-independent-discount | lifecycle.md:468 | F05 | `AC-accounting-item-insurance-independent-discount` |
+| AC-accounting-item-insurance-authorized-save | lifecycle.md:469 | F05 | `AC-accounting-item-insurance-authorized-save` |
+| AC-accounting-item-insurance-snapshot-stable | lifecycle.md:470 | F05 | `AC-accounting-item-insurance-snapshot-stable` |
+| AC-accounting-item-insurance-explicit-reapply | lifecycle.md:471 | F05 | `AC-accounting-item-insurance-explicit-reapply` |
+| AC-accounting-item-insurance-finalized-correction | lifecycle.md:472 | F05 | `AC-accounting-item-insurance-finalized-correction` |
+| AC-accounting-item-insurance-default-unresolved | lifecycle.md:473 | F05 | `AC-accounting-item-insurance-default-unresolved` |
+| AC-accounting-item-insurance-legacy-missing | lifecycle.md:474 | F05 | `AC-accounting-item-insurance-legacy-missing` |
+| AC-accounting-item-insurance-read-failure | lifecycle.md:475 | F05 | `AC-accounting-item-insurance-read-failure` |
+| AC-accounting-item-insurance-atomic-retry | lifecycle.md:476 | F05 | `AC-accounting-item-insurance-atomic-retry` |
+| AC-accounting-before-doctor-review | lifecycle.md:556 | F07 | `AC-accounting-before-doctor-review` |
+| AC-accounting-review-card-axis | lifecycle.md:557 | F07 | `AC-accounting-review-card-axis` |
+| AC-accounting-reviewed-price-only | lifecycle.md:558 | F07 | `AC-accounting-reviewed-price-only` |
+| AC-accounting-reviewed-clinical-change | lifecycle.md:559 | F07 | `AC-accounting-reviewed-clinical-change` |
+| AC-accounting-plan-sync-three-branches | lifecycle.md:560 | F07 | `AC-accounting-plan-sync-three-branches` |
+| AC-accounting-billable-boundary | lifecycle.md:561 | F07 | `AC-accounting-billable-boundary` |
+| AC-accounting-ready-not-stock | lifecycle.md:562 | F07 | `AC-accounting-ready-not-stock` |
+| AC-accounting-individual-discount-permission | lifecycle.md:574 | F04 / F05 | `AC-accounting-individual-discount-permission` |
+| AC-accounting-manual-change-unreconciled-completion | lifecycle.md:594 | F01 | `AC-accounting-manual-change-unreconciled-completion` |
+| AC-accounting-manual-change-no-fabricated-adjustment | lifecycle.md:595 | F01 | `AC-accounting-manual-change-no-fabricated-adjustment` |
+| AC-accounting-manual-change-preserves-partial-and-noncash | lifecycle.md:596 | F01 | `AC-accounting-manual-change-preserves-partial-and-noncash` |
+| AC-accounting-excess-input-correction | lifecycle.md:616 | F01 | `AC-accounting-excess-input-correction` |
+| AC-accounting-excess-actual-refund-once | lifecycle.md:617 | F02 | `AC-accounting-excess-actual-refund-once` |
+| AC-accounting-excess-consented-deposit-single-receipt | lifecycle.md:618 | F03 | `AC-accounting-excess-consented-deposit-single-receipt` |
+
+### subpage固有20AC（本文とは別集計）
+
+| 正本AC | 所在（基準版） | 検証群 | 個別結果キー |
+|:--|:--|:--|:--|
+| AC-accounting-daily-owner-pet-column-order | pages/accounting-list.md:164 | F06 | `AC-accounting-daily-owner-pet-column-order` |
+| AC-accounting-line-name-edit | pages/accounting-settlement.md:90 | F04 | `AC-accounting-line-name-edit` |
+| AC-accounting-stale-unbilled-completion-rejection | pages/accounting-settlement.md:184 | F01 | `AC-accounting-stale-unbilled-completion-rejection` |
+| AC-accounting-invoice-registration-number-output | pages/accounting-settlement.md:243 | F06 | `AC-accounting-invoice-registration-number-output` |
+| AC-accounting-merchandise-master-selection | pages/accounting-settlement.md:251 | F05 | `AC-accounting-merchandise-master-selection` |
+| AC-accounting-owner-unpaid-summary | pages/accounting-settlement.md:259 | F06 | `AC-accounting-owner-unpaid-summary` |
+| AC-accounting-a4-document-output | pages/accounting-settlement.md:265 | F06 | `AC-accounting-a4-document-output` |
+| AC-accounting-owner-discount-default | pages/accounting-settlement.md:271 | F04 | `AC-accounting-owner-discount-default` |
+| AC-accounting-line-unit-quantity-amount | pages/accounting-settlement.md:277 | F04 | `AC-accounting-line-unit-quantity-amount` |
+| AC-accounting-manual-line-amount-quantity-edit | pages/accounting-settlement.md:283 | F04 | `AC-accounting-manual-line-amount-quantity-edit` |
+| AC-accounting-manual-other-create | pages/accounting-settlement.md:291 | F04 | `AC-accounting-manual-other-create` |
+| AC-accounting-owner-purchase-review | pages/accounting-settlement.md:299 | F06 | `AC-accounting-owner-purchase-review` |
+| AC-accounting-unpaid-default-period | pages/unpaid-list.md:148 | F06 | `AC-accounting-unpaid-default-period` |
+| AC-unpaid-source-month | pages/unpaid-list.md:189 | F06 | `AC-unpaid-source-month` |
+| AC-unpaid-source-reconcile | pages/unpaid-list.md:190 | F06 | `AC-unpaid-source-reconcile` |
+| AC-unpaid-source-adjustment-boundary | pages/unpaid-list.md:191 | F06 | `AC-unpaid-source-adjustment-boundary` |
+| AC-accounting-unpaid-display-modes | pages/unpaid-list.md:208 | F06 | `AC-accounting-unpaid-display-modes` |
+| AC-accounting-unpaid-mode-label | pages/unpaid-list.md:214 | F06 | `AC-accounting-unpaid-mode-label` |
+| AC-accounting-unpaid-latest-date | pages/unpaid-list.md:220 | F06 | `AC-accounting-unpaid-latest-date` |
+| AC-accounting-unpaid-carryover-columns | pages/unpaid-list.md:226 | F06 | `AC-accounting-unpaid-carryover-columns` |
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

@@ -688,3 +688,24 @@ D03 participantは現在版・以前の保存版・既存追記を区別し、�
 DC-R01：2頭に異なる内容・片方未回答、カルテなしで保存。DC-R02：上表の受付／取消／pet変更／日時変更を両先行順序で実行。DC-R03：petをA→B→A、取消後取り直し、同key再送・異内容・旧フォーム版。DC-R04：認可失効／別医院／主飼主移管後の旧回答者、遅延応答、監査失敗。DC-R05：D03表示版一致、取得失敗、スタッフclear/copyで原文不変。6つの既存業務ACへの実装検証であり未実行。
 
 Q-C1は新しい受付取消・訂正再開機能を導入する具体的要求が出た場合だけの条件付き検討事項。今回は当該機能を追加せず、現在の本人確認待ち・全体blockerから外す。「受付前まで訂正可／受付後はスタッフ補足」という既決を聞き直さず、受付歴による新しい永久停止条件も本案で選ばない。通常の送信・日時変更・旧回答保持は既決どおり進める。
+
+
+<a id="reservation-intake-course-adapters-20261019"></a>
+## 2026-10-19 問診・コースの物理adapter候補
+
+IR-09/10の未実装候補。§3〜§6の既選定schema・gate・grant・結果照会規約を上書きしない。ID/版の正規形十進文字列、additionalProperties:false相当、server医院/actor解決を適用する。
+
+| 対象 | 候補の保存・wire対応 | 境界・検証 |
+|:---|:---|:---|
+| 飼主回答target | `revisit_intake_targets`候補：clinic_id/appointment_id/pet_id/target_generation/最新answer ref。予約ownerが対象集合を管理、論理keyは既存提案どおり。`revisit_intake_answers`候補：target ref/revision/form_definition_version/7項目/回答者参照/server受信時刻。target＋revisionとanswer IDを一意、不変履歴を保持 | targetは受付後の原文参照にも使用。日時変更は同世代、pet変更は増分、取消は履歴保持。新予約・戻したpetへ旧回答を再採用しない。別DBへ回答だけ先commitしない |
+| LINE read/submit adapter | 既存LIFF予約認証から対象解決し、候補GET予約ref/revisit-intakeはpet別target・フォーム版・最新回答版を返す。候補submitはtarget/期待回答版(初回none)/form版/回答/key。7項目中「元気・食欲」は内部2単一選択、改善・検査希望も単一選択。他は自由文、来院目的だけ送信時必須。文字列空欄と未回答は正本に従う | URL/queryのowner/pet IDを本人証明に使わない。旧フォームのunknown選択肢は補完せず再取得。submitは予約状態/受付/認証主体/binding/対象世代を同gateで再検査。スタッフ編集payloadへ飼主原文を含めない。6AC/DC-R01〜05の両先行順と応答断は未実行 |
+| コース・option | create/update/LIFF各closed DTOへ候補`course_id`(0..1)/`option_ids`(異種一意配列、数量なし)を追加。採用保存候補は選択ref・採用時master revision・時間値・duration_source・計算に使った構成。course対応可能optionと内包施術refはmaster ownerが管理、内包済みを再加算しない | 未設定時間と明示0をnullable/設定状態で区別し、0をdefault時間へ落とさない。readは現在master値と採用snapshotを分離。選択変更時の終了候補再計算と既決チェックを両入口へ接続。設定writerと確定保存は既存gate下でmaster版を再照合。自動金額・請求・在庫更新を足さない |
+
+IR-11は既存writer一覧を出発点に実route/DTO/生成型/DDL・旧clientの参加台帳を埋め、逆順競合・未対応旧write停止・復旧の実証を残す。IR-12は旧分類/時間/能力の不明値をread-only調査で分類し、デフォルト正常化せず対象限定で利用開始保留。IR-16の肯定形能力変換は旧実効集合を固定母集団で照合し、後追加区分を自動許可しない。これらは今回の限定読取で全経路適合・実データ移行を完了した意味ではない。IR-13の受付、医師確認別軸、複数tab・poll・日付・検索戻りの証跡は実機手順へ残す。
+
+
+追加静的照合（IR-11/12/13/16）：`model/reservation_type.go`の現カテゴリはgeneral/trimming、duration_minutesは非nullable/default15で、新4分類・未設定時間と明示0の表現を同じとしない。`model/staff_reservation_capability.go`は医院＋staff＋typeの肯定形対応、`reservation_staff_repository.go`はcapabilityを正本にexcluded readを導出し、旧excluded writeをactive母集団から反転して保存する互換入口を持つ。旧実効集合・設定済marker・母集団を固定した照合を行い、追加区分の許可拡大を起こす旧write停止は既選定どおり検査する。旧excluded表と新表が両方同等のwrite正本であると誤記しない。`reception/api/get-reception.ts`は日付付き予約取得と30秒poll、`api/transforms.ts`は予約状態から会計待ち等の列へ投影するが、この限定読取で医師確認別軸や全タブ/戻り先保持を確認済みにはしない。実データの分類・時間・能力のunknown件数と全caller対応、実機検証は残る。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

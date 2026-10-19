@@ -30,20 +30,20 @@
 
 ### 1.2 飼主リンク
 
-- 検索入力（placeholder「氏名・カナ・電話」）。`useDebouncedValue` 300ms 後に `searchOwnersForLink`。
+- 検索入力（placeholder「氏名・カナ・電話」）。[10/19明示実行](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)に従い検索ボタン押下後に `searchOwnersForLink`。旧実装は `useDebouncedValue` 300ms、変更済みとはしない。
 - ヒット一覧をトグル選択（clinic_id + owner_id）。
 - `canEdit` 時: 「飼主をリンク」（選択 2 件以上）、メンバーごとの unlink。メンバー選択時に `findOwnerIdentityGroupByMember` で逆引きし、そのメンバーの group ID が解決した場合だけ unlink を有効化する。
 
 ### 1.3 ペットリンク
 
 - 親の飼主 identity group（`ownerGroupId`）が必要である旨を表示。
-- 検索入力（placeholder「ペット名・番号」）→ `searchPetsForLink`（300ms debounce）。
+- 検索入力（placeholder「ペット名・番号」）→ 検索ボタン押下後に `searchPetsForLink`（旧実装の300ms debounceは新目標との差）。
 - `canEdit` 時: 「ペットをリンク」（ownerGroupId ありかつ選択 2 件以上）、メンバーごとの unlink。メンバー選択時に `findPetIdentityGroupByMember` で逆引きし、そのメンバーの group ID が解決した場合だけ unlink を有効化する。
 - 選択ペットごとに「連携履歴」ボタン → `getLinkedTreatmentHistory`（view/edit どちらでも可）。結果は plain text /「（履歴なし）」。
 
 ### 1.4 空・エラー・pending
 
-- 検索クエリ空: ヒット一覧をクリア（専用 empty コピーなし）。
+- 検索クエリ空: 入力消去だけでは適用済み候補を変更せず、検索押下/既存明示リセットで空を適用した時にヒット一覧をクリア（既存の空検索動作、専用emptyコピーなし）。検索解除だけで選択済みgroup/memberやlink/unlinkを変更しない。
 - 失敗: `role="alert"` のインラインエラー。
 - 閲覧のみ: `role="status"` バナー。
 - ミューテーション／履歴取得中は `useTransition` の pending でボタン disable。
@@ -99,7 +99,7 @@ sequenceDiagram
 | `IdentityLinksPage` | view ゲート + workbench 委譲 |
 | `IdentityLinksWorkbench` | 検索・選択・link/unlink・履歴 |
 | `usePermission` / `ResourceIdentityLinks` | view / edit |
-| `useDebouncedValue` | 検索 300ms |
+| `useDebouncedValue` | 旧実装の検索300ms。10/19目標は検索ボタンによる入力/適用分離、未実装検証 |
 | `identity-links-api.ts` | HTTP クライアント |
 
 ### API連携（本画面が呼ぶもの）
@@ -233,3 +233,8 @@ identity groupは複数の既存飼主／ペット記録を手動で関連付け
 [決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。氏名または動物種＋ペット名の候補をスタッフ確認し、同一飼主は警告して新規停止、別人は可、新ペットは既存飼主へ追加する。他院既存患者の自院利用と共通最新基本情報を採用し、院別診療・金銭記録と認可は維持する。旧他院行／ID一律拒否を自院利用へ機械適用しない。共有ID・既存重複移行・link/unlink方式は未選定で、重複作成を自院利用条件にしない。
+
+<a id="cross-ui-search-20261019"></a>
+## 10/19後続承認：同種操作・検索ボタン方式
+
+本画面の既存キーワード欄は[適用台帳 S11 / S12](../shared/interaction-scope.md)と[共通FR/8AC](../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。入力中/適用済みを分け、入力/待機/消去だけでは検索せず検索ボタンで適用。既存の明示リセット、独立filter、詳細復帰、認可・検索対象・取得上限/ページ内制限を保持し、全件検索や一律の保存方式へ変えない。取得中/0件/失敗と遅延応答を分け、検索で選択/保存/コピー/送信を確定しない。旧defer/debounceの記載は入力即適用の目標に用いず、適用後の描画最適化と区別する。[S14手順](../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)を各対象IDで実施する受入条件とし、実装適合・実機は未確認。

@@ -39,7 +39,7 @@ React Router 7 の `useBlocker` を活用し、入力データの損失を物理
 ### 2.1 診療項目検索 (`TreatmentSearchDialog`)
 数千項目のマスタから目的の処置を瞬時に特定します。
 - **フィルタ**: 診察、検査、処置、予防、入院、薬剤のカテゴリチップ切り替え。
-- **検索**: インクリメンタルなキーワード検索。
+- **検索**: インクリメンタルなキーワード検索。これは項目値を選ぶ入力補助（[用途別E02](../shared/interaction-scope.md)）で、業務一覧/飼主pet選択の検索ボタン対象とは別。
 
 ### 2.2 飼主検索・付け替え (`OwnerSearchModal`)
 既存カルテの飼主を誤って登録した場合や、譲渡時の変更に使用します。
@@ -59,7 +59,7 @@ Notion の操作感を踏襲したボーダーレス入力。
 
 ### 3.2 高機能フィルタ (`PropertyFilter`)
 - **動的条件**: ユーザーがその場で「かつ/または」条件を組み合わせてデータを抽出。
-- **遅延描画**: `useDeferredValue` は `PropertyFilter` 自身ではなく利用側の一覧画面が検索キーワードへ適用し、大規模データのフィルタ中もタイピングの遅延が発生しません（遅延中の視覚フィードバックは共有 `FilteringIndicator` が担当）。
+- **遅延描画（旧実装の部品責務）**: キーワードの発火契機は[横断明示検索](../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。`useDeferredValue` は `PropertyFilter` 自身ではなく利用側の一覧画面が検索キーワードへ適用し、大規模データのフィルタ中もタイピングの遅延が発生しません（遅延中の視覚フィードバックは共有 `FilteringIndicator` が担当）。
 
 ---
 
@@ -69,3 +69,7 @@ Notion の操作感を踏襲したボーダーレス入力。
 - **パフォーマンス**: 頻繁に再描画される親画面の影響を避けるため、主要なモーダル・カード系部品（`PatientInfoCard`, `OwnerSearchModal`, `TreatmentSearchDialog`, `StaffSelectionModal`, `PropertyFilter` 等）は `memo()` 化されています。ただし本ページで扱う `PropertyInput` と `NavigationBlocker` は非 `memo()`。
 
 ---
+
+## 10/19同種操作の適用
+
+[共通操作正本](../shared/ui-contracts.md#interaction-consistency-20261019)と[適用台帳](../shared/interaction-scope.md)を参照。OwnerSearchModalの飼主候補はS09、担当医等の候補はE03。PropertyFilter/MasterListPage/HistoryFilterPanelという部品名だけで用途を決めず、利用側がL/M/H/S/N/Eを宣言する。共有部品の統一を、全画面で同じ保存/取消/認可方式にする意味へ広げない。

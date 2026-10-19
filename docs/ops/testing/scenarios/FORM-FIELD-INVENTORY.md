@@ -992,14 +992,14 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 
 解消済み（2026-10-02）:
 
-- `/v1/pets/{id}/chronic-conditions` — EMR-248 でペット詳細に慢性疾患 UI を実装（GET/POST/PATCH/DELETE を送出）。**残件: V03 への exact field key 収録**
+- `/v1/pets/{id}/chronic-conditions` — EMR-248 でペット詳細に慢性疾患 UI を実装（GET/POST/PATCH/DELETE を送出）。2026-10-19に下記pet-chronic-conditionの5keyとV03手順へ収録。実行は未検証
 - `/v1/checkup-package-imports`（preview 含む）— EMR-249 で API 自体を削除済み。FE 実装の対象が消えたため収録対象外
 
 ---
 
 ## write endpoint 突合の残余（2026-10-01 トリアージ）
 
-`backend/docs/api.yaml` 全 238 write endpoint × 本表突合のうち、11 グループ収録後も語幹照合に掛からない 26 endpoint の分類。**未収録ギャップはゼロ** — いずれも下記のとおり非対象または収録済みフォームの操作。
+`backend/docs/api.yaml` 全 238 write endpoint × 本表突合のうち、11 グループ収録後も語幹照合に掛からない 26 endpoint の分類。当時の分類記録であり、全フォームの全key収録を保証しない。下表の件数合計は25で、当時記載の26との差1件は未照合。元endpoint母集団との再対応が必要であり、架空の行で補わない。慢性疾患の静的5keyは2026-10-19に下記へ収録したが、定義依存項目の実id列挙・全項目実行は依然別工程。
 
 | 分類 | 件数 | endpoint | 非収録の根拠 |
 |:--|---:|:--|:--|
@@ -1008,7 +1008,7 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 | 認証トークン操作 | 3 | auth/refresh・auth/refresh/logout・logout | 入力フォームなし。E2E auth-flows の対象 |
 | 機器レーン | 3 | lab-device/frames・station・lab-devices/{id}/configuration | [LAB_DEVICE_CLIENT_UAT.md](LAB_DEVICE_CLIENT_UAT.md) の対象レーン |
 | テスト用ツール | 1 | uat/synthetic-closings | 製品フォームでない |
-| 実装済み API の行操作 | 1 | chronic-conditions/{cc_id} | EMR-248 で親 endpoint の UI 実装済み。V03 収録は残件（上記「解消済み」参照） |
+| 実装済み API の行操作 | 1 | chronic-conditions/{cc_id} | EMR-248 で親 endpoint の UI 実装済み。2026-10-19に下記pet-chronic-conditionとV03へ収録、実行は未検証 |
 
 ---
 
@@ -1019,3 +1019,17 @@ api.yaml の write endpoint のうち FE 実装が無いもの。実装 PR で�
 - [ ] 必須/境界変更 → R/O と F 重点を更新
 - [ ] route inventory は 88 product leaves（正本: `route-inventory.test.tsx`。2026-09-29 に `/settings/bug-reports` 追加、後に `/settings/chat-history` 追加）。page 数と unique persistent form 数を混同しない
 - [ ] wildcard / UI 全項目 / 動的 placeholder が残る間は inventory incomplete とし、全フォーム完了や総数を主張しない
+
+### pet-chronic-condition — 既存ペット詳細の慢性疾患（V03追補）
+
+静的送出根拠: `frontend/src/features/owners/api/pet-chronic-conditions.ts` と `hooks/use-pet-chronic-conditions-section.ts`。POST `/v1/pets/{id}/chronic-conditions`、PATCH `/v1/pets/{id}/chronic-conditions/{conditionId}`、DELETEはbodyなし。対象は永続化済みpet。以下は既実装の送出観察であり、実機受入の結果ではない。
+
+| wire key | 作成/更新 | 型・既実装観察 | 適用F |
+|:--|:--|:--|:--|
+| condition_code | 作成・更新 | trim非空をFE検証 | F0 F1 F4 |
+| condition_name | 作成・更新 | trim後1〜255文字をFE検証 | F0 F1 F3 F4 |
+| diagnosed_at | 作成・更新 | strict YYYY-MM-DD。未選択はFE検証 | F0 F1 F2 F4 |
+| notes | 作成・更新 | trim後空白のみはnull、値ありはtrim済文字列 | F0 F4 F5 |
+| is_active | 作成S/更新入力 | 作成true固定。更新はfalseを明示送出しnil省略と区別 | 作成N/A(system)、更新F0 F4 F6 |
+
+petId/conditionIdはpath context、応答のclinic_id/id/created_at/updated_atは入力keyへ数えない。再読込・再編集、無効化(false)と削除を別操作で確認し、canCreate/canEdit/canDeleteとfieldset権限を操作ごとに照合する。送出直前の権限再検査の静的存在はserver認可や実機結果の証明ではない。

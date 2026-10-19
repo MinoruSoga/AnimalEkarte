@@ -1,0 +1,3543 @@
+{
+  "baseline_main": "563353287ebb08af55056e3fbfba2aca3531e599",
+  "baseline_input_sha256": "c6393e5358c13171cb4415d21f21d64dd5714f212a6edd216d8d37c5bd4a8c4e",
+  "scope": "documentation-only; no product code/DB/infrastructure/runtime/send/Plane/merge",
+  "counts": {
+    "baseline_confirmed": 1,
+    "items": 75,
+    "conditional_or_out_of_phase": 7,
+    "before_classifications": {
+      "未検証": 31,
+      "設計未選定": 20,
+      "未精査": 24
+    },
+    "scope_counts": {
+      "related-implementation-or-runtime-verification": 31,
+      "internal-or-operational-design-concretization": 20,
+      "related-static-source-or-data-investigation": 8,
+      "documentation-content-or-acceptance-definition-review": 16
+    }
+  },
+  "items": [
+    {
+      "id": "CL-R01",
+      "title": "臨床writerのowner別版・監査・receipt・共通gate適合台帳",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "route群の初期配賦・gate/fence分離・receipt切替検査を設計草案化",
+      "remaining": "全writer service/旧client/機器/移行/batch監査と競合実行は未了",
+      "detail_path": "docs/design/domains/medical-records/technical-spec.md",
+      "detail_anchor": "clinical-resource-fit-review-20261019",
+      "baseline_target": "docs/design/shared/integration-contracts.md",
+      "baseline_line": 145,
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "全入口を根拠付きで配賦し、旧writerの迂回なし・両先行順競合/ログ失敗/応答断の検証証跡が揃う。docs確認とruntime合格を別記。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R01",
+        "original_classification": "未検証",
+        "performed": "route群の初期配賦・gate/fence分離・receipt切替検査を設計草案化",
+        "remaining": "全writer service/旧client/機器/移行/batch監査と競合実行は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R02",
+      "title": "編集権の候補API・session/epochを実資源と全経路へ具体化",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "edit-right候補行・列・unique・epoch・現route差を具体化",
+      "remaining": "schema/DTO/認証対応・全経路適合・実行は未了",
+      "detail_path": "docs/design/domains/medical-records/technical-spec.md",
+      "detail_anchor": "clinical-resource-fit-review-20261019",
+      "baseline_target": "docs/design/domains/medical-records/technical-spec.md",
+      "baseline_line": 529,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "提案と採用実現方式の対応が一意、同staff別端末含む単独編集・先行commit保持・無操作で解放しない条件を証拠付き確認。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R02",
+        "original_classification": "設計未選定",
+        "performed": "edit-right候補行・列・unique・epoch・現route差を具体化",
+        "remaining": "schema/DTO/認証対応・全経路適合・実行は未了",
+        "new_business_question": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "CL-R03",
+      "title": "本人専用下書きの物理保管・端末保護方式の確定（保持方針は既決）",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "本人draft資源・世代・比較選択UI・認可/鍵停止・未達試験を具体化",
+      "remaining": "offline鍵方式選定と同origin/端末脅威・quota実証は未了。保持業務は既決",
+      "detail_path": "docs/design/domains/medical-records/technical-spec.md",
+      "detail_anchor": "clinical-resource-fit-review-20261019",
+      "baseline_target": "docs/spec/domains/medical-records/lifecycle.md",
+      "baseline_line": 64,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01",
+        "CL-R02"
+      ],
+      "original_completion_condition": "DC-M08/09・AC-draft3件へ方式/検査が接続し、他人/別患者の開示なし・明示適用・保存成功偽装なし。期限/自動消去/端末間共有を追加しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R03",
+        "original_classification": "設計未選定",
+        "performed": "本人draft資源・世代・比較選択UI・認可/鍵停止・未達試験を具体化",
+        "remaining": "offline鍵方式選定と同origin/端末脅威・quota実証は未了。保持業務は既決",
+        "new_business_question": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "CL-R04",
+      "title": "統合入力のowner別保存・clear/copy/Undoと飼主原文",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "dirty key/二基準/copy成功subset/遅延世代/原文非干渉を具体化",
+      "remaining": "IR09回答ref受渡しとDC-M01/02実行は未了",
+      "detail_path": "docs/design/domains/medical-records/technical-spec.md",
+      "detail_anchor": "clinical-resource-fit-review-20261019",
+      "baseline_target": "docs/design/domains/medical-records/technical-spec.md",
+      "baseline_line": 535,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01",
+        "CL-R02",
+        "IR-09"
+      ],
+      "original_completion_condition": "予約×pet別原文旧版保持、希望検査がorderを作らず、任意未回答で予約継続、staffclear/copyに原文混入なし。Q-C1は要求発生時だけの条件付き。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R04",
+        "original_classification": "未検証",
+        "performed": "dirty key/二基準/copy成功subset/遅延世代/原文非干渉を具体化",
+        "remaining": "IR09回答ref受渡しとDC-M01/02実行は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R05",
+      "title": "通常編集・専用訂正/過去入力/死亡後生前分と旧版対応",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "addendum実requestとの差から目的別元先/版/確認/receipt候補を配賦",
+      "remaining": "専用API適合と生前分・両順競合・監査失敗実行は未了",
+      "detail_path": "docs/design/domains/medical-records/technical-spec.md",
+      "detail_anchor": "clinical-resource-fit-review-20261019",
+      "baseline_target": "docs/design/domains/medical-records/technical-spec.md",
+      "baseline_line": 16,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "旧値を架空official/通常患者PATCHへ変換せず、元結果/履歴/必要理由・actor/確認医師を保持し、専用grant/版/結果照会の失敗検査が揃う。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R05",
+        "original_classification": "未検証",
+        "performed": "addendum実requestとの差から目的別元先/版/確認/receipt候補を配賦",
+        "remaining": "専用API適合と生前分・両順競合・監査失敗実行は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R06",
+      "title": "薬量の具体的臨床値と単位・複数パターンの対応",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "現model/PUTの単一種別値と目的経路承認パターン版の差を具体化",
+      "remaining": "#261具体値臨床承認と計算実証は未了",
+      "detail_path": "docs/design/domains/medical-records/technical-spec.md",
+      "detail_anchor": "clinical-resource-fit-review-20261019",
+      "baseline_target": "docs/design/domains/medical-records/technical-spec.md",
+      "baseline_line": 217,
+      "responsibility": "医師による具体値確認＋こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "承認済み具体値と版/出典が追跡でき、未承認/対象外を計算せず、1回量/用法/総量を区別。複雑protocolや日数総量自動化は追加しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R06",
+        "original_classification": "未検証",
+        "performed": "現model/PUTの単一種別値と目的経路承認パターン版の差を具体化",
+        "remaining": "#261具体値臨床承認と計算実証は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E9"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R07",
+      "title": "入院中プラン変更・完了後訂正・ホテル料金の保存接続",
+      "priority": "P2",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "安定plan ref/current projection/不変変更event/料金確認refとD10分離を具体化",
+      "remaining": "service全writer/旧履歴の移行/金銭連動実証は未了",
+      "detail_path": "docs/design/domains/hospitalization/technical-spec.md",
+      "detail_anchor": "hospitalization-change-receipt-candidate-20261019",
+      "baseline_target": "docs/design/domains/hospitalization/technical-spec.md",
+      "baseline_line": 43,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "原履歴を壊さず開始/退院/料金保存と実入金を分離、未知を再createで補わず、自動日数課金/返金/在庫戻しなしを検証。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R07",
+        "original_classification": "設計未選定",
+        "performed": "安定plan ref/current projection/不変変更event/料金確認refとD10分離を具体化",
+        "remaining": "service全writer/旧履歴の移行/金銭連動実証は未了",
+        "new_business_question": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "CL-R08",
+      "title": "トリミングの版/再送・既決終了条件と料金引継ぎの適合",
+      "priority": "P2",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "detail版と調整根拠/取込元行識別/終了との版結合/再送検査を具体化",
+      "remaining": "全writer/保存物理対応/財務実証は未了",
+      "detail_path": "docs/design/domains/trimming/technical-spec.md",
+      "detail_anchor": "trimming-price-version-candidate-20261019",
+      "baseline_target": "docs/design/domains/trimming/technical-spec.md",
+      "baseline_line": 56,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "終了結果不明で予約detail重複なし、担当未定保存・実施記録終了条件・値引二重適用防止/確定会計保護に根拠が揃う。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R08",
+        "original_classification": "未検証",
+        "performed": "detail版と調整根拠/取込元行識別/終了との版結合/再送検査を具体化",
+        "remaining": "全writer/保存物理対応/財務実証は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E4"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R09",
+      "title": "健診の段階保存復帰・旧field/値復元・監査適合",
+      "priority": "P2",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "親子結果のstage成功ID/receipt/同ID再開資源を現hook再読で具体化",
+      "remaining": "GET復元配線/fieldサービス全件/実行は未了",
+      "detail_path": "docs/design/domains/checkups/technical-spec.md",
+      "detail_anchor": "checkup-stage-recovery-candidate-20261019",
+      "baseline_target": "docs/design/domains/checkups/technical-spec.md",
+      "baseline_line": 46,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "失敗後に同IDから再開し親/健診重複なし、unknownを正常にせず旧名でfield再接続なし。全体atomic化/自動削除補償を追加しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R09",
+        "original_classification": "未検証",
+        "performed": "親子結果のstage成功ID/receipt/同ID再開資源を現hook再読で具体化",
+        "remaining": "GET復元配線/fieldサービス全件/実行は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E9"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R10",
+      "title": "検査選択印刷/感染症投影のwire・旧版・mapping",
+      "priority": "P2",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "固定版print現model/旧版なしfailclosedを確認し選択refと感染症fixtureへ配賦",
+      "remaining": "感染症実projectionの全経路と旧データmapping/実印刷は未了",
+      "detail_path": "docs/design/domains/examinations/technical-spec.md",
+      "detail_anchor": "examination-static-validation-handoff-20261019",
+      "baseline_target": "docs/design/domains/examinations/technical-spec.md",
+      "baseline_line": 102,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01",
+        "CL-R05"
+      ],
+      "original_completion_condition": "旧値を現masterで補完せず一保存版内選択/認可・取消を検証。患者トップは完全候補から原値/出典/訂正状態を返しD20公開/D21印刷共有へ広げない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R10",
+        "original_classification": "設計未選定",
+        "performed": "固定版print現model/旧版なしfailclosedを確認し選択refと感染症fixtureへ配賦",
+        "remaining": "感染症実projectionの全経路と旧データmapping/実印刷は未了",
+        "new_business_question": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "CL-R11",
+      "title": "接種次回日設定/当時日保持の両入口と旧snapshot適合",
+      "priority": "P2",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "埋込hook現初期/複製clearと独立modelを分離し比較fixture表を具体化",
+      "remaining": "医師interval・設定参照と両入口保存再読取の実行は未了",
+      "detail_path": "docs/design/domains/vaccinations/technical-spec.md",
+      "detail_anchor": "vaccination-date-certificate-review-20261019",
+      "baseline_target": "docs/design/domains/vaccinations/technical-spec.md",
+      "baseline_line": 27,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "手入力を黙って上書きせず当時値保持と既存日付検証を分離。1yearを新業務既定として採用せず追加優先順位を推定しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R11",
+        "original_classification": "未検証",
+        "performed": "埋込hook現初期/複製clearと独立modelを分離し比較fixture表を具体化",
+        "remaining": "医師interval・設定参照と両入口保存再読取の実行は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E3"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R12",
+      "title": "証明書専用実装所在と固定発行版/出力資源の適合",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "保存済みresume-certificate-review.jsonの原XLS SHA/3見本全項目・配置対応を現lifecycle115–151へ照合し一致。repo全体の実装拡張子検索を追加、専用発行経路は未特定。",
+      "remaining": "専用実装所在と適合、旧版移行、描画golden、実印刷は未検証。元見本項目・配置の文書照合を未精査へ戻さない。",
+      "detail_path": "docs/design/domains/vaccinations/technical-spec.md",
+      "detail_anchor": "vaccination-date-certificate-review-20261019",
+      "baseline_target": "docs/design/domains/vaccinations/technical-spec.md",
+      "baseline_line": 82,
+      "responsibility": "こちら調査＋帳票実機担当",
+      "dependencies": [
+        "CL-R01",
+        "CL-R05"
+      ],
+      "original_completion_condition": "3様式の項目配置/縦横共通current・固有欄・基本情報更新不変、訂正commitと旧出力競合/失敗の期待値が実証される。旧印刷時自動登録/新番号規則なし。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R12",
+        "original_classification": "未精査",
+        "performed": "保存済みresume-certificate-review.jsonの原XLS SHA/3見本全項目・配置対応を現lifecycle115–151へ照合し一致。repo全体の実装拡張子検索を追加、専用発行経路は未特定。",
+        "remaining": "専用実装所在と適合、旧版移行、描画golden、実印刷は未検証。元見本項目・配置の文書照合を未精査へ戻さない。",
+        "new_business_question": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "CL-R13",
+      "title": "機器待機の当日対象カルテ条件のserver適合",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "PutWait264–313/todayVisits371–384/persist入口の再読で当日対象検査の静的不足を確認",
+      "remaining": "修正禁止により実装と実機は未了。当日条件を未決へ戻さない",
+      "detail_path": "docs/design/domains/examinations/technical-spec.md",
+      "detail_anchor": "examination-static-validation-handoff-20261019",
+      "baseline_target": "docs/spec/lab-device-integration/README.md",
+      "baseline_line": 54,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "CL-R01"
+      ],
+      "original_completion_condition": "当日明示カードの目標を撤回せずUI候補だけで保証しない。最新コード根拠と検査証跡でgapの有無を確定し、不足時は別承認の実装へ。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R13",
+        "original_classification": "未検証",
+        "performed": "PutWait264–313/todayVisits371–384/persist入口の再読で当日対象検査の静的不足を確認",
+        "remaining": "修正禁止により実装と実機は未了。当日条件を未決へ戻さない",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E8"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R14",
+      "title": "lab実機/医院別配線・PIMS/パリティ・臨床範囲/rollout",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "機器毎receiptと日常/decoder/PIMS/legacy別行、故障/復旧の検査配賦を具体化",
+      "remaining": "配線/機種写真同定/医院実機/臨床値/運用承認は未了",
+      "detail_path": "docs/design/domains/examinations/technical-spec.md",
+      "detail_anchor": "examination-static-validation-handoff-20261019",
+      "baseline_target": "docs/design/domains/examinations/technical-spec.md",
+      "baseline_line": 102,
+      "responsibility": "実機担当＋医院運用担当＋医師",
+      "dependencies": [
+        "CL-R13"
+      ],
+      "original_completion_condition": "対象医院/機器/手順/検証日/承認を固定し、未承認IDEXX送信・PU日常選択なし。コード存在/完全再現の文句でUATや撤去を代用しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R14",
+        "original_classification": "未検証",
+        "performed": "機器毎receiptと日常/decoder/PIMS/legacy別行、故障/復旧の検査配賦を具体化",
+        "remaining": "配線/機種写真同定/医院実機/臨床値/運用承認は未了",
+        "new_business_question": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E8"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "CL-R15",
+      "title": "外注/画像/八王子・旧ID/版の最低継続要件調査",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "既存解析の痕跡と現利用未知を再照合、医院別六欄の継続確認票を草案化",
+      "remaining": "外注/画像/八王子の現利用証拠・旧ID対応等は未取得。未精査完全解消ではない",
+      "detail_path": "docs/spec/lab-device-integration/README.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/spec/lab-device-integration/README.md",
+      "baseline_line": 84,
+      "responsibility": "こちら資料調査→必要時のみユーザー判断/医院担当",
+      "dependencies": [],
+      "original_completion_condition": "未確認を不存在/不要/Phase2/Phase1採用へ変えず、医院別の最低継続対象と根拠/残unknownを可視化。専用新連携は提案せず要求発生時のみ別判断。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R15",
+        "original_classification": "未精査",
+        "performed": "既存解析の痕跡と現利用未知を再照合、医院別六欄の継続確認票を草案化",
+        "remaining": "外注/画像/八王子の現利用証拠・旧ID対応等は未取得。未精査完全解消ではない",
+        "new_business_question": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "CL-R16",
+      "title": "臨床AC/DCの意味対応・旧観察の最新性を限定再精査",
+      "priority": "P3",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "D03補足24ACとD08補足4ACを各正本AC期待値へIDごと照合、一致。DC-M01–09/DC-V01–08/C01–03と今回候補の適用を対応。",
+      "remaining": "今回範囲の文書意味照合は完了。全臨床FR/AC・全旧コード観察の全面再監査は行っておらず、DCの実行証跡は別工程。",
+      "detail_path": "docs/design/shared/integration-contracts.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/design/shared/integration-contracts.md",
+      "baseline_line": 92,
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "担当範囲/未読/基準版を記録し、既存D03補足24/D08補足4とD05～D09traceを欠落認定へ戻さず、実在差分だけ根拠付きで報告。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "CL-R16",
+        "original_classification": "未精査",
+        "performed": "D03補足24ACとD08補足4ACを各正本AC期待値へIDごと照合、一致。DC-M01–09/DC-V01–08/C01–03と今回候補の適用を対応。",
+        "remaining": "今回範囲の文書意味照合は完了。全臨床FR/AC・全旧コード観察の全面再監査は行っておらず、DCの実行証跡は別工程。",
+        "new_business_question": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R01",
+      "title": "181本文AC＋subpage固有20ACの項目単位受入網羅",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "本文181ACと固有20ACをID別の検証群/個別結果キーへ対応。6行の割当修正を再確認",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-ac-execution-trace-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 406,
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "181＋20の母集団区別を維持した全項目対応表があり、未割当・重複評価・旧期待採用を説明できる。実行済み判定は証跡付きのみ。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R01",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R02",
+      "title": "S08全10手順を現正本へ項目単位で接続",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "S08全10手順について旧観察と現目標、fixture・対応AC・必要証跡/停止を対照",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/S08-accounting-corrections.md",
+      "detail_anchor": "s08-current-target-overlay-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/S08-accounting-corrections.md",
+      "baseline_line": 13,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01"
+      ],
+      "original_completion_condition": "全10手順と異常系・確認観点に現目標／旧回帰の位置付け、対応AC、fixture、証跡又は未実行理由がある。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R02",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R03",
+      "title": "V02／項目棚卸し：会計精算フォーム",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "精算フォーム5fieldにF0〜F6の適用/理由と支払・部分入金等の現ACを対応",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 48,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R03",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R04",
+      "title": "V02／項目棚卸し：明細行編集",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "明細編集3fieldに数量/単価/認可/保存再読取の現期待を対応",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 58,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R04",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R05",
+      "title": "V02／項目棚卸し：明細追加",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "明細追加7fieldに必須/形式/空クリア/その他理由と現ACを対応",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 68,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R05",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R06",
+      "title": "V02／項目棚卸し：クレジット訂正",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "クレジット訂正4fieldに訂正理由/元資金・方法/金額の現期待を対応",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 80,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R06",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R07",
+      "title": "V02／項目棚卸し：返金",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "返金3fieldに理由/実方法/受領残上限/再読取を対応",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 91,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R07",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R08",
+      "title": "V02／項目棚卸し：レジ締め",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "レジ締め3fieldに差額メモ条件/区分/現closing ACを対応",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 102,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R08",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R09",
+      "title": "V02／項目棚卸し：見積作成編集",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "見積13fieldを現estimates ACとF観点へ対応し原本/後継を分離",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 116,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R09",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R10",
+      "title": "V02／項目棚卸し：在庫品目",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "在庫9fieldを現inventory ACとF観点へ対応し旧値/出庫と属性保存を分離",
+      "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+      "detail_path": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "detail_anchor": "finance-field-targets-20261019",
+      "baseline_target": "docs/ops/testing/scenarios/V02-accounting-reservation-forms.md",
+      "baseline_line": 213,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R01",
+        "FIN-R02"
+      ],
+      "original_completion_condition": "全fieldKeyに適用Fの期待・根拠・結果又は理由付きN/Aがあり、最新契約との未適合は実装差として識別。BLOCKED/PARTIALを合格にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R10",
+        "done_in_docs_draft": "AC201のID別検証先、S08全10手順の現目標overlay、8form47field個別F期待を文書草案化",
+        "remaining": "実UI/DTO全項目差分、各AC固有fixtureと実行receiptの配置、全適用Fの実機結果",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R11",
+      "title": "医師確認世代・同期由来の物理契約具体化",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "確認世代2資源・医師確認receipt・source binding/差異のキー/列/CASと確定時照合を候補化",
+      "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-physical-candidates-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 436,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "D03臨床世代／元明細安定ID",
+        "C06共通gate/receipt",
+        "C04確認権限mapping"
+      ],
+      "original_completion_condition": "価格のみは警告了承／再医師確認不要、薬剤処置追加削除数量は再確認、3同期分岐・全差異一致強制なしを保つ具体設計とDC-A01〜06の実行先が揃う。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R11",
+        "done_in_docs_draft": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+        "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "FIN-R12",
+      "title": "全writer／consumerのgate参加と認可の実装適合",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "現main固定版でroute/医師確認/退院取消分岐/在庫repoを限定静的照合し候補と残検査へ接続",
+      "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-physical-candidates-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 214,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R11",
+        "C04実grant",
+        "横断write-owner/orchestration catalog"
+      ],
+      "original_completion_condition": "全群に調査済み実symbolと合否・未確認の明示があり、未適合経路の利用開始を止められる。separate-tx既存経路を無根拠に同tx済みとしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R12",
+        "done_in_docs_draft": "現main固定版でroute/医師確認/退院取消分岐/在庫repoを限定静的照合し候補と残検査へ接続",
+        "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R13",
+      "title": "金銭旧データ移行・資金対応の照合計画",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "旧値分類manifest/前後金額件数照合・認可参照境界の候補と不足時停止を草案化",
+      "remaining": "実データ/全grant/旧欠落設定/全保存読取経路の限定調査と移行。必要な解釈だけ根拠を添えて質問",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-physical-candidates-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 230,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "実データへの承認済み読取環境",
+        "FIN-R12",
+        "ADR003支払identity"
+      ],
+      "original_completion_condition": "不明を0・現金・保険対象外へ推測せず、既存明示値／元日付／履歴を保持する分類と残件台帳があり、金額・件数・出所の前後照合可能。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R13",
+        "done_in_docs_draft": "旧値分類manifest/前後金額件数照合・認可参照境界の候補と不足時停止を草案化",
+        "remaining": "実データ/全grant/旧欠落設定/全保存読取経路の限定調査と移行。必要な解釈だけ根拠を添えて質問",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R14",
+      "title": "算定精度・snapshot形式・採番/帳票版の具体設計",
+      "priority": "P2",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "十進係数/有理算定、snapshot、配賦安定順、発行版と数値fixtureを具体化",
+      "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-physical-candidates-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 87,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R13",
+        "既存税・帳票意味契約"
+      ],
+      "original_completion_condition": "0.5円境界、同率剰余・並替／再送、税率混在、除外全行、0円、master改定後の旧出力を再現できる設計と検証値が揃う。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R14",
+        "done_in_docs_draft": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+        "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "FIN-R15",
+      "title": "品目保険設定・停止支払方法・割引認可の全入口適合",
+      "priority": "P1",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "品目6種の設定保存/読取/会計snapshot、停止支払方法の新受領と過去参照、マスタ変更/個別割引認可の既存契約を照合し、F05/F09等の受入先へ接続。全入口の実装適合は未確認",
+      "remaining": "create/edit/read/候補/会計行追加/明示再適用/帳票・集計の各入口でfield・現在grant・保存版/履歴を逆引きし、停止競合・遅延応答・旧snapshot保護の対応表と残る実装差/受入証跡を揃える。新規初期値と旧欠落、保険区分と割引除外、新受領と既存資金操作を分離",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-physical-candidates-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 273,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R12",
+        "FIN-R13"
+      ],
+      "original_completion_condition": "全入口に保存値／現在認可／版・履歴・停止競合・遅延応答・旧snapshot保護の対応表、残る実装差と受入先がある。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R15",
+        "done_in_docs_draft": "品目6種の設定保存/読取/会計snapshot、停止支払方法の新受領と過去参照、マスタ変更/個別割引認可の既存契約を照合し、F05/F09等の受入先へ接続。全入口の実装適合は未確認",
+        "remaining": "create/edit/read/候補/会計行追加/明示再適用/帳票・集計の各入口でfield・現在grant・保存版/履歴を逆引きし、停止競合・遅延応答・旧snapshot保護の対応表と残る実装差/受入証跡を揃える。新規初期値と旧欠落、保険区分と割引除外、新受領と既存資金操作を分離",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R16",
+      "title": "見積全入口・提示原本・後継・確認転記の実装照合",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+      "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/design/domains/finance-operations/technical-spec.md",
+      "baseline_line": 16,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R09",
+        "FIN-R12",
+        "D10計算/未確定保存"
+      ],
+      "original_completion_condition": "提示済返答待ちを含む原本不変、旧承認の新内容へ継承なし、期限内条件の提示単価・税保険再確認、先draft成功receipt・副作用0を証明する対応表と証跡がある。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R16",
+        "done_in_docs_draft": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+        "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R17",
+      "title": "D12締め／D16月次への新金銭event adapter適合",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+      "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/design/domains/finance-operations/technical-spec.md",
+      "baseline_line": 140,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R12",
+        "FIN-R13",
+        "FIN-R14"
+      ],
+      "original_completion_condition": "部分入金/後日回収/預り受領充当解除復元/取消再請求/別方法返金の各例で請求軸・実移動軸・営業日／JST暦日が整合し、欠落は未完了と表示。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R17",
+        "done_in_docs_draft": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+        "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R18",
+      "title": "月末未納・返金等を含む表示/cutoffの詳細接続",
+      "priority": "P2",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "JST半開cutoff/元event別調整と完全性を候補化し、限定式と実受領帰属差を分離",
+      "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/spec/domains/accounting/pages/unpaid-list.md",
+      "baseline_line": 169,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R13",
+        "FIN-R17"
+      ],
+      "original_completion_condition": "同医院/飼主/請求/期間の実受領と請求帰属差を説明し、当月／翌月残の連続性、調整二重控除なし、説明不能時の未完了が明確。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R18",
+        "done_in_docs_draft": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+        "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "FIN-R19",
+      "title": "退院情報の行粒度・固定読取・紙面配置",
+      "priority": "P2",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "退院read応答/全ページ世代/1滞在有効退院事実の行と4列改頁配置を候補化",
+      "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/design/domains/finance-operations/technical-spec.md",
+      "baseline_line": 206,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "D05退院事実/履歴adapter",
+        "確定済み帳票掲載4項目"
+      ],
+      "original_completion_condition": "同名別pet・再入院・JST境界・支払日別・ページ欠落・preview後版変更をDC-F01〜04へ対応し、不明補完・金銭writeなしの設計をレビュー済み。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R19",
+        "done_in_docs_draft": "既存意味契約へ候補資源キー/列/制約/投影/失敗・検証期待を追加具体化。内部提案のまま",
+        "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "FIN-R20",
+      "title": "退院会計の取消旧会計置換経路とD10再請求接続",
+      "priority": "P1",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "現main固定版でroute/医師確認/退院取消分岐/在庫repoを限定静的照合し候補と残検査へ接続",
+      "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
+      "detail_path": "docs/design/domains/accounting/technical-spec.md",
+      "detail_anchor": "finance-physical-candidates-20261019",
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 314,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R12",
+        "D05専用終了/会計契約"
+      ],
+      "original_completion_condition": "専用退院終了と通常医師確認を混同せず、履歴消失・二重請求・取消から自動返金／在庫戻しがないことを静的根拠と後続検査先で示す。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R20",
+        "done_in_docs_draft": "現main固定版でroute/医師確認/退院取消分岐/在庫repoを限定静的照合し候補と残検査へ接続",
+        "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "FIN-R22",
+      "title": "在庫数量版・実績台帳・臨床小数量の具体接続",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "現main固定版でroute/医師確認/退院取消分岐/在庫repoを限定静的照合し候補と残検査へ接続",
+      "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/design/domains/finance-operations/technical-spec.md",
+      "baseline_line": 61,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "FIN-R10",
+        "FIN-R12",
+        "承認済み実データ単位確認"
+      ],
+      "original_completion_condition": "棚卸と出庫競合、同元出庫返却累計、同操作再送、名称同期・使用中削除競合、旧値不明停止で履歴・数量整合を証明。新物販連動／ロット管理を加えない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R22",
+        "done_in_docs_draft": "現main固定版でroute/医師確認/退院取消分岐/在庫repoを限定静的照合し候補と残検査へ接続",
+        "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R23",
+      "title": "医師確認・全金銭intentの実API/DB並行・復旧UAT",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "承認済み専用環境の前提、各intent実行/帳票matrix/外部確認の証跡単位と未実行判定を整理",
+      "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/design/domains/accounting/technical-spec.md",
+      "baseline_line": 476,
+      "responsibility": "実機担当",
+      "dependencies": [
+        "FIN-R11",
+        "FIN-R12",
+        "FIN-R16",
+        "FIN-R20",
+        "CL-R08",
+        "billing-schema-readiness",
+        "専用UAT環境承認"
+      ],
+      "original_completion_condition": "対象caseごと環境/版/操作/現在残/receipt/監査の証跡とPASS/FAIL/PARTIAL/BLOCKED。未実行・fixture不足をPASSにしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R23",
+        "done_in_docs_draft": "承認済み専用環境の前提、各intent実行/帳票matrix/外部確認の証跡単位と未実行判定を整理",
+        "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R24",
+      "title": "帳票全項目のPDF・実印刷・医院運用受入",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "承認済み専用環境の前提、各intent実行/帳票matrix/外部確認の証跡単位と未実行判定を整理",
+      "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/testing/scenarios/S33-receipt-print-pdf.md",
+      "baseline_line": 15,
+      "responsibility": "実機担当",
+      "dependencies": [
+        "FIN-R14",
+        "FIN-R17",
+        "FIN-R18",
+        "FIN-R19",
+        "FIN-R23",
+        "医院の対象プリンタ/帳票運用"
+      ],
+      "original_completion_condition": "出力項目matrixの全欄に証跡・未実行理由があり、印刷で受領/会計/在庫writeなし。PDF成功と物理印刷/実締め承認を別々に記録。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R24",
+        "done_in_docs_draft": "承認済み専用環境の前提、各intent実行/帳票matrix/外部確認の証跡単位と未実行判定を整理",
+        "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E12"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "FIN-R25",
+      "title": "税務分類・適格請求書全体・決済規約の外部確認",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "承認済み専用環境の前提、各intent実行/帳票matrix/外部確認の証跡単位と未実行判定を整理",
+      "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
+      "detail_path": "docs/design/domains/finance-operations/technical-spec.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/spec/domains/accounting/lifecycle.md",
+      "baseline_line": 486,
+      "responsibility": "実機担当",
+      "dependencies": [
+        "医院実設定・契約",
+        "FIN-R14",
+        "FIN-R24"
+      ],
+      "original_completion_condition": "品目分類・登録番号/必要記載・実返金方法・外部会計入出力など適用範囲の確認者/根拠/判定がある。未確認を業務採否未決へ戻さない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "FIN-R25",
+        "done_in_docs_draft": "承認済み専用環境の前提、各intent実行/帳票matrix/外部確認の証跡単位と未実行判定を整理",
+        "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
+        "implementation_or_runtime_pass": false
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "IR-01",
+      "title": "共通subject/local医院利用mappingの内部方式選定",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "採用する内部方式と代替を選定理由付きで明示し、共通更新と元院履歴不変/無認可非公開/二重create防止の全接続が追える。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        159,
+        175
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "採用する内部方式と代替を選定理由付きで明示し、共通更新と元院履歴不変/無認可非公開/二重create防止の全接続が追える。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-01",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/model/owner.go",
+            "lines": [
+              18,
+              63
+            ],
+            "sha256": "5c8314a8d572a4edcc5f8f3ad4cd66b848fa4d27d7a1715904008095f8577154",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/model/identity_link.go",
+            "lines": [
+              9,
+              66
+            ],
+            "sha256": "5cfc7b5865aaa749d82f663618adb0151fe557bccbf55fe33e65124b1c7e3f84",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "採用する内部方式と代替を選定理由付きで明示し、共通更新と元院履歴不変/無認可非公開/二重create防止の全接続が追える。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-02",
+      "title": "既存患者のmapping矛盾・移行対象の実在照合",
+      "priority": "P1",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "対象件数・一意性/矛盾一覧・由来・未分類保護・切替排出/復旧計画が揃う。矛盾未発生の段階ではユーザー待ちにしない。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        171,
+        175,
+        201,
+        209
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-01"
+      ],
+      "original_completion_condition": "対象件数・一意性/矛盾一覧・由来・未分類保護・切替排出/復旧計画が揃う。矛盾未発生の段階ではユーザー待ちにしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-02",
+        "previous_classification": "未精査",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/model/identity_link.go",
+            "lines": [
+              9,
+              66
+            ],
+            "sha256": "5cfc7b5865aaa749d82f663618adb0151fe557bccbf55fe33e65124b1c7e3f84",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/identitylink/service_owner.go",
+            "lines": [
+              11,
+              90
+            ],
+            "sha256": "dd97cce6c61b6a0f358d43ba7a7983977743e6aa670af6ea0db0bc42e68412b4",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "対象件数・一意性/矛盾一覧・由来・未分類保護・切替排出/復旧計画が揃う。矛盾未発生の段階ではユーザー待ちにしない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "IR-03",
+      "title": "主飼主移管preview・集合変化・版/receiptの具体契約",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "新設予約/受付/JST境界/LINE変更の両先行順、既存条件付きcustomer付替え、過去資金不変を保持する設計/検証表ができる。独立LINE解除へ統合しない。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        55,
+        65,
+        177,
+        181
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11"
+      ],
+      "original_completion_condition": "新設予約/受付/JST境界/LINE変更の両先行順、既存条件付きcustomer付替え、過去資金不変を保持する設計/検証表ができる。独立LINE解除へ統合しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-03",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/pet_owner_transfer.go",
+            "lines": [
+              35,
+              130
+            ],
+            "sha256": "e39f47b5b80af82e23c56795b88690da2aa62a31eaf2f08b0ab2d7aa431d772a",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "新設予約/受付/JST境界/LINE変更の両先行順、既存条件付きcustomer付替え、過去資金不変を保持する設計/検証表ができる。独立LINE解除へ統合しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-04",
+      "title": "台帳一般更新・重複警告登録の版と結果照会",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "既決競合動作・same-tx・結果不明停止を満たす方式と各ACへの証跡計画があり、同電話候補をreceipt代用しない。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        46,
+        53,
+        89,
+        97,
+        119,
+        121
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "既決競合動作・same-tx・結果不明停止を満たす方式と各ACへの証跡計画があり、同電話候補をreceipt代用しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-04",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/owner/http_request.go",
+            "lines": [
+              80,
+              108
+            ],
+            "sha256": "0675774fe5785ba6cf039bdaa7c35601bab71a9fed69c74e78bed84a7e64f795",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/owner/repository.go",
+            "lines": [
+              237,
+              280
+            ],
+            "sha256": "49179a32ca991e503e96c8284c0e0461f02464ef71b6b0c044c6b85ba1f06419",
+            "read_scope": "range output partly truncated; CreateWithPets transaction entry inspected",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "既決競合動作・same-tx・結果不明停止を満たす方式と各ACへの証跡計画があり、同電話候補をreceipt代用しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-05",
+      "title": "LINE binding解除とdispatch claimの線形化点",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "DC-I05/06に対し両先行順・worker再起動・遅延HTTPで解除完了後の旧版新発信防止を検証可能。発信済み回収や不明自動再送を保証しない。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        183,
+        191
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-17"
+      ],
+      "original_completion_condition": "DC-I05/06に対し両先行順・worker再起動・遅延HTTPで解除完了後の旧版新発信防止を検証可能。発信済み回収や不明自動再送を保証しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-05",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/owner/service_line.go",
+            "lines": [
+              35,
+              105
+            ],
+            "sha256": "71d3ce1b8166dd79fc38a227834df2970ce85520a43a73c227d257673de519be",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/lstep/line_link_service.go",
+            "lines": [
+              259,
+              328
+            ],
+            "sha256": "b06e3bd032aa7b20b8c64baf959ef055c7264ac508ad2da1837a30127891b9ca",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "DC-I05/06に対し両先行順・worker再起動・遅延HTTPで解除完了後の旧版新発信防止を検証可能。発信済み回収や不明自動再送を保証しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-06",
+      "title": "再連携後の予約選択再開adapterと独立停止の保持",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "予約/患者/参照履歴保持、未選択未再開、独立停止/結果不明不変、再連携のみの再開なし、確認保存だけの即時送信なしが検証表で追える。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        193,
+        199
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-05",
+        "IR-17"
+      ],
+      "original_completion_condition": "予約/患者/参照履歴保持、未選択未再開、独立停止/結果不明不変、再連携のみの再開なし、確認保存だけの即時送信なしが検証表で追える。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-06",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/owner/service_line.go",
+            "lines": [
+              35,
+              105
+            ],
+            "sha256": "71d3ce1b8166dd79fc38a227834df2970ce85520a43a73c227d257673de519be",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "予約/患者/参照履歴保持、未選択未再開、独立停止/結果不明不変、再連携のみの再開なし、確認保存だけの即時送信なしが検証表で追える。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-08",
+      "title": "LIFF限定公開と単回linkの現在適合・不明結果",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "公開allowlistを拡張せず、親finalizedを追加要件にせず、原子失敗と二重実行収束を検証できる。実機結果は実行担当の別証跡にする。",
+      "detail_path": "docs/spec/screens/38-liff-pet-health.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/spec/screens/38-liff-pet-health.md",
+      "baseline_line": [
+        176,
+        208
+      ],
+      "responsibility": "実機担当",
+      "dependencies": [
+        "IR-05",
+        "IR-17"
+      ],
+      "original_completion_condition": "公開allowlistを拡張せず、親finalizedを追加要件にせず、原子失敗と二重実行収束を検証できる。実機結果は実行担当の別証跡にする。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-08",
+        "previous_classification": "未検証",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/spec/screens/38-liff-pet-health.md",
+            "lines": [
+              130,
+              183
+            ],
+            "sha256": "2e41360938295312a966c577943ad63f23e220f547810b944eae44a98e79a5db",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/liff_handler.go",
+            "lines": [
+              279,
+              298
+            ],
+            "sha256": "7e00dc568a96392eba4c6e49f753e11877a15bc9ee1a887ff5ae5aea8caef960",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/liff_response.go",
+            "lines": [
+              270,
+              337
+            ],
+            "sha256": "b00e5ea81d39f1f81925e4dae902377e1698138c74d7d6e26af372a4e4bd7ab6",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/liff_service_health_card.go",
+            "lines": [
+              1,
+              99
+            ],
+            "sha256": "a820cb7071222a6a844eabdb113519b65a8c93a3aa60c2c84c09279a57fc0ff3",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/lstep/line_link_service.go",
+            "lines": [
+              259,
+              328
+            ],
+            "sha256": "b06e3bd032aa7b20b8c64baf959ef055c7264ac508ad2da1837a30127891b9ca",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "公開allowlistを拡張せず、親finalizedを追加要件にせず、原子失敗と二重実行収束を検証できる。実機結果は実行担当の別証跡にする。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E7"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "IR-09",
+      "title": "予約再診回答target世代・版・既存予約導入方式",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "複数頭別回答・受付前訂正・日時引継ぎ・A→B→A未回答・旧原文保持・copy/clear非干渉が追える。Q-C1は将来要求時のみで現blockerにしない。",
+      "detail_path": "docs/design/domains/reservations/technical-spec.md",
+      "detail_anchor": "reservation-intake-course-adapters-20261019",
+      "baseline_target": "docs/design/domains/reservations/technical-spec.md",
+      "baseline_line": [
+        656,
+        690
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11",
+        "IR-17"
+      ],
+      "original_completion_condition": "複数頭別回答・受付前訂正・日時引継ぎ・A→B→A未回答・旧原文保持・copy/clear非干渉が追える。Q-C1は将来要求時のみで現blockerにしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-09",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/reservations/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/reservations/technical-spec.md",
+            "lines": [
+              655,
+              690
+            ],
+            "sha256": "89972d003cf7919becb6f8585a7620198a930e63f25ae9560ed1ecd8fd86b999",
+            "read_scope": "selected-range",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/routes.go",
+            "lines": [
+              199,
+              199
+            ],
+            "sha256": "1d97541d491311815a27b88d3ecd8425b73a7598fad32978596c28532b2096da",
+            "read_scope": "search-hit; route only",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "複数頭別回答・受付前訂正・日時引継ぎ・A→B→A未回答・旧原文保持・copy/clear非干渉が追える。Q-C1は将来要求時のみで現blockerにしない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-10",
+      "title": "コース/option対応・時間snapshotを閉schemaへ追加設計",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "コース0..1/option一意配列のclosed DTO、採用時master版/時間snapshotと0分の区別を候補化",
+      "remaining": "既決6AC等と全consumer対応が揃い、未設定と明示0分/価格責務を混同せず、旧closed表で新選択を拒否しない。",
+      "detail_path": "docs/design/domains/reservations/technical-spec.md",
+      "detail_anchor": "reservation-intake-course-adapters-20261019",
+      "baseline_target": "docs/design/domains/reservations/technical-spec.md",
+      "baseline_line": [
+        253,
+        264
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11"
+      ],
+      "original_completion_condition": "既決6AC等と全consumer対応が揃い、未設定と明示0分/価格責務を混同せず、旧closed表で新選択を拒否しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-10",
+        "previous_classification": "設計未選定",
+        "document_improvement": "既存正本を再確認し後続範囲へ接続",
+        "draft_paths": [],
+        "evidence": [
+          {
+            "path": "docs/design/domains/reservations/technical-spec.md",
+            "lines": [
+              252,
+              270
+            ],
+            "sha256": "89972d003cf7919becb6f8585a7620198a930e63f25ae9560ed1ecd8fd86b999",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "docs/spec/domains/reservations/pages/reservation-management.md",
+            "lines": [
+              696,
+              731
+            ],
+            "sha256": "3bceb27f90370ab1bcc934e4cffbbd4702247d5abda5a097bddea2e3bbe85650",
+            "read_scope": "search-selected lines",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "既決6AC等と全consumer対応が揃い、未設定と明示0分/価格責務を混同せず、旧closed表で新選択を拒否しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-11",
+      "title": "予約の選定済gate・schema・participantを現writerへ適合照合",
+      "priority": "P1",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "文書選定済を未決へ戻さず、入口ごとに実装差/未精査/証跡/停止条件が判別可能。実DB/並行試験は別実行許可と担当へ引渡す。",
+      "detail_path": "docs/design/domains/reservations/technical-spec.md",
+      "detail_anchor": "reservation-intake-course-adapters-20261019",
+      "baseline_target": "docs/design/domains/reservations/technical-spec.md",
+      "baseline_line": [
+        510,
+        529
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "文書選定済を未決へ戻さず、入口ごとに実装差/未精査/証跡/停止条件が判別可能。実DB/並行試験は別実行許可と担当へ引渡す。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-11",
+        "previous_classification": "未精査",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/reservations/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/reservations/technical-spec.md",
+            "lines": [
+              420,
+              486
+            ],
+            "sha256": "89972d003cf7919becb6f8585a7620198a930e63f25ae9560ed1ecd8fd86b999",
+            "read_scope": "search-selected lines; no complete writer-graph audit",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/reservation_staff_repository.go",
+            "lines": [
+              369,
+              404
+            ],
+            "sha256": "5bb382171d691e4164a4982bff0166f44f6f151aff64c461ff996439537aecf7",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "文書選定済を未決へ戻さず、入口ごとに実装差/未精査/証跡/停止条件が判別可能。実DB/並行試験は別実行許可と担当へ引渡す。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "IR-12",
+      "title": "予約master/能力/名称履歴等の旧実データ状態",
+      "priority": "P1",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "既決の分類/能力算法/保存方針を再質問せず、未設定とfallback・旧実効能力を区別した移行検証計画がある。",
+      "detail_path": "docs/design/domains/reservations/technical-spec.md",
+      "detail_anchor": "reservation-intake-course-adapters-20261019",
+      "baseline_target": "docs/design/domains/reservations/technical-spec.md",
+      "baseline_line": [
+        525,
+        529
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11"
+      ],
+      "original_completion_condition": "既決の分類/能力算法/保存方針を再質問せず、未設定とfallback・旧実効能力を区別した移行検証計画がある。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-12",
+        "previous_classification": "未精査",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/reservations/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "backend/internal/model/reservation_type.go",
+            "lines": [
+              20,
+              78
+            ],
+            "sha256": "f59a37c5687a2646e3e2eef0dd429de72c1084efdf9091273330070172f55d09",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/reservation_staff_repository.go",
+            "lines": [
+              170,
+              199
+            ],
+            "sha256": "5bb382171d691e4164a4982bff0166f44f6f151aff64c461ff996439537aecf7",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/reservation_staff_repository.go",
+            "lines": [
+              369,
+              404
+            ],
+            "sha256": "5bb382171d691e4164a4982bff0166f44f6f151aff64c461ff996439537aecf7",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "既決の分類/能力算法/保存方針を再質問せず、未設定とfallback・旧実効能力を区別した移行検証計画がある。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "IR-13",
+      "title": "受付snapshot/状態intent/別軸医師確認/browser設定の検証",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "表示設定が予約/会計writeを起動せず、poll/日付医院変更/結果不明/全件不足を誤成功にせず、各AC結果と限界を残す。",
+      "detail_path": "docs/design/domains/reservations/technical-spec.md",
+      "detail_anchor": "reservation-intake-course-adapters-20261019",
+      "baseline_target": "docs/design/domains/reception/technical-spec.md",
+      "baseline_line": [
+        109,
+        143
+      ],
+      "responsibility": "実機担当",
+      "dependencies": [
+        "IR-09",
+        "IR-11",
+        "IR-17"
+      ],
+      "original_completion_condition": "表示設定が予約/会計writeを起動せず、poll/日付医院変更/結果不明/全件不足を誤成功にせず、各AC結果と限界を残す。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-13",
+        "previous_classification": "未検証",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/reservations/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "frontend/src/features/reception/api/get-reception.ts",
+            "lines": [
+              1,
+              48
+            ],
+            "sha256": "af70ca7920b4ff7459ae721c25ba335c595b21b259e315ac59caf2084ca2cd2b",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "frontend/src/features/reception/api/transforms.ts",
+            "lines": [
+              1,
+              105
+            ],
+            "sha256": "a57aa244041b5b87fe32bc7b393e3331451052eb69aa32d750790d52c06c52d9",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "表示設定が予約/会計writeを起動せず、poll/日付医院変更/結果不明/全件不足を誤成功にせず、各AC結果と限界を残す。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "IR-14",
+      "title": "複製/CSV勤務の物理仕様・整合性/receipt設計",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "通常単日API逐次部分commitで代用せず、予約保護/医院間勤務/現在grantを維持する設計と失敗注入/通信断の検証計画がある。",
+      "detail_path": "docs/design/domains/staff-workforce/technical-spec.md",
+      "detail_anchor": "staff-bulk-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/staff-workforce/technical-spec.md",
+      "baseline_line": [
+        39,
+        90
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11",
+        "IR-17"
+      ],
+      "original_completion_condition": "通常単日API逐次部分commitで代用せず、予約保護/医院間勤務/現在grantを維持する設計と失敗注入/通信断の検証計画がある。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-14",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/staff-workforce/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/staff-workforce/technical-spec.md",
+            "lines": [
+              37,
+              96
+            ],
+            "sha256": "430aabc7b73640bc56629ecfe406282b78c9714452cbd64bd64334bab1cded2f",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/staff/shift_entry_repository.go",
+            "lines": [
+              237,
+              288
+            ],
+            "sha256": "150f152a8588a75d6ab8610fd6f9e689af9ad3cb6bd825d32b483938b3e473d7",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "通常単日API逐次部分commitで代用せず、予約保護/医院間勤務/現在grantを維持する設計と失敗注入/通信断の検証計画がある。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-15",
+      "title": "職種/役職/雇用と休業期間の保存・候補接続",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "職種と独立する役職/雇用属性、医院別休業期間の候補列・適用入口・非自動副作用を具体化",
+      "remaining": "追加3ACと作成/編集/複製/CSVの対応が揃い、復帰自動勤務作成/role連動/予約自動取消なし。略称を推測展開しない。",
+      "detail_path": "docs/design/domains/staff-workforce/technical-spec.md",
+      "detail_anchor": "staff-bulk-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/staff-workforce/technical-spec.md",
+      "baseline_line": [
+        92,
+        96
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11",
+        "IR-14"
+      ],
+      "original_completion_condition": "追加3ACと作成/編集/複製/CSVの対応が揃い、復帰自動勤務作成/role連動/予約自動取消なし。略称を推測展開しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-15",
+        "previous_classification": "設計未選定",
+        "document_improvement": "既存正本を再確認し後続範囲へ接続",
+        "draft_paths": [],
+        "evidence": [
+          {
+            "path": "docs/design/domains/staff-workforce/technical-spec.md",
+            "lines": [
+              37,
+              96
+            ],
+            "sha256": "430aabc7b73640bc56629ecfe406282b78c9714452cbd64bd64334bab1cded2f",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "docs/spec/domains/staff-workforce/README.md",
+            "lines": [
+              99,
+              113
+            ],
+            "sha256": "4de44d845beaa4099403523d1a1253b76f4f3c26cc71e1aa2c3f468e50d3cdd4",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/staff/staff_request.go",
+            "lines": [
+              1,
+              99
+            ],
+            "sha256": "b6e714c886da82a1932770a872bb481f43db60d689fc49bbe98f71316ff83f24",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/model/staff.go",
+            "lines": [
+              19,
+              80
+            ],
+            "sha256": "be972283aa5d4f96df0c85638e0e1df030806ee41c9b0b7eaa2a50c4f3c265ef",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "追加3ACと作成/編集/複製/CSVの対応が揃い、復帰自動勤務作成/role連動/予約自動取消なし。略称を推測展開しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-16",
+      "title": "個人/医院別capable移行と一院指名停止の現在適合",
+      "priority": "P1",
+      "before": "未精査",
+      "scope": "related-static-source-or-data-investigation",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "変換で既存有効範囲を無根拠拡大せず、未来/診療中保護・過去履歴保持・他院継続と現在grantを確認可能。",
+      "detail_path": "docs/design/domains/reservations/technical-spec.md",
+      "detail_anchor": "reservation-intake-course-adapters-20261019",
+      "baseline_target": "docs/spec/screens/settings/master-staff.md",
+      "baseline_line": [
+        172,
+        182
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-11",
+        "IR-12"
+      ],
+      "original_completion_condition": "変換で既存有効範囲を無根拠拡大せず、未来/診療中保護・過去履歴保持・他院継続と現在grantを確認可能。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-16",
+        "previous_classification": "未精査",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/reservations/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "backend/internal/reservation/reservation_staff_repository.go",
+            "lines": [
+              170,
+              199
+            ],
+            "sha256": "5bb382171d691e4164a4982bff0166f44f6f151aff64c461ff996439537aecf7",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/reservation/reservation_staff_repository.go",
+            "lines": [
+              369,
+              404
+            ],
+            "sha256": "5bb382171d691e4164a4982bff0166f44f6f151aff64c461ff996439537aecf7",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/model/staff_reservation_capability.go",
+            "lines": [
+              1,
+              22
+            ],
+            "sha256": "0254d3ccaecef38c85af052c0a9e4effabf9b5baa8f408efffbd2be904bc6d37",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "変換で既存有効範囲を無根拠拡大せず、未来/診療中保護・過去履歴保持・他院継続と現在grantを確認可能。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "IR-17",
+      "title": "現在grant・医院割当・失効/cacheの実証",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "非所属/操作不足/失効/lookup障害/最後の管理権限/復旧logout競合で拒否と不変の証跡がある。新grant付与/自動poll追加を要求しない。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/spec/shared/access-control.md",
+      "baseline_line": [
+        67,
+        69
+      ],
+      "responsibility": "実機担当",
+      "dependencies": [],
+      "original_completion_condition": "非所属/操作不足/失効/lookup障害/最後の管理権限/復旧logout競合で拒否と不変の証跡がある。新grant付与/自動poll追加を要求しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-17",
+        "previous_classification": "未検証",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/spec/shared/access-control.md",
+            "lines": [
+              1,
+              100
+            ],
+            "sha256": "28cffe34ec42f0bed2025c0d1e77d7ef21cfabcb4a606e48f4751b24f504cca6",
+            "read_scope": "combined output partially truncated",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/auth/current_access_service.go",
+            "lines": [
+              1,
+              150
+            ],
+            "sha256": "c5f7073b025165c402e80c2522b2a6b41381601c1c3581fc2d4ae15e315ab2eb",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/auth/current_access_cache.go",
+            "lines": [
+              1,
+              84
+            ],
+            "sha256": "4ad0caf9affd9318b38c15e3742dde36914eedf57146d023ab46ae2e7bff26d9",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "非所属/操作不足/失効/lookup障害/最後の管理権限/復旧logout競合で拒否と不変の証跡がある。新grant付与/自動poll追加を要求しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E5",
+          "E6"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "IR-18",
+      "title": "医院・法人設定の操作別結果照合と既発行不変",
+      "priority": "P2",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "scope訂正の再作業を数えず、全未終了業務解消という未採用条件を追加せず、D10 snapshotと各設定値が区別される。",
+      "detail_path": "docs/design/domains/clinic-settings/technical-spec.md",
+      "detail_anchor": "clinic-settings-evidence-plan-20261019",
+      "baseline_target": "docs/design/domains/clinic-settings/technical-spec.md",
+      "baseline_line": [
+        23,
+        31
+      ],
+      "responsibility": "実機担当",
+      "dependencies": [
+        "IR-17"
+      ],
+      "original_completion_condition": "scope訂正の再作業を数えず、全未終了業務解消という未採用条件を追加せず、D10 snapshotと各設定値が区別される。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-18",
+        "previous_classification": "未検証",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/clinic-settings/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/clinic-settings/technical-spec.md",
+            "lines": [
+              1,
+              31
+            ],
+            "sha256": "c304cae30cad9d8fb96b3d0093ddd0605166da98cec1a834b844b4827cd019de",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "scope訂正の再作業を数えず、全未終了業務解消という未採用条件を追加せず、D10 snapshotと各設定値が区別される。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E10"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "IR-19",
+      "title": "サイグラム派生結果保存と導入の具体設計",
+      "priority": "P2",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "9ACと固定表正本へtraceしDOB変更片側保存なし。将来ルール改定や検索/集計UIを現必須判断へ加算しない。",
+      "detail_path": "docs/design/domains/owners-pets/technical-spec.md",
+      "detail_anchor": "identity-physical-adapter-candidates-20261019",
+      "baseline_target": "docs/design/domains/owners-pets/technical-spec.md",
+      "baseline_line": [
+        212,
+        234
+      ],
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "IR-04"
+      ],
+      "original_completion_condition": "9ACと固定表正本へtraceしDOB変更片側保存なし。将来ルール改定や検索/集計UIを現必須判断へ加算しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-19",
+        "previous_classification": "設計未選定",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/design/domains/owners-pets/technical-spec.md",
+            "lines": [
+              159,
+              234
+            ],
+            "sha256": "361997a66bc195522ef593c914da0c3249839fabd4af262855b534b735af9198",
+            "read_scope": "selected-ranges; some combined output truncated; no fullbody claim",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/model/owner.go",
+            "lines": [
+              18,
+              63
+            ],
+            "sha256": "5c8314a8d572a4edcc5f8f3ad4cd66b848fa4d27d7a1715904008095f8577154",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/owner/http_request.go",
+            "lines": [
+              80,
+              108
+            ],
+            "sha256": "0675774fe5785ba6cf039bdaa7c35601bab71a9fed69c74e78bed84a7e64f795",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "docs/spec/domains/owners-pets/lifecycle.md",
+            "lines": [
+              221,
+              234
+            ],
+            "sha256": "5eedc01ea3ca81051c8c0e0c086cf69f20886fd69b6338022c72740929b78ff4",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "9ACと固定表正本へtraceしDOB変更片側保存なし。将来ルール改定や検索/集計UIを現必須判断へ加算しない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "IR-20",
+      "title": "S14/S23修正済み目標の実画面受入証跡",
+      "priority": "P2",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+      "remaining": "T1–T5/T-A1–4と検索各条件の機密除去済み証跡がある。自院利用採否やPR722文書修正を重複残件にしない。",
+      "detail_path": "docs/ops/testing/scenarios/S23-multi-clinic-scope.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/testing/scenarios/S23-multi-clinic-scope.md",
+      "baseline_line": [
+        19,
+        37,
+        68,
+        93
+      ],
+      "responsibility": "実機担当",
+      "dependencies": [
+        "IR-01",
+        "IR-17"
+      ],
+      "original_completion_condition": "T1–T5/T-A1–4と検索各条件の機密除去済み証跡がある。自院利用採否やPR722文書修正を重複残件にしない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "IR-20",
+        "previous_classification": "未検証",
+        "document_improvement": "具体内部候補・限定静的根拠・失敗/移行/照会/実機手順へ接続",
+        "draft_paths": [
+          "docs/design/domains/owners-pets/technical-spec.md"
+        ],
+        "evidence": [
+          {
+            "path": "docs/ops/testing/scenarios/S23-multi-clinic-scope.md",
+            "lines": [
+              19,
+              110
+            ],
+            "sha256": "b070b613a91c709c25a65511f95ee60a4b8dc65de4a618709832f12b012e5051",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "docs/ops/testing/scenarios/S14-search-and-multi-word.md",
+            "lines": [
+              15,
+              75
+            ],
+            "sha256": "df934de73255d68656540ad3cdbdc6c4058bfa3315c296f51003d813df30288a",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "frontend/src/hooks/use-clinic-scope.ts",
+            "lines": [
+              1,
+              82
+            ],
+            "sha256": "394e7649552b8b0e4aef286d527e66223b896d619fd4023ea84937f053ff6780",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          },
+          {
+            "path": "backend/internal/medicalrecord/medical_record_crud.go",
+            "lines": [
+              145,
+              160
+            ],
+            "sha256": "0cfa2d10208f18bf9fc8ccb3e0fbf3539531e1fea9767fff656a958544fefcfe",
+            "read_scope": "range-read",
+            "ref": "563353287ebb08af55056e3fbfba2aca3531e599"
+          }
+        ],
+        "remaining": "T1–T5/T-A1–4と検索各条件の機密除去済み証跡がある。自院利用採否やPR722文書修正を重複残件にしない。",
+        "runtime_status": "NOT_EXECUTED",
+        "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
+        "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-02",
+      "title": "本番provider構築と権限・DB実状態の確認",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。",
+      "remaining": "専用account/zone/billing/DBrole/R2/DNS/証明書/Production reviewersとbranchrule/保護secret名/DB-backed health/実フロントtargetを承認済み担当者が確認。",
+      "detail_path": "docs/ops/infra/production/setup.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/infra/production/setup.md",
+      "baseline_line": 137,
+      "responsibility": [
+        "ユーザー判断",
+        "実機担当"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "時刻・対象ID・owner・reviewedref・非機密receiptが揃い、setup条件を照合。/healthだけでDB成立としない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-02",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/infra/production/setup.md",
+        "source_line": 137,
+        "completed_this_pass": [
+          "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/infra/production/runbook.md"
+        ],
+        "remaining": "専用account/zone/billing/DBrole/R2/DNS/証明書/Production reviewersとbranchrule/保護secret名/DB-backed health/実フロントtargetを承認済み担当者が確認。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E6",
+          "E1"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-03",
+      "title": "backup取得方式・保持・restore責任の確定",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。",
+      "remaining": "owner、managed backupか承認pg_dump、正確なtarget、保護保存先、retention/expiry、取得timestamp/size/hash/receipt/restorelinkを選定記録。",
+      "detail_path": "docs/ops/infra/production/runbook.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/infra/production/runbook.md",
+      "baseline_line": 59,
+      "responsibility": [
+        "ユーザー判断"
+      ],
+      "dependencies": [
+        "REM-OPS-02"
+      ],
+      "original_completion_condition": "必須欄すべて承認済み運用記録へ入り、取得作業開始のHOLD条件を解消。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-03",
+        "before": "設計未選定",
+        "reviewed_existing_target": "docs/ops/infra/production/runbook.md",
+        "source_line": 59,
+        "completed_this_pass": [
+          "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/infra/production/runbook.md"
+        ],
+        "remaining": "owner、managed backupか承認pg_dump、正確なtarget、保護保存先、retention/expiry、取得timestamp/size/hash/receipt/restorelinkを選定記録。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "REM-OPS-04",
+      "title": "隔離restoreとCF-only rollback実測",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。",
+      "remaining": "隔離target同一性を確認し承認済みrestore rehearsal、schema/代表値/アプリ互換/時間/cleanupとGOOD_SHA・migration互換・実runheadを確認。",
+      "detail_path": "docs/ops/infra/production/runbook.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/infra/production/runbook.md",
+      "baseline_line": 61,
+      "responsibility": [
+        "実機担当"
+      ],
+      "dependencies": [
+        "REM-OPS-03"
+      ],
+      "original_completion_condition": "同一backup artifactを指すrestore結果と回復時間、復旧判断者/cleanup receiptがある。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-04",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/infra/production/runbook.md",
+        "source_line": 61,
+        "completed_this_pass": [
+          "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/infra/production/runbook.md"
+        ],
+        "remaining": "隔離target同一性を確認し承認済みrestore rehearsal、schema/代表値/アプリ互換/時間/cleanupとGOOD_SHA・migration互換・実runheadを確認。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E1"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-05",
+      "title": "Go-live作業窓・authorityと初期準備のreceipt",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。",
+      "remaining": "当日手順前にcutover window/判断者/連絡経路、個人account、clinic scope、全院締め時間と初期master事後確認を収集。",
+      "detail_path": "docs/delivery/GOLIVE_RUNBOOK.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/delivery/GOLIVE_RUNBOOK.md",
+      "baseline_line": 73,
+      "responsibility": [
+        "ユーザー判断",
+        "実機担当"
+      ],
+      "dependencies": [
+        "REM-OPS-02",
+        "REM-OPS-04",
+        "REM-OPS-10"
+      ],
+      "original_completion_condition": "pre-window gateとday-of gateを分け、必要receiptを満たしてUSERがGo/No-Go。通知policyのみ未適用を一律blockerへ変更しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-05",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/delivery/GOLIVE_RUNBOOK.md",
+        "source_line": 73,
+        "completed_this_pass": [
+          "承認記録と実行receiptを分離し、対象同一性・head・互換性と停止/復旧条件を具体化。方式・責任者・保持年数・作業窓は推測補完しない。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/infra/production/runbook.md"
+        ],
+        "remaining": "当日手順前にcutover window/判断者/連絡経路、個人account、clinic scope、全院締め時間と初期master事後確認を収集。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E10",
+          "E11"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-06",
+      "title": "formal producer/payment sourceとcandidate pinsの受領",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "source/run/build/hash/profile/医院/target/6seedの同一candidate照合順と、同一execution IDでの結果照会・復旧手順を具体化。",
+      "remaining": "producer唯一ownerから同一source/run/build/hash全CSV/manifest/検証receiptを受領し、21baselineと22candidateのprofile/activationを分離して照合。",
+      "detail_path": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+      "baseline_line": 293,
+      "responsibility": [
+        "こちら調査",
+        "実機担当"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "完全性・正件数paymentgraph・固定target/6seed・source/consumerpins一致の同一candidate receipt。旧PASS転用なし。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-06",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+        "source_line": 293,
+        "completed_this_pass": [
+          "source/run/build/hash/profile/医院/target/6seedの同一candidate照合順と、同一execution IDでの結果照会・復旧手順を具体化。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md"
+        ],
+        "remaining": "producer唯一ownerから同一source/run/build/hash全CSV/manifest/検証receiptを受領し、21baselineと22candidateのprofile/activationを分離して照合。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-07",
+      "title": "移行税率/小数/NULL/薬剤profileの残契約確認",
+      "priority": "P1",
+      "before": "設計未選定",
+      "scope": "internal-or-operational-design-concretization",
+      "performed_in_docs": "source/run/build/hash/profile/医院/target/6seedの同一candidate照合順と、同一execution IDでの結果照会・復旧手順を具体化。",
+      "remaining": "MIG-34/37/41・EMR-343/345/364/365の最新承認とproducer/consumer反映を照合。未決値だけ判断者へ具体案と影響を提示。",
+      "detail_path": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+      "baseline_line": 295,
+      "responsibility": [
+        "こちら調査",
+        "ユーザー判断"
+      ],
+      "dependencies": [
+        "REM-OPS-06"
+      ],
+      "original_completion_condition": "同一profileへ両producer/consumerが到達、実データ/生成出力確認と承認が結び付く。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-07",
+        "before": "設計未選定",
+        "reviewed_existing_target": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+        "source_line": 295,
+        "completed_this_pass": [
+          "source/run/build/hash/profile/医院/target/6seedの同一candidate照合順と、同一execution IDでの結果照会・復旧手順を具体化。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md"
+        ],
+        "remaining": "MIG-34/37/41・EMR-343/345/364/365の最新承認とproducer/consumer反映を照合。未決値だけ判断者へ具体案と影響を提示。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "内部候補具体化。物理採用・適合・移行/実行は未完"
+    },
+    {
+      "id": "REM-OPS-08",
+      "title": "移行長時間/実規模・応答消失・復旧の検証",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "source/run/build/hash/profile/医院/target/6seedの同一candidate照合順と、同一execution IDでの結果照会・復旧手順を具体化。",
+      "remaining": "承認されたfresh隔離targetで実規模のrehearsal、timeout/切断/verify失敗/crash、同一executionIDでbackup/restore/画面照合。",
+      "detail_path": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+      "baseline_line": 183,
+      "responsibility": [
+        "実機担当"
+      ],
+      "dependencies": [
+        "REM-OPS-04",
+        "REM-OPS-06",
+        "REM-OPS-07"
+      ],
+      "original_completion_condition": "duration/件数/target/profile/manifestとverify結果・原子性・結果不明時照合・cleanup/復旧receiptが同一runで揃う。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-08",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md",
+        "source_line": 183,
+        "completed_this_pass": [
+          "source/run/build/hash/profile/医院/target/6seedの同一candidate照合順と、同一execution IDでの結果照会・復旧手順を具体化。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/deploy/seeds/CLINIC_CSV_IMPORT.md"
+        ],
+        "remaining": "承認されたfresh隔離targetで実規模のrehearsal、timeout/切断/verify失敗/crash、同一executionIDでbackup/restore/画面照合。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2",
+          "E1"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-09",
+      "title": "V inventoryの残定義ID/要実測の再構築",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "run inventoryの固定列と動的定義id展開、F/Cの期待・理由・証跡を具体化し、未収録と未実行を分離。。慢性疾患5wire keyを既存FE builderから収録しV03へ接続、ゼロgap断定を訂正。",
+      "remaining": "承認済み健診/検査/マスタの実定義idはfixture receipt受領後の展開待ち。旧26endpointと表25件の差1件は元母集団との再対応待ち。全request builder再監査や全field実行は未実施。",
+      "detail_path": "docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md",
+      "baseline_line": 6,
+      "responsibility": [
+        "こちら調査"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "formId/wirekey/操作/期待/N/A理由/動的fieldIDが固定され、未収録と未実行が分離。総数は確認分だけ。新driftgate製作は本タスク外。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-09",
+        "before": "未精査",
+        "reviewed_existing_target": "docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md",
+        "source_line": 6,
+        "completed_this_pass": [
+          "run inventoryの固定列と動的定義id展開、F/Cの期待・理由・証跡を具体化し、未収録と未実行を分離。",
+          "慢性疾患5wire keyを既存FE builderから収録しV03へ接続、ゼロgap断定を訂正。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md",
+          "docs/ops/testing/scenarios/FORM-FIELD-INVENTORY.md",
+          "docs/ops/testing/scenarios/V03-owner-pet-staff-forms.md"
+        ],
+        "remaining": "承認済み健診/検査/マスタの実定義idはfixture receipt受領後の展開待ち。旧26endpointと表25件の差1件は元母集団との再対応待ち。全request builder再監査や全field実行は未実施。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "REM-OPS-10",
+      "title": "F0–F6/C1–C3と5flowの最新実行証跡確認",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "run inventoryの固定列と動的定義id展開、F/Cの期待・理由・証跡を具体化し、未収録と未実行を分離。",
+      "remaining": "証跡保管者へ最新runと実行refを確認しinventory×F結果を照合、不足だけ承認UATで実施。5flow/実LINE/token/DBaudit/別owner signoff/cleanupを揃える。",
+      "detail_path": "docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md",
+      "baseline_line": 109,
+      "responsibility": [
+        "こちら調査",
+        "実機担当",
+        "ユーザー判断"
+      ],
+      "dependencies": [
+        "REM-OPS-01",
+        "REM-OPS-09"
+      ],
+      "original_completion_condition": "全適用FとCがPASS/理由付きN/A、未完/FAILを別記録。臨床・金額・分離・認証・消失FAILはGo前に解消。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-10",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md",
+        "source_line": 109,
+        "completed_this_pass": [
+          "run inventoryの固定列と動的定義id展開、F/Cの期待・理由・証跡を具体化し、未収録と未実行を分離。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/testing/scenarios/FIELD-LEVEL-PROTOCOL.md"
+        ],
+        "remaining": "証跡保管者へ最新runと実行refを確認しinventory×F結果を照合、不足だけ承認UATで実施。5flow/実LINE/token/DBaudit/別owner signoff/cleanupを揃える。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0",
+          "E11"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-11",
+      "title": "外部連携console/送信/再送とscheduler運用資格",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "deployed設定・外部console・実受信・停止のreceipt表と、schedulerのnatural cron/restart別検証を接続。対象Phaseを維持。",
+      "remaining": "承認済みtestaccountだけでdeployedgate/console/allowedhost/送受信/duplicate/失敗監視を担当者確認。scheduler naturalcron/pause/revision/restart耐久は別releasequalificationを照合。",
+      "detail_path": "docs/ops/infra/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/infra/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md",
+      "baseline_line": 87,
+      "responsibility": [
+        "実機担当",
+        "ユーザー判断"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "対象ref/医院/非機密receipt、実受信・停止・再送条件が記録。未採用実送信を解除せずPROD userへ試験しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-11",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/infra/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md",
+        "source_line": 87,
+        "completed_this_pass": [
+          "deployed設定・外部console・実受信・停止のreceipt表と、schedulerのnatural cron/restart別検証を接続。対象Phaseを維持。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/infra/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md"
+        ],
+        "remaining": "承認済みtestaccountだけでdeployedgate/console/allowedhost/送受信/duplicate/失敗監視を担当者確認。scheduler naturalcron/pause/revision/restart耐久は別releasequalificationを照合。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E13"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-13",
+      "title": "agent runtimeの実効権限/Hookロード受入",
+      "priority": "P1",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "起動4経路・親override・hook失敗とhost拒否・OS実効権限を分ける、非危険fixtureの受入票を具体化。",
+      "remaining": "運用者が非危険fixtureでlauncher/root/backend/空白worktree各設定、親override、hookロード/失敗を検証しOS/runner権限を確認。",
+      "detail_path": "docs/ops/agent-harness.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/agent-harness.md",
+      "baseline_line": 173,
+      "responsibility": [
+        "実機担当"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "各チェックの実runtime/ref/証跡があり、exit2のJSONのみを実ホスト拒否と誤認しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-13",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/agent-harness.md",
+        "source_line": 173,
+        "completed_this_pass": [
+          "起動4経路・親override・hook失敗とhost拒否・OS実効権限を分ける、非危険fixtureの受入票を具体化。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/agent-harness.md"
+        ],
+        "remaining": "運用者が非危険fixtureでlauncher/root/backend/空白worktree各設定、親override、hookロード/失敗を検証しOS/runner権限を確認。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E13"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-14",
+      "title": "性能SLO採用値と実負荷/回復測定",
+      "priority": "P2",
+      "before": "未検証",
+      "scope": "related-implementation-or-runtime-verification",
+      "performed_in_docs": "既存runの所在/条件照合を先にし、採用SLO・提案例・実測値と中止条件を区別する手順を追補。",
+      "remaining": "既存run所在を確認、必要なら対象/負荷/期間/中止基準を運用判断して承認測定。3VU10分health/clinicsだけを全業務/多医院/長時間保証にしない。",
+      "detail_path": "docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md",
+      "baseline_line": 4,
+      "responsibility": [
+        "こちら調査",
+        "ユーザー判断",
+        "実機担当"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "ref/データ量/キャッシュ/負荷/API別件数p95p99/失敗率/回復/停止cleanupと採用基準が同runで比較可能。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-14",
+        "before": "未検証",
+        "reviewed_existing_target": "docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md",
+        "source_line": 4,
+        "completed_this_pass": [
+          "既存runの所在/条件照合を先にし、採用SLO・提案例・実測値と中止条件を区別する手順を追補。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/testing/STG-PERFORMANCE-CHECKLIST.md"
+        ],
+        "remaining": "既存run所在を確認、必要なら対象/負荷/期間/中止基準を運用判断して承認測定。3VU10分health/clinicsだけを全業務/多医院/長時間保証にしない。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
+    },
+    {
+      "id": "REM-OPS-15",
+      "title": "architecture/生成ERD/toolingの意味監査残範囲",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "旧coverageを先に参照し、不足architecture主要本文・ADR005/006/索引・doc test4本の意味と検査限界を補読。36DDL/3生成器hash一致、歴史CSV761行/分類一致を静的確認。。inquiries/billing_confirmationsの現DDLと新設計の責務を分け、生成ページの手修正や実装済み認定を防ぐ追補を作成。",
+      "remaining": "歴史測定annex be9-2a-boundary-map.md:121–516、CSV理由列9–762の各行意味、生成138テーブル全列の意味・旧DDL全文・稼働DBは未確認。歴史資料を現不具合へ再分類せず、他architectureの既存全文証跡を再利用。",
+      "detail_path": "docs/architecture/erd-detail/index.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/architecture/erd-detail/index.md",
+      "baseline_line": 10,
+      "responsibility": [
+        "こちら調査"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "読了範囲/基準hash/DDL対応/限界が記録される。生成check報告と稼働DB適用/意味監査を分離。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-15",
+        "before": "未精査",
+        "reviewed_existing_target": "docs/architecture/erd-detail/index.md",
+        "source_line": 10,
+        "completed_this_pass": [
+          "旧coverageを先に参照し、不足architecture主要本文・ADR005/006/索引・doc test4本の意味と検査限界を補読。36DDL/3生成器hash一致、歴史CSV761行/分類一致を静的確認。",
+          "inquiries/billing_confirmationsの現DDLと新設計の責務を分け、生成ページの手修正や実装済み認定を防ぐ追補を作成。"
+        ],
+        "document_draft_targets": [
+          "docs/architecture/README.md"
+        ],
+        "remaining": "歴史測定annex be9-2a-boundary-map.md:121–516、CSV理由列9–762の各行意味、生成138テーブル全列の意味・旧DDL全文・稼働DBは未確認。歴史資料を現不具合へ再分類せず、他architectureの既存全文証跡を再利用。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "REM-OPS-16",
+      "title": "残るS/V領域の現FR/ACとの項目別照合（財務・臨床担当分を除く）",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "V03全203行/V05全243行、S30/S31を補読。横断S/V8行、V03現目標4行、V05現目標6行へ既決の操作とFR/ACを具体接続。",
+      "remaining": "文書上の接続を追補、実行は未実施。S34–39は見出し/操作表の限定確認で本文全体・実viewport未確認。V01臨床・V02財務は各担当の結果を再利用し、全request builder再監査や全field受入は主張しない。",
+      "detail_path": "docs/ops/testing/scenarios/README.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/ops/testing/scenarios/README.md",
+      "baseline_line": 106,
+      "responsibility": [
+        "こちら調査"
+      ],
+      "dependencies": [],
+      "original_completion_condition": "現goal/履歴/未網羅が操作別に区別され、過去PASSが最新合格へ変換されない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "REM-OPS-16",
+        "before": "未精査",
+        "reviewed_existing_target": "docs/ops/testing/scenarios/README.md",
+        "source_line": 106,
+        "completed_this_pass": [
+          "V03全203行/V05全243行、S30/S31を補読。横断S/V8行、V03現目標4行、V05現目標6行へ既決の操作とFR/ACを具体接続。"
+        ],
+        "document_draft_targets": [
+          "docs/ops/testing/scenarios/README.md",
+          "docs/ops/testing/scenarios/V03-owner-pet-staff-forms.md",
+          "docs/ops/testing/scenarios/V05-auth-line-forms.md"
+        ],
+        "remaining": "文書上の接続を追補、実行は未実施。S34–39は見出し/操作表の限定確認で本文全体・実viewport未確認。V01臨床・V02財務は各担当の結果を再利用し、全request builder再監査や全field受入は主張しない。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task"
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    },
+    {
+      "id": "SRC-R01",
+      "title": "現在参照される承認IDの保存原文所在・役割・後続訂正の対応補完",
+      "priority": "P2-document-provenance",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "基準231ID/523出現を保持。初回204と親取得原文引用27を連結、未連結0。助手質問11/本人回答15/補足1、採用16群。回答15文字列一致・意味矛盾0。receipt14ファイル保全、原文時刻/Q&A/後続訂正を補足。",
+      "remaining": "27件の原文所在不足は解消。全231の現採用条文と全後続訂正の網羅的意味照合は別でSRC-R01全完了としない。新実行承認へ転用しない。",
+      "detail_path": "docs/work/docs-audit/docs-perfection/APPROVAL-LOCATORS-20261019.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/spec/domains/SPECIFICATION_PROGRESS.md",
+      "baseline_line": 62,
+      "responsibility": "こちら調査",
+      "dependencies": [
+        "保存済み原承認または親の取得receipt"
+      ],
+      "original_completion_condition": "現在参照される個別IDについて所在と役割と後続訂正を追跡可、または対象限定の未確認理由を列挙",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "SRC-R01",
+        "before": "未精査",
+        "reviewed_existing_target": "docs/spec/domains/SPECIFICATION_PROGRESS.md",
+        "source_line": 62,
+        "completed_this_pass": [
+          "現docs231ID/523出現を固定し旧165が部分集合と訂正。204IDをrole/ID/時刻/本文の原文保全行へ再連結、残27にも別構造の親承認/最新決定receipt所在を連結。原文大量転載なし。",
+          "基準231ID/523出現を保持。初回204と親取得原文引用27を連結、未連結0。助手質問11/本人回答15/補足1、採用16群。回答15文字列一致・意味矛盾0。receipt14ファイル保全、原文時刻/Q&A/後続訂正を補足。"
+        ],
+        "document_draft_targets": [
+          "docs/work/docs-audit/docs-perfection/APPROVAL-LOCATORS-20261019.md"
+        ],
+        "remaining": "27件の原文所在不足は解消。全231の現採用条文と全後続訂正の網羅的意味照合は別でSRC-R01全完了としない。新実行承認へ転用しない。",
+        "runtime_status": "NOT_RUN; explicitly prohibited by current task",
+        "status_after": "27 original links resolved; whole latest-meaning audit not claimed complete"
+      },
+      "after": "27 original links resolved; whole latest-meaning audit not claimed complete"
+    },
+    {
+      "id": "ONT-R01",
+      "title": "既存ontologyの未追従3文書の差分・未確認節だけを正本へ意味照合",
+      "priority": "P2",
+      "before": "未精査",
+      "scope": "documentation-content-or-acceptance-definition-review",
+      "performed_in_docs": "README73行、cross-domain117行、medical-records146行の全内容を複数小出力で補完読了。既決/内部案、認可/多重度/時点/状態/表示実効果をD03/D08正本・sourceに照合、新矛盾なし。",
+      "remaining": "物理実装/移行/実機は元から文書意味精査の対象外。既存証跡未結合を未読とせず、既確認8文書再読不要。",
+      "detail_path": "docs/spec/ontology/cross-domain-contracts.md",
+      "detail_anchor": null,
+      "baseline_target": "docs/spec/ontology/cross-domain-contracts.md",
+      "baseline_line": 94,
+      "responsibility": "こちら調査",
+      "dependencies": [],
+      "original_completion_condition": "対象3文書で現在hashと意味確認範囲が追跡でき、同一性/多重度/状態/時点版/表示対実効果/認可の参照が正本へ接続する。API/DBの物理方式を語彙の業務決定へ昇格させず、新FR/ACを増設しない。",
+      "runtime_pass_claimed": false,
+      "new_business_adoption": false,
+      "review_evidence": {
+        "id": "ONT-R01",
+        "original_classification": "未精査",
+        "performed": "README73行、cross-domain117行、medical-records146行の全内容を複数小出力で補完読了。既決/内部案、認可/多重度/時点/状態/表示実効果をD03/D08正本・sourceに照合、新矛盾なし。",
+        "remaining": "物理実装/移行/実機は元から文書意味精査の対象外。既存証跡未結合を未読とせず、既確認8文書再読不要。",
+        "new_business_question": false
+      },
+      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+    }
+  ],
+  "conditional_or_out_of_phase": [
+    {
+      "id": "SRC-R06",
+      "classification": "条件付き・今の文書完成blockerではない",
+      "source_report": "sources-remaining.json",
+      "details": {
+        "id": "SRC-R06",
+        "path": "docs/spec/domains/checkups/lifecycle.md",
+        "line": 37,
+        "section": "既存添付/健診パッケージ",
+        "evidence": [
+          "saved-source-priority-investigation-20261018/review.json:ATT018文脈同定済み"
+        ],
+        "unverified": "ATT018画像実体は未読、項目/閾値/レイアウトをthreadから推測不可",
+        "necessary_work": "具体的に現採用項目の不足が疑われる場合に限定取得/照合。専用作図/健診専用写真を再採用しない",
+        "priority": "P3-conditional",
+        "dependency": [
+          "具体的な採用条文との衝突候補"
+        ],
+        "completion_condition": "原画像限定確認または後続直接承認で対象を特定。未読を要件なしと断言しない",
+        "owner": "こちら調査",
+        "classification": "conditional-source-media-followup",
+        "status": "remaining-verification",
+        "resolved_in_this_task": false,
+        "duplicate_of": [],
+        "conditional": true,
+        "standalone_remaining_item": false
+      }
+    },
+    {
+      "id": "SRC-R08",
+      "classification": "条件付き・今の文書完成blockerではない",
+      "source_report": "sources-remaining.json",
+      "details": {
+        "id": "SRC-R08",
+        "path": "docs/work/emr/emr-373-images/index.json",
+        "line": 1,
+        "section": "合成画面証跡索引",
+        "evidence": [
+          "551全件が同directory",
+          "visual-audit-results.md:39-42,194,210-212、撮影時sourceと現在HEAD一致とは扱わない"
+        ],
+        "unverified": "今回551画像のpixelを新規目視していない。先行可視範囲PASS/UNKNOWNは当時合成状態のみ",
+        "necessary_work": "具体的な現在UI検証で必要なroute/state/viewportの画像だけ選択し、旧版/fixture/領域外の限界を引継ぐ",
+        "priority": "P3-history-conditional",
+        "dependency": [
+          "現在UIの受入計画"
+        ],
+        "completion_condition": "現在対象の必要状態に版/fixture/実操作/出力receiptが付き、旧画像数を合格率へ換算しない",
+        "owner": "実機担当",
+        "classification": "historical-synthetic-UI-evidence",
+        "status": "remaining-verification",
+        "resolved_in_this_task": false,
+        "duplicate_of": [],
+        "conditional": true,
+        "standalone_remaining_item": false
+      }
+    },
+    {
+      "id": "SRC-R09",
+      "classification": "条件付き・今の文書完成blockerではない",
+      "source_report": "sources-remaining.json",
+      "details": {
+        "id": "SRC-R09",
+        "path": "docs/work/emr/emr-373-images/wave25-31-originals.zip",
+        "line": null,
+        "section": "ZIP4 central directory",
+        "evidence": [
+          "今回centraldir全4列挙、PNGとmanifestのみ",
+          "原本117entry/parts44+44+31entry"
+        ],
+        "unverified": "今回combined/partsの116PNG全件が同名CRC/size一致、全loosePNG存在、551PNGの索引SHA一致まで完了。ZIPpayload展開後のCRC再計算だけは未実施。",
+        "necessary_work": "完了済みcentral directory比較・元PNG索引hash照合を残作業にしない。将来bundle再配布や破損の具体的疑いがある場合だけpayloadのCRC再計算を追加する。現在の仕様completion blockerではない。",
+        "priority": "P3-evidence-integrity",
+        "dependency": [
+          "画像証跡を再配布/利用する場合のみ"
+        ],
+        "completion_condition": "今回のmetadata/hash整合照合は完了。条件発生時のみ、対象bundleのpayloadCRCを再計算してreceiptを追加。",
+        "owner": "こちら調査",
+        "classification": "historical-archive-duplicate-integrity",
+        "status": "central-directory-and-index-comparison-resolved-conditional-payload-only",
+        "resolved_in_this_task": true,
+        "duplicate_of": [],
+        "conditional": true,
+        "standalone_remaining_item": false,
+        "current_blocker": false,
+        "completed_checks": [
+          "combined/parts116PNG filename/CRC/size equal",
+          "all116 loosePNG names present",
+          "551loosePNG SHA256 matches index"
+        ]
+      }
+    },
+    {
+      "id": "SRC-R10",
+      "classification": "条件付き・今の文書完成blockerではない",
+      "source_report": "sources-remaining.json",
+      "details": {
+        "id": "SRC-R10",
+        "path": "docs/spec/domains/SPECIFICATION_PROGRESS.md",
+        "line": 55,
+        "section": "出典・許可読者",
+        "evidence": [
+          "現文書:private repoの根拠リンク/個別IDを保持、ACLは別",
+          "source-exclusion-decision-20261018.json"
+        ],
+        "unverified": "外部資料live最新版/ACL・許可読者に対する機密分類の現状は今回未確認",
+        "necessary_work": "資料を実際に取得/共有/公開する必要が生じた時だけ現認可と対象版を確認。URL存在を許可付与と解釈しない",
+        "priority": "P2-before-sharing",
+        "dependency": [
+          "実際の共有先/必要読者"
+        ],
+        "completion_condition": "必要読者の認可・対象版・不要個人情報最小化を確認し、リンクと原文対応は維持",
+        "owner": "こちら調査・必要時ユーザー判断",
+        "classification": "external-live-version-and-ACL",
+        "status": "remaining-verification",
+        "resolved_in_this_task": false,
+        "duplicate_of": [],
+        "conditional": true,
+        "standalone_remaining_item": false
+      }
+    },
+    {
+      "id": "IR-07",
+      "classification": "対象Phase開始時のみ・今期blockerではない",
+      "source_report": "audit/identity-remaining.json",
+      "details": {
+        "id": "IR-07",
+        "title": "DM目的別判定・独立停止・旧flagのcaller対応調査",
+        "targetpath": "docs/spec/line/lstep-integration.md",
+        "section": "目的・現在値・失敗時の技術契約",
+        "line": [
+          464,
+          490
+        ],
+        "evidence": [
+          "design/domains/owners-pets/technical-spec.md:70–76",
+          "spec/line/lstep-integration.md:360–373"
+        ],
+        "problem_or_unconfirmed": "DMとLstepOptOut/delivery_excludedの自動対応は未採用。全caller/タグ発火/17triggerの実目的適合は未検証。",
+        "necessary_work": "送信元事象・目的・DM現在値・独立停止・binding・結果不明を各callerに対応付け、未分類を予約通知例外にしない調査/設計表を作る。",
+        "priority": "P2",
+        "dependencies": [
+          "IR-05",
+          "IR-06"
+        ],
+        "completion_criteria": "8ACとcaller一覧の対応、読取失敗/抽出後変更の停止、通常同期と発火タグの区別が証跡化。既存flagをDMと同一化しない。",
+        "responsibility": "こちら調査",
+        "classification": "未精査",
+        "phase_boundary": "D15 LSTEP/DMはBacklog G24で今期対象外。今期必須業務blockerへ加算しない",
+        "current_user_decision_required": false
+      }
+    },
+    {
+      "id": "IR-D01",
+      "classification": "対象Phase開始時のみ・今期blockerではない",
+      "source_report": "audit/identity-remaining.json",
+      "details": {
+        "id": "IR-D01",
+        "targetpath": "docs/spec/line/README.md",
+        "line": [
+          60,
+          70
+        ],
+        "classification": "未検証",
+        "priority": "P2（対象Phase開始前）",
+        "responsibility": "実機担当",
+        "evidence": [
+          "docs/spec/line/architecture.md:94–105",
+          "docs/spec/line/lstep-integration.md:210–213"
+        ],
+        "problem_or_unconfirmed": "#259先方enable/少数実送信/cron停止・件数整合、死亡瞬間競合等の現状は本snapshotだけでは確認不能。",
+        "necessary_work": "対象Phase開始時に外部担当・運用gate・停止計画・少数実送信/cron証跡を現状態で照合。",
+        "completion_criteria": "dual gate/実送信/停止/結果集計が整合。HTTP成功やrepo配線だけを稼働証明にしない。",
+        "dependencies": [
+          "IR-05",
+          "IR-07",
+          "IR-17"
+        ],
+        "phase_boundary": "G24で今期LSTEP/DM対象外。LINE予約・問診へ除外拡大しない。期限のみから自動廃止/再開しない。",
+        "current_user_decision_required": false
+      }
+    },
+    {
+      "id": "IR-D02",
+      "classification": "対象Phase開始時のみ・今期blockerではない",
+      "source_report": "audit/identity-remaining.json",
+      "details": {
+        "id": "IR-D02",
+        "targetpath": "docs/spec/line/architecture.md",
+        "line": [
+          122,
+          135
+        ],
+        "classification": "設計未選定",
+        "priority": "P2（対象Phase開始前）",
+        "responsibility": "こちら調査",
+        "evidence": [
+          "docs/spec/line/lstep-integration.md:447–455"
+        ],
+        "problem_or_unconfirmed": "初診/健診後フォローの実施済みstaff確認/医療目的医師指定とsource版・監査/receiptのDTO/route/格納、全発火経路適合は未確認。",
+        "necessary_work": "D03/D09保存済事象と確認・目的を対応し、単なる記録作成/タグから送信しないadapterと既存claimへ接続する。",
+        "completion_criteria": "既存followup ACと各caller対応が揃い、取消/旧版/結果不明を送信許可へ変えない。",
+        "dependencies": [
+          "IR-05",
+          "IR-07",
+          "IR-17"
+        ],
+        "phase_boundary": "LSTEP今期対象外。採用済み確認業務を再質問せず将来対象Phaseの設計残件として扱う。",
+        "current_user_decision_required": false
+      }
+    }
+  ],
+  "dedup_aliases": {
+    "FIN-R21": "CL-R08",
+    "REM-OPS-12": "CL-R14"
+  },
+  "runtime_execution_count": 0,
+  "all_75_closed": false,
+  "original_source_exhaustiveness_claimed": false,
+  "approval_original_reconciliation": {
+    "baseline_target_ids": 231,
+    "baseline_occurrences": 523,
+    "initial_linked": 204,
+    "newly_linked": 27,
+    "unlinked_after": 0,
+    "target_roles": {
+      "aeon_question": 11,
+      "user_answer": 15,
+      "user_clarification": 1
+    },
+    "decision_groups": 16,
+    "direct_answer_text_exact_matches": 15,
+    "meaning_conflicts": 0,
+    "receipt_files": 14,
+    "original_sent_at_authoritative": true,
+    "prior_receipts_preserved": true,
+    "parent_reports_all_27_partial_false": true,
+    "local_direct_tool_fetch": false,
+    "full_history_exhaustiveness_claimed": false,
+    "new_execution_authorization": false,
+    "protected_evidence_locator": "full-audit/approval-answer-status-20261019/27-original-reconciliation.json",
+    "protected_evidence_sha256": "b9c39c836e7b7295fa6d7f310ee951e0bfcb20b3f816ef374fd6e92309f83555"
+  },
+  "existing_verification_reports": {
+    "case_count": 31,
+    "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+    "evidence_ids": [
+      "E0",
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5",
+      "E6",
+      "E7",
+      "E8",
+      "E9",
+      "E10",
+      "E11",
+      "E12",
+      "E13"
+    ],
+    "new_runtime_execution_count": 0,
+    "latest_whole_case_pass_count_proven": 0,
+    "partial_historical_results_preserved": true,
+    "not_a_user_unanswered_question_list": true,
+    "old_db_backup_four_source_investigations_out_of_scope": true
+  }
+}

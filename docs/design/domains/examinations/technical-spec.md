@@ -161,3 +161,20 @@ D21の検査履歴sectionはスタッフの閲覧専用であり、同sectionか
 | receive | 受信画面の閲覧と受信・attach・detach・切戻しのwriteを操作別grantで分離。不足時の案内・拒否を確認し、新ロールを追加しない。実機未実施 | receive-access-separation |
 | selected-print | 選択input・実施／結果の分離・固定snapshot・read認可・取消 | print-item-selection, print-item-unknown, print-item-snapshot, print-item-empty, print-item-version-change, print-item-access, print-item-cancel-draft, print-item-single-snapshot |
 | infection-summary | 元結果ref・種／項目mapping・日付精度／出典・再投影・D04/D03認可・手入力write | infection-species, infection-auto-saved, infection-external-source, infection-date-order, infection-ambiguous, infection-revision-refresh, infection-result-states, infection-no-record-failure, infection-access-boundary, infection-mapping-unknown, infection-write-safety |
+
+<a id="examination-static-validation-handoff-20261019"></a>
+## CL-R10／13／14：限定コード観察と実機検査の分離
+
+基準 `563353287ebb08af55056e3fbfba2aca3531e599`。[print snapshot](../../../../backend/internal/medicalrecord/examination_print_snapshot.go)はrevision＋版内itemsから構成し、現版未設定の旧行はNotFoundにする。これを現在master補完で印刷可能へ変える設計は採らない。項目選択adapter候補は`exam_ref + revision + item_ref集合 + 順序`を受け、同じ固定snapshot内で選択を解決する。未実施／実施不明と取得不明を区別する追加対応、原値・感染症の複数候補／日付不明・出典表示は、現DTOの存在だけで完了としない。
+
+感染症projectionの検査fixtureは同じpetの確認済み原結果、申告問診、日付不明、複数候補、数値0、未実施、訂正版を区別し、選定根拠・原文字列・元exam/revision/item参照・訂正状態を期待値へ記録する。0を陰性、未実施を結果なし正常、取得失敗を候補0件へ変換しない。D20公開／D21印刷共有は追加しない。
+
+[受信service](../../../../backend/internal/medicalrecord/lab_device_receive_service.go)264〜313行のPutWaitは生存・医院所属を確認し待機を置換するが、371〜384行のListTodayDraftは一覧readの条件で、PutWait内の当日カルテ検査ではない。223〜246行のpersist失敗時unlinkと、[persist入口](../../../../backend/internal/medicalrecord/lab_device_exam_persist.go)55〜85行のjob／pet検査も、当日対象カルテ条件の証拠としない。CL-R13は静的不足を再確認、コード修正・実機は未実施。
+
+当日対象検査候補は有効waitを作成／利用するownerが、選択元clinic・pet・recordと現在JST日・診療状態を同じgate内で再照合する。物理waitへのrecord ref追加は候補であり、既存pet_id payloadが既にこれを表現するとしない。検査は直接API、前日／未来record、別院、死亡、一覧後終了／対象変更、日付跨ぎ、待機期限切れと受信の両順を分ける。不適合時は別petへ自動fallbackせず、既存未紐付け・失敗契約を保つ。
+
+CL-R14の実機receiptは医院・機種／個体・OS／Chrome版・接続経路・source・設定・対象手順・停止復旧担当・日時・基準commit・判定・医師確認を記録し、raw患者情報を転記しない。NX600/AU10Vの日常受信、PU decoder-only、IDEXX PIMS code／応答送信承認、legacy手動経路を別行にする。2ポート排他、切断／再接続、途中frame、重複、待機消失、保存失敗、患者切替、配線競合を承認済み環境でだけ実行し、未実施は空欄PASSにしない。旧城東COM・36項目・既存fixtureを他医院／全機種の実証へ広げない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

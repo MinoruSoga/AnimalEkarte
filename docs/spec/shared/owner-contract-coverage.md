@@ -136,3 +136,7 @@ D14の複製／CSV入力は[新操作の意味契約](../../design/domains/staff
 [決定根拠・適用範囲](../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。D04共通基本情報・自院利用をD01受付／D03カルテ／D10会計／D11見積／D19手動連携／D20本人LINE認証へ接続する。各院の診療金銭記録と現在認可・原本保護は保持し、物理ID統合やunlink再設計を承認済みにしない。
+
+## 10/19同種操作・検索方式の最新適用
+
+[共通FRと8受入条件](ui-contracts.md#interaction-consistency-20261019)・[対象/異用途台帳](interaction-scope.md)へ接続。同じ用途の実行/clear/保持/戻る/失敗を揃え、既存業務一覧・飼主pet選択のkeywordは検索ボタンで適用する。個別正本と台帳行を照合し、原則一文や共通部品だけで全画面適合としない。既存認可/取得範囲/自動保存・異用途の境界を維持する。
