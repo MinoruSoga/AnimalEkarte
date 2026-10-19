@@ -266,6 +266,14 @@ MASTER_SEEDS: list[tuple[str, str, list[dict]]] = [
         ],
     ),
     (
+        "trimming_course",
+        "/api/v1/masters/trimming-courses",
+        [
+            {"name": "【デモ】シャンプーコース", "price": 5000, "is_active": True, "description": "デモ用", "target_size": "small", "duration": 60, "sort_order": 1},
+            {"name": "【デモ】シャンプー＆カット", "price": 8000, "is_active": True, "description": "デモ用", "target_size": "medium", "duration": 90, "sort_order": 2},
+        ],
+    ),
+    (
         "reservation_type_group",
         "/api/v1/masters/reservation-type-groups",
         [
@@ -503,7 +511,13 @@ def seed_reservations(client: ApiClient, state: State, owners: list[dict]) -> No
         created = client.create("/api/v1/reservations", payload)
         reservation_id = int(created["id"])
         state.created.append(
-            {"kind": "reservation", "id": reservation_id, "name": label, "pet_id": pet["id"]}
+            {
+                "kind": "reservation",
+                "id": reservation_id,
+                "name": label,
+                "pet_id": pet["id"],
+                "owner_id": owner["owner_id"],
+            }
         )
         print(f"created reservation: {label} (#{reservation_id})")
 
@@ -513,6 +527,36 @@ def find_record_for_reservation(client: ApiClient, pet_id: int, reservation_id: 
         if row.get("appointment_id") == reservation_id:
             return row
     return None
+
+
+def ensure_record_for_reservation(client: ApiClient, state: State, reservation: dict) -> dict | None:
+    pet_id = int(reservation["pet_id"])
+    reservation_id = int(reservation["id"])
+    existing = find_record_for_reservation(client, pet_id, reservation_id)
+    if existing is not None:
+        return existing
+    owner_id = reservation.get("owner_id")
+    if owner_id is None:
+        code, pet = client.request("GET", f"/api/v1/pets/{pet_id}")
+        if code != 200 or not isinstance(pet, dict):
+            print(f"warning: cannot load pet #{pet_id}: HTTP {code}")
+            return None
+        owner_id = pet.get("owner_id")
+    _, doctor_id = pick_reservation_type_and_doctor(client)
+    created = client.create(
+        "/api/v1/medical-records",
+        {
+            "owner_id": int(owner_id),
+            "pet_id": pet_id,
+            "doctor_id": doctor_id,
+            "appointment_id": reservation_id,
+            "visit_date": datetime.now(JST).strftime("%Y-%m-%d"),
+            "visit_type": "revisit",
+            "status": "in_progress",
+        },
+    )
+    print(f"created medical record: #{created['id']} reservation=#{reservation_id}")
+    return created
 
 
 def enrich_record(client: ApiClient, record: dict, ids: dict[str, dict[str, int]]) -> None:
@@ -677,6 +721,95 @@ def create_billing(client: ApiClient, state: State, record: dict, mode: str) -> 
             print(f"applied partial payment: #{billing_id} amount=1000")
 
 
+def create_clinical_extras(client: ApiClient, state: State, ids: dict[str, dict[str, int]], record: dict) -> None:
+    today = datetime.now(JST).date()
+    _, doctor_id = pick_reservation_type_and_doctor(client)
+    pet_id = int(record["pet_id"])
+    record_id = int(record["id"])
+
+    vaccination = client.create(
+        "/api/v1/vaccinations",
+        {
+            "medical_record_id": record_id,
+            "pet_id": pet_id,
+            "vaccine_id": ids["vaccine"]["【デモ】混合ワクチン（犬）"],
+            "doctor_id": doctor_id,
+            "date": today.isoformat(),
+            "next_date": (today + timedelta(days=365)).isoformat(),
+            "next_schedule_type": "1year",
+            "supplemental": f"{RUN_TAG} synthetic vaccination",
+        },
+    )
+    state.created.append({"kind": "vaccination", "id": int(vaccination["id"]), "name": "【デモ】ワクチン接種"})
+    print(f"created vaccination: #{vaccination['id']}")
+
+    checkup = client.create(
+        f"/api/v1/medical-records/{record_id}/checkups",
+        {
+            "checkup_type_id": ids["checkup_type"]["【デモ】犬の健康診断"],
+            "pet_id": pet_id,
+            "doctor_id": doctor_id,
+            "date": today.isoformat(),
+            "result": "【デモ】異常なし",
+        },
+    )
+    state.created.append(
+        {
+            "kind": "checkup",
+            "id": int(checkup["id"]),
+            "name": "【デモ】健康診断",
+            "record_id": record_id,
+        }
+    )
+    print(f"created checkup: #{checkup['id']}")
+
+    exam_types = client.rows("/api/v1/masters/examination-types")
+    if exam_types:
+        exam = client.create(
+            "/api/v1/examinations",
+            {
+                "medical_record_id": record_id,
+                "pet_id": pet_id,
+                "exam_type_id": int(exam_types[0]["id"]),
+                "doctor_id": doctor_id,
+                "date": datetime.now(JST).replace(hour=9, minute=0, second=0, microsecond=0).isoformat(),
+                "status": "pending",
+            },
+        )
+        state.created.append({"kind": "exam", "id": int(exam["id"]), "name": "【デモ】検査"})
+        print(f"created exam: #{exam['id']}")
+    else:
+        print("warning: no examination type found; skipping exam")
+
+    reservation_types = client.rows("/api/v1/masters/reservation-types")
+    trimming_type = next(
+        (row for row in reservation_types if row.get("category") == "trimming" and row.get("is_active", True)),
+        next((row for row in reservation_types if row.get("is_active", True)), None),
+    )
+    if trimming_type is None:
+        print("warning: no reservation type for trimming; skipping trimming")
+    else:
+        ensure_doctor_capability(client, state, doctor_id, int(trimming_type["id"]))
+        trimming = client.create(
+            "/api/v1/trimmings",
+            {
+                "date": today.isoformat(),
+                "start_time": datetime.combine(today, datetime.min.time()).replace(hour=14, tzinfo=JST).isoformat(),
+                "end_time": datetime.combine(today, datetime.min.time()).replace(hour=15, tzinfo=JST).isoformat(),
+                "pet_id": pet_id,
+                "staff_id": doctor_id,
+                "course_id": ids["trimming_course"]["【デモ】シャンプーコース"],
+                "reservation_type_id": int(trimming_type["id"]),
+                "weight": "5.0",
+                "status": "confirmed",
+                "style_request": "【デモ】短め",
+                "remarks": f"{RUN_TAG} synthetic trimming",
+            },
+        )
+        state.created.append({"kind": "trimming", "id": int(trimming["id"]), "name": "【デモ】トリミング"})
+        print(f"created trimming: #{trimming['id']}")
+
+
 def seed_scenario(client: ApiClient, state: State, ids: dict[str, dict[str, int]]) -> None:
     reservations = [row for row in state.created if row["kind"] == "reservation"]
     if not reservations:
@@ -684,7 +817,7 @@ def seed_scenario(client: ApiClient, state: State, ids: dict[str, dict[str, int]
         return
     records = []
     for reservation in reservations:
-        record = find_record_for_reservation(client, int(reservation["pet_id"]), int(reservation["id"]))
+        record = ensure_record_for_reservation(client, state, reservation)
         if record is None:
             print(f"warning: medical record not found for reservation #{reservation['id']}")
             continue
@@ -692,6 +825,7 @@ def seed_scenario(client: ApiClient, state: State, ids: dict[str, dict[str, int]
     if not records:
         return
     enrich_record(client, records[0], ids)
+    create_clinical_extras(client, state, ids, records[0])
     create_estimate(client, state, records[0])
     create_billing(client, state, records[0], mode="unpaid")
     if len(records) > 1:
@@ -701,6 +835,15 @@ def seed_scenario(client: ApiClient, state: State, ids: dict[str, dict[str, int]
 
 
 def cleanup(client: ApiClient, state: State) -> None:
+    for checkup in [row for row in state.created if row["kind"] == "checkup"]:
+        code, body = client.request(
+            "DELETE",
+            f"/api/v1/medical-records/{checkup['record_id']}/checkups/{checkup['id']}",
+        )
+        if code not in (200, 204, 404):
+            print(f"FAIL cleanup: checkup #{checkup['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+        else:
+            print(f"deleted checkup: #{checkup['id']}")
     for billing in [row for row in state.created if row["kind"] == "billing"]:
         code, body = client.request("POST", f"/api/v1/accountings/{billing['id']}/cancel")
         if code not in (200, 204, 404, 409):
@@ -763,10 +906,10 @@ def cleanup(client: ApiClient, state: State) -> None:
             print(f"FAIL cleanup: staff capability #{item['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
         else:
             print(f"restored staff capability: #{item['id']}")
-    order = ["reservation", "shift", "pet", "owner", "diagnosis_name", "chief_complaint", "diagnosis_type", "procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "reservation_type_group"]
+    order = ["reservation", "shift", "vaccination", "exam", "trimming", "pet", "owner", "diagnosis_name", "chief_complaint", "diagnosis_type", "procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "trimming_course", "reservation_type_group"]
     resources = [
         row for row in state.created
-        if row["kind"] not in {"staff_capability", "billing", "estimate"}
+        if row["kind"] not in {"staff_capability", "billing", "estimate", "checkup"}
     ]
     failures = []
     for kind in order:
@@ -774,6 +917,9 @@ def cleanup(client: ApiClient, state: State) -> None:
             path = {
                 "reservation": "/api/v1/reservations",
                 "shift": "/api/v1/shifts",
+                "vaccination": "/api/v1/vaccinations",
+                "exam": "/api/v1/examinations",
+                "trimming": "/api/v1/trimmings",
                 "pet": "/api/v1/pets",
                 "owner": "/api/v1/owners",
                 "diagnosis_name": "/api/v1/masters/diagnosis-names",
@@ -788,11 +934,15 @@ def cleanup(client: ApiClient, state: State) -> None:
                 "inventory": "/api/v1/inventory",
                 "inquiry_template": "/api/v1/masters/inquiry-templates",
                 "checkup_type": "/api/v1/masters/checkup-types",
+                "trimming_course": "/api/v1/masters/trimming-courses",
                 "reservation_type_group": "/api/v1/masters/reservation-type-groups",
             }[kind]
             code, body = client.request("DELETE", f"{path}/{item['id']}")
             if code not in (200, 204, 404):
-                failures.append(f"{kind} #{item['id']}: HTTP {code} {str(body)[:120]}")
+                if code == 409 and kind in {"procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "trimming_course", "reservation_type_group", "diagnosis_name", "diagnosis_type", "chief_complaint"}:
+                    print(f"WARN cleanup: {kind} #{item['id']} still referenced; kept ({item['name']})")
+                else:
+                    failures.append(f"{kind} #{item['id']}: HTTP {code} {str(body)[:120]}")
             else:
                 print(f"deleted {kind}: {item['name']} (#{item['id']})")
     if failures:
@@ -848,7 +998,7 @@ def main() -> None:
     finally:
         state.save(state_path)
     print(f"state: {state_path}")
-    print("W3b-1 (clinical plan / vitals / treatments / estimate / billing) applied; hospitalization / trimming / inventory movements remain.")
+    print("W3b-2 (vaccination / checkup / exam / trimming) applied; hospitalization / inventory movements remain.")
 
 
 if __name__ == "__main__":

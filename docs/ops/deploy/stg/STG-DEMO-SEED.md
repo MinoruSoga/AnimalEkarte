@@ -9,10 +9,11 @@
 - 医院スコープ master: procedures / medicines / vaccines / insurances / diagnosis types・names / chief complaints / cages / hospitalization plans / inventory / inquiry templates / checkup types / reservation type groups
 - 合成データ: 飼主3件、ペット4件、予約3件
 - W3b-1: 先頭予約のカルテに診療計画・バイタル・処置2件を追加。見積1件、会計3件（未納 waiting / 完了 completed / 部分入金待ち waiting）を作成する。
+- W3b-2: 予防接種、健診、検査（pending）、トリミング（confirmed）を追加する。
 - 対象医院: `--clinic-id`（既定 1）。専用デモ医院は作らない。
 - すべて `【デモ】` prefix と `EMR443-DEMO` run tag を付ける。実在の氏名・電話・メール・住所は使わない。
 
-**W3b-2（未実装）**: 入院、トリミング、在庫の入出庫、検査、予防接種、健診、レポート用データ。部分入金は API の complete 契約が全額決済を要求するため、現状は waiting の未納として作成する。
+**W3b-3（未実装 / 要判断）**: 入院、在庫の入出庫、レポート用データ。入院は API に削除経路がなく cleanup 契約と衝突するため、作成するか別扱いにするか決める。在庫は移動履歴 API がなく、quantity 更新のみ。
 
 ## 前提
 
@@ -71,5 +72,7 @@ python3 scripts/tools/seed-demo-data.py --clinic-id 1 --apply
 - 予約の日時は JST の当日 10:00 から1日ずつずらす。クライアントのテスト日時と重なる場合は `--clinic-id` と合わせて調整する。
 - master の `【デモ】` 名は cleanup の識別子でもある。手動で名前を変えると cleanup 対象から外れる。
 - 予約作成時にカルテが自動生成される。cleanup は、この run が作成した予約に紐づく自動生成カルテを先に削除してから予約・ペット・飼主を削除する。
-- 2026-10-19 にローカル API で W3a〜W3b-1 の apply → cleanup を実行し、両方 EXIT 0 を確認した。cleanup 後のデモ行不存在も確認済み。STG 実適用は未検証。初回 apply は必ずローカルまたは承認済みの window で行う。
+- 2026-10-19 にローカル API で W3a〜W3b-2 の apply → cleanup を実行し、両方 EXIT 0 を確認した。cleanup 後のデモ行不存在も確認済み。STG 実適用は未検証。初回 apply は必ずローカルまたは承認済みの window で行う。
 - 部分入金は `PATCH /accountings/{id}` では確定できず、`POST /accountings/complete` が全額決済を要求する。デモでは waiting の未納として扱い、partial の warning を許容する。
+- トリミングは reservation_type_id / staff capability / start_time / end_time が必要。seeder は一時的に capability を追加し、cleanup で元へ戻す。
+- 検査は `/masters/examination-types` の先頭種別を pending で作成する。
