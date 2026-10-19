@@ -71,6 +71,15 @@ class SchemaTests(unittest.TestCase):
             with self.subTest(sql=sql), self.assertRaises(SchemaError):
                 self.schema(sql)
 
+    def test_supported_security_invoker_view(self):
+        schema = self.schema('CREATE VIEW v WITH (security_invoker=true) AS SELECT 1;')
+        self.assertEqual(schema.tables, {})
+        for sql in ['CREATE VIEW v WITH (security_invoker=true) AS;',
+                    'CREATE VIEW v WITH (security_invoker=false) AS SELECT 1;',
+                    'CREATE VIEW v WITH (security_invoker=true) AS SELECT 1 INTO hidden;']:
+            with self.subTest(sql=sql), self.assertRaises(SchemaError):
+                self.schema(sql)
+
     def test_invalid_references_and_syntax(self):
         for sql in ['CREATE TABLE t(x int REFERENCES absent(id));', 'CREATE TABLE p(id int); CREATE TABLE c(x int REFERENCES p(absent));', "CREATE TABLE t(x text DEFAULT 'unterminated);", 'CREATE TABLE t(x int;', 'CREATE TABLE t(x int); ALTER TABLE t DROP CONSTRAINT absent;']:
             with self.subTest(sql=sql), self.assertRaises(SchemaError):
@@ -261,7 +270,7 @@ class SchemaTests(unittest.TestCase):
 
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
-        self.assertEqual(len(schema.tables), 164)
+        self.assertEqual(len(schema.tables), 246)
         self.assertEqual([m.name for m in schema.migrations], ['001_init.sql'])
         embeddings = schema.tables['support_manual_embeddings']
         self.assertEqual({c.name for c in embeddings.columns}, {'cache_key', 'model', 'task_type', 'chunker_version', 'dimensions', 'embedding', 'created_at'})

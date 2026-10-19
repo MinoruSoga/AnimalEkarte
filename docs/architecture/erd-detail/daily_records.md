@@ -40,7 +40,7 @@ erDiagram
         BIGSERIAL id PK
     }
     hospitalizations {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     hospitalizations ||..o{ daily_records : "hospitalization_id"
     clinics ||..o{ daily_records : "clinic_id"

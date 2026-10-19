@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:6564](../../../backend/migrations/001_init.sql#L6564) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6565](../../../backend/migrations/001_init.sql#L6565) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:6564](../../../backend/migrations/001_init.sql#L6564) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:6565](../../../backend/migrations/001_init.sql#L6565) |
 | `reporter_staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6566](../../../backend/migrations/001_init.sql#L6566) |
 | `title` | `text` | NOT NULL | — | — | [001_init.sql:6567](../../../backend/migrations/001_init.sql#L6567) |
 | `detail` | `text` | NOT NULL | `''` | — | [001_init.sql:6568](../../../backend/migrations/001_init.sql#L6568) |
@@ -29,6 +29,7 @@
 | `plane_issue_id` | `text` | NULL | — | — | [001_init.sql:6743](../../../backend/migrations/001_init.sql#L6743) |
 | `plane_issue_url` | `text` | NULL | — | — | [001_init.sql:6744](../../../backend/migrations/001_init.sql#L6744) |
 | `plane_sync_error` | `text` | NULL | — | — | [001_init.sql:6745](../../../backend/migrations/001_init.sql#L6745) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10009](../../../backend/migrations/001_init.sql#L10009) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -41,8 +42,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     support_bug_reports {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         bigint reporter_staff_id FK
         text title
         text detail
@@ -59,6 +60,7 @@ erDiagram
         text plane_issue_id
         text plane_issue_url
         text plane_sync_error
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -87,6 +89,8 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `support_bug_reports_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6564](../../../backend/migrations/001_init.sql#L6564) |
+| `support_bug_reports_version_check` | check | `CHECK(version>0)` | [001_init.sql:10009](../../../backend/migrations/001_init.sql#L10009) |
+| `uq_support_report_id_clinic` | unique | `CONSTRAINT uq_support_report_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
 
 ## インデックス
 

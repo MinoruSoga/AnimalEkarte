@@ -34,6 +34,8 @@
 | `clinical_set_generation` | `bigint` | NULL | — | — | [001_init.sql:8807](../../../backend/migrations/001_init.sql#L8807) |
 | `clinical_set_digest` | `bytea` | NULL | — | — | [001_init.sql:8808](../../../backend/migrations/001_init.sql#L8808) |
 | `calculation_version` | `bigint` | NULL | — | — | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
+| `claim_state` | `text` | NULL | — | — | [001_init.sql:9438](../../../backend/migrations/001_init.sql#L9438) |
+| `ever_finalized` | `boolean` | NULL | — | — | [001_init.sql:9439](../../../backend/migrations/001_init.sql#L9439) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -69,6 +71,8 @@ erDiagram
         bigint clinical_set_generation
         bytea clinical_set_digest
         bigint calculation_version
+        text claim_state
+        boolean ever_finalized
     }
     clinics {
         BIGSERIAL id PK
@@ -79,7 +83,7 @@ erDiagram
         bigint billing_id FK,UK
     }
     hospitalizations {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     medical_records {
         BIGSERIAL id PK,UK
@@ -135,6 +139,7 @@ erDiagram
 | `billings_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8807](../../../backend/migrations/001_init.sql#L8807) |
 | `billings_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8808](../../../backend/migrations/001_init.sql#L8808) |
 | `billings_calculation_version_check` | check | `CHECK (calculation_version > 0)` | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
+| `billings_claim_state_check` | check | `CHECK (claim_state IN ('draft','finalized','cancelled'))` | [001_init.sql:9438](../../../backend/migrations/001_init.sql#L9438) |
 
 ## インデックス
 

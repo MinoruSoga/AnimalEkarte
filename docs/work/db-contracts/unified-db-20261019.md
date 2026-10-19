@@ -62,12 +62,12 @@ EMR365のワクチン小数精度はStartedの契約検討で、具体的scale/D
 
 ## 作成した物理契約とconsumerの未完境界
 
-[coverage JSON](unified-db-coverage.json)に各単位・資源・残consumerを列挙する。今回の選定は技術的な保存契約であり、新しい業務採用ではない。全164表、mainから26表増（S1の3表＋今回追加23表）。S1の原文・receipt・対象世代は保持した。
+[coverage JSON](unified-db-coverage.json)に各単位・資源・残consumerを列挙する。今回の選定は技術的な保存契約であり、新しい業務採用ではない。全246表。先行164表から確定不足を追加（詳細はsource trace）。S1の原文・receipt・対象世代は保持した。
 
 - T1/T2の初期version=1は機構開始時の現在状態counterで、旧master履歴を捏造しない。rule子変更は新rule set親を先にlockしてから行い、親のversionを増分する。コース内包identity・master/rule構成の検証とsnapshot captureは同TXのconsumerが所有する。
 - T3は予約pet/構成・course基礎時間/option時間/元版を保存し、option同ID一回・時間合計と件数を延期制約で照合。T4は安定source行と施術改訂、採用元価格/今回価格/値引き適用段階を保存する。既存価格の精度・税/値引き計算順を新しく決めず、0円とNULLを区別。JSON detail_valuesは明示DTOのsnapshotであり既存row全体や任意client属性を保存しない。
 - A1はrecord/billing別の臨床世代・集合digest、確認時の全record集合とID/identity/数量snapshotを保持する。既存治療writerから親世代を自動更新するtriggerは作らない。薬剤/処置の集合変更writer・会計直接変更・確認・確定の全参加と現在集合検証は462で必要。単価/割引/表示順や検査/物販だけで医師再確認へ拡張しない。
-- A2はtyped source/最後適用版/原値/手修正状態とbinding版を保存。古い手修正状態はNULL=unknown。既存billing_itemsのlifetime uniqueを維持し、trimming sourceもlifetime uniqueとする。同期/手編集はbilling行を先にlockし両版CAS、確定後自動同期禁止。481契約→482取込→481三分岐検証の順を維持する。
+- A2はtyped source/最後適用版/原値/手修正状態とbinding版を保存。古い手修正状態はNULL=unknown。追補でlifetime uniqueをactive claim uniqueへ訂正し、取消済の元履歴と理由付き解除を保持した選択再請求に対応する。同期/手編集はbilling行を先にlockし両版CAS、確定後自動同期禁止。481契約→482取込→481三分岐検証の順を維持する。
 - A3の金額了承は対象行・会計/算定版・before/after・操作key/hash・actor/時刻を保持する。同操作の必要監査・成功結果と同TXで保存し、通常単価/割引理由を新必須にしない。プラン4種明細の価格変更監査は既存audit_logsへconsumerが保存する。その他行/確定会計訂正等の既存必須理由は維持。
 - A4はsource別世代と実施/準備/取消履歴を保存する。self-row世代は品目/数量/実施状態等の変更で増分し、単価だけでは準備を失効させない。最新世代と履歴、未実施/中止・診療種別の請求対象判定をconsumerで照合する。履歴の存在だけで請求可能にしない。
 - 薬剤3値は1回製剤量＋単位、用法文、処方総量＋単位のnullable欄。既存dose_amount_mgはbasis次第で1日量を含み、quantityは会計数量なので、旧値を推測コピーしない。新数値の既定/計算式/テンプレートはない。既存犬猫の承認済み用量安全条件は変更しない。
@@ -79,3 +79,9 @@ EMR365のワクチン小数精度はStartedの契約検討で、具体的scale/D
 001 hashはcoverage JSONに記録する。旧main/単独727/単独728/旧統合coreのchecksumを自動補修せず拒否する既存runnerを維持し、期待hash fixtureだけ更新した。既存のS1試験ソース・parserのtable pin/S2存在条件は新catalogへ整合させたが、再実行していない。旧保険/S1 coreの試験成功はその旧hash限定で、拡張001の試験結果はNOT_RUN。公開時の通常hook・自動CIは別記録にし、手動再実行しない。
 
 独立机上レビュー後に#727へ通常pushし、公開blobで728由来DDL/試験を保持したことを確認してから728を重複整理する。merge・実環境DB適用・reset・既存volume操作はしない。
+
+## 全体不足の再照合と追補
+
+先行18単位の自己照合だけでは、全確定仕様のDB対応完了とは言えなかった。連絡先/院内予約拒否・4業務種別・名称履歴・休業/日跨ぎ・構造化初診問診・編集権/draft・予防処方/年間投薬・用量pattern・滞在/入院開始・算定/資金/締め/在庫/提示見積・検査出所・健診段階再開・院内マニュアル公開履歴・support/LINE配送保存・実来院根拠・共通患者UUID対応を追加した。[FR/AC→表列→票の追補](spec-storage-trace.md)と[完全列JSON](spec-storage-trace.json)を参照する。旧18単位のreuse記載だけを完成根拠にしない。
+
+共通UUID方式は本人の追加okで採用済み。独立UUID/元医院別ID保持、D19非流用、医院別臨床/金銭分離を維持する。ID統合・患者移行・unlink方式の再設計や実データ操作はない。旧PR728は統合保持の公開確認後にclose済み、branch/worktree/claimは保持する。

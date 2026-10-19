@@ -18,8 +18,8 @@
 | `master_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8121](../../../backend/migrations/001_init.sql#L8121) |
 | `adopted_master_unit_price` | `bigint` | NULL | — | — | [001_init.sql:8122](../../../backend/migrations/001_init.sql#L8122) |
 | `unit_price` | `bigint` | NULL | — | — | [001_init.sql:8123](../../../backend/migrations/001_init.sql#L8123) |
-| `quantity` | `numeric(10,2)` | NOT NULL | — | — | [001_init.sql:8124](../../../backend/migrations/001_init.sql#L8124) |
-| `discount_rate` | `numeric(5,2)` | NOT NULL | — | — | [001_init.sql:8125](../../../backend/migrations/001_init.sql#L8125) |
+| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9392](../../../backend/migrations/001_init.sql#L9392) |
+| `discount_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9392](../../../backend/migrations/001_init.sql#L9392) |
 | `discount_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:8126](../../../backend/migrations/001_init.sql#L8126) |
 | `discount_stage` | `text` | NOT NULL | — | — | [001_init.sql:8127](../../../backend/migrations/001_init.sql#L8127) |
 
@@ -41,8 +41,8 @@ erDiagram
         bigint master_version
         bigint adopted_master_unit_price
         bigint unit_price
-        numeric_10_2 quantity
-        numeric_5_2 discount_rate
+        numeric quantity
+        numeric discount_rate
         bigint discount_amount
         text discount_stage
     }
@@ -84,10 +84,10 @@ erDiagram
 |:---|:---|:---|:---|
 | `trimming_detail_revision_lines_master_version_check` | check | `CHECK (master_version > 0)` | [001_init.sql:8121](../../../backend/migrations/001_init.sql#L8121) |
 | `trimming_detail_revision_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:8124](../../../backend/migrations/001_init.sql#L8124) |
-| `trimming_detail_revision_lines_discount_rate_check` | check | `CHECK (discount_rate BETWEEN 0 AND 100)` | [001_init.sql:8125](../../../backend/migrations/001_init.sql#L8125) |
 | `trimming_detail_revision_lines_discount_amount_check` | check | `CHECK (discount_amount >= 0)` | [001_init.sql:8126](../../../backend/migrations/001_init.sql#L8126) |
 | `trimming_detail_revision_lines_discount_stage_check` | check | `CHECK (discount_stage IN ('unit','line'))` | [001_init.sql:8127](../../../backend/migrations/001_init.sql#L8127) |
 | `trimming_detail_revision_lines_pkey` | primary | `PRIMARY KEY (clinic_id,detail_revision_id,source_line_id)` | [001_init.sql:8128](../../../backend/migrations/001_init.sql#L8128) |
+| `ck_trimming_nonnegative_discount` | check | `CONSTRAINT ck_trimming_nonnegative_discount CHECK (discount_rate >= 0)` | [001_init.sql:9394](../../../backend/migrations/001_init.sql#L9394) |
 
 ## インデックス
 

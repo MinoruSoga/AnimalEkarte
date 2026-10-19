@@ -11,7 +11,7 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
+| `id` | `bigserial` | NOT NULL | — | PK, FK | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
 | `category` | `text` | NOT NULL | — | UK | [001_init.sql:2874](../../../backend/migrations/001_init.sql#L2874) |
 | `slug` | `text` | NOT NULL | — | UK | [001_init.sql:2875](../../../backend/migrations/001_init.sql#L2875) |
 | `title` | `text` | NOT NULL | — | — | [001_init.sql:2876](../../../backend/migrations/001_init.sql#L2876) |
@@ -21,6 +21,10 @@
 | `updated_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:2880](../../../backend/migrations/001_init.sql#L2880) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2881](../../../backend/migrations/001_init.sql#L2881) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2882](../../../backend/migrations/001_init.sql#L2882) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9976](../../../backend/migrations/001_init.sql#L9976) |
+| `current_version_id` | `bigint` | NULL | — | FK | [001_init.sql:9977](../../../backend/migrations/001_init.sql#L9977) |
+| `published_version_id` | `bigint` | NULL | — | FK | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
+| `hidden_at` | `timestamptz` | NULL | — | — | [001_init.sql:9979](../../../backend/migrations/001_init.sql#L9979) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -33,7 +37,7 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     manual_articles {
-        bigserial id PK
+        bigserial id PK,FK
         text category UK
         text slug UK
         text title
@@ -43,11 +47,21 @@ erDiagram
         bigint updated_by_staff_id FK
         timestamptz created_at
         timestamptz updated_at
+        bigint version
+        bigint current_version_id FK
+        bigint published_version_id FK
+        timestamptz hidden_at
+    }
+    manual_article_versions {
+        bigserial id PK,UK
+        bigint article_id FK,UK
     }
     staffs {
         BIGSERIAL id PK,UK
     }
     staffs o|..o{ manual_articles : "updated_by_staff_id"
+    manual_article_versions o|..o| manual_articles : "current_version_id, id"
+    manual_article_versions o|..o| manual_articles : "published_version_id, id"
 ```
 
 ## 外部キー（全件）
@@ -55,10 +69,14 @@ erDiagram
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `manual_articles_updated_by_staff_id_fkey` | `updated_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:2880](../../../backend/migrations/001_init.sql#L2880) |
+| `fk_manual_current` | `current_version_id, id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9989](../../../backend/migrations/001_init.sql#L9989) |
+| `fk_manual_published` | `published_version_id, id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9990](../../../backend/migrations/001_init.sql#L9990) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
 - `manual_articles_updated_by_staff_id_fkey`: `REFERENCES staffs(id) ON DELETE SET NULL`
+- `fk_manual_current`: `CONSTRAINT fk_manual_current FOREIGN KEY(current_version_id,id) REFERENCES manual_article_versions(id,article_id) ON DELETE RESTRICT`
+- `fk_manual_published`: `CONSTRAINT fk_manual_published FOREIGN KEY(published_version_id,id) REFERENCES manual_article_versions(id,article_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -67,6 +85,7 @@ erDiagram
 | `manual_articles_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
 | `manual_articles_category_check` | check | `CHECK (category IN ('screens', 'workflows'))` | [001_init.sql:2874](../../../backend/migrations/001_init.sql#L2874) |
 | `manual_articles_category_slug_key` | unique | `UNIQUE (category, slug)` | [001_init.sql:2884](../../../backend/migrations/001_init.sql#L2884) |
+| `manual_articles_version_check` | check | `CHECK(version>0)` | [001_init.sql:9976](../../../backend/migrations/001_init.sql#L9976) |
 
 ## インデックス
 

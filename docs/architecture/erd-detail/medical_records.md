@@ -16,7 +16,7 @@
 | `record_no` | `text` | NOT NULL | — | UK | [001_init.sql:1423](../../../backend/migrations/001_init.sql#L1423) |
 | `date` | `date` | NOT NULL | — | — | [001_init.sql:1424](../../../backend/migrations/001_init.sql#L1424) |
 | `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1425](../../../backend/migrations/001_init.sql#L1425) |
-| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1426](../../../backend/migrations/001_init.sql#L1426) |
+| `pet_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:1426](../../../backend/migrations/001_init.sql#L1426) |
 | `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1427](../../../backend/migrations/001_init.sql#L1427) |
 | `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:1428](../../../backend/migrations/001_init.sql#L1428) |
 | `status` | `medical_record_status` | NULL | `'draft'` | — | [001_init.sql:1429](../../../backend/migrations/001_init.sql#L1429) |
@@ -50,7 +50,7 @@ erDiagram
         text record_no UK
         date date
         bigint owner_id FK
-        bigint pet_id FK
+        bigint pet_id FK,UK
         bigint doctor_id FK
         bigint appointment_id FK
         medical_record_status status
@@ -136,6 +136,7 @@ erDiagram
 | `ck_conversation_summary_metadata` | check | `CONSTRAINT ck_conversation_summary_metadata CHECK (       (conversation_summary IS NULL AND conversation_summary_revision IS NULL AND conversation_summary_source IS NULL)       OR (conversation_summary IS NOT NULL AND conversation_summary_revision > 0           AND conversation_summary_revision IS NOT NULL AND conversation_summary_source IS NOT NULL           AND btrim(conversation_summary_source) <> '')     )` | [001_init.sql:7886](../../../backend/migrations/001_init.sql#L7886) |
 | `medical_records_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8148](../../../backend/migrations/001_init.sql#L8148) |
 | `medical_records_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8806](../../../backend/migrations/001_init.sql#L8806) |
+| `uq_record_patient_clinic` | unique | `CONSTRAINT uq_record_patient_clinic UNIQUE(id,clinic_id,pet_id)` | [001_init.sql:10095](../../../backend/migrations/001_init.sql#L10095) |
 
 ## インデックス
 

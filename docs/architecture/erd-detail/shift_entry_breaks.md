@@ -15,6 +15,8 @@
 | `shift_entry_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2697](../../../backend/migrations/001_init.sql#L2697) |
 | `break_start` | `time` | NOT NULL | — | — | [001_init.sql:2698](../../../backend/migrations/001_init.sql#L2698) |
 | `break_end` | `time` | NOT NULL | — | — | [001_init.sql:2699](../../../backend/migrations/001_init.sql#L2699) |
+| `starts_at` | `timestamptz` | NULL | — | — | [001_init.sql:8950](../../../backend/migrations/001_init.sql#L8950) |
+| `ends_at` | `timestamptz` | NULL | — | — | [001_init.sql:8951](../../../backend/migrations/001_init.sql#L8951) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -31,9 +33,11 @@ erDiagram
         bigint shift_entry_id FK
         time break_start
         time break_end
+        timestamptz starts_at
+        timestamptz ends_at
     }
     shift_entries {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     shift_entries ||..o{ shift_entry_breaks : "shift_entry_id"
 ```
@@ -53,6 +57,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `shift_entry_breaks_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2696](../../../backend/migrations/001_init.sql#L2696) |
+| `ck_shift_break_explicit_interval` | check | `CONSTRAINT ck_shift_break_explicit_interval CHECK ((starts_at IS NULL AND ends_at IS NULL)       OR (starts_at IS NOT NULL AND ends_at IS NOT NULL AND ends_at>starts_at))` | [001_init.sql:8952](../../../backend/migrations/001_init.sql#L8952) |
 
 ## インデックス
 

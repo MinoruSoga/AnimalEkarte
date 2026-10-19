@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1359](../../../backend/migrations/001_init.sql#L1359) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1360](../../../backend/migrations/001_init.sql#L1360) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1359](../../../backend/migrations/001_init.sql#L1359) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1360](../../../backend/migrations/001_init.sql#L1360) |
 | `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1361](../../../backend/migrations/001_init.sql#L1361) |
 | `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1362](../../../backend/migrations/001_init.sql#L1362) |
 | `hospitalization_type` | `hospitalization_type` | NOT NULL | — | — | [001_init.sql:1363](../../../backend/migrations/001_init.sql#L1363) |
@@ -30,6 +30,8 @@
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1375](../../../backend/migrations/001_init.sql#L1375) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1376](../../../backend/migrations/001_init.sql#L1376) |
 | `next_visit` | `DATE` | NULL | — | — | [001_init.sql:7553](../../../backend/migrations/001_init.sql#L7553) |
+| `stay_case_id` | `bigint` | NULL | — | FK | [001_init.sql:9263](../../../backend/migrations/001_init.sql#L9263) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9264](../../../backend/migrations/001_init.sql#L9264) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,8 +44,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     hospitalizations {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         bigint owner_id FK
         bigint pet_id FK
         hospitalization_type hospitalization_type
@@ -61,6 +63,8 @@ erDiagram
         timestamptz updated_at
         timestamptz deleted_at
         DATE next_visit
+        bigint stay_case_id FK
+        bigint version
     }
     cages {
         BIGSERIAL id PK,UK
@@ -80,6 +84,10 @@ erDiagram
     staffs {
         BIGSERIAL id PK,UK
     }
+    stay_cases {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
+    }
     clinics ||..o{ hospitalizations : "clinic_id"
     owners ||..o{ hospitalizations : "owner_id"
     pets ||..o{ hospitalizations : "pet_id"
@@ -87,6 +95,7 @@ erDiagram
     pets ||..o{ hospitalizations : "clinic_id, pet_id"
     cages o|..o{ hospitalizations : "cage_id, clinic_id"
     staffs o|..o{ hospitalizations : "doctor_id"
+    stay_cases o|..o{ hospitalizations : "stay_case_id, clinic_id"
 ```
 
 ## 外部キー（全件）
@@ -100,6 +109,7 @@ erDiagram
 | `fk_hospitalizations_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5787](../../../backend/migrations/001_init.sql#L5787) |
 | `fk_hospitalizations_cage_clinic` | `cage_id, clinic_id` | [cages](cages.md) | `id, clinic_id` | `ON DELETE SET NULL (cage_id)` | [001_init.sql:5793](../../../backend/migrations/001_init.sql#L5793) |
 | `fk_hospitalizations_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:6776](../../../backend/migrations/001_init.sql#L6776) |
+| `fk_hospitalization_stay_case` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9266](../../../backend/migrations/001_init.sql#L9266) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -110,6 +120,7 @@ erDiagram
 - `fk_hospitalizations_pet_clinic`: `CONSTRAINT fk_hospitalizations_pet_clinic     FOREIGN KEY (clinic_id, pet_id)     REFERENCES pets (clinic_id, id)     ON DELETE RESTRICT`
 - `fk_hospitalizations_cage_clinic`: `CONSTRAINT fk_hospitalizations_cage_clinic     FOREIGN KEY (cage_id, clinic_id)     REFERENCES cages (id, clinic_id)     ON DELETE SET NULL (cage_id)`
 - `fk_hospitalizations_doctor`: `CONSTRAINT fk_hospitalizations_doctor         FOREIGN KEY (doctor_id) REFERENCES staffs (id) ON DELETE SET NULL`
+- `fk_hospitalization_stay_case`: `CONSTRAINT fk_hospitalization_stay_case FOREIGN KEY (stay_case_id,clinic_id) REFERENCES stay_cases(id,clinic_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -117,6 +128,8 @@ erDiagram
 |:---|:---|:---|:---|
 | `hospitalizations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1359](../../../backend/migrations/001_init.sql#L1359) |
 | `chk_hospitalizations_dates` | check | `CONSTRAINT chk_hospitalizations_dates CHECK (end_date >= start_date)` | [001_init.sql:1377](../../../backend/migrations/001_init.sql#L1377) |
+| `hospitalizations_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9264](../../../backend/migrations/001_init.sql#L9264) |
+| `uq_hospitalizations_id_clinic` | unique | `CONSTRAINT uq_hospitalizations_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9265](../../../backend/migrations/001_init.sql#L9265) |
 
 ## インデックス
 
@@ -128,3 +141,4 @@ erDiagram
 | `idx_hospitalizations_cage_id` | NO | — | `CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id)` | [001_init.sql:2310](../../../backend/migrations/001_init.sql#L2310) |
 | `idx_hospitalizations_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_hospitalizations_clinic_status   ON hospitalizations(clinic_id, status)   WHERE deleted_at IS NULL` | [001_init.sql:2423](../../../backend/migrations/001_init.sql#L2423) |
 | `idx_hospitalizations_clinic_doctor` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_hospitalizations_clinic_doctor   ON hospitalizations(clinic_id, doctor_id)   WHERE deleted_at IS NULL` | [001_init.sql:2427](../../../backend/migrations/001_init.sql#L2427) |
+| `uq_hospitalization_one_stay_case` | YES | `stay_case_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_hospitalization_one_stay_case ON hospitalizations(clinic_id,stay_case_id) WHERE stay_case_id IS NOT NULL` | [001_init.sql:9267](../../../backend/migrations/001_init.sql#L9267) |

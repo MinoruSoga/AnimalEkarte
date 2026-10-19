@@ -11,7 +11,7 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1694](../../../backend/migrations/001_init.sql#L1694) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1694](../../../backend/migrations/001_init.sql#L1694) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1695](../../../backend/migrations/001_init.sql#L1695) |
 | `estimate_no` | `text` | NOT NULL | — | UK | [001_init.sql:1696](../../../backend/migrations/001_init.sql#L1696) |
 | `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1697](../../../backend/migrations/001_init.sql#L1697) |
@@ -32,6 +32,7 @@
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1712](../../../backend/migrations/001_init.sql#L1712) |
 | `supersedes_estimate_id` | `BIGINT` | NULL | — | FK | [001_init.sql:4839](../../../backend/migrations/001_init.sql#L4839) |
 | `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:5921](../../../backend/migrations/001_init.sql#L5921) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9493](../../../backend/migrations/001_init.sql#L9493) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,7 +45,7 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     estimates {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
         bigint clinic_id FK,UK
         text estimate_no UK
         bigint medical_record_id FK
@@ -65,6 +66,7 @@ erDiagram
         timestamptz deleted_at
         BIGINT supersedes_estimate_id FK
         bigint pet_id FK
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -115,6 +117,8 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `estimates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1694](../../../backend/migrations/001_init.sql#L1694) |
+| `estimates_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9493](../../../backend/migrations/001_init.sql#L9493) |
+| `uq_estimates_id_clinic` | unique | `CONSTRAINT uq_estimates_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9495](../../../backend/migrations/001_init.sql#L9495) |
 
 ## インデックス
 

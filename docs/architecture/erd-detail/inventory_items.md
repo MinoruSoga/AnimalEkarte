@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
 | `name` | `text` | NOT NULL | — | — | [001_init.sql:674](../../../backend/migrations/001_init.sql#L674) |
 | `category` | `inventory_category` | NOT NULL | — | — | [001_init.sql:675](../../../backend/migrations/001_init.sql#L675) |
-| `quantity` | `integer` | NULL | `0` | — | [001_init.sql:676](../../../backend/migrations/001_init.sql#L676) |
+| `quantity` | `bigint` | NULL | `0` | — | [001_init.sql:10217](../../../backend/migrations/001_init.sql#L10217) |
 | `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:677](../../../backend/migrations/001_init.sql#L677) |
 | `min_stock_level` | `integer` | NULL | `0` | — | [001_init.sql:678](../../../backend/migrations/001_init.sql#L678) |
 | `location` | `text` | NOT NULL | `''` | — | [001_init.sql:679](../../../backend/migrations/001_init.sql#L679) |
@@ -26,6 +26,8 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:684](../../../backend/migrations/001_init.sql#L684) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:685](../../../backend/migrations/001_init.sql#L685) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:686](../../../backend/migrations/001_init.sql#L686) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9728](../../../backend/migrations/001_init.sql#L9728) |
+| `quantity_base_id` | `bigint` | NULL | — | FK | [001_init.sql:9745](../../../backend/migrations/001_init.sql#L9745) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -38,11 +40,11 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     inventory_items {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
         text name
         inventory_category category
-        integer quantity
+        bigint quantity
         text unit
         integer min_stock_level
         text location
@@ -53,11 +55,19 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        bigint version
+        bigint quantity_base_id FK
     }
     clinics {
         BIGSERIAL id PK
     }
+    inventory_quantity_bases {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
+        bigint inventory_item_id FK,UK
+    }
     clinics ||..o{ inventory_items : "clinic_id"
+    inventory_quantity_bases o|..o| inventory_items : "quantity_base_id, clinic_id, id"
 ```
 
 ## 外部キー（全件）
@@ -65,10 +75,12 @@ erDiagram
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `inventory_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
+| `fk_inventory_quantity_base` | `quantity_base_id, clinic_id, id` | [inventory_quantity_bases](inventory_quantity_bases.md) | `id, clinic_id, inventory_item_id` | `ON DELETE RESTRICT` | [001_init.sql:9746](../../../backend/migrations/001_init.sql#L9746) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
 - `inventory_items_clinic_id_fkey`: `REFERENCES clinics(id) ON DELETE RESTRICT`
+- `fk_inventory_quantity_base`: `CONSTRAINT fk_inventory_quantity_base  FOREIGN KEY (quantity_base_id,clinic_id,id) REFERENCES inventory_quantity_bases(id,clinic_id,inventory_item_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -77,6 +89,7 @@ erDiagram
 | `inventory_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
 | `uq_inventory_items_id_clinic` | unique | `CONSTRAINT uq_inventory_items_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:690](../../../backend/migrations/001_init.sql#L690) |
 | `chk_inventory_items_quantity_non_negative` | check | `CONSTRAINT chk_inventory_items_quantity_non_negative CHECK (quantity >= 0)` | [001_init.sql:4167](../../../backend/migrations/001_init.sql#L4167) |
+| `inventory_items_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9728](../../../backend/migrations/001_init.sql#L9728) |
 
 ## インデックス
 

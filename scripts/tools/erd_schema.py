@@ -615,7 +615,18 @@ def _apply(tokens, tables, source):
         return tables
     # Deferred constraint triggers do not add a table/column; view query
     # projections are outside this table catalog (including security_invoker).
-    if words[:3] == ('CREATE', 'CONSTRAINT', 'TRIGGER') or words[:2] == ('CREATE', 'VIEW'):
+    if words[:3] == ('CREATE', 'CONSTRAINT', 'TRIGGER'):
+        return tables
+    if words[:2] == ('CREATE', 'VIEW'):
+        if len(tokens) < 12:
+            raise SchemaError('incomplete or unsupported view definition')
+        _, pos = _name(tokens, 2)
+        expected = ('WITH', '(', 'SECURITY_INVOKER', '=', 'TRUE', ')', 'AS', 'SELECT')
+        if tuple(t.upper for t in tokens[pos:pos + 8]) != expected or len(tokens) <= pos + 8:
+            raise SchemaError('only complete security_invoker SELECT views are supported')
+        _reject_select_into(tokens[pos + 7:])
+        if any(t.upper in {'CREATE', 'ALTER', 'DROP', 'INSERT', 'UPDATE', 'DELETE'} for t in tokens[pos + 8:]):
+            raise SchemaError('structural or modifying query in view unsupported')
         return tables
     opaque = {('CREATE', 'TYPE'), ('CREATE', 'EXTENSION'), ('CREATE', 'SCHEMA'), ('CREATE', 'TRIGGER'), ('DROP', 'TRIGGER'), ('CREATE', 'POLICY'), ('DROP', 'POLICY')}
     if words[:2] in opaque or words[:2] == ('CREATE', 'FUNCTION') or words[:4] == ('CREATE', 'OR', 'REPLACE', 'FUNCTION'):

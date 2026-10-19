@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1510](../../../backend/migrations/001_init.sql#L1510) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1510](../../../backend/migrations/001_init.sql#L1510) |
 | `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1511](../../../backend/migrations/001_init.sql#L1511) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1512](../../../backend/migrations/001_init.sql#L1512) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1512](../../../backend/migrations/001_init.sql#L1512) |
 | `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1513](../../../backend/migrations/001_init.sql#L1513) |
 | `checkup_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1514](../../../backend/migrations/001_init.sql#L1514) |
 | `date` | `date` | NOT NULL | — | — | [001_init.sql:1515](../../../backend/migrations/001_init.sql#L1515) |
@@ -23,6 +23,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1519](../../../backend/migrations/001_init.sql#L1519) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1520](../../../backend/migrations/001_init.sql#L1520) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1521](../../../backend/migrations/001_init.sql#L1521) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9935](../../../backend/migrations/001_init.sql#L9935) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -35,9 +36,9 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     checkups {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
         bigint medical_record_id FK
-        bigint clinic_id FK
+        bigint clinic_id FK,UK
         bigint pet_id FK
         bigint checkup_type_id FK
         date date
@@ -47,6 +48,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        bigint version
     }
     checkup_types {
         BIGSERIAL id PK,UK
@@ -93,6 +95,8 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `checkups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1510](../../../backend/migrations/001_init.sql#L1510) |
+| `checkups_version_check` | check | `CHECK (version>0)` | [001_init.sql:9935](../../../backend/migrations/001_init.sql#L9935) |
+| `uq_checkups_id_clinic` | unique | `CONSTRAINT uq_checkups_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9936](../../../backend/migrations/001_init.sql#L9936) |
 
 ## インデックス
 

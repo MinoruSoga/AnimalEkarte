@@ -194,7 +194,7 @@ func TestRevisitIntakeS1DisposableDatabase(t *testing.T) {
 	revisitSQL(t, revisitFixtureSQL)
 	cases := []struct{ name, sql string }{
 		{"catalog_and_unanswered", `
-SELECT emr460_test.assert_true((SELECT count(*)=164 FROM pg_tables WHERE schemaname='public'),'164 public tables');
+SELECT emr460_test.assert_true((SELECT count(*)=246 FROM pg_tables WHERE schemaname='public'),'246 public tables');
 SELECT emr460_test.assert_true(EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='medical_records' AND column_name='revisit_intake_target_id'),'S2 saved binding column');
 SELECT emr460_test.assert_true((SELECT count(*)=3 FROM pg_class WHERE relname IN ('revisit_intake_targets','revisit_intake_answers','revisit_intake_submit_receipts') AND relrowsecurity AND NOT relforcerowsecurity),'RLS enabled not forced');
 SELECT emr460_test.assert_true((SELECT count(*)=8 FROM pg_trigger WHERE NOT tgisinternal AND tgname LIKE 'revisit_%' AND tgname<>'revisit_record_binding_guard'),'eight S1 triggers');

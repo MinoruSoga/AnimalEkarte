@@ -12,7 +12,7 @@
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1596](../../../backend/migrations/001_init.sql#L1596) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1597](../../../backend/migrations/001_init.sql#L1597) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1597](../../../backend/migrations/001_init.sql#L1597) |
 | `item_type` | `treatment_item_type` | NOT NULL | `'other'` | — | [001_init.sql:1598](../../../backend/migrations/001_init.sql#L1598) |
 | `consultation_id` | `bigint` | NULL | — | FK | [001_init.sql:1599](../../../backend/migrations/001_init.sql#L1599) |
 | `procedure_id` | `bigint` | NULL | — | FK | [001_init.sql:1600](../../../backend/migrations/001_init.sql#L1600) |
@@ -46,6 +46,7 @@
 | `administration_instructions` | `text` | NULL | — | — | [001_init.sql:8831](../../../backend/migrations/001_init.sql#L8831) |
 | `prescription_total_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8832](../../../backend/migrations/001_init.sql#L8832) |
 | `prescription_total_unit` | `text` | NULL | — | — | [001_init.sql:8833](../../../backend/migrations/001_init.sql#L8833) |
+| `dose_pattern_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9154](../../../backend/migrations/001_init.sql#L9154) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,7 +60,7 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 erDiagram
     treatments {
         BIGSERIAL id PK,UK
-        bigint medical_record_id FK
+        bigint medical_record_id FK,UK
         treatment_item_type item_type
         bigint consultation_id FK
         bigint procedure_id FK
@@ -93,6 +94,7 @@ erDiagram
         text administration_instructions
         numeric_12_6 prescription_total_amount
         text prescription_total_unit
+        bigint dose_pattern_revision_id FK
     }
     clinics {
         BIGSERIAL id PK
@@ -102,11 +104,15 @@ erDiagram
         bigint clinic_id FK,UK
     }
     inventory_items {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
     }
     medical_records {
         BIGSERIAL id PK,UK
+    }
+    medicine_dose_pattern_revisions {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
     }
     medicines {
         BIGSERIAL id PK,UK
@@ -126,6 +132,7 @@ erDiagram
     consultations o|..o{ treatments : "consultation_id, clinic_id"
     procedures o|..o{ treatments : "procedure_id, clinic_id"
     inventory_items o|..o{ treatments : "inventory_id, clinic_id"
+    medicine_dose_pattern_revisions o|..o{ treatments : "dose_pattern_revision_id, clinic_id"
 ```
 
 ## 外部キー（全件）
@@ -142,6 +149,7 @@ erDiagram
 | `fk_treatments_consultation_clinic` | `consultation_id, clinic_id` | [consultations](consultations.md) | `id, clinic_id` | `ON DELETE SET NULL (consultation_id)` | [001_init.sql:3587](../../../backend/migrations/001_init.sql#L3587) |
 | `fk_treatments_procedure_clinic` | `procedure_id, clinic_id` | [procedures](procedures.md) | `id, clinic_id` | `ON DELETE SET NULL (procedure_id)` | [001_init.sql:3593](../../../backend/migrations/001_init.sql#L3593) |
 | `fk_treatments_inventory_clinic` | `inventory_id, clinic_id` | [inventory_items](inventory_items.md) | `id, clinic_id` | `ON DELETE SET NULL (inventory_id)` | [001_init.sql:3599](../../../backend/migrations/001_init.sql#L3599) |
+| `fk_treatment_selected_dose_pattern` | `dose_pattern_revision_id, clinic_id` | [medicine_dose_pattern_revisions](medicine_dose_pattern_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9155](../../../backend/migrations/001_init.sql#L9155) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -155,6 +163,7 @@ erDiagram
 - `fk_treatments_consultation_clinic`: `CONSTRAINT fk_treatments_consultation_clinic     FOREIGN KEY (consultation_id, clinic_id)     REFERENCES consultations (id, clinic_id)     ON DELETE SET NULL (consultation_id)`
 - `fk_treatments_procedure_clinic`: `CONSTRAINT fk_treatments_procedure_clinic     FOREIGN KEY (procedure_id, clinic_id)     REFERENCES procedures (id, clinic_id)     ON DELETE SET NULL (procedure_id)`
 - `fk_treatments_inventory_clinic`: `CONSTRAINT fk_treatments_inventory_clinic     FOREIGN KEY (inventory_id, clinic_id)     REFERENCES inventory_items (id, clinic_id)     ON DELETE SET NULL (inventory_id)`
+- `fk_treatment_selected_dose_pattern`: `CONSTRAINT fk_treatment_selected_dose_pattern  FOREIGN KEY (dose_pattern_revision_id,clinic_id) REFERENCES medicine_dose_pattern_revisions(id,clinic_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -168,6 +177,7 @@ erDiagram
 | `treatments_fulfillment_generation_check` | check | `CHECK (fulfillment_generation > 0)` | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
 | `ck_administration_dose_pair` | check | `CONSTRAINT ck_administration_dose_pair CHECK (       (administration_dose_amount IS NULL AND administration_dose_unit IS NULL)       OR (administration_dose_amount IS NOT NULL AND administration_dose_unit IS NOT NULL AND btrim(administration_dose_unit)<>''))` | [001_init.sql:8834](../../../backend/migrations/001_init.sql#L8834) |
 | `ck_prescription_total_pair` | check | `CONSTRAINT ck_prescription_total_pair CHECK (       (prescription_total_amount IS NULL AND prescription_total_unit IS NULL)       OR (prescription_total_amount IS NOT NULL AND prescription_total_unit IS NOT NULL AND btrim(prescription_total_unit)<>''))` | [001_init.sql:8837](../../../backend/migrations/001_init.sql#L8837) |
+| `uq_treatment_record_clinic` | unique | `CONSTRAINT uq_treatment_record_clinic UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:10100](../../../backend/migrations/001_init.sql#L10100) |
 
 ## インデックス
 

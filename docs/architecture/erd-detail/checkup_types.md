@@ -27,6 +27,7 @@
 | `import_namespace` | `text` | NULL | — | — | [001_init.sql:5203](../../../backend/migrations/001_init.sql#L5203) |
 | `import_key` | `text` | NULL | — | — | [001_init.sql:5204](../../../backend/migrations/001_init.sql#L5204) |
 | `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7611](../../../backend/migrations/001_init.sql#L7611) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9937](../../../backend/migrations/001_init.sql#L9937) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,6 +56,7 @@ erDiagram
         text import_namespace
         text import_key
         BOOLEAN is_non_insurance
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -81,6 +83,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `checkup_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1065](../../../backend/migrations/001_init.sql#L1065) |
 | `uq_checkup_types_id_clinic` | unique | `CONSTRAINT uq_checkup_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3824](../../../backend/migrations/001_init.sql#L3824) |
+| `checkup_types_version_check` | check | `CHECK (version>0)` | [001_init.sql:9937](../../../backend/migrations/001_init.sql#L9937) |
 
 ## インデックス
 

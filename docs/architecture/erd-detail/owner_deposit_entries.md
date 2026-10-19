@@ -113,6 +113,7 @@ erDiagram
 | `owner_deposit_entries_clinic_id_owner_id_operation_key_ordi_key` | unique | `UNIQUE (clinic_id,owner_id,operation_key,ordinal)` | [001_init.sql:8440](../../../backend/migrations/001_init.sql#L8440) |
 | `owner_deposit_entries_clinic_id_owner_id_account_revision_key` | unique | `UNIQUE (clinic_id,owner_id,account_revision)` | [001_init.sql:8441](../../../backend/migrations/001_init.sql#L8441) |
 | `owner_deposit_entries_check` | check | `CHECK ((entry_kind='receive' AND source_entry_id IS NULL AND billing_id IS NULL AND payment_method_id IS NOT NULL)         OR (entry_kind='apply' AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND payment_method_id IS NULL AND appointment_id IS NULL)         OR (entry_kind='release' AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND payment_method_id IS NULL AND appointment_id IS NULL)         OR (entry_kind='refund' AND source_entry_id IS NOT NULL AND billing_id IS NULL AND payment_method_id IS NOT NULL AND appointment_id IS NULL))` | [001_init.sql:8442](../../../backend/migrations/001_init.sql#L8442) |
+| `uq_deposit_entry_id_clinic` | unique | `CONSTRAINT uq_deposit_entry_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10104](../../../backend/migrations/001_init.sql#L10104) |
 
 ## インデックス
 

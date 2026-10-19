@@ -27,6 +27,8 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:290](../../../backend/migrations/001_init.sql#L290) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:291](../../../backend/migrations/001_init.sql#L291) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:292](../../../backend/migrations/001_init.sql#L292) |
+| `position_name` | `text` | NULL | — | — | [001_init.sql:8940](../../../backend/migrations/001_init.sql#L8940) |
+| `employment_category` | `text` | NULL | — | — | [001_init.sql:8940](../../../backend/migrations/001_init.sql#L8940) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,6 +57,8 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        text position_name
+        text employment_category
     }
     accounts {
         BIGSERIAL id PK

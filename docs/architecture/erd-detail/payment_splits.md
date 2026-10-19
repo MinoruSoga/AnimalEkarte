@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1999](../../../backend/migrations/001_init.sql#L1999) |
+| `id` | `bigserial` | NOT NULL | — | PK, UK | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1999](../../../backend/migrations/001_init.sql#L1999) |
 | `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2000](../../../backend/migrations/001_init.sql#L2000) |
 | `method` | `payment_method` | NOT NULL | — | — | [001_init.sql:2001](../../../backend/migrations/001_init.sql#L2001) |
 | `payment_method_id` | `bigint` | NULL | — | FK | [001_init.sql:2002](../../../backend/migrations/001_init.sql#L2002) |
@@ -33,8 +33,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     payment_splits {
-        bigserial id PK
-        bigint clinic_id FK
+        bigserial id PK,UK
+        bigint clinic_id FK,UK
         bigint billing_id FK
         payment_method method
         bigint payment_method_id FK
@@ -87,6 +87,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `payment_splits_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
+| `uq_payment_splits_id_clinic` | unique | `CONSTRAINT uq_payment_splits_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9576](../../../backend/migrations/001_init.sql#L9576) |
 
 ## インデックス
 

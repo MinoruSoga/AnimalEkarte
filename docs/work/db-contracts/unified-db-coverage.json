@@ -2,10 +2,10 @@
   "baseline": "eb589ed1cde9291ce0e787c9aef074d9e8614729",
   "target_pr": 727,
   "include_pr": 728,
-  "scope": "Confirmed requirements reviewed in this DB integration, not every project ticket or document",
+  "scope": "Historical 18-unit subset plus source-first completion trace; see spec-storage-trace.json, not exhaustive runtime AC coverage",
   "new_tests": "NOT_RUN_USER_INSTRUCTION",
-  "current_001_sha256": "225602952d97b4b3217f064f12335fb8a81f384ee4df0d67cc127825d58ea5ae",
-  "table_count": 164,
+  "current_001_sha256": "6bce31da2bb6c26a781584ccf04f251aaa8c59ba29343bfc9dbbddd543e7dca0",
+  "table_count": 246,
   "units": [
     {
       "unit": "insurance",
@@ -138,9 +138,9 @@
     {
       "unit": "shared-patient-and-filters",
       "tickets": "451/463関連",
-      "storage": "既存identity links/基本情報/医院scopeを再利用",
-      "boundary": "新共有ID/unlink方式を作らない;重複照合・院選択/検索条件保持はconsumer",
-      "migration_status": "REUSE_NO_NEW_DDL",
+      "storage": "common_* subjects/basic_revisions/clinic_bindings + owner_identity_confirmations; filters remain reader state",
+      "boundary": "Independent UUID authorized Sentinel_7195a603405c819199d5e2b74463a2d1; no data migration/ID rewrite/D19 reuse",
+      "migration_status": "PREPARED_UNTESTED",
       "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
     },
     {
@@ -151,5 +151,33 @@
       "migration_status": "REUSE_NO_NEW_DDL",
       "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
     }
+  ],
+  "source_trace": "spec-storage-trace.json",
+  "common_uuid_status": "APPROVED_001_DEFINED_UNTESTED",
+  "source_first_added_units": [
+    "contact-candidates",
+    "common-subjects",
+    "internal-booking-overlap",
+    "reservation-kind-duration-name",
+    "staff-leave-shifts",
+    "edit-right-draft-recovery",
+    "record-purpose-corrections",
+    "structured-initial-intake",
+    "preventive-prescription-and-observations",
+    "multiple-dose-patterns",
+    "stay-and-capacity",
+    "accounting-calculation-history",
+    "funds-allocation-refund",
+    "financial-document-editions",
+    "estimate-presentations",
+    "closing-and-source-events",
+    "inventory-ledger",
+    "actual-visit-source",
+    "checkup-stage-recovery",
+    "examination-provenance",
+    "manual-publication",
+    "support-confirmed-delivery",
+    "line-purpose-unlink-followup",
+    "common-operation-receipts"
   ]
 }

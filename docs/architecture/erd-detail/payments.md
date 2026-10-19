@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1974](../../../backend/migrations/001_init.sql#L1974) |
-| `billing_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1975](../../../backend/migrations/001_init.sql#L1975) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1974](../../../backend/migrations/001_init.sql#L1974) |
+| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9574](../../../backend/migrations/001_init.sql#L9574) |
 | `subtotal` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1976](../../../backend/migrations/001_init.sql#L1976) |
 | `tax_total` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1977](../../../backend/migrations/001_init.sql#L1977) |
 | `total_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1978](../../../backend/migrations/001_init.sql#L1978) |
@@ -29,7 +29,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1989](../../../backend/migrations/001_init.sql#L1989) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1990](../../../backend/migrations/001_init.sql#L1990) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1991](../../../backend/migrations/001_init.sql#L1991) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:4233](../../../backend/migrations/001_init.sql#L4233) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:4233](../../../backend/migrations/001_init.sql#L4233) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,8 +42,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     payments {
-        BIGSERIAL id PK
-        bigint billing_id FK,UK
+        BIGSERIAL id PK,UK
+        bigint billing_id FK
         bigint subtotal
         bigint tax_total
         bigint total_amount
@@ -60,7 +60,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
-        bigint clinic_id FK
+        bigint clinic_id FK,UK
     }
     billings {
         BIGSERIAL id PK,FK,UK
@@ -76,11 +76,11 @@ erDiagram
     staffs {
         BIGSERIAL id PK,UK
     }
-    billings ||..o| payments : "billing_id"
+    billings o|..o{ payments : "billing_id"
     payment_methods o|..o{ payments : "payment_method_id"
     staffs o|..o{ payments : "paid_by"
     clinics ||..o{ payments : "clinic_id"
-    billings ||..o| payments : "billing_id, clinic_id"
+    billings o|..o{ payments : "billing_id, clinic_id"
     payment_methods o|..o{ payments : "payment_method_id, clinic_id"
 ```
 
@@ -109,7 +109,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `payments_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1974](../../../backend/migrations/001_init.sql#L1974) |
-| `payments_billing_id_key` | unique | `UNIQUE` | [001_init.sql:1975](../../../backend/migrations/001_init.sql#L1975) |
+| `uq_payments_id_clinic` | unique | `CONSTRAINT uq_payments_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9575](../../../backend/migrations/001_init.sql#L9575) |
 
 ## インデックス
 

@@ -37,6 +37,11 @@
 | `intended_date` | `date` | NULL | — | — | [001_init.sql:7207](../../../backend/migrations/001_init.sql#L7207) |
 | `source_medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:7208](../../../backend/migrations/001_init.sql#L7208) |
 | `revisit_intake_generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7618](../../../backend/migrations/001_init.sql#L7618) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8901](../../../backend/migrations/001_init.sql#L8901) |
+| `reservation_name_snapshot` | `text` | NULL | — | — | [001_init.sql:8902](../../../backend/migrations/001_init.sql#L8902) |
+| `reservation_name_revision` | `bigint` | NULL | — | FK | [001_init.sql:8903](../../../backend/migrations/001_init.sql#L8903) |
+| `reservation_name_source` | `text` | NULL | — | — | [001_init.sql:8904](../../../backend/migrations/001_init.sql#L8904) |
+| `stay_case_id` | `bigint` | NULL | — | FK | [001_init.sql:9259](../../../backend/migrations/001_init.sql#L9259) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -75,6 +80,11 @@ erDiagram
         date intended_date
         bigint source_medical_record_id FK
         bigint revisit_intake_generation
+        bigint version
+        text reservation_name_snapshot
+        bigint reservation_name_revision FK
+        text reservation_name_source
+        bigint stay_case_id FK
     }
     clinics {
         BIGSERIAL id PK
@@ -95,12 +105,21 @@ erDiagram
         BIGSERIAL id PK,UK
         bigint clinic_id FK,UK
     }
+    reservation_type_name_revisions {
+        bigint clinic_id PK,FK
+        bigint reservation_type_id PK,FK
+        bigint revision PK
+    }
     reservation_types {
         BIGSERIAL id PK,UK
         bigint clinic_id FK,UK
     }
     staffs {
         BIGSERIAL id PK,UK
+    }
+    stay_cases {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
     }
     clinics ||..o{ appointments : "clinic_id"
     reservation_types ||..o{ appointments : "reservation_type_id"
@@ -111,6 +130,8 @@ erDiagram
     staffs o|..o{ appointments : "created_by"
     staffs o|..o{ appointments : "doctor_id"
     medical_records o|..o{ appointments : "source_medical_record_id, clinic_id"
+    reservation_type_name_revisions o|..o{ appointments : "clinic_id, reservation_type_id, reservation_name_revision"
+    stay_cases o|..o{ appointments : "stay_case_id, clinic_id"
 ```
 
 ## 外部キー（全件）
@@ -126,6 +147,8 @@ erDiagram
 | `fk_appointments_created_by` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6303](../../../backend/migrations/001_init.sql#L6303) |
 | `fk_appointments_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:6770](../../../backend/migrations/001_init.sql#L6770) |
 | `fk_appointments_source_medical_record_clinic` | `source_medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE SET NULL (source_medical_record_id)` | [001_init.sql:7466](../../../backend/migrations/001_init.sql#L7466) |
+| `fk_appointment_name_revision` | `clinic_id, reservation_type_id, reservation_name_revision` | [reservation_type_name_revisions](reservation_type_name_revisions.md) | `clinic_id, reservation_type_id, revision` | `ON DELETE RESTRICT` | [001_init.sql:8905](../../../backend/migrations/001_init.sql#L8905) |
+| `fk_appointment_stay_case` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9260](../../../backend/migrations/001_init.sql#L9260) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -138,6 +161,8 @@ erDiagram
 - `fk_appointments_created_by`: `CONSTRAINT fk_appointments_created_by         FOREIGN KEY (created_by) REFERENCES staffs (id) ON DELETE RESTRICT`
 - `fk_appointments_doctor`: `CONSTRAINT fk_appointments_doctor         FOREIGN KEY (doctor_id) REFERENCES staffs (id) ON DELETE SET NULL`
 - `fk_appointments_source_medical_record_clinic`: `CONSTRAINT fk_appointments_source_medical_record_clinic         FOREIGN KEY (source_medical_record_id, clinic_id)         REFERENCES medical_records (id, clinic_id)         ON DELETE SET NULL (source_medical_record_id)`
+- `fk_appointment_name_revision`: `CONSTRAINT fk_appointment_name_revision FOREIGN KEY (clinic_id,reservation_type_id,reservation_name_revision)       REFERENCES reservation_type_name_revisions(clinic_id,reservation_type_id,revision) ON DELETE RESTRICT`
+- `fk_appointment_stay_case`: `CONSTRAINT fk_appointment_stay_case  FOREIGN KEY (stay_case_id,clinic_id) REFERENCES stay_cases(id,clinic_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -145,9 +170,10 @@ erDiagram
 |:---|:---|:---|:---|
 | `appointments_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1329](../../../backend/migrations/001_init.sql#L1329) |
 | `chk_reservation_times` | check | `CONSTRAINT chk_reservation_times CHECK (end_time >= start_time)` | [001_init.sql:1352](../../../backend/migrations/001_init.sql#L1352) |
-| `excl_appointments_doctor_timerange` | exclude | `CONSTRAINT excl_appointments_doctor_timerange     EXCLUDE USING gist (         clinic_id WITH =,         doctor_id WITH =,         tstzrange(start_time, end_time, '[)') WITH &&     )     WHERE (deleted_at IS NULL AND status <> 'cancelled' AND doctor_id IS NOT NULL)` | [001_init.sql:4592](../../../backend/migrations/001_init.sql#L4592) |
 | `uq_appointments_id_clinic` | unique | `CONSTRAINT uq_appointments_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:5736](../../../backend/migrations/001_init.sql#L5736) |
 | `appointments_revisit_intake_generation_check` | check | `CHECK (revisit_intake_generation > 0)` | [001_init.sql:7618](../../../backend/migrations/001_init.sql#L7618) |
+| `appointments_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8901](../../../backend/migrations/001_init.sql#L8901) |
+| `appointments_reservation_name_source_check` | check | `CHECK (reservation_name_source IN ('recorded','verified_legacy','unknown'))` | [001_init.sql:8904](../../../backend/migrations/001_init.sql#L8904) |
 
 ## インデックス
 
@@ -163,5 +189,5 @@ erDiagram
 | `idx_appointments_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_appointments_clinic_status   ON appointments(clinic_id, status)   WHERE deleted_at IS NULL` | [001_init.sql:2356](../../../backend/migrations/001_init.sql#L2356) |
 | `idx_appointments_pet_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_appointments_pet_date   ON appointments(pet_id, start_time)   WHERE deleted_at IS NULL` | [001_init.sql:2360](../../../backend/migrations/001_init.sql#L2360) |
 | `idx_appointments_line_customer` | NO | `line_customer_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id)     WHERE line_customer_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2739](../../../backend/migrations/001_init.sql#L2739) |
-| `uk_appointment_staff_time` | YES | `deleted_at IS NULL AND status != 'cancelled'` | `CREATE UNIQUE INDEX uk_appointment_staff_time     ON appointments (clinic_id, doctor_id, start_time)     WHERE deleted_at IS NULL AND status != 'cancelled'` | [001_init.sql:2745](../../../backend/migrations/001_init.sql#L2745) |
 | `uq_appointments_one_active_tentative` | YES | `status = 'tentative' AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_appointments_one_active_tentative     ON appointments (clinic_id, pet_id)     WHERE status = 'tentative' AND deleted_at IS NULL` | [001_init.sql:7230](../../../backend/migrations/001_init.sql#L7230) |
+| `idx_appointments_doctor_time` | NO | `deleted_at IS NULL AND status<>'cancelled'` | `CREATE INDEX idx_appointments_doctor_time ON appointments(clinic_id,doctor_id,start_time,end_time)  WHERE deleted_at IS NULL AND status<>'cancelled'` | [001_init.sql:8911](../../../backend/migrations/001_init.sql#L8911) |

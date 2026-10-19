@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2020](../../../backend/migrations/001_init.sql#L2020) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2021](../../../backend/migrations/001_init.sql#L2021) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:2020](../../../backend/migrations/001_init.sql#L2020) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2021](../../../backend/migrations/001_init.sql#L2021) |
 | `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2022](../../../backend/migrations/001_init.sql#L2022) |
 | `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:2023](../../../backend/migrations/001_init.sql#L2023) |
 | `reason` | `text` | NOT NULL | `''` | — | [001_init.sql:2024](../../../backend/migrations/001_init.sql#L2024) |
@@ -32,8 +32,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     billing_refunds {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         bigint billing_id FK
         bigint amount
         text reason
@@ -76,6 +76,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `billing_refunds_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2020](../../../backend/migrations/001_init.sql#L2020) |
 | `billing_refunds_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:2023](../../../backend/migrations/001_init.sql#L2023) |
+| `uq_billing_refunds_id_clinic` | unique | `CONSTRAINT uq_billing_refunds_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9577](../../../backend/migrations/001_init.sql#L9577) |
 
 ## インデックス
 
