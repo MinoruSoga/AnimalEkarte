@@ -189,16 +189,24 @@ before = snapshot_counts()
 env = dict(os.environ)
 env["DEMO_SEED_PASSWORD"] = env["DEMO_LOGIN_PASSWORD"]
 print("--- running seed-demo-data.py --apply ---")
-subprocess.run(
-    [
-        "python3", str(root / "scripts/tools/seed-demo-data.py"),
-        "--base-url", f"http://127.0.0.1:{os.environ['API_HOST_PORT']}",
-        "--clinic-id", "1",
-        "--email", env["DEMO_LOGIN_EMAIL"],
-        "--apply",
-    ],
-    check=True, env=env,
-)
+try:
+    subprocess.run(
+        [
+            "python3", str(root / "scripts/tools/seed-demo-data.py"),
+            "--base-url", f"http://127.0.0.1:{os.environ['API_HOST_PORT']}",
+            "--clinic-id", "1",
+            "--email", env["DEMO_LOGIN_EMAIL"],
+            "--apply",
+        ],
+        check=True, env=env,
+    )
+except subprocess.CalledProcessError:
+    api_name = "emr443-demoseed-api"
+    logs = subprocess.run(["docker", "logs", api_name], capture_output=True, text=True)
+    tail = "\n".join((logs.stdout or "").splitlines()[-40:])
+    print("--- API LOG TAIL ---")
+    print(tail)
+    raise SystemExit("BLOCKED: seed-demo-data.py failed; API logs dumped above")
 
 after = snapshot_counts()
 
