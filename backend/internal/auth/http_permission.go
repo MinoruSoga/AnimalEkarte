@@ -187,14 +187,6 @@ func (h *HTTPHandler) RequirePermissionAny(
 	return h.requirePermissionAny(false, permissions...)
 }
 
-// RequirePermissionAnyAllowingAssignedClinicGrant is the GET/HEAD fallback
-// for surfaces that re-check destination clinics after the middleware.
-func (h *HTTPHandler) RequirePermissionAnyAllowingAssignedClinicGrant(
-	permissions ...PermissionRequirement,
-) gin.HandlerFunc {
-	return h.requirePermissionAny(true, permissions...)
-}
-
 func (h *HTTPHandler) requirePermissionAny(
 	allowAssignedClinicGrant bool,
 	permissions ...PermissionRequirement,

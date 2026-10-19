@@ -159,11 +159,6 @@ func WrapUnprocessable(message string) error {
 	}
 }
 
-// IsUnprocessable は 422 Unprocessable Entity 系エラーかどうかを判定する
-func IsUnprocessable(err error) bool {
-	return errors.Is(err, ErrUnprocessable)
-}
-
 // エラー判定ヘルパー
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)

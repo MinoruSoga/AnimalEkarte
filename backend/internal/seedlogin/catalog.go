@@ -140,16 +140,6 @@ func EmailForStaffID(staffID uint64) string {
 	return fmt.Sprintf(emailPattern, staffID)
 }
 
-// Emails returns catalog emails in catalog order.
-func Emails() []string {
-	catalog := Catalog()
-	out := make([]string, 0, len(catalog))
-	for _, row := range catalog {
-		out = append(out, row.Email)
-	}
-	return out
-}
-
 func staffTypeForOccupation(label string) model.StaffType {
 	if strings.TrimSpace(label) == "獣医師" {
 		return model.StaffTypeDoctor
