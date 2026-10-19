@@ -43,7 +43,16 @@
         "remaining": "全writer service/旧client/機器/移行/batch監査と競合実行は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R02",
@@ -130,7 +139,16 @@
         "remaining": "IR09回答ref受渡しとDC-M01/02実行は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R05",
@@ -158,7 +176,16 @@
         "remaining": "専用API適合と生前分・両順競合・監査失敗実行は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R06",
@@ -184,7 +211,16 @@
         "remaining": "#261具体値臨床承認と計算実証は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E9"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R07",
@@ -240,7 +276,16 @@
         "remaining": "全writer/保存物理対応/財務実証は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E4"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R09",
@@ -268,7 +313,16 @@
         "remaining": "GET復元配線/fieldサービス全件/実行は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E9"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R10",
@@ -325,7 +379,16 @@
         "remaining": "医師interval・設定参照と両入口保存再読取の実行は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E3"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R12",
@@ -382,7 +445,16 @@
         "remaining": "修正禁止により実装と実機は未了。当日条件を未決へ戻さない",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E8"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R14",
@@ -410,7 +482,16 @@
         "remaining": "配線/機種写真同定/医院実機/臨床値/運用承認は未了",
         "new_business_question": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E8"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "CL-R15",
@@ -796,7 +877,16 @@
         "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R13",
@@ -825,7 +915,16 @@
         "remaining": "実データ/全grant/旧欠落設定/全保存読取経路の限定調査と移行。必要な解釈だけ根拠を添えて質問",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R14",
@@ -910,7 +1009,16 @@
         "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R17",
@@ -939,7 +1047,16 @@
         "remaining": "候補の独立設計レビュー・実wire/schema/grant/実値との適合、性能/移行/実機",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R18",
@@ -1052,7 +1169,16 @@
         "remaining": "全writer/consumerの呼出追跡、原記録と履歴可達、実DB並行・障害復旧。限定読取を全経路合格にしない",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R23",
@@ -1085,7 +1211,16 @@
         "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R24",
@@ -1117,7 +1252,16 @@
         "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E12"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "FIN-R25",
@@ -1146,7 +1290,14 @@
         "remaining": "実API/DB2session・実印刷/医院運用・税務/実契約確認。今回は禁止範囲なので未実行",
         "implementation_or_runtime_pass": false
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "IR-01",
@@ -1628,7 +1779,16 @@
         "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
         "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E7"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "IR-09",
@@ -1927,7 +2087,16 @@
         "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
         "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "IR-14",
@@ -2198,7 +2367,17 @@
         "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
         "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E5",
+          "E6"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "IR-18",
@@ -2246,7 +2425,16 @@
         "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
         "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E10"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "IR-19",
@@ -2405,7 +2593,14 @@
         "business_decision_status": "既決維持・新規質問なし。Q-I1は具体矛盾時のみ",
         "coverage_limit": "限定読取。全caller/DDL/実データ/実機適合を未証明"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-02",
@@ -2441,7 +2636,17 @@
         "remaining": "専用account/zone/billing/DBrole/R2/DNS/証明書/Production reviewersとbranchrule/保護secret名/DB-backed health/実フロントtargetを承認済み担当者が確認。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E6",
+          "E1"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-03",
@@ -2515,7 +2720,16 @@
         "remaining": "隔離target同一性を確認し承認済みrestore rehearsal、schema/代表値/アプリ互換/時間/cleanupとGOOD_SHA・migration互換・実runheadを確認。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E1"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-05",
@@ -2555,7 +2769,17 @@
         "remaining": "当日手順前にcutover window/判断者/連絡経路、個人account、clinic scope、全院締め時間と初期master事後確認を収集。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E10",
+          "E11"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-06",
@@ -2591,7 +2815,16 @@
         "remaining": "producer唯一ownerから同一source/run/build/hash全CSV/manifest/検証receiptを受領し、21baselineと22candidateのprofile/activationを分離して照合。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-07",
@@ -2668,7 +2901,17 @@
         "remaining": "承認されたfresh隔離targetで実規模のrehearsal、timeout/切断/verify失敗/crash、同一executionIDでbackup/restore/画面照合。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E2",
+          "E1"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-09",
@@ -2746,7 +2989,17 @@
         "remaining": "証跡保管者へ最新runと実行refを確認しinventory×F結果を照合、不足だけ承認UATで実施。5flow/実LINE/token/DBaudit/別owner signoff/cleanupを揃える。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E0",
+          "E11"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-11",
@@ -2782,7 +3035,16 @@
         "remaining": "承認済みtestaccountだけでdeployedgate/console/allowedhost/送受信/duplicate/失敗監視を担当者確認。scheduler naturalcron/pause/revision/restart耐久は別releasequalificationを照合。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E13"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-13",
@@ -2817,7 +3079,16 @@
         "remaining": "運用者が非危険fixtureでlauncher/root/backend/空白worktree各設定、親override、hookロード/失敗を検証しOS/runner権限を確認。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [
+          "E13"
+        ],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-14",
@@ -2854,7 +3125,14 @@
         "remaining": "既存run所在を確認、必要なら対象/負荷/期間/中止基準を運用判断して承認測定。3VU10分health/clinicsだけを全業務/多医院/長時間保証にしない。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task"
       },
-      "after": "静的根拠/引継ぎ整理。実行未検証"
+      "after": "既存部分結果/静的根拠を対象版・範囲付きで接続。最新ケース全体は未検証、追加実行0",
+      "existing_evidence_crosswalk": {
+        "evidence_ids": [],
+        "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+        "latest_whole_case_runtime_pass_proven": false,
+        "new_runtime_execution": false,
+        "absence_does_not_prove_not_run_or_user_unanswered": true
+      }
     },
     {
       "id": "REM-OPS-15",
@@ -2935,8 +3213,8 @@
       "priority": "P2-document-provenance",
       "before": "未精査",
       "scope": "documentation-content-or-acceptance-definition-review",
-      "performed_in_docs": "現docs231ID/523出現を固定し旧165が部分集合と訂正。204IDをrole/ID/時刻/本文の原文保全行へ再連結、残27にも別構造の親承認/最新決定receipt所在を連結。原文大量転載なし。",
-      "remaining": "27IDは原会話行のrole/時刻/Q&A前後関係未連結。204IDも現在採用条文との全後続意味照合を一括合格としない。不足のみ限定補完し、一律再取得や業務再承認を求めない。",
+      "performed_in_docs": "基準231ID/523出現を保持。初回204と親取得原文引用27を連結、未連結0。助手質問11/本人回答15/補足1、採用16群。回答15文字列一致・意味矛盾0。receipt14ファイル保全、原文時刻/Q&A/後続訂正を補足。",
+      "remaining": "27件の原文所在不足は解消。全231の現採用条文と全後続訂正の網羅的意味照合は別でSRC-R01全完了としない。新実行承認へ転用しない。",
       "detail_path": "docs/work/docs-audit/docs-perfection/APPROVAL-LOCATORS-20261019.md",
       "detail_anchor": null,
       "baseline_target": "docs/spec/domains/SPECIFICATION_PROGRESS.md",
@@ -2954,16 +3232,17 @@
         "reviewed_existing_target": "docs/spec/domains/SPECIFICATION_PROGRESS.md",
         "source_line": 62,
         "completed_this_pass": [
-          "現docs231ID/523出現を固定し旧165が部分集合と訂正。204IDをrole/ID/時刻/本文の原文保全行へ再連結、残27にも別構造の親承認/最新決定receipt所在を連結。原文大量転載なし。"
+          "現docs231ID/523出現を固定し旧165が部分集合と訂正。204IDをrole/ID/時刻/本文の原文保全行へ再連結、残27にも別構造の親承認/最新決定receipt所在を連結。原文大量転載なし。",
+          "基準231ID/523出現を保持。初回204と親取得原文引用27を連結、未連結0。助手質問11/本人回答15/補足1、採用16群。回答15文字列一致・意味矛盾0。receipt14ファイル保全、原文時刻/Q&A/後続訂正を補足。"
         ],
         "document_draft_targets": [
-          "/tmp/operations-source-approval-locators.md"
+          "docs/work/docs-audit/docs-perfection/APPROVAL-LOCATORS-20261019.md"
         ],
-        "remaining": "27IDは原会話行のrole/時刻/Q&A前後関係未連結。204IDも現在採用条文との全後続意味照合を一括合格としない。不足のみ限定補完し、一律再取得や業務再承認を求めない。",
+        "remaining": "27件の原文所在不足は解消。全231の現採用条文と全後続訂正の網羅的意味照合は別でSRC-R01全完了としない。新実行承認へ転用しない。",
         "runtime_status": "NOT_RUN; explicitly prohibited by current task",
-        "status_after": "PARTIAL provenance improved; not Done"
+        "status_after": "27 original links resolved; whole latest-meaning audit not claimed complete"
       },
-      "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
+      "after": "27 original links resolved; whole latest-meaning audit not claimed complete"
     },
     {
       "id": "ONT-R01",
@@ -3211,5 +3490,54 @@
   },
   "runtime_execution_count": 0,
   "all_75_closed": false,
-  "original_source_exhaustiveness_claimed": false
+  "original_source_exhaustiveness_claimed": false,
+  "approval_original_reconciliation": {
+    "baseline_target_ids": 231,
+    "baseline_occurrences": 523,
+    "initial_linked": 204,
+    "newly_linked": 27,
+    "unlinked_after": 0,
+    "target_roles": {
+      "aeon_question": 11,
+      "user_answer": 15,
+      "user_clarification": 1
+    },
+    "decision_groups": 16,
+    "direct_answer_text_exact_matches": 15,
+    "meaning_conflicts": 0,
+    "receipt_files": 14,
+    "original_sent_at_authoritative": true,
+    "prior_receipts_preserved": true,
+    "parent_reports_all_27_partial_false": true,
+    "local_direct_tool_fetch": false,
+    "full_history_exhaustiveness_claimed": false,
+    "new_execution_authorization": false,
+    "protected_evidence_locator": "full-audit/approval-answer-status-20261019/27-original-reconciliation.json",
+    "protected_evidence_sha256": "b9c39c836e7b7295fa6d7f310ee951e0bfcb20b3f816ef374fd6e92309f83555"
+  },
+  "existing_verification_reports": {
+    "case_count": 31,
+    "registry": "REMAINING-VERIFICATION-20261019.md#既存証跡の対象版成立範囲",
+    "evidence_ids": [
+      "E0",
+      "E1",
+      "E2",
+      "E3",
+      "E4",
+      "E5",
+      "E6",
+      "E7",
+      "E8",
+      "E9",
+      "E10",
+      "E11",
+      "E12",
+      "E13"
+    ],
+    "new_runtime_execution_count": 0,
+    "latest_whole_case_pass_count_proven": 0,
+    "partial_historical_results_preserved": true,
+    "not_a_user_unanswered_question_list": true,
+    "old_db_backup_four_source_investigations_out_of_scope": true
+  }
 }

@@ -2,7 +2,7 @@
 
 対象はmain `563353287ebb08af55056e3fbfba2aca3531e599` のdocs Markdown本文に現れるSentinel ID **231種・523出現**。旧165 IDはその部分集合であり、全体ではない。現在の採用回答だけでなく質問・提案・後続訂正・履歴参照も含む。
 
-source threadは `01a14350-92b9-7391-935d-d3ed3ebe20f7`。原会話を新規取得せず、既存作業領域 `full-audit/` の保全ファイルを確認した。以下204 IDはrole・ID・時刻・本文を持つ原文保全行へ直接連結し、残27は限定未連結とした。27件全てに別構造の親承認・最新決定receiptの所在はあるが、role・本文・時刻を揃えた原会話行への連結とは区別する。保存原文に到達できることと、各引用の最新採用意味・全後続訂正を確認できたことは別である。
+source threadは `01a14350-92b9-7391-935d-d3ed3ebe20f7`。初回は既存作業領域 `full-audit/` から204 IDを原文保全行へ連結し、27 IDを限定未連結としていた。追補で親が `user_message.read_messages` により残27 ID全ての原文と関連前後を取得し、全27応答 `partial=false` と報告した。その原文引用をローカルの既存receiptと照合し、**231対象全てに原文所在を連結、限定未連結27→0**とした。今回ローカルから同ツールを直接実行したという意味ではない。27対象は助手質問11・本人回答15・本人補足1、採用内容16群。本人回答15件はreceiptの回答文字列と完全一致し、採用意味の矛盾0。今回の照合で選定した主locatorのreceipt14ファイルを保全し、原文時刻を補足の正値とした。保存原文に到達できることと、各引用の最新採用意味・全後続訂正を確認できたことは別である。
 
 原文保全ファイルはrepo外の保護された作業領域にあり、表のファイル名/JSON pointerは保管者へ照会するためのlocatorである。repo内の相対リンクではない。本人原文・秘密・患者情報は本索引へ大量転載しない。助手`aeon` IDを本人承認へ変換せず、質問だけのIDに「承認済み」を付けない。後続groupの記載なしは訂正なしの証明ではない。
 
@@ -217,43 +217,75 @@ source threadは `01a14350-92b9-7391-935d-d3ed3ebe20f7`。原会話を新規取�
 | `Sentinel_fceda778e8a081918bd49d1d9b0fcd07` | aeon | 2026-10-17T21:59:57.314405+00:00 | `mece-review/approval-original-FB02.json#/8` | 未記載 | 未記載 |
 | `Sentinel_ffa0f9ab54b08191b33db93eda143051` | user | 2026-10-17T12:09:53.914078+00:00 | `mece-review/approval-original-SB15.json#/11` | 未記載 | G12, G27 |
 
-## 原会話行としては未連結の27件
+<a id="原会話行としては未連結の27件"></a>
 
-以下には親からの直接承認引用receiptが残るものを含む。receiptの存在は維持するが、role・本文・時刻を揃えた原会話行へ昇格しない。未連結は未取得・未承認の断定ではなく、新しい業務再質問の理由でもない。
+## 原文へ追加連結した27件（旧未連結の解消）
 
-| ID | 現文書の引用位置 | 保存receipt locator（原会話行とは区別） | 残工程 |
+下表は固定mainの231対象のうち追加連結した27件。旧receiptのlocatorを残し、取得原文のrole・sent_at・質問/回答を併記する。`aeon`は助手であり本人承認ではない。返信先がない行のQ/Aは本文・時系列・後続確認による対応で、reply_toが存在するようには記録しない。
+
+原文保全はrepo外 `full-audit/approval-answer-status-20261019/27-original-relay.json`（27対象＋必要な前後11件）。以下の `#/messages/n` は同ファイルのJSON pointer。照合結果は同ディレクトリの `27-original-reconciliation.json`。親が提示した原文を保存したもので、全会話の取得・後続訂正全体の網羅を意味しない。
+
+| ID・役割 | 原文sent_at（UTC）・保全pointer | 既存receipt locator | 質問Q／本人回答A |
 |:--|:--|:--|:--|
-| `Sentinel_01ed294ac8988191b77e6c33e4a92bbf` | `docs/spec/domains/owners-pets/lifecycle.md:227`<br>`docs/design/domains/owners-pets/technical-spec.md:216` | `saigram-storage-decision-evidence.json#/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_0e74a3558abc819180c4beebc54716f2` | `docs/spec/domains/reception/pages/reception-board.md:395` | `latest-decisions-evidence-20261017.json#/direct_user_evidence/question_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_1a52a38ebdb881918f910af9f06bbe7c` | `docs/spec/domains/reservations/pages/reservation-management.md:691` | `booking-seven-approvals-evidence.json#/decisions/1/question`<br>`booking-eight-approvals-evidence.json#/decisions/1/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_21ddcc4dd06c81918d29d022b7761eca` | `docs/spec/domains/reservations/pages/reservation-management.md:697` | `booking-eight-approvals-evidence.json#/decisions/7/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_2c3a5d7c10d8819190057357540b7f9a` | `docs/spec/domains/medical-records/pages/medical-record-form.md:570` | `other-pet-unpaid-header-evidence.json#/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_303a9d8fcfd081918a51727e01bf7ad6` | `docs/spec/domains/reservations/pages/reservation-management.md:691` | `booking-seven-approvals-evidence.json#/decisions/1/answer`<br>`booking-eight-approvals-evidence.json#/decisions/1/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_3d606eb2b4c881918cc68cdd21d5d3f7` | `docs/spec/domains/vaccinations/lifecycle.md:152` | `vaccine-type-label-color-evidence.json#/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_4532889093e881918890010a3d9d2424` | `docs/spec/screens/16-trimming-list.md:117` | `trimming-print-states-evidence.json#/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_4696427f469c8191b4a1af5680bc5fdf` | `docs/spec/screens/16-trimming-list.md:101` | `trimming-day-print-evidence.json#/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_49bd090843fc8191a8bc3f6dc086fd2c` | `docs/spec/screens/settings/master-trimming.md:99` | `trimming-course-attributes-evidence.json#/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_4aaff281d6ac8191aa794eab9aa646c8` | `docs/spec/domains/reservations/pages/reservation-management.md:696` | `booking-seven-approvals-evidence.json#/decisions/6/answer`<br>`booking-eight-approvals-evidence.json#/decisions/6/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_5263c946095881919d39b18aefa73105` | `docs/spec/screens/settings/closing-time-settings.md:112` | `no49-minute-input-evidence.json#/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_5cfbe558b4e081919369c6982f292dff` | `docs/spec/domains/owners-pets/lifecycle.md:221` | `saigram-calculation-reference-evidence.json#/reference_answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_5e13a75fcc9c819196275b8be820a110` | `docs/spec/domains/reservations/pages/reservation-management.md:696` | `booking-seven-approvals-evidence.json#/decisions/6/question`<br>`booking-eight-approvals-evidence.json#/decisions/6/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_8bc8010c2968819198ae4dab99817e09` | `docs/spec/screens/16-trimming-list.md:101` | `trimming-day-print-evidence.json#/question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_960f144c476081919e58c9db0c7f4ec3` | `docs/spec/domains/vaccinations/lifecycle.md:152` | `vaccine-type-label-color-evidence.json#/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_9e274b9c467481919d8d06212935f792` | `docs/spec/screens/16-trimming-list.md:117` | `trimming-print-states-evidence.json#/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_9ee683b857208191848970bb9325b899` | `docs/spec/domains/owners-pets/lifecycle.md:72` | `no39-latest-decision.json#/source_question` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_b8b58e2ff1e4819182502ef21c52a379` | `docs/spec/screens/settings/master-trimming.md:99` | `trimming-course-attributes-evidence.json#/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_bb2a699712748191b2466ca49c0d62bd` | `docs/spec/screens/settings/closing-time-settings.md:112` | `no49-minute-input-evidence.json#/followup_question_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_bf552e5fdbc48191a68d56ceba35611b` | `docs/spec/domains/reception/pages/reception-board.md:146`<br>`docs/spec/domains/reception/pages/reception-board.md:395` | `latest-decisions-evidence-20261017.json#/direct_user_evidence/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_c2206f3a13288191843a1abd21b0f8b3` | `docs/spec/domains/owners-pets/lifecycle.md:302` | `saigram-initial-population-evidence.json#/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_c304f9c1412081918729c65d530e183c` | `docs/spec/screens/04-owners-form.md:42`<br>`docs/spec/domains/owners-pets/lifecycle.md:72` | `no39-latest-decision.json#/source_answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_d5a9d17fd4c48191a69679c666274235` | `docs/spec/domains/reservations/pages/reservation-management.md:697` | `booking-eight-approvals-evidence.json#/decisions/7/answer` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_d6b42125daa481918b0057f7b00669b7` | `docs/spec/screens/settings/master-reservation-type.md:535` | `no20-price-owner-evidence.json#/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_f9ae54abbcf48191990b9225486e993d` | `docs/spec/screens/settings/closing-time-settings.md:112` | `no49-minute-input-evidence.json#/question_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
-| `Sentinel_fd16cb27f1b4819192fee859e0ed3d7b` | `docs/spec/shared/ui-contracts.md:137` | `enter-save-intent-evidence.json#/clarification/id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
+| `Sentinel_01ed294ac8988191b77e6c33e4a92bbf` (user／回答) | 2026-10-18T02:59:01.548595+00:00<br>`/messages/0` | `saigram-storage-decision-evidence.json#/answer_id` | Q: `Sentinel_222733d591f48191a6e9adce37f6d07b`<br>A: `Sentinel_01ed294ac8988191b77e6c33e4a92bbf` |
+| `Sentinel_0e74a3558abc819180c4beebc54716f2` (aeon／質問) | 2026-10-17T03:35:28.116823+00:00<br>`/messages/1` | `latest-decisions-evidence-20261017.json#/direct_user_evidence/question_id` | Q: `Sentinel_0e74a3558abc819180c4beebc54716f2`<br>A: `Sentinel_bf552e5fdbc48191a68d56ceba35611b` |
+| `Sentinel_1a52a38ebdb881918f910af9f06bbe7c` (aeon／質問) | 2026-10-17T09:17:44.836802+00:00<br>`/messages/2` | `booking-eight-approvals-evidence.json#/decisions/1/question`<br>`booking-seven-approvals-evidence.json#/decisions/1/question` | Q: `Sentinel_1a52a38ebdb881918f910af9f06bbe7c`<br>A: `Sentinel_303a9d8fcfd081918a51727e01bf7ad6` |
+| `Sentinel_21ddcc4dd06c81918d29d022b7761eca` (aeon／質問) | 2026-10-17T11:05:18.471178+00:00<br>`/messages/3` | `booking-eight-approvals-evidence.json#/decisions/7/question` | Q: `Sentinel_21ddcc4dd06c81918d29d022b7761eca`<br>A: `Sentinel_d5a9d17fd4c48191a69679c666274235` |
+| `Sentinel_2c3a5d7c10d8819190057357540b7f9a` (user／回答) | 2026-10-18T01:53:50.599007+00:00<br>`/messages/4` | `other-pet-unpaid-header-evidence.json#/answer_id` | Q: `Sentinel_14f539ea480c8191ac53b4f6bf3d865b`<br>A: `Sentinel_2c3a5d7c10d8819190057357540b7f9a` |
+| `Sentinel_303a9d8fcfd081918a51727e01bf7ad6` (user／回答) | 2026-10-17T10:04:16.248206+00:00<br>`/messages/5` | `booking-eight-approvals-evidence.json#/decisions/1/answer`<br>`booking-seven-approvals-evidence.json#/decisions/1/answer` | Q: `Sentinel_1a52a38ebdb881918f910af9f06bbe7c`<br>A: `Sentinel_303a9d8fcfd081918a51727e01bf7ad6` |
+| `Sentinel_3d606eb2b4c881918cc68cdd21d5d3f7` (aeon／質問) | 2026-10-17T22:33:13.908511+00:00<br>`/messages/6` | `vaccine-type-label-color-evidence.json#/question` | Q: `Sentinel_3d606eb2b4c881918cc68cdd21d5d3f7`<br>A: `Sentinel_960f144c476081919e58c9db0c7f4ec3` |
+| `Sentinel_4532889093e881918890010a3d9d2424` (aeon／質問) | 2026-10-17T12:43:07.533405+00:00<br>`/messages/7` | `trimming-print-states-evidence.json#/question` | Q: `Sentinel_4532889093e881918890010a3d9d2424`<br>A: `Sentinel_9e274b9c467481919d8d06212935f792` |
+| `Sentinel_4696427f469c8191b4a1af5680bc5fdf` (user／回答) | 2026-10-17T12:40:26.770174+00:00<br>`/messages/8` | `trimming-day-print-evidence.json#/answer` | Q: `Sentinel_8bc8010c2968819198ae4dab99817e09`<br>A: `Sentinel_4696427f469c8191b4a1af5680bc5fdf` |
+| `Sentinel_49bd090843fc8191a8bc3f6dc086fd2c` (aeon／質問) | 2026-10-17T12:32:18.551548+00:00<br>`/messages/9` | `trimming-course-attributes-evidence.json#/question` | Q: `Sentinel_49bd090843fc8191a8bc3f6dc086fd2c`<br>A: `Sentinel_b8b58e2ff1e4819182502ef21c52a379` |
+| `Sentinel_4aaff281d6ac8191aa794eab9aa646c8` (user／回答) | 2026-10-17T11:04:29.845594+00:00<br>`/messages/10` | `booking-eight-approvals-evidence.json#/decisions/6/answer`<br>`booking-seven-approvals-evidence.json#/decisions/6/answer` | Q: `Sentinel_5e13a75fcc9c819196275b8be820a110`<br>A: `Sentinel_4aaff281d6ac8191aa794eab9aa646c8` |
+| `Sentinel_5263c946095881919d39b18aefa73105` (user／回答) | 2026-10-17T04:39:39.011171+00:00<br>`/messages/11` | `no49-minute-input-evidence.json#/answer_id` | Q: `Sentinel_f9ae54abbcf48191990b9225486e993d`<br>A: `Sentinel_5263c946095881919d39b18aefa73105` |
+| `Sentinel_5cfbe558b4e081919369c6982f292dff` (user／回答) | 2026-10-18T02:56:04.197348+00:00<br>`/messages/12` | `saigram-calculation-reference-evidence.json#/reference_answer_id` | Q: `Sentinel_d15ae7610e68819181cbfbc6315214c2`<br>A: `Sentinel_5cfbe558b4e081919369c6982f292dff` |
+| `Sentinel_5e13a75fcc9c819196275b8be820a110` (aeon／質問) | 2026-10-17T10:53:41.555722+00:00<br>`/messages/13` | `booking-eight-approvals-evidence.json#/decisions/6/question`<br>`booking-seven-approvals-evidence.json#/decisions/6/question` | Q: `Sentinel_5e13a75fcc9c819196275b8be820a110`<br>A: `Sentinel_4aaff281d6ac8191aa794eab9aa646c8` |
+| `Sentinel_8bc8010c2968819198ae4dab99817e09` (aeon／質問) | 2026-10-17T12:34:50.428147+00:00<br>`/messages/14` | `trimming-day-print-evidence.json#/question` | Q: `Sentinel_8bc8010c2968819198ae4dab99817e09`<br>A: `Sentinel_4696427f469c8191b4a1af5680bc5fdf` |
+| `Sentinel_960f144c476081919e58c9db0c7f4ec3` (user／回答) | 2026-10-17T22:33:30.551863+00:00<br>`/messages/15` | `vaccine-type-label-color-evidence.json#/answer` | Q: `Sentinel_3d606eb2b4c881918cc68cdd21d5d3f7`<br>A: `Sentinel_960f144c476081919e58c9db0c7f4ec3` |
+| `Sentinel_9e274b9c467481919d8d06212935f792` (user／回答) | 2026-10-17T13:18:24.873940+00:00<br>`/messages/16` | `trimming-print-states-evidence.json#/answer` | Q: `Sentinel_4532889093e881918890010a3d9d2424`<br>A: `Sentinel_9e274b9c467481919d8d06212935f792` |
+| `Sentinel_9ee683b857208191848970bb9325b899` (aeon／質問) | 2026-10-17T02:22:15.248732+00:00<br>`/messages/17` | `no39-latest-decision.json#/source_question` | Q: `Sentinel_9ee683b857208191848970bb9325b899`<br>A: `Sentinel_c304f9c1412081918729c65d530e183c` |
+| `Sentinel_b8b58e2ff1e4819182502ef21c52a379` (user／回答) | 2026-10-17T12:32:54.367631+00:00<br>`/messages/18` | `trimming-course-attributes-evidence.json#/answer` | Q: `Sentinel_49bd090843fc8191a8bc3f6dc086fd2c`<br>A: `Sentinel_b8b58e2ff1e4819182502ef21c52a379` |
+| `Sentinel_bb2a699712748191b2466ca49c0d62bd` (aeon／質問) | 2026-10-17T04:35:55.134013+00:00<br>`/messages/19` | `no49-minute-input-evidence.json#/followup_question_id` | Q: `Sentinel_f9ae54abbcf48191990b9225486e993d`<br>A: `Sentinel_5263c946095881919d39b18aefa73105` |
+| `Sentinel_bf552e5fdbc48191a68d56ceba35611b` (user／回答) | 2026-10-17T04:20:10.698717+00:00<br>`/messages/20` | `latest-decisions-evidence-20261017.json#/direct_user_evidence/answer_id` | Q: `Sentinel_0e74a3558abc819180c4beebc54716f2`<br>A: `Sentinel_bf552e5fdbc48191a68d56ceba35611b` |
+| `Sentinel_c2206f3a13288191843a1abd21b0f8b3` (user／回答) | 2026-10-18T03:05:26.552739+00:00<br>`/messages/21` | `saigram-initial-population-evidence.json#/answer_id` | Q: `Sentinel_65aa9e9c758c8191ae92a2adbf00b033`<br>A: `Sentinel_c2206f3a13288191843a1abd21b0f8b3` |
+| `Sentinel_c304f9c1412081918729c65d530e183c` (user／回答) | 2026-10-17T02:24:25.406599+00:00<br>`/messages/22` | `no39-latest-decision.json#/source_answer` | Q: `Sentinel_9ee683b857208191848970bb9325b899`<br>A: `Sentinel_c304f9c1412081918729c65d530e183c` |
+| `Sentinel_d5a9d17fd4c48191a69679c666274235` (user／回答) | 2026-10-17T11:32:51.885960+00:00<br>`/messages/23` | `booking-eight-approvals-evidence.json#/decisions/7/answer` | Q: `Sentinel_21ddcc4dd06c81918d29d022b7761eca`<br>A: `Sentinel_d5a9d17fd4c48191a69679c666274235` |
+| `Sentinel_d6b42125daa481918b0057f7b00669b7` (user／回答) | 2026-10-17T05:03:17.690759+00:00<br>`/messages/24` | `no20-price-owner-evidence.json#/answer_id` | Q: `Sentinel_97c17ec121088191a3315fd31dab8dad`<br>A: `Sentinel_d6b42125daa481918b0057f7b00669b7` |
+| `Sentinel_f9ae54abbcf48191990b9225486e993d` (aeon／質問) | 2026-10-17T04:26:41.600063+00:00<br>`/messages/25` | `no49-minute-input-evidence.json#/question_id` | Q: `Sentinel_f9ae54abbcf48191990b9225486e993d`<br>A: `Sentinel_5263c946095881919d39b18aefa73105` |
+| `Sentinel_fd16cb27f1b4819192fee859e0ed3d7b` (user／補足) | 2026-10-17T21:49:45.033334+00:00<br>`/messages/26` | `enter-save-intent-evidence.json#/clarification/id` | Q: `Sentinel_d2935b98e3d08191b43d1c04d6ef801c`<br>A: `Sentinel_245605c234d08191913aba96a2c85a4b` |
+
+### 前後関係・補足訂正
+
+- サイグラム基準資料：質問 `Sentinel_d15ae7610e68819181cbfbc6315214c2` の「DBには保存しない」は当時の状態。計算基準採用 `Sentinel_5cfbe558b4e081919369c6982f292dff` の後、DB保存の説明質問 `Sentinel_222733d591f48191a6e9adce37f6d07b` → 本人 `Sentinel_01ed294ac8988191b77e6c33e4a92bbf` でDB保存へ変更した。今回の絞込/集計追加は対象外。Slack元添付との同一性は別の未確認。
+- 既存飼主の導入時計算は質問 `Sentinel_65aa9e9c758c8191ae92a2adbf00b033` → 本人 `Sentinel_c2206f3a13288191843a1abd21b0f8b3`「yes」。旧storage receiptの `existing_owner_backfill_approved:false` はその回答以前の状態であり、現在の未回答扱いに使わない。
+- 1コース上限は全予約での必須化を意味しない。後続助手 `Sentinel_33f5720bcb5881918a836404db1fe5c3` はコース未選択時に予約区分時間を使うことを確認。No20の価格owner回答とコース紐付け提案を分離し、後続の予約承認へ接続する。
+- トリミング印刷の除外はcancelled/no_show。通常の未受付予約を除外する意味ではない。初期day-print receiptの状態選別未決は後続 `Sentinel_9e274b9c467481919d8d06212935f792`「ok」で解消している。
+- Enter補足 `Sentinel_fd16cb27f1b4819192fee859e0ed3d7b` 自体を最終承認としない。質問 `Sentinel_d2935b98e3d08191b43d1c04d6ef801c` の「誤保存を防ぐ・全欄2Enter強制なし」へ、本人 `Sentinel_ca7328f4d0d48191b5d4411cede631c6`（21:52:52.394825 UTC）「どうですね」→ `Sentinel_245605c234d08191913aba96a2c85a4b`（21:52:54.457343 UTC）「そうですね」。助手 `Sentinel_aa679a35789c8191a439415666d67238` が確認した。対象画面/入力欄・修正完了は引き続き不明。
+
+### 旧receipt時刻への追記（旧記録は変更しない）
+
+以下は原文sent_atを正とする補足。旧receiptの秒単位値と数秒差があるものを訂正し、分精度だけだったNo20は補完する。業務決定の変更ではない。
+
+| receipt・field | 旧記録UTC | 原文sent_at UTC |
+|:--|:--|:--|
+| `saigram-storage-decision-evidence.json#/at_utc` | 2026-10-18 02:59:05 UTC | 2026-10-18T02:59:01.548595+00:00 |
+| `other-pet-unpaid-header-evidence.json#/answer_utc` | 2026-10-18 01:53:54 UTC | 2026-10-18T01:53:50.599007+00:00 |
+| `vaccine-type-label-color-evidence.json#/at` | 2026-10-17 22:33:33 UTC | 2026-10-17T22:33:30.551863+00:00 |
+| `trimming-print-states-evidence.json#/at` | 2026-10-17 13:18:27 UTC | 2026-10-17T13:18:24.873940+00:00 |
+| `trimming-day-print-evidence.json#/at` | 2026-10-17 12:40:29 UTC | 2026-10-17T12:40:26.770174+00:00 |
+| `trimming-course-attributes-evidence.json#/at` | 2026-10-17 12:32:58 UTC | 2026-10-17T12:32:54.367631+00:00 |
+| `saigram-calculation-reference-evidence.json#/reference_answer_utc` | 2026-10-18 02:56:07 UTC | 2026-10-18T02:56:04.197348+00:00 |
+| `saigram-calculation-reference-evidence.json#/storage_question_utc` | 2026-10-18 02:56:23 UTC | 2026-10-18T02:56:22.269084+00:00 |
+| `saigram-initial-population-evidence.json#/answer_utc` | 2026-10-18 03:05:29 UTC | 2026-10-18T03:05:26.552739+00:00 |
+| `enter-save-intent-evidence.json#/confirmation/at` | 2026-10-17 21:52:59 UTC | 2026-10-17T21:52:54.457343+00:00 |
+| `no20-price-owner-evidence.json#/answer_at_UTC` | 2026-10-17 05:03 UTC | 2026-10-17T05:03:17.690759+00:00 |
+
+原文ID/本文hashと旧receipt SHA256の照合結果はrepo外に保全。照合の主locatorはreceipt14ファイル。表には旧 `booking-seven-approvals-evidence.json` の重複参照も残すため、旧補助分を含む表全体のファイル名は15種となる。これらの旧receiptは変更していない。従前の集計表現「receipt15ファイル」は14へ訂正し、「本人発言16件」は回答15＋補足1と区別する。ここに記した過去の業務回答を、新たなコード/DB/実機/送信/デプロイ/マージの実行承認には使わない。
 
 ## 後続2点の本人承認（基準231 IDとは別の追補）
 
-元の231 ID/523出現と204原会話行＋27receiptは固定mainの履歴として保持する。以下は2026-10-19の後続委任入力に提示された質問/本人回答のreceiptで、先行原会話204行へ新規取得済みとして加算しない。原会話の新規取得や会議メモ作者の確認ではない。
+元の231 ID/523出現と初回204原会話行＋27receiptという調査経過を保持し、上記追補でその27対象の原文連結を完了した。以下は2026-10-19の後続委任入力に提示された質問/本人回答のreceiptで、先行原会話204行へ新規取得済みとして加算しない。原会話の新規取得や会議メモ作者の確認ではない。
 
 - 質問 `Sentinel_14ab315a49ec8191afbe4dfc8ae8982a`（助手）：会議メモの空きケージ選択と検索ボタン実行の2点を最新方針にし、検索はまず飼主・ペット一覧と選択用検索を対象とするか確認。
 - 本人回答 `Sentinel_1738846672e08191ac7e29910cf269c8`：2026-10-19 05:36:42 UTC（14:36:42 JST）「ok」。source thread `01a14350-92b9-7391-935d-d3ed3ebe20f7`。
