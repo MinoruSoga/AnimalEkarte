@@ -134,7 +134,10 @@ func extractSearchTermGroups(message string) [][]string {
 		token := norm.NFC.String(raw)
 		for _, seg := range segmentJaTerm(stripSearchSuffixes(token)) {
 			term := strings.ToLower(seg)
-			if len([]rune(term)) < 2 {
+			// EMR-441: frontend 契約 (JS length = UTF-16 単位) に合わせ utf16Len で判定。
+			// rune 数で棄却するとサロゲートペア1文字 (𠮷 等) が落ちて検索グループが空に
+			// なり「該当なし」誤応答になる。
+			if utf16Len(term) < 2 {
 				continue
 			}
 			if _, stop := searchDictStopwords[term]; stop {

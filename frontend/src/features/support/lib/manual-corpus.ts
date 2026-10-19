@@ -17,17 +17,28 @@ export const baseCorpusRevision = MANUAL_CORPUS_BASE_REVISION;
 const U2028_RE = /\u2028/g;
 const U2029_RE = /\u2029/g;
 
+// EMR-441: backend sortCorpusArticles (Go string < = UTF-8 バイト順 = Unicode
+// code point 順) と同一の順序で整列する比较器。JS の文字列 < は UTF-16 単位順のため、
+// サロゲートペア slug (😀 等) と BMP slug (Ｚ 等) の混在で backend と異なる配列順に
+// なり revision hash が不一致 (全 chat で 409) になるのを防ぐ。
+function compareGoString(a: string, b: string): number {
+  const ac = [...a];
+  const bc = [...b];
+  const n = Math.min(ac.length, bc.length);
+  for (let i = 0; i < n; i++) {
+    const ap = ac[i]!.codePointAt(0)!;
+    const bp = bc[i]!.codePointAt(0)!;
+    if (ap !== bp) return ap < bp ? -1 : 1;
+  }
+  if (ac.length === bc.length) return 0;
+  return ac.length < bc.length ? -1 : 1;
+}
+
 export function canonicalCorpusJson(articles: ManualArticle[]): string {
   const sorted = [...articles].sort((a, b) =>
     a.category !== b.category
-      ? a.category < b.category
-        ? -1
-        : 1
-      : a.slug < b.slug
-        ? -1
-        : a.slug > b.slug
-          ? 1
-          : 0,
+      ? compareGoString(a.category, b.category)
+      : compareGoString(a.slug, b.slug),
   );
   return `[${sorted
     .map((a) =>

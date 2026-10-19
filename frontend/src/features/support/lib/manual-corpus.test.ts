@@ -31,6 +31,28 @@ describe("manual corpus constants", () => {
 });
 
 describe("canonicalCorpusJson", () => {
+  // EMR-441: slug 整列は backend sortCorpusArticles (UTF-8 バイト順 = code point 順)
+  // と同一。JS 既定の UTF-16 単位順だとサロゲートペア slug の位置が入れ替わり
+  // revision hash が不一致 (全 chat で 409) になる。
+  it("supplementary-plane slug と BMP slug の整列は UTF-8 順（code point 順）で一致する", () => {
+    const mk = (slug: string) => ({
+      category: "screens",
+      slug,
+      title: slug,
+      order: 1,
+      section: "",
+      content: "",
+      searchText: "",
+      keywords: [],
+      keywords_vi: [],
+    });
+    const json = canonicalCorpusJson([mk("𠮷"), mk("Ｚ")]);
+    // UTF-8 バイト順: Ｚ (EF BC AA) < 𠮷 (F0 A0 AE B7)。JS UTF-16 順だと逆になる。
+    expect(json.indexOf('"slug":"Ｚ"')).toBeGreaterThanOrEqual(0);
+    expect(json.indexOf('"slug":"𠮷"')).toBeGreaterThanOrEqual(0);
+    expect(json.indexOf('"slug":"Ｚ"')).toBeLessThan(json.indexOf('"slug":"𠮷"'));
+  });
+
   it("escapes actual U+2028 but preserves literal backslash-u2028", () => {
     const json = canonicalCorpusJson([
       {

@@ -120,6 +120,10 @@ func RunIndex(ctx context.Context, base []manualarticle.CorpusArticle, overrides
 func indexEmbedWithRetry(ctx context.Context, input string, deps IndexDeps, wait func(context.Context, time.Duration) error) ([]float64, error) {
 	retries := []time.Duration{2 * time.Second, 5 * time.Second}
 	rateLimited := false
+	// EMR-441: 429 待機は一時的リトライ枠を消費しない。共有カウンタだと
+	// 429→500→500 で 2s 待機が飛ばされ 1 回のリトライ後に中断し、部分的な
+	// インデックスで keyword-only 退避してしまう。
+	transient := 0
 	for attempt := 0; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -162,10 +166,11 @@ func indexEmbedWithRetry(ctx context.Context, input string, deps IndexDeps, wait
 			if werr := wait(ctx, 60*time.Second); werr != nil {
 				return nil, werr
 			}
-		case (eerr.Reason == "transport" || eerr.Status >= 500) && attempt < len(retries):
-			if werr := wait(ctx, retries[attempt]); werr != nil {
+		case (eerr.Reason == "transport" || eerr.Status >= 500) && transient < len(retries):
+			if werr := wait(ctx, retries[transient]); werr != nil {
 				return nil, werr
 			}
+			transient++
 		default:
 			slog.WarnContext(ctx, "support_index_embed_failed",
 				"status", eerr.Status, "reason", eerr.Reason, "attempt", attempt)
