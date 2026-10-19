@@ -104,7 +104,7 @@ docker compose exec -T \
   -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD" \
   -e DB_NAME=postgres -e DB_SSL_MODE=verify-full -e DB_SSL_ROOT_CERT=system \
   -e DB_RESET=true -e APP_ENV=staging \
-  "${EXTRA_ENV[@]}" \
+  "${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}" \
   backend go run ./cmd/migrate 2>&1 | tee "$LOG"
 
 missing=()
