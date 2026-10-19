@@ -9,8 +9,8 @@
 | contact-candidates | [FR-owners-pets-contact-duplicate-warning, AC-owners-pets-contact-duplicate-warning, AC-owners-pets-contact-duplicate-separate](../../spec/domains/owners-pets/lifecycle.md) | owners, owner_identity_confirmations（全列はJSON） | EMR-446, EMR-466, EMR-470 / 内訳未確認は親へ | 電話/メールuniqueを非unique候補indexへ。同一確認済ownerはwriterが再利用。連絡先一致から自動同一判定せず、別人/複数頭を拒否しない |
 | common-subjects | [common-owner-pet-20261017](../../spec/domains/owners-pets/lifecycle.md) | common_owner_subjects, common_pet_subjects, common_owner_clinic_bindings, common_pet_clinic_bindings, common_owner_basic_revisions, common_pet_basic_revisions（全列はJSON） | EMR-451, EMR-470 / 内訳未確認は親へ | common-owner-pet-20261017＋本人Sentinel_7195a603405c819199d5e2b74463a2d1の独立UUID/医院別ID対応表承認。自院利用のみ、D19/unlink再設計なし、実ID付替えなし |
 | internal-booking-overlap | [FR-reservations-staff-overlap-warning](../../spec/domains/reservations/pages/reservation-management.md) | appointments, reservation_capacity_gates, patient_operation_gates, appointment_change_events（全列はJSON） | EMR-468, EMR-469 / 内訳未確認は親へ | 一律doctor時間EXCLUDEと同開始unique削除。院内警告確認後重複可、LINE枠/勤務/休憩/同時保存の検査は全writer参加が必要 |
-| reservation-kind-duration-name | [FR-reservation-types-business-routing, FR-reservation-types-business-classification-lock, FR-reservation-types-duration-required, FR-reservation-types-duration-step, FR-reservation-types-duration-range, FR-reservation-types-name-history, FR-reservation-types-group-reactivation-intent](../../spec/screens/settings/master-reservation-type.md) | reservation_types, reservation_type_groups, reservation_type_name_revisions, reservation_contract_states, appointments（全列はJSON） | EMR-447, EMR-468, EMR-469 / 内訳未確認は親へ | 4kind、5〜480分5分刻み/default撤去、名称固定版、個別再開確認。旧用途/名称/期間を推測補完しない |
-| staff-leave-shifts | [FR-staff-workforce-workforce-maintenance, FR-staff-workforce-history-and-access](../../spec/domains/staff-workforce/README.md) | staffs, staff_clinic_assignments, staff_leave_periods, staff_leave_changes, shift_entries, shift_entry_breaks, shift_bulk_operations（全列はJSON） | EMR-447 / 内訳未確認は親へ | 職種/役職/雇用を別、休業期間編集履歴、院別指名停止、日跨ぎ実timestamp。休業日付端点不明はunknown、退職と同一化せず新権限なし |
+| reservation-kind-duration-name | [FR-reservation-types-business-routing, FR-reservation-types-business-classification-lock, FR-reservation-types-duration-required, FR-reservation-types-duration-step, FR-reservation-types-duration-range, FR-reservation-types-name-history, FR-reservation-types-group-reactivation-intent](../../spec/screens/settings/master-reservation-type.md) | reservation_types, reservation_type_groups, reservation_type_name_revisions, reservation_contract_states, appointments（全列はJSON） | EMR-448, EMR-468, EMR-469 / 内訳未確認は親へ | 4kind、5〜480分5分刻み/default撤去、名称固定版、個別再開確認。旧用途/名称/期間を推測補完しない |
+| staff-leave-shifts | [FR-staff-workforce-workforce-maintenance, FR-staff-workforce-history-and-access](../../spec/domains/staff-workforce/README.md) | staffs, staff_clinic_assignments, staff_leave_periods, staff_leave_changes, shift_entries, shift_entry_breaks, shift_bulk_operations（全列はJSON） | EMR-448 / 内訳未確認は親へ | 職種/役職/雇用を別、休業期間編集履歴、院別指名停止、日跨ぎ実timestamp。休業日付端点不明はunknown、退職と同一化せず新権限なし |
 | edit-right-draft-recovery | [FR-medical-records-single-editor, AC-medical-records-draft-same-actor-recovery, AC-medical-records-draft-context-isolation](../../spec/domains/medical-records/lifecycle.md) | record_edit_rights, record_edit_right_events, staff_record_drafts, staff_record_draft_operations, medical_record_dependency_versions（全列はJSON） | EMR-452, EMR-471, EMR-472, EMR-473 / 内訳未確認は親へ | epoch/holder、本人account×record×tab暗号draft。app.current_account_idの信頼済tx設定必須。暗号鍵配布/端末方式/consumerは別、平文や鍵本体を保存しない |
 | record-purpose-corrections | [AC-medical-records-wrong-patient-transfer, AC-medical-records-retrospective-no-reception-billing](../../spec/domains/medical-records/lifecycle.md) | medical_record_correction_links（全列はJSON） | EMR-452 / 内訳未確認は親へ | 元/先record・理由・由来・実診療日/入力時刻を区別。新受付/会計/在庫を自動生成しない |
 | structured-initial-intake | [FR-medical-records-structured-initial-intake, FR-medical-records-intake-provenance, AC-medical-records-intake-unknown, AC-medical-records-intake-partial-date, AC-medical-records-intake-multiple](../../spec/domains/medical-records/pages/initial-intake.md) | initial_intake_revisions, initial_intake_entries（全列はJSON） | EMR-452 / 内訳未確認は親へ | yes/no/unknown/未回答、年/月/日/概算精度、複数entry、出所/旧版を保持。自己申告からD07 official結果を作らない |
@@ -48,3 +48,34 @@
 既存backend consumerはこの新DDLとの一致を前提にしていない。API/UI・全writerのgate/CAS/認可/必須監査/atomic receipt参加・送信provider照合・出力renderer・旧値分類/移行は各担当へ渡す。これらをDB定義を残す理由にせず、実装完了や利用開始の証拠にもしない。共通UUID方式は採用済みで回答待ちではない。外部Provider照会方式、暗号鍵配布、既存データmapping/unlinkの別設計をこのDDLだけで完了扱いしない。
 
 音声/外部連携のPhase2、全文音声保存/手動貼付フォーム、健診専用作図/写真、新しい保険自動給付算式、EMR-365の未採用精度変更は含めない。EMR-294はmain統合済みとして採否を戻さず、10/13の当時支払額バグを仕様未決へ戻さない。旧単独保険/S1試験の成功は旧hash限定。今回の新テスト・DB適用・STG反映・mergeは行わない。
+
+## 不足内訳票の候補（未起票）
+
+親担当で既存子票との重複を照合してから起票する。24単位を24新規票必須とはしない。予約/勤務master調査はEMR-448、臨床master/用量調査はEMR-447に対応する。各候補のFR/AC・全列・既存票は上表とJSONの同unitへ接続する。
+
+| 単位 | 候補名 |
+|---|---|
+| contact-candidates | 連絡先の重複候補・本人確認結果と別人登録を接続する |
+| common-subjects | 共通UUIDと医院別IDの自院利用・共通基本情報reader/writerを接続する |
+| internal-booking-overlap | 院内重複警告とLINE枠判定を全予約writerのgateへ接続する |
+| reservation-kind-duration-name | 4業務種別・標準時間・名称固定版と個別再開を予約へ接続する |
+| staff-leave-shifts | 休業期間・指名停止・日跨ぎ勤務と変更履歴を接続する |
+| edit-right-draft-recovery | 編集epochと本人暗号draftの取得・移譲・復帰を接続する |
+| record-purpose-corrections | 目的別カルテ訂正・過去入力と元記録参照を接続する |
+| structured-initial-intake | 構造化初診問診の複数回答・時期精度・出所付き改訂を接続する |
+| preventive-prescription-and-observations | 予防処方・年間投薬と固定処方版・専用2帳票を接続する |
+| multiple-dose-patterns | 目的/経路別の承認用量pattern選択と固定版保存を接続する |
+| stay-and-capacity | 同一滞在・院別ホテル頭数・入院開始記録と予定/実績を接続する |
+| accounting-calculation-history | 算定固定版・active claim・理由付き取消再請求を接続する |
+| funds-allocation-refund | 受領identity・複数請求配賦・実返金・記録訂正を接続する |
+| financial-document-editions | 請求/受領/預り/返金帳票の元取引・固定版・artifactを接続する |
+| estimate-presentations | 提示原本・返答・後継改訂と選択明細の請求引継ぎを接続する |
+| closing-and-source-events | 金銭sourceイベントと元締め・実査訂正・締め後差分を接続する |
+| inventory-ledger | 基準在庫と理由付き実移動・元出庫返却上限を接続する |
+| actual-visit-source | 確定受付/過去来院根拠と訂正を集計readerへ接続する |
+| checkup-stage-recovery | 健診の親/子/結果の各receipt照合と段階再開を接続する |
+| examination-provenance | 他院手入力の検査出所・日付精度・意味mappingを接続する |
+| manual-publication | 院内共通記事の公開pointer・改訂/復元履歴を接続する |
+| support-confirmed-delivery | 院内保存先行の確認intent・宛先別claim/結果照合を接続する |
+| line-purpose-unlink-followup | LINE本人版・解除停止/選択再開・目的別確認と配送照合を接続する |
+| common-operation-receipts | 全ownerの保存成功receiptと失敗attemptの原子保存を接続する |
