@@ -239,6 +239,38 @@ def content_hash(env: dict[str, str], table: str) -> str:
     return run_psql(env, sql).strip()
 
 
+def csv_content_diffs(env: dict[str, str], export_dir: Path, table: str, columns: list[str]) -> list[str]:
+    """Compare a restored strict table against its export CSV, row by row.
+
+    CSV export cannot distinguish NULL from the empty string in text
+    columns, so every column is compared as COALESCE(col::text, ''). Any
+    remaining difference is real content drift and is reported by id.
+    """
+    csv_path = export_dir / f"{table}.csv"
+    csv_literal = str(csv_path).replace("'", "''")
+    column_list = ", ".join(quote_ident(column) for column in columns)
+
+    def norm(alias: str) -> str:
+        return ", ".join(f"COALESCE({alias}.{quote_ident(column)}::text, '')" for column in columns)
+
+    script = (
+        f"CREATE TEMP TABLE stage (LIKE public.{quote_ident(table)} INCLUDING DEFAULTS);\n"
+        f"\\copy stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
+        "SELECT t.id::text || ' missing-in-target' "
+        f"FROM stage s LEFT JOIN public.{quote_ident(table)} t ON t.id = s.id WHERE t.id IS NULL\n"
+        "UNION ALL "
+        "SELECT s.id::text || ' missing-in-stage' "
+        f"FROM public.{quote_ident(table)} t LEFT JOIN stage s ON s.id = t.id WHERE s.id IS NULL\n"
+        "UNION ALL "
+        "SELECT t.id::text || ' differs' "
+        f"FROM public.{quote_ident(table)} t JOIN stage s ON s.id = t.id "
+        f"WHERE ROW({norm('t')}) IS DISTINCT FROM ROW({norm('s')});\n"
+        "DROP TABLE stage;\n"
+    )
+    out = run_psql(env, script=script)
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -496,15 +528,16 @@ def verify(args: argparse.Namespace) -> None:
             if kept == entry["rows"]:
                 if rows != entry["rows"]:
                     failures.append(f"{table}: rows {rows} != export {entry['rows']}")
-                current_hash = content_hash(env, table)
-                if current_hash != entry["content_hash"]:
-                    failures.append(f"{table}: content hash mismatch")
+                diffs = csv_content_diffs(env, export_dir, table, entry["columns"])
+                if diffs:
+                    sample = "; ".join(diffs[:5])
+                    failures.append(f"{table}: {len(diffs)} content diff(s) vs export ({sample})")
             else:
                 if rows != kept:
                     failures.append(f"{table}: rows {rows} != restored kept {kept}")
                 print(
                     f"NOTE: {table}: {entry['rows'] - kept} row(s) skipped by restore filters; "
-                    "hash check skipped for this table"
+                    "content comparison skipped for this table"
                 )
         elif rows < kept:
             failures.append(f"{table}: rows {rows} < restored expectation {kept}")
