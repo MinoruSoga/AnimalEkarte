@@ -106,7 +106,7 @@ A2 の capability 正本は `staff_reservation_capabilities` 行（`SupportsRese
 | `fk_appointments_doctor_clinic` | `(doctor_id, clinic_id)` | `staffs (id, clinic_id)` | SET NULL (`doctor_id`) |
 | `fk_appointments_line_customer_clinic` | `(line_customer_id, clinic_id)` | `line_customers (id, clinic_id)` | SET NULL (`line_customer_id`) |
 
-`created_by` は 001 では `fk_appointments_created_by_clinic` `(created_by, clinic_id) → staffs(id, clinic_id)` だった。現行 migration [003_appointments_created_by_staff_fk.sql](../../../../backend/migrations/003_appointments_created_by_staff_fk.sql) L6–12 はそれを **DROP** し、`fk_appointments_created_by` `(created_by) → staffs(id)` ON DELETE RESTRICT に置換する。**この worktree のコードと 003 ファイルがそう書いていること**と、**現行 STG に 003 が当たっていること**は別である。STG DDL は UNKNOWN。
+`created_by` は 001 では `fk_appointments_created_by_clinic` `(created_by, clinic_id) → staffs(id, clinic_id)` だった。統合前 003（現行は [001_init.sql の consolidated from 003 ブロック](../../../../backend/migrations/001_init.sql)）はそれを **DROP** し、`fk_appointments_created_by` `(created_by) → staffs(id)` ON DELETE RESTRICT に置換する。**この worktree のコードと 003 ファイルがそう書いていること**と、**現行 STG に 003 が当たっていること**は別である。STG DDL は UNKNOWN。
 
 マッピング:
 

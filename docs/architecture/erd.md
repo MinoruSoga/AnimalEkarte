@@ -9,7 +9,7 @@
 <!-- ERD:TABLE_COUNT=138 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（138テーブル。2026-10-19 に 001〜038 を1ファイルへ統合。旧ファイル名は履歴識別子）。記録者FKの置換と治療明細の生涯一意制約を含む、順次適用後のスキーマを記録する。`011_support_bug_reports.sql` の `support_bug_reports` と `013_support_chat_messages.sql` の `support_chat_messages` を含み、`014_drop_prescriptions.sql` で `prescriptions`（EMR-236）は除去済み。`021_medical_record_image_deletions.sql` が `medical_record_image_deletions`（カルテ画像削除台帳）を新設し 130 へ。`016`/`017`〜`020`/`022` はカラム追加・FK 置換・権限行削除・checksum reconcile でテーブル数は不変。2026-10-05 に削除した capability backfill 用の `023` は現行ファイルではない。現行の `023_lab_device_mapping_drafts.sql` が検査項目の対応下書き 4 テーブルを新設し 134 へ。`024`〜`030` は drafts 複合キーの列順張り直し、`cages.merged_into_cage_id`（EMR-306 連結ケージ）、EMR-308 の tentative 予約基盤（`reservation_status` に `'tentative'` 追加 + `appointments.intended_date` / `source_medical_record_id` + `uq_appointments_one_active_tentative` 部分unique）と `medical_records.next_visit_recommended_date` の退役・列DROPで、テーブル数は不変。`031` は次回予定の元カルテ参照を医院複合FKへ置換し、`032_trimming_image_deletions.sql` がトリミング画像の削除予約台帳を新設して 135 へ。`033_lstep_next_visit_sync_retries.sql` が次回来院タグの再試行記録を新設して 136 へ。`034_lstep_next_visit_cleanup_target.sql` は同表へ `cleanup_line_user_id` 列を追加するのみでテーブル数は不変。`035_trimming_image_storage_retry.sql` は `trimming_image_deletions` へ `storage_deleted_at` / `last_attempt_at` 列と pending 部分indexを追加するのみでテーブル数は不変。`036_hospitalizations_next_visit.sql` は入院の `next_visit` 列追加のみでテーブル数不変。`038_support_manual_search.sql` は共有派生キャッシュ `support_manual_embeddings` と quota 状態 `support_llm_budgets` を新設し 136 → 138。現行在庫は `ls backend/migrations/*.sql` を参照。
+> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（138テーブル。001〜038 を1ファイルへ統合済み。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
@@ -34,7 +34,7 @@
 | **LINE/CRM (20)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_next_visit_sync_retries`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
 | **横断・identity links (4)** | `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`（`001_init.sql` セクション10・旧 `004_add_identity_links.sql` 原文・医院横断の owner/pet 明示リンク） |
 
-> 追記（2026-10-07 監査）: 「臨床・診察」ラベルを (25) → (24) へ訂正（`prescriptions` は `014_drop_prescriptions.sql` / EMR-236 で除去済みだがラベルが減算されていなかった）。当時の 10 区分の合計は 134 で `ERD:TABLE_COUNT` ゲート pin（`backend/internal/lintscan/erd_table_count_drift_test.go`）と一致した。2026-10-10 の `032` 追加後は、トリミング区分を (4) とし合計 135 へ更新した。
+> 追記（2026-10-07 監査）: 「臨床・診察」ラベルを (25) → (24) へ訂正（`prescriptions` は `014_drop_prescriptions.sql` / EMR-236 で除去済みだがラベルが減算されていなかった）。当時の 10 区分の合計は 134 で `ERD:TABLE_COUNT` ゲート pin（`backend/internal/lintscan/erd_table_count_drift_test.go`）と一致した。2026-10-10 の `032` 追加後は、トリミング区分を (4) とし合計 135 へ更新した。2026-10-19 の統合時点では 138（support 系 2 テーブルを含む）。
 
 ---
 
@@ -211,205 +211,58 @@ erDiagram
 >
 > **2026-07-27 追記**: 旧incremental 002〜009を`001_init.sql`末尾セクション8へ原文のまま番号順に統合し、独立ファイルを削除した。当時の直下DDLは001のみ。旧005の`exam_reference_ranges`追加により総数は109となった。
 
-2026-10-10照合のactive inventory（上記の旧ファイル履歴とは区別。2026-09-29 訂正: 旧見出し「2026-09-22照合」→ 増分 `005`〜`013` を追加し現行在庫へ更新。2026-10-10: `024`〜`032` を追加・`026`/`027` 欠番）:
+2026-10-19 consolidated inventory:
 
-- [`001_init.sql`](../../backend/migrations/001_init.sql)（fresh用統合schema・**128** tables。旧incremental本文はarchive sectionに統合）
-- [`002_medical_records_entered_by_staff_fk.sql`](../../backend/migrations/002_medical_records_entered_by_staff_fk.sql)（カルテ記録者FKの置換）
-- [`003_appointments_created_by_staff_fk.sql`](../../backend/migrations/003_appointments_created_by_staff_fk.sql)（予約記録者FKの置換）
-- [`004_billing_items_treatment_lifetime_unique.sql`](../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql)（治療明細の生涯一意index）
-- [`005_child_records_version.sql`](../../backend/migrations/005_child_records_version.sql)（子レコード楽観ロック `version` 列）
-- [`006_accounts_rls_ops_bypass.sql`](../../backend/migrations/006_accounts_rls_ops_bypass.sql)（accounts RLS の ops bypass 対応）
-- [`007_billings_clinic_owner_scheduled_index.sql`](../../backend/migrations/007_billings_clinic_owner_scheduled_index.sql)（billings 複合部分index）
-- [`009_reconcile_002_master_seed_checksum.sql`](../../backend/migrations/009_reconcile_002_master_seed_checksum.sql)（seed bundle checksum reconcile。`008` は欠番）
-- [`010_grant_lab_import_create_to_default_groups.sql`](../../backend/migrations/010_grant_lab_import_create_to_default_groups.sql)（lab-import:create 既定権限反映 + checksum reconcile）
-- [`011_care_plan_items_manual_other.sql`](../../backend/migrations/011_care_plan_items_manual_other.sql)（`care_plan_items.other_reason`）
-- [`011_support_bug_reports.sql`](../../backend/migrations/011_support_bug_reports.sql)（`support_bug_reports` 新設。`011` は2ファイル運用）
-- [`012_pets_name_origin_meeting_story.sql`](../../backend/migrations/012_pets_name_origin_meeting_story.sql)（`pets.name_origin` / `meeting_story`）
-- [`013_support_chat_messages.sql`](../../backend/migrations/013_support_chat_messages.sql)（`support_chat_messages` 新設）
-- [`014_drop_prescriptions.sql`](../../backend/migrations/014_drop_prescriptions.sql)（`prescriptions` DROP。EMR-236）
-- [`015_search_fold_indexes.sql`](../../backend/migrations/015_search_fold_indexes.sql)（検索用の fold 式 GIN trigram index 群。テーブル数不変）
-- [`016_support_bug_reports_plane.sql`](../../backend/migrations/016_support_bug_reports_plane.sql)（`support_bug_reports` に Plane 連携列 `plane_issue_id` / `plane_issue_url` / `plane_sync_error` を追加。テーブル数不変）
-- [`017_multiclinic_staff_fk_fix.sql`](../../backend/migrations/017_multiclinic_staff_fk_fix.sql)（担当医・actor・staff参照の複合FK置換。テーブル数不変）
-- [`018_pet_neutered_status.sql`](../../backend/migrations/018_pet_neutered_status.sql)（`pets` に避妊・去勢ステータス列追加。テーブル数不変）
-- [`019_drop_checkup_package_import_permission.sql`](../../backend/migrations/019_drop_checkup_package_import_permission.sql)（`permission_group_rules` の廃止権限行削除 DML。テーブル数不変）
-- [`020_reconcile_002_master_seed_checksum.sql`](../../backend/migrations/020_reconcile_002_master_seed_checksum.sql)（seed bundle checksum reconcile。テーブル数不変）
-- [`021_medical_record_image_deletions.sql`](../../backend/migrations/021_medical_record_image_deletions.sql)（`medical_record_image_deletions` 新設。カルテ画像削除台帳。+1 で 130）
-- [`022_staff_clinic_assignments_capability_configured_at.sql`](../../backend/migrations/022_staff_clinic_assignments_capability_configured_at.sql)（`staff_clinic_assignments.capabilities_configured_at` 列追加。テーブル数不変）
-- `023_backfill_staff_reservation_capabilities.sql` は 2026-10-05 に削除（運用判断: `staff_reservation_capabilities` は医院が明示設定し、未設定スタッフへの自動 backfill は行わない。この削除時点ではテーブル数不変）
-- [`023_lab_device_mapping_drafts.sql`](../../backend/migrations/023_lab_device_mapping_drafts.sql)（EMR-297。`lab_device_mapping_drafts` / `lab_device_mapping_draft_items` / `lab_device_mapping_specs` / `lab_device_mapping_generation` を新設し 130 → 134。`lab_import_jobs.species` を追加。適用は `make migrate`）
-- [`024_lab_device_mapping_drafts_clinic_unique.sql`](../../backend/migrations/024_lab_device_mapping_drafts_clinic_unique.sql)（drafts の参照複合キーを `(clinic_id, id)` 順へ張り直し。テーブル数不変）
-- [`025_cages_merged_into_cage_id.sql`](../../backend/migrations/025_cages_merged_into_cage_id.sql)（EMR-306。`cages.merged_into_cage_id` 自己参照複合FK + 部分index。STG未適用の旧 `025`〜`027` を承認済み統合した版。テーブル数不変）
-- `026` / `027` は欠番（[README.md「025〜027 の STG 適用前統合」](../../backend/migrations/README.md) 参照。欠番は埋めない）
-- [`028_appointments_tentative_status.sql`](../../backend/migrations/028_appointments_tentative_status.sql)（EMR-308 part1。`reservation_status` に `'tentative'` 追加 + `appointments.intended_date` / `source_medical_record_id`。テーブル数不変）
-- [`029_appointments_one_active_tentative_index.sql`](../../backend/migrations/029_appointments_one_active_tentative_index.sql)（EMR-308 part2。`uq_appointments_one_active_tentative` 部分unique index。テーブル数不変）
-- [`030_next_visit_recommended_date_to_tentative.sql`](../../backend/migrations/030_next_visit_recommended_date_to_tentative.sql)（EMR-308 cleanup。`medical_records.next_visit_recommended_date` を tentative 予約へ backfill 後に DROP。テーブル数不変）
-- [`031_appointments_source_medical_record_clinic_fk.sql`](../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql)（`appointments.source_medical_record_id` の単列FKを医院複合FKへ置換。既存の医院越境参照があれば中断。テーブル数不変）
-- [`032_trimming_image_deletions.sql`](../../backend/migrations/032_trimming_image_deletions.sql)（`trimming_image_deletions` 新設。ストレージ削除前に永続化する削除予約台帳。+1 で 135）
-- [`seeds/002_master/`](../../backend/migrations/seeds/002_master/)（active CSV + `manifest.json` seed bundle。DDL在庫には数えない）
+- [`001_init.sql`](../../backend/migrations/001_init.sql)（fresh 用の唯一の DDL。138 テーブル。001〜038 の原文を `consolidated from` マーカー付きで統合）
+- seed: `backend/migrations/seeds/002_master/`（12 tables、manifest.json が正本）
+- 旧 incremental の内容は 001 内の `consolidated from <filename>` マーカーと git 履歴を参照する。
 
-`seeds/003_demo` / `seeds/004_staging` は commit `09d2c9e2b` で退役済み。以下に現れる同名 path は historical reference である。
+### 4.4 Historical incremental migrations（001〜038、2026-10-19 統合済み）
 
-物理テーブル総数 = **138**（ゲート3aと `TestERDTableCount_MatchesSchema` は直下の全 `*.sql` にあるdistinct `CREATE TABLE` から `DROP TABLE` 対象を除いた現行値を正とする。seed配下・migration管理用テーブルはこのinventoryに含めない。直下 DDL 在庫は `ls backend/migrations/*.sql` で確認する。2026-09-29 訂正: 128 → 130（`011_support_bug_reports` / `013_support_chat_messages` が 001 の 128 に加算）。EMR-236 で `014_drop_prescriptions.sql` が `prescriptions` を DROP し 130 → 129。`021_medical_record_image_deletions.sql` が `medical_record_image_deletions` を新設し 129 → 130。2026-10-06: `023_lab_device_mapping_drafts.sql` が対応下書き 4 テーブルを新設し 130 → 134。2026-10-10: `024`〜`030` はカラム・FK・index・enum・列DROP・DMLのみでテーブル数不変（`026`・`027` 欠番）。`031` も複合FK置換のみでテーブル数不変。`032_trimming_image_deletions.sql` が削除予約台帳を新設し 134 → 135。
-
-2026-07-31統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション10）:
-
-- 旧 `002_lstep_delivery_trigger_log_daily_unique.sql`: LSA-15・`lstep_delivery_trigger_log` の clinic/owner/type/JST-day 部分 unique index。
-- 旧 `003_closing_special_periods_exclude_overlap.sql`: POC-05・`closing_special_periods` の clinic+daterange EXCLUDE 制約（`btree_gist`）。
-- 旧 `004_add_identity_links.sql`: #239 Phase 1・医院横断 owner/pet identity link 4 テーブル + 明示 RLS。
-- 旧 `005_line_webhook_bot_user_id.sql`: SEC-CS-F05-R1・`line_reservation_settings.line_bot_user_id` + グローバル部分 unique。
-- 旧 `006_medical_record_image_upload_quota.sql`: SEC-CS-F08-R1・`medical_record_image_upload_quota` 1 テーブル（明示 RLS/FK なしを原文維持）。
-
-2026-07-29統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション9）:
-
-- 旧 `002_add_pets_version.sql`: `pets.version`（INTEGER NOT NULL DEFAULT 1・楽観ロック CAS）。
-- 旧 `003_add_exam_results_exam_type_field_id_index.sql`: `idx_exam_results_exam_type_field_id`（`exam_results(exam_type_field_id)`）。
-- 旧 `004_add_inventory_quantity_check.sql`: `chk_inventory_items_quantity_non_negative`（`quantity >= 0`）。
-- 旧 `005_payment_clinic_id_and_clinic_axis_composite_fks.sql`: `payments.clinic_id` + `fk_payments_clinic_id` / `fk_payments_billing_clinic` / `fk_payments_payment_method_clinic` / `idx_payments_clinic_id`、`fk_pets_clinic_owner`、`uq_medical_records_id_clinic` と medical_records/vaccinations/billings の clinic 軸複合 FK。
-- 旧 `006_payment_method_system_key_match.sql`: `app_private.enforce_payment_method_system_key_match` と `trg_payment_splits_method_system_key_match` / `trg_payments_method_system_key_match`。
-- 旧 `007_owners_clinic_phone_unique.sql`: 部分 unique index `uk_owners_clinic_phone` on `(clinic_id, phone)` where `deleted_at IS NULL AND phone <> ''`。
-
-2026-07-27統合分の論理的な記録（旧ファイル名は履歴識別子、現行所在は全て`001_init.sql`末尾セクション8）:
-
-- 旧 `002_lstep_snapshot_import_clinic_fk.sql`: LSTEP属性snapshotとCSV importのclinic複合FK。
-- 旧 `003_medical_records_appointment_id_index.sql`: 予約紐付きカルテ参照用の非一意部分index。
-- 旧 `004_payment_splits_billing_id_index.sql`: payment splitのbilling単位参照用の非一意index。
-- 旧 `005_exam_reference_ranges_and_clinic_fk.sql`: `exam_type_fields`のclinic複合FKと`exam_reference_ranges`（新規テーブル1件）。
-- 旧 `006_payment_splits_payment_method_clinic_fk.sql`: payment method参照のclinic複合FK。
-- 旧 `007_add_pets_danger_reason.sql`: `pets.danger_reason`。
-- 旧 `008_add_billing_item_vaccination_provenance.sql`: vaccination provenanceとclinic複合FK・index。
-- 旧 `009_add_billing_items_other_reason.sql`: other理由・作成者参照・index。
-
-以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
-
-- **緊急レジ締め区分の追加 (Issue #150 → 001_init.sql に統合)**
-  - `cash_register_closes.period` を `varchar(3)` / `CHECK (period IN ('am', 'pm', 'emg'))` で定義済み。
-- **レガシーEMR準拠の飼主・ペット情報追加 (Issue #158 → 001_init.sql に統合)**
-  - `pets.blood_type` (text, NULL可)、`pets.microchip_number` (text, NULL可)、`owners.dm_preference` (boolean, NULL可) を定義済み。
-- **支払方法の銀行振込追加 (Issue #127 → 001_init.sql に統合)**
-  - `payment_method` ENUM に `'bank_transfer'` を含めて定義済み。
-- **帳票レイアウト設定追加 (Issue #179 → 001_init.sql に統合)**
-  - `clinics` テーブルに `accounting_document_show_logo`、`accounting_document_show_registration_warning`、`accounting_document_show_item_category`、`accounting_document_footer_note` を定義済み。
-- **支払方法安定識別子追加 (Issue #197 → 001_init.sql に統合)**
-  - `payment_methods.system_key` (varchar(50))、部分 UNIQUE INDEX `idx_payment_methods_clinic_system_key`、`create_default_payment_methods` 関数の system_key 対応を定義済み。
-- **帳票セクション設定追加 (Issue #190 → 001_init.sql に統合)**
-  - `clinics` テーブルに `accounting_document_show_clinic_header`、`accounting_document_show_owner_pet_info`、`accounting_document_show_items_table`、`accounting_document_show_payment_summary`、`accounting_document_section_order` を定義済み。
-- **健康診断マスタ投入 (Issue #160 → 003_seed_demo.sql に統合)**
-  - `exam_types` (id 12000-12003) および `exam_type_fields` (id 45-58) を clinic 1 向けに 003_seed_demo.sql 末尾へシード定義済み。
-  - （追記（2026-10-07 監査）: この exam 系健診 seed は [ADR-004](adr/004-checkup-canonical-system.md)（commit `406c6264`）で撤去済み。ID 12000-12003 / 45-58 は既適用環境に残存しうるため**再利用禁止**。上記 2 行は 2026-06-26 統合時点の履歴記録として保持する）
-- **手術処置フラグ追加 (Issue #159 → 001_init.sql に統合)**
-  - `procedures.is_surgery` (BOOLEAN NOT NULL DEFAULT false) と部分インデックス `idx_procedures_clinic_is_surgery` を定義済み。
-
-以下は 2026-07-04 の再統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイル 005〜012 は存在しません）。
-
-- **Dr.Wan / 外部検査連携インポート基盤の追加 (旧 005 → 001_init.sql に統合)**
-  - `lab_import_job_status` / `lab_import_source_type` ENUM、`lab_import_jobs` / `lab_import_events` テーブルを定義済み（Phase 0 scaffold）。統合前と同じく、両テーブルには明示的な RLS ポリシー適用（`apply_rls_policy`）が無い。
-- **検査取り込みバッチ用インデックス追加 (旧 006/007 → 001_init.sql に統合)**
-  - `idx_exam_results_exam_id`、`idx_exams_clinic_exam_type_date` を定義済み。
-- **exams.job_id FK 追加 (旧 008 → 001_init.sql に統合)**
-  - `exams.job_id` (uuid NULL, `ON DELETE SET NULL`) と `idx_exams_clinic_job` を定義済み。
-- **薬量自動計算基盤の追加 (Issue #201 / 旧 009 → 001_init.sql に統合)**
-  - `medicine_calculation_type` / `medicine_dose_basis` / `medicine_rounding_mode` / `medicine_dose_species` ENUM、`medicines` への計算パラメータカラム、`medicine_dose_params` テーブル、`treatments` への計算根拠スナップショットカラムを定義済み。
-- **検査・健診パッケージ化 歯科検診垂直スライス (Issue #211 / 旧 010 → 001_init.sql / 003_seed_demo.sql に統合)**
-  - `checkup_field_type` ENUM、`checkup_type_fields` / `checkup_field_results` テーブルを `001_init.sql` に、歯科検診の暫定 seed（DO ブロック）を `003_seed_demo.sql`（J-12b セクション）に定義済み。
-- **AM 開始時刻の追加 (Issue #215 / 旧 011 → 001_init.sql に統合)**
-  - `clinic_settings.closing_am_start` (time, デフォルト 09:00) を定義済み。
-- **臨床結果テーブルの複合 FK 追加 (BE-refactor R3-7/D13 / 旧 012 → 001_init.sql に統合)**
-  - `checkup_type_fields` に `UNIQUE(id, clinic_id)`、`checkup_field_results` の `checkup_type_field_id` を `(checkup_type_field_id, clinic_id)` 複合 FK（`ON DELETE SET NULL` 列指定）へ置換済み。
-- **健診パッケージ親子テーブルの複合 FK (Issue #211 A6 / 旧 `002_checkup_field_clinic_composite_fk.sql` → 2026-07-17 に 001_init.sql へ統合)**
-  - `checkup_types` に `UNIQUE (id, clinic_id)`（`uq_checkup_types_id_clinic`）を追加し、`checkup_type_fields.checkup_type_id` の単一列 FK を `(checkup_type_id, clinic_id) REFERENCES checkup_types (id, clinic_id) ON DELETE CASCADE`（`fk_checkup_type_fields_type_clinic`）の複合 FK へ置換する内容を `001_init.sql` 末尾（013 セクション）に定義済み。fresh DB では 001 適用で有効。既存 DB（STG/PROD）への反映は USER の `DB_RESET=true` 再適用時。
-
-以下は 2026-07-06 の再統合時点で `001_init.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイル 005 は存在しません）。
-
-- **受付ヘッダー テレメトリ用 checked_in_at 追加 (change-ui.md Phase 2 / 旧 005_add_appointment_checked_in_at.sql → 001_init.sql に統合)**
-  - `appointments.checked_in_at` (timestamptz, NULL可) を定義済み。`updated_at` は autoUpdateTime のため予約編集全般でリセットされ待ち時間算出に流用できず、checked_in ステータス遷移時刻専用カラムとして新設したもの。
-
-以下は 2026-08-20 の統合第8回時点で `001_init.sql` セクション14へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
-
-- **検査会計 billing_items provenance (AE-LAB-6 / 旧 006_billing_item_exam_provenance.sql → 001_init.sql セクション14 に統合)**
-  - `billing_items.exam_id` (bigint NULL): 検査イベント由来の会計明細を識別する lifetime provenance。医院内で一意。
-  - `exams (id, clinic_id)` に対する `UNIQUE (id, clinic_id)` 複合ユニークと`fk_billing_items_exam_clinic` 複合 FK（`ON DELETE RESTRICT`）で医院間紐付けを防止。
-  - `uq_billing_items_exam_lifetime` 部分 unique index（`WHERE exam_id IS NOT NULL`）で同一検査の二重計上を物理的に排除。
-  - 当時の CHECK 名は `chk_billing_items_provenance_clinic_pair`（`num_nonnulls(vaccination_id, exam_id) = 1`）。live は `chk_billing_items_provenance_exclusive`（`<= 1`）。後者は §4.3 2026-09-02。
-  - 会計確認済みカルテのみ検査を請求行として抽出。`exam_types.price` 空値はブロッキング警告。カルテなし接種は会計表示対象外。新規接種はカルテ予防接種タブのみ受け付け。
-
-以下は 2026-08-25 の統合第9回時点で `001_init.sql` セクション15へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
-
-- **負の請求額を許可 (AE-MIG-NEG-1 / 旧 002_allow_negative_billing_amounts.sql → 001_init.sql セクション15 に統合)**
-  - `billings` の `chk_billings_amounts`（`subtotal >= 0 AND tax_total >= 0 AND total_amount >= 0`）を CREATE TABLE から除去。
-  - Jouto KNJO の返品・赤伝は負の請求・入金・split を記録値のまま保持する。fresh DB では非負 CHECK を最初から作らない。
-  - `payments` / `payment_splits` には同型の非負 CHECK は元から無い。`billing_refunds.amount` の `CHECK (amount > 0)` は返金専用行の正値制約として残す。
-
-以下は2026-09-01〜02時点の制約強化の履歴（テーブル数不変。当時は `001_init.sql` へ直接記録）。記録者FKは後続002/003で、担当医・actor系の複合FKは017で単列FKへ置換されているため、次の記述を単独で最終状態とは扱わない（§4.4）。今後の適用済み001編集を許可する方針ではない:
-
-- **見積 pet の clinic 複合 FK (`fk_estimates_pet_clinic`)**
-  - `estimates.pet_id` を単列 `REFERENCES pets(id)` から `(clinic_id, pet_id) REFERENCES pets (clinic_id, id)` へ置換。`ON DELETE SET NULL (pet_id)`。
-  - 参照先は既存 `uq_pets_clinic_id_id UNIQUE (clinic_id, id)`。同じ列順の重複 unique `uq_pets_id_clinic UNIQUE (id, clinic_id)` は追加しない（commit `2af057716` で除去）。
-  - 部分 index `idx_estimates_clinic_pet`（`pet_id IS NOT NULL AND deleted_at IS NULL`）は維持。
-- **検査機器待機の staff clinic 複合 FK (`fk_lab_device_waits_staff_clinic`)**
-  - `(staff_id, clinic_id) REFERENCES staffs (id, clinic_id) ON DELETE RESTRICT`。pet 側 `fk_lab_device_waits_pet_clinic` と対で医院越境を防ぐ。
-- **`lab_devices` の RLS**
-  - 他の lab-device 系 table と同様 `tenant_clinic_id_isolation`（`app_private.has_clinic_access(clinic_id)`）を適用。
-- **予約グラフの clinic 複合 FK（commit `67c16c93c` / `09362636b`）**
-  - `uq_appointments_id_clinic UNIQUE (id, clinic_id)` を参照先に、`fk_medical_records_appointment_clinic` / `fk_billing_items_appointment_clinic` / `fk_appointment_trimming_details_appointment_clinic` / `fk_appointment_trimming_options_appointment_clinic` が `(appointment_id, clinic_id)` を張る。
-  - `fk_appointments_{owner,pet,doctor,line_customer}_clinic` は nullable 列を `ON DELETE SET NULL (col)`。単列 SET NULL FK は DROP し、複合 RESTRICT との二重 ON DELETE を解消。`reservation_type_id` / `created_by` は RESTRICT のまま単列も残す。
-  - `hospitalizations` の cage/doctor も複合 `SET NULL (col)` + 単列 DROP。`medical_records` の doctor/entered_by は staff 複合 FK。
-- **予約あたりアクティブカルテ 1 件**
-  - `uq_medical_records_clinic_appointment_active` on `(clinic_id, appointment_id) WHERE appointment_id IS NOT NULL AND deleted_at IS NULL`。同一ペット同一日 unique ではない（`backend/CLAUDE.md`）。
-- **医師時間帯重複**
-  - `excl_appointments_doctor_timerange`（gist `tstzrange`、cancelled / soft-delete / unassigned doctor 除外）。`uk_appointment_staff_time` は残置。
-- **trigger-copied `clinic_id`**
-  - `treatments.clinic_id` は親 `medical_records` から複製。GORM `Treatment` は `ClinicID` を持たない。`appointment_trimming_options.clinic_id` は親 `appointments` から複製（GORM 非マップ）。`billing_items.clinic_id` は NOT NULL で親 `billings` から複製。
-  - live の provenance CHECK は `chk_billing_items_provenance_exclusive`（`num_nonnulls(vaccination_id, exam_id) <= 1`）。旧 `chk_billing_items_provenance_clinic_pair` は live 制約ではない。
-- **RLS 差し替え**
-  - `payments` / `billing_items` / `treatments` / `appointment_trimming_options` の最終ポリシーは `has_clinic_access(clinic_id)`。`medicine_dose_params` と `medical_record_image_upload_quota` も clinic 直接ポリシー。
-  - RLS は ENABLE のみ（FORCE なし）。テーブル owner 接続では bypass する documented baseline。
-
-### 4.4 現行の追加migration（migration 038 追加時の静的照合）
-
-下表のmigrationを001の後に番号順で適用したDDLが、本書の図・現在の制約説明の基準。テーブル数は **138**（2026-09-29 訂正: 旧見出し「2026-09-22照合」「テーブル数は128のまま」→ `005`〜`013` を表へ追加し、support 2 テーブル新設により総数 130。EMR-236 の `014` で `prescriptions` 除去し 129。2026-10-05 訂正: `021_medical_record_image_deletions.sql` の新設で 129 → 130。2026-10-06: `023_lab_device_mapping_drafts.sql` で 130 → 134。2026-10-10: `024`〜`031` を追加・テーブル数不変、`032_trimming_image_deletions.sql` の新設で 134 → 135）。SQL自体は変更しておらず、稼働DBへの適用状態は未確認。
+下表は統合前の履歴。現在の図・制約説明の基準は `001_init.sql`（001〜038 を統合済み、138テーブル）。下表の内容は 001 内の `consolidated from` マーカーと git 履歴で確認できる。稼働DBへの適用状態は未確認。
 
 | migration | 各migrationの変更（後続で置換あり） | 関係・境界 |
 |:---|:---|:---|
-| [002](../../backend/migrations/002_medical_records_entered_by_staff_fk.sql) | `fk_medical_records_entered_by_clinic` と旧単列FKをDROPし、`fk_medical_records_entered_by`（`entered_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 兼務先でも記録できる記録者FK。002適用時点では担当医の `(doctor_id, clinic_id)` 複合FKを維持し、017で `doctor_id → staffs(id)` の単列FKへ置換 |
-| [003](../../backend/migrations/003_appointments_created_by_staff_fk.sql) | `fk_appointments_created_by_clinic` と旧単列FKをDROPし、`fk_appointments_created_by`（`created_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 予約登録者は担当医とは別。医院の記録権限と過去記録の帰属を区別 |
-| [004](../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql) | `uq_billing_items_treatment_lifetime`：`billing_items(treatment_id) WHERE treatment_id IS NOT NULL` のUNIQUE INDEX | `deleted_at` 条件がないため、論理削除済み明細を含め同一治療参照は最大1件 |
-| [005](../../backend/migrations/005_child_records_version.sql) | `treatments` / `vital_records` / `prescriptions` / `vaccinations` に `version INTEGER NOT NULL DEFAULT 1` を追加 | UAT-R2-EXCLUSIVE-LOCK。子レコードの楽観ロック CAS（`WHERE version = expectedVersion` + 成功時 `version+1`）。`medical_records.version` / `clinical_plans.version`（001）と同型。既存行は DEFAULT 1 でバックフィル |
-| [006](../../backend/migrations/006_accounts_rls_ops_bypass.sql) | `tenant_accounts_isolation` RLS を `app_private.bypass_rls() OR EXISTS (SELECT 1 FROM staffs s WHERE s.account_id = accounts.id AND app_private.has_clinic_access(s.clinic_id))` へ再定義 | 旧 policy は既存 `staffs.account_id` 逆参照を要求し、非 owner role の account INSERT が構造的に不可能だった。ops bypass セッション（`app.bypass_rls`）が accounts を INSERT/SELECT 可能にするため、他の tenant policy と同じ bypass contract へ整合 |
-| [007](../../backend/migrations/007_billings_clinic_owner_scheduled_index.sql) | `idx_billings_clinic_owner_scheduled`：`billings (clinic_id, owner_id, scheduled_date DESC, created_at DESC) WHERE deleted_at IS NULL` 部分index | EMR-201。`GET /api/v1/accountings?owner_id=` のレイテンシ改善。既存 `idx_billings_owner_id` は clinic スコープ・soft-delete・ソート列を含まない単一列 index のため clinic 先頭複合を追加 |
-| [009](../../backend/migrations/009_reconcile_002_master_seed_checksum.sql) | `schema_migrations` の seed bundle `002_master` 記録を現行内容へ reconcile（ガード付き UPDATE） | EMR-213。EMR-71 の `permission_group_rules.csv` 直編集で適用済み DB の checksum ガードが fail-closed になり STG が起動不能になった事故の修復（一回限りの修復例外。正規経路は DB_RESET のみ）。初版 `008` は STG 適用済みのため番号のみ繰上げ（008 欠番の経緯） |
-| [010](../../backend/migrations/010_grant_lab_import_create_to_default_groups.sql) | `lab-import:create` の既定付与を適用済み行へ反映（執行 `t,f,t,f`→`t,t,t,f`・一般 `t,f,f,f`→`t,t,f,f`）+ seed bundle checksum reconcile | EMR-176。009 と同型の修復例外（CSV 直編集に伴う checksum ドリフトを先に解消し bundle チェックを通過させる） |
-| [011](../../backend/migrations/011_care_plan_items_manual_other.sql) | `care_plan_items.other_reason`（`text` NOT NULL DEFAULT `''`）を追加し、`chk_care_plan_item_ref` を再定義 | EMR-179。手入力「その他」行（`category='other'` かつ `btrim(other_reason) <> ''`）は `type=item` で `hospitalization_plan_id` NULL を許容。billing_items の手入力契約と同型。`other_reason` の500文字上限はアプリ層検証で CHECK には含めない |
-| [011](../../backend/migrations/011_support_bug_reports.sql) | `support_bug_reports` テーブル新設 | サポートウィジェットのバグ報告。スクショは FileUploader の key のみ保持し配信は署名URL経由。`clinic_id`/`reporter_staff_id` は RESTRICT FK、合成クリニック teardown の削除順に登録済み |
-| [012](../../backend/migrations/012_pets_name_origin_meeting_story.sql) | `pets.name_origin`（`text` NULL）と `pets.meeting_story`（`text` NULL）を追加 | EMR-174。名前の由来・出逢いのストーリー。NULL=未記録。空・空白のみは API 境界で NULL 正規化。検索対象外のため索引なし |
-| [013](../../backend/migrations/013_support_chat_messages.sql) | `support_chat_messages` テーブル新設 | サポートウィジェットのヘルプチャット履歴（`clinic_id` × `staff_id` の個人スコープ、論理削除）。`clinic_id`/`staff_id` は RESTRICT FK、合成クリニック teardown の削除順に登録済み。任意テキストのため個人情報を含み得る |
-| [014](../../backend/migrations/014_drop_prescriptions.sql) | `prescriptions` テーブル DROP | EMR-236。処方リソースの廃止。薬剤明細は `treatments` が担う |
-| [015](../../backend/migrations/015_search_fold_indexes.sql) | 検索対象列に fold 式（カナ+空白の正規化）GIN trigram index を追加 | 検索述語の index 化。式リテラルは `internal/textsearch` の定数と一致必須 |
-| [016](../../backend/migrations/016_support_bug_reports_plane.sql) | `support_bug_reports` に `plane_issue_id` / `plane_issue_url` / `plane_sync_error`（いずれも `text` NULL）を追加 | バグ報告の Plane ワークアイテム自動起票結果の記録。起票成功時は issue UUID と表示URL、失敗時は同期エラーを保持し管理画面からの手動再送（`POST /support/bug-reports/:id/plane-ticket`）を可能にする。`plane_issue_id IS NULL` 条件付き UPDATE が二重起票のクレーム制御 |
-| [017](../../backend/migrations/017_multiclinic_staff_fk_fix.sql) | 参照先 `staffs.clinic_id`（主所属）と行の `clinic_id` の一致を誤って要求していた複合FKを単列 `staffs(id)` FKへ置換。`appointments.doctor_id` / `hospitalizations.doctor_id` / `medical_records.doctor_id` は `ON DELETE SET NULL`、`cash_register_close_adjustments.actor_id` / `medical_record_image_upload_quota.staff_id` / `lab_device_waits.staff_id` は `ON DELETE RESTRICT` | EMR-114。assignment 経由で兼務先の医院に所属する staff を参照できなかった 23503（「参照先が存在しません」）を解消。医院権限はアプリ層の検証が担う（002/003 と同型の判断） |
-| [018](../../backend/migrations/018_pet_neutered_status.sql) | `pet_neutered_status` ENUM（`'unknown'` / `'not_done'` / `'done'`）を新設し、`pets.neutered_status`（NOT NULL DEFAULT `'unknown'`）を追加。`neutered_date` 非NULL行は `'done'` へ backfill | 避妊・去勢の施術状況を `neutered_date`（日付のみ保持）から独立した状態で保持し、「施術済み・日付不明」と「未施術」を区別。オス去勢・メス避妊を共通 `done` で表現し、ラベル差は表示層が担う |
-| [019](../../backend/migrations/019_drop_checkup_package_import_permission.sql) | `permission_group_rules` から `resource='checkup-package-import'` 行を物理 DELETE | EMR-249。削除済み checkup package import API の default-deny 残存行を除去。`uk_permission_group_rules` は `deleted_at` を含まない一意制約のため、論理削除では行が一意キーを占有し続けることから物理削除とする |
-| [020](../../backend/migrations/020_reconcile_002_master_seed_checksum.sql) | `schema_migrations` の `seeds/002_master` 記録 checksum を、既知旧値の行のみ現行値へ reconcile（ガード付き UPDATE） | EMR-249 後続。CSV 直編集による checksum ドリフトで migrate が fail-closed・コンテナ起動不能となった STG 事故の修復（009 と同型の一回限り例外）。fresh DB では no-op。019 の行削除とセットで実データとの乖離なし |
-| [021](../../backend/migrations/021_medical_record_image_deletions.sql) | `medical_record_image_deletions` 新設（`UNIQUE (clinic_id, image_id)`、RLS `tenant_clinic_id_isolation` 適用、129 → 130）。`medical_record_images` へのFK・`medical_records` からのCASCADEは置かない | 診療画像は行を物理削除するため、この台帳が署名停止と storage 削除再試行の正本。発行済み署名URLは storage 削除失敗時に最大15分残存し、台帳はそれを取り消さない |
-| [022](../../backend/migrations/022_staff_clinic_assignments_capability_configured_at.sql) | `staff_clinic_assignments.capabilities_configured_at`（timestamptz NULL）を追加 | 予約受付可能区分の「明示設定（全部位対応不可の空選択を含む）」と「未設定（junction行ゼロ=既定全部位可）」を区別する書込み経路 marker。backfill は NULL 行のみを対象 |
-| [023](../../backend/migrations/023_lab_device_mapping_drafts.sql) | `lab_device_mapping_drafts` / `lab_device_mapping_draft_items` / `lab_device_mapping_specs` / `lab_device_mapping_generation` を新設（全て clinic 直接 RLS、130 → 134）+ `lab_import_jobs.species`（`''`/`canine`/`feline`）を追加 | EMR-297。1検査結果=1下書きを人が確定し、以後の取り込みは確定マップのみ使用。specs は `UNIQUE (clinic_id, source_type, species, device_item_code)`、source_type/species/value_shape は CHECK。drafts の `UNIQUE (id, clinic_id)` は 024 で `(clinic_id, id)` へ列順変更 |
-| [024](../../backend/migrations/024_lab_device_mapping_drafts_clinic_unique.sql) | `uq_lab_device_mapping_drafts_id_clinic` を `UNIQUE (id, clinic_id)` → `UNIQUE (clinic_id, id)` へ張り直し、子2 FK を `(clinic_id, draft_id)` / `(clinic_id, confirmed_draft_id)` の列順で再定義 | drafts グラフの複合キーを他の複合FKと同型の clinic-first 順へ正規化。`ON DELETE RESTRICT` と参照先テーブルは不変 |
-| [025](../../backend/migrations/025_cages_merged_into_cage_id.sql) | `cages.merged_into_cage_id`（bigint NULL）追加 + `(merged_into_cage_id, clinic_id) → cages (id, clinic_id) ON DELETE RESTRICT` + 部分index `idx_cages_merged_into_cage_id`（`merged_into_cage_id IS NOT NULL AND deleted_at IS NULL`） | EMR-306 ケージ一時連結 Phase 1。連結中の構成ケージが代表ケージを指す自己参照FK（NULL=独立ケージ・代表自身）。代表行の物理削除は構成員参照中は拒否（連結解除は明示操作のみ）。STG未適用の旧 `025`〜`027` を承認により統合した版で、`026`/`027` は欠番 |
-| [028](../../backend/migrations/028_appointments_tentative_status.sql) | `reservation_status` に `'tentative'` 追加 + `appointments.intended_date`（date NULL）+ `appointments.source_medical_record_id`（`→ medical_records(id) ON DELETE SET NULL`） | EMR-308 part1。tentative 予約（次回予定: 日付のみ確定・時間/スロット/担当医未定・枠消費なし・スタッフのみ可視）の基盤。enum 値は追加と同一トランザクションで参照不可のため、値参照DDLは 029 へ分離（007/008 前例） |
-| [029](../../backend/migrations/029_appointments_one_active_tentative_index.sql) | `uq_appointments_one_active_tentative`：`appointments (clinic_id, pet_id) WHERE status='tentative' AND deleted_at IS NULL` の UNIQUE INDEX | EMR-308 part2。（医院, ペット）あたり active tentative は最大1件。非 tentative 行・削除済み行・`pet_id` NULL は競合しない |
-| [030](../../backend/migrations/030_next_visit_recommended_date_to_tentative.sql) | `medical_records.next_visit_recommended_date` を tentative 予約へ backfill 後に DROP + 未移行分は WARNING で報告 | EMR-308 cleanup。次回来院意図の正本をカルテ列から `reservation_route='record_intent'`・`source='manual'` の tentative 予約へ移行（最新の未削除カルテの予定日がJST当日以降で、生存ペット・未削除の飼い主が対象。未削除の予約区分を `general` 優先、次に `is_active DESC, id ASC` で選び、inactive区分も対象となる。未削除の予約区分が0件の医院はスキップして警告）。ファイル内コメントの `(026)` / `by 025` 参照はリナンバー前名残で、現行ファイルは 029 / 028 |
-| [031](../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql) | `appointments_source_medical_record_id_fkey` を `fk_appointments_source_medical_record_clinic`：`(source_medical_record_id, clinic_id) → medical_records (id, clinic_id)` へ置換。`ON DELETE SET NULL (source_medical_record_id)` | 次回予定の元カルテの医院越境をDBでも拒否。NULL参照は許容し、親カルテ削除時は参照列だけをNULLにする。既存の医院越境参照があれば例外でmigrationを中断し、provenanceを自動消去しない。テーブル数不変 |
-| [032](../../backend/migrations/032_trimming_image_deletions.sql) | `trimming_image_deletions` 新設（`PRIMARY KEY (clinic_id, object_key)`、`clinic_id → clinics(id) ON DELETE RESTRICT`、`tenant_clinic_id_isolation` RLS、134 → 135） | トリミング画像のストレージ削除前に削除予約を永続化し、削除後・削除失敗後の同一キー再添付を防ぐ台帳。最初の予約の医院・object key・`actor_staff_id`・`created_at` を保持。soft delete はなく、カルテ画像やその削除台帳への依存も置かない。臨床操作の監査は `audit_logs` が担う |
-| [033](../../backend/migrations/033_lstep_next_visit_sync_retries.sql) | `lstep_next_visit_sync_retries` 新設（`PRIMARY KEY (clinic_id, owner_id)`、`revision BIGSERIAL`、医院・飼主の複合FKは `ON DELETE RESTRICT`、`tenant_clinic_id_isolation` RLS、135 → 136） | 次回来院タグ同期の再試行を永続化する技術的な作業記録。再試行時は現在の予約・同意・LINE紐付けを読み直す |
-| [034](../../backend/migrations/034_lstep_next_visit_cleanup_target.sql) | `lstep_next_visit_sync_retries` に `cleanup_line_user_id VARCHAR(64)` を追加（nullable、非NULL時は `^[A-Za-z0-9_-]{1,64}$` CHECK） | 飼主削除時に確定した LINE 宛先の不変 snapshot。削除済み飼主の remove-only な `next_visit_*` 除去意図を表し、通常の再試行 enqueue はこの列を上書きしない。テーブル数不変 |
-| [035](../../backend/migrations/035_trimming_image_storage_retry.sql) | `trimming_image_deletions` に `storage_deleted_at` / `last_attempt_at`（いずれも timestamptz NULL）を追加し、pending 部分index `idx_trimming_image_deletions_pending`（`storage_deleted_at IS NULL` 条件）を新設 | 画像 key のストレージ削除 retry 台帳拡張。最初の予約時刻（`created_at`）・最終試行時刻（`last_attempt_at`）・storage 削除完了時刻（`storage_deleted_at`）の3点を保持し、完了後も tombstone 行は参照拒否の正本として残る。テーブル数不変 |
-| [036](../../backend/migrations/036_hospitalizations_next_visit.sql) | `hospitalizations.next_visit DATE`（nullable）を追加 | 入院の次回予定日。カレンダー情報のみで予約意図・LSTEP連携を追加しない。テーブル数不変 |
-| [037](../../backend/migrations/037_house_call_item_category.sql) | `item_category` enum に `house_call` を追加（`ADD VALUE IF NOT EXISTS`。テーブル数は不変） | 往診カテゴリを会計・日次帳票へ反映（EMR-269） |
-| [038](../../backend/migrations/038_support_manual_search.sql) | `support_manual_embeddings` / `support_llm_budgets` 新設（136 → 138）。前者は1536次元・1次元配列・task種別・分割版をCHECKし、後者は `(scope, model)` 複合PK | 共有マニュアルの再生成可能なembeddingキャッシュとモデル別quota状態。`clinic_id` 列・臨床データFKは持たず、本文・質問を保存しない。ベクトルの有限値・normはGo境界で検証 |
+| `002` | `fk_medical_records_entered_by_clinic` と旧単列FKをDROPし、`fk_medical_records_entered_by`（`entered_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 兼務先でも記録できる記録者FK。002適用時点では担当医の `(doctor_id, clinic_id)` 複合FKを維持し、017で `doctor_id → staffs(id)` の単列FKへ置換 |
+| `003` | `fk_appointments_created_by_clinic` と旧単列FKをDROPし、`fk_appointments_created_by`（`created_by → staffs(id)`、`ON DELETE RESTRICT`）を追加 | 予約登録者は担当医とは別。医院の記録権限と過去記録の帰属を区別 |
+| `004` | `uq_billing_items_treatment_lifetime`：`billing_items(treatment_id) WHERE treatment_id IS NOT NULL` のUNIQUE INDEX | `deleted_at` 条件がないため、論理削除済み明細を含め同一治療参照は最大1件 |
+| `005` | `treatments` / `vital_records` / `prescriptions` / `vaccinations` に `version INTEGER NOT NULL DEFAULT 1` を追加 | UAT-R2-EXCLUSIVE-LOCK。子レコードの楽観ロック CAS（`WHERE version = expectedVersion` + 成功時 `version+1`）。`medical_records.version` / `clinical_plans.version`（001）と同型。既存行は DEFAULT 1 でバックフィル |
+| `006` | `tenant_accounts_isolation` RLS を `app_private.bypass_rls() OR EXISTS (SELECT 1 FROM staffs s WHERE s.account_id = accounts.id AND app_private.has_clinic_access(s.clinic_id))` へ再定義 | 旧 policy は既存 `staffs.account_id` 逆参照を要求し、非 owner role の account INSERT が構造的に不可能だった。ops bypass セッション（`app.bypass_rls`）が accounts を INSERT/SELECT 可能にするため、他の tenant policy と同じ bypass contract へ整合 |
+| `007` | `idx_billings_clinic_owner_scheduled`：`billings (clinic_id, owner_id, scheduled_date DESC, created_at DESC) WHERE deleted_at IS NULL` 部分index | EMR-201。`GET /api/v1/accountings?owner_id=` のレイテンシ改善。既存 `idx_billings_owner_id` は clinic スコープ・soft-delete・ソート列を含まない単一列 index のため clinic 先頭複合を追加 |
+| `009` | `schema_migrations` の seed bundle `002_master` 記録を現行内容へ reconcile（ガード付き UPDATE） | EMR-213。EMR-71 の `permission_group_rules.csv` 直編集で適用済み DB の checksum ガードが fail-closed になり STG が起動不能になった事故の修復（一回限りの修復例外。正規経路は DB_RESET のみ）。初版 `008` は STG 適用済みのため番号のみ繰上げ（008 欠番の経緯） |
+| `010` | `lab-import:create` の既定付与を適用済み行へ反映（執行 `t,f,t,f`→`t,t,t,f`・一般 `t,f,f,f`→`t,t,f,f`）+ seed bundle checksum reconcile | EMR-176。009 と同型の修復例外（CSV 直編集に伴う checksum ドリフトを先に解消し bundle チェックを通過させる） |
+| `011` | `care_plan_items.other_reason`（`text` NOT NULL DEFAULT `''`）を追加し、`chk_care_plan_item_ref` を再定義 | EMR-179。手入力「その他」行（`category='other'` かつ `btrim(other_reason) <> ''`）は `type=item` で `hospitalization_plan_id` NULL を許容。billing_items の手入力契約と同型。`other_reason` の500文字上限はアプリ層検証で CHECK には含めない |
+| `011` | `support_bug_reports` テーブル新設 | サポートウィジェットのバグ報告。スクショは FileUploader の key のみ保持し配信は署名URL経由。`clinic_id`/`reporter_staff_id` は RESTRICT FK、合成クリニック teardown の削除順に登録済み |
+| `012` | `pets.name_origin`（`text` NULL）と `pets.meeting_story`（`text` NULL）を追加 | EMR-174。名前の由来・出逢いのストーリー。NULL=未記録。空・空白のみは API 境界で NULL 正規化。検索対象外のため索引なし |
+| `013` | `support_chat_messages` テーブル新設 | サポートウィジェットのヘルプチャット履歴（`clinic_id` × `staff_id` の個人スコープ、論理削除）。`clinic_id`/`staff_id` は RESTRICT FK、合成クリニック teardown の削除順に登録済み。任意テキストのため個人情報を含み得る |
+| `014` | `prescriptions` テーブル DROP | EMR-236。処方リソースの廃止。薬剤明細は `treatments` が担う |
+| `015` | 検索対象列に fold 式（カナ+空白の正規化）GIN trigram index を追加 | 検索述語の index 化。式リテラルは `internal/textsearch` の定数と一致必須 |
+| `016` | `support_bug_reports` に `plane_issue_id` / `plane_issue_url` / `plane_sync_error`（いずれも `text` NULL）を追加 | バグ報告の Plane ワークアイテム自動起票結果の記録。起票成功時は issue UUID と表示URL、失敗時は同期エラーを保持し管理画面からの手動再送（`POST /support/bug-reports/:id/plane-ticket`）を可能にする。`plane_issue_id IS NULL` 条件付き UPDATE が二重起票のクレーム制御 |
+| `017` | 参照先 `staffs.clinic_id`（主所属）と行の `clinic_id` の一致を誤って要求していた複合FKを単列 `staffs(id)` FKへ置換。`appointments.doctor_id` / `hospitalizations.doctor_id` / `medical_records.doctor_id` は `ON DELETE SET NULL`、`cash_register_close_adjustments.actor_id` / `medical_record_image_upload_quota.staff_id` / `lab_device_waits.staff_id` は `ON DELETE RESTRICT` | EMR-114。assignment 経由で兼務先の医院に所属する staff を参照できなかった 23503（「参照先が存在しません」）を解消。医院権限はアプリ層の検証が担う（002/003 と同型の判断） |
+| `018` | `pet_neutered_status` ENUM（`'unknown'` / `'not_done'` / `'done'`）を新設し、`pets.neutered_status`（NOT NULL DEFAULT `'unknown'`）を追加。`neutered_date` 非NULL行は `'done'` へ backfill | 避妊・去勢の施術状況を `neutered_date`（日付のみ保持）から独立した状態で保持し、「施術済み・日付不明」と「未施術」を区別。オス去勢・メス避妊を共通 `done` で表現し、ラベル差は表示層が担う |
+| `019` | `permission_group_rules` から `resource='checkup-package-import'` 行を物理 DELETE | EMR-249。削除済み checkup package import API の default-deny 残存行を除去。`uk_permission_group_rules` は `deleted_at` を含まない一意制約のため、論理削除では行が一意キーを占有し続けることから物理削除とする |
+| `020` | `schema_migrations` の `seeds/002_master` 記録 checksum を、既知旧値の行のみ現行値へ reconcile（ガード付き UPDATE） | EMR-249 後続。CSV 直編集による checksum ドリフトで migrate が fail-closed・コンテナ起動不能となった STG 事故の修復（009 と同型の一回限り例外）。fresh DB では no-op。019 の行削除とセットで実データとの乖離なし |
+| `021` | `medical_record_image_deletions` 新設（`UNIQUE (clinic_id, image_id)`、RLS `tenant_clinic_id_isolation` 適用、129 → 130）。`medical_record_images` へのFK・`medical_records` からのCASCADEは置かない | 診療画像は行を物理削除するため、この台帳が署名停止と storage 削除再試行の正本。発行済み署名URLは storage 削除失敗時に最大15分残存し、台帳はそれを取り消さない |
+| `022` | `staff_clinic_assignments.capabilities_configured_at`（timestamptz NULL）を追加 | 予約受付可能区分の「明示設定（全部位対応不可の空選択を含む）」と「未設定（junction行ゼロ=既定全部位可）」を区別する書込み経路 marker。backfill は NULL 行のみを対象 |
+| `023` | `lab_device_mapping_drafts` / `lab_device_mapping_draft_items` / `lab_device_mapping_specs` / `lab_device_mapping_generation` を新設（全て clinic 直接 RLS、130 → 134）+ `lab_import_jobs.species`（`''`/`canine`/`feline`）を追加 | EMR-297。1検査結果=1下書きを人が確定し、以後の取り込みは確定マップのみ使用。specs は `UNIQUE (clinic_id, source_type, species, device_item_code)`、source_type/species/value_shape は CHECK。drafts の `UNIQUE (id, clinic_id)` は 024 で `(clinic_id, id)` へ列順変更 |
+| `024` | `uq_lab_device_mapping_drafts_id_clinic` を `UNIQUE (id, clinic_id)` → `UNIQUE (clinic_id, id)` へ張り直し、子2 FK を `(clinic_id, draft_id)` / `(clinic_id, confirmed_draft_id)` の列順で再定義 | drafts グラフの複合キーを他の複合FKと同型の clinic-first 順へ正規化。`ON DELETE RESTRICT` と参照先テーブルは不変 |
+| `025` | `cages.merged_into_cage_id`（bigint NULL）追加 + `(merged_into_cage_id, clinic_id) → cages (id, clinic_id) ON DELETE RESTRICT` + 部分index `idx_cages_merged_into_cage_id`（`merged_into_cage_id IS NOT NULL AND deleted_at IS NULL`） | EMR-306 ケージ一時連結 Phase 1。連結中の構成ケージが代表ケージを指す自己参照FK（NULL=独立ケージ・代表自身）。代表行の物理削除は構成員参照中は拒否（連結解除は明示操作のみ）。STG未適用の旧 `025`〜`027` を承認により統合した版で、`026`/`027` は欠番 |
+| `028` | `reservation_status` に `'tentative'` 追加 + `appointments.intended_date`（date NULL）+ `appointments.source_medical_record_id`（`→ medical_records(id) ON DELETE SET NULL`） | EMR-308 part1。tentative 予約（次回予定: 日付のみ確定・時間/スロット/担当医未定・枠消費なし・スタッフのみ可視）の基盤。enum 値は追加と同一トランザクションで参照不可のため、値参照DDLは 029 へ分離（007/008 前例） |
+| `029` | `uq_appointments_one_active_tentative`：`appointments (clinic_id, pet_id) WHERE status='tentative' AND deleted_at IS NULL` の UNIQUE INDEX | EMR-308 part2。（医院, ペット）あたり active tentative は最大1件。非 tentative 行・削除済み行・`pet_id` NULL は競合しない |
+| `030` | `medical_records.next_visit_recommended_date` を tentative 予約へ backfill 後に DROP + 未移行分は WARNING で報告 | EMR-308 cleanup。次回来院意図の正本をカルテ列から `reservation_route='record_intent'`・`source='manual'` の tentative 予約へ移行（最新の未削除カルテの予定日がJST当日以降で、生存ペット・未削除の飼い主が対象。未削除の予約区分を `general` 優先、次に `is_active DESC, id ASC` で選び、inactive区分も対象となる。未削除の予約区分が0件の医院はスキップして警告）。ファイル内コメントの `(026)` / `by 025` 参照はリナンバー前名残で、現行ファイルは 029 / 028 |
+| `031` | `appointments_source_medical_record_id_fkey` を `fk_appointments_source_medical_record_clinic`：`(source_medical_record_id, clinic_id) → medical_records (id, clinic_id)` へ置換。`ON DELETE SET NULL (source_medical_record_id)` | 次回予定の元カルテの医院越境をDBでも拒否。NULL参照は許容し、親カルテ削除時は参照列だけをNULLにする。既存の医院越境参照があれば例外でmigrationを中断し、provenanceを自動消去しない。テーブル数不変 |
+| `032` | `trimming_image_deletions` 新設（`PRIMARY KEY (clinic_id, object_key)`、`clinic_id → clinics(id) ON DELETE RESTRICT`、`tenant_clinic_id_isolation` RLS、134 → 135） | トリミング画像のストレージ削除前に削除予約を永続化し、削除後・削除失敗後の同一キー再添付を防ぐ台帳。最初の予約の医院・object key・`actor_staff_id`・`created_at` を保持。soft delete はなく、カルテ画像やその削除台帳への依存も置かない。臨床操作の監査は `audit_logs` が担う |
+| `033` | `lstep_next_visit_sync_retries` 新設（`PRIMARY KEY (clinic_id, owner_id)`、`revision BIGSERIAL`、医院・飼主の複合FKは `ON DELETE RESTRICT`、`tenant_clinic_id_isolation` RLS、135 → 136） | 次回来院タグ同期の再試行を永続化する技術的な作業記録。再試行時は現在の予約・同意・LINE紐付けを読み直す |
+| `034` | `lstep_next_visit_sync_retries` に `cleanup_line_user_id VARCHAR(64)` を追加（nullable、非NULL時は `^[A-Za-z0-9_-]{1,64}$` CHECK） | 飼主削除時に確定した LINE 宛先の不変 snapshot。削除済み飼主の remove-only な `next_visit_*` 除去意図を表し、通常の再試行 enqueue はこの列を上書きしない。テーブル数不変 |
+| `035` | `trimming_image_deletions` に `storage_deleted_at` / `last_attempt_at`（いずれも timestamptz NULL）を追加し、pending 部分index `idx_trimming_image_deletions_pending`（`storage_deleted_at IS NULL` 条件）を新設 | 画像 key のストレージ削除 retry 台帳拡張。最初の予約時刻（`created_at`）・最終試行時刻（`last_attempt_at`）・storage 削除完了時刻（`storage_deleted_at`）の3点を保持し、完了後も tombstone 行は参照拒否の正本として残る。テーブル数不変 |
+| `036` | `hospitalizations.next_visit DATE`（nullable）を追加 | 入院の次回予定日。カレンダー情報のみで予約意図・LSTEP連携を追加しない。テーブル数不変 |
+| `037` | `item_category` enum に `house_call` を追加（`ADD VALUE IF NOT EXISTS`。テーブル数は不変） | 往診カテゴリを会計・日次帳票へ反映（EMR-269） |
+| `038` | `support_manual_embeddings` / `support_llm_budgets` 新設（136 → 138）。前者は1536次元・1次元配列・task種別・分割版をCHECKし、後者は `(scope, model)` 複合PK | 共有マニュアルの再生成可能なembeddingキャッシュとモデル別quota状態。`clinic_id` 列・臨床データFKは持たず、本文・質問を保存しない。ベクトルの有限値・normはGo境界で検証 |
 
 - **記録者の権限**: 単列FKへの変更は医院境界の撤廃ではない。[カルテ記録者ガード](../../backend/internal/medicalrecord/medical_record_entered_by_actor.go) と [予約登録者ガード](../../backend/internal/reservation/reservation_created_by.go) が、作成transaction内で有効なスタッフと医院所属、または確認済みのシステム管理者権限を検証する。FKは記録者の実在・物理削除制限を保持し、現在の操作権限はアプリが別に検証する。
 - **治療明細の一意性**: 001の `idx_billing_items_treatment_id` はactive行検索用の非一意index。二重参照を防ぐのは004のlifetime uniqueであり、単なる検索indexや画面上のロックではない。既存の `treatment_id → treatments(id) ON DELETE SET NULL` は変更していない。
 - **provenance排他の範囲**: `chk_billing_items_provenance_exclusive` は `vaccination_id` と `exam_id` の同時設定だけを禁止する。`treatment_id` を含む3列全体の排他CHECKがあるとは扱わない。
-- **migration 番号の重複**: `011` は `011_care_plan_items_manual_other.sql` と `011_support_bug_reports.sql` の2ファイルに割り当て済み（`schema_migrations` はファイル名キー・実行順はファイル名ソートのため動作上不整合にならない。コミット済みファイルはリネームしない）。`037` は2026-10-16に並行採番で衝突し、2026-10-18に未適用だった `037_support_manual_search.sql` を `038_support_manual_search.sql` に改名した（`backend/migrations/CLAUDE.md` の記録を参照）。次に追加する migration の番号は、実装時に直下DDL inventoryを再確認して未使用の次番号を選ぶ（本書は `038` までを記録し、現時点の次候補は `039`。`008`・`026`・`027` の欠番は埋めない）。
+- **migration 番号**: 2026-10-19 の統合後、直下 DDL の顔ぶれは `ls backend/migrations/*.sql` で導出する。次の新規 migration は `002` から採番する。`011` の重複と `037`/`038` のリネームは統合前の履歴であり、現行ファイルには存在しない。`008`・`026`・`027` の欠番も履歴。
 - **適用・検証**: 本書更新ではDB操作をしていない。migrationを追加する更新を取り込んだ開発者は対象DBの適用状態を確認し、必要な `make migrate` をユーザー操作で実行する。既存データの制約違反を自動削除で解消したり、適用済みSQLを書き換えたりしない。STG/本番は [運用TODOの適用確認](../work/plane/plane-md-migration-20260923-receipt.md) と環境別承認に従う。
 
 ## 5. 未確定事項（分類に関する注記）
