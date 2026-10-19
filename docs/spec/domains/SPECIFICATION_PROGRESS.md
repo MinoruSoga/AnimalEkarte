@@ -54,9 +54,10 @@ Lステップ・DM、年間ランキング・犬種集計、CPM人数一覧等�
 
 最新直接決定はLibrary文書第6章U1〜U9を参照。Slack S1は5/28 13:32 Kentaro Kuroki、S2は6/3 11:02 八王子病院（江添）、11:07 Kentaro Kuroki返信。選択肢はS2の7項目表とローカルSlack原文 noah-カルテ開発_曽我-export.txt の6/3 11:02投稿（135〜180行）を照合して一致、コピー履歴はB3・B4、単価と理由はB6・B7、証明書はB8・S3・L1を対応づける。投稿個別URLは資料にないため推測しない。
 
-- Backlog：アクセス制限された社内原資料。行・セル位置などの参照情報は本リポジトリに記録しない。
-- 会議記録（2026-10-13、2026-10-14）：アクセス制限された社内原資料。文書URL・識別子・資料内容の詳細は本リポジトリに記録しない。
-- 旧帳票：アクセス制限された社内原資料。文書URL・識別子・帳票名・セル位置は本リポジトリに記録しない。
+- [Backlog](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit)：Phase1 F19/G19、F23/G23、G30、G35、G45、G55、F90/G90、F101/G101、Phase2 G4/G5（Library B1〜B8）。
+- [10/13会議](https://docs.google.com/document/d/1qqHQwlClmToAgJE0YI7hwu3P97PHZGHAg6a8KLaQXAs)：問診統合、用量表示・単価、カード確認と会計待ち、決済バグ（M1）。
+- [10/14会議](https://docs.google.com/document/d/1UnyGdGyIU8tSZnwRrAXZAxXBk61YrShCH2Eqaz7GoaU)：他院既存飼主重複停止と医院初期値（M2）。
+- [旧帳票](https://docs.google.com/spreadsheets/d/1eWny3EO15Fc6JeN8A97zbVrOPkC9LAFV/edit)：操作マニュアル#3.xls、現金受払B162〜B220（L1）。
 
 本差分は上記Library全文と既存の関連文書の照合であり、各外部原資料の最新版・全Slack返信を再取得したものではない。全23領域・全条文・原台帳79件の網羅再監査、動画全フレーム、微小画像全桁、薬用量欠頁や健診未回収資料の解消は主張しない。DBバックアップ4件・recording (1).zipは対象外・未読を維持する。初回反映当時はコード・API YAML・DB・設定・Plane・オントロジー未変更、commit／push／PR作成更新／mergeなしという範囲であった。後続のontology構築・文書公開は冒頭の現在段階へ区別し、コード・DB等の実装変更やmergeを伴った意味にしない。実装適合・実機・配備・移行・臨床値承認・法令適合の合格は未確認。今回の追加受入条件は実行結果ではない。
 
