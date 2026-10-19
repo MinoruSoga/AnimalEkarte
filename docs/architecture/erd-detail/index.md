@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **1ファイル** から **138テーブル・1651カラム・323外部キー** を静的に導出しています。
+マイグレーション **1ファイル** から **138テーブル・1655カラム・323外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -51,7 +51,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [checkup_field_results](checkup_field_results.md) | 18 | 3 |
 | [checkup_package_import_receipts](checkup_package_import_receipts.md) | 12 | 2 |
 | [checkup_type_fields](checkup_type_fields.md) | 16 | 2 |
-| [checkup_types](checkup_types.md) | 15 | 2 |
+| [checkup_types](checkup_types.md) | 16 | 2 |
 | [checkups](checkups.md) | 12 | 5 |
 | [chief_complaint_types](chief_complaint_types.md) | 9 | 1 |
 | [clinic_holidays](clinic_holidays.md) | 6 | 1 |
@@ -61,7 +61,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [clinics](clinics.md) | 26 | 1 |
 | [closing_special_periods](closing_special_periods.md) | 9 | 1 |
 | [companies](companies.md) | 14 | 0 |
-| [consultations](consultations.md) | 15 | 2 |
+| [consultations](consultations.md) | 16 | 2 |
 | [daily_records](daily_records.md) | 6 | 2 |
 | [diagnosis_names](diagnosis_names.md) | 10 | 2 |
 | [diagnosis_types](diagnosis_types.md) | 9 | 1 |
@@ -137,7 +137,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [pet_identity_groups](pet_identity_groups.md) | 8 | 2 |
 | [pet_owners](pet_owners.md) | 7 | 3 |
 | [pets](pets.md) | 34 | 5 |
-| [procedures](procedures.md) | 16 | 2 |
+| [procedures](procedures.md) | 17 | 2 |
 | [reservation_type_available_slots](reservation_type_available_slots.md) | 10 | 2 |
 | [reservation_type_groups](reservation_type_groups.md) | 9 | 1 |
 | [reservation_type_occupations](reservation_type_occupations.md) | 5 | 3 |
@@ -166,16 +166,16 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [trimming_image_deletions](trimming_image_deletions.md) | 6 | 1 |
 | [trimming_options](trimming_options.md) | 12 | 1 |
 | [vaccinations](vaccinations.md) | 19 | 7 |
-| [vaccines](vaccines.md) | 14 | 3 |
+| [vaccines](vaccines.md) | 15 | 3 |
 | [vital_records](vital_records.md) | 17 | 5 |
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `e700fa8b094d1e18c6749fcba83234c3965592f14706ec551f87cf6bfd4c750c`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `db5bec99f01600b6d635c960f84c45d8bd0676cc3b9172b0f1ff6b9e11a51225`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

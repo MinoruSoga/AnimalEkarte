@@ -7588,3 +7588,25 @@ CREATE TABLE IF NOT EXISTS support_llm_budgets (
     next_allowed_at  timestamptz NOT NULL,
     PRIMARY KEY (scope, model)
 );
+
+-- ============================================================
+-- EMR-446: item insurance storage (2026-10-19 user-authorized 001 edit)
+-- FR-accounting-item-insurance-setting: keep legacy missing values distinct.
+-- NULL = not explicitly saved; true = non-insurance; false = insurance eligible
+-- (item setting only, not patient eligibility or guaranteed coverage).
+-- No DEFAULT or backfill: new-entry non-insurance defaults belong to the
+-- corresponding API command; old writers may continue to omit this column.
+-- Existing medicines/exam_types and all billing snapshots remain unchanged.
+-- ============================================================
+
+ALTER TABLE consultations ADD COLUMN is_non_insurance BOOLEAN NULL;
+COMMENT ON COLUMN consultations.is_non_insurance IS 'Item insurance setting: NULL=not explicitly saved, true=non-insurance, false=insurance eligible; not patient coverage';
+
+ALTER TABLE procedures ADD COLUMN is_non_insurance BOOLEAN NULL;
+COMMENT ON COLUMN procedures.is_non_insurance IS 'Item insurance setting: NULL=not explicitly saved, true=non-insurance, false=insurance eligible; not patient coverage';
+
+ALTER TABLE vaccines ADD COLUMN is_non_insurance BOOLEAN NULL;
+COMMENT ON COLUMN vaccines.is_non_insurance IS 'Item insurance setting: NULL=not explicitly saved, true=non-insurance, false=insurance eligible; not patient coverage';
+
+ALTER TABLE checkup_types ADD COLUMN is_non_insurance BOOLEAN NULL;
+COMMENT ON COLUMN checkup_types.is_non_insurance IS 'Item insurance setting: NULL=not explicitly saved, true=non-insurance, false=insurance eligible; not patient coverage';

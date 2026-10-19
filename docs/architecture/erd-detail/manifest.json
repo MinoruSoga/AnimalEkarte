@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "e700fa8b094d1e18c6749fcba83234c3965592f14706ec551f87cf6bfd4c750c",
+  "source_digest": "db5bec99f01600b6d635c960f84c45d8bd0676cc3b9172b0f1ff6b9e11a51225",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,13 +18,13 @@
   ],
   "counts": {
     "tables": 138,
-    "columns": 1651,
+    "columns": 1655,
     "foreign_keys": 323
   },
   "migrations": [
     {
       "name": "001_init.sql",
-      "sha256": "8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e"
+      "sha256": "1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac"
     }
   ],
   "reviewed_do_blocks": [

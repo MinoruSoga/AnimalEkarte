@@ -27,6 +27,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:942](../../../backend/migrations/001_init.sql#L942) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:943](../../../backend/migrations/001_init.sql#L943) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:944](../../../backend/migrations/001_init.sql#L944) |
+| `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7605](../../../backend/migrations/001_init.sql#L7605) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,6 +56,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        BOOLEAN is_non_insurance
     }
     clinics {
         BIGSERIAL id PK

@@ -15,6 +15,18 @@
 
 ---
 
+## EMR-446 保険設定の保存subset（2026-10-19）
+
+今回の本人指示により、統一 `backend/migrations/001_init.sql` を編集する。上記およびmigration規約の通常の増分方針に対する今回範囲の例外であり、実DB適用・reset・再構築は実行していない。
+
+[品目別保険設定FR/AC](../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)に対応し、`consultations`・`procedures`・`vaccines`・`checkup_types`へ `is_non_insurance BOOLEAN NULL` を追加した。NULLは未保存・旧欠落、trueは対象外、falseは品目側の対象設定。患者の資格や補償保証ではない。DB既定値・一括補完は置かず、新規登録の対象外初期値は対応APIが明示保存する。旧writerの未指定を明示値へ変換しない。
+
+テーブル数138、PK/FK/unique/index/clinic/RLS・主要関係は不変。既存の薬剤・検査設定と会計snapshotも不変。現行Go model/request/responseは追加4列を未接続で、API/UIの往復保存・権限/監査/競合/結果照会は別担当の縦割り受入が必要。列追加だけで利用開始可能とはしない。4表は現行002_masterの12表に含まれず、同bundleのCSV列構成は変わらない。旧dump/隔離handoffへの適合やfresh DB適用は未検証。
+
+001のchecksumは変更される。直前の統合baselineを持つDBも既存checksum guardで停止するため、checksumを書き換える修復や自動適用をしない。EMR443との対象revision・保持/復元・seed・適用窓の調整後、承認済みoperatorの検証が必要。
+
+---
+
 ## 1. データモデルの全体像 (全 138 テーブル)
 
 本システムは、臨床・経営・外部連携を支える 138 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。

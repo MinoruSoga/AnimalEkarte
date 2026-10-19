@@ -102,6 +102,14 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 
 `backend-deploy.yml`に`db_reset`入力はない。`POST /_internal/migrate`は`DB_RESET`をContainer execへ渡さない（`backend/worker/index.ts`）。したがってGitHub workflow dispatchやWorker migrateは**reset経路ではない**。通常deployのskip migrateと混同しない。
 
+### 6.0 実行元revisionとmigrationマウントの固定
+
+再構築前に、operatorが**承認された完全なcommit SHA**をrun sheetへ記録し、そのSHAのクリーンな専用checkoutを実行元にする。観測時点の最新mainや未承認headを採用承認へ読み替えない。`git rev-parse HEAD`と`git status --porcelain`で一致・変更なしを確認し、不一致または未commit変更があれば停止する。未公開のEMR-446等の作業worktree・patchはこの実行元へ混ぜない。
+
+Composeのprojectとbackend container ID、ホスト側backendの絶対path、container側`/app`への実際のbind mount元をnames/pathのみで照合してrun sheetへ記録する。`/app/migrations`と`cmd/migrate`は同じ承認済みcheckout由来でなければならない。既存containerが別checkoutをmountしている場合はそのcontainerで実行しない。secret値や全environmentを検査出力へ出さない。最初の適用からrestore後の確認再実行まで同じrevision・mount元・配備artifact対応を維持し、途中のpull・checkout切替・ファイル編集を行わない。
+
+`DB_RESET=true`は初回の承認済みresetにだけ使う。restore後のlogin seed更新・確認・再試行を含む通常の再実行では、exec引数で**`-e DB_RESET=false`を明示**して`cmd/migrate`を実行する。unsetや呼出元の既定値に依存せず、初回resetコマンドをそのまま再利用しない。確認再実行に`Schema reset completed`が出た場合は停止し、保持データを再度上書きする再実行を重ねずoperatorへ報告する。coverage `missing=0`だけで承認revisionの使用を証明したことにはしない。
+
 ### 6.1 承認済み STG 再構築の実行順
 
 対象はPlanetScale Postgres `animalekarte-stg` / branch `main`（org `noah-animalekarte`）。advisory lockのため直結する。Hyperdriveと`pscale connect`は使わない。`pscale role reset-default`でapp `postgres`ロールのパスワードを回さない。credentialをlog/file/chatへ残さない。
