@@ -1,0 +1,34 @@
+{
+  "baseline": "7f164f8a71baf5bfb23207ddce5b3049939e81a3",
+  "changed_file_count": 124,
+  "production_model_files": 97,
+  "existing_documentation_files": 17,
+  "report_files": 10,
+  "local_links_checked": 267,
+  "missing_targets": [],
+  "static_checks": 30020,
+  "static_errors": 0,
+  "gorm_parse_errors": 0,
+  "erd_detail_check": "PASS 241 tables, 243 generated files; updated only stale index/manifest hashes",
+  "migration_sql_changes": [],
+  "dependency_definition_changes": [],
+  "other_application_layer_changes": [],
+  "test_file_changes": [],
+  "go_vet_production_models": "PASS; exact fixed versions, no replacement, no test files",
+  "exact_dependency_build": "PASS; official fixed modules downloaded, final build network none",
+  "model_static_evidence_sha256": "0c67957a827ba36c96859d86fcdc5189cd69d18262358e637cb913e039f5d557",
+  "go_build_models_exact_versions": "PASS; no replacement",
+  "go_vet_model_package": "FAIL; existing accounting tests not adapted to changed ExactNumeric fields; tests not executed",
+  "independent_review": {
+    "Standards": {
+      "findings": 1,
+      "worst": "P2",
+      "resolved_and_rereviewed": 1
+    },
+    "Spec": {
+      "findings": 2,
+      "worst": "P2",
+      "resolved_and_rereviewed": 2
+    }
+  }
+}

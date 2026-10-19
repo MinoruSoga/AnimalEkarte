@@ -134,7 +134,7 @@ AC prefixはAC-hospitalization-。本文のFR8件／AC32件を扱う。D01の継
 
 [業務目標・3追加AC](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)に従う。限定コード読取（基準 `14100df845e14813f99b02aad0b38f589b2f26a4`）では、`cage_repository.go`の占有集合は同院・未削除admitted/reservedで、日付重なり条件を持たない。`hospitalization_service.go`のvalidateCageAssignmentGuardは構成員422、連結グループ占有409、自己占有除外を持つが、未連結ケージはlen(group)<=1で占有検査を行わない。この既存差を「全ケージの重複拒否実装済み」と説明しない。
 
-候補readは既存のケージ候補参照認可・医院scopeで、ケージID/連結関係/空き既知または不明と判定contextを返すadapter案とする。連結ピッカー専用`master-hospitalization:edit`のoccupancy APIを登録フォームへ無条件転用し、新たな管理者権限を登録条件にしない。全ページ/表示filter外を含む占有集合と対象医院/編集対象refを対応し、患者名等の不要な占有明細を公開しない。新API名・DTO・grant・DDLはこの文書で実装しない。
+候補readはEMR-461の本人承認により、同院の入院作成／編集権限で必要なケージIDだけを返す最小readへ接続する。患者情報を返さず、内部の連結関係／自己除外と空き判定contextを外部公開項目へ無条件転用しない。具体DTOは未選定。連結ピッカー専用`master-hospitalization:edit`のoccupancy APIを登録フォームへ無条件転用し、新たな管理者権限を登録条件にしない。全ページ/表示filter外を含む占有集合と対象医院/編集対象refを対応し、患者名等の不要な占有明細を公開しない。新API名・DTO・grant・DDLはこの文書で実装しない。
 
 自己占有除外は編集対象入院IDに対応する占有1件だけを根拠付きで除外し、同ケージ/グループに別滞在があれば占有を残す。占有ケージID集合だけから「自分以外なし」と判断せず、対象別の照合能力をreaderへ持たせる案とする。
 

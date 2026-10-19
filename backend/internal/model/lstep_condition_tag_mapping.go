@@ -1,14 +1,16 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type LstepConditionTagMapping struct {
-	ID            uint64    `gorm:"primaryKey;autoIncrement"       json:"id"`
-	ConditionCode string    `gorm:"column:condition_code;not null" json:"condition_code"`
-	TagName       string    `gorm:"column:tag_name;not null"       json:"tag_name"`
-	Description   *string   `gorm:"column:description"             json:"description,omitempty"`
-	CreatedAt     time.Time `gorm:"autoCreateTime"                 json:"created_at"`
-	UpdatedAt     time.Time `gorm:"autoUpdateTime"                 json:"updated_at"`
+	ID            uint64    `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ConditionCode string    `gorm:"column:condition_code;type:varchar(50);not null" json:"condition_code"`
+	TagName       string    `gorm:"column:tag_name;type:varchar(100);not null" json:"tag_name"`
+	Description   *string   `gorm:"column:description;type:text" json:"description,omitempty"`
+	CreatedAt     time.Time `gorm:"column:created_at;type:timestamptz;not null;default:NOW();autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;type:timestamptz;not null;default:NOW();autoUpdateTime" json:"updated_at"`
 }
 
 func (LstepConditionTagMapping) TableName() string { return "lstep_condition_tag_mappings" }

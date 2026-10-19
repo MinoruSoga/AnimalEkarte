@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "65550a5851fddaf1f64e8056708c43aa947d7e7d5a56ff62a5e9412bbea931da",
+  "source_digest": "9e697c24d2800b37777557164ed3b2394f4f005bfc56c2689e57c6d58652e42b",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -24,7 +24,7 @@
   "migrations": [
     {
       "name": "001_init.sql",
-      "sha256": "ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262"
+      "sha256": "2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0"
     }
   ],
   "reviewed_do_blocks": [

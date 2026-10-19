@@ -523,3 +523,9 @@ stateDiagram-v2
 | AC-medical-records-summary-hidden | 来院の要約保存を設計・読戻し | 来院単位で診療記録と分離、非表示、全文／手動フォームなし、自動上書きなし | 保存契約・画面確認、未実施 |
 | AC-medical-records-dose-three-values | 薬剤行と詳細を開く | 1回量・用法・処方総量を常時区別し根拠は詳細。新テンプレート・総量計算追加なし | 既決薬量安全ACも確認、未実施 |
 | AC-medical-records-priced-line-edit | 権限あり／なし、実施前後の価格入り4種明細 | 権限内で単価変更、通常理由任意、変更者・日時・前後値保存、マスタ不変 | 4種・境界と必要理由の例外確認、未実施 |
+
+## EMR-368／452の確定範囲への接続
+
+最初の実入力者／最終更新者は[カルテ本体の保存時氏名契約とAC](pages/medical-record-form.md#medical-record-main-author-name-display)へ従う。正常保存時の氏名とIDを保持し、改名で保存済み名を追従させず、旧欠落を現在名で埋めない。担当医・受付者・空カルテ作成者との区別、監査・同時保存保護は継続する。
+
+[EMR-452](https://app.plane.so/baritechllc/browse/EMR-452/)の本人回答により、飼主原文の独立reader EMR-477は今回phaseの対象。EMR-476の予約／pet結合とEMR-472の認可へ依存し、原文・版・回答日時を独立に参照する。スタッフによる原文編集・コピー・クリア・Undoへ取り込まない。音声入力／外部連携EMR-320・322全体はPhase2のままであり、readerの採用を理由に前倒ししない。保存項目の存在をreader・認可・画面の実装済みとはしない。

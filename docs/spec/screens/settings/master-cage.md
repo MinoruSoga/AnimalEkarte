@@ -99,9 +99,20 @@ flowchart TB
 
 ## 登録フォームの空き候補との接続（10/19）
 
-[本人承認の新規選択制限](../../domains/hospitalization/lifecycle.md#cage-available-selection-20261019)は入院/ホテル登録フォームに適用する。マスタの連結/解除条件、代表/構成員、占有状態、自己占有除外、非占有履歴の既存契約を変更しない。フォーム用候補readと本書のmaster-hospitalization:editによる連結ピッカーreadを区別する。現guardの未連結ケージ占有検査の不足は[技術差分](../../../design/domains/hospitalization/technical-spec.md#cage-availability-read-20261019)へ分離し、ここから期間別再利用や全経路実装済みを推定しない。
+[本人承認の新規選択制限](../../domains/hospitalization/lifecycle.md#cage-available-selection-20261019)は入院/ホテル登録フォームに適用する。マスタの連結/解除条件、代表/構成員、占有状態、自己占有除外、非占有履歴の既存契約を変更しない。[EMR-461](https://app.plane.so/baritechllc/browse/EMR-461/)の本人回答により、同院の入院作成／編集権限スタッフは空き確認に必要なケージIDだけを読める。フォーム用のこの最小readと、本書の現実装master-hospitalization:editによる連結ピッカーreadを区別する。現guardの未連結ケージ占有検査の不足は[技術差分](../../../design/domains/hospitalization/technical-spec.md#cage-availability-read-20261019)へ分離し、ここから期間別再利用や全経路実装済みを推定しない。
 
 <a id="cross-ui-search-20261019"></a>
 ## 10/19後続承認：同種操作・検索ボタン方式
 
 本画面の既存キーワード欄は[適用台帳 M11](../../shared/interaction-scope.md)と[共通FR/8AC](../../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。入力中/適用済みを分け、入力/待機/消去だけでは検索せず検索ボタンで適用。既存の明示リセット、独立filter、詳細復帰、認可・検索対象・取得上限/ページ内制限を保持し、全件検索や一律の保存方式へ変えない。取得中/0件/失敗と遅延応答を分け、検索で選択/保存/コピー/送信を確定しない。旧defer/debounceの記載は入力即適用の目標に用いず、適用後の描画最適化と区別する。[S14手順](../../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)を各対象IDで実施する受入条件とし、実装適合・実機は未確認。
+
+## EMR-461：空き確認の最小read権限
+
+同院の入院作成／編集権限を持つスタッフへ、空き確認に必要なケージIDだけのreadを認める。患者名・診療情報・他院情報は含めず、マスタ編集・連結／解除権限を付与しない。既存API表は現実装の観察であり、この承認によるroute/grant変更済みとは扱わない。
+
+| 条件ID | 操作 | 期待結果（未実施） |
+|:---|:---|:---|
+| AC-cage-occupancy-minimal-read-authorized | マスタ編集権限のない同院の入院作成／編集スタッフで空き確認 | 必要なケージIDの最小readが可能。患者情報・他院情報を返さず、編集／連結／解除は従来権限で拒否 |
+| AC-cage-occupancy-minimal-read-denied | 対象医院の入院作成／編集権限なし・失効・他院を指定 | サーバーで拒否し、古い認可やclient表示で拡張しない。不明を空きにせず新規選択を止め、保存時も現在状態を再検査 |
+
+認可実装・grant変更は今回行わない。

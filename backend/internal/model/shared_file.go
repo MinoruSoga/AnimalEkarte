@@ -1,25 +1,25 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 // SharedFile はLINE個別送信用にアップロードされたファイルのメタデータ。
 type SharedFile struct {
-	ID         uint64         `gorm:"primaryKey"     json:"id"`
-	ClinicID   uint64         `gorm:"not null"       json:"clinic_id"`
-	OwnerID    *uint64        `json:"owner_id"`
-	UploadedBy uint64         `gorm:"not null"       json:"uploaded_by"`
-	FileType   string         `gorm:"not null"       json:"file_type"`
-	FileName   string         `gorm:"not null"       json:"file_name"`
-	FileKey    string         `gorm:"not null"       json:"-"` // S3キーは公開しない
-	FileSize   int64          `gorm:"not null"       json:"file_size"`
-	Purpose    string         `gorm:"not null"       json:"purpose"`
-	ExpiresAt  *time.Time     `json:"expires_at"`
-	CreatedAt  time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index"          json:"-"`
+	ID             uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID       uint64         `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	OwnerID        *uint64        `gorm:"column:owner_id;type:bigint" json:"owner_id"`
+	UploadedBy     uint64         `gorm:"column:uploaded_by;type:bigint;not null" json:"uploaded_by"`
+	FileType       string         `gorm:"column:file_type;type:varchar(50);not null" json:"file_type"`
+	FileName       string         `gorm:"column:file_name;type:varchar(255);not null" json:"file_name"`
+	FileKey        string         `gorm:"column:file_key;type:varchar(500);not null" json:"-"`
+	FileSize       int64          `gorm:"column:file_size;type:bigint;not null" json:"file_size"`
+	Purpose        string         `gorm:"column:purpose;type:varchar(50);not null" json:"purpose"`
+	ExpiresAt      *time.Time     `gorm:"column:expires_at;type:timestamptz" json:"expires_at"`
+	CreatedAt      time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+	RetentionClass string         `gorm:"column:retention_class;type:text;not null;default:'unclassified'" json:"-"`
 }
 
 func (SharedFile) TableName() string { return "shared_files" }

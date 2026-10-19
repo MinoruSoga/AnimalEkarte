@@ -678,3 +678,9 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 固定期待値: 確認前Complete→拒否／確認後の金額変更→再確認必要／確認準備・未確定表示は可。billing_itemsの行版（line_version）は確定001済み。
 
 候補であり実装・実機未確認。会計側のComplete経路の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ掲載する。
+
+## EMR-368／452の後続実装境界
+
+保存時の入力者・最終更新者氏名は[本体表示の正本](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-main-author-name-display)へ従い、正常保存時のID／氏名と現在名を区別する。氏名snapshotの物理保存先、既存全writerとの原子性、旧欠落表示は未選定の実装課題であり、model合わせのために新DDLを作らない。
+
+飼主原文の独立reader EMR-477は今回phase（依存476／472）として引き継ぐ。取得時に医院・予約・pet・世代・原文版と現在認可を照合し、スタッフ記録のコピー／clear／Undoから分離する。取得失敗を未回答やスタッフ記録へ変換しない。音声／外部連携320・322全体はPhase2を維持する。reader・認可・全callerの実装確認は別受入である。

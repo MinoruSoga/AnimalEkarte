@@ -1,0 +1,72 @@
+{
+  "dependency_definitions": "unchanged backend/go.mod and backend/go.sum at baseline7f164f8a71baf5bfb23207ddce5b3049939e81a3; no replace/temp modfile in final commands",
+  "download_path": {
+    "GOPROXY": "https://proxy.golang.org",
+    "GOSUMDB": "sum.golang.org",
+    "GOVCS": "*:off",
+    "GOPRIVATE": "empty"
+  },
+  "downloaded_fixed_modules": [
+    {
+      "module": "golang.org/x/sync",
+      "version": "v0.24.0",
+      "sum": "h1:iqiDrGoDgyuvAKrhLQthUEzU/R378N78gXbBjxed7oA=",
+      "matches_project_go_sum": true
+    },
+    {
+      "module": "golang.org/x/text",
+      "version": "v0.43.0",
+      "sum": "h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc=",
+      "matches_project_go_sum": true
+    },
+    {
+      "module": "gorm.io/driver/postgres",
+      "version": "v1.6.3",
+      "sum": "h1:bAn6O2pUa8LtpWEvL5NFU4+52Tfx8Ut7IVaIacCLcI0=",
+      "matches_project_go_sum": true
+    }
+  ],
+  "access_errors": [],
+  "toolchain": "existing golang:1.26-alpine, Go1.26.9 linux/arm64",
+  "final_network": "none",
+  "commands": [
+    {
+      "command": "go build -mod=readonly ./internal/model",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "go vet -mod=readonly <all production model/*.go excluding *_test.go>",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "go run -mod=readonly ./.model-static (schema.Parse only)",
+      "result": "PASS",
+      "exit_code": 0,
+      "models": 241,
+      "parse_errors": 0
+    },
+    {
+      "command": "go vet -mod=readonly ./internal/model",
+      "result": "FAIL",
+      "exit_code": 1,
+      "failure": "accounting_test.go:19 and later: old numeric literals cannot be assigned to ExactNumeric / *ExactNumeric; additional estimate/old helper test adaptation remains. No tests executed.",
+      "scope": "Existing tests kept unchanged; not a dependency/network blocker."
+    }
+  ],
+  "static_comparison_checks": 30020,
+  "static_comparison_errors": 0,
+  "no_db_or_application_execution": true,
+  "historical_alternate_cache_run": "Earlier temporary replacement v0.41.0 is superseded by exact-version final verification; not counted as exact-version evidence.",
+  "definition_hashes": {
+    "go.mod": {
+      "current_sha256": "964c0fe569801bf2350e79e3f5295c75718d2002658a47f3ef0f8289853f1ac2",
+      "unchanged_from_baseline": true
+    },
+    "go.sum": {
+      "current_sha256": "f9b4b659560c29fc1f61b484962977a286da02bc94fe94316a057f2c37fffe23",
+      "unchanged_from_baseline": true
+    }
+  }
+}

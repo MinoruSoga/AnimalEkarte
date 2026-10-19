@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // ManualCategory は取扱説明書のカテゴリ
 type ManualCategory string
@@ -24,18 +26,15 @@ func IsValidManualCategory(c string) bool {
 //   - 編集時: 該当 slug を DB に upsert
 //   - マニュアルは医院共通の情報のため clinic_id は持たない
 type ManualArticle struct {
-	ID       uint64         `gorm:"primaryKey;autoIncrement"                 json:"id"`
-	Category ManualCategory `gorm:"type:text;not null"                       json:"category"`
-	Slug     string         `gorm:"not null"                                 json:"slug"`
-	Title    string         `gorm:"not null"                                 json:"title"`
-	// order_value の既定値フォールバックは service 層で行う（default タグを付けると
-	// GORM がゼロ値を INSERT から省略し、`order: 0` の記事が 9999 で保存される）。
-	OrderValue       float64   `gorm:"column:order_value;not null"              json:"order_value"`
-	Section          string    `gorm:"not null"                                 json:"section"`
-	BodyMarkdown     string    `gorm:"not null;type:text"                       json:"body_markdown"`
-	UpdatedByStaffID *uint64   `gorm:"column:updated_by_staff_id"               json:"updated_by_staff_id,omitempty"`
-	CreatedAt        time.Time `gorm:"autoCreateTime"                           json:"created_at"`
-	UpdatedAt        time.Time `gorm:"autoUpdateTime"                           json:"updated_at"`
+	ID                 uint64     `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	Category           string     `gorm:"column:category;type:text;not null" json:"category"`
+	Slug               string     `gorm:"column:slug;type:text;not null" json:"slug"`
+	CreatedAt          time.Time  `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	Version            int64      `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
+	CurrentVersionID   *uint64    `gorm:"column:current_version_id;type:bigint" json:"-"`
+	PublishedVersionID *uint64    `gorm:"column:published_version_id;type:bigint" json:"-"`
+	HiddenAt           *time.Time `gorm:"column:hidden_at;type:timestamptz" json:"-"`
 }
 
 // TableName は ManualArticle のテーブル名
@@ -43,14 +42,18 @@ func (ManualArticle) TableName() string { return "manual_articles" }
 
 // ManualArticleVersion はマニュアル編集履歴（編集ごとのスナップショット）
 type ManualArticleVersion struct {
-	ID              uint64    `gorm:"primaryKey;autoIncrement"     json:"id"`
-	ArticleID       uint64    `gorm:"not null;index"               json:"article_id"`
-	Title           string    `gorm:"not null"                     json:"title"`
-	OrderValue      float64   `gorm:"column:order_value;not null"  json:"order_value"`
-	Section         string    `gorm:"not null"                     json:"section"`
-	BodyMarkdown    string    `gorm:"not null;type:text"           json:"body_markdown"`
-	EditedByStaffID *uint64   `gorm:"column:edited_by_staff_id"    json:"edited_by_staff_id,omitempty"`
-	EditedAt        time.Time `gorm:"autoCreateTime;column:edited_at" json:"edited_at"`
+	ID              uint64       `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ArticleID       uint64       `gorm:"column:article_id;type:bigint;not null" json:"article_id"`
+	Title           string       `gorm:"column:title;type:text;not null" json:"title"`
+	OrderValue      ExactNumeric `gorm:"column:order_value;type:numeric(10, 2);not null" json:"order_value"`
+	Section         string       `gorm:"column:section;type:text;not null" json:"section"`
+	BodyMarkdown    string       `gorm:"column:body_markdown;type:text;not null" json:"body_markdown"`
+	EditedByStaffID *uint64      `gorm:"column:edited_by_staff_id;type:bigint" json:"edited_by_staff_id,omitempty"`
+	EditedAt        time.Time    `gorm:"column:edited_at;type:timestamptz;not null;default:now()" json:"edited_at"`
+	ContentDigest   *[]byte      `gorm:"column:content_digest;type:bytea" json:"-"`
+	ContentRevision *int64       `gorm:"column:content_revision;type:bigint" json:"-"`
+	RestoredFromID  *uint64      `gorm:"column:restored_from_id;type:bigint" json:"-"`
+	SourceKind      *string      `gorm:"column:source_kind;type:text" json:"-"`
 }
 
 // TableName は ManualArticleVersion のテーブル名

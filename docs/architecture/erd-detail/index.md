@@ -274,11 +274,11 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `65550a5851fddaf1f64e8056708c43aa947d7e7d5a56ff62a5e9412bbea931da`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `9e697c24d2800b37777557164ed3b2394f4f005bfc56c2689e57c6d58652e42b`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // TriggerType は配信トリガーの種別を表す型エイリアス。
 type TriggerType = string
@@ -67,18 +69,18 @@ func AllTriggerTypes() []string {
 
 // LstepDeliveryTriggerLog は自動配信トリガーの実行ログ。
 type LstepDeliveryTriggerLog struct {
-	ID                   uint64    `gorm:"primaryKey;autoIncrement"`
-	OwnerID              uint64    `gorm:"not null"`
-	ClinicID             uint64    `gorm:"not null"`
-	TriggerType          string    `gorm:"type:varchar(50);not null"`
-	ScheduledAt          time.Time `gorm:"not null"`
-	Status               string    `gorm:"type:varchar(20);not null;default:'scheduled'"`
-	FiredAt              *time.Time
-	ExcludedReason       *string   `gorm:"type:varchar(100)"`
-	SuppressedByPriority bool      `gorm:"not null;default:false" json:"suppressed_by_priority"`
-	SuppressionReason    *string   `gorm:"type:varchar(255)" json:"suppression_reason,omitempty"`
-	CreatedAt            time.Time `gorm:"autoCreateTime"`
-	UpdatedAt            time.Time `gorm:"autoUpdateTime"`
+	ID                   uint64     `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" `
+	OwnerID              uint64     `gorm:"column:owner_id;type:bigint;not null" `
+	ClinicID             uint64     `gorm:"column:clinic_id;type:bigint;not null" `
+	TriggerType          string     `gorm:"column:trigger_type;type:varchar(50);not null" `
+	ScheduledAt          time.Time  `gorm:"column:scheduled_at;type:timestamptz;not null" `
+	Status               string     `gorm:"column:status;type:varchar(20);not null;default:'scheduled'" `
+	FiredAt              *time.Time `gorm:"column:fired_at;type:timestamptz" json:"-"`
+	ExcludedReason       *string    `gorm:"column:excluded_reason;type:varchar(100)" `
+	SuppressedByPriority bool       `gorm:"column:suppressed_by_priority;type:boolean;not null;default:FALSE" json:"suppressed_by_priority"`
+	SuppressionReason    *string    `gorm:"column:suppression_reason;type:varchar(255)" json:"suppression_reason,omitempty"`
+	CreatedAt            time.Time  `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" `
+	UpdatedAt            time.Time  `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" `
 }
 
 func (LstepDeliveryTriggerLog) TableName() string { return "lstep_delivery_trigger_log" }

@@ -1,13 +1,15 @@
 package model
 
-type ShiftEntryBreak struct {
-	ID           uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	ShiftEntryID uint64 `gorm:"not null"                 json:"shift_entry_id"`
-	BreakStart   string `gorm:"type:time;not null"       json:"break_start"`
-	BreakEnd     string `gorm:"type:time;not null"       json:"break_end"`
+import (
+	"time"
+)
 
-	// Relations
-	ShiftEntry *ShiftEntry `gorm:"foreignKey:ShiftEntryID" json:"shift_entry,omitempty"`
+type ShiftEntryBreak struct {
+	ID           uint64      `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ShiftEntryID uint64      `gorm:"column:shift_entry_id;type:bigint;not null" json:"shift_entry_id"`
+	StartsAt     *time.Time  `gorm:"column:starts_at;type:timestamptz" json:"-"`
+	EndsAt       *time.Time  `gorm:"column:ends_at;type:timestamptz" json:"-"`
+	ShiftEntry   *ShiftEntry `gorm:"foreignKey:ShiftEntryID;references:ID" json:"shift_entry,omitempty"`
 }
 
 func (ShiftEntryBreak) TableName() string { return "shift_entry_breaks" }

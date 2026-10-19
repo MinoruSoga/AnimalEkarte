@@ -1,9 +1,8 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 type MembershipType string
@@ -16,48 +15,26 @@ const (
 )
 
 type Owner struct {
-	ID                     uint64         `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID               uint64         `gorm:"not null"                                       json:"clinic_id"`
-	Name                   string         `gorm:"column:name;not null"                           json:"name"`
-	NameKana               string         `gorm:"column:name_kana;default:''"                    json:"name_kana"`
-	BirthDate              *time.Time     `gorm:"type:date"                                      json:"birth_date,omitempty"`
-	Company                string         `gorm:"default:''"                                     json:"company"`
-	PostalCode             string         `gorm:"default:''"                                     json:"postal_code"`
-	Address1               string         `gorm:"default:''"                                     json:"address1"`
-	Address2               string         `gorm:"default:''"                                     json:"address2"`
-	HomePostalCode         string         `gorm:"default:''"                                     json:"home_postal_code"`
-	HomeAddress1           string         `gorm:"default:''"                                     json:"home_address1"`
-	HomeAddress2           string         `gorm:"default:''"                                     json:"home_address2"`
-	Phone                  string         `gorm:"default:''"                                     json:"phone"`
-	CompanyPhone           string         `gorm:"default:''"                                     json:"company_phone"`
-	Email                  string         `gorm:"default:''"                                     json:"email"`
-	Remarks                string         `gorm:"default:''"                                     json:"remarks"`
-	IsDangerous            bool           `gorm:"default:false"                                  json:"is_dangerous"`
-	DiscountRate           float64        `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	MembershipType         MembershipType `gorm:"type:membership_type;default:'non_member'"      json:"membership_type"`
-	LineUserID             *string        `gorm:"column:line_user_id"                            json:"line_user_id,omitempty"`
-	LstepOptOut            bool           `gorm:"column:lstep_opt_out;default:false"             json:"lstep_opt_out"`
-	LstepOptOutAt          *time.Time     `gorm:"column:lstep_opt_out_at"                        json:"lstep_opt_out_at,omitempty"`
-	LstepOptOutReason      *string        `gorm:"column:lstep_opt_out_reason"                    json:"lstep_opt_out_reason,omitempty"`
-	LineFollowedAt         *time.Time     `gorm:"column:line_followed_at"                        json:"line_followed_at,omitempty"`
-	LineBlockedAt          *time.Time     `gorm:"column:line_blocked_at"                         json:"line_blocked_at,omitempty"`
-	LineIDConfirmedAt      *time.Time     `gorm:"column:line_id_confirmed_at"                    json:"line_id_confirmed_at,omitempty"`
-	LineIDConfirmedBy      *uint64        `gorm:"column:line_id_confirmed_by"                    json:"line_id_confirmed_by,omitempty"`
-	DeliveryExcluded       bool           `gorm:"column:delivery_excluded;default:false"         json:"delivery_excluded"`
-	DeliveryExcludedReason *string        `gorm:"column:delivery_excluded_reason"                json:"delivery_excluded_reason,omitempty"`
-	DeliveryCaution        bool           `gorm:"column:delivery_caution;default:false"          json:"delivery_caution"`
-	DeliveryCautionReason  *string        `gorm:"column:delivery_caution_reason"                 json:"delivery_caution_reason,omitempty"`
-	IsTransferred          bool           `gorm:"column:is_transferred;default:false"            json:"is_transferred"`
-	TransferAt             *time.Time     `gorm:"column:transfer_at"                             json:"transfer_at,omitempty"`
-	// DMPreference は DM（ダイレクトメール）送付希望（#158 レガシー EMR 準拠）。
-	// NULL=未設定 / true=必要 / false=不要。既存行を誤表示しないよう nullable にする。
-	DMPreference *bool          `gorm:"column:dm_preference" json:"dm_preference,omitempty"`
-	CreatedAt    time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt    time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `                                                      json:"-"`
-
-	// Relations
-	Pets []Pet `gorm:"foreignKey:OwnerID" json:"pets,omitempty"`
+	ID                     uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID               uint64         `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	Remarks                string         `gorm:"column:remarks;type:text;not null;default:''" json:"remarks"`
+	IsDangerous            bool           `gorm:"column:is_dangerous;type:boolean;not null;default:false" json:"is_dangerous"`
+	DiscountRate           ExactNumeric   `gorm:"column:discount_rate;type:numeric(5,2);not null;default:0" json:"discount_rate"`
+	MembershipType         MembershipType `gorm:"column:membership_type;type:membership_type;not null;default:'non_member'" json:"membership_type"`
+	LstepOptOut            bool           `gorm:"column:lstep_opt_out;type:boolean;not null;default:false" json:"lstep_opt_out"`
+	LstepOptOutAt          *time.Time     `gorm:"column:lstep_opt_out_at;type:timestamptz" json:"lstep_opt_out_at,omitempty"`
+	LstepOptOutReason      *string        `gorm:"column:lstep_opt_out_reason;type:text" json:"lstep_opt_out_reason,omitempty"`
+	DeliveryExcluded       bool           `gorm:"column:delivery_excluded;type:boolean;not null;default:false" json:"delivery_excluded"`
+	DeliveryExcludedReason *string        `gorm:"column:delivery_excluded_reason;type:varchar(100)" json:"delivery_excluded_reason,omitempty"`
+	IsTransferred          bool           `gorm:"column:is_transferred;type:boolean;not null;default:false" json:"is_transferred"`
+	TransferAt             *time.Time     `gorm:"column:transfer_at;type:timestamptz" json:"transfer_at,omitempty"`
+	DeliveryCaution        bool           `gorm:"column:delivery_caution;type:boolean;not null;default:false" json:"delivery_caution"`
+	DeliveryCautionReason  *string        `gorm:"column:delivery_caution_reason;type:varchar(100)" json:"delivery_caution_reason,omitempty"`
+	DMPreference           *bool          `gorm:"column:dm_preference;type:boolean" json:"dm_preference,omitempty"`
+	CreatedAt              time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt              time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	DeletedAt              gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+	Pets                   []Pet          `gorm:"foreignKey:ClinicID,OwnerID;references:ClinicID,ID" json:"pets,omitempty"`
 }
 
 func (Owner) TableName() string { return "owners" }
