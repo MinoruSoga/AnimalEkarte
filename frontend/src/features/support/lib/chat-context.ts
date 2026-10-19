@@ -207,10 +207,9 @@ export function buildChatContext(
   }));
 }
 
-// backend chat_hybrid.go の candidateSlugRe と同一契約。
-// 手動記事の slug は upsert 側では非空のみ検証されるため、契約外 slug の
-// オーバーライド記事を候補から除外し "invalid keyword candidate" の 400 を防ぐ。
-const CHAT_CANDIDATE_SLUG_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/;
+// EMR-438: 候補 slug の charset フィルタは撤去した。upsert は空でない slug 全般を
+// 受け付けるため、ASCII/桁数で絞ると日本語 slug 等の正規記事が keyword-only 検索の
+// 候補から漏れていた（Codex P2）。長さは backend 契約 (100バイト) に合わせて制御。
 
 /**
  * EMR-410: ハイブリッド検索用の keyword 候補 ID 一覧（上位20・順位順・重複なし）。
@@ -244,9 +243,15 @@ export function buildKeywordCandidates(
       collect(search(variant));
     }
   }
-  return [...candidates.values()]
-    .filter(({ article }) => CHAT_CANDIDATE_SLUG_RE.test(article.slug))
-    .sort((a, b) => a.best - b.best)
-    .slice(0, 20)
-    .map(({ article }) => ({ category: article.category, slug: article.slug }));
+  return (
+    [...candidates.values()]
+      // EMR-438: 候補の slug charset フィルタは撤去した。upsert は空でない slug 全般を
+      // 受け付けるため、ASCII/桁数で絞ると日本語 slug 等の正規記事が keyword-only 検索の
+      // 候補から漏れる（Codex P2）。backend 契約の slug 100バイト上限のみこちらで担保し、
+      // 400 "invalid keyword candidate" を防ぐ（charset 制限はない）。
+      .filter(({ article }) => new TextEncoder().encode(article.slug).length <= 100)
+      .sort((a, b) => a.best - b.best)
+      .slice(0, 20)
+      .map(({ article }) => ({ category: article.category, slug: article.slug }))
+  );
 }

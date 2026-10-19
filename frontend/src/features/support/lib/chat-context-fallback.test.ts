@@ -121,9 +121,10 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
 });
 
 describe("buildKeywordCandidates slug contract", () => {
-  // backend candidateSlugRe (^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$) と同一契約。
-  // upsert は slug 非空のみ検証するため、契約外 slug のオーバーライド記事が
-  // Fuse 候補に混ざっても 400 "invalid keyword candidate" にならないことを検証。
+  // EMR-438: 候補の slug charset フィルタは撤去した。upsert は空でない slug 全般を
+  // 受け付けるため、日本語 slug 等の正規記事も keyword-only 検索の候補として送る
+  // （Codex P2: charset で絞ると該当記事の証拠が届かず「マニュアルにない」誤応答）。
+  // backend 側も同一契約（非空・100バイト以下）に緩和済み。
   const mkArticle = (slug: string): ManualArticle => ({
     category: "screens",
     slug,
@@ -136,7 +137,7 @@ describe("buildKeywordCandidates slug contract", () => {
     keywords_vi: [],
   });
 
-  it("契約外 slug の記事は候補から除外される", () => {
+  it("日本語 slug 等の正規記事も候補に含まれる", () => {
     const pool = [
       mkArticle("ok-slug"),
       mkArticle("日本語"),
@@ -145,11 +146,28 @@ describe("buildKeywordCandidates slug contract", () => {
       mkArticle("also_ok-1"),
     ];
     const got = buildKeywordCandidates(() => pool, "カルテの作成方法は？");
-    expect(got.map((c) => c.slug).sort()).toEqual(["also_ok-1", "ok-slug"]);
+    expect(got.map((c) => c.slug).sort()).toEqual([
+      "-draft",
+      "a.b",
+      "also_ok-1",
+      "ok-slug",
+      "日本語",
+    ]);
   });
 
-  it("全候補が契約外なら空配列（400 にならない）", () => {
+  it("backend 契約の slug 100バイト超は候補から除外する（400 にならない）", () => {
+    const oversized = "あ".repeat(40); // 120 bytes
+    const pool = [mkArticle(oversized), mkArticle("日本語")];
+    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？").map((c) => c.slug)).toEqual([
+      "日本語",
+    ]);
+  });
+
+  it("全候補が日本語 slug でも候補は送られる（400 にならない）", () => {
     const pool = [mkArticle("日本語"), mkArticle("a.b")];
-    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？")).toEqual([]);
+    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？").map((c) => c.slug)).toEqual([
+      "日本語",
+      "a.b",
+    ]);
   });
 });

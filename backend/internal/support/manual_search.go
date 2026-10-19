@@ -271,6 +271,15 @@ func (d *ManualSearchDeps) semanticCandidates(ctx context.Context, chunks []manu
 	if len(vectors) == 0 {
 		return nil, &EmbeddingUnavailableError{Reason: "index_missing"}
 	}
+	// EMR-438: 部分的なインデックス（override 追加や support-index 失敗で一部 chunk のみ
+	// vector が存在する状態）を usable と扱わない。欠損 chunk を黙ってスキップすると
+	// セマンティック検索が新規/更新記事を取りこぼしたまま hybrid 成功を装うため、
+	// 要求キー全件を補完できなければ明示的に keyword-only へ退避する。
+	for _, k := range keys {
+		if _, ok := vectors[k]; !ok {
+			return nil, &EmbeddingUnavailableError{Reason: "index_missing"}
+		}
+	}
 	// 索引 hit があって初めて query embedding の quota を消費する。
 	if budget == nil {
 		return nil, &EmbeddingUnavailableError{Reason: "quota_unavailable"}

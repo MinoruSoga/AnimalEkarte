@@ -38,6 +38,8 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 import { calculateBillingTotals } from "@/lib/calculations";
 
 const DECEASED_TREATMENTS_MESSAGE = "死亡したペットの治療明細は変更できません";
+// EMR-438: 確定済み等で書き込みがブロックされたカルテの明細操作へのフィードバック。
+const LOCKED_TREATMENTS_MESSAGE = "確定済みのカルテは治療明細を変更できません";
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
@@ -133,16 +135,26 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         toast.error(DECEASED_TREATMENTS_MESSAGE);
         return;
       }
+      // EMR-438: 確定済み等の書き込みブロックは削除にも適用する（Codex P2）。
+      if (isWriteBlocked) {
+        toast.error(LOCKED_TREATMENTS_MESSAGE);
+        return;
+      }
       if (!canDelete) return;
       deleteTreatmentFn(String(id));
     },
-    [canDelete, deleteTreatmentFn, isPetDeceased],
+    [canDelete, deleteTreatmentFn, isPetDeceased, isWriteBlocked],
   );
 
   const handleUpdateItem = useCallback(
     (id: number, field: keyof TreatmentItem, value: string | number | boolean) => {
       if (isPetDeceased) {
         toast.error(DECEASED_TREATMENTS_MESSAGE);
+        return;
+      }
+      // EMR-438: 確定済み等の書き込みブロックは行編集にも適用する（Codex P2）。
+      if (isWriteBlocked) {
+        toast.error(LOCKED_TREATMENTS_MESSAGE);
         return;
       }
       if (!canEdit) return;
@@ -166,12 +178,17 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       updateTreatmentFn({ treatmentId: String(id), input });
     },
-    [canEdit, isPetDeceased, treatments, updateTreatmentFn],
+    [canEdit, isPetDeceased, isWriteBlocked, treatments, updateTreatmentFn],
   );
 
   const handleAddRow = useCallback(() => {
     if (isPetDeceased) {
       toast.error(DECEASED_TREATMENTS_MESSAGE);
+      return;
+    }
+    // EMR-438: 確定済み等の書き込みブロックは行追加にも適用する（Codex P2）。
+    if (isWriteBlocked) {
+      toast.error(LOCKED_TREATMENTS_MESSAGE);
       return;
     }
     if (!canCreate) return;
@@ -185,7 +202,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
       discount_amount: 0,
       sort_order: nextOrder,
     });
-  }, [canCreate, isPetDeceased, nextOrder, createTreatmentFn]);
+  }, [canCreate, isPetDeceased, isWriteBlocked, nextOrder, createTreatmentFn]);
 
   const queryClient = useQueryClient();
   const latestCtxRef = useRef({
@@ -345,10 +362,16 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
                 items={treatmentItems}
                 onUpdate={handleUpdateItem}
                 onRemove={handleRemoveItem}
-                onOpenSearch={canCreate && !isPetDeceased ? () => setIsSearchOpen(true) : undefined}
-                onAddRow={canCreate && !isPetDeceased ? handleAddRow : undefined}
+                onOpenSearch={
+                  canCreate && !isPetDeceased && !isWriteBlocked
+                    ? () => setIsSearchOpen(true)
+                    : undefined
+                }
+                onAddRow={canCreate && !isPetDeceased && !isWriteBlocked ? handleAddRow : undefined}
                 showStatus={true}
-                disabled={isPetDeceased || (!canEdit && !canCreate ? !canDelete : false)}
+                disabled={
+                  isPetDeceased || isWriteBlocked || (!canEdit && !canCreate ? !canDelete : false)
+                }
               />
             </div>
           )}

@@ -18,7 +18,10 @@ func IterateArticleChunks(ctx context.Context, article CorpusArticle, emit func(
 	if !utf8.ValidString(article.Body) {
 		return errors.New("invalid manual UTF-8")
 	}
-	_, _, _, _, body := ParseFrontmatter(article.Body)
+	// EMR-438: Body は正規化済み本文（BaseCorpusArticleFromMarkdown / override の
+	// body_markdown のいずれも frontmatter 撤去済み）のため、ここで再パースしない。
+	// `---\n重要な注意\n---` 等の有効な Markdown 区間が metadata 誤認識で欠落していた。
+	body := article.Body
 	articleID := article.Category + "/" + article.Slug
 	title := capRunes(article.Title, chunkTitleMaxRunes)
 	var headings []string
