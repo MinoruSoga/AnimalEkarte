@@ -87,7 +87,7 @@ global dataやsystem-admin横断操作は、table/file名による暗黙例外�
 
 ### MEDIUM — 監査ログのtx境界
 
-audit書き込み（`AuditService`/`auditRepository.Create`）が本体の更新・削除と同一トランザクション内で実行されているか確認する。現状プロジェクト全体で audit 書き込みが tx 外の best-effort になっている既知の負債があるため、少なくとも新規コードでこれを悪化させていないか、可能なら `dbOrTx` パターンを使っているか確認する。参考実装: refund処理の `AuditTxLogger` + `LogEntryTx` パターン（同一tx原子化の模範）。
+[AUDIT-1](../../SECURITY.md) と [backend不変条件](../refs/backend-application-invariants.md) で経路別sink・必須性を確認。必須監査は本体と同一tx、依存欠落/保存失敗はrollback。明示best-effort/非auditは一律負債とせず、失敗通知・再試行・commit後副作用を確認。外部HTTPはtx外。AuditTxLogger/LogEntryTxはrefundの例で、全経路に必須ではない。
 
 ## 診断コマンド
 

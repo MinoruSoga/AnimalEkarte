@@ -1363,6 +1363,33 @@ type validTargetQuerier struct {
 
 func (q validTargetQuerier) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
 	switch {
+	case query == appointmentTimeExpectedEpochQuery:
+		epochs := map[string]string{
+			"2026-07-22T00:00:00.000000Z": "0",
+			"2026-07-22T01:00:00.000000Z": "3600",
+		}
+		if len(args) != 2 {
+			return staticRow{err: errUnexpectedQuery}
+		}
+		values := make([]any, 2)
+		for i := range values {
+			input, ok := args[i].([]string)
+			if !ok {
+				return staticRow{err: errUnexpectedQuery}
+			}
+			out := make([]string, len(input))
+			for j, text := range input {
+				epoch, ok := epochs[text]
+				if !ok {
+					return staticRow{err: errUnexpectedQuery}
+				}
+				out[j] = epoch
+			}
+			values[i] = out
+		}
+		return staticRow{values: values}
+	case query == appointmentTimeExpectedCollisionQuery:
+		return staticRow{values: []any{false}}
 	case strings.Contains(query, "required animal_species master"):
 		return staticRow{values: []any{int64(0), int64(0), int64(0), int64(6)}}
 	case strings.Contains(query, "relrowsecurity"):

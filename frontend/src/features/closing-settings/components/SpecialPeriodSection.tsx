@@ -7,6 +7,7 @@ import { DatePicker } from "@/components/shared/DatePicker";
 import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterSidePanel, PropertyRow } from "@/components/shared/SidePeek";
+import { Input } from "@/components/ui/input";
 import { getFormString } from "@/lib/form-data";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
 import { useCreateSpecialPeriod, useDeleteSpecialPeriod } from "../api/special-periods";
@@ -230,7 +231,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
             description="午前（AM）と午後（PM）の区切りとなる時刻です。締め時間帯の計算に使われます。"
           >
             <div className="flex-1">
-              <input
+              <Input
                 id="am_pm_boundary"
                 name="am_pm_boundary"
                 type="time"
@@ -263,7 +264,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
             description="午後（PM）時間帯の終了時刻です。これ以降はEMG（時間外）として扱われます。"
           >
             <div className="flex-1">
-              <input
+              <Input
                 id="pm_end"
                 name="pm_end"
                 type="time"

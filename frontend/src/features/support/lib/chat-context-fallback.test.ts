@@ -9,11 +9,12 @@
  * pre-gate 候補数は検索関数をラップして collect() と同じ重複排除で計測する
  * （内部 Map を直接触らず、本番経路を変えずに観測する）。
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createManualSearcher, screenArticles, workflowArticles } from "@/lib/manual-index";
+import type { ManualArticle } from "@/lib/manual-index";
 
-import { buildChatContext } from "./chat-context";
+import { buildChatContext, buildKeywordCandidates } from "./chat-context";
 import { evalCases } from "./eval-cases";
 
 const articles = [...screenArticles, ...workflowArticles];
@@ -85,6 +86,15 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
     expect(items).toEqual([]);
   });
 
+  it("意味語のない質問は強い候補が検索可能でも検索関数を呼ばない", () => {
+    const search = vi.fn((_query: string) => articles);
+    for (const question of ["方法", "cách"]) {
+      search.mockClear();
+      expect(buildKeywordCandidates(search, question)).toEqual([]);
+      expect(search).not.toHaveBeenCalled();
+    }
+  });
+
   it("根拠ゲート通過時は弱ヒット候補を混ぜない（text 空の項目は出ない）", () => {
     const items = buildChatContext(
       createManualSearcher(articles),
@@ -107,5 +117,57 @@ describe("buildChatContext 弱ヒットフォールバック", () => {
         `control "${c.question}" に pre-gate 候補 — ノーマッチではなく弱ヒット`,
       ).toBe(0);
     }
+  });
+});
+
+describe("buildKeywordCandidates slug contract", () => {
+  // EMR-438: 候補の slug charset フィルタは撤去した。upsert は空でない slug 全般を
+  // 受け付けるため、日本語 slug 等の正規記事も keyword-only 検索の候補として送る
+  // （Codex P2: charset で絞ると該当記事の証拠が届かず「マニュアルにない」誤応答）。
+  // backend 側も同一契約（非空・100バイト以下）に緩和済み。
+  const mkArticle = (slug: string): ManualArticle => ({
+    category: "screens",
+    slug,
+    title: slug,
+    order: 1,
+    section: "s",
+    content: "c",
+    searchText: slug,
+    keywords: [],
+    keywords_vi: [],
+  });
+
+  it("日本語 slug 等の正規記事も候補に含まれる", () => {
+    const pool = [
+      mkArticle("ok-slug"),
+      mkArticle("日本語"),
+      mkArticle("-draft"),
+      mkArticle("a.b"),
+      mkArticle("also_ok-1"),
+    ];
+    const got = buildKeywordCandidates(() => pool, "カルテの作成方法は？");
+    expect(got.map((c) => c.slug).sort()).toEqual([
+      "-draft",
+      "a.b",
+      "also_ok-1",
+      "ok-slug",
+      "日本語",
+    ]);
+  });
+
+  it("backend 契約の slug 100バイト超は候補から除外する（400 にならない）", () => {
+    const oversized = "あ".repeat(40); // 120 bytes
+    const pool = [mkArticle(oversized), mkArticle("日本語")];
+    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？").map((c) => c.slug)).toEqual([
+      "日本語",
+    ]);
+  });
+
+  it("全候補が日本語 slug でも候補は送られる（400 にならない）", () => {
+    const pool = [mkArticle("日本語"), mkArticle("a.b")];
+    expect(buildKeywordCandidates(() => pool, "カルテの作成方法は？").map((c) => c.slug)).toEqual([
+      "日本語",
+      "a.b",
+    ]);
   });
 });

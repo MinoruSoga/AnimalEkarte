@@ -2,6 +2,7 @@ import {
   calculateNextDate,
   resolveScheduleTypeAfterManualDate,
 } from "@/components/shared/NextScheduleField";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 
 export interface CheckupFormState {
   checkupTypeId: string;
@@ -25,7 +26,7 @@ export const DENIED_MUTATION_PERMISSIONS: Readonly<CheckupMutationPermissions> =
 export const DEFAULT_CHECKUP_FORM: CheckupFormState = {
   checkupTypeId: "",
   date: "",
-  nextScheduleType: "1year",
+  nextScheduleType: DEFAULT_NEXT_SCHEDULE_TYPE,
   nextDate: "",
   doctorId: "",
   result: "",

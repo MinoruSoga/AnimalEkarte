@@ -73,7 +73,7 @@ export const InterviewHistory = memo(function InterviewHistory({
           <History className={`${ICON.action} ${C.text}`} />
           {/* NO32: カルテ + トリミング記録の統合タイムライン */}
           {/* EMR-380: 「治療履/歴」の途中折返し防止 — 見出しは常に1行 */}
-          <h3 className={`text-sm font-bold ${C.text} shrink-0 whitespace-nowrap`}>治療履歴</h3>
+          <h3 className={`text-sm font-semibold ${C.text} shrink-0 whitespace-nowrap`}>治療履歴</h3>
           <p className={`text-sm ${C.text60} truncate`}>全文は詳細で確認できます</p>
         </div>
         <div className="flex items-center gap-2 min-w-0 ml-auto">

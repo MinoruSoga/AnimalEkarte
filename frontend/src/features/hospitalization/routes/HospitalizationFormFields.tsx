@@ -76,10 +76,10 @@ function resolveNextVisitDate(formData: HospitalizationFormData): string | undef
   return undefined;
 }
 
-function resolveNextVisitContent(formData: HospitalizationFormData): string | undefined {
-  if (formData.nextVisit) return "次回来院";
-  if (formData.endDate) return "退院予定";
-  return undefined;
+// EMR-412 X4/R2: 補足文言は見出しと重複するため出さない。
+// 実 nextVisit は「次回予定」、endDate フォールバックは「退院予定」の見出しで区別する。
+function resolveNextVisitLabel(formData: HospitalizationFormData): string {
+  return formData.nextVisit ? "次回予定" : "退院予定";
 }
 
 export function HospitalizationFormFields({
@@ -146,7 +146,8 @@ export function HospitalizationFormFields({
           status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
           birthDate={selectedPet.birthDate}
           nextVisitDate={resolveNextVisitDate(formData)}
-          nextVisitContent={resolveNextVisitContent(formData)}
+          nextVisitLabel={resolveNextVisitLabel(formData)}
+          nextVisitShowAlert={false}
           onStaffClick={canSubmit ? onOpenStaffModal : undefined}
         />
       ) : null}

@@ -8,9 +8,9 @@ description: AnimalEkarte backendのセキュリティ・データ分離に関�
 
 ## Tenant and ownership isolation
 
-- clinic-scoped data のすべての read/write/delete は、認証済み `clinic_id` で制約する。
+- clinic所有データの全read/write/deleteは、認証済みidentityの許可scopeとresource ownershipで制約する。data class・操作別の正本は [SECURITY.md](../../SECURITY.md) と[共通アクセス制御](../../docs/spec/shared/access-control.md)。global/common data・明示認可された横断scopeを単一clinic条件へ機械的に縮めない。
 - client が送信した `clinic_id` を認可根拠にしない。認証済み identity から決定する。
-- owner、pet、staff、medical record、billing 等の関連 ID は、同じ clinic に属することを server-side で確認する。
+- 関連IDはdata class・操作に応じた所属/利用権限をserver-sideで確認する。[共通患者基本情報と自院利用](../../docs/spec/domains/owners-pets/lifecycle.md)、多医院staff所属、[Support共有read/createと報告元医院の変更・個人履歴](../../docs/spec/domains/support/README.md)は明示契約へ接続する。医院別診療/会計の保護とscope外拒否は維持し、owner/pet全体を認可例外にしない。
 - not-found と cross-tenant resource の差で、他 clinic の存在を推測できる応答を返さない。
 - bulk query、join、preload、count、export、background job にも同じ scope を適用する。
 - transaction の内外で scope を失わない。raw SQL も例外にしない。

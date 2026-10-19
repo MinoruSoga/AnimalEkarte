@@ -1,7 +1,24 @@
 # 会計の技術設計
 
-対象は[業務正本の初回5点](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-first-five)と[第二群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-second)・[第三群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-third)・[第四群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fourth)（計8FR／66AC）の部分設計。D10は進行中。実装・API／DB変更・移行・実機検証は今回行わない。
+対象は[業務正本の初回5点](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-first-five)と[第二群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-second)・[第三群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-third)・[第四群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fourth)・[第五群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-fifth)・[第六群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-sixth)・[第七群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-seventh)・[第八群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-eighth)・[第九群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-ninth)・[第十群](../../../spec/domains/accounting/lifecycle.md#accounting-agreement-tenth)・[追加の死亡後精算](../../../spec/domains/accounting/lifecycle.md#accounting-posthumous-settlement)・[支払方法停止](../../../spec/domains/accounting/lifecycle.md#accounting-inactive-payment-method)（前段階9FR／151AC）と[会議連携4AC](../../../spec/domains/accounting/lifecycle.md#accounting-trimming-adjustment-handoff)を含む基準9FR／155ACに[品目別保険設定](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを追加した前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](../../../spec/domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを加えた、基準13FR／174ACにNo.8の個別割引権限1AC・No.30の釣銭整合3AC・過受領処理3ACを加え、現在のライフサイクル本文は13FR／181ACの文書対象。完成条件は[末尾](technical-spec.md#accounting-document-completion)へ。実装・API／DB変更・移行・実機検証は今回行わない。
 
 読む順：業務正本と[語彙](../../../spec/ontology/accounting.md) → [技術仕様](technical-spec.md) → 現行API／コード。確定した業務と提案する実現方式、未決業務を分ける。[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)・[write-owner](../../../architecture/model-write-owner-catalog.md)を再定義しない。
 
-予約・受付・カルテの確定済み境界、保存§2、通常Undo停止を維持する。締め内部はD12、見積はD11、在庫はD13、税・端数処理の業務根拠は医院の確認へ。正本索引への掲載は実装や運用開始の承認ではない。
+予約・受付・カルテの確定済み境界、保存§2、通常Undo停止を維持する。締め内部はD12、見積はD11、在庫はD13、税・端数の計算方針は[第五群の計算契約](../../../spec/domains/accounting/lifecycle.md#accounting-calculation-order)へ従い、品目の税務分類・税務適合全体の確認は医院へ残す。保険の資格／残限度・負担額はスタッフ確認・記録とし、会社／商品別の自動給付算式は将来の別スコープ。正本索引への掲載は実装や運用開始の承認ではない。
+
+第六群の除外指定snapshot・帳票projection・マスタ変更権限の読取mappingは[技術仕様](technical-spec.md#accounting-sixth-design)へ。現行の固定支払選択肢や保険自動設定の有無を新しい将来方針へ昇格させず、grant・設定は変更しない。
+
+第七群の確認結果・契約・負担額snapshotと外部保険業務の境界は[技術仕様](technical-spec.md#accounting-seventh-design)へ。保険会社への請求・入金照合・査定差額管理や同一診療費の複数契約併用を追加しない。
+
+第八群の減額時残高復元と併用内訳確認、自動失効なし・同医院同飼主境界、新番号再請求と二重請求防止、同時回収の元請求別配分、共通料金のowner-only参照は[技術仕様](technical-spec.md#accounting-eighth-design)へ。再請求の価格／税／割引継承・旧入金／保険の確認は第九群で確定。現在認可／復旧の目標は全体契約へ、実grant／物理schema／実装は後続。実返金・金銭履歴を自動複製せず、督促・貸倒・医院間／飼主間移管を追加しない。
+
+第九群の元snapshot継承とスタッフ修正、旧入金の帰属変更と元実受領日保持、保険の再確認、返金元内訳・理由の登録と現在残検査は[技術仕様](technical-spec.md#accounting-ninth-design)へ。内訳登録だけで実返金を生成せず、復元済み預り金の二重使用を防ぐ。業務と後続実装条件は[正本の分類](../../../spec/domains/accounting/lifecycle.md#accounting-open-decisions)に分け、実装・全体受入の完了とは扱わない。
+
+
+第十群の空明細・行別丸め・除外初期値／欠落時false・明示再適用は[第十群設計](technical-spec.md#accounting-tenth-design)。状態／金銭・操作別保存／認可・旧値・3画面／4master・受け手は[全体契約](technical-spec.md#accounting-reconciled-contract)へ。
+
+追加の死亡後精算2ACはユーザー個別承認に基づき反映・独立文書レビュー済み。初回〜第十群の142AC本文を保持し、死亡状態を戻さず生前の元診療・理由・履歴と元飼主資金を保持する。現在の全体状態は[追加9点の進捗](../../../spec/domains/SPECIFICATION_PROGRESS.md#additional-business-decisions-nine)を参照する。
+
+支払方法停止の追加7ACは[追加設計](technical-spec.md#accounting-inactive-payment-design)へ対応する。既存144AC本文・IDとレビュー履歴は保持し、追加差分も独立内容レビュー・限定構造検査済み。新受領の選択／保存時検査と過去参照・集計を分離し、既存資金の配分・充当／解除・返金へ新受領のgateを一律適用しない。方法追加・ENUM廃止・初期値／移行は本合意から確定しない。
+
+品目別保険設定は[保存・読取・会計引継ぎ設計](technical-spec.md#accounting-item-insurance-design)へ。診察・処置・予防・健診を薬剤・検査の既存設定と整合させ、実適用／資格／補償保証や全体割引除外とは独立に扱う。新規4種別の新規登録は保険対象外を初期値とし、既存明示値を保持する。旧欠落値の解釈・変換は後続の移行課題として管理し、新規機能の採否未決へ戻さず、snapshot・明示再適用／訂正保護を維持する。

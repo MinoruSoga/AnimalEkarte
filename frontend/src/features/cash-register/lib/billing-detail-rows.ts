@@ -10,7 +10,7 @@ import type { CloseBillingDetail } from "../api/get-cash-register-preview";
  * - totalAmount: split billing_amount の和（GROSS）
  * - refundAmount: 全期間スカラが各行に重複しているため1回だけ取る
  * - netAmount: GROSS 合計 - 返金（netAmount の行和ではない）
- * - departments: category_amounts を日次7バケットへ合算。会計のいずれかの行で
+ * - departments: category_amounts を日次8バケットへ合算。会計のいずれかの行で
  *   category_amounts が欠落（旧ペイロード / null）の場合は null（「記録なし」）。
  *   MIN(category) へ全額を寄せることはしない。
  * - 未知のカテゴリキーは用品他バケットへ畳み込む（サイレントに消さない）。
@@ -25,6 +25,7 @@ export const DETAIL_DEPARTMENT_BUCKETS = [
   { key: "trimming", label: "トリミング", categories: ["trimming"] },
   { key: "hotel", label: "ホテル", categories: ["hotel"] },
   { key: "goodsOther", label: "用品他", categories: ["goods", "training", "other"] },
+  { key: "houseCall", label: "往診", categories: ["house_call"] },
 ] as const;
 
 type DetailDepartmentKey = (typeof DETAIL_DEPARTMENT_BUCKETS)[number]["key"];
@@ -53,6 +54,7 @@ function zeroDepartments(): Record<DetailDepartmentKey, number> {
     trimming: 0,
     hotel: 0,
     goodsOther: 0,
+    houseCall: 0,
   };
 }
 

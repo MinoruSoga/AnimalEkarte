@@ -22,6 +22,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getHospitalizationTypeColor } from "@/lib/status-helpers";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 
 // Relative
 import { cageKeyboardCoordinateGetter } from "../lib/cage-keyboard-coordinates";
@@ -201,12 +202,13 @@ const CageCard = memo(function CageCard({
             </span>
           </div>
           {occupant ? (
-            <Badge
-              variant="outline"
-              className={`${getHospitalizationTypeColor(occupant.hospitalizationType)} ${H_STYLES.text.xs} px-1.5 py-0 h-5 border-none`}
+            /* EMR-412 N4: 区分バッジは一覧と同じ StatusBadge。区分「入院」は BADGE.gray（status-helpers）。 */
+            <StatusBadge
+              colorClass={getHospitalizationTypeColor(occupant.hospitalizationType)}
+              className={`${H_STYLES.text.xs} px-1.5 py-0 h-5 border-none`}
             >
               {occupant.hospitalizationType}
-            </Badge>
+            </StatusBadge>
           ) : null}
         </CardHeader>
         <CardContent

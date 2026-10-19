@@ -37,9 +37,9 @@ model: opus
 - Cross-feature: `app/pages/` で合成、props 注入
 
 ### 4. DB設計確認
-- 新テーブルには必ず `clinic_id`, `created_at`, `updated_at`, `deleted_at`
-- clinic_id 先頭の複合インデックス
-- 論理削除の部分インデックス
+- [Backend Application Invariants](../refs/backend-application-invariants.md) と [SECURITY.md](../../SECURITY.md) でdata class・操作・認可境界を確定し、clinic所有テーブルには適切なclinic scopeとindex、業務データには必要な日時・論理削除を設計する
+- global/common dataやjunctionへ `clinic_id` 列・先頭indexを機械的に追加しない。明示された共通情報・共有readと医院別診療/会計を分け、同等のownership保証を確認する
+- 論理削除対象には適切な部分インデックス
 
 ## 計画フォーマット
 
@@ -92,9 +92,9 @@ model: opus
 | [リスク説明] | [対策方法] |
 
 ## 成功基準
-- [ ] 全テストパス
-- [ ] `make lint-front` エラーなし
-- [ ] `docker compose exec backend go vet ./...` エラーなし
+- [ ] `verify-agent-task.py --base <BASE_REF> --plan` と関連規約で、変更差分に必要な限定検証を特定
+- [ ] 対象worktreeとmountを確認したrunnerで、関連するscoped test/lint/vetの結果を記録
+- [ ] docs-onlyはruntime検証不要と明記。必要な全体検証は根拠付きのユーザー実行ゲートとし、自動実行・未実行PASSをしない
 - [ ] [機能固有の確認項目]
 ```
 
@@ -111,7 +111,7 @@ model: opus
 - 50行超の大きな関数
 - 深いネスト（4段超）
 - Feature 間の直接 import
-- clinic_id なしの新規テーブル
+- clinic所有データでtenant/ownership保証のない新規テーブル
 - テスト戦略のない実装計画
 - 独立してデリバリーできないフェーズ
 

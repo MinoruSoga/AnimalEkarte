@@ -31,7 +31,7 @@ describe("ItemRow", () => {
     const itemName = screen.getByText("合成監査処置");
     expect(itemName).toHaveClass("min-w-[8rem]");
     expect(itemName.parentElement).toHaveClass("flex-wrap", "sm:flex-nowrap");
-    expect(screen.getByText("単価 ￥4,321")).toBeVisible();
+    expect(screen.getByText("単価 ¥4,321")).toBeVisible();
   });
 
   it("44px操作から対象itemを編集・削除できる", async () => {

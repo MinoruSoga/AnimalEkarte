@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useSortable } from "@dnd-kit/sortable";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { C } from "@/lib/design-tokens";
+
 import { SortableDataTableRow } from "./SortableDataTableRow";
 
 vi.mock("@dnd-kit/sortable", async (importOriginal) => {
@@ -125,5 +127,28 @@ describe("SortableDataTableRow drag handle accessibility", () => {
     });
     expect(dragHandle).toBeDisabled();
     expect(mockUseSortable).toHaveBeenCalledWith({ id: "row-1", disabled: true });
+  });
+});
+
+// EMR-411 C-1a: 44px drag handle のコントラストを C.text60 まで引き上げる。
+// disabled 時は従来どおり disabled:opacity-30 で薄くする。
+describe("SortableDataTableRow drag handle contrast (EMR-411 C-1a)", () => {
+  it("handle が C.text60 を持つ", () => {
+    renderSortableRow();
+
+    const dragHandle = screen.getByRole("button", {
+      name: "順番を変更: 第1診察室 ID row-1",
+    });
+    expect(dragHandle).toHaveClass(C.text60);
+  });
+
+  it("dragDisabled でも disabled:opacity-30 を維持する", () => {
+    renderSortableRow(vi.fn(), true);
+
+    const dragHandle = screen.getByRole("button", {
+      name: "順番を変更: 第1診察室 ID row-1",
+    });
+    expect(dragHandle).toBeDisabled();
+    expect(dragHandle).toHaveClass("disabled:opacity-30");
   });
 });

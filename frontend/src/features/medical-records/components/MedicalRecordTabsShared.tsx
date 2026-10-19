@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
-import { C, LAYOUT } from "@/lib/design-tokens";
+import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
 export function MedicalRecordMountedTab({
   tab,
@@ -31,7 +31,7 @@ export function MedicalRecordMountedTab({
       ) : (
         <fieldset
           disabled={isLocked}
-          className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"} border-0 p-0 m-0 min-w-0`}
+          className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"} border-0 p-0 m-0 min-w-0 ${STYLE.readonlyInputs}`}
         >
           {children}
         </fieldset>

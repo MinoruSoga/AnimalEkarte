@@ -259,15 +259,6 @@ func PaymentMethodKeyFromID(id *uint64, idToKey map[uint64]string, cashKey strin
 	return fmt.Sprintf("method_%d", *id)
 }
 
-// PaymentMethodIDKey is a neutral allocation key based on payment_method_id
-// ("null" for legacy NULL cash). Used while aggregating before display remapping.
-func PaymentMethodIDKey(id *uint64) string {
-	if id == nil {
-		return "null"
-	}
-	return fmt.Sprintf("%d", *id)
-}
-
 func fallbackAllocationCategory() string {
 	// model.ItemCategoryOther as string without importing cycles — "other" is stable enum.
 	return "other"

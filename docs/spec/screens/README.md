@@ -33,15 +33,15 @@ flowchart LR
 | 01 | **当日の受付** | [reception-board.md](../domains/reception/pages/reception-board.md) | カンバン形式による院内稼働状況の管理。 |
 | 02 | **予約管理** | [reservation-management.md](../domains/reservations/pages/reservation-management.md) | 月/週カレンダーによる予約枠とシフトの可視化。 |
 | 05 | **カルテ一覧** | [medical-record-list.md](../domains/medical-records/pages/medical-record-list.md) | 全カルテの時系列検索。 |
-| 06 | **カルテ詳細・入力** | [medical-record-form.md](../domains/medical-records/pages/medical-record-form.md) | SOAPS 形式の診療録作成（9 タブ構成）。 |
+| 06 | **カルテ詳細・入力** | [medical-record-form.md](../domains/medical-records/pages/medical-record-form.md) | SOAPS 形式の診療録作成（問診を治療プランへ統合する構成（2026-10-17））。 |
 | 12 | **検査一覧** | [12-examinations-list.md](./12-examinations-list.md) | 検査オーダー状況と結果の進捗管理。 |
 | 13 | **検査登録・結果** | [13-examinations-form.md](./13-examinations-form.md) | 数値検査の入力と基準値判定。未紐付け受信は1クリックで後付け。 |
 | — | **検査受信** | `/lab-device`（`LabDeviceBoard`）／契約 [ADR-007](../../architecture/adr/007-lab-device-receive-and-commit.md)・ローカル受信 agent [ADR-008](../../architecture/adr/008-local-lab-device-agent.md) | 医院に設定された検査機器の単一掲示板。機器カードで受信状況をリアルタイム表示。本日診療中カルテをカード選択。日別の受信一覧。未紐付け・［取り消す］。医院セットアップで機器接続を1回許可。詳細契約は ADR、運用は ops/deploy。 |
 | 14 | **予防接種一覧** | [14-vaccinations-list.md](./14-vaccinations-list.md) | 接種実績と次回予定の時系列リスト。 |
-| 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と次回予定自動計算。 |
+| 15 | **予防接種登録** | [15-vaccinations-form.md](./15-vaccinations-form.md) | ワクチン履歴記録と種類別設定または手入力による次回予定。 |
 | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
 | 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容の記録。画像は選択時にアップロードされ、object key で永続化（EMR-300）。 |
-| 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と当日カルテ自動生成。 |
+| 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照・登録。親カルテとの接続・段階保存は健診正本に従う。 |
 | 39 | **飼主カルテレポート** | [39-owner-report.md](./39-owner-report.md) | 同居ペットを選択し、1頭分の診療前確認・来院・履歴を別ウィンドウで俯瞰。 |
 
 ### 検査受信
@@ -58,7 +58,7 @@ flowchart LR
 |:---|:---|:---|:---|
 | 07 | **入院管理一覧** | [07-hospitalization-list.md](./07-hospitalization-list.md) | ボードビューによるケージ稼働状況の監視. |
 | 08 | **入院詳細・記録** | [08-hospitalization-detail.md](./08-hospitalization-detail.md) | デイリーケア計画と時系列バイタル記録。 |
-| 09 | **入院登録・編集** | [09-hospitalization-form.md](./09-hospitalization-form.md) | 入院基本情報と登録時治療プラン（料金明細スナップショット）の定義。 |
+| 09 | **入院登録・編集** | [09-hospitalization-form.md](./09-hospitalization-form.md) | 入院基本情報と治療プラン。入院中は元履歴を保持して追加・変更・中止する目標。 |
 
 ---
 

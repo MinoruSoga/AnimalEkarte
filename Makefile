@@ -644,7 +644,11 @@ codegen:
 
 # 型定義の差分チェック（CI用）
 codegen-check: codegen
-	git diff --exit-code frontend/src/types/generated/
+	@for path in frontend/src/types/generated/models.ts backend/internal/manualarticle/corpus.generated.json backend/internal/support/search_dict.go frontend/src/constants/manual-corpus.generated.ts frontend/src/constants/manual-search-dict.json; do \
+		[ -f "$$path" ] || { echo "missing generated artifact: $$path"; exit 1; }; \
+	done
+	git diff --exit-code frontend/src/types/generated/ backend/internal/manualarticle/corpus.generated.json backend/internal/support/search_dict.go frontend/src/constants/manual-corpus.generated.ts frontend/src/constants/manual-search-dict.json
+	@if git status --porcelain backend/internal/manualarticle/corpus.generated.json backend/internal/support/search_dict.go frontend/src/constants/manual-corpus.generated.ts | grep -q .; then echo "generated artifacts missing/untracked"; exit 1; fi
 
 # スキーマ差分チェック（GoモデルとDBの整合性検証）
 schema-check:

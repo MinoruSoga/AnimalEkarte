@@ -87,11 +87,12 @@ export function TrimmingOptionRow({ item, canEdit, onEdit }: TrimmingOptionRowPr
   );
 }
 
+/** トリミング項目を他項目と併用できるか、文字で明示する。 */
 export function CombinablePill({ combinable }: { combinable: boolean }) {
   if (combinable) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base ${C.bgStatusGreen} ${C.textStatusGreen}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-base ${C.bgStatusGreen} ${C.textBadgeGreen}`}
       >
         可
       </span>

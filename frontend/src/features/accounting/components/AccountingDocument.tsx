@@ -161,7 +161,7 @@ export const AccountingDocument = memo(function AccountingDocument({
                     className="max-h-12 ml-auto mb-2 object-contain"
                   />
                 ) : null}
-                <p className={`font-bold text-base ${C.text} mb-1`}>{clinic?.name}</p>
+                <p className={`font-normal text-base ${C.text} mb-1`}>{clinic?.name}</p>
                 <p>
                   〒{clinic?.postalCode} {clinic?.address}
                 </p>
@@ -219,7 +219,7 @@ export const AccountingDocument = memo(function AccountingDocument({
                           ) : null}
                           {item.discountAmount > 0 ? (
                             <span className={`block text-xs ${C.text50}`}>
-                              割引 −{formatCurrency(item.discountAmount)}
+                              割引 {formatCurrency(-item.discountAmount)}
                             </span>
                           ) : null}
                         </td>
@@ -245,7 +245,7 @@ export const AccountingDocument = memo(function AccountingDocument({
           return (
             <div key="payment_summary" className="flex justify-end">
               <div className="w-72 space-y-2">
-                <div className="flex justify-between font-bold border-b pb-1">
+                <div className="flex justify-between font-normal border-b pb-1">
                   <span>合計金額 (税込)</span>
                   <span>{formatCurrency(paymentInfo.totalAmount)}</span>
                 </div>
@@ -273,12 +273,12 @@ export const AccountingDocument = memo(function AccountingDocument({
                 {paymentInfo.insuranceAmount !== 0 ? (
                   <div className={`flex justify-between ${C.textStatusGreen} border-b pb-1 pt-2`}>
                     <span>保険適用</span>
-                    <span>-{Math.abs(paymentInfo.insuranceAmount).toLocaleString()}</span>
+                    <span>{formatCurrency(-Math.abs(paymentInfo.insuranceAmount))}</span>
                   </div>
                 ) : null}
 
                 <div
-                  className={`flex justify-between font-bold text-xl pt-2 border-t ${STYLE.printBorder}`}
+                  className={`flex justify-between font-normal text-xl pt-2 border-t ${STYLE.printBorder}`}
                 >
                   <span>請求金額</span>
                   <span>{formatCurrency(paymentInfo.billingAmount)}</span>

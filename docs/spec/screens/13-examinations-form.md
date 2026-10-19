@@ -1,5 +1,19 @@
 # 検査入力/結果登録 仕様書 (Examination Form)
 
+## 2026-10-15 D07仕様整理の優先順位
+
+[死亡後の生前検査記録](../domains/examinations/lifecycle.md#examination-deceased-retrospective)は死亡状態を戻さず理由・履歴付きの専用後日入力／誤記訂正へ接続する。通常の新たな検査・機器待機の許可には広げず、現行フォーム／APIの専用対応は未確認。
+
+最新の第3項合意で担当医は任意とし、未選択でも検査を保存できる。入力者の認証ログは担当医属性と別に残す。現行の担当医必須判定は解消対象の実装差で、保存／ログの適合確認は未実施。
+
+業務・例外・GWTは[検査ライフサイクル](../domains/examinations/lifecycle.md)、現wireとの差は[技術契約](../../design/domains/examinations/technical-spec.md)を優先する。以下のUI／図は現行参照であり、保存するだけで一律に確定する意味ではない。
+
+- confirmedは全ロック。revisionなしcompletedは結果封印、revisionありcompletedは解除後の作業版となり得る。
+- 専用unconfirmは権限・理由・official版保護が必要。旧実装の親draft条件は最新D03の通常編集契約への適合差として分け、検査の解除でカルテの旧確定履歴を消去しない。
+- 旧PUT /itemsは未送信／nullも全消去へ変換する現状差がある。D03継承目標は明示[]だけを意図的全消去とし、旧経路適合済みとしない。
+- 日常機器受信はEMR-402のブラウザWeb Serial（NX600/AU10V、ページ表示中）。ADRの歴史的LaunchAgent説明を現在の通常経路にしない。
+- HIGH/LOWは表示補助。取得不能／評価不能を正常確認済みとせず、基準値具体値の医師確認とソフト仕様整理を分ける。
+
 ## 概要
 - **画面の目的**: 検査オーダーの作成、および臨床検査値（数値・判定）の精緻な記録。
 - **URLパターン**: 
@@ -12,8 +26,8 @@
 ## 1. 画面構成
 
 ### 1.1 検査基本情報
-- **検査種別**: 血液、尿、エコー等のマスタ（`exam_types`）から選択。
-- **担当医**: `staffType=doctor` かつ active のスタッフ。検査種別とともに保存時の必須項目。
+- **検査種別**: 血液、尿、エコー等のマスタ（`exam_types`）から選択。既存の必須条件を維持する。
+- **担当医**: 選択時の候補は `staffType=doctor` かつ active のスタッフ。最新合意では任意で、未選択でも保存可。入力者やカルテ担当医を自動代入せず、担当医未選択と入力者ログを別に保持する。現行必須UIの適合は未確認。
 - **患者ヘッダー**: `PatientInfoCard` で種を `petName` / `petDetails` に実データで出す。特記マーク（EMR-173/231、共有 `DangerBadge`）: ペット名横に `danger_level` 高=赤い八角形アイコン・中=黄い三角形アイコン（文言なし、Popover で補足メモ）、低・未設定は非表示。飼主 `is_dangerous` は飼主名横に文言なしの赤い八角形アイコン（代替名「特記」）。採血・保定など検査実施前の安全確認用。
 
 ### 1.2 動的検査項目テーブル (`ExamItemsTable`)
@@ -66,7 +80,7 @@ stateDiagram-v2
 
 ### 2.4 削除の保護と権限制御
 - **削除**: `ConfirmDialog`（destructive）を経由し、取り消せない旨を明示してから実行します。
-- **権限**: 編集権限（新規は `create`・編集は `edit`）が無い場合はフォーム全体が入力不可になります。
+- **権限**: 新規ルート入口の `create` と、保存mutationの認可を区別する。新規保存は `examinations:create` と `examinations:edit` の両方、既存編集は `edit` を要求する。フォームの入力不可表示だけで保存認可を代用しない。
 - **バリデーションエラー時のフォーカス移動**: 保存失敗時は最初のエラーフィールドへ自動フォーカス・スクロールします（アクセシビリティ対応）。
 
 ---
@@ -84,7 +98,7 @@ stateDiagram-v2
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/examinations/:id` | 検査基本情報の取得（項目リストは `/:id/items` で別途取得） | `examinations` | `view` |
-| POST | `/api/v1/examinations` | 新規保存 | `examinations` | `create` |
+| POST | `/api/v1/examinations` | 新規保存 | `examinations` | `create` かつ `edit` |
 | PATCH | `/api/v1/examinations/:id` | 数値・判定・ステータスの更新 | `examinations` | `edit` |
 | DELETE | `/api/v1/examinations/:id` | 検査記録の削除（編集時のみ削除ボタンを表示） | `examinations` | `delete` |
 | GET | `/api/v1/examinations/:id/items` | 検査項目（結果）のリスト取得 | `examinations` | `view` |
@@ -98,10 +112,21 @@ stateDiagram-v2
 
 ## カルテへの後日結果・訂正履歴の接続
 
-2026-10-14の[カルテ追加合意](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-late-result-shared-history)により、検査画面とカルテは同じ検査結果・変更履歴を参照する。カルテ作成中は後日結果を追加、確定済みなら原記載／確定時参照版を保持して結果を追記する。患者／医院／検査／カルテ対応を照合し、結果訂正の前後・理由・操作主体／時刻を履歴へ残す。
+2026-10-14の[カルテ追加合意](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-late-result-shared-history)により、検査画面とカルテは同じ検査結果・変更履歴を参照する。最新の[通常編集契約](../domains/examinations/lifecycle.md#examination-normal-edit-autosave)により診療終了後もカルテ本文を編集できる。原記載・参照版と変更履歴を保持し、検査自身の確定ロックは別に維持する。患者／医院／検査／カルテ対応を照合し、結果訂正の前後・理由・操作主体／時刻を履歴へ残す。
 
-検査ownerの確定／訂正・専用unconfirm権限は本書の既存契約へ従う。検査のunconfirmをカルテ確定解除やfinalizedへの通常関連PATCHの許可にしない。[参照版と追記の技術契約](../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)へ接続し、revisionなし旧結果・機器受信／adapter全経路はD07の文書照合に残す。今回検査内部の新しい解除手順・実装・実機受入を確定しない。
+検査ownerの確定／訂正・専用unconfirm権限は本書の既存契約へ従う。検査のunconfirmは検査自身の専用操作であり、カルテの旧確定履歴の消去や患者関連の普通FK変更を許可しない。カルテ本文の通常編集は最新D03契約へ従う。[参照版と追記の技術契約](../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)へ接続し、revisionなし旧結果・機器受信／adapter全経路はD07の文書照合に残す。今回検査内部の新しい解除手順・実装・実機受入を確定しない。
 
 ### カルテへの返却・利用開始の最終照合
 
-[最終型／writer契約](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、院内scope・検査ID・患者／record対応・固定revision／版内item ref・変更理由／actor／時刻・取得結果を返す。原記載の確定時参照版と後日版を分離。現在のrevision／print-snapshotの存在だけでカルテadapter実装済みとしない。確定済みカルテへの普通FK PATCH／unfinalizeなし。旧結果／項目の明示対応を確認できなければ停止し、既存の検査内部確定／訂正手順を保持する。
+[最終型／writer契約](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)へ接続し、院内scope・検査ID・患者／record対応・固定revision／版内item ref・変更理由／actor／時刻・取得結果を返す。原記載の確定時参照版と後日版を分離。現在のrevision／print-snapshotの存在だけでカルテadapter実装済みとしない。診療終了後のカルテ本文編集を、患者関連の普通FK変更／旧確定履歴消去で代用しない。旧結果／項目の明示対応を確認できなければ停止し、既存の検査内部確定／訂正手順を保持する。
+
+<a id="examination-selected-print-ui"></a>
+## 項目選択印刷・患者トップへの結果連動（2026-10-15追加採用）
+
+[直接回答による追加採用](../domains/examinations/lifecycle.md#examination-print-infection-agreement-20261015)の目標。§2.1の保存済みprint-snapshotを基礎として、同じ検査・固定版内で印刷項目を選択し、プレビューと出力を一致させる。実施済みを初期選択し未実施を候補から除外する。陰性・0・不等式・定性値を空欄扱いしない。実施済み結果待ちと実施不明は別表示とし、不明行は自動選択せず理由を表示して元記録照合へ。選択0件は印刷対象なし、取消は入力保持。未保存入力は反映されないと表示し、印刷で保存・確定・解除・送信しない。
+
+項目を絞っても患者・検査日・出典／保存版・訂正識別と保存当時の原値／単位／基準範囲を保持する。別検査日・別結果版は一つの帳票へ合成しない。新しい複数日比較帳票・全検歴UI・グラフは対象外。対象版／scopeが変われば選択を新結果へ流用せず再プレビューする。GWTはAC-examinations-print-item-selection〜single-snapshot、[技術契約](../../design/domains/examinations/technical-spec.md#examination-selected-print-contract)へ。
+
+院内の猫FIV／FeLV・犬mf／HWの保存結果は患者トップへ自動反映する。他院はD07の結果記録として手入力し、原値・判明検査日・出典と入力者／入力時刻を保存する。未判明日付は「検査日不明」、他院は「他院・手入力」と表示する。現行フォームに日付不明／出典を表現できる保証はなく、架空日付や台帳備考への転記で代用しない。
+
+保存結果と同じ固定refを読むので、未保存値や未紐付け受信は患者トップへ出さない。訂正／作業版の状態、同日複数候補・出典の違い、記録なし／結果待ち／取得失敗を区別する。保存成功後の再取得失敗は更新未確認として扱う。検査自身の訂正保護と担当医任意は維持し、LINE公開・送付を追加しない。受入はAC-examinations-infection-*、[結果projection契約](../../design/domains/examinations/technical-spec.md#examination-infection-summary-contract)へ。

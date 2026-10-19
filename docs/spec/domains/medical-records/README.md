@@ -1,6 +1,12 @@
 # カルテ
 
-カルテ一覧・入力画面・保存と確定の契約を確認する入口です。2026-10-14初回5項目・入力4項目・訂正／例外4項目・追加3項目の合意範囲を反映。合意16FR／71ACと関連する通常カルテ・D03master・受け手技術契約の明示範囲は文書整理完了。実装・利用開始・全体横断最終確認・実機は未確認。
+**2026-10-18追加合意**：[同一カルテの同時編集禁止・ヘッダー状態・強制取得可](lifecycle.md#medical-record-edit-exclusivity-20261018)（追加1FR／16AC：従来8AC＋04:38 UTC承認8AC）を先に読む。旧finalizedによる一律拒否の撤回とは別の編集権で、編集権側の通常自動保存と閲覧を維持する。下記24FR／101AC等は各合意時点の範囲別計数。
+
+**診断・バイタルの追加合意（2026-10-15）**：[第1・第2それぞれの複数診断、最新値＋測定時刻・同日を含む以前の測定履歴](pages/medical-record-form.md#medical-record-agreement-diagnosis-vitals-20261015) → [概念と多重度](../../ontology/medical-records.md#medical-record-diagnosis-vitals-ontology) → [技術契約／trace](../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)。2FR／12ACを追加し合意追跡は24FR／101AC（旧継承ID・C05追加1ACは別計数）。自動保存・終了後通常編集・復元保護は維持。初診判定に含める受診歴の対象は[予約／受付の別合意](../reservations/pages/reservation-management.md#visit-history-included-types)へ従う。実装／実機は未確認。
+
+**最新の読む順**：[2026-10-15会議合意](lifecycle.md#medical-record-agreement-autosave-20261015)を先に確認する。自動保存維持・診療終了後の通常編集・履歴付きタブ開始時復元／複製直前取消・終了時警告／終了履歴を追加し、旧医師確定必須と本文ロックの目標を置換。以下の完了記録は当時の範囲で、今回の統合レビューは重大指摘なしで完了。保存済み版・会計確定歴・検査自体の確定等の独立保護は保持する。全過去の承認証跡網羅や実装完了は意味しない。
+
+カルテ一覧・入力画面・自動保存・通常編集と履歴の契約を確認する入口です。2026-10-14初回5項目・入力4項目・訂正／例外4項目・追加3項目の合意範囲を反映。合意16FR／71ACと関連する通常カルテ・D03master・受け手技術契約の明示範囲は文書整理完了。実装・利用開始・全体横断最終確認・実機は未確認。
 
 ## 読む順・業務ルールの所在
 
@@ -18,7 +24,7 @@
 
 ### 予約からの記録確認訂正の引継ぎ
 
-[業務5点合意の記録確認訂正](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)では、受付担当が理由・変更案を入力し記録担当が確認して確定する。予約・記録・請求の整合確認と既存記録保持、確定済みカルテの追記訂正を維持する。具体的記録訂正項目・権限識別子・保存方法はカルテ側で詰める。本合意は臨床承認#261や保存ルーティング契約を変更しない。
+[業務5点合意の記録確認訂正](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction)では、受付担当が理由・変更案を入力し記録担当が確認して確定する。予約・記録・請求の整合確認と既存記録保持、以前の保存版・訂正履歴を保持し、通常本文編集は最新合意へ従う。患者／日付等の目的別確認と請求整合は維持する。具体的記録訂正項目・権限識別子・保存方法はカルテ側で詰める。本合意は臨床承認#261や保存ルーティング契約を変更しない。
 
 ## 共通事項
 
@@ -40,11 +46,11 @@ pagesに画面詳細を置き、保存契約など領域固有本文は既存の
 
 ### 予約設計からの引継ぎ：記録participantとlock
 
-docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け手の返却契約](../../../design/domains/reservations/technical-spec.md#reservation-receiving-contracts)と[全writerの共通gate／下位取得順](../../../design/domains/reservations/technical-spec.md#reservation-global-lock-contract)を技術設計として選定した。本体と子入力を含むcontent_state／dependency_revision、確認済み訂正結果、確定記録のaddendum参照を返す。作成・補完・finalize・削除・子入力・追記・関連masterを参加表へ含め、ambient participantは独立transactionを開始しない。保存契約§2・確定本文／元日付・同じIDを保持する。訂正内部の具体項目・専用記録本文の業務承認と実装受入は別条件。
+docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け手の返却契約](../../../design/domains/reservations/technical-spec.md#reservation-receiving-contracts)と[全writerの共通gate／下位取得順](../../../design/domains/reservations/technical-spec.md#reservation-global-lock-contract)を技術設計として選定した。本体と子入力を含むcontent_state／dependency_revision、確認済み訂正結果、以前の保存版・追記／訂正参照を返し、通常本文の現在版更新は最新合意へ接続する。作成・補完・finalize・削除・子入力・追記・関連masterを参加表へ含め、ambient participantは独立transactionを開始しない。保存契約§2・確定本文／元日付・同じIDを保持する。訂正内部の具体項目・専用記録本文の業務承認と実装受入は別条件。
 
 ## 初回合意と技術の入口
 
-[合意5FR・受入16AC](lifecycle.md#medical-record-agreement-first-five) → [用語と関係](../../ontology/medical-records.md) → [部分技術設計](../../../design/domains/medical-records/README.md)。担当医以外の入力／編集者ログ・明示確定／必須追加なし／未完了警告・訂正／削除・過去入力・医師確認理由付き手入力の正本はlifecycle。医院の実grant／医師判定・専用操作の実データ対応と全owner実装／横断統合は未確認。全タブ文書契約は[最終照合](../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)へ追従。
+[合意5FR・受入16AC](lifecycle.md#medical-record-agreement-first-five) → [用語と関係](../../ontology/medical-records.md) → [部分技術設計](../../../design/domains/medical-records/README.md)。担当医以外の入力／編集者ログ・通常編集／必須追加なし／終了時の未完了警告・訂正／削除・過去入力・医師確認理由付き手入力の正本はlifecycle。医院の実grant／医師判定・専用操作の実データ対応と全owner実装／横断統合は未確認。全タブ文書契約は[最終照合](../../../design/domains/medical-records/technical-spec.md#medical-record-reconciled-contract)へ追従。
 
 
 ## 入力4項目の追加合意
@@ -72,7 +78,7 @@ Sentinel_59d45d62afe08191bc0b289c42486962 により[3FR／12AC](pages/medical-re
 | 区分 | 現在の状態・残件 | 次の扱い |
 |:---|:---|:---|
 | 今回業務・文書範囲 | 通常受付接続・入力／ログ・確定・コピー／template／master履歴・4状態・訂正／患者転記／過去入力／復元・画像／印刷／後日結果／影響表示は合意済み | [初回正本](lifecycle.md#medical-record-agreement-first-five) → [入力4](pages/medical-record-form.md#medical-record-agreement-input-four) → [訂正4](lifecycle.md#medical-record-agreement-correction-four) → [追加3](pages/medical-record-form.md#medical-record-agreement-integration-three) → [共通AC](pages/medical-record-form.md#medical-record-shared-coverage-ac) |
-| 技術契約の整理 | 全9タブ＋バイタル・一覧／ヘッダー、型の意味・保存／取消／失敗／競合／結果不明・ownerごとの認可と参照を具体化 | [全タブ対応](../../../design/domains/medical-records/technical-spec.md#medical-record-full-coverage-contract)・[追加3契約](../../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)。新API／DBの反映済みとはしない |
+| 技術契約の整理 | 統合前の全9タブ＋バイタル・一覧／ヘッダー、型の意味・保存／取消／失敗／競合／結果不明・ownerごとの認可と参照を具体化 | [全タブ対応](../../../design/domains/medical-records/technical-spec.md#medical-record-full-coverage-contract)・[追加3契約](../../../design/domains/medical-records/technical-spec.md#medical-record-integration-contracts)。新API／DBの反映済みとはしない |
 | D03文書の判定範囲 | 実wire／DTO差分、旧値・版・認可の未知への停止、全writer／consumer・受け手contractを最終照合A〜Fへ反映 | [完成条件と判定外](../../../design/domains/medical-records/technical-spec.md#medical-record-document-completion)。独立レビューと限定文書検査を通過し、この明示範囲を文書完了と判定。実装／実機・全体横断確認は別 |
 | 他領域への引継ぎ | D07検査revision／機器受信・D08接種／D09健診、D10／11／12／13の未納・返金・締め後・金額／在庫増減、D05／06専用記録、D20／21公開 | [引継ぎ表](../../../design/domains/medical-records/technical-spec.md#文書判定範囲と関連領域への引継ぎ)。カルテ合意で他領域内部を確定しない |
 | 別承認・実装受入 | 薬量の具体値・対象・単位・出典#261、C04実権限・C05保存期間／削除規約、実装・実データ／実機・並行性／性能 | 未承認／未検証のまま保持。Issue Closedや静的読取を医師の数値承認・実機PASSにしない |
@@ -86,3 +92,18 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 ## 文書完成記録
 
 2026-10-14、追加docs承認に基づく最終照合A〜G、16FR／71AC trace、受け手contractを独立レビュー3名で確認し限定文書検査を通過。[完成範囲と判定外](../../../design/domains/medical-records/technical-spec.md#medical-record-document-completion)に限定してD03を文書完了とする。現API／DTOとの差、旧値不明停止、writer／監査／gateと医師確認、専用intent・在庫副作用を明示し、現コードの追従を承認根拠にしない。実設定・実旧データ・薬量具体値の医師承認・実装／利用開始／実機性能・他owner内部・全体横断最終確認は未確認のまま。新業務の質問は追加しない。次の推奨領域はD10会計。
+
+## 最新差分の件数と実装検証の扱い
+
+今回6FR／18ACを追加し、当時の16FR／71ACのIDを保持して対象期待値を置換。この6項目の時点では合意追跡22FR／89AC、診断・バイタルの追加後は冒頭の24FR／101AC。旧継承IDとC05追加1ACは別計数。最新技術は[自動保存・復元・終了](../../../design/domains/medical-records/technical-spec.md#medical-record-autosave-revert-contract)。S06等の既存ロック試験は現実装の確認先であり、旧finalized拒否を最新目標の合格条件として採用しない。実装時に最新版の通常編集・元版保持を受入へ対応付ける。
+
+## 初診問診・予防薬の追加採用
+
+[初診問診の構造化記録・原紙6頁対応](pages/initial-intake.md)と[予防薬専用処方箋・年間表](pages/preventive-medication.md)をSentinel_0adf405e47508191abf775b6c4af22a3 の回答に基づき追加。今回5FR／28AC。問診は2026-10-17決定で治療プランへ統合する。既存保存先・自動保存・復元・終了後通常編集を維持し、飼主事前問診の別保存と保護を接続する。予防薬の表示・専用2帳票の入口はカルテ右上から開く既存D21で、D21一般レポート全体の印刷／共有を追加しない。D08接種と区別し、[概念](../../ontology/medical-records.md#medical-record-intake-prevention-ontology)・[技術trace](../../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)へ接続する。文書候補の追加であり、実装・実機受入は未実施。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](lifecycle.md#integrated-plan-20261017)。問診統合・右側履歴移設、飼主原文保護、非表示の来院別要約保存、1回量／用法／処方総量表示、価格入り4種明細の実施前後単価変更を適用する。旧9タブ／問診単独送信の記述は統合前の保存先・実装参照で、画面を別タブへ戻す根拠としない。統合した保存単位は未選定。同一カルテの同時編集禁止・強制取得可は[2026-10-18追加合意](lifecycle.md#medical-record-edit-exclusivity-20261018)に従い、閲覧のみでは取得せず「編集を開始」で取得し、同一カルテのタブ移動・単なる無操作では維持する。別画面離脱は保存結果確認後に解放し、切断時は入力保持と編集・送信停止、再接続時は編集権と保存結果を確認する。再読み込み後も未保存入力を復元可能とし、再取得後は最新内容と比較して明示選択適用する（04:38:21 UTC本人承認）。API・失効方式・秒数・保存場所・保持期間・比較UI等の技術詳細は未選定。通常の単価割引理由は任意、その他行・取消・提示済み見積・確定会計の必要理由と既決薬量安全条件は維持する。

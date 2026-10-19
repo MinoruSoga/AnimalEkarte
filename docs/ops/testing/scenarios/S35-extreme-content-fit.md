@@ -50,4 +50,4 @@ flowchart TB
 
 ## 実装突合
 
-- `PatientContextHeader` の truncate 契約（S25）、一覧系の `truncate`/`title` 属性、金額フォーマット（`Intl.NumberFormat` 等）を現行コードと突合
+- `PatientInfoCard`（`MedicalRecordStickyHeader` 内）の truncate 契約（S25）、一覧系の `truncate`/`title` 属性、金額フォーマット（`Intl.NumberFormat` 等）を現行コードと突合

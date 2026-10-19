@@ -44,10 +44,34 @@ describe("Examinations display-only date and missing values", () => {
   it("displays ISO date with slashes and keeps missing doctor/result as em dash", () => {
     show("2026-10-14");
     expect(screen.getByRole("cell", { name: "2026/10/14" })).toHaveClass("whitespace-nowrap");
-    expect(screen.getAllByRole("cell", { name: "—" }).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByRole("cell", { name: "-" }).length).toBeGreaterThanOrEqual(2);
   });
   it("missing date displays em dash", () => {
     show("");
-    expect(screen.getAllByRole("cell")[0]).toHaveTextContent("—");
+    expect(screen.getAllByRole("cell")[0]).toHaveTextContent("-");
+  });
+});
+
+describe("EMR-415 X2: 一覧ヘッダの文字色", () => {
+  it("ソート可能ヘッダは eyebrow variant（#615D59・uppercase）で描画する", () => {
+    show("2026-10-14");
+
+    for (const button of screen.getAllByRole("button", { name: /でソート/ })) {
+      expect(button).toHaveClass("text-[#615D59]");
+      expect(button).toHaveClass("uppercase");
+    }
+  });
+});
+
+describe("EMR-415 E5: 飼主名セルの折返し", () => {
+  it("飼主名セルは whitespace-nowrap を持つ", () => {
+    show("2026-10-14");
+
+    const cell = screen
+      .getByRole("cell", { name: "2026/10/14" })
+      .closest("tr")
+      ?.querySelectorAll("td")[1];
+    expect(cell).not.toBeUndefined();
+    expect(cell).toHaveClass("whitespace-nowrap");
   });
 });

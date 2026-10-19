@@ -26,6 +26,8 @@ interface VitalsTableProps {
   vitals: Vital[];
   editingId: string | null;
   canCreate: boolean;
+  /** EMR-412 K5: ロック中の理由文言（権限なし/死亡）。未指定は通常文言。 */
+  lockedEmptyMessage?: string;
   canEdit: boolean;
   canDelete: boolean;
   isAdding: boolean;
@@ -49,6 +51,7 @@ export function VitalsTable({
   vitals,
   editingId,
   canCreate,
+  lockedEmptyMessage,
   canEdit,
   canDelete,
   isAdding,
@@ -75,7 +78,9 @@ export function VitalsTable({
           {vitals.length === 0 ? (
             <tr>
               <TableCell data-empty-state colSpan={7} className={STYLE.tableEmptySm}>
-                バイタル記録がありません。下の「記録を追加」ボタンから追加してください。
+                {/* EMR-412 K5: ロック中は理由で分ける。通常時は実ボタン名を書く。 */}
+                {lockedEmptyMessage ??
+                  "バイタル記録がありません。「記録を追加」ボタンから追加してください。"}
               </TableCell>
             </tr>
           ) : (

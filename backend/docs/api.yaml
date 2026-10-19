@@ -60,6 +60,62 @@ components:
       description: |
         後方互換のフォールバック。Cookie が利用不可な環境（CLI クライアント等）向け。
   schemas:
+    SupportChatRequest:
+      type: object
+      description: |
+        EMR-410 新プロトコル。記事 ID + 実効コーパス revision のみ送信し、本文は
+        サーバーが権限評価済みコーパスから再解決する（クライアント送信の title/text は一切信頼しない）。
+      required: [message, manual_revision, keyword_candidates]
+      # legacy context との oneOf 曖昧性を排除（context 存在時は新プロトコルではない）。
+      not:
+        required: [context]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          description: ユーザーの質問（UTF-8 で最大 2000 バイト。スクリーニングで機微情報検出時は 400）
+        manual_revision:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: FE 側の実効コーパス SHA-256 hex。不一致は 409（FE は 1 回だけ再取得・再送、再び 409 なら再読込案内）
+        keyword_candidates:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          description: 記事 ID のみ（本文は送らない）。重複 (category,slug) は 400
+          items:
+            type: object
+            required: [category, slug]
+            properties:
+              category:
+                type: string
+                enum: [screens, workflows]
+              slug:
+                type: string
+                minLength: 1
+                maxLength: 100
+                pattern: '^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$'
+    LegacySupportChatRequest:
+      type: object
+      deprecated: true
+      description: |
+        レガシー context プロトコル。SUPPORT_HYBRID_SEARCH_ENABLED=false のみ受理
+        （true の場合は context フィールドが存在するだけで 409）。title/text は
+        無視され、サーバーは slug から現在コーパスを再解決する。
+      required: [message, context]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 2000 }
+        context:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            required: [category, slug]
+            properties:
+              title: { type: string, maxLength: 200, description: "ignored（サーバーは使用しない）" }
+              category: { type: string, enum: [screens, workflows] }
+              slug: { type: string, maxLength: 100 }
+              text: { type: string, maxLength: 6000, description: "ignored（サーバーは使用しない）" }
     # ─── Summary schemas (Preload用の軽量オブジェクト) ──────────────
     OwnerSummary:
       type: object
@@ -202,7 +258,7 @@ components:
           type: integer
           format: int64
         category:
-          type: string
+          $ref: '#/components/schemas/ItemCategory'
         name:
           type: string
         unit_price:
@@ -2331,7 +2387,7 @@ components:
       properties:
         category:
           type: string
-          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
         name:
           type: string
         unit_price:
@@ -3334,7 +3390,7 @@ components:
           type: array
           items:
             type: string
-            enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+            enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
         target_item_ids:
           type: array
           items:
@@ -3753,6 +3809,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+    ItemCategory:
+      type: string
+      enum: &id003
+        - examination
+        - test
+        - procedure
+        - surgery
+        - medicine
+        - food
+        - goods
+        - other
+        - vaccine
+        - trimming
+        - hotel
+        - training
+        - house_call
     MerchandiseItem:
       type: object
       required: [name]
@@ -3769,15 +3841,7 @@ components:
           type: string
         category:
           type: string
-          enum: &id003
-            - examination
-            - test
-            - procedure
-            - surgery
-            - medicine
-            - food
-            - goods
-            - other
+          enum: [food, goods, other]
           default: goods
           description: カテゴリ（item_category ENUM）
         unit_price:
@@ -4661,7 +4725,7 @@ components:
           maxLength: 255
         category:
           type: string
-          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+          enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
         unit_price:
           type: integer
           format: int64
@@ -14326,7 +14390,7 @@ paths:
                   format: int64
                 category:
                   type: string
-                  enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+                  enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training, house_call]
                 name:
                   type: string
                 unit_price:
@@ -26723,9 +26787,14 @@ paths:
       operationId: postSupportChat
       summary: ヘルプチャット(マニュアル抜粋を根拠に LLM が回答)
       description: |
-        認証済みスタッフ全員が利用可能（権限ゲートなし）。フロントエンドがマニュアル検索で
-        取得した抜粋(context)のみを根拠に LLM へ質問する。SUPPORT_LLM_API_KEY 未設定の
-        環境では 501 を返す(フロントエンドは status で検出し検索 UI へフォールバック)。
+        認証済みスタッフ全員が利用可能（権限ゲートなし）。新プロトコルは記事
+        ID + 実効コーパス revision のみを送り、本文はサーバーが権限評価済みの
+        正本コーパスから再解決して LLM の根拠にする（クライアント送信の記事
+        本文/title/text は一切信頼しない）。レガシー context プロトコルは
+        SUPPORT_HYBRID_SEARCH_ENABLED=false のみ受理し、ID だけを使う
+        （送信された title/text は無視）。hybrid 有効時は context フィールドが
+        存在するだけで 409。
+        SUPPORT_LLM_API_KEY 未設定の環境では 501 を返す(フロントエンドは status で検出し検索 UI へフォールバック)。
         LLM 呼び出しコスト抑制のため IP 単位でレート制限あり。
         会話履歴はクライアント送信値を信頼せず、サーバー保存済みの履歴を使用する。
         また外部 LLM へ送る入力はサーバー側でスクリーニングし、メールアドレス・
@@ -26734,28 +26803,15 @@ paths:
       tags: [Support]
       requestBody:
         required: true
+        description: |
+          oneOf で新プロトコル(SupportChatRequest)かレガシー(LegacySupportChatRequest)を指定。
+          body は 32KiB 上限（超過 413）。複数 JSON 値の連結は 400、末尾の空白は受理される。
         content:
           application/json:
             schema:
-              type: object
-              required: [message]
-              properties:
-                message:
-                  type: string
-                  maxLength: 2000
-                  description: ユーザーの質問
-                context:
-                  type: array
-                  maxItems: 6
-                  description: 回答根拠とするマニュアル抜粋
-                  items:
-                    type: object
-                    required: [title, category, slug, text]
-                    properties:
-                      title: { type: string, maxLength: 200 }
-                      category: { type: string, maxLength: 100 }
-                      slug: { type: string, maxLength: 100 }
-                      text: { type: string, maxLength: 6000 }
+              oneOf:
+                - $ref: '#/components/schemas/SupportChatRequest'
+                - $ref: '#/components/schemas/LegacySupportChatRequest'
       responses:
         '200':
           description: 回答 + 参照記事
@@ -26763,21 +26819,34 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [reply, sources, retrieval]
                 properties:
                   reply: { type: string }
                   sources:
                     type: array
+                    maxItems: 3
                     items:
                       type: object
                       properties:
                         title: { type: string }
                         category: { type: string }
                         slug: { type: string }
+                  retrieval:
+                    type: object
+                    required: [mode, reason, manual_revision]
+                    properties:
+                      mode: { type: string, enum: [hybrid, keyword, none] }
+                      reason: { type: string, enum: [ok, disabled, index_missing, embedding_unavailable, capacity, no_evidence] }
+                      manual_revision: { type: string, pattern: '^[0-9a-f]{64}$' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict', description: manual_revision 不一致（1 回再取得・再送）または hybrid 有効時の context プロトコル }
+        '413': { description: body が 32KiB 上限超過 }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '501': { description: LLM が未設定(SUPPORT_LLM_API_KEY なし) }
         '502': { description: LLM 上流エラー(プロバイダ詳細は返さない) }
+        '503': { description: manualSearch 依存（corpus/権限/quota）未設定または DB 失敗 }
+        '504': { description: 生成デッドライン超過（親 22s）。検索 2s 超過は keyword fallback、corpus 依存失敗は 503 }
         '500': { $ref: '#/components/responses/InternalError' }
   /support/chat/exchanges:
     get:

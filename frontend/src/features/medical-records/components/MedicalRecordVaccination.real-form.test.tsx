@@ -379,7 +379,7 @@ describe("MedicalRecordVaccination EMR-105 same-day multi-vaccine (in-chart path
     expect(await screen.findAllByText("新混合ワクチン")).not.toHaveLength(0);
     expect(await screen.findAllByText("狂犬病ワクチン")).not.toHaveLength(0);
     // 次予定列も行ごとに独立（同日だからといって共有・上書きされない）。
-    expect(await screen.findAllByText("26/9/26")).not.toHaveLength(0);
-    expect(await screen.findAllByText("26/10/10")).not.toHaveLength(0);
+    expect(await screen.findAllByText("2026/09/26")).not.toHaveLength(0);
+    expect(await screen.findAllByText("2026/10/10")).not.toHaveLength(0);
   });
 });

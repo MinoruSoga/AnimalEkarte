@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createTestWrapper } from "@/testing/TestUtils";
 import type { ColumnData } from "@/types";
 import { Reception } from "./Reception";
@@ -94,11 +95,31 @@ vi.mock("../hooks/use-reception-kanban", () => ({
   })),
 }));
 
+/** 受付ルートの実際の表示配線を、ルーターとテスト用プロバイダーで描画する。 */
 function renderReception() {
   return render(<Reception />, { wrapper: createTestWrapper({ router: true }) });
 }
 
 describe("Reception — テレメトリ配線（Phase 2 常時有効）", () => {
+  it("フィルターの開閉状態を色以外でも示し、キーボードで切り替えられる", async () => {
+    const user = userEvent.setup();
+    renderReception();
+    const toggle = screen.getByRole("button", { name: "フィルター" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(within(toggle).queryByText("✓")).not.toBeInTheDocument();
+    const panelId = toggle.getAttribute("aria-controls");
+    expect(panelId).toBeTruthy();
+    expect(document.getElementById(panelId ?? "")).not.toBeVisible();
+
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(within(toggle).getByText("✓")).toBeVisible();
+    expect(document.getElementById(panelId ?? "")).toBeVisible();
+    await user.keyboard(" ");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById(panelId ?? "")).not.toBeVisible();
+  });
   it("本日受付件数と平均待ち/最長待ちが実データで表示される", () => {
     renderReception();
 

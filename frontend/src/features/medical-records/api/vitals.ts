@@ -19,7 +19,7 @@ function clinicHeaderConfig(clinicId?: string) {
 
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-const getVitals = async (medicalRecordId: string, clinicId?: string): Promise<Vital[]> => {
+export const getVitals = async (medicalRecordId: string, clinicId?: string): Promise<Vital[]> => {
   const { data } = await axios.get<Vital[]>(
     `/v1/medical-records/${medicalRecordId}/vitals`,
     clinicHeaderConfig(clinicId),

@@ -197,7 +197,7 @@ describe("DailyAccountingTab", () => {
     expect(row).not.toBeNull();
     const cells = within(row as HTMLElement).getAllByRole("cell");
     // EMR-186: 飼主名・ペット名が最右端へ移動したため診療列は index 1
-    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(cells[1]).toHaveTextContent("-¥3,000");
   });
 
   it("支払方法が表示される", async () => {
@@ -606,4 +606,91 @@ describe("DailyAccountingTab", () => {
     );
     expect(span).toBe(headerTexts.length);
   });
+});
+
+it("house_call 明細は用品他ではなく往診列に集計される", async () => {
+  server.use(
+    http.get("*/v1/accountings", () =>
+      HttpResponse.json({
+        data: [
+          makeAccounting({
+            subtotal: 1300,
+            tax_total: 130,
+            total_amount: 1430,
+            items: [
+              {
+                id: 1,
+                billing_id: 1,
+                category: "house_call",
+                name: "往診料",
+                unit_price: 1000,
+                quantity: 1,
+                tax_rate: 0.1,
+                tax_type: "excluded",
+                tax_amount: 100,
+                subtotal: 1000,
+                is_insurance_applicable: false,
+                source: "manual",
+              },
+              {
+                id: 2,
+                billing_id: 1,
+                category: "goods",
+                name: "用品",
+                unit_price: 300,
+                quantity: 1,
+                tax_rate: 0.1,
+                tax_type: "excluded",
+                tax_amount: 30,
+                subtotal: 300,
+                is_insurance_applicable: false,
+                source: "manual",
+              },
+            ],
+            payments: [
+              {
+                id: 1,
+                billing_id: 1,
+                method: "cash",
+                total_amount: 1430,
+                billing_amount: 1430,
+                received_amount: 1430,
+                change_amount: 0,
+                insurance_amount: 0,
+                discount_amount: 0,
+              },
+            ],
+          }),
+        ],
+        total: 1,
+        page: 1,
+        limit: 50,
+      }),
+    ),
+    http.get("*/v1/accountings/daily-summary", () => HttpResponse.json(DAILY_SUMMARY)),
+  );
+  renderTab();
+  await waitFor(() => {
+    expect(screen.getByTestId("daily-accounting-table")).toBeInTheDocument();
+  });
+  const table = screen.getByTestId("daily-accounting-table");
+  const head = within(table)
+    .getAllByRole("columnheader")
+    .map((h) => h.textContent);
+  const hcIdx = head.indexOf("往診");
+  const goodsIdx = head.indexOf("用品他");
+  expect(hcIdx).toBeGreaterThan(-1);
+  expect(hcIdx).toBe(goodsIdx + 1);
+  const dataRow = within(table).getAllByRole("row")[1];
+  const cells = within(dataRow)
+    .getAllByRole("cell")
+    .map((c) => c.textContent);
+  expect(cells[hcIdx]).toContain("1,000");
+  expect(cells[goodsIdx]).toContain("300");
+
+  const footerCells = within(table.querySelector("tfoot tr")!)
+    .getAllByRole("cell")
+    .map((cell) => cell.textContent);
+  expect(footerCells[hcIdx]).toContain("1,000");
+  expect(footerCells[goodsIdx]).toContain("300");
 });

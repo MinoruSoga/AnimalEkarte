@@ -74,7 +74,7 @@ jobs:
 
       - name: Run Chromatic
         if: steps.token.outputs.configured == 'true'
-        uses: chromaui/action@6b3c2820222d23bad770d57a4ad5e2d1c91f92e9 # v18.9.5
+        uses: chromaui/action@e50abd573c8a789526f165fec06137a7c21d7299 # v18.13.0
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           workingDir: frontend

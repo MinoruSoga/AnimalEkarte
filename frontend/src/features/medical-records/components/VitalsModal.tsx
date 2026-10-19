@@ -17,6 +17,9 @@ interface VitalsModalProps {
   /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
   recordClinicId?: string;
   isPetDeceased?: boolean;
+  /** EMR-412 R6: バイタル空状態の理由文言に使うロック状態。 */
+  isFinalized?: boolean;
+  isLocked?: boolean;
 }
 
 export function VitalsModal({
@@ -25,6 +28,8 @@ export function VitalsModal({
   medicalRecordId,
   recordClinicId,
   isPetDeceased = false,
+  isFinalized = false,
+  isLocked = false,
 }: VitalsModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,6 +42,8 @@ export function VitalsModal({
           medicalRecordId={medicalRecordId}
           recordClinicId={recordClinicId}
           isPetDeceased={isPetDeceased}
+          isFinalized={isFinalized}
+          isLocked={isLocked}
         />
       </DialogContent>
     </Dialog>

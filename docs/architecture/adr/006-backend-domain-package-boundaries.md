@@ -56,6 +56,8 @@ backend/internal/
 
 > 2026-09-29 amendment: `support/` をサポートウィジェット（バグ報告 + LLMヘルプチャット）の vertical slice として target domain に追加（**15 target package**。実装は 2026-09-26 に追加済み。`domainImportAllowlist` の許可 edge は `support → httpapi` のみ。`PermissionMiddleware` / `fileUploader` / `ChatCompleter` は consumer-side interface で composition root が注入し、`apperrors` / `model` 以外の他 domain への production import はない）。
 
+> EMR-410 amendment: backend-authoritative manual retrieval のため `support → manualarticle` を追加で許可する。利用対象は公開 corpus/chunk API に限り、記事 CRUD の write owner は `manualarticle`、認可済み corpus の検索と派生 embedding/quota の所有者は `support` とする。逆方向の `manualarticle → support` は禁止したまま、許可 graph の acyclicity と両方向の fixture を `TestDomainImportAllowlistLint` で検証する。既存の provider 承認・tenant/permission・transaction 境界は変更しない。
+
 ### Product philosophyに基づく運用境界（project decision）
 
 [`docs/product-philosophy.md`](../../product-philosophy.md)はproductのWHAT / WHYと判断順序を定める文書であり、このfolder tree自体を要求しない。本ADRは、業務workflowの一貫性と変更cycle timeをpackage境界へ反映するため、上記構成を**domain/capability-firstのmodular monolith**として運用する。
@@ -104,6 +106,8 @@ Historical landing note: BE9-2Eの最初のdomainとしてtrimmingの23 source r
 LIFF予約はtransactor・reservation repositoryを必須とし、public/activeな予約区分、LINE顧客のclinic所有、明示staffの所属・対応可能種別・`is_active=true`・`reservation_visible=true`、activeなcourse/optionをwrite transaction内で再検証する。具体repositoryの`FOR SHARE`をappointment/detail/optionsのcommitまで保持し、必須repository欠落またはいずれかの保存失敗はfail-closedとして予約本体を含めてrollbackする。
 
 通常カルテのsoft deleteは対象カルテを`FOR UPDATE`したtransaction内で見積依存を再確認し、`clinic_id + id + status=draft`を単一DELETE条件に含める。見積Createも親カルテ行を先にlockするため両者は直列化され、見積が先なら削除をConflict、削除が先なら後続見積を拒否する。確定処理が先行した場合や既に非draftの場合もConflictとし、確定済みカルテを削除しない。
+
+> **後続業務合意との境界**: 次段落のcancel cleanupは固定時点の実装・移行記録として保持する。[C06の選定仕様と現行差](../../design/shared/integration-contracts.md#selected-vs-current)では通常予約取消からのdraftカルテ自動削除を採用しない。受付と通常カルテ作成の同時成功等も同正本を優先し、本ADRの旧経路を現行目標の受入条件へ流用しない。既存コードの変更・適合検証をこの注記で実施済みとしない。
 
 予約キャンセル後のdraftカルテcleanupもこの通常削除経路へ委譲し、旧repository bypassは持たない。一方、予約更新とカルテcleanupは既存contractどおり別transactionのbest-effortであり、部分成功時の再収束方式はBE9-2Eまでのcross-domain orchestration判断としてgit履歴（旧`BE-refactor.md`・2026-07-24退役）に記録済みである。これはowner外の`appointments` write例外ではない。
 

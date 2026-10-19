@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -234,6 +234,41 @@ describe("ExamTypeFieldsEditor", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("数値範囲の下限は上限以下にしてください");
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("preserves fractional and empty numeric bounds and the qualitative datalist", async () => {
+    const user = userEvent.setup();
+    render(<ExamTypeFieldsEditor examType={examType} canCreate canEdit canDelete />);
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "編集: 検査項目 白血球 (ID 31)",
+      }),
+    );
+
+    const min = screen.getByRole("spinbutton", { name: "犬の数値下限" });
+    const max = screen.getByRole("spinbutton", { name: "犬の数値上限" });
+    expect(min).toHaveAttribute("step", "any");
+    expect(min).toHaveAttribute("placeholder", "");
+    expect(max).toHaveAttribute("placeholder", "");
+    fireEvent.change(min, { target: { value: "-0.25" } });
+    fireEvent.change(max, { target: { value: "" } });
+
+    expect(min).toHaveValue(-0.25);
+    expect(max).toHaveValue(null);
+
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "犬の基準範囲種別" }),
+      "qualitative",
+    );
+
+    const qualitativeMin = screen.getByRole("combobox", { name: "犬の定性下限" });
+    expect(qualitativeMin).toHaveAttribute("list", "exam-qualitative-values");
+    expect(document.getElementById("exam-qualitative-values")).toContainHTML(
+      '<option value="(+++)">',
+    );
+    fireEvent.change(qualitativeMin, { target: { value: "(++)" } });
+    expect(qualitativeMin).toHaveValue("(++)");
   });
 
   it("sends an explicit empty array when all species ranges are cleared", async () => {

@@ -20,7 +20,7 @@ Edit/Write後のhookは別の実行経路である。Bashがないことをコ�
 
 レビュー開始時:
 1. `git diff -- '*.ts' '*.tsx'` で変更を確認
-2. 型チェックは `post-edit-typecheck-ts.js` フックの編集時出力を確認（全体 `tsc --noEmit` / `pnpm type-check` は自動実行禁止 — CLAUDE.md）
+2. `post-edit-typecheck-ts.js` は限定検証への案内だけで型検査を行わない。対象worktree/diff/mountを確認したscoped runnerの実行証跡を受け取り、未実行はUNKNOWN/BLOCKEDとする（全体型検査は自動実行禁止）
 3. 変更ファイルに限定して lint: `docker compose exec frontend npx eslint <変更ファイル>`（全体 `pnpm lint` は自動実行禁止）
 4. 型/lint エラーがある場合はレビュー前に報告・ブロック
 

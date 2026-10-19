@@ -9,7 +9,7 @@
 
 > **関連正本（FE-DS1・2026-09-30 追加）**: トークンの層構造・参照方向は [design-token-layers.md](design-token-layers.md)、インタラクション状態（hover/focus/disabled/loading/invalid）とコントラスト基準は [design-states.md](design-states.md) が正本。コンポーネント仕様書は [components/](components/) 配下。
 
-> **仕様書の対象範囲（FE-DS2・2026-09-30 決裁）**: md 仕様書は **`components/ui/` プリミティブ + 契約が自明でない共有部品**に限定する。`components/shared/` の仕様は **colocated `.stories.tsx` + autodocs を正本**とする（C21/C24 監査で全件カバーを機械保証済み・drift しない）。md を追加する基準は「stories を読んでも分からない振る舞い契約」がある場合のみ: ① 権限・臨床 sentinel などの fail-closed 仕様、② 複数状態遷移や外部依存（router/query/print）の非自明な組み合わせ、③ 利用側が守るべき契約（例: PrintPortal の active 属性責務）。見た目のバリエーション一覧は md ではなく Storybook を参照する。
+> **仕様書の対象範囲（FE-DS2・2026-09-30 決裁）**: md 仕様書は **`components/ui/` プリミティブ + 契約が自明でない共有部品**に限定する。`components/shared/` の仕様は **colocated `.stories.tsx` + autodocs を正本**とする（C21はprimitiveのstoriesを要求する。C24はsharedを検査するが、[トークン層§6](design-token-layers.md)の記録では既存未カバー49エントリがallowlistに残り、全件カバー済みではない。現在の実数・実行結果は今回再検証していない）。md を追加する基準は「stories を読んでも分からない振る舞い契約」がある場合のみ: ① 権限・臨床 sentinel などの fail-closed 仕様、② 複数状態遷移や外部依存（router/query/print）の非自明な組み合わせ、③ 利用側が守るべき契約（例: PrintPortal の active 属性責務）。見た目のバリエーション一覧は md ではなく Storybook を参照する。
 
 | 軸 | 正本 | 理由 |
 |---|---|---|
@@ -92,7 +92,7 @@ flowchart TB
 | `{colors.ink}` | `#000000` | 見出し・本文（~95% alpha で soft true-black） |
 | `{colors.ink-secondary}` | `#31302E` | 二次本文・フッターリンク |
 | `{colors.ink-muted}` | `#615D59` | 補助・muted コピー |
-| `{colors.ink-faint}` | `#A39E98` | キャプション・メタデータ・placeholder |
+| `{colors.ink-faint}` | `#A39E98` | placeholder・情報を担わない装飾に限定。キャプション/メタ実情報はink-muted以上で、背景との可読性条件はdesign-states §2.2へ従う |
 
 ### 2.4 意味的カラー (Semantic Colors) — 臨床安全のための色（存続決定）
 
@@ -155,7 +155,7 @@ DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ra
 | カード surface | `{colors.canvas}` | `#FFFFFF` | `C.bgWhite` / `C.bgSubtle` ✅ |
 | Hairline | `{colors.hairline}` | **`#E6E6E6`** | `C.borderLight` / `globals.css` `--border` = `#E6E6E6` ✅（旧 `rgba(0,0,0,0.09)` を字義固体値化） |
 | 入力 border | `text-input` 1px `rgb(221,221,221)` | `#DDDDDD` | `globals.css` `--input` ✅ |
-| Ink 系（4段） | `{colors.ink}` 〜 `{colors.ink-faint}` | `#000000` / `#31302E` / `#615D59` / `#A39E98` | **FE11-F2 で実値化**。`C.text`=ink／`C.text90-70`=ink-secondary／`C.text65-50`=ink-muted／`C.text45` 以下と placeholder=ink-faint。新規実装は `C.textInk` / `textSecondary` / `textMuted` / `textFaint` を使う ✅ |
+| Ink 系（4段） | `{colors.ink}` 〜 `{colors.ink-faint}` | `#000000` / `#31302E` / `#615D59` / `#A39E98` | **FE11-F2 で実値化**。`C.text`=ink／`C.text90-70`=ink-secondary／`C.text65-50`=ink-muted／`C.text45` 以下と placeholder=ink-faintは従来の値対応であり、実情報の使用許可ではない。キャプション/メタ実情報はink-muted以上とし、ink-faintはplaceholder/非情報装飾に限定する。新規実装は `C.textInk` / `textSecondary` / `textMuted` / `textFaint` を使う ✅ |
 | checked / focus | `{colors.primary}` | **`#038B94`** | `C.dataCheckedBgActionPrimary` / `--ring`。汎用 selection / focus は semantic primary に統一 ✅ |
 | CSS 変数 | brand / primary | **`#038B94` / `#038B94`** | `globals.css` `--brand` と `--primary` は意味名を維持しつつ同値。`--sidebar-primary` も同じ teal ✅ |
 

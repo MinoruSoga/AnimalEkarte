@@ -98,6 +98,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={!selectedMedicine}
       title={formData.name}
       onTitleChange={handleTitleChange}

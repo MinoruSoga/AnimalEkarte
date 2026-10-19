@@ -2,11 +2,14 @@
 import { memo } from "react";
 
 // Internal
-import { BADGE, C, PALETTE } from "@/lib/design-tokens";
+import { BADGE, C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
+import { Plus } from "lucide-react";
+import { getLockedEmptyStateMessage } from "../lib/record-empty-state";
 
 // Relative
 import { EmptyState } from "@/components/shared/DataStates";
-import { Button } from "@/components/ui/button";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { VaccinationForm } from "./VaccinationForm";
 import { VaccinationHistory } from "./VaccinationHistory";
 import { useMedicalRecordVaccinationForm } from "../hooks/use-medical-record-vaccination-form";
@@ -19,6 +22,8 @@ interface MedicalRecordVaccinationProps {
   lstepStatus?: LstepStatus;
   /** BUG-035: 確定済み/送信権限なし。記録追加・複写のみ無効化し履歴閲覧は残す。 */
   isLocked?: boolean;
+  /** EMR-412 K5: 確定済み判定（K5 空状態文言の優先理由）。既定 false。 */
+  isFinalized?: boolean;
 }
 
 function LstepStatusBadge({ status }: { status: LstepStatus }) {
@@ -55,6 +60,7 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
   medicalRecordId,
   lstepStatus,
   isLocked = false,
+  isFinalized = false,
 }: MedicalRecordVaccinationProps) {
   // FE-RC-008: 埋め込みフォームの状態と保存アクションは extract hook に集約。
   // 本体は useActionState の formAction を <form action> に渡すだけの薄い belt。
@@ -91,6 +97,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
 
   // jsx-no-leaked-render: JSX 属性内の && 連鎖を避けて変数化
   const canCreateVaccination = !!petId && !isLocked;
+  // EMR-412 K5: ロック中（確定済/編集権限なし）は理由で文言を分ける。
+  const lockedEmptyMessage = getLockedEmptyStateMessage({ isFinalized, isLocked });
 
   return (
     <>
@@ -102,8 +110,10 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
       {/* EMR-212: MedicalRecordFormReadyPanels がページ全体を <form action>（カルテ保存）で
           包むため、ここに <form> を置くとネスト form となりブラウザが破棄する。form 要素は
           使わず、VaccinationForm 内の SubmitButton の formAction で送信する（EMR-208 と同型） */}
-      <div className="grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto relative pb-20 pr-1 lg:grid-cols-5">
-        <fieldset disabled={isLocked} className="contents">
+      <div
+        className={`grid grid-cols-1 gap-4 flex-1 min-h-0 overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance} pr-1 lg:grid-cols-5`}
+      >
+        <fieldset disabled={isLocked} className={`contents ${STYLE.readonlyInputs}`}>
           {isAdding ? (
             <VaccinationForm
               formAction={formAction}
@@ -138,25 +148,39 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
                 {historyItems.map((item) => (
                   <li key={item.id} className="px-3 py-2 text-sm">
                     <div className={`font-medium ${C.text}`}>{item.name}</div>
-                    <div className={C.text60}>接種日 {item.date}</div>
+                    <div className={C.text60}>接種日 {formatDate(item.dateISO)}</div>
                   </li>
                 ))}
               </ul>
-              {petId ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
-                  記録を追加
-                </Button>
+              {canCreateVaccination ? (
+                <button
+                  type="button"
+                  className={STYLE.inlineAddBtn}
+                  onClick={() => setIsAdding(true)}
+                >
+                  <Plus className={ICON.xs} />
+                  <span>記録を追加</span>
+                </button>
               ) : null}
             </div>
           ) : (
             <EmptyState
               className="lg:col-span-3"
-              message="接種記録がありません。下の「記録を追加」ボタンから追加してください。"
+              message={
+                lockedEmptyMessage ??
+                "接種記録がありません。「記録を追加」ボタンから追加してください。"
+              }
             >
-              {petId ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(true)}>
-                  記録を追加
-                </Button>
+              {/* EMR-412 K4: 追加ボタンは STYLE.inlineAddBtn に統一。ロック中は出さない。 */}
+              {canCreateVaccination ? (
+                <button
+                  type="button"
+                  className={STYLE.inlineAddBtn}
+                  onClick={() => setIsAdding(true)}
+                >
+                  <Plus className={ICON.xs} />
+                  <span>記録を追加</span>
+                </button>
               ) : null}
             </EmptyState>
           )}

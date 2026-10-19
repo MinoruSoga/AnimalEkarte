@@ -1,7 +1,8 @@
 import { memo, useCallback } from "react";
 import { Link } from "react-router";
-import { ChevronDown, FileText } from "lucide-react";
-import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
+import { ChevronDown, FileText, PawPrint } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { DatePicker } from "@/components/shared/DatePicker";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsList } from "@/components/shared/UnifiedTabs";
@@ -18,9 +19,40 @@ import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 import { NextVisitButton } from "./NextVisitButton";
 import { VisitTypeSelect } from "./VisitTypeSelect";
+import { calcAgePartsAt } from "@/lib/calc-age";
 import { isMedicalRecordFinalizedStatus } from "../lib/medical-record-lock";
 import { useGetVitals } from "../api/vitals";
 import { latestVisitVitalChips } from "../lib/visit-vital-chips";
+
+// EMR-412 R1/X13: カルテ用の属性表示。PatientContextHeader を復活させず、
+// PatientInfoCard 内にカルテ専用の属性を描く（年齢・性別・避妊去勢・品種）。
+// 欠損は推測しない（避妊去勢未記録は「—」）。
+function formatNeuteredStatus(
+  gender: string | undefined,
+  neuteredDate: string | undefined,
+): string {
+  if (!neuteredDate) return "—";
+  if (gender === "雄") return "去勢済";
+  if (gender === "雌") return "避妊済";
+  return "避妊・去勢済";
+}
+
+function buildPetInfoText(
+  birthDate: string | undefined,
+  species: string | undefined,
+  now: Date,
+): string {
+  const parts: string[] = [];
+  if (birthDate) {
+    const { years, months } = calcAgePartsAt(birthDate, now);
+    // PR679 F3: 1歳未満は「0歳Nヶ月」ではなく「Nヶ月」だけを表示する（旧仕様の復元）
+    parts.push(
+      years >= 1 ? `${birthDate}生（${years}歳${months}ヶ月）` : `${birthDate}生（${months}ヶ月）`,
+    );
+  }
+  if (species) parts.push(species);
+  return parts.join(" / ");
+}
 
 interface MedicalRecordStickyHeaderProps {
   selectedPet: Pet;
@@ -76,6 +108,52 @@ const CohabitingPetChips = memo(function CohabitingPetChips({ pets }: { pets: Pe
   );
 });
 
+/**
+ * EMR-412 R1: カルテ用の患者属性行（生年月日＋年齢 / 種、性別、避妊去勢、品種、体重）。
+ * PatientInfoCard の属性領域に描画する。
+ * 欠損値は推測しない。
+ */
+const PetAttributesLine = memo(function PetAttributesLine({ pet }: { pet: Pet }) {
+  const petInfoText = buildPetInfoText(pet.birthDate ?? undefined, undefined, new Date());
+  // PR679 F4: !== undefined ではなく実値（非空・trim）で判定する。
+  // transform が空文字を素通しするため breed:"" だけでも行が出てしまっていた。
+  const hasPetAttributes = Boolean(
+    pet.gender?.trim() || pet.neuteredDate?.trim() || pet.breed?.trim(),
+  );
+  const neuteredStatus = formatNeuteredStatus(pet.gender, pet.neuteredDate);
+  const breedText = pet.breed || "—";
+  return (
+    <div className={`contents text-sm ${C.text60}`}>
+      {petInfoText ? (
+        <Tooltip content={petInfoText} className="min-w-0 max-w-full">
+          <span className="flex items-center gap-1 min-w-0">
+            <PawPrint className={`${ICON.xs} shrink-0`} aria-hidden="true" />
+            <span className="min-w-0">{petInfoText}</span>
+          </span>
+        </Tooltip>
+      ) : null}
+      {hasPetAttributes ? (
+        <>
+          <span className="flex items-center gap-1 whitespace-nowrap">
+            <span className={`text-2xs ${C.text65}`}>性別</span>
+            <span className={`font-medium ${C.text}`}>{pet.gender || "—"}</span>
+          </span>
+          <span className="flex items-center gap-1 whitespace-nowrap">
+            <span className={`text-2xs ${C.text65}`}>避妊去勢</span>
+            <span className={`font-medium ${C.text}`}>{neuteredStatus}</span>
+          </span>
+          <Tooltip content={`品種: ${breedText}`} className="min-w-0 max-w-[180px]">
+            <span className="flex items-center gap-1 min-w-0">
+              <span className={`text-2xs ${C.text65} shrink-0`}>品種</span>
+              <span className={`font-medium ${C.text} truncate`}>{breedText}</span>
+            </span>
+          </Tooltip>
+        </>
+      ) : null}
+    </div>
+  );
+});
+
 export function MedicalRecordStickyHeader({
   selectedPet,
   cohabitingPets,
@@ -109,13 +187,8 @@ export function MedicalRecordStickyHeader({
     openOwnerReport(reportOwnerId, reportPetId);
   }, [reportOwnerId, reportPetId]);
 
-  const contextControls = (
+  const scrollingControls = (
     <>
-      {/* SPEC-GAP: 確定済みバッジ。臨床記録の真正性担保のため、確定状態を常時明示する */}
-      {!isNewRecord && isFinalized ? (
-        <StatusBadge colorClass={getMedicalRecordStatusColor("確定済")}>確定済</StatusBadge>
-      ) : null}
-
       {/* 来院種別 */}
       <VisitTypeSelect
         value={visitType}
@@ -173,10 +246,14 @@ export function MedicalRecordStickyHeader({
     </>
   );
 
-  // EMR-380: 担当医は横スクロールする contextControls 領域に置くと狭幅時に
-  // 右端で見切れるため、PatientContextHeader のスクロール外固定領域へ渡す。
+  // EMR-412 K1: 確定バッジは pinned グループの先頭へ。操作欄は flex-wrap で折り返す。
   const pinnedControls = (
     <>
+      {/* SPEC-GAP: 確定済みバッジ。臨床記録の真正性担保のため、確定状態を常時明示する */}
+      {!isNewRecord && isFinalized ? (
+        <StatusBadge colorClass={getMedicalRecordStatusColor("確定済")}>確定済</StatusBadge>
+      ) : null}
+
       {/* 担当医 */}
       {canEdit && !isFinalized ? (
         <Button
@@ -202,25 +279,22 @@ export function MedicalRecordStickyHeader({
 
   return (
     <div className={`sticky top-0 z-10 ${C.bgPage}`}>
-      <PatientContextHeader
+      <PatientInfoCard
         ownerName={selectedPet.ownerName}
         petName={selectedPet.name}
         petNumber={selectedPet.petNumber || selectedPet.id}
-        weight={selectedPet.weight ?? undefined}
+        weight={selectedPet.weight || "-"}
         status={isPetDeceasedForClinicalWrite(selectedPet) ? "deceased" : "alive"}
         birthDate={selectedPet.birthDate ?? undefined}
-        species={selectedPet.species}
-        gender={selectedPet.gender}
-        neuteredDate={selectedPet.neuteredDate}
-        breed={selectedPet.breed}
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
-        microchipNumber={selectedPet.microchipNumber?.trim() || undefined}
         ownerIsDangerous={selectedPet.ownerIsDangerous}
         petDangerLevel={selectedPet.dangerLevel}
         petDangerReason={selectedPet.dangerReason}
-        vitalsSummary={vitalsSummary ?? undefined}
+        hideStaff
+        hideReservationType
+        sticky={false}
         onOwnerClick={!isNewRecord && canEdit && !isFinalized ? onOwnerClick : undefined}
         ownerDetailHref={
           selectedPet.ownerId ? paths.owners.detail.getHref(selectedPet.ownerId) : undefined
@@ -230,9 +304,42 @@ export function MedicalRecordStickyHeader({
             ? paths.owners.detail.pet.getHref(selectedPet.ownerId, selectedPet.id)
             : undefined
         }
-        contextControls={contextControls}
-        pinnedControls={pinnedControls}
+        petDetails={selectedPet.species || undefined}
+        petAttributes={
+          <>
+            {/* PR679-REVIEW-R4: 最新バイタルは操作欄の下の独立帯ではなく、患者属性行に置く */}
+            <PetAttributesLine pet={selectedPet} />
+            {vitalsSummary ? (
+              <span
+                aria-label="今回のバイタル"
+                className="flex items-center flex-wrap gap-x-2 gap-y-0.5"
+              >
+                {vitalsSummary.temperature != null ? (
+                  <span className="whitespace-nowrap">T {vitalsSummary.temperature}</span>
+                ) : null}
+                {vitalsSummary.heartRate != null ? (
+                  <span className="whitespace-nowrap">HR {vitalsSummary.heartRate}</span>
+                ) : null}
+                {vitalsSummary.respirationRate != null ? (
+                  <span className="whitespace-nowrap">RR {vitalsSummary.respirationRate}</span>
+                ) : null}
+                {vitalsSummary.weight != null ? (
+                  <span className="whitespace-nowrap">
+                    測定体重 {vitalsSummary.weight}
+                    {vitalsSummary.weightUnit ?? ""}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </>
+        }
+        microchipNumber={selectedPet.microchipNumber?.trim() || undefined}
       />
+      {/* EMR-412 K1/X13: 確定済・来院種別・診療日・次回予定・レポート・担当医の操作欄。flex-wrap で折返す。 */}
+      <div className={`flex flex-wrap items-center gap-2 px-4 pb-1.5 ${C.bgPage}`}>
+        <div className="flex flex-wrap items-center gap-2 min-w-0">{scrollingControls}</div>
+        <div className="flex items-center gap-2 shrink-0 ml-auto">{pinnedControls}</div>
+      </div>
       {!isNewRecord && cohabitingPets.length > 0 ? (
         <CohabitingPetChips pets={cohabitingPets} />
       ) : null}

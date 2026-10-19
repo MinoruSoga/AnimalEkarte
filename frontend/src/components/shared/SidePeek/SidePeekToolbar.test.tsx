@@ -4,6 +4,11 @@ import { C } from "@/lib/design-tokens";
 import { SidePeekToolbar } from "./SidePeekToolbar";
 
 describe("SidePeekToolbar", () => {
+  it("閉じる操作の色を読みやすくし、削除操作には赤を維持する", () => {
+    render(<SidePeekToolbar isNew={false} onClose={vi.fn()} onDelete={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "閉じる" })).toHaveClass(C.text60);
+    expect(screen.getByRole("button", { name: "削除" })).toHaveClass(C.danger);
+  });
   it.each([
     { isNew: true, readOnly: false, label: "新規登録" },
     { isNew: false, readOnly: false, label: "編集" },

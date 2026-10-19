@@ -98,9 +98,9 @@ describe("transformMedicalRecord", () => {
     expect(result.doctor).toBe("山田医師");
   });
 
-  it("doctor が未設定のとき doctor_id の文字列を使う", () => {
+  it("doctor が未設定で doctor_id があるとき担当者不明とする", () => {
     expect(transformMedicalRecord({ ...minimal, doctor: undefined, doctor_id: 7 }).doctor).toBe(
-      "7",
+      "担当者不明",
     );
   });
 

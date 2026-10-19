@@ -90,7 +90,7 @@ make codegen 2>&1 | grep -i error
 
 各バッチ後（ユーザーまたは承認済み親セッションの実行例）:
 - [ ] 影響ファイルのテストパス: `docker compose exec frontend npx vitest run <影響specファイル>`
-- [ ] 型エラーなし: `post-edit-typecheck-ts.js` フックの編集時出力で確認
+- [ ] 型検証: 対象worktree/diff/mountを確認した限定runnerの実行証跡を確認。`post-edit-typecheck-ts.js` の案内は検証結果ではなく、未実行はUNKNOWN/BLOCKED
 - [ ] コミット済み（説明的なメッセージで）
 
 全バッチ完了後の全体検証（`pnpm build` / `pnpm test:run` / `pnpm type-check`）は

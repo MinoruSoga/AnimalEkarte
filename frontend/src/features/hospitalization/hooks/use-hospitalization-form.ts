@@ -191,8 +191,16 @@ export function useHospitalizationForm(id?: string, canSubmit = false) {
     [],
   );
 
+  // EMR-412 R4/N2: 編集・削除確認の見出しは「保存済み」の区分を使う。
+  // 未保存のフォーム入力（formData.hospitalizationType）を保存済み区分の代わりにしない。
+  const savedHospitalizationType: "入院" | "ホテル" | undefined = (() => {
+    if (entityRead.status !== "found") return undefined;
+    return entityRead.data.hospitalization_type === "hotel" ? "ホテル" : "入院";
+  })();
+
   return {
     isEdit,
+    savedHospitalizationType,
     isLoading: entityRead.status === "loading",
     isError: entityRead.status === "error",
     entityRead,

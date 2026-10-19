@@ -1,5 +1,20 @@
 # マスタ設定トップ 仕様書 (Master Settings Index)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.settings.master-index／画面仕様 |
+| 決定状態 | 既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
+| 実機検証状態 | 未実施 |
+| 文書確認日 | 2026-10-15 |
+
+### 会計第六群との対応
+
+[第六群の業務正本](../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。価格・割引・保険・支払方法の変更者は管理者と対象変更権限付きスタッフ。ポータル閲覧可能と編集可能を同一視しない。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+
+
+会計masterの保存・参照保護は[D10設計](../../design/domains/accounting/technical-spec.md#accounting-master-coverage)、初期値／会計追加後反映は[第十群](../domains/accounting/lifecycle.md#accounting-empty-rounding-master)へ。本入口の他領域master内部は変更しない。
+
 ## 概要
 - **画面の目的**: 診療、トリミング、入院、スタッフ、権限、および外部連携など、システム全体で共通利用される定義データ（マスタ）を一元的に管理するポータル。
 - **URLパターン**: `/settings` (トップ)
@@ -47,6 +62,36 @@
 
 ## 共通の操作性
 
+### フォーム部品の棚卸し（EMR-411 後続）
+
+対象は本画面のマスタカードから到達する編集フォーム（診療項目の各タブを含む）。
+医院マスタ、締め時間設定、シフトテンプレートも含む。サポート欄のバグ報告・
+チャット履歴、通常のシフト登録ダイアログ、共有部品内部のネイティブ要素は
+含めない。重複する画面へのリンクは同一フォームとして数える。
+
+移行前の直接記述された操作可能な入力要素は JSX の記述位置で **34 箇所**。
+これは描画時の入力欄数（リスト・種別・選択した動物種で増減）ではない。
+
+| 種類（互いに排他的） | 箇所 | 対象と移行先 |
+|:---|---:|:---|
+| テキスト・メール・パスワード・電話など | 18 | 各マスタ、医院、休診日、シフトテンプレート。共有 `Input` |
+| 時刻 | 6 | 締め時間 5、シフトテンプレート内専用入力 1。共有 `Input` の `type="time"` |
+| 数値／定性切替の範囲入力 | 1 | 検査項目。数値時は共有 `NumberInput`（小数許可）、定性時は共有 `Input`（候補リスト維持） |
+| 色 | 2 | 予約区分グループ、権限グループ。共有 `Input` の `type="color"` |
+| チェック | 1 | 締め時間の休診曜日。共有 `NativeCheckbox`、送信値・フォーカス・タッチ領域を維持 |
+| 複数行 | 4 | 主訴、問診、権限グループ、医院。共有 `Textarea` |
+| 選択 | 2 | 検査・健診の項目種別。ネイティブ選択の操作・値を保つ共有入力 |
+
+配置別では `master/components` に21箇所、`clinic-settings/components` に4箇所、
+`closing-settings/components` に7箇所、`shifts/components` のシフトテンプレートに
+2箇所（計34）。日付欄は既に共有 `DatePicker` を使用しており、この分類の
+「直接記述」には該当しない。締め時間の送信用 hidden input 1箇所は
+操作可能な入力ではないため34箇所から除外し、値の送信を維持する。
+真偽値の独自トグルは別分類で、医院の `ClinicBooleanProperty`、診療項目の
+保険対象外、薬剤の保険対象外の3実装を共有のトグルに寄せる。
+`StatusToggleButton`、`PropertyInput` など既存の共有部品そのものは
+利用済みとして扱い、その内部実装を重複として数えない。
+
 ### 1. カード型リスト (`CardRow`)
 各マスタの項目は Notion ライクなカード形式で表示され、以下の情報を提供します。
 - **アイコン**: 視覚的な識別のための lucide アイコン。
@@ -78,3 +123,15 @@ flowchart LR
 - **`PermissionFilteredCard`** / **`CardRow`**: 個別マスタへのリンク・サマリ表示部品。
 
 ---
+
+## 医院・設定入口と認可の接続
+
+[医院・設定入口D17](../domains/clinic-settings/README.md)と[共通C04](../shared/access-control.md)を参照する。ポータルの表示権限は編集権限ではない。医院切替前の入力を切替先へ自動保存しない。個別マスタの業務要件は各owner正本へ委ねる。
+
+## 2026-10-15会議合意の接続：trimming-7
+
+コース種別はコースのカテゴリとして扱い、予約区分マスタに近い一覧・編集UIへ整理する。予約区分の業務分類や枠設定とは別。個別施術の料金手修正／値引きは施術画面で扱い、本マスタ価格を変更しない。
+
+## 2026-10-15会議合意の接続：shifts-4
+
+シフトパターンのマスタ入口と、シフト管理 `/shifts` の[期間・スタッフ複製／Excel作成CSV取込](./24-shift-calendar.md#shift-copy-csv-agreement-20261015)は別の操作を開く。新操作はD14の勤務入力案→差分・エラー・予約影響の確認→明示反映へ接続し、マスタ閲覧やファイル選択から勤務変更権限を導かない。テンプレートの[非遡及境界](./settings/master-shift-template.md#shift-template-bulk-boundary)を保持し、新たな設定カードの配置・権限を本入口で確定しない。

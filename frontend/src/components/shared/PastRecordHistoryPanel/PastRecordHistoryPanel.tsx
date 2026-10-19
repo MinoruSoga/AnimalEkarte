@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/format/date";
 import { normalizeKana } from "@/lib/normalize-kana";
 import type { SortOrder } from "@/types";
 
-interface PastRecordHistoryItem {
+export interface PastRecordHistoryItem {
   id: string;
   date: string;
   title: string;
@@ -18,6 +18,8 @@ interface PastRecordHistoryPanelProps {
   searchPlaceholder: string;
   items: PastRecordHistoryItem[];
   isLoading?: boolean;
+  /** EMR-412 T2: 任意。指定時は各行がクリック可能ボタンになり item をそのまま返す。 */
+  onItemClick?: (item: PastRecordHistoryItem) => void;
 }
 
 export const PastRecordHistoryPanel = memo(function PastRecordHistoryPanel({
@@ -25,6 +27,7 @@ export const PastRecordHistoryPanel = memo(function PastRecordHistoryPanel({
   searchPlaceholder,
   items,
   isLoading = false,
+  onItemClick,
 }: PastRecordHistoryPanelProps) {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -75,18 +78,33 @@ export const PastRecordHistoryPanel = memo(function PastRecordHistoryPanel({
         ) : filteredItems.length === 0 ? (
           <p className={`py-4 text-center text-sm ${C.text45}`}>履歴がありません</p>
         ) : (
-          filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className={`rounded-lg border ${C.borderLight} ${C.bgWhite} px-3 py-2`}
-            >
-              <div className={`text-sm font-medium ${C.text}`}>{item.title}</div>
-              <div className={`text-xs ${C.text60}`}>{formatDate(item.date)}</div>
-              {item.subtitle ? (
-                <div className={`mt-0.5 truncate text-xs ${C.text50}`}>{item.subtitle}</div>
-              ) : null}
-            </div>
-          ))
+          filteredItems.map((item) =>
+            onItemClick ? (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onItemClick(item)}
+                className={`block w-full cursor-pointer rounded-lg border ${C.borderLight} ${C.bgWhite} px-3 py-2 text-left ${C.hoverBgPage} transition-colors`}
+              >
+                <div className={`text-sm font-medium ${C.text}`}>{item.title}</div>
+                <div className={`text-xs ${C.text60}`}>{formatDate(item.date)}</div>
+                {item.subtitle ? (
+                  <div className={`mt-0.5 truncate text-xs ${C.text50}`}>{item.subtitle}</div>
+                ) : null}
+              </button>
+            ) : (
+              <div
+                key={item.id}
+                className={`rounded-lg border ${C.borderLight} ${C.bgWhite} px-3 py-2`}
+              >
+                <div className={`text-sm font-medium ${C.text}`}>{item.title}</div>
+                <div className={`text-xs ${C.text60}`}>{formatDate(item.date)}</div>
+                {item.subtitle ? (
+                  <div className={`mt-0.5 truncate text-xs ${C.text50}`}>{item.subtitle}</div>
+                ) : null}
+              </div>
+            ),
+          )
         )}
       </div>
     </div>

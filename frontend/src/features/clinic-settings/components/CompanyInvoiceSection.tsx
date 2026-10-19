@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { FieldHelp } from "@/components/shared/FieldHelp";
+import { Input } from "@/components/ui/input";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { useGetCompany, useUpdateCompany } from "@/hooks/use-company";
@@ -53,7 +54,7 @@ const CompanyInvoiceForm = memo(function CompanyInvoiceForm({
             content="適格請求書発行事業者の登録番号（T＋13桁）です。領収書・会計伝票に記載されます。"
           />
         </div>
-        <input
+        <Input
           id="invoice_registration_number"
           name="invoice_registration_number"
           type="text"

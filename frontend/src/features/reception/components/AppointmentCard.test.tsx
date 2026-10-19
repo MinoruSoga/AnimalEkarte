@@ -1,6 +1,7 @@
 import { DndContext } from "@dnd-kit/core";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,11 +20,18 @@ const { navigateMock } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
 }));
 
-vi.mock("react-router", () => ({
-  useNavigate: () => navigateMock,
-}));
+/**
+ * 他のルーター API は実装を維持し、useNavigate だけを通常の呼出記録／実遷移で切替可能にする。
+ */
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual<typeof import("react-router")>("react-router");
+  return { ...actual, useNavigate: vi.fn(() => navigateMock) };
+});
+
+const mockedUseNavigate = vi.mocked(useNavigate);
 
 afterEach(() => {
+  mockedUseNavigate.mockImplementation(() => navigateMock);
   navigateMock.mockClear();
 });
 
@@ -543,6 +551,111 @@ describe("AppointmentCard", () => {
 
       expect(screen.getByText("【死亡】")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("実ルーター遷移統合 (EMR-271)", () => {
+    /**
+     * 遷移先の pathname・query・state を可視化する検証用の到達点。
+     * 実際のカルテ／会計画面の読込や既存レコード再利用は検証しない。
+     */
+    function RouteSentinel() {
+      const location = useLocation();
+      return (
+        <output data-testid="route-sentinel">
+          {`${location.pathname}${location.search} state=${JSON.stringify(location.state)}`}
+        </output>
+      );
+    }
+
+    /**
+     * useNavigate の差し替えを実実装へ切り替え、MemoryRouter 内の遷移を検証可能にする。
+     * 通常テスト用のモック実装は afterEach で復元する。
+     */
+    async function enableRealNavigation() {
+      const actual = await vi.importActual<typeof import("react-router")>("react-router");
+      mockedUseNavigate.mockImplementation(actual.useNavigate);
+    }
+
+    /**
+     * DndContext と実ルーターで受付カードを描画し、予約日付きボードからの遷移を検証する。
+     * 到達先は RouteSentinel のみとし、作成した router を返す。
+     */
+    function renderCardInRouter(
+      appointment: ReceptionAppointment,
+      columnTitle: string,
+      onRecordOpen = vi.fn(),
+      onCardClick = vi.fn(),
+    ) {
+      const router = createMemoryRouter(
+        [
+          {
+            path: "/",
+            element: (
+              <DndContext>
+                <AppointmentCard
+                  appointment={appointment}
+                  columnTitle={columnTitle}
+                  onCardClick={onCardClick}
+                  onRecordOpen={onRecordOpen}
+                />
+              </DndContext>
+            ),
+          },
+          { path: "/medical-records/new", element: <RouteSentinel /> },
+          { path: "/accounting/new", element: <RouteSentinel /> },
+        ],
+        { initialEntries: ["/?date=2026-05-29"] },
+      );
+      render(<RouterProvider router={router} />);
+      return router;
+    }
+
+    it.each([
+      ["受付済", "checked_in"],
+      ["診療中", "in_consultation"],
+    ] as const)(
+      "%s カラムのカルテボタンは実ルーターで /medical-records/new へ予約コンテキスト付きで遷移する",
+      async (columnTitle, status) => {
+        await enableRealNavigation();
+        const appointment = { ...baseAppointment, status };
+        const onRecordOpen = vi.fn();
+        const onCardClick = vi.fn();
+        renderCardInRouter(appointment, columnTitle, onRecordOpen, onCardClick);
+
+        fireEvent.click(screen.getByRole("button", { name: /ポチのカルテ/ }));
+
+        const sentinel = await screen.findByTestId("route-sentinel");
+        expect(sentinel).toHaveTextContent(
+          "/medical-records/new?petId=10&appointmentId=101&visitDate=2026-05-29",
+        );
+        expect(sentinel).toHaveTextContent('"from":"/?date=2026-05-29"');
+        expect(sentinel).toHaveTextContent('"appointmentId":"101"');
+        expect(sentinel).toHaveTextContent('"visitDate":"2026-05-29"');
+        expect(onRecordOpen).toHaveBeenCalledWith(appointment, columnTitle);
+        expect(onCardClick).not.toHaveBeenCalled();
+        expect(navigateMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it("会計待ちカラムはカルテ導線を出さず、会計ボタンは実ルーターで /accounting/new へ遷移する", async () => {
+      await enableRealNavigation();
+      const appointment = { ...baseAppointment, status: "accounting" as const };
+      const onRecordOpen = vi.fn();
+      const onCardClick = vi.fn();
+      renderCardInRouter(appointment, "会計待ち", onRecordOpen, onCardClick);
+
+      expect(screen.queryByRole("button", { name: /ポチのカルテ/ })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /ポチの会計/ }));
+
+      const sentinel = await screen.findByTestId("route-sentinel");
+      expect(sentinel).toHaveTextContent("/accounting/new?petId=10");
+      expect(sentinel).toHaveTextContent('"from":"/?date=2026-05-29"');
+      expect(sentinel).toHaveTextContent('"appointmentId":"101"');
+      expect(onRecordOpen).not.toHaveBeenCalled();
+      expect(onCardClick).not.toHaveBeenCalled();
+      expect(navigateMock).not.toHaveBeenCalled();
     });
   });
 });

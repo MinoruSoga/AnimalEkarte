@@ -55,7 +55,7 @@ var domainImportAllowlist = map[string]map[string]struct{}{
 		"owner": {}, "pet": {}, "staff": {}, "reservation": {}, "medicalrecord": {},
 		"billing": {}, "clinic": {}, "httpapi": {},
 	},
-	"support": {"httpapi": {}},
+	"support": {"httpapi": {}, "manualarticle": {}},
 }
 
 const backendInternalImportPrefix = "github.com/animal-ekarte/backend/internal/"
@@ -121,6 +121,28 @@ import "github.com/animal-ekarte/backend/internal/reservation"
 		violations := findDomainImportViolations(files, domainImportAllowlist, domainPackages)
 		if len(violations) != 0 {
 			t.Fatalf("expected 0 violations for allowed edges, got %v", violations)
+		}
+	})
+
+	t.Run("support_manual_corpus_edge_is_allowed", func(t *testing.T) {
+		files := map[string][]byte{
+			"support/ok.go": []byte(`package support
+import "github.com/animal-ekarte/backend/internal/manualarticle"
+`),
+		}
+		if violations := findDomainImportViolations(files, domainImportAllowlist, domainPackages); len(violations) != 0 {
+			t.Fatalf("expected the manual corpus consumer edge to pass, got %v", violations)
+		}
+	})
+
+	t.Run("manual_corpus_reverse_edge_remains_forbidden", func(t *testing.T) {
+		files := map[string][]byte{
+			"manualarticle/bad.go": []byte(`package manualarticle
+import "github.com/animal-ekarte/backend/internal/support"
+`),
+		}
+		if violations := findDomainImportViolations(files, domainImportAllowlist, domainPackages); len(violations) != 1 {
+			t.Fatalf("expected one reverse-edge violation, got %v", violations)
 		}
 	})
 

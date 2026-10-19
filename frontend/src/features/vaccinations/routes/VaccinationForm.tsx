@@ -5,6 +5,7 @@ import { paths } from "@/config/paths";
 import { performBackNavigation, useBackNavigation } from "@/hooks/use-back-navigation";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useGetVaccinations } from "../api/get-vaccinations";
+import type { VaccinationRecord } from "../api/transforms";
 import { useVaccinationForm } from "../hooks/use-vaccination-form";
 import { usePermission } from "@/hooks/use-permission";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
@@ -15,6 +16,7 @@ import {
   resolveVaccinationFormGate,
 } from "./vaccination-form-model";
 import { VaccinationFormBody, VaccinationFormStatusView } from "./VaccinationFormPagePanels";
+import { collectReplacedVaccinationIds } from "@/lib/vaccination-replacement";
 
 export const VaccinationForm = memo(function VaccinationForm() {
   const navigate = useNavigate();
@@ -78,6 +80,16 @@ export const VaccinationForm = memo(function VaccinationForm() {
     petId: historyPetId ?? "",
   });
   const { historySearchTerm, filterStartDate, filterEndDate, sortOrder } = historyFilter;
+  // make ci blocker (EMR-435): VaccinationRecord.petId は transform が string | undefined を
+  // 返し得るため、petId が確定した記録だけを置き換わり判定に渡す。petId 不明の記録は
+  // 「同一ペット×同一ワクチン」判定に参加できない（EMR-428 の設計どおり）。
+  const replacedVaccinationIds = useMemo(
+    () =>
+      collectReplacedVaccinationIds(
+        petVaccinations.filter((r): r is VaccinationRecord & { petId: string } => r.petId != null),
+      ),
+    [petVaccinations],
+  );
   const petHistory = useMemo(
     () =>
       filterVaccinationHistory({
@@ -125,6 +137,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
       form={form}
       fieldErrors={fieldErrors}
       petHistory={petHistory}
+      replacedVaccinationIds={replacedVaccinationIds}
       historyFilter={historyFilter}
       deleteConfirmOpen={deleteConfirmOpen}
       formAction={formAction}

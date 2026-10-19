@@ -86,6 +86,27 @@ describe("UnifiedClosingSummaryTable (#153 統合テーブル)", () => {
     expect(screen.getByText("対象期間の会計データがありません")).toBeInTheDocument();
   });
 
+  it("refund-only house_call count 0 remains visible with a negative footer total", () => {
+    render(
+      <UnifiedClosingSummaryTable
+        categories={{ house_call: { 現金: -1000 } }}
+        categoryCounts={{ house_call: 0 }}
+        paymentMethods={PAYMENT_METHODS}
+        billingDetails={[]}
+      />,
+    );
+
+    const table = screen.getByRole("table");
+    const houseCallRow = within(table).getByRole("row", { name: /往診/ });
+    expect(within(houseCallRow).getByText("0件")).toBeInTheDocument();
+    expect(within(houseCallRow).getAllByText("-¥1,000")).toHaveLength(2);
+    expect(screen.queryByText("対象期間の会計データがありません")).not.toBeInTheDocument();
+
+    const footerRow = within(table).getAllByRole("row").at(-1)!;
+    expect(within(footerRow).getByText("0件")).toBeInTheDocument();
+    expect(within(footerRow).getAllByText("-¥1,000")).toHaveLength(2);
+  });
+
   it("DEC-40: 未分類・要確認は独立件数を表示し、旧 snapshot は記録なし", () => {
     const { rerender } = render(
       <UnifiedClosingSummaryTable

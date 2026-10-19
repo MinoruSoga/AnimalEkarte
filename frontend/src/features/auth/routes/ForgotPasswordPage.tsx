@@ -79,7 +79,7 @@ export function ForgotPasswordPage() {
         ) : (
           <form action={formAction} noValidate className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="forgot-email" className={`text-sm block ${C.text65}`}>
+              <label htmlFor="forgot-email" className={`text-base block ${C.text65}`}>
                 メールアドレス
               </label>
               <input

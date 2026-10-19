@@ -36,16 +36,12 @@ export function TreatmentDoseMessages({
   return (
     <>
       {doseBlockReason ? (
-        <div
-          id={doseWarningId}
-          role="alert"
-          className={`text-xs text-right mt-0.5 ${C.textRed700}`}
-        >
+        <div id={doseWarningId} role="alert" className={`text-xs text-right mt-0.5 ${C.danger}`}>
           <div>⚠ {doseBlockReason}</div>
           {isDoseLookupFailed ? (
             <button
               type="button"
-              className={`mt-0.5 inline-flex min-h-11 items-center justify-end text-xs underline ${C.textRed700}`}
+              className={`mt-0.5 inline-flex min-h-11 items-center justify-end text-xs underline ${C.danger}`}
               onClick={onRetryDoseParamsLookup}
               aria-label="投与量パラメータの取得を再試行する"
             >
@@ -66,7 +62,7 @@ export function TreatmentDoseMessages({
           id={doseWarningId}
           role="alert"
           className={`text-xs text-right mt-0.5 ${
-            currentGate.warning === "exceeds-max" ? C.textRed700 : C.textWarning
+            currentGate.warning === "exceeds-max" ? C.danger : C.textWarning
           }`}
         >
           {currentGate.warning === "exceeds-max" ? "⚠ 上限超過" : "⚠ 下限未満"}

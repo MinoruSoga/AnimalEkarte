@@ -54,7 +54,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
             variant="secondary"
             className={`${C.bgPage} ${C.text80} ${C.hoverBgPage} font-normal px-2 py-0.5 text-sm h-10 border ${C.borderMedium}`}
           >
-            {group.machine}
+            {group.machine.trim() || "手入力"}
           </Badge>
         </div>
         {pivotHref ? (

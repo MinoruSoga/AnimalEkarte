@@ -130,6 +130,8 @@ export function MedicalRecordClinicalTabs({
           diagnosis1NameIdError={diagnosis1NameIdError}
           recordClinicId={recordClinicId}
           isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+          petSpecies={selectedPet.species}
+          isWriteBlocked={isLocked}
         />
         <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
           {recordId ? (
@@ -161,6 +163,8 @@ export function MedicalRecordClinicalTabs({
           petSpecies={selectedPet.species}
           recordClinicId={recordClinicId}
           isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+          isLocked={isLocked}
+          isFinalized={isFinalized}
         />
       </MedicalRecordMountedTab>
     </>

@@ -4,6 +4,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PartnerRecordLink } from "@/components/shared/PartnerRecordLink/PartnerRecordLink";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useAuth } from "@/hooks/use-auth";
@@ -235,6 +236,7 @@ export function MedicalRecordFormReadyPanels({
         resource={ResourceMedicalRecords}
         maxWidth={LAYOUT.pageContentMaxWidth.full}
         scrollContainerRef={ready.scrollContainerRef}
+        contentClassName={MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}
         headerAction={
           <PartnerRecordLink
             kind="trimming"
@@ -436,6 +438,8 @@ function MedicalRecordFormReadyOverlays({
         onVitalsOpenChange={ready.modals.setIsVitalsOpen}
         recordClinicId={ready.recordClinicId}
         isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+        isFinalized={ready.recordFinalized}
+        isLocked={ready.recordFinalized || !canSubmit}
         isStaffModalOpen={ready.modals.isStaffModalOpen}
         staffName={ready.staffName}
         onSelectStaff={ready.handleSelectStaff}

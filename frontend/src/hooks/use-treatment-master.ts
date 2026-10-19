@@ -57,11 +57,22 @@ export function useGetAllCheckupTypes() {
   });
 }
 
-export function useGetAllConsultations() {
+/**
+ * 診察マスタ一覧。truthy な `clinicId` を明示するとクリニック別キーと
+ * `X-Clinic-ID` ヘッダ付き GET になる。省略・空文字なら従来のグローバルキーと
+ * 暗黙の共通ヘッダを維持し、他クリニックデータへのフォールバックはしない。
+ */
+export function useGetAllConsultations({ clinicId }: { clinicId?: string } = {}) {
   return useQuery({
-    queryKey: queryKeys.masters.category("consultations"),
+    queryKey: clinicId
+      ? queryKeys.masters.categoryForClinic("consultations", clinicId)
+      : queryKeys.masters.category("consultations"),
     queryFn: async (): Promise<ConsultationItem[]> => {
-      const { data } = await axios.get<Consultation[]>("/v1/masters/consultations");
+      const { data } = clinicId
+        ? await axios.get<Consultation[]>("/v1/masters/consultations", {
+            headers: { "X-Clinic-ID": clinicId },
+          })
+        : await axios.get<Consultation[]>("/v1/masters/consultations");
       return data.map(transformConsultation);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -69,12 +80,26 @@ export function useGetAllConsultations() {
   });
 }
 
-export function useGetAllProcedures({ enabled = true }: { enabled?: boolean } = {}) {
+/**
+ * 処置マスタ一覧。truthy な `clinicId` でクリニック別キー＋`X-Clinic-ID` 付き GET、
+ * 省略・空文字なら従来のグローバルキーと暗黙ヘッダ。`enabled: false` の間は
+ * 自動取得を止める（手動 refetch は可能）。他クリニックデータへのフォールバックはしない。
+ */
+export function useGetAllProcedures({
+  enabled = true,
+  clinicId,
+}: { enabled?: boolean; clinicId?: string } = {}) {
   return useQuery({
     enabled,
-    queryKey: queryKeys.masters.category("procedures"),
+    queryKey: clinicId
+      ? queryKeys.masters.categoryForClinic("procedures", clinicId)
+      : queryKeys.masters.category("procedures"),
     queryFn: async (): Promise<ProcedureItem[]> => {
-      const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
+      const { data } = clinicId
+        ? await axios.get<Procedure[]>("/v1/masters/procedures", {
+            headers: { "X-Clinic-ID": clinicId },
+          })
+        : await axios.get<Procedure[]>("/v1/masters/procedures");
       return data.map(transformProcedure);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -84,17 +109,28 @@ export function useGetAllProcedures({ enabled = true }: { enabled?: boolean } = 
 
 /**
  * #201: TreatmentSearchDialog（薬剤カテゴリ）・カルテ投与量プレビューの両方から参照する薬剤マスタ。
- * queryKey は features/master/api/medicines.ts の useGetAllMedicines と同一
- * (queryKeys.masters.category("medicines")) にしてキャッシュを共有する。
+ * clinicId 指定時はクリニック別の queryKey とヘッダを使い、省略時は
+ * features/master/api/medicines.ts と同じグローバルキーのキャッシュを共有する。
  */
-export function useGetAllMedicinesMaster({ enabled = true }: { enabled?: boolean } = {}) {
+export const getAllMedicinesMaster = async (clinicId?: string): Promise<Medicine[]> => {
+  const { data } = clinicId
+    ? await axios.get<MedicineModel[]>("/v1/masters/medicines", {
+        headers: { "X-Clinic-ID": clinicId },
+      })
+    : await axios.get<MedicineModel[]>("/v1/masters/medicines");
+  return data.map(transformBackendMedicineToFrontend);
+};
+
+export function useGetAllMedicinesMaster({
+  enabled = true,
+  clinicId,
+}: { enabled?: boolean; clinicId?: string } = {}) {
   return useQuery({
     enabled,
-    queryKey: queryKeys.masters.category("medicines"),
-    queryFn: async (): Promise<Medicine[]> => {
-      const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
-      return data.map(transformBackendMedicineToFrontend);
-    },
+    queryKey: clinicId
+      ? queryKeys.masters.categoryForClinic("medicines", clinicId)
+      : queryKeys.masters.category("medicines"),
+    queryFn: () => getAllMedicinesMaster(clinicId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

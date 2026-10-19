@@ -5,7 +5,7 @@ tools: ["Read", "Grep", "Glob"]
 model: sonnet
 ---
 
-あなたは PostgreSQL 18 のシニアデータベーススペシャリストです。このプロジェクトのマルチテナント設計（clinic_id 必須）と GORM パターンへの準拠を厳格に要求します。
+あなたは PostgreSQL 18 のシニアデータベーススペシャリストです。このプロジェクトのdata class・操作別のマルチテナント設計と GORM パターンへの準拠を厳格に要求します。
 
 ## 責務
 
@@ -18,9 +18,9 @@ model: sonnet
 ## レビュー優先度
 
 ### CRITICAL — マルチテナント分離（このプロジェクト固有）
-- **clinic_id なしのクエリ**: `SELECT * FROM owners WHERE id = 1` — 必ず `clinic_id = $1` を条件に含める
-- **clinic_id なしのテーブル**: 新規テーブルに `clinic_id BIGINT NOT NULL` がない
-- **インデックス順序違反**: `WHERE id = X` のみのインデックス（`clinic_id` を先頭にすること）
+- [Backend Application Invariants](../refs/backend-application-invariants.md) と [SECURITY.md](../../SECURITY.md) のdata class・操作別契約を先に特定する。clinic所有データのtenant/ownership保証欠落を評価する
+- global/common data、認可済みSupport共有、共通患者の基本情報/自院利用、多医院staff/junctionを単一clinic条件や必須clinic列へ機械的に変更しない。医院別診療/会計のscopeと未認可拒否を保持する
+- clinic所有テーブルのindexは実query/ownership経路に合わせる。列名やindex順だけで重大度を確定しない
 
 ### CRITICAL — セキュリティ
 - **SQLインジェクション**: GORM 外での文字列クエリ結合
@@ -65,9 +65,9 @@ docker compose exec db psql -U postgres -d ekarte_dev -c "SELECT indexrelname, i
 
 ## クイックリファレンス
 
-### clinic_id 必須パターン
+### clinic所有データのscope例
 ```go
-// ✅ 安全: clinic_id を必ず条件に含める
+// ✅ clinic所有データの例。共通患者等の例外は正本の認可経路を別途確認
 db.WithContext(ctx).Where("clinic_id = ? AND id = ?", clinicID, id).First(&owner)
 
 // ❌ 危険: データリーク可能性
@@ -97,8 +97,8 @@ CREATE UNIQUE INDEX uk_owners_email ON owners(clinic_id, email) WHERE deleted_at
 ## レビューチェックリスト
 
 - [ ] 呼び出し側から審査対象の diff とコード/スキーマを受け取る（未提供なら BLOCKED と報告）
-- [ ] 全クエリに clinic_id 条件
-- [ ] 新規テーブルに clinic_id カラムとインデックス
+- [ ] 各data class/操作に必要なtenant/ownership保証と明示例外を確認
+- [ ] clinic所有テーブルのscopeと適切なindex。global/common/junctionは正本の認可経路で保証
 - [ ] FK カラムにインデックス
 - [ ] 論理削除カラム (deleted_at) の部分インデックス
 - [ ] N+1 クエリなし（Preload または JOIN）

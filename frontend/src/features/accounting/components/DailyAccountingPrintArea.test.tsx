@@ -2,7 +2,12 @@ import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { DailyPrintArea } from "./DailyAccountingPrintArea";
 import type { Accounting } from "../types";
-import type { DetailedBreakdown, RowData, TotalsData } from "../lib/daily-accounting-utils";
+import {
+  apportionPayment,
+  type DetailedBreakdown,
+  type RowData,
+  type TotalsData,
+} from "../lib/daily-accounting-utils";
 
 const ZERO_BREAKDOWN: DetailedBreakdown = {
   medical: { cash: 0, card: 0 },
@@ -12,6 +17,7 @@ const ZERO_BREAKDOWN: DetailedBreakdown = {
   trimming: { cash: 0, card: 0 },
   hotel: { cash: 0, card: 0 },
   goods: { cash: 0, card: 0 },
+  houseCall: { cash: 0, card: 0 },
 };
 
 function accounting(
@@ -42,7 +48,16 @@ function accounting(
 
 function row(overrides: Partial<RowData> & Pick<RowData, "accounting" | "total">): RowData {
   return {
-    breakdown: { medical: 0, surgery: 0, rv: 0, food: 0, trimming: 0, hotel: 0, goods: 0 },
+    breakdown: {
+      medical: 0,
+      surgery: 0,
+      rv: 0,
+      food: 0,
+      trimming: 0,
+      hotel: 0,
+      goods: 0,
+      houseCall: 0,
+    },
     detailedBreakdown: ZERO_BREAKDOWN,
     subtotal: 0,
     tax: 0,
@@ -69,6 +84,7 @@ const TOTALS: TotalsData = {
   trimming: 3000,
   hotel: 500,
   goods: 2000,
+  houseCall: 0,
   subtotal: 0,
   tax: 0,
   discount: 0,
@@ -114,7 +130,7 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     const dataRow = within(area).getByText("赤伝").closest("tr")!;
     const cells = dataRow.querySelectorAll("td");
     // EMR-186: 飼主名・ペット名が最右端へ移動したため診療列は index 1
-    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(cells[1]).toHaveTextContent("-¥3,000");
   });
 
   it("科目合計が負でも符号のまま印字する", () => {
@@ -133,7 +149,7 @@ describe("DailyAccountingPrintArea: 金額セルの印字が固定されてい�
     const area = screen.getByTestId("daily-print-area");
     const hospitalRow = within(area).getByText("医院合計").closest("tr")!;
     const cells = hospitalRow.querySelectorAll("td");
-    expect(cells[1]).toHaveTextContent("¥-3,000");
+    expect(cells[1]).toHaveTextContent("-¥3,000");
     expect(within(hospitalRow).queryByText("¥0")).not.toBeInTheDocument();
   });
 
@@ -212,5 +228,194 @@ describe("EMR-186: 列順 — 飼主名・ペット名が最右端の2列（こ�
       );
       expect(span).toBe(headerCount);
     }
+  });
+});
+
+describe("EMR-269: 往診列", () => {
+  function renderConsistentDailyRow() {
+    const dailyRow = row({
+      accounting: accounting({
+        id: "269",
+        ownerName: "往診利用者",
+        petName: "ポチ",
+        payment: {
+          subtotal: 4500,
+          taxTotal: 0,
+          totalAmount: 4500,
+          insuranceAmount: 0,
+          discountAmount: 0,
+          billingAmount: 4500,
+          receivedAmount: 4500,
+          changeAmount: 0,
+          method: "cash",
+        },
+      }),
+      breakdown: {
+        medical: 0,
+        surgery: 0,
+        rv: 0,
+        food: 0,
+        trimming: 3000,
+        hotel: 0,
+        goods: 500,
+        houseCall: 1000,
+      },
+      detailedBreakdown: {
+        ...ZERO_BREAKDOWN,
+        trimming: { cash: 3000, card: 0 },
+        goods: { cash: 500, card: 0 },
+        houseCall: { cash: 1000, card: 0 },
+      },
+      subtotal: 4500,
+      total: 4500,
+    });
+    const totals: TotalsData = {
+      medical: 0,
+      surgery: 0,
+      rv: 0,
+      food: 0,
+      trimming: 3000,
+      hotel: 0,
+      goods: 500,
+      houseCall: 1000,
+      subtotal: 4500,
+      tax: 0,
+      discount: 0,
+      total: 4500,
+    };
+    render(<DailyPrintArea date="2026-07-01" rows={[dailyRow]} totals={totals} />);
+  }
+
+  it("往診列を明細と合計へ一度だけ含め、全行の列数をそろえる", () => {
+    renderConsistentDailyRow();
+    const area = screen.getByTestId("daily-print-area");
+    const headers = within(area)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
+    expect(headers.indexOf("往診")).toBe(headers.indexOf("用品他") + 1);
+
+    const detailRow = within(area).getByText("往診利用者").closest("tr")!;
+    const detailCells = within(detailRow)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(detailCells[headers.indexOf("往診")]).toContain("1,000");
+    expect(detailCells[headers.indexOf("用品他")]).toContain("500");
+
+    const hospRow = screen.getByText("医院合計").closest("tr")!;
+    const hospCells = within(hospRow)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(hospCells[headers.indexOf("往診")]).toBe("¥1,000");
+    expect(hospCells[headers.indexOf("用品他")]).toBe("¥500");
+    expect(hospCells[headers.indexOf("合計")]).toBe("¥1,500");
+
+    const trimRow = screen.getByText("トリミング合計").closest("tr")!;
+    const trimCells = within(trimRow)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(trimCells[headers.indexOf("往診")]).toBe("-");
+    expect(trimCells[headers.indexOf("合計")]).toBe("¥3,000");
+
+    const allRow = screen.getByText("全体合計").closest("tr")!;
+    const allCells = within(allRow)
+      .getAllByRole("cell")
+      .map((c) => c.textContent);
+    expect(allCells[headers.indexOf("往診")]).toBe("¥1,000");
+    expect(allCells[headers.indexOf("合計")]).toBe("¥4,500");
+
+    for (const tr of area.querySelectorAll("tbody tr, tfoot tr")) {
+      const span = Array.from(tr.querySelectorAll("td")).reduce(
+        (sum, td) => sum + (Number(td.getAttribute("colspan")) || 1),
+        0,
+      );
+      expect(span).toBe(headers.length);
+    }
+  });
+
+  it("mixed payment keeps the existing cash allocation and apportions 往診 as cash 250/card 1,750", () => {
+    const mixedRow = row({
+      accounting: accounting({
+        id: "270",
+        ownerName: "混合支払利用者",
+        petName: "タマ",
+        payment: {
+          subtotal: 3500,
+          taxTotal: 0,
+          totalAmount: 3500,
+          insuranceAmount: 0,
+          discountAmount: 0,
+          billingAmount: 3500,
+          receivedAmount: 3500,
+          changeAmount: 0,
+          method: "cash",
+        },
+        paymentSplits: [
+          {
+            id: "cash",
+            method: "cash",
+            amount: 1750,
+            receivedAmount: 1750,
+            changeAmount: 0,
+          },
+          {
+            id: "card",
+            method: "credit_card",
+            amount: 1750,
+            receivedAmount: 1750,
+            changeAmount: 0,
+          },
+        ],
+      }),
+      breakdown: {
+        medical: 1000,
+        surgery: 0,
+        rv: 0,
+        food: 0,
+        trimming: 0,
+        hotel: 0,
+        goods: 500,
+        houseCall: 2000,
+      },
+      detailedBreakdown: apportionPayment(
+        {
+          medical: 1000,
+          surgery: 0,
+          rv: 0,
+          food: 0,
+          trimming: 0,
+          hotel: 0,
+          goods: 500,
+          houseCall: 2000,
+        },
+        1750,
+      ),
+      total: 3500,
+    });
+    const totals: TotalsData = {
+      ...TOTALS,
+      medical: 1000,
+      surgery: 0,
+      rv: 0,
+      food: 0,
+      trimming: 0,
+      hotel: 0,
+      goods: 500,
+      houseCall: 2000,
+      subtotal: 3500,
+      tax: 0,
+      discount: 0,
+      total: 3500,
+    };
+    render(<DailyPrintArea date="2026-07-01" rows={[mixedRow]} totals={totals} />);
+
+    const area = screen.getByTestId("daily-print-area");
+    const headers = within(area)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
+    const cells = within(area).getByText("混合支払利用者").closest("tr")!.querySelectorAll("td");
+    expect(cells[headers.indexOf("診療")]).toHaveTextContent("現1,000");
+    expect(cells[headers.indexOf("用品他")]).toHaveTextContent("現500");
+    expect(cells[headers.indexOf("往診")]).toHaveTextContent("現250");
+    expect(cells[headers.indexOf("往診")]).toHaveTextContent("カ1,750");
   });
 });

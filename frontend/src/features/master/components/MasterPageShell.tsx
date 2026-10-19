@@ -55,7 +55,7 @@ export const MasterPageShell = memo(function MasterPageShell({
   const { canCreate } = usePermission((resource ?? "") as Resource);
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <div className="flex-1 min-w-0">
         <PageLayout
           title={title}

@@ -1,73 +1,22 @@
-import { useDeferredValue, useCallback, useMemo, useState } from "react";
-import { normalizeKana } from "@/lib/normalize-kana";
+import { useCallback } from "react";
 
-import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 
 // NO32: useGetTrimmingsByPetId は cross-feature 共有のため @/hooks へ昇格済み
 import { useGetTrimmingsByPetId } from "@/hooks/use-pet-trimmings";
 
+// PR679 F7: 検索/ソート/日付フィルタは共有 PastRecordHistoryPanel 内蔵になったため
+// フック側のフィルタ state・ハンドラは削除済み（データ取得とクリック受け渡しのみ残す）。
 export function useTrimmingHistory(petId: string) {
-  const [historySearchTerm, setHistorySearchTerm] = useState("");
-  const [historySortOrder, setHistorySortOrder] = useState<SortOrder>("desc");
-  const [historyDateRangeFrom, setHistoryDateRangeFrom] = useState("");
-  const [historyDateRangeTo, setHistoryDateRangeTo] = useState("");
-  const deferredHistorySearch = useDeferredValue(historySearchTerm);
-
   const { data: petTrimmings = [], isLoading: isHistoryLoading } = useGetTrimmingsByPetId(petId);
 
-  const sortedHistory = useMemo(() => {
-    const filtered = petTrimmings.filter((trimming) => {
-      if (
-        deferredHistorySearch &&
-        !normalizeKana(trimming.styleRequest)
-          .toLowerCase()
-          .includes(normalizeKana(deferredHistorySearch).toLowerCase())
-      ) {
-        return false;
-      }
-      const recordDate = trimming.date.slice(0, 10);
-      if (historyDateRangeFrom && recordDate < historyDateRangeFrom) return false;
-      if (historyDateRangeTo && recordDate > historyDateRangeTo) return false;
-      return true;
-    });
-    return filtered.toSorted((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return historySortOrder === "desc" ? dateB - dateA : dateA - dateB;
-    });
-  }, [
-    petTrimmings,
-    deferredHistorySearch,
-    historyDateRangeFrom,
-    historyDateRangeTo,
-    historySortOrder,
-  ]);
-
-  const handleHistoryClear = useCallback(() => {
-    setHistorySearchTerm("");
-    setHistorySortOrder("desc");
-    setHistoryDateRangeFrom("");
-    setHistoryDateRangeTo("");
-  }, []);
-
   const handleHistoryClick = useCallback((updates: Partial<TrimmingFormData>) => updates, []);
-  const historyDateRange = useMemo(
-    () => ({ from: historyDateRangeFrom, to: historyDateRangeTo }),
-    [historyDateRangeFrom, historyDateRangeTo],
-  );
 
+  // sortedHistory という公開名は呼び出し側の churn を抑えるため維持する
+  // （実際のソート/フィルタは PastRecordHistoryPanel 内で行われる）。
   return {
-    handleHistoryClear,
     handleHistoryClick,
-    historyDateRange,
-    historySearchTerm,
-    historySortOrder,
     isHistoryLoading,
-    setHistoryDateRangeFrom,
-    setHistoryDateRangeTo,
-    setHistorySearchTerm,
-    setHistorySortOrder,
-    sortedHistory,
+    sortedHistory: petTrimmings,
   };
 }

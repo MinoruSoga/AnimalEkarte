@@ -4,6 +4,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import { MedicalRecordPrintView } from "./MedicalRecordPrintView";
 import type { BillingConfirmation, Treatment } from "../types";
 
@@ -53,7 +54,7 @@ export function MedicalRecordFloatingActions({
   if (activeTab === "会計(医師確認)") return null;
 
   return (
-    <div className="fixed bottom-6 right-20 z-50 flex gap-2">
+    <div className={`${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position} flex gap-2`}>
       {canDelete && !isNewRecord && activeTab === "問診" ? (
         <Button
           type="button"

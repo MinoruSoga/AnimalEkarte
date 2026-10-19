@@ -54,9 +54,11 @@ export function useMedicalRecordsColumns({
       { header: sortableHeader("pet_name"), className: "min-w-[140px] whitespace-nowrap" },
       { header: "種", className: "w-[80px] hidden lg:table-cell whitespace-nowrap" },
       // 主訴/担当医 are secondary at narrow widths; status + 操作 stay visible (BUG-458).
-      { header: "主訴", className: "hidden md:table-cell whitespace-nowrap" },
+      // EMR-412 K3: 820px（md〜lg）では主訴を隠し、ステータス・操作列まで収める。
+      { header: "主訴", className: "hidden lg:table-cell whitespace-nowrap" },
       { header: "関連", className: "w-[100px] hidden lg:table-cell whitespace-nowrap" },
-      { header: "担当医", className: "min-w-[160px] hidden md:table-cell whitespace-nowrap" },
+      // EMR-412 R9/K3: 820px（md〜lg）では担当医も隠し、ステータス・操作列まで収める。
+      { header: "担当医", className: "min-w-[160px] hidden lg:table-cell whitespace-nowrap" },
       { header: sortableHeader("status"), className: LIST_TABLE_COL.status },
       ...(showClinicColumn
         ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell whitespace-nowrap" }]

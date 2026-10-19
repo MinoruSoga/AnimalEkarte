@@ -1,6 +1,6 @@
 # S22: 予約作成 — 409 理由の表示と担当者候補のフェイルクローズ
 
-> **目的**: 予約作成で時間重複などの 409 が起きたとき理由がモーダル内に表示されて閉じずに修正でき、担当者候補が capability 情報未確定・不在時に「全員出す」へ倒れず fail-closed になることを納品前に証明する。
+> **目的**: 院内の同一担当・同時間重複は警告確認後の登録を確認し、版競合・非適格指名等のhard拒否では理由がモーダル内に表示されて閉じずに修正でき、担当者候補が capability 情報未確定・不在時に「全員出す」へ倒れず fail-closed になることを納品前に証明する。
 > **所要目安**: 15分 / **深度**: 中
 > **仕様正本**: [domains/reservations/pages/reservation-management.md](../../../spec/domains/reservations/pages/reservation-management.md)。関連 tracker: Plane `EMR-13`（旧 Linear `BRT-102`。予約作成 409 の理由非表示）・`EMR-12`（旧 `BRT-103`。担当者フィルタ）。
 
@@ -11,16 +11,18 @@
 - actor は reservations の作成権限を持つ attached account。
 - 依存シナリオ: なし。複数ペット一括予約・ステータス連携は V02 を参照する。
 
+本手順は最新業務正本への目標受入で、末尾のコード突合記録を新合意の実装・実機合格へ読み替えない。担当未定での院内警告確認登録と、非適格者の指名禁止を区別する。今回の改訂では実行していない。
+
 ## 手順と期待結果
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | 既存予約と同じ時間・同じ担当医で新規予約を作成しようとする | FE 事前チェックまたは API 409 で「指定された時間帯には既に予約が入っています」等の理由がモーダル内に表示され、**モーダルは閉じず入力が残る**（`use-reservation-save-actions` の inline message 面） |
-| 2 | 409 の理由を直して（時間または担当医を変えて）再送する | 修正して再送でき、成功すれば予約が作成される。失敗した入力を最初からやり直させない |
+| 1 | 他の適格条件を満たす院内予約で既存予約と同じ時間・同じ担当医を選び、重複警告を確認して保存する | [同一担当者重複の正本](../../../spec/domains/reservations/pages/reservation-management.md#requirement-fr-reservations-staff-overlap-warning)どおり、重複だけを理由に拒否せず確認後に登録できる。警告の確認前は未確定で入力を保持する。LINEの厳格受付へこの例外を広げない |
+| 2 | 非勤務・対応不可の指名等、警告確認で免除できない条件で保存を拒否され、適格な時間／担当へ修正する | 拒否理由をモーダル内に示し、閉じず入力を保持する。修正後は最新の適格性を再検査して保存でき、失敗した入力を最初からやり直させない。同一担当者の既存予約重複だけをhard拒否条件にしない |
 | 3 | 担当者を選ぶ際、capability 情報の取得が pending の状態を作る | 候補リストは空/ローディングで、**未確定のまま全員を出さない**（`filterStaffCandidatesByCapability` の fail-closed） |
 | 4 | capability 未設定の担当者だけがいる条件で予約タイプを選ぶ | 「この予約タイプに対応できる担当者がいません」系の empty message が出る。query failure・loading・no capable staff・no staff working・no staff registered の各状態が区別される（`staffCandidateEmptyMessage`） |
 | 5 | 以前選択していた担当医が、候補データ確定後に対象外（orphan）になった状態を作る | `STAFF_ORPHAN_REASON_MESSAGE` で理由が示され、orphan を解消しないと送信できない（`resolveStaffSelectionEligibility`） |
-| 6 | API が 409（例: 出勤医師ゼロ・時間重複）を返すケースを直接発生させる | `extractApiErrorMessage` で API の理由メッセージがモーダル内に表示され、無言の失敗や汎用エラーだけにならない |
+| 6 | API が版競合・非勤務指名等のhard拒否を返すケースを直接発生させる（理由codeの目標契約は予約技術仕様を参照） | `extractApiErrorMessage` で API の理由メッセージがモーダル内に表示され、無言の失敗や汎用エラーだけにならない |
 
 担当者候補の状態遷移（fail-closed と orphan 判定タイミング）:
 

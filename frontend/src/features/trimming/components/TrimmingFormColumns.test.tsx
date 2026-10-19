@@ -181,14 +181,6 @@ describe("TrimmingRightColumn", () => {
       <TrimmingRightColumn
         sortedHistory={[history]}
         isHistoryLoading={false}
-        historySearchTerm=""
-        historySortOrder="desc"
-        historyDateRange={{ from: "", to: "" }}
-        onSearchTermChange={vi.fn()}
-        onSortOrderChange={vi.fn()}
-        onClear={vi.fn()}
-        onFilterStartDateChange={vi.fn()}
-        onFilterEndDateChange={vi.fn()}
         onHistoryClick={onHistoryClick}
       />,
     );

@@ -24,13 +24,30 @@ vi.mock("@/hooks/use-master-items", () => ({
       { id: "cage-1", name: "ケージ1", category: "犬舎", price: 0, status: "active" as const },
     ],
     isLoading: false,
-    error: null,
+    isError: false,
   })),
 }));
 
 import { useGetAllHospitalizations, useGetHospitalizations } from "../api/get-hospitalizations";
+import { useGetMasterItems } from "@/hooks/use-master-items";
+import type { MasterItem } from "@/types";
 
 // ---- helpers ----
+
+const DEFAULT_CAGES: MasterItem[] = [
+  { id: "cage-1", name: "ケージ1", category: "犬舎", price: 0, status: "active" },
+];
+
+function mockCages(
+  cages: MasterItem[] = DEFAULT_CAGES,
+  state: { isLoading?: boolean; isError?: boolean } = {},
+) {
+  vi.mocked(useGetMasterItems).mockReturnValue({
+    data: cages,
+    isLoading: state.isLoading ?? false,
+    isError: state.isError ?? false,
+  } as ReturnType<typeof useGetMasterItems>);
+}
 
 function makeAuthCtx() {
   return {
@@ -116,6 +133,7 @@ function mockAllHospitalizations(
 
 beforeEach(() => {
   localStorage.setItem("auth_current_clinic:v1", "clinic-1");
+  mockCages();
   mockHospitalizationsPage([]);
   mockAllHospitalizations([]);
 });
@@ -124,7 +142,7 @@ describe("HospitalizationList — view切替の操作領域", () => {
   it("Board/List view buttonを44x44px以上に保つ", () => {
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
-    for (const name of ["Board View", "List View"]) {
+    for (const name of ["ボード表示", "リスト表示"]) {
       expect(screen.getByRole("radio", { name })).toHaveClass("h-11", "min-w-11");
     }
   });
@@ -145,7 +163,7 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
     // リストビューに切り替え (ToggleGroup type="single" は role="radio")
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
 
     // 検索入力（常時表示）へ入力
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "ぽち");
@@ -168,7 +186,7 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "サトウ");
 
     // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
@@ -220,7 +238,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     );
 
     // list view で reserved 行が残る（旧失敗: client が admitted のみ残す）
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     expect(await screen.findByText("予約ワン")).toBeInTheDocument();
     expect(screen.getByText("H-R1")).toBeInTheDocument();
   });
@@ -294,7 +312,7 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
     // board: cage に紐づく 種 + petName
     expect(await screen.findByText("犬 ボード兼リスト")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     expect(await screen.findByText("ボード兼リスト")).toBeInTheDocument();
   });
 
@@ -311,11 +329,63 @@ describe("HospitalizationList — BUG-009 status tab → server filter", () => {
 
     const user = userEvent.setup();
     render(<HospitalizationList />, { wrapper: createWrapper() });
-    await user.click(screen.getByRole("radio", { name: "List View" }));
+    await user.click(screen.getByRole("radio", { name: "リスト表示" }));
 
     // total=42, limit=20 → totalPages=3 → Pagination（server 正本）が表示される
     expect(await screen.findByText(/42件中/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "次のページ" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "最後のページ" })).toBeEnabled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// EMR-412 R4: ケージ master loading/error を board 表示へ反映
+// ─────────────────────────────────────────────────────────────
+
+describe("HospitalizationList — cage master loading/error (EMR-412 R4)", () => {
+  it("cage マスタ取得中（board 全件は取得済み）は部分描画せず loading を出す", () => {
+    mockHospitalizationsPage([makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })], 42);
+    mockAllHospitalizations([
+      makeHosp({ id: "1", petName: "ページ1行", status: "入院中", cageId: "cage-1" }),
+    ]);
+    mockCages(DEFAULT_CAGES, { isLoading: true });
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    expect(screen.queryByText(/ページ1行/)).not.toBeInTheDocument();
+    expect(screen.queryByText("ケージが登録されていません")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("cage マスタ取得失敗（board 全件は完了）は error 表示に倒し、ケージ未登録を出さない", () => {
+    mockHospitalizationsPage([makeHosp({ id: "1", petName: "ページ1行", status: "入院中" })], 42);
+    mockAllHospitalizations([]);
+    mockCages([], { isError: true });
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("データの取得に失敗しました");
+    expect(screen.queryByText("ケージが登録されていません")).not.toBeInTheDocument();
+  });
+
+  it("cage マスタ取得成功で0件ならケージ未登録メッセージを出す", async () => {
+    mockHospitalizationsPage([], 0);
+    mockAllHospitalizations([]);
+    mockCages([]);
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText("ケージが登録されていません")).toBeInTheDocument();
+  });
+
+  it("cage マスタ取得成功（件数あり）で入院0件なら board を描画する", async () => {
+    mockHospitalizationsPage([], 0);
+    mockAllHospitalizations([]);
+    mockCages(DEFAULT_CAGES);
+
+    render(<HospitalizationList />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText("ケージ1")).toBeInTheDocument();
+    expect(screen.queryByText("ケージが登録されていません")).not.toBeInTheDocument();
   });
 });

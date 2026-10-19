@@ -34,12 +34,12 @@ const effectivePermissionsGinKey = "auth_effective_permission_rules"
 func (h *HTTPHandler) effectivePermissionRules(
 	c *gin.Context,
 	staffID, clinicID uint64,
-) ([]model.PermissionGroupRule, bool) {
+) ([]model.PermissionGroupRule, error) {
 	var memo map[uint64][]model.PermissionGroupRule
 	if cached, exists := c.Get(effectivePermissionsGinKey); exists {
 		memo, _ = cached.(map[uint64][]model.PermissionGroupRule)
 		if rules, ok := memo[clinicID]; ok {
-			return rules, true
+			return rules, nil
 		}
 	}
 	if memo == nil {
@@ -52,10 +52,50 @@ func (h *HTTPHandler) effectivePermissionRules(
 		clinicID,
 	)
 	if err != nil {
-		return nil, false
+		// 失敗は memo しない。原因を %w で保持し、bool 側は denial に縮退する。
+		return nil, fmt.Errorf("effective permission lookup failed: %w", err)
 	}
 	memo[clinicID] = rules
-	return rules, true
+	return rules, nil
+}
+
+// checkPermissionInClinic は三値の canonical 評価器。
+// grant => (true,nil)、明示的 denial => (false,nil)、
+// identity/依存欠落または lookup 失敗 => (false,error)。
+// レスポンスは書かず、原因エラーも露出しない（呼出側が分類する）。
+func (h *HTTPHandler) checkPermissionInClinic(
+	c *gin.Context,
+	clinicID uint64,
+	resource, action string,
+) (bool, error) {
+	isSystemAdmin, ok := httpapi.PeekIsSystemAdmin(c)
+	if !ok {
+		return false, fmt.Errorf("permission identity unavailable")
+	}
+	if isSystemAdmin {
+		return true, nil
+	}
+
+	staffID, ok := httpapi.PeekStaffID(c)
+	if !ok || clinicID == 0 || h.deps.EffectivePermissions == nil {
+		return false, fmt.Errorf("permission evaluation dependencies unavailable")
+	}
+	rules, err := h.effectivePermissionRules(c, staffID, clinicID)
+	if err != nil {
+		return false, err
+	}
+	return permissionRulesAllow(rules, resource, action), nil
+}
+
+// CheckPermission は tri-state の権限評価（選択済み clinic を Peek で解決）。
+// (true,nil)=許可、(false,nil)=明示的 denial、(false,error)=評価不能。
+// bool 互換 API (HasPermission*) は error を denial に縮退する（既存挙動維持）。
+func (h *HTTPHandler) CheckPermission(
+	c *gin.Context,
+	resource, action string,
+) (bool, error) {
+	clinicID, _ := httpapi.PeekClinicID(c)
+	return h.checkPermissionInClinic(c, clinicID, resource, action)
 }
 
 // HasPermissionInClinic evaluates one resource/action pair for a destination clinic.
@@ -66,23 +106,11 @@ func (h *HTTPHandler) HasPermissionInClinic(
 	clinicID uint64,
 	resource, action string,
 ) bool {
-	isSystemAdmin, ok := httpapi.PeekIsSystemAdmin(c)
-	if !ok {
+	allowed, err := h.checkPermissionInClinic(c, clinicID, resource, action)
+	if err != nil {
 		return false
 	}
-	if isSystemAdmin {
-		return true
-	}
-
-	staffID, ok := httpapi.PeekStaffID(c)
-	if !ok || clinicID == 0 || h.deps.EffectivePermissions == nil {
-		return false
-	}
-	rules, ok := h.effectivePermissionRules(c, staffID, clinicID)
-	if !ok {
-		return false
-	}
-	return permissionRulesAllow(rules, resource, action)
+	return allowed
 }
 
 func permissionRulesAllow(
@@ -157,14 +185,6 @@ func (h *HTTPHandler) RequirePermissionAny(
 	permissions ...PermissionRequirement,
 ) gin.HandlerFunc {
 	return h.requirePermissionAny(false, permissions...)
-}
-
-// RequirePermissionAnyAllowingAssignedClinicGrant is the GET/HEAD fallback
-// for surfaces that re-check destination clinics after the middleware.
-func (h *HTTPHandler) RequirePermissionAnyAllowingAssignedClinicGrant(
-	permissions ...PermissionRequirement,
-) gin.HandlerFunc {
-	return h.requirePermissionAny(true, permissions...)
 }
 
 func (h *HTTPHandler) requirePermissionAny(

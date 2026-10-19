@@ -1,4 +1,4 @@
-import { type ComponentProps } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
@@ -27,6 +27,7 @@ interface AnimalSpeciesSortableTableProps {
   onEdit: (item: AnimalSpecies) => void;
 }
 
+/** 動物種の詳細導線を保ち、編集権限がある場合だけ並べ替えと操作列を出す。 */
 export function AnimalSpeciesSortableTable({
   items,
   sensors,
@@ -34,13 +35,19 @@ export function AnimalSpeciesSortableTable({
   canEdit,
   onEdit,
 }: AnimalSpeciesSortableTableProps) {
+  // B-02 (EMR-409): 非編集者には空セルだけの「操作」列を出さず、ヘッダとセルを
+  // まとめて消す。名称ボタン（詳細）とドラッグハンドルは読取専用でも維持する。
+  const columns = useMemo(
+    () => (canEdit ? COLUMNS : COLUMNS.filter((column) => column.header !== "操作")),
+    [canEdit],
+  );
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         <DataTable
           headerRowClassName={STYLE.tableHeaderRow}
           headerCellClassName={STYLE.sectionLabel}
-          columns={COLUMNS}
+          columns={columns}
           data={items}
           emptyMessage="動物種類が登録されていません"
           renderRow={(item) => (
@@ -61,14 +68,14 @@ export function AnimalSpeciesSortableTable({
               <TableCell className="text-center">
                 <StatusPill isActive={item.isActive} />
               </TableCell>
-              <TableCell className="text-right">
-                {canEdit ? (
+              {canEdit ? (
+                <TableCell className="text-right">
                   <RowActionButton
                     aria-label={`編集: 動物種類 ${item.name} (ID ${item.id})`}
                     onClick={() => onEdit(item)}
                   />
-                ) : null}
-              </TableCell>
+                </TableCell>
+              ) : null}
             </SortableDataTableRow>
           )}
         />

@@ -58,16 +58,21 @@ describe("getHospitalizationStatusColor", () => {
   it("returns gray for 予約", () => {
     expect(getHospitalizationStatusColor("予約")).toContain(HEX.gray);
   });
+
+  // EMR-412 N3/R7: ホテル区分の admitted も「入院中」と同じ admitted セマンティクス色。
+  it("returns purple for 預かり中", () => {
+    expect(getHospitalizationStatusColor("預かり中")).toContain(HEX.purple);
+  });
 });
 
 describe("getHospitalizationTypeColor", () => {
-  // 実装: 入院 → purple, ホテル → blue
-  it("returns purple for 入院", () => {
-    expect(getHospitalizationTypeColor("入院")).toContain(HEX.purple);
+  // EMR-412 N4/R7: 区分バッジは入院・ホテルとも BADGE.gray（状態バッジは各セマンティクス色）。
+  it("returns gray for 入院", () => {
+    expect(getHospitalizationTypeColor("入院")).toContain(HEX.gray);
   });
 
-  it("returns blue for ホテル", () => {
-    expect(getHospitalizationTypeColor("ホテル")).toContain(HEX.blue);
+  it("returns gray for ホテル", () => {
+    expect(getHospitalizationTypeColor("ホテル")).toContain(HEX.gray);
   });
 });
 

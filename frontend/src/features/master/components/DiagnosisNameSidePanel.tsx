@@ -116,6 +116,7 @@ export const DiagnosisNameSidePanel = memo(function DiagnosisNameSidePanel({
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

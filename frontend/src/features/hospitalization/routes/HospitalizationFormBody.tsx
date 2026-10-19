@@ -3,7 +3,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { MasterSelectModal, type MasterSelectItem } from "@/components/shared/MasterSelectModal";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { LAYOUT } from "@/lib/design-tokens";
+import { LAYOUT, STYLE } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { HospitalizationFormData } from "../types";
@@ -23,6 +23,8 @@ interface HospitalizationFormBodyProps {
   staffModalOpen: boolean;
   doctorStaffItems: StaffItem[];
   formData: HospitalizationFormData;
+  /** EMR-412 R4: 保存済みレコードの区分（未取得時 undefined）。見出しはここからのみ取る。 */
+  savedHospitalizationType?: "入院" | "ホテル";
   formAction: (payload: FormData) => void;
   fields: HospitalizationFormFieldsProps;
   onBack: () => void;
@@ -44,6 +46,7 @@ export function HospitalizationFormBody({
   staffModalOpen,
   doctorStaffItems,
   formData,
+  savedHospitalizationType,
   formAction,
   fields,
   onBack,
@@ -54,11 +57,16 @@ export function HospitalizationFormBody({
   onStaffModalOpenChange,
   onSelectDoctor,
 }: HospitalizationFormBodyProps) {
+  // EMR-412 N2/R4: 新規＝「入院・ホテル登録」、編集・削除確認＝保存済みの区分名。
+  // 未保存のフォーム入力を保存済み区分の代わりにしない（不一致時はこの値が変わらない）。
+  const typeLabel = savedHospitalizationType ?? "入院";
+  const formTitle = hospitalizationId ? `${typeLabel}編集` : "入院・ホテル登録";
+  const deleteTitle = `${typeLabel}を削除しますか？`;
   return (
     <>
       <form action={formAction} className="h-full">
         <PageLayout
-          title={hospitalizationId ? "入院編集" : "入院登録"}
+          title={formTitle}
           onBack={onBack}
           resource={ResourceHospitalization}
           maxWidth={LAYOUT.pageContentMaxWidth.form}
@@ -78,7 +86,10 @@ export function HospitalizationFormBody({
           }
         >
           <NavigationBlocker when={isDirty} />
-          <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
+          <fieldset
+            disabled={!canSubmit}
+            className={`border-0 p-0 m-0 min-w-0 ${STYLE.readonlyInputs}`}
+          >
             <HospitalizationFormFields {...fields} canSubmit={canSubmit} />
           </fieldset>
         </PageLayout>
@@ -86,7 +97,7 @@ export function HospitalizationFormBody({
       <ConfirmDialog
         open={isDeleteConfirmOpen}
         onClose={onCloseDeleteConfirm}
-        title="入院を削除しますか？"
+        title={deleteTitle}
         description="この操作は取り消せません。"
         confirmLabel="削除"
         variant="destructive"

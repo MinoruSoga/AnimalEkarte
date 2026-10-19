@@ -50,14 +50,3 @@ func validatePostalCodeFormat(postalCode string) error {
 	}
 	return nil
 }
-
-// ValidateEmailFormat exports contact email validation for cross-domain binding parity tests.
-func ValidateEmailFormat(email string) error { return validateEmailFormat(email) }
-
-// ValidatePhoneFormat exports contact phone validation for cross-domain binding parity tests.
-func ValidatePhoneFormat(phone string) error { return validatePhoneFormat(phone) }
-
-// ValidatePostalCodeFormat exports postal validation for cross-domain binding parity tests.
-func ValidatePostalCodeFormat(postalCode string) error {
-	return validatePostalCodeFormat(postalCode)
-}

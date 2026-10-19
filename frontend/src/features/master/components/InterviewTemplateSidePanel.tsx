@@ -3,6 +3,8 @@ import type { ChangeEvent } from "react";
 import { FileText } from "lucide-react";
 
 import { MasterSidePanel, PropertyRow, StatusToggleButton } from "@/components/shared/SidePeek";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { LAYOUT } from "@/lib/design-tokens";
 
 import type { InquiryTemplate } from "../api/inquiry-templates";
@@ -85,6 +87,7 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.title}
       onTitleChange={handleTitleChange}
@@ -102,7 +105,7 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
         label="カテゴリ"
         description="テンプレートの分類名です。問診テンプレート一覧での絞り込み・整理に使われます。"
       >
-        <input
+        <Input
           type="text"
           aria-label="カテゴリ"
           className={MASTER_INPUT_CLASS}
@@ -115,8 +118,9 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
         label="テンプレート内容"
         description="問診時に挿入される本文テキストです。問診票の記入時にテンプレートとして呼び出せます。"
       >
-        <textarea
-          className={`${MASTER_INPUT_CLASS} min-h-[150px] resize-none`}
+        <Textarea
+          aria-label="テンプレート内容"
+          className={`${MASTER_INPUT_CLASS} min-h-[150px] resize-none field-sizing-fixed`}
           value={formData.content}
           onChange={handleContentChange}
           placeholder="テンプレート内容を入力"

@@ -253,3 +253,47 @@ describe("VitalsTab deceased pet dual-gate", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 });
+
+describe("VitalsTab lock state empty message (EMR-412 R6/K5)", () => {
+  it("確定済/権限ロックの空状態文言を開いたままの状態変化へ追従させる", async () => {
+    server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));
+
+    function Harness({ finalized, locked }: { finalized?: boolean; locked?: boolean }) {
+      return (
+        <VitalsTab medicalRecordId={MEDICAL_RECORD_ID} isFinalized={finalized} isLocked={locked} />
+      );
+    }
+
+    const { rerender } = render(<Harness />, { wrapper: createTestWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText(/バイタル記録がありません/)).toBeInTheDocument();
+    });
+
+    // 通常 → 確定済
+    rerender(<Harness finalized />);
+    expect(screen.getByText("確定済のため変更できません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "記録を追加" })).not.toBeInTheDocument();
+
+    // 確定済 → 権限ロック（確定は解除されない前提の画面運用でも、prop 変化には従う）
+    rerender(<Harness locked />);
+    expect(screen.getByText("編集権限がありません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "記録を追加" })).not.toBeInTheDocument();
+
+    // ロック解除で通常文言へ戻る
+    rerender(<Harness />);
+    expect(screen.getByText(/バイタル記録がありません/)).toBeInTheDocument();
+  });
+
+  it("死亡ガードはロック状態より優先する", async () => {
+    server.use(http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])));
+
+    render(<VitalsTab medicalRecordId={MEDICAL_RECORD_ID} isPetDeceased isFinalized isLocked />, {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("死亡したペットのバイタルは保存できません")).toBeInTheDocument();
+    });
+  });
+});

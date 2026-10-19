@@ -1,5 +1,7 @@
 # spec/ — 仕様系（業務・画面・UI）
 
+2026-10-17追加：ユーザー確定9群の[正本・受入条件・C01〜C13訂正対照](domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)。問診統合・共通患者・医師確認／会計同期等はこの最新参照に従う。初回反映時の未公開/ontology保留という段階は履歴。後続承認により業務69文書とontology11文書をDraft PR #670のcommit `7e4171725c24c5be9807ddcf8c09b323aca31442`へ公開し、公開時の対象本文一致を確認済み。現在の語彙は[ontologyの適用境界](ontology/README.md#ontology-current-20261018)へ接続する。以後のローカル改善差分は公開済み版と区別し、実装・実機未確認と除外原資料の未読は維持する。
+
 > **目的**: システムが「何をするか」の仕様系ドキュメントの索引を提供する。
 > **読者**: 全開発者・AI エージェント。
 > **タイミング**: 機能実装・仕様確認・画面変更の前。
@@ -36,7 +38,7 @@ flowchart LR
 | workflows/ | ドメインを跨ぐ業務フローの正本と閲覧入口 |
 | domains/*/README.md | ドメイン概要・ルールと受入条件の所在・未決事項・読む順 |
 | domains/*/pages/ | 予約・受付・カルテ・会計の画面仕様本文 |
-| domains/medical-records/lifecycle.md | カルテ保存・確定・保護の契約（§2 が保存ルーティングの正本） |
+| domains/medical-records/lifecycle.md | カルテの自動保存維持・通常編集・入力復元・診療終了／履歴（§2が保存ルーティングの正本、最新合意を優先） |
 | shared/ | 共通用語・権限・マスタの参照入口 |
 | screens/ | 全画面索引と対象外画面の本文。移設済み旧パスは移動案内のみ |
 
@@ -50,6 +52,7 @@ settings/ の共通マスタ、入院・トリミング・LINE 等の既存仕�
 | [screens/](screens/README.md) | 全画面インデックス（番号付き索引 41 件（移動案内を含む）。`route-inventory.test.tsx` が pin する製品ルート 88 leaf の全網羅ではない。settings/ にマスタ設定画面群） | 画面単位の仕様確認・UI 変更前 |
 | [cash-register.md](cash-register.md) | レジ締め・日次/月次売上集計の業務仕様（AM/PM/EMG 境界） | 会計・締め処理の実装前 |
 | [customer-aggregation.md](customer-aggregation.md) | 顧客分析ダッシュボード（累計売上・来院頻度・CPM/LTV） | 集計・分析機能の実装前 |
+| [検査機器の旧解析資料](lab-device-integration/README.md) | 城東の構造/通信観測とD07・運用正本への接続。外注/画像/医院差・移行は未確認を区別 | 旧資料を機器対応や新規採用の根拠に使う前 |
 | [reservation-to-record-flow.md](workflows/reservation-to-record-flow.md) | 予約からカルテ作成までの統合フロー（appointments = 単一 source of truth） | 予約・受付・カルテ連携の実装前 |
 | [design-system.md](design-system.md) | Notion ライクなデザイン規約とデザイントークン | フロントエンド UI 実装前 |
 | [design-states.md](design-states.md) | インタラクション状態（hover / focus / disabled / loading / invalid 等）の視覚仕様・必須実装と WCAG コントラスト実測 | インタラクティブ UI の実装・レビュー時 |
@@ -135,3 +138,16 @@ OpenAPI 列挙 operation（token 保護の local fixture 経路を含み、「�
 読む順：[全体要件](specification.md)と[記述規約](authoring-guide.md) → [domains](domains/README.md) → 関連[workflows](workflows/README.md)・[ontology](ontology/README.md) → 各画面。
 
 正本・状態：[決定状態と検証状態の規約](authoring-guide.md#status)に従い、各節・FRの承認根拠と実装／実機状態を別に読む。READMEへの掲載・フォルダ配置は承認や実装済みを表さず、対象外の既存仕様を新たに確定しない。既存の別名入口・索引の責務は維持し、本書は案内を補う。
+
+
+## 2026-10-15 全領域仕様への案内
+
+[全23業務・6共通・8接続](domains/SPECIFICATION_PROGRESS.md)を参照する。既存のルートprimary対応と過去の実行検証記録は保持し、今回の文書検査をruntime／実機合格へ転用しない。
+
+## 2026-10-15会議4点の最新入口
+
+自動保存維持・終了後通常編集・タブ開始時復元／複製直前取消・終了履歴、トリミング開始／終了・料金、勤務複製／CSVの合意を追加整理。[全体進捗](domains/SPECIFICATION_PROGRESS.md#meeting-four-decisions-20261015)と各owner本文を参照。途中の保存ボタン方式は撤回済み。今回差分は独立内容・構造レビューで重大指摘なしを確認し、文書再整合済み。全過去承認の監査完了・実装完了とは扱わない。
+
+## 原資料追加採用6点の入口
+
+[職員・月次未納・日次内訳・薬量の追加差分](domains/SPECIFICATION_PROGRESS.md#source-six-adoption-20261015)を参照する。採用範囲だけの文書再整合で、全原資料の読解完了ではない。職種／役職／雇用と認可、休業と退職、入金と充当／減額、税表示と元税額、自動薬量範囲と臨床数値承認を区別する。月次調整表示は2026-10-16に実受領のみの当月入金と別掲調整内訳として承認済み。今回の更新は既存3ACの期待結果を同期する文書候補で、内容レビュー・公開・実装は別段階。

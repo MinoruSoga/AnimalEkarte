@@ -1,6 +1,33 @@
 # 薬剤マスタ 仕様書 (Medicine Management)
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | page.settings.master-medicine／画面仕様 |
+| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：既存本文は継承（決定根拠未確認）。第六群の合意と未決は下記正本へ |
+| 実装状態 | 既存記載を継承。今回の目標機能／認可適合は未確認 |
+| 実機検証状態 | 未実施 |
+| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15） |
+
+### 会計第六群との対応
+
+[第六群の業務正本](../../domains/accounting/lifecycle.md#accounting-agreement-sixth)と[マスタ変更権限](../../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance)へ従う。全体割引から除外する品目を該当する品目マスタで指定できることが目標。薬剤の保険対象外とは別で、除外フィールド実装済みとしない。価格等のマスタ変更者は管理者と対象変更権限付きスタッフ。既存の診療master履歴保持の正本も維持する。 全スタッフに変更を開放せず、対象grant・医院scopeを検査する。今回、実権限・設定・API／DBは変更していない。詳細な[現行mapping](../../../design/domains/accounting/technical-spec.md#accounting-master-permission-map)は技術仕様へ。
+
+
 2026-10-14、入力4項目合意の[診療master権限編集・無効化と当時内容保持](../../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-master-history-snapshots)が業務正本。対象masterの操作grant・医院scopeを保持し、無効項目を新規選択せず、既存記録に保存した名称・対象が持つ単位／価格は当時内容を保持する。旧実装説明だけでsnapshot保持済みと判断しない。
+
+### 会計の保存・参照保護契約
+
+[D10のmaster責務と互換](../../../design/domains/accounting/technical-spec.md#accounting-master-coverage)・[画面取得／失敗／保存](../../../design/domains/accounting/technical-spec.md#accounting-screen-contract)へ従う。現在認可・clinic／対象版を検査し、無権限／競合は保存しない。取得失敗を空masterとせず未保存入力を保護。名称変更／無効化／削除で過去請求／資金・帳票参照を失わせず前後値を追跡。旧CRUD表は現行参照で、新業務未対応経路はadapterと実装受入まで利用開始しない。
+
+[第十群](../../domains/accounting/lifecycle.md#accounting-empty-rounding-master)で全体割引除外は初期値／設定欠落時とも対象外にしない。明示設定を保持し保険／税／明細割引と混同しない。追加済み会計行はmaster変更で自動更新せず明示再適用へ。単価×数量の行額は値引き前に行別1円四捨五入。臨床数量・投薬量や確定済み会計／旧帳票は直接変更しない。
+
+### 品目別保険設定の追加合意（2026-10-15）
+
+[品目別保険設定の業務正本](../../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)と[保存・会計引継ぎ設計](../../../design/domains/accounting/technical-spec.md#accounting-item-insurance-design)を適用する。診察・処置・予防・健診も品目ごとの対象／対象外を保存・読取する目標で、薬剤・検査の既存明示値を維持する。個別会計での実適用・資格・補償の保証ではなく、全体割引除外・税・明細値引きとも独立。新規登録の診察・処置・予防・健診品目は保険対象外を初期値とし、必要に応じ権限のあるスタッフが対象へ変更できる。既存明示値は保持し、旧欠落値の一括対象外変換は未承認。全体割引除外のfalse既定とは別契約である。
+
+現在の対象変更grant・医院scope／版を保存時に検査し、設定と前後値・操作者／時刻を追跡する。取得失敗・旧欠落・未保存を明示値と区別し、未保存編集を保護。会計の追加時snapshot・スタッフ確認修正値をmaster変更で自動更新せず、明示再適用／確定後訂正へ。今回の文書変更だけでUI／API／DB・実grant・移行が対応済みとはしない。
+
+薬剤の既存「保険対象外」の明示値・意味を維持し、診察・処置・予防・健診の新規登録時に適用する保険対象外初期値を薬剤の既存設定へ再適用しない。投与量計算・臨床確認・在庫連携は本合意で変更しない。
 
 ## 概要
 - **画面の目的**: 院内で使用・処方される医薬品の定義、単価設定、および在庫システムとの紐付け。
@@ -72,3 +99,14 @@ flowchart TB
 
 
 ---
+
+## 薬量の自動範囲・複数パターン
+
+[薬量追加採用の正本・追加4AC](../../domains/medical-records/lifecycle.md#dose-source-adoption-20261015)へ従う。用量パターンは薬剤／動物種に加え目的・経路で区別する承認対象で、今回の明示選択と当時版を持つ。薬剤masterの1件と一対一に限定しない。単純体重計算から1回製剤量を得る範囲と、医師確認・理由付き手入力を区別する。目的／経路別選択は複雑protocol自動実行ではなく、具体値の臨床承認#261も代替しない。現行単一用量パラメータの記述は実装参照で、複数パターン対応済みの根拠ではない。
+
+<a id="decision-alignment-20261017"></a>
+## 2026-10-17確定仕様との接続
+
+[決定根拠・適用範囲](../../domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
+
+[業務正本・受入条件](../../domains/medical-records/lifecycle.md#requirement-fr-medical-records-dose-display-unit-price)。1回量・用法・処方総量と計算根拠の表示を区別する。単純体重計算・医師承認・単位／含量／回数・用量パターン・範囲外安全条件を維持し、用法文テンプレートや日数総量計算は追加しない。プランの明細単価変更でマスタ価格は変わらない。

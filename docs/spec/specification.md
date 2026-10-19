@@ -18,8 +18,8 @@
 ## 2. 核心となる 3 つの設計原則
 
 ### 2.1 臨床の安全 (Clinical Safety)
-- **入力・確認の支援**: 死亡ペットへの新規記録作成・臨床操作の制限（EMR-177 以降、選択自体は識別表示付きで許可し、作成可否は各機能の死亡ゲートが拒否する）、検査異常値の自動ハイライト、ワクチン次回予定の自動計算を備える。適用範囲・例外は各画面仕様を参照する。
-- **整合性と監査**: 臨床・会計・権限など業務上重要な変更は `audit_logs` に操作者・時刻付きで記録する（全 136 テーブルの自動全件監査ではない。経路ごとに明示実装し、締め後会計編集など clinical/financial integrity が要求する監査は同一 transaction で fail-closed）。臨床記録の真正性を担保する確定（Lock）フローを実装。安全制御は確定後の不変化（編集 UI 無効化、確定解除不可、訂正は追記のみ）である。現在の UI は確定操作前に確認ダイアログも表示する。[product philosophy](../product-philosophy.md) に従い、ダイアログは明示同意の補助とし、安全性はサーバー側の状態検証・ロックで担保する。詳細: [domains/medical-records/pages/medical-record-form.md §2.3](domains/medical-records/pages/medical-record-form.md)。
+- **入力・確認の支援**: 死亡ペットへの新たな予約／実施の制限（EMR-177以降の選択は識別表示付きで許可。最新合意の生前分後日入力・誤記訂正・退院／精算は死亡状態を戻さず理由・履歴付き専用経路で扱い、現行一律拒否との差を各領域へ残す）、検査異常値の自動ハイライト、ワクチン次回予定の管理を扱う。次回日は最新合意に従い種類別設定または手入力へ統一する目標で、現行mainで入口別既定は1yearへ統一されたが、種類別設定／手入力の目標や具体初期値の追加承認とは区別する。適用範囲・例外は各画面仕様を参照する。
+- **整合性と監査**: 臨床・会計・権限など業務上重要な変更は `audit_logs` に操作者・時刻付きで記録する（全138テーブルの自動全件監査ではない。経路ごとの明示実装と必要な同一transaction／fail-closedを守る）。[2026-10-15の通常カルテ合意](domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)では医師確定ボタンと旧finalizedだけの通常編集拒否を置換し、診療終了後も通常編集できる。自動保存を含む既存hybridを維持し、タブクリアは開いた時点、履歴複製取消は複製直前へ戻す。以前の保存版・追記・必要監査を保持し、他者変更や会計／在庫等の作用を無警告で巻き戻さない。安全性はサーバ側の認可・患者／医院・現在版／依存照合と履歴で担保し、確認ダイアログだけに依存しない。診療終了時に未実施プランを警告し確認後終了可、記録・請求・入金の確定とは分離する。スタッフ診療履歴は診療終了を掲載条件とし、途中保存は載せない。D07検査・D11見積等の独自確定保護は各ownerに残す。旧ロック実装の存在を最新仕様の実装完了としない。詳細は[カルテ画面](domains/medical-records/pages/medical-record-form.md#medical-record-form-autosave-20261015)・[臨床安全](shared/clinical-safety.md#requirement-fr-common-safety-finalize)へ。
 
 ### 2.2 高い操作性 (Notion-like UX)
 - **コンテキストの維持**: 画面遷移を最小限に抑える「サイドパネル編集」と、入力と同時に結果が変わる「リアクティブ検索」を採用。
@@ -59,7 +59,7 @@ flowchart LR
 ## 4. 技術スタックと信頼性
 
 - **フロントエンド**: React 19 / Tailwind 4 / shadcn/ui による高速な SPA。
-- **バックエンド**: Go 1.26 / Gin / GORM による API（スキーマは **136 テーブル**。`backend/migrations/` の `CREATE TABLE` から `DROP TABLE` を除いた実測が正本（[erd.md](../architecture/erd.md)・[check-docs-symbol-drift](../../scripts/checks/check-docs-symbol-drift.sh) のゲート値）。過去の訂正履歴は git 履歴を参照）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない。
+- **バックエンド**: Go 1.26 / Gin / GORM による API（スキーマは **138 テーブル**。`backend/migrations/` の `CREATE TABLE` から `DROP TABLE` を除いた実測が正本（[erd.md](../architecture/erd.md)・[check-docs-symbol-drift](../../scripts/checks/check-docs-symbol-drift.sh) のゲート値）。過去の訂正履歴は git 履歴を参照）。[ADR-006](../architecture/adr/006-backend-domain-package-boundaries.md) により domain/capability-first の modular monolith へ cutover 済み。production 実装は `internal/<domain>` および命名済み cross-cutting package に置き、旧 layer-first 集約（`internal/handler` / `internal/service` / `internal/repository`）は削除済み。ADR-006 の Implemented は code/package 境界の完了であり、release ready ではない。
 - **認可・セキュリティ**: **36 種類のリソース**に対する RBAC 制御と、共有テーブル上の論理テナント隔離（`clinic_id` scope + ownership / authorization checks）。
 - **品質保証**: クリティカルな domain には unit / integration test と write-owner 等の静的 gate を置く。Playwright E2E は表示・主要導線の任意検証であり、全クリティカルパス網羅や全 handler 結合テスト完備を主張しない（方針: [docs/ops/ci-policy.md](../ops/ci-policy.md)、[docs/ops/testing/](../ops/testing/README.md)）。
 

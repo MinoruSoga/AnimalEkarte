@@ -75,7 +75,13 @@ export function HospitalizationForm() {
     retryRead: form.retryRead,
   });
   if (gate) {
-    return <HospitalizationFormStatusView gate={gate} onBack={chrome.handleBack} />;
+    return (
+      <HospitalizationFormStatusView
+        gate={gate}
+        onBack={chrome.handleBack}
+        savedHospitalizationType={form.savedHospitalizationType}
+      />
+    );
   }
   if (!form.isEdit && petIsDeceased) {
     return (
@@ -94,6 +100,7 @@ export function HospitalizationForm() {
       staffModalOpen={chrome.staffModalOpen}
       doctorStaffItems={chrome.doctorStaffItems}
       formData={form.formData}
+      savedHospitalizationType={form.savedHospitalizationType}
       formAction={form.formAction}
       onBack={chrome.handleBack}
       onOpenDetail={() => navigate(paths.hospitalization.detail.getHref(String(hospitalizationId)))}

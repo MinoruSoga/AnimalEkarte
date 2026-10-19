@@ -159,3 +159,40 @@ describe("TreatmentItemSidePanel 課税区分既定値 (EMR-401 C7-9)", () => {
     expect(taxRowCombobox()).toHaveTextContent("外税");
   });
 });
+
+// EMR-411 C-2: 実物の共有 StatusToggleButton がパネル内で aria-pressed を持つこと、
+// および保険対象外トグルが はい/いいえ（Q2: はい=true / いいえ=false）で
+// pressed 状態を公開することを、モック無しの実コンポーネントで検証する。
+describe("TreatmentItemSidePanel status/insurance toggles (EMR-411 C-2)", () => {
+  it("実物 StatusToggleButton の aria-pressed がクリックで遷移する", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    const toggle = screen.getByRole("button", { name: "ステータスを切り替え" });
+    // 新規項目は isActive=true 初期値
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("保険対象外トグルが いいえ→はい→いいえ と aria-pressed で遷移する", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    const toggle = screen.getByRole("button", { name: "保険対象外を切り替え" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("いいえ");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveTextContent("はい");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("いいえ");
+  });
+});

@@ -16,6 +16,7 @@ const DISPLAY_GROUPS: { label: string; keys: string[] }[] = [
   { label: "用品", keys: ["goods"] },
   { label: "トレセン", keys: ["training"] },
   { label: "未分類・要確認", keys: ["other"] },
+  { label: "往診", keys: ["house_call"] },
 ];
 
 interface DisplayRow {

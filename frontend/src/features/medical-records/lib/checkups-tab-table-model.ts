@@ -1,4 +1,6 @@
 import { todayJSTISO } from "@/lib/jst-date";
+import { calculateNextDate } from "@/components/shared/NextScheduleField";
+import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 
 export interface AddCheckupFormState {
   checkup_type_id: string;
@@ -12,7 +14,7 @@ export interface AddCheckupFormState {
 const EMPTY_ADD_FORM: AddCheckupFormState = {
   checkup_type_id: "",
   date: "",
-  next_schedule_type: "1year",
+  next_schedule_type: DEFAULT_NEXT_SCHEDULE_TYPE,
   next_date: "",
   doctor_id: "",
   result: "",
@@ -23,5 +25,12 @@ function todayISODate(): string {
 }
 
 export function makeDefaultCheckupAddForm(): AddCheckupFormState {
-  return { ...EMPTY_ADD_FORM, date: todayISODate() };
+  const date = todayISODate();
+  // EMR-431: 開いた時点で「当日＋既定間隔」の次回予定日を持たせる。
+  // 日付に触れずに保存しても next_date が送られる（独立画面 PR665 と同じ挙動）。
+  return {
+    ...EMPTY_ADD_FORM,
+    date,
+    next_date: calculateNextDate(date, EMPTY_ADD_FORM.next_schedule_type),
+  };
 }

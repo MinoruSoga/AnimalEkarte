@@ -501,3 +501,96 @@ describe("CheckupAddRow 必須エラー表示 (EMR-319)", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// PR679 F1: 死亡ペットの空状態は「編集権限がありません」ではなく死亡理由を出す。
+// canCreate が死亡フィルタで false 化されるため、原因を分離してテーブルへ伝搬する。
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — 死亡ペットの空状態理由 (PR679 F1)", () => {
+  it("権限あり・未確定・死亡ペットで健診記録が空なら、権限拒否ではなく死亡理由を表示する", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isPetDeceased={true} />);
+
+    expect(screen.getByText(/死亡したペット/)).toBeInTheDocument();
+    expect(screen.queryByText("編集権限がありません")).not.toBeInTheDocument();
+  });
+
+  it("確定済み+死亡では死亡理由を優先する（death は他の拒否理由より先）", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isFinalized={true} isPetDeceased={true} />);
+
+    expect(screen.getByText(/死亡したペット/)).toBeInTheDocument();
+    expect(screen.queryByText("確定済のため変更できません")).not.toBeInTheDocument();
+  });
+
+  it("生存・作成権限なしの空状態は従来どおり「編集権限がありません」を出す", () => {
+    vi.mocked(usePermission).mockReturnValue({
+      canView: true,
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+    });
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    expect(screen.getByText("編集権限がありません")).toBeInTheDocument();
+    expect(screen.queryByText(/死亡したペット/)).not.toBeInTheDocument();
+  });
+
+  it("死亡ペットでは「記録を追加」ボタンを出さない（mutation 抑止は維持）", () => {
+    render(<CheckupsTab medicalRecordId="mr-1" isPetDeceased={true} />);
+
+    expect(screen.queryByText("記録を追加")).not.toBeInTheDocument();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// EMR-429: 日付表示は共有フォーマッタの YYYY/MM/DD
+// ─────────────────────────────────────────────────────────────
+
+describe("CheckupsTab — date display (EMR-429)", () => {
+  it("実施日は YYYY/MM/DD で表示し、next_date=null は '-' を表示する", () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [CHECKUP_WITH_DOCTOR],
+      isLoading: false,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    const row = screen.getByText("2026/05/01").closest("tr");
+    expect(row).not.toBeNull();
+    expect(screen.queryByText("2026-05-01")).toBeNull();
+    expect(row?.textContent).toContain("-");
+  });
+
+  it("next_date がある行は YYYY/MM/DD で表示する", () => {
+    vi.mocked(useGetCheckups).mockReturnValue({
+      data: [{ ...CHECKUP_WITH_DOCTOR, next_date: "2026-06-01" }],
+      isLoading: false,
+    } as ReturnType<typeof useGetCheckups>);
+
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    const row = screen.getByText("2026/05/01").closest("tr");
+    expect(row?.textContent).toContain("2026/06/01");
+  });
+});
+
+// レビュー指摘（EMR-431）: タブはマウントされ続けるため、追加行を開く時点で
+// 当日ベースの既定を作り直さないと、日跨ぎ後に前日の実施日・次回予定日が残る。
+describe("CheckupsTab — 追加行を開く時点の既定値（レビュー指摘）", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("日跨ぎ後に追加行を開くと、その時点の当日と1年後を作り直す", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-14T15:01:00Z")); // JST 2026-10-15（マウント時）
+    render(<CheckupsTab medicalRecordId="mr-1" />);
+
+    // マウント後に JST 日跨ぎ
+    vi.setSystemTime(new Date("2026-10-15T15:01:00Z")); // JST 2026-10-16
+    fireEvent.click(screen.getByText("記録を追加"));
+
+    expect(screen.getByLabelText("実施日")).toHaveValue("2026年10月16日（金）");
+    expect(screen.getByLabelText("次回予定日")).toHaveValue("2027年10月16日（土）");
+  });
+});

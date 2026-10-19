@@ -21,7 +21,7 @@
 |:---|:---|:---|:---|
 | [S01](S01-deceased-pet-guard.md) | 死亡ペット誤操作の物理ブロック | 臨床安全 | 深い |
 | [S02](S02-exam-abnormal-highlight-lock.md) | 検査異常値ハイライトと確定ロック | 臨床安全 | 深い |
-| [S03](S03-vaccination-next-due-autocalc.md) | ワクチン接種→次回予定自動計算 | 臨床安全 | 深い |
+| [S03](S03-vaccination-next-due-autocalc.md) | 予防接種の種類別設定・手入力と後日入力の日付保護 | 臨床安全 | 深い |
 | [S04](S04-liff-reservation-journey.md) | LIFF 飼主予約ジャーニー通し | 顧客体験 | 薄い+境界 |
 | [S05](S05-hospitalization-cycle.md) | 入院サイクル（ケア記録→退院会計） | 入院 | 深い |
 | [S06](S06-record-lock-audit-trail.md) | カルテ確定 Lock と監査証跡 | 臨床安全 | 深い |
@@ -100,6 +100,20 @@ flowchart TB
 | **合計** | | | **算定保留** |
 
 フォーム inventory は再構築中であり、全フォーム・全項目の完了や一意フォーム総数はまだ主張できない。route inventory の 86 product pages はフォーム数とは別の指標。
+
+## 移設済み画面の互換パスと受入入口（未実行）
+
+以下の旧画面仕様は移動先を示す互換案内であり、業務正本は「現正本」列である。既存S／Vと具体的な確認操作を接続する索引として扱い、画面仕様を互換ページへ複製しない。各操作には実行と証跡が別途必要で、リンクの存在や文書チェック成功から画面受入の完了を導かない。S08／V02等の更新前の実装観察は、現在の合格条件にそのまま流用せず、下記の現正本・S06の現行目標に従って読み替える。
+
+| 互換パス → 現正本 | 既存の受入入口 | 追加照合する操作 → 期待結果 | 未網羅範囲・読み替え |
+|:--|:--|:--|:--|
+| [01-reception](../../../spec/screens/01-reception.md) → [受付ボード](../../../spec/domains/reception/pages/reception-board.md) | [S40手順1〜8](S40-reception-return-navigation.md)、[V02受付・カード§8/9](V02-accounting-reservation-forms.md)、[S06現行目標](S06-record-lock-audit-trail.md) | 当日以外を選び詳細・カルテを開いて戻り、予約の編集保存と診療開始／終了を各grantで確認する → 選択日へ復帰し保存値を保持。終了は会計待ちへ移し医師確認は別軸、終了だけで請求確定・入金しない | S40は復帰導線が中心。全カード分類・通信失敗・全ACの確認を代替しない |
+| [02-reservations](../../../spec/screens/02-reservations.md) → [予約管理](../../../spec/domains/reservations/pages/reservation-management.md) | [S22手順1〜6](S22-reservation-conflict-and-staff.md)、[V02予約§7](V02-accounting-reservation-forms.md) | 適格な院内予約の同一担当者重複を警告確認後に登録し、非勤務等の登録不可条件は適格値へ直して再保存する → 入力を保持し最新適格性を再検査、候補情報未確定は許可しない | 院内例外をLINEの厳格条件へ展開しない。多頭予約・LINE再診問診・全変更条件／全項目は別照合 |
+| [05-medical-records-list](../../../spec/screens/05-medical-records-list.md) → [カルテ一覧](../../../spec/domains/medical-records/pages/medical-record-list.md) | [S23 T1/T4/T5](S23-multi-clinic-scope.md)、[S14検索境界](S14-search-and-multi-word.md)、現正本AC-medical-records-accounting-link-visibility | 同じfixture・日付検索でAのみ／Bのみ／A+Bの行ID・件数を比較し、関連会計あり／なしを確認する。詳細復帰と行のペット絞込みも行う → 会計ありは導線、なしは「—」。復帰時は条件保持、行ペット操作は日付解除・全期間とし医院条件を保持 | S23は医院帰属・絞込み、S14は検索境界の部分確認。全ソート・一覧全項目の保証ではない |
+| [06-medical-records-form](../../../spec/screens/06-medical-records-form.md) → [カルテ作成・編集](../../../spec/domains/medical-records/pages/medical-record-form.md) | [S06現行目標・編集8AC](S06-record-lock-audit-trail.md)、[S16 T1](S16-interview-history-navigation.md)、[V01冒頭差分・§1](V01-clinical-forms.md) | 明示的に編集開始しスタッフの治療プランを保存、同一カルテ内タブ移動・離脱・再読込・履歴選択コピーを各手順で確認する → 既存自動／即時保存との接続を維持し飼主原文は別欄、コピー元履歴は不変。保存結果を確認して離脱し、失権・結果不明は自動再送しない | 旧finalizedロックや問診別タブを最新合否へ転用しない。V01旧本文は冒頭の最新差分を適用。全項目・全競合条件は別照合 |
+| [10-accounting-list](../../../spec/screens/10-accounting-list.md) → [会計一覧](../../../spec/domains/accounting/pages/accounting-list.md) | [S08手順4/7/9の旧観察](S08-accounting-corrections.md)、[S09締め](S09-closing-time-boundaries.md)、[共通一覧条件](../../../spec/shared/ui-contracts.md#list-filter-contract-20261017) | 訂正済みの行の金額・支払・状態を元会計と照合し、メニューから開く／詳細から戻る／行のペット絞込みを実施する → 現在の訂正後値と一致。メニューは当日、詳細復帰は検索条件保持、行ペットは全期間・医院条件保持 | S08旧支払挙動は現正本で読み替える。締め集計はS09へ、全帳票・全一覧項目は別受入 |
+| [11-accounting-detail](../../../spec/screens/11-accounting-detail.md) → [会計精算](../../../spec/domains/accounting/pages/accounting-settlement.md) | [S06現行会計目標](S06-record-lock-audit-trail.md)、[S08旧観察](S08-accounting-corrections.md)、[S21](S21-accounting-concurrency-idempotency.md)、[V02 §1〜4](V02-accounting-reservation-forms.md)、[S31手順1/5/6](S31-detail-route-direct-access.md) | 医師確認前の準備と確認後の確定を分け、確認後の金額のみ変更／薬剤・処置の追加削除・数量変更を別々に確認。訂正・直接到達・再送は各専用手順へ → 確認前は医師確認待ち・金額未確定、金額のみは警告了承で可、臨床内容変更は医師再確認まで確定・精算停止。版・二重請求・訂正保護を維持 | V02旧部分入金拒否・医療由来明細の一律編集不可を最新目標へ昇格しない。全金銭AC・全項目は別照合 |
+| [30-unpaid-list](../../../spec/screens/30-unpaid-list.md) → [未納者一覧（売掛管理）](../../../spec/domains/accounting/pages/unpaid-list.md) | [S08手順7〜9の旧観察](S08-accounting-corrections.md)、現正本AC-unpaid-source-reconcile、[最新会計ライフサイクル](../../../spec/domains/accounting/lifecycle.md) | 合成fixtureの前月末残10,000＋当月未払5,000－実入金4,000－預り充当2,000－減額1,000を当月・翌月で元請求／詳細と照合する → 繰越8,000、実入金欄4,000、非入金調整は別掲、翌月前月末残8,000。調整なしの通常4列と繰越未納表示を維持 | 当日初期化を繰越未納へ適用しない。S08の当月API・部分入金拒否は旧観察。返金等の全取引・全項目・出力完了をこの例で保証しない |
 
 ## 実行と記録のルール
 

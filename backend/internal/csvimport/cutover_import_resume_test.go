@@ -58,14 +58,18 @@ func TestApplyCutoverCommittingEachTableCommitsImportedTablesAndFinalVerify(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantTx := len(CutoverTableSpecs()) + 1
+	wantTx := len(CutoverTableSpecs()) + 2
 	if len(session.txs) != wantTx {
 		t.Fatalf("transactions = %d, want %d", len(session.txs), wantTx)
 	}
+	early := session.txs[0]
+	if early.committed || early.copyCalls != 0 {
+		t.Fatal("early appointment source tx must be read-only and uncommitted")
+	}
 	copyCalls := 0
-	for i, tx := range session.txs {
+	for i, tx := range session.txs[1:] {
 		if !tx.committed {
-			t.Fatalf("transaction %d was not committed", i)
+			t.Fatalf("transaction %d was not committed", i+1)
 		}
 		copyCalls += tx.copyCalls
 	}
@@ -91,8 +95,8 @@ func TestApplyCutoverCommittingEachTableSkipsCompletePrefix(t *testing.T) {
 	if copyCalls != len(CutoverTableSpecs())-1 {
 		t.Fatalf("copy calls = %d, want %d", copyCalls, len(CutoverTableSpecs())-1)
 	}
-	if len(session.txs) != len(CutoverTableSpecs()) {
-		t.Fatalf("transactions = %d, want %d (skipped staffs + final verify)", len(session.txs), len(CutoverTableSpecs()))
+	if len(session.txs) != len(CutoverTableSpecs())+1 {
+		t.Fatalf("transactions = %d, want %d (early source + skipped staffs + final verify)", len(session.txs), len(CutoverTableSpecs())+1)
 	}
 }
 

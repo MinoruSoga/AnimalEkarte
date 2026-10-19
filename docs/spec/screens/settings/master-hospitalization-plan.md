@@ -1,6 +1,9 @@
 # 入院・宿泊プランマスタ 仕様書 (Hospitalization Plans)
 
+> 領域正本: [業務契約](../../domains/hospitalization/lifecycle.md)・[技術契約](../../../design/domains/hospitalization/technical-spec.md)。以下は既存画面／API観察を継承する。削除endpointの存在は無条件削除の許可ではなく、参照・必要履歴・現在認可を検査し、業務原本や分類不明を通常物理削除しない。無効化後も既存記録の参照を保持する。master変更は過去記録・追加済会計明細へ自動反映せず、会計の再適用はD10の明示確認契約へ従う。
 ## 概要
+
+患者ごとの治療プランは本マスタと別の記録。[入院中の履歴付き追加・変更・中止](../../domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-distinct-plans-and-records)は患者の治療プランに対する合意で、本マスタ改定による過去内容・請求の自動更新ではない。
 - **画面の目的**: 入院治療やペットホテルの基本料金体系の管理。
 - **URLパターン**: `/settings/hospitalization`
 - **アクセス権限**: 設備マスタ管理権限が必要（`ResourceMasterHospitalization`）
@@ -60,3 +63,5 @@ flowchart TB
 
 ---
 
+
+ホテル料金・必要前金・取消料はスタッフが個別確認入力し、日数自動課金・取消時自動請求／返金は設けない。料金単位や単価masterの存在は自動積算の許可・実装済みを意味しない。

@@ -43,6 +43,8 @@ export function HospitalizationList() {
     viewMode,
     setViewMode,
     cages,
+    cagesLoading,
+    cagesError,
     movePet,
     handleNavigateToForm,
   } = useHospitalizationList(canEdit);
@@ -183,6 +185,8 @@ export function HospitalizationList() {
       viewMode={viewMode}
       onViewModeChange={setViewMode}
       cages={cages}
+      cagesLoading={cagesLoading}
+      cagesError={cagesError}
       boardHospitalizations={boardFilteredHospitalizations}
       boardLoading={viewMode === "board" ? boardLoading : false}
       boardError={boardError}

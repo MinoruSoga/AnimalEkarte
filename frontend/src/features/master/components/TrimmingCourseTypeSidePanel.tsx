@@ -69,6 +69,7 @@ export const TrimmingCourseTypeSidePanel = memo(function TrimmingCourseTypeSideP
 
   return (
     <MasterSidePanel
+      tabletOverlay
       isNew={item === null}
       title={formData.name}
       onTitleChange={handleTitleChange}

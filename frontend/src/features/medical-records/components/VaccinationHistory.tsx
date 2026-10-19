@@ -12,13 +12,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatDate } from "@/lib/format/date";
+import { getSortOrderLabel } from "@/lib/status-helpers";
 import { normalizedIncludes } from "@/lib/normalize-kana";
+import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
+import { collectReplacedVaccinationIds } from "@/lib/vaccination-replacement";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
+// EMR-412 X9: 並び順ラベルは共有 getSortOrderLabel（「新→古/古→新」）に揃える。
 const SORT_ORDER_SELECT_ITEMS = (
   <>
-    <SelectItem value="desc">降順</SelectItem>
-    <SelectItem value="asc">昇順</SelectItem>
+    <SelectItem value="desc">{getSortOrderLabel("desc")}</SelectItem>
+    <SelectItem value="asc">{getSortOrderLabel("asc")}</SelectItem>
   </>
 );
 
@@ -41,6 +47,7 @@ export interface VaccinationHistoryItem {
   name: string;
   date: string;
   next: string;
+  dateISO: string;
   vaccineId: number;
   lot1: string;
   lot2: string;
@@ -68,6 +75,23 @@ export const VaccinationHistory = memo(function VaccinationHistory({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("desc");
   const deferredSearch = useDeferredValue(searchTerm);
+
+  // EMR-433: 置き換わり判定は絞り込み前の全 item で行う（EMR-428 の純関数）。
+  // item は同じペットの履歴のみ（use-pet-vaccinations）なので petId は共有値でよい。
+  // 判定には表示文字列（YY/M/D）ではなく ISO の dateISO / vaccineId / name を渡す。
+  const replacedVaccinationIds = useMemo(
+    () =>
+      collectReplacedVaccinationIds(
+        historyItems.map((item) => ({
+          id: String(item.id),
+          petId: "same-pet",
+          date: item.dateISO,
+          vaccineId: String(item.vaccineId),
+          vaccineName: item.name,
+        })),
+      ),
+    [historyItems],
+  );
 
   const filteredItems = useMemo(() => {
     const filtered = historyItems.filter((item) => {
@@ -160,13 +184,23 @@ export const VaccinationHistory = memo(function VaccinationHistory({
           className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 shrink-0`}
         >
           <div className="flex-1 px-3 text-center">予防接種名</div>
-          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>実施日</div>
-          <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>次予定</div>
+          <div
+            className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} whitespace-nowrap`}
+          >
+            実施日
+          </div>
+          <div
+            className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} whitespace-nowrap`}
+          >
+            次予定
+          </div>
           <div className={`w-[70px] px-2 text-center border-l ${C.borderMedium}`}>操作</div>
         </div>
 
         {/* Scrollable Rows */}
-        <div className="flex-1 overflow-y-auto relative pb-20">
+        <div
+          className={`flex-1 overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}`}
+        >
           {isLoading ? (
             <LoadingFallback />
           ) : filteredItems.length === 0 ? (
@@ -181,18 +215,23 @@ export const VaccinationHistory = memo(function VaccinationHistory({
             ? filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} h-12 ${C.hoverBgPageHalf} transition-colors`}
+                  className={`flex items-center border-b ${C.borderMedium} ${C.bgWhite} text-sm ${C.text} min-h-12 ${C.hoverBgPageHalf} transition-colors`}
                 >
                   <div className="flex-1 px-3 truncate font-medium">{item.name}</div>
                   <div
-                    className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}
+                    className={`w-[110px] shrink-0 px-2 text-center border-l ${C.borderMedium} font-mono text-sm whitespace-nowrap`}
                   >
-                    {item.date}
+                    {formatDate(item.dateISO)}
                   </div>
                   <div
-                    className={`w-[100px] px-2 text-center border-l ${C.borderMedium} font-mono text-sm`}
+                    className={`w-[110px] shrink-0 px-2 py-1 text-center border-l ${C.borderMedium} font-mono text-sm`}
                   >
-                    {item.next}
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="whitespace-nowrap">{formatDate(item.nextDate)}</span>
+                      {!replacedVaccinationIds.has(String(item.id)) ? (
+                        <CheckupAlertBadge nextDate={item.nextDate} />
+                      ) : null}
+                    </div>
                   </div>
                   <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
                     {canCreate ? (

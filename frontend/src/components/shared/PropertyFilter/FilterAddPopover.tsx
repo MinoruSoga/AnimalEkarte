@@ -27,6 +27,7 @@ interface FilterAddPopoverProps {
   onAdd: (filter: ActiveFilter) => void;
 }
 
+/** プロパティの種類に応じた条件を選び、一覧のフィルターへ追加する。 */
 export const FilterAddPopover = memo(function FilterAddPopover({
   properties,
   activeFilters,
@@ -226,7 +227,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         ) : step === "condition" ? (
           /* Step 2: Condition selection (select/multi-select only) */
           <div className="py-1">
-            <p className={`text-base ${C.text40} px-3 py-1.5`}>{selectedProperty?.label} - 条件</p>
+            <p className={`text-base ${C.text60} px-3 py-1.5`}>{selectedProperty?.label} - 条件</p>
             {(
               FILTER_CONDITIONS[selectedProperty?.type ?? "select"] ?? FILTER_CONDITIONS.select
             ).map((cond) => (
@@ -260,7 +261,7 @@ export const FilterAddPopover = memo(function FilterAddPopover({
         ) : step === "text-value" ? (
           /* Step 3c: Text input (text) — contains 固定 */
           <div className="py-1">
-            <p className={`text-base ${C.text40} px-3 py-1.5`}>{selectedProperty?.label} - 含む</p>
+            <p className={`text-base ${C.text60} px-3 py-1.5`}>{selectedProperty?.label} - 含む</p>
             <TextValueEditor label={selectedProperty?.label ?? ""} onApply={applyTextFilter} />
           </div>
         ) : step === "date-value" ? (

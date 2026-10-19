@@ -1,9 +1,20 @@
-import { lazy, memo, Suspense, useState, useMemo, useCallback, useTransition } from "react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useState,
+  useMemo,
+  useCallback,
+  useTransition,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
+import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import {
   useGetTreatments,
   useCreateTreatment,
@@ -15,8 +26,10 @@ import {
   useCreateBillingConfirmation,
   useCreateBillingReturn,
 } from "../api/billing-confirmation";
-import type { CreateTreatmentInput, UpdateTreatmentInput } from "../types";
-import { resolveItemTypeFromCategory } from "../lib/treatments-tab-model";
+import type { UpdateTreatmentInput } from "../types";
+import { buildMasterSelectionPayload } from "../lib/treatments-tab-model";
+import { resolveMasterSelectionDose } from "../lib/master-selection-dose";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { CheckCircle2, RotateCcw } from "lucide-react";
@@ -40,6 +53,8 @@ const TreatmentSearchDialog = lazy(() =>
 );
 
 const DECEASED_BILLING_MESSAGE = "死亡したペットの会計確認は変更できません";
+// EMR-438: 確定済み等で書き込みがブロックされたカルテの明細操作へのフィードバック。
+const LOCKED_BILLING_MESSAGE = "確定済みのカルテは会計確認を変更できません";
 
 interface BillCheckProps {
   isNewRecord?: boolean;
@@ -50,6 +65,8 @@ interface BillCheckProps {
   recordClinicId?: string;
   /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
   isPetDeceased?: boolean;
+  petSpecies?: string | null;
+  isWriteBlocked?: boolean;
 }
 
 function ExtraLinesList({ title, lines }: { title: string; lines: BillCheckExtraLine[] }) {
@@ -82,6 +99,8 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
   ownerDiscountRate = 0,
   recordClinicId,
   isPetDeceased = false,
+  petSpecies,
+  isWriteBlocked = false,
 }: BillCheckProps) {
   const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
@@ -209,6 +228,11 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         toast.error(DECEASED_BILLING_MESSAGE);
         return;
       }
+      // EMR-438: 確定済み等の書き込みブロックは行編集にも適用する（Codex P2）。
+      if (isWriteBlocked) {
+        toast.error(LOCKED_BILLING_MESSAGE);
+        return;
+      }
       if (!canEdit) return;
       const target = treatments.find((t) => Number(t.id) === id);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
@@ -230,7 +254,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
 
       updateTreatment({ treatmentId: String(id), input });
     },
-    [canEdit, isPetDeceased, treatments, updateTreatment],
+    [canEdit, isPetDeceased, isWriteBlocked, treatments, updateTreatment],
   );
 
   const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId, recordClinicId);
@@ -241,10 +265,15 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         toast.error(DECEASED_BILLING_MESSAGE);
         return;
       }
+      // EMR-438: 確定済み等の書き込みブロックは削除にも適用する（Codex P2）。
+      if (isWriteBlocked) {
+        toast.error(LOCKED_BILLING_MESSAGE);
+        return;
+      }
       if (!canDelete) return;
       deleteTreatmentFn(String(id));
     },
-    [canDelete, deleteTreatmentFn, isPetDeceased],
+    [canDelete, deleteTreatmentFn, isPetDeceased, isWriteBlocked],
   );
 
   // rerender-memo: TreatmentTable は memo。onOpenSearch を inline arrow で
@@ -259,28 +288,83 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     [treatments],
   );
 
+  const queryClient = useQueryClient();
+  const latestCtxRef = useRef({
+    canEdit,
+    isPetDeceased,
+    isWriteBlocked,
+    medicalRecordId,
+    recordClinicId,
+    petSpecies,
+    nextOrder,
+  });
+  useLayoutEffect(() => {
+    latestCtxRef.current = {
+      canEdit,
+      isPetDeceased,
+      isWriteBlocked,
+      medicalRecordId,
+      recordClinicId,
+      petSpecies,
+      nextOrder,
+    };
+  }, [
+    canEdit,
+    isPetDeceased,
+    isWriteBlocked,
+    medicalRecordId,
+    recordClinicId,
+    petSpecies,
+    nextOrder,
+  ]);
+
   const handleSelectTreatment = useCallback(
-    (item: TreatmentMasterItem) => {
-      if (isPetDeceased) {
+    async (item: TreatmentMasterItem) => {
+      if (latestCtxRef.current.isPetDeceased) {
         toast.error(DECEASED_BILLING_MESSAGE);
         return;
       }
-      if (!canEdit) return;
-      const input: CreateTreatmentInput = {
-        item_type: resolveItemTypeFromCategory(item.category),
-        content: item.name,
+      if (!latestCtxRef.current.canEdit || latestCtxRef.current.isWriteBlocked) return;
+      if (
+        latestCtxRef.current.medicalRecordId !== medicalRecordId ||
+        latestCtxRef.current.recordClinicId !== recordClinicId ||
+        latestCtxRef.current.petSpecies !== petSpecies
+      )
+        return;
+      const doseResult = await resolveMasterSelectionDose({
+        item,
+        medicalRecordId: medicalRecordId ?? "",
+        recordClinicId,
+        petSpecies,
+        queryClient,
+      });
+      const latest = latestCtxRef.current;
+      if (
+        !latest.canEdit ||
+        latest.isPetDeceased ||
+        latest.isWriteBlocked ||
+        latest.medicalRecordId !== medicalRecordId ||
+        latest.recordClinicId !== recordClinicId ||
+        latest.petSpecies !== petSpecies
+      ) {
+        return;
+      }
+      if (doseResult.kind === "blocked") {
+        toast.error(doseResult.message);
+        return;
+      }
+      createTreatment({
+        ...buildMasterSelectionPayload({
+          item,
+          quantity: doseResult.quantity,
+          sortOrder: latest.nextOrder,
+        }),
         memo: item.category,
-        unit_price: item.unitPrice,
-        quantity: 1,
-        is_selected: true,
         is_insurance: true,
-        discount_amount: 0,
-        sort_order: nextOrder,
-      };
-      createTreatment(input);
+      });
       setIsSearchOpen(false);
     },
-    [canEdit, isPetDeceased, nextOrder, createTreatment],
+    [medicalRecordId, recordClinicId, petSpecies, queryClient, createTreatment],
   );
 
   // FE-RC-048: 消費税率はハードコード 0.1 ではなく病院マスタ設定（useClinicTaxRates）を正本にする。
@@ -321,7 +405,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
     <div className="flex flex-col gap-4 relative h-full">
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between mb-2">
-          <h2 className={`text-sm font-bold ${C.text}`}>会計確認 (医師)</h2>
+          <h2 className={`text-sm font-semibold ${C.text}`}>会計確認 (医師)</h2>
           {isConfirmed ? (
             <div
               className={`px-2 py-1 rounded ${BADGE.greenNoBorder} text-xs font-semibold flex items-center gap-1`}
@@ -337,7 +421,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
         </div>
 
         <div
-          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto relative flex flex-col pb-20`}
+          className={`flex-1 min-h-0 ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto relative flex flex-col ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}`}
         >
           <div className="flex-1 min-h-0">
             <TreatmentTable
@@ -345,9 +429,11 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
               onUpdate={handleUpdateItem}
               onRemove={handleRemoveItem}
               onOpenSearch={
-                canEdit && !isConfirmed && !isPetDeceased ? handleOpenSearch : undefined
+                canEdit && !isConfirmed && !isPetDeceased && !isWriteBlocked
+                  ? handleOpenSearch
+                  : undefined
               }
-              disabled={isConfirmed || isPetDeceased || (!canEdit && !canDelete)}
+              disabled={isConfirmed || isPetDeceased || isWriteBlocked || (!canEdit && !canDelete)}
             />
           </div>
         </div>
@@ -370,7 +456,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
       </div>
 
       {canEdit && !isPetDeceased ? (
-        <div className="fixed bottom-6 right-20 z-50 flex gap-2">
+        <div className={`${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.position} flex gap-2`}>
           {isConfirmed ? (
             <Button
               variant="outline"
@@ -431,6 +517,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           open={isSearchOpen}
           onOpenChange={setIsSearchOpen}
           onSelect={handleSelectTreatment}
+          clinicId={recordClinicId}
         />
       </Suspense>
     </div>

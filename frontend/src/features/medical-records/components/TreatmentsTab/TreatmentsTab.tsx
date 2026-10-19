@@ -16,6 +16,7 @@ const TreatmentSearchDialog = lazy(() =>
 
 // Relative
 import type { UpdateTreatmentInput } from "../../types";
+import { getLockedEmptyStateMessage } from "../../lib/record-empty-state";
 import { TreatmentAddControls, TreatmentsTable, TreatmentTotals } from "./TreatmentsTabParts";
 import { useTreatmentsTab } from "../../hooks/use-treatments-tab";
 
@@ -32,18 +33,37 @@ interface TreatmentsTabProps {
   recordClinicId?: string;
   /** 死亡ペットのカルテは閲覧専用（VitalsTab と同じ二重ガード方針） */
   isPetDeceased?: boolean;
+  /** EMR-412 K5: ロック中は理由つき空状態文言。既定 false。 */
+  isLocked?: boolean;
+  /** EMR-412 K5: 確定済み判定（K5 文言の優先理由）。既定 false。 */
+  isFinalized?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
+/**
+ * 治療明細タブ。`recordClinicId` を検索ダイアログにも引き継ぎ、診察/処置マスタを
+ * カルテの所属クリニックで取得する。他カテゴリの取得スコープは変更しない。
+ */
 export const TreatmentsTab = memo(function TreatmentsTab({
   medicalRecordId,
   ownerDiscountRate = 0,
   petSpecies,
   recordClinicId,
   isPetDeceased = false,
+  isLocked = false,
+  isFinalized = false,
 }: TreatmentsTabProps) {
-  const t = useTreatmentsTab({ medicalRecordId, ownerDiscountRate, petSpecies, recordClinicId });
+  // PR679 F5: 確定/ロック/死亡は表示文言だけでなく全書込経路を止める。
+  // hook 層にも渡し、await 後・retry・キャプチャ済みコールバックからの mutation を fail-closed にする。
+  const isWriteBlocked = isPetDeceased || isLocked || isFinalized;
+  const t = useTreatmentsTab({
+    medicalRecordId,
+    ownerDiscountRate,
+    petSpecies,
+    recordClinicId,
+    isWriteBlocked,
+  });
   // rerender-memo: hook のハンドラは useCallback で安定済み。ガードで包む際は分割代入して
   // 正確な deps を宣言する（`t` 自体を dep にすると毎レンダー新規参照になり行 memo が壊れる）。
   const {
@@ -60,6 +80,13 @@ export const TreatmentsTab = memo(function TreatmentsTab({
   useLayoutEffect(() => {
     isPetDeceasedRef.current = isPetDeceased;
   }, [isPetDeceased]);
+
+  // PR679 F5: 削除確認ダイアログ開閉要求・confirm でも最新の確定/ロックを再検査する。
+  // 死亡時は isDeceasedWriteBlocked 側が理由付き toast を出すため、ここは黙って止める。
+  const isWriteBlockedRef = useRef(isWriteBlocked);
+  useLayoutEffect(() => {
+    isWriteBlockedRef.current = isWriteBlocked;
+  }, [isWriteBlocked]);
 
   // 死亡ペットの mutation は UI 側で非活性化するのに加え、コールバック側でも必ず止める
   // （VitalsTab の isPetDeceasedRef パターンに揃える）。ref 経由なのでハンドラは安定参照を保つ。
@@ -106,8 +133,24 @@ export const TreatmentsTab = memo(function TreatmentsTab({
     [handleSelectFromMaster, isDeceasedWriteBlocked],
   );
 
+  // PR679 F5: ダイアログを開く要求自体を最新の確定/ロック/死亡で弾く
+  // （行の削除ボタン非表示だけに頼らず、キャプチャ済み onDelete も塞ぐ）。
+  const handleDeleteRequest = useCallback(
+    (treatmentId: string) => {
+      if (isDeceasedWriteBlocked()) return;
+      if (isWriteBlockedRef.current) return;
+      setDeletingId(treatmentId);
+    },
+    [isDeceasedWriteBlocked],
+  );
+
   const handleDeleteConfirm = useCallback(() => {
     if (isDeceasedWriteBlocked()) return;
+    // PR679 F5: ダイアログ表示中に確定/ロックへ遷移した場合は閉じて中止する
+    if (isWriteBlockedRef.current) {
+      setDeletingId(null);
+      return;
+    }
     if (!deletingId) return;
     // canDelete の権限チェックは hook 側の handleDelete が fail-closed で担う。
     handleDelete(deletingId);
@@ -126,19 +169,20 @@ export const TreatmentsTab = memo(function TreatmentsTab({
       <div className={`${STYLE.tableContainer} overflow-x-auto`}>
         <TreatmentsTable
           treatments={t.sortedTreatments}
-          isUpdating={t.isMutating || isPetDeceased}
-          canDelete={Boolean(t.canDelete && !isPetDeceased)}
+          isUpdating={t.isMutating || isWriteBlocked}
+          canDelete={Boolean(t.canDelete && !isWriteBlocked)}
           canEditDiscount={t.canEditDiscount}
           focusLastRow={t.focusLastRow}
           onUpdate={guardedUpdate}
-          onDelete={setDeletingId}
+          onDelete={handleDeleteRequest}
           onMoveUp={guardedMoveUp}
           onMoveDown={guardedMoveDown}
           onAutoFocusDone={t.handleAutoFocusDone}
           doseContext={t.doseContext}
+          lockedEmptyMessage={getLockedEmptyStateMessage({ isFinalized, isLocked }) ?? undefined}
         />
         <TreatmentAddControls
-          canCreate={Boolean(t.canCreate && !isPetDeceased)}
+          canCreate={Boolean(t.canCreate && !isWriteBlocked)}
           isAdding={t.isAdding}
           isPending={t.createIsPending}
           addItemType={t.addItemType}
@@ -159,6 +203,7 @@ export const TreatmentsTab = memo(function TreatmentsTab({
           open={t.isSearchOpen}
           onOpenChange={t.setIsSearchOpen}
           onSelect={guardedSelectFromMaster}
+          clinicId={recordClinicId}
         />
       </Suspense>
 

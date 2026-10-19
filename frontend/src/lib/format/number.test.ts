@@ -7,11 +7,16 @@ describe("formatCurrency", () => {
   });
 
   it("負額は符号のまま表示する", () => {
-    expect(formatCurrency(-3000)).toBe("¥-3,000");
+    expect(formatCurrency(-3000)).toBe("-¥3,000");
   });
 
-  it("null はダッシュにする", () => {
+  it("正の金額を ¥ 区切りで表示する", () => {
+    expect(formatCurrency(1234)).toBe("¥1,234");
+  });
+
+  it("null / undefined はダッシュにする", () => {
     expect(formatCurrency(null)).toBe("-");
+    expect(formatCurrency(undefined)).toBe("-");
   });
 });
 
@@ -21,7 +26,7 @@ describe("formatCurrencyIfNonzero", () => {
   });
 
   it("負額は符号のまま表示する", () => {
-    expect(formatCurrencyIfNonzero(-500)).toBe("¥-500");
+    expect(formatCurrencyIfNonzero(-500)).toBe("-¥500");
   });
 
   it("0 / null / undefined はダッシュにする", () => {

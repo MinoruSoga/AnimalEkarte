@@ -125,6 +125,15 @@ export function buildContainerEnvVars(env: Env): Record<string, string> {
     SUPPORT_LLM_MODEL: env.SUPPORT_LLM_MODEL ?? "",
     SUPPORT_LLM_TIMEOUT_MS: env.SUPPORT_LLM_TIMEOUT_MS ?? "",
 
+    // EMR-410 ハイブリッド検索 + embedding 設定（任意: 既定 false/Sarashina URL）。
+    // SUPPORT_EMBEDDING_API_KEY は wrangler secret put のみ。未設定は embedding 無効。
+    SUPPORT_HYBRID_SEARCH_ENABLED: env.SUPPORT_HYBRID_SEARCH_ENABLED ?? "false",
+    SUPPORT_EXTERNAL_DATA_APPROVED: env.SUPPORT_EXTERNAL_DATA_APPROVED ?? "false",
+    SUPPORT_EMBEDDING_BASE_URL: env.SUPPORT_EMBEDDING_BASE_URL ?? "https://api.sarashina.ai/v1",
+    SUPPORT_EMBEDDING_API_KEY: env.SUPPORT_EMBEDDING_API_KEY ?? "",
+    SUPPORT_EMBEDDING_MODEL: env.SUPPORT_EMBEDDING_MODEL ?? "sarashina3-embedding",
+    SUPPORT_EMBEDDING_TIMEOUT_MS: env.SUPPORT_EMBEDDING_TIMEOUT_MS ?? "1200",
+
     // Plane 連携(バグ報告→起票 + plane_sync の状態同期)。任意: API_KEY 未設定なら
     // NewPlaneTicketCreator が nil を返し連携無効、plane_sync は fail-closed で
     // unavailable エラーを返す。secrets.required には入れない(未設定デプロイを許可)。

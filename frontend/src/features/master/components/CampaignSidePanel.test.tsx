@@ -324,4 +324,48 @@ describe("CampaignSidePanel", () => {
     }
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("新規キャンペーンで往診カテゴリを選ぶと house_call だけを保存する", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(() => true);
+    render(<CampaignSidePanel item={null} onClose={vi.fn()} onSave={onSave} />);
+
+    await user.type(screen.getByLabelText("名称"), "往診割引");
+    await enterDate(user, "開始日", "2026-01-01");
+    await enterDate(user, "終了日", "2026-01-31");
+    await user.click(screen.getByRole("checkbox", { name: "往診" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ targetCategories: ["house_call"] }),
+    );
+  });
+
+  it("編集時に既存の house_call 対象を保持して保存する", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(() => true);
+    const item = {
+      id: "campaign-house-call",
+      name: "既存往診割引",
+      startDate: "2026-01-01",
+      endDate: "2026-01-31",
+      discountType: "rate" as const,
+      discountValue: 10,
+      isActive: true,
+      sortOrder: 1,
+      targetCategories: ["house_call"],
+      targetItemIds: [],
+    };
+    render(<CampaignSidePanel item={item} onClose={vi.fn()} onSave={onSave} />);
+
+    expect(screen.getByRole("checkbox", { name: "往診" })).toBeChecked();
+    await user.type(screen.getByLabelText("名称"), "変更");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ targetCategories: ["house_call"] }),
+    );
+  });
 });
