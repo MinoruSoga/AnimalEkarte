@@ -18,6 +18,7 @@ Verify:
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import os
@@ -71,8 +72,10 @@ STAGE_FILTERS: dict[str, list[str]] = {
     ],
     # Demo staffs keep their fixed band ids across rebuilds, but their
     # account_id pointed at the skipped demo accounts. Remap to the seed
-    # accounts by the deterministic staff-id email pattern, then drop any
-    # staff whose account no longer exists.
+    # accounts by the deterministic staff-id email pattern. Staffs whose
+    # account is gone are dropped — except those referenced by preserved
+    # support rows, which are kept with account_id = NULL (column is
+    # nullable) so bug reports keep their reporter identity.
     "staffs": [
         (
             "UPDATE stage SET account_id = na.id FROM public.accounts na "
@@ -334,6 +337,32 @@ def conflict_columns(conflict: str) -> set[str]:
     return {part.strip() for part in conflict.strip("()").split(",")}
 
 
+SUPPORT_STAFF_REFERENCES: list[tuple[str, str]] = [
+    ("support_bug_reports", "reporter_staff_id"),
+    ("support_chat_messages", "staff_id"),
+]
+
+
+def support_referenced_staff_ids(export_dir: Path) -> set[int]:
+    """Staff ids referenced by preserved support rows in the export CSVs.
+
+    Those staffs are restored with account_id = NULL so the support rows keep
+    their reporter/author identity even though the referenced accounts were
+    seed-managed synthetic accounts skipped by the restore.
+    """
+    referenced: set[int] = set()
+    for table, column in SUPPORT_STAFF_REFERENCES:
+        path = export_dir / f"{table}.csv"
+        if not path.exists():
+            continue
+        with path.open(newline="") as handle:
+            for row in csv.DictReader(handle):
+                value = (row.get(column) or "").strip()
+                if value:
+                    referenced.add(int(value))
+    return referenced
+
+
 def restore(args: argparse.Namespace) -> None:
     export_dir = Path(args.dir).resolve()
     manifest = load_manifest(export_dir)
@@ -373,7 +402,20 @@ def restore(args: argparse.Namespace) -> None:
             f"\\copy stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
             "SELECT count(*) FROM stage;\n"
         )
-        filters = STAGE_FILTERS.get(table, [])
+        filters = list(STAGE_FILTERS.get(table, []))
+        if table == "staffs":
+            referenced = sorted(support_referenced_staff_ids(export_dir))
+            if referenced:
+                id_list = ", ".join(str(value) for value in referenced)
+                # Retain support-referenced staffs (account_id = NULL) before
+                # the orphan-account delete drops the rest.
+                keep_filter = (
+                    "UPDATE stage SET account_id = NULL "
+                    "WHERE account_id IS NOT NULL AND NOT EXISTS ("
+                    "SELECT 1 FROM public.accounts a WHERE a.id = stage.account_id) "
+                    f"AND stage.id IN ({id_list})"
+                )
+                filters.insert(max(len(filters) - 1, 0), keep_filter)
         for statement in filters:
             script += statement + ";\n"
         if filters:
