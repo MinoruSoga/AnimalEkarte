@@ -242,3 +242,42 @@ func TestIndexCancelWaitStops(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, int32(1), atomic.LoadInt32(&e.calls))
 }
+
+// EMR-441: 429 待機は一時的リトライ枠を消費しない。429→500→500→500 でも
+// 2s/5s の両リトライを実施してから失敗する（旧実装は 429 が枠を消費し 5s のみ）。
+func TestIndex429DoesNotConsumeTransientRetries(t *testing.T) {
+	failures := []*EmbeddingUnavailableError{
+		{Status: http.StatusTooManyRequests, Reason: "status"},
+		{Status: http.StatusInternalServerError, Reason: "status"},
+		{Status: http.StatusInternalServerError, Reason: "status"},
+		{Status: http.StatusInternalServerError, Reason: "status"},
+	}
+	var calls int32
+	e := embedderFunc(func(ctx context.Context, taskType, input string) ([]float64, error) {
+		i := int(atomic.AddInt32(&calls, 1)) - 1
+		if i < len(failures) {
+			return nil, failures[i]
+		}
+		v := make([]float64, manualarticle.EmbeddingDimensions)
+		v[0] = 1
+		return v, nil
+	})
+	waits := &[]time.Duration{}
+	deps := IndexDeps{
+		Embedder: e, Cache: newIndexCache(), Budget: &indexBudget{}, Model: "sarashina3-embedding",
+		Wait: func(ctx context.Context, d time.Duration) error {
+			*waits = append(*waits, d)
+			return ctx.Err()
+		},
+	}
+	_, err := RunIndex(context.Background(), indexBase[:1], nil, deps)
+	require.Error(t, err)
+	assert.Equal(t, []time.Duration{60 * time.Second, 2 * time.Second, 5 * time.Second}, *waits)
+	assert.Equal(t, int32(4), atomic.LoadInt32(&calls))
+}
+
+type embedderFunc func(ctx context.Context, taskType, input string) ([]float64, error)
+
+func (f embedderFunc) Embed(ctx context.Context, taskType, input string) ([]float64, error) {
+	return f(ctx, taskType, input)
+}
