@@ -160,3 +160,9 @@ codex-security-results/
 
 # mimosa local tool state (session/hook-state ledgers; do not commit)
 .mimosa/
+
+# Lead/Sidekick run artifacts (local UAT evidence; do not commit)
+.lead-sidekick/
+
+# Spec Kit local integration catalog cache (generated; do not commit)
+.specify/integrations/.cache/
