@@ -275,7 +275,9 @@ func cutoverMasterPriceColumn(table string) (string, bool) {
 // (e.g. idx_medicines_clinic_name on medicines(clinic_id, name)).
 func cutoverUniqueNameColumns() map[string]string {
 	return map[string]string{
-		"medicines": "name",
+		"medicines":  "name",
+		"procedures": "name",
+		"vaccines":   "name",
 	}
 }
 

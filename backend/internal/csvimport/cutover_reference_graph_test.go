@@ -75,6 +75,7 @@ func TestPreflightCutoverBundleRejectsEmptyRequiredReferences(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleAllowsNullableReferences proves optional reference columns may be empty while the bundle stays valid.
 func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for table, refs := range cutoverCSVReferences() {
@@ -84,9 +85,43 @@ func TestPreflightCutoverBundleAllowsNullableReferences(t *testing.T) {
 				}
 			}
 		}
+		f.rows["vital_records"] = nil
+		f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount = 0
 	})
 	if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
 		t.Fatalf("nullable references rejected: %v", err)
+	}
+}
+
+// TestPreflightCutoverBundleAllowsNullableVitalRecordStaff proves vital_records.staff_id may be empty while required medical_record_id stays populated and row/manifest counts are retained.
+func TestPreflightCutoverBundleAllowsNullableVitalRecordStaff(t *testing.T) {
+	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
+		originalRows := len(f.rows["vital_records"])
+		originalManifestRows := f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount
+		if originalRows == 0 || originalManifestRows == 0 {
+			t.Fatalf("fixture produced no vital_records rows: rows=%d manifest=%d", originalRows, originalManifestRows)
+		}
+		spec := cutoverSpecByName(t, "vital_records")
+		recordRef := f.rows["vital_records"][0][columnIndex(spec.Columns, "medical_record_id")]
+		if recordRef == "" {
+			t.Fatal("required medical_record_id empty before staff clear")
+		}
+		setReferenceFixtureCell(f, "vital_records", "staff_id", "")
+		if got := f.rows["vital_records"][0][columnIndex(spec.Columns, "staff_id")]; got != "" {
+			t.Fatalf("staff_id clear failed: %q", got)
+		}
+		if len(f.rows["vital_records"]) != originalRows {
+			t.Fatalf("vital_records row count changed: %d, want %d", len(f.rows["vital_records"]), originalRows)
+		}
+		if got := f.manifest.Tables[manifestTableIndex(t, f, "vital_records")].RowCount; got != originalManifestRows {
+			t.Fatalf("manifest vital_records RowCount changed: %d, want %d", got, originalManifestRows)
+		}
+		if got := f.rows["vital_records"][0][columnIndex(spec.Columns, "medical_record_id")]; got != recordRef {
+			t.Fatalf("required medical_record_id mutated: %q", got)
+		}
+	})
+	if _, err := PreflightCutoverBundle(dir, referenceFixtureSource(digest)); err != nil {
+		t.Fatalf("NULL vital_records.staff_id rejected: %v", err)
 	}
 }
 
@@ -140,6 +175,7 @@ func TestPreflightCutoverBundleAcceptsPinnedSpecies(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleAcceptsForwardSelfReferences proves a table's self-reference to a later row resolves without a false cycle.
 func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
@@ -150,6 +186,7 @@ func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 			parent := append([]string(nil), f.rows[spec.Name][0]...)
 			parent[columnIndex(spec.Columns, "id")] = "1000002"
 			parent[columnIndex(spec.Columns, "parent_id")] = ""
+			parent[columnIndex(spec.Columns, "name")] = "parent-row"
 			f.rows[spec.Name] = append(f.rows[spec.Name], parent)
 			f.manifest.Tables[i].RowCount++
 		}
@@ -159,6 +196,7 @@ func TestPreflightCutoverBundleAcceptsForwardSelfReferences(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleRejectsSelfReferenceCycle proves true self-reference cycles are rejected.
 func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
@@ -172,6 +210,7 @@ func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 			cycle := append([]string(nil), f.rows[spec.Name][0]...)
 			cycle[columnIndex(spec.Columns, "id")] = "1000002"
 			cycle[columnIndex(spec.Columns, "parent_id")] = "1000001"
+			cycle[columnIndex(spec.Columns, "name")] = "cycle-row"
 			f.rows[spec.Name] = append(f.rows[spec.Name], cycle)
 			f.manifest.Tables[i].RowCount++
 		}
@@ -185,6 +224,7 @@ func TestPreflightCutoverBundleRejectsSelfReferenceCycle(t *testing.T) {
 	}
 }
 
+// TestPreflightCutoverBundleUsesNumericReferenceIdentity proves reference matching uses numeric identity so leading-zero spellings still resolve.
 func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 	dir, digest := writeCutoverFixture(t, func(f *fixtureBundle) {
 		for i, spec := range CutoverTableSpecs() {
@@ -199,6 +239,7 @@ func TestPreflightCutoverBundleUsesNumericReferenceIdentity(t *testing.T) {
 					parent := append([]string(nil), f.rows[spec.Name][0]...)
 					parent[columnIndex(spec.Columns, "id")] = "1000002"
 					parent[columnIndex(spec.Columns, ref.column)] = ""
+					parent[columnIndex(spec.Columns, "name")] = "parent-row"
 					f.rows[spec.Name] = append(f.rows[spec.Name], parent)
 					f.manifest.Tables[i].RowCount++
 					setReferenceFixtureCell(f, spec.Name, ref.column, "+001000002")

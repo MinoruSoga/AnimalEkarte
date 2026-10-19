@@ -540,6 +540,8 @@ func validateCutoverFiles(sourceDir string, manifest CutoverManifest, provenance
 	return notes, nil
 }
 
+// validateCutoverCSV validates the manifest-bound header, rows, row count, and digest. Its boolean
+// result reports whether a rehearsal header permutation was tolerated.
 func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifestTable, band CutoverIDBand, allowPermutation bool, profile CutoverProfile) (bool, error) {
 	path, err := resolveCutoverAccountCSV(path)
 	if err != nil {
@@ -587,6 +589,7 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 	seenIDs := make(map[int64]struct{})
 	nameColumn, checkNames := cutoverUniqueNameColumns()[spec.Name]
 	seenNames := make(map[string]struct{})
+	uniqueState := newCutoverUniqueState(spec.Name)
 	for {
 		row, readErr := reader.Read()
 		if errors.Is(readErr, io.EOF) {
@@ -614,6 +617,11 @@ func validateCutoverCSV(path string, spec CutoverTableSpec, table CutoverManifes
 		}
 		if err := validateCutoverRow(spec, header, row, columnIndexes, band, rowCount+1, profile); err != nil {
 			return false, err
+		}
+		if uniqueState != nil {
+			if err := uniqueState.check(spec, row, columnIndexes, rowCount+1); err != nil {
+				return false, err
+			}
 		}
 	}
 	if rowCount != table.RowCount {
@@ -656,6 +664,8 @@ func cutoverColumnIndexes(spec CutoverTableSpec, header []string, allowPermutati
 	return indexes, !exact, nil
 }
 
+// validateCutoverRow applies the per-row contract floors (placeholders, required non-empty fields,
+// boolean literals, domain values, and numeric bounds) to one parsed CSV row.
 func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, indexes map[string]int, band CutoverIDBand, csvLine int64, profile CutoverProfile) error {
 	if err := validatePaymentMethodPlaceholder(spec, row, indexes, csvLine); err != nil {
 		return err
@@ -712,7 +722,7 @@ func validateCutoverRow(spec CutoverTableSpec, header []string, row []string, in
 			return err
 		}
 	}
-	return nil
+	return validateCutoverDDLRow(spec, row, indexes, csvLine)
 }
 
 func placeholderAllowed(table, column, value, token string) bool {

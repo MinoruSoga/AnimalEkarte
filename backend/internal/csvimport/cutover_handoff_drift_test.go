@@ -148,6 +148,10 @@ func validPetsRow() []string {
 			row[i] = "300001"
 		case "animal_species_id":
 			row[i] = "{{FALLBACK_ANIMAL_SPECIES_ID}}"
+		case "gender":
+			row[i] = "male"
+		case "status":
+			row[i] = "alive"
 		}
 	}
 	return row
@@ -590,6 +594,10 @@ func TestTransformCutoverCSVReEmitsSpecColumnOrder(t *testing.T) {
 			want[i] = "300001"
 		case "animal_species_id":
 			want[i] = "2" // seeds.AnimalSpeciesID
+		case "gender":
+			want[i] = "male"
+		case "status":
+			want[i] = "alive"
 		}
 	}
 	if !slices.Equal(records[1], want) {

@@ -20,7 +20,10 @@ export function useTreatmentDoseGate(
   const medicine = isMedicineRow
     ? doseContext.medicines?.find((m) => m.id === treatment.medicine_id)
     : undefined;
-  const doseParamsQuery = useMedicineDoseParams(isMedicineRow ? treatment.medicine_id : undefined);
+  const doseParamsQuery = useMedicineDoseParams(
+    isMedicineRow ? treatment.medicine_id : undefined,
+    doseContext.clinicId,
+  );
   const doseParamsAuthority = useMemo(
     () =>
       toDoseParamsAuthority(isMedicineRow ? treatment.medicine_id : undefined, {

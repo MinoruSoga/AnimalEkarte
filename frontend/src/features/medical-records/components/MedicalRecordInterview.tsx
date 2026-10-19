@@ -62,12 +62,12 @@ const INTERVIEW_TEMPLATES: { label: string; text: string }[] = [
 const EMPTY_HISTORY_ITEMS: InterviewHistoryItem[] = [];
 
 // EMR-325: 明細複写の単価注意。対応マスタが見つかる明細のみ取得済みマスタ価格で追加され、
-// その他・対応マスタが見つからない明細は元単価を引き継ぐ（実態は
+// 参照のない「その他」のみ元単価を引き継ぎ、typed 行のマスタ不一致は中断する（実態は
 // ../lib/treatments-tab-model.ts buildCopiedTreatmentPayload）。「すべて現行マスタ価格に
-// 更新」は言い過ぎのため使わない。確認ダイアログ説明文と、ダイアログを通らない経路を含む
+// 更新」とは説明しない。確認ダイアログ説明文と、ダイアログを通らない経路を含む
 // 全コピー経路の toast で同一文を使う（チケット最新コメントの訂正文に準拠）。
 const COPY_PRICE_CAUTION =
-  "対応するマスタが見つかる明細は取得済みのマスタ価格で追加されます。その他・対応マスタが見つからない明細は元の単価を引き継ぎます。コピー後に単価をご確認ください。";
+  "診察・処置・薬剤の明細は、複写先の有効なマスタと照合し、現在の単価で追加します。参照が見つからない・無効な明細がある場合、治療明細の複写は中止されます。複写先のマスタを確認し、治療明細を再選択してください。マスタ参照のない「その他」の明細は元の単価を引き継ぎます。";
 
 export const MedicalRecordInterview = memo(function MedicalRecordInterview({
   chiefComplaint,

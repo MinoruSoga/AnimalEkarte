@@ -150,6 +150,7 @@ func ApplyCutoverCommittingEachTable(
 	return applyCutoverCommittingEachTable(ctx, pgxPoolCutoverSession{conn: conn}, bundle, seeds, iso)
 }
 
+// applyCutoverCommittingEachTable preserves legacy per-table commits and completed-prefix resume. Candidates require an empty band and are delegated to the atomic path; pre-Begin probes do not serialize concurrent application writers.
 func applyCutoverCommittingEachTable(
 	ctx context.Context,
 	session cutoverSession,
@@ -189,6 +190,9 @@ func applyCutoverCommittingEachTable(
 		if err := validateCutoverMedicinesTargetNames(ctx, session, bundle, seeds); err != nil {
 			return CutoverResult{}, err
 		}
+		if err := validateCutoverUniqueMasterTargetNames(ctx, session, bundle, seeds, false); err != nil {
+			return CutoverResult{}, err
+		}
 		// The name probe cannot serialize application writers. Keep all
 		// candidate writes in one transaction with the existing table locks;
 		// a late unique conflict then rolls back the preceding tables too.
@@ -200,6 +204,12 @@ func applyCutoverCommittingEachTable(
 	drift := append([]string(nil), bundle.ToleratedDrift...)
 	drift = append(drift, targetNotes...)
 
+	if err := validateCutoverUniqueMasterTargetNames(ctx, session, bundle, seeds, true); err != nil {
+		return CutoverResult{}, err
+	}
+	if err := validateCutoverAppointmentSourceBeforeWrite(ctx, session, bundle, iso); err != nil {
+		return CutoverResult{}, err
+	}
 	counts := make(map[string]int64, len(bundle.Manifest.Tables))
 	seenEmpty := false
 	for _, spec := range CutoverTableSpecs(bundle.Manifest.profile) {
@@ -246,6 +256,19 @@ func applyCutoverCommittingEachTable(
 	}, nil
 }
 
+// validateCutoverAppointmentSourceBeforeWrite runs the source-only appointment
+// temporal checks inside one read-only early transaction; no locks, target
+// collisions, COPY, or commit happen here.
+func validateCutoverAppointmentSourceBeforeWrite(ctx context.Context, session cutoverSession, bundle CutoverBundle, iso pgx.TxIsoLevel) error {
+	tx, err := session.Begin(ctx, iso)
+	if err != nil {
+		return &cutoverNamePreflightError{message: "table appointments temporal preflight: source transaction could not be started", cause: err}
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	_, err = validateCutoverAppointmentSourceTimes(ctx, tx, bundle)
+	return err
+}
+
 func importOneCutoverTable(
 	ctx context.Context,
 	session cutoverSession,
@@ -275,6 +298,11 @@ func importOneCutoverTable(
 	}
 	if occupied {
 		return 0, fmt.Errorf("%s: target clinic band is already occupied in table %s", CutoverRefBandOccupied, spec.Name)
+	}
+	if spec.Name == "appointments" {
+		if err := validateCutoverAppointmentTimes(ctx, tx, bundle, seeds); err != nil {
+			return 0, err
+		}
 	}
 	path := cutoverCSVPath(bundle.SourceDir, manifestTable)
 	count, err := copyCutoverTable(ctx, tx, path, spec, manifestTable, seeds,

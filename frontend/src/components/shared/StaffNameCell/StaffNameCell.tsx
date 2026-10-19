@@ -14,7 +14,8 @@ interface StaffNameCellProps {
  * 名前解決に失敗したことを表す共有マーカー（lib/transforms の doctor 変換が返す）。
  * 生の doctor_id を氏名として見せることはしない。
  */
-export const UNRESOLVED_STAFF_LABEL = "担当者不明";
+// EMR-436: 外部からの参照はないため非export（同一ファイル内の判定でのみ使用）。
+const UNRESOLVED_STAFF_LABEL = "担当者不明";
 
 /** 担当者の名前が数字のみ（= doctor_id 等の生 ID）かどうか。氏名は数値だけにならない前提。 */
 const isUnresolvedStaffValue = (value: string): boolean =>

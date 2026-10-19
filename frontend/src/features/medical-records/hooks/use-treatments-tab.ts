@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { useGetAllMedicinesMaster } from "@/hooks/use-treatment-master";
-import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 
 import { useGetTreatments } from "../api/treatments";
@@ -14,17 +13,10 @@ import { useUpdateTreatment } from "../api/treatments";
 import { useDeleteTreatment } from "../api/treatments";
 import { useReorderTreatments } from "../api/treatments";
 import { useGetVitals } from "../api/vitals";
-import {
-  buildDoseCalcInput,
-  computeDosePreview,
-  DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
-  fetchMedicineDoseParamsOnce,
-  medicineDoseParamsQueryKey,
-  resolveLatestVitalWeight,
-} from "../api/medicine-dose-lookup";
+import { medicineDoseParamsQueryKey, resolveLatestVitalWeight } from "../api/medicine-dose-lookup";
+import { resolveMasterSelectionDose } from "../lib/master-selection-dose";
 import type { TreatmentItemType, UpdateTreatmentInput } from "../types";
 import { buildMasterSelectionPayload } from "../lib/treatments-tab-model";
-import { computeDoseGate, type DoseGateSource } from "../lib/treatment-row-dose-gate";
 
 export function useTreatmentsTab({
   medicalRecordId,
@@ -58,14 +50,32 @@ export function useTreatmentsTab({
 
   // PR679 F5: useCallback の stale closure 対策。コミット直後に最新の権限/ロックを
   // ref へ同期し、await 後やキャプチャ済みコールバックからも最新値で弾く。
-  const latestWriteGateRef = useRef({ canCreate, canEdit, canDelete, isWriteBlocked });
+  const latestWriteGateRef = useRef({
+    canCreate,
+    canEdit,
+    canDelete,
+    isWriteBlocked,
+    medicalRecordId,
+    recordClinicId,
+    petSpecies,
+    nextSortOrder: 0,
+  });
   useLayoutEffect(() => {
-    latestWriteGateRef.current = { canCreate, canEdit, canDelete, isWriteBlocked };
+    latestWriteGateRef.current = {
+      canCreate,
+      canEdit,
+      canDelete,
+      isWriteBlocked,
+      medicalRecordId,
+      recordClinicId,
+      petSpecies,
+      nextSortOrder: treatments?.length ? Math.max(...treatments.map((t) => t.sort_order)) + 1 : 0,
+    };
   });
 
   // #201: 投与量自動計算の入力（当日 vital の体重・薬マスタ一覧）。
   const { data: vitals } = useGetVitals(medicalRecordId, recordClinicId);
-  const { data: medicines } = useGetAllMedicinesMaster();
+  const { data: medicines } = useGetAllMedicinesMaster({ clinicId: recordClinicId });
   const resolvedWeight = useMemo(
     () => (vitals ? resolveLatestVitalWeight(vitals) : null),
     [vitals],
@@ -77,8 +87,9 @@ export function useTreatmentsTab({
       medicines,
       petSpecies: petSpecies ?? null,
       weightKg: resolvedWeight?.weightKg ?? null,
+      clinicId: recordClinicId,
     }),
-    [medicines, petSpecies, resolvedWeight],
+    [medicines, petSpecies, resolvedWeight, recordClinicId],
   );
 
   // マスタ検索ダイアログ
@@ -254,85 +265,57 @@ export function useTreatmentsTab({
       if (latestWriteGateRef.current.isWriteBlocked || !latestWriteGateRef.current.canCreate) {
         return;
       }
-      const nextOrder =
-        sortedTreatments.length > 0
-          ? sortedTreatments[sortedTreatments.length - 1].sort_order + 1
-          : 0;
-
-      // #201: 薬剤選択時、体重・species・薬マスタの投与量パラメータが揃えば quantity をプリフィルする。
-      // いずれか欠けている場合は既定値 1（従来通りの手動入力・保存継続）とする。
-      // TASK-025: technical failure（fetch/HTTP/parse）は missing data と型で区別し、通常保存を止める。
-      let quantity = 1;
-      let doseGateSource: DoseGateSource = { kind: "missing" };
-      if (item.medicineId && resolvedWeight) {
-        const medicine = medicines?.find((m) => m.id === item.medicineId);
-        if (medicine) {
-          try {
-            const doseParams = await queryClient.fetchQuery({
-              queryKey: medicineDoseParamsQueryKey(item.medicineId),
-              queryFn: () => fetchMedicineDoseParamsOnce(item.medicineId as string),
-              staleTime: QUERY_STALE_TIMES.STATIC,
-            });
-            const doseCalcInput = buildDoseCalcInput(
-              medicine,
-              doseParams,
-              petSpecies,
-              resolvedWeight.weightKg,
-            );
-            doseGateSource = doseCalcInput
-              ? { kind: "ready", input: doseCalcInput }
-              : { kind: "missing" };
-            const preview = computeDosePreview(
-              medicine,
-              doseParams,
-              petSpecies,
-              resolvedWeight.weightKg,
-            );
-            // healthcare-review-201 MEDIUM: 推奨値自体が丸め up 等で安全域を超えている場合、
-            // 未編集のまま保存され得るため、その値ではプリフィルしない
-            // （既定値 1 の手動入力とし、実際の保存値を下の物理ブロック判定に通す）。
-            if (preview && !preview.exceedsMax && !preview.belowMin) quantity = preview.quantity;
-          } catch {
-            // technical failure: quantity=1 の silent fallback で create しない。
-            // upstream body は画面に出さない（固定文言のみ）。
-            setMasterDoseBlockReason(DOSE_PARAMS_LOOKUP_FAILED_MESSAGE);
-            setPendingMasterLookupItem(item);
-            return;
-          }
-        }
-      }
-
-      const payload = buildMasterSelectionPayload({ item, quantity, sortOrder: nextOrder });
-
-      // #201: 実際に submit される quantity がマスタの絶対上限を超える場合は、
-      // ConfirmDialog で解除できない物理ブロックを create 前に適用する。
-      // TASK-377: create 経路に inline 理由 UI が無いため、理由必須の quantity では create を止める
-      // （行追加後の quantity 編集で理由を入力する導線へ誘導）。
-      const gate = computeDoseGate(doseGateSource, quantity);
-      if (gate.isBlocked) {
-        setMasterDoseBlockReason(gate.blockReason);
-        setPendingMasterLookupItem(null);
+      if (
+        latestWriteGateRef.current.medicalRecordId !== medicalRecordId ||
+        latestWriteGateRef.current.recordClinicId !== recordClinicId ||
+        latestWriteGateRef.current.petSpecies !== petSpecies
+      )
+        return;
+      const doseResult = await resolveMasterSelectionDose({
+        item,
+        medicalRecordId: medicalRecordId ?? "",
+        recordClinicId,
+        petSpecies,
+        queryClient,
+      });
+      const earlyGate = latestWriteGateRef.current;
+      if (
+        earlyGate.isWriteBlocked ||
+        !earlyGate.canCreate ||
+        earlyGate.medicalRecordId !== medicalRecordId ||
+        earlyGate.recordClinicId !== recordClinicId ||
+        earlyGate.petSpecies !== petSpecies
+      ) {
         return;
       }
-      if (gate.requiresDeviationReason) {
-        setMasterDoseBlockReason(
-          gate.reason
-            ? `${gate.reason}。推奨値付近で追加してから数量と逸脱理由を入力してください`
-            : "用量逸脱の理由入力が必要です。推奨値付近で追加してから数量と理由を入力してください",
-        );
-        setPendingMasterLookupItem(null);
+      if (doseResult.kind === "blocked") {
+        setMasterDoseBlockReason(doseResult.message);
+        setPendingMasterLookupItem(doseResult.retryable ? item : null);
         return;
       }
-
+      const quantity = doseResult.quantity;
       setMasterDoseBlockReason("");
       setPendingMasterLookupItem(null);
       // PR679 F5: await(dose params)の間に確定/ロック/死亡/権限喪失が起き得るため
       // create 直前に最新値を再検査する（コンポーネント wrapper だけでは防げない）。
       const latestGate = latestWriteGateRef.current;
-      if (latestGate.isWriteBlocked || !latestGate.canCreate) return;
+      if (
+        latestGate.isWriteBlocked ||
+        !latestGate.canCreate ||
+        latestGate.medicalRecordId !== medicalRecordId ||
+        latestGate.recordClinicId !== recordClinicId ||
+        latestGate.petSpecies !== petSpecies
+      ) {
+        return;
+      }
+      const payload = buildMasterSelectionPayload({
+        item,
+        quantity,
+        sortOrder: latestGate.nextSortOrder,
+      });
       createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
     },
-    [sortedTreatments, createTreatmentFn, resolvedWeight, medicines, petSpecies, queryClient],
+    [createTreatmentFn, petSpecies, queryClient, medicalRecordId, recordClinicId],
   );
 
   const handleRetryMasterDoseLookup = useCallback(() => {
@@ -350,12 +333,12 @@ export function useTreatmentsTab({
       // data 無しに落ちて行の投与量ゲートが一時的に開く。
       if (item.medicineId) {
         await queryClient.resetQueries({
-          queryKey: medicineDoseParamsQueryKey(item.medicineId),
+          queryKey: medicineDoseParamsQueryKey(item.medicineId, recordClinicId),
         });
       }
       await handleSelectFromMaster(item);
     })();
-  }, [pendingMasterLookupItem, handleSelectFromMaster, queryClient]);
+  }, [pendingMasterLookupItem, handleSelectFromMaster, queryClient, recordClinicId]);
 
   return {
     isLoading,

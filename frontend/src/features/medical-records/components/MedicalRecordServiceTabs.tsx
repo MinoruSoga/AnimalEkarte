@@ -110,6 +110,8 @@ export function MedicalRecordServiceTabs({
           ownerDiscountRate={ownerDiscountRate}
           recordClinicId={recordClinicId}
           isPetDeceased={isPetDeceasedForClinicalWrite(selectedPet)}
+          petSpecies={selectedPet.species}
+          isWriteBlocked={isLocked}
         />
       </MedicalRecordMountedTab>
     </>
