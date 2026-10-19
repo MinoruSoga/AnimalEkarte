@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1180](../../../backend/migrations/001_init.sql#L1180) |
-| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1181](../../../backend/migrations/001_init.sql#L1181) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1182](../../../backend/migrations/001_init.sql#L1182) |
-| `is_main` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1183](../../../backend/migrations/001_init.sql#L1183) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1184](../../../backend/migrations/001_init.sql#L1184) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1185](../../../backend/migrations/001_init.sql#L1185) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1186](../../../backend/migrations/001_init.sql#L1186) |
-| `capabilities_configured_at` | `TIMESTAMPTZ` | NULL | — | — | [022_staff_clinic_assignments_capability_configured_at.sql:18](../../../backend/migrations/022_staff_clinic_assignments_capability_configured_at.sql#L18) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1188](../../../backend/migrations/001_init.sql#L1188) |
+| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1189](../../../backend/migrations/001_init.sql#L1189) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1190](../../../backend/migrations/001_init.sql#L1190) |
+| `is_main` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1191](../../../backend/migrations/001_init.sql#L1191) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1192](../../../backend/migrations/001_init.sql#L1192) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1193](../../../backend/migrations/001_init.sql#L1193) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1194](../../../backend/migrations/001_init.sql#L1194) |
+| `capabilities_configured_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:6952](../../../backend/migrations/001_init.sql#L6952) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,8 +54,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_clinic_assignments_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1181](../../../backend/migrations/001_init.sql#L1181) |
-| `staff_clinic_assignments_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1182](../../../backend/migrations/001_init.sql#L1182) |
+| `staff_clinic_assignments_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1189](../../../backend/migrations/001_init.sql#L1189) |
+| `staff_clinic_assignments_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1190](../../../backend/migrations/001_init.sql#L1190) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,13 +66,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_clinic_assignments_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1180](../../../backend/migrations/001_init.sql#L1180) |
-| `uk_staff_clinic` | unique | `CONSTRAINT uk_staff_clinic UNIQUE (staff_id, clinic_id)` | [001_init.sql:1187](../../../backend/migrations/001_init.sql#L1187) |
+| `staff_clinic_assignments_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1188](../../../backend/migrations/001_init.sql#L1188) |
+| `uk_staff_clinic` | unique | `CONSTRAINT uk_staff_clinic UNIQUE (staff_id, clinic_id)` | [001_init.sql:1195](../../../backend/migrations/001_init.sql#L1195) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_staff_clinic_staff` | NO | — | `CREATE INDEX idx_staff_clinic_staff ON staff_clinic_assignments(staff_id)` | [001_init.sql:1190](../../../backend/migrations/001_init.sql#L1190) |
-| `idx_staff_clinic_clinic` | NO | — | `CREATE INDEX idx_staff_clinic_clinic ON staff_clinic_assignments(clinic_id)` | [001_init.sql:1191](../../../backend/migrations/001_init.sql#L1191) |
-| `idx_staff_clinic_main` | NO | — | `CREATE INDEX idx_staff_clinic_main ON staff_clinic_assignments(staff_id, is_main)` | [001_init.sql:1192](../../../backend/migrations/001_init.sql#L1192) |
+| `idx_staff_clinic_staff` | NO | — | `CREATE INDEX idx_staff_clinic_staff ON staff_clinic_assignments(staff_id)` | [001_init.sql:1198](../../../backend/migrations/001_init.sql#L1198) |
+| `idx_staff_clinic_clinic` | NO | — | `CREATE INDEX idx_staff_clinic_clinic ON staff_clinic_assignments(clinic_id)` | [001_init.sql:1199](../../../backend/migrations/001_init.sql#L1199) |
+| `idx_staff_clinic_main` | NO | — | `CREATE INDEX idx_staff_clinic_main ON staff_clinic_assignments(staff_id, is_main)` | [001_init.sql:1200](../../../backend/migrations/001_init.sql#L1200) |

@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:970](../../../backend/migrations/001_init.sql#L970) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:971](../../../backend/migrations/001_init.sql#L971) |
-| `name` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:972](../../../backend/migrations/001_init.sql#L972) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:973](../../../backend/migrations/001_init.sql#L973) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:974](../../../backend/migrations/001_init.sql#L974) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:975](../../../backend/migrations/001_init.sql#L975) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:976](../../../backend/migrations/001_init.sql#L976) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:977](../../../backend/migrations/001_init.sql#L977) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:978](../../../backend/migrations/001_init.sql#L978) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:979](../../../backend/migrations/001_init.sql#L979) |
+| `name` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:980](../../../backend/migrations/001_init.sql#L980) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:981](../../../backend/migrations/001_init.sql#L981) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:982](../../../backend/migrations/001_init.sql#L982) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:983](../../../backend/migrations/001_init.sql#L983) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:984](../../../backend/migrations/001_init.sql#L984) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:985](../../../backend/migrations/001_init.sql#L985) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,7 +50,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_course_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:971](../../../backend/migrations/001_init.sql#L971) |
+| `trimming_course_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:979](../../../backend/migrations/001_init.sql#L979) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -60,11 +60,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_course_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:970](../../../backend/migrations/001_init.sql#L970) |
+| `trimming_course_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:978](../../../backend/migrations/001_init.sql#L978) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_trimming_course_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_course_types_clinic_name ON trimming_course_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:980](../../../backend/migrations/001_init.sql#L980) |
-| `idx_trimming_course_types_clinic_order` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_course_types_clinic_order ON trimming_course_types(clinic_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:981](../../../backend/migrations/001_init.sql#L981) |
+| `idx_trimming_course_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_course_types_clinic_name ON trimming_course_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:988](../../../backend/migrations/001_init.sql#L988) |
+| `idx_trimming_course_types_clinic_order` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_course_types_clinic_order ON trimming_course_types(clinic_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:989](../../../backend/migrations/001_init.sql#L989) |

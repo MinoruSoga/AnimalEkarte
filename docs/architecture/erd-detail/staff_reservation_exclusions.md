@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2677](../../../backend/migrations/001_init.sql#L2677) |
-| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2678](../../../backend/migrations/001_init.sql#L2678) |
-| `reservation_type_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2679](../../../backend/migrations/001_init.sql#L2679) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2685](../../../backend/migrations/001_init.sql#L2685) |
+| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2686](../../../backend/migrations/001_init.sql#L2686) |
+| `reservation_type_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2687](../../../backend/migrations/001_init.sql#L2687) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,8 +44,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_reservation_exclusions_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2678](../../../backend/migrations/001_init.sql#L2678) |
-| `staff_reservation_exclusions_reservation_type_id_fkey` | `reservation_type_id` | [reservation_types](reservation_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2679](../../../backend/migrations/001_init.sql#L2679) |
+| `staff_reservation_exclusions_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2686](../../../backend/migrations/001_init.sql#L2686) |
+| `staff_reservation_exclusions_reservation_type_id_fkey` | `reservation_type_id` | [reservation_types](reservation_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2687](../../../backend/migrations/001_init.sql#L2687) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,8 +56,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_reservation_exclusions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2677](../../../backend/migrations/001_init.sql#L2677) |
-| `staff_reservation_exclusions_staff_id_reservation_type_id_key` | unique | `UNIQUE(staff_id, reservation_type_id)` | [001_init.sql:2680](../../../backend/migrations/001_init.sql#L2680) |
+| `staff_reservation_exclusions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2685](../../../backend/migrations/001_init.sql#L2685) |
+| `staff_reservation_exclusions_staff_id_reservation_type_id_key` | unique | `UNIQUE(staff_id, reservation_type_id)` | [001_init.sql:2688](../../../backend/migrations/001_init.sql#L2688) |
 
 ## インデックス
 

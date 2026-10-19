@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1399](../../../backend/migrations/001_init.sql#L1399) |
-| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1400](../../../backend/migrations/001_init.sql#L1400) |
-| `option_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1401](../../../backend/migrations/001_init.sql#L1401) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1402](../../../backend/migrations/001_init.sql#L1402) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1403](../../../backend/migrations/001_init.sql#L1403) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:5845](../../../backend/migrations/001_init.sql#L5845) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1407](../../../backend/migrations/001_init.sql#L1407) |
+| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1408](../../../backend/migrations/001_init.sql#L1408) |
+| `option_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1409](../../../backend/migrations/001_init.sql#L1409) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1410](../../../backend/migrations/001_init.sql#L1410) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1411](../../../backend/migrations/001_init.sql#L1411) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:5853](../../../backend/migrations/001_init.sql#L5853) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -56,10 +56,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `appointment_trimming_options_appointment_id_fkey` | `appointment_id` | [appointments](appointments.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1400](../../../backend/migrations/001_init.sql#L1400) |
-| `appointment_trimming_options_option_id_fkey` | `option_id` | [trimming_options](trimming_options.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1401](../../../backend/migrations/001_init.sql#L1401) |
-| `fk_appointment_trimming_options_clinic_id` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5848](../../../backend/migrations/001_init.sql#L5848) |
-| `fk_appointment_trimming_options_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:5886](../../../backend/migrations/001_init.sql#L5886) |
+| `appointment_trimming_options_appointment_id_fkey` | `appointment_id` | [appointments](appointments.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1408](../../../backend/migrations/001_init.sql#L1408) |
+| `appointment_trimming_options_option_id_fkey` | `option_id` | [trimming_options](trimming_options.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1409](../../../backend/migrations/001_init.sql#L1409) |
+| `fk_appointment_trimming_options_clinic_id` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5856](../../../backend/migrations/001_init.sql#L5856) |
+| `fk_appointment_trimming_options_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:5894](../../../backend/migrations/001_init.sql#L5894) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,12 +72,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `appointment_trimming_options_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1399](../../../backend/migrations/001_init.sql#L1399) |
-| `appointment_trimming_options_appointment_id_option_id_key` | unique | `UNIQUE (appointment_id, option_id)` | [001_init.sql:1404](../../../backend/migrations/001_init.sql#L1404) |
+| `appointment_trimming_options_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1407](../../../backend/migrations/001_init.sql#L1407) |
+| `appointment_trimming_options_appointment_id_option_id_key` | unique | `UNIQUE (appointment_id, option_id)` | [001_init.sql:1412](../../../backend/migrations/001_init.sql#L1412) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_appt_trimming_options_appointment` | NO | — | `CREATE INDEX idx_appt_trimming_options_appointment ON appointment_trimming_options(appointment_id)` | [001_init.sql:1407](../../../backend/migrations/001_init.sql#L1407) |
-| `idx_appointment_trimming_options_clinic_id` | NO | — | `CREATE INDEX idx_appointment_trimming_options_clinic_id     ON appointment_trimming_options (clinic_id)` | [001_init.sql:5853](../../../backend/migrations/001_init.sql#L5853) |
+| `idx_appt_trimming_options_appointment` | NO | — | `CREATE INDEX idx_appt_trimming_options_appointment ON appointment_trimming_options(appointment_id)` | [001_init.sql:1415](../../../backend/migrations/001_init.sql#L1415) |
+| `idx_appointment_trimming_options_clinic_id` | NO | — | `CREATE INDEX idx_appointment_trimming_options_clinic_id     ON appointment_trimming_options (clinic_id)` | [001_init.sql:5861](../../../backend/migrations/001_init.sql#L5861) |

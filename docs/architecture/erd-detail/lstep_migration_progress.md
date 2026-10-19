@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:443](../../../backend/migrations/001_init.sql#L443) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:444](../../../backend/migrations/001_init.sql#L444) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:445](../../../backend/migrations/001_init.sql#L445) |
-| `status` | `varchar(20)` | NOT NULL | `'pending'` | — | [001_init.sql:446](../../../backend/migrations/001_init.sql#L446) |
-| `tags_added` | `int` | NOT NULL | `0` | — | [001_init.sql:447](../../../backend/migrations/001_init.sql#L447) |
-| `tags_failed` | `int` | NOT NULL | `0` | — | [001_init.sql:448](../../../backend/migrations/001_init.sql#L448) |
-| `error_message` | `text` | NULL | — | — | [001_init.sql:449](../../../backend/migrations/001_init.sql#L449) |
-| `started_at` | `timestamptz` | NULL | — | — | [001_init.sql:450](../../../backend/migrations/001_init.sql#L450) |
-| `completed_at` | `timestamptz` | NULL | — | — | [001_init.sql:451](../../../backend/migrations/001_init.sql#L451) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:451](../../../backend/migrations/001_init.sql#L451) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:452](../../../backend/migrations/001_init.sql#L452) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:453](../../../backend/migrations/001_init.sql#L453) |
+| `status` | `varchar(20)` | NOT NULL | `'pending'` | — | [001_init.sql:454](../../../backend/migrations/001_init.sql#L454) |
+| `tags_added` | `int` | NOT NULL | `0` | — | [001_init.sql:455](../../../backend/migrations/001_init.sql#L455) |
+| `tags_failed` | `int` | NOT NULL | `0` | — | [001_init.sql:456](../../../backend/migrations/001_init.sql#L456) |
+| `error_message` | `text` | NULL | — | — | [001_init.sql:457](../../../backend/migrations/001_init.sql#L457) |
+| `started_at` | `timestamptz` | NULL | — | — | [001_init.sql:458](../../../backend/migrations/001_init.sql#L458) |
+| `completed_at` | `timestamptz` | NULL | — | — | [001_init.sql:459](../../../backend/migrations/001_init.sql#L459) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -56,8 +56,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_migration_progress_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:444](../../../backend/migrations/001_init.sql#L444) |
-| `lstep_migration_progress_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:445](../../../backend/migrations/001_init.sql#L445) |
+| `lstep_migration_progress_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:452](../../../backend/migrations/001_init.sql#L452) |
+| `lstep_migration_progress_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:453](../../../backend/migrations/001_init.sql#L453) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,11 +68,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_migration_progress_pkey` | primary | `PRIMARY KEY` | [001_init.sql:443](../../../backend/migrations/001_init.sql#L443) |
-| `lstep_migration_progress_clinic_id_owner_id_key` | unique | `UNIQUE (clinic_id, owner_id)` | [001_init.sql:452](../../../backend/migrations/001_init.sql#L452) |
+| `lstep_migration_progress_pkey` | primary | `PRIMARY KEY` | [001_init.sql:451](../../../backend/migrations/001_init.sql#L451) |
+| `lstep_migration_progress_clinic_id_owner_id_key` | unique | `UNIQUE (clinic_id, owner_id)` | [001_init.sql:460](../../../backend/migrations/001_init.sql#L460) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_migration_progress_clinic_id` | NO | — | `CREATE INDEX idx_lstep_migration_progress_clinic_id     ON lstep_migration_progress (clinic_id)` | [001_init.sql:455](../../../backend/migrations/001_init.sql#L455) |
+| `idx_lstep_migration_progress_clinic_id` | NO | — | `CREATE INDEX idx_lstep_migration_progress_clinic_id     ON lstep_migration_progress (clinic_id)` | [001_init.sql:463](../../../backend/migrations/001_init.sql#L463) |

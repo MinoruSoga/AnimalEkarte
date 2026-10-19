@@ -11,23 +11,23 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1747](../../../backend/migrations/001_init.sql#L1747) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1748](../../../backend/migrations/001_init.sql#L1748) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1749](../../../backend/migrations/001_init.sql#L1749) |
-| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1750](../../../backend/migrations/001_init.sql#L1750) |
-| `daily_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1751](../../../backend/migrations/001_init.sql#L1751) |
-| `recorded_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1752](../../../backend/migrations/001_init.sql#L1752) |
-| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1753](../../../backend/migrations/001_init.sql#L1753) |
-| `temperature` | `numeric` | NULL | — | — | [001_init.sql:1754](../../../backend/migrations/001_init.sql#L1754) |
-| `heart_rate` | `integer` | NULL | — | — | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
-| `respiration_rate` | `integer` | NULL | — | — | [001_init.sql:1756](../../../backend/migrations/001_init.sql#L1756) |
-| `weight` | `numeric` | NULL | — | — | [001_init.sql:1757](../../../backend/migrations/001_init.sql#L1757) |
-| `weight_unit` | `body_weight_unit` | NULL | `'Kg'` | — | [001_init.sql:1758](../../../backend/migrations/001_init.sql#L1758) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1759](../../../backend/migrations/001_init.sql#L1759) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1760](../../../backend/migrations/001_init.sql#L1760) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1761](../../../backend/migrations/001_init.sql#L1761) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1762](../../../backend/migrations/001_init.sql#L1762) |
-| `version` | `INTEGER` | NOT NULL | `1` | — | [005_child_records_version.sql:13](../../../backend/migrations/005_child_records_version.sql#L13) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1756](../../../backend/migrations/001_init.sql#L1756) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1757](../../../backend/migrations/001_init.sql#L1757) |
+| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1758](../../../backend/migrations/001_init.sql#L1758) |
+| `daily_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1759](../../../backend/migrations/001_init.sql#L1759) |
+| `recorded_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1760](../../../backend/migrations/001_init.sql#L1760) |
+| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1761](../../../backend/migrations/001_init.sql#L1761) |
+| `temperature` | `numeric` | NULL | — | — | [001_init.sql:1762](../../../backend/migrations/001_init.sql#L1762) |
+| `heart_rate` | `integer` | NULL | — | — | [001_init.sql:1763](../../../backend/migrations/001_init.sql#L1763) |
+| `respiration_rate` | `integer` | NULL | — | — | [001_init.sql:1764](../../../backend/migrations/001_init.sql#L1764) |
+| `weight` | `numeric` | NULL | — | — | [001_init.sql:1765](../../../backend/migrations/001_init.sql#L1765) |
+| `weight_unit` | `body_weight_unit` | NULL | `'Kg'` | — | [001_init.sql:1766](../../../backend/migrations/001_init.sql#L1766) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1767](../../../backend/migrations/001_init.sql#L1767) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1768](../../../backend/migrations/001_init.sql#L1768) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1769](../../../backend/migrations/001_init.sql#L1769) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1770](../../../backend/migrations/001_init.sql#L1770) |
+| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:6336](../../../backend/migrations/001_init.sql#L6336) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -84,11 +84,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `vital_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1748](../../../backend/migrations/001_init.sql#L1748) |
-| `vital_records_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1749](../../../backend/migrations/001_init.sql#L1749) |
-| `vital_records_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1750](../../../backend/migrations/001_init.sql#L1750) |
-| `vital_records_daily_record_id_fkey` | `daily_record_id` | [daily_records](daily_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1751](../../../backend/migrations/001_init.sql#L1751) |
-| `vital_records_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1753](../../../backend/migrations/001_init.sql#L1753) |
+| `vital_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1756](../../../backend/migrations/001_init.sql#L1756) |
+| `vital_records_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1757](../../../backend/migrations/001_init.sql#L1757) |
+| `vital_records_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1758](../../../backend/migrations/001_init.sql#L1758) |
+| `vital_records_daily_record_id_fkey` | `daily_record_id` | [daily_records](daily_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1759](../../../backend/migrations/001_init.sql#L1759) |
+| `vital_records_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1761](../../../backend/migrations/001_init.sql#L1761) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -102,19 +102,19 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `vital_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1747](../../../backend/migrations/001_init.sql#L1747) |
-| `chk_vital_records_context` | check | `CONSTRAINT chk_vital_records_context CHECK (         (medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)     )` | [001_init.sql:1763](../../../backend/migrations/001_init.sql#L1763) |
-| `chk_vital_temperature` | check | `CONSTRAINT chk_vital_temperature CHECK (temperature IS NULL OR (temperature >= 30.0 AND temperature <= 50.0))` | [001_init.sql:1766](../../../backend/migrations/001_init.sql#L1766) |
-| `chk_vital_heart_rate` | check | `CONSTRAINT chk_vital_heart_rate CHECK (heart_rate IS NULL OR (heart_rate > 0 AND heart_rate < 500))` | [001_init.sql:1767](../../../backend/migrations/001_init.sql#L1767) |
-| `chk_vital_respiration` | check | `CONSTRAINT chk_vital_respiration CHECK (respiration_rate IS NULL OR (respiration_rate > 0 AND respiration_rate < 200))` | [001_init.sql:1768](../../../backend/migrations/001_init.sql#L1768) |
-| `chk_vital_weight` | check | `CONSTRAINT chk_vital_weight CHECK (weight IS NULL OR weight > 0)` | [001_init.sql:1769](../../../backend/migrations/001_init.sql#L1769) |
+| `vital_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
+| `chk_vital_records_context` | check | `CONSTRAINT chk_vital_records_context CHECK (         (medical_record_id IS NOT NULL) OR (daily_record_id IS NOT NULL)     )` | [001_init.sql:1771](../../../backend/migrations/001_init.sql#L1771) |
+| `chk_vital_temperature` | check | `CONSTRAINT chk_vital_temperature CHECK (temperature IS NULL OR (temperature >= 30.0 AND temperature <= 50.0))` | [001_init.sql:1774](../../../backend/migrations/001_init.sql#L1774) |
+| `chk_vital_heart_rate` | check | `CONSTRAINT chk_vital_heart_rate CHECK (heart_rate IS NULL OR (heart_rate > 0 AND heart_rate < 500))` | [001_init.sql:1775](../../../backend/migrations/001_init.sql#L1775) |
+| `chk_vital_respiration` | check | `CONSTRAINT chk_vital_respiration CHECK (respiration_rate IS NULL OR (respiration_rate > 0 AND respiration_rate < 200))` | [001_init.sql:1776](../../../backend/migrations/001_init.sql#L1776) |
+| `chk_vital_weight` | check | `CONSTRAINT chk_vital_weight CHECK (weight IS NULL OR weight > 0)` | [001_init.sql:1777](../../../backend/migrations/001_init.sql#L1777) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_vital_records_medical_record_id` | NO | — | `CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id)` | [001_init.sql:2278](../../../backend/migrations/001_init.sql#L2278) |
-| `idx_vital_records_daily_record_id` | NO | — | `CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id)` | [001_init.sql:2279](../../../backend/migrations/001_init.sql#L2279) |
-| `idx_vital_records_pet_id` | NO | — | `CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id)` | [001_init.sql:2280](../../../backend/migrations/001_init.sql#L2280) |
-| `idx_vital_records_clinic_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vital_records_clinic_id ON vital_records(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2281](../../../backend/migrations/001_init.sql#L2281) |
-| `idx_vital_records_staff_id` | NO | — | `CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id)` | [001_init.sql:2318](../../../backend/migrations/001_init.sql#L2318) |
+| `idx_vital_records_medical_record_id` | NO | — | `CREATE INDEX idx_vital_records_medical_record_id ON vital_records(medical_record_id)` | [001_init.sql:2286](../../../backend/migrations/001_init.sql#L2286) |
+| `idx_vital_records_daily_record_id` | NO | — | `CREATE INDEX idx_vital_records_daily_record_id ON vital_records(daily_record_id)` | [001_init.sql:2287](../../../backend/migrations/001_init.sql#L2287) |
+| `idx_vital_records_pet_id` | NO | — | `CREATE INDEX idx_vital_records_pet_id ON vital_records(pet_id)` | [001_init.sql:2288](../../../backend/migrations/001_init.sql#L2288) |
+| `idx_vital_records_clinic_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vital_records_clinic_id ON vital_records(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2289](../../../backend/migrations/001_init.sql#L2289) |
+| `idx_vital_records_staff_id` | NO | — | `CREATE INDEX idx_vital_records_staff_id ON vital_records(staff_id)` | [001_init.sql:2326](../../../backend/migrations/001_init.sql#L2326) |

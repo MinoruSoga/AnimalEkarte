@@ -264,23 +264,16 @@ func TestLabMappingDraftRepository_ClinicUniqueSchema(t *testing.T) {
 		assert.Equal(t, "clinic_id", index.Fields[0].DBName)
 		assert.Equal(t, "id", index.Fields[1].DBName)
 	})
-	t.Run("migration", func(t *testing.T) {
-		body, err := os.ReadFile("../../migrations/024_lab_device_mapping_drafts_clinic_unique.sql")
+	t.Run("consolidated baseline", func(t *testing.T) {
+		body, err := os.ReadFile("../../migrations/001_init.sql")
 		require.NoError(t, err)
-		var statements []string
-		for _, statement := range strings.Split(string(body), ";") {
-			normalized := strings.Join(strings.Fields(statement), " ")
-			if normalized != "" {
-				statements = append(statements, normalized)
-			}
-		}
-		assert.Equal(t, []string{
-			"ALTER TABLE lab_device_mapping_draft_items DROP CONSTRAINT fk_lab_device_mapping_draft_items_draft_clinic",
-			"ALTER TABLE lab_device_mapping_specs DROP CONSTRAINT fk_lab_device_mapping_specs_draft_clinic",
-			"ALTER TABLE lab_device_mapping_drafts DROP CONSTRAINT uq_lab_device_mapping_drafts_id_clinic",
+		sql := strings.Join(strings.Fields(string(body)), " ")
+		for _, want := range []string{
 			"ALTER TABLE lab_device_mapping_drafts ADD CONSTRAINT uq_lab_device_mapping_drafts_id_clinic UNIQUE (clinic_id, id)",
 			"ALTER TABLE lab_device_mapping_draft_items ADD CONSTRAINT fk_lab_device_mapping_draft_items_draft_clinic FOREIGN KEY (clinic_id, draft_id) REFERENCES lab_device_mapping_drafts (clinic_id, id) ON DELETE RESTRICT",
 			"ALTER TABLE lab_device_mapping_specs ADD CONSTRAINT fk_lab_device_mapping_specs_draft_clinic FOREIGN KEY (clinic_id, confirmed_draft_id) REFERENCES lab_device_mapping_drafts (clinic_id, id) ON DELETE RESTRICT",
-		}, statements)
+		} {
+			assert.Contains(t, sql, want)
+		}
 	})
 }

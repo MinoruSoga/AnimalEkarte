@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:5996](../../../backend/migrations/001_init.sql#L5996) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:5997](../../../backend/migrations/001_init.sql#L5997) |
-| `job_id` | `uuid` | NOT NULL | — | FK | [001_init.sql:5998](../../../backend/migrations/001_init.sql#L5998) |
-| `device_item_code` | `varchar(64)` | NOT NULL | — | — | [001_init.sql:5999](../../../backend/migrations/001_init.sql#L5999) |
-| `value_raw` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:6000](../../../backend/migrations/001_init.sql#L6000) |
-| `unit` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6001](../../../backend/migrations/001_init.sql#L6001) |
-| `flag` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6002](../../../backend/migrations/001_init.sql#L6002) |
-| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:6003](../../../backend/migrations/001_init.sql#L6003) |
-| `needs_review` | `boolean` | NOT NULL | `false` | — | [001_init.sql:6004](../../../backend/migrations/001_init.sql#L6004) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:6005](../../../backend/migrations/001_init.sql#L6005) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6006](../../../backend/migrations/001_init.sql#L6006) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:6004](../../../backend/migrations/001_init.sql#L6004) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6005](../../../backend/migrations/001_init.sql#L6005) |
+| `job_id` | `uuid` | NOT NULL | — | FK | [001_init.sql:6006](../../../backend/migrations/001_init.sql#L6006) |
+| `device_item_code` | `varchar(64)` | NOT NULL | — | — | [001_init.sql:6007](../../../backend/migrations/001_init.sql#L6007) |
+| `value_raw` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:6008](../../../backend/migrations/001_init.sql#L6008) |
+| `unit` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6009](../../../backend/migrations/001_init.sql#L6009) |
+| `flag` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6010](../../../backend/migrations/001_init.sql#L6010) |
+| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:6011](../../../backend/migrations/001_init.sql#L6011) |
+| `needs_review` | `boolean` | NOT NULL | `false` | — | [001_init.sql:6012](../../../backend/migrations/001_init.sql#L6012) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:6013](../../../backend/migrations/001_init.sql#L6013) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6014](../../../backend/migrations/001_init.sql#L6014) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -66,9 +66,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_import_job_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5997](../../../backend/migrations/001_init.sql#L5997) |
-| `fk_lab_import_job_items_job_clinic` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:6007](../../../backend/migrations/001_init.sql#L6007) |
-| `fk_lab_import_job_items_field_clinic` | `exam_type_field_id, clinic_id` | [exam_type_fields](exam_type_fields.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:6011](../../../backend/migrations/001_init.sql#L6011) |
+| `lab_import_job_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6005](../../../backend/migrations/001_init.sql#L6005) |
+| `fk_lab_import_job_items_job_clinic` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:6015](../../../backend/migrations/001_init.sql#L6015) |
+| `fk_lab_import_job_items_field_clinic` | `exam_type_field_id, clinic_id` | [exam_type_fields](exam_type_fields.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:6019](../../../backend/migrations/001_init.sql#L6019) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -80,10 +80,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_import_job_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5996](../../../backend/migrations/001_init.sql#L5996) |
+| `lab_import_job_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6004](../../../backend/migrations/001_init.sql#L6004) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_import_job_items_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_job_items_clinic_job     ON lab_import_job_items (clinic_id, job_id, sort_order)` | [001_init.sql:6017](../../../backend/migrations/001_init.sql#L6017) |
+| `idx_lab_import_job_items_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_job_items_clinic_job     ON lab_import_job_items (clinic_id, job_id, sort_order)` | [001_init.sql:6025](../../../backend/migrations/001_init.sql#L6025) |

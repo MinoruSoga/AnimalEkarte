@@ -11,22 +11,22 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:3671](../../../backend/migrations/001_init.sql#L3671) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:3672](../../../backend/migrations/001_init.sql#L3672) |
-| `checkup_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3673](../../../backend/migrations/001_init.sql#L3673) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:3674](../../../backend/migrations/001_init.sql#L3674) |
-| `field_type` | `checkup_field_type` | NOT NULL | — | — | [001_init.sql:3675](../../../backend/migrations/001_init.sql#L3675) |
-| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:3676](../../../backend/migrations/001_init.sql#L3676) |
-| `min_value` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3678](../../../backend/migrations/001_init.sql#L3678) |
-| `max_value` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3679](../../../backend/migrations/001_init.sql#L3679) |
-| `options` | `jsonb` | NOT NULL | `'[]'::jsonb` | — | [001_init.sql:3681](../../../backend/migrations/001_init.sql#L3681) |
-| `is_provisional` | `boolean` | NOT NULL | `false` | — | [001_init.sql:3683](../../../backend/migrations/001_init.sql#L3683) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:3684](../../../backend/migrations/001_init.sql#L3684) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3685](../../../backend/migrations/001_init.sql#L3685) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3686](../../../backend/migrations/001_init.sql#L3686) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:3687](../../../backend/migrations/001_init.sql#L3687) |
-| `import_namespace` | `text` | NULL | — | — | [001_init.sql:5211](../../../backend/migrations/001_init.sql#L5211) |
-| `import_key` | `text` | NULL | — | — | [001_init.sql:5212](../../../backend/migrations/001_init.sql#L5212) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:3679](../../../backend/migrations/001_init.sql#L3679) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:3680](../../../backend/migrations/001_init.sql#L3680) |
+| `checkup_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3681](../../../backend/migrations/001_init.sql#L3681) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:3682](../../../backend/migrations/001_init.sql#L3682) |
+| `field_type` | `checkup_field_type` | NOT NULL | — | — | [001_init.sql:3683](../../../backend/migrations/001_init.sql#L3683) |
+| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:3684](../../../backend/migrations/001_init.sql#L3684) |
+| `min_value` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3686](../../../backend/migrations/001_init.sql#L3686) |
+| `max_value` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3687](../../../backend/migrations/001_init.sql#L3687) |
+| `options` | `jsonb` | NOT NULL | `'[]'::jsonb` | — | [001_init.sql:3689](../../../backend/migrations/001_init.sql#L3689) |
+| `is_provisional` | `boolean` | NOT NULL | `false` | — | [001_init.sql:3691](../../../backend/migrations/001_init.sql#L3691) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:3692](../../../backend/migrations/001_init.sql#L3692) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3693](../../../backend/migrations/001_init.sql#L3693) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3694](../../../backend/migrations/001_init.sql#L3694) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:3695](../../../backend/migrations/001_init.sql#L3695) |
+| `import_namespace` | `text` | NULL | — | — | [001_init.sql:5219](../../../backend/migrations/001_init.sql#L5219) |
+| `import_key` | `text` | NULL | — | — | [001_init.sql:5220](../../../backend/migrations/001_init.sql#L5220) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -71,8 +71,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_type_fields_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:3672](../../../backend/migrations/001_init.sql#L3672) |
-| `fk_checkup_type_fields_type_clinic` | `checkup_type_id, clinic_id` | [checkup_types](checkup_types.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:3824](../../../backend/migrations/001_init.sql#L3824) |
+| `checkup_type_fields_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:3680](../../../backend/migrations/001_init.sql#L3680) |
+| `fk_checkup_type_fields_type_clinic` | `checkup_type_id, clinic_id` | [checkup_types](checkup_types.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:3832](../../../backend/migrations/001_init.sql#L3832) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -83,15 +83,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_type_fields_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3671](../../../backend/migrations/001_init.sql#L3671) |
-| `uq_checkup_type_fields_id_clinic` | unique | `CONSTRAINT uq_checkup_type_fields_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3787](../../../backend/migrations/001_init.sql#L3787) |
+| `checkup_type_fields_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3679](../../../backend/migrations/001_init.sql#L3679) |
+| `uq_checkup_type_fields_id_clinic` | unique | `CONSTRAINT uq_checkup_type_fields_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3795](../../../backend/migrations/001_init.sql#L3795) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_checkup_type_fields_clinic_id` | NO | — | `CREATE INDEX idx_checkup_type_fields_clinic_id        ON checkup_type_fields(clinic_id)` | [001_init.sql:3720](../../../backend/migrations/001_init.sql#L3720) |
-| `idx_checkup_type_fields_checkup_type_id` | NO | — | `CREATE INDEX idx_checkup_type_fields_checkup_type_id  ON checkup_type_fields(checkup_type_id)` | [001_init.sql:3721](../../../backend/migrations/001_init.sql#L3721) |
-| `idx_checkup_type_fields_clinic_type_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_checkup_type_fields_clinic_type_sort ON checkup_type_fields(clinic_id, checkup_type_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:3722](../../../backend/migrations/001_init.sql#L3722) |
-| `uq_checkup_type_fields_clinic_import_key` | YES | `import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | `CREATE UNIQUE INDEX IF NOT EXISTS uq_checkup_type_fields_clinic_import_key     ON checkup_type_fields (clinic_id, import_namespace, import_key)     WHERE import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5214](../../../backend/migrations/001_init.sql#L5214) |
-| `idx_checkup_type_fields_clinic_import_namespace` | NO | `import_namespace IS NOT NULL       AND deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_checkup_type_fields_clinic_import_namespace     ON checkup_type_fields (clinic_id, import_namespace)     WHERE import_namespace IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5220](../../../backend/migrations/001_init.sql#L5220) |
+| `idx_checkup_type_fields_clinic_id` | NO | — | `CREATE INDEX idx_checkup_type_fields_clinic_id        ON checkup_type_fields(clinic_id)` | [001_init.sql:3728](../../../backend/migrations/001_init.sql#L3728) |
+| `idx_checkup_type_fields_checkup_type_id` | NO | — | `CREATE INDEX idx_checkup_type_fields_checkup_type_id  ON checkup_type_fields(checkup_type_id)` | [001_init.sql:3729](../../../backend/migrations/001_init.sql#L3729) |
+| `idx_checkup_type_fields_clinic_type_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_checkup_type_fields_clinic_type_sort ON checkup_type_fields(clinic_id, checkup_type_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:3730](../../../backend/migrations/001_init.sql#L3730) |
+| `uq_checkup_type_fields_clinic_import_key` | YES | `import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | `CREATE UNIQUE INDEX IF NOT EXISTS uq_checkup_type_fields_clinic_import_key     ON checkup_type_fields (clinic_id, import_namespace, import_key)     WHERE import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5222](../../../backend/migrations/001_init.sql#L5222) |
+| `idx_checkup_type_fields_clinic_import_namespace` | NO | `import_namespace IS NOT NULL       AND deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_checkup_type_fields_clinic_import_namespace     ON checkup_type_fields (clinic_id, import_namespace)     WHERE import_namespace IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5228](../../../backend/migrations/001_init.sql#L5228) |

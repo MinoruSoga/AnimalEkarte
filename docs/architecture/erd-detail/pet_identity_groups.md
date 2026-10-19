@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:4648](../../../backend/migrations/001_init.sql#L4648) |
-| `created_clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4649](../../../backend/migrations/001_init.sql#L4649) |
-| `owner_group_created_clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4650](../../../backend/migrations/001_init.sql#L4650) |
-| `owner_group_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4651](../../../backend/migrations/001_init.sql#L4651) |
-| `version` | `BIGINT` | NOT NULL | `1` | — | [001_init.sql:4652](../../../backend/migrations/001_init.sql#L4652) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4653](../../../backend/migrations/001_init.sql#L4653) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4654](../../../backend/migrations/001_init.sql#L4654) |
-| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4655](../../../backend/migrations/001_init.sql#L4655) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:4656](../../../backend/migrations/001_init.sql#L4656) |
+| `created_clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4657](../../../backend/migrations/001_init.sql#L4657) |
+| `owner_group_created_clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4658](../../../backend/migrations/001_init.sql#L4658) |
+| `owner_group_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4659](../../../backend/migrations/001_init.sql#L4659) |
+| `version` | `BIGINT` | NOT NULL | `1` | — | [001_init.sql:4660](../../../backend/migrations/001_init.sql#L4660) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4661](../../../backend/migrations/001_init.sql#L4661) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4662](../../../backend/migrations/001_init.sql#L4662) |
+| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4663](../../../backend/migrations/001_init.sql#L4663) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,8 +55,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `pet_identity_groups_created_clinic_id_fkey` | `created_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4649](../../../backend/migrations/001_init.sql#L4649) |
-| `pet_identity_groups_owner_group_created_clinic_id_owner_gr_fkey` | `owner_group_created_clinic_id, owner_group_id` | [owner_identity_groups](owner_identity_groups.md) | `created_clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4657](../../../backend/migrations/001_init.sql#L4657) |
+| `pet_identity_groups_created_clinic_id_fkey` | `created_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4657](../../../backend/migrations/001_init.sql#L4657) |
+| `pet_identity_groups_owner_group_created_clinic_id_owner_gr_fkey` | `owner_group_created_clinic_id, owner_group_id` | [owner_identity_groups](owner_identity_groups.md) | `created_clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4665](../../../backend/migrations/001_init.sql#L4665) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -67,9 +67,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `pet_identity_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4648](../../../backend/migrations/001_init.sql#L4648) |
-| `pet_identity_groups_version_check` | check | `CHECK (version >= 1)` | [001_init.sql:4652](../../../backend/migrations/001_init.sql#L4652) |
-| `pet_identity_groups_created_clinic_id_id_key` | unique | `UNIQUE (created_clinic_id, id)` | [001_init.sql:4656](../../../backend/migrations/001_init.sql#L4656) |
+| `pet_identity_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4656](../../../backend/migrations/001_init.sql#L4656) |
+| `pet_identity_groups_version_check` | check | `CHECK (version >= 1)` | [001_init.sql:4660](../../../backend/migrations/001_init.sql#L4660) |
+| `pet_identity_groups_created_clinic_id_id_key` | unique | `UNIQUE (created_clinic_id, id)` | [001_init.sql:4664](../../../backend/migrations/001_init.sql#L4664) |
 
 ## インデックス
 

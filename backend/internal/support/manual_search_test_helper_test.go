@@ -1,7 +1,17 @@
--- EMR-410: サポートチャット ハイブリッド検索（追加のみ・既存 migration 不変）
--- 再生成可能な派生キャッシュ + quota 状態。共有マニュアル由来のため clinic_id なし。
--- 本文・質問・スタッフ情報は保存しない（R3/R7）。
+package support
 
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+)
+
+// supportManualSearchDDL mirrors the support_manual_embeddings / support_llm_budgets
+// tables consolidated into migrations/001_init.sql (formerly 038_support_manual_search.sql).
+// The shared test DB is built with GORM AutoMigrate, so these derived-cache tables
+// must be created explicitly for the real-DB search tests.
+const supportManualSearchDDL = `
 CREATE TABLE IF NOT EXISTS support_manual_embeddings (
     cache_key       text PRIMARY KEY,
     model           text NOT NULL,
@@ -24,3 +34,9 @@ CREATE TABLE IF NOT EXISTS support_llm_budgets (
     next_allowed_at  timestamptz NOT NULL,
     PRIMARY KEY (scope, model)
 );
+`
+
+func ensureSupportManualSearchTables(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(supportManualSearchDDL).Error)
+}

@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:688](../../../backend/migrations/001_init.sql#L688) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:689](../../../backend/migrations/001_init.sql#L689) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:690](../../../backend/migrations/001_init.sql#L690) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:691](../../../backend/migrations/001_init.sql#L691) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:692](../../../backend/migrations/001_init.sql#L692) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:693](../../../backend/migrations/001_init.sql#L693) |
-| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:694](../../../backend/migrations/001_init.sql#L694) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:695](../../../backend/migrations/001_init.sql#L695) |
-| `is_non_insurance` | `boolean` | NOT NULL | `false` | — | [001_init.sql:696](../../../backend/migrations/001_init.sql#L696) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:697](../../../backend/migrations/001_init.sql#L697) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:698](../../../backend/migrations/001_init.sql#L698) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:699](../../../backend/migrations/001_init.sql#L699) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:696](../../../backend/migrations/001_init.sql#L696) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:697](../../../backend/migrations/001_init.sql#L697) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:698](../../../backend/migrations/001_init.sql#L698) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:699](../../../backend/migrations/001_init.sql#L699) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:700](../../../backend/migrations/001_init.sql#L700) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:701](../../../backend/migrations/001_init.sql#L701) |
+| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:702](../../../backend/migrations/001_init.sql#L702) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:703](../../../backend/migrations/001_init.sql#L703) |
+| `is_non_insurance` | `boolean` | NOT NULL | `false` | — | [001_init.sql:704](../../../backend/migrations/001_init.sql#L704) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:705](../../../backend/migrations/001_init.sql#L705) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:706](../../../backend/migrations/001_init.sql#L706) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:707](../../../backend/migrations/001_init.sql#L707) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,8 +59,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `exam_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:689](../../../backend/migrations/001_init.sql#L689) |
-| `exam_types_parent_id_fkey` | `parent_id` | [exam_types](exam_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:694](../../../backend/migrations/001_init.sql#L694) |
+| `exam_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:697](../../../backend/migrations/001_init.sql#L697) |
+| `exam_types_parent_id_fkey` | `parent_id` | [exam_types](exam_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:702](../../../backend/migrations/001_init.sql#L702) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -71,15 +71,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `exam_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:688](../../../backend/migrations/001_init.sql#L688) |
-| `uq_exam_types_id_clinic` | unique | `CONSTRAINT uq_exam_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3904](../../../backend/migrations/001_init.sql#L3904) |
+| `exam_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:696](../../../backend/migrations/001_init.sql#L696) |
+| `uq_exam_types_id_clinic` | unique | `CONSTRAINT uq_exam_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3912](../../../backend/migrations/001_init.sql#L3912) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_exam_types_clinic_id` | NO | — | `CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id)` | [001_init.sql:2212](../../../backend/migrations/001_init.sql#L2212) |
-| `idx_exam_types_parent_id` | NO | — | `CREATE INDEX idx_exam_types_parent_id ON exam_types(parent_id)` | [001_init.sql:2213](../../../backend/migrations/001_init.sql#L2213) |
-| `idx_exam_types_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_exam_types_clinic_sort        ON exam_types(clinic_id, sort_order)              WHERE deleted_at IS NULL` | [001_init.sql:2255](../../../backend/migrations/001_init.sql#L2255) |
-| `idx_exam_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_exam_types_clinic_name ON exam_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2450](../../../backend/migrations/001_init.sql#L2450) |
-| `idx_exam_types_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_exam_types_active ON exam_types(id) WHERE deleted_at IS NULL` | [001_init.sql:2470](../../../backend/migrations/001_init.sql#L2470) |
+| `idx_exam_types_clinic_id` | NO | — | `CREATE INDEX idx_exam_types_clinic_id ON exam_types(clinic_id)` | [001_init.sql:2220](../../../backend/migrations/001_init.sql#L2220) |
+| `idx_exam_types_parent_id` | NO | — | `CREATE INDEX idx_exam_types_parent_id ON exam_types(parent_id)` | [001_init.sql:2221](../../../backend/migrations/001_init.sql#L2221) |
+| `idx_exam_types_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_exam_types_clinic_sort        ON exam_types(clinic_id, sort_order)              WHERE deleted_at IS NULL` | [001_init.sql:2263](../../../backend/migrations/001_init.sql#L2263) |
+| `idx_exam_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_exam_types_clinic_name ON exam_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2458](../../../backend/migrations/001_init.sql#L2458) |
+| `idx_exam_types_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_exam_types_active ON exam_types(id) WHERE deleted_at IS NULL` | [001_init.sql:2478](../../../backend/migrations/001_init.sql#L2478) |

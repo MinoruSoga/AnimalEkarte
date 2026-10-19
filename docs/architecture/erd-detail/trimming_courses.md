@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:987](../../../backend/migrations/001_init.sql#L987) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:988](../../../backend/migrations/001_init.sql#L988) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:989](../../../backend/migrations/001_init.sql#L989) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:990](../../../backend/migrations/001_init.sql#L990) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:991](../../../backend/migrations/001_init.sql#L991) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:992](../../../backend/migrations/001_init.sql#L992) |
-| `target_size` | `target_size` | NULL | — | — | [001_init.sql:993](../../../backend/migrations/001_init.sql#L993) |
-| `duration` | `integer` | NULL | — | — | [001_init.sql:994](../../../backend/migrations/001_init.sql#L994) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
-| `course_type_id` | `bigint` | NULL | — | FK | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:997](../../../backend/migrations/001_init.sql#L997) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:998](../../../backend/migrations/001_init.sql#L998) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:999](../../../backend/migrations/001_init.sql#L999) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:997](../../../backend/migrations/001_init.sql#L997) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:998](../../../backend/migrations/001_init.sql#L998) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:999](../../../backend/migrations/001_init.sql#L999) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1000](../../../backend/migrations/001_init.sql#L1000) |
+| `target_size` | `target_size` | NULL | — | — | [001_init.sql:1001](../../../backend/migrations/001_init.sql#L1001) |
+| `duration` | `integer` | NULL | — | — | [001_init.sql:1002](../../../backend/migrations/001_init.sql#L1002) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1003](../../../backend/migrations/001_init.sql#L1003) |
+| `course_type_id` | `bigint` | NULL | — | FK | [001_init.sql:1004](../../../backend/migrations/001_init.sql#L1004) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1005](../../../backend/migrations/001_init.sql#L1005) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1006](../../../backend/migrations/001_init.sql#L1006) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1007](../../../backend/migrations/001_init.sql#L1007) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -64,8 +64,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_courses_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:988](../../../backend/migrations/001_init.sql#L988) |
-| `trimming_courses_course_type_id_fkey` | `course_type_id` | [trimming_course_types](trimming_course_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
+| `trimming_courses_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
+| `trimming_courses_course_type_id_fkey` | `course_type_id` | [trimming_course_types](trimming_course_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1004](../../../backend/migrations/001_init.sql#L1004) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -76,14 +76,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_courses_pkey` | primary | `PRIMARY KEY` | [001_init.sql:987](../../../backend/migrations/001_init.sql#L987) |
+| `trimming_courses_pkey` | primary | `PRIMARY KEY` | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_trimming_courses_course_type_id` | NO | `course_type_id IS NOT NULL` | `CREATE INDEX idx_trimming_courses_course_type_id ON trimming_courses(course_type_id) WHERE course_type_id IS NOT NULL` | [001_init.sql:1002](../../../backend/migrations/001_init.sql#L1002) |
-| `idx_trimming_courses_clinic_id` | NO | — | `CREATE INDEX idx_trimming_courses_clinic_id ON trimming_courses(clinic_id)` | [001_init.sql:2226](../../../backend/migrations/001_init.sql#L2226) |
-| `idx_trimming_courses_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_courses_clinic_sort  ON trimming_courses(clinic_id, sort_order)        WHERE deleted_at IS NULL` | [001_init.sql:2262](../../../backend/migrations/001_init.sql#L2262) |
-| `idx_trimming_courses_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_courses_clinic_name ON trimming_courses(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2458](../../../backend/migrations/001_init.sql#L2458) |
-| `idx_trimming_courses_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_courses_active ON trimming_courses(id) WHERE deleted_at IS NULL` | [001_init.sql:2478](../../../backend/migrations/001_init.sql#L2478) |
+| `idx_trimming_courses_course_type_id` | NO | `course_type_id IS NOT NULL` | `CREATE INDEX idx_trimming_courses_course_type_id ON trimming_courses(course_type_id) WHERE course_type_id IS NOT NULL` | [001_init.sql:1010](../../../backend/migrations/001_init.sql#L1010) |
+| `idx_trimming_courses_clinic_id` | NO | — | `CREATE INDEX idx_trimming_courses_clinic_id ON trimming_courses(clinic_id)` | [001_init.sql:2234](../../../backend/migrations/001_init.sql#L2234) |
+| `idx_trimming_courses_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_courses_clinic_sort  ON trimming_courses(clinic_id, sort_order)        WHERE deleted_at IS NULL` | [001_init.sql:2270](../../../backend/migrations/001_init.sql#L2270) |
+| `idx_trimming_courses_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_courses_clinic_name ON trimming_courses(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2466](../../../backend/migrations/001_init.sql#L2466) |
+| `idx_trimming_courses_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_courses_active ON trimming_courses(id) WHERE deleted_at IS NULL` | [001_init.sql:2486](../../../backend/migrations/001_init.sql#L2486) |

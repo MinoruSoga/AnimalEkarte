@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2012](../../../backend/migrations/001_init.sql#L2012) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2013](../../../backend/migrations/001_init.sql#L2013) |
-| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2014](../../../backend/migrations/001_init.sql#L2014) |
-| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:2015](../../../backend/migrations/001_init.sql#L2015) |
-| `reason` | `text` | NOT NULL | `''` | — | [001_init.sql:2016](../../../backend/migrations/001_init.sql#L2016) |
-| `refunded_by` | `bigint` | NULL | — | FK | [001_init.sql:2017](../../../backend/migrations/001_init.sql#L2017) |
-| `refunded_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2018](../../../backend/migrations/001_init.sql#L2018) |
-| `payment_method` | `payment_method` | NULL | — | — | [001_init.sql:2019](../../../backend/migrations/001_init.sql#L2019) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2020](../../../backend/migrations/001_init.sql#L2020) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2020](../../../backend/migrations/001_init.sql#L2020) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2021](../../../backend/migrations/001_init.sql#L2021) |
+| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2022](../../../backend/migrations/001_init.sql#L2022) |
+| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:2023](../../../backend/migrations/001_init.sql#L2023) |
+| `reason` | `text` | NOT NULL | `''` | — | [001_init.sql:2024](../../../backend/migrations/001_init.sql#L2024) |
+| `refunded_by` | `bigint` | NULL | — | FK | [001_init.sql:2025](../../../backend/migrations/001_init.sql#L2025) |
+| `refunded_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2026](../../../backend/migrations/001_init.sql#L2026) |
+| `payment_method` | `payment_method` | NULL | — | — | [001_init.sql:2027](../../../backend/migrations/001_init.sql#L2027) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2028](../../../backend/migrations/001_init.sql#L2028) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,9 +60,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_refunds_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2013](../../../backend/migrations/001_init.sql#L2013) |
-| `billing_refunds_billing_id_fkey` | `billing_id` | [billings](billings.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2014](../../../backend/migrations/001_init.sql#L2014) |
-| `billing_refunds_refunded_by_fkey` | `refunded_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2017](../../../backend/migrations/001_init.sql#L2017) |
+| `billing_refunds_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2021](../../../backend/migrations/001_init.sql#L2021) |
+| `billing_refunds_billing_id_fkey` | `billing_id` | [billings](billings.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2022](../../../backend/migrations/001_init.sql#L2022) |
+| `billing_refunds_refunded_by_fkey` | `refunded_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2025](../../../backend/migrations/001_init.sql#L2025) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,13 +74,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_refunds_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2012](../../../backend/migrations/001_init.sql#L2012) |
-| `billing_refunds_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:2015](../../../backend/migrations/001_init.sql#L2015) |
+| `billing_refunds_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2020](../../../backend/migrations/001_init.sql#L2020) |
+| `billing_refunds_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:2023](../../../backend/migrations/001_init.sql#L2023) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_billing_refunds_billing` | NO | — | `CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id)` | [001_init.sql:2312](../../../backend/migrations/001_init.sql#L2312) |
-| `idx_billing_refunds_clinic_billing` | NO | — | `CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id)` | [001_init.sql:2313](../../../backend/migrations/001_init.sql#L2313) |
-| `idx_billing_refunds_staff` | NO | — | `CREATE INDEX idx_billing_refunds_staff ON billing_refunds(refunded_by)` | [001_init.sql:2315](../../../backend/migrations/001_init.sql#L2315) |
+| `idx_billing_refunds_billing` | NO | — | `CREATE INDEX idx_billing_refunds_billing ON billing_refunds(billing_id)` | [001_init.sql:2320](../../../backend/migrations/001_init.sql#L2320) |
+| `idx_billing_refunds_clinic_billing` | NO | — | `CREATE INDEX idx_billing_refunds_clinic_billing ON billing_refunds(clinic_id, billing_id)` | [001_init.sql:2321](../../../backend/migrations/001_init.sql#L2321) |
+| `idx_billing_refunds_staff` | NO | — | `CREATE INDEX idx_billing_refunds_staff ON billing_refunds(refunded_by)` | [001_init.sql:2323](../../../backend/migrations/001_init.sql#L2323) |

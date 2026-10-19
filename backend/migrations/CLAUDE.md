@@ -2,7 +2,9 @@
 
 ## DB変更の追加方針
 
-**今後のDB変更は新しい連番のmigrationファイルで行う。`001_init.sql`への追記・編集や、後続migrationの再統合は禁止。** 一度コミットされたmigration SQLは変更・削除・リネームせず、訂正も新規ファイルで行う。唯一の例外は、並行採番の衝突で、どの環境（staging・本番）にも未適用かつ冪等なファイルの番号だけを改名する場合で、ユーザーの明示判断を要する（下の「リネームの記録」）。手順と理由は[README.md](README.md)を参照する。
+**今後のDB変更は新しい連番のmigrationファイルで行う。`001_init.sql`への追記・編集や、後続migrationの再統合は禁止。** 一度コミットされたmigration SQLは変更・削除・リネームせず、訂正も新規ファイルで行う。唯一の例外は、並行採番の衝突で、どの環境（staging・本番）にも未適用かつ冪等なファイルの番号だけを改名する場合で、ユーザーの明示判断を要する。手順と理由は[README.md](README.md)を参照する。
+
+> **Current baseline (2026-10-19)**: 001〜038 を `001_init.sql` 1本へ統合済み。直下 DDL は `001_init.sql` のみ。統合前の checksum を持つ既存 DB（ローカル/STG/PROD）は reset が必要で、no-reset のアップグレード経路はない。以後の変更は必ず新しい連番ファイルで追加する。
 
 ## 命名規則
 
@@ -13,19 +15,7 @@
 
 連番は既存の最大番号 + 1。説明は snake_case。
 
-> **既知の番号重複（許容済み例外）**: `011` は `011_care_plan_items_manual_other.sql` と
-> `011_support_bug_reports.sql` の2本が存在する（2026-09-26、並行ブランチ由来の採番衝突）。
-> `schema_migrations` は filename を主キーに記録するため、適用済みファイルのリネームは
-> 禁止（未適用扱いとなり DDL が重複実行されて失敗する）。この2本は共存を維持する。
-> 新たな番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で
-> 検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
->
-> **リネームの記録（2026-10-18）**: `037` が2026-10-16に並行ブランチで衝突した（#678 の
-> `037_house_call_item_category.sql` と #680 の `037_support_manual_search.sql`）。
-> staging・本番に未適用で、両ファイルとも冪等（`IF NOT EXISTS`）なため、ユーザー判断で
-> 後発の後者を `038_support_manual_search.sql` に改名した。ローカルで適用済みの DB では
-> `schema_migrations` に旧名が残り（`reconcile_keys.go` は情報扱いで起動は止めない）、
-> 新名が未適用として再実行されるが、冪等なので失敗しない。
+> 番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
 
 ## 必須チェック
 
@@ -59,7 +49,7 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用。過去の incremental DDL は複数回に分けて原文のまま `001_init.sql` 末尾の統合セクションへ統合済み（各回の内訳・元コミット・SHA-256 は `001_init.sql` の統合セクションと git 履歴が正）。これは過去の統合履歴であり、今後の変更は新しい連番のファイルで追加する。適用済みファイルの checksum は変更しない。
+`backend/migrations/` 直下の `.sql` は DDL 専用。2026-10-19 に 001〜038 の原文を `001_init.sql` へ統合し、現在の直下 DDL は `001_init.sql` のみ。各旧ファイルの原文は `-- ===== consolidated from <filename> =====` マーカー付きで残る。今後の変更は新しい連番のファイルで追加する。適用済みファイルの checksum は変更しない。
 
 直下 DDL の顔ぶれ・本数は固定ではない（新しい増分ファイルの追加で増える）。正の在庫は次の実測とする:
 
@@ -67,11 +57,11 @@ docker compose exec db psql ...  # 直接 SQL 実行
 ls backend/migrations/*.sql
 ```
 
-seed 側の構成は `seeds/002_master/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` は master のみ）。医院骨格（clinics / 権限 / 検査 / トリミング予約種別 / 支払方法）は 002 に置く。臨床行は `_old_db_handoff` から local reset で入れる。`001_init.sql` に取り込まれた旧増分の本文は、末尾の統合セクション（セクション8・9・10 等）に原文・元コミット・SHA-256 付きで残る。
+seed 側の構成は `seeds/002_master/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` は master のみ）。医院骨格（clinics / 権限 / 検査 / トリミング予約種別 / 支払方法）は 002 に置く。臨床行は `_old_db_handoff` から local reset で入れる。`001_init.sql` に取り込まれた旧増分の本文は、`consolidated from` マーカー付きで残る。
 
-**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql` が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
+**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql`（2026-10-19 の統合前 checksum を含む）が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
 
-- **cmd/migrate は三段フェーズ構成**: ①直下の `*.sql`（本数は固定ではない。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrderForEnv(APP_ENV)` が許可した順で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。全環境 `002_master` のみ（003_demo / 004_staging 退役）。DDL 失敗時は seed フェーズへ進まない → ③`internal/seedlogin` が LoginForm と同じ合成 `stg-staff-*@example.test` を upsert（共通パスワードは local/dev/test ではコード定数、staging では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入 — 未設定ならカタログログインはロックされる。production / empty / unknown `APP_ENV` はスキップ）。CSV の `accounts.csv` は復活させない
+- **cmd/migrate は三段フェーズ構成**: ①直下の `*.sql`（現在は `001_init.sql` のみ。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrderForEnv(APP_ENV)` が許可した順で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。全環境 `002_master` のみ（003_demo / 004_staging 退役）。DDL 失敗時は seed フェーズへ進まない → ③`internal/seedlogin` が LoginForm と同じ合成 `stg-staff-*@example.test` を upsert（共通パスワードは local/dev/test ではコード定数、staging では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入 — 未設定ならカタログログインはロックされる。production / empty / unknown `APP_ENV` はスキップ）。CSV の `accounts.csv` は復活させない
 - 実行対象 CSV seedは `BundleOrderForEnv(APP_ENV)` が列挙する exact directoryだけ。`backend/migrations/seeds/_old_db_handoff/` はローカル保管用であり、`cmd/migrate` の入力bundleとして列挙しない
 - **schema_migrations の記録キー**: DDL は従来通りファイル名。CSV seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）。ログイン upsert は適用した場合のみ `"seeds/003_login"`（CSV ディレクトリは無い。checksum はカタログ指紋で、再実行時は upsert + 記録更新）。fresh DB 適用後の正しい終了状態の行数は **直下 `*.sql` の本数 + `BundleOrderForEnv` の seed 数 + ログイン seed を適用したなら 1**。DDL 本数の検算は `ls backend/migrations/*.sql`
 - **両フェーズ後のキー突合（fail-closed）**: `cmd/migrate` は適用完了後に `Migration key coverage` 行を1行出す（`missing` / `extra` / `expected` / `recorded`）。`missing=0` なら期待キーは全て記録済み。欠落があれば非ゼロ終了する。`extra` は統合・削除でディスクから消えた履歴キーであり失敗にしない。再構築の成否は固定在庫数ではなくこのサマリー行で判定する

@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [023_lab_device_mapping_drafts.sql:123](../../../backend/migrations/023_lab_device_mapping_drafts.sql#L123) |
-| `stopped` | `boolean` | NOT NULL | `false` | — | [023_lab_device_mapping_drafts.sql:124](../../../backend/migrations/023_lab_device_mapping_drafts.sql#L124) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [023_lab_device_mapping_drafts.sql:125](../../../backend/migrations/023_lab_device_mapping_drafts.sql#L125) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7083](../../../backend/migrations/001_init.sql#L7083) |
+| `stopped` | `boolean` | NOT NULL | `false` | — | [001_init.sql:7084](../../../backend/migrations/001_init.sql#L7084) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:7085](../../../backend/migrations/001_init.sql#L7085) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -40,7 +40,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_mapping_generation_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [023_lab_device_mapping_drafts.sql:123](../../../backend/migrations/023_lab_device_mapping_drafts.sql#L123) |
+| `lab_device_mapping_generation_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7083](../../../backend/migrations/001_init.sql#L7083) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -50,7 +50,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_mapping_generation_pkey` | primary | `PRIMARY KEY` | [023_lab_device_mapping_drafts.sql:123](../../../backend/migrations/023_lab_device_mapping_drafts.sql#L123) |
+| `lab_device_mapping_generation_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7083](../../../backend/migrations/001_init.sql#L7083) |
 
 ## インデックス
 

@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:464](../../../backend/migrations/001_init.sql#L464) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:465](../../../backend/migrations/001_init.sql#L465) |
-| `is_sync_enabled` | `boolean` | NOT NULL | `false` | — | [001_init.sql:466](../../../backend/migrations/001_init.sql#L466) |
-| `sync_enabled_at` | `timestamptz` | NULL | — | — | [001_init.sql:467](../../../backend/migrations/001_init.sql#L467) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:468](../../../backend/migrations/001_init.sql#L468) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:469](../../../backend/migrations/001_init.sql#L469) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:472](../../../backend/migrations/001_init.sql#L472) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:473](../../../backend/migrations/001_init.sql#L473) |
+| `is_sync_enabled` | `boolean` | NOT NULL | `false` | — | [001_init.sql:474](../../../backend/migrations/001_init.sql#L474) |
+| `sync_enabled_at` | `timestamptz` | NULL | — | — | [001_init.sql:475](../../../backend/migrations/001_init.sql#L475) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:476](../../../backend/migrations/001_init.sql#L476) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:477](../../../backend/migrations/001_init.sql#L477) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,7 +46,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_settings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:465](../../../backend/migrations/001_init.sql#L465) |
+| `lstep_settings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:473](../../../backend/migrations/001_init.sql#L473) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,11 +56,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:464](../../../backend/migrations/001_init.sql#L464) |
-| `lstep_settings_clinic_id_key` | unique | `UNIQUE` | [001_init.sql:465](../../../backend/migrations/001_init.sql#L465) |
+| `lstep_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:472](../../../backend/migrations/001_init.sql#L472) |
+| `lstep_settings_clinic_id_key` | unique | `UNIQUE` | [001_init.sql:473](../../../backend/migrations/001_init.sql#L473) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_settings_clinic_id` | NO | — | `CREATE INDEX idx_lstep_settings_clinic_id ON lstep_settings (clinic_id)` | [001_init.sql:472](../../../backend/migrations/001_init.sql#L472) |
+| `idx_lstep_settings_clinic_id` | NO | — | `CREATE INDEX idx_lstep_settings_clinic_id ON lstep_settings (clinic_id)` | [001_init.sql:480](../../../backend/migrations/001_init.sql#L480) |

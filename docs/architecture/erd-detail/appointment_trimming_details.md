@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1376](../../../backend/migrations/001_init.sql#L1376) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1377](../../../backend/migrations/001_init.sql#L1377) |
-| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1378](../../../backend/migrations/001_init.sql#L1378) |
-| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:1379](../../../backend/migrations/001_init.sql#L1379) |
-| `style_request` | `text` | NOT NULL | `''` | — | [001_init.sql:1380](../../../backend/migrations/001_init.sql#L1380) |
-| `body_weight` | `numeric(6,2)` | NULL | — | — | [001_init.sql:1381](../../../backend/migrations/001_init.sql#L1381) |
-| `bw_unit` | `body_weight_unit` | NULL | `'Kg'` | — | [001_init.sql:1382](../../../backend/migrations/001_init.sql#L1382) |
-| `body_temperature` | `numeric(4,1)` | NULL | — | — | [001_init.sql:1383](../../../backend/migrations/001_init.sql#L1383) |
-| `used_shampoo` | `text` | NOT NULL | `''` | — | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
-| `used_ribbon` | `text` | NOT NULL | `''` | — | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
-| `remarks` | `text` | NOT NULL | `''` | — | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
-| `style_image` | `text` | NOT NULL | `''` | — | [001_init.sql:1387](../../../backend/migrations/001_init.sql#L1387) |
-| `completed_image` | `text` | NOT NULL | `''` | — | [001_init.sql:1388](../../../backend/migrations/001_init.sql#L1388) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1389](../../../backend/migrations/001_init.sql#L1389) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1390](../../../backend/migrations/001_init.sql#L1390) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
+| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
+| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:1387](../../../backend/migrations/001_init.sql#L1387) |
+| `style_request` | `text` | NOT NULL | `''` | — | [001_init.sql:1388](../../../backend/migrations/001_init.sql#L1388) |
+| `body_weight` | `numeric(6,2)` | NULL | — | — | [001_init.sql:1389](../../../backend/migrations/001_init.sql#L1389) |
+| `bw_unit` | `body_weight_unit` | NULL | `'Kg'` | — | [001_init.sql:1390](../../../backend/migrations/001_init.sql#L1390) |
+| `body_temperature` | `numeric(4,1)` | NULL | — | — | [001_init.sql:1391](../../../backend/migrations/001_init.sql#L1391) |
+| `used_shampoo` | `text` | NOT NULL | `''` | — | [001_init.sql:1392](../../../backend/migrations/001_init.sql#L1392) |
+| `used_ribbon` | `text` | NOT NULL | `''` | — | [001_init.sql:1393](../../../backend/migrations/001_init.sql#L1393) |
+| `remarks` | `text` | NOT NULL | `''` | — | [001_init.sql:1394](../../../backend/migrations/001_init.sql#L1394) |
+| `style_image` | `text` | NOT NULL | `''` | — | [001_init.sql:1395](../../../backend/migrations/001_init.sql#L1395) |
+| `completed_image` | `text` | NOT NULL | `''` | — | [001_init.sql:1396](../../../backend/migrations/001_init.sql#L1396) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1397](../../../backend/migrations/001_init.sql#L1397) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1398](../../../backend/migrations/001_init.sql#L1398) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -74,10 +74,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `appointment_trimming_details_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1377](../../../backend/migrations/001_init.sql#L1377) |
-| `appointment_trimming_details_appointment_id_fkey` | `appointment_id` | [appointments](appointments.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1378](../../../backend/migrations/001_init.sql#L1378) |
-| `appointment_trimming_details_course_id_fkey` | `course_id` | [trimming_courses](trimming_courses.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1379](../../../backend/migrations/001_init.sql#L1379) |
-| `fk_appointment_trimming_details_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:5836](../../../backend/migrations/001_init.sql#L5836) |
+| `appointment_trimming_details_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
+| `appointment_trimming_details_appointment_id_fkey` | `appointment_id` | [appointments](appointments.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
+| `appointment_trimming_details_course_id_fkey` | `course_id` | [trimming_courses](trimming_courses.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1387](../../../backend/migrations/001_init.sql#L1387) |
+| `fk_appointment_trimming_details_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:5844](../../../backend/migrations/001_init.sql#L5844) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -90,11 +90,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `appointment_trimming_details_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1376](../../../backend/migrations/001_init.sql#L1376) |
-| `appointment_trimming_details_appointment_id_key` | unique | `UNIQUE` | [001_init.sql:1378](../../../backend/migrations/001_init.sql#L1378) |
+| `appointment_trimming_details_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
+| `appointment_trimming_details_appointment_id_key` | unique | `UNIQUE` | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_appt_trimming_clinic_appointment` | NO | — | `CREATE INDEX idx_appt_trimming_clinic_appointment ON appointment_trimming_details(clinic_id, appointment_id)` | [001_init.sql:1393](../../../backend/migrations/001_init.sql#L1393) |
+| `idx_appt_trimming_clinic_appointment` | NO | — | `CREATE INDEX idx_appt_trimming_clinic_appointment ON appointment_trimming_details(clinic_id, appointment_id)` | [001_init.sql:1401](../../../backend/migrations/001_init.sql#L1401) |

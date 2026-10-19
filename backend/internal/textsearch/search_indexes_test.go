@@ -13,9 +13,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/textsearch"
 )
 
-const searchFoldMigrationPath = "../../migrations/015_search_fold_indexes.sql"
+const searchFoldMigrationPath = "../../migrations/001_init.sql"
 
-// foldedColumnPairs は migrations/015_search_fold_indexes.sql が作る
+// foldedColumnPairs は consolidated 001_init.sql が作る
 // translate() 式インデックスと、検索クエリが FoldedExpr 経由で生成する
 // 式の対応表。ここに載っていない列にインデックスを追加してはいけないし、
 // ここに載っている列の式が migration とズレてもいけない。
@@ -197,13 +197,28 @@ func TestSearchFoldIndexesUsedByPlanner(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// consolidatedSection returns the portion of the consolidated 001_init.sql that
+// originated from filename, so tests can execute only that migration's DDL.
+func consolidatedSection(t *testing.T, sql, filename string) string {
+	t.Helper()
+	marker := "-- ===== consolidated from " + filename + " ====="
+	start := strings.Index(sql, marker)
+	require.GreaterOrEqual(t, start, 0, "%s section not found", filename)
+	rest := sql[start+len(marker):]
+	if end := strings.Index(rest, "-- ===== consolidated from "); end >= 0 {
+		rest = rest[:end]
+	}
+	return rest
+}
+
 // applySearchFoldMigration は migration SQL を文単位で実行する。
 // 共有テスト DB 上で再実行された場合の "already exists" は冪等として許容する。
 func applySearchFoldMigration(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	raw, err := os.ReadFile(searchFoldMigrationPath)
 	require.NoError(t, err)
-	for _, stmt := range strings.Split(string(raw), ";") {
+	sql := consolidatedSection(t, string(raw), "015_search_fold_indexes.sql")
+	for _, stmt := range strings.Split(sql, ";") {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue

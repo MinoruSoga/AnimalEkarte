@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1808](../../../backend/migrations/001_init.sql#L1808) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1809](../../../backend/migrations/001_init.sql#L1809) |
-| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1810](../../../backend/migrations/001_init.sql#L1810) |
-| `category` | `item_category` | NOT NULL | `'goods'` | — | [001_init.sql:1811](../../../backend/migrations/001_init.sql#L1811) |
-| `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1812](../../../backend/migrations/001_init.sql#L1812) |
-| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1813](../../../backend/migrations/001_init.sql#L1813) |
-| `tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:1814](../../../backend/migrations/001_init.sql#L1814) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1815](../../../backend/migrations/001_init.sql#L1815) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:1816](../../../backend/migrations/001_init.sql#L1816) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1817](../../../backend/migrations/001_init.sql#L1817) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1818](../../../backend/migrations/001_init.sql#L1818) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1819](../../../backend/migrations/001_init.sql#L1819) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1816](../../../backend/migrations/001_init.sql#L1816) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1817](../../../backend/migrations/001_init.sql#L1817) |
+| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1818](../../../backend/migrations/001_init.sql#L1818) |
+| `category` | `item_category` | NOT NULL | `'goods'` | — | [001_init.sql:1819](../../../backend/migrations/001_init.sql#L1819) |
+| `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1820](../../../backend/migrations/001_init.sql#L1820) |
+| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1821](../../../backend/migrations/001_init.sql#L1821) |
+| `tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:1822](../../../backend/migrations/001_init.sql#L1822) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1823](../../../backend/migrations/001_init.sql#L1823) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:1824](../../../backend/migrations/001_init.sql#L1824) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1825](../../../backend/migrations/001_init.sql#L1825) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1826](../../../backend/migrations/001_init.sql#L1826) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1827](../../../backend/migrations/001_init.sql#L1827) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,7 +58,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `merchandise_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1809](../../../backend/migrations/001_init.sql#L1809) |
+| `merchandise_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1817](../../../backend/migrations/001_init.sql#L1817) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,13 +68,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `merchandise_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1808](../../../backend/migrations/001_init.sql#L1808) |
+| `merchandise_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1816](../../../backend/migrations/001_init.sql#L1816) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_merchandise_items_clinic` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_merchandise_items_clinic ON merchandise_items(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2248](../../../backend/migrations/001_init.sql#L2248) |
-| `idx_merchandise_items_category` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_merchandise_items_category ON merchandise_items(clinic_id, category) WHERE deleted_at IS NULL` | [001_init.sql:2249](../../../backend/migrations/001_init.sql#L2249) |
-| `idx_merchandise_items_sort` | NO | — | `CREATE INDEX idx_merchandise_items_sort ON merchandise_items(clinic_id, sort_order)` | [001_init.sql:2250](../../../backend/migrations/001_init.sql#L2250) |
-| `idx_merchandise_items_clinic_name` | YES | `is_active = true AND deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL` | [001_init.sql:2466](../../../backend/migrations/001_init.sql#L2466) |
+| `idx_merchandise_items_clinic` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_merchandise_items_clinic ON merchandise_items(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2256](../../../backend/migrations/001_init.sql#L2256) |
+| `idx_merchandise_items_category` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_merchandise_items_category ON merchandise_items(clinic_id, category) WHERE deleted_at IS NULL` | [001_init.sql:2257](../../../backend/migrations/001_init.sql#L2257) |
+| `idx_merchandise_items_sort` | NO | — | `CREATE INDEX idx_merchandise_items_sort ON merchandise_items(clinic_id, sort_order)` | [001_init.sql:2258](../../../backend/migrations/001_init.sql#L2258) |
+| `idx_merchandise_items_clinic_name` | YES | `is_active = true AND deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_merchandise_items_clinic_name ON merchandise_items(clinic_id, name) WHERE is_active = true AND deleted_at IS NULL` | [001_init.sql:2474](../../../backend/migrations/001_init.sql#L2474) |

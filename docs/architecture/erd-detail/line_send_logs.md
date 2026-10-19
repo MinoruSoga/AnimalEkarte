@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1297](../../../backend/migrations/001_init.sql#L1297) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1298](../../../backend/migrations/001_init.sql#L1298) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1299](../../../backend/migrations/001_init.sql#L1299) |
-| `sent_by_user_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1300](../../../backend/migrations/001_init.sql#L1300) |
-| `message_type` | `varchar(20)` | NOT NULL | — | — | [001_init.sql:1301](../../../backend/migrations/001_init.sql#L1301) |
-| `content_summary` | `text` | NOT NULL | — | — | [001_init.sql:1302](../../../backend/migrations/001_init.sql#L1302) |
-| `line_message_id` | `varchar(100)` | NULL | — | — | [001_init.sql:1303](../../../backend/migrations/001_init.sql#L1303) |
-| `status` | `varchar(20)` | NOT NULL | — | — | [001_init.sql:1304](../../../backend/migrations/001_init.sql#L1304) |
-| `error_message` | `text` | NULL | — | — | [001_init.sql:1305](../../../backend/migrations/001_init.sql#L1305) |
-| `sent_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1306](../../../backend/migrations/001_init.sql#L1306) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1305](../../../backend/migrations/001_init.sql#L1305) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1306](../../../backend/migrations/001_init.sql#L1306) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1307](../../../backend/migrations/001_init.sql#L1307) |
+| `sent_by_user_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1308](../../../backend/migrations/001_init.sql#L1308) |
+| `message_type` | `varchar(20)` | NOT NULL | — | — | [001_init.sql:1309](../../../backend/migrations/001_init.sql#L1309) |
+| `content_summary` | `text` | NOT NULL | — | — | [001_init.sql:1310](../../../backend/migrations/001_init.sql#L1310) |
+| `line_message_id` | `varchar(100)` | NULL | — | — | [001_init.sql:1311](../../../backend/migrations/001_init.sql#L1311) |
+| `status` | `varchar(20)` | NOT NULL | — | — | [001_init.sql:1312](../../../backend/migrations/001_init.sql#L1312) |
+| `error_message` | `text` | NULL | — | — | [001_init.sql:1313](../../../backend/migrations/001_init.sql#L1313) |
+| `sent_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1314](../../../backend/migrations/001_init.sql#L1314) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,9 +62,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `line_send_logs_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1298](../../../backend/migrations/001_init.sql#L1298) |
-| `line_send_logs_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1299](../../../backend/migrations/001_init.sql#L1299) |
-| `line_send_logs_sent_by_user_id_fkey` | `sent_by_user_id` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1300](../../../backend/migrations/001_init.sql#L1300) |
+| `line_send_logs_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1306](../../../backend/migrations/001_init.sql#L1306) |
+| `line_send_logs_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1307](../../../backend/migrations/001_init.sql#L1307) |
+| `line_send_logs_sent_by_user_id_fkey` | `sent_by_user_id` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1308](../../../backend/migrations/001_init.sql#L1308) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -76,10 +76,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `line_send_logs_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1297](../../../backend/migrations/001_init.sql#L1297) |
+| `line_send_logs_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1305](../../../backend/migrations/001_init.sql#L1305) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_line_send_logs_clinic_owner` | NO | — | `CREATE INDEX idx_line_send_logs_clinic_owner ON line_send_logs (clinic_id, owner_id, sent_at DESC)` | [001_init.sql:1309](../../../backend/migrations/001_init.sql#L1309) |
+| `idx_line_send_logs_clinic_owner` | NO | — | `CREATE INDEX idx_line_send_logs_clinic_owner ON line_send_logs (clinic_id, owner_id, sent_at DESC)` | [001_init.sql:1317](../../../backend/migrations/001_init.sql#L1317) |

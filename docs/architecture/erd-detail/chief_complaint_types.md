@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1076](../../../backend/migrations/001_init.sql#L1076) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1077](../../../backend/migrations/001_init.sql#L1077) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:1078](../../../backend/migrations/001_init.sql#L1078) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1079](../../../backend/migrations/001_init.sql#L1079) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1080](../../../backend/migrations/001_init.sql#L1080) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1081](../../../backend/migrations/001_init.sql#L1081) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1082](../../../backend/migrations/001_init.sql#L1082) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1083](../../../backend/migrations/001_init.sql#L1083) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1084](../../../backend/migrations/001_init.sql#L1084) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1084](../../../backend/migrations/001_init.sql#L1084) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1085](../../../backend/migrations/001_init.sql#L1085) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:1086](../../../backend/migrations/001_init.sql#L1086) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1087](../../../backend/migrations/001_init.sql#L1087) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1088](../../../backend/migrations/001_init.sql#L1088) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1089](../../../backend/migrations/001_init.sql#L1089) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1090](../../../backend/migrations/001_init.sql#L1090) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1091](../../../backend/migrations/001_init.sql#L1091) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1092](../../../backend/migrations/001_init.sql#L1092) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,7 +52,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `chief_complaint_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1077](../../../backend/migrations/001_init.sql#L1077) |
+| `chief_complaint_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1085](../../../backend/migrations/001_init.sql#L1085) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,13 +62,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `chief_complaint_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1076](../../../backend/migrations/001_init.sql#L1076) |
+| `chief_complaint_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1084](../../../backend/migrations/001_init.sql#L1084) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_chief_complaint_types_clinic_id` | NO | — | `CREATE INDEX idx_chief_complaint_types_clinic_id ON chief_complaint_types(clinic_id)` | [001_init.sql:2233](../../../backend/migrations/001_init.sql#L2233) |
-| `idx_chief_complaints_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_chief_complaints_clinic_sort  ON chief_complaint_types(clinic_id, sort_order)   WHERE deleted_at IS NULL` | [001_init.sql:2259](../../../backend/migrations/001_init.sql#L2259) |
-| `idx_chief_complaint_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_chief_complaint_types_clinic_name ON chief_complaint_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2464](../../../backend/migrations/001_init.sql#L2464) |
-| `idx_chief_complaint_types_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_chief_complaint_types_active ON chief_complaint_types(id) WHERE deleted_at IS NULL` | [001_init.sql:2482](../../../backend/migrations/001_init.sql#L2482) |
+| `idx_chief_complaint_types_clinic_id` | NO | — | `CREATE INDEX idx_chief_complaint_types_clinic_id ON chief_complaint_types(clinic_id)` | [001_init.sql:2241](../../../backend/migrations/001_init.sql#L2241) |
+| `idx_chief_complaints_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_chief_complaints_clinic_sort  ON chief_complaint_types(clinic_id, sort_order)   WHERE deleted_at IS NULL` | [001_init.sql:2267](../../../backend/migrations/001_init.sql#L2267) |
+| `idx_chief_complaint_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_chief_complaint_types_clinic_name ON chief_complaint_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2472](../../../backend/migrations/001_init.sql#L2472) |
+| `idx_chief_complaint_types_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_chief_complaint_types_active ON chief_complaint_types(id) WHERE deleted_at IS NULL` | [001_init.sql:2490](../../../backend/migrations/001_init.sql#L2490) |

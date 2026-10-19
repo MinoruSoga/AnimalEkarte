@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `BIGINT` | NOT NULL | — | PK, FK | [033_lstep_next_visit_sync_retries.sql:7](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L7) |
-| `owner_id` | `BIGINT` | NOT NULL | — | PK, FK | [033_lstep_next_visit_sync_retries.sql:8](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L8) |
-| `revision` | `BIGSERIAL` | NOT NULL | — | — | [033_lstep_next_visit_sync_retries.sql:9](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L9) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [033_lstep_next_visit_sync_retries.sql:10](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L10) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [033_lstep_next_visit_sync_retries.sql:11](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L11) |
-| `cleanup_line_user_id` | `VARCHAR(64)` | NULL | — | — | [034_lstep_next_visit_cleanup_target.sql:2](../../../backend/migrations/034_lstep_next_visit_cleanup_target.sql#L2) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | PK, FK | [001_init.sql:7507](../../../backend/migrations/001_init.sql#L7507) |
+| `owner_id` | `BIGINT` | NOT NULL | — | PK, FK | [001_init.sql:7508](../../../backend/migrations/001_init.sql#L7508) |
+| `revision` | `BIGSERIAL` | NOT NULL | — | — | [001_init.sql:7509](../../../backend/migrations/001_init.sql#L7509) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:7510](../../../backend/migrations/001_init.sql#L7510) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:7511](../../../backend/migrations/001_init.sql#L7511) |
+| `cleanup_line_user_id` | `VARCHAR(64)` | NULL | — | — | [001_init.sql:7529](../../../backend/migrations/001_init.sql#L7529) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -51,8 +51,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_next_visit_sync_retries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [033_lstep_next_visit_sync_retries.sql:7](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L7) |
-| `fk_lstep_next_visit_sync_retries_owner_clinic` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [033_lstep_next_visit_sync_retries.sql:13](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L13) |
+| `lstep_next_visit_sync_retries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7507](../../../backend/migrations/001_init.sql#L7507) |
+| `fk_lstep_next_visit_sync_retries_owner_clinic` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7513](../../../backend/migrations/001_init.sql#L7513) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -63,8 +63,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_next_visit_sync_retries_pkey` | primary | `PRIMARY KEY (clinic_id, owner_id)` | [033_lstep_next_visit_sync_retries.sql:12](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql#L12) |
-| `chk_lstep_next_visit_sync_retries_cleanup_line_user_id` | check | `CONSTRAINT chk_lstep_next_visit_sync_retries_cleanup_line_user_id     CHECK (cleanup_line_user_id IS NULL OR cleanup_line_user_id ~ '^[A-Za-z0-9_-]{1,64}$')` | [034_lstep_next_visit_cleanup_target.sql:5](../../../backend/migrations/034_lstep_next_visit_cleanup_target.sql#L5) |
+| `lstep_next_visit_sync_retries_pkey` | primary | `PRIMARY KEY (clinic_id, owner_id)` | [001_init.sql:7512](../../../backend/migrations/001_init.sql#L7512) |
+| `chk_lstep_next_visit_sync_retries_cleanup_line_user_id` | check | `CONSTRAINT chk_lstep_next_visit_sync_retries_cleanup_line_user_id     CHECK (cleanup_line_user_id IS NULL OR cleanup_line_user_id ~ '^[A-Za-z0-9_-]{1,64}$')` | [001_init.sql:7532](../../../backend/migrations/001_init.sql#L7532) |
 
 ## インデックス
 

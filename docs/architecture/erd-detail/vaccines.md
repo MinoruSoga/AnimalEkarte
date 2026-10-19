@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:721](../../../backend/migrations/001_init.sql#L721) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:722](../../../backend/migrations/001_init.sql#L722) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:723](../../../backend/migrations/001_init.sql#L723) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:724](../../../backend/migrations/001_init.sql#L724) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:725](../../../backend/migrations/001_init.sql#L725) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:726](../../../backend/migrations/001_init.sql#L726) |
-| `species` | `vaccine_species` | NULL | — | — | [001_init.sql:727](../../../backend/migrations/001_init.sql#L727) |
-| `interval` | `text` | NOT NULL | `''` | — | [001_init.sql:728](../../../backend/migrations/001_init.sql#L728) |
-| `inventory_id` | `bigint` | NULL | — | FK | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
-| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:730](../../../backend/migrations/001_init.sql#L730) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:731](../../../backend/migrations/001_init.sql#L731) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:732](../../../backend/migrations/001_init.sql#L732) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:733](../../../backend/migrations/001_init.sql#L733) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:734](../../../backend/migrations/001_init.sql#L734) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:730](../../../backend/migrations/001_init.sql#L730) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:731](../../../backend/migrations/001_init.sql#L731) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:732](../../../backend/migrations/001_init.sql#L732) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:733](../../../backend/migrations/001_init.sql#L733) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:734](../../../backend/migrations/001_init.sql#L734) |
+| `species` | `vaccine_species` | NULL | — | — | [001_init.sql:735](../../../backend/migrations/001_init.sql#L735) |
+| `interval` | `text` | NOT NULL | `''` | — | [001_init.sql:736](../../../backend/migrations/001_init.sql#L736) |
+| `inventory_id` | `bigint` | NULL | — | FK | [001_init.sql:737](../../../backend/migrations/001_init.sql#L737) |
+| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:738](../../../backend/migrations/001_init.sql#L738) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:739](../../../backend/migrations/001_init.sql#L739) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:740](../../../backend/migrations/001_init.sql#L740) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:741](../../../backend/migrations/001_init.sql#L741) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:742](../../../backend/migrations/001_init.sql#L742) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,9 +67,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `vaccines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:722](../../../backend/migrations/001_init.sql#L722) |
-| `vaccines_inventory_id_fkey` | `inventory_id` | [inventory_items](inventory_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
-| `vaccines_parent_id_fkey` | `parent_id` | [vaccines](vaccines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:730](../../../backend/migrations/001_init.sql#L730) |
+| `vaccines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:730](../../../backend/migrations/001_init.sql#L730) |
+| `vaccines_inventory_id_fkey` | `inventory_id` | [inventory_items](inventory_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:737](../../../backend/migrations/001_init.sql#L737) |
+| `vaccines_parent_id_fkey` | `parent_id` | [vaccines](vaccines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:738](../../../backend/migrations/001_init.sql#L738) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -81,16 +81,16 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `vaccines_pkey` | primary | `PRIMARY KEY` | [001_init.sql:721](../../../backend/migrations/001_init.sql#L721) |
+| `vaccines_pkey` | primary | `PRIMARY KEY` | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_vaccines_clinic_id` | NO | — | `CREATE INDEX idx_vaccines_clinic_id ON vaccines(clinic_id)` | [001_init.sql:2214](../../../backend/migrations/001_init.sql#L2214) |
-| `idx_vaccines_parent_id` | NO | — | `CREATE INDEX idx_vaccines_parent_id ON vaccines(parent_id)` | [001_init.sql:2215](../../../backend/migrations/001_init.sql#L2215) |
-| `idx_vaccines_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccines_clinic_sort          ON vaccines(clinic_id, sort_order)               WHERE deleted_at IS NULL` | [001_init.sql:2253](../../../backend/migrations/001_init.sql#L2253) |
-| `idx_vaccines_inventory_id` | NO | `inventory_id IS NOT NULL` | `CREATE INDEX idx_vaccines_inventory_id ON vaccines(inventory_id) WHERE inventory_id IS NOT NULL` | [001_init.sql:2441](../../../backend/migrations/001_init.sql#L2441) |
-| `idx_vaccines_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_vaccines_clinic_name ON vaccines(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2451](../../../backend/migrations/001_init.sql#L2451) |
-| `idx_vaccines_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccines_active ON vaccines(id) WHERE deleted_at IS NULL` | [001_init.sql:2471](../../../backend/migrations/001_init.sql#L2471) |
-| `idx_vaccines_name_fold_trgm` | NO | — | `CREATE INDEX idx_vaccines_name_fold_trgm   ON vaccines USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [015_search_fold_indexes.sql:81](../../../backend/migrations/015_search_fold_indexes.sql#L81) |
+| `idx_vaccines_clinic_id` | NO | — | `CREATE INDEX idx_vaccines_clinic_id ON vaccines(clinic_id)` | [001_init.sql:2222](../../../backend/migrations/001_init.sql#L2222) |
+| `idx_vaccines_parent_id` | NO | — | `CREATE INDEX idx_vaccines_parent_id ON vaccines(parent_id)` | [001_init.sql:2223](../../../backend/migrations/001_init.sql#L2223) |
+| `idx_vaccines_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccines_clinic_sort          ON vaccines(clinic_id, sort_order)               WHERE deleted_at IS NULL` | [001_init.sql:2261](../../../backend/migrations/001_init.sql#L2261) |
+| `idx_vaccines_inventory_id` | NO | `inventory_id IS NOT NULL` | `CREATE INDEX idx_vaccines_inventory_id ON vaccines(inventory_id) WHERE inventory_id IS NOT NULL` | [001_init.sql:2449](../../../backend/migrations/001_init.sql#L2449) |
+| `idx_vaccines_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_vaccines_clinic_name ON vaccines(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2459](../../../backend/migrations/001_init.sql#L2459) |
+| `idx_vaccines_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccines_active ON vaccines(id) WHERE deleted_at IS NULL` | [001_init.sql:2479](../../../backend/migrations/001_init.sql#L2479) |
+| `idx_vaccines_name_fold_trgm` | NO | — | `CREATE INDEX idx_vaccines_name_fold_trgm   ON vaccines USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [001_init.sql:6729](../../../backend/migrations/001_init.sql#L6729) |

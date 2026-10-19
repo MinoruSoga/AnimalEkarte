@@ -32,9 +32,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-const carePlanItemManualMigrationPath = "../../migrations/011_care_plan_items_manual_other.sql"
+const carePlanItemManualMigrationPath = "../../migrations/001_init.sql"
 
-// readCarePlanItemManualMigration は migration 011 の SQL テキストを返す（path はパッケージ相対）。
+// readCarePlanItemManualMigration は consolidated 001_init.sql の SQL テキストを返す（path はパッケージ相対）。
 func readCarePlanItemManualMigration(t *testing.T) string {
 	t.Helper()
 	raw, err := os.ReadFile(carePlanItemManualMigrationPath)

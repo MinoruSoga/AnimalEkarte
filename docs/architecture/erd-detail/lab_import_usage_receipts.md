@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:5509](../../../backend/migrations/001_init.sql#L5509) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5510](../../../backend/migrations/001_init.sql#L5510) |
-| `job_id` | `UUID` | NOT NULL | — | FK | [001_init.sql:5511](../../../backend/migrations/001_init.sql#L5511) |
-| `exam_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5512](../../../backend/migrations/001_init.sql#L5512) |
-| `use_kind` | `TEXT` | NOT NULL | — | — | [001_init.sql:5513](../../../backend/migrations/001_init.sql#L5513) |
-| `actor_id` | `BIGINT` | NULL | — | — | [001_init.sql:5514](../../../backend/migrations/001_init.sql#L5514) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:5515](../../../backend/migrations/001_init.sql#L5515) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:5517](../../../backend/migrations/001_init.sql#L5517) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5518](../../../backend/migrations/001_init.sql#L5518) |
+| `job_id` | `UUID` | NOT NULL | — | FK | [001_init.sql:5519](../../../backend/migrations/001_init.sql#L5519) |
+| `exam_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5520](../../../backend/migrations/001_init.sql#L5520) |
+| `use_kind` | `TEXT` | NOT NULL | — | — | [001_init.sql:5521](../../../backend/migrations/001_init.sql#L5521) |
+| `actor_id` | `BIGINT` | NULL | — | — | [001_init.sql:5522](../../../backend/migrations/001_init.sql#L5522) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:5523](../../../backend/migrations/001_init.sql#L5523) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,8 +55,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_lab_import_usage_receipts_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5527](../../../backend/migrations/001_init.sql#L5527) |
-| `fk_lab_import_usage_receipts_clinic_exam_job` | `clinic_id, exam_id, job_id` | [exams](exams.md) | `clinic_id, id, job_id` | `ON DELETE RESTRICT` | [001_init.sql:5533](../../../backend/migrations/001_init.sql#L5533) |
+| `fk_lab_import_usage_receipts_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5535](../../../backend/migrations/001_init.sql#L5535) |
+| `fk_lab_import_usage_receipts_clinic_exam_job` | `clinic_id, exam_id, job_id` | [exams](exams.md) | `clinic_id, id, job_id` | `ON DELETE RESTRICT` | [001_init.sql:5541](../../../backend/migrations/001_init.sql#L5541) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -67,11 +67,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_import_usage_receipts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5509](../../../backend/migrations/001_init.sql#L5509) |
+| `lab_import_usage_receipts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5517](../../../backend/migrations/001_init.sql#L5517) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_import_usage_receipts_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_usage_receipts_clinic_job     ON lab_import_usage_receipts (clinic_id, job_id, exam_id, created_at, id)` | [001_init.sql:5519](../../../backend/migrations/001_init.sql#L5519) |
-| `idx_lab_import_usage_receipts_clinic_exam_job` | NO | — | `CREATE INDEX idx_lab_import_usage_receipts_clinic_exam_job     ON lab_import_usage_receipts (clinic_id, exam_id, job_id)` | [001_init.sql:5523](../../../backend/migrations/001_init.sql#L5523) |
+| `idx_lab_import_usage_receipts_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_usage_receipts_clinic_job     ON lab_import_usage_receipts (clinic_id, job_id, exam_id, created_at, id)` | [001_init.sql:5527](../../../backend/migrations/001_init.sql#L5527) |
+| `idx_lab_import_usage_receipts_clinic_exam_job` | NO | — | `CREATE INDEX idx_lab_import_usage_receipts_clinic_exam_job     ON lab_import_usage_receipts (clinic_id, exam_id, job_id)` | [001_init.sql:5531](../../../backend/migrations/001_init.sql#L5531) |

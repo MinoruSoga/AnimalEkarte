@@ -11,22 +11,22 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:920](../../../backend/migrations/001_init.sql#L920) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:921](../../../backend/migrations/001_init.sql#L921) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:922](../../../backend/migrations/001_init.sql#L922) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:923](../../../backend/migrations/001_init.sql#L923) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:924](../../../backend/migrations/001_init.sql#L924) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:925](../../../backend/migrations/001_init.sql#L925) |
-| `duration` | `integer` | NULL | — | — | [001_init.sql:926](../../../backend/migrations/001_init.sql#L926) |
-| `anesthesia` | `anesthesia_type` | NULL | `'none'` | — | [001_init.sql:927](../../../backend/migrations/001_init.sql#L927) |
-| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:928](../../../backend/migrations/001_init.sql#L928) |
-| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:929](../../../backend/migrations/001_init.sql#L929) |
-| `tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:930](../../../backend/migrations/001_init.sql#L930) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:931](../../../backend/migrations/001_init.sql#L931) |
-| `is_surgery` | `boolean` | NOT NULL | `false` | — | [001_init.sql:933](../../../backend/migrations/001_init.sql#L933) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:934](../../../backend/migrations/001_init.sql#L934) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:935](../../../backend/migrations/001_init.sql#L935) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:936](../../../backend/migrations/001_init.sql#L936) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:928](../../../backend/migrations/001_init.sql#L928) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:929](../../../backend/migrations/001_init.sql#L929) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:930](../../../backend/migrations/001_init.sql#L930) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:931](../../../backend/migrations/001_init.sql#L931) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:932](../../../backend/migrations/001_init.sql#L932) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:933](../../../backend/migrations/001_init.sql#L933) |
+| `duration` | `integer` | NULL | — | — | [001_init.sql:934](../../../backend/migrations/001_init.sql#L934) |
+| `anesthesia` | `anesthesia_type` | NULL | `'none'` | — | [001_init.sql:935](../../../backend/migrations/001_init.sql#L935) |
+| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:936](../../../backend/migrations/001_init.sql#L936) |
+| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:937](../../../backend/migrations/001_init.sql#L937) |
+| `tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:938](../../../backend/migrations/001_init.sql#L938) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:939](../../../backend/migrations/001_init.sql#L939) |
+| `is_surgery` | `boolean` | NOT NULL | `false` | — | [001_init.sql:941](../../../backend/migrations/001_init.sql#L941) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:942](../../../backend/migrations/001_init.sql#L942) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:943](../../../backend/migrations/001_init.sql#L943) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:944](../../../backend/migrations/001_init.sql#L944) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,8 +67,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `procedures_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:921](../../../backend/migrations/001_init.sql#L921) |
-| `procedures_parent_id_fkey` | `parent_id` | [procedures](procedures.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:928](../../../backend/migrations/001_init.sql#L928) |
+| `procedures_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:929](../../../backend/migrations/001_init.sql#L929) |
+| `procedures_parent_id_fkey` | `parent_id` | [procedures](procedures.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:936](../../../backend/migrations/001_init.sql#L936) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -79,17 +79,17 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `procedures_pkey` | primary | `PRIMARY KEY` | [001_init.sql:920](../../../backend/migrations/001_init.sql#L920) |
-| `uq_procedures_id_clinic` | unique | `CONSTRAINT uq_procedures_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:944](../../../backend/migrations/001_init.sql#L944) |
+| `procedures_pkey` | primary | `PRIMARY KEY` | [001_init.sql:928](../../../backend/migrations/001_init.sql#L928) |
+| `uq_procedures_id_clinic` | unique | `CONSTRAINT uq_procedures_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:952](../../../backend/migrations/001_init.sql#L952) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_procedures_clinic_is_surgery` | NO | `is_surgery = true` | `CREATE INDEX IF NOT EXISTS idx_procedures_clinic_is_surgery     ON procedures(clinic_id, is_surgery)     WHERE is_surgery = true` | [001_init.sql:939](../../../backend/migrations/001_init.sql#L939) |
-| `idx_procedures_clinic_id` | NO | — | `CREATE INDEX idx_procedures_clinic_id ON procedures(clinic_id)` | [001_init.sql:2223](../../../backend/migrations/001_init.sql#L2223) |
-| `idx_procedures_parent_id` | NO | — | `CREATE INDEX idx_procedures_parent_id ON procedures(parent_id)` | [001_init.sql:2224](../../../backend/migrations/001_init.sql#L2224) |
-| `idx_procedures_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_procedures_clinic_sort        ON procedures(clinic_id, sort_order)              WHERE deleted_at IS NULL` | [001_init.sql:2256](../../../backend/migrations/001_init.sql#L2256) |
-| `idx_procedures_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_procedures_clinic_name ON procedures(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2454](../../../backend/migrations/001_init.sql#L2454) |
-| `idx_procedures_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_procedures_active ON procedures(id) WHERE deleted_at IS NULL` | [001_init.sql:2477](../../../backend/migrations/001_init.sql#L2477) |
-| `idx_procedures_name_fold_trgm` | NO | — | `CREATE INDEX idx_procedures_name_fold_trgm   ON procedures USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [015_search_fold_indexes.sql:69](../../../backend/migrations/015_search_fold_indexes.sql#L69) |
+| `idx_procedures_clinic_is_surgery` | NO | `is_surgery = true` | `CREATE INDEX IF NOT EXISTS idx_procedures_clinic_is_surgery     ON procedures(clinic_id, is_surgery)     WHERE is_surgery = true` | [001_init.sql:947](../../../backend/migrations/001_init.sql#L947) |
+| `idx_procedures_clinic_id` | NO | — | `CREATE INDEX idx_procedures_clinic_id ON procedures(clinic_id)` | [001_init.sql:2231](../../../backend/migrations/001_init.sql#L2231) |
+| `idx_procedures_parent_id` | NO | — | `CREATE INDEX idx_procedures_parent_id ON procedures(parent_id)` | [001_init.sql:2232](../../../backend/migrations/001_init.sql#L2232) |
+| `idx_procedures_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_procedures_clinic_sort        ON procedures(clinic_id, sort_order)              WHERE deleted_at IS NULL` | [001_init.sql:2264](../../../backend/migrations/001_init.sql#L2264) |
+| `idx_procedures_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_procedures_clinic_name ON procedures(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2462](../../../backend/migrations/001_init.sql#L2462) |
+| `idx_procedures_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_procedures_active ON procedures(id) WHERE deleted_at IS NULL` | [001_init.sql:2485](../../../backend/migrations/001_init.sql#L2485) |
+| `idx_procedures_name_fold_trgm` | NO | — | `CREATE INDEX idx_procedures_name_fold_trgm   ON procedures USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [001_init.sql:6717](../../../backend/migrations/001_init.sql#L6717) |

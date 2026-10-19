@@ -11,23 +11,23 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1543](../../../backend/migrations/001_init.sql#L1543) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1544](../../../backend/migrations/001_init.sql#L1544) |
-| `chief_complaint_type_id` | `bigint` | NULL | — | FK | [001_init.sql:1545](../../../backend/migrations/001_init.sql#L1545) |
-| `chief_complaint` | `text` | NOT NULL | `''` | — | [001_init.sql:1546](../../../backend/migrations/001_init.sql#L1546) |
-| `history` | `text` | NOT NULL | `''` | — | [001_init.sql:1547](../../../backend/migrations/001_init.sql#L1547) |
-| `current_medications` | `text` | NOT NULL | `''` | — | [001_init.sql:1548](../../../backend/migrations/001_init.sql#L1548) |
-| `allergy_info` | `text` | NOT NULL | `''` | — | [001_init.sql:1549](../../../backend/migrations/001_init.sql#L1549) |
-| `last_meal` | `text` | NOT NULL | `''` | — | [001_init.sql:1550](../../../backend/migrations/001_init.sql#L1550) |
-| `last_defecation` | `text` | NOT NULL | `''` | — | [001_init.sql:1551](../../../backend/migrations/001_init.sql#L1551) |
-| `last_urination` | `text` | NOT NULL | `''` | — | [001_init.sql:1552](../../../backend/migrations/001_init.sql#L1552) |
-| `appetite` | `appetite_level` | NULL | — | — | [001_init.sql:1553](../../../backend/migrations/001_init.sql#L1553) |
-| `water_intake` | `water_intake_level` | NULL | — | — | [001_init.sql:1554](../../../backend/migrations/001_init.sql#L1554) |
-| `owner_observations` | `text` | NOT NULL | `''` | — | [001_init.sql:1555](../../../backend/migrations/001_init.sql#L1555) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1556](../../../backend/migrations/001_init.sql#L1556) |
-| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1557](../../../backend/migrations/001_init.sql#L1557) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1558](../../../backend/migrations/001_init.sql#L1558) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1559](../../../backend/migrations/001_init.sql#L1559) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1551](../../../backend/migrations/001_init.sql#L1551) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1552](../../../backend/migrations/001_init.sql#L1552) |
+| `chief_complaint_type_id` | `bigint` | NULL | — | FK | [001_init.sql:1553](../../../backend/migrations/001_init.sql#L1553) |
+| `chief_complaint` | `text` | NOT NULL | `''` | — | [001_init.sql:1554](../../../backend/migrations/001_init.sql#L1554) |
+| `history` | `text` | NOT NULL | `''` | — | [001_init.sql:1555](../../../backend/migrations/001_init.sql#L1555) |
+| `current_medications` | `text` | NOT NULL | `''` | — | [001_init.sql:1556](../../../backend/migrations/001_init.sql#L1556) |
+| `allergy_info` | `text` | NOT NULL | `''` | — | [001_init.sql:1557](../../../backend/migrations/001_init.sql#L1557) |
+| `last_meal` | `text` | NOT NULL | `''` | — | [001_init.sql:1558](../../../backend/migrations/001_init.sql#L1558) |
+| `last_defecation` | `text` | NOT NULL | `''` | — | [001_init.sql:1559](../../../backend/migrations/001_init.sql#L1559) |
+| `last_urination` | `text` | NOT NULL | `''` | — | [001_init.sql:1560](../../../backend/migrations/001_init.sql#L1560) |
+| `appetite` | `appetite_level` | NULL | — | — | [001_init.sql:1561](../../../backend/migrations/001_init.sql#L1561) |
+| `water_intake` | `water_intake_level` | NULL | — | — | [001_init.sql:1562](../../../backend/migrations/001_init.sql#L1562) |
+| `owner_observations` | `text` | NOT NULL | `''` | — | [001_init.sql:1563](../../../backend/migrations/001_init.sql#L1563) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1564](../../../backend/migrations/001_init.sql#L1564) |
+| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1565](../../../backend/migrations/001_init.sql#L1565) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1566](../../../backend/migrations/001_init.sql#L1566) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1567](../../../backend/migrations/001_init.sql#L1567) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -76,9 +76,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `inquiries_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1544](../../../backend/migrations/001_init.sql#L1544) |
-| `inquiries_chief_complaint_type_id_fkey` | `chief_complaint_type_id` | [chief_complaint_types](chief_complaint_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1545](../../../backend/migrations/001_init.sql#L1545) |
-| `inquiries_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1557](../../../backend/migrations/001_init.sql#L1557) |
+| `inquiries_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1552](../../../backend/migrations/001_init.sql#L1552) |
+| `inquiries_chief_complaint_type_id_fkey` | `chief_complaint_type_id` | [chief_complaint_types](chief_complaint_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1553](../../../backend/migrations/001_init.sql#L1553) |
+| `inquiries_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1565](../../../backend/migrations/001_init.sql#L1565) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -90,12 +90,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `inquiries_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1543](../../../backend/migrations/001_init.sql#L1543) |
-| `inquiries_medical_record_id_key` | unique | `UNIQUE` | [001_init.sql:1544](../../../backend/migrations/001_init.sql#L1544) |
+| `inquiries_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1551](../../../backend/migrations/001_init.sql#L1551) |
+| `inquiries_medical_record_id_key` | unique | `UNIQUE` | [001_init.sql:1552](../../../backend/migrations/001_init.sql#L1552) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_inquiries_medical_record_id` | NO | — | `CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id)` | [001_init.sql:2293](../../../backend/migrations/001_init.sql#L2293) |
-| `idx_inquiries_chief_complaint_fold_trgm` | NO | — | `CREATE INDEX idx_inquiries_chief_complaint_fold_trgm   ON inquiries USING gin ((translate(chief_complaint, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [015_search_fold_indexes.sql:60](../../../backend/migrations/015_search_fold_indexes.sql#L60) |
+| `idx_inquiries_medical_record_id` | NO | — | `CREATE INDEX idx_inquiries_medical_record_id ON inquiries(medical_record_id)` | [001_init.sql:2301](../../../backend/migrations/001_init.sql#L2301) |
+| `idx_inquiries_chief_complaint_fold_trgm` | NO | — | `CREATE INDEX idx_inquiries_chief_complaint_fold_trgm   ON inquiries USING gin ((translate(chief_complaint, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [001_init.sql:6708](../../../backend/migrations/001_init.sql#L6708) |

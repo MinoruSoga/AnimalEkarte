@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [021_medical_record_image_deletions.sql:7](../../../backend/migrations/021_medical_record_image_deletions.sql#L7) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [021_medical_record_image_deletions.sql:8](../../../backend/migrations/021_medical_record_image_deletions.sql#L8) |
-| `medical_record_id` | `BIGINT` | NOT NULL | — | — | [021_medical_record_image_deletions.sql:9](../../../backend/migrations/021_medical_record_image_deletions.sql#L9) |
-| `image_id` | `BIGINT` | NOT NULL | — | UK | [021_medical_record_image_deletions.sql:10](../../../backend/migrations/021_medical_record_image_deletions.sql#L10) |
-| `image_object_key` | `TEXT` | NOT NULL | `''` | — | [021_medical_record_image_deletions.sql:11](../../../backend/migrations/021_medical_record_image_deletions.sql#L11) |
-| `thumbnail_object_key` | `TEXT` | NOT NULL | `''` | — | [021_medical_record_image_deletions.sql:12](../../../backend/migrations/021_medical_record_image_deletions.sql#L12) |
-| `storage_status` | `TEXT` | NOT NULL | — | — | [021_medical_record_image_deletions.sql:13](../../../backend/migrations/021_medical_record_image_deletions.sql#L13) |
-| `attempt_count` | `INTEGER` | NOT NULL | `0` | — | [021_medical_record_image_deletions.sql:14](../../../backend/migrations/021_medical_record_image_deletions.sql#L14) |
-| `last_error` | `TEXT` | NOT NULL | `''` | — | [021_medical_record_image_deletions.sql:15](../../../backend/migrations/021_medical_record_image_deletions.sql#L15) |
-| `actor_staff_id` | `BIGINT` | NOT NULL | — | — | [021_medical_record_image_deletions.sql:16](../../../backend/migrations/021_medical_record_image_deletions.sql#L16) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [021_medical_record_image_deletions.sql:17](../../../backend/migrations/021_medical_record_image_deletions.sql#L17) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [021_medical_record_image_deletions.sql:18](../../../backend/migrations/021_medical_record_image_deletions.sql#L18) |
-| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [021_medical_record_image_deletions.sql:19](../../../backend/migrations/021_medical_record_image_deletions.sql#L19) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:6902](../../../backend/migrations/001_init.sql#L6902) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:6903](../../../backend/migrations/001_init.sql#L6903) |
+| `medical_record_id` | `BIGINT` | NOT NULL | — | — | [001_init.sql:6904](../../../backend/migrations/001_init.sql#L6904) |
+| `image_id` | `BIGINT` | NOT NULL | — | UK | [001_init.sql:6905](../../../backend/migrations/001_init.sql#L6905) |
+| `image_object_key` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:6906](../../../backend/migrations/001_init.sql#L6906) |
+| `thumbnail_object_key` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:6907](../../../backend/migrations/001_init.sql#L6907) |
+| `storage_status` | `TEXT` | NOT NULL | — | — | [001_init.sql:6908](../../../backend/migrations/001_init.sql#L6908) |
+| `attempt_count` | `INTEGER` | NOT NULL | `0` | — | [001_init.sql:6909](../../../backend/migrations/001_init.sql#L6909) |
+| `last_error` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:6910](../../../backend/migrations/001_init.sql#L6910) |
+| `actor_staff_id` | `BIGINT` | NOT NULL | — | — | [001_init.sql:6911](../../../backend/migrations/001_init.sql#L6911) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:6912](../../../backend/migrations/001_init.sql#L6912) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:6913](../../../backend/migrations/001_init.sql#L6913) |
+| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:6914](../../../backend/migrations/001_init.sql#L6914) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,7 +60,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_record_image_deletions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [021_medical_record_image_deletions.sql:8](../../../backend/migrations/021_medical_record_image_deletions.sql#L8) |
+| `medical_record_image_deletions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6903](../../../backend/migrations/001_init.sql#L6903) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -70,12 +70,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_image_deletions_pkey` | primary | `PRIMARY KEY` | [021_medical_record_image_deletions.sql:7](../../../backend/migrations/021_medical_record_image_deletions.sql#L7) |
-| `medical_record_image_deletions_status_check` | check | `CONSTRAINT medical_record_image_deletions_status_check         CHECK (storage_status IN ('pending_storage', 'storage_deleted', 'retained_shared'))` | [021_medical_record_image_deletions.sql:20](../../../backend/migrations/021_medical_record_image_deletions.sql#L20) |
-| `medical_record_image_deletions_clinic_image_uidx` | unique | `CONSTRAINT medical_record_image_deletions_clinic_image_uidx         UNIQUE (clinic_id, image_id)` | [021_medical_record_image_deletions.sql:22](../../../backend/migrations/021_medical_record_image_deletions.sql#L22) |
+| `medical_record_image_deletions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6902](../../../backend/migrations/001_init.sql#L6902) |
+| `medical_record_image_deletions_status_check` | check | `CONSTRAINT medical_record_image_deletions_status_check         CHECK (storage_status IN ('pending_storage', 'storage_deleted', 'retained_shared'))` | [001_init.sql:6915](../../../backend/migrations/001_init.sql#L6915) |
+| `medical_record_image_deletions_clinic_image_uidx` | unique | `CONSTRAINT medical_record_image_deletions_clinic_image_uidx         UNIQUE (clinic_id, image_id)` | [001_init.sql:6917](../../../backend/migrations/001_init.sql#L6917) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_medical_record_image_deletions_clinic_record` | NO | — | `CREATE INDEX idx_medical_record_image_deletions_clinic_record     ON medical_record_image_deletions (clinic_id, medical_record_id)` | [021_medical_record_image_deletions.sql:26](../../../backend/migrations/021_medical_record_image_deletions.sql#L26) |
+| `idx_medical_record_image_deletions_clinic_record` | NO | — | `CREATE INDEX idx_medical_record_image_deletions_clinic_record     ON medical_record_image_deletions (clinic_id, medical_record_id)` | [001_init.sql:6921](../../../backend/migrations/001_init.sql#L6921) |

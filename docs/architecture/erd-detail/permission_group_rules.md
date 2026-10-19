@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1216](../../../backend/migrations/001_init.sql#L1216) |
-| `group_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1217](../../../backend/migrations/001_init.sql#L1217) |
-| `resource` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:1218](../../../backend/migrations/001_init.sql#L1218) |
-| `can_view` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1219](../../../backend/migrations/001_init.sql#L1219) |
-| `can_create` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1220](../../../backend/migrations/001_init.sql#L1220) |
-| `can_edit` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1221](../../../backend/migrations/001_init.sql#L1221) |
-| `can_delete` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1222](../../../backend/migrations/001_init.sql#L1222) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1223](../../../backend/migrations/001_init.sql#L1223) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1224](../../../backend/migrations/001_init.sql#L1224) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1225](../../../backend/migrations/001_init.sql#L1225) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1224](../../../backend/migrations/001_init.sql#L1224) |
+| `group_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1225](../../../backend/migrations/001_init.sql#L1225) |
+| `resource` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:1226](../../../backend/migrations/001_init.sql#L1226) |
+| `can_view` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1227](../../../backend/migrations/001_init.sql#L1227) |
+| `can_create` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1228](../../../backend/migrations/001_init.sql#L1228) |
+| `can_edit` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1229](../../../backend/migrations/001_init.sql#L1229) |
+| `can_delete` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1230](../../../backend/migrations/001_init.sql#L1230) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1231](../../../backend/migrations/001_init.sql#L1231) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1232](../../../backend/migrations/001_init.sql#L1232) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1233](../../../backend/migrations/001_init.sql#L1233) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `permission_group_rules_group_id_fkey` | `group_id` | [permission_groups](permission_groups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1217](../../../backend/migrations/001_init.sql#L1217) |
+| `permission_group_rules_group_id_fkey` | `group_id` | [permission_groups](permission_groups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1225](../../../backend/migrations/001_init.sql#L1225) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,12 +64,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `permission_group_rules_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1216](../../../backend/migrations/001_init.sql#L1216) |
-| `uk_permission_group_rules` | unique | `CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)` | [001_init.sql:1226](../../../backend/migrations/001_init.sql#L1226) |
+| `permission_group_rules_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1224](../../../backend/migrations/001_init.sql#L1224) |
+| `uk_permission_group_rules` | unique | `CONSTRAINT uk_permission_group_rules UNIQUE (group_id, resource)` | [001_init.sql:1234](../../../backend/migrations/001_init.sql#L1234) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_permission_group_rules_group` | NO | — | `CREATE INDEX idx_permission_group_rules_group ON permission_group_rules(group_id)` | [001_init.sql:1229](../../../backend/migrations/001_init.sql#L1229) |
-| `idx_permission_group_rules_deleted_at` | NO | — | `CREATE INDEX idx_permission_group_rules_deleted_at ON permission_group_rules(deleted_at)` | [001_init.sql:1230](../../../backend/migrations/001_init.sql#L1230) |
+| `idx_permission_group_rules_group` | NO | — | `CREATE INDEX idx_permission_group_rules_group ON permission_group_rules(group_id)` | [001_init.sql:1237](../../../backend/migrations/001_init.sql#L1237) |
+| `idx_permission_group_rules_deleted_at` | NO | — | `CREATE INDEX idx_permission_group_rules_deleted_at ON permission_group_rules(deleted_at)` | [001_init.sql:1238](../../../backend/migrations/001_init.sql#L1238) |

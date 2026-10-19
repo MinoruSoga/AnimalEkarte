@@ -1,7 +1,7 @@
 # STG データライフサイクル
 
 > **目的**: master seed、運用アカウント、smoke/investigation dataの作成・cleanup境界を定義する。
-> **現行contract**: 全 `APP_ENV` でseed bundleは `002_master` のみ。`003_demo` / `004_staging` は退役済み。
+> **現行contract**: 全 `APP_ENV` でseed bundleは `002_master` のみ。`003_demo` / `004_staging` は退役済み。2026-10-19 に 001〜038 を `001_init.sql` へ統合済みで、統合前の checksum を持つ STG は [STG_PLANETSCALE_SEED_RUNBOOK.md](STG_PLANETSCALE_SEED_RUNBOOK.md) §6.1 の再構築が必要。
 
 ## 1. 分類
 

@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:1990](../../../backend/migrations/001_init.sql#L1990) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1991](../../../backend/migrations/001_init.sql#L1991) |
-| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1992](../../../backend/migrations/001_init.sql#L1992) |
-| `method` | `payment_method` | NOT NULL | — | — | [001_init.sql:1993](../../../backend/migrations/001_init.sql#L1993) |
-| `payment_method_id` | `bigint` | NULL | — | FK | [001_init.sql:1994](../../../backend/migrations/001_init.sql#L1994) |
-| `amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1995](../../../backend/migrations/001_init.sql#L1995) |
-| `received_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1996](../../../backend/migrations/001_init.sql#L1996) |
-| `change_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1997](../../../backend/migrations/001_init.sql#L1997) |
-| `paid_by` | `bigint` | NULL | — | FK | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1999](../../../backend/migrations/001_init.sql#L1999) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1999](../../../backend/migrations/001_init.sql#L1999) |
+| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2000](../../../backend/migrations/001_init.sql#L2000) |
+| `method` | `payment_method` | NOT NULL | — | — | [001_init.sql:2001](../../../backend/migrations/001_init.sql#L2001) |
+| `payment_method_id` | `bigint` | NULL | — | FK | [001_init.sql:2002](../../../backend/migrations/001_init.sql#L2002) |
+| `amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2003](../../../backend/migrations/001_init.sql#L2003) |
+| `received_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2004](../../../backend/migrations/001_init.sql#L2004) |
+| `change_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2005](../../../backend/migrations/001_init.sql#L2005) |
+| `paid_by` | `bigint` | NULL | — | FK | [001_init.sql:2006](../../../backend/migrations/001_init.sql#L2006) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2007](../../../backend/migrations/001_init.sql#L2007) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -68,11 +68,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `payment_splits_billing_id_fkey` | `billing_id` | [billings](billings.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1992](../../../backend/migrations/001_init.sql#L1992) |
-| `payment_splits_payment_method_id_fkey` | `payment_method_id` | [payment_methods](payment_methods.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1994](../../../backend/migrations/001_init.sql#L1994) |
-| `payment_splits_paid_by_fkey` | `paid_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
-| `fk_payment_splits_clinic_id` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2000](../../../backend/migrations/001_init.sql#L2000) |
-| `fk_payment_splits_payment_method_clinic` | `payment_method_id, clinic_id` | [payment_methods](payment_methods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:4017](../../../backend/migrations/001_init.sql#L4017) |
+| `payment_splits_billing_id_fkey` | `billing_id` | [billings](billings.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2000](../../../backend/migrations/001_init.sql#L2000) |
+| `payment_splits_payment_method_id_fkey` | `payment_method_id` | [payment_methods](payment_methods.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2002](../../../backend/migrations/001_init.sql#L2002) |
+| `payment_splits_paid_by_fkey` | `paid_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2006](../../../backend/migrations/001_init.sql#L2006) |
+| `fk_payment_splits_clinic_id` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2008](../../../backend/migrations/001_init.sql#L2008) |
+| `fk_payment_splits_payment_method_clinic` | `payment_method_id, clinic_id` | [payment_methods](payment_methods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:4025](../../../backend/migrations/001_init.sql#L4025) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,11 +86,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `payment_splits_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1990](../../../backend/migrations/001_init.sql#L1990) |
+| `payment_splits_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1998](../../../backend/migrations/001_init.sql#L1998) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_payment_splits_clinic_billing` | NO | — | `CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, billing_id)` | [001_init.sql:2006](../../../backend/migrations/001_init.sql#L2006) |
-| `idx_payment_splits_billing_id` | NO | — | `CREATE INDEX IF NOT EXISTS idx_payment_splits_billing_id     ON payment_splits (billing_id)` | [001_init.sql:3896](../../../backend/migrations/001_init.sql#L3896) |
+| `idx_payment_splits_clinic_billing` | NO | — | `CREATE INDEX idx_payment_splits_clinic_billing ON payment_splits(clinic_id, billing_id)` | [001_init.sql:2014](../../../backend/migrations/001_init.sql#L2014) |
+| `idx_payment_splits_billing_id` | NO | — | `CREATE INDEX IF NOT EXISTS idx_payment_splits_billing_id     ON payment_splits (billing_id)` | [001_init.sql:3904](../../../backend/migrations/001_init.sql#L3904) |

@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1157](../../../backend/migrations/001_init.sql#L1157) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1158](../../../backend/migrations/001_init.sql#L1158) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1159](../../../backend/migrations/001_init.sql#L1159) |
-| `condition_code` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1160](../../../backend/migrations/001_init.sql#L1160) |
-| `condition_name` | `varchar(100)` | NOT NULL | — | — | [001_init.sql:1161](../../../backend/migrations/001_init.sql#L1161) |
-| `diagnosed_at` | `date` | NOT NULL | — | — | [001_init.sql:1162](../../../backend/migrations/001_init.sql#L1162) |
-| `notes` | `text` | NULL | — | — | [001_init.sql:1163](../../../backend/migrations/001_init.sql#L1163) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1164](../../../backend/migrations/001_init.sql#L1164) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1165](../../../backend/migrations/001_init.sql#L1165) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1166](../../../backend/migrations/001_init.sql#L1166) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1167](../../../backend/migrations/001_init.sql#L1167) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1165](../../../backend/migrations/001_init.sql#L1165) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1166](../../../backend/migrations/001_init.sql#L1166) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1167](../../../backend/migrations/001_init.sql#L1167) |
+| `condition_code` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1168](../../../backend/migrations/001_init.sql#L1168) |
+| `condition_name` | `varchar(100)` | NOT NULL | — | — | [001_init.sql:1169](../../../backend/migrations/001_init.sql#L1169) |
+| `diagnosed_at` | `date` | NOT NULL | — | — | [001_init.sql:1170](../../../backend/migrations/001_init.sql#L1170) |
+| `notes` | `text` | NULL | — | — | [001_init.sql:1171](../../../backend/migrations/001_init.sql#L1171) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1172](../../../backend/migrations/001_init.sql#L1172) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1173](../../../backend/migrations/001_init.sql#L1173) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1174](../../../backend/migrations/001_init.sql#L1174) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1175](../../../backend/migrations/001_init.sql#L1175) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,8 +60,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `pet_chronic_conditions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1158](../../../backend/migrations/001_init.sql#L1158) |
-| `pet_chronic_conditions_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1159](../../../backend/migrations/001_init.sql#L1159) |
+| `pet_chronic_conditions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1166](../../../backend/migrations/001_init.sql#L1166) |
+| `pet_chronic_conditions_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1167](../../../backend/migrations/001_init.sql#L1167) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,10 +72,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `pet_chronic_conditions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1157](../../../backend/migrations/001_init.sql#L1157) |
+| `pet_chronic_conditions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1165](../../../backend/migrations/001_init.sql#L1165) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_pet_chronic_conditions_clinic_pet` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_pet_chronic_conditions_clinic_pet     ON pet_chronic_conditions (clinic_id, pet_id)     WHERE deleted_at IS NULL` | [001_init.sql:1170](../../../backend/migrations/001_init.sql#L1170) |
+| `idx_pet_chronic_conditions_clinic_pet` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_pet_chronic_conditions_clinic_pet     ON pet_chronic_conditions (clinic_id, pet_id)     WHERE deleted_at IS NULL` | [001_init.sql:1178](../../../backend/migrations/001_init.sql#L1178) |

@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4662](../../../backend/migrations/001_init.sql#L4662) |
-| `group_created_clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4663](../../../backend/migrations/001_init.sql#L4663) |
-| `group_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4664](../../../backend/migrations/001_init.sql#L4664) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4665](../../../backend/migrations/001_init.sql#L4665) |
-| `pet_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4666](../../../backend/migrations/001_init.sql#L4666) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4667](../../../backend/migrations/001_init.sql#L4667) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4668](../../../backend/migrations/001_init.sql#L4668) |
-| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4669](../../../backend/migrations/001_init.sql#L4669) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4670](../../../backend/migrations/001_init.sql#L4670) |
+| `group_created_clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4671](../../../backend/migrations/001_init.sql#L4671) |
+| `group_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4672](../../../backend/migrations/001_init.sql#L4672) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4673](../../../backend/migrations/001_init.sql#L4673) |
+| `pet_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4674](../../../backend/migrations/001_init.sql#L4674) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4675](../../../backend/migrations/001_init.sql#L4675) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4676](../../../backend/migrations/001_init.sql#L4676) |
+| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4677](../../../backend/migrations/001_init.sql#L4677) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -56,8 +56,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `pet_identity_group_members_group_created_clinic_id_group_i_fkey` | `group_created_clinic_id, group_id` | [pet_identity_groups](pet_identity_groups.md) | `created_clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4670](../../../backend/migrations/001_init.sql#L4670) |
-| `pet_identity_group_members_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4672](../../../backend/migrations/001_init.sql#L4672) |
+| `pet_identity_group_members_group_created_clinic_id_group_i_fkey` | `group_created_clinic_id, group_id` | [pet_identity_groups](pet_identity_groups.md) | `created_clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4678](../../../backend/migrations/001_init.sql#L4678) |
+| `pet_identity_group_members_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4680](../../../backend/migrations/001_init.sql#L4680) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,12 +68,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `pet_identity_group_members_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4662](../../../backend/migrations/001_init.sql#L4662) |
+| `pet_identity_group_members_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4670](../../../backend/migrations/001_init.sql#L4670) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_pet_identity_active_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_pet_identity_active_member     ON pet_identity_group_members(clinic_id, pet_id)     WHERE deleted_at IS NULL` | [001_init.sql:4676](../../../backend/migrations/001_init.sql#L4676) |
-| `uq_pet_identity_active_group_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_pet_identity_active_group_member     ON pet_identity_group_members(group_id, clinic_id, pet_id)     WHERE deleted_at IS NULL` | [001_init.sql:4680](../../../backend/migrations/001_init.sql#L4680) |
-| `idx_pet_identity_group_members_group` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_pet_identity_group_members_group     ON pet_identity_group_members(group_id)     WHERE deleted_at IS NULL` | [001_init.sql:4684](../../../backend/migrations/001_init.sql#L4684) |
+| `uq_pet_identity_active_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_pet_identity_active_member     ON pet_identity_group_members(clinic_id, pet_id)     WHERE deleted_at IS NULL` | [001_init.sql:4684](../../../backend/migrations/001_init.sql#L4684) |
+| `uq_pet_identity_active_group_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_pet_identity_active_group_member     ON pet_identity_group_members(group_id, clinic_id, pet_id)     WHERE deleted_at IS NULL` | [001_init.sql:4688](../../../backend/migrations/001_init.sql#L4688) |
+| `idx_pet_identity_group_members_group` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_pet_identity_group_members_group     ON pet_identity_group_members(group_id)     WHERE deleted_at IS NULL` | [001_init.sql:4692](../../../backend/migrations/001_init.sql#L4692) |

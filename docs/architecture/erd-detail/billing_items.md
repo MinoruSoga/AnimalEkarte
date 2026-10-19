@@ -11,32 +11,32 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1914](../../../backend/migrations/001_init.sql#L1914) |
-| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1915](../../../backend/migrations/001_init.sql#L1915) |
-| `category` | `item_category` | NOT NULL | — | — | [001_init.sql:1916](../../../backend/migrations/001_init.sql#L1916) |
-| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1917](../../../backend/migrations/001_init.sql#L1917) |
-| `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1918](../../../backend/migrations/001_init.sql#L1918) |
-| `quantity` | `numeric(10,1)` | NOT NULL | `1` | — | [001_init.sql:1919](../../../backend/migrations/001_init.sql#L1919) |
-| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1920](../../../backend/migrations/001_init.sql#L1920) |
-| `tax_rate` | `numeric(3,2)` | NULL | `0.10` | — | [001_init.sql:1921](../../../backend/migrations/001_init.sql#L1921) |
-| `is_insurance_applicable` | `boolean` | NULL | `false` | — | [001_init.sql:1922](../../../backend/migrations/001_init.sql#L1922) |
-| `source` | `item_source` | NULL | `'manual'` | — | [001_init.sql:1923](../../../backend/migrations/001_init.sql#L1923) |
-| `merchandise_item_id` | `bigint` | NULL | — | FK | [001_init.sql:1924](../../../backend/migrations/001_init.sql#L1924) |
-| `treatment_id` | `bigint` | NULL | — | FK | [001_init.sql:1925](../../../backend/migrations/001_init.sql#L1925) |
-| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:1926](../../../backend/migrations/001_init.sql#L1926) |
-| `trimming_course_id` | `bigint` | NULL | — | FK | [001_init.sql:1927](../../../backend/migrations/001_init.sql#L1927) |
-| `trimming_option_id` | `bigint` | NULL | — | FK | [001_init.sql:1928](../../../backend/migrations/001_init.sql#L1928) |
-| `discount_rate` | `numeric(5,2)` | NOT NULL | `0` | — | [001_init.sql:1929](../../../backend/migrations/001_init.sql#L1929) |
-| `discount_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1930](../../../backend/migrations/001_init.sql#L1930) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1931](../../../backend/migrations/001_init.sql#L1931) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1932](../../../backend/migrations/001_init.sql#L1932) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1933](../../../backend/migrations/001_init.sql#L1933) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1934](../../../backend/migrations/001_init.sql#L1934) |
-| `vaccination_id` | `bigint` | NULL | — | FK | [001_init.sql:4034](../../../backend/migrations/001_init.sql#L4034) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6177](../../../backend/migrations/001_init.sql#L6177) |
-| `other_reason` | `text` | NULL | — | — | [001_init.sql:4076](../../../backend/migrations/001_init.sql#L4076) |
-| `created_by` | `bigint` | NULL | — | FK | [001_init.sql:4077](../../../backend/migrations/001_init.sql#L4077) |
-| `exam_id` | `bigint` | NULL | — | FK | [001_init.sql:6169](../../../backend/migrations/001_init.sql#L6169) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1922](../../../backend/migrations/001_init.sql#L1922) |
+| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1923](../../../backend/migrations/001_init.sql#L1923) |
+| `category` | `item_category` | NOT NULL | — | — | [001_init.sql:1924](../../../backend/migrations/001_init.sql#L1924) |
+| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1925](../../../backend/migrations/001_init.sql#L1925) |
+| `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1926](../../../backend/migrations/001_init.sql#L1926) |
+| `quantity` | `numeric(10,1)` | NOT NULL | `1` | — | [001_init.sql:1927](../../../backend/migrations/001_init.sql#L1927) |
+| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1928](../../../backend/migrations/001_init.sql#L1928) |
+| `tax_rate` | `numeric(3,2)` | NULL | `0.10` | — | [001_init.sql:1929](../../../backend/migrations/001_init.sql#L1929) |
+| `is_insurance_applicable` | `boolean` | NULL | `false` | — | [001_init.sql:1930](../../../backend/migrations/001_init.sql#L1930) |
+| `source` | `item_source` | NULL | `'manual'` | — | [001_init.sql:1931](../../../backend/migrations/001_init.sql#L1931) |
+| `merchandise_item_id` | `bigint` | NULL | — | FK | [001_init.sql:1932](../../../backend/migrations/001_init.sql#L1932) |
+| `treatment_id` | `bigint` | NULL | — | FK | [001_init.sql:1933](../../../backend/migrations/001_init.sql#L1933) |
+| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:1934](../../../backend/migrations/001_init.sql#L1934) |
+| `trimming_course_id` | `bigint` | NULL | — | FK | [001_init.sql:1935](../../../backend/migrations/001_init.sql#L1935) |
+| `trimming_option_id` | `bigint` | NULL | — | FK | [001_init.sql:1936](../../../backend/migrations/001_init.sql#L1936) |
+| `discount_rate` | `numeric(5,2)` | NOT NULL | `0` | — | [001_init.sql:1937](../../../backend/migrations/001_init.sql#L1937) |
+| `discount_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1938](../../../backend/migrations/001_init.sql#L1938) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1939](../../../backend/migrations/001_init.sql#L1939) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1940](../../../backend/migrations/001_init.sql#L1940) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1941](../../../backend/migrations/001_init.sql#L1941) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1942](../../../backend/migrations/001_init.sql#L1942) |
+| `vaccination_id` | `bigint` | NULL | — | FK | [001_init.sql:4042](../../../backend/migrations/001_init.sql#L4042) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6185](../../../backend/migrations/001_init.sql#L6185) |
+| `other_reason` | `text` | NULL | — | — | [001_init.sql:4084](../../../backend/migrations/001_init.sql#L4084) |
+| `created_by` | `bigint` | NULL | — | FK | [001_init.sql:4085](../../../backend/migrations/001_init.sql#L4085) |
+| `exam_id` | `bigint` | NULL | — | FK | [001_init.sql:6177](../../../backend/migrations/001_init.sql#L6177) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -123,16 +123,16 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_items_billing_id_fkey` | `billing_id` | [billings](billings.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1915](../../../backend/migrations/001_init.sql#L1915) |
-| `fk_billing_items_merchandise` | `merchandise_item_id` | [merchandise_items](merchandise_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1924](../../../backend/migrations/001_init.sql#L1924) |
-| `billing_items_treatment_id_fkey` | `treatment_id` | [treatments](treatments.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1925](../../../backend/migrations/001_init.sql#L1925) |
-| `billing_items_trimming_course_id_fkey` | `trimming_course_id` | [trimming_courses](trimming_courses.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1927](../../../backend/migrations/001_init.sql#L1927) |
-| `billing_items_trimming_option_id_fkey` | `trimming_option_id` | [trimming_options](trimming_options.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1928](../../../backend/migrations/001_init.sql#L1928) |
-| `fk_billing_items_billing_clinic` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE NO ACTION` | [001_init.sql:4049](../../../backend/migrations/001_init.sql#L4049) |
-| `fk_billing_items_vaccination_clinic` | `vaccination_id, clinic_id` | [vaccinations](vaccinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:4052](../../../backend/migrations/001_init.sql#L4052) |
-| `fk_billing_items_created_by` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4078](../../../backend/migrations/001_init.sql#L4078) |
-| `fk_billing_items_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE SET NULL (appointment_id)` | [001_init.sql:6181](../../../backend/migrations/001_init.sql#L6181) |
-| `fk_billing_items_exam_clinic` | `exam_id, clinic_id` | [exams](exams.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:6194](../../../backend/migrations/001_init.sql#L6194) |
+| `billing_items_billing_id_fkey` | `billing_id` | [billings](billings.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1923](../../../backend/migrations/001_init.sql#L1923) |
+| `fk_billing_items_merchandise` | `merchandise_item_id` | [merchandise_items](merchandise_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1932](../../../backend/migrations/001_init.sql#L1932) |
+| `billing_items_treatment_id_fkey` | `treatment_id` | [treatments](treatments.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1933](../../../backend/migrations/001_init.sql#L1933) |
+| `billing_items_trimming_course_id_fkey` | `trimming_course_id` | [trimming_courses](trimming_courses.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1935](../../../backend/migrations/001_init.sql#L1935) |
+| `billing_items_trimming_option_id_fkey` | `trimming_option_id` | [trimming_options](trimming_options.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1936](../../../backend/migrations/001_init.sql#L1936) |
+| `fk_billing_items_billing_clinic` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE NO ACTION` | [001_init.sql:4057](../../../backend/migrations/001_init.sql#L4057) |
+| `fk_billing_items_vaccination_clinic` | `vaccination_id, clinic_id` | [vaccinations](vaccinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:4060](../../../backend/migrations/001_init.sql#L4060) |
+| `fk_billing_items_created_by` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4086](../../../backend/migrations/001_init.sql#L4086) |
+| `fk_billing_items_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE SET NULL (appointment_id)` | [001_init.sql:6189](../../../backend/migrations/001_init.sql#L6189) |
+| `fk_billing_items_exam_clinic` | `exam_id, clinic_id` | [exams](exams.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:6202](../../../backend/migrations/001_init.sql#L6202) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -151,23 +151,23 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1914](../../../backend/migrations/001_init.sql#L1914) |
-| `chk_billing_item_quantity` | check | `CONSTRAINT chk_billing_item_quantity CHECK (quantity > 0)` | [001_init.sql:1935](../../../backend/migrations/001_init.sql#L1935) |
-| `chk_billing_items_provenance_exclusive` | check | `CONSTRAINT chk_billing_items_provenance_exclusive         CHECK (num_nonnulls(vaccination_id, exam_id) <= 1)` | [001_init.sql:6187](../../../backend/migrations/001_init.sql#L6187) |
+| `billing_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1922](../../../backend/migrations/001_init.sql#L1922) |
+| `chk_billing_item_quantity` | check | `CONSTRAINT chk_billing_item_quantity CHECK (quantity > 0)` | [001_init.sql:1943](../../../backend/migrations/001_init.sql#L1943) |
+| `chk_billing_items_provenance_exclusive` | check | `CONSTRAINT chk_billing_items_provenance_exclusive         CHECK (num_nonnulls(vaccination_id, exam_id) <= 1)` | [001_init.sql:6195](../../../backend/migrations/001_init.sql#L6195) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_billing_items_merchandise_item_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_billing_items_merchandise_item_id  ON billing_items(merchandise_item_id)  WHERE deleted_at IS NULL` | [001_init.sql:2168](../../../backend/migrations/001_init.sql#L2168) |
-| `idx_billing_items_treatment_id` | NO | `treatment_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_treatment_id         ON billing_items(treatment_id)         WHERE treatment_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2169](../../../backend/migrations/001_init.sql#L2169) |
-| `idx_billing_items_appointment_id` | NO | `appointment_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_appointment_id       ON billing_items(appointment_id)       WHERE appointment_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2170](../../../backend/migrations/001_init.sql#L2170) |
-| `idx_billing_items_trimming_course_id` | NO | `trimming_course_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_trimming_course_id   ON billing_items(trimming_course_id)   WHERE trimming_course_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2171](../../../backend/migrations/001_init.sql#L2171) |
-| `idx_billing_items_trimming_option_id` | NO | `trimming_option_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_trimming_option_id   ON billing_items(trimming_option_id)   WHERE trimming_option_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2172](../../../backend/migrations/001_init.sql#L2172) |
-| `idx_billing_items_billing_id` | NO | — | `CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id)` | [001_init.sql:2307](../../../backend/migrations/001_init.sql#L2307) |
-| `idx_billing_items_deleted_at` | NO | — | `CREATE INDEX idx_billing_items_deleted_at ON billing_items(deleted_at)` | [001_init.sql:2308](../../../backend/migrations/001_init.sql#L2308) |
-| `uq_billing_items_vaccination_lifetime` | YES | `vaccination_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_billing_items_vaccination_lifetime     ON billing_items(vaccination_id)     WHERE vaccination_id IS NOT NULL` | [001_init.sql:4061](../../../backend/migrations/001_init.sql#L4061) |
-| `idx_billing_items_created_by` | NO | `created_by IS NOT NULL` | `CREATE INDEX idx_billing_items_created_by     ON billing_items (created_by)     WHERE created_by IS NOT NULL` | [001_init.sql:4081](../../../backend/migrations/001_init.sql#L4081) |
-| `idx_billing_items_clinic_id` | NO | — | `CREATE INDEX idx_billing_items_clinic_id     ON billing_items (clinic_id)` | [001_init.sql:6190](../../../backend/migrations/001_init.sql#L6190) |
-| `uq_billing_items_exam_lifetime` | YES | `exam_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_billing_items_exam_lifetime     ON billing_items(exam_id)     WHERE exam_id IS NOT NULL` | [001_init.sql:6199](../../../backend/migrations/001_init.sql#L6199) |
-| `uq_billing_items_treatment_lifetime` | YES | `treatment_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_billing_items_treatment_lifetime     ON billing_items (treatment_id)     WHERE treatment_id IS NOT NULL` | [004_billing_items_treatment_lifetime_unique.sql:4](../../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql#L4) |
+| `idx_billing_items_merchandise_item_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_billing_items_merchandise_item_id  ON billing_items(merchandise_item_id)  WHERE deleted_at IS NULL` | [001_init.sql:2176](../../../backend/migrations/001_init.sql#L2176) |
+| `idx_billing_items_treatment_id` | NO | `treatment_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_treatment_id         ON billing_items(treatment_id)         WHERE treatment_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2177](../../../backend/migrations/001_init.sql#L2177) |
+| `idx_billing_items_appointment_id` | NO | `appointment_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_appointment_id       ON billing_items(appointment_id)       WHERE appointment_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2178](../../../backend/migrations/001_init.sql#L2178) |
+| `idx_billing_items_trimming_course_id` | NO | `trimming_course_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_trimming_course_id   ON billing_items(trimming_course_id)   WHERE trimming_course_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2179](../../../backend/migrations/001_init.sql#L2179) |
+| `idx_billing_items_trimming_option_id` | NO | `trimming_option_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_billing_items_trimming_option_id   ON billing_items(trimming_option_id)   WHERE trimming_option_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2180](../../../backend/migrations/001_init.sql#L2180) |
+| `idx_billing_items_billing_id` | NO | — | `CREATE INDEX idx_billing_items_billing_id ON billing_items(billing_id)` | [001_init.sql:2315](../../../backend/migrations/001_init.sql#L2315) |
+| `idx_billing_items_deleted_at` | NO | — | `CREATE INDEX idx_billing_items_deleted_at ON billing_items(deleted_at)` | [001_init.sql:2316](../../../backend/migrations/001_init.sql#L2316) |
+| `uq_billing_items_vaccination_lifetime` | YES | `vaccination_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_billing_items_vaccination_lifetime     ON billing_items(vaccination_id)     WHERE vaccination_id IS NOT NULL` | [001_init.sql:4069](../../../backend/migrations/001_init.sql#L4069) |
+| `idx_billing_items_created_by` | NO | `created_by IS NOT NULL` | `CREATE INDEX idx_billing_items_created_by     ON billing_items (created_by)     WHERE created_by IS NOT NULL` | [001_init.sql:4089](../../../backend/migrations/001_init.sql#L4089) |
+| `idx_billing_items_clinic_id` | NO | — | `CREATE INDEX idx_billing_items_clinic_id     ON billing_items (clinic_id)` | [001_init.sql:6198](../../../backend/migrations/001_init.sql#L6198) |
+| `uq_billing_items_exam_lifetime` | YES | `exam_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_billing_items_exam_lifetime     ON billing_items(exam_id)     WHERE exam_id IS NOT NULL` | [001_init.sql:6207](../../../backend/migrations/001_init.sql#L6207) |
+| `uq_billing_items_treatment_lifetime` | YES | `treatment_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_billing_items_treatment_lifetime     ON billing_items (treatment_id)     WHERE treatment_id IS NOT NULL` | [001_init.sql:6313](../../../backend/migrations/001_init.sql#L6313) |

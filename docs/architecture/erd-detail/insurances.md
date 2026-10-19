@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:765](../../../backend/migrations/001_init.sql#L765) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:766](../../../backend/migrations/001_init.sql#L766) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:767](../../../backend/migrations/001_init.sql#L767) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:768](../../../backend/migrations/001_init.sql#L768) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:769](../../../backend/migrations/001_init.sql#L769) |
-| `coverage_rate` | `integer` | NOT NULL | `0` | — | [001_init.sql:770](../../../backend/migrations/001_init.sql#L770) |
-| `contact_phone` | `text` | NOT NULL | `''` | — | [001_init.sql:771](../../../backend/migrations/001_init.sql#L771) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:772](../../../backend/migrations/001_init.sql#L772) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:773](../../../backend/migrations/001_init.sql#L773) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:774](../../../backend/migrations/001_init.sql#L774) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:775](../../../backend/migrations/001_init.sql#L775) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:773](../../../backend/migrations/001_init.sql#L773) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:774](../../../backend/migrations/001_init.sql#L774) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:775](../../../backend/migrations/001_init.sql#L775) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:776](../../../backend/migrations/001_init.sql#L776) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:777](../../../backend/migrations/001_init.sql#L777) |
+| `coverage_rate` | `integer` | NOT NULL | `0` | — | [001_init.sql:778](../../../backend/migrations/001_init.sql#L778) |
+| `contact_phone` | `text` | NOT NULL | `''` | — | [001_init.sql:779](../../../backend/migrations/001_init.sql#L779) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:780](../../../backend/migrations/001_init.sql#L780) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:781](../../../backend/migrations/001_init.sql#L781) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:782](../../../backend/migrations/001_init.sql#L782) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:783](../../../backend/migrations/001_init.sql#L783) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -56,7 +56,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `insurances_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:766](../../../backend/migrations/001_init.sql#L766) |
+| `insurances_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:774](../../../backend/migrations/001_init.sql#L774) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,14 +66,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `insurances_pkey` | primary | `PRIMARY KEY` | [001_init.sql:765](../../../backend/migrations/001_init.sql#L765) |
-| `insurances_coverage_rate_check` | check | `CHECK (coverage_rate >= 0 AND coverage_rate <= 100)` | [001_init.sql:770](../../../backend/migrations/001_init.sql#L770) |
+| `insurances_pkey` | primary | `PRIMARY KEY` | [001_init.sql:773](../../../backend/migrations/001_init.sql#L773) |
+| `insurances_coverage_rate_check` | check | `CHECK (coverage_rate >= 0 AND coverage_rate <= 100)` | [001_init.sql:778](../../../backend/migrations/001_init.sql#L778) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_insurances_clinic_id` | NO | — | `CREATE INDEX idx_insurances_clinic_id ON insurances(clinic_id)` | [001_init.sql:2218](../../../backend/migrations/001_init.sql#L2218) |
-| `idx_insurances_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_insurances_clinic_sort        ON insurances(clinic_id, sort_order)              WHERE deleted_at IS NULL` | [001_init.sql:2264](../../../backend/migrations/001_init.sql#L2264) |
-| `idx_insurance_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2460](../../../backend/migrations/001_init.sql#L2460) |
-| `idx_insurances_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_insurances_active ON insurances(id) WHERE deleted_at IS NULL` | [001_init.sql:2473](../../../backend/migrations/001_init.sql#L2473) |
+| `idx_insurances_clinic_id` | NO | — | `CREATE INDEX idx_insurances_clinic_id ON insurances(clinic_id)` | [001_init.sql:2226](../../../backend/migrations/001_init.sql#L2226) |
+| `idx_insurances_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_insurances_clinic_sort        ON insurances(clinic_id, sort_order)              WHERE deleted_at IS NULL` | [001_init.sql:2272](../../../backend/migrations/001_init.sql#L2272) |
+| `idx_insurance_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_insurance_clinic_name ON insurances(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2468](../../../backend/migrations/001_init.sql#L2468) |
+| `idx_insurances_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_insurances_active ON insurances(id) WHERE deleted_at IS NULL` | [001_init.sql:2481](../../../backend/migrations/001_init.sql#L2481) |

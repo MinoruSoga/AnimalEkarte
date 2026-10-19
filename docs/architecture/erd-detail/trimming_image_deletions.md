@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `BIGINT` | NOT NULL | — | PK, FK | [032_trimming_image_deletions.sql:9](../../../backend/migrations/032_trimming_image_deletions.sql#L9) |
-| `object_key` | `TEXT` | NOT NULL | — | PK | [032_trimming_image_deletions.sql:10](../../../backend/migrations/032_trimming_image_deletions.sql#L10) |
-| `actor_staff_id` | `BIGINT` | NOT NULL | — | — | [032_trimming_image_deletions.sql:11](../../../backend/migrations/032_trimming_image_deletions.sql#L11) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [032_trimming_image_deletions.sql:12](../../../backend/migrations/032_trimming_image_deletions.sql#L12) |
-| `storage_deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [035_trimming_image_storage_retry.sql:2](../../../backend/migrations/035_trimming_image_storage_retry.sql#L2) |
-| `last_attempt_at` | `TIMESTAMPTZ` | NULL | — | — | [035_trimming_image_storage_retry.sql:3](../../../backend/migrations/035_trimming_image_storage_retry.sql#L3) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | PK, FK | [001_init.sql:7483](../../../backend/migrations/001_init.sql#L7483) |
+| `object_key` | `TEXT` | NOT NULL | — | PK | [001_init.sql:7484](../../../backend/migrations/001_init.sql#L7484) |
+| `actor_staff_id` | `BIGINT` | NOT NULL | — | — | [001_init.sql:7485](../../../backend/migrations/001_init.sql#L7485) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:7486](../../../backend/migrations/001_init.sql#L7486) |
+| `storage_deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:7540](../../../backend/migrations/001_init.sql#L7540) |
+| `last_attempt_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:7541](../../../backend/migrations/001_init.sql#L7541) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,7 +46,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_image_deletions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [032_trimming_image_deletions.sql:9](../../../backend/migrations/032_trimming_image_deletions.sql#L9) |
+| `trimming_image_deletions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7483](../../../backend/migrations/001_init.sql#L7483) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,10 +56,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_image_deletions_pkey` | primary | `PRIMARY KEY (clinic_id, object_key)` | [032_trimming_image_deletions.sql:13](../../../backend/migrations/032_trimming_image_deletions.sql#L13) |
+| `trimming_image_deletions_pkey` | primary | `PRIMARY KEY (clinic_id, object_key)` | [001_init.sql:7487](../../../backend/migrations/001_init.sql#L7487) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_trimming_image_deletions_pending` | NO | `storage_deleted_at IS NULL` | `CREATE INDEX idx_trimming_image_deletions_pending     ON trimming_image_deletions (clinic_id, last_attempt_at, object_key)     WHERE storage_deleted_at IS NULL` | [035_trimming_image_storage_retry.sql:5](../../../backend/migrations/035_trimming_image_storage_retry.sql#L5) |
+| `idx_trimming_image_deletions_pending` | NO | `storage_deleted_at IS NULL` | `CREATE INDEX idx_trimming_image_deletions_pending     ON trimming_image_deletions (clinic_id, last_attempt_at, object_key)     WHERE storage_deleted_at IS NULL` | [001_init.sql:7543](../../../backend/migrations/001_init.sql#L7543) |

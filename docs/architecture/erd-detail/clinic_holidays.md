@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2044](../../../backend/migrations/001_init.sql#L2044) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2045](../../../backend/migrations/001_init.sql#L2045) |
-| `date` | `date` | NOT NULL | — | UK | [001_init.sql:2046](../../../backend/migrations/001_init.sql#L2046) |
-| `reason` | `text` | NOT NULL | `''` | — | [001_init.sql:2047](../../../backend/migrations/001_init.sql#L2047) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2048](../../../backend/migrations/001_init.sql#L2048) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2049](../../../backend/migrations/001_init.sql#L2049) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2052](../../../backend/migrations/001_init.sql#L2052) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2053](../../../backend/migrations/001_init.sql#L2053) |
+| `date` | `date` | NOT NULL | — | UK | [001_init.sql:2054](../../../backend/migrations/001_init.sql#L2054) |
+| `reason` | `text` | NOT NULL | `''` | — | [001_init.sql:2055](../../../backend/migrations/001_init.sql#L2055) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2056](../../../backend/migrations/001_init.sql#L2056) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2057](../../../backend/migrations/001_init.sql#L2057) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,7 +46,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_holidays_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2045](../../../backend/migrations/001_init.sql#L2045) |
+| `clinic_holidays_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2053](../../../backend/migrations/001_init.sql#L2053) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,11 +56,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `clinic_holidays_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2044](../../../backend/migrations/001_init.sql#L2044) |
-| `uk_clinic_holidays_clinic_date` | unique | `CONSTRAINT uk_clinic_holidays_clinic_date UNIQUE (clinic_id, date)` | [001_init.sql:2050](../../../backend/migrations/001_init.sql#L2050) |
+| `clinic_holidays_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2052](../../../backend/migrations/001_init.sql#L2052) |
+| `uk_clinic_holidays_clinic_date` | unique | `CONSTRAINT uk_clinic_holidays_clinic_date UNIQUE (clinic_id, date)` | [001_init.sql:2058](../../../backend/migrations/001_init.sql#L2058) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_clinic_holidays_clinic_date` | NO | — | `CREATE INDEX idx_clinic_holidays_clinic_date ON clinic_holidays(clinic_id, date)` | [001_init.sql:2052](../../../backend/migrations/001_init.sql#L2052) |
+| `idx_clinic_holidays_clinic_date` | NO | — | `CREATE INDEX idx_clinic_holidays_clinic_date ON clinic_holidays(clinic_id, date)` | [001_init.sql:2060](../../../backend/migrations/001_init.sql#L2060) |

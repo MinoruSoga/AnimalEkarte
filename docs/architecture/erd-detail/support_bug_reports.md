@@ -11,24 +11,24 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [011_support_bug_reports.sql:7](../../../backend/migrations/011_support_bug_reports.sql#L7) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [011_support_bug_reports.sql:8](../../../backend/migrations/011_support_bug_reports.sql#L8) |
-| `reporter_staff_id` | `bigint` | NOT NULL | — | FK | [011_support_bug_reports.sql:9](../../../backend/migrations/011_support_bug_reports.sql#L9) |
-| `title` | `text` | NOT NULL | — | — | [011_support_bug_reports.sql:10](../../../backend/migrations/011_support_bug_reports.sql#L10) |
-| `detail` | `text` | NOT NULL | `''` | — | [011_support_bug_reports.sql:11](../../../backend/migrations/011_support_bug_reports.sql#L11) |
-| `page_url` | `text` | NOT NULL | `''` | — | [011_support_bug_reports.sql:12](../../../backend/migrations/011_support_bug_reports.sql#L12) |
-| `route_path` | `text` | NOT NULL | `''` | — | [011_support_bug_reports.sql:13](../../../backend/migrations/011_support_bug_reports.sql#L13) |
-| `user_agent` | `text` | NOT NULL | `''` | — | [011_support_bug_reports.sql:14](../../../backend/migrations/011_support_bug_reports.sql#L14) |
-| `viewport` | `text` | NOT NULL | `''` | — | [011_support_bug_reports.sql:15](../../../backend/migrations/011_support_bug_reports.sql#L15) |
-| `app_version` | `text` | NOT NULL | `''` | — | [011_support_bug_reports.sql:16](../../../backend/migrations/011_support_bug_reports.sql#L16) |
-| `screenshot_key` | `text` | NULL | — | — | [011_support_bug_reports.sql:17](../../../backend/migrations/011_support_bug_reports.sql#L17) |
-| `status` | `varchar(20)` | NOT NULL | `'open'` | — | [011_support_bug_reports.sql:18](../../../backend/migrations/011_support_bug_reports.sql#L18) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [011_support_bug_reports.sql:19](../../../backend/migrations/011_support_bug_reports.sql#L19) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [011_support_bug_reports.sql:20](../../../backend/migrations/011_support_bug_reports.sql#L20) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [011_support_bug_reports.sql:21](../../../backend/migrations/011_support_bug_reports.sql#L21) |
-| `plane_issue_id` | `text` | NULL | — | — | [016_support_bug_reports_plane.sql:8](../../../backend/migrations/016_support_bug_reports_plane.sql#L8) |
-| `plane_issue_url` | `text` | NULL | — | — | [016_support_bug_reports_plane.sql:9](../../../backend/migrations/016_support_bug_reports_plane.sql#L9) |
-| `plane_sync_error` | `text` | NULL | — | — | [016_support_bug_reports_plane.sql:10](../../../backend/migrations/016_support_bug_reports_plane.sql#L10) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:6564](../../../backend/migrations/001_init.sql#L6564) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6565](../../../backend/migrations/001_init.sql#L6565) |
+| `reporter_staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6566](../../../backend/migrations/001_init.sql#L6566) |
+| `title` | `text` | NOT NULL | — | — | [001_init.sql:6567](../../../backend/migrations/001_init.sql#L6567) |
+| `detail` | `text` | NOT NULL | `''` | — | [001_init.sql:6568](../../../backend/migrations/001_init.sql#L6568) |
+| `page_url` | `text` | NOT NULL | `''` | — | [001_init.sql:6569](../../../backend/migrations/001_init.sql#L6569) |
+| `route_path` | `text` | NOT NULL | `''` | — | [001_init.sql:6570](../../../backend/migrations/001_init.sql#L6570) |
+| `user_agent` | `text` | NOT NULL | `''` | — | [001_init.sql:6571](../../../backend/migrations/001_init.sql#L6571) |
+| `viewport` | `text` | NOT NULL | `''` | — | [001_init.sql:6572](../../../backend/migrations/001_init.sql#L6572) |
+| `app_version` | `text` | NOT NULL | `''` | — | [001_init.sql:6573](../../../backend/migrations/001_init.sql#L6573) |
+| `screenshot_key` | `text` | NULL | — | — | [001_init.sql:6574](../../../backend/migrations/001_init.sql#L6574) |
+| `status` | `varchar(20)` | NOT NULL | `'open'` | — | [001_init.sql:6575](../../../backend/migrations/001_init.sql#L6575) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6576](../../../backend/migrations/001_init.sql#L6576) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6577](../../../backend/migrations/001_init.sql#L6577) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:6578](../../../backend/migrations/001_init.sql#L6578) |
+| `plane_issue_id` | `text` | NULL | — | — | [001_init.sql:6743](../../../backend/migrations/001_init.sql#L6743) |
+| `plane_issue_url` | `text` | NULL | — | — | [001_init.sql:6744](../../../backend/migrations/001_init.sql#L6744) |
+| `plane_sync_error` | `text` | NULL | — | — | [001_init.sql:6745](../../../backend/migrations/001_init.sql#L6745) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -74,8 +74,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `support_bug_reports_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [011_support_bug_reports.sql:8](../../../backend/migrations/011_support_bug_reports.sql#L8) |
-| `support_bug_reports_reporter_staff_id_fkey` | `reporter_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [011_support_bug_reports.sql:9](../../../backend/migrations/011_support_bug_reports.sql#L9) |
+| `support_bug_reports_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6565](../../../backend/migrations/001_init.sql#L6565) |
+| `support_bug_reports_reporter_staff_id_fkey` | `reporter_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6566](../../../backend/migrations/001_init.sql#L6566) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,11 +86,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_bug_reports_pkey` | primary | `PRIMARY KEY` | [011_support_bug_reports.sql:7](../../../backend/migrations/011_support_bug_reports.sql#L7) |
+| `support_bug_reports_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6564](../../../backend/migrations/001_init.sql#L6564) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_support_bug_reports_clinic_created` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_support_bug_reports_clinic_created     ON support_bug_reports (clinic_id, created_at DESC)     WHERE deleted_at IS NULL` | [011_support_bug_reports.sql:24](../../../backend/migrations/011_support_bug_reports.sql#L24) |
-| `idx_support_bug_reports_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_support_bug_reports_clinic_status     ON support_bug_reports (clinic_id, status)     WHERE deleted_at IS NULL` | [011_support_bug_reports.sql:27](../../../backend/migrations/011_support_bug_reports.sql#L27) |
+| `idx_support_bug_reports_clinic_created` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_support_bug_reports_clinic_created     ON support_bug_reports (clinic_id, created_at DESC)     WHERE deleted_at IS NULL` | [001_init.sql:6581](../../../backend/migrations/001_init.sql#L6581) |
+| `idx_support_bug_reports_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_support_bug_reports_clinic_status     ON support_bug_reports (clinic_id, status)     WHERE deleted_at IS NULL` | [001_init.sql:6584](../../../backend/migrations/001_init.sql#L6584) |

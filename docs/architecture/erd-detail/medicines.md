@@ -11,28 +11,28 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:741](../../../backend/migrations/001_init.sql#L741) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:742](../../../backend/migrations/001_init.sql#L742) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:743](../../../backend/migrations/001_init.sql#L743) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:744](../../../backend/migrations/001_init.sql#L744) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:745](../../../backend/migrations/001_init.sql#L745) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:746](../../../backend/migrations/001_init.sql#L746) |
-| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:747](../../../backend/migrations/001_init.sql#L747) |
-| `dosage_form` | `dosage_form` | NULL | — | — | [001_init.sql:748](../../../backend/migrations/001_init.sql#L748) |
-| `medicine_unit` | `medicine_unit` | NULL | — | — | [001_init.sql:749](../../../backend/migrations/001_init.sql#L749) |
-| `inventory_id` | `bigint` | NULL | — | FK | [001_init.sql:750](../../../backend/migrations/001_init.sql#L750) |
-| `default_quantity` | `numeric(10,2)` | NULL | `1` | — | [001_init.sql:3453](../../../backend/migrations/001_init.sql#L3453) |
-| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:752](../../../backend/migrations/001_init.sql#L752) |
-| `tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:753](../../../backend/migrations/001_init.sql#L753) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:754](../../../backend/migrations/001_init.sql#L754) |
-| `is_non_insurance` | `boolean` | NOT NULL | `false` | — | [001_init.sql:755](../../../backend/migrations/001_init.sql#L755) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:756](../../../backend/migrations/001_init.sql#L756) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:757](../../../backend/migrations/001_init.sql#L757) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:758](../../../backend/migrations/001_init.sql#L758) |
-| `calculation_type` | `medicine_calculation_type` | NOT NULL | `'none'` | — | [001_init.sql:3449](../../../backend/migrations/001_init.sql#L3449) |
-| `strength` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3450](../../../backend/migrations/001_init.sql#L3450) |
-| `frequency_per_day` | `integer` | NULL | — | — | [001_init.sql:3451](../../../backend/migrations/001_init.sql#L3451) |
-| `default_duration_days` | `integer` | NULL | — | — | [001_init.sql:3452](../../../backend/migrations/001_init.sql#L3452) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:749](../../../backend/migrations/001_init.sql#L749) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:750](../../../backend/migrations/001_init.sql#L750) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:751](../../../backend/migrations/001_init.sql#L751) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:752](../../../backend/migrations/001_init.sql#L752) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:753](../../../backend/migrations/001_init.sql#L753) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:754](../../../backend/migrations/001_init.sql#L754) |
+| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:755](../../../backend/migrations/001_init.sql#L755) |
+| `dosage_form` | `dosage_form` | NULL | — | — | [001_init.sql:756](../../../backend/migrations/001_init.sql#L756) |
+| `medicine_unit` | `medicine_unit` | NULL | — | — | [001_init.sql:757](../../../backend/migrations/001_init.sql#L757) |
+| `inventory_id` | `bigint` | NULL | — | FK | [001_init.sql:758](../../../backend/migrations/001_init.sql#L758) |
+| `default_quantity` | `numeric(10,2)` | NULL | `1` | — | [001_init.sql:3461](../../../backend/migrations/001_init.sql#L3461) |
+| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:760](../../../backend/migrations/001_init.sql#L760) |
+| `tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:761](../../../backend/migrations/001_init.sql#L761) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:762](../../../backend/migrations/001_init.sql#L762) |
+| `is_non_insurance` | `boolean` | NOT NULL | `false` | — | [001_init.sql:763](../../../backend/migrations/001_init.sql#L763) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:764](../../../backend/migrations/001_init.sql#L764) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:765](../../../backend/migrations/001_init.sql#L765) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:766](../../../backend/migrations/001_init.sql#L766) |
+| `calculation_type` | `medicine_calculation_type` | NOT NULL | `'none'` | — | [001_init.sql:3457](../../../backend/migrations/001_init.sql#L3457) |
+| `strength` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3458](../../../backend/migrations/001_init.sql#L3458) |
+| `frequency_per_day` | `integer` | NULL | — | — | [001_init.sql:3459](../../../backend/migrations/001_init.sql#L3459) |
+| `default_duration_days` | `integer` | NULL | — | — | [001_init.sql:3460](../../../backend/migrations/001_init.sql#L3460) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -83,9 +83,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medicines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:742](../../../backend/migrations/001_init.sql#L742) |
-| `medicines_parent_id_fkey` | `parent_id` | [medicines](medicines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:747](../../../backend/migrations/001_init.sql#L747) |
-| `medicines_inventory_id_fkey` | `inventory_id` | [inventory_items](inventory_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:750](../../../backend/migrations/001_init.sql#L750) |
+| `medicines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:750](../../../backend/migrations/001_init.sql#L750) |
+| `medicines_parent_id_fkey` | `parent_id` | [medicines](medicines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:755](../../../backend/migrations/001_init.sql#L755) |
+| `medicines_inventory_id_fkey` | `inventory_id` | [inventory_items](inventory_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:758](../../../backend/migrations/001_init.sql#L758) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -97,21 +97,21 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medicines_pkey` | primary | `PRIMARY KEY` | [001_init.sql:741](../../../backend/migrations/001_init.sql#L741) |
-| `ck_medicines_per_weight_strength` | check | `CONSTRAINT ck_medicines_per_weight_strength     CHECK (calculation_type = 'none' OR strength IS NOT NULL)` | [001_init.sql:3457](../../../backend/migrations/001_init.sql#L3457) |
-| `ck_medicines_strength_positive` | check | `CONSTRAINT ck_medicines_strength_positive     CHECK (strength IS NULL OR strength > 0)` | [001_init.sql:3462](../../../backend/migrations/001_init.sql#L3462) |
-| `ck_medicines_frequency_positive` | check | `CONSTRAINT ck_medicines_frequency_positive     CHECK (frequency_per_day IS NULL OR frequency_per_day > 0)` | [001_init.sql:3466](../../../backend/migrations/001_init.sql#L3466) |
-| `ck_medicines_duration_positive` | check | `CONSTRAINT ck_medicines_duration_positive     CHECK (default_duration_days IS NULL OR default_duration_days > 0)` | [001_init.sql:3470](../../../backend/migrations/001_init.sql#L3470) |
-| `uq_medicines_id_clinic` | unique | `CONSTRAINT uq_medicines_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3476](../../../backend/migrations/001_init.sql#L3476) |
+| `medicines_pkey` | primary | `PRIMARY KEY` | [001_init.sql:749](../../../backend/migrations/001_init.sql#L749) |
+| `ck_medicines_per_weight_strength` | check | `CONSTRAINT ck_medicines_per_weight_strength     CHECK (calculation_type = 'none' OR strength IS NOT NULL)` | [001_init.sql:3465](../../../backend/migrations/001_init.sql#L3465) |
+| `ck_medicines_strength_positive` | check | `CONSTRAINT ck_medicines_strength_positive     CHECK (strength IS NULL OR strength > 0)` | [001_init.sql:3470](../../../backend/migrations/001_init.sql#L3470) |
+| `ck_medicines_frequency_positive` | check | `CONSTRAINT ck_medicines_frequency_positive     CHECK (frequency_per_day IS NULL OR frequency_per_day > 0)` | [001_init.sql:3474](../../../backend/migrations/001_init.sql#L3474) |
+| `ck_medicines_duration_positive` | check | `CONSTRAINT ck_medicines_duration_positive     CHECK (default_duration_days IS NULL OR default_duration_days > 0)` | [001_init.sql:3478](../../../backend/migrations/001_init.sql#L3478) |
+| `uq_medicines_id_clinic` | unique | `CONSTRAINT uq_medicines_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3484](../../../backend/migrations/001_init.sql#L3484) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_medicines_clinic_id` | NO | — | `CREATE INDEX idx_medicines_clinic_id ON medicines(clinic_id)` | [001_init.sql:2216](../../../backend/migrations/001_init.sql#L2216) |
-| `idx_medicines_parent_id` | NO | — | `CREATE INDEX idx_medicines_parent_id ON medicines(parent_id)` | [001_init.sql:2217](../../../backend/migrations/001_init.sql#L2217) |
-| `idx_medicines_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medicines_clinic_sort         ON medicines(clinic_id, sort_order)               WHERE deleted_at IS NULL` | [001_init.sql:2254](../../../backend/migrations/001_init.sql#L2254) |
-| `idx_medicines_inventory_id` | NO | `inventory_id IS NOT NULL` | `CREATE INDEX idx_medicines_inventory_id ON medicines(inventory_id) WHERE inventory_id IS NOT NULL` | [001_init.sql:2442](../../../backend/migrations/001_init.sql#L2442) |
-| `idx_medicines_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2452](../../../backend/migrations/001_init.sql#L2452) |
-| `idx_medicines_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medicines_active ON medicines(id) WHERE deleted_at IS NULL` | [001_init.sql:2472](../../../backend/migrations/001_init.sql#L2472) |
-| `idx_medicines_name_fold_trgm` | NO | — | `CREATE INDEX idx_medicines_name_fold_trgm   ON medicines USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [015_search_fold_indexes.sql:72](../../../backend/migrations/015_search_fold_indexes.sql#L72) |
+| `idx_medicines_clinic_id` | NO | — | `CREATE INDEX idx_medicines_clinic_id ON medicines(clinic_id)` | [001_init.sql:2224](../../../backend/migrations/001_init.sql#L2224) |
+| `idx_medicines_parent_id` | NO | — | `CREATE INDEX idx_medicines_parent_id ON medicines(parent_id)` | [001_init.sql:2225](../../../backend/migrations/001_init.sql#L2225) |
+| `idx_medicines_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medicines_clinic_sort         ON medicines(clinic_id, sort_order)               WHERE deleted_at IS NULL` | [001_init.sql:2262](../../../backend/migrations/001_init.sql#L2262) |
+| `idx_medicines_inventory_id` | NO | `inventory_id IS NOT NULL` | `CREATE INDEX idx_medicines_inventory_id ON medicines(inventory_id) WHERE inventory_id IS NOT NULL` | [001_init.sql:2450](../../../backend/migrations/001_init.sql#L2450) |
+| `idx_medicines_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_medicines_clinic_name ON medicines(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2460](../../../backend/migrations/001_init.sql#L2460) |
+| `idx_medicines_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medicines_active ON medicines(id) WHERE deleted_at IS NULL` | [001_init.sql:2480](../../../backend/migrations/001_init.sql#L2480) |
+| `idx_medicines_name_fold_trgm` | NO | — | `CREATE INDEX idx_medicines_name_fold_trgm   ON medicines USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [001_init.sql:6720](../../../backend/migrations/001_init.sql#L6720) |

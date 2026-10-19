@@ -11,24 +11,24 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1711](../../../backend/migrations/001_init.sql#L1711) |
-| `exam_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1712](../../../backend/migrations/001_init.sql#L1712) |
-| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:1713](../../../backend/migrations/001_init.sql#L1713) |
-| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1714](../../../backend/migrations/001_init.sql#L1714) |
-| `inspection_value` | `text` | NOT NULL | `''` | — | [001_init.sql:1715](../../../backend/migrations/001_init.sql#L1715) |
-| `normal_value` | `text` | NOT NULL | `''` | — | [001_init.sql:1716](../../../backend/migrations/001_init.sql#L1716) |
-| `result` | `text` | NOT NULL | `''` | — | [001_init.sql:1717](../../../backend/migrations/001_init.sql#L1717) |
-| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:1718](../../../backend/migrations/001_init.sql#L1718) |
-| `reference_value` | `text` | NOT NULL | `''` | — | [001_init.sql:1719](../../../backend/migrations/001_init.sql#L1719) |
-| `ref_min` | `decimal(10,4)` | NULL | — | — | [001_init.sql:1720](../../../backend/migrations/001_init.sql#L1720) |
-| `ref_max` | `decimal(10,4)` | NULL | — | — | [001_init.sql:1721](../../../backend/migrations/001_init.sql#L1721) |
-| `is_abnormal` | `boolean` | NULL | `false` | — | [001_init.sql:1722](../../../backend/migrations/001_init.sql#L1722) |
-| `status` | `exam_result_status` | NULL | `'normal'` | — | [001_init.sql:1723](../../../backend/migrations/001_init.sql#L1723) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1724](../../../backend/migrations/001_init.sql#L1724) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1725](../../../backend/migrations/001_init.sql#L1725) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1726](../../../backend/migrations/001_init.sql#L1726) |
-| `qualitative_min` | `text` | NULL | — | — | [001_init.sql:4129](../../../backend/migrations/001_init.sql#L4129) |
-| `qualitative_max` | `text` | NULL | — | — | [001_init.sql:4130](../../../backend/migrations/001_init.sql#L4130) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1719](../../../backend/migrations/001_init.sql#L1719) |
+| `exam_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1720](../../../backend/migrations/001_init.sql#L1720) |
+| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:1721](../../../backend/migrations/001_init.sql#L1721) |
+| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1722](../../../backend/migrations/001_init.sql#L1722) |
+| `inspection_value` | `text` | NOT NULL | `''` | — | [001_init.sql:1723](../../../backend/migrations/001_init.sql#L1723) |
+| `normal_value` | `text` | NOT NULL | `''` | — | [001_init.sql:1724](../../../backend/migrations/001_init.sql#L1724) |
+| `result` | `text` | NOT NULL | `''` | — | [001_init.sql:1725](../../../backend/migrations/001_init.sql#L1725) |
+| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:1726](../../../backend/migrations/001_init.sql#L1726) |
+| `reference_value` | `text` | NOT NULL | `''` | — | [001_init.sql:1727](../../../backend/migrations/001_init.sql#L1727) |
+| `ref_min` | `decimal(10,4)` | NULL | — | — | [001_init.sql:1728](../../../backend/migrations/001_init.sql#L1728) |
+| `ref_max` | `decimal(10,4)` | NULL | — | — | [001_init.sql:1729](../../../backend/migrations/001_init.sql#L1729) |
+| `is_abnormal` | `boolean` | NULL | `false` | — | [001_init.sql:1730](../../../backend/migrations/001_init.sql#L1730) |
+| `status` | `exam_result_status` | NULL | `'normal'` | — | [001_init.sql:1731](../../../backend/migrations/001_init.sql#L1731) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1732](../../../backend/migrations/001_init.sql#L1732) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1733](../../../backend/migrations/001_init.sql#L1733) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1734](../../../backend/migrations/001_init.sql#L1734) |
+| `qualitative_min` | `text` | NULL | — | — | [001_init.sql:4137](../../../backend/migrations/001_init.sql#L4137) |
+| `qualitative_max` | `text` | NULL | — | — | [001_init.sql:4138](../../../backend/migrations/001_init.sql#L4138) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -74,8 +74,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `exam_results_exam_id_fkey` | `exam_id` | [exams](exams.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1712](../../../backend/migrations/001_init.sql#L1712) |
-| `exam_results_exam_type_field_id_fkey` | `exam_type_field_id` | [exam_type_fields](exam_type_fields.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1713](../../../backend/migrations/001_init.sql#L1713) |
+| `exam_results_exam_id_fkey` | `exam_id` | [exams](exams.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1720](../../../backend/migrations/001_init.sql#L1720) |
+| `exam_results_exam_type_field_id_fkey` | `exam_type_field_id` | [exam_type_fields](exam_type_fields.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1721](../../../backend/migrations/001_init.sql#L1721) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,11 +86,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `exam_results_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1711](../../../backend/migrations/001_init.sql#L1711) |
+| `exam_results_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1719](../../../backend/migrations/001_init.sql#L1719) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_exam_results_exam_id` | NO | — | `CREATE INDEX IF NOT EXISTS idx_exam_results_exam_id     ON exam_results (exam_id)` | [001_init.sql:3348](../../../backend/migrations/001_init.sql#L3348) |
-| `idx_exam_results_exam_type_field_id` | NO | — | `CREATE INDEX idx_exam_results_exam_type_field_id ON exam_results (exam_type_field_id)` | [001_init.sql:4151](../../../backend/migrations/001_init.sql#L4151) |
+| `idx_exam_results_exam_id` | NO | — | `CREATE INDEX IF NOT EXISTS idx_exam_results_exam_id     ON exam_results (exam_id)` | [001_init.sql:3356](../../../backend/migrations/001_init.sql#L3356) |
+| `idx_exam_results_exam_type_field_id` | NO | — | `CREATE INDEX idx_exam_results_exam_type_field_id ON exam_results (exam_type_field_id)` | [001_init.sql:4159](../../../backend/migrations/001_init.sql#L4159) |

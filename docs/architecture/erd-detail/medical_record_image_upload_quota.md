@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4782](../../../backend/migrations/001_init.sql#L4782) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4783](../../../backend/migrations/001_init.sql#L4783) |
-| `staff_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4784](../../../backend/migrations/001_init.sql#L4784) |
-| `declared_bytes` | `BIGINT` | NOT NULL | — | — | [001_init.sql:4785](../../../backend/migrations/001_init.sql#L4785) |
-| `acquired_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4786](../../../backend/migrations/001_init.sql#L4786) |
-| `released_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4787](../../../backend/migrations/001_init.sql#L4787) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4790](../../../backend/migrations/001_init.sql#L4790) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4791](../../../backend/migrations/001_init.sql#L4791) |
+| `staff_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4792](../../../backend/migrations/001_init.sql#L4792) |
+| `declared_bytes` | `BIGINT` | NOT NULL | — | — | [001_init.sql:4793](../../../backend/migrations/001_init.sql#L4793) |
+| `acquired_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4794](../../../backend/migrations/001_init.sql#L4794) |
+| `released_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4795](../../../backend/migrations/001_init.sql#L4795) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,8 +50,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_medical_record_image_upload_quota_clinic` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4801](../../../backend/migrations/001_init.sql#L4801) |
-| `fk_medical_record_image_upload_quota_staff` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [017_multiclinic_staff_fk_fix.sql:40](../../../backend/migrations/017_multiclinic_staff_fk_fix.sql#L40) |
+| `fk_medical_record_image_upload_quota_clinic` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4809](../../../backend/migrations/001_init.sql#L4809) |
+| `fk_medical_record_image_upload_quota_staff` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6794](../../../backend/migrations/001_init.sql#L6794) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,13 +62,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_image_upload_quota_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4782](../../../backend/migrations/001_init.sql#L4782) |
-| `medical_record_image_upload_quota_declared_bytes_check` | check | `CHECK (declared_bytes >= 0)` | [001_init.sql:4785](../../../backend/migrations/001_init.sql#L4785) |
+| `medical_record_image_upload_quota_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4790](../../../backend/migrations/001_init.sql#L4790) |
+| `medical_record_image_upload_quota_declared_bytes_check` | check | `CHECK (declared_bytes >= 0)` | [001_init.sql:4793](../../../backend/migrations/001_init.sql#L4793) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_mri_upload_quota_clinic_acquired` | NO | — | `CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_clinic_acquired   ON medical_record_image_upload_quota (clinic_id, acquired_at)` | [001_init.sql:4790](../../../backend/migrations/001_init.sql#L4790) |
-| `idx_mri_upload_quota_staff_acquired` | NO | — | `CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_staff_acquired   ON medical_record_image_upload_quota (clinic_id, staff_id, acquired_at)` | [001_init.sql:4793](../../../backend/migrations/001_init.sql#L4793) |
-| `idx_mri_upload_quota_inflight` | NO | `released_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_inflight   ON medical_record_image_upload_quota (clinic_id, staff_id)   WHERE released_at IS NULL` | [001_init.sql:4796](../../../backend/migrations/001_init.sql#L4796) |
+| `idx_mri_upload_quota_clinic_acquired` | NO | — | `CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_clinic_acquired   ON medical_record_image_upload_quota (clinic_id, acquired_at)` | [001_init.sql:4798](../../../backend/migrations/001_init.sql#L4798) |
+| `idx_mri_upload_quota_staff_acquired` | NO | — | `CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_staff_acquired   ON medical_record_image_upload_quota (clinic_id, staff_id, acquired_at)` | [001_init.sql:4801](../../../backend/migrations/001_init.sql#L4801) |
+| `idx_mri_upload_quota_inflight` | NO | `released_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_mri_upload_quota_inflight   ON medical_record_image_upload_quota (clinic_id, staff_id)   WHERE released_at IS NULL` | [001_init.sql:4804](../../../backend/migrations/001_init.sql#L4804) |

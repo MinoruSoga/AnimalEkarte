@@ -32,8 +32,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-const reservationCreatedByMigration = "../../migrations/003_appointments_created_by_staff_fk.sql"
-
 // Explicit opt-in is required: this suite applies real DDL only in an approved,
 // disposable loopback database. It never uses the shared testdb helper.
 func reservationCreatedByTestConfig(dsn string) (*pgx.ConnConfig, error) {
@@ -128,10 +126,6 @@ func setupReservationCreatedByFK(t *testing.T) *reservationCreatedByFixture {
 	ddl := strings.ReplaceAll(string(raw), "app_private", privateSchema)
 	ddl = strings.ReplaceAll(ddl, "'public'", "'"+schema+"'")
 	require.NoError(t, db.Exec(ddl).Error)
-	applyReservationCreatedByMigration(t, db, "../../migrations/002_medical_records_entered_by_staff_fk.sql")
-	// 022: capabilities_configured_at — StaffClinicAssignment の GORM create/update が
-	// モデル経由で同列を参照するため、実 DDL schema にも反映が必要。
-	applyReservationCreatedByMigration(t, db, "../../migrations/022_staff_clinic_assignments_capability_configured_at.sql")
 	fixture := &reservationCreatedByFixture{db: db}
 	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capture_reservation_fk", func(tx *gorm.DB) {
 		var pgErr *pgconn.PgError
@@ -140,13 +134,6 @@ func setupReservationCreatedByFK(t *testing.T) *reservationCreatedByFixture {
 		}
 	}))
 	return fixture
-}
-
-func applyReservationCreatedByMigration(t *testing.T, db *gorm.DB, path string) {
-	t.Helper()
-	raw, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(string(raw)).Error)
 }
 
 type reservationCreatedByActors struct {
@@ -268,19 +255,6 @@ func TestReservationCreatedByFK(t *testing.T) {
 	previousMode := gin.Mode()
 	gin.SetMode(gin.TestMode)
 	t.Cleanup(func() { gin.SetMode(previousMode) })
-	t.Run("legacy composite rejects assigned creator with no doctor", func(t *testing.T) {
-		f := seedReservationCreatedByActors(t, db, true, false)
-		_, err := reservationCreatedByService(db).Create(context.Background(), f.input())
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "参照先が存在しません")
-		require.NotNil(t, fixture.lastPG)
-		assert.Equal(t, "23503", fixture.lastPG.Code)
-		assert.Equal(t, "fk_appointments_created_by_clinic", fixture.lastPG.ConstraintName)
-		var count int64
-		require.NoError(t, db.Model(&model.Reservation{}).Where("clinic_id = ?", f.clinicB.ID).Count(&count).Error)
-		assert.Zero(t, count)
-	})
-	applyReservationCreatedByMigration(t, db, reservationCreatedByMigration)
 	t.Run("other clinic foreign keys remain enforced", func(t *testing.T) {
 		f := seedReservationCreatedByActors(t, db, true, false)
 		foreign := seedReservationCreatedByActors(t, db, true, false)

@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:2890](../../../backend/migrations/001_init.sql#L2890) |
-| `article_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2891](../../../backend/migrations/001_init.sql#L2891) |
-| `title` | `text` | NOT NULL | — | — | [001_init.sql:2892](../../../backend/migrations/001_init.sql#L2892) |
-| `order_value` | `numeric(10, 2)` | NOT NULL | — | — | [001_init.sql:2893](../../../backend/migrations/001_init.sql#L2893) |
-| `section` | `text` | NOT NULL | — | — | [001_init.sql:2894](../../../backend/migrations/001_init.sql#L2894) |
-| `body_markdown` | `text` | NOT NULL | — | — | [001_init.sql:2895](../../../backend/migrations/001_init.sql#L2895) |
-| `edited_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:2896](../../../backend/migrations/001_init.sql#L2896) |
-| `edited_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2897](../../../backend/migrations/001_init.sql#L2897) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:2898](../../../backend/migrations/001_init.sql#L2898) |
+| `article_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2899](../../../backend/migrations/001_init.sql#L2899) |
+| `title` | `text` | NOT NULL | — | — | [001_init.sql:2900](../../../backend/migrations/001_init.sql#L2900) |
+| `order_value` | `numeric(10, 2)` | NOT NULL | — | — | [001_init.sql:2901](../../../backend/migrations/001_init.sql#L2901) |
+| `section` | `text` | NOT NULL | — | — | [001_init.sql:2902](../../../backend/migrations/001_init.sql#L2902) |
+| `body_markdown` | `text` | NOT NULL | — | — | [001_init.sql:2903](../../../backend/migrations/001_init.sql#L2903) |
+| `edited_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:2904](../../../backend/migrations/001_init.sql#L2904) |
+| `edited_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2905](../../../backend/migrations/001_init.sql#L2905) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,8 +54,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `manual_article_versions_article_id_fkey` | `article_id` | [manual_articles](manual_articles.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2891](../../../backend/migrations/001_init.sql#L2891) |
-| `manual_article_versions_edited_by_staff_id_fkey` | `edited_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:2896](../../../backend/migrations/001_init.sql#L2896) |
+| `manual_article_versions_article_id_fkey` | `article_id` | [manual_articles](manual_articles.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2899](../../../backend/migrations/001_init.sql#L2899) |
+| `manual_article_versions_edited_by_staff_id_fkey` | `edited_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:2904](../../../backend/migrations/001_init.sql#L2904) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,10 +66,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `manual_article_versions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2890](../../../backend/migrations/001_init.sql#L2890) |
+| `manual_article_versions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2898](../../../backend/migrations/001_init.sql#L2898) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_manual_article_versions_article` | NO | — | `CREATE INDEX idx_manual_article_versions_article ON manual_article_versions(article_id, edited_at DESC)` | [001_init.sql:2900](../../../backend/migrations/001_init.sql#L2900) |
+| `idx_manual_article_versions_article` | NO | — | `CREATE INDEX idx_manual_article_versions_article ON manual_article_versions(article_id, edited_at DESC)` | [001_init.sql:2908](../../../backend/migrations/001_init.sql#L2908) |

@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:225](../../../backend/migrations/001_init.sql#L225) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:226](../../../backend/migrations/001_init.sql#L226) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:227](../../../backend/migrations/001_init.sql#L227) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:228](../../../backend/migrations/001_init.sql#L228) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:229](../../../backend/migrations/001_init.sql#L229) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:230](../../../backend/migrations/001_init.sql#L230) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:233](../../../backend/migrations/001_init.sql#L233) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:234](../../../backend/migrations/001_init.sql#L234) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:235](../../../backend/migrations/001_init.sql#L235) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:236](../../../backend/migrations/001_init.sql#L236) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:237](../../../backend/migrations/001_init.sql#L237) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:238](../../../backend/migrations/001_init.sql#L238) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,10 +46,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `animal_species_pkey` | primary | `PRIMARY KEY` | [001_init.sql:225](../../../backend/migrations/001_init.sql#L225) |
+| `animal_species_pkey` | primary | `PRIMARY KEY` | [001_init.sql:233](../../../backend/migrations/001_init.sql#L233) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_animal_species_name` | YES | `is_active = true` | `CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true` | [001_init.sql:2465](../../../backend/migrations/001_init.sql#L2465) |
+| `idx_animal_species_name` | YES | `is_active = true` | `CREATE UNIQUE INDEX idx_animal_species_name ON animal_species(name) WHERE is_active = true` | [001_init.sql:2473](../../../backend/migrations/001_init.sql#L2473) |

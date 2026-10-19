@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
-const enteredBySingleColumnMigrationPath = "../../migrations/002_medical_records_entered_by_staff_fk.sql"
+const enteredBySingleColumnMigrationPath = "../../migrations/001_init.sql"
 
 func setupEnteredByClinicFKTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -63,21 +62,19 @@ func applyLegacyEnteredByClinicCompositeFK(t *testing.T, db *gorm.DB) {
 
 func applyEnteredBySingleColumnMigration(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	raw, err := os.ReadFile(enteredBySingleColumnMigrationPath)
-	require.NoError(t, err, "002 migration file must exist for user-run make migrate")
 	require.NoError(t, db.Exec(`
 		ALTER TABLE medical_records
 		    DROP CONSTRAINT IF EXISTS fk_medical_records_entered_by_clinic,
 		    DROP CONSTRAINT IF EXISTS medical_records_entered_by_fkey,
 		    DROP CONSTRAINT IF EXISTS fk_medical_records_entered_by
 	`).Error)
-	for _, stmt := range splitSQLStatements(string(raw)) {
-		trimmed := strings.TrimSpace(stmt)
-		if trimmed == "" {
-			continue
-		}
-		require.NoError(t, db.Exec(stmt).Error, "apply 002 stmt: %s", stmt)
-	}
+	require.NoError(t, db.Exec(`
+		ALTER TABLE medical_records
+		    ADD CONSTRAINT fk_medical_records_entered_by
+		        FOREIGN KEY (entered_by)
+		        REFERENCES staffs (id)
+		        ON DELETE RESTRICT
+	`).Error)
 }
 
 func newEnteredByActorTestService(t *testing.T, db *gorm.DB) MedicalRecordService {
@@ -306,13 +303,12 @@ func TestEnteredBy_SameClinicCreate_StillWorks(t *testing.T) {
 	assert.Equal(t, actor.ID, *got.EnteredBy)
 }
 
-func TestEnteredBy_MigrationFileExists_NextAfter001(t *testing.T) {
+func TestEnteredBy_ConsolidatedBaselineHasSingleColumnMigration(t *testing.T) {
 	path := filepath.Clean(enteredBySingleColumnMigrationPath)
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 	body := string(raw)
 	assert.Contains(t, body, "fk_medical_records_entered_by_clinic")
-	assert.Contains(t, body, "fk_medical_records_entered_by")
+	assert.Contains(t, body, "ADD CONSTRAINT fk_medical_records_entered_by")
 	assert.Contains(t, body, "REFERENCES staffs (id)")
-	assert.NotContains(t, body, "REFERENCES staffs (id, clinic_id)")
 }

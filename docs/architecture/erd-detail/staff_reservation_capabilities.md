@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:881](../../../backend/migrations/001_init.sql#L881) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:882](../../../backend/migrations/001_init.sql#L882) |
-| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:883](../../../backend/migrations/001_init.sql#L883) |
-| `reservation_type_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:884](../../../backend/migrations/001_init.sql#L884) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:885](../../../backend/migrations/001_init.sql#L885) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:889](../../../backend/migrations/001_init.sql#L889) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:890](../../../backend/migrations/001_init.sql#L890) |
+| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:891](../../../backend/migrations/001_init.sql#L891) |
+| `reservation_type_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:892](../../../backend/migrations/001_init.sql#L892) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:893](../../../backend/migrations/001_init.sql#L893) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,9 +52,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_reservation_capabilities_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:882](../../../backend/migrations/001_init.sql#L882) |
-| `staff_reservation_capabilities_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:883](../../../backend/migrations/001_init.sql#L883) |
-| `staff_reservation_capabilities_reservation_type_id_fkey` | `reservation_type_id` | [reservation_types](reservation_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:884](../../../backend/migrations/001_init.sql#L884) |
+| `staff_reservation_capabilities_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:890](../../../backend/migrations/001_init.sql#L890) |
+| `staff_reservation_capabilities_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:891](../../../backend/migrations/001_init.sql#L891) |
+| `staff_reservation_capabilities_reservation_type_id_fkey` | `reservation_type_id` | [reservation_types](reservation_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:892](../../../backend/migrations/001_init.sql#L892) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,12 +66,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_reservation_capabilities_pkey` | primary | `PRIMARY KEY` | [001_init.sql:881](../../../backend/migrations/001_init.sql#L881) |
-| `uq_staff_reservation_capability` | unique | `CONSTRAINT uq_staff_reservation_capability UNIQUE (clinic_id, staff_id, reservation_type_id)` | [001_init.sql:886](../../../backend/migrations/001_init.sql#L886) |
+| `staff_reservation_capabilities_pkey` | primary | `PRIMARY KEY` | [001_init.sql:889](../../../backend/migrations/001_init.sql#L889) |
+| `uq_staff_reservation_capability` | unique | `CONSTRAINT uq_staff_reservation_capability UNIQUE (clinic_id, staff_id, reservation_type_id)` | [001_init.sql:894](../../../backend/migrations/001_init.sql#L894) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_staff_reservation_capabilities_clinic_staff` | NO | — | `CREATE INDEX idx_staff_reservation_capabilities_clinic_staff ON staff_reservation_capabilities(clinic_id, staff_id)` | [001_init.sql:889](../../../backend/migrations/001_init.sql#L889) |
-| `idx_staff_reservation_capabilities_clinic_type` | NO | — | `CREATE INDEX idx_staff_reservation_capabilities_clinic_type  ON staff_reservation_capabilities(clinic_id, reservation_type_id)` | [001_init.sql:890](../../../backend/migrations/001_init.sql#L890) |
+| `idx_staff_reservation_capabilities_clinic_staff` | NO | — | `CREATE INDEX idx_staff_reservation_capabilities_clinic_staff ON staff_reservation_capabilities(clinic_id, staff_id)` | [001_init.sql:897](../../../backend/migrations/001_init.sql#L897) |
+| `idx_staff_reservation_capabilities_clinic_type` | NO | — | `CREATE INDEX idx_staff_reservation_capabilities_clinic_type  ON staff_reservation_capabilities(clinic_id, reservation_type_id)` | [001_init.sql:898](../../../backend/migrations/001_init.sql#L898) |

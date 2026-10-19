@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:3485](../../../backend/migrations/001_init.sql#L3485) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3487](../../../backend/migrations/001_init.sql#L3487) |
-| `medicine_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3488](../../../backend/migrations/001_init.sql#L3488) |
-| `species` | `medicine_dose_species` | NOT NULL | — | — | [001_init.sql:3489](../../../backend/migrations/001_init.sql#L3489) |
-| `dose_basis` | `medicine_dose_basis` | NOT NULL | `'per_administration'` | — | [001_init.sql:3490](../../../backend/migrations/001_init.sql#L3490) |
-| `dose_per_kg` | `numeric(10,6)` | NOT NULL | — | — | [001_init.sql:3491](../../../backend/migrations/001_init.sql#L3491) |
-| `min_mg_per_kg` | `numeric(10,6)` | NULL | — | — | [001_init.sql:3492](../../../backend/migrations/001_init.sql#L3492) |
-| `max_mg_per_kg` | `numeric(10,6)` | NULL | — | — | [001_init.sql:3493](../../../backend/migrations/001_init.sql#L3493) |
-| `absolute_max_dose` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3494](../../../backend/migrations/001_init.sql#L3494) |
-| `rounding_step` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3495](../../../backend/migrations/001_init.sql#L3495) |
-| `rounding_mode` | `medicine_rounding_mode` | NULL | — | — | [001_init.sql:3496](../../../backend/migrations/001_init.sql#L3496) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:3497](../../../backend/migrations/001_init.sql#L3497) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3498](../../../backend/migrations/001_init.sql#L3498) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3499](../../../backend/migrations/001_init.sql#L3499) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:3500](../../../backend/migrations/001_init.sql#L3500) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:3493](../../../backend/migrations/001_init.sql#L3493) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3495](../../../backend/migrations/001_init.sql#L3495) |
+| `medicine_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3496](../../../backend/migrations/001_init.sql#L3496) |
+| `species` | `medicine_dose_species` | NOT NULL | — | — | [001_init.sql:3497](../../../backend/migrations/001_init.sql#L3497) |
+| `dose_basis` | `medicine_dose_basis` | NOT NULL | `'per_administration'` | — | [001_init.sql:3498](../../../backend/migrations/001_init.sql#L3498) |
+| `dose_per_kg` | `numeric(10,6)` | NOT NULL | — | — | [001_init.sql:3499](../../../backend/migrations/001_init.sql#L3499) |
+| `min_mg_per_kg` | `numeric(10,6)` | NULL | — | — | [001_init.sql:3500](../../../backend/migrations/001_init.sql#L3500) |
+| `max_mg_per_kg` | `numeric(10,6)` | NULL | — | — | [001_init.sql:3501](../../../backend/migrations/001_init.sql#L3501) |
+| `absolute_max_dose` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3502](../../../backend/migrations/001_init.sql#L3502) |
+| `rounding_step` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3503](../../../backend/migrations/001_init.sql#L3503) |
+| `rounding_mode` | `medicine_rounding_mode` | NULL | — | — | [001_init.sql:3504](../../../backend/migrations/001_init.sql#L3504) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:3505](../../../backend/migrations/001_init.sql#L3505) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3506](../../../backend/migrations/001_init.sql#L3506) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3507](../../../backend/migrations/001_init.sql#L3507) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:3508](../../../backend/migrations/001_init.sql#L3508) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -69,8 +69,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medicine_dose_params_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:3487](../../../backend/migrations/001_init.sql#L3487) |
-| `fk_dose_params_medicine_clinic` | `medicine_id, clinic_id` | [medicines](medicines.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:3521](../../../backend/migrations/001_init.sql#L3521) |
+| `medicine_dose_params_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:3495](../../../backend/migrations/001_init.sql#L3495) |
+| `fk_dose_params_medicine_clinic` | `medicine_id, clinic_id` | [medicines](medicines.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:3529](../../../backend/migrations/001_init.sql#L3529) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -81,19 +81,19 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medicine_dose_params_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3485](../../../backend/migrations/001_init.sql#L3485) |
-| `ck_dose_per_kg_positive` | check | `CONSTRAINT ck_dose_per_kg_positive         CHECK (dose_per_kg > 0)` | [001_init.sql:3501](../../../backend/migrations/001_init.sql#L3501) |
-| `ck_dose_min_positive` | check | `CONSTRAINT ck_dose_min_positive         CHECK (min_mg_per_kg IS NULL OR min_mg_per_kg > 0)` | [001_init.sql:3503](../../../backend/migrations/001_init.sql#L3503) |
-| `ck_dose_max_positive` | check | `CONSTRAINT ck_dose_max_positive         CHECK (max_mg_per_kg IS NULL OR max_mg_per_kg > 0)` | [001_init.sql:3505](../../../backend/migrations/001_init.sql#L3505) |
-| `ck_dose_absolute_max_positive` | check | `CONSTRAINT ck_dose_absolute_max_positive         CHECK (absolute_max_dose IS NULL OR absolute_max_dose > 0)` | [001_init.sql:3507](../../../backend/migrations/001_init.sql#L3507) |
-| `ck_dose_min_max` | check | `CONSTRAINT ck_dose_min_max         CHECK (min_mg_per_kg IS NULL OR max_mg_per_kg IS NULL OR min_mg_per_kg <= max_mg_per_kg)` | [001_init.sql:3509](../../../backend/migrations/001_init.sql#L3509) |
-| `ck_dose_upper_bound_required` | check | `CONSTRAINT ck_dose_upper_bound_required         CHECK (max_mg_per_kg IS NOT NULL OR absolute_max_dose IS NOT NULL)` | [001_init.sql:3512](../../../backend/migrations/001_init.sql#L3512) |
-| `ck_dose_rounding_step_positive` | check | `CONSTRAINT ck_dose_rounding_step_positive         CHECK (rounding_step IS NULL OR rounding_step > 0)` | [001_init.sql:3514](../../../backend/migrations/001_init.sql#L3514) |
-| `ck_dose_rounding_pair` | check | `CONSTRAINT ck_dose_rounding_pair         CHECK ((rounding_step IS NULL) = (rounding_mode IS NULL))` | [001_init.sql:3517](../../../backend/migrations/001_init.sql#L3517) |
+| `medicine_dose_params_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3493](../../../backend/migrations/001_init.sql#L3493) |
+| `ck_dose_per_kg_positive` | check | `CONSTRAINT ck_dose_per_kg_positive         CHECK (dose_per_kg > 0)` | [001_init.sql:3509](../../../backend/migrations/001_init.sql#L3509) |
+| `ck_dose_min_positive` | check | `CONSTRAINT ck_dose_min_positive         CHECK (min_mg_per_kg IS NULL OR min_mg_per_kg > 0)` | [001_init.sql:3511](../../../backend/migrations/001_init.sql#L3511) |
+| `ck_dose_max_positive` | check | `CONSTRAINT ck_dose_max_positive         CHECK (max_mg_per_kg IS NULL OR max_mg_per_kg > 0)` | [001_init.sql:3513](../../../backend/migrations/001_init.sql#L3513) |
+| `ck_dose_absolute_max_positive` | check | `CONSTRAINT ck_dose_absolute_max_positive         CHECK (absolute_max_dose IS NULL OR absolute_max_dose > 0)` | [001_init.sql:3515](../../../backend/migrations/001_init.sql#L3515) |
+| `ck_dose_min_max` | check | `CONSTRAINT ck_dose_min_max         CHECK (min_mg_per_kg IS NULL OR max_mg_per_kg IS NULL OR min_mg_per_kg <= max_mg_per_kg)` | [001_init.sql:3517](../../../backend/migrations/001_init.sql#L3517) |
+| `ck_dose_upper_bound_required` | check | `CONSTRAINT ck_dose_upper_bound_required         CHECK (max_mg_per_kg IS NOT NULL OR absolute_max_dose IS NOT NULL)` | [001_init.sql:3520](../../../backend/migrations/001_init.sql#L3520) |
+| `ck_dose_rounding_step_positive` | check | `CONSTRAINT ck_dose_rounding_step_positive         CHECK (rounding_step IS NULL OR rounding_step > 0)` | [001_init.sql:3522](../../../backend/migrations/001_init.sql#L3522) |
+| `ck_dose_rounding_pair` | check | `CONSTRAINT ck_dose_rounding_pair         CHECK ((rounding_step IS NULL) = (rounding_mode IS NULL))` | [001_init.sql:3525](../../../backend/migrations/001_init.sql#L3525) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_dose_params_med_species` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_dose_params_med_species     ON medicine_dose_params (medicine_id, species)     WHERE deleted_at IS NULL` | [001_init.sql:3526](../../../backend/migrations/001_init.sql#L3526) |
-| `idx_dose_params_clinic_medicine` | NO | — | `CREATE INDEX idx_dose_params_clinic_medicine     ON medicine_dose_params (clinic_id, medicine_id)` | [001_init.sql:3531](../../../backend/migrations/001_init.sql#L3531) |
+| `uq_dose_params_med_species` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_dose_params_med_species     ON medicine_dose_params (medicine_id, species)     WHERE deleted_at IS NULL` | [001_init.sql:3534](../../../backend/migrations/001_init.sql#L3534) |
+| `idx_dose_params_clinic_medicine` | NO | — | `CREATE INDEX idx_dose_params_clinic_medicine     ON medicine_dose_params (clinic_id, medicine_id)` | [001_init.sql:3539](../../../backend/migrations/001_init.sql#L3539) |

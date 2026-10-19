@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:2865](../../../backend/migrations/001_init.sql#L2865) |
-| `category` | `text` | NOT NULL | — | UK | [001_init.sql:2866](../../../backend/migrations/001_init.sql#L2866) |
-| `slug` | `text` | NOT NULL | — | UK | [001_init.sql:2867](../../../backend/migrations/001_init.sql#L2867) |
-| `title` | `text` | NOT NULL | — | — | [001_init.sql:2868](../../../backend/migrations/001_init.sql#L2868) |
-| `order_value` | `numeric(10, 2)` | NOT NULL | `9999` | — | [001_init.sql:2869](../../../backend/migrations/001_init.sql#L2869) |
-| `section` | `text` | NOT NULL | — | — | [001_init.sql:2870](../../../backend/migrations/001_init.sql#L2870) |
-| `body_markdown` | `text` | NOT NULL | — | — | [001_init.sql:2871](../../../backend/migrations/001_init.sql#L2871) |
-| `updated_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:2872](../../../backend/migrations/001_init.sql#L2872) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2874](../../../backend/migrations/001_init.sql#L2874) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
+| `category` | `text` | NOT NULL | — | UK | [001_init.sql:2874](../../../backend/migrations/001_init.sql#L2874) |
+| `slug` | `text` | NOT NULL | — | UK | [001_init.sql:2875](../../../backend/migrations/001_init.sql#L2875) |
+| `title` | `text` | NOT NULL | — | — | [001_init.sql:2876](../../../backend/migrations/001_init.sql#L2876) |
+| `order_value` | `numeric(10, 2)` | NOT NULL | `9999` | — | [001_init.sql:2877](../../../backend/migrations/001_init.sql#L2877) |
+| `section` | `text` | NOT NULL | — | — | [001_init.sql:2878](../../../backend/migrations/001_init.sql#L2878) |
+| `body_markdown` | `text` | NOT NULL | — | — | [001_init.sql:2879](../../../backend/migrations/001_init.sql#L2879) |
+| `updated_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:2880](../../../backend/migrations/001_init.sql#L2880) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2881](../../../backend/migrations/001_init.sql#L2881) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2882](../../../backend/migrations/001_init.sql#L2882) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `manual_articles_updated_by_staff_id_fkey` | `updated_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:2872](../../../backend/migrations/001_init.sql#L2872) |
+| `manual_articles_updated_by_staff_id_fkey` | `updated_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:2880](../../../backend/migrations/001_init.sql#L2880) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,13 +64,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `manual_articles_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2865](../../../backend/migrations/001_init.sql#L2865) |
-| `manual_articles_category_check` | check | `CHECK (category IN ('screens', 'workflows'))` | [001_init.sql:2866](../../../backend/migrations/001_init.sql#L2866) |
-| `manual_articles_category_slug_key` | unique | `UNIQUE (category, slug)` | [001_init.sql:2876](../../../backend/migrations/001_init.sql#L2876) |
+| `manual_articles_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
+| `manual_articles_category_check` | check | `CHECK (category IN ('screens', 'workflows'))` | [001_init.sql:2874](../../../backend/migrations/001_init.sql#L2874) |
+| `manual_articles_category_slug_key` | unique | `UNIQUE (category, slug)` | [001_init.sql:2884](../../../backend/migrations/001_init.sql#L2884) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_manual_articles_category_slug` | NO | — | `CREATE INDEX idx_manual_articles_category_slug ON manual_articles(category, slug)` | [001_init.sql:2879](../../../backend/migrations/001_init.sql#L2879) |
-| `idx_manual_articles_updated_at` | NO | — | `CREATE INDEX idx_manual_articles_updated_at    ON manual_articles(updated_at DESC)` | [001_init.sql:2880](../../../backend/migrations/001_init.sql#L2880) |
+| `idx_manual_articles_category_slug` | NO | — | `CREATE INDEX idx_manual_articles_category_slug ON manual_articles(category, slug)` | [001_init.sql:2887](../../../backend/migrations/001_init.sql#L2887) |
+| `idx_manual_articles_updated_at` | NO | — | `CREATE INDEX idx_manual_articles_updated_at    ON manual_articles(updated_at DESC)` | [001_init.sql:2888](../../../backend/migrations/001_init.sql#L2888) |

@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:497](../../../backend/migrations/001_init.sql#L497) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:498](../../../backend/migrations/001_init.sql#L498) |
-| `tag_name` | `text` | NOT NULL | — | — | [001_init.sql:499](../../../backend/migrations/001_init.sql#L499) |
-| `code_type` | `text` | NOT NULL | — | — | [001_init.sql:500](../../../backend/migrations/001_init.sql#L500) |
-| `codes` | `text[]` | NOT NULL | `'{}'` | — | [001_init.sql:501](../../../backend/migrations/001_init.sql#L501) |
-| `species_scope` | `text` | NULL | — | — | [001_init.sql:502](../../../backend/migrations/001_init.sql#L502) |
-| `age_min` | `int` | NULL | — | — | [001_init.sql:503](../../../backend/migrations/001_init.sql#L503) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:504](../../../backend/migrations/001_init.sql#L504) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:505](../../../backend/migrations/001_init.sql#L505) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:506](../../../backend/migrations/001_init.sql#L506) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:505](../../../backend/migrations/001_init.sql#L505) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:506](../../../backend/migrations/001_init.sql#L506) |
+| `tag_name` | `text` | NOT NULL | — | — | [001_init.sql:507](../../../backend/migrations/001_init.sql#L507) |
+| `code_type` | `text` | NOT NULL | — | — | [001_init.sql:508](../../../backend/migrations/001_init.sql#L508) |
+| `codes` | `text[]` | NOT NULL | `'{}'` | — | [001_init.sql:509](../../../backend/migrations/001_init.sql#L509) |
+| `species_scope` | `text` | NULL | — | — | [001_init.sql:510](../../../backend/migrations/001_init.sql#L510) |
+| `age_min` | `int` | NULL | — | — | [001_init.sql:511](../../../backend/migrations/001_init.sql#L511) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:512](../../../backend/migrations/001_init.sql#L512) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:513](../../../backend/migrations/001_init.sql#L513) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:514](../../../backend/migrations/001_init.sql#L514) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_tag_code_mappings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:498](../../../backend/migrations/001_init.sql#L498) |
+| `lstep_tag_code_mappings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:506](../../../backend/migrations/001_init.sql#L506) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,10 +64,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_tag_code_mappings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:497](../../../backend/migrations/001_init.sql#L497) |
+| `lstep_tag_code_mappings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:505](../../../backend/migrations/001_init.sql#L505) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_tag_code_mappings_clinic_tag_type` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_lstep_tag_code_mappings_clinic_tag_type     ON lstep_tag_code_mappings (clinic_id, tag_name, code_type)     WHERE deleted_at IS NULL` | [001_init.sql:509](../../../backend/migrations/001_init.sql#L509) |
+| `idx_lstep_tag_code_mappings_clinic_tag_type` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_lstep_tag_code_mappings_clinic_tag_type     ON lstep_tag_code_mappings (clinic_id, tag_name, code_type)     WHERE deleted_at IS NULL` | [001_init.sql:517](../../../backend/migrations/001_init.sql#L517) |

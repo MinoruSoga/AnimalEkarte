@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:202](../../../backend/migrations/001_init.sql#L202) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:203](../../../backend/migrations/001_init.sql#L203) |
-| `service` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:204](../../../backend/migrations/001_init.sql#L204) |
-| `key_name` | `varchar(100)` | NOT NULL | — | UK | [001_init.sql:205](../../../backend/migrations/001_init.sql#L205) |
-| `key_value` | `text` | NOT NULL | — | — | [001_init.sql:206](../../../backend/migrations/001_init.sql#L206) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:207](../../../backend/migrations/001_init.sql#L207) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:208](../../../backend/migrations/001_init.sql#L208) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:210](../../../backend/migrations/001_init.sql#L210) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:211](../../../backend/migrations/001_init.sql#L211) |
+| `service` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:212](../../../backend/migrations/001_init.sql#L212) |
+| `key_name` | `varchar(100)` | NOT NULL | — | UK | [001_init.sql:213](../../../backend/migrations/001_init.sql#L213) |
+| `key_value` | `text` | NOT NULL | — | — | [001_init.sql:214](../../../backend/migrations/001_init.sql#L214) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:215](../../../backend/migrations/001_init.sql#L215) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:216](../../../backend/migrations/001_init.sql#L216) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -48,7 +48,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_integrations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:203](../../../backend/migrations/001_init.sql#L203) |
+| `clinic_integrations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:211](../../../backend/migrations/001_init.sql#L211) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -58,11 +58,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `clinic_integrations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:202](../../../backend/migrations/001_init.sql#L202) |
-| `clinic_integrations_clinic_id_service_key_name_key` | unique | `UNIQUE (clinic_id, service, key_name)` | [001_init.sql:209](../../../backend/migrations/001_init.sql#L209) |
+| `clinic_integrations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:210](../../../backend/migrations/001_init.sql#L210) |
+| `clinic_integrations_clinic_id_service_key_name_key` | unique | `UNIQUE (clinic_id, service, key_name)` | [001_init.sql:217](../../../backend/migrations/001_init.sql#L217) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_clinic_integrations_clinic_service` | NO | — | `CREATE INDEX idx_clinic_integrations_clinic_service     ON clinic_integrations (clinic_id, service)` | [001_init.sql:212](../../../backend/migrations/001_init.sql#L212) |
+| `idx_clinic_integrations_clinic_service` | NO | — | `CREATE INDEX idx_clinic_integrations_clinic_service     ON clinic_integrations (clinic_id, service)` | [001_init.sql:220](../../../backend/migrations/001_init.sql#L220) |

@@ -11,25 +11,25 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1351](../../../backend/migrations/001_init.sql#L1351) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1352](../../../backend/migrations/001_init.sql#L1352) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1353](../../../backend/migrations/001_init.sql#L1353) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1354](../../../backend/migrations/001_init.sql#L1354) |
-| `hospitalization_type` | `hospitalization_type` | NOT NULL | — | — | [001_init.sql:1355](../../../backend/migrations/001_init.sql#L1355) |
-| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:1356](../../../backend/migrations/001_init.sql#L1356) |
-| `end_date` | `date` | NOT NULL | — | — | [001_init.sql:1357](../../../backend/migrations/001_init.sql#L1357) |
-| `status` | `hospitalization_status` | NULL | `'reserved'` | — | [001_init.sql:1358](../../../backend/migrations/001_init.sql#L1358) |
-| `cage_id` | `bigint` | NULL | — | FK | [001_init.sql:1359](../../../backend/migrations/001_init.sql#L1359) |
-| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1360](../../../backend/migrations/001_init.sql#L1360) |
-| `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:1361](../../../backend/migrations/001_init.sql#L1361) |
-| `owner_request` | `text` | NOT NULL | `''` | — | [001_init.sql:1362](../../../backend/migrations/001_init.sql#L1362) |
-| `staff_notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1363](../../../backend/migrations/001_init.sql#L1363) |
-| `insurance_company_name` | `varchar(100)` | NULL | — | — | [001_init.sql:1364](../../../backend/migrations/001_init.sql#L1364) |
-| `insurance_number` | `varchar(50)` | NULL | — | — | [001_init.sql:1365](../../../backend/migrations/001_init.sql#L1365) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1366](../../../backend/migrations/001_init.sql#L1366) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1367](../../../backend/migrations/001_init.sql#L1367) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1368](../../../backend/migrations/001_init.sql#L1368) |
-| `next_visit` | `DATE` | NULL | — | — | [036_hospitalizations_next_visit.sql:3](../../../backend/migrations/036_hospitalizations_next_visit.sql#L3) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1359](../../../backend/migrations/001_init.sql#L1359) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1360](../../../backend/migrations/001_init.sql#L1360) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1361](../../../backend/migrations/001_init.sql#L1361) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1362](../../../backend/migrations/001_init.sql#L1362) |
+| `hospitalization_type` | `hospitalization_type` | NOT NULL | — | — | [001_init.sql:1363](../../../backend/migrations/001_init.sql#L1363) |
+| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:1364](../../../backend/migrations/001_init.sql#L1364) |
+| `end_date` | `date` | NOT NULL | — | — | [001_init.sql:1365](../../../backend/migrations/001_init.sql#L1365) |
+| `status` | `hospitalization_status` | NULL | `'reserved'` | — | [001_init.sql:1366](../../../backend/migrations/001_init.sql#L1366) |
+| `cage_id` | `bigint` | NULL | — | FK | [001_init.sql:1367](../../../backend/migrations/001_init.sql#L1367) |
+| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1368](../../../backend/migrations/001_init.sql#L1368) |
+| `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:1369](../../../backend/migrations/001_init.sql#L1369) |
+| `owner_request` | `text` | NOT NULL | `''` | — | [001_init.sql:1370](../../../backend/migrations/001_init.sql#L1370) |
+| `staff_notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1371](../../../backend/migrations/001_init.sql#L1371) |
+| `insurance_company_name` | `varchar(100)` | NULL | — | — | [001_init.sql:1372](../../../backend/migrations/001_init.sql#L1372) |
+| `insurance_number` | `varchar(50)` | NULL | — | — | [001_init.sql:1373](../../../backend/migrations/001_init.sql#L1373) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1374](../../../backend/migrations/001_init.sql#L1374) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1375](../../../backend/migrations/001_init.sql#L1375) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1376](../../../backend/migrations/001_init.sql#L1376) |
+| `next_visit` | `DATE` | NULL | — | — | [001_init.sql:7553](../../../backend/migrations/001_init.sql#L7553) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -93,13 +93,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `hospitalizations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1352](../../../backend/migrations/001_init.sql#L1352) |
-| `hospitalizations_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1353](../../../backend/migrations/001_init.sql#L1353) |
-| `hospitalizations_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1354](../../../backend/migrations/001_init.sql#L1354) |
-| `fk_hospitalizations_owner_clinic` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5773](../../../backend/migrations/001_init.sql#L5773) |
-| `fk_hospitalizations_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5779](../../../backend/migrations/001_init.sql#L5779) |
-| `fk_hospitalizations_cage_clinic` | `cage_id, clinic_id` | [cages](cages.md) | `id, clinic_id` | `ON DELETE SET NULL (cage_id)` | [001_init.sql:5785](../../../backend/migrations/001_init.sql#L5785) |
-| `fk_hospitalizations_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [017_multiclinic_staff_fk_fix.sql:22](../../../backend/migrations/017_multiclinic_staff_fk_fix.sql#L22) |
+| `hospitalizations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1360](../../../backend/migrations/001_init.sql#L1360) |
+| `hospitalizations_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1361](../../../backend/migrations/001_init.sql#L1361) |
+| `hospitalizations_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1362](../../../backend/migrations/001_init.sql#L1362) |
+| `fk_hospitalizations_owner_clinic` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5781](../../../backend/migrations/001_init.sql#L5781) |
+| `fk_hospitalizations_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5787](../../../backend/migrations/001_init.sql#L5787) |
+| `fk_hospitalizations_cage_clinic` | `cage_id, clinic_id` | [cages](cages.md) | `id, clinic_id` | `ON DELETE SET NULL (cage_id)` | [001_init.sql:5793](../../../backend/migrations/001_init.sql#L5793) |
+| `fk_hospitalizations_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:6776](../../../backend/migrations/001_init.sql#L6776) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -115,16 +115,16 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `hospitalizations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1351](../../../backend/migrations/001_init.sql#L1351) |
-| `chk_hospitalizations_dates` | check | `CONSTRAINT chk_hospitalizations_dates CHECK (end_date >= start_date)` | [001_init.sql:1369](../../../backend/migrations/001_init.sql#L1369) |
+| `hospitalizations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1359](../../../backend/migrations/001_init.sql#L1359) |
+| `chk_hospitalizations_dates` | check | `CONSTRAINT chk_hospitalizations_dates CHECK (end_date >= start_date)` | [001_init.sql:1377](../../../backend/migrations/001_init.sql#L1377) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_hospitalizations_clinic_id` | NO | — | `CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id)` | [001_init.sql:2243](../../../backend/migrations/001_init.sql#L2243) |
-| `idx_hospitalizations_pet_id` | NO | — | `CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id)` | [001_init.sql:2300](../../../backend/migrations/001_init.sql#L2300) |
-| `idx_hospitalizations_owner_id` | NO | — | `CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id)` | [001_init.sql:2301](../../../backend/migrations/001_init.sql#L2301) |
-| `idx_hospitalizations_cage_id` | NO | — | `CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id)` | [001_init.sql:2302](../../../backend/migrations/001_init.sql#L2302) |
-| `idx_hospitalizations_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_hospitalizations_clinic_status   ON hospitalizations(clinic_id, status)   WHERE deleted_at IS NULL` | [001_init.sql:2415](../../../backend/migrations/001_init.sql#L2415) |
-| `idx_hospitalizations_clinic_doctor` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_hospitalizations_clinic_doctor   ON hospitalizations(clinic_id, doctor_id)   WHERE deleted_at IS NULL` | [001_init.sql:2419](../../../backend/migrations/001_init.sql#L2419) |
+| `idx_hospitalizations_clinic_id` | NO | — | `CREATE INDEX idx_hospitalizations_clinic_id ON hospitalizations(clinic_id)` | [001_init.sql:2251](../../../backend/migrations/001_init.sql#L2251) |
+| `idx_hospitalizations_pet_id` | NO | — | `CREATE INDEX idx_hospitalizations_pet_id ON hospitalizations(pet_id)` | [001_init.sql:2308](../../../backend/migrations/001_init.sql#L2308) |
+| `idx_hospitalizations_owner_id` | NO | — | `CREATE INDEX idx_hospitalizations_owner_id ON hospitalizations(owner_id)` | [001_init.sql:2309](../../../backend/migrations/001_init.sql#L2309) |
+| `idx_hospitalizations_cage_id` | NO | — | `CREATE INDEX idx_hospitalizations_cage_id ON hospitalizations(cage_id)` | [001_init.sql:2310](../../../backend/migrations/001_init.sql#L2310) |
+| `idx_hospitalizations_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_hospitalizations_clinic_status   ON hospitalizations(clinic_id, status)   WHERE deleted_at IS NULL` | [001_init.sql:2423](../../../backend/migrations/001_init.sql#L2423) |
+| `idx_hospitalizations_clinic_doctor` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_hospitalizations_clinic_doctor   ON hospitalizations(clinic_id, doctor_id)   WHERE deleted_at IS NULL` | [001_init.sql:2427](../../../backend/migrations/001_init.sql#L2427) |

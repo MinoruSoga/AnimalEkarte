@@ -11,27 +11,27 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1686](../../../backend/migrations/001_init.sql#L1686) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1687](../../../backend/migrations/001_init.sql#L1687) |
-| `estimate_no` | `text` | NOT NULL | — | UK | [001_init.sql:1688](../../../backend/migrations/001_init.sql#L1688) |
-| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1689](../../../backend/migrations/001_init.sql#L1689) |
-| `title` | `text` | NOT NULL | `''` | — | [001_init.sql:1690](../../../backend/migrations/001_init.sql#L1690) |
-| `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1691](../../../backend/migrations/001_init.sql#L1691) |
-| `status` | `estimate_status` | NULL | `'draft'` | — | [001_init.sql:1692](../../../backend/migrations/001_init.sql#L1692) |
-| `subtotal` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1693](../../../backend/migrations/001_init.sql#L1693) |
-| `tax_total` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1694](../../../backend/migrations/001_init.sql#L1694) |
-| `total_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1695](../../../backend/migrations/001_init.sql#L1695) |
-| `insurance_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1696](../../../backend/migrations/001_init.sql#L1696) |
-| `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1697](../../../backend/migrations/001_init.sql#L1697) |
-| `valid_until` | `date` | NULL | — | — | [001_init.sql:1698](../../../backend/migrations/001_init.sql#L1698) |
-| `comment` | `text` | NOT NULL | `''` | — | [001_init.sql:1699](../../../backend/migrations/001_init.sql#L1699) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1700](../../../backend/migrations/001_init.sql#L1700) |
-| `created_by` | `bigint` | NULL | — | FK | [001_init.sql:1701](../../../backend/migrations/001_init.sql#L1701) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1702](../../../backend/migrations/001_init.sql#L1702) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1703](../../../backend/migrations/001_init.sql#L1703) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1704](../../../backend/migrations/001_init.sql#L1704) |
-| `supersedes_estimate_id` | `BIGINT` | NULL | — | FK | [001_init.sql:4831](../../../backend/migrations/001_init.sql#L4831) |
-| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:5913](../../../backend/migrations/001_init.sql#L5913) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1694](../../../backend/migrations/001_init.sql#L1694) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1695](../../../backend/migrations/001_init.sql#L1695) |
+| `estimate_no` | `text` | NOT NULL | — | UK | [001_init.sql:1696](../../../backend/migrations/001_init.sql#L1696) |
+| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1697](../../../backend/migrations/001_init.sql#L1697) |
+| `title` | `text` | NOT NULL | `''` | — | [001_init.sql:1698](../../../backend/migrations/001_init.sql#L1698) |
+| `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1699](../../../backend/migrations/001_init.sql#L1699) |
+| `status` | `estimate_status` | NULL | `'draft'` | — | [001_init.sql:1700](../../../backend/migrations/001_init.sql#L1700) |
+| `subtotal` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1701](../../../backend/migrations/001_init.sql#L1701) |
+| `tax_total` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1702](../../../backend/migrations/001_init.sql#L1702) |
+| `total_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1703](../../../backend/migrations/001_init.sql#L1703) |
+| `insurance_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1704](../../../backend/migrations/001_init.sql#L1704) |
+| `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1705](../../../backend/migrations/001_init.sql#L1705) |
+| `valid_until` | `date` | NULL | — | — | [001_init.sql:1706](../../../backend/migrations/001_init.sql#L1706) |
+| `comment` | `text` | NOT NULL | `''` | — | [001_init.sql:1707](../../../backend/migrations/001_init.sql#L1707) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1708](../../../backend/migrations/001_init.sql#L1708) |
+| `created_by` | `bigint` | NULL | — | FK | [001_init.sql:1709](../../../backend/migrations/001_init.sql#L1709) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1710](../../../backend/migrations/001_init.sql#L1710) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1711](../../../backend/migrations/001_init.sql#L1711) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1712](../../../backend/migrations/001_init.sql#L1712) |
+| `supersedes_estimate_id` | `BIGINT` | NULL | — | FK | [001_init.sql:4839](../../../backend/migrations/001_init.sql#L4839) |
+| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:5921](../../../backend/migrations/001_init.sql#L5921) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -94,12 +94,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1687](../../../backend/migrations/001_init.sql#L1687) |
-| `estimates_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1689](../../../backend/migrations/001_init.sql#L1689) |
-| `estimates_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1691](../../../backend/migrations/001_init.sql#L1691) |
-| `estimates_created_by_fkey` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1701](../../../backend/migrations/001_init.sql#L1701) |
-| `estimates_supersedes_estimate_id_fkey` | `supersedes_estimate_id` | [estimates](estimates.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:4831](../../../backend/migrations/001_init.sql#L4831) |
-| `fk_estimates_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE SET NULL (pet_id)` | [001_init.sql:5917](../../../backend/migrations/001_init.sql#L5917) |
+| `estimates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1695](../../../backend/migrations/001_init.sql#L1695) |
+| `estimates_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1697](../../../backend/migrations/001_init.sql#L1697) |
+| `estimates_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1699](../../../backend/migrations/001_init.sql#L1699) |
+| `estimates_created_by_fkey` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1709](../../../backend/migrations/001_init.sql#L1709) |
+| `estimates_supersedes_estimate_id_fkey` | `supersedes_estimate_id` | [estimates](estimates.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:4839](../../../backend/migrations/001_init.sql#L4839) |
+| `fk_estimates_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE SET NULL (pet_id)` | [001_init.sql:5925](../../../backend/migrations/001_init.sql#L5925) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -114,15 +114,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1686](../../../backend/migrations/001_init.sql#L1686) |
+| `estimates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1694](../../../backend/migrations/001_init.sql#L1694) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_estimates_clinic_estimate_no` | YES | — | `CREATE UNIQUE INDEX idx_estimates_clinic_estimate_no ON estimates(clinic_id, estimate_no)` | [001_init.sql:2188](../../../backend/migrations/001_init.sql#L2188) |
-| `idx_estimates_medical_record_id` | NO | — | `CREATE INDEX idx_estimates_medical_record_id ON estimates(medical_record_id)` | [001_init.sql:2326](../../../backend/migrations/001_init.sql#L2326) |
-| `idx_estimates_status` | NO | — | `CREATE INDEX idx_estimates_status ON estimates(status)` | [001_init.sql:2327](../../../backend/migrations/001_init.sql#L2327) |
-| `idx_estimates_owner_id` | NO | — | `CREATE INDEX idx_estimates_owner_id ON estimates(owner_id)` | [001_init.sql:2328](../../../backend/migrations/001_init.sql#L2328) |
-| `idx_estimates_clinic_supersedes` | NO | `supersedes_estimate_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_estimates_clinic_supersedes   ON estimates(clinic_id, supersedes_estimate_id)   WHERE supersedes_estimate_id IS NOT NULL` | [001_init.sql:4834](../../../backend/migrations/001_init.sql#L4834) |
-| `idx_estimates_clinic_pet` | NO | `pet_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_estimates_clinic_pet   ON estimates (clinic_id, pet_id)   WHERE pet_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:5922](../../../backend/migrations/001_init.sql#L5922) |
+| `idx_estimates_clinic_estimate_no` | YES | — | `CREATE UNIQUE INDEX idx_estimates_clinic_estimate_no ON estimates(clinic_id, estimate_no)` | [001_init.sql:2196](../../../backend/migrations/001_init.sql#L2196) |
+| `idx_estimates_medical_record_id` | NO | — | `CREATE INDEX idx_estimates_medical_record_id ON estimates(medical_record_id)` | [001_init.sql:2334](../../../backend/migrations/001_init.sql#L2334) |
+| `idx_estimates_status` | NO | — | `CREATE INDEX idx_estimates_status ON estimates(status)` | [001_init.sql:2335](../../../backend/migrations/001_init.sql#L2335) |
+| `idx_estimates_owner_id` | NO | — | `CREATE INDEX idx_estimates_owner_id ON estimates(owner_id)` | [001_init.sql:2336](../../../backend/migrations/001_init.sql#L2336) |
+| `idx_estimates_clinic_supersedes` | NO | `supersedes_estimate_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_estimates_clinic_supersedes   ON estimates(clinic_id, supersedes_estimate_id)   WHERE supersedes_estimate_id IS NOT NULL` | [001_init.sql:4842](../../../backend/migrations/001_init.sql#L4842) |
+| `idx_estimates_clinic_pet` | NO | `pet_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_estimates_clinic_pet   ON estimates (clinic_id, pet_id)   WHERE pet_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:5930](../../../backend/migrations/001_init.sql#L5930) |

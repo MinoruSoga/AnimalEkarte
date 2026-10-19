@@ -362,18 +362,6 @@ func setupReservationRefScratchSchema(t *testing.T) *reservationRefScratchFixtur
 	ddl := strings.ReplaceAll(string(raw), "app_private", privateSchema)
 	ddl = strings.ReplaceAll(ddl, "'public'", "'"+schema+"'")
 	require.NoError(t, db.Exec(ddl).Error)
-	applyReservationCreatedByMigration(t, db, "../../migrations/002_medical_records_entered_by_staff_fk.sql")
-	applyReservationCreatedByMigration(t, db, reservationCreatedByMigration)                       // 003: created_by 単一カラム FK 化
-	applyReservationCreatedByMigration(t, db, "../../migrations/017_multiclinic_staff_fk_fix.sql") // 017: 兼務スタッフ参照の複合 FK 除去
-	// 022: capabilities_configured_at — replaceReservationCapabilitiesTx の write path が
-	// 同列を NOW() で更新するため、実 DDL schema にも反映が必要。
-	applyReservationCreatedByMigration(t, db, "../../migrations/022_staff_clinic_assignments_capability_configured_at.sql")
-	// 028/029: EMR-308 tentative 列 — model.Reservation の INSERT/UPDATE が
-	// intended_date / source_medical_record_id を常に列挙するため、実 DDL schema にも
-	// 反映が必要（enum 'tentative' 追加と同一 tx で値参照できない制約のため 2 ファイルに
-	// 分割されている: 028 で enum value+列、029 で部分 UNIQUE INDEX）。
-	applyReservationCreatedByMigration(t, db, "../../migrations/028_appointments_tentative_status.sql")
-	applyReservationCreatedByMigration(t, db, "../../migrations/029_appointments_one_active_tentative_index.sql")
 	fixture := &reservationRefScratchFixture{db: db}
 	require.NoError(t, db.Callback().Create().After("gorm:create").Register("test:capture_reservation_ref_fk", func(tx *gorm.DB) {
 		var pgErr *pgconn.PgError

@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **36ファイル** から **138テーブル・1651カラム・323外部キー** を静的に導出しています。
+マイグレーション **1ファイル** から **138テーブル・1651カラム・323外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -171,59 +171,24 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `883245f64087072c8138f71114b8ea70a114ae20f34a5c5209a86e4476003c31`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `e700fa8b094d1e18c6749fcba83234c3965592f14706ec551f87cf6bfd4c750c`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `d792bca4f4d985f1b2acdc7cd9ac0c9af80fe28aa3135712ec70896086c8ba2d` |
-| [002_medical_records_entered_by_staff_fk.sql](../../../backend/migrations/002_medical_records_entered_by_staff_fk.sql) | `231060f40e288776dc7768f24e2f81fab8c5226a3f1045633398442c3ed62a95` |
-| [003_appointments_created_by_staff_fk.sql](../../../backend/migrations/003_appointments_created_by_staff_fk.sql) | `97254617a6254eb2f26b1e6c9f018ce7c376c7b0a46648ef4efd458d64af955d` |
-| [004_billing_items_treatment_lifetime_unique.sql](../../../backend/migrations/004_billing_items_treatment_lifetime_unique.sql) | `b1259855989346dd33351f92f731c53a43997b007eb9c0c2b0c6d974ae72e937` |
-| [005_child_records_version.sql](../../../backend/migrations/005_child_records_version.sql) | `9e188500b5c439793db86b4293b9c6184ae781e3b9e7c8f298e0034e7809abdd` |
-| [006_accounts_rls_ops_bypass.sql](../../../backend/migrations/006_accounts_rls_ops_bypass.sql) | `394051c95126ca113f7f77d86601b78b21bc1d4cddfad6b1f13fcabab77efaa1` |
-| [007_billings_clinic_owner_scheduled_index.sql](../../../backend/migrations/007_billings_clinic_owner_scheduled_index.sql) | `447358dbd89473c3e00981c7a648d50e2ba3144629ff00c6a3eead8f6eb3488d` |
-| [009_reconcile_002_master_seed_checksum.sql](../../../backend/migrations/009_reconcile_002_master_seed_checksum.sql) | `f6aeb8c91f869826fd40cff75a8e12c2f310b5aa941003db1026d28d24340906` |
-| [010_grant_lab_import_create_to_default_groups.sql](../../../backend/migrations/010_grant_lab_import_create_to_default_groups.sql) | `1f6e701a214002cc3b845f926e7a92f62df304e879bbd83330ef610f3107667f` |
-| [011_care_plan_items_manual_other.sql](../../../backend/migrations/011_care_plan_items_manual_other.sql) | `fb18358ec0a1bebc27df08cc9b3d854d5743bd5d85bd91b8d5cb63e4d7c10a65` |
-| [011_support_bug_reports.sql](../../../backend/migrations/011_support_bug_reports.sql) | `172d9a893bcdef398836f680e4a5e950f3def91d107463e64789f88b7fe31442` |
-| [012_pets_name_origin_meeting_story.sql](../../../backend/migrations/012_pets_name_origin_meeting_story.sql) | `13eda3b9ea12da06dfc2ca0df17a578ee9ef859d08ce5793b13413160e49a2fc` |
-| [013_support_chat_messages.sql](../../../backend/migrations/013_support_chat_messages.sql) | `ec7c75eb33629161239b69180ce448da3ca6b36424dabb737767a0a709760015` |
-| [014_drop_prescriptions.sql](../../../backend/migrations/014_drop_prescriptions.sql) | `8e8f8a5242d47fc98e5e340725c04f3a6e4a120b72d4f6fb50506df198b66bec` |
-| [015_search_fold_indexes.sql](../../../backend/migrations/015_search_fold_indexes.sql) | `dcd28dc335221b1640a20a072ad67ea2d64d6892f06f29cce3ebb44aaa09300b` |
-| [016_support_bug_reports_plane.sql](../../../backend/migrations/016_support_bug_reports_plane.sql) | `788adfeb1781da6b2bd1abbd81cac1622c7e84a924b2313edbd779c10d272276` |
-| [017_multiclinic_staff_fk_fix.sql](../../../backend/migrations/017_multiclinic_staff_fk_fix.sql) | `08cd7ce63eb398849e5cc29217c580a042061a71ee0ef0d4124efe366f1ae174` |
-| [018_pet_neutered_status.sql](../../../backend/migrations/018_pet_neutered_status.sql) | `0b854dd15ab39c820d537cf16fa1609d000680d50b45d64a70562546ebebcd0e` |
-| [019_drop_checkup_package_import_permission.sql](../../../backend/migrations/019_drop_checkup_package_import_permission.sql) | `4376b00cdedd123c5c379c5645d82d71bb0e761cfe29eb0f06feaaefe3d506fa` |
-| [020_reconcile_002_master_seed_checksum.sql](../../../backend/migrations/020_reconcile_002_master_seed_checksum.sql) | `7c2e346b5c2cb7c6335ae5758fb86b21c916cefa623b13bd16804dd2c9a0c57a` |
-| [021_medical_record_image_deletions.sql](../../../backend/migrations/021_medical_record_image_deletions.sql) | `1fb99ccbfed5dea9f7754a98556365e80d642e44fbe3918d899295af9759ee61` |
-| [022_staff_clinic_assignments_capability_configured_at.sql](../../../backend/migrations/022_staff_clinic_assignments_capability_configured_at.sql) | `9816da61ce3366b30193d0cc72119ee81676a982ced2469c28c98f67d002bb44` |
-| [023_lab_device_mapping_drafts.sql](../../../backend/migrations/023_lab_device_mapping_drafts.sql) | `85a499173bdd75206fb7e72f073ea0af74f09a8aab8189b6cd9635717118067b` |
-| [024_lab_device_mapping_drafts_clinic_unique.sql](../../../backend/migrations/024_lab_device_mapping_drafts_clinic_unique.sql) | `9912a1bbe728e0742efadbee60fa9a6cb861210f3ebcdef17b0e71f44184a706` |
-| [025_cages_merged_into_cage_id.sql](../../../backend/migrations/025_cages_merged_into_cage_id.sql) | `59c37ee264645c366ecd97af29e3b53b74a160294b06c350c13c4603aed173ba` |
-| [028_appointments_tentative_status.sql](../../../backend/migrations/028_appointments_tentative_status.sql) | `9dc685a628a6b610b40dad5f952da0c227d8196c50875ca5e17525e0fca422b1` |
-| [029_appointments_one_active_tentative_index.sql](../../../backend/migrations/029_appointments_one_active_tentative_index.sql) | `37a81bcb5e3ec2bfad61d2e735cf2eb094af01baebd242b4f0b4ab9f229f136f` |
-| [030_next_visit_recommended_date_to_tentative.sql](../../../backend/migrations/030_next_visit_recommended_date_to_tentative.sql) | `1fcba7b937432b1531343595f84803f1a54e0afa384c2cb892a1f89daed9b075` |
-| [031_appointments_source_medical_record_clinic_fk.sql](../../../backend/migrations/031_appointments_source_medical_record_clinic_fk.sql) | `9efb120dd59f96455d076dde6f3e2d127787c240bbb2c83c004f32bcebed8fba` |
-| [032_trimming_image_deletions.sql](../../../backend/migrations/032_trimming_image_deletions.sql) | `932a005007410d5884baa070399f53a06ce485ce9256e53c06ab1c8d9010c2ba` |
-| [033_lstep_next_visit_sync_retries.sql](../../../backend/migrations/033_lstep_next_visit_sync_retries.sql) | `eef5732c5499d286de58ec386841042f1f9720486d22b7afc5641d4ff0079e61` |
-| [034_lstep_next_visit_cleanup_target.sql](../../../backend/migrations/034_lstep_next_visit_cleanup_target.sql) | `e5f78083f6de3e720476865d14f54b14fa1a9fed465a9a605b1436cada953567` |
-| [035_trimming_image_storage_retry.sql](../../../backend/migrations/035_trimming_image_storage_retry.sql) | `034c8290479a6359fbb5852c241e123cf63554d82a17f5b0d5584f6fe0b48d89` |
-| [036_hospitalizations_next_visit.sql](../../../backend/migrations/036_hospitalizations_next_visit.sql) | `0d119d3506a81b0707fa5af3e77658661bb63e5267542f1c8b993b2ed28915b2` |
-| [037_house_call_item_category.sql](../../../backend/migrations/037_house_call_item_category.sql) | `72a99d3f7fb06e091ee08747d13524c0b68d3377a52f3f5c7f6288feed03cb82` |
-| [038_support_manual_search.sql](../../../backend/migrations/038_support_manual_search.sql) | `868487fd07d1d5aa3ba506bf120ba2c4ec666b94f13d4571e3d3eb786529848d` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
-- 001_init.sql:3020 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy
-- 001_init.sql:3842 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion
-- 001_init.sql:3914 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion
-- 001_init.sql:4859 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup
-- 001_init.sql:5227 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent
-- 001_init.sql:5245 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent
-- 001_init.sql:5331 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion
-- 009_reconcile_002_master_seed_checksum.sql:47 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum
-- 010_grant_lab_import_create_to_default_groups.sql:55 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion
-- 010_grant_lab_import_create_to_default_groups.sql:73 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
-- 020_reconcile_002_master_seed_checksum.sql:40 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
-- 030_next_visit_recommended_date_to_tentative.sql:147 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
-- 031_appointments_source_medical_record_clinic_fk.sql:18 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion
+- 001_init.sql:3028 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy
+- 001_init.sql:3850 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion
+- 001_init.sql:3922 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion
+- 001_init.sql:4867 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup
+- 001_init.sql:5235 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent
+- 001_init.sql:5253 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent
+- 001_init.sql:5339 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion
+- 001_init.sql:6429 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum
+- 001_init.sql:6497 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion
+- 001_init.sql:6515 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
+- 001_init.sql:6882 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
+- 001_init.sql:7384 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
+- 001_init.sql:7449 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion

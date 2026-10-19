@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:6024](../../../backend/migrations/001_init.sql#L6024) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6025](../../../backend/migrations/001_init.sql#L6025) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6026](../../../backend/migrations/001_init.sql#L6026) |
-| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6027](../../../backend/migrations/001_init.sql#L6027) |
-| `expires_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:6028](../../../backend/migrations/001_init.sql#L6028) |
-| `cleared_at` | `timestamptz` | NULL | — | — | [001_init.sql:6029](../../../backend/migrations/001_init.sql#L6029) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6030](../../../backend/migrations/001_init.sql#L6030) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6031](../../../backend/migrations/001_init.sql#L6031) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:6032](../../../backend/migrations/001_init.sql#L6032) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6033](../../../backend/migrations/001_init.sql#L6033) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6034](../../../backend/migrations/001_init.sql#L6034) |
+| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6035](../../../backend/migrations/001_init.sql#L6035) |
+| `expires_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:6036](../../../backend/migrations/001_init.sql#L6036) |
+| `cleared_at` | `timestamptz` | NULL | — | — | [001_init.sql:6037](../../../backend/migrations/001_init.sql#L6037) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6038](../../../backend/migrations/001_init.sql#L6038) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6039](../../../backend/migrations/001_init.sql#L6039) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,9 +59,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_waits_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6025](../../../backend/migrations/001_init.sql#L6025) |
-| `fk_lab_device_waits_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:6032](../../../backend/migrations/001_init.sql#L6032) |
-| `fk_lab_device_waits_staff` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [017_multiclinic_staff_fk_fix.sql:46](../../../backend/migrations/017_multiclinic_staff_fk_fix.sql#L46) |
+| `lab_device_waits_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6033](../../../backend/migrations/001_init.sql#L6033) |
+| `fk_lab_device_waits_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:6040](../../../backend/migrations/001_init.sql#L6040) |
+| `fk_lab_device_waits_staff` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6800](../../../backend/migrations/001_init.sql#L6800) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -73,11 +73,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_waits_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6024](../../../backend/migrations/001_init.sql#L6024) |
+| `lab_device_waits_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6032](../../../backend/migrations/001_init.sql#L6032) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_lab_device_waits_clinic_active` | YES | `cleared_at IS NULL` | `CREATE UNIQUE INDEX uq_lab_device_waits_clinic_active     ON lab_device_waits (clinic_id)     WHERE cleared_at IS NULL` | [001_init.sql:6042](../../../backend/migrations/001_init.sql#L6042) |
-| `idx_lab_device_waits_clinic_expires` | NO | — | `CREATE INDEX idx_lab_device_waits_clinic_expires     ON lab_device_waits (clinic_id, expires_at)` | [001_init.sql:6046](../../../backend/migrations/001_init.sql#L6046) |
+| `uq_lab_device_waits_clinic_active` | YES | `cleared_at IS NULL` | `CREATE UNIQUE INDEX uq_lab_device_waits_clinic_active     ON lab_device_waits (clinic_id)     WHERE cleared_at IS NULL` | [001_init.sql:6050](../../../backend/migrations/001_init.sql#L6050) |
+| `idx_lab_device_waits_clinic_expires` | NO | — | `CREATE INDEX idx_lab_device_waits_clinic_expires     ON lab_device_waits (clinic_id, expires_at)` | [001_init.sql:6054](../../../backend/migrations/001_init.sql#L6054) |

@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:861](../../../backend/migrations/001_init.sql#L861) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:862](../../../backend/migrations/001_init.sql#L862) |
-| `reservation_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:863](../../../backend/migrations/001_init.sql#L863) |
-| `available_type` | `text` | NOT NULL | — | — | [001_init.sql:864](../../../backend/migrations/001_init.sql#L864) |
-| `day_of_week` | `smallint` | NULL | — | — | [001_init.sql:865](../../../backend/migrations/001_init.sql#L865) |
-| `specific_date` | `date` | NULL | — | — | [001_init.sql:866](../../../backend/migrations/001_init.sql#L866) |
-| `start_time` | `varchar(5)` | NOT NULL | — | — | [001_init.sql:867](../../../backend/migrations/001_init.sql#L867) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:868](../../../backend/migrations/001_init.sql#L868) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:869](../../../backend/migrations/001_init.sql#L869) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:870](../../../backend/migrations/001_init.sql#L870) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:869](../../../backend/migrations/001_init.sql#L869) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:870](../../../backend/migrations/001_init.sql#L870) |
+| `reservation_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:871](../../../backend/migrations/001_init.sql#L871) |
+| `available_type` | `text` | NOT NULL | — | — | [001_init.sql:872](../../../backend/migrations/001_init.sql#L872) |
+| `day_of_week` | `smallint` | NULL | — | — | [001_init.sql:873](../../../backend/migrations/001_init.sql#L873) |
+| `specific_date` | `date` | NULL | — | — | [001_init.sql:874](../../../backend/migrations/001_init.sql#L874) |
+| `start_time` | `varchar(5)` | NOT NULL | — | — | [001_init.sql:875](../../../backend/migrations/001_init.sql#L875) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:876](../../../backend/migrations/001_init.sql#L876) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:877](../../../backend/migrations/001_init.sql#L877) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:878](../../../backend/migrations/001_init.sql#L878) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,8 +58,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_type_available_slots_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:862](../../../backend/migrations/001_init.sql#L862) |
-| `reservation_type_available_slots_reservation_type_id_fkey` | `reservation_type_id` | [reservation_types](reservation_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:863](../../../backend/migrations/001_init.sql#L863) |
+| `reservation_type_available_slots_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:870](../../../backend/migrations/001_init.sql#L870) |
+| `reservation_type_available_slots_reservation_type_id_fkey` | `reservation_type_id` | [reservation_types](reservation_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:871](../../../backend/migrations/001_init.sql#L871) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -70,15 +70,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_type_available_slots_pkey` | primary | `PRIMARY KEY` | [001_init.sql:861](../../../backend/migrations/001_init.sql#L861) |
-| `reservation_type_available_slots_available_type_check` | check | `CHECK (available_type IN ('weekly', 'specific'))` | [001_init.sql:864](../../../backend/migrations/001_init.sql#L864) |
-| `reservation_type_available_slots_day_of_week_check` | check | `CHECK (day_of_week >= 0 AND day_of_week <= 6)` | [001_init.sql:865](../../../backend/migrations/001_init.sql#L865) |
-| `reservation_type_available_slots_start_time_check` | check | `CHECK (start_time ~ '^[0-2][0-9]:[0-5][0-9]$')` | [001_init.sql:867](../../../backend/migrations/001_init.sql#L867) |
+| `reservation_type_available_slots_pkey` | primary | `PRIMARY KEY` | [001_init.sql:869](../../../backend/migrations/001_init.sql#L869) |
+| `reservation_type_available_slots_available_type_check` | check | `CHECK (available_type IN ('weekly', 'specific'))` | [001_init.sql:872](../../../backend/migrations/001_init.sql#L872) |
+| `reservation_type_available_slots_day_of_week_check` | check | `CHECK (day_of_week >= 0 AND day_of_week <= 6)` | [001_init.sql:873](../../../backend/migrations/001_init.sql#L873) |
+| `reservation_type_available_slots_start_time_check` | check | `CHECK (start_time ~ '^[0-2][0-9]:[0-5][0-9]$')` | [001_init.sql:875](../../../backend/migrations/001_init.sql#L875) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_rtype_available_slot_clinic_type` | NO | — | `CREATE INDEX idx_rtype_available_slot_clinic_type ON reservation_type_available_slots(clinic_id, reservation_type_id)` | [001_init.sql:873](../../../backend/migrations/001_init.sql#L873) |
-| `idx_rtype_available_slot_weekly_unique` | YES | `available_type = 'weekly'` | `CREATE UNIQUE INDEX idx_rtype_available_slot_weekly_unique   ON reservation_type_available_slots(reservation_type_id, day_of_week, start_time) WHERE available_type = 'weekly'` | [001_init.sql:874](../../../backend/migrations/001_init.sql#L874) |
-| `idx_rtype_available_slot_specific_unique` | YES | `available_type = 'specific'` | `CREATE UNIQUE INDEX idx_rtype_available_slot_specific_unique ON reservation_type_available_slots(reservation_type_id, specific_date, start_time) WHERE available_type = 'specific'` | [001_init.sql:875](../../../backend/migrations/001_init.sql#L875) |
+| `idx_rtype_available_slot_clinic_type` | NO | — | `CREATE INDEX idx_rtype_available_slot_clinic_type ON reservation_type_available_slots(clinic_id, reservation_type_id)` | [001_init.sql:881](../../../backend/migrations/001_init.sql#L881) |
+| `idx_rtype_available_slot_weekly_unique` | YES | `available_type = 'weekly'` | `CREATE UNIQUE INDEX idx_rtype_available_slot_weekly_unique   ON reservation_type_available_slots(reservation_type_id, day_of_week, start_time) WHERE available_type = 'weekly'` | [001_init.sql:882](../../../backend/migrations/001_init.sql#L882) |
+| `idx_rtype_available_slot_specific_unique` | YES | `available_type = 'specific'` | `CREATE UNIQUE INDEX idx_rtype_available_slot_specific_unique ON reservation_type_available_slots(reservation_type_id, specific_date, start_time) WHERE available_type = 'specific'` | [001_init.sql:883](../../../backend/migrations/001_init.sql#L883) |
