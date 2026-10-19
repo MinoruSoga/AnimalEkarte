@@ -10,13 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/csvimport"
 )
 
-func verifySkeleton(ctx context.Context, e execer) error {
-	if err := verifySkeletonBindings(ctx, e); err != nil {
-		return err
-	}
-	return verifyCutoverTablesEmpty(ctx, e)
-}
-
 func verifySkeletonBindings(ctx context.Context, e execer) error {
 	for _, clinic := range clinicSeeds() {
 		var id, gotCompanyID int64
