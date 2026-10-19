@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-const checkedInInitialMigrationSHA256 = "6bce31da2bb6c26a781584ccf04f251aaa8c59ba29343bfc9dbbddd543e7dca0"
+const checkedInInitialMigrationSHA256 = "2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0"
 
 type failClosedDriver struct{ state *failClosedDriverState }
 type failClosedDriverState struct {
@@ -85,6 +85,7 @@ func TestKnownOldChecksumsToCheckedInMigrationFailClosedWithoutCompanionDDLOrCAS
 		"1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac", // standalone PR727 baseline: not the combined schema.
 		"f002b3dc35a6788dea618f41199726dfb1ab4070d1f03fffbc5c8fe55a006832", // standalone PR728 baseline: not the combined schema.
 		"8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e", // pre-EMR460 consolidated baseline: fail closed, never repair automatically.
+		"6bce31da2bb6c26a781584ccf04f251aaa8c59ba29343bfc9dbbddd543e7dca0", // EMR-446 baseline with plpgsql bare-CASE syntax errors; fresh apply failed, never recorded on a live DB.
 		"921c88ba86159a501f86abcddd8639fd65dee37f7d9d3f1c811844f7294c6cc5",
 		"6b618736ca0dba65408b7bf2a6d5d8c607f12c3adf1c544321d17f3004b62fcb",
 		"aa30c742a20d4a9fa7a9d323cfa0314d4c83bec57712f7984228c4451c089691",

@@ -9069,13 +9069,13 @@ CREATE TABLE medical_record_correction_links (
     FOREIGN KEY (operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT
 );
 -- Partial dates preserve their actual precision; no first-day/year guessing.
-CREATE FUNCTION app_private.valid_partial_clinical_date(precision text, y integer, m integer, d date, raw text)
+CREATE FUNCTION app_private.valid_partial_clinical_date(precision_value text, y integer, m integer, d date, raw text)
 RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
- SELECT (precision IS NULL AND y IS NULL AND m IS NULL AND d IS NULL)
- OR (precision='year' AND y IS NOT NULL AND y BETWEEN 1 AND 9999 AND m IS NULL AND d IS NULL)
- OR (precision='month' AND y IS NOT NULL AND y BETWEEN 1 AND 9999 AND m IS NOT NULL AND m BETWEEN 1 AND 12 AND d IS NULL)
- OR (precision='day' AND d IS NOT NULL AND y IS NULL AND m IS NULL)
- OR (precision IN ('approximate','unknown') AND y IS NULL AND m IS NULL AND d IS NULL);
+ SELECT (precision_value IS NULL AND y IS NULL AND m IS NULL AND d IS NULL)
+ OR (precision_value='year' AND y IS NOT NULL AND y BETWEEN 1 AND 9999 AND m IS NULL AND d IS NULL)
+ OR (precision_value='month' AND y IS NOT NULL AND y BETWEEN 1 AND 9999 AND m IS NOT NULL AND m BETWEEN 1 AND 12 AND d IS NULL)
+ OR (precision_value='day' AND d IS NOT NULL AND y IS NULL AND m IS NULL)
+ OR (precision_value IN ('approximate','unknown') AND y IS NULL AND m IS NULL AND d IS NULL);
 $$;
 CREATE TABLE initial_intake_revisions (
     id BIGSERIAL PRIMARY KEY,
@@ -10282,7 +10282,7 @@ BEGIN
  END IF;
  IF NEW.source_deposit_entry_id IS NOT NULL THEN
  SELECT * INTO STRICT d FROM owner_deposit_entries WHERE id=NEW.source_deposit_entry_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
- IF d.amount<>NEW.amount OR d.billing_id IS DISTINCT FROM NEW.billing_id OR d.entry_kind<>CASE NEW.event_kind WHEN 'allocate' THEN 'apply' ELSE NEW.event_kind END OR (NEW.event_kind IN('allocate','refund') AND d.source_entry_id IS DISTINCT FROM f.deposit_receive_entry_id) OR(NEW.event_kind='release' AND d.source_entry_id IS DISTINCT FROM orig.source_deposit_entry_id) THEN RAISE EXCEPTION 'deposit projection differs from source' USING ERRCODE='23514'; END IF;
+ IF d.amount<>NEW.amount OR d.billing_id IS DISTINCT FROM NEW.billing_id OR d.entry_kind<>(CASE NEW.event_kind WHEN 'allocate' THEN 'apply' ELSE NEW.event_kind END) OR (NEW.event_kind IN('allocate','refund') AND d.source_entry_id IS DISTINCT FROM f.deposit_receive_entry_id) OR(NEW.event_kind='release' AND d.source_entry_id IS DISTINCT FROM orig.source_deposit_entry_id) THEN RAISE EXCEPTION 'deposit projection differs from source' USING ERRCODE='23514'; END IF;
  ELSIF f.origin_kind='deposit' THEN RAISE EXCEPTION 'deposit fund uses original deposit ledger events, never independent spending' USING ERRCODE='23514'; END IF;
  RETURN NEW;
 END; $$;
@@ -10609,14 +10609,14 @@ CREATE FUNCTION app_private.finance_source_guard()
 RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE f payment_funds%ROWTYPE; use_event fund_consumption_events%ROWTYPE; d owner_deposit_entries%ROWTYPE; BEGIN
  IF NEW.fund_id IS NOT NULL THEN
  SELECT * INTO STRICT f FROM payment_funds WHERE id=NEW.fund_id AND clinic_id=NEW.clinic_id;
- IF NEW.actual_movement_amount<>CASE WHEN f.origin_kind='deposit' THEN 0 ELSE f.received_amount END THEN RAISE EXCEPTION 'fund source movement differs or duplicates deposit receipt' USING ERRCODE='23514'; END IF;
+ IF NEW.actual_movement_amount<>(CASE WHEN f.origin_kind='deposit' THEN 0 ELSE f.received_amount END) THEN RAISE EXCEPTION 'fund source movement differs or duplicates deposit receipt' USING ERRCODE='23514'; END IF;
  ELSIF NEW.fund_consumption_event_id IS NOT NULL THEN
  SELECT * INTO STRICT use_event FROM fund_consumption_events WHERE id=NEW.fund_consumption_event_id AND clinic_id=NEW.clinic_id;
  SELECT * INTO STRICT f FROM payment_funds WHERE id=use_event.fund_id AND clinic_id=use_event.clinic_id;
- IF NEW.actual_movement_amount<>CASE WHEN use_event.event_kind='refund' AND f.origin_kind<>'deposit' THEN -use_event.amount ELSE 0 END THEN RAISE EXCEPTION 'allocation/release is not actual money or refund duplicates deposit event' USING ERRCODE='23514'; END IF;
+ IF NEW.actual_movement_amount<>(CASE WHEN use_event.event_kind='refund' AND f.origin_kind<>'deposit' THEN -use_event.amount ELSE 0 END) THEN RAISE EXCEPTION 'allocation/release is not actual money or refund duplicates deposit event' USING ERRCODE='23514'; END IF;
  ELSIF NEW.deposit_entry_id IS NOT NULL THEN
  SELECT * INTO STRICT d FROM owner_deposit_entries WHERE id=NEW.deposit_entry_id AND clinic_id=NEW.clinic_id;
- IF NEW.actual_movement_amount<>CASE d.entry_kind WHEN 'receive' THEN d.amount WHEN 'refund' THEN -d.amount ELSE 0 END THEN RAISE EXCEPTION 'deposit source movement differs' USING ERRCODE='23514'; END IF;
+ IF NEW.actual_movement_amount<>(CASE d.entry_kind WHEN 'receive' THEN d.amount WHEN 'refund' THEN -d.amount ELSE 0 END) THEN RAISE EXCEPTION 'deposit source movement differs' USING ERRCODE='23514'; END IF;
  ELSIF NEW.fund_record_correction_id IS NOT NULL OR NEW.billing_change_event_id IS NOT NULL THEN
  IF NEW.actual_movement_amount<>0 THEN RAISE EXCEPTION 'record correction/billing changes do not create actual money' USING ERRCODE='23514'; END IF;
  END IF; RETURN NEW;
@@ -11055,7 +11055,7 @@ BEGIN
  IF NEW.event_kind IN('release','deposit_release') THEN
  SELECT * INTO STRICT orig FROM fund_consumption_events WHERE id=NEW.source_allocation_id AND clinic_id=NEW.clinic_id AND fund_id=NEW.fund_id;
  SELECT COALESCE(sum(amount),0) INTO released FROM fund_consumption_events WHERE clinic_id=NEW.clinic_id AND source_allocation_id=orig.id AND event_kind IN('release','deposit_release');
- IF orig.event_kind<>CASE NEW.event_kind WHEN 'release' THEN 'allocate' ELSE 'deposit_allocate' END
+ IF orig.event_kind<>(CASE NEW.event_kind WHEN 'release' THEN 'allocate' ELSE 'deposit_allocate' END)
  OR orig.billing_id IS DISTINCT FROM NEW.billing_id OR NEW.amount>orig.amount-released THEN RAISE EXCEPTION 'release differs from original allocation or exceeds remaining allocation' USING ERRCODE='23514'; END IF;
  END IF;
  IF NEW.source_deposit_entry_id IS NOT NULL THEN
@@ -11104,7 +11104,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE f payment_funds%ROWTYPE; e fund_c
  IF NEW.actual_movement_amount<>f.received_amount THEN RAISE EXCEPTION 'actual fund movement differs from original net receipt' USING ERRCODE='23514'; END IF;
  ELSIF NEW.fund_consumption_event_id IS NOT NULL THEN
  SELECT * INTO STRICT e FROM fund_consumption_events WHERE id=NEW.fund_consumption_event_id AND clinic_id=NEW.clinic_id;
- IF NEW.actual_movement_amount<>CASE WHEN e.event_kind='refund' THEN -e.amount ELSE 0 END THEN RAISE EXCEPTION 'allocation/deposit use is not actual money; refund is counted once' USING ERRCODE='23514'; END IF;
+ IF NEW.actual_movement_amount<>(CASE WHEN e.event_kind='refund' THEN -e.amount ELSE 0 END) THEN RAISE EXCEPTION 'allocation/deposit use is not actual money; refund is counted once' USING ERRCODE='23514'; END IF;
  ELSIF NEW.deposit_entry_id IS NOT NULL OR NEW.fund_record_correction_id IS NOT NULL OR NEW.billing_change_event_id IS NOT NULL THEN
  IF NEW.actual_movement_amount<>0 THEN RAISE EXCEPTION 'account allocation or record correction does not create actual money' USING ERRCODE='23514'; END IF;
  END IF; RETURN NEW;
