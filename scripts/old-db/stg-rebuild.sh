@@ -97,8 +97,14 @@ IFS=$'\t' read -r DB_HOST DB_USER DB_PASSWORD <<< "$CONN"
 # budget on the STG branch (138 tables + RLS/functions). Drop objects statement
 # by statement first; DB_RESET=true then only recreates the empty schema.
 echo "Batched pre-drop of public objects"
+psql_major="$(psql --version | grep -oE '[0-9]+' | head -1)"
+ssl_root="${STG_SSL_ROOT_CERT:-system}"
+if [[ "$ssl_root" == "system" && "${psql_major:-0}" -lt 17 ]]; then
+  # libpq <17 lacks sslrootcert=system; use the OS CA bundle instead
+  ssl_root="/etc/ssl/cert.pem"
+fi
 PGHOST="$DB_HOST" PGPORT=5432 PGUSER="$DB_USER" PGPASSWORD="$DB_PASSWORD" \
-PGDATABASE=postgres PGSSLMODE=verify-full PGSSLROOT_CERT=system \
+PGDATABASE=postgres PGSSLMODE=verify-full PGSSLROOT_CERT="$ssl_root" \
 PGOPTIONS='-c app.bypass_rls=on' \
 psql -X -q -v ON_ERROR_STOP=1 -f - <<'SQL'
 SELECT format('DROP TABLE IF EXISTS public.%I CASCADE', tablename)
