@@ -66,7 +66,7 @@
 
 ### 3.1 一覧取得と URL 同期
 - **ロード**: `ownersLoader` が `GET /v1/pets` をペット行粒度で呼び、**サーバ側**で `page` / `limit`（20）/ `search` / `species` / `include_deceased` / `checkup_history`、任意で `clinic_ids` を適用する（クライアント全件取得・クライアント側フィルタではない）。
-- **検索入力（10/19本人承認後の目標）**: [共通の明示実行契約](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)に従い、入力中値とURLの適用済み検索条件を分け、「検索」ボタンで適用する。入力/300ms待機だけでは再検索しない。旧実装は `SEARCH_DEBOUNCE_MS` による300msデバウンスで、変更済み・実機合格とはしない。`useDeferredValue` は既存owners実装では使わない。
+- **検索入力（10/19本人承認後の目標）**: [共通の明示実行契約](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)に従い、入力中値とURLの適用済み検索条件を分け、「検索」ボタンで適用する。入力/300ms待機だけでは再検索しない。旧文書には `SEARCH_DEBOUNCE_MS` による300msデバウンスとある。基準HEADの限定静的観察では既に明示検索の経路もあり、この旧記載を現在全callerの動作と断定せず、適合・実機合格は別に検証する。`useDeferredValue` は既存owners実装では使わない。
 - **SoT**: `page` / `search` / `species` / `include_deceased` / `checkup_history` / `clinics` は URL クエリと同期し、変更時に loader が再実行される。
 
 **検索から一覧描画までのデータ流れ:**
@@ -146,3 +146,8 @@ SLK-275の1語検索とペット番号検索は、上記の既存述語へ接続
 ## 10/19検索実行の受入への接続
 
 [4追加AC](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)を本一覧へ適用する。入力中文字列はURL状態の正本ではなく、検索押下後の適用条件だけをURL/loaderへ渡す。医院選択保持・検索述語・健診履歴/死亡filter・詳細復帰は既存契約を維持し、リセットでその範囲を無断変更しない。旧検索の実装観察と、新しいボタン目標・未実機を区別する。
+
+<a id="cross-ui-search-20261019"></a>
+## 10/19後続承認：同種操作・検索ボタン方式
+
+本画面の既存キーワード欄は[適用台帳 L01](../shared/interaction-scope.md)と[共通FR/8AC](../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。入力中/適用済みを分け、入力/待機/消去だけでは検索せず検索ボタンで適用。既存の明示リセット、独立filter、詳細復帰、認可・検索対象・取得上限/ページ内制限を保持し、全件検索や一律の保存方式へ変えない。取得中/0件/失敗と遅延応答を分け、検索で選択/保存/コピー/送信を確定しない。旧defer/debounceの記載は入力即適用の目標に用いず、適用後の描画最適化と区別する。[S14手順](../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)を各対象IDで実施する受入条件とし、実装適合・実機は未確認。

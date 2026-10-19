@@ -274,3 +274,7 @@ sequenceDiagram
   - 異常系索引の節番号を現行構成に修正（ワクチンは §8、§10 は入院登録のため誤参照だった）
   - §1 petId なし新規の select-pet リダイレクトを実装突合済みに昇格（要実測を解除）
   - 臨床ルート（`/medical-records`・`/examinations`・`/vaccinations`・`/checkups`・`/hospitalization`・`/trimming` および `select-pet`/`new`/`:id`/`edit`）を `frontend/src/config/paths.ts` と一致確認
+
+## 10/19横断操作の受入接続
+
+本フォーム内のowner/pet選択・保存済み履歴・関連一覧は[適用台帳](../../../spec/shared/interaction-scope.md)の対象IDごとに[S14の8AC手順](S14-search-and-multi-word.md#cross-ui-search-20261019)を実施する。検索/候補補完/保存/コピー/取消を区別し、既存のフォーム権限/安全・保存ACと併用する。文書更新時点では未実行。

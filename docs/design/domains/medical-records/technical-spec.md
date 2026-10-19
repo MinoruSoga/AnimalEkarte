@@ -661,3 +661,7 @@ client候補keyは `record_ref + owner_kind + field_ref + input_generation`。ta
 候補は不変`dose_pattern_ref`と改訂版を設け、clinic/medicine/species、目的・経路、basis、用量単位・製剤含量単位、必要回数、丸め、上限、出典ref、医師承認ref／適用版を結ぶ。今回計算には選択したパターン版と入力体重・含量・回数・結果単位を保存し、同薬同種で複数なら明示選択前に自動確定しない。現値を移行時に一律承認済みにせず、根拠不明は承認未照合とする。具体値・単位・対象の承認は医師工程#261のままで、ここで数値を置かない。
 
 AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版改定／丸め後上限／取得認可失敗を対応付ける。1回量・用法・総量を別表示とし、日数からの総量計算・用法template・複雑protocolは増設しない。設計候補完成と臨床承認・計算実機合格は別に報告する。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

@@ -512,6 +512,13 @@ D03の最新合意は6FR／18AC追加、当時16FR／71ACを保持して合意�
 [原文](https://docs.google.com/document/d/1d8SWGAPdmSeXqPR517xIex8KPcd2j1Md8gcRJqx4u-U/edit)を読取取得し、本人 `Sentinel_1738846672e08191ac7e29910cf269c8`（2026-10-19 05:36:42 UTC／14:36:42 JST）の「ok」が助手質問 `Sentinel_14ab315a49ec8191afbe4dfc8ae8982a` の2点・検索対象範囲を承認した。メモ作者・会議採否を確認済みにはせず、この本人回答を採用根拠にする。
 
 - [D05登録の空きケージ選択・3追加AC](hospitalization/lifecycle.md#cage-available-selection-20261019)：新規候補のみ空きに限定。現在割当保持/任意/自己除外/連結拒否・医院scopeを維持し、新しい期間占有算法を作らない。
-- [C01飼主・ペット一覧/選択用の明示検索・4追加AC](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)：入力と適用を分け検索ボタン押下。既存filter/復帰/認可/検索述語維持、他業務検索へ拡大しない。
+- [C01飼主・ペット一覧/選択用の明示検索・4追加AC](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)：入力と適用を分け検索ボタン押下。既存filter/復帰/認可/検索述語維持。第一次承認の範囲であり、後続横断承認の最新範囲は末尾を参照。
 
 表記/ボタン名の入院・ホテル統一、詳細取得エラーは本承認対象外。実装/DB/実機/Plane/デプロイ/マージはなし。旧300ms/使用中も選択可の記載は旧実装差へ分離し、文書反映を対応済み・実機合格にしない。実装側の普通ケージ競合検査、候補read認可/DTOと各検索consumerの新しい発火制御は残検証。
+
+<a id="cross-ui-consistency-20261019"></a>
+## 10/19後続承認：同種操作と業務検索の横断統一
+
+本人確認質問 `Sentinel_452b9aa85f3c81918a0e80c533363a20`（2026-10-19 05:51:18 UTC）で「同じ用途の操作の全画面統一」「業務一覧と飼主・ペット選択の検索ボタン実行」「各画面仕様・設計・受入条件の矛盾解消」を提示し、本人回答 `Sentinel_9591f439f8b081918d6495c87ac9a16f` が05:52:03 UTC（14:52:03 JST）に「ok」。入力補完・診療項目候補など異用途は個別整理し、検索対象・権限・ページング・自動保存は一律変更しないという条件を含む。親会話から渡された質問/回答receiptに基づき、今回原会話を再取得したとはしない。
+
+[共通FR/8AC](../shared/ui-contracts.md#interaction-consistency-20261019)、[全対象/用途別台帳](../shared/interaction-scope.md)、[共通設計](../../design/shared/integration-contracts.md#cross-ui-search-adapter-20261019)、[概念](../ontology/cross-domain-contracts.md#search-operation-context-concept)、[検証手順](../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)へ接続する。旧リアクティブ総論と予約患者選択の漏れ、第一次owner/pet限定を更新。新しい検索述語/全件化/認可/保存方式、候補補完の一括変更は採用しない。文書反映であり実装・実機は未確認。

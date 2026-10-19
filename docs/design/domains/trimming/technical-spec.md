@@ -181,3 +181,7 @@ AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時�
 取込後の変更は未確定明細の差異→スタッフ明示再適用と現版検査へ渡す。確定済みは訂正経路で、終了の再試行から会計を新規作成しない。directcreate応答断は予約IDを受け取る前でも同scope/key結果を解決できるC06 adapterを候補とし、detail重複409だけをreceiptの代用にしない。
 
 検証は担当未定再開、courseなしoptionあり終了、保存／終了同時変更、directcreate応答断、0円、二重値引、取込後施術変更と会計手修正の両順、確定後変更、実施なし中止を分ける。元行件数・保存版・料金根拠・確定請求不変を記録する。FIN-R21は本項へ統合し別作業として重複検証しない。内部方式の候補であり実装／実機合格ではない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

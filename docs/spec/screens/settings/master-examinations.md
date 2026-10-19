@@ -106,3 +106,8 @@ Phase 1 FE と Phase 2 composite FK（`001_init.sql` にアーカイブ済み）
 ### 感染症結果の項目対応
 
 猫FIV／FeLV・犬mf／HWの結果投影では、検査種別と保存fieldの明示的な対応を使い、名称の類似から推定したり、現在マスタで過去の結果版を書き換えたりしない。[D07の結果投影契約](../../../design/domains/examinations/technical-spec.md#examination-infection-summary-contract)に従う。具体的なcode／対応表・旧値の適合は後続技術確認であり、今回の品目保険対象設定や医師の臨床判断とは独立する。
+
+<a id="cross-ui-search-20261019"></a>
+## 10/19後続承認：同種操作・検索ボタン方式
+
+本画面の既存キーワード欄は[適用台帳 M03](../../shared/interaction-scope.md)と[共通FR/8AC](../../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。入力中/適用済みを分け、入力/待機/消去だけでは検索せず検索ボタンで適用。既存の明示リセット、独立filter、詳細復帰、認可・検索対象・取得上限/ページ内制限を保持し、全件検索や一律の保存方式へ変えない。取得中/0件/失敗と遅延応答を分け、検索で選択/保存/コピー/送信を確定しない。旧defer/debounceの記載は入力即適用の目標に用いず、適用後の描画最適化と区別する。[S14手順](../../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)を各対象IDで実施する受入条件とし、実装適合・実機は未確認。

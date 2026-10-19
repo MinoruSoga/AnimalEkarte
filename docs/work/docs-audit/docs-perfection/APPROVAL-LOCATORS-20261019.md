@@ -259,3 +259,9 @@ source threadは `01a14350-92b9-7391-935d-d3ed3ebe20f7`。原会話を新規取�
 - 本人回答 `Sentinel_1738846672e08191ac7e29910cf269c8`：2026-10-19 05:36:42 UTC（14:36:42 JST）「ok」。source thread `01a14350-92b9-7391-935d-d3ed3ebe20f7`。
 
 採用範囲/ACは[C01の正本](../../../spec/shared/ui-contracts.md#owner-pet-explicit-search-20261019)と[D05の正本](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)。[10/19メモ](https://docs.google.com/document/d/1d8SWGAPdmSeXqPR517xIex8KPcd2j1Md8gcRJqx4u-U/edit)の4点全体を承認とせず、表記統一/詳細取得エラーを含めない。
+
+## 後続の横断統一承認（基準231 ID・先行2点とは別）
+
+本人確認質問 `Sentinel_452b9aa85f3c81918a0e80c533363a20`（2026-10-19 05:51:18 UTC）で「同じ用途の操作の全画面統一」「業務一覧と飼主・ペット選択の検索ボタン実行」「各画面仕様・設計・受入条件の矛盾解消」を提示し、本人回答 `Sentinel_9591f439f8b081918d6495c87ac9a16f` が05:52:03 UTC（14:52:03 JST）に「ok」。入力補完・診療項目候補など異用途は個別整理し、検索対象・権限・ページング・自動保存は一律変更しないという条件を含む。親会話から渡された質問/回答receiptに基づき、今回原会話を再取得したとはしない。
+
+source thread `01a14350-92b9-7391-935d-d3ed3ebe20f7`。提示範囲は同種操作の実行/クリア/状態保持/戻る/error、業務一覧/ownerpet選択keywordの検索ボタン、個別仕様/設計/AC整合。範囲制約も同じ質問の一部で、親receiptを新たな原会話取得や基準ID集計へ加算しない。[正本](../../../spec/shared/ui-contracts.md#interaction-consistency-20261019)を参照。

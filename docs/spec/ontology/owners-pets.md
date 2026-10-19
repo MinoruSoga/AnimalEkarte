@@ -62,4 +62,4 @@ Q-I1は具体的な矛盾データ移行／患者分割が必要になった時�
 
 ## 検索入力と適用条件（10/19）
 
-[明示検索の正本](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)では、入力中の検索値、検索ボタンで適用した条件、取得結果、選択済みowner/pet IDを区別する。検索/クリアは患者同一確認・link/unlink・予約/カルテ作成ではない。適用済み医院scope/認可と復帰条件を保持し、他業務検索の方式変更へ一般化しない。
+[明示検索の正本](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)では、入力中の検索値、検索ボタンで適用した条件、取得結果、選択済みowner/pet IDを区別する。検索/クリアは患者同一確認・link/unlink・予約/カルテ作成ではない。適用済み医院scope/認可と復帰条件を保持し、他業務一覧への発火統一は後続の[横断承認と適用台帳](../shared/interaction-scope.md)へ接続し、患者同定やlink操作へ一般化しない。

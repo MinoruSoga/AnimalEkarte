@@ -705,3 +705,7 @@ IR-11は既存writer一覧を出発点に実route/DTO/生成型/DDL・旧client�
 
 
 追加静的照合（IR-11/12/13/16）：`model/reservation_type.go`の現カテゴリはgeneral/trimming、duration_minutesは非nullable/default15で、新4分類・未設定時間と明示0の表現を同じとしない。`model/staff_reservation_capability.go`は医院＋staff＋typeの肯定形対応、`reservation_staff_repository.go`はcapabilityを正本にexcluded readを導出し、旧excluded writeをactive母集団から反転して保存する互換入口を持つ。旧実効集合・設定済marker・母集団を固定した照合を行い、追加区分の許可拡大を起こす旧write停止は既選定どおり検査する。旧excluded表と新表が両方同等のwrite正本であると誤記しない。`reception/api/get-reception.ts`は日付付き予約取得と30秒poll、`api/transforms.ts`は予約状態から会計待ち等の列へ投影するが、この限定読取で医師確認別軸や全タブ/戻り先保持を確認済みにはしない。実データの分類・時間・能力のunknown件数と全caller対応、実機検証は残る。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

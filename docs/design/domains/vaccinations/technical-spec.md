@@ -168,3 +168,7 @@ CL-R12の限定検索はmedicalrecord route群とvaccinationsのroute／componen
 2026-10-19の文書再照合では、保存済みの独立原資料確認（元XLS SHA-256 `027572bcf6c83882b0d085872f05cd532d0ef79a6fb99bcb07fb97c390bf4e07`、3見本の全項目／配置・画像hash）を再利用し、[既存正本の見本対応表](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)と一致した。通常縦H127:K148、通常横F148:K158、狂犬病B235:F246は画像描画アンカーで、B162:B220の操作説明本文とは別。縦LOT.1〜4、横E-Mail、狂犬病に独立発行日欄がない差を保持する。項目／配置の文書照合は確認済みで、新しいpixel読解・描画golden・実印刷は実施していない。
 
 repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語・英語名で検索した範囲では、専用発行経路を特定できなかった。TLS設定・SMTP証明書test・生成マニュアル・運用証跡の一致を診療証明書実装と誤認しない。命名の異なる実装や未公開コード／実環境の不存在を証明する検索ではない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

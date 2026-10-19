@@ -232,3 +232,7 @@ sequenceDiagram
 ## 10/19検索の追加受入（未実機）
 
 飼主・ペット一覧/既存飼主・ペット候補選択は[S14の4追加AC実行](S14-search-and-multi-word.md)へ接続する。登録時の連絡先重複検出、同一確認、主副飼主保存、identity link/unlinkの成功判定は検索とは別で、入力後の検索方式変更を理由に自動実行しない。
+
+## 10/19横断操作の受入接続
+
+本フォーム内のowner/pet選択・保存済み履歴・関連一覧は[適用台帳](../../../spec/shared/interaction-scope.md)の対象IDごとに[S14の8AC手順](S14-search-and-multi-word.md#cross-ui-search-20261019)を実施する。検索/候補補完/保存/コピー/取消を区別し、既存のフォーム権限/安全・保存ACと併用する。文書更新時点では未実行。

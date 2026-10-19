@@ -109,3 +109,7 @@ IR-14/15の具体候補であり、列名・API・DDLの実装済み保証、追
 | 休業期間 | 候補`staff_leave_periods{clinic_id,staff_id,開始日,終了日,revision,元値由来}`。医院JST日付を勤務/指名候補日時へ解決し、既存の医院時刻・期間端点契約へ正規化。取得失敗を休業なしにしない | 作成・更新・copy・CSV・LINE候補すべてで現在期間を再照合。変更previewに既存勤務/保護予約を出し既存owner操作へ渡す。自動予約取消/退職/ログイン停止なし。復帰は同一staff/所属/履歴を保持し新勤務を作らない。期間端点の実表現と全caller適合は検証残件 |
 
 限定読取：`backend/internal/staff/staff_request.go`と`model/staff.go`はoccupation_id/staff_type・所属/能力と勤務/休憩を持つ。前者の読取範囲で独立役職/雇用/休業期間の入力は確認できない。`shift_entry_repository.go`のstaff/assignment lock、(staff,date)読取、既存break置換は再利用調査の起点で、一括原子保存対応済みの証拠ではない。12ACと追加3ACの実機結果は未取得。CSV上限・保持・期間端点等の内部選定を、職種/休業の業務採否の聞き直しへ変換しない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

@@ -102,3 +102,7 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 旧fieldは保存snapshotと原field ref／型／値を利用し、削除済みIDを名称で現fieldへ再接続しない。GETから復元するadapterは0／false／null・未評価・取得失敗を区別し、型不一致は未知として止める。package変更と定義改訂の期待版は結果置換の同じtxで照合する候補で、現行実装済みとしない。
 
 検証は親後失敗、子後応答断、結果PUT後応答断、別患者遅延応答、field削除／同名再作成、0／false、途中失権を分け、再開前後の親子件数・ID・原値・必要監査を比較する。任意段階の成功を全体成功とせず、タグ／followup成功とも分離する。現在未実行であり、この案を保存しただけでCL-R09のruntime部分を完了にしない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

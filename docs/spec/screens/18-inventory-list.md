@@ -60,7 +60,7 @@ flowchart TB
 ## 2. 技術仕様
 
 ### 2.1 描画の最適化
-- **遅延フィルタリング**: `useDeferredValue` は現在ページ内の検索に使う。全件クライアント絞り込みではない。
+- **遅延フィルタリング**: `useDeferredValue` は現在ページ内の検索に使う。全件クライアント絞り込みではない。 10/19後続承認の目標は検索ボタン適用後の結果を描画する方式。入力だけで検索を適用する旧挙動を継承しない。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
@@ -77,3 +77,8 @@ flowchart TB
 ### 通常治療createの副作用との分離
 
 [全writer参加表](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)で、現通常治療createはinventory ID指定時に在庫減算することを静的確認した。患者転記／過去入力／カルテ訂正の保存をこの入口へ無条件流用しない。[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)は歴史的記録と新しい在庫実績を分離し、影響表示・関連inventory ID／現在版・元訂正ref・理由を在庫ownerへ渡す。実増減・返却・取消の内部ルールとreceiptはD13で確認し、今回新しい増減を確定しない。
+
+<a id="cross-ui-search-20261019"></a>
+## 10/19後続承認：同種操作・検索ボタン方式
+
+本画面の既存キーワード欄は[適用台帳 L08](../shared/interaction-scope.md)と[共通FR/8AC](../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。入力中/適用済みを分け、入力/待機/消去だけでは検索せず検索ボタンで適用。既存の明示リセット、独立filter、詳細復帰、認可・検索対象・取得上限/ページ内制限を保持し、全件検索や一律の保存方式へ変えない。取得中/0件/失敗と遅延応答を分け、検索で選択/保存/コピー/送信を確定しない。旧defer/debounceの記載は入力即適用の目標に用いず、適用後の描画最適化と区別する。[S14手順](../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)を各対象IDで実施する受入条件とし、実装適合・実機は未確認。

@@ -164,3 +164,7 @@ sequenceDiagram
 ## 2026-10-15コースカテゴリの入口
 
 コース種別はコースのカテゴリであり、予約区分マスタに近い一覧・編集UIへ整理する。予約区分の業務分類・枠設定とは別。正本は[コース種別](master-trimming-course-type.md)と[D06](../../domains/trimming/lifecycle.md#trimming-meeting-pricing-category)。
+
+## 10/19同種操作・検索方式の最新適用
+
+[共通FRと8受入条件](../../shared/ui-contracts.md#interaction-consistency-20261019)・[対象/異用途台帳](../../shared/interaction-scope.md)へ接続。同じ用途の実行/clear/保持/戻る/失敗を揃え、既存業務一覧・飼主pet選択のkeywordは検索ボタンで適用する。個別正本と台帳行を照合し、原則一文や共通部品だけで全画面適合としない。既存認可/取得範囲/自動保存・異用途の境界を維持する。

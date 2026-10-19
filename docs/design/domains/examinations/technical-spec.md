@@ -174,3 +174,7 @@ D21の検査履歴sectionはスタッフの閲覧専用であり、同sectionか
 当日対象検査候補は有効waitを作成／利用するownerが、選択元clinic・pet・recordと現在JST日・診療状態を同じgate内で再照合する。物理waitへのrecord ref追加は候補であり、既存pet_id payloadが既にこれを表現するとしない。検査は直接API、前日／未来record、別院、死亡、一覧後終了／対象変更、日付跨ぎ、待機期限切れと受信の両順を分ける。不適合時は別petへ自動fallbackせず、既存未紐付け・失敗契約を保つ。
 
 CL-R14の実機receiptは医院・機種／個体・OS／Chrome版・接続経路・source・設定・対象手順・停止復旧担当・日時・基準commit・判定・医師確認を記録し、raw患者情報を転記しない。NX600/AU10Vの日常受信、PU decoder-only、IDEXX PIMS code／応答送信承認、legacy手動経路を別行にする。2ポート排他、切断／再接続、途中frame、重複、待機消失、保存失敗、患者切替、配線競合を承認済み環境でだけ実行し、未実施は空欄PASSにしない。旧城東COM・36項目・既存fixtureを他医院／全機種の実証へ広げない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

@@ -130,3 +130,8 @@ stateDiagram-v2
 院内の猫FIV／FeLV・犬mf／HWの保存結果は患者トップへ自動反映する。他院はD07の結果記録として手入力し、原値・判明検査日・出典と入力者／入力時刻を保存する。未判明日付は「検査日不明」、他院は「他院・手入力」と表示する。現行フォームに日付不明／出典を表現できる保証はなく、架空日付や台帳備考への転記で代用しない。
 
 保存結果と同じ固定refを読むので、未保存値や未紐付け受信は患者トップへ出さない。訂正／作業版の状態、同日複数候補・出典の違い、記録なし／結果待ち／取得失敗を区別する。保存成功後の再取得失敗は更新未確認として扱う。検査自身の訂正保護と担当医任意は維持し、LINE公開・送付を追加しない。受入はAC-examinations-infection-*、[結果projection契約](../../design/domains/examinations/technical-spec.md#examination-infection-summary-contract)へ。
+
+<a id="cross-ui-search-20261019"></a>
+## 10/19後続承認：同種操作・検索ボタン方式
+
+本画面の既存キーワード欄は[適用台帳 H02](../shared/interaction-scope.md)と[共通FR/8AC](../shared/ui-contracts.md#interaction-consistency-20261019)へ従う。入力中/適用済みを分け、入力/待機/消去だけでは検索せず検索ボタンで適用。既存の明示リセット、独立filter、詳細復帰、認可・検索対象・取得上限/ページ内制限を保持し、全件検索や一律の保存方式へ変えない。取得中/0件/失敗と遅延応答を分け、検索で選択/保存/コピー/送信を確定しない。旧defer/debounceの記載は入力即適用の目標に用いず、適用後の描画最適化と区別する。[S14手順](../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)を各対象IDで実施する受入条件とし、実装適合・実機は未確認。

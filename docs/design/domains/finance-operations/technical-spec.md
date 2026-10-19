@@ -335,3 +335,7 @@ preview版を出力時にも照合し、版変化は再取得、0件確認は空
 ### FIN-R23〜R25：実行待ちの証跡単位
 
 実API/DB二session試験は各intentに`環境/版/clinic/fixture/必要grant/操作key/前後残・数量/監査/receipt/両先行順/結果`を保存する。PDFと実プリンタ、帳票項目と税務適用、手動返金記録と決済事業者の実返金は別レーン・別判定。帳票matrixは請求、実受領領収、預り受領、最終会計充当、訂正/実返金/再発行、月次未納4列+調整、日次退院4列ごとに元取引/版・宛名/登録番号/税内訳・pet別/共通・今回差分・期間を対応させる。未実行・fixture不足・実設定未確認はPARTIAL/BLOCKEDで、本文精査やCI成功からPASSを転記しない。
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

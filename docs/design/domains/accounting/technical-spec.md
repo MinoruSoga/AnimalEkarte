@@ -780,3 +780,7 @@ FIN-R01〜R10の文書精査として、本文181ACとsubpage固有20ACを別母
 | AC-accounting-unpaid-mode-label | pages/unpaid-list.md:214 | F06 | `AC-accounting-unpaid-mode-label` |
 | AC-accounting-unpaid-latest-date | pages/unpaid-list.md:220 | F06 | `AC-accounting-unpaid-latest-date` |
 | AC-accounting-unpaid-carryover-columns | pages/unpaid-list.md:226 | F06 | `AC-accounting-unpaid-carryover-columns` |
+
+## 10/19横断検索・同種操作の設計接続
+
+[共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

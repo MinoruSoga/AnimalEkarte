@@ -149,3 +149,7 @@ PNG551は過去合成UI証跡で新pixel目視0。ZIP4は同画像配布包の�
 ## 後続承認2点の文書追加（10/19）
 
 前段の75項目・別7・231 IDは上記基準mainの調査記録として保持する。後続の[質問と本人回答receipt](APPROVAL-LOCATORS-20261019.md#後続2点の本人承認基準231-idとは別の追補)に基づき、[空きケージの新規選択3AC](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)と[飼主・ペット一覧/選択用の検索ボタン実行4AC](../../../spec/shared/ui-contracts.md#owner-pet-explicit-search-20261019)を正本へ追加した。既存の期間/医院/現在割当・任意、検索述語/filter/復帰/認可を保持する。旧実装の使用中選択/300ms自動発火との差は未検証で、実装・実機完了へ加算しない。メモの表記統一/詳細取得エラーは今回承認に含めない。
+
+## 後続横断承認の反映（10/19 05:52 UTC）
+
+[本人承認と共通FR/8AC](../../../spec/shared/ui-contracts.md#interaction-consistency-20261019)と[適用台帳](../../../spec/shared/interaction-scope.md)で業務一覧/飼主pet選択の発火を統一し、同種操作の意味と用途別例外を個別正本・設計・ontology・S14へ接続した。旧リアクティブ原則/予約の反映漏れを解消し、旧75/別7/231 IDは元調査基準として保持。新8ACと実装追従・全caller/実機適合は未検証。
