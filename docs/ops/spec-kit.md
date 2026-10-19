@@ -19,6 +19,18 @@
 
 これらはシェルコマンドではなくCodexスキルの呼出名。CLIの確認は `specify version`、`specify check`、`specify integration status`、`specify preset list`。テンプレート解決は `specify preset resolve spec-template` で確認できる。
 
+## 既存 scoped Plane チケットとの使い分け（2026-10-19）
+
+スコープ・受入条件・正本への参照が揃った既存の scoped Plane チケットは、spec.md の役割（変更依頼・範囲・正本への参照索引）を代替する。このため `$speckit-specify` を経由せず実装へ進めてよい（AGENTS.md と `.claude/CLAUDE.md` の Spec Kit routing 免除条項「existing scoped Plane tickets」がこれに当たる）。チケットの本文・コメントに業務ルールを複製せず、正本への参照で書く。
+
+spec-kit のスキルを使うのは次の場面である。
+
+- チケット化前の整理: 仕様に無い新要件や業務判断を伴う変更の変更依頼作成と `$speckit-clarify`
+- 設計残件の解消: 仕様が「設計残件」と明示した設計判断（例: 予約コース×オプションの対応データ、採用時間の保存場所）
+- 複数領域に跨る変更で、リポジトリ内に変更参照を残す価値がある場合
+
+実装の実行状態・Done の正本は Plane のみ（docs/README.md の fact owner 規定どおり）。spec.md を作った場合も実行台帳にはしない。
+
 ## 導入状態・注意
 
 Git拡張・任意の第三者拡張・新規認証・権限設定変更は導入していない。branch・commit・push・force初期化は行っていない。実予約のspec/plan/tasksは作成していない。導入検証は隔離した架空fixtureで行う。
