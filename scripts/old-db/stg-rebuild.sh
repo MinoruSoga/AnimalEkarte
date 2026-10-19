@@ -93,6 +93,29 @@ PY
 IFS=$'\t' read -r DB_HOST DB_USER DB_PASSWORD <<< "$CONN"
 [[ -n "$DB_HOST" && -n "$DB_USER" && -n "$DB_PASSWORD" ]] || die "could not read role connection fields"
 
+# DROP SCHEMA public CASCADE in one transaction exceeds the shared-memory lock
+# budget on the STG branch (138 tables + RLS/functions). Drop objects statement
+# by statement first; DB_RESET=true then only recreates the empty schema.
+echo "Batched pre-drop of public objects"
+PGHOST="$DB_HOST" PGPORT=5432 PGUSER="$DB_USER" PGPASSWORD="$DB_PASSWORD" \
+PGDATABASE=postgres PGSSLMODE=verify-full PGSSLROOT_CERT=system \
+PGOPTIONS='-c app.bypass_rls=on' \
+psql -X -q -v ON_ERROR_STOP=1 -f - <<'SQL'
+SELECT format('DROP TABLE IF EXISTS public.%I CASCADE', tablename)
+  FROM pg_tables WHERE schemaname = 'public' \gexec
+SELECT format('DROP MATERIALIZED VIEW IF EXISTS public.%I CASCADE', matviewname)
+  FROM pg_matviews WHERE schemaname = 'public' \gexec
+SELECT format('DROP VIEW IF EXISTS public.%I CASCADE', viewname)
+  FROM pg_views WHERE schemaname = 'public' \gexec
+SELECT format('DROP SEQUENCE IF EXISTS public.%I CASCADE', sequencename)
+  FROM pg_sequences WHERE schemaname = 'public' \gexec
+SELECT format('DROP TYPE IF EXISTS public.%I CASCADE', typname)
+  FROM pg_types WHERE typtype = 'e' AND typnamespace = 'public'::regnamespace \gexec
+SELECT format('DROP FUNCTION IF EXISTS %s CASCADE', p.oid::regprocedure)
+  FROM pg_proc p
+ WHERE p.pronamespace IN ('public'::regnamespace, 'app_private'::regnamespace) \gexec
+SQL
+
 EXTRA_ENV=()
 if [[ -n "${SEEDLOGIN_DEMO_PASSWORD:-}" ]]; then
   EXTRA_ENV+=(-e "SEEDLOGIN_DEMO_PASSWORD=$SEEDLOGIN_DEMO_PASSWORD")
