@@ -97,6 +97,8 @@ D03の専用過去入力／確定後追記とD07のofficial revision保護へ接
 | read・projection | list-scope, print, owner-handoff |
 
 ## 利用開始前に残す項目
+
+旧解析のID/項目/単位/版・外注/画像/医院差に関する照合不足は[解析資料との境界](../../../spec/lab-device-integration/README.md#analysis-contract-boundaries)と[移行最低互換の未確認事項](../../../spec/lab-device-integration/README.md#migration-and-phase-unknowns)を参照する。通常受信の型・writer・固定版/訂正/権限を維持し、旧MDB入力の解禁、専用連携・移行方式の採用や実施済みにはしない。
 基準値具体値の医師確認、医院実grant、臨床旧版・item対応、receipt／全監査／競合adapter、物理配線・UAT・PIMS運用承認・医院rollout、旧PUT互換切替は未確認。文書の整合をこれらのPASSにしない。追加の製品要件・自動受信対象拡大は別の判断を要する。
 
 

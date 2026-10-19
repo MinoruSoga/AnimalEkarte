@@ -19,6 +19,8 @@
 
 機器受信経路の優先順位は、2026-10-14 EMR-402を反映した現行接続正本／ADR008のcurrent daily pathが先。ADR007/008の古い「日常ポート選択ゼロ」「LaunchAgent常駐」を現在の日常受信要件として適用しない。その他の受信同一性・待機・attach/detach・隔離契約は維持する。
 
+[旧Drワン解析資料の境界整理](../../lab-device-integration/README.md#analysis-contract-boundaries)は旧観測とコード参照であり、本書の既決条件を変更しない。大阪血清・PicJoint・医院差、旧ID/履歴/画像移行と初日最低互換は[未確認事項](../../lab-device-integration/README.md#migration-and-phase-unknowns)へ分け、新規採用・対象外・Phase2と推測しない。
+
 ## 業務状態
 検査オーダー・結果入力・検査確定・カルテの保存／診療終了・機器受信を別の状態として扱う。旧カルテfinalizedは履歴上の値とし、医師確定操作を通常編集・終了の必要条件に戻さない。
 - pending／in_progress／result_enteredは進捗。保存だけを全検査の臨床確定と扱わない。

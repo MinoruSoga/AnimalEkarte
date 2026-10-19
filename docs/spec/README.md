@@ -52,6 +52,7 @@ settings/ の共通マスタ、入院・トリミング・LINE 等の既存仕�
 | [screens/](screens/README.md) | 全画面インデックス（番号付き索引 41 件（移動案内を含む）。`route-inventory.test.tsx` が pin する製品ルート 88 leaf の全網羅ではない。settings/ にマスタ設定画面群） | 画面単位の仕様確認・UI 変更前 |
 | [cash-register.md](cash-register.md) | レジ締め・日次/月次売上集計の業務仕様（AM/PM/EMG 境界） | 会計・締め処理の実装前 |
 | [customer-aggregation.md](customer-aggregation.md) | 顧客分析ダッシュボード（累計売上・来院頻度・CPM/LTV） | 集計・分析機能の実装前 |
+| [検査機器の旧解析資料](lab-device-integration/README.md) | 城東の構造/通信観測とD07・運用正本への接続。外注/画像/医院差・移行は未確認を区別 | 旧資料を機器対応や新規採用の根拠に使う前 |
 | [reservation-to-record-flow.md](workflows/reservation-to-record-flow.md) | 予約からカルテ作成までの統合フロー（appointments = 単一 source of truth） | 予約・受付・カルテ連携の実装前 |
 | [design-system.md](design-system.md) | Notion ライクなデザイン規約とデザイントークン | フロントエンド UI 実装前 |
 | [design-states.md](design-states.md) | インタラクション状態（hover / focus / disabled / loading / invalid 等）の視覚仕様・必須実装と WCAG コントラスト実測 | インタラクティブ UI の実装・レビュー時 |
