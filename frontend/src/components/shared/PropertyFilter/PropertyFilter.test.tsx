@@ -107,8 +107,9 @@ describe("PropertyFilter count display", () => {
   });
 });
 
-// EMR-247: 検索語は確定操作（Enter / 検索ボタン）でのみ onSearchChange へ渡す。
-// 入力途中は内部 draft のみ更新し、キー毎の発火（リクエスト連打）を防ぐ。
+// EMR-453: 検索語は確定操作（検索ボタン）でのみ onSearchChange へ渡す。
+// 入力途中・入力欄 Enter は内部 draft のみ更新し、適用済み条件は変更しない
+// （ui-contracts.md AC-common-ui-explicit-search-clear / FR-common-ui-explicit-business-search）。
 describe("PropertyFilter search confirm-only", () => {
   it("検索入力は常時表示される（トグル操作なしで textbox が存在する）", () => {
     render(<PropertyFilter {...baseProps} searchTerm="田中" onSearchChange={vi.fn()} />);
@@ -131,7 +132,7 @@ describe("PropertyFilter search confirm-only", () => {
     expect(onSearchChange).not.toHaveBeenCalled();
   });
 
-  it("Enter で draft を確定し onSearchChange(draft) を1回だけ呼ぶ", async () => {
+  it("Enter を押しても draft を確定せず onSearchChange を呼ばない（明示検索のみ適用）", async () => {
     const onSearchChange = vi.fn();
     render(<PropertyFilter {...baseProps} searchTerm="" onSearchChange={onSearchChange} />);
 
@@ -140,8 +141,8 @@ describe("PropertyFilter search confirm-only", () => {
     await user.type(input, "田中");
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onSearchChange).toHaveBeenCalledTimes(1);
-    expect(onSearchChange).toHaveBeenLastCalledWith("田中");
+    expect(onSearchChange).not.toHaveBeenCalled();
+    expect(input).toHaveValue("田中");
   });
 
   it("IME 変換中の確定 Enter では onSearchChange を呼ばない", async () => {
@@ -174,38 +175,37 @@ describe("PropertyFilter search confirm-only", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith("佐藤");
   });
 
-  it("draft が確定済み searchTerm と一致する確定は no-op", async () => {
+  it("draft が確定済み searchTerm と一致する場合、検索ボタンは no-op", async () => {
     const onSearchChange = vi.fn();
     render(<PropertyFilter {...baseProps} searchTerm="田中" onSearchChange={onSearchChange} />);
 
-    const input = screen.getByRole("textbox", { name: "検索..." });
-    fireEvent.keyDown(input, { key: "Enter" });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "検索を実行" }));
 
     expect(onSearchChange).not.toHaveBeenCalled();
   });
 
-  it('空の確定は onSearchChange("") でアクティブ検索をクリアする', async () => {
+  it('空 draft で検索ボタンを押すと onSearchChange("") で空条件を明示適用する', async () => {
     const onSearchChange = vi.fn();
     render(<PropertyFilter {...baseProps} searchTerm="田中" onSearchChange={onSearchChange} />);
 
     const user = userEvent.setup();
     const input = screen.getByRole("textbox", { name: "検索..." });
     await user.clear(input);
-    fireEvent.keyDown(input, { key: "Enter" });
+    await user.click(screen.getByRole("button", { name: "検索を実行" }));
 
     expect(onSearchChange).toHaveBeenCalledTimes(1);
     expect(onSearchChange).toHaveBeenLastCalledWith("");
   });
 
-  it('クリア ✕ は onSearchChange("") を即時呼び draft もクリアする', async () => {
+  it('クリア ✕ は draft のみ消去し、適用済み条件（onSearchChange 済みの値）は変更しない', async () => {
     const onSearchChange = vi.fn();
     render(<PropertyFilter {...baseProps} searchTerm="田中" onSearchChange={onSearchChange} />);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "検索をクリア" }));
 
-    expect(onSearchChange).toHaveBeenCalledTimes(1);
-    expect(onSearchChange).toHaveBeenLastCalledWith("");
+    expect(onSearchChange).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "検索..." })).toHaveValue("");
   });
 

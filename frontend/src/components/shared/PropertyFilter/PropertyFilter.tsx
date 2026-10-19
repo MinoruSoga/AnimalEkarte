@@ -21,8 +21,9 @@ export const PropertyFilter = memo(function PropertyFilter({
   activeSorts,
   onSortChange,
 }: PropertyFilterProps) {
-  // EMR-247: 検索語は確定操作（Enter / 検索ボタン）まで内部 draft に保持し、
-  // キー入力のたびに onSearchChange を呼ばない（リクエスト連打の防止）。
+  // EMR-453: 検索語は確定操作（検索ボタン）まで内部 draft に保持する。
+  // 入力・blur・IME 確定だけでは onSearchChange を呼ばない
+  // （ui-contracts.md AC-common-ui-explicit-search-* / FR-common-ui-explicit-business-search）。
   const confirmedTerm = searchTerm ?? "";
   const [searchDraft, setSearchDraft] = useState(confirmedTerm);
   // 外部から searchTerm が変わった場合（URL 戻る/進む等）は draft を再同期する。
@@ -90,7 +91,7 @@ export const PropertyFilter = memo(function PropertyFilter({
     [activeSorts, onSortChange],
   );
 
-  // EMR-247: 確定操作（Enter / 検索ボタン）。確定済み値と一致する確定は no-op。
+  // EMR-453: 確定操作は検索ボタンのみ（入力欄 Enter は採用しない）。確定済み値と一致する確定は no-op。
   const handleSearchCommit = useCallback(() => {
     if (!onSearchChange) return;
     if (searchDraft !== confirmedTerm) {
@@ -98,10 +99,11 @@ export const PropertyFilter = memo(function PropertyFilter({
     }
   }, [onSearchChange, searchDraft, confirmedTerm]);
 
+  // EMR-453: 入力消去は draft のみ消去し、適用済み条件と結果は変更しない
+  // （AC-common-ui-explicit-search-clear）。空条件の適用は検索ボタンの明示操作で行う。
   const handleSearchClear = useCallback(() => {
     setSearchDraft("");
-    onSearchChange?.("");
-  }, [onSearchChange]);
+  }, []);
 
   const hasSortProps = sortProperties && activeSorts && onSortChange;
   const hasActiveSorts = activeSorts && activeSorts.length > 0;
@@ -167,19 +169,11 @@ export const PropertyFilter = memo(function PropertyFilter({
             type="text"
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
-            onKeyDown={(e) => {
-              // IME 変換中の確定 Enter / キーリピートでは確定しない
-              // （TreatmentQuantityCell.tsx と同じ isComposing + keyCode 229 判定）。
-              const isComposing = e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
-              if (e.key === "Enter" && !e.repeat && !isComposing) {
-                handleSearchCommit();
-              }
-            }}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
             className={`${STYLE.searchInput} pr-22`}
           />
-          {/* BUG-091: 検索クリアボタン - draft が空でないときのみ表示（即時クリアを維持） */}
+          {/* BUG-091 → EMR-453: 検索クリアボタン - draft が空でないときのみ表示。消去は draft のみで適用済み条件は変更しない */}
           {searchDraft ? (
             <button
               type="button"
@@ -190,7 +184,7 @@ export const PropertyFilter = memo(function PropertyFilter({
               <X className={ICON.smXs} />
             </button>
           ) : null}
-          {/* EMR-247: 確定ボタン - draft を onSearchChange へ反映する（Enter と同等） */}
+          {/* EMR-453: 確定ボタン - draft を onSearchChange へ反映する唯一の明示操作 */}
           <button
             type="button"
             onClick={handleSearchCommit}

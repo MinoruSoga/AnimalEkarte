@@ -168,10 +168,10 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     // 検索入力（常時表示）へ入力
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "ぽち");
 
-    // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
+    // EMR-453: 検索ボタンの明示操作までフィルタは適用されない
     expect(screen.getByText("たろう")).toBeInTheDocument();
 
-    await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("button", { name: "検索を実行" }));
 
     expect(await screen.findByText("ポチ")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("たろう")).not.toBeInTheDocument());
@@ -189,10 +189,10 @@ describe("HospitalizationList — かな正規化テキスト検索", () => {
     await user.click(screen.getByRole("radio", { name: "リスト表示" }));
     await user.type(screen.getByPlaceholderText("飼主名、ペット名、入院No..."), "サトウ");
 
-    // EMR-247: 確定操作（Enter/ボタン）までフィルタは適用されない
+    // EMR-453: 検索ボタンの明示操作までフィルタは適用されない
     expect(screen.getByText("ポチ")).toBeInTheDocument();
 
-    await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("button", { name: "検索を実行" }));
 
     expect(await screen.findByText("たろう")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("ポチ")).not.toBeInTheDocument());

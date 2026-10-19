@@ -98,7 +98,7 @@ function renderOwnersList(loader: (request: Request) => OwnersLoaderData, initia
 }
 
 describe("OwnersList — #266 サーバサイド検索・フィルタ・ページネーション", () => {
-  // EMR-247: 検索は Enter / 検索ボタンの確定操作でのみ URL へ反映する。
+  // EMR-453: 検索は検索ボタンの明示操作でのみ URL へ反映する。
   it("検索入力は確定後に URL の search パラメータへ反映され loader が再フェッチする", async () => {
     const requests: string[] = [];
     const loaderFn = vi.fn((request: Request) => {
@@ -119,7 +119,7 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
     expect(router.state.location.search).not.toContain("search=");
     expect(requests.some((s) => s.includes("search="))).toBe(false);
 
-    await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("button", { name: "検索を実行" }));
 
     await waitFor(() => {
       expect(router.state.location.search).toContain("search=%E7%94%B0%E4%B8%AD");
