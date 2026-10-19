@@ -116,6 +116,19 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 8. **21表を`cmd/migrate`の外で入れる。** 接続はgitignored `scripts/old-db/stg-uat-old-db-handoff.local.env`（0600、PlanetScale。exampleは同名`.example`）。`make stg-uat-handoff-preflight` → `make stg-uat-handoff` → `make stg-uat-handoff-verify`。対象は城東・敷島・箱。八王子はmanifest無しならskip。PHIのCSVセルをログへ出さない。詳細とskip契約は[OLD_DB_HANDOFF_LOCAL.md](../seeds/OLD_DB_HANDOFF_LOCAL.md)と[CLINIC_CSV_IMPORT.md](../seeds/CLINIC_CSV_IMPORT.md)。
 9. **livenessとhandoffを分ける。** `/health` `200`は生存確認だけ。staff attachと個別provisioningは[STAFF_ACCOUNT_PROVISIONING.md](../accounts/STAFF_ACCOUNT_PROVISIONING.md)の別gate。
 
+### 6.1.1 EMR-443 再構築: 保持データ restore と demo seed
+
+この再構築では、21表 handoff（step 8）は実行せず、保持データ restore と合成 demo seed を別 gate で実行する。21表 handoff は PHI を含む別経路であり、必要なら個別承認を得る。
+
+1. **reset 前に保持データを export する。** `python3 scripts/old-db/stg-preserve.py export`。既定の env file は `scripts/old-db/stg-uat-old-db-handoff.local.env`（0600）。出力は `sensitive-local/stg-preserve/<UTC>/`（git 外）。counts / sha256 を確認する。詳細は [STG-PRESERVE-DATA.md](STG-PRESERVE-DATA.md)。
+2. **manual override を退避する。** step 1 の `manual-sync.py export` を実行する。SQL export が本文の正本で、manual-sync は補助。
+3. **reset → migrate を実行する。** step 2〜6 の承認済み手順。`Migration key coverage missing=0` と `/health 200` を確認する。
+4. **保持データを restore する。** `python3 scripts/old-db/stg-preserve.py restore --dir <export-dir> --execute` → `verify --dir <export-dir>`。対象4表の counts/hash、FK orphan 0 を確認する。
+5. **login seed を再実行する。** `cmd/migrate` をもう一度実行し、demo login の password を現行 seed で再 upsert する。DDL は skip、seed bundle は checksum 一致で skip される。
+6. **demo seed を投入する。** `DEMO_SEED_EMAIL=... DEMO_SEED_PASSWORD=... python3 scripts/tools/seed-demo-data.py --clinic-id 1 --base-url <STG API> --apply`。詳細は [STG-DEMO-SEED.md](STG-DEMO-SEED.md)。
+7. **受入確認。** demo login、`/me`、予約→受付→カルテ→会計、入院、トリミング、見積、在庫、レポートを確認する。cleanup は入院シナリオを discharged 履歴として残す。
+8. **stale apply report と手動 override の復元**は step 7 / step 6 の既存手順に従う。
+
 ### 6.2 再構築後にWorker migrateが赤でもschema失敗としない場合
 
 本番Containerの`CMD`は`/app/migrate && exec /app/api`（`backend/Dockerfile.production`）。`POST /_internal/migrate` も同じ `/app/migrate` を exec する。login seed（`seeds/003_login`）は **catalog checksum が一致すれば skip** し、変更時だけ再 upsert する。Worker の migrate exec timeout は 240s（`cf-run-migrate.sh` の curl は 270s）。それでも cold start + 初回 login seed が逼迫する場合は `migrate_exec_failed` / exit 143（SIGTERM）になり得る。これは§6.1のcoverage `missing=0`とhandoff verify PASSを打ち消さない。reset目的で`gh workflow run backend-deploy.yml --ref staging`しない。dispatchはContainerを再起動し、同じコールドスタートを起こす。
