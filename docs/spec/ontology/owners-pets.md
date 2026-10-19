@@ -59,3 +59,7 @@ Q-I1は具体的な矛盾データ移行／患者分割が必要になった時�
 [FR-owners-pets-saigram-calculation](../domains/owners-pets/lifecycle.md#saigram-calculation-reference-20261018)が計算表と版の唯一正本。DOB→計算ルール版→派生保存結果の依存を保持する。計算を表示のたびに独立分類するだけにせず、結果とルール版をDBに保存する業務契約を採用するが、列構造/APIは選定しない。DOBの有効変更時は同基準で再計算、明示削除は結果なし、不正保存拒否で有効DOBと結果を片側だけ変更しない。
 
 導入時の既存飼主も有効DOBなら計算保存、欠落/不正は未設定。氏名や別属性からDOBを推定しない。固定60対応表を語彙へ複製せず、指定7/16資料の基準/UTC暦日計算・版を参照する。AC-owners-pets-saigram-persist-consistency／AC-owners-pets-saigram-clear-invalid／AC-owners-pets-saigram-storage-scope／AC-owners-pets-saigram-initial-population。将来ルール改定・導入実行手順・臨床的又は性格診断の保証はこの整理で採用しない。
+
+## 検索入力と適用条件（10/19）
+
+[明示検索の正本](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)では、入力中の検索値、検索ボタンで適用した条件、取得結果、選択済みowner/pet IDを区別する。検索/クリアは患者同一確認・link/unlink・予約/カルテ作成ではない。適用済み医院scope/認可と復帰条件を保持し、他業務検索の方式変更へ一般化しない。

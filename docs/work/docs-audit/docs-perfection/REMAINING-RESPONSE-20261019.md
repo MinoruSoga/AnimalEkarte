@@ -145,3 +145,7 @@ PNG551は過去合成UI証跡で新pixel目視0。ZIP4は同画像配布包の�
 汎用docs-governanceの全repository監査はexit 1・48指摘。基準mainと今回の出力が全文一致し、新規指摘0だった。既定の正本名、Git ref/ホーム内設定のパス扱い、docs外manual画像、ignored歴史report等の候補を含む。これを全repository PASSへ読み替えず、今回のdocs参照検査と分けて保管した。対象外ファイルや規約を検査通過だけの目的で変更していない。検査ログ・差分hash・独立レビューは作業領域の `full-audit/remaining-response-20261019/` に保管する。
 
 公開一致・CI・PRの状態は公開後の報告を参照し、この時点の文書検査や作者の既存CI報告から推定しない。
+
+## 後続承認2点の文書追加（10/19）
+
+前段の75項目・別7・231 IDは上記基準mainの調査記録として保持する。後続の[質問と本人回答receipt](APPROVAL-LOCATORS-20261019.md#後続2点の本人承認基準231-idとは別の追補)に基づき、[空きケージの新規選択3AC](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)と[飼主・ペット一覧/選択用の検索ボタン実行4AC](../../../spec/shared/ui-contracts.md#owner-pet-explicit-search-20261019)を正本へ追加した。既存の期間/医院/現在割当・任意、検索述語/filter/復帰/認可を保持する。旧実装の使用中選択/300ms自動発火との差は未検証で、実装・実機完了へ加算しない。メモの表記統一/詳細取得エラーは今回承認に含めない。

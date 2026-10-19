@@ -47,3 +47,7 @@
 | 退院情報の日次projection | 実退院のJST暦日[Dの00:00,翌日00:00)に属する退院日時・飼主名・ペット名・入院日 | [実日正本](../domains/cash-register/business-rules.md#closing-discharge-actual-jst-day-20261017)、AC-closing-discharge-actual-jst-day-interval／AC-closing-discharge-calendar-day-not-closing-period／AC-closing-discharge-four-fields。予定日や金銭営業日で代用しない |
 
 退院情報の表示は金銭計上・請求・件数を変更せず、ホテル退室やD05独立帳票へ対象を拡張しない。退院情報の行粒度・固定版の保存方式は設計で、未知の日時を当日で埋めない。
+
+## 空き候補・保存済み割当・宿泊定員の区別（10/19）
+
+[登録フォームの正本](../domains/hospitalization/lifecycle.md#cage-available-selection-20261019)に従い、空きと確認した新規選択候補、保存済みの現在割当、自己占有、占有取得不明、医院別ホテル受付上限を別概念として扱う。候補集合から外れたことは保存済み割当の消去ではない。占有は既存状態/連結関係で判定し、ホテルの全期間頭数計算をケージの新期間算法へ転用しない。構成員の旧値表示と新規割当拒否を両立する。

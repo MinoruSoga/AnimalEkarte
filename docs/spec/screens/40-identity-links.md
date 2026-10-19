@@ -30,20 +30,20 @@
 
 ### 1.2 飼主リンク
 
-- 検索入力（placeholder「氏名・カナ・電話」）。`useDebouncedValue` 300ms 後に `searchOwnersForLink`。
+- 検索入力（placeholder「氏名・カナ・電話」）。[10/19明示実行](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)に従い検索ボタン押下後に `searchOwnersForLink`。旧実装は `useDebouncedValue` 300ms、変更済みとはしない。
 - ヒット一覧をトグル選択（clinic_id + owner_id）。
 - `canEdit` 時: 「飼主をリンク」（選択 2 件以上）、メンバーごとの unlink。メンバー選択時に `findOwnerIdentityGroupByMember` で逆引きし、そのメンバーの group ID が解決した場合だけ unlink を有効化する。
 
 ### 1.3 ペットリンク
 
 - 親の飼主 identity group（`ownerGroupId`）が必要である旨を表示。
-- 検索入力（placeholder「ペット名・番号」）→ `searchPetsForLink`（300ms debounce）。
+- 検索入力（placeholder「ペット名・番号」）→ 検索ボタン押下後に `searchPetsForLink`（旧実装の300ms debounceは新目標との差）。
 - `canEdit` 時: 「ペットをリンク」（ownerGroupId ありかつ選択 2 件以上）、メンバーごとの unlink。メンバー選択時に `findPetIdentityGroupByMember` で逆引きし、そのメンバーの group ID が解決した場合だけ unlink を有効化する。
 - 選択ペットごとに「連携履歴」ボタン → `getLinkedTreatmentHistory`（view/edit どちらでも可）。結果は plain text /「（履歴なし）」。
 
 ### 1.4 空・エラー・pending
 
-- 検索クエリ空: ヒット一覧をクリア（専用 empty コピーなし）。
+- 検索クエリ空: 入力消去だけでは適用済み候補を変更せず、検索押下/既存明示リセットで空を適用した時にヒット一覧をクリア（既存の空検索動作、専用emptyコピーなし）。検索解除だけで選択済みgroup/memberやlink/unlinkを変更しない。
 - 失敗: `role="alert"` のインラインエラー。
 - 閲覧のみ: `role="status"` バナー。
 - ミューテーション／履歴取得中は `useTransition` の pending でボタン disable。
@@ -99,7 +99,7 @@ sequenceDiagram
 | `IdentityLinksPage` | view ゲート + workbench 委譲 |
 | `IdentityLinksWorkbench` | 検索・選択・link/unlink・履歴 |
 | `usePermission` / `ResourceIdentityLinks` | view / edit |
-| `useDebouncedValue` | 検索 300ms |
+| `useDebouncedValue` | 旧実装の検索300ms。10/19目標は検索ボタンによる入力/適用分離、未実装検証 |
 | `identity-links-api.ts` | HTTP クライアント |
 
 ### API連携（本画面が呼ぶもの）

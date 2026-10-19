@@ -250,3 +250,12 @@ source threadは `01a14350-92b9-7391-935d-d3ed3ebe20f7`。原会話を新規取�
 | `Sentinel_d6b42125daa481918b0057f7b00669b7` | `docs/spec/screens/settings/master-reservation-type.md:535` | `no20-price-owner-evidence.json#/answer_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
 | `Sentinel_f9ae54abbcf48191990b9225486e993d` | `docs/spec/screens/settings/closing-time-settings.md:112` | `no49-minute-input-evidence.json#/question_id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
 | `Sentinel_fd16cb27f1b4819192fee859e0ed3d7b` | `docs/spec/shared/ui-contracts.md:137` | `enter-save-intent-evidence.json#/clarification/id` | 必要な役割・時刻・Q/A前後関係を保管者へ個別照会。採否を未決へ戻さない |
+
+## 後続2点の本人承認（基準231 IDとは別の追補）
+
+元の231 ID/523出現と204原会話行＋27receiptは固定mainの履歴として保持する。以下は2026-10-19の後続委任入力に提示された質問/本人回答のreceiptで、先行原会話204行へ新規取得済みとして加算しない。原会話の新規取得や会議メモ作者の確認ではない。
+
+- 質問 `Sentinel_14ab315a49ec8191afbe4dfc8ae8982a`（助手）：会議メモの空きケージ選択と検索ボタン実行の2点を最新方針にし、検索はまず飼主・ペット一覧と選択用検索を対象とするか確認。
+- 本人回答 `Sentinel_1738846672e08191ac7e29910cf269c8`：2026-10-19 05:36:42 UTC（14:36:42 JST）「ok」。source thread `01a14350-92b9-7391-935d-d3ed3ebe20f7`。
+
+採用範囲/ACは[C01の正本](../../../spec/shared/ui-contracts.md#owner-pet-explicit-search-20261019)と[D05の正本](../../../spec/domains/hospitalization/lifecycle.md#cage-available-selection-20261019)。[10/19メモ](https://docs.google.com/document/d/1d8SWGAPdmSeXqPR517xIex8KPcd2j1Md8gcRJqx4u-U/edit)の4点全体を承認とせず、表記統一/詳細取得エラーを含めない。

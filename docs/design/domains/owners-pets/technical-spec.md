@@ -89,7 +89,7 @@ D15は送信対象の現在clinic／owner・現在DM値と[D15目的別判定](.
 ## 取得・通信・再送の設計境界
 
 - 所属医院・owner/pet ID・現在認証・画面generationを取得／保存contextへ固定。医院切替後の遅延応答は表示stateへ反映しない。
-- 一覧はURL queryをSoT、300ms debounce、サーバ20件ページ。検索結果の0件、読込中、取得失敗を分ける。検索条件変更でpageの妥当性を再確認し、別検索の応答で上書きしない。
+- 一覧は適用済み条件のURL queryをSoT、サーバ20件ページ。[10/19明示検索](../../../spec/shared/ui-contracts.md#owner-pet-explicit-search-20261019)に従い入力中値は別に保持し、検索押下で適用する。300ms debounceは旧実装差で、未適用文字列をURLへ流す目標ではない。検索結果の0件、読込中、取得失敗を分ける。検索条件変更でpageの妥当性を再確認し、別検索の応答で上書きしない。
 - 新規の送信前／送信中／成功／明確拒否／結果不明を分け、成功対象だけdirty解除。結果不明は同じ操作・対象を照合する。メール／電話一致を保存receiptの代替にはしない。
 - 現行新規APIに永続operation receipt／一意な再送キーの完備は未確認。安全な再送にはサーバ側照会可能な操作識別とpayload対応を設計・実装検証する必要がある。現状のGET0件だけでは遅延commitを否定できず、自動再createを止める。
 - 期待版のない既存PATCHを「楽観lock済」としない。副飼主と主飼主移管の具体的競合保護を他の一般属性へ拡張して報告しない。
@@ -256,3 +256,9 @@ IR-02はmappingの実在件数・矛盾・由来とdry-runが残る。共通候�
 
 
 追加静的照合（IR-02/08/17/20）：`model/identity_link.go`の既存groupは生成院anchorとclinic/local memberを持つ手動連携で、共通subject方式の実装ではない。`reservation/liff_handler.go`はpath clinic＋認証customerをhealth-card serviceへ渡し、`liff_response.go`は飼主名・生存pet基本表示・ワクチン日付・最終来院日へ閉じる。`liff_service_health_card.go`は本人owner未対応で空pet、死亡status/死亡日のOR除外を行う。この限定照合から取消/削除/訂正版filter・別医院token・単回CAS競合・応答断の全成立は宣言しない。`auth/current_access_service.go`はstaff/account/assignment/active clinicを再解決する資源を持ち、`current_access_cache.go`の現在authorityキャッシュと権限キャッシュは別資源である。関数既定TTLを実稼働設定や即時失効保証へ転用しない。`use-clinic-scope.ts`の現fallbackはcurrentClinicIdであり、選択未保存時の権限内全院初期値・次回保持という最新目標への適合証拠ではない。`medical_record_crud.go`の入力者検証呼出しは存在するが、B院実作成と再読取の証跡は未取得。
+
+## 10/19明示検索の状態・取得adapter（内部設計）
+
+[目標・AC](../../../spec/shared/ui-contracts.md#owner-pet-explicit-search-20261019)へ接続する。clientは入力中search/owner_noと、適用済みsearch条件・独立filter・page・医院scopeを別に持つ候補とする。入力effectからloader/queryを起動する旧debounce配線を新目標として継承せず、検索ボタンの明示actionで既存queryを適用する。台帳/共通患者選択では空白だけをtrimして空条件へ変えない。D19では既存trim・最小1文字未満の取得停止・上限付き候補取得を維持し、新たなページングを追加しない。ページングを持つ画面では条件変更時だけ既存pageを先頭へ戻し、ページ変更は適用済み値を使う。
+
+URLを持つ一覧は適用済み条件だけを復帰根拠にし、URLを持たない候補検索も同じ入力/適用分離を保つ。scope/filter更新は既存操作で適用し、未適用検索入力を付け足さない。候補選択用は入力中値と適用済み条件が一致しない間、旧結果からの新たな選択確定を抑止する。既選択IDを入力変更だけで書換えない。query key/要求世代に医院scopeと適用済み条件を含め、応答採用時にも現在条件を照合する。resetは既存解除対象だけを入力/適用の両方へ反映し、0件・未実行・loading・失敗を別状態にする。新API・全件取得・追加認可・入力最小文字数・新しい検索述語を選定しない。旧hook/loaderと各候補検索への適合・実機は別工程。

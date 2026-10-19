@@ -505,3 +505,13 @@ D03の最新合意は6FR／18AC追加、当時16FR／71ACを保持して合意�
 固定main `563353287ebb08af55056e3fbfba2aca3531e599` の確定不整合1件・その他75項目・条件付き/対象Phase別7項目を出発点とする文書対応。[項目別の今回実施・残工程](../../work/docs-audit/docs-perfection/REMAINING-RESPONSE-20261019.md)、[内部候補の責任境界](../../design/shared/integration-contracts.md#remaining-design-evidence-20261019)、[未実行検査の引継ぎ](../../work/docs-audit/docs-perfection/REMAINING-VERIFICATION-20261019.md)を参照。以前の74件はONTO3文書の担当割当を補った75件へ訂正し、3ファイルを3作業として増算しない。
 
 文書内容/受入定義の確認、内部設計候補の具体化、限定静的照合、実装/実データ/実機を分ける。未取得原文、現利用不明、臨床具体値・運用条件未確認、実行未実施を完了へ繰り上げない。既決の本人下書き保持・独立LINE解除・証明書縦横同版を再質問せず、Q-C1/Q-I1・LSTEP/DM等の条件付き/今期外を必須化しない。Library操作・製品コード/DB/設定/Plane変更・実送信・実機・マージは本対応に含めない。
+
+<a id="mtg-two-decisions-20261019"></a>
+## 10/19メモ後の本人追加承認：空きケージ・明示検索
+
+[原文](https://docs.google.com/document/d/1d8SWGAPdmSeXqPR517xIex8KPcd2j1Md8gcRJqx4u-U/edit)を読取取得し、本人 `Sentinel_1738846672e08191ac7e29910cf269c8`（2026-10-19 05:36:42 UTC／14:36:42 JST）の「ok」が助手質問 `Sentinel_14ab315a49ec8191afbe4dfc8ae8982a` の2点・検索対象範囲を承認した。メモ作者・会議採否を確認済みにはせず、この本人回答を採用根拠にする。
+
+- [D05登録の空きケージ選択・3追加AC](hospitalization/lifecycle.md#cage-available-selection-20261019)：新規候補のみ空きに限定。現在割当保持/任意/自己除外/連結拒否・医院scopeを維持し、新しい期間占有算法を作らない。
+- [C01飼主・ペット一覧/選択用の明示検索・4追加AC](../shared/ui-contracts.md#owner-pet-explicit-search-20261019)：入力と適用を分け検索ボタン押下。既存filter/復帰/認可/検索述語維持、他業務検索へ拡大しない。
+
+表記/ボタン名の入院・ホテル統一、詳細取得エラーは本承認対象外。実装/DB/実機/Plane/デプロイ/マージはなし。旧300ms/使用中も選択可の記載は旧実装差へ分離し、文書反映を対応済み・実機合格にしない。実装側の普通ケージ競合検査、候補read認可/DTOと各検索consumerの新しい発火制御は残検証。
