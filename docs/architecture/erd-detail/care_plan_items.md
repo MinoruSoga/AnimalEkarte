@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1784](../../../backend/migrations/001_init.sql#L1784) |
-| `hospitalization_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1785](../../../backend/migrations/001_init.sql#L1785) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1784](../../../backend/migrations/001_init.sql#L1784) |
+| `hospitalization_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1785](../../../backend/migrations/001_init.sql#L1785) |
 | `type` | `care_plan_type` | NOT NULL | — | — | [001_init.sql:1786](../../../backend/migrations/001_init.sql#L1786) |
 | `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1787](../../../backend/migrations/001_init.sql#L1787) |
 | `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1788](../../../backend/migrations/001_init.sql#L1788) |
@@ -40,8 +40,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     care_plan_items {
-        BIGSERIAL id PK
-        bigint hospitalization_id FK
+        BIGSERIAL id PK,UK
+        bigint hospitalization_id FK,UK
         care_plan_type type
         text name
         text description
@@ -62,7 +62,7 @@ erDiagram
         BIGSERIAL id PK
     }
     hospitalizations {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     medicines {
         BIGSERIAL id PK,UK
@@ -98,6 +98,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `care_plan_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1784](../../../backend/migrations/001_init.sql#L1784) |
 | `chk_care_plan_item_ref` | check | `CONSTRAINT chk_care_plan_item_ref CHECK (         (type = 'medicine'    AND medicine_id IS NOT NULL) OR         (type = 'treatment'   AND procedure_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NULL             AND category = 'other' AND btrim(other_reason) <> '') OR         (type IN ('food', 'instruction'))     )` | [001_init.sql:6545](../../../backend/migrations/001_init.sql#L6545) |
+| `uq_care_plan_items_id_stay` | unique | `CONSTRAINT uq_care_plan_items_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9333](../../../backend/migrations/001_init.sql#L9333) |
 
 ## インデックス
 

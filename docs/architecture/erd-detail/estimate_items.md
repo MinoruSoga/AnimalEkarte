@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1834](../../../backend/migrations/001_init.sql#L1834) |
-| `estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1835](../../../backend/migrations/001_init.sql#L1835) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1834](../../../backend/migrations/001_init.sql#L1834) |
+| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1835](../../../backend/migrations/001_init.sql#L1835) |
 | `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1836](../../../backend/migrations/001_init.sql#L1836) |
 | `category` | `item_category` | NOT NULL | — | — | [001_init.sql:1837](../../../backend/migrations/001_init.sql#L1837) |
-| `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1838](../../../backend/migrations/001_init.sql#L1838) |
-| `quantity` | `numeric(10,1)` | NOT NULL | `1` | — | [001_init.sql:1839](../../../backend/migrations/001_init.sql#L1839) |
+| `unit_price` | `numeric` | NOT NULL | `0` | — | [001_init.sql:9392](../../../backend/migrations/001_init.sql#L9392) |
+| `quantity` | `numeric` | NOT NULL | `1` | — | [001_init.sql:9392](../../../backend/migrations/001_init.sql#L9392) |
 | `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1840](../../../backend/migrations/001_init.sql#L1840) |
-| `tax_rate` | `numeric(3,2)` | NULL | `0.10` | — | [001_init.sql:1841](../../../backend/migrations/001_init.sql#L1841) |
-| `discount_rate` | `numeric(5,2)` | NULL | `0` | — | [001_init.sql:1842](../../../backend/migrations/001_init.sql#L1842) |
+| `tax_rate` | `numeric` | NULL | `0.10` | — | [001_init.sql:9393](../../../backend/migrations/001_init.sql#L9393) |
+| `discount_rate` | `numeric` | NULL | `0` | — | [001_init.sql:9393](../../../backend/migrations/001_init.sql#L9393) |
 | `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1843](../../../backend/migrations/001_init.sql#L1843) |
 | `is_insurance_applicable` | `boolean` | NULL | `false` | — | [001_init.sql:1844](../../../backend/migrations/001_init.sql#L1844) |
 | `consultation_id` | `bigint` | NULL | — | FK | [001_init.sql:1845](../../../backend/migrations/001_init.sql#L1845) |
@@ -42,15 +42,15 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     estimate_items {
-        BIGSERIAL id PK
-        bigint estimate_id FK
+        BIGSERIAL id PK,UK
+        bigint estimate_id FK,UK
         text name
         item_category category
-        bigint unit_price
-        numeric_10_1 quantity
+        numeric unit_price
+        numeric quantity
         tax_type tax_type
-        numeric_3_2 tax_rate
-        numeric_5_2 discount_rate
+        numeric tax_rate
+        numeric discount_rate
         bigint discount_amount
         boolean is_insurance_applicable
         bigint consultation_id FK
@@ -66,7 +66,7 @@ erDiagram
         BIGSERIAL id PK,UK
     }
     estimates {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,FK,UK
     }
     medicines {
         BIGSERIAL id PK,UK
@@ -108,6 +108,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `estimate_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1834](../../../backend/migrations/001_init.sql#L1834) |
 | `chk_estimate_item_quantity` | check | `CONSTRAINT chk_estimate_item_quantity CHECK (quantity > 0)` | [001_init.sql:1853](../../../backend/migrations/001_init.sql#L1853) |
+| `uq_estimate_items_id_estimate` | unique | `CONSTRAINT uq_estimate_items_id_estimate UNIQUE(id,estimate_id)` | [001_init.sql:9496](../../../backend/migrations/001_init.sql#L9496) |
 
 ## インデックス
 

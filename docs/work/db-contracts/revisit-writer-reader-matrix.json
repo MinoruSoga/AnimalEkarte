@@ -1,0 +1,270 @@
+{
+  "status": "design; participation NOT verified",
+  "writers": [
+    {
+      "id": "W01",
+      "path": "reservation/reservation_guarded_checkin.go",
+      "symbol": "guardedCheckIn / checkInConfirmed",
+      "scope": "受付",
+      "required_contract": "既存appointment lock/updated_at CASを保持。上位gateから参加。回答待ちなし",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W02",
+      "path": "reservation/reservation_service_update.go",
+      "symbol": "Update / updateTentativeStatusTransition / applyReservationUpdate",
+      "scope": "汎用状態・受付・日時・pet変更・取消",
+      "required_contract": "全分岐gate参加。pet実変更trigger増分。取消status+soft-delete原子性維持",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W03",
+      "path": "reservation/appointment_admin_repository.go",
+      "symbol": "CancelByID / SoftDelete",
+      "scope": "LINE取消・管理削除",
+      "required_contract": "CancelByIDは非削除UPDATE。上位owner TXからgate参加。原文削除しない",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W04",
+      "path": "reservation/reservation_service.go",
+      "symbol": "Create / multi-pet create",
+      "scope": "新規・複数頭",
+      "required_contract": "petごと別appointmentを再利用。空回答なし。世代default。既存booking/intent順維持",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W05",
+      "path": "reservation/reservation_intent_repository.go",
+      "symbol": "createOrPromoteTentative / tentative transitions",
+      "scope": "同一行昇格・吸収・clear",
+      "required_contract": "pet不変なら世代保持。status/deletedを回答と直列化。既存intent lock保持",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W06",
+      "path": "reservation/reservation_service_update.go",
+      "symbol": "UpdateForTrimming",
+      "scope": "専用施術経路",
+      "required_contract": "受付/開始/終了・対象変更が同じappointment保護へ。原文をdetail DTOへ含めない",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W07",
+      "path": "reservation/pet_owner_transfer.go",
+      "symbol": "TransferUpcomingPetReservations",
+      "scope": "主飼主移管",
+      "required_contract": "gate→既存pet/owner順→appointment NOWAIT。owner/linkのみ変更は世代不変、回答者snapshot不変",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W08",
+      "path": "owner/repository.go",
+      "symbol": "UpdateLineUserID",
+      "scope": "owner LINE link/unlink",
+      "required_contract": "gateを既存owner/recipient lockより前へ。unlink先行後の旧customer cacheで送信許可しない",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W09",
+      "path": "lstep/line_customer_repository.go",
+      "symbol": "UpdateOwnerLink",
+      "scope": "customer link/cache",
+      "required_contract": "baseDB writeをambient対応又は独立最外TX gate化。回答TX中に別baseDB writeを呼ばない",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W10",
+      "path": "reservation/liff_owner_sync.go",
+      "symbol": "findCustomerWithOwnerSync",
+      "scope": "read内の自己修復",
+      "required_contract": "新問診GETは呼ばず純read。既存利用箇所のwriteもW09として参加",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W11",
+      "path": "lstep/line_link_service.go",
+      "symbol": "LinkAccount / handleFollowEvent / handleUnfollowEvent",
+      "scope": "link token/webhook",
+      "required_contract": "外部検証はlock外。業務TX開始gate→既存token/owner順。原文履歴再帰属なし",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W12",
+      "path": "pet/pet_owner_repository.go",
+      "symbol": "ReplaceForPet",
+      "scope": "患者利用認可に関係するowner集合",
+      "required_contract": "gate→既存pet/owner順。既存grantで認可対象の時だけ回答を許可、sub-owner権限拡大なし",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W13",
+      "path": "identitylink/repository.go",
+      "symbol": "LockOwners / LockPets / membership writers",
+      "scope": "医院横断identity",
+      "required_contract": "認可/関連に影響する範囲のblocking closureを参加検査。自動全院公開なし",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W14",
+      "path": "medicalrecord/medical_record_auto_create.go",
+      "symbol": "AutoCreateFromReservation / autoCreateFromReservationInTx",
+      "scope": "カルテcapture・後処理",
+      "required_contract": "既存独立TX呼出しを成立済みとしない。D03 target binding captureは同じgate/appointment lockへ",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W15",
+      "path": "reservation/reservation_repository.go",
+      "symbol": "updateWithPreviousOwner / deleteWithPreviousOwner / Delete",
+      "scope": "最下位更新境界",
+      "required_contract": "owner呼出しがgate取得済みか検査。triggerを全参加・認可の代替としない",
+      "status": "NOT_IMPLEMENTED",
+      "outer_tx": "最外のowner物理TX。実呼出しchainの検証は未完了",
+      "gate_point": "最外TX開始直後、receipt/booking/row/recipient等の下位lock前",
+      "current_lower_lock": "既存owner順を維持。本文とsource-evidenceの対象実装参照",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W17",
+      "path": "owner/service_core.go",
+      "symbol": "Delete -> owner/repository.go LockForDelete / Delete",
+      "scope": "owner削除",
+      "outer_tx": "deleteTransactor.WithTx; compatibility guard-off branch also exists",
+      "current_lower_lock": "owner lock / dependency checks",
+      "gate_point": "service最外TX開始直後、LockForDeleteより前",
+      "required_contract": "現在非削除/患者認可とsubmitを直列化。既存業務条件を維持。下位row後にgateを足さない",
+      "status": "NOT_IMPLEMENTED",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W18",
+      "path": "owner/repository.go",
+      "symbol": "UpdateAndFind / UpdateAndFindApplying",
+      "scope": "owner汎用更新",
+      "outer_tx": "DBOrTx.Transaction, or pre-existing ambient TX",
+      "current_lower_lock": "LockByIDForUpdate -> apply",
+      "gate_point": "最外TXの先頭。外側既得lock後のsavepointで後付け不可",
+      "required_contract": "現在非削除/患者認可とsubmitを直列化。既存業務条件を維持。下位row後にgateを足さない",
+      "status": "NOT_IMPLEMENTED",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W19",
+      "path": "pet/repository.go",
+      "symbol": "Update / UpdateAndFind / withPetUpdateTransaction",
+      "scope": "pet汎用更新・owner関係",
+      "outer_tx": "DBOrTx.Transaction, or pre-existing ambient TX",
+      "current_lower_lock": "pet UPDATE -> related FK/owner/transfer",
+      "gate_point": "最外物理TX先頭。ambient participantはgate取得済みをassert",
+      "required_contract": "現在非削除/患者認可とsubmitを直列化。既存業務条件を維持。下位row後にgateを足さない",
+      "status": "NOT_IMPLEMENTED",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    },
+    {
+      "id": "W20",
+      "path": "pet/service.go",
+      "symbol": "Delete -> pet/repository.go Delete",
+      "scope": "pet削除",
+      "outer_tx": "repo is DBOrTx; outer TX ownership must be fixed",
+      "current_lower_lock": "soft-delete UPDATE; prior service reads not final auth",
+      "gate_point": "service最外TX+gateを用意しrepo直接入口も棚卸し",
+      "required_contract": "現在非削除/患者認可とsubmitを直列化。既存業務条件を維持。下位row後にgateを足さない",
+      "status": "NOT_IMPLEMENTED",
+      "implementation_status": "NOT_IMPLEMENTED; blocking closure proof absent"
+    }
+  ],
+  "readers": [
+    {
+      "id": "R01",
+      "reader": "予約詳細reader",
+      "required_contract": "staff既存予約view grant・clinic。取消/soft-deleteは専用history query。latestと旧target分離",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": "R02",
+      "reader": "LINE GET/submit/history/result",
+      "required_contract": "appointment scopeとは別にtarget.petの現在患者認可、answer.author_customer/hash本人allowlistを各行検査。全履歴MAXを可視履歴MAXに置換しない。失権後成功はDESIGN5.4のredacted200、他scopeは非開示404。",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": "R03",
+      "reader": "D03治療プランreader",
+      "required_contract": "record固定target FKとclinic/appointment/petを再照合。現在targetを推定しない。スタッフ欄と分離",
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": "R04",
+      "reader": "clear/copy/Undo",
+      "required_contract": "スタッフowner入力だけ。回答/target/receipt/bindingをDTOに含めず原文不変",
+      "status": "NOT_IMPLEMENTED"
+    }
+  ],
+  "inventory_obligations": [
+    {
+      "id": "INV01",
+      "description": "直接writer",
+      "required_contract": "通常writer停止又は同じgate/世代trigger参加。未確認経路は利用開始前に棚卸し。未確認の全symbolを捏造しない",
+      "status": "UNVERIFIED_INVENTORY",
+      "not_a_runtime_symbol": true
+    }
+  ],
+  "writers_count": 19,
+  "evidence_note": "原設計の参加/受入台帳。S1 DB16件の限定PASSは別証跡。全writer接続/API/UI/全26ケースは未完了。"
+}

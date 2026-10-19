@@ -23,6 +23,7 @@
 | `expires_at` | `timestamptz` | NULL | — | — | [001_init.sql:1287](../../../backend/migrations/001_init.sql#L1287) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1288](../../../backend/migrations/001_init.sql#L1288) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1289](../../../backend/migrations/001_init.sql#L1289) |
+| `retention_class` | `text` | NOT NULL | `'unclassified'` | — | [001_init.sql:10900](../../../backend/migrations/001_init.sql#L10900) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -47,6 +48,7 @@ erDiagram
         timestamptz expires_at
         timestamptz created_at
         timestamptz deleted_at
+        text retention_class
     }
     clinics {
         BIGSERIAL id PK
@@ -81,6 +83,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `shared_files_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1278](../../../backend/migrations/001_init.sql#L1278) |
+| `shared_files_retention_class_check` | check | `CHECK(retention_class IN('business_original','required_history','temporary','unclassified'))` | [001_init.sql:10900](../../../backend/migrations/001_init.sql#L10900) |
 
 ## インデックス
 

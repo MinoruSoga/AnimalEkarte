@@ -1,0 +1,2554 @@
+{
+  "format_version": 1,
+  "source_head": "e39a1b153eb48bd4b4d96c1a1aa88642a00440c7",
+  "ddl_sha256": "ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262",
+  "table_count": 241,
+  "execution": "NOT_RUN_USER_INSTRUCTION",
+  "scope": "Added/changed DB storage traced to confirmed requirements; not all project documents or AC runtime coverage",
+  "rows": [
+    {
+      "unit": "contact-candidates",
+      "source": "docs/spec/domains/owners-pets/lifecycle.md",
+      "requirements": [
+        "FR-owners-pets-contact-duplicate-warning",
+        "AC-owners-pets-contact-duplicate-warning",
+        "AC-owners-pets-contact-duplicate-separate"
+      ],
+      "storage": [
+        {
+          "table": "owners",
+          "columns": [
+            "id",
+            "clinic_id",
+            "remarks",
+            "is_dangerous",
+            "discount_rate",
+            "membership_type",
+            "lstep_opt_out",
+            "lstep_opt_out_at",
+            "lstep_opt_out_reason",
+            "delivery_excluded",
+            "delivery_excluded_reason",
+            "is_transferred",
+            "transfer_at",
+            "delivery_caution",
+            "delivery_caution_reason",
+            "dm_preference",
+            "created_at",
+            "updated_at",
+            "deleted_at"
+          ]
+        },
+        {
+          "table": "owner_identity_confirmations",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "candidate_owner_id",
+            "determination",
+            "evidence",
+            "operation_id",
+            "confirmed_by",
+            "confirmed_at"
+          ]
+        },
+        {
+          "table": "common_owner_basic_revisions",
+          "columns": [
+            "id",
+            "common_owner_id",
+            "revision",
+            "source_clinic_id",
+            "source_local_owner_id",
+            "operation_id",
+            "name",
+            "name_kana",
+            "birth_date",
+            "company",
+            "postal_code",
+            "address1",
+            "address2",
+            "home_postal_code",
+            "home_address1",
+            "home_address2",
+            "phone",
+            "company_phone",
+            "email",
+            "cygram_result",
+            "cygram_rule_version",
+            "provenance",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "common_pet_basic_revisions",
+          "columns": [
+            "id",
+            "common_pet_id",
+            "revision",
+            "source_clinic_id",
+            "source_local_pet_id",
+            "operation_id",
+            "name",
+            "name_kana",
+            "animal_species_id",
+            "breed",
+            "gender",
+            "status",
+            "birth_date",
+            "color",
+            "registration_weight",
+            "registration_weight_unit",
+            "neutered_status",
+            "neutered_date",
+            "acquisition_type",
+            "danger_level",
+            "danger_reason",
+            "food",
+            "environment",
+            "phone",
+            "remarks",
+            "deceased_at",
+            "deceased_reason",
+            "blood_type",
+            "microchip_number",
+            "name_origin",
+            "meeting_story",
+            "provenance",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "common_owner_clinic_bindings",
+          "columns": [
+            "id",
+            "clinic_id",
+            "common_owner_id",
+            "local_owner_id",
+            "confirmed_by",
+            "confirmed_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "common_pet_clinic_bindings",
+          "columns": [
+            "id",
+            "clinic_id",
+            "common_pet_id",
+            "local_pet_id",
+            "confirmed_by",
+            "confirmed_at",
+            "operation_id"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-446",
+        "EMR-466",
+        "EMR-470"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "氏名/連絡先候補は共通基本改訂を認可済bindingで参照。同一確認済みownerは再利用、連絡先一致から自動同一判定せず別人/複数頭を拒否しない。",
+      "source_sha256": "3f1b9b3dd0b7c89b105c9f9722e86a17446e66dedcc568671e662cc1a694932a",
+      "additional_ticket_title": "連絡先の重複候補・本人確認結果と別人登録を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "common-subjects",
+      "source": "docs/spec/domains/owners-pets/lifecycle.md",
+      "requirements": [
+        "common-owner-pet-20261017"
+      ],
+      "storage": [
+        {
+          "table": "common_owner_subjects",
+          "columns": [
+            "id",
+            "version",
+            "current_basic_revision_id",
+            "created_at"
+          ]
+        },
+        {
+          "table": "common_pet_subjects",
+          "columns": [
+            "id",
+            "version",
+            "current_basic_revision_id",
+            "created_at"
+          ]
+        },
+        {
+          "table": "common_owner_clinic_bindings",
+          "columns": [
+            "id",
+            "clinic_id",
+            "common_owner_id",
+            "local_owner_id",
+            "confirmed_by",
+            "confirmed_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "common_pet_clinic_bindings",
+          "columns": [
+            "id",
+            "clinic_id",
+            "common_pet_id",
+            "local_pet_id",
+            "confirmed_by",
+            "confirmed_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "common_owner_basic_revisions",
+          "columns": [
+            "id",
+            "common_owner_id",
+            "revision",
+            "source_clinic_id",
+            "source_local_owner_id",
+            "operation_id",
+            "name",
+            "name_kana",
+            "birth_date",
+            "company",
+            "postal_code",
+            "address1",
+            "address2",
+            "home_postal_code",
+            "home_address1",
+            "home_address2",
+            "phone",
+            "company_phone",
+            "email",
+            "cygram_result",
+            "cygram_rule_version",
+            "provenance",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "common_pet_basic_revisions",
+          "columns": [
+            "id",
+            "common_pet_id",
+            "revision",
+            "source_clinic_id",
+            "source_local_pet_id",
+            "operation_id",
+            "name",
+            "name_kana",
+            "animal_species_id",
+            "breed",
+            "gender",
+            "status",
+            "birth_date",
+            "color",
+            "registration_weight",
+            "registration_weight_unit",
+            "neutered_status",
+            "neutered_date",
+            "acquisition_type",
+            "danger_level",
+            "danger_reason",
+            "food",
+            "environment",
+            "phone",
+            "remarks",
+            "deceased_at",
+            "deceased_reason",
+            "blood_type",
+            "microchip_number",
+            "name_origin",
+            "meeting_story",
+            "provenance",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-451",
+        "EMR-470"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "common-owner-pet-20261017＋本人Sentinel_7195a603405c819199d5e2b74463a2d1の独立UUID/医院別ID対応表承認。自院利用のみ、D19/unlink再設計なし、実ID付替えなし",
+      "source_sha256": "3f1b9b3dd0b7c89b105c9f9722e86a17446e66dedcc568671e662cc1a694932a",
+      "additional_ticket_title": "共通UUIDと医院別IDの自院利用・共通基本情報reader/writerを接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "internal-booking-overlap",
+      "source": "docs/spec/domains/reservations/pages/reservation-management.md",
+      "requirements": [
+        "FR-reservations-staff-overlap-warning"
+      ],
+      "storage": [
+        {
+          "table": "appointments",
+          "columns": [
+            "id",
+            "clinic_id",
+            "start_time",
+            "end_time",
+            "owner_id",
+            "pet_id",
+            "visit_type",
+            "reservation_type_id",
+            "doctor_id",
+            "is_designated",
+            "status",
+            "notes",
+            "source",
+            "created_by",
+            "is_staff_delegated",
+            "customer_fields",
+            "reservation_route",
+            "actual_reservation_at",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "line_customer_id",
+            "checked_in_at",
+            "intended_date",
+            "source_medical_record_id",
+            "revisit_intake_generation",
+            "version",
+            "reservation_name_snapshot",
+            "reservation_name_revision",
+            "reservation_name_source",
+            "stay_case_id"
+          ]
+        },
+        {
+          "table": "reservation_capacity_gates",
+          "columns": [
+            "clinic_id",
+            "capacity_kind",
+            "resource_key",
+            "generation"
+          ]
+        },
+        {
+          "table": "patient_operation_gates",
+          "columns": [
+            "clinic_id",
+            "pet_id",
+            "generation"
+          ]
+        },
+        {
+          "table": "appointment_change_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "appointment_id",
+            "resulting_version",
+            "intent",
+            "before_values",
+            "after_values",
+            "reason",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-468",
+        "EMR-469"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "一律doctor時間EXCLUDEと同開始unique削除。院内警告確認後重複可、LINE枠/勤務/休憩/同時保存の検査は全writer参加が必要",
+      "source_sha256": "5608dc51dfebd77761a1cca1296965b87ff1a499b21369bf5ec2f39255d88e03",
+      "additional_ticket_title": "院内重複警告とLINE枠判定を全予約writerのgateへ接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "reservation-kind-duration-name",
+      "source": "docs/spec/screens/settings/master-reservation-type.md",
+      "requirements": [
+        "FR-reservation-types-business-routing",
+        "FR-reservation-types-business-classification-lock",
+        "FR-reservation-types-duration-required",
+        "FR-reservation-types-duration-step",
+        "FR-reservation-types-duration-range",
+        "FR-reservation-types-name-history",
+        "FR-reservation-types-group-reactivation-intent"
+      ],
+      "storage": [
+        {
+          "table": "reservation_types",
+          "columns": [
+            "id",
+            "clinic_id",
+            "name",
+            "is_active",
+            "description",
+            "sort_order",
+            "group_id",
+            "reservation_display_name",
+            "duration_minutes",
+            "short_name",
+            "show_short_name",
+            "reservation_visible",
+            "reservation_comment",
+            "reservation_image_url",
+            "parent_id",
+            "max_concurrent",
+            "reservation_day_option",
+            "is_internal",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "business_kind",
+            "usage_resume_pending",
+            "name_revision",
+            "version"
+          ]
+        },
+        {
+          "table": "reservation_type_groups",
+          "columns": [
+            "id",
+            "clinic_id",
+            "name",
+            "color",
+            "sort_order",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "version"
+          ]
+        },
+        {
+          "table": "reservation_type_name_revisions",
+          "columns": [
+            "clinic_id",
+            "reservation_type_id",
+            "revision",
+            "previous_name",
+            "display_name",
+            "operation_id",
+            "changed_by",
+            "changed_at"
+          ]
+        },
+        {
+          "table": "reservation_contract_states",
+          "columns": [
+            "clinic_id",
+            "contract_kind",
+            "revision",
+            "cutover_state",
+            "applicable_kinds",
+            "updated_at"
+          ]
+        },
+        {
+          "table": "appointments",
+          "columns": [
+            "id",
+            "clinic_id",
+            "start_time",
+            "end_time",
+            "owner_id",
+            "pet_id",
+            "visit_type",
+            "reservation_type_id",
+            "doctor_id",
+            "is_designated",
+            "status",
+            "notes",
+            "source",
+            "created_by",
+            "is_staff_delegated",
+            "customer_fields",
+            "reservation_route",
+            "actual_reservation_at",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "line_customer_id",
+            "checked_in_at",
+            "intended_date",
+            "source_medical_record_id",
+            "revisit_intake_generation",
+            "version",
+            "reservation_name_snapshot",
+            "reservation_name_revision",
+            "reservation_name_source",
+            "stay_case_id"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-448",
+        "EMR-468",
+        "EMR-469"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "4kind、5〜480分5分刻み/default撤去、名称固定版、個別再開確認。旧用途/名称/期間を推測補完しない",
+      "source_sha256": "18fa27b42e45cf143636ba80729cd075cab24ee6f5e078e9c7ddbed6d203d0a8",
+      "additional_ticket_title": "4業務種別・標準時間・名称固定版と個別再開を予約へ接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "staff-leave-shifts",
+      "source": "docs/spec/domains/staff-workforce/README.md",
+      "requirements": [
+        "FR-staff-workforce-workforce-maintenance",
+        "FR-staff-workforce-history-and-access"
+      ],
+      "storage": [
+        {
+          "table": "staffs",
+          "columns": [
+            "id",
+            "clinic_id",
+            "account_id",
+            "name",
+            "is_active",
+            "license_number",
+            "occupation_id",
+            "sort_order",
+            "staff_type",
+            "reservation_display_name",
+            "reservation_visible",
+            "reservation_comment",
+            "reservation_image_url",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "position_name",
+            "employment_category"
+          ]
+        },
+        {
+          "table": "staff_clinic_assignments",
+          "columns": [
+            "id",
+            "staff_id",
+            "clinic_id",
+            "is_main",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "capabilities_configured_at",
+            "nomination_paused"
+          ]
+        },
+        {
+          "table": "staff_leave_periods",
+          "columns": [
+            "id",
+            "clinic_id",
+            "staff_id",
+            "start_date",
+            "end_date",
+            "end_boundary",
+            "version",
+            "provenance",
+            "created_at",
+            "deleted_at"
+          ]
+        },
+        {
+          "table": "staff_leave_changes",
+          "columns": [
+            "id",
+            "clinic_id",
+            "leave_period_id",
+            "resulting_version",
+            "before_values",
+            "after_values",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "shift_entries",
+          "columns": [
+            "id",
+            "clinic_id",
+            "staff_id",
+            "date",
+            "shift_type",
+            "notes",
+            "created_at",
+            "updated_at",
+            "starts_at",
+            "ends_at",
+            "version"
+          ]
+        },
+        {
+          "table": "shift_entry_breaks",
+          "columns": [
+            "id",
+            "shift_entry_id",
+            "starts_at",
+            "ends_at"
+          ]
+        },
+        {
+          "table": "shift_bulk_operations",
+          "columns": [
+            "clinic_id",
+            "operation_id",
+            "operation_kind",
+            "source_snapshot",
+            "confirmed_rows",
+            "preview_digest"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-448"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "職種/役職/雇用を別、休業期間編集履歴、院別指名停止、日跨ぎ実timestamp。休業日付端点不明はunknown、退職と同一化せず新権限なし",
+      "source_sha256": "4de44d845beaa4099403523d1a1253b76f4f3c26cc71e1aa2c3f468e50d3cdd4",
+      "additional_ticket_title": "休業期間・指名停止・日跨ぎ勤務と変更履歴を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "edit-right-draft-recovery",
+      "source": "docs/spec/domains/medical-records/lifecycle.md",
+      "requirements": [
+        "FR-medical-records-single-editor",
+        "AC-medical-records-draft-same-actor-recovery",
+        "AC-medical-records-draft-context-isolation"
+      ],
+      "storage": [
+        {
+          "table": "record_edit_rights",
+          "columns": [
+            "clinic_id",
+            "medical_record_id",
+            "epoch",
+            "state",
+            "holder_staff_id",
+            "session_ref",
+            "acquired_at",
+            "released_at",
+            "last_seen_at"
+          ]
+        },
+        {
+          "table": "record_edit_right_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "medical_record_id",
+            "previous_epoch",
+            "resulting_epoch",
+            "intent",
+            "prior_holder_staff_id",
+            "new_holder_staff_id",
+            "session_ref",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "staff_record_drafts",
+          "columns": [
+            "id",
+            "clinic_id",
+            "principal_account_id",
+            "medical_record_id",
+            "tab_key",
+            "input_generation",
+            "base_owner_versions",
+            "ciphertext",
+            "encryption_format",
+            "key_reference",
+            "ciphertext_sha256",
+            "updated_at"
+          ]
+        },
+        {
+          "table": "staff_record_draft_operations",
+          "columns": [
+            "clinic_id",
+            "draft_id",
+            "operation_id",
+            "input_generation"
+          ]
+        },
+        {
+          "table": "medical_record_dependency_versions",
+          "columns": [
+            "clinic_id",
+            "medical_record_id",
+            "owner_kind",
+            "revision"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452",
+        "EMR-471",
+        "EMR-472",
+        "EMR-473"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "epoch/holder、本人account×record×tab暗号draft。app.current_account_idの信頼済tx設定必須。暗号鍵配布/端末方式/consumerは別、平文や鍵本体を保存しない",
+      "source_sha256": "8ebb7b4efd66eb44c86489b7e5e199dbca259643e07e79f8369d1031a92f5158",
+      "additional_ticket_title": "編集epochと本人暗号draftの取得・移譲・復帰を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "record-purpose-corrections",
+      "source": "docs/spec/domains/medical-records/lifecycle.md",
+      "requirements": [
+        "AC-medical-records-wrong-patient-transfer",
+        "AC-medical-records-retrospective-no-reception-billing"
+      ],
+      "storage": [
+        {
+          "table": "medical_record_correction_links",
+          "columns": [
+            "id",
+            "clinic_id",
+            "source_record_id",
+            "source_revision",
+            "destination_record_id",
+            "intent",
+            "clinical_date",
+            "reason",
+            "confirmed_by",
+            "operation_id",
+            "transferred_fields",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "元/先record・理由・由来・実診療日/入力時刻を区別。新受付/会計/在庫を自動生成しない",
+      "source_sha256": "8ebb7b4efd66eb44c86489b7e5e199dbca259643e07e79f8369d1031a92f5158",
+      "additional_ticket_title": "目的別カルテ訂正・過去入力と元記録参照を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "structured-initial-intake",
+      "source": "docs/spec/domains/medical-records/pages/initial-intake.md",
+      "requirements": [
+        "FR-medical-records-structured-initial-intake",
+        "FR-medical-records-intake-provenance",
+        "AC-medical-records-intake-unknown",
+        "AC-medical-records-intake-partial-date",
+        "AC-medical-records-intake-multiple"
+      ],
+      "storage": [
+        {
+          "table": "initial_intake_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "medical_record_id",
+            "pet_id",
+            "revision",
+            "source_kind",
+            "source_reference",
+            "heard_at",
+            "copied_from_revision_id",
+            "entry_count",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "initial_intake_entries",
+          "columns": [
+            "clinic_id",
+            "intake_revision_id",
+            "entry_key",
+            "field_key",
+            "field_label",
+            "answer_state",
+            "detail",
+            "drug_description",
+            "symptom_description",
+            "reported_result",
+            "time_precision",
+            "event_year",
+            "event_month",
+            "event_date",
+            "time_description",
+            "reference_exam_revision_id"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "yes/no/unknown/未回答、年/月/日/概算精度、複数entry、出所/旧版を保持。自己申告からD07 official結果を作らない",
+      "source_sha256": "2f15a73238b4c6ee1d71def96ae6432419aecc690dd35ffa76a4caaf3cb51fba",
+      "additional_ticket_title": "構造化初診問診の複数回答・時期精度・出所付き改訂を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "preventive-prescription-and-observations",
+      "source": "docs/spec/domains/medical-records/pages/preventive-medication.md",
+      "requirements": [
+        "FR-medical-records-preventive-prescription",
+        "FR-medical-records-annual-preventive-medication",
+        "FR-medical-records-preventive-report-output",
+        "AC-medical-records-prevention-month-multiple"
+      ],
+      "storage": [
+        {
+          "table": "preventive_prescriptions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "pet_id",
+            "medical_record_id",
+            "source_treatment_id",
+            "created_at"
+          ]
+        },
+        {
+          "table": "preventive_prescription_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "prescription_id",
+            "revision",
+            "prescription_title",
+            "prescribed_date",
+            "medicine_id",
+            "medicine_name_snapshot",
+            "administration_conditions",
+            "period_description",
+            "period_start_precision",
+            "period_start_year",
+            "period_start_month",
+            "period_start_date",
+            "period_end_precision",
+            "period_end_year",
+            "period_end_month",
+            "period_end_date",
+            "copied_history_record_id",
+            "copied_history_revision",
+            "history_snapshot",
+            "remarks",
+            "responsible_staff_id",
+            "recorded_by",
+            "recorded_at",
+            "operation_id",
+            "history_copied_at"
+          ]
+        },
+        {
+          "table": "preventive_medication_observations",
+          "columns": [
+            "id",
+            "clinic_id",
+            "prescription_id",
+            "created_at",
+            "display_year"
+          ]
+        },
+        {
+          "table": "preventive_medication_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "observation_id",
+            "revision",
+            "state",
+            "source_kind",
+            "source_reference",
+            "confirmed_at",
+            "time_precision",
+            "event_year",
+            "event_month",
+            "event_date",
+            "time_description",
+            "notes",
+            "recorded_by",
+            "recorded_at",
+            "operation_id",
+            "prescription_id",
+            "prescription_revision_id",
+            "change_reason"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "処方と投薬確認を分離、投薬改訂が固定処方版を参照。同月複数可、医学的頻度/自動量計算/自動請求出庫なし。2帳票は固定保存版をconsumerが読む",
+      "source_sha256": "15a75285fe608e9d18f44c2d5a0d0889124073a445bc7c8e53f0d8c93c0088d6",
+      "additional_ticket_title": "予防処方・年間投薬と固定処方版・専用2帳票を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "multiple-dose-patterns",
+      "source": "docs/spec/domains/medical-records/lifecycle.md",
+      "requirements": [
+        "AC-dose-source-pattern-choice",
+        "AC-dose-source-approval-limit"
+      ],
+      "storage": [
+        {
+          "table": "medicine_dose_params",
+          "columns": [
+            "id",
+            "clinic_id",
+            "medicine_id",
+            "species",
+            "dose_basis",
+            "dose_per_kg",
+            "min_mg_per_kg",
+            "max_mg_per_kg",
+            "absolute_max_dose",
+            "rounding_step",
+            "rounding_mode",
+            "notes",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "pattern_name",
+            "purpose",
+            "administration_route",
+            "version",
+            "provenance"
+          ]
+        },
+        {
+          "table": "medicine_dose_pattern_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "pattern_id",
+            "revision",
+            "pattern_name",
+            "purpose",
+            "administration_route",
+            "parameter_snapshot",
+            "source_reference",
+            "approval_reference",
+            "approved_by",
+            "approved_at",
+            "is_active",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "treatments",
+          "columns": [
+            "id",
+            "medical_record_id",
+            "item_type",
+            "consultation_id",
+            "procedure_id",
+            "medicine_id",
+            "is_selected",
+            "status",
+            "content",
+            "memo",
+            "admin_route",
+            "is_insurance",
+            "unit_price",
+            "quantity",
+            "discount_rate",
+            "discount_amount",
+            "inventory_id",
+            "sort_order",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "dose_weight_kg",
+            "dose_weight_source",
+            "dose_amount_mg",
+            "dose_amount_unit",
+            "dose_param_snapshot",
+            "clinic_id",
+            "version",
+            "contract_version",
+            "fulfillment_generation",
+            "administration_dose_amount",
+            "administration_dose_unit",
+            "administration_instructions",
+            "prescription_total_amount",
+            "prescription_total_unit",
+            "dose_pattern_revision_id"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-447",
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "薬剤×種の一律uniqueを非uniqueへ、目的/経路/承認出典付きpattern版。臨床値の新seed/全種全計算の自動承認なし",
+      "source_sha256": "8ebb7b4efd66eb44c86489b7e5e199dbca259643e07e79f8369d1031a92f5158",
+      "additional_ticket_title": "目的/経路別の承認用量pattern選択と固定版保存を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "stay-and-capacity",
+      "source": "docs/spec/domains/hospitalization/lifecycle.md",
+      "requirements": [
+        "FR-hospitalization-entry-and-start",
+        "FR-hospitalization-hotel-stay-capacity",
+        "FR-hospitalization-distinct-plans-and-records",
+        "FR-hospitalization-hotel-manual-pricing"
+      ],
+      "storage": [
+        {
+          "table": "stay_cases",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "pet_id",
+            "stay_kind",
+            "planned_entry_at",
+            "planned_exit_at",
+            "version",
+            "created_at",
+            "deleted_at"
+          ]
+        },
+        {
+          "table": "hotel_capacity_settings",
+          "columns": [
+            "clinic_id",
+            "max_concurrent_pets",
+            "version",
+            "updated_by",
+            "updated_at"
+          ]
+        },
+        {
+          "table": "stay_movement_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "stay_case_id",
+            "hospitalization_id",
+            "revision",
+            "event_kind",
+            "actual_at",
+            "corrected_event_id",
+            "reason",
+            "doctor_id",
+            "admission_record_ref",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "admission_records",
+          "columns": [
+            "id",
+            "clinic_id",
+            "hospitalization_id",
+            "stay_case_id",
+            "admission_event_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "stay_extension_proposals",
+          "columns": [
+            "id",
+            "clinic_id",
+            "stay_case_id",
+            "expected_stay_version",
+            "requested_exit_at",
+            "state",
+            "version",
+            "requested_by",
+            "confirmed_by",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "stay_plan_change_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "hospitalization_id",
+            "care_plan_item_id",
+            "treatment_plan_id",
+            "revision",
+            "intent",
+            "before_values",
+            "after_values",
+            "reason",
+            "confirmed_by",
+            "previous_event_id",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "stay_price_agreements",
+          "columns": [
+            "id",
+            "clinic_id",
+            "stay_case_id",
+            "revision",
+            "normal_charge_amount",
+            "requested_deposit_amount",
+            "cancellation_charge_amount",
+            "terms",
+            "operation_id",
+            "confirmed_by",
+            "confirmed_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452",
+        "EMR-461"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "予約/実滞在identityと予定/実時刻、入院開始時医師/記録、ホテル院別頭数上限。ケージ数/医師数を定員にしない。価格合意/予定預りと実受領は別",
+      "source_sha256": "3b005ac88365495ccd011bae6d53a47aab41885e63b2882f1db2641600a92f85",
+      "additional_ticket_title": "同一滞在・院別ホテル頭数・入院開始記録と予定/実績を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "accounting-calculation-history",
+      "source": "docs/spec/domains/accounting/lifecycle.md",
+      "requirements": [
+        "FR-accounting-calculation-snapshot"
+      ],
+      "storage": [
+        {
+          "table": "billing_calculation_snapshots",
+          "columns": [
+            "id",
+            "clinic_id",
+            "billing_id",
+            "revision",
+            "rule_version",
+            "source_versions",
+            "conditions",
+            "tax_rate_totals",
+            "insurance_confirmation",
+            "subtotal",
+            "tax_total",
+            "total_amount",
+            "line_count",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "billing_calculation_lines",
+          "columns": [
+            "clinic_id",
+            "calculation_id",
+            "billing_id",
+            "billing_item_id",
+            "ordinal",
+            "unit_price",
+            "quantity",
+            "source_snapshot",
+            "discount_conditions",
+            "requested_discount_amount",
+            "applied_discount_amount",
+            "allocated_bill_discount",
+            "net_amount",
+            "tax_rate",
+            "tax_category",
+            "insurance_category"
+          ]
+        },
+        {
+          "table": "billing_change_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "billing_id",
+            "revision",
+            "intent",
+            "source_calculation_id",
+            "before_values",
+            "after_values",
+            "reason",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "billing_reissue_links",
+          "columns": [
+            "clinic_id",
+            "original_billing_id",
+            "new_billing_id",
+            "original_calculation_id",
+            "selected_source_lines",
+            "reason",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "billing_source_bindings",
+          "columns": [
+            "clinic_id",
+            "billing_item_id",
+            "source_kind",
+            "treatment_id",
+            "vaccination_id",
+            "examination_id",
+            "trimming_source_line_id",
+            "applied_source_version",
+            "imported_values",
+            "manual_override",
+            "contract_version",
+            "updated_at",
+            "claim_released_at",
+            "claim_release_operation_id",
+            "claim_release_reason"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449",
+        "EMR-462",
+        "EMR-481",
+        "EMR-483"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "正確numeric入力/JPY丸め結果・税割引保険確認版。lifetime source unique→未release active source unique。取消理由付きreleaseで履歴を残し再請求、二重active請求は拒否",
+      "source_sha256": "c362d6bf15044b49cc24ed6b8bea9a34f004b1e1de250dab6a0c508bc5508a53",
+      "additional_ticket_title": "算定固定版・active claim・理由付き取消再請求を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "funds-allocation-refund",
+      "source": "docs/spec/domains/accounting/lifecycle.md",
+      "requirements": [
+        "FR-accounting-owner-selected-charges",
+        "FR-accounting-receivable-partial-zero",
+        "FR-accounting-reasoned-financial-correction",
+        "AC-accounting-payment-method-correction-no-money"
+      ],
+      "storage": [
+        {
+          "table": "payment_funds",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "received_amount",
+            "payment_method_id",
+            "received_at",
+            "operation_id",
+            "recorded_by",
+            "recorded_at",
+            "tendered_amount",
+            "change_given_amount",
+            "original_source_reference"
+          ]
+        },
+        {
+          "table": "fund_consumption_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "fund_id",
+            "event_kind",
+            "amount",
+            "billing_id",
+            "source_allocation_id",
+            "actual_refund_method_id",
+            "source_deposit_entry_id",
+            "occurred_at",
+            "operation_id",
+            "ordinal",
+            "recorded_by",
+            "recorded_at",
+            "reason"
+          ]
+        },
+        {
+          "table": "fund_record_corrections",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "fund_id",
+            "revision",
+            "corrected_method_id",
+            "corrected_received_at",
+            "before_values",
+            "reason",
+            "operation_id",
+            "recorded_by",
+            "recorded_at",
+            "corrected_received_amount",
+            "corrected_tendered_amount",
+            "corrected_change_given_amount"
+          ]
+        },
+        {
+          "table": "refund_requests",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "fund_id",
+            "billing_id",
+            "requested_amount",
+            "state",
+            "actual_refund_event_id",
+            "reason",
+            "version",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "owner_deposit_entries",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "operation_key",
+            "ordinal",
+            "account_revision",
+            "entry_kind",
+            "amount",
+            "source_entry_id",
+            "billing_id",
+            "appointment_id",
+            "occurred_at",
+            "recorded_at",
+            "fund_record_correction_id",
+            "correction_reason"
+          ]
+        },
+        {
+          "table": "owner_deposit_operations",
+          "columns": [
+            "clinic_id",
+            "owner_id",
+            "operation_key",
+            "request_hash",
+            "expected_account_revision",
+            "resulting_account_revision",
+            "expected_entry_count",
+            "balance_after",
+            "performed_by",
+            "committed_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449",
+        "EMR-464"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "単一受領fundと複数請求/預り配分・解除・実返金・理由付き入力金額/方法/日時訂正を分離。口座credit/debitは実金移動0、固定元fund差額上限。旧決済表は除去。",
+      "source_sha256": "c362d6bf15044b49cc24ed6b8bea9a34f004b1e1de250dab6a0c508bc5508a53",
+      "additional_ticket_title": "受領identity・複数請求配賦・実返金・記録訂正を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "financial-document-editions",
+      "source": "docs/spec/domains/accounting/lifecycle.md",
+      "requirements": [
+        "FR-accounting-document-and-aged-debt"
+      ],
+      "storage": [
+        {
+          "table": "financial_document_identities",
+          "columns": [
+            "id",
+            "clinic_id",
+            "document_kind",
+            "billing_id",
+            "fund_id",
+            "owner_id",
+            "refund_event_id",
+            "original_transaction_number",
+            "created_at"
+          ]
+        },
+        {
+          "table": "financial_document_editions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "document_id",
+            "edition",
+            "calculation_id",
+            "billing_id",
+            "source_snapshot",
+            "display_snapshot",
+            "layout_version",
+            "issued_by",
+            "issued_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "financial_document_artifacts",
+          "columns": [
+            "clinic_id",
+            "edition_id",
+            "renderer_version",
+            "object_key",
+            "content_sha256",
+            "created_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "元取引番号と請求/受領/返金由来、固定内容/計算版・artifactを保持。新しい法定様式/採番規則なし。帳票版の請求は医院付きFKと親identity一致、計算版ありなら請求必須。計算版なし受領証等も保存可。",
+      "source_sha256": "c362d6bf15044b49cc24ed6b8bea9a34f004b1e1de250dab6a0c508bc5508a53",
+      "additional_ticket_title": "請求/受領/預り/返金帳票の元取引・固定版・artifactを接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "estimate-presentations",
+      "source": "docs/spec/domains/estimates/business-rules.md",
+      "requirements": [
+        "FR-estimates-successor",
+        "FR-estimates-billing-handoff",
+        "AC-estimates-presented-pending-original",
+        "AC-estimates-changed-content-explain"
+      ],
+      "storage": [
+        {
+          "table": "estimate_presentations",
+          "columns": [
+            "id",
+            "clinic_id",
+            "estimate_id",
+            "revision",
+            "estimate_version",
+            "content_digest",
+            "recipient_snapshot",
+            "valid_until",
+            "line_count",
+            "presented_by",
+            "presented_at",
+            "operation_id",
+            "calculation_id"
+          ]
+        },
+        {
+          "table": "estimate_presentation_lines",
+          "columns": [
+            "clinic_id",
+            "presentation_id",
+            "estimate_id",
+            "estimate_item_id",
+            "ordinal",
+            "source_values",
+            "unit_price",
+            "quantity"
+          ]
+        },
+        {
+          "table": "estimate_replies",
+          "columns": [
+            "id",
+            "clinic_id",
+            "presentation_id",
+            "estimate_id",
+            "response",
+            "response_note",
+            "recorded_by",
+            "recorded_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "estimate_successor_links",
+          "columns": [
+            "clinic_id",
+            "original_estimate_id",
+            "presentation_id",
+            "successor_estimate_id",
+            "reason",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "estimate_billing_handoffs",
+          "columns": [
+            "clinic_id",
+            "presentation_id",
+            "estimate_id",
+            "estimate_item_id",
+            "billing_id",
+            "billing_item_id",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "estimates",
+          "columns": [
+            "id",
+            "clinic_id",
+            "estimate_no",
+            "medical_record_id",
+            "title",
+            "owner_id",
+            "status",
+            "valid_until",
+            "comment",
+            "notes",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "pet_id",
+            "version",
+            "current_calculation_id"
+          ]
+        },
+        {
+          "table": "estimate_calculation_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "estimate_id",
+            "revision",
+            "rule_version",
+            "conditions",
+            "insurance_confirmation",
+            "tax_rate_totals",
+            "line_values",
+            "subtotal",
+            "tax_total",
+            "total_amount",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "提示時原本/固定行/返答先/理由付き後継/選択取込を保持。提示単価適用と税保険割引条件・請求確定は別",
+      "source_sha256": "a5fb2c10f6065dbd5f3ea25bf5700a43c4baa10b594f3cb4c243442d2bddf7ca",
+      "additional_ticket_title": "提示原本・返答・後継改訂と選択明細の請求引継ぎを接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "closing-and-source-events",
+      "source": "docs/spec/domains/cash-register/business-rules.md",
+      "requirements": [
+        "FR-closing-movement-consumer",
+        "FR-closing-append-only",
+        "FR-closing-actual-input-correction",
+        "AC-closing-cash-difference-note",
+        "AC-closing-cash-difference-note-empty"
+      ],
+      "storage": [
+        {
+          "table": "cash_opening_balances",
+          "columns": [
+            "id",
+            "clinic_id",
+            "business_date",
+            "period",
+            "revision",
+            "amount",
+            "source_kind",
+            "source_close_id",
+            "operation_id",
+            "confirmed_by",
+            "confirmed_at"
+          ]
+        },
+        {
+          "table": "cash_adjustment_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "event_kind",
+            "amount",
+            "occurred_at",
+            "reason",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "finance_source_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "source_owner",
+            "source_event_key",
+            "fund_record_correction_id",
+            "source_version",
+            "content_digest",
+            "billing_change_event_id",
+            "fund_id",
+            "fund_consumption_event_id",
+            "deposit_entry_id",
+            "cash_adjustment_event_id",
+            "corrected_event_id",
+            "occurred_at",
+            "actual_method_id",
+            "actual_movement_amount",
+            "cash_movement_amount",
+            "receivable_delta",
+            "context_snapshot",
+            "recorded_at",
+            "recorded_by",
+            "reason"
+          ]
+        },
+        {
+          "table": "finance_event_ingestions",
+          "columns": [
+            "clinic_id",
+            "consumer_kind",
+            "source_event_id",
+            "source_digest",
+            "ingested_at"
+          ]
+        },
+        {
+          "table": "closing_boundary_revisions",
+          "columns": [
+            "clinic_id",
+            "revision",
+            "boundary_snapshot",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "cash_close_contexts",
+          "columns": [
+            "clinic_id",
+            "close_id",
+            "boundary_revision",
+            "source_generation",
+            "source_set_digest",
+            "opening_balance_id",
+            "cash_adjustment_version",
+            "source_event_count",
+            "source_snapshot",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "cash_close_source_events",
+          "columns": [
+            "clinic_id",
+            "close_id",
+            "source_event_id",
+            "source_version"
+          ]
+        },
+        {
+          "table": "cash_actual_corrections",
+          "columns": [
+            "id",
+            "clinic_id",
+            "close_id",
+            "revision",
+            "previous_correction_id",
+            "before_actual_amount",
+            "corrected_actual_amount",
+            "theoretical_basis_amount",
+            "source_generation",
+            "original_counted_at",
+            "reason",
+            "operation_id",
+            "corrected_by",
+            "corrected_at"
+          ]
+        },
+        {
+          "table": "cash_close_late_events",
+          "columns": [
+            "clinic_id",
+            "close_id",
+            "source_event_id",
+            "assigned_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "元締めimmutable、実査訂正追記/設定/境界/集計元版固定、金銭訂正source FK追加。預り/配賦と実移動の二重計上なし。差額時メモ必須だが原因判明不要",
+      "source_sha256": "df7b18a85d421af559d3478d9dbc4e0021c2513ce3e332ee3e416d3fa680f13e",
+      "additional_ticket_title": "金銭sourceイベントと元締め・実査訂正・締め後差分を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "inventory-ledger",
+      "source": "docs/spec/domains/inventory/business-rules.md",
+      "requirements": [
+        "FR-inventory-record-maintenance",
+        "FR-inventory-adjustment",
+        "AC-inventory-concurrent-count",
+        "AC-inventory-actual-return"
+      ],
+      "storage": [
+        {
+          "table": "inventory_items",
+          "columns": [
+            "id",
+            "clinic_id",
+            "name",
+            "category",
+            "quantity",
+            "unit",
+            "min_stock_level",
+            "location",
+            "expiry_date",
+            "supplier",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "version",
+            "quantity_base_id"
+          ]
+        },
+        {
+          "table": "inventory_quantity_bases",
+          "columns": [
+            "id",
+            "clinic_id",
+            "inventory_item_id",
+            "expected_item_version",
+            "confirmed_quantity",
+            "management_unit",
+            "legacy_reference",
+            "confirmed_by",
+            "confirmed_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "inventory_movement_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "inventory_item_id",
+            "event_kind",
+            "delta",
+            "before_quantity",
+            "after_quantity",
+            "previous_version",
+            "resulting_version",
+            "management_unit",
+            "original_issue_id",
+            "corrected_event_id",
+            "source_treatment_id",
+            "source_billing_item_id",
+            "reason",
+            "occurred_at",
+            "operation_id",
+            "ordinal",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "確認基準→整数前後数量/実日時/理由/元出庫/版。item lock・返却上限。単位属性訂正可/数量自動換算なし、旧残高から架空入庫を作らない",
+      "source_sha256": "92dbd772491db9d3e8023c7f2673a8c15f89072cd6cfb9f027b9d6a5e0a05908",
+      "additional_ticket_title": "基準在庫と理由付き実移動・元出庫返却上限を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "actual-visit-source",
+      "source": "docs/spec/domains/analytics/business-rules.md",
+      "requirements": [
+        "FR-analytics-owner-counts",
+        "FR-analytics-lstep-observation"
+      ],
+      "storage": [
+        {
+          "table": "actual_visit_facts",
+          "columns": [
+            "id",
+            "clinic_id",
+            "source_kind",
+            "appointment_change_event_id",
+            "record_correction_link_id",
+            "owner_id",
+            "pet_id",
+            "visit_date_jst",
+            "source_version",
+            "corrected_fact_id",
+            "evidence",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "finance_source_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "source_owner",
+            "source_event_key",
+            "fund_record_correction_id",
+            "source_version",
+            "content_digest",
+            "billing_change_event_id",
+            "fund_id",
+            "fund_consumption_event_id",
+            "deposit_entry_id",
+            "cash_adjustment_event_id",
+            "corrected_event_id",
+            "occurred_at",
+            "actual_method_id",
+            "actual_movement_amount",
+            "cash_movement_amount",
+            "receivable_delta",
+            "context_snapshot",
+            "recorded_at",
+            "recorded_by",
+            "reason"
+          ]
+        },
+        {
+          "table": "finance_event_ingestions",
+          "columns": [
+            "clinic_id",
+            "consumer_kind",
+            "source_event_id",
+            "source_digest",
+            "ingested_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-449"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "確定受付/確認済過去来院の根拠と元版・訂正参照。予定日/current status/上書きchecked_in_atから来院を捏造しない。日内distinctはconsumer",
+      "source_sha256": "b2e66817364ca1cb16ef12bbc6cb634840df8dcac6c4f17b3f5575504ee7dc15",
+      "additional_ticket_title": "確定受付/過去来院根拠と訂正を集計readerへ接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "checkup-stage-recovery",
+      "source": "docs/spec/domains/checkups/lifecycle.md",
+      "requirements": [
+        "FR-checkups-results",
+        "AC-checkups-partial-save",
+        "AC-checkups-unknown-result",
+        "AC-checkups-master-change"
+      ],
+      "storage": [
+        {
+          "table": "checkup_save_attempts",
+          "columns": [
+            "id",
+            "clinic_id",
+            "pet_id",
+            "performed_date",
+            "operation_id",
+            "request_fingerprint",
+            "actor_id",
+            "created_at"
+          ]
+        },
+        {
+          "table": "checkup_save_stage_results",
+          "columns": [
+            "clinic_id",
+            "attempt_id",
+            "stage",
+            "operation_id",
+            "medical_record_id",
+            "checkup_id",
+            "result_revision",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "checkup_result_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "checkup_id",
+            "revision",
+            "package_version",
+            "package_snapshot",
+            "fields_snapshot",
+            "restored_from_id",
+            "reason",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "checkups",
+          "columns": [
+            "id",
+            "medical_record_id",
+            "clinic_id",
+            "pet_id",
+            "checkup_type_id",
+            "date",
+            "next_date",
+            "doctor_id",
+            "result",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "version"
+          ]
+        },
+        {
+          "table": "checkup_types",
+          "columns": [
+            "id",
+            "clinic_id",
+            "name",
+            "price",
+            "is_active",
+            "description",
+            "interval",
+            "target_age",
+            "parent_id",
+            "sort_order",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "import_namespace",
+            "import_key",
+            "is_non_insurance",
+            "version"
+          ]
+        },
+        {
+          "table": "checkup_type_fields",
+          "columns": [
+            "id",
+            "clinic_id",
+            "checkup_type_id",
+            "name",
+            "field_type",
+            "unit",
+            "min_value",
+            "max_value",
+            "options",
+            "is_provisional",
+            "sort_order",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "import_namespace",
+            "import_key",
+            "version"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-456",
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "親→子→結果の各成功ID/版/操作を保存。全体atomic化や自動親削除へ変更せず、0/false/原field ID型snapshot保持。partialを全体成功にしない",
+      "source_sha256": "2e66571fe97b78108da9360121b4a4148592d50974972c262b97f00551688772",
+      "additional_ticket_title": "健診の親/子/結果の各receipt照合と段階再開を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "examination-provenance",
+      "source": "docs/spec/domains/examinations/lifecycle.md",
+      "requirements": [
+        "FR-examinations-infection-summary"
+      ],
+      "storage": [
+        {
+          "table": "exams",
+          "columns": [
+            "id",
+            "medical_record_id",
+            "clinic_id",
+            "pet_id",
+            "date",
+            "exam_type_id",
+            "doctor_id",
+            "status",
+            "result_summary",
+            "machine",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "job_id",
+            "current_revision_version",
+            "performed_date_precision"
+          ]
+        },
+        {
+          "table": "examination_revisions",
+          "columns": [
+            "id",
+            "clinic_id",
+            "examination_id",
+            "version",
+            "kind",
+            "status",
+            "medical_record_id",
+            "pet_id",
+            "medical_record_owner_id",
+            "pet_owner_id",
+            "animal_species_id",
+            "exam_type_id",
+            "doctor_id",
+            "job_id",
+            "actor_id",
+            "date",
+            "result_summary",
+            "machine",
+            "display_snapshot",
+            "schema_version",
+            "change_reason",
+            "created_at",
+            "performed_date_precision",
+            "measured_at",
+            "result_source_kind",
+            "result_source_details",
+            "previous_official_revision_id"
+          ]
+        },
+        {
+          "table": "examination_field_semantic_mappings",
+          "columns": [
+            "id",
+            "clinic_id",
+            "exam_type_field_id",
+            "animal_species_id",
+            "meaning",
+            "revision",
+            "verified_by",
+            "verified_at",
+            "evidence",
+            "operation_id"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "日付不明をNULL/精度で表現し他院手入力出所・前official参照・検証済明示mapping保持。新臨床コード対応seed/患者台帳の結果二重保存なし",
+      "source_sha256": "0deb5d912a6426abbc9a69dd31f96a83626071ab36e54b3d34031212b845c26a",
+      "additional_ticket_title": "他院手入力の検査出所・日付精度・意味mappingを接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "manual-publication",
+      "source": "docs/spec/domains/internal-manual/README.md",
+      "requirements": [
+        "AC-internal-manual-05",
+        "AC-internal-manual-06",
+        "AC-internal-manual-09"
+      ],
+      "storage": [
+        {
+          "table": "manual_articles",
+          "columns": [
+            "id",
+            "category",
+            "slug",
+            "created_at",
+            "updated_at",
+            "version",
+            "current_version_id",
+            "published_version_id",
+            "hidden_at"
+          ]
+        },
+        {
+          "table": "manual_article_versions",
+          "columns": [
+            "id",
+            "article_id",
+            "title",
+            "order_value",
+            "section",
+            "body_markdown",
+            "edited_by_staff_id",
+            "edited_at",
+            "content_digest",
+            "content_revision",
+            "restored_from_id",
+            "source_kind"
+          ]
+        },
+        {
+          "table": "manual_article_operations",
+          "columns": [
+            "id",
+            "clinic_id",
+            "article_id",
+            "operation_id",
+            "intent",
+            "previous_version",
+            "resulting_version",
+            "content_version_id",
+            "published_version_id",
+            "restored_from_id",
+            "before_state",
+            "after_state",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "医院共通articleの現在内容版/公開版を分離、復元は新内容版、必要操作履歴/receipt。独立下書き承認workflow/院別コピー/旧override自動公開なし",
+      "source_sha256": "f2a2bf0acfef72a0c5e6c6e222c989333e8c4772400eee66304194e4a437d6df",
+      "additional_ticket_title": "院内共通記事の公開pointer・改訂/復元履歴を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "support-confirmed-delivery",
+      "source": "docs/spec/domains/support/README.md",
+      "requirements": [
+        "AC-support-04",
+        "AC-support-07",
+        "AC-support-09"
+      ],
+      "storage": [
+        {
+          "table": "support_bug_reports",
+          "columns": [
+            "id",
+            "clinic_id",
+            "reporter_staff_id",
+            "title",
+            "detail",
+            "page_url",
+            "route_path",
+            "user_agent",
+            "viewport",
+            "app_version",
+            "screenshot_key",
+            "status",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "version"
+          ]
+        },
+        {
+          "table": "support_delivery_intents",
+          "columns": [
+            "id",
+            "clinic_id",
+            "report_id",
+            "report_version",
+            "operation_id",
+            "confirmed_payload",
+            "payload_digest",
+            "destination_count",
+            "confirmed_by",
+            "confirmed_at",
+            "created_at"
+          ]
+        },
+        {
+          "table": "support_delivery_destinations",
+          "columns": [
+            "id",
+            "clinic_id",
+            "intent_id",
+            "provider",
+            "destination_ref"
+          ]
+        },
+        {
+          "table": "support_delivery_attempts",
+          "columns": [
+            "id",
+            "clinic_id",
+            "destination_id",
+            "attempt_key",
+            "attempt_number",
+            "previous_attempt_id",
+            "authorized_retry_result_id",
+            "claimed_by",
+            "claimed_at"
+          ]
+        },
+        {
+          "table": "support_delivery_results",
+          "columns": [
+            "id",
+            "clinic_id",
+            "attempt_id",
+            "destination_id",
+            "result_revision",
+            "result_state",
+            "external_id",
+            "evidence",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-452"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "院内保存＋確認snapshot/intent/receipt後のみ配送。DiscordとPlaneの結果を分離。unknown/成功再送禁止、照合で未作成確認後だけ管理再試行。実外部送信なし",
+      "source_sha256": "4cc730a25d0fbef40d28b24770bdd94387df372b073b5aa18ecd142e42157a0a",
+      "additional_ticket_title": "院内保存先行の確認intent・宛先別claim/結果照合を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "line-purpose-unlink-followup",
+      "source": "docs/spec/line/lstep-integration.md",
+      "requirements": [
+        "FR-crm-followup-confirmation",
+        "FR-crm-dm-purpose",
+        "AC-crm-unlink-reservations-preserved",
+        "AC-crm-relink-no-auto-resume",
+        "AC-crm-resume-selected-reservations"
+      ],
+      "storage": [
+        {
+          "table": "owner_line_binding_states",
+          "columns": [
+            "clinic_id",
+            "owner_id",
+            "revision",
+            "state",
+            "line_customer_id",
+            "verified_by",
+            "verified_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "owner_line_binding_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "revision",
+            "intent",
+            "before_state",
+            "after_state",
+            "operation_id",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "reservation_notification_eligibility",
+          "columns": [
+            "clinic_id",
+            "appointment_id",
+            "owner_id",
+            "binding_revision",
+            "appointment_version",
+            "state",
+            "confirmed_by",
+            "confirmed_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "followup_confirmations",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "pet_id",
+            "medical_record_id",
+            "checkup_id",
+            "purpose",
+            "source_version",
+            "source_digest",
+            "performed_confirmed_at",
+            "confirmed_by",
+            "doctor_designated_by",
+            "doctor_designated_at",
+            "operation_id"
+          ]
+        },
+        {
+          "table": "line_dispatch_intents",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_id",
+            "binding_revision",
+            "appointment_id",
+            "followup_confirmation_id",
+            "purpose",
+            "operation_id",
+            "destination_snapshot",
+            "payload_digest",
+            "confirmed_at",
+            "confirmed_payload",
+            "message_type",
+            "content_summary"
+          ]
+        },
+        {
+          "table": "line_dispatch_attempts",
+          "columns": [
+            "id",
+            "clinic_id",
+            "intent_id",
+            "attempt_key",
+            "attempt_number",
+            "previous_attempt_id",
+            "authorized_retry_result_id",
+            "claimed_by",
+            "claimed_at"
+          ]
+        },
+        {
+          "table": "line_dispatch_results",
+          "columns": [
+            "id",
+            "clinic_id",
+            "attempt_id",
+            "intent_id",
+            "revision",
+            "state",
+            "external_id",
+            "evidence",
+            "recorded_at",
+            "occurred_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-469",
+        "EMR-470",
+        "EMR-474"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "予約本体/参照を残して通知停止、再連携自動再開なし、選択確認/目的/医師指定/本人版/不明attempt保持。新しい配信許可なし",
+      "source_sha256": "2a07a13fc23d61bd046902aa573b31c1a42ea60ba10893aa88adbcb4f467fa6f",
+      "additional_ticket_title": "LINE本人版・解除停止/選択再開・目的別確認と配送照合を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "common-operation-receipts",
+      "source": "docs/design/shared/integration-contracts.md",
+      "requirements": [],
+      "storage": [
+        {
+          "table": "operation_bindings",
+          "columns": [
+            "id",
+            "clinic_id",
+            "owner_kind",
+            "actor_kind",
+            "actor_ref",
+            "intent",
+            "operation_key",
+            "fingerprint",
+            "fingerprint_key_version",
+            "created_at"
+          ]
+        },
+        {
+          "table": "operation_results",
+          "columns": [
+            "clinic_id",
+            "binding_id",
+            "result_refs",
+            "committed_versions",
+            "effect_summary",
+            "recorded_at"
+          ]
+        },
+        {
+          "table": "operation_attempt_outcomes",
+          "columns": [
+            "id",
+            "clinic_id",
+            "binding_id",
+            "attempt_key",
+            "outcome",
+            "details",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-467",
+        "EMR-471",
+        "EMR-473"
+      ],
+      "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "C06選定契約: clinic/actor/owner/intent/key/HMACfingerprint永久束縛。成功receiptと失敗attempt分離、必要成功結果は業務変更同TXの延期制約。新IDでunknown救済しない",
+      "source_sha256": "6fc624387f9773647bfaa10578b502ba04583fbccc6ade9826af79bceb3cb280",
+      "additional_ticket_title": "全ownerの保存成功receiptと失敗attemptの原子保存を接続する",
+      "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",
+      "cleanup_contract": "See schema-cleanup-audit.md/json. Removed fields/tables are not compatibility fallback authorities."
+    },
+    {
+      "unit": "multiple-diagnoses-and-consultation-end",
+      "source": "docs/spec/domains/medical-records/pages/medical-record-form.md",
+      "requirements": [
+        "FR-medical-records-diagnoses-multiple-per-category"
+      ],
+      "storage": [
+        {
+          "table": "clinical_plans",
+          "columns": [
+            "id",
+            "medical_record_id",
+            "physical_exam",
+            "diagnosis_details",
+            "treatment_policy",
+            "version",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+            "clinic_id"
+          ]
+        },
+        {
+          "table": "clinical_plan_diagnoses",
+          "columns": [
+            "id",
+            "clinic_id",
+            "clinical_plan_id",
+            "diagnosis_slot",
+            "diagnosis_type_id",
+            "diagnosis_name_id",
+            "diagnosis_name_snapshot",
+            "category_name_snapshot",
+            "sort_order",
+            "version",
+            "created_at",
+            "updated_at",
+            "deleted_at"
+          ]
+        },
+        {
+          "table": "medical_record_consultation_events",
+          "columns": [
+            "id",
+            "clinic_id",
+            "medical_record_id",
+            "revision",
+            "event_kind",
+            "previous_event_id",
+            "source_kind",
+            "occurred_at",
+            "reason",
+            "operation_id",
+            "recorded_by",
+            "recorded_at"
+          ]
+        }
+      ],
+      "existing_tickets": [
+        "EMR-446",
+        "EMR-466"
+      ],
+      "additional_ticket": "Parent aligns with medical-record consumer tickets",
+      "additional_ticket_title": "第一/第二傷病の複数行と診療終了履歴を接続する",
+      "additional_ticket_status": "PARENT_MAPPING_REQUIRED",
+      "status": "DDL_AUTHORED_UNTESTED",
+      "boundary": "各区分を複数行で保存し件数上限/同一病名禁止は新設しない。通常編集を旧finalizedで止めず、会計医師確認とは分離。",
+      "source_sha256": "5795ebc6a0f5e969e60e563c65a467fc9bf22a20a70d330a4aa2eb72145c1e55"
+    }
+  ],
+  "common_uuid_authorization": "Sentinel_7195a603405c819199d5e2b74463a2d1",
+  "cleanup_audit": "schema-cleanup-audit.json",
+  "consumer_ticket_handoff": "Parent created EMR-489–511 and reuses EMR-468. Unit-to-ticket exact mapping remains parent managed; no Plane mutation by this task."
+}

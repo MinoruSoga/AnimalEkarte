@@ -72,7 +72,7 @@ erDiagram
         BIGSERIAL id PK
     }
     inventory_items {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
     }
     clinics ||..o{ medicines : "clinic_id"
     medicines o|..o{ medicines : "parent_id"

@@ -11,25 +11,23 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1899](../../../backend/migrations/001_init.sql#L1899) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:1899](../../../backend/migrations/001_init.sql#L1899) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1900](../../../backend/migrations/001_init.sql#L1900) |
 | `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1901](../../../backend/migrations/001_init.sql#L1901) |
 | `hospitalization_id` | `bigint` | NULL | — | FK | [001_init.sql:1902](../../../backend/migrations/001_init.sql#L1902) |
 | `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1903](../../../backend/migrations/001_init.sql#L1903) |
 | `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1904](../../../backend/migrations/001_init.sql#L1904) |
-| `subtotal` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1905](../../../backend/migrations/001_init.sql#L1905) |
-| `tax_total` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1906](../../../backend/migrations/001_init.sql#L1906) |
-| `total_amount` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1907](../../../backend/migrations/001_init.sql#L1907) |
-| `has_insurance` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1908](../../../backend/migrations/001_init.sql#L1908) |
-| `status` | `billing_status` | NULL | `'waiting'` | — | [001_init.sql:1909](../../../backend/migrations/001_init.sql#L1909) |
 | `scheduled_date` | `date` | NOT NULL | — | — | [001_init.sql:1910](../../../backend/migrations/001_init.sql#L1910) |
-| `completed_at` | `timestamptz` | NULL | — | — | [001_init.sql:1911](../../../backend/migrations/001_init.sql#L1911) |
 | `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:1912](../../../backend/migrations/001_init.sql#L1912) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1913](../../../backend/migrations/001_init.sql#L1913) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1914](../../../backend/migrations/001_init.sql#L1914) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1915](../../../backend/migrations/001_init.sql#L1915) |
-| `completion_request_id` | `UUID` | NULL | — | UK | [001_init.sql:5177](../../../backend/migrations/001_init.sql#L5177) |
-| `completion_request_hash` | `TEXT` | NULL | — | — | [001_init.sql:5178](../../../backend/migrations/001_init.sql#L5178) |
+| `doctor_review_set_id` | `bigint` | NULL | — | FK | [001_init.sql:8174](../../../backend/migrations/001_init.sql#L8174) |
+| `clinical_set_generation` | `bigint` | NULL | — | — | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
+| `clinical_set_digest` | `bytea` | NULL | — | — | [001_init.sql:8810](../../../backend/migrations/001_init.sql#L8810) |
+| `claim_state` | `text` | NULL | — | — | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10887](../../../backend/migrations/001_init.sql#L10887) |
+| `current_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:10888](../../../backend/migrations/001_init.sql#L10888) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,31 +40,39 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     billings {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
         bigint medical_record_id FK
         bigint hospitalization_id FK
         bigint owner_id FK
         bigint pet_id FK
-        bigint subtotal
-        bigint tax_total
-        bigint total_amount
-        boolean has_insurance
-        billing_status status
         date scheduled_date
-        timestamptz completed_at
         text memo
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
-        UUID completion_request_id UK
-        TEXT completion_request_hash
+        bigint doctor_review_set_id FK
+        bigint clinical_set_generation
+        bytea clinical_set_digest
+        text claim_state
+        bigint version
+        bigint current_calculation_id FK
+    }
+    billing_calculation_snapshots {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
+        bigint billing_id FK,UK
     }
     clinics {
         BIGSERIAL id PK
     }
+    doctor_review_sets {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
+        bigint billing_id FK,UK
+    }
     hospitalizations {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     medical_records {
         BIGSERIAL id PK,UK
@@ -86,6 +92,8 @@ erDiagram
     pets o|..o{ billings : "pet_id"
     pets o|..o{ billings : "clinic_id, pet_id"
     owners o|..o{ billings : "clinic_id, owner_id"
+    doctor_review_sets o|..o| billings : "doctor_review_set_id, clinic_id, id"
+    billing_calculation_snapshots o|..o| billings : "current_calculation_id, clinic_id, id"
 ```
 
 ## 外部キー（全件）
@@ -99,6 +107,8 @@ erDiagram
 | `billings_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1904](../../../backend/migrations/001_init.sql#L1904) |
 | `fk_billings_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4426](../../../backend/migrations/001_init.sql#L4426) |
 | `fk_billings_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4432](../../../backend/migrations/001_init.sql#L4432) |
+| `fk_billing_doctor_review_set` | `doctor_review_set_id, clinic_id, id` | [doctor_review_sets](doctor_review_sets.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:8175](../../../backend/migrations/001_init.sql#L8175) |
+| `fk_billing_current_calculation` | `current_calculation_id, clinic_id, id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:10889](../../../backend/migrations/001_init.sql#L10889) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -109,6 +119,8 @@ erDiagram
 - `billings_pet_id_fkey`: `REFERENCES pets(id) ON DELETE SET NULL`
 - `fk_billings_clinic_pet`: `CONSTRAINT fk_billings_clinic_pet     FOREIGN KEY (clinic_id, pet_id)     REFERENCES pets (clinic_id, id)     ON DELETE RESTRICT`
 - `fk_billings_clinic_owner`: `CONSTRAINT fk_billings_clinic_owner     FOREIGN KEY (clinic_id, owner_id)     REFERENCES owners (clinic_id, id)     ON DELETE RESTRICT`
+- `fk_billing_doctor_review_set`: `CONSTRAINT fk_billing_doctor_review_set  FOREIGN KEY (doctor_review_set_id,clinic_id,id) REFERENCES doctor_review_sets(id,clinic_id,billing_id) ON DELETE RESTRICT`
+- `fk_billing_current_calculation`: `CONSTRAINT fk_billing_current_calculation FOREIGN KEY(current_calculation_id,clinic_id,id) REFERENCES billing_calculation_snapshots(id,clinic_id,billing_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -116,6 +128,10 @@ erDiagram
 |:---|:---|:---|:---|
 | `billings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1899](../../../backend/migrations/001_init.sql#L1899) |
 | `uq_billings_id_clinic` | unique | `CONSTRAINT uq_billings_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4054](../../../backend/migrations/001_init.sql#L4054) |
+| `billings_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
+| `billings_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8810](../../../backend/migrations/001_init.sql#L8810) |
+| `billings_claim_state_check` | check | `CHECK (claim_state IN ('draft','finalized','cancelled'))` | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
+| `billings_version_check` | check | `CHECK(version>0)` | [001_init.sql:10887](../../../backend/migrations/001_init.sql#L10887) |
 
 ## インデックス
 
@@ -127,8 +143,4 @@ erDiagram
 | `idx_billings_pet_id` | NO | — | `CREATE INDEX idx_billings_pet_id ON billings(pet_id)` | [001_init.sql:2317](../../../backend/migrations/001_init.sql#L2317) |
 | `idx_billings_owner_id` | NO | — | `CREATE INDEX idx_billings_owner_id ON billings(owner_id)` | [001_init.sql:2318](../../../backend/migrations/001_init.sql#L2318) |
 | `idx_billings_clinic_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_billings_clinic_date   ON billings(clinic_id, scheduled_date)   WHERE deleted_at IS NULL` | [001_init.sql:2405](../../../backend/migrations/001_init.sql#L2405) |
-| `idx_billings_clinic_status` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_billings_clinic_status   ON billings(clinic_id, status)   WHERE deleted_at IS NULL` | [001_init.sql:2409](../../../backend/migrations/001_init.sql#L2409) |
-| `idx_billings_has_insurance` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_billings_has_insurance   ON billings(clinic_id, has_insurance)   WHERE deleted_at IS NULL` | [001_init.sql:2413](../../../backend/migrations/001_init.sql#L2413) |
-| `idx_billings_clinic_completed_at` | NO | `deleted_at IS NULL AND status = 'completed'` | `CREATE INDEX idx_billings_clinic_completed_at   ON billings(clinic_id, completed_at)   WHERE deleted_at IS NULL AND status = 'completed'` | [001_init.sql:2418](../../../backend/migrations/001_init.sql#L2418) |
-| `uq_billings_clinic_completion_request_id` | YES | — | `CREATE UNIQUE INDEX IF NOT EXISTS uq_billings_clinic_completion_request_id     ON billings (clinic_id, completion_request_id)` | [001_init.sql:5182](../../../backend/migrations/001_init.sql#L5182) |
 | `idx_billings_clinic_owner_scheduled` | NO | `deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_billings_clinic_owner_scheduled     ON billings (clinic_id, owner_id, scheduled_date DESC, created_at DESC)     WHERE deleted_at IS NULL` | [001_init.sql:6375](../../../backend/migrations/001_init.sql#L6375) |

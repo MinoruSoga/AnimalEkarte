@@ -1,0 +1,189 @@
+{
+  "runtime_status": "NOT_RUN; approval and isolated environment required",
+  "cases": [
+    {
+      "id": "C01",
+      "AC_suffix": "optional",
+      "operation": "未送信の予約確定・受付",
+      "expected": "answer0件のまま両操作成功、目的必須は送信時だけ",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C02",
+      "AC_suffix": "multi-pet",
+      "operation": "別appointmentの2頭へ異なる内容、片方未回答",
+      "expected": "相互copyなし。カルテ0件でも保存/予約詳細再読込",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C03",
+      "AC_suffix": "revisions",
+      "operation": "v1送信→訂正v2→旧本文UPDATE/DELETE試行",
+      "expected": "新旧本文・各server時刻/回答者保持。直接変更拒否",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C04",
+      "AC_suffix": "reschedule",
+      "operation": "回答と日時変更を両先行順",
+      "expected": "target/世代/回答ID/時刻保持。日時変更の既存検査保持",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C05",
+      "AC_suffix": "new-target",
+      "operation": "pet A→B→A及びpet→NULL→pet",
+      "expected": "世代増分、旧submit拒否、新対象未回答、旧原文残存",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C06",
+      "AC_suffix": "new-target",
+      "operation": "取消→新appointment",
+      "expected": "新予約未回答、取消前履歴は旧予約に残る",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C07",
+      "AC_suffix": "revisions",
+      "operation": "回答→受付 / 受付→回答",
+      "expected": "前者は保存原文を受付で参照、後者は新write不可。未回答受付は通る",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C08",
+      "AC_suffix": "new-target",
+      "operation": "回答→院内取消 / 院内取消→回答",
+      "expected": "soft-delete後も履歴保持、新write拒否。同key成功再送は増殖なし",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C09",
+      "AC_suffix": "new-target",
+      "operation": "回答→LINE取消 / LINE取消→回答",
+      "expected": "取消行を残す既存意味を維持、原文保持、新write拒否",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C10",
+      "AC_suffix": "revisions",
+      "operation": "2端末同期待版の異なる訂正",
+      "expected": "1つだけ新revision、他は409/入力保持。連番・unique・DB拒否も確認",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C11",
+      "AC_suffix": "provenance",
+      "operation": "same key same content、異content、期待版のみ更新",
+      "expected": "内部成功answer/revisionは不変。応答ID/revisionの公開は現在行認可がある時だけ。失権時はC25のredacted200。異内容409。未成功の期待版修正は再検査、成功済みは再編集しない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C12",
+      "AC_suffix": "provenance",
+      "operation": "commit後応答断→受付/取消/pet変更→同key照会",
+      "expected": "内部初回成功結果保持。本人receipt scopeの独立照会routeを使う。現在予約view拒否の先行middlewareへ通さず、失権時はC25のredacted200。別scopeは非開示。新回答/通知なし",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C13",
+      "AC_suffix": "provenance",
+      "operation": "別医院/別customer/ID偽装/未知DTO",
+      "expected": "非開示又は拒否、全表不変。認証actor/timeをbodyから採用しない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C14",
+      "AC_suffix": "provenance",
+      "operation": "unlink/主飼主移管と回答の両順",
+      "expected": "現紐付けで判定、旧cacheで認可しない。旧回答者を再帰属しない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C15",
+      "AC_suffix": "optional",
+      "operation": "form版不一致/未知code/複数選択/任意空欄",
+      "expected": "原文・入力保持、既定値補完なし。目的だけ必須、元気/食欲各単一",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C16",
+      "AC_suffix": "provenance",
+      "operation": "answer INSERT後receipt finalization又はDB拒否",
+      "expected": "answer/target新規分/成功receipt全rollback、metadata claimだけ残る",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C17",
+      "AC_suffix": "provenance",
+      "operation": "record binding→pet A→B→A、record患者訂正",
+      "expected": "D03は固定target。record参照不一致を推定補完せず非表示/出所不明。訂正ownerへ",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C18",
+      "AC_suffix": "provenance",
+      "operation": "staff clear/copy/Undo、画像/会計操作",
+      "expected": "answer/target/receipt/binding不変。補足はInquiry。自動上書きなし",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C19",
+      "AC_suffix": "provenance",
+      "operation": "旧record binding NULL、旧profile/Inquiryあり",
+      "expected": "出所不明と未回答を区別、旧値を原文へbackfillしない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C20",
+      "AC_suffix": "provenance",
+      "operation": "non-owner DB roleによる別clinic、アプリowner role",
+      "expected": "RLSの有効/非FORCE境界とアプリ認可を別検証、ENABLEだけで全権限合格にしない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C21",
+      "AC_suffix": "revisions",
+      "operation": "同じ内容を新keyで明示訂正",
+      "expected": "別の送信事実として新revision。本文同一だから旧送信時刻へ潰さない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C22",
+      "AC_suffix": "optional",
+      "operation": "no_show/過去日/checked_in_at残存、既存状態訂正",
+      "expected": "新期限/永久停止flagなし。現在lifecycleと既存認可で判定。未知新statusは未対応として停止",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C23",
+      "AC_suffix": "provenance",
+      "operation": "A/gen1原文後にB/gen2へ変更し、Bだけの認可で全履歴を要求",
+      "expected": "A本文/IDを返さない。targetごと患者認可。B最新とA履歴を混ぜず旧回答をprefillしない",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C24",
+      "AC_suffix": "provenance",
+      "operation": "同pet/genで主飼主移管後に旧author原文と新author原文が共存",
+      "expected": "LINE本文は各answerの本人scopeでfilter。head_revisionは全answer MAX、可視履歴MAXで上書きしない。他author本文不可視でも許可済新submitは現head版でCAS",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C25",
+      "AC_suffix": "provenance",
+      "operation": "成功後unlink/患者認可失効→同clinic/customer/subject hashの照会、別scope照会",
+      "expected": "同scopeは200 redacted成功: opUUID/intent/state/保存時刻のみ、result_refs/committed_versions/current_state=null, content_available=false。本文・患者/予約/answer/targetID/revisionなし。別scopeは存在非開示404",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "C26",
+      "AC_suffix": "provenance",
+      "operation": "owner UpdateAndFindApplying/Delete、pet Update/UpdateAndFind/Deleteとsubmitの両順・入れ子TX",
+      "expected": "最外物理TXのgateが全下位lockより前。savepointで後付けしない。削除先行は新submit拒否、submit先行の保存原文は保持",
+      "status": "NOT_RUN"
+    }
+  ],
+  "cases_count": 26,
+  "evidence_note": "原設計の参加/受入台帳。S1 DB16件の限定PASSは別証跡。全writer接続/API/UI/全26ケースは未完了。"
+}

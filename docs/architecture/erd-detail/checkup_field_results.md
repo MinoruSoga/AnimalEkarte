@@ -65,7 +65,7 @@ erDiagram
         bigint clinic_id FK,UK
     }
     checkups {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     clinics {
         BIGSERIAL id PK

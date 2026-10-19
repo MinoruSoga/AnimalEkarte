@@ -1,0 +1,184 @@
+{
+  "baseline": "eb589ed1cde9291ce0e787c9aef074d9e8614729",
+  "target_pr": 727,
+  "include_pr": 728,
+  "scope": "Historical 18-unit subset plus source-first completion trace; see spec-storage-trace.json, not exhaustive runtime AC coverage",
+  "new_tests": "NOT_RUN_USER_INSTRUCTION",
+  "current_001_sha256": "ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262",
+  "table_count": 241,
+  "units": [
+    {
+      "unit": "insurance",
+      "tickets": "446/454/455/456",
+      "storage": "consultations/procedures/vaccines/checkup_types.is_non_insurance",
+      "boundary": "nullable defaultなし; API consumer未接続",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "R1-S1",
+      "tickets": "460/467-475/478/479",
+      "storage": "revisit_intake_targets/revisit_intake_answers/revisit_intake_submit_receipts; appointments.revisit_intake_generation",
+      "boundary": "旧S1を保持; gate/全writer/認可/26受入は未完",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "R1-S2",
+      "tickets": "476/477",
+      "storage": "medical_records.revisit_intake_target_id; FK/index/binding guard",
+      "boundary": "capture/reader未接続; old NULLは対応不明",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "T1",
+      "tickets": "448/457",
+      "storage": "trimming_courses.short_name/image_object_key/allowed_weekdays; master.contract_version",
+      "boundary": "private画像管理・曜日/枠検査はconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "T2",
+      "tickets": "448/458",
+      "storage": "trimming_service_identities/trimming_course_included_services/trimming_option_rule_sets/trimming_option_rules",
+      "boundary": "設定なしと空集合を区別; name一致不可; parent先行lock",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "T3",
+      "tickets": "480",
+      "storage": "trimming_booking_revisions/trimming_booking_revision_options",
+      "boundary": "構成/時間改訂; master/rule版検証・予約枠検査はconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "T4",
+      "tickets": "482",
+      "storage": "trimming_service_lines/trimming_detail_revisions/trimming_detail_revision_lines",
+      "boundary": "予約時と施術時を分離; price/discount/元価格/段階;取込consumer未接続",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "A1",
+      "tickets": "462",
+      "storage": "medical_records/billings.clinical_set_generation/clinical_set_digest; doctor_review_sets/doctor_review_records; billings.doctor_review_set_id",
+      "boundary": "nullable opt-in;薬剤処置writer世代増分・確認/gateはconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "A2",
+      "tickets": "481",
+      "storage": "billing_source_bindings/billing_source_differences/billing_source_difference_resolutions; billing_items.contract_version",
+      "boundary": "typed source/基準値/行CAS;未手修正同期・差異・確定会計保護はconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "A3",
+      "tickets": "483",
+      "storage": "billing_price_acknowledgements; billings.calculation_version",
+      "boundary": "理由は新必須にしない;元operation/監査との同TX接続はconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "A4",
+      "tickets": "484",
+      "storage": "billing_fulfillment_events; treatments/billing_items.fulfillment_generation",
+      "boundary": "ready履歴と元版;請求対象判断・引渡/出庫・個別中止料はconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "summary",
+      "tickets": "D03既存票要照合",
+      "storage": "medical_records.conversation_summary/conversation_summary_revision/conversation_summary_source",
+      "boundary": "非表示保存項目のみ;Phase2 writer/UIなし",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "medication-three-values",
+      "tickets": "D03既存票要照合",
+      "storage": "treatments.administration_dose_amount/administration_dose_unit/administration_instructions/prescription_total_amount/prescription_total_unit",
+      "boundary": "既存mg計算/quantityと推定結合しない;テンプレ/日数自動算出なし",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "certificate",
+      "tickets": "D08既存票要照合",
+      "storage": "vaccination_certificate_series/editions/artifacts/operations; current_vaccination_certificate_editions view",
+      "boundary": "不変版/元接種版/縦横共有;renderer/認可/出力直前gateはconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "deposit",
+      "tickets": "464/257関連",
+      "storage": "owner_deposit_accounts/operations/entries",
+      "boundary": "元owner資金・受領/充当/解除/実返金;cash再受領なし;API/確認/監査はconsumer",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "inactive-payment",
+      "tickets": "459/465",
+      "storage": "既存payment_methods.is_activeを再利用",
+      "boundary": "新DDL不要;新受領consumerで拒否、過去実績/返金は維持",
+      "migration_status": "REUSE_NO_NEW_DDL",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "shared-patient-and-filters",
+      "tickets": "451/463関連",
+      "storage": "common_* subjects/basic_revisions/clinic_bindings + owner_identity_confirmations; filters remain reader state",
+      "boundary": "Independent UUID authorized Sentinel_7195a603405c819199d5e2b74463a2d1; no data migration/ID rewrite/D19 reuse",
+      "migration_status": "PREPARED_UNTESTED",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    },
+    {
+      "unit": "cage-and-attachments",
+      "tickets": "461関連",
+      "storage": "既存cages/clinic scope/カルテ添付を再利用",
+      "boundary": "新schema要件を確認していない;健診専用作図/写真を追加しない",
+      "migration_status": "REUSE_NO_NEW_DDL",
+      "consumer_status": "NOT_IMPLEMENTED_BY_THIS_TASK"
+    }
+  ],
+  "source_trace": "spec-storage-trace.json",
+  "common_uuid_status": "APPROVED_001_DEFINED_UNTESTED",
+  "source_first_added_units": [
+    "contact-candidates",
+    "common-subjects",
+    "internal-booking-overlap",
+    "reservation-kind-duration-name",
+    "staff-leave-shifts",
+    "edit-right-draft-recovery",
+    "record-purpose-corrections",
+    "structured-initial-intake",
+    "preventive-prescription-and-observations",
+    "multiple-dose-patterns",
+    "stay-and-capacity",
+    "accounting-calculation-history",
+    "funds-allocation-refund",
+    "financial-document-editions",
+    "estimate-presentations",
+    "closing-and-source-events",
+    "inventory-ledger",
+    "actual-visit-source",
+    "checkup-stage-recovery",
+    "examination-provenance",
+    "manual-publication",
+    "support-confirmed-delivery",
+    "line-purpose-unlink-followup",
+    "common-operation-receipts"
+  ],
+  "cleanup_audit": "schema-cleanup-audit.json"
+}
