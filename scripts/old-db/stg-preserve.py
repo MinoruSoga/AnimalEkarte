@@ -239,32 +239,48 @@ def content_hash(env: dict[str, str], table: str) -> str:
     return run_psql(env, sql).strip()
 
 
-def csv_content_diffs(env: dict[str, str], export_dir: Path, table: str, columns: list[str]) -> list[str]:
+def csv_content_diffs(
+    env: dict[str, str],
+    export_dir: Path,
+    table: str,
+    columns: list[str],
+    compare_columns: list[str] | None = None,
+) -> list[str]:
     """Compare a restored strict table against its export CSV, row by row.
 
     CSV export cannot distinguish NULL from the empty string in text
     columns, so every column is compared as COALESCE(col::text, ''). Any
-    remaining difference is real content drift and is reported by id.
+    remaining difference is reported per row with the differing column
+    names (post-restore app writes show up here too). compare_columns may
+    restrict which columns are compared while the stage still loads the
+    full CSV column set.
     """
     csv_path = export_dir / f"{table}.csv"
     csv_literal = str(csv_path).replace("'", "''")
     column_list = ", ".join(quote_ident(column) for column in columns)
+    table_name = quote_ident(table)
+    compared = compare_columns if compare_columns is not None else columns
 
-    def norm(alias: str) -> str:
-        return ", ".join(f"COALESCE({alias}.{quote_ident(column)}::text, '')" for column in columns)
-
+    selects: list[str] = []
+    for column in compared:
+        quoted = quote_ident(column)
+        selects.append(
+            "SELECT t.id, '%s' AS col FROM public.%s t JOIN stage s ON s.id = t.id "
+            "WHERE COALESCE(t.%s::text, '') IS DISTINCT FROM COALESCE(s.%s::text, '')"
+            % (column, table_name, quoted, quoted)
+        )
     script = (
-        f"CREATE TEMP TABLE stage (LIKE public.{quote_ident(table)} INCLUDING DEFAULTS);\n"
+        f"CREATE TEMP TABLE stage (LIKE public.{table_name} INCLUDING DEFAULTS);\n"
         f"\\copy stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
         "SELECT t.id::text || ' missing-in-target' "
-        f"FROM stage s LEFT JOIN public.{quote_ident(table)} t ON t.id = s.id WHERE t.id IS NULL\n"
+        f"FROM stage s LEFT JOIN public.{table_name} t ON t.id = s.id WHERE t.id IS NULL\n"
         "UNION ALL "
         "SELECT s.id::text || ' missing-in-stage' "
-        f"FROM public.{quote_ident(table)} t LEFT JOIN stage s ON s.id = t.id WHERE s.id IS NULL\n"
+        f"FROM public.{table_name} t LEFT JOIN stage s ON s.id = t.id WHERE s.id IS NULL\n"
         "UNION ALL "
-        "SELECT t.id::text || ' differs' "
-        f"FROM public.{quote_ident(table)} t JOIN stage s ON s.id = t.id "
-        f"WHERE ROW({norm('t')}) IS DISTINCT FROM ROW({norm('s')});\n"
+        "SELECT id::text || ':' || string_agg(col, ',') FROM (\n  "
+        + "\n  UNION ALL ".join(selects)
+        + "\n) d GROUP BY id;\n"
         "DROP TABLE stage;\n"
     )
     out = run_psql(env, script=script)
@@ -528,7 +544,19 @@ def verify(args: argparse.Namespace) -> None:
             if kept == entry["rows"]:
                 if rows != entry["rows"]:
                     failures.append(f"{table}: rows {rows} != export {entry['rows']}")
-                diffs = csv_content_diffs(env, export_dir, table, entry["columns"])
+                diff_columns = list(entry["columns"])
+                if getattr(args, "allow_sync_drift", False):
+                    # The STG plane_sync scheduled job rewrites status /
+                    # updated_at on preserved bug reports shortly after a
+                    # restore; exclude those columns from the strict compare.
+                    diff_columns = [
+                        column for column in diff_columns if column not in {"status", "updated_at"}
+                    ]
+                    if diff_columns != list(entry["columns"]):
+                        print(f"NOTE: {table}: status/updated_at excluded from the compare (--allow-sync-drift)")
+                diffs = csv_content_diffs(
+                    env, export_dir, table, entry["columns"], compare_columns=diff_columns
+                )
                 if diffs:
                     sample = "; ".join(diffs[:5])
                     failures.append(f"{table}: {len(diffs)} content diff(s) vs export ({sample})")
@@ -601,6 +629,11 @@ def main() -> None:
     verify_parser = sub.add_parser("verify", help="verify restored counts, hashes, and FKs")
     verify_parser.add_argument("--dir", required=True)
     verify_parser.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
+    verify_parser.add_argument(
+        "--allow-sync-drift",
+        action="store_true",
+        help="exclude status/updated_at from the strict compare (the STG plane_sync job legitimately rewrites them after a restore)",
+    )
     verify_parser.set_defaults(func=verify)
 
     args = parser.parse_args()
