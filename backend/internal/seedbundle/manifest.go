@@ -15,31 +15,47 @@
 // (demo) already created — it never introduces a new parent relationship.
 package seedbundle
 
+import "strings"
+
 // BundleOrder is the fixed, FK-safe load order of seed bundles (directory
 // names relative to backend/migrations/seeds/). It mirrors the historical
 // migration filename order (002 before 003 before 004) now that the stub
 // 00[2-4]_seed_*.sql files that used to carry that ordering have been
 // deleted — this slice is the sole source of full load order for
 // non-production environments and for tooling that enumerates every bundle
-// on disk (seed-export, lint). Runtime migrate selection is BundleOrderForEnv.
-var BundleOrder = []string{"002_master"}
+// on disk (seed-export, lint). Runtime migrate selection is
+// BundleOrderForEnv / PostLoginBundleOrderForEnv.
+var BundleOrder = []string{"002_master", "004_demo"}
 
-// BundleOrderForEnv returns the seed bundles that may load for the given
-// application environment value (APP_ENV). Fail-closed: only an explicit
-// local development/test allowlist receives demo/staging seeds. production,
-// staging, empty, prod, and any unknown value receive master only so
-// repository demo credentials (including active system-admin accounts) never
-// land on production or shared staging via migrate.
-//
-// Allowed full-order values (case-insensitive, trimmed):
-// development, local, dev, test.
-//
-// SEC-CS2-F01: staging CSV plan is master-only (not full-order). Synthetic
-// demo logins are cmd/migrate phase 3 (internal/seedlogin), not this slice.
+// BundleOrderForEnv returns the seed bundles loaded BEFORE the login seed
+// for the given application environment value (APP_ENV). Fail-closed: every
+// environment receives master only, so repository credentials never land on
+// production or shared staging via migrate.
 func BundleOrderForEnv(env string) []string {
-	_ = env
-	out := make([]string, len(BundleOrder))
-	copy(out, BundleOrder)
+	out := make([]string, 1)
+	out[0] = "002_master"
+	return out
+}
+
+// PostLoginBundleOrderForEnv returns the seed bundles loaded AFTER the login
+// seed (cmd/migrate phase 3). 004_demo carries clinic-1 demo business data
+// that references login-seed staffs, so it must load after phase 3 and only
+// on the dedicated STG demo environment. It contains no accounts/staffs, so
+// the SEC-CS2-F01 credential rule (credentials never leave phase 3) is
+// unchanged; production and local dev remain master-only.
+func PostLoginBundleOrderForEnv(env string) []string {
+	if strings.EqualFold(strings.TrimSpace(env), "staging") {
+		return []string{"004_demo"}
+	}
+	return nil
+}
+
+// AllBundlesForEnv returns the full migrate load plan for an environment in
+// load order (pre-login bundles, then post-login bundles). It is used by
+// cmd/migrate's key-coverage check so expected keys match the plan exactly.
+func AllBundlesForEnv(env string) []string {
+	out := append([]string{}, BundleOrderForEnv(env)...)
+	out = append(out, PostLoginBundleOrderForEnv(env)...)
 	return out
 }
 

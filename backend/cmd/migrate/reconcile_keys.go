@@ -116,8 +116,9 @@ func verifyMigrationKeyCoverage(db *sql.DB, logger *slog.Logger) error {
 		return err
 	}
 
-	// Expected seed keys must match the same APP_ENV gate as runSeedBundles,
-	// plus seeds/003_login when the login seed phase applied in this process.
+	// Expected seed keys must match the same APP_ENV gate as runSeedBundles
+	// (pre-login + post-login plans), plus seeds/003_login when the login seed
+	// phase applied in this process.
 	seedBundles := expectedSeedBundleDirs()
 	missing, extra := reconcileMigrationKeys(recorded, ddlFiles, seedBundles)
 	expectedCount := len(ddlFiles) + len(seedBundles)

@@ -119,11 +119,11 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("migration failed: %w", err)
 	}
 
-	// フェーズ2: CSV シードバンドルを APP_ENV ゲート付き BundleOrder でロード。
-	// production / empty / unknown は master のみ（demo の system admin を投入しない）。
+	// フェーズ2: login seed 前の CSV シードバンドル（002_master。全環境でロード）。
+	// production / empty / unknown も master のみ。demo の credentials は CSV に載せない。
 	// connStr は pgx（CSVシードバンドルのCOPYロード用）でもそのまま使える
 	// libpq形式のDSNのため、lib/pq用に構築したものを使い回す。
-	if err := runSeedBundles(context.Background(), db, connStr, logger); err != nil {
+	if err := runSeedBundles(context.Background(), db, connStr, logger, seedbundle.BundleOrderForEnv(os.Getenv("APP_ENV")), "phase 2"); err != nil {
 		return fmt.Errorf("seed bundle load failed: %w", err)
 	}
 
@@ -131,6 +131,16 @@ func run(logger *slog.Logger) error {
 	// 共通パスワードはコード定数。production と unknown APP_ENV はスキップ。
 	if err := runLoginSeed(context.Background(), db, logger); err != nil {
 		return fmt.Errorf("login seed failed: %w", err)
+	}
+
+	// フェーズ4: login seed の後の CSV シードバンドル（004_demo。APP_ENV=staging のみ）。
+	// demo 行は login seed の固定 band id staff を参照するため、必ず phase 3 の後に
+	// ロードする。適用・記録の仕組みは phase 2 と同じ。
+	postLogin := seedbundle.PostLoginBundleOrderForEnv(os.Getenv("APP_ENV"))
+	if len(postLogin) > 0 {
+		if err := runSeedBundles(context.Background(), db, connStr, logger, postLogin, "phase 4"); err != nil {
+			return fmt.Errorf("post-login seed bundle load failed: %w", err)
+		}
 	}
 
 	// 全フェーズ完了後: ディスク上の期待キーと schema_migrations を突合する。
@@ -488,9 +498,10 @@ func seedBundlesForCurrentEnv() []string {
 	return seedBundlesForEnv(os.Getenv("APP_ENV"))
 }
 
-// runSeedBundles はフェーズ2: CSV シードバンドルを APP_ENV ゲート付き順でロードする。
-// 全環境で 002_master のみ（医院骨格 + 参照マスタ。003_demo / 004_staging は退役。
-// SEC-CS2-F01: CSV に accounts を載せない。合成デモログインはフェーズ3）。
+// runSeedBundles は CSV シードバンドルを APP_ENV ゲート付き順でロードする。
+// phase はログ用のラベル（"phase 2": login seed 前、002_master。 "phase 4": login seed 後、
+// 004_demo。後者は staff FK のため login seed の後にのみロードする）。
+// SEC-CS2-F01: CSV に accounts を載せない。合成デモログインはフェーズ3。
 // フェーズ1が全て commit した後にのみ実行される。各バンドルは applyCSVBundle が
 // 単一トランザクションで完走した後にのみ schema_migrations へ
 // seedbundle.BundleMigrationKey で記録されるため、CSVロードが失敗した場合は何も
@@ -501,14 +512,12 @@ func seedBundlesForCurrentEnv() []string {
 // 単一オペレータの起動時マイグレーションツールでこの極小ウィンドウに2相コミットを
 // 導入するのは過剰設計と判断し、既知の限界として明記するに留める（001_init.sql の
 // フェーズと同じトレードオフ）。
-func runSeedBundles(ctx context.Context, db *sql.DB, connStr string, logger *slog.Logger) error {
+func runSeedBundles(ctx context.Context, db *sql.DB, connStr string, logger *slog.Logger, bundles []string, phase string) error {
 	applied := 0
 	skipped := 0
-	appEnv := os.Getenv("APP_ENV")
-	bundles := seedBundlesForEnv(appEnv)
 
 	logger.Info("Seed bundle plan",
-		slog.String("APP_ENV", appEnv),
+		slog.String("phase", phase),
 		slog.Any("bundles", bundles),
 		slog.Int("total", len(bundles)))
 
