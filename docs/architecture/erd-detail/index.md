@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **1ファイル** から **138テーブル・1655カラム・323外部キー** を静的に導出しています。
+マイグレーション **1ファイル** から **164テーブル・1906カラム・413外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -34,12 +34,17 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [animal_species](animal_species.md) | 6 | 0 |
 | [appointment_trimming_details](appointment_trimming_details.md) | 15 | 4 |
 | [appointment_trimming_options](appointment_trimming_options.md) | 6 | 4 |
-| [appointments](appointments.md) | 25 | 9 |
+| [appointments](appointments.md) | 26 | 9 |
 | [audit_logs](audit_logs.md) | 13 | 2 |
 | [billing_confirmations](billing_confirmations.md) | 11 | 3 |
-| [billing_items](billing_items.md) | 26 | 10 |
+| [billing_fulfillment_events](billing_fulfillment_events.md) | 11 | 5 |
+| [billing_items](billing_items.md) | 28 | 10 |
+| [billing_price_acknowledgements](billing_price_acknowledgements.md) | 13 | 5 |
 | [billing_refunds](billing_refunds.md) | 9 | 3 |
-| [billings](billings.md) | 19 | 7 |
+| [billing_source_bindings](billing_source_bindings.md) | 12 | 6 |
+| [billing_source_difference_resolutions](billing_source_difference_resolutions.md) | 6 | 3 |
+| [billing_source_differences](billing_source_differences.md) | 9 | 2 |
+| [billings](billings.md) | 23 | 8 |
 | [cages](cages.md) | 13 | 2 |
 | [campaign_target_categories](campaign_target_categories.md) | 3 | 1 |
 | [campaign_target_items](campaign_target_items.md) | 3 | 2 |
@@ -65,6 +70,8 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [daily_records](daily_records.md) | 6 | 2 |
 | [diagnosis_names](diagnosis_names.md) | 10 | 2 |
 | [diagnosis_types](diagnosis_types.md) | 9 | 1 |
+| [doctor_review_records](doctor_review_records.md) | 7 | 3 |
+| [doctor_review_sets](doctor_review_sets.md) | 8 | 3 |
 | [estimate_items](estimate_items.md) | 19 | 5 |
 | [estimates](estimates.md) | 21 | 6 |
 | [exam_reference_ranges](exam_reference_ranges.md) | 10 | 3 |
@@ -118,11 +125,14 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [medical_record_image_deletions](medical_record_image_deletions.md) | 13 | 1 |
 | [medical_record_image_upload_quota](medical_record_image_upload_quota.md) | 6 | 2 |
 | [medical_record_images](medical_record_images.md) | 15 | 3 |
-| [medical_records](medical_records.md) | 16 | 8 |
+| [medical_records](medical_records.md) | 22 | 9 |
 | [medicine_dose_params](medicine_dose_params.md) | 15 | 2 |
 | [medicines](medicines.md) | 22 | 3 |
 | [merchandise_items](merchandise_items.md) | 12 | 1 |
 | [occupations](occupations.md) | 9 | 1 |
+| [owner_deposit_accounts](owner_deposit_accounts.md) | 4 | 2 |
+| [owner_deposit_entries](owner_deposit_entries.md) | 14 | 6 |
+| [owner_deposit_operations](owner_deposit_operations.md) | 10 | 3 |
 | [owner_identity_group_members](owner_identity_group_members.md) | 8 | 2 |
 | [owner_identity_groups](owner_identity_groups.md) | 6 | 1 |
 | [owners](owners.md) | 37 | 2 |
@@ -143,6 +153,9 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [reservation_type_occupations](reservation_type_occupations.md) | 5 | 3 |
 | [reservation_type_unavailable_times](reservation_type_unavailable_times.md) | 10 | 2 |
 | [reservation_types](reservation_types.md) | 23 | 3 |
+| [revisit_intake_answers](revisit_intake_answers.md) | 18 | 5 |
+| [revisit_intake_submit_receipts](revisit_intake_submit_receipts.md) | 10 | 2 |
+| [revisit_intake_targets](revisit_intake_targets.md) | 6 | 3 |
 | [shared_files](shared_files.md) | 12 | 3 |
 | [shift_entries](shift_entries.md) | 10 | 2 |
 | [shift_entry_breaks](shift_entry_breaks.md) | 4 | 1 |
@@ -160,22 +173,35 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [support_manual_embeddings](support_manual_embeddings.md) | 7 | 0 |
 | [token_blacklist](token_blacklist.md) | 3 | 0 |
 | [treatment_plans](treatment_plans.md) | 16 | 3 |
-| [treatments](treatments.md) | 28 | 10 |
+| [treatments](treatments.md) | 35 | 10 |
+| [trimming_booking_revision_options](trimming_booking_revision_options.md) | 5 | 3 |
+| [trimming_booking_revisions](trimming_booking_revisions.md) | 14 | 6 |
+| [trimming_course_included_services](trimming_course_included_services.md) | 5 | 3 |
 | [trimming_course_types](trimming_course_types.md) | 8 | 1 |
-| [trimming_courses](trimming_courses.md) | 13 | 2 |
+| [trimming_courses](trimming_courses.md) | 17 | 2 |
+| [trimming_detail_revision_lines](trimming_detail_revision_lines.md) | 11 | 3 |
+| [trimming_detail_revisions](trimming_detail_revisions.md) | 8 | 3 |
 | [trimming_image_deletions](trimming_image_deletions.md) | 6 | 1 |
-| [trimming_options](trimming_options.md) | 12 | 1 |
+| [trimming_option_rule_sets](trimming_option_rule_sets.md) | 7 | 2 |
+| [trimming_option_rules](trimming_option_rules.md) | 5 | 3 |
+| [trimming_options](trimming_options.md) | 14 | 2 |
+| [trimming_service_identities](trimming_service_identities.md) | 5 | 1 |
+| [trimming_service_lines](trimming_service_lines.md) | 6 | 4 |
+| [vaccination_certificate_artifacts](vaccination_certificate_artifacts.md) | 9 | 2 |
+| [vaccination_certificate_editions](vaccination_certificate_editions.md) | 9 | 4 |
+| [vaccination_certificate_operations](vaccination_certificate_operations.md) | 8 | 3 |
+| [vaccination_certificate_series](vaccination_certificate_series.md) | 5 | 2 |
 | [vaccinations](vaccinations.md) | 19 | 7 |
 | [vaccines](vaccines.md) | 15 | 3 |
 | [vital_records](vital_records.md) | 17 | 5 |
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `db5bec99f01600b6d635c960f84c45d8bd0676cc3b9172b0f1ff6b9e11a51225`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `844055d528ee0643d4f847735f6f606cf585757689352fe4fe0004fa29fac04a`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `225602952d97b4b3217f064f12335fb8a81f384ee4df0d67cc127825d58ea5ae` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

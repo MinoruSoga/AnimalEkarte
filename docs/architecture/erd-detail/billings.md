@@ -11,7 +11,7 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1899](../../../backend/migrations/001_init.sql#L1899) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:1899](../../../backend/migrations/001_init.sql#L1899) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1900](../../../backend/migrations/001_init.sql#L1900) |
 | `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1901](../../../backend/migrations/001_init.sql#L1901) |
 | `hospitalization_id` | `bigint` | NULL | — | FK | [001_init.sql:1902](../../../backend/migrations/001_init.sql#L1902) |
@@ -30,6 +30,10 @@
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1915](../../../backend/migrations/001_init.sql#L1915) |
 | `completion_request_id` | `UUID` | NULL | — | UK | [001_init.sql:5177](../../../backend/migrations/001_init.sql#L5177) |
 | `completion_request_hash` | `TEXT` | NULL | — | — | [001_init.sql:5178](../../../backend/migrations/001_init.sql#L5178) |
+| `doctor_review_set_id` | `bigint` | NULL | — | FK | [001_init.sql:8174](../../../backend/migrations/001_init.sql#L8174) |
+| `clinical_set_generation` | `bigint` | NULL | — | — | [001_init.sql:8807](../../../backend/migrations/001_init.sql#L8807) |
+| `clinical_set_digest` | `bytea` | NULL | — | — | [001_init.sql:8808](../../../backend/migrations/001_init.sql#L8808) |
+| `calculation_version` | `bigint` | NULL | — | — | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,7 +46,7 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     billings {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
         bigint medical_record_id FK
         bigint hospitalization_id FK
@@ -61,9 +65,18 @@ erDiagram
         timestamptz deleted_at
         UUID completion_request_id UK
         TEXT completion_request_hash
+        bigint doctor_review_set_id FK
+        bigint clinical_set_generation
+        bytea clinical_set_digest
+        bigint calculation_version
     }
     clinics {
         BIGSERIAL id PK
+    }
+    doctor_review_sets {
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
+        bigint billing_id FK,UK
     }
     hospitalizations {
         BIGSERIAL id PK
@@ -86,6 +99,7 @@ erDiagram
     pets o|..o{ billings : "pet_id"
     pets o|..o{ billings : "clinic_id, pet_id"
     owners o|..o{ billings : "clinic_id, owner_id"
+    doctor_review_sets o|..o| billings : "doctor_review_set_id, clinic_id, id"
 ```
 
 ## 外部キー（全件）
@@ -99,6 +113,7 @@ erDiagram
 | `billings_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1904](../../../backend/migrations/001_init.sql#L1904) |
 | `fk_billings_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4426](../../../backend/migrations/001_init.sql#L4426) |
 | `fk_billings_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4432](../../../backend/migrations/001_init.sql#L4432) |
+| `fk_billing_doctor_review_set` | `doctor_review_set_id, clinic_id, id` | [doctor_review_sets](doctor_review_sets.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:8175](../../../backend/migrations/001_init.sql#L8175) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -109,6 +124,7 @@ erDiagram
 - `billings_pet_id_fkey`: `REFERENCES pets(id) ON DELETE SET NULL`
 - `fk_billings_clinic_pet`: `CONSTRAINT fk_billings_clinic_pet     FOREIGN KEY (clinic_id, pet_id)     REFERENCES pets (clinic_id, id)     ON DELETE RESTRICT`
 - `fk_billings_clinic_owner`: `CONSTRAINT fk_billings_clinic_owner     FOREIGN KEY (clinic_id, owner_id)     REFERENCES owners (clinic_id, id)     ON DELETE RESTRICT`
+- `fk_billing_doctor_review_set`: `CONSTRAINT fk_billing_doctor_review_set  FOREIGN KEY (doctor_review_set_id,clinic_id,id) REFERENCES doctor_review_sets(id,clinic_id,billing_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -116,6 +132,9 @@ erDiagram
 |:---|:---|:---|:---|
 | `billings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1899](../../../backend/migrations/001_init.sql#L1899) |
 | `uq_billings_id_clinic` | unique | `CONSTRAINT uq_billings_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4054](../../../backend/migrations/001_init.sql#L4054) |
+| `billings_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8807](../../../backend/migrations/001_init.sql#L8807) |
+| `billings_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8808](../../../backend/migrations/001_init.sql#L8808) |
+| `billings_calculation_version_check` | check | `CHECK (calculation_version > 0)` | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
 
 ## インデックス
 

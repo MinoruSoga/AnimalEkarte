@@ -613,6 +613,10 @@ def _apply(tokens, tables, source):
         if len(tokens) < 6 or tokens[3].upper != 'ADD' or tokens[4].upper != 'VALUE':
             raise SchemaError('only ALTER TYPE ADD VALUE is outside the table catalog')
         return tables
+    # Deferred constraint triggers do not add a table/column; view query
+    # projections are outside this table catalog (including security_invoker).
+    if words[:3] == ('CREATE', 'CONSTRAINT', 'TRIGGER') or words[:2] == ('CREATE', 'VIEW'):
+        return tables
     opaque = {('CREATE', 'TYPE'), ('CREATE', 'EXTENSION'), ('CREATE', 'SCHEMA'), ('CREATE', 'TRIGGER'), ('DROP', 'TRIGGER'), ('CREATE', 'POLICY'), ('DROP', 'POLICY')}
     if words[:2] in opaque or words[:2] == ('CREATE', 'FUNCTION') or words[:4] == ('CREATE', 'OR', 'REPLACE', 'FUNCTION'):
         return tables

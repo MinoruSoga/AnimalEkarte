@@ -44,7 +44,7 @@ erDiagram
         BIGSERIAL id PK
     }
     trimming_options {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     appointments ||..o{ appointment_trimming_options : "appointment_id"
     trimming_options ||..o{ appointment_trimming_options : "option_id"

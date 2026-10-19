@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-const checkedInInitialMigrationSHA256 = "1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac"
+const checkedInInitialMigrationSHA256 = "225602952d97b4b3217f064f12335fb8a81f384ee4df0d67cc127825d58ea5ae"
 
 type failClosedDriver struct{ state *failClosedDriverState }
 type failClosedDriverState struct {
@@ -81,7 +81,10 @@ func TestCheckedInInitialMigrationChecksum(t *testing.T) {
 
 func TestKnownOldChecksumsToCheckedInMigrationFailClosedWithoutCompanionDDLOrCAS(t *testing.T) {
 	oldChecksums := []string{
-		"8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e", // EMR-443 consolidated baseline, before EMR-446 item settings.
+		"d9e7a6898675919ee8685d28cf4aa7ed89599f6fefbaac791d3c308eb1fbf8ef", // earlier local core candidate; not the full unified schema.
+		"1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac", // standalone PR727 baseline: not the combined schema.
+		"f002b3dc35a6788dea618f41199726dfb1ab4070d1f03fffbc5c8fe55a006832", // standalone PR728 baseline: not the combined schema.
+		"8682b14d0e104243c374d842a35398ec37076c1ffabc5cc3c0a38bb72c011c7e", // pre-EMR460 consolidated baseline: fail closed, never repair automatically.
 		"921c88ba86159a501f86abcddd8639fd65dee37f7d9d3f1c811844f7294c6cc5",
 		"6b618736ca0dba65408b7bf2a6d5d8c607f12c3adf1c544321d17f3004b62fcb",
 		"aa30c742a20d4a9fa7a9d323cfa0314d4c83bec57712f7984228c4451c089691",

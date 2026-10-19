@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
 | `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
 | `course_id` | `bigint` | NULL | — | FK | [001_init.sql:1387](../../../backend/migrations/001_init.sql#L1387) |
 | `style_request` | `text` | NOT NULL | `''` | — | [001_init.sql:1388](../../../backend/migrations/001_init.sql#L1388) |
@@ -38,8 +38,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     appointment_trimming_details {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         bigint appointment_id FK,UK
         bigint course_id FK
         text style_request
@@ -62,7 +62,7 @@ erDiagram
         BIGSERIAL id PK
     }
     trimming_courses {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     clinics ||..o{ appointment_trimming_details : "clinic_id"
     appointments ||..o| appointment_trimming_details : "appointment_id"
@@ -92,6 +92,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `appointment_trimming_details_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
 | `appointment_trimming_details_appointment_id_key` | unique | `UNIQUE` | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
+| `uq_trimming_details_id_clinic` | unique | `CONSTRAINT uq_trimming_details_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7926](../../../backend/migrations/001_init.sql#L7926) |
 
 ## インデックス
 

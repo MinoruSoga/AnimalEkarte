@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
 | `name` | `text` | NOT NULL | — | — | [001_init.sql:997](../../../backend/migrations/001_init.sql#L997) |
 | `price` | `bigint` | NULL | — | — | [001_init.sql:998](../../../backend/migrations/001_init.sql#L998) |
 | `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:999](../../../backend/migrations/001_init.sql#L999) |
@@ -24,6 +24,10 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1005](../../../backend/migrations/001_init.sql#L1005) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1006](../../../backend/migrations/001_init.sql#L1006) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1007](../../../backend/migrations/001_init.sql#L1007) |
+| `short_name` | `text` | NULL | — | — | [001_init.sql:7914](../../../backend/migrations/001_init.sql#L7914) |
+| `image_object_key` | `text` | NULL | — | — | [001_init.sql:7915](../../../backend/migrations/001_init.sql#L7915) |
+| `allowed_weekdays` | `smallint[]` | NULL | — | — | [001_init.sql:7916](../../../backend/migrations/001_init.sql#L7916) |
+| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7917](../../../backend/migrations/001_init.sql#L7917) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -36,8 +40,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     trimming_courses {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         text name
         bigint price
         boolean is_active
@@ -49,6 +53,10 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        text short_name
+        text image_object_key
+        smallint[] allowed_weekdays
+        bigint contract_version
     }
     clinics {
         BIGSERIAL id PK
@@ -77,6 +85,11 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `trimming_courses_pkey` | primary | `PRIMARY KEY` | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
+| `trimming_courses_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:7917](../../../backend/migrations/001_init.sql#L7917) |
+| `ck_trimming_course_short_name` | check | `CONSTRAINT ck_trimming_course_short_name CHECK (short_name IS NULL OR btrim(short_name) <> '')` | [001_init.sql:7918](../../../backend/migrations/001_init.sql#L7918) |
+| `ck_trimming_course_image_key` | check | `CONSTRAINT ck_trimming_course_image_key CHECK (image_object_key IS NULL OR btrim(image_object_key) <> '')` | [001_init.sql:7919](../../../backend/migrations/001_init.sql#L7919) |
+| `ck_trimming_course_weekdays` | check | `CONSTRAINT ck_trimming_course_weekdays CHECK (app_private.valid_trimming_weekdays(allowed_weekdays))` | [001_init.sql:7920](../../../backend/migrations/001_init.sql#L7920) |
+| `uq_trimming_courses_id_clinic` | unique | `CONSTRAINT uq_trimming_courses_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7921](../../../backend/migrations/001_init.sql#L7921) |
 
 ## インデックス
 

@@ -8,10 +8,10 @@ from erd_schema import SchemaError, load_schema, statements, _sql, _implicit_nam
 
 
 def consolidated_source(name):
-    """Read a historical fixture from the checked-in consolidated baseline."""
-    migration = Path(__file__).resolve().parents[2] / 'backend/migrations/001_init.sql'
-    marker = f'-- ===== consolidated from {name} =====\n\n'
-    return migration.read_text().split(marker, 1)[1].split('\n-- ===== consolidated from ', 1)[0]
+    """Read the historical fixture from the current consolidated baseline."""
+    migration = Path(__file__).resolve().parents[2] / "backend/migrations/001_init.sql"
+    marker = f"-- ===== consolidated from {name} =====\n\n"
+    return migration.read_text().split(marker, 1)[1].split("\n-- ===== consolidated from ", 1)[0]
 
 
 class SchemaTests(unittest.TestCase):
@@ -229,6 +229,22 @@ class SchemaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp, self.assertRaisesRegex(SchemaError, 'no migrations'):
             load_schema(Path(temp))
 
+    def test_revisit_intake_catalog_and_saved_s2_binding(self):
+        schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
+        generation = next(c for c in schema.tables['appointments'].columns if c.name == 'revisit_intake_generation')
+        self.assertFalse(generation.nullable)
+        self.assertEqual(generation.default_sql, '1')
+        self.assertIn('revisit_intake_target_id', {c.name for c in schema.tables['medical_records'].columns})
+        answer = schema.tables['revisit_intake_answers']
+        self.assertIn(('clinic_id', 'target_id', 'revision'), {c.columns for c in answer.constraints if c.kind == 'unique'})
+        self.assertIn(('clinic_id', 'author_customer_id', 'operation_key'), {c.columns for c in answer.constraints if c.kind == 'unique'})
+        for name in ('onset', 'energy', 'appetite', 'current_symptoms', 'improvement', 'examination_preference', 'main_concern'):
+            field = next(c for c in answer.columns if c.name == name)
+            self.assertTrue(field.nullable)
+            self.assertIsNone(field.default_sql)
+        for name in ('revisit_intake_targets', 'revisit_intake_answers', 'revisit_intake_submit_receipts'):
+            self.assertTrue(all(c.on_delete == 'RESTRICT' for c in schema.tables[name].constraints if c.kind == 'foreign'))
+
     def test_item_insurance_missing_is_not_a_database_default(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
         for name in ('consultations', 'procedures', 'vaccines', 'checkup_types'):
@@ -245,7 +261,7 @@ class SchemaTests(unittest.TestCase):
 
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
-        self.assertEqual(len(schema.tables), 138)
+        self.assertEqual(len(schema.tables), 164)
         self.assertEqual([m.name for m in schema.migrations], ['001_init.sql'])
         embeddings = schema.tables['support_manual_embeddings']
         self.assertEqual({c.name for c in embeddings.columns}, {'cache_key', 'model', 'task_type', 'chunker_version', 'dimensions', 'embedding', 'created_at'})

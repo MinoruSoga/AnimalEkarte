@@ -11,7 +11,7 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1596](../../../backend/migrations/001_init.sql#L1596) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1596](../../../backend/migrations/001_init.sql#L1596) |
 | `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1597](../../../backend/migrations/001_init.sql#L1597) |
 | `item_type` | `treatment_item_type` | NOT NULL | `'other'` | — | [001_init.sql:1598](../../../backend/migrations/001_init.sql#L1598) |
 | `consultation_id` | `bigint` | NULL | — | FK | [001_init.sql:1599](../../../backend/migrations/001_init.sql#L1599) |
@@ -37,8 +37,15 @@
 | `dose_amount_mg` | `numeric(12,6)` | NULL | — | — | [001_init.sql:3561](../../../backend/migrations/001_init.sql#L3561) |
 | `dose_amount_unit` | `text` | NULL | — | — | [001_init.sql:3562](../../../backend/migrations/001_init.sql#L3562) |
 | `dose_param_snapshot` | `jsonb` | NULL | — | — | [001_init.sql:3563](../../../backend/migrations/001_init.sql#L3563) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3569](../../../backend/migrations/001_init.sql#L3569) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:3569](../../../backend/migrations/001_init.sql#L3569) |
 | `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:6333](../../../backend/migrations/001_init.sql#L6333) |
+| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8284](../../../backend/migrations/001_init.sql#L8284) |
+| `fulfillment_generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
+| `administration_dose_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8829](../../../backend/migrations/001_init.sql#L8829) |
+| `administration_dose_unit` | `text` | NULL | — | — | [001_init.sql:8830](../../../backend/migrations/001_init.sql#L8830) |
+| `administration_instructions` | `text` | NULL | — | — | [001_init.sql:8831](../../../backend/migrations/001_init.sql#L8831) |
+| `prescription_total_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8832](../../../backend/migrations/001_init.sql#L8832) |
+| `prescription_total_unit` | `text` | NULL | — | — | [001_init.sql:8833](../../../backend/migrations/001_init.sql#L8833) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -51,7 +58,7 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     treatments {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
         bigint medical_record_id FK
         treatment_item_type item_type
         bigint consultation_id FK
@@ -77,8 +84,15 @@ erDiagram
         numeric_12_6 dose_amount_mg
         text dose_amount_unit
         jsonb dose_param_snapshot
-        bigint clinic_id FK
+        bigint clinic_id FK,UK
         INTEGER version
+        bigint contract_version
+        bigint fulfillment_generation
+        numeric_12_6 administration_dose_amount
+        text administration_dose_unit
+        text administration_instructions
+        numeric_12_6 prescription_total_amount
+        text prescription_total_unit
     }
     clinics {
         BIGSERIAL id PK
@@ -149,6 +163,11 @@ erDiagram
 | `treatments_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1596](../../../backend/migrations/001_init.sql#L1596) |
 | `chk_treatment_item_ref` | check | `CONSTRAINT chk_treatment_item_ref CHECK (         (item_type = 'consultation' AND procedure_id IS NULL AND medicine_id IS NULL) OR         (item_type = 'procedure'    AND consultation_id IS NULL AND medicine_id IS NULL) OR         (item_type = 'medicine'     AND consultation_id IS NULL AND procedure_id IS NULL) OR         (item_type = 'other'        AND consultation_id IS NULL AND procedure_id IS NULL AND medicine_id IS NULL)     )` | [001_init.sql:1617](../../../backend/migrations/001_init.sql#L1617) |
 | `chk_treatment_quantity` | check | `CONSTRAINT chk_treatment_quantity CHECK (quantity > 0)` | [001_init.sql:1623](../../../backend/migrations/001_init.sql#L1623) |
+| `uq_treatments_id_clinic` | unique | `CONSTRAINT uq_treatments_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7927](../../../backend/migrations/001_init.sql#L7927) |
+| `treatments_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:8284](../../../backend/migrations/001_init.sql#L8284) |
+| `treatments_fulfillment_generation_check` | check | `CHECK (fulfillment_generation > 0)` | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
+| `ck_administration_dose_pair` | check | `CONSTRAINT ck_administration_dose_pair CHECK (       (administration_dose_amount IS NULL AND administration_dose_unit IS NULL)       OR (administration_dose_amount IS NOT NULL AND administration_dose_unit IS NOT NULL AND btrim(administration_dose_unit)<>''))` | [001_init.sql:8834](../../../backend/migrations/001_init.sql#L8834) |
+| `ck_prescription_total_pair` | check | `CONSTRAINT ck_prescription_total_pair CHECK (       (prescription_total_amount IS NULL AND prescription_total_unit IS NULL)       OR (prescription_total_amount IS NOT NULL AND prescription_total_unit IS NOT NULL AND btrim(prescription_total_unit)<>''))` | [001_init.sql:8837](../../../backend/migrations/001_init.sql#L8837) |
 
 ## インデックス
 

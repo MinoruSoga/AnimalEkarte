@@ -1,15 +1,15 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全138テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
+> **目的**: 全164テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
 > **詳細**: [全カラム・全外部キーの詳細ERD](erd-detail/index.md) はマイグレーションから静的に生成する。型・NULL可否・複合FKの列順・削除動作・部分uniqueの述語をテーブル別に記録し、`python3 -B scripts/tools/generate-erd-detail.py --check` で更新漏れを確認できる。
 
-<!-- ERD:TABLE_COUNT=138 -->
+<!-- ERD:TABLE_COUNT=164 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（138テーブル。001〜038 を1ファイルへ統合済み。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
+> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（164テーブル。001〜038 を1ファイルへ統合済み。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従い、適用済みSQLを編集・再統合しない。
 
@@ -21,15 +21,15 @@
 
 [品目別保険設定FR/AC](../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)に対応し、`consultations`・`procedures`・`vaccines`・`checkup_types`へ `is_non_insurance BOOLEAN NULL` を追加した。NULLは未保存・旧欠落、trueは対象外、falseは品目側の対象設定。患者の資格や補償保証ではない。DB既定値・一括補完は置かず、新規登録の対象外初期値は対応APIが明示保存する。旧writerの未指定を明示値へ変換しない。
 
-テーブル数138、PK/FK/unique/index/clinic/RLS・主要関係は不変。既存の薬剤・検査設定と会計snapshotも不変。現行Go model/request/responseは追加4列を未接続で、API/UIの往復保存・権限/監査/競合/結果照会は別担当の縦割り受入が必要。列追加だけで利用開始可能とはしない。4表は現行002_masterの12表に含まれず、同bundleのCSV列構成は変わらない。承認済みの隔離PostgreSQL 18.6で001の直接適用と合成データのNULL/true/false・型・医院FK境界を検証し、一時環境を破棄済み。`cmd/migrate`経由のseed適用、旧dump/隔離handoffへの適合、実ユーザーRLS・API/UI往復とSTG/本番受入は未検証。
+EMR-446単独の追加時点ではテーブル数138（S1との統合後は141）で、PK/FK/unique/index/clinic/RLS・主要関係は不変。既存の薬剤・検査設定と会計snapshotも不変。現行Go model/request/responseは追加4列を未接続で、API/UIの往復保存・権限/監査/競合/結果照会は別担当の縦割り受入が必要。列追加だけで利用開始可能とはしない。4表は現行002_masterの12表に含まれず、同bundleのCSV列構成は変わらない。承認済みの隔離PostgreSQL 18.6で001の直接適用と合成データのNULL/true/false・型・医院FK境界を検証し、一時環境を破棄済み。`cmd/migrate`経由のseed適用、旧dump/隔離handoffへの適合、実ユーザーRLS・API/UI往復とSTG/本番受入は未検証。
 
 001のchecksumは変更される。直前の統合baselineを持つDBも既存checksum guardで停止するため、checksumを書き換える修復や自動適用をしない。EMR443との対象revision・保持/復元・seed・適用窓の調整後、承認済みoperatorの検証が必要。
 
 ---
 
-## 1. データモデルの全体像 (全 138 テーブル)
+## 1. データモデルの全体像 (全 164 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 138 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 164 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -39,9 +39,10 @@
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (24)** | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `medical_record_image_upload_quota`, `medical_record_image_deletions`, `clinical_plans`, `treatment_plans`, `treatments`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
 | **検査・予防 (29)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `shared_files`, `lab_import_jobs`, `lab_import_events`, `lab_import_exam_retractions`, `lab_import_exam_retraction_items`, `lab_import_usage_receipts`, `lab_import_revert_receipts`, `lab_devices`, `lab_device_item_masters`, `lab_import_job_items`, `lab_device_waits`, `lab_device_station_settings`, `lab_device_mapping_drafts`, `lab_device_mapping_draft_items`, `lab_device_mapping_specs`, `lab_device_mapping_generation` |
-| **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
+| **予約・シフト (15)** | `appointments`, `revisit_intake_targets`, `revisit_intake_answers`, `revisit_intake_submit_receipts`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
 | **会計・経営 (16)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `cash_register_close_adjustments`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (4)** | `trimming_course_types`, `trimming_courses`, `trimming_options`, `trimming_image_deletions` |
+| **統合DB追加保存契約 (23)** | `trimming_service_identities`, `trimming_course_included_services`, `trimming_option_rule_sets`, `trimming_option_rules`, `trimming_booking_revisions`, `trimming_booking_revision_options`, `trimming_service_lines`, `trimming_detail_revisions`, `trimming_detail_revision_lines`, `doctor_review_sets`, `doctor_review_records`, `billing_source_bindings`, `billing_source_differences`, `billing_price_acknowledgements`, `billing_fulfillment_events`, `billing_source_difference_resolutions`, `vaccination_certificate_series`, `vaccination_certificate_editions`, `vaccination_certificate_artifacts`, `vaccination_certificate_operations`, `owner_deposit_accounts`, `owner_deposit_operations`, `owner_deposit_entries` |
 | **在庫 (1)** | `inventory_items` |
 | **LINE/CRM (20)** | `line_customers`, `line_link_tokens`, `line_send_logs`, `line_reservation_settings`, `lstep_settings`, `lstep_trigger_priorities`, `lstep_delivery_trigger_log`, `lstep_csv_imports`, `lstep_tag_cache`, `lstep_next_visit_sync_retries`, `lstep_tag_code_mappings`, `lstep_auto_managed_prefixes`, `lstep_condition_tag_mappings`, `lstep_send_purpose_tag_prefixes`, `lstep_friend_attribute_snapshots`, `lstep_sync_error_counters`, `clinic_integrations`, `manual_articles`, `manual_article_versions`, `lstep_migration_progress` |
 | **横断・identity links (4)** | `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`（`001_init.sql` セクション10・旧 `004_add_identity_links.sql` 原文・医院横断の owner/pet 明示リンク） |
@@ -51,6 +52,16 @@
 ---
 
 `038_support_manual_search.sql` の2表は共有技術状態であり、臨床データではない。`support_manual_embeddings` は本文・質問・スタッフ詳細を保持しない派生キャッシュ、`support_llm_budgets` は `(scope, model)` ごとの次回許可時刻を保持するquota状態で、両表に `clinic_id` 列は置かない。
+
+## EMR-460 S1：予約ペット別の飼主原文保存基盤
+
+ユーザー承認に基づき001へ3表と `appointments.revisit_intake_generation` だけを追加。このS1単独段階ではS2のカルテ参照列を含めなかった。統合候補の追加状態は末尾のEMR-446/466節を参照する。API/UI、共通gateと関連writer参加は未実装。旧baselineのchecksumは自動補修せず拒否する。既存/共有DBの保全・適用は別承認で、本差分の公開を適用済みとは扱わない。
+
+対象は医院・予約・pet・世代。pet実変更で世代増分、日時変更では保持。回答はtarget内連番で追記し、通常UPDATE/DELETE不可。最新はMAX(revision)から導出する。submit receiptは認証主体scope＋UUIDキーに結び付け、回答INSERTと同じTXのtriggerで成功を確定する。専用原文監査sinkは不変answerとreceiptであり、既存staff/system監査へLINE本人を偽装しない。FKはRESTRICT、取消/soft-deleteで履歴を消さない。RLSはENABLEのみでアプリの医院/患者/本人認可を代替しない。
+
+`inquiries`・プロフィール・顧客JSONからのbackfillなし、原文seedなし。世代1は新機構の初期値で、旧回答の存在や旧対象変更履歴を証明しない。未回答はanswer0件。DB guardは現在pet/世代・受付後/取消後の新回答拒否、連番/immutable/receipt原子性を検査するが、token認証・患者grant・期待回答版・hash一致・成功再送のread応答はconsumer責務。機能利用開始は関連writerとreaderの接続・認可/競合/再送検証後。
+
+隔離PostgreSQLでの検証結果と限界はPRの検証欄を参照。既存DB・STG/本番・実データは今回未検証。
 
 ## 2. 主要リレーション（抜粋・Mermaid）
 
@@ -79,6 +90,32 @@ erDiagram
     pets ||--o{ estimates : "(clinic_id, pet_id)"
     appointments ||--o{ medical_records : "(appointment_id, clinic_id)"
     medical_records ||--o{ appointments : "(source_medical_record_id, clinic_id) (次回予定の元のカルテ)"
+    appointments ||--o{ revisit_intake_targets : "(appointment_id, clinic_id) / target generation"
+    pets ||--o{ revisit_intake_targets : "(clinic_id, pet_id) historical target"
+    revisit_intake_targets ||--o{ revisit_intake_answers : "(clinic_id, target_id) / append revision"
+    line_customers ||--o{ revisit_intake_answers : "(author_customer_id, clinic_id)"
+    owners ||--o{ revisit_intake_answers : "(clinic_id, author_owner_id_at_submit)"
+    revisit_intake_submit_receipts ||--o| revisit_intake_answers : "(clinic_id, author_customer_id, operation_key)"
+    revisit_intake_answers o|--|| revisit_intake_submit_receipts : "(clinic_id, result_answer_id) nullable before success"
+    revisit_intake_targets o|--o{ medical_records : "saved target (clinic_id, target_id)"
+    appointments ||--o{ trimming_booking_revisions : "adopted composition / time revisions"
+    trimming_booking_revisions ||--o{ trimming_booking_revision_options : "immutable option snapshot"
+    appointment_trimming_details ||--o{ trimming_service_lines : "stable billable source"
+    appointment_trimming_details ||--o{ trimming_detail_revisions : "performed detail revisions"
+    trimming_detail_revisions ||--o{ trimming_detail_revision_lines : "immutable price snapshots"
+    trimming_service_lines ||--o{ trimming_detail_revision_lines : "stable source / detail correlation"
+    billings ||--o{ doctor_review_sets : "review history"
+    doctor_review_sets ||--o{ doctor_review_records : "reviewed record generation set"
+    billing_items ||--o| billing_source_bindings : "typed source and applied baseline"
+    billing_source_bindings ||--o{ billing_source_differences : "observed difference / tombstone"
+    billings ||--o{ billing_price_acknowledgements : "amount-only acknowledgement"
+    vaccinations ||--o{ vaccination_certificate_series : "certificate kind"
+    vaccination_certificate_series ||--o{ vaccination_certificate_editions : "immutable edition lineage"
+    vaccination_certificate_editions ||--o{ vaccination_certificate_artifacts : "portrait / landscape / rabies"
+    vaccination_certificate_artifacts ||--o{ vaccination_certificate_operations : "issue / reprint result"
+    owners ||--o{ owner_deposit_accounts : "original owner / clinic funds"
+    owner_deposit_accounts ||--o{ owner_deposit_operations : "idempotent ledger operation"
+    owner_deposit_operations ||--o{ owner_deposit_entries : "receive / apply / release / refund"
     appointments ||--o| appointment_trimming_details : "(appointment_id, clinic_id)"
     appointments ||--o{ appointment_trimming_options : "(appointment_id, clinic_id)"
     billings ||--o{ billing_items : "billing_id"
@@ -281,3 +318,9 @@ erDiagram
 
 > [!NOTE]
 > `insurances`（保険マスタ）テーブルは、動物病院における会計精算（保険窓口精算・自己負担額計算）に深く関連するため、本設計書では暫定的に「会計・経営」ドメインに分類しています。ただし、診療時の適用確認やカルテ側の参照も発生するため、将来的な見直しで「臨床・診察」あるいは独立ドメインへ再編される可能性があります。
+
+## EMR-446/466 統合追加（未試験）
+
+保険4列と再診S1を保持し、S2、トリミングT1–T4、医師確認集合・source binding・差異解決・金額了承・実施準備履歴、預り金、証明書版、非表示要約と薬剤3値の保存欄を001へ追加した。全164表。上記S1節の「S2未実装」はS1単独時点の境界で、統合候補では保存FKを追加済み、capture/readerは別担当で未接続。[保存契約とcoverage](../work/db-contracts/unified-db-20261019.md)を現段階の正本とする。
+
+本人の最新指示により拡張候補の新しいDB適用・制約/競合試験・任意テストは実施しない。詳細ERDはファイル生成として更新した。以前の保険/S1限定試験は旧core hashに対する履歴で、新しい164表DDLの合格証拠ではない。API/UI・既存writerの参加、確認・精算制御、実環境適合は未完。clinic RLSとFKは認可を代替せず、証明書current viewはprivate artifactの公開許可ではない。共有DB適用・mergeは行わない。

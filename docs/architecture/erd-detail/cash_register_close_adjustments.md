@@ -45,7 +45,7 @@ erDiagram
         TIMESTAMPTZ created_at
     }
     billings {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
     }
     cash_register_closes {

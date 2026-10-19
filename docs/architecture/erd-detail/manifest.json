@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "db5bec99f01600b6d635c960f84c45d8bd0676cc3b9172b0f1ff6b9e11a51225",
+  "source_digest": "844055d528ee0643d4f847735f6f606cf585757689352fe4fe0004fa29fac04a",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -9,7 +9,7 @@
     },
     {
       "name": "erd_schema.py",
-      "sha256": "abc808c67ec413b936a14d3c2910d55070a4506f4bd30cc153fd33ac45bee8ce"
+      "sha256": "6fa92da88c995374e644aedf407a2fb53222cf224ccf05ada383ed1e975eed95"
     },
     {
       "name": "generate-erd-detail.py",
@@ -17,14 +17,14 @@
     }
   ],
   "counts": {
-    "tables": 138,
-    "columns": 1655,
-    "foreign_keys": 323
+    "tables": 164,
+    "columns": 1906,
+    "foreign_keys": 413
   },
   "migrations": [
     {
       "name": "001_init.sql",
-      "sha256": "1c052cdc04dfafce3ec38d0b00e238d8850218a16a5724689907ae4278bdb6ac"
+      "sha256": "225602952d97b4b3217f064f12335fb8a81f384ee4df0d67cc127825d58ea5ae"
     }
   ],
   "reviewed_do_blocks": [
@@ -50,8 +50,13 @@
     "appointments.md",
     "audit_logs.md",
     "billing_confirmations.md",
+    "billing_fulfillment_events.md",
     "billing_items.md",
+    "billing_price_acknowledgements.md",
     "billing_refunds.md",
+    "billing_source_bindings.md",
+    "billing_source_difference_resolutions.md",
+    "billing_source_differences.md",
     "billings.md",
     "cages.md",
     "campaign_target_categories.md",
@@ -78,6 +83,8 @@
     "daily_records.md",
     "diagnosis_names.md",
     "diagnosis_types.md",
+    "doctor_review_records.md",
+    "doctor_review_sets.md",
     "estimate_items.md",
     "estimates.md",
     "exam_reference_ranges.md",
@@ -137,6 +144,9 @@
     "medicines.md",
     "merchandise_items.md",
     "occupations.md",
+    "owner_deposit_accounts.md",
+    "owner_deposit_entries.md",
+    "owner_deposit_operations.md",
     "owner_identity_group_members.md",
     "owner_identity_groups.md",
     "owners.md",
@@ -157,6 +167,9 @@
     "reservation_type_occupations.md",
     "reservation_type_unavailable_times.md",
     "reservation_types.md",
+    "revisit_intake_answers.md",
+    "revisit_intake_submit_receipts.md",
+    "revisit_intake_targets.md",
     "shared_files.md",
     "shift_entries.md",
     "shift_entry_breaks.md",
@@ -175,10 +188,23 @@
     "token_blacklist.md",
     "treatment_plans.md",
     "treatments.md",
+    "trimming_booking_revision_options.md",
+    "trimming_booking_revisions.md",
+    "trimming_course_included_services.md",
     "trimming_course_types.md",
     "trimming_courses.md",
+    "trimming_detail_revision_lines.md",
+    "trimming_detail_revisions.md",
     "trimming_image_deletions.md",
+    "trimming_option_rule_sets.md",
+    "trimming_option_rules.md",
     "trimming_options.md",
+    "trimming_service_identities.md",
+    "trimming_service_lines.md",
+    "vaccination_certificate_artifacts.md",
+    "vaccination_certificate_editions.md",
+    "vaccination_certificate_operations.md",
+    "vaccination_certificate_series.md",
     "vaccinations.md",
     "vaccines.md",
     "vital_records.md"

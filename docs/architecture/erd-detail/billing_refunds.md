@@ -43,7 +43,7 @@ erDiagram
         timestamptz created_at
     }
     billings {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
     }
     clinics {
         BIGSERIAL id PK

@@ -7610,3 +7610,1231 @@ COMMENT ON COLUMN vaccines.is_non_insurance IS 'Item insurance setting: NULL=not
 
 ALTER TABLE checkup_types ADD COLUMN is_non_insurance BOOLEAN NULL;
 COMMENT ON COLUMN checkup_types.is_non_insurance IS 'Item insurance setting: NULL=not explicitly saved, true=non-insurance, false=insurance eligible; not patient coverage';
+
+-- EMR-460 S1: reservation/pet intake history and submission receipt.
+-- Authorized 001 baseline edit; no automatic upgrade of existing checksum baselines.
+-- No API/UI, global gate, staff writer participation or S2 record binding in this change.
+ALTER TABLE appointments
+    ADD COLUMN revisit_intake_generation bigint NOT NULL DEFAULT 1
+    CHECK (revisit_intake_generation > 0);
+
+CREATE TABLE revisit_intake_targets (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    appointment_id bigint NOT NULL,
+    pet_id bigint NOT NULL,
+    target_generation bigint NOT NULL CHECK (target_generation > 0),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (clinic_id, id),
+    UNIQUE (clinic_id, appointment_id, target_generation),
+    FOREIGN KEY (appointment_id, clinic_id)
+        REFERENCES appointments(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, pet_id)
+        REFERENCES pets(clinic_id, id) ON DELETE RESTRICT
+);
+
+-- A short, completed claim transaction precedes the business transaction.
+-- No target/answer/owner FK in the claim, no free text, no token or LINE subject.
+-- author_customer_id is a scoped authenticated identity value, checked on success.
+CREATE TABLE revisit_intake_submit_receipts (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    author_customer_id bigint NOT NULL CHECK (author_customer_id > 0),
+    operation_key uuid NOT NULL,
+    author_subject_hash bytea NOT NULL CHECK (octet_length(author_subject_hash) = 32),
+    fingerprint_version smallint NOT NULL DEFAULT 1 CHECK (fingerprint_version = 1),
+    request_hash bytea NOT NULL CHECK (octet_length(request_hash) = 32),
+    state text NOT NULL DEFAULT 'claimed' CHECK (state IN ('claimed', 'succeeded')),
+    result_answer_id bigint,
+    claimed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    committed_at timestamptz,
+    PRIMARY KEY (clinic_id, author_customer_id, operation_key),
+    CHECK ((state = 'claimed' AND result_answer_id IS NULL AND committed_at IS NULL)
+        OR (state = 'succeeded' AND result_answer_id IS NOT NULL AND committed_at IS NOT NULL)),
+    CHECK (committed_at IS NULL OR committed_at >= claimed_at)
+);
+
+CREATE TABLE revisit_intake_answers (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    target_id bigint NOT NULL,
+    revision bigint NOT NULL CHECK (revision > 0),
+    form_definition_version smallint NOT NULL CHECK (form_definition_version = 1),
+    visit_purpose text NOT NULL CHECK (btrim(visit_purpose) <> ''),
+    onset text,
+    energy text CHECK (energy IN ('usual', 'slightly_reduced', 'markedly_reduced')),
+    appetite text CHECK (appetite IN ('usual', 'slightly_reduced', 'markedly_reduced')),
+    current_symptoms text,
+    improvement text CHECK (improvement IN
+        ('improved', 'slightly_improved', 'unchanged', 'worse', 'new_symptoms')),
+    examination_preference text CHECK (examination_preference IN
+        ('consultation_only', 'medication_only', 'examination', 'decide_with_vet')),
+    main_concern text,
+    author_customer_id bigint NOT NULL,
+    author_subject_hash bytea NOT NULL CHECK (octet_length(author_subject_hash) = 32),
+    author_owner_id_at_submit bigint NOT NULL,
+    operation_key uuid NOT NULL,
+    received_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (clinic_id, id),
+    UNIQUE (clinic_id, target_id, revision),
+    UNIQUE (clinic_id, author_customer_id, operation_key),
+    FOREIGN KEY (clinic_id, target_id)
+        REFERENCES revisit_intake_targets(clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (author_customer_id, clinic_id)
+        REFERENCES line_customers(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, author_owner_id_at_submit)
+        REFERENCES owners(clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, author_customer_id, operation_key)
+        REFERENCES revisit_intake_submit_receipts(clinic_id, author_customer_id, operation_key)
+        ON DELETE RESTRICT
+);
+
+ALTER TABLE revisit_intake_submit_receipts
+    ADD CONSTRAINT fk_revisit_receipt_answer
+    FOREIGN KEY (clinic_id, result_answer_id)
+    REFERENCES revisit_intake_answers(clinic_id, id) ON DELETE RESTRICT;
+
+-- Target is immutable; latest = highest revision in this target, no mutable pointer.
+-- Existing UNIQUE(clinic_id,target_id,revision) serves latest/history reverse scans.
+CREATE INDEX idx_revisit_answers_clinic_author
+    ON revisit_intake_answers(clinic_id, author_customer_id, received_at, id);
+
+CREATE FUNCTION app_private.revisit_intake_generation_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.pet_id IS DISTINCT FROM OLD.pet_id THEN
+        NEW.revisit_intake_generation := OLD.revisit_intake_generation + 1;
+    ELSIF NEW.revisit_intake_generation IS DISTINCT FROM OLD.revisit_intake_generation THEN
+        RAISE EXCEPTION 'revisit target generation cannot be set directly' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER revisit_intake_generation_guard
+    BEFORE UPDATE OF pet_id, revisit_intake_generation ON appointments
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_generation_guard();
+
+CREATE FUNCTION app_private.revisit_intake_reject_mutation()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'revisit intake history is immutable' USING ERRCODE = '23514';
+END;
+$$;
+
+CREATE TRIGGER revisit_targets_immutable
+    BEFORE UPDATE OR DELETE ON revisit_intake_targets
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_reject_mutation();
+CREATE TRIGGER revisit_answers_immutable
+    BEFORE UPDATE OR DELETE ON revisit_intake_answers
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_reject_mutation();
+CREATE TRIGGER revisit_receipts_no_delete
+    BEFORE DELETE ON revisit_intake_submit_receipts
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_reject_mutation();
+
+-- Structural defense, not a replacement for authenticated application scope,
+-- the common gate, current patient authorization, or writer participation.
+CREATE FUNCTION app_private.revisit_intake_target_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE a appointments%ROWTYPE;
+BEGIN
+    SELECT * INTO a FROM appointments
+      WHERE clinic_id = NEW.clinic_id AND id = NEW.appointment_id FOR UPDATE;
+    IF NOT FOUND OR a.deleted_at IS NOT NULL OR a.status = 'cancelled'
+       OR a.pet_id IS DISTINCT FROM NEW.pet_id
+       OR a.revisit_intake_generation <> NEW.target_generation THEN
+        RAISE EXCEPTION 'revisit target does not match current reservation' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_target_insert_guard BEFORE INSERT ON revisit_intake_targets
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_target_guard();
+
+CREATE FUNCTION app_private.revisit_intake_answer_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE t revisit_intake_targets%ROWTYPE;
+        a appointments%ROWTYPE;
+        prior bigint;
+BEGIN
+    SELECT * INTO STRICT t FROM revisit_intake_targets
+      WHERE clinic_id = NEW.clinic_id AND id = NEW.target_id;
+    SELECT * INTO STRICT a FROM appointments
+      WHERE clinic_id = NEW.clinic_id AND id = t.appointment_id FOR UPDATE;
+    -- No new calendar deadline/no-show restriction, and no permanent
+    -- "ever checked in" flag. New lifecycle states need a reviewed adapter.
+    IF a.deleted_at IS NOT NULL
+       OR a.status IS NULL
+       OR a.status NOT IN ('pending', 'confirmed', 'tentative', 'no_show')
+       OR a.pet_id IS DISTINCT FROM t.pet_id
+       OR a.revisit_intake_generation <> t.target_generation
+       OR a.line_customer_id IS DISTINCT FROM NEW.author_customer_id
+       OR a.owner_id IS DISTINCT FROM NEW.author_owner_id_at_submit THEN
+        RAISE EXCEPTION 'revisit answer target or phase changed' USING ERRCODE = '23514';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM revisit_intake_submit_receipts r
+        WHERE r.clinic_id = NEW.clinic_id AND r.author_customer_id = NEW.author_customer_id
+          AND r.operation_key = NEW.operation_key AND r.state = 'claimed'
+          AND r.author_subject_hash = NEW.author_subject_hash) THEN
+        RAISE EXCEPTION 'revisit answer requires matching claim' USING ERRCODE = '23514';
+    END IF;
+    SELECT COALESCE(MAX(revision), 0) INTO prior FROM revisit_intake_answers
+      WHERE clinic_id = NEW.clinic_id AND target_id = NEW.target_id;
+    IF NEW.revision <> prior + 1 THEN
+        RAISE EXCEPTION 'revisit answer revision is not consecutive' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_answer_insert_guard BEFORE INSERT ON revisit_intake_answers
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_answer_guard();
+
+CREATE FUNCTION app_private.revisit_intake_receipt_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        IF NEW.state <> 'claimed' OR NEW.result_answer_id IS NOT NULL OR NEW.committed_at IS NOT NULL THEN
+            RAISE EXCEPTION 'revisit receipt must begin as an uncommitted claim' USING ERRCODE = '23514';
+        END IF;
+        RETURN NEW;
+    END IF;
+    IF OLD.state <> 'claimed' OR NEW.state <> 'succeeded'
+       OR (NEW.clinic_id, NEW.author_customer_id, NEW.operation_key,
+           NEW.author_subject_hash, NEW.fingerprint_version, NEW.request_hash, NEW.claimed_at)
+          IS DISTINCT FROM
+          (OLD.clinic_id, OLD.author_customer_id, OLD.operation_key,
+           OLD.author_subject_hash, OLD.fingerprint_version, OLD.request_hash, OLD.claimed_at)
+       OR NOT EXISTS (SELECT 1 FROM revisit_intake_answers a
+           WHERE a.clinic_id = NEW.clinic_id AND a.id = NEW.result_answer_id
+             AND a.author_customer_id = NEW.author_customer_id
+             AND a.author_subject_hash = NEW.author_subject_hash
+             AND a.operation_key = NEW.operation_key) THEN
+        RAISE EXCEPTION 'invalid revisit receipt transition' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_receipt_write_guard BEFORE INSERT OR UPDATE ON revisit_intake_submit_receipts
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_receipt_guard();
+
+SELECT app_private.apply_rls_policy('revisit_intake_targets'::regclass,
+    'revisit_intake_targets_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('revisit_intake_answers'::regclass,
+    'revisit_intake_answers_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('revisit_intake_submit_receipts'::regclass,
+    'revisit_intake_submit_receipts_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+-- Finalize the matching claim in the answer INSERT's own transaction. Failure
+-- aborts the INSERT; no independently committed answer can lack its receipt.
+CREATE FUNCTION app_private.revisit_intake_answer_finish_receipt()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE revisit_intake_submit_receipts
+        SET state = 'succeeded', result_answer_id = NEW.id, committed_at = clock_timestamp()
+        WHERE clinic_id = NEW.clinic_id AND author_customer_id = NEW.author_customer_id
+          AND operation_key = NEW.operation_key AND state = 'claimed'
+          AND author_subject_hash = NEW.author_subject_hash;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'revisit answer requires claim finalization' USING ERRCODE = '23514';
+    END IF;
+    RETURN NULL;
+END;
+$$;
+CREATE TRIGGER revisit_answer_finish_receipt
+    AFTER INSERT ON revisit_intake_answers
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_answer_finish_receipt();
+
+-- EMR-446/466 consolidated DB contracts; API/UI and business writers remain consumer-owned.
+-- No data backfill, clinical approval, receipt replay handler, or environment rollout.
+-- D03 saved target reference. Capture under the
+-- appointment lifecycle lock; never infer an old record's generation by date.
+ALTER TABLE medical_records ADD COLUMN revisit_intake_target_id bigint;
+ALTER TABLE medical_records ADD CONSTRAINT fk_medical_record_revisit_target
+    FOREIGN KEY (clinic_id, revisit_intake_target_id)
+    REFERENCES revisit_intake_targets(clinic_id, id) ON DELETE RESTRICT;
+CREATE INDEX idx_medical_records_clinic_revisit_target
+    ON medical_records(clinic_id, revisit_intake_target_id)
+    WHERE revisit_intake_target_id IS NOT NULL;
+
+-- This validates a newly assigned reference, not unrelated record edits.
+-- Current record reads must also correlate the saved ref with record pet/visit.
+CREATE FUNCTION app_private.revisit_intake_record_binding_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.revisit_intake_target_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM revisit_intake_targets t
+        WHERE t.clinic_id = NEW.clinic_id AND t.id = NEW.revisit_intake_target_id
+          AND t.appointment_id = NEW.appointment_id AND t.pet_id = NEW.pet_id
+    ) THEN
+        RAISE EXCEPTION 'revisit record binding does not match visit and pet' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER revisit_record_binding_guard
+    BEFORE INSERT OR UPDATE OF revisit_intake_target_id ON medical_records
+    FOR EACH ROW EXECUTE FUNCTION app_private.revisit_intake_record_binding_guard();
+
+
+-- Visit summary storage only. No transcript, manual paste UI, or external writer.
+ALTER TABLE medical_records
+    ADD COLUMN conversation_summary text,
+    ADD COLUMN conversation_summary_revision bigint,
+    ADD COLUMN conversation_summary_source text,
+    ADD CONSTRAINT ck_conversation_summary_metadata CHECK (
+      (conversation_summary IS NULL AND conversation_summary_revision IS NULL AND conversation_summary_source IS NULL)
+      OR (conversation_summary IS NOT NULL AND conversation_summary_revision > 0
+          AND conversation_summary_revision IS NOT NULL AND conversation_summary_source IS NOT NULL
+          AND btrim(conversation_summary_source) <> '')
+    );
+COMMENT ON COLUMN medical_records.conversation_summary IS
+    'Hidden visit-scoped summary only; no transcript/UI/import writer in this DB change';
+
+-- Shared immutable storage defense for the NEW history resources below only.
+CREATE FUNCTION app_private.contract_history_immutable()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'contract history cannot be changed or deleted' USING ERRCODE = '23514';
+END; $$;
+
+-- T1/T2 master metadata. Initial generation is a current-state counter, not
+-- evidence of old snapshots. No current price/duration/clinic backfill.
+CREATE FUNCTION app_private.valid_trimming_weekdays(value smallint[])
+RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
+    SELECT value IS NULL OR (
+      array_ndims(value) = 1 AND cardinality(value) BETWEEN 1 AND 7
+      AND value <@ ARRAY[0,1,2,3,4,5,6]::smallint[]
+      AND NOT EXISTS (SELECT 1 FROM unnest(value) day WHERE day IS NULL)
+      AND cardinality(value) = (SELECT count(DISTINCT day) FROM unnest(value) day)
+    );
+$$;
+ALTER TABLE trimming_courses
+    ADD COLUMN short_name text,
+    ADD COLUMN image_object_key text,
+    ADD COLUMN allowed_weekdays smallint[],
+    ADD COLUMN contract_version bigint NOT NULL DEFAULT 1 CHECK (contract_version > 0),
+    ADD CONSTRAINT ck_trimming_course_short_name CHECK (short_name IS NULL OR btrim(short_name) <> ''),
+    ADD CONSTRAINT ck_trimming_course_image_key CHECK (image_object_key IS NULL OR btrim(image_object_key) <> ''),
+    ADD CONSTRAINT ck_trimming_course_weekdays CHECK (app_private.valid_trimming_weekdays(allowed_weekdays)),
+    ADD CONSTRAINT uq_trimming_courses_id_clinic UNIQUE (id, clinic_id);
+ALTER TABLE trimming_options
+    ADD COLUMN contract_version bigint NOT NULL DEFAULT 1 CHECK (contract_version > 0),
+    ADD CONSTRAINT uq_trimming_options_id_clinic UNIQUE (id, clinic_id);
+ALTER TABLE appointment_trimming_details
+    ADD CONSTRAINT uq_trimming_details_id_clinic UNIQUE (id, clinic_id);
+ALTER TABLE treatments ADD CONSTRAINT uq_treatments_id_clinic UNIQUE (id, clinic_id);
+ALTER TABLE billing_items ADD CONSTRAINT uq_billing_items_id_clinic UNIQUE (id, clinic_id);
+
+CREATE FUNCTION app_private.storage_contract_version_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF (to_jsonb(NEW) - 'contract_version' - 'updated_at')
+       IS DISTINCT FROM (to_jsonb(OLD) - 'contract_version' - 'updated_at') THEN
+        NEW.contract_version := OLD.contract_version + 1;
+    ELSIF NEW.contract_version IS DISTINCT FROM OLD.contract_version THEN
+        RAISE EXCEPTION 'master contract version cannot be set directly' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER trimming_course_contract_version BEFORE UPDATE ON trimming_courses
+ FOR EACH ROW EXECUTE FUNCTION app_private.storage_contract_version_guard();
+CREATE TRIGGER trimming_option_contract_version BEFORE UPDATE ON trimming_options
+ FOR EACH ROW EXECUTE FUNCTION app_private.storage_contract_version_guard();
+
+CREATE TABLE trimming_service_identities (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    display_name text,
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    deleted_at timestamptz,
+    UNIQUE (id, clinic_id)
+);
+ALTER TABLE trimming_options ADD COLUMN service_identity_id bigint;
+ALTER TABLE trimming_options ADD CONSTRAINT fk_trimming_option_service_identity
+ FOREIGN KEY (service_identity_id, clinic_id)
+ REFERENCES trimming_service_identities(id, clinic_id) ON DELETE RESTRICT;
+
+CREATE TABLE trimming_course_included_services (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    course_id bigint NOT NULL,
+    service_identity_id bigint NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    deleted_at timestamptz,
+    PRIMARY KEY (clinic_id, course_id, service_identity_id),
+    FOREIGN KEY (course_id, clinic_id) REFERENCES trimming_courses(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (service_identity_id, clinic_id) REFERENCES trimming_service_identities(id, clinic_id) ON DELETE RESTRICT
+);
+-- A missing rule set means legacy/unconfigured; an existing empty set means
+-- explicitly configured with no options. NULL course is the no-course set.
+CREATE TABLE trimming_option_rule_sets (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    course_id bigint,
+    contract_version bigint NOT NULL DEFAULT 1 CHECK (contract_version > 0),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    deleted_at timestamptz,
+    UNIQUE (id, clinic_id),
+    FOREIGN KEY (course_id, clinic_id) REFERENCES trimming_courses(id, clinic_id) ON DELETE RESTRICT
+);
+CREATE UNIQUE INDEX uq_trimming_rule_set_course_active ON trimming_option_rule_sets(clinic_id, course_id)
+ WHERE course_id IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_trimming_rule_set_no_course_active ON trimming_option_rule_sets(clinic_id)
+ WHERE course_id IS NULL AND deleted_at IS NULL;
+CREATE TABLE trimming_option_rules (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    rule_set_id bigint NOT NULL,
+    option_id bigint NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    deleted_at timestamptz,
+    PRIMARY KEY (clinic_id, rule_set_id, option_id),
+    FOREIGN KEY (rule_set_id, clinic_id) REFERENCES trimming_option_rule_sets(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (option_id, clinic_id) REFERENCES trimming_options(id, clinic_id) ON DELETE RESTRICT
+);
+
+CREATE TRIGGER trimming_rule_set_contract_version BEFORE UPDATE ON trimming_option_rule_sets
+ FOR EACH ROW EXECUTE FUNCTION app_private.storage_contract_version_guard();
+
+SELECT app_private.apply_rls_policy('trimming_service_identities'::regclass,
+    'trimming_service_identities_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_course_included_services'::regclass,
+    'trimming_course_included_services_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_option_rule_sets'::regclass,
+    'trimming_option_rule_sets_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_option_rules'::regclass,
+    'trimming_option_rules_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+
+-- T3: adopted reservation composition/time. No price or performed-state inference.
+CREATE TABLE trimming_booking_revisions (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    appointment_id bigint NOT NULL,
+    pet_id bigint NOT NULL,
+    revision bigint NOT NULL CHECK (revision > 0),
+    course_id bigint,
+    course_version bigint,
+    course_duration_minutes integer,
+    rule_set_id bigint,
+    rule_set_version bigint,
+    total_duration_minutes integer NOT NULL CHECK (total_duration_minutes > 0),
+    option_count integer NOT NULL CHECK (option_count >= 0),
+    recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id, clinic_id),
+    UNIQUE (clinic_id, appointment_id, revision),
+    CHECK ((course_id IS NULL AND course_version IS NULL AND course_duration_minutes IS NULL)
+        OR (course_id IS NOT NULL AND course_version IS NOT NULL AND course_version > 0
+            AND course_duration_minutes IS NOT NULL AND course_duration_minutes > 0)),
+    CHECK ((rule_set_id IS NULL AND rule_set_version IS NULL)
+        OR (rule_set_id IS NOT NULL AND rule_set_version IS NOT NULL AND rule_set_version > 0)),
+    FOREIGN KEY (appointment_id, clinic_id) REFERENCES appointments(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id, pet_id) REFERENCES pets(clinic_id, id) ON DELETE RESTRICT,
+    FOREIGN KEY (course_id, clinic_id) REFERENCES trimming_courses(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (rule_set_id, clinic_id) REFERENCES trimming_option_rule_sets(id, clinic_id) ON DELETE RESTRICT
+);
+CREATE TABLE trimming_booking_revision_options (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    booking_revision_id bigint NOT NULL,
+    option_id bigint NOT NULL,
+    option_version bigint NOT NULL CHECK (option_version > 0),
+    duration_minutes integer NOT NULL CHECK (duration_minutes >= 0),
+    PRIMARY KEY (clinic_id, booking_revision_id, option_id),
+    FOREIGN KEY (booking_revision_id, clinic_id) REFERENCES trimming_booking_revisions(id, clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (option_id, clinic_id) REFERENCES trimming_options(id, clinic_id) ON DELETE RESTRICT
+);
+CREATE FUNCTION app_private.trimming_booking_revision_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE a appointments%ROWTYPE; prior bigint;
+BEGIN
+    SELECT * INTO STRICT a FROM appointments WHERE id=NEW.appointment_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+    IF a.pet_id IS DISTINCT FROM NEW.pet_id THEN
+        RAISE EXCEPTION 'booking snapshot pet differs from appointment' USING ERRCODE='23514';
+    END IF;
+    SELECT COALESCE(MAX(revision),0) INTO prior FROM trimming_booking_revisions
+        WHERE clinic_id=NEW.clinic_id AND appointment_id=NEW.appointment_id;
+    IF NEW.revision <> prior+1 THEN
+        RAISE EXCEPTION 'booking revision is not consecutive' USING ERRCODE='23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER trimming_booking_revision_guard BEFORE INSERT ON trimming_booking_revisions
+ FOR EACH ROW EXECUTE FUNCTION app_private.trimming_booking_revision_guard();
+CREATE FUNCTION app_private.trimming_booking_snapshot_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE n bigint; minutes bigint;
+BEGIN
+    SELECT count(*),COALESCE(sum(duration_minutes),0) INTO n,minutes
+      FROM trimming_booking_revision_options WHERE clinic_id=NEW.clinic_id AND booking_revision_id=NEW.id;
+    IF n <> NEW.option_count OR minutes+COALESCE(NEW.course_duration_minutes,0) <> NEW.total_duration_minutes THEN
+        RAISE EXCEPTION 'booking composition and duration snapshot incomplete' USING ERRCODE='23514';
+    END IF;
+    RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER trimming_booking_snapshot_complete AFTER INSERT ON trimming_booking_revisions
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.trimming_booking_snapshot_complete();
+
+-- T4: actual detail history and stable source rows; distinct from T3 booking.
+CREATE TABLE trimming_service_lines (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    detail_id bigint NOT NULL,
+    course_id bigint,
+    option_id bigint,
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id, clinic_id),
+    UNIQUE (id, clinic_id, detail_id),
+    CHECK (num_nonnulls(course_id,option_id)=1),
+    FOREIGN KEY (detail_id,clinic_id) REFERENCES appointment_trimming_details(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (course_id,clinic_id) REFERENCES trimming_courses(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (option_id,clinic_id) REFERENCES trimming_options(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE UNIQUE INDEX uq_trimming_source_course ON trimming_service_lines(clinic_id,detail_id,course_id) WHERE course_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_trimming_source_option ON trimming_service_lines(clinic_id,detail_id,option_id) WHERE option_id IS NOT NULL;
+CREATE TABLE trimming_detail_revisions (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    detail_id bigint NOT NULL,
+    revision bigint NOT NULL CHECK (revision > 0),
+    line_count integer NOT NULL CHECK (line_count >= 0),
+    detail_values jsonb NOT NULL CHECK (jsonb_typeof(detail_values)='object'),
+    recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id,detail_id),
+    UNIQUE (clinic_id,detail_id,revision),
+    FOREIGN KEY (detail_id,clinic_id) REFERENCES appointment_trimming_details(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE TABLE trimming_detail_revision_lines (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    detail_id bigint NOT NULL,
+    detail_revision_id bigint NOT NULL,
+    source_line_id bigint NOT NULL,
+    master_version bigint NOT NULL CHECK (master_version > 0),
+    adopted_master_unit_price bigint,
+    unit_price bigint,
+    quantity numeric(10,2) NOT NULL CHECK (quantity > 0),
+    discount_rate numeric(5,2) NOT NULL CHECK (discount_rate BETWEEN 0 AND 100),
+    discount_amount bigint NOT NULL CHECK (discount_amount >= 0),
+    discount_stage text NOT NULL CHECK (discount_stage IN ('unit','line')),
+    PRIMARY KEY (clinic_id,detail_revision_id,source_line_id),
+    FOREIGN KEY (detail_revision_id,clinic_id,detail_id) REFERENCES trimming_detail_revisions(id,clinic_id,detail_id) ON DELETE RESTRICT,
+    FOREIGN KEY (source_line_id,clinic_id,detail_id) REFERENCES trimming_service_lines(id,clinic_id,detail_id) ON DELETE RESTRICT
+);
+CREATE FUNCTION app_private.trimming_detail_revision_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE prior bigint;
+BEGIN
+    PERFORM 1 FROM appointment_trimming_details WHERE id=NEW.detail_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'detail outside clinic' USING ERRCODE='23503'; END IF;
+    SELECT COALESCE(MAX(revision),0) INTO prior FROM trimming_detail_revisions
+      WHERE clinic_id=NEW.clinic_id AND detail_id=NEW.detail_id;
+    IF NEW.revision<>prior+1 THEN RAISE EXCEPTION 'detail revision is not consecutive' USING ERRCODE='23514'; END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER trimming_detail_revision_guard BEFORE INSERT ON trimming_detail_revisions
+ FOR EACH ROW EXECUTE FUNCTION app_private.trimming_detail_revision_guard();
+
+-- A1: opt-in clinical generations and immutable reviewed record set.
+-- Existing writers are NOT made review-aware by adding nullable metadata.
+ALTER TABLE medical_records ADD COLUMN clinical_set_generation bigint CHECK (clinical_set_generation > 0);
+CREATE TABLE doctor_review_sets (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    billing_id bigint NOT NULL,
+    billing_clinical_generation bigint NOT NULL CHECK (billing_clinical_generation > 0),
+    billing_clinical_digest bytea NOT NULL CHECK (octet_length(billing_clinical_digest)=32),
+    record_count integer NOT NULL CHECK (record_count >= 0),
+    reviewed_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    reviewed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id,billing_id),
+    FOREIGN KEY (billing_id,clinic_id) REFERENCES billings(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_doctor_review_sets_billing ON doctor_review_sets(clinic_id,billing_id,id);
+CREATE TABLE doctor_review_records (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    review_set_id bigint NOT NULL,
+    billing_id bigint NOT NULL,
+    medical_record_id bigint NOT NULL,
+    clinical_generation bigint NOT NULL CHECK (clinical_generation > 0),
+    clinical_digest bytea NOT NULL CHECK (octet_length(clinical_digest)=32),
+    clinical_items jsonb NOT NULL CHECK (jsonb_typeof(clinical_items)='array'),
+    PRIMARY KEY (clinic_id,review_set_id,medical_record_id),
+    FOREIGN KEY (review_set_id,clinic_id,billing_id) REFERENCES doctor_review_sets(id,clinic_id,billing_id) ON DELETE RESTRICT,
+    FOREIGN KEY (medical_record_id,clinic_id) REFERENCES medical_records(id,clinic_id) ON DELETE RESTRICT
+);
+ALTER TABLE billings ADD COLUMN doctor_review_set_id bigint;
+ALTER TABLE billings ADD CONSTRAINT fk_billing_doctor_review_set
+ FOREIGN KEY (doctor_review_set_id,clinic_id,id) REFERENCES doctor_review_sets(id,clinic_id,billing_id) ON DELETE RESTRICT;
+-- No parent-updating treatment triggers: all affected drug/procedure writers,
+-- review-set membership and finalize gates must participate in the consumer TX.
+
+-- A2: stable typed bindings, source baseline and explicit unknown manual state.
+CREATE TABLE billing_source_bindings (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    billing_item_id bigint NOT NULL,
+    source_kind text NOT NULL CHECK (source_kind IN ('treatment','vaccination','examination','trimming')),
+    treatment_id bigint,
+    vaccination_id bigint,
+    examination_id bigint,
+    trimming_source_line_id bigint,
+    applied_source_version bigint NOT NULL CHECK (applied_source_version > 0),
+    imported_values jsonb NOT NULL CHECK (jsonb_typeof(imported_values)='object'),
+    manual_override boolean,
+    contract_version bigint NOT NULL DEFAULT 1 CHECK (contract_version > 0),
+    updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (clinic_id,billing_item_id),
+    CHECK ((source_kind='treatment' AND treatment_id IS NOT NULL AND num_nonnulls(vaccination_id,examination_id,trimming_source_line_id)=0)
+        OR (source_kind='vaccination' AND vaccination_id IS NOT NULL AND num_nonnulls(treatment_id,examination_id,trimming_source_line_id)=0)
+        OR (source_kind='examination' AND examination_id IS NOT NULL AND num_nonnulls(treatment_id,vaccination_id,trimming_source_line_id)=0)
+        OR (source_kind='trimming' AND trimming_source_line_id IS NOT NULL AND num_nonnulls(treatment_id,vaccination_id,examination_id)=0)),
+    FOREIGN KEY (billing_item_id,clinic_id) REFERENCES billing_items(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (treatment_id,clinic_id) REFERENCES treatments(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (vaccination_id,clinic_id) REFERENCES vaccinations(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (clinic_id,examination_id) REFERENCES exams(clinic_id,id) ON DELETE RESTRICT,
+    FOREIGN KEY (trimming_source_line_id,clinic_id) REFERENCES trimming_service_lines(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE TRIGGER billing_binding_contract_version BEFORE UPDATE ON billing_source_bindings
+ FOR EACH ROW EXECUTE FUNCTION app_private.storage_contract_version_guard();
+-- Existing lifetime uniques on billing_items remain authoritative for old sources.
+CREATE UNIQUE INDEX uq_billing_trimming_source_lifetime ON billing_source_bindings(clinic_id,trimming_source_line_id)
+ WHERE trimming_source_line_id IS NOT NULL;
+CREATE TABLE billing_source_differences (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    billing_item_id bigint NOT NULL,
+    observed_source_version bigint NOT NULL CHECK (observed_source_version > 0),
+    binding_version bigint NOT NULL CHECK (binding_version > 0),
+    source_deleted boolean NOT NULL,
+    difference_kind text NOT NULL CHECK (difference_kind IN ('clinical','amount','both')),
+    changed_values jsonb NOT NULL CHECK (jsonb_typeof(changed_values)='object'),
+    observed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    FOREIGN KEY (clinic_id,billing_item_id) REFERENCES billing_source_bindings(clinic_id,billing_item_id) ON DELETE RESTRICT
+);
+ALTER TABLE billing_source_differences ADD CONSTRAINT uq_source_difference_id_clinic UNIQUE (id,clinic_id);
+CREATE INDEX idx_billing_source_difference_line ON billing_source_differences(clinic_id,billing_item_id,id);
+
+-- A3: amount-only acknowledgement; reason remains optional in its consumer.
+-- No new complete/payment protocol and no global financial receipt framework.
+CREATE TABLE billing_price_acknowledgements (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    billing_id bigint NOT NULL,
+    billing_item_id bigint NOT NULL,
+    billing_version bigint NOT NULL CHECK (billing_version > 0),
+    line_version bigint NOT NULL CHECK (line_version > 0),
+    calculation_version bigint NOT NULL CHECK (calculation_version > 0),
+    operation_key uuid NOT NULL,
+    request_hash bytea NOT NULL CHECK (octet_length(request_hash)=32),
+    before_values jsonb NOT NULL CHECK (jsonb_typeof(before_values)='object'),
+    after_values jsonb NOT NULL CHECK (jsonb_typeof(after_values)='object'),
+    acknowledged_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    acknowledged_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (clinic_id,billing_id,operation_key,billing_item_id),
+    FOREIGN KEY (billing_id,clinic_id) REFERENCES billings(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (billing_item_id,clinic_id) REFERENCES billing_items(id,clinic_id) ON DELETE RESTRICT
+);
+
+-- A4: performed/prepared/revoked events are separate from handover/stock.
+-- Source generation is supplied by participating writers, never inferred from dates.
+CREATE TABLE billing_fulfillment_events (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    treatment_id bigint,
+    billing_item_id bigint,
+    source_generation bigint NOT NULL CHECK (source_generation > 0),
+    event_version bigint NOT NULL CHECK (event_version > 0),
+    event_kind text NOT NULL CHECK (event_kind IN ('performed','prepared','revoked')),
+    preceding_event_id bigint,
+    recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    occurred_at timestamptz NOT NULL,
+    recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id),
+    CHECK (num_nonnulls(treatment_id,billing_item_id)=1),
+    CHECK ((event_kind='revoked' AND preceding_event_id IS NOT NULL)
+        OR (event_kind IN ('performed','prepared') AND preceding_event_id IS NULL)),
+    FOREIGN KEY (treatment_id,clinic_id) REFERENCES treatments(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (billing_item_id,clinic_id) REFERENCES billing_items(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (preceding_event_id,clinic_id) REFERENCES billing_fulfillment_events(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE UNIQUE INDEX uq_fulfillment_treatment_version ON billing_fulfillment_events(clinic_id,treatment_id,event_version) WHERE treatment_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_fulfillment_billing_line_version ON billing_fulfillment_events(clinic_id,billing_item_id,event_version) WHERE billing_item_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_fulfillment_revoke_once ON billing_fulfillment_events(clinic_id,preceding_event_id) WHERE preceding_event_id IS NOT NULL;
+
+CREATE TABLE billing_source_difference_resolutions (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    difference_id bigint NOT NULL,
+    operation_key uuid NOT NULL,
+    resulting_binding_version bigint NOT NULL CHECK (resulting_binding_version > 0),
+    resolved_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    resolved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (clinic_id,difference_id),
+    FOREIGN KEY (difference_id,clinic_id) REFERENCES billing_source_differences(id,clinic_id) ON DELETE RESTRICT
+);
+
+-- New self-row counters do not update/lock any clinical or billing parent.
+ALTER TABLE treatments ADD COLUMN contract_version bigint NOT NULL DEFAULT 1 CHECK (contract_version > 0);
+ALTER TABLE treatments ADD COLUMN fulfillment_generation bigint NOT NULL DEFAULT 1 CHECK (fulfillment_generation > 0);
+ALTER TABLE billing_items ADD COLUMN contract_version bigint NOT NULL DEFAULT 1 CHECK (contract_version > 0);
+ALTER TABLE billing_items ADD COLUMN fulfillment_generation bigint NOT NULL DEFAULT 1 CHECK (fulfillment_generation > 0);
+ALTER TABLE billing_items ADD CONSTRAINT uq_billing_items_id_clinic_billing UNIQUE (id,clinic_id,billing_id);
+ALTER TABLE billing_price_acknowledgements ADD CONSTRAINT fk_price_ack_line_billing
+ FOREIGN KEY (billing_item_id,clinic_id,billing_id) REFERENCES billing_items(id,clinic_id,billing_id) ON DELETE RESTRICT;
+CREATE TRIGGER treatment_contract_version BEFORE UPDATE ON treatments
+ FOR EACH ROW EXECUTE FUNCTION app_private.storage_contract_version_guard();
+CREATE TRIGGER billing_item_contract_version BEFORE UPDATE ON billing_items
+ FOR EACH ROW EXECUTE FUNCTION app_private.storage_contract_version_guard();
+CREATE FUNCTION app_private.fulfillment_generation_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE changed boolean;
+BEGIN
+    IF TG_TABLE_NAME='treatments' THEN
+        changed := (NEW.item_type,NEW.medicine_id,NEW.procedure_id,NEW.consultation_id,NEW.medical_record_id,NEW.clinic_id,NEW.quantity,NEW.admin_route,NEW.status,NEW.is_selected,NEW.deleted_at,NEW.administration_dose_amount,NEW.administration_dose_unit,NEW.administration_instructions,NEW.prescription_total_amount,NEW.prescription_total_unit)
+          IS DISTINCT FROM (OLD.item_type,OLD.medicine_id,OLD.procedure_id,OLD.consultation_id,OLD.medical_record_id,OLD.clinic_id,OLD.quantity,OLD.admin_route,OLD.status,OLD.is_selected,OLD.deleted_at,OLD.administration_dose_amount,OLD.administration_dose_unit,OLD.administration_instructions,OLD.prescription_total_amount,OLD.prescription_total_unit);
+    ELSE
+        changed := (NEW.category,NEW.merchandise_item_id,NEW.quantity,NEW.deleted_at)
+          IS DISTINCT FROM (OLD.category,OLD.merchandise_item_id,OLD.quantity,OLD.deleted_at);
+    END IF;
+    IF changed THEN NEW.fulfillment_generation:=OLD.fulfillment_generation+1;
+    ELSIF NEW.fulfillment_generation IS DISTINCT FROM OLD.fulfillment_generation THEN
+        RAISE EXCEPTION 'fulfillment generation cannot be set directly' USING ERRCODE='23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER treatment_fulfillment_generation BEFORE UPDATE ON treatments
+ FOR EACH ROW EXECUTE FUNCTION app_private.fulfillment_generation_guard();
+CREATE TRIGGER billing_item_fulfillment_generation BEFORE UPDATE ON billing_items
+ FOR EACH ROW EXECUTE FUNCTION app_private.fulfillment_generation_guard();
+
+-- D08: immutable certificate editions. Normal portrait/landscape share a series.
+CREATE TABLE vaccination_certificate_series (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    vaccination_id bigint NOT NULL,
+    certificate_kind text NOT NULL CHECK (certificate_kind IN ('normal','rabies')),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id),
+    UNIQUE (clinic_id,vaccination_id,certificate_kind),
+    FOREIGN KEY (vaccination_id,clinic_id) REFERENCES vaccinations(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE TABLE vaccination_certificate_editions (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    series_id bigint NOT NULL,
+    edition bigint NOT NULL CHECK (edition > 0),
+    source_vaccination_version bigint NOT NULL CHECK (source_vaccination_version > 0),
+    snapshot jsonb NOT NULL CHECK (jsonb_typeof(snapshot)='object'),
+    previous_edition_id bigint,
+    issued_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    issued_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id),
+    UNIQUE (id,clinic_id,series_id),
+    UNIQUE (clinic_id,series_id,edition),
+    FOREIGN KEY (series_id,clinic_id) REFERENCES vaccination_certificate_series(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (previous_edition_id,clinic_id,series_id) REFERENCES vaccination_certificate_editions(id,clinic_id,series_id) ON DELETE RESTRICT
+);
+CREATE TABLE vaccination_certificate_artifacts (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    edition_id bigint NOT NULL,
+    layout text NOT NULL CHECK (layout IN ('portrait','landscape','rabies')),
+    template_version text NOT NULL CHECK (btrim(template_version)<>''),
+    renderer_version text NOT NULL CHECK (btrim(renderer_version)<>''),
+    object_key text NOT NULL CHECK (btrim(object_key)<>''),
+    content_sha256 bytea NOT NULL CHECK (octet_length(content_sha256)=32),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id,edition_id),
+    UNIQUE (clinic_id,edition_id,layout),
+    FOREIGN KEY (edition_id,clinic_id) REFERENCES vaccination_certificate_editions(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE TABLE vaccination_certificate_operations (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    operation_key uuid NOT NULL,
+    request_hash bytea NOT NULL CHECK (octet_length(request_hash)=32),
+    operation_kind text NOT NULL CHECK (operation_kind IN ('issue','reprint')),
+    edition_id bigint NOT NULL,
+    artifact_id bigint NOT NULL,
+    performed_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    committed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (clinic_id,operation_key),
+    FOREIGN KEY (artifact_id,clinic_id,edition_id) REFERENCES vaccination_certificate_artifacts(id,clinic_id,edition_id) ON DELETE RESTRICT
+);
+CREATE FUNCTION app_private.certificate_edition_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE series vaccination_certificate_series%ROWTYPE; prior vaccination_certificate_editions%ROWTYPE; source_version bigint;
+BEGIN
+    SELECT * INTO STRICT series FROM vaccination_certificate_series WHERE id=NEW.series_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+    SELECT version INTO STRICT source_version FROM vaccinations
+      WHERE id=series.vaccination_id AND clinic_id=series.clinic_id AND deleted_at IS NULL;
+    IF NEW.source_vaccination_version <> source_version THEN
+        RAISE EXCEPTION 'certificate source version changed' USING ERRCODE='23514';
+    END IF;
+    SELECT * INTO prior FROM vaccination_certificate_editions WHERE clinic_id=NEW.clinic_id AND series_id=NEW.series_id ORDER BY edition DESC LIMIT 1;
+    IF NEW.edition<>COALESCE(prior.edition,0)+1 OR NEW.previous_edition_id IS DISTINCT FROM prior.id THEN
+        RAISE EXCEPTION 'certificate edition lineage changed' USING ERRCODE='23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER certificate_edition_guard BEFORE INSERT ON vaccination_certificate_editions
+ FOR EACH ROW EXECUTE FUNCTION app_private.certificate_edition_guard();
+-- This view is a DB consistency predicate, not an authorization or private URL.
+-- All output consumers must recheck it with current patient/grant authorization.
+CREATE VIEW current_vaccination_certificate_editions WITH (security_invoker=true) AS
+ SELECT e.* FROM vaccination_certificate_editions e
+ JOIN vaccination_certificate_series s ON s.id=e.series_id AND s.clinic_id=e.clinic_id
+ JOIN vaccinations v ON v.id=s.vaccination_id AND v.clinic_id=s.clinic_id
+ WHERE v.deleted_at IS NULL AND v.version=e.source_vaccination_version
+ AND NOT EXISTS (SELECT 1 FROM vaccination_certificate_editions newer
+   WHERE newer.clinic_id=e.clinic_id AND newer.series_id=e.series_id AND newer.edition>e.edition);
+
+
+-- EMR-464: one clinic/original-owner ledger, shared by reservation and admission.
+-- This does not receive cash again or create payments when an advance is applied.
+CREATE TABLE owner_deposit_accounts (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id bigint NOT NULL,
+    revision bigint NOT NULL DEFAULT 1 CHECK (revision > 0),
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (clinic_id,owner_id),
+    FOREIGN KEY (clinic_id,owner_id) REFERENCES owners(clinic_id,id) ON DELETE RESTRICT
+);
+CREATE TABLE owner_deposit_operations (
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id bigint NOT NULL,
+    operation_key uuid NOT NULL,
+    request_hash bytea NOT NULL CHECK (octet_length(request_hash)=32),
+    expected_account_revision bigint NOT NULL CHECK (expected_account_revision > 0),
+    resulting_account_revision bigint NOT NULL CHECK (resulting_account_revision > expected_account_revision),
+    expected_entry_count integer NOT NULL CHECK (expected_entry_count > 0),
+    balance_after bigint NOT NULL CHECK (balance_after >= 0),
+    performed_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+    committed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (clinic_id,owner_id,operation_key),
+    CHECK (resulting_account_revision=expected_account_revision+expected_entry_count),
+    FOREIGN KEY (clinic_id,owner_id) REFERENCES owner_deposit_accounts(clinic_id,owner_id) ON DELETE RESTRICT
+);
+CREATE TABLE owner_deposit_entries (
+    id BIGSERIAL PRIMARY KEY,
+    clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    owner_id bigint NOT NULL,
+    operation_key uuid NOT NULL,
+    ordinal integer NOT NULL CHECK (ordinal > 0),
+    account_revision bigint NOT NULL CHECK (account_revision > 1),
+    entry_kind text NOT NULL CHECK (entry_kind IN ('receive','apply','release','refund')),
+    amount bigint NOT NULL CHECK (amount > 0),
+    source_entry_id bigint,
+    billing_id bigint,
+    payment_method_id bigint,
+    appointment_id bigint,
+    occurred_at timestamptz NOT NULL,
+    recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (id,clinic_id,owner_id),
+    UNIQUE (clinic_id,owner_id,operation_key,ordinal),
+    UNIQUE (clinic_id,owner_id,account_revision),
+    CHECK ((entry_kind='receive' AND source_entry_id IS NULL AND billing_id IS NULL AND payment_method_id IS NOT NULL)
+        OR (entry_kind='apply' AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND payment_method_id IS NULL AND appointment_id IS NULL)
+        OR (entry_kind='release' AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND payment_method_id IS NULL AND appointment_id IS NULL)
+        OR (entry_kind='refund' AND source_entry_id IS NOT NULL AND billing_id IS NULL AND payment_method_id IS NOT NULL AND appointment_id IS NULL)),
+    FOREIGN KEY (clinic_id,owner_id,operation_key) REFERENCES owner_deposit_operations(clinic_id,owner_id,operation_key) ON DELETE RESTRICT,
+    FOREIGN KEY (source_entry_id,clinic_id,owner_id) REFERENCES owner_deposit_entries(id,clinic_id,owner_id) ON DELETE RESTRICT,
+    FOREIGN KEY (billing_id,clinic_id) REFERENCES billings(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (payment_method_id,clinic_id) REFERENCES payment_methods(id,clinic_id) ON DELETE RESTRICT,
+    FOREIGN KEY (appointment_id,clinic_id) REFERENCES appointments(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_deposit_entries_source ON owner_deposit_entries(clinic_id,owner_id,source_entry_id);
+CREATE INDEX idx_deposit_entries_billing ON owner_deposit_entries(clinic_id,billing_id,id) WHERE billing_id IS NOT NULL;
+CREATE FUNCTION app_private.deposit_entry_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE account_version bigint; op owner_deposit_operations%ROWTYPE;
+        source owner_deposit_entries%ROWTYPE; available numeric; next_ordinal bigint;
+BEGIN
+    SELECT revision INTO STRICT account_version FROM owner_deposit_accounts
+      WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id FOR UPDATE;
+    SELECT * INTO STRICT op FROM owner_deposit_operations
+      WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id AND operation_key=NEW.operation_key;
+    SELECT count(*)+1 INTO next_ordinal FROM owner_deposit_entries
+      WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id AND operation_key=NEW.operation_key;
+    IF NEW.ordinal<>next_ordinal OR NEW.ordinal>op.expected_entry_count
+      OR account_version<>op.expected_account_revision+NEW.ordinal-1 THEN
+        RAISE EXCEPTION 'deposit operation account version or ordinal changed' USING ERRCODE='23514';
+    END IF;
+    IF NEW.appointment_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM appointments
+      WHERE id=NEW.appointment_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id) THEN
+        RAISE EXCEPTION 'deposit reservation owner differs' USING ERRCODE='23514';
+    END IF;
+    IF NEW.entry_kind='apply' AND NOT EXISTS (SELECT 1 FROM billings
+      WHERE id=NEW.billing_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id) THEN
+        RAISE EXCEPTION 'deposit billing owner differs' USING ERRCODE='23514';
+    END IF;
+    IF NEW.source_entry_id IS NOT NULL THEN
+        SELECT * INTO STRICT source FROM owner_deposit_entries
+          WHERE id=NEW.source_entry_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+        IF NEW.entry_kind='release' THEN
+            IF source.entry_kind<>'apply' OR source.billing_id IS DISTINCT FROM NEW.billing_id THEN
+                RAISE EXCEPTION 'release must reference its original application' USING ERRCODE='23514';
+            END IF;
+            SELECT source.amount-COALESCE(sum(amount),0) INTO available FROM owner_deposit_entries
+              WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id AND source_entry_id=source.id AND entry_kind='release';
+        ELSE
+            IF source.entry_kind<>'receive' THEN
+                RAISE EXCEPTION 'application or refund must reference original receipt' USING ERRCODE='23514';
+            END IF;
+            SELECT source.amount-COALESCE(sum(e.amount),0) INTO available FROM owner_deposit_entries e
+              WHERE e.clinic_id=NEW.clinic_id AND e.owner_id=NEW.owner_id AND e.source_entry_id=source.id AND e.entry_kind IN ('apply','refund');
+            SELECT available+COALESCE(sum(released.amount),0) INTO available FROM owner_deposit_entries applied
+              JOIN owner_deposit_entries released ON released.source_entry_id=applied.id
+                AND released.clinic_id=applied.clinic_id AND released.owner_id=applied.owner_id AND released.entry_kind='release'
+              WHERE applied.clinic_id=NEW.clinic_id AND applied.owner_id=NEW.owner_id AND applied.source_entry_id=source.id AND applied.entry_kind='apply';
+        END IF;
+        IF NEW.amount>available THEN RAISE EXCEPTION 'deposit source funds exceeded' USING ERRCODE='23514'; END IF;
+    END IF;
+    NEW.account_revision:=account_version+1;
+    UPDATE owner_deposit_accounts SET revision=NEW.account_revision WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER deposit_entry_guard BEFORE INSERT ON owner_deposit_entries
+ FOR EACH ROW EXECUTE FUNCTION app_private.deposit_entry_guard();
+CREATE FUNCTION app_private.deposit_operation_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE n bigint; last_revision bigint; balance numeric; account_version bigint; total_count bigint;
+BEGIN
+    SELECT count(*),max(account_revision) INTO n,last_revision FROM owner_deposit_entries
+      WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id AND operation_key=NEW.operation_key;
+    SELECT COALESCE(sum(CASE WHEN entry_kind IN ('receive','release') THEN amount ELSE -amount END),0)
+      INTO balance FROM owner_deposit_entries WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id
+        AND account_revision<=NEW.resulting_account_revision;
+    SELECT revision INTO STRICT account_version FROM owner_deposit_accounts WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+    SELECT count(*) INTO total_count FROM owner_deposit_entries WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+    IF n<>NEW.expected_entry_count OR last_revision IS DISTINCT FROM NEW.resulting_account_revision
+      OR balance<>NEW.balance_after OR balance<0 OR account_version<>total_count+1 THEN
+        RAISE EXCEPTION 'deposit operation, balance or account history incomplete' USING ERRCODE='23514';
+    END IF;
+    RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER deposit_operation_complete AFTER INSERT ON owner_deposit_operations
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.deposit_operation_complete();
+CREATE FUNCTION app_private.deposit_account_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE n bigint;
+BEGIN
+    IF TG_OP='UPDATE' AND (NEW.clinic_id,NEW.owner_id,NEW.created_at) IS DISTINCT FROM (OLD.clinic_id,OLD.owner_id,OLD.created_at) THEN
+        RAISE EXCEPTION 'deposit account identity cannot change' USING ERRCODE='23514';
+    END IF;
+    SELECT count(*) INTO n FROM owner_deposit_entries WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+    -- Constraint events may be queued several times in one transaction; use
+    -- the final account row rather than an earlier event's NEW revision.
+    IF (SELECT revision FROM owner_deposit_accounts WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id)<>n+1 THEN
+        RAISE EXCEPTION 'deposit revision must follow ledger entries' USING ERRCODE='23514';
+    END IF;
+    RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER deposit_account_guard AFTER INSERT OR UPDATE ON owner_deposit_accounts
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.deposit_account_guard();
+
+-- Rule changes lock the new configuration parent; consumers acquire this parent
+-- before any rule child lock. No existing reservation/clinical parent is updated.
+CREATE FUNCTION app_private.trimming_rule_membership_changed()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP='UPDATE' AND (NEW.clinic_id,NEW.rule_set_id,NEW.option_id) IS DISTINCT FROM (OLD.clinic_id,OLD.rule_set_id,OLD.option_id) THEN
+        RAISE EXCEPTION 'rule identity cannot change; retire and insert instead' USING ERRCODE='23514';
+    END IF;
+    IF TG_OP='DELETE' THEN
+        UPDATE trimming_option_rule_sets SET updated_at=clock_timestamp(),contract_version=contract_version+1
+          WHERE id=OLD.rule_set_id AND clinic_id=OLD.clinic_id;
+    ELSE
+        UPDATE trimming_option_rule_sets SET updated_at=clock_timestamp(),contract_version=contract_version+1
+          WHERE id=NEW.rule_set_id AND clinic_id=NEW.clinic_id;
+    END IF;
+    RETURN NULL;
+END; $$;
+-- Parent's self-row guard admits a version-only bump only from this child trigger.
+CREATE FUNCTION app_private.trimming_rule_set_version_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF (NEW.id,NEW.clinic_id,NEW.course_id,NEW.created_at) IS DISTINCT FROM (OLD.id,OLD.clinic_id,OLD.course_id,OLD.created_at) THEN
+        RAISE EXCEPTION 'rule set identity cannot change' USING ERRCODE='23514';
+    END IF;
+    IF pg_trigger_depth()>1 AND NEW.contract_version=OLD.contract_version+1 THEN RETURN NEW; END IF;
+    IF NEW.deleted_at IS DISTINCT FROM OLD.deleted_at THEN NEW.contract_version:=OLD.contract_version+1;
+    ELSIF NEW.contract_version IS DISTINCT FROM OLD.contract_version THEN
+        RAISE EXCEPTION 'rule set version cannot be set directly' USING ERRCODE='23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+DROP TRIGGER trimming_rule_set_contract_version ON trimming_option_rule_sets;
+CREATE TRIGGER trimming_rule_set_contract_version BEFORE UPDATE ON trimming_option_rule_sets
+ FOR EACH ROW EXECUTE FUNCTION app_private.trimming_rule_set_version_guard();
+CREATE TRIGGER trimming_rule_membership_changed AFTER INSERT OR UPDATE OR DELETE ON trimming_option_rules
+ FOR EACH ROW EXECUTE FUNCTION app_private.trimming_rule_membership_changed();
+
+CREATE FUNCTION app_private.trimming_booking_options_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE h trimming_booking_revisions%ROWTYPE; n bigint; minutes bigint;
+BEGIN
+    SELECT * INTO STRICT h FROM trimming_booking_revisions WHERE id=NEW.booking_revision_id AND clinic_id=NEW.clinic_id;
+    SELECT count(*),COALESCE(sum(duration_minutes),0) INTO n,minutes FROM trimming_booking_revision_options
+      WHERE clinic_id=h.clinic_id AND booking_revision_id=h.id;
+    IF n<>h.option_count OR minutes+COALESCE(h.course_duration_minutes,0)<>h.total_duration_minutes THEN
+        RAISE EXCEPTION 'booking snapshot cannot gain late options' USING ERRCODE='23514';
+    END IF;
+    RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER trimming_booking_options_complete AFTER INSERT ON trimming_booking_revision_options
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.trimming_booking_options_complete();
+CREATE FUNCTION app_private.trimming_detail_snapshot_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE h trimming_detail_revisions%ROWTYPE; ref bigint; n bigint;
+BEGIN
+    IF TG_TABLE_NAME='trimming_detail_revisions' THEN ref:=NEW.id; ELSE ref:=NEW.detail_revision_id; END IF;
+    SELECT * INTO STRICT h FROM trimming_detail_revisions WHERE id=ref AND clinic_id=NEW.clinic_id;
+    SELECT count(*) INTO n FROM trimming_detail_revision_lines WHERE clinic_id=h.clinic_id AND detail_revision_id=h.id;
+    IF n<>h.line_count THEN RAISE EXCEPTION 'detail snapshot lines incomplete or appended late' USING ERRCODE='23514'; END IF;
+    RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER trimming_detail_snapshot_complete AFTER INSERT ON trimming_detail_revisions
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.trimming_detail_snapshot_complete();
+CREATE CONSTRAINT TRIGGER trimming_detail_lines_complete AFTER INSERT ON trimming_detail_revision_lines
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.trimming_detail_snapshot_complete();
+
+CREATE FUNCTION app_private.billing_binding_source_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE line billing_items%ROWTYPE; trim trimming_service_lines%ROWTYPE; appointment_ref bigint;
+BEGIN
+    SELECT * INTO STRICT line FROM billing_items WHERE id=NEW.billing_item_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+    IF (NEW.source_kind='treatment' AND line.treatment_id IS DISTINCT FROM NEW.treatment_id)
+      OR (NEW.source_kind='vaccination' AND line.vaccination_id IS DISTINCT FROM NEW.vaccination_id)
+      OR (NEW.source_kind='examination' AND line.exam_id IS DISTINCT FROM NEW.examination_id) THEN
+        RAISE EXCEPTION 'billing binding differs from stored provenance' USING ERRCODE='23514';
+    END IF;
+    IF NEW.source_kind='trimming' THEN
+        SELECT * INTO STRICT trim FROM trimming_service_lines WHERE id=NEW.trimming_source_line_id AND clinic_id=NEW.clinic_id;
+        SELECT appointment_id INTO STRICT appointment_ref FROM appointment_trimming_details WHERE id=trim.detail_id AND clinic_id=trim.clinic_id;
+        IF line.appointment_id IS DISTINCT FROM appointment_ref
+          OR line.trimming_course_id IS DISTINCT FROM trim.course_id OR line.trimming_option_id IS DISTINCT FROM trim.option_id THEN
+            RAISE EXCEPTION 'trimming binding differs from stored provenance' USING ERRCODE='23514';
+        END IF;
+    END IF;
+    IF TG_OP='UPDATE' AND (NEW.clinic_id,NEW.billing_item_id,NEW.source_kind,NEW.treatment_id,NEW.vaccination_id,NEW.examination_id,NEW.trimming_source_line_id)
+      IS DISTINCT FROM (OLD.clinic_id,OLD.billing_item_id,OLD.source_kind,OLD.treatment_id,OLD.vaccination_id,OLD.examination_id,OLD.trimming_source_line_id) THEN
+        RAISE EXCEPTION 'billing source identity cannot be rebound' USING ERRCODE='23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER billing_binding_source_guard BEFORE INSERT OR UPDATE ON billing_source_bindings
+ FOR EACH ROW EXECUTE FUNCTION app_private.billing_binding_source_guard();
+CREATE FUNCTION app_private.fulfillment_event_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE current_generation bigint; prior billing_fulfillment_events%ROWTYPE; old_event billing_fulfillment_events%ROWTYPE;
+BEGIN
+    IF NEW.treatment_id IS NOT NULL THEN
+        SELECT fulfillment_generation INTO STRICT current_generation FROM treatments WHERE id=NEW.treatment_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+        SELECT * INTO prior FROM billing_fulfillment_events WHERE clinic_id=NEW.clinic_id AND treatment_id=NEW.treatment_id ORDER BY event_version DESC LIMIT 1;
+    ELSE
+        SELECT fulfillment_generation INTO STRICT current_generation FROM billing_items WHERE id=NEW.billing_item_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+        SELECT * INTO prior FROM billing_fulfillment_events WHERE clinic_id=NEW.clinic_id AND billing_item_id=NEW.billing_item_id ORDER BY event_version DESC LIMIT 1;
+    END IF;
+    IF NEW.source_generation<>current_generation OR NEW.event_version<>COALESCE(prior.event_version,0)+1 THEN
+        RAISE EXCEPTION 'fulfillment source or event version changed' USING ERRCODE='23514';
+    END IF;
+    IF NEW.event_kind='revoked' THEN
+        SELECT * INTO STRICT old_event FROM billing_fulfillment_events WHERE id=NEW.preceding_event_id AND clinic_id=NEW.clinic_id;
+        IF old_event.event_kind='revoked' OR (old_event.treatment_id,old_event.billing_item_id)
+          IS DISTINCT FROM (NEW.treatment_id,NEW.billing_item_id) THEN
+            RAISE EXCEPTION 'fulfillment revocation references another source' USING ERRCODE='23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER fulfillment_event_guard BEFORE INSERT ON billing_fulfillment_events
+ FOR EACH ROW EXECUTE FUNCTION app_private.fulfillment_event_guard();
+CREATE FUNCTION app_private.certificate_artifact_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE kind text;
+BEGIN
+    SELECT s.certificate_kind INTO STRICT kind FROM vaccination_certificate_editions e
+      JOIN vaccination_certificate_series s ON s.id=e.series_id AND s.clinic_id=e.clinic_id
+      WHERE e.id=NEW.edition_id AND e.clinic_id=NEW.clinic_id;
+    IF (kind='rabies' AND NEW.layout<>'rabies') OR (kind='normal' AND NEW.layout NOT IN ('portrait','landscape')) THEN
+        RAISE EXCEPTION 'certificate layout differs from certificate kind' USING ERRCODE='23514';
+    END IF;
+    RETURN NEW;
+END; $$;
+CREATE TRIGGER certificate_artifact_guard BEFORE INSERT ON vaccination_certificate_artifacts
+ FOR EACH ROW EXECUTE FUNCTION app_private.certificate_artifact_guard();
+CREATE UNIQUE INDEX uq_certificate_issue_once ON vaccination_certificate_operations(clinic_id,edition_id) WHERE operation_kind='issue';
+
+CREATE TRIGGER contract_history_1_immutable BEFORE UPDATE OR DELETE ON trimming_booking_revisions
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_2_immutable BEFORE UPDATE OR DELETE ON trimming_booking_revision_options
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_3_immutable BEFORE UPDATE OR DELETE ON trimming_service_lines
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_4_immutable BEFORE UPDATE OR DELETE ON trimming_detail_revisions
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_5_immutable BEFORE UPDATE OR DELETE ON trimming_detail_revision_lines
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_6_immutable BEFORE UPDATE OR DELETE ON doctor_review_sets
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_7_immutable BEFORE UPDATE OR DELETE ON doctor_review_records
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_8_immutable BEFORE UPDATE OR DELETE ON billing_source_differences
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_9_immutable BEFORE UPDATE OR DELETE ON billing_source_difference_resolutions
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_10_immutable BEFORE UPDATE OR DELETE ON billing_price_acknowledgements
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_11_immutable BEFORE UPDATE OR DELETE ON billing_fulfillment_events
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_12_immutable BEFORE UPDATE OR DELETE ON vaccination_certificate_series
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_13_immutable BEFORE UPDATE OR DELETE ON vaccination_certificate_editions
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_14_immutable BEFORE UPDATE OR DELETE ON vaccination_certificate_artifacts
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_15_immutable BEFORE UPDATE OR DELETE ON vaccination_certificate_operations
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_16_immutable BEFORE UPDATE OR DELETE ON owner_deposit_operations
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER contract_history_17_immutable BEFORE UPDATE OR DELETE ON owner_deposit_entries
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+CREATE TRIGGER billing_binding_no_delete BEFORE DELETE ON billing_source_bindings
+ FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+SELECT app_private.apply_rls_policy('trimming_booking_revisions'::regclass,
+    'trimming_booking_revisions_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_booking_revision_options'::regclass,
+    'trimming_booking_revision_options_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_service_lines'::regclass,
+    'trimming_service_lines_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_detail_revisions'::regclass,
+    'trimming_detail_revisions_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('trimming_detail_revision_lines'::regclass,
+    'trimming_detail_revision_lines_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('doctor_review_sets'::regclass,
+    'doctor_review_sets_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('doctor_review_records'::regclass,
+    'doctor_review_records_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('billing_source_bindings'::regclass,
+    'billing_source_bindings_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('billing_source_differences'::regclass,
+    'billing_source_differences_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('billing_price_acknowledgements'::regclass,
+    'billing_price_acknowledgements_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('billing_fulfillment_events'::regclass,
+    'billing_fulfillment_events_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('billing_source_difference_resolutions'::regclass,
+    'billing_source_difference_resolutions_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('vaccination_certificate_series'::regclass,
+    'vaccination_certificate_series_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('vaccination_certificate_editions'::regclass,
+    'vaccination_certificate_editions_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('vaccination_certificate_artifacts'::regclass,
+    'vaccination_certificate_artifacts_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('vaccination_certificate_operations'::regclass,
+    'vaccination_certificate_operations_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('owner_deposit_accounts'::regclass,
+    'owner_deposit_accounts_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('owner_deposit_operations'::regclass,
+    'owner_deposit_operations_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+SELECT app_private.apply_rls_policy('owner_deposit_entries'::regclass,
+    'owner_deposit_entries_clinic_scope',
+    'app_private.has_clinic_access(clinic_id)', 'app_private.has_clinic_access(clinic_id)');
+
+-- Nullable until every clinical writer participates; no historical confirmation inference.
+ALTER TABLE medical_records ADD COLUMN clinical_set_digest bytea CHECK (octet_length(clinical_set_digest)=32);
+ALTER TABLE billings ADD COLUMN clinical_set_generation bigint CHECK (clinical_set_generation > 0);
+ALTER TABLE billings ADD COLUMN clinical_set_digest bytea CHECK (octet_length(clinical_set_digest)=32);
+ALTER TABLE billings ADD COLUMN calculation_version bigint CHECK (calculation_version > 0);
+CREATE FUNCTION app_private.doctor_review_membership_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE ref bigint; h doctor_review_sets%ROWTYPE; n bigint;
+BEGIN
+    IF TG_TABLE_NAME='doctor_review_sets' THEN ref:=NEW.id; ELSE ref:=NEW.review_set_id; END IF;
+    SELECT * INTO STRICT h FROM doctor_review_sets WHERE id=ref AND clinic_id=NEW.clinic_id;
+    SELECT count(*) INTO n FROM doctor_review_records WHERE clinic_id=h.clinic_id AND review_set_id=h.id;
+    IF n<>h.record_count THEN RAISE EXCEPTION 'doctor review record membership incomplete or appended late' USING ERRCODE='23514'; END IF;
+    RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER doctor_review_membership_complete AFTER INSERT ON doctor_review_sets
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.doctor_review_membership_complete();
+CREATE CONSTRAINT TRIGGER doctor_review_record_complete AFTER INSERT ON doctor_review_records
+ DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.doctor_review_membership_complete();
+
+-- The calculated mg amount/basis above is NOT necessarily a per-administration
+-- formulation amount. Store explicit presentation values without changing dose
+-- mathematics or deriving prescription totals from duration.
+ALTER TABLE treatments
+    ADD COLUMN administration_dose_amount numeric(12,6),
+    ADD COLUMN administration_dose_unit text,
+    ADD COLUMN administration_instructions text,
+    ADD COLUMN prescription_total_amount numeric(12,6),
+    ADD COLUMN prescription_total_unit text,
+    ADD CONSTRAINT ck_administration_dose_pair CHECK (
+      (administration_dose_amount IS NULL AND administration_dose_unit IS NULL)
+      OR (administration_dose_amount IS NOT NULL AND administration_dose_unit IS NOT NULL AND btrim(administration_dose_unit)<>'')),
+    ADD CONSTRAINT ck_prescription_total_pair CHECK (
+      (prescription_total_amount IS NULL AND prescription_total_unit IS NULL)
+      OR (prescription_total_amount IS NOT NULL AND prescription_total_unit IS NOT NULL AND btrim(prescription_total_unit)<>''));
+COMMENT ON COLUMN treatments.administration_instructions IS 'Explicit usage text; no new template or duration-to-total calculation';

@@ -63,7 +63,7 @@ erDiagram
         bigint clinic_id FK
     }
     billings {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
     }
     clinics {

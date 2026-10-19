@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1922](../../../backend/migrations/001_init.sql#L1922) |
-| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1923](../../../backend/migrations/001_init.sql#L1923) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1922](../../../backend/migrations/001_init.sql#L1922) |
+| `billing_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1923](../../../backend/migrations/001_init.sql#L1923) |
 | `category` | `item_category` | NOT NULL | — | — | [001_init.sql:1924](../../../backend/migrations/001_init.sql#L1924) |
 | `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1925](../../../backend/migrations/001_init.sql#L1925) |
 | `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1926](../../../backend/migrations/001_init.sql#L1926) |
@@ -33,10 +33,12 @@
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1941](../../../backend/migrations/001_init.sql#L1941) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1942](../../../backend/migrations/001_init.sql#L1942) |
 | `vaccination_id` | `bigint` | NULL | — | FK | [001_init.sql:4042](../../../backend/migrations/001_init.sql#L4042) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6185](../../../backend/migrations/001_init.sql#L6185) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:6185](../../../backend/migrations/001_init.sql#L6185) |
 | `other_reason` | `text` | NULL | — | — | [001_init.sql:4084](../../../backend/migrations/001_init.sql#L4084) |
 | `created_by` | `bigint` | NULL | — | FK | [001_init.sql:4085](../../../backend/migrations/001_init.sql#L4085) |
 | `exam_id` | `bigint` | NULL | — | FK | [001_init.sql:6177](../../../backend/migrations/001_init.sql#L6177) |
+| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8286](../../../backend/migrations/001_init.sql#L8286) |
+| `fulfillment_generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8287](../../../backend/migrations/001_init.sql#L8287) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,8 +51,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     billing_items {
-        BIGSERIAL id PK
-        bigint billing_id FK
+        BIGSERIAL id PK,UK
+        bigint billing_id FK,UK
         item_category category
         text name
         bigint unit_price
@@ -71,17 +73,19 @@ erDiagram
         timestamptz updated_at
         timestamptz deleted_at
         bigint vaccination_id FK
-        bigint clinic_id FK
+        bigint clinic_id FK,UK
         text other_reason
         bigint created_by FK
         bigint exam_id FK
+        bigint contract_version
+        bigint fulfillment_generation
     }
     appointments {
         BIGSERIAL id PK,UK
         bigint clinic_id FK,UK
     }
     billings {
-        BIGSERIAL id PK,UK
+        BIGSERIAL id PK,FK,UK
         bigint clinic_id FK,UK
     }
     exams {
@@ -95,13 +99,13 @@ erDiagram
         BIGSERIAL id PK,UK
     }
     treatments {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     trimming_courses {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     trimming_options {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     vaccinations {
         BIGSERIAL id PK,UK
@@ -154,6 +158,10 @@ erDiagram
 | `billing_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1922](../../../backend/migrations/001_init.sql#L1922) |
 | `chk_billing_item_quantity` | check | `CONSTRAINT chk_billing_item_quantity CHECK (quantity > 0)` | [001_init.sql:1943](../../../backend/migrations/001_init.sql#L1943) |
 | `chk_billing_items_provenance_exclusive` | check | `CONSTRAINT chk_billing_items_provenance_exclusive         CHECK (num_nonnulls(vaccination_id, exam_id) <= 1)` | [001_init.sql:6195](../../../backend/migrations/001_init.sql#L6195) |
+| `uq_billing_items_id_clinic` | unique | `CONSTRAINT uq_billing_items_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7928](../../../backend/migrations/001_init.sql#L7928) |
+| `billing_items_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:8286](../../../backend/migrations/001_init.sql#L8286) |
+| `billing_items_fulfillment_generation_check` | check | `CHECK (fulfillment_generation > 0)` | [001_init.sql:8287](../../../backend/migrations/001_init.sql#L8287) |
+| `uq_billing_items_id_clinic_billing` | unique | `CONSTRAINT uq_billing_items_id_clinic_billing UNIQUE (id,clinic_id,billing_id)` | [001_init.sql:8288](../../../backend/migrations/001_init.sql#L8288) |
 
 ## インデックス
 
