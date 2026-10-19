@@ -403,6 +403,32 @@ describe("buildCopiedTreatmentPayload", () => {
       expect(payload.inventory_id).toBe(77);
     });
 
+    it("在庫リンク付き行の小数数量は reject（SEC-CS3-O1 と同じ規約で事前中断）", () => {
+      expect(() =>
+        buildCopiedTreatmentPayload({
+          source: { ...medSource, quantity: 0.5, inventory_id: undefined },
+          masters: {
+            ...masters,
+            medicines: [{ id: "42", price: 120, inventoryId: "77" }],
+          },
+          sortOrderOffset: 0,
+        }),
+      ).toThrowError("複写先のマスタを確認し、治療明細を再選択してください");
+    });
+
+    it("在庫リンクなしの小数数量は reject しない（現行 backend 規約どおり）", () => {
+      const payload = buildCopiedTreatmentPayload({
+        source: { ...medSource, quantity: 0.5, inventory_id: undefined },
+        masters: {
+          ...masters,
+          medicines: [{ id: "42", price: 120 }],
+        },
+        sortOrderOffset: 0,
+      });
+      expect(payload.quantity).toBe(0.5);
+      expect(payload.inventory_id).toBeUndefined();
+    });
+
     it("両方無ければ stockless で inventory_id は送らない", () => {
       const payload = buildCopiedTreatmentPayload({
         source: { ...medSource, inventory_id: undefined },

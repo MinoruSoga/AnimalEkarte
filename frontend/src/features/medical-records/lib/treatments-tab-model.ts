@@ -156,6 +156,10 @@ export function buildCopiedTreatmentPayload(params: {
     if (destHas) {
       const n = Number(destInv);
       if (!Number.isSafeInteger(n) || n <= 0) throw new Error(REJECT);
+      // SEC-CS3-O1（backend/internal/medicalrecord/treatment_service.go:187-190）と同じ規約:
+      // 在庫リンク付き行は整数数量のみ。小数数量の行は create 時に backend 拒否 →
+      // 逐次 POST の部分複写になるため、事前検証で zero-write 中断する。
+      if (!Number.isInteger(source.quantity)) throw new Error(REJECT);
       payload.inventory_id = n;
     }
   } else if (source.item_type === "other") {

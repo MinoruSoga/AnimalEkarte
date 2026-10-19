@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
+import { normalizeDoseSpecies } from "@/lib/medicine-dose";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { getVitals } from "../api/vitals";
@@ -100,20 +101,12 @@ export async function resolveMasterSelectionDose(params: {
   let doseGateSource: DoseGateSource = { kind: "missing" };
   if (isPerWeightMedicine(medicine)) {
     let vitals;
-    let doseParams;
     try {
-      [vitals, doseParams] = await Promise.all([
-        queryClient.fetchQuery({
-          queryKey: queryKeys.medicalRecords.vitals(medicalRecordId, recordClinicId),
-          queryFn: () => getVitals(medicalRecordId, recordClinicId),
-          staleTime: QUERY_STALE_TIMES.REALTIME,
-        }),
-        queryClient.fetchQuery({
-          queryKey: medicineDoseParamsQueryKey(medicineId, recordClinicId),
-          queryFn: () => fetchMedicineDoseParamsOnce(medicineId, recordClinicId),
-          staleTime: QUERY_STALE_TIMES.STATIC,
-        }),
-      ]);
+      vitals = await queryClient.fetchQuery({
+        queryKey: queryKeys.medicalRecords.vitals(medicalRecordId, recordClinicId),
+        queryFn: () => getVitals(medicalRecordId, recordClinicId),
+        staleTime: QUERY_STALE_TIMES.REALTIME,
+      });
     } catch {
       return {
         kind: "blocked",
@@ -121,22 +114,48 @@ export async function resolveMasterSelectionDose(params: {
         retryable: true,
       };
     }
-    if (!Array.isArray(vitals) || !Array.isArray(doseParams)) {
+    if (
+      !Array.isArray(vitals) ||
+      vitals.some((entry) => entry == null || typeof entry !== "object")
+    ) {
       return {
         kind: "blocked",
         message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
         retryable: true,
       };
     }
-    if ([...vitals, ...doseParams].some((entry) => entry == null || typeof entry !== "object")) {
-      return {
-        kind: "blocked",
-        message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
-        retryable: true,
-      };
-    }
+
+    // Codex (PR #700 round5): species・体重が揃わないケースは backend も dose params を
+    // 参照せず手動数量で受理する（treatment_dose_save.go:39-69）。dose-params の取得は
+    // 用量計算の前提（体重＋species 解決）が揃った場合に限り、障害時の過剰ブロックを防ぐ。
     const resolvedWeight = resolveLatestVitalWeight(vitals);
-    if (resolvedWeight) {
+    const species = normalizeDoseSpecies(petSpecies ?? null);
+    if (resolvedWeight && species) {
+      let doseParams;
+      try {
+        doseParams = await queryClient.fetchQuery({
+          queryKey: medicineDoseParamsQueryKey(medicineId, recordClinicId),
+          queryFn: () => fetchMedicineDoseParamsOnce(medicineId, recordClinicId),
+          staleTime: QUERY_STALE_TIMES.STATIC,
+        });
+      } catch {
+        return {
+          kind: "blocked",
+          message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+          retryable: true,
+        };
+      }
+      if (
+        !Array.isArray(doseParams) ||
+        doseParams.some((entry) => entry == null || typeof entry !== "object")
+      ) {
+        return {
+          kind: "blocked",
+          message: DOSE_PARAMS_LOOKUP_FAILED_MESSAGE,
+          retryable: true,
+        };
+      }
+
       const doseCalcInput = buildDoseCalcInput(
         medicine,
         doseParams,

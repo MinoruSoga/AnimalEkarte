@@ -137,6 +137,72 @@ describe("resolveMasterSelectionDose", () => {
     expect(vitalsRequests).toBe(0);
   });
 
+  it("per_weight 薬でも species 不明なら dose-params を引かず、障害でも ready qty=1", async () => {
+    let doseParamsRequests = 0;
+    server.use(
+      http.get("*/v1/masters/medicines", () =>
+        HttpResponse.json([
+          {
+            id: 42,
+            name: "薬A",
+            price: 100,
+            is_active: true,
+            calculation_type: "per_weight",
+          },
+        ]),
+      ),
+      http.get("*/v1/medical-records/10/vitals", () =>
+        HttpResponse.json([
+          { id: "1", recorded_at: "2026-10-18T00:00:00Z", weight: 4, weight_unit: "Kg" },
+        ]),
+      ),
+      http.get("*/v1/masters/medicines/42/dose-params", () => {
+        doseParamsRequests += 1;
+        return HttpResponse.json({}, { status: 500 });
+      }),
+    );
+    const result = await resolveMasterSelectionDose({
+      item: { id: "42", name: "薬A", unitPrice: 100, category: "薬剤", medicineId: "42" },
+      medicalRecordId: "10",
+      recordClinicId: "3",
+      petSpecies: "ペンギン",
+      queryClient: qc(),
+    });
+    expect(result).toEqual({ kind: "ready", quantity: 1 });
+    expect(doseParamsRequests).toBe(0);
+  });
+
+  it("per_weight 薬で体重なしのときも dose-params を引かず ready qty=1", async () => {
+    let doseParamsRequests = 0;
+    server.use(
+      http.get("*/v1/masters/medicines", () =>
+        HttpResponse.json([
+          {
+            id: 42,
+            name: "薬A",
+            price: 100,
+            is_active: true,
+            calculation_type: "per_weight",
+          },
+        ]),
+      ),
+      http.get("*/v1/medical-records/10/vitals", () => HttpResponse.json([])),
+      http.get("*/v1/masters/medicines/42/dose-params", () => {
+        doseParamsRequests += 1;
+        return HttpResponse.json({}, { status: 500 });
+      }),
+    );
+    const result = await resolveMasterSelectionDose({
+      item: { id: "42", name: "薬A", unitPrice: 100, category: "薬剤", medicineId: "42" },
+      medicalRecordId: "10",
+      recordClinicId: "3",
+      petSpecies: "犬",
+      queryClient: qc(),
+    });
+    expect(result).toEqual({ kind: "ready", quantity: 1 });
+    expect(doseParamsRequests).toBe(0);
+  });
+
   it("HTTP 失敗（masters GET 500）は retryable blocked", async () => {
     server.use(
       http.get("*/v1/masters/medicines", () =>
