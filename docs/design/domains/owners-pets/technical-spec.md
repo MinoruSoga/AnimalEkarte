@@ -232,3 +232,27 @@ DC-I01：同一／別人／新ペット、自院利用の二重要求・mapping�
 | AC-owners-pets-saigram-clear-invalid | 本節の明示消去時の結果消去、不正保存拒否、既存欠落／不正の旧結果不採用へ接続する。DOB未送信は既存値保持を維持する。 |
 | AC-owners-pets-saigram-storage-scope | 本節の保存対象はDOB対応結果とルール版であり、新しい絞込み・集計UI、独立結果編集や外部連携を追加しない。 |
 | AC-owners-pets-saigram-initial-population | 本節の導入方針に従い、有効DOBは同じ基準で算出して結果／ルール版を保存する対象、未登録／不正は未設定として分ける。具体移行手順は未選定で、今回実データ処理を行わない。 |
+
+
+<a id="identity-physical-adapter-candidates-20261019"></a>
+## 2026-10-19 内部adapter・保存候補と未実行検査
+
+IR-01〜06／19の文書具体化。以下の資源名・列・wireは**内部実装候補**で、本人による物理統合方式の承認・API実装・DDL適用を意味しない。予約共通gate・目的別intent・再送規約は既選定のD01正本へ従い、再選定しない。
+
+| 対象 | 現入口から候補adapter／保存構造への対応 | 失敗・照会・移行検査 |
+|:---|:---|:---|
+| IR-01 共通最新・自院利用 | 既存owners/petsのBIGINT PKとclinic_idを残す。候補`subject_refs`はopaque参照・種類・生成院anchor・revision、`clinic_subject_bindings`はclinic_id・subject_ref・local_owner/pet_id・mapping_revision。activeの(clinic_id,subject_ref,種類)と(clinic_id,local_id,種類)をそれぞれ一意にする。共通refを既存D19 group IDやLINE identityへ流用しない。院内APIはlocal ref、共通基本情報readerは認可付きbinding解決、診療・金銭・過去帳票はorigin clinic/local refを維持する。全面PK置換案は過去FKの一括移管を必要とするため本候補に採らない | `use-in-clinic`候補intentはsubject_ref・期待mapping/basic版・スタッフ同一確認参照・key。現在認可と一意性再検査、必要local adapter・binding・監査・receiptを同tx。異key競合も同bindingへ収束。未知／複数mappingは拒否。調査対象はowner/pet CRUD、予約、D03、D07、D10/18、D19/20/21。実データ件数・由来・全consumer列挙が揃うまで切替しない。生成院anchorは認可ではなく、認可外基本情報を返さない |
+| IR-03 主飼主移管 | 既存pet更新→`TransferUpcomingPetReservations`へ、read-only previewと確認digest adapterを追加する候補。入力はpet/旧新owner ref、pet期待版、preview参照、key。preview保存候補はJST基準日・対象予約ID/各版集合・LINE binding版・宛先解決結果のdigest。個人情報や生LINE IDはdigest入力の監査表示へ複写しない | 同gate下で対象を再検索し、集合追加・消失・日付境界・LINE変化も比較。既存最大1000/NOWAIT・カルテ関連拒否を維持。pet・対象予約版増分・帰属・必要監査・receiptを同tx。応答断は元intent/key照会。tag sync失敗で再移管しない |
+| IR-04 一般台帳更新・段階登録 | 既存owner nullableDate/Boolの存在フラグを維持し、候補入力はexpected_revision＋許可changes＋必要な同一確認参照。owner+pet作成の既存same-txを保ち、登録試行→成功owner/pet IDsの最小対応をreceiptに置く。住所・電話等の基本情報は共通owner資源へ、医院別既存会員・DM等は現scopeへ分け、全owner列を共通化しない | 同一飼主確認なら新規停止、別人登録は既存形式検証へ。電話メール一致だけを保存済みreceiptにしない。全caller・現unique制約・旧409処理を調べてから変更案を確定。追加類似閾値・新正規化は選ばない。省略保持／明示null消去と版競合拒否を検証 |
+| IR-05 LINE対応・独立解除 | 手動`LinkLineUserID`とtoken `LinkAccount`を同じ内部binding adapterへ寄せる候補。`owner_line_bindings`候補にclinic_id/local_owner_id・binding_revision・連携状態・確認actor/時刻、現秘密情報への参照を持つ。確認はbinding版に帰属し、別IDへ継承しない。`line_dispatch_attempts`候補はbinding版・目的・payload digest・attempt ID・状態。新送信機能や目的の採用ではない | 解除と発信claimは同binding rowで直列化。発信前claimはCASで取消、発信中/不明があれば解除は処理中。結果照会で不明を未送信に落とさず、自動再送なし。完了時binding変更・停止・必要監査・成功receiptを同tx。外部HTTPはtx外。D19 unlink・移管とは別intent。旧予約/患者参照は消さない |
+| IR-06 再連携後の選択再開 | 候補`reservation_line_resume_confirmations`はclinic_id・予約ID・binding_revision・予約期待版・actor/時刻・operation結果参照。送信資格は現在bindingと確認集合の一致＋独立停止条件で判定。previewは予約ID集合を返し、保存は選択済みID/版集合だけ受ける | 解除/再連携/予約変更をgate下で再確認。成功receiptを取得してもそのtxから送信しない。未選択予約、不明attempt、独立停止は保持。旧bindingの確認を新bindingへ流用せず、結果不明は同key照会 |
+| IR-19 DOB派生保存 | 現owner DOB nullable fieldを唯一の入力とする。候補派生列はsaigram_personality_no(1..60)/type_no・rule_version・source_birth_date・source_revision。結果列はwrite DTOから除外し、固定表からserver計算。全派生列がnullか同じDOB/版へ整合する組だけを保存。表示名は固定ルール版から解決し入力欄を増やさない | 有効DOB変更と派生結果を同tx、明示nullは派生列もnull、省略は保持、不正入力は旧DOB/結果とも不変。導入はread-only分類→dry-run manifest(対象ID/元revision/ルール版/期待値digest)→有効DOBだけ条件付き更新→件数/9AC照合。新規・変更writerも同契約へ接続後に切替。再実行は同DOB/版なら無変更、途中でDOBが変われば再評価し古い計算を書かない。未登録/不正/削除済みを推測補完しない。処理は未実行 |
+
+### 限定静的根拠と残工程
+
+このpassの基準refで`backend/internal/model/owner.go`はclinic-scoped BIGINT ID・DOB・DM nullableと既存LINE属性を保持し、本ファイル内にサイグラム派生列はない。`owner/http_request.go`のnullableDateは未送信/nullを区別する。`owner/service_line.go`の手動変更監査はbest-effortで、`lstep/line_link_service.go`のLinkAccountはtoken consume・owner変更・必須監査を同txにする。両者を同じ原子監査済みとしない。`reservation/pet_owner_transfer.go`は既存対象をNOWAIT取得しowner_id/updated_atを更新するが、この限定読取で明示予約version増分・永続receiptは確認できない。repository全体や他経路の未実装を断定する根拠にはしない。
+
+IR-02はmappingの実在件数・矛盾・由来とdry-runが残る。共通候補の具体的な矛盾採用値は実対象が出た場合だけQ-I1へ限定質問し、現在の同一確認・共通最新・自院利用・サイグラム保存を聞き直さない。IR-08はLIFF DTO allowlist・single-use linkの固定ref照合と別医院/取消/訂正版/応答断の実機、IR-17は現grant/失効/lookup障害の実機、IR-20はS14/S23の期待行・件数・非第一医院帰属・入力者の実機が残る。静的観察からPASSに変更しない。
+
+
+追加静的照合（IR-02/08/17/20）：`model/identity_link.go`の既存groupは生成院anchorとclinic/local memberを持つ手動連携で、共通subject方式の実装ではない。`reservation/liff_handler.go`はpath clinic＋認証customerをhealth-card serviceへ渡し、`liff_response.go`は飼主名・生存pet基本表示・ワクチン日付・最終来院日へ閉じる。`liff_service_health_card.go`は本人owner未対応で空pet、死亡status/死亡日のOR除外を行う。この限定照合から取消/削除/訂正版filter・別医院token・単回CAS競合・応答断の全成立は宣言しない。`auth/current_access_service.go`はstaff/account/assignment/active clinicを再解決する資源を持ち、`current_access_cache.go`の現在authorityキャッシュと権限キャッシュは別資源である。関数既定TTLを実稼働設定や即時失効保証へ転用しない。`use-clinic-scope.ts`の現fallbackはcurrentClinicIdであり、選択未保存時の権限内全院初期値・次回保持という最新目標への適合証拠ではない。`medical_record_crud.go`の入力者検証呼出しは存在するが、B院実作成と再読取の証跡は未取得。

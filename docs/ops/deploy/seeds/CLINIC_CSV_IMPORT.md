@@ -314,3 +314,20 @@ consumer（現行 HEAD 観測値）の契約 digest:
 #### 薬剤数量とtarget整合性（22表候補）
 
 既存設計のproducer固定値 `default_quantity=1.0` に沿い、数値として厳密に1と同値の表記のみ受理する。空欄・0・1以外の小数・丸め・overflow・非有限値は拒否。targetは `numeric(10,2)` の型・precision・scaleを検査する。`medicines.inventory_id → inventory_items.id` のvalidated FKも必要で、CSVのinventory_id空必須は維持する。model/APIのnullable化やmigrationは今回行わない。
+
+## 既存契約の照合票と実機runの分離（REM-OPS-06〜08）
+
+この節は資料受領・照合の具体手順であり、preflight/apply/verifyの実行承認を増やさない。既存の最新receiptを先に確認し、以下を同一candidate単位で結び付ける。PHI CSV・接続値・秘密はGitへ置かない。
+
+1. producerからsource revision、run/build、profile、clinic、CSV/manifestのdigest・件数・検証結果を受領し、MIG-41の唯一producerと照合する。旧2院のreceiptやINPUT_READYを新candidateへ転用しない。
+2. 21表baselineと22表薬剤候補を分け、表・列・順序・placeholder・bytesを照合する。22表はMIG-34/EMR-343が同一承認profileへ到達した証跡を必要とする。
+3. MIG-34/37/41・EMR-343/345/364/365に関する最新承認の所在、値の意味、producer変換、consumer受理を横一行で対応付ける。税率・decimal・NULL/0・薬剤数量について、両側の同一profile・承認版が不明ならHOLD。値を推定補完せず、差分の列名・原値の非機密分類・変換候補・影響を責任者へ示す。
+4. clinic/band、consumer ref、target識別子、既存6seed bindingを同じ照合票へ固定する。unknown/片側未対応profileやtarget不明では先へ進めない。ここまでの資料照合をDB適用成功と呼ばない。
+
+| 実機case（別承認の隔離targetのみ） | 操作・判定 | 必要証跡と復旧 |
+|:--|:--|:--|
+| 実規模・長時間 | 同一candidateとfresh targetで既存rehearsal経路を実行。profile別のtransaction契約で件数・整合・完了時間を確認 | execution ID、profile、両ref、target、manifest、所要時間、verify結果。21表表別commitの成功を22表単一transactionへ転用しない |
+| timeout/切断/COMMIT応答消失 | 同一execution IDの実結果を照会し、STARTED/COMMIT_OUTCOME_UNKNOWNを未実施・rollback済みへ分類しない | 結果照会とtarget側確認の対応。確定まで別execution IDで再importしない |
+| verify失敗・process crash | 失敗位置、既存契約上の原子性、再開可否を確認して停止 | 同じexecution IDでbackup/restore/rollbackと画面照合のreceiptを接続。自動再実行・target清掃を追加しない |
+
+実機runの完了は、件数・duration・対象・適用profile・結果照会・復旧/cleanupが同じrunとして揃った時だけ判定する。資料照合だけなら「静的照合済み／実機未検証」を維持する。

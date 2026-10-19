@@ -620,3 +620,44 @@ Q-C2の本人専用保持／再ログイン回収は確定済み。Q-C1は対象
 | AC-medical-records-vital-entry-context | 既存バイタル測定時刻／履歴契約へ入力ボタンと名前近くのT/HR/RR/BW常時表示を接続する。同じカルテの測定を保存／再取得し、旧登録体重や欠測を今回値へ補わない。 | [正本](../../../spec/domains/medical-records/pages/medical-record-form.md) |
 
 各行は既存ACの接続先を明確にするもので、新しい業務要件・実装完了・実機合格を表さない。具体的な既存wire／取得元との適合は実装工程で照合する。
+
+<a id="clinical-resource-fit-review-20261019"></a>
+## 残件の資源対応・検証への引継ぎ（2026-10-19）
+
+CL-R01〜06の限定静的再読。基準は `563353287ebb08af55056e3fbfba2aca3531e599`。以下の新資源名・列名は**内部設計候補**であり、既存API・DDLへの採用／実装や本人の直接承認を意味しない。既存の編集権・receipt案を再承認待ちに戻さない。
+
+### CL-R01／02：既存入口から編集fenceへ
+
+[現route](../../../../backend/internal/medicalrecord/routes_records.go)には本体PATCH、inquiries PATCH、vitals POST/PATCH/DELETE、clinical-plan PATCH/DELETE、treatments POST/PATCH/DELETE/PUT、checkups CRUD/field-results PUT、独立vaccinations CRUDがある。編集権専用routeの存在はこの読取では確認できない。route登録と全serviceのgate／監査適合は別判定とする。
+
+| 候補資源・key | 候補列／制約 | 接続先・切替検査 |
+|:---|:---|:---|
+| `record_edit_right`、unique(clinic_id, record_id) | `epoch`非再利用、`holder_principal_ref`、`session_ref`、取得／解放時刻、free/held。本人refは認証側で解決しclient指定actorを採らない | 既存record／予約gateの内側でrowをlock。通常保存から暗黙取得せず、同staff別sessionも排他。DC-M03/04 |
+| owner別更新adapter | 元route・intent・実grant・対象ref・owner期待版・子依存版・人操作fence要否・監査sink・結果照会先 | 上記route群を初期調査対象に置き、GetOrCreate・旧client・機器・移行・batch・付替えも各ownerが追加照合。未調査入口を適合としない |
+| operation binding／成功receipt | C06のscope＋actor＋intent＋keyを再利用。payload fingerprint、初回結果ref／確定版、未成功と成功を区別 | 全ownerに別のreceipt規則を複製しない。旧成功keyは現認可後に初回結果を返し、新epochで再実行しない。DC-C01〜03/M05 |
+
+移行案は既存recordへ現在内容の架空履歴を作らず、旧保存版・追記を原形保持した対応表から始める。fence参加済みの新clientだけを先に有効化し、旧routeが迂回できる状態で切替完了としない。D07独立結果writerはD03本文を更新しない範囲でowner認可・依存版参加を使い、人の編集sessionを新必須にしない。ここはroute群の初期配賦であって、全writerの列挙完了・実証ではない。
+
+### CL-R03：本人下書きの候補資源と未達条件
+
+server保管候補 `staff_record_draft` は不変draft ref、認証本人ref、clinic/record/tab、入力世代、元owner版、暗号化payload参照、未解決operation参照を持つ。業務保存版とは別資源にする。本人＋元対象＋tabの現draftを解決し、内容更新は期待draft世代を比較する。管理権限・通常カルテ閲覧権だけで他者draftを取得しない。未解決keyを別draft世代から消さず、logoutは保持したまま読取・鍵利用を停止し、同本人再認可後に元対象の現認可を照合する。
+
+比較選択UI候補は、元値・本人下書き・現在保存値を同じfield refで並べ、取得失敗／削除済み／型不明のfieldを自動適用候補から外す。適用操作は編集権取得後に選択fieldだけを通常owner保存へ渡し、復元表示だけで保存成功にしない。自動的な期限・消去・端末間共有は追加しない。
+
+server未送達分のreload回復はこの資源だけでは満たせない。端末暗号化copyと本人再認可後だけの鍵利用は候補条件であり、鍵配送・同origin script・local processの保護限界、quota・logout・失権は実装検証未了。DC-M08/09に加え、通信断で下書き未到達→reload、同origin別staff、同名別account、権限取消、満杯を分けて検査する。満たせない条件を既決保持方針から除外せず未達と記録する。
+
+### CL-R04：owner別dirtyと復元の具体単位
+
+client候補keyは `record_ref + owner_kind + field_ref + input_generation`。tab-open基準とcopy直前基準を別refにし、copy適用結果は成功した対象ID／前後版のsubsetへ固定する。clear／Undoは未解決key照会→現在owner版比較→対象subsetだけの復元write→新履歴の順。遅延応答は元input_generationの結果だけを解決し、現在入力へ古い値を適用しない。D01原文はread projectionで、dirty／copy payload／restore subsetに入れない。IR-09の予約target競合試験を再実行せず、その回答refと版をreader検査へ利用する。DC-M01/02は問診失敗＋プラン成功、復元前後の飼主原文digest不変、未回答維持、他owner結果・実効果不変を確認する。
+
+### CL-R05：通常編集と専用訂正のadapter候補
+
+[現addendum request](../../../../backend/internal/medicalrecord/medical_record_addendum_request.go)はafter_text／reason中心であり、患者訂正・過去入力・死亡後生前分の元／先・実施日・医師確認まで表現済みとはしない。通常PATCHとは別intentで、`source_record_ref/revision`、必要な`destination_subject_ref`、実診療日、理由、認証actor、確認医師ref、元先履歴ref、operation keyを目的別に限定する候補とする。患者訂正は原recordのpet_id付替えで代用せず、必要内容転記の元先対応を保持する。旧snapshot欠落はunknownのままで、旧版を現在値から再生成しない。各専用経路は元／先scope、時点、版、必須履歴失敗rollback、commit後応答断の同key照会を検査し、通常編集に理由必須を広げない。
+
+### CL-R06：用量パターン・臨床承認への対応
+
+[現model](../../../../backend/internal/model/medicine_dose_param.go)と[PUT request](../../../../backend/internal/medicalrecord/medicine_dose_param_request.go)はmedicine＋species、dose_basis、dose_per_kg、上限、丸め等を持つ。目的／経路別の不変パターン版・臨床承認refは当該構造では確認できず、単一値の存在を複数承認パターン対応済みにしない。optional省略はPUTでNULL置換なので、パターン編集をPATCH保持と混同しない。
+
+候補は不変`dose_pattern_ref`と改訂版を設け、clinic/medicine/species、目的・経路、basis、用量単位・製剤含量単位、必要回数、丸め、上限、出典ref、医師承認ref／適用版を結ぶ。今回計算には選択したパターン版と入力体重・含量・回数・結果単位を保存し、同薬同種で複数なら明示選択前に自動確定しない。現値を移行時に一律承認済みにせず、根拠不明は承認未照合とする。具体値・単位・対象の承認は医師工程#261のままで、ここで数値を置かない。
+
+AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版改定／丸め後上限／取得認可失敗を対応付ける。1回量・用法・総量を別表示とし、日数からの総量計算・用法template・複雑protocolは増設しない。設計候補完成と臨床承認・計算実機合格は別に報告する。

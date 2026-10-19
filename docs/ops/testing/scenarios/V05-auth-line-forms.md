@@ -241,3 +241,18 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
   - V05-12: Lステップ設定のフィールド契約（secret3+text2+numeric23）と閾値 0/負値の二段ガードを request builder と照合
   - 認証ルート（`/login`・`/forgot-password`・`/reset-password`）・LINE（`/line-reservation/settings|page-editor|slots`）・Lステップ（`/settings/integrations/lstep`・`/settings/lstep/tags`）を `paths.ts` と一致確認
   - V05-1 手順 5 を二段レート制限（IP 30 回/分 + アカウント 10 回/分、いずれも失敗のみカウント）と 429 の Retry-After 自動再試行 UX に合わせて更新
+
+## 現行目標の受入差分（REM-OPS-16・未実行）
+
+以下は既決FR/ACへの操作対応であり、旧実装観察の加算方式や実担当自動決定を現在の合格条件へ流用しない。旧手順・過去の結果は保持し、現正本との差として記録する。
+
+| 入口 | 現行FR/AC | 追加操作と期待 |
+|:--|:--|:--|
+| V05-6/10開始時刻 | [分類別・担当者別の開始時刻](../../../spec/line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)、AC-line-start-times-general-generated / trimming-registered-only / staff-separated / unassigned-feasibility | 通常診療とトリミングを別fixtureにし、担当Aのみ登録した時刻/未登録時刻、A不能・B空きだがB未登録を比較。通常診療は営業時間生成、トリミングは登録時刻だけ。B空きだけでAの設定時刻を許可しない |
+| V05-6指名なし | [担当未定](../../../spec/line/reservation-spec.md#line-no-nomination-unassigned) | 指名なしで成立する予約を保存・再表示し、仮候補/設定所有者を実担当へ自動保存しない。全体能力判定と実担当未定を別に確認 |
+| V05-6コース/option | [予約正本](../../../spec/domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017) | 未設定時間と明示0分option、複数異種option、同option重複、変更前後の終了時刻表示を個別確認。既存予約の時間snapshotを後日master変更で書換えない |
+| V05-6/7予約後問診 | [予約再診問診](../../../spec/domains/reservations/pages/reservation-management.md) | 同一予約の多頭別回答、未回答予約完了、受付前訂正・受付と同時送信、日時変更/取消/対象変更を別々に確認。原文と旧回答日時を保持し、対象変更後へ旧回答を自動転用しない |
+| V05-11/19 LINE解除・再連携 | [D02業務正本](../../../spec/domains/owners-pets/lifecycle.md)・[LINE設計](../../../design/domains/owners-pets/technical-spec.md) | 発信確保と解除の両先行順を確認。解除完了後の旧版で新発信しない。再連携後は必要な対象予約の選択前に再開せず、別の停止・結果不明を解除しない |
+| V05-12〜18/20 LSTEP | [対象Phase境界](../../../spec/line/README.md) | 今期対象外を維持。対象Phase開始時にのみ設定、目的・DM判定、dual gate、実送信とcronの別証跡へ接続。設定保存成功だけを運用再開にしない |
+
+auth V05-1〜4の現行認証・権限失効は既存auth正本へ接続し、専用accountだけで検証する。実LINE/tokenとlocal mockを別runにし、cross-clinicの静的test参照があっても実受入のscope証跡を省略しない。全fieldのFとCは別軸で必要で、上記接続表だけでV05を完了にしない。

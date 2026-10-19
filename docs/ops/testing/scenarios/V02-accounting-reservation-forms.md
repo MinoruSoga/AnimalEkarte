@@ -245,3 +245,102 @@ stateDiagram-v2
   - §1 支払 split: 金額下限（1 円以上）に加え method 重複禁止を手順として明示（`validatePaymentSplits` / `accounting_service_builders.go`）
   - 会計・見積・レジ締め・予約/受付・シフト・在庫のルートを `paths.ts` と一致確認
   - 支払方法マスタ側の `(clinic_id, name)` 一意・system_key ポリシーは V04 正本のまま相互参照のみ
+
+
+<a id="finance-field-targets-20261019"></a>
+## 財務8フォーム47項目の現目標への接続（未実行）
+
+FIN-R03〜R10の文書精査。上の手順とinventoryは旧実装観察を含む。以下は業務正本に優先して新仕様を作るものではなく、現目標の検証準備である。F0は各行の実コントロール/accessible name・初期値を個別に確認する。UIにない場合は理由付きN/Aまたは未適合/BLOCKEDとして記録し、実行したことにしない。F4は各行で保存→一覧/詳細→再読込→再オープンを行い、保存版/監査/receiptを照合する。F5の省略と空/NULL/0を混同しない。
+
+下表のF1〜F6は期待/適用条件で、実行結果ではない。F2のUI不能値はUIで理由付きN/Aとし、APIの拒否は承認済み使い捨て環境で別結果にする。未設定の上限値や新たな必須項目を推測で追加しない。47は財務8フォームの既存列挙数で、全V02や全製品入力項目数ではない。実UI/DTO追加項目・動的定義の追従は別確認。
+
+### `accounting-settlement-form`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `payment_splits[].method` | 新受領時必須 | 選択不能値はUI N/A、API拒否は別結果 | 同method重複拒否 | 有効方法と各実受領額・元請求配分保持 | N/A:新受領methodは空クリア不可 | 保存前停止・失効拒否、既資金配分に停止gate流用なし | payment-inactive-new-receipt |
+| `payment_splits[].amount` | 新受領行必須 | 非数拒否 | 実受領行は正額、請求超過は釣銭/非現金返金必要/了承預りを分離 | 未納0入金と部分入金を受理し架空0円受領行なし | N/A:新受領amountは空クリア不可 | 確定後の実額訂正は専用契約 | partial-finalize |
+| `cash_tendered` | 現金受領を記録する時 | 非数拒否 | 実預かり/実釣銭/充当と整合、全請求回収強制なし | 10,000預かり/8,000請求/1,500釣銭は未照合完了不可 | 任意・非現金時の空を0円受領に変換しない | 結果不明中に再受領しない | manual-change-unreconciled-completion |
+| `change_override` | N/A:任意 | 非数拒否 | -1拒否、0受理の旧下限と実額整合を両確認 | 実釣銭後の実受領を保持、売上/架空調整を作らない | 空は既存既定計算へ、0指定と区別 | 釣銭入力訂正と別実返金の重複控除防止 | manual-change-no-fabricated-adjustment |
+| `post_close_reason` | 実際に締めた区分の対象操作時 | 形式/文字数は既存制約確認、未確定上限を追加しない | 空白のみ拒否、最大長未定は要実測 | 理由・元close・前後・監査を保持 | 対象外時のみ任意空、確定後訂正理由とは別 | 現在の対象操作grant不足を拒否 | post-close-preserve |
+
+### `accounting-item-row-edit`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `name` | N/A:省略は保持、明示空白のみ拒否 | text型 | 既存255境界は実DTOと照合 | 同一行の編集名、master名/金額不変 | 既存契約で名称空への変更不可 | 確定済みは理由付き専用訂正 | line-name-edit |
+| `quantity` | 指定する場合に正量必須 | 非数拒否 | 0/負数拒否、小数臨床量は整数化しない | 同一行・単価・税割引snapshotを保持 | N/A:数量を空クリアしない | 薬剤処置数量変更は再確認、source一律readonlyを現目標にしない | reviewed-clinical-change |
+| `unit_price` | 指定する場合 | 非数拒否 | 負数拒否/0受理、0円根拠保持 | 手修正・前後値・算定版保持、master価格不変 | N/A:空を0へ変換しない | 確認後金額のみは警告了承、再医師確認なし | reviewed-price-only |
+
+### `accounting-item-add-dialog`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `name` | 手動追加時必須 | text型 | 既存長さ制約のみ照合 | 入力した元明細と名称保持、master新設なし | N/A:必須名称 | 無権限追加拒否 | manual-other-create |
+| `unit_price` | 必須 | 非数拒否 | -1拒否/0受理、0円根拠保持 | 追加snapshot価格、後のmaster変更で不変 | N/A:必須単価 | 追加と確定後訂正を別検査 | manual-unit-price |
+| `quantity` | 必須 | 非数拒否 | 0/負数拒否、許容小数を丸めない | 元数量/行積/段階別計算保持 | N/A:必須数量 | 薬剤処置追加は確認世代へ | reviewed-clinical-change |
+| `category` | 手動追加時必須・既定なし | UI外enumはAPI別検査 | 列挙値のみ、12分類は実DTOと照合 | カテゴリID/元行/税根拠保持 | N/A:必須分類 | 無権限/別医院拒否 | manual-other-create |
+| `other_reason` | category=other時の既存必須 | text型 | 空白のみを既存制約と照合 | その他理由を同じ行に保持 | 非other時の省略と履歴を区別 | 通常単価理由任意へ転用しない | manual-other-create |
+| `merchandise_item_id` | マスタタブ時必須 | UI外IDはAPI別検査 | 存在/同院/有効状態を保存時照合 | 品目/追加版/名称/価格snapshot保持 | 手動行はN/A:元マスタなし | 無効化競合/別院ID拒否、在庫自動連動なし | merchandise-master-selection |
+| `tax_rate` | N/A:任意入力かを実UI照合 | 非数・区分は実DTO照合 | 品目分類を本検証で推定しない | 税区分/率snapshot、税率別一度切捨て | 空/未設定/取得失敗を明示値に推測しない | 確定後は旧帳票不変の専用訂正 | tax-category-snapshot |
+
+### `credit-correction-dialog`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `amount` | 必須 | 非数拒否 | 旧UI1円以上を観測、請求料金/受領誤記/実返金を別case | 元実額/訂正額/理由/監査を対応 | N/A:必須金額 | post-close-edit現在grant・医院確認 | correction-history |
+| `method` | 必須 | card/electronic_moneyの旧対象を照合 | UI外値はAPI別検査 | 誤記訂正は実額/実日付不変 | N/A:必須方法 | 新受領停止の一律流用なし | payment-method-correction-no-money |
+| `memo` | N/A:任意 | text型 | 未定上限は要実測 | 同じ訂正のmemo保持 | 値あり→空と省略を別検査 | 無権限で変更なし | correction-history |
+| `reason` | 必須 | text型 | 空/空白を拒否 | actor/前後/元取引と理由保持 | N/A:必須理由 | 監査失敗で全rollback | correction-authorization |
+
+### `refund-dialog`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `amount` | 必須 | 非数拒否 | 0拒否、入金済−既返金の上限ちょうど/超過。請求総額を上限にしない | 実返金日・元資金別額・方法・履歴を保持 | N/A:必須額 | 並行返金と充当の上限保護 | refund-received-cap |
+| `method` | 必須（目標） | UI外値はAPI別検査 | 元がカードでも現金等の別方法を許可 | 元資金方法と実返金方法を別保持 | N/A:必須方法 | 旧使用済み手段限定を目標へ流用しない | refund-different-method |
+| `reason` | 必須（目標） | text型 | 空/空白拒否、旧任意観測を別記 | 元取引/actor/実日付と理由保持 | N/A:目標は理由必須 | 金額別追加承認なし、返金grant必須 | correction-authorization |
+
+### `cash-register-close-form`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `close_date` | 必須 | 不正日付拒否 | 医院営業日/越日境界を実暦日と区別 | 採用日/区分/境界設定版/close ID保持 | N/A:必須対象日 | 既締め区分と未締め区分を分離 | AC-closing-boundaries / AC-closing-midnight |
+| `period` | 必須 | am/pm/emg以外はUI N/A・API別 | 半開境界/越日をS09で照合 | 同じ区分のsource集合と固定snapshot保持 | N/A:必須区分 | 別操作の同一区分二重締め拒否 | AC-closing-no-reopen / AC-closing-boundaries |
+| `actual_cash` | 必須 | 非数/非有限拒否 | -1拒否/0受理 | 原実査/理論/差額と履歴保持 | N/A:必須実査 | 非0差額メモは既決別入力、原締めupdateなし | AC-closing-invalid-actual / AC-closing-cash-difference-note |
+
+### `estimate-form`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `title` | 必須 | text型 | 空白/長さは既存制約照合 | 同じdraftのtitle保持 | N/A:必須title | 提示済み原本の金額明細は後継へ | AC-estimates-items-omitted |
+| `status` | 必須 | UI外enumはAPI別検査 | 新規draft/sent、承認/提示と編集競合 | 対象提示版への返答を保持 | N/A:必須status | 承認/却下原本と提示済み金額明細保護 | AC-estimates-create-state / AC-estimates-presentation-edit-race |
+| `owner_id` | N/A:条件は実UI照合 | 存在/医院利用権限はAPI別 | 別飼主の原本/後継混在拒否 | create帰属保持、通常update省略不変 | N/A:通常updateは受け取らない | 無権限/別clinic拒否 | AC-estimates-scope |
+| `pet_id` | N/A:条件は実UI照合 | 存在/帰属はAPI別 | 同名別petと再提示元petを区別 | create帰属保持、通常update省略不変 | N/A:通常updateは受け取らない | 提示原本の患者付替えなし | AC-estimates-scope |
+| `medical_record_id` | N/A:任意 | 存在/帰属はAPI別 | 親確定だけで未提示編集を一律拒否しない | 元記録ref保持、通常update省略不変 | N/A:通常updateは受け取らない | 親子scope/削除競合確認 | AC-estimates-parent-finalized |
+| `subtotal` | N/A:旧ヘッダ任意 | 非数拒否 | 旧min0と目標の明細計算値を分離 | server再計算snapshot、client合計正本なし | 空/省略を0に推測しない | 提示済みは後継、旧headerは架空行に分解しない | AC-estimates-unified-calculation |
+| `tax_total` | N/A:旧ヘッダ任意 | 非数拒否 | 税率別切捨てと旧min0を照合 | 明細・税率別根拠保持 | 空/省略を0に推測しない | 提示済みは後継 | AC-estimates-unified-calculation |
+| `total_amount` | N/A:旧ヘッダ任意 | 非数拒否 | 負額なし/実在0円、総額無条件固定なし | 算定結果・原本版保持 | 空/省略を0に推測しない | 適格な見積は提示単価を採用 | AC-estimates-quoted-price-other-rules |
+| `insurance_amount` | N/A:任意 | 非数拒否 | 既存非負条件と未確認を分離 | 概算と会計の今回確認を分離 | 空/不明を有効/0に推測しない | 窓口保険記録、外部自動変更なし | AC-estimates-quoted-price-other-rules |
+| `discount_amount` | N/A:任意 | 非数拒否 | 超過は警告・0下限、既存UImin0と分離 | scope/割合合算/固定額/配賦保持 | 省略は保持、クリア可否はDTO確認 | 現在discount許可とmaster許可を分離 | AC-estimates-unified-calculation / individual-discount-permission |
+| `valid_until` | N/A:任意 | 不正日付拒否 | 期限切れ転記は再確認/後継 | 保存値・提示版・適格期限を保持 | clear_valid_untilと省略保持を別検査 | 古い確認で会計転記しない | AC-estimates-expired |
+| `comment` | N/A:任意 | text型 | 既存長さ未確認は要実測 | 同じ版のcomment保持 | 値あり→空と省略保持を別検査 | 提示原本と後継の履歴を区別 | AC-estimates-items-omitted |
+| `notes` | N/A:任意 | text型 | 既存長さ未確認は要実測 | 同じ版のnotes保持 | 値あり→空と省略保持を別検査 | 飼主出力へ非公開情報を混入しない | AC-estimates-items-omitted / AC-estimates-no-effects |
+
+### `inventory-form`
+
+| fieldKey | F1 空 | F2 形式 | F3 境界 | F4 保存対象 | F5 空クリア | F6 無効/認可 | 主な正本AC（会計は短名） |
+|:--|:--|:--|:--|:--|:--|:--|:--|
+| `name` | 必須 | text型 | 空/空白・長さは既存制約照合 | 対象品目IDで保持、同名一括同期を新目標にしない | N/A:必須名 | 属性編集権限・参照中削除拒否 | AC-inventory-required / AC-inventory-used-delete |
+| `category` | 必須 | enum外はAPI別検査 | 4列挙値、カテゴリで税/保険推測なし | 対象品目属性保持 | N/A:必須分類 | カテゴリ変更で過去実績再解釈なし | AC-inventory-no-edit-grant |
+| `unit` | 必須 | text型 | 空拒否、臨床小数を整数へ丸めない | 基準snapshotと単位対応保持 | N/A:必須単位 | 単位不明は依存在庫移動停止 | AC-inventory-required / AC-inventory-fractional-use |
+| `quantity` | 必須（旧画面） | 非数/小数は旧整数制約 | 旧整数≥0、目標は棚卸/実績差分intentと期待数量版 | 理由付き実績/前後数量/receiptへ接続、属性PATCH直更新を合格にしない | N/A:数量空クリア不可 | 棚卸と出庫の競合、版不明停止 | AC-inventory-movement-history / AC-inventory-concurrent-count / AC-inventory-adjust-retry |
+| `min_stock_level` | 必須 | 非数/小数拒否 | -1拒否/0受理、q0はout_of_stock | 属性保存と読取status導出を確認 | N/A:必須閾値 | 同時属性/数量編集で数量を失わない | AC-inventory-integer / AC-inventory-zero-zero / AC-inventory-threshold |
+| `location` | N/A:任意 | text型 | 既存長さ未確認は要実測 | 同一品目属性保持 | 値あり→空・省略保持を別検査 | 数量実績への副作用なし | AC-inventory-no-edit-grant |
+| `expiry_date` | N/A:任意 | 不正日付拒否 | 未来/過去許可は既存制約確認、未決禁止を追加しない | 同一品目日付保持 | 値あり→空・省略保持を別検査 | 数量実績への副作用なし | AC-inventory-no-edit-grant |
+| `supplier` | N/A:任意 | text型 | 既存長さ未確認は要実測 | 同一品目属性保持 | 値あり→空・省略保持を別検査 | 数量実績への副作用なし | AC-inventory-no-edit-grant |
+| `last_restocked` | N/A:任意 | 不正日付拒否 | 日付属性と実入荷日時/実績を区別 | 同一属性保持、架空入荷履歴なし | 値あり→空・省略保持を別検査 | 属性変更だけで数量移動なし | AC-inventory-no-auto-restore |
+
+会計AC短名は`AC-accounting-`に続く既存識別子。D11/D12/D13は完全IDを併記する。estimate/inventoryの行で会計ACも参照する場合はD10への影響・副作用の確認先であり、各領域固有ACの代替ではない。見積の原本/後継/提示単価はD11、在庫I1はD13正本とfinance-operations技術仕様の既存AC群も併用する。
+
+実行時には各`formId.fieldKey.Fx`に結果/理由/証跡を残す。47項目のF4、適用F1/F5/F6を代表一件へ集約しない。旧返金理由任意・使用済み方法限定、部分入金拒否、医療由来行一律編集不可、絶対数量PATCH成功を、現目標の合格条件に使わない。

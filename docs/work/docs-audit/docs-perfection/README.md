@@ -64,3 +64,7 @@ flowchart LR
 先行 `DOCS-PERFECT-ASTRA-LOOP` の独立レビューと検証は [LEDGER](LEDGER.md#docs-perfect-astra-loop) と [当時の最終検証ログ](EVIDENCE/astra-loop-checks-final.txt) に保存する。GOAL.yaml の `status: completed` は 2026-09-07 調査の開始時点からある先行状態で、当時の人間受入を表さない。2026-09-07 調査の受入状態は `issue_refresh.acceptance_state: awaiting-human-verification`。
 
 RQ-002は修復差分あり。D-254のFAQ・スクリーンショット最終同期、実行 SoT の現在値（2026-10-11 訂正: 「Linear現在値」→ Linear は 2026-09-16 閉鎖済み。現在値の正本は Plane）、外部証跡・UAT・STG/PROD稼働は未確認のまま残す。claim の解放は root [AGENTS.md](../../../../AGENTS.md) の packet claim protocol（作成者別規則）に従う。
+
+## 2026-10-19 残件対応への入口
+
+本書上部の199件等は2026-09-07の履歴を維持する。2026-10-19の固定mainを基準とする[残件対応の照合記録](REMAINING-RESPONSE-20261019.md)と[未実行31項目の検証引継ぎ](REMAINING-VERIFICATION-20261019.md)を参照。業務・技術契約は各正本、実行状態はPlane、実行結果は保護されたrun reportが責任を持つ。内部候補の文書具体化を業務承認・実装・実機合格へ変換しない。

@@ -91,3 +91,14 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 ### 最新カルテ契約へのadapter
 
 [通常編集・自動保存／復元](../../../spec/domains/checkups/lifecycle.md#checkup-normal-edit-autosave)に従う。旧親finalizedを一律編集不可の目標として維持せず、対象checkup・親record・患者・package／field・現在権限・期待版を照合する。復元基準はD03が保持する対象タブ／複製操作と同じID・版の入力値であり、field名や配列位置だけで別対象へ適用しない。変更と必要履歴／操作結果は保存単位で一体にし、原値・復元差分を残す。現状のPath B段階保存を全体atomic済みとせず、保存結果不明・部分成功は既存IDを照会する。新しい通知／会計／在庫操作を自動実行しない。AC-checkups-finalized／AC-checkups-clear-copy-guardを本adapterへ対応付ける。
+
+<a id="checkup-stage-recovery-candidate-20261019"></a>
+## CL-R09：段階保存の再開資源案（2026-10-19）
+
+基準 `563353287ebb08af55056e3fbfba2aca3531e599` の[独立保存hook](../../../../frontend/src/features/checkups/hooks/use-checkup-form.ts)109〜145行は親create→子create→必要時field-results PUTを逐次実行する。途中grant／死亡再検査とcatchはあるが、ここに段階別永続receipt・保存済みIDからの再開は確認できない。全体atomic化や自動削除補償で置換しない。
+
+内部候補`checkup_save_attempt`は不変attempt ref、認証scope、元患者・実施日、同内容fingerprint、各stageのoperation key、親record ID、checkup ID、結果置換版、各段の未送信／不明／成功refを持つ。業務内容変更は未解決段を照会した後に別intentとし、stage結果を新患者へ再利用しない。親成功後に子が失敗した場合、同attemptの既存親へ子を保存する。子commit後応答断なら同key結果からcheckup IDを回収して同IDの結果置換へ進み、GET0件だけで別親／子createしない。親／子／結果成功の各receiptが揃うまで全体成功にしない。
+
+旧fieldは保存snapshotと原field ref／型／値を利用し、削除済みIDを名称で現fieldへ再接続しない。GETから復元するadapterは0／false／null・未評価・取得失敗を区別し、型不一致は未知として止める。package変更と定義改訂の期待版は結果置換の同じtxで照合する候補で、現行実装済みとしない。
+
+検証は親後失敗、子後応答断、結果PUT後応答断、別患者遅延応答、field削除／同名再作成、0／false、途中失権を分け、再開前後の親子件数・ID・原値・必要監査を比較する。任意段階の成功を全体成功とせず、タグ／followup成功とも分離する。現在未実行であり、この案を保存しただけでCL-R09のruntime部分を完了にしない。

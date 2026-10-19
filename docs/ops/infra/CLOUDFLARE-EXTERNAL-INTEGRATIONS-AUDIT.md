@@ -102,3 +102,16 @@ IP allowlist: LINEは任意設定を要確認。Lステップ/SMTPはprovider設
 | Lステップ | UNVERIFIED（repository default OFF。二重gate通過時は実HTTP） |
 | SMTP | UNVERIFIED（target Wrangler の必要名、deployed value、controlled sendを要確認） |
 | LIFF | UNVERIFIED（current DNS と controlled STG rehearsal は外部検証待ち） |
+
+## 現在の実環境を照合するreceipt（REM-OPS-11）
+
+既存receiptを先に確認し、対象ref/channel/clinic/test accountの承認範囲・実施者・監視/停止担当を固定する。repository配線、deployed設定、外部console、実送受信を別欄にする。token/secretは値を保存せず、管理上の識別子と保護経路だけを使う。
+
+| 対象 | 実行する時の操作・照合 | 期待・停止・復旧 |
+|:--|:--|:--|
+| LINE/LIFF | approved test channelでdeploy ref、URL/DNS、Console設定と本人scopeを照合。既存redelivery手順に従って重複/順序を検証 | 実受信まで確認し、HTTP成功だけで済ませない。対象相違・誤配信疑い・結果不明では送信を保留し照合。再連携だけで再送しない |
+| SMTP | target Wranglerの必要secret名、保護設定、承認済みrecipient/test accountを照合しcontrolled send | 実受信と失敗時監視を別記。secret listの履歴やsender配線だけで合格にしない |
+| LSTEP | 対象Phaseと外部enable承認を先に確認し、dual gateと停止手順を既存runbookへ対応 | 今期対象外を必須化しない。deploy/clinic gateどちらか不足なら実送信しない。通常同期と発火タグ・再送を混同しない |
+| scheduler | [SCHEDULER_OPERATIONS](../deploy/runbooks/SCHEDULER_OPERATIONS.md) のqualificationにnatural cron、pause/resume、revision/restart、重複・catch-up結果を接続 | manual invoke成功をnatural cron/restart耐久へ拡張しない。停止確認と結果不明照会を残す |
+
+実行承認がない本docs作業では全行未検証である。receiptが不足する対象だけを次の人間レーンへ渡し、production userへ試験送信しない。

@@ -110,3 +110,14 @@ flowchart TB
 3. 当該フォームの C1〜C3（V 文書）が PASS または真に適用外の理由付き N/A。BLOCKED が1件でもあればフォーム/スコープは未完了
 4. FAIL は リポジトリ直下 `todo.md#product-bugs` に、確認済み製品不具合として起票済み（環境・権限・fixture 不足は起票しない）
 5. シナリオ md は未編集
+
+## run inventoryの固定と動的定義の展開（REM-OPS-09〜10）
+
+実行前に、対象ref・profile・承認済みfixture manifestを固定した `run-inventory` をreportへ保存する。最小列は `scenarioId / formId / operation(create|update|clear|delete) / wireKey / definitionId(該当時) / definitionType / 必須・条件 / 現FR・ACまたは既実装観察 / 適用F / N/A理由 / C1-C3対応 / 実行証跡`。観察と業務上の期待は別列にする。secretの値・token・患者情報は記録しない。
+
+- 健診の `results[].checkup_type_field_id` は、選定した承認済み健診定義のid・field_typeごとに展開する。`value_number/value_text/value_bool/value_list` は採用した型に対応する1種を記録し、空の`results:[]`と送出省略を別操作にする。
+- 検査の `items[].exam_type_field_id` は選定templateの各定義idを展開し、手動行のnullと区別する。name空行の送出除外、項目全置換と省略の意味は現inventoryのenvelopeを使う。定義idを架空の例値で埋めない。
+- 検査マスタのfields・reference-rangesは、承認済み定義ごとのid・型・動物種・範囲の組をrun内で固定し、reorderと追加更新を区別する。財務の列挙済み47項目等をこの動的gapと二重計上しない。
+- UI-only helper、BE受理のみでFE非送出のkey、未実装APIは永続入力の分母へ足さない。一方、静的keyが判明した実装済みフォームはinventoryへ収録し、未実行と未収録を分ける。
+
+対象定義が未受領なら当該フォームをBLOCKEDとし、他フォームの許可済み検証を継続できる。全定義・全適用F・Cの対応が揃うまで全フォーム受入完了や一意総数を主張しない。最新reportの保存先を担当者に照会し、checkoutにignored reportがないことだけを未実施の根拠にしない。

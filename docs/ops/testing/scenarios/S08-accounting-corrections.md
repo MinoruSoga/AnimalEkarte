@@ -58,3 +58,23 @@ flowchart LR
   - 部分入金拒否を FE `remaining !== 0` + BE `validatePaymentSplits` で再確認
   - クレジット訂正 API パス・カード系 method・未納定義（waiting）を現行実装に合わせて整理
   - 監査 fail-closed / X-Clinic-ID 医院横断は変更なし
+
+<a id="s08-current-target-overlay-20261019"></a>
+## 現目標への手順別接続（2026-10-19・未実行）
+
+上の目的・図・手順・実装突合は旧実装の観測を含む。現在の業務合格条件は[会計ライフサイクル](../../../spec/domains/accounting/lifecycle.md)と[現目標のAC実行準備](../../../design/domains/accounting/technical-spec.md#finance-ac-execution-trace-20261019)へ従う。部分入金拒否、completedだけの完済判定、名称「一般/執行」を現在の権限として決め打つこと、取消と実返金の一体化を合格条件にしない。旧回帰として確認した結果と、以下の新契約への適合結果を別記する。本節は実施結果ではない。
+
+| 旧手順 | 現目標として追加する操作・fixture | 対応する既存AC短名・検査先 | 必要な証跡/停止 |
+|:--|:--|:--|:--|
+| #1 | 全額カードは対照例。10,000請求で未納/3,000部分入金、実明細あり0円、空明細を別に作る。医師未確認/確認済みを分ける | unpaid-finalize / partial-finalize / zero-no-fake-payment / empty-invoice-blocked / before-doctor-review、V02 §1 | 請求状態・支払状態・明細・実受領・残・医師確認/確定履歴。API未対応ならBLOCKED |
+| #2 | 理由なし/現在grantなし/失効/他医院の訂正・取消・返金を各検査 | correction-authorization、C04現在認可、V02 §3–4 | 元値不変・拒否結果。監査失敗rollbackは承認済み実API/DB試験で別証跡 |
+| #3 | 金銭を動かさない方法誤記、請求10,000→9,000訂正、実返金を別操作で確認 | payment-method-correction-no-money / paid-reduction-refund-pending / paid-reduction-actual-refund | 元請求・元受領・方法/実日付・履歴・未払/返金必要/実返金を別に照合 |
+| #4 | 訂正後の一覧/詳細を同対象版で再取得し、精算済labelだけで完済扱いしない | partial-paid-reduction / correction-history / finalization-undo-preserved | 請求/支払/残額/返金必要/確定歴の別軸、旧応答の遅延不採用 |
+| #5 | 実対象操作grantあり/なし、開始後失効、別clinicを分離して操作 | correction-authorization、C04現在認可 | 職種名で代用しない。UI非表示とserver拒否を別記 |
+| #6 | 現金5,000/請求8,000→入金5,000/残3,000、後日回収。部分入金拒否は旧観測としてだけ保持 | partial-finalize / later-payment / manual-change-preserves-partial-and-noncash | 部分受領/配分/残と確定履歴、架空0円入金なし。未対応は実装差 |
+| #7 | 今月売上なしの繰越未納、期間未指定、対象月/基準日、非入金調整を表示 | aged-debt-without-current-sales / unpaid-default-period、AC-unpaid-source-month/reconcile | API発火だけで完了にせず、同scope全ページ・cutoff・4列/調整・次月連続性を確認 |
+| #8 | 同じ元請求・医院/owner範囲で一覧/残高カード/詳細を突合 | owner-unpaid-summary / refund-received-cap | 未払と返金必要を区別し、失敗/不完全を0件0円としない |
+| #9 | 元会計への遷移と検索条件復帰。作成した部分入金会計へ到達 | partial-finalize / old-bill-collection、一覧/詳細契約 | 旧「部分入金会計不存在」を現目標へ流用しない |
+| #10 | AMのみ締め/PM未締め、対象区分訂正、同操作再送、実返金を独立確認 | post-close-preserve / correction-no-cash-movement / original-bill-and-movement-date、S09/S21 | 原close不変・差分・実日付・同一receipt、確定済会計の訂正理由は区分とは別検査 |
+
+AC短名は`AC-accounting-`に続く既存識別子。異常系は上表各操作の必須理由、現在認可、監査失敗、期待版競合、同key別内容、初回commit後応答消失、未検出中遅延commitを個別記録する。支払方法rename/停止は安定識別と元履歴を保ち、新受領だけを停止する。医院横断で開いた元会計の医院を使い、画面のグローバル選択で書込先を付替えない。

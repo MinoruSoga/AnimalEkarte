@@ -16,7 +16,7 @@
 
 | Flow | Scenario / 正本 | Required boundary |
 |:--|:--|:--|
-| 1. 受付 → 診察 → 検査 → 会計 → 締め（AM/PM/EMG） | [V02 §8–9](V02-accounting-reservation-forms.md)、[S06](S06-record-lock-audit-trail.md)、[S02](S02-exam-abnormal-highlight-lock.md)、[S08](S08-accounting-corrections.md)、[S09](S09-closing-time-boundaries.md) | 会計(医師確認)後の finalize/lock/addendum/audit、会計完了と各締め区分まで。同時刻 fixture 不足の S09 を他の PASS で代替しない |
+| 1. 受付 → 診察 → 検査 → 会計 → 締め（AM/PM/EMG） | [V02 §8–9](V02-accounting-reservation-forms.md)、[S06](S06-record-lock-audit-trail.md)、[S02](S02-exam-abnormal-highlight-lock.md)、[S08](S08-accounting-corrections.md)、[S09](S09-closing-time-boundaries.md) | 診療終了・会計の医師確認・請求確定／精算を区別し、通常カルテは終了後も現在認可・編集権・版を照合して履歴／必要監査付きで通常編集できること、会計完了と各締め区分まで。旧医師確定Lockを必須にせず、編集権の同時編集防止と子owner固有の確定・訂正保護は維持する。同時刻 fixture 不足の S09 を他の PASS で代替しない |
 | 2. 予約 → 来院 → 再予約 | [V02 §7–9](V02-accounting-reservation-forms.md)、[予約からカルテの業務仕様](../../../spec/workflows/reservation-to-record-flow.md) | 予約と来院時の appointment/カルテ連携を確認し、次回の予約作成・再表示まで通す。LINE 予約のキャンセル確認だけでは再予約を証明しない |
 | 3. トリミング受付 → 実施 → 精算（診察併用含む） | [S11](S11-trimming-combined-accounting.md) | 未請求明細統合、単独/併用精算、appointment 解決 |
 | 4. LINE 予約 → カルテ反映 | [S04](S04-liff-reservation-journey.md)、[S06](S06-record-lock-audit-trail.md)、[予約からカルテの業務仕様](../../../spec/workflows/reservation-to-record-flow.md) | S04 の予約表示だけで止めず、病院側の来院受付・カルテ作成まで引き継ぐ。mock lane と実 LINE lane を区別し、stopped/error maintenance を維持 |

@@ -158,3 +158,13 @@ DC-C01：同key同内容の並行実行・成功後対象版変更・rollback後
 ## 2026-10-15会議4点の操作契約
 
 通常カルテの[自動保存・復元](../../spec/domains/medical-records/lifecycle.md#medical-record-agreement-autosave-20261015)、[終了と型付き既存記録](../../spec/domains/reception/pages/reception-board.md#reception-meeting-start-end)、[施術料金のD10受渡し](../domains/accounting/technical-spec.md#accounting-trimming-adjustment-adapter)、[勤務一括入力](../domains/staff-workforce/technical-spec.md#shift-bulk-operation-contract)を別intentとして照合する。元対象ID・現在scope／権限・期待版・依存・操作ID／digest・成功receiptと実効current_stateを混同しない。結果不明では元操作を照会し、再送で新しい復元・終了・請求・勤務を二重作成しない。復元は当該タブ／複製の既知対象と基準に限定し、他者編集・別ownerの金銭／在庫／通知へ逆実行しない。具体API名・物理schema・実装適合は後工程だが、これらの意味契約は各owner本文へ定義する。
+
+
+<a id="remaining-design-evidence-20261019"></a>
+## 2026-10-19 残件の具体化と適合判定の入口
+
+基準main `563353287ebb08af55056e3fbfba2aca3531e599` の残作業は[文書対応の照合記録](../../work/docs-audit/docs-perfection/REMAINING-RESPONSE-20261019.md)へ接続する。各owner正本へ追補した資源・wire・列・一意性・移行adapterは内部候補で、既決業務やD01の既選定gate/schemaを置換しない。候補を採用したという記録、実API/DDLとの適合、実データ移行、実機の各状態を別々に記録する。
+
+臨床CL-R01、金銭FIN-R12、予約/受付IR-11はそれぞれのownerの更新経路を受け持つ。共通gateの証跡は再利用し、各ownerについて実symbol/版・認可・依存/監査/成功結果照会/reader/旧caller切替条件を埋める。今回の限定route/DTO読取を全writer参加の証明にはしない。未知入口・未対応旧writerを利用開始可にせず、実装工程で根拠と停止条件を明示する。
+
+未検証31項目は[環境・対象・操作・期待の引継ぎ](../../work/docs-audit/docs-perfection/REMAINING-VERIFICATION-20261019.md)へ。静的観察で旧挙動と目標の差を確認しても、文書をその旧挙動へ戻さない。実機/DB/外部送信/運用操作が未実施なら未検証のままとし、今回の文書対応をGo-live・法令適合の証拠にしない。
