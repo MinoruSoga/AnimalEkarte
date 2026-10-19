@@ -106,6 +106,8 @@ Approved rebuildでは`DROP SCHEMA`と`CREATE SCHEMA`を対で扱い、`public` 
 
 対象はPlanetScale Postgres `animalekarte-stg` / branch `main`（org `noah-animalekarte`）。advisory lockのため直結する。Hyperdriveと`pscale connect`は使わない。`pscale role reset-default`でapp `postgres`ロールのパスワードを回さない。credentialをlog/file/chatへ残さない。
 
+**事前 snapshot / restore point**: PlanetScale UI の **Branches → Create new branch** で source を `main`、名前を `pre-emr443-<UTC>` にして作成する。これが再構築前のデータを含む復旧点になる。**Backups** に on-demand backup がある場合は最新 backup の日時/IDも確認し、必要なら作成する。作成した branch 名/ID と backup ID を run sheet（EMR-443）へ記録し、受入完了まで削除しない。`main` の Branch ID も記録する（例: `hqp04aa4z4ns`）。
+
 1. **マニュアル override を退避する（編集済み記事を残す場合）。** rebuild前に`python3 scripts/tools/manual-sync.py export --env stg --content-dir <repo外の退避dir>`で`manual_articles`のoverrideをMarkdownへ書き出す（API経由・`MANUAL_SYNC_EMAIL`/`MANUAL_SYNC_PASSWORD`・DB credential不要）。repoの`content/`とは別dirに出力し、退避物をcommitしない。overrideが無い場合（`status`で`db-only`/`diverged`が0件）はskipしてよい。
 2. **短命ロールを発行する。** `pscale role create animalekarte-stg main <name> --org noah-animalekarte --inherited-roles postgres --ttl 4h -f json` の出力を権限0600の一時ファイルへリダイレクトする。JSONの`access_host_url` / `username` / `password`を使う。passwordは作成時だけ返る。
 3. **`cmd/migrate`を`DB_RESET=true`で実行する。** ローカルComposeのbackendへ、一時ファイルをsourceした同一シェルから`docker compose exec -T`で`DB_*`と`DB_RESET=true`と`APP_ENV=staging`を渡す。ホストで`go run`しない。composeサービスは`DB_HOST=db`をハードコードしているため、execの`-e`でPlanetScaleへ上書きする。`go run ./cmd/migrate`のmigrations rootは`/app/migrations`（backend volume）。
