@@ -65,6 +65,8 @@ python3 scripts/old-db/stg-preserve.py verify --dir sensitive-local/stg-preserve
 - 指定4表（bug reports / support chat / manual articles / manual article versions）は row count と content hash が一致すること。
 - 設定・アカウント系は seed 由来の追加行があり得るため、row count は export 以上であること。
 - FK orphan 0 を確認する。
+- restore はテーブル別に `restore-report.json`（staged / kept / skipped）を export dir へ
+  書き出す。verify はこれに従い、意図的に skip された行を FAIL にしない。
 
 ## ローカル dry-run
 
@@ -78,6 +80,20 @@ python3 scripts/old-db/stg-preserve.py restore --dir <export-dir> --env-file <lo
 
 ## 注意
 
+- STG の login seed 由来の demo アカウント（`*@example.test`）は restore 対象から除外
+  される（accounts restore の stage から削除。staffs は固定 band id のまま復元され、
+  `stg-staff-<staff-id>@example.test` の決定論的 email で login seed の account へ
+  remap される）。実ユーザーアカウント（`@example.test` 以外）は全て復元される。
+- support 行から参照される staff は `account_id = NULL` で保持される（staff 列は
+  nullable）。参照のない orphan staff は復元しない。
+- bug reports / chat の `status` / `updated_at` は、restore 直後に STG スケジューラの
+  `plane_sync` ジョブが正規に書き換えることがある（Plane 完了 → resolved の一方向同期）。
+  verify は `--allow-sync-drift` を付けるとこの 2 列を明示的に比較対象から外す
+  （デフォルトは全列比較。空文字 `''` と NULL は CSV 形式で区別できないため
+  `COALESCE(col::text,'')` で正規化して比較する）。
 - `permission_group_rules` は seed の 315 行と STG の追加行を id で upsert する。STG 側で削除した seed 行は migrate が再作成するため、削除状態は復元されない。
 - `clinic_holidays` は `(clinic_id, date)` の unique を持つ。restore は id で upsert するため、同日・別 id の行が seed に存在する場合は衝突する。衝突時は停止して差分を確認する。
-- restore 後に `cmd/migrate` を再実行しても DDL は skip され、seed bundle は checksum 一致で skip、login seed だけが再 upsert される。
+- restore 後に `cmd/migrate` を再実行しても DDL は skip され、seed bundle は checksum 一致で skip、login seed だけが再 upsert される。login seed の再適用で demo login を解錠する場合は
+  `SEEDLOGIN_DEMO_PASSWORD` を渡し、`SKIP_RESET=1`（pre-drop なし・`DB_RESET=false`）で
+  `scripts/old-db/stg-rebuild.sh` を使う。env file の長寿命 role は `public` schema への
+  CREATE 権を持たないため migrate 実行には使えない（`permission denied for schema public`）。

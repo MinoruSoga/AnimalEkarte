@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/seedbundle"
 	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
@@ -102,7 +103,9 @@ func loginSeedNeedsApply(db *sql.DB, filename, checksum string) (bool, error) {
 // expectedSeedBundleDirs is the coverage plan: CSV bundles for APP_ENV, plus
 // 003_login when the login seed applies for this APP_ENV.
 func expectedSeedBundleDirs() []string {
-	bundles := append([]string{}, seedBundlesForCurrentEnv()...)
+	// 期待キーは load 順（pre-login → post-login）の全バンドル + login seed。
+	// 環境ゲートは seedbundle 側（staging のみ 004_demo）が正本。
+	bundles := append([]string{}, seedbundle.AllBundlesForEnv(os.Getenv("APP_ENV"))...)
 	if !seedlogin.ShouldApply(os.Getenv("APP_ENV")) {
 		return bundles
 	}
