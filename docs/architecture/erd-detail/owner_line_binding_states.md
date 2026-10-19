@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10139](../../../backend/migrations/001_init.sql#L10139) |
-| `owner_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10139](../../../backend/migrations/001_init.sql#L10139) |
-| `revision` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10140](../../../backend/migrations/001_init.sql#L10140) |
-| `state` | `text` | NOT NULL | — | — | [001_init.sql:10140](../../../backend/migrations/001_init.sql#L10140) |
-| `line_customer_id` | `bigint` | NULL | — | FK | [001_init.sql:10141](../../../backend/migrations/001_init.sql#L10141) |
-| `verified_by` | `bigint` | NULL | — | FK | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
-| `verified_at` | `timestamptz` | NULL | — | — | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10143](../../../backend/migrations/001_init.sql#L10143) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10141](../../../backend/migrations/001_init.sql#L10141) |
+| `owner_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10141](../../../backend/migrations/001_init.sql#L10141) |
+| `revision` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
+| `state` | `text` | NOT NULL | — | — | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
+| `line_customer_id` | `bigint` | NULL | — | FK | [001_init.sql:10143](../../../backend/migrations/001_init.sql#L10143) |
+| `verified_by` | `bigint` | NULL | — | FK | [001_init.sql:10144](../../../backend/migrations/001_init.sql#L10144) |
+| `verified_at` | `timestamptz` | NULL | — | — | [001_init.sql:10144](../../../backend/migrations/001_init.sql#L10144) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10145](../../../backend/migrations/001_init.sql#L10145) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,12 +70,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_line_binding_states_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10139](../../../backend/migrations/001_init.sql#L10139) |
-| `owner_line_binding_states_line_customer_id_fkey` | `line_customer_id` | [line_customers](line_customers.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10141](../../../backend/migrations/001_init.sql#L10141) |
-| `owner_line_binding_states_verified_by_fkey` | `verified_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
-| `owner_line_binding_states_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10145](../../../backend/migrations/001_init.sql#L10145) |
-| `owner_line_binding_states_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10146](../../../backend/migrations/001_init.sql#L10146) |
-| `fk_line_binding_customer_clinic` | `line_customer_id, clinic_id` | [line_customers](line_customers.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10891](../../../backend/migrations/001_init.sql#L10891) |
+| `owner_line_binding_states_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10141](../../../backend/migrations/001_init.sql#L10141) |
+| `owner_line_binding_states_line_customer_id_fkey` | `line_customer_id` | [line_customers](line_customers.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10143](../../../backend/migrations/001_init.sql#L10143) |
+| `owner_line_binding_states_verified_by_fkey` | `verified_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10144](../../../backend/migrations/001_init.sql#L10144) |
+| `owner_line_binding_states_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10147](../../../backend/migrations/001_init.sql#L10147) |
+| `owner_line_binding_states_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10148](../../../backend/migrations/001_init.sql#L10148) |
+| `fk_line_binding_customer_clinic` | `line_customer_id, clinic_id` | [line_customers](line_customers.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10893](../../../backend/migrations/001_init.sql#L10893) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -90,14 +90,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_line_binding_states_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10140](../../../backend/migrations/001_init.sql#L10140) |
-| `owner_line_binding_states_state_check` | check | `CHECK(state IN('linked','unlinked','unlink_pending','legacy_unknown'))` | [001_init.sql:10140](../../../backend/migrations/001_init.sql#L10140) |
-| `owner_line_binding_states_pkey` | primary | `PRIMARY KEY(clinic_id,owner_id)` | [001_init.sql:10143](../../../backend/migrations/001_init.sql#L10143) |
-| `owner_line_binding_states_check` | check | `CHECK(num_nonnulls(verified_by,verified_at) IN(0,2))` | [001_init.sql:10144](../../../backend/migrations/001_init.sql#L10144) |
-| `owner_line_binding_states_check1` | check | `CHECK(state<>'linked' OR line_customer_id IS NOT NULL)` | [001_init.sql:10144](../../../backend/migrations/001_init.sql#L10144) |
+| `owner_line_binding_states_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
+| `owner_line_binding_states_state_check` | check | `CHECK(state IN('linked','unlinked','unlink_pending','legacy_unknown'))` | [001_init.sql:10142](../../../backend/migrations/001_init.sql#L10142) |
+| `owner_line_binding_states_pkey` | primary | `PRIMARY KEY(clinic_id,owner_id)` | [001_init.sql:10145](../../../backend/migrations/001_init.sql#L10145) |
+| `owner_line_binding_states_check` | check | `CHECK(num_nonnulls(verified_by,verified_at) IN(0,2))` | [001_init.sql:10146](../../../backend/migrations/001_init.sql#L10146) |
+| `owner_line_binding_states_check1` | check | `CHECK(state<>'linked' OR line_customer_id IS NOT NULL)` | [001_init.sql:10146](../../../backend/migrations/001_init.sql#L10146) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_linked_line_customer_owner` | YES | `state IN('linked','unlink_pending')` | `CREATE UNIQUE INDEX uq_linked_line_customer_owner ON owner_line_binding_states(clinic_id,line_customer_id) WHERE state IN('linked','unlink_pending')` | [001_init.sql:10892](../../../backend/migrations/001_init.sql#L10892) |
+| `uq_linked_line_customer_owner` | YES | `state IN('linked','unlink_pending')` | `CREATE UNIQUE INDEX uq_linked_line_customer_owner ON owner_line_binding_states(clinic_id,line_customer_id) WHERE state IN('linked','unlink_pending')` | [001_init.sql:10894](../../../backend/migrations/001_init.sql#L10894) |

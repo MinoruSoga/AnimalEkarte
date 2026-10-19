@@ -177,7 +177,7 @@ erDiagram
 | `treatments_fulfillment_generation_check` | check | `CHECK (fulfillment_generation > 0)` | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
 | `ck_administration_dose_pair` | check | `CONSTRAINT ck_administration_dose_pair CHECK (       (administration_dose_amount IS NULL AND administration_dose_unit IS NULL)       OR (administration_dose_amount IS NOT NULL AND administration_dose_unit IS NOT NULL AND btrim(administration_dose_unit)<>''))` | [001_init.sql:8836](../../../backend/migrations/001_init.sql#L8836) |
 | `ck_prescription_total_pair` | check | `CONSTRAINT ck_prescription_total_pair CHECK (       (prescription_total_amount IS NULL AND prescription_total_unit IS NULL)       OR (prescription_total_amount IS NOT NULL AND prescription_total_unit IS NOT NULL AND btrim(prescription_total_unit)<>''))` | [001_init.sql:8839](../../../backend/migrations/001_init.sql#L8839) |
-| `uq_treatment_record_clinic` | unique | `CONSTRAINT uq_treatment_record_clinic UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:10102](../../../backend/migrations/001_init.sql#L10102) |
+| `uq_treatment_record_clinic` | unique | `CONSTRAINT uq_treatment_record_clinic UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:10104](../../../backend/migrations/001_init.sql#L10104) |
 
 ## インデックス
 

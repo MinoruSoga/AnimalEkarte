@@ -37,7 +37,7 @@
 | `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9196](../../../backend/migrations/001_init.sql#L9196) |
 | `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9197](../../../backend/migrations/001_init.sql#L9197) |
 | `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9198](../../../backend/migrations/001_init.sql#L9198) |
-| `history_copied_at` | `timestamptz` | NULL | — | — | [001_init.sql:10827](../../../backend/migrations/001_init.sql#L10827) |
+| `history_copied_at` | `timestamptz` | NULL | — | — | [001_init.sql:10829](../../../backend/migrations/001_init.sql#L10829) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -142,7 +142,7 @@ erDiagram
 | `preventive_prescription_revis_clinic_id_prescription_id_rev_key` | unique | `UNIQUE (clinic_id,prescription_id,revision)` | [001_init.sql:9200](../../../backend/migrations/001_init.sql#L9200) |
 | `preventive_prescription_revisions_check` | check | `CHECK (app_private.valid_partial_clinical_date(period_start_precision,period_start_year,period_start_month,period_start_date,period_description) IS TRUE)` | [001_init.sql:9201](../../../backend/migrations/001_init.sql#L9201) |
 | `preventive_prescription_revisions_check1` | check | `CHECK (app_private.valid_partial_clinical_date(period_end_precision,period_end_year,period_end_month,period_end_date,period_description) IS TRUE)` | [001_init.sql:9202](../../../backend/migrations/001_init.sql#L9202) |
-| `uq_preventive_prescription_version_parent` | unique | `CONSTRAINT uq_preventive_prescription_version_parent UNIQUE(id,clinic_id,prescription_id)` | [001_init.sql:10090](../../../backend/migrations/001_init.sql#L10090) |
+| `uq_preventive_prescription_version_parent` | unique | `CONSTRAINT uq_preventive_prescription_version_parent UNIQUE(id,clinic_id,prescription_id)` | [001_init.sql:10092](../../../backend/migrations/001_init.sql#L10092) |
 
 ## インデックス
 

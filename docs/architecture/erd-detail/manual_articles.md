@@ -16,10 +16,10 @@
 | `slug` | `text` | NOT NULL | — | UK | [001_init.sql:2875](../../../backend/migrations/001_init.sql#L2875) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2881](../../../backend/migrations/001_init.sql#L2881) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2882](../../../backend/migrations/001_init.sql#L2882) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
-| `current_version_id` | `bigint` | NULL | — | FK | [001_init.sql:9979](../../../backend/migrations/001_init.sql#L9979) |
-| `published_version_id` | `bigint` | NULL | — | FK | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
-| `hidden_at` | `timestamptz` | NULL | — | — | [001_init.sql:9981](../../../backend/migrations/001_init.sql#L9981) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
+| `current_version_id` | `bigint` | NULL | — | FK | [001_init.sql:9981](../../../backend/migrations/001_init.sql#L9981) |
+| `published_version_id` | `bigint` | NULL | — | FK | [001_init.sql:9982](../../../backend/migrations/001_init.sql#L9982) |
+| `hidden_at` | `timestamptz` | NULL | — | — | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,8 +54,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_manual_current` | `current_version_id, id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9991](../../../backend/migrations/001_init.sql#L9991) |
-| `fk_manual_published` | `published_version_id, id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9992](../../../backend/migrations/001_init.sql#L9992) |
+| `fk_manual_current` | `current_version_id, id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9993](../../../backend/migrations/001_init.sql#L9993) |
+| `fk_manual_published` | `published_version_id, id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9994](../../../backend/migrations/001_init.sql#L9994) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -69,7 +69,7 @@ erDiagram
 | `manual_articles_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2873](../../../backend/migrations/001_init.sql#L2873) |
 | `manual_articles_category_check` | check | `CHECK (category IN ('screens', 'workflows'))` | [001_init.sql:2874](../../../backend/migrations/001_init.sql#L2874) |
 | `manual_articles_category_slug_key` | unique | `UNIQUE (category, slug)` | [001_init.sql:2884](../../../backend/migrations/001_init.sql#L2884) |
-| `manual_articles_version_check` | check | `CHECK(version>0)` | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
+| `manual_articles_version_check` | check | `CHECK(version>0)` | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
 
 ## インデックス
 

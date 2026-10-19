@@ -4,7 +4,7 @@
   "include_pr": 728,
   "scope": "Historical 18-unit subset plus source-first completion trace; see spec-storage-trace.json, not exhaustive runtime AC coverage",
   "new_tests": "NOT_RUN_USER_INSTRUCTION",
-  "current_001_sha256": "e56a8e88a133f956996c50ca6ef3b26004712cbccd5df1365ab496c6d08bff76",
+  "current_001_sha256": "ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262",
   "table_count": 241,
   "units": [
     {

@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **1ファイル** から **241テーブル・2691カラム・737外部キー** を静的に導出しています。
+マイグレーション **1ファイル** から **241テーブル・2691カラム・738外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -111,7 +111,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [finance_event_ingestions](finance_event_ingestions.md) | 5 | 2 |
 | [finance_source_events](finance_source_events.md) | 22 | 10 |
 | [financial_document_artifacts](financial_document_artifacts.md) | 6 | 2 |
-| [financial_document_editions](financial_document_editions.md) | 12 | 5 |
+| [financial_document_editions](financial_document_editions.md) | 12 | 6 |
 | [financial_document_identities](financial_document_identities.md) | 9 | 5 |
 | [followup_confirmations](followup_confirmations.md) | 14 | 7 |
 | [fund_consumption_events](fund_consumption_events.md) | 16 | 8 |
@@ -274,11 +274,11 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `7b8b4e86f01e46d99d360a6184731a6009c12b37f864ed0e4c1e10870f720f6d`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `65550a5851fddaf1f64e8056708c43aa947d7e7d5a56ff62a5e9412bbea931da`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `e56a8e88a133f956996c50ca6ef3b26004712cbccd5df1365ab496c6d08bff76` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

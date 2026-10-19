@@ -20,9 +20,9 @@
 | `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9591](../../../backend/migrations/001_init.sql#L9591) |
 | `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9592](../../../backend/migrations/001_init.sql#L9592) |
 | `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9593](../../../backend/migrations/001_init.sql#L9593) |
-| `tendered_amount` | `bigint` | NULL | — | — | [001_init.sql:10914](../../../backend/migrations/001_init.sql#L10914) |
-| `change_given_amount` | `bigint` | NULL | — | — | [001_init.sql:10915](../../../backend/migrations/001_init.sql#L10915) |
-| `original_source_reference` | `jsonb` | NULL | — | — | [001_init.sql:10916](../../../backend/migrations/001_init.sql#L10916) |
+| `tendered_amount` | `bigint` | NULL | — | — | [001_init.sql:10916](../../../backend/migrations/001_init.sql#L10916) |
+| `change_given_amount` | `bigint` | NULL | — | — | [001_init.sql:10917](../../../backend/migrations/001_init.sql#L10917) |
+| `original_source_reference` | `jsonb` | NULL | — | — | [001_init.sql:10918](../../../backend/migrations/001_init.sql#L10918) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -98,11 +98,11 @@ erDiagram
 | `payment_funds_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9581](../../../backend/migrations/001_init.sql#L9581) |
 | `payment_funds_received_amount_check` | check | `CHECK (received_amount > 0)` | [001_init.sql:9588](../../../backend/migrations/001_init.sql#L9588) |
 | `payment_funds_id_clinic_id_owner_id_key` | unique | `UNIQUE (id,clinic_id,owner_id)` | [001_init.sql:9594](../../../backend/migrations/001_init.sql#L9594) |
-| `uq_payment_funds_id_clinic` | unique | `CONSTRAINT uq_payment_funds_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9819](../../../backend/migrations/001_init.sql#L9819) |
-| `payment_funds_tendered_amount_check` | check | `CHECK(tendered_amount>=0)` | [001_init.sql:10914](../../../backend/migrations/001_init.sql#L10914) |
-| `payment_funds_change_given_amount_check` | check | `CHECK(change_given_amount>=0)` | [001_init.sql:10915](../../../backend/migrations/001_init.sql#L10915) |
-| `payment_funds_original_source_reference_check` | check | `CHECK(jsonb_typeof(original_source_reference)='object')` | [001_init.sql:10916](../../../backend/migrations/001_init.sql#L10916) |
-| `ck_fund_cash_inputs` | check | `CONSTRAINT ck_fund_cash_inputs CHECK((tendered_amount IS NULL AND change_given_amount IS NULL)  OR(tendered_amount IS NOT NULL AND change_given_amount IS NOT NULL AND tendered_amount>=change_given_amount AND received_amount=tendered_amount-change_given_amount))` | [001_init.sql:10917](../../../backend/migrations/001_init.sql#L10917) |
+| `uq_payment_funds_id_clinic` | unique | `CONSTRAINT uq_payment_funds_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9821](../../../backend/migrations/001_init.sql#L9821) |
+| `payment_funds_tendered_amount_check` | check | `CHECK(tendered_amount>=0)` | [001_init.sql:10916](../../../backend/migrations/001_init.sql#L10916) |
+| `payment_funds_change_given_amount_check` | check | `CHECK(change_given_amount>=0)` | [001_init.sql:10917](../../../backend/migrations/001_init.sql#L10917) |
+| `payment_funds_original_source_reference_check` | check | `CHECK(jsonb_typeof(original_source_reference)='object')` | [001_init.sql:10918](../../../backend/migrations/001_init.sql#L10918) |
+| `ck_fund_cash_inputs` | check | `CONSTRAINT ck_fund_cash_inputs CHECK((tendered_amount IS NULL AND change_given_amount IS NULL)  OR(tendered_amount IS NOT NULL AND change_given_amount IS NOT NULL AND tendered_amount>=change_given_amount AND received_amount=tendered_amount-change_given_amount))` | [001_init.sql:10919](../../../backend/migrations/001_init.sql#L10919) |
 
 ## インデックス
 

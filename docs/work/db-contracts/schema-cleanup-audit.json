@@ -2,7 +2,7 @@
   "format_version": 1,
   "baseline_head": "85b72c5c1d4cab985ced01d5dddef5f3b701a368",
   "authorization": "Sentinel_f3dbc733b7d881918f8d3997c9e6343b",
-  "ddl_sha256": "e56a8e88a133f956996c50ca6ef3b26004712cbccd5df1365ab496c6d08bff76",
+  "ddl_sha256": "ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262",
   "counts": {
     "before_tables": 246,
     "after_tables": 241,

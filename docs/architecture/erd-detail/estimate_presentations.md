@@ -23,7 +23,7 @@
 | `presented_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9509](../../../backend/migrations/001_init.sql#L9509) |
 | `presented_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9510](../../../backend/migrations/001_init.sql#L9510) |
 | `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9511](../../../backend/migrations/001_init.sql#L9511) |
-| `calculation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10972](../../../backend/migrations/001_init.sql#L10972) |
+| `calculation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10974](../../../backend/migrations/001_init.sql#L10974) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -84,7 +84,7 @@ erDiagram
 | `estimate_presentations_presented_by_fkey` | `presented_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9509](../../../backend/migrations/001_init.sql#L9509) |
 | `estimate_presentations_estimate_id_clinic_id_fkey` | `estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9514](../../../backend/migrations/001_init.sql#L9514) |
 | `estimate_presentations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9515](../../../backend/migrations/001_init.sql#L9515) |
-| `fk_estimate_presented_calculation` | `calculation_id, clinic_id, estimate_id` | [estimate_calculation_revisions](estimate_calculation_revisions.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:10973](../../../backend/migrations/001_init.sql#L10973) |
+| `fk_estimate_presented_calculation` | `calculation_id, clinic_id, estimate_id` | [estimate_calculation_revisions](estimate_calculation_revisions.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:10975](../../../backend/migrations/001_init.sql#L10975) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 

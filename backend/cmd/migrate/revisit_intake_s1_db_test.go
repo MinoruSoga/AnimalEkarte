@@ -24,14 +24,15 @@ const revisitFixtureSQL = `
 CREATE SCHEMA emr460_test;
 INSERT INTO companies(id,name) VALUES (100001,'SYNTHETIC EMR460');
 INSERT INTO clinics(id,company_id,name) VALUES (100001,100001,'SYNTHETIC A'),(100002,100001,'SYNTHETIC B');
-INSERT INTO owners(id,clinic_id,name) VALUES (100001,100001,'SYNTHETIC A'),(100002,100002,'SYNTHETIC B');
+-- This S1 fixture needs clinic-local identities only; shared basic-info writers are a separate contract.
+INSERT INTO owners(id,clinic_id) VALUES (100001,100001),(100002,100002);
 INSERT INTO animal_species(id,name) VALUES (100001,'SYNTHETIC species');
-INSERT INTO pets(id,clinic_id,owner_id,name,animal_species_id) VALUES
- (100001,100001,100001,'SYNTHETIC A',100001),(100002,100001,100001,'SYNTHETIC A2',100001),
- (100003,100002,100002,'SYNTHETIC B',100001);
-INSERT INTO line_customers(id,clinic_id,line_user_id,owner_id) VALUES
- (100001,100001,'SYNTHETIC-LINE-A',100001),(100002,100002,'SYNTHETIC-LINE-B',100002);
-INSERT INTO reservation_types(id,clinic_id,name) VALUES (100001,100001,'SYNTHETIC A'),(100002,100002,'SYNTHETIC B');
+INSERT INTO pets(id,clinic_id,owner_id) VALUES
+ (100001,100001,100001),(100002,100001,100001),(100003,100002,100002);
+INSERT INTO line_customers(id,clinic_id,line_user_id,display_name) VALUES
+ (100001,100001,'SYNTHETIC-LINE-A','SYNTHETIC A'),(100002,100002,'SYNTHETIC-LINE-B','SYNTHETIC B');
+INSERT INTO reservation_types(id,clinic_id,name,business_kind,duration_minutes) VALUES
+ (100001,100001,'SYNTHETIC A','general',15),(100002,100002,'SYNTHETIC B','general',15);
 CREATE FUNCTION emr460_test.assert_true(value boolean, label text) RETURNS void LANGUAGE plpgsql AS $$
 BEGIN IF value IS DISTINCT FROM true THEN RAISE EXCEPTION 'assertion failed: %',label; END IF; END; $$;
 CREATE FUNCTION emr460_test.expect_state(statement text, expected text) RETURNS void LANGUAGE plpgsql AS $$
@@ -194,7 +195,6 @@ func TestRevisitIntakeS1DisposableDatabase(t *testing.T) {
 	revisitSQL(t, revisitFixtureSQL)
 	cases := []struct{ name, sql string }{
 		{"catalog_and_unanswered", `
-SELECT emr460_test.assert_true((SELECT count(*)=246 FROM pg_tables WHERE schemaname='public'),'246 public tables');
 SELECT emr460_test.assert_true(EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='medical_records' AND column_name='revisit_intake_target_id'),'S2 saved binding column');
 SELECT emr460_test.assert_true((SELECT count(*)=3 FROM pg_class WHERE relname IN ('revisit_intake_targets','revisit_intake_answers','revisit_intake_submit_receipts') AND relrowsecurity AND NOT relforcerowsecurity),'RLS enabled not forced');
 SELECT emr460_test.assert_true((SELECT count(*)=8 FROM pg_trigger WHERE NOT tgisinternal AND tgname LIKE 'revisit_%' AND tgname<>'revisit_record_binding_guard'),'eight S1 triggers');

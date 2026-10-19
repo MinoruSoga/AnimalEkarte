@@ -1,7 +1,7 @@
 {
   "format_version": 1,
-  "source_head": "85b72c5c1d4cab985ced01d5dddef5f3b701a368",
-  "ddl_sha256": "e56a8e88a133f956996c50ca6ef3b26004712cbccd5df1365ab496c6d08bff76",
+  "source_head": "e39a1b153eb48bd4b4d96c1a1aa88642a00440c7",
+  "ddl_sha256": "ca193748f01582b9e08761e2f98eb1fd919035afad7f372c466b40750a35b262",
   "table_count": 241,
   "execution": "NOT_RUN_USER_INSTRUCTION",
   "scope": "Added/changed DB storage traced to confirmed requirements; not all project documents or AC runtime coverage",
@@ -1406,7 +1406,9 @@
     {
       "unit": "financial-document-editions",
       "source": "docs/spec/domains/accounting/lifecycle.md",
-      "requirements": [],
+      "requirements": [
+        "FR-accounting-document-and-aged-debt"
+      ],
       "storage": [
         {
           "table": "financial_document_identities",
@@ -1456,7 +1458,7 @@
       ],
       "additional_ticket": "既存内訳票の対応未確認。親で重複照合後、必要なconsumer/統合票を起票",
       "status": "DDL_AUTHORED_UNTESTED",
-      "boundary": "元取引番号と請求/受領/返金由来、固定内容/計算版・artifactを保持。新しい法定様式/採番規則なし",
+      "boundary": "元取引番号と請求/受領/返金由来、固定内容/計算版・artifactを保持。新しい法定様式/採番規則なし。帳票版の請求は医院付きFKと親identity一致、計算版ありなら請求必須。計算版なし受領証等も保存可。",
       "source_sha256": "c362d6bf15044b49cc24ed6b8bea9a34f004b1e1de250dab6a0c508bc5508a53",
       "additional_ticket_title": "請求/受領/預り/返金帳票の元取引・固定版・artifactを接続する",
       "additional_ticket_status": "PROPOSED_NOT_CREATED; parent checks existing child tickets first",

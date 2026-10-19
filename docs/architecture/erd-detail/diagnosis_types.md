@@ -63,7 +63,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `diagnosis_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1034](../../../backend/migrations/001_init.sql#L1034) |
-| `uq_diagnosis_type_id_clinic` | unique | `CONSTRAINT uq_diagnosis_type_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10980](../../../backend/migrations/001_init.sql#L10980) |
+| `uq_diagnosis_type_id_clinic` | unique | `CONSTRAINT uq_diagnosis_type_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10982](../../../backend/migrations/001_init.sql#L10982) |
 
 ## インデックス
 

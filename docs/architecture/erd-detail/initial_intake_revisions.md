@@ -88,7 +88,7 @@ erDiagram
 | `initial_intake_revisions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9097](../../../backend/migrations/001_init.sql#L9097) |
 | `initial_intake_revisions_copied_from_revision_id_clinic_id_fkey` | `copied_from_revision_id, clinic_id` | [initial_intake_revisions](initial_intake_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9098](../../../backend/migrations/001_init.sql#L9098) |
 | `initial_intake_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9099](../../../backend/migrations/001_init.sql#L9099) |
-| `fk_intake_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10098](../../../backend/migrations/001_init.sql#L10098) |
+| `fk_intake_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10100](../../../backend/migrations/001_init.sql#L10100) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 

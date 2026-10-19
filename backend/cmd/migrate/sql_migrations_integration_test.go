@@ -245,8 +245,8 @@ INSERT INTO animal_species (id, name) VALUES
   (5, 'ハムスター'),
   (6, 'その他');
 INSERT INTO exam_types (id, clinic_id, name) VALUES (11008, 1, '検査');
-INSERT INTO reservation_types (id, clinic_id, name, category)
-VALUES (9, 1, 'CSV import rehearsal trimming', 'trimming');
+INSERT INTO reservation_types (id, clinic_id, name, business_kind, duration_minutes)
+VALUES (9, 1, 'CSV import rehearsal trimming', 'trimming', 15);
 `); err != nil {
 		t.Fatal(err)
 	}

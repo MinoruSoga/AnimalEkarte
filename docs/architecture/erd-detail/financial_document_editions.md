@@ -53,6 +53,10 @@ erDiagram
         bigint clinic_id FK,UK
         bigint billing_id FK,UK
     }
+    billings {
+        BIGSERIAL id PK,FK,UK
+        bigint clinic_id FK,UK
+    }
     clinics {
         BIGSERIAL id PK
     }
@@ -69,6 +73,7 @@ erDiagram
     }
     clinics ||..o{ financial_document_editions : "clinic_id"
     staffs ||..o{ financial_document_editions : "issued_by"
+    billings o|..o{ financial_document_editions : "billing_id, clinic_id"
     financial_document_identities ||..o{ financial_document_editions : "document_id, clinic_id"
     billing_calculation_snapshots o|..o{ financial_document_editions : "calculation_id, clinic_id, billing_id"
     operation_bindings ||..o{ financial_document_editions : "operation_id, clinic_id"
@@ -80,14 +85,16 @@ erDiagram
 |:---|:---|:---|:---|:---|:---|
 | `financial_document_editions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9700](../../../backend/migrations/001_init.sql#L9700) |
 | `financial_document_editions_issued_by_fkey` | `issued_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9708](../../../backend/migrations/001_init.sql#L9708) |
-| `financial_document_editions_document_id_clinic_id_fkey` | `document_id, clinic_id` | [financial_document_identities](financial_document_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
-| `financial_document_editions_calculation_id_clinic_id_billi_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
-| `financial_document_editions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9715](../../../backend/migrations/001_init.sql#L9715) |
+| `financial_document_editions_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
+| `financial_document_editions_document_id_clinic_id_fkey` | `document_id, clinic_id` | [financial_document_identities](financial_document_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9715](../../../backend/migrations/001_init.sql#L9715) |
+| `financial_document_editions_calculation_id_clinic_id_billi_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9716](../../../backend/migrations/001_init.sql#L9716) |
+| `financial_document_editions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9717](../../../backend/migrations/001_init.sql#L9717) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
 - `financial_document_editions_clinic_id_fkey`: `REFERENCES clinics(id) ON DELETE RESTRICT`
 - `financial_document_editions_issued_by_fkey`: `REFERENCES staffs(id) ON DELETE RESTRICT`
+- `financial_document_editions_billing_id_clinic_id_fkey`: `FOREIGN KEY (billing_id,clinic_id) REFERENCES billings(id,clinic_id) ON DELETE RESTRICT`
 - `financial_document_editions_document_id_clinic_id_fkey`: `FOREIGN KEY (document_id,clinic_id) REFERENCES financial_document_identities(id,clinic_id) ON DELETE RESTRICT`
 - `financial_document_editions_calculation_id_clinic_id_billi_fkey`: `FOREIGN KEY (calculation_id,clinic_id,billing_id) REFERENCES billing_calculation_snapshots(id,clinic_id,billing_id) ON DELETE RESTRICT`
 - `financial_document_editions_operation_id_clinic_id_fkey`: `FOREIGN KEY (operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT`
@@ -102,6 +109,7 @@ erDiagram
 | `financial_document_editions_display_snapshot_check` | check | `CHECK (jsonb_typeof(display_snapshot)='object')` | [001_init.sql:9706](../../../backend/migrations/001_init.sql#L9706) |
 | `financial_document_editions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9711](../../../backend/migrations/001_init.sql#L9711) |
 | `financial_document_editions_clinic_id_document_id_edition_key` | unique | `UNIQUE (clinic_id,document_id,edition)` | [001_init.sql:9712](../../../backend/migrations/001_init.sql#L9712) |
+| `financial_document_editions_check` | check | `CHECK (calculation_id IS NULL OR billing_id IS NOT NULL)` | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
 
 ## インデックス
 

@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10024](../../../backend/migrations/001_init.sql#L10024) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10024](../../../backend/migrations/001_init.sql#L10024) |
-| `intent_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10025](../../../backend/migrations/001_init.sql#L10025) |
-| `provider` | `text` | NOT NULL | — | UK | [001_init.sql:10025](../../../backend/migrations/001_init.sql#L10025) |
-| `destination_ref` | `text` | NOT NULL | — | UK | [001_init.sql:10026](../../../backend/migrations/001_init.sql#L10026) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10026](../../../backend/migrations/001_init.sql#L10026) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10026](../../../backend/migrations/001_init.sql#L10026) |
+| `intent_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10027](../../../backend/migrations/001_init.sql#L10027) |
+| `provider` | `text` | NOT NULL | — | UK | [001_init.sql:10027](../../../backend/migrations/001_init.sql#L10027) |
+| `destination_ref` | `text` | NOT NULL | — | UK | [001_init.sql:10028](../../../backend/migrations/001_init.sql#L10028) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,8 +49,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `support_delivery_destinations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10024](../../../backend/migrations/001_init.sql#L10024) |
-| `support_delivery_destinations_intent_id_clinic_id_fkey` | `intent_id, clinic_id` | [support_delivery_intents](support_delivery_intents.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10028](../../../backend/migrations/001_init.sql#L10028) |
+| `support_delivery_destinations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10026](../../../backend/migrations/001_init.sql#L10026) |
+| `support_delivery_destinations_intent_id_clinic_id_fkey` | `intent_id, clinic_id` | [support_delivery_intents](support_delivery_intents.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10030](../../../backend/migrations/001_init.sql#L10030) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -61,11 +61,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_delivery_destinations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10024](../../../backend/migrations/001_init.sql#L10024) |
-| `support_delivery_destinations_provider_check` | check | `CHECK(provider IN('discord','plane'))` | [001_init.sql:10025](../../../backend/migrations/001_init.sql#L10025) |
-| `support_delivery_destinations_destination_ref_check` | check | `CHECK(btrim(destination_ref)<>'')` | [001_init.sql:10026](../../../backend/migrations/001_init.sql#L10026) |
-| `support_delivery_destinations_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10027](../../../backend/migrations/001_init.sql#L10027) |
-| `support_delivery_destinations_clinic_id_intent_id_provider__key` | unique | `UNIQUE(clinic_id,intent_id,provider,destination_ref)` | [001_init.sql:10027](../../../backend/migrations/001_init.sql#L10027) |
+| `support_delivery_destinations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10026](../../../backend/migrations/001_init.sql#L10026) |
+| `support_delivery_destinations_provider_check` | check | `CHECK(provider IN('discord','plane'))` | [001_init.sql:10027](../../../backend/migrations/001_init.sql#L10027) |
+| `support_delivery_destinations_destination_ref_check` | check | `CHECK(btrim(destination_ref)<>'')` | [001_init.sql:10028](../../../backend/migrations/001_init.sql#L10028) |
+| `support_delivery_destinations_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10029](../../../backend/migrations/001_init.sql#L10029) |
+| `support_delivery_destinations_clinic_id_intent_id_provider__key` | unique | `UNIQUE(clinic_id,intent_id,provider,destination_ref)` | [001_init.sql:10029](../../../backend/migrations/001_init.sql#L10029) |
 
 ## インデックス
 

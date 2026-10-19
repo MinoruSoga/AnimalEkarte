@@ -23,7 +23,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1519](../../../backend/migrations/001_init.sql#L1519) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1520](../../../backend/migrations/001_init.sql#L1520) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1521](../../../backend/migrations/001_init.sql#L1521) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9937](../../../backend/migrations/001_init.sql#L9937) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9939](../../../backend/migrations/001_init.sql#L9939) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -95,8 +95,8 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `checkups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1510](../../../backend/migrations/001_init.sql#L1510) |
-| `checkups_version_check` | check | `CHECK (version>0)` | [001_init.sql:9937](../../../backend/migrations/001_init.sql#L9937) |
-| `uq_checkups_id_clinic` | unique | `CONSTRAINT uq_checkups_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9938](../../../backend/migrations/001_init.sql#L9938) |
+| `checkups_version_check` | check | `CHECK (version>0)` | [001_init.sql:9939](../../../backend/migrations/001_init.sql#L9939) |
+| `uq_checkups_id_clinic` | unique | `CONSTRAINT uq_checkups_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9940](../../../backend/migrations/001_init.sql#L9940) |
 
 ## インデックス
 

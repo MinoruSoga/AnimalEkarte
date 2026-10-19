@@ -28,9 +28,9 @@
 | `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9231](../../../backend/migrations/001_init.sql#L9231) |
 | `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9232](../../../backend/migrations/001_init.sql#L9232) |
 | `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9233](../../../backend/migrations/001_init.sql#L9233) |
-| `prescription_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10091](../../../backend/migrations/001_init.sql#L10091) |
-| `prescription_revision_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10092](../../../backend/migrations/001_init.sql#L10092) |
-| `change_reason` | `text` | NULL | — | — | [001_init.sql:10826](../../../backend/migrations/001_init.sql#L10826) |
+| `prescription_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10093](../../../backend/migrations/001_init.sql#L10093) |
+| `prescription_revision_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10094](../../../backend/migrations/001_init.sql#L10094) |
+| `change_reason` | `text` | NULL | — | — | [001_init.sql:10828](../../../backend/migrations/001_init.sql#L10828) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -100,8 +100,8 @@ erDiagram
 | `preventive_medication_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9231](../../../backend/migrations/001_init.sql#L9231) |
 | `preventive_medication_revisions_observation_id_clinic_id_fkey` | `observation_id, clinic_id` | [preventive_medication_observations](preventive_medication_observations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9237](../../../backend/migrations/001_init.sql#L9237) |
 | `preventive_medication_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9238](../../../backend/migrations/001_init.sql#L9238) |
-| `fk_medication_observation_parent` | `observation_id, clinic_id, prescription_id` | [preventive_medication_observations](preventive_medication_observations.md) | `id, clinic_id, prescription_id` | `ON DELETE RESTRICT` | [001_init.sql:10093](../../../backend/migrations/001_init.sql#L10093) |
-| `fk_medication_prescription_version` | `prescription_revision_id, clinic_id, prescription_id` | [preventive_prescription_revisions](preventive_prescription_revisions.md) | `id, clinic_id, prescription_id` | `ON DELETE RESTRICT` | [001_init.sql:10095](../../../backend/migrations/001_init.sql#L10095) |
+| `fk_medication_observation_parent` | `observation_id, clinic_id, prescription_id` | [preventive_medication_observations](preventive_medication_observations.md) | `id, clinic_id, prescription_id` | `ON DELETE RESTRICT` | [001_init.sql:10095](../../../backend/migrations/001_init.sql#L10095) |
+| `fk_medication_prescription_version` | `prescription_revision_id, clinic_id, prescription_id` | [preventive_prescription_revisions](preventive_prescription_revisions.md) | `id, clinic_id, prescription_id` | `ON DELETE RESTRICT` | [001_init.sql:10097](../../../backend/migrations/001_init.sql#L10097) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 

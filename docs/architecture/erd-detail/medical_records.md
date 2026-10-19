@@ -134,7 +134,7 @@ erDiagram
 | `ck_conversation_summary_metadata` | check | `CONSTRAINT ck_conversation_summary_metadata CHECK (       (conversation_summary IS NULL AND conversation_summary_revision IS NULL AND conversation_summary_source IS NULL)       OR (conversation_summary IS NOT NULL AND conversation_summary_revision > 0           AND conversation_summary_revision IS NOT NULL AND conversation_summary_source IS NOT NULL           AND btrim(conversation_summary_source) <> '')     )` | [001_init.sql:7886](../../../backend/migrations/001_init.sql#L7886) |
 | `medical_records_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8148](../../../backend/migrations/001_init.sql#L8148) |
 | `medical_records_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8808](../../../backend/migrations/001_init.sql#L8808) |
-| `uq_record_patient_clinic` | unique | `CONSTRAINT uq_record_patient_clinic UNIQUE(id,clinic_id,pet_id)` | [001_init.sql:10097](../../../backend/migrations/001_init.sql#L10097) |
+| `uq_record_patient_clinic` | unique | `CONSTRAINT uq_record_patient_clinic UNIQUE(id,clinic_id,pet_id)` | [001_init.sql:10099](../../../backend/migrations/001_init.sql#L10099) |
 
 ## インデックス
 

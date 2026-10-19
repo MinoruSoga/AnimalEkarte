@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9861](../../../backend/migrations/001_init.sql#L9861) |
-| `consumer_kind` | `text` | NOT NULL | — | PK | [001_init.sql:9862](../../../backend/migrations/001_init.sql#L9862) |
-| `source_event_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9863](../../../backend/migrations/001_init.sql#L9863) |
-| `source_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:9864](../../../backend/migrations/001_init.sql#L9864) |
-| `ingested_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9865](../../../backend/migrations/001_init.sql#L9865) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9863](../../../backend/migrations/001_init.sql#L9863) |
+| `consumer_kind` | `text` | NOT NULL | — | PK | [001_init.sql:9864](../../../backend/migrations/001_init.sql#L9864) |
+| `source_event_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9865](../../../backend/migrations/001_init.sql#L9865) |
+| `source_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:9866](../../../backend/migrations/001_init.sql#L9866) |
+| `ingested_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9867](../../../backend/migrations/001_init.sql#L9867) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,8 +49,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `finance_event_ingestions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9861](../../../backend/migrations/001_init.sql#L9861) |
-| `finance_event_ingestions_source_event_id_clinic_id_fkey` | `source_event_id, clinic_id` | [finance_source_events](finance_source_events.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9867](../../../backend/migrations/001_init.sql#L9867) |
+| `finance_event_ingestions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9863](../../../backend/migrations/001_init.sql#L9863) |
+| `finance_event_ingestions_source_event_id_clinic_id_fkey` | `source_event_id, clinic_id` | [finance_source_events](finance_source_events.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9869](../../../backend/migrations/001_init.sql#L9869) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -61,9 +61,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `finance_event_ingestions_consumer_kind_check` | check | `CHECK (consumer_kind IN ('closing','analytics','monthly_receivables'))` | [001_init.sql:9862](../../../backend/migrations/001_init.sql#L9862) |
-| `finance_event_ingestions_source_digest_check` | check | `CHECK (octet_length(source_digest)=32)` | [001_init.sql:9864](../../../backend/migrations/001_init.sql#L9864) |
-| `finance_event_ingestions_pkey` | primary | `PRIMARY KEY (clinic_id,consumer_kind,source_event_id)` | [001_init.sql:9866](../../../backend/migrations/001_init.sql#L9866) |
+| `finance_event_ingestions_consumer_kind_check` | check | `CHECK (consumer_kind IN ('closing','analytics','monthly_receivables'))` | [001_init.sql:9864](../../../backend/migrations/001_init.sql#L9864) |
+| `finance_event_ingestions_source_digest_check` | check | `CHECK (octet_length(source_digest)=32)` | [001_init.sql:9866](../../../backend/migrations/001_init.sql#L9866) |
+| `finance_event_ingestions_pkey` | primary | `PRIMARY KEY (clinic_id,consumer_kind,source_event_id)` | [001_init.sql:9868](../../../backend/migrations/001_init.sql#L9868) |
 
 ## インデックス
 

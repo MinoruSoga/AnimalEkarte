@@ -77,8 +77,8 @@ erDiagram
 | `cash_register_closes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2154](../../../backend/migrations/001_init.sql#L2154) |
 | `cash_register_closes_period_check` | check | `CHECK (period IN ('am', 'pm', 'emg'))` | [001_init.sql:2157](../../../backend/migrations/001_init.sql#L2157) |
 | `uq_cash_register_closes_id_clinic` | unique | `CONSTRAINT uq_cash_register_closes_id_clinic         UNIQUE (id, clinic_id)` | [001_init.sql:5700](../../../backend/migrations/001_init.sql#L5700) |
-| `ck_cash_actual_nonnegative` | check | `CONSTRAINT ck_cash_actual_nonnegative CHECK(actual_cash>=0)` | [001_init.sql:10645](../../../backend/migrations/001_init.sql#L10645) |
-| `ck_close_difference_note` | check | `CONSTRAINT ck_close_difference_note CHECK(actual_cash=theoretical_cash OR btrim(memo)<>'')` | [001_init.sql:10897](../../../backend/migrations/001_init.sql#L10897) |
+| `ck_cash_actual_nonnegative` | check | `CONSTRAINT ck_cash_actual_nonnegative CHECK(actual_cash>=0)` | [001_init.sql:10647](../../../backend/migrations/001_init.sql#L10647) |
+| `ck_close_difference_note` | check | `CONSTRAINT ck_close_difference_note CHECK(actual_cash=theoretical_cash OR btrim(memo)<>'')` | [001_init.sql:10899](../../../backend/migrations/001_init.sql#L10899) |
 
 ## インデックス
 

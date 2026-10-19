@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10956](../../../backend/migrations/001_init.sql#L10956) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10956](../../../backend/migrations/001_init.sql#L10956) |
-| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10957](../../../backend/migrations/001_init.sql#L10957) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10957](../../../backend/migrations/001_init.sql#L10957) |
-| `rule_version` | `text` | NOT NULL | — | — | [001_init.sql:10957](../../../backend/migrations/001_init.sql#L10957) |
-| `conditions` | `jsonb` | NOT NULL | — | — | [001_init.sql:10958](../../../backend/migrations/001_init.sql#L10958) |
-| `insurance_confirmation` | `jsonb` | NOT NULL | — | — | [001_init.sql:10959](../../../backend/migrations/001_init.sql#L10959) |
-| `tax_rate_totals` | `jsonb` | NOT NULL | — | — | [001_init.sql:10960](../../../backend/migrations/001_init.sql#L10960) |
-| `line_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:10961](../../../backend/migrations/001_init.sql#L10961) |
-| `subtotal` | `bigint` | NOT NULL | — | — | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
-| `tax_total` | `bigint` | NOT NULL | — | — | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
-| `total_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10963](../../../backend/migrations/001_init.sql#L10963) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10963](../../../backend/migrations/001_init.sql#L10963) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10958](../../../backend/migrations/001_init.sql#L10958) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10958](../../../backend/migrations/001_init.sql#L10958) |
+| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10959](../../../backend/migrations/001_init.sql#L10959) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10959](../../../backend/migrations/001_init.sql#L10959) |
+| `rule_version` | `text` | NOT NULL | — | — | [001_init.sql:10959](../../../backend/migrations/001_init.sql#L10959) |
+| `conditions` | `jsonb` | NOT NULL | — | — | [001_init.sql:10960](../../../backend/migrations/001_init.sql#L10960) |
+| `insurance_confirmation` | `jsonb` | NOT NULL | — | — | [001_init.sql:10961](../../../backend/migrations/001_init.sql#L10961) |
+| `tax_rate_totals` | `jsonb` | NOT NULL | — | — | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
+| `line_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:10963](../../../backend/migrations/001_init.sql#L10963) |
+| `subtotal` | `bigint` | NOT NULL | — | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `tax_total` | `bigint` | NOT NULL | — | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `total_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10965](../../../backend/migrations/001_init.sql#L10965) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10965](../../../backend/migrations/001_init.sql#L10965) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10966](../../../backend/migrations/001_init.sql#L10966) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -78,10 +78,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimate_calculation_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10956](../../../backend/migrations/001_init.sql#L10956) |
-| `estimate_calculation_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10963](../../../backend/migrations/001_init.sql#L10963) |
-| `estimate_calculation_revisions_estimate_id_clinic_id_fkey` | `estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10966](../../../backend/migrations/001_init.sql#L10966) |
-| `estimate_calculation_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10967](../../../backend/migrations/001_init.sql#L10967) |
+| `estimate_calculation_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10958](../../../backend/migrations/001_init.sql#L10958) |
+| `estimate_calculation_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10965](../../../backend/migrations/001_init.sql#L10965) |
+| `estimate_calculation_revisions_estimate_id_clinic_id_fkey` | `estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10968](../../../backend/migrations/001_init.sql#L10968) |
+| `estimate_calculation_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10969](../../../backend/migrations/001_init.sql#L10969) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -94,17 +94,17 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimate_calculation_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10956](../../../backend/migrations/001_init.sql#L10956) |
-| `estimate_calculation_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10957](../../../backend/migrations/001_init.sql#L10957) |
-| `estimate_calculation_revisions_conditions_check` | check | `CHECK(jsonb_typeof(conditions)='object')` | [001_init.sql:10958](../../../backend/migrations/001_init.sql#L10958) |
-| `estimate_calculation_revisions_insurance_confirmation_check` | check | `CHECK(jsonb_typeof(insurance_confirmation)='object')` | [001_init.sql:10959](../../../backend/migrations/001_init.sql#L10959) |
-| `estimate_calculation_revisions_tax_rate_totals_check` | check | `CHECK(jsonb_typeof(tax_rate_totals)='array')` | [001_init.sql:10960](../../../backend/migrations/001_init.sql#L10960) |
-| `estimate_calculation_revisions_line_values_check` | check | `CHECK(jsonb_typeof(line_values)='array')` | [001_init.sql:10961](../../../backend/migrations/001_init.sql#L10961) |
-| `estimate_calculation_revisions_subtotal_check` | check | `CHECK(subtotal>=0)` | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
-| `estimate_calculation_revisions_tax_total_check` | check | `CHECK(tax_total>=0)` | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
-| `estimate_calculation_revisions_total_amount_check` | check | `CHECK(total_amount>=0)` | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
-| `estimate_calculation_revisions_id_clinic_id_estimate_id_key` | unique | `UNIQUE(id,clinic_id,estimate_id)` | [001_init.sql:10965](../../../backend/migrations/001_init.sql#L10965) |
-| `estimate_calculation_revision_clinic_id_estimate_id_revisio_key` | unique | `UNIQUE(clinic_id,estimate_id,revision)` | [001_init.sql:10965](../../../backend/migrations/001_init.sql#L10965) |
+| `estimate_calculation_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10958](../../../backend/migrations/001_init.sql#L10958) |
+| `estimate_calculation_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10959](../../../backend/migrations/001_init.sql#L10959) |
+| `estimate_calculation_revisions_conditions_check` | check | `CHECK(jsonb_typeof(conditions)='object')` | [001_init.sql:10960](../../../backend/migrations/001_init.sql#L10960) |
+| `estimate_calculation_revisions_insurance_confirmation_check` | check | `CHECK(jsonb_typeof(insurance_confirmation)='object')` | [001_init.sql:10961](../../../backend/migrations/001_init.sql#L10961) |
+| `estimate_calculation_revisions_tax_rate_totals_check` | check | `CHECK(jsonb_typeof(tax_rate_totals)='array')` | [001_init.sql:10962](../../../backend/migrations/001_init.sql#L10962) |
+| `estimate_calculation_revisions_line_values_check` | check | `CHECK(jsonb_typeof(line_values)='array')` | [001_init.sql:10963](../../../backend/migrations/001_init.sql#L10963) |
+| `estimate_calculation_revisions_subtotal_check` | check | `CHECK(subtotal>=0)` | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `estimate_calculation_revisions_tax_total_check` | check | `CHECK(tax_total>=0)` | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `estimate_calculation_revisions_total_amount_check` | check | `CHECK(total_amount>=0)` | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `estimate_calculation_revisions_id_clinic_id_estimate_id_key` | unique | `UNIQUE(id,clinic_id,estimate_id)` | [001_init.sql:10967](../../../backend/migrations/001_init.sql#L10967) |
+| `estimate_calculation_revision_clinic_id_estimate_id_revisio_key` | unique | `UNIQUE(clinic_id,estimate_id,revision)` | [001_init.sql:10967](../../../backend/migrations/001_init.sql#L10967) |
 
 ## インデックス
 

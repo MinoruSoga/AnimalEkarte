@@ -69,8 +69,8 @@ erDiagram
 | `preventive_prescriptions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9168](../../../backend/migrations/001_init.sql#L9168) |
 | `preventive_prescriptions_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9169](../../../backend/migrations/001_init.sql#L9169) |
 | `preventive_prescriptions_source_treatment_id_clinic_id_fkey` | `source_treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9170](../../../backend/migrations/001_init.sql#L9170) |
-| `fk_preventive_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10100](../../../backend/migrations/001_init.sql#L10100) |
-| `fk_prescription_source_record` | `source_treatment_id, clinic_id, medical_record_id` | [treatments](treatments.md) | `id, clinic_id, medical_record_id` | `ON DELETE RESTRICT` | [001_init.sql:10104](../../../backend/migrations/001_init.sql#L10104) |
+| `fk_preventive_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10102](../../../backend/migrations/001_init.sql#L10102) |
+| `fk_prescription_source_record` | `source_treatment_id, clinic_id, medical_record_id` | [treatments](treatments.md) | `id, clinic_id, medical_record_id` | `ON DELETE RESTRICT` | [001_init.sql:10106](../../../backend/migrations/001_init.sql#L10106) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -88,7 +88,7 @@ erDiagram
 | `preventive_prescriptions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9160](../../../backend/migrations/001_init.sql#L9160) |
 | `preventive_prescriptions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9166](../../../backend/migrations/001_init.sql#L9166) |
 | `preventive_prescriptions_clinic_id_source_treatment_id_key` | unique | `UNIQUE (clinic_id,source_treatment_id)` | [001_init.sql:9167](../../../backend/migrations/001_init.sql#L9167) |
-| `ck_prescription_source_record` | check | `CONSTRAINT ck_prescription_source_record CHECK(source_treatment_id IS NULL OR medical_record_id IS NOT NULL)` | [001_init.sql:10103](../../../backend/migrations/001_init.sql#L10103) |
+| `ck_prescription_source_record` | check | `CONSTRAINT ck_prescription_source_record CHECK(source_treatment_id IS NULL OR medical_record_id IS NOT NULL)` | [001_init.sql:10105](../../../backend/migrations/001_init.sql#L10105) |
 
 ## インデックス
 

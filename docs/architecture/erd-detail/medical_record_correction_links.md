@@ -101,7 +101,7 @@ erDiagram
 | `medical_record_correction_links_intent_check` | check | `CHECK (intent IN ('patient_correction','past_visit','postmortem_prior_care','addendum'))` | [001_init.sql:9059](../../../backend/migrations/001_init.sql#L9059) |
 | `medical_record_correction_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
 | `medical_record_correction_links_transferred_fields_check` | check | `CHECK (jsonb_typeof(transferred_fields)='object')` | [001_init.sql:9064](../../../backend/migrations/001_init.sql#L9064) |
-| `uq_record_correction_id_clinic` | unique | `CONSTRAINT uq_record_correction_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10055](../../../backend/migrations/001_init.sql#L10055) |
+| `uq_record_correction_id_clinic` | unique | `CONSTRAINT uq_record_correction_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10057](../../../backend/migrations/001_init.sql#L10057) |
 
 ## インデックス
 

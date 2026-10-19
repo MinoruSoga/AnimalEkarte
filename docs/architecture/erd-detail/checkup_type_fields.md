@@ -27,7 +27,7 @@
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:3695](../../../backend/migrations/001_init.sql#L3695) |
 | `import_namespace` | `text` | NULL | — | — | [001_init.sql:5219](../../../backend/migrations/001_init.sql#L5219) |
 | `import_key` | `text` | NULL | — | — | [001_init.sql:5220](../../../backend/migrations/001_init.sql#L5220) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9940](../../../backend/migrations/001_init.sql#L9940) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9942](../../../backend/migrations/001_init.sql#L9942) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -87,7 +87,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `checkup_type_fields_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3679](../../../backend/migrations/001_init.sql#L3679) |
 | `uq_checkup_type_fields_id_clinic` | unique | `CONSTRAINT uq_checkup_type_fields_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3795](../../../backend/migrations/001_init.sql#L3795) |
-| `checkup_type_fields_version_check` | check | `CHECK (version>0)` | [001_init.sql:9940](../../../backend/migrations/001_init.sql#L9940) |
+| `checkup_type_fields_version_check` | check | `CHECK (version>0)` | [001_init.sql:9942](../../../backend/migrations/001_init.sql#L9942) |
 
 ## インデックス
 

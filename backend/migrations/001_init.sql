@@ -9710,6 +9710,8 @@ CREATE TABLE financial_document_editions (
     operation_id bigint NOT NULL,
     UNIQUE (id,clinic_id),
     UNIQUE (clinic_id,document_id,edition),
+    CHECK (calculation_id IS NULL OR billing_id IS NOT NULL),
+    FOREIGN KEY (billing_id,clinic_id) REFERENCES billings(id,clinic_id) ON DELETE RESTRICT,
     FOREIGN KEY (document_id,clinic_id) REFERENCES financial_document_identities(id,clinic_id) ON DELETE RESTRICT,
     FOREIGN KEY (calculation_id,clinic_id,billing_id) REFERENCES billing_calculation_snapshots(id,clinic_id,billing_id) ON DELETE RESTRICT,
     FOREIGN KEY (operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT
@@ -10410,7 +10412,7 @@ CREATE FUNCTION app_private.financial_edition_guard()
 RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE d financial_document_identities%ROWTYPE; n bigint; BEGIN
  SELECT * INTO STRICT d FROM financial_document_identities WHERE id=NEW.document_id AND clinic_id=NEW.clinic_id FOR UPDATE;
  SELECT COALESCE(max(edition),0)+1 INTO n FROM financial_document_editions WHERE document_id=d.id AND clinic_id=d.clinic_id;
- IF NEW.edition<>n OR(NEW.calculation_id IS NOT NULL AND NEW.billing_id IS DISTINCT FROM d.billing_id) THEN RAISE EXCEPTION 'document source/edition differs' USING ERRCODE='23514'; END IF; RETURN NEW;
+ IF NEW.edition<>n OR NEW.billing_id IS DISTINCT FROM d.billing_id THEN RAISE EXCEPTION 'document source/edition differs' USING ERRCODE='23514'; END IF; RETURN NEW;
 END; $$;
 CREATE TRIGGER financial_edition_guard BEFORE INSERT ON financial_document_editions FOR EACH ROW EXECUTE FUNCTION app_private.financial_edition_guard();
 CREATE FUNCTION app_private.close_context_complete()

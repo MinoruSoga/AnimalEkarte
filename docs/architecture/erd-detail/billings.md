@@ -26,8 +26,8 @@
 | `clinical_set_generation` | `bigint` | NULL | — | — | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
 | `clinical_set_digest` | `bytea` | NULL | — | — | [001_init.sql:8810](../../../backend/migrations/001_init.sql#L8810) |
 | `claim_state` | `text` | NULL | — | — | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10885](../../../backend/migrations/001_init.sql#L10885) |
-| `current_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:10886](../../../backend/migrations/001_init.sql#L10886) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10887](../../../backend/migrations/001_init.sql#L10887) |
+| `current_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:10888](../../../backend/migrations/001_init.sql#L10888) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -108,7 +108,7 @@ erDiagram
 | `fk_billings_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4426](../../../backend/migrations/001_init.sql#L4426) |
 | `fk_billings_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4432](../../../backend/migrations/001_init.sql#L4432) |
 | `fk_billing_doctor_review_set` | `doctor_review_set_id, clinic_id, id` | [doctor_review_sets](doctor_review_sets.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:8175](../../../backend/migrations/001_init.sql#L8175) |
-| `fk_billing_current_calculation` | `current_calculation_id, clinic_id, id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:10887](../../../backend/migrations/001_init.sql#L10887) |
+| `fk_billing_current_calculation` | `current_calculation_id, clinic_id, id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:10889](../../../backend/migrations/001_init.sql#L10889) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -131,7 +131,7 @@ erDiagram
 | `billings_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8809](../../../backend/migrations/001_init.sql#L8809) |
 | `billings_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8810](../../../backend/migrations/001_init.sql#L8810) |
 | `billings_claim_state_check` | check | `CHECK (claim_state IN ('draft','finalized','cancelled'))` | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
-| `billings_version_check` | check | `CHECK(version>0)` | [001_init.sql:10885](../../../backend/migrations/001_init.sql#L10885) |
+| `billings_version_check` | check | `CHECK(version>0)` | [001_init.sql:10887](../../../backend/migrations/001_init.sql#L10887) |
 
 ## インデックス
 

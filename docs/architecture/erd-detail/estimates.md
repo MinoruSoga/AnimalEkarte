@@ -27,7 +27,7 @@
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1712](../../../backend/migrations/001_init.sql#L1712) |
 | `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:5921](../../../backend/migrations/001_init.sql#L5921) |
 | `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9495](../../../backend/migrations/001_init.sql#L9495) |
-| `current_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:10969](../../../backend/migrations/001_init.sql#L10969) |
+| `current_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:10971](../../../backend/migrations/001_init.sql#L10971) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -96,7 +96,7 @@ erDiagram
 | `estimates_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1699](../../../backend/migrations/001_init.sql#L1699) |
 | `estimates_created_by_fkey` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1709](../../../backend/migrations/001_init.sql#L1709) |
 | `fk_estimates_pet_clinic` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE SET NULL (pet_id)` | [001_init.sql:5925](../../../backend/migrations/001_init.sql#L5925) |
-| `fk_estimate_current_calculation` | `current_calculation_id, clinic_id, id` | [estimate_calculation_revisions](estimate_calculation_revisions.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:10970](../../../backend/migrations/001_init.sql#L10970) |
+| `fk_estimate_current_calculation` | `current_calculation_id, clinic_id, id` | [estimate_calculation_revisions](estimate_calculation_revisions.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:10972](../../../backend/migrations/001_init.sql#L10972) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 

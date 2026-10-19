@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
-| `report_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
-| `report_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
-| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
-| `confirmed_payload` | `jsonb` | NOT NULL | — | — | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
-| `payload_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
-| `destination_count` | `integer` | NOT NULL | — | — | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
-| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
+| `report_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
+| `report_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
+| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
+| `confirmed_payload` | `jsonb` | NOT NULL | — | — | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
+| `payload_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
+| `destination_count` | `integer` | NOT NULL | — | — | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10020](../../../backend/migrations/001_init.sql#L10020) |
+| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10020](../../../backend/migrations/001_init.sql#L10020) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10021](../../../backend/migrations/001_init.sql#L10021) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,10 +70,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `support_delivery_intents_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
-| `support_delivery_intents_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
-| `support_delivery_intents_report_id_clinic_id_fkey` | `report_id, clinic_id` | [support_bug_reports](support_bug_reports.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10020](../../../backend/migrations/001_init.sql#L10020) |
-| `support_delivery_intents_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10021](../../../backend/migrations/001_init.sql#L10021) |
+| `support_delivery_intents_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
+| `support_delivery_intents_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10020](../../../backend/migrations/001_init.sql#L10020) |
+| `support_delivery_intents_report_id_clinic_id_fkey` | `report_id, clinic_id` | [support_bug_reports](support_bug_reports.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10022](../../../backend/migrations/001_init.sql#L10022) |
+| `support_delivery_intents_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10023](../../../backend/migrations/001_init.sql#L10023) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,13 +86,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_delivery_intents_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
-| `support_delivery_intents_report_version_check` | check | `CHECK(report_version>0)` | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
-| `support_delivery_intents_confirmed_payload_check` | check | `CHECK(jsonb_typeof(confirmed_payload)='object')` | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
-| `support_delivery_intents_payload_digest_check` | check | `CHECK(octet_length(payload_digest)=32)` | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
-| `support_delivery_intents_destination_count_check` | check | `CHECK(destination_count>0)` | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
-| `support_delivery_intents_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
-| `support_delivery_intents_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
+| `support_delivery_intents_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
+| `support_delivery_intents_report_version_check` | check | `CHECK(report_version>0)` | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
+| `support_delivery_intents_confirmed_payload_check` | check | `CHECK(jsonb_typeof(confirmed_payload)='object')` | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
+| `support_delivery_intents_payload_digest_check` | check | `CHECK(octet_length(payload_digest)=32)` | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
+| `support_delivery_intents_destination_count_check` | check | `CHECK(destination_count>0)` | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
+| `support_delivery_intents_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10021](../../../backend/migrations/001_init.sql#L10021) |
+| `support_delivery_intents_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:10021](../../../backend/migrations/001_init.sql#L10021) |
 
 ## インデックス
 

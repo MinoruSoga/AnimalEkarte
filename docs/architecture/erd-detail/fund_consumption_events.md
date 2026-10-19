@@ -26,7 +26,7 @@
 | `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:9622](../../../backend/migrations/001_init.sql#L9622) |
 | `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9623](../../../backend/migrations/001_init.sql#L9623) |
 | `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9624](../../../backend/migrations/001_init.sql#L9624) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:10933](../../../backend/migrations/001_init.sql#L10933) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:10935](../../../backend/migrations/001_init.sql#L10935) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -127,10 +127,10 @@ erDiagram
 | `fund_consumption_events_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9622](../../../backend/migrations/001_init.sql#L9622) |
 | `fund_consumption_events_id_clinic_id_owner_id_fund_id_key` | unique | `UNIQUE (id,clinic_id,owner_id,fund_id)` | [001_init.sql:9625](../../../backend/migrations/001_init.sql#L9625) |
 | `fund_consumption_events_clinic_id_operation_id_ordinal_key` | unique | `UNIQUE (clinic_id,operation_id,ordinal)` | [001_init.sql:9627](../../../backend/migrations/001_init.sql#L9627) |
-| `uq_fund_consumption_id_clinic` | unique | `CONSTRAINT uq_fund_consumption_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9820](../../../backend/migrations/001_init.sql#L9820) |
-| `ck_fund_consumption_kind` | check | `CONSTRAINT ck_fund_consumption_kind CHECK(event_kind IN('allocate','release','refund','deposit_allocate','deposit_release'))` | [001_init.sql:10934](../../../backend/migrations/001_init.sql#L10934) |
-| `ck_fund_consumption_target` | check | `CONSTRAINT ck_fund_consumption_target CHECK(  (event_kind='allocate' AND billing_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)  OR(event_kind='release' AND billing_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL)  OR(event_kind='refund' AND billing_id IS NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NOT NULL AND reason IS NOT NULL AND btrim(reason)<>'')  OR(event_kind='deposit_allocate' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)  OR(event_kind='deposit_release' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL))` | [001_init.sql:10935](../../../backend/migrations/001_init.sql#L10935) |
-| `uq_fund_deposit_projection_kind` | unique | `CONSTRAINT uq_fund_deposit_projection_kind UNIQUE(clinic_id,source_deposit_entry_id,event_kind)` | [001_init.sql:10941](../../../backend/migrations/001_init.sql#L10941) |
+| `uq_fund_consumption_id_clinic` | unique | `CONSTRAINT uq_fund_consumption_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9822](../../../backend/migrations/001_init.sql#L9822) |
+| `ck_fund_consumption_kind` | check | `CONSTRAINT ck_fund_consumption_kind CHECK(event_kind IN('allocate','release','refund','deposit_allocate','deposit_release'))` | [001_init.sql:10936](../../../backend/migrations/001_init.sql#L10936) |
+| `ck_fund_consumption_target` | check | `CONSTRAINT ck_fund_consumption_target CHECK(  (event_kind='allocate' AND billing_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)  OR(event_kind='release' AND billing_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL)  OR(event_kind='refund' AND billing_id IS NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NOT NULL AND reason IS NOT NULL AND btrim(reason)<>'')  OR(event_kind='deposit_allocate' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)  OR(event_kind='deposit_release' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL))` | [001_init.sql:10937](../../../backend/migrations/001_init.sql#L10937) |
+| `uq_fund_deposit_projection_kind` | unique | `CONSTRAINT uq_fund_deposit_projection_kind UNIQUE(clinic_id,source_deposit_entry_id,event_kind)` | [001_init.sql:10943](../../../backend/migrations/001_init.sql#L10943) |
 
 ## インデックス
 

@@ -15,7 +15,7 @@
 | `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1529](../../../backend/migrations/001_init.sql#L1529) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1530](../../../backend/migrations/001_init.sql#L1530) |
 | `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1531](../../../backend/migrations/001_init.sql#L1531) |
-| `date` | `date` | NULL | — | — | [001_init.sql:10114](../../../backend/migrations/001_init.sql#L10114) |
+| `date` | `date` | NULL | — | — | [001_init.sql:10116](../../../backend/migrations/001_init.sql#L10116) |
 | `exam_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1533](../../../backend/migrations/001_init.sql#L1533) |
 | `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1534](../../../backend/migrations/001_init.sql#L1534) |
 | `status` | `exam_status` | NULL | `'pending'` | — | [001_init.sql:1535](../../../backend/migrations/001_init.sql#L1535) |
@@ -26,7 +26,7 @@
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1540](../../../backend/migrations/001_init.sql#L1540) |
 | `job_id` | `uuid` | NULL | — | FK, UK | [001_init.sql:3409](../../../backend/migrations/001_init.sql#L3409) |
 | `current_revision_version` | `BIGINT` | NULL | — | FK | [001_init.sql:4975](../../../backend/migrations/001_init.sql#L4975) |
-| `performed_date_precision` | `text` | NULL | — | — | [001_init.sql:10116](../../../backend/migrations/001_init.sql#L10116) |
+| `performed_date_precision` | `text` | NULL | — | — | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -119,8 +119,8 @@ erDiagram
 | `exams_current_revision_version_check` | check | `CHECK (current_revision_version >= 1)` | [001_init.sql:4975](../../../backend/migrations/001_init.sql#L4975) |
 | `uq_exams_clinic_id_id` | unique | `CONSTRAINT uq_exams_clinic_id_id         UNIQUE (clinic_id, id)` | [001_init.sql:4977](../../../backend/migrations/001_init.sql#L4977) |
 | `uq_exams_id_clinic` | unique | `CONSTRAINT uq_exams_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:6171](../../../backend/migrations/001_init.sql#L6171) |
-| `exams_performed_date_precision_check` | check | `CHECK(performed_date_precision IN('day','unknown'))` | [001_init.sql:10116](../../../backend/migrations/001_init.sql#L10116) |
-| `ck_exam_date_precision` | check | `CONSTRAINT ck_exam_date_precision CHECK(performed_date_precision IS NULL OR(performed_date_precision='day' AND date IS NOT NULL) OR(performed_date_precision='unknown' AND date IS NULL))` | [001_init.sql:10123](../../../backend/migrations/001_init.sql#L10123) |
+| `exams_performed_date_precision_check` | check | `CHECK(performed_date_precision IN('day','unknown'))` | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
+| `ck_exam_date_precision` | check | `CONSTRAINT ck_exam_date_precision CHECK(performed_date_precision IS NULL OR(performed_date_precision='day' AND date IS NOT NULL) OR(performed_date_precision='unknown' AND date IS NULL))` | [001_init.sql:10125](../../../backend/migrations/001_init.sql#L10125) |
 
 ## インデックス
 

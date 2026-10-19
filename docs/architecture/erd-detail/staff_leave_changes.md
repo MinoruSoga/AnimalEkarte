@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10595](../../../backend/migrations/001_init.sql#L10595) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10595](../../../backend/migrations/001_init.sql#L10595) |
-| `leave_period_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10596](../../../backend/migrations/001_init.sql#L10596) |
-| `resulting_version` | `bigint` | NOT NULL | — | UK | [001_init.sql:10596](../../../backend/migrations/001_init.sql#L10596) |
-| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
-| `after_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10598](../../../backend/migrations/001_init.sql#L10598) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10598](../../../backend/migrations/001_init.sql#L10598) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10599](../../../backend/migrations/001_init.sql#L10599) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
+| `leave_period_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10598](../../../backend/migrations/001_init.sql#L10598) |
+| `resulting_version` | `bigint` | NOT NULL | — | UK | [001_init.sql:10598](../../../backend/migrations/001_init.sql#L10598) |
+| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:10599](../../../backend/migrations/001_init.sql#L10599) |
+| `after_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:10599](../../../backend/migrations/001_init.sql#L10599) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10600](../../../backend/migrations/001_init.sql#L10600) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10600](../../../backend/migrations/001_init.sql#L10600) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10601](../../../backend/migrations/001_init.sql#L10601) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -66,10 +66,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_leave_changes_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10595](../../../backend/migrations/001_init.sql#L10595) |
-| `staff_leave_changes_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10598](../../../backend/migrations/001_init.sql#L10598) |
-| `staff_leave_changes_leave_period_id_clinic_id_fkey` | `leave_period_id, clinic_id` | [staff_leave_periods](staff_leave_periods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10600](../../../backend/migrations/001_init.sql#L10600) |
-| `staff_leave_changes_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10601](../../../backend/migrations/001_init.sql#L10601) |
+| `staff_leave_changes_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
+| `staff_leave_changes_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10600](../../../backend/migrations/001_init.sql#L10600) |
+| `staff_leave_changes_leave_period_id_clinic_id_fkey` | `leave_period_id, clinic_id` | [staff_leave_periods](staff_leave_periods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10602](../../../backend/migrations/001_init.sql#L10602) |
+| `staff_leave_changes_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10603](../../../backend/migrations/001_init.sql#L10603) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -82,11 +82,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_leave_changes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10595](../../../backend/migrations/001_init.sql#L10595) |
-| `staff_leave_changes_resulting_version_check` | check | `CHECK(resulting_version>0)` | [001_init.sql:10596](../../../backend/migrations/001_init.sql#L10596) |
-| `staff_leave_changes_before_values_check` | check | `CHECK(jsonb_typeof(before_values)='object')` | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
-| `staff_leave_changes_after_values_check` | check | `CHECK(jsonb_typeof(after_values)='object')` | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
-| `staff_leave_changes_clinic_id_leave_period_id_resulting_ver_key` | unique | `UNIQUE(clinic_id,leave_period_id,resulting_version)` | [001_init.sql:10599](../../../backend/migrations/001_init.sql#L10599) |
+| `staff_leave_changes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10597](../../../backend/migrations/001_init.sql#L10597) |
+| `staff_leave_changes_resulting_version_check` | check | `CHECK(resulting_version>0)` | [001_init.sql:10598](../../../backend/migrations/001_init.sql#L10598) |
+| `staff_leave_changes_before_values_check` | check | `CHECK(jsonb_typeof(before_values)='object')` | [001_init.sql:10599](../../../backend/migrations/001_init.sql#L10599) |
+| `staff_leave_changes_after_values_check` | check | `CHECK(jsonb_typeof(after_values)='object')` | [001_init.sql:10599](../../../backend/migrations/001_init.sql#L10599) |
+| `staff_leave_changes_clinic_id_leave_period_id_resulting_ver_key` | unique | `UNIQUE(clinic_id,leave_period_id,resulting_version)` | [001_init.sql:10601](../../../backend/migrations/001_init.sql#L10601) |
 
 ## インデックス
 

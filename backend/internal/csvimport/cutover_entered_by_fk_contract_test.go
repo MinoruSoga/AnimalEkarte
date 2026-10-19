@@ -46,12 +46,12 @@ ON CONFLICT (id) DO UPDATE SET clinic_id = EXCLUDED.clinic_id, is_active = true,
 	ownerID := seeds.ClinicID*10_000_000 + 1
 	petID := seeds.ClinicID*10_000_000 + 1
 	mustExec(t, ctx, pool, `
-INSERT INTO owners (id, clinic_id, name) VALUES ($1, $2, 'o')
+INSERT INTO owners (id, clinic_id) VALUES ($1, $2)
 ON CONFLICT (id) DO NOTHING`, ownerID, seeds.ClinicID)
 	mustExec(t, ctx, pool, `
-INSERT INTO pets (id, clinic_id, owner_id, name, animal_species_id)
-VALUES ($1, $2, $3, 'p', $4)
-ON CONFLICT (id) DO NOTHING`, petID, seeds.ClinicID, ownerID, seeds.AnimalSpeciesID)
+INSERT INTO pets (id, clinic_id, owner_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (id) DO NOTHING`, petID, seeds.ClinicID, ownerID)
 
 	doctorID := seeds.ClinicID
 	mustExec(t, ctx, pool, `
@@ -246,8 +246,8 @@ func ensureCutoverIntegrationSeedBaseline(t *testing.T, ctx context.Context, poo
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM schema_migrations`).Scan(&n); err != nil {
 		t.Fatalf("schema_migrations: %v", err)
 	}
-	if n < 3 {
-		t.Fatalf("schema_migrations count = %d, want >= 3 (001-003 applied)", n)
+	if n < 1 {
+		t.Fatalf("schema_migrations count = %d, want >= 1 (consolidated 001 applied)", n)
 	}
 	mustExec(t, ctx, pool, `INSERT INTO companies (id, name) VALUES ($1, 'cutover-co') ON CONFLICT (id) DO NOTHING`, seeds.ClinicID)
 	mustExec(t, ctx, pool, `INSERT INTO clinics (id, company_id, name) VALUES ($1, $1, 'cutover-clinic') ON CONFLICT (id) DO NOTHING`, seeds.ClinicID)
@@ -260,8 +260,8 @@ ON CONFLICT (id) DO NOTHING`)
 INSERT INTO exam_types (id, clinic_id, name) VALUES ($1, $2, '検査')
 ON CONFLICT (id) DO NOTHING`, seeds.ExamTypeID, seeds.ClinicID)
 	mustExec(t, ctx, pool, `
-INSERT INTO reservation_types (id, clinic_id, name, category)
-VALUES ($1, $2, 'trimming', 'trimming')
+INSERT INTO reservation_types (id, clinic_id, name, business_kind, duration_minutes)
+VALUES ($1, $2, 'trimming', 'trimming', 15)
 ON CONFLICT (id) DO NOTHING`, seeds.TrimmingReservationTypeID, seeds.ClinicID)
 }
 
