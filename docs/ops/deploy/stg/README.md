@@ -16,3 +16,4 @@ STG への適用は [STG_PLANETSCALE_SEED_RUNBOOK.md](STG_PLANETSCALE_SEED_RUNBO
 | [STG-DEMO-DATA-LIFECYCLE.md](STG-DEMO-DATA-LIFECYCLE.md) | デモデータの分類・作成元・Cleanup 方針・DB 再作成境界 |
 | [STG_PLANETSCALE_SEED_RUNBOOK.md](STG_PLANETSCALE_SEED_RUNBOOK.md) | PlanetScale STG への `cmd/migrate` 適用・検証手順 |
 | [STG-PRESERVE-DATA.md](STG-PRESERVE-DATA.md) | 再構築前後の保持データ export / restore / verify |
+| [STG-DEMO-SEED.md](STG-DEMO-SEED.md) | 合成マスタ・飼主・ペット・予約の demo seed（W3a） |
