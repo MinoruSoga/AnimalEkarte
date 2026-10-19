@@ -57,6 +57,52 @@ STRICT_TABLES = {
     "support_chat_messages",
 }
 
+# SQL statements applied to the stage table before the INSERT, per table.
+# They resolve collisions between the seed-managed demo identities (recreated
+# by the login seed with @example.test emails) and the exported copies, so the
+# restore converges without violating accounts_email_key / FK constraints.
+STAGE_FILTERS: dict[str, list[str]] = {
+    # Demo accounts keep their old serial ids in the export; the login seed
+    # already recreated them under new ids. Skip the exported copies.
+    "accounts": [
+        "DELETE FROM stage WHERE email LIKE '%@example.test'",
+    ],
+    # Demo staffs keep their fixed band ids across rebuilds, but their
+    # account_id pointed at the skipped demo accounts. Remap to the seed
+    # accounts by the deterministic staff-id email pattern, then drop any
+    # staff whose account no longer exists.
+    "staffs": [
+        (
+            "UPDATE stage SET account_id = na.id FROM public.accounts na "
+            "WHERE na.email = 'stg-staff-' || stage.id::text || '@example.test'"
+        ),
+        (
+            "DELETE FROM stage WHERE account_id IS NOT NULL AND NOT EXISTS ("
+            "SELECT 1 FROM public.accounts a WHERE a.id = stage.account_id)"
+        ),
+    ],
+    "staff_clinic_assignments": [
+        "DELETE FROM stage WHERE staff_id NOT IN (SELECT id FROM public.staffs)",
+    ],
+    "staff_permission_groups": [
+        "DELETE FROM stage WHERE staff_id NOT IN (SELECT id FROM public.staffs)",
+    ],
+    # Drop only rows referencing staffs that could not be restored; the rest
+    # of the preserved content is kept (verify reports the final counts).
+    "support_bug_reports": [
+        (
+            "DELETE FROM stage WHERE reporter_staff_id IS NOT NULL AND NOT EXISTS ("
+            "SELECT 1 FROM public.staffs s WHERE s.id = stage.reporter_staff_id)"
+        ),
+    ],
+    "support_chat_messages": [
+        (
+            "DELETE FROM stage WHERE staff_id IS NOT NULL AND NOT EXISTS ("
+            "SELECT 1 FROM public.staffs s WHERE s.id = stage.staff_id)"
+        ),
+    ],
+}
+
 FK_CHECKS: list[tuple[str, str]] = [
     ("support_bug_reports", "reporter_staff_id"),
     ("support_bug_reports", "clinic_id"),
@@ -307,20 +353,30 @@ def restore(args: argparse.Namespace) -> None:
         script = (
             f"CREATE TEMP TABLE stage (LIKE public.{quote_ident(table)} INCLUDING DEFAULTS);\n"
             f"\\copy stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
+            "SELECT count(*) FROM stage;\n"
         )
-        if table == "accounts":
-            # Seed-managed demo accounts are recreated by the login seed with
-            # fixed ids/emails; restoring the exported copies would collide on
-            # accounts_email_key. Skip them and let seedlogin own the hashes.
-            script += "DELETE FROM stage WHERE email LIKE '%@example.test';\n"
+        filters = STAGE_FILTERS.get(table, [])
+        for statement in filters:
+            script += statement + ";\n"
+        if filters:
+            script += "SELECT count(*) FROM stage;\n"
         script += (
             f"INSERT INTO public.{quote_ident(table)} ({column_list})\n"
             f"SELECT {column_list} FROM stage\n"
             f"ON CONFLICT {conflict} {conflict_clause};\n"
             "DROP TABLE stage;\n"
         )
-        run_psql(env, script=script)
-        print(f"restored {table}: {entry['rows']} rows")
+        out = run_psql(env, script=script)
+        lines = [line for line in out.splitlines() if line.strip()]
+        staged = int(lines[0]) if lines else 0
+        if filters:
+            kept = int(lines[1]) if len(lines) > 1 else staged
+            print(
+                f"restored {table}: {entry['rows']} export rows, "
+                f"{staged} staged, {staged - kept} skipped by restore filters"
+            )
+        else:
+            print(f"restored {table}: {entry['rows']} rows")
 
     sequence_tables = ", ".join(f"'{table}'" for table, _ in TABLES if table not in {"clinic_settings", "staff_permission_groups"})
     run_psql(

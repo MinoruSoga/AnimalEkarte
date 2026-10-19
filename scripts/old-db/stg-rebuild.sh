@@ -11,6 +11,9 @@
 # Optional:
 #   ROLE_NAME=...                 short-lived PlanetScale role name
 #   SEEDLOGIN_DEMO_PASSWORD=...   pass the STG demo-login secret to migrate
+#   SKIP_RESET=1                  do not pre-drop or reset; re-run migrate only
+#                                 (used to refresh the login seed after a
+#                                 preservation restore)
 #
 # The script creates a 4h role, runs the migrate, and always deletes the role
 # with successor postgres. It never prints the password.
@@ -96,6 +99,9 @@ IFS=$'\t' read -r DB_HOST DB_USER DB_PASSWORD <<< "$CONN"
 # DROP SCHEMA public CASCADE in one transaction exceeds the shared-memory lock
 # budget on the STG branch (138 tables + RLS/functions). Drop objects statement
 # by statement first; DB_RESET=true then only recreates the empty schema.
+if [[ "${SKIP_RESET:-}" == "1" ]]; then
+  echo "SKIP_RESET=1: skipping batched pre-drop"
+else
 echo "Batched pre-drop of public objects"
 psql_major="$(psql --version | grep -oE '[0-9]+' | head -1)"
 ssl_root="${STG_SSL_ROOT_CERT:-system}"
@@ -120,27 +126,32 @@ SELECT format('DROP EXTENSION IF EXISTS %I CASCADE', extname)
 SELECT format('DROP TYPE IF EXISTS public.%I CASCADE', typname)
   FROM pg_type WHERE typtype = 'e' AND typnamespace = 'public'::regnamespace \gexec
 SQL
+fi
 
 EXTRA_ENV=()
 if [[ -n "${SEEDLOGIN_DEMO_PASSWORD:-}" ]]; then
   EXTRA_ENV+=(-e "SEEDLOGIN_DEMO_PASSWORD=$SEEDLOGIN_DEMO_PASSWORD")
 fi
 
-echo "Running DB_RESET=true migrate against ${DB_HOST}/${DB_USER}"
+db_reset=false
+[[ "${SKIP_RESET:-}" == "1" ]] || db_reset=true
+echo "Running DB_RESET=$db_reset migrate against ${DB_HOST}/${DB_USER}"
 docker compose exec -T \
   -e DB_HOST="$DB_HOST" -e DB_PORT=5432 \
   -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD" \
   -e DB_NAME=postgres -e DB_SSL_MODE=verify-full -e DB_SSL_ROOT_CERT=system \
-  -e DB_RESET=true -e APP_ENV=staging \
+  -e DB_RESET=$db_reset -e APP_ENV=staging \
   "${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"}" \
   backend go run ./cmd/migrate 2>&1 | tee "$LOG"
 
 missing=()
-for marker in "Schema reset completed" "Seed bundle loaded" "bundle=002_master" "Migration key coverage"; do
-  if ! grep -Fq "$marker" "$LOG"; then
-    missing+=("$marker")
-  fi
-done
+if [[ "${SKIP_RESET:-}" == "1" ]]; then
+  : # reset markers are not expected on a no-reset migrate re-run
+else
+  for marker in "Schema reset completed" "Seed bundle loaded" "bundle=002_master" "Migration key coverage"; do
+    grep -Fq "$marker" "$LOG" || missing+=("$marker")
+  done
+fi
 if grep -Fq "Migration key coverage" "$LOG" && ! grep -Eq "Migration key coverage.*missing=0" "$LOG"; then
   missing+=("Migration key coverage missing=0")
 fi
@@ -157,5 +168,9 @@ if ((${#missing[@]} > 0)); then
   exit 1
 fi
 
-echo "PASS: STG schema reset and migrate completed"
+if [[ "${SKIP_RESET:-}" == "1" ]]; then
+  echo "PASS: migrate re-run completed without schema reset"
+else
+  echo "PASS: STG schema reset and migrate completed"
+fi
 echo "Log: $LOG"
