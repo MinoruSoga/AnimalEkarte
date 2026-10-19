@@ -307,6 +307,13 @@ def restore(args: argparse.Namespace) -> None:
         script = (
             f"CREATE TEMP TABLE stage (LIKE public.{quote_ident(table)} INCLUDING DEFAULTS);\n"
             f"\\copy stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
+        )
+        if table == "accounts":
+            # Seed-managed demo accounts are recreated by the login seed with
+            # fixed ids/emails; restoring the exported copies would collide on
+            # accounts_email_key. Skip them and let seedlogin own the hashes.
+            script += "DELETE FROM stage WHERE email LIKE '%@example.test';\n"
+        script += (
             f"INSERT INTO public.{quote_ident(table)} ({column_list})\n"
             f"SELECT {column_list} FROM stage\n"
             f"ON CONFLICT {conflict} {conflict_clause};\n"
