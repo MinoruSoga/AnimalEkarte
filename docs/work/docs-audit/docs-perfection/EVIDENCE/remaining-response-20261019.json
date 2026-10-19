@@ -960,8 +960,8 @@
       "priority": "P1",
       "before": "未精査",
       "scope": "related-static-source-or-data-investigation",
-      "performed_in_docs": "旧値分類manifest/前後金額件数照合・認可参照境界の候補と不足時停止を草案化",
-      "remaining": "実データ/全grant/旧欠落設定/全保存読取経路の限定調査と移行。必要な解釈だけ根拠を添えて質問",
+      "performed_in_docs": "品目6種の設定保存/読取/会計snapshot、停止支払方法の新受領と過去参照、マスタ変更/個別割引認可の既存契約を照合し、F05/F09等の受入先へ接続。全入口の実装適合は未確認",
+      "remaining": "create/edit/read/候補/会計行追加/明示再適用/帳票・集計の各入口でfield・現在grant・保存版/履歴を逆引きし、停止競合・遅延応答・旧snapshot保護の対応表と残る実装差/受入証跡を揃える。新規初期値と旧欠落、保険区分と割引除外、新受領と既存資金操作を分離",
       "detail_path": "docs/design/domains/accounting/technical-spec.md",
       "detail_anchor": "finance-physical-candidates-20261019",
       "baseline_target": "docs/design/domains/accounting/technical-spec.md",
@@ -976,8 +976,8 @@
       "new_business_adoption": false,
       "review_evidence": {
         "id": "FIN-R15",
-        "done_in_docs_draft": "旧値分類manifest/前後金額件数照合・認可参照境界の候補と不足時停止を草案化",
-        "remaining": "実データ/全grant/旧欠落設定/全保存読取経路の限定調査と移行。必要な解釈だけ根拠を添えて質問",
+        "done_in_docs_draft": "品目6種の設定保存/読取/会計snapshot、停止支払方法の新受領と過去参照、マスタ変更/個別割引認可の既存契約を照合し、F05/F09等の受入先へ接続。全入口の実装適合は未確認",
+        "remaining": "create/edit/read/候補/会計行追加/明示再適用/帳票・集計の各入口でfield・現在grant・保存版/履歴を逆引きし、停止競合・遅延応答・旧snapshot保護の対応表と残る実装差/受入証跡を揃える。新規初期値と旧欠落、保険区分と割引除外、新受領と既存資金操作を分離",
         "implementation_or_runtime_pass": false
       },
       "after": "対象範囲を精査。残る資料/実値/実行は個別明示"
