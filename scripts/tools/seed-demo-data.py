@@ -25,6 +25,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -69,19 +70,28 @@ class ApiClient:
             urllib.request.HTTPCookieProcessor(self.cookies)
         )
 
-    def request(self, method: str, path: str, payload: dict | None = None) -> tuple[int, dict | list | None]:
+    def request(
+        self,
+        method: str,
+        path: str,
+        payload: dict | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> tuple[int, dict | list | None]:
         data = None if payload is None else json.dumps(payload).encode("utf-8")
+        request_headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "animal-ekarte-demo-seed/1.0",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-Clinic-ID": str(self.clinic_id),
+        }
+        if headers:
+            request_headers.update(headers)
         req = urllib.request.Request(
             f"{self.base_url}{path}",
             data=data,
             method=method,
-            headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "User-Agent": "animal-ekarte-demo-seed/1.0",
-                "X-Requested-With": "XMLHttpRequest",
-                "X-Clinic-ID": str(self.clinic_id),
-            },
+            headers=request_headers,
         )
         try:
             with self.opener.open(req, timeout=30) as res:
@@ -492,11 +502,219 @@ def seed_reservations(client: ApiClient, state: State, owners: list[dict]) -> No
             continue
         created = client.create("/api/v1/reservations", payload)
         reservation_id = int(created["id"])
-        state.record_created("reservation", reservation_id, f"{RUN_TAG} {index + 1}")
-        print(f"created reservation: {RUN_TAG} {index + 1} (#{reservation_id})")
+        state.created.append(
+            {"kind": "reservation", "id": reservation_id, "name": label, "pet_id": pet["id"]}
+        )
+        print(f"created reservation: {label} (#{reservation_id})")
+
+
+def find_record_for_reservation(client: ApiClient, pet_id: int, reservation_id: int) -> dict | None:
+    for row in client.rows(f"/api/v1/medical-records?pet_id={pet_id}"):
+        if row.get("appointment_id") == reservation_id:
+            return row
+    return None
+
+
+def enrich_record(client: ApiClient, record: dict, ids: dict[str, dict[str, int]]) -> None:
+    record_id = int(record["id"])
+    code, plan = client.request("GET", f"/api/v1/medical-records/{record_id}/clinical-plan")
+    version = plan.get("version") if code == 200 and isinstance(plan, dict) else None
+    payload = {
+        "physical_exam": "【デモ】一般状態良好。可視粘膜正常。",
+        "diagnosis_type_id": ids["diagnosis_type"]["【デモ】内科疾患"],
+        "diagnosis_name_id": ids["diagnosis_name"]["【デモ】胃炎"],
+        "diagnosis_details": "【デモ】食欲不振のため来院。嘔吐なし。",
+        "treatment_policy": "【デモ】内服加療と再診指示。",
+    }
+    if version is not None:
+        payload["version"] = version
+    code, body = client.request("PATCH", f"/api/v1/medical-records/{record_id}/clinical-plan", payload)
+    if code not in (200, 204):
+        die(f"PATCH clinical plan {record_id}: HTTP {code} {str(body)[:300]}")
+    print(f"updated clinical plan: record #{record_id}")
+
+    vital = {
+        "recorded_at": record.get("date") or datetime.now(JST).isoformat(),
+        "temperature": 38.2,
+        "heart_rate": 110,
+        "respiration_rate": 24,
+        "weight": 10.4,
+        "weight_unit": "Kg",
+        "notes": f"{RUN_TAG} synthetic vital",
+    }
+    client.create(f"/api/v1/medical-records/{record_id}/vitals", vital)
+    print(f"created vital: record #{record_id}")
+
+    treatments = [
+        {
+            "item_type": "procedure",
+            "procedure_id": ids["procedure"]["【デモ】一般診察"],
+            "unit_price": 2000,
+            "quantity": 1,
+            "selected": True,
+            "content": "【デモ】一般診察",
+            "sort_order": 1,
+        },
+        {
+            "item_type": "medicine",
+            "medicine_id": ids["medicine"]["【デモ】アモキシシリン"],
+            "unit_price": 800,
+            "quantity": 1,
+            "selected": True,
+            "content": "【デモ】アモキシシリン",
+            "sort_order": 2,
+        },
+    ]
+    for treatment in treatments:
+        client.create(f"/api/v1/medical-records/{record_id}/treatments", treatment)
+    print(f"created treatments: record #{record_id}")
+
+
+def create_estimate(client: ApiClient, state: State, record: dict) -> None:
+    payload = {
+        "medical_record_id": int(record["id"]),
+        "owner_id": int(record["owner_id"]),
+        "pet_id": int(record["pet_id"]),
+        "title": "【デモ】見積書",
+        "status": "draft",
+        "comment": f"{RUN_TAG} synthetic estimate",
+        "items": [
+            {
+                "name": "【デモ】一般診察",
+                "category": "procedure",
+                "unit_price": 2000,
+                "quantity": 1,
+                "tax_type": "excluded",
+                "tax_rate": 0.1,
+            }
+        ],
+    }
+    created = client.create("/api/v1/estimates", payload)
+    state.created.append({"kind": "estimate", "id": int(created["id"]), "name": "【デモ】見積書"})
+    print(f"created estimate: #{created['id']}")
+
+
+def billing_items() -> list[dict]:
+    return [
+        {
+            "category": "procedure",
+            "name": "【デモ】一般診察",
+            "unit_price": 2000,
+            "quantity": 1,
+            "tax_type": "excluded",
+            "tax_rate": 0.1,
+            "is_insurance_applicable": False,
+            "source": "manual",
+        },
+        {
+            "category": "medicine",
+            "name": "【デモ】アモキシシリン",
+            "unit_price": 800,
+            "quantity": 1,
+            "tax_type": "excluded",
+            "tax_rate": 0.1,
+            "is_insurance_applicable": False,
+            "source": "manual",
+        },
+    ]
+
+
+def create_billing(client: ApiClient, state: State, record: dict, mode: str) -> None:
+    scheduled_date = datetime.now(JST).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    if mode == "paid":
+        payload = {
+            "medical_record_id": int(record["id"]),
+            "scheduled_date": scheduled_date,
+            "items": billing_items(),
+            "payment_splits": [
+                {"method": "cash", "amount": 3080, "received_amount": 3080, "change_amount": 0}
+            ],
+        }
+        code, body = client.request(
+            "POST",
+            "/api/v1/accountings/complete",
+            payload,
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )
+        if code not in (200, 201):
+            die(f"POST /accountings/complete: HTTP {code} {str(body)[:300]}")
+        data = body.get("data") if isinstance(body, dict) and isinstance(body.get("data"), dict) else body
+        billing_id = int(data["id"])
+        state.created.append({"kind": "billing", "id": billing_id, "name": f"{RUN_TAG} billing paid"})
+        print(f"created billing: #{billing_id} mode=paid status={data.get('status')}")
+        return
+
+    header = {
+        "medical_record_id": int(record["id"]),
+        "subtotal": 2800,
+        "tax_total": 280,
+        "total_amount": 3080,
+        "status": "waiting",
+        "scheduled_date": scheduled_date,
+        "memo": f"{RUN_TAG} synthetic {mode} billing",
+    }
+    created = client.create("/api/v1/accountings", header)
+    billing_id = int(created["id"])
+    for item in billing_items():
+        item_payload = {key: value for key, value in item.items() if key not in {"source"}}
+        item_payload["billing_id"] = billing_id
+        client.create("/api/v1/billing-items", item_payload)
+    state.created.append({"kind": "billing", "id": billing_id, "name": f"{RUN_TAG} billing {mode}"})
+    print(f"created billing: #{billing_id} mode={mode} status={created.get('status')}")
+    if mode == "partial":
+        code, body = client.request(
+            "PATCH",
+            f"/api/v1/accountings/{billing_id}",
+            {
+                "payment_splits": [
+                    {"method": "cash", "amount": 1000, "received_amount": 1000, "change_amount": 0}
+                ]
+            },
+        )
+        if code not in (200, 204):
+            print(f"warning: partial payment not applied: HTTP {code} {str(body)[:200]}")
+        else:
+            print(f"applied partial payment: #{billing_id} amount=1000")
+
+
+def seed_scenario(client: ApiClient, state: State, ids: dict[str, dict[str, int]]) -> None:
+    reservations = [row for row in state.created if row["kind"] == "reservation"]
+    if not reservations:
+        print("no demo reservations; skipping scenario data")
+        return
+    records = []
+    for reservation in reservations:
+        record = find_record_for_reservation(client, int(reservation["pet_id"]), int(reservation["id"]))
+        if record is None:
+            print(f"warning: medical record not found for reservation #{reservation['id']}")
+            continue
+        records.append(record)
+    if not records:
+        return
+    enrich_record(client, records[0], ids)
+    create_estimate(client, state, records[0])
+    create_billing(client, state, records[0], mode="unpaid")
+    if len(records) > 1:
+        create_billing(client, state, records[1], mode="paid")
+    if len(records) > 2:
+        create_billing(client, state, records[2], mode="partial")
 
 
 def cleanup(client: ApiClient, state: State) -> None:
+    for billing in [row for row in state.created if row["kind"] == "billing"]:
+        code, body = client.request("POST", f"/api/v1/accountings/{billing['id']}/cancel")
+        if code not in (200, 204, 404, 409):
+            print(f"FAIL cleanup: billing #{billing['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+        else:
+            print(f"cancelled billing: #{billing['id']}")
+    for estimate in [row for row in state.created if row["kind"] == "estimate"]:
+        # The estimate delete endpoint refuses while items exist; clear them first.
+        client.request("PATCH", f"/api/v1/estimates/{estimate['id']}", {"items": []})
+        code, body = client.request("DELETE", f"/api/v1/estimates/{estimate['id']}")
+        if code not in (200, 204, 404):
+            print(f"FAIL cleanup: estimate #{estimate['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+        else:
+            print(f"deleted estimate: #{estimate['id']}")
     # Creating a reservation also creates a linked medical record. Delete those
     # auto-created records before the reservation/pet, otherwise the API rejects
     # the reservation delete with 409.
@@ -516,11 +734,25 @@ def cleanup(client: ApiClient, state: State) -> None:
         for record in rows or []:
             if record.get("appointment_id") not in reservation_ids:
                 continue
-            code, body = client.request("DELETE", f"/api/v1/medical-records/{record['id']}")
+            record_id = record["id"]
+            client.request("DELETE", f"/api/v1/medical-records/{record_id}/clinical-plan")
+            code, treatments = client.request("GET", f"/api/v1/medical-records/{record_id}/treatments")
+            treatment_rows = treatments.get("data") if isinstance(treatments, dict) else treatments
+            for treatment in treatment_rows or []:
+                code, body = client.request("DELETE", f"/api/v1/medical-records/{record_id}/treatments/{treatment['id']}")
+                if code not in (200, 204, 404):
+                    print(f"FAIL cleanup: treatment #{treatment['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+            code, vitals = client.request("GET", f"/api/v1/medical-records/{record_id}/vitals")
+            vital_rows = vitals.get("data") if isinstance(vitals, dict) else vitals
+            for vital in vital_rows or []:
+                code, body = client.request("DELETE", f"/api/v1/medical-records/{record_id}/vitals/{vital['id']}")
+                if code not in (200, 204, 404):
+                    print(f"FAIL cleanup: vital #{vital['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+            code, body = client.request("DELETE", f"/api/v1/medical-records/{record_id}")
             if code not in (200, 204, 404):
-                print(f"FAIL cleanup: medical record #{record['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+                print(f"FAIL cleanup: medical record #{record_id}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
             else:
-                print(f"deleted medical record: #{record['id']} (pet #{pet_id})")
+                print(f"deleted medical record: #{record_id} (pet #{pet_id})")
     for item in [row for row in state.created if row["kind"] == "staff_capability"]:
         code, body = client.request(
             "PUT",
@@ -532,7 +764,10 @@ def cleanup(client: ApiClient, state: State) -> None:
         else:
             print(f"restored staff capability: #{item['id']}")
     order = ["reservation", "shift", "pet", "owner", "diagnosis_name", "chief_complaint", "diagnosis_type", "procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "reservation_type_group"]
-    resources = [row for row in state.created if row["kind"] != "staff_capability"]
+    resources = [
+        row for row in state.created
+        if row["kind"] not in {"staff_capability", "billing", "estimate"}
+    ]
     failures = []
     for kind in order:
         for item in [row for row in resources if row["kind"] == kind]:
@@ -600,17 +835,20 @@ def main() -> None:
 
     if args.cleanup:
         cleanup(client, state)
+        state.created = []
+        state.updated = []
         state.save(state_path)
         return
 
     try:
-        seed_masters(client, state)
+        ids = seed_masters(client, state)
         owners = seed_owners_and_pets(client, state)
         seed_reservations(client, state, owners)
+        seed_scenario(client, state, ids)
     finally:
         state.save(state_path)
     print(f"state: {state_path}")
-    print("W3b (medical records / billing / hospitalization / trimming) is not implemented yet.")
+    print("W3b-1 (clinical plan / vitals / treatments / estimate / billing) applied; hospitalization / trimming / inventory movements remain.")
 
 
 if __name__ == "__main__":
