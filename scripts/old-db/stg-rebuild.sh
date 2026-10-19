@@ -136,7 +136,7 @@ docker compose exec -T \
   backend go run ./cmd/migrate 2>&1 | tee "$LOG"
 
 missing=()
-for marker in "Schema reset completed" "Seed bundle loaded bundle=002_master" "Migration key coverage"; do
+for marker in "Schema reset completed" "Seed bundle loaded" "bundle=002_master" "Migration key coverage"; do
   if ! grep -Fq "$marker" "$LOG"; then
     missing+=("$marker")
   fi
