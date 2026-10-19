@@ -104,7 +104,7 @@ if [[ "$ssl_root" == "system" && "${psql_major:-0}" -lt 17 ]]; then
   ssl_root="/etc/ssl/cert.pem"
 fi
 PGHOST="$DB_HOST" PGPORT=5432 PGUSER="$DB_USER" PGPASSWORD="$DB_PASSWORD" \
-PGDATABASE=postgres PGSSLMODE=verify-full PGSSLROOT_CERT="$ssl_root" \
+PGDATABASE=postgres PGSSLMODE=verify-full PGSSLROOTCERT="$ssl_root" \
 PGOPTIONS='-c app.bypass_rls=on' \
 psql -X -q -v ON_ERROR_STOP=1 -f - <<'SQL'
 SELECT format('DROP TABLE IF EXISTS public.%I CASCADE', tablename)
