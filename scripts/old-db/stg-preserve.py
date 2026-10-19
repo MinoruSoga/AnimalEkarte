@@ -42,7 +42,9 @@ TABLES: list[tuple[str, str]] = [
     ("permission_groups", "(id)"),
     ("permission_group_rules", "(id)"),
     ("staffs", "(id)"),
-    ("staff_clinic_assignments", "(staff_id, clinic_id)"),
+    # pkey is the serial id; the (staff_id, clinic_id) pair collision is
+    # resolved by TARGET_PRE_DELETES before the INSERT.
+    ("staff_clinic_assignments", "(id)"),
     ("staff_permission_groups", "(staff_id, group_id)"),
     ("manual_articles", "(id)"),
     ("manual_article_versions", "(id)"),
@@ -99,6 +101,21 @@ STAGE_FILTERS: dict[str, list[str]] = {
         (
             "DELETE FROM stage WHERE staff_id IS NOT NULL AND NOT EXISTS ("
             "SELECT 1 FROM public.staffs s WHERE s.id = stage.staff_id)"
+        ),
+    ],
+}
+
+# SQL statements executed against the target table (stage is available as a
+# temp table) right before the INSERT. staff_clinic_assignments has a serial
+# pkey plus a (staff_id, clinic_id) unique constraint; an exported row whose
+# id differs from an existing row with the same pair would violate the unique
+# constraint. Remove pair-matching rows first; the login seed re-creates its
+# own assignments on the next migrate.
+TARGET_PRE_DELETES: dict[str, list[str]] = {
+    "staff_clinic_assignments": [
+        (
+            "DELETE FROM public.staff_clinic_assignments t USING stage s "
+            "WHERE t.staff_id = s.staff_id AND t.clinic_id = s.clinic_id"
         ),
     ],
 }
@@ -334,6 +351,7 @@ def restore(args: argparse.Namespace) -> None:
     print(f"restore target: {cfg['DB_HOST']}/{cfg.get('DB_NAME', 'postgres')}")
     env = psql_env(cfg)
 
+    report: dict[str, dict[str, int]] = {}
     for entry in manifest["tables"]:
         table = entry["name"]
         conflict = dict(TABLES)[table]
@@ -360,6 +378,8 @@ def restore(args: argparse.Namespace) -> None:
             script += statement + ";\n"
         if filters:
             script += "SELECT count(*) FROM stage;\n"
+        for statement in TARGET_PRE_DELETES.get(table, []):
+            script += statement + ";\n"
         script += (
             f"INSERT INTO public.{quote_ident(table)} ({column_list})\n"
             f"SELECT {column_list} FROM stage\n"
@@ -369,6 +389,7 @@ def restore(args: argparse.Namespace) -> None:
         out = run_psql(env, script=script)
         lines = [line for line in out.splitlines() if line.strip()]
         staged = int(lines[0]) if lines else 0
+        kept = staged
         if filters:
             kept = int(lines[1]) if len(lines) > 1 else staged
             print(
@@ -377,6 +398,12 @@ def restore(args: argparse.Namespace) -> None:
             )
         else:
             print(f"restored {table}: {entry['rows']} rows")
+        report[table] = {"staged": staged, "kept": kept, "skipped": staged - kept}
+
+    report_path = export_dir / "restore-report.json"
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    os.chmod(report_path, 0o600)
+    print(f"restore report written: {report_path}")
 
     sequence_tables = ", ".join(f"'{table}'" for table, _ in TABLES if table not in {"clinic_settings", "staff_permission_groups"})
     run_psql(
@@ -409,19 +436,42 @@ def verify(args: argparse.Namespace) -> None:
     guard_target(cfg)
     env = psql_env(cfg)
 
+    # Restore filters may intentionally skip rows (seed-managed demo
+    # identities, staffs whose accounts are gone). The report records what
+    # the restore actually staged and kept per table.
+    report: dict[str, dict[str, int]] = {}
+    report_path = export_dir / "restore-report.json"
+    if report_path.exists():
+        report = json.loads(report_path.read_text())
+
     failures: list[str] = []
     for entry in manifest["tables"]:
         table = entry["name"]
         rows = table_count(env, table)
+        entry_report = report.get(table)
+        kept = entry_report["kept"] if entry_report else entry["rows"]
         if table in STRICT_TABLES:
-            if rows != entry["rows"]:
-                failures.append(f"{table}: rows {rows} != export {entry['rows']}")
-            current_hash = content_hash(env, table)
-            if current_hash != entry["content_hash"]:
-                failures.append(f"{table}: content hash mismatch")
-        elif rows < entry["rows"]:
-            failures.append(f"{table}: rows {rows} < export {entry['rows']}")
-        print(f"verify {table}: rows={rows} export={entry['rows']}")
+            if kept == entry["rows"]:
+                if rows != entry["rows"]:
+                    failures.append(f"{table}: rows {rows} != export {entry['rows']}")
+                current_hash = content_hash(env, table)
+                if current_hash != entry["content_hash"]:
+                    failures.append(f"{table}: content hash mismatch")
+            else:
+                if rows != kept:
+                    failures.append(f"{table}: rows {rows} != restored kept {kept}")
+                print(
+                    f"NOTE: {table}: {entry['rows'] - kept} row(s) skipped by restore filters; "
+                    "hash check skipped for this table"
+                )
+        elif rows < kept:
+            failures.append(f"{table}: rows {rows} < restored expectation {kept}")
+        if entry_report:
+            print(
+                f"verify {table}: rows={rows} export={entry['rows']} kept={kept} skipped={entry_report['skipped']}"
+            )
+        else:
+            print(f"verify {table}: rows={rows} export={entry['rows']}")
 
     for child, column in FK_CHECKS:
         sql = (
