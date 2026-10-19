@@ -192,6 +192,33 @@ func (s *accountingService) resolvePaymentWrites(ctx context.Context, input *Upd
 	if err != nil {
 		return nil, nil, err // loadPaymentMethodSystemKeyToID 内で既に wrap + log 済み
 	}
+	// EMR-465: 新たに採用される支払方法が停止中であれば拒否する。既存受領と同じ method の
+	// 再保存・idempotent replay は拒否しない（停止は既存受領の保存済み値を書き換えない）。
+	activeKeys, err := s.loadActivePaymentMethodSystemKeys(ctx, input.ClinicID)
+	if err != nil {
+		return nil, nil, err
+	}
+	savedMethods := make(map[model.PaymentMethod]bool)
+	if base != nil && base.Method != "" {
+		savedMethods[base.Method] = true
+	}
+	for i := range existingSplits {
+		if existingSplits[i].Method != "" {
+			savedMethods[existingSplits[i].Method] = true
+		}
+	}
+	newReceiptMethods := make([]model.PaymentMethod, 0, len(input.PaymentSplits)+1)
+	if payment.Method != "" {
+		newReceiptMethods = append(newReceiptMethods, payment.Method)
+	}
+	for i := range input.PaymentSplits {
+		if input.PaymentSplits[i].Method != "" {
+			newReceiptMethods = append(newReceiptMethods, input.PaymentSplits[i].Method)
+		}
+	}
+	if err := ensureNoInactiveNewReceiptMethods(newReceiptMethods, savedMethods, activeKeys); err != nil {
+		return nil, nil, err
+	}
 	// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
 	if payment.Method != "" {
 		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
@@ -547,6 +574,22 @@ func (s *accountingService) loadPaymentMethodSystemKeyToID(ctx context.Context, 
 		}
 	}
 	return skToID, nil
+}
+
+// loadActivePaymentMethodSystemKeys は有効（is_active）な支払方法マスタの system key 集合を返す（EMR-465）。
+// 停止中の方法は新受領の候補から除外され、新受領の保存時に拒否される。
+func (s *accountingService) loadActivePaymentMethodSystemKeys(ctx context.Context, clinicID uint64) (map[string]bool, error) {
+	methods, err := s.payMethodRepo.FindAll(ctx, clinicID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to load payment methods")
+	}
+	active := make(map[string]bool, len(methods))
+	for i := range methods {
+		if methods[i].SystemKey != nil && methods[i].IsActive {
+			active[*methods[i].SystemKey] = true
+		}
+	}
+	return active, nil
 }
 
 func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) ([]uint64, error) {
