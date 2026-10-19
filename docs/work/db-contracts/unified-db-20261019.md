@@ -62,7 +62,7 @@ EMR365のワクチン小数精度はStartedの契約検討で、具体的scale/D
 
 ## 作成した物理契約とconsumerの未完境界
 
-[coverage JSON](unified-db-coverage.json)に各単位・資源・残consumerを列挙する。今回の選定は技術的な保存契約であり、新しい業務採用ではない。全246表。先行164表から確定不足を追加（詳細はsource trace）。S1の原文・receipt・対象世代は保持した。
+[coverage JSON](unified-db-coverage.json)に各単位・資源・残consumerを列挙する。今回の選定は技術的な保存契約であり、新しい業務採用ではない。現行241表（不要・重複定義の整理後）。先行164表から確定不足を追加（詳細はsource trace）。S1の原文・receipt・対象世代は保持した。
 
 - T1/T2の初期version=1は機構開始時の現在状態counterで、旧master履歴を捏造しない。rule子変更は新rule set親を先にlockしてから行い、親のversionを増分する。コース内包identity・master/rule構成の検証とsnapshot captureは同TXのconsumerが所有する。
 - T3は予約pet/構成・course基礎時間/option時間/元版を保存し、option同ID一回・時間合計と件数を延期制約で照合。T4は安定source行と施術改訂、採用元価格/今回価格/値引き適用段階を保存する。既存価格の精度・税/値引き計算順を新しく決めず、0円とNULLを区別。JSON detail_valuesは明示DTOのsnapshotであり既存row全体や任意client属性を保存しない。
@@ -85,3 +85,7 @@ EMR365のワクチン小数精度はStartedの契約検討で、具体的scale/D
 先行18単位の自己照合だけでは、全確定仕様のDB対応完了とは言えなかった。連絡先/院内予約拒否・4業務種別・名称履歴・休業/日跨ぎ・構造化初診問診・編集権/draft・予防処方/年間投薬・用量pattern・滞在/入院開始・算定/資金/締め/在庫/提示見積・検査出所・健診段階再開・院内マニュアル公開履歴・support/LINE配送保存・実来院根拠・共通患者UUID対応を追加した。[FR/AC→表列→票の追補](spec-storage-trace.md)と[完全列JSON](spec-storage-trace.json)を参照する。旧18単位のreuse記載だけを完成根拠にしない。
 
 共通UUID方式は本人の追加okで採用済み。独立UUID/元医院別ID保持、D19非流用、医院別臨床/金銭分離を維持する。ID統合・患者移行・unlink方式の再設計や実データ操作はない。旧PR728は統合保持の公開確認後にclose済み、branch/worktree/claimは保持する。
+
+## 不要列/旧並行正本の整理
+
+[削除・統合対照](schema-cleanup-audit.md)が、旧表・列を保持する前提の記載に優先する。共通基本情報・予約制限・シフト日時・固定計算・単一fund・本文版・外部配送の保存責任を一元化。医院内ID/診療会計履歴/採用済みCygram/非表示要約は維持し、実データ移行は行っていない。

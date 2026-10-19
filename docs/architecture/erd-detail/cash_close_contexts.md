@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9877](../../../backend/migrations/001_init.sql#L9877) |
-| `close_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9878](../../../backend/migrations/001_init.sql#L9878) |
-| `boundary_revision` | `bigint` | NOT NULL | — | FK | [001_init.sql:9879](../../../backend/migrations/001_init.sql#L9879) |
-| `source_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:9880](../../../backend/migrations/001_init.sql#L9880) |
-| `source_set_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:9881](../../../backend/migrations/001_init.sql#L9881) |
-| `opening_balance_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9882](../../../backend/migrations/001_init.sql#L9882) |
-| `cash_adjustment_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9883](../../../backend/migrations/001_init.sql#L9883) |
-| `source_event_count` | `integer` | NOT NULL | — | — | [001_init.sql:9884](../../../backend/migrations/001_init.sql#L9884) |
-| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9885](../../../backend/migrations/001_init.sql#L9885) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9879](../../../backend/migrations/001_init.sql#L9879) |
+| `close_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9880](../../../backend/migrations/001_init.sql#L9880) |
+| `boundary_revision` | `bigint` | NOT NULL | — | FK | [001_init.sql:9881](../../../backend/migrations/001_init.sql#L9881) |
+| `source_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:9882](../../../backend/migrations/001_init.sql#L9882) |
+| `source_set_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:9883](../../../backend/migrations/001_init.sql#L9883) |
+| `opening_balance_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9884](../../../backend/migrations/001_init.sql#L9884) |
+| `cash_adjustment_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9885](../../../backend/migrations/001_init.sql#L9885) |
+| `source_event_count` | `integer` | NOT NULL | — | — | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
+| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9887](../../../backend/migrations/001_init.sql#L9887) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9888](../../../backend/migrations/001_init.sql#L9888) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -74,11 +74,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cash_close_contexts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9877](../../../backend/migrations/001_init.sql#L9877) |
-| `cash_close_contexts_close_id_clinic_id_fkey` | `close_id, clinic_id` | [cash_register_closes](cash_register_closes.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9888](../../../backend/migrations/001_init.sql#L9888) |
-| `cash_close_contexts_clinic_id_boundary_revision_fkey` | `clinic_id, boundary_revision` | [closing_boundary_revisions](closing_boundary_revisions.md) | `clinic_id, revision` | `ON DELETE RESTRICT` | [001_init.sql:9889](../../../backend/migrations/001_init.sql#L9889) |
-| `cash_close_contexts_opening_balance_id_clinic_id_fkey` | `opening_balance_id, clinic_id` | [cash_opening_balances](cash_opening_balances.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9890](../../../backend/migrations/001_init.sql#L9890) |
-| `cash_close_contexts_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9891](../../../backend/migrations/001_init.sql#L9891) |
+| `cash_close_contexts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9879](../../../backend/migrations/001_init.sql#L9879) |
+| `cash_close_contexts_close_id_clinic_id_fkey` | `close_id, clinic_id` | [cash_register_closes](cash_register_closes.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9890](../../../backend/migrations/001_init.sql#L9890) |
+| `cash_close_contexts_clinic_id_boundary_revision_fkey` | `clinic_id, boundary_revision` | [closing_boundary_revisions](closing_boundary_revisions.md) | `clinic_id, revision` | `ON DELETE RESTRICT` | [001_init.sql:9891](../../../backend/migrations/001_init.sql#L9891) |
+| `cash_close_contexts_opening_balance_id_clinic_id_fkey` | `opening_balance_id, clinic_id` | [cash_opening_balances](cash_opening_balances.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9892](../../../backend/migrations/001_init.sql#L9892) |
+| `cash_close_contexts_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9893](../../../backend/migrations/001_init.sql#L9893) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -92,12 +92,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `cash_close_contexts_source_generation_check` | check | `CHECK (source_generation > 0)` | [001_init.sql:9880](../../../backend/migrations/001_init.sql#L9880) |
-| `cash_close_contexts_source_set_digest_check` | check | `CHECK (octet_length(source_set_digest)=32)` | [001_init.sql:9881](../../../backend/migrations/001_init.sql#L9881) |
-| `cash_close_contexts_cash_adjustment_version_check` | check | `CHECK (cash_adjustment_version >= 0)` | [001_init.sql:9883](../../../backend/migrations/001_init.sql#L9883) |
-| `cash_close_contexts_source_event_count_check` | check | `CHECK (source_event_count >= 0)` | [001_init.sql:9884](../../../backend/migrations/001_init.sql#L9884) |
-| `cash_close_contexts_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9885](../../../backend/migrations/001_init.sql#L9885) |
-| `cash_close_contexts_pkey` | primary | `PRIMARY KEY (clinic_id,close_id)` | [001_init.sql:9887](../../../backend/migrations/001_init.sql#L9887) |
+| `cash_close_contexts_source_generation_check` | check | `CHECK (source_generation > 0)` | [001_init.sql:9882](../../../backend/migrations/001_init.sql#L9882) |
+| `cash_close_contexts_source_set_digest_check` | check | `CHECK (octet_length(source_set_digest)=32)` | [001_init.sql:9883](../../../backend/migrations/001_init.sql#L9883) |
+| `cash_close_contexts_cash_adjustment_version_check` | check | `CHECK (cash_adjustment_version >= 0)` | [001_init.sql:9885](../../../backend/migrations/001_init.sql#L9885) |
+| `cash_close_contexts_source_event_count_check` | check | `CHECK (source_event_count >= 0)` | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
+| `cash_close_contexts_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9887](../../../backend/migrations/001_init.sql#L9887) |
+| `cash_close_contexts_pkey` | primary | `PRIMARY KEY (clinic_id,close_id)` | [001_init.sql:9889](../../../backend/migrations/001_init.sql#L9889) |
 
 ## インデックス
 

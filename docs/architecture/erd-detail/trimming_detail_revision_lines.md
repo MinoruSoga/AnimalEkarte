@@ -18,8 +18,8 @@
 | `master_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8121](../../../backend/migrations/001_init.sql#L8121) |
 | `adopted_master_unit_price` | `bigint` | NULL | — | — | [001_init.sql:8122](../../../backend/migrations/001_init.sql#L8122) |
 | `unit_price` | `bigint` | NULL | — | — | [001_init.sql:8123](../../../backend/migrations/001_init.sql#L8123) |
-| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9392](../../../backend/migrations/001_init.sql#L9392) |
-| `discount_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9392](../../../backend/migrations/001_init.sql#L9392) |
+| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9394](../../../backend/migrations/001_init.sql#L9394) |
+| `discount_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9394](../../../backend/migrations/001_init.sql#L9394) |
 | `discount_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:8126](../../../backend/migrations/001_init.sql#L8126) |
 | `discount_stage` | `text` | NOT NULL | — | — | [001_init.sql:8127](../../../backend/migrations/001_init.sql#L8127) |
 
@@ -87,7 +87,7 @@ erDiagram
 | `trimming_detail_revision_lines_discount_amount_check` | check | `CHECK (discount_amount >= 0)` | [001_init.sql:8126](../../../backend/migrations/001_init.sql#L8126) |
 | `trimming_detail_revision_lines_discount_stage_check` | check | `CHECK (discount_stage IN ('unit','line'))` | [001_init.sql:8127](../../../backend/migrations/001_init.sql#L8127) |
 | `trimming_detail_revision_lines_pkey` | primary | `PRIMARY KEY (clinic_id,detail_revision_id,source_line_id)` | [001_init.sql:8128](../../../backend/migrations/001_init.sql#L8128) |
-| `ck_trimming_nonnegative_discount` | check | `CONSTRAINT ck_trimming_nonnegative_discount CHECK (discount_rate >= 0)` | [001_init.sql:9394](../../../backend/migrations/001_init.sql#L9394) |
+| `ck_trimming_nonnegative_discount` | check | `CONSTRAINT ck_trimming_nonnegative_discount CHECK (discount_rate >= 0)` | [001_init.sql:9396](../../../backend/migrations/001_init.sql#L9396) |
 
 ## インデックス
 

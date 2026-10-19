@@ -15,19 +15,17 @@
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
 | `name` | `text` | NOT NULL | — | — | [001_init.sql:674](../../../backend/migrations/001_init.sql#L674) |
 | `category` | `inventory_category` | NOT NULL | — | — | [001_init.sql:675](../../../backend/migrations/001_init.sql#L675) |
-| `quantity` | `bigint` | NULL | `0` | — | [001_init.sql:10217](../../../backend/migrations/001_init.sql#L10217) |
+| `quantity` | `bigint` | NULL | `0` | — | [001_init.sql:10219](../../../backend/migrations/001_init.sql#L10219) |
 | `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:677](../../../backend/migrations/001_init.sql#L677) |
 | `min_stock_level` | `integer` | NULL | `0` | — | [001_init.sql:678](../../../backend/migrations/001_init.sql#L678) |
 | `location` | `text` | NOT NULL | `''` | — | [001_init.sql:679](../../../backend/migrations/001_init.sql#L679) |
 | `expiry_date` | `date` | NULL | — | — | [001_init.sql:680](../../../backend/migrations/001_init.sql#L680) |
 | `supplier` | `text` | NOT NULL | `''` | — | [001_init.sql:681](../../../backend/migrations/001_init.sql#L681) |
-| `last_restocked` | `date` | NULL | — | — | [001_init.sql:682](../../../backend/migrations/001_init.sql#L682) |
-| `status` | `inventory_status` | NULL | `'sufficient'` | — | [001_init.sql:683](../../../backend/migrations/001_init.sql#L683) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:684](../../../backend/migrations/001_init.sql#L684) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:685](../../../backend/migrations/001_init.sql#L685) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:686](../../../backend/migrations/001_init.sql#L686) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9728](../../../backend/migrations/001_init.sql#L9728) |
-| `quantity_base_id` | `bigint` | NULL | — | FK | [001_init.sql:9745](../../../backend/migrations/001_init.sql#L9745) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9730](../../../backend/migrations/001_init.sql#L9730) |
+| `quantity_base_id` | `bigint` | NULL | — | FK | [001_init.sql:9747](../../../backend/migrations/001_init.sql#L9747) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,8 +48,6 @@ erDiagram
         text location
         date expiry_date
         text supplier
-        date last_restocked
-        inventory_status status
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -75,7 +71,7 @@ erDiagram
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `inventory_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
-| `fk_inventory_quantity_base` | `quantity_base_id, clinic_id, id` | [inventory_quantity_bases](inventory_quantity_bases.md) | `id, clinic_id, inventory_item_id` | `ON DELETE RESTRICT` | [001_init.sql:9746](../../../backend/migrations/001_init.sql#L9746) |
+| `fk_inventory_quantity_base` | `quantity_base_id, clinic_id, id` | [inventory_quantity_bases](inventory_quantity_bases.md) | `id, clinic_id, inventory_item_id` | `ON DELETE RESTRICT` | [001_init.sql:9748](../../../backend/migrations/001_init.sql#L9748) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -89,7 +85,7 @@ erDiagram
 | `inventory_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
 | `uq_inventory_items_id_clinic` | unique | `CONSTRAINT uq_inventory_items_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:690](../../../backend/migrations/001_init.sql#L690) |
 | `chk_inventory_items_quantity_non_negative` | check | `CONSTRAINT chk_inventory_items_quantity_non_negative CHECK (quantity >= 0)` | [001_init.sql:4167](../../../backend/migrations/001_init.sql#L4167) |
-| `inventory_items_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9728](../../../backend/migrations/001_init.sql#L9728) |
+| `inventory_items_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9730](../../../backend/migrations/001_init.sql#L9730) |
 
 ## インデックス
 

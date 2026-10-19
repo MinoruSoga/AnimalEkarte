@@ -26,10 +26,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6576](../../../backend/migrations/001_init.sql#L6576) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6577](../../../backend/migrations/001_init.sql#L6577) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:6578](../../../backend/migrations/001_init.sql#L6578) |
-| `plane_issue_id` | `text` | NULL | — | — | [001_init.sql:6743](../../../backend/migrations/001_init.sql#L6743) |
-| `plane_issue_url` | `text` | NULL | — | — | [001_init.sql:6744](../../../backend/migrations/001_init.sql#L6744) |
-| `plane_sync_error` | `text` | NULL | — | — | [001_init.sql:6745](../../../backend/migrations/001_init.sql#L6745) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10009](../../../backend/migrations/001_init.sql#L10009) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -57,9 +54,6 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
-        text plane_issue_id
-        text plane_issue_url
-        text plane_sync_error
         bigint version
     }
     clinics {
@@ -89,8 +83,8 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `support_bug_reports_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6564](../../../backend/migrations/001_init.sql#L6564) |
-| `support_bug_reports_version_check` | check | `CHECK(version>0)` | [001_init.sql:10009](../../../backend/migrations/001_init.sql#L10009) |
-| `uq_support_report_id_clinic` | unique | `CONSTRAINT uq_support_report_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
+| `support_bug_reports_version_check` | check | `CHECK(version>0)` | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
+| `uq_support_report_id_clinic` | unique | `CONSTRAINT uq_support_report_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
 
 ## インデックス
 

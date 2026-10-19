@@ -14,7 +14,6 @@
 | `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1384](../../../backend/migrations/001_init.sql#L1384) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
 | `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
-| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:1387](../../../backend/migrations/001_init.sql#L1387) |
 | `style_request` | `text` | NOT NULL | `''` | — | [001_init.sql:1388](../../../backend/migrations/001_init.sql#L1388) |
 | `body_weight` | `numeric(6,2)` | NULL | — | — | [001_init.sql:1389](../../../backend/migrations/001_init.sql#L1389) |
 | `bw_unit` | `body_weight_unit` | NULL | `'Kg'` | — | [001_init.sql:1390](../../../backend/migrations/001_init.sql#L1390) |
@@ -41,7 +40,6 @@ erDiagram
         BIGSERIAL id PK,UK
         bigint clinic_id FK,UK
         bigint appointment_id FK,UK
-        bigint course_id FK
         text style_request
         numeric_6_2 body_weight
         body_weight_unit bw_unit
@@ -61,12 +59,8 @@ erDiagram
     clinics {
         BIGSERIAL id PK
     }
-    trimming_courses {
-        BIGSERIAL id PK,UK
-    }
     clinics ||..o{ appointment_trimming_details : "clinic_id"
     appointments ||..o| appointment_trimming_details : "appointment_id"
-    trimming_courses o|..o{ appointment_trimming_details : "course_id"
     appointments ||..o| appointment_trimming_details : "appointment_id, clinic_id"
 ```
 
@@ -76,14 +70,12 @@ erDiagram
 |:---|:---|:---|:---|:---|:---|
 | `appointment_trimming_details_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1385](../../../backend/migrations/001_init.sql#L1385) |
 | `appointment_trimming_details_appointment_id_fkey` | `appointment_id` | [appointments](appointments.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1386](../../../backend/migrations/001_init.sql#L1386) |
-| `appointment_trimming_details_course_id_fkey` | `course_id` | [trimming_courses](trimming_courses.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1387](../../../backend/migrations/001_init.sql#L1387) |
 | `fk_appointment_trimming_details_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE CASCADE` | [001_init.sql:5844](../../../backend/migrations/001_init.sql#L5844) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
 - `appointment_trimming_details_clinic_id_fkey`: `REFERENCES clinics(id) ON DELETE RESTRICT`
 - `appointment_trimming_details_appointment_id_fkey`: `REFERENCES appointments(id) ON DELETE CASCADE`
-- `appointment_trimming_details_course_id_fkey`: `REFERENCES trimming_courses(id) ON DELETE SET NULL`
 - `fk_appointment_trimming_details_appointment_clinic`: `CONSTRAINT fk_appointment_trimming_details_appointment_clinic         FOREIGN KEY (appointment_id, clinic_id)         REFERENCES appointments (id, clinic_id)         ON DELETE CASCADE`
 
 ## その他の制約

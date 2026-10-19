@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `uuid` | NOT NULL | — | PK, FK | [001_init.sql:10714](../../../backend/migrations/001_init.sql#L10714) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10714](../../../backend/migrations/001_init.sql#L10714) |
-| `current_basic_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:10714](../../../backend/migrations/001_init.sql#L10714) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10715](../../../backend/migrations/001_init.sql#L10715) |
+| `id` | `uuid` | NOT NULL | — | PK, FK | [001_init.sql:10716](../../../backend/migrations/001_init.sql#L10716) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10716](../../../backend/migrations/001_init.sql#L10716) |
+| `current_basic_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:10716](../../../backend/migrations/001_init.sql#L10716) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10717](../../../backend/migrations/001_init.sql#L10717) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -43,7 +43,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_common_pet_current_basic` | `current_basic_revision_id, id` | [common_pet_basic_revisions](common_pet_basic_revisions.md) | `id, common_pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
+| `fk_common_pet_current_basic` | `current_basic_revision_id, id` | [common_pet_basic_revisions](common_pet_basic_revisions.md) | `id, common_pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10773](../../../backend/migrations/001_init.sql#L10773) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -53,8 +53,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `common_pet_subjects_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10714](../../../backend/migrations/001_init.sql#L10714) |
-| `common_pet_subjects_version_check` | check | `CHECK(version>0)` | [001_init.sql:10714](../../../backend/migrations/001_init.sql#L10714) |
+| `common_pet_subjects_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10716](../../../backend/migrations/001_init.sql#L10716) |
+| `common_pet_subjects_version_check` | check | `CHECK(version>0)` | [001_init.sql:10716](../../../backend/migrations/001_init.sql#L10716) |
 
 ## インデックス
 

@@ -8428,7 +8428,7 @@ CREATE TABLE owner_deposit_entries (
     operation_key uuid NOT NULL,
     ordinal integer NOT NULL CHECK (ordinal > 0),
     account_revision bigint NOT NULL CHECK (account_revision > 1),
-    entry_kind text NOT NULL CHECK (entry_kind IN ('receive','apply','release','refund')),
+    entry_kind text NOT NULL CHECK (entry_kind IN ('receive','apply','release','refund','correction_credit','correction_debit')),
     amount bigint NOT NULL CHECK (amount > 0),
     source_entry_id bigint,
     billing_id bigint,
@@ -8488,13 +8488,15 @@ BEGIN
                 RAISE EXCEPTION 'application or refund must reference original receipt' USING ERRCODE='23514';
             END IF;
             SELECT source.amount-COALESCE(sum(e.amount),0) INTO available FROM owner_deposit_entries e
-              WHERE e.clinic_id=NEW.clinic_id AND e.owner_id=NEW.owner_id AND e.source_entry_id=source.id AND e.entry_kind IN ('apply','refund');
+              WHERE e.clinic_id=NEW.clinic_id AND e.owner_id=NEW.owner_id AND e.source_entry_id=source.id AND e.entry_kind IN ('apply','refund','correction_debit');
+            SELECT available+COALESCE(sum(amount),0) INTO available FROM owner_deposit_entries
+              WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id AND source_entry_id=source.id AND entry_kind='correction_credit';
             SELECT available+COALESCE(sum(released.amount),0) INTO available FROM owner_deposit_entries applied
               JOIN owner_deposit_entries released ON released.source_entry_id=applied.id
                 AND released.clinic_id=applied.clinic_id AND released.owner_id=applied.owner_id AND released.entry_kind='release'
               WHERE applied.clinic_id=NEW.clinic_id AND applied.owner_id=NEW.owner_id AND applied.source_entry_id=source.id AND applied.entry_kind='apply';
         END IF;
-        IF NEW.amount>available THEN RAISE EXCEPTION 'deposit source funds exceeded' USING ERRCODE='23514'; END IF;
+        IF NEW.entry_kind<>'correction_credit' AND NEW.amount>available THEN RAISE EXCEPTION 'deposit source funds exceeded' USING ERRCODE='23514'; END IF;
     END IF;
     NEW.account_revision:=account_version+1;
     UPDATE owner_deposit_accounts SET revision=NEW.account_revision WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
@@ -8508,7 +8510,7 @@ DECLARE n bigint; last_revision bigint; balance numeric; account_version bigint;
 BEGIN
     SELECT count(*),max(account_revision) INTO n,last_revision FROM owner_deposit_entries
       WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id AND operation_key=NEW.operation_key;
-    SELECT COALESCE(sum(CASE WHEN entry_kind IN ('receive','release') THEN amount ELSE -amount END),0)
+    SELECT COALESCE(sum(CASE WHEN entry_kind IN ('receive','release','correction_credit') THEN amount ELSE -amount END),0)
       INTO balance FROM owner_deposit_entries WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id
         AND account_revision<=NEW.resulting_account_revision;
     SELECT revision INTO STRICT account_version FROM owner_deposit_accounts WHERE clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
@@ -10426,7 +10428,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE ref bigint; h support_delivery_in
  IF TG_TABLE_NAME='support_delivery_intents' THEN ref:=NEW.id; ELSE ref:=NEW.intent_id; END IF;
  SELECT * INTO STRICT h FROM support_delivery_intents WHERE clinic_id=NEW.clinic_id AND id=ref;
  SELECT count(*) INTO n FROM support_delivery_destinations WHERE clinic_id=h.clinic_id AND intent_id=h.id;
- IF n<>h.destination_count OR n<>jsonb_array_length(h.confirmed_destinations) THEN RAISE EXCEPTION 'confirmed support destinations incomplete or appended late' USING ERRCODE='23514'; END IF; RETURN NULL;
+ IF n<>h.destination_count THEN RAISE EXCEPTION 'confirmed support destinations incomplete or appended late' USING ERRCODE='23514'; END IF; RETURN NULL;
 END; $$;
 CREATE CONSTRAINT TRIGGER support_destination_complete AFTER INSERT ON support_delivery_intents DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.support_destination_complete();
 CREATE CONSTRAINT TRIGGER support_destinations_complete AFTER INSERT ON support_delivery_destinations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.support_destination_complete();
@@ -10653,7 +10655,7 @@ CREATE TRIGGER reservation_kind_guard BEFORE UPDATE ON reservation_types FOR EAC
 -- Explicit owner commit receipts; rejected attempts never masquerade as success.
 CREATE FUNCTION app_private.operation_success_required()
 RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
- IF NOT EXISTS(SELECT 1 FROM operation_results WHERE clinic_id=NEW.clinic_id AND binding_id=NEW.operation_id AND state='succeeded') THEN
+ IF NOT EXISTS(SELECT 1 FROM operation_results WHERE clinic_id=NEW.clinic_id AND binding_id=NEW.operation_id) THEN
  RAISE EXCEPTION 'owner change requires committed success receipt in same transaction' USING ERRCODE='23514'; END IF; RETURN NULL;
 END; $$;
 CREATE CONSTRAINT TRIGGER reservation_type_name_revisions_success_receipt AFTER INSERT OR UPDATE ON reservation_type_name_revisions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.operation_success_required();
@@ -10724,8 +10726,8 @@ CREATE TABLE common_owner_clinic_bindings (
  FOREIGN KEY(local_owner_id,clinic_id) REFERENCES owners(id,clinic_id) ON DELETE RESTRICT,
  FOREIGN KEY(operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT
 );
-CREATE UNIQUE INDEX uq_active_common_owner_clinic ON common_owner_clinic_bindings(clinic_id,common_owner_id) WHERE is_active;
-CREATE UNIQUE INDEX uq_active_common_owner_local ON common_owner_clinic_bindings(clinic_id,local_owner_id) WHERE is_active;
+CREATE UNIQUE INDEX uq_active_common_owner_clinic ON common_owner_clinic_bindings(clinic_id,common_owner_id);
+CREATE UNIQUE INDEX uq_active_common_owner_local ON common_owner_clinic_bindings(clinic_id,local_owner_id);
 CREATE TABLE common_pet_clinic_bindings (
  id BIGSERIAL PRIMARY KEY, clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
  common_pet_id uuid NOT NULL, local_pet_id bigint NOT NULL,
@@ -10736,14 +10738,17 @@ CREATE TABLE common_pet_clinic_bindings (
  FOREIGN KEY(local_pet_id,clinic_id) REFERENCES pets(id,clinic_id) ON DELETE RESTRICT,
  FOREIGN KEY(operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT
 );
-CREATE UNIQUE INDEX uq_active_common_pet_clinic ON common_pet_clinic_bindings(clinic_id,common_pet_id) WHERE is_active;
-CREATE UNIQUE INDEX uq_active_common_pet_local ON common_pet_clinic_bindings(clinic_id,local_pet_id) WHERE is_active;
+CREATE UNIQUE INDEX uq_active_common_pet_clinic ON common_pet_clinic_bindings(clinic_id,common_pet_id);
+CREATE UNIQUE INDEX uq_active_common_pet_local ON common_pet_clinic_bindings(clinic_id,local_pet_id);
 CREATE TABLE common_owner_basic_revisions (
  id BIGSERIAL PRIMARY KEY, common_owner_id uuid NOT NULL REFERENCES common_owner_subjects(id) ON DELETE RESTRICT,
  revision bigint NOT NULL CHECK(revision>0), source_clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
  source_local_owner_id bigint NOT NULL, operation_id bigint NOT NULL,
- name text NOT NULL, name_kana text, postal_code text, address text, phone text, secondary_phone text, email text,
- additional_basic_fields jsonb NOT NULL CHECK(jsonb_typeof(additional_basic_fields)='object'),
+ name text NOT NULL, name_kana text, birth_date date, company text,
+ postal_code text, address1 text, address2 text, home_postal_code text, home_address1 text, home_address2 text,
+ phone text, company_phone text, email text,
+ cygram_result jsonb, cygram_rule_version text,
+ CHECK((cygram_result IS NULL AND cygram_rule_version IS NULL) OR(birth_date IS NOT NULL AND cygram_result IS NOT NULL AND cygram_rule_version IS NOT NULL AND btrim(cygram_rule_version)<>'')),
  provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object'), recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
  recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(), UNIQUE(id,common_owner_id), UNIQUE(common_owner_id,revision),
  FOREIGN KEY(source_local_owner_id,source_clinic_id) REFERENCES owners(id,clinic_id) ON DELETE RESTRICT,
@@ -10753,9 +10758,11 @@ CREATE TABLE common_pet_basic_revisions (
  id BIGSERIAL PRIMARY KEY, common_pet_id uuid NOT NULL REFERENCES common_pet_subjects(id) ON DELETE RESTRICT,
  revision bigint NOT NULL CHECK(revision>0), source_clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
  source_local_pet_id bigint NOT NULL, operation_id bigint NOT NULL,
- name text NOT NULL, animal_species_id bigint REFERENCES animal_species(id) ON DELETE RESTRICT,
- breed text, sex text, birth_date date, microchip_number text,
- additional_basic_fields jsonb NOT NULL CHECK(jsonb_typeof(additional_basic_fields)='object'),
+ name text NOT NULL CHECK(btrim(name)<>''), name_kana text CHECK(name_kana IS NULL OR name_kana !~ '[ァ-ヶ]'), animal_species_id bigint NOT NULL REFERENCES animal_species(id) ON DELETE RESTRICT,
+ breed text, gender pet_gender, status pet_status, birth_date date, color text,
+ registration_weight numeric CHECK(registration_weight IS NULL OR registration_weight>0), registration_weight_unit text, neutered_status pet_neutered_status NOT NULL DEFAULT 'unknown', neutered_date date,
+ acquisition_type acquisition_type, danger_level danger_level, danger_reason text, food text, environment text, phone text,
+ remarks text, deceased_at timestamptz, deceased_reason text, blood_type text, microchip_number text, name_origin text, meeting_story text,
  provenance jsonb NOT NULL CHECK(jsonb_typeof(provenance)='object'), recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
  recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(), UNIQUE(id,common_pet_id), UNIQUE(common_pet_id,revision),
  FOREIGN KEY(source_local_pet_id,source_clinic_id) REFERENCES pets(id,clinic_id) ON DELETE RESTRICT,
@@ -10767,21 +10774,21 @@ ALTER TABLE common_pet_subjects ADD CONSTRAINT fk_common_pet_current_basic
  FOREIGN KEY(current_basic_revision_id,id) REFERENCES common_pet_basic_revisions(id,common_pet_id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED;
 COMMENT ON TABLE common_owner_subjects IS 'Common basic information only. No D19 ID reuse or rewrite of local medical records, billing, deposit ownership, issued certificate/document snapshots.';
 COMMENT ON TABLE common_pet_clinic_bindings IS 'Explicit own-clinic utilization; not a new unlink/split/transfer endpoint or authorization bypass.';
-COMMENT ON COLUMN common_pet_basic_revisions.additional_basic_fields IS 'Explicit D04 basic-information DTO fields only; no clinical/financial/history objects. Do not infer absent legacy fields.';
+COMMENT ON COLUMN common_pet_basic_revisions.provenance IS 'Immutable source evidence, not a second editable basic-information model. Local IDs/clinic clinical and financial facts remain independent.';
 SELECT app_private.apply_rls_policy('common_owner_clinic_bindings','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
 SELECT app_private.apply_rls_policy('common_pet_clinic_bindings','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
 SELECT app_private.apply_rls_policy('common_owner_subjects','common_owner_authorized_binding',
- 'EXISTS(SELECT 1 FROM common_owner_clinic_bindings b WHERE b.common_owner_id=common_owner_subjects.id AND b.is_active AND app_private.has_clinic_access(b.clinic_id))',
- 'EXISTS(SELECT 1 FROM common_owner_clinic_bindings b WHERE b.common_owner_id=common_owner_subjects.id AND b.is_active AND app_private.has_clinic_access(b.clinic_id))');
+ 'EXISTS(SELECT 1 FROM common_owner_clinic_bindings b WHERE b.common_owner_id=common_owner_subjects.id AND app_private.has_clinic_access(b.clinic_id))',
+ 'EXISTS(SELECT 1 FROM common_owner_clinic_bindings b WHERE b.common_owner_id=common_owner_subjects.id AND app_private.has_clinic_access(b.clinic_id))');
 SELECT app_private.apply_rls_policy('common_pet_subjects','common_pet_authorized_binding',
- 'EXISTS(SELECT 1 FROM common_pet_clinic_bindings b WHERE b.common_pet_id=common_pet_subjects.id AND b.is_active AND app_private.has_clinic_access(b.clinic_id))',
- 'EXISTS(SELECT 1 FROM common_pet_clinic_bindings b WHERE b.common_pet_id=common_pet_subjects.id AND b.is_active AND app_private.has_clinic_access(b.clinic_id))');
+ 'EXISTS(SELECT 1 FROM common_pet_clinic_bindings b WHERE b.common_pet_id=common_pet_subjects.id AND app_private.has_clinic_access(b.clinic_id))',
+ 'EXISTS(SELECT 1 FROM common_pet_clinic_bindings b WHERE b.common_pet_id=common_pet_subjects.id AND app_private.has_clinic_access(b.clinic_id))');
 SELECT app_private.apply_rls_policy('common_owner_basic_revisions','common_owner_basic_access',
  'EXISTS(SELECT 1 FROM common_owner_subjects c WHERE c.id=common_owner_basic_revisions.common_owner_id)',
- 'app_private.has_clinic_access(source_clinic_id) AND EXISTS(SELECT 1 FROM common_owner_clinic_bindings b WHERE b.common_owner_id=common_owner_basic_revisions.common_owner_id AND b.local_owner_id=common_owner_basic_revisions.source_local_owner_id AND b.clinic_id=common_owner_basic_revisions.source_clinic_id AND b.is_active)');
+ 'app_private.has_clinic_access(source_clinic_id) AND EXISTS(SELECT 1 FROM common_owner_clinic_bindings b WHERE b.common_owner_id=common_owner_basic_revisions.common_owner_id AND b.local_owner_id=common_owner_basic_revisions.source_local_owner_id AND b.clinic_id=common_owner_basic_revisions.source_clinic_id)');
 SELECT app_private.apply_rls_policy('common_pet_basic_revisions','common_pet_basic_access',
  'EXISTS(SELECT 1 FROM common_pet_subjects c WHERE c.id=common_pet_basic_revisions.common_pet_id)',
- 'app_private.has_clinic_access(source_clinic_id) AND EXISTS(SELECT 1 FROM common_pet_clinic_bindings b WHERE b.common_pet_id=common_pet_basic_revisions.common_pet_id AND b.local_pet_id=common_pet_basic_revisions.source_local_pet_id AND b.clinic_id=common_pet_basic_revisions.source_clinic_id AND b.is_active)');
+ 'app_private.has_clinic_access(source_clinic_id) AND EXISTS(SELECT 1 FROM common_pet_clinic_bindings b WHERE b.common_pet_id=common_pet_basic_revisions.common_pet_id AND b.local_pet_id=common_pet_basic_revisions.source_local_pet_id AND b.clinic_id=common_pet_basic_revisions.source_clinic_id)');
 CREATE TRIGGER common_owner_storage_version BEFORE UPDATE ON common_owner_subjects FOR EACH ROW EXECUTE FUNCTION app_private.entity_version_guard();
 CREATE TRIGGER common_pet_storage_version BEFORE UPDATE ON common_pet_subjects FOR EACH ROW EXECUTE FUNCTION app_private.entity_version_guard();
 CREATE TRIGGER common_owner_basic_immutable BEFORE UPDATE OR DELETE ON common_owner_basic_revisions FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
@@ -10803,7 +10810,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE n bigint; BEGIN
 END; $$;
 CREATE FUNCTION app_private.common_basic_publish()
 RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
- IF NOT EXISTS(SELECT 1 FROM operation_results WHERE clinic_id=NEW.source_clinic_id AND binding_id=NEW.operation_id AND state='succeeded') THEN
+ IF NOT EXISTS(SELECT 1 FROM operation_results WHERE clinic_id=NEW.source_clinic_id AND binding_id=NEW.operation_id) THEN
  RAISE EXCEPTION 'common basic change requires success receipt' USING ERRCODE='23514'; END IF;
  IF TG_TABLE_NAME='common_owner_basic_revisions' THEN UPDATE common_owner_subjects SET current_basic_revision_id=NEW.id WHERE id=NEW.common_owner_id;
  ELSE UPDATE common_pet_subjects SET current_basic_revision_id=NEW.id WHERE id=NEW.common_pet_id; END IF;
@@ -10846,3 +10853,351 @@ RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE e fund_consumption_events%ROWTYPE
  IF e.event_kind<>'refund' OR e.amount<>NEW.requested_amount THEN RAISE EXCEPTION 'performed refund must reference actual matching refund event' USING ERRCODE='23514'; END IF; END IF; RETURN NEW;
 END; $$;
 CREATE TRIGGER refund_request_event_guard BEFORE INSERT OR UPDATE ON refund_requests FOR EACH ROW EXECUTE FUNCTION app_private.refund_request_event_guard();
+
+-- Spec-required canonical storage cleanup (Sentinel_f3dbc733b7d881918f8d3997c9e6343b).
+-- This is fresh-definition authoring only: no existing database/data is modified.
+-- D04 shared basics have one editable owner; clinic-local IDs/relations remain.
+ALTER TABLE owners DROP COLUMN name, DROP COLUMN name_kana, DROP COLUMN birth_date, DROP COLUMN company, DROP COLUMN postal_code, DROP COLUMN address1, DROP COLUMN address2, DROP COLUMN home_postal_code, DROP COLUMN home_address1, DROP COLUMN home_address2, DROP COLUMN phone, DROP COLUMN company_phone, DROP COLUMN email, DROP COLUMN line_user_id, DROP COLUMN line_id_confirmed_by, DROP COLUMN line_id_confirmed_at, DROP COLUMN line_followed_at, DROP COLUMN line_blocked_at;
+ALTER TABLE pets DROP COLUMN name, DROP COLUMN name_kana, DROP COLUMN animal_species_id, DROP COLUMN gender, DROP COLUMN status, DROP COLUMN birth_date, DROP COLUMN breed, DROP COLUMN color, DROP COLUMN weight, DROP COLUMN neutered_date, DROP COLUMN acquisition_type, DROP COLUMN danger_level, DROP COLUMN food, DROP COLUMN environment, DROP COLUMN phone, DROP COLUMN last_visit, DROP COLUMN remarks, DROP COLUMN deceased_at, DROP COLUMN deceased_reason, DROP COLUMN blood_type, DROP COLUMN microchip_number, DROP COLUMN danger_reason, DROP COLUMN name_origin, DROP COLUMN meeting_story, DROP COLUMN neutered_status;
+ALTER TABLE reservation_types DROP COLUMN category, DROP COLUMN color;
+ALTER TABLE shift_entries DROP COLUMN start_time, DROP COLUMN end_time;
+ALTER TABLE shift_entry_breaks DROP COLUMN break_start, DROP COLUMN break_end;
+ALTER TABLE manual_articles DROP COLUMN title, DROP COLUMN order_value, DROP COLUMN section, DROP COLUMN body_markdown, DROP COLUMN updated_by_staff_id;
+ALTER TABLE support_bug_reports DROP COLUMN plane_issue_id, DROP COLUMN plane_issue_url, DROP COLUMN plane_sync_error;
+ALTER TABLE line_customers DROP COLUMN owner_id;
+ALTER TABLE line_reservation_settings DROP COLUMN line_channel_id, DROP COLUMN line_channel_secret, DROP COLUMN liff_id, DROP COLUMN line_access_token, DROP COLUMN line_bot_user_id;
+ALTER TABLE inventory_items DROP COLUMN status, DROP COLUMN last_restocked;
+ALTER TABLE medical_records DROP COLUMN status;
+ALTER TABLE clinical_plans DROP COLUMN diagnosis_type_id, DROP COLUMN diagnosis_name_id, DROP COLUMN diagnosis_2_type_id, DROP COLUMN diagnosis_2_name_id;
+ALTER TABLE hospitalizations DROP COLUMN hospitalization_type, DROP COLUMN start_date, DROP COLUMN end_date, DROP COLUMN status;
+ALTER TABLE billings DROP COLUMN status, DROP COLUMN subtotal, DROP COLUMN tax_total, DROP COLUMN total_amount, DROP COLUMN has_insurance, DROP COLUMN completed_at, DROP COLUMN ever_finalized, DROP COLUMN calculation_version;
+ALTER TABLE estimates DROP COLUMN subtotal, DROP COLUMN tax_total, DROP COLUMN total_amount, DROP COLUMN insurance_amount, DROP COLUMN discount_amount, DROP COLUMN supersedes_estimate_id;
+ALTER TABLE billing_items DROP COLUMN treatment_id, DROP COLUMN vaccination_id, DROP COLUMN exam_id, DROP COLUMN appointment_id, DROP COLUMN trimming_course_id, DROP COLUMN trimming_option_id;
+ALTER TABLE appointment_trimming_details DROP COLUMN course_id;
+ALTER TABLE operation_results DROP COLUMN state;
+ALTER TABLE support_delivery_intents DROP COLUMN confirmed_destinations;
+ALTER TABLE common_owner_clinic_bindings DROP COLUMN mapping_version, DROP COLUMN is_active;
+ALTER TABLE common_pet_clinic_bindings DROP COLUMN mapping_version, DROP COLUMN is_active;
+ALTER TABLE payment_funds DROP COLUMN legacy_payment_id, DROP COLUMN legacy_split_id, DROP COLUMN deposit_receive_entry_id, DROP COLUMN origin_kind;
+ALTER TABLE owner_deposit_entries DROP COLUMN payment_method_id;
+ALTER TABLE cash_register_closes DROP COLUMN cash_difference, DROP COLUMN deleted_at;
+
+ALTER TABLE billings ADD COLUMN version bigint NOT NULL DEFAULT 1 CHECK(version>0);
+ALTER TABLE billings ADD COLUMN current_calculation_id bigint;
+ALTER TABLE billings ADD CONSTRAINT fk_billing_current_calculation FOREIGN KEY(current_calculation_id,clinic_id,id) REFERENCES billing_calculation_snapshots(id,clinic_id,billing_id) ON DELETE RESTRICT;
+CREATE TRIGGER billings_storage_version BEFORE UPDATE ON billings FOR EACH ROW EXECUTE FUNCTION app_private.entity_version_guard();
+ALTER TABLE line_customers ADD COLUMN followed_at timestamptz, ADD COLUMN blocked_at timestamptz;
+ALTER TABLE line_customers ADD CONSTRAINT uq_line_customer_id_clinic UNIQUE(id,clinic_id);
+ALTER TABLE owner_line_binding_states ADD CONSTRAINT fk_line_binding_customer_clinic FOREIGN KEY(line_customer_id,clinic_id) REFERENCES line_customers(id,clinic_id) ON DELETE RESTRICT;
+CREATE UNIQUE INDEX uq_linked_line_customer_owner ON owner_line_binding_states(clinic_id,line_customer_id) WHERE state IN('linked','unlink_pending');
+CREATE UNIQUE INDEX uq_common_owner_clinic ON common_owner_clinic_bindings(clinic_id,common_owner_id);
+CREATE UNIQUE INDEX uq_common_owner_local ON common_owner_clinic_bindings(clinic_id,local_owner_id);
+CREATE UNIQUE INDEX uq_common_pet_clinic ON common_pet_clinic_bindings(clinic_id,common_pet_id);
+CREATE UNIQUE INDEX uq_common_pet_local ON common_pet_clinic_bindings(clinic_id,local_pet_id);
+ALTER TABLE cash_register_closes ADD CONSTRAINT ck_close_difference_note CHECK(actual_cash=theoretical_cash OR btrim(memo)<>'');
+ALTER TABLE shared_files ADD COLUMN retention_class text NOT NULL DEFAULT 'unclassified' CHECK(retention_class IN('business_original','required_history','temporary','unclassified'));
+COMMENT ON COLUMN shared_files.retention_class IS 'Expiry is not purge permission. Original/history/unclassified blobs are protected from ordinary/manual/143-hour cleanup; physical purge is a separate authorized procedure.';
+COMMENT ON COLUMN common_owner_basic_revisions.cygram_result IS 'Approved derived result, tied to same-row DOB/rule version. Recompute on valid DOB change, clear with DOB; no independent manual correction, no new segmentation UI.';
+COMMENT ON COLUMN common_pet_basic_revisions.registration_weight IS 'Registration basic-info weight, distinct from measured visit vitals. Never fill current vital measurements from this value.';
+DROP TABLE payments;
+DROP TABLE payment_splits;
+DROP TABLE billing_refunds;
+DROP TABLE billing_confirmations;
+DROP TABLE cash_register_close_adjustments;
+DROP TABLE appointment_trimming_options;
+DROP TABLE staff_reservation_exclusions;
+DROP TABLE reservation_type_occupations;
+DROP TABLE line_send_logs;
+
+-- Canonical preservation after obsolete sources are removed.
+ALTER TABLE payment_funds
+ ADD COLUMN tendered_amount bigint CHECK(tendered_amount>=0),
+ ADD COLUMN change_given_amount bigint CHECK(change_given_amount>=0),
+ ADD COLUMN original_source_reference jsonb CHECK(jsonb_typeof(original_source_reference)='object'),
+ ADD CONSTRAINT ck_fund_cash_inputs CHECK((tendered_amount IS NULL AND change_given_amount IS NULL)
+ OR(tendered_amount IS NOT NULL AND change_given_amount IS NOT NULL AND tendered_amount>=change_given_amount AND received_amount=tendered_amount-change_given_amount));
+COMMENT ON COLUMN payment_funds.received_amount IS 'Single actual net receipt after change: tender 5000/change 2000 => fund 3000. Allocation/deposit do not create another receipt.';
+COMMENT ON COLUMN payment_funds.original_source_reference IS 'Immutable original source ID/type/verification evidence for imported facts, not a parallel editable payments table or inferred receipt.';
+ALTER TABLE fund_record_corrections
+ ADD COLUMN corrected_received_amount bigint NOT NULL CHECK(corrected_received_amount>0),
+ ADD COLUMN corrected_tendered_amount bigint CHECK(corrected_tendered_amount>=0),
+ ADD COLUMN corrected_change_given_amount bigint CHECK(corrected_change_given_amount>=0),
+ ALTER COLUMN corrected_method_id SET NOT NULL,
+ ALTER COLUMN corrected_received_at SET NOT NULL,
+ ADD CONSTRAINT ck_fund_correction_cash_inputs CHECK((corrected_tendered_amount IS NULL AND corrected_change_given_amount IS NULL)
+ OR(corrected_tendered_amount IS NOT NULL AND corrected_change_given_amount IS NOT NULL AND corrected_received_amount=corrected_tendered_amount-corrected_change_given_amount));
+ALTER TABLE fund_consumption_events DROP CONSTRAINT fund_consumption_events_event_kind_check;
+ALTER TABLE fund_consumption_events DROP CONSTRAINT fund_consumption_events_check;
+ALTER TABLE fund_consumption_events DROP CONSTRAINT fund_consumption_events_clinic_id_source_deposit_entry_id_key;
+ALTER TABLE fund_consumption_events
+ ADD COLUMN reason text,
+ ADD CONSTRAINT ck_fund_consumption_kind CHECK(event_kind IN('allocate','release','refund','deposit_allocate','deposit_release')),
+ ADD CONSTRAINT ck_fund_consumption_target CHECK(
+ (event_kind='allocate' AND billing_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)
+ OR(event_kind='release' AND billing_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL)
+ OR(event_kind='refund' AND billing_id IS NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NOT NULL AND reason IS NOT NULL AND btrim(reason)<>'')
+ OR(event_kind='deposit_allocate' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)
+ OR(event_kind='deposit_release' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL)),
+ ADD CONSTRAINT uq_fund_deposit_projection_kind UNIQUE(clinic_id,source_deposit_entry_id,event_kind);
+ALTER TABLE owner_deposit_entries ADD CONSTRAINT ck_deposit_target CHECK(
+ (entry_kind='receive' AND source_entry_id IS NULL AND billing_id IS NULL)
+ OR(entry_kind IN('apply','release') AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND appointment_id IS NULL)
+ OR(entry_kind='refund' AND source_entry_id IS NOT NULL AND billing_id IS NULL AND appointment_id IS NULL)
+ OR(entry_kind IN('correction_credit','correction_debit') AND source_entry_id IS NOT NULL AND billing_id IS NULL AND appointment_id IS NULL));
+COMMENT ON TABLE owner_deposit_entries IS 'Owner deposit-account allocation ledger only. Actual receipt/refund and method live once in payment_funds/fund_consumption_events. Every entry requires corresponding fund projection in same transaction.';
+ALTER TABLE doctor_review_sets ADD COLUMN confirmation_note text;
+ALTER TABLE finance_source_events ADD COLUMN recorded_by bigint REFERENCES staffs(id) ON DELETE RESTRICT, ADD COLUMN reason text;
+ALTER TABLE line_dispatch_intents ADD COLUMN confirmed_payload jsonb NOT NULL CHECK(jsonb_typeof(confirmed_payload)='object'), ADD COLUMN message_type text, ADD COLUMN content_summary text;
+ALTER TABLE line_dispatch_results ADD COLUMN occurred_at timestamptz;
+COMMENT ON COLUMN line_dispatch_results.occurred_at IS 'Known external occurrence time, separate from result recording time; never substitute HTTP timeout or recorded_at for actual send time';
+
+-- Draft estimate inputs/results have one fixed calculation version; presentations refer to it.
+CREATE TABLE estimate_calculation_revisions (
+ id BIGSERIAL PRIMARY KEY, clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+ estimate_id bigint NOT NULL, revision bigint NOT NULL CHECK(revision>0), rule_version text NOT NULL,
+ conditions jsonb NOT NULL CHECK(jsonb_typeof(conditions)='object'),
+ insurance_confirmation jsonb NOT NULL CHECK(jsonb_typeof(insurance_confirmation)='object'),
+ tax_rate_totals jsonb NOT NULL CHECK(jsonb_typeof(tax_rate_totals)='array'),
+ line_values jsonb NOT NULL CHECK(jsonb_typeof(line_values)='array'),
+ subtotal bigint NOT NULL CHECK(subtotal>=0), tax_total bigint NOT NULL CHECK(tax_total>=0), total_amount bigint NOT NULL CHECK(total_amount>=0),
+ operation_id bigint NOT NULL, recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT,
+ recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ UNIQUE(id,clinic_id,estimate_id), UNIQUE(clinic_id,estimate_id,revision),
+ FOREIGN KEY(estimate_id,clinic_id) REFERENCES estimates(id,clinic_id) ON DELETE RESTRICT,
+ FOREIGN KEY(operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT
+);
+ALTER TABLE estimates ADD COLUMN current_calculation_id bigint;
+ALTER TABLE estimates ADD CONSTRAINT fk_estimate_current_calculation FOREIGN KEY(current_calculation_id,clinic_id,id) REFERENCES estimate_calculation_revisions(id,clinic_id,estimate_id) ON DELETE RESTRICT;
+ALTER TABLE estimate_presentations DROP COLUMN calculation_snapshot;
+ALTER TABLE estimate_presentations ADD COLUMN calculation_id bigint NOT NULL;
+ALTER TABLE estimate_presentations ADD CONSTRAINT fk_estimate_presented_calculation FOREIGN KEY(calculation_id,clinic_id,estimate_id) REFERENCES estimate_calculation_revisions(id,clinic_id,estimate_id) ON DELETE RESTRICT;
+
+-- First/second diagnosis group is distinct from disease-master category; no count/name uniqueness limit.
+ALTER TABLE clinical_plans ADD COLUMN clinic_id bigint NOT NULL;
+ALTER TABLE clinical_plans ADD CONSTRAINT fk_clinical_plan_clinic FOREIGN KEY(clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT;
+ALTER TABLE clinical_plans ADD CONSTRAINT uq_clinical_plan_id_clinic UNIQUE(id,clinic_id);
+ALTER TABLE clinical_plans ADD CONSTRAINT fk_clinical_plan_record_clinic FOREIGN KEY(medical_record_id,clinic_id) REFERENCES medical_records(id,clinic_id) ON DELETE RESTRICT;
+ALTER TABLE diagnosis_types ADD CONSTRAINT uq_diagnosis_type_id_clinic UNIQUE(id,clinic_id);
+ALTER TABLE diagnosis_names ADD CONSTRAINT uq_diagnosis_name_id_clinic UNIQUE(id,clinic_id);
+CREATE TABLE clinical_plan_diagnoses (
+ id BIGSERIAL PRIMARY KEY, clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+ clinical_plan_id bigint NOT NULL, diagnosis_slot smallint NOT NULL CHECK(diagnosis_slot IN(1,2)),
+ diagnosis_type_id bigint, diagnosis_name_id bigint, diagnosis_name_snapshot text, category_name_snapshot text,
+ sort_order integer NOT NULL DEFAULT 0, version bigint NOT NULL DEFAULT 1 CHECK(version>0),
+ created_at timestamptz NOT NULL DEFAULT clock_timestamp(), updated_at timestamptz NOT NULL DEFAULT clock_timestamp(), deleted_at timestamptz,
+ FOREIGN KEY(clinical_plan_id,clinic_id) REFERENCES clinical_plans(id,clinic_id) ON DELETE RESTRICT,
+ FOREIGN KEY(diagnosis_type_id,clinic_id) REFERENCES diagnosis_types(id,clinic_id) ON DELETE RESTRICT,
+ FOREIGN KEY(diagnosis_name_id,clinic_id) REFERENCES diagnosis_names(id,clinic_id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_clinical_plan_diagnoses_group ON clinical_plan_diagnoses(clinic_id,clinical_plan_id,diagnosis_slot,sort_order,id) WHERE deleted_at IS NULL;
+CREATE TRIGGER clinical_plan_diagnoses_storage_version BEFORE UPDATE ON clinical_plan_diagnoses FOR EACH ROW EXECUTE FUNCTION app_private.entity_version_guard();
+CREATE TABLE medical_record_consultation_events (
+ id BIGSERIAL PRIMARY KEY, clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+ medical_record_id bigint NOT NULL, revision bigint NOT NULL CHECK(revision>0),
+ event_kind text NOT NULL CHECK(event_kind IN('ended','end_undone')), previous_event_id bigint,
+ source_kind text NOT NULL CHECK(source_kind IN('consultation','retrospective')),
+ occurred_at timestamptz NOT NULL, reason text, operation_id bigint NOT NULL,
+ recorded_by bigint NOT NULL REFERENCES staffs(id) ON DELETE RESTRICT, recorded_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ UNIQUE(id,clinic_id,medical_record_id), UNIQUE(clinic_id,medical_record_id,revision),
+ FOREIGN KEY(medical_record_id,clinic_id) REFERENCES medical_records(id,clinic_id) ON DELETE RESTRICT,
+ FOREIGN KEY(previous_event_id,clinic_id,medical_record_id) REFERENCES medical_record_consultation_events(id,clinic_id,medical_record_id) ON DELETE RESTRICT,
+ FOREIGN KEY(operation_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT
+);
+COMMENT ON TABLE medical_record_consultation_events IS 'Explicit consultation end/authorized undo history for staff history projection; not physician finalization/edit prohibition or billing settlement.';
+CREATE TABLE reservation_eligibility_evidence (
+ id BIGSERIAL PRIMARY KEY, clinic_id bigint NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+ source_kind text NOT NULL CHECK(source_kind IN('legacy_negative_capability','legacy_occupation_gate')),
+ source_reference text NOT NULL, original_values jsonb NOT NULL CHECK(jsonb_typeof(original_values)='object'),
+ captured_at timestamptz NOT NULL, captured_by bigint REFERENCES staffs(id) ON DELETE RESTRICT,
+ UNIQUE(clinic_id,source_kind,source_reference)
+);
+COMMENT ON TABLE reservation_eligibility_evidence IS 'Immutable import/decision evidence only, never an active reservation gate. No automatic negative/occupation-to-positive conversion; preserve original info pending verified migration.';
+CREATE OR REPLACE FUNCTION app_private.billing_binding_source_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ PERFORM 1 FROM billing_items WHERE id=NEW.billing_item_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'billing source binding requires scoped line' USING ERRCODE='23514'; END IF;
+ IF TG_OP='UPDATE' AND(NEW.clinic_id,NEW.billing_item_id,NEW.source_kind,NEW.treatment_id,NEW.vaccination_id,NEW.examination_id,NEW.trimming_source_line_id)
+ IS DISTINCT FROM(OLD.clinic_id,OLD.billing_item_id,OLD.source_kind,OLD.treatment_id,OLD.vaccination_id,OLD.examination_id,OLD.trimming_source_line_id) THEN
+ RAISE EXCEPTION 'billing source identity cannot be rebound' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE OR REPLACE FUNCTION app_private.billing_line_binding_required()
+RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF NEW.source IN('medical_record','trimming') AND NOT EXISTS(SELECT 1 FROM billing_source_bindings WHERE clinic_id=NEW.clinic_id AND billing_item_id=NEW.id) THEN
+ RAISE EXCEPTION 'clinical charge requires canonical source binding in same transaction' USING ERRCODE='23514'; END IF; RETURN NULL;
+END; $$;
+DROP TRIGGER deposit_fund_source_guard ON payment_funds;
+DROP FUNCTION app_private.deposit_fund_source_guard();
+DROP FUNCTION app_private.enforce_payment_method_system_key_match();
+
+CREATE FUNCTION app_private.deposit_receive_origin(entry_ref bigint,scope_clinic bigint,scope_owner bigint)
+RETURNS bigint LANGUAGE plpgsql STABLE AS $$ DECLARE e owner_deposit_entries%ROWTYPE; ref bigint:=entry_ref; BEGIN
+ LOOP
+ SELECT * INTO STRICT e FROM owner_deposit_entries WHERE id=ref AND clinic_id=scope_clinic AND owner_id=scope_owner;
+ IF e.entry_kind='receive' THEN RETURN e.id; END IF;
+ IF e.source_entry_id IS NULL THEN RAISE EXCEPTION 'deposit entry has no receipt origin' USING ERRCODE='23514'; END IF;
+ ref:=e.source_entry_id;
+ END LOOP;
+END; $$;
+CREATE OR REPLACE FUNCTION app_private.fund_consumption_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE f payment_funds%ROWTYPE; orig fund_consumption_events%ROWTYPE; d owner_deposit_entries%ROWTYPE;
+ actual_net bigint; available numeric; released numeric; origin_entry bigint; origin_fund bigint;
+BEGIN
+ SELECT * INTO STRICT f FROM payment_funds WHERE id=NEW.fund_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id FOR UPDATE;
+ SELECT corrected_received_amount INTO actual_net FROM fund_record_corrections WHERE fund_id=f.id AND clinic_id=f.clinic_id ORDER BY revision DESC LIMIT 1;
+ actual_net:=COALESCE(actual_net,f.received_amount);
+ SELECT actual_net-COALESCE(sum(CASE WHEN event_kind IN('release','deposit_release') THEN -amount ELSE amount END),0) INTO available
+ FROM fund_consumption_events WHERE fund_id=f.id AND clinic_id=f.clinic_id;
+ IF NEW.event_kind IN('allocate','deposit_allocate','refund') AND NEW.amount>available THEN RAISE EXCEPTION 'fund consumption exceeds effective remaining amount' USING ERRCODE='23514'; END IF;
+ IF NEW.event_kind IN('release','deposit_release') THEN
+ SELECT * INTO STRICT orig FROM fund_consumption_events WHERE id=NEW.source_allocation_id AND clinic_id=NEW.clinic_id AND fund_id=NEW.fund_id;
+ SELECT COALESCE(sum(amount),0) INTO released FROM fund_consumption_events WHERE clinic_id=NEW.clinic_id AND source_allocation_id=orig.id AND event_kind IN('release','deposit_release');
+ IF orig.event_kind<>CASE NEW.event_kind WHEN 'release' THEN 'allocate' ELSE 'deposit_allocate' END
+ OR orig.billing_id IS DISTINCT FROM NEW.billing_id OR NEW.amount>orig.amount-released THEN RAISE EXCEPTION 'release differs from original allocation or exceeds remaining allocation' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF NEW.source_deposit_entry_id IS NOT NULL THEN
+ SELECT * INTO STRICT d FROM owner_deposit_entries WHERE id=NEW.source_deposit_entry_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+ IF d.amount<>NEW.amount OR NOT((d.entry_kind='receive' AND NEW.event_kind='deposit_allocate')
+ OR(d.entry_kind='apply' AND NEW.event_kind IN('deposit_release','allocate'))
+ OR(d.entry_kind='release' AND NEW.event_kind IN('release','deposit_allocate'))
+ OR(d.entry_kind='refund' AND NEW.event_kind IN('deposit_release','refund'))
+ OR(d.entry_kind='correction_credit' AND NEW.event_kind='deposit_allocate')
+ OR(d.entry_kind='correction_debit' AND NEW.event_kind='deposit_release')) THEN
+ RAISE EXCEPTION 'fund/deposit projection differs from account entry' USING ERRCODE='23514'; END IF;
+ IF NEW.event_kind IN('allocate','release') AND NEW.billing_id IS DISTINCT FROM d.billing_id THEN RAISE EXCEPTION 'deposit billing allocation differs from original bill' USING ERRCODE='23514'; END IF;
+ IF d.entry_kind<>'receive' THEN
+ origin_entry:=app_private.deposit_receive_origin(d.id,d.clinic_id,d.owner_id);
+ SELECT fund_id INTO STRICT origin_fund FROM fund_consumption_events WHERE clinic_id=d.clinic_id AND source_deposit_entry_id=origin_entry AND event_kind='deposit_allocate';
+ IF origin_fund<>NEW.fund_id THEN RAISE EXCEPTION 'deposit action must use original receipt fund' USING ERRCODE='23514'; END IF;
+ END IF;
+ IF NEW.event_kind='deposit_release' AND app_private.deposit_receive_origin(orig.source_deposit_entry_id,NEW.clinic_id,NEW.owner_id)
+ <>app_private.deposit_receive_origin(d.id,NEW.clinic_id,NEW.owner_id) THEN RAISE EXCEPTION 'deposit release refers to another source receipt' USING ERRCODE='23514'; END IF;
+ IF NEW.event_kind='release' AND orig.source_deposit_entry_id IS DISTINCT FROM d.source_entry_id THEN RAISE EXCEPTION 'deposit restoration differs from original application' USING ERRCODE='23514'; END IF;
+ END IF; RETURN NEW;
+END; $$;
+CREATE FUNCTION app_private.deposit_fund_bridge_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE ref bigint; d owner_deposit_entries%ROWTYPE; n bigint; kinds text[]; minfund bigint; maxfund bigint;
+BEGIN
+ IF TG_TABLE_NAME='owner_deposit_entries' THEN ref:=NEW.id; ELSE ref:=NEW.source_deposit_entry_id; END IF;
+ IF ref IS NULL THEN RETURN NULL; END IF;
+ SELECT * INTO STRICT d FROM owner_deposit_entries WHERE id=ref AND clinic_id=NEW.clinic_id;
+ SELECT count(*),array_agg(event_kind ORDER BY event_kind),min(fund_id),max(fund_id) INTO n,kinds,minfund,maxfund
+ FROM fund_consumption_events WHERE clinic_id=d.clinic_id AND source_deposit_entry_id=d.id;
+ IF minfund IS DISTINCT FROM maxfund OR NOT(
+ (d.entry_kind='receive' AND n=1 AND kinds=ARRAY['deposit_allocate'])
+ OR(d.entry_kind='apply' AND n=2 AND kinds=ARRAY['allocate','deposit_release'])
+ OR(d.entry_kind='release' AND n=2 AND kinds=ARRAY['deposit_allocate','release'])
+ OR(d.entry_kind='refund' AND n=2 AND kinds=ARRAY['deposit_release','refund'])
+ OR(d.entry_kind='correction_credit' AND n=1 AND kinds=ARRAY['deposit_allocate'])
+ OR(d.entry_kind='correction_debit' AND n=1 AND kinds=ARRAY['deposit_release'])) THEN
+ RAISE EXCEPTION 'deposit account and original-fund allocations must commit together exactly once' USING ERRCODE='23514'; END IF; RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER deposit_entry_fund_bridge AFTER INSERT ON owner_deposit_entries DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.deposit_fund_bridge_complete();
+CREATE CONSTRAINT TRIGGER fund_deposit_entry_bridge AFTER INSERT ON fund_consumption_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.deposit_fund_bridge_complete();
+CREATE OR REPLACE FUNCTION app_private.finance_source_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE f payment_funds%ROWTYPE; e fund_consumption_events%ROWTYPE; BEGIN
+ IF NEW.fund_id IS NOT NULL THEN
+ SELECT * INTO STRICT f FROM payment_funds WHERE id=NEW.fund_id AND clinic_id=NEW.clinic_id;
+ IF NEW.actual_movement_amount<>f.received_amount THEN RAISE EXCEPTION 'actual fund movement differs from original net receipt' USING ERRCODE='23514'; END IF;
+ ELSIF NEW.fund_consumption_event_id IS NOT NULL THEN
+ SELECT * INTO STRICT e FROM fund_consumption_events WHERE id=NEW.fund_consumption_event_id AND clinic_id=NEW.clinic_id;
+ IF NEW.actual_movement_amount<>CASE WHEN e.event_kind='refund' THEN -e.amount ELSE 0 END THEN RAISE EXCEPTION 'allocation/deposit use is not actual money; refund is counted once' USING ERRCODE='23514'; END IF;
+ ELSIF NEW.deposit_entry_id IS NOT NULL OR NEW.fund_record_correction_id IS NOT NULL OR NEW.billing_change_event_id IS NOT NULL THEN
+ IF NEW.actual_movement_amount<>0 THEN RAISE EXCEPTION 'account allocation or record correction does not create actual money' USING ERRCODE='23514'; END IF;
+ END IF; RETURN NEW;
+END; $$;
+CREATE FUNCTION app_private.fund_correction_source_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE f payment_funds%ROWTYPE; n bigint; spent numeric; BEGIN
+ SELECT * INTO STRICT f FROM payment_funds WHERE id=NEW.fund_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id FOR UPDATE;
+ SELECT COALESCE(max(revision),0)+1 INTO n FROM fund_record_corrections WHERE fund_id=f.id AND clinic_id=f.clinic_id;
+ SELECT COALESCE(sum(CASE WHEN event_kind IN('release','deposit_release') THEN -amount ELSE amount END),0) INTO spent FROM fund_consumption_events WHERE fund_id=f.id AND clinic_id=f.clinic_id;
+ IF NEW.revision<>n THEN RAISE EXCEPTION 'fund correction version changed' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER fund_correction_source_guard BEFORE INSERT ON fund_record_corrections FOR EACH ROW EXECUTE FUNCTION app_private.fund_correction_source_guard();
+CREATE FUNCTION app_private.consultation_event_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE prior medical_record_consultation_events%ROWTYPE; BEGIN
+ PERFORM 1 FROM medical_records WHERE id=NEW.medical_record_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+ SELECT * INTO prior FROM medical_record_consultation_events WHERE medical_record_id=NEW.medical_record_id AND clinic_id=NEW.clinic_id ORDER BY revision DESC LIMIT 1;
+ IF NEW.revision<>COALESCE(prior.revision,0)+1 OR NEW.previous_event_id IS DISTINCT FROM prior.id
+ OR(NEW.event_kind='end_undone' AND(prior.id IS NULL OR prior.event_kind<>'ended'))
+ OR(NEW.event_kind='ended' AND prior.event_kind='ended') THEN RAISE EXCEPTION 'consultation end history changed' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER consultation_event_guard BEFORE INSERT ON medical_record_consultation_events FOR EACH ROW EXECUTE FUNCTION app_private.consultation_event_guard();
+CREATE FUNCTION app_private.estimate_calculation_revision_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE n bigint; BEGIN
+ PERFORM 1 FROM estimates WHERE id=NEW.estimate_id AND clinic_id=NEW.clinic_id FOR UPDATE;
+ SELECT COALESCE(max(revision),0)+1 INTO n FROM estimate_calculation_revisions WHERE estimate_id=NEW.estimate_id AND clinic_id=NEW.clinic_id;
+ IF NEW.revision<>n THEN RAISE EXCEPTION 'estimate calculation revision changed' USING ERRCODE='23514'; END IF; RETURN NEW;
+END; $$;
+CREATE TRIGGER estimate_calculation_revision_guard BEFORE INSERT ON estimate_calculation_revisions FOR EACH ROW EXECUTE FUNCTION app_private.estimate_calculation_revision_guard();
+DROP INDEX uq_active_common_owner_clinic;
+DROP INDEX uq_active_common_owner_local;
+DROP INDEX uq_active_common_pet_clinic;
+DROP INDEX uq_active_common_pet_local;
+DROP TYPE reservation_type_category;
+DROP TYPE inventory_status;
+DROP TYPE medical_record_status;
+DROP TYPE confirmation_status;
+DROP TYPE billing_status;
+DROP TYPE hospitalization_type;
+DROP TYPE hospitalization_status;
+DROP TYPE payment_method;
+
+-- Amount mis-entry is a record correction, not a receipt/refund. Account projection is reasoned and bounded by the original-fund correction delta.
+ALTER TABLE owner_deposit_entries
+ ADD COLUMN fund_record_correction_id bigint,
+ ADD COLUMN correction_reason text,
+ ADD CONSTRAINT fk_deposit_record_correction FOREIGN KEY(fund_record_correction_id,clinic_id) REFERENCES fund_record_corrections(id,clinic_id) ON DELETE RESTRICT,
+ ADD CONSTRAINT ck_deposit_correction_source CHECK(
+ (entry_kind IN('correction_credit','correction_debit') AND fund_record_correction_id IS NOT NULL AND correction_reason IS NOT NULL AND btrim(correction_reason)<>'')
+ OR(entry_kind NOT IN('correction_credit','correction_debit') AND fund_record_correction_id IS NULL AND correction_reason IS NULL));
+CREATE FUNCTION app_private.deposit_record_correction_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE c fund_record_corrections%ROWTYPE; f payment_funds%ROWTYPE; origin_fund bigint; old_net bigint; delta bigint; used numeric;
+BEGIN
+ IF NEW.entry_kind NOT IN('correction_credit','correction_debit') THEN RETURN NEW; END IF;
+ SELECT * INTO STRICT c FROM fund_record_corrections WHERE id=NEW.fund_record_correction_id AND clinic_id=NEW.clinic_id AND owner_id=NEW.owner_id;
+ SELECT * INTO STRICT f FROM payment_funds WHERE id=c.fund_id AND clinic_id=c.clinic_id FOR UPDATE;
+ SELECT fund_id INTO STRICT origin_fund FROM fund_consumption_events
+ WHERE clinic_id=NEW.clinic_id AND source_deposit_entry_id=NEW.source_entry_id AND event_kind='deposit_allocate';
+ IF origin_fund<>c.fund_id OR EXISTS(SELECT 1 FROM fund_record_corrections WHERE fund_id=c.fund_id AND clinic_id=c.clinic_id AND revision>c.revision) THEN
+ RAISE EXCEPTION 'account correction must use latest correction of original receipt fund' USING ERRCODE='23514'; END IF;
+ SELECT corrected_received_amount INTO old_net FROM fund_record_corrections WHERE fund_id=c.fund_id AND clinic_id=c.clinic_id AND revision<c.revision ORDER BY revision DESC LIMIT 1;
+ delta:=c.corrected_received_amount-COALESCE(old_net,f.received_amount);
+ SELECT COALESCE(sum(amount),0) INTO used FROM owner_deposit_entries WHERE fund_record_correction_id=c.id AND clinic_id=c.clinic_id;
+ IF (NEW.entry_kind='correction_credit' AND delta<=0) OR(NEW.entry_kind='correction_debit' AND delta>=0) OR used+NEW.amount>abs(delta::numeric) THEN
+ RAISE EXCEPTION 'account record correction exceeds original fund amount correction' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER deposit_record_correction_guard BEFORE INSERT ON owner_deposit_entries FOR EACH ROW EXECUTE FUNCTION app_private.deposit_record_correction_guard();
+CREATE FUNCTION app_private.fund_effective_balance_complete()
+RETURNS trigger LANGUAGE plpgsql AS $$ DECLARE net bigint; original bigint; used numeric; BEGIN
+ SELECT received_amount INTO STRICT original FROM payment_funds WHERE id=NEW.fund_id AND clinic_id=NEW.clinic_id;
+ SELECT corrected_received_amount INTO net FROM fund_record_corrections WHERE fund_id=NEW.fund_id AND clinic_id=NEW.clinic_id ORDER BY revision DESC LIMIT 1;
+ SELECT COALESCE(sum(CASE WHEN event_kind IN('release','deposit_release') THEN -amount ELSE amount END),0) INTO used
+ FROM fund_consumption_events WHERE fund_id=NEW.fund_id AND clinic_id=NEW.clinic_id;
+ IF used<0 OR used>COALESCE(net,original) THEN RAISE EXCEPTION 'effective fund amount and final allocations must reconcile in same transaction' USING ERRCODE='23514'; END IF;
+ RETURN NULL;
+END; $$;
+CREATE CONSTRAINT TRIGGER fund_correction_balance_complete AFTER INSERT ON fund_record_corrections DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.fund_effective_balance_complete();
+CREATE CONSTRAINT TRIGGER fund_allocation_balance_complete AFTER INSERT ON fund_consumption_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.fund_effective_balance_complete();
+COMMENT ON COLUMN owner_deposit_entries.fund_record_correction_id IS 'Pure input-record amount correction only. Credit/debit adjusts unconsumed deposit allocation with original-fund delta, reason and same-TX projection. Never a new receipt or actual refund.';
+ALTER TABLE common_pet_basic_revisions ADD CONSTRAINT ck_common_pet_danger_reason CHECK(danger_level IS DISTINCT FROM 'high' OR(danger_reason IS NOT NULL AND btrim(danger_reason)<>''));
+SELECT app_private.apply_rls_policy('estimate_calculation_revisions','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
+CREATE TRIGGER estimate_calculation_revisions_immutable BEFORE UPDATE OR DELETE ON estimate_calculation_revisions FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+CREATE CONSTRAINT TRIGGER estimate_calculation_revisions_success_receipt AFTER INSERT ON estimate_calculation_revisions DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.operation_success_required();
+SELECT app_private.apply_rls_policy('clinical_plan_diagnoses','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('medical_record_consultation_events','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
+CREATE TRIGGER medical_record_consultation_events_immutable BEFORE UPDATE OR DELETE ON medical_record_consultation_events FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+CREATE CONSTRAINT TRIGGER medical_record_consultation_events_success_receipt AFTER INSERT ON medical_record_consultation_events DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION app_private.operation_success_required();
+SELECT app_private.apply_rls_policy('reservation_eligibility_evidence','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
+CREATE TRIGGER reservation_eligibility_evidence_immutable BEFORE UPDATE OR DELETE ON reservation_eligibility_evidence FOR EACH ROW EXECUTE FUNCTION app_private.contract_history_immutable();
+
+-- Generic owner-operation receipt replaces the former completion-only duplicate key.
+ALTER TABLE billings DROP COLUMN completion_request_id, DROP COLUMN completion_request_hash;
+-- Plan subtotal is a projection of selected values; fixed accounting totals belong to calculation revisions.
+ALTER TABLE treatment_plans DROP COLUMN subtotal;
+COMMENT ON TABLE cash_register_closes IS 'Immutable original closing count/context. Later source corrections and late events remain separate; actual count corrections append to cash_actual_corrections.';

@@ -11,22 +11,22 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9101](../../../backend/migrations/001_init.sql#L9101) |
-| `intake_revision_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9102](../../../backend/migrations/001_init.sql#L9102) |
-| `entry_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:9103](../../../backend/migrations/001_init.sql#L9103) |
-| `field_key` | `text` | NOT NULL | — | — | [001_init.sql:9104](../../../backend/migrations/001_init.sql#L9104) |
-| `field_label` | `text` | NOT NULL | — | — | [001_init.sql:9105](../../../backend/migrations/001_init.sql#L9105) |
-| `answer_state` | `text` | NULL | — | — | [001_init.sql:9106](../../../backend/migrations/001_init.sql#L9106) |
-| `detail` | `text` | NULL | — | — | [001_init.sql:9107](../../../backend/migrations/001_init.sql#L9107) |
-| `drug_description` | `text` | NULL | — | — | [001_init.sql:9108](../../../backend/migrations/001_init.sql#L9108) |
-| `symptom_description` | `text` | NULL | — | — | [001_init.sql:9109](../../../backend/migrations/001_init.sql#L9109) |
-| `reported_result` | `text` | NULL | — | — | [001_init.sql:9110](../../../backend/migrations/001_init.sql#L9110) |
-| `time_precision` | `text` | NULL | — | — | [001_init.sql:9111](../../../backend/migrations/001_init.sql#L9111) |
-| `event_year` | `integer` | NULL | — | — | [001_init.sql:9112](../../../backend/migrations/001_init.sql#L9112) |
-| `event_month` | `integer` | NULL | — | — | [001_init.sql:9113](../../../backend/migrations/001_init.sql#L9113) |
-| `event_date` | `date` | NULL | — | — | [001_init.sql:9114](../../../backend/migrations/001_init.sql#L9114) |
-| `time_description` | `text` | NULL | — | — | [001_init.sql:9115](../../../backend/migrations/001_init.sql#L9115) |
-| `reference_exam_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9116](../../../backend/migrations/001_init.sql#L9116) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9103](../../../backend/migrations/001_init.sql#L9103) |
+| `intake_revision_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9104](../../../backend/migrations/001_init.sql#L9104) |
+| `entry_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:9105](../../../backend/migrations/001_init.sql#L9105) |
+| `field_key` | `text` | NOT NULL | — | — | [001_init.sql:9106](../../../backend/migrations/001_init.sql#L9106) |
+| `field_label` | `text` | NOT NULL | — | — | [001_init.sql:9107](../../../backend/migrations/001_init.sql#L9107) |
+| `answer_state` | `text` | NULL | — | — | [001_init.sql:9108](../../../backend/migrations/001_init.sql#L9108) |
+| `detail` | `text` | NULL | — | — | [001_init.sql:9109](../../../backend/migrations/001_init.sql#L9109) |
+| `drug_description` | `text` | NULL | — | — | [001_init.sql:9110](../../../backend/migrations/001_init.sql#L9110) |
+| `symptom_description` | `text` | NULL | — | — | [001_init.sql:9111](../../../backend/migrations/001_init.sql#L9111) |
+| `reported_result` | `text` | NULL | — | — | [001_init.sql:9112](../../../backend/migrations/001_init.sql#L9112) |
+| `time_precision` | `text` | NULL | — | — | [001_init.sql:9113](../../../backend/migrations/001_init.sql#L9113) |
+| `event_year` | `integer` | NULL | — | — | [001_init.sql:9114](../../../backend/migrations/001_init.sql#L9114) |
+| `event_month` | `integer` | NULL | — | — | [001_init.sql:9115](../../../backend/migrations/001_init.sql#L9115) |
+| `event_date` | `date` | NULL | — | — | [001_init.sql:9116](../../../backend/migrations/001_init.sql#L9116) |
+| `time_description` | `text` | NULL | — | — | [001_init.sql:9117](../../../backend/migrations/001_init.sql#L9117) |
+| `reference_exam_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9118](../../../backend/migrations/001_init.sql#L9118) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -76,9 +76,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `initial_intake_entries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9101](../../../backend/migrations/001_init.sql#L9101) |
-| `initial_intake_entries_intake_revision_id_clinic_id_fkey` | `intake_revision_id, clinic_id` | [initial_intake_revisions](initial_intake_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9119](../../../backend/migrations/001_init.sql#L9119) |
-| `initial_intake_entries_reference_exam_revision_id_clinic_i_fkey` | `reference_exam_revision_id, clinic_id` | [examination_revisions](examination_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9120](../../../backend/migrations/001_init.sql#L9120) |
+| `initial_intake_entries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9103](../../../backend/migrations/001_init.sql#L9103) |
+| `initial_intake_entries_intake_revision_id_clinic_id_fkey` | `intake_revision_id, clinic_id` | [initial_intake_revisions](initial_intake_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9121](../../../backend/migrations/001_init.sql#L9121) |
+| `initial_intake_entries_reference_exam_revision_id_clinic_i_fkey` | `reference_exam_revision_id, clinic_id` | [examination_revisions](examination_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9122](../../../backend/migrations/001_init.sql#L9122) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -90,9 +90,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `initial_intake_entries_answer_state_check` | check | `CHECK (answer_state IN ('yes','no','unknown'))` | [001_init.sql:9106](../../../backend/migrations/001_init.sql#L9106) |
-| `initial_intake_entries_pkey` | primary | `PRIMARY KEY (clinic_id,intake_revision_id,entry_key)` | [001_init.sql:9117](../../../backend/migrations/001_init.sql#L9117) |
-| `initial_intake_entries_check` | check | `CHECK (app_private.valid_partial_clinical_date(time_precision,event_year,event_month,event_date,time_description) IS TRUE)` | [001_init.sql:9118](../../../backend/migrations/001_init.sql#L9118) |
+| `initial_intake_entries_answer_state_check` | check | `CHECK (answer_state IN ('yes','no','unknown'))` | [001_init.sql:9108](../../../backend/migrations/001_init.sql#L9108) |
+| `initial_intake_entries_pkey` | primary | `PRIMARY KEY (clinic_id,intake_revision_id,entry_key)` | [001_init.sql:9119](../../../backend/migrations/001_init.sql#L9119) |
+| `initial_intake_entries_check` | check | `CHECK (app_private.valid_partial_clinical_date(time_precision,event_year,event_month,event_date,time_description) IS TRUE)` | [001_init.sql:9120](../../../backend/migrations/001_init.sql#L9120) |
 
 ## インデックス
 

@@ -22,7 +22,6 @@
 | `quantity` | `numeric(10,1)` | NULL | `1` | — | [001_init.sql:1638](../../../backend/migrations/001_init.sql#L1638) |
 | `discount_rate` | `numeric(5,2)` | NULL | `0` | — | [001_init.sql:1639](../../../backend/migrations/001_init.sql#L1639) |
 | `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1640](../../../backend/migrations/001_init.sql#L1640) |
-| `subtotal` | `bigint` | NULL | `0` | — | [001_init.sql:1641](../../../backend/migrations/001_init.sql#L1641) |
 | `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1642](../../../backend/migrations/001_init.sql#L1642) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1643](../../../backend/migrations/001_init.sql#L1643) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1644](../../../backend/migrations/001_init.sql#L1644) |
@@ -50,7 +49,6 @@ erDiagram
         numeric_10_1 quantity
         numeric_5_2 discount_rate
         bigint discount_amount
-        bigint subtotal
         integer sort_order
         timestamptz created_at
         timestamptz updated_at
@@ -90,7 +88,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `treatment_plans_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1630](../../../backend/migrations/001_init.sql#L1630) |
 | `chk_treatment_plans_ref` | check | `CONSTRAINT chk_treatment_plans_ref CHECK (         (medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR         (medical_record_id IS NULL AND hospitalization_id IS NOT NULL)     )` | [001_init.sql:1646](../../../backend/migrations/001_init.sql#L1646) |
-| `uq_treatment_plans_id_stay` | unique | `CONSTRAINT uq_treatment_plans_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9332](../../../backend/migrations/001_init.sql#L9332) |
+| `uq_treatment_plans_id_stay` | unique | `CONSTRAINT uq_treatment_plans_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9334](../../../backend/migrations/001_init.sql#L9334) |
 
 ## インデックス
 

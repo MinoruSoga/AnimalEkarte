@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8888](../../../backend/migrations/001_init.sql#L8888) |
-| `reservation_type_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8889](../../../backend/migrations/001_init.sql#L8889) |
-| `revision` | `bigint` | NOT NULL | — | PK | [001_init.sql:8890](../../../backend/migrations/001_init.sql#L8890) |
-| `previous_name` | `text` | NULL | — | — | [001_init.sql:8891](../../../backend/migrations/001_init.sql#L8891) |
-| `display_name` | `text` | NOT NULL | — | — | [001_init.sql:8892](../../../backend/migrations/001_init.sql#L8892) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8893](../../../backend/migrations/001_init.sql#L8893) |
-| `changed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8894](../../../backend/migrations/001_init.sql#L8894) |
-| `changed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8895](../../../backend/migrations/001_init.sql#L8895) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8890](../../../backend/migrations/001_init.sql#L8890) |
+| `reservation_type_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8891](../../../backend/migrations/001_init.sql#L8891) |
+| `revision` | `bigint` | NOT NULL | — | PK | [001_init.sql:8892](../../../backend/migrations/001_init.sql#L8892) |
+| `previous_name` | `text` | NULL | — | — | [001_init.sql:8893](../../../backend/migrations/001_init.sql#L8893) |
+| `display_name` | `text` | NOT NULL | — | — | [001_init.sql:8894](../../../backend/migrations/001_init.sql#L8894) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8895](../../../backend/migrations/001_init.sql#L8895) |
+| `changed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8896](../../../backend/migrations/001_init.sql#L8896) |
+| `changed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8897](../../../backend/migrations/001_init.sql#L8897) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -64,10 +64,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_type_name_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8888](../../../backend/migrations/001_init.sql#L8888) |
-| `reservation_type_name_revisions_changed_by_fkey` | `changed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8894](../../../backend/migrations/001_init.sql#L8894) |
-| `reservation_type_name_revisio_reservation_type_id_clinic_i_fkey` | `reservation_type_id, clinic_id` | [reservation_types](reservation_types.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8897](../../../backend/migrations/001_init.sql#L8897) |
-| `reservation_type_name_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8898](../../../backend/migrations/001_init.sql#L8898) |
+| `reservation_type_name_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8890](../../../backend/migrations/001_init.sql#L8890) |
+| `reservation_type_name_revisions_changed_by_fkey` | `changed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8896](../../../backend/migrations/001_init.sql#L8896) |
+| `reservation_type_name_revisio_reservation_type_id_clinic_i_fkey` | `reservation_type_id, clinic_id` | [reservation_types](reservation_types.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8899](../../../backend/migrations/001_init.sql#L8899) |
+| `reservation_type_name_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8900](../../../backend/migrations/001_init.sql#L8900) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -80,8 +80,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_type_name_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8890](../../../backend/migrations/001_init.sql#L8890) |
-| `reservation_type_name_revisions_pkey` | primary | `PRIMARY KEY (clinic_id,reservation_type_id,revision)` | [001_init.sql:8896](../../../backend/migrations/001_init.sql#L8896) |
+| `reservation_type_name_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8892](../../../backend/migrations/001_init.sql#L8892) |
+| `reservation_type_name_revisions_pkey` | primary | `PRIMARY KEY (clinic_id,reservation_type_id,revision)` | [001_init.sql:8898](../../../backend/migrations/001_init.sql#L8898) |
 
 ## インデックス
 

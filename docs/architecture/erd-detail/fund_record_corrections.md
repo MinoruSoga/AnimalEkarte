@@ -11,18 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9639](../../../backend/migrations/001_init.sql#L9639) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9640](../../../backend/migrations/001_init.sql#L9640) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9641](../../../backend/migrations/001_init.sql#L9641) |
-| `fund_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9642](../../../backend/migrations/001_init.sql#L9642) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9643](../../../backend/migrations/001_init.sql#L9643) |
-| `corrected_method_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9644](../../../backend/migrations/001_init.sql#L9644) |
-| `corrected_received_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9645](../../../backend/migrations/001_init.sql#L9645) |
-| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9646](../../../backend/migrations/001_init.sql#L9646) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9647](../../../backend/migrations/001_init.sql#L9647) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9648](../../../backend/migrations/001_init.sql#L9648) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9649](../../../backend/migrations/001_init.sql#L9649) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9650](../../../backend/migrations/001_init.sql#L9650) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9641](../../../backend/migrations/001_init.sql#L9641) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9642](../../../backend/migrations/001_init.sql#L9642) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9643](../../../backend/migrations/001_init.sql#L9643) |
+| `fund_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9644](../../../backend/migrations/001_init.sql#L9644) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9645](../../../backend/migrations/001_init.sql#L9645) |
+| `corrected_method_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10925](../../../backend/migrations/001_init.sql#L10925) |
+| `corrected_received_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10926](../../../backend/migrations/001_init.sql#L10926) |
+| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9648](../../../backend/migrations/001_init.sql#L9648) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9649](../../../backend/migrations/001_init.sql#L9649) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9650](../../../backend/migrations/001_init.sql#L9650) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9651](../../../backend/migrations/001_init.sql#L9651) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9652](../../../backend/migrations/001_init.sql#L9652) |
+| `corrected_received_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:10922](../../../backend/migrations/001_init.sql#L10922) |
+| `corrected_tendered_amount` | `bigint` | NULL | — | — | [001_init.sql:10923](../../../backend/migrations/001_init.sql#L10923) |
+| `corrected_change_given_amount` | `bigint` | NULL | — | — | [001_init.sql:10924](../../../backend/migrations/001_init.sql#L10924) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -47,6 +50,9 @@ erDiagram
         bigint operation_id FK
         bigint recorded_by FK
         timestamptz recorded_at
+        bigint corrected_received_amount
+        bigint corrected_tendered_amount
+        bigint corrected_change_given_amount
     }
     clinics {
         BIGSERIAL id PK
@@ -78,11 +84,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fund_record_corrections_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9640](../../../backend/migrations/001_init.sql#L9640) |
-| `fund_record_corrections_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9649](../../../backend/migrations/001_init.sql#L9649) |
-| `fund_record_corrections_fund_id_clinic_id_owner_id_fkey` | `fund_id, clinic_id, owner_id` | [payment_funds](payment_funds.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9652](../../../backend/migrations/001_init.sql#L9652) |
-| `fund_record_corrections_corrected_method_id_clinic_id_fkey` | `corrected_method_id, clinic_id` | [payment_methods](payment_methods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9653](../../../backend/migrations/001_init.sql#L9653) |
-| `fund_record_corrections_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9654](../../../backend/migrations/001_init.sql#L9654) |
+| `fund_record_corrections_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9642](../../../backend/migrations/001_init.sql#L9642) |
+| `fund_record_corrections_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9651](../../../backend/migrations/001_init.sql#L9651) |
+| `fund_record_corrections_fund_id_clinic_id_owner_id_fkey` | `fund_id, clinic_id, owner_id` | [payment_funds](payment_funds.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9654](../../../backend/migrations/001_init.sql#L9654) |
+| `fund_record_corrections_corrected_method_id_clinic_id_fkey` | `corrected_method_id, clinic_id` | [payment_methods](payment_methods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9655](../../../backend/migrations/001_init.sql#L9655) |
+| `fund_record_corrections_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9656](../../../backend/migrations/001_init.sql#L9656) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -96,12 +102,16 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `fund_record_corrections_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9639](../../../backend/migrations/001_init.sql#L9639) |
-| `fund_record_corrections_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9643](../../../backend/migrations/001_init.sql#L9643) |
-| `fund_record_corrections_before_values_check` | check | `CHECK (jsonb_typeof(before_values)='object')` | [001_init.sql:9646](../../../backend/migrations/001_init.sql#L9646) |
-| `fund_record_corrections_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9647](../../../backend/migrations/001_init.sql#L9647) |
-| `fund_record_corrections_clinic_id_fund_id_revision_key` | unique | `UNIQUE (clinic_id,fund_id,revision)` | [001_init.sql:9651](../../../backend/migrations/001_init.sql#L9651) |
-| `uq_fund_correction_id_clinic` | unique | `CONSTRAINT uq_fund_correction_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10107](../../../backend/migrations/001_init.sql#L10107) |
+| `fund_record_corrections_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9641](../../../backend/migrations/001_init.sql#L9641) |
+| `fund_record_corrections_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9645](../../../backend/migrations/001_init.sql#L9645) |
+| `fund_record_corrections_before_values_check` | check | `CHECK (jsonb_typeof(before_values)='object')` | [001_init.sql:9648](../../../backend/migrations/001_init.sql#L9648) |
+| `fund_record_corrections_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9649](../../../backend/migrations/001_init.sql#L9649) |
+| `fund_record_corrections_clinic_id_fund_id_revision_key` | unique | `UNIQUE (clinic_id,fund_id,revision)` | [001_init.sql:9653](../../../backend/migrations/001_init.sql#L9653) |
+| `uq_fund_correction_id_clinic` | unique | `CONSTRAINT uq_fund_correction_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10109](../../../backend/migrations/001_init.sql#L10109) |
+| `fund_record_corrections_corrected_received_amount_check` | check | `CHECK(corrected_received_amount>0)` | [001_init.sql:10922](../../../backend/migrations/001_init.sql#L10922) |
+| `fund_record_corrections_corrected_tendered_amount_check` | check | `CHECK(corrected_tendered_amount>=0)` | [001_init.sql:10923](../../../backend/migrations/001_init.sql#L10923) |
+| `fund_record_corrections_corrected_change_given_amount_check` | check | `CHECK(corrected_change_given_amount>=0)` | [001_init.sql:10924](../../../backend/migrations/001_init.sql#L10924) |
+| `ck_fund_correction_cash_inputs` | check | `CONSTRAINT ck_fund_correction_cash_inputs CHECK((corrected_tendered_amount IS NULL AND corrected_change_given_amount IS NULL)  OR(corrected_tendered_amount IS NOT NULL AND corrected_change_given_amount IS NOT NULL AND corrected_received_amount=corrected_tendered_amount-corrected_change_given_amount))` | [001_init.sql:10927](../../../backend/migrations/001_init.sql#L10927) |
 
 ## インデックス
 

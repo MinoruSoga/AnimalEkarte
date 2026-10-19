@@ -20,7 +20,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:817](../../../backend/migrations/001_init.sql#L817) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:818](../../../backend/migrations/001_init.sql#L818) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:819](../../../backend/migrations/001_init.sql#L819) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8886](../../../backend/migrations/001_init.sql#L8886) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8888](../../../backend/migrations/001_init.sql#L8888) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -65,7 +65,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `reservation_type_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:811](../../../backend/migrations/001_init.sql#L811) |
-| `reservation_type_groups_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8886](../../../backend/migrations/001_init.sql#L8886) |
+| `reservation_type_groups_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8888](../../../backend/migrations/001_init.sql#L8888) |
 
 ## インデックス
 

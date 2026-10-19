@@ -17,14 +17,12 @@
 | `period` | `varchar(3)` | NOT NULL | — | UK | [001_init.sql:2157](../../../backend/migrations/001_init.sql#L2157) |
 | `theoretical_cash` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2158](../../../backend/migrations/001_init.sql#L2158) |
 | `actual_cash` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2159](../../../backend/migrations/001_init.sql#L2159) |
-| `cash_difference` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2160](../../../backend/migrations/001_init.sql#L2160) |
 | `category_breakdown` | `jsonb` | NOT NULL | `'{}'` | — | [001_init.sql:2161](../../../backend/migrations/001_init.sql#L2161) |
 | `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:2162](../../../backend/migrations/001_init.sql#L2162) |
 | `closed_by` | `bigint` | NULL | — | FK | [001_init.sql:2163](../../../backend/migrations/001_init.sql#L2163) |
 | `closed_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2164](../../../backend/migrations/001_init.sql#L2164) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2165](../../../backend/migrations/001_init.sql#L2165) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2166](../../../backend/migrations/001_init.sql#L2166) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:2167](../../../backend/migrations/001_init.sql#L2167) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -43,14 +41,12 @@ erDiagram
         varchar_3 period UK
         bigint theoretical_cash
         bigint actual_cash
-        bigint cash_difference
         jsonb category_breakdown
         text memo
         bigint closed_by FK
         timestamptz closed_at
         timestamptz created_at
         timestamptz updated_at
-        timestamptz deleted_at
     }
     clinics {
         BIGSERIAL id PK
@@ -81,8 +77,8 @@ erDiagram
 | `cash_register_closes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2154](../../../backend/migrations/001_init.sql#L2154) |
 | `cash_register_closes_period_check` | check | `CHECK (period IN ('am', 'pm', 'emg'))` | [001_init.sql:2157](../../../backend/migrations/001_init.sql#L2157) |
 | `uq_cash_register_closes_id_clinic` | unique | `CONSTRAINT uq_cash_register_closes_id_clinic         UNIQUE (id, clinic_id)` | [001_init.sql:5700](../../../backend/migrations/001_init.sql#L5700) |
-| `ck_cash_actual_nonnegative` | check | `CONSTRAINT ck_cash_actual_nonnegative CHECK(actual_cash>=0)` | [001_init.sql:10643](../../../backend/migrations/001_init.sql#L10643) |
-| `ck_cash_difference_note` | check | `CONSTRAINT ck_cash_difference_note CHECK(cash_difference=0 OR btrim(memo)<>'')` | [001_init.sql:10644](../../../backend/migrations/001_init.sql#L10644) |
+| `ck_cash_actual_nonnegative` | check | `CONSTRAINT ck_cash_actual_nonnegative CHECK(actual_cash>=0)` | [001_init.sql:10645](../../../backend/migrations/001_init.sql#L10645) |
+| `ck_close_difference_note` | check | `CONSTRAINT ck_close_difference_note CHECK(actual_cash=theoretical_cash OR btrim(memo)<>'')` | [001_init.sql:10897](../../../backend/migrations/001_init.sql#L10897) |
 
 ## インデックス
 

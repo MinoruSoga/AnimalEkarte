@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8923](../../../backend/migrations/001_init.sql#L8923) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8924](../../../backend/migrations/001_init.sql#L8924) |
-| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8925](../../../backend/migrations/001_init.sql#L8925) |
-| `resulting_version` | `bigint` | NOT NULL | — | UK | [001_init.sql:8926](../../../backend/migrations/001_init.sql#L8926) |
-| `intent` | `text` | NOT NULL | — | — | [001_init.sql:8927](../../../backend/migrations/001_init.sql#L8927) |
-| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8928](../../../backend/migrations/001_init.sql#L8928) |
-| `after_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8929](../../../backend/migrations/001_init.sql#L8929) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:8930](../../../backend/migrations/001_init.sql#L8930) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8931](../../../backend/migrations/001_init.sql#L8931) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8932](../../../backend/migrations/001_init.sql#L8932) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8933](../../../backend/migrations/001_init.sql#L8933) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8925](../../../backend/migrations/001_init.sql#L8925) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8926](../../../backend/migrations/001_init.sql#L8926) |
+| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8927](../../../backend/migrations/001_init.sql#L8927) |
+| `resulting_version` | `bigint` | NOT NULL | — | UK | [001_init.sql:8928](../../../backend/migrations/001_init.sql#L8928) |
+| `intent` | `text` | NOT NULL | — | — | [001_init.sql:8929](../../../backend/migrations/001_init.sql#L8929) |
+| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8930](../../../backend/migrations/001_init.sql#L8930) |
+| `after_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8931](../../../backend/migrations/001_init.sql#L8931) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:8932](../../../backend/migrations/001_init.sql#L8932) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8933](../../../backend/migrations/001_init.sql#L8933) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8934](../../../backend/migrations/001_init.sql#L8934) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8935](../../../backend/migrations/001_init.sql#L8935) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,10 +70,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `appointment_change_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8924](../../../backend/migrations/001_init.sql#L8924) |
-| `appointment_change_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8932](../../../backend/migrations/001_init.sql#L8932) |
-| `appointment_change_events_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8936](../../../backend/migrations/001_init.sql#L8936) |
-| `appointment_change_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8937](../../../backend/migrations/001_init.sql#L8937) |
+| `appointment_change_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8926](../../../backend/migrations/001_init.sql#L8926) |
+| `appointment_change_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8934](../../../backend/migrations/001_init.sql#L8934) |
+| `appointment_change_events_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8938](../../../backend/migrations/001_init.sql#L8938) |
+| `appointment_change_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8939](../../../backend/migrations/001_init.sql#L8939) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,12 +86,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `appointment_change_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8923](../../../backend/migrations/001_init.sql#L8923) |
-| `appointment_change_events_resulting_version_check` | check | `CHECK (resulting_version > 0)` | [001_init.sql:8926](../../../backend/migrations/001_init.sql#L8926) |
-| `appointment_change_events_before_values_check` | check | `CHECK (jsonb_typeof(before_values)='object')` | [001_init.sql:8928](../../../backend/migrations/001_init.sql#L8928) |
-| `appointment_change_events_after_values_check` | check | `CHECK (jsonb_typeof(after_values)='object')` | [001_init.sql:8929](../../../backend/migrations/001_init.sql#L8929) |
-| `appointment_change_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8934](../../../backend/migrations/001_init.sql#L8934) |
-| `appointment_change_events_clinic_id_appointment_id_resultin_key` | unique | `UNIQUE (clinic_id,appointment_id,resulting_version)` | [001_init.sql:8935](../../../backend/migrations/001_init.sql#L8935) |
+| `appointment_change_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8925](../../../backend/migrations/001_init.sql#L8925) |
+| `appointment_change_events_resulting_version_check` | check | `CHECK (resulting_version > 0)` | [001_init.sql:8928](../../../backend/migrations/001_init.sql#L8928) |
+| `appointment_change_events_before_values_check` | check | `CHECK (jsonb_typeof(before_values)='object')` | [001_init.sql:8930](../../../backend/migrations/001_init.sql#L8930) |
+| `appointment_change_events_after_values_check` | check | `CHECK (jsonb_typeof(after_values)='object')` | [001_init.sql:8931](../../../backend/migrations/001_init.sql#L8931) |
+| `appointment_change_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8936](../../../backend/migrations/001_init.sql#L8936) |
+| `appointment_change_events_clinic_id_appointment_id_resultin_key` | unique | `UNIQUE (clinic_id,appointment_id,resulting_version)` | [001_init.sql:8937](../../../backend/migrations/001_init.sql#L8937) |
 
 ## インデックス
 

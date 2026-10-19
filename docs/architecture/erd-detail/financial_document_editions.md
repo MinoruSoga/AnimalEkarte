@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9697](../../../backend/migrations/001_init.sql#L9697) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9698](../../../backend/migrations/001_init.sql#L9698) |
-| `document_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9699](../../../backend/migrations/001_init.sql#L9699) |
-| `edition` | `bigint` | NOT NULL | — | UK | [001_init.sql:9700](../../../backend/migrations/001_init.sql#L9700) |
-| `calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:9701](../../../backend/migrations/001_init.sql#L9701) |
-| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9702](../../../backend/migrations/001_init.sql#L9702) |
-| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9703](../../../backend/migrations/001_init.sql#L9703) |
-| `display_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9704](../../../backend/migrations/001_init.sql#L9704) |
-| `layout_version` | `text` | NOT NULL | — | — | [001_init.sql:9705](../../../backend/migrations/001_init.sql#L9705) |
-| `issued_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9706](../../../backend/migrations/001_init.sql#L9706) |
-| `issued_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9707](../../../backend/migrations/001_init.sql#L9707) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9708](../../../backend/migrations/001_init.sql#L9708) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9699](../../../backend/migrations/001_init.sql#L9699) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9700](../../../backend/migrations/001_init.sql#L9700) |
+| `document_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9701](../../../backend/migrations/001_init.sql#L9701) |
+| `edition` | `bigint` | NOT NULL | — | UK | [001_init.sql:9702](../../../backend/migrations/001_init.sql#L9702) |
+| `calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:9703](../../../backend/migrations/001_init.sql#L9703) |
+| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9704](../../../backend/migrations/001_init.sql#L9704) |
+| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9705](../../../backend/migrations/001_init.sql#L9705) |
+| `display_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9706](../../../backend/migrations/001_init.sql#L9706) |
+| `layout_version` | `text` | NOT NULL | — | — | [001_init.sql:9707](../../../backend/migrations/001_init.sql#L9707) |
+| `issued_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9708](../../../backend/migrations/001_init.sql#L9708) |
+| `issued_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9709](../../../backend/migrations/001_init.sql#L9709) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9710](../../../backend/migrations/001_init.sql#L9710) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -78,11 +78,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `financial_document_editions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9698](../../../backend/migrations/001_init.sql#L9698) |
-| `financial_document_editions_issued_by_fkey` | `issued_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9706](../../../backend/migrations/001_init.sql#L9706) |
-| `financial_document_editions_document_id_clinic_id_fkey` | `document_id, clinic_id` | [financial_document_identities](financial_document_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9711](../../../backend/migrations/001_init.sql#L9711) |
-| `financial_document_editions_calculation_id_clinic_id_billi_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9712](../../../backend/migrations/001_init.sql#L9712) |
-| `financial_document_editions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
+| `financial_document_editions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9700](../../../backend/migrations/001_init.sql#L9700) |
+| `financial_document_editions_issued_by_fkey` | `issued_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9708](../../../backend/migrations/001_init.sql#L9708) |
+| `financial_document_editions_document_id_clinic_id_fkey` | `document_id, clinic_id` | [financial_document_identities](financial_document_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
+| `financial_document_editions_calculation_id_clinic_id_billi_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
+| `financial_document_editions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9715](../../../backend/migrations/001_init.sql#L9715) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -96,12 +96,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `financial_document_editions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9697](../../../backend/migrations/001_init.sql#L9697) |
-| `financial_document_editions_edition_check` | check | `CHECK (edition > 0)` | [001_init.sql:9700](../../../backend/migrations/001_init.sql#L9700) |
-| `financial_document_editions_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9703](../../../backend/migrations/001_init.sql#L9703) |
-| `financial_document_editions_display_snapshot_check` | check | `CHECK (jsonb_typeof(display_snapshot)='object')` | [001_init.sql:9704](../../../backend/migrations/001_init.sql#L9704) |
-| `financial_document_editions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9709](../../../backend/migrations/001_init.sql#L9709) |
-| `financial_document_editions_clinic_id_document_id_edition_key` | unique | `UNIQUE (clinic_id,document_id,edition)` | [001_init.sql:9710](../../../backend/migrations/001_init.sql#L9710) |
+| `financial_document_editions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9699](../../../backend/migrations/001_init.sql#L9699) |
+| `financial_document_editions_edition_check` | check | `CHECK (edition > 0)` | [001_init.sql:9702](../../../backend/migrations/001_init.sql#L9702) |
+| `financial_document_editions_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9705](../../../backend/migrations/001_init.sql#L9705) |
+| `financial_document_editions_display_snapshot_check` | check | `CHECK (jsonb_typeof(display_snapshot)='object')` | [001_init.sql:9706](../../../backend/migrations/001_init.sql#L9706) |
+| `financial_document_editions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9711](../../../backend/migrations/001_init.sql#L9711) |
+| `financial_document_editions_clinic_id_document_id_edition_key` | unique | `UNIQUE (clinic_id,document_id,edition)` | [001_init.sql:9712](../../../backend/migrations/001_init.sql#L9712) |
 
 ## インデックス
 

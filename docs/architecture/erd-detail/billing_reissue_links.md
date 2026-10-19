@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9461](../../../backend/migrations/001_init.sql#L9461) |
-| `original_billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9462](../../../backend/migrations/001_init.sql#L9462) |
-| `new_billing_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9463](../../../backend/migrations/001_init.sql#L9463) |
-| `original_calculation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9464](../../../backend/migrations/001_init.sql#L9464) |
-| `selected_source_lines` | `jsonb` | NOT NULL | — | — | [001_init.sql:9465](../../../backend/migrations/001_init.sql#L9465) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9466](../../../backend/migrations/001_init.sql#L9466) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9467](../../../backend/migrations/001_init.sql#L9467) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9463](../../../backend/migrations/001_init.sql#L9463) |
+| `original_billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9464](../../../backend/migrations/001_init.sql#L9464) |
+| `new_billing_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9465](../../../backend/migrations/001_init.sql#L9465) |
+| `original_calculation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9466](../../../backend/migrations/001_init.sql#L9466) |
+| `selected_source_lines` | `jsonb` | NOT NULL | — | — | [001_init.sql:9467](../../../backend/migrations/001_init.sql#L9467) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9468](../../../backend/migrations/001_init.sql#L9468) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9469](../../../backend/migrations/001_init.sql#L9469) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -65,11 +65,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_reissue_links_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9461](../../../backend/migrations/001_init.sql#L9461) |
-| `billing_reissue_links_original_billing_id_clinic_id_fkey` | `original_billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9470](../../../backend/migrations/001_init.sql#L9470) |
-| `billing_reissue_links_new_billing_id_clinic_id_fkey` | `new_billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9471](../../../backend/migrations/001_init.sql#L9471) |
-| `billing_reissue_links_original_calculation_id_clinic_id_or_fkey` | `original_calculation_id, clinic_id, original_billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9472](../../../backend/migrations/001_init.sql#L9472) |
-| `billing_reissue_links_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9473](../../../backend/migrations/001_init.sql#L9473) |
+| `billing_reissue_links_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9463](../../../backend/migrations/001_init.sql#L9463) |
+| `billing_reissue_links_original_billing_id_clinic_id_fkey` | `original_billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9472](../../../backend/migrations/001_init.sql#L9472) |
+| `billing_reissue_links_new_billing_id_clinic_id_fkey` | `new_billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9473](../../../backend/migrations/001_init.sql#L9473) |
+| `billing_reissue_links_original_calculation_id_clinic_id_or_fkey` | `original_calculation_id, clinic_id, original_billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9474](../../../backend/migrations/001_init.sql#L9474) |
+| `billing_reissue_links_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9475](../../../backend/migrations/001_init.sql#L9475) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -83,10 +83,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_reissue_links_selected_source_lines_check` | check | `CHECK (jsonb_typeof(selected_source_lines)='array')` | [001_init.sql:9465](../../../backend/migrations/001_init.sql#L9465) |
-| `billing_reissue_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9466](../../../backend/migrations/001_init.sql#L9466) |
-| `billing_reissue_links_pkey` | primary | `PRIMARY KEY (clinic_id,new_billing_id)` | [001_init.sql:9468](../../../backend/migrations/001_init.sql#L9468) |
-| `billing_reissue_links_check` | check | `CHECK (original_billing_id<>new_billing_id)` | [001_init.sql:9469](../../../backend/migrations/001_init.sql#L9469) |
+| `billing_reissue_links_selected_source_lines_check` | check | `CHECK (jsonb_typeof(selected_source_lines)='array')` | [001_init.sql:9467](../../../backend/migrations/001_init.sql#L9467) |
+| `billing_reissue_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9468](../../../backend/migrations/001_init.sql#L9468) |
+| `billing_reissue_links_pkey` | primary | `PRIMARY KEY (clinic_id,new_billing_id)` | [001_init.sql:9470](../../../backend/migrations/001_init.sql#L9470) |
+| `billing_reissue_links_check` | check | `CHECK (original_billing_id<>new_billing_id)` | [001_init.sql:9471](../../../backend/migrations/001_init.sql#L9471) |
 
 ## インデックス
 

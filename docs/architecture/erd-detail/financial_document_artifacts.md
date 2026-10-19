@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9716](../../../backend/migrations/001_init.sql#L9716) |
-| `edition_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9717](../../../backend/migrations/001_init.sql#L9717) |
-| `renderer_version` | `text` | NOT NULL | — | — | [001_init.sql:9718](../../../backend/migrations/001_init.sql#L9718) |
-| `object_key` | `text` | NOT NULL | — | — | [001_init.sql:9719](../../../backend/migrations/001_init.sql#L9719) |
-| `content_sha256` | `bytea` | NOT NULL | — | — | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9721](../../../backend/migrations/001_init.sql#L9721) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9718](../../../backend/migrations/001_init.sql#L9718) |
+| `edition_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9719](../../../backend/migrations/001_init.sql#L9719) |
+| `renderer_version` | `text` | NOT NULL | — | — | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
+| `object_key` | `text` | NOT NULL | — | — | [001_init.sql:9721](../../../backend/migrations/001_init.sql#L9721) |
+| `content_sha256` | `bytea` | NOT NULL | — | — | [001_init.sql:9722](../../../backend/migrations/001_init.sql#L9722) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9723](../../../backend/migrations/001_init.sql#L9723) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -51,8 +51,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `financial_document_artifacts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9716](../../../backend/migrations/001_init.sql#L9716) |
-| `financial_document_artifacts_edition_id_clinic_id_fkey` | `edition_id, clinic_id` | [financial_document_editions](financial_document_editions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9723](../../../backend/migrations/001_init.sql#L9723) |
+| `financial_document_artifacts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9718](../../../backend/migrations/001_init.sql#L9718) |
+| `financial_document_artifacts_edition_id_clinic_id_fkey` | `edition_id, clinic_id` | [financial_document_editions](financial_document_editions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9725](../../../backend/migrations/001_init.sql#L9725) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -63,9 +63,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `financial_document_artifacts_object_key_check` | check | `CHECK (btrim(object_key)<>'')` | [001_init.sql:9719](../../../backend/migrations/001_init.sql#L9719) |
-| `financial_document_artifacts_content_sha256_check` | check | `CHECK (octet_length(content_sha256)=32)` | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
-| `financial_document_artifacts_pkey` | primary | `PRIMARY KEY (clinic_id,edition_id)` | [001_init.sql:9722](../../../backend/migrations/001_init.sql#L9722) |
+| `financial_document_artifacts_object_key_check` | check | `CHECK (btrim(object_key)<>'')` | [001_init.sql:9721](../../../backend/migrations/001_init.sql#L9721) |
+| `financial_document_artifacts_content_sha256_check` | check | `CHECK (octet_length(content_sha256)=32)` | [001_init.sql:9722](../../../backend/migrations/001_init.sql#L9722) |
+| `financial_document_artifacts_pkey` | primary | `PRIMARY KEY (clinic_id,edition_id)` | [001_init.sql:9724](../../../backend/migrations/001_init.sql#L9724) |
 
 ## インデックス
 

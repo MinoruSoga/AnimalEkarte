@@ -16,11 +16,10 @@
 | `name` | `text` | NOT NULL | — | — | [001_init.sql:830](../../../backend/migrations/001_init.sql#L830) |
 | `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:831](../../../backend/migrations/001_init.sql#L831) |
 | `description` | `text` | NOT NULL | `''` | — | [001_init.sql:832](../../../backend/migrations/001_init.sql#L832) |
-| `color` | `text` | NOT NULL | `'#3B82F6'` | — | [001_init.sql:833](../../../backend/migrations/001_init.sql#L833) |
 | `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:834](../../../backend/migrations/001_init.sql#L834) |
 | `group_id` | `bigint` | NULL | — | FK | [001_init.sql:835](../../../backend/migrations/001_init.sql#L835) |
 | `reservation_display_name` | `text` | NOT NULL | `''` | — | [001_init.sql:836](../../../backend/migrations/001_init.sql#L836) |
-| `duration_minutes` | `int` | NOT NULL | — | — | [001_init.sql:8884](../../../backend/migrations/001_init.sql#L8884) |
+| `duration_minutes` | `int` | NOT NULL | — | — | [001_init.sql:8886](../../../backend/migrations/001_init.sql#L8886) |
 | `short_name` | `text` | NOT NULL | `''` | — | [001_init.sql:838](../../../backend/migrations/001_init.sql#L838) |
 | `show_short_name` | `boolean` | NOT NULL | `false` | — | [001_init.sql:839](../../../backend/migrations/001_init.sql#L839) |
 | `reservation_visible` | `boolean` | NOT NULL | `true` | — | [001_init.sql:840](../../../backend/migrations/001_init.sql#L840) |
@@ -30,14 +29,13 @@
 | `max_concurrent` | `integer` | NULL | — | — | [001_init.sql:844](../../../backend/migrations/001_init.sql#L844) |
 | `reservation_day_option` | `text` | NOT NULL | `'none'` | — | [001_init.sql:845](../../../backend/migrations/001_init.sql#L845) |
 | `is_internal` | `boolean` | NOT NULL | `false` | — | [001_init.sql:846](../../../backend/migrations/001_init.sql#L846) |
-| `category` | `reservation_type_category` | NOT NULL | `'general'` | — | [001_init.sql:847](../../../backend/migrations/001_init.sql#L847) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:848](../../../backend/migrations/001_init.sql#L848) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:849](../../../backend/migrations/001_init.sql#L849) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:850](../../../backend/migrations/001_init.sql#L850) |
-| `business_kind` | `text` | NULL | — | — | [001_init.sql:8880](../../../backend/migrations/001_init.sql#L8880) |
-| `usage_resume_pending` | `boolean` | NULL | — | — | [001_init.sql:8881](../../../backend/migrations/001_init.sql#L8881) |
-| `name_revision` | `bigint` | NULL | — | — | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8883](../../../backend/migrations/001_init.sql#L8883) |
+| `business_kind` | `text` | NULL | — | — | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
+| `usage_resume_pending` | `boolean` | NULL | — | — | [001_init.sql:8883](../../../backend/migrations/001_init.sql#L8883) |
+| `name_revision` | `bigint` | NULL | — | — | [001_init.sql:8884](../../../backend/migrations/001_init.sql#L8884) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8885](../../../backend/migrations/001_init.sql#L8885) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,7 +53,6 @@ erDiagram
         text name
         boolean is_active
         text description
-        text color
         integer sort_order
         bigint group_id FK
         text reservation_display_name
@@ -69,7 +66,6 @@ erDiagram
         integer max_concurrent
         text reservation_day_option
         boolean is_internal
-        reservation_type_category category
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
@@ -110,10 +106,10 @@ erDiagram
 | `reservation_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:828](../../../backend/migrations/001_init.sql#L828) |
 | `reservation_types_max_concurrent_check` | check | `CHECK (max_concurrent > 0)` | [001_init.sql:844](../../../backend/migrations/001_init.sql#L844) |
 | `uq_reservation_types_id_clinic` | unique | `CONSTRAINT uq_reservation_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:863](../../../backend/migrations/001_init.sql#L863) |
-| `reservation_types_business_kind_check` | check | `CHECK (business_kind IN ('general','trimming','inpatient','hotel'))` | [001_init.sql:8880](../../../backend/migrations/001_init.sql#L8880) |
-| `reservation_types_name_revision_check` | check | `CHECK (name_revision > 0)` | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
-| `reservation_types_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8883](../../../backend/migrations/001_init.sql#L8883) |
-| `ck_reservation_standard_duration` | check | `CONSTRAINT ck_reservation_standard_duration CHECK (duration_minutes BETWEEN 5 AND 480 AND duration_minutes % 5=0)` | [001_init.sql:8885](../../../backend/migrations/001_init.sql#L8885) |
+| `reservation_types_business_kind_check` | check | `CHECK (business_kind IN ('general','trimming','inpatient','hotel'))` | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
+| `reservation_types_name_revision_check` | check | `CHECK (name_revision > 0)` | [001_init.sql:8884](../../../backend/migrations/001_init.sql#L8884) |
+| `reservation_types_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8885](../../../backend/migrations/001_init.sql#L8885) |
+| `ck_reservation_standard_duration` | check | `CONSTRAINT ck_reservation_standard_duration CHECK (duration_minutes BETWEEN 5 AND 480 AND duration_minutes % 5=0)` | [001_init.sql:8887](../../../backend/migrations/001_init.sql#L8887) |
 
 ## インデックス
 

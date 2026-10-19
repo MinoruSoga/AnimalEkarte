@@ -41,12 +41,12 @@
 | `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:6333](../../../backend/migrations/001_init.sql#L6333) |
 | `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8284](../../../backend/migrations/001_init.sql#L8284) |
 | `fulfillment_generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
-| `administration_dose_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8829](../../../backend/migrations/001_init.sql#L8829) |
-| `administration_dose_unit` | `text` | NULL | — | — | [001_init.sql:8830](../../../backend/migrations/001_init.sql#L8830) |
-| `administration_instructions` | `text` | NULL | — | — | [001_init.sql:8831](../../../backend/migrations/001_init.sql#L8831) |
-| `prescription_total_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8832](../../../backend/migrations/001_init.sql#L8832) |
-| `prescription_total_unit` | `text` | NULL | — | — | [001_init.sql:8833](../../../backend/migrations/001_init.sql#L8833) |
-| `dose_pattern_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9154](../../../backend/migrations/001_init.sql#L9154) |
+| `administration_dose_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8831](../../../backend/migrations/001_init.sql#L8831) |
+| `administration_dose_unit` | `text` | NULL | — | — | [001_init.sql:8832](../../../backend/migrations/001_init.sql#L8832) |
+| `administration_instructions` | `text` | NULL | — | — | [001_init.sql:8833](../../../backend/migrations/001_init.sql#L8833) |
+| `prescription_total_amount` | `numeric(12,6)` | NULL | — | — | [001_init.sql:8834](../../../backend/migrations/001_init.sql#L8834) |
+| `prescription_total_unit` | `text` | NULL | — | — | [001_init.sql:8835](../../../backend/migrations/001_init.sql#L8835) |
+| `dose_pattern_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9156](../../../backend/migrations/001_init.sql#L9156) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -149,7 +149,7 @@ erDiagram
 | `fk_treatments_consultation_clinic` | `consultation_id, clinic_id` | [consultations](consultations.md) | `id, clinic_id` | `ON DELETE SET NULL (consultation_id)` | [001_init.sql:3587](../../../backend/migrations/001_init.sql#L3587) |
 | `fk_treatments_procedure_clinic` | `procedure_id, clinic_id` | [procedures](procedures.md) | `id, clinic_id` | `ON DELETE SET NULL (procedure_id)` | [001_init.sql:3593](../../../backend/migrations/001_init.sql#L3593) |
 | `fk_treatments_inventory_clinic` | `inventory_id, clinic_id` | [inventory_items](inventory_items.md) | `id, clinic_id` | `ON DELETE SET NULL (inventory_id)` | [001_init.sql:3599](../../../backend/migrations/001_init.sql#L3599) |
-| `fk_treatment_selected_dose_pattern` | `dose_pattern_revision_id, clinic_id` | [medicine_dose_pattern_revisions](medicine_dose_pattern_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9155](../../../backend/migrations/001_init.sql#L9155) |
+| `fk_treatment_selected_dose_pattern` | `dose_pattern_revision_id, clinic_id` | [medicine_dose_pattern_revisions](medicine_dose_pattern_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9157](../../../backend/migrations/001_init.sql#L9157) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -175,9 +175,9 @@ erDiagram
 | `uq_treatments_id_clinic` | unique | `CONSTRAINT uq_treatments_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7927](../../../backend/migrations/001_init.sql#L7927) |
 | `treatments_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:8284](../../../backend/migrations/001_init.sql#L8284) |
 | `treatments_fulfillment_generation_check` | check | `CHECK (fulfillment_generation > 0)` | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
-| `ck_administration_dose_pair` | check | `CONSTRAINT ck_administration_dose_pair CHECK (       (administration_dose_amount IS NULL AND administration_dose_unit IS NULL)       OR (administration_dose_amount IS NOT NULL AND administration_dose_unit IS NOT NULL AND btrim(administration_dose_unit)<>''))` | [001_init.sql:8834](../../../backend/migrations/001_init.sql#L8834) |
-| `ck_prescription_total_pair` | check | `CONSTRAINT ck_prescription_total_pair CHECK (       (prescription_total_amount IS NULL AND prescription_total_unit IS NULL)       OR (prescription_total_amount IS NOT NULL AND prescription_total_unit IS NOT NULL AND btrim(prescription_total_unit)<>''))` | [001_init.sql:8837](../../../backend/migrations/001_init.sql#L8837) |
-| `uq_treatment_record_clinic` | unique | `CONSTRAINT uq_treatment_record_clinic UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:10100](../../../backend/migrations/001_init.sql#L10100) |
+| `ck_administration_dose_pair` | check | `CONSTRAINT ck_administration_dose_pair CHECK (       (administration_dose_amount IS NULL AND administration_dose_unit IS NULL)       OR (administration_dose_amount IS NOT NULL AND administration_dose_unit IS NOT NULL AND btrim(administration_dose_unit)<>''))` | [001_init.sql:8836](../../../backend/migrations/001_init.sql#L8836) |
+| `ck_prescription_total_pair` | check | `CONSTRAINT ck_prescription_total_pair CHECK (       (prescription_total_amount IS NULL AND prescription_total_unit IS NULL)       OR (prescription_total_amount IS NOT NULL AND prescription_total_unit IS NOT NULL AND btrim(prescription_total_unit)<>''))` | [001_init.sql:8839](../../../backend/migrations/001_init.sql#L8839) |
+| `uq_treatment_record_clinic` | unique | `CONSTRAINT uq_treatment_record_clinic UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:10102](../../../backend/migrations/001_init.sql#L10102) |
 
 ## インデックス
 

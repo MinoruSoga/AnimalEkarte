@@ -37,13 +37,8 @@
 | `no_staff_mode` | `text` | NOT NULL | `'first_available'` | — | [001_init.sql:2659](../../../backend/migrations/001_init.sql#L2659) |
 | `show_no_staff_option` | `boolean` | NOT NULL | `true` | — | [001_init.sql:2660](../../../backend/migrations/001_init.sql#L2660) |
 | `additional_fields` | `jsonb` | NOT NULL | `'[         {"key":"phone","label":"電話番号","required":true,"placeholder":"例) 090-1234-5678"},         {"key":"owner_name","label":"飼い主名","required":true,"placeholder":""},         {"key":"pet_info","label":"ペットの名前と種類","required":true,"placeholder":"例) ポチ（柴犬）"},         {"key":"symptoms","label":"診察内容","required":false,"placeholder":""}     ]'` | — | [001_init.sql:2663](../../../backend/migrations/001_init.sql#L2663) |
-| `line_channel_id` | `text` | NOT NULL | `''` | — | [001_init.sql:2671](../../../backend/migrations/001_init.sql#L2671) |
-| `line_channel_secret` | `text` | NOT NULL | `''` | — | [001_init.sql:2672](../../../backend/migrations/001_init.sql#L2672) |
-| `liff_id` | `text` | NOT NULL | `''` | — | [001_init.sql:2673](../../../backend/migrations/001_init.sql#L2673) |
-| `line_access_token` | `text` | NOT NULL | `''` | — | [001_init.sql:2674](../../../backend/migrations/001_init.sql#L2674) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2676](../../../backend/migrations/001_init.sql#L2676) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2677](../../../backend/migrations/001_init.sql#L2677) |
-| `line_bot_user_id` | `text` | NOT NULL | `''` | — | [001_init.sql:4771](../../../backend/migrations/001_init.sql#L4771) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -82,13 +77,8 @@ erDiagram
         text no_staff_mode
         boolean show_no_staff_option
         jsonb additional_fields
-        text line_channel_id
-        text line_channel_secret
-        text liff_id
-        text line_access_token
         timestamptz created_at
         timestamptz updated_at
-        text line_bot_user_id
     }
     clinics {
         BIGSERIAL id PK
@@ -115,6 +105,4 @@ erDiagram
 
 ## インデックス
 
-| 名前 | UNIQUE | 述語 | DDL | 定義元 |
-|:---|:---|:---|:---|:---|
-| `uq_line_reservation_settings_line_bot_user_id` | YES | `line_bot_user_id <> ''` | `CREATE UNIQUE INDEX uq_line_reservation_settings_line_bot_user_id     ON line_reservation_settings (line_bot_user_id)     WHERE line_bot_user_id <> ''` | [001_init.sql:4774](../../../backend/migrations/001_init.sql#L4774) |
+明示的なCREATE INDEXなし。PK/UNIQUEに付随する暗黙のindexは制約欄を参照してください。

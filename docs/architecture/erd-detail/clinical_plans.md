@@ -11,19 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1574](../../../backend/migrations/001_init.sql#L1574) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1574](../../../backend/migrations/001_init.sql#L1574) |
 | `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1575](../../../backend/migrations/001_init.sql#L1575) |
 | `physical_exam` | `text` | NOT NULL | `''` | — | [001_init.sql:1576](../../../backend/migrations/001_init.sql#L1576) |
-| `diagnosis_type_id` | `bigint` | NULL | — | FK | [001_init.sql:1577](../../../backend/migrations/001_init.sql#L1577) |
-| `diagnosis_name_id` | `bigint` | NULL | — | FK | [001_init.sql:1578](../../../backend/migrations/001_init.sql#L1578) |
-| `diagnosis_2_type_id` | `bigint` | NULL | — | FK | [001_init.sql:1579](../../../backend/migrations/001_init.sql#L1579) |
-| `diagnosis_2_name_id` | `bigint` | NULL | — | FK | [001_init.sql:1580](../../../backend/migrations/001_init.sql#L1580) |
 | `diagnosis_details` | `text` | NOT NULL | `''` | — | [001_init.sql:1581](../../../backend/migrations/001_init.sql#L1581) |
 | `treatment_policy` | `text` | NOT NULL | `''` | — | [001_init.sql:1582](../../../backend/migrations/001_init.sql#L1582) |
 | `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:1583](../../../backend/migrations/001_init.sql#L1583) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1584](../../../backend/migrations/001_init.sql#L1584) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1585](../../../backend/migrations/001_init.sql#L1585) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1586](../../../backend/migrations/001_init.sql#L1586) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10976](../../../backend/migrations/001_init.sql#L10976) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -36,34 +33,27 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     clinical_plans {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
         bigint medical_record_id FK,UK
         text physical_exam
-        bigint diagnosis_type_id FK
-        bigint diagnosis_name_id FK
-        bigint diagnosis_2_type_id FK
-        bigint diagnosis_2_name_id FK
         text diagnosis_details
         text treatment_policy
         INTEGER version
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        bigint clinic_id FK,UK
     }
-    diagnosis_names {
-        BIGSERIAL id PK
-    }
-    diagnosis_types {
+    clinics {
         BIGSERIAL id PK
     }
     medical_records {
         BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
     }
     medical_records ||..o| clinical_plans : "medical_record_id"
-    diagnosis_types o|..o{ clinical_plans : "diagnosis_type_id"
-    diagnosis_names o|..o{ clinical_plans : "diagnosis_name_id"
-    diagnosis_types o|..o{ clinical_plans : "diagnosis_2_type_id"
-    diagnosis_names o|..o{ clinical_plans : "diagnosis_2_name_id"
+    clinics ||..o{ clinical_plans : "clinic_id"
+    medical_records ||..o| clinical_plans : "medical_record_id, clinic_id"
 ```
 
 ## 外部キー（全件）
@@ -71,18 +61,14 @@ erDiagram
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `clinical_plans_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1575](../../../backend/migrations/001_init.sql#L1575) |
-| `clinical_plans_diagnosis_type_id_fkey` | `diagnosis_type_id` | [diagnosis_types](diagnosis_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1577](../../../backend/migrations/001_init.sql#L1577) |
-| `clinical_plans_diagnosis_name_id_fkey` | `diagnosis_name_id` | [diagnosis_names](diagnosis_names.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1578](../../../backend/migrations/001_init.sql#L1578) |
-| `clinical_plans_diagnosis_2_type_id_fkey` | `diagnosis_2_type_id` | [diagnosis_types](diagnosis_types.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1579](../../../backend/migrations/001_init.sql#L1579) |
-| `clinical_plans_diagnosis_2_name_id_fkey` | `diagnosis_2_name_id` | [diagnosis_names](diagnosis_names.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1580](../../../backend/migrations/001_init.sql#L1580) |
+| `fk_clinical_plan_clinic` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10977](../../../backend/migrations/001_init.sql#L10977) |
+| `fk_clinical_plan_record_clinic` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10979](../../../backend/migrations/001_init.sql#L10979) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
 - `clinical_plans_medical_record_id_fkey`: `REFERENCES medical_records(id) ON DELETE CASCADE`
-- `clinical_plans_diagnosis_type_id_fkey`: `REFERENCES diagnosis_types(id) ON DELETE SET NULL`
-- `clinical_plans_diagnosis_name_id_fkey`: `REFERENCES diagnosis_names(id) ON DELETE SET NULL`
-- `clinical_plans_diagnosis_2_type_id_fkey`: `REFERENCES diagnosis_types(id) ON DELETE SET NULL`
-- `clinical_plans_diagnosis_2_name_id_fkey`: `REFERENCES diagnosis_names(id) ON DELETE SET NULL`
+- `fk_clinical_plan_clinic`: `CONSTRAINT fk_clinical_plan_clinic FOREIGN KEY(clinic_id) REFERENCES clinics(id) ON DELETE RESTRICT`
+- `fk_clinical_plan_record_clinic`: `CONSTRAINT fk_clinical_plan_record_clinic FOREIGN KEY(medical_record_id,clinic_id) REFERENCES medical_records(id,clinic_id) ON DELETE RESTRICT`
 
 ## その他の制約
 
@@ -90,6 +76,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `clinical_plans_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1574](../../../backend/migrations/001_init.sql#L1574) |
 | `clinical_plans_medical_record_id_key` | unique | `UNIQUE` | [001_init.sql:1575](../../../backend/migrations/001_init.sql#L1575) |
+| `uq_clinical_plan_id_clinic` | unique | `CONSTRAINT uq_clinical_plan_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10978](../../../backend/migrations/001_init.sql#L10978) |
 
 ## インデックス
 

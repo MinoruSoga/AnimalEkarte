@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9316](../../../backend/migrations/001_init.sql#L9316) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9317](../../../backend/migrations/001_init.sql#L9317) |
-| `stay_case_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9318](../../../backend/migrations/001_init.sql#L9318) |
-| `expected_stay_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
-| `requested_exit_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9320](../../../backend/migrations/001_init.sql#L9320) |
-| `state` | `text` | NOT NULL | — | — | [001_init.sql:9321](../../../backend/migrations/001_init.sql#L9321) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9322](../../../backend/migrations/001_init.sql#L9322) |
-| `requested_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9323](../../../backend/migrations/001_init.sql#L9323) |
-| `confirmed_by` | `bigint` | NULL | — | FK | [001_init.sql:9324](../../../backend/migrations/001_init.sql#L9324) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9325](../../../backend/migrations/001_init.sql#L9325) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9326](../../../backend/migrations/001_init.sql#L9326) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9318](../../../backend/migrations/001_init.sql#L9318) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
+| `stay_case_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9320](../../../backend/migrations/001_init.sql#L9320) |
+| `expected_stay_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9321](../../../backend/migrations/001_init.sql#L9321) |
+| `requested_exit_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9322](../../../backend/migrations/001_init.sql#L9322) |
+| `state` | `text` | NOT NULL | — | — | [001_init.sql:9323](../../../backend/migrations/001_init.sql#L9323) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9324](../../../backend/migrations/001_init.sql#L9324) |
+| `requested_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9325](../../../backend/migrations/001_init.sql#L9325) |
+| `confirmed_by` | `bigint` | NULL | — | FK | [001_init.sql:9326](../../../backend/migrations/001_init.sql#L9326) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9327](../../../backend/migrations/001_init.sql#L9327) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9328](../../../backend/migrations/001_init.sql#L9328) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -71,11 +71,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `stay_extension_proposals_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9317](../../../backend/migrations/001_init.sql#L9317) |
-| `stay_extension_proposals_requested_by_fkey` | `requested_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9323](../../../backend/migrations/001_init.sql#L9323) |
-| `stay_extension_proposals_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9324](../../../backend/migrations/001_init.sql#L9324) |
-| `stay_extension_proposals_stay_case_id_clinic_id_fkey` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9328](../../../backend/migrations/001_init.sql#L9328) |
-| `stay_extension_proposals_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9329](../../../backend/migrations/001_init.sql#L9329) |
+| `stay_extension_proposals_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
+| `stay_extension_proposals_requested_by_fkey` | `requested_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9325](../../../backend/migrations/001_init.sql#L9325) |
+| `stay_extension_proposals_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9326](../../../backend/migrations/001_init.sql#L9326) |
+| `stay_extension_proposals_stay_case_id_clinic_id_fkey` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9330](../../../backend/migrations/001_init.sql#L9330) |
+| `stay_extension_proposals_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9331](../../../backend/migrations/001_init.sql#L9331) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -89,11 +89,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `stay_extension_proposals_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9316](../../../backend/migrations/001_init.sql#L9316) |
-| `stay_extension_proposals_expected_stay_version_check` | check | `CHECK (expected_stay_version > 0)` | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
-| `stay_extension_proposals_state_check` | check | `CHECK (state IN ('pending','confirmed','cancelled'))` | [001_init.sql:9321](../../../backend/migrations/001_init.sql#L9321) |
-| `stay_extension_proposals_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9322](../../../backend/migrations/001_init.sql#L9322) |
-| `stay_extension_proposals_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9327](../../../backend/migrations/001_init.sql#L9327) |
+| `stay_extension_proposals_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9318](../../../backend/migrations/001_init.sql#L9318) |
+| `stay_extension_proposals_expected_stay_version_check` | check | `CHECK (expected_stay_version > 0)` | [001_init.sql:9321](../../../backend/migrations/001_init.sql#L9321) |
+| `stay_extension_proposals_state_check` | check | `CHECK (state IN ('pending','confirmed','cancelled'))` | [001_init.sql:9323](../../../backend/migrations/001_init.sql#L9323) |
+| `stay_extension_proposals_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9324](../../../backend/migrations/001_init.sql#L9324) |
+| `stay_extension_proposals_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9329](../../../backend/migrations/001_init.sql#L9329) |
 
 ## インデックス
 

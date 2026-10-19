@@ -82,4 +82,4 @@ erDiagram
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_certificate_issue_once` | YES | `operation_kind='issue'` | `CREATE UNIQUE INDEX uq_certificate_issue_once ON vaccination_certificate_operations(clinic_id,edition_id) WHERE operation_kind='issue'` | [001_init.sql:8673](../../../backend/migrations/001_init.sql#L8673) |
+| `uq_certificate_issue_once` | YES | `operation_kind='issue'` | `CREATE UNIQUE INDEX uq_certificate_issue_once ON vaccination_certificate_operations(clinic_id,edition_id) WHERE operation_kind='issue'` | [001_init.sql:8675](../../../backend/migrations/001_init.sql#L8675) |

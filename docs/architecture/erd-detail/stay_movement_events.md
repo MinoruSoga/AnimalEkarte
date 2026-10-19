@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9277](../../../backend/migrations/001_init.sql#L9277) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9278](../../../backend/migrations/001_init.sql#L9278) |
-| `stay_case_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9279](../../../backend/migrations/001_init.sql#L9279) |
-| `hospitalization_id` | `bigint` | NULL | — | FK | [001_init.sql:9280](../../../backend/migrations/001_init.sql#L9280) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9281](../../../backend/migrations/001_init.sql#L9281) |
-| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:9282](../../../backend/migrations/001_init.sql#L9282) |
-| `actual_at` | `timestamptz` | NULL | — | — | [001_init.sql:9283](../../../backend/migrations/001_init.sql#L9283) |
-| `corrected_event_id` | `bigint` | NULL | — | FK | [001_init.sql:9284](../../../backend/migrations/001_init.sql#L9284) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:9285](../../../backend/migrations/001_init.sql#L9285) |
-| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:9286](../../../backend/migrations/001_init.sql#L9286) |
-| `admission_record_ref` | `bigint` | NULL | — | FK | [001_init.sql:9287](../../../backend/migrations/001_init.sql#L9287) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9288](../../../backend/migrations/001_init.sql#L9288) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9289](../../../backend/migrations/001_init.sql#L9289) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9290](../../../backend/migrations/001_init.sql#L9290) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9279](../../../backend/migrations/001_init.sql#L9279) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9280](../../../backend/migrations/001_init.sql#L9280) |
+| `stay_case_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9281](../../../backend/migrations/001_init.sql#L9281) |
+| `hospitalization_id` | `bigint` | NULL | — | FK | [001_init.sql:9282](../../../backend/migrations/001_init.sql#L9282) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9283](../../../backend/migrations/001_init.sql#L9283) |
+| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:9284](../../../backend/migrations/001_init.sql#L9284) |
+| `actual_at` | `timestamptz` | NULL | — | — | [001_init.sql:9285](../../../backend/migrations/001_init.sql#L9285) |
+| `corrected_event_id` | `bigint` | NULL | — | FK | [001_init.sql:9286](../../../backend/migrations/001_init.sql#L9286) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:9287](../../../backend/migrations/001_init.sql#L9287) |
+| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:9288](../../../backend/migrations/001_init.sql#L9288) |
+| `admission_record_ref` | `bigint` | NULL | — | FK | [001_init.sql:9289](../../../backend/migrations/001_init.sql#L9289) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9290](../../../backend/migrations/001_init.sql#L9290) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9291](../../../backend/migrations/001_init.sql#L9291) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9292](../../../backend/migrations/001_init.sql#L9292) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -88,14 +88,14 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `stay_movement_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9278](../../../backend/migrations/001_init.sql#L9278) |
-| `stay_movement_events_doctor_id_fkey` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9286](../../../backend/migrations/001_init.sql#L9286) |
-| `stay_movement_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9289](../../../backend/migrations/001_init.sql#L9289) |
-| `stay_movement_events_stay_case_id_clinic_id_fkey` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9295](../../../backend/migrations/001_init.sql#L9295) |
-| `stay_movement_events_hospitalization_id_clinic_id_fkey` | `hospitalization_id, clinic_id` | [hospitalizations](hospitalizations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9296](../../../backend/migrations/001_init.sql#L9296) |
-| `stay_movement_events_corrected_event_id_clinic_id_stay_cas_fkey` | `corrected_event_id, clinic_id, stay_case_id` | [stay_movement_events](stay_movement_events.md) | `id, clinic_id, stay_case_id` | `ON DELETE RESTRICT` | [001_init.sql:9297](../../../backend/migrations/001_init.sql#L9297) |
-| `stay_movement_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9298](../../../backend/migrations/001_init.sql#L9298) |
-| `fk_stay_admission_record` | `admission_record_ref, clinic_id` | [admission_records](admission_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9313](../../../backend/migrations/001_init.sql#L9313) |
+| `stay_movement_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9280](../../../backend/migrations/001_init.sql#L9280) |
+| `stay_movement_events_doctor_id_fkey` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9288](../../../backend/migrations/001_init.sql#L9288) |
+| `stay_movement_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9291](../../../backend/migrations/001_init.sql#L9291) |
+| `stay_movement_events_stay_case_id_clinic_id_fkey` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9297](../../../backend/migrations/001_init.sql#L9297) |
+| `stay_movement_events_hospitalization_id_clinic_id_fkey` | `hospitalization_id, clinic_id` | [hospitalizations](hospitalizations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9298](../../../backend/migrations/001_init.sql#L9298) |
+| `stay_movement_events_corrected_event_id_clinic_id_stay_cas_fkey` | `corrected_event_id, clinic_id, stay_case_id` | [stay_movement_events](stay_movement_events.md) | `id, clinic_id, stay_case_id` | `ON DELETE RESTRICT` | [001_init.sql:9299](../../../backend/migrations/001_init.sql#L9299) |
+| `stay_movement_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9300](../../../backend/migrations/001_init.sql#L9300) |
+| `fk_stay_admission_record` | `admission_record_ref, clinic_id` | [admission_records](admission_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9315](../../../backend/migrations/001_init.sql#L9315) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -112,16 +112,16 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `stay_movement_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9277](../../../backend/migrations/001_init.sql#L9277) |
-| `stay_movement_events_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9281](../../../backend/migrations/001_init.sql#L9281) |
-| `stay_movement_events_event_kind_check` | check | `CHECK (event_kind IN ('admit','discharge','correction','cancel','no_show'))` | [001_init.sql:9282](../../../backend/migrations/001_init.sql#L9282) |
-| `stay_movement_events_id_clinic_id_stay_case_id_key` | unique | `UNIQUE (id,clinic_id,stay_case_id)` | [001_init.sql:9291](../../../backend/migrations/001_init.sql#L9291) |
-| `stay_movement_events_clinic_id_stay_case_id_revision_key` | unique | `UNIQUE (clinic_id,stay_case_id,revision)` | [001_init.sql:9292](../../../backend/migrations/001_init.sql#L9292) |
-| `stay_movement_events_check` | check | `CHECK ((event_kind IN ('admit','discharge') AND actual_at IS NOT NULL) OR event_kind IN ('correction','cancel','no_show'))` | [001_init.sql:9293](../../../backend/migrations/001_init.sql#L9293) |
-| `stay_movement_events_check1` | check | `CHECK (event_kind<>'correction' OR (corrected_event_id IS NOT NULL AND reason IS NOT NULL AND btrim(reason)<>''))` | [001_init.sql:9294](../../../backend/migrations/001_init.sql#L9294) |
+| `stay_movement_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9279](../../../backend/migrations/001_init.sql#L9279) |
+| `stay_movement_events_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9283](../../../backend/migrations/001_init.sql#L9283) |
+| `stay_movement_events_event_kind_check` | check | `CHECK (event_kind IN ('admit','discharge','correction','cancel','no_show'))` | [001_init.sql:9284](../../../backend/migrations/001_init.sql#L9284) |
+| `stay_movement_events_id_clinic_id_stay_case_id_key` | unique | `UNIQUE (id,clinic_id,stay_case_id)` | [001_init.sql:9293](../../../backend/migrations/001_init.sql#L9293) |
+| `stay_movement_events_clinic_id_stay_case_id_revision_key` | unique | `UNIQUE (clinic_id,stay_case_id,revision)` | [001_init.sql:9294](../../../backend/migrations/001_init.sql#L9294) |
+| `stay_movement_events_check` | check | `CHECK ((event_kind IN ('admit','discharge') AND actual_at IS NOT NULL) OR event_kind IN ('correction','cancel','no_show'))` | [001_init.sql:9295](../../../backend/migrations/001_init.sql#L9295) |
+| `stay_movement_events_check1` | check | `CHECK (event_kind<>'correction' OR (corrected_event_id IS NOT NULL AND reason IS NOT NULL AND btrim(reason)<>''))` | [001_init.sql:9296](../../../backend/migrations/001_init.sql#L9296) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_stay_movement_actual` | NO | — | `CREATE INDEX idx_stay_movement_actual ON stay_movement_events(clinic_id,event_kind,actual_at,stay_case_id)` | [001_init.sql:9300](../../../backend/migrations/001_init.sql#L9300) |
+| `idx_stay_movement_actual` | NO | — | `CREATE INDEX idx_stay_movement_actual ON stay_movement_events(clinic_id,event_kind,actual_at,stay_case_id)` | [001_init.sql:9302](../../../backend/migrations/001_init.sql#L9302) |

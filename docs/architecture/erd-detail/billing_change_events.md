@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9441](../../../backend/migrations/001_init.sql#L9441) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9442](../../../backend/migrations/001_init.sql#L9442) |
-| `billing_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
-| `intent` | `text` | NOT NULL | — | — | [001_init.sql:9445](../../../backend/migrations/001_init.sql#L9445) |
-| `source_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:9446](../../../backend/migrations/001_init.sql#L9446) |
-| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9447](../../../backend/migrations/001_init.sql#L9447) |
-| `after_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9448](../../../backend/migrations/001_init.sql#L9448) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:9449](../../../backend/migrations/001_init.sql#L9449) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9450](../../../backend/migrations/001_init.sql#L9450) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9451](../../../backend/migrations/001_init.sql#L9451) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9452](../../../backend/migrations/001_init.sql#L9452) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
+| `billing_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9445](../../../backend/migrations/001_init.sql#L9445) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9446](../../../backend/migrations/001_init.sql#L9446) |
+| `intent` | `text` | NOT NULL | — | — | [001_init.sql:9447](../../../backend/migrations/001_init.sql#L9447) |
+| `source_calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:9448](../../../backend/migrations/001_init.sql#L9448) |
+| `before_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9449](../../../backend/migrations/001_init.sql#L9449) |
+| `after_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9450](../../../backend/migrations/001_init.sql#L9450) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:9451](../../../backend/migrations/001_init.sql#L9451) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9452](../../../backend/migrations/001_init.sql#L9452) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9453](../../../backend/migrations/001_init.sql#L9453) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9454](../../../backend/migrations/001_init.sql#L9454) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -78,11 +78,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_change_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9442](../../../backend/migrations/001_init.sql#L9442) |
-| `billing_change_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9451](../../../backend/migrations/001_init.sql#L9451) |
-| `billing_change_events_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9456](../../../backend/migrations/001_init.sql#L9456) |
-| `billing_change_events_source_calculation_id_clinic_id_bill_fkey` | `source_calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9457](../../../backend/migrations/001_init.sql#L9457) |
-| `billing_change_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9458](../../../backend/migrations/001_init.sql#L9458) |
+| `billing_change_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
+| `billing_change_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9453](../../../backend/migrations/001_init.sql#L9453) |
+| `billing_change_events_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9458](../../../backend/migrations/001_init.sql#L9458) |
+| `billing_change_events_source_calculation_id_clinic_id_bill_fkey` | `source_calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9459](../../../backend/migrations/001_init.sql#L9459) |
+| `billing_change_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9460](../../../backend/migrations/001_init.sql#L9460) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -96,14 +96,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_change_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9441](../../../backend/migrations/001_init.sql#L9441) |
-| `billing_change_events_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
-| `billing_change_events_intent_check` | check | `CHECK (intent IN ('finalize','correct','cancel','collect','refund','reallocate'))` | [001_init.sql:9445](../../../backend/migrations/001_init.sql#L9445) |
-| `billing_change_events_before_values_check` | check | `CHECK (jsonb_typeof(before_values)='object')` | [001_init.sql:9447](../../../backend/migrations/001_init.sql#L9447) |
-| `billing_change_events_after_values_check` | check | `CHECK (jsonb_typeof(after_values)='object')` | [001_init.sql:9448](../../../backend/migrations/001_init.sql#L9448) |
-| `billing_change_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9453](../../../backend/migrations/001_init.sql#L9453) |
-| `billing_change_events_clinic_id_billing_id_revision_key` | unique | `UNIQUE (clinic_id,billing_id,revision)` | [001_init.sql:9454](../../../backend/migrations/001_init.sql#L9454) |
-| `billing_change_events_check` | check | `CHECK (intent NOT IN ('correct','cancel','refund') OR (reason IS NOT NULL AND btrim(reason)<>''))` | [001_init.sql:9455](../../../backend/migrations/001_init.sql#L9455) |
+| `billing_change_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
+| `billing_change_events_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9446](../../../backend/migrations/001_init.sql#L9446) |
+| `billing_change_events_intent_check` | check | `CHECK (intent IN ('finalize','correct','cancel','collect','refund','reallocate'))` | [001_init.sql:9447](../../../backend/migrations/001_init.sql#L9447) |
+| `billing_change_events_before_values_check` | check | `CHECK (jsonb_typeof(before_values)='object')` | [001_init.sql:9449](../../../backend/migrations/001_init.sql#L9449) |
+| `billing_change_events_after_values_check` | check | `CHECK (jsonb_typeof(after_values)='object')` | [001_init.sql:9450](../../../backend/migrations/001_init.sql#L9450) |
+| `billing_change_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9455](../../../backend/migrations/001_init.sql#L9455) |
+| `billing_change_events_clinic_id_billing_id_revision_key` | unique | `UNIQUE (clinic_id,billing_id,revision)` | [001_init.sql:9456](../../../backend/migrations/001_init.sql#L9456) |
+| `billing_change_events_check` | check | `CHECK (intent NOT IN ('correct','cancel','refund') OR (reason IS NOT NULL AND btrim(reason)<>''))` | [001_init.sql:9457](../../../backend/migrations/001_init.sql#L9457) |
 
 ## インデックス
 

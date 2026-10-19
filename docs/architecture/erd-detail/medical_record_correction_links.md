@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9052](../../../backend/migrations/001_init.sql#L9052) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9053](../../../backend/migrations/001_init.sql#L9053) |
-| `source_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9054](../../../backend/migrations/001_init.sql#L9054) |
-| `source_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:9055](../../../backend/migrations/001_init.sql#L9055) |
-| `destination_record_id` | `bigint` | NULL | — | FK | [001_init.sql:9056](../../../backend/migrations/001_init.sql#L9056) |
-| `intent` | `text` | NOT NULL | — | — | [001_init.sql:9057](../../../backend/migrations/001_init.sql#L9057) |
-| `clinical_date` | `date` | NULL | — | — | [001_init.sql:9058](../../../backend/migrations/001_init.sql#L9058) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9059](../../../backend/migrations/001_init.sql#L9059) |
-| `confirmed_by` | `bigint` | NULL | — | FK | [001_init.sql:9060](../../../backend/migrations/001_init.sql#L9060) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
-| `transferred_fields` | `jsonb` | NOT NULL | — | — | [001_init.sql:9062](../../../backend/migrations/001_init.sql#L9062) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9063](../../../backend/migrations/001_init.sql#L9063) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9064](../../../backend/migrations/001_init.sql#L9064) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9054](../../../backend/migrations/001_init.sql#L9054) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9055](../../../backend/migrations/001_init.sql#L9055) |
+| `source_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9056](../../../backend/migrations/001_init.sql#L9056) |
+| `source_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:9057](../../../backend/migrations/001_init.sql#L9057) |
+| `destination_record_id` | `bigint` | NULL | — | FK | [001_init.sql:9058](../../../backend/migrations/001_init.sql#L9058) |
+| `intent` | `text` | NOT NULL | — | — | [001_init.sql:9059](../../../backend/migrations/001_init.sql#L9059) |
+| `clinical_date` | `date` | NULL | — | — | [001_init.sql:9060](../../../backend/migrations/001_init.sql#L9060) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
+| `confirmed_by` | `bigint` | NULL | — | FK | [001_init.sql:9062](../../../backend/migrations/001_init.sql#L9062) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9063](../../../backend/migrations/001_init.sql#L9063) |
+| `transferred_fields` | `jsonb` | NOT NULL | — | — | [001_init.sql:9064](../../../backend/migrations/001_init.sql#L9064) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9065](../../../backend/migrations/001_init.sql#L9065) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9066](../../../backend/migrations/001_init.sql#L9066) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -76,12 +76,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_record_correction_links_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9053](../../../backend/migrations/001_init.sql#L9053) |
-| `medical_record_correction_links_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9060](../../../backend/migrations/001_init.sql#L9060) |
-| `medical_record_correction_links_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9063](../../../backend/migrations/001_init.sql#L9063) |
-| `medical_record_correction_links_source_record_id_clinic_id_fkey` | `source_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9065](../../../backend/migrations/001_init.sql#L9065) |
-| `medical_record_correction_lin_destination_record_id_clinic_fkey` | `destination_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9066](../../../backend/migrations/001_init.sql#L9066) |
-| `medical_record_correction_links_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9067](../../../backend/migrations/001_init.sql#L9067) |
+| `medical_record_correction_links_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9055](../../../backend/migrations/001_init.sql#L9055) |
+| `medical_record_correction_links_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9062](../../../backend/migrations/001_init.sql#L9062) |
+| `medical_record_correction_links_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9065](../../../backend/migrations/001_init.sql#L9065) |
+| `medical_record_correction_links_source_record_id_clinic_id_fkey` | `source_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9067](../../../backend/migrations/001_init.sql#L9067) |
+| `medical_record_correction_lin_destination_record_id_clinic_fkey` | `destination_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9068](../../../backend/migrations/001_init.sql#L9068) |
+| `medical_record_correction_links_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9069](../../../backend/migrations/001_init.sql#L9069) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -96,12 +96,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_correction_links_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9052](../../../backend/migrations/001_init.sql#L9052) |
-| `medical_record_correction_links_source_revision_check` | check | `CHECK (source_revision > 0)` | [001_init.sql:9055](../../../backend/migrations/001_init.sql#L9055) |
-| `medical_record_correction_links_intent_check` | check | `CHECK (intent IN ('patient_correction','past_visit','postmortem_prior_care','addendum'))` | [001_init.sql:9057](../../../backend/migrations/001_init.sql#L9057) |
-| `medical_record_correction_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9059](../../../backend/migrations/001_init.sql#L9059) |
-| `medical_record_correction_links_transferred_fields_check` | check | `CHECK (jsonb_typeof(transferred_fields)='object')` | [001_init.sql:9062](../../../backend/migrations/001_init.sql#L9062) |
-| `uq_record_correction_id_clinic` | unique | `CONSTRAINT uq_record_correction_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10053](../../../backend/migrations/001_init.sql#L10053) |
+| `medical_record_correction_links_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9054](../../../backend/migrations/001_init.sql#L9054) |
+| `medical_record_correction_links_source_revision_check` | check | `CHECK (source_revision > 0)` | [001_init.sql:9057](../../../backend/migrations/001_init.sql#L9057) |
+| `medical_record_correction_links_intent_check` | check | `CHECK (intent IN ('patient_correction','past_visit','postmortem_prior_care','addendum'))` | [001_init.sql:9059](../../../backend/migrations/001_init.sql#L9059) |
+| `medical_record_correction_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
+| `medical_record_correction_links_transferred_fields_check` | check | `CHECK (jsonb_typeof(transferred_fields)='object')` | [001_init.sql:9064](../../../backend/migrations/001_init.sql#L9064) |
+| `uq_record_correction_id_clinic` | unique | `CONSTRAINT uq_record_correction_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10055](../../../backend/migrations/001_init.sql#L10055) |
 
 ## インデックス
 

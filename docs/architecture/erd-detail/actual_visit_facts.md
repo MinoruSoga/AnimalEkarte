@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10056](../../../backend/migrations/001_init.sql#L10056) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10056](../../../backend/migrations/001_init.sql#L10056) |
-| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:10057](../../../backend/migrations/001_init.sql#L10057) |
-| `appointment_change_event_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:10058](../../../backend/migrations/001_init.sql#L10058) |
-| `record_correction_link_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:10058](../../../backend/migrations/001_init.sql#L10058) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10059](../../../backend/migrations/001_init.sql#L10059) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10059](../../../backend/migrations/001_init.sql#L10059) |
-| `visit_date_jst` | `date` | NOT NULL | — | — | [001_init.sql:10059](../../../backend/migrations/001_init.sql#L10059) |
-| `source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10060](../../../backend/migrations/001_init.sql#L10060) |
-| `corrected_fact_id` | `bigint` | NULL | — | FK | [001_init.sql:10060](../../../backend/migrations/001_init.sql#L10060) |
-| `evidence` | `jsonb` | NOT NULL | — | — | [001_init.sql:10061](../../../backend/migrations/001_init.sql#L10061) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10061](../../../backend/migrations/001_init.sql#L10061) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10062](../../../backend/migrations/001_init.sql#L10062) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10062](../../../backend/migrations/001_init.sql#L10062) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10058](../../../backend/migrations/001_init.sql#L10058) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10058](../../../backend/migrations/001_init.sql#L10058) |
+| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:10059](../../../backend/migrations/001_init.sql#L10059) |
+| `appointment_change_event_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:10060](../../../backend/migrations/001_init.sql#L10060) |
+| `record_correction_link_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:10060](../../../backend/migrations/001_init.sql#L10060) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10061](../../../backend/migrations/001_init.sql#L10061) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10061](../../../backend/migrations/001_init.sql#L10061) |
+| `visit_date_jst` | `date` | NOT NULL | — | — | [001_init.sql:10061](../../../backend/migrations/001_init.sql#L10061) |
+| `source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10062](../../../backend/migrations/001_init.sql#L10062) |
+| `corrected_fact_id` | `bigint` | NULL | — | FK | [001_init.sql:10062](../../../backend/migrations/001_init.sql#L10062) |
+| `evidence` | `jsonb` | NOT NULL | — | — | [001_init.sql:10063](../../../backend/migrations/001_init.sql#L10063) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10063](../../../backend/migrations/001_init.sql#L10063) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10064](../../../backend/migrations/001_init.sql#L10064) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10064](../../../backend/migrations/001_init.sql#L10064) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -92,14 +92,14 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `actual_visit_facts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10056](../../../backend/migrations/001_init.sql#L10056) |
-| `actual_visit_facts_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10062](../../../backend/migrations/001_init.sql#L10062) |
-| `actual_visit_facts_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10067](../../../backend/migrations/001_init.sql#L10067) |
-| `actual_visit_facts_pet_id_clinic_id_fkey` | `pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10068](../../../backend/migrations/001_init.sql#L10068) |
-| `actual_visit_facts_appointment_change_event_id_clinic_id_fkey` | `appointment_change_event_id, clinic_id` | [appointment_change_events](appointment_change_events.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10069](../../../backend/migrations/001_init.sql#L10069) |
-| `actual_visit_facts_record_correction_link_id_clinic_id_fkey` | `record_correction_link_id, clinic_id` | [medical_record_correction_links](medical_record_correction_links.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10070](../../../backend/migrations/001_init.sql#L10070) |
-| `actual_visit_facts_corrected_fact_id_clinic_id_fkey` | `corrected_fact_id, clinic_id` | [actual_visit_facts](actual_visit_facts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10071](../../../backend/migrations/001_init.sql#L10071) |
-| `actual_visit_facts_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10072](../../../backend/migrations/001_init.sql#L10072) |
+| `actual_visit_facts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10058](../../../backend/migrations/001_init.sql#L10058) |
+| `actual_visit_facts_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10064](../../../backend/migrations/001_init.sql#L10064) |
+| `actual_visit_facts_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10069](../../../backend/migrations/001_init.sql#L10069) |
+| `actual_visit_facts_pet_id_clinic_id_fkey` | `pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10070](../../../backend/migrations/001_init.sql#L10070) |
+| `actual_visit_facts_appointment_change_event_id_clinic_id_fkey` | `appointment_change_event_id, clinic_id` | [appointment_change_events](appointment_change_events.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10071](../../../backend/migrations/001_init.sql#L10071) |
+| `actual_visit_facts_record_correction_link_id_clinic_id_fkey` | `record_correction_link_id, clinic_id` | [medical_record_correction_links](medical_record_correction_links.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10072](../../../backend/migrations/001_init.sql#L10072) |
+| `actual_visit_facts_corrected_fact_id_clinic_id_fkey` | `corrected_fact_id, clinic_id` | [actual_visit_facts](actual_visit_facts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10073](../../../backend/migrations/001_init.sql#L10073) |
+| `actual_visit_facts_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10074](../../../backend/migrations/001_init.sql#L10074) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -116,14 +116,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `actual_visit_facts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10056](../../../backend/migrations/001_init.sql#L10056) |
-| `actual_visit_facts_source_kind_check` | check | `CHECK(source_kind IN('checkin','retrospective','correction'))` | [001_init.sql:10057](../../../backend/migrations/001_init.sql#L10057) |
-| `actual_visit_facts_source_version_check` | check | `CHECK(source_version>0)` | [001_init.sql:10060](../../../backend/migrations/001_init.sql#L10060) |
-| `actual_visit_facts_evidence_check` | check | `CHECK(jsonb_typeof(evidence)='object')` | [001_init.sql:10061](../../../backend/migrations/001_init.sql#L10061) |
-| `actual_visit_facts_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10063](../../../backend/migrations/001_init.sql#L10063) |
-| `actual_visit_facts_clinic_id_appointment_change_event_id_key` | unique | `UNIQUE(clinic_id,appointment_change_event_id)` | [001_init.sql:10063](../../../backend/migrations/001_init.sql#L10063) |
-| `actual_visit_facts_clinic_id_record_correction_link_id_key` | unique | `UNIQUE(clinic_id,record_correction_link_id)` | [001_init.sql:10063](../../../backend/migrations/001_init.sql#L10063) |
-| `actual_visit_facts_check` | check | `CHECK((source_kind='checkin' AND appointment_change_event_id IS NOT NULL AND record_correction_link_id IS NULL AND corrected_fact_id IS NULL)  OR(source_kind='retrospective' AND record_correction_link_id IS NOT NULL AND appointment_change_event_id IS NULL AND corrected_fact_id IS NULL)  OR(source_kind='correction' AND corrected_fact_id IS NOT NULL AND num_nonnulls(appointment_change_event_id,record_correction_link_id)=1))` | [001_init.sql:10064](../../../backend/migrations/001_init.sql#L10064) |
+| `actual_visit_facts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10058](../../../backend/migrations/001_init.sql#L10058) |
+| `actual_visit_facts_source_kind_check` | check | `CHECK(source_kind IN('checkin','retrospective','correction'))` | [001_init.sql:10059](../../../backend/migrations/001_init.sql#L10059) |
+| `actual_visit_facts_source_version_check` | check | `CHECK(source_version>0)` | [001_init.sql:10062](../../../backend/migrations/001_init.sql#L10062) |
+| `actual_visit_facts_evidence_check` | check | `CHECK(jsonb_typeof(evidence)='object')` | [001_init.sql:10063](../../../backend/migrations/001_init.sql#L10063) |
+| `actual_visit_facts_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10065](../../../backend/migrations/001_init.sql#L10065) |
+| `actual_visit_facts_clinic_id_appointment_change_event_id_key` | unique | `UNIQUE(clinic_id,appointment_change_event_id)` | [001_init.sql:10065](../../../backend/migrations/001_init.sql#L10065) |
+| `actual_visit_facts_clinic_id_record_correction_link_id_key` | unique | `UNIQUE(clinic_id,record_correction_link_id)` | [001_init.sql:10065](../../../backend/migrations/001_init.sql#L10065) |
+| `actual_visit_facts_check` | check | `CHECK((source_kind='checkin' AND appointment_change_event_id IS NOT NULL AND record_correction_link_id IS NULL AND corrected_fact_id IS NULL)  OR(source_kind='retrospective' AND record_correction_link_id IS NOT NULL AND appointment_change_event_id IS NULL AND corrected_fact_id IS NULL)  OR(source_kind='correction' AND corrected_fact_id IS NOT NULL AND num_nonnulls(appointment_change_event_id,record_correction_link_id)=1))` | [001_init.sql:10066](../../../backend/migrations/001_init.sql#L10066) |
 
 ## インデックス
 

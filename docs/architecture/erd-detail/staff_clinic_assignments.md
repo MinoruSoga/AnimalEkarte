@@ -19,7 +19,7 @@
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1193](../../../backend/migrations/001_init.sql#L1193) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1194](../../../backend/migrations/001_init.sql#L1194) |
 | `capabilities_configured_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:6952](../../../backend/migrations/001_init.sql#L6952) |
-| `nomination_paused` | `boolean` | NULL | — | — | [001_init.sql:8941](../../../backend/migrations/001_init.sql#L8941) |
+| `nomination_paused` | `boolean` | NULL | — | — | [001_init.sql:8943](../../../backend/migrations/001_init.sql#L8943) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 

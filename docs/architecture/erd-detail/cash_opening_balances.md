@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9786](../../../backend/migrations/001_init.sql#L9786) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9787](../../../backend/migrations/001_init.sql#L9787) |
-| `business_date` | `date` | NOT NULL | — | UK | [001_init.sql:9788](../../../backend/migrations/001_init.sql#L9788) |
-| `period` | `text` | NOT NULL | — | UK | [001_init.sql:9789](../../../backend/migrations/001_init.sql#L9789) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9790](../../../backend/migrations/001_init.sql#L9790) |
-| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9791](../../../backend/migrations/001_init.sql#L9791) |
-| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:9792](../../../backend/migrations/001_init.sql#L9792) |
-| `source_close_id` | `bigint` | NULL | — | FK | [001_init.sql:9793](../../../backend/migrations/001_init.sql#L9793) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9794](../../../backend/migrations/001_init.sql#L9794) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9795](../../../backend/migrations/001_init.sql#L9795) |
-| `confirmed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9796](../../../backend/migrations/001_init.sql#L9796) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9788](../../../backend/migrations/001_init.sql#L9788) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9789](../../../backend/migrations/001_init.sql#L9789) |
+| `business_date` | `date` | NOT NULL | — | UK | [001_init.sql:9790](../../../backend/migrations/001_init.sql#L9790) |
+| `period` | `text` | NOT NULL | — | UK | [001_init.sql:9791](../../../backend/migrations/001_init.sql#L9791) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9792](../../../backend/migrations/001_init.sql#L9792) |
+| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9793](../../../backend/migrations/001_init.sql#L9793) |
+| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:9794](../../../backend/migrations/001_init.sql#L9794) |
+| `source_close_id` | `bigint` | NULL | — | FK | [001_init.sql:9795](../../../backend/migrations/001_init.sql#L9795) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9796](../../../backend/migrations/001_init.sql#L9796) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9797](../../../backend/migrations/001_init.sql#L9797) |
+| `confirmed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9798](../../../backend/migrations/001_init.sql#L9798) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,10 +70,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cash_opening_balances_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9787](../../../backend/migrations/001_init.sql#L9787) |
-| `cash_opening_balances_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9795](../../../backend/migrations/001_init.sql#L9795) |
-| `cash_opening_balances_source_close_id_clinic_id_fkey` | `source_close_id, clinic_id` | [cash_register_closes](cash_register_closes.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9800](../../../backend/migrations/001_init.sql#L9800) |
-| `cash_opening_balances_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9801](../../../backend/migrations/001_init.sql#L9801) |
+| `cash_opening_balances_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9789](../../../backend/migrations/001_init.sql#L9789) |
+| `cash_opening_balances_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9797](../../../backend/migrations/001_init.sql#L9797) |
+| `cash_opening_balances_source_close_id_clinic_id_fkey` | `source_close_id, clinic_id` | [cash_register_closes](cash_register_closes.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9802](../../../backend/migrations/001_init.sql#L9802) |
+| `cash_opening_balances_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9803](../../../backend/migrations/001_init.sql#L9803) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,13 +86,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `cash_opening_balances_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9786](../../../backend/migrations/001_init.sql#L9786) |
-| `cash_opening_balances_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9790](../../../backend/migrations/001_init.sql#L9790) |
-| `cash_opening_balances_amount_check` | check | `CHECK (amount >= 0)` | [001_init.sql:9791](../../../backend/migrations/001_init.sql#L9791) |
-| `cash_opening_balances_source_kind_check` | check | `CHECK (source_kind IN ('manual','confirmed_close','verified_legacy'))` | [001_init.sql:9792](../../../backend/migrations/001_init.sql#L9792) |
-| `cash_opening_balances_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9797](../../../backend/migrations/001_init.sql#L9797) |
-| `cash_opening_balances_clinic_id_business_date_period_revisi_key` | unique | `UNIQUE (clinic_id,business_date,period,revision)` | [001_init.sql:9798](../../../backend/migrations/001_init.sql#L9798) |
-| `cash_opening_balances_check` | check | `CHECK (source_kind<>'confirmed_close' OR source_close_id IS NOT NULL)` | [001_init.sql:9799](../../../backend/migrations/001_init.sql#L9799) |
+| `cash_opening_balances_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9788](../../../backend/migrations/001_init.sql#L9788) |
+| `cash_opening_balances_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9792](../../../backend/migrations/001_init.sql#L9792) |
+| `cash_opening_balances_amount_check` | check | `CHECK (amount >= 0)` | [001_init.sql:9793](../../../backend/migrations/001_init.sql#L9793) |
+| `cash_opening_balances_source_kind_check` | check | `CHECK (source_kind IN ('manual','confirmed_close','verified_legacy'))` | [001_init.sql:9794](../../../backend/migrations/001_init.sql#L9794) |
+| `cash_opening_balances_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9799](../../../backend/migrations/001_init.sql#L9799) |
+| `cash_opening_balances_clinic_id_business_date_period_revisi_key` | unique | `UNIQUE (clinic_id,business_date,period,revision)` | [001_init.sql:9800](../../../backend/migrations/001_init.sql#L9800) |
+| `cash_opening_balances_check` | check | `CHECK (source_kind<>'confirmed_close' OR source_close_id IS NOT NULL)` | [001_init.sql:9801](../../../backend/migrations/001_init.sql#L9801) |
 
 ## インデックス
 

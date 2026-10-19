@@ -595,6 +595,16 @@ def _apply(tokens, tables, source):
                     raise SchemaError(f'unknown index {name}')
                 tables = {key: replace(value, indexes=tuple(i for i in value.indexes if i.name != name)) for key, value in tables.items()}
         return tables
+    if words[:2] == ('DROP', 'TYPE'):
+        _, pos = _name(tokens, 2)
+        if pos != len(tokens):
+            raise SchemaError('only a named DROP TYPE without CASCADE is supported')
+        return tables
+    if words[:2] == ('DROP', 'FUNCTION'):
+        if len(tokens) != 7 or tokens[2].text != 'app_private' or tokens[3].text != '.' or tuple(t.text for t in tokens[5:]) != ('(', ')'):
+            raise SchemaError('only app_private zero-argument DROP FUNCTION without CASCADE is supported')
+        _ident(tokens[4])
+        return tables
     # Bounded table-catalog exclusions, not a generic CREATE/ALTER bypass.
     if words[0] in {'COMMENT', 'INSERT', 'UPDATE', 'DELETE', 'BEGIN', 'COMMIT', 'SET', 'GRANT', 'REVOKE'}:
         return tables

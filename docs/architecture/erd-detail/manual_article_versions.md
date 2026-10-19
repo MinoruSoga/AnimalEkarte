@@ -19,10 +19,10 @@
 | `body_markdown` | `text` | NOT NULL | — | — | [001_init.sql:2903](../../../backend/migrations/001_init.sql#L2903) |
 | `edited_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:2904](../../../backend/migrations/001_init.sql#L2904) |
 | `edited_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2905](../../../backend/migrations/001_init.sql#L2905) |
-| `content_digest` | `bytea` | NULL | — | — | [001_init.sql:9982](../../../backend/migrations/001_init.sql#L9982) |
-| `content_revision` | `bigint` | NULL | — | UK | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
-| `restored_from_id` | `bigint` | NULL | — | FK | [001_init.sql:9984](../../../backend/migrations/001_init.sql#L9984) |
-| `source_kind` | `text` | NULL | — | — | [001_init.sql:9985](../../../backend/migrations/001_init.sql#L9985) |
+| `content_digest` | `bytea` | NULL | — | — | [001_init.sql:9984](../../../backend/migrations/001_init.sql#L9984) |
+| `content_revision` | `bigint` | NULL | — | UK | [001_init.sql:9985](../../../backend/migrations/001_init.sql#L9985) |
+| `restored_from_id` | `bigint` | NULL | — | FK | [001_init.sql:9986](../../../backend/migrations/001_init.sql#L9986) |
+| `source_kind` | `text` | NULL | — | — | [001_init.sql:9987](../../../backend/migrations/001_init.sql#L9987) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -64,8 +64,8 @@ erDiagram
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `manual_article_versions_edited_by_staff_id_fkey` | `edited_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:2904](../../../backend/migrations/001_init.sql#L2904) |
-| `fk_manual_version_article` | `article_id` | [manual_articles](manual_articles.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9981](../../../backend/migrations/001_init.sql#L9981) |
-| `fk_manual_restore` | `restored_from_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9988](../../../backend/migrations/001_init.sql#L9988) |
+| `fk_manual_version_article` | `article_id` | [manual_articles](manual_articles.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
+| `fk_manual_restore` | `restored_from_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:9990](../../../backend/migrations/001_init.sql#L9990) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -78,11 +78,11 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `manual_article_versions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2898](../../../backend/migrations/001_init.sql#L2898) |
-| `manual_article_versions_content_digest_check` | check | `CHECK(octet_length(content_digest)=32)` | [001_init.sql:9982](../../../backend/migrations/001_init.sql#L9982) |
-| `manual_article_versions_content_revision_check` | check | `CHECK(content_revision>0)` | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
-| `manual_article_versions_source_kind_check` | check | `CHECK(source_kind IN('static','override','edited','restored','legacy_unknown'))` | [001_init.sql:9985](../../../backend/migrations/001_init.sql#L9985) |
-| `uq_manual_version_article` | unique | `CONSTRAINT uq_manual_version_article UNIQUE(id,article_id)` | [001_init.sql:9986](../../../backend/migrations/001_init.sql#L9986) |
-| `uq_manual_content_revision` | unique | `CONSTRAINT uq_manual_content_revision UNIQUE(article_id,content_revision)` | [001_init.sql:9987](../../../backend/migrations/001_init.sql#L9987) |
+| `manual_article_versions_content_digest_check` | check | `CHECK(octet_length(content_digest)=32)` | [001_init.sql:9984](../../../backend/migrations/001_init.sql#L9984) |
+| `manual_article_versions_content_revision_check` | check | `CHECK(content_revision>0)` | [001_init.sql:9985](../../../backend/migrations/001_init.sql#L9985) |
+| `manual_article_versions_source_kind_check` | check | `CHECK(source_kind IN('static','override','edited','restored','legacy_unknown'))` | [001_init.sql:9987](../../../backend/migrations/001_init.sql#L9987) |
+| `uq_manual_version_article` | unique | `CONSTRAINT uq_manual_version_article UNIQUE(id,article_id)` | [001_init.sql:9988](../../../backend/migrations/001_init.sql#L9988) |
+| `uq_manual_content_revision` | unique | `CONSTRAINT uq_manual_content_revision UNIQUE(article_id,content_revision)` | [001_init.sql:9989](../../../backend/migrations/001_init.sql#L9989) |
 
 ## インデックス
 

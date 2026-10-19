@@ -19,6 +19,7 @@
 | `record_count` | `integer` | NOT NULL | — | — | [001_init.sql:8155](../../../backend/migrations/001_init.sql#L8155) |
 | `reviewed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8156](../../../backend/migrations/001_init.sql#L8156) |
 | `reviewed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8157](../../../backend/migrations/001_init.sql#L8157) |
+| `confirmation_note` | `text` | NULL | — | — | [001_init.sql:10948](../../../backend/migrations/001_init.sql#L10948) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -39,6 +40,7 @@ erDiagram
         integer record_count
         bigint reviewed_by FK
         timestamptz reviewed_at
+        text confirmation_note
     }
     billings {
         BIGSERIAL id PK,FK,UK

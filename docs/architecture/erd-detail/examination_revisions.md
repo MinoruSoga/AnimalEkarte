@@ -26,18 +26,18 @@
 | `doctor_id` | `BIGINT` | NULL | — | — | [001_init.sql:4993](../../../backend/migrations/001_init.sql#L4993) |
 | `job_id` | `UUID` | NULL | — | — | [001_init.sql:4994](../../../backend/migrations/001_init.sql#L4994) |
 | `actor_id` | `BIGINT` | NOT NULL | — | — | [001_init.sql:4995](../../../backend/migrations/001_init.sql#L4995) |
-| `date` | `DATE` | NULL | — | — | [001_init.sql:10113](../../../backend/migrations/001_init.sql#L10113) |
+| `date` | `DATE` | NULL | — | — | [001_init.sql:10115](../../../backend/migrations/001_init.sql#L10115) |
 | `result_summary` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:4997](../../../backend/migrations/001_init.sql#L4997) |
 | `machine` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:4998](../../../backend/migrations/001_init.sql#L4998) |
 | `display_snapshot` | `JSONB` | NOT NULL | — | — | [001_init.sql:4999](../../../backend/migrations/001_init.sql#L4999) |
 | `schema_version` | `SMALLINT` | NOT NULL | `1` | — | [001_init.sql:5000](../../../backend/migrations/001_init.sql#L5000) |
 | `change_reason` | `TEXT` | NULL | — | — | [001_init.sql:5001](../../../backend/migrations/001_init.sql#L5001) |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL | `CURRENT_TIMESTAMP` | — | [001_init.sql:5002](../../../backend/migrations/001_init.sql#L5002) |
-| `performed_date_precision` | `text` | NULL | — | — | [001_init.sql:10115](../../../backend/migrations/001_init.sql#L10115) |
-| `measured_at` | `timestamptz` | NULL | — | — | [001_init.sql:10116](../../../backend/migrations/001_init.sql#L10116) |
-| `result_source_kind` | `text` | NULL | — | — | [001_init.sql:10117](../../../backend/migrations/001_init.sql#L10117) |
-| `result_source_details` | `text` | NULL | — | — | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
-| `previous_official_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:10119](../../../backend/migrations/001_init.sql#L10119) |
+| `performed_date_precision` | `text` | NULL | — | — | [001_init.sql:10117](../../../backend/migrations/001_init.sql#L10117) |
+| `measured_at` | `timestamptz` | NULL | — | — | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
+| `result_source_kind` | `text` | NULL | — | — | [001_init.sql:10119](../../../backend/migrations/001_init.sql#L10119) |
+| `result_source_details` | `text` | NULL | — | — | [001_init.sql:10120](../../../backend/migrations/001_init.sql#L10120) |
+| `previous_official_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:10121](../../../backend/migrations/001_init.sql#L10121) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -91,7 +91,7 @@ erDiagram
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
 | `fk_examination_revisions_exam` | `clinic_id, examination_id` | [exams](exams.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5053](../../../backend/migrations/001_init.sql#L5053) |
-| `fk_exam_previous_official` | `previous_official_revision_id, clinic_id` | [examination_revisions](examination_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10120](../../../backend/migrations/001_init.sql#L10120) |
+| `fk_exam_previous_official` | `previous_official_revision_id, clinic_id` | [examination_revisions](examination_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10122](../../../backend/migrations/001_init.sql#L10122) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -110,10 +110,10 @@ erDiagram
 | `ck_examination_revisions_change_reason` | check | `CONSTRAINT ck_examination_revisions_change_reason         CHECK (change_reason IS NULL OR btrim(change_reason) <> '')` | [001_init.sql:5007](../../../backend/migrations/001_init.sql#L5007) |
 | `ck_examination_revisions_kind_status` | check | `CONSTRAINT ck_examination_revisions_kind_status         CHECK (             (kind = 'official' AND status = 'confirmed') OR             (kind = 'working' AND status IN ('pending', 'in_progress', 'result_entered', 'completed'))         )` | [001_init.sql:5009](../../../backend/migrations/001_init.sql#L5009) |
 | `ck_examination_revisions_display_snapshot` | check | `CONSTRAINT ck_examination_revisions_display_snapshot         CHECK (             jsonb_typeof(display_snapshot) = 'object' AND             COALESCE(jsonb_typeof(display_snapshot -> 'medical_record_no'), '') = 'string' AND             COALESCE(jsonb_typeof(display_snapshot -> 'pet_name'), '') = 'string' AND             COALESCE(jsonb_typeof(display_snapshot -> 'medical_record_owner_name'), '') = 'string' AND             COALESCE(jsonb_typeof(display_snapshot -> 'pet_owner_name'), '') = 'string' AND             COALESCE(jsonb_typeof(display_snapshot -> 'species_name'), '') = 'string' AND             COALESCE(jsonb_typeof(display_snapshot -> 'exam_type_name'), '') = 'string' AND             COALESCE(jsonb_typeof(display_snapshot -> 'doctor_name'), '') = 'string'         )` | [001_init.sql:5014](../../../backend/migrations/001_init.sql#L5014) |
-| `uq_examination_revisions_id_clinic` | unique | `CONSTRAINT uq_examination_revisions_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9099](../../../backend/migrations/001_init.sql#L9099) |
-| `examination_revisions_performed_date_precision_check` | check | `CHECK(performed_date_precision IN('day','unknown'))` | [001_init.sql:10115](../../../backend/migrations/001_init.sql#L10115) |
-| `examination_revisions_result_source_kind_check` | check | `CHECK(result_source_kind IN('in_clinic','external_manual','legacy_unknown'))` | [001_init.sql:10117](../../../backend/migrations/001_init.sql#L10117) |
-| `ck_exam_revision_date_precision` | check | `CONSTRAINT ck_exam_revision_date_precision CHECK(performed_date_precision IS NULL OR(performed_date_precision='day' AND date IS NOT NULL) OR(performed_date_precision='unknown' AND date IS NULL))` | [001_init.sql:10122](../../../backend/migrations/001_init.sql#L10122) |
+| `uq_examination_revisions_id_clinic` | unique | `CONSTRAINT uq_examination_revisions_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9101](../../../backend/migrations/001_init.sql#L9101) |
+| `examination_revisions_performed_date_precision_check` | check | `CHECK(performed_date_precision IN('day','unknown'))` | [001_init.sql:10117](../../../backend/migrations/001_init.sql#L10117) |
+| `examination_revisions_result_source_kind_check` | check | `CHECK(result_source_kind IN('in_clinic','external_manual','legacy_unknown'))` | [001_init.sql:10119](../../../backend/migrations/001_init.sql#L10119) |
+| `ck_exam_revision_date_precision` | check | `CONSTRAINT ck_exam_revision_date_precision CHECK(performed_date_precision IS NULL OR(performed_date_precision='day' AND date IS NOT NULL) OR(performed_date_precision='unknown' AND date IS NULL))` | [001_init.sql:10124](../../../backend/migrations/001_init.sql#L10124) |
 
 ## インデックス
 

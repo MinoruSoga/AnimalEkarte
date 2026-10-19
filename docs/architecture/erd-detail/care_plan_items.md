@@ -98,7 +98,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `care_plan_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1784](../../../backend/migrations/001_init.sql#L1784) |
 | `chk_care_plan_item_ref` | check | `CONSTRAINT chk_care_plan_item_ref CHECK (         (type = 'medicine'    AND medicine_id IS NOT NULL) OR         (type = 'treatment'   AND procedure_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NULL             AND category = 'other' AND btrim(other_reason) <> '') OR         (type IN ('food', 'instruction'))     )` | [001_init.sql:6545](../../../backend/migrations/001_init.sql#L6545) |
-| `uq_care_plan_items_id_stay` | unique | `CONSTRAINT uq_care_plan_items_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9331](../../../backend/migrations/001_init.sql#L9331) |
+| `uq_care_plan_items_id_stay` | unique | `CONSTRAINT uq_care_plan_items_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9333](../../../backend/migrations/001_init.sql#L9333) |
 
 ## インデックス
 

@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10124](../../../backend/migrations/001_init.sql#L10124) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10124](../../../backend/migrations/001_init.sql#L10124) |
-| `exam_type_field_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10125](../../../backend/migrations/001_init.sql#L10125) |
-| `animal_species_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10126](../../../backend/migrations/001_init.sql#L10126) |
-| `meaning` | `text` | NOT NULL | — | — | [001_init.sql:10127](../../../backend/migrations/001_init.sql#L10127) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10127](../../../backend/migrations/001_init.sql#L10127) |
-| `verified_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10128](../../../backend/migrations/001_init.sql#L10128) |
-| `verified_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10128](../../../backend/migrations/001_init.sql#L10128) |
-| `evidence` | `text` | NOT NULL | — | — | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10126](../../../backend/migrations/001_init.sql#L10126) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10126](../../../backend/migrations/001_init.sql#L10126) |
+| `exam_type_field_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10127](../../../backend/migrations/001_init.sql#L10127) |
+| `animal_species_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10128](../../../backend/migrations/001_init.sql#L10128) |
+| `meaning` | `text` | NOT NULL | — | — | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
+| `verified_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
+| `verified_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
+| `evidence` | `text` | NOT NULL | — | — | [001_init.sql:10131](../../../backend/migrations/001_init.sql#L10131) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10131](../../../backend/migrations/001_init.sql#L10131) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -71,11 +71,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `examination_field_semantic_mappings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10124](../../../backend/migrations/001_init.sql#L10124) |
-| `examination_field_semantic_mappings_exam_type_field_id_fkey` | `exam_type_field_id` | [exam_type_fields](exam_type_fields.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10125](../../../backend/migrations/001_init.sql#L10125) |
-| `examination_field_semantic_mappings_animal_species_id_fkey` | `animal_species_id` | [animal_species](animal_species.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10126](../../../backend/migrations/001_init.sql#L10126) |
-| `examination_field_semantic_mappings_verified_by_fkey` | `verified_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10128](../../../backend/migrations/001_init.sql#L10128) |
-| `examination_field_semantic_mappings_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10131](../../../backend/migrations/001_init.sql#L10131) |
+| `examination_field_semantic_mappings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10126](../../../backend/migrations/001_init.sql#L10126) |
+| `examination_field_semantic_mappings_exam_type_field_id_fkey` | `exam_type_field_id` | [exam_type_fields](exam_type_fields.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10127](../../../backend/migrations/001_init.sql#L10127) |
+| `examination_field_semantic_mappings_animal_species_id_fkey` | `animal_species_id` | [animal_species](animal_species.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10128](../../../backend/migrations/001_init.sql#L10128) |
+| `examination_field_semantic_mappings_verified_by_fkey` | `verified_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
+| `examination_field_semantic_mappings_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10133](../../../backend/migrations/001_init.sql#L10133) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -89,12 +89,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `examination_field_semantic_mappings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10124](../../../backend/migrations/001_init.sql#L10124) |
-| `examination_field_semantic_mappings_meaning_check` | check | `CHECK(meaning IN('FIV','FeLV','mf','HW'))` | [001_init.sql:10127](../../../backend/migrations/001_init.sql#L10127) |
-| `examination_field_semantic_mappings_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10127](../../../backend/migrations/001_init.sql#L10127) |
-| `examination_field_semantic_mappings_evidence_check` | check | `CHECK(btrim(evidence)<>'')` | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
-| `examination_field_semantic_mappings_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
-| `examination_field_semantic_ma_clinic_id_exam_type_field_id__key` | unique | `UNIQUE(clinic_id,exam_type_field_id,animal_species_id,revision)` | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
+| `examination_field_semantic_mappings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10126](../../../backend/migrations/001_init.sql#L10126) |
+| `examination_field_semantic_mappings_meaning_check` | check | `CHECK(meaning IN('FIV','FeLV','mf','HW'))` | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
+| `examination_field_semantic_mappings_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10129](../../../backend/migrations/001_init.sql#L10129) |
+| `examination_field_semantic_mappings_evidence_check` | check | `CHECK(btrim(evidence)<>'')` | [001_init.sql:10131](../../../backend/migrations/001_init.sql#L10131) |
+| `examination_field_semantic_mappings_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10132](../../../backend/migrations/001_init.sql#L10132) |
+| `examination_field_semantic_ma_clinic_id_exam_type_field_id__key` | unique | `UNIQUE(clinic_id,exam_type_field_id,animal_species_id,revision)` | [001_init.sql:10132](../../../backend/migrations/001_init.sql#L10132) |
 
 ## インデックス
 

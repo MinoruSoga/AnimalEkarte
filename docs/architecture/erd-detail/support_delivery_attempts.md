@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10029](../../../backend/migrations/001_init.sql#L10029) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10029](../../../backend/migrations/001_init.sql#L10029) |
-| `destination_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10030](../../../backend/migrations/001_init.sql#L10030) |
-| `attempt_key` | `uuid` | NOT NULL | — | UK | [001_init.sql:10030](../../../backend/migrations/001_init.sql#L10030) |
-| `attempt_number` | `bigint` | NOT NULL | — | UK | [001_init.sql:10030](../../../backend/migrations/001_init.sql#L10030) |
-| `previous_attempt_id` | `bigint` | NULL | — | FK | [001_init.sql:10031](../../../backend/migrations/001_init.sql#L10031) |
-| `authorized_retry_result_id` | `bigint` | NULL | — | FK | [001_init.sql:10031](../../../backend/migrations/001_init.sql#L10031) |
-| `claimed_by` | `text` | NOT NULL | — | — | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
-| `claimed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10031](../../../backend/migrations/001_init.sql#L10031) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10031](../../../backend/migrations/001_init.sql#L10031) |
+| `destination_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
+| `attempt_key` | `uuid` | NOT NULL | — | UK | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
+| `attempt_number` | `bigint` | NOT NULL | — | UK | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
+| `previous_attempt_id` | `bigint` | NULL | — | FK | [001_init.sql:10033](../../../backend/migrations/001_init.sql#L10033) |
+| `authorized_retry_result_id` | `bigint` | NULL | — | FK | [001_init.sql:10033](../../../backend/migrations/001_init.sql#L10033) |
+| `claimed_by` | `text` | NOT NULL | — | — | [001_init.sql:10034](../../../backend/migrations/001_init.sql#L10034) |
+| `claimed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10034](../../../backend/migrations/001_init.sql#L10034) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -65,10 +65,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `support_delivery_attempts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10029](../../../backend/migrations/001_init.sql#L10029) |
-| `support_delivery_attempts_destination_id_clinic_id_fkey` | `destination_id, clinic_id` | [support_delivery_destinations](support_delivery_destinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10036](../../../backend/migrations/001_init.sql#L10036) |
-| `support_delivery_attempts_previous_attempt_id_clinic_id_de_fkey` | `previous_attempt_id, clinic_id, destination_id` | [support_delivery_attempts](support_delivery_attempts.md) | `id, clinic_id, destination_id` | `ON DELETE RESTRICT` | [001_init.sql:10037](../../../backend/migrations/001_init.sql#L10037) |
-| `fk_support_retry_evidence` | `authorized_retry_result_id, clinic_id, previous_attempt_id, destination_id` | [support_delivery_results](support_delivery_results.md) | `id, clinic_id, attempt_id, destination_id` | `ON DELETE RESTRICT` | [001_init.sql:10049](../../../backend/migrations/001_init.sql#L10049) |
+| `support_delivery_attempts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10031](../../../backend/migrations/001_init.sql#L10031) |
+| `support_delivery_attempts_destination_id_clinic_id_fkey` | `destination_id, clinic_id` | [support_delivery_destinations](support_delivery_destinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10038](../../../backend/migrations/001_init.sql#L10038) |
+| `support_delivery_attempts_previous_attempt_id_clinic_id_de_fkey` | `previous_attempt_id, clinic_id, destination_id` | [support_delivery_attempts](support_delivery_attempts.md) | `id, clinic_id, destination_id` | `ON DELETE RESTRICT` | [001_init.sql:10039](../../../backend/migrations/001_init.sql#L10039) |
+| `fk_support_retry_evidence` | `authorized_retry_result_id, clinic_id, previous_attempt_id, destination_id` | [support_delivery_results](support_delivery_results.md) | `id, clinic_id, attempt_id, destination_id` | `ON DELETE RESTRICT` | [001_init.sql:10051](../../../backend/migrations/001_init.sql#L10051) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -81,13 +81,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_delivery_attempts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10029](../../../backend/migrations/001_init.sql#L10029) |
-| `support_delivery_attempts_attempt_number_check` | check | `CHECK(attempt_number>0)` | [001_init.sql:10030](../../../backend/migrations/001_init.sql#L10030) |
-| `support_delivery_attempts_claimed_by_check` | check | `CHECK(btrim(claimed_by)<>'')` | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
-| `support_delivery_attempts_id_clinic_id_destination_id_key` | unique | `UNIQUE(id,clinic_id,destination_id)` | [001_init.sql:10033](../../../backend/migrations/001_init.sql#L10033) |
-| `support_delivery_attempts_clinic_id_attempt_key_key` | unique | `UNIQUE(clinic_id,attempt_key)` | [001_init.sql:10033](../../../backend/migrations/001_init.sql#L10033) |
-| `support_delivery_attempts_clinic_id_destination_id_attempt__key` | unique | `UNIQUE(clinic_id,destination_id,attempt_number)` | [001_init.sql:10033](../../../backend/migrations/001_init.sql#L10033) |
-| `support_delivery_attempts_check` | check | `CHECK((attempt_number=1 AND previous_attempt_id IS NULL AND authorized_retry_result_id IS NULL)  OR(attempt_number>1 AND previous_attempt_id IS NOT NULL AND authorized_retry_result_id IS NOT NULL))` | [001_init.sql:10034](../../../backend/migrations/001_init.sql#L10034) |
+| `support_delivery_attempts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10031](../../../backend/migrations/001_init.sql#L10031) |
+| `support_delivery_attempts_attempt_number_check` | check | `CHECK(attempt_number>0)` | [001_init.sql:10032](../../../backend/migrations/001_init.sql#L10032) |
+| `support_delivery_attempts_claimed_by_check` | check | `CHECK(btrim(claimed_by)<>'')` | [001_init.sql:10034](../../../backend/migrations/001_init.sql#L10034) |
+| `support_delivery_attempts_id_clinic_id_destination_id_key` | unique | `UNIQUE(id,clinic_id,destination_id)` | [001_init.sql:10035](../../../backend/migrations/001_init.sql#L10035) |
+| `support_delivery_attempts_clinic_id_attempt_key_key` | unique | `UNIQUE(clinic_id,attempt_key)` | [001_init.sql:10035](../../../backend/migrations/001_init.sql#L10035) |
+| `support_delivery_attempts_clinic_id_destination_id_attempt__key` | unique | `UNIQUE(clinic_id,destination_id,attempt_number)` | [001_init.sql:10035](../../../backend/migrations/001_init.sql#L10035) |
+| `support_delivery_attempts_check` | check | `CHECK((attempt_number=1 AND previous_attempt_id IS NULL AND authorized_retry_result_id IS NULL)  OR(attempt_number>1 AND previous_attempt_id IS NOT NULL AND authorized_retry_result_id IS NOT NULL))` | [001_init.sql:10036](../../../backend/migrations/001_init.sql#L10036) |
 
 ## インデックス
 

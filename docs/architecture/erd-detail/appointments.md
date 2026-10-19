@@ -37,11 +37,11 @@
 | `intended_date` | `date` | NULL | — | — | [001_init.sql:7207](../../../backend/migrations/001_init.sql#L7207) |
 | `source_medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:7208](../../../backend/migrations/001_init.sql#L7208) |
 | `revisit_intake_generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7618](../../../backend/migrations/001_init.sql#L7618) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8901](../../../backend/migrations/001_init.sql#L8901) |
-| `reservation_name_snapshot` | `text` | NULL | — | — | [001_init.sql:8902](../../../backend/migrations/001_init.sql#L8902) |
-| `reservation_name_revision` | `bigint` | NULL | — | FK | [001_init.sql:8903](../../../backend/migrations/001_init.sql#L8903) |
-| `reservation_name_source` | `text` | NULL | — | — | [001_init.sql:8904](../../../backend/migrations/001_init.sql#L8904) |
-| `stay_case_id` | `bigint` | NULL | — | FK | [001_init.sql:9259](../../../backend/migrations/001_init.sql#L9259) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8903](../../../backend/migrations/001_init.sql#L8903) |
+| `reservation_name_snapshot` | `text` | NULL | — | — | [001_init.sql:8904](../../../backend/migrations/001_init.sql#L8904) |
+| `reservation_name_revision` | `bigint` | NULL | — | FK | [001_init.sql:8905](../../../backend/migrations/001_init.sql#L8905) |
+| `reservation_name_source` | `text` | NULL | — | — | [001_init.sql:8906](../../../backend/migrations/001_init.sql#L8906) |
+| `stay_case_id` | `bigint` | NULL | — | FK | [001_init.sql:9261](../../../backend/migrations/001_init.sql#L9261) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -147,8 +147,8 @@ erDiagram
 | `fk_appointments_created_by` | `created_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6303](../../../backend/migrations/001_init.sql#L6303) |
 | `fk_appointments_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:6770](../../../backend/migrations/001_init.sql#L6770) |
 | `fk_appointments_source_medical_record_clinic` | `source_medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE SET NULL (source_medical_record_id)` | [001_init.sql:7466](../../../backend/migrations/001_init.sql#L7466) |
-| `fk_appointment_name_revision` | `clinic_id, reservation_type_id, reservation_name_revision` | [reservation_type_name_revisions](reservation_type_name_revisions.md) | `clinic_id, reservation_type_id, revision` | `ON DELETE RESTRICT` | [001_init.sql:8905](../../../backend/migrations/001_init.sql#L8905) |
-| `fk_appointment_stay_case` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9260](../../../backend/migrations/001_init.sql#L9260) |
+| `fk_appointment_name_revision` | `clinic_id, reservation_type_id, reservation_name_revision` | [reservation_type_name_revisions](reservation_type_name_revisions.md) | `clinic_id, reservation_type_id, revision` | `ON DELETE RESTRICT` | [001_init.sql:8907](../../../backend/migrations/001_init.sql#L8907) |
+| `fk_appointment_stay_case` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9262](../../../backend/migrations/001_init.sql#L9262) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -172,8 +172,8 @@ erDiagram
 | `chk_reservation_times` | check | `CONSTRAINT chk_reservation_times CHECK (end_time >= start_time)` | [001_init.sql:1352](../../../backend/migrations/001_init.sql#L1352) |
 | `uq_appointments_id_clinic` | unique | `CONSTRAINT uq_appointments_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:5736](../../../backend/migrations/001_init.sql#L5736) |
 | `appointments_revisit_intake_generation_check` | check | `CHECK (revisit_intake_generation > 0)` | [001_init.sql:7618](../../../backend/migrations/001_init.sql#L7618) |
-| `appointments_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8901](../../../backend/migrations/001_init.sql#L8901) |
-| `appointments_reservation_name_source_check` | check | `CHECK (reservation_name_source IN ('recorded','verified_legacy','unknown'))` | [001_init.sql:8904](../../../backend/migrations/001_init.sql#L8904) |
+| `appointments_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8903](../../../backend/migrations/001_init.sql#L8903) |
+| `appointments_reservation_name_source_check` | check | `CHECK (reservation_name_source IN ('recorded','verified_legacy','unknown'))` | [001_init.sql:8906](../../../backend/migrations/001_init.sql#L8906) |
 
 ## インデックス
 
@@ -190,4 +190,4 @@ erDiagram
 | `idx_appointments_pet_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_appointments_pet_date   ON appointments(pet_id, start_time)   WHERE deleted_at IS NULL` | [001_init.sql:2360](../../../backend/migrations/001_init.sql#L2360) |
 | `idx_appointments_line_customer` | NO | `line_customer_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_appointments_line_customer ON appointments(line_customer_id)     WHERE line_customer_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:2739](../../../backend/migrations/001_init.sql#L2739) |
 | `uq_appointments_one_active_tentative` | YES | `status = 'tentative' AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_appointments_one_active_tentative     ON appointments (clinic_id, pet_id)     WHERE status = 'tentative' AND deleted_at IS NULL` | [001_init.sql:7230](../../../backend/migrations/001_init.sql#L7230) |
-| `idx_appointments_doctor_time` | NO | `deleted_at IS NULL AND status<>'cancelled'` | `CREATE INDEX idx_appointments_doctor_time ON appointments(clinic_id,doctor_id,start_time,end_time)  WHERE deleted_at IS NULL AND status<>'cancelled'` | [001_init.sql:8911](../../../backend/migrations/001_init.sql#L8911) |
+| `idx_appointments_doctor_time` | NO | `deleted_at IS NULL AND status<>'cancelled'` | `CREATE INDEX idx_appointments_doctor_time ON appointments(clinic_id,doctor_id,start_time,end_time)  WHERE deleted_at IS NULL AND status<>'cancelled'` | [001_init.sql:8913](../../../backend/migrations/001_init.sql#L8913) |

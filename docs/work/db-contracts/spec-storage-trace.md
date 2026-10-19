@@ -79,3 +79,7 @@
 | support-confirmed-delivery | 院内保存先行の確認intent・宛先別claim/結果照合を接続する |
 | line-purpose-unlink-followup | LINE本人版・解除停止/選択再開・目的別確認と配送照合を接続する |
 | common-operation-receipts | 全ownerの保存成功receiptと失敗attemptの原子保存を接続する |
+
+## 不要・重複保存の整理による更新
+
+旧表/旧列を併用する前提は[削除・統合対照](schema-cleanup-audit.md)で置き換える。現行は241表、25対照単位。JSONの表列一覧は最終定義へ更新した。旧24単位に第一/第二傷病複数行と診療終了履歴を追記し、Cygram保存先を共通基本改訂へ明示した。親の追加consumer票EMR-489–511/468への厳密対応は親管理。旧payments等をcanonical保存先として使用しない。

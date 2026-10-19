@@ -11,21 +11,22 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9608](../../../backend/migrations/001_init.sql#L9608) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9609](../../../backend/migrations/001_init.sql#L9609) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9610](../../../backend/migrations/001_init.sql#L9610) |
-| `fund_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9611](../../../backend/migrations/001_init.sql#L9611) |
-| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:9612](../../../backend/migrations/001_init.sql#L9612) |
-| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9613](../../../backend/migrations/001_init.sql#L9613) |
-| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9614](../../../backend/migrations/001_init.sql#L9614) |
-| `source_allocation_id` | `bigint` | NULL | — | FK | [001_init.sql:9615](../../../backend/migrations/001_init.sql#L9615) |
-| `actual_refund_method_id` | `bigint` | NULL | — | FK | [001_init.sql:9616](../../../backend/migrations/001_init.sql#L9616) |
-| `source_deposit_entry_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:9617](../../../backend/migrations/001_init.sql#L9617) |
-| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9618](../../../backend/migrations/001_init.sql#L9618) |
-| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9619](../../../backend/migrations/001_init.sql#L9619) |
-| `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:9620](../../../backend/migrations/001_init.sql#L9620) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9621](../../../backend/migrations/001_init.sql#L9621) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9622](../../../backend/migrations/001_init.sql#L9622) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9610](../../../backend/migrations/001_init.sql#L9610) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9611](../../../backend/migrations/001_init.sql#L9611) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9612](../../../backend/migrations/001_init.sql#L9612) |
+| `fund_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9613](../../../backend/migrations/001_init.sql#L9613) |
+| `event_kind` | `text` | NOT NULL | — | UK | [001_init.sql:9614](../../../backend/migrations/001_init.sql#L9614) |
+| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9615](../../../backend/migrations/001_init.sql#L9615) |
+| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9616](../../../backend/migrations/001_init.sql#L9616) |
+| `source_allocation_id` | `bigint` | NULL | — | FK | [001_init.sql:9617](../../../backend/migrations/001_init.sql#L9617) |
+| `actual_refund_method_id` | `bigint` | NULL | — | FK | [001_init.sql:9618](../../../backend/migrations/001_init.sql#L9618) |
+| `source_deposit_entry_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:9619](../../../backend/migrations/001_init.sql#L9619) |
+| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9620](../../../backend/migrations/001_init.sql#L9620) |
+| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9621](../../../backend/migrations/001_init.sql#L9621) |
+| `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:9622](../../../backend/migrations/001_init.sql#L9622) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9623](../../../backend/migrations/001_init.sql#L9623) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9624](../../../backend/migrations/001_init.sql#L9624) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:10933](../../../backend/migrations/001_init.sql#L10933) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,7 +43,7 @@ erDiagram
         bigint clinic_id FK,UK
         bigint owner_id FK,UK
         bigint fund_id FK,UK
-        text event_kind
+        text event_kind UK
         bigint amount
         bigint billing_id FK
         bigint source_allocation_id FK
@@ -53,6 +54,7 @@ erDiagram
         integer ordinal UK
         bigint recorded_by FK
         timestamptz recorded_at
+        text reason
     }
     billings {
         BIGSERIAL id PK,FK,UK
@@ -88,7 +90,7 @@ erDiagram
     fund_consumption_events o|..o{ fund_consumption_events : "source_allocation_id, clinic_id, owner_id, fund_id"
     billings o|..o{ fund_consumption_events : "billing_id, clinic_id"
     payment_methods o|..o{ fund_consumption_events : "actual_refund_method_id, clinic_id"
-    owner_deposit_entries o|..o| fund_consumption_events : "source_deposit_entry_id, clinic_id, owner_id"
+    owner_deposit_entries o|..o{ fund_consumption_events : "source_deposit_entry_id, clinic_id, owner_id"
     operation_bindings ||..o{ fund_consumption_events : "operation_id, clinic_id"
 ```
 
@@ -96,14 +98,14 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fund_consumption_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9609](../../../backend/migrations/001_init.sql#L9609) |
-| `fund_consumption_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9621](../../../backend/migrations/001_init.sql#L9621) |
-| `fund_consumption_events_fund_id_clinic_id_owner_id_fkey` | `fund_id, clinic_id, owner_id` | [payment_funds](payment_funds.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9629](../../../backend/migrations/001_init.sql#L9629) |
-| `fund_consumption_events_source_allocation_id_clinic_id_own_fkey` | `source_allocation_id, clinic_id, owner_id, fund_id` | [fund_consumption_events](fund_consumption_events.md) | `id, clinic_id, owner_id, fund_id` | `ON DELETE RESTRICT` | [001_init.sql:9630](../../../backend/migrations/001_init.sql#L9630) |
-| `fund_consumption_events_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9631](../../../backend/migrations/001_init.sql#L9631) |
-| `fund_consumption_events_actual_refund_method_id_clinic_id_fkey` | `actual_refund_method_id, clinic_id` | [payment_methods](payment_methods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9632](../../../backend/migrations/001_init.sql#L9632) |
-| `fund_consumption_events_source_deposit_entry_id_clinic_id__fkey` | `source_deposit_entry_id, clinic_id, owner_id` | [owner_deposit_entries](owner_deposit_entries.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9633](../../../backend/migrations/001_init.sql#L9633) |
-| `fund_consumption_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9634](../../../backend/migrations/001_init.sql#L9634) |
+| `fund_consumption_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9611](../../../backend/migrations/001_init.sql#L9611) |
+| `fund_consumption_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9623](../../../backend/migrations/001_init.sql#L9623) |
+| `fund_consumption_events_fund_id_clinic_id_owner_id_fkey` | `fund_id, clinic_id, owner_id` | [payment_funds](payment_funds.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9631](../../../backend/migrations/001_init.sql#L9631) |
+| `fund_consumption_events_source_allocation_id_clinic_id_own_fkey` | `source_allocation_id, clinic_id, owner_id, fund_id` | [fund_consumption_events](fund_consumption_events.md) | `id, clinic_id, owner_id, fund_id` | `ON DELETE RESTRICT` | [001_init.sql:9632](../../../backend/migrations/001_init.sql#L9632) |
+| `fund_consumption_events_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9633](../../../backend/migrations/001_init.sql#L9633) |
+| `fund_consumption_events_actual_refund_method_id_clinic_id_fkey` | `actual_refund_method_id, clinic_id` | [payment_methods](payment_methods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9634](../../../backend/migrations/001_init.sql#L9634) |
+| `fund_consumption_events_source_deposit_entry_id_clinic_id__fkey` | `source_deposit_entry_id, clinic_id, owner_id` | [owner_deposit_entries](owner_deposit_entries.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9635](../../../backend/migrations/001_init.sql#L9635) |
+| `fund_consumption_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9636](../../../backend/migrations/001_init.sql#L9636) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -120,19 +122,19 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `fund_consumption_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9608](../../../backend/migrations/001_init.sql#L9608) |
-| `fund_consumption_events_event_kind_check` | check | `CHECK (event_kind IN ('allocate','release','refund'))` | [001_init.sql:9612](../../../backend/migrations/001_init.sql#L9612) |
-| `fund_consumption_events_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:9613](../../../backend/migrations/001_init.sql#L9613) |
-| `fund_consumption_events_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9620](../../../backend/migrations/001_init.sql#L9620) |
-| `fund_consumption_events_id_clinic_id_owner_id_fund_id_key` | unique | `UNIQUE (id,clinic_id,owner_id,fund_id)` | [001_init.sql:9623](../../../backend/migrations/001_init.sql#L9623) |
-| `fund_consumption_events_clinic_id_source_deposit_entry_id_key` | unique | `UNIQUE (clinic_id,source_deposit_entry_id)` | [001_init.sql:9624](../../../backend/migrations/001_init.sql#L9624) |
-| `fund_consumption_events_clinic_id_operation_id_ordinal_key` | unique | `UNIQUE (clinic_id,operation_id,ordinal)` | [001_init.sql:9625](../../../backend/migrations/001_init.sql#L9625) |
-| `fund_consumption_events_check` | check | `CHECK ((event_kind='allocate' AND billing_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)       OR (event_kind='release' AND billing_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL)       OR (event_kind='refund' AND source_allocation_id IS NULL AND actual_refund_method_id IS NOT NULL))` | [001_init.sql:9626](../../../backend/migrations/001_init.sql#L9626) |
-| `uq_fund_consumption_id_clinic` | unique | `CONSTRAINT uq_fund_consumption_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9818](../../../backend/migrations/001_init.sql#L9818) |
+| `fund_consumption_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9610](../../../backend/migrations/001_init.sql#L9610) |
+| `fund_consumption_events_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:9615](../../../backend/migrations/001_init.sql#L9615) |
+| `fund_consumption_events_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9622](../../../backend/migrations/001_init.sql#L9622) |
+| `fund_consumption_events_id_clinic_id_owner_id_fund_id_key` | unique | `UNIQUE (id,clinic_id,owner_id,fund_id)` | [001_init.sql:9625](../../../backend/migrations/001_init.sql#L9625) |
+| `fund_consumption_events_clinic_id_operation_id_ordinal_key` | unique | `UNIQUE (clinic_id,operation_id,ordinal)` | [001_init.sql:9627](../../../backend/migrations/001_init.sql#L9627) |
+| `uq_fund_consumption_id_clinic` | unique | `CONSTRAINT uq_fund_consumption_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:9820](../../../backend/migrations/001_init.sql#L9820) |
+| `ck_fund_consumption_kind` | check | `CONSTRAINT ck_fund_consumption_kind CHECK(event_kind IN('allocate','release','refund','deposit_allocate','deposit_release'))` | [001_init.sql:10934](../../../backend/migrations/001_init.sql#L10934) |
+| `ck_fund_consumption_target` | check | `CONSTRAINT ck_fund_consumption_target CHECK(  (event_kind='allocate' AND billing_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)  OR(event_kind='release' AND billing_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL)  OR(event_kind='refund' AND billing_id IS NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NOT NULL AND reason IS NOT NULL AND btrim(reason)<>'')  OR(event_kind='deposit_allocate' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NULL AND actual_refund_method_id IS NULL)  OR(event_kind='deposit_release' AND billing_id IS NULL AND source_deposit_entry_id IS NOT NULL AND source_allocation_id IS NOT NULL AND actual_refund_method_id IS NULL))` | [001_init.sql:10935](../../../backend/migrations/001_init.sql#L10935) |
+| `uq_fund_deposit_projection_kind` | unique | `CONSTRAINT uq_fund_deposit_projection_kind UNIQUE(clinic_id,source_deposit_entry_id,event_kind)` | [001_init.sql:10941](../../../backend/migrations/001_init.sql#L10941) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_fund_consumption_source` | NO | — | `CREATE INDEX idx_fund_consumption_source ON fund_consumption_events(clinic_id,fund_id,source_allocation_id)` | [001_init.sql:9636](../../../backend/migrations/001_init.sql#L9636) |
-| `idx_fund_consumption_bill` | NO | — | `CREATE INDEX idx_fund_consumption_bill ON fund_consumption_events(clinic_id,billing_id,occurred_at)` | [001_init.sql:9637](../../../backend/migrations/001_init.sql#L9637) |
+| `idx_fund_consumption_source` | NO | — | `CREATE INDEX idx_fund_consumption_source ON fund_consumption_events(clinic_id,fund_id,source_allocation_id)` | [001_init.sql:9638](../../../backend/migrations/001_init.sql#L9638) |
+| `idx_fund_consumption_bill` | NO | — | `CREATE INDEX idx_fund_consumption_bill ON fund_consumption_events(clinic_id,billing_id,occurred_at)` | [001_init.sql:9639](../../../backend/migrations/001_init.sql#L9639) |

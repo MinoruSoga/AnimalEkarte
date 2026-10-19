@@ -270,7 +270,7 @@ class SchemaTests(unittest.TestCase):
 
     def test_repository_final_schema(self):
         schema = load_schema(Path(__file__).resolve().parents[2] / 'backend/migrations')
-        self.assertEqual(len(schema.tables), 246)
+        self.assertEqual(len(schema.tables), 241)
         self.assertEqual([m.name for m in schema.migrations], ['001_init.sql'])
         embeddings = schema.tables['support_manual_embeddings']
         self.assertEqual({c.name for c in embeddings.columns}, {'cache_key', 'model', 'task_type', 'chunker_version', 'dimensions', 'embedding', 'created_at'})
@@ -339,7 +339,6 @@ class SchemaTests(unittest.TestCase):
             'pet_identity_group_members': 'pet_identity_group_members_group_created_clinic_id_group_i_fkey',
             'pet_identity_groups': 'pet_identity_groups_owner_group_created_clinic_id_owner_gr_fkey',
             'lstep_friend_attribute_snapshots': 'lstep_friend_attribute_snapsh_clinic_id_line_user_id_snapsh_key',
-            'reservation_type_occupations': 'reservation_type_occupations_reservation_type_id_occupation_key',
         }
         for table_name, expected in expected_names.items():
             self.assertIn(expected, {c.name for c in schema.tables[table_name].constraints})

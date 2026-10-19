@@ -11,15 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10730](../../../backend/migrations/001_init.sql#L10730) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10730](../../../backend/migrations/001_init.sql#L10730) |
-| `common_pet_id` | `uuid` | NOT NULL | — | FK | [001_init.sql:10731](../../../backend/migrations/001_init.sql#L10731) |
-| `local_pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10731](../../../backend/migrations/001_init.sql#L10731) |
-| `mapping_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10733](../../../backend/migrations/001_init.sql#L10733) |
-| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10733](../../../backend/migrations/001_init.sql#L10733) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10734](../../../backend/migrations/001_init.sql#L10734) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
+| `common_pet_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10733](../../../backend/migrations/001_init.sql#L10733) |
+| `local_pet_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10733](../../../backend/migrations/001_init.sql#L10733) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10735](../../../backend/migrations/001_init.sql#L10735) |
+| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10735](../../../backend/migrations/001_init.sql#L10735) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10736](../../../backend/migrations/001_init.sql#L10736) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -34,10 +32,8 @@ erDiagram
     common_pet_clinic_bindings {
         BIGSERIAL id PK,UK
         bigint clinic_id FK,UK
-        uuid common_pet_id FK
-        bigint local_pet_id FK
-        bigint mapping_version
-        boolean is_active
+        uuid common_pet_id FK,UK
+        bigint local_pet_id FK,UK
         bigint confirmed_by FK
         timestamptz confirmed_at
         bigint operation_id FK
@@ -62,7 +58,7 @@ erDiagram
     clinics ||..o{ common_pet_clinic_bindings : "clinic_id"
     staffs ||..o{ common_pet_clinic_bindings : "confirmed_by"
     common_pet_subjects ||..o{ common_pet_clinic_bindings : "common_pet_id"
-    pets ||..o{ common_pet_clinic_bindings : "local_pet_id, clinic_id"
+    pets ||..o| common_pet_clinic_bindings : "local_pet_id, clinic_id"
     operation_bindings ||..o{ common_pet_clinic_bindings : "operation_id, clinic_id"
 ```
 
@@ -70,11 +66,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `common_pet_clinic_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10730](../../../backend/migrations/001_init.sql#L10730) |
-| `common_pet_clinic_bindings_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10733](../../../backend/migrations/001_init.sql#L10733) |
-| `common_pet_clinic_bindings_common_pet_id_fkey` | `common_pet_id` | [common_pet_subjects](common_pet_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10735](../../../backend/migrations/001_init.sql#L10735) |
-| `common_pet_clinic_bindings_local_pet_id_clinic_id_fkey` | `local_pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10736](../../../backend/migrations/001_init.sql#L10736) |
-| `common_pet_clinic_bindings_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10737](../../../backend/migrations/001_init.sql#L10737) |
+| `common_pet_clinic_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
+| `common_pet_clinic_bindings_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10735](../../../backend/migrations/001_init.sql#L10735) |
+| `common_pet_clinic_bindings_common_pet_id_fkey` | `common_pet_id` | [common_pet_subjects](common_pet_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10737](../../../backend/migrations/001_init.sql#L10737) |
+| `common_pet_clinic_bindings_local_pet_id_clinic_id_fkey` | `local_pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10738](../../../backend/migrations/001_init.sql#L10738) |
+| `common_pet_clinic_bindings_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10739](../../../backend/migrations/001_init.sql#L10739) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -88,13 +84,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `common_pet_clinic_bindings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10730](../../../backend/migrations/001_init.sql#L10730) |
-| `common_pet_clinic_bindings_mapping_version_check` | check | `CHECK(mapping_version>0)` | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
-| `common_pet_clinic_bindings_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10734](../../../backend/migrations/001_init.sql#L10734) |
+| `common_pet_clinic_bindings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10732](../../../backend/migrations/001_init.sql#L10732) |
+| `common_pet_clinic_bindings_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10736](../../../backend/migrations/001_init.sql#L10736) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_active_common_pet_clinic` | YES | `is_active` | `CREATE UNIQUE INDEX uq_active_common_pet_clinic ON common_pet_clinic_bindings(clinic_id,common_pet_id) WHERE is_active` | [001_init.sql:10739](../../../backend/migrations/001_init.sql#L10739) |
-| `uq_active_common_pet_local` | YES | `is_active` | `CREATE UNIQUE INDEX uq_active_common_pet_local ON common_pet_clinic_bindings(clinic_id,local_pet_id) WHERE is_active` | [001_init.sql:10740](../../../backend/migrations/001_init.sql#L10740) |
+| `uq_common_pet_clinic` | YES | — | `CREATE UNIQUE INDEX uq_common_pet_clinic ON common_pet_clinic_bindings(clinic_id,common_pet_id)` | [001_init.sql:10895](../../../backend/migrations/001_init.sql#L10895) |
+| `uq_common_pet_local` | YES | — | `CREATE UNIQUE INDEX uq_common_pet_local ON common_pet_clinic_bindings(clinic_id,local_pet_id)` | [001_init.sql:10896](../../../backend/migrations/001_init.sql#L10896) |
