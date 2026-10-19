@@ -97,22 +97,34 @@ class ApiClient:
             die(f"login failed: HTTP {code} {str(body)[:300]}")
 
     def rows(self, path: str) -> list[dict]:
-        code, body = self.request("GET", path)
-        if code != 200:
-            die(f"GET {path}: HTTP {code} {str(body)[:300]}")
-        if isinstance(body, list):
-            return body
-        if isinstance(body, dict):
+        separator = "&" if "?" in path else "?"
+        collected: list[dict] = []
+        page = 1
+        while True:
+            code, body = self.request("GET", f"{path}{separator}limit=100&page={page}")
+            if code != 200:
+                die(f"GET {path}: HTTP {code} {str(body)[:300]}")
+            if isinstance(body, list):
+                return body
+            if not isinstance(body, dict):
+                return collected
+            items = None
             for key in ("data", "items", "results"):
                 value = body.get(key)
                 if isinstance(value, list):
-                    return value
-        return []
+                    items = value
+                    break
+            if items is None:
+                return collected
+            collected.extend(items)
+            total = body.get("total")
+            if total is None or len(collected) >= int(total) or not items:
+                return collected
+            page += 1
 
     def find_by_name(self, path: str, name: str) -> dict | None:
-        separator = "&" if "?" in path else "?"
-        for row in self.rows(f"{path}{separator}limit=200"):
-            if row.get("name") == name or row.get("title") == name:
+        for row in self.rows(path):
+            if row.get("name") == name or row.get("title") == name or row.get("owner_name") == name:
                 return row
         return None
 
@@ -382,11 +394,69 @@ def seed_owners_and_pets(client: ApiClient, state: State) -> list[dict]:
     return result
 
 
-def find_doctor_id(client: ApiClient) -> int:
-    for row in client.rows("/api/v1/masters/staffs"):
-        if row.get("staff_type") == "doctor" and row.get("is_active", True):
-            return int(row["id"])
-    die("no active doctor found")
+def pick_reservation_type_and_doctor(client: ApiClient) -> tuple[int, int]:
+    reservation_type = next(
+        (row for row in client.rows("/api/v1/masters/reservation-types") if row.get("is_active", True)),
+        None,
+    )
+    doctor = next(
+        (
+            row for row in client.rows("/api/v1/masters/staffs")
+            if row.get("staff_type") == "doctor" and row.get("is_active", True)
+        ),
+        None,
+    )
+    if reservation_type is None or doctor is None:
+        die("no active reservation type or doctor found")
+    return int(reservation_type["id"]), int(doctor["id"])
+
+
+def ensure_doctor_capability(client: ApiClient, state: State, doctor_id: int, reservation_type_id: int) -> None:
+    code, body = client.request("GET", f"/api/v1/masters/staffs/{doctor_id}/capable-reservation-types")
+    if code != 200 or not isinstance(body, dict):
+        die(f"GET capable reservation types for staff {doctor_id}: HTTP {code} {str(body)[:300]}")
+    current = [int(value) for value in body.get("reservation_type_ids", [])]
+    if reservation_type_id in current:
+        return
+    updated = sorted(set(current + [reservation_type_id]))
+    code, body = client.request(
+        "PUT",
+        f"/api/v1/masters/staffs/{doctor_id}/capable-reservation-types",
+        {"reservation_type_ids": updated},
+    )
+    if code not in (200, 204):
+        die(f"PUT capable reservation types for staff {doctor_id}: HTTP {code} {str(body)[:300]}")
+    state.created.append(
+        {
+            "kind": "staff_capability",
+            "id": doctor_id,
+            "name": f"{RUN_TAG} staff capability",
+            "previous_ids": current,
+        }
+    )
+    print(f"updated doctor capability: staff=#{doctor_id} + reservation_type=#{reservation_type_id}")
+
+
+def ensure_shift(client: ApiClient, state: State, doctor_id: int, date: datetime) -> None:
+    month = date.strftime("%Y-%m")
+    code, body = client.request("GET", f"/api/v1/shifts?date={month}&staff_id={doctor_id}&limit=100&page=1")
+    if code != 200:
+        die(f"GET /api/v1/shifts: HTTP {code} {str(body)[:300]}")
+    rows = body if isinstance(body, list) else body.get("data") or body.get("items") or []
+    date_text = date.strftime("%Y-%m-%d")
+    if any(row.get("date", "").startswith(date_text) for row in rows):
+        return
+    payload = {
+        "staff_id": doctor_id,
+        "date": date_text,
+        "shift_type": "full",
+        "start_time": "09:00",
+        "end_time": "18:00",
+        "note": f"{RUN_TAG} synthetic shift",
+    }
+    created = client.create("/api/v1/shifts", payload)
+    state.record_created("shift", int(created["id"]), f"{RUN_TAG} {date_text}")
+    print(f"created shift: {date_text} doctor=#{doctor_id}")
 
 
 def find_reservation_type_id(client: ApiClient) -> int:
@@ -397,12 +467,13 @@ def find_reservation_type_id(client: ApiClient) -> int:
 
 
 def seed_reservations(client: ApiClient, state: State, owners: list[dict]) -> None:
-    doctor_id = find_doctor_id(client)
-    reservation_type_id = find_reservation_type_id(client)
+    reservation_type_id, doctor_id = pick_reservation_type_and_doctor(client)
+    ensure_doctor_capability(client, state, doctor_id, reservation_type_id)
     base = datetime.now(JST).replace(hour=10, minute=0, second=0, microsecond=0)
     for index, owner in enumerate(owners):
         pet = owner["pets"][0]
         start = base + timedelta(days=index)
+        ensure_shift(client, state, doctor_id, start)
         payload = {
             "start_time": start.isoformat(),
             "end_time": (start + timedelta(minutes=30)).isoformat(),
@@ -410,11 +481,11 @@ def seed_reservations(client: ApiClient, state: State, owners: list[dict]) -> No
             "pet_id": pet["id"],
             "visit_type": "revisit",
             "reservation_type_id": reservation_type_id,
-            "doctor_id": doctor_id,
             "status": "confirmed",
             "source": "manual",
             "notes": f"{RUN_TAG} synthetic reservation",
         }
+        payload["doctor_id"] = doctor_id
         label = f"{RUN_TAG} {index + 1}"
         if any(item["kind"] == "reservation" and item["name"] == label for item in state.created + state.updated):
             print(f"reservation exists in state: {label}")
@@ -426,13 +497,48 @@ def seed_reservations(client: ApiClient, state: State, owners: list[dict]) -> No
 
 
 def cleanup(client: ApiClient, state: State) -> None:
-    order = ["reservation", "pet", "owner", "diagnosis_name", "chief_complaint", "diagnosis_type", "procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "reservation_type_group"]
-    resources = state.created
+    # Creating a reservation also creates a linked medical record. Delete those
+    # auto-created records before the reservation/pet, otherwise the API rejects
+    # the reservation delete with 409.
+    reservation_ids = {
+        row["id"] for row in state.created if row["kind"] == "reservation"
+    }
+    pet_ids = {row["id"] for row in state.created if row["kind"] == "pet"}
+    for pet_id in sorted(pet_ids):
+        code, body = client.request(
+            "GET",
+            f"/api/v1/medical-records?pet_id={pet_id}&limit=100&page=1",
+        )
+        if code != 200:
+            print(f"FAIL cleanup: list records for pet #{pet_id}: HTTP {code}", file=sys.stderr)
+            continue
+        rows = body.get("data") if isinstance(body, dict) else body
+        for record in rows or []:
+            if record.get("appointment_id") not in reservation_ids:
+                continue
+            code, body = client.request("DELETE", f"/api/v1/medical-records/{record['id']}")
+            if code not in (200, 204, 404):
+                print(f"FAIL cleanup: medical record #{record['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+            else:
+                print(f"deleted medical record: #{record['id']} (pet #{pet_id})")
+    for item in [row for row in state.created if row["kind"] == "staff_capability"]:
+        code, body = client.request(
+            "PUT",
+            f"/api/v1/masters/staffs/{item['id']}/capable-reservation-types",
+            {"reservation_type_ids": item.get("previous_ids", [])},
+        )
+        if code not in (200, 204):
+            print(f"FAIL cleanup: staff capability #{item['id']}: HTTP {code} {str(body)[:120]}", file=sys.stderr)
+        else:
+            print(f"restored staff capability: #{item['id']}")
+    order = ["reservation", "shift", "pet", "owner", "diagnosis_name", "chief_complaint", "diagnosis_type", "procedure", "medicine", "vaccine", "insurance", "cage", "hospitalization_plan", "inventory", "inquiry_template", "checkup_type", "reservation_type_group"]
+    resources = [row for row in state.created if row["kind"] != "staff_capability"]
     failures = []
     for kind in order:
         for item in [row for row in resources if row["kind"] == kind]:
             path = {
                 "reservation": "/api/v1/reservations",
+                "shift": "/api/v1/shifts",
                 "pet": "/api/v1/pets",
                 "owner": "/api/v1/owners",
                 "diagnosis_name": "/api/v1/masters/diagnosis-names",
@@ -497,10 +603,12 @@ def main() -> None:
         state.save(state_path)
         return
 
-    seed_masters(client, state)
-    owners = seed_owners_and_pets(client, state)
-    seed_reservations(client, state, owners)
-    state.save(state_path)
+    try:
+        seed_masters(client, state)
+        owners = seed_owners_and_pets(client, state)
+        seed_reservations(client, state, owners)
+    finally:
+        state.save(state_path)
     print(f"state: {state_path}")
     print("W3b (medical records / billing / hospitalization / trimming) is not implemented yet.")
 

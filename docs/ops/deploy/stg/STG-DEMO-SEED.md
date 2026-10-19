@@ -69,4 +69,5 @@ python3 scripts/tools/seed-demo-data.py --clinic-id 1 --apply
 
 - 予約の日時は JST の当日 10:00 から1日ずつずらす。クライアントのテスト日時と重なる場合は `--clinic-id` と合わせて調整する。
 - master の `【デモ】` 名は cleanup の識別子でもある。手動で名前を変えると cleanup 対象から外れる。
-- W3a の API payload は dry-run と型定義で確認しているが、STG 実適用は未検証。初回 apply は必ずローカルまたは承認済みの window で行う。
+- 予約作成時にカルテが自動生成される。cleanup は、この run が作成した予約に紐づく自動生成カルテを先に削除してから予約・ペット・飼主を削除する。
+- 2026-10-19 にローカル API で apply → cleanup を実行し、EXIT 0 とデモ行の不存在を確認した。STG 実適用は未検証。初回 apply は必ずローカルまたは承認済みの window で行う。
