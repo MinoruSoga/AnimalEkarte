@@ -43,6 +43,25 @@ func resolvePaymentMethodMasterID(method model.PaymentMethod, existing *uint64, 
 	return &resolved, nil
 }
 
+// ensureNoInactiveNewReceiptMethods は、新たに採用される支払方法が停止中（is_active=false）でないことを
+// 検査する（EMR-465）。既存受領と同じ method の再保存・idempotent replay は拒否しない。
+// 未知の method は resolvePaymentMethodMasterID の解決経路で拒否されるため、ここでは skip する。
+func ensureNoInactiveNewReceiptMethods(methods []model.PaymentMethod, savedMethods map[model.PaymentMethod]bool, activeSystemKeys map[string]bool) error {
+	for _, m := range methods {
+		if m == "" {
+			continue
+		}
+		key, ok := PaymentMethodSystemKeys[m]
+		if !ok {
+			continue
+		}
+		if !activeSystemKeys[key] && !savedMethods[m] {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("停止中の支払方法では新しい受領を作成できません: %s", m))
+		}
+	}
+	return nil
+}
+
 // hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
 func hasPaymentFields(input *UpdateAccountingInput) bool {
 	return len(input.PaymentSplits) > 0 ||

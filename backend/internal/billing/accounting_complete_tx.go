@@ -307,6 +307,21 @@ func (s *accountingService) persistCompletePayments(
 		updateInput.PaymentMethod = &method
 	}
 	payment := buildPaymentFromInput(updateInput, nil)
+	// EMR-465: Complete の受領は新受領。停止中の支払方法は拒否する（既存 split の再保存は Update 経由のみ）。
+	activeKeys, err := s.loadActivePaymentMethodSystemKeys(txCtx, billing.ClinicID)
+	if err != nil {
+		return nil, err
+	}
+	completeMethods := make([]model.PaymentMethod, 0, len(input.PaymentSplits)+1)
+	if updateInput.PaymentMethod != nil {
+		completeMethods = append(completeMethods, *updateInput.PaymentMethod)
+	}
+	for i := range input.PaymentSplits {
+		completeMethods = append(completeMethods, input.PaymentSplits[i].Method)
+	}
+	if err := ensureNoInactiveNewReceiptMethods(completeMethods, nil, activeKeys); err != nil {
+		return nil, err
+	}
 	if payment.Method != "" {
 		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
 		if err != nil {
