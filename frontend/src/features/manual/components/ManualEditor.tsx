@@ -292,7 +292,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         expectedPublishedVersionId: last.expectation.expectedPublishedVersionId,
       });
     } catch {
-      // PUT 200 のreceipt不一致。再照会しても同じreceiptしか返らないため、再照会ボタンは出さない
+      // 照会（operations）で得たreceiptの照合不一致。再照会しても同じreceiptしか返らないため、再照会ボタンは出さない
       setSaveStopped(true);
       setLastOperationKey(null);
       setNotice({ kind: "error", text: RECEIPT_MISMATCH_NOTICE });
