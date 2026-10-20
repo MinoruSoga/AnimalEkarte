@@ -3767,6 +3767,20 @@ components:
           nullable: true
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: >-
+            品目の保険設定（EMR-456）。応答の null は未保存（旧欠落）、true は保険対象外、false は保険対象で、
+            null を false/true に補完しない。作成時に省略すると新規初期値の保険対象外（true）を保存する。
+            更新時の省略または null は変更なし。患者の保険資格や補償の保証ではない。
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: >-
+            楽観ロックの版（EMR-456）。応答は現在の版。更新時に送ると、その版と一致した場合だけ保存し、
+            不一致は 409 で何も保存しない。版の加算は内容が変わった更新でのみ DB が行う。
         created_at:
           type: string
           format: date-time
@@ -19778,6 +19792,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

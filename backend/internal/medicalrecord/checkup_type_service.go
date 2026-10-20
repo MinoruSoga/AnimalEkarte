@@ -20,6 +20,10 @@ type CreateCheckupTypeInput struct {
 	TargetAge   string
 	ParentID    *uint64
 	SortOrder   int
+	// IsNonInsurance は nil のとき新規初期値（保険対象外=true）を明示保存する（EMR-456）。
+	IsNonInsurance *bool
+	// ActorID は保険設定の監査に使う操作スタッフ ID。
+	ActorID *uint64
 }
 
 // UpdateCheckupTypeInput はチェックアップ種別更新のサービス入力 DTO
@@ -33,6 +37,16 @@ type UpdateCheckupTypeInput struct {
 	ParentID      *uint64
 	ClearParentID bool
 	SortOrder     *int
+	// IsNonInsurance は nil のとき変更しない。NULL（未保存）へ戻す経路は持たない（EMR-456）。
+	IsNonInsurance *bool
+	// Version は楽観ロックの期待版（nil=service が読取時点の版で照合）。
+	Version *int64
+	// ActorID は保険設定の監査に使う操作スタッフ ID。
+	ActorID *uint64
+	// expectedVersion は service が算出し repository が WHERE に使う（HTTP/client からは設定しない）。
+	// version 列は書かない: checkup_types の BEFORE UPDATE トリガ（app_private.entity_version_guard）が
+	// 内容変更時だけ OLD.version+1 にし、内容不変の UPDATE での version 変更は 23514 で拒否するため。
+	expectedVersion *int64
 }
 
 const (
@@ -44,7 +58,15 @@ const (
 	colCheckupTypeTargetAge   = "target_age"
 	colCheckupTypeParentID    = "parent_id"
 	colCheckupTypeSortOrder   = "sort_order"
+	colCheckupTypeNonIns      = "is_non_insurance"
 )
+
+// newCheckupTypeIsNonInsuranceDefault は新規登録時の保険設定初期値（保険対象外）。
+// FR-accounting-item-insurance-setting の新規初期値であり、旧欠落値の補完には使わない。
+const newCheckupTypeIsNonInsuranceDefault = true
+
+// errMsgCheckupTypeVersionConflict は楽観ロックの版不一致（再読込を促す）メッセージ。
+const errMsgCheckupTypeVersionConflict = "他のユーザーがこの定期健診種別を変更しました。再読み込みしてください"
 
 func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	fields := make(map[string]any)
@@ -70,6 +92,9 @@ func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	if input.SortOrder != nil {
 		fields[colCheckupTypeSortOrder] = *input.SortOrder
 	}
+	if input.IsNonInsurance != nil {
+		fields[colCheckupTypeNonIns] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -83,11 +108,16 @@ type CheckupTypeService interface {
 }
 
 type checkupTypeService struct {
-	repo CheckupTypeRepository
+	repo       CheckupTypeRepository
+	transactor Transactor
+	auditTx    AuditTxLogger
 }
 
-func NewCheckupTypeService(repo CheckupTypeRepository) CheckupTypeService {
-	return &checkupTypeService{repo: repo}
+// NewCheckupTypeService constructs CheckupTypeService.
+// transactor と auditTx は Create/Update の書込と保険設定監査を同一 tx に収めるため必須
+// （EMR-456。nil は composition 不備として 500 で fail-closed）。
+func NewCheckupTypeService(repo CheckupTypeRepository, transactor Transactor, auditTx AuditTxLogger) CheckupTypeService {
+	return &checkupTypeService{repo: repo, transactor: transactor, auditTx: auditTx}
 }
 
 func (s *checkupTypeService) List(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
@@ -111,30 +141,40 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
-	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
-		return nil, err
+	isNonInsurance := newCheckupTypeIsNonInsuranceDefault
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
 	}
 	checkupType := &model.CheckupType{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Interval:    input.Interval,
-		TargetAge:   input.TargetAge,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
+		ClinicID:       clinicID,
+		Name:           input.Name,
+		Price:          input.Price,
+		IsActive:       input.IsActive,
+		Description:    input.Description,
+		Interval:       input.Interval,
+		TargetAge:      input.TargetAge,
+		ParentID:       input.ParentID,
+		SortOrder:      &input.SortOrder,
+		IsNonInsurance: &isNonInsurance,
 	}
-	if err := s.repo.Create(ctx, checkupType); err != nil {
-		if conflict := apperrors.AsNameUniqueConflict(
-			err,
-			input.Name,
-			apperrors.ConstraintCheckupTypeName,
-			apperrors.CodeCheckupTypeNameConflict,
-		); conflict != nil {
-			return nil, conflict
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
+			return err
 		}
-		return nil, apperrors.Wrap(err, "failed to create checkup type")
+		if err := s.repo.Create(txCtx, checkupType); err != nil {
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				input.Name,
+				apperrors.ConstraintCheckupTypeName,
+				apperrors.CodeCheckupTypeNameConflict,
+			); conflict != nil {
+				return conflict
+			}
+			return apperrors.Wrap(err, "failed to create checkup type")
+		}
+		return s.auditInsuranceTx(txCtx, clinicID, input.ActorID, checkupTypeAuditActionCreate, nil, checkupType)
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "checkup type created",
 		slog.Uint64("clinic_id", clinicID),
@@ -145,37 +185,57 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get checkup type")
-	}
-	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
-		return nil, err
-	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
-	fields := buildCheckupTypeUpdate(input)
-	if len(fields) == 0 {
+	if len(buildCheckupTypeUpdate(input)) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
-	checkupType, err := s.repo.Update(ctx, clinicID, id, *input)
-	if err != nil {
-		nameForConflict := ""
-		if input.Name != nil {
-			nameForConflict = *input.Name
+	var checkupType *model.CheckupType
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to get checkup type")
 		}
-		if conflict := apperrors.AsNameUniqueConflict(
-			err,
-			nameForConflict,
-			apperrors.ConstraintCheckupTypeName,
-			apperrors.CodeCheckupTypeNameConflict,
-		); conflict != nil {
-			return nil, conflict
+		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
+			return err
 		}
-		return nil, apperrors.Wrap(err, "failed to update checkup type")
+		// EMR-456: 版は常に WHERE で照合する。client が版を送らない旧経路でも、読取後の並行更新を
+		// 上書きせず Conflict にする（版の加算は DB トリガが内容変更時だけ行う）。
+		expected := before.Version
+		if input.Version != nil {
+			expected = *input.Version
+		}
+		effective := *input
+		effective.expectedVersion = &expected
+		updated, err := s.repo.Update(txCtx, clinicID, id, effective)
+		if err != nil {
+			nameForConflict := ""
+			if input.Name != nil {
+				nameForConflict = *input.Name
+			}
+			if conflict := apperrors.AsNameUniqueConflict(
+				err,
+				nameForConflict,
+				apperrors.ConstraintCheckupTypeName,
+				apperrors.CodeCheckupTypeNameConflict,
+			); conflict != nil {
+				return conflict
+			}
+			return apperrors.Wrap(err, "failed to update checkup type")
+		}
+		if !sameOptionalBool(before.IsNonInsurance, updated.IsNonInsurance) {
+			if err := s.auditInsuranceTx(txCtx, clinicID, input.ActorID, checkupTypeAuditActionUpdate, before, updated); err != nil {
+				return err
+			}
+		}
+		checkupType = updated
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "checkup type updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
 	return checkupType, nil

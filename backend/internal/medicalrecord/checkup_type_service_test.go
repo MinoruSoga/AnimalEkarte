@@ -64,6 +64,33 @@ func (m *mockCheckupTypeRepository) CountChildrenByParentID(ctx context.Context,
 	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
+// checkupTypePassthroughTx は ambient tx を張らずに fn を実行する WithTx テストダブル。
+type checkupTypePassthroughTx struct{}
+
+func (checkupTypePassthroughTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+// recordingCheckupTypeAudit は保険設定監査の入力を記録する（err 指定時は失敗を返す）。
+type recordingCheckupTypeAudit struct {
+	entries []*AuditEntry
+	err     error
+}
+
+func (a *recordingCheckupTypeAudit) LogEntryTx(_ context.Context, entry *AuditEntry) error {
+	if a.err != nil {
+		return a.err
+	}
+	a.entries = append(a.entries, entry)
+	return nil
+}
+
+var testCheckupTypeActorID = uint64(77)
+
+func newTestCheckupTypeService(repo CheckupTypeRepository) CheckupTypeService {
+	return NewCheckupTypeService(repo, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{})
+}
+
 func TestCheckupTypeService_List(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -105,7 +132,7 @@ func TestCheckupTypeService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewCheckupTypeService(repo)
+			svc := newTestCheckupTypeService(repo)
 
 			checkupTypes, err := svc.List(context.Background(), 1)
 
@@ -161,7 +188,7 @@ func TestCheckupTypeService_GetByID(t *testing.T) {
 					return tt.repoCheckupType, tt.repoErr
 				},
 			}
-			svc := NewCheckupTypeService(repo)
+			svc := newTestCheckupTypeService(repo)
 
 			checkupType, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -251,8 +278,9 @@ func TestCheckupTypeService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCheckupTypeService(repo)
+			svc := newTestCheckupTypeService(repo)
 
+			tt.input.ActorID = &testCheckupTypeActorID
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
@@ -359,7 +387,7 @@ func TestCheckupTypeService_Update(t *testing.T) {
 					return tt.repoData, tt.updateErr
 				},
 			}
-			svc := NewCheckupTypeService(repo)
+			svc := newTestCheckupTypeService(repo)
 
 			result, err := svc.Update(context.Background(), tt.clinicID, tt.id, tt.input)
 
@@ -469,7 +497,7 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCheckupTypeService(repo)
+			svc := newTestCheckupTypeService(repo)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -521,7 +549,7 @@ func TestCheckupTypeService_Reorder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewCheckupTypeService(repo)
+			svc := newTestCheckupTypeService(repo)
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 

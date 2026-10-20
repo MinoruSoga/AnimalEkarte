@@ -14,9 +14,47 @@ import type {
 
 export type { CheckupTypeItem };
 
-const getAllCheckupTypes = async (): Promise<CheckupTypeItem[]> => {
-  const { data } = await axios.get<CheckupType[]>("/v1/masters/checkup-types");
-  return data.map(transformCheckupType);
+// EMR-456: 健診種別の保険設定（品目側の設定であり、患者の保険資格・補償の保証ではない）。
+// null = 未保存（旧欠落）、true = 保険対象外、false = 保険対象。null を false/true に補完しない。
+// 生成型 CheckupType は model の json:"-" により is_non_insurance / version を持たないため、
+// domain-owned response（backend checkup_type_response.go）の wire 差分をここで定義する。
+export type CheckupTypeInsuranceSetting = boolean | null;
+
+export type CheckupTypeResponse = CheckupType & {
+  is_non_insurance?: CheckupTypeInsuranceSetting;
+  version?: number;
+};
+
+// 共有 transform（EMR-454 所有）の CheckupTypeItem に、保険設定と版を別名で添える。
+// 共有 TreatmentItem.isNonInsurance（boolean・欠落は false 表示）と混同しないよう名前を分けている。
+export type CheckupTypeMasterItem = CheckupTypeItem & {
+  insuranceSetting: CheckupTypeInsuranceSetting;
+  version: number | null;
+};
+
+export type CreateCheckupTypeInsuranceRequest = CreateCheckupTypeRequest & {
+  // 未指定なら API が新規初期値（保険対象外）を明示保存する。
+  is_non_insurance?: boolean;
+};
+
+export type UpdateCheckupTypeInsuranceRequest = UpdateCheckupTypeRequest & {
+  // 未指定は変更なし。null（未保存）へ戻す送信は API が持たない。
+  is_non_insurance?: boolean;
+  // 楽観ロックの期待版。不一致は 409 で何も保存されない。
+  version?: number;
+};
+
+export function toCheckupTypeMasterItem(data: CheckupTypeResponse): CheckupTypeMasterItem {
+  return {
+    ...transformCheckupType(data),
+    insuranceSetting: typeof data.is_non_insurance === "boolean" ? data.is_non_insurance : null,
+    version: typeof data.version === "number" ? data.version : null,
+  };
+}
+
+const getAllCheckupTypes = async (): Promise<CheckupTypeMasterItem[]> => {
+  const { data } = await axios.get<CheckupTypeResponse[]>("/v1/masters/checkup-types");
+  return data.map(toCheckupTypeMasterItem);
 };
 
 export const useGetAllCheckupTypes = () =>
@@ -30,9 +68,9 @@ export const useGetAllCheckupTypes = () =>
 export const useCreateCheckupType = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (req: CreateCheckupTypeRequest): Promise<CheckupTypeItem> => {
-      const { data } = await axios.post<CheckupType>("/v1/masters/checkup-types", req);
-      return transformCheckupType(data);
+    mutationFn: async (req: CreateCheckupTypeInsuranceRequest): Promise<CheckupTypeMasterItem> => {
+      const { data } = await axios.post<CheckupTypeResponse>("/v1/masters/checkup-types", req);
+      return toCheckupTypeMasterItem(data);
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),
@@ -48,10 +86,13 @@ export const useUpdateCheckupType = () => {
       req,
     }: {
       id: string;
-      req: UpdateCheckupTypeRequest;
-    }): Promise<CheckupTypeItem> => {
-      const { data } = await axios.patch<CheckupType>(`/v1/masters/checkup-types/${id}`, req);
-      return transformCheckupType(data);
+      req: UpdateCheckupTypeInsuranceRequest;
+    }): Promise<CheckupTypeMasterItem> => {
+      const { data } = await axios.patch<CheckupTypeResponse>(
+        `/v1/masters/checkup-types/${id}`,
+        req,
+      );
+      return toCheckupTypeMasterItem(data);
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.masters.category("checkup-types") }),

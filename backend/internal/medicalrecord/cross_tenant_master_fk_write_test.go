@@ -206,14 +206,14 @@ func TestCheckupTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.CheckupType) error { *created = true; return nil },
 		}
-		return NewCheckupTypeService(repo)
+		return newTestCheckupTypeService(repo)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &foreign, ActorID: &testCheckupTypeActorID})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "checkup type must NOT be persisted referencing another clinic's parent checkup type")
@@ -223,7 +223,7 @@ func TestCheckupTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &owned, ActorID: &testCheckupTypeActorID})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -249,7 +249,7 @@ func TestCheckupTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.CheckupType{ID: id}, nil
 			},
 		}
-		return NewCheckupTypeService(repo)
+		return newTestCheckupTypeService(repo)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {

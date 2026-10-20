@@ -106,7 +106,7 @@ func wireMastersHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 	vaccineSvc := VaccineService(NewVaccineService(NewVaccineRepository(db)))
 	cageSvc := CageService(NewCageService(NewCageRepository(db), tx))
 	hospPlanSvc := HospitalizationPlanService(NewHospitalizationPlanService(NewHospitalizationPlanRepository(db)))
-	checkupTypeSvc := CheckupTypeService(NewCheckupTypeService(NewCheckupTypeRepository(db)))
+	checkupTypeSvc := CheckupTypeService(NewCheckupTypeService(NewCheckupTypeRepository(db), tx, &recordingCheckupTypeAudit{}))
 	fieldResultSvc := CheckupFieldResultService(NewCheckupFieldResultService(
 		NewCheckupRepository(db), NewMedicalRecordRepository(db),
 		NewCheckupTypeFieldRepository(db), NewCheckupFieldResultRepository(db), nil, tx,

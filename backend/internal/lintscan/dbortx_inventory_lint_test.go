@@ -481,6 +481,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccination_repository.go|vaccinationRepository.existsInClinic": {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.FindByID":               {},
 	"medicalrecord/vaccine_repository.go|vaccineRepository.Delete":                 {}, // Runtime: TestVaccineRepository_Delete_RollsBackWhenAmbientTxFails
+	// EMR-456: checkup type create/update join the service tx so the insurance-setting audit and
+	// version-checked write commit or roll back together; FindByID reads the pre-update row in that tx.
+	// Runtime: TestCheckupTypeRepository_InsuranceSettingRoundTrip (ambient-tx rollback subtest).
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.FindByID": {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Create":   {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Update":   {},
 	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
 	// Runtime: clinical_master_delete_tx_atomicity_test.go
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":            {},
