@@ -21,6 +21,11 @@ export interface RevisitIntakePendingOperation {
   fingerprint: string;
   body: RevisitIntakeSubmitRequest;
   status: "unknown" | "claimed_uncommitted" | "not_found" | "result_unavailable";
+  /**
+   * 429 / Retry-After 付き 503 の再送期限（epoch ms）。draft と一緒に保持し、画面を開き直しても
+   * 期限前に「同じ内容で再送信」を有効にしない。期限切れは null と同じ扱い。
+   */
+  resendAvailableAt?: number | null;
 }
 
 export interface RevisitIntakeDraftEntry {

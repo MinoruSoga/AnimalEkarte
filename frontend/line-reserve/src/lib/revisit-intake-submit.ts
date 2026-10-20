@@ -93,6 +93,8 @@ export type RevisitIntakeSubmitErrorKind =
   | { type: "payload_too_large" }
   | { type: "unsupported_media_type" }
   | { type: "rate_limited"; retryAfterSeconds: number | null }
+  /** Retry-After 付き 503: 結果不明のまま、期限まで同 key の再送を待つ */
+  | { type: "service_unavailable"; retryAfterSeconds: number }
   /** 応答喪失・5xx・応答形不正・未知 409 code: 結果不明として同 key で照会する */
   | { type: "unknown" };
 
@@ -169,6 +171,13 @@ export function classifyRevisitIntakeSubmitError(err: unknown): RevisitIntakeSub
         type: "rate_limited",
         retryAfterSeconds: parseRetryAfter(headers?.["retry-after"]),
       };
+    case 503: {
+      // 契約: Retry-After があれば尊重する。無い 503 は他の 5xx と同じく結果不明として照会する。
+      const retryAfterSeconds = parseRetryAfter(headers?.["retry-after"]);
+      return retryAfterSeconds !== null && retryAfterSeconds > 0
+        ? { type: "service_unavailable", retryAfterSeconds }
+        : { type: "unknown" };
+    }
     default:
       return { type: "unknown" };
   }

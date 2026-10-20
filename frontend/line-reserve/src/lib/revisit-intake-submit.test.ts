@@ -141,6 +141,17 @@ describe("revisit-intake-submit（EMR-474）", () => {
     ).toEqual({ type: "rate_limited", retryAfterSeconds: 30 });
   });
 
+  it("Retry-After 付き 503 は service_unavailable、無い 503 は unknown（結果照会）", () => {
+    expect(
+      classifyRevisitIntakeSubmitError(
+        axiosError(503, { error: "unavailable" }, { "retry-after": "20" }),
+      ),
+    ).toEqual({ type: "service_unavailable", retryAfterSeconds: 20 });
+    expect(classifyRevisitIntakeSubmitError(axiosError(503, { error: "unavailable" })).type).toBe(
+      "unknown",
+    );
+  });
+
   it("操作 key は lowercase hyphenated UUID", () => {
     const key = createRevisitIntakeOperationKey();
     expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);

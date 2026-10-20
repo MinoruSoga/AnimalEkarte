@@ -105,6 +105,10 @@ function isLookupNotFound(
 const LOOKUP_FAILED_MESSAGE =
   "送信結果を確認できませんでした。通信状況をご確認のうえ、もう一度お試しください。";
 
+function serviceUnavailableMessage(seconds: number): string {
+  return `ただいま混み合っています。${seconds}秒ほど待ってから、同じ内容で再送信するか送信結果を確認してください。`;
+}
+
 function rateLimitedMessage(seconds: number | null): string {
   return seconds !== null && seconds > 0
     ? `アクセスが集中しています。${seconds}秒ほど待ってから、同じ内容で再送信してください。`
@@ -223,8 +227,11 @@ export function RevisitIntakeEditor({
   const [pending, setPending] = useState<RevisitIntakePendingOperation | null>(
     () => draftStore.get(targetKey)?.pending ?? null,
   );
-  // 429 Retry-After の期限（epoch ms）。期限までは「同じ内容で再送信」を無効にする。
-  const [resendAvailableAt, setResendAvailableAt] = useState<number | null>(null);
+  // 429 / 503 の Retry-After 期限（epoch ms）。期限までは「同じ内容で再送信」を無効にする。
+  // draftStore の pending から復元する（期限切れは下の effect で即解除）。
+  const [resendAvailableAt, setResendAvailableAt] = useState<number | null>(
+    () => draftStore.get(targetKey)?.pending?.resendAvailableAt ?? null,
+  );
   const inFlightRef = useRef(false);
   const alertRef = useRef<HTMLDivElement>(null);
 
@@ -333,13 +340,21 @@ export function RevisitIntakeEditor({
           onAccessDenied();
           return { kind: "idle" };
         case "rate_limited":
-          updatePending({ ...op, status: "unknown" });
-          setResendAvailableAt(
+        case "service_unavailable": {
+          const availableAt =
             kind.retryAfterSeconds !== null && kind.retryAfterSeconds > 0
               ? Date.now() + kind.retryAfterSeconds * 1000
-              : null,
-          );
-          return { kind: "unresolved", message: rateLimitedMessage(kind.retryAfterSeconds) };
+              : null;
+          updatePending({ ...op, status: "unknown", resendAvailableAt: availableAt });
+          setResendAvailableAt(availableAt);
+          return {
+            kind: "unresolved",
+            message:
+              kind.type === "rate_limited"
+                ? rateLimitedMessage(kind.retryAfterSeconds)
+                : serviceUnavailableMessage(kind.retryAfterSeconds),
+          };
+        }
         case "unknown":
           // 応答喪失・5xx: 失敗確定ではない。同じ key で結果を照会する。
           return lookup({
