@@ -64,7 +64,7 @@ Path Bは現状、カルテ作成→健診作成→値があればfield置換の
 | AC-checkups-canonical | 健診を新規記録 | 保存・集計 | Checkup系一つ、Examinationへ同じ記録を重複生成しない | canonical |
 | AC-checkups-retired-id | 旧健診seedの予約ID範囲 | 新割当／移行 | 再利用せず、実旧値確認前に削除・推測移行しない | canonical |
 | AC-checkups-chart-entry | 保存済みカルテあり | タブから追加 | 同親へ紐付けて即時個別保存 | record |
-| AC-checkups-quick-entry | 独立入口で患者・種別・実施日選択 | 保存 | 実施日を診療日とする親と健診を対応付け | record |
+| AC-checkups-quick-entry | 一覧から患者・種別・実施日を選ぶ。通常受付済みと、理由・医師確認を伴う過去専用入力を対照する | 保存 | D03の通常受付／過去専用入力の条件を満たす同じ親と健診を対応付ける。現行Path Bの受付なし親自動作成を目標の例外や実装必須条件とせず、通常受付を迂回しない | [record](#fr-checkups-record)・[D03](../medical-records/lifecycle.md#requirement-fr-medical-records-reception-and-retrospective-entry) |
 | AC-checkups-edit-entry | 一覧の既存行 | 編集 | 同recordの健診タブ＋対象checkupを開く | record |
 | AC-checkups-required | 種別／実施日欠損 | 保存 | 既存必須エラー、担当医等を新規必須にしない | record |
 | AC-checkups-doctor-clear | 既存担当医あり | 明示解除／未送信 | 解除操作と保持を区別、nullを無条件解除にしない | record |

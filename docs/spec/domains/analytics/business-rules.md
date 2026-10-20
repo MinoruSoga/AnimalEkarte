@@ -49,7 +49,7 @@ D10の既決区分を継承。請求確定額、今回の実入金、実返金�
 
 月次の日次明細・部門×支払方法表・KPI／内訳、CSV／印刷は同じ選択条件を使う。C7-7の既決に従い、午前／午後の件数・売上4列は廃止対象で、会計件数・日計へ集約しAM／PM締め状態は保持する。EMG集計を含めた日次件数を『午前＋午後』という表示文言だけで誤定義しない。現行合算のEMG網羅性は設計検査へ。
 
-部門×支払方法の唯一の配賦正本は[画面29](../../screens/29-closing-aggregation.md#closing-allocation-contract)。返金は発生日負値、支払は現行completed_at基準、件数は会計distinct、行件数の単純合計を総会計件数にしない。旧KPIの返金は親会計完了日帰属で、差が起こり得る。この差を表示上の丸め誤差として消さない。D10移行後の期間基準は新イベント／請求の意味を維持する。
+部門×支払方法の唯一の配賦正本は[画面29](../../screens/29-closing-aggregation.md#closing-allocation-contract)。返金は発生日負値、旧consumerの支払帰属はcompleted_at基準、件数は会計distinct、行件数の単純合計を総会計件数にしない。旧KPIの返金は親会計完了日帰属で、差が起こり得る。この差を表示上の丸め誤差として消さない。D10移行後の期間基準は新イベント／請求の意味を維持する。
 
 <a id="requirement-fr-analytics-owner-counts"></a>
 ### FR-analytics-owner-counts：飼主と来院日・母集団
@@ -133,7 +133,7 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 | 請求確定額／請求 | 実入金・未納回収・預り金と別。[2026-10-20本人回答](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)で原請求日は請求確定日。確定前は未存在で、作成日／会計予定日を代用しない。診療日・実入金日を別保持 | [金銭分離](#requirement-fr-analytics-money-separation)・[D10](../accounting/lifecycle.md#accounting-open-decisions) |
 | 月次日次明細／会計 | 旧consumer観察はcompleted_atのJST暦日（最終DDLの存続列ではない）。旧顧客売上SQLのカルテ日／予定日帰属・完了状態filterと別 | [期間](#requirement-fr-analytics-period-basis) |
 | 実受領・実返金／金銭イベント | 実日時と元資金・請求を区別。保険負担は保険会社の実入金ではなく実受取額へ加算しない | [金銭分離](#requirement-fr-analytics-money-separation)・[D10引継ぎ](../../../design/domains/accounting/technical-spec.md#accounting-handoff-contract) |
-| 部門×方法／配賦・会計distinct | 返金は発生日負値、現行支払はcompleted_at。行件数を総件数へ単純合算しない | [matrix](#requirement-fr-analytics-matrix-report)・[配賦正本](../../screens/29-closing-aggregation.md#closing-allocation-contract) |
+| 部門×方法／配賦・会計distinct | 返金は発生日負値、旧consumerの支払帰属はcompleted_at（退役列）。最終契約では[D10の元確定event／実入金と日付projectionの対応](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)を別途照合し、adapter実装済みとしない。行件数を総件数へ単純合算しない | [matrix](#requirement-fr-analytics-matrix-report)・[配賦正本](../../screens/29-closing-aggregation.md#closing-allocation-contract) |
 | レジ営業日／AM・PM・EMG | am_start前の深夜は前日EMG。月次JST暦日と差があり日付ラベルだけで一致要求しない | [レジ正本](../../cash-register.md)・[既存境界AC](#requirement-fr-analytics-period-basis) |
 | 来院回数／医院・飼主・日、医院・ペット・日 | 確認済み実来院日。同日複数頭・再受付の重複加算なし。年次rolling365日と暦年売上は別 | [来院FR／既存AC](#requirement-fr-analytics-owner-counts) |
 
