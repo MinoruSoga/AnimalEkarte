@@ -313,7 +313,7 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 
 ## 死亡状態を維持する専用処理の参照
 
-[死亡後の既決境界](#requirement-fr-owners-pets-safety-and-private-notes)に従う生前分の後日入力・訂正・退院精算は、[D03](../medical-records/lifecycle.md#medical-record-deceased-retrospective)、[D05](../hospitalization/lifecycle.md#requirement-fr-hospitalization-delete-and-preserve)、[D10](../accounting/lifecycle.md#accounting-posthumous-settlement)、[健診](../checkups/lifecycle.md#fr-checkups-protection)の目的別専用条件を照合する。死亡状態・元記録と理由／履歴を維持し、不明な実施時点を推測しない。死亡取消の追加権限・条件、取消後の予約自動再開を新設しない。
+[死亡後の既決境界](#requirement-fr-owners-pets-safety-and-private-notes)に従う生前分の後日入力・訂正・退院精算は、[D03](../medical-records/lifecycle.md#medical-record-deceased-retrospective)、[D05](../hospitalization/lifecycle.md#requirement-fr-hospitalization-delete-and-preserve)、[D10](../accounting/lifecycle.md#accounting-posthumous-settlement)、[健診](../checkups/lifecycle.md#fr-checkups-protection)の目的別専用条件を照合する。死亡状態・元記録と理由／履歴を維持し、不明な実施時点を推測しない。誤登録取消は[2026-10-20本人回答](#pet-death-misregistration-undo-20261020)へ従い、生前記録とは別操作として扱う。取消だけで予約・通知を自動再開しない。
 
 <a id="owner-transfer-draft-retention-20261020"></a>
 ## 主飼主変更時の未確定会計・未提示見積（2026-10-20本人回答）
@@ -321,3 +321,12 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 決定者はユーザー。質問 Sentinel_e10fac72a1e88191aaaf49cae1dbfafb の2に対し、Sentinel_c119f08e86f8819193b76d2b4c52a55d が「2 A」（元の飼主に残し、必要なら別途変更する）を選択した。主飼主を変更しても、未確定会計・未提示見積は元飼主へ残し、自動移管しない。必要な変更は各ownerの別操作として扱い、この選択から新しい一括付替え権限・手順を創作しない。
 
 確定済み請求・預り金・提示済み見積の原本は既決どおり保持する。[D10の請求日・訂正境界](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)と[D11の原本／後継保護](../estimates/business-rules.md#requirement-fr-estimates-successor)へ接続する。既存FR-owners-pets-primary-transfer／AC-owners-pets-owner-transfer-historyの追加確認範囲であり、実装・実機受入は未実施。
+
+<a id="pet-death-misregistration-undo-20261020"></a>
+## 死亡の誤登録取消（2026-10-20本人回答）
+
+決定者はユーザー。質問 Sentinel_07eb2535e184819190e1145f884b69cc に対する本人 Sentinel_6498c7a23a8c8191b672ba0dea52c1c3 の2026-10-20回答「5 ok」により採用。死亡登録の取消は誤登録を訂正する操作として、権限のあるスタッフが理由付きで行い、変更履歴を残す。取消だけで予約や通知を自動再開しない。具体的な新grant・職種・追加資格条件を推定せず、現在の医院・患者・操作権限を照合する。
+
+[生前分の後日入力・誤記訂正・退院精算](#requirement-fr-owners-pets-safety-and-private-notes)は死亡状態を保持して行える既決の別操作であり、そのために誤登録取消を要求しない。取消で生前／死亡後の記録日時や元履歴を消さず、通常属性PATCHで専用処理を迂回しない。必要履歴の保存・結果照合は既存の専用writer／現在版契約へ接続し、実装適合は未確認とする。
+
+既存FR-owners-pets-safety-and-private-notesの追加受入として、権限あり／なし・理由あり／なしの誤登録取消、変更前後とactor／理由の履歴、取消後の予約／通知未再開、生前記録が取消不要であることを対照確認する（未実施）。

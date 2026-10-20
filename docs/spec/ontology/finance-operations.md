@@ -24,7 +24,7 @@
 | 元締め／訂正差分 | 当時snapshot／後日判明した変更。元締めの再計算・再開ではない | [append-only](../domains/cash-register/business-rules.md#requirement-fr-closing-append-only) |
 | 実査誤入力の訂正 | 元締めを保持する権限者・理由付きの追記。有効実査／過不足は変わるが、現金移動・売上を作らない | [実査訂正](../domains/cash-register/business-rules.md#requirement-fr-closing-actual-input-correction) |
 | 在庫品目／管理単位 | 理論数量を管理する医院内の物品と単位。価格masterや臨床投与単位とは別 | [D13](../domains/inventory/business-rules.md) |
-| 現在庫／実績調整 | 現時点の理論数量／実物に基づく増減・棚卸差異。後者はI1の承認範囲のみ | [調整](../domains/inventory/business-rules.md#requirement-fr-inventory-adjustment) |
+| 現在庫／実績調整 | 現時点の理論数量／実物に基づく増減・棚卸差異。後者はI1と[2026-10-20出庫確定回答](../domains/inventory/business-rules.md#inventory-outflow-confirmation-20261020)の承認範囲 | [調整](../domains/inventory/business-rules.md#requirement-fr-inventory-adjustment) |
 | 残少／在庫切れ | 正の数量が正閾値以下／数量0以下。閾値0は在庫切れを解除しない | [導出](../domains/inventory/business-rules.md#requirement-fr-inventory-quantity-status) |
 | 実物返却 | 実際に戻した物品数量。カルテや請求の取消だけで成立しない | [調整](../domains/inventory/business-rules.md#requirement-fr-inventory-adjustment) |
 | 売上／入金額／返金控除後 | 別指標。選択期間の親請求帰属と実移動日帰属を必ず区別 | [D16金額](../domains/analytics/business-rules.md#requirement-fr-analytics-money-separation) |
@@ -71,3 +71,9 @@
 [一覧条件](../shared/ui-contracts.md#requirement-fr-common-ui-list-filter)は表示コンテキストである。日付付き対象業務一覧はメニューから当日、詳細から戻る場合は日付・患者等検索条件を保持。「このペットで絞り込む」は全期間にして医院filterを保持。台帳/マスタ/入院/見積を当日対象へ一律化せず、受付の選択日と未納繰越の既存契約も保持する。
 
 月次の実現金・現金差額の非掲載は[D16](../domains/analytics/business-rules.md#requirement-fr-analytics-matrix-report)、AC-analytics-monthly-no-cash-differenceへ。日次締めの実査/差額と月次売上内訳は別projection。CPM分類語彙や年間/犬種等の旧集計語彙があることを、今期対象外画面の提供承認へ読み替えない。今期の提供範囲は[D16業務正本](../domains/analytics/business-rules.md)を参照する。
+
+## 出庫確定と請求準備の分離（2026-10-20）
+
+[D13の本人回答](../domains/inventory/business-rules.md#inventory-outflow-confirmation-20261020)に従い、院内投薬の実施時、持帰薬・物販の実引渡し時に担当スタッフが出庫確定する。D10のready／準備完了は請求対象の条件で、実引渡し・出庫確定ではない。カルテ保存・請求確定だけでは在庫を減らさず、旧治療create自動減算は現行差として区別する。最小管理単位整数・不足拒否・履歴を維持し、小数臨床量の推測換算・新係数・丸めを追加しない。
+
+[医院営業時間・休診日の共通基準](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)とLINE範囲内別設定は、レジのAM／PM／EMG営業日区分と別である。
