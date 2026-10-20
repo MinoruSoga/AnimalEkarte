@@ -105,6 +105,12 @@ describe("RevisitIntakeSection", () => {
     expect(screen.getByText("この予約の事前問診は届いていません。")).toBeInTheDocument();
     expect(screen.getByText(/任意提出/)).toBeInTheDocument();
     expect(screen.getByText(/受付時に聞き取り/)).toBeInTheDocument();
+    // 職員の閲覧権限と飼主の LINE 回答資格は別。資格を示す契約 field が無いため、
+    // 未回答時に「LINE で回答できる」とは案内しない（手動予約・未連携の飼主を含む）。
+    expect(screen.queryByText(/LINE から回答できます/)).not.toBeInTheDocument();
+    // 職員は問診原文の入力・消去・複写を行わない（操作 UI を出さない）。
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("回答済みは 7 項目をラベル変換して read-only 表示し、版・受信時刻・出所を出す", async () => {
@@ -289,7 +295,9 @@ describe("RevisitIntakeSection", () => {
   it("current 履歴の対象が current_target と別ペットなら fail-closed", async () => {
     respond(
       body({
-        history: [{ target: ref("77", "2"), answer: answer("x1", "1"), target_relation: "current" }],
+        history: [
+          { target: ref("77", "2"), answer: answer("x1", "1"), target_relation: "current" },
+        ],
       }),
     );
     renderSection();
@@ -301,7 +309,9 @@ describe("RevisitIntakeSection", () => {
   it("current 履歴の対象が別世代なら fail-closed", async () => {
     respond(
       body({
-        history: [{ target: ref("10", "1"), answer: answer("x1", "1"), target_relation: "current" }],
+        history: [
+          { target: ref("10", "1"), answer: answer("x1", "1"), target_relation: "current" },
+        ],
       }),
     );
     renderSection();
@@ -360,7 +370,10 @@ describe("RevisitIntakeSection", () => {
       server.use(
         http.get(PATH, ({ request }) => {
           if (new URL(request.url).searchParams.get("cursor")) {
-            return HttpResponse.json({ error: "unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+            return HttpResponse.json(
+              { error: "unauthorized", code: "UNAUTHORIZED" },
+              { status: 401 },
+            );
           }
           return HttpResponse.json(body({ next_cursor: "CURSOR_2" }));
         }),
@@ -368,7 +381,9 @@ describe("RevisitIntakeSection", () => {
       renderSection();
       expect(await screen.findByText("目的a2")).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
-      expect(await screen.findByText("セッションが切れました。再ログインしてください。")).toBeInTheDocument();
+      expect(
+        await screen.findByText("セッションが切れました。再ログインしてください。"),
+      ).toBeInTheDocument();
       expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
       expect(screen.queryByText("回答済み")).not.toBeInTheDocument();
       expect(screen.queryByText(/件/)).not.toBeInTheDocument();
@@ -423,9 +438,7 @@ describe("RevisitIntakeSection", () => {
                 latest_answer: answer("a3", "3"),
                 content_available: true,
               },
-              history: [
-                { target: ref(), answer: answer("a3", "3"), target_relation: "current" },
-              ],
+              history: [{ target: ref(), answer: answer("a3", "3"), target_relation: "current" }],
             }),
           );
         }

@@ -140,7 +140,10 @@ function CollapsibleGroup({
 }
 
 function groupPrevious(entries: RevisitIntakeHistoryEntry[]) {
-  const groups = new Map<string, { ref: RevisitIntakeTargetRef; entries: RevisitIntakeHistoryEntry[] }>();
+  const groups = new Map<
+    string,
+    { ref: RevisitIntakeTargetRef; entries: RevisitIntakeHistoryEntry[] }
+  >();
   for (const entry of entries) {
     const key = `${entry.target.pet_id}|${entry.target.target_generation}`;
     const group = groups.get(key);
@@ -154,9 +157,9 @@ function EmptyUnanswered() {
   return (
     <div className={`space-y-1 rounded-lg border ${C.borderLight} ${C.bgPage} p-3`}>
       <p className={`text-sm ${C.text80}`}>この予約の事前問診は届いていません。</p>
-      <p className={`text-xs ${C.text60}`}>
-        問診は任意提出です。受付前まで飼主が LINE から回答できます。
-      </p>
+      {/* 職員の閲覧権限と飼主の LINE 回答資格は別。資格を示す契約 field が無いため、
+          LINE で回答できるとは案内しない（手動予約・未連携の飼主を含む）。 */}
+      <p className={`text-xs ${C.text60}`}>問診は任意提出です。</p>
       <p className={`text-xs ${C.text60}`}>
         次の操作: 受付時に聞き取り、補足は「予約内容」またはスタッフ側の記録へ。
       </p>
@@ -331,7 +334,10 @@ export function RevisitIntakeSection({
           summary={`訂正履歴${query.hasNextPage ? "" : `（${currentHistory.length}件）`}`}
         >
           {currentHistory.map((h) => (
-            <div key={h.answer.answer_id} className={`border-t pt-2 first:border-t-0 first:pt-0 ${C.borderDivider}`}>
+            <div
+              key={h.answer.answer_id}
+              className={`border-t pt-2 first:border-t-0 first:pt-0 ${C.borderDivider}`}
+            >
               <AnswerBody answer={h.answer} />
             </div>
           ))}
