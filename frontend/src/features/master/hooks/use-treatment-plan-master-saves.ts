@@ -15,6 +15,8 @@ import type {
 } from "@/types/treatment";
 import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types/treatment";
 import {
+  applyItemInsuranceForCreate,
+  applyItemInsuranceForUpdate,
   buildCheckupCreateRequest,
   buildCheckupUpdateRequest,
   buildConsultationCreateRequest,
@@ -74,8 +76,11 @@ export function useTreatmentPlanMasterSaves({
     updateMutation: resources.updateConsultation,
     permissions: { canCreate, canEdit },
     validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: buildConsultationCreateRequest,
-    toUpdateRequest: buildConsultationUpdateRequest,
+    // EMR-454: 診察は is_non_insurance が nullable。保存時だけ保険設定を明示的に足す。
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildConsultationCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(buildConsultationUpdateRequest(data), data.isNonInsurance),
   });
 
   const examinationSave = useMasterSave<
@@ -104,8 +109,11 @@ export function useTreatmentPlanMasterSaves({
     updateMutation: resources.updateProcedure,
     permissions: { canCreate, canEdit },
     validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: buildProcedureCreateRequest,
-    toUpdateRequest: buildProcedureUpdateRequest,
+    // EMR-454: 処置も診察と同じ三状態規則で保存する（未指定/null は送らない）。
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildProcedureCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(buildProcedureUpdateRequest(data), data.isNonInsurance),
   });
 
   const vaccineSave = useMasterSave<

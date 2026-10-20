@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 import {
+  applyItemInsuranceForCreate,
+  applyItemInsuranceForUpdate,
   buildCheckupCreateRequest,
   buildConsultationCreateRequest,
   buildConsultationUpdateRequest,
@@ -168,5 +170,70 @@ describe("buildCheckupCreateRequest", () => {
 
     const priced = buildCheckupCreateRequest(makeFormData({ name: "年次健診", price: 1200 }));
     expect(priced.price).toBe(1200);
+  });
+});
+
+// ─────────────────────────────────────────────────
+// EMR-454: 品目別保険設定（create=対象外初期値 / update=未指定・null・false・true の区別）
+// ─────────────────────────────────────────────────
+
+describe("applyItemInsuranceForCreate", () => {
+  it("新規登録は未設定(null)でも保険対象外(true)を明示する", () => {
+    const request = applyItemInsuranceForCreate(
+      buildConsultationCreateRequest(makeFormData()),
+      null,
+    );
+    expect(request.is_non_insurance).toBe(true);
+  });
+
+  it("処置も同じく新規登録は保険対象外(true)を明示する", () => {
+    const request = applyItemInsuranceForCreate(buildProcedureCreateRequest(makeFormData()), null);
+    expect(request.is_non_insurance).toBe(true);
+  });
+
+  it("利用者が選んだ false(保険対象)を上書きしない", () => {
+    const request = applyItemInsuranceForCreate(
+      buildConsultationCreateRequest(makeFormData()),
+      false,
+    );
+    expect(request.is_non_insurance).toBe(false);
+  });
+});
+
+describe("applyItemInsuranceForUpdate", () => {
+  it("未指定(undefined)は is_non_insurance を送らない", () => {
+    const request = applyItemInsuranceForUpdate(
+      buildConsultationUpdateRequest(makeFormData()),
+      undefined,
+    );
+    expect(request).not.toHaveProperty("is_non_insurance");
+  });
+
+  it("旧欠落(null)は送らず、既存値を反転させない", () => {
+    const request = applyItemInsuranceForUpdate(buildProcedureUpdateRequest(makeFormData()), null);
+    expect(request).not.toHaveProperty("is_non_insurance");
+    expect(request.name).toBe("V04処置テスト");
+  });
+
+  it("明示 false を送る", () => {
+    const request = applyItemInsuranceForUpdate(
+      buildConsultationUpdateRequest(makeFormData()),
+      false,
+    );
+    expect(request.is_non_insurance).toBe(false);
+  });
+
+  it("明示 true を送る", () => {
+    const request = applyItemInsuranceForUpdate(buildProcedureUpdateRequest(makeFormData()), true);
+    expect(request.is_non_insurance).toBe(true);
+  });
+
+  it("親クリア指定を保険設定の付与で落とさない", () => {
+    const request = applyItemInsuranceForUpdate(
+      buildConsultationUpdateRequest(makeFormData({ parentId: "" })),
+      true,
+    );
+    expect(request.clear_parent_id).toBe(true);
+    expect(request.is_non_insurance).toBe(true);
   });
 });

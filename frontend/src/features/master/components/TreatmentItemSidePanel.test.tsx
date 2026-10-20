@@ -8,10 +8,12 @@ import { TreatmentItemSidePanel } from "./TreatmentItemSidePanel";
 function renderPanel({
   item = null,
   showAnesthesia = true,
+  insuranceTriState = false,
   onSave = vi.fn(),
 }: {
   item?: TreatmentItem | null;
   showAnesthesia?: boolean;
+  insuranceTriState?: boolean;
   onSave?: ReturnType<typeof vi.fn>;
 } = {}) {
   render(
@@ -22,6 +24,7 @@ function renderPanel({
       onClose={vi.fn()}
       onSave={onSave}
       showAnesthesia={showAnesthesia}
+      insuranceTriState={insuranceTriState}
     />,
   );
   return { onSave };
@@ -194,5 +197,72 @@ describe("TreatmentItemSidePanel status/insurance toggles (EMR-411 C-2)", () => 
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(toggle).toHaveTextContent("いいえ");
+  });
+});
+
+// ─────────────────────────────────────────────────
+// EMR-454: 診察・処置の三状態（null=旧欠落を false に補完しない）
+// ─────────────────────────────────────────────────
+
+const legacyConsultation: TreatmentItem = {
+  id: "900",
+  name: "旧診察項目",
+  price: 1000,
+  isActive: true,
+  description: "",
+  sortOrder: 1,
+  taxType: "excluded",
+  taxRate: 0.1,
+  isNonInsurance: null,
+};
+
+describe("TreatmentItemSidePanel 保険設定（EMR-454）", () => {
+  it("旧欠落(null)は「未設定」として表示し、保険対象(いいえ)へ補完しない", () => {
+    renderPanel({ item: legacyConsultation, insuranceTriState: true });
+
+    const toggle = screen.getByRole("button", { name: "保険対象外を切り替え" });
+    expect(toggle).toHaveTextContent("未設定");
+    expect(toggle).toHaveAttribute("aria-pressed", "mixed");
+  });
+
+  it("新規項目の初期値は保険対象外(はい)で保存できる", async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel({ insuranceTriState: true });
+
+    const toggle = screen.getByRole("button", { name: "保険対象外を切り替え" });
+    expect(toggle).toHaveTextContent("はい");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    await user.type(document.getElementById("master-title")!, "新規診察");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "新規診察", isNonInsurance: true }),
+    );
+  });
+
+  it("旧欠落を変更せず保存したら null のまま渡す（未指定扱い）", async () => {
+    const user = userEvent.setup();
+    const { onSave } = renderPanel({ item: legacyConsultation, insuranceTriState: true });
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "旧診察項目", isNonInsurance: null }),
+    );
+  });
+
+  it("未設定から明示選択すると true/false の明示値になる", async () => {
+    const user = userEvent.setup();
+    renderPanel({ item: legacyConsultation, insuranceTriState: true });
+
+    const toggle = screen.getByRole("button", { name: "保険対象外を切り替え" });
+    await user.click(toggle);
+    expect(toggle).toHaveTextContent("はい");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(toggle);
+    expect(toggle).toHaveTextContent("いいえ");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 });

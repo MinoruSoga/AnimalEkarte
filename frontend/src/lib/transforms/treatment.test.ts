@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { transformExaminationType } from "./treatment";
-import type { ExaminationType } from "@/types/generated/models";
+import { transformConsultation, transformExaminationType, transformProcedure } from "./treatment";
+import type { Consultation, ExaminationType, Procedure } from "@/types/generated/models";
 
 const minimalExamType: ExaminationType = {
   id: 1,
@@ -28,5 +28,74 @@ describe("transformExaminationType", () => {
 
   it("name をそのまま返す", () => {
     expect(transformExaminationType(minimalExamType).name).toBe("血液検査");
+  });
+});
+
+// ─────────────────────────────────────────────────
+// EMR-454: 診察・処置の is_non_insurance は nullable（null=旧欠落）
+// ─────────────────────────────────────────────────
+
+const minimalConsultation: Consultation = {
+  id: 10,
+  clinic_id: 1,
+  name: "初診",
+  price: 1500,
+  is_active: true,
+  description: "",
+  time_condition: "",
+  tax_type: "excluded",
+  tax_rate: 0.1,
+  sort_order: 0,
+  created_at: "",
+  updated_at: "",
+};
+
+const minimalProcedure: Procedure = {
+  id: 20,
+  clinic_id: 1,
+  name: "処置A",
+  price: 800,
+  is_active: true,
+  description: "",
+  anesthesia: "none",
+  is_surgery: false,
+  tax_type: "excluded",
+  tax_rate: 0.1,
+  sort_order: 0,
+  created_at: "",
+  updated_at: "",
+};
+
+describe("transformConsultation / transformProcedure の is_non_insurance", () => {
+  it("明示 false を保険対象として保持する", () => {
+    expect(
+      transformConsultation({ ...minimalConsultation, is_non_insurance: false }).isNonInsurance,
+    ).toBe(false);
+    expect(
+      transformProcedure({ ...minimalProcedure, is_non_insurance: false }).isNonInsurance,
+    ).toBe(false);
+  });
+
+  it("明示 true を保険対象外として保持する", () => {
+    expect(
+      transformConsultation({ ...minimalConsultation, is_non_insurance: true }).isNonInsurance,
+    ).toBe(true);
+    expect(transformProcedure({ ...minimalProcedure, is_non_insurance: true }).isNonInsurance).toBe(
+      true,
+    );
+  });
+
+  it("旧欠落（カラム自体が無い応答）を false に補完しない", () => {
+    expect(transformConsultation(minimalConsultation).isNonInsurance).toBeNull();
+    expect(transformProcedure(minimalProcedure).isNonInsurance).toBeNull();
+  });
+
+  it("null 応答を false に補完しない", () => {
+    expect(
+      transformConsultation({ ...minimalConsultation, is_non_insurance: null }).isNonInsurance,
+    ).toBeNull();
+    expect(
+      transformProcedure({ ...minimalProcedure, is_non_insurance: null }).isNonInsurance,
+    ).toBeNull();
   });
 });
