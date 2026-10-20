@@ -453,9 +453,17 @@ plane_http_inner() {
   local max_time now remaining
   headers="$(mktemp)"
   while :; do
+    # Pacing must fit the budget first; a refusal stops without an unpaced
+    # request.
+    if ! plane_throttle; then
+      rm -f "$headers"
+      PLANE_HTTP_CODE="000"
+      return 0
+    fi
     # The whole-run wall deadline bounds cumulative transfer time: derive
-    # each transfer timeout from the remaining seconds and stop (deferred)
-    # once the deadline has passed, without sending another request.
+    # each transfer timeout from the remaining seconds AFTER the pacing
+    # sleep, and stop (deferred) once the deadline has passed, without
+    # starting another transfer.
     max_time=30
     now="$(plane_now_epoch)"
     case "$now" in ''|*[!0-9]*) now="$(date +%s)" ;; esac
@@ -468,12 +476,6 @@ plane_http_inner() {
     fi
     if (( remaining < max_time )); then
       max_time=$remaining
-    fi
-    if ! plane_throttle; then
-      # Pacing no longer fits the budget: stop without an unpaced request.
-      rm -f "$headers"
-      PLANE_HTTP_CODE="000"
-      return 0
     fi
     attempt=$(( attempt + 1 ))
     code="$(plane_http_once "$method" "$url" "$payload" "$body_file" "$headers" "$max_time")"
