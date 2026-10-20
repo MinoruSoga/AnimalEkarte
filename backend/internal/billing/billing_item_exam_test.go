@@ -84,6 +84,65 @@ func TestBillingItemExamProvenance_UnbilledCandidates(t *testing.T) {
 		assert.True(t, *items[0].IsInsuranceApplicable)
 	})
 
+	// EMR-454（2026-10-20 チケット回答 Q1）: 現在 master JOIN と fallback の境界。
+	// master の NULL（旧欠落）は従来既定 true/false へ推測補完せず nil のまま候補へ載せる。
+	t.Run("keeps candidate without speculating when master setting is legacy NULL", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(4200)
+		// is_non_insurance を明示更新しない（NULL のまま = 旧欠落相当）
+		makeBillingExam(t, f, "旧欠落検査", &price)
+
+		items, unbillable, err := f.repo.FindUnbilledExamItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Zero(t, unbillable)
+		require.Len(t, items, 1)
+		assert.Nil(t, items[0].IsInsuranceApplicable)
+	})
+
+	// master 行が取得できない（削除済み）場合は候補化せず unbillable として止める。
+	// 旧欠落を既定値へ落として会計行を作らない。
+	t.Run("stops deleted master as blocking unbillable without speculation", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(4200)
+		examType, _ := makeBillingExam(t, f, "削除済みマスタ検査", &price)
+		require.NoError(t, f.db.Model(examType).Update("is_non_insurance", true).Error)
+		require.NoError(t, f.db.Delete(examType).Error)
+
+		items, unbillable, err := f.repo.FindUnbilledExamItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+		assert.Equal(t, 1, unbillable)
+	})
+
+	// EMR-454: 追加後の master 変更で保存済み会計行（snapshot）を書き換えない。
+	// 会計済み exam は未請求候補から外れ、保存済み行の採用値（is_insurance_applicable）は
+	// master 更新の前後で不変（参照値保持）。
+	t.Run("keeps billed snapshot unchanged after master insurance setting changes", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(4200)
+		examType, exam := makeBillingExam(t, f, "会計済み検査", &price)
+		require.NoError(t, f.db.Model(examType).Update("is_non_insurance", true).Error)
+
+		// 会計行として保存（候補の採用値 = 保険対象外 false を snapshot）
+		require.NoError(t, f.db.Exec(
+			`INSERT INTO billing_items (billing_id, clinic_id, category, name, unit_price, quantity, source, is_insurance_applicable, exam_id)
+			 VALUES (?, ?, 'test', ?, ?, 1, 'medical_record', false, ?)`,
+			f.billing.ID, f.clinicID, "会計済み検査", price, exam.ID,
+		).Error)
+
+		// 会計済みのため未請求候補には出ない
+		items, _, err := f.repo.FindUnbilledExamItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+
+		// master を true → false へ変更しても、保存済み行の採用値は書き換わらない
+		require.NoError(t, f.db.Model(examType).Update("is_non_insurance", false).Error)
+		var after model.BillingItem
+		require.NoError(t, f.db.Where("exam_id = ?", exam.ID).First(&after).Error)
+		require.NotNil(t, after.IsInsuranceApplicable)
+		assert.False(t, *after.IsInsuranceApplicable)
+	})
+
 	t.Run("skips unpriced exam type as blocking unbillable", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 		_, _ = makeBillingExam(t, f, "価格未設定検査", nil)
