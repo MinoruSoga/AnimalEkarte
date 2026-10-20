@@ -111,3 +111,5 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 ## 2026-10-20：治療プランと3タブの同一予定追跡
 
 [FR-medical-records-plan-domain-tabs／10AC](pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を追加。検査・予防接種・定期健診の予定を各タブで未実施から追跡する本人承認の正本。実績／結果は各ownerに保持し、予定追加だけで実施・証明書・健診完了・請求確定にしない。[技術差分と設計残件](../../../design/domains/medical-records/technical-spec.md#plan-domain-tabs-target-gap)を分離し、実装・実機受入は未実施。初回合意の履歴件数を改訂するものではない。
+
+[後日予定のカルテレポート確認（1FR／3AC）](pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)を本人回答により追加採用。表示先は既存D21だけで、次回予約・受付・来院時追加表示や別カルテ実績との関連消化は追加しない。上記3タブ連動と合わせ今回追加は2FR／13AC。既存実施・取消状態を尊重し、実装／実機確認は未実施。

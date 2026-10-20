@@ -6,7 +6,7 @@
 | 決定状態 | 既存記載・診療終了済みカルテの履歴対象を継承し、2026-10-15の予防薬専用2帳票の表示・印刷入口を限定追加。未照合の履歴と現行実装差は別に保持 |
 | 実装状態 | 既存記載を継承。今回レポート入口と一般薬歴を固定headで静的照合。専用2帳票の実装適合・他部分の再監査は未確認 |
 | 実機検証状態 | 今回未実施。テスト名・過去証拠の掲載は再実行を意味しない |
-| 文書確認日 | 2026-10-15。本文・参照・FR/AC整理。独立レビュー前 |
+| 文書確認日 | 2026-10-20後日予定の参照接続（従来本文確認2026-10-15）。実装／実機確認とは別 |
 
 
 ## 概要
@@ -236,3 +236,10 @@ Sentinel_0adf405e47508191abf775b6c4af22a3 の回答2により、[D03予防薬専
 ページ権限・section認可と一頭contextを維持し、選択患者の予防薬専用記録と年表を一般薬歴と区別して表示する。管理・訂正はD03 ownerへ同患者・対象recordを渡す。D21に臨床保存を追加せず、閲覧権限からD03編集権限を作らない。専用2帳票だけ選択・保存済み版のプレビュー・出力を可能にし、D21全体や検査・接種・健診等のsectionを一括印刷・公開・共有しない。
 
 受入本文はD03のFR-medical-records-preventive-report-outputとAC-medical-records-prevention-report-entry／two-print／print-stale／print-cancel／report-viewへ単一管理する。FR-owner-report-read-onlyはこの限定例外と両立させる。scope／版変更・取得失敗・不完全な年間表は出力停止、未保存の自動保存なし、再印刷・取消・完了不明から投薬実績／請求／在庫／配信を生まない。[技術trace](../../design/domains/medical-records/technical-spec.md#medical-record-intake-prevention-contract)のD21 reader／専用印刷projectionが対応し、API・実装・実機受入は未実施。
+
+<a id="owner-report-deferred-plan"></a>
+## 過去カルテの後日予定を確認する追加（2026-10-20本人確定）
+
+業務正本・根拠・受入条件は[D03の後日予定レポートFR／3AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)。本人の「カルテのレポートページだけでいいです」に基づき、カルテ右上から開く本ページで選択患者の過去カルテの後日予定を、元record／元予定identityと現在の実施・中止状態を保って確認する。元記録を移動・上書きせず、状態変更済みを未消化の後日予定と誤表示しない。表示配置・取得方式は技術設計未了、実装適合／実機受入は未確認。
+
+スタッフ専用read・ページ／section認可・医院／飼主／一頭contextと取得失敗の区別を維持する。次回予約画面・受付・来院時の追加表示は対象外。別カルテ実績への関連付けによる消化、来院だけの自動実施済み化、元予定移動／上書き、新しい消化操作や臨床writeは追加しない。一般レポートの印刷／共有・LINE公開も拡張しない。既存実施・取消owner手順、同一record後日入力と新来院選択copyを、このreadで代替又は自動実行しない。

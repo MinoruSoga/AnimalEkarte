@@ -717,4 +717,4 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 
 パネル／複数結果の関連多重度と、予定時点に物理資源を作るかprojectionとするか、wire／schema・関連保存単位は未選定。物理設計の未決を理由に業務上の3タブ接続を未承認へ戻さず、全owner一括transaction・自動機器送信・実績自動生成・既存見積／過去記録の再生成へ拡張しない。
 
-後日予定を別来院で元予定の履行として結ぶ方式は[D03の本人回答待ち](../../../spec/domains/medical-records/pages/medical-record-form.md#plan-deferred-cross-visit-open)であり、同一record後日入力・新来院の既存選択copyを区別する。自動移管／別record自動関連や、未選定の保存方式・多重度・権限mappingをこの文書反映から確定しない。
+[本人確定の後日予定レポートFR／3AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)はカルテ右上から開く[D21](../../../spec/screens/39-owner-report.md#owner-report-deferred-plan)のreadに限る。過去カルテの元予定identity・元recordと現在の実施／中止状態を保って参照し、別recordの実績へ結び付けて消化する方式は採用しない。次回予約・受付・来院時の追加表示、来院だけの自動実施、元予定の移動／上書き、新たな消化操作を実装候補にしない。同一record後日入力・新来院の既存選択copyは別操作で、レポートから自動実行しない。具体的projection／取得範囲・配置は設計未了で、未選定の保存方式・多重度・権限mappingを今回確定しない。実装適合・実機受入は未確認。
