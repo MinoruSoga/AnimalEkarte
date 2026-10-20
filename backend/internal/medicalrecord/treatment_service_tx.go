@@ -128,6 +128,10 @@ func (s *treatmentService) updateTreatmentInTx(
 	if err := applyTreatmentDiscountGuard(current, &effective); err != nil {
 		return err
 	}
+	// EMR-488: 行ロック後の locked snapshot で3値ペア不変条件を再検証する（事前チェックとの TOCTOU 閉じ）。
+	if err := validateDosePairsForUpdate(current, &effective); err != nil {
+		return err
+	}
 	if len(buildTreatmentUpdate(&effective)) == 0 {
 		return apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}

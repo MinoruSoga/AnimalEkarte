@@ -103,10 +103,48 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     expect(screen.queryByText("総量")).not.toBeInTheDocument();
   });
 
-  it("1回量の編集 commit で administration_dose_amount と version を送る", async () => {
+  it("未確定ペアの行では 量+単位 を同一操作（同時送信）で登録する", async () => {
+    // DB の ck_administration_dose_pair は両 NULL または両非NULLを要求するため、
+    // 片側ずつの PATCH は 500 になる。未入力行は量+単位を同一 PATCH で送る。
     const user = userEvent.setup();
     const { onUpdate, inputRef } = renderCell({
-      treatment: buildTreatment({ administration_dose_amount: 2.5 }),
+      treatment: buildTreatment(),
+      editField: "administration_dose_amount",
+    });
+    const amountInput = inputRef.current as HTMLInputElement;
+    expect(amountInput).toBeTruthy();
+    await user.type(amountInput, "3");
+    // ペアエディタの単位 input（placeholder=単位）へ入力
+    const unitInput = screen.getByPlaceholderText("単位") as HTMLInputElement;
+    await user.type(unitInput, "mL");
+    fireEvent.keyDown(amountInput, { key: "Enter" });
+    expect(onUpdate).toHaveBeenCalledWith("1", {
+      administration_dose_amount: 3,
+      administration_dose_unit: "mL",
+      version: 3,
+    });
+  });
+
+  it("未確定ペアで単位が空のまま commit しても送信しない（CHECK 違反の 500 を起こさない）", async () => {
+    const user = userEvent.setup();
+    const { onUpdate } = renderCell({
+      treatment: buildTreatment(),
+      editField: "administration_dose_amount",
+    });
+    await user.type(screen.getByPlaceholderText("単位"), "mL");
+    // 量が空のまま Enter（ペアエディタの量 input は inputRef 経由）— 直接キーイベントを送る
+    const pairEditors = screen.getAllByTestId("pair-editor-editing");
+    expect(pairEditors.length).toBeGreaterThan(0);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it("有効ペアの行では 量 だけを単独 PATCH できる（単位は維持される）", async () => {
+    const user = userEvent.setup();
+    const { onUpdate, inputRef } = renderCell({
+      treatment: buildTreatment({
+        administration_dose_amount: 2.5,
+        administration_dose_unit: "錠",
+      }),
       editField: "administration_dose_amount",
     });
     const input = inputRef.current as HTMLInputElement;
@@ -120,43 +158,20 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     });
   });
 
-  it("数値以外の入力は commit されない（不正数値ガード）", async () => {
+  it("0 を入力すると明示 0 として送る（NULL に変換しない）。ペアの単位も同時送信する", async () => {
     const user = userEvent.setup();
     const { onUpdate, inputRef } = renderCell({
-      treatment: buildTreatment({ administration_dose_amount: 2.5 }),
-      editField: "administration_dose_amount",
-    });
-    const input = inputRef.current as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, "abc");
-    fireEvent.blur(input);
-    expect(onUpdate).not.toHaveBeenCalled();
-  });
-
-  it("空入力の commit は送信しない（PATCH に明示クリア経路はないため）", async () => {
-    const user = userEvent.setup();
-    const { onUpdate, onStopEdit, inputRef } = renderCell({
-      treatment: buildTreatment({ administration_dose_amount: 2.5 }),
-      editField: "administration_dose_amount",
-    });
-    const input = inputRef.current as HTMLInputElement;
-    await user.clear(input);
-    fireEvent.blur(input);
-    expect(onUpdate).not.toHaveBeenCalled();
-    expect(onStopEdit).toHaveBeenCalled();
-  });
-
-  it("0 を入力すると明示 0 として送る（NULL に変換しない）", async () => {
-    const user = userEvent.setup();
-    const { onUpdate, inputRef } = renderCell({
-      treatment: buildTreatment({ prescription_total_amount: null }),
+      treatment: buildTreatment(),
       editField: "prescription_total_amount",
     });
-    const input = inputRef.current as HTMLInputElement;
-    await user.type(input, "0");
-    fireEvent.blur(input);
+    const amountInput = inputRef.current as HTMLInputElement;
+    await user.type(amountInput, "0");
+    const unitInput = screen.getByPlaceholderText("単位") as HTMLInputElement;
+    await user.type(unitInput, "錠");
+    fireEvent.keyDown(amountInput, { key: "Enter" });
     expect(onUpdate).toHaveBeenCalledWith("1", {
       prescription_total_amount: 0,
+      prescription_total_unit: "錠",
       version: 3,
     });
   });

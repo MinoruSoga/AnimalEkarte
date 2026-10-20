@@ -88,7 +88,8 @@ export const TreatmentRow = memo(function TreatmentRow({
     [treatment.id, onUpdate],
   );
 
-  const startEdit = useCallback((field: string) => setEditField(field), []);  const stopEdit = useCallback(() => setEditField(null), []);
+  const startEdit = useCallback((field: string) => setEditField(field), []);
+  const stopEdit = useCallback(() => setEditField(null), []);
   const handleDelete = useCallback(() => onDelete(treatment.id), [treatment.id, onDelete]);
   const handleMoveUp = useCallback(() => onMoveUp(treatment.id), [treatment.id, onMoveUp]);
   const handleMoveDown = useCallback(() => onMoveDown(treatment.id), [treatment.id, onMoveDown]);

@@ -5957,6 +5957,10 @@ components:
           description: |
             EMR-488: 1回製剤量（錠/mL等の製剤量）。NULL は未保存、0 は明示 0。
             dose_amount_mg（mg 計算値）・quantity（会計数量）とは別枠。master 等からの補完はしない。
+            量・単位は DB のペア不変条件に従う:
+            両方 NULL、または量が非NULL かつ単位が trim 後非空。
+            片側のみの保存は 400 で拒否される（service 境界で検証・書込は全体不成立）。
+            0 も単位が必須。単位の推測補完は行わない。
         administration_dose_unit:
           type: string
           nullable: true
@@ -5972,6 +5976,7 @@ components:
           nullable: true
           description: |
             EMR-488: 処方総量（今回渡す総量）。NULL は未保存、0 は明示 0
+            量・単位は administration_dose_* と同一のペア不変条件に従う。
         prescription_total_unit:
           type: string
           nullable: true
@@ -6062,7 +6067,9 @@ components:
           type: number
           nullable: true
           description: |
-            EMR-488: 1回製剤量。未指定は NULL 保存（推測補完なし）。0 は明示 0
+            EMR-488: 1回製剤量。未指定は NULL 保存（推測補完なし）。0 は明示 0（単位が必須）。
+            単位 administration_dose_unit とペア必須: 両指定（単位は trim 後非空）または両未指定。
+            片側のみは 400。単位の推測補完は行わない。
         administration_dose_unit:
           type: string
           nullable: true
@@ -6073,7 +6080,8 @@ components:
           type: number
           nullable: true
           description: |
-            EMR-488: 処方総量。未指定は NULL 保存（推測補完なし）。0 は明示 0
+            EMR-488: 処方総量。未指定は NULL 保存（推測補完なし）。0 は明示 0（単位が必須）。
+            単位 prescription_total_unit とペア必須（administration_dose_* と同一条件）。片側のみは 400。
         prescription_total_unit:
           type: string
           nullable: true
@@ -6163,7 +6171,9 @@ components:
           type: number
           nullable: true
           description: |
-            EMR-488: 1回製剤量。未送信は変更なし（既存 PATCH 方式。null も未送信扱い）
+            EMR-488: 1回製剤量。未送信は変更なし（既存 PATCH 方式。null も未送信扱い）。
+            適用後の量・単位がペア不変条件（両NULL または 量非NULL+trim後非空単位）を満たす必要がある。
+            単位未設定の行への量のみの指定は 400。既存の有効ペアに対する片側のみの変更は可能。
         administration_dose_unit:
           type: string
           nullable: true
@@ -6174,7 +6184,8 @@ components:
           type: number
           nullable: true
           description: |
-            EMR-488: 処方総量。未送信は変更なし（既存 PATCH 方式。null も未送信扱い）
+            EMR-488: 処方総量。未送信は変更なし（既存 PATCH 方式。null も未送信扱い）。
+            適用後の量・単位ペア不変条件の詳細は administration_dose_amount を参照。
         prescription_total_unit:
           type: string
           nullable: true
@@ -23224,6 +23235,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            version 不一致（楽観的ロック競合・UAT-R2-EXCLUSIVE-LOCK）。
+            確定済みカルテへの変更も本操作では 409。書込は行われない。
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

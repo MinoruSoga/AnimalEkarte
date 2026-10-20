@@ -239,3 +239,75 @@ func TestThreeValues_ReEditRoundTrip(t *testing.T) {
 	assert.Equal(t, "14", exactText(t, input.PrescriptionTotalAmount))
 	assert.Equal(t, "錠", *input.PrescriptionTotalUnit)
 }
+
+func TestValidateDosePairsForCreate(t *testing.T) {
+	amount := exactFromJSON(t, "2.5")
+
+	tests := []struct {
+		name    string
+		amount  *model.ExactNumeric
+		unit    *string
+		wantErr bool
+	}{
+		{name: "both nil is ok", amount: nil, unit: nil},
+		{name: "valid pair is ok", amount: amount, unit: strPtr("錠")},
+		{name: "amount only is rejected", amount: amount, unit: nil, wantErr: true},
+		{name: "unit only is rejected", amount: nil, unit: strPtr("錠"), wantErr: true},
+		{name: "blank unit is rejected", amount: amount, unit: strPtr("   "), wantErr: true},
+		{name: "zero with unit is ok", amount: exactFromJSON(t, "0"), unit: strPtr("錠")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateDosePairsForCreate(&CreateTreatmentInput{
+				AdministrationDoseAmount: tt.amount,
+				AdministrationDoseUnit:   tt.unit,
+				PrescriptionTotalAmount:  nil,
+				PrescriptionTotalUnit:    nil,
+			})
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+
+	// 処方総量ペアも同一条件で検証される
+	err := validateDosePairsForCreate(&CreateTreatmentInput{
+		PrescriptionTotalAmount: amount,
+	})
+	assert.Error(t, err)
+}
+
+func TestValidateDosePairsForUpdate(t *testing.T) {
+	amount := exactFromJSON(t, "2.5")
+
+	// 未確定ペア（両NULL）の行への 量のみ 指定は 400（DB CHECK 違反を事前に拒否）
+	err := validateDosePairsForUpdate(&model.Treatment{}, &UpdateTreatmentInput{
+		AdministrationDoseAmount: amount,
+	})
+	assert.Error(t, err)
+
+	// 未確定ペアの行への 量+単位 同時指定は OK
+	err = validateDosePairsForUpdate(&model.Treatment{}, &UpdateTreatmentInput{
+		AdministrationDoseAmount: amount,
+		AdministrationDoseUnit:   strPtr("錠"),
+	})
+	assert.NoError(t, err)
+
+	// 有効ペアの行への 量のみ 変更は OK（単位は維持されペアが壊れない）
+	current := &model.Treatment{
+		AdministrationDoseAmount: amount,
+		AdministrationDoseUnit:   strPtr("錠"),
+	}
+	err = validateDosePairsForUpdate(current, &UpdateTreatmentInput{
+		AdministrationDoseAmount: exactFromJSON(t, "3"),
+	})
+	assert.NoError(t, err)
+
+	// 有効ペアの行への 空白単位 への変更は 400
+	err = validateDosePairsForUpdate(current, &UpdateTreatmentInput{
+		AdministrationDoseUnit: strPtr("  "),
+	})
+	assert.Error(t, err)
+}

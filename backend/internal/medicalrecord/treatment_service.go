@@ -207,6 +207,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
 	}
+	// EMR-488: 薬剤3値の量・単位ペア不変条件（DB CHECK と同一条件）を tx 前に検証し 400 で拒否する。
+	if err := validateDosePairsForCreate(input); err != nil {
+		return nil, err
+	}
 
 	status := model.TreatmentStatusPending
 	if input.Status != "" {
@@ -294,6 +298,11 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
 			return nil, err
 		}
+	}
+	// EMR-488: 薬剤3値の量・単位ペア不変条件（DB CHECK と同一条件）を適用後状態で検証し 400 で拒否する。
+	// 既存の有効ペアに対する片側のみの変更（単位維持で量だけ変更等）は許可する。
+	if err := validateDosePairsForUpdate(existing, input); err != nil {
+		return nil, err
 	}
 
 	fields := buildTreatmentUpdate(input)

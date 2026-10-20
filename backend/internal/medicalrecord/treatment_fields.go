@@ -2,11 +2,64 @@ package medicalrecord
 
 import (
 	"maps"
+	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// errMsgDoseAmountUnitPair は EMR-488: 薬剤3値の量・単位ペア不変条件違反時の拒否文言。
+// DB の ck_administration_dose_pair / ck_prescription_total_pair と同一条件を service 境界で先に検証し、
+// CHECK 違反（23514→500）ではなく 400 で拒否する。書込は全体不成立。
+const errMsgDoseAmountUnitPair = "1回製剤量（処方総量）とその単位はペアで入力してください。単位は空白のみの値を許可しません"
+
+// validateDoseAmountUnitPair は 量・単位 のペア不変条件（両 NULL または 量非NULL かつ trim 後非空の単位）
+// を検証する純関数（001_init.sql の ck_administration_dose_pair / ck_prescription_total_pair と同一条件）。
+// EMR-488: 単位の推測補完はしないため、片側のみの入力は保存せず 400 で拒否する。
+func validateDoseAmountUnitPair(amount *model.ExactNumeric, unit *string) error {
+	if amount == nil && unit == nil {
+		return nil
+	}
+	if amount != nil && unit != nil && strings.TrimSpace(*unit) != "" {
+		return nil
+	}
+	return apperrors.WrapInvalidInput(errMsgDoseAmountUnitPair)
+}
+
+// validateDosePairsForCreate は create の3値ペア（1回製剤量・処方総量）を検証する。
+func validateDosePairsForCreate(input *CreateTreatmentInput) error {
+	if err := validateDoseAmountUnitPair(input.AdministrationDoseAmount, input.AdministrationDoseUnit); err != nil {
+		return err
+	}
+	return validateDoseAmountUnitPair(input.PrescriptionTotalAmount, input.PrescriptionTotalUnit)
+}
+
+// validateDosePairsForUpdate は update 適用後の実効状態（nil 入力は既存値を維持）で
+// 3値ペア不変条件を検証する。既存の有効ペアに対する片側のみの変更（単位維持で量だけ変更等）は許可する。
+func validateDosePairsForUpdate(current *model.Treatment, input *UpdateTreatmentInput) error {
+	effAdminAmount := current.AdministrationDoseAmount
+	if input.AdministrationDoseAmount != nil {
+		effAdminAmount = input.AdministrationDoseAmount
+	}
+	effAdminUnit := current.AdministrationDoseUnit
+	if input.AdministrationDoseUnit != nil {
+		effAdminUnit = input.AdministrationDoseUnit
+	}
+	if err := validateDoseAmountUnitPair(effAdminAmount, effAdminUnit); err != nil {
+		return err
+	}
+
+	effTotalAmount := current.PrescriptionTotalAmount
+	if input.PrescriptionTotalAmount != nil {
+		effTotalAmount = input.PrescriptionTotalAmount
+	}
+	effTotalUnit := current.PrescriptionTotalUnit
+	if input.PrescriptionTotalUnit != nil {
+		effTotalUnit = input.PrescriptionTotalUnit
+	}
+	return validateDoseAmountUnitPair(effTotalAmount, effTotalUnit)
+}
 
 // applyTreatmentDiscountGuard rechecks discount fields against the FOR UPDATE locked row.
 // If the request differs from the locked current value without DiscountEditAllowed → Forbidden.
