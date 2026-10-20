@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -29,11 +29,8 @@ vi.mock("@/hooks/use-permission", () => ({
   usePermission: () => ({ canView: true, canCreate: true, canEdit: true, canDelete: true }),
 }));
 
-// EMR-477: 診察/治療プランは stub のまま、親が渡す飼主事前問診スロットだけ描画する。
 vi.mock("./MedicalRecordDiagnosisPlan", () => ({
-  MedicalRecordDiagnosisPlan: ({ ownerIntakeSlot }: { ownerIntakeSlot?: ReactNode }) => (
-    <>{ownerIntakeSlot}</>
-  ),
+  MedicalRecordDiagnosisPlan: () => null,
 }));
 vi.mock("./MedicalRecordTreatment", () => ({ MedicalRecordTreatment: () => null }));
 vi.mock("./RecommendationReasonSelect", () => ({ RecommendationReasonSelect: () => null }));
@@ -592,5 +589,17 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
     expect(screen.getByTestId("owner-intake-card").textContent).toBe(before);
     expect(writes).toEqual([]);
     expect(gets).toBeGreaterThanOrEqual(1);
+  });
+
+  it("isLocked でも再試行ボタンは操作可能（disabled fieldset の外）", async () => {
+    server.use(
+      http.get(INTAKE_ROUTE, () =>
+        HttpResponse.json({ error: "x", code: "INTERNAL", details: null }, { status: 500 }),
+      ),
+    );
+    render(treeFor(makeClient(), PLAN_TAB, { isLocked: true }));
+
+    const retry = await screen.findByRole("button", { name: "再試行" });
+    expect(retry).toBeEnabled();
   });
 });

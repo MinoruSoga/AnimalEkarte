@@ -33,7 +33,7 @@ export interface RevisitIntakeAnswer {
 }
 
 export interface RevisitIntakePersistedTargetRef {
-  target_id: string | null;
+  target_id: string;
   appointment_id: string;
   pet_id: string;
   target_generation: string;
@@ -72,6 +72,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function parseRef(value: unknown): RevisitIntakePersistedTargetRef {
   if (
     !isRecord(value) ||
+    typeof value.target_id !== "string" ||
     typeof value.appointment_id !== "string" ||
     typeof value.pet_id !== "string" ||
     typeof value.target_generation !== "string"
@@ -79,7 +80,7 @@ function parseRef(value: unknown): RevisitIntakePersistedTargetRef {
     throw new Error("revisit-intake: invalid target ref");
   }
   return {
-    target_id: typeof value.target_id === "string" ? value.target_id : null,
+    target_id: value.target_id,
     appointment_id: value.appointment_id,
     pet_id: value.pet_id,
     target_generation: value.target_generation,
@@ -133,24 +134,46 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
     throw new Error("revisit-intake: invalid binding");
   }
   const t = value.target;
-  if (t.answer_state !== "unanswered" && t.answer_state !== "answered") {
-    throw new Error("revisit-intake: invalid answer_state");
+  const answerState = t.answer_state;
+  const contentAvailable = t.content_available;
+  const headRevision = t.head_revision;
+  if (
+    (answerState !== "unanswered" && answerState !== "answered") ||
+    typeof contentAvailable !== "boolean" ||
+    (headRevision !== null && typeof headRevision !== "string") ||
+    t.latest_answer === undefined
+  ) {
+    throw new Error("revisit-intake: invalid target state");
+  }
+  const latest = t.latest_answer === null ? null : parseAnswer(t.latest_answer);
+  // 状態の組合せ不整合は契約失敗。「本文は閲覧できません」等へ正規化しない。
+  if (answerState === "unanswered") {
+    if (headRevision !== null || latest !== null || contentAvailable) {
+      throw new Error("revisit-intake: inconsistent unanswered target");
+    }
+  } else if (headRevision === null || (contentAvailable ? latest === null : latest !== null)) {
+    throw new Error("revisit-intake: inconsistent answered target");
   }
   return {
     binding: "bound",
     target: {
       ref: parseRef(t.ref),
-      head_revision: typeof t.head_revision === "string" ? t.head_revision : null,
-      answer_state: t.answer_state,
-      latest_answer: t.latest_answer === null ? null : parseAnswer(t.latest_answer),
-      content_available: t.content_available === true,
+      head_revision: headRevision,
+      answer_state: answerState,
+      latest_answer: latest,
+      content_available: contentAvailable,
     },
     history: value.history.map((entry) => {
-      if (!isRecord(entry)) throw new Error("revisit-intake: invalid history entry");
+      if (
+        !isRecord(entry) ||
+        (entry.target_relation !== "current" && entry.target_relation !== "previous")
+      ) {
+        throw new Error("revisit-intake: invalid history entry");
+      }
       return {
         target: parseRef(entry.target),
         answer: parseAnswer(entry.answer),
-        target_relation: entry.target_relation === "previous" ? "previous" : "current",
+        target_relation: entry.target_relation,
       };
     }),
     next_cursor: typeof value.next_cursor === "string" ? value.next_cursor : null,

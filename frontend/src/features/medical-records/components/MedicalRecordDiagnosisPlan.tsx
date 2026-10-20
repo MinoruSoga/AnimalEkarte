@@ -7,7 +7,6 @@ import {
   useCallback,
   useLayoutEffect,
   useRef,
-  type ReactNode,
 } from "react";
 import { toast } from "sonner";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
@@ -69,12 +68,6 @@ export interface DiagnosisPlanProps {
   isPetDeceased?: boolean;
   petSpecies?: string | null;
   isWriteBlocked?: boolean;
-  /**
-   * EMR-477: 飼主事前問診（読み取り専用）の差し込み口。DiagnosisHeader 直下・ClinicalPlanSection の上。
-   * 親（MedicalRecordClinicalTabs）が読取専用カードを構成して渡す。本コンポーネントの
-   * clinical_plan state・治療明細・複写処理とは独立で、原文を扱う経路を持たない。
-   */
-  ownerIntakeSlot?: ReactNode;
 }
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
@@ -101,7 +94,6 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   isPetDeceased = false,
   petSpecies,
   isWriteBlocked = false,
-  ownerIntakeSlot,
 }: DiagnosisPlanProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -336,8 +328,6 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         selectedDiagnosis2Type={clinicalPlan?.diagnosis_2_type}
         selectedDiagnosis2Name={clinicalPlan?.diagnosis_2_name}
       />
-
-      {ownerIntakeSlot ? <div className="shrink-0">{ownerIntakeSlot}</div> : null}
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">

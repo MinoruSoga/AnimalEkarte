@@ -202,12 +202,14 @@ function BoundBody({
   hasNextPage,
   isFetchingNextPage,
   onLoadMore,
+  refreshError,
 }: {
   target: RevisitIntakeBoundTarget;
   history: RevisitIntakeHistoryEntry[];
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onLoadMore: () => void;
+  refreshError?: ReactNode;
 }) {
   const latest = target.latest_answer;
   const canShowBody = target.answer_state === "answered" && target.content_available && !!latest;
@@ -215,7 +217,11 @@ function BoundBody({
   // 固定 target 内の旧 revision だけを出す。他 target の行・現在版との重複は出さない。
   const pastEntries = history.filter(
     (entry) =>
+      entry.target_relation === "current" &&
       entry.target.target_id === target.ref.target_id &&
+      entry.target.appointment_id === target.ref.appointment_id &&
+      entry.target.pet_id === target.ref.pet_id &&
+      entry.target.target_generation === target.ref.target_generation &&
       entry.answer.answer_id !== latest?.answer_id,
   );
 
@@ -223,6 +229,7 @@ function BoundBody({
     return (
       <CardShell badge="未回答">
         <UnansweredEmptyState />
+        {refreshError}
       </CardShell>
     );
   }
@@ -231,6 +238,13 @@ function BoundBody({
     return (
       <CardShell badge="回答済み">
         <p className={`text-sm ${C.text}`}>回答済み（本文は閲覧できません）</p>
+        <HistoryList
+          entries={pastEntries}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+          onLoadMore={onLoadMore}
+        />
+        {refreshError}
       </CardShell>
     );
   }
@@ -245,6 +259,7 @@ function BoundBody({
         isFetchingNextPage={isFetchingNextPage}
         onLoadMore={onLoadMore}
       />
+      {refreshError}
     </CardShell>
   );
 }
@@ -275,6 +290,7 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
     );
   }
 
+  let refreshError: ReactNode = null;
   if (query.isError) {
     const status = getRevisitIntakeErrorStatus(query.error);
     if (status === 404) return null;
@@ -285,24 +301,25 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
         </p>
       );
     }
-    return (
-      <CardShell>
-        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-          <span className={C.text}>飼主事前問診を取得できませんでした。</span>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void query.refetch()}
-            disabled={query.isFetching}
-          >
-            再試行
-          </Button>
-        </div>
-      </CardShell>
+    const retry = () =>
+      void (query.isFetchNextPageError ? query.fetchNextPage() : query.refetch());
+    const alert = (
+      <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
+        <span className={C.text}>
+          {query.data ? "最新の状態を取得できませんでした。" : "飼主事前問診を取得できませんでした。"}
+        </span>
+        <Button type="button" variant="outline" onClick={retry} disabled={query.isFetching}>
+          再試行
+        </Button>
+      </div>
     );
+    // 初回読込の失敗だけを全面エラーにする。取得済みデータは保持し inline で再試行させる。
+    if (!query.data) return <CardShell>{alert}</CardShell>;
+    refreshError = alert;
   }
 
-  const first = query.data.pages[0];
+  const first = query.data?.pages[0];
+  if (!first) return null;
 
   if (first.binding === "unbound") {
     return (
@@ -311,6 +328,7 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
         <p className={`text-xs ${C.text60}`}>
           このカルテは予約の問診回答と結び付いていないため、未回答とは判断できません。
         </p>
+        {refreshError}
       </CardShell>
     );
   }
@@ -322,6 +340,7 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
         <p className={`text-sm ${C.text}`}>
           予約回答の出所を確認できないため、飼主の回答は表示しません。
         </p>
+        {refreshError}
       </CardShell>
     );
   }
@@ -337,6 +356,7 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
       hasNextPage={query.hasNextPage}
       isFetchingNextPage={query.isFetchingNextPage}
       onLoadMore={() => void query.fetchNextPage()}
+      refreshError={refreshError}
     />
   );
 });

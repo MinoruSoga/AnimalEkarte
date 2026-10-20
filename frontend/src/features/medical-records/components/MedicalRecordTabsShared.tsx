@@ -9,6 +9,7 @@ export function MedicalRecordMountedTab({
   contentClassName,
   isLocked,
   internalLock = false,
+  leading,
   children,
 }: {
   tab: string;
@@ -19,9 +20,26 @@ export function MedicalRecordMountedTab({
   isLocked: boolean;
   /** true: ロック境界を子コンポーネント内で管理するタブ（読み取り専用パネルを fieldset 外に出す）。 */
   internalLock?: boolean;
+  /** lock の影響外（disabled fieldset の外）に置くタブ先頭の読み取り専用領域。再試行等の閲覧操作を殺さない。 */
+  leading?: ReactNode;
   children: ReactNode;
 }) {
   if (!mountedTabs.has(tab)) return null;
+  if (leading && !internalLock) {
+    return (
+      <UnifiedTabsContent value={tab} className={contentClassName}>
+        <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>
+          <div className="shrink-0 px-4 pt-4 empty:hidden">{leading}</div>
+          <fieldset
+            disabled={isLocked}
+            className={`flex-1 min-h-0 flex flex-col border-0 p-0 m-0 min-w-0 ${STYLE.readonlyInputs}`}
+          >
+            {children}
+          </fieldset>
+        </div>
+      </UnifiedTabsContent>
+    );
+  }
   return (
     <UnifiedTabsContent value={tab} className={contentClassName}>
       {internalLock ? (

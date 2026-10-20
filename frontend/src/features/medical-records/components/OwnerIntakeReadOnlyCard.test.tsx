@@ -330,3 +330,119 @@ describe("OwnerIntakeReadOnlyCard — 履歴（固定 target 内の旧 revision�
     expect(screen.queryByRole("button", { name: "さらに表示" })).toBeNull();
   });
 });
+
+describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () => {
+  it("未回答なのに latest_answer がある不整合は契約失敗（redacted に正規化しない）", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: null,
+          answer_state: "unanswered",
+          latest_answer: answer("1"),
+          content_available: false,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("回答済み（本文は閲覧できません）")).toBeNull();
+  });
+
+  it("answered・content_available=true で latest_answer が無い場合は契約失敗", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: null,
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("回答済み（本文は閲覧できません）")).toBeNull();
+  });
+
+  it("target_relation が契約外の履歴行は契約失敗", async () => {
+    useIntake(
+      boundBody({ history: [{ target: REF, answer: answer("1"), target_relation: "other" }] }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("target_id が欠落した履歴の target は契約失敗", async () => {
+    const { target_id: _omit, ...noId } = REF;
+    void _omit;
+    useIntake(
+      boundBody({ history: [{ target: noId, answer: answer("1"), target_relation: "current" }] }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("本文不可でも行認可済みの履歴と「さらに表示」は描画する", async () => {
+    useIntake({
+      binding: "bound",
+      target: {
+        ref: REF,
+        head_revision: "3",
+        answer_state: "answered",
+        latest_answer: null,
+        content_available: false,
+      },
+      history: [
+        { target: REF, answer: answer("1", { visit_purpose: "合成の閲覧可能な旧版" }), target_relation: "current" },
+      ],
+      next_cursor: "cur-2",
+    });
+    renderCard();
+
+    expect(await screen.findByText("回答済み（本文は閲覧できません）")).toBeInTheDocument();
+    expect(screen.getByText("合成の閲覧可能な旧版")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "さらに表示" })).toBeInTheDocument();
+  });
+
+  it("次ページ取得に失敗しても取得済みの本文を保持し inline で再試行できる", async () => {
+    let calls = 0;
+    server.use(
+      http.get(ROUTE, ({ request }) => {
+        calls += 1;
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        if (cursor === "cur-2" && calls <= 2) {
+          return HttpResponse.json({ error: "x", code: "INTERNAL", details: null }, { status: 500 });
+        }
+        if (cursor === "cur-2") {
+          return HttpResponse.json(
+            boundBody({
+              history: [
+                { target: REF, answer: answer("0x", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
+              ],
+              next_cursor: null,
+            }),
+          );
+        }
+        return HttpResponse.json(boundBody({ next_cursor: "cur-2" }));
+      }),
+    );
+    renderCard();
+
+    await screen.findByText("合成の来院目的 v2");
+    await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("最新の状態を取得できませんでした。");
+    expect(screen.getByText("合成の来院目的 v2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "再試行" }));
+    expect(await screen.findByText("合成の次ページ目的")).toBeInTheDocument();
+  });
+});
