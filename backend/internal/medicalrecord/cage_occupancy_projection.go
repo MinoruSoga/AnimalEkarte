@@ -1,0 +1,116 @@
+package medicalrecord
+
+import (
+	"context"
+	"slices"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+)
+
+// StayCageOccupancyState is the effective lifecycle decision supplied by EMR-499,
+// not a raw stay_movement_events.event_kind. The cage adapter never interprets
+// correction chains, planned dates, or the removed hospitalizations.status.
+type StayCageOccupancyState string
+
+const (
+	StayCageReserved StayCageOccupancyState = "reserved"
+	StayCageAdmitted StayCageOccupancyState = "admitted"
+	StayCageReleased StayCageOccupancyState = "released"
+	StayCageUnknown  StayCageOccupancyState = "unknown"
+)
+
+// StayCageEffectiveState is the minimum 499 -> 461 handoff. EvidenceVersion is
+// the owner's effective-state evidence revision, not a cage CAS version.
+type StayCageEffectiveState struct {
+	ClinicID        uint64
+	StayCaseID      uint64
+	State           StayCageOccupancyState
+	EvidenceVersion int64
+}
+
+// StayCageEffectiveStateReader is provided by the one EMR-499 lifecycle core.
+// It must return one current, clinic-scoped decision per requested stay case.
+// Under an ambient transaction it must use that transaction and the agreed
+// writer/reader lock protocol, so a lifecycle correction cannot pass the cage
+// check and commit a conflicting occupancy. That protocol is an integration
+// prerequisite; this interface does not invent an event interpretation/lock.
+// Missing, unresolvable and legacy cases must be unknown, never released.
+type StayCageEffectiveStateReader interface {
+	ReadEffectiveStatesForCageAssignment(ctx context.Context, clinicID uint64, stayCaseIDs []uint64) ([]StayCageEffectiveState, error)
+}
+
+type stayCageAssignment struct {
+	HospitalizationID uint64
+	ClinicID          uint64
+	StayCaseID        *uint64
+	CageID            uint64
+}
+
+// countEffectiveStayCages is shared by candidate read and every save-time count.
+// Self exclusion is by hospitalization identity, never by cage or patient.
+func countEffectiveStayCages(ctx context.Context, clinicID uint64, assignments []stayCageAssignment, excludeHospitalizationIDs []uint64, reader StayCageEffectiveStateReader) (map[uint64]int64, error) {
+	if clinicID == 0 {
+		return nil, apperrors.WrapInvalidInput("clinic is required")
+	}
+	if reader == nil {
+		return nil, apperrors.WrapServiceUnavailable("stay effective-state reader is not configured")
+	}
+	relevant := make([]stayCageAssignment, 0, len(assignments))
+	stayIDs := make([]uint64, 0, len(assignments))
+	seenHospitalizations := make(map[uint64]struct{}, len(assignments))
+	seenStays := make(map[uint64]struct{}, len(assignments))
+	for _, row := range assignments {
+		if row.ClinicID != clinicID || row.HospitalizationID == 0 || row.CageID == 0 {
+			return nil, apperrors.WrapServiceUnavailable("cage assignment scope is unresolved")
+		}
+		if slices.Contains(excludeHospitalizationIDs, row.HospitalizationID) {
+			continue
+		}
+		if row.StayCaseID == nil || *row.StayCaseID == 0 {
+			return nil, apperrors.WrapServiceUnavailable("cage assignment has no resolved stay")
+		}
+		if _, exists := seenHospitalizations[row.HospitalizationID]; exists {
+			return nil, apperrors.WrapServiceUnavailable("duplicate cage assignment identity")
+		}
+		if _, exists := seenStays[*row.StayCaseID]; exists {
+			return nil, apperrors.WrapServiceUnavailable("duplicate stay assignment identity")
+		}
+		seenHospitalizations[row.HospitalizationID] = struct{}{}
+		seenStays[*row.StayCaseID] = struct{}{}
+		stayIDs = append(stayIDs, *row.StayCaseID)
+		relevant = append(relevant, row)
+	}
+	counts := make(map[uint64]int64)
+	if len(stayIDs) == 0 {
+		return counts, nil
+	}
+	slices.Sort(stayIDs)
+	states, err := reader.ReadEffectiveStatesForCageAssignment(ctx, clinicID, stayIDs)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to read effective stay occupancy")
+	}
+	byStay := make(map[uint64]StayCageEffectiveState, len(states))
+	for _, state := range states {
+		_, requested := seenStays[state.StayCaseID]
+		_, duplicate := byStay[state.StayCaseID]
+		if state.ClinicID != clinicID || !requested || duplicate || state.EvidenceVersion <= 0 {
+			return nil, apperrors.WrapServiceUnavailable("stay occupancy evidence is unresolved")
+		}
+		byStay[state.StayCaseID] = state
+	}
+	for _, row := range relevant {
+		state, ok := byStay[*row.StayCaseID]
+		if !ok {
+			return nil, apperrors.WrapServiceUnavailable("stay occupancy evidence is missing")
+		}
+		switch state.State {
+		case StayCageReserved, StayCageAdmitted:
+			counts[row.CageID]++
+		case StayCageReleased:
+			// Only the core's explicit resolved decision releases occupancy.
+		default:
+			return nil, apperrors.WrapServiceUnavailable("stay occupancy is unknown")
+		}
+	}
+	return counts, nil
+}
