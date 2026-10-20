@@ -94,7 +94,7 @@ func wireMastersHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 	t.Helper()
 	tx := persistenceTx(db)
 	chiefSvc := ChiefComplaintTypeService(NewChiefComplaintTypeService(NewChiefComplaintTypeRepository(db)))
-	consultSvc := ConsultationService(NewConsultationServiceWithAudit(NewConsultationRepository(db), MasterInsuranceWriteDependencies{Transactor: tx, Audit: masterTestAudit{}}))
+	consultSvc := ConsultationService(NewConsultationService(NewConsultationRepository(db)))
 	diagTypeSvc := DiagnosisTypeService(NewDiagnosisTypeService(NewDiagnosisTypeRepository(db)))
 	diagNameSvc := DiagnosisNameService(NewDiagnosisNameService(NewDiagnosisNameRepository(db), NewDiagnosisTypeRepository(db)))
 	examTypeSvc := ExaminationTypeService(NewExamTypeService(NewExamTypeRepository(db), tx))
@@ -102,8 +102,8 @@ func wireMastersHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 	medRepo := NewMedicineRepository(db)
 	medicineSvc := MedicineService(NewMedicineServiceWithAudit(medRepo, nil, nil, nil))
 	doseSvc := MedicineDoseParamService(NewMedicineDoseParamService(NewMedicineDoseParamRepository(db), medRepo, tx, nil))
-	procedureSvc := ProcedureService(NewProcedureServiceWithAudit(NewProcedureRepository(db), MasterInsuranceWriteDependencies{Transactor: tx, Audit: masterTestAudit{}}))
-	vaccineSvc := VaccineService(NewVaccineServiceWithAudit(NewVaccineRepository(db), MasterInsuranceWriteDependencies{Transactor: tx, Audit: masterTestAudit{}}))
+	procedureSvc := ProcedureService(NewProcedureService(NewProcedureRepository(db), tx))
+	vaccineSvc := VaccineService(NewVaccineService(NewVaccineRepository(db)))
 	cageSvc := CageService(NewCageService(NewCageRepository(db), tx))
 	hospPlanSvc := HospitalizationPlanService(NewHospitalizationPlanService(NewHospitalizationPlanRepository(db)))
 	checkupTypeSvc := CheckupTypeService(NewCheckupTypeService(NewCheckupTypeRepository(db)))
@@ -111,6 +111,9 @@ func wireMastersHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 		NewCheckupRepository(db), NewMedicalRecordRepository(db),
 		NewCheckupTypeFieldRepository(db), NewCheckupFieldResultRepository(db), nil, tx,
 	))
+
+	// Apply the audited vaccine consumer independently of the shared master setup.
+	vaccineSvc = NewVaccineServiceWithAudit(NewVaccineRepository(db), MasterInsuranceWriteDependencies{Transactor: tx, Audit: masterTestAudit{}})
 
 	if forbidden != 0 {
 		g := clinicIDGuard{t: t, forbiddenClinicID: forbidden}
