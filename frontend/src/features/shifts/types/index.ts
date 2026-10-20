@@ -1,39 +1,36 @@
 /**
  * Shifts feature types
- * Backend types: {@link ShiftEntry}, {@link ShiftType as BackendShiftType} from models.ts
+ * 契約型: {@link ShiftEntry} は backend/docs/api.yaml（PR740採用SHA）の新契約。
+ * 共有生成 models.ts は ShiftType（enum値は不変）のみ利用する。
  */
 // FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
 // 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
 import type { ShiftType } from "@/types/generated/models";
 export type { ShiftType };
 
-/** UI-facing shift (string IDs — post-transform) */
+/** UI-facing shift (post-transform — EMR-514 新契約) */
 export type { Shift } from "../api/transforms";
 
-/** @see {@link import("@/types/generated/models").ShiftEntry} */
+/** フォームの休憩入力行（HH:mm 時刻。送信時に JST date-time へ組み立てる） */
 export interface ShiftBreakInput {
   break_start: string;
   break_end: string;
 }
 
-export interface CreateShiftInput {
-  staff_id: string;
-  date: string; // YYYY-MM-DD
-  shift_type: ShiftType;
-  start_time?: string;
-  end_time?: string;
-  notes?: string;
-  breaks?: ShiftBreakInput[];
-}
-
-/** @see {@link import("@/types/generated/models").ShiftEntry} */
-export interface UpdateShiftInput {
-  shift_type?: ShiftType;
-  start_time?: string;
-  end_time?: string;
-  notes?: string;
-  breaks?: ShiftBreakInput[];
-}
+export { SHIFT_CONTRACT_ERROR_CODES } from "../api/contract-types";
+export type {
+  CreateShiftRequest,
+  ShiftContractError,
+  ShiftContractErrorCode,
+  ShiftIntervalState,
+  ShiftMutationIntent,
+  ShiftMutationReceipt,
+  ShiftOperationResult,
+  ShiftProtectedBooking,
+  ShiftWorkBreak,
+  ShiftWorkBreakView,
+  UpdateShiftRequest,
+} from "../api/contract-types";
 
 export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
   full: "全日",

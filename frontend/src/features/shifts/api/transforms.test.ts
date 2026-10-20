@@ -1,60 +1,80 @@
 import { describe, it, expect } from "vitest";
 import { transformShift } from "./transforms";
-import type { BackendShift } from "./types";
+import type { ShiftEntry } from "./contract-types";
 
-const minimal: BackendShift = {
-  id: 1,
-  clinic_id: 1,
-  staff_id: 2,
-  date: "2026-03-25T00:00:00Z",
-  shift_type: "day",
-  start_time: "09:00",
-  end_time: "18:00",
+const minimal: ShiftEntry = {
+  id: "7",
+  clinic_id: "1",
+  staff_id: "5",
+  staff_name: "山田",
+  date: "2026-03-25",
+  shift_type: "full",
+  starts_at: "2026-03-25T09:00:00+09:00",
+  ends_at: "2026-03-25T18:00:00+09:00",
+  version: 3,
+  interval_state: "known",
   notes: "",
-  created_at: "2026-03-25T00:00:00Z",
-  updated_at: "2026-03-25T00:00:00Z",
+  breaks: [],
+  created_at: "2026-03-25T00:00:00+09:00",
+  updated_at: "2026-03-25T00:00:00+09:00",
 };
 
-describe("transformShift", () => {
-  it("id を string に変換する", () => {
-    expect(transformShift({ ...minimal, id: 7 }).id).toBe("7");
+describe("transformShift（EMR-514 固定API契約）", () => {
+  it("契約DTOの正十進文字列IDをNumber変換せず保持する", () => {
+    const result = transformShift(minimal);
+    expect(result.id).toBe("7");
+    expect(result.staff_id).toBe("5");
+    expect(result.clinic_id).toBe("1");
   });
 
-  it("clinic_id を string に変換する", () => {
-    expect(transformShift({ ...minimal, clinic_id: 3 }).clinic_id).toBe("3");
+  it("version と interval_state を保持する", () => {
+    const result = transformShift(minimal);
+    expect(result.version).toBe(3);
+    expect(result.interval_state).toBe("known");
   });
 
-  it("staff_id を string に変換する", () => {
-    expect(transformShift({ ...minimal, staff_id: 5 }).staff_id).toBe("5");
-  });
-
-  it("date を T以前の日付部分のみに整形する", () => {
-    expect(transformShift({ ...minimal, date: "2026-03-25T00:00:00Z" }).date).toBe("2026-03-25");
-  });
-
-  it("date が未設定のとき空文字を返す", () => {
-    expect(transformShift({ ...minimal, date: undefined as unknown as string }).date).toBe("");
-  });
-
-  it("staff.name を staff_name に優先する", () => {
+  it("明示NULL日時（off/paid_leave）を null のまま保持する", () => {
     const result = transformShift({
       ...minimal,
-      staff: { id: 5, clinic_id: 1, name: "山田" } as BackendShift["staff"],
-      staff_name: "旧名前",
+      shift_type: "off",
+      starts_at: null,
+      ends_at: null,
+      breaks: [],
     });
+    expect(result.starts_at).toBeNull();
+    expect(result.ends_at).toBeNull();
+  });
+
+  it("unknown休憩を配列から黙って除外しない", () => {
+    const result = transformShift({
+      ...minimal,
+      interval_state: "unknown",
+      starts_at: null,
+      ends_at: null,
+      breaks: [
+        { interval_state: "unknown", starts_at: null, ends_at: null },
+        { interval_state: "unknown", starts_at: "2026-03-25T12:00:00+09:00", ends_at: null },
+        {
+          interval_state: "known",
+          starts_at: "2026-03-25T15:00:00+09:00",
+          ends_at: "2026-03-25T15:30:00+09:00",
+        },
+      ],
+    });
+    expect(result.breaks).toHaveLength(3);
+    expect(result.breaks[0]?.interval_state).toBe("unknown");
+    expect(result.breaks[1]?.starts_at).toBe("2026-03-25T12:00:00+09:00");
+    expect(result.breaks[2]?.interval_state).toBe("known");
+  });
+
+  it("staff_name をそのまま返す（旧 staff オブジェクト合成はしない）", () => {
+    const result = transformShift(minimal);
     expect(result.staff_name).toBe("山田");
   });
 
-  it("staff が未設定のとき staff_name フィールドを使う", () => {
-    const result = transformShift({ ...minimal, staff: undefined, staff_name: "鈴木" });
-    expect(result.staff_name).toBe("鈴木");
-  });
-
-  it("shift_type をそのまま返す", () => {
-    expect(transformShift({ ...minimal, shift_type: "night" }).shift_type).toBe("night");
-  });
-
-  it("notes が未設定のとき空文字を返す", () => {
-    expect(transformShift({ ...minimal, notes: undefined }).notes).toBe("");
+  it("notes / date をそのまま返す（dateは開始側JST日付の契約）", () => {
+    const result = transformShift({ ...minimal, notes: "メモ", date: "2026-03-25" });
+    expect(result.notes).toBe("メモ");
+    expect(result.date).toBe("2026-03-25");
   });
 });

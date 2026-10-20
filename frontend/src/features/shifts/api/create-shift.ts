@@ -1,13 +1,13 @@
 import { axios } from "@/lib/axios";
-import type { CreateShiftInput } from "../types";
-import { transformShift } from "./transforms";
-import type { Shift } from "./transforms";
-import type { BackendShift } from "./types";
+import type { ShiftMutationReceipt } from "./contract-types";
+import type { CreateShiftRequest } from "../types";
 
-export async function createShift(input: CreateShiftInput): Promise<Shift> {
-  const { data } = await axios.post<BackendShift>("/v1/shifts", {
-    ...input,
-    staff_id: Number(input.staff_id),
-  });
-  return transformShift(data);
+/**
+ * POST /v1/shifts（EMR-514 固定API契約）。
+ * 全入力を明示した CreateShiftRequest を送り、確定 receipt を返す。
+ * 成功判定は一覧の再取得ではなく receipt で行う。
+ */
+export async function createShift(request: CreateShiftRequest): Promise<ShiftMutationReceipt> {
+  const { data } = await axios.post<ShiftMutationReceipt>("/v1/shifts", request);
+  return data;
 }
