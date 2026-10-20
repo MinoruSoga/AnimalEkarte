@@ -52,10 +52,10 @@ type SaveConversationSummaryCommand struct {
 	//   0   : 「未保存（3列すべて NULL）」を期待（CHECK 制約により保存済み revision は 1 以上）
 	//   n>0 : 現在の revision が n のときだけ保存する
 	//
-	// 再送例外: 0行更新のときは保存済み内容が本commandの意図（summary+source）と
-	// 一致するかを先に判定する。一致する再送（同一要求の再送・期待版が実際の版より
-	// 古い/未来値の場合を含む）は冪等成功で返し、内容が異なる期待版不一致だけを
-	// conflict にする（Save の doc comment を正本とする）。
+	// 再送例外: 内容（summary+source）が保存済み値と一致する呼び出しは、期待版が
+	// 実際の版と不一致でも同一statement内で冪等成功（no-op、revision 据え置き）。
+	// 内容が異なる期待版不一致だけを conflict にする
+	// （Save の doc comment を正本とする）。
 	ExpectedRevision *int64
 }
 
@@ -127,11 +127,14 @@ func (r *conversationSummaryRepository) FindByMedicalRecordID(ctx context.Contex
 //     初回保存は 1 になる。同一内容の再送は revision 据え置き（no-op 成功）。
 //   - 成功時は RETURNING で自分のstatementが採番した revision を受け取る。
 //     他writerが先行・後続しても自分の書込み結果を返す（lost update / 誤conflict の
-//     競合窗口が存在しない）。no-op 判定も同じstatementのスナップショットで確定する。
-//   - 0 行更新のときは読戻しで分類する: 対象なし（論理削除済みを含む）は NotFound、
-//     内容一致は冪等成功、期待版不一致は conflict。この経路は commit 済みの書込みを
-//     伴わないため、backend/CLAUDE.md「commit済みの成功を後段の再取得errorで
-//     失敗応答へ反転させない」に触れない。
+//     競合窗口が存在しない）。no-op 判定・内容一致の再送判定も同じstatementの
+//     スナップショットで確定する。
+//   - expected revision（ある場合）: 一致すれば通常の増分/据え置き判定。不一致でも
+//     内容が本commandと一致する再送は内容一致の no-op として成功させる
+//     （期待版述語 OR 内容一致 を同一述語に含める）。0 行更新は 対象なし / 内容不一致
+//     かつ期待版不一致 になり、読戻しで NotFound / conflict を分類する。この経路は
+//     commit 済みの書込みを伴わないため、backend/CLAUDE.md「commit済みの成功を
+//     後段の再取得errorで失敗応答へ反転させない」に触れない。
 func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConversationSummaryCommand) (*ConversationSummary, error) {
 	if err := cmd.validate(); err != nil {
 		return nil, err
@@ -163,8 +166,11 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 	args := []any{cmd.Summary, cmd.Source, cmd.Summary, cmd.Source, cmd.MedicalRecordID, cmd.ClinicID}
 	if cmd.ExpectedRevision != nil {
 		// 保存済み revision は CHECK 制約により 1 以上なので、0 は「未保存」と一意に対応する。
-		query += " AND COALESCE(conversation_summary_revision, 0) = ?"
-		args = append(args, *cmd.ExpectedRevision)
+		// 期待版が不一致でも、内容がすでに本commandと一致している再送は内容一致の
+		// no-op として同一snapshotで成功させる（読戻し競合で誤conflictにしない）。
+		query += " AND (COALESCE(conversation_summary_revision, 0) = ?" +
+			" OR (conversation_summary IS NOT DISTINCT FROM ? AND conversation_summary_source IS NOT DISTINCT FROM ?))"
+		args = append(args, *cmd.ExpectedRevision, cmd.Summary, cmd.Source)
 	}
 	query += " RETURNING conversation_summary_revision"
 	result := persistence.DBOrTx(ctx, r.db).Raw(query, args...).Scan(&revision)
