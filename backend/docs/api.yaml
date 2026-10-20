@@ -4654,9 +4654,9 @@ components:
         memo: { type: string }
         owner_request: { type: string }
         staff_notes: { type: string }
-        is_insurance: { type: boolean }
-        insurance_company_name: { type: string }
-        insurance_number: { type: string }
+        is_insurance: { type: boolean, nullable: true }
+        insurance_company_name: { type: string, nullable: true }
+        insurance_number: { type: string, nullable: true }
     HospitalizationCreateRequest:
       type: object
       description: |
@@ -4672,7 +4672,9 @@ components:
         PATCH入力専用DTO。owner/pet/type/start/endは必須ではなく、非送信fieldは更新要求に含まれない。
         cage_idのNULL禁止、明示clear、期待割当CASは標準allOfで適用し、vendor拡張の解釈を前提としない。
         既存buildHospitalizationUpdateが更新fieldを一つも作らない要求は400。空object、未知fieldだけ、
-        falseのclearだけはno-op。memo空文字やis_insurance=false等の明示値は更新fieldとして数える。
+        falseのclearだけやis_insurance=trueだけ（保険詳細/他fieldなし）はno-op。
+        memo空文字やis_insurance=false等の明示値は更新fieldとして数える。
+        保険系の明示NULLは既存pointer入力と同じく更新fieldに数えず、別の実入力と併用時は保持する。
         DB現値との実差分を必須にする新業務ルールではなく、既存のfield存在検査に合わせる。
       anyOf:
         - required: [owner_id]
@@ -4689,8 +4691,11 @@ components:
         - required: [owner_request]
         - required: [staff_notes]
         - required: [is_insurance]
+          properties: { is_insurance: { enum: [false] } }
         - required: [insurance_company_name]
+          properties: { insurance_company_name: { type: string } }
         - required: [insurance_number]
+          properties: { insurance_number: { type: string } }
         - required: [cage_id]
         - required: [clear_cage_id]
           properties: { clear_cage_id: { enum: [true] } }
