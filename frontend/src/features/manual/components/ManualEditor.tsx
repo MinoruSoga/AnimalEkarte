@@ -19,7 +19,7 @@
  * 詳細は業務フロー「マニュアルの編集依頼方法」(workflows/27-manual-edit-request.md) を参照。
  */
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Download, X, FileText, Eye, Columns2, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -135,9 +135,12 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
    * 編集開始時に確定した編集元（CAS版・current内容版・公開版ID）。
    * 保存は必ずこの版で行う。query data が背景refetch等で変わっても
    * 保存基準を無言で差し替えない（競合は409として検出させ、比較・再確認を経る）。
+   * 描画中に参照するため state で持つ（react-hooks/refs）。
    */
-  const editStartRef = useRef<ManualEditBase | null>(null);
-  const editStartPublishedVersionIdRef = useRef<string | null>(null);
+  const [editStart, setEditStart] = useState<{
+    base: ManualEditBase;
+    publishedVersionId: string | null;
+  } | null>(null);
   /** 進行中の保存を示し、二重クリックによる複数 operation_key 送信を防ぐ */
   const savingRef = useRef(false);
   /** 停止中に再照会できる operation_key（unknown/照会失敗になった保存）。描画条件に使うためstate */
@@ -176,15 +179,16 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
 
   // 編集開始時（初回解決時）に編集元を確定させる。以降の保存はこの版で行う。
   // query data が後から変わっても保存基準を差し替えない（B-1: 競合検出の迂回防止）。
-  useEffect(() => {
-    if (editStartRef.current === null && source.phase === "ready") {
-      editStartRef.current = source.base;
-      editStartPublishedVersionIdRef.current = editViewQuery.data?.published_version_id ?? null;
-    }
-  }, [source, editViewQuery.data]);
+  // 初回の ready で一度だけ確定させるため、ガード付きのレンダー中状態調整を使う
+  if (editStart === null && source.phase === "ready") {
+    setEditStart({
+      base: source.base,
+      publishedVersionId: editViewQuery.data?.published_version_id ?? null,
+    });
+  }
 
   // 保存の基準は編集開始時に確定した編集元。queryの後続取得で無言差し替えしない。
-  const base = source.phase === "ready" ? (editStartRef.current ?? source.base) : null;
+  const base = source.phase === "ready" ? (editStart?.base ?? source.base) : null;
   // 編集元が解決するまではバンドル（表示中）の内容を閲覧・コピー用に表示する。
   // 編集対象はあくまで current 内容版で、解決後に差し替わる。
   const initialBodyForDisplay = base?.initialBody ?? article.content;
@@ -230,8 +234,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
     }
     const freshBase = resolution.base;
     // 再確認で編集元を採用したので、保存基準（編集開始時版）をこちらへ付け替える
-    editStartRef.current = freshBase;
-    editStartPublishedVersionIdRef.current = fresh.published_version_id;
+    setEditStart({ base: freshBase, publishedVersionId: fresh.published_version_id });
     const changed: string[] = [];
     if (previous !== null && freshBase.initialBody !== previous.initialBody) {
       changed.push("本文");
@@ -289,7 +292,9 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         expectedPublishedVersionId: last.expectation.expectedPublishedVersionId,
       });
     } catch {
+      // PUT 200 のreceipt不一致。再照会しても同じreceiptしか返らないため、再照会ボタンは出さない
       setSaveStopped(true);
+      setLastOperationKey(null);
       setNotice({ kind: "error", text: RECEIPT_MISMATCH_NOTICE });
       return;
     }
@@ -368,7 +373,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         articleId: editBase.articleId,
         expectedVersion: editBase.casVersion,
         expectedContentVersionId: editBase.contentVersionId,
-        expectedPublishedVersionId: editStartPublishedVersionIdRef.current,
+        expectedPublishedVersionId: editStart?.publishedVersionId ?? null,
       },
       content,
       previousBase: editBase,
@@ -381,7 +386,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         articleId: editBase.articleId,
         expectedVersion: editBase.casVersion,
         expectedContentVersionId: editBase.contentVersionId,
-        expectedPublishedVersionId: editStartPublishedVersionIdRef.current,
+        expectedPublishedVersionId: editStart?.publishedVersionId ?? null,
         content,
       });
       handleVerifiedSuccess();
