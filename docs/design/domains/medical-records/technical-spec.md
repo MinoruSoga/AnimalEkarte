@@ -701,6 +701,10 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 
 [タブ配線](../../../../frontend/src/features/medical-records/components/MedicalRecordServiceTabs.tsx)は検査・接種・健診それぞれのコンポーネントへrecord／pet等を渡す。[検査タブ](../../../../frontend/src/features/medical-records/components/MedicalRecordExamination.tsx)はrecordの検査取得結果を表示し、[接種タブ](../../../../frontend/src/features/medical-records/components/MedicalRecordVaccination.tsx)と[健診タブ](../../../../frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx)も各専用保存／取得経路を使う。これらの配線に治療プランの元予定を渡す契約は確認できず、プランへ追加するだけで3タブの未実施予定と同一実績を追跡できる状態とは扱わない。
 
+関連済み項目の[現行通常編集／削除UI](../../../../frontend/src/features/medical-records/components/MedicalRecordDiagnosisPlan.tsx)は治療明細のupdate／delete経路を使う。これらを含め元予定の意味・関連の履歴保持を検証し、単なるID／版一致だけで別意味へ転用しない。D03関連writerが関連のみの専用訂正を所有し、正しい臨床結果の架空改訂で代用しない。拒否／取消等の実装方式と既存grant対応は未選定。
+
+[未請求reader](../../../../backend/internal/medicalrecord/treatment_repository.go)のFindUnbilledByPetIDは現行で会計確認済み・非削除等を条件にするが、治療statusの実施適格性条件がない。[そのconsumer](../../../../backend/internal/billing/billing_item_unbilled.go)のaggregateUnbilledは取得治療行を候補へ変換し、接種等も別に集める。EMR-481の接続ではこのreaderと全callerからD10の未実施／後日予定／中止除外・元明細の同一性を照合する。結果側からの二重明細防止だけで完了にしない。今回read-only観察であり、現行の未実施除外や全caller適合は未確認。
+
 ### 設計すべき接続とowner
 
 元プラン項目の安定した識別と未保存→保存済み対応、予定種別と各ownerの明示対応、医院・患者・カルテ・権限／必要版、実績ID／結果版、誤関連訂正と競合／結果不明の照合を設計する。D07の受信患者選択だけで予定の特定を代用せず、候補複数／不明では保留する。プランと実績からD10へ渡す元明細を二重生成しない。[D07](../examinations/technical-spec.md#plan-tab-link-design)・[D08](../vaccinations/technical-spec.md#plan-tab-link-design)・[D09](../checkups/technical-spec.md#plan-tab-link-design)は独自の実施／結果・訂正・証明書／次回日を維持する。
