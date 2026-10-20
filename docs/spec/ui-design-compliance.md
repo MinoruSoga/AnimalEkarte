@@ -32,7 +32,7 @@
 | C25 | 省略（`truncate` / `text-ellipsis` / `line-clamp-N`）を持つ要素は `title` / `aria-label` / `aria-labelledby` のいずれかで全文を保持する。focus・タッチで開くツールチップ／展開は静的に判定できないためレビュー項目 | design-patterns.md §3.1 | **機械化**（C25。opening tag 単位。2026-10-20 棚卸しの 57 ファイルは `C25_TRUNCATE_ALLOWLIST` で削減方向のラチェット） |
 | C26 | `<nav>` 内と `Layout/Sidebar*.tsx` のナビ文言を `truncate` しない | design-patterns.md §1.2 | **機械化**（C26。既存 3 ファイルは `C26_NAV_TRUNCATE_ALLOWLIST`。文言短縮か省略解除で削る） |
 | C27 | z-index は `Z` / `Z_CLASS` トークンのみ。`z-[N]` / `zIndex: N` の直書き禁止 | design-patterns.md §5.1 | **機械化**（C27。`design-tokens.ts` 除外。既存 2 ファイルは `C27_Z_INDEX_ALLOWLIST`） |
-| C28 | `src/features/**` の業務・設定フォームで raw `<select>` / `<input type="date">` を使わない（共有 `Select` / `DatePicker`）。検索・一覧フィルター・行内編集・時刻入力は許容 | design-system.md §3.4 | **機械化**（C28。許容文脈は `C28_NATIVE_INPUT_CONTEXT_ALLOWLIST`（5 ファイル・理由付き）、既存違反 2 ファイルは `C28_NATIVE_INPUT_RATCHET_ALLOWLIST`） |
+| C28 | `src/features/**` の業務・設定フォームで raw `<select>` / `<input type="date">` を使わない（共有 `Select` / `DatePicker`）。検索・一覧フィルター・行内編集・時刻入力は許容 | design-patterns.md §4.4 | **機械化**（C28。許容文脈は `C28_NATIVE_INPUT_CONTEXT_ALLOWLIST`（5 ファイル・理由付き）、既存違反 2 ファイルは `C28_NATIVE_INPUT_RATCHET_ALLOWLIST`） |
 | C29 | バリデーション結果（`isValid` / `isFormValid` / `errors.length` 等）を保存ボタンの `disabled` に流さない。権限（`can*`）・送信中（`isPending`）は対象外 | design-states.md §1.1（2026-10-20 決裁） | **機械化**（C29。現状 0 件。`canSubmit` は本リポジトリでは RBAC 由来の命名のため対象外） |
 
 **FE11 正本分割（2026-07-21、色役割更新 2026-07-27）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand と primary は同じ teal 値を使い、製品識別と汎用操作・選択・focus の意味役割だけをトークン名で分ける。臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。

@@ -34,6 +34,7 @@
 - `h1` は画面ごとに 1 つ。ヘッダバーの `h1`（`{typography.title}` 20px/600）と本文先頭の大見出しを**重複させない**（観測: `/settings` で 20px と 26px の「マスタ設定」が二重）。
 - `h1` 単体で機能が特定できる名前にする。「基本設定」「ページ編集」のような汎用名は、親機能名を含める（「LINE予約 基本設定」）か、パンくずを `h1` の直上に置く（観測: `/line-reservation/settings`・`/page-editor`）。
 - ページ名は サイドバー／`h1`／`ui-design-compliance.md` §2 の表で**同一文字列**にする（観測: 「レジ締め履歴」と「締め履歴」の揺れ）。
+- PageLayout / FormHeader のタイトルにはアイコンを付けない。セクション・パネル・ボタン・サイドバー内のアイコンは対象外（2026-10-20 に design-system §3.4 から移管）。
 - 説明文付きヘッダ（`h1` + 補足 12px）を使う場合も、ヘッダの高さと上余白は 1 行ヘッダと同じ基準（`PageLayout` の既定）を守る。上端に貼り付けない。
 
 <a id="shell-heading-scale"></a>
@@ -151,23 +152,23 @@
 <a id="form-required"></a>
 ### 4.3 必須・任意の表記
 
-- 必須マーカーの部品・間隔は [design-system.md §3.4](design-system.md)（`RequiredMark`）。本書の追加規則は 1 つ: 必須は `*` のみで示し、「（任意）」「（必須）」の文字併記を同じフォームで混ぜない（観測: `/lstep/checkup-sync`）。
+- 必須マーカーは共有 `RequiredMark` を使い、間隔は親ラベルの `gap-2`（8px）に統一する。マーカーは装飾として `aria-hidden`（2026-10-20 に design-system §3.4 から移管）。必須は `*` のみで示し、「（任意）」「（必須）」の文字併記を同じフォームで混ぜない（観測: `/lstep/checkup-sync`）。
 - 必須欄が空のまま存在する既存データは §4.2 に従う。
 
 <a id="form-controls"></a>
 ### 4.4 入力部品
 
-- どの入力に共有部品を使い、どこでネイティブ入力を許容するかの正本は [design-system.md §3.4「日付・数値入力」](design-system.md)（業務・設定フォームは共有 `DatePicker` / `NumberInput` / `MoneyInput`。検索・一覧フィルター・表の行内編集・時刻入力はネイティブ可）。本書は再定義しない。
+- 業務フォーム・設定フォームの日付・数値・金額は共有 `DatePicker` / `NumberInput` / `MoneyInput`、選択は共有 `Select` を使う。ネイティブ入力（`<input type="date">`・素の `<select>`）を許容するのは**検索・一覧フィルター・表の行内編集・時刻入力**だけ（2026-10-20 に design-system §3.4 から移管。機械検査は compliance C28）。
   - 観測の再分類: `/lstep/checkup-sync`・`/lstep/delivery-monitor` のネイティブ date は検索フィルターなので許容範囲。`/accounting/close` の対象日と `/settings/closing-time` の曜日チェックは設定・業務フォームなので共有部品が必要。
 - チェックボックス・ラジオ・トグルは共有 `ui/`（`checkbox` / `radio-group` / `switch`）を使い、ヒット領域は [design-states.md §1.1](design-states.md) に従う（視覚 16〜20px 可、クリック面はラベル込みで 44×44）。トグルには可視ラベルと `aria-labelledby`（観測: `/hospitalization/:id/edit` の入院タイプ 16px、`/settings/cage` の連結選択 16px、`/line-reservation/settings` で名前の無いトグル 7 個・曜日チェック 16px）。
 - `Select` の表示幅は**最長の選択肢が切れない幅**にする（観測: 「以外（手動）」が 2 画面で欠ける）。
-- 入力欄の高さは 44px（`h-11`）。`h-9` は design-system §3.4 の compact 制御（フィルター・行内）に限り、業務フォームの本文入力には使わない（観測: `/medical-records/:id` の履歴検索 36px、`/trimming/:id` の日付ボタン 38px）。
+- 入力欄の高さは 44px（`h-11`）。`h-9` は design-system §3.4 の compact 制御（フィルター・行内。ラベルは body-sm）に限り、業務フォームの本文入力には使わない（観測: `/medical-records/:id` の履歴検索 36px、`/trimming/:id` の日付ボタン 38px）。
 - 単位（kg・℃・円・%）は**入力欄内の右端サフィックス**に統一する。別ボックスの単位セレクトは単位が切り替わる項目だけ。
 
 <a id="form-destructive"></a>
 ### 4.5 破壊操作ボタン
 
-- ヘッダ内の並び順の正本は [design-system.md §3.4「登録・編集フォームの操作」](design-system.md)（`[削除] キャンセル 保存`。削除は左端で主要操作から離す）。固定アクションバーでも同じ順にする。
+- 登録・編集フォームの操作はヘッダに `[削除] キャンセル 保存` の順で置き、削除は左端で主要操作から離す。固定アクションバーでも同じ順。削除対象外の画面では該当操作を省く。権限・状態（送信中・確定済み）の既存ゲートは維持し、未入力理由の `disabled` は [design-states.md §1.1](design-states.md) に従う（2026-10-20 に design-system §3.4 から移管）。
 - 本書の追加規則: 削除・取消処理など不可逆操作のボタンは `Button variant="destructive"` に統一する。この variant は `button-variants.ts` の定義どおり**塗り**（`bg-destructive` + 白文字）であり、赤アウトラインの variant は存在しない（`outline` + 赤文字の自作も禁止）。赤テキストのみ（`ghost-danger`）は一覧の行内アクション専用（観測: `/examinations/:id`・`/vaccinations/:id` が赤テキスト、`/trimming/:id`・`/hospitalization/:id/edit` が自作の赤アウトライン。いずれも `destructive` へ寄せる）。
 - 不可逆操作の安全性はサーバー側の検証・Undo で担保し、確認ダイアログは補助（[product-philosophy](../product-philosophy.md)）。
 
@@ -271,7 +272,7 @@
 | C25 | **実装済み**（ラチェット） | `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` / `aria-labelledby` が無い。focus/タッチで開くツールチップの有無は静的に判定できないため、機械化は「全文がどこにも無い」最低線のみ。既存 57 ファイルは `C25_TRUNCATE_ALLOWLIST` | §3.1 |
 | C26 | **実装済み**（ラチェット） | `<nav>` 内と `Layout/Sidebar*.tsx` の `truncate`。既存 3 ファイルは allowlist | §1.2 |
 | C27 | **実装済み**（ラチェット） | `z-[N]` / `zIndex: N` の直書き（`Z` / `Z_CLASS` 参照は許可）。既存 2 ファイルは allowlist | §5.1 |
-| C28 | **実装済み**（ラチェット） | `src/features/**` の raw `<select>` / `<input type="date">`。design-system §3.4 の許容文脈（フィルター等）は理由付き allowlist、既存違反 2 ファイルはラチェット allowlist | §4.4 |
+| C28 | **実装済み**（ラチェット） | `src/features/**` の raw `<select>` / `<input type="date">`。§4.4 の許容文脈（フィルター等）は理由付き allowlist、既存違反 2 ファイルはラチェット allowlist | §4.4 |
 | C29 | **実装済み**（0 件） | `disabled={…isValid / isFormValid / errors.length…}`。権限 `can*` と送信中は対象外。`/estimates` の `canSubmit` は RBAC 由来で検出対象外（監査で観測した disabled の原因は要再確認） | §4.2 |
 | e2e | **実装済み（検知モード）**: `ui-design-compliance-readonly.spec.ts` が各ルート × 4 viewport で `nav [aria-current=page]` の viewport 内在と、`position: fixed` の操作要素と他の操作要素の非重なりを採取する（判定は `e2e/helpers/ui-design-patterns.ts`）。既定は test annotation への記録のみで、`UI_DESIGN_PATTERNS_STRICT=1` で hard fail。実装修正が揃ったら strict を既定にする | §1.1, §5.1 |
 

@@ -176,28 +176,9 @@ DESIGN.md は意味的カラーを定義しない（本書へ委譲）。臨床�
 
 DESIGN.md `typography:` フロントマターに準拠。実装のフォントファミリーは **`'Inter', 'Noto Sans JP'`**（フォールバック: `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`。`frontend/src/styles/globals.css` の `body` / typography selector）。単一スタックで display から eyebrow まで担う。
 
-### 3.1 Hierarchy
+### 3.1 Hierarchy / 3.2 Principles
 
-| トークン | Size | Weight | Line Height | Letter Spacing | 用途 |
-|---|---|---|---|---|---|
-| `{typography.display-1}` | 64px | 700 | 1.0 | −2.125px | 予約段（本体画面では未使用） |
-| `{typography.display-2}` | 54px | 700 | 1.04 | −1.875px | 予約段（本体画面では未使用） |
-| `{typography.heading-1}` | 40px | 700 | 1.1 | −1px | ページ級の大見出し（例外。通常のページタイトルは title — §3.4） |
-| `{typography.heading-2}` | 26px | 700 | 1.23 | −0.625px | サブセクション |
-| `{typography.heading-3}` | 22px | 700 | 1.27 | −0.25px | カードタイトル |
-| `{typography.title}` | 20px | 600 | 1.4 | −0.125px | フィーチャータイトル |
-| `{typography.body-md}` | 16px | 400 | 1.5 | 0 | 標準本文 |
-| `{typography.body-sm}` | 15px | 400 | 1.33 | 0 | テーブル行・密な UI（`ex-data-table-cell` body） |
-| `{typography.button}` | 16px | 500 | 1.5 | 0 | ボタンラベル |
-| `{typography.caption}` | 14px | 400 | 1.43 | 0 | キャプション・注記 |
-| `{typography.eyebrow}` | 12px | 600 | 1.33 | +0.125px | データテーブルヘッダー・小ラベル（`ex-data-table-cell` header） |
-
-### 3.2 Principles
-
-- 見出しは weight 700 + サイズに応じたネガティブ tracking — display は特に tight
-- 本文は 1.5 line-height で document 可読性を確保
-- 表現の主レバーは **700 見出し vs 400 本文** のコントラスト。装飾タイポグラフィは使わない
-- Inter 非利用環境（フォールバック時）では上表の letter-spacing を明示適用（デフォルト tracking より緩く見える）
+ロールの値（size / weight / line-height / letter-spacing）と原則の正本は [DESIGN.md Typography](../../DESIGN.md)。本書は値を再掲しない（2026-10-20 に重複表を削除。以前はここに同じ表があり、decision のたびに二重更新が必要だった）。本書が所有するのは §3.4 の**実装マッピング**（ロール → Tailwind クラス）と採用範囲だけである。
 
 ### 3.3 タブレットファースト拡大
 
@@ -221,14 +202,10 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 
 - **`text-[Npx]` 等の font-size 任意値は禁止**（audit C11）。DESIGN.md にない `text-lg/2xl/3xl/4xl+` も禁止し、heading/title ロールへ写像する（audit C12）。
 - 黒アルファによる ink 段の迂回は禁止する（audit C13）。letter-spacing はロールに伴走するため、`tracking-wide` 等や任意値で上書きしない（audit C14）。
-- font-weight: 本文 400、強調・ボタン 500（`font-medium`）、title/eyebrow 600（`font-semibold`）、heading 700（`font-bold`）。**700 は heading 専用**で、本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則）。
+- font-weight: 本文 400、強調・ボタン 500（`font-medium`）、title/eyebrow 600（`font-semibold`）、heading 700（`font-bold`）。**700 は heading 専用**で、本文・数値セルに使わない（DESIGN.md Typography Principles の 700 vs 400 コントラスト原則）。
 - compact/dense 制御（`h-9` 以下の行アクションボタン・トリガー等）は `{typography.button}`（16px）を適用せず、`{typography.body-sm}`（15px = `text-sm`）ラベルを使う（2026-09-30 決裁 — 標準 16px は dense 面で過大に見えるため）。
 - **フォームラベル**: `Label` の基底は 16px（`text-base`）。15px の個別指定は、コンパクトなフィルター・行内操作・`h-9` 以下の入力に限る。
-- **必須マーカー**: `RequiredMark` を使い、間隔は親ラベルの `gap-2` で 8px に統一する。マーカーは装飾として `aria-hidden` とする。
-- **ページ見出し**: PageLayout/FormHeader のタイトルにはアイコンを付けない。セクション、パネル、ボタン、サイドバー内のアイコンは対象外。
-- **登録・編集フォームの操作**: ヘッダーに `[削除] キャンセル 保存` の順で置き、権限・状態（送信中・確定済み等）の既存ゲートを維持する。未入力を理由とする保存 `disabled` の扱いは [design-states.md §1.1](design-states.md) が正本（禁止・2026-10-20 決裁）。削除対象外の画面では該当操作を省く。
-- **日付・数値入力**: 業務フォーム・設定フォームでは共有 `DatePicker` / `NumberInput` を使う。検索・一覧フィルター、表の行内編集、時刻入力はネイティブ入力を許容する。金額入力は `MoneyInput` を使う。
-- **本節と画面パターンの分担**: 見出しロール・フォーム操作の並び・入力部品の採用範囲・必須マーカーは本節が正本。それらを画面としてどう配置するか（h1 の一意性、見出しの DOM レベル、保存ボタンの到達性、破壊操作のスタイル、固定要素との重なり）は [design-patterns.md](design-patterns.md) が正本。
+- **本節の範囲**: 本節が所有するのはタイポグラフィのロール→クラス写像と採用範囲（上の表と箇条書き）だけ。画面側の規則 — ページ見出しのアイコン（[design-patterns.md §1.3](design-patterns.md#shell-page-title)）、必須マーカー（[§4.3](design-patterns.md#form-required)）、入力部品の採用範囲（[§4.4](design-patterns.md#form-controls)）、フォーム操作の並び（[§4.5](design-patterns.md#form-destructive)）— は 2026-10-20 に design-patterns.md へ移した。本節に再掲しない。
 
 ---
 
