@@ -65,7 +65,7 @@ export function CertificateEditionRow({
     setSavedBusy(true);
     setSavedError(null);
     try {
-      const result = await api.previewSaved(String(edition.id), layout);
+      const result = await api.previewSaved(String(edition.id), shownLayout);
       if (requestId === savedRequestRef.current) setSaved(result);
     } catch (error) {
       if (requestId !== savedRequestRef.current) return;

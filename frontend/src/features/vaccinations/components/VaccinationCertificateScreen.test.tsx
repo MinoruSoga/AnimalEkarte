@@ -415,6 +415,33 @@ describe("再印刷の安全側の挙動", () => {
   });
 });
 
+describe("再印刷の向きの表示", () => {
+  it("行が作り直されても、保存版の確認は選択表示と同じ向き(再印刷で使った向き)で取得する", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: true });
+    await seedNormalEdition(api);
+    renderScreen(api);
+    let row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    await user.click(within(row).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "通常（横）" }));
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("発行結果を確認できません")).toBeInTheDocument();
+
+    const history = screen.getByRole("region", { name: "発行履歴" });
+    await user.click(within(history).getByRole("button", { name: "狂犬病予防注射済証" }));
+    await waitFor(() => expect(screen.queryByText("第1版")).toBeNull());
+    await user.click(within(history).getByRole("button", { name: "通常の予防接種証明書" }));
+    row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+
+    expect(within(row).getByRole("combobox")).toHaveTextContent("横");
+    await user.click(within(row).getByRole("button", { name: "保存版を確認" }));
+    await within(row).findByTitle("第1版の保存プレビュー");
+    expect(callsOf(controls, "previewSaved").at(-1)?.detail).toMatchObject({ layout: "landscape" });
+  });
+});
+
 describe("入力検証と背景再取得", () => {
   it("不正な料金があるときは最初の不正欄へフォーカスを移す", async () => {
     const user = userEvent.setup();
