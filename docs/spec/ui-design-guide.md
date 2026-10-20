@@ -54,7 +54,7 @@
 | 一覧は識別列を折り返さず、長文列は `max-width` + 省略、操作列は右端 sticky。表が溢れたら識別列と操作列を残して中間列だけスクロールする。空値は `—`、件数は「1,234件」 | patterns §2 |
 | サイドバーの現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする。ページ `h1` は 1 つで、ページ内の見出しを `h1` より大きくしない | patterns §1 |
 | 固定要素（浮遊ボタン・固定アクションバー・トースト）は操作要素に重ねない。スクロール末尾に固定要素分の余白を取り、`z-index` は `Z` トークンから選ぶ | patterns §5 |
-| 保存ボタンを未入力理由で `disabled` にしない。入力部品は共有 `ui/` のみ（標準 date/time/select・素の 16px チェック禁止）。破壊操作は `destructive` で主要操作の隣に置かない | patterns §4、design-states §1.1 |
+| 保存ボタンを未入力理由で `disabled` にしない。業務・設定フォームの入力部品は共有 `ui/`（`DatePicker` / `NumberInput` / `MoneyInput` / `checkbox` / `switch`）。ネイティブ入力の許容範囲は design-system §3.4。破壊操作は `destructive` で `[削除] キャンセル 保存` の順 | patterns §4、design-system §3.4、design-states §1.1 |
 | 空状態は「何が無いか／条件／次の操作」の 3 点。読込は 300ms 超でスケルトン | patterns §6 |
 | 新しい色・値を決めるときは design-system.md（色）/ DESIGN.md（寸法）に決裁（日付・決定者）を記録してからトークンへ流す。本書や他文書に第二正本を作らない | token-layers §2 |
 

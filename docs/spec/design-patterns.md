@@ -39,9 +39,10 @@
 <a id="shell-heading-scale"></a>
 ### 1.4 ページ内の見出し階層
 
-- ページ内の見出しは **`h1`（20px/600）より大きくしない**。セクション見出しは `{typography.body-md}` 16px/600、カード内の小見出しは `{typography.caption}` 14px/600 または eyebrow 12px/600 を使う。DESIGN.md の `heading-1〜3`（40/26/22px）は本体画面のセクション見出しに使わない（ランディング・印刷・マニュアル本文など、文書型レイアウトのみ）。
-- KPI などの**数値の強調**は見出しではないので、`text-heading-*` ではなく数値専用のサイズ（1 画面で 1 段階。26px か 40px のどちらか）を決めて揃える。
-- 観測: `/hospitalization/:id/edit`・`/lstep/analytics`・`/lab-device`・`/manual` でセクション見出し 22px > `h1` 20px の逆転。`/lab-device` は 40/22/20 の 3 段混在。KPI 数値が 20/26/40px で画面ごとに不揃い。
+- 見出しロールと実装クラスの正本は [design-system.md §3.4](design-system.md)（title 20px = PageLayout タイトル、heading-3 22px = カードタイトル）。本書は値を再定義しない。
+- 配置の規則: `h1` は 1 画面に 1 つ（§1.3）。セクション見出しは `h2`、カード内の小見出しは `h3` と、DOM の見出しレベルを飛ばさない。
+- KPI などの**数値の強調**は見出しではないので、`text-heading-*` ではなく数値専用のサイズを 1 画面で 1 段階に決めて揃える（観測: 20 / 26 / 40px が画面ごとに不揃い）。
+- **決裁候補（提案）**: 現行 §3.4 では heading-3（22px）がカードタイトルに使えるため、ページタイトル（title 20px）より大きいセクション見出しが規約上は成立する。STG では `/hospitalization/:id/edit`・`/lstep/analytics`・`/lab-device`・`/manual` でこの逆転が目立った。本体画面のセクション見出しは title（20px/600）以下に揃え、heading-3 はダイアログタイトルと文書型画面に限定する案を提案する。**決裁まで §3.4 に従う。**
 
 <a id="shell-permission-badge"></a>
 ### 1.5 権限バッジは操作ボタンの列に置かない
@@ -149,23 +150,24 @@
 <a id="form-required"></a>
 ### 4.3 必須・任意の表記
 
-- 必須は赤 `*` のみ。「（任意）」「（必須）」の文字併記を同じフォームで混ぜない（観測: `/lstep/checkup-sync`）。
+- 必須マーカーの部品・間隔は [design-system.md §3.4](design-system.md)（`RequiredMark`）。本書の追加規則は 1 つ: 必須は `*` のみで示し、「（任意）」「（必須）」の文字併記を同じフォームで混ぜない（観測: `/lstep/checkup-sync`）。
 - 必須欄が空のまま存在する既存データは §4.2 に従う。
 
 <a id="form-controls"></a>
-### 4.4 入力部品は共有 `ui/` だけを使う
+### 4.4 入力部品
 
-- 日付・時刻・セレクト・チェックボックス・ラジオ・トグルは `components/ui/` の共有部品のみ。ブラウザ標準（`<input type="date|time">`、素の `<select>`、16px の素のチェック）を本体画面で使わない（観測: `/accounting/close`・`/lstep/*`・`/settings/closing-time` が標準 date/time、`/line-reservation/settings` と `/settings/closing-time` の曜日チェックが 16px）。
-- ラジオ・チェックボックス・トグルの**視覚サイズは 16〜20px でよいが、クリック面はラベルを含めて 44×44px 以上**にする（`<label>` で包む、または `min-h-11` の行全体をヒット領域にする）。トグルには必ず可視ラベルと `aria-labelledby`（観測: `/hospitalization/:id/edit` の入院タイプが 16px、`/settings/cage` の連結選択が 16px、`/line-reservation/settings` で名前の無いトグル 7 個）。
+- どの入力に共有部品を使い、どこでネイティブ入力を許容するかの正本は [design-system.md §3.4「日付・数値入力」](design-system.md)（業務・設定フォームは共有 `DatePicker` / `NumberInput` / `MoneyInput`。検索・一覧フィルター・表の行内編集・時刻入力はネイティブ可）。本書は再定義しない。
+  - 観測の再分類: `/lstep/checkup-sync`・`/lstep/delivery-monitor` のネイティブ date は検索フィルターなので許容範囲。`/accounting/close` の対象日と `/settings/closing-time` の曜日チェックは設定・業務フォームなので共有部品が必要。
+- チェックボックス・ラジオ・トグルは共有 `ui/`（`checkbox` / `radio-group` / `switch`）を使い、ヒット領域は [design-states.md §1.1](design-states.md) に従う（視覚 16〜20px 可、クリック面はラベル込みで 44×44）。トグルには可視ラベルと `aria-labelledby`（観測: `/hospitalization/:id/edit` の入院タイプ 16px、`/settings/cage` の連結選択 16px、`/line-reservation/settings` で名前の無いトグル 7 個・曜日チェック 16px）。
 - `Select` の表示幅は**最長の選択肢が切れない幅**にする（観測: 「以外（手動）」が 2 画面で欠ける）。
-- 入力欄の高さは 44px（`h-11`）。`h-9` の検索入力や 38px の日付ボタンを同一画面に混ぜない（観測: `/medical-records/:id`・`/trimming/:id`）。
-- 単位（kg・℃・円・%）の置き方は**入力欄内の右端サフィックス**に統一する。別ボックスの単位セレクトは単位が切り替わる項目だけ。
+- 入力欄の高さは 44px（`h-11`）。`h-9` は design-system §3.4 の compact 制御（フィルター・行内）に限り、業務フォームの本文入力には使わない（観測: `/medical-records/:id` の履歴検索 36px、`/trimming/:id` の日付ボタン 38px）。
+- 単位（kg・℃・円・%）は**入力欄内の右端サフィックス**に統一する。別ボックスの単位セレクトは単位が切り替わる項目だけ。
 
 <a id="form-destructive"></a>
 ### 4.5 破壊操作ボタン
 
-- 削除・取消・キャンセル処理など不可逆操作のボタンは `Button variant="destructive"`（赤アウトライン）に統一する。赤テキストのみ（`ghost-danger`）は一覧の行内アクション専用。
-- 破壊操作は**主要操作（保存・確定）の隣に置かない**。ヘッダ右なら左端に離して置き、固定アクションバーでは左端に置く（観測: `/examinations/:id`・`/vaccinations/:id` が赤テキスト、`/trimming/:id`・`/hospitalization/:id/edit` が赤アウトライン、いずれも保存の隣）。
+- ヘッダ内の並び順の正本は [design-system.md §3.4「登録・編集フォームの操作」](design-system.md)（`[削除] キャンセル 保存`。削除は左端で主要操作から離す）。固定アクションバーでも同じ順にする。
+- 本書の追加規則: 削除・取消処理など不可逆操作のボタンは `Button variant="destructive"`（赤アウトライン）に統一する。赤テキストのみ（`ghost-danger`）は一覧の行内アクション専用（観測: `/examinations/:id`・`/vaccinations/:id` が赤テキスト、`/trimming/:id`・`/hospitalization/:id/edit` が赤アウトライン）。
 - 不可逆操作の安全性はサーバー側の検証・Undo で担保し、確認ダイアログは補助（[product-philosophy](../product-philosophy.md)）。
 
 <a id="form-save-position"></a>
@@ -190,7 +192,7 @@
 ### 5.2 トースト
 
 - トーストはヘッダの操作ボタン・入力欄の上に重ねない（右下または右上でヘッダ領域を避ける位置）。
-- 閉じるボタンのヒット領域は 44×44（アイコンは 16〜20px でよい）。
+- 閉じるボタンのヒット領域は [design-states.md §1.1](design-states.md) に従う（アイコン 16〜20px、クリック面 44×44）。
 - エラートーストは「何が取れなかったか」と「次にできること」を含める（観測: `/hospitalization/:id` の「データ取得対象が見つかりません。」が担当医ボタンの上に出て、閉じるボタン 20px）。
 
 ---
@@ -230,7 +232,7 @@
 
 - 受付ボードの列ごとのパステル背景（灰／青／紫／橙／緑）は、業務ステータス色を**構造（列の面）に使っている**。design-system.md §2.5 の「ステータス色は構造フィルに使わない」との整合を決裁する必要がある（選択肢: 列背景を白または `C.bgPage` に統一して見出しのドット + 文字だけで区別する／現状を例外として §2.5 に明記する）。**決裁まで現状維持。**
 - カード内の識別子（ペット名・飼主名・ケージ名）は §3.1 に従い省略しない。カードの最小幅はそれが入る幅（ケージカード 130px は不足。観測: `/hospitalization`）。
-- カードの主要操作（「詳細」）はカード全幅のボタンまたは右下に 44px 以上で置く。幅 38px の孤立ボタンにしない。
+- カードの主要操作（「詳細」）はカード全幅のボタンまたは右下に置く。幅 38px の孤立ボタンにしない（寸法は design-states §1.1）。
 
 <a id="dashboard-density"></a>
 ### 7.3 単独ウィンドウ・ダッシュボード型画面

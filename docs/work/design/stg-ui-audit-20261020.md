@@ -47,7 +47,8 @@
 |:--|:--|:--|
 | `th` padding `12px 0px`（規定 `12px 16px`）。見出しが本文より約 12px 左にずれる | `/settings/treatment-items`, `diagnosis`, `animal-species`, `medicine`, `cage`, `merchandise-items`, `permission-groups`, `shift-templates` | DESIGN.md `ex-data-table-cell`、C18（raw th allowlist の見直し） |
 | `/settings/reservation-type` のグループ見出し `th` が 16px/700/padding 0 | `/settings/reservation-type` | 同上 |
-| 入力高さ 36px（`h-9` 検索）・38px（日付ボタン）が 44px の入力と混在 | `/medical-records/:id`, `/trimming/:id` | design-states §1.1 |
+| 入力高さ 36px（`h-9` 検索）・38px（日付ボタン）が 44px の入力と混在 | `/medical-records/:id`, `/trimming/:id` | design-states §1.1、design-system §3.4 compact 制御 |
+| 業務・設定フォームでのネイティブ date / 16px チェック（`/accounting/close` 対象日、`/settings/closing-time` 曜日）。※ `/lstep/*` のネイティブ date は検索フィルターなので design-system §3.4 の許容範囲 | `/accounting/close`, `/settings/closing-time` | design-system §3.4「日付・数値入力」 |
 | 削除ボタンのスタイル不統一（赤アウトライン vs 赤テキスト）、保存の隣に配置 | `/examinations/:id`, `/vaccinations/:id`（赤テキスト）／`/trimming/:id`, `/hospitalization/:id/edit`（赤アウトライン） | components/button.md variants、patterns §4.5 |
 | hex 直書きクラス（`text-[#615D59]`, `#E6E6E6`, `#F6F5F4`, `#C0392B`, 警告バナー `#FFF3CD/50`） | `/owners/:id`, `/inventory`, `/settings/bug-reports` | C3（`design-audit` で検出されるはず。allowlist か未実行かを確認） |
 | 見出し階層の逆転（セクション 22px > h1 20px、`/lab-device` は 40/22/20 混在） | `/hospitalization/:id/edit`, `/lstep/analytics`, `/lab-device`, `/manual`, `/settings`（h1 二重） | design-system §3.4 ロール表、patterns §1.4 |

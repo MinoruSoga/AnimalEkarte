@@ -217,7 +217,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 - 状態・区分の色は業務識別子として design-system.md §2.4〜2.5 が所有し、構造や CTA には使わない。色だけに依存せず、文字・アイコンを必ず併置する
 - Primary CTA は pill `{rounded.full}`、ユーティリティボタンは `{rounded.md}`（8px）、入力は `{rounded.xs}`（4px）— 対比は意図的
 - エレベーションは hairline と極薄のレイヤードシャドウで表現し、重い drop-shadow を使わない
-- タブレットファースト: 全タッチ面 44×44px（dense 行アクションの例外は design-system.md §7.2）
+- タブレットファースト: タッチ面の基準は design-states.md §1.1（44×44px、dense 行アクションの例外は design-system.md §7.2）
 
 ## Colors（本書の参照範囲のみ）
 
@@ -296,7 +296,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 
 #### Touch Targets
 
-tablet 以下の全タッチ面は **44×44px**（`min-h-11 min-w-11`）。ラベルが短くても縦 padding を削らない。テーブル行内の dense 行アクションだけは高さ 36px（`h-9`）まで縮小でき、最小幅 44px は維持する（design-system §7.2・2026-09-30 決裁）。
+タッチ面の寸法・ヒット領域・dense 行アクションの例外は [design-states.md §1.1](docs/spec/design-states.md) と design-system.md §7.2 が正本。本書では再定義しない。ラベルが短くても縦 padding を削らない、という形状上の注意だけを置く。
 
 #### Collapsing Strategy
 
@@ -389,7 +389,7 @@ tablet 以下の全タッチ面は **44×44px**（`min-h-11 min-w-11`）。ラ�
 - `feature-card` の chrome（`{rounded.xl}`、padding `{spacing.lg}`）に `text-input` と `button-brand` を内包する。
 
 **`ex-empty-state-card`** — 空状態
-- `{colors.canvas-soft}`、`{rounded.xl}`、padding `{spacing.xxl}`、キャプション `{typography.body-md}`。「何が無いか／条件／次の操作」の 3 点を含め、次に取るべき操作を 1 つだけ示す（最小要件は [design-patterns.md §6](docs/spec/design-patterns.md)）。
+- `{colors.canvas-soft}`、`{rounded.xl}`、padding `{spacing.xxl}`、キャプション `{typography.body-md}`。中に書く内容（何が無いか／条件／次の操作）は [design-patterns.md §6.1](docs/spec/design-patterns.md#empty-state) が正本。
 
 **`ex-toast`** — トースト通知
 - `{colors.surface}`、`{rounded.xl}`、padding `{spacing.sm} {spacing.md}`、`{typography.body-sm}`、Level-1 shadow。成功・失敗はアイコンと文言で区別し、色だけに頼らない。
@@ -408,7 +408,7 @@ tablet 以下の全タッチ面は **44×44px**（`min-h-11 min-w-11`）。ラ�
 - Primary CTA は pill `{rounded.full}`、ユーティリティボタンは `{rounded.md}`、入力は `{rounded.xs}` — 対比を保つ
 - 既定のカードは hairline の Level-0、浮動面だけを Level-1、モーダルだけを Level-2 にする
 - 臨床 sentinel・ステータスは色 + 文字（+ アイコン）で示す
-- tablet 以下の全タッチ面を 44×44px にする
+- タッチ面は design-states.md §1.1 の基準に従う
 
 ### Don't
 
