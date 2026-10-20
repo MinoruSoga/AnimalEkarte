@@ -18,8 +18,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	trimmings.DELETE("/:id", h.requirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
 
 	masters := rg.Group("/masters")
-	masters.POST("/trimming-courses/images/upload", h.courseImagePermission(), h.UploadTrimmingImage)
-	masters.DELETE("/trimming-courses/images", h.courseImagePermission(), h.DenyCourseImageDiscard)
+	masters.POST("/trimming-courses/images/upload", h.courseImagePermission(), h.UploadCourseImage)
+	masters.DELETE("/trimming-courses/images", h.courseImagePermission(), h.DiscardCourseImage)
 	masters.GET("/trimming-courses", h.requirePermission(string(model.ResourceMasterTrimming), "view"), h.ListTrimmingCourses)
 	masters.POST("/trimming-courses", h.requirePermission(string(model.ResourceMasterTrimming), "create"), h.CreateTrimmingCourse)
 	masters.PATCH("/trimming-courses/reorder", h.requirePermission(string(model.ResourceMasterTrimming), "edit"), h.ReorderTrimmingCourses)

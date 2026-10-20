@@ -73,7 +73,7 @@ func (m *mockTrimmingCourseService) Reorder(ctx context.Context, clinicID uint64
 // ---- helper ----
 
 func newHandlerWithTrimmingCourseSvc(courseSvc TrimmingCourseService) *Handler {
-	return &Handler{svc: &handlerServices{
+	return &Handler{courseImageDrafts: legacyUnknownCourseImageDrafts(), svc: &handlerServices{
 		TrimmingCourse: courseSvc,
 		TrimmingOption: &mockTrimmingOptionService{},
 	}}

@@ -19,6 +19,7 @@ type Handler struct {
 	requirePermission          PermissionMiddleware
 	imageUploader              FileUploader
 	imageQuota                 ImageUploadQuotaStore
+	courseImageDrafts          CourseImageDrafts
 	imageWritePermission       gin.HandlerFunc
 	courseImageWritePermission gin.HandlerFunc
 }

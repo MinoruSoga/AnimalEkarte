@@ -663,6 +663,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	).WithImageSupport(trimming.ImageDependencies{
 		Uploader:             uploader,
 		Quota:                medicalrecord.NewPostgresMedicalRecordImageUploadQuotaStore(c.db),
+		CourseImages:         trimming.NewCourseImageDrafts(c.db),
 		RequireAnyPermission: adaptTrimmingPermissionAny(c.auth.Handler.RequirePermissionAny),
 	}).RegisterRoutes(protected)
 	c.medicalRecord.newHandler(

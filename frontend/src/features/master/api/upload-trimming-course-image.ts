@@ -6,8 +6,8 @@ export interface TrimmingCourseImageUpload {
 }
 
 /**
- * EMR-457: コース画像は既存の施術画像 upload 契約（POST /v1/masters/trimming-courses/images/upload）を
- * そのまま使う。永続化するのは key だけで、signedUrl は表示専用。
+ * EMR-457: master 専用経路は所有台帳の予約・upload 完了を記録してから key を返す。
+ * 永続化するのは key だけで、signedUrl は表示専用。
  * feature 間 import 禁止のため trimming feature の同等関数をここで呼び直す。
  */
 export async function uploadTrimmingCourseImage(file: File): Promise<TrimmingCourseImageUpload> {
@@ -30,7 +30,8 @@ export async function uploadTrimmingCourseImage(file: File): Promise<TrimmingCou
 
 /**
  * 未保存のまま置換・削除したコース画像の best-effort 掃除（DELETE /v1/masters/trimming-courses/images）。
- * 呼出し元が未保存・未送信を証明できる作業コピーだけに限定する。保存済み・送信済み・不明keyは呼ばない。
+ * ローカル候補を未保存・未送信の作業コピーに限定し、サーバーでも医院・所有者・完了・未送信・参照を再検査する。
+ * 保存済み・送信済み・不明keyは呼ばない。
  */
 export async function discardTrimmingCourseImage(key: string): Promise<void> {
   await axios.delete("/v1/masters/trimming-courses/images", { data: { key } });

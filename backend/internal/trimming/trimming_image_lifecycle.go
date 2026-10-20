@@ -7,34 +7,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
-// ImageKey is a canonical, clinic-owned storage reference. Only this package
-// constructs it; lifecycle operations cannot accept a foreign clinic or URL.
-type ImageKey struct {
-	clinicID uint64
-	value    string
-}
-
-// ImageLifecycleRepository is the narrow capability shared by reference writes
-// and deletion reservations. Locks must last until the ambient transaction ends.
-type ImageLifecycleRepository interface {
-	LockImageKeys(context.Context, []ImageKey) error
-	ImageKeyDeleted(context.Context, ImageKey) (bool, error)
-	MarkImageKeyDeleted(context.Context, ImageKey, uint64) error
-	// ImageKeyInUse includes trimming details, current/soft-deleted course
-	// references and retained course image audit history. A replaced original
-	// remains protected. exceptAppointmentID excludes one appointment's own
-	// eligible detail rows only; it never excludes course image history.
-	ImageKeyInUse(context.Context, uint64, string, uint64) (bool, error)
-}
-
-func ownedImageKey(clinicID uint64, stored string) (ImageKey, error) {
-	key, ok := trimmingImageObjectKey(stored, clinicID)
-	if !ok {
-		return ImageKey{}, apperrors.WrapInvalidInput("invalid trimming image key")
-	}
-	return ImageKey{clinicID: clinicID, value: key}, nil
-}
-
 func (s *trimmingService) imageLifecycle() (ImageLifecycleRepository, error) {
 	repo, ok := s.trimmingDetail.(ImageLifecycleRepository)
 	if !ok || repo == nil || s.transactor == nil {
@@ -77,6 +49,16 @@ func (s *trimmingService) lockImageReferencesInTx(ctx context.Context, clinicID 
 		if deleted {
 			return apperrors.WrapConflict("trimming image has been deleted; upload it again")
 		}
+		guard, ok := repo.(interface {
+			ProtectCourseImageReference(context.Context, ImageKey) error
+		})
+		if !ok {
+			return apperrors.WrapInternalServerError("course provenance guard unavailable")
+		}
+		if err := guard.ProtectCourseImageReference(ctx, key); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }
@@ -84,8 +66,8 @@ func (s *trimmingService) lockImageReferencesInTx(ctx context.Context, clinicID 
 // ReserveImageDeletion commits a permanent tombstone before any storage delete.
 // A subsequent writer sees the tombstone under the same key lock and rejects the
 // reference, even if storage deletion fails or its caller retries. False retains
-// a shared image. exceptAppointmentID is only used after that record was deleted;
-// PATCH cleanup passes zero and includes the current record in the latest check.
+// every key without positive never-submitted provenance. Saved/retired detail
+// references are never excluded; legacy clinical cleanup is retained/deferred.
 func (s *trimmingService) ReserveImageDeletion(ctx context.Context, clinicID uint64, stored string, exceptAppointmentID, actorID uint64) (bool, error) {
 	key, err := ownedImageKey(clinicID, stored)
 	if err != nil {
@@ -103,18 +85,24 @@ func (s *trimmingService) ReserveImageDeletion(ctx context.Context, clinicID uin
 		if err := repo.LockImageKeys(txCtx, []ImageKey{key}); err != nil {
 			return err
 		}
-		deleted, err := repo.ImageKeyDeleted(txCtx, key)
+		guard, ok := repo.(interface {
+			CourseImageDiscardEligible(context.Context, ImageKey, uint64) (bool, error)
+		})
+		if !ok {
+			return apperrors.WrapInternalServerError("course provenance guard unavailable")
+		}
+		eligible, err := guard.CourseImageDiscardEligible(txCtx, key, actorID)
 		if err != nil {
 			return err
 		}
-		if deleted {
-			// The first reservation proved no live references and closed the
-			// key to writers. Retry must not be blocked by the retired detail
-			// row of a soft-deleted appointment that initially was excluded.
-			reserved = true
+		if !eligible {
 			return nil
 		}
-		inUse, err := s.trimmingDetail.ImageKeyInUse(txCtx, clinicID, key.value, exceptAppointmentID)
+		_, err = repo.ImageKeyDeleted(txCtx, key)
+		if err != nil {
+			return err
+		}
+		inUse, err := s.trimmingDetail.ImageKeyInUse(txCtx, clinicID, key.value, 0)
 		if err != nil {
 			return err
 		}

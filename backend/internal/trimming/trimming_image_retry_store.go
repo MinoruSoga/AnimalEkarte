@@ -44,12 +44,7 @@ func (s *imageDeletionRetryStore) ListPendingImageKeys(ctx context.Context, clin
 		limit = imageDeletionMaxKeysPerRun
 	}
 	var keys []string
-	err := s.db.WithContext(ctx).Raw(`
-		SELECT object_key FROM trimming_image_deletions
-		WHERE clinic_id = ? AND storage_deleted_at IS NULL
-		ORDER BY last_attempt_at ASC NULLS FIRST, object_key ASC
-		LIMIT ?`, clinicID, limit,
-	).Scan(&keys).Error
+	err := pendingCourseImageDeletionQuery(s.db.WithContext(ctx), clinicID, limit).Scan(&keys).Error
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list pending trimming image deletions")
 	}
@@ -106,6 +101,24 @@ func (s *imageDeletionRetryStore) RetryImageDeletion(
 		if !pending {
 			return nil
 		}
+		var eligible bool
+		if err := tx.Raw(`SELECT EXISTS(SELECT 1 FROM trimming_course_image_uploads u JOIN trimming_image_deletions d ON d.clinic_id=u.clinic_id AND d.object_key=u.object_key AND d.actor_staff_id=u.uploader_staff_id WHERE u.clinic_id=? AND u.object_key=? AND u.uploaded_at IS NOT NULL AND u.submitted_at IS NULL)`, clinicID, key.value).Scan(&eligible).Error; err != nil {
+			return err
+		}
+		if !eligible {
+			return nil
+		}
+		detail := &appointmentTrimmingDetailRepository{db: s.db}
+		used, err := detail.ImageKeyInUse(persistence.WithTxValue(txCtx, tx), clinicID, key.value, 0)
+		if err != nil {
+			return err
+		}
+		if used {
+			// Retain the unsafe row, but rotate it behind unattempted eligible work.
+			// This is scheduling metadata, never a successful deletion acknowledgement.
+			return tx.Exec("UPDATE trimming_image_deletions SET last_attempt_at=NOW() WHERE clinic_id=? AND object_key=? AND storage_deleted_at IS NULL", clinicID, key.value).Error
+		}
+
 		if err := ctx.Err(); err != nil {
 			return err
 		}

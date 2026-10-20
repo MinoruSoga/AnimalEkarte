@@ -157,8 +157,9 @@ func newTrimmingHandlerContext(w *httptest.ResponseRecorder, req *http.Request) 
 func newImageHandler(svc Service, uploader *fakeTrimmingImageUploader, quota *fakeImageUploadQuotaStore) *Handler {
 	h := newHandlerWithTrimmingSvc(svc)
 	h.WithImageSupport(ImageDependencies{
-		Uploader: uploader,
-		Quota:    quota,
+		Uploader:     uploader,
+		Quota:        quota,
+		CourseImages: legacyUnknownCourseImageDrafts(),
 	})
 	return h
 }
@@ -872,8 +873,8 @@ func TestDeleteTrimmingImage_OwnedKey(t *testing.T) {
 	c := newTrimmingHandlerContext(w, newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`))
 	h.DeleteTrimmingImage(c)
 
-	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
-	assert.Equal(t, []string{"trimming-images/1/style.jpg"}, uploader.deletes)
+	assert.Equal(t, http.StatusForbidden, c.Writer.Status())
+	assert.Empty(t, uploader.deletes)
 }
 
 func TestDeleteTrimmingImage_QueryWrappedUploadsValueResolves(t *testing.T) {
@@ -886,9 +887,8 @@ func TestDeleteTrimmingImage_QueryWrappedUploadsValueResolves(t *testing.T) {
 		newDeleteImageRequest(t, `{"key":"/uploads/trimming-images/1/style.jpg?v=123#frag"}`))
 	h.DeleteTrimmingImage(c)
 
-	assert.Equal(t, http.StatusNoContent, c.Writer.Status())
-	assert.Equal(t, []string{"trimming-images/1/style.jpg"}, uploader.deletes,
-		"query/fragment must be stripped before ownership check and delete")
+	assert.Equal(t, http.StatusForbidden, c.Writer.Status())
+	assert.Empty(t, uploader.deletes, "unproven wrapped originals stay protected")
 }
 
 func TestDeleteTrimmingImage_ForeignKeyRejected(t *testing.T) {
@@ -900,7 +900,7 @@ func TestDeleteTrimmingImage_ForeignKeyRejected(t *testing.T) {
 	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
 		newDeleteImageRequest(t, `{"key":"trimming-images/2/foreign.jpg"}`)))
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Empty(t, uploader.deletes)
 }
 
@@ -912,7 +912,7 @@ func TestDeleteTrimmingImage_MissingOrMalformedKeyRejected(t *testing.T) {
 	for _, body := range []string{`{"key":""}`, `{"key":"trimming-images/"}`, `{}`, `not-json`} {
 		w := httptest.NewRecorder()
 		h.DeleteTrimmingImage(newTrimmingHandlerContext(w, newDeleteImageRequest(t, body)))
-		assert.Equal(t, http.StatusBadRequest, w.Code, "body=%q", body)
+		assert.Equal(t, http.StatusForbidden, w.Code, "body=%q", body)
 	}
 	assert.Empty(t, uploader.deletes)
 }
@@ -925,7 +925,7 @@ func TestDeleteTrimmingImage_UploaderNotConfiguredFailsClosed(t *testing.T) {
 	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
 		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
 func TestDeleteTrimmingImage_ReferencedKeyRejected(t *testing.T) {
@@ -945,7 +945,7 @@ func TestDeleteTrimmingImage_ReferencedKeyRejected(t *testing.T) {
 	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
 		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
 
-	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Empty(t, uploader.deletes, "a record-referenced object must never be deleted")
 }
 
@@ -963,7 +963,7 @@ func TestDeleteTrimmingImage_ReferenceCheckErrorFailsClosed(t *testing.T) {
 	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
 		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Empty(t, uploader.deletes, "unchecked keys must not be deleted")
 }
 
@@ -976,7 +976,7 @@ func TestDeleteTrimmingImage_WithoutServiceFailsClosed(t *testing.T) {
 	h.DeleteTrimmingImage(newTrimmingHandlerContext(w,
 		newDeleteImageRequest(t, `{"key":"trimming-images/1/style.jpg"}`)))
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Empty(t, uploader.deletes)
 }
 
@@ -1022,7 +1022,7 @@ func TestCourseImageDiscard_PreservesUnprovenOriginals(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/masters/trimming-courses/images", strings.NewReader(`{"key":"trimming-images/1/old.jpg"}`))
-	h.DenyCourseImageDiscard(c)
-	assert.Equal(t, http.StatusForbidden, w.Code)
+	h.DiscardCourseImage(c)
+	assert.NotEqual(t, http.StatusNoContent, w.Code)
 	assert.Empty(t, uploader.deletes)
 }
