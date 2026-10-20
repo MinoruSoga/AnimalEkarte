@@ -13,7 +13,7 @@ import {
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 
 function formatPaidAt(value: string): string {
-  return value ? formatJSTTime(value) : "—";
+  return value ? formatJSTTime(value) : EMPTY_VALUE;
 }
 
 function formatAmountCell(amount: number): string {
