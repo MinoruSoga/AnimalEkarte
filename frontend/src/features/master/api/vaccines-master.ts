@@ -65,7 +65,7 @@ export const useCreateVaccineMaster = () => {
   return useMutation({
     mutationFn: createVaccineMaster,
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => handleApiError(error, "作成"),
   });
 };
 
@@ -75,7 +75,7 @@ export const useUpdateVaccineMaster = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateVaccineMasterRequest }) =>
       updateVaccineMaster(id, req),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => handleApiError(error, "更新"),
   });
 };
 
@@ -84,7 +84,7 @@ export const useDeleteVaccineMaster = () => {
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/vaccines/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => handleApiError(error, "削除"),
   });
 };
 
@@ -93,6 +93,6 @@ export const useReorderVaccinesMaster = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) => axios.patch("/v1/masters/vaccines/reorder", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => handleApiError(error, "並び替え"),
   });
 };
