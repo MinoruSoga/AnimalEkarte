@@ -13668,7 +13668,7 @@ components:
           "items":
             "$ref": "#/components/schemas/TreatmentPackageId"
           "uniqueItems": true
-      "description": "All nondeleted packages exactly once including inactive. Missing/duplicate/foreign-clinic ID rejects entire reorder. Membership/order changes catalog revision once; component/text/active changes do not. No-op preserves revisions."
+      "description": "All nondeleted packages exactly once including inactive. Missing/duplicate/foreign-clinic ID rejects entire reorder. Membership/order changes catalog revision once; component/text/active changes do not. No-op preserves revisions. An empty ids list is valid only when the current nondeleted clinic catalog is empty; otherwise complete-membership validation rejects it."
     TreatmentPackagePreviewRequest:
       "type": "object"
       "additionalProperties": false
@@ -14050,7 +14050,7 @@ components:
           "$ref": "#/components/schemas/TreatmentPackageVersion"
         "preview_token":
           "$ref": "#/components/schemas/TreatmentPackagePreviewToken"
-      "description": "Flat EMR494 body. Trusted clinic/actor/record pet server-only. No caller price/quantity/components overrides. Content=record_ref/package_id/package_version/preview_token; preconditions=owner_expected_version/edit_session_ref/edit_epoch. Current holder/session/epoch required; create grant plus edit fence, no extra edit grant. Whole application+N plan+N revision+audit+receipt in one TX, aggregate version increments once. Same-key ambiguity uses lookup, never blind new UUID."
+      "description": "Flat EMR494 body. Trusted clinic/actor/record pet server-only. No caller price/quantity/components overrides. Server-internal C06 Content=record_ref (derived from authorized route {record_id}, never accepted in the body)/package_id/package_version/preview_token; preconditions=owner_expected_version/edit_session_ref/edit_epoch. Current holder/session/epoch required; create grant plus edit fence, no extra edit grant. Whole application+N plan+N revision+audit+receipt in one TX, aggregate version increments once. Same-key ambiguity uses lookup, never blind new UUID."
     MedicalRecordPlanOperationResultRefs:
       "type": "object"
       "additionalProperties": false
