@@ -18,7 +18,7 @@ import {
 
 // Hooks
 import { useModalState } from "@/hooks/use-modal-state";
-import { useClinicScope } from "@/hooks/use-clinic-scope";
+import { useAuth } from "@/hooks/use-auth";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
 // External
@@ -43,14 +43,14 @@ import type { OwnersLoaderData } from "../loaders";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
+import { OwnersListScopeState } from "../components/OwnersListScopeState";
+import { useOwnersClinicScope } from "../hooks/use-owners-clinic-scope";
 import {
   activeFiltersToParams,
   paramsToActiveFilters,
   buildSpeciesFilterOptions,
   buildOwnerFilterProperties,
 } from "../lib/owners-list-filters";
-
-const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 
 export function OwnersList() {
   const navigate = useNavigate();
@@ -64,18 +64,14 @@ export function OwnersList() {
   const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
   const navigation = useNavigation();
-  const { pets, page, limit, total } = useLoaderData<OwnersLoaderData>();
+  const { pets, page, limit, total, listState, clinicScope } = useLoaderData<OwnersLoaderData>();
+  const { currentClinicId } = useAuth();
 
-  // #86: 拠点横断表示 — URL の ?clinics=1,2 が表示拠点。未指定は現在の医院のみ（従来挙動）。
-  // 選択変更で loader が再実行され、サーバ側 (resolveListClinicIDs) で所属検証される。
-  const {
-    assignedClinics,
-    selectedClinicIds,
-    isMultiClinic,
-    clinicNameById,
-    currentClinicId,
-    handleToggleClinic,
-  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
+  // #86 / EMR-463: 拠点横断表示 — 表示医院は loader が GET /me `owners_view_clinic_ids`
+  // （現在の owners:view 許可）から確定した医院だけ。初期値は全許可医院、明示選択は
+  // URL ?clinics= と保存先へ反映する。最終認可はサーバ側 (GET /pets) が行う。
+  const { clinics, selectedClinicIds, isMultiClinic, clinicNameById, handleToggleClinic } =
+    useOwnersClinicScope(clinicScope);
 
   // #266: 検索・フィルタ・ページはすべて URL 経由でサーバに転送する（loaders.ts 参照）。
   // EMR-247: searchTerm は PropertyFilter の確定操作（Enter / 検索ボタン / クリア）で
@@ -178,6 +174,10 @@ export function OwnersList() {
     [totalPages, setSearchParams],
   );
 
+  const handleReload = useCallback(() => {
+    void revalidator.revalidate();
+  }, [revalidator]);
+
   // #266: loader 再フェッチ中（検索・フィルタ・ページ変更）の視覚フィードバック
   const isFiltering = navigation.state === "loading";
 
@@ -239,15 +239,25 @@ export function OwnersList() {
       }
       maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
-      {/* #86: 複数所属ユーザーのみ拠点横断フィルタを表示 */}
-      {assignedClinics.length >= 2 ? (
+      {/* #86 / EMR-463: 許可医院が2院以上のときだけ拠点横断フィルタを表示 */}
+      {clinics.length >= 2 ? (
         <div className="mb-3">
           <ClinicScopeFilter
-            clinics={assignedClinics}
+            clinics={clinics}
             selectedIds={selectedClinicIds}
             onToggle={handleToggleClinic}
           />
         </div>
+      ) : null}
+      {listState.kind === "ready" && listState.scopeRechecked ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`mb-3 text-sm ${C.text60}`}
+        >
+          表示できる医院が変わったため、現在表示できる医院で一覧を取得し直しました。
+        </p>
       ) : null}
       {isSpeciesError ? (
         <p role="alert" aria-atomic="true" className={`mb-3 text-sm ${C.danger}`}>
@@ -272,26 +282,34 @@ export function OwnersList() {
           動物種類が登録されていません。
         </p>
       ) : null}
-      <OwnersListTable
-        pets={pets}
-        pagination={{ currentPage: page, totalPages, totalCount: total, startIndex, endIndex }}
-        searchTerm={searchTerm}
-        activeFilters={activeFilters}
-        filterProperties={filterProperties}
-        isFiltering={isFiltering}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        canReport={canReport}
-        showClinicColumn={isMultiClinic}
-        clinicNameById={clinicNameById}
-        currentClinicId={currentClinicId}
-        onSearchChange={setSearchTerm}
-        onFilterChange={handleFilterChange}
-        onEdit={handleEdit}
-        onDeleteRequest={handleDeleteRequest}
-        onReport={handleReport}
-        onPageChange={handlePageChange}
-      />
+      {listState.kind !== "ready" ? (
+        <OwnersListScopeState
+          listState={listState}
+          onReload={handleReload}
+          isReloading={revalidator.state === "loading" || navigation.state === "loading"}
+        />
+      ) : (
+        <OwnersListTable
+          pets={pets}
+          pagination={{ currentPage: page, totalPages, totalCount: total, startIndex, endIndex }}
+          searchTerm={searchTerm}
+          activeFilters={activeFilters}
+          filterProperties={filterProperties}
+          isFiltering={isFiltering}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canReport={canReport}
+          showClinicColumn={isMultiClinic}
+          clinicNameById={clinicNameById}
+          currentClinicId={currentClinicId}
+          onSearchChange={setSearchTerm}
+          onFilterChange={handleFilterChange}
+          onEdit={handleEdit}
+          onDeleteRequest={handleDeleteRequest}
+          onReport={handleReport}
+          onPageChange={handlePageChange}
+        />
+      )}
 
       {/* Delete Confirm Dialog */}
       <ConfirmDialog
