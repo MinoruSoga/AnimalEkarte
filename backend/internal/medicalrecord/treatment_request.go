@@ -33,6 +33,11 @@ func (f *doseAmountField) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNull)
 	}
+	// クォート付き文字列（例: "administration_dose_amount":"1.5"）は OpenAPI の number 契約に
+	// 反するため、json.Number への Unmarshal に成功しても 400 で拒否する（Codex review P2）。
+	if len(data) > 0 && data[0] == '"' {
+		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
+	}
 	// json.Number 経由で受理し、指数表記（例: Python クライアントの 1e-06）を
 	// ScanScientific で exact な固定小数へ正規化する（pgtype の素の UnmarshalJSON は
 	// 指数表記を拒否するため、範囲内の妥当な数値が 400 になるのを防ぐ。Codex review P2）。

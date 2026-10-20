@@ -337,7 +337,15 @@ function PairEditor({
   };
 
   return (
-    <div className="flex flex-col" data-testid={`pair-editor-${invalid ? "invalid" : "editing"}`}>
+    <div
+      className="flex flex-col"
+      data-testid={`pair-editor-${invalid ? "invalid" : "editing"}`}
+      onBlur={(e) => {
+        // ペアグループからフォーカスが外れたら commit（2入力間の移動では閉じない。
+        // 入力済みの下書きが黙って捨てられるのを防ぐ。Codex review P2）
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) void commit();
+      }}
+    >
       <div className="flex items-center gap-1">
         <Input
           ref={inputRef}

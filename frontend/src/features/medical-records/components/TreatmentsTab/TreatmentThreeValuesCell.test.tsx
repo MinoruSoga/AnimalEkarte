@@ -260,3 +260,24 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     expect(amountInput.getAttribute("aria-describedby")).toBe(alert.id);
     expect(onUpdate).not.toHaveBeenCalled();
   });
+
+  it("ペアエディタでグループ外へフォーカスが外れると入力済みの値で commit する（P2: blur 破棄の防止）", async () => {
+    const user = userEvent.setup();
+    const { onUpdate, inputRef } = renderCell({
+      treatment: buildTreatment(),
+      editField: "administration_dose_amount",
+    });
+    const amountInput = inputRef.current as HTMLInputElement;
+    await user.type(amountInput, "2");
+    const unitInput = screen.getByPlaceholderText("単位") as HTMLInputElement;
+    await user.type(unitInput, "mL");
+    // 量 input の blur（relatedTarget はペア外）→ グループ外への blur で commit
+    fireEvent.blur(amountInput, { relatedTarget: document.body });
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenCalledWith("1", {
+        administration_dose_amount: 2,
+        administration_dose_unit: "mL",
+        version: 3,
+      }),
+    );
+  });

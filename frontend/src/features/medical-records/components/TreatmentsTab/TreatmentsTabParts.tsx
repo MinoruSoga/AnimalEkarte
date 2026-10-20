@@ -92,7 +92,7 @@ export function TreatmentsTable({
       <tbody>
         {treatments.length === 0 ? (
           <tr>
-            <TableCell data-empty-state colSpan={10} className={STYLE.tableEmptySm}>
+            <TableCell data-empty-state colSpan={11} className={STYLE.tableEmptySm}>
               {/* EMR-412 K5: 通常時は実ボタン名（マスタから追加/手入力で追加）を書く。ロック中は理由文言。 */}
               {lockedEmptyMessage ??
                 "治療明細がありません。「マスタから追加」または「手入力で追加」ボタンから追加してください。"}

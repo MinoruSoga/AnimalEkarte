@@ -399,13 +399,13 @@ func TestValidateDoseFieldsMedicineOnlyForUpdate(t *testing.T) {
 	amount := exactFromJSON(t, "2.5")
 
 	// 適用後 item_type が非medicine なのに3値入力がある更新は 400
-	err := validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeConsultation, &UpdateTreatmentInput{
+	err := validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeConsultation, &model.Treatment{}, &UpdateTreatmentInput{
 		AdministrationDoseAmount: amount,
 	})
 	assert.Error(t, err)
 
 	// medicine 行への3値入力は OK
-	err = validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeMedicine, &UpdateTreatmentInput{
+	err = validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeMedicine, &model.Treatment{}, &UpdateTreatmentInput{
 		AdministrationDoseAmount: amount,
 	})
 	assert.NoError(t, err)
@@ -455,4 +455,13 @@ func TestCreateTreatmentRequest_ThreeValues_ExponentFormIsAccepted(t *testing.T)
 	input := req.toServiceInput()
 	require.NotNil(t, input.AdministrationDoseAmount)
 	assert.Equal(t, "0.000001", exactText(t, input.AdministrationDoseAmount))
+}
+
+func TestCreateTreatmentRequest_ThreeValues_QuotedAmountIsRejected(t *testing.T) {
+	// Codex review P2: クォート付き文字列は OpenAPI の number 契約に反するため 400
+	// （json.Number + ScanScientific が受理して保存しないよう wire で拒否）。
+	body := `{"item_type": "medicine", "administration_dose_amount": "1.5"}`
+	var req createTreatmentRequest
+	err := json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
 }
