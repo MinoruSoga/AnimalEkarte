@@ -29,14 +29,14 @@ func TestConsultationService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.Consultation) error { *created = true; return nil },
 		}
-		return NewConsultationService(repo)
+		return NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateConsultationInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateConsultationInput{ActorID: masterTestActorID(), Name: "x", ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "consultation must NOT be persisted referencing another clinic's parent consultation")
@@ -46,7 +46,7 @@ func TestConsultationService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateConsultationInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateConsultationInput{ActorID: masterTestActorID(), Name: "x", ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -72,14 +72,14 @@ func TestConsultationService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.Consultation{ID: id}, nil
 			},
 		}
-		return NewConsultationService(repo)
+		return NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{ParentID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "consultation must NOT be updated to reference another clinic's parent consultation")
@@ -89,7 +89,7 @@ func TestConsultationService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{ParentID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)
@@ -118,14 +118,14 @@ func TestProcedureService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.Procedure) error { *created = true; return nil },
 		}
-		return NewProcedureService(repo, &mockTransactor{})
+		return NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateProcedureInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateProcedureInput{ActorID: masterTestActorID(), Name: "x", ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "procedure must NOT be persisted referencing another clinic's parent procedure")
@@ -135,7 +135,7 @@ func TestProcedureService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateProcedureInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateProcedureInput{ActorID: masterTestActorID(), Name: "x", ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -161,14 +161,14 @@ func TestProcedureService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.Procedure{ID: id}, nil
 			},
 		}
-		return NewProcedureService(repo, &mockTransactor{})
+		return NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{ParentID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{ActorID: masterTestActorID(), ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "procedure must NOT be updated to reference another clinic's parent procedure")
@@ -178,7 +178,7 @@ func TestProcedureService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{ParentID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{ActorID: masterTestActorID(), ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)

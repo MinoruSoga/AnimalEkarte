@@ -245,8 +245,11 @@ func TestListConsultations(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns list of consultations",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns list of consultations",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				listFn: func(_ context.Context, clinicID uint64) ([]model.Consultation, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -257,8 +260,11 @@ func TestListConsultations(t *testing.T) {
 			wantBody:   `"name":"予防接種相談"`,
 		},
 		{
-			name:     "returns empty list when no consultations exist",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns empty list when no consultations exist",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Consultation, error) {
 					return []model.Consultation{}, nil
@@ -274,8 +280,11 @@ func TestListConsultations(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 500 on service error",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns 500 on service error",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Consultation, error) {
 					return nil, fmt.Errorf("db failure")
@@ -318,9 +327,12 @@ func TestGetConsultation(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns consultation for valid id",
-			paramID:  "4",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns consultation for valid id",
+			paramID: "4",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Consultation, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -339,16 +351,22 @@ func TestGetConsultation(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 for non-numeric id",
-			paramID:    "abc",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for non-numeric id",
+			paramID: "abc",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockConsultationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 404 when consultation not found",
-			paramID:  "999",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 404 when consultation not found",
+			paramID: "999",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
 					return nil, apperrors.WrapNotFound("consultation", "999")
@@ -400,9 +418,12 @@ func TestCreateConsultation(t *testing.T) {
 		wantHeader bool
 	}{
 		{
-			name:     "creates consultation successfully",
-			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "creates consultation successfully",
+			body: validBody(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				createFn: func(_ context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -422,23 +443,32 @@ func TestCreateConsultation(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 when name is missing",
-			body:       map[string]any{"is_active": true},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name: "returns 400 when name is missing",
+			body: map[string]any{"is_active": true},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockConsultationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 for invalid JSON",
-			body:       "not-json",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name: "returns 400 for invalid JSON",
+			body: "not-json",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockConsultationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 500 on service error",
-			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns 500 on service error",
+			body: validBody(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				createFn: func(_ context.Context, _ uint64, _ *CreateConsultationInput) (*model.Consultation, error) {
 					return nil, fmt.Errorf("db error")
@@ -489,10 +519,13 @@ func TestUpdateConsultation(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "updates consultation successfully",
-			paramID:  "1",
-			body:     map[string]any{"name": "行動相談"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "updates consultation successfully",
+			paramID: "1",
+			body:    map[string]any{"name": "行動相談"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -506,10 +539,13 @@ func TestUpdateConsultation(t *testing.T) {
 			wantBody:   `"name":"行動相談"`,
 		},
 		{
-			name:     "partial update with description",
-			paramID:  "1",
-			body:     map[string]any{"description": "行動に関する相談"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "partial update with description",
+			paramID: "1",
+			body:    map[string]any{"description": "行動に関する相談"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 					require.NotNil(t, input.Description)
@@ -529,26 +565,35 @@ func TestUpdateConsultation(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 for non-numeric id",
-			paramID:    "xyz",
-			body:       map[string]any{"name": "テスト"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for non-numeric id",
+			paramID: "xyz",
+			body:    map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockConsultationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 for invalid JSON",
-			paramID:    "1",
-			body:       "not-json",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for invalid JSON",
+			paramID: "1",
+			body:    "not-json",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockConsultationService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 404 when consultation not found",
-			paramID:  "999",
-			body:     map[string]any{"name": "テスト"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 404 when consultation not found",
+			paramID: "999",
+			body:    map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockConsultationService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateConsultationInput) (*model.Consultation, error) {
 					return nil, apperrors.WrapNotFound("consultation", "999")
@@ -589,6 +634,7 @@ func newReorderConsultationsRouter(svc ConsultationService) *gin.Engine {
 	h := newHandlerWithConsultationSvc(svc)
 	r.POST("/consultations/reorder", func(c *gin.Context) {
 		setClinicID(c)
+		setStaffID(c)
 	}, h.ReorderConsultations)
 	return r
 }
@@ -659,6 +705,7 @@ func newDeleteConsultationRouter(svc ConsultationService) *gin.Engine {
 	h := newHandlerWithConsultationSvc(svc)
 	r.DELETE("/consultations/:id", func(c *gin.Context) {
 		setClinicID(c)
+		setStaffID(c)
 	}, h.DeleteConsultation)
 	return r
 }
@@ -776,6 +823,7 @@ func TestConsultationSelectedClinicGrant(t *testing.T) {
 			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			c.Params = gin.Params{{Key: "id", Value: "10"}}
 			setClinicID(c)
+			setStaffID(c)
 			c.Set("clinic_id", "2")
 			c.Set("is_system_admin", false)
 			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")

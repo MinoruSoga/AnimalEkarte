@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -62,6 +63,7 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 
 // CreateConsultationInput は診察種別作成のサービス入力 DTO
 type CreateConsultationInput struct {
+	ActorID       *uint64
 	Name          string
 	Price         *int64
 	IsActive      bool
@@ -79,6 +81,7 @@ type CreateConsultationInput struct {
 
 // UpdateConsultationInput は診察料金更新のサービス入力 DTO
 type UpdateConsultationInput struct {
+	ActorID       *uint64
 	Name          *string
 	Price         *int64
 	IsActive      *bool
@@ -105,11 +108,17 @@ type ConsultationService interface {
 }
 
 type consultationService struct {
-	repo ConsultationRepository
+	insuranceWrites MasterInsuranceWriteDependencies
+	repo            ConsultationRepository
 }
 
 func NewConsultationService(repo ConsultationRepository) ConsultationService {
 	return &consultationService{repo: repo}
+}
+
+// NewConsultationServiceWithAudit enables atomic item-setting writes and durable audit.
+func NewConsultationServiceWithAudit(repo ConsultationRepository, deps MasterInsuranceWriteDependencies) ConsultationService {
+	return &consultationService{repo: repo, insuranceWrites: deps}
 }
 
 func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
@@ -127,6 +136,25 @@ func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) 
 	return result, nil
 }
 func (s *consultationService) Create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	var result *model.Consultation
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		var err error
+		result, err = s.create(txCtx, clinicID, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *consultationService) create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
@@ -150,6 +178,11 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 	if input.IsNonInsurance != nil {
 		isNonInsurance = *input.IsNonInsurance
 	}
+	var exactTaxRate model.ExactNumeric
+	if err := exactTaxRate.Scan(strconv.FormatFloat(taxRate, 'f', -1, 64)); err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid tax rate")
+	}
+	sortOrder := input.SortOrder
 	consultation := &model.Consultation{
 		ClinicID:      clinicID,
 		Name:          input.Name,
@@ -159,9 +192,9 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		TimeCondition: input.TimeCondition,
 		Duration:      input.Duration,
 		ParentID:      input.ParentID,
-		SortOrder:     input.SortOrder,
+		SortOrder:     &sortOrder,
 		TaxType:       taxType,
-		TaxRate:       taxRate,
+		TaxRate:       exactTaxRate,
 
 		IsNonInsurance: &isNonInsurance,
 	}
@@ -177,9 +210,42 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		return nil, apperrors.Wrap(err, "failed to create consultation")
 	}
 	slog.InfoContext(ctx, "consultation created", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", consultation.ID))
-	return consultation, nil
+	return s.repo.FindByID(ctx, clinicID, consultation.ID)
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	var result *model.Consultation
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.update", func(txCtx context.Context) (masterInsuranceChange, error) {
+		locker, ok := s.repo.(interface {
+			LockByIDForUpdate(context.Context, uint64, uint64) (*model.Consultation, error)
+		})
+		if !ok {
+			return masterInsuranceChange{}, apperrors.WrapInternalServerError("master insurance target lock dependency is required")
+		}
+		before, err := locker.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var oldSetting *bool
+		if before.IsNonInsurance != nil {
+			value := *before.IsNonInsurance
+			oldSetting = &value
+		}
+		result, err = s.update(txCtx, clinicID, id, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *consultationService) update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}

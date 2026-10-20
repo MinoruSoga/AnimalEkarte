@@ -32,8 +32,8 @@ func newMedicalRecordReferenceServices(
 		diagnosisNames:   medicalrecord.NewDiagnosisNameService(r.diagnosisNames, r.diagnosisTypes),
 		examinationTypes: medicalrecord.NewExamTypeService(r.examinationTypes, d.Transactor),
 		chiefComplaints:  medicalrecord.NewChiefComplaintTypeService(r.chiefComplaints),
-		checkupTypes:     medicalrecord.NewCheckupTypeService(r.checkupTypes),
-		vaccines:         medicalrecord.NewVaccineService(r.vaccines),
+		checkupTypes:     medicalrecord.NewCheckupTypeService(r.checkupTypes, d.Transactor, medicalRecordAuditTxBridge{logger: d.Audit}),
+		vaccines:         medicalrecord.NewVaccineServiceWithAudit(r.vaccines, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: medicalRecordAuditTxBridge{logger: d.Audit}}),
 		inquiryTemplates: medicalrecord.NewInquiryTemplateService(r.inquiryTemplates),
 	}
 }
@@ -53,8 +53,8 @@ func newMedicalRecordMasterServices(
 	auditTx medicalrecord.AuditTxLogger,
 ) medicalRecordMasterServices {
 	return medicalRecordMasterServices{
-		consultations: medicalrecord.NewConsultationService(r.consultations),
-		procedures:    medicalrecord.NewProcedureService(r.procedures, d.Transactor),
+		consultations: medicalrecord.NewConsultationServiceWithAudit(r.consultations, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: auditTx}),
+		procedures:    medicalrecord.NewProcedureServiceWithAudit(r.procedures, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: auditTx}),
 		medicines: medicalrecord.NewMedicineServiceWithAudit(
 			r.medicines,
 			d.Inventory,

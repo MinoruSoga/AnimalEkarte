@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -44,7 +45,17 @@ func (r *procedureRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) 
 
 func (r *procedureRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
 	// MRC-07: ambient-tx participation for delete usage re-check under WithTx.
-	return persistence.FindByIDScoped[model.Procedure](ctx, persistence.DBOrTx(ctx, r.db), "procedure", clinicID, id)
+	db := persistence.DBOrTx(ctx, r.db)
+	return persistence.FindByIDScoped[model.Procedure](ctx, db, "procedure", clinicID, id)
+}
+
+// LockByIDForUpdate locks only the mutation target for an exact audit before-image.
+func (r *procedureRepositoryImpl) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("master insurance lock requires an ambient transaction")
+	}
+	db := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"})
+	return persistence.FindByIDScoped[model.Procedure](ctx, db, "procedure", clinicID, id)
 }
 
 func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.Procedure) error {

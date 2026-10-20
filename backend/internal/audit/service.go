@@ -2,13 +2,13 @@ package audit
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const maxAuditUserAgentBytes = 1024
@@ -68,7 +68,7 @@ func ValidateLog(log *model.AuditLog) error {
 	if log == nil {
 		return apperrors.WrapInvalidInput("audit log is required")
 	}
-	if log.ClinicID == nil || *log.ClinicID == 0 {
+	if log.ClinicID == 0 {
 		return apperrors.WrapInvalidInput("audit log clinic_id is required")
 	}
 	if strings.TrimSpace(log.ActorType) == "" {
@@ -118,26 +118,54 @@ func buildLog(input *Entry) (*model.AuditLog, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("audit log input is required")
 	}
+	if input.ClinicID == nil || *input.ClinicID == 0 {
+		return nil, apperrors.WrapInvalidInput("audit log clinic_id is required")
+	}
 	return &model.AuditLog{
-		ClinicID:   input.ClinicID,
+		ClinicID:   *input.ClinicID,
 		ActorID:    input.ActorID,
 		ActorType:  input.ActorType,
 		Action:     input.Action,
 		Resource:   input.Resource,
 		ResourceID: input.ResourceID,
-		OldValue:   MarshalJSON(input.OldValue),
-		NewValue:   MarshalJSON(input.NewValue),
-		Metadata:   MarshalJSON(input.Metadata),
+		OldValue:   optionalAuditJSON(input.OldValue),
+		NewValue:   optionalAuditJSON(input.NewValue),
+		Metadata:   optionalAuditJSON(input.Metadata),
 		IPAddress:  normalizeIPAddress(input.IPAddress),
-		UserAgent:  normalizeAuditUserAgent(input.UserAgent),
+		UserAgent:  optionalAuditUserAgent(input.UserAgent),
 	}, nil
 }
 
-func marshalOptionalMap(value map[string]any) []byte {
+// Audit logging owns the staff/system distinction; it does not depend on
+// clinical aggregate validation in sharedkernel.
+func auditEntryActorType(actorID *uint64) string {
+	if actorID != nil {
+		return model.AuditActorTypeStaff
+	}
+	return model.AuditActorTypeSystem
+}
+
+func optionalAuditJSON(value any) *json.RawMessage {
+	data := MarshalJSON(value)
+	if data == nil {
+		return nil
+	}
+	raw := json.RawMessage(data)
+	return &raw
+}
+func optionalAuditUserAgent(value string) *string {
+	normalized := normalizeAuditUserAgent(value)
+	if normalized == "" {
+		return nil
+	}
+	return &normalized
+}
+
+func marshalOptionalMap(value map[string]any) *json.RawMessage {
 	if value == nil {
 		return nil
 	}
-	return MarshalJSON(value)
+	return optionalAuditJSON(value)
 }
 
 // Log validates and writes a regular audit event.
@@ -146,12 +174,14 @@ func (s *service) Log(ctx context.Context, log *model.AuditLog) error {
 		return err
 	}
 	normalizedLog := *log
-	normalizedLog.UserAgent = normalizeAuditUserAgent(log.UserAgent)
+	if log.UserAgent != nil {
+		normalizedLog.UserAgent = optionalAuditUserAgent(*log.UserAgent)
+	}
 	if err := s.repository.Create(ctx, &normalizedLog); err != nil {
 		slog.ErrorContext(ctx, "audit_write_failed",
 			"action", normalizedLog.Action,
 			"resource", normalizedLog.Resource,
-			"clinic_id", *normalizedLog.ClinicID,
+			"clinic_id", normalizedLog.ClinicID,
 			"error", err,
 		)
 		return apperrors.Wrap(err, "failed to create audit log")
@@ -177,7 +207,9 @@ func (s *service) LogEntryTx(ctx context.Context, input *Entry) error {
 	if err := ValidateLog(log); err != nil {
 		return err
 	}
-	log.UserAgent = normalizeAuditUserAgent(log.UserAgent)
+	if log.UserAgent != nil {
+		log.UserAgent = optionalAuditUserAgent(*log.UserAgent)
+	}
 	if err := s.repository.CreateTx(ctx, log); err != nil {
 		return apperrors.Wrap(err, "failed to create audit log")
 	}
@@ -190,14 +222,17 @@ func (s *service) LogAuthLogin(
 	clinicID, staffID *uint64,
 	action, ipAddress, userAgent string,
 ) error {
+	if clinicID == nil || *clinicID == 0 {
+		return apperrors.WrapInvalidInput("audit log clinic_id is required")
+	}
 	return s.Log(ctx, &model.AuditLog{
-		ClinicID:  clinicID,
+		ClinicID:  *clinicID,
 		ActorID:   staffID,
 		ActorType: model.AuditActorTypeStaff,
 		Action:    action,
 		Resource:  "auth",
 		IPAddress: normalizeIPAddress(ipAddress),
-		UserAgent: normalizeAuditUserAgent(userAgent),
+		UserAgent: optionalAuditUserAgent(userAgent),
 	})
 }
 
@@ -222,13 +257,13 @@ func (s *service) LogLstepOperationWithMetadata(
 	metadata any,
 ) error {
 	return s.Log(ctx, &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		ActorID:    actorID,
-		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
+		ActorType:  auditEntryActorType(actorID),
 		Action:     action,
 		Resource:   resource,
 		ResourceID: resourceID,
-		Metadata:   MarshalJSON(metadata),
+		Metadata:   optionalAuditJSON(metadata),
 	})
 }
 
@@ -242,9 +277,9 @@ func (s *service) LogMedicalRecordChange(
 	oldValue, newValue map[string]any,
 ) error {
 	return s.Log(ctx, &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		ActorID:    actorID,
-		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
+		ActorType:  auditEntryActorType(actorID),
 		Action:     action,
 		Resource:   "medical_record",
 		ResourceID: &recordID,
@@ -263,15 +298,15 @@ func (s *service) LogVitalChange(
 	oldValue, newValue map[string]any,
 ) error {
 	return s.Log(ctx, &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		ActorID:    actorID,
-		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
+		ActorType:  auditEntryActorType(actorID),
 		Action:     action,
 		Resource:   "vital",
 		ResourceID: &vitalID,
 		OldValue:   marshalOptionalMap(oldValue),
 		NewValue:   marshalOptionalMap(newValue),
-		Metadata:   MarshalJSON(map[string]any{"medical_record_id": medicalRecordID}),
+		Metadata:   optionalAuditJSON(map[string]any{"medical_record_id": medicalRecordID}),
 	})
 }
 
@@ -283,15 +318,15 @@ func (s *service) LogClinicSwitch(
 	ipAddress, userAgent string,
 ) error {
 	return s.Log(ctx, &model.AuditLog{
-		ClinicID:  &toClinicID,
+		ClinicID:  toClinicID,
 		ActorID:   actorID,
-		ActorType: sharedkernel.AuditActorTypeFor(actorID),
+		ActorType: auditEntryActorType(actorID),
 		Action:    "switch_clinic",
 		Resource:  "auth",
-		OldValue:  MarshalJSON(map[string]any{"clinic_id": fromClinicID}),
-		NewValue:  MarshalJSON(map[string]any{"clinic_id": toClinicID}),
+		OldValue:  optionalAuditJSON(map[string]any{"clinic_id": fromClinicID}),
+		NewValue:  optionalAuditJSON(map[string]any{"clinic_id": toClinicID}),
 		IPAddress: normalizeIPAddress(ipAddress),
-		UserAgent: normalizeAuditUserAgent(userAgent),
+		UserAgent: optionalAuditUserAgent(userAgent),
 	})
 }
 
@@ -304,18 +339,18 @@ func (s *service) LogAddendumCreate(
 	addendum *model.MedicalRecordAddendum,
 ) error {
 	return s.Log(ctx, &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		ActorID:    actorID,
-		ActorType:  sharedkernel.AuditActorTypeFor(actorID),
+		ActorType:  auditEntryActorType(actorID),
 		Action:     "create",
 		Resource:   "medical_record_addendum",
 		ResourceID: &addendumID,
-		NewValue: MarshalJSON(map[string]any{
+		NewValue: optionalAuditJSON(map[string]any{
 			"before_text":    addendum.BeforeText,
 			"after_text":     addendum.AfterText,
 			"reason":         addendum.Reason,
 			"author_user_id": addendum.AuthorUserID,
 		}),
-		Metadata: MarshalJSON(map[string]any{"medical_record_id": medicalRecordID}),
+		Metadata: optionalAuditJSON(map[string]any{"medical_record_id": medicalRecordID}),
 	})
 }

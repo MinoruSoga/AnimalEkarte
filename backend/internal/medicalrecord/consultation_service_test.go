@@ -14,6 +14,7 @@ import (
 // ---- Consultation モック ----
 
 type mockConsultationRepository struct {
+	created                      *model.Consultation
 	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
 	createFn                     func(ctx context.Context, consultation *model.Consultation) error
@@ -29,11 +30,20 @@ func (m *mockConsultationRepository) FindAll(ctx context.Context, clinicID uint6
 }
 
 func (m *mockConsultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
+	if m.created != nil && m.created.ID == id {
+		copied := *m.created
+		return &copied, nil
+	}
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockConsultationRepository) Create(ctx context.Context, consultation *model.Consultation) error {
-	return m.createFn(ctx, consultation)
+	if err := m.createFn(ctx, consultation); err != nil {
+		return err
+	}
+	copied := *consultation
+	m.created = &copied
+	return nil
 }
 
 func (m *mockConsultationRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateConsultationInput) (*model.Consultation, error) {
@@ -83,72 +93,72 @@ func TestBuildConsultationUpdate(t *testing.T) {
 	}{
 		{
 			name:  "no fields set returns empty map",
-			input: &UpdateConsultationInput{},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID()},
 			want:  map[string]any{},
 		},
 		{
 			name:  "only name set",
-			input: &UpdateConsultationInput{Name: &name},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Name: &name},
 			want:  map[string]any{colConsultationName: name},
 		},
 		{
 			name:  "only price set",
-			input: &UpdateConsultationInput{Price: &price},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Price: &price},
 			want:  map[string]any{colConsultationPrice: price},
 		},
 		{
 			name:  "only is_active set",
-			input: &UpdateConsultationInput{IsActive: &isActive},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), IsActive: &isActive},
 			want:  map[string]any{colConsultationIsActive: isActive},
 		},
 		{
 			name:  "only description set",
-			input: &UpdateConsultationInput{Description: &description},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Description: &description},
 			want:  map[string]any{colConsultationDescription: description},
 		},
 		{
 			name:  "only time_condition set",
-			input: &UpdateConsultationInput{TimeCondition: &timeCondition},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), TimeCondition: &timeCondition},
 			want:  map[string]any{colConsultationTimeCondition: timeCondition},
 		},
 		{
 			name:  "only duration set",
-			input: &UpdateConsultationInput{Duration: &duration},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Duration: &duration},
 			want:  map[string]any{colConsultationDuration: duration},
 		},
 		{
 			name:  "parent_id set writes value",
-			input: &UpdateConsultationInput{ParentID: &parentID},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &parentID},
 			want:  map[string]any{colConsultationParentID: parentID},
 		},
 		{
 			name:  "clear_parent_id writes explicit NULL even with parent_id set",
-			input: &UpdateConsultationInput{ParentID: &parentID, ClearParentID: true},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &parentID, ClearParentID: true},
 			want:  map[string]any{colConsultationParentID: nil},
 		},
 		{
 			name:  "only sort_order set",
-			input: &UpdateConsultationInput{SortOrder: &sortOrder},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), SortOrder: &sortOrder},
 			want:  map[string]any{colConsultationSortOrder: sortOrder},
 		},
 		{
 			name:  "only tax_type set",
-			input: &UpdateConsultationInput{TaxType: &taxType},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), TaxType: &taxType},
 			want:  map[string]any{colConsultationTaxType: model.TaxType(taxType)},
 		},
 		{
 			name:  "only tax_rate set",
-			input: &UpdateConsultationInput{TaxRate: &taxRate},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), TaxRate: &taxRate},
 			want:  map[string]any{colConsultationTaxRate: taxRate},
 		},
 		{
 			name:  "explicit insurance-eligible is_non_insurance",
-			input: &UpdateConsultationInput{IsNonInsurance: boolPtr(false)},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), IsNonInsurance: boolPtr(false)},
 			want:  map[string]any{colConsultationIsNonInsurance: false},
 		},
 		{
 			name:  "explicit non-insurance is_non_insurance",
-			input: &UpdateConsultationInput{IsNonInsurance: boolPtr(true)},
+			input: &UpdateConsultationInput{ActorID: masterTestActorID(), IsNonInsurance: boolPtr(true)},
 			want:  map[string]any{colConsultationIsNonInsurance: true},
 		},
 	}
@@ -172,8 +182,8 @@ func TestConsultationService_List(t *testing.T) {
 		{
 			name: "returns consultations list",
 			repoData: []model.Consultation{
-				{ID: 1, ClinicID: 1, Name: "相談1", SortOrder: 1, IsActive: true},
-				{ID: 2, ClinicID: 1, Name: "相談2", SortOrder: 2, IsActive: true},
+				{ID: 1, ClinicID: 1, Name: "相談1", SortOrder: masterTestSortOrder(1), IsActive: true},
+				{ID: 2, ClinicID: 1, Name: "相談2", SortOrder: masterTestSortOrder(2), IsActive: true},
 			},
 			repoErr: nil,
 			wantLen: 2,
@@ -202,7 +212,7 @@ func TestConsultationService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			consultations, err := svc.List(context.Background(), 1)
 
@@ -232,7 +242,7 @@ func TestConsultationService_GetByID(t *testing.T) {
 				ID:        1,
 				ClinicID:  1,
 				Name:      "相談1",
-				SortOrder: 1,
+				SortOrder: masterTestSortOrder(1),
 				IsActive:  true,
 			},
 			repoErr:      nil,
@@ -264,7 +274,7 @@ func TestConsultationService_GetByID(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			consultation, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -291,7 +301,7 @@ func TestConsultationService_Create(t *testing.T) {
 	}{
 		{
 			name: "creates consultation successfully",
-			input: &CreateConsultationInput{
+			input: &CreateConsultationInput{ActorID: masterTestActorID(),
 				Name:      "新規相談",
 				SortOrder: 3,
 				IsActive:  true,
@@ -301,7 +311,7 @@ func TestConsultationService_Create(t *testing.T) {
 		},
 		{
 			name: "applies default tax type and rate",
-			input: &CreateConsultationInput{
+			input: &CreateConsultationInput{ActorID: masterTestActorID(),
 				Name: "デフォルト税率相談",
 			},
 			repoErr: nil,
@@ -309,7 +319,7 @@ func TestConsultationService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when consultation already exists",
-			input: &CreateConsultationInput{
+			input: &CreateConsultationInput{ActorID: masterTestActorID(),
 				Name: "既存相談",
 			},
 			repoErr: apperrors.WrapAlreadyExists("consultation", "既存相談"),
@@ -317,7 +327,7 @@ func TestConsultationService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			input: &CreateConsultationInput{
+			input: &CreateConsultationInput{ActorID: masterTestActorID(),
 				Name: "エラー相談",
 			},
 			repoErr: errors.New("db error"),
@@ -325,12 +335,12 @@ func TestConsultationService_Create(t *testing.T) {
 		},
 		{
 			name:    "returns validation error when name is blank",
-			input:   &CreateConsultationInput{Name: ""},
+			input:   &CreateConsultationInput{ActorID: masterTestActorID(), Name: ""},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when price is negative",
-			input: &CreateConsultationInput{
+			input: &CreateConsultationInput{ActorID: masterTestActorID(),
 				Name:  "Negative Price Consultation",
 				Price: func(v int64) *int64 { return &v }(-100),
 			},
@@ -347,7 +357,7 @@ func TestConsultationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			consultation, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -377,25 +387,25 @@ func TestConsultationService_Create_TaxDefaults(t *testing.T) {
 	}{
 		{
 			name:        "nil TaxType/TaxRate use defaults",
-			input:       &CreateConsultationInput{Name: "デフォルト"},
+			input:       &CreateConsultationInput{ActorID: masterTestActorID(), Name: "デフォルト"},
 			wantTaxType: model.TaxTypeExcluded,
 			wantTaxRate: 0.10,
 		},
 		{
 			name:        "empty string TaxType falls back to default",
-			input:       &CreateConsultationInput{Name: "空文字税区分", TaxType: strPtr("")},
+			input:       &CreateConsultationInput{ActorID: masterTestActorID(), Name: "空文字税区分", TaxType: strPtr("")},
 			wantTaxType: model.TaxTypeExcluded,
 			wantTaxRate: 0.10,
 		},
 		{
 			name:        "custom TaxType is applied",
-			input:       &CreateConsultationInput{Name: "内税相談", TaxType: strPtr("included")},
+			input:       &CreateConsultationInput{ActorID: masterTestActorID(), Name: "内税相談", TaxType: strPtr("included")},
 			wantTaxType: model.TaxType("included"),
 			wantTaxRate: 0.10,
 		},
 		{
 			name:        "custom TaxRate is applied",
-			input:       &CreateConsultationInput{Name: "軽減税率相談", TaxRate: float64Ptr(0.08)},
+			input:       &CreateConsultationInput{ActorID: masterTestActorID(), Name: "軽減税率相談", TaxRate: float64Ptr(0.08)},
 			wantTaxType: model.TaxTypeExcluded,
 			wantTaxRate: 0.08,
 		},
@@ -406,14 +416,16 @@ func TestConsultationService_Create_TaxDefaults(t *testing.T) {
 			repo := &mockConsultationRepository{
 				createFn: func(_ context.Context, _ *model.Consultation) error { return nil },
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			consultation, err := svc.Create(context.Background(), 1, tt.input)
 
 			assert.NoError(t, err)
 			if assert.NotNil(t, consultation) {
 				assert.Equal(t, tt.wantTaxType, consultation.TaxType)
-				assert.InDelta(t, tt.wantTaxRate, consultation.TaxRate, 0.0001)
+				tax, taxErr := consultation.TaxRate.Float64Value()
+				assert.NoError(t, taxErr)
+				assert.InDelta(t, tt.wantTaxRate, tax.Float64, 0.0001)
 			}
 		})
 	}
@@ -439,9 +451,9 @@ func TestConsultationService_Create_InsuranceDefault(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
-			_, err := svc.Create(context.Background(), 1, &CreateConsultationInput{
+			_, err := svc.Create(context.Background(), 1, &CreateConsultationInput{ActorID: masterTestActorID(),
 				Name:           "保険設定テスト",
 				IsNonInsurance: tt.input,
 			})
@@ -467,7 +479,7 @@ func TestConsultationService_Update(t *testing.T) {
 	}{
 		{
 			name: "updates consultation successfully",
-			input: UpdateConsultationInput{
+			input: UpdateConsultationInput{ActorID: masterTestActorID(),
 				Name:     &name,
 				IsActive: &isActive,
 			},
@@ -477,13 +489,13 @@ func TestConsultationService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateConsultationInput{},
+			input:   UpdateConsultationInput{ActorID: masterTestActorID()},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name: "returns not found error when consultation does not exist",
-			input: UpdateConsultationInput{
+			input: UpdateConsultationInput{ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			findByIDErr:  apperrors.WrapNotFound("consultation", "999"),
@@ -492,7 +504,7 @@ func TestConsultationService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			input: UpdateConsultationInput{
+			input: UpdateConsultationInput{ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			findByIDErr: nil,
@@ -501,12 +513,12 @@ func TestConsultationService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns validation error when name is blank",
-			input:   UpdateConsultationInput{Name: strPtr("")},
+			input:   UpdateConsultationInput{ActorID: masterTestActorID(), Name: strPtr("")},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when price is negative",
-			input: UpdateConsultationInput{
+			input: UpdateConsultationInput{ActorID: masterTestActorID(),
 				Price: func(v int64) *int64 { return &v }(-500),
 			},
 			wantErr: true,
@@ -531,7 +543,7 @@ func TestConsultationService_Update(t *testing.T) {
 					return &model.Consultation{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			consultation, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -555,7 +567,7 @@ func TestConsultationService_Update(t *testing.T) {
 
 func TestConsultationService_Update_NilInput(t *testing.T) {
 	repo := &mockConsultationRepository{}
-	svc := NewConsultationService(repo)
+	svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -653,7 +665,7 @@ func TestConsultationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -702,7 +714,7 @@ func TestConsultationService_Reorder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockConsultationRepository{reorderErr: tt.repoErr}
-			svc := NewConsultationService(repo)
+			svc := NewConsultationServiceWithAudit(repo, masterTestWriteDependencies())
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -713,4 +725,8 @@ func TestConsultationService_Reorder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (m *mockConsultationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
+	return m.FindByID(ctx, clinicID, id)
 }

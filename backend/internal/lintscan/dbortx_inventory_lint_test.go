@@ -483,12 +483,19 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vaccine_repository.go|vaccineRepository.Delete":                 {}, // Runtime: TestVaccineRepository_Delete_RollsBackWhenAmbientTxFails
 	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
 	// Runtime: clinical_master_delete_tx_atomicity_test.go
-	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":            {},
-	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Delete":                 {},
-	"medicalrecord/hospitalization_plan_repository.go|hospitalizationPlanRepository.Delete": {},
-	"medicalrecord/chief_complaint_repository.go|chiefComplaintTypeRepository.Delete":       {},
-	"medicalrecord/diagnosis_name_repository.go|diagnosisNameRepository.Delete":             {},
-	"medicalrecord/diagnosis_type_repository.go|diagnosisTypeRepository.Delete":             {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindAll":                    {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindByID":                   {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.LockByIDForUpdate":          {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Create":                     {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.update":                     {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.CountUsageByConsultationID": {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.CountChildrenByParentID":    {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":                     {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Delete":                          {},
+	"medicalrecord/hospitalization_plan_repository.go|hospitalizationPlanRepository.Delete":          {},
+	"medicalrecord/chief_complaint_repository.go|chiefComplaintTypeRepository.Delete":                {},
+	"medicalrecord/diagnosis_name_repository.go|diagnosisNameRepository.Delete":                      {},
+	"medicalrecord/diagnosis_type_repository.go|diagnosisTypeRepository.Delete":                      {},
 	// Runtime: TestInquiryTemplateRepository_Delete_JoinsAmbientTransaction
 	"medicalrecord/inquiry_template_repository.go|inquiryTemplateRepository.Delete": {},
 	// BUG-425: tag-code replacement is one transaction; every replacement write must use DBOrTx.
@@ -602,6 +609,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// procedure (MRC-07 ambient tx for delete usage check)
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindAll":                 {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindByID":                {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.LockByIDForUpdate":       {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Create":                  {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.update":                  {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Delete":                  {},
