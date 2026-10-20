@@ -59,7 +59,13 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 		if err := db.Model(checkupType).Update("is_active", false).Error; err != nil {
 			return apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", checkupType.ID))
 		}
-		checkupType.IsActive = false
+		// この UPDATE は内容変更なので entity_version_guard が DB の version を加算する。
+		// 応答・監査が古い版を返さないよう、同じ tx で再読取した行に揃える（EMR-456）。
+		stored, err := r.FindByID(ctx, checkupType.ClinicID, checkupType.ID)
+		if err != nil {
+			return err
+		}
+		*checkupType = *stored
 	}
 	return nil
 }

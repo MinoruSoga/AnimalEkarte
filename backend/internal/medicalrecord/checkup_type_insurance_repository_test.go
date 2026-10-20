@@ -32,6 +32,21 @@ func TestCheckupTypeRepository_InsuranceSettingRoundTrip(t *testing.T) {
 		assert.Equal(t, int64(1), got.Version)
 	})
 
+	t.Run("inactive create returns the storage version so an immediate edit succeeds", func(t *testing.T) {
+		ct := &model.CheckupType{ClinicID: clinicA, Name: "無効健診", IsActive: false, IsNonInsurance: boolPtr(true)}
+		require.NoError(t, repo.Create(ctx, ct))
+		var stored model.CheckupType
+		require.NoError(t, db.First(&stored, ct.ID).Error)
+		assert.False(t, stored.IsActive)
+		assert.Equal(t, stored.Version, ct.Version, "returned version must match the row after the is_active follow-up update")
+
+		got, err := repo.Update(ctx, clinicA, ct.ID, UpdateCheckupTypeInput{
+			IsNonInsurance: boolPtr(false), expectedVersion: int64Ptr(ct.Version),
+		})
+		require.NoError(t, err)
+		assert.False(t, *got.IsNonInsurance)
+	})
+
 	t.Run("legacy NULL survives unrelated update and explicit false is kept", func(t *testing.T) {
 		legacy := &model.CheckupType{ClinicID: clinicA, Name: "旧健診", IsActive: true}
 		require.NoError(t, db.WithContext(ctx).Create(legacy).Error)
@@ -110,5 +125,47 @@ func TestCheckupTypeRepository_InsuranceSettingRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, *reread.IsNonInsurance)
 		assert.Equal(t, int64(1), reread.Version)
+	})
+}
+
+// TestCheckupTypeService_InsuranceAuditFailureRollsBackRealDB は実 DB の transactor で、
+// 保険設定の監査書込が失敗したとき業務行（作成・更新）も残らないことを確認する。
+func TestCheckupTypeService_InsuranceAuditFailureRollsBackRealDB(t *testing.T) {
+	db := setupCheckupTypeTestDB(t)
+	repo := NewCheckupTypeRepository(db)
+	tx := persistence.NewTransactor(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+	auditDown := &recordingCheckupTypeAudit{err: errors.New("audit down")}
+
+	t.Run("create is not persisted", func(t *testing.T) {
+		svc := NewCheckupTypeService(repo, tx, auditDown)
+		got, err := svc.Create(ctx, clinicID, &CreateCheckupTypeInput{
+			Name: "監査失敗健診", IsActive: true, ActorID: &testCheckupTypeActorID,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		var count int64
+		require.NoError(t, db.Model(&model.CheckupType{}).Where("name = ?", "監査失敗健診").Count(&count).Error)
+		assert.Zero(t, count)
+	})
+
+	t.Run("insurance change is rolled back", func(t *testing.T) {
+		ok := NewCheckupTypeService(repo, tx, &recordingCheckupTypeAudit{})
+		created, err := ok.Create(ctx, clinicID, &CreateCheckupTypeInput{
+			Name: "監査ロールバック健診", IsActive: true, ActorID: &testCheckupTypeActorID,
+		})
+		require.NoError(t, err)
+
+		svc := NewCheckupTypeService(repo, tx, auditDown)
+		got, err := svc.Update(ctx, clinicID, created.ID, &UpdateCheckupTypeInput{
+			IsNonInsurance: boolPtr(false), Version: int64Ptr(created.Version), ActorID: &testCheckupTypeActorID,
+		})
+		require.Error(t, err)
+		assert.Nil(t, got)
+		reread, err := repo.FindByID(ctx, clinicID, created.ID)
+		require.NoError(t, err)
+		assert.True(t, *reread.IsNonInsurance)
+		assert.Equal(t, created.Version, reread.Version)
 	})
 }
