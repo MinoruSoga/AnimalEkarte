@@ -175,13 +175,13 @@ describe("BillingDetailTable — EMR-354 日次バケット投影", () => {
       .getAllByRole("cell")
       .map((cell) => cell.textContent);
     expect(houseCallCells[houseCallIndex]).toBe("¥1,000");
-    expect(houseCallCells[goodsIndex]).toBe("-");
+    expect(houseCallCells[goodsIndex]).toBe("—");
 
     const goodsRow = within(table).getByText("物販飼主").closest("tr")!;
     const goodsCells = within(goodsRow)
       .getAllByRole("cell")
       .map((cell) => cell.textContent);
-    expect(goodsCells[houseCallIndex]).toBe("-");
+    expect(goodsCells[houseCallIndex]).toBe("—");
     expect(goodsCells[goodsIndex]).toBe("¥200");
 
     const footerRow = within(table).getAllByRole("row").at(-1)!;

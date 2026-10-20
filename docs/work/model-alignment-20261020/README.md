@@ -97,3 +97,23 @@ Plane本文/最新コメントをread-onlyで確認した。下記は2026-10-19�
 Nitpick2件も、ERDの現行241表と246表の履歴を一文で区別し、ClinicalPlanDiagnosis/VaccinationCertificateSeriesへ訂正した。TableNameは不変。MedicalRecordStatus型・定数が存在することはMedicalRecord structにstatus fieldが残る証拠ではなく、最終DROP済み列は戻していない。既存31本番ファイルの廃止型参照と旧税計算helper5呼出しは残り、未解決指摘をresolve済みにはしない。
 
 最終照合30,048項目は、従前30,020項目にnamed-string10項目とunique6組×3項目を追加したもの。通常package vetのFAIL、DB・機能・全体build未確認という境界は変わらない。Codex自動レビューはcode review usage limitで未実行であり、合格/実コード指摘とは扱わない。
+
+## 2026-10-20：旧caller／testの引渡し先
+
+[445全件着手プラン](../emr/emr-445-plan-handoff-20261020.md)の責任分担を追補する。上記の過去検証件数・FAIL／未実施を変更せず、モデル公開をconsumer受入済みとしない。
+
+| 残差 | 責任票・限定範囲 |
+|:---|:---|
+| ClinicalPlan複数診断・通常カルテstatus consumer | EMR-495。診断関連と目的／訂正／通常編集への切替。旧status列は復活させない |
+| mapping LLMRequest／LLMResponseのnullable JSON | EMR-297。機器mappingのreader／response／fixture |
+| station SlotsJSON | EMR-268。機器受信station。シフト493の責務にしない |
+| support chat Sources | EMR-410。nullable JSON／出所readerと対応試験 |
+| LINE ErrorLog／Tags／Scenarios・旧binding caller | EMR-504。最終LINE保存契約へ切替 |
+| ExactNumeric・旧税helper・資金／見積caller | EMR-505＝算定固定版／claim、506＝受領・配賦・返金、508＝見積原本／後継。float式や旧Payment等を復活させない |
+| ShiftEntry旧時刻／休憩・wire変換 | EMR-493。StartsAt／EndsAtと勤務日を区別。時刻templateは別契約 |
+| 共通owner／pet基本列・preload | EMR-491。自院bindingと共通基本改訂reader／writer。現在値から旧履歴を捏造しない |
+| manual旧article field | EMR-502。内容版／公開pointer／新revision復元へ切替 |
+| stay旧列・占有reader | EMR-499＝有効状態core／writer、461＝占有ID adapter／保存再検査。projectorを二重実装しない |
+| 共有schema／testdb | EMR-446＝最終storage/model対応、466＝schema_drift_test旧登録・最小testdb整合、489＝operation固有fixture・実001/RLS/deferred受入 |
+
+各票は対象path／採用SHA・共有編集owner・型／NULL／未指定／ゼロ・必要fixture／期待値・限定試験と未実施理由を445へ渡す。tygo／router／OpenAPI／composition等の共有ファイルは単一担当で統合し、全backendを一括修復しない。実DB／実機受入・臨床承認・共同profile合意は別条件のまま残す。

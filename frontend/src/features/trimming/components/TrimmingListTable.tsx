@@ -23,6 +23,7 @@ import { formatDate } from "@/lib/format/date";
 import type { TrimmingUI } from "@/types";
 import { getTrimmingStatusColor } from "@/lib/status-helpers";
 import { paths } from "@/config/paths";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 // フィルタ定義 (TRIMMING_STATIC_FILTER_PROPERTIES / buildTrimmingDynamicFilterProperties) は
 // TrimmingListTableModel.ts に分離済み (react-refresh/only-export-components)。
@@ -224,7 +225,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
   return (
     <DataTableRow>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "-"}
+        {record.date ? formatDate(record.date) : EMPTY_VALUE}
       </TableCell>
       <TableCell className={`${C.text} min-w-[140px]`}>{record.ownerName}</TableCell>
       <TableCell className="min-w-[160px]">

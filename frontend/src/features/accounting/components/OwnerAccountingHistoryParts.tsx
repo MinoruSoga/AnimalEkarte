@@ -24,6 +24,7 @@ import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import { formatDate } from "@/lib/format/date";
 import type { Accounting } from "../api/transforms";
 
@@ -206,7 +207,7 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
         </Badge>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} text-right font-mono`}>
-        {isCompleted ? formatCurrency(totalAmount) : "-"}
+        {isCompleted ? formatCurrency(totalAmount) : EMPTY_VALUE}
       </TableCell>
       <TableCell>
         <div className="flex items-center justify-end gap-3">
