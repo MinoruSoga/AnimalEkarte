@@ -36,9 +36,9 @@ const APPT_B = "12002";
 const PET_A = "801";
 const PET_B = "802";
 const KEYS = [
-  "0bdbb5d2-87e0-4df5-bd93-3f62008bd776",
-  "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
-  "2a2b2c2d-3e3f-4a4b-8c8d-9e9f0a0b0c0d",
+  "00000000-0000-4000-8000-000000000001",
+  "00000000-0000-4000-8000-000000000002",
+  "00000000-0000-4000-8000-000000000003",
 ];
 
 const READ_PATH = "/api/liff/:clinicId/my-reservations/:appointmentId/revisit-intake";
@@ -258,7 +258,7 @@ beforeEach(() => {
   let n = 0;
   keyMock.mockReset();
   keyMock.mockImplementation(
-    () => KEYS[n++] ?? `ffffffff-ffff-4fff-8fff-${String(n).padStart(12, "0")}`,
+    () => KEYS[n++] ?? `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
   );
   sendMessagesMock.mockClear();
 });
@@ -866,6 +866,89 @@ describe("RevisitIntakePage 応答喪失と結果照会", () => {
 
     expect(await screen.findByText(/回答を送信しました/)).toBeInTheDocument();
     expect(submits.map((s) => s.key)).toEqual([KEYS[0], KEYS[0]]);
+  });
+});
+
+describe("RevisitIntakePage 再試行の抑止（レビュー対応）", () => {
+  it("TARGET_CHANGED 後に再取得が失敗しても、旧 target のまま入力・送信できない", async () => {
+    const user = userEvent.setup();
+    let reads = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        reads += 1;
+        if (reads === 1) return HttpResponse.json(read(unansweredTarget()));
+        return HttpResponse.json({ error: "unavailable" }, { status: 503 });
+      }),
+    );
+    const submits = captureSubmits(() =>
+      HttpResponse.json(
+        { error: "conflict", code: "TARGET_CHANGED", details: null },
+        { status: 409 },
+      ),
+    );
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "旧対象への合成入力");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+
+    expect(
+      await screen.findByText(
+        "予約の対象が変更されました。最新の内容を読み込むまで送信できません。",
+      ),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(reads).toBe(2));
+    expect(purposeInput()).toBeDisabled();
+    expect(screen.getByRole("button", { name: "回答を送信する" })).toBeDisabled();
+    expect(submits).toHaveLength(1);
+  });
+
+  it("429 は Retry-After の期限まで「同じ内容で再送信」を無効にし、期限後は同じ key で再送できる", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    const submits = captureSubmits((c, i) =>
+      i === 0
+        ? HttpResponse.json(
+            { error: "too many requests", code: "TOO_MANY_REQUESTS", details: null },
+            { status: 429, headers: { "Retry-After": "1" } },
+          )
+        : HttpResponse.json(successResponse(c.key ?? "", "1")),
+    );
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+
+    const resend = await screen.findByRole("button", { name: "同じ内容で再送信" });
+    expect(resend).toBeDisabled();
+    await waitFor(
+      () => expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeEnabled(),
+      {
+        timeout: 3000,
+      },
+    );
+    await user.click(screen.getByRole("button", { name: "同じ内容で再送信" }));
+    await waitFor(() => expect(submits).toHaveLength(2));
+    expect(submits[1].key).toBe(submits[0].key);
+  });
+
+  it("新規送信の 401 は再認証案内を出し、送信ボタンを無効にして新しい key を作らない", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    const submits = captureSubmits(() =>
+      HttpResponse.json(
+        { error: "unauthorized", code: "UNAUTHORIZED", details: null },
+        { status: 401 },
+      ),
+    );
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+
+    expect(await screen.findByText(/ログイン情報の有効期限が切れました/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "回答を送信する" })).toBeDisabled();
+    expect(submits).toHaveLength(1);
+    expect(keyMock).toHaveBeenCalledTimes(1);
   });
 });
 

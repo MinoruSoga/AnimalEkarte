@@ -258,7 +258,7 @@ export function RevisitIntakePage({
               </div>
             </div>
           ) : null}
-          <h2 className="text-lg font-bold text-noah-teal-dark">再診の事前問診</h2>
+          <h1 className="text-lg font-bold text-noah-teal-dark">再診の事前問診</h1>
           {summary && (summary.petName || summary.dateLabel || summary.courseName) ? (
             <p className="mt-1 text-sm text-noah-text-sub">
               {[summary.petName, summary.dateLabel, summary.courseName].filter(Boolean).join(" / ")}

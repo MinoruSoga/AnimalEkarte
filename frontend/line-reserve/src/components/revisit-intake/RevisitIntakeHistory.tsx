@@ -43,18 +43,18 @@ export function RevisitIntakeHistory({
 
   return (
     <section aria-labelledby="revisit-intake-history-heading" className="space-y-4">
-      <h3 id="revisit-intake-history-heading" className="text-base font-bold text-noah-teal-dark">
+      <h2 id="revisit-intake-history-heading" className="text-base font-bold text-noah-teal-dark">
         回答履歴
-      </h3>
+      </h2>
       {current.length > 0 ? (
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-noah-text">この予約への回答</h4>
+          <h3 className="text-sm font-semibold text-noah-text">この予約への回答</h3>
           <HistoryList entries={current} />
         </div>
       ) : null}
       {previous.length > 0 ? (
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-noah-text">以前の対象への回答（参照のみ）</h4>
+          <h3 className="text-sm font-semibold text-noah-text">以前の対象への回答（参照のみ）</h3>
           <p className="text-xs text-noah-text-sub">
             予約の取り直しや対象ペットの変更前の回答です。今回の回答には引き継がれません。
           </p>

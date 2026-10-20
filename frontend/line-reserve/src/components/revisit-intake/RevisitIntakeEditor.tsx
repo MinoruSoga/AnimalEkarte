@@ -61,6 +61,10 @@ type EditorOutcome =
       submitted: RevisitIntakeFullAnswers;
     }
   | { kind: "unresolved"; message: string | null }
+  /** TARGET_CHANGED 後、新しい target snapshot の取得に成功するまで入力・送信を止める */
+  | { kind: "target_changed"; atRead: RevisitIntakeLIFFRead }
+  /** 401: 再認証が必要。同じ画面からは再試行・新規送信をさせない */
+  | { kind: "unauthorized"; message: string }
   | { kind: "invalid"; fieldErrors: RevisitIntakeFieldErrors }
   | { kind: "revision_conflict"; atRead: RevisitIntakeLIFFRead }
   | { kind: "form_version_mismatch"; atRead: RevisitIntakeLIFFRead }
@@ -109,12 +113,16 @@ function PendingPanel({
   pending,
   message,
   busy,
+  resendBlocked,
+  authBlocked,
   onResend,
   onLookup,
 }: {
   pending: RevisitIntakePendingOperation;
   message: string | null;
   busy: boolean;
+  resendBlocked: boolean;
+  authBlocked: boolean;
   onResend: () => void;
   onLookup: () => void;
 }) {
@@ -141,14 +149,14 @@ function PendingPanel({
       </p>
       <div className="flex flex-col gap-2">
         {canResend ? (
-          <PrimaryButton onClick={onResend} disabled={busy}>
+          <PrimaryButton onClick={onResend} disabled={busy || resendBlocked || authBlocked}>
             同じ内容で再送信
           </PrimaryButton>
         ) : null}
         <button
           type="button"
           onClick={onLookup}
-          disabled={busy}
+          disabled={busy || authBlocked}
           className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
         >
           送信結果を確認
@@ -212,6 +220,8 @@ export function RevisitIntakeEditor({
   const [pending, setPending] = useState<RevisitIntakePendingOperation | null>(
     () => draftStore.get(targetKey)?.pending ?? null,
   );
+  // 429 Retry-After の期限（epoch ms）。期限までは「同じ内容で再送信」を無効にする。
+  const [resendAvailableAt, setResendAvailableAt] = useState<number | null>(null);
   const inFlightRef = useRef(false);
   const alertRef = useRef<HTMLDivElement>(null);
 
@@ -262,10 +272,8 @@ export function RevisitIntakeEditor({
     } catch (err: unknown) {
       updatePending(op);
       const info = resolveFetchError(err, "送信結果の確認");
-      return {
-        kind: "unresolved",
-        message: info.status === 401 ? info.message : LOOKUP_FAILED_MESSAGE,
-      };
+      if (info.status === 401) return { kind: "unauthorized", message: info.message };
+      return { kind: "unresolved", message: LOOKUP_FAILED_MESSAGE };
     }
   }
 
@@ -294,7 +302,7 @@ export function RevisitIntakeEditor({
         case "target_changed":
           updatePending(null);
           onTargetChanged();
-          return { kind: "idle" };
+          return { kind: "target_changed", atRead: read };
         case "intake_closed":
           updatePending(null);
           onIntakeClosed(kind.reason);
@@ -317,15 +325,17 @@ export function RevisitIntakeEditor({
         case "unauthorized":
           // 認証前に拒否されるため、新規送信なら結果未確定の操作は残さない。
           if (fresh) updatePending(null);
-          return {
-            kind: "error",
-            message: resolveFetchError(err, "問診の送信").message,
-          };
+          return { kind: "unauthorized", message: resolveFetchError(err, "問診の送信").message };
         case "access_denied":
           onAccessDenied();
           return { kind: "idle" };
         case "rate_limited":
           updatePending({ ...op, status: "unknown" });
+          setResendAvailableAt(
+            kind.retryAfterSeconds !== null && kind.retryAfterSeconds > 0
+              ? Date.now() + kind.retryAfterSeconds * 1000
+              : null,
+          );
           return { kind: "unresolved", message: rateLimitedMessage(kind.retryAfterSeconds) };
         case "unknown":
           // 応答喪失・5xx: 失敗確定ではない。同じ key で結果を照会する。
@@ -359,6 +369,7 @@ export function RevisitIntakeEditor({
       if (pending === null) return previous;
       if (action === "resend") {
         if (pending.status === "result_unavailable") return previous;
+        if (resendAvailableAt !== null && Date.now() < resendAvailableAt) return previous;
         return await send(pending, false);
       }
       return await lookup(pending);
@@ -411,11 +422,23 @@ export function RevisitIntakeEditor({
     }
   }, [outcome]);
 
+  useEffect(() => {
+    if (resendAvailableAt === null) return;
+    const timer = setTimeout(
+      () => setResendAvailableAt(null),
+      Math.max(0, resendAvailableAt - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [resendAvailableAt]);
+
   const fieldErrors = outcome.kind === "invalid" ? outcome.fieldErrors : {};
   const needsRefetch =
     (outcome.kind === "revision_conflict" || outcome.kind === "form_version_mismatch") &&
     outcome.atRead === read;
-  const inputsLocked = isPending || pending !== null;
+  // 旧 target の snapshot のままでは送らない（再取得中・再取得失敗時も含む）。
+  const targetChangeLocked = outcome.kind === "target_changed" && outcome.atRead === read;
+  const authBlocked = outcome.kind === "unauthorized";
+  const inputsLocked = isPending || pending !== null || targetChangeLocked;
   const answered = current.answer_state === "answered";
 
   return (
@@ -467,6 +490,23 @@ export function RevisitIntakeEditor({
         />
       ) : null}
 
+      {targetChangeLocked ? (
+        <RefetchBanner
+          message="予約の対象が変更されました。最新の内容を読み込むまで送信できません。"
+          refetching={refetching}
+          onRefetch={onRefetch}
+        />
+      ) : null}
+
+      {outcome.kind === "unauthorized" ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-noah-danger-border bg-noah-danger-bg px-4 py-3"
+        >
+          <p className="text-sm text-noah-danger-text">{outcome.message}</p>
+        </div>
+      ) : null}
+
       {outcome.kind === "key_content_mismatch" ? (
         <div
           role="alert"
@@ -503,6 +543,8 @@ export function RevisitIntakeEditor({
           pending={pending}
           message={outcome.kind === "unresolved" ? outcome.message : null}
           busy={isPending}
+          resendBlocked={resendAvailableAt !== null}
+          authBlocked={authBlocked}
           onResend={() => trigger("resend")}
           onLookup={() => trigger("lookup")}
         />
@@ -528,7 +570,10 @@ export function RevisitIntakeEditor({
       />
 
       {pending === null || isPending ? (
-        <PrimaryButton type="submit" disabled={isPending || needsRefetch}>
+        <PrimaryButton
+          type="submit"
+          disabled={isPending || needsRefetch || targetChangeLocked || authBlocked}
+        >
           {isPending ? "送信中..." : answered ? "訂正して再送信" : "回答を送信する"}
         </PrimaryButton>
       ) : null}

@@ -215,7 +215,10 @@ export const revisitIntakeOwnerCurrentTargetSchema = z
       return t.head_revision === null && t.latest_answer === null && !t.content_available;
     }
     if (t.head_revision === null || t.ref.target_id === null) return false;
-    if (t.content_available) return t.latest_answer !== null;
+    // 可視 head の本文は当該 head の Answer でなければならない（旧回答を最新として扱わない）。
+    if (t.content_available) {
+      return t.latest_answer !== null && t.latest_answer.revision === t.head_revision;
+    }
     return t.latest_answer === null;
   });
 
