@@ -483,6 +483,34 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("保存中はtextareaを編集不可にする（送信後の編集消失を防ぐ）", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    let resolveSave: (value: {
+      operationKey: string;
+      receipt: ReturnType<typeof receiptFixture>;
+    }) => void = () => {};
+    saveMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const { onClose } = renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "保存中の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // 保存が進行中の間は追記できない（送信済み内容との乖離と消失を防ぐ）
+    await waitFor(() => expect(textarea).toHaveAttribute("readonly"));
+    expect(onClose).not.toHaveBeenCalled();
+
+    resolveSave({ operationKey: OPERATION_KEY, receipt: receiptFixture() });
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("マニュアルを保存しました"));
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it("receipt不一致は成功表示せず停止する", async () => {
     editViewMock.mockResolvedValue(editViewFixture());
     saveMock.mockRejectedValue(new ManualReceiptMismatchError("article_id mismatch"));
