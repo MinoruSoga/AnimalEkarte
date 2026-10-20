@@ -832,8 +832,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// operation/store_realdb_test.go (real DB, explicit integration opt-in).
 	"operation/store.go|gormStore.ClaimBinding":      {},
 	"operation/store.go|gormStore.FindBinding":       {},
+	"operation/store.go|gormStore.HasUnknownOutcome": {},
 	"operation/store.go|gormStore.InsertResult":      {},
-	"operation/store.go|gormStore.LatestOutcome":     {},
 	"operation/store.go|gormStore.LoadResult":        {},
 	"operation/store.go|gormStore.LockBindingNoWait": {},
 	"operation/store.go|gormStore.RecordOutcome":     {},

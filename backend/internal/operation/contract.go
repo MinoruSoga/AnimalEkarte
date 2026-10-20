@@ -134,7 +134,10 @@ type Rejection struct {
 func (r *Rejection) Error() string { return "operation rejected: " + string(r.Status) }
 
 // Participant is implemented by each write owner (consumer-side adapter).
+// AuthorizeLookup is also applied before a stored result is replayed, so a
+// resend never discloses a result the current grant may no longer read.
 type Participant interface {
+	LookupAuthorizer
 	// Gate acquires the owner's shared gate as the first step of the outermost
 	// business transaction (e.g. a reservation-graph participant). Owners
 	// without a shared gate return nil. The helper never takes a gate itself.

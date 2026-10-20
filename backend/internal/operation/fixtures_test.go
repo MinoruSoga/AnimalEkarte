@@ -298,6 +298,15 @@ func r2CurrentPermissionRevoked(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, StatusNotAuthorized, revoked.Status)
 	require.Nil(t, revoked.Result)
+
+	// Act: the same key is re-sent through Execute after the revocation.
+	f.owner.revoke()
+	resent := f.execute(f.content, Preconditions{"billing_version": "2", "line_version": "1"})
+
+	// Assert: the replay path re-checks the current grant too and runs nothing.
+	require.Equal(t, StatusNotAuthorized, resent.Status)
+	require.Nil(t, resent.Result)
+	require.Equal(t, 1, f.owner.applyCount())
 }
 
 // TestExecute_RejectsAmbientTransaction pins the outermost-transaction rule: the
@@ -383,6 +392,82 @@ func TestLookup_ScopeNotFound(t *testing.T) {
 	require.Equal(t, StatusScopeNotFound, out.Status)
 	require.Nil(t, out.Result)
 	require.Nil(t, out.Binding)
+}
+
+// TestExecute_UnknownStaysStickyAfterGateFailure pins that a failure recorded
+// after an unknown outcome cannot release the stop: unknown -> gate rejected ->
+// gate recovered -> same key re-sent must still not run the owner write.
+func TestExecute_UnknownStaysStickyAfterGateFailure(t *testing.T) {
+	f := newR2Fixture(t)
+	ctx := t.Context()
+	pre := Preconditions{"billing_version": "1", "line_version": "1"}
+
+	f.owner.failGateWith(errors.New("gate unavailable"))
+	_, err := f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
+	require.Error(t, err)
+	stored, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.NoError(t, f.store.RecordOutcome(ctx, stored.Binding,
+		uuid.MustParse("66666666-6666-4666-8666-666666666666"), OutcomeUnknown, StatusResultUnavailable))
+
+	// Act: the gate rejects once more, then recovers.
+	_, err = f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
+	require.NoError(t, err)
+	f.owner.failGateWith(nil)
+	again, err := f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
+
+	// Assert: still result-unavailable, never applied, and no failure row was
+	// recorded over the unknown outcome.
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, again.Status)
+	require.Equal(t, 0, f.owner.applyCount())
+	attempt, ok := f.store.latestAttempt(stored.Binding.ID)
+	require.True(t, ok)
+	require.Equal(t, OutcomeUnknown, attempt.Outcome)
+}
+
+// TestLookup_SeesSuccessCommittedBeforeLock pins that a success committed
+// between the first receipt read and the binding lock is reported as succeeded,
+// never as not-succeeded (which would invite a retry).
+func TestLookup_SeesSuccessCommittedBeforeLock(t *testing.T) {
+	f := newR2Fixture(t)
+	ctx := t.Context()
+	claimed, err := f.store.ClaimBinding(ctx, f.scope, f.key, []byte("unused-in-fake"), "k1")
+	require.NoError(t, err)
+	f.store.onLock(func() {
+		f.store.commitResultForTest(claimed.Binding.ID, Result{
+			ResultRefs: map[string]string{"billing_id": fakeBillingID},
+			RecordedAt: fakeRecordedAt,
+		})
+	})
+
+	out, err := f.runner.Lookup(ctx, f.scope, f.key, allowLookup{})
+
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, out.Status)
+	require.NotNil(t, out.Result)
+	require.Equal(t, fakeBillingID, out.Result.ResultRefs["billing_id"])
+}
+
+// TestExecute_GateFailureWithCommittedReceiptRechecksGrant pins that the
+// failure path which finds a committed receipt does not disclose it when the
+// current grant was revoked.
+func TestExecute_GateFailureWithCommittedReceiptRechecksGrant(t *testing.T) {
+	f := newR2Fixture(t)
+	first := f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+	require.Equal(t, StatusSucceeded, first.Status)
+
+	f.owner.revoke()
+	f.owner.failGateWith(errors.New("gate unavailable"))
+	out, err := f.runner.Execute(t.Context(), Request{
+		Scope: f.scope, Key: f.key, Content: f.content,
+		Preconditions: Preconditions{"billing_version": "2", "line_version": "1"},
+	}, f.owner)
+
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, out.Status)
+	require.Nil(t, out.Result)
+	require.Equal(t, 1, f.owner.applyCount())
 }
 
 // r2Fixture wires the in-memory store, the fake transaction boundary and the
@@ -511,8 +596,9 @@ type fakeStore struct {
 	outcomes map[uint64][]fakeAttempt
 	nextID   uint64
 
-	journals []*fakeJournal
-	held     map[uuid.UUID]bool
+	journals   []*fakeJournal
+	held       map[uuid.UUID]bool
+	beforeLock func()
 }
 
 func newFakeStore() *fakeStore {
@@ -557,6 +643,14 @@ func (s *fakeStore) FindBinding(_ context.Context, scope Scope, key uuid.UUID) (
 
 func (s *fakeStore) LockBindingNoWait(_ context.Context, b Binding) error {
 	s.mu.Lock()
+	hook := s.beforeLock
+	s.beforeLock = nil
+	s.mu.Unlock()
+	if hook != nil {
+		hook()
+	}
+
+	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.held[b.Key] {
@@ -593,15 +687,16 @@ func (s *fakeStore) InsertResult(_ context.Context, b Binding, res Result) error
 	return nil
 }
 
-func (s *fakeStore) LatestOutcome(_ context.Context, b Binding) (AttemptOutcome, bool, error) {
+func (s *fakeStore) HasUnknownOutcome(_ context.Context, b Binding) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	recorded := s.outcomes[b.ID]
-	if len(recorded) == 0 {
-		return "", false, nil
+	for _, recorded := range s.outcomes[b.ID] {
+		if recorded.Outcome == OutcomeUnknown {
+			return true, nil
+		}
 	}
-	return recorded[len(recorded)-1].Outcome, true, nil
+	return false, nil
 }
 
 func (s *fakeStore) RecordOutcome(_ context.Context, b Binding, attemptKey uuid.UUID, outcome AttemptOutcome, status Status) error {
@@ -666,6 +761,22 @@ func (s *fakeStore) addRollbackLocked(undo func()) {
 	if n := len(s.journals); n > 0 {
 		s.journals[n-1].undos = append(s.journals[n-1].undos, undo)
 	}
+}
+
+// onLock runs fn once, just before the next binding lock is taken, to model a
+// concurrent attempt committing in between.
+func (s *fakeStore) onLock(fn func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.beforeLock = fn
+}
+
+// commitResultForTest stores a receipt outside any simulated transaction, as a
+// concurrent attempt that already committed.
+func (s *fakeStore) commitResultForTest(bindingID uint64, res Result) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.results[bindingID] = cloneResult(res)
 }
 
 // holdBinding makes the next Nowait lock of the key fail, as a concurrent
@@ -739,6 +850,7 @@ type fakeBillingParticipant struct {
 	versions map[string]string
 	applyErr error
 	gateErr  error
+	revoked  bool
 	applies  int
 	gates    int
 }
@@ -790,6 +902,27 @@ func (p *fakeBillingParticipant) Apply(_ context.Context, _ Binding, pre Precond
 		},
 		RecordedAt: fakeRecordedAt,
 	}, nil
+}
+
+func (p *fakeBillingParticipant) AuthorizeLookup(_ context.Context, _ Binding, _ *Result) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.revoked {
+		return errors.New("operation grant was revoked")
+	}
+	return nil
+}
+
+func (p *fakeBillingParticipant) revoke() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.revoked = true
+}
+
+func (p *fakeBillingParticipant) failGateWith(err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.gateErr = err
 }
 
 func (p *fakeBillingParticipant) setVersions(billingVersion, lineVersion string) {

@@ -183,22 +183,18 @@ func (s *gormStore) InsertResult(ctx context.Context, b Binding, res Result) err
 	return nil
 }
 
-// LatestOutcome returns the newest recorded attempt outcome of the binding.
-func (s *gormStore) LatestOutcome(ctx context.Context, b Binding) (AttemptOutcome, bool, error) {
-	var row model.OperationAttemptOutcome
+// HasUnknownOutcome reports whether any unknown outcome was recorded for the
+// binding. Unknown is sticky: a later failure row never releases it.
+func (s *gormStore) HasUnknownOutcome(ctx context.Context, b Binding) (bool, error) {
+	var exists bool
 	err := persistence.DBOrTx(ctx, s.db).
-		Select("id", "outcome").
-		Where("clinic_id = ? AND binding_id = ?", b.ClinicID, b.ID).
-		Order("id DESC").
-		Limit(1).
-		Take(&row).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", false, nil
-	}
+		Raw(`SELECT EXISTS (SELECT 1 FROM operation_attempt_outcomes WHERE clinic_id = ? AND binding_id = ? AND outcome = ?)`,
+			b.ClinicID, b.ID, string(OutcomeUnknown)).
+		Scan(&exists).Error
 	if err != nil {
-		return "", false, apperrors.FromGORM(err, "operation_attempt_outcome", "")
+		return false, apperrors.FromGORM(err, "operation_attempt_outcome", "")
 	}
-	return AttemptOutcome(row.Outcome), true, nil
+	return exists, nil
 }
 
 // RecordOutcome appends one attempt outcome. details carries only the status

@@ -142,11 +142,14 @@ func TestGormStore_OutcomesAreSeparateAndClinicScoped(t *testing.T) {
 	require.Error(t, err, "attempt outcomes must not join the rolled-back owner transaction")
 
 	require.NoError(t, s.RecordOutcome(context.Background(), b, uuid.New(), OutcomeRejected, StatusVersionConflict))
-	require.NoError(t, s.RecordOutcome(context.Background(), b, uuid.New(), OutcomeUnknown, StatusResultUnavailable))
-	latest, ok, err := s.LatestOutcome(context.Background(), b)
+	unknown, err := s.HasUnknownOutcome(context.Background(), b)
 	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, OutcomeUnknown, latest)
+	require.False(t, unknown)
+	require.NoError(t, s.RecordOutcome(context.Background(), b, uuid.New(), OutcomeUnknown, StatusResultUnavailable))
+	require.NoError(t, s.RecordOutcome(context.Background(), b, uuid.New(), OutcomeRetryableFailure, ""))
+	unknown, err = s.HasUnknownOutcome(context.Background(), b)
+	require.NoError(t, err)
+	require.True(t, unknown, "a later failure row must not release a recorded unknown")
 
 	var stored model.OperationAttemptOutcome
 	require.NoError(t, db.Where("binding_id = ?", b.ID).Order("id").First(&stored).Error)
@@ -158,7 +161,7 @@ func TestGormStore_OutcomesAreSeparateAndClinicScoped(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, found, "a binding of another clinic must not be visible")
 	foreign := Binding{ID: b.ID, ClinicID: 2, Key: key}
-	_, ok, err = s.LatestOutcome(context.Background(), foreign)
+	unknown, err = s.HasUnknownOutcome(context.Background(), foreign)
 	require.NoError(t, err)
-	require.False(t, ok, "attempt outcomes must be read with the binding clinic")
+	require.False(t, unknown, "attempt outcomes must be read with the binding clinic")
 }

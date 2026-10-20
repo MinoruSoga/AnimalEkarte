@@ -28,8 +28,8 @@ type store interface {
 	// InsertResult writes the success receipt. It must run inside the owner
 	// transaction that performed the write.
 	InsertResult(ctx context.Context, b Binding, res Result) error
-	// LatestOutcome returns the newest attempt outcome, or ok=false.
-	LatestOutcome(ctx context.Context, b Binding) (AttemptOutcome, bool, error)
+	// HasUnknownOutcome reports whether any unknown outcome exists (sticky).
+	HasUnknownOutcome(ctx context.Context, b Binding) (bool, error)
 	// RecordOutcome appends one attempt outcome. It must run outside an
 	// ambient transaction.
 	RecordOutcome(ctx context.Context, b Binding, attemptKey uuid.UUID, outcome AttemptOutcome, status Status) error
@@ -116,17 +116,23 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 	if txErr == nil {
 		return outcome, nil
 	}
-	return r.resolveFailedAttempt(ctx, binding, txErr)
+	return r.resolveFailedAttempt(ctx, binding, p, txErr)
 }
 
 // Lookup returns the stored state of one binding without performing the owner
 // write. The current grant is re-checked before any stored result is disclosed.
 func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth LookupAuthorizer) (Outcome, error) {
+	if persistence.TxFromContext(ctx) != nil {
+		return Outcome{}, apperrors.WrapInternalServerError("operation lookup must start outside an ambient transaction")
+	}
 	if err := validateScope(scope); err != nil {
 		return Outcome{}, err
 	}
 	if key == uuid.Nil {
 		return Outcome{}, apperrors.WrapInvalidInput("operation key is required")
+	}
+	if auth == nil {
+		return Outcome{}, apperrors.WrapInternalServerError("operation lookup authorizer is required")
 	}
 
 	stored, found, err := r.store.FindBinding(ctx, scope, key)
@@ -138,38 +144,66 @@ func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth Lo
 	}
 	binding := stored.Binding
 
-	storedResult, err := r.store.LoadResult(ctx, binding)
+	status, res, err := r.settledState(ctx, binding)
 	if err != nil {
 		return Outcome{}, err
 	}
-	if auth == nil {
-		return Outcome{Status: StatusNotAuthorized, Binding: &binding}, nil
+	return disclose(ctx, auth, binding, status, res), nil
+}
+
+// settledState determines the binding state. A receipt is immutable, so a
+// visible one settles the answer; otherwise the receipt and the unknown state
+// are re-read under the binding lock, so a success committed after the first
+// read is never reported as not-succeeded.
+func (r *Runner) settledState(ctx context.Context, binding Binding) (Status, *Result, error) {
+	res, err := r.store.LoadResult(ctx, binding)
+	if err != nil {
+		return "", nil, err
 	}
-	if authErr := auth.AuthorizeLookup(ctx, binding, storedResult); authErr != nil {
-		// Fail closed: an authorisation that cannot be established hides the
-		// result body and the fact that one exists.
-		return Outcome{Status: StatusNotAuthorized, Binding: &binding}, nil //nolint:nilerr // 意図的: 認可失敗は理由を開示せず not-authorized へ写像する
-	}
-	if storedResult != nil {
-		return Outcome{Status: StatusSucceeded, Binding: &binding, Result: storedResult}, nil
+	if res != nil {
+		return StatusSucceeded, res, nil
 	}
 
-	latest, ok, err := r.store.LatestOutcome(ctx, binding)
+	status := StatusNotSucceeded
+	err = r.tx.WithTx(ctx, func(txCtx context.Context) error {
+		lockErr := r.store.LockBindingNoWait(txCtx, binding)
+		if errors.Is(lockErr, errBindingBusy) {
+			status = StatusInProgress
+			return nil
+		}
+		if lockErr != nil {
+			return lockErr
+		}
+		locked, loadErr := r.store.LoadResult(txCtx, binding)
+		if loadErr != nil {
+			return loadErr
+		}
+		if locked != nil {
+			status, res = StatusSucceeded, locked
+			return nil
+		}
+		unknown, unknownErr := r.store.HasUnknownOutcome(txCtx, binding)
+		if unknownErr != nil {
+			return unknownErr
+		}
+		if unknown {
+			status = StatusResultUnavailable
+		}
+		return nil
+	})
 	if err != nil {
-		return Outcome{}, err
+		return "", nil, err
 	}
-	if ok && latest == OutcomeUnknown {
-		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
-	}
+	return status, res, nil
+}
 
-	held, err := r.bindingHeld(ctx, binding)
-	if err != nil {
-		return Outcome{}, err
+// disclose applies the current grant to an outcome. A denied grant hides the
+// status detail and the result body behind not-authorized.
+func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, status Status, res *Result) Outcome {
+	if err := auth.AuthorizeLookup(ctx, binding, res); err != nil {
+		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
 	}
-	if held {
-		return Outcome{Status: StatusInProgress, Binding: &binding}, nil
-	}
-	return Outcome{Status: StatusNotSucceeded, Binding: &binding}, nil
+	return Outcome{Status: status, Binding: &binding, Result: res}
 }
 
 // participate is the outermost business transaction body: owner gate, binding
@@ -187,15 +221,15 @@ func (r *Runner) participate(ctx context.Context, binding Binding, pre Precondit
 		return err
 	}
 	if existing != nil {
-		*outcome = Outcome{Status: StatusReplayed, Binding: &binding, Result: existing}
+		*outcome = disclose(ctx, p, binding, StatusReplayed, existing)
 		return nil
 	}
 
-	latest, ok, err := r.store.LatestOutcome(ctx, binding)
+	unknown, err := r.store.HasUnknownOutcome(ctx, binding)
 	if err != nil {
 		return err
 	}
-	if ok && latest == OutcomeUnknown {
+	if unknown {
 		// An unresolved effect must not be executed again.
 		*outcome = Outcome{Status: StatusResultUnavailable, Binding: &binding}
 		return nil
@@ -224,18 +258,26 @@ func (r *Runner) participate(ctx context.Context, binding Binding, pre Precondit
 // resolveFailedAttempt classifies a rolled-back attempt. The receipt is re-read
 // before anything is recorded: a receipt that committed while the client lost
 // the response is a success, not a failure.
-func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, txErr error) (Outcome, error) {
+func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Participant, txErr error) (Outcome, error) {
 	committed, err := r.store.LoadResult(ctx, binding)
 	if err != nil {
 		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil //nolint:nilerr // 意図的: 成否を再読取できないときは結果不明として停止し、再実行させない
 	}
 	if committed != nil {
-		return Outcome{Status: StatusSucceeded, Binding: &binding, Result: committed}, nil
+		return disclose(ctx, p, binding, StatusSucceeded, committed), nil
 	}
 	if errors.Is(txErr, errBindingBusy) {
 		// Another attempt is inside the business transaction. Nothing is
 		// recorded: the winner owns the outcome row.
 		return Outcome{Status: StatusInProgress, Binding: &binding}, nil
+	}
+	unknown, err := r.store.HasUnknownOutcome(ctx, binding)
+	if err != nil {
+		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil //nolint:nilerr // 意図的: unknown 有無を確認できないときは記録せず結果不明として停止する
+	}
+	if unknown {
+		// Unknown is sticky: no failure row is recorded over it.
+		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
 	}
 
 	attemptOutcome := OutcomeRetryableFailure
@@ -261,23 +303,6 @@ func (r *Runner) recordOutcome(ctx context.Context, binding Binding, outcome Att
 		return apperrors.WrapInternalServerError("operation attempt key is required")
 	}
 	return r.store.RecordOutcome(ctx, binding, attemptKey, outcome, status)
-}
-
-// bindingHeld reports whether another attempt currently holds the binding row.
-func (r *Runner) bindingHeld(ctx context.Context, binding Binding) (bool, error) {
-	held := false
-	err := r.tx.WithTx(ctx, func(txCtx context.Context) error {
-		lockErr := r.store.LockBindingNoWait(txCtx, binding)
-		if errors.Is(lockErr, errBindingBusy) {
-			held = true
-			return nil
-		}
-		return lockErr
-	})
-	if err != nil {
-		return false, err
-	}
-	return held, nil
 }
 
 // isRejectionStatus reports whether s is a definite owner rejection category.
