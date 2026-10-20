@@ -522,4 +522,77 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
     expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
   });
+
+  it("visit_purpose が空文字・Unicode 空白のみなら契約失敗", async () => {
+    const withAnswer = (latest: unknown) =>
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "1",
+          answer_state: "answered",
+          latest_answer: latest,
+          content_available: true,
+        },
+        history: [],
+      });
+    useIntake(withAnswer(answer("1", { visit_purpose: "\u3000 \n" })));
+    const first = renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    first.unmount();
+
+    useIntake(withAnswer(answer("1", { visit_purpose: "" })));
+    renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("本文ありの latest_answer.revision が head_revision と違えば契約失敗", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "3",
+          answer_state: "answered",
+          latest_answer: answer("2"),
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+  });
+
+  it("next_cursor の欠落・非 string は契約失敗", async () => {
+    const body = boundBody({ history: [] }) as Record<string, unknown>;
+    delete body.next_cursor;
+    useIntake(body);
+    const first = renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    first.unmount();
+
+    useIntake(boundBody({ history: [], next_cursor: 5 }));
+    renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("form_definition_version が 1 以外（v2 等）は契約失敗", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: { ...answer("2"), form_definition_version: 2 },
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+  });
 });

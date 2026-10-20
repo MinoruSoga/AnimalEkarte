@@ -111,11 +111,12 @@ function parseAnswer(value: unknown): RevisitIntakeAnswer {
     !isRecord(value) ||
     typeof value.answer_id !== "string" ||
     typeof value.revision !== "string" ||
-    typeof value.form_definition_version !== "number" ||
+    value.form_definition_version !== 1 ||
     typeof value.received_at !== "string" ||
     value.provenance !== "owner_submission" ||
     !isRecord(value.answers) ||
-    typeof value.answers.visit_purpose !== "string"
+    typeof value.answers.visit_purpose !== "string" ||
+    value.answers.visit_purpose.trim() === ""
   ) {
     throw new Error("revisit-intake: invalid answer");
   }
@@ -148,6 +149,11 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
   if (value.binding !== "bound" || !isRecord(value.target) || !Array.isArray(value.history)) {
     throw new Error("revisit-intake: invalid binding");
   }
+  const rawCursor = value.next_cursor;
+  if (rawCursor !== null && typeof rawCursor !== "string") {
+    throw new Error("revisit-intake: invalid next_cursor");
+  }
+  const nextCursor: string | null = rawCursor;
   const t = value.target;
   const answerState = t.answer_state;
   const contentAvailable = t.content_available;
@@ -168,6 +174,9 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
     }
   } else if (headRevision === null || (contentAvailable ? latest === null : latest !== null)) {
     throw new Error("revisit-intake: inconsistent answered target");
+  } else if (latest !== null && latest.revision !== headRevision) {
+    // 可視本文は head revision の回答でなければならない。
+    throw new Error("revisit-intake: latest answer is not head revision");
   }
   return {
     binding: "bound",
@@ -191,7 +200,7 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
         target_relation: entry.target_relation,
       };
     }),
-    next_cursor: typeof value.next_cursor === "string" ? value.next_cursor : null,
+    next_cursor: nextCursor,
   };
 }
 
