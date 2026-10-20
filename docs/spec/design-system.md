@@ -126,6 +126,8 @@ DESIGN.md は意味的カラーを定義しない（本書へ委譲）。臨床�
 **規律（DESIGN.md と共通で維持する原則）**:
 
 - ステータス色を **CTA・構造フィルに使わない**（汎用構造色は primary）。
+  - **例外表（範囲を越えて広げない）**: 受付ボード（`/` の `KanbanColumn`）の**列の面**にだけ、受付ステータス色のパステル背景を許可する（2026-10-20 曽我決裁。スタッフが学習済みの色意味を保つため）。列の区別は背景だけに頼らず見出しのドット + 文字を併置する。他の画面・他のボード・カード面・CTA には適用しない。
+  - カレンダー・シフト表の曜日（土・日）を青／赤で塗らない（赤が `C.danger` と衝突。2026-10-20 決裁）。曜日は文字 + `C.textInkMuted`、休診日は `C.bgPage` + 「休診」ラベル（[design-patterns.md §7.1](design-patterns.md#calendar)）。
 - **primary（構造色）と brand（製品識別色）をステータスや装飾に使わない**。値変更時は消費者を操作・製品識別・ステータス・装飾で必ず仕分ける。
 - **外部ブランド例外**: LINE 公式グリーン `#06C755`（`PALETTE.lineGreen`）は外部ブランド識別のため構造色ルールの対象外。構造・CTA には使わない。
 
@@ -204,9 +206,9 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 | ロール | AE 実装（Tailwind） | 実サイズ | 用途 |
 |---|---|---|---|
 | heading-1 | `text-heading-1 font-bold` | 40px | ページ級の大見出し |
-| heading-2 | `text-heading-2 font-bold` | 26px | 大セクション見出し・大型サイドパネルタイトル |
-| heading-3 | `text-heading-3 font-bold` | 22px | カードタイトル |
-| title | `text-xl font-semibold` | 20px | ページ内最上位見出し（PageLayout タイトル等） |
+| heading-2 | `text-heading-2 font-bold` | 26px | 大型サイドパネルタイトル・文書型画面（`/manual/*`、単独ウィンドウ）の大見出し。本体画面のセクション見出しには使わない（2026-10-20 決裁） |
+| heading-3 | `text-heading-3 font-bold` | 22px | ダイアログタイトル・文書型画面の見出し。本体画面のカード／セクション見出しには使わない（2026-10-20 決裁。従来の「カードタイトル」用途は title へ） |
+| title | `text-xl font-semibold` | 20px | ページ内最上位見出し（PageLayout タイトル等）。本体画面のセクション・カード見出しはこれ以下（[design-patterns.md §1.4](design-patterns.md#shell-heading-scale)） |
 | body-md | `text-base` | 16px | 標準本文・フォームラベル |
 | body-sm | `text-sm` | 15px（`--text-sm`） | テーブル行・密な UI の既定 |
 | caption | `text-xs` | **14px**（`--text-xs` — DESIGN.md caption 字義値。FE10 で 13px 上書きを撤回） | キャプション・メタ・placeholder |
@@ -220,7 +222,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 - **フォームラベル**: `Label` の基底は 16px（`text-base`）。15px の個別指定は、コンパクトなフィルター・行内操作・`h-9` 以下の入力に限る。
 - **必須マーカー**: `RequiredMark` を使い、間隔は親ラベルの `gap-2` で 8px に統一する。マーカーは装飾として `aria-hidden` とする。
 - **ページ見出し**: PageLayout/FormHeader のタイトルにはアイコンを付けない。セクション、パネル、ボタン、サイドバー内のアイコンは対象外。
-- **登録・編集フォームの操作**: ヘッダーに `[削除] キャンセル 保存` の順で置き、フォーム送信可否・権限・状態の既存ゲートを維持する。削除対象外の画面では該当操作を省く。
+- **登録・編集フォームの操作**: ヘッダーに `[削除] キャンセル 保存` の順で置き、権限・状態（送信中・確定済み等）の既存ゲートを維持する。**未入力を理由とする保存 `disabled` は使わない**（2026-10-20 決裁。押下→欄直下にエラー→先頭エラー欄へフォーカス。[design-patterns.md §4.2](design-patterns.md#form-validation)）。削除対象外の画面では該当操作を省く。
 - **日付・数値入力**: 業務フォーム・設定フォームでは共有 `DatePicker` / `NumberInput` を使う。検索・一覧フィルター、表の行内編集、時刻入力はネイティブ入力を許容する。金額入力は `MoneyInput` を使う。
 - **本節と画面パターンの分担**: 見出しロール・フォーム操作の並び・入力部品の採用範囲・必須マーカーは本節が正本。それらを画面としてどう配置するか（h1 の一意性、見出しの DOM レベル、保存ボタンの到達性、破壊操作のスタイル、固定要素との重なり）は [design-patterns.md](design-patterns.md) が正本。
 

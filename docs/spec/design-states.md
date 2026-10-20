@@ -30,6 +30,7 @@
 - **薄い surface 上の hover で ink を維持**: `hover:text-white` のような primary variant 由来の白文字化を薄背景に持ち込まない（design-system.md §7 冒頭の一般化済みルール）。
 - **タッチターゲット**: tablet 以下の全タッチ面 44×44px（`min-h-11 min-w-11`）。dense 行アクション例外は design-system.md §7.2。チェックボックス・ラジオ・トグル・トーストの閉じるボタンは**視覚サイズが 16〜20px でもよいが、ヒット領域（`<label>` で包む／行全体／透明 padding）は 44×44 以上**にする。素の 16px コントロールをそのまま置かない（2026-10-20 STG 監査: 入院タイプのラジオ、ケージ連結チェック、トースト閉じる 20px）。
 - **塗りボタンの中身は on-color**: `bgActionPrimarySolid` / brand 塗りの上のアイコン・文字は `C.textOnActionPrimary`（白）を明示する。ink 系の文字色トークンを継承させない（2026-10-20 STG 監査: `/owners/:id` の「受付」アイコンボタンが teal 塗り + ink-muted アイコンで判別不能）。
+- **保存ボタンを未入力理由で disabled にしない**（2026-10-20 決裁）: 保存は常に押せる状態にし、押下時に `invalid` 状態と欄直下のエラー文、先頭エラー欄へのフォーカスで伝える。`disabled` は `loading` 中と権限なしのときだけ（[design-patterns.md §4.2](design-patterns.md#form-validation)）。
 
 ## 2. コントラスト実測監査（2026-09-30 計測）
 

@@ -67,7 +67,7 @@
 
 - select-pet の「選択」押下で即カルテ作成 + 受付「診療中」遷移（キャンセル時の破棄手段が見えない）。
 - `/estimates/:id` の集計表示（小計 ¥250,206 / 消費税 ¥227,460 / 合計 ¥227,460）と、`/estimates/new` で小計・消費税・合計が手入力欄になっている点（二重入力の疑い）。
-- 受付ボード列のパステル背景（ステータス色を構造面に使用）— design-system §2.5 との整合（patterns §7.2 に決裁待ちとして記載）。
+- ~~受付ボード列のパステル背景~~ → 2026-10-20 決裁: 受付ボードの列面に限った例外として許可（design-system §2.5 例外表）。
 - `/settings/inquiry-templates` と `/settings/interview/templates` が同一画面（ルート重複）。`/identity-links` が `/` へリダイレクト。
 - セッションが約 20〜40 分で切れる（refresh の有効期限か、STG の再起動起因かは未確認）。
 - `/accounting/reports` の集計サマリーが日次明細 31 行の下にある（結論→詳細の順でない）。情報設計の判断。
@@ -75,7 +75,7 @@
 
 ## 6. 次のアクション（提案）
 
-1. PR #733 のレビューで design-patterns.md の各規則を決裁（特に §4.2 保存ボタン、§7.1 曜日色、§7.2 列背景、§2.5 空値 `—`）。
+1. ~~PR #733 のレビューで design-patterns.md の各規則を決裁~~ → 2026-10-20 決裁済み（§1.4 見出し上限、§4.2 保存 disabled 禁止、§7.1 曜日色禁止、§7.2 受付ボード列背景は例外許可）。実装側の修正対象: `/estimates/new`・`/estimates/:id/edit`（保存 disabled）、`/shifts`・`/line-reservation/slots`・`/reservations`（曜日色）、見出し逆転 4 画面。
 2. 実装の修正は Plane で起票（本書は起票しない）。優先: H-1 ナビ現在地（1 箇所の修正で 10 ページ以上に効く）→ H-3 FAB 余白 → H-4 アイコン色 → H-5 会計明細 → 一覧の列幅（EMR-379 の拡張）。
 3. design-patterns.md §9 の C25〜C27 を `design-system-audit.mjs` に追加し、e2e `ui-design-compliance-readonly.spec.ts` に「現在地が viewport 内」「FAB と操作要素の非重なり」を追加する。
 4. 監査中に作成された STG のカルテ 1 件と受付カード 1 件の処分（識別子は依頼者へ別経路で伝達済み）。
