@@ -445,11 +445,22 @@ AC短名は[正本の基準174AC（後続補足を含むライフサイクル本
 | 確認receipt／D10 initiator＋D03 participant | 認証確認医師・時刻・医院・record集合と臨床世代、確認操作key、会計側の臨床変更世代 | 既存の医院が認めた医師／確認権限を照合し、client checkや担当医IDから確認者を推定しない。確認履歴を上書きせず新receiptとして保存 |
 | 会計明細／D10 | 安定billing行ID、source kind/id、最後に取り込んだsource版、会計行版、項目別manual override／元値（いずれかの手修正があれば行全体を手修正済みとして保護） | 金額の手修正と臨床内容の差異を区別。master最新版と、プランの保存済みsource版も区別する |
 | 同期差異／D10 | sourceの現在版、前回適用版、変更field、削除tombstone、解決状態、明示反映操作 | 手修正済みは上書きせず差異を表示。元削除後の手修正行も黙って消さない。明示反映・保持・元記録訂正の選択を元版へ結び付ける |
-| 金額変更了承／D10 | 確認後の変更前後額・対象行・会計版・算定版・操作key | 金額のみは警告了承で可、医師確認receiptを失効させない。新しい理由必須・医師再確認を追加しない |
+| 金額変更了承／D10 | 了承したbefore/after計算snapshotのrevision・対象行・提示金額／条件をContent、会計／行の期待版をCASとして分離。client operation_keyはUUID、内部binding IDとは別 | 金額のみは警告了承で可、医師確認receiptを失効させない。新しい理由必須・医師再確認を追加しない |
 
 確認対象の新たな種類を勝手に増やさない。既決は薬剤・処置の追加削除／数量変更であり、検査・物販までの包括拡張は今回採用しない。薬量の安全確認・別目的の確認は既存正本へ。D03の全dependency版を医師確認の世代に使うと金額・表示変更まで再確認となるため分離する。
 
 会計から臨床変更があった場合はD10側の確認対象変更世代を進め、D03との差分を医師へ提示する。確認操作は現在の両側差分と世代を対象にし、医師が必要に応じD03を別intentで修正してから現在内容を確認する。会計writeからプランを自動書換えしない。一つの親recordしかない前提へ潰さず、複数元記録を含む会計は対象ref集合と各世代を保持する。
+
+<a id="price-acknowledgement-handoff-20261020"></a>
+### EMR-483の計算revision・receipt接続（未実装の限定依存）
+
+[EMR-483](https://app.plane.so/baritechllc/browse/EMR-483/)の02:32 UTC着手プランを技術mappingとして適用する。`billing_price_acknowledgements.calculation_version`は了承AFTER側`billing_calculation_snapshots.revision`案であり、会計CAS版や計算規則版ではない。before/afterのschema付き値に同医院・会計の固定snapshot ID／revision・行identity・提示額／条件を保持する。after snapshotを同TXで採番する場合、採番後IDは保存結果／履歴へ置き、事前Contentには固定したrevision／内容を使う。after内容やrevisionが変われば再提示・再了承が必要。履歴のbilling_version／line_versionは検査した事前CAS版、成功結果のcommitted_versionsは保存後版へ分ける。除去済みbillings.calculation_versionやcompletion_request_id/hashは復活させない。
+
+認証clinic／actorからscopeを作り、client operation_key UUIDと内部binding IDを区別する。同じ正規化済みimmutable commandからfingerprintとApplyの書込内容を導出し、別request payloadで書き込まない。同内容の古いCASが確定拒否された後は、人の再確認で前提だけ更新し同keyを維持できる。了承版・対象・金額変更は旧結果確定後の別intent/key。成功済みは現在認可を検査して保存結果を返し、unknown／処理中の自動再実行・新key救済はしない。臨床差分は462の確認経路へ戻す。
+
+保存経路には[446／466の限定DB条件](../../../work/db-contracts/unified-db-20261019.md#price-ack-db-handoff-20261020)が残る。request_hashの二重再送正本を共通binding fingerprintへ整理する最小参照／制約と、理由不要のprice-only了承を記録するevent契約は未実装。専用price_acknowledgement intentは第一候補で、採用DDLではない。correct/cancel/refundの理由必須を緩めず、偽finalize・ダミー理由で迂回しない。snapshot・ack・適合event／必要監査・成功receiptは同TX、いずれの失敗も全rollbackとする。483はdomain adapter／writer／reader、489は共通helper／DTO／参加表、446は保存契約、466は限定統合と受入を所有する。
+
+[全件引渡し索引](../../../work/emr/emr-445-plan-handoff-20261020.md)の必要subsetだけを受領し、489全owner Done待ちにはしない。DTO・fixture設計は先行可能だが、上記DDL判断・489の修正版契約・実001/RLS/deferred制約の受入証跡なしに当該保存経路を受入済みとしない。
 
 ### 状態・同期・確定の参加順
 
@@ -459,7 +470,7 @@ AC短名は[正本の基準174AC（後続補足を含むライフサイクル本
 |:---|:---|
 | 準備／未手修正行の同期 | 既存共通gate・receipt・各owner下位順に参加。現在source refと版・請求対象性、D10未確定・行版を検査。手修正のない行だけ対応fieldを適用し、取込版／計算snapshot／必要監査／成功結果を同時保存。sourceを再createせず一意の元参照を維持 |
 | 手修正済み行の差異検出 | 未確定なら現在sourceとの差異を保存・表示し、明細を自動上書きしない。同期workerの遅延通知はヒントで、保存／確定時に現在sourceを再照合する |
-| 金額のみ変更 | 現在の医師確認があれば、差分警告の対象版と入力を再検証して保存。変更者・時刻・前後値を履歴へ。プランmaster・医師確認臨床世代を変更しない |
+| 金額のみ変更 | 現在の医師確認があれば、了承したbefore/after計算revision・対象行・金額と、現在会計／行CASを別々に再検証して保存。了承snapshot・履歴・適合event／必要監査・成功receiptを同じ最外TXへ。プランmaster・医師確認臨床世代を変更しない |
 | 薬剤／処置追加削除・数量変更 | 元項目ID／版、D03又はD10側の臨床世代、会計行版を更新し要再確認へ。確認歴は残し、確認後の確定・精算gateを停止 |
 | 医師確認 | 現認可・医師資格と対象ref集合／両側臨床世代・提示差分を同txで再照合し、新receipt＋確認履歴を保存。確認後に変化すれば無効になるため、チェック押下だけを成功条件にしない |
 | 請求確定／精算 | 現在認可・医師確認receiptと現在対象世代・source差異・金額了承の必要性・会計期待版・対象性を共通gate下で照合。請求・確定歴・必要監査・成功receiptと既存予約participantを同時commit。失敗は金銭だけ先に確定しない |
@@ -505,7 +516,7 @@ FIN-R11〜R20の具体化。以下の資源名・列名・操作名はレビュ�
 
 ### 候補の共通形と失敗
 
-候補`financial_operation`のキーを `(clinic_id, domain, actor_ref, intent, operation_id)` とし、`intent, canonical_payload_digest, expected_versions, status, result_ref, actor_ref, committed_at`を保持する。digest対象に意図・対象ref・期待版・入力・確認対象版を含める。既存操作keyのlookupは書込再実行より先に行い、保存済み結果の参照は現在のread認可を検査する。同key別digestは内容競合。未検出・処理中・照会障害は保存失敗の確定ではなく、同key同内容へ照合する。確定拒否後の内容修正は旧結果を参照する新操作。receipt、必要監査、各owner参加の業務変更を一commitにする。実装方式は既存transaction/gate順を使い、domain別の新たな逆lock順を作らない。
+候補`financial_operation`のキーを `(clinic_id, domain, actor_ref, intent, operation_id)` とし、`intent, canonical_payload_digest, expected_versions, status, result_ref, actor_ref, committed_at`を保持する。この旧候補のexpected_versionsは一括してdigestへ入れない。EMR-483のbilling.price_acknowledgementがC06へ参加する場合、CAS/fenceだけの実行前提はfingerprintから除き、了承対象のbefore/after計算revision・対象・金額／条件はimmutableなContentへ含める。確認対象版や臨床世代も名称だけで一律除外せず、その操作の業務内容か現在照合前提かをfield単位で分類する。別financial operationの厳しい契約は適用範囲・C06との優先関係・adapterを参加表で明示し、無条件に変更しない。既存操作keyのlookupは書込再実行より先に行い、保存済み結果の参照は現在のread認可を検査する。同key別digestは内容競合。未検出・処理中・照会障害は保存失敗の確定ではなく、同key同内容へ照合する。確定拒否後の内容修正は旧結果を参照する新操作。receipt、必要監査、各owner参加の業務変更を一commitにする。実装方式は既存transaction/gate順を使い、domain別の新たな逆lock順を作らない。
 
 候補APIの役割は `preview(intent, refs, versions, input)`、`commit(intent, operation_id, preview_ref, expected_versions, input)`、`get_result(operation_id)`。この名称の実在routeを主張せず、既存routeが必要意味を満たす時だけadapterへ対応させる。preview_ref単独を認可や完全性の証明にせず、保存直前の現在版・scope・認可を再照合する。結果不明中に新key再作成・実受領/返金の再実行を指示しない。
 
