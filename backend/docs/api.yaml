@@ -4,7 +4,7 @@ info:
   description: |
     動物病院電子カルテシステム API (Implementation Synced v3.1.0)
 
-    EMR-502 / EMR-493 の x-contract-status: selected は実装先行契約。runtime追従・実機受入は別工程。
+    EMR-502 / EMR-493 / EMR-461 の x-contract-status: selected（461保存はx-cage-contract-status） は実装先行契約。runtime追従・実機受入は別工程。
 
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
@@ -2117,6 +2117,7 @@ components:
           readOnly: true
           description: 測定日時（vital_records.recorded_at）
     Hospitalization:
+      description: 全体は旧stay DTO記録。461のケージfieldはoperationのx-cage-assignment-fieldsを正本とし、499 coreの状態公開契約と混同しない。
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
@@ -2163,7 +2164,9 @@ components:
         cage_id:
           type: integer
           format: int64
+          minimum: 1
           nullable: true
+          description: 応答NULLは未割当。create未指定/NULLは未割当。PATCHは未指定=維持、NULL=400、正数=割当（期待値必須）。解除はclear_cage_id=true。
         clear_cage_id:
           type: boolean
           writeOnly: true
@@ -2171,7 +2174,7 @@ components:
         expected_cage_id:
           type: integer
           format: int64
-          nullable: true
+          minimum: 1
           writeOnly: true
           description: 表示時点のcage_id。cage_id/clear_cage_id指定時にexpected_cage_is_nullと排他で必須（正数のみ）。ロック行と不一致なら409。ケージ操作を伴わない指定は400。
         expected_cage_is_null:
@@ -4511,6 +4514,134 @@ components:
                   type: boolean
                 delete:
                   type: boolean
+
+    # EMR-461 form-only ID read and cage-write fields (not the EMR-499 lifecycle core).
+    # Sources: hospitalization/lifecycle.md#cage-available-selection-20261019,
+    # docs/design/domains/hospitalization/technical-spec.md#stay-core-cage-handoff-20261020.
+    HospitalizationCageCurrentAssignment:
+      type: object
+      additionalProperties: false
+      required: [state, cage_id]
+      description: >-
+        編集対象の現在割当表示。known+NULLは未割当、unknown+NULLは再構成不能であり未割当の証明ではない。
+        候補外・無効・連結後の旧構成員という理由だけで現値を消さない。候補集合とは独立。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+        - properties:
+            state: { enum: [unknown] }
+            cage_id: { type: integer, nullable: true, enum: [null] }
+      properties:
+        state: { type: string, enum: [known, unknown] }
+        cage_id: { type: integer, format: int64, minimum: 1, nullable: true }
+    HospitalizationCageOccupancyRead:
+      type: object
+      additionalProperties: false
+      required: [clinic_id, exclude_hospitalization_id, state, occupied_cage_ids, candidate_cage_ids, current_assignment]
+      description: |
+        応答専用の最小ID projection。DB行・患者/飼主/滞在明細・movement event・内部lock情報は返さない。
+        clinic_idとexclude_hospitalization_idは要求contextのecho。clientは医院/編集対象/要求世代を照合し、
+        切替後の遅延応答を破棄する。除外IDはhospitalization IDでありStayCaseIDと同一視しない。
+        occupiedは自己除外後の占有ケージID（構成員も含む）、candidateは空きと確認済みの同院有効な
+        独立/代表ケージIDだけ。代表groupに他滞在の占有が一つでも残れば候補にしない。
+        現在割当は別fieldで返し、現値の保持を新規候補への追加許可としない。
+        knownなら両配列は非NULLで全件。unknownなら両配列NULL（[]や部分集合で空きを示さない）。
+        known+[]のみ当該集合の0件。空き確認は予約/確保ではなく保存時再検査が必要。
+        current_assignmentは新規contextではNULL、編集contextでは状態付きobject（core不明でも現割当を保持可能）。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+            occupied_cage_ids: { type: array }
+            candidate_cage_ids: { type: array }
+        - properties:
+            state: { enum: [unknown] }
+            occupied_cage_ids: { type: array, nullable: true, enum: [null] }
+            candidate_cage_ids: { type: array, nullable: true, enum: [null] }
+      allOf:
+        - oneOf:
+            - properties:
+                exclude_hospitalization_id: { type: integer, nullable: true, enum: [null] }
+                current_assignment: { type: object, nullable: true, enum: [null] }
+            - properties:
+                exclude_hospitalization_id: { type: integer, format: int64, minimum: 1 }
+                current_assignment: { $ref: '#/components/schemas/HospitalizationCageCurrentAssignment' }
+      properties:
+        clinic_id: { type: integer, format: int64, minimum: 1 }
+        exclude_hospitalization_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        state: { type: string, enum: [known, unknown] }
+        occupied_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: integer, format: int64, minimum: 1 }
+        candidate_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: integer, format: int64, minimum: 1 }
+        current_assignment:
+          oneOf:
+            - $ref: '#/components/schemas/HospitalizationCageCurrentAssignment'
+            - type: object
+              nullable: true
+              enum: [null]
+    HospitalizationCageCreateFields:
+      type: object
+      description: |
+        EMR-461のcreate用ケージfield断片。入院/ホテル全体のDTOや499 core writeを再定義しない。
+        cage_id省略/明示NULLは未割当（任意のまま）。正数指定は現在候補であっても保存時再検査。
+        expected_cage_*とclear_cage_idはcreateには送らない。0、負数、不正型は400。
+      properties:
+        cage_id: { type: integer, format: int64, minimum: 1, nullable: true }
+      not:
+        anyOf:
+          - required: [clear_cage_id]
+          - required: [expected_cage_id]
+          - required: [expected_cage_is_null]
+    HospitalizationCagePatchFields:
+      type: object
+      description: |
+        EMR-461のPATCH用ケージfield断片。未指定とNULLを明確に区別する。
+        cage_id省略は維持、cage_idの正数指定は割当要求、明示NULLは400（解除にはclear_cage_id=true）。
+        clear_cage_id省略/falseは解除しない。cage_idとclear=trueの併用は400。
+        割当/解除にはexpected_cage_id（表示時の正数）またはexpected_cage_is_null=trueの一方だけ必須。
+        expected_cage_id=NULL、expected_cage_is_null=false、両期待値、操作なし期待値は400。
+        期待割当はロック後の現値と比較するCASであり記事/勤務版や499の根拠版とは別。
+        未変更現値が候補外でも自動消去しない。現在割当不明なら期待値をNULLに補完せず割当変更を停止する。
+      properties:
+        cage_id: { type: integer, format: int64, minimum: 1 }
+        clear_cage_id: { type: boolean }
+        expected_cage_id: { type: integer, format: int64, minimum: 1 }
+        expected_cage_is_null: { type: boolean, enum: [true] }
+      oneOf:
+        - not:
+            anyOf:
+              - required: [cage_id]
+              - properties: { clear_cage_id: { enum: [true] } }
+                required: [clear_cage_id]
+              - required: [expected_cage_id]
+              - required: [expected_cage_is_null]
+        - allOf:
+            - oneOf:
+                - required: [cage_id]
+                  not:
+                    properties: { clear_cage_id: { enum: [true] } }
+                    required: [clear_cage_id]
+                - required: [clear_cage_id]
+                  properties: { clear_cage_id: { enum: [true] } }
+                  not: { required: [cage_id] }
+            - oneOf:
+                - required: [expected_cage_id]
+                  not: { required: [expected_cage_is_null] }
+                - required: [expected_cage_is_null]
+                  not: { required: [expected_cage_id] }
+    HospitalizationCageWriteConflict:
+      type: object
+      required: [error, code]
+      description: 拒否時は元割当を保持し部分writeなし。error文字列ではなくcodeで処理する。患者情報を返さない。
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [cage_assignment_changed, cage_occupied, occupancy_unknown] }
 
     # Sources: docs/spec/domains/staff-workforce/README.md, docs/spec/screens/24-shift-calendar.md,
     # docs/design/domains/staff-workforce/technical-spec.md, docs/design/shared/integration-contracts.md.
@@ -13053,6 +13184,24 @@ paths:
     post:
       operationId: createHospitalization
       summary: 入院登録
+      x-cage-contract-status: selected
+      x-cage-assignment-fields:
+        $ref: '#/components/schemas/HospitalizationCageCreateFields'
+      description: |
+        hospitalization:createが必要。
+        461ケージ割当の限定契約。選択医院・現在grant・対象医院をwrite直前に再検査。
+        新規割当/割当変更は同院・有効・独立/代表候補に限定する。構成員の新規割当は422。
+        未連結ケージも連結groupも同じ有効状態core根拠で他滞在占有を検査し409 cage_occupied。
+        同一対象の自己占有だけを除外し、別滞在は残す。core verdict unknownは409 occupancy_unknown。
+        499 core reader/lock依存の欠落・障害はfail-closedでwriteしない。旧status・予定期間だけで判定しない。
+        対象/連結groupを一貫した順序でlockし、占有検査と割当を同じtransactionで直列化する。
+        候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
+        現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
+        期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
+        ケージfield以外のstay DTO/lifecycleは499等のowner契約で別整備。Hospitalization全体を採用001の公開行とみなさない。
+        461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
+        対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
+        操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
       tags: [Hospitalizations]
       requestBody:
         required: true
@@ -13081,7 +13230,10 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: ケージ割当CAS不一致/他滞在占有/有効状態不明。元割当を保持。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageWriteConflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -13090,13 +13242,20 @@ paths:
     post:
       operationId: swapHospitalizationCages
       summary: 入院ケージの入れ替え（単一トランザクション）
+      x-cage-contract-status: selected
       description: >-
         2件の入院の cage_id を原子性を持って交換する。ボード DnD の入れ替え専用 —
         2本の独立 PATCH では片方のみ commit され得るため本エンドポイントを使う。
         expected_cage_ids は hospitalization_ids と同じ位置の入院の表示時 cage_id を指定する。
         両入院の行ロック後に現在値と比較し、移動・割当解除による不一致は 409 で書込み前に拒否する。
         連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
-        占有グループ宛は 409 で両方ロールバックする。
+        交換当事者2件以外の占有は未連結/groupとも409 cage_occupiedで両方rollbackする。
+        hospitalization:editを選択医院の両対象に検査し、hospitalization_idsは異なる正数2件。
+        expected_cage_idsは両方の表示時割当（正数必須、NULL不可）に対するCAS。版や候補readの代用ではない。
+        ソート順の対象/group lock下で期待値と現在の占有を再検査し、499 coreのunknownは409 occupancy_unknown。
+        片側だけ成功させず、構成員422/期待値不一致409 cage_assignment_changedでも元割当を両方保持する。
+        結果不明時に同じswapを再送すると元へ戻り得る。既存routeにoperation_key/receipt保証を推定せず、
+        当該操作結果を照合できなければ入力保持して停止する。DnD交換自体を候補UI制限のため禁止しない。
       tags: [Hospitalizations]
       requestBody:
         required: true
@@ -13110,6 +13269,7 @@ paths:
                   type: array
                   minItems: 2
                   maxItems: 2
+                  uniqueItems: true
                   items:
                     type: integer
                     format: int64
@@ -13148,11 +13308,56 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: 期待割当不一致/第三者占有/占有unknown。両方rollback。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageWriteConflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
+  /hospitalizations/cage-occupancy:
+    get:
+      operationId: getHospitalizationCageOccupancy
+      summary: 入院/ホテルフォーム用の占有ID・候補IDと現在割当
+      x-contract-status: selected
+      x-contract-dependency: EMR-499 effective-state core (unresolved verdicts remain unknown)
+      description: |
+        EMR-461専用read。選択医院でhospitalization:createまたはhospitalization:editの現在権限が必要。
+        exclude_hospitalization_id指定時は同院の編集対象存在/未削除とhospitalization:editを検査する。
+        createだけの権限で任意入院の自己除外はできない。対象のscope外/不存在は共に404。
+        hospitalization:viewやmaster-hospitalization:editを前提にせず、マスタ編集/連結権限を付与しない。
+        clinic_id/actorは認証から決め、queryによる医院変更、患者ID・期間・status/filter・ページングは受け付けない。
+        全ページ/表示filter外を含む同院占有を取得。編集対象の占有1件だけを根拠付きで自己除外し、
+        同ケージ/連結groupの別滞在は残す。occupied ID集合から自己占有だけと推測しない。
+        同じcontextの現割当と候補を別々に返し、現割当の表示・保持と新規選択可能性を混同しない。
+        499所有のstay_cases/movement訂正・取消を織り込む有効状態readerを再利用する。
+        旧status列、最新eventだけ、予定終了時刻、DDLのenumだけで有効状態を推測しない。
+        訂正/無効化/欠損/actual_at NULL等を499が確定判定できない場合は200 state=unknown。
+        両集合をNULLとして新規選択を保留し、他の既知行だけで空き候補を作らない。
+        通信/reader取得障害は500（空集合へ変換しない）。未割当の選択肢は任意のまま。
+        読取は保存・予約・lock確保ではない。新規割当時はcreate/update/swapが同じ根拠を現在状態で再検査する。
+        期間を変更しただけで占有を解放せず、ホテル定員の期間アルゴリズムは流用しない。
+        有効状態coreの判定表/根拠版/同TX readerとlock/固定fixtureは499→461の実装引渡し残件。
+        このwire契約は未確定のcore業務条件・物理DDLを補完しない。
+      tags: [Hospitalizations]
+      parameters:
+        - name: exclude_hospitalization_id
+          in: query
+          required: false
+          description: 編集対象hospitalization ID。省略は自己除外なし。NULL文字列/0/負数は400。
+          schema: { type: integer, format: int64, minimum: 1 }
+      responses:
+        '200':
+          description: contextに束縛した全件ID projection（unknownを空きと扱わない）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageOccupancyRead' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /hospitalizations/{id}:
     get:
       operationId: getHospitalization
@@ -13183,6 +13388,24 @@ paths:
     patch:
       operationId: updateHospitalization
       summary: 入院情報更新
+      x-cage-contract-status: selected
+      x-cage-assignment-fields:
+        $ref: '#/components/schemas/HospitalizationCagePatchFields'
+      description: |
+        hospitalization:editが必要。
+        461ケージ割当の限定契約。選択医院・現在grant・対象医院をwrite直前に再検査。
+        新規割当/割当変更は同院・有効・独立/代表候補に限定する。構成員の新規割当は422。
+        未連結ケージも連結groupも同じ有効状態core根拠で他滞在占有を検査し409 cage_occupied。
+        同一対象の自己占有だけを除外し、別滞在は残す。core verdict unknownは409 occupancy_unknown。
+        499 core reader/lock依存の欠落・障害はfail-closedでwriteしない。旧status・予定期間だけで判定しない。
+        対象/連結groupを一貫した順序でlockし、占有検査と割当を同じtransactionで直列化する。
+        候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
+        現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
+        期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
+        ケージfield以外のstay DTO/lifecycleは499等のowner契約で別整備。Hospitalization全体を採用001の公開行とみなさない。
+        461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
+        対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
+        操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
       tags: [Hospitalizations]
       parameters:
         - name: id
@@ -13213,7 +13436,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: ケージ割当CAS不一致/他滞在占有/有効状態不明。元割当を保持。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageWriteConflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
