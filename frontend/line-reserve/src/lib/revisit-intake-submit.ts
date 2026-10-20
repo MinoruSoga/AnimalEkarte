@@ -93,7 +93,7 @@ export type RevisitIntakeSubmitErrorKind =
   | { type: "payload_too_large" }
   | { type: "unsupported_media_type" }
   | { type: "rate_limited"; retryAfterSeconds: number | null }
-  /** Retry-After 付き 503: 結果不明のまま、期限まで同 key の再送を待つ */
+  /** Retry-After 付き 500 / 503: 結果不明のまま、期限まで同 key の再送を待つ */
   | { type: "service_unavailable"; retryAfterSeconds: number }
   /** 応答喪失・5xx・応答形不正・未知 409 code: 結果不明として同 key で照会する */
   | { type: "unknown" };
@@ -115,13 +115,13 @@ function parseRetryAfter(value: unknown): number | null {
 }
 
 /**
- * 429 / 503 の Retry-After 秒（正の値のときだけ）。結果照会など submit 以外の route でも
+ * 429 / 500 / 503 の Retry-After 秒（正の値のときだけ）。結果照会など submit 以外の route でも
  * 同じ期限を尊重するために使う。それ以外の失敗・Retry-After なしは null。
  */
 export function revisitIntakeRetryAfterSeconds(err: unknown): number | null {
   if (!axios.isAxiosError(err) || !err.response) return null;
   const { status, headers } = err.response;
-  if (status !== 429 && status !== 503) return null;
+  if (status !== 429 && status !== 500 && status !== 503) return null;
   const seconds = parseRetryAfter(headers?.["retry-after"]);
   return seconds !== null && seconds > 0 ? seconds : null;
 }
@@ -183,8 +183,10 @@ export function classifyRevisitIntakeSubmitError(err: unknown): RevisitIntakeSub
         type: "rate_limited",
         retryAfterSeconds: parseRetryAfter(headers?.["retry-after"]),
       };
+    case 500:
     case 503: {
-      // 契約: Retry-After があれば尊重する。無い 503 は他の 5xx と同じく結果不明として照会する。
+      // 契約: 500 / 503 の Retry-After があれば尊重する（期限前に照会・再送しない）。
+      // 無い・0 秒の 500 / 503 は他の 5xx と同じく結果不明として照会する。
       const retryAfterSeconds = parseRetryAfter(headers?.["retry-after"]);
       return retryAfterSeconds !== null && retryAfterSeconds > 0
         ? { type: "service_unavailable", retryAfterSeconds }

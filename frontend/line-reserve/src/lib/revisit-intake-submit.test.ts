@@ -4,6 +4,7 @@ import {
   buildRevisitIntakeSubmitRequest,
   classifyRevisitIntakeSubmitError,
   revisitIntakeFingerprint,
+  revisitIntakeRetryAfterSeconds,
   validateRevisitIntakeAnswers,
 } from "./revisit-intake-submit";
 import { createRevisitIntakeOperationKey } from "./revisit-intake-operation-key";
@@ -150,6 +151,20 @@ describe("revisit-intake-submit（EMR-474）", () => {
     expect(classifyRevisitIntakeSubmitError(axiosError(503, { error: "unavailable" })).type).toBe(
       "unknown",
     );
+  });
+
+  it("Retry-After 付き 500 は service_unavailable（期限まで照会・再送しない）、無い 500 は unknown", () => {
+    expect(
+      classifyRevisitIntakeSubmitError(
+        axiosError(500, { error: "internal" }, { "retry-after": "15" }),
+      ),
+    ).toEqual({ type: "service_unavailable", retryAfterSeconds: 15 });
+    expect(classifyRevisitIntakeSubmitError(axiosError(500, { error: "internal" })).type).toBe(
+      "unknown",
+    );
+    expect(
+      revisitIntakeRetryAfterSeconds(axiosError(500, { error: "x" }, { "retry-after": "15" })),
+    ).toBe(15);
   });
 
   it("操作 key は lowercase hyphenated UUID", () => {

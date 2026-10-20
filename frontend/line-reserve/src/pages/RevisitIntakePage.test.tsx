@@ -1111,6 +1111,36 @@ describe("RevisitIntakePage 再試行の抑止（レビュー対応）", () => {
     expect(submits[1].key).toBe(submits[0].key);
   });
 
+  it("Retry-After 付き 500 も即時照会せず、期限まで同じ key の再送を無効にする", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    const submits = captureSubmits((c, i) =>
+      i === 0
+        ? HttpResponse.json(
+            { error: "internal error", code: "INTERNAL", details: null },
+            { status: 500, headers: { "Retry-After": "1" } },
+          )
+        : HttpResponse.json(successResponse(c.key ?? "", "1")),
+    );
+    const lookups = captureLookups((key) =>
+      HttpResponse.json(lookupNotFound(key), { status: 404 }),
+    );
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+
+    expect(await screen.findByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+    expect(lookups).toHaveLength(0);
+    await waitFor(
+      () => expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeEnabled(),
+      { timeout: 3000 },
+    );
+    await user.click(screen.getByRole("button", { name: "同じ内容で再送信" }));
+    await waitFor(() => expect(submits).toHaveLength(2));
+    expect(submits[1].key).toBe(submits[0].key);
+  });
+
   it("draftStore から pending を復元しても再送期限を保持し、期限切れなら即時に再送できる", async () => {
     mockReadSequence([read(unansweredTarget())]);
     const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
