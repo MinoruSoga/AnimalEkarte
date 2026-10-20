@@ -158,6 +158,8 @@ function courseForm(overrides: Partial<CourseFormData> = {}): CourseFormData {
     imageObjectKey: "",
     imagePreviewUrl: "",
     imageChanged: false,
+    shortNameChanged: false,
+    weekdaysChanged: false,
     ...overrides,
   };
 }

@@ -46,16 +46,24 @@ export function buildTrimmingCourseCreateRequest(
   };
 }
 
-/** 更新は短縮名・曜日を明示送信（"" / [] で未登録・全曜日へ戻す）。画像は変更時だけ送る。 */
+/**
+ * 更新は編集した属性だけ送る（省略 = 既存値保持）。編集した短縮名・曜日は
+ * "" / [] で未登録・全曜日へ戻す。画像も変更時だけ送る。
+ */
 export function buildTrimmingCourseUpdateRequest(
   data: CourseFormData,
 ): UpdateTrimmingCourseRequest {
-  const { image_object_key: _createImage, ...base } = buildTrimmingCourseCreateRequest(data);
+  const {
+    image_object_key: _createImage,
+    short_name: _createShortName,
+    allowed_weekdays: _createWeekdays,
+    ...base
+  } = buildTrimmingCourseCreateRequest(data);
   return {
     ...base,
     is_active: data.isActive,
-    short_name: data.shortName.trim(),
-    allowed_weekdays: sortedWeekdays(data.allowedWeekdays),
+    ...(data.shortNameChanged ? { short_name: data.shortName.trim() } : {}),
+    ...(data.weekdaysChanged ? { allowed_weekdays: sortedWeekdays(data.allowedWeekdays) } : {}),
     ...(data.imageChanged ? { image_object_key: data.imageObjectKey } : {}),
   };
 }

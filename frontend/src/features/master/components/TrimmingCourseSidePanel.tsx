@@ -123,14 +123,14 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 
   const handleShortNameChange = useCallback(
     (value: string) => {
-      setFormDataDirty((prev) => ({ ...prev, shortName: value }));
+      setFormDataDirty((prev) => ({ ...prev, shortName: value, shortNameChanged: true }));
     },
     [setFormDataDirty],
   );
 
   const handleWeekdaysChange = useCallback(
     (allowedWeekdays: number[]) => {
-      setFormDataDirty((prev) => ({ ...prev, allowedWeekdays }));
+      setFormDataDirty((prev) => ({ ...prev, allowedWeekdays, weekdaysChanged: true }));
     },
     [setFormDataDirty],
   );

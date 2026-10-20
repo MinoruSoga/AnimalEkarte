@@ -28,6 +28,8 @@ function makeCourseForm(overrides: Partial<CourseFormData> = {}): CourseFormData
     imageObjectKey: "",
     imagePreviewUrl: "",
     imageChanged: false,
+    shortNameChanged: false,
+    weekdaysChanged: false,
     ...overrides,
   };
 }
@@ -143,8 +145,24 @@ describe("trimming course attributes", () => {
     expect(request.image_object_key).toBe("trimming-images/1/a.jpg");
   });
 
-  it("clears short name and weekdays explicitly on update", () => {
-    const request = buildTrimmingCourseUpdateRequest(makeCourseForm());
+  it("keeps unedited attributes on update even if the form started without them", () => {
+    // 例: 属性を持たない形で読まれた item から価格だけ編集しても NULL 化しない
+    const form = trimmingCourseToFormData({
+      id: "1",
+      name: "カット",
+      price: 1000,
+    } as TrimmingCourse);
+    const request = buildTrimmingCourseUpdateRequest({ ...form, price: "1500" });
+    expect(request.price).toBe(1500);
+    expect("short_name" in request).toBe(false);
+    expect("allowed_weekdays" in request).toBe(false);
+    expect("image_object_key" in request).toBe(false);
+  });
+
+  it("clears edited short name and weekdays explicitly on update", () => {
+    const request = buildTrimmingCourseUpdateRequest(
+      makeCourseForm({ shortNameChanged: true, weekdaysChanged: true }),
+    );
     expect(request.short_name).toBe("");
     expect(request.allowed_weekdays).toEqual([]);
   });

@@ -26,6 +26,9 @@ export interface CourseFormData {
   imagePreviewUrl: string;
   /** 画像を選択／削除したか。未変更なら更新時に送らず既存値を保持する */
   imageChanged: boolean;
+  /** 短縮名・曜日を編集したか。未変更なら更新時に送らず既存値を保持する */
+  shortNameChanged: boolean;
+  weekdaysChanged: boolean;
 }
 
 export interface OptionFormData {
@@ -51,6 +54,8 @@ export function trimmingCourseToFormData(item: TrimmingCourse | null): CourseFor
     imageObjectKey: item?.imageObjectKey ?? "",
     imagePreviewUrl: item?.imageUrl ?? "",
     imageChanged: false,
+    shortNameChanged: false,
+    weekdaysChanged: false,
   };
 }
 
