@@ -22,13 +22,17 @@ export const toItemInsuranceSetting = (value: boolean | null | undefined): ItemI
 
 /**
  * generated `Consultation` / `Procedure` は is_non_insurance 未反映のため、
- * 応答の受け口だけローカルに拡張する（nullable の保持のみが目的）。
+ * 応答の受け口だけローカルに拡張する。READ の sort_order / anesthesia も nullable。
+ * 下の変換後 sortOrder / anesthesia は表示用の既定値であり、wire の NULL を変更しない。
  */
-export type ConsultationWire = Omit<Consultation, "is_non_insurance"> & {
+export type ConsultationWire = Omit<Consultation, "is_non_insurance" | "sort_order"> & {
+  sort_order: number | null;
   is_non_insurance?: ItemInsuranceSetting;
   version?: number | null;
 };
-export type ProcedureWire = Omit<Procedure, "is_non_insurance"> & {
+export type ProcedureWire = Omit<Procedure, "is_non_insurance" | "sort_order" | "anesthesia"> & {
+  sort_order: number | null;
+  anesthesia: Procedure["anesthesia"] | null;
   is_non_insurance?: ItemInsuranceSetting;
   version?: number | null;
 };

@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { queryKeys } from "@/lib/query-keys";
@@ -69,14 +70,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
   TreatmentSearchDialog: (props: {
     open?: boolean;
     clinicId?: string;
-    onSelect: (item: {
-      id: string;
-      name: string;
-      unitPrice: number;
-      category: string;
-      medicineId?: string;
-      isNonInsurance?: boolean | null;
-    }) => void;
+    onSelect: (item: TreatmentMasterItem) => void;
   }) => {
     mockDialogProps.current = props as unknown as Record<string, unknown>;
     if (!props.open) return null;
@@ -90,6 +84,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
               name: "初診",
               unitPrice: 3307,
               category: "診察",
+              insuranceContract: "master",
               isNonInsurance: false,
             })
           }
@@ -104,6 +99,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
               name: "処置X",
               unitPrice: 3306,
               category: "処置",
+              insuranceContract: "master",
               isNonInsurance: false,
             })
           }
@@ -118,6 +114,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
               name: "自費診察",
               unitPrice: 5000,
               category: "診察",
+              insuranceContract: "master",
               isNonInsurance: true,
             })
           }
@@ -132,6 +129,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
               name: "抗生剤A",
               unitPrice: 3303,
               category: "薬剤",
+              insuranceContract: "master",
               isNonInsurance: false,
               medicineId: "42",
             })
@@ -245,7 +243,7 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
         ),
         http.get("*/v1/masters/medicines", () => {
           getSeen = true;
-          return new Promise<HttpResponse>((resolve) => {
+          return new Promise<ReturnType<typeof HttpResponse.json>>((resolve) => {
             releaseGet = () =>
               resolve(HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]));
           });
@@ -268,6 +266,7 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
           name: "薬A",
           unitPrice: 3303,
           category: "薬剤",
+          insuranceContract: "master",
           isNonInsurance: false,
           medicineId: "42",
         }),
@@ -311,7 +310,14 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
       await waitFor(() => expect(mockDialogProps.current.onSelect).toBeDefined());
       const select = mockDialogProps.current.onSelect as ((item: unknown) => void) | undefined;
       expect(select).toBeDefined();
-      select?.({ id: "7", name: "初診", unitPrice: 3307, category: "診察", isNonInsurance: false });
+      select?.({
+        id: "7",
+        name: "初診",
+        unitPrice: 3307,
+        category: "診察",
+        insuranceContract: "master",
+        isNonInsurance: false,
+      });
       expect(mockCreateMutate).not.toHaveBeenCalled();
       if (guard === "deceased") expect(toast.error).toHaveBeenCalled();
     },

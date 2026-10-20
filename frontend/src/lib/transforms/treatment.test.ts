@@ -4,6 +4,8 @@ import {
   transformExaminationType,
   transformProcedure,
   transformVaccine,
+  type ConsultationWire,
+  type ProcedureWire,
 } from "./treatment";
 import type { Consultation, ExaminationType, Procedure } from "@/types/generated/models";
 
@@ -130,5 +132,19 @@ describe("master editing version read roundtrip", () => {
     };
     expect(transformVaccine({ ...wire, version: 9 }).version).toBe(9);
     expect(transformVaccine(wire).version).toBeNull();
+  });
+});
+
+describe("nullable READ wire and display defaults", () => {
+  it("accepts consultation null sort order without mutating its wire value", () => {
+    const wire: ConsultationWire = { ...minimalConsultation, sort_order: null };
+    expect(transformConsultation(wire).sortOrder).toBe(0);
+    expect(wire.sort_order).toBeNull();
+  });
+  it("accepts procedure null sort order/anesthesia without rewriting wire values", () => {
+    const wire: ProcedureWire = { ...minimalProcedure, sort_order: null, anesthesia: null };
+    expect(transformProcedure(wire)).toMatchObject({ sortOrder: 0, anesthesia: "none" });
+    expect(wire.sort_order).toBeNull();
+    expect(wire.anesthesia).toBeNull();
   });
 });

@@ -148,7 +148,7 @@ func TestConsultationRepository_Update(t *testing.T) {
 
 	t.Run("存在しないIDはNotFoundを返す", func(t *testing.T) {
 		name := "無効"
-		_, err := repo.Update(ctx, clinicA, uint64(9999999), UpdateConsultationInput{Version: c.Version, Name: &name})
+		_, err := repo.Update(ctx, clinicA, uint64(9999999), UpdateConsultationInput{Version: 1, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
