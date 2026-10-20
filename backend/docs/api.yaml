@@ -2117,7 +2117,7 @@ components:
           readOnly: true
           description: 測定日時（vital_records.recorded_at）
     Hospitalization:
-      description: 全体は旧stay DTO記録。461のケージfieldはoperationの専用requestBody schemaを参照し、499 coreの状態公開契約と混同しない。
+      description: 全体は旧stay DTO記録。461のケージfieldはoperationの専用requestBody schemaを参照し、499 coreの状態公開契約と混同しない。入院IDとその子route/関連応答の参照は正数十進文字列の先行wire契約で、既存runtimeの数値JSON応答適合は499および各関連ownerへ別途引渡す。
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
@@ -2235,8 +2235,8 @@ components:
           format: int64
           nullable: true
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
         owner_id:
           type: integer
@@ -2465,8 +2465,8 @@ components:
           format: int64
           nullable: true
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
         owner_id:
           type: integer
@@ -4762,6 +4762,17 @@ components:
         starts_at: { type: string, format: date-time, nullable: true }
         ends_at: { type: string, format: date-time, nullable: true }
         interval_state: { type: string, enum: [known, unknown] }
+    ShiftStaffSelection:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      description: |
+        EMR-493スタッフ選択専用projection。idは勤務のstaff_idと同じ正数十進文字列。
+        DBの識別子をJSON数値化する前に文字列化する。旧Staff.idのNumberから変換してはならない。
+        通常Staff/アカウント/権限group/職種の公開DTOではなく、職員の新規登録や権限付与もしない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        name: { type: string }
     ShiftEntry:
       type: object
       additionalProperties: false
@@ -4825,7 +4836,7 @@ components:
       required: [operation_key, staff_id, date, shift_type, starts_at, ends_at, breaks, notes]
       description: |
         EMR-493。全入力を明示しNULL/未指定を同一視しない。notesの空文字とbreaks=[]は有効。
-        staff_idはShiftEntry.staff_idと同じ正数十進文字列。JS Numberへ変換せずread→createへ渡す。
+        staff_idはGET /masters/staffs?projection=shift-selectionのidおよびShiftEntry.staff_idと同じ正数十進文字列。JS Numberへ変換せずread→createへ渡す。
         serverは1..9223372036854775807のbigint範囲を厳密検査し、不正形式/範囲外は400。
         full/morning/afternoonは両日時必須・非NULL、starts_at < ends_at、dateはstarts_atのJST日付。
         off/paid_leaveは両日時を明示NULL、breaks=[]とする。時刻から翌日を推測しない。
@@ -5759,8 +5770,8 @@ components:
           format: int64
           nullable: true
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
         treatment_content:
           type: string
@@ -6160,8 +6171,8 @@ components:
           type: integer
           format: int64
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
         date:
           type: string
           format: date
@@ -6334,8 +6345,8 @@ components:
           type: integer
           format: int64
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
         type:
           type: string
           enum:
@@ -10875,8 +10886,8 @@ components:
       type: object
       properties:
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
         accounting_id:
           type: integer
           format: int64
@@ -13666,9 +13677,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -16256,21 +16268,34 @@ paths:
     get:
       operationId: listStaffs
       summary: スタッフ一覧
+      description: |
+        projection省略は既存Staff[]。projection=shift-selectionは勤務新規作成の選択元として
+        ShiftStaffSelection[]だけを返す先行wire契約（493/466 ownerへ実装引渡し、現runtime未対応）。
+        選択医院scope・現在の一覧認可/role絞込を保持し、新たなmaster権限の付与や無権限readを作らない。
+        通常Staff.idをNumberで受けて文字列化するfallbackは禁止。未実装/403/取得失敗を空一覧や
+        勤務未登録と扱わず、新規作成を停止する。勤務が0件の職員も同じ選択元で識別する。
+      x-contract-status: selected-projection-not-implemented
       tags: [Masters]
       parameters:
+        - name: projection
+          in: query
+          description: 493専用選択時にshift-selectionを明示。省略時のStaff[]は既存互換のまま。
+          schema: { type: string, enum: [shift-selection] }
         - name: role
           in: query
           schema:
             type: string
       responses:
         '200':
-          description: スタッフ一覧
+          description: projection省略はStaff[]、shift-selection明示はShiftStaffSelection[]。混在不可（queryとの対応は意味検証）。
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Staff'
+                anyOf:
+                  - type: array
+                    items: { $ref: '#/components/schemas/Staff' }
+                  - type: array
+                    items: { $ref: '#/components/schemas/ShiftStaffSelection' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -23405,10 +23430,10 @@ paths:
         - name: id
           in: path
           required: true
-          description: 入院ID
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: 日次記録一覧
@@ -23431,9 +23456,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -23469,9 +23495,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -23501,9 +23528,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -23538,9 +23566,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -23575,9 +23604,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -23614,9 +23644,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: ケアプランアイテム一覧
@@ -23638,9 +23669,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -23669,9 +23701,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: itemId
           in: path
           required: true
@@ -23707,9 +23740,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: itemId
           in: path
           required: true
@@ -23736,9 +23770,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: 治療計画一覧
@@ -23760,9 +23795,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -23791,9 +23827,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: planId
           in: path
           required: true
@@ -23829,9 +23866,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: planId
           in: path
           required: true
