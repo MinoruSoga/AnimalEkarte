@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // EMR-488: 薬剤3値の wire 契約（null 契約の統一・checkupTypeInsuranceField と同一方針）。
@@ -35,7 +36,7 @@ func (f *doseAmountField) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &f.value); err != nil {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
 	}
-	if f.value.NaN {
+	if f.value.NaN || f.value.InfinityModifier != pgtype.Finite {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNaN)
 	}
 	f.set = true

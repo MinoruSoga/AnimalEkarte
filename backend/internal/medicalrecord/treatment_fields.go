@@ -7,6 +7,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // errMsgDoseAmountUnitPair は EMR-488: 薬剤3値の量・単位ペア不変条件違反時の拒否文言。
@@ -21,7 +22,8 @@ const errMsgDoseAmountNegative = "1回製剤量・処方総量に負の値は指
 // 量の負値も 400（臨床量として無意味。FE の入力ガードの裏返しとして wire 単体でも拒否する）。
 func validateDoseAmountUnitPair(amount *model.ExactNumeric, unit *string) error {
 	if amount != nil {
-		if amount.NaN || (amount.Int != nil && amount.Int.Sign() < 0) {
+		if amount.NaN || amount.InfinityModifier != pgtype.Finite ||
+			(amount.Int != nil && amount.Int.Sign() < 0) {
 			return apperrors.WrapInvalidInput(errMsgDoseAmountNegative)
 		}
 	}

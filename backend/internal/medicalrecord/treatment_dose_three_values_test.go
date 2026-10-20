@@ -344,6 +344,13 @@ func TestCreateTreatmentRequest_ThreeValues_ExplicitNullAndNaNAreRejected(t *tes
 	err = json.Unmarshal([]byte(body), &req)
 	assert.Error(t, err)
 
+	// Infinity / -Infinity も 400（pgtype は InfinityModifier 付きで受理するため wire で拒否。C5）
+	for _, inf := range []string{"Infinity", "-Infinity"} {
+		body = `{"item_type": "medicine", "administration_dose_amount": "` + inf + `"}`
+		err = json.Unmarshal([]byte(body), &req)
+		assert.Error(t, err)
+	}
+
 	body = `{"item_type": "medicine", "administration_instructions": null}`
 	err = json.Unmarshal([]byte(body), &req)
 	assert.Error(t, err)

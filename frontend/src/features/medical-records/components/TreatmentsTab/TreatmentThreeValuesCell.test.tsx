@@ -125,16 +125,21 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     });
   });
 
-  it("未確定ペアで単位が空のまま commit しても送信しない（CHECK 違反の 500 を起こさない）", async () => {
+  it("未確定ペアで量が空のまま Enter しても送信しない（CHECK 違反の 500 を起こさない）", async () => {
     const user = userEvent.setup();
-    const { onUpdate } = renderCell({
+    const { onUpdate, inputRef } = renderCell({
       treatment: buildTreatment(),
       editField: "administration_dose_amount",
     });
-    await user.type(screen.getByPlaceholderText("単位"), "mL");
-    // 量が空のまま Enter（ペアエディタの量 input は inputRef 経由）— 直接キーイベントを送る
-    const pairEditors = screen.getAllByTestId("pair-editor-editing");
-    expect(pairEditors.length).toBeGreaterThan(0);
+    const amountInput = inputRef.current as HTMLInputElement;
+    // 量が空のまま Enter → ペア不変条件により送信しない
+    fireEvent.keyDown(amountInput, { key: "Enter" });
+    expect(onUpdate).not.toHaveBeenCalled();
+
+    // 単位だけ入力して量が空のまま Enter でも送信しない
+    const unitInput = screen.getByPlaceholderText("単位") as HTMLInputElement;
+    await user.type(unitInput, "mL");
+    fireEvent.keyDown(unitInput, { key: "Enter" });
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
