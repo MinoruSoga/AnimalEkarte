@@ -466,6 +466,7 @@ rate_calls() { grep -c "$1" "$CASE_DIR/calls" || true; }
 assert_eq "leading-zero Retry-After is decimal" '8' "$(plane_retry_after_seconds '08')"
 assert_eq "zero Retry-After is preserved" '0' "$(plane_retry_after_seconds '0')"
 assert_eq "huge Retry-After is bounded" '999999999' "$(plane_retry_after_seconds '99999999999999999999')"
+assert_eq "elapsed HTTP-date Retry-After waits zero" '0' "$(plane_retry_after_seconds 'Wed, 21 Oct 2015 12:00:00 GMT')"
 
 # lookup 429 (Retry-After: 2) then 200: respected wait, then success.
 rate_case "429-then-200"
@@ -561,13 +562,17 @@ fi
 assert_eq "lookup transport failure retries once" '2' "$(rate_calls '^GET .*work-items/EMR-999')"
 
 # PATCH uncertainty: verify shows the target state; no duplicate state write.
+# uncertain PATCH whose verify shows the target state: the MOVE record must
+# name the pre-update state, not the already-landed target.
 rate_case "patch-landed-despite-uncertainty"
 printf '%s\n' '200||item' '000||detail' '200||item:Review' '200||comments' '201||empty' > "$CASE_DIR/plan"
-if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
   ok "uncertain PATCH that landed is not repeated"
 else
   ng "uncertain PATCH that landed is not repeated"
 fi
+assert_eq "uncertain-but-landed MOVE names the pre-update state" '1' \
+  "$(printf '%s' "$out" | grep -c 'MOVE  EMR-999  Running -> Review')"
 assert_eq "uncertain-but-landed PATCH sends no second write" '1' "$(rate_calls '^PATCH')"
 assert_eq "uncertain-but-landed PATCH still posts the comment" '1' "$(rate_calls '^POST')"
 
@@ -652,6 +657,22 @@ assert_eq "transient ticket is retried once by the retry pass" '3' "$(grep -c 'w
 assert_eq "passes summary separates fail from ok" '1' \
   "$(grep -c '^SUMMARY  ok=1 skip=0 fail=1 unknown=0 deferred=0' "$CASE_DIR/summary.out")"
 assert_eq "passes retry writes the transient ticket once" '1' "$(rate_calls '^PATCH')"
+
+# a 408 lookup answer is transient: retried within the bounded attempts.
+rate_case "lookup-408"
+printf '%s\n' '408||detail' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "lookup 408 is retried as transient"
+else
+  ng "lookup 408 is retried as transient"
+fi
+assert_eq "lookup 408 retries once" '2' "$(rate_calls '^GET .*work-items/EMR-999')"
+
+# numeric overrides normalize to base 10: leading zeros are not octal.
+assert_eq "leading-zero wait budget override is decimal" '8000' \
+  "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='08' plane_wait_budget_ms)"
+assert_eq "leading-zero total seconds override is decimal" '8' \
+  "$(PLANE_MERGE_STATE_MAX_TOTAL_SECONDS='08' plane_total_seconds)"
 
 # an unaffordable throttle must stop requests instead of sending unpaced.
 rate_case "throttle-refusal"
