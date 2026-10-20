@@ -146,7 +146,9 @@ export function MyReservationsPage({
                     </p>
                   ) : null}
 
-                  {reservation.status === "confirmed" && onOpenRevisitIntake ? (
+                  {/* 編集可否は問診 GET の current_target.editable が決める（契約: confirmed 限定の cutoff を設けない）。 */}
+                  {(reservation.status === "confirmed" || reservation.status === "pending") &&
+                  onOpenRevisitIntake ? (
                     <div className="mt-3 pt-3 border-t border-noah-border-light">
                       <button
                         type="button"

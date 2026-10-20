@@ -196,6 +196,29 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     );
   });
 
+  it("pending カードにも問診の導線を出し、押すとその予約で問診を開く（編集可否は問診 GET が決める）", async () => {
+    const user = userEvent.setup();
+    const onOpenRevisitIntake = vi.fn();
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([{ ...confirmedReservation, id: 3, status: "pending" }]),
+      ),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpenRevisitIntake}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
+    expect(onOpenRevisitIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 3, status: "pending" }),
+    );
+  });
+
   it("取消済みカードには問診の導線を出さず、一覧表示だけで問診 API を呼ばない", async () => {
     let revisitCalls = 0;
     server.use(
