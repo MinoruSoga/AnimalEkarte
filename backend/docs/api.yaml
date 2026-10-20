@@ -14789,7 +14789,9 @@ paths:
         トリミング ID には紐づかない。認証済み医院で master-trimming の create または edit 権限が必要。
         ファイル上限 10MiB、リクエスト上限 11MiB。拡張子・MIME・実バイトの content sniff を検証する。
         共有の医院/スタッフアップロード枠をボディ解析前に確保する。
+        同医院・uploadスタッフに紐づくキーを台帳へ予約してからstorage uploadし、完了証拠を記録して署名URLを返す。
         保存先は trimming-images/{clinic_id}/...。応答はオブジェクトキーと署名付き表示 URL（TTL 15 分）。
+        upload・完了記録・署名の失敗時に原本を推測削除しない。pending/不明キーは保護する。
       tags: [Trimmings]
       requestBody:
         required: true
@@ -14827,8 +14829,11 @@ paths:
       operationId: deleteTrimmingCourseDraftImage
       summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
       description: |
-        現時点では削除を403で停止する。現在参照なしだけでは未保存・未送信の作業コピーを証明できないため、保存済み・送信済み・不明原本を保護する。
-        master-trimming create/edit権限に加え、サーバー側draft所有・未送信の証明契約が必要（未接続）。孤立uploadのcleanupはBLOCKED。
+        現在のselected clinicのmaster-trimming create/edit権限と、同医院・同uploadスタッフの台帳証拠が必要。
+        upload完了・未送信・保存済み/過去履歴を含む全参照なしを同じキーlock下で再検査した作業コピーだけを破棄する。
+        削除予約をcommitしてからstorageを削除する。storage失敗は予約を保持し、retryでも同じ適格性を再検査する。
+        旧未登録・pending・送信済み（保存拒否/rollback/結果不明を含む）・由来不明の原本は削除しない。
+        course/clinicalの画像付きJSONは他の入力検証より前に送信証拠を独立TXで確定する。
       tags: [Trimmings]
       requestBody:
         required: true
@@ -14842,6 +14847,8 @@ paths:
                   type: string
                   description: trimming-images/{clinic_id}/... のオブジェクトキー
       responses:
+        '204':
+          description: 証明済み未送信作業コピーの削除成功
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -14899,11 +14906,9 @@ paths:
       operationId: deleteTrimmingImage
       summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
       description: |
-        フォーム放棄・置換でレコードに永続化されなかったアップロード済みオブジェクトを削除する。
-        ボディの `key` は自医院スコープ `trimming-images/{clinic_id}/...` のオブジェクトキーのみ受理
-        （/uploads/ ラップ形式も可）。レコード参照が残るキーは 409 で拒否する（fail-closed）。
-        永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
-        trimming の create または edit 権限が必要。
+        現在は認証・権限確認後403で保持する。既存clinical画像には未保存・未送信を証明する台帳がないため、
+        参照なしやTTLだけで原本を削除しない。内部cleanup/retryも正の作業コピー証拠がないキーを保持する。
+        course専用の証明済みdraft破棄は /masters/trimming-courses/images を使用する。
       tags: [Trimmings]
       requestBody:
         required: true
@@ -14917,18 +14922,11 @@ paths:
                   type: string
                   description: trimming-images/{clinic_id}/... のオブジェクトキー
       responses:
-        '204':
-          description: 削除成功
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
+
   /trimmings/{id}:
     get:
       operationId: getTrimming
