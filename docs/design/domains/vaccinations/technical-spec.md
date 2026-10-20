@@ -179,3 +179,12 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 業務目標は[D03共通FR／AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、本領域の[接続境界](../../../spec/domains/vaccinations/lifecycle.md#vaccinations-plan-tab-link)を参照する。一接種一記録、実接種日・lot・種類別設定／手入力の次回日と訂正履歴を維持する。治療プランの予定と接種済み実績を識別し、予定追加を接種記録作成・次回日の生成・証明書発行へ変換しない。既存の保存済み履歴を今回予定に名称一致で付け替えない。
 
 [D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。
+
+<a id="certificate-fee-projection-20261020"></a>
+## EMR-518：料金projectionと発行版の接続
+
+[料金4欄の業務正本](../../../spec/domains/vaccinations/lifecycle.md#certificate-fees-manual-20261020)を既存[edition/renderer設計](#certificate-edition-proposal)へ接続する採用方向。発行前の手動編集・確認額をcertificate edition snapshotへ固定し、会計/master/packageへ逆writeしない。optional/null・0・未入力を維持する。初期値参照には保存済み内訳との対応を持ち、欠落を現在masterで推定補完しない。
+
+`certificate_fee_role` は証明書adapterの任意mappingであり、一般packageの必須属性にしない。医院別構成と既存会計候補への明示追加を使用し、一律イベントやrule engineを新設しない。packageの品目合算と証明書の手動確認額（合計欄も含む）は別責務。会計一致gate・自動同期・合計再計算は追加せず、preview/issue/reprintから料金を生成しない。
+
+具体edition DTO/保存列/rendererはEMR-486/487担当の最終契約へ接続し、本文書の追補を実装済みとしない。[package設計](../medical-records/treatment-packages.md#billing-certificate-adapter)と[未完の固定作業](../../../work/emr/emr-518-treatment-packages-20261020.md)を参照。受入条件は業務正本から辿り、実行はNOT_RUN。
