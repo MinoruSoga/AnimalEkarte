@@ -329,6 +329,12 @@ function PairEditor({
     if (committingRef.current) return;
     const parsed = parseAmountInput(localAmount);
     const trimmedUnit = localUnit.trim();
+    // 空のまま blur（何も入力していない・変更なし）は黙って閉じる（CodeRabbit review minor）。
+    // エラーを出すのは「入力したが不完全」な場合（片側だけ・不正数値）のみ。
+    if (parsed === undefined && trimmedUnit === "") {
+      onStopEdit();
+      return;
+    }
     // ペア不変条件: 量は必須（数値）、単位は trim 後非空。片側だけでは送信しない
     if (parsed == null || trimmedUnit === "") {
       setInvalid(true);
@@ -406,7 +412,7 @@ function PairEditor({
         />
       </div>
       {invalid && (
-        <p id={errorId} role="alert" className="text-xs text-[#C0392B]">
+        <p id={errorId} role="alert" className={`text-xs ${C.textRed700}`}>
           量と単位を入力してください（量は数値・単位は空白のみ不可）
         </p>
       )}
@@ -484,7 +490,7 @@ function AmountEditor({
         className="h-9 w-16 text-sm px-1"
       />
       {invalid && (
-        <p id={errorId} role="alert" className="text-xs text-[#C0392B]">
+        <p id={errorId} role="alert" className={`text-xs ${C.textRed700}`}>
           数値で入力してください
         </p>
       )}

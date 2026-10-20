@@ -127,14 +127,15 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
 
   it("未確定ペアで量が空のまま Enter しても送信しない（CHECK 違反の 500 を起こさない）", async () => {
     const user = userEvent.setup();
-    const { onUpdate, inputRef } = renderCell({
+    const { onUpdate, onStopEdit, inputRef } = renderCell({
       treatment: buildTreatment(),
       editField: "administration_dose_amount",
     });
     const amountInput = inputRef.current as HTMLInputElement;
-    // 量が空のまま Enter → ペア不変条件により送信しない
+    // 未入力のまま Enter → 送信せず黙って閉じる（CodeRabbit review minor）
     fireEvent.keyDown(amountInput, { key: "Enter" });
     expect(onUpdate).not.toHaveBeenCalled();
+    expect(onStopEdit).toHaveBeenCalled();
 
     // 単位だけ入力して量が空のまま Enter でも送信しない
     const unitInput = screen.getByPlaceholderText("単位") as HTMLInputElement;
