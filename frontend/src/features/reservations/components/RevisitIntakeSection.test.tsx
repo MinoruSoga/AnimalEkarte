@@ -254,6 +254,22 @@ describe("RevisitIntakeSection", () => {
     expect(await screen.findByText("目的a2")).toBeInTheDocument();
   });
 
+  it("429 で Retry-After が長いときは自動再試行せず手動再試行に委ねる", async () => {
+    let calls = 0;
+    server.use(
+      http.get(PATH, () => {
+        calls += 1;
+        return HttpResponse.json(
+          { error: "x", code: "TOO_MANY_REQUESTS" },
+          { status: 429, headers: { "Retry-After": "60" } },
+        );
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(calls).toBe(1);
+  });
+
   it("clinicId を X-Clinic-ID ヘッダで送る", async () => {
     let header: string | null = null;
     server.use(

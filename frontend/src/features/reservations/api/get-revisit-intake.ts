@@ -215,6 +215,25 @@ export function getRevisitIntakeErrorStatus(error: unknown): number | undefined 
   return isAxiosError(error) ? error.response?.status : undefined;
 }
 
+/** 自動再試行で待つ Retry-After の上限。超える場合は自動再試行せず、手動の再試行に委ねる。 */
+const MAX_AUTO_RETRY_AFTER_MS = 5_000;
+
+/**
+ * 429/503 の Retry-After（秒または HTTP-date）をミリ秒へ。無い・解釈不能は undefined。
+ * 契約（api.yaml 429/503）は Retry-After があれば尊重することを求める。
+ */
+export function getRetryAfterMs(error: unknown, now: number = Date.now()): number | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const status = error.response?.status;
+  if (status !== 429 && status !== 503) return undefined;
+  const raw: unknown = error.response?.headers?.["retry-after"];
+  if (typeof raw !== "string" || raw.trim() === "") return undefined;
+  const value = raw.trim();
+  if (/^\d+$/.test(value)) return Number(value) * 1000;
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - now);
+}
+
 /**
  * 原文は認証 scope の機微情報（Cache-Control: no-store）。
  * staleTime 0 / gcTime 0 で、unmount（モーダル閉鎖・予約切替）時にキャッシュを破棄し再利用しない。
@@ -235,8 +254,13 @@ export function useGetRevisitIntake(params: GetRevisitIntakeParams & { enabled?:
     retry: (failureCount, error) => {
       const status = getRevisitIntakeErrorStatus(error);
       if (status === 400 || status === 401 || status === 403 || status === 404) return false;
-      return failureCount < 1;
+      if (failureCount >= 1) return false;
+      // Retry-After が長い場合は早すぎる自動再試行で過負荷・レート制限を延ばさない。
+      const retryAfter = getRetryAfterMs(error);
+      return retryAfter === undefined || retryAfter <= MAX_AUTO_RETRY_AFTER_MS;
     },
+    retryDelay: (failureCount, error) =>
+      getRetryAfterMs(error) ?? Math.min(1000 * 2 ** failureCount, 30_000),
     // セクション内で表示するためグローバル toast は抑止する。
     meta: { silentError: true },
   });
