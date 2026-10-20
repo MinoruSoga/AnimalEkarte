@@ -6,7 +6,7 @@
 # 移行期・workers.dev プレビューからの絶対 URL 参照を壊さないため両 host を残す）。
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://api.stg.noah-karte.com https://api.noah-karte.com https://zipcloud.ibsnet.co.jp https://*.line.me https://*.line-scdn.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' https://api.stg.noah-karte.com https://api.noah-karte.com https://zipcloud.ibsnet.co.jp https://*.line.me https://*.line-scdn.net; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; frame-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
