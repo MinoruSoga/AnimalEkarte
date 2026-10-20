@@ -79,10 +79,10 @@ Plane445の分類と対象IDを保持する。各リンク先の最新本文・�
 3. 同一immutable commandのContent／Apply、client key／binding ID、unknown永続fence・現在認可・NOWAIT／rollback境界と受入証跡を照合。ログ／result-unavailableだけで永続再実行防止を証明しない。
 4. 491／493／502は本索引の操作別Content／CAS・必要subsetと照合する。参加表の未判定を自動的に接続完了へ変えない。
 
-本PRの既存main文書更新とは独立した引渡しであり、736にまだ存在しない文書を本PRへ複製しない。共通pathの直接競合は今回回避したが、双方の統合時にリンク・field分類を再確認する。
+本PRの既存main文書更新とは独立した引渡しであり、mainにまだ存在しない736所有文書を本PRへ複製しない。共通pathの直接競合は今回回避したが、双方の統合時にリンク・field分類を再確認する。
 
 ## 今回の検証記録
 
-文書diff、変更範囲、ローカル相対リンク／追加anchor、229票対象の件数・一意性、矛盾する旧記述を限定チェックする。実行結果はPRへ記録し、過去のmodel整合試験結果を今回の結果へ転用しない。
+文書diffとdocs/のみの変更範囲を確認した。変更9文書の相対リンク339件はパス／anchor不整合0、索引229対象は重複0、予防接種の設定なし初期値未確定記述は解消。git diff --checkとpre-commit gitleaksも問題なし。verify-agent-task.pyの判定はdocs-onlyのruntime SKIP（実行0・unmappedなし）であり、runtime PASSではない。詳細をPRへ記録し、過去のmodel整合試験結果を今回の結果へ転用しない。
 
 製品コード／model／SQL／生成物／環境設定は変更対象外。全体build／lint／test、DB操作、STG／本番操作、deploy、merge、実機／UATは未実施。docs-onlyのためruntime検証は不要だが、後続consumerの実001／RLS／deferred・共同profile・臨床承認等の必要条件は残る。秘密・患者データ・私的原資料を含めない。
