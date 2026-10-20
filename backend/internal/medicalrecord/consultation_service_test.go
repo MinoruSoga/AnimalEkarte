@@ -94,72 +94,72 @@ func TestBuildConsultationUpdate(t *testing.T) {
 	}{
 		{
 			name:  "no fields set returns empty map",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID()},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID()},
 			want:  map[string]any{},
 		},
 		{
 			name:  "only name set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Name: &name},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Name: &name},
 			want:  map[string]any{colConsultationName: name},
 		},
 		{
 			name:  "only price set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Price: &price},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Price: &price},
 			want:  map[string]any{colConsultationPrice: price},
 		},
 		{
 			name:  "only is_active set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), IsActive: &isActive},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), IsActive: &isActive},
 			want:  map[string]any{colConsultationIsActive: isActive},
 		},
 		{
 			name:  "only description set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Description: &description},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Description: &description},
 			want:  map[string]any{colConsultationDescription: description},
 		},
 		{
 			name:  "only time_condition set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), TimeCondition: &timeCondition},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), TimeCondition: &timeCondition},
 			want:  map[string]any{colConsultationTimeCondition: timeCondition},
 		},
 		{
 			name:  "only duration set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), Duration: &duration},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Duration: &duration},
 			want:  map[string]any{colConsultationDuration: duration},
 		},
 		{
 			name:  "parent_id set writes value",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &parentID},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), ParentID: &parentID},
 			want:  map[string]any{colConsultationParentID: parentID},
 		},
 		{
 			name:  "clear_parent_id writes explicit NULL even with parent_id set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &parentID, ClearParentID: true},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), ParentID: &parentID, ClearParentID: true},
 			want:  map[string]any{colConsultationParentID: nil},
 		},
 		{
 			name:  "only sort_order set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), SortOrder: &sortOrder},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), SortOrder: &sortOrder},
 			want:  map[string]any{colConsultationSortOrder: sortOrder},
 		},
 		{
 			name:  "only tax_type set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), TaxType: &taxType},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), TaxType: &taxType},
 			want:  map[string]any{colConsultationTaxType: model.TaxType(taxType)},
 		},
 		{
 			name:  "only tax_rate set",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), TaxRate: &taxRate},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), TaxRate: &taxRate},
 			want:  map[string]any{colConsultationTaxRate: taxRate},
 		},
 		{
 			name:  "explicit insurance-eligible is_non_insurance",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), IsNonInsurance: boolPtr(false)},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), IsNonInsurance: boolPtr(false)},
 			want:  map[string]any{colConsultationIsNonInsurance: false},
 		},
 		{
 			name:  "explicit non-insurance is_non_insurance",
-			input: &UpdateConsultationInput{ActorID: masterTestActorID(), IsNonInsurance: boolPtr(true)},
+			input: &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), IsNonInsurance: boolPtr(true)},
 			want:  map[string]any{colConsultationIsNonInsurance: true},
 		},
 	}
@@ -480,7 +480,7 @@ func TestConsultationService_Update(t *testing.T) {
 	}{
 		{
 			name: "updates consultation successfully",
-			input: UpdateConsultationInput{ActorID: masterTestActorID(),
+			input: UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(),
 				Name:     &name,
 				IsActive: &isActive,
 			},
@@ -490,13 +490,13 @@ func TestConsultationService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateConsultationInput{ActorID: masterTestActorID()},
+			input:   UpdateConsultationInput{Version: 1, ActorID: masterTestActorID()},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name: "returns not found error when consultation does not exist",
-			input: UpdateConsultationInput{ActorID: masterTestActorID(),
+			input: UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			findByIDErr:  apperrors.WrapNotFound("consultation", "999"),
@@ -505,7 +505,7 @@ func TestConsultationService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			input: UpdateConsultationInput{ActorID: masterTestActorID(),
+			input: UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			findByIDErr: nil,
@@ -514,12 +514,12 @@ func TestConsultationService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns validation error when name is blank",
-			input:   UpdateConsultationInput{ActorID: masterTestActorID(), Name: strPtr("")},
+			input:   UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Name: strPtr("")},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when price is negative",
-			input: UpdateConsultationInput{ActorID: masterTestActorID(),
+			input: UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(),
 				Price: func(v int64) *int64 { return &v }(-500),
 			},
 			wantErr: true,

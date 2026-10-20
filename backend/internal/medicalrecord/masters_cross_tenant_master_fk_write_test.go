@@ -79,7 +79,7 @@ func TestConsultationService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "consultation must NOT be updated to reference another clinic's parent consultation")
@@ -89,7 +89,7 @@ func TestConsultationService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{ActorID: masterTestActorID(), ParentID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)
@@ -168,7 +168,7 @@ func TestProcedureService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{ActorID: masterTestActorID(), ParentID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(), ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "procedure must NOT be updated to reference another clinic's parent procedure")
@@ -178,7 +178,7 @@ func TestProcedureService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{ActorID: masterTestActorID(), ParentID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(), ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)

@@ -58,7 +58,7 @@ func TestMasterInsuranceServices_AuditAndCommitFailureReturnNoSuccess(t *testing
 						svc := NewConsultationServiceWithAudit(repo, deps)
 						var result *model.Consultation
 						if update {
-							result, err = svc.Update(t.Context(), 7, 5, &UpdateConsultationInput{ActorID: &actor, IsNonInsurance: &setting})
+							result, err = svc.Update(t.Context(), 7, 5, &UpdateConsultationInput{Version: 1, ActorID: &actor, IsNonInsurance: &setting})
 						} else {
 							result, err = svc.Create(t.Context(), 7, &CreateConsultationInput{ActorID: &actor, Name: "item", IsNonInsurance: &setting})
 						}
@@ -82,7 +82,7 @@ func TestMasterInsuranceServices_AuditAndCommitFailureReturnNoSuccess(t *testing
 						svc := NewProcedureServiceWithAudit(repo, deps)
 						var result *model.Procedure
 						if update {
-							result, err = svc.Update(t.Context(), 7, 5, &UpdateProcedureInput{ActorID: &actor, IsNonInsurance: &setting})
+							result, err = svc.Update(t.Context(), 7, 5, &UpdateProcedureInput{Version: 1, ActorID: &actor, IsNonInsurance: &setting})
 						} else {
 							result, err = svc.Create(t.Context(), 7, &CreateProcedureInput{ActorID: &actor, Name: "item", Anesthesia: "none", IsNonInsurance: &setting})
 						}

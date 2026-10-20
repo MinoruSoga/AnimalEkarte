@@ -102,15 +102,28 @@ func (r *consultationRepositoryImpl) Create(ctx context.Context, consultation *m
 	return nil
 }
 
+// Update compares the editing-start version; the storage trigger owns increments.
 func (r *consultationRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, cmd UpdateConsultationInput) (*model.Consultation, error) {
-	if err := r.update(ctx, clinicID, id, buildConsultationUpdate(&cmd)); err != nil {
-		return nil, err
+	if cmd.Version < 1 {
+		return nil, apperrors.WrapInvalidInput("positive editing-start version is required")
+	}
+	fields := buildConsultationUpdate(&cmd)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Consultation{}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ? AND version = ?", id, cmd.Version).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict("編集後に変更されています。再読み込みしてから保存してください")
 	}
 	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *consultationRepositoryImpl) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Consultation{}, "consultation", clinicID, id, fields)
 }
 
 func (r *consultationRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {

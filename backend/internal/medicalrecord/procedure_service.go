@@ -32,6 +32,7 @@ type CreateProcedureInput struct {
 
 // UpdateProcedureInput は処置更新のサービス入力 DTO
 type UpdateProcedureInput struct {
+	Version       int64 // Required editing-start version; never replaced with a freshly read version.
 	ActorID       *uint64
 	Name          *string
 	Price         *int64
@@ -235,6 +236,9 @@ func (s *procedureService) create(ctx context.Context, clinicID uint64, input *C
 func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	if input.Version < 1 {
+		return nil, apperrors.WrapInvalidInput("positive editing-start version is required")
 	}
 	var result *model.Procedure
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "procedure", "procedure.update", func(txCtx context.Context) (masterInsuranceChange, error) {

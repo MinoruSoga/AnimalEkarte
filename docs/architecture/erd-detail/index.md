@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **1ファイル** から **241テーブル・2691カラム・738外部キー** を静的に導出しています。
+マイグレーション **2ファイル** から **241テーブル・2694カラム・738外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -86,7 +86,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [common_pet_clinic_bindings](common_pet_clinic_bindings.md) | 7 | 5 |
 | [common_pet_subjects](common_pet_subjects.md) | 4 | 1 |
 | [companies](companies.md) | 14 | 0 |
-| [consultations](consultations.md) | 16 | 2 |
+| [consultations](consultations.md) | 17 | 2 |
 | [daily_records](daily_records.md) | 6 | 2 |
 | [diagnosis_names](diagnosis_names.md) | 10 | 2 |
 | [diagnosis_types](diagnosis_types.md) | 9 | 1 |
@@ -204,7 +204,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [preventive_medication_revisions](preventive_medication_revisions.md) | 20 | 6 |
 | [preventive_prescription_revisions](preventive_prescription_revisions.md) | 27 | 7 |
 | [preventive_prescriptions](preventive_prescriptions.md) | 6 | 6 |
-| [procedures](procedures.md) | 17 | 2 |
+| [procedures](procedures.md) | 18 | 2 |
 | [record_edit_right_events](record_edit_right_events.md) | 11 | 5 |
 | [record_edit_rights](record_edit_rights.md) | 9 | 3 |
 | [refund_requests](refund_requests.md) | 12 | 5 |
@@ -269,16 +269,17 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [vaccination_certificate_operations](vaccination_certificate_operations.md) | 8 | 3 |
 | [vaccination_certificate_series](vaccination_certificate_series.md) | 5 | 2 |
 | [vaccinations](vaccinations.md) | 19 | 7 |
-| [vaccines](vaccines.md) | 15 | 3 |
+| [vaccines](vaccines.md) | 16 | 3 |
 | [vital_records](vital_records.md) | 17 | 5 |
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `9e697c24d2800b37777557164ed3b2394f4f005bfc56c2689e57c6d58652e42b`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `0de04fcfe8027b77f0f2064db06d164b6f9eddc90e0d36b4ef1ca7ec18b60d35`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
 | [001_init.sql](../../../backend/migrations/001_init.sql) | `2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0` |
+| [002_master_insurance_versions.sql](../../../backend/migrations/002_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

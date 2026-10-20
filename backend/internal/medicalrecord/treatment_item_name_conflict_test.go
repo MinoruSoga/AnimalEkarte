@@ -109,7 +109,7 @@ func TestConsultationService_Update_NameConflictMapsDomainCode(t *testing.T) {
 		},
 	}, masterTestWriteDependencies())
 
-	got, err := svc.Update(context.Background(), 1, 1, &UpdateConsultationInput{ActorID: masterTestActorID(), Name: &name})
+	got, err := svc.Update(context.Background(), 1, 1, &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Name: &name})
 	require.Error(t, err)
 	assert.Nil(t, got)
 	assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeConsultationNameConflict))

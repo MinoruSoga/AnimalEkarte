@@ -97,12 +97,12 @@ func TestBuildProcedureUpdate(t *testing.T) {
 	}{
 		{
 			name:       "empty input produces empty fields",
-			input:      &UpdateProcedureInput{ActorID: masterTestActorID()},
+			input:      &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID()},
 			wantFields: map[string]any{},
 		},
 		{
 			name: "all fields set produces full field map",
-			input: &UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name:        &name,
 				Price:       &price,
 				IsActive:    &isActive,
@@ -129,7 +129,7 @@ func TestBuildProcedureUpdate(t *testing.T) {
 		},
 		{
 			name: "ClearParentID clears parent_id to nil",
-			input: &UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				ClearParentID: true,
 			},
 			wantFields: map[string]any{
@@ -138,21 +138,21 @@ func TestBuildProcedureUpdate(t *testing.T) {
 		},
 		{
 			name: "only name set produces single field",
-			input: &UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			wantFields: map[string]any{colProcedureName: name},
 		},
 		{
 			name: "explicit insurance-eligible is_non_insurance",
-			input: &UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				IsNonInsurance: boolPtr(false),
 			},
 			wantFields: map[string]any{colProcedureIsNonInsurance: false},
 		},
 		{
 			name: "explicit non-insurance is_non_insurance",
-			input: &UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				IsNonInsurance: boolPtr(true),
 			},
 			wantFields: map[string]any{colProcedureIsNonInsurance: true},
@@ -425,7 +425,7 @@ func TestProcedureService_Update(t *testing.T) {
 	}{
 		{
 			name: "updates procedure successfully",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name:     &name,
 				IsActive: &isActive,
 			},
@@ -434,13 +434,13 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateProcedureInput{ActorID: masterTestActorID()},
+			input:   UpdateProcedureInput{Version: 1, ActorID: masterTestActorID()},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name: "returns not found error when procedure does not exist",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("procedure", "999"),
@@ -449,7 +449,7 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error when repository fails",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			repoErr: errors.New("db error"),
@@ -457,7 +457,7 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error when FindByID fails before update",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			findByIDErr: apperrors.WrapNotFound("procedure", "999"),
@@ -466,28 +466,28 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name: "returns validation error when name is whitespace only",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: func(s string) *string { return &s }("   "),
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when price is negative",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Price: func(v int64) *int64 { return &v }(-500),
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when anesthesia type is invalid",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Anesthesia: func(s string) *string { return &s }("bogus"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when tax type is invalid",
-			input: UpdateProcedureInput{ActorID: masterTestActorID(),
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				TaxType: func(s string) *string { return &s }("bogus_tax"),
 			},
 			wantErr: true,

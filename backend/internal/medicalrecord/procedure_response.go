@@ -9,6 +9,7 @@ import (
 )
 
 type procedureResponse struct {
+	Version     int64                 `json:"version"`
 	ID          uint64                `json:"id"`
 	ClinicID    uint64                `json:"clinic_id"`
 	Name        string                `json:"name"`
@@ -30,6 +31,7 @@ type procedureResponse struct {
 
 func toProcedureResponse(p *model.Procedure) procedureResponse {
 	return procedureResponse{
+		Version:     p.Version,
 		ID:          p.ID,
 		ClinicID:    p.ClinicID,
 		Name:        p.Name,

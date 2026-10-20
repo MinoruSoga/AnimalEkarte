@@ -521,7 +521,7 @@ func TestUpdateConsultation(t *testing.T) {
 		{
 			name:    "updates consultation successfully",
 			paramID: "1",
-			body:    map[string]any{"name": "行動相談"},
+			body:    map[string]any{"version": int64(1), "name": "行動相談"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -541,7 +541,7 @@ func TestUpdateConsultation(t *testing.T) {
 		{
 			name:    "partial update with description",
 			paramID: "1",
-			body:    map[string]any{"description": "行動に関する相談"},
+			body:    map[string]any{"version": int64(1), "description": "行動に関する相談"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -559,7 +559,7 @@ func TestUpdateConsultation(t *testing.T) {
 		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "1",
-			body:       map[string]any{"name": "テスト"},
+			body:       map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockConsultationService{},
 			wantStatus: http.StatusUnauthorized,
@@ -567,7 +567,7 @@ func TestUpdateConsultation(t *testing.T) {
 		{
 			name:    "returns 400 for non-numeric id",
 			paramID: "xyz",
-			body:    map[string]any{"name": "テスト"},
+			body:    map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -589,7 +589,7 @@ func TestUpdateConsultation(t *testing.T) {
 		{
 			name:    "returns 404 when consultation not found",
 			paramID: "999",
-			body:    map[string]any{"name": "テスト"},
+			body:    map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)

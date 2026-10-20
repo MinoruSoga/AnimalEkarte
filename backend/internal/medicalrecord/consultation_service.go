@@ -81,6 +81,7 @@ type CreateConsultationInput struct {
 
 // UpdateConsultationInput は診察料金更新のサービス入力 DTO
 type UpdateConsultationInput struct {
+	Version       int64 // Required editing-start version; never replaced with a freshly read version.
 	ActorID       *uint64
 	Name          *string
 	Price         *int64
@@ -218,6 +219,9 @@ func (s *consultationService) create(ctx context.Context, clinicID uint64, input
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	if input.Version < 1 {
+		return nil, apperrors.WrapInvalidInput("positive editing-start version is required")
 	}
 	var result *model.Consultation
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.update", func(txCtx context.Context) (masterInsuranceChange, error) {

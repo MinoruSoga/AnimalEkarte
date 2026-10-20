@@ -35,6 +35,7 @@ func (r *createConsultationRequest) toServiceInput() *CreateConsultationInput {
 }
 
 type updateConsultationRequest struct {
+	Version       int64    `json:"version" binding:"required,gt=0"`
 	Name          *string  `json:"name"`
 	Price         *int64   `json:"price"`
 	IsActive      *bool    `json:"is_active"`
@@ -53,6 +54,7 @@ type updateConsultationRequest struct {
 
 func (r *updateConsultationRequest) toServiceInput() *UpdateConsultationInput {
 	return &UpdateConsultationInput{
+		Version:       r.Version,
 		Name:          r.Name,
 		Price:         r.Price,
 		IsActive:      r.IsActive,

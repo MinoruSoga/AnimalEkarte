@@ -2914,8 +2914,14 @@ components:
           format: double
     Vaccine:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -2994,7 +3000,13 @@ components:
           description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
     UpdateVaccineRequest:
       type: object
+      required: [version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
         name:
           type: string
         price:
@@ -3219,8 +3231,14 @@ components:
           format: int64
     Consultation:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -3277,8 +3295,14 @@ components:
           readOnly: true
     Procedure:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -3377,8 +3401,14 @@ components:
           description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
     UpdateConsultationRequest:
       type: object
+      required: [version]
       description: 診察項目更新の request body（EMR-454・PATCH 部分更新）。response の Consultation とは別 schema（is_non_insurance は null 不許可）。
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
         name:
           type: string
         parent_id:
@@ -3463,8 +3493,14 @@ components:
           description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
     UpdateProcedureRequest:
       type: object
+      required: [version]
       description: 処置項目更新の request body（EMR-454・PATCH 部分更新）。response の Procedure とは別 schema（is_non_insurance は null 不許可）。
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
         name:
           type: string
         parent_id:
@@ -17366,6 +17402,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -18333,6 +18371,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -18507,6 +18547,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

@@ -72,10 +72,10 @@ func TestMasterParentWrite_UpdateLocksCompleteSetBeforeBeforeImage(t *testing.T)
 			var err error
 			if entity == "consultation" {
 				repo := &mockConsultationRepository{lockWriteRowsFn: lock}
-				_, err = NewConsultationServiceWithAudit(repo, masterTestWriteDependencies()).Update(t.Context(), 7, 9, &UpdateConsultationInput{ActorID: &actor, ParentID: &parent})
+				_, err = NewConsultationServiceWithAudit(repo, masterTestWriteDependencies()).Update(t.Context(), 7, 9, &UpdateConsultationInput{Version: 1, ActorID: &actor, ParentID: &parent})
 			} else {
 				repo := &mockProcedureRepository{lockWriteRowsFn: lock}
-				_, err = NewProcedureServiceWithAudit(repo, masterTestWriteDependencies()).Update(t.Context(), 7, 9, &UpdateProcedureInput{ActorID: &actor, ParentID: &parent})
+				_, err = NewProcedureServiceWithAudit(repo, masterTestWriteDependencies()).Update(t.Context(), 7, 9, &UpdateProcedureInput{Version: 1, ActorID: &actor, ParentID: &parent})
 			}
 			if !called || !errors.Is(err, stop) {
 				t.Fatal("write escaped lock failure")

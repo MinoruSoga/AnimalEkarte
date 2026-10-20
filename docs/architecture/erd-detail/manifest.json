@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "9e697c24d2800b37777557164ed3b2394f4f005bfc56c2689e57c6d58652e42b",
+  "source_digest": "0de04fcfe8027b77f0f2064db06d164b6f9eddc90e0d36b4ef1ca7ec18b60d35",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,13 +18,17 @@
   ],
   "counts": {
     "tables": 241,
-    "columns": 2691,
+    "columns": 2694,
     "foreign_keys": 738
   },
   "migrations": [
     {
       "name": "001_init.sql",
       "sha256": "2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0"
+    },
+    {
+      "name": "002_master_insurance_versions.sql",
+      "sha256": "580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b"
     }
   ],
   "reviewed_do_blocks": [

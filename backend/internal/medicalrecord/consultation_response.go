@@ -9,6 +9,7 @@ import (
 )
 
 type consultationResponse struct {
+	Version       int64              `json:"version"`
 	ID            uint64             `json:"id"`
 	ClinicID      uint64             `json:"clinic_id"`
 	Name          string             `json:"name"`
@@ -30,6 +31,7 @@ type consultationResponse struct {
 
 func toConsultationResponse(c *model.Consultation) consultationResponse {
 	return consultationResponse{
+		Version:       c.Version,
 		ID:            c.ID,
 		ClinicID:      c.ClinicID,
 		Name:          c.Name,

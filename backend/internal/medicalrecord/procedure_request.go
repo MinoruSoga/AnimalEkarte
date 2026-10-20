@@ -35,6 +35,7 @@ func (r *createProcedureRequest) toServiceInput() *CreateProcedureInput {
 }
 
 type updateProcedureRequest struct {
+	Version       int64    `json:"version" binding:"required,gt=0"`
 	Name          *string  `json:"name"`
 	Price         *int64   `json:"price"`
 	IsActive      *bool    `json:"is_active"`
@@ -53,6 +54,7 @@ type updateProcedureRequest struct {
 
 func (r *updateProcedureRequest) toServiceInput() *UpdateProcedureInput {
 	return &UpdateProcedureInput{
+		Version:       r.Version,
 		Name:          r.Name,
 		Price:         r.Price,
 		IsActive:      r.IsActive,

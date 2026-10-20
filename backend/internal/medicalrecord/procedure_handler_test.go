@@ -424,7 +424,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "updates procedure name successfully",
 			paramID: "1",
-			body:    map[string]any{"name": "更新済み処置"},
+			body:    map[string]any{"version": int64(1), "name": "更新済み処置"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -442,7 +442,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "clears parent_id with clear_parent_id flag",
 			paramID: "1",
-			body:    map[string]any{"clear_parent_id": true},
+			body:    map[string]any{"version": int64(1), "clear_parent_id": true},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -458,7 +458,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "1",
-			body:       map[string]any{"name": "テスト"},
+			body:       map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusUnauthorized,
@@ -466,7 +466,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "returns 400 for non-numeric id",
 			paramID: "xyz",
-			body:    map[string]any{"name": "テスト"},
+			body:    map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -477,7 +477,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "returns 404 when procedure not found",
 			paramID: "999",
-			body:    map[string]any{"name": "テスト"},
+			body:    map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -492,7 +492,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "returns 400 for empty update body (BUG-397)",
 			paramID: "1",
-			body:    map[string]any{},
+			body:    map[string]any{"version": int64(1)},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
@@ -507,7 +507,7 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "returns 400 for invalid anesthesia value",
 			paramID: "1",
-			body:    map[string]any{"anesthesia": "invalid_type"},
+			body:    map[string]any{"version": int64(1), "anesthesia": "invalid_type"},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
 				setStaffID(c)
