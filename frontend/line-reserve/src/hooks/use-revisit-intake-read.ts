@@ -4,18 +4,27 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { liffApi } from "../api/liff-api";
 import { resolveFetchError, type FetchErrorInfo } from "@/shared-liff/handle-fetch-error";
 import type { RevisitIntakeHistoryEntry, RevisitIntakeLIFFRead } from "../types/models";
+import { revisitIntakeRetryAfterSeconds } from "../lib/revisit-intake-submit";
+
+/** 読込エラー。429 / Retry-After 付き 503 では再試行可能になる期限を持つ。 */
+export interface RevisitIntakeReadError extends FetchErrorInfo {
+  retryAfterSeconds: number | null;
+  retryAvailableAt: number | null;
+}
 
 const READ_CONTEXT = "問診の取得";
 
 interface ReadState {
   read: RevisitIntakeLIFFRead | null;
-  error: FetchErrorInfo | null;
+  error: RevisitIntakeReadError | null;
   loadedToken: number;
 }
 
 export interface UseRevisitIntakeReadResult {
   read: RevisitIntakeLIFFRead | null;
-  error: FetchErrorInfo | null;
+  error: RevisitIntakeReadError | null;
+  /** Retry-After の期限前は「再試行」を無効にする */
+  retryBlocked: boolean;
   loading: boolean;
   refetching: boolean;
   refetch: () => void;
@@ -40,6 +49,16 @@ export function useRevisitIntakeRead(
     error: string | null;
   }>({ forRead: null, entries: [], nextCursor: null, error: null });
   const [loadingMore, startLoadMore] = useTransition();
+  const [retryBlockedUntil, setRetryBlockedUntil] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (retryBlockedUntil === null) return;
+    const timer = setTimeout(
+      () => setRetryBlockedUntil(null),
+      Math.max(0, retryBlockedUntil - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [retryBlockedUntil]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,11 +70,15 @@ export function useRevisitIntakeRead(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        const retryAfterSeconds = revisitIntakeRetryAfterSeconds(err);
+        const retryAvailableAt =
+          retryAfterSeconds !== null ? Date.now() + retryAfterSeconds * 1000 : null;
         setState((prev) => ({
           read: prev.read,
-          error: resolveFetchError(err, READ_CONTEXT),
+          error: { ...resolveFetchError(err, READ_CONTEXT), retryAfterSeconds, retryAvailableAt },
           loadedToken: requestToken,
         }));
+        setRetryBlockedUntil(retryAvailableAt);
       });
     return () => {
       cancelled = true;
@@ -63,9 +86,10 @@ export function useRevisitIntakeRead(
   }, [clinicId, appointmentId, idToken, requestToken]);
 
   const refetch = useCallback(() => {
+    if (retryBlockedUntil !== null && Date.now() < retryBlockedUntil) return;
     setState((prev) => ({ ...prev, error: null }));
     setRequestToken((t) => t + 1);
-  }, []);
+  }, [retryBlockedUntil]);
 
   const read = state.read;
   // 追加ページは取得元の read と対応しているときだけ使う（再取得で1ページ目から読み直す）。
@@ -101,6 +125,7 @@ export function useRevisitIntakeRead(
   return {
     read,
     error: state.error,
+    retryBlocked: retryBlockedUntil !== null,
     loading: state.read === null && state.error === null,
     refetching: state.loadedToken !== requestToken && state.read !== null,
     refetch,

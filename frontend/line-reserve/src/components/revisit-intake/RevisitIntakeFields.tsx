@@ -76,7 +76,15 @@ function TextField({
       {multiline ? (
         <textarea {...common} rows={3} onChange={(e) => onChange(field, e.target.value)} />
       ) : (
-        <input {...common} type="text" onChange={(e) => onChange(field, e.target.value)} />
+        <input
+          {...common}
+          type="text"
+          onChange={(e) => onChange(field, e.target.value)}
+          onKeyDown={(e) => {
+            // 単一行欄の Enter で問診を暗黙送信しない（IME 変換確定の Enter は対象外）。
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) e.preventDefault();
+          }}
+        />
       )}
       <FieldError field={field} message={error} />
     </div>

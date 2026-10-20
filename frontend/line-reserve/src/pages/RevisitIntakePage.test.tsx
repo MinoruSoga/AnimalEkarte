@@ -1265,22 +1265,112 @@ describe("RevisitIntakePage 一覧 snapshot の summary", () => {
     expect(screen.queryByText(/合成ポチ/)).not.toBeInTheDocument();
   });
 
-  it("petId 不明でも、TARGET_CHANGED で target が変わった後は旧 pet 名を表示しない", async () => {
+  it("petId 不明なら pet 名は表示せず、予約に紐づく日時・コースだけ表示する", async () => {
+    mockReadSequence([read(unansweredTarget())]);
+    renderPage({ summary });
+
+    expect(await screen.findByText("2026年8月1日（土） / 一般診察")).toBeInTheDocument();
+    expect(screen.queryByText(/合成ポチ/)).not.toBeInTheDocument();
+  });
+});
+
+describe("RevisitIntakePage 追加の fail-closed（レビュー対応）", () => {
+  it("要求と別の予約の current_target を返す応答は読込エラーとして扱い form を出さない", async () => {
+    const other = unansweredTarget("99999", PET_A, "3");
+    mockReadSequence([read(other)]);
+    renderPage();
+
+    expect(await screen.findByText(/問診の取得に失敗しました/)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("current 履歴の pet / 世代が現在 target と違う応答は読込エラーにする", async () => {
+    const latest = answer("1", answers({ visit_purpose: "合成目的" }));
+    const current = answeredTarget(latest);
+    mockReadSequence([
+      read(current, {
+        history: [
+          {
+            target: {
+              target_id: "5401",
+              appointment_id: APPT_A,
+              pet_id: PET_A,
+              target_generation: "2",
+            },
+            answer: latest,
+            target_relation: "current",
+          },
+        ],
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText(/問診の取得に失敗しました/)).toBeInTheDocument();
+    expect(screen.queryByText("合成目的")).not.toBeInTheDocument();
+  });
+
+  it("単一行欄（いつから）の Enter では送信しない", async () => {
     const user = userEvent.setup();
-    mockReadSequence([read(unansweredTarget()), read(unansweredTarget(APPT_A, "803", "4"))]);
+    mockReadSequence([read(unansweredTarget())]);
+    const submits = captureSubmits(() => HttpResponse.json({}));
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.type(screen.getByLabelText(/^いつから/), "昨日から{enter}");
+
+    expect(screen.getByLabelText(/^いつから/)).toHaveValue("昨日から");
+    expect(screen.queryByText(/来院目的を入力してください/)).not.toBeInTheDocument();
+    expect(submits).toHaveLength(0);
+  });
+
+  it("読込 GET の 429 は Retry-After の期限まで「再試行」を無効にする", async () => {
+    const user = userEvent.setup();
+    let reads = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        reads += 1;
+        if (reads === 1) {
+          return HttpResponse.json(
+            { error: "too many requests" },
+            { status: 429, headers: { "Retry-After": "1" } },
+          );
+        }
+        return HttpResponse.json(read(unansweredTarget()));
+      }),
+    );
+    renderPage();
+
+    expect(await screen.findByText(/1秒ほど待ってから再試行してください/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "再試行" })).toBeEnabled(), {
+      timeout: 3000,
+    });
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    expect(await screen.findByText("未回答")).toBeInTheDocument();
+  });
+
+  it("同じ target で head が変わったとき、local draft が無ければ入力を新しい最新回答へ同期する", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([
+      read(answeredTarget(answer("1", answers({ visit_purpose: "合成目的1" })))),
+      read(answeredTarget(answer("2", answers({ visit_purpose: "他端末の合成目的2" })))),
+    ]);
     captureSubmits(() =>
       HttpResponse.json(
-        { error: "conflict", code: "TARGET_CHANGED", details: null },
+        {
+          error: "conflict",
+          code: "FORM_VERSION_MISMATCH",
+          details: { supported_form_definition_version: 1 },
+        },
         { status: 409 },
       ),
     );
-    renderPage({ summary });
+    renderPage();
 
-    expect(await screen.findByText(/合成ポチ/)).toBeInTheDocument();
-    await user.type(purposeInput(), "合成入力");
-    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+    expect(await screen.findByLabelText(/^来院目的/)).toHaveValue("合成目的1");
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+    await user.click(await screen.findByRole("button", { name: "最新の状態を読み込む" }));
 
-    await waitFor(() => expect(purposeInput().value).toBe(""));
-    expect(screen.queryByText(/合成ポチ/)).not.toBeInTheDocument();
+    await waitFor(() => expect(purposeInput().value).toBe("他端末の合成目的2"));
   });
 });

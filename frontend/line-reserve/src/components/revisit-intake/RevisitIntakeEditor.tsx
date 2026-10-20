@@ -240,6 +240,20 @@ export function RevisitIntakeEditor({
   const [resendAvailableAt, setResendAvailableAt] = useState<number | null>(
     () => draftStore.get(targetKey)?.pending?.resendAvailableAt ?? null,
   );
+  // 同じ target のまま head（版・本文可否・回答 ID）が変わったら、local draft も未確定操作も無い場合に限り
+  // 入力を新しい baseline へ同期する（render 中の state 調整。draftStore に残る draft は保持する）。
+  const baselineToken = [
+    current.head_revision ?? "",
+    String(current.content_available),
+    current.latest_answer?.answer_id ?? "",
+  ].join("|");
+  const [syncedBaselineToken, setSyncedBaselineToken] = useState(baselineToken);
+  if (syncedBaselineToken !== baselineToken) {
+    setSyncedBaselineToken(baselineToken);
+    if (pending === null && draftStore.get(targetKey) === undefined) {
+      setValues(baseline);
+    }
+  }
   const inFlightRef = useRef(false);
   const alertRef = useRef<HTMLDivElement>(null);
 

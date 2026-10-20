@@ -76,6 +76,31 @@ function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, fnName: string): T
   return parsed.data;
 }
 
+/**
+ * EMR-474: 1 appointment = 1 pet の現在 target 固定を検査する（fail-closed）。要求した予約以外の
+ * target・履歴、または現在 target と pet / 世代が違う current 履歴を含む応答は契約エラーとして投げる。
+ */
+function assertRevisitIntakeReadMatchesAppointment(
+  read: RevisitIntakeLIFFRead,
+  appointmentId: string,
+): void {
+  const current = read.current_target;
+  const mismatch =
+    (current !== null && current.ref.appointment_id !== appointmentId) ||
+    read.history.some(
+      (h) =>
+        h.target.appointment_id !== appointmentId ||
+        (h.target_relation === "current" &&
+          (current === null ||
+            h.target.pet_id !== current.ref.pet_id ||
+            h.target.target_generation !== current.ref.target_generation)),
+    );
+  if (mismatch) {
+    devError("[liffApi.getRevisitIntake] response does not match the requested appointment");
+    throw new Error("getRevisitIntake response does not match the requested appointment");
+  }
+}
+
 export const liffApi = {
   getSettings: async (clinicId: string): Promise<LiffSettings> => {
     const res = await httpClient.get<unknown>(`${clinicPath(clinicId)}/settings`);
@@ -186,7 +211,9 @@ export const liffApi = {
       `${clinicPath(clinicId)}/my-reservations/${encodeURIComponent(appointmentId)}/revisit-intake`,
       { headers: authHeaders(idToken), params },
     );
-    return parseOrThrow(revisitIntakeLIFFReadSchema, res.data, "getRevisitIntake");
+    const read = parseOrThrow(revisitIntakeLIFFReadSchema, res.data, "getRevisitIntake");
+    assertRevisitIntakeReadMatchesAppointment(read, appointmentId);
+    return read;
   },
 
   /**
