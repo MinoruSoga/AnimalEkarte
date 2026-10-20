@@ -3,6 +3,8 @@ package testdb
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -101,7 +103,16 @@ func envOrDefault(key, fallback string) string {
 }
 
 func postgresDSN(user, password, host, port, dbName string) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbName)
+	// URL 形式 DSN のため、user/password に @ : % / 等が含まれても
+	// url.UserPassword が正しく percent-encode する（生文字列の埋め込みは不可）。
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     net.JoinHostPort(host, port),
+		Path:     "/" + dbName,
+		RawQuery: "sslmode=disable",
+	}
+	return u.String()
 }
 
 func openDisposable001DB(user, password, host, port, dbName string) (*gorm.DB, error) {

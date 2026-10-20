@@ -75,9 +75,10 @@ func TestSetupIsolated001TestDBSchemaInvariants(t *testing.T) {
 			VALUES (?, 'owner', 'staff', 'smoke-001', 'smoke-001', gen_random_uuid(), decode(repeat('00', 32), 'hex'), 'v1')
 			RETURNING id`, clinicID).Scan(&bindingID).Error)
 		// operation_success_required() を満たす receipt を同じ tx に置く。
+		// 最終001は operation_results.state を末尾ALTERで削除済みのため state は持たない。
 		require.NoError(t, tx.Exec(`
-			INSERT INTO operation_results (clinic_id, binding_id, state, result_refs, committed_versions, effect_summary)
-			VALUES (?, ?, 'succeeded', '{}', '{}', '{}')`, clinicID, bindingID).Error)
+			INSERT INTO operation_results (clinic_id, binding_id, result_refs, committed_versions, effect_summary)
+			VALUES (?, ?, '{}', '{}', '{}')`, clinicID, bindingID).Error)
 
 		// common_owner_id は DEFERRABLE INITIALLY DEFERRED の FK。存在しない UUID を
 		// 入れても INSERT 時点では成功し、commit 時に 23503 で失敗する。

@@ -20,7 +20,9 @@ import (
 // companies/clinics stay out of the core set: many suites hardcode clinic_id=1/2
 // without recreating clinic rows, and Create()-based suites must truncate
 // companies+clinics together in their own setup helpers.
-const coreTruncateSQL = "TRUNCATE TABLE billing_refunds, payments, billings, medical_records, owners RESTART IDENTITY CASCADE"
+// 最終001で統合除去された payments / billing_refunds は対象から除外する
+// （freshな使い捨てDBに存在しないテーブルのTRUNCATEは relation not found で失敗する）。
+const coreTruncateSQL = "TRUNCATE TABLE billings, medical_records, owners RESTART IDENTITY CASCADE"
 
 const testDBTruncateLockKey = "testdb.shared-truncate"
 
