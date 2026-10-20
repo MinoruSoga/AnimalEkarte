@@ -118,6 +118,8 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 		UnitPrice     *int64
 		MedicalRecord uint64
 		ServiceDate   time.Time
+
+		IsNonInsurance *bool
 	}
 	rows := make([]examBillingRow, 0)
 	if err := r.db.WithContext(ctx).Raw(`
@@ -127,7 +129,8 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 			exam_type.name AS name,
 			exam_type.price AS unit_price,
 			exam.medical_record_id AS medical_record,
-			exam.date AS service_date
+			exam.date AS service_date,
+			exam_type.is_non_insurance AS is_non_insurance
 		FROM exams AS exam
 		JOIN pets AS pet
 		  ON pet.id = exam.pet_id
@@ -175,7 +178,7 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 		}
 		examID := row.ExamID
 		medicalRecordID := row.MedicalRecord
-		items = append(items, model.BillingItem{
+		item := model.BillingItem{
 			ID:              examID,
 			Category:        model.ItemCategoryTest,
 			Name:            *row.Name,
@@ -188,7 +191,15 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 			MedicalRecordID: &medicalRecordID,
 			// EMR-246: 会計画面の当日/過去区分表示用に検査日を応答へ載せる。
 			ServiceDate: &row.ServiceDate,
-		})
+		}
+		// EMR-454: 検査マスタの明示された保険設定（exam_types.is_non_insurance）を
+		// 未請求候補へ引き継ぐ。true=保険対象外 → is_insurance_applicable=false。
+		// マスタ値が取得できない場合は推測補完せず nil のまま（当行は unbillable で除外済み）。
+		if row.IsNonInsurance != nil {
+			applicable := !*row.IsNonInsurance
+			item.IsInsuranceApplicable = &applicable
+		}
+		items = append(items, item)
 	}
 	return items, unbillableCount, nil
 }

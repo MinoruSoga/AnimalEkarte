@@ -57,6 +57,33 @@ func TestBillingItemExamProvenance_UnbilledCandidates(t *testing.T) {
 		assert.Equal(t, exam.ID, *items[0].ExamID)
 	})
 
+	t.Run("carries non-insurance exam type setting to billing candidate", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(4200)
+		examType, _ := makeBillingExam(t, f, "保険対象外検査", &price)
+		require.NoError(t, f.db.Model(examType).Update("is_non_insurance", true).Error)
+
+		items, unbillable, err := f.repo.FindUnbilledExamItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		assert.Zero(t, unbillable)
+		require.Len(t, items, 1)
+		require.NotNil(t, items[0].IsInsuranceApplicable)
+		assert.False(t, *items[0].IsInsuranceApplicable)
+	})
+
+	t.Run("carries insurance-eligible exam type setting to billing candidate", func(t *testing.T) {
+		f := setupBillingItemReferenceFixture(t)
+		price := int64(4200)
+		examType, _ := makeBillingExam(t, f, "保険対象検査", &price)
+		require.NoError(t, f.db.Model(examType).Update("is_non_insurance", false).Error)
+
+		items, _, err := f.repo.FindUnbilledExamItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+		require.NotNil(t, items[0].IsInsuranceApplicable)
+		assert.True(t, *items[0].IsInsuranceApplicable)
+	})
+
 	t.Run("skips unpriced exam type as blocking unbillable", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)
 		_, _ = makeBillingExam(t, f, "価格未設定検査", nil)

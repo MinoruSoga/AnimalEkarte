@@ -1,6 +1,10 @@
 package medicalrecord
 
-import "testing"
+import (
+	"encoding/json"
+	"fmt"
+	"testing"
+)
 
 func TestCreateProcedureRequest_ToServiceInput(t *testing.T) {
 	price := int64(5500)
@@ -154,4 +158,66 @@ func TestUpdateProcedureRequest_ToServiceInput_NilFields(t *testing.T) {
 	if input.TaxRate != nil {
 		t.Fatalf("TaxRate = %v, want nil", input.TaxRate)
 	}
+	if input.IsNonInsurance != nil {
+		t.Fatalf("IsNonInsurance = %v, want nil (未指定=変更なし)", *input.IsNonInsurance)
+	}
+}
+
+// EMR-454: procedure も consultation と同じ wire 契約（create 省略=nil、update 未指定=nil、
+// 明示 null=400、true/false=明示更新）を守る。
+func TestProcedureRequest_IsNonInsuranceWireContract(t *testing.T) {
+	t.Run("create omits is_non_insurance", func(t *testing.T) {
+		var req createProcedureRequest
+		body := `{"name":"処置","anesthesia":"none","tax_type":"excluded"}`
+		if err := json.Unmarshal([]byte(body), &req); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if req.IsNonInsurance != nil {
+			t.Fatalf("IsNonInsurance = %v, want nil", *req.IsNonInsurance)
+		}
+	})
+
+	for _, value := range []bool{true, false} {
+		t.Run(fmt.Sprintf("create explicit %v", value), func(t *testing.T) {
+			var req createProcedureRequest
+			body := fmt.Sprintf(`{"name":"処置","is_non_insurance":%v}`, value)
+			if err := json.Unmarshal([]byte(body), &req); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if req.IsNonInsurance == nil || *req.IsNonInsurance != value {
+				t.Fatalf("IsNonInsurance = %v, want %v", req.IsNonInsurance, value)
+			}
+		})
+	}
+
+	t.Run("update omits is_non_insurance", func(t *testing.T) {
+		var req updateProcedureRequest
+		if err := json.Unmarshal([]byte(`{"name":"処置"}`), &req); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := req.toServiceInput().IsNonInsurance; got != nil {
+			t.Fatalf("IsNonInsurance = %v, want nil", *got)
+		}
+	})
+
+	for _, value := range []bool{true, false} {
+		t.Run(fmt.Sprintf("update explicit %v", value), func(t *testing.T) {
+			var req updateProcedureRequest
+			body := fmt.Sprintf(`{"is_non_insurance":%v}`, value)
+			if err := json.Unmarshal([]byte(body), &req); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := req.toServiceInput().IsNonInsurance
+			if got == nil || *got != value {
+				t.Fatalf("IsNonInsurance = %v, want %v", got, value)
+			}
+		})
+	}
+
+	t.Run("update explicit null is rejected", func(t *testing.T) {
+		var req updateProcedureRequest
+		if err := json.Unmarshal([]byte(`{"is_non_insurance":null}`), &req); err == nil {
+			t.Fatal("explicit null must be rejected, got nil error")
+		}
+	})
 }

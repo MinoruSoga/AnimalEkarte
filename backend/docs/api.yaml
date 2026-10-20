@@ -3194,6 +3194,10 @@ components:
           default: true
         description:
           type: string
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。create で省略時は true（新規登録の初期値=対象外）を保存。update で省略時は変更なし、null は 400。
         time_condition:
           type: string
         duration:
@@ -3248,6 +3252,10 @@ components:
             - local
             - sedation
             - general
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。create で省略時は true（新規登録の初期値=対象外）を保存。update で省略時は変更なし、null は 400。
         sort_order:
           type: integer
         created_at:

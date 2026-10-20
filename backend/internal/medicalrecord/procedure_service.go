@@ -23,6 +23,9 @@ type CreateProcedureInput struct {
 	SortOrder   int
 	TaxType     string   // "" = "excluded" (default), 変換はサービス層で行う (BUG-379)
 	TaxRate     *float64 // nil = 0.10 (default)
+
+	// IsNonInsurance は品目別保険設定。nil = 新規登録の初期値（保険対象外=true）。
+	IsNonInsurance *bool
 }
 
 // UpdateProcedureInput は処置更新のサービス入力 DTO
@@ -38,19 +41,23 @@ type UpdateProcedureInput struct {
 	SortOrder     *int
 	TaxType       *string
 	TaxRate       *float64
+
+	// IsNonInsurance は nil = 変更なし（DB の未保存/旧欠落 NULL を書き換えない）。
+	IsNonInsurance *bool
 }
 
 const (
-	colProcedureName        = "name"
-	colProcedurePrice       = "price"
-	colProcedureIsActive    = "is_active"
-	colProcedureDescription = "description"
-	colProcedureDuration    = "duration"
-	colProcedureAnesthesia  = "anesthesia"
-	colProcedureParentID    = "parent_id"
-	colProcedureSortOrder   = "sort_order"
-	colProcedureTaxType     = "tax_type"
-	colProcedureTaxRate     = "tax_rate"
+	colProcedureName           = "name"
+	colProcedurePrice          = "price"
+	colProcedureIsActive       = "is_active"
+	colProcedureDescription    = "description"
+	colProcedureDuration       = "duration"
+	colProcedureAnesthesia     = "anesthesia"
+	colProcedureParentID       = "parent_id"
+	colProcedureSortOrder      = "sort_order"
+	colProcedureTaxType        = "tax_type"
+	colProcedureTaxRate        = "tax_rate"
+	colProcedureIsNonInsurance = "is_non_insurance"
 )
 
 func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
@@ -82,6 +89,9 @@ func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
 	}
 	if input.TaxRate != nil {
 		fields[colProcedureTaxRate] = *input.TaxRate
+	}
+	if input.IsNonInsurance != nil {
+		fields[colProcedureIsNonInsurance] = *input.IsNonInsurance
 	}
 	return fields
 }
@@ -146,6 +156,12 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
+	// EMR-454: 新規登録の初期値は保険対象外（true）。DB に DEFAULT を持たせず
+	// API 層で明示保存する。明示指定（false=保険対象）は上書きしない。
+	isNonInsurance := true
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
+	}
 	procedure := &model.Procedure{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -156,6 +172,8 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 		SortOrder:   input.SortOrder,
 		TaxType:     taxType,
 		TaxRate:     taxRate,
+
+		IsNonInsurance: &isNonInsurance,
 	}
 	if input.Anesthesia != "" {
 		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)

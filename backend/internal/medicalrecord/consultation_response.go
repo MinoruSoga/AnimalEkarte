@@ -23,6 +23,9 @@ type consultationResponse struct {
 	SortOrder     int           `json:"sort_order"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
+
+	// EMR-454: 品目別保険設定。true=保険対象外 / false=保険対象 / null=未保存・旧欠落。
+	IsNonInsurance *bool `json:"is_non_insurance"`
 }
 
 func toConsultationResponse(c *model.Consultation) consultationResponse {
@@ -41,5 +44,7 @@ func toConsultationResponse(c *model.Consultation) consultationResponse {
 		SortOrder:     c.SortOrder,
 		CreatedAt:     httpapi.LocalTime(c.CreatedAt),
 		UpdatedAt:     httpapi.LocalTime(c.UpdatedAt),
+
+		IsNonInsurance: c.IsNonInsurance,
 	}
 }

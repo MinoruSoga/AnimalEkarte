@@ -141,6 +141,16 @@ func TestBuildConsultationUpdate(t *testing.T) {
 			input: &UpdateConsultationInput{TaxRate: &taxRate},
 			want:  map[string]any{colConsultationTaxRate: taxRate},
 		},
+		{
+			name:  "explicit insurance-eligible is_non_insurance",
+			input: &UpdateConsultationInput{IsNonInsurance: boolPtr(false)},
+			want:  map[string]any{colConsultationIsNonInsurance: false},
+		},
+		{
+			name:  "explicit non-insurance is_non_insurance",
+			input: &UpdateConsultationInput{IsNonInsurance: boolPtr(true)},
+			want:  map[string]any{colConsultationIsNonInsurance: true},
+		},
 	}
 
 	for _, tt := range tests {
@@ -404,6 +414,41 @@ func TestConsultationService_Create_TaxDefaults(t *testing.T) {
 			if assert.NotNil(t, consultation) {
 				assert.Equal(t, tt.wantTaxType, consultation.TaxType)
 				assert.InDelta(t, tt.wantTaxRate, consultation.TaxRate, 0.0001)
+			}
+		})
+	}
+}
+
+func TestConsultationService_Create_InsuranceDefault(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *bool
+		want  bool
+	}{
+		{name: "omitted uses non-insurance initial value", input: nil, want: true},
+		{name: "explicit false is preserved", input: boolPtr(false), want: false},
+		{name: "explicit true is preserved", input: boolPtr(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var created *model.Consultation
+			repo := &mockConsultationRepository{
+				createFn: func(_ context.Context, consultation *model.Consultation) error {
+					created = consultation
+					return nil
+				},
+			}
+			svc := NewConsultationService(repo)
+
+			_, err := svc.Create(context.Background(), 1, &CreateConsultationInput{
+				Name:           "保険設定テスト",
+				IsNonInsurance: tt.input,
+			})
+
+			assert.NoError(t, err)
+			if assert.NotNil(t, created) && assert.NotNil(t, created.IsNonInsurance) {
+				assert.Equal(t, tt.want, *created.IsNonInsurance)
 			}
 		})
 	}

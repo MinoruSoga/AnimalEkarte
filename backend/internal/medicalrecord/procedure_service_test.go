@@ -132,6 +132,20 @@ func TestBuildProcedureUpdate(t *testing.T) {
 			},
 			wantFields: map[string]any{colProcedureName: name},
 		},
+		{
+			name: "explicit insurance-eligible is_non_insurance",
+			input: &UpdateProcedureInput{
+				IsNonInsurance: boolPtr(false),
+			},
+			wantFields: map[string]any{colProcedureIsNonInsurance: false},
+		},
+		{
+			name: "explicit non-insurance is_non_insurance",
+			input: &UpdateProcedureInput{
+				IsNonInsurance: boolPtr(true),
+			},
+			wantFields: map[string]any{colProcedureIsNonInsurance: true},
+		},
 	}
 
 	for _, tt := range tests {
@@ -344,6 +358,44 @@ func TestProcedureService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, procedure)
+			}
+		})
+	}
+}
+
+func TestProcedureService_Create_InsuranceDefault(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *bool
+		want  bool
+	}{
+		{name: "omitted uses non-insurance initial value", input: nil, want: true},
+		{name: "explicit false is preserved", input: boolPtr(false), want: false},
+		{name: "explicit true is preserved", input: boolPtr(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var created *model.Procedure
+			repo := &mockProcedureRepository{
+				createFn: func(_ context.Context, procedure *model.Procedure) error {
+					created = procedure
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					return &model.Procedure{ID: id}, nil
+				},
+			}
+			svc := NewProcedureService(repo, &mockTransactor{})
+
+			_, err := svc.Create(context.Background(), 1, &CreateProcedureInput{
+				Name:           "保険設定テスト",
+				IsNonInsurance: tt.input,
+			})
+
+			assert.NoError(t, err)
+			if assert.NotNil(t, created) && assert.NotNil(t, created.IsNonInsurance) {
+				assert.Equal(t, tt.want, *created.IsNonInsurance)
 			}
 		})
 	}

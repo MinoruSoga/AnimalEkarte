@@ -9,16 +9,17 @@ import (
 )
 
 const (
-	colConsultationName          = "name"
-	colConsultationPrice         = "price"
-	colConsultationIsActive      = "is_active"
-	colConsultationDescription   = "description"
-	colConsultationTimeCondition = "time_condition"
-	colConsultationDuration      = "duration"
-	colConsultationParentID      = "parent_id"
-	colConsultationSortOrder     = "sort_order"
-	colConsultationTaxType       = "tax_type"
-	colConsultationTaxRate       = "tax_rate"
+	colConsultationName           = "name"
+	colConsultationPrice          = "price"
+	colConsultationIsActive       = "is_active"
+	colConsultationDescription    = "description"
+	colConsultationTimeCondition  = "time_condition"
+	colConsultationDuration       = "duration"
+	colConsultationParentID       = "parent_id"
+	colConsultationSortOrder      = "sort_order"
+	colConsultationTaxType        = "tax_type"
+	colConsultationTaxRate        = "tax_rate"
+	colConsultationIsNonInsurance = "is_non_insurance"
 )
 
 func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
@@ -51,6 +52,9 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 	if input.TaxRate != nil {
 		fields[colConsultationTaxRate] = *input.TaxRate
 	}
+	if input.IsNonInsurance != nil {
+		fields[colConsultationIsNonInsurance] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -68,6 +72,9 @@ type CreateConsultationInput struct {
 	SortOrder     int
 	TaxType       *string  // nil = "excluded" (default)
 	TaxRate       *float64 // nil = 0.10 (default)
+
+	// IsNonInsurance は品目別保険設定。nil = 新規登録の初期値（保険対象外=true）。
+	IsNonInsurance *bool
 }
 
 // UpdateConsultationInput は診察料金更新のサービス入力 DTO
@@ -83,6 +90,9 @@ type UpdateConsultationInput struct {
 	SortOrder     *int
 	TaxType       *string
 	TaxRate       *float64
+
+	// IsNonInsurance は nil = 変更なし（DB の未保存/旧欠落 NULL を書き換えない）。
+	IsNonInsurance *bool
 }
 
 type ConsultationService interface {
@@ -134,6 +144,12 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
+	// EMR-454: 新規登録の初期値は保険対象外（true）。DB に DEFAULT を持たせず
+	// API 層で明示保存する。明示指定（false=保険対象）は上書きしない。
+	isNonInsurance := true
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
+	}
 	consultation := &model.Consultation{
 		ClinicID:      clinicID,
 		Name:          input.Name,
@@ -146,6 +162,8 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		SortOrder:     input.SortOrder,
 		TaxType:       taxType,
 		TaxRate:       taxRate,
+
+		IsNonInsurance: &isNonInsurance,
 	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
 		if conflict := apperrors.AsNameUniqueConflict(
