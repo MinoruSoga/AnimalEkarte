@@ -779,7 +779,7 @@ describe("RevisitIntakePage 送信（AC-reservations-revisit-optional / revision
 });
 
 describe("RevisitIntakePage 409", () => {
-  it("REVISION_CONFLICT: 入力を保持し再取得を案内、再取得後は新しい key と新しい head で再送信する", async () => {
+  it("REVISION_CONFLICT: 入力を保持し再取得を案内、再取得後は同内容なら同じ key と新しい head で再送信する", async () => {
     const user = userEvent.setup();
     const before = read(answeredTarget(answer("1", answers({ visit_purpose: "合成目的1" }))));
     const latest = read(
@@ -816,6 +816,40 @@ describe("RevisitIntakePage 409", () => {
     expect(purposeInput().value).toBe("合成の私の訂正");
 
     await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+    await waitFor(() => expect(submits).toHaveLength(2));
+    expect(submits[1].body.expected_revision).toBe("2");
+    expect(submits[1].key).toBe(submits[0].key);
+  });
+
+  it("REVISION_CONFLICT 後に内容を変えて送信すると新しい key を使う（自動再送はしない）", async () => {
+    const user = userEvent.setup();
+    const before = read(answeredTarget(answer("1", answers({ visit_purpose: "合成目的1" }))));
+    const latest = read(
+      answeredTarget(answer("2", answers({ visit_purpose: "他端末の合成目的" }))),
+    );
+    const { calls } = mockReadSequence([before, latest]);
+    const submits = captureSubmits((c, i) =>
+      i === 0
+        ? HttpResponse.json(
+            { error: "conflict", code: "REVISION_CONFLICT", details: { head_revision: "2" } },
+            { status: 409 },
+          )
+        : HttpResponse.json(successResponse(c.key ?? "", "3")),
+    );
+    renderPage();
+
+    await user.clear(await screen.findByLabelText(/^来院目的/));
+    await user.type(purposeInput(), "合成の私の訂正");
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+    await screen.findByText(/ほかの操作で回答が更新されています/);
+    expect(submits).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "最新の状態を読み込む" }));
+    await waitFor(() => expect(calls).toHaveLength(2));
+    await user.click(await screen.findByRole("button", { name: "最新の回答を確認した" }));
+    await user.type(purposeInput(), "（追記）");
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+
     await waitFor(() => expect(submits).toHaveLength(2));
     expect(submits[1].body.expected_revision).toBe("2");
     expect(submits[1].key).not.toBe(submits[0].key);

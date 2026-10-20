@@ -292,6 +292,12 @@ export function RevisitIntakeEditor({
     setDraftBaseToken(baselineToken);
     persist(values, pending, baselineToken);
   }
+  // 409 REVISION_CONFLICT で未成功が確定した操作の key。同内容（expected_revision を除く fingerprint が同じ）の
+  // 再送信は同 key で再検証し、内容が変わったときだけ新 key にする（technical-spec#revisit-intake-api-selected-v3）。
+  // 自動再送はしない。回答が成功した後の訂正は常に新 key（成功時は pending 経由で消える）。
+  const [conflictedOp, setConflictedOp] = useState<{ key: string; fingerprint: string } | null>(
+    null,
+  );
   const inFlightRef = useRef(false);
   const alertRef = useRef<HTMLDivElement>(null);
 
@@ -437,6 +443,7 @@ export function RevisitIntakeEditor({
           updatePending(null);
           return { kind: "invalid", fieldErrors: kind.fieldErrors };
         case "revision_conflict":
+          setConflictedOp({ key: op.key, fingerprint: op.fingerprint });
           updatePending(null);
           return { kind: "revision_conflict", atRead: read };
         case "form_version_mismatch":
@@ -538,9 +545,12 @@ export function RevisitIntakeEditor({
           return { kind: "invalid", fieldErrors };
         }
         const body = buildRevisitIntakeSubmitRequest(current, read.form_definition_version, values);
+        const fingerprint = revisitIntakeFingerprint(body);
+        const reuseKey = conflictedOp !== null && conflictedOp.fingerprint === fingerprint;
+        setConflictedOp(null);
         const op: RevisitIntakePendingOperation = {
-          key: createRevisitIntakeOperationKey(),
-          fingerprint: revisitIntakeFingerprint(body),
+          key: reuseKey ? conflictedOp.key : createRevisitIntakeOperationKey(),
+          fingerprint,
           body,
           status: "unknown",
         };
