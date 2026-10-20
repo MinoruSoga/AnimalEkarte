@@ -4975,6 +4975,35 @@ components:
                 delete:
                   type: boolean
 
+    GetMeResponse:
+      description: |
+        EMR-463-C採用のGET /me専用応答。既存MeResponseを同じJSON階層に包む先行契約で、
+        runtime実装済みの宣言ではない。idは現行BEのstaff.ID（account IDではない）。
+        login/refresh応答と共通MeResponse/builder signatureは変更しない。
+        owners_view_clinic_idsはこの要求で検証されたactive医院のうちowners:viewが許可された集合。
+        所属全件、選択医院のpermissions、system_adminフラグからFEが補完してはならない。
+        許可ゼロの[]と契約未提供（欠落/NULL）・取得失敗は異なる。集合の件数を50へ切り詰めない。
+      x-contract-status: selected-not-implemented
+      allOf:
+        - $ref: '#/components/schemas/MeResponse'
+        - type: object
+          required: [owners_view_clinic_ids]
+          properties:
+            owners_view_clinic_ids:
+              type: array
+              nullable: false
+              uniqueItems: true
+              readOnly: true
+              description: |
+                現在検証済み所属医院IDとprofile.Clinicsのactive集合を交差し、各医院の
+                owners:viewを順次評価した許可集合。system_adminもこの交差内に限定する。
+                falseは除外、評価errorは5xxとし、部分集合や[]の成功応答に縮退しない。
+                各IDは正の正規形10進文字列。Numberへ変換せずclinic_idsへ渡す。順序に認可上の意味はない。
+              items:
+                type: string
+                pattern: '^[1-9][0-9]*$'
+              example: []
+
     # EMR-461 form-only ID read and cage-write fields (not the EMR-499 lifecycle core).
     # Sources: hospitalization/lifecycle.md#cage-available-selection-20261019,
     # docs/design/domains/hospitalization/technical-spec.md#stay-core-cage-handoff-20261020.
@@ -11548,15 +11577,24 @@ paths:
     get:
       operationId: getMe
       summary: ログインユーザー情報取得
-      description: JWTクレームからログインユーザーの詳細情報（所属医院・権限含む）を返す
+      description: |
+        認証済みcontextと現在のprofileからログインユーザーの詳細情報を返す。
+        EMR-463-Cでは200にだけowners_view_clinic_idsを必須追加する先行契約。
+        GetMeの並列取得g.Wait後にprofileを組み立て、ExtractClinicIDs(c)とprofile.Clinicsの
+        active集合を交差し、checkPermissionInClinic(c,id,"owners","view")を順次評価する。
+        認可評価errorは5xx。falseによる許可ゼロは200+[]。既存/petsの最終認可は別に維持する。
+        owners専有adapterは各loader/再検証でこのscopeを取得し、既存の全体/meキャッシュや
+        login/refreshのprofileを現在認可集合の代替にしない。
       tags: [Auth]
       responses:
         '200':
-          description: ユーザー情報
+          description: ユーザー情報と現在のowners:view許可医院集合（必須・非NULL、許可ゼロは[]）
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MeResponse'
+                $ref: '#/components/schemas/GetMeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
