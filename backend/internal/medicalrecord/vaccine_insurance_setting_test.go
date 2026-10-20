@@ -27,7 +27,6 @@ func TestCreateVaccineRequest_IsNonInsurance_Decode(t *testing.T) {
 		want *bool
 	}{
 		{name: "未送信はnil（service が新規初期値を適用）", body: `{"name":"v"}`, want: nil},
-		{name: "nullはnil（service が新規初期値を適用）", body: `{"name":"v","is_non_insurance":null}`, want: nil},
 		{name: "trueは明示値", body: `{"name":"v","is_non_insurance":true}`, want: vaccineBoolPtr(true)},
 		{name: "falseは明示値", body: `{"name":"v","is_non_insurance":false}`, want: vaccineBoolPtr(false)},
 	}
@@ -36,6 +35,21 @@ func TestCreateVaccineRequest_IsNonInsurance_Decode(t *testing.T) {
 			var req createVaccineRequest
 			require.NoError(t, json.Unmarshal([]byte(tt.body), &req))
 			assert.Equal(t, tt.want, req.toServiceInput().IsNonInsurance)
+		})
+	}
+}
+
+func TestCreateVaccineRequest_IsNonInsurance_RejectsNullAndNonBoolean(t *testing.T) {
+	for _, body := range []string{
+		`{"name":"v","is_non_insurance":null}`,
+		`{"name":"v","is_non_insurance":"true"}`,
+		`{"name":"v","is_non_insurance":1}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			var req createVaccineRequest
+			err := json.Unmarshal([]byte(body), &req)
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err), "want invalid input, got %v", err)
 		})
 	}
 }
@@ -218,6 +232,17 @@ func TestCreateVaccineHandler_IsNonInsuranceOmittedReachesServiceAsNil(t *testin
 	w := serveVaccineInsuranceRequest(t, http.MethodPost, `{"name":"v"}`, svc)
 	require.Equal(t, http.StatusCreated, w.Code)
 	assert.JSONEq(t, `true`, string(decodeVaccineField(t, w, "is_non_insurance")))
+}
+
+func TestCreateVaccineHandler_IsNonInsuranceRejectsNull(t *testing.T) {
+	svc := &mockVaccineService{
+		createFn: func(context.Context, uint64, *CreateVaccineInput) (*model.Vaccine, error) {
+			t.Fatal("service must not be called for null is_non_insurance")
+			return nil, nil
+		},
+	}
+	w := serveVaccineInsuranceRequest(t, http.MethodPost, `{"name":"v","is_non_insurance":null}`, svc)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func decodeVaccineField(t *testing.T, w *httptest.ResponseRecorder, key string) json.RawMessage {

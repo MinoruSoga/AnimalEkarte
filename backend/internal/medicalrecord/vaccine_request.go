@@ -28,8 +28,9 @@ type createVaccineRequest struct {
 	Interval    string  `json:"interval"`
 	ParentID    *uint64 `json:"parent_id"`
 	SortOrder   int     `json:"sort_order"`
-	// IsNonInsurance は品目の保険対象外設定（EMR-455）。未送信/null は新規初期値 true（対象外）。
-	IsNonInsurance *bool `json:"is_non_insurance"`
+	// IsNonInsurance は品目の保険対象外設定（EMR-455）。未送信=新規初期値 true（対象外）、
+	// 明示 null は 400（省略と null を区別するため *bool は使わない）、true/false=明示値。
+	IsNonInsurance vaccineInsuranceSettingField `json:"is_non_insurance"`
 }
 
 func (r *createVaccineRequest) toServiceInput() *CreateVaccineInput {
@@ -42,7 +43,7 @@ func (r *createVaccineRequest) toServiceInput() *CreateVaccineInput {
 		Interval:       r.Interval,
 		ParentID:       r.ParentID,
 		SortOrder:      r.SortOrder,
-		IsNonInsurance: r.IsNonInsurance,
+		IsNonInsurance: r.IsNonInsurance.value,
 	}
 }
 
@@ -75,8 +76,9 @@ func (r updateVaccineRequest) toServiceInput() *UpdateVaccineInput {
 	}
 }
 
-// vaccineInsuranceSettingField は PATCH の is_non_insurance で「未送信」と「JSON null」を区別する。
-// *bool だけでは両方 nil になるため、null を受理すると保存済み明示値を黙って維持/欠落扱いにしてしまう。
+// vaccineInsuranceSettingField は create/PATCH の is_non_insurance で「未送信」と「JSON null」を区別する。
+// *bool だけでは両方 nil になり、create では省略と同一視されて新規初期値が適用され、
+// PATCH では保存済み明示値を黙って維持/欠落扱いにしてしまう。いずれも明示 null は 400 で拒否する。
 // UnmarshalJSON は値が存在する場合だけ呼ばれるので、未送信は value=nil のまま残る。
 type vaccineInsuranceSettingField struct {
 	value *bool
