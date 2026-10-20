@@ -98,9 +98,12 @@ describe("useGetAllCheckupTypes (EMR-456)", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    // 旧欠落は null のまま（false=保険対象 へ補完しない）。共有 isNonInsurance には載せない。
-    expect(result.current.data?.[0]?.insuranceSetting).toBeNull();
-    expect(result.current.data?.[0]).not.toHaveProperty("isNonInsurance");
+    // 旧欠落は未設定のまま。専有API単独の旧共有transformはaliasを省略し、
+    // EMR-454との統合後はnullを返す。どちらもbooleanへ補完しない。
+    const row = result.current.data?.[0];
+    expect(row?.insuranceSetting).toBeNull();
+    const compatibilitySetting = row && "isNonInsurance" in row ? row.isNonInsurance : undefined;
+    expect(compatibilitySetting ?? null).toBeNull();
   });
 
   it("treats a response without the field (older backend) as unknown, not false", async () => {
