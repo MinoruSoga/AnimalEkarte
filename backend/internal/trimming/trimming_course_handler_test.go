@@ -305,7 +305,7 @@ func TestUpdateTrimmingCourse(t *testing.T) {
 			name:     "updates course successfully",
 			paramID:  "1",
 			body:     map[string]any{"name": "更新コース"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			courseSvc: &mockTrimmingCourseService{
 				updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 					require.NotNil(t, input.Name)
@@ -335,7 +335,7 @@ func TestUpdateTrimmingCourse(t *testing.T) {
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"name": "test"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			courseSvc: &mockTrimmingCourseService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 					return nil, apperrors.WrapNotFound("trimming_course", "999")

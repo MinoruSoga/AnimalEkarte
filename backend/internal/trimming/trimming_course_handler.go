@@ -92,8 +92,16 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	// 画像の置換・解除時に旧 key の削除予約（tombstone）を打つため staff actor が必須
+	//（ExtractStaffID は失敗時に応答を書く）
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
-	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorStaffID = staffID
+	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return

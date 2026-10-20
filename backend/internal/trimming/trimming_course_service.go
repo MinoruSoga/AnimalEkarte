@@ -43,6 +43,11 @@ type UpdateTrimmingCourseInput struct {
 	ShortName       *string
 	ImageObjectKey  *string
 	AllowedWeekdays *[]int
+
+	// 画像の置換・解除で不要になった旧 key の削除予約（tombstone）を打つ staff
+	// actor。0 は呼び出し元が staff を特定できないことを意味し、削除予約が必要な
+	// 更新は既存 lifecycle 契約どおり invalid input で拒否する（fail-closed）。
+	ActorStaffID uint64
 }
 
 const (
@@ -269,6 +274,48 @@ func (s *trimmingCourseService) lockCourseImageInTx(ctx context.Context, clinicI
 	return nil
 }
 
+// supersedeCourseImageInTx reserves deletion of a course image key that the
+// update just replaced or cleared. Mirrors the trimming record lifecycle:
+// lock the key, skip already reserved keys, keep the object alive while any
+// trimming detail or other course still references it, and otherwise leave a
+// tombstone so the post-commit cleanup can delete the object. Fail closed on
+// missing lifecycle wiring or a missing staff actor.
+func (s *trimmingCourseService) supersedeCourseImageInTx(ctx context.Context, clinicID uint64, previousKey string, input *UpdateTrimmingCourseInput) error {
+	if input.ImageObjectKey == nil || previousKey == "" || previousKey == *input.ImageObjectKey {
+		return nil
+	}
+	if s.imageLifecycle == nil {
+		return apperrors.WrapInternalServerError("trimming course image lifecycle is not configured")
+	}
+	if input.ActorStaffID == 0 {
+		return apperrors.WrapInvalidInput("image deletion requires a staff actor")
+	}
+	key := ImageKey{clinicID: clinicID, value: previousKey}
+	if err := s.imageLifecycle.LockImageKeys(ctx, []ImageKey{key}); err != nil {
+		return apperrors.Wrap(err, "failed to lock superseded trimming course image")
+	}
+	deleted, err := s.imageLifecycle.ImageKeyDeleted(ctx, key)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check superseded trimming course image")
+	}
+	if deleted {
+		return nil
+	}
+	// The course row is already updated, so exact-match reference checks no
+	// longer count this course itself.
+	inUse, err := s.imageLifecycle.ImageKeyInUse(ctx, clinicID, key.value, 0)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check superseded trimming course image references")
+	}
+	if inUse {
+		return nil
+	}
+	if err := s.imageLifecycle.MarkImageKeyDeleted(ctx, key, input.ActorStaffID); err != nil {
+		return apperrors.Wrap(err, "failed to reserve superseded trimming course image deletion")
+	}
+	return nil
+}
+
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
 	result, err := s.repo.FindAll(ctx, clinicID)
 	if err != nil {
@@ -383,9 +430,24 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 				return err
 			}
 		}
+		// 置換判定に使う旧 key はこの tx が見る最新値を再読込する。tx 外の先頭の
+		// 存在確認は他 tx の更新で古くなりうる。FOR SHARE 付きの tx 内読み取り。
+		previousImage := ""
+		if input.ImageObjectKey != nil {
+			current, err := s.repo.FindByID(txCtx, clinicID, id)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to load trimming course before superseding image")
+			}
+			if current.ImageObjectKey != nil {
+				previousImage = *current.ImageObjectKey
+			}
+		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to update trimming course")
+		}
+		if err := s.supersedeCourseImageInTx(txCtx, clinicID, previousImage, input); err != nil {
+			return err
 		}
 		course = updated
 		return nil

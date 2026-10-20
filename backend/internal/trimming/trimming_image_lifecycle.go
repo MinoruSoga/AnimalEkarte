@@ -20,6 +20,12 @@ type ImageLifecycleRepository interface {
 	LockImageKeys(context.Context, []ImageKey) error
 	ImageKeyDeleted(context.Context, ImageKey) (bool, error)
 	MarkImageKeyDeleted(context.Context, ImageKey, uint64) error
+	// ImageKeyInUse reports whether any trimming detail row or course master
+	// still references the key by exact object key match (EMR-457 course
+	// images included). exceptAppointmentID excludes one appointment's own
+	// detail rows; course writes pass 0 because the course row is updated
+	// before the check and can no longer reference the superseded key.
+	ImageKeyInUse(context.Context, uint64, string, uint64) (bool, error)
 }
 
 func ownedImageKey(clinicID uint64, stored string) (ImageKey, error) {

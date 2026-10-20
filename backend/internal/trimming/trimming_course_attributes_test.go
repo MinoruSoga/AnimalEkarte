@@ -15,8 +15,10 @@ import (
 // EMR-457: 短縮名・画像・曜日の保存契約。利用医院は既存 clinic_id（T1）。
 
 type courseImageLifecycleFake struct {
-	locked  []ImageKey
-	deleted map[string]bool
+	locked     []ImageKey
+	deleted    map[string]bool
+	inUseKeys  map[string]bool
+	tombstoned []string
 }
 
 func (f *courseImageLifecycleFake) LockImageKeys(_ context.Context, keys []ImageKey) error {
@@ -28,8 +30,29 @@ func (f *courseImageLifecycleFake) ImageKeyDeleted(_ context.Context, key ImageK
 	return f.deleted[key.value], nil
 }
 
-func (f *courseImageLifecycleFake) MarkImageKeyDeleted(context.Context, ImageKey, uint64) error {
+func (f *courseImageLifecycleFake) ImageKeyInUse(_ context.Context, _ uint64, key string, _ uint64) (bool, error) {
+	return f.inUseKeys[key], nil
+}
+
+func (f *courseImageLifecycleFake) MarkImageKeyDeleted(_ context.Context, key ImageKey, _ uint64) error {
+	if f.deleted == nil {
+		f.deleted = map[string]bool{}
+	}
+	f.tombstoned = append(f.tombstoned, key.value)
+	f.deleted[key.value] = true
 	return nil
+}
+
+func newSupersedeUpdateRepo(existing *model.TrimmingCourse, captured *map[string]any) *mockTrimmingCourseRepository {
+	return &mockTrimmingCourseRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, clinicID, id uint64, cmd UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+			*captured = buildTrimmingCourseUpdate(&cmd)
+			return &model.TrimmingCourse{ID: id, ClinicID: clinicID}, nil
+		},
+	}
 }
 
 func newAttributeCourseService(repo TrimmingCourseRepository, lifecycle ImageLifecycleRepository) TrimmingCourseService {
@@ -225,6 +248,81 @@ func TestTrimmingCourseService_UpdateRejectsForeignImage(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, fields)
+}
+
+func TestTrimmingCourseService_UpdateSupersedesReplacedImage(t *testing.T) {
+	captured := map[string]any{}
+	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/old.jpg")}
+	lifecycle := &courseImageLifecycleFake{}
+	svc := newAttributeCourseService(newSupersedeUpdateRepo(existing, &captured), lifecycle)
+
+	newKey := "trimming-images/1/new.jpg"
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateTrimmingCourseInput{
+		ImageObjectKey: &newKey,
+		ActorStaffID:   7,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"trimming-images/1/old.jpg"}, lifecycle.tombstoned)
+}
+
+func TestTrimmingCourseService_UpdateSupersedesClearedImage(t *testing.T) {
+	captured := map[string]any{}
+	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/old.jpg")}
+	lifecycle := &courseImageLifecycleFake{}
+	svc := newAttributeCourseService(newSupersedeUpdateRepo(existing, &captured), lifecycle)
+
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateTrimmingCourseInput{
+		ImageObjectKey: courseAttrStrPtr(""),
+		ActorStaffID:   7,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"trimming-images/1/old.jpg"}, lifecycle.tombstoned)
+}
+
+func TestTrimmingCourseService_UpdateKeepsImageReferencedElsewhere(t *testing.T) {
+	captured := map[string]any{}
+	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/shared.jpg")}
+	lifecycle := &courseImageLifecycleFake{inUseKeys: map[string]bool{"trimming-images/1/shared.jpg": true}}
+	svc := newAttributeCourseService(newSupersedeUpdateRepo(existing, &captured), lifecycle)
+
+	newKey := "trimming-images/1/new.jpg"
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateTrimmingCourseInput{
+		ImageObjectKey: &newKey,
+		ActorStaffID:   7,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, lifecycle.tombstoned)
+}
+
+func TestTrimmingCourseService_UpdateSkipsSupersedeWhenImageUnchanged(t *testing.T) {
+	captured := map[string]any{}
+	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/same.jpg")}
+	lifecycle := &courseImageLifecycleFake{}
+	svc := newAttributeCourseService(newSupersedeUpdateRepo(existing, &captured), lifecycle)
+
+	same := "trimming-images/1/same.jpg"
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateTrimmingCourseInput{
+		Name:           courseAttrStrPtr("B"),
+		ImageObjectKey: &same,
+		ActorStaffID:   7,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, lifecycle.tombstoned)
+}
+
+func TestTrimmingCourseService_UpdateRequiresActorForSupersede(t *testing.T) {
+	captured := map[string]any{}
+	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/old.jpg")}
+	lifecycle := &courseImageLifecycleFake{}
+	svc := newAttributeCourseService(newSupersedeUpdateRepo(existing, &captured), lifecycle)
+
+	newKey := "trimming-images/1/new.jpg"
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateTrimmingCourseInput{
+		ImageObjectKey: &newKey,
+	})
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Empty(t, lifecycle.tombstoned)
 }
 
 func TestTrimmingCourseRequest_AttributeMapping(t *testing.T) {

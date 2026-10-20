@@ -215,6 +215,11 @@ export function useGetTrimmingCourses() {
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
     refetchInterval: TRIMMING_COURSE_LIST_REFETCH_INTERVAL,
+    // 署名付き画像 URL は 15 分で失効する。タブを 15 分以上背景に置くと定期
+    // 再取得が止まり staleTime 内は fresh 扱いのため、再表示・再マウント時に
+    // fresh でも必ず再取得して失効 URL の表示を防ぐ。
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
   });
 }
 
