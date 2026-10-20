@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { liffApi } from "../api/liff-api";
 import type { Reservation } from "../types/models";
 import { BackButton } from "../components/BackButton";
@@ -18,81 +18,6 @@ interface MyReservationsPageProps {
 
 const revisitCtaClassName =
   "min-h-11 w-full rounded-lg border border-noah-teal px-3 text-sm font-semibold text-noah-teal-dark hover:bg-noah-teal-light";
-
-/**
- * EMR-474: 取消済み予約は回答履歴があるときだけ「回答履歴を見る」を出す。予約一覧 DTO を変えないため、
- * 取消済みカードごとに問診を1件だけ読み取って判定する。取得失敗・403/404 は何も表示しない（有無を推測しない）。
- */
-function CancelledRevisitHistoryLink({
-  clinicId,
-  idToken,
-  reservation,
-  onOpen,
-}: {
-  clinicId: string;
-  idToken: string;
-  reservation: Reservation;
-  onOpen: (reservation: Reservation) => void;
-}) {
-  const [hasHistory, setHasHistory] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    liffApi
-      .getRevisitIntake(clinicId, String(reservation.id), idToken, { limit: 1 })
-      .then((read) => {
-        if (cancelled) return;
-        setHasHistory(read.history.length > 0 || read.current_target?.answer_state === "answered");
-      })
-      .catch(() => {
-        // 表示しない（取消済みの予約・回答はこの画面から操作しない）
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [clinicId, idToken, reservation.id]);
-
-  if (!hasHistory) return null;
-  return (
-    <div className="mt-3 pt-3 border-t border-noah-border-light">
-      <button type="button" onClick={() => onOpen(reservation)} className={revisitCtaClassName}>
-        回答履歴を見る
-      </button>
-    </div>
-  );
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return "";
-  const [year, month, day] = dateStr.split("-");
-  return `${year}年${Number(month)}月${Number(day)}日`;
-}
-
-function formatCreatedAt(isoStr: string): string {
-  return formatJSTApplicationDate(isoStr);
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  confirmed: "確定",
-  pending: "確認中",
-  cancelled: "キャンセル済",
-  checked_in: "受付済",
-  in_consultation: "診察中",
-  accounting: "会計中",
-  completed: "完了",
-  no_show: "未来院",
-};
-
-// FE-RC-051: 状態バッジは brand-tokens.css の semantic token（noah-success/warning/info/danger/neutral）を使う。
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-noah-success-bg text-noah-success-text",
-  pending: "bg-noah-warning-bg text-noah-warning-text",
-  cancelled: "bg-noah-neutral-bg text-noah-neutral-text",
-  checked_in: "bg-noah-info-bg text-noah-info-text",
-  in_consultation: "bg-noah-info-bg text-noah-info-text",
-  accounting: "bg-noah-info-bg text-noah-info-text",
-  completed: "bg-noah-info-bg text-noah-info-text",
-  no_show: "bg-noah-danger-bg-strong text-noah-danger-text",
-};
 
 export function MyReservationsPage({
   clinicId,
@@ -231,15 +156,6 @@ export function MyReservationsPage({
                         問診を回答する／訂正する
                       </button>
                     </div>
-                  ) : null}
-
-                  {reservation.status === "cancelled" && onOpenRevisitIntake ? (
-                    <CancelledRevisitHistoryLink
-                      clinicId={clinicId}
-                      idToken={idToken}
-                      reservation={reservation}
-                      onOpen={onOpenRevisitIntake}
-                    />
                   ) : null}
 
                   {reservation.status === "confirmed" ? (
