@@ -1,5 +1,49 @@
 package medicalrecord
 
+import (
+	"encoding/json"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+)
+
+// EMR-456: is_non_insurance の wire 契約（null 契約の統一・チケット回答 2026-10-20）。
+// POST: 省略 → service が新規初期値（保険対象外=true）を明示保存 / 明示 null → 400 / boolean → 保存。
+// PATCH: 省略 → 変更なし / 明示 null → 400 / boolean → 保存。旧 NULL（未保存）読取の保持とは区別する。
+// encoding/json は *bool/**bool に null を落とすと省略と区別できないため、専有のフィールド型で
+// 「未送信」「明示 null」「boolean」を区別する（将来 454 の共有語彙へ集約する場合は 454 側で置き換える）。
+
+const (
+	errMsgCheckupTypeInsuranceNull       = "is_non_insurance に null は指定できません。省略するか true/false を指定してください"
+	errMsgCheckupTypeInsuranceNotBoolean = "is_non_insurance には true/false を指定してください"
+)
+
+type checkupTypeInsuranceField struct {
+	set   bool
+	value bool
+}
+
+func (f *checkupTypeInsuranceField) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return apperrors.WrapInvalidInput(errMsgCheckupTypeInsuranceNull)
+	}
+	var value bool
+	if err := json.Unmarshal(data, &value); err != nil {
+		return apperrors.WrapInvalidInput(errMsgCheckupTypeInsuranceNotBoolean)
+	}
+	f.set = true
+	f.value = value
+	return nil
+}
+
+// toServiceInput は未送信を nil に変換する（POST=service が初期値 true を明示保存 / PATCH=変更なし）。
+func (f checkupTypeInsuranceField) toServiceInput() *bool {
+	if !f.set {
+		return nil
+	}
+	value := f.value
+	return &value
+}
+
 type createCheckupTypeRequest struct {
 	Name        string  `json:"name"        binding:"required"`
 	Price       *int64  `json:"price"`
@@ -9,8 +53,8 @@ type createCheckupTypeRequest struct {
 	TargetAge   string  `json:"target_age"`
 	ParentID    *uint64 `json:"parent_id"`
 	SortOrder   int     `json:"sort_order"`
-	// EMR-456: 未指定/null は新規初期値（保険対象外=true）を service が明示保存する。
-	IsNonInsurance *bool `json:"is_non_insurance"`
+	// EMR-456: 省略 → service が新規初期値（保険対象外=true）を明示保存。明示 null は binding 層で 400。
+	IsNonInsurance checkupTypeInsuranceField `json:"is_non_insurance"`
 }
 
 func (r *createCheckupTypeRequest) toServiceInput() *CreateCheckupTypeInput {
@@ -23,7 +67,7 @@ func (r *createCheckupTypeRequest) toServiceInput() *CreateCheckupTypeInput {
 		TargetAge:      r.TargetAge,
 		ParentID:       r.ParentID,
 		SortOrder:      r.SortOrder,
-		IsNonInsurance: r.IsNonInsurance,
+		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
 	}
 }
 
@@ -37,10 +81,10 @@ type updateCheckupTypeRequest struct {
 	ParentID      *uint64 `json:"parent_id"`
 	ClearParentID bool    `json:"clear_parent_id"`
 	SortOrder     *int    `json:"sort_order"`
-	// EMR-456: 未指定/null は変更なし（NULL=未保存へ戻す経路は持たない）。
-	IsNonInsurance *bool `json:"is_non_insurance"`
-	// EMR-456: 楽観ロックの期待版。未指定時は service が読取時点の版で照合する。
-	Version *int64 `json:"version" binding:"omitempty,min=1"`
+	// EMR-456: 省略 → 変更なし。明示 null は binding 層で 400。NULL（未保存）へ戻す経路は持たない。
+	IsNonInsurance checkupTypeInsuranceField `json:"is_non_insurance"`
+	// EMR-456: 楽観ロックの期待版。更新要求では必須（未指定は 400）。不一致は 409・書込なし。
+	Version *int64 `json:"version" binding:"required,min=1"`
 }
 
 func (r updateCheckupTypeRequest) toServiceInput() *UpdateCheckupTypeInput {
@@ -54,7 +98,7 @@ func (r updateCheckupTypeRequest) toServiceInput() *UpdateCheckupTypeInput {
 		ParentID:       r.ParentID,
 		ClearParentID:  r.ClearParentID,
 		SortOrder:      r.SortOrder,
-		IsNonInsurance: r.IsNonInsurance,
+		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
 		Version:        r.Version,
 	}
 }

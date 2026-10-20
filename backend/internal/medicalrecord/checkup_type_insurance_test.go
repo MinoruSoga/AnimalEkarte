@@ -2,12 +2,14 @@ package medicalrecord
 
 // EMR-456: 健診種別の保険設定（is_non_insurance）の service / request / response 契約。
 // NULL=未保存（旧欠落）、true=保険対象外、false=保険対象。新規初期値は保険対象外を API が明示保存し、
-// 更新の未指定/null は変更しない。版不一致は部分保存せず Conflict。設定変更は同一 tx で監査する。
+// 更新は省略=変更なし・明示 null=400・boolean=保存（null 契約の統一）。更新の version は必須で、
+// 不一致は部分保存せず Conflict。設定変更は同一 tx で監査する。
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,17 +121,17 @@ func TestCheckupTypeService_Update_InsuranceSettingAndVersion(t *testing.T) {
 		wantExpected int64
 	}{
 		{name: "unspecified keeps stored value",
-			stored: boolPtr(true), input: UpdateCheckupTypeInput{Name: &name}, wantExpected: 3},
+			stored: boolPtr(true), input: UpdateCheckupTypeInput{Name: &name, Version: int64Ptr(3)}, wantExpected: 3},
 		{name: "unspecified keeps legacy NULL (no default re-applied)",
-			stored: nil, input: UpdateCheckupTypeInput{Name: &name}, wantExpected: 3},
+			stored: nil, input: UpdateCheckupTypeInput{Name: &name, Version: int64Ptr(3)}, wantExpected: 3},
 		{name: "explicit false on legacy NULL is saved and audited",
-			stored: nil, input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false)},
+			stored: nil, input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(3)},
 			wantField: true, wantValue: false, wantAudit: true, wantExpected: 3},
 		{name: "explicit true over false is saved and audited",
-			stored: boolPtr(false), input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(true)},
+			stored: boolPtr(false), input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(true), Version: int64Ptr(3)},
 			wantField: true, wantValue: true, wantAudit: true, wantExpected: 3},
 		{name: "same value is saved without an insurance audit",
-			stored: boolPtr(true), input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(true)},
+			stored: boolPtr(true), input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(true), Version: int64Ptr(3)},
 			wantField: true, wantValue: true, wantExpected: 3},
 		{name: "client version is used as the expected version",
 			stored: boolPtr(true), input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(2)},
@@ -200,18 +202,21 @@ func TestCheckupTypeService_Update_RejectsWithoutWrite(t *testing.T) {
 		{name: "version only is not a field change",
 			input: UpdateCheckupTypeInput{Version: int64Ptr(3)},
 			check: func(t *testing.T, err error) { assert.True(t, apperrors.IsInvalidInput(err)) }},
+		{name: "missing client version is rejected before any read/write (no fallback)",
+			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false)},
+			check: func(t *testing.T, err error) { assert.True(t, apperrors.IsInvalidInput(err)) }},
 		{name: "other clinic or missing row is not found",
-			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false)}, findErr: apperrors.WrapNotFound("checkup_type", "9"),
+			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(3)}, findErr: apperrors.WrapNotFound("checkup_type", "9"),
 			check: func(t *testing.T, err error) { assert.True(t, apperrors.IsNotFound(err)) }},
 		{name: "version conflict is surfaced as conflict",
 			input:     UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(1)},
 			updateErr: apperrors.WrapConflict("stale"), wantWrite: true,
 			check: func(t *testing.T, err error) { assert.True(t, apperrors.IsConflict(err)) }},
 		{name: "audit failure fails the update (tx rollback)",
-			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false)}, auditErr: errors.New("audit down"), wantWrite: true,
+			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(3)}, auditErr: errors.New("audit down"), wantWrite: true,
 			check: func(t *testing.T, err error) { assert.Error(t, err) }},
 		{name: "missing actor on an insurance change is rejected (fail-closed)",
-			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false)}, noActor: true, wantWrite: true,
+			input: UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(3)}, noActor: true, wantWrite: true,
 			check: func(t *testing.T, err error) { assert.True(t, apperrors.IsInvalidInput(err)) }},
 	}
 	for _, tt := range tests {
@@ -245,13 +250,53 @@ func TestCheckupTypeService_Update_RejectsWithoutWrite(t *testing.T) {
 	}
 }
 
+func TestCheckupTypeService_Update_RequiresClientVersion(t *testing.T) {
+	// review 4320626569 の解消条件: 2 人が版 3 を読み、一方が版 4 へ保存した後、
+	// 他方の版 3 保存は 409・書込なし。service が読取時点の版で補う fallback は廃止済み。
+	name := "改名"
+	var updateCalls int
+	repo := &mockCheckupTypeRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
+			return &model.CheckupType{ID: 9, ClinicID: 1, Name: "健診", IsNonInsurance: boolPtr(true), Version: 4}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error) {
+			updateCalls++
+			return nil, apperrors.WrapConflict(errMsgCheckupTypeVersionConflict)
+		},
+	}
+	svc := NewCheckupTypeService(repo, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{})
+
+	got, err := svc.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{
+		Name: &name, Version: int64Ptr(3), ActorID: &testCheckupTypeActorID,
+	})
+
+	assert.Nil(t, got)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "stale client version must be a conflict, not a silent overwrite")
+	assert.Equal(t, 1, updateCalls, "the update was attempted exactly once and rolled back")
+}
+
 func TestCheckupTypeRequest_InsuranceBinding(t *testing.T) {
-	t.Run("update null and absent both mean unchanged", func(t *testing.T) {
-		for _, body := range []string{`{"name":"a"}`, `{"name":"a","is_non_insurance":null}`} {
-			var req updateCheckupTypeRequest
-			require.NoError(t, json.Unmarshal([]byte(body), &req))
-			assert.Nil(t, req.toServiceInput().IsNonInsurance, body)
-		}
+	t.Run("update absent means unchanged (nil reaches the service)", func(t *testing.T) {
+		var req updateCheckupTypeRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"name":"a","version":2}`), &req))
+		assert.Nil(t, req.toServiceInput().IsNonInsurance)
+	})
+	t.Run("update explicit null is rejected (never treated as unchanged)", func(t *testing.T) {
+		var req updateCheckupTypeRequest
+		assert.Error(t, json.Unmarshal([]byte(`{"name":"a","is_non_insurance":null,"version":2}`), &req))
+	})
+	t.Run("create explicit null is rejected (never treated as the default)", func(t *testing.T) {
+		var req createCheckupTypeRequest
+		assert.Error(t, json.Unmarshal([]byte(`{"name":"a","is_non_insurance":null}`), &req))
+	})
+	t.Run("update version is required on the wire", func(t *testing.T) {
+		// ShouldBindJSON が required,min=1 を強制する。encoding/json は binding を見ないため
+		// タグの存在をここで固定し、HTTP の 400 は handler test が実測する。
+		f, ok := reflect.TypeOf(updateCheckupTypeRequest{}).FieldByName("Version")
+		require.True(t, ok)
+		assert.Contains(t, f.Tag.Get("binding"), "required")
+		assert.Contains(t, f.Tag.Get("binding"), "min=1")
 	})
 	t.Run("update false/true and version are carried", func(t *testing.T) {
 		var req updateCheckupTypeRequest
@@ -259,6 +304,7 @@ func TestCheckupTypeRequest_InsuranceBinding(t *testing.T) {
 		in := req.toServiceInput()
 		require.NotNil(t, in.IsNonInsurance)
 		assert.False(t, *in.IsNonInsurance)
+		require.NotNil(t, in.Version)
 		assert.Equal(t, int64(4), *in.Version)
 	})
 	t.Run("create absent stays nil so the service applies the new-entry default", func(t *testing.T) {
@@ -266,9 +312,16 @@ func TestCheckupTypeRequest_InsuranceBinding(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(`{"name":"a"}`), &req))
 		assert.Nil(t, req.toServiceInput().IsNonInsurance)
 	})
+	t.Run("create true/false is carried", func(t *testing.T) {
+		var req createCheckupTypeRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"name":"a","is_non_insurance":false}`), &req))
+		in := req.toServiceInput()
+		require.NotNil(t, in.IsNonInsurance)
+		assert.False(t, *in.IsNonInsurance)
+	})
 	t.Run("non-boolean payload is rejected", func(t *testing.T) {
 		var req updateCheckupTypeRequest
-		assert.Error(t, json.Unmarshal([]byte(`{"is_non_insurance":"yes"}`), &req))
+		assert.Error(t, json.Unmarshal([]byte(`{"is_non_insurance":"yes","version":2}`), &req))
 	})
 }
 

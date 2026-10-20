@@ -33,14 +33,15 @@ export type CheckupTypeMasterItem = CheckupTypeItem & {
 };
 
 export type CreateCheckupTypeInsuranceRequest = CreateCheckupTypeRequest & {
-  // 未指定なら API が新規初期値（保険対象外）を明示保存する。
+  // 未指定なら API が新規初期値（保険対象外）を明示保存する。明示 null は 400（送信しない）。
   is_non_insurance?: boolean;
 };
 
 export type UpdateCheckupTypeInsuranceRequest = UpdateCheckupTypeRequest & {
-  // 未指定は変更なし。null（未保存）へ戻す送信は API が持たない。
+  // 未指定は変更なし。明示 null は 400（送信しない）。null（未保存）へ戻す送信は API が持たない。
   is_non_insurance?: boolean;
-  // 楽観ロックの期待版。不一致は 409 で何も保存されない。
+  // 楽観ロックの期待版。PATCH では必須（未指定は 400・チケット回答 2026-10-20）。不一致は 409 で何も保存されない。
+  // 型は任意のままだが、送信側（454 の共通 builder）が reader→フォーム→builder へ version を通す。
   version?: number;
 };
 

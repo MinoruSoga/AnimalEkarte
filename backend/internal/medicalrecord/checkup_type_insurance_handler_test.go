@@ -132,9 +132,12 @@ func TestCheckupTypeMutation_RejectsInvalidPayload(t *testing.T) {
 		body   string
 	}{
 		{name: "create with string insurance value", method: http.MethodPost, body: `{"name":"a","is_non_insurance":"yes"}`},
-		{name: "update with numeric insurance value", method: http.MethodPatch, body: `{"is_non_insurance":1}`},
+		{name: "create with explicit null insurance", method: http.MethodPost, body: `{"name":"a","is_non_insurance":null}`},
+		{name: "update with numeric insurance value", method: http.MethodPatch, body: `{"is_non_insurance":1,"version":4}`},
+		{name: "update with explicit null insurance", method: http.MethodPatch, body: `{"is_non_insurance":null,"version":4}`},
 		{name: "update with zero version", method: http.MethodPatch, body: `{"is_non_insurance":true,"version":0}`},
 		{name: "update with negative version", method: http.MethodPatch, body: `{"is_non_insurance":true,"version":-1}`},
+		{name: "update without version is rejected (required)", method: http.MethodPatch, body: `{"is_non_insurance":true}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

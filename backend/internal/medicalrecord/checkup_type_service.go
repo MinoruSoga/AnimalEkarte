@@ -20,7 +20,8 @@ type CreateCheckupTypeInput struct {
 	TargetAge   string
 	ParentID    *uint64
 	SortOrder   int
-	// IsNonInsurance は nil のとき新規初期値（保険対象外=true）を明示保存する（EMR-456）。
+	// IsNonInsurance は nil=省略（新規初期値 true を明示保存）。
+	// 明示 null は request の binding 層で 400 になるため service には届かない（EMR-456）。
 	IsNonInsurance *bool
 	// ActorID は保険設定の監査に使う操作スタッフ ID。
 	ActorID *uint64
@@ -37,9 +38,10 @@ type UpdateCheckupTypeInput struct {
 	ParentID      *uint64
 	ClearParentID bool
 	SortOrder     *int
-	// IsNonInsurance は nil のとき変更しない。NULL（未保存）へ戻す経路は持たない（EMR-456）。
+	// IsNonInsurance は nil=省略（変更なし）。NULL（未保存）へ戻す経路は持たない（EMR-456）。
+	// 明示 null は request の binding 層で 400 になるため service には届かない。
 	IsNonInsurance *bool
-	// Version は楽観ロックの期待版（nil=service が読取時点の版で照合）。
+	// Version は楽観ロックの期待版。更新要求では必須（nil は検証エラー・review 4320626569）。
 	Version *int64
 	// ActorID は保険設定の監査に使う操作スタッフ ID。
 	ActorID *uint64
@@ -67,6 +69,10 @@ const newCheckupTypeIsNonInsuranceDefault = true
 
 // errMsgCheckupTypeVersionConflict は楽観ロックの版不一致（再読込を促す）メッセージ。
 const errMsgCheckupTypeVersionConflict = "他のユーザーがこの定期健診種別を変更しました。再読み込みしてください"
+
+// errMsgCheckupTypeVersionRequired は更新要求で client 版が未指定のときの検証エラー。
+// service が読取時点の版で補う fallback は、画面を開いた後の他者更新を検出できず無音上書きになるため廃止した。
+const errMsgCheckupTypeVersionRequired = "version を指定してください（編集開始時の版）"
 
 func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	fields := make(map[string]any)
@@ -194,6 +200,11 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if len(buildCheckupTypeUpdate(input)) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
+	// EMR-456: 更新要求は編集開始時の client 版で必須。service が読取時点の版で補う fallback は、
+	// 画面を開いた後の他者更新を検出できず無音上書きになるため廃止した（review 4320626569・チケット回答 2026-10-20）。
+	if input.Version == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgCheckupTypeVersionRequired)
+	}
 	var checkupType *model.CheckupType
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		before, err := s.repo.FindByID(txCtx, clinicID, id)
@@ -203,12 +214,10 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
 			return err
 		}
-		// EMR-456: 版は常に WHERE で照合する。client が版を送らない旧経路でも、読取後の並行更新を
-		// 上書きせず Conflict にする（版の加算は DB トリガが内容変更時だけ行う）。
-		expected := before.Version
-		if input.Version != nil {
-			expected = *input.Version
-		}
+		// EMR-456: 版は client 提示の期待版で必ず WHERE 照合する（未指定は上述の 400）。
+		// version 列は書かない: BEFORE UPDATE トリガ（app_private.entity_version_guard）が
+		// 内容変更時だけ OLD.version+1 にし、内容不変の UPDATE での版変更は 23514 で拒否する。
+		expected := *input.Version
 		effective := *input
 		effective.expectedVersion = &expected
 		updated, err := s.repo.Update(txCtx, clinicID, id, effective)
