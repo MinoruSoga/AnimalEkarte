@@ -13,6 +13,8 @@ const createShiftMock = vi.fn();
 const updateShiftMock = vi.fn();
 const deleteShiftMock = vi.fn();
 const toastError = vi.fn();
+const getShiftByIdMock = vi.fn();
+const getShiftOperationResultMock = vi.fn();
 const getShiftTemplatesMock = vi.fn((): { data: ShiftTemplate[] } => ({ data: [] }));
 
 vi.mock("../../api/get-shift-templates", () => ({
@@ -20,7 +22,7 @@ vi.mock("../../api/get-shift-templates", () => ({
 }));
 
 vi.mock("../../api/delete-shift", () => ({
-  useDeleteShift: () => ({ mutate: deleteShiftMock, isPending: false }),
+  useDeleteShift: () => ({ mutateAsync: deleteShiftMock, isPending: false }),
 }));
 
 vi.mock("../../api/create-shift", () => ({
@@ -30,6 +32,23 @@ vi.mock("../../api/create-shift", () => ({
 vi.mock("../../api/update-shift", () => ({
   updateShift: (...args: unknown[]) => updateShiftMock(...args),
 }));
+
+vi.mock("../../api/get-shifts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/get-shifts")>();
+  return {
+    ...actual,
+    getShiftById: (...args: unknown[]) => getShiftByIdMock(...args),
+  };
+});
+
+vi.mock("../../api/shift-operation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/shift-operation")>();
+  return {
+    ...actual,
+    newOperationKey: () => "op-key-fixed",
+    getShiftOperationResult: (...args: unknown[]) => getShiftOperationResultMock(...args),
+  };
+});
 
 vi.mock("@/lib/handle-api-error", () => ({
   handleApiError: vi.fn(),
@@ -46,12 +65,28 @@ const EDIT_SHIFT: Shift = {
   staff_name: "テストスタッフ",
   date: "2026-08-01",
   shift_type: "full",
-  start_time: "09:00",
-  end_time: "18:00",
+  starts_at: "2026-08-01T09:00:00+09:00",
+  ends_at: "2026-08-01T18:00:00+09:00",
+  version: 3,
+  interval_state: "known",
   notes: "",
   breaks: [],
-  created_at: "",
-  updated_at: "",
+  created_at: "2026-07-01T00:00:00+09:00",
+  updated_at: "2026-07-01T00:00:00+09:00",
+};
+
+const RECEIPT = {
+  operation_key: "op-key-fixed",
+  intent: "update" as const,
+  shift_id: "shift-1",
+  resulting_version: 4,
+  shift: { ...EDIT_SHIFT, version: 4 },
+};
+
+const CREATE_RECEIPT = {
+  ...RECEIPT,
+  intent: "create" as const,
+  shift_id: "new-shift",
 };
 
 const BASE_PROPS: ComponentProps<typeof ShiftFormDialog> = {
@@ -96,10 +131,12 @@ describe("ShiftFormDialog responsive layout", () => {
 
 describe("ShiftFormDialog BUG-036 required times", () => {
   beforeEach(() => {
-    createShiftMock.mockReset();
-    updateShiftMock.mockReset();
+    createShiftMock.mockReset().mockResolvedValue(CREATE_RECEIPT);
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
     deleteShiftMock.mockReset();
     toastError.mockReset();
+    getShiftByIdMock.mockReset();
+    getShiftOperationResultMock.mockReset();
   });
 
   it("全日で開始・終了が空のまま保存するとエラーを出し API を呼ばない", async () => {
@@ -120,9 +157,7 @@ describe("ShiftFormDialog BUG-036 required times", () => {
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("開始時刻と終了時刻を入力してください");
     expect(alert).toHaveAttribute("id", "shift-time-error");
-
     for (const label of ["開始時刻", "終了時刻"]) {
       const input = screen.getByLabelText(label);
       expect(input).toHaveAttribute("aria-invalid", "true");
@@ -130,9 +165,8 @@ describe("ShiftFormDialog BUG-036 required times", () => {
     }
   });
 
-  it("全日で時刻を入れて保存すると createShift が呼ばれる", async () => {
+  it("全日で時刻を入れて保存すると契約の明示日時で createShift が呼ばれる", async () => {
     const user = userEvent.setup();
-    createShiftMock.mockResolvedValue({});
     renderDialog();
 
     await user.type(screen.getByLabelText("開始時刻"), "09:00");
@@ -142,12 +176,15 @@ describe("ShiftFormDialog BUG-036 required times", () => {
     await waitFor(() => {
       expect(createShiftMock).toHaveBeenCalledTimes(1);
     });
-    expect(createShiftMock.mock.calls[0][0]).toMatchObject({
+    expect(createShiftMock.mock.calls[0][0]).toStrictEqual({
+      operation_key: "op-key-fixed",
       staff_id: "staff-1",
       date: "2026-08-01",
       shift_type: "full",
-      start_time: "09:00",
-      end_time: "18:00",
+      starts_at: "2026-08-01T09:00:00+09:00",
+      ends_at: "2026-08-01T18:00:00+09:00",
+      breaks: [],
+      notes: "",
     });
     expect(toastError).not.toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
   });
@@ -155,10 +192,18 @@ describe("ShiftFormDialog BUG-036 required times", () => {
 
 describe("ShiftFormDialog mutation permission re-check", () => {
   beforeEach(() => {
-    createShiftMock.mockReset().mockResolvedValue({});
-    updateShiftMock.mockReset().mockResolvedValue({});
-    deleteShiftMock.mockReset();
+    createShiftMock.mockReset().mockResolvedValue(CREATE_RECEIPT);
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
+    deleteShiftMock.mockReset().mockResolvedValue({
+      operation_key: "op-key-fixed",
+      intent: "delete",
+      shift_id: "shift-1",
+      resulting_version: null,
+      shift: null,
+    });
     toastError.mockReset();
+    getShiftByIdMock.mockReset();
+    getShiftOperationResultMock.mockReset();
   });
 
   it("canCreate 未指定（canEdit=true）の新規保存は fail-closed で createShift しない", async () => {
@@ -227,7 +272,7 @@ describe("ShiftFormDialog mutation permission re-check", () => {
     expect(createShiftMock).not.toHaveBeenCalled();
   });
 
-  it("canDelete=true なら削除確認後に deleteShift を呼ぶ", async () => {
+  it("canDelete=true なら削除確認後に期待版と操作キー付きで deleteShift を呼ぶ", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     renderDialog({
@@ -242,7 +287,11 @@ describe("ShiftFormDialog mutation permission re-check", () => {
     expect(confirmDialog).toBeInTheDocument();
     await user.click(confirmButtons[confirmButtons.length - 1]);
 
-    expect(deleteShiftMock).toHaveBeenCalledWith("shift-1", expect.any(Object));
+    expect(deleteShiftMock).toHaveBeenCalledWith({
+      shiftId: "shift-1",
+      expectedVersion: 3,
+      operationKey: "op-key-fixed",
+    });
     expect(toastError).not.toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
   });
 
@@ -268,10 +317,9 @@ describe("ShiftFormDialog mutation permission re-check", () => {
   });
 });
 
-// EMR-241: カテゴリ名による時刻フィールド非表示を廃止。
-// 全シフト種別で時刻入力を表示・有効にし、off/paid_leave は両方空で保存可。
-// 片方だけの時刻入力は全カテゴリで拒否。空時刻テンプレートを勤務種別に適用しても
-// 黙って保存せずバリデーションエラーを表示する。
+// EMR-514: off/paid_leave は終日非勤務。spec 24-shift-calendar の入力制御に従い
+// 時刻・休憩入力を無効化し、保存時は入力値を捨てず state 保持したまま契約どおり
+// 明示NULL・breaks[] を送る。片方だけの時刻入力は全カテゴリで拒否。
 const EMPTY_FULL_TEMPLATE: ShiftTemplate = {
   id: "tpl-empty",
   clinic_id: "clinic-1",
@@ -297,27 +345,27 @@ async function selectOption(
   await user.click(within(listbox).getByRole("option", { name: optionName }));
 }
 
-describe("ShiftFormDialog EMR-241 all-category time fields", () => {
+describe("ShiftFormDialog EMR-514 off/paid_leave contract", () => {
   beforeEach(() => {
-    createShiftMock.mockReset().mockResolvedValue({});
-    updateShiftMock.mockReset().mockResolvedValue({});
+    createShiftMock.mockReset().mockResolvedValue(CREATE_RECEIPT);
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
     deleteShiftMock.mockReset();
     toastError.mockReset();
     getShiftTemplatesMock.mockReset().mockReturnValue({ data: [] });
   });
 
-  it("休日(off)選択時も開始/終了時刻が有効で休憩セクションが表示される", async () => {
+  it("休日(off)選択時は時刻・休憩入力が無効化される（spec 24-shift-calendar 入力制御）", async () => {
     const user = userEvent.setup();
     renderDialog();
 
     await selectOption(user, "シフト種別", "休日");
 
-    expect(screen.getByLabelText("開始時刻")).toBeEnabled();
-    expect(screen.getByLabelText("終了時刻")).toBeEnabled();
+    expect(screen.getByLabelText("開始時刻")).toBeDisabled();
+    expect(screen.getByLabelText("終了時刻")).toBeDisabled();
     expect(screen.getByText("休憩時間")).toBeInTheDocument();
   });
 
-  it("off で両方空の時刻のまま保存すると createShift が呼ばれる", async () => {
+  it("off で保存すると明示NULL・breaks[] の createShift になる", async () => {
     const user = userEvent.setup();
     renderDialog();
 
@@ -329,15 +377,17 @@ describe("ShiftFormDialog EMR-241 all-category time fields", () => {
     });
     const input = createShiftMock.mock.calls[0][0] as {
       shift_type: string;
-      start_time?: string;
-      end_time?: string;
+      starts_at: string | null;
+      ends_at: string | null;
+      breaks: unknown[];
     };
     expect(input.shift_type).toBe("off");
-    expect(input.start_time).toBeUndefined();
-    expect(input.end_time).toBeUndefined();
+    expect(input.starts_at).toBeNull();
+    expect(input.ends_at).toBeNull();
+    expect(input.breaks).toStrictEqual([]);
   });
 
-  it("paid_leave で両方空の時刻のまま保存すると createShift が呼ばれる", async () => {
+  it("paid_leave で保存しても明示NULL・breaks[] を送る", async () => {
     const user = userEvent.setup();
     renderDialog();
 
@@ -347,26 +397,41 @@ describe("ShiftFormDialog EMR-241 all-category time fields", () => {
     await waitFor(() => {
       expect(createShiftMock).toHaveBeenCalledTimes(1);
     });
-    expect(createShiftMock.mock.calls[0][0]).toMatchObject({ shift_type: "paid_leave" });
+    const input = createShiftMock.mock.calls[0][0] as {
+      shift_type: string;
+      starts_at: string | null;
+      breaks: unknown[];
+    };
+    expect(input.shift_type).toBe("paid_leave");
+    expect(input.starts_at).toBeNull();
+    expect(input.breaks).toStrictEqual([]);
   });
 
-  it("off に入力した時刻を捨てずに送信する", async () => {
+  it("off で入力した時刻は捨てず state保持し、送信は明示NULLになる", async () => {
     const user = userEvent.setup();
     renderDialog();
 
-    await selectOption(user, "シフト種別", "休日");
     await user.type(screen.getByLabelText("開始時刻"), "10:00");
     await user.type(screen.getByLabelText("終了時刻"), "15:00");
+    await selectOption(user, "シフト種別", "休日");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(createShiftMock).toHaveBeenCalledTimes(1);
     });
-    expect(createShiftMock.mock.calls[0][0]).toMatchObject({
-      shift_type: "off",
-      start_time: "10:00",
-      end_time: "15:00",
-    });
+    const sent = createShiftMock.mock.calls[0][0] as {
+      shift_type: string;
+      starts_at: string | null;
+      ends_at: string | null;
+    };
+    expect(sent.shift_type).toBe("off");
+    expect(sent.starts_at).toBeNull();
+    expect(sent.ends_at).toBeNull();
+
+    // 入力値は捨てない: 勤務種別へ戻すと保持した時刻が入力欄に残る
+    await selectOption(user, "シフト種別", "全日");
+    expect(screen.getByLabelText("開始時刻")).toHaveValue("10:00");
+    expect(screen.getByLabelText("終了時刻")).toHaveValue("15:00");
   });
 
   it("full で開始時刻だけ入力して保存するとエラーで API を呼ばない", async () => {
@@ -380,11 +445,10 @@ describe("ShiftFormDialog EMR-241 all-category time fields", () => {
     expect(createShiftMock).not.toHaveBeenCalled();
   });
 
-  it("off で終了時刻だけ入力して保存するとエラーで API を呼ばない", async () => {
+  it("勤務種別で終了時刻だけ入力して保存するとエラーで API を呼ばない", async () => {
     const user = userEvent.setup();
     renderDialog();
 
-    await selectOption(user, "シフト種別", "休日");
     await user.type(screen.getByLabelText("終了時刻"), "18:00");
     await user.click(screen.getByRole("button", { name: "保存" }));
 
@@ -392,22 +456,23 @@ describe("ShiftFormDialog EMR-241 all-category time fields", () => {
     expect(createShiftMock).not.toHaveBeenCalled();
   });
 
-  it('編集で勤務種別を off に変え時刻を消すと "" でクリアを送る', async () => {
+  it("編集で勤務→休日へ変えると両日時NULL・breaks[] の明示遷移を送る", async () => {
     const user = userEvent.setup();
     renderDialog({ editShift: EDIT_SHIFT });
 
     await selectOption(user, "シフト種別", "休日");
-    await user.clear(screen.getByLabelText("開始時刻"));
-    await user.clear(screen.getByLabelText("終了時刻"));
     await user.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
       expect(updateShiftMock).toHaveBeenCalledTimes(1);
     });
-    expect(updateShiftMock.mock.calls[0][1]).toMatchObject({
+    expect(updateShiftMock.mock.calls[0][1]).toStrictEqual({
+      operation_key: "op-key-fixed",
+      expected_version: 3,
       shift_type: "off",
-      start_time: "",
-      end_time: "",
+      starts_at: null,
+      ends_at: null,
+      breaks: [],
     });
   });
 
@@ -421,5 +486,296 @@ describe("ShiftFormDialog EMR-241 all-category time fields", () => {
 
     expect(await screen.findByText("開始時刻と終了時刻を入力してください")).toBeInTheDocument();
     expect(createShiftMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ShiftFormDialog EMR-514 PATCH minimal diff", () => {
+  beforeEach(() => {
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
+    toastError.mockReset();
+  });
+
+  it("メモだけ変更した更新は未指定項目を送らず維持を示す", async () => {
+    const user = userEvent.setup();
+    renderDialog({ editShift: EDIT_SHIFT });
+
+    const notes = screen.getByLabelText("メモ");
+    await user.type(notes, " afternoon メモ");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    });
+    expect(updateShiftMock).toHaveBeenCalledWith("shift-1", {
+      operation_key: "op-key-fixed",
+      expected_version: 3,
+      notes: " afternoon メモ",
+    });
+  });
+
+  it("変更がない更新は API を呼ばず案内を出す", async () => {
+    const user = userEvent.setup();
+    renderDialog({ editShift: EDIT_SHIFT });
+
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("変更がありません")).toBeInTheDocument();
+    expect(updateShiftMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("ShiftFormDialog EMR-514 unknown breaks", () => {
+  beforeEach(() => {
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
+    toastError.mockReset();
+  });
+
+  const EDIT_WITH_UNKNOWN: Shift = {
+    ...EDIT_SHIFT,
+    interval_state: "unknown",
+    starts_at: null,
+    ends_at: null,
+    breaks: [
+      { interval_state: "unknown", starts_at: null, ends_at: null },
+      {
+        interval_state: "known",
+        starts_at: "2026-08-01T12:00:00+09:00",
+        ends_at: "2026-08-01T13:00:00+09:00",
+      },
+    ],
+  };
+
+  it("unknown休憩を消去せず表示し、訂正確認まで休憩変更を送信しない", async () => {
+    const user = userEvent.setup();
+    renderDialog({ editShift: EDIT_WITH_UNKNOWN });
+
+    // unknown は未解決として表示（値の補完をしない）
+    expect(screen.getByText(/時刻未解決/)).toBeInTheDocument();
+    expect(screen.getByTestId("unresolved-breaks-note")).toBeInTheDocument();
+
+    // メモだけ変更して保存: breaks は未送信（未指定=維持・送信停止）
+    await user.type(screen.getByLabelText("メモ"), "a");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    });
+    const req = updateShiftMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(req).not.toHaveProperty("breaks");
+  });
+
+  it("訂正する操作で unknown休憩を編集行へ移し、時刻確定後に配列全置換を送れる", async () => {
+    const user = userEvent.setup();
+    renderDialog({ editShift: EDIT_WITH_UNKNOWN });
+
+    await user.click(screen.getByRole("button", { name: "休憩（未解決）1を訂正する" }));
+
+    // 訂正行は編集可能（既定値で確認済みとして扱う）
+    expect(screen.getByLabelText("休憩2 開始時刻")).toHaveValue("12:00");
+    // unknown勤務の時刻も訂正確認で明示日時へ遷移させる
+    await user.type(screen.getByLabelText("開始時刻"), "09:00");
+    await user.type(screen.getByLabelText("終了時刻"), "18:00");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    });
+    const req = updateShiftMock.mock.calls[0][1] as {
+      starts_at?: string;
+      ends_at?: string;
+      breaks?: { starts_at: string; ends_at: string }[];
+    };
+    // 旧NULL → 明示日時の遷移を必ず送る
+    expect(req.starts_at).toBe("2026-08-01T09:00:00+09:00");
+    expect(req.ends_at).toBe("2026-08-01T18:00:00+09:00");
+    // 配列全置換（既知行＋訂正行）。unknown行は要求へ流用しない
+    expect(req.breaks).toStrictEqual([
+      { starts_at: "2026-08-01T12:00:00+09:00", ends_at: "2026-08-01T13:00:00+09:00" },
+      { starts_at: "2026-08-01T12:00:00+09:00", ends_at: "2026-08-01T13:00:00+09:00" },
+    ]);
+  });
+});
+
+describe("ShiftFormDialog EMR-514 conflict & pending", () => {
+  beforeEach(() => {
+    updateShiftMock.mockReset();
+    deleteShiftMock.mockReset();
+    toastError.mockReset();
+    getShiftByIdMock.mockReset();
+    getShiftOperationResultMock.mockReset();
+  });
+
+  function axiosConflict(data: unknown) {
+    return Object.assign(new Error("Request failed"), {
+      isAxiosError: true,
+      response: { status: 409, data },
+    });
+  }
+
+  it("version_conflict は入力を保持し、最新状態の別読取で比較できる", async () => {
+    const user = userEvent.setup();
+    updateShiftMock.mockRejectedValue(
+      axiosConflict({ error: "conflict", code: "version_conflict" }),
+    );
+    getShiftByIdMock.mockResolvedValue({
+      ...EDIT_SHIFT,
+      version: 4,
+      shift_type: "morning",
+      starts_at: "2026-08-01T08:00:00+09:00",
+    });
+    renderDialog({ editShift: EDIT_SHIFT });
+
+    await user.type(screen.getByLabelText("メモ"), "x");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const area = await screen.findByTestId("shift-conflict");
+    expect(area).toHaveTextContent("他の操作で更新されました");
+    // 入力保持
+    expect(screen.getByLabelText("メモ")).toHaveValue("x");
+
+    await user.click(screen.getByRole("button", { name: "最新の勤務を取得" }));
+    expect(await screen.findByTestId("latest-shift-summary")).toHaveTextContent("版 4");
+  });
+
+  it("protected_bookings は予約一覧を表示し自動解除の文言を出さない", async () => {
+    const user = userEvent.setup();
+    updateShiftMock.mockRejectedValue(
+      axiosConflict({
+        error: "conflict",
+        code: "protected_bookings",
+        protected_bookings: [
+          {
+            appointment_id: "10",
+            starts_at: "2026-08-01T10:00:00+09:00",
+            ends_at: "2026-08-01T11:00:00+09:00",
+            patient_label: "ハチ",
+            reservation_type_label: "再診",
+          },
+        ],
+      }),
+    );
+    renderDialog({ editShift: EDIT_SHIFT });
+
+    await user.type(screen.getByLabelText("メモ"), "x");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const area = await screen.findByTestId("shift-conflict");
+    expect(area).toHaveTextContent("予約は自動解除されません");
+    const list = within(await screen.findByTestId("protected-bookings"));
+    expect(list.getByText(/ハチ（再診）/)).toBeInTheDocument();
+    expect(list.getByText(/10:00〜11:00/)).toBeInTheDocument();
+  });
+
+  it("cross_clinic_overlap は契約の医院名と時間だけを表示する", async () => {
+    const user = userEvent.setup();
+    updateShiftMock.mockRejectedValue(
+      axiosConflict({
+        error: "conflict",
+        code: "cross_clinic_overlap",
+        conflicting_clinic_name: "B動物病院",
+        overlap_starts_at: "2026-08-01T09:00:00+09:00",
+        overlap_ends_at: "2026-08-01T10:00:00+09:00",
+      }),
+    );
+    renderDialog({ editShift: EDIT_SHIFT });
+
+    await user.type(screen.getByLabelText("メモ"), "x");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const area = await screen.findByTestId("cross-clinic-overlap");
+    expect(area).toHaveTextContent("B動物病院");
+    expect(area).toHaveTextContent("09:00〜10:00");
+  });
+
+  it("通信断では新key再送を禁止し、同key結果照会でsucceededなら確定する", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    updateShiftMock.mockRejectedValueOnce(
+      Object.assign(new Error("Network Error"), { isAxiosError: true }),
+    );
+    renderDialog({ editShift: EDIT_SHIFT, onClose });
+
+    await user.type(screen.getByLabelText("メモ"), "x");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    const pending = await screen.findByTestId("pending-operation");
+    expect(pending).toHaveTextContent("結果が未確定");
+    expect(updateShiftMock).toHaveBeenCalledTimes(1);
+
+    // unknown中は保存・削除を無効化（新key再送禁止）
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+
+    getShiftOperationResultMock.mockResolvedValue({
+      operation_key: "op-key-fixed",
+      state: "succeeded",
+      receipt: RECEIPT,
+    });
+    await user.click(screen.getByRole("button", { name: "結果を照会" }));
+
+    expect(getShiftOperationResultMock).toHaveBeenCalledWith("op-key-fixed", "update");
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it("照会がunknownの間は再送せず停止を続ける", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    updateShiftMock.mockRejectedValueOnce(
+      Object.assign(new Error("Network Error"), { isAxiosError: true }),
+    );
+    renderDialog({ editShift: EDIT_SHIFT, onClose });
+
+    await user.type(screen.getByLabelText("メモ"), "x");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await screen.findByTestId("pending-operation");
+
+    getShiftOperationResultMock.mockResolvedValue({
+      operation_key: "op-key-fixed",
+      state: "unknown",
+      receipt: null,
+    });
+    await user.click(screen.getByRole("button", { name: "結果を照会" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "結果はまだ確定していません。時間を置いてもう一度照会してください",
+      );
+    });
+    expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("削除の通信断も同じkeyの結果照会へ切り替える", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    deleteShiftMock.mockRejectedValue(
+      Object.assign(new Error("Network Error"), { isAxiosError: true }),
+    );
+    renderDialog({ editShift: EDIT_SHIFT, canDelete: true, onClose });
+
+    await user.click(screen.getByRole("button", { name: "削除" }));
+    const confirmButtons = screen.getAllByRole("button", { name: "削除" });
+    await user.click(confirmButtons[confirmButtons.length - 1]);
+
+    await screen.findByTestId("pending-operation");
+    getShiftOperationResultMock.mockResolvedValue({
+      operation_key: "op-key-fixed",
+      state: "succeeded",
+      receipt: {
+        operation_key: "op-key-fixed",
+        intent: "delete",
+        shift_id: "shift-1",
+        resulting_version: null,
+        shift: null,
+      },
+    });
+    await user.click(screen.getByRole("button", { name: "結果を照会" }));
+
+    expect(getShiftOperationResultMock).toHaveBeenCalledWith("op-key-fixed", "delete");
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 });

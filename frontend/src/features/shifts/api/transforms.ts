@@ -1,25 +1,29 @@
-import type { BackendShift } from "./types";
+import type { ShiftEntry, ShiftIntervalState, ShiftWorkBreakView } from "./contract-types";
 import type { ShiftType } from "../types";
 
-export function transformShift(data: BackendShift) {
+/**
+ * UI-facing shift（EMR-514 新契約の応答をそのままUIへ渡す形）。
+ * 契約上 id/staff_id/clinic_id は既に正十進文字列のため Number 変換を行わない。
+ * unknown の休憩（interval_state=unknown）は配列から黙って除外しない。
+ */
+export function transformShift(data: ShiftEntry) {
   return {
-    id: String(data.id ?? 0),
-    clinic_id: String(data.clinic_id ?? 0),
-    staff_id: String(data.staff_id ?? 0),
-    staff_name: data.staff?.name ?? data.staff_name ?? "",
-    date: data.date ? String(data.date).split("T")[0] : "",
-    shift_type: data.shift_type as ShiftType,
-    start_time: data.start_time ?? "",
-    end_time: data.end_time ?? "",
-    notes: data.notes ?? "",
-    breaks: (data.breaks ?? []).map((b) => ({
-      id: String(b.id ?? 0),
-      break_start: b.break_start ?? "",
-      break_end: b.break_end ?? "",
-    })),
-    created_at: data.created_at ?? "",
-    updated_at: data.updated_at ?? "",
+    id: data.id,
+    clinic_id: data.clinic_id,
+    staff_id: data.staff_id,
+    staff_name: data.staff_name,
+    date: data.date,
+    shift_type: data.shift_type,
+    starts_at: data.starts_at,
+    ends_at: data.ends_at,
+    version: data.version,
+    interval_state: data.interval_state,
+    notes: data.notes,
+    breaks: data.breaks,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
   };
 }
 
 export type Shift = ReturnType<typeof transformShift>;
+export type { ShiftIntervalState, ShiftWorkBreakView, ShiftType };

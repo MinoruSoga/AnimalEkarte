@@ -1,5 +1,6 @@
 import { memo, useCallback } from "react";
 import { C } from "@/lib/design-tokens";
+import { formatJSTTime } from "@/lib/jst-date";
 import type { Shift, ShiftType } from "../../types";
 import { SHIFT_TYPE_LABELS } from "../../types";
 
@@ -11,22 +12,6 @@ const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
   off: `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
   paid_leave: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
 };
-
-function formatTimeToHHmm(time: string): string {
-  if (!time) return "";
-  const parts = time.split(":");
-  if (parts.length >= 2) {
-    return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}`;
-  }
-  return time;
-}
-
-function getShiftTimeRangeLabel(shift: Shift): string {
-  if (!shift.start_time && !shift.end_time) return "時刻なし";
-  const start = shift.start_time ? formatTimeToHHmm(shift.start_time) : "開始時刻未設定";
-  const end = shift.end_time ? formatTimeToHHmm(shift.end_time) : "終了時刻未設定";
-  return `${start}〜${end}`;
-}
 
 interface ShiftCellProps {
   shift: Shift | undefined;
@@ -62,7 +47,7 @@ export const ShiftCell = memo(function ShiftCell({
     return canCreate ? (
       <button
         onClick={handleAdd}
-        className={`w-full h-full min-h-11 flex items-center justify-center ${C.text20} ${C.hoverText60} ${C.hoverBgPage} rounded transition-colors text-xs`}
+        className={`w-full h-full min-h-11 flex items-center justify-center ${C.text20} ${C.hoverText}`}
         type="button"
         aria-label={`${staffName} ${dateStr} シフトを追加`}
       >
@@ -75,35 +60,49 @@ export const ShiftCell = memo(function ShiftCell({
 
   const colorClass = SHIFT_TYPE_COLORS[shift.shift_type];
   const label = SHIFT_TYPE_LABELS[shift.shift_type];
-  const timeRangeLabel = getShiftTimeRangeLabel(shift);
-  const startDisplay = shift.start_time ? formatTimeToHHmm(shift.start_time) : "";
-  const endDisplay = shift.end_time ? formatTimeToHHmm(shift.end_time) : "";
+  // EMR-514: interval_state=unknown は旧日時が未解決。NULL を空欄・勤務可と解釈せず
+  // 「時刻未確認」と明示し、推測補完しない。off/paid_leave のNULLは終日非勤務として「終日」。
+  const isUnknown = shift.interval_state === "unknown";
+  const isNonWork = shift.shift_type === "off" || shift.shift_type === "paid_leave";
+  const timeRangeLabel = isUnknown
+    ? "時刻未確認"
+    : shift.starts_at
+      ? `${formatJSTTime(shift.starts_at)}〜${shift.ends_at ? formatJSTTime(shift.ends_at) : "終了時刻未設定"}`
+      : isNonWork
+        ? "終日"
+        : "時刻未設定";
+  const timeDisplay = isUnknown
+    ? "時刻未確認"
+    : shift.starts_at
+      ? `${formatJSTTime(shift.starts_at)}${shift.ends_at ? `〜${formatJSTTime(shift.ends_at)}` : ""}`
+      : "";
+  const interactive = canEdit;
 
-  return canEdit ? (
+  return interactive ? (
     <button
       onClick={handleEdit}
-      className={`w-full min-h-11 px-1 py-1 rounded border text-xs font-medium transition-opacity hover:opacity-80 overflow-hidden ${colorClass}`}
+      className={`w-full min-h-11 px-1 py-1 rounded border text-xs font-medium transition-opacity overflow-hidden ${colorClass}`}
       type="button"
       aria-label={`${staffName} ${dateStr} ${label}シフト（${timeRangeLabel}）を編集`}
     >
-      <span className="block leading-tight">{label}</span>
-      {startDisplay ? (
-        <span className="block leading-tight text-2xs opacity-70">
-          {startDisplay}
-          {endDisplay ? `〜${endDisplay}` : ""}
-        </span>
+      <span className="block leading-tight">
+        {label}
+        {isUnknown ? <span className="sr-only">（時刻未確認）</span> : null}
+      </span>
+      {timeDisplay ? (
+        <span className="block leading-tight text-2xs opacity-70">{timeDisplay}</span>
       ) : null}
     </button>
   ) : (
     <div
       className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium overflow-hidden ${colorClass}`}
     >
-      <span className="block leading-tight">{label}</span>
-      {startDisplay ? (
-        <span className="block leading-tight text-2xs opacity-70">
-          {startDisplay}
-          {endDisplay ? `〜${endDisplay}` : ""}
-        </span>
+      <span className="block leading-tight">
+        {label}
+        {isUnknown ? <span className="sr-only">（時刻未確認）</span> : null}
+      </span>
+      {timeDisplay ? (
+        <span className="block leading-tight text-2xs opacity-70">{timeDisplay}</span>
       ) : null}
     </div>
   );
