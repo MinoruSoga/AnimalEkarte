@@ -1,4 +1,4 @@
-import { memo, useEffect, useState, type RefObject } from "react";
+import { memo, useEffect, useId, useState, type RefObject } from "react";
 
 import { TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,12 @@ import type { Treatment, UpdateTreatmentInput } from "../../types";
 // - 量と単位は DB のペア不変条件（001_init.sql ck_administration_dose_pair /
 //   ck_prescription_total_pair: 両 NULL または 量非NULL かつ trim 後非空の単位）に従う。
 //   片側が欠けた行では量+単位を同一操作で入力させ、単独 commit による CHECK 違反（500）を防ぐ。
-//   有効ペアの行では片側のみの変更（単位維持で量だけ変更等）を許可する。
+//   有効ペアの行では片側だけの変更（単位維持で量だけ変更等）を許可する。
 // - PATCH に明示クリア経路はないため、空入力の commit は変更なし（送信しない）
+// - 行内編集 Input は label の代わりに aria-label でアクセシブルな名前を与える
+//   （AGENTS.md アクセシビリティ規約・Codex review P1）。IME 変換確定の Enter では
+//   commit しない（isComposing / keyCode 229 ガード。TreatmentQuantityCell と同一方針）
+// - 表示ボタンは dense-table exception（h-9 min-w-11）のターゲットサイズを満たす
 
 export type TreatmentThreeValuesField =
   | "administration_dose_amount"
@@ -22,6 +26,11 @@ export type TreatmentThreeValuesField =
   | "prescription_total_amount"
   | "prescription_total_unit";
 
+type OnTreatmentUpdate = (
+  treatmentId: string,
+  input: UpdateTreatmentInput,
+) => void | Promise<void>;
+
 interface TreatmentThreeValuesCellProps {
   treatment: Treatment;
   /** 行でアクティブな編集フィールド（TreatmentRow の editField と共有する） */
@@ -29,7 +38,7 @@ interface TreatmentThreeValuesCellProps {
   inputRef: RefObject<HTMLInputElement | null>;
   onStartEdit: (field: TreatmentThreeValuesField) => void;
   onStopEdit: () => void;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: OnTreatmentUpdate;
 }
 
 const AMOUNT_LABEL = "1回";
@@ -104,6 +113,8 @@ export const TreatmentThreeValuesCell = memo(function TreatmentThreeValuesCell({
           onStartEdit={onStartEdit}
           amountField="administration_dose_amount"
           unitField="administration_dose_unit"
+          amountAriaLabel="1回製剤量"
+          unitAriaLabel="1回製剤量の単位"
         />
         {/* 用法（独立した free text） */}
         <div className="flex items-center gap-1">
@@ -119,11 +130,12 @@ export const TreatmentThreeValuesCell = memo(function TreatmentThreeValuesCell({
                   version: treatment.version,
                 });
               }}
+              ariaLabel="用法"
             />
           ) : (
             <button
               type="button"
-              className={`h-6 flex-1 min-w-0 whitespace-normal break-words px-1 text-left text-sm rounded-xxs transition-colors ${C.hoverBgLight}`}
+              className={`h-9 min-w-11 flex-1 whitespace-normal break-words px-1 text-left text-sm rounded-xxs transition-colors ${C.hoverBgLight}`}
               onClick={() => onStartEdit("administration_instructions")}
             >
               {treatment.administration_instructions == null ? (
@@ -165,6 +177,8 @@ export const TreatmentThreeValuesCell = memo(function TreatmentThreeValuesCell({
           onStartEdit={onStartEdit}
           amountField="prescription_total_amount"
           unitField="prescription_total_unit"
+          amountAriaLabel="処方総量"
+          unitAriaLabel="処方総量の単位"
         />
       </div>
     </TableCell>
@@ -179,12 +193,14 @@ interface PairValueRowProps {
   editField: string | null;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommitPair: (amount: number, unit: string) => void;
-  onCommitAmountOnly: (amount: number) => void;
-  onCommitUnitOnly: (unit: string) => void;
+  onCommitPair: (amount: number, unit: string) => void | Promise<void>;
+  onCommitAmountOnly: (amount: number) => void | Promise<void>;
+  onCommitUnitOnly: (unit: string) => void | Promise<void>;
   onStartEdit: (field: TreatmentThreeValuesField) => void;
   amountField: TreatmentThreeValuesField;
   unitField: TreatmentThreeValuesField;
+  amountAriaLabel: string;
+  unitAriaLabel: string;
 }
 
 /** 量+単位の1行。未確定ペアでは両入力の PairEditor、有効ペアでは片側編集を提供する。 */
@@ -202,6 +218,8 @@ const PairValueRow = memo(function PairValueRow({
   onStartEdit,
   amountField,
   unitField,
+  amountAriaLabel,
+  unitAriaLabel,
 }: PairValueRowProps) {
   return (
     <div className="flex items-center gap-1">
@@ -214,6 +232,8 @@ const PairValueRow = memo(function PairValueRow({
             initialUnit={unit}
             onStopEdit={onStopEdit}
             onCommit={onCommitPair}
+            amountAriaLabel={amountAriaLabel}
+            unitAriaLabel={unitAriaLabel}
           />
         ) : editField === amountField ? (
           <AmountEditor
@@ -221,6 +241,7 @@ const PairValueRow = memo(function PairValueRow({
             initial={amount}
             onStopEdit={onStopEdit}
             onCommit={onCommitAmountOnly}
+            ariaLabel={amountAriaLabel}
           />
         ) : (
           <UnitEditor
@@ -228,14 +249,16 @@ const PairValueRow = memo(function PairValueRow({
             initial={unit}
             onStopEdit={onStopEdit}
             onCommit={onCommitUnitOnly}
+            ariaLabel={unitAriaLabel}
           />
         )
       ) : (
         <>
           <button
             type="button"
-            className={`h-6 min-w-11 px-1 text-left rounded-xxs transition-colors ${C.hoverBgLight}`}
+            className={`h-9 min-w-11 px-1 text-left rounded-xxs transition-colors ${C.hoverBgLight}`}
             onClick={() => onStartEdit(amountField)}
+            aria-label={amountAriaLabel}
           >
             {amount == null ? (
               <span className={C.text40}>—</span>
@@ -245,8 +268,9 @@ const PairValueRow = memo(function PairValueRow({
           </button>
           <button
             type="button"
-            className={`h-6 min-w-8 px-1 text-left rounded-xxs transition-colors ${C.hoverBgLight}`}
+            className={`h-9 min-w-11 px-1 text-left rounded-xxs transition-colors ${C.hoverBgLight}`}
             onClick={() => onStartEdit(unitField)}
+            aria-label={unitAriaLabel}
           >
             {unit == null ? (
               <span className={C.text40}>—</span>
@@ -260,6 +284,12 @@ const PairValueRow = memo(function PairValueRow({
   );
 });
 
+/** Enter / blur の IME 変換確定を commit に誤変換しないガード（TreatmentQuantityCell と同一方針）。 */
+function isComposingKeyEvent(e: React.KeyboardEvent<HTMLInputElement>): boolean {
+  const native = e.nativeEvent as KeyboardEvent & { keyCode: number };
+  return native.isComposing || native.keyCode === 229;
+}
+
 /** 量+単位を同一操作で入力するエディタ（未確定ペア用）。Enter で両方を検証して同時送信する。 */
 function PairEditor({
   initialAmount,
@@ -267,23 +297,28 @@ function PairEditor({
   inputRef,
   onStopEdit,
   onCommit,
+  amountAriaLabel,
+  unitAriaLabel,
 }: {
   initialAmount: number | null | undefined;
   initialUnit: string | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (amount: number, unit: string) => void;
+  onCommit: (amount: number, unit: string) => void | Promise<void>;
+  amountAriaLabel: string;
+  unitAriaLabel: string;
 }) {
   const [localAmount, setLocalAmount] = useState(initialAmount == null ? "" : String(initialAmount));
   const [localUnit, setLocalUnit] = useState(initialUnit ?? "");
   const [invalid, setInvalid] = useState(false);
+  const errorId = useId();
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [inputRef]);
 
-  const commit = () => {
+  const commit = async () => {
     const parsed = parseAmountInput(localAmount);
     const trimmedUnit = localUnit.trim();
     // ペア不変条件: 量は必須（数値）、単位は trim 後非空。片側だけでは送信しない
@@ -296,42 +331,56 @@ function PairEditor({
       onStopEdit();
       return;
     }
-    onCommit(parsed, trimmedUnit);
+    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
+    await onCommit(parsed, trimmedUnit);
     onStopEdit();
   };
 
   return (
-    <div className="flex items-center gap-1" data-testid={`pair-editor-${invalid ? "invalid" : "editing"}`}>
-      <Input
-        ref={inputRef}
-        value={localAmount}
-        inputMode="decimal"
-        placeholder="量"
-        onChange={(e) => {
-          setLocalAmount(e.target.value);
-          setInvalid(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") onStopEdit();
-        }}
-        aria-invalid={invalid}
-        className={`h-6 w-14 text-sm px-1 ${invalid ? C.borderDanger : C.borderMedium}`}
-      />
-      <Input
-        value={localUnit}
-        placeholder="単位"
-        onChange={(e) => {
-          setLocalUnit(e.target.value);
-          setInvalid(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") onStopEdit();
-        }}
-        aria-invalid={invalid}
-        className={`h-6 w-12 text-sm px-1 ${invalid ? C.borderDanger : C.borderMedium}`}
-      />
+    <div className="flex flex-col" data-testid={`pair-editor-${invalid ? "invalid" : "editing"}`}>
+      <div className="flex items-center gap-1">
+        <Input
+          ref={inputRef}
+          value={localAmount}
+          inputMode="decimal"
+          placeholder="量"
+          aria-label={amountAriaLabel}
+          aria-invalid={invalid}
+          aria-describedby={invalid ? errorId : undefined}
+          onChange={(e) => {
+            setLocalAmount(e.target.value);
+            setInvalid(false);
+          }}
+          onKeyDown={(e) => {
+            if (isComposingKeyEvent(e)) return;
+            if (e.key === "Enter") void commit();
+            if (e.key === "Escape") onStopEdit();
+          }}
+          className="h-9 w-14 text-sm px-1"
+        />
+        <Input
+          value={localUnit}
+          placeholder="単位"
+          aria-label={unitAriaLabel}
+          aria-invalid={invalid}
+          aria-describedby={invalid ? errorId : undefined}
+          onChange={(e) => {
+            setLocalUnit(e.target.value);
+            setInvalid(false);
+          }}
+          onKeyDown={(e) => {
+            if (isComposingKeyEvent(e)) return;
+            if (e.key === "Enter") void commit();
+            if (e.key === "Escape") onStopEdit();
+          }}
+          className="h-9 w-12 text-sm px-1"
+        />
+      </div>
+      {invalid && (
+        <p id={errorId} role="alert" className="text-xs text-[#C0392B]">
+          量と単位を入力してください（量は数値・単位は空白のみ不可）
+        </p>
+      )}
     </div>
   );
 }
@@ -341,21 +390,24 @@ function AmountEditor({
   inputRef,
   onStopEdit,
   onCommit,
+  ariaLabel,
 }: {
   initial: number | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (value: number) => void;
+  onCommit: (value: number) => void | Promise<void>;
+  ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial == null ? "" : String(initial));
   const [invalid, setInvalid] = useState(false);
+  const errorId = useId();
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [inputRef]);
 
-  const commit = () => {
+  const commit = async () => {
     const parsed = parseAmountInput(local);
     if (parsed === null) {
       setInvalid(true);
@@ -366,27 +418,38 @@ function AmountEditor({
       onStopEdit();
       return;
     }
-    onCommit(parsed);
+    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
+    await onCommit(parsed);
     onStopEdit();
   };
 
   return (
-    <Input
-      ref={inputRef}
-      value={local}
-      inputMode="decimal"
-      onChange={(e) => {
-        setLocal(e.target.value);
-        setInvalid(false);
-      }}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") commit();
-        if (e.key === "Escape") onStopEdit();
-      }}
-      aria-invalid={invalid}
-      className={`h-6 w-16 text-sm px-1 ${invalid ? C.borderDanger : C.borderMedium}`}
-    />
+    <div className="flex flex-col">
+      <Input
+        ref={inputRef}
+        value={local}
+        inputMode="decimal"
+        aria-label={ariaLabel}
+        aria-invalid={invalid}
+        aria-describedby={invalid ? errorId : undefined}
+        onChange={(e) => {
+          setLocal(e.target.value);
+          setInvalid(false);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (isComposingKeyEvent(e)) return;
+          if (e.key === "Enter") void commit();
+          if (e.key === "Escape") onStopEdit();
+        }}
+        className="h-9 w-16 text-sm px-1"
+      />
+      {invalid && (
+        <p id={errorId} role="alert" className="text-xs text-[#C0392B]">
+          数値で入力してください
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -395,11 +458,13 @@ function UnitEditor({
   inputRef,
   onStopEdit,
   onCommit,
+  ariaLabel,
 }: {
   initial: string | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (value: string) => void;
+  onCommit: (value: string) => void | Promise<void>;
+  ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial ?? "");
 
@@ -408,14 +473,15 @@ function UnitEditor({
     inputRef.current?.select();
   }, [inputRef]);
 
-  const commit = () => {
+  const commit = async () => {
     const text = local.trim();
     if (text === "" || text === (initial ?? "")) {
       // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
       onStopEdit();
       return;
     }
-    onCommit(text);
+    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
+    await onCommit(text);
     onStopEdit();
   };
 
@@ -423,13 +489,15 @@ function UnitEditor({
     <Input
       ref={inputRef}
       value={local}
+      aria-label={ariaLabel}
       onChange={(e) => setLocal(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === "Enter") commit();
+        if (isComposingKeyEvent(e)) return;
+        if (e.key === "Enter") void commit();
         if (e.key === "Escape") onStopEdit();
       }}
-      className={`h-6 min-w-8 text-sm px-1 ${C.borderMedium}`}
+      className={`h-9 min-w-11 text-sm px-1 ${C.borderMedium}`}
     />
   );
 }
@@ -439,11 +507,13 @@ function TextEditor({
   inputRef,
   onStopEdit,
   onCommit,
+  ariaLabel,
 }: {
   initial: string | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (value: string) => void;
+  onCommit: (value: string) => void | Promise<void>;
+  ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial ?? "");
 
@@ -452,14 +522,15 @@ function TextEditor({
     inputRef.current?.select();
   }, [inputRef]);
 
-  const commit = () => {
+  const commit = async () => {
     const text = local.trim();
     if (text === "" || text === (initial ?? "")) {
       // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
       onStopEdit();
       return;
     }
-    onCommit(text);
+    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
+    await onCommit(text);
     onStopEdit();
   };
 
@@ -467,13 +538,15 @@ function TextEditor({
     <Input
       ref={inputRef}
       value={local}
+      aria-label={ariaLabel}
       onChange={(e) => setLocal(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === "Enter") commit();
+        if (isComposingKeyEvent(e)) return;
+        if (e.key === "Enter") void commit();
         if (e.key === "Escape") onStopEdit();
       }}
-      className={`h-6 flex-1 min-w-0 text-sm px-1 ${C.borderMedium}`}
+      className={`h-9 flex-1 min-w-11 text-sm px-1 ${C.borderMedium}`}
     />
   );
 }

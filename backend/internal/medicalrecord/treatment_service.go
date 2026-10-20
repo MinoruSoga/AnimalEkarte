@@ -208,6 +208,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		return nil, err
 	}
 	// EMR-488: 薬剤3値の量・単位ペア不変条件（DB CHECK と同一条件）を tx 前に検証し 400 で拒否する。
+	// 3値は medicine 明細専用のため、非 medicine 明細への指定もここで拒否する。
+	if err := validateDoseFieldsMedicineOnlyForCreate(input.ItemType, input); err != nil {
+		return nil, err
+	}
 	if err := validateDosePairsForCreate(input); err != nil {
 		return nil, err
 	}

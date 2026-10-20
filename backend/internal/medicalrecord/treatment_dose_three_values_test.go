@@ -156,6 +156,7 @@ func TestTreatmentService_Create_ThreeValues_Persisted(t *testing.T) {
 	total := exactFromJSON(t, "10")
 	input := &CreateTreatmentInput{
 		ItemType:                   model.TreatmentItemTypeMedicine,
+		Quantity:                   1, // Create は quantity > 0 を必須とする（成功経路 fixture として妥当化）
 		AdministrationDoseAmount:   amount,
 		AdministrationDoseUnit:     strPtr("錠"),
 		AdministrationInstructions: strPtr("1日2回"),
@@ -364,5 +365,64 @@ func TestValidateDoseAmountUnitPair_RejectsNegativeAmount(t *testing.T) {
 
 	validUnit := "錠"
 	err = validateDoseAmountUnitPair(negative, &validUnit)
+	assert.Error(t, err)
+}
+
+func TestValidateDoseFieldsMedicineOnlyForCreate(t *testing.T) {
+	amount := exactFromJSON(t, "2.5")
+	unit := "錠"
+
+	// 非medicine 明細への3値指定は 400
+	err := validateDoseFieldsMedicineOnlyForCreate(model.TreatmentItemTypeConsultation, &CreateTreatmentInput{
+		ItemType:                 model.TreatmentItemTypeConsultation,
+		AdministrationDoseAmount: amount,
+		AdministrationDoseUnit:   &unit,
+	})
+	assert.Error(t, err)
+
+	// medicine 明細は OK
+	err = validateDoseFieldsMedicineOnlyForCreate(model.TreatmentItemTypeMedicine, &CreateTreatmentInput{
+		ItemType:                 model.TreatmentItemTypeMedicine,
+		AdministrationDoseAmount: amount,
+		AdministrationDoseUnit:   &unit,
+	})
+	assert.NoError(t, err)
+
+	// 3値を指定しない非medicine 明細は OK
+	err = validateDoseFieldsMedicineOnlyForCreate(model.TreatmentItemTypeConsultation, &CreateTreatmentInput{
+		ItemType: model.TreatmentItemTypeConsultation,
+	})
+	assert.NoError(t, err)
+}
+
+func TestValidateDoseFieldsMedicineOnlyForUpdate(t *testing.T) {
+	amount := exactFromJSON(t, "2.5")
+
+	// 適用後 item_type が非medicine なのに3値入力がある更新は 400
+	err := validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeConsultation, &UpdateTreatmentInput{
+		AdministrationDoseAmount: amount,
+	})
+	assert.Error(t, err)
+
+	// medicine 行への3値入力は OK
+	err = validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeMedicine, &UpdateTreatmentInput{
+		AdministrationDoseAmount: amount,
+	})
+	assert.NoError(t, err)
+}
+
+func TestValidateDoseAmountUnitPair_Numeric12_6Range(t *testing.T) {
+	unit := "錠"
+
+	// numeric(12,6) の上限 999999.999999 は OK
+	err := validateDoseAmountUnitPair(exactFromJSON(t, "999999.999999"), &unit)
+	assert.NoError(t, err)
+
+	// 上限超過（1000000）は 400（DB 22003→500 を事前に拒否）
+	err = validateDoseAmountUnitPair(exactFromJSON(t, "1000000"), &unit)
+	assert.Error(t, err)
+
+	// 小数点以下7桁は 400
+	err = validateDoseAmountUnitPair(exactFromJSON(t, "0.0000001"), &unit)
 	assert.Error(t, err)
 }

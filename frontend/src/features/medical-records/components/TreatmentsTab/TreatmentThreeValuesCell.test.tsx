@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 
@@ -177,7 +177,8 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     await user.type(input, "3");
     fireEvent.blur(input);
     expect(onUpdate).toHaveBeenCalledTimes(1);
-    expect(onStopEdit).toHaveBeenCalled();
+    // commit は非同期（PATCH 解決後に close）なので waitFor で確認する
+    await waitFor(() => expect(onStopEdit).toHaveBeenCalled());
   });
 
   it("0 を入力すると明示 0 として送る（NULL に変換しない）。ペアの単位も同時送信する", async () => {
@@ -213,3 +214,49 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     });
   });
 });
+
+  it("IME 変換確定の Enter（isComposing）では commit しない", async () => {
+    const user = userEvent.setup();
+    const { onUpdate, inputRef } = renderCell({
+      treatment: buildTreatment({
+        administration_dose_amount: 2.5,
+        administration_dose_unit: "錠",
+      }),
+      editField: "administration_instructions",
+    });
+    const input = inputRef.current as HTMLInputElement;
+    await user.type(input, "1日2回");
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true, keyCode: 229 });
+    expect(onUpdate).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: "Enter", isComposing: false });
+    expect(onUpdate).toHaveBeenCalledWith("1", {
+      administration_instructions: "1日2回",
+      version: 3,
+    });
+  });
+
+  it("行内編集 Input は aria-label でアクセシブルな名前を持つ", () => {
+    renderCell({
+      treatment: buildTreatment(),
+      editField: "administration_dose_amount",
+    });
+    expect(screen.getByLabelText("1回製剤量")).toBeInTheDocument();
+    expect(screen.getByLabelText("1回製剤量の単位")).toBeInTheDocument();
+  });
+
+  it("ペアエディタの不正入力では error テキスト（role=alert）を表示する", async () => {
+    const user = userEvent.setup();
+    const { onUpdate, inputRef } = renderCell({
+      treatment: buildTreatment(),
+      editField: "administration_dose_amount",
+    });
+    const amountInput = inputRef.current as HTMLInputElement;
+    await user.type(amountInput, "3");
+    // 単位が空のまま Enter → 不正
+    fireEvent.keyDown(amountInput, { key: "Enter" });
+    const alert = screen.getByRole("alert");
+    expect(alert).toBeInTheDocument();
+    expect(amountInput.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });

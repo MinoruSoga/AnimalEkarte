@@ -37,7 +37,7 @@ export interface QuantityCommitParams {
   onStopEdit: () => void;
   treatment: Treatment;
   doseGateSource: DoseGateSource;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
 }
 
 export function commitTreatmentQuantity(params: QuantityCommitParams) {

@@ -61,7 +61,7 @@ interface TreatmentsTableProps {
   canDelete: boolean;
   canEditDiscount: boolean;
   focusLastRow: boolean;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
   onDelete: (treatmentId: string) => void;
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;

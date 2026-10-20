@@ -41,7 +41,7 @@ export function useTreatmentsTab({
   const createMutation = useCreateTreatment(medicalRecordId, recordClinicId);
   const { mutate: createTreatmentFn } = createMutation;
   const updateMutation = useUpdateTreatment(medicalRecordId, recordClinicId);
-  const { mutate: updateTreatmentFn } = updateMutation;
+  const { mutateAsync: updateTreatmentFn } = updateMutation;
   const deleteMutation = useDeleteTreatment(medicalRecordId, recordClinicId);
   const { mutate: deleteTreatmentFn } = deleteMutation;
   const reorderMutation = useReorderTreatments(medicalRecordId, recordClinicId);
@@ -141,18 +141,21 @@ export function useTreatmentsTab({
 
   // ── handlers ──
 
+  // EMR-488: PATCH の Promise を呼出し元へ返す（行内エディタが解決後に閉じ、失敗時に下書きを保持する）。
   const handleUpdate = useCallback(
-    (treatmentId: string, input: UpdateTreatmentInput) => {
+    (treatmentId: string, input: UpdateTreatmentInput): Promise<void> | undefined => {
       const gate = latestWriteGateRef.current;
-      if (gate.isWriteBlocked || !gate.canEdit) return;
+      if (gate.isWriteBlocked || !gate.canEdit) return undefined;
       const target = sortedTreatments.find((t) => t.id === treatmentId);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
       // fail-closed で拒否する（clinical_plan の保存アクションと同じ方針）。
       if (typeof target?.version !== "number") {
         toast.error("治療明細の読み込みが完了してから保存してください");
-        return;
+        return undefined;
       }
-      updateTreatmentFn({ treatmentId, input: { ...input, version: target.version } });
+      return updateTreatmentFn({ treatmentId, input: { ...input, version: target.version } }).then(
+        () => undefined,
+      );
     },
     [sortedTreatments, updateTreatmentFn],
   );

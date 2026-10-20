@@ -144,8 +144,8 @@ export interface UpdateTreatmentInput {
   sort_order?: number;
   /** TASK-377: 上限内の下限割れ/著しい乖離時に必須の free-text 逸脱理由（1〜500 Unicode） */
   dose_deviation_reason?: string;
-  // EMR-488: 薬剤3値。未送信は変更なし（既存 PATCH 方式。JSON null も未送信扱いのため
-  // 明示クリア経路は BE に存在しない — null を送っても無視される）。
+  // EMR-488: 薬剤3値。未送信は変更なし（既存 PATCH 方式）。明示 null は 400
+  // （checkup_types.is_non_insurance と同一の null 契約。doseAmountField/doseTextField で区別）。
   administration_dose_amount?: number;
   administration_dose_unit?: string;
   administration_instructions?: string;

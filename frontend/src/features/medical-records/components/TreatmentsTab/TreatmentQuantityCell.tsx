@@ -24,7 +24,7 @@ interface TreatmentQuantityCellProps {
   inputRef: RefObject<HTMLInputElement | null>;
   onStartEdit: () => void;
   onStopEdit: () => void;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
 }
 
 export function TreatmentQuantityCell({

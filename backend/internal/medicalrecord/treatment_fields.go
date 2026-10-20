@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"maps"
+	"math/big"
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -16,15 +17,46 @@ import (
 const errMsgDoseAmountUnitPair = "1回製剤量（処方総量）とその単位はペアで入力してください。単位は空白のみの値を許可しません"
 const errMsgDoseAmountNegative = "1回製剤量・処方総量に負の値は指定できません"
 
+// errMsgDoseAmountRange は numeric(12,6)（0〜999999.999999・小数点以下6桁）の範囲外を拒否する文言。
+// DB の 22003（numeric overflow）は 500 に正規化されるため、service 境界で 400 にする。
+const errMsgDoseAmountRange = "1回製剤量・処方総量は0以上999999.999999以下で、小数点以下6桁以内で指定してください"
+
+// errMsgDoseFieldsMedicineOnly は薬剤3値が medicine 明細専用であることを示す拒否文言。
+const errMsgDoseFieldsMedicineOnly = "薬剤3値（1回製剤量・用法・処方総量）は薬品（medicine）明細にのみ指定できます"
+
+// doseAmountFitsNumeric12_6 は 量が numeric(12,6)（0〜999999.999999・小数6桁以内）に収まるか検証する。
+// NaN/Infinity と負値は呼出し側で除外済み。範囲外は DB で 22003（numeric overflow）→ 500 になる前に
+// service 境界で 400 にする。
+func doseAmountFitsNumeric12_6(amount *model.ExactNumeric) bool {
+	if amount.NaN || amount.InfinityModifier != pgtype.Finite {
+		return false
+	}
+	if amount.Int == nil {
+		return false
+	}
+	// 6桁スケールに合わせた固定小数点整数: Int × 10^(Exp+6)。Exp+6 < 0 は 6桁を超える小数。
+	shift := int64(amount.Exp) + 6
+	if shift < 0 {
+		return false
+	}
+	limit := big.NewInt(999999999999) // 999999.999999 × 10^6
+	scaled := new(big.Int).Mul(amount.Int, new(big.Int).Exp(big.NewInt(10), big.NewInt(shift), nil))
+	return scaled.CmpAbs(limit) <= 0
+}
+
 // validateDoseAmountUnitPair は 量・単位 のペア不変条件（両 NULL または 量非NULL かつ trim 後非空の単位）
-// を検証する純関数（001_init.sql の ck_administration_dose_pair / ck_prescription_total_pair と同一条件）。
+// と numeric(12,6) の範囲を検証する純関数（001_init.sql の ck_administration_dose_pair /
+// ck_prescription_total_pair と同一条件）。
 // EMR-488: 単位の推測補完はしないため、片側のみの入力は保存せず 400 で拒否する。
-// 量の負値も 400（臨床量として無意味。FE の入力ガードの裏返しとして wire 単体でも拒否する）。
+// 量の負値・NaN・Infinity・範囲外も 400（臨床量として無意味。FE の入力ガードの裏返しとして wire 単体でも拒否する）。
 func validateDoseAmountUnitPair(amount *model.ExactNumeric, unit *string) error {
 	if amount != nil {
 		if amount.NaN || amount.InfinityModifier != pgtype.Finite ||
 			(amount.Int != nil && amount.Int.Sign() < 0) {
 			return apperrors.WrapInvalidInput(errMsgDoseAmountNegative)
+		}
+		if !doseAmountFitsNumeric12_6(amount) {
+			return apperrors.WrapInvalidInput(errMsgDoseAmountRange)
 		}
 	}
 	if amount == nil && unit == nil {
@@ -34,6 +66,38 @@ func validateDoseAmountUnitPair(amount *model.ExactNumeric, unit *string) error 
 		return nil
 	}
 	return apperrors.WrapInvalidInput(errMsgDoseAmountUnitPair)
+}
+
+// hasAnyDoseThreeValuesInput は リクエストが 薬剤3値（5列のいずれか）を含むかを返す。
+func hasAnyDoseThreeValuesInput(input *UpdateTreatmentInput) bool {
+	return input.AdministrationDoseAmount != nil || input.AdministrationDoseUnit != nil ||
+		input.AdministrationInstructions != nil || input.PrescriptionTotalAmount != nil ||
+		input.PrescriptionTotalUnit != nil
+}
+
+// validateDoseFieldsMedicineOnlyForCreate は 非medicine 明細への3値指定を拒否する（Codex review P1）。
+func validateDoseFieldsMedicineOnlyForCreate(itemType model.TreatmentItemType, input *CreateTreatmentInput) error {
+	if itemType == model.TreatmentItemTypeMedicine {
+		return nil
+	}
+	if input.AdministrationDoseAmount != nil || input.AdministrationDoseUnit != nil ||
+		input.AdministrationInstructions != nil || input.PrescriptionTotalAmount != nil ||
+		input.PrescriptionTotalUnit != nil {
+		return apperrors.WrapInvalidInput(errMsgDoseFieldsMedicineOnly)
+	}
+	return nil
+}
+
+// validateDoseFieldsMedicineOnlyForUpdate は 適用後の item_type が非 medicine なのに
+// 3値の入力がある更新を拒否する（既存行への3値入力の追加も不可）。
+func validateDoseFieldsMedicineOnlyForUpdate(effItemType model.TreatmentItemType, input *UpdateTreatmentInput) error {
+	if effItemType == model.TreatmentItemTypeMedicine {
+		return nil
+	}
+	if hasAnyDoseThreeValuesInput(input) {
+		return apperrors.WrapInvalidInput(errMsgDoseFieldsMedicineOnly)
+	}
+	return nil
 }
 
 // validateDosePairsForCreate は create の3値ペア（1回製剤量・処方総量）を検証する。

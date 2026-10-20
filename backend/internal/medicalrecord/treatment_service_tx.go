@@ -129,6 +129,13 @@ func (s *treatmentService) updateTreatmentInTx(
 		return err
 	}
 	// EMR-488: 行ロック後の locked snapshot で3値ペア不変条件を再検証する（事前チェックとの TOCTOU 閉じ）。
+	effItemTypeTx := current.ItemType
+	if effective.ItemType != nil {
+		effItemTypeTx = *effective.ItemType
+	}
+	if err := validateDoseFieldsMedicineOnlyForUpdate(effItemTypeTx, &effective); err != nil {
+		return err
+	}
 	if err := validateDosePairsForUpdate(current, &effective); err != nil {
 		return err
 	}

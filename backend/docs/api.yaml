@@ -6068,7 +6068,8 @@ components:
           description: |
             EMR-488: 1回製剤量。未指定は NULL 保存（推測補完なし）。0 は明示 0（単位が必須）。
             単位 administration_dose_unit とペア必須: 両指定（単位は trim 後非空）または両未指定。
-            片側のみ・明示 null・負の値・NaN は 400。単位の推測補完は行わない。
+            片側のみ・明示 null・負の値・NaN・Infinity・numeric(12,6) 範囲外（999999.999999 超・小数7桁以上）は 400。
+            3値は medicine 明細専用。item_type が medicine 以外のリクエストでの指定は 400。単位の推測補完は行わない。
         administration_dose_unit:
           type: string
         administration_instructions:
@@ -6078,7 +6079,7 @@ components:
           description: |
             EMR-488: 処方総量。未指定は NULL 保存（推測補完なし）。0 は明示 0（単位が必須）。
             単位 prescription_total_unit とペア必須（administration_dose_* と同一条件）。
-            片側のみ・明示 null・負の値・NaN は 400。
+            片側のみ・明示 null・負の値・NaN・Infinity・範囲外は 400。medicine 明細専用。
         prescription_total_unit:
           type: string
         insurance:
@@ -6170,7 +6171,8 @@ components:
             適用後の量・単位がペア不変条件（両NULL または 量非NULL+trim後非空単位）を満たす必要がある。
             単位未設定の行への量のみの指定は 400。既存の有効ペアに対する片側のみの変更は可能。
             明示 null は 400（省略=変更なしと区別する。checkup_types.is_non_insurance と同一の家契約）。
-            負の値・NaN も 400。
+            負の値・NaN・Infinity・範囲外も 400。3値は medicine 明細専用のため、
+            適用後 item_type が medicine 以外の行への3値入力は 400。
         administration_dose_unit:
           type: string
         administration_instructions:
