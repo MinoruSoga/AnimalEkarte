@@ -54,6 +54,17 @@ Q1–Q4は承認済み業務方針を実装へ落とすための技術契約で�
 
 ### Q4: 全writerのlock順と実DB検証（499、461、予約writer担当、466）
 
-現在の461はhospitalization/cage-groupを扱う経路からstayをロックし、movement INSERT triggerはstayを`FOR UPDATE`する。trigger単体の存在だけでは、全writerがその前に取るlockとの循環を否定できない。499と461で全経路（admit/discharge/cancel/no_show/correction、ケージcreate/edit/swap、予約接続）のlock一覧を作り、複数対象のID昇順を含む共通順を1つ決める。候補案は`cage-group ID昇順 → hospitalization ID昇順 → stay ID昇順 → event/receipt書込`で、予約writerなど先にstayを取る経路と突き合わせるまでは採用しない。
+現在の461はhospitalization/cage-groupを扱う経路からstayをロックし、movement INSERT triggerはstayを`FOR UPDATE`する。trigger単体の存在だけでは、全writerがその前に取るlockとの循環を否定できない。499と461で全経路（admit/discharge/cancel/no_show/correction、ケージcreate/edit/swap、予約接続）のlock一覧を作り、複数対象のID昇順を含む共通順を1つ決める。既存writerの `hospitalization → pet → cage → stay` を調査の出発点とし、同種の複数IDを昇順に揃える。逆順となる cage→hospitalization 案は採用しない。予約・患者writerのgate/lock順も照合し、医院gateの追加は既存booking/patient gateとの整合が確認できた場合だけ検討する。lock待ち後の候補/保存再検査を省略しない。
 
 466の実001 fixtureが利用可能になった後、同医院2接続で候補読取対movement INSERT、ケージ保存再検査対訂正、逆順のswap、予約接続対開始を実行し、ロック待ち後に再検査されること、deadlock／stale stateで保存成功しないこと、rollback後に変更とreceiptが残らないことを確認する。immutable triggerとRLSの実適用も確認する。現在のcontext fixtureやfile-list PASSをこの実DB検証の代用にしない。
+
+
+## 2026-10-20 技術入力の具体化（未採用、コード/DDL変更なし）
+
+- **Q1 / 499・予約writer・446**：現在の調査では、予約成功時にStayCaseIDを設定する既存writerは確認できていない。候補は `appointment_change_events.after_values` の医院/予約/stayを型付きで検証し、同じ成功operation receiptと結び付けた `AcceptedStayReservationProof{ClinicID, StayCaseID, AppointmentID, AppointmentVersion, ChangeEventID, OperationID}`。後続の取消・未来院・付替えまで追跡して現在有効な予約を解決する。JSON内にIDがあるだけでは成功・現効力を認定せず、予約成立の解釈を461へ複製しない。入力元・成功判定・改訂版の契約が499で確定するまで no movement はunknown。
+- **Q2 / 499・446、保存差分は466**：correctionのreplace/voidを保存する候補は `stay_movement_correction_effects(clinic_id, correction_event_id, stay_case_id, disposition, replacement_kind, effective_actual_at, required_reference_ids)` の子表。具体の列型・FK・必要参照は既存writerとの照合後に確定する。actor/reason/operationは親eventを正本に保ち、child completenessと同医院/同stayをDBで検査する案。replaceだけに必要effectを持たせ、voidでNULL時刻を推測解釈しない。前節のretainは原eventをそのまま有効にする内部解決状態であり、訂正childの保存識別子はreplace/voidを候補とする。既存correctionの意味を推測したbackfillは行わない。
+- **訂正writer境界**：同医院/同stay、期待revision、現在のchain leafだけを訂正対象とし、分岐・循環を拒否する契約とfixtureが必要。void dischargeは専用訂正であり通常再入院へ読み替えない。admit訂正は既存admission recordの一意制約との関係も確定する。461は解決済みeffect列だけを消費する。
+- **Q3 / EvidenceRevision**：通常遷移・異常履歴unknown・予定終了超過で解放しない方針を維持する。現在のmovement revisionだけではQ1予約証跡を統合した版にならない。movement、予約変更、成功receiptの根拠を区別した複合evidence契約を499が定義する。stay行のversionはmovement INSERTで自動増分する版ではなく、writer CAS/fence・業務内容の版・readerの根拠版を同一視しない。
+- **Q4 / 次の実装単位**：まず499と461で、admit/discharge/cancel/no_show/correction・予約接続・ケージcreate/edit/swapの各writerが取るlockとgateを一覧化し、上記既存順とpost-lock recheckを照合する。その後に499の単一core/writer、461のadapter、740 ownerのruntime DTOへ順に接続する。今回の文書はAPI740への変更や新migration番号の予約ではない。仕様/技術契約の採用後に必要な最小DDL/実fixtureを446/466へ渡す。
+
+この案ではまだQ1–Q4が解消したことにはならず、現在のunknown一覧全体503、旧writer接続と実DB受入の未完を維持する。
