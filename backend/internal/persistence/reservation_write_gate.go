@@ -141,14 +141,17 @@ func AssertReservationGraphWriteGate(ctx context.Context) error {
 // policy / close / staff / その他 advisory を保持しない）を pg_locks で検証する。
 //
 // BEGIN 直後の transaction が保持するのは自己 transactionid / virtualxid の
-// み。それ以外の relation / page / tuple / object / advisory 等の保持は、この
-// transaction 内で gate より前に表 access・row lock・advisory lock が発生した
-// こと（＝下位 lock 後の後付け gate）を意味するため拒否する。検査は advisory
-// lock 取得の前に行うため、逆順呼出しは待機ではなく即時エラーで止まり、
+// み。それ以外の tuple / advisory / object / 業務表の relation lock の保持は、
+// この transaction 内で gate より前に表 access・row lock・advisory lock が発生
+// したこと（＝下位 lock 後の後付け gate）を意味するため拒否する。検査は
+// advisory lock 取得の前に行うため、逆順呼出しは待機ではなく即時エラーで止まり、
 // gate 保持者との相互待ち（deadlock）に至らない。
 //
-// この検査 query 自身が pg_locks view の AccessShareLock を同一 transaction 内
-// で保持するため、その view 分だけは自己検出の誤りとして除外する。
+// relation lock のうち pg_catalog 配下は、この検査 query 自身が parse / rewrite
+// で取得する system catalog の AccessShareLock（pg_locks view 展開等）と区別で
+// きないため対象外とする。業務 writer が gate 前に catalog 表を直接読む経路は
+// §6.4 の対象（業務 row / receipt / policy / close / staff）に含まれず、検出
+// 対象から外しても契約検査の実効性を損なわない。
 func assertGateIsFirstLock(ctx context.Context, tx *gorm.DB) error {
 	var priorLockTypes string
 	if err := tx.WithContext(ctx).Raw(`
@@ -157,7 +160,16 @@ func assertGateIsFirstLock(ctx context.Context, tx *gorm.DB) error {
 		WHERE l.pid = pg_backend_pid()
 		  AND l.granted
 		  AND l.locktype NOT IN ('virtualxid', 'transactionid')
-		  AND l.relation IS DISTINCT FROM 'pg_locks'::regclass`).
+		  AND (
+		        l.relation IS NULL
+		        OR NOT EXISTS (
+		            SELECT 1
+		            FROM pg_class c
+		            JOIN pg_namespace n ON n.oid = c.relnamespace
+		            WHERE c.oid = l.relation
+		              AND n.nspname = 'pg_catalog'
+		        )
+		      )`).
 		Scan(&priorLockTypes).Error; err != nil {
 		return apperrors.FromGORM(err, "reservation", reservationGraphWriteGateKey)
 	}
