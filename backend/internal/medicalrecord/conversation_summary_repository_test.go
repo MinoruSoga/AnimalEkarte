@@ -307,6 +307,7 @@ func TestConversationSummaryRepository_SaveIdempotentResend(t *testing.T) {
 		ExpectedRevision: conversationSummaryInt64Ptr(99),
 	})
 	require.NoError(t, err)
+	require.NotNil(t, resentStaleExpected.Revision)
 	assert.Equal(t, int64(1), *resentStaleExpected.Revision)
 
 	row := fetchConversationSummaryRecordRow(t, db, record.ID)
