@@ -17,13 +17,30 @@ function submit(formAction: () => void) {
   });
 }
 
-const { mockCreateVaccination } = vi.hoisted(() => ({
+const { mockCreateVaccination, vaccinesMasterState } = vi.hoisted(() => ({
   mockCreateVaccination: vi.fn(),
+  // EMR-430: 種別マスタの interval はテストごとに差し替える（setVaccinesMasterMock）。
+  vaccinesMasterState: {
+    data: [] as { id: string; name: string; isActive: boolean; interval: string }[],
+    isError: false,
+  },
 }));
 
 vi.mock("@/hooks/use-treatment-master", () => ({
-  useGetAllVaccinesMaster: () => ({ data: [] }),
+  useGetAllVaccinesMaster: () => ({
+    data: vaccinesMasterState.data,
+    isError: vaccinesMasterState.isError,
+    refetch: vi.fn(),
+  }),
 }));
+
+function setVaccinesMasterMock(
+  data: { id: string; name: string; isActive: boolean; interval: string }[],
+  isError = false,
+) {
+  vaccinesMasterState.data = data;
+  vaccinesMasterState.isError = isError;
+}
 
 vi.mock("@/hooks/use-create-vaccination", () => ({
   useCreateVaccination: () => ({ mutateAsync: mockCreateVaccination }),
@@ -47,6 +64,7 @@ vi.mock("sonner", () => ({
 beforeEach(() => {
   mockCreateVaccination.mockReset();
   mockCreateVaccination.mockResolvedValue({});
+  setVaccinesMasterMock([]);
   vi.mocked(toast.success).mockClear();
 });
 
@@ -266,21 +284,116 @@ describe("useMedicalRecordVaccinationForm EMR-105 same-day sequential registrati
   });
 });
 
-// EMR-431: カルテの予防接種タブの追加フォームも、開いた時点で「当日＋既定間隔」の
-// 次回予定日を持つ。日付に触れずに保存しても next_date が送られる
-// （EMR-427 の LINE 期限配信は next_date で判定するため、空のまま保存されると漏れる）。
-// EMR-430: 既定の間隔を独立画面・健診タブと同じ 1年後（DEFAULT_NEXT_SCHEDULE_TYPE）にそろえる。
-describe("useMedicalRecordVaccinationForm EMR-431 next date default", () => {
-  it("初期表示で、当日と既定間隔から計算した次回予定日を持つ", () => {
+// EMR-430（2026-10-20 本人回答「ワクチン種類ごとの設定を使う。設定がなければ空欄。」）:
+// カルテの予防接種タブの追加フォームは種別未選択では次回予定を空欄で開く。
+// 旧 EMR-431 の「当日＋既定間隔」自動入力と、旧 EMR-430 の一律 1year は撤回。
+// 種別選択時にマスタ interval（"1年"/"1ヶ月"）へ従属し、設定なし・取得不定では
+// 既存値を保持する。
+describe("useMedicalRecordVaccinationForm EMR-430 next schedule from vaccine master interval", () => {
+  it("初期表示では type/date とも空欄（一律間隔を補わない）", () => {
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
 
     expect(result.current.date).toBe("2026-08-29");
+    expect(result.current.nextScheduleType).toBe("");
+    expect(result.current.nextDate).toBe("");
+  });
+
+  it("interval 1年 の種別を選ぶと 1year で当日から再計算する", () => {
+    setVaccinesMasterMock([{ id: "7", name: "混合ワクチン", isActive: true, interval: "1年" }]);
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setVaccineName("7");
+    });
+
     expect(result.current.nextScheduleType).toBe("1year");
     // 2026-08-29 + 1年 = 2027-08-29
     expect(result.current.nextDate).toBe("2027-08-29");
   });
 
-  it("日付に触れずに保存すると next_date を送り、保存後も同じ初期値に戻る", async () => {
+  it("interval 未設定 の種別を選ぶと空欄のまま保つ（捏造しない）", () => {
+    setVaccinesMasterMock([{ id: "7", name: "ワクチンエキゾ", isActive: true, interval: "" }]);
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setVaccineName("7");
+    });
+
+    expect(result.current.nextScheduleType).toBe("");
+    expect(result.current.nextDate).toBe("");
+  });
+
+  it("マスタ取得中・失敗で種別が解決できない場合、既存の type/date を保持する", () => {
+    setVaccinesMasterMock([]);
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setNextScheduleType("1year");
+    });
+    act(() => {
+      result.current.setNextDate("2027-08-29");
+    });
+    act(() => {
+      result.current.setVaccineName("7");
+    });
+
+    expect(result.current.nextScheduleType).toBe("1year");
+    expect(result.current.nextDate).toBe("2027-08-29");
+  });
+
+  it("設定あり種別で計算した後、手入力で nextDate を変えると other になる", () => {
+    setVaccinesMasterMock([{ id: "7", name: "混合ワクチン", isActive: true, interval: "1年" }]);
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setVaccineName("7");
+    });
+    act(() => {
+      result.current.setNextDate("2028-01-10");
+    });
+
+    expect(result.current.nextScheduleType).toBe("other");
+    expect(result.current.nextDate).toBe("2028-01-10");
+  });
+
+  // AC-vaccinations-manual: 明示手入力の次回予定日は種別変更で上書きしない
+  it("手入力の nextDate（other＋日付あり）は種別を変更しても保持される", () => {
+    setVaccinesMasterMock([
+      { id: "7", name: "混合ワクチン", isActive: true, interval: "1年" },
+      { id: "8", name: "ワクチンエキゾ", isActive: true, interval: "" },
+      { id: "9", name: "狂犬病ワクチン", isActive: true, interval: "1ヶ月" },
+    ]);
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    act(() => {
+      result.current.setNextScheduleType("other");
+    });
+    act(() => {
+      result.current.setNextDate("2028-02-01");
+    });
+    act(() => {
+      result.current.setVaccineName("8");
+    });
+    expect(result.current.nextScheduleType).toBe("other");
+    expect(result.current.nextDate).toBe("2028-02-01");
+
+    act(() => {
+      result.current.setVaccineName("9");
+    });
+    expect(result.current.nextScheduleType).toBe("other");
+    expect(result.current.nextDate).toBe("2028-02-01");
+  });
+
+  // AC-vaccinations-no-setting-default: 取得失敗は「設定なし」と区別して再試行導線を出す
+  it("マスタ取得失敗時は isVaccinesMasterError を露出する", () => {
+    setVaccinesMasterMock([], true);
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    expect(result.current.isVaccinesMasterError).toBe(true);
+    expect(typeof result.current.retryVaccinesMaster).toBe("function");
+  });
+
+  it("空欄のまま保存すると next_date=null で送り、保存後も空欄へ戻る", async () => {
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
 
     act(() => {
@@ -298,16 +411,15 @@ describe("useMedicalRecordVaccinationForm EMR-431 next date default", () => {
     expect(mockCreateVaccination).toHaveBeenCalledWith(
       expect.objectContaining({
         date: "2026-08-29",
-        next_date: "2027-08-29",
-        next_schedule_type: "1year",
+        next_date: null,
+        next_schedule_type: undefined,
       }),
     );
 
-    // 保存後の resetForm も同じ「当日＋既定間隔」に戻る（前レコードの値を残さない）
+    // 保存後の resetForm も空欄へ戻る（前レコードの値を残さない）
     expect(result.current.isAdding).toBe(false);
-    expect(result.current.date).toBe("2026-08-29");
-    expect(result.current.nextScheduleType).toBe("1year");
-    expect(result.current.nextDate).toBe("2027-08-29");
+    expect(result.current.nextScheduleType).toBe("");
+    expect(result.current.nextDate).toBe("");
   });
 });
 
@@ -315,7 +427,9 @@ function historyItem(overrides: Partial<VaccinationHistoryItem> = {}): Vaccinati
   return {
     id: 1,
     name: "ワクチンA",
-    date: "2026-08-29",
+    // 本番形状: date は表示形式（YY/M/D）、dateISO が ISO（VaccinationHistory 参照）
+    date: "26/8/29",
+    dateISO: "2026-08-29",
     next: "",
     vaccineId: 7,
     lot1: "",
@@ -336,12 +450,31 @@ describe("useMedicalRecordVaccinationForm EMR-430/438 duplicate rejudges interva
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
 
     act(() => {
-      result.current.handleDuplicate(historyItem({ date: "2025-12-24", nextDate: "2026-12-24" }));
+      result.current.handleDuplicate(
+        historyItem({ date: "25/12/24", dateISO: "2025-12-24", nextDate: "2026-12-24" }),
+      );
     });
 
     expect(result.current.isAdding).toBe(true);
     expect(result.current.nextDate).toBe("2026-12-24");
     expect(result.current.nextScheduleType).toBe("1year");
+  });
+
+  // 本番の履歴 row は date が表示形式（YY/M/D）で dateISO が ISO。表示形式を渡すと
+  // calculateNextDate が解釈できず常に other（＝写した日付が消える）ため、
+  // dateISO 経由で解決することを明示的に固定する（Codex P1 回帰）。
+  it("dateISO が無く表示形式 date のみの履歴は解決できず other＋日付クリアになる", () => {
+    const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
+
+    const item = historyItem({ date: "25/12/24", nextDate: "2026-12-24" });
+    delete (item as Partial<VaccinationHistoryItem>).dateISO;
+
+    act(() => {
+      result.current.handleDuplicate(item);
+    });
+
+    expect(result.current.nextScheduleType).toBe("other");
+    expect(result.current.nextDate).toBe("");
   });
 
   it("間隔が解決できない複製は「以外（手動）」になり、写した日付はクリアする", () => {
@@ -360,7 +493,9 @@ describe("useMedicalRecordVaccinationForm EMR-430/438 duplicate rejudges interva
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
 
     act(() => {
-      result.current.handleDuplicate(historyItem({ date: "2025-12-24", nextDate: "2026-12-24" }));
+      result.current.handleDuplicate(
+        historyItem({ date: "25/12/24", dateISO: "2025-12-24", nextDate: "2026-12-24" }),
+      );
     });
     act(() => {
       result.current.setDate("2026-10-19");
@@ -387,11 +522,13 @@ describe("useMedicalRecordVaccinationForm EMR-430/438 duplicate rejudges interva
 
 // レビュー指摘（EMR-431）: 間隔を「以外（手動）」に変えたとき、既定で自動計算された
 // 次回予定日が残り、手入力していない日付が「手動」の値として保存されていた。
+// EMR-430（2026-10-20 本人回答）: 初期 type は空欄。プリセットへ戻した時点で
+// 当日から再計算される。
 describe("useMedicalRecordVaccinationForm レビュー指摘 — other 切替で次回予定日をクリア", () => {
-  it("other に切り替えたら既定の次回予定日をクリアし、プリセットに戻すと再計算する", () => {
+  it("other に切り替えても空欄を保ち、プリセットに戻すと当日から再計算する", () => {
     const { result } = renderHook(() => useMedicalRecordVaccinationForm("1", "99"));
-    expect(result.current.nextScheduleType).toBe("1year");
-    expect(result.current.nextDate).toBe("2027-08-29");
+    expect(result.current.nextScheduleType).toBe("");
+    expect(result.current.nextDate).toBe("");
 
     act(() => {
       result.current.setNextScheduleType("other");

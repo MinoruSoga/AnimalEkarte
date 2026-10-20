@@ -2,6 +2,7 @@
 import { memo } from "react";
 
 // Internal
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,8 @@ interface VaccinationFormProps {
   vaccineOptions: VaccineOption[];
   vaccineName: string;
   setVaccineName: (v: string) => void;
+  isVaccinesMasterError?: boolean;
+  onRetryVaccinesMaster?: () => void;
   date: string;
   setDate: (v: string) => void;
   supplemental: string;
@@ -54,6 +57,8 @@ export const VaccinationForm = memo(function VaccinationForm({
   vaccineOptions,
   vaccineName,
   setVaccineName,
+  isVaccinesMasterError = false,
+  onRetryVaccinesMaster,
   date,
   setDate,
   supplemental,
@@ -93,6 +98,26 @@ export const VaccinationForm = memo(function VaccinationForm({
             ariaInvalid={Boolean(fieldErrors.vaccineId)}
             ariaDescribedBy={fieldErrors.vaccineId ? "mr-vaccine-error" : undefined}
           />
+          {/* EMR-430: マスタ取得失敗は「設定なし（空欄）」と区別して再試行導線を出す */}
+          {isVaccinesMasterError ? (
+            <div
+              role="alert"
+              className={`flex items-center justify-between gap-2 rounded border px-2 py-1.5 ${C.bgRed50} ${C.borderRed300} ${C.textRed700}`}
+            >
+              <p className="text-xs">ワクチン種類の設定を取得できませんでした。</p>
+              {onRetryVaccinesMaster ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label="ワクチン種類の設定を再取得する"
+                  onClick={onRetryVaccinesMaster}
+                  className="shrink-0 text-xs"
+                >
+                  再取得
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <FormFieldError id="mr-vaccine-error" message={fieldErrors.vaccineId} />
         </div>
         <div className="flex flex-col gap-1.5">

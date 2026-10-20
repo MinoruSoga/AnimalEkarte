@@ -3,6 +3,7 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { NextScheduleField } from "@/components/shared/NextScheduleField";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,6 +31,8 @@ interface VaccinationFieldsPanelProps {
   date: string;
   vaccineId: string;
   vaccineOptions: VaccineOption[];
+  isVaccinesMasterError?: boolean;
+  onRetryVaccinesMaster?: () => void;
   supplemental: string;
   lot1: string;
   lot2: string;
@@ -57,6 +60,8 @@ export function VaccinationFieldsPanel({
   date,
   vaccineId,
   vaccineOptions,
+  isVaccinesMasterError = false,
+  onRetryVaccinesMaster,
   supplemental,
   lot1,
   lot2,
@@ -131,6 +136,26 @@ export function VaccinationFieldsPanel({
               ))}
             </SelectContent>
           </Select>
+          {/* EMR-430: マスタ取得失敗は「設定なし（空欄）」と区別して再試行導線を出す */}
+          {isVaccinesMasterError ? (
+            <div
+              role="alert"
+              className={`flex items-center justify-between gap-2 rounded border px-2 py-1.5 ${C.bgRed50} ${C.borderRed300} ${C.textRed700}`}
+            >
+              <p className="text-xs">ワクチン種類の設定を取得できませんでした。</p>
+              {onRetryVaccinesMaster ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label="ワクチン種類の設定を再取得する"
+                  onClick={onRetryVaccinesMaster}
+                  className="shrink-0 text-xs"
+                >
+                  再取得
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <FormFieldError id="vaccine-id-error" message={fieldErrors.vaccineId} />
         </div>
 

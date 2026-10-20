@@ -42,7 +42,11 @@ export function useVaccinationForm(
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
 
-  const { data: vaccinesMaster = EMPTY_VACCINES_MASTER } = useGetAllVaccinesMaster();
+  const {
+    data: vaccinesMaster = EMPTY_VACCINES_MASTER,
+    isError: isVaccinesMasterError,
+    refetch: refetchVaccinesMaster,
+  } = useGetAllVaccinesMaster();
   const vaccineOptions = useMemo(
     () => vaccinesMaster.flatMap((v) => (v.isActive ? [{ value: v.id, label: v.name }] : [])),
     [vaccinesMaster],
@@ -159,6 +163,10 @@ export function useVaccinationForm(
   return {
     isEdit,
     entityRead,
+    isVaccinesMasterError,
+    retryVaccinesMaster: () => {
+      void refetchVaccinesMaster();
+    },
     isReadLoading:
       entityRead.status === "loading" || (isEdit && editPetId !== "" && isEditPetLoading),
     isEditPetReady: !isEdit || Boolean(petFromEdit),
