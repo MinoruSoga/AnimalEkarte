@@ -2122,8 +2122,8 @@ components:
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           readOnly: true
         clinic_id:
           type: integer
@@ -2154,7 +2154,7 @@ components:
         clear_next_visit:
           type: boolean
           writeOnly: true
-          description: PATCHでtrueを送るとnext_visitをNULLに戻す。next_visitとの同時指定は400。
+          description: PATCHでtrueを送るとnext_visitをNULLに戻す。trueとnext_visit設定の同時指定は400。
         status:
           type: string
           enum:
@@ -2162,9 +2162,8 @@ components:
             - discharged
             - reserved
         cage_id:
-          type: integer
-          format: int64
-          minimum: 1
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
           description: 応答NULLは未割当。create未指定/NULLは未割当。PATCHは未指定=維持、NULL=400、正数=割当（期待値必須）。解除はclear_cage_id=true。
         clear_cage_id:
@@ -2172,9 +2171,8 @@ components:
           writeOnly: true
           description: PATCHでtrueを送るとcage_idをNULL（未割当）に戻す。cage_idとの同時指定は400。cage_idまたはclear_cage_idを送る場合はexpected_cage_id（正数）またはexpected_cage_is_null=trueのどちらか一方が必須。
         expected_cage_id:
-          type: integer
-          format: int64
-          minimum: 1
+          type: string
+          pattern: '^[1-9][0-9]*$'
           writeOnly: true
           description: 表示時点のcage_id。cage_id/clear_cage_id指定時にexpected_cage_is_nullと排他で必須（正数のみ）。ロック行と不一致なら409。ケージ操作を伴わない指定は400。
         expected_cage_is_null:
@@ -2213,7 +2211,7 @@ components:
           description: ペット情報（Preload時のみ含まれる）
           nullable: true
         cage:
-          $ref: '#/components/schemas/CageSummary'
+          $ref: '#/components/schemas/HospitalizationCageSummary'
           description: ケージ情報（Preload時のみ含まれる）
           nullable: true
         doctor:
@@ -4518,6 +4516,12 @@ components:
     # EMR-461 form-only ID read and cage-write fields (not the EMR-499 lifecycle core).
     # Sources: hospitalization/lifecycle.md#cage-available-selection-20261019,
     # docs/design/domains/hospitalization/technical-spec.md#stay-core-cage-handoff-20261020.
+    HospitalizationCageSummary:
+      type: object
+      description: 461用の入院応答内ケージsummary。ID表現だけをlossless化し、他用途のCageSummaryは変更しない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        name: { type: string }
     HospitalizationCageCurrentAssignment:
       type: object
       additionalProperties: false
@@ -4530,16 +4534,18 @@ components:
             state: { enum: [known] }
         - properties:
             state: { enum: [unknown] }
-            cage_id: { type: integer, nullable: true, enum: [null] }
+            cage_id: { type: string, nullable: true, enum: [null] }
       properties:
         state: { type: string, enum: [known, unknown] }
-        cage_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
     HospitalizationCageOccupancyRead:
       type: object
       additionalProperties: false
       required: [clinic_id, exclude_hospitalization_id, state, occupied_cage_ids, candidate_cage_ids, current_assignment]
       description: |
-        応答専用の最小ID projection。DB行・患者/飼主/滞在明細・movement event・内部lock情報は返さない。
+        応答専用の最小ID projection。全IDは先頭ゼロなし正数十進文字列で、Numberへ変換せず入力へ往復する。
+        serverはPostgreSQL bigintの1..9223372036854775807を厳密検査し、不正形式/範囲外は400。
+        DB行・患者/飼主/滞在明細・movement event・内部lock情報は返さない。
         clinic_idとexclude_hospitalization_idは要求contextのecho。clientは医院/編集対象/要求世代を照合し、
         切替後の遅延応答を破棄する。除外IDはhospitalization IDでありStayCaseIDと同一視しない。
         occupiedは自己除外後の占有ケージID（構成員も含む）、candidateは空きと確認済みの同院有効な
@@ -4560,25 +4566,25 @@ components:
       allOf:
         - oneOf:
             - properties:
-                exclude_hospitalization_id: { type: integer, nullable: true, enum: [null] }
+                exclude_hospitalization_id: { type: string, nullable: true, enum: [null] }
                 current_assignment: { type: object, nullable: true, enum: [null] }
             - properties:
-                exclude_hospitalization_id: { type: integer, format: int64, minimum: 1 }
+                exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$' }
                 current_assignment: { $ref: '#/components/schemas/HospitalizationCageCurrentAssignment' }
       properties:
-        clinic_id: { type: integer, format: int64, minimum: 1 }
-        exclude_hospitalization_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
         state: { type: string, enum: [known, unknown] }
         occupied_cage_ids:
           type: array
           nullable: true
           uniqueItems: true
-          items: { type: integer, format: int64, minimum: 1 }
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
         candidate_cage_ids:
           type: array
           nullable: true
           uniqueItems: true
-          items: { type: integer, format: int64, minimum: 1 }
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
         current_assignment:
           oneOf:
             - $ref: '#/components/schemas/HospitalizationCageCurrentAssignment'
@@ -4590,9 +4596,9 @@ components:
       description: |
         EMR-461のcreate用ケージfield断片。入院/ホテル全体のDTOや499 core writeを再定義しない。
         cage_id省略/明示NULLは未割当（任意のまま）。正数指定は現在候補であっても保存時再検査。
-        expected_cage_*とclear_cage_idはcreateには送らない。0、負数、不正型は400。
+        expected_cage_*とclear_cage_idはcreateには送らない。0、負数、不正型は400。IDは応答と同じ正数十進文字列で、serverはbigint範囲を検査する。
       properties:
-        cage_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
       not:
         anyOf:
           - required: [clear_cage_id]
@@ -4609,9 +4615,9 @@ components:
         期待割当はロック後の現値と比較するCASであり記事/勤務版や499の根拠版とは別。
         未変更現値が候補外でも自動消去しない。現在割当不明なら期待値をNULLに補完せず割当変更を停止する。
       properties:
-        cage_id: { type: integer, format: int64, minimum: 1 }
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$' }
         clear_cage_id: { type: boolean }
-        expected_cage_id: { type: integer, format: int64, minimum: 1 }
+        expected_cage_id: { type: string, pattern: '^[1-9][0-9]*$' }
         expected_cage_is_null: { type: boolean, enum: [true] }
       oneOf:
         - not:
@@ -4648,7 +4654,6 @@ components:
         start_date: { type: string, format: date }
         end_date: { type: string, format: date }
         next_visit: { type: string, format: date, nullable: true }
-        clear_next_visit: { type: boolean }
         status: { type: string, enum: [admitted, discharged, reserved] }
         doctor_id: { type: integer, format: int64, nullable: true }
         memo: { type: string }
@@ -4676,6 +4681,16 @@ components:
         memo空文字やis_insurance=false等の明示値は更新fieldとして数える。
         保険系の明示NULLは既存pointer入力と同じく更新fieldに数えず、別の実入力と併用時は保持する。
         DB現値との実差分を必須にする新業務ルールではなく、既存のfield存在検査に合わせる。
+        PATCHのdoctor_id/next_visitは明示NULLを400で拒否し、未指定は維持。doctor解除操作は新設しない。
+        next_visit設定とclear_next_visit=trueの併用は既存runtime同様400。解除にはclear_next_visit=trueだけを送る。
+      properties:
+        clear_next_visit: { type: boolean }
+        doctor_id: { type: integer, format: int64 }
+        next_visit: { type: string, format: date }
+      not:
+        required: [next_visit, clear_next_visit]
+        properties:
+          clear_next_visit: { enum: [true] }
       anyOf:
         - required: [owner_id]
         - required: [pet_id]
@@ -4942,7 +4957,7 @@ components:
             type: object
             required: [appointment_id, starts_at, ends_at, patient_label, reservation_type_label]
             properties:
-              appointment_id: { type: integer, format: int64, minimum: 1 }
+              appointment_id: { type: string, pattern: '^[1-9][0-9]*$' }
               starts_at: { type: string, format: date-time }
               ends_at: { type: string, format: date-time }
               patient_label: { type: string }
@@ -13421,6 +13436,7 @@ paths:
         連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
         交換当事者2件以外の占有は未連結/groupとも409 cage_occupiedで両方rollbackする。
         hospitalization:editを選択医院の両対象に検査し、hospitalization_idsは異なる正数2件。
+        hospitalization_idsとexpected_cage_idsは応答と同じ正数十進文字列（serverでbigint範囲検査）。
         expected_cage_idsは両方の表示時割当（正数必須、NULL不可）に対するCAS。版や候補readの代用ではない。
         ソート順の対象/group lock下で期待値と現在の占有を再検査し、499 coreのunknownは409 occupancy_unknown。
         片側だけ成功させず、構成員422/期待値不一致409 cage_assignment_changedでも元割当を両方保持する。
@@ -13441,18 +13457,16 @@ paths:
                   maxItems: 2
                   uniqueItems: true
                   items:
-                    type: integer
-                    format: int64
-                    minimum: 1
+                    type: string
+                    pattern: '^[1-9][0-9]*$'
                   description: ケージを交換する入院IDのペア（expected_cage_idsと同位置対応）
                 expected_cage_ids:
                   type: array
                   minItems: 2
                   maxItems: 2
                   items:
-                    type: integer
-                    format: int64
-                    minimum: 1
+                    type: string
+                    pattern: '^[1-9][0-9]*$'
                   description: hospitalization_idsと同じ順序の表示時ケージID。不一致は409。
       responses:
         '200':
@@ -13516,7 +13530,7 @@ paths:
           in: query
           required: false
           description: 編集対象hospitalization ID。省略は自己除外なし。NULL文字列/0/負数は400。
-          schema: { type: integer, format: int64, minimum: 1 }
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
       responses:
         '200':
           description: contextに束縛した全件ID projection（unknownを空きと扱わない）
@@ -13537,9 +13551,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: 入院情報
@@ -13547,6 +13562,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -13581,9 +13598,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -13622,12 +13640,15 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '204':
           description: 削除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
