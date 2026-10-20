@@ -27,3 +27,11 @@ export async function uploadTrimmingCourseImage(file: File): Promise<TrimmingCou
   }
   return { key: record.key, signedUrl: record.signed_url };
 }
+
+/**
+ * 未保存のまま置換・削除したコース画像の best-effort 掃除（DELETE /v1/trimmings/images）。
+ * サーバーが参照中 key の削除を拒否するため、保存済み key を誤って消さない。失敗は致命扱いしない。
+ */
+export async function discardTrimmingCourseImage(key: string): Promise<void> {
+  await axios.delete("/v1/trimmings/images", { data: { key } });
+}

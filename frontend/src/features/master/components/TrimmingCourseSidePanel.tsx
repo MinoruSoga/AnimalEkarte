@@ -271,6 +271,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       />
 
       <TrimmingCourseImageField
+        currentKey={formData.imageObjectKey}
         previewUrl={formData.imagePreviewUrl}
         hasImage={formData.imageObjectKey !== ""}
         onUploaded={handleImageUploaded}

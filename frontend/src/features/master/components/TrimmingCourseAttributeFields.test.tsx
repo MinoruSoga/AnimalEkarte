@@ -7,9 +7,11 @@ import {
 } from "./TrimmingCourseAttributeFields";
 
 const upload = vi.hoisted(() => vi.fn());
+const discard = vi.hoisted(() => vi.fn());
 
 vi.mock("../api/upload-trimming-course-image", () => ({
   uploadTrimmingCourseImage: upload,
+  discardTrimmingCourseImage: discard,
 }));
 
 describe("TrimmingCourseWeekdayField (EMR-457)", () => {
@@ -44,6 +46,8 @@ function selectFile(file: File) {
 describe("TrimmingCourseImageField (EMR-457)", () => {
   beforeEach(() => {
     upload.mockReset();
+    discard.mockReset();
+    discard.mockResolvedValue(undefined);
   });
 
   it("passes the uploaded key and preview url and reports the uploading state", async () => {
@@ -52,6 +56,7 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
     const onUploadingChange = vi.fn();
     render(
       <TrimmingCourseImageField
+        currentKey=""
         previewUrl=""
         hasImage={false}
         onUploaded={onUploaded}
@@ -75,6 +80,7 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
     const onUploadingChange = vi.fn();
     render(
       <TrimmingCourseImageField
+        currentKey="trimming-images/1/old.jpg"
         previewUrl="https://signed/old.jpg"
         hasImage
         onUploaded={onUploaded}
@@ -100,6 +106,7 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
     const onRemove = vi.fn();
     render(
       <TrimmingCourseImageField
+        currentKey="trimming-images/1/old.jpg"
         previewUrl="https://signed/old.jpg"
         hasImage
         onUploaded={vi.fn()}
@@ -110,5 +117,32 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "画像を削除" }));
     expect(onRemove).toHaveBeenCalledTimes(1);
+    // 保存済み（この編集中にアップロードしていない）key はクライアントから消さない
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it("discards an unsaved upload when it is replaced", async () => {
+    upload
+      .mockResolvedValueOnce({ key: "trimming-images/1/a.jpg", signedUrl: "https://signed/a.jpg" })
+      .mockResolvedValueOnce({ key: "trimming-images/1/b.jpg", signedUrl: "https://signed/b.jpg" });
+    const onUploaded = vi.fn();
+    const props = {
+      previewUrl: "",
+      onUploaded,
+      onRemove: vi.fn(),
+      onUploadingChange: vi.fn(),
+    };
+    const { rerender } = render(
+      <TrimmingCourseImageField currentKey="" hasImage={false} {...props} />,
+    );
+
+    selectFile(new File(["x"], "a.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
+    rerender(<TrimmingCourseImageField currentKey="trimming-images/1/a.jpg" hasImage {...props} />);
+
+    selectFile(new File(["y"], "b.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(2));
+    expect(discard).toHaveBeenCalledWith("trimming-images/1/a.jpg");
+    expect(discard).toHaveBeenCalledTimes(1);
   });
 });
