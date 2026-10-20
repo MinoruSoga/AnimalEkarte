@@ -55,7 +55,7 @@
 | サイドバーの現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする。ページ `h1` は 1 つで、ページ内の見出しを `h1` より大きくしない | patterns §1 |
 | 固定要素（浮遊ボタン・固定アクションバー・トースト）は操作要素に重ねない。スクロール末尾に固定要素分の余白を取り、`z-index` は `Z` トークンから選ぶ | patterns §5、compliance C27 |
 | 業務・設定フォームの入力部品は共有 `ui/`（`DatePicker` / `NumberInput` / `MoneyInput` / `checkbox` / `switch`）。ネイティブ入力の許容範囲（検索・一覧フィルター・行内編集・時刻）は patterns §4.4。破壊操作は `Button variant="destructive"`（塗り）で `[削除] キャンセル 保存` の順 | patterns §4、design-states §1.1、compliance C28 |
-| 保存ボタンを未入力理由で `disabled` にしない（押下→欄直下にエラー→先頭エラー欄へフォーカス）。`disabled` は送信中と権限なしのときだけ | patterns §4.2、design-states §1.1（2026-10-20 決裁）、compliance C29 |
+| 保存ボタンを未入力理由で `disabled` にしない（押下→欄直下にエラー→先頭エラー欄へフォーカス）。`disabled` は送信中・権限なし・ワークフロー状態ゲート（確定済み等）だけ | patterns §4.2、design-states §1.1（2026-10-20 決裁）、compliance C29 |
 | 本体画面のセクション見出しはページタイトル（title 20px）以下。heading-2 / heading-3 はダイアログ・大型サイドパネル・文書型画面のみ | design-system §3.4、patterns §1.4（2026-10-20 決裁） |
 | カレンダー・シフト表の土日を青／赤で塗らない（赤は `C.danger` と衝突）。曜日は文字 + ink-muted、休診日は `C.bgPage` + 「休診」 | patterns §7.1、design-system §2.5（2026-10-20 決裁） |
 | ステータス色を構造の面に使わない。唯一の例外は受付ボードの列面（design-system §2.5 の例外表）で、他画面へ広げない | design-system §2.5、patterns §7.2 |

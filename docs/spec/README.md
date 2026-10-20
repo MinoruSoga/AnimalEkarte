@@ -57,7 +57,7 @@ settings/ の共通マスタ、入院・トリミング・LINE 等の既存仕�
 | [ui-design-guide.md](ui-design-guide.md) | UI 作業の入口（全エージェント共通）: 正本の読む順・design-audit ハードルール要約・UI の完了条件。新しい値は決定しない | フロントエンド UI 作業の最初に |
 | [design-system.md](design-system.md) | 色の正本（brand / primary / ink / 臨床・業務ステータス色）と SSOT の分担表、デザイントークンへの写像 | フロントエンド UI 実装前 |
 | [design-states.md](design-states.md) | インタラクション状態（hover / focus / disabled / loading / invalid 等）の視覚仕様・必須実装と WCAG コントラスト実測 | インタラクティブ UI の実装・レビュー時 |
-| [design-patterns.md](design-patterns.md) | 画面パターン規約（ナビ現在地・一覧の列幅優先度と横スクロール・省略の全文到達・フォームの幅/検証/部品統一・固定要素の重なり・空状態/読込・カレンダー/ボード）。2026-10-20 STG 監査起点の提案、決裁は PR レビュー | 一覧・フォーム・画面シェルを作る/直す前 |
+| [design-patterns.md](design-patterns.md) | 画面パターン規約（ナビ現在地・一覧の列幅優先度と横スクロール・省略の全文到達・フォームの幅/検証/部品統一・固定要素の重なり・空状態/読込・カレンダー/ボード）。2026-10-20 STG 監査起点、同日合意済み（決裁: 見出し上限・保存 disabled 禁止・曜日色禁止・受付ボード列背景の例外） | 一覧・フォーム・画面シェルを作る/直す前 |
 | [design-token-layers.md](design-token-layers.md) | デザイントークンの 3 層モデル（Primitive → Semantic → Component）と参照方向・新規値の配置先 | トークン追加・色変更・新規 UI プリミティブ作成時 |
 | [components/](components/README.md) | UI プリミティブのコンポーネント契約（badge / button / input / select 等の Anatomy・状態表・既知ギャップ。テンプレート: `_TEMPLATE.md`） | コンポーネント実装・変更前 |
 | [ui-design-compliance.md](ui-design-compliance.md) | UI デザイン規約の準拠状況と機械検査（design-audit）の対応表 | 新規ページ追加時（§2 の表を同コミットで更新） |
