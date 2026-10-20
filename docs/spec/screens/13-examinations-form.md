@@ -1,5 +1,7 @@
 # 検査入力/結果登録 仕様書 (Examination Form)
 
+> 2026-10-20追加目標：カルテ内の検査タブは[治療プランの同一予定追跡FR／10AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)へ接続し、追加した予定を未実施として示す。保存済み実績／結果と区別し、予定追加だけで実施・結果確定・証明書発行・健診完了・機器送信・請求確定を行わない。実績の既決入力・訂正・認可は[領域正本](../domains/examinations/lifecycle.md#examinations-plan-tab-link)を維持し、別本文の二重入力を作らない。[設計差分](../../design/domains/examinations/technical-spec.md#plan-tab-link-design)は未実装／実機未確認。独立一覧・過去履歴の全件を未実施予定へ置換する意味ではない。
+
 ## 2026-10-15 D07仕様整理の優先順位
 
 [死亡後の生前検査記録](../domains/examinations/lifecycle.md#examination-deceased-retrospective)は死亡状態を戻さず理由・履歴付きの専用後日入力／誤記訂正へ接続する。通常の新たな検査・機器待機の許可には広げず、現行フォーム／APIの専用対応は未確認。
