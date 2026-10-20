@@ -116,9 +116,14 @@ func postgresDSN(user, password, host, port, dbName string) string {
 }
 
 func openDisposable001DB(user, password, host, port, dbName string) (*gorm.DB, error) {
+	// PreferSimpleProtocol を使わない（pgx stdlib 既定のまま）。
+	// 001_init.sql は ALTER TYPE ... ADD VALUE とその値の使用を同一ファイル内で行うため、
+	// simple protocol の1 Queryメッセージ（= 単一 implicit transaction）では
+	// 55P04 unsafe use of new value で失敗する。既定モードは実運用の migration runner
+	// （cmd/migrate: sql.Open("postgres", ...) + tx.Exec 全文適用）と同じ経路で、
+	// 同一ファイルの fresh 適用が実証済み。
 	return gorm.Open(postgres.New(postgres.Config{
-		DSN:                  postgresDSN(user, password, host, port, dbName),
-		PreferSimpleProtocol: true,
+		DSN: postgresDSN(user, password, host, port, dbName),
 	}), &gorm.Config{})
 }
 
