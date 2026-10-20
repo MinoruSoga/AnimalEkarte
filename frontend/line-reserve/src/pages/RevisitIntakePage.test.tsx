@@ -657,6 +657,10 @@ describe("RevisitIntakePage 409", () => {
 
     await user.click(screen.getByRole("button", { name: "最新の状態を読み込む" }));
     await waitFor(() => expect(calls).toHaveLength(2));
+    // 古い回答を元にした入力なので、最新回答の確認を明示するまで送れない
+    expect(await screen.findByText(/この入力は古い回答を元にしています/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "最新の回答を確認した" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeEnabled(),
     );
@@ -1372,5 +1376,128 @@ describe("RevisitIntakePage 追加の fail-closed（レビュー対応）", () =
     await user.click(await screen.findByRole("button", { name: "最新の状態を読み込む" }));
 
     await waitFor(() => expect(purposeInput().value).toBe("他端末の合成目的2"));
+  });
+});
+
+describe("RevisitIntakePage 古い draft・離脱確認・履歴の再試行期限", () => {
+  const TARGET_KEY = [CLINIC, APPT_A, PET_A, "3"].join("|");
+
+  it("別の回答が保存された後に古い draft を復元したら、確認するまで送信できない", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([
+      read(answeredTarget(answer("2", answers({ visit_purpose: "他端末の合成目的2" })))),
+    ]);
+    const submits = captureSubmits((c) => HttpResponse.json(successResponse(c.key ?? "", "3")));
+    const store = createStore();
+    store.set(TARGET_KEY, {
+      values: answers({ visit_purpose: "古い回答を元にした合成入力" }),
+      pending: null,
+      baselineToken: "1|true|910",
+    });
+    renderPage({ store });
+
+    expect(await screen.findByText(/この入力は古い回答を元にしています/)).toBeInTheDocument();
+    expect(purposeInput().value).toBe("古い回答を元にした合成入力");
+    expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "最新の回答を確認した" }));
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+    await waitFor(() => expect(submits).toHaveLength(1));
+    expect(submits[0].body.expected_revision).toBe("2");
+  });
+
+  it("送信処理中は戻らせない", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    captureSubmits(async (c) => {
+      await delay(300);
+      return HttpResponse.json(successResponse(c.key ?? "", "1"));
+    });
+    const { onBack } = renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(
+      await screen.findByText("送信処理中です。結果が確定するまでお待ちください。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "送信せずに戻る" })).not.toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it("結果未確定のときは未確定である旨を示し、確認後に戻れる", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    captureSubmits(() => HttpResponse.error());
+    captureLookups((key) => HttpResponse.json(unresolvedResponse(key, "claimed_uncommitted")));
+    const { onBack } = renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+    await screen.findByRole("button", { name: "同じ内容で再送信" });
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(
+      screen.getByText(/送信結果が未確定です。戻っても再開時に結果を確認できます/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "送信せずに戻る" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "このまま戻る" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("「さらに表示」の 429 は Retry-After の期限までボタンを無効にする", async () => {
+    const user = userEvent.setup();
+    const ref = {
+      target_id: "5401",
+      appointment_id: APPT_A,
+      pet_id: PET_A,
+      target_generation: "3",
+    };
+    const latest = answer("2", answers({ visit_purpose: "合成2版" }));
+    let pageCalls = 0;
+    server.use(
+      http.get(READ_PATH, ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        if (cursor === null) {
+          return HttpResponse.json(
+            read(answeredTarget(latest), {
+              history: [{ target: ref, answer: latest, target_relation: "current" }],
+              next_cursor: "synthetic-cursor-1",
+            }),
+          );
+        }
+        pageCalls += 1;
+        if (pageCalls === 1) {
+          return HttpResponse.json(
+            { error: "too many requests" },
+            { status: 429, headers: { "Retry-After": "1" } },
+          );
+        }
+        return HttpResponse.json(
+          read(answeredTarget(latest), {
+            history: [
+              {
+                target: ref,
+                answer: answer("1", answers({ visit_purpose: "合成1版" })),
+                target_relation: "current",
+              },
+            ],
+          }),
+        );
+      }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+    expect(
+      await screen.findByText(/1秒ほど待ってから、もう一度お試しください/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "さらに表示" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "さらに表示" })).toBeEnabled(), {
+      timeout: 3000,
+    });
+    await user.click(screen.getByRole("button", { name: "さらに表示" }));
+    expect(await screen.findByText("合成1版")).toBeInTheDocument();
   });
 });

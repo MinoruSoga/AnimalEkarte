@@ -9,6 +9,8 @@ interface RevisitIntakeHistoryProps {
   hasMore: boolean;
   loadingMore: boolean;
   loadMoreError: string | null;
+  /** 429 / 503 の Retry-After 期限中の待ち秒。期限まで「さらに表示」を無効にする */
+  loadMoreRetryAfterSeconds: number | null;
   onLoadMore: () => void;
 }
 
@@ -35,6 +37,7 @@ export function RevisitIntakeHistory({
   hasMore,
   loadingMore,
   loadMoreError,
+  loadMoreRetryAfterSeconds,
   onLoadMore,
 }: RevisitIntakeHistoryProps) {
   if (history.length === 0 && !hasMore) return null;
@@ -66,11 +69,16 @@ export function RevisitIntakeHistory({
           {loadMoreError}
         </p>
       ) : null}
+      {hasMore && loadMoreRetryAfterSeconds !== null ? (
+        <p className="text-sm text-noah-text-sub">
+          {`混み合っています。${loadMoreRetryAfterSeconds}秒ほど待ってから、もう一度お試しください。`}
+        </p>
+      ) : null}
       {hasMore ? (
         <button
           type="button"
           onClick={onLoadMore}
-          disabled={loadingMore}
+          disabled={loadingMore || loadMoreRetryAfterSeconds !== null}
           aria-busy={loadingMore}
           className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
         >

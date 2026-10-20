@@ -33,6 +33,8 @@ export interface UseRevisitIntakeReadResult {
   loadMore: () => void;
   loadingMore: boolean;
   loadMoreError: string | null;
+  /** 「さらに表示」の 429 / Retry-After 付き 503 の待ち秒（期限中だけ非 null） */
+  loadMoreRetryAfterSeconds: number | null;
 }
 
 export function useRevisitIntakeRead(
@@ -50,6 +52,18 @@ export function useRevisitIntakeRead(
   }>({ forRead: null, entries: [], nextCursor: null, error: null });
   const [loadingMore, startLoadMore] = useTransition();
   const [retryBlockedUntil, setRetryBlockedUntil] = useState<number | null>(null);
+  const [loadMoreBlocked, setLoadMoreBlocked] = useState<{ until: number; seconds: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (loadMoreBlocked === null) return;
+    const timer = setTimeout(
+      () => setLoadMoreBlocked(null),
+      Math.max(0, loadMoreBlocked.until - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [loadMoreBlocked]);
 
   useEffect(() => {
     if (retryBlockedUntil === null) return;
@@ -99,6 +113,7 @@ export function useRevisitIntakeRead(
 
   const loadMore = useCallback(() => {
     if (!read || nextCursor === null) return;
+    if (loadMoreBlocked !== null && Date.now() < loadMoreBlocked.until) return;
     const baseRead = read;
     const cursor = nextCursor;
     startLoadMore(async () => {
@@ -112,6 +127,10 @@ export function useRevisitIntakeRead(
         }));
       } catch (err: unknown) {
         const info = resolveFetchError(err, "履歴の取得");
+        const retryAfter = revisitIntakeRetryAfterSeconds(err);
+        if (retryAfter !== null) {
+          setLoadMoreBlocked({ until: Date.now() + retryAfter * 1000, seconds: retryAfter });
+        }
         setMore((prev) => ({
           ...(prev.forRead === baseRead
             ? prev
@@ -120,7 +139,7 @@ export function useRevisitIntakeRead(
         }));
       }
     });
-  }, [read, nextCursor, clinicId, appointmentId, idToken]);
+  }, [read, nextCursor, loadMoreBlocked, clinicId, appointmentId, idToken]);
 
   return {
     read,
@@ -134,6 +153,7 @@ export function useRevisitIntakeRead(
     loadMore,
     loadingMore,
     loadMoreError: extra?.error ?? null,
+    loadMoreRetryAfterSeconds: loadMoreBlocked?.seconds ?? null,
   };
 }
 

@@ -117,10 +117,16 @@ export function RevisitIntakePage({
   const [accessDenied, setAccessDenied] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [leavePrompt, setLeavePrompt] = useState<"dirty" | "unresolved" | "in_flight" | null>(null);
+  const [submitInFlight, setSubmitInFlight] = useState(false);
+  const [submitUnresolved, setSubmitUnresolved] = useState(false);
   const { refetch } = intake;
 
   const handleDirtyChange = useCallback((next: boolean) => setDirty(next), []);
+  const handlePendingChange = useCallback((inFlight: boolean, unresolved: boolean) => {
+    setSubmitInFlight(inFlight);
+    setSubmitUnresolved(unresolved);
+  }, []);
   const handleTargetChanged = useCallback(() => {
     setNotice(
       "予約の対象が変更されたため、問診は送信されませんでした。最新の内容を読み込みます。以前の入力は引き継がれません。",
@@ -137,11 +143,24 @@ export function RevisitIntakePage({
   const handleAccessDenied = useCallback(() => setAccessDenied(true), []);
 
   // アプリ内の離脱だけを確認する（LINE 終了・OS による破棄は保証しない）。
+  // 送信中は戻らせない。結果未確定・未送信の入力は、それぞれ正確な文言で確認する。
   const handleBack = () => {
-    if (dirty) {
-      setConfirmingLeave(true);
+    if (submitInFlight) {
+      setLeavePrompt("in_flight");
       return;
     }
+    if (submitUnresolved) {
+      setLeavePrompt("unresolved");
+      return;
+    }
+    if (dirty) {
+      setLeavePrompt("dirty");
+      return;
+    }
+    onBack();
+  };
+  const leave = () => {
+    setLeavePrompt(null);
     onBack();
   };
 
@@ -213,6 +232,7 @@ export function RevisitIntakePage({
             readError={intake.error !== null}
             onRefetch={refetch}
             onDirtyChange={handleDirtyChange}
+            onPendingChange={handlePendingChange}
             onTargetChanged={handleTargetChanged}
             onIntakeClosed={handleIntakeClosed}
             onAccessDenied={handleAccessDenied}
@@ -244,31 +264,38 @@ export function RevisitIntakePage({
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
         <div className="px-4 pt-4">
           <BackButton onClick={handleBack} />
-          {confirmingLeave ? (
+          {leavePrompt === "in_flight" && submitInFlight ? (
+            <p
+              role="alert"
+              className="mb-3 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3 text-sm text-noah-warning-text"
+            >
+              送信処理中です。結果が確定するまでお待ちください。
+            </p>
+          ) : null}
+          {leavePrompt === "unresolved" || leavePrompt === "dirty" ? (
             <div
               role="alert"
               className="mb-3 space-y-2 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3"
             >
               <p className="text-sm text-noah-warning-text">
-                回答はまだ送信されていません。このまま戻りますか？
+                {leavePrompt === "unresolved"
+                  ? "送信結果が未確定です。戻っても再開時に結果を確認できます（入力内容と送信状態は、LINEを閉じるまでこの端末に一時的に残ります）。"
+                  : "回答はまだ送信されていません。このまま戻りますか？"}
               </p>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setConfirmingLeave(false);
-                    onBack();
-                  }}
+                  onClick={leave}
                   className="min-h-11 flex-1 rounded-lg bg-noah-teal px-3 text-sm font-semibold text-white"
                 >
-                  送信せずに戻る
+                  {leavePrompt === "unresolved" ? "このまま戻る" : "送信せずに戻る"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setConfirmingLeave(false)}
+                  onClick={() => setLeavePrompt(null)}
                   className="min-h-11 flex-1 rounded-lg border border-noah-border bg-white px-3 text-sm text-noah-text"
                 >
-                  入力を続ける
+                  {leavePrompt === "unresolved" ? "この画面に留まる" : "入力を続ける"}
                 </button>
               </div>
             </div>
@@ -341,6 +368,7 @@ export function RevisitIntakePage({
               hasMore={intake.nextCursor !== null}
               loadingMore={intake.loadingMore}
               loadMoreError={intake.loadMoreError}
+              loadMoreRetryAfterSeconds={intake.loadMoreRetryAfterSeconds}
               onLoadMore={intake.loadMore}
             />
           ) : null}

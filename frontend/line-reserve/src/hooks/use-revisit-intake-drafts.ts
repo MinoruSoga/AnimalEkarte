@@ -30,6 +30,11 @@ export interface RevisitIntakePendingOperation {
 
 export interface RevisitIntakeDraftEntry {
   values: RevisitIntakeFullAnswers;
+  /**
+   * draft の元になった最新回答の識別（head_revision|content_available|answer_id）。再開時に現在の
+   * 値と違えば、古い回答を元にした入力として明示確認まで送信させない。
+   */
+  baselineToken?: string;
   pending: RevisitIntakePendingOperation | null;
 }
 

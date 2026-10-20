@@ -87,6 +87,8 @@ interface RevisitIntakeEditorProps {
   readError: boolean;
   onRefetch: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  /** 送信処理中（inFlight）と結果未確定（unresolved = pending あり）をページの離脱確認へ通知する */
+  onPendingChange: (inFlight: boolean, unresolved: boolean) => void;
   onTargetChanged: () => void;
   onIntakeClosed: (reason: RevisitIntakeClosedReason) => void;
   onAccessDenied: () => void;
@@ -220,6 +222,7 @@ export function RevisitIntakeEditor({
   readError,
   onRefetch,
   onDirtyChange,
+  onPendingChange,
   onTargetChanged,
   onIntakeClosed,
   onAccessDenied,
@@ -247,12 +250,26 @@ export function RevisitIntakeEditor({
     String(current.content_available),
     current.latest_answer?.answer_id ?? "",
   ].join("|");
+  // draft の元になった baseline。保存済み draft はそのときの token を復元する。
+  const [draftBaseToken, setDraftBaseToken] = useState(
+    () => draftStore.get(targetKey)?.baselineToken ?? baselineToken,
+  );
   const [syncedBaselineToken, setSyncedBaselineToken] = useState(baselineToken);
   if (syncedBaselineToken !== baselineToken) {
     setSyncedBaselineToken(baselineToken);
     if (pending === null && draftStore.get(targetKey) === undefined) {
       setValues(baseline);
+      setDraftBaseToken(baselineToken);
     }
+  }
+  const staleDraft =
+    pending === null &&
+    draftBaseToken !== baselineToken &&
+    !areRevisitIntakeAnswersEqual(values, baseline);
+
+  function acknowledgeLatest() {
+    setDraftBaseToken(baselineToken);
+    persist(values, pending, baselineToken);
   }
   const inFlightRef = useRef(false);
   const alertRef = useRef<HTMLDivElement>(null);
@@ -260,11 +277,16 @@ export function RevisitIntakeEditor({
   function persist(
     nextValues: RevisitIntakeFullAnswers,
     nextPending: RevisitIntakePendingOperation | null,
+    nextBaseToken: string = draftBaseToken,
   ) {
     if (nextPending === null && areRevisitIntakeAnswersEqual(nextValues, baseline)) {
       draftStore.clear(targetKey);
     } else {
-      draftStore.set(targetKey, { values: nextValues, pending: nextPending });
+      draftStore.set(targetKey, {
+        values: nextValues,
+        pending: nextPending,
+        baselineToken: nextBaseToken,
+      });
     }
   }
 
@@ -308,6 +330,10 @@ export function RevisitIntakeEditor({
       return { kind: "unresolved", message: MISMATCHED_RESULT_MESSAGE };
     }
     if (result.operation_result.state === "succeeded") {
+      const refs = result.operation_result.result_refs;
+      const versions = result.operation_result.committed_versions;
+      // 成功した回答を次の訂正の元にする（再取得後の head と同じ token）。
+      if (refs && versions) setDraftBaseToken(`${versions.answer_revision}|true|${refs.answer_id}`);
       setPending(null);
       setValues(op.body.answers);
       draftStore.clear(targetKey);
@@ -440,6 +466,8 @@ export function RevisitIntakeEditor({
         if (pending !== null) return previous;
         // 旧 snapshot の head_revision を expected_revision に使わない（成功後の再取得中・失敗時）。
         if (refetching || readError) return previous;
+        // 古い回答を元にした draft は、最新回答の確認が明示されるまで送らない（黙って上書きしない）。
+        if (staleDraft) return previous;
         const fieldErrors = validateRevisitIntakeAnswers(values);
         if (firstErrorField(fieldErrors) !== null) {
           return { kind: "invalid", fieldErrors };
@@ -501,6 +529,10 @@ export function RevisitIntakeEditor({
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
   useEffect(() => () => onDirtyChange(false), [onDirtyChange]);
+  useEffect(() => {
+    onPendingChange(isPending, pending !== null);
+  }, [isPending, pending, onPendingChange]);
+  useEffect(() => () => onPendingChange(false, false), [onPendingChange]);
 
   useEffect(() => {
     if (outcome.kind !== "invalid") return;
@@ -648,9 +680,27 @@ export function RevisitIntakeEditor({
         />
       ) : null}
 
+      {staleDraft ? (
+        <div
+          role="alert"
+          className="space-y-2 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3"
+        >
+          <p className="text-sm text-noah-warning-text">
+            この入力は古い回答を元にしています。最新の回答を確認してから送信してください。
+          </p>
+          <button
+            type="button"
+            onClick={acknowledgeLatest}
+            className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark"
+          >
+            最新の回答を確認した
+          </button>
+        </div>
+      ) : null}
+
       {answered && current.content_available && current.latest_answer ? (
         <details
-          open={outcome.kind === "revision_conflict" && !needsRefetch}
+          open={staleDraft || (outcome.kind === "revision_conflict" && !needsRefetch)}
           className="rounded-lg border border-noah-border bg-white px-4 py-2"
         >
           <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-noah-teal-dark">
@@ -676,7 +726,8 @@ export function RevisitIntakeEditor({
             targetChangeLocked ||
             authBlocked ||
             refetching ||
-            readError
+            readError ||
+            staleDraft
           }
         >
           {isPending ? "送信中..." : answered ? "訂正して再送信" : "回答を送信する"}
