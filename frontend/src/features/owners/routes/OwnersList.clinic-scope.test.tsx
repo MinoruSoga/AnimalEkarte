@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act } from "react";
+import { ME_QUERY_KEY } from "@/lib/query-keys";
 import { AuthContext } from "@/hooks/auth-context";
 import { OwnersList } from "./OwnersList";
 import type { OwnersLoaderData } from "../loaders";
@@ -84,19 +87,52 @@ function readyData(selectedClinicIds: string[]): OwnersLoaderData {
 }
 
 function renderList(
-  loader: (request: Request) => OwnersLoaderData,
-  { initialPath = "/owners", authUserId = USER_ID } = {},
+  loader: (request: Request) => OwnersLoaderData | Promise<OwnersLoaderData>,
+  {
+    initialPath = "/owners",
+    initialEntries = [initialPath],
+    authUserId = USER_ID,
+    queryClient,
+  }: {
+    initialPath?: string;
+    initialEntries?: string[];
+    authUserId?: string;
+    queryClient?: QueryClient;
+  } = {},
 ) {
   const router = createMemoryRouter(
-    [{ path: "/owners", element: <OwnersList />, loader: ({ request }) => loader(request) }],
-    { initialEntries: [initialPath] },
+    [
+      { path: "/elsewhere", element: <p>合成の別画面</p> },
+      { path: "/owners", element: <OwnersList />, loader: ({ request }) => loader(request) },
+    ],
+    { initialEntries, initialIndex: initialEntries.length - 1 },
   );
-  render(
+  const tree = (
     <AuthContext.Provider value={makeAuthCtx(authUserId)}>
       <RouterProvider router={router} />
-    </AuthContext.Provider>,
+    </AuthContext.Provider>
+  );
+  render(
+    queryClient ? <QueryClientProvider client={queryClient}>{tree}</QueryClientProvider> : tree,
   );
   return router;
+}
+
+const THREE_CLINICS = [
+  ...TWO_CLINICS,
+  { clinicId: "3", clinicName: "合成第三院", isMain: false },
+];
+
+function readyDataFromUrl(request: Request): OwnersLoaderData {
+  const clinics = new URL(request.url).searchParams.get("clinics");
+  return {
+    ...readyData([]),
+    clinicScope: {
+      userId: USER_ID,
+      clinics: THREE_CLINICS,
+      selectedClinicIds: clinics ? clinics.split(",") : ["1", "2", "3"],
+    },
+  };
 }
 
 beforeEach(() => {
@@ -237,5 +273,87 @@ describe("OwnersList — EMR-463 一覧を取得しなかった状態の表示",
 
     expect(await screen.findByText(/表示できる医院が変わったため/)).toBeInTheDocument();
     expect(screen.getByText("合成飼主")).toBeInTheDocument();
+  });
+});
+
+describe("OwnersList — EMR-463 トグルの合成・履歴・/me 更新", () => {
+  it("loader 進行中の連続トグルは直前のトグル結果から合成する（古い選択で上書きしない）", async () => {
+    let callCount = 0;
+    const router = renderList((request) => {
+      callCount += 1;
+      if (callCount === 1) return readyDataFromUrl(request);
+      // 2 回目以降の loader は遅延させ、進行中に次のトグルを押せるようにする
+      return new Promise((resolve) => setTimeout(() => resolve(readyDataFromUrl(request)), 50));
+    });
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "合成分院" }));
+    await user.click(screen.getByRole("button", { name: "合成第三院" }));
+
+    await waitFor(() => {
+      expect(new URLSearchParams(router.state.location.search).get("clinics")).toBe("1");
+    });
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe('["1"]');
+  });
+
+  it("暗黙選択からの最初のトグルは replace、以後の明示選択からのトグルは push", async () => {
+    const router = renderList(readyDataFromUrl, { initialEntries: ["/elsewhere", "/owners"] });
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "合成分院" }));
+    await waitFor(() => {
+      expect(router.state.location.search).toContain("clinics=1%2C3");
+    });
+    expect(router.state.historyAction).toBe("REPLACE");
+
+    await user.click(screen.getByRole("button", { name: "合成第三院" }));
+    await waitFor(() => {
+      expect(new URLSearchParams(router.state.location.search).get("clinics")).toBe("1");
+    });
+    expect(router.state.historyAction).toBe("PUSH");
+
+    // 戻る 1 回で明示選択 1,3 へ、もう 1 回で一覧の外へ（暗黙状態の履歴は残らない）
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    await waitFor(() => {
+      expect(new URLSearchParams(router.state.location.search).get("clinics")).toBe("1,3");
+    });
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/elsewhere");
+    });
+  });
+
+  it("ME_QUERY_KEY のデータ更新で owners loader を再検証する（profile は根拠にしない）", async () => {
+    const queryClient = new QueryClient();
+    const loader = vi.fn(readyDataFromUrl);
+    renderList(loader, { queryClient });
+    await screen.findByText("合成飼主");
+    expect(loader).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      queryClient.setQueryData(ME_QUERY_KEY, { id: USER_ID });
+    });
+
+    await waitFor(() => {
+      expect(loader).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("ME_QUERY_KEY 以外の query 更新では再検証しない", async () => {
+    const queryClient = new QueryClient();
+    const loader = vi.fn(readyDataFromUrl);
+    renderList(loader, { queryClient });
+    await screen.findByText("合成飼主");
+
+    act(() => {
+      queryClient.setQueryData(["unrelated"], { value: 1 });
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(loader).toHaveBeenCalledTimes(1);
   });
 });
