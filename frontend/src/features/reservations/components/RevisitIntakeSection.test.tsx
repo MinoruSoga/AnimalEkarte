@@ -278,6 +278,50 @@ describe("RevisitIntakeSection", () => {
     expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
   });
 
+  it("next_cursor が空文字なら fail-closed（1 ページ目の重複取得を防ぐ）", async () => {
+    respond(body({ next_cursor: "" }));
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "さらに表示" })).not.toBeInTheDocument();
+  });
+
+  it("current 履歴の対象が current_target と別ペットなら fail-closed", async () => {
+    respond(
+      body({
+        history: [{ target: ref("77", "2"), answer: answer("x1", "1"), target_relation: "current" }],
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的x1")).not.toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
+  it("current 履歴の対象が別世代なら fail-closed", async () => {
+    respond(
+      body({
+        history: [{ target: ref("10", "1"), answer: answer("x1", "1"), target_relation: "current" }],
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的x1")).not.toBeInTheDocument();
+  });
+
+  it("current_target が null なのに current 履歴があれば fail-closed", async () => {
+    respond(
+      body({
+        availability: "target_unresolved",
+        current_target: null,
+        history: [{ target: ref(), answer: answer("x1", "1"), target_relation: "current" }],
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的x1")).not.toBeInTheDocument();
+  });
+
   it("answered なのに content_available と latest_answer が不整合なら fail-closed", async () => {
     respond(
       body({

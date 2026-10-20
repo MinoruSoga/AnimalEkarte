@@ -129,14 +129,39 @@ function isHistoryEntry(value: unknown): value is RevisitIntakeHistoryEntry {
   );
 }
 
+/**
+ * target_relation=current の履歴は current_target と同一対象（予約・ペット・世代・target）でなければならない。
+ * 別ペット／別世代が current と偽装された応答を「訂正履歴」として出さない（fail-closed）。
+ */
+function isCurrentRelationConsistent(
+  entry: RevisitIntakeHistoryEntry,
+  currentTarget: RevisitIntakeCurrentTarget | null,
+): boolean {
+  if (entry.target_relation !== "current") return true;
+  if (currentTarget === null) return false;
+  const expected = currentTarget.ref;
+  return (
+    entry.target.appointment_id === expected.appointment_id &&
+    entry.target.pet_id === expected.pet_id &&
+    entry.target.target_generation === expected.target_generation &&
+    (expected.target_id === null || entry.target.target_id === expected.target_id)
+  );
+}
+
 function isStaffRead(value: unknown): value is RevisitIntakeStaffReservationRead {
   if (!isRecord(value)) return false;
+  if (!(value.current_target === null || isCurrentTarget(value.current_target))) return false;
+  const currentTarget = value.current_target as RevisitIntakeCurrentTarget | null;
   return (
     (value.availability === "available" || value.availability === "target_unresolved") &&
     Array.isArray(value.history) &&
     value.history.every(isHistoryEntry) &&
-    (value.next_cursor === null || typeof value.next_cursor === "string") &&
-    (value.current_target === null || isCurrentTarget(value.current_target))
+    (value.history as RevisitIntakeHistoryEntry[]).every((h) =>
+      isCurrentRelationConsistent(h, currentTarget),
+    ) &&
+    // 空文字 cursor は「次ページあり」と誤解され 1 ページ目を重複取得するため契約外として拒否する。
+    (value.next_cursor === null ||
+      (typeof value.next_cursor === "string" && value.next_cursor !== ""))
   );
 }
 
