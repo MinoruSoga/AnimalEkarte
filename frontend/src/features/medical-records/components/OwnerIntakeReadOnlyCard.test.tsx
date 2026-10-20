@@ -164,7 +164,7 @@ describe("OwnerIntakeReadOnlyCard — bound・その他の状態", () => {
     expect(await screen.findByText("未回答")).toBeInTheDocument();
     expect(screen.getByText("この予約の飼主事前問診の回答はありません。")).toBeInTheDocument();
     expect(screen.getByText(/飼主が LINE から送信すると/)).toBeInTheDocument();
-    expect(screen.getByText(/問診タブに記録してください/)).toBeInTheDocument();
+    expect(screen.getByText(/スタッフ用の問診欄に記録してください/)).toBeInTheDocument();
   });
 
   it("content_available=false は本文を出さず「回答済み（本文は閲覧できません）」", async () => {
