@@ -6,7 +6,7 @@
 | 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。[台帳・会員区分・LINE希望の共同確認](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)を追加。具体的wire／DB変更は未実施 |
 | 実装状態 | 下記限定ソースを2026-10-15に静的照合。全writer・HTTP型・DB・実権限の再監査は未実施 |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15） |
+| 文書確認日 | 2026-10-20死亡取消追従（従来確認2026-10-17） |
 
 業務FRとACは[台帳lifecycle](../../../spec/domains/owners-pets/lifecycle.md)が正本。画面詳細の重複、API YAML・DB定義の複製をしない。wireは[API](../../../../backend/docs/api.yaml)、DBはmigrations、writer境界は[カタログ](../../../architecture/model-write-owner-catalog.md)。
 
@@ -22,6 +22,13 @@
 | 全医院動物種 | pet.AnimalSpecies | system-admin限定、CRUD/reorder＋監査same-tx |
 | 死亡／復活 | 専用HandlePetDeath/HandlePetRevival | generic UpdatePetInputにstatusなし。D15の外部連携と区別 |
 | 配信除外／注意／LINE ID／送信／共有 | owner／LINE専用経路 | 通常飼主form全体のrollback対象ではない。外部送信はcommitと到達を別結果 |
+
+<a id="pet-revival-target-gap"></a>
+### 誤登録取消の目標と現行差（2026-10-20追従）
+
+[本人承認済みの死亡誤登録取消](../../../spec/domains/owners-pets/lifecycle.md#pet-death-misregistration-undo-20261020)では取消理由を必須とし、医院・患者・操作権限と現在状態を検証した専用writerで、取消による状態変更と変更前後・actor・理由を含む取消履歴を同じtransactionで保存する。理由未入力・履歴保存失敗では状態変更を確定しない。取消だけで予約・通知を自動再開せず、生前分の後日入力のために取消を要求しない。
+
+現行の[HandlePetRevival](../../../../backend/internal/lstep/lstep_lifecycle_service.go)は理由引数を持たず、状態変更と一次監査 `pet_revival` はsame-txだが、その監査に取消理由・変更前後を渡していない。commit後には既存のtag再同期がある。これは現行観察であり、上記目標への適合や予約／通知の再開許可を意味しない。理由入力・受渡しと履歴内容の充足は未実装差分として扱い、API／DB／実装の変更と実機受入は今回未実施。新grant・職種条件は追加しない。
 
 死亡状態を保つ生前診療の後日入力・誤記訂正・退院処理・精算は、追加承認された[各領域の専用経路](../../../spec/shared/clinical-safety.md)で理由と履歴を残す。これらを死亡／復活writerへ変換したり、generic status PATCHを解禁したりしない。台帳deceasedを維持し、未来の新規予約・実施の死亡ゲートと区別する。
 

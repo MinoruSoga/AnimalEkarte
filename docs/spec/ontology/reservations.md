@@ -152,3 +152,7 @@ flowchart LR
 採用する予約時間はコース時間（なしなら区分時間）と選択option時間の合計。マスタ現在値と予約採用時の値を区別し、保存済み予約をマスタ改定で自動変更しない。選択変更時の再計算・終了候補表示・延長時既決チェックは[予約正本](../domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)へ。AC-reservations-single-course-limit／AC-reservations-course-option-time-unset／AC-reservations-course-option-edit-duration／AC-reservations-course-option-compatibility／AC-reservations-no-course-option-configuration等を追跡する。時間計算を価格計算へ連動させない。
 
 [利用者ごとの日次/月次予約件数制限](../screens/28-line-reservation.md#line-no-user-daily-monthly-limits-20261017)は引き継がない。コース最大1・個人対応可能性・医院能力・ホテル同時宿泊頭数の既決制約は別で、撤回しない。
+
+## 医院設定とLINE受付範囲（2026-10-20）
+
+[本人回答の正本](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)により、医院の営業時間・休診日を共通基準、LINE受付可能時間をその範囲内の別設定として区別する。分類別・担当者別の開始時刻設定と勤務／能力を統合せず、院内の警告付き時間外登録とLINEの受付拒否を維持する。レジ営業日・既存保存値の自動上書きへ拡張しない。

@@ -80,7 +80,7 @@
 
 [D03の死亡後適用](../../../spec/domains/medical-records/lifecycle.md#medical-record-deceased-retrospective)は既決の専用過去入力を死亡登録済みの生前診療にも適用し、誤記訂正を理由・履歴付きで可能にする。専用経路は死亡状態を維持したまま、生前分であること・対象医院／患者／元記録・必要権限・理由・現在版を保存時に再照合する。実施時点不明は推測せず確認まで停止。原記録と前後差分・理由・actor／確認者・入力時刻・元記録関連を保持し、必要履歴失敗は部分成功にしない。結果不明は元操作を照合し別IDで重複作成しない。現行の通常create/PATCH・一律死亡拒否を専用経路の実装済み証拠にせず、API／版／receipt／権限対応は適合確認に残す。死亡状態の一時解除、通常writeへの無制限な死亡gate解除で代用しない。
 
-退院はD05、精算はD10へ。通常治療createでinventory指定時に起こる現行減算は専用後日入力／訂正へ発火させない。未実施プランの作成を実施済みや実物使用／出庫に変換しない。D03の既存AC-retrospective-reason-physician／retrospective-existingへ死亡登録済みのケースを追加して追跡し、初回過去入力合意の再承認・実装PASSには数えない。
+退院はD05、精算はD10へ。通常治療createでinventory指定時に起こる旧減算は専用後日入力／訂正へ発火させない。[最新の出庫確定回答](../../../spec/domains/inventory/business-rules.md#inventory-outflow-confirmation-20261020)では院内実施／実引渡し時の担当スタッフの明示確定とし、通常カルテ保存だけの減算も目標に残さない。未実施プランの作成を実施済みや実物使用／出庫に変換しない。D03の既存AC-retrospective-reason-physician／retrospective-existingへ死亡登録済みのケースを追加して追跡し、初回過去入力合意の再承認・実装PASSには数えない。
 
 ## 削除・訂正・過去入力
 
