@@ -28,7 +28,7 @@ type petRowLockFinder interface {
 // SwapCages は2件の入院の cage_id を単一トランザクションで交換する。
 // expectedCageIDs は (idA, idB) と同順の表示時割当で、不一致は409で拒否する。
 // 連結ケージが絡む場合でも通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
-// 占有グループ宛は 409 で両方ロールバックする（半スワップ状態を残さない）。
+// 当事者以外が占有するケージ/グループ宛は 409 で両方ロールバックする（半スワップ状態を残さない）。
 func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
 	if idA == idB {
 		return nil, nil, apperrors.WrapInvalidInput("同一の入院は入れ替えできません")
@@ -135,13 +135,12 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		if moves[1].target < moves[0].target {
 			moves[0], moves[1] = moves[1], moves[0]
 		}
+		// EMR-461: 交換当事者2件の占有はこの tx で入れ替わるため占有集計から除外する
+		// （使用中同士の交換を禁止しない）。第三者の占有があれば従来どおり 409。
+		swapping := []uint64{first.ID, second.ID}
 		for _, mv := range moves {
-			var selfOccupiesCageID *uint64
-			if isOccupyingHospitalizationStatus(mv.hosp.Status) {
-				selfOccupiesCageID = mv.hosp.CageID
-			}
 			if err := s.validateCageAssignmentGuard(txCtx, clinicID, &mv.target,
-				isOccupyingHospitalizationStatus(mv.hosp.Status), selfOccupiesCageID); err != nil {
+				isOccupyingHospitalizationStatus(mv.hosp.Status), swapping); err != nil {
 				return err
 			}
 		}

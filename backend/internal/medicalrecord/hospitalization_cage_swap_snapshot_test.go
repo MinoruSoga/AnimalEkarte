@@ -33,6 +33,11 @@ func (swapSnapshotCageRepository) LockCageGroupForUpdate(_ context.Context, clin
 	return []model.Cage{{ID: id, ClinicID: clinicID}}, nil
 }
 
+// EMR-461: 未連結ケージも占有検査するため、交換当事者を除外した占有は空として返す。
+func (swapSnapshotCageRepository) CountOccupiedCagesExcludingHospitalizations(context.Context, uint64, []uint64, []uint64) (map[uint64]int64, error) {
+	return map[uint64]int64{}, nil
+}
+
 func TestHospitalizationSwapCages_RequiresDisplayedCageSnapshot(t *testing.T) {
 	cage1, cage2, cage3, cage4 := uint64(1), uint64(2), uint64(3), uint64(4)
 	for _, tc := range []struct {

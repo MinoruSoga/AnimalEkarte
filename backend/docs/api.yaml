@@ -12937,7 +12937,8 @@ paths:
         expected_cage_ids は hospitalization_ids と同じ位置の入院の表示時 cage_id を指定する。
         両入院の行ロック後に現在値と比較し、移動・割当解除による不一致は 409 で書込み前に拒否する。
         連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
-        占有グループ宛は 409 で両方ロールバックする。
+        交換当事者以外が占有するケージ/グループ宛は 409 で両方ロールバックする
+        （EMR-461: 当事者2件の占有は占有判定から除外する）。
       tags: [Hospitalizations]
       requestBody:
         required: true
@@ -12992,6 +12993,53 @@ paths:
           $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/cage-occupancy:
+    get:
+      operationId: getHospitalizationCageOccupancy
+      summary: 入院/ホテル登録フォーム用の占有ケージID一覧
+      description: >-
+        EMR-461。選択医院で未削除の admitted/reserved 入院が載っているケージ ID を返す
+        （連結構成員の ID もそのまま含む。代表の空き判定は呼び出し側が構成員を合算する）。
+        exclude_hospitalization_id を指定すると、その入院（同医院のみ）の占有行だけを除外し、
+        編集中の自己占有を他滞在の占有と誤認しない。患者・入院情報は返さない。
+        middleware は hospitalization:view、handler で選択医院の hospitalization:create
+        または hospitalization:edit を再判定する（マスタ編集権限は不要）。
+        候補表示用の読取りであり、保存時は create/update/cage-swap が現在状態を再検査して
+        競合を 409 で拒否する。
+      tags: [Hospitalizations]
+      parameters:
+        - name: exclude_hospitalization_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          description: 編集中の入院ID。同医院に存在しない場合は404。
+      responses:
+        '200':
+          description: 占有中ケージID一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [occupied_cage_ids]
+                properties:
+                  occupied_cage_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
   /hospitalizations/{id}:

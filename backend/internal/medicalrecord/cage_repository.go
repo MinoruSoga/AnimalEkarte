@@ -173,6 +173,13 @@ type CageMergeRepository interface {
 	// ListOccupiedCageIDs は未削除の admitted/reserved 入院が1件以上乗っている
 	// ケージ id を全件返す（連結ピッカーの占有表示専用。ページングなし）。
 	ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error)
+	// CountOccupiedCagesExcludingHospitalizations は CountOccupiedCages と同じ占有集計から
+	// excludeHospitalizationIDs の入院行だけを除外する（EMR-461: 同一 tx で移動・解放される
+	// 更新対象/交換当事者の占有を、他滞在の占有と誤認しないため）。空なら除外しない。
+	CountOccupiedCagesExcludingHospitalizations(ctx context.Context, clinicID uint64, cageIDs, excludeHospitalizationIDs []uint64) (map[uint64]int64, error)
+	// ListOccupiedCageIDsExcludingHospitalization は ListOccupiedCageIDs と同じ占有集合から
+	// excludeHospitalizationID の入院行だけを除外する（EMR-461 入院フォームの空き候補 read）。
+	ListOccupiedCageIDsExcludingHospitalization(ctx context.Context, clinicID uint64, excludeHospitalizationID *uint64) ([]uint64, error)
 	// SetMergedInto は memberIDs の merged_into_cage_id に representativeID を設定する。
 	SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
 	// ClearMergedInto は representativeID を代表とする全構成ケージの
@@ -291,6 +298,56 @@ func (r *cageRepositoryImpl) CountOccupiedCages(ctx context.Context, clinicID ui
 		counts[row.CageID] = row.N
 	}
 	return counts, nil
+}
+
+func (r *cageRepositoryImpl) CountOccupiedCagesExcludingHospitalizations(ctx context.Context, clinicID uint64, cageIDs, excludeHospitalizationIDs []uint64) (map[uint64]int64, error) {
+	counts := make(map[uint64]int64, len(cageIDs))
+	if len(cageIDs) == 0 {
+		return counts, nil
+	}
+	var rows []struct {
+		CageID uint64 `gorm:"column:cage_id"`
+		N      int64  `gorm:"column:n"`
+	}
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Select("cage_id, COUNT(*) AS n").
+		Where("cage_id IN ?", cageIDs).
+		Where("deleted_at IS NULL").
+		Where("status IN ?", []string{
+			string(model.HospitalizationStatusAdmitted),
+			string(model.HospitalizationStatusReserved),
+		})
+	if len(excludeHospitalizationIDs) > 0 {
+		q = q.Where("id NOT IN ?", excludeHospitalizationIDs)
+	}
+	if err := q.Group("cage_id").Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	for _, row := range rows {
+		counts[row.CageID] = row.N
+	}
+	return counts, nil
+}
+
+func (r *cageRepositoryImpl) ListOccupiedCageIDsExcludingHospitalization(ctx context.Context, clinicID uint64, excludeHospitalizationID *uint64) ([]uint64, error) {
+	ids := []uint64{}
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Distinct().
+		Where("cage_id IS NOT NULL").
+		Where("deleted_at IS NULL").
+		Where("status IN ?", []string{
+			string(model.HospitalizationStatusAdmitted),
+			string(model.HospitalizationStatusReserved),
+		})
+	if excludeHospitalizationID != nil {
+		q = q.Where("id <> ?", *excludeHospitalizationID)
+	}
+	if err := q.Pluck("cage_id", &ids).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", "")
+	}
+	return ids, nil
 }
 
 func (r *cageRepositoryImpl) ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {

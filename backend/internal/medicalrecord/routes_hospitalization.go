@@ -8,6 +8,9 @@ import (
 
 func (h *Handler) registerHospitalizationRoutes(hospitalizations *gin.RouterGroup, perm medicalRoutePerm) {
 	hospitalizations.GET("", perm(model.ResourceHospitalization, "view"), h.hospitalization.ListHospitalizations)
+	// EMR-461: 入院フォームの空き候補用の占有ケージID read（handler で選択医院の
+	// create/edit を再判定する）。/:id より前の静的セグメント登録。
+	hospitalizations.GET("/cage-occupancy", perm(model.ResourceHospitalization, "view"), h.hospitalization.GetCageOccupancy)
 	hospitalizations.GET("/:id", perm(model.ResourceHospitalization, "view"), h.hospitalization.GetHospitalization)
 	hospitalizations.POST("", perm(model.ResourceHospitalization, "create"), h.hospitalization.CreateHospitalization)
 	hospitalizations.PATCH("/:id", perm(model.ResourceHospitalization, "edit"), h.hospitalization.UpdateHospitalization)
