@@ -24,7 +24,7 @@
 
 ## Spec Kit routing
 
-For feature-change requests (new capability or behavior change), check whether `docs/work/spec-kit/<feature>/spec.md` exists for the change. If not, invoke `$speckit-specify` first (`SPECIFY_FEATURE_DIRECTORY=docs/work/spec-kit/<meaningful-name>`), then `$speckit-clarify` before planning. Bug fixes, docs-only edits, and existing scoped Plane tickets do not require this. Skill invocation is not implementation permission; Plane remains execution SoT. Operating procedure: [spec-kit.md](../docs/ops/spec-kit.md).
+For feature-change requests (new capability or behavior change), check whether `docs/work/spec-kit/<feature>/spec.md` exists for the change. If not, invoke `$speckit-specify` first (`SPECIFY_FEATURE_DIRECTORY=docs/work/spec-kit/<meaningful-name>`), then `$speckit-clarify` before planning. Bug fixes, docs-only edits, and existing scoped Plane tickets do not require this. Skill invocation is not implementation permission; Plane remains execution SoT. Canonical business specs live in `docs/spec/` (per-domain `domains/`); spec-kit artifacts index change requests against canonical FR-IDs and do not copy spec bodies. Operating procedure: [spec-kit.md](../docs/ops/spec-kit.md).
 
 ---
 
