@@ -658,8 +658,37 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     first.unmount();
 
     useIntake(bad("2026-13-45T10:30:00+09:00"));
+    const second = renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    second.unmount();
+
+    // 暦上存在しない日・RFC3339 範囲外の時は Date.parse が正規化して通してしまうため明示拒否。
+    useIntake(bad("2026-02-30T10:30:00+09:00"));
+    const third = renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    third.unmount();
+
+    useIntake(bad("2026-01-01T24:00:00Z"));
     renderCard();
     expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("閏日の offset 付き received_at（UTC では前日）は受理し JST で表示する", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "1",
+          answer_state: "answered",
+          latest_answer: { ...answer("1"), received_at: "2024-02-29T00:00:00+09:00" },
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByText(/受信: 2024\/02\/29 00:00/)).toBeInTheDocument();
   });
 
   it("読込中は aria-busy の skeleton（role=status）を出す", async () => {

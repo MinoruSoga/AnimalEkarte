@@ -116,14 +116,31 @@ function nullableChoice(value: unknown, labels: Readonly<Record<string, string>>
   throw new Error("revisit-intake: invalid answer");
 }
 
-// RFC3339（UTC offset 必須）。offset 無し・日付のみ・解釈不能な値は契約外。
+// RFC3339（UTC offset 必須）。各成分を暦・時刻の範囲で検証する。
+// UTC と local の暦日は比較しない（offset 付きの正当な値は UTC で別日になりうる）。
 const RFC3339_WITH_OFFSET =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-](\d{2}):(\d{2}))$/;
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
 
 function isRfc3339(value: unknown): value is string {
-  return (
-    typeof value === "string" && RFC3339_WITH_OFFSET.test(value) && !Number.isNaN(Date.parse(value))
-  );
+  if (typeof value !== "string") return false;
+  const m = RFC3339_WITH_OFFSET.exec(value);
+  if (!m) return false;
+  const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > daysInMonth(year, month)) return false;
+  if (hour > 23 || minute > 59 || second > 60) return false;
+  if (m[8] !== undefined && (Number(m[8]) > 23 || Number(m[9]) > 59)) return false;
+  // 閏秒（:60）は Date.parse が解釈しない実装があるため 59 秒として解釈可否だけ確認する。
+  const parseable = second === 60 ? value.replace(/:60(?=[.Z+-])/, ":59") : value;
+  return !Number.isNaN(Date.parse(parseable));
 }
 
 function parseAnswer(value: unknown): RevisitIntakeAnswer {
