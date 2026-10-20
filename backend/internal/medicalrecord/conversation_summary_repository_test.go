@@ -42,6 +42,10 @@ func setupConversationSummaryTestDB(t *testing.T) *gorm.DB {
 		&model.ClinicalPlan{},
 	), "conversation summary fixture setup")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
+	db.Exec("TRUNCATE TABLE pets CASCADE")
+	db.Exec("TRUNCATE TABLE animal_species CASCADE")
+	db.Exec("TRUNCATE TABLE owners CASCADE")
 	ensureVaccinationTestClinics(t, db, conversationSummaryClinicA, conversationSummaryClinicB)
 	return db
 }
@@ -51,16 +55,25 @@ func makeConversationSummaryRecord(t *testing.T, db *gorm.DB, clinicID uint64, r
 	ctx := context.Background()
 	owner := makeTestOwner(t, db, clinicID, recordNo+" 飼主")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, recordNo+" ペット")
+
 	record := &model.MedicalRecord{
 		ClinicID: clinicID,
 		RecordNo: recordNo,
 		Date:     time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC),
 		OwnerID:  &owner.ID,
 		PetID:    &pet.ID,
-		Status:   model.MedicalRecordStatusDraft,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(record).Error)
 	return record
+}
+
+// fetchConversationSummaryStatusColumn は status 列の値を生SQLで読む。
+// status は #729 で Go model から削除されたが DB 列は現行001に存在する。
+func fetchConversationSummaryStatusColumn(t *testing.T, db *gorm.DB, id uint64) *string {
+	t.Helper()
+	var status *string
+	require.NoError(t, db.Raw("SELECT status FROM medical_records WHERE id = ?", id).Scan(&status).Error)
+	return status
 }
 
 func fetchConversationSummaryRecordRow(t *testing.T, db *gorm.DB, id uint64) *model.MedicalRecord {
@@ -427,6 +440,7 @@ func TestConversationSummaryRepository_SaveLeavesOtherColumnsUntouched(t *testin
 	require.NoError(t, db.WithContext(ctx).Create(plan).Error)
 
 	before := fetchConversationSummaryRecordRow(t, db, record.ID)
+	beforeStatus := fetchConversationSummaryStatusColumn(t, db, record.ID)
 	beforePlan := &model.ClinicalPlan{}
 	require.NoError(t, db.WithContext(ctx).First(beforePlan, plan.ID).Error)
 
@@ -446,10 +460,11 @@ func TestConversationSummaryRepository_SaveLeavesOtherColumnsUntouched(t *testin
 	require.NotNil(t, after.ConversationSummary)
 	assert.Equal(t, "他所見を壊さないことの確認", *after.ConversationSummary)
 
-	// 他の診療記録列は不変（負例確認）。
+	// 他の診療記録列は不変（負例確認）。updated_at も非表示保存で進めない
+	// （UpdateColumns により自動タイムスタンプを回避）。
 	assert.Equal(t, before.RecordNo, after.RecordNo)
 	assert.True(t, before.Date.Equal(after.Date), "date は不変であること")
-	assert.Equal(t, before.Status, after.Status)
+	assert.True(t, before.UpdatedAt.Equal(after.UpdatedAt), "updated_at は会話要約の保存で進まないこと")
 	assert.Equal(t, before.Version, after.Version, "会話要約の保存はカルテ version を進めない")
 	assert.Equal(t, before.OwnerID, after.OwnerID)
 	assert.Equal(t, before.PetID, after.PetID)
@@ -457,6 +472,7 @@ func TestConversationSummaryRepository_SaveLeavesOtherColumnsUntouched(t *testin
 	assert.Equal(t, before.RecommendationReason, after.RecommendationReason)
 	assert.Equal(t, before.ClinicalSetGeneration, after.ClinicalSetGeneration)
 	assert.Equal(t, before.ClinicalSetDigest, after.ClinicalSetDigest)
+	assert.Equal(t, beforeStatus, fetchConversationSummaryStatusColumn(t, db, record.ID), "status 列は保存前後で不変であること")
 
 	// 診療所見・診断・方針（clinical_plans）も不変。
 	assert.Equal(t, beforePlan.PhysicalExam, afterPlan.PhysicalExam)

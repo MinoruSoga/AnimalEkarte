@@ -121,6 +121,8 @@ func (r *conversationSummaryRepository) FindByMedicalRecordID(ctx context.Contex
 // Save は会話要約3列のみを原子的に更新する。
 //
 //   - 対象は clinic_id + medical_record_id で限定する（他医院・他カルテ・他の診療記録列は触らない）。
+//     UpdateColumns を使うため updated_at 等の自動タイムスタンプも進めない
+//     （非表示保存が通常カルテの「最終更新」に見えることを防ぐ）。
 //   - revision は UPDATE 式 COALESCE(conversation_summary_revision, 0) + 1 で採番する。
 //     read-modify-write を避けるため、同時保存でも版が重複しない。旧未保存（NULL）からの
 //     初回保存は 1 になる。
@@ -129,6 +131,8 @@ func (r *conversationSummaryRepository) FindByMedicalRecordID(ctx context.Contex
 //     本commandの意図と一致する再送（期待版が古い場合を含む）は成功として返す。
 //   - 0 行更新で内容が異なる理由は「期待版不一致」「対象なし」の2つなので、読戻しで区別し、
 //     期待版不一致だけを conflict に正規化する（対象なしは NotFound）。
+//   - UPDATE が行に作用したあとは読戻し値に他writerの後発更新（LWW）が混ざりうるが、
+//     RowsAffected>0 を commit済み成功の根拠として成功を返す（conflict へ反転しない）。
 //   - 更新が commit された後の読戻し失敗は成功を失敗へ反転させない
 //     （backend/CLAUDE.md「commit済みの成功を後段の再取得errorで失敗応答へ反転させない」）。
 //     Revision は unknown（nil）として返し、呼び出し側の同一要求再送は冪等に no-op になる。
@@ -144,7 +148,7 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 		// 保存済み revision は CHECK 制約により 1 以上なので、0 は「未保存」と一意に対応する。
 		q = q.Where("COALESCE(conversation_summary_revision, 0) = ?", *cmd.ExpectedRevision)
 	}
-	result := q.Updates(map[string]any{
+	result := q.UpdateColumns(map[string]any{
 		"conversation_summary":          cmd.Summary,
 		"conversation_summary_source":   cmd.Source,
 		"conversation_summary_revision": gorm.Expr("COALESCE(conversation_summary_revision, 0) + 1"),
@@ -168,6 +172,11 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 			}, nil
 		}
 		return nil, err
+	}
+	if result.RowsAffected > 0 {
+		// 本commandの書込みは commit 済み。読戻し値が他writerの後発更新（LWW）で
+		// 本commandと異なっていても、commit済みの成功を conflict へ反転させない。
+		return current, nil
 	}
 	if conversationSummaryMatches(current, cmd) {
 		// 同一内容の再送（期待版が古い場合を含む）。revision も含め保存済みの値をそのまま返す。
