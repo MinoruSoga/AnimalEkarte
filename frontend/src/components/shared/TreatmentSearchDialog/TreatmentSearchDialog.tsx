@@ -119,7 +119,14 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
     vaccines.forEach((v) => {
       if (v.isActive) {
-        items.push({ id: v.id, name: v.name, unitPrice: v.price, category: "予防" });
+        items.push({
+          id: v.id,
+          name: v.name,
+          unitPrice: v.price,
+          category: "予防",
+          isNonInsurance: v.insuranceSetting,
+          insuranceContract: "master",
+        });
       }
     });
 

@@ -63,7 +63,7 @@ func TestUpdateVaccineRequest_ToServiceInput(t *testing.T) {
 	interval := ""
 	parentID := uint64(0)
 	sortOrder := 0
-	req := updateVaccineRequest{
+	req := updateVaccineRequest{Version: 1,
 		Name:          &name,
 		Price:         &price,
 		IsActive:      &isActive,
@@ -107,7 +107,7 @@ func TestUpdateVaccineRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestUpdateVaccineRequest_ToServiceInput_NilFields(t *testing.T) {
-	req := updateVaccineRequest{}
+	req := updateVaccineRequest{Version: 1}
 
 	input := req.toServiceInput()
 

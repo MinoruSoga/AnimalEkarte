@@ -112,6 +112,9 @@ func wireMastersHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 		NewCheckupTypeFieldRepository(db), NewCheckupFieldResultRepository(db), nil, tx,
 	))
 
+	// Apply the audited vaccine consumer independently of the shared master setup.
+	vaccineSvc = NewVaccineServiceWithAudit(NewVaccineRepository(db), MasterInsuranceWriteDependencies{Transactor: tx, Audit: masterTestAudit{}})
+
 	if forbidden != 0 {
 		g := clinicIDGuard{t: t, forbiddenClinicID: forbidden}
 		chiefSvc = &chiefQueryGuard{ChiefComplaintTypeService: chiefSvc, g: g}

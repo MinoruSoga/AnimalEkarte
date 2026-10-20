@@ -2917,8 +2917,14 @@ components:
           format: double
     Vaccine:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -2956,6 +2962,10 @@ components:
           description: 在庫ID
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 応答のnullは旧欠落、trueは保険対象外、falseは保険対象。requestはCreateVaccineRequest/UpdateVaccineRequestを参照。
         created_at:
           type: string
           format: date-time
@@ -2964,6 +2974,67 @@ components:
           type: string
           format: date-time
           readOnly: true
+    CreateVaccineRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        species:
+          type: string
+          enum: [dog, cat, both]
+        interval:
+          type: string
+        is_non_insurance:
+          type: boolean
+          description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
+    UpdateVaccineRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        species:
+          type: string
+          enum: [dog, cat, both]
+        interval:
+          type: string
+        is_non_insurance:
+          type: boolean
+          description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
+        clear_parent_id:
+          type: boolean
     AnimalSpecies:
       type: object
       required: [name]
@@ -17851,7 +17922,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vaccine'
+              $ref: '#/components/schemas/CreateVaccineRequest'
       responses:
         '201':
           description: 登録成功
@@ -17955,7 +18026,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vaccine'
+              $ref: '#/components/schemas/UpdateVaccineRequest'
       responses:
         '200':
           description: 更新成功
@@ -17971,6 +18042,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -236,6 +237,7 @@ func TestCreateVaccine(t *testing.T) {
 				createFn: func(_ context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "5種混合ワクチン", input.Name)
+					assert.Equal(t, uint64(1), *input.ActorID)
 					return &model.Vaccine{ID: 1, Name: input.Name}, nil
 				},
 			},
@@ -300,6 +302,7 @@ func TestCreateVaccine(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			tt.setupCtx(c)
 
+			setStaffID(c)
 			h.CreateVaccine(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -326,10 +329,13 @@ func TestUpdateVaccine(t *testing.T) {
 		{
 			name:     "updates vaccine successfully",
 			paramID:  "1",
-			body:     map[string]any{"name": "更新ワクチン"},
+			body:     map[string]any{"version": int64(4), "name": "更新ワクチン"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccineService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(1), *input.ActorID)
+					assert.Equal(t, int64(4), input.Version)
 					require.NotNil(t, input.Name)
 					assert.Equal(t, "更新ワクチン", *input.Name)
 					return &model.Vaccine{ID: 1, Name: *input.Name}, nil
@@ -340,7 +346,7 @@ func TestUpdateVaccine(t *testing.T) {
 		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "1",
-			body:       map[string]any{"name": "テスト"},
+			body:       map[string]any{"version": int64(4), "name": "テスト"},
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockVaccineService{},
 			wantStatus: http.StatusUnauthorized,
@@ -348,7 +354,7 @@ func TestUpdateVaccine(t *testing.T) {
 		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "xyz",
-			body:       map[string]any{"name": "テスト"},
+			body:       map[string]any{"version": int64(4), "name": "テスト"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockVaccineService{},
 			wantStatus: http.StatusBadRequest,
@@ -356,7 +362,7 @@ func TestUpdateVaccine(t *testing.T) {
 		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
-			body:     map[string]any{"name": "テスト"},
+			body:     map[string]any{"version": int64(4), "name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccineService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateVaccineInput) (*model.Vaccine, error) {
@@ -381,6 +387,7 @@ func TestUpdateVaccine(t *testing.T) {
 			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
 			tt.setupCtx(c)
 
+			setStaffID(c)
 			h.UpdateVaccine(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -560,6 +567,46 @@ func TestVaccineSelectedClinicGrant(t *testing.T) {
 			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
 			tt.invoke(h, c)
 			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}
+
+func TestVaccineWriteHandlers_RequireAuthenticatedActor(t *testing.T) {
+	for _, action := range []string{"create", "update"} {
+		t.Run(action, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"version":1,"name":"valid","is_non_insurance":false}`))
+			c.Request.Header.Set("Content-Type", "application/json")
+			setClinicID(c)
+			c.Params = gin.Params{{Key: "id", Value: "17"}}
+			h := NewVaccineHandler(&mockVaccineService{})
+			if action == "create" {
+				h.CreateVaccine(c)
+			} else {
+				h.UpdateVaccine(c)
+			}
+			require.Equal(t, http.StatusUnauthorized, w.Code)
+		})
+	}
+}
+
+func TestUpdateVaccine_RequiresEditingVersion(t *testing.T) {
+	for _, body := range []string{`{"name":"edit"}`, `{"version":null,"name":"edit"}`, `{"version":0,"name":"edit"}`, `{"version":-1,"name":"edit"}`} {
+		t.Run(body, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "17"}}
+			setClinicID(c)
+			setStaffID(c)
+			h := NewVaccineHandler(&mockVaccineService{updateFn: func(context.Context, uint64, uint64, *UpdateVaccineInput) (*model.Vaccine, error) {
+				t.Fatal("invalid version must not reach service")
+				return nil, nil
+			}})
+			h.UpdateVaccine(c)
+			require.Equal(t, http.StatusBadRequest, w.Code)
 		})
 	}
 }

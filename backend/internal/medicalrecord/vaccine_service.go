@@ -12,6 +12,7 @@ import (
 
 // CreateVaccineInput はワクチン作成の入力DTO
 type CreateVaccineInput struct {
+	ActorID     *uint64
 	Name        string
 	Price       *int64
 	IsActive    bool
@@ -20,10 +21,14 @@ type CreateVaccineInput struct {
 	Interval    string
 	ParentID    *uint64
 	SortOrder   int
+	// IsNonInsurance が nil の場合は新規初期値（保険対象外=true）を保存する。
+	IsNonInsurance *bool
 }
 
 // UpdateVaccineInput はワクチン更新のサービス入力 DTO
 type UpdateVaccineInput struct {
+	Version       int64
+	ActorID       *uint64
 	Name          *string
 	Price         *int64
 	IsActive      *bool
@@ -33,17 +38,24 @@ type UpdateVaccineInput struct {
 	ParentID      *uint64
 	ClearParentID bool
 	SortOrder     *int
+	// IsNonInsurance が nil の場合は変更しない（旧欠落値を推測補完しない）。
+	IsNonInsurance *bool
 }
 
+// newVaccineDefaultNonInsurance は新規登録時の保険設定初期値（対象外）。
+// 再編集・既存データの読取には適用しない（AC-accounting-item-insurance-default-unresolved）。
+const newVaccineDefaultNonInsurance = true
+
 const (
-	colVaccineName        = "name"
-	colVaccinePrice       = "price"
-	colVaccineIsActive    = "is_active"
-	colVaccineDescription = "description"
-	colVaccineSpecies     = "species"
-	colVaccineInterval    = "interval"
-	colVaccineParentID    = "parent_id"
-	colVaccineSortOrder   = "sort_order"
+	colVaccineName           = "name"
+	colVaccinePrice          = "price"
+	colVaccineIsActive       = "is_active"
+	colVaccineDescription    = "description"
+	colVaccineSpecies        = "species"
+	colVaccineInterval       = "interval"
+	colVaccineParentID       = "parent_id"
+	colVaccineSortOrder      = "sort_order"
+	colVaccineIsNonInsurance = "is_non_insurance"
 )
 
 func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
@@ -70,6 +82,9 @@ func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
 	if input.SortOrder != nil {
 		fields[colVaccineSortOrder] = *input.SortOrder
 	}
+	if input.IsNonInsurance != nil {
+		fields[colVaccineIsNonInsurance] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -82,10 +97,20 @@ type VaccineService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type vaccineService struct{ repo VaccineRepository }
+type vaccineService struct {
+	repo            VaccineRepository
+	insuranceWrites MasterInsuranceWriteDependencies
+}
 
+// NewVaccineService preserves read-only construction; audited writes fail closed
+// until NewVaccineServiceWithAudit supplies the shared dependencies.
 func NewVaccineService(repo VaccineRepository) VaccineService {
 	return &vaccineService{repo: repo}
+}
+
+// NewVaccineServiceWithAudit enables the shared atomic setting/audit boundary.
+func NewVaccineServiceWithAudit(repo VaccineRepository, deps MasterInsuranceWriteDependencies) VaccineService {
+	return &vaccineService{repo: repo, insuranceWrites: deps}
 }
 
 func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
@@ -103,6 +128,31 @@ func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 	return result, nil
 }
 func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	var result *model.Vaccine
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		created, err := s.create(txCtx, clinicID, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		result, err = s.repo.FindByID(txCtx, clinicID, created.ID)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *vaccineService) create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
@@ -122,16 +172,22 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 		s := model.VaccineSpecies(*input.Species)
 		species = &s
 	}
+	sortOrder := input.SortOrder
+	isNonInsurance := newVaccineDefaultNonInsurance
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
+	}
 	vaccine := &model.Vaccine{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Species:     species,
-		Interval:    input.Interval,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
+		ClinicID:       clinicID,
+		Name:           input.Name,
+		Price:          input.Price,
+		IsActive:       input.IsActive,
+		Description:    input.Description,
+		Species:        species,
+		Interval:       input.Interval,
+		ParentID:       input.ParentID,
+		SortOrder:      &sortOrder,
+		IsNonInsurance: &isNonInsurance,
 	}
 	if err := s.repo.Create(ctx, vaccine); err != nil {
 		if conflict := apperrors.AsNameUniqueConflict(
@@ -151,8 +207,38 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get vaccine")
+	if input.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput("version must be positive")
+	}
+	var result *model.Vaccine
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.update", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var oldSetting *bool
+		if before.IsNonInsurance != nil {
+			value := *before.IsNonInsurance
+			oldSetting = &value
+		}
+		result, err = s.update(txCtx, clinicID, id, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance, SkipInsuranceAudit: input.IsNonInsurance == nil}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *vaccineService) update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
 		return nil, err
@@ -193,6 +279,18 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 }
 
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if s.insuranceWrites.Transactor == nil {
+		return apperrors.WrapInternalServerError("vaccine delete requires transactor")
+	}
+	return s.insuranceWrites.Transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
+		return s.delete(txCtx, clinicID, id)
+	})
+}
+
+func (s *vaccineService) delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get vaccine")
 	}

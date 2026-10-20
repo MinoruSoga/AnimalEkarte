@@ -84,6 +84,7 @@ export function buildTreatmentTabConfigs({
       onReorder: onReorderProcedures,
     },
     vaccine: {
+      insuranceTriState: true,
       data: vaccineData,
       entityLabel: "予防接種",
       emptyMessage: "予防接種が登録されていません",
@@ -177,8 +178,13 @@ export function buildVaccineCreateRequest(data: TreatmentFormData): CreateVaccin
   };
 }
 
-export function buildVaccineUpdateRequest(data: TreatmentFormData): UpdateVaccineRequest {
-  const base = buildVaccineCreateRequest(data);
+export function buildVaccineUpdateRequest(
+  data: TreatmentFormData,
+): UpdateVaccineRequest & { version: number } {
+  const base = {
+    ...buildVaccineCreateRequest(data),
+    version: requireMasterEditVersion(data.version),
+  };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }

@@ -290,14 +290,14 @@ func TestVaccineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.Vaccine) error { *created = true; return nil },
 		}
-		return NewVaccineService(repo)
+		return NewVaccineServiceWithAudit(repo, masterTestWriteDependencies())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateVaccineInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateVaccineInput{ActorID: masterTestActorID(), Name: "x", ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "vaccine must NOT be persisted referencing another clinic's parent vaccine")
@@ -307,7 +307,7 @@ func TestVaccineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateVaccineInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateVaccineInput{ActorID: masterTestActorID(), Name: "x", ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -324,23 +324,23 @@ func TestVaccineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		repo := &mockVaccineRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
 				if id == entityID || id == ownedParentID {
-					return &model.Vaccine{ID: id}, nil
+					return &model.Vaccine{ID: id, Version: 1}, nil
 				}
 				return nil, apperrors.WrapNotFound("vaccine", "foreign")
 			},
 			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateVaccineInput) (*model.Vaccine, error) {
 				*updated = true
-				return &model.Vaccine{ID: id}, nil
+				return &model.Vaccine{ID: id, Version: 1}, nil
 			},
 		}
-		return NewVaccineService(repo)
+		return NewVaccineServiceWithAudit(repo, masterTestWriteDependencies())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateVaccineInput{ParentID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateVaccineInput{Version: 1, ActorID: masterTestActorID(), ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "vaccine must NOT be updated to reference another clinic's parent vaccine")
@@ -350,7 +350,7 @@ func TestVaccineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateVaccineInput{ParentID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateVaccineInput{Version: 1, ActorID: masterTestActorID(), ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)
