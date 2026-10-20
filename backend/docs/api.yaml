@@ -115,10 +115,9 @@ components:
         - 00000000-0000-0000-0000-000000000000
       description: operation.ParseOperationKeyと同じlowercase hyphenated/non-nil UUID。暗黙正規化しない。
     RevisitIntakeFormVersion:
-      description: 受付可能な版は1。POSTで整数の未対応版は409 FORM_VERSION_MISMATCH、型不正は400。
+      description: 正の整数の項目定義版。現在受付可能な版は1（serverの意味検証）。POSTで整数の未対応版は409 FORM_VERSION_MISMATCH、型不正/1未満は400。応答の過去回答は旧版を保持し得る。
       type: integer
-      enum:
-      - 1
+      minimum: 1
     RevisitIntakeReceivedAt:
       type: string
       format: date-time
