@@ -540,6 +540,17 @@ HTTP methodだけでwriteを分類しない。現GETの初期行作成、内部p
 
 統合したタブの読取はowner別保存済み版と取得状態を返す。0件／未回答／読取失敗を区別し、部分取得で空配列を保存しない。親のdependency revisionは子集合の変更・追加・削除・復元でも増分する提案とする。親versionだけ、updated_at、表示順、本文hashだけでは子競合を検出済みとしない。D10の[臨床世代](../accounting/technical-spec.md#review-version-sync-proposal)とは用途を分ける。
 
+<a id="revisit-intake-record-binding-selected"></a>
+### EMR-476 再診問診の固定binding reader（root採用v3・未実装）
+
+2026-10-20の[EMR-471/472/473先行契約](../reservations/technical-spec.md#revisit-intake-api-selected-v3)と[DB契約§3–8](../../../work/db-contracts/revisit-intake.md)へ接続する。正確なwireは[api.yaml](../../../../backend/docs/api.yaml)の`GET /medical-records/{recordId}/revisit-intake`／RevisitIntakeRecordReadが正本。staffの既存medical-records:view＋clinic＋固定target.pet行別grantで読む。LINE author一致をstaffに強制せず、各履歴行の現在grantを検査する。
+
+record作成/受付captureはD03の同TXで当該targetを確保・固定参照する。未回答でもtargetだけをcaptureして受付でき、問診待ちを作らない。GET/copy/clear/Undoからbindingを変えない。現在予約targetへの追従、同日petからの推定、旧NULLのbackfillは行わない。
+
+readerはrecordのclinic/appointment/petと固定bindingを照合する。旧NULLはunbound（未特定であり未回答ではない）、不一致はmismatch、両者はtarget=null/history=[]/next_cursor=null。boundだけ保存済みtargetを返し、historyはその固定target内だけ。取得不能をunboundや未回答へ縮退させない。原文・回答版・飼主由来・受信時刻をread-onlyで表示し、スタッフ補足は既存Inquiryへ保存、notesで代用しない。
+
+runtime未実装/未検証。今回の文書PRはrecord capture、reader、DDL、生成型を実装しない。採用SHA後の契約mockと実API結合完了を区別する。後続定義はunbound/mismatch/bound、現在予約pet変更後も固定target保持、固定targetの各履歴行認可、capture失敗同TX rollback、copy/clear/Undo原文不変、取得失敗と未回答の区別。すべてNOT_RUNで、試験・Dockerは実行していない。
+
 画面のdirty管理は保存owner／field／tab世代／operationごと。active tabの既存送信境界・ヘッダー即時保存・子の独立保存を保ち、統合を理由に全タブ一括txへ変更しない。関連writeで同時成功が既に必要な操作だけはambient participantを使う。copyの成功subset・クリア基準を保存前後版に対応付け、送信中／不明を解決してから復元する。遅延autosave応答で復元後の入力世代を巻き戻さない。
 
 ### 編集権のserver資源と状態
