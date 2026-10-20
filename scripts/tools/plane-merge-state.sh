@@ -337,6 +337,19 @@ plane_throttle() {
     RUN_BUDGET_EXHAUSTED=1
     return 1
   fi
+  # A pacing sleep that would outlive the wall deadline defeats the limit;
+  # refuse it on the same deadline-aware terms as retry waits.
+  local now
+  now="$(plane_now_epoch)"
+  case "$now" in ''|*[!0-9]*)
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+    ;;
+  esac
+  if (( ms >= (RUN_DEADLINE_EPOCH - now) * 1000 )); then
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+  fi
   RUN_WAIT_BUDGET_REMAINING_MS=$(( RUN_WAIT_BUDGET_REMAINING_MS - ms ))
   plane_sleep_seconds "$(printf '%d.%03d' $(( ms / 1000 )) $(( ms % 1000 )))"
 }
@@ -588,8 +601,8 @@ sync_one_ticket() {
   local external_id comment_html list_url patch_url comment_url payload
   local reconcile_only=0
   local move_from=""
-  local max_attempts="${PLANE_MERGE_STATE_MAX_ATTEMPTS:-4}"
-  case "$max_attempts" in ''|*[!0-9]*) max_attempts=4 ;; esac
+  local max_attempts
+  max_attempts="$(plane_base10 "${PLANE_MERGE_STATE_MAX_ATTEMPTS:-4}" 4)"
   # Outcome kind for the run-level retry pass: ok / skip / permanent /
   # transient / unknown / deferred. rc: 0 ok, 1 failed, 2 unresolved
   # (unknown or deferred by the wait budget).
