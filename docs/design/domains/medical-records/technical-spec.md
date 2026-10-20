@@ -667,15 +667,21 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
 
 <a id="doctor-confirm-gate-and-price-ack-20261019"></a>
-## 医師確認 gate と金額了承の保存形態（EMR-452/462 案・2026-10-19）
-
-医師確認と会計確定の接続は2段で設計する。
+## 医師確認gateと金額了承：本人決定と最終DDLへの接続
 
 <a id="doctor-confirm-gate-revision-20261020"></a>
-**訂正（2026-10-20）**: 初版（0a8e9b3e6）の第1段「既存`billing_confirmations.status`を gate に使う」は、確定001（PR727 head 532b6b452）で billing_confirmations が除去済みのため採用不可（EMR-446 更新コメント参照）。gate の保存形態は未確定であり、医師確認集合（doctor_review_records/doctor_review_sets）と operation_bindings/operation_results へ接続する設計が別途必要（EMR-462 の着手前提）。
+本人の確定回答と最終001を優先する。`billing_confirmations.status`を残してCompleteへ追加する旧「最小gate」案は失効しており、最終DDLで廃止された表・モデルを復活させない。調査コメントへの旧案再掲を回答撤回や採用根拠にしない。
 
-金額了承の保存正本は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key一意・acknowledged_by/at）と`billing_change_events`（intent別のbefore/after・reason）を使用し、新設しない（この部分は確定001整合）。金額変更と臨床数量変更は別intentとして分離する。
+医師確認の保存形状は既存`doctor_review_sets`・`doctor_review_records`と`billings.doctor_review_set_id`へ対応させる。Complete（`POST /v1/accountings/complete`）の前提では、医院・会計・対象カルテ集合と、確認時／現在の臨床世代・digestの整合を照合する。表の存在や参照IDだけを現在有効な医師確認の証明にしない。確認前・確認不明／失効時は請求確定・精算を停止し、確認前の準備操作と金額未確定表示は可（AC-accounting-before-doctor-review）。具体的な接続・transaction参加・全writer適合は後続実装で確認し、今回新しいDDLやoperation基盤を設けない。
 
-固定期待値: 確認前Complete→拒否／確認後の金額変更→再確認必要／確認準備・未確定表示は可（AC-accounting-before-doctor-review）は存続。ただし gate の実装方式は上記の未確定設計に従う。
+金額了承は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key・acknowledged_by/at）と`billing_change_events`（intent別before/after・reason）へ接続する。**確認後の金額変更は警告了承で可能、医師再確認は不要**。薬剤・処置の追加削除や数量変更は別intentとし、医師再確認まで確定・精算を停止する。会計から治療プランを自動書換えせず、医師が差分を確認して必要な修正を行う既決境界を維持する。
 
-billing_itemsの行版（line_version）は確定001済み。designの本節は gate 方式確定まで設計未確定として扱う。
+受入は「確認前Completeは拒否」「確認後の金額変更だけなら警告了承・医師再確認なし」「薬剤処置追加削除／数量変更は再確認まで停止」「準備操作・金額未確定表示は可」を分ける。billing_items.line_version等の保存形状は存在するが、今回のモデル整合をgate・各writer・画面の実装／実機合格と扱わない。会計側の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ対応させる。
+
+具体的なgateのtransaction参加・`operation_bindings`/`operation_results`への接続設計はEMR-462の着手前に確定する。医師確認集合という保存形状の選定と、後続のgate実装方式が未確定であることを分けて扱う。方式の設計確定まではEMR-462の実装に着手しない。
+
+## EMR-368／452の後続実装境界
+
+保存時の入力者・最終更新者氏名は[本体表示の正本](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-main-author-name-display)へ従い、正常保存時のID／氏名と現在名を区別する。氏名snapshotの物理保存先、既存全writerとの原子性、旧欠落表示は未選定の実装課題であり、model合わせのために新DDLを作らない。
+
+飼主原文の独立reader EMR-477は今回phase（依存476／472）として引き継ぐ。取得時に医院・予約・pet・世代・原文版と現在認可を照合し、スタッフ記録のコピー／clear／Undoから分離する。取得失敗を未回答やスタッフ記録へ変換しない。音声／外部連携320・322全体はPhase2を維持する。reader・認可・全callerの実装確認は別受入である。

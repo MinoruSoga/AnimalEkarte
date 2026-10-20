@@ -1,5 +1,7 @@
 # EMR 予約関連票の実装・検証記録（2026-10-08）
 
+> **2026-10-19の状態補足**：[EMR-270](https://app.plane.so/baritechllc/browse/EMR-270/)は本人が解消済みと認識しているため、下記の当時のSTG再現待ちを現在の仕様・設計blockerとして残さない。以下は10/8の調査記録であり、今回の再現・修正・実機検証を意味しない。
+
 ## 作業範囲と所有
 
 Plane workspace `baritechllc` / project `EMR` の本文・最新コメント・受入条件を読み、EMR-270 / 274 / 275 / 318 / 321 を claim して Running に変更した。`origin/main` の `1b1b1c5ed` から専用 worktree `emr-reservation` / branch `fix/emr-reservation` を作成し、子担当も別 worktree で実装・レビューした。共有 main と他セッションの変更は保持した。claim は PR の受入まで保全する。

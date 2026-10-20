@@ -10,22 +10,19 @@ import (
 // DB の deleted_at 列は migration 003 以降未使用（完全 UNIQUE と immutability trigger で再オープン不可）。
 // 締め後の会計訂正は CashRegisterCloseAdjustment への追記で表現する（close 自体の reverse は productize しない）。
 type CashRegisterClose struct {
-	ID                uint64          `gorm:"primaryKey;autoIncrement"          json:"id"`
-	ClinicID          uint64          `gorm:"not null;uniqueIndex:uq_cash_register_closes_date_period" json:"clinic_id"`
-	CloseDate         time.Time       `gorm:"type:date;not null;uniqueIndex:uq_cash_register_closes_date_period" json:"close_date"`
-	Period            string          `gorm:"type:varchar(3);not null;uniqueIndex:uq_cash_register_closes_date_period" json:"period"` // "am", "pm", or "emg"
-	TheoreticalCash   int64           `gorm:"not null;default:0"                json:"theoretical_cash"`
-	ActualCash        int64           `gorm:"not null;default:0"                json:"actual_cash"`
-	CashDifference    int64           `gorm:"not null;default:0"                json:"cash_difference"`
-	CategoryBreakdown json.RawMessage `gorm:"type:jsonb;not null;default:'{}'"  json:"category_breakdown"`
-	Memo              string          `gorm:"not null;default:''"               json:"memo"`
-	ClosedBy          *uint64         `                                         json:"closed_by,omitempty"`
-	ClosedAt          time.Time       `gorm:"not null;default:now()"            json:"closed_at"`
-	CreatedAt         time.Time       `gorm:"autoCreateTime"                    json:"created_at"`
-	UpdatedAt         time.Time       `gorm:"autoUpdateTime"                    json:"updated_at"`
-
-	// Relations
-	ClosedByStaff *Staff `gorm:"foreignKey:ClosedBy" json:"closed_by_staff,omitempty" tygo:"-"`
+	ID                uint64          `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID          uint64          `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	CloseDate         time.Time       `gorm:"column:close_date;type:date;not null" json:"close_date"`
+	Period            string          `gorm:"column:period;type:varchar(3);not null" json:"period"`
+	TheoreticalCash   int64           `gorm:"column:theoretical_cash;type:bigint;not null;default:0" json:"theoretical_cash"`
+	ActualCash        int64           `gorm:"column:actual_cash;type:bigint;not null;default:0" json:"actual_cash"`
+	CategoryBreakdown json.RawMessage `gorm:"column:category_breakdown;type:jsonb;not null;default:'{}'" json:"category_breakdown"`
+	Memo              string          `gorm:"column:memo;type:text;not null;default:''" json:"memo"`
+	ClosedBy          *uint64         `gorm:"column:closed_by;type:bigint" json:"closed_by,omitempty"`
+	ClosedAt          time.Time       `gorm:"column:closed_at;type:timestamptz;not null;default:now()" json:"closed_at"`
+	CreatedAt         time.Time       `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt         time.Time       `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	ClosedByStaff     *Staff          `gorm:"foreignKey:ClosedBy;references:ID" json:"closed_by_staff,omitempty" tygo:"-"`
 }
 
 func (CashRegisterClose) TableName() string { return "cash_register_closes" }

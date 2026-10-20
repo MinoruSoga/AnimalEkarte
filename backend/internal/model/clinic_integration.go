@@ -1,16 +1,18 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // ClinicIntegration はクリニックの外部サービス連携設定（AES-256-GCM暗号化済み）。
 type ClinicIntegration struct {
-	ID        uint64    `gorm:"primaryKey"  json:"id"`
-	ClinicID  uint64    `gorm:"not null"    json:"clinic_id"`
-	Service   string    `gorm:"not null"    json:"service"`
-	KeyName   string    `gorm:"not null"    json:"key_name"`
-	KeyValue  string    `gorm:"not null"    json:"-"` // 絶対にJSONに出力しない
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID        uint64    `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID  uint64    `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	Service   string    `gorm:"column:service;type:varchar(50);not null" json:"service"`
+	KeyName   string    `gorm:"column:key_name;type:varchar(100);not null" json:"key_name"`
+	KeyValue  string    `gorm:"column:key_value;type:text;not null" json:"-"`
+	CreatedAt time.Time `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
 }
 
 func (ClinicIntegration) TableName() string { return "clinic_integrations" }

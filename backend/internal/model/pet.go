@@ -1,9 +1,8 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 type PetStatus string
@@ -49,46 +48,18 @@ const (
 )
 
 type Pet struct {
-	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID        uint64            `gorm:"not null"                                       json:"clinic_id"`
-	OwnerID         uint64            `gorm:"not null"                                       json:"owner_id"`
-	AnimalSpeciesID uint64            `gorm:"not null"                                       json:"animal_species_id"`
-	PetNumber       string            `gorm:"default:''"                                     json:"pet_number"`
-	Name            string            `gorm:"not null"                                       json:"name"`
-	NameKana        string            `gorm:"column:name_kana;default:''"                    json:"name_kana"`
-	Gender          PetGender         `gorm:"type:pet_gender;default:'unknown'"               json:"gender"`
-	Status          PetStatus         `gorm:"type:pet_status;default:'alive'"                 json:"status"`
-	BirthDate       *time.Time        `gorm:"type:date"                                      json:"birth_date,omitempty"`
-	Breed           string            `gorm:"default:''"                                     json:"breed"`
-	Color           string            `gorm:"default:''"                                     json:"color"`
-	BloodType       *string           `gorm:"column:blood_type"                              json:"blood_type,omitempty"`
-	MicrochipNumber *string           `gorm:"column:microchip_number"                        json:"microchip_number,omitempty"`
-	Weight          *float64          `gorm:"type:numeric(6,2)"                              json:"weight,omitempty"`
-	NeuteredDate    *time.Time        `gorm:"type:date"                                      json:"neutered_date,omitempty"`
-	NeuteredStatus  PetNeuteredStatus `gorm:"type:pet_neutered_status;default:'unknown'"    json:"neutered_status"`
-	AcquisitionType *AcquisitionType  `gorm:"type:acquisition_type"                          json:"acquisition_type,omitempty"`
-	DangerLevel     DangerLevel       `gorm:"type:danger_level;default:'low'"                 json:"danger_level"`
-	DangerReason    *string           `gorm:"column:danger_reason"                           json:"danger_reason,omitempty"`
-	Food            string            `gorm:"default:''"                                     json:"food"`
-	Environment     string            `gorm:"default:''"                                     json:"environment"`
-	Phone           string            `gorm:"default:''"                                     json:"phone"`
-	LastVisit       *time.Time        `gorm:"type:date"                                      json:"last_visit,omitempty"`
-	InsuranceID     *uint64           `                                                      json:"insurance_id,omitempty"`
-	Remarks         string            `gorm:"default:''"                                     json:"remarks"`
-	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。NULL=未記録。
-	NameOrigin     *string        `gorm:"column:name_origin"                             json:"name_origin,omitempty"`
-	MeetingStory   *string        `gorm:"column:meeting_story"                           json:"meeting_story,omitempty"`
-	DeceasedAt     *time.Time     `gorm:"column:deceased_at"                             json:"deceased_at,omitempty"`
-	DeceasedReason *string        `gorm:"column:deceased_reason"                         json:"deceased_reason,omitempty"`
-	Version        int            `gorm:"default:1"                                      json:"version"`
-	CreatedAt      time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `                                                      json:"-"`
-
-	// Relations
-	Owner         *Owner         `gorm:"foreignKey:OwnerID"          json:"owner,omitempty"`
-	Insurance     *Insurance     `gorm:"foreignKey:InsuranceID"      json:"insurance,omitempty"`
-	AnimalSpecies *AnimalSpecies `gorm:"foreignKey:AnimalSpeciesID"  json:"animal_species,omitempty"`
+	ID            uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID      uint64         `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	OwnerID       uint64         `gorm:"column:owner_id;type:bigint;not null" json:"owner_id"`
+	PetNumber     string         `gorm:"column:pet_number;type:text;not null;default:''" json:"pet_number"`
+	InsuranceID   *uint64        `gorm:"column:insurance_id;type:bigint" json:"insurance_id,omitempty"`
+	CreatedAt     time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+	Version       int            `gorm:"column:version;type:integer;not null;default:1" json:"version"`
+	Owner         *Owner         `gorm:"foreignKey:ClinicID,OwnerID;references:ClinicID,ID"          json:"owner,omitempty"`
+	Insurance     *Insurance     `gorm:"foreignKey:InsuranceID;references:ID"      json:"insurance,omitempty"`
+	AnimalSpecies *AnimalSpecies `gorm:"-"  json:"animal_species,omitempty"`
 }
 
 func (Pet) TableName() string { return "pets" }

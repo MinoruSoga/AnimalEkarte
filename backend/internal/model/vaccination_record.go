@@ -1,9 +1,8 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 type NextScheduleType string
@@ -16,33 +15,29 @@ const (
 )
 
 type Vaccination struct {
-	ID               uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID         uint64            `gorm:"not null"                                       json:"clinic_id"`
-	MedicalRecordID  *uint64           `                                                      json:"medical_record_id,omitempty"`
-	PetID            *uint64           `                                                      json:"pet_id,omitempty"`
-	VaccineID        uint64            `gorm:"not null"                                       json:"vaccine_id"`
-	Date             time.Time         `gorm:"type:date;not null"                             json:"date"`
-	DoctorID         *uint64           `                                                      json:"doctor_id,omitempty"`
-	NextDate         *time.Time        `gorm:"type:date"                                      json:"next_date,omitempty"`
-	NextScheduleType *NextScheduleType `gorm:"type:next_schedule_type"                       json:"next_schedule_type,omitempty"`
-	Supplemental     string            `gorm:"default:''"                                     json:"supplemental"`
-	Lot1             string            `gorm:"default:''"                                     json:"lot1"`
-	Lot2             string            `gorm:"default:''"                                     json:"lot2"`
-	Lot3             string            `gorm:"default:''"                                     json:"lot3"`
-	Lot4             string            `gorm:"default:''"                                     json:"lot4"`
-	Remarks          string            `gorm:"default:''"                                     json:"remarks"`
-	// Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
-	// caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
-	Version   int            `gorm:"default:1"                                     json:"version"`
-	DeletedAt gorm.DeletedAt `                                                      json:"-"`
-	CreatedAt time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-
-	// Relations
-	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
-	Pet           *Pet           `gorm:"foreignKey:PetID"           json:"pet,omitempty"`
-	Vaccine       *Vaccine       `gorm:"foreignKey:VaccineID"       json:"vaccine,omitempty"`
-	Doctor        *Staff         `gorm:"foreignKey:DoctorID"        json:"doctor,omitempty"`
+	ID               uint64            `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID         uint64            `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	MedicalRecordID  *uint64           `gorm:"column:medical_record_id;type:bigint" json:"medical_record_id,omitempty"`
+	PetID            *uint64           `gorm:"column:pet_id;type:bigint" json:"pet_id,omitempty"`
+	VaccineID        uint64            `gorm:"column:vaccine_id;type:bigint;not null" json:"vaccine_id"`
+	Date             time.Time         `gorm:"column:date;type:date;not null" json:"date"`
+	NextDate         *time.Time        `gorm:"column:next_date;type:date" json:"next_date,omitempty"`
+	NextScheduleType *NextScheduleType `gorm:"column:next_schedule_type;type:next_schedule_type" json:"next_schedule_type,omitempty"`
+	DoctorID         *uint64           `gorm:"column:doctor_id;type:bigint" json:"doctor_id,omitempty"`
+	Supplemental     string            `gorm:"column:supplemental;type:text;not null;default:''" json:"supplemental"`
+	Lot1             string            `gorm:"column:lot1;type:text;not null;default:''" json:"lot1"`
+	Lot2             string            `gorm:"column:lot2;type:text;not null;default:''" json:"lot2"`
+	Lot3             string            `gorm:"column:lot3;type:text;not null;default:''" json:"lot3"`
+	Lot4             string            `gorm:"column:lot4;type:text;not null;default:''" json:"lot4"`
+	Remarks          string            `gorm:"column:remarks;type:text;not null;default:''" json:"remarks"`
+	CreatedAt        time.Time         `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time         `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	DeletedAt        gorm.DeletedAt    `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+	Version          int               `gorm:"column:version;type:integer;not null;default:1" json:"version"`
+	MedicalRecord    *MedicalRecord    `gorm:"foreignKey:MedicalRecordID,ClinicID;references:ID,ClinicID" json:"medical_record,omitempty"`
+	Pet              *Pet              `gorm:"foreignKey:ClinicID,PetID;references:ClinicID,ID"           json:"pet,omitempty"`
+	Vaccine          *Vaccine          `gorm:"foreignKey:VaccineID;references:ID"       json:"vaccine,omitempty"`
+	Doctor           *Staff            `gorm:"foreignKey:DoctorID;references:ID"        json:"doctor,omitempty"`
 }
 
 func (Vaccination) TableName() string { return "vaccinations" }

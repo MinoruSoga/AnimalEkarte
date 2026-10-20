@@ -1,6 +1,8 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 // LabExamReportSummary は ListJobReportSummaries / ListExamReports の 1 件。
 // result_summary は PHI 分類未確認のため除外する（Phase 4B.1 決定2）。

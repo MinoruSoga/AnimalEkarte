@@ -1,9 +1,8 @@
 package model
 
 import (
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 // MedicineCalculationType は投与量計算方式（#201）。
@@ -63,25 +62,26 @@ func ValidMedicineDoseSpecies(s MedicineDoseSpecies) bool {
 // MedicineDoseParam は薬剤 × 種の体重あたり投与量パラメータ（#201 per_weight 自動計算用）。
 // strength は製品軸（medicines）、dose_per_kg は種軸（この子テーブル）に分離する。
 type MedicineDoseParam struct {
-	ID         uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	ClinicID   uint64 `gorm:"not null"                 json:"clinic_id"` // 親 medicines から非正規化（clinicScope 直適用）
-	MedicineID uint64 `gorm:"not null"                json:"medicine_id"`
-
-	Species   MedicineDoseSpecies `gorm:"type:medicine_dose_species;not null"                    json:"species"`
-	DoseBasis MedicineDoseBasis   `gorm:"type:medicine_dose_basis;not null;default:per_administration" json:"dose_basis"`
-
-	DosePerKg       float64  `gorm:"type:numeric(10,6);not null" json:"dose_per_kg"`                 // mg/kg
-	MinMgPerKg      *float64 `gorm:"type:numeric(10,6)"          json:"min_mg_per_kg,omitempty"`     // 安全域下限
-	MaxMgPerKg      *float64 `gorm:"type:numeric(10,6)"          json:"max_mg_per_kg,omitempty"`     // 体重連動上限
-	AbsoluteMaxDose *float64 `gorm:"type:numeric(10,4)"          json:"absolute_max_dose,omitempty"` // 体重非依存 mg/head 上限
-
-	RoundingStep *float64              `gorm:"type:numeric(10,4)"     json:"rounding_step,omitempty"` // NULL=丸めなし
-	RoundingMode *MedicineRoundingMode `gorm:"type:medicine_rounding_mode" json:"rounding_mode,omitempty"`
-
-	Notes     string         `gorm:"not null;default:''" json:"notes"`
-	CreatedAt time.Time      `gorm:"autoCreateTime"      json:"created_at"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"      json:"updated_at"`
-	DeletedAt gorm.DeletedAt `                           json:"-"`
+	ID                  uint64                `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID            uint64                `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	MedicineID          uint64                `gorm:"column:medicine_id;type:bigint;not null" json:"medicine_id"`
+	Species             MedicineDoseSpecies   `gorm:"column:species;type:medicine_dose_species;not null" json:"species"`
+	DoseBasis           MedicineDoseBasis     `gorm:"column:dose_basis;type:medicine_dose_basis;not null;default:'per_administration'" json:"dose_basis"`
+	DosePerKg           ExactNumeric          `gorm:"column:dose_per_kg;type:numeric(10,6);not null" json:"dose_per_kg"`
+	MinMgPerKg          *ExactNumeric         `gorm:"column:min_mg_per_kg;type:numeric(10,6)" json:"min_mg_per_kg,omitempty"`
+	MaxMgPerKg          *ExactNumeric         `gorm:"column:max_mg_per_kg;type:numeric(10,6)" json:"max_mg_per_kg,omitempty"`
+	AbsoluteMaxDose     *ExactNumeric         `gorm:"column:absolute_max_dose;type:numeric(10,4)" json:"absolute_max_dose,omitempty"`
+	RoundingStep        *ExactNumeric         `gorm:"column:rounding_step;type:numeric(10,4)" json:"rounding_step,omitempty"`
+	RoundingMode        *MedicineRoundingMode `gorm:"column:rounding_mode;type:medicine_rounding_mode" json:"rounding_mode,omitempty"`
+	Notes               string                `gorm:"column:notes;type:text;not null;default:''" json:"notes"`
+	CreatedAt           time.Time             `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt           time.Time             `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	DeletedAt           gorm.DeletedAt        `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+	PatternName         *string               `gorm:"column:pattern_name;type:text" json:"-"`
+	Purpose             *string               `gorm:"column:purpose;type:text" json:"-"`
+	AdministrationRoute *string               `gorm:"column:administration_route;type:text" json:"-"`
+	Version             int64                 `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
+	Provenance          *string               `gorm:"column:provenance;type:text" json:"-"`
 }
 
 func (MedicineDoseParam) TableName() string { return "medicine_dose_params" }

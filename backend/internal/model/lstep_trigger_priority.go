@@ -1,15 +1,17 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 // LstepTriggerPriority はクリニック単位のトリガー配信優先順位設定 (Q23)。
 type LstepTriggerPriority struct {
-	ID          uint64    `gorm:"primaryKey;autoIncrement"`
-	ClinicID    uint64    `gorm:"not null;uniqueIndex:idx_clinic_trigger"`
-	TriggerType string    `gorm:"size:64;not null;uniqueIndex:idx_clinic_trigger"`
-	Priority    int       `gorm:"not null"`
-	CreatedAt   time.Time `gorm:"autoCreateTime"`
-	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+	ID          uint64    `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" `
+	ClinicID    uint64    `gorm:"column:clinic_id;type:bigint;not null;uniqueIndex:lstep_trigger_priorities_clinic_id_trigger_type_key,priority:1" `
+	TriggerType string    `gorm:"column:trigger_type;type:varchar(64);not null;uniqueIndex:lstep_trigger_priorities_clinic_id_trigger_type_key,priority:2" `
+	Priority    int       `gorm:"column:priority;type:integer;not null" `
+	CreatedAt   time.Time `gorm:"column:created_at;type:timestamptz;not null;default:NOW();autoCreateTime" `
+	UpdatedAt   time.Time `gorm:"column:updated_at;type:timestamptz;not null;default:NOW();autoUpdateTime" `
 }
 
 func (LstepTriggerPriority) TableName() string { return "lstep_trigger_priorities" }

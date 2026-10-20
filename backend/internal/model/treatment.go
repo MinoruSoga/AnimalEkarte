@@ -2,9 +2,8 @@ package model
 
 import (
 	"encoding/json"
-	"time"
-
 	"gorm.io/gorm"
+	"time"
 )
 
 // TreatmentItemType は治療項目種別
@@ -28,47 +27,47 @@ const (
 
 // Treatment は治療項目（外来診療）
 type Treatment struct {
-	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	MedicalRecordID uint64            `gorm:"not null"                                       json:"medical_record_id"`
-	ItemType        TreatmentItemType `gorm:"type:treatment_item_type;not null;default:'other'" json:"item_type"`
-	ConsultationID  *uint64           `                                                      json:"consultation_id,omitempty"`
-	ProcedureID     *uint64           `                                                      json:"procedure_id,omitempty"`
-	MedicineID      *uint64           `                                                      json:"medicine_id,omitempty"`
-	InventoryID     *uint64           `                                                      json:"inventory_id,omitempty"`
-	UnitPrice       int64             `gorm:"default:0"                                      json:"unit_price"`
-	Quantity        float64           `gorm:"type:numeric(10,2);default:1"                   json:"quantity"`
-	IsSelected      bool              `gorm:"column:is_selected;default:false"               json:"is_selected"`
-	Status          TreatmentStatus   `gorm:"type:treatment_status;default:'pending'"          json:"status"`
-	Content         string            `gorm:"not null;default:''"                            json:"content"`
-	Memo            string            `gorm:"default:''"                                     json:"memo"`
-	AdminRoute      string            `gorm:"column:admin_route;type:varchar(50);default:''" json:"admin_route"`
-	IsInsurance     bool              `gorm:"column:is_insurance;default:false"              json:"is_insurance"`
-	DiscountRate    float64           `gorm:"type:numeric(5,2);default:0"                    json:"discount_rate"`
-	DiscountAmount  int64             `gorm:"default:0"                                      json:"discount_amount"`
-	SortOrder       int               `gorm:"type:integer;default:0"                         json:"sort_order"`
-
-	// #201 投与量自動計算の根拠スナップショット（medicine 明細のみ・per_weight 計算時に値で固定）。
-	// マスタの後変更・論理削除があっても当時の計算根拠を保全する（FK 非依存）。
-	DoseWeightKg      *float64        `gorm:"type:numeric(6,2)"  json:"dose_weight_kg,omitempty"`      // 使用体重（kg 正規化後）
-	DoseWeightSource  *string         `gorm:"type:varchar(255)"  json:"dose_weight_source,omitempty"`  // 体重の出典（vital_records.id / 時刻 pin）
-	DoseAmountMg      *float64        `gorm:"type:numeric(12,6)" json:"dose_amount_mg,omitempty"`      // 実効用量(mg)。安全域判定(C1)はこの丸め後の値
-	DoseAmountUnit    *string         `gorm:"type:text"          json:"dose_amount_unit,omitempty"`    // 'mg' | 'ug'
-	DoseParamSnapshot json.RawMessage `gorm:"type:jsonb"         json:"dose_param_snapshot,omitempty"` // species/dose_per_kg/strength/丸め設定/計算式版
-
-	// Version は楽観的ロック用（UAT-R2-EXCLUSIVE-LOCK）。更新は version+1 を書き戻し、
-	// caller の読取版を expectedVersion として WHERE 照合する（clinical_plan/medical_record と同型）。
-	Version int `gorm:"default:1" json:"version"`
-
-	DeletedAt gorm.DeletedAt `json:"-"`
-	CreatedAt time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
-
-	// Relations
-	MedicalRecord *MedicalRecord `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`
-	Consultation  *Consultation  `gorm:"foreignKey:ConsultationID"  json:"consultation,omitempty"`
-	Procedure     *Procedure     `gorm:"foreignKey:ProcedureID"     json:"procedure,omitempty"`
-	Medicine      *Medicine      `gorm:"foreignKey:MedicineID"      json:"medicine,omitempty"`
-	Inventory     *InventoryItem `gorm:"foreignKey:InventoryID"     json:"inventory,omitempty"`
+	ID                         uint64            `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	MedicalRecordID            uint64            `gorm:"column:medical_record_id;type:bigint;not null" json:"medical_record_id"`
+	ItemType                   TreatmentItemType `gorm:"column:item_type;type:treatment_item_type;not null;default:'other'" json:"item_type"`
+	ConsultationID             *uint64           `gorm:"column:consultation_id;type:bigint" json:"consultation_id,omitempty"`
+	ProcedureID                *uint64           `gorm:"column:procedure_id;type:bigint" json:"procedure_id,omitempty"`
+	MedicineID                 *uint64           `gorm:"column:medicine_id;type:bigint" json:"medicine_id,omitempty"`
+	IsSelected                 *bool             `gorm:"column:is_selected;type:boolean;default:false" json:"is_selected"`
+	Status                     *TreatmentStatus  `gorm:"column:status;type:treatment_status;default:'pending'" json:"status"`
+	Content                    string            `gorm:"column:content;type:text;not null;default:''" json:"content"`
+	Memo                       string            `gorm:"column:memo;type:text;not null;default:''" json:"memo"`
+	AdminRoute                 string            `gorm:"column:admin_route;type:varchar(50);not null;default:''" json:"admin_route"`
+	IsInsurance                *bool             `gorm:"column:is_insurance;type:boolean;default:false" json:"is_insurance"`
+	UnitPrice                  *int64            `gorm:"column:unit_price;type:bigint;default:0" json:"unit_price"`
+	Quantity                   *ExactNumeric     `gorm:"column:quantity;type:numeric(10,2);default:1" json:"quantity"`
+	DiscountRate               *ExactNumeric     `gorm:"column:discount_rate;type:numeric(5,2);default:0" json:"discount_rate"`
+	DiscountAmount             *int64            `gorm:"column:discount_amount;type:bigint;default:0" json:"discount_amount"`
+	InventoryID                *uint64           `gorm:"column:inventory_id;type:bigint" json:"inventory_id,omitempty"`
+	SortOrder                  *int              `gorm:"column:sort_order;type:integer;default:0" json:"sort_order"`
+	CreatedAt                  time.Time         `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt                  time.Time         `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	DeletedAt                  gorm.DeletedAt    `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+	DoseWeightKg               *ExactNumeric     `gorm:"column:dose_weight_kg;type:numeric(6,2)" json:"dose_weight_kg,omitempty"`
+	DoseWeightSource           *string           `gorm:"column:dose_weight_source;type:varchar(255)" json:"dose_weight_source,omitempty"`
+	DoseAmountMg               *ExactNumeric     `gorm:"column:dose_amount_mg;type:numeric(12,6)" json:"dose_amount_mg,omitempty"`
+	DoseAmountUnit             *string           `gorm:"column:dose_amount_unit;type:text" json:"dose_amount_unit,omitempty"`
+	DoseParamSnapshot          *json.RawMessage  `gorm:"column:dose_param_snapshot;type:jsonb" json:"dose_param_snapshot,omitempty"`
+	ClinicID                   uint64            `gorm:"column:clinic_id;type:bigint;not null" json:"-"`
+	Version                    int               `gorm:"column:version;type:integer;not null;default:1" json:"version"`
+	ContractVersion            int64             `gorm:"column:contract_version;type:bigint;not null;default:1" json:"-"`
+	FulfillmentGeneration      int64             `gorm:"column:fulfillment_generation;type:bigint;not null;default:1" json:"-"`
+	AdministrationDoseAmount   *ExactNumeric     `gorm:"column:administration_dose_amount;type:numeric(12,6)" json:"-"`
+	AdministrationDoseUnit     *string           `gorm:"column:administration_dose_unit;type:text" json:"-"`
+	AdministrationInstructions *string           `gorm:"column:administration_instructions;type:text" json:"-"`
+	PrescriptionTotalAmount    *ExactNumeric     `gorm:"column:prescription_total_amount;type:numeric(12,6)" json:"-"`
+	PrescriptionTotalUnit      *string           `gorm:"column:prescription_total_unit;type:text" json:"-"`
+	DosePatternRevisionID      *uint64           `gorm:"column:dose_pattern_revision_id;type:bigint" json:"-"`
+	MedicalRecord              *MedicalRecord    `gorm:"foreignKey:MedicalRecordID;references:ID" json:"medical_record,omitempty"`
+	Consultation               *Consultation     `gorm:"foreignKey:ConsultationID,ClinicID;references:ID,ClinicID"  json:"consultation,omitempty"`
+	Procedure                  *Procedure        `gorm:"foreignKey:ProcedureID,ClinicID;references:ID,ClinicID"     json:"procedure,omitempty"`
+	Medicine                   *Medicine         `gorm:"foreignKey:MedicineID,ClinicID;references:ID,ClinicID"      json:"medicine,omitempty"`
+	Inventory                  *InventoryItem    `gorm:"foreignKey:InventoryID,ClinicID;references:ID,ClinicID"     json:"inventory,omitempty"`
 }
 
 func (Treatment) TableName() string { return "treatments" }
