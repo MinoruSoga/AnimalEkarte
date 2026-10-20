@@ -8,6 +8,8 @@ info:
 
     EMR-471 / 472 / 473 / 476 の再診問診5操作もx-contract-status: selectedの先行契約。runtime未実装/未検証。
 
+    EMR-486 / EMR-487 の証明書8 unique paths / 9 operationsは x-contract-status: selected。専用runtime/DB adapter/renderer未実装、試験NOT_RUN。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -94,6 +96,957 @@ components:
       description: '既存LIFFのAuthorization: BearerによるLINE ID token検証方式。staff Cookie/JWTではない。新再診問診3routeはread-only
         customer lookupへ注入し、既存他routeのLiffAuthは変更しない。'
   schemas:
+    CertificateId:
+      type: integer
+      format: int64
+      minimum: 1
+    CertificateSourceVersion:
+      type: integer
+      format: int64
+      minimum: 1
+    CertificateOperationKey:
+      type: string
+      format: uuid
+      pattern: "^(?!00000000-0000-0000-0000-000000000000$)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      description: lowercase hyphenated UUID。nil UUID拒否。
+    CertificateHash:
+      type: string
+      pattern: "^[0-9a-f]{64}$"
+    CertificateKind:
+      type: string
+      enum:
+      - normal
+      - rabies
+    CertificateLayout:
+      type: string
+      enum:
+      - portrait
+      - landscape
+      - rabies
+    CertificateProvenance:
+      type: string
+      enum:
+      - master_snapshot
+      - legacy_unresolved
+    CertificateInputs:
+      type: object
+      additionalProperties: false
+      properties:
+        certificate_number:
+          type: string
+          nullable: true
+        injection_tag_number:
+          type: string
+          nullable: true
+        dog_registration_tag_number:
+          type: string
+          nullable: true
+        distinguishing_features:
+          type: string
+          nullable: true
+        injection_amount_text:
+          type: string
+          nullable: true
+        body_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          -
+          nullable: true
+        registration_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+        injection_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+        tag_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+        total:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+      description: 全欄optional/nullable。未送信とnullは新発行時に空欄へcanonicalize。番号の空白/先頭0保持。注射量の既定化/医学換算なし。normalへrabies専用欄の非null値は422
+        validation。専用欄分類の未固定点は契約文書参照。
+    CertificateStoredInputs:
+      type: object
+      additionalProperties: false
+      properties:
+        certificate_number:
+          type: string
+          nullable: true
+        injection_tag_number:
+          type: string
+          nullable: true
+        dog_registration_tag_number:
+          type: string
+          nullable: true
+        distinguishing_features:
+          type: string
+          nullable: true
+        injection_amount_text:
+          type: string
+          nullable: true
+        body_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          -
+          nullable: true
+        registration_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+        injection_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+        tag_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+        total:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+      description: 保存snapshotでは全キーを明示nullを含め保持。未取得を0/空文字にしない。
+      required:
+      - certificate_number
+      - injection_tag_number
+      - dog_registration_tag_number
+      - distinguishing_features
+      - injection_amount_text
+      - body_size
+      - registration_fee
+      - injection_fee
+      - tag_fee
+      - total
+    CertificateSourceSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        vaccination_id:
+          "$ref": "#/components/schemas/CertificateId"
+        version:
+          "$ref": "#/components/schemas/CertificateSourceVersion"
+        vaccine_id:
+          "$ref": "#/components/schemas/CertificateId"
+        vaccine_name:
+          type: string
+          nullable: true
+        administered_on:
+          type: string
+          format: date
+        next_scheduled_on:
+          type: string
+          format: date
+          nullable: true
+        lots:
+          type: array
+          items:
+            type: string
+            nullable: true
+          minItems: 4
+          maxItems: 4
+        doctor_name:
+          type: string
+          nullable: true
+      required:
+      - vaccination_id
+      - version
+      - vaccine_id
+      - vaccine_name
+      - administered_on
+      - next_scheduled_on
+      - lots
+      - doctor_name
+    CertificateOwnerSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          nullable: true
+        name_kana:
+          type: string
+          nullable: true
+        postal_code:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+      required:
+      - name
+      - name_kana
+      - postal_code
+      - address
+      - phone
+    CertificateClinicSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          nullable: true
+        director_name:
+          type: string
+          nullable: true
+        postal_code:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        fax:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        veterinarian_association:
+          type: string
+          nullable: true
+        designated_veterinarian:
+          type: string
+          nullable: true
+        veterinarian_name:
+          type: string
+          nullable: true
+      required:
+      - name
+      - director_name
+      - postal_code
+      - address
+      - phone
+      - fax
+      - email
+      - url
+      - veterinarian_association
+      - designated_veterinarian
+      - veterinarian_name
+    CertificatePetSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          nullable: true
+        species:
+          type: string
+          nullable: true
+        breed:
+          type: string
+          nullable: true
+        sex:
+          type: string
+          nullable: true
+        coat_color:
+          type: string
+          nullable: true
+        age_text:
+          type: string
+          nullable: true
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - name
+      - species
+      - breed
+      - sex
+      - coat_color
+      - age_text
+      - birth_date
+    CertificateEligibilitySnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        rabies_eligible:
+          type: boolean
+          nullable: true
+        vaccine_id:
+          "$ref": "#/components/schemas/CertificateId"
+        vaccine_version:
+          type: integer
+          format: int64
+          nullable: true
+        provenance:
+          "$ref": "#/components/schemas/CertificateProvenance"
+      required:
+      - rabies_eligible
+      - vaccine_id
+      - vaccine_version
+      - provenance
+    CertificateRenderManifest:
+      type: object
+      additionalProperties: false
+      properties:
+        renderer_version:
+          type: string
+        font_asset_version:
+          type: string
+        templates:
+          type: object
+          additionalProperties: false
+          properties:
+            portrait:
+              type: string
+            landscape:
+              type: string
+            rabies:
+              type: string
+          description: normalではportrait/landscape両キー必須。rabiesではrabiesキー必須。対象外キー省略可。
+      description: versioned server renderer/font/asset/templateを固定。kind依存必須キーはserverでも検証。
+      required:
+      - renderer_version
+      - font_asset_version
+      - templates
+    CertificateSnapshot:
+      type: object
+      additionalProperties: false
+      properties:
+        schema_version:
+          type: integer
+          enum:
+          - 1
+        kind:
+          "$ref": "#/components/schemas/CertificateKind"
+        source:
+          "$ref": "#/components/schemas/CertificateSourceSnapshot"
+        owner:
+          "$ref": "#/components/schemas/CertificateOwnerSnapshot"
+        pet:
+          "$ref": "#/components/schemas/CertificatePetSnapshot"
+        clinic:
+          "$ref": "#/components/schemas/CertificateClinicSnapshot"
+        display_issue_date:
+          type: string
+          format: date
+          description: preview生成可能なJST日付。normal独立発行日用。rabies帳票に独立欄を増やさない。
+        inputs:
+          "$ref": "#/components/schemas/CertificateStoredInputs"
+        eligibility:
+          "$ref": "#/components/schemas/CertificateEligibilitySnapshot"
+        render_manifest:
+          "$ref": "#/components/schemas/CertificateRenderManifest"
+      description: >-
+        schema v1。snapshot_sha256は本体外。hash projectionは全integerをcanonical decimal string化しRFC8785 JCS/UTF-8/SHA256。
+        render_manifest_sha256は同snapshot.render_manifestのcanonical bytesのSHA256、preview_fingerprintは{layout,snapshot}のhash用projectionのSHA256。
+        wire整数は整数のまま。snapshot/manifestの同canonical bytesはimmutable metadataへ保存し、schema v1 decoderで該当integer欄だけint64へ復元する。
+        再canonicalizeのbytes完全一致とContent commitmentのdigest照合後だけ準備/書込可。full JSONをNewContentへ入れない。
+        unknown property/重複key/不正Unicode拒否。全規則はdocs/work/emr/emr-486-certificate-api-contract-20261020.md。取得障害はnullable欠落と区別し503。
+      required:
+      - schema_version
+      - kind
+      - source
+      - owner
+      - pet
+      - clinic
+      - display_issue_date
+      - inputs
+      - eligibility
+      - render_manifest
+      anyOf:
+      - properties:
+          kind:
+            type: string
+            enum:
+            - normal
+          render_manifest:
+            properties:
+              templates:
+                required:
+                - portrait
+                - landscape
+      - properties:
+          kind:
+            type: string
+            enum:
+            - rabies
+          render_manifest:
+            properties:
+              templates:
+                required:
+                - rabies
+    CertificateEdition:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          "$ref": "#/components/schemas/CertificateId"
+        series_id:
+          "$ref": "#/components/schemas/CertificateId"
+        vaccination_id:
+          "$ref": "#/components/schemas/CertificateId"
+        kind:
+          "$ref": "#/components/schemas/CertificateKind"
+        edition:
+          type: integer
+          format: int64
+          minimum: 1
+        source_version:
+          "$ref": "#/components/schemas/CertificateSourceVersion"
+        previous_edition_id:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        issued_at:
+          type: string
+          format: date-time
+        issued_by:
+          "$ref": "#/components/schemas/CertificateId"
+        validity:
+          type: string
+          enum:
+          - current
+          - superseded
+          - source_changed
+          - source_deleted
+        snapshot:
+          "$ref": "#/components/schemas/CertificateSnapshot"
+        snapshot_sha256:
+          "$ref": "#/components/schemas/CertificateHash"
+        available_layouts:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CertificateLayout"
+      description: validityは現在readerのprojection、保存statusでない。優先順source_deleted > source_changed
+        > superseded。履歴は保持、旧版へ有効content_pathを返さない。normal縦横は同一series/edition。未知snapshot版は409
+        dependency-changed。
+      required:
+      - id
+      - series_id
+      - vaccination_id
+      - kind
+      - edition
+      - source_version
+      - previous_edition_id
+      - issued_at
+      - issued_by
+      - validity
+      - snapshot
+      - snapshot_sha256
+      - available_layouts
+    CertificateArtifactDescriptor:
+      type: object
+      additionalProperties: false
+      properties:
+        artifact_id:
+          "$ref": "#/components/schemas/CertificateId"
+        edition_id:
+          "$ref": "#/components/schemas/CertificateId"
+        layout:
+          "$ref": "#/components/schemas/CertificateLayout"
+        template_version:
+          type: string
+        renderer_version:
+          type: string
+        content_sha256:
+          "$ref": "#/components/schemas/CertificateHash"
+        content_path:
+          type: string
+          pattern: "^/(?!/)"
+          description: 同origin保護API相対path。object key/署名blob公開URL不可。
+      description: 選定descriptor。9 routesにはdescriptorを返す配置が未指定のため、独断でedition/resultへ追加しない。FEはC06
+        artifact_idから既定content routeを使用できる。
+      required:
+      - artifact_id
+      - edition_id
+      - layout
+      - template_version
+      - renderer_version
+      - content_sha256
+      - content_path
+    CertificateInitialInputs:
+      type: object
+      additionalProperties: false
+      properties:
+        certificate_number:
+          type: string
+          nullable: true
+        injection_tag_number:
+          type: string
+          nullable: true
+        dog_registration_tag_number:
+          type: string
+          nullable: true
+        distinguishing_features:
+          type: string
+          nullable: true
+        injection_amount_text:
+          type: string
+          nullable: true
+        body_size:
+          type: string
+          enum:
+          - small
+          - medium
+          - large
+          -
+          nullable: true
+        registration_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+          enum:
+          -
+        injection_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+          enum:
+          -
+        tag_fee:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+          enum:
+          -
+        total:
+          type: integer
+          format: int64
+          nullable: true
+          description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
+          enum:
+          -
+      description: 新規料金4欄は明示null。現在会計/masterから転記なし。
+      required:
+      - registration_fee
+      - injection_fee
+      - tag_fee
+      - total
+    CertificateContext:
+      type: object
+      additionalProperties: false
+      properties:
+        vaccination_id:
+          "$ref": "#/components/schemas/CertificateId"
+        source_version:
+          "$ref": "#/components/schemas/CertificateSourceVersion"
+        eligibility:
+          type: object
+          additionalProperties: false
+          properties:
+            state:
+              type: string
+              enum:
+              - eligible
+              - ineligible
+              - unknown
+            allowed_kinds:
+              type: array
+              items:
+                "$ref": "#/components/schemas/CertificateKind"
+            provenance:
+              "$ref": "#/components/schemas/CertificateProvenance"
+          required:
+          - state
+          - allowed_kinds
+          - provenance
+        can_issue:
+          type: boolean
+        latest:
+          type: object
+          additionalProperties: false
+          properties:
+            normal:
+              oneOf:
+              - "$ref": "#/components/schemas/CertificateEdition"
+              - type: object
+                nullable: true
+                enum:
+                -
+            rabies:
+              oneOf:
+              - "$ref": "#/components/schemas/CertificateEdition"
+              - type: object
+                nullable: true
+                enum:
+                -
+          required:
+          - normal
+          - rabies
+        initial_inputs:
+          "$ref": "#/components/schemas/CertificateInitialInputs"
+      description: initial_inputsの新規料金4欄は明示null。現在会計/masterから転記しない。latestは無効版もvalidity付き。既発行値copyはFE明示操作。true→normal/rabies、false/unknown→normalのみ。
+      required:
+      - vaccination_id
+      - source_version
+      - eligibility
+      - can_issue
+      - latest
+      - initial_inputs
+    CertificatePreconditions:
+      type: object
+      additionalProperties: false
+      properties:
+        source_version:
+          "$ref": "#/components/schemas/CertificateSourceVersion"
+        latest_edition_id:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+      description: 現在source/latestのCAS。Contentと分離。最新なしは明示null。
+      required:
+      - source_version
+      - latest_edition_id
+    CertificateReprintPreconditions:
+      type: object
+      additionalProperties: false
+      properties:
+        source_version:
+          "$ref": "#/components/schemas/CertificateSourceVersion"
+        latest_edition_id:
+          "$ref": "#/components/schemas/CertificateId"
+      required:
+      - source_version
+      - latest_edition_id
+    CertificatePreviewRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          "$ref": "#/components/schemas/CertificateKind"
+        layout:
+          "$ref": "#/components/schemas/CertificateLayout"
+        inputs:
+          "$ref": "#/components/schemas/CertificateInputs"
+        preconditions:
+          "$ref": "#/components/schemas/CertificatePreconditions"
+      description: normalはportrait/landscape、rabiesはrabiesのみ。組合せ/適格性の意味不一致は422 validation。
+      required:
+      - kind
+      - layout
+      - inputs
+      - preconditions
+      anyOf:
+      - properties:
+          kind:
+            type: string
+            enum:
+            - normal
+          layout:
+            type: string
+            enum:
+            - portrait
+            - landscape
+      - properties:
+          kind:
+            type: string
+            enum:
+            - rabies
+          layout:
+            type: string
+            enum:
+            - rabies
+    CertificateIssueRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        kind:
+          "$ref": "#/components/schemas/CertificateKind"
+        layout:
+          "$ref": "#/components/schemas/CertificateLayout"
+        inputs:
+          "$ref": "#/components/schemas/CertificateInputs"
+        preconditions:
+          "$ref": "#/components/schemas/CertificatePreconditions"
+        operation_key:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+        preview_fingerprint:
+          "$ref": "#/components/schemas/CertificateHash"
+        preview_display_issue_date:
+          type: string
+          format: date
+      description: serverが原情報を再解決しpreview日付/manifestを固定して再構成、hash照合。任意過去日不可、JST日跨ぎは409
+        dependency-changedで再preview。client snapshotは受け取らない。
+      required:
+      - kind
+      - layout
+      - inputs
+      - preconditions
+      - operation_key
+      - preview_fingerprint
+      - preview_display_issue_date
+      anyOf:
+      - properties:
+          kind:
+            type: string
+            enum:
+            - normal
+          layout:
+            type: string
+            enum:
+            - portrait
+            - landscape
+      - properties:
+          kind:
+            type: string
+            enum:
+            - rabies
+          layout:
+            type: string
+            enum:
+            - rabies
+    CertificatePreviewResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        snapshot:
+          "$ref": "#/components/schemas/CertificateSnapshot"
+        snapshot_sha256:
+          "$ref": "#/components/schemas/CertificateHash"
+        preview_fingerprint:
+          "$ref": "#/components/schemas/CertificateHash"
+        source_version:
+          "$ref": "#/components/schemas/CertificateSourceVersion"
+        latest_edition_id:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+        pdf_base64:
+          type: string
+          format: byte
+        media_type:
+          type: string
+          enum:
+          - application/pdf
+        template_version:
+          type: string
+        renderer_version:
+          type: string
+      description: preview_fingerprint=SHA256(JCS(integer-string projection({layout,snapshot})))。認証token/再送identityではない。
+      required:
+      - snapshot
+      - snapshot_sha256
+      - preview_fingerprint
+      - source_version
+      - latest_edition_id
+      - pdf_base64
+      - media_type
+      - template_version
+      - renderer_version
+    CertificateLayoutRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        layout:
+          "$ref": "#/components/schemas/CertificateLayout"
+      required:
+      - layout
+    CertificateSavedPreviewResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        edition_id:
+          "$ref": "#/components/schemas/CertificateId"
+        layout:
+          "$ref": "#/components/schemas/CertificateLayout"
+        pdf_base64:
+          type: string
+          format: byte
+        media_type:
+          type: string
+          enum:
+          - application/pdf
+        template_version:
+          type: string
+        renderer_version:
+          type: string
+        content_sha256:
+          "$ref": "#/components/schemas/CertificateHash"
+      required:
+      - edition_id
+      - layout
+      - pdf_base64
+      - media_type
+      - template_version
+      - renderer_version
+      - content_sha256
+    CertificateReprintRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        operation_key:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+        layout:
+          "$ref": "#/components/schemas/CertificateLayout"
+        preconditions:
+          "$ref": "#/components/schemas/CertificateReprintPreconditions"
+      required:
+      - operation_key
+      - layout
+      - preconditions
+    CertificateEditionPage:
+      type: object
+      additionalProperties: false
+      properties:
+        data:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CertificateEdition"
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+      required:
+      - data
+      - total
+      - page
+      - limit
+    CertificateC06Status:
+      type: string
+      enum:
+      - succeeded
+      - replayed
+      - not-succeeded
+      - validation
+      - not-authorized
+      - edit-right-lost
+      - scope-not-found
+      - version-conflict
+      - dependency-changed
+      - operation-key-conflict
+      - operation-in-progress
+      - result-unavailable
+    CertificateSuccessResult:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - succeeded
+          - replayed
+        operation_key:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+        result_refs:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'issue/reprint: vaccination_id,series_id,edition_id,artifact_idのstring値。'
+        committed_versions:
+          type: object
+          additionalProperties:
+            type: string
+          description: edition/source_versionはstring値。
+        recorded_at:
+          type: string
+          format: date-time
+      description: 既存C06 ResultResponse形。共通DTOはomitemptyだが選定certificate成功はrefs/versions/recorded_atを返す。成功DTOを直接返す。
+      required:
+      - status
+      - operation_key
+      - result_refs
+      - committed_versions
+      - recorded_at
+    CertificateNotSucceededResult:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - not-succeeded
+        operation_key:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+      description: bindingあり、確定成功なし。200はstatus/operation_keyのみでerror/codeなし。source再取得・人の確認後、同key同Content再試行。
+      required:
+      - status
+      - operation_key
+    CertificateResultResponse:
+      oneOf:
+      - "$ref": "#/components/schemas/CertificateSuccessResult"
+      - "$ref": "#/components/schemas/CertificateNotSucceededResult"
+      description: C06 DTO。lookup 200のみnot-succeededを含み、status/operation_keyのみでerror/codeなし。非2xxだけflat error。非成功へresult_refs/committed_versions/edition/artifactを出さない。
+    CertificateError:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum:
+          - validation
+          - not-authorized
+          - edit-right-lost
+          - scope-not-found
+          - version-conflict
+          - dependency-changed
+          - operation-key-conflict
+          - operation-in-progress
+          - result-unavailable
+          - not_found
+          - render_failed
+          - artifact_unavailable
+        status:
+          type: string
+          enum:
+          - validation
+          - not-authorized
+          - edit-right-lost
+          - scope-not-found
+          - version-conflict
+          - dependency-changed
+          - operation-key-conflict
+          - operation-in-progress
+          - result-unavailable
+        operation_key:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+      description: flat error。本文ローカライズ可、code/statusで判定。C06 statusはhyphen形式。render_failed/artifact_unavailableはC06
+        statusを捏造しない。非成功へ結果内容を出さない。
+      required:
+      - error
+      - code
+    CertificateMiddlewareError:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+      description: 既存401 middleware形。
+      required:
+      - error
     RevisitIntakeId:
       type: string
       pattern: ^[1-9][0-9]*$
@@ -12306,6 +13259,61 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
   responses:
+    CertificateBadRequest:
+      description: 'validation: malformed JSON/ID/key/enum。重複key/未知property/不正UTF-8/lone
+        surrogateも拒否。'
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateError"
+    CertificateUnauthorized:
+      description: 既存認証middlewareの{error}を許容。
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateMiddlewareError"
+    CertificateForbidden:
+      description: not-authorized/edit-right-lost。現在権限なし・保存元対象不明。未知scopeの存在非開示。
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateError"
+    CertificateNotFound:
+      description: 通常resource不在はnot_found（C06 statusなし）。lookup binding不在だけscope-not-found。
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateError"
+    CertificateConflict:
+      description: 'version-conflict: source/latest CAS不一致。dependency-changed: snapshot/renderer/JST日付不一致、訂正/削除/旧版出力、旧snapshotで別layout再現不能。operation-key-conflict:
+        同scope/key別Content（現在元対象認可後）。既存証明書operationの別scope PK衝突は422 validation。operation-in-progress: 同key照会、別key禁止。'
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateError"
+    CertificateUnprocessable:
+      description: >-
+        validation: domain意味不一致（kind適格性unknown/false、kind-layout組合せ、normalのrabies専用非null）、schema_version!=1。
+        既存証明書operation PRIMARY KEY(clinic_id,operation_key)衝突も現在認可後にParticipant Rejection{Status: StatusValidation}で422 code/status=validation。
+        他scopeのbinding/receipt/対象/actor/intent/内容とresult_refs/committed_versionsは非開示。operation-key-conflictへ変換しない。
+        対象PK違反だけ識別し、他のunique/FK/DBエラーを一括変換しない。競合時もowner TX全体をrollbackし部分commit/upsert/既存行流用なし。
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateError"
+    CertificateInternalError:
+      description: 既存generic error。SQL/path/stack非公開。
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateMiddlewareError"
+    CertificateUnavailable:
+      description: 'result-unavailable: sticky unknown/結果読取失敗、現在認可下でmetadata欠損/canonical bytes不正/commitment digest不一致、自動再create/補償停止。render_failed/artifact_unavailable:
+        描画/正本欠損/digest不一致/取得障害。成功/未実行は推定せずLookup照合。'
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/CertificateError"
     RevisitIntakeBadRequest:
       description: 'INVALID_INPUT: 構文/型/全階層重複key/Unicode空白purpose/cursor。不正原文をechoしない。'
       headers:
@@ -30133,3 +31141,482 @@ paths:
           $ref: '#/components/responses/RevisitIntakeInternalError'
         '503':
           $ref: '#/components/responses/RevisitIntakeServiceUnavailable'
+  "/vaccinations/{vaccination_id}/certificate-context":
+    get:
+      operationId: getVaccinationCertificateContext
+      summary: 現在医院/患者/接種/元カルテ関係を検査
+      description: 現在医院/患者/接種/元カルテ関係を検査。can_issueはview+edit。親カルテfinalizedを一律発行禁止にしない。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: vaccination_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      responses:
+        '200':
+          description: 現在認可済みcontext。単一DTO直接返却。
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateContext"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+  "/vaccinations/{vaccination_id}/certificate-preview":
+    post:
+      operationId: previewVaccinationCertificate
+      summary: 認可済み保存原情報と入力の純計算
+      description: 認可済み保存原情報と入力の純計算。同server renderer。series/edition/receipt/業務監査/autosave/正本uploadなし。access
+        logは別。FEは印刷ボタンなし、取得済みPDFの複製防止保証なし。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      - vaccinations:edit
+      parameters:
+      - name: vaccination_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      - "$ref": "#/components/parameters/XRequestedWith"
+      responses:
+        '200':
+          description: 発行前確認PDF。
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificatePreviewResponse"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '422':
+          "$ref": "#/components/responses/CertificateUnprocessable"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CertificatePreviewRequest"
+  "/vaccinations/{vaccination_id}/certificate-editions":
+    post:
+      operationId: issueVaccinationCertificate
+      summary: preview日付/manifest/hashを再照合
+      description: >-
+        初回はpreview日付/manifest/hashを再照合。訂正は同series edition+1/previous ID、履歴上書きなし。normalのlayout切替だけでは呼ばない。
+        既存bindingでは元対象を現在認可し、現在source再構成前にimmutable metadataのcanonical bytes/commitmentと元requestを照合する。
+        URL vaccination_id/kind/layout/全null展開inputs/preview_display_issue_date/preview_fingerprintを保存値と比較する。
+        source_content_versionは保存snapshot.source.version由来、今回CASで置換しない。相違は認可後409 operation-key-conflictで旧receipt非開示。
+        metadata不正は503 result-unavailable。一致時だけ同じContentでC06 HMAC照合し保存済み成功/unknown/busyを扱う。
+        同内容成功はsource/日付/renderer/現在CASが変わっても歴史的replayed。確定not-succeededの再試行だけ現在実行前提を再検査。PDF取得は現在有効性gateを別途通す。
+      x-c06-content-contract:
+        status: selected-not-implemented
+        max_fields: 64
+        max_field_name_bytes: 256
+        max_field_value_bytes: 256
+        encoding: canonical-utf8-string
+        exact_fields: [vaccination_id, kind, layout, source_content_version, snapshot_sha256, render_manifest_sha256, preview_fingerprint]
+        positive_int64_decimal_fields: [vaccination_id, source_content_version]
+        lowercase_hex64_fields: [snapshot_sha256, render_manifest_sha256, preview_fingerprint]
+        description: >-
+          正のint64はcanonical decimal 1–19 ASCII bytes、kindはnormal/rabies（6 bytes）、layoutはportrait/landscape/rabies（最大9 bytes）。
+          hashは64 ASCII bytes。追加field/full snapshot/manifest JSON/自由入力文字列/CASをContentへ入れない。
+          bindingと同じclaim TXにcanonical_snapshot_bytes/canonical_render_manifest_bytesをimmutable保存するatomic hookは未実装。
+          並行claimの既存metadataは更新/置換しない。準備前とApply内にbinding ID/clinicで再読取しcanonical妥当性と両digestをContentに照合する。
+          snapshot.render_manifestのcanonical bytes一致、source ID/確認済みversion/kindとtarget/Contentの一致、layout適合、preview hashも検査する。
+          正規lock下の現在認可/source/CAS/最新edition照合後だけ検証済み固定snapshotから同一TX保存。captureしたcommand/未検証resolver出力/client snapshotをwriter入力にしない。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      - vaccinations:edit
+      parameters:
+      - name: vaccination_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      - "$ref": "#/components/parameters/XRequestedWith"
+      responses:
+        '201':
+          description: 'succeeded: 新発行成功。'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/CertificateSuccessResult"
+                - properties:
+                    status:
+                      type: string
+                      enum:
+                      - succeeded
+        '200':
+          description: 'replayed: 同scope/key/Contentの歴史的成功。'
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/CertificateSuccessResult"
+                - properties:
+                    status:
+                      type: string
+                      enum:
+                      - replayed
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '422':
+          "$ref": "#/components/responses/CertificateUnprocessable"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CertificateIssueRequest"
+    get:
+      operationId: listVaccinationCertificateEditions
+      summary: 同接種/kindの履歴をedition降順で返す
+      description: 同接種/kindの履歴をedition降順で返す。kindを指定しseriesを固定。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: vaccination_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      - name: kind
+        in: query
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateKind"
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: edition降順。
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateEditionPage"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+  "/vaccination-certificate-editions/{edition_id}":
+    get:
+      operationId: getVaccinationCertificateEdition
+      summary: 現在認可済みedition reader
+      description: 現在認可済みedition reader。欠損snapshotを現在基本情報で補完しない。未知snapshot版は409 dependency-changed。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: edition_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      responses:
+        '200':
+          description: 履歴参照可能。旧版へ有効content_pathなし。
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateEdition"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+  "/vaccination-certificate-editions/{edition_id}/preview":
+    post:
+      operationId: previewSavedVaccinationCertificate
+      summary: 現在有効edition限定
+      description: 現在有効edition限定。既存artifactはdigest検証read。未生成別layoutは同snapshot/固定manifestから純描画。artifact行/receiptを作らない。旧snapshotを現在値で補完しない。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: edition_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      - "$ref": "#/components/parameters/XRequestedWith"
+      responses:
+        '200':
+          description: 現在有効editionの確認PDF。
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateSavedPreviewResponse"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '422':
+          "$ref": "#/components/responses/CertificateUnprocessable"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CertificateLayoutRequest"
+  "/vaccination-certificate-editions/{edition_id}/reprints":
+    post:
+      operationId: reprintVaccinationCertificate
+      summary: 現在edition限定
+      description: >-
+        現在edition限定。artifact再利用又はnormal別layoutを固定snapshot/manifestから追加。版増分なし、reprint receipt保存。
+        issue後最初の印刷はissue refsを使用でき、reprintを自動作成しない。既存bindingは保存元対象を現在認可し、URL edition_id/layoutをtarget/Contentと照合する。
+        相違は409 operation-key-conflictで旧receipt非開示。metadata canonical bytes/digest不正は503 result-unavailable。
+        一致時だけ同ContentのHMAC照合後に成功/unknown/busyを扱う。成功は現在source/CAS/renderer変更でも歴史的replayed、現在PDF出力許可は別。
+        確定not-succeededの再試行だけ現在実行前提を再検査。別scopeの既存operation PK衝突は422 validationで全TX rollback、他scope情報なし。
+      x-c06-content-contract:
+        status: selected-not-implemented
+        max_fields: 64
+        max_field_name_bytes: 256
+        max_field_value_bytes: 256
+        encoding: canonical-utf8-string
+        exact_fields: [edition_id, layout, snapshot_sha256, render_manifest_sha256]
+        positive_int64_decimal_fields: [edition_id]
+        lowercase_hex64_fields: [snapshot_sha256, render_manifest_sha256]
+        description: >-
+          issue用preview_fingerprint/source_content_versionを空文字で追加しない。任意field/full JSON/CASを混ぜない。
+          edition_idはcanonical decimal 1–19 ASCII bytes、layout最大9 bytes、hashはlowercase hex64。
+          immutable targetはedition_id必須。保存editionのsnapshot/manifest canonical bytesをbindingと同じclaim TXに固定するatomic hookは未実装。
+          準備前とApply内にbinding ID/clinicで再読取しcanonical bytesとContentの両digest、manifest bytesとsnapshot.render_manifest、edition_id/layoutとtarget、保存editionのsnapshot/manifest一致を検査。
+          不一致なら書込なし。検証済み固定snapshotだけから正規lock/現在認可/source CAS/最新edition照合後に同一TX保存。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: edition_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      - "$ref": "#/components/parameters/XRequestedWith"
+      responses:
+        '200':
+          description: 'succeeded/replayed: 出力準備完了。物理印刷成功ではない。'
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateSuccessResult"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '422':
+          "$ref": "#/components/responses/CertificateUnprocessable"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CertificateReprintRequest"
+  "/vaccination-certificate-artifacts/{artifact_id}/content":
+    get:
+      operationId: getVaccinationCertificateArtifactContent
+      summary: 返却直前も現在grant/医院/患者/current view照合
+      description: 返却直前も現在grant/医院/患者/current view照合。旧版は409 dependency-changed。正本欠損/digest不一致は503、現在template再描画へfallbackなし。既に渡した出力の回収保証外。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateId"
+      responses:
+        '200':
+          description: FE印刷が使う保護PDFのみ。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                - private, no-store
+              description: 必須。private, no-store。
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
+  "/vaccination-certificate-operations/{operation_key}":
+    get:
+      operationId: lookupVaccinationCertificateOperation
+      summary: scopeは認証context clinic + owner_kind=vaccinations + actor_kind=staff +
+        canonical staff ID + intent=vaccinations.certificate.issue/reprint
+      description: scopeは認証context clinic + owner_kind=vaccinations + actor_kind=staff
+        + canonical staff ID + intent=vaccinations.certificate.issue/reprint。保存元対象metadata
+        resolverで現在認可。別対象IDで認可すり替え不可。成功は歴史的receiptで現在PDF出力許可でない。binding不在のみ404 scope-not-found、元対象不明は403。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - name: operation_key
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+      - name: intent
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - issue
+          - reprint
+      responses:
+        '200':
+          description: C06 succeeded/replayed又はnot-succeeded。not-succeededはstatus/operation_keyのみ、error/code envelopeなし。
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateResultResponse"
+        '400':
+          "$ref": "#/components/responses/CertificateBadRequest"
+        '401':
+          "$ref": "#/components/responses/CertificateUnauthorized"
+        '403':
+          "$ref": "#/components/responses/CertificateForbidden"
+        '404':
+          "$ref": "#/components/responses/CertificateNotFound"
+        '409':
+          "$ref": "#/components/responses/CertificateConflict"
+        '500':
+          "$ref": "#/components/responses/CertificateInternalError"
+        '503':
+          "$ref": "#/components/responses/CertificateUnavailable"
