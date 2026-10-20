@@ -31,6 +31,11 @@ type store interface {
 	InsertResult(ctx context.Context, b Binding, res Result) error
 	// HasUnknownOutcome reports whether any unknown outcome exists (sticky).
 	HasUnknownOutcome(ctx context.Context, b Binding) (bool, error)
+	// RecordUnknownUnderLock records the unknown attempt inside the caller's
+	// business transaction (savepoint: undo owner writes, then insert). The
+	// unknown commits with that transaction while the binding row lock is
+	// still held, so the stop state is durable before the lock is released.
+	RecordUnknownUnderLock(ctx context.Context, b Binding, attemptKey uuid.UUID, status Status) error
 	// RecordOutcome appends one attempt outcome. It must run outside an
 	// ambient transaction.
 	RecordOutcome(ctx context.Context, b Binding, attemptKey uuid.UUID, outcome AttemptOutcome, status Status) error
@@ -245,6 +250,26 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 	}
 
 	applied, err := p.Apply(ctx, binding, req)
+	var indeterminate *IndeterminateEffect
+	if errors.As(err, &indeterminate) {
+		// The effect may or may not have happened. Undo the owner writes and
+		// commit the unknown row inside this transaction, while the binding
+		// row lock is still held: the stop state is durable before the lock is
+		// released, so no concurrent execution can run Apply twice.
+		attemptKey := r.newAttemptKey()
+		if attemptKey == uuid.Nil {
+			return errors.Join(indeterminate, apperrors.WrapInternalServerError("operation attempt key is required"))
+		}
+		if unknownErr := r.store.RecordUnknownUnderLock(ctx, binding, attemptKey, StatusResultUnavailable); unknownErr != nil {
+			// Recording failed under the lock and the transaction will roll
+			// back. resolveFailedAttempt falls through to the
+			// outside-transaction best-effort record; the insert error must
+			// not mask the indeterminate cause.
+			return errors.Join(indeterminate, unknownErr)
+		}
+		*outcome = Outcome{Status: StatusResultUnavailable, Binding: &binding}
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -292,8 +317,12 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 
 	var indeterminate *IndeterminateEffect
 	if errors.As(txErr, &indeterminate) {
-		// The owner cannot tell whether its effect happened: record unknown so
-		// the binding stops until the owner resolves it.
+		// The in-transaction unknown record failed and the transaction rolled
+		// back. Best effort: record the unknown outside any transaction so the
+		// binding still stops; if that also fails, only this response stops —
+		// a retry would re-run Apply on top of an effect whose outcome nobody
+		// knows. The durable binding-owned stop state that removes this
+		// residual requires shared 001 DDL and is owned elsewhere.
 		if err := r.recordOutcome(ctx, binding, OutcomeUnknown, StatusResultUnavailable); err != nil {
 			// Fail closed: the effect may have happened. Never answer with a
 			// retriable failure — a retry would re-run Apply on top of an

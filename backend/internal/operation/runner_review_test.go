@@ -89,30 +89,83 @@ func TestLookup_BusyBindingRollsBackAbortedTransaction(t *testing.T) {
 	require.Nil(t, looked.Result)
 }
 
-// TestExecute_UnknownRecordingFailureFailsClosed pins the coderabbitai finding
-// "return result-unavailable when recording the unknown outcome fails": a
-// failed attempt-record never turns into a retriable failure, because a retry
-// would re-run Apply on top of an effect whose outcome nobody knows. The
-// recording error is logged and the response stops the binding.
-func TestExecute_UnknownRecordingFailureFailsClosed(t *testing.T) {
+// TestExecute_UnknownCommitsUnderLockBeforeRelease pins the codex P1 /
+// coderabbitai finding "keep the binding stopped while recording unknown
+// effects": the unknown row is recorded inside the business transaction while
+// the binding row lock is still held, so no concurrent execution can acquire
+// the binding and re-run Apply in the window between the rollback and the
+// unknown record. The owner write is undone (savepoint) and the versions stay
+// untouched.
+func TestExecute_UnknownCommitsUnderLockBeforeRelease(t *testing.T) {
 	f := newR2Fixture(t)
 	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
-	f.store.failRecordOutcome(errors.New("attempt store unavailable"))
-
-	out, err := f.runner.Execute(t.Context(), Request{
+	req := Request{
 		Scope:         f.scope,
 		Key:           f.key,
 		Content:       f.content,
 		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
-	}, f.owner)
+	}
+
+	out, err := f.runner.Execute(t.Context(), req, f.owner)
 
 	require.NoError(t, err)
 	require.Equal(t, StatusResultUnavailable, out.Status)
-	require.Nil(t, out.Result)
+	require.Equal(t, 1, f.owner.applyCount())
+	// The savepoint undid the owner write of the rolled-back attempt.
+	require.Equal(t, "1", f.owner.version("billing_version"))
+	// The stop state was recorded inside the open transaction (under the
+	// binding lock), not after the rollback released it.
+	require.True(t, f.store.unknownWasRecordedInTx())
+	// The transaction itself must not have rolled back: a rollback would have
+	// released the binding lock before the stop state became durable — the
+	// exact race window the review flagged.
+	require.Zero(t, f.store.rollbackCount())
+	stored, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.Equal(t, 1, f.store.attemptCount(stored.Binding.ID))
+
+	// A later execution of the same key observes the committed unknown and
+	// never reaches Apply again.
+	retried, err := f.runner.Execute(t.Context(), req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, retried.Status)
+	require.Equal(t, 1, f.owner.applyCount())
+}
+
+// TestExecute_UnknownPersistenceFailureKeepsResponseStopped pins the second
+// half of the same finding: when the unknown persistence keeps failing, only
+// the current response stops. There is no durable stop state, so a later
+// execution re-runs Apply — the documented residual that a durable
+// binding-owned stop state (shared 001 DDL, owned by the storage-contract
+// tickets) would remove. This test exists to make the residual explicit, not
+// to endorse it.
+func TestExecute_UnknownPersistenceFailureKeepsResponseStopped(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	f.store.failRecordOutcome(errors.New("attempt store unavailable"))
+	req := Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}
+
+	// Both the in-transaction record and the outside-transaction fallback
+	// fail: the response still stops, no attempt row exists.
+	out, err := f.runner.Execute(t.Context(), req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, out.Status)
 	require.Equal(t, 1, f.owner.applyCount())
 	stored, ok := f.store.bindingFor(f.scope, f.key)
 	require.True(t, ok)
 	require.Zero(t, f.store.attemptCount(stored.Binding.ID))
+
+	// Residual (documented): with no durable stop state, the later execution
+	// re-runs Apply. Removing this requires the binding-owned stop state DDL.
+	retried, err := f.runner.Execute(t.Context(), req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, retried.Status)
+	require.Equal(t, 2, f.owner.applyCount())
 }
 
 // TestExecute_AppliesTheFingerprintedContent pins the codex P1 finding "bind

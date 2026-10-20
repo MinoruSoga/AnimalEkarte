@@ -588,6 +588,9 @@ func (t *fakeTx) WithTx(ctx context.Context, fn func(ctx context.Context) error)
 	t.store.mu.Unlock()
 	if err := fn(ctx); err != nil {
 		t.store.rollback(journal)
+		t.store.mu.Lock()
+		t.store.txRollbacks++
+		t.store.mu.Unlock()
 		return err
 	}
 	t.store.mu.Lock()
@@ -617,8 +620,17 @@ type fakeStore struct {
 	// txAborted models a PostgreSQL transaction block aborted by a NOWAIT
 	// lock error: a callback that returns nil afterwards cannot commit.
 	txAborted bool
-	// recordErr fails the next RecordOutcome, modeling a broken attempt store.
+	// recordErr makes every subsequent outcome write (RecordOutcome and
+	// RecordUnknownUnderLock) fail, modeling a broken attempt store.
 	recordErr error
+	// unknownInTx is set when RecordUnknownUnderLock ran with an open
+	// transaction, pinning that the stop state is recorded under the lock.
+	unknownInTx bool
+	// txRollbacks counts transaction rollbacks. The unknown stop state must
+	// commit with the owner transaction (rollback count stays zero for that
+	// attempt); a rollback would release the binding lock before the stop
+	// state is durable — the race the review flagged.
+	txRollbacks int
 }
 
 func newFakeStore() *fakeStore {
@@ -630,12 +642,67 @@ func newFakeStore() *fakeStore {
 	}
 }
 
-// failRecordOutcome makes the next RecordOutcome call fail once, modeling an
-// unavailable attempt store.
+// failRecordOutcome makes every subsequent outcome write fail, modeling an
+// unavailable attempt store. The residual risk this models (no durable stop
+// state when persistence keeps failing) is pinned by
+// TestExecute_UnknownPersistenceFailureKeepsResponseStopped.
 func (s *fakeStore) failRecordOutcome(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recordErr = err
+}
+
+// unknownWasRecordedInTx reports whether RecordUnknownUnderLock ran inside an
+// open transaction, which is what keeps the stop state durable before the
+// binding row lock is released.
+func (s *fakeStore) unknownWasRecordedInTx() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.unknownInTx
+}
+
+// rollbackCount reports how many transactions rolled back. The unknown stop
+// state must commit with the owner transaction, so the attempt that records it
+// must not have rolled back at all.
+func (s *fakeStore) rollbackCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.txRollbacks
+}
+
+// RecordUnknownUnderLock models the savepoint-based in-transaction unknown
+// record: it undoes the owner writes recorded so far in the open transaction
+// and appends the unknown attempt row, which then commits with the caller's
+// transaction while the binding lock is still held.
+func (s *fakeStore) RecordUnknownUnderLock(_ context.Context, b Binding, attemptKey uuid.UUID, status Status) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.recordErr != nil {
+		return s.recordErr
+	}
+	s.unknownInTx = len(s.journals) > 0
+	if n := len(s.journals); n > 0 {
+		journal := s.journals[n-1]
+		for i := len(journal.undos) - 1; i >= 0; i-- {
+			journal.undos[i]()
+		}
+		journal.undos = journal.undos[:0]
+	}
+	s.outcomes[b.ID] = append(s.outcomes[b.ID], fakeAttempt{
+		AttemptKey: attemptKey,
+		Outcome:    OutcomeUnknown,
+		Status:     status,
+	})
+	s.addRollbackLocked(func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		recorded := s.outcomes[b.ID]
+		if len(recorded) > 0 {
+			s.outcomes[b.ID] = recorded[:len(recorded)-1]
+		}
+	})
+	return nil
 }
 
 func (s *fakeStore) ClaimBinding(_ context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string) (storedBinding, error) {

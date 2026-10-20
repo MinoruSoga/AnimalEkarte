@@ -226,6 +226,47 @@ func (s *gormStore) RecordOutcome(
 	return nil
 }
 
+// RecordUnknownUnderLock records the unknown attempt outcome inside the
+// caller's business transaction: it takes a savepoint, undoes the owner
+// writes, and inserts the unknown row. The caller's commit then makes the
+// stop state durable while the binding row lock is still held, so no
+// concurrent execution can run Apply in the window between the rollback and
+// the unknown record. details carries only the status code: no content,
+// fingerprint, PII or free text is stored.
+func (s *gormStore) RecordUnknownUnderLock(
+	ctx context.Context,
+	b Binding,
+	attemptKey uuid.UUID,
+	status Status,
+) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("operation unknown record requires an ambient transaction")
+	}
+	tx := persistence.DBOrTx(ctx, s.db)
+	const savepoint = "operation_unknown_under_lock"
+	if err := tx.SavePoint(savepoint).Error; err != nil {
+		return apperrors.FromGORM(err, "operation_attempt_outcome", "")
+	}
+	if err := tx.RollbackTo(savepoint).Error; err != nil {
+		return apperrors.FromGORM(err, "operation_attempt_outcome", "")
+	}
+	details, err := encodeStringMap(map[string]string{"status": string(status)})
+	if err != nil {
+		return err
+	}
+	row := model.OperationAttemptOutcome{
+		ClinicID:   b.ClinicID,
+		BindingID:  b.ID,
+		AttemptKey: attemptKey,
+		Outcome:    string(OutcomeUnknown),
+		Details:    details,
+	}
+	if err := tx.Create(&row).Error; err != nil {
+		return apperrors.FromGORM(err, "operation_attempt_outcome", "")
+	}
+	return nil
+}
+
 // encodeStringMap stores a JSON object. A nil or empty map is stored as {},
 // because the columns reject a JSON null.
 func encodeStringMap(values map[string]string) (json.RawMessage, error) {

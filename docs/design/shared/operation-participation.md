@@ -28,7 +28,7 @@
 
 - 束縛scopeは認証済みの`clinic_id`＋`owner_kind`＋`actor_kind`/`actor_ref`＋`intent`＋`operation_key`（DDLの一意キーと同じ）。clientが指定したclinic・actorで行を選ばない。
 - `Content`（業務内容）と`Preconditions`（CAS・fence等の実行前提）は別の型である。集合値（例: 対象行ID集合）はadapterが正規順（昇順）で1つの値にしてから`Content`へ入れる。順序違いの同じ内容を別fingerprintにしない。
-- ownerが効果の有無を判定できない場合（外部送信の応答喪失など）は`Apply`が`*IndeterminateEffect`を返す。helperは`unknown`を記録し、そのbindingは`result-unavailable`で停止し続ける。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。
+- ownerが効果の有無を判定できない場合（外部送信の応答喪失など）は`Apply`が`*IndeterminateEffect`を返す。helperは`unknown`を、binding行lockを保持したままの同一transaction内でsavepointにより記録する（owner writeをundoしてから`unknown`行を挿入）。lock解放前に停止状態がcommitされるため、rollback〜記録間に並行実行が`Apply`を再実行する窓はない。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。
 - `Apply`はfingerprint済みの`Request`そのものを受け取る。owner writeを`req.Content`からだけ導出することで、fingerprintされた内容と書き込まれた内容が乖離しreceiptを別内容で保存する経路を型で閉じる。
 - gateや`Apply`が保持できないlockを取れなかった場合は`*Busy`を返す。helperは`operation-in-progress`として応答し、attemptを記録しない（binding行のlock失敗と同一契約）。
 - fingerprintはサーバー鍵によるHMAC-SHA-256。鍵versionを保存し、旧鍵versionで再計算して照合する。鍵はconstructorへ注入し、環境変数名・設定配線は未選定（§5）。
@@ -39,8 +39,8 @@
 |:---|:---|:---|
 | 0 | ambient transaction内からの呼出しを拒否（最外であること） | 実行しない |
 | 1 claim（短い独立tx） | bindingをINSERT（同scope・keyが既存なら何もしない）→保存行を読む。保存fingerprintとContentが不一致なら終了 | `operation-key-conflict`。attemptは記録しない |
-| 2 最外業務tx | ownerが渡すgate（例: 予約graph参加者だけ）→binding行`FOR UPDATE NOWAIT`→成功resultがあれば現在認可（`AuthorizeLookup`）を再検査して再実行せず返す→`unknown`が1件でもあれば現在認可を再検査して停止（認可なきactorには`not-authorized`で隠す。後の失敗行で解除しない）→`Participant.Apply`（現在認可・scope・Preconditionsの再照合、`req.Content`由来のowner write、必須監査）→`operation_results` INSERT | gateもlockも待たない。lock取得不可はbinding行・owner gateの双方で`operation-in-progress`（`*Busy`含む）とし、attemptを記録しない |
-| 3 失敗後 | 新しい読取でresultの有無を再確認。あれば現在認可を再検査して成功（commit済みを失敗へ反転しない） | 読取失敗・`unknown`記録済みは`result-unavailable`（失敗行を重ねない）。それ以外は別txでattemptを記録（`*IndeterminateEffect`→`unknown`で以後停止、`*Rejection`→`rejected`、`*Busy`・binding lock保持中→`operation-in-progress`で記録なし、その他→`retryable_failure`）。`unknown`記録自体に失敗した場合も`result-unavailable`を返してfail-closedにし、clientに再実行を誘発しない（記録エラーはログへ出し、オペレーターがbindingを解消）。attempt_keyは毎回サーバー生成、detailsは`{"status": ...}`だけ |
+| 2 最外業務tx | ownerが渡すgate（例: 予約graph参加者だけ）→binding行`FOR UPDATE NOWAIT`→成功resultがあれば現在認可（`AuthorizeLookup`）を再検査して再実行せず返す→`unknown`が1件でもあれば現在認可を再検査して停止（認可なきactorには`not-authorized`で隠す。後の失敗行で解除しない）→`Participant.Apply`（現在認可・scope・Preconditionsの再照合、`req.Content`由来のowner write、必須監査）。`*IndeterminateEffect`時はsavepointでowner writeをundoし、同一tx内で`unknown`行を記録してcommit（lock解放前に停止状態を永続化）→`operation_results` INSERT | gateもlockも待たない。lock取得不可はbinding行・owner gateの双方で`operation-in-progress`（`*Busy`含む）とし、attemptを記録しない |
+| 3 失敗後 | 新しい読取でresultの有無を再確認。あれば現在認可を再検査して成功（commit済みを失敗へ反転しない） | 読取失敗・`unknown`記録済みは`result-unavailable`（失敗行を重ねない）。それ以外は別txでattemptを記録（`*IndeterminateEffect`は通常tx内で記録済み。tx内記録に失敗した場合のみtx外でbest-effort記録し以後停止、`*Rejection`→`rejected`、`*Busy`・binding lock保持中→`operation-in-progress`で記録なし、その他→`retryable_failure`）。tx内記録とtx外fallbackの双方が失敗した場合は応答だけ停止し、永続的な停止状態は残らない（residual。binding自身への停止状態保持はDDLを要し、shared 001 owner＝EMR-446/466系へ依存切り分け済み。記録エラーはログへ出し、オペレーターがbindingを解消）。attempt_keyは毎回サーバー生成、detailsは`{"status": ...}`だけ |
 
 照会（`Runner.Lookup`）は、resultが見えなければbinding行をNOWAITでlockしてからresultと`unknown`を再読取する。lock取得前に他の試行がcommitした成功を`not-succeeded`と返さない。結果を返す全経路（照会・replay・失敗後の成功確認）で`AuthorizeLookup`を通す。`Participant`はこのため`LookupAuthorizer`を含む。
 
@@ -97,7 +97,7 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 
 `current_permission_revoked`は照会に加えて`Execute`の同key再送でも`not-authorized`・Apply追加なしを確認する。
 
-補助テスト: unknown後のgate拒否→回復でも停止が続く（`TestExecute_UnknownStaysStickyAfterGateFailure`）、初回読取とlockの間にcommitされた成功を照会が`succeeded`と返す（`TestLookup_SeesSuccessCommittedBeforeLock`）、gate失敗時に見つかった成功receiptも現在認可で隠す（`TestExecute_GateFailureWithCommittedReceiptRechecksGrant`）、gate競合は`*Busy`で`operation-in-progress`・attempt記録なし（`TestExecute_GateBusyRecordsNothingAndReportsInProgress`）、unknown停止も現在認可で開示（`TestExecute_UnknownDisclosureRequiresCurrentGrant`）、NOWAIT abort後はrollbackして`operation-in-progress`（`TestLookup_BusyBindingRollsBackAbortedTransaction`）、unknown記録の失敗はfail-closed（`TestExecute_UnknownRecordingFailureFailsClosed`）、`Apply`はfingerprint済み`Request`を受ける（`TestExecute_AppliesTheFingerprintedContent`）、ambient tx内からの実行拒否、`retryable_failure`記録とrollback、lock保持中の`operation-in-progress`、binding不在の`scope-not-found`。
+補助テスト: unknown後のgate拒否→回復でも停止が続く（`TestExecute_UnknownStaysStickyAfterGateFailure`）、初回読取とlockの間にcommitされた成功を照会が`succeeded`と返す（`TestLookup_SeesSuccessCommittedBeforeLock`）、gate失敗時に見つかった成功receiptも現在認可で隠す（`TestExecute_GateFailureWithCommittedReceiptRechecksGrant`）、gate競合は`*Busy`で`operation-in-progress`・attempt記録なし（`TestExecute_GateBusyRecordsNothingAndReportsInProgress`）、unknown停止も現在認可で開示（`TestExecute_UnknownDisclosureRequiresCurrentGrant`）、NOWAIT abort後はrollbackして`operation-in-progress`（`TestLookup_BusyBindingRollsBackAbortedTransaction`）、`unknown`はlock保持下の同一txでcommitされ後続実行がApplyに届かない（`TestExecute_UnknownCommitsUnderLockBeforeRelease`）、unknown永続化の継続失敗時は応答のみ停止しresidualを明示（`TestExecute_UnknownPersistenceFailureKeepsResponseStopped`）、`Apply`はfingerprint済み`Request`を受ける（`TestExecute_AppliesTheFingerprintedContent`）、ambient tx内からの実行拒否、`retryable_failure`記録とrollback、lock保持中の`operation-in-progress`、binding不在の`scope-not-found`。
 
 ## 4. 非対象・維持する別契約
 
