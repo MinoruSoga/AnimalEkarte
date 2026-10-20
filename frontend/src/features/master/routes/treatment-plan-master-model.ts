@@ -92,6 +92,7 @@ export function buildTreatmentTabConfigs({
       onReorder: onReorderVaccines,
     },
     checkup: {
+      insuranceTriState: true,
       data: checkupData,
       entityLabel: "定期健診",
       emptyMessage: "定期健診が登録されていません",
@@ -199,8 +200,13 @@ export function buildCheckupCreateRequest(data: TreatmentFormData): CreateChecku
   };
 }
 
-export function buildCheckupUpdateRequest(data: TreatmentFormData): UpdateCheckupTypeRequest {
-  const base = buildCheckupCreateRequest(data);
+export function buildCheckupUpdateRequest(
+  data: TreatmentFormData,
+): UpdateCheckupTypeRequest & { version: number } {
+  const base = {
+    ...buildCheckupCreateRequest(data),
+    version: requireMasterEditVersion(data.version),
+  };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }

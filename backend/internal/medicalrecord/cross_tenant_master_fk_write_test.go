@@ -206,14 +206,14 @@ func TestCheckupTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.CheckupType) error { *created = true; return nil },
 		}
-		return NewCheckupTypeService(repo)
+		return newTestCheckupTypeService(repo)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &foreign, ActorID: &testCheckupTypeActorID})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "checkup type must NOT be persisted referencing another clinic's parent checkup type")
@@ -223,7 +223,7 @@ func TestCheckupTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateCheckupTypeInput{Name: "x", ParentID: &owned, ActorID: &testCheckupTypeActorID})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -233,41 +233,48 @@ func TestCheckupTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 func TestCheckupTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 	const clinicID = uint64(1)
 	const entityID = uint64(1)
+	expectedVersion := int64(3)
 	const ownedParentID = uint64(10)
 	const foreignParentID = uint64(999)
 
-	newSvc := func(updated *bool) CheckupTypeService {
+	newSvc := func(updated, parentChecked *bool) CheckupTypeService {
 		repo := &mockCheckupTypeRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.CheckupType, error) {
+				if id == ownedParentID || id == foreignParentID {
+					*parentChecked = true
+				}
 				if id == entityID || id == ownedParentID {
-					return &model.CheckupType{ID: id}, nil
+					return &model.CheckupType{ID: id, Version: expectedVersion}, nil
 				}
 				return nil, apperrors.WrapNotFound("checkup_type", "foreign")
 			},
 			updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateCheckupTypeInput) (*model.CheckupType, error) {
 				*updated = true
-				return &model.CheckupType{ID: id}, nil
+				return &model.CheckupType{ID: id, Version: expectedVersion}, nil
 			},
 		}
-		return NewCheckupTypeService(repo)
+		return newTestCheckupTypeService(repo)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
+		updated, parentChecked := false, false
+		svc := newSvc(&updated, &parentChecked)
 		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateCheckupTypeInput{ParentID: &foreign})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateCheckupTypeInput{Version: &expectedVersion, ParentID: &foreign})
 		assert.Error(t, err)
+		assert.ErrorIs(t, err, apperrors.ErrNotFound)
+		assert.True(t, parentChecked, "parent scope lookup must run")
 		assert.Nil(t, out)
 		assert.False(t, updated, "checkup type must NOT be updated to reference another clinic's parent checkup type")
 	})
 
 	t.Run("accepts same-clinic parent_id (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
+		updated, parentChecked := false, false
+		svc := newSvc(&updated, &parentChecked)
 		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateCheckupTypeInput{ParentID: &owned})
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateCheckupTypeInput{Version: &expectedVersion, ParentID: &owned})
 		assert.NoError(t, err)
+		assert.True(t, parentChecked, "parent scope lookup must run")
 		assert.NotNil(t, out)
 		assert.True(t, updated)
 	})

@@ -159,15 +159,25 @@ export function useTreatmentPlanMasterSaves({
     TreatmentItem,
     TreatmentFormData,
     CreateCheckupTypeRequest,
-    UpdateCheckupTypeRequest
+    UpdateCheckupTypeRequest & { version: number }
   >({
     crud: minimalCrud,
     createMutation: resources.createCheckup,
     updateMutation: resources.updateCheckup,
     permissions: { canCreate: canCreateCheckup, canEdit: canEditCheckup },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: buildCheckupCreateRequest,
-    toUpdateRequest: buildCheckupUpdateRequest,
+    validate: (data) => {
+      if (!data.name.trim()) return "名称を入力してください";
+      if (editTarget !== "new" && !isMasterEditVersion(data.version))
+        return MASTER_EDIT_VERSION_ERROR;
+      return null;
+    },
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildCheckupCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(
+        buildCheckupUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const saveHooksByTab = useMemo(

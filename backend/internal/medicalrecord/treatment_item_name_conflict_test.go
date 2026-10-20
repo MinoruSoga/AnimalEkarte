@@ -83,12 +83,12 @@ func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	})
 
 	t.Run("checkup_type", func(t *testing.T) {
-		svc := NewCheckupTypeService(&mockCheckupTypeRepository{
+		svc := newTestCheckupTypeService(&mockCheckupTypeRepository{
 			createFn: func(_ context.Context, _ *model.CheckupType) error {
 				return uniqueTreatmentNameErr("checkup_type", apperrors.ConstraintCheckupTypeName)
 			},
 		})
-		got, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "V04定期健診"})
+		got, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "V04定期健診", ActorID: &testCheckupTypeActorID})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeCheckupTypeNameConflict))

@@ -132,7 +132,14 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
     checkupTypes.forEach((ct) => {
       if (ct.isActive) {
-        items.push({ id: ct.id, name: ct.name, unitPrice: ct.price, category: "検査" });
+        items.push({
+          id: ct.id,
+          name: ct.name,
+          unitPrice: ct.price,
+          category: "検査",
+          isNonInsurance: ct.insuranceSetting,
+          insuranceContract: "master",
+        });
       }
     });
 

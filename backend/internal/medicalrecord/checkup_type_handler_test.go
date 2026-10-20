@@ -332,7 +332,7 @@ func TestUpdateCheckupType(t *testing.T) {
 		{
 			name:     "updates checkup type successfully",
 			paramID:  "1",
-			body:     map[string]any{"name": "更新健診"},
+			body:     map[string]any{"name": "更新健診", "version": 1},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupTypeService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateCheckupTypeInput) (*model.CheckupType, error) {
@@ -346,7 +346,7 @@ func TestUpdateCheckupType(t *testing.T) {
 		{
 			name:     "updates with clear_parent_id flag",
 			paramID:  "2",
-			body:     map[string]any{"clear_parent_id": true},
+			body:     map[string]any{"clear_parent_id": true, "version": 1},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupTypeService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateCheckupTypeInput) (*model.CheckupType, error) {
@@ -375,7 +375,7 @@ func TestUpdateCheckupType(t *testing.T) {
 		{
 			name:     "returns 404 when checkup type not found",
 			paramID:  "999",
-			body:     map[string]any{"name": "テスト"},
+			body:     map[string]any{"name": "テスト", "version": 1},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupTypeService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateCheckupTypeInput) (*model.CheckupType, error) {
