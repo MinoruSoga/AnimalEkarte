@@ -30,6 +30,9 @@ type mockCageRepository struct {
 	setMergedIntoFn          func(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
 	clearMergedIntoFn        func(ctx context.Context, clinicID, representativeID uint64) error
 	listOccupiedCageIDsFn    func(ctx context.Context, clinicID uint64) ([]uint64, error)
+	// EMR-461
+	countOccupiedCagesExcludingFn  func(ctx context.Context, clinicID uint64, cageIDs, excludeHospitalizationIDs []uint64) (map[uint64]int64, error)
+	listOccupiedCageIDsExcludingFn func(ctx context.Context, clinicID uint64, excludeHospitalizationID *uint64) ([]uint64, error)
 }
 
 func (m *mockCageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -126,6 +129,20 @@ func (m *mockCageRepository) ClearMergedInto(ctx context.Context, clinicID, repr
 		return m.clearMergedIntoFn(ctx, clinicID, representativeID)
 	}
 	return nil
+}
+
+func (m *mockCageRepository) CountOccupiedCagesExcludingHospitalizations(ctx context.Context, clinicID uint64, cageIDs, excludeHospitalizationIDs []uint64) (map[uint64]int64, error) {
+	if m.countOccupiedCagesExcludingFn != nil {
+		return m.countOccupiedCagesExcludingFn(ctx, clinicID, cageIDs, excludeHospitalizationIDs)
+	}
+	return map[uint64]int64{}, nil
+}
+
+func (m *mockCageRepository) ListOccupiedCageIDsExcludingHospitalization(ctx context.Context, clinicID uint64, excludeHospitalizationID *uint64) ([]uint64, error) {
+	if m.listOccupiedCageIDsExcludingFn != nil {
+		return m.listOccupiedCageIDsExcludingFn(ctx, clinicID, excludeHospitalizationID)
+	}
+	return []uint64{}, nil
 }
 
 func (m *mockCageRepository) ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {

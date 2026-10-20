@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/audit"
+	"github.com/animal-ekarte/backend/internal/auth"
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/inventory"
@@ -34,10 +36,11 @@ type medicalRecordCompositionDependencies struct {
 }
 
 type medicalRecordHTTPDependencies struct {
-	Uploader          infra.FileUploader
-	DB                *gorm.DB
-	HasPermission     medicalrecord.PermissionChecker
-	RequirePermission medicalrecord.PermissionMiddleware
+	Uploader             infra.FileUploader
+	DB                   *gorm.DB
+	HasPermission        medicalrecord.PermissionChecker
+	RequirePermission    medicalrecord.PermissionMiddleware
+	RequirePermissionAny medicalrecord.PermissionAnyMiddleware
 }
 
 type medicalRecordComposition struct {
@@ -126,7 +129,25 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewMedicalRecordAddendumHandler(s.core.addenda),
 		medicalrecord.NewExaminationHandler(s.core.examinations),
 		dependencies.RequirePermission,
+		dependencies.RequirePermissionAny,
 	)
+}
+
+// adaptMedicalRecordPermissionAny は auth の any-of middleware を medicalrecord の
+// consumer-side 型へ写す（medicalrecord は internal/auth に依存しない・ADR-006）。
+func adaptMedicalRecordPermissionAny(
+	require func(...auth.PermissionRequirement) gin.HandlerFunc,
+) medicalrecord.PermissionAnyMiddleware {
+	return func(requirements ...medicalrecord.PermissionRequirement) gin.HandlerFunc {
+		target := make([]auth.PermissionRequirement, len(requirements))
+		for i, requirement := range requirements {
+			target[i] = auth.PermissionRequirement{
+				Resource: requirement.Resource,
+				Action:   requirement.Action,
+			}
+		}
+		return require(target...)
+	}
 }
 
 type medicalRecordAuditBridge struct {

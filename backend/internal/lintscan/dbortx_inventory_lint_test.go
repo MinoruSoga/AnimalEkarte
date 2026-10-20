@@ -631,13 +631,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountUsageByCageID": {},
 	// EMR-306 ケージ一時連結: 連結の永続化・解除・グループロック・構成員/占有カウントは
 	// 呼び出し元の ambient transaction に参加する（cage_repository_tx_atomicity_test.go）。
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.SetMergedInto":          {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.ClearMergedInto":        {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCagesForUpdate":     {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCageGroupForUpdate": {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":     {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountOccupiedCages":     {},
-	"medicalrecord/cage_repository.go|cageRepositoryImpl.ListOccupiedCageIDs":    {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.SetMergedInto":                         {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.ClearMergedInto":                       {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCagesForUpdate":                    {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.LockCageGroupForUpdate":                {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":                    {},
+	"medicalrecord/cage_repository.go|cageRepositoryImpl.readEffectiveCageOccupancy":            {},
+	"medicalrecord/stay_cage_effective_state_reader.go|stayCageEffectiveStateReader.readLocked": {},
+	"medicalrecord/cage_occupancy_read_snapshot.go|withCageOccupancyReadSnapshot":               {},
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
