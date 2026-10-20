@@ -24,17 +24,23 @@
 
 途中品目に不適合があれば全構成品の追加を成立させず、行別理由を表示する。結果不明は元操作を照会し、同じ操作の再送で重複追加しない。
 
+ここでの不適合は、単品追加と同じ段階で拒否される型付き参照・医院scope・現在権限・有効性・数量等の条件をいう。単品の既決仕様で予定入力が許される価格・税・保険の未確定は、nullのまま出所・理由を保持して警告表示し、予定追加だけを新たに禁止しない。0円・10%等の標準税率・保険のfalseへ補完せず、必要な確定条件は実施・請求を担うownerの必要時点で検査する。取得失敗と保存済み未設定は区別する。
+
+予定owner/classification自体が未解決である場合は財務未確定と区別し、previewを追加不可にしてapplyは全件zero-writeとする。名前からclinical/commercialを推定せず、財務値が不明なだけでowner未解決へ読み替えない。
+
 <a id="fr-package-price-history"></a>
 ## FR-package-price-history — 当時値と現在masterの分離
 
 master参照品は追加時に照合した現在の単品価格・税・保険等をsnapshot保存する。医院別構成に含まれる料金も各品目の既存計算契約へ従い、入力税込額保持と正確な数量を守る。金額は個別品目合算を初期設計とし、新しい固定総額料金・自動値引き・税配賦を作らない。
 
-新しい全品目共通の数量scale上限、税区分、保険補完、医学的用量を導入しない。追加後のmaster/package変更で過去の適用snapshotを書き換えない。無効masterの新規追加は拒否し、既存表示・履歴は保持する。
+新しい全品目共通の数量scale上限、税区分、保険補完、医学的用量を導入しない。追加後のmaster/package変更で過去の適用snapshotを書き換えない。snapshotは未確定のnullも含み、未確定理由・参照元を保持する。未確定を後日のmaster変更で自動補完せず、既存の明示編集・再確認へ接続する。無効masterの新規追加は拒否し、既存表示・履歴は保持する。
 
 <a id="fr-package-owner-boundary"></a>
 ## FR-package-owner-boundary — 個別業務の正本
 
 実施、結果、訂正、請求適格、在庫は各既存ownerが担う。検査・接種・健診は単品追加と同じ予定identityで各タブの未実施表示・同一結果追跡へ接続する。プランと実績の双方から二重請求しない。数量を接種回数・検査回数・結果件数へ推測変換しない。package中止・削除・複写・取消だけで実績・確定会計・在庫を巻き戻さない。
+
+患者取り違えは[既存D03の必要内容転記・元先対応](lifecycle.md#requirement-fr-medical-records-wrong-patient-linked-transfer)へ従い、記入済み記録の患者IDを直接付け替えない。転記先は適切な既存記録も利用でき、常に新規カルテ作成を要求しない。必要な予定内容は訂正根拠を持つ転記先の新identityとし、元application/planは元患者に保持する。全package自動複写・別ownerの無条件付替え・実施や請求の自動生成は行わない。
 
 <a id="rabies-package-boundary"></a>
 ### 狂犬病セットと証明書owner
@@ -50,9 +56,9 @@ master参照品は追加時に照合した現在の単品価格・税・保険�
 |:---|:---|:---|
 | AC-package-mixed-items | 7master種＋正規manual_otherを混在し、typed参照・順序・正確数量を保って個別選択明細へ展開 | composition / apply |
 | AC-package-no-selection-effects | clinicalは未実施、物販等はowner未処理明細。選択だけで実施・結果・出庫・証明書・請求確定なし | apply |
-| AC-package-atomic-rejection | 無効master・scope不一致・失権・依存版変更・必要値欠落等が1件でもあれば全追加zero-write、行別理由表示 | apply |
+| AC-package-atomic-rejection | 無効master・scope不一致・失権・依存版変更・owner分類未解決・単品と同じ追加時必須条件の不適合が1件でもあれば全追加zero-write、行別理由表示。単品で予定入力が許される価格/税/保険未確定はnull/provenance/warningのまま全構成品を保存し、請求ownerの必要時点gateへ引継ぐ | apply |
 | AC-package-retry-identity | 同key再送・応答断照会は同じ保存結果。新keyで盲目的再作成せず、新しい明示追加のみ別identity | apply |
-| AC-package-snapshot-stable | 適用後のmaster/package変更でも当時値不変。preview後の改定を無確認適用しない | price-history |
+| AC-package-snapshot-stable | 適用後のmaster/package変更でも当時値不変。preview後の改定を無確認適用しない。nullの未確定snapshotも保存後に無断補完しない | price-history |
 | AC-package-exact-quantity | 浮動小数経由・整数丸めなし。owner別精度を守り、検査・接種回数へ推測変換しない | price-history / owner-boundary |
 | AC-package-domain-trace | 検査・接種・健診の各タブから同じ予定/実績へ辿れる。健診をD07へ二重保存せず、パネル/子結果を保持 | owner-boundary |
 | AC-package-execution-writer | 実施状態writerは一つ。結果待ち・結果取得失敗・確定と実施を区別し、結果受信だけでperformedにしない | owner-boundary |

@@ -1,5 +1,7 @@
 # EMR-518 診療項目パッケージ：契約固定と実装分割
 
+**2026-10-20 15:55 UTC追補**: [採用storage契約・最新実装順](emr-518-storage-contract-20261020.md)が7表の列/制約・権限・lock・移行の現在設計。下記schema/API候補・PR順はPR #755時点の履歴で、具体storageと順序は新契約を優先する。財務unknownは単品で許される予定選択ではnull/provenance/warningを保持し、一律blockingにしない。owner/classification未解決は別のselection blocking。機械API/fixture公開は親の単一owner工程で、本PRではapi.yamlを編集しない。API候補のpackage専用operation lookupは採用案で494共通operations routeへ統一するが、本索引だけで機械契約公開済みとは扱わない。
+
 出典: [EMR-518](https://app.plane.so/baritechllc/browse/EMR-518/)。2026-10-20の本人回答により、治療に限らずプランで追加できる種類を含めること、証明書料金は発行前に手動修正できること、package構成は医院によることを採用。[業務正本4FR/12AC](../../spec/domains/medical-records/treatment-packages.md) → [採用技術方向](../../design/domains/medical-records/treatment-packages.md)を読む。
 
 文書作成基準main: `05da02f30cc5320c929095c6c9d6f96a4ac3f065`。原稿の調査基準 `86c9caa34d8498133eb46d4f019c0b08549db554` から更新し、対象入口を静的再確認した。論理要件・技術方向の採用であり、全DTO/FK・公開API固定完了、実装着手の依存解消、runtime完了の宣言ではない。Planeの更新・実装担当への配布・mergeは親担当。
@@ -27,7 +29,7 @@
 これは限定調査であり、全repositoryに汎用セット機能が存在しないという断定ではない。既存健診packageはmaster投入manifest/専用Checkup系であり、廃止済みcheckup-package-import APIを復活させない。
 
 <a id="schema-freeze"></a>
-## schema固定チェック（全項目未完）
+## PR #755時点のschema固定チェック（採用storage契約へ接続、実装未完）
 
 以下は実装者への設計丸投げではなく、共通設計ownerがAPI契約公開前に埋める具体作業。DDL/model/ERDを同時更新する実装PRへ渡す。今回DDL実行・migration適用は行わない。
 
@@ -35,7 +37,7 @@
 2. plan/application/record/pet複合整合、RLS、論理削除/RESTRICT、必要索引を固定する。client指定clinic/actorを正本にしない。
 3. package component key→application→plan identityのunique、操作binding unique、revision unique、再送/取消履歴を確定する。
 4. D08等の単一実績対応、D07パネル/複数結果、D09親子の多重度を個別表で固定する。一律1:1や実績共有の無条件許可を課さない。
-5. ExactNumeric/NULL/未指定/0/false、master版のない型のserver fingerprint、単位なしと取得不能の区別を型ごとに固定する。
+5. ExactNumeric/NULL/未指定/0/false、master版のない型のserver fingerprint、単位なしと取得不能の区別を型ごとに固定する。未確定価格/税/保険の出所/理由、追加時blockingと後続warningは[採用契約](emr-518-storage-contract-20261020.md#financial-unknown)で固定した。
 6. 旧行はlegacy markerで現状表示する。根拠ある移行のみのsource identity一意化と、未知を移さない条件を固定する。
 7. 全列DDL・FK/index・model・ERDの対応を同じ実装PRで確定する。共通schema編集ownerはEMR-516へ集約する。
 
@@ -55,9 +57,9 @@ server prefixは既存 `/api/v1`。下記は提案pathであり実装済みroute
 | GET | `/medical-records/{record_id}/treatment-package-operations/{operation_key}` | 元操作の結果照会 |
 | 未固定 | `/medical-records/{record_id}/plan-items` と個別adapter | 共通予定の更新/状態変更/履歴/owner-link |
 
-固定するrequest/responseは、version必須範囲、canonical ID/decimal、preview依存fingerprint、全行適否、apply component→保存plan ID、C06 status/結果参照、CAS/依存変更/失権/結果不明応答、scope切替時の無効化。state-changeはcoordinator専用intentとしgeneric state PATCHにしない。
+固定するrequest/responseは、version必須範囲、canonical ID/decimal、preview依存fingerprint、全行適否（単品と同じ段階別gateのblocking/warning。財務unknownを一律blockingにしない）、apply component→保存plan ID、C06 status/結果参照、CAS/依存変更/失権/結果不明応答、scope切替時の無効化。state-changeはcoordinator専用intentとしgeneric state PATCHにしない。
 
-新grantを追加せず既存master/record/各owner操作へ対応させる。現 `routes_masters.go` の診療masterはResourceMasterMedical、checkup-typesはResourceCheckups、merchandise-itemsはResourceMasterMerchandise。package管理が他種類の候補閲覧・実施権限を迂回しないよう、操作ごとの既存grant対応表を先に固定する。具体grant組合せは未確定であり「全員使用可能」と補完しない。
+新grantを追加せず既存master/record/各owner操作へ対応させる。現 `routes_masters.go` の診療masterはResourceMasterMedical、checkup-typesはResourceCheckups、merchandise-itemsはResourceMasterMerchandise。package管理が他種類の候補閲覧・実施権限を迂回しないよう、操作ごとの既存grant対応表を先に固定する。当時未固定だったgrant対応は[採用storage契約§7](emr-518-storage-contract-20261020.md)で既存actionへ固定した。「全員使用可能」と補完しない。
 
 api.yamlの新route/DTOとfixtureの公開まではFE独自draft契約を増やさない。共有router/OpenAPI/modelの編集担当と順序を着手前に一本化する。
 
