@@ -76,6 +76,7 @@ import {
   buildCreateVaccinationRequest,
   buildUpdateVaccinationRequest,
   vaccinationOverridesOnScheduleType,
+  vaccinationOverridesOnVaccineId,
 } from "./use-vaccination-form-model";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { VaccinationRecord } from "@/types";
@@ -139,13 +140,17 @@ describe("mergeVaccinationFormData — 編集時の nextScheduleType 再判定�
     },
   );
 
-  it("nextScheduleType 未設定なら DEFAULT(1year) にフォールバックしてから再判定する", () => {
+  // EMR-430（2026-10-20 本人回答）: 保存済み type が無いレコードは 1year に
+  // フォールバックせず空欄扱いから再判定する。保存済み nextDate は解決可能な
+  // 間隔が無いため other に落ちるが、日付の保存値は上書きしない。
+  it("nextScheduleType 未設定なら 1year にフォールバックせず other 再判定・nextDate は保持する", () => {
     const merged = mergeVaccinationFormData(
       true,
       existingVaccination({ nextScheduleType: undefined, nextDate: "2027-08-08" }),
       {},
     );
-    expect(merged.nextScheduleType).toBe("1year");
+    expect(merged.nextScheduleType).toBe("other");
+    expect(merged.nextDate).toBe("2027-08-08");
   });
 
   it("タイムスタンプ形式の date/nextDate を YYYY-MM-DD に正規化してから再判定する", () => {
@@ -170,9 +175,11 @@ describe("mergeVaccinationFormData — 編集時の nextScheduleType 再判定�
     expect(merged.nextScheduleType).toBe("4weeks");
   });
 
-  it("新規作成はこれまで通り DEFAULT(1year) のまま", () => {
+  // EMR-430（2026-10-20 本人回答）: 新規フォームの初期 type は未選択（空欄）。
+  // 一律 1year を補完しない。
+  it("新規作成は未選択（空欄）で開く", () => {
     const merged = mergeVaccinationFormData(false, undefined, {});
-    expect(merged.nextScheduleType).toBe("1year");
+    expect(merged.nextScheduleType).toBe("");
   });
 
   it("修正後フォームの update request は next_schedule_type=other と保持された next_date を送る", () => {
@@ -183,10 +190,11 @@ describe("mergeVaccinationFormData — 編集時の nextScheduleType 再判定�
   });
 });
 
-// EMR-431: 新規フォームは「当日＋既定間隔」の次回予定日を開いた時点で持つ。
-// 日付に触れずに保存しても next_date が送られる（EMR-427 の LINE 期限配信は
-// next_date で判定するため、空のまま保存されると配信対象から漏れる）。
-describe("mergeVaccinationFormData — 新規フォームの次回予定日初期化（EMR-431）", () => {
+// EMR-430（2026-10-20 本人回答「ワクチン種類ごとの設定を使う。設定がなければ空欄。」）:
+// 新規フォームは種別未選択のため次回予定を空欄のまま開く。旧 EMR-431 の
+// 「当日＋既定間隔」自動入力は予防接種では撤回。種別選択時にマスタ interval に
+// 従属して初めて計算し、設定なし種別では空欄のまま保存できる。
+describe("mergeVaccinationFormData — 新規フォームの次回予定日初期化（EMR-430）", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     // UTC 16:00 = JST 翌日 01:00。JST 当日が 2026-10-15 になる瞬間を固定する。
@@ -197,23 +205,71 @@ describe("mergeVaccinationFormData — 新規フォームの次回予定日初�
     vi.useRealTimers();
   });
 
-  it("既定間隔 1年後 で 当日+1年 の次回予定日を初期化する", () => {
+  it("種別未選択のままでは type/date とも空欄で開く（一律間隔を補わない）", () => {
     const merged = mergeVaccinationFormData(false, undefined, {});
-    expect(merged.nextScheduleType).toBe("1year");
+    expect(merged.nextScheduleType).toBe("");
     expect(merged.date).toBe("2026-10-15");
-    expect(merged.nextDate).toBe("2027-10-15");
+    expect(merged.nextDate).toBe("");
   });
 
-  it("日付に触れずに保存しても create request が next_date を送る", () => {
+  it("空欄のまま保存すると create request は next_date=null / next_schedule_type 未送信", () => {
     const merged = mergeVaccinationFormData(false, undefined, {});
     const req = buildCreateVaccinationRequest(merged, "5");
-    expect(req.next_date).toBe(jstDateStartISOString("2027-10-15"));
-    expect(req.next_schedule_type).toBe("1year");
+    expect(req.next_date).toBeNull();
+    expect(req.next_schedule_type).toBeUndefined();
   });
 
   it("localOverrides の nextDate は初期値より優先される", () => {
     const merged = mergeVaccinationFormData(false, undefined, { nextDate: "2026-11-01" });
     expect(merged.nextDate).toBe("2026-11-01");
+  });
+});
+
+// EMR-430（2026-10-20 本人回答）: 種別選択時の次回予定はマスタ interval に従属する。
+describe("vaccinationOverridesOnVaccineId — 種別選択の interval 従属（EMR-430）", () => {
+  it("interval 1年 の種別を選ぶと 1year で当日から再計算する", () => {
+    const overrides = vaccinationOverridesOnVaccineId(
+      { date: "2026-10-15", nextScheduleType: "", nextDate: "" },
+      "3",
+      "2026-10-15",
+      "1年",
+    );
+    expect(overrides.nextScheduleType).toBe("1year");
+    expect(overrides.nextDate).toBe("2027-10-15");
+  });
+
+  it("interval 1ヶ月 の種別を選ぶと 4weeks で当日から再計算する", () => {
+    const overrides = vaccinationOverridesOnVaccineId(
+      { date: "2026-10-15", nextScheduleType: "", nextDate: "" },
+      "3",
+      "2026-10-15",
+      "1ヶ月",
+    );
+    expect(overrides.nextScheduleType).toBe("4weeks");
+    expect(overrides.nextDate).toBe("2026-11-12");
+  });
+
+  it("マスタ取得済みで interval 未設定（空文字）の種別は空欄へ上書きする", () => {
+    const overrides = vaccinationOverridesOnVaccineId(
+      { date: "2026-10-15", nextScheduleType: "1year", nextDate: "2027-10-15" },
+      "3",
+      "2026-10-15",
+      "",
+    );
+    expect(overrides.nextScheduleType).toBe("");
+    expect(overrides.nextDate).toBe("");
+  });
+
+  it("interval 未解決（マスタ取得中・失敗・遅延の undefined）では既存の type/date を保持する", () => {
+    const overrides = vaccinationOverridesOnVaccineId(
+      { date: "2026-10-15", nextScheduleType: "1year", nextDate: "2027-10-15" },
+      "3",
+      "2026-10-15",
+      undefined,
+    );
+    expect(overrides.nextScheduleType).toBe("1year");
+    expect(overrides.nextDate).toBe("2027-10-15");
+    expect(overrides.vaccineId).toBe("3");
   });
 });
 
