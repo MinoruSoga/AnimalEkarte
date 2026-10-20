@@ -603,6 +603,36 @@ describe("ShiftFormDialog EMR-514 unknown breaks", () => {
     expect(req.notes).toBe("a");
   });
 
+  it("休憩付き日跨ぎ勤務も、休憩未変更ならメモだけ保存できる（B3残）", async () => {
+    const user = userEvent.setup();
+    const OVERNIGHT_WITH_BREAK: Shift = {
+      ...EDIT_SHIFT,
+      starts_at: "2026-08-01T22:00:00+09:00",
+      ends_at: "2026-08-02T02:00:00+09:00",
+      breaks: [
+        {
+          interval_state: "known",
+          starts_at: "2026-08-01T23:00:00+09:00",
+          ends_at: "2026-08-01T23:30:00+09:00",
+        },
+      ],
+    };
+    renderDialog({ editShift: OVERNIGHT_WITH_BREAK });
+
+    // 休憩 23:00〜23:30 は勤務時間内検証の文字列比較ではアウトだが未変更のため検証しない
+    await user.type(screen.getByLabelText("メモ"), "a");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    });
+    const req = updateShiftMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(req).not.toHaveProperty("starts_at");
+    expect(req).not.toHaveProperty("ends_at");
+    expect(req).not.toHaveProperty("breaks");
+    expect(req.notes).toBe("a");
+  });
+
   it("未解決休憩があるunknown勤務の休日への変更は訂正確認まで停止する（B5/M2）", async () => {
     const user = userEvent.setup();
     renderDialog({ editShift: EDIT_WITH_UNKNOWN });

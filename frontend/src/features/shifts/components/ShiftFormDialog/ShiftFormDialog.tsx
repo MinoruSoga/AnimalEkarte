@@ -212,6 +212,13 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       if (filled.some((b) => b.break_start === "" || b.break_end === "")) {
         return { error: "休憩の開始時刻と終了時刻を入力してください" };
       }
+      // 未指定は「維持」、明示したいときだけ配列を送る（PATCH最小差分）。
+      // 変更判定を先に行い、未変更の休憩は勤務時間内検証もしない（B3: 日跨ぎ勤務の保持保存）
+      const breaksChanged =
+        !isEdit ||
+        JSON.stringify(filled) !==
+          JSON.stringify(splitKnownAndUnresolvedBreaks(baseline.breaks).known);
+      if (!breaksChanged) return {};
       for (const b of filled) {
         if (b.break_end <= b.break_start) {
           return { error: "休憩の終了時刻は開始時刻より後に設定してください" };
@@ -222,12 +229,6 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           }
         }
       }
-      // 未指定は「維持」、明示したいときだけ配列を送る（PATCH最小差分）
-      const breaksChanged =
-        !isEdit ||
-        JSON.stringify(filled) !==
-          JSON.stringify(splitKnownAndUnresolvedBreaks(baseline.breaks).known);
-      if (!breaksChanged) return {};
       if (hasUnresolved) {
         // 配列全置換のため、未解決行の無断消去を避ける（訂正確認まで送信停止）
         return {
@@ -575,6 +576,11 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       if (!isReceiptCoherent(receipt) || receipt.shift !== null) {
         // 削除の成功契約: shift=NULL / resulting_version=NULL（B8残）
         toast.error("削除結果の形式が不正です");
+        return;
+      }
+      if (receipt.shift_id !== editShift.id) {
+        // shift_idは削除対象と照合する（B8残）
+        toast.error("削除結果の対象が不正です");
         return;
       }
       onClose();
