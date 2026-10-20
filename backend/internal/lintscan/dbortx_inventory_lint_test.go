@@ -827,6 +827,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.PermissionGroupsBelongToClinic": {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.StaffAssignedToClinic":          {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit":                     {},
+	// operation (EMR-489 C06 receipts). Lock/InsertResult require the ambient owner
+	// tx; Claim/RecordOutcome refuse it (separate short tx). Runtime proof:
+	// operation/store_realdb_test.go (real DB, explicit integration opt-in).
+	"operation/store.go|gormStore.ClaimBinding":      {},
+	"operation/store.go|gormStore.FindBinding":       {},
+	"operation/store.go|gormStore.InsertResult":      {},
+	"operation/store.go|gormStore.LatestOutcome":     {},
+	"operation/store.go|gormStore.LoadResult":        {},
+	"operation/store.go|gormStore.LockBindingNoWait": {},
+	"operation/store.go|gormStore.RecordOutcome":     {},
 	// identitylink (#239 Phase 1). Runtime ambient-tx proofs:
 	// identitylink/repository_tx_atomicity_test.go
 	"identitylink/repository.go|repository.conn":             {},

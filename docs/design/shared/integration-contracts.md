@@ -121,6 +121,8 @@ Q-C2のlogout後本人専用保持・同本人再ログイン回収は本人確�
 
 予約の[既存操作／receipt契約](../domains/reservations/technical-spec.md#reservation-api-matrix)を参照し、以下の新adapterだけに対応案を定める。全APIに新しい共通必須fieldを一括導入する承認ではない。既存数値IDと増分版は新wireでは正規形の十進文字列、operation key・新規common subject等のUUID識別子は種別付きUUIDとし数値へ変換しない提案とする。いずれもref kindで区別し、既存数値IDは精度保証可能なadapterで照合する。tokenやstampのopaque値をactor／認可の代用にしない。
 
+共通binding/result/attemptのhelper・DTO・結果区分・取得順と、操作family単位のowner参加表は[共通operation receiptと参加表](operation-participation.md)（EMR-489）を参照する。
+
 | 意味field（候補名） | 具体的契約 |
 |:---|:---|
 | `subject_ref` | owner/kind/idと必要clinic、関係先pet/record/appointmentをownerが照合。clientから任意clinic/actor/statusをwriteしない |
