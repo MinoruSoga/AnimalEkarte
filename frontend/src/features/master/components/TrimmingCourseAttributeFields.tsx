@@ -29,6 +29,7 @@ export function TrimmingCourseWeekdayField({ value, onChange, readOnly }: Weekda
   };
   return (
     <PropertyRow
+      as="div"
       label="予約可能な曜日"
       description="未選択なら全曜日で選べます。曜日を選んでも休診・勤務・空き枠の条件はそのまま適用されます。"
     >
@@ -115,7 +116,7 @@ export function TrimmingCourseImageField({
   };
 
   return (
-    <PropertyRow label="画像" description="任意です。未登録でもコースは使えます。">
+    <PropertyRow as="div" label="画像" description="任意です。未登録でもコースは使えます。">
       <div className="flex flex-col gap-1 w-full">
         {hasImage ? (
           <div className="relative w-32">

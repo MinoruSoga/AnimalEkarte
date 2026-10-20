@@ -36,6 +36,17 @@ describe("TrimmingCourseWeekdayField (EMR-457)", () => {
     fireEvent.click(screen.getByRole("button", { name: "月" }));
     expect(onChange).toHaveBeenLastCalledWith([6]);
   });
+
+  it("does not forward row-label clicks to the first weekday button", () => {
+    const onChange = vi.fn();
+    render(<TrimmingCourseWeekdayField value={[0]} onChange={onChange} />);
+
+    // 行ラッパーが label だとラベル部分のクリックが最初のボタン（日）へ転送される。
+    // div 行なので転送されない。
+    fireEvent.click(screen.getByText("予約可能な曜日"));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "日" })).toHaveAttribute("aria-pressed", "true");
+  });
 });
 
 function selectFile(file: File) {
@@ -118,6 +129,28 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
     fireEvent.click(screen.getByRole("button", { name: "画像を削除" }));
     expect(onRemove).toHaveBeenCalledTimes(1);
     // 保存済み（この編集中にアップロードしていない）key はクライアントから消さない
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it("does not forward row-label or preview clicks to the remove button", () => {
+    const onRemove = vi.fn();
+    render(
+      <TrimmingCourseImageField
+        currentKey="trimming-images/1/old.jpg"
+        previewUrl="https://signed/old.jpg"
+        hasImage
+        onUploaded={vi.fn()}
+        onRemove={onRemove}
+        onUploadingChange={vi.fn()}
+      />,
+    );
+
+    // 行ラッパーが label だと画像ラベル・プレビューのクリックが
+    // 最初の対話要素（画像を削除ボタン）へ転送されて誤削除になる。
+    // div 行なので転送されない。
+    fireEvent.click(screen.getByText("画像"));
+    fireEvent.click(screen.getByRole("img", { name: "コース画像" }));
+    expect(onRemove).not.toHaveBeenCalled();
     expect(discard).not.toHaveBeenCalled();
   });
 

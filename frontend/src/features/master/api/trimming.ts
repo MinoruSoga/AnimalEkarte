@@ -203,12 +203,18 @@ async function deleteTrimmingOption(id: string): Promise<void> {
 // TanStack Query hooks - TrimmingCourse
 // ─────────────────────────────────────────────────
 
+// BE の署名付き画像 URL の TTL は 15 分（trimmingImageSignedURLTTL）。
+// staleTime=STATIC(30分)・refetchOnWindowFocus=false のため、TTL 未満で
+// 定期再取得しないと後から開いたパネルのプレビュー URL が失効する。
+const TRIMMING_COURSE_LIST_REFETCH_INTERVAL = 10 * 60 * 1000;
+
 export function useGetTrimmingCourses() {
   return useQuery({
     queryKey: queryKeys.masters.trimmingCoursesFull(),
     queryFn: listTrimmingCourses,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
+    refetchInterval: TRIMMING_COURSE_LIST_REFETCH_INTERVAL,
   });
 }
 
