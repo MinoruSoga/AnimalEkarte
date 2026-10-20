@@ -686,14 +686,16 @@ export function RevisitIntakeEditor({
           className="space-y-2 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3"
         >
           <p className="text-sm text-noah-warning-text">
-            この入力は古い回答を元にしています。最新の回答を確認してから送信してください。
+            {current.content_available
+              ? "この入力は古い回答を元にしています。最新の回答を確認してから送信してください。"
+              : "この入力は古い回答を元にしています。最新の回答はこの画面では表示できません。送信すると、この入力が最新の回答として保存されます。"}
           </p>
           <button
             type="button"
             onClick={acknowledgeLatest}
             className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark"
           >
-            最新の回答を確認した
+            {current.content_available ? "最新の回答を確認した" : "この入力で続ける"}
           </button>
         </div>
       ) : null}

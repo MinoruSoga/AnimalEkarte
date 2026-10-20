@@ -1501,3 +1501,37 @@ describe("RevisitIntakePage 古い draft・離脱確認・履歴の再試行期�
     expect(await screen.findByText("合成1版")).toBeInTheDocument();
   });
 });
+
+describe("RevisitIntakePage 古い draft（最新回答が不可視）", () => {
+  it("head が本文不可視の回答へ変わった場合は表示できない旨を示し、「この入力で続ける」で送信可能になる", async () => {
+    const user = userEvent.setup();
+    const hidden = {
+      ...answeredTarget(answer("2", answers({ visit_purpose: "不可視の合成本文" }))),
+      latest_answer: null,
+      content_available: false,
+    };
+    mockReadSequence([read(hidden)]);
+    const submits = captureSubmits((c) => HttpResponse.json(successResponse(c.key ?? "", "3")));
+    const store = createStore();
+    store.set([CLINIC, APPT_A, PET_A, "3"].join("|"), {
+      values: answers({ visit_purpose: "古い回答を元にした合成入力" }),
+      pending: null,
+      baselineToken: "1|true|910",
+    });
+    renderPage({ store });
+
+    expect(
+      await screen.findByText(
+        "この入力は古い回答を元にしています。最新の回答はこの画面では表示できません。送信すると、この入力が最新の回答として保存されます。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "最新の回答を確認した" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "この入力で続ける" }));
+    expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+    await waitFor(() => expect(submits).toHaveLength(1));
+    expect(submits[0].body.expected_revision).toBe("2");
+  });
+});
