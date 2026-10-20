@@ -42,10 +42,33 @@ type TrimmingCourseBase = Omit<
   duration?: number | null;
 };
 
-export type CreateTrimmingCourseRequest = Pick<TrimmingCourseBase, "name"> &
-  Partial<Omit<TrimmingCourseBase, "name">>;
+/**
+ * EMR-457 の任意属性。GORM 由来の生成型には含まれない（model 側 json:"-"）ため
+ * wire 契約（backend/docs/api.yaml の TrimmingCourse）に合わせてここで定義する。
+ * allowed_weekdays は 0=日〜6=土、null/空配列は全曜日。
+ */
+interface TrimmingCourseAttributeWire {
+  short_name?: string | null;
+  image_object_key?: string | null;
+  image_url?: string | null;
+  allowed_weekdays?: number[] | null;
+}
 
-export type UpdateTrimmingCourseRequest = Partial<TrimmingCourseBase>;
+/** 書込: 省略は保持、"" と [] は未登録（全曜日）へ戻す。image_url は読取専用。 */
+interface TrimmingCourseAttributeInput {
+  short_name?: string;
+  image_object_key?: string;
+  allowed_weekdays?: number[];
+}
+
+type TrimmingCourseWire = ModelTrimmingCourse & TrimmingCourseAttributeWire;
+
+export type CreateTrimmingCourseRequest = Pick<TrimmingCourseBase, "name"> &
+  Partial<Omit<TrimmingCourseBase, "name">> &
+  TrimmingCourseAttributeInput;
+
+export type UpdateTrimmingCourseRequest = Partial<TrimmingCourseBase> &
+  TrimmingCourseAttributeInput;
 
 type TrimmingOptionBase = Omit<
   ModelTrimmingOption,
@@ -75,7 +98,7 @@ export function resolveTrimmingActiveFlag(item: {
   return item.status === "active";
 }
 
-function transformTrimmingCourse(data: ModelTrimmingCourse) {
+function transformTrimmingCourse(data: TrimmingCourseWire) {
   return {
     id: String(data.id ?? 0),
     clinicId: String(data.clinic_id ?? 0),
@@ -89,6 +112,10 @@ function transformTrimmingCourse(data: ModelTrimmingCourse) {
     sortOrder: data.sort_order,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
+    shortName: data.short_name ?? null,
+    imageObjectKey: data.image_object_key ?? null,
+    imageUrl: data.image_url ?? null,
+    allowedWeekdays: data.allowed_weekdays ?? null,
   };
 }
 
@@ -122,12 +149,12 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // ─────────────────────────────────────────────────
 
 async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
-  const { data } = await axios.get<ModelTrimmingCourse[]>("/v1/masters/trimming-courses");
+  const { data } = await axios.get<TrimmingCourseWire[]>("/v1/masters/trimming-courses");
   return data.map(transformTrimmingCourse);
 }
 
 async function createTrimmingCourse(req: CreateTrimmingCourseRequest): Promise<TrimmingCourse> {
-  const { data } = await axios.post<ModelTrimmingCourse>("/v1/masters/trimming-courses", req);
+  const { data } = await axios.post<TrimmingCourseWire>("/v1/masters/trimming-courses", req);
   return transformTrimmingCourse(data);
 }
 
@@ -135,10 +162,7 @@ async function updateTrimmingCourse(
   id: string,
   req: UpdateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
-  const { data } = await axios.patch<ModelTrimmingCourse>(
-    `/v1/masters/trimming-courses/${id}`,
-    req,
-  );
+  const { data } = await axios.patch<TrimmingCourseWire>(`/v1/masters/trimming-courses/${id}`, req);
   return transformTrimmingCourse(data);
 }
 

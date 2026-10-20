@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
+import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
 import { TARGET_SIZE_OPTIONS, type TargetSize, type TrimmingCourse } from "../api/trimming";
@@ -27,6 +28,10 @@ import {
   trimmingCourseToFormData,
   type CourseFormData,
 } from "../lib/trimming-side-panel-model";
+import {
+  TrimmingCourseImageField,
+  TrimmingCourseWeekdayField,
+} from "./TrimmingCourseAttributeFields";
 
 interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;
@@ -48,6 +53,8 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   const [formData, setFormData] = useState<CourseFormData>(() => trimmingCourseToFormData(item));
   const [nameError, setNameError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
+  const [isImageUploading, setIsImageUploading] = useState(false);
+  const clinicName = useCurrentClinicName();
   const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
   const activeCourseTypes = courseTypes.filter((t) => t.isActive || t.id === formData.courseTypeId);
 
@@ -61,6 +68,8 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   }, []);
 
   const handleAction = useCallback(async () => {
+    // 画像 upload 中は保存しない（成功 key を受け取る前の送信で画像を失わないため）
+    if (isImageUploading) return;
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
@@ -71,7 +80,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       setIsDirty(false);
       onDirtyChange?.(false);
     }
-  }, [formData, onSave, onDirtyChange]);
+  }, [formData, isImageUploading, onSave, onDirtyChange]);
 
   const handleTitleChange = useCallback(
     (value: string) => {
@@ -112,6 +121,41 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
     [setFormDataDirty],
   );
 
+  const handleShortNameChange = useCallback(
+    (value: string) => {
+      setFormDataDirty((prev) => ({ ...prev, shortName: value }));
+    },
+    [setFormDataDirty],
+  );
+
+  const handleWeekdaysChange = useCallback(
+    (allowedWeekdays: number[]) => {
+      setFormDataDirty((prev) => ({ ...prev, allowedWeekdays }));
+    },
+    [setFormDataDirty],
+  );
+
+  const handleImageUploaded = useCallback(
+    (imageObjectKey: string, imagePreviewUrl: string) => {
+      setFormDataDirty((prev) => ({
+        ...prev,
+        imageObjectKey,
+        imagePreviewUrl,
+        imageChanged: true,
+      }));
+    },
+    [setFormDataDirty],
+  );
+
+  const handleImageRemove = useCallback(() => {
+    setFormDataDirty((prev) => ({
+      ...prev,
+      imageObjectKey: "",
+      imagePreviewUrl: "",
+      imageChanged: true,
+    }));
+  }, [setFormDataDirty]);
+
   const handleDescriptionChange = useCallback(
     (value: string) => {
       setFormDataDirty((prev) => ({ ...prev, description: value }));
@@ -141,6 +185,25 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         >
           <StatusPill isActive={formData.isActive} />
         </button>
+      </PropertyRow>
+
+      <PropertyRow
+        label="短縮名"
+        description="予約表などで名称の代わりに使う短い表示名です。任意で、未登録でもコースは使えます。"
+      >
+        <PropertyInput
+          value={formData.shortName}
+          onChange={handleShortNameChange}
+          placeholder="未登録"
+          ariaLabel="短縮名"
+        />
+      </PropertyRow>
+
+      <PropertyRow
+        label="利用医院"
+        description="このコースはここで選択中の医院のマスタとして登録され、この医院でだけ使われます。"
+      >
+        <span className={`px-1.5 py-0.5 text-sm ${C.text}`}>{clinicName || "選択中の医院"}</span>
       </PropertyRow>
 
       <PropertyRow
@@ -199,6 +262,21 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         stringValue={formData.price}
         onStringChange={(price) => setFormDataDirty((prev) => ({ ...prev, price }))}
         description={FIELD_DESCRIPTIONS.unitPrice}
+      />
+
+      <TrimmingCourseWeekdayField
+        value={formData.allowedWeekdays}
+        onChange={handleWeekdaysChange}
+        readOnly={readOnly}
+      />
+
+      <TrimmingCourseImageField
+        previewUrl={formData.imagePreviewUrl}
+        hasImage={formData.imageObjectKey !== ""}
+        onUploaded={handleImageUploaded}
+        onRemove={handleImageRemove}
+        onUploadingChange={setIsImageUploading}
+        readOnly={readOnly}
       />
 
       <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>

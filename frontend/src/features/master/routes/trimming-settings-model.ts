@@ -23,9 +23,15 @@ function toNullableNumber(value: string): number | null {
   return value !== "" ? Number(value) : null;
 }
 
+function sortedWeekdays(days: number[]): number[] {
+  return [...new Set(days)].sort((a, b) => a - b);
+}
+
 export function buildTrimmingCourseCreateRequest(
   data: CourseFormData,
 ): CreateTrimmingCourseRequest {
+  const shortName = data.shortName.trim();
+  const weekdays = sortedWeekdays(data.allowedWeekdays);
   return {
     name: data.name,
     price: toNullableNumber(data.price),
@@ -34,15 +40,23 @@ export function buildTrimmingCourseCreateRequest(
     duration: toNullableNumber(data.duration),
     description: data.description || undefined,
     is_active: true,
+    short_name: shortName !== "" ? shortName : undefined,
+    allowed_weekdays: weekdays.length > 0 ? weekdays : undefined,
+    image_object_key: data.imageObjectKey !== "" ? data.imageObjectKey : undefined,
   };
 }
 
+/** 更新は短縮名・曜日を明示送信（"" / [] で未登録・全曜日へ戻す）。画像は変更時だけ送る。 */
 export function buildTrimmingCourseUpdateRequest(
   data: CourseFormData,
 ): UpdateTrimmingCourseRequest {
+  const { image_object_key: _createImage, ...base } = buildTrimmingCourseCreateRequest(data);
   return {
-    ...buildTrimmingCourseCreateRequest(data),
+    ...base,
     is_active: data.isActive,
+    short_name: data.shortName.trim(),
+    allowed_weekdays: sortedWeekdays(data.allowedWeekdays),
+    ...(data.imageChanged ? { image_object_key: data.imageObjectKey } : {}),
   };
 }
 
