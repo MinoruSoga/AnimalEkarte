@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useCreateVaccination } from "@/hooks/use-create-vaccination";
 import { todayJSTISO } from "@/lib/jst-date";
-import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import {
   calculateNextDate,
   resolveScheduleTypeAfterManualDate,
@@ -19,9 +18,45 @@ interface VaccinationSaveState {
 
 const INITIAL_SAVE_STATE: VaccinationSaveState = { success: false, timestamp: 0 };
 
-// EMR-430: 既定間隔は独立画面（予防接種）・健診タブと同じ 1年後 にそろえる。
-function makeDefaultNextScheduleType() {
-  return DEFAULT_NEXT_SCHEDULE_TYPE;
+// EMR-430（2026-10-20 本人回答「ワクチン種類ごとの設定を使う。設定がなければ空欄。」）:
+// 次回予定日は一律の既定間隔（1年後）で初期化しない。種別のマスタ interval 設定に従属し、
+// 未選択・設定なし種別は空欄とする。既知マッピングは独立フォーム
+// (features/vaccinations/hooks/use-vaccination-form-model.ts) の scheduleTypeForInterval と
+// 同じ対応だが、feature 間 import 境界のためここに置く。
+function scheduleTypeForVaccineInterval(interval: string | undefined): string {
+  switch (interval) {
+    case "1年":
+      return "1year";
+    case "1ヶ月":
+      return "4weeks";
+    default:
+      return "";
+  }
+}
+
+// EMR-430（2026-10-20 本人回答）+ EMR-438: 複製元の実施日と次回日から既知プリセットを
+// 逆算し、固定間隔が復元できる場合だけ間隔を引き継ぐ。解決できない（手動）日は
+// 「以外（手動）」として扱う。
+// 候補は実際に NextScheduleField の Select が表示できる値（NEXT_SCHEDULE_OPTIONS の
+// 3weeks/4weeks/1year）に限定する。6weeks/6months は calculateNextDate が扱えても
+// Select に option が無く再選択不能な値が状態へ入るため、複製の解決候補には含めない
+// （feature 境界のため共有 helper は使わず、ここで同じ候補集合を持つ）。
+const RESOLVABLE_SCHEDULE_TYPES = ["3weeks", "4weeks", "1year"] as const;
+
+function resolveScheduleTypeFromDates(baseDate: string, nextDate: string): string {
+  if (!baseDate || !nextDate) return "other";
+  for (const type of RESOLVABLE_SCHEDULE_TYPES) {
+    if (calculateNextDate(baseDate, type) === nextDate) return type;
+  }
+  return "other";
+}
+
+// 明示的に手入力された次回予定日かどうか。手入力（setNextDate / 間隔「以外（手動）」の
+// 選択）は resolveScheduleTypeAfterManualDate により type が "other" になるため、
+// 「other + 日付あり」を手入力の印として扱い、種別変更で上書きしない
+// （docs/spec/domains/vaccinations/lifecycle.md AC-vaccinations-manual）。
+function isManualNextDate(nextScheduleType: string, nextDate: string): boolean {
+  return nextScheduleType === "other" && nextDate !== "";
 }
 
 /**
@@ -39,22 +74,24 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const [lot2, setLot2] = useState("");
   const [lot3, setLot3] = useState("");
   const [lot4, setLot4] = useState("");
-  // make ci blocker (EMR-435): 型指定なしの useState はリテラル型 "1year" を推論し、
-  // resolveScheduleTypeAfterManualDate (string) や UI からの string 代入で TS2345 になる。
-  // NextScheduleField・他フォームモデル・payload も string 扱いのため、状態は string として明示する。
-  const [nextScheduleType, setNextScheduleTypeRaw] = useState<string>(makeDefaultNextScheduleType);
-  const [nextDate, setNextDateRaw] = useState(() =>
-    // EMR-431: 開いた時点で「当日＋既定間隔」の次回予定日を持たせる。
-    // 日付に触れずに保存しても next_date が送られるようにする。
-    calculateNextDate(todayJSTISO(), makeDefaultNextScheduleType()),
-  );
+  // EMR-430（2026-10-20 本人回答）: 初期は種別未選択のため type/date とも空欄。
+  // 開いた時点の「当日＋既定間隔」自動入力（旧 EMR-431）は予防接種では撤回。
+  // 型指定なしの useState はリテラル型へ推論されるため string を明示する（EMR-435）。
+  const [nextScheduleType, setNextScheduleTypeRaw] = useState<string>("");
+  const [nextDate, setNextDateRaw] = useState<string>("");
   const [remarks, setRemarks] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   // BUG-015: 未選択のまま追加すると early return で無音失敗していた → 明示 fieldErrors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
-  const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  // 取得失敗は「設定なし」と誤認させないため status も取り出し、UI へ再試行導線を渡す
+  // （docs/spec/domains/vaccinations/lifecycle.md AC-vaccinations-no-setting-default）。
+  const {
+    data: vaccinesMaster = [],
+    isError: isVaccinesMasterError,
+    refetch: refetchVaccinesMaster,
+  } = useGetAllVaccinesMaster();
   const { mutateAsync: createVaccination } = useCreateVaccination();
 
   const vaccineOptions = useMemo(
@@ -72,9 +109,10 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
     setLot2("");
     setLot3("");
     setLot4("");
-    setNextScheduleTypeRaw(makeDefaultNextScheduleType());
-    // EMR-431: 次回予定日も同じ日付から「当日＋既定間隔」で戻す（前レコードの値を残さない）
-    setNextDateRaw(calculateNextDate(today, makeDefaultNextScheduleType()));
+    // EMR-430（2026-10-20 本人回答）: 次回予定も空欄へ戻す（前レコードの値を残さない）。
+    // 種別を選び直した時点でマスタ interval に従属して再計算される。
+    setNextScheduleTypeRaw("");
+    setNextDateRaw("");
     setRemarks("");
     setFieldErrors({});
     setIsAdding(false);
@@ -91,17 +129,15 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
       setLot4(item.lot4);
       setNextDateRaw(item.nextDate);
       // EMR-430: 複製するのは次回予定日だけで実施日は複製しない。写した次回予定日と
-      // 現在の間隔が食い違ったまま表示・保存されないよう、間隔を再判定する。
-      // EMR-438: 再判定の基準は複製元の実施日（空 baseDate だと常に「以外（手動）」に
-      // 落ち、写した次回予定日が新しい実施日入力後も残って backend 拒否や誤リマインダ
-      // の原因になる — Codex P2）。間隔が解決できない（手動）場合は旧実施日基準の
-      // 次回予定日を残さない。
+      // 間隔が食い違ったまま表示・保存されないよう、間隔を再判定する。
+      // 再判定は複製元の実施日+次回日から既知プリセットを逆算して行う。
+      // 実施日は VaccinationHistoryItem.date が表示形式（YY/M/D）のため ISO の
+      // dateISO を使う（calculateNextDate は "YYYY-MM-DDT00:00:00" を解釈する）。
+      // EMR-438: 逆算できない（手動）場合は旧実施日基準の次回予定日を残さず
+      // 「以外（手動）」＋空欄にする（Codex P2: 未解決の旧日付が新実施日入力後も
+      // 残って backend 拒否や誤リマインダになる問題の再発防止）。
       if (item.nextDate) {
-        const resolvedType = resolveScheduleTypeAfterManualDate(
-          item.date,
-          nextScheduleType,
-          item.nextDate,
-        );
+        const resolvedType = resolveScheduleTypeFromDates(item.dateISO, item.nextDate);
         setNextScheduleTypeRaw(resolvedType);
         if (resolvedType === "other") {
           setNextDateRaw("");
@@ -109,30 +145,49 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
       }
       setRemarks(item.remarks);
     },
-    [nextScheduleType],
+    [],
   );
 
-  const setVaccineName = useCallback((value: string) => {
-    setVaccineNameRaw(value);
-    setFieldErrors((prev) => {
-      if (!prev.vaccineId) return prev;
-      const { vaccineId: _removed, ...rest } = prev;
-      return rest;
-    });
-  }, []);
+  const setVaccineName = useCallback(
+    (value: string) => {
+      setVaccineNameRaw(value);
+      // EMR-430（2026-10-20 本人回答）: 種別のマスタ間隔設定に次回予定を従属させる。
+      // 未選択（""）と interval 不明（マスタ取得中・失敗・遅延で find できない）では
+      // 既存の type/date を壊さず保持する。マッピング可（"1年"/"1ヶ月"）なら実施日から
+      // 再計算し、設定なし種別（""・未対応値）なら空欄へ上書きする。
+      // 明示的な手入力の次回予定日（AC-vaccinations-manual）は種別変更でも上書きしない。
+      if (value !== "" && !isManualNextDate(nextScheduleType, nextDate)) {
+        const selected = vaccinesMaster.find((v) => v.id === value);
+        if (selected) {
+          const mappedType = scheduleTypeForVaccineInterval(selected.interval);
+          setNextScheduleTypeRaw(mappedType);
+          setNextDateRaw(calculateNextDate(date, mappedType));
+        }
+      }
+      setFieldErrors((prev) => {
+        if (!prev.vaccineId) return prev;
+        const { vaccineId: _removed, ...rest } = prev;
+        return rest;
+      });
+    },
+    [vaccinesMaster, date, nextScheduleType, nextDate],
+  );
 
   const setDate = useCallback(
     (value: string) => {
       setDateRaw(value);
-      const calculated = calculateNextDate(value, nextScheduleType);
-      if (calculated) setNextDateRaw(calculated);
+      // 明示手入力の次回予定日（other＋日付あり）は実施日変更でも黙って上書きしない
+      if (!isManualNextDate(nextScheduleType, nextDate)) {
+        const calculated = calculateNextDate(value, nextScheduleType);
+        if (calculated) setNextDateRaw(calculated);
+      }
       setFieldErrors((prev) => {
         if (!prev.date) return prev;
         const { date: _removed, ...rest } = prev;
         return rest;
       });
     },
-    [nextScheduleType],
+    [nextScheduleType, nextDate],
   );
 
   const setNextScheduleType = useCallback(
@@ -234,5 +289,9 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
     handleDuplicate,
     historyItems,
     isLoading,
+    isVaccinesMasterError,
+    retryVaccinesMaster: () => {
+      void refetchVaccinesMaster();
+    },
   };
 }

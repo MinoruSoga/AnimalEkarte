@@ -150,6 +150,8 @@ interface VaccinationFormBodyProps {
   isSaving: boolean;
   selectedPet: VaccinationPatient | undefined;
   form: VaccinationFormFieldsState;
+  isVaccinesMasterError?: boolean;
+  onRetryVaccinesMaster?: () => void;
   fieldErrors: Record<string, string>;
   petHistory: VaccinationRecord[];
   replacedVaccinationIds: Set<string>;
@@ -173,6 +175,8 @@ export function VaccinationFormBody({
   isSaving,
   selectedPet,
   form,
+  isVaccinesMasterError = false,
+  onRetryVaccinesMaster,
   fieldErrors,
   petHistory,
   replacedVaccinationIds,
@@ -266,6 +270,8 @@ export function VaccinationFormBody({
               date={form.date}
               vaccineId={form.vaccineId}
               vaccineOptions={form.vaccineOptions}
+              isVaccinesMasterError={isVaccinesMasterError}
+              onRetryVaccinesMaster={onRetryVaccinesMaster}
               supplemental={form.supplemental}
               lot1={form.lot1}
               lot2={form.lot2}

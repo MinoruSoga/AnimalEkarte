@@ -33,6 +33,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
     retryRead,
     petSelection,
     form,
+    isVaccinesMasterError,
+    retryVaccinesMaster,
     formAction,
     formState,
     isSaving,
@@ -135,6 +137,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
       isSaving={isSaving}
       selectedPet={selectedPet}
       form={form}
+      isVaccinesMasterError={isVaccinesMasterError}
+      onRetryVaccinesMaster={retryVaccinesMaster}
       fieldErrors={fieldErrors}
       petHistory={petHistory}
       replacedVaccinationIds={replacedVaccinationIds}

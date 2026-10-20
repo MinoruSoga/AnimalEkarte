@@ -657,6 +657,8 @@ D03 participantは現在版・以前の保存版・既存追記を区別し、�
 
 [C06提案境界](../../shared/integration-contracts.md#detail-design-proposals-20261018)に従う未実装の技術案。[再診問診6AC](../../../spec/domains/reservations/pages/reservation-management.md#line-revisit-intake-20261017)を実現し、既存スタッフInquiryやLINEプロフィールを飼主回答の保存先へ流用しない。
 
+この節は従来提案の記録。2026-10-20の[EMR-471 root採用v3](#revisit-intake-api-selected-v3)で具体化したwire・行認可・固定bindingが優先する。1 appointment=1 petの現構造を維持し、旧「選択pet集合」を新たなtargets配列へ展開しない。mutable latest pointerを採用した意味にはせず、headは同targetの全answerのMAX(revision)とする。
+
 ### 保存owner・identity・操作
 
 予約ownerが対象の有効性・受付状態を所有し、回答writerはそのambient participantとして別の飼主回答集約を所有する案。論理一意keyはclinic＋appointment ID＋pet ID＋`target_generation`、回答履歴は不変answer ID＋revision＋server受信時刻＋認証主体参照を持つ。表示用の氏名や現在の主飼主だけで回答者を再帰属させない。予約日時の変更はtarget世代を変えず、対象pet変更は世代を増分し、元petへ戻しても旧回答を自動再採用しない。新予約は別appointmentなので未回答。複数頭は各pet対象を識別し、予約の物理的多重度を問診のkeyだけから再設計しない。
@@ -726,3 +728,56 @@ IR-11は既存writer一覧を出発点に実route/DTO/生成型/DDL・旧client�
 [EMR-448](https://app.plane.so/baritechllc/browse/EMR-448/)の最新回答に従い、予約属性457、オプション458、予約時点snapshot480、ケージ461へ責務を対応させる。所要時間はコース時間または予約区分時間のどちらかを基準にオプション分を加え、両基準を二重加算しない。個人の正の対応区分＋勤務を適格性の基準とし、区分側職種gateの廃止と職種の分類情報／LINE固有条件の維持を分ける。シフトコピー／CSVの選定済み設計はEMR-241／493へ引き継ぎ、未実装を業務未決へ戻さず、全経路実装済みとも扱わない。461の最小readは[入院設計](../hospitalization/technical-spec.md#cage-availability-read-20261019)へ従う。
 
 EMR-270／370は本人の解消済みとの認識を現在状態とし、当時の環境不足をblockerから外す。技術再現・修正・実機合格の証拠を追加したものではなく、別の実装差・画像問題・推奨ブラウザ範囲と混同しない。
+
+<a id="revisit-intake-api-selected-v3"></a>
+## EMR-471 / 472 / 473：再診問診API先行契約（root採用v3）
+
+2026-10-20 Dots根拠照合・root採用v3。統合ownerは[EMR-471](https://app.plane.so/baritechllc/browse/EMR-471/)、現在認可は[EMR-472](https://app.plane.so/baritechllc/browse/EMR-472/)、submit/receiptは[EMR-473](https://app.plane.so/baritechllc/browse/EMR-473/)、record固定bindingは[EMR-476](https://app.plane.so/baritechllc/browse/EMR-476/)。業務正本は[任意の再診問診6AC](../../../spec/domains/reservations/pages/reservation-management.md#line-revisit-intake-20261017)、保存/TXは[再診問診DB契約§3–8](../../../work/db-contracts/revisit-intake.md)。今回の正確なrequest/response DTO・例・errorは既存の[api.yaml](../../../../backend/docs/api.yaml)を正本とし、別設計書へ複製しない。
+
+本契約の5操作は`x-contract-status: selected`、**runtime未実装/未検証**。今回の編集基準mainは`86c9caa34d8498133eb46d4f019c0b08549db554`、根拠コード照合は`da27989fa812c1319b62a1c3b4684c419b110fe1`。GET /meの既存EMR-463契約は保持する。API文書公開と機能利用開始を分け、runtime、DDL、生成型、環境構築、試験実行をこの契約PRへ含めない。
+
+| 操作 | serverと現在認可 |
+|:---|:---|
+| GET `/reservations/{appointmentId}/revisit-intake` | 既存`/api/v1` server。reservations:view＋clinic＋各target.pet行別grant |
+| GET `/medical-records/{recordId}/revisit-intake` | 同server。medical-records:view＋clinic＋固定target.pet行別grant。[D03固定参照](../medical-records/technical-spec.md#revisit-intake-record-binding-selected) |
+| GET `/api/liff/{clinicId}/my-reservations/{appointmentId}/revisit-intake` | path serverを`http://localhost:8080`へoverride。既存LINE ID token方式＋本人/現在患者利用認可 |
+| POST 同上`/submissions` | 同server。現在の新write認可、lifecycle、世代、head CAS、Idempotency-Key |
+| GET `/api/liff/{clinicId}/revisit-intake/operations/{operationKey}` | 同server。現在予約view middlewareの外側でreceipt本人scopeを検証 |
+
+### 認証・読取の境界
+
+URLは本人証明ではない。新LIFF3routeは既存LINE tokenを検証し、既存customerを**read-only lookup**する。customer不在404。最新`owner_line_binding_states`／common owner-pet binding revisionと現在grantを照合する。EMR-472の最新R1認可補正を旧DB契約§5.1の照合列記より優先し、旧owner/LINE列だけで認可が成立したとしない。`FindOrCreateByLineUserID`、リンクhealer、新しいLINE確認条件は追加・流用しない。
+
+LINE原文は各行で現在target.pet grant＋元author customer＋subject hashを検査する。staffは既存view grant＋clinic＋各target.petの範囲で読み、LINE author一致をstaffへ強制しない。取消/削除済み旧targetも行認可された原文だけを保持する。作者ID、sub、hash、owner IDはwireへ公開しない。予約を一度認可して全履歴を無条件返却するqueryは禁止する。
+
+現在読取は1 appointment=1 petの単数current_target。純GETはtarget/answer/customer/linkを作らない。未保存targetは既存予約のpet/generationを論理identityとしてtarget_id=null、head_revision=nullで表し、初回submitのexpected_revisionは明示null。target作成はsubmit/capture TXだけ。target自体が読取不可なら404、対象未解決は可視な範囲のtarget_unresolvedと区別する。
+
+headは同targetの**全answerのMAX(revision)**。可視行だけのMAXを最新とせず、headが他authorで不可視ならanswered/headあり/latest_answer=null/content_available=false。旧自分回答をprefillしない。受付前の現在grantがあればそのheadを期待版として明示的に新送信できる。日時変更は同世代、A→B→Aは別世代。旧target原文やdraftを新targetへコピーしない。editableはserverの現在lifecycle/current grantで決め、confirmed限定、tentative/no_show/過去日だけの新cutoffは設けない。未知lifecycleはfalse。
+
+3つの本文readはcursor optional、limit default50/min1/max100、未知query400、Cache-Control:no-store。履歴はgeneration DESC/revision DESC、不可視件数/IDやtotalを返さずnext_cursorで継続する。head/current/body/lifecycle/historyは1request同SQL snapshot。既存opaque cursor facilityを再利用し、なければversion付きbase64url closed payloadをroute/scope/upper-boundへ束縛する。不正400、新署名鍵必須なし。次ページでも現在の各行認可を再検査し、cursor改ざんでgrantを広げない。ページサイズは回答保存上限ではない。
+
+### submit・結果照会の境界
+
+application/jsonのみ（charset可）、raw1MiB。submit限定strict raw検査をglobal sanitizerより前に適用し、検査後も同raw bytesを戻す。全階層duplicate JSON key、複数JSON値、不正UTF8/surrogate、decoded NULを400で拒否し、原文/空白/改行を補正しない。全request objectはclosed。自由文の新しい業務上限は足さず、来院目的は送信時だけ必須、Unicode空白のみ400。8保存値で7表示項目、任意値は省略/null可、fingerprintでは省略→null。明示空文字はnullへ変換しない。unknown enum/配列、bodyのclinic/appointment/actor/owner/time/status/target_id/スタッフ補足を拒否する。入力原文をlog/errorへechoしない。
+
+処理順は認証/strict DTO→短いmetadata-only claim TX→最外TX→`reservation-graph:write:v1`→receipt lock→既存予約/認可/binding保護順→current generation/lifecycle/head再照合→target/answer/成功receiptの原子commit。claim lockを保持してgateを後取りせず、失敗時は業務write全体をrollbackする。成功replayは再writeせず、問診保存から予約/カルテ/検査注文/会計/LINE通知を作らない。必要なwriter全参加とDDL適合は後続ownerの利用開始条件であり、今回の文書公開の前提にしない。
+
+初回POSTもreplayも200。operation_resultは初回不変結果、current_stateは現在snapshotで別に扱う。成功answerのgrantあり/現在予約不可視なら元refsは返せてcurrent_state=null。成功answerのgrant失効後も、同clinic/customer/subjectの成功事実はID・版・原文を除いた固定redacted200。403へ反転しない。lookupは認証clinic/customer/key/subjectだけで検索し、global key存在検索は禁止。scope内未発見/別scope/subject不一致は同一404形、echo UUIDは要求自身。認証不成立は401。
+
+claimed_uncommittedは実行中保証でなく、result_unavailable/not_foundも失敗確定ではない。未成功CAS-only修正はexpected_revisionをfingerprintから除外して同key再検証可、自動上書きなし。同key同内容を維持し、成功後訂正は新key、内容変更は旧結果確定後だけ新key。応答断/5xx/claimed/not_found/result_unavailableから新keycreateを起動しない。
+
+errorは既存RespondErrorWithExtrasへ接続するflat error/code/details。middlewareのerrorのみも許容し、transportではcode/details optionalとしてHTTPで扱う。error文言で分岐しない。409はREVISION_CONFLICT（行認可時だけhead）、FORM_VERSION_MISMATCH、TARGET_CHANGED、INTAKE_CLOSED（不可視なら404）、KEY_CONTENT_MISMATCHを区別する。413/415/429/500/503もapi.yamlへ定義し、Retry-Afterがあれば尊重、内部detailは公開しない。
+
+### 現コードとの差と実装引渡し
+
+| 限定照合先 | 観察と必要なadapter |
+|:---|:---|
+| `internal/middleware/liff_auth.go` | 現行LiffAuthはFindOrCreateByLineUserIDを呼び得る。新3routeだけread-only principal注入が必要。既存他routeの認証を一括変更しない |
+| `internal/middleware/sanitize_null_bytes.go` / `cmd/api/composition_runtime.go` | 現行global sanitizerはraw制御byteを除去する。既存handlerの後段へstrict parserを追加するだけでは順序が遅い。対象submit限定のpre-sanitizer検査/同raw復元が必要 |
+| `internal/operation/dto.go` | ParseOperationKeyはlowercase hyphenated/non-nil UUIDに適合。既存ResultResponseはstatus/operation_key/recorded_atで、今回のoperation_result/operation_id/state/committed_atとは別。限定response adapterが必要、共通wireを一括置換しない |
+| `internal/httpapi/response.go` / `internal/middleware/cors.go` | flat error/error+code helperと既存Idempotency-Key CORS許可を利用できる。指定detailsとredacted/result unionは後続実装。既存全middlewareのエラー形は改変しない |
+| reservation / medicalrecord | 新request-response-handler、read-only principal composition、固定binding reader/captureを後続へ。DDL存在だけでwriter gate・現在認可・receipt成立とはしない |
+
+FEは採用SHA固定後に契約mockで進め、実API結合完了を別報告する。draftはtarget別memoryだけ、URL/localStorageへ保存しない。再読込/終了で未送信が失われることを説明し、dirtyだけアプリ内離脱警告、OS終了保証なし。server draftなし。任意問診の未回答で予約/受付を止めず、原文はread-only、スタッフ補足は既存Inquiryに残しnotesで代用しない。
+
+後続ケース定義（**すべてNOT_RUN**）：未保存target純GET、head他author不可視、staff/LINE行認可の相違、scope違い同一404、失権後redacted200、成功refs可/current不可視、unbound/mismatch/bound、固定targetのみの履歴、cursor改ざん/未知query、strict raw異常/413/415、同key同内容/異内容/CAS-only、応答断/claimed/unavailable/not_found、受付/取消/付替え/認可変更の両先行順、A→B→A、日時変更同世代、D03 capture同TX・clear/copy/Undo除外。今回はschema/lint runner、mock、runtime/DB/API/UI試験、Docker、codegenを実行していない。

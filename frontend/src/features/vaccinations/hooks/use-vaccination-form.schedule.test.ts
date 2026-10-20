@@ -362,7 +362,9 @@ describe("useVaccinationForm — ワクチンマスタ interval に基づく次�
     });
   });
 
-  it("マスタに存在しない/interval 未設定の vaccineId を選択 → デフォルト(1year)にフォールバックする（サイレント誤スケジュールにしない）", async () => {
+  // EMR-430（2026-10-20 本人回答）: interval 未設定の種別は空欄とする。
+  // 旧実装の 1year フォールバックは一律間隔の捏造になるため廃止。
+  it("interval 未設定の vaccineId を選択 → type/date とも空欄（一律間隔を補わない）", async () => {
     vi.mocked(useGetAllVaccinesMaster).mockReturnValue({
       data: [{ id: "3", name: "ワクチンエキゾ", isActive: true, interval: "" }],
     } as ReturnType<typeof useGetAllVaccinesMaster>);
@@ -378,8 +380,8 @@ describe("useVaccinationForm — ワクチンマスタ interval に基づく次�
     });
 
     await waitFor(() => {
-      expect(result.current.form.nextScheduleType).toBe("1year");
-      expect(result.current.form.nextDate).toBe("2027-07-01");
+      expect(result.current.form.nextScheduleType).toBe("");
+      expect(result.current.form.nextDate).toBe("");
     });
   });
 

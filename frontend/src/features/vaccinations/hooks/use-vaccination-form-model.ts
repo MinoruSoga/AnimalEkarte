@@ -1,4 +1,3 @@
-import { DEFAULT_NEXT_SCHEDULE_TYPE } from "@/constants/next-schedule";
 import {
   calculateNextDate as calculateSharedNextDate,
   resolveScheduleTypeAfterManualDate,
@@ -32,7 +31,10 @@ export const DENIED_MUTATION_PERMISSIONS: Readonly<VaccinationMutationPermission
   canDelete: false,
 };
 
-// EMR-430: 既定間隔は constants/next-schedule の DEFAULT_NEXT_SCHEDULE_TYPE に一本化した。
+// EMR-430（2026-10-20 本人回答「ワクチン種類ごとの設定を使う。設定がなければ空欄。」）:
+// 次回予定日を一律の既定間隔（1年後/4週後）で補完しない。種別のマスタ interval 設定に
+// 従属し、種別未選択・設定なし種別は空欄（nextScheduleType: "" / nextDate: ""）とする。
+// 共有定数 DEFAULT_NEXT_SCHEDULE_TYPE（@/constants/next-schedule）は健診フォーム側のみで使用。
 
 const DEFAULT_VACCINATION_FORM: VaccinationFormState = {
   vaccineId: "",
@@ -42,7 +44,7 @@ const DEFAULT_VACCINATION_FORM: VaccinationFormState = {
   lot2: "",
   lot3: "",
   lot4: "",
-  nextScheduleType: DEFAULT_NEXT_SCHEDULE_TYPE,
+  nextScheduleType: "",
   nextDate: "",
   remarks: "",
 };
@@ -52,6 +54,8 @@ export function calculateNextDate(vaccinationDate: string, scheduleType: string)
 }
 
 // BUG-401/BUG-026: vaccine interval (vaccines master 実データ) → schedule type。
+// EMR-430（2026-10-20 本人回答）: 既知マッピング（"1年"→1year / "1ヶ月"→4weeks）以外は
+// 設定なしとして空欄を返す。旧 1year へのフォールバックは廃止（既定日の捏造防止）。
 function scheduleTypeForInterval(interval: string | undefined): string {
   switch (interval) {
     case "1年":
@@ -59,7 +63,7 @@ function scheduleTypeForInterval(interval: string | undefined): string {
     case "1ヶ月":
       return "4weeks";
     default:
-      return DEFAULT_NEXT_SCHEDULE_TYPE;
+      return "";
   }
 }
 
@@ -71,7 +75,10 @@ export function mergeVaccinationFormData(
   if (isEdit && existingVaccination) {
     const date = existingVaccination.date ? existingVaccination.date.slice(0, 10) : "";
     const nextDate = existingVaccination.nextDate ? existingVaccination.nextDate.slice(0, 10) : "";
-    const nextScheduleType = existingVaccination.nextScheduleType ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+    // EMR-430（2026-10-20 本人回答）: 保存済み type が無い場合も 1year にフォールバックせず
+    // 空欄として扱う。保存済み nextDate がある場合は後段の再判定で解決可能な間隔が無いため
+    // other に落ちるが、nextDate の保存値は上書きしない。
+    const nextScheduleType = existingVaccination.nextScheduleType ?? "";
     return {
       vaccineId: existingVaccination.vaccineId,
       date,
@@ -88,14 +95,13 @@ export function mergeVaccinationFormData(
       ...localOverrides,
     };
   }
-  // EMR-431: 新規フォームも開いた時点で「当日＋既定間隔」の次回予定日を持つ。
-  // 日付に触れずに保存しても next_date が送られる（EMR-427 の LINE 期限配信は
-  // next_date で判定するため、空のまま保存されると配信対象から漏れる）。
+  // EMR-430（2026-10-20 本人回答）: 新規フォームは種別未選択のため次回予定を空欄のまま
+  // 開く。旧 EMR-431 の「当日＋既定間隔」自動入力は予防接種では撤回し、種別選択時に
+  // マスタ interval に従属して初めて計算する（設定なし種別では空欄のまま保存できる）。
   const date = todayJSTISO();
   return {
     ...DEFAULT_VACCINATION_FORM,
     date,
-    nextDate: calculateNextDate(date, DEFAULT_VACCINATION_FORM.nextScheduleType),
     ...localOverrides,
   };
 }
@@ -173,19 +179,28 @@ export function buildCreateVaccinationRequest(
   };
 }
 
+// EMR-430（2026-10-20 本人回答）: 種別選択時の次回予定はマスタ interval に従属する。
+// 明示的な手入力の次回予定日（type "other" + 日付あり、AC-vaccinations-manual）は
+// 種別変更でも上書きしない。interval === undefined（マスタ取得中・失敗・遅延で種別が
+// 解決できない）でも既存の type/date を保持する。解決できた場合は設定の有無にかかわらず
+// type と再計算した nextDate で上書きする（設定なし種別への切替時は空欄で上書きし、
+// 旧日付を残さない）。
 export function vaccinationOverridesOnVaccineId(
   prev: Partial<VaccinationFormState>,
   vaccineId: string,
   currentDate: string,
   interval: string | undefined,
 ): Partial<VaccinationFormState> {
+  const manualDate = prev.nextScheduleType === "other" && (prev.nextDate ?? "") !== "";
+  if (manualDate || interval === undefined) {
+    return { ...prev, vaccineId };
+  }
   const scheduleType = scheduleTypeForInterval(interval);
-  const calculated = calculateNextDate(currentDate, scheduleType);
   return {
     ...prev,
     vaccineId,
     nextScheduleType: scheduleType,
-    ...(calculated ? { nextDate: calculated } : {}),
+    nextDate: calculateNextDate(currentDate, scheduleType),
   };
 }
 

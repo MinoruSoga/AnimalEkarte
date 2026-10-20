@@ -6,7 +6,7 @@
 | 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約の継承と[追加合意4・5](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-contacts-transfer-20261015)の実現目標。[台帳・会員区分・LINE希望の共同確認](../../../spec/domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)を追加。具体的wire／DB変更は未実施 |
 | 実装状態 | 下記限定ソースを2026-10-15に静的照合。全writer・HTTP型・DB・実権限の再監査は未実施 |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-20死亡取消追従（従来確認2026-10-17） |
+| 文書確認日 | 2026-10-20 EMR-463先行wire契約・死亡取消追従（従来確認2026-10-17） |
 
 業務FRとACは[台帳lifecycle](../../../spec/domains/owners-pets/lifecycle.md)が正本。画面詳細の重複、API YAML・DB定義の複製をしない。wireは[API](../../../../backend/docs/api.yaml)、DBはmigrations、writer境界は[カタログ](../../../architecture/model-write-owner-catalog.md)。
 
@@ -101,6 +101,67 @@ D15は送信対象の現在clinic／owner・現在DM値と[D15目的別判定](.
 - 現行新規APIに永続operation receipt／一意な再送キーの完備は未確認。安全な再送にはサーバ側照会可能な操作識別とpayload対応を設計・実装検証する必要がある。現状のGET0件だけでは遅延commitを否定できず、自動再createを止める。
 - 期待版のない既存PATCHを「楽観lock済」としない。副飼主と主飼主移管の具体的競合保護を他の一般属性へ拡張して報告しない。
 - UI離脱取消は未送信draftだけに効く。送信済mutation・専用LINE送信を取り消したことにはならない。
+
+<a id="owners-list-scope-contract-emr463"></a>
+## EMR-463：台帳一覧の現在許可医院と選択保持（採用先行契約）
+
+2026-10-20のDots採用設計。業務根拠は[医院横断一覧](../../../spec/domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-identity-and-search)と[台帳一覧](../../../spec/screens/03-owners-list.md)。wireの正本は[api.yamlのGET /me・GetMeResponse](../../../../backend/docs/api.yaml)。ここでは処理順・既存との差・実装引渡しを定め、DTO定義を複製しない。今回の463-Cは文書のみで、認可拡大・DB追加・runtime実装・動作検証を含まない。
+
+### BE：GET /meだけに許可集合を付ける
+
+- `GetMeResponse`は既存`MeResponse`を同じJSON階層に包むGET専用DTOとする。`owners_view_clinic_ids`はGET /meの200だけに必須追加。共通`MeResponse`、login/refreshの応答、既存builderのsignatureは変えない。`id`は現行BEの`staff.ID`を文字列化した値でありaccount IDへ置換しない。
+- [GetMe](../../../../backend/internal/auth/http_session_me.go)の`g.Wait()`成功後、既存のaccount取得・所属補完を終えてprofileを組み立てる。`ExtractClinicIDs(c)`が返す現在検証済み医院集合と、`profile.Clinics`に含まれるactive医院集合を交差する。profileの名称や`main_clinic_id`から所属を追加しない。system_adminもこの交差内に限定する。
+- 交差した各IDへ既存の[checkPermissionInClinic](../../../../backend/internal/auth/http_permission.go)で`owners/view`を**順次**評価する。trueだけ採用、falseは除外、errorは5xxで要求全体を失敗させる。bool互換の`HasPermissionInClinic`でerrorをfalseへ潰さない。Gin context内のrequest memoへ並行書込する方式は採らない。
+- [ExtractClinicIDs](../../../../backend/internal/httpapi/context.go)が失敗応答を書いた場合は直ちにreturnし、200や二重応答を返さない。認可評価errorに部分的な許可集合を付けて成功させない。許可ゼロは非NULLの`[]`。重複を含めず、各IDを正の正規形10進文字列で返す。返却順は認可の意味を持たない。
+- [ToMeResponse / meClinicMemberships](../../../../backend/internal/auth/http_response.go)は既にactive医院を選別する。これを現在contextと交差させる設計であり、全医院readや新grantを追加する設計ではない。この集合は一覧選択の材料であり、後続`GET /pets`の最終認可を省略するtokenや永続した許可証ではない。
+
+### FE：owners専有adapterから一覧を開始する
+
+1. `ownersLoader`の各実行・再検証で、owners専有adapterが`GET /me`を取得する。fieldは必須parseし、欠落・NULL・非配列・非文字列ID・正規形でないID・重複を契約未提供／不正な取得結果として扱う。`[]`へ補完しない。既存の全体`ME_QUERY_KEY`のcached profileやlogin/refresh結果を現在許可集合の根拠として流用しない。
+2. scope取得成功後、URLの適用済み選択／保存済み選択を現在許可集合と交差する。未選択の初回は全許可、保存選択の全件が失効した場合は現在の全許可を選ぶ。URLは適用済み選択のSoTであり、保存値は権限ではない。許可集合そのものが`[]`なら一覧APIを呼ばない。空選択を`clinic_ids`省略へ変換すると現在医院へ戻るため、空集合をそのように送らない。
+3. 非空の有効選択を確定してから`GET /pets`を呼ぶ。IDをJS Numberへ変換せず、文字列のまま`clinic_ids`へ渡す。scope取得前の先行list requestや、取得不能時の所属全件・現在医院・旧scopeへのfallbackは行わない。
+4. `GET /pets`の既存最終認可を維持する。403は現在scopeを再取得して選択を照合し直す。失敗したscopeを使ってlistを再送しない。通信障害／5xx／契約未提供は失権の証明ではなく、保存選択を削除しない。
+5. 既存`clinic_ids`はカンマ区切り最大50 IDの制約を維持する。許可集合の応答自体を50件へ制限せず、選択が上限超過なら超過として一覧取得を停止する。先頭50件への切捨てや一部医院だけの成功表示、上限回避の分割全件取得は採用しない。
+
+localStorage keyは`owners-list.clinics.v1.<user.id>`とし、保存内容は選択した医院IDの配列だけ。認可集合、患者／飼主情報は保存しない。keyへ医院IDを追加して横断選択を分断しない。別ユーザーの保存値は読まない。ログアウト時の物理削除方式など、未採用の保存ライフサイクルはここで追加選定しない。
+
+login/logout、user/clinic切替、`ME_QUERY_KEY`更新では、進行中のscope/list両応答を無効化する。request abortと要求世代の照合等により旧応答を表示・選択・保存値へ反映しない。これは既存全体/me cacheを毎回改変する要求ではなく、owners専有取得とその要求contextの責務である。scope取得失敗、許可ゼロ、選択に対する一覧0件を区別する。
+
+### 基準mainとの限定差分と実装順
+
+静的照合基準は`da27989fa812c1319b62a1c3b4684c419b110fe1`。現行`GetMe`は共通builderの`MeResponse`を直接返し、新fieldと上記交差・順次評価はまだない。現行[ownersLoader](../../../../frontend/src/features/owners/loaders.ts)はURLの`clinics`をそのまま/petsへ送り、[useClinicScope](../../../../frontend/src/hooks/use-clinic-scope.ts)は未指定時に現在医院へfallbackする。[get-me](../../../../frontend/src/features/auth/api/get-me.ts)は全体profile cacheへ接続している。これらを採用目標へ適合済みとはしない。共有hookや全体AuthUserへの一括変更を今回の契約から要求しない。
+
+既存`api.yaml/MeResponse.permissions`には医院ID配下のネストという旧説明が残る一方、現行`http_response.go`はresource-keyedの`EffectivePermissions`を返している。これは既存の文書差であり、今回共通MeResponseを全面改訂したり、owners集合をその旧fieldからFEで合成したりしない。login schemaの旧token説明等も今回の追加契約から正当化しない。
+
+| 引渡し | 完了条件 | 今回の状態 |
+|:---|:---|:---|
+| 463-C 契約公開 | api.yamlとこの処理境界の採用SHAを公開 | 文書PRでレビュー対象。runtime未変更 |
+| 463-BE 最小DTO | GetMe専用wrapper・交差・三値順次評価。login/refreshとbuilder互換を保持 | 未実装／NOT_RUN |
+| 463-FE 専有adapter | 必須parse・scope先行loader・選択保持・要求無効化 | 採用SHA後の契約mock PRで着手可。未実装／NOT_RUN |
+| 実API結合 | BE/FEが同じ採用SHAを参照し、現在認可・失敗・切替を実APIで確認 | 契約mock合格と別。未実施／NOT_RUN |
+
+### 後続用fixture・受入ケース定義（全件NOT_RUN）
+
+値は合成IDによるfield断片であり、実患者や完全な/me応答の記録ではない。下表は後続で作るmock／BE／結合検証の定義で、今回実行した証跡ではない。
+
+| ケース | 期待 |
+|:---|:---|
+| 現在context `[1,2,3]`、active profile `[1,2,4]`、1=true・2=false | `owners_view_clinic_ids=["1"]`。3/4を評価・採用しない |
+| system_admin、現在context `[1]`、active profile `[1,2]` | 1だけを採用。adminでも2を追加しない |
+| 全候補false／交差0件 | 200+`[]`。FEは/petsを呼ばず、取得失敗と区別 |
+| 1=trueの後に2が評価error | 5xx。`["1"]`や`[]`の200を返さない |
+| context欠落／不正型 | ExtractClinicIDsの既存401／400で終了、二重応答なし |
+| field欠落／NULL／数値ID／`"0"`／`"01"`／重複 | owners adapter取得エラー。所属や旧scopeへfallbackせず、保存値を消さない |
+| `"9007199254740993"`が現在許可される | scope→選択保存→clinic_idsまで文字列を保ち精度損失なし |
+| 初回、許可 `["1","2"]` | 全許可を選択し、scope完了後にだけ/petsを呼ぶ |
+| 保存 `["2","3"]`、現在許可 `["1","2"]` | 交差`["2"]`だけを有効選択にする |
+| 保存全失効、現在許可 `["1","2"]` | 現在の全許可へ戻す。未検証の3や現在医院を補わない |
+| URLに許可外IDが混入 | 現在許可との交差外を送らず、空選択をquery省略で送らない |
+| 現在選択50件／51件 | 50件は既存上限内、51件は超過として停止。切捨て・分割取得なし |
+| /petsが403 | scope再取得後に再照合。失敗scopeで再送しない |
+| scope通信障害／5xx | 一覧取得エラー。許可ゼロへ縮退せず、保存選択を失権扱いで削除しない |
+| login/logout・user/clinic切替・ME_QUERY_KEY更新後に旧応答到着 | 旧scope/listを表示・保存へ反映しない。別userのkeyを読まない |
+| login／refresh／既存builder | 新fieldを必須にしない。GET /me専用wrapper以外へ追加しない |
 
 ## 受け渡しと検証対応
 
