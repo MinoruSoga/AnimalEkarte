@@ -20,7 +20,7 @@
 
 1. 採用案の「9 paths / 9 operations」は列挙と一致しない。発行POSTと履歴GETは同じ `/vaccinations/{vaccination_id}/certificate-editions` であり、OpenAPIでは **8 unique paths / 9 operations**。9経路というユースケース数は保持し、架空の9番目のpathを作らない。
 2. `ArtifactDescriptor` のshapeは採用されているが、9操作のresponse内に配置が指定されていない。standalone schemaとして定義し、editionやC06 ResultResponseへ独断で追加しない。FEはC06 `artifact_id` から既定のcontent routeを構築できる。descriptor返却配置は後続確認事項。
-3. normal入力で拒否する「rabies専用欄」の完全なfield名集合は、採用案に列挙されていない。D08見本対応表は番号・体格・特徴・注射量・済票/鑑札・4費用を狂犬病帳票へ対応させるが、入力schema単位の排他集合を断定しない。全optional/nullable shapeと422の意味契約を保持し、normal用field制限を勝手に増やさない。FE mockのnormalは全nullで成立する。
+3. rabies専用入力集合は `certificate_number / injection_tag_number / dog_registration_tag_number / body_size / distinguishing_features / injection_amount_text / registration_fee / injection_fee / tag_fee / total` の10欄（CertificateInputsの全欄）と確定する。[D08の3様式対応表](../../spec/domains/vaccinations/lifecycle.md#L121)・[手動料金契約](../../spec/domains/vaccinations/lifecycle.md#L174)・[技術設計の見本対応](../../design/domains/vaccinations/technical-spec.md#L164)による分類であり、新しい必須項目・番号採番・医学的既定・料金計算を追加しない。normalでは各欄の省略又はnullだけ許可し、空文字・空白文字列・明示0を含め1欄でも非nullなら422 validation。inputs={}は許可し、保存時は全10欄を明示nullへ展開する。rabiesでは全欄optional/nullableと型検証を維持し必須化しない。
 4. schemaにないproperty拒否、normal/rabiesとlayout/manifest必須キーの組合せ、保存時全inputsキー、現在認可/CASはserver検証も必要。OAS 3.0.3には `if/then` がないため、requestのkind/layoutとsnapshotのkind/manifest必須キーは`anyOf`で表現し、descriptionも併記する。snapshotのall top-level requiredに加え、列挙されたnested fieldsも全キー保持、nullable値だけ欠落を表す。
 5. C06文書§5.1はHMAC config配線/rotationを「未選定」と記載している。採用案の「既存C06配線を使用」は将来の再利用方針として保持し、利用可能と認定しない。実装時に489との必要subset照合が必要。実鍵作成・閲覧・保存は本作業で行わない。
 
@@ -46,7 +46,7 @@ OAS 3.0.3。ID/source versionはinteger/int64、minimum 1（既存wire準拠）�
 
 ### CertificateInputs
 
-全property optional/nullable。未送信とnullは新発行時に同じ空欄へcanonicalizeする。保存snapshotでは全キーを明示null含め保持。明示0や番号文字列の先頭0・空白を黙って数字変換しない。
+全10欄はrabies専用。kind=rabiesでは全property optional/nullableと型検証を維持し、必須化しない。kind=normalでは各欄の省略又はnullだけ許可し、空文字・空白文字列・明示0も非nullとして422 validation。inputs={}は許可する。未送信とnullは新発行時に同じ空欄へcanonicalizeする。保存snapshotでは全キーを明示null含め保持。明示0や番号文字列の先頭0・空白を黙って数字変換しない。
 
 | field | 型・意味 |
 | --- | --- |
@@ -55,7 +55,7 @@ OAS 3.0.3。ID/source versionはinteger/int64、minimum 1（既存wire準拠）�
 | distinguishing_features / injection_amount_text | string/null。注射量を自動既定化・医学換算しない |
 | registration_fee / injection_fee / tag_fee / total | integer/int64/null、JPY円。新minimum・非null・合計一致制約なし |
 
-4料金欄は発行前に職員が手動修正できる。totalは独立入力で自動sumしない。新規料金初期値は4欄ともnull、現在会計/masterから転記しない。料金修正後は再preview。normalへrabies専用欄の非null値は422（専用集合の未指定点は上記）。形式だけの任意欄はnullで保持。
+4料金欄は発行前に職員が手動修正できる。totalは独立入力で自動sumしない。新規料金初期値は4欄ともnull、現在会計/masterから転記しない。料金修正後は再preview。normalへこの10欄の非null値は422 validation。形式だけの任意欄はnullで保持。通常の飼主・ペット・接種・医院情報は既存snapshot.source/owner/pet/clinicから取得し、CertificateInputsを基本情報編集APIにしない。
 
 ### CertificateSnapshot v1
 
@@ -246,7 +246,7 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
 
 変更対象は本Markdownとbackend/docs/api.yamlのみ。D08技術文書、コード/runtime/DDL/model/試験ソース/Docker/DB適用/実鍵は対象外。runner・製品試験・描画・実印刷・DB適用は **NOT_RUN**。通常hookやpush後の自動CIが発生しても、未実装の実証と混同しない。Plane更新とmergeはroot担当。
 
-静的確認結果: 既存Ruby YAMLで解析成功、新規duplicate key 0、全local refs 3,013件を解決、既存347 pathsと既存components全件保持、新規8 paths/9 operations/35 schemas、全527 operationIdの重複なし。C06 exact field集合と64 fields/各256 bytes制限、lookup not-succeededのstatus/operation_keyだけのshapeを静的照合。Markdownのlocal参照先とJSON例6件の構文、指定2ファイルだけのdiffとgit diff --checkも確認済み。これらはruntime検証ではない。API文書の公開と内部利用開始条件、FE mock PR完成、製品受入を分けて報告する。
+静的確認結果: 既存Ruby YAMLで解析成功、新規duplicate key 0、全local refs 3,017件を解決、既存347 pathsと既存components全件保持、新規8 paths/9 operations/36 schemas、全527 operationIdの重複なし。C06 exact field集合と64 fields/各256 bytes制限、lookup not-succeededのstatus/operation_keyだけのshapeを静的照合。PreviewRequest/IssueRequestと保存snapshotのnormal branchはCertificateNormalInputsの10欄null-only制約を適用し、保存時はCertificateStoredInputsの全キー必須制約も維持。rabiesの共通型を変更していないことを差分確認。Markdownのlocal参照先とJSON例6件の構文、指定2ファイルだけのdiffとgit diff --checkも確認済み。これらはruntime検証ではない。API文書の公開と内部利用開始条件、FE mock PR完成、製品受入を分けて報告する。
 
 ### full snapshot v1の合成fixture（未実行）
 

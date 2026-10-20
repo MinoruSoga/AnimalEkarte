@@ -175,8 +175,60 @@ components:
           format: int64
           nullable: true
           description: JPY円。nullと明示0は別。負値への新minimumなし。BEはint64範囲検証。totalは独立入力で自動合計しない。
-      description: 全欄optional/nullable。未送信とnullは新発行時に空欄へcanonicalize。番号の空白/先頭0保持。注射量の既定化/医学換算なし。normalへrabies専用欄の非null値は422
-        validation。専用欄分類の未固定点は契約文書参照。
+      description: >-
+        全10欄はrabies専用。rabiesでは全欄optional/nullableと型検証を維持し必須化しない。normalでは省略又はnullだけ許可、空文字/空白/明示0も非nullとして422 validation。
+        inputs={}可、保存時は全10欄を明示nullへ展開。番号の空白/先頭0保持。注射量の既定化/医学換算/番号採番/料金計算を追加しない。
+        通常の飼主/ペット/接種/医院情報はsnapshot.source/owner/pet/clinic由来で、基本情報編集APIではない。
+    CertificateNormalInputs:
+      type: object
+      allOf:
+      - "$ref": "#/components/schemas/CertificateInputs"
+      description: normal専用。10欄は省略又はnullだけ許可。空文字/空白/明示0を含め1欄でも非nullなら422 validation。inputs={}可、保存時は全10欄を明示nullへ展開。
+      properties:
+        certificate_number:
+          type: string
+          nullable: true
+          enum: [null]
+        injection_tag_number:
+          type: string
+          nullable: true
+          enum: [null]
+        dog_registration_tag_number:
+          type: string
+          nullable: true
+          enum: [null]
+        body_size:
+          type: string
+          nullable: true
+          enum: [null]
+        distinguishing_features:
+          type: string
+          nullable: true
+          enum: [null]
+        injection_amount_text:
+          type: string
+          nullable: true
+          enum: [null]
+        registration_fee:
+          type: integer
+          format: int64
+          nullable: true
+          enum: [null]
+        injection_fee:
+          type: integer
+          format: int64
+          nullable: true
+          enum: [null]
+        tag_fee:
+          type: integer
+          format: int64
+          nullable: true
+          enum: [null]
+        total:
+          type: integer
+          format: int64
+          nullable: true
+          enum: [null]
     CertificateStoredInputs:
       type: object
       additionalProperties: false
@@ -478,6 +530,8 @@ components:
             type: string
             enum:
             - normal
+          inputs:
+            "$ref": "#/components/schemas/CertificateNormalInputs"
           render_manifest:
             properties:
               templates:
@@ -756,6 +810,8 @@ components:
             type: string
             enum:
             - normal
+          inputs:
+            "$ref": "#/components/schemas/CertificateNormalInputs"
           layout:
             type: string
             enum:
@@ -805,6 +861,8 @@ components:
             type: string
             enum:
             - normal
+          inputs:
+            "$ref": "#/components/schemas/CertificateNormalInputs"
           layout:
             type: string
             enum:
