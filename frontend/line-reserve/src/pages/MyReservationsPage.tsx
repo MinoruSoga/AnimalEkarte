@@ -26,6 +26,39 @@ interface MyReservationsPageProps {
   draftStore?: RevisitIntakeDraftStore;
 }
 
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-");
+  return `${year}年${Number(month)}月${Number(day)}日`;
+}
+
+function formatCreatedAt(isoStr: string): string {
+  return formatJSTApplicationDate(isoStr);
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  confirmed: "確定",
+  pending: "確認中",
+  cancelled: "キャンセル済",
+  checked_in: "受付済",
+  in_consultation: "診察中",
+  accounting: "会計中",
+  completed: "完了",
+  no_show: "未来院",
+};
+
+// FE-RC-051: 状態バッジは brand-tokens.css の semantic token（noah-success/warning/info/danger/neutral）を使う。
+const STATUS_COLORS: Record<string, string> = {
+  confirmed: "bg-noah-success-bg text-noah-success-text",
+  pending: "bg-noah-warning-bg text-noah-warning-text",
+  cancelled: "bg-noah-neutral-bg text-noah-neutral-text",
+  checked_in: "bg-noah-info-bg text-noah-info-text",
+  in_consultation: "bg-noah-info-bg text-noah-info-text",
+  accounting: "bg-noah-info-bg text-noah-info-text",
+  completed: "bg-noah-info-bg text-noah-info-text",
+  no_show: "bg-noah-danger-bg-strong text-noah-danger-text",
+};
+
 // EMR-474 / D6: 取消済み以外に導線を出し、編集可否は問診 GET の current_target.editable だけが決める。
 // 受付後（以降）は書き込みを BE が editable=false で止めるため、閲覧の入口として「回答を見る」を出す。
 // no_show は FE で read-only 固定にせず、サーバー判定に従う。
