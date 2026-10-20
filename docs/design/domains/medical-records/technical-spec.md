@@ -671,10 +671,11 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 
 医師確認と会計確定の接続は2段で設計する。
 
-第1段（最小 gate）: Complete（`POST /v1/accountings/complete`）の前提条件に既存`billing_confirmations.status`の医師確認状態を追加する。確認前は確定・精算を停止し、確認前の準備操作と未確定表示は可（AC-accounting-before-doctor-review）。新テーブル・汎用version/operation基盤は新設しない。
+<a id="doctor-confirm-gate-revision-20261020"></a>
+**訂正（2026-10-20）**: 初版（0a8e9b3e6）の第1段「既存`billing_confirmations.status`を gate に使う」は、確定001（PR727 head 532b6b452）で billing_confirmations が除去済みのため採用不可（EMR-446 更新コメント参照）。gate の保存形態は未確定であり、医師確認集合（doctor_review_records/doctor_review_sets）と operation_bindings/operation_results へ接続する設計が別途必要（EMR-462 の着手前提）。
 
-金額了承の保存正本は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key一意・acknowledged_by/at）と`billing_change_events`（intent別のbefore/after・reason）を使用し、新設しない。確定001に両テーブルは存在済み。金額変更と臨床数量変更は別intentとして分離し、確認後の金額変更は再確認を要求する。臨床数量変更が医師確認版を無効化する範囲は受入条件で固定する。
+金額了承の保存正本は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key一意・acknowledged_by/at）と`billing_change_events`（intent別のbefore/after・reason）を使用し、新設しない（この部分は確定001整合）。金額変更と臨床数量変更は別intentとして分離する。
 
-固定期待値: 確認前Complete→拒否／確認後の金額変更→再確認必要／確認準備・未確定表示は可。billing_itemsの行版（line_version）は確定001済み。
+固定期待値: 確認前Complete→拒否／確認後の金額変更→再確認必要／確認準備・未確定表示は可（AC-accounting-before-doctor-review）は存続。ただし gate の実装方式は上記の未確定設計に従う。
 
-候補であり実装・実機未確認。会計側のComplete経路の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ掲載する。
+billing_itemsの行版（line_version）は確定001済み。designの本節は gate 方式確定まで設計未確定として扱う。
