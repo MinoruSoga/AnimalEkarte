@@ -306,6 +306,41 @@ describe("RevisitIntakeSection", () => {
     expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
   });
 
+  it("current_target が要求と別の予約なら fail-closed で本文を出さない", async () => {
+    respond(
+      body({
+        current_target: {
+          ref: { ...ref(), appointment_id: "99" },
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: answer("a2", "2"),
+          content_available: true,
+        },
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
+  it("履歴の対象が要求と別の予約なら fail-closed で本文を出さない", async () => {
+    respond(
+      body({
+        history: [
+          {
+            target: { ...ref("10", "1"), appointment_id: "99" },
+            answer: answer("x1", "1"),
+            target_relation: "previous",
+          },
+        ],
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的x1")).not.toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
   it("current 履歴の対象が別世代なら fail-closed", async () => {
     respond(
       body({

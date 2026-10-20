@@ -148,16 +148,25 @@ function isCurrentRelationConsistent(
   );
 }
 
-function isStaffRead(value: unknown): value is RevisitIntakeStaffReservationRead {
+function isStaffRead(
+  value: unknown,
+  expectedAppointmentId: string,
+): value is RevisitIntakeStaffReservationRead {
   if (!isRecord(value)) return false;
   if (!(value.current_target === null || isCurrentTarget(value.current_target))) return false;
   const currentTarget = value.current_target as RevisitIntakeCurrentTarget | null;
+  // 要求した予約以外の原文は、形が正しくても表示しない（中間層の取り違え対策・fail-closed）。
+  if (currentTarget !== null && currentTarget.ref.appointment_id !== expectedAppointmentId) {
+    return false;
+  }
   return (
     (value.availability === "available" || value.availability === "target_unresolved") &&
     Array.isArray(value.history) &&
     value.history.every(isHistoryEntry) &&
-    (value.history as RevisitIntakeHistoryEntry[]).every((h) =>
-      isCurrentRelationConsistent(h, currentTarget),
+    (value.history as RevisitIntakeHistoryEntry[]).every(
+      (h) =>
+        h.target.appointment_id === expectedAppointmentId &&
+        isCurrentRelationConsistent(h, currentTarget),
     ) &&
     // 空文字 cursor は「次ページあり」と誤解され 1 ページ目を重複取得するため契約外として拒否する。
     (value.next_cursor === null ||
@@ -189,7 +198,7 @@ export async function getRevisitIntake(
     },
   );
   // 契約外の応答は原文として扱わない（fail-closed）。
-  if (!isStaffRead(data)) throw new Error("再診問診の応答形式が不正です");
+  if (!isStaffRead(data, appointmentId)) throw new Error("再診問診の応答形式が不正です");
   return data;
 }
 
