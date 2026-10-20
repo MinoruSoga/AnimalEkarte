@@ -51,7 +51,7 @@
 | `components/ui/` の新規プリミティブは colocated `.stories.tsx` 必須（C21）。md 仕様書は「stories を読んでも分からない契約」がある場合だけ | compliance C21、design-system FE-DS2 決裁、components/README.md カバレッジ表 |
 | story の axe 違反は失敗扱い（`.storybook/preview.ts` の `a11y.test: "error"`）。正当な例外は story 側の `parameters.a11y.config.rules` に理由付きで記録し、黙って `"off"` にしない | design-states §2、accessibility-rules.md |
 | 省略（`truncate` / `max-w`）した要素には、focus とタッチの両方で開くツールチップか展開（「…もっと見る」）で**全文到達手段**を必ず付ける。`title` 属性は hover 専用なので補助にしかならず、単独では不可。識別子（ID・氏名・ペット名・金額・日付）とナビ項目は省略しない | patterns §3.1, §1.2、compliance C25 / C26（静的段は `title` / `aria-*` の有無のみ） |
-| 一覧は識別列を折り返さず、長文列は `max-width` + 省略、操作列は右端 sticky。表が溢れたら識別列と操作列を残して中間列だけスクロールする。空値は `—`、件数は「1,234件」 | patterns §2 |
+| 一覧の 1 行固定の識別列（ID・番号・日付・金額・ステータス）は `nowrap` で折り返さない。氏名・ペット名・ケージ名の識別列は `nowrap` を使わず、全角 10 文字分の `min-width` を確保したうえで超過分だけ語の区切りで折り返す（1 文字ずつの折り返し禁止・省略禁止）。長文列は `max-width` + 省略、操作列は右端 sticky。表が溢れたら識別列と操作列を残して中間列だけスクロールする。空値は `—`、件数は「1,234件」 | patterns §2 |
 | サイドバーの現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする。ページ `h1` は 1 つで、ページ内の見出しを `h1` より大きくしない | patterns §1 |
 | 固定要素（浮遊ボタン・固定アクションバー・トースト）は操作要素に重ねない。スクロール末尾に固定要素分の余白を取り、`z-index` は `Z` トークンから選ぶ | patterns §5、compliance C27 |
 | 業務・設定フォームの入力部品は共有 `ui/`（`DatePicker` / `NumberInput` / `MoneyInput` / `checkbox` / `switch`）。ネイティブ入力の許容範囲（検索・一覧フィルター・行内編集・時刻）は patterns §4.4。破壊操作は `Button variant="destructive"`（塗り）で `[削除] キャンセル 保存` の順 | patterns §4、design-states §1.1、compliance C28 |

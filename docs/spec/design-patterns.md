@@ -153,7 +153,7 @@
 <a id="form-required"></a>
 ### 4.3 必須・任意の表記
 
-- 必須マーカーは共有 `RequiredMark` を使い、間隔は親ラベルの `gap-2`（8px）に統一する。`RequiredMark` は `aria-hidden` の装飾なので、`*` を付けた入力には必ず `required`（制御 Radix 等で使えない場合は `aria-required="true"`）を付け、支援技術にも必須を伝える。マーカーは装飾として `aria-hidden`（2026-10-20 に design-system §3.4 から移管）。必須は `*` のみで示し、「（任意）」「（必須）」の文字併記を同じフォームで混ぜない（観測: `/lstep/checkup-sync`）。
+- 必須マーカーは共有 `RequiredMark` を使い、間隔は親ラベルの `gap-2`（8px）に統一する。`RequiredMark` は `aria-hidden` の装飾なので、`*` を付けた入力には必ず `required` か `aria-required="true"` を付け、支援技術にも必須を伝える。§4.2 の「押下→欄直下にエラー」をアプリ側のバリデーションで行うフォームでは、ブラウザの制約検証が先に送信を止めないよう native 入力にも `aria-required="true"` を使う（`required` を使うなら `<form noValidate>` にする）。制御 Radix（`Select` 等）も `aria-required="true"`。既存の `CheckupForm` / `EstimateForm` はこの `aria-required` 方式（テストで `required` 非付与を確認している）。マーカーは装飾として `aria-hidden`（2026-10-20 に design-system §3.4 から移管）。必須は `*` のみで示し、「（任意）」「（必須）」の文字併記を同じフォームで混ぜない（観測: `/lstep/checkup-sync`）。
 - 必須欄が空のまま存在する既存データは §4.2 に従う。
 
 <a id="form-controls"></a>

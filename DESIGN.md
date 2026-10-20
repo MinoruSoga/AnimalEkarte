@@ -134,8 +134,9 @@ components:
     rounded: "{rounded.md}"
     padding: 4px 14px
   badge-pill:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.primary}"
+    # 色は固定しない: `BADGE.*`（design-states §2.1 の AA 実測表）から組み合わせを選ぶ。
+    # 旧 surface + primary 文字（#038B94 on white = 4.10:1）は 12px で AA 未達のため撤回。
+    colorPairs: "BADGE.* (design-states.md §2.1)"
     typography: "{typography.eyebrow}"
     rounded: "{rounded.full}"
     padding: 4px 8px
