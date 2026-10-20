@@ -45,6 +45,7 @@ import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models
 import { OwnersListTable } from "../components/OwnersListTable";
 import { OwnersListScopeState } from "../components/OwnersListScopeState";
 import { useOwnersClinicScope } from "../hooks/use-owners-clinic-scope";
+import { useRevalidateOnMeUpdate } from "../hooks/use-revalidate-on-me-update";
 import {
   activeFiltersToParams,
   paramsToActiveFilters,
@@ -177,6 +178,9 @@ export function OwnersList() {
   const handleReload = useCallback(() => {
     void revalidator.revalidate();
   }, [revalidator]);
+  // EMR-463: 全体 /me（ME_QUERY_KEY）の更新は loader の再検証トリガにだけ使う。
+  // 現在許可は loader が owners 専有 adapter で取り直す。
+  useRevalidateOnMeUpdate(handleReload);
 
   // #266: loader 再フェッチ中（検索・フィルタ・ページ変更）の視覚フィードバック
   const isFiltering = navigation.state === "loading";
