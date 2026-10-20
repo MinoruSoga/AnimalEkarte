@@ -1000,12 +1000,12 @@
     "action": "create",
     "source": "internal/medicalrecord/routes_hospitalization.go",
     "routeExpression": "hospitalizations.GET(\"/cage-occupancy\", permAny(PermissionRequirement{hospitalization, create}, PermissionRequirement{hospitalization, edit}), h.hospitalization.GetCageOccupancy)",
-    "handlerSource": "internal/medicalrecord/hospitalization_cage_occupancy.go",
+    "handlerSource": "internal/medicalrecord/hospitalization_cage_occupancy_http.go",
     "marker": "requireSelectedClinicHospitalizationWriteGrant",
-    "authorization": "assigned any-of(create,edit) grant in composition; selected create-or-edit any-of grant in handler; view is not an implicit prerequisite (EMR-461 approved boundary 2026-10-20)",
+    "authorization": "assigned any-of(create,edit) grant in composition; selected create-or-edit grant in handler; exclusion additionally requires selected edit; view is not a prerequisite (EMR-461 / selected API740 contract)",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/hospitalization_cage_occupancy_test.go#TestGetCageOccupancyHandler_SelectedClinicWriteGrant",
-    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; row-approximation:single-action create row stands in for the real any-of(create,edit) middleware; handler-grant-test-referenced; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/hospitalization_cage_occupancy_test.go#TestRealDB_HospitalizationCageOccupancyClinicScopedAndExcludesSelf"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; row-approximation:single-action create row stands in for the real any-of(create,edit) middleware; handler-grant-test-referenced; remaining-data-scope-not-assessed; realdb-return-data:not-executed"
   },
   {
     "method": "GET",

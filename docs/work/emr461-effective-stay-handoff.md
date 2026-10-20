@@ -1,6 +1,6 @@
 # EMR-499 → EMR-461 有効状態 subset の実装と未確定case
 
-本表はPR734の実装境界と担当間の技術契約の証跡。新しい業務仕様やDDLの採用ではない。PR740のschema/DTO/routerは別ownerであり、この文書で変更しない。
+本表はPR734の実装境界と担当間の技術契約の証跡。新しい業務仕様やDDLの採用ではない。公開wireの正本はmain採用済みPR740。下記の親Dotsによる採用範囲に限り、その契約へruntimeを整合する。
 
 | 入力履歴 | 今回の判定 | 根拠・残差 |
 |---|---|---|
@@ -25,7 +25,7 @@ readerはambient transaction内のstay行をID昇順`FOR SHARE`で保護し、�
 
 ## 現在の未完範囲
 
-通常caseのreaderをcompositionへ注入し、nil依存だけで全stayを常時503にする構成は除去する。一方、Q1–Q3の対象stayはunknownであり、対象ケージの空き確認を止める。現在の一覧処理は対象のstayが1件でもunknownなら、一覧全体を503で返す。既知の他stayだけから部分一覧を返す実装ではない。unknownをstay単位で判定することと、HTTP一覧が部分成功することは異なる。
+通常caseのreaderをcompositionへ注入し、nil依存だけで全stayを常時503にする構成は除去する。一方、Q1–Q3の対象stayはunknownであり、対象ケージの空き確認を止める。採用済み740 wireへ追随した候補readは、対象stayが1件でもunknownなら200 state=unknown・occupied/candidate両配列NULLを返す。編集対象の物理的な現在割当は別fieldで保持する。実際のreader/DB取得障害は500。既知の他stayだけから部分候補を返さない。保存側のunknown拒否と499全writer接続は未完であり、このread修正をwriter完成とは扱わない。
 
 hospitalization create/update/swap等の旧status/type/start/end利用の499 writer接続、必要認可・監査・receipt、PR740のknown/unknown・current_assignment等へのruntime追随、実DB/API/UI受入は別途必要。DDL変更の必要性はQ1/Q2の意味・表現が確定してから446/466へ具体差分を渡す。今回はDDLを追加しない。
 
@@ -67,4 +67,17 @@ Q1–Q4は承認済み業務方針を実装へ落とすための技術契約で�
 - **Q3 / EvidenceRevision**：通常遷移・異常履歴unknown・予定終了超過で解放しない方針を維持する。現在のmovement revisionだけではQ1予約証跡を統合した版にならない。movement、予約変更、成功receiptの根拠を区別した複合evidence契約を499が定義する。stay行のversionはmovement INSERTで自動増分する版ではなく、writer CAS/fence・業務内容の版・readerの根拠版を同一視しない。
 - **Q4 / 次の実装単位**：まず499と461で、admit/discharge/cancel/no_show/correction・予約接続・ケージcreate/edit/swapの各writerが取るlockとgateを一覧化し、上記既存順とpost-lock recheckを照合する。その後に499の単一core/writer、461のadapter、740 ownerのruntime DTOへ順に接続する。今回の文書はAPI740への変更や新migration番号の予約ではない。仕様/技術契約の採用後に必要な最小DDL/実fixtureを446/466へ渡す。
 
-この案ではまだQ1–Q4が解消したことにはならず、現在のunknown一覧全体503、旧writer接続と実DB受入の未完を維持する。
+この案ではまだQ1–Q4が解消したことにはならない。候補readの200 unknownは採用済みwireへの追随として別途実装し、旧writer接続と実DB受入の未完を維持する。
+
+## 2026-10-20 親Dotsによる正式handoffと採用済みwireの先行実装
+
+- 旧ownerの `task-3/pr734` はhead `06ae59aca8f3912d567ff87397f00d581f68c158`・dirty空を読取で再確認。親Dotsが旧ownerの734新規編集停止とtask-6への担当切替を明示承認した。旧worktreeは保全。
+- 共有本体の `claim/EMR-461` は旧tip `5c5219965ad44258b8ccd918ffe52179a6139ade` と未checkoutを確認後、通常の `git branch -d` → `git branch claim/EMR-461` で再取得。新tipは共有本体の `e60ba31e86f88e0e0a6a870989ac491fd8872654`。他claim/branchの解放・削除なし。claimのtipは所有権取得の基点であり、PRの修正headや状態根拠版ではない。
+- 新owner領域: `task-6/AnimalEkarte-pr734`、local branch `fix/pr734-emr461-499-20261020`。通常push先は既存PR734 head branch `feature/emr461-cage-recheck-20261020`。
+- 親Dotsの採用範囲はmain `4debcf9961fdd8735afe57b2886ae354ac0b1a5a` のPR740公開契約へのreader/adapter/handler整合。`api.yaml` のcage-occupancy/cage-swapと関連3 schemaを同mainからそのまま採用し、旧wireへ戻さない。swapのwriter/DTO追随完了を意味しない。
+- readはclinic/編集対象の文字列ID echo、known時の非NULL全件配列、unknown時の両配列NULL、現在割当の独立保持を実装する。全IDは先頭ゼロなしのPostgreSQL bigint正数。許可外query・重複query・範囲外を400、自己除外には選択医院のeditを追加要求し、scope外/不存在/削除済みは同じ404にする。
+- 候補は同院の有効な独立/代表ケージ。構成員の他滞在占有を代表へ集約する。自己除外は既存adapterでhospitalization IDに限定し、同ケージの別滞在は残す。現割当が無効/構成員/候補外でも表示値を保持する。
+- Q1予約proof、Q2訂正保存/replace/void、Q4全writer参加は親の採用内容待ち。既存通常履歴coreのQ3異常履歴unknownを維持し、通常再入院や予定日時による予約/退院推測を追加しない。専用writerによる通常不正遷移拒否の接続はこのread先行実装に含めない。
+- 限定fixtureはproduction HTTP境界/純粋projection/同context伝播を対象とする。SQL、実DB lock、認可DB、HTTPサーバー全体や実機の受入証拠にはしない。旧inventoryにあった未存在のrealDB test参照は未実行表示へ訂正する。
+- 現セッションの静的確認: `git diff --check`、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parseを確認。cageの2 path/3 schemaは指定main740契約と本文一致。`verify-agent-task.py --base 06ae59aca --plan` は対象を列挙しただけで、実行件数0。
+- 検査blocker: `docker ps --format ...` は `/Users/minoru/.orbstack/run/docker.sock` への権限拒否で未実行。同操作を再試行・迂回していない。Docker unit/vet/build/gofmtは現変更で未実行（BLOCKED）。ホストGo/npm代替、検証環境新設、DB適用/reset/実DB/結合/実機/STG/prod/storage操作なし。限定fixture追加をPASSと記載しない。

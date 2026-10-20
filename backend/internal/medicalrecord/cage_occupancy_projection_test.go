@@ -84,6 +84,8 @@ func TestEffectiveStayCageAdapter_UnresolvedNeverMeansVacant(t *testing.T) {
 			got, err := countEffectiveStayCages(t.Context(), 7, rows, nil, reader)
 			require.Error(t, err)
 			require.Nil(t, got)
+			var unknown *cageOccupancyUnknown
+			require.Equal(t, mode != "nil-reader" && mode != "reader-error", errors.As(err, &unknown))
 		})
 	}
 }

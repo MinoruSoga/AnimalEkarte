@@ -7,6 +7,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
+// cageOccupancyUnknown is an explicit unresolved verdict, distinct from a
+// reader/database failure. Existing save guards remain fail-closed until the
+// writer contract is integrated; the assignment read exposes it as 200 unknown.
+type cageOccupancyUnknown struct{ reason string }
+
+func (e *cageOccupancyUnknown) Error() string { return e.reason }
+func (e *cageOccupancyUnknown) Unwrap() error { return apperrors.ErrServiceUnavailable }
+
 // StayCageOccupancyState is the effective lifecycle decision supplied by EMR-499,
 // not a raw stay_movement_events.event_kind. The cage adapter never interprets
 // correction chains, planned dates, or the removed hospitalizations.status.
@@ -61,19 +69,19 @@ func countEffectiveStayCages(ctx context.Context, clinicID uint64, assignments [
 	seenStays := make(map[uint64]struct{}, len(assignments))
 	for _, row := range assignments {
 		if row.ClinicID != clinicID || row.HospitalizationID == 0 || row.CageID == 0 {
-			return nil, apperrors.WrapServiceUnavailable("cage assignment scope is unresolved")
+			return nil, &cageOccupancyUnknown{reason: "cage assignment scope is unresolved"}
 		}
 		if slices.Contains(excludeHospitalizationIDs, row.HospitalizationID) {
 			continue
 		}
 		if row.StayCaseID == nil || *row.StayCaseID == 0 {
-			return nil, apperrors.WrapServiceUnavailable("cage assignment has no resolved stay")
+			return nil, &cageOccupancyUnknown{reason: "cage assignment has no resolved stay"}
 		}
 		if _, exists := seenHospitalizations[row.HospitalizationID]; exists {
-			return nil, apperrors.WrapServiceUnavailable("duplicate cage assignment identity")
+			return nil, &cageOccupancyUnknown{reason: "duplicate cage assignment identity"}
 		}
 		if _, exists := seenStays[*row.StayCaseID]; exists {
-			return nil, apperrors.WrapServiceUnavailable("duplicate stay assignment identity")
+			return nil, &cageOccupancyUnknown{reason: "duplicate stay assignment identity"}
 		}
 		seenHospitalizations[row.HospitalizationID] = struct{}{}
 		seenStays[*row.StayCaseID] = struct{}{}
@@ -94,14 +102,14 @@ func countEffectiveStayCages(ctx context.Context, clinicID uint64, assignments [
 		_, requested := seenStays[state.StayCaseID]
 		_, duplicate := byStay[state.StayCaseID]
 		if state.ClinicID != clinicID || !requested || duplicate || state.EvidenceVersion <= 0 {
-			return nil, apperrors.WrapServiceUnavailable("stay occupancy evidence is unresolved")
+			return nil, &cageOccupancyUnknown{reason: "stay occupancy evidence is unresolved"}
 		}
 		byStay[state.StayCaseID] = state
 	}
 	for _, row := range relevant {
 		state, ok := byStay[*row.StayCaseID]
 		if !ok {
-			return nil, apperrors.WrapServiceUnavailable("stay occupancy evidence is missing")
+			return nil, &cageOccupancyUnknown{reason: "stay occupancy evidence is missing"}
 		}
 		switch state.State {
 		case StayCageReserved, StayCageAdmitted:
@@ -109,7 +117,7 @@ func countEffectiveStayCages(ctx context.Context, clinicID uint64, assignments [
 		case StayCageReleased:
 			// Only the core's explicit resolved decision releases occupancy.
 		default:
-			return nil, apperrors.WrapServiceUnavailable("stay occupancy is unknown")
+			return nil, &cageOccupancyUnknown{reason: "stay occupancy is unknown"}
 		}
 	}
 	return counts, nil

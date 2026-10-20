@@ -10,7 +10,8 @@ func (h *Handler) registerHospitalizationRoutes(hospitalizations *gin.RouterGrou
 	hospitalizations.GET("", perm(model.ResourceHospitalization, "view"), h.hospitalization.ListHospitalizations)
 	// EMR-461: 入院フォームの空き候補用の占有ケージID read。承認済み権限境界は
 	// hospitalization create/edit（同医院・any-of）で、view を暗黙の追加前提にしない。
-	// handler で選択医院の create/edit を再判定する。/:id より前の静的セグメント登録。
+	// handler で選択医院の create/edit、自己除外時は edit を再判定する。
+	// /:id より前の静的セグメント登録。
 	hospitalizations.GET("/cage-occupancy", permAny(
 		PermissionRequirement{Resource: string(model.ResourceHospitalization), Action: "create"},
 		PermissionRequirement{Resource: string(model.ResourceHospitalization), Action: "edit"},
