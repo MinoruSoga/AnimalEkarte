@@ -295,7 +295,9 @@ describe("RevisitIntakeSection", () => {
   it("current 履歴の対象が current_target と別ペットなら fail-closed", async () => {
     respond(
       body({
-        history: [{ target: ref("77", "2"), answer: answer("x1", "1"), target_relation: "current" }],
+        history: [
+          { target: ref("77", "2"), answer: answer("x1", "1"), target_relation: "current" },
+        ],
       }),
     );
     renderSection();
@@ -307,7 +309,9 @@ describe("RevisitIntakeSection", () => {
   it("current 履歴の対象が別世代なら fail-closed", async () => {
     respond(
       body({
-        history: [{ target: ref("10", "1"), answer: answer("x1", "1"), target_relation: "current" }],
+        history: [
+          { target: ref("10", "1"), answer: answer("x1", "1"), target_relation: "current" },
+        ],
       }),
     );
     renderSection();
@@ -366,7 +370,10 @@ describe("RevisitIntakeSection", () => {
       server.use(
         http.get(PATH, ({ request }) => {
           if (new URL(request.url).searchParams.get("cursor")) {
-            return HttpResponse.json({ error: "unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+            return HttpResponse.json(
+              { error: "unauthorized", code: "UNAUTHORIZED" },
+              { status: 401 },
+            );
           }
           return HttpResponse.json(body({ next_cursor: "CURSOR_2" }));
         }),
@@ -374,7 +381,9 @@ describe("RevisitIntakeSection", () => {
       renderSection();
       expect(await screen.findByText("目的a2")).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
-      expect(await screen.findByText("セッションが切れました。再ログインしてください。")).toBeInTheDocument();
+      expect(
+        await screen.findByText("セッションが切れました。再ログインしてください。"),
+      ).toBeInTheDocument();
       expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
       expect(screen.queryByText("回答済み")).not.toBeInTheDocument();
       expect(screen.queryByText(/件/)).not.toBeInTheDocument();
@@ -429,9 +438,7 @@ describe("RevisitIntakeSection", () => {
                 latest_answer: answer("a3", "3"),
                 content_available: true,
               },
-              history: [
-                { target: ref(), answer: answer("a3", "3"), target_relation: "current" },
-              ],
+              history: [{ target: ref(), answer: answer("a3", "3"), target_relation: "current" }],
             }),
           );
         }

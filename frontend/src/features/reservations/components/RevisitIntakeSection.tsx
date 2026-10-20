@@ -140,7 +140,10 @@ function CollapsibleGroup({
 }
 
 function groupPrevious(entries: RevisitIntakeHistoryEntry[]) {
-  const groups = new Map<string, { ref: RevisitIntakeTargetRef; entries: RevisitIntakeHistoryEntry[] }>();
+  const groups = new Map<
+    string,
+    { ref: RevisitIntakeTargetRef; entries: RevisitIntakeHistoryEntry[] }
+  >();
   for (const entry of entries) {
     const key = `${entry.target.pet_id}|${entry.target.target_generation}`;
     const group = groups.get(key);
@@ -331,7 +334,10 @@ export function RevisitIntakeSection({
           summary={`訂正履歴${query.hasNextPage ? "" : `（${currentHistory.length}件）`}`}
         >
           {currentHistory.map((h) => (
-            <div key={h.answer.answer_id} className={`border-t pt-2 first:border-t-0 first:pt-0 ${C.borderDivider}`}>
+            <div
+              key={h.answer.answer_id}
+              className={`border-t pt-2 first:border-t-0 first:pt-0 ${C.borderDivider}`}
+            >
               <AnswerBody answer={h.answer} />
             </div>
           ))}
