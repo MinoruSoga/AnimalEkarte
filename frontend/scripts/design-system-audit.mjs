@@ -35,7 +35,7 @@
  *   C26 — `<nav>` ブロック内と `components/shared/Layout/Sidebar*.tsx` のナビ文言に `truncate` 禁止（§1.2）。
  *   C27 — `Z` / `Z_CLASS` トークン外の z-index 直書き（`z-[N]` / `zIndex: N`）禁止（§5.1）。
  *   C28 — `src/features/**` で raw `<select>` と `<input type="date">` を業務・設定フォームに置くことを禁止
- *        （design-system.md §3.4）。検索・一覧フィルター・行内編集は C28 context allowlist で許容。
+ *        （design-patterns.md §4.4）。検索・一覧フィルター・行内編集は C28 context allowlist で許容。
  *   C29 — バリデーション理由の `disabled`（`isValid` / `isFormValid` / `errors.length` 等）禁止
  *        （design-states.md §1.1・2026-10-20 決裁）。権限・送信中（`canEdit` / `isPending`）は対象外。
  *        注: 本リポジトリの `canSubmit` は RBAC 由来の命名のため C29 の対象にしない。
@@ -234,7 +234,7 @@ export const C27_Z_INDEX_ALLOWLIST = new Set([
 const C28_NATIVE_OPENING_TAG_START_RE = /<(?:select|input)\b/g;
 const C28_INPUT_DATE_RE = /\btype\s*=\s*["']date["']/;
 /**
- * C28: design-system.md §3.4 が許容する文脈（検索・一覧フィルター・表の行内編集・時刻入力）の
+ * C28: design-patterns.md §4.4 が許容する文脈（検索・一覧フィルター・表の行内編集・時刻入力）の
  * ファイル。許容理由が §3.4 の列挙に無いものは入れない。
  */
 export const C28_NATIVE_INPUT_CONTEXT_ALLOWLIST = new Set([
@@ -1117,7 +1117,7 @@ export function checkC27(text, relPath = "") {
 
 /**
  * checkC28 は `src/features/**` の raw `<select>` と `<input type="date">` を検出する
- * （design-system.md §3.4: 業務・設定フォームは共有 `DatePicker` / `Select`）。
+ * （design-patterns.md §4.4: 業務・設定フォームは共有 `DatePicker` / `Select`）。
  * §3.4 の許容文脈は C28_NATIVE_INPUT_CONTEXT_ALLOWLIST、既存の違反は RATCHET allowlist。
  */
 export function checkC28(text, relPath = "") {
