@@ -214,6 +214,14 @@ AAD bytesは以下の順序の **JSON string arrayをUTF-8** で符号化する�
 ["staff-record-draft","1",key_reference,key_version,principal_account_id,clinic_id,medical_record_id,tab_key,input_generation]
 ```
 
+### AAD v1のcanonical string serialization
+
+全要素に同じstring serialization規則を適用する。各要素はUnicode scalar value列とし、unpaired surrogateとDB textに保存不能なU+0000はvalidationで拒否する。Unicode正規化（NFC／NFD等）、大小文字変換、trimを行わず、serverがscopeとして照合したtab_keyのscalar列をそのまま使う。見た目が同じでも異なるscalar列は別tab_keyであり、browserが正規化して同じscopeとみなしてはならない。既存 `btrim(tab_key)<>''` 条件も維持し、ASCII限定へ狭めない。
+
+JSON stringは前後をU+0022で囲む。U+0022は `\"`、U+005Cは `\\`、U+0008／0009／000A／000C／000Dはそれぞれ `\b`／`\t`／`\n`／`\f`／`\r` とする。それ以外のU+0001〜U+001Fは小文字hexの6文字 `\u00xx`、その他のscalarはescapeせずそのままUTF-8へ符号化する。`/`、HTML文字、U+2028／U+2029、非ASCIIを任意にescapeしない。配列要素の区切りは`,`、前後は`[`／`]`だけで、BOM・空白・改行を加えない。数値文字列・UUIDのcanonical規則と要素順は上記のまま。browserとserverはこの同一serializerを用い、既定JSON encoderの任意escapeに依存しない。[JSON stringの構文](https://www.rfc-editor.org/rfc/rfc8259.html#section-7)のうち、この表現をAAD v1の唯一のbyte表現として選定する。
+
+復号時のAADはGETの照合済みkey／version／generation／scopeから再構成する。新規暗号化時も準備済みregistry scopeとserver規則の次generationを使う。clientから渡された任意のAAD bytesを認可・scopeの根拠にせず、異なるserializationを順に試す復号fallbackを設けない。
+
 記号部分もすべてstring要素としてserializeする。AADへauth token／session証明を入れない。元epoch等は暗号化payload内の履歴情報に置き、payload schema versionも暗号化本文内で検証する。registry scope／body scope／AAD不一致は拒否。body accountを認可根拠にせず、復号AADは信頼済registry scopeから組み立てる。fresh load時は§10のGETが照合済みkey／世代／scope metadataを返す。暗号化時のinput_generationは§10のserver規則と同じ次版をbrowserが計算し、serverは一致を検査する。serverが暗号文を別世代へ付替えたり書換えたりしない。他account／recordへのmetadata改変移植はtag検証で失敗する。
 
 IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localStorage／sessionStorage／Service Worker cache／ログ／analyticsに本文・DEK・auth／edit証明を保存しない。本人draft GETの全応答も `Cache-Control: no-store` とし、共有browser／intermediary／Service Worker HTTP cacheへ保存・別accountで再利用しない。明示設計のIndexedDB ciphertext journalはHTTP cacheではなく、本人scopeで管理する暗号文永続化として保持する。key-accessはno-storeでmemory-only鍵利用を渡す境界とし、wrapped_dek／KEKはbrowserへ送らない。browserはprovider由来DEKをimport後memory keyにしraw buffersを可能な範囲で破棄する。ログ／trace／キャッシュ／Service Worker interceptionからの除外を後続受入へ含める。
@@ -232,11 +240,17 @@ IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localSto
 
 **旧epochの整合した解釈:** 旧epochを現在の編集／保存権として受理せず、失権中の旧証明による復号能力再取得を拒否する。本人が現在認可・編集権を再取得し、元scope／未解決結果／現在版を照合した後は、旧draftを比較用に回収し明示選択できる。旧入力を永久復旧禁止にする解釈は採用しない。
 
+### Bのtrusted clinicと共通scope
+
+BのGET／PUT／key-accessでいうclinicはURLからの独立推定値ではなく、server-side認証・現在医院アクセス解決済みcontextのclinic_idである。入口でrequestのtrusted clinic_idを一度確定し、認証主体から解決したprincipal_account_idとともにrequest内で共用する。record_idはURLをparseしてこのclinic内で存在・現在grantを照合する。tab_keyはURLの通常の一回のdecode後に§9のscope文字列規則で検査する。別helperがdefault clinicやclient希望clinicを再解決して差し替えてはならない。
+
+この同じclinic_idをregistry／draft lookup、TX-localのclinic／account contextとRLS、provider scope、GET復号metadata、AAD構築・照合へ渡す。PUT bodyやqueryのclinic／account指定は認可根拠として無視するのではなくvalidationで拒否し、URL recordが当該clinicに属さなければscope-not-foundとする。provider前後の現在認可再検査も同じclinicを対象とし、context失効／変更時は失敗させ別clinicへ暗黙切替しない。GETのclinic_idも単独の認可証明ではなく、次requestでは再び現在server contextから検査する。body／AAD scopeはこの正規値との一致検査に使い、clientに認可主体を選ばせない。
+
 | 採用API境界（未実装） | 契約 |
 |---|---|
-| GET `/medical-records/{id}/personal-drafts/{tab}` | 自本人scopeのcurrent ciphertext envelopeと下記のserver照合済み復号metadata。未作成はdraft=null、未解決旧draftはsource-unresolved。全応答 `Cache-Control: no-store` |
+| GET `/medical-records/{id}/personal-drafts/{tab}` | 自本人scopeのcurrent envelopeとserver照合済み復号metadata。保存ありは200のdraft object、未作成は200 draft:null、不整合は409 ErrorResponse。下記wireを使い全応答 `Cache-Control: no-store` |
 | PUT 同route | operation_key、expected_generation、new generation、準備済みkey_reference／key_version、base_owner_versions、envelope、未解決operation refs。初回0→1、以後expected+1の原子CASと下記鍵参照照合を必須とし、clientが認可主体を指定しない |
-| POST 同route `/key-access` | 現在auth／account／scope／grantとkey_reference検査後、no-storeでsession限定鍵利用。他人鍵の汎用取得APIにせずログへ鍵を出さない |
+| POST 同route `/key-access` | 現在auth／account／scope／grant、held holder／session／epochとkey_reference／versionを検査するreadのbroker処理。下記の平坦request／responseとErrorResponseを使い、全応答no-store。C06保存receiptは発行しない |
 
 ### GET: fresh loadの復号metadataとcache境界
 
@@ -244,17 +258,61 @@ GETは正規registryと保存draftをserverが照合した `key_reference, key_v
 
 本当にdraft未作成なら `draft=null` を返し、input_generation=0の偽DB行を作らない。未解決旧draftをabsentへ縮退させず、元scopeが空いていると扱わない。GETの全応答はno-storeとし、logout時のplaintext UI／memory key破棄と併せて別accountへのHTTP応答再利用を防ぐ。これは既決のIndexedDB ciphertext保持を削除する指示ではない。
 
+GETは成功・失敗を含め `Content-Type: application/json`、`Cache-Control: no-store` とする。認証・現在view grant・clinic／record／account scope検査後に次のwireを区別する。
+
+| GET結果 | HTTP | JSON bodyと成立条件 |
+|---|---|---|
+| 正常な保存draftあり | 200 | トップレベル `{ "draft": { ... } }`。draft必須fieldは `envelope, key_reference, key_version, input_generation, encryption_format, ciphertext_sha256, base_owner_versions, principal_account_id, clinic_id, medical_record_id, tab_key`。envelope全体のhashとmetadata／registry照合が成功した場合だけ返す |
+| 本当に未作成 | 200 | 正確に `{ "draft": null }`。0世代の偽draftや空envelopeを返さない |
+| 保存行があるが旧鍵参照／registry／scope／形式／世代／hash等の照合失敗 | 409 | 正確に `{ "error": "source-unresolved" }`。draft:nullも正常envelope／復号metadataも含めない。原行を変更・削除せず、clientは作成／上書き／自動復元を停止 |
+
+envelopeは§9のbase64暗号文形式、key_version／input_generation／IDはcanonical decimal文字列、key_referenceは既存canonical UUIDとし、他fieldの意味は既存§9／§10を維持する。未解決operation refsは既存回収経路で照会し、GET metadataを成功receiptの代用としない。
+
+入口エラーも平坦な `ErrorResponse {error:string}` とし、400 `{ "error": "validation" }`、401 `{ "error": "unauthenticated" }`、現在grant不足403 `{ "error": "not-authorized" }`、URL対象recordが認証済みclinic内に見つからない404 `{ "error": "scope-not-found" }`、読取基盤障害503 `{ "error": "result-unavailable" }` とする。異scopeの存在情報を返さない。GETはprovider unwrapを実行せず、provider障害の判定をkey-accessへ分離する。
+
+`draft` は既存draft=nullを具体化する資源fieldであり、C06結果を包むreceipt／data／operationラッパーではない。source-unresolved等はErrorResponseの値であってC06 status新設ではなく、保存PUT／結果照会のResultResponseを変更しない。
+
 ### PUT: 初回・単調generation CASと鍵選定
 
 expected_generationはcanonical非負整数文字列とし、`"0"` だけをdraft未作成のcreate preconditionに使う。DB input_generationは従来どおり正整数で初回1。初回0→1はscope一意制約付きINSERTで勝者1件とし、敗者は409競合で勝者内容を自動上書きしない。既存scopeをexpected=0で置換しない。既存draftはexpectedが現在版に一致する場合だけ原子更新し、次版はserver規則でexpected+1。DB bigint上限超過・任意ジャンプ・後退を拒否する。
 
 browserも暗号化前に同じ次版を計算してAADのinput_generationに使う。requestのnew generationは主張値でありserverが算出値との一致を検査し、暗号文を別世代へ付替えない。operation_keyの成功replayは保存receiptを返して世代を再増分せず、応答不明は同key結果照会を先行する。新key／次世代で自動再送しない。C06 fingerprint／precondition分類は既存規則を維持し、AAD／ciphertextを含む内容が変わる操作を「CAS-onlyだから同じ内容」と扱わない。新暗号文・内容への切替は旧結果を確定してから行う。
 
-browserはB0のkey provisioning結果で準備済みのkey_reference／key_versionをPUTで明示する。serverは認証から解決したaccountとrouteのclinic／record／tabでregistryを読み、request参照と当該scope／versionが一致することを検査する。初回も既存draft行からの逆引きを前提としない。body accountによる認可、clientによる新registry登録は不可。初期key_version=1、同scopeの勝者keyに固定し、既存draftのkey付替え・rotationをPUTに混ぜない。
+browserはB0のkey provisioning結果で準備済みのkey_reference／key_versionをPUTで明示する。serverは認証から解決したaccountと上記trusted clinic、照合済みURL record、検査済みURL tabでregistryを読み、request参照と当該scope／versionが一致することを検査する。初回も既存draft行からの逆引きを前提としない。body／queryのclinic／account指定はvalidationで拒否し、clientによる新registry登録は不可。初期key_version=1、同scopeの勝者keyに固定し、既存draftのkey付替え・rotationをPUTに混ぜない。
 
 既存keyと異なる参照、不明参照、scope不一致は拒否し、新鍵生成やNULL／ダミー補完をしない。key_reference／key_versionはAADの同値に対応し、wrapped DEK／raw DEKをPUT本文へ含めない。参照一致を現在auth／grant／編集権の代用にせず、旧epoch回収の既決境界も維持する。
 
 key provisioning APIとregistry／provider契約の反映はB0の小PRへ分ける。保存先は上記registryへ固定済みであり、既存key_referenceをDEK本体と見立てたりciphertextへ復号鍵を同梱したりしない。
+
+### POST key-access: wireと現在認可
+
+POST `/medical-records/{id}/personal-drafts/{tab}/key-access` は既存Cookie認証とCSRF境界を継承する。`application/json` の平坦request bodyは `key_reference, key_version, edit_session_ref, edit_epoch`。key_referenceはcanonical UUID、key_version／edit_epochは正のcanonical decimal文字列、edit_session_refは既存編集session UUID。account／clinic／record／tabをbodyで選択しない。現在認証主体・現在grant・本人scope・current held holder／session／epochを検査し、同scopeのregistry key_reference／version一致を確認してからUnwrapする。旧draft内のepoch／sessionを現在権として使わず、本人が現在編集権を再取得した場合は現在session／epochで過去draftの同scope keyを取得できる。
+
+成功はHTTP 200、`Content-Type: application/json`、bodyは以下の平坦形とする。
+
+```json
+{"key_reference":"<canonical UUID>","key_version":"1","encryption_format":"aes-256-gcm-v1","dek":"<base64>"}
+```
+
+dekは正確に32 bytesを [RFC 4648標準alphabet](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) のpadding付きbase64で符号化する（改行なし、base64urlではない）。browser memoryへ渡す一回のraw keyであり、鍵参照・bearer・永続tokenではない。browserはscope／key／version一致と長さを検査し、AES-GCMのnon-extractable CryptoKeyとしてmemoryへimportし、raw文字列／bufferを可能な範囲で破棄する。wrapped_dek／KEK／provider credentials／内部エラー詳細を返さない。
+
+全応答は `Cache-Control: no-store`。応答body、DEK、cookie、session証明をログ／trace／analytics／HTTP cache／Service Worker cacheへ保存せず、browser永続storageへDEK／CryptoKeyを置かない。session限定とは現在auth／編集sessionの有効期間だけmemory利用し、logout／既知の失権／認可取消で利用停止・memory参照破棄する意味であり、配布済みDEKを暗号学的に遠隔失効できる意味ではない。寿命や保持期限の新業務ルールを追加しない。
+
+endpoint固有の失敗はすべて `Content-Type: application/json` の平坦ErrorResponseとする。
+
+| HTTP | JSON body | 意味 |
+|---|---|---|
+| 400 | `{ "error": "validation" }` | JSON／必須field／型／canonical形式不正 |
+| 401 | `{ "error": "unauthenticated" }` | 有効な認証sessionなし |
+| 403 | `{ "error": "not-authorized" }` | CSRFまたは現在grant不足。内部理由を出さない |
+| 404 | `{ "error": "scope-not-found" }` | 現scopeで対象record／key_reference／key_versionを解決できない。別scope keyの存在を開示しない |
+| 409 | `{ "error": "edit-right-lost" }` | 現holder／session／epoch不一致。旧証明での取得を拒否 |
+| 409 | `{ "error": "source-unresolved" }` | 対象本人scopeの保存draft行は存在するが、正規鍵関係やmetadataが不整合。absent扱いで新鍵を生成しない |
+| 503 | `{ "error": "result-unavailable" }` | provider未設定／停止／失効／unwrap不能または基盤障害。秘密やprovider詳細を出さずfail closed |
+
+認証→現在grant／record scope→現在編集権→保存draft整合→要求keyのscope／version照合→Unwrapの順で検査する。本人scopeの保存draft行があるのに正規registry解決に失敗する場合はsource-unresolved、保存draftがない初回利用で要求keyが同scopeの準備済みregistryにない場合はscope-not-found。失敗応答にdekを含めず、エラー時に鍵／registry／draftを生成・再作成・置換・削除しない。新規provisionはB0の別契約のまま。
+
+provider呼出をC06 DB-only participantや長い業務lockに入れない。Unwrap後、鍵応答直前にも同じtrusted clinicの現在auth／grant／holder／session／epochとkeyのscope対応を再確認し、失効が判明した結果を200にしない。鍵アクセスはreadのbroker処理でありC06 operation_key、成功receipt、世代増分を発行しない。上表のerror文字列は既存ErrorResponseの値であり、C06 status enumを拡張しない。
 
 ### 採用理由と保護限界
 
@@ -274,14 +332,16 @@ key provisioning APIとregistry／provider契約の反映はB0の小PRへ分け�
 1. schema owner: A新規metadata anchor、B新規key registry＋draft複合FK。§8の読取棚卸し→証明済み参照の正規登録→NOT VALID FKによる新規保護→全既存参照の証明後にVALIDATE、の段階を分ける。未解決scopeは原行温存・停止とし、全体検証未完了を明示する。migration／model／ERDは446/466等の専有ownerへ集約し並行上書きしない。既存表を重複CREATEしない。
 2. 489 shared owner: 新規binding時のatomic ClaimTarget metadata callbackだけを追加。既存receipt wire／status／consumer契約は維持。
 3. 494 A: actor／session／fence、inquiry baseline／CAS、metadata resolver、flat DTO／HTTP mapping、失権入力保持。A UI／APIと495-Aは1／2のruntime完成待ちにしない。
-4. 494 B0: envelope／AAD／key-reference／identity／状態API／schema・provider契約とfake fixture。GETの照合済み復号metadata・absent／source-unresolved・no-store、PUTの初回／単調CASと準備済み鍵参照をDTOへ固定。実鍵なし。
-5. B1: server ciphertext repository、account TX-local／RLS、generation CAS、current auth、operation lookup。provider未設定runtimeはfail closed。
-6. B2: browser ciphertext journal、memory key provider、logout／reload／切断、三者比較選択。公開契約モックで独立PR可能。
+4. 494 B0: envelope／AAD v1のcanonical serializer／key-reference／identity／状態API／schema・provider契約とfake fixture。GETのpresent／absent／source-unresolvedと各HTTP／JSON／no-store、key-accessの平坦request／response／error、PUTの初回／単調CASと準備済み鍵参照をDTOへ固定。実鍵なし。
+5. B1: server ciphertext repository、account TX-local／RLS、generation CAS、current auth、operation lookupとbroker error mapping。Bの全経路で同じtrusted clinicを用い、provider未設定runtimeはfail closed。
+6. B2: browser ciphertext journal、memory key provider、logout／reload／切断、三者比較選択。公開契約モックで独立PR可能。canonical AAD再構成、key-accessのmemory importとerror分岐を同wireへ接続。
 7. B3: 明示承認後のlive provider接続・運用設定。未実行なら未接続と報告。
 
 後段確認計画: 同staff2sessionの取得勝者1つ、take-overとwriteの両順、releaseとunknown、old client、別account／同名再作成、別clinic／record／tab、現在grant失効、corrupt／鍵不在、quota、未送達reload、logout後別staff、同key別payload／別record、anchor欠落・claim rollback・record変更／論理削除、baseline bootstrap rollback・全inquiry writerの版参加、draft generation CAS、旧成功receiptの現在認可、旧draftの再取得後比較回収、ログ／cache等の鍵非保存。すべて記述のみで **NOT_RUN**。
 
 Bの後段fixtureもNOT_RUN: 新規FK違反拒否と未解決旧scopeだけの停止／原行温存、未解決残存時のVALIDATE未完了表示、候補unwrap確認失敗時の非公開、provision競合敗者の勝者key再取得・Unwrap失敗、provider後日停止／commit不明の非破壊再照合、fresh GET metadataによるAAD再構成・不整合とabsentの区別、全GET応答no-storeとlogout別account分離、初回PUT競合の勝者1件・0→1・以後+1・上限／後退／ジャンプ拒否、成功replay非増分・応答不明の照会先行、初回鍵選定・異scope／異key拒否。記述の追加を実装／DDL適用／実鍵／試験実行の完了と扱わない。
+
+wireの後段fixture（NOT_RUN）: AADのquote／backslash／control、非ASCII、結合文字と合成文字、U+2028／U+2029のbyte一致／区別とunpaired surrogate／U+0000拒否。GETの200 present／200 absent／409 unresolvedの正確な形、409をabsentへ読み替えないこと、全応答no-store。key-accessの32-byte DEK標準base64・memory import、各HTTP／error分岐、旧session／epoch拒否・再取得後回収、provider前後の認可取消と秘密非出力。GET／PUT／broker／RLS／AADでtrusted clinicが一致し、body／query clinic拒否と別clinicへの暗黙切替がないこと。追加のfixtureを実行済みとは扱わない。
 
 ## 12. 根拠・実施状態
 
