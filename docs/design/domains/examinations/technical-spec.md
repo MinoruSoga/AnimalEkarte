@@ -185,3 +185,5 @@ CL-R14の実機receiptは医院・機種／個体・OS／Chrome版・接続経�
 業務目標は[D03共通FR／AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、本領域の[接続境界](../../../spec/domains/examinations/lifecycle.md#examinations-plan-tab-link)を参照する。D07の受信・患者選択／待機・attach／detach・再送同定とofficial版／訂正保護を維持する。機器結果と手入力結果は対応する同じ予定へ結び付けるが、患者一致だけで複数予定の一つを推測しない。予定表示を機器へのオーダー送信や結果確定へ変換しない。
 
 [D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。
+
+[既存detach使用中保護](../../../spec/domains/examinations/lifecycle.md#fr-examinations-idempotency)には元予定との結果関連も含め、関連を残した患者NULL化を拒否する。必要時はD03関連訂正／D07専用訂正へ渡し、同job由来全件の補償単位・元版・履歴を維持する。自動unlink／無条件再attachや新しい解除方式は追加しない。AC-examinations-detach-usedの適用補足であり、実装適合は未確認。

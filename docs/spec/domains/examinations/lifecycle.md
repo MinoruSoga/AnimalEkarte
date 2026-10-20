@@ -64,7 +64,7 @@ confirmedは普通のPATCH／項目置換／削除では変更しない。専用
 
 未紐付け受信へのattachは対象ジョブ＋患者を使い、クライアントから受信値を改変しない。別患者への付替えをattachで強制しない。device Undoは安全条件を満たしたdetachでpersisted→received・患者NULLとし、指紋を残して再attach可能にする。fixture revertの終端revertedとは別。由来検査が複数なら全件を一つの補償単位として扱う。
 
-利用receipt、手動変更、検査確定、確定カルテなどの使用・保護状態によりdetachできない場合は拒否し、検査訂正へ案内する。確認ダイアログを追加してこの制約を解除しない。
+利用receipt、手動変更、検査確定、確定カルテなどの使用・保護状態に、[元予定との結果関連](../medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)も含める。関連を残したまま患者NULL化するdetachは拒否し、必要時は既存のD03関連訂正／D07専用訂正へ渡す。同job由来全件の補償単位・元版・履歴保持を維持し、自動unlink／無条件再attachは追加しない。その他の使用・保護状態でdetachできない場合も拒否し、検査訂正へ案内する。確認ダイアログを追加してこの制約を解除しない。
 
 <a id="fr-examinations-recovery"></a>
 ## FR-examinations-recovery：失敗・結果不明を成功にしない
@@ -145,7 +145,7 @@ confirmedは普通のPATCH／項目置換／削除では変更しない。専用
 | AC-examinations-fixture-difference | 同日同種別で内容違い | fixture取込 | 日だけでskipせず別結果 | idempotency |
 | AC-examinations-attach | 未紐付け・同医院生存患者 | attach | 保存済み原値で紐付け、別患者既存紐付けは拒否 | idempotency |
 | AC-examinations-detach | 未使用で補償条件充足 | device Undo | 同jobをreceived／患者NULLへ、指紋保持で再attach可 | idempotency |
-| AC-examinations-detach-used | usage receipt／手動変更／確定保護あり | Undo | 拒否し検査訂正へ、fixture revertで迂回しない | idempotency |
+| AC-examinations-detach-used | usage receipt／手動変更／確定保護又は元予定との結果関連あり | Undo | 関連を残した患者NULL化を拒否し、必要時D03関連訂正／D07専用訂正へ。同job全件の補償単位・元版・履歴を維持し、fixture revert・自動unlink・無条件再attachで迂回しない | idempotency |
 | AC-examinations-frame-loss | 未送信状態でページ終了 | 復帰 | 保存済みと断定せず機器再送・指紋照合へ | recovery |
 | AC-examinations-result-unknown | 送信後応答不明 | 再操作 | job／保存結果を照会、無条件新規作成なし | recovery |
 | AC-examinations-autocommit | 有効化条件未確認 | fixture自動取込 | 初期falseを保持 | recovery |

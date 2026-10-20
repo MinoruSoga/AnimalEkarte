@@ -95,6 +95,7 @@ flowchart TB
 - 前回診療と診療履歴は、[最新合意](#owner-report-ended-history)により診療終了したカルテだけを対象とする。自動保存済みでも診療中の記録を診療済み履歴へ載せず、医師確定操作を新たな表示条件にしない。
 - 本画面は読み取り専用で、入力・保存操作を持たない。
 
+<a id="owner-report-accessibility"></a>
 ### 3.2 アクセシビリティ
 
 - ペット切替は accessible name「ペット切替」のネイティブ select。tab / tablist / tabpanel は使用しない。
@@ -243,3 +244,5 @@ Sentinel_0adf405e47508191abf775b6c4af22a3 の回答2により、[D03予防薬専
 業務正本・根拠・受入条件は[D03の後日予定レポートFR／3AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)。本人の「カルテのレポートページだけでいいです」に基づき、カルテ右上から開く本ページで選択患者の過去カルテの後日予定を、元record／元予定identityと現在の実施・中止状態を保って確認する。元記録を移動・上書きせず、状態変更済みを未消化の後日予定と誤表示しない。表示配置・取得方式は技術設計未了、実装適合／実機受入は未確認。
 
 スタッフ専用read・ページ／section認可・医院／飼主／一頭contextと取得失敗の区別を維持する。次回予約画面・受付・来院時の追加表示は対象外。別カルテ実績への関連付けによる消化、来院だけの自動実施済み化、元予定移動／上書き、新しい消化操作や臨床writeは追加しない。一般レポートの印刷／共有・LINE公開も拡張しない。既存実施・取消owner手順、同一record後日入力と新来院選択copyを、このreadで代替又は自動実行しない。
+
+この後日予定表示にも[既存§3.2](#owner-report-accessibility)のaccessible name・見出し・キーボード・status／alertを適用し、元記録・元予定・現在状態を文字で識別する。新しいリンク・modal・自動focusは設けない。現行履歴100件の取得だけで網羅済み／予定なしとせず、未取得／打切りを不完全として識別する。100件より古い対象へ到達できる後日予定readは[D03の取得・受入条件](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)へ従い設計し、他sectionの取得上限・期間契約は拡張しない。
