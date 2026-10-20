@@ -1190,15 +1190,52 @@ describe("RevisitIntakePage 結果と target の照合（fail-closed）", () => 
     expect(store.get(TARGET_KEY)?.values.visit_purpose).toBe("合成目的");
   });
 
-  it("成功応答の current_state が別 pet の target なら適用しない", async () => {
+  it("result_refs の pet や committed_versions の世代が送信した target と違えば適用しない", async () => {
     const user = userEvent.setup();
     mockReadSequence([read(unansweredTarget())]);
+    captureSubmits((c, i) => {
+      const base = successResponse(c.key ?? "", "1");
+      return HttpResponse.json(
+        i === 0
+          ? {
+              ...base,
+              operation_result: {
+                ...base.operation_result,
+                result_refs: { ...base.operation_result.result_refs, pet_id: "899" },
+              },
+            }
+          : {
+              ...base,
+              operation_result: {
+                ...base.operation_result,
+                committed_versions: { target_generation: "9", answer_revision: "1" },
+              },
+            },
+      );
+    });
+    const { store } = renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+    await user.click(await screen.findByRole("button", { name: "同じ内容で再送信" }));
+
+    expect(await screen.findByRole("button", { name: "同じ内容で再送信" })).toBeInTheDocument();
+    expect(screen.queryByText(/回答を送信しました/)).not.toBeInTheDocument();
+    expect(store.get(TARGET_KEY)?.pending?.status).toBe("unknown");
+  });
+
+  it("成功 receipt が送信した target と一致し、current_state だけが新しい target なら成功として未確定を解消し再取得する", async () => {
+    const user = userEvent.setup();
+    const { calls } = mockReadSequence([
+      read(unansweredTarget()),
+      read(unansweredTarget(APPT_A, "899", "4")),
+    ]);
     captureSubmits((c) =>
       HttpResponse.json({
         ...successResponse(c.key ?? "", "1"),
-        current_state: answeredTarget(answer("1", answers({ visit_purpose: "別pet" })), {
-          ref: { target_id: "5402", appointment_id: APPT_A, pet_id: "899", target_generation: "3" },
-        }),
+        current_state: {
+          ...unansweredTarget(APPT_A, "899", "4"),
+        },
       }),
     );
     const { store } = renderPage();
@@ -1206,9 +1243,13 @@ describe("RevisitIntakePage 結果と target の照合（fail-closed）", () => 
     await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
     await user.click(screen.getByRole("button", { name: "回答を送信する" }));
 
-    expect(await screen.findByRole("button", { name: "同じ内容で再送信" })).toBeInTheDocument();
-    expect(screen.queryByText(/回答を送信しました/)).not.toBeInTheDocument();
-    expect(store.get(TARGET_KEY)?.pending?.status).toBe("unknown");
+    expect(
+      await screen.findByText(/回答の送信は完了しています。その後、予約の対象が変更されたため/),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(store.get(TARGET_KEY)).toBeUndefined();
+    await waitFor(() => expect(purposeInput().value).toBe(""));
+    expect(screen.queryByRole("button", { name: "同じ内容で再送信" })).not.toBeInTheDocument();
   });
 
   it("新規送信の 403 は ErrorPage を出し、未確定の操作を残さない", async () => {
@@ -1836,5 +1877,60 @@ describe("RevisitIntakePage さらに表示の 403・保留再取得・履歴の
     expect(await screen.findByText(/この問診の形式にはまだ対応していません/)).toBeInTheDocument();
     expect(screen.queryByText("版1の合成本文")).not.toBeInTheDocument();
     expect(screen.queryByText("回答履歴")).not.toBeInTheDocument();
+  });
+});
+
+describe("RevisitIntakePage さらに表示の target 変化", () => {
+  it("cursor ページの current_target が最初の読込と違えば追記せず、1ページ目から読み直す", async () => {
+    const user = userEvent.setup();
+    const ref = {
+      target_id: "5401",
+      appointment_id: APPT_A,
+      pet_id: PET_A,
+      target_generation: "3",
+    };
+    const latest = answer("1", answers({ visit_purpose: "旧対象の合成本文" }));
+    let firstPageReads = 0;
+    server.use(
+      http.get(READ_PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor") !== null) {
+          const newRef = {
+            target_id: "5500",
+            appointment_id: APPT_A,
+            pet_id: PET_A,
+            target_generation: "4",
+          };
+          return HttpResponse.json(
+            read(unansweredTarget(APPT_A, PET_A, "4"), {
+              history: [
+                {
+                  target: newRef,
+                  answer: answer("1", answers({ visit_purpose: "混ざってはいけない合成本文" })),
+                  target_relation: "previous",
+                },
+              ],
+            }),
+          );
+        }
+        firstPageReads += 1;
+        if (firstPageReads === 1) {
+          return HttpResponse.json(
+            read(answeredTarget(latest), {
+              history: [{ target: ref, answer: latest, target_relation: "current" }],
+              next_cursor: "synthetic-cursor-1",
+            }),
+          );
+        }
+        return HttpResponse.json(read(unansweredTarget(APPT_A, PET_A, "4")));
+      }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+
+    await waitFor(() => expect(firstPageReads).toBe(2));
+    expect(screen.queryByText("混ざってはいけない合成本文")).not.toBeInTheDocument();
+    await waitFor(() => expect(purposeInput().value).toBe(""));
+    expect(screen.getByText("未回答")).toBeInTheDocument();
   });
 });

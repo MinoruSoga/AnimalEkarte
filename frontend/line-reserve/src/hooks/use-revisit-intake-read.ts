@@ -37,6 +37,17 @@ export interface UseRevisitIntakeReadResult {
   loadMoreRetryAfterSeconds: number | null;
 }
 
+function sameTargetIdentity(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead): boolean {
+  const x = a.current_target?.ref ?? null;
+  const y = b.current_target?.ref ?? null;
+  if (x === null || y === null) return x === y && a.availability === b.availability;
+  return (
+    x.appointment_id === y.appointment_id &&
+    x.pet_id === y.pet_id &&
+    x.target_generation === y.target_generation
+  );
+}
+
 export function useRevisitIntakeRead(
   clinicId: string,
   appointmentId: string,
@@ -126,6 +137,13 @@ export function useRevisitIntakeRead(
     startLoadMore(async () => {
       try {
         const page = await liffApi.getRevisitIntake(clinicId, appointmentId, idToken, { cursor });
+        if (!sameTargetIdentity(baseRead, page)) {
+          // 最初の読込の後に target が変わった。旧 read へ追記せず捨て、1ページ目から読み直す
+          // （再取得が走るまで refetching になり editor は送信できない）。
+          setState((prev) => ({ ...prev, error: null }));
+          setRequestToken((t) => t + 1);
+          return;
+        }
         setMore((prev) => ({
           forRead: baseRead,
           entries: [...(prev.forRead === baseRead ? prev.entries : []), ...page.history],

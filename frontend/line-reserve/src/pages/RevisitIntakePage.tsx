@@ -133,6 +133,12 @@ export function RevisitIntakePage({
     );
     refetch();
   }, [refetch]);
+  const handleSucceededThenTargetChanged = useCallback(() => {
+    setNotice(
+      "回答の送信は完了しています。その後、予約の対象が変更されたため最新の内容を読み込みます。",
+    );
+    refetch();
+  }, [refetch]);
   const handleIntakeClosed = useCallback(
     (reason: RevisitIntakeClosedReason) => {
       setNotice(reason === null ? EDIT_BLOCK_FALLBACK_MESSAGE : CLOSED_NOTICES[reason]);
@@ -235,6 +241,7 @@ export function RevisitIntakePage({
             onDirtyChange={handleDirtyChange}
             onPendingChange={handlePendingChange}
             onTargetChanged={handleTargetChanged}
+            onSucceededThenTargetChanged={handleSucceededThenTargetChanged}
             onIntakeClosed={handleIntakeClosed}
             onAccessDenied={handleAccessDenied}
           />

@@ -94,6 +94,8 @@ interface RevisitIntakeEditorProps {
   /** 送信処理中（inFlight）と結果未確定（unresolved = pending あり）をページの離脱確認へ通知する */
   onPendingChange: (inFlight: boolean, unresolved: boolean) => void;
   onTargetChanged: () => void;
+  /** 送信は成功したが、その後に予約の対象が変わっていた（新しい target を読み直す） */
+  onSucceededThenTargetChanged: () => void;
   onIntakeClosed: (reason: RevisitIntakeClosedReason) => void;
   onAccessDenied: () => void;
 }
@@ -235,6 +237,7 @@ export function RevisitIntakeEditor({
   onDirtyChange,
   onPendingChange,
   onTargetChanged,
+  onSucceededThenTargetChanged,
   onIntakeClosed,
   onAccessDenied,
 }: RevisitIntakeEditorProps) {
@@ -316,20 +319,26 @@ export function RevisitIntakeEditor({
   ): boolean {
     if (result.operation_result.operation_id !== op.key) return false;
     if (result.operation_result.state !== "succeeded") return true;
+    // operation_result は初回の不変結果（api.yaml RevisitIntakeSuccessResponse）。送信した target との対応は
+    // result_refs と committed_versions で確かめ、現在 snapshot の current_state では判定しない。
     const refs = result.operation_result.result_refs;
     if (refs && (refs.appointment_id !== appointmentId || refs.pet_id !== op.body.pet_id)) {
       return false;
     }
+    const versions = result.operation_result.committed_versions;
+    if (versions && versions.target_generation !== op.body.target_generation) return false;
+    return true;
+  }
+
+  /** 成功時の現在 snapshot が送信した target と別か（成功後に対象が変わった）。 */
+  function currentStateMovedAway(result: ResolvedLookupResult, op: RevisitIntakePendingOperation) {
     const state = result.current_state;
-    if (
-      state &&
+    return (
+      state !== null &&
       (state.ref.appointment_id !== appointmentId ||
         state.ref.pet_id !== op.body.pet_id ||
         state.ref.target_generation !== op.body.target_generation)
-    ) {
-      return false;
-    }
-    return true;
+    );
   }
 
   function applyResult(
@@ -339,6 +348,14 @@ export function RevisitIntakeEditor({
     if (!resultMatchesOperation(result, op)) {
       updatePending({ ...op, status: "unknown" });
       return { kind: "unresolved", message: MISMATCHED_RESULT_MESSAGE };
+    }
+    if (result.operation_result.state === "succeeded" && currentStateMovedAway(result, op)) {
+      // 送信は成功済み。新しい target の state を送信した target のものとして適用せず、
+      // 未確定操作と draft を消して既存の再取得経路で新しい target を読み直す。
+      setPending(null);
+      draftStore.clear(targetKey);
+      onSucceededThenTargetChanged();
+      return { kind: "idle" };
     }
     if (result.operation_result.state === "succeeded") {
       const refs = result.operation_result.result_refs;

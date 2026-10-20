@@ -140,6 +140,30 @@ const revisitIntakeOperationKey = z
   .refine((v) => v !== "00000000-0000-0000-0000-000000000000");
 const revisitIntakeFormVersion = z.number().int().min(1);
 
+const RFC3339_DATE_TIME =
+  /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(\.\d+)?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/;
+
+/**
+ * RFC3339 date-time（api.yaml RevisitIntakeReceivedAt format: date-time）の検査。
+ * 月・日（閏年を含む）・時・分・秒（閏秒 :60 可）・offset の範囲を確かめる。
+ */
+export function isRfc3339DateTime(value: string): boolean {
+  const m = RFC3339_DATE_TIME.exec(value);
+  if (!m) return false;
+  const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+  if (month < 1 || month > 12) return false;
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  if (day < 1 || day > daysInMonth) return false;
+  if (hour > 23 || minute > 59 || second > 60) return false;
+  if (m[8] !== undefined) {
+    if (Number(m[9]) > 23 || Number(m[10]) > 59) return false;
+  }
+  return true;
+}
+
+const revisitIntakeDateTime = z.string().refine(isRfc3339DateTime);
+
 export const revisitIntakeEnergyAppetiteSchema = z.enum([
   "usual",
   "slightly_reduced",
@@ -185,7 +209,7 @@ export const revisitIntakeAnswerSchema = z.object({
   answer_id: revisitIntakeDecimalId,
   revision: revisitIntakeDecimalId,
   form_definition_version: revisitIntakeFormVersion,
-  received_at: z.string(),
+  received_at: revisitIntakeDateTime,
   provenance: z.literal("owner_submission"),
   answers: revisitIntakeFullAnswersSchema,
 });
@@ -243,7 +267,7 @@ const revisitIntakeVisibleSuccessSchema = z.object({
     operation_id: revisitIntakeOperationKey,
     intent: revisitIntakeIntent,
     state: z.literal("succeeded"),
-    committed_at: z.string(),
+    committed_at: revisitIntakeDateTime,
     result_refs: z.object({
       appointment_id: revisitIntakeDecimalId,
       pet_id: revisitIntakeDecimalId,
@@ -264,7 +288,7 @@ const revisitIntakeRedactedSuccessSchema = z.object({
     operation_id: revisitIntakeOperationKey,
     intent: revisitIntakeIntent,
     state: z.literal("succeeded"),
-    committed_at: z.string(),
+    committed_at: revisitIntakeDateTime,
     result_refs: z.null(),
     committed_versions: z.null(),
   }),
