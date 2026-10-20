@@ -355,13 +355,70 @@ func TestConversationSummaryRepository_SaveWithoutExpectedRevisionAppliesLastWri
 	assert.Equal(t, "B", *latest.Summary)
 }
 
-// Save は UPDATE...RETURNING の単一statementで自分の書込み内容と版を返すため、
-// 「UPDATE と読戻しの間に他writerが commit し、読戻しが他writerの内容・版を返す」
-// 競合窗口が構造的に存在しない。旧実装（UPDATE→読戻し）で指摘された lost update 経路
-// （読戻し値を次の ExpectedRevision に使い他writerの内容を conflict なしで上書き）は
-// この構造変更で除去された。GORM の Query callback 経由で中割込みをシミュレートする
-// テストは Raw+RETURNING との組合せで非決定論的になるため置き換え、代わりに
-// 「連続する独立writerがそれぞれ自分の書込み結果を受け取ること」を直接検証する。
+// Save は UPDATE...RETURNING の単一statementで自分の書込み内容と版を返す。
+// 「他writerの値が見える状態で Save しても、返値は自分のstatementが採番した版と
+// 自分の内容である」ことを検証する。旧実装（UPDATE→読戻し）は読戻し値（他writerの
+// 内容・版）を返し、呼び出し側がそれを次の ExpectedRevision に使うと lost update に
+// なっていた。GORM の Raw+Scan は Query callback を経由しないため、UPDATE と読戻しの
+// 中割込み自体をフックでシミュレートすることはできない（競合窗口が構造的に存在しない
+// ことの裏返し）。ここでは他writerの commit 済み値が存在する状態を前準備で作る。
+func TestConversationSummaryRepository_SaveReturnsOwnWriteWhenConcurrentWriterFollows(t *testing.T) {
+	db := setupConversationSummaryTestDB(t)
+	repo := NewConversationSummaryRepository(db)
+	ctx := context.Background()
+	record := makeConversationSummaryRecord(t, db, conversationSummaryClinicA, "CS-CONCURRENT-FOLLOW")
+
+	// 他writerが commit 済みの値を用意（Save 実行時点で row は他writerの内容・版を持つ）。
+	require.NoError(t, db.WithContext(ctx).Exec(
+		"UPDATE medical_records SET conversation_summary = ?, conversation_summary_revision = COALESCE(conversation_summary_revision, 0) + 1 WHERE id = ?",
+		"他writerの要約", record.ID).Error)
+
+	saved, err := repo.Save(ctx, SaveConversationSummaryCommand{
+		ClinicID:        conversationSummaryClinicA,
+		MedicalRecordID: record.ID,
+		Summary:         "本commandの要約",
+		Source:          "lstep",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, saved.Summary)
+	assert.Equal(t, "本commandの要約", *saved.Summary, "他writerの内容を本commandの結果として返さない")
+	require.NotNil(t, saved.Revision)
+	// 他writerが rev1 を先行したため、本commandの書込みは rev2 を採番する。
+	// RETURNING により返るのは他writerの版（1）ではなく本command自身の版（2）。
+	assert.Equal(t, int64(2), *saved.Revision, "他writerの版を本commandの版として返さない")
+
+	// 保存直後のDB状態（本commandが最後のwriter）と返値が一致すること。
+	row := fetchConversationSummaryRecordRow(t, db, record.ID)
+	require.NotNil(t, row.ConversationSummaryRevision)
+	assert.Equal(t, *saved.Revision, *row.ConversationSummaryRevision)
+}
+
+func TestConversationSummaryRepository_SaveRejectsSoftDeletedRecord(t *testing.T) {
+	db := setupConversationSummaryTestDB(t)
+	repo := NewConversationSummaryRepository(db)
+	ctx := context.Background()
+	record := makeConversationSummaryRecord(t, db, conversationSummaryClinicA, "CS-SOFT-DELETED")
+	require.NoError(t, db.WithContext(ctx).Delete(record).Error)
+
+	saved, err := repo.Save(ctx, SaveConversationSummaryCommand{
+		ClinicID:        conversationSummaryClinicA,
+		MedicalRecordID: record.ID,
+		Summary:         "削除済みカルテへの保存",
+		Source:          "lstep",
+	})
+	// 論理削除済みレコードには保存せず NotFound。読戻し（soft-delete scope）と同じ扱い。
+	assert.Nil(t, saved)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "論理削除済みへの保存は NotFound: %v", err)
+
+	// 3列が変化していないこと（Unscoped で物理行を直接確認）。
+	var after model.MedicalRecord
+	require.NoError(t, db.Unscoped().First(&after, record.ID).Error)
+	assert.Nil(t, after.ConversationSummary, "論理削除済みカルテの会話要約は変化しない")
+	assert.Nil(t, after.ConversationSummaryRevision)
+	assert.Nil(t, after.ConversationSummarySource)
+}
+
 func TestConversationSummaryRepository_SaveReturnsOwnWritePerWriter(t *testing.T) {
 	db := setupConversationSummaryTestDB(t)
 	repo := NewConversationSummaryRepository(db)

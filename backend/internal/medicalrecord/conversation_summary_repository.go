@@ -137,6 +137,8 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 	if err := cmd.validate(); err != nil {
 		return nil, err
 	}
+	// Save は UPDATE...RETURNING の単一statement: deleted_at IS NULL は手書きSQLに
+	// GORMのsoft-delete scopeが効かないため明示する（論理削除済みへの保存はNotFound扱い）。
 	// RETURNING で自分の書込みrevisionを同一statement内で受け取る。
 	// UPDATE と読戻しの間に他writerが割り込んでも、commit 済みの自分の結果を正しく返せる
 	// （lost update / 誤conflict の競合窗口が存在しない）。updated_at は触れない。
@@ -145,7 +147,7 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 		conversation_summary = ?,
 		conversation_summary_source = ?,
 		conversation_summary_revision = COALESCE(conversation_summary_revision, 0) + 1
-	WHERE id = ? AND clinic_id = ?
+	WHERE id = ? AND clinic_id = ? AND deleted_at IS NULL
 		AND (conversation_summary IS DISTINCT FROM ? OR conversation_summary_source IS DISTINCT FROM ?)`
 	args := []any{cmd.Summary, cmd.Source, cmd.MedicalRecordID, cmd.ClinicID, cmd.Summary, cmd.Source}
 	if cmd.ExpectedRevision != nil {
@@ -153,6 +155,8 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 		query += " AND COALESCE(conversation_summary_revision, 0) = ?"
 		args = append(args, *cmd.ExpectedRevision)
 	}
+	// RETURNING は WHERE句（条件の追記）より常に後ろに置く。
+	query += " RETURNING conversation_summary_revision"
 	result := persistence.DBOrTx(ctx, r.db).Raw(query, args...).Scan(&revision)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, conversationSummaryResource, strconv.FormatUint(cmd.MedicalRecordID, 10))
