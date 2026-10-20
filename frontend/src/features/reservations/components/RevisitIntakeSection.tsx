@@ -172,9 +172,9 @@ export function RevisitIntakeSection({
   const query = useGetRevisitIntake({ appointmentId, clinicId, enabled });
   const queryClient = useQueryClient();
   const pages = query.data?.pages;
-  // 403/404 は cached pages の有無に関係なく最優先（再取得・追加ページで権限を失った場合も本文を出さない）。
+  // 401/403/404 は cached pages の有無に関係なく最優先（再取得・追加ページでセッション失効・権限喪失した場合も本文を出さない）。
   const errorStatus = query.isError ? getRevisitIntakeErrorStatus(query.error) : undefined;
-  const denied = errorStatus === 403 || errorStatus === 404;
+  const denied = errorStatus === 401 || errorStatus === 403 || errorStatus === 404;
 
   // ページ間で対象（ref）または回答状態が変わったら後続ページを混ぜない。
   const targetChanged = useMemo(() => {
@@ -229,6 +229,17 @@ export function RevisitIntakeSection({
     if (status === 404) {
       // 対象予約の問診を読めない: セクションは出さず 1 行のみ（存在可否の詳細は出さない）。
       return <p className={`text-xs ${C.text60}`}>問診情報はありません。</p>;
+    }
+    if (status === 401) {
+      // セッション失効: 本文・件数・再試行は出さず、再ログインを促す 1 行のみ。
+      return (
+        <SectionFrame>
+          <p role="alert" className={`flex items-center gap-1.5 text-sm ${C.text60}`}>
+            <Lock className={ICON.sm} aria-hidden="true" />
+            セッションが切れました。再ログインしてください。
+          </p>
+        </SectionFrame>
+      );
     }
     if (status === 403) {
       return (

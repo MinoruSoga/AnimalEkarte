@@ -309,6 +309,31 @@ describe("RevisitIntakeSection", () => {
     expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
   });
 
+  it("取得済みの状態で追加ページが 401 になったら取得済みの本文を表示しない", async () => {
+    // /login 上では共通 interceptor が refresh/redirect せず 401 をそのまま返す（jsdom の遷移を避ける）。
+    window.history.pushState({}, "", "/login");
+    try {
+      server.use(
+        http.get(PATH, ({ request }) => {
+          if (new URL(request.url).searchParams.get("cursor")) {
+            return HttpResponse.json({ error: "unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+          }
+          return HttpResponse.json(body({ next_cursor: "CURSOR_2" }));
+        }),
+      );
+      renderSection();
+      expect(await screen.findByText("目的a2")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
+      expect(await screen.findByText("セッションが切れました。再ログインしてください。")).toBeInTheDocument();
+      expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+      expect(screen.queryByText("回答済み")).not.toBeInTheDocument();
+      expect(screen.queryByText(/件/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "さらに表示" })).not.toBeInTheDocument();
+    } finally {
+      window.history.pushState({}, "", "/");
+    }
+  });
+
   it("ページ間で current_target.ref が変わったら後続ページを merge せず再読み込みを促す", async () => {
     server.use(
       http.get(PATH, ({ request }) => {
