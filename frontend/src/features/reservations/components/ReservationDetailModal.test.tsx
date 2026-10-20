@@ -1,6 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
+import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/TestUtils";
 
 import type { Reservation } from "../types";
 import type { ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
@@ -33,6 +37,77 @@ vi.mock("../hooks/use-reservation-type-color-map", () => ({
     getColor: getColorMock,
   }),
 }));
+
+// EMR-475: 詳細モーダルは問診セクションが react-query を使うため Provider を常時付与する。
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: createTestWrapper() });
+}
+
+const REVISIT_INTAKE_PATH = "/api/v1/reservations/:id/revisit-intake";
+
+function unansweredBody(appointmentId: string) {
+  return {
+    availability: "available",
+    form_definition_version: 1,
+    current_target: {
+      ref: {
+        target_id: null,
+        appointment_id: appointmentId,
+        pet_id: "10",
+        target_generation: "1",
+      },
+      head_revision: null,
+      answer_state: "unanswered",
+      latest_answer: null,
+      content_available: false,
+    },
+    history: [],
+    next_cursor: null,
+  };
+}
+
+function answeredBody(appointmentId: string, visitPurpose: string) {
+  return {
+    ...unansweredBody(appointmentId),
+    current_target: {
+      ref: {
+        target_id: "5",
+        appointment_id: appointmentId,
+        pet_id: "10",
+        target_generation: "1",
+      },
+      head_revision: "1",
+      answer_state: "answered",
+      latest_answer: {
+        answer_id: `a-${appointmentId}`,
+        revision: "1",
+        form_definition_version: 1,
+        received_at: "2026-10-17T00:30:00Z",
+        provenance: "owner_submission",
+        answers: {
+          visit_purpose: visitPurpose,
+          onset: null,
+          energy: "usual",
+          appetite: "slightly_reduced",
+          current_symptoms: null,
+          improvement: null,
+          examination_preference: null,
+          main_concern: null,
+        },
+      },
+      content_available: true,
+    },
+  };
+}
+
+// 既定は未回答。各テストは server.use で上書きする（setup.ts が afterEach で reset）。
+beforeEach(() => {
+  server.use(
+    http.get(REVISIT_INTAKE_PATH, ({ params }) =>
+      HttpResponse.json(unansweredBody(String(params.id))),
+    ),
+  );
+});
 
 const baseReservation: Reservation = {
   id: "88",
@@ -482,5 +557,66 @@ describe("ReservationDetailModal 誕生月バッジ (EMR-301)", () => {
     });
 
     expect(screen.queryByRole("button", { name: "今月誕生日" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ReservationDetailModal 飼主事前問診（EMR-475）", () => {
+  beforeEach(() => {
+    mockGetReservation.current = { data: undefined };
+  });
+
+  it("モーダルに問診セクションを表示し、原文は予約内容と別欄・編集不可で出す", async () => {
+    server.use(
+      http.get(REVISIT_INTAKE_PATH, ({ params }) =>
+        HttpResponse.json(answeredBody(String(params.id), "元気がない")),
+      ),
+    );
+    render(
+      <ReservationDetailModal
+        isOpen
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, notes: "スタッフ補足" }}
+      />,
+    );
+    expect(await screen.findByText("元気がない")).toBeInTheDocument();
+    expect(screen.getByText("飼主事前問診（LINE）")).toBeInTheDocument();
+    expect(screen.getByText("スタッフ補足")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("予約切替で前予約の本文が残らない", async () => {
+    server.use(
+      http.get(REVISIT_INTAKE_PATH, ({ params }) =>
+        HttpResponse.json(
+          params.id === "88"
+            ? answeredBody("88", "予約88の原文")
+            : unansweredBody(String(params.id)),
+        ),
+      ),
+    );
+    const { rerender } = render(
+      <ReservationDetailModal isOpen onClose={vi.fn()} reservation={baseReservation} />,
+    );
+    expect(await screen.findByText("予約88の原文")).toBeInTheDocument();
+
+    rerender(
+      <ReservationDetailModal
+        isOpen
+        onClose={vi.fn()}
+        reservation={{ ...baseReservation, id: "89" }}
+      />,
+    );
+    expect(screen.queryByText("予約88の原文")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("未回答")).toBeInTheDocument());
+    expect(screen.queryByText("予約88の原文")).not.toBeInTheDocument();
+  });
+
+  it("問診取得が 404 でも他の予約情報は表示し続ける", async () => {
+    server.use(
+      http.get(REVISIT_INTAKE_PATH, () => HttpResponse.json({ error: "x", code: "NOT_FOUND" }, { status: 404 })),
+    );
+    render(<ReservationDetailModal isOpen onClose={vi.fn()} reservation={baseReservation} />);
+    expect(await screen.findByText("問診情報はありません。")).toBeInTheDocument();
+    expect(screen.getByText("ポチ")).toBeInTheDocument();
   });
 });
