@@ -480,10 +480,10 @@ async function auditRoute(
   }
 }
 
-test("route matrix inventory is exactly 86 product pages", () => {
+test("route matrix inventory is exactly 85 product pages (88 routes minus 3 unregistered)", () => {
   expect(PUBLIC_ROUTES).toHaveLength(3);
   expect(PROTECTED_ROUTES).toHaveLength(82);
-  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(86);
+  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(85);
   expect(PROTECTED_ROUTES.filter((route) => route.syntheticClinical)).toHaveLength(5);
 });
 

@@ -289,13 +289,16 @@ export const C28_NATIVE_INPUT_CONTEXT_ALLOWLIST = new Set([
   // 一覧・集計の期間フィルター部品（shared）
   "src/components/shared/DateRangeInputs/DateRangeInputs.tsx",
 ]);
-/** C28: 業務・設定フォームに残る既存の native 入力（ラチェット。共有 `ui/` へ置換したら削る）。 */
-export const C28_NATIVE_INPUT_RATCHET_ALLOWLIST = new Set([
+/**
+ * C28: 業務・設定フォームに残る既存の native 入力のファイル別件数（ラチェット）。
+ * baseline を超える追加は既存ファイルでも違反。共有 `ui/` へ置換したら件数を下げる／エントリを削る。
+ */
+export const C28_NATIVE_INPUT_BASELINE = new Map([
   // 2026-10-20 STG 監査: 業務・設定フォームに残る native 入力。共有 DatePicker / Select へ置換したら削る。
-  "src/features/cash-register/components/CashRegisterClosePanels.tsx",
-  "src/features/settings/components/LstepSettingsFields.tsx",
+  ["src/features/cash-register/components/CashRegisterClosePanels.tsx", 1],
+  ["src/features/settings/components/LstepSettingsFields.tsx", 1],
   // 健診フォーム（features/checkups/CheckupFormPanels）が描画する shared の動的項目
-  "src/components/shared/DynamicCheckupFields/DynamicCheckupFields.tsx",
+  ["src/components/shared/DynamicCheckupFields/DynamicCheckupFields.tsx", 1],
 ]);
 /**
  * C29: バリデーション結果を disabled / submitDisabled に流す式。妥当性の名前（isValid 系）、未入力判定
@@ -304,13 +307,22 @@ export const C28_NATIVE_INPUT_RATCHET_ALLOWLIST = new Set([
  */
 const C29_SUBMIT_CONTEXT_RE = /\bsubmitDisabled\s*=|\bSubmitButton\b|\bPrimaryButton\b|type\s*=\s*["']submit["']|保存/;
 const C29_VALIDATION_DISABLED_RE = /\b(?:disabled|submitDisabled)\s*=\s*\{[^}]*(?:\bis(?:Form)?Valid\b|\bformValid\b|\bisComplete\b|\bhasErrors\b|\berrors\s*\.\s*length\b|Object\s*\.\s*keys\s*\(\s*errors\s*\)|\.trim\s*\(\s*\)|[!=]==?\s*(?:""|''|``)|\.length\s*(?:[<>]=?|[!=]==?)\s*[0-9])/;
-/** C29: 既存のバリデーション disabled（STG 監査で観測）。押下→エラー表示へ直したらエントリを削る。 */
-export const C29_VALIDATION_DISABLED_ALLOWLIST = new Set([
+/**
+ * C29: 既存のバリデーション disabled のファイル別件数（STG 監査で観測。ラチェット）。
+ * baseline を超える追加は既存ファイルでも違反。押下→エラー表示へ直したら件数を下げる／エントリを削る。
+ */
+export const C29_VALIDATION_DISABLED_BASELINE = new Map([
   // 2026-10-20 STG 監査: 見積の保存が未入力理由で disabled（submitDisabled={!form.title.trim()}）
-  "src/features/estimates/routes/EstimateForm.tsx",
+  ["src/features/estimates/routes/EstimateForm.tsx", 1],
   // レジ締めの確定が未入力理由で disabled（submitDisabled={actualCash === "" ...}）
-  "src/features/cash-register/routes/CashRegisterClosePage.tsx",
+  ["src/features/cash-register/routes/CashRegisterClosePage.tsx", 1],
+  // シフトテンプレートの保存が名前未入力理由で disabled（disabled={isSaving || !formData.name.trim()}。複数行 prop）
+  ["src/features/shifts/components/ShiftTemplateSettingsParts.tsx", 1],
+  // ヘルプチャットの送信（type="submit"）が空メッセージ理由で disabled。保存フォームではないため §1.1 の適用可否は決裁待ち
+  ["src/features/support/components/HelpChat.tsx", 1],
 ]);
+/** C29: 走査する opening tag（JSX 要素すべて。`<` 直後の要素名）。 */
+const C29_OPENING_TAG_START_RE = /<([A-Za-z][\w.]*)\b/g;
 
 /** C23: BADGE コンボの WCAG コントラスト検査用パターン（design-tokens.ts 限定で呼ぶ）。 */
 const C23_C_BLOCK_RE = /export const C = \{([\s\S]*?)\} as const;/;
@@ -1164,7 +1176,9 @@ export function checkC26(text, relPath = "") {
   const violations = [];
   let offset = 0;
   code.split("\n").forEach((line, i) => {
-    const inRange = ranges.some(([start, end]) => offset >= start && offset < end);
+    // 行の区間 [offset, lineEnd) が nav 区間と交差するか（行の途中から始まる <nav> も含める）。
+    const lineEnd = offset + line.length;
+    const inRange = ranges.some(([start, end]) => offset < end && lineEnd > start);
     if (inRange && C25_TRUNCATE_RE.test(line)) {
       violations.push({ lineNumber: i + 1, text: line.trim() });
     }
@@ -1194,7 +1208,7 @@ export function checkC28(text, relPath = "") {
   const inScope =
     parts[0] === "src" && (parts[1] === "features" || (parts[1] === "components" && parts[2] === "shared"));
   if (!inScope) return [];
-  if (C28_NATIVE_INPUT_CONTEXT_ALLOWLIST.has(relPath) || C28_NATIVE_INPUT_RATCHET_ALLOWLIST.has(relPath)) return [];
+  if (C28_NATIVE_INPUT_CONTEXT_ALLOWLIST.has(relPath)) return [];
 
   const violations = [];
   const openingTagRe = new RegExp(C28_NATIVE_OPENING_TAG_START_RE.source, "g");
@@ -1208,22 +1222,43 @@ export function checkC28(text, relPath = "") {
     }
     openingTagRe.lastIndex = Math.max(endIndex, openingTagRe.lastIndex);
   }
-  return violations;
+  return applyCountBaseline(violations, C28_NATIVE_INPUT_BASELINE.get(relPath), "C28_NATIVE_INPUT_BASELINE");
 }
 
-/** checkC29 はバリデーション結果を直接 `disabled` に流す式を検出する（design-states.md §1.1）。 */
+/**
+ * checkC29 はバリデーション結果を直接 `disabled` / `submitDisabled` に流す式を検出する（design-states.md §1.1）。
+ * opening tag 全文（複数行の prop を含む）と直後のテキスト子（「保存」ラベル）を 1 単位として判定する。
+ * 保存／送信ボタンの契約（submitDisabled prop・SubmitButton・PrimaryButton・type="submit"・「保存」）に限り、
+ * 検索・一括操作ボタンの「選択 0 件で無効」は対象外（design-states §1.1 は保存ボタンの規則）。
+ */
 export function checkC29(text, relPath = "") {
   if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
-  if (C29_VALIDATION_DISABLED_ALLOWLIST.has(relPath)) return [];
+  const code = stripTsCommentsPreservingLines(text);
+  // prop 内に入れ子の JSX（`headerAction={<FormHeaderActions … />}`）があると外側の tag 全文にも式が含まれるため、
+  // 式の位置をキーにして最も内側の tag（後から見つかる方）を採用する。
+  const innermostByExpression = new Map();
+  const openingTagRe = new RegExp(C29_OPENING_TAG_START_RE.source, "g");
+  let match;
+  while ((match = openingTagRe.exec(code)) !== null) {
+    if (isC18IgnoredOpeningTag(code, match.index)) continue;
+    const { tag, endIndex } = readOpeningTag(code, match.index, openingTagRe.lastIndex);
+    const expressionOffset = tag.search(C29_VALIDATION_DISABLED_RE);
+    if (expressionOffset === -1) continue;
+    innermostByExpression.set(match.index + expressionOffset, { index: match.index, tag, endIndex });
+  }
   const violations = [];
-  stripTsCommentsPreservingLines(text).split("\n").forEach((line, i) => {
-    // 保存／送信ボタンの契約（submitDisabled prop・SubmitButton・type="submit"・「保存」）に限る。
-    // 検索・一括操作ボタンの「選択 0 件で無効」は対象外（design-states §1.1 は保存ボタンの規則）。
-    if (C29_SUBMIT_CONTEXT_RE.test(line) && C29_VALIDATION_DISABLED_RE.test(line)) {
-      violations.push({ lineNumber: i + 1, text: line.trim() });
+  for (const { index, tag, endIndex } of [...innermostByExpression.values()].sort((a, b) => a.index - b.index)) {
+    const nextTagIndex = code.indexOf("<", endIndex);
+    const textChild = code.slice(endIndex, nextTagIndex === -1 ? code.length : nextTagIndex);
+    if (C29_SUBMIT_CONTEXT_RE.test(tag) || C29_SUBMIT_CONTEXT_RE.test(textChild)) {
+      violations.push({ lineNumber: lineNumberAt(code, index), text: firstLineOf(tag) });
     }
-  });
-  return violations;
+  }
+  return applyCountBaseline(
+    violations,
+    C29_VALIDATION_DISABLED_BASELINE.get(relPath),
+    "C29_VALIDATION_DISABLED_BASELINE",
+  );
 }
 
 /**

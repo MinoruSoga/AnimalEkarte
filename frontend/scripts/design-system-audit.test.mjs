@@ -1553,8 +1553,18 @@ test("checkC28: src/components/shared の raw select / date も検査する", ()
   const text = "<select value={v}>";
   assert.equal(audit.checkC28(text, path.join("src", "components", "shared", "NewField", "NewField.tsx")).length, 1);
   assert.equal(audit.checkC28(text, path.join("src", "components", "ui", "select.tsx")).length, 0);
-  const [ratchet] = audit.C28_NATIVE_INPUT_RATCHET_ALLOWLIST;
-  if (ratchet) assert.equal(audit.checkC28(text, ratchet).length, 0);
+  const [file, count] = [...audit.C28_NATIVE_INPUT_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
+  const within = Array.from({ length: count }, () => text).join("\n");
+  assert.equal(audit.checkC28(within, file).length, 0);
+  const over = audit.checkC28(`${within}\n<input type="date" />`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C28_NATIVE_INPUT_BASELINE"));
+});
+
+test("checkC26: 行の途中から始まる <nav> 内の truncate も検出する", () => {
+  const text = 'export function Crumbs() { return <nav aria-label="パンくず"><a className="truncate">{label}</a></nav>; }';
+  assert.deepEqual(audit.checkC26(text, "src/features/x/Crumbs.tsx").map((v) => v.lineNumber), [1]);
+  assert.equal(audit.checkC26('<a className="truncate">{label}</a>', "src/features/x/Plain.tsx").length, 0);
 });
 
 test("checkC29: submitDisabled とバリデーション式（trim / === \"\" / length）を検出し、権限・送信中は許可する", () => {
@@ -1568,6 +1578,40 @@ test("checkC29: submitDisabled とバリデーション式（trim / === \"\" / l
     "<SubmitButton disabled={submitDisabled}>",
   ].join("\n");
   assert.deepEqual(audit.checkC29(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
-  const [ratchet] = audit.C29_VALIDATION_DISABLED_ALLOWLIST;
-  if (ratchet) assert.equal(audit.checkC29(text, ratchet).length, 0);
+  const [file, count] = [...audit.C29_VALIDATION_DISABLED_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
+  const within = Array.from({ length: count }, () => "<FormHeaderActions submitDisabled={!form.title.trim()} />").join("\n");
+  assert.equal(audit.checkC29(within, file).length, 0);
+  const over = audit.checkC29(`${within}\n<SubmitButton disabled={!isValid}>保存</SubmitButton>`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C29_VALIDATION_DISABLED_BASELINE"));
+});
+
+test("checkC29: 複数行の disabled prop と、prop 内に入れ子になった送信部品を opening tag 単位で検出する", () => {
+  const multiline = [
+    "<PrimaryButton",
+    '  type="button"',
+    "  disabled={",
+    "    isSaving || !formData.name.trim()",
+    "  }",
+    ">",
+    "  保存",
+    "</PrimaryButton>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(multiline, "src/features/x/Y.tsx").map((v) => v.lineNumber), [1]);
+  const nested = [
+    "<PageLayout",
+    '  title="見積"',
+    "  headerAction={",
+    "    <FormHeaderActions",
+    "      submitDisabled={!form.title.trim()}",
+    "    />",
+    "  }",
+    ">",
+  ].join("\n");
+  const found = audit.checkC29(nested, "src/features/x/Y.tsx");
+  assert.deepEqual(found.map((v) => v.lineNumber), [4]);
+  assert.ok(found[0].text.startsWith("<FormHeaderActions"));
+  // 検索ボタン（保存契約でない）の未選択 disabled は複数行でも対象外
+  const search = ["<Button", "  disabled={", "    selected.length === 0", "  }", ">", "  検索", "</Button>"].join("\n");
+  assert.equal(audit.checkC29(search, "src/features/x/Y.tsx").length, 0);
 });
