@@ -250,12 +250,25 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 
 ## 11. 実装進捗（取りまとめ記録）
 
-| 票 | ブランチ | 状態 | PR |
-|:--|:--|:--|:--|
-| EMR-463 | `feat/emr-463-owners-clinic-scope-fe` | FE 実装済み・レビュー済み（Opus）。BE `GetMe` 新 field 未実装のため BE と同時または先行マージが必要 | #754 |
-| EMR-474 | `feat/emr-474-liff-revisit-intake-fe` | FE 実装済み・レビュー済み（Opus）。取消済みカードの N+1 GET は除去済み | #756 |
-| EMR-475 | `feat/emr-475-reservation-revisit-intake-fe` | FE 実装済み・レビュー済み（Sonnet） | #752 |
-| EMR-477 | `feat/emr-477-record-revisit-intake-fe` | FE 実装済み・レビュー済み（Sonnet） | #753 |
-| EMR-487 | — | 486 契約待ち | — |
+更新: 2026-10-20 15:51 UTC。4 PR とも CI（AgentShield / Gitleaks / Workflow Contracts / Storybook / agent-config）は最新 head で green。テストは合意どおり vitest / type-check / eslint / prettier / design-audit / 実機のすべてが NOT_RUN。マージ判断は Dots。
+
+| 票 | ブランチ / PR | head | レビュー対応 | 状態 |
+|:--|:--|:--|:--|:--|
+| EMR-475 | `feat/emr-475-reservation-revisit-intake-fe` / #752 | 5d27d1cbc | CodeRabbit 3 件修正（nested 検証 fail-closed、403/404 を cached pages より優先、対象変化で再読込）。Codex の 401 cached 描画は共通 axios interceptor が refresh 失敗時にログインへ遷移するため実経路なしと返答（共通 auth は scope 外） | green / mergeable clean / 未解決スレッドなし |
+| EMR-477 | `feat/emr-477-record-revisit-intake-fe` / #753 | 54b0069 | Dots 回答反映（空状態文言、固定 target 内履歴のみ、unbound/mismatch 非補完）。CodeRabbit 4 件・Codex 11 件修正: `target_relation` 閉 enum、`target_id` 必須、bound 3 組合せ検証、任意項目の null/型/許容 code 厳格化、visit_purpose 空拒否、head revision 一致、next_cursor 厳格化、form 版 1 固定、received_at RFC3339、pet 照合、履歴の relation 非依存、ページ間 binding/target 整合、既取得データ保持の inline 再試行、disabled fieldset 外の `leading` slot、skeleton 読込 | green / mergeable clean / 未解決スレッドなし。CodeRabbit Merge Risk Minimal |
+| EMR-463 | `feat/emr-463-owners-clinic-scope-fe` / #754 | 884ff1f | Codex 4 件修正（`/me` 更新で再検証、連続トグル合成、暗黙選択の replace、BE 先行問題）。Dots 推奨により新 scope 経路を owners feature 内の静的 activation `OWNERS_CLINIC_SCOPE_ACTIVE = false` の背後に置き、非活性時は PR 前（main 05da02f3）と同じ一覧挙動。応答を見た fallback ではない | green / mergeable clean / 未解決スレッドなし。Codex findings なし、CodeRabbit Merge Risk Low。Trivial nitpick（legacy/scoped loader の query 解析重複）は次のコード push に同乗 |
+| EMR-474 | `feat/emr-474-liff-revisit-intake-fe` / #756 | bb77ea9 | Gitleaks 誤検知は `.gitleaksignore` fingerprint で解消。CodeRabbit 1 件・Codex 14 件修正: TARGET_CHANGED 後のブロック、429/503/照会/読込の Retry-After 尊重と期限の draft 保持、401 非再試行、head 一致 refine、h1、結果応答の operation_id/target 照合、新規送信の 403/404 で pending 破棄、Enter 暗黙送信防止、head 変化時の入力同期、読込応答の予約/target 照合、pet 名の検証付き表示 | green / 未解決スレッド 1 件（BIGINT appointment ID: 既存予約 DTO の数値 ID が原因で共通契約の変更要求として Dots へ）。CodeRabbit Merge Risk Minimal |
+| EMR-487 | — | — | — | 486 契約待ち |
+
+### Dots へ残る判断事項
+
+- #756 BIGINT appointment ID: LIFF 予約 DTO（`my-reservations` / `POST reservations`）の ID を文字列で返すか、FE 側で JSON reviver 文字列化するか。revisit-intake 契約だけでは解決しない。
+- #756 pet 名の非表示: 予約 DTO に pet_id が無く検証できないため、LIFF 問診ページでは pet 名を出さない（日時・コースは表示）。DTO に pet_id を載せるかは別チケット。
+- #756 複数頭予約: 現行 LIFF は選択頭数に関わらず appointment を 1 件しか作らないため、「各ペットに回答」は予約 1 件単位でしか成立しない。
+- #754 活性化: 463-BE の GetMeResponse 実装後に定数を true へ切り替える後続 PR で接続。本 PR は非活性のまま単独マージ可能。
+
+### Codex 単独指摘の扱い
+
+Dots の方針（修正依頼は CodeRabbit の契約実装指摘に限定、Codex 単独指摘で scope を広げない）に対し、Codex 指摘のうち確定契約（api.yaml、技術設計、db-contracts、UI デザインガイド）か fail-closed の clinic/pet 境界に直接根拠があり、修正が当該 feature 内の小差分で収まるものだけを修正し、共通層（auth、予約 DTO、api.yaml、生成型）に及ぶものは返答のみで Dots へ回した。
 
 担当モデルの正確なバージョン（Sonnet 5.5 / Opus 5.5）は Agent ツールの `sonnet` / `opus` 指定で起動しており、ツール側からバージョン番号は確認できない。
