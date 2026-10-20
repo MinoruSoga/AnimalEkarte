@@ -82,6 +82,8 @@ interface RevisitIntakeEditorProps {
   targetKey: string;
   draftStore: RevisitIntakeDraftStore;
   refetching: boolean;
+  /** 直近の GET が失敗している（read は旧 snapshot のまま）。最新取得までは送信しない */
+  readError: boolean;
   onRefetch: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onTargetChanged: () => void;
@@ -203,6 +205,7 @@ export function RevisitIntakeEditor({
   targetKey,
   draftStore,
   refetching,
+  readError,
   onRefetch,
   onDirtyChange,
   onTargetChanged,
@@ -351,6 +354,8 @@ export function RevisitIntakeEditor({
     try {
       if (action === "submit") {
         if (pending !== null) return previous;
+        // 旧 snapshot の head_revision を expected_revision に使わない（成功後の再取得中・失敗時）。
+        if (refetching || readError) return previous;
         const fieldErrors = validateRevisitIntakeAnswers(values);
         if (firstErrorField(fieldErrors) !== null) {
           return { kind: "invalid", fieldErrors };
@@ -490,6 +495,14 @@ export function RevisitIntakeEditor({
         />
       ) : null}
 
+      {readError && !targetChangeLocked && !needsRefetch ? (
+        <RefetchBanner
+          message="最新の状態を読み込めませんでした。読み込みに成功するまで送信できません。"
+          refetching={refetching}
+          onRefetch={onRefetch}
+        />
+      ) : null}
+
       {targetChangeLocked ? (
         <RefetchBanner
           message="予約の対象が変更されました。最新の内容を読み込むまで送信できません。"
@@ -572,7 +585,14 @@ export function RevisitIntakeEditor({
       {pending === null || isPending ? (
         <PrimaryButton
           type="submit"
-          disabled={isPending || needsRefetch || targetChangeLocked || authBlocked}
+          disabled={
+            isPending ||
+            needsRefetch ||
+            targetChangeLocked ||
+            authBlocked ||
+            refetching ||
+            readError
+          }
         >
           {isPending ? "送信中..." : answered ? "訂正して再送信" : "回答を送信する"}
         </PrimaryButton>

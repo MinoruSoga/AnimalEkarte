@@ -196,6 +196,7 @@ export function RevisitIntakePage({
             targetKey={targetKey}
             draftStore={draftStore}
             refetching={intake.refetching}
+            readError={intake.error !== null}
             onRefetch={refetch}
             onDirtyChange={handleDirtyChange}
             onTargetChanged={handleTargetChanged}

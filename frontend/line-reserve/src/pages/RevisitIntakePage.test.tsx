@@ -902,6 +902,34 @@ describe("RevisitIntakePage 再試行の抑止（レビュー対応）", () => {
     expect(submits).toHaveLength(1);
   });
 
+  it("成功後の再取得が失敗している間は、旧 head のまま訂正送信できない", async () => {
+    const user = userEvent.setup();
+    let reads = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        reads += 1;
+        if (reads === 1) return HttpResponse.json(read(unansweredTarget()));
+        return HttpResponse.json({ error: "unavailable" }, { status: 503 });
+      }),
+    );
+    const submits = captureSubmits((c) => HttpResponse.json(successResponse(c.key ?? "", "1")));
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+
+    expect(await screen.findByText(/回答を送信しました/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "最新の状態を読み込めませんでした。読み込みに成功するまで送信できません。",
+      ),
+    ).toBeInTheDocument();
+    await user.type(purposeInput(), "の訂正");
+    expect(screen.getByRole("button", { name: "回答を送信する" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "最新の状態を読み込む" })).toBeInTheDocument();
+    expect(submits).toHaveLength(1);
+  });
+
   it("429 は Retry-After の期限まで「同じ内容で再送信」を無効にし、期限後は同じ key で再送できる", async () => {
     const user = userEvent.setup();
     mockReadSequence([read(unansweredTarget())]);
