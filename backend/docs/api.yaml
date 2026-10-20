@@ -2118,6 +2118,85 @@ components:
           format: date-time
           readOnly: true
           description: 測定日時（vital_records.recorded_at）
+    HospitalizationCageCurrentAssignment:
+      type: object
+      additionalProperties: false
+      required: [state, cage_id]
+      description: >-
+        編集対象の現在割当表示。known+NULLは未割当、unknown+NULLは再構成不能であり未割当の証明ではない。
+        候補外・無効・連結後の旧構成員という理由だけで現値を消さない。候補集合とは独立。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+        - properties:
+            state: { enum: [unknown] }
+            cage_id: { type: string, nullable: true, enum: [null] }
+      properties:
+        state: { type: string, enum: [known, unknown] }
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+
+    HospitalizationCageOccupancyRead:
+      type: object
+      additionalProperties: false
+      required: [clinic_id, exclude_hospitalization_id, state, occupied_cage_ids, candidate_cage_ids, current_assignment]
+      description: |
+        応答専用の最小ID projection。全IDは先頭ゼロなし正数十進文字列で、Numberへ変換せず入力へ往復する。
+        serverはPostgreSQL bigintの1..9223372036854775807を厳密検査し、不正形式/範囲外は400。
+        DB行・患者/飼主/滞在明細・movement event・内部lock情報は返さない。
+        clinic_idとexclude_hospitalization_idは要求contextのecho。clientは医院/編集対象/要求世代を照合し、
+        切替後の遅延応答を破棄する。除外IDはhospitalization IDでありStayCaseIDと同一視しない。
+        occupiedは自己除外後の占有ケージID（構成員も含む）、candidateは空きと確認済みの同院有効な
+        独立/代表ケージIDだけ。代表groupに他滞在の占有が一つでも残れば候補にしない。
+        現在割当は別fieldで返し、現値の保持を新規候補への追加許可としない。
+        knownなら両配列は非NULLで全件。unknownなら両配列NULL（[]や部分集合で空きを示さない）。
+        known+[]のみ当該集合の0件。空き確認は予約/確保ではなく保存時再検査が必要。
+        current_assignmentは新規contextではNULL、編集contextでは状態付きobject（core不明でも現割当を保持可能）。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+            occupied_cage_ids: { type: array }
+            candidate_cage_ids: { type: array }
+        - properties:
+            state: { enum: [unknown] }
+            occupied_cage_ids: { type: array, nullable: true, enum: [null] }
+            candidate_cage_ids: { type: array, nullable: true, enum: [null] }
+      allOf:
+        - oneOf:
+            - properties:
+                exclude_hospitalization_id: { type: string, nullable: true, enum: [null] }
+                current_assignment: { type: object, nullable: true, enum: [null] }
+            - properties:
+                exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$' }
+                current_assignment: { $ref: '#/components/schemas/HospitalizationCageCurrentAssignment' }
+      properties:
+        clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+        state: { type: string, enum: [known, unknown] }
+        occupied_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
+        candidate_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
+        current_assignment:
+          oneOf:
+            - $ref: '#/components/schemas/HospitalizationCageCurrentAssignment'
+            - type: object
+              nullable: true
+              enum: [null]
+
+    HospitalizationCageWriteConflict:
+      type: object
+      required: [error, code]
+      description: 拒否時は元割当を保持し部分writeなし。error文字列ではなくcodeで処理する。患者情報を返さない。
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [cage_assignment_changed, cage_occupied, occupancy_unknown] }
+
     Hospitalization:
       description: 全体は旧stay DTO記録。461のケージfieldはoperationの専用requestBody schemaを参照し、499 coreの状態公開契約と混同しない。入院IDとその子route/関連応答の参照は正数十進文字列の先行wire契約で、既存runtimeの数値JSON応答適合は499および各関連ownerへ別途引渡す。
       type: object
@@ -13848,6 +13927,7 @@ paths:
               required: [hospitalization_ids, expected_cage_ids]
               properties:
                 hospitalization_ids:
+                  x-runtime-implementation: pending-emr-499-decimal-string-dto
                   type: array
                   minItems: 2
                   maxItems: 2
@@ -13857,6 +13937,7 @@ paths:
                     pattern: '^[1-9][0-9]*$'
                   description: ケージを交換する入院IDのペア（expected_cage_idsと同位置対応）
                 expected_cage_ids:
+                  x-runtime-implementation: pending-emr-499-decimal-string-dto
                   type: array
                   minItems: 2
                   maxItems: 2

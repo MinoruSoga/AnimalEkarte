@@ -668,10 +668,11 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	}).RegisterRoutes(protected)
 	c.medicalRecord.newHandler(
 		medicalRecordHTTPDependencies{
-			Uploader:          uploader,
-			DB:                c.db,
-			HasPermission:     c.auth.Handler.HasPermission,
-			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+			Uploader:             uploader,
+			DB:                   c.db,
+			HasPermission:        c.auth.Handler.HasPermission,
+			RequirePermission:    c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+			RequirePermissionAny: adaptMedicalRecordPermissionAny(c.auth.Handler.RequirePermissionAny),
 		},
 	).RegisterRoutes(protected)
 }

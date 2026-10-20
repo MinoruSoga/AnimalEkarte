@@ -33,6 +33,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	noopPermission := func(_, _ string) gin.HandlerFunc {
 		return func(c *gin.Context) {}
 	}
+	noopPermissionAny := func(_ ...PermissionRequirement) gin.HandlerFunc {
+		return func(c *gin.Context) {}
+	}
 	h := NewHandler(
 		NewDiagnosisHandler(nil, nil),
 		NewExamTypeHandler(nil),
@@ -63,6 +66,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
 		noopPermission,
+		noopPermissionAny,
 	)
 
 	r := gin.New()
@@ -116,6 +120,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/hospitalizations/:id/daily-records ListDailyRecords\n" +
 		"GET /api/v1/hospitalizations/:id/daily-records/:date GetDailyRecord\n" +
 		"GET /api/v1/hospitalizations/:id/treatment-plans ListTreatmentPlansByHospitalization\n" +
+		"GET /api/v1/hospitalizations/cage-occupancy GetCageOccupancy\n" +
 		"GET /api/v1/lab-device-item-masters ListLabDeviceItemMasters\n" +
 		"GET /api/v1/lab-device/agent-consumer GetLabDeviceAgentConsumer\n" +
 		"GET /api/v1/lab-device/board GetLabDeviceBoard\n" +
@@ -282,6 +287,9 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 			c.AbortWithStatus(http.StatusOK)
 		}
 	}
+	noopPermissionAny := func(_ ...PermissionRequirement) gin.HandlerFunc {
+		return func(c *gin.Context) {}
+	}
 
 	h := NewHandler(
 		NewDiagnosisHandler(nil, nil),
@@ -313,6 +321,7 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
 		permSpy,
+		noopPermissionAny,
 	)
 
 	r := gin.New()
@@ -366,6 +375,9 @@ func TestRegisterRoutes_CageMergePermissions(t *testing.T) {
 			c.AbortWithStatus(http.StatusOK)
 		}
 	}
+	noopPermissionAny := func(_ ...PermissionRequirement) gin.HandlerFunc {
+		return func(c *gin.Context) {}
+	}
 
 	h := NewHandler(
 		NewDiagnosisHandler(nil, nil),
@@ -397,6 +409,7 @@ func TestRegisterRoutes_CageMergePermissions(t *testing.T) {
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
 		permSpy,
+		noopPermissionAny,
 	)
 
 	r := gin.New()
