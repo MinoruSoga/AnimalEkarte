@@ -26,6 +26,7 @@ import {
   findPendingEntry,
   type RevisitIntakeDraftEntry,
   type RevisitIntakeDraftStore,
+  type RevisitIntakePendingOperation,
 } from "../hooks/use-revisit-intake-drafts";
 import type {
   RevisitIntakeAnswer,
@@ -2218,5 +2219,117 @@ describe("RevisitIntakePage さらに表示の target 変化", () => {
     expect(screen.queryByText("混ざってはいけない合成本文")).not.toBeInTheDocument();
     await waitFor(() => expect(purposeInput().value).toBe(""));
     expect(screen.getByText("未回答")).toBeInTheDocument();
+  });
+});
+
+describe("RevisitIntakePage 500 後の照会必須（lookupRequired）", () => {
+  const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+  function seededStore(patch: Partial<RevisitIntakePendingOperation> = {}) {
+    const body = {
+      pet_id: PET_A,
+      target_generation: "3",
+      expected_revision: null,
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成目的" }),
+    };
+    const store = createStore();
+    store.set(targetKey, {
+      values: body.answers,
+      pending: {
+        key: KEYS[0],
+        fingerprint: "synthetic",
+        body,
+        status: "unknown",
+        lookupRequired: true,
+        resendAvailableAt: Date.now() - 1000,
+        ...patch,
+      },
+    });
+    return store;
+  }
+
+  it("期限切れで復元しても再送は無効のまま、照会は有効で、確認を促す文言を出す", async () => {
+    mockReadSequence([read(unansweredTarget())]);
+    renderPage({ store: seededStore() });
+
+    expect(await screen.findByText("送信結果を確認してから再送信できます。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeEnabled());
+  });
+
+  it("照会が claimed_uncommitted なら照会必須を解き、同じ key の再送が有効になる", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    const store = seededStore();
+    captureLookups((key) => HttpResponse.json(unresolvedResponse(key, "claimed_uncommitted")));
+    renderPage({ store });
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeEnabled(),
+    );
+    expect(store.get(targetKey)?.pending?.lookupRequired).toBe(false);
+  });
+
+  it.each([
+    ["通信断", () => HttpResponse.error()],
+    ["401", () => HttpResponse.json({ error: "unauthorized" }, { status: 401 })],
+    [
+      "429",
+      () =>
+        HttpResponse.json(
+          { error: "too many", code: "TOO_MANY_REQUESTS", details: null },
+          { status: 429, headers: { "Retry-After": "1" } },
+        ),
+    ],
+  ])("照会が失敗（%s）しても照会必須を保ち、再送は無効のまま", async (_label, respond) => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    const store = seededStore();
+    captureLookups(() => respond());
+    renderPage({ store });
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(store.get(targetKey)?.pending?.lookupRequired).toBe(true));
+    expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+  });
+
+  it("照会自体が Retry-After 付き 500 なら照会必須を立てる", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    const store = seededStore({ lookupRequired: false, status: "not_found" });
+    captureLookups(() =>
+      HttpResponse.json(
+        { error: "internal", code: "INTERNAL", details: null },
+        { status: 500, headers: { "Retry-After": "1" } },
+      ),
+    );
+    renderPage({ store });
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(store.get(targetKey)?.pending?.lookupRequired).toBe(true));
+    expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+  });
+
+  it("403 後の照会が not_found なら store の照会必須を解く（result_unavailable では残す）", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(READ_PATH, () => HttpResponse.json({ error: "forbidden" }, { status: 403 })),
+    );
+    const store = seededStore();
+    const lookups = captureLookups((key, i) =>
+      i === 0
+        ? HttpResponse.json(unresolvedResponse(key, "result_unavailable"))
+        : HttpResponse.json(lookupNotFound(key), { status: 404 }),
+    );
+    renderPage({ store });
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+    await screen.findByText(/送信の保存はまだ確認できていません/);
+    expect(store.get(targetKey)?.pending?.lookupRequired).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(lookups).toHaveLength(2));
+    await waitFor(() => expect(store.get(targetKey)?.pending?.lookupRequired).toBe(false));
   });
 });

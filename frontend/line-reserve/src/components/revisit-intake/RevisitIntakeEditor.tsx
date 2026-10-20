@@ -173,6 +173,9 @@ function PendingPanel({
     >
       <p className="text-sm text-noah-warning-text">{text[pending.status]}</p>
       {message !== null ? <p className="text-sm text-noah-warning-text-sub">{message}</p> : null}
+      {pending.lookupRequired === true && canResend ? (
+        <p className="text-sm text-noah-warning-text-sub">送信結果を確認してから再送信できます。</p>
+      ) : null}
       <p className="text-xs text-noah-warning-text-sub">
         結果が確定するまで、入力内容は変更できません。
       </p>
@@ -403,7 +406,12 @@ export function RevisitIntakeEditor({
       const retryAfter = revisitIntakeRetryAfterSeconds(err);
       if (retryAfter !== null) {
         const availableAt = Date.now() + retryAfter * 1000;
-        updatePending({ ...op, resendAvailableAt: availableAt });
+        // 照会自体が 500 + Retry-After なら、期限後も成功する照会まで再送を許さない。
+        updatePending(
+          info.status === 500
+            ? { ...op, resendAvailableAt: availableAt, lookupRequired: true }
+            : { ...op, resendAvailableAt: availableAt },
+        );
         setResendAvailableAt(availableAt);
         return { kind: "unresolved", message: lookupRetryMessage(retryAfter) };
       }

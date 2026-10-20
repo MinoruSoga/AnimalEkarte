@@ -99,7 +99,12 @@ export function RevisitIntakeDeniedPendingLookup({
         setState({ kind: "succeeded" });
         return;
       }
-      updatePending({ status: op.state });
+      // not_found / claimed_uncommitted なら照会は済んだ（editor と同じく照会必須を解く）。
+      updatePending(
+        op.state === "result_unavailable"
+          ? { status: op.state }
+          : { status: op.state, lookupRequired: false },
+      );
       setState(
         op.state === "not_found"
           ? { kind: "not_found" }
@@ -117,7 +122,12 @@ export function RevisitIntakeDeniedPendingLookup({
       const retryAfter = revisitIntakeRetryAfterSeconds(err);
       if (retryAfter !== null) {
         const deadline = Date.now() + retryAfter * 1000;
-        updatePending({ resendAvailableAt: deadline });
+        // 照会自体が 500 + Retry-After なら、期限後も成功する照会まで再送を許さない。
+        updatePending(
+          resolveFetchError(err, "送信結果の確認").status === 500
+            ? { resendAvailableAt: deadline, lookupRequired: true }
+            : { resendAvailableAt: deadline },
+        );
         setAvailableAt(deadline);
         setState({
           kind: "message",
