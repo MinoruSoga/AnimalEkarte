@@ -152,6 +152,9 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 			return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil
 		}
 		if status != StatusNotSucceeded {
+			if status == StatusSucceeded && outcome.Status == StatusReplayed {
+				status = StatusReplayed
+			}
 			return disclose(ctx, p, binding, status, receipt), nil
 		}
 		// Only a receipt/unknown re-read under the acquired binding lock
@@ -188,7 +191,7 @@ func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth Lo
 
 	status, res, err := r.settledState(ctx, binding)
 	if err != nil {
-		return Outcome{}, err
+		return disclose(ctx, auth, binding, StatusResultUnavailable, nil), nil
 	}
 	return disclose(ctx, auth, binding, status, res), nil
 }
@@ -441,7 +444,7 @@ func (r *Runner) recordOutcome(ctx context.Context, binding Binding, outcome Att
 func isRejectionStatus(s Status) bool {
 	switch s {
 	case StatusValidation, StatusVersionConflict, StatusDependencyChanged,
-		StatusEditRightLost, StatusNotAuthorized, StatusScopeNotFound:
+		StatusEditRightLost, StatusNotAuthorized:
 		return true
 	default:
 		return false

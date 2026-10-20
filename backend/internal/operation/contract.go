@@ -111,7 +111,8 @@ const (
 	// StatusResultUnavailable: success/failure cannot be determined. Stop; no
 	// automatic compensation, re-create or external resend.
 	StatusResultUnavailable Status = "result-unavailable"
-	// StatusScopeNotFound: no binding for this scope and key.
+	// StatusScopeNotFound: FindBinding found no binding for this scope and key.
+	// This is not an owner rejection; a missing owner target uses validation.
 	StatusScopeNotFound Status = "scope-not-found"
 	// StatusNotAuthorized: the current grant does not allow the operation or its
 	// result. No result body is returned.

@@ -714,3 +714,140 @@ func TestExecute_UnknownTakesPrecedenceOverGateBusy(t *testing.T) {
 		}
 	}
 }
+
+func TestExecute_OwnerScopeNotFoundCannotHideExistingBinding(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&Rejection{Status: StatusScopeNotFound})
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.Error(t, err, "reserved status misuse is not a business rejection")
+	require.NotEqual(t, StatusScopeNotFound, got.Status)
+	binding, found := f.store.bindingFor(f.scope, f.key)
+	require.True(t, found)
+	attempt, recorded := f.store.latestAttempt(binding.Binding.ID)
+	require.True(t, recorded)
+	require.Equal(t, OutcomeRetryableFailure, attempt.Outcome)
+	looked, err := f.runner.Lookup(t.Context(), f.scope, f.key, allowLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusNotSucceeded, looked.Status)
+	require.Equal(t, binding.Binding.ID, looked.Binding.ID)
+}
+
+func TestExecute_CommitRecoveryKeepsReplayStatusAndReauthorizes(t *testing.T) {
+	for _, replay := range []bool{false, true} {
+		for _, revoked := range []bool{false, true} {
+			t.Run(fmt.Sprintf("replay=%v/revoked=%v", replay, revoked), func(t *testing.T) {
+				f := newR2Fixture(t)
+				var original *Result
+				if replay {
+					first := f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+					original = first.Result
+				}
+				f.runner.tx = &oneShotCommitErrorTx{store: f.store, after: func() {
+					if revoked {
+						f.owner.revoke()
+					}
+				}}
+				got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+				require.NoError(t, err)
+				want := StatusSucceeded
+				if replay {
+					want = StatusReplayed
+				}
+				if revoked {
+					want = StatusNotAuthorized
+				}
+				require.Equal(t, want, got.Status)
+				require.Equal(t, 1, f.owner.applyCount())
+				binding, found := f.store.bindingFor(f.scope, f.key)
+				require.True(t, found)
+				stored, err := f.store.LoadResult(t.Context(), binding.Binding)
+				require.NoError(t, err)
+				if replay {
+					require.Equal(t, original, stored)
+				}
+				if revoked {
+					require.Nil(t, got.Result)
+				} else {
+					require.Equal(t, stored, got.Result)
+				}
+			})
+		}
+	}
+}
+
+type lookupFailureStore struct {
+	store
+	reads, failRead     int
+	findErr, unknownErr error
+}
+
+func (s *lookupFailureStore) FindBinding(ctx context.Context, scope Scope, key uuid.UUID) (storedBinding, bool, error) {
+	if s.findErr != nil {
+		return storedBinding{}, false, s.findErr
+	}
+	return s.store.FindBinding(ctx, scope, key)
+}
+func (s *lookupFailureStore) LoadResult(ctx context.Context, b Binding) (*Result, error) {
+	s.reads++
+	if s.reads == s.failRead {
+		return nil, errors.New("receipt unreadable")
+	}
+	return s.store.LoadResult(ctx, b)
+}
+func (s *lookupFailureStore) HasUnknownOutcome(ctx context.Context, b Binding) (bool, error) {
+	if s.unknownErr != nil {
+		return false, s.unknownErr
+	}
+	return s.store.HasUnknownOutcome(ctx, b)
+}
+func TestLookup_ExistingUnreadableBindingStopsWithCurrentAuthorization(t *testing.T) {
+	for _, failure := range []string{"first-receipt", "locked-receipt", "unknown"} {
+		for _, grant := range []string{"allowed", "revoked", "resolver-failed"} {
+			t.Run(failure+"/"+grant, func(t *testing.T) {
+				f := newR2Fixture(t)
+				f.owner.setVersions("2", "1")
+				f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+				probe := &lookupFailureStore{store: f.store}
+				switch failure {
+				case "first-receipt":
+					probe.failRead = 1
+				case "locked-receipt":
+					probe.failRead = 2
+				case "unknown":
+					probe.unknownErr = errors.New("unknown unreadable")
+				}
+				f.runner.store = probe
+				var auth LookupAuthorizer = f.owner
+				if grant == "revoked" {
+					f.owner.revoke()
+				}
+				if grant == "resolver-failed" {
+					auth = &resolvedLookup{resolveErr: errors.New("target unavailable")}
+				}
+				got, err := f.runner.Lookup(t.Context(), f.scope, f.key, auth)
+				require.NoError(t, err)
+				want := StatusResultUnavailable
+				if grant != "allowed" {
+					want = StatusNotAuthorized
+				}
+				require.Equal(t, want, got.Status)
+				require.NotNil(t, got.Binding)
+				require.Nil(t, got.Result)
+				require.Equal(t, 1, f.owner.applyCount())
+			})
+		}
+	}
+}
+func TestLookup_FindBindingErrorDoesNotInferExistence(t *testing.T) {
+	f := newR2Fixture(t)
+	findErr := errors.New("binding unavailable")
+	probe := &lookupFailureStore{store: f.store, findErr: findErr}
+	f.runner.store = probe
+	auth := &resolvedLookup{persisted: map[uint64]LookupTarget{}, allowed: "A"}
+	got, err := f.runner.Lookup(t.Context(), f.scope, f.key, auth)
+	require.ErrorIs(t, err, findErr)
+	require.Nil(t, got.Binding)
+	require.Empty(t, got.Status)
+	require.Zero(t, probe.reads)
+	require.Empty(t, auth.authorized)
+}
