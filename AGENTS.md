@@ -118,6 +118,10 @@ Generic AI workflow, model preferences, sandbox, Hooks and external connectors b
 - Missing tools, skipped checks and untested behavior are BLOCKED, SKIP or UNKNOWN, never PASS. Static/candidate checks do not establish runtime or release readiness.
 - Keep Plane (workspace `baritechllc`, project `EMR`) as execution SoT. When unavailable, prepare a local draft and report its current state UNKNOWN; ticket format and intake rules follow [docs/ops/plane-ticket-conventions.md](docs/ops/plane-ticket-conventions.md).
 
+## Frontend / UI Work (Mandatory for every runtime)
+
+Any change under `frontend/` that touches rendered UI (components, routes, styles, tokens) starts from [docs/spec/ui-design-guide.md](docs/spec/ui-design-guide.md). It is the single runtime-neutral entry point: it gives the reading order (color SSOT `docs/spec/design-system.md`, geometry/typography SSOT `DESIGN.md`, interaction states, token layers, component contracts), the hard rules enforced by `pnpm design-audit` (C1–C20), and the UI definition of done. Claude Code also auto-loads `frontend/CLAUDE.md`; Codex, opencode, Devin and other agents must open the guide and its linked sources explicitly. Do not record new design values anywhere except the SSOT files it names.
+
 ## Verification
 
 - Prefer scoped verification tied to changed files.

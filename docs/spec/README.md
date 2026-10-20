@@ -54,6 +54,7 @@ settings/ の共通マスタ、入院・トリミング・LINE 等の既存仕�
 | [customer-aggregation.md](customer-aggregation.md) | 顧客分析ダッシュボード（累計売上・来院頻度・CPM/LTV） | 集計・分析機能の実装前 |
 | [検査機器の旧解析資料](lab-device-integration/README.md) | 城東の構造/通信観測とD07・運用正本への接続。外注/画像/医院差・移行は未確認を区別 | 旧資料を機器対応や新規採用の根拠に使う前 |
 | [reservation-to-record-flow.md](workflows/reservation-to-record-flow.md) | 予約からカルテ作成までの統合フロー（appointments = 単一 source of truth） | 予約・受付・カルテ連携の実装前 |
+| [ui-design-guide.md](ui-design-guide.md) | UI 作業の入口（全エージェント共通）: 正本の読む順・design-audit ハードルール要約・UI の完了条件。新しい値は決定しない | フロントエンド UI 作業の最初に |
 | [design-system.md](design-system.md) | Notion ライクなデザイン規約とデザイントークン | フロントエンド UI 実装前 |
 | [design-states.md](design-states.md) | インタラクション状態（hover / focus / disabled / loading / invalid 等）の視覚仕様・必須実装と WCAG コントラスト実測 | インタラクティブ UI の実装・レビュー時 |
 | [design-token-layers.md](design-token-layers.md) | デザイントークンの 3 層モデル（Primitive → Semantic → Component）と参照方向・新規値の配置先 | トークン追加・色変更・新規 UI プリミティブ作成時 |

@@ -1,12 +1,12 @@
 ---
-description: Web accessibility standards (WCAG 2.1 AA, a11y)
+description: Web accessibility standards (WCAG 2.2 AA, a11y)
 alwaysApply: false
 globs: ["frontend/src/**/*.{tsx,jsx}"]
 ---
 
 # Accessibility Rules
 
-Web accessibility standards (WCAG 2.1 AA).
+Web accessibility standards (WCAG 2.2 AA — the same baseline as [docs/spec/design-states.md](../../docs/spec/design-states.md); 2.1 criteria remain included). Visual state specs (hover / focus-visible / disabled / loading / invalid), measured contrast ratios and touch-target sizes are owned by design-states.md; this file covers semantic HTML, labels, ARIA and keyboard behavior.
 
 ## Core Rules
 
@@ -108,9 +108,10 @@ function Toolbar({ items, activeIndex, onNavigate }: ToolbarProps) {
 ### 5. Color Contrast
 
 ```
-Target: WCAG AA or better
+Target: WCAG 2.2 AA or better (measured values: docs/spec/design-states.md §2)
 - Normal text: 4.5:1
-- Large text (18pt+): 3:1
+- Large text (18pt+ or 14pt bold+): 3:1
+- Non-text UI (borders, focus rings, icons): 3:1
 
 Tools: axe DevTools, WebAIM Contrast Checker
 ```
@@ -215,6 +216,6 @@ docker compose exec frontend pnpm lighthouse  # a11y score check
 
 ## References
 
-- [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)
+- [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/)
 - [ARIA Practices](https://www.w3.org/WAI/ARIA/apg/)
 - [WebAIM](https://webaim.org/)
