@@ -37,7 +37,7 @@
 2. plan/application/record/pet複合整合、RLS、論理削除/RESTRICT、必要索引を固定する。client指定clinic/actorを正本にしない。
 3. package component key→application→plan identityのunique、操作binding unique、revision unique、再送/取消履歴を確定する。
 4. D08等の単一実績対応、D07パネル/複数結果、D09親子の多重度を個別表で固定する。一律1:1や実績共有の無条件許可を課さない。
-5. ExactNumeric/NULL/未指定/0/false、master版のない型のserver fingerprint、単位なしと取得不能の区別を型ごとに固定する。未確定価格/税/保険の出所/理由、追加時blockingと後続warningは[採用契約](emr-518-storage-contract-20261020.md#financial-unknown)で固定した。
+5. ExactNumeric/NULL/未指定/0/false、master版のない型のserver fingerprint、単位なしと取得不能の区別を型ごとに固定する。単品で予定入力が許される未確定価格/税/保険はnullで出所/理由を保持し、previewからwarningを表示して各ownerの必要段階へ引き継ぐ。財務unknownを追加時に一律blockingせず、owner/classification未解決や単品と同じ追加時不適合のselection blockingと区別する。この段階別gateは[採用契約](emr-518-storage-contract-20261020.md#financial-unknown)で固定した。
 6. 旧行はlegacy markerで現状表示する。根拠ある移行のみのsource identity一意化と、未知を移さない条件を固定する。
 7. 全列DDL・FK/index・model・ERDの対応を同じ実装PRで確定する。共通schema編集ownerはEMR-516へ集約する。
 
@@ -54,7 +54,7 @@ server prefixは既存 `/api/v1`。下記は提案pathであり実装済みroute
 | POST | `/medical-records/{record_id}/treatment-package-previews` | read-only preview |
 | POST / GET | `/medical-records/{record_id}/treatment-package-applications` | apply/一覧 |
 | GET | `/medical-records/{record_id}/treatment-package-applications/{id}` | 保存済み適用結果 |
-| GET | `/medical-records/{record_id}/treatment-package-operations/{operation_key}` | 元操作の結果照会 |
+| GET | `/medical-records/{record_id}/operations/{operation_key}?intent=medical_record.package_apply` | 494共通routeによる元操作結果照会（採用案。旧package専用lookup候補は廃止、機械契約公開は別工程） |
 | 未固定 | `/medical-records/{record_id}/plan-items` と個別adapter | 共通予定の更新/状態変更/履歴/owner-link |
 
 固定するrequest/responseは、version必須範囲、canonical ID/decimal、preview依存fingerprint、全行適否（単品と同じ段階別gateのblocking/warning。財務unknownを一律blockingにしない）、apply component→保存plan ID、C06 status/結果参照、CAS/依存変更/失権/結果不明応答、scope切替時の無効化。state-changeはcoordinator専用intentとしgeneric state PATCHにしない。

@@ -103,9 +103,27 @@ application/revisionはmutable定義行でなく不変snapshot＋component UUID�
 | component_count | integer NOT NULL、正数 |
 | created_by / created_at | bigint NOT NULL staff FK / 共通作成時刻 |
 
+<a id="source-record-patient-gate"></a>
+package previewはsource recordのpet_idがNULLならselection段階のblockingとして追加不可を返す。財務unknownのwarningとは別のcaptured identity不成立であり、患者をclient入力や名称から補完しない。新規apply attemptは§6の既存lock順に従いmedical_records rowを取得した後、application/planの書込み前に同じ非NULL・医院/record/pet整合を再検査する。既存のrecord lock helperがpet NULLも拒否すると仮定しない。認可済み過去成功receiptのreplayは既定順序を維持する。本追補はpackageの既定NOT NULL契約をpreview/applyで表す設計であり、既存単品全体のgrant変更やruntime helper変更を本PRで実施しない。
+
 UK `(id,clinic_id,medical_record_id,pet_id)`をplan由来FKのtargetにする。snapshotはpackage ID/版/名称、順序付きcomponent keys、typed refs/source stamps/quantity/財務値/provenance/uncertainty、生成plan IDsを含む。財務nullも保持し、結果本文や親請求をコピーしない。
 
 application＋全plan＋revision1＋監査＋成功receiptは同TX。削除/訂正はplanへ作用し歴史applicationを書き換えない。保持は現行保持規約に従い、新しい年限を導入しない。
+
+<a id="preview-digest-projection"></a>
+### 3.4 preview_digestの投影とreplay比較
+
+preview_digestはapplication snapshot全体のhashではない。version付きPreviewProjectionのRFC 8785 JCS bytesをSHA-256した32 bytesを保存する。wireのpreview_tokenは`pkg-preview-v1:`＋lowercase 64 hex、source tokenは`pkg-source-v1:`＋lowercase 64 hexとする。prefixはtransportだけで、保存byteaには含めない。いずれも認可能力tokenではない。
+
+PreviewProjectionの全keyはschema（`pkg-preview-v1`）、record_id、clinic_id、pet_id、package_id、package_version、price_policy_digest、components。ComponentProjectionの全keyはcomponent_key、item、quantity、source_digest、classification。componentsはpackage順で重複品目を保持する。price_policy_digestは照合済みowner価格/税/保険規則の版又はdefinition digest、未確定ならnull。生成application/plan IDs、actor、取得時刻、編集session/epoch、plan collection CAS、表示整形、合計表示の可否は投影に含めない。
+
+source_digestはSourceProjectionのJCS bytesのSHA-256 lowercase hex。全keyはschema（`pkg-source-v1`）、clinic_id、item、active、name、unit_label、native_version、price、owner_definition_digest、eligibility_digest。itemは§3.2の型付き参照を新APIのkind/型別ID又は正規manual fieldsへ写像する。priceの全keyはunit_price、tax_type、tax_rate、is_non_insurance、insurance_setting_state、price_source、tax_source、insurance_source、amount_basis、uncertainty。各sourceはmaster/owner-policy/manual/unresolved、amount_basisはincluded/excluded/exempt/unresolved、uncertaintyはfield（unit_price/tax/insurance）、reason（legacy_unset/not_configured_on_master/pending_owner_confirmation）、required_at（selection/execution/billing）の配列である。存在しない版・単位・規則はschema上の明示nullとし、取得不能を保存済み未設定に置換しない。
+
+全key必須・未知key禁止。ID/version/円はcanonical整数文字列、quantity/tax_rateは丸めないcanonical十進文字列。object key順はJCS、array順は保持し、Unicode正規化・float変換・JSONB文字列hashは行わない。applyはlock下のserver実値から同じ投影を再構築し、確認したpreview tokenと照合する。生成plan IDsはその後application snapshotへ保存するが、このdigestへ追加しない。
+
+C06 Contentはrecord_ref/package_id/package_version/preview_tokenで、operation_keyはbindingを選ぶ。Preconditionsはowner_expected_version（plan collection版）/edit_session_ref/edit_epoch。同keyのContent差異はC06の既存同key異内容拒否とし、別packageを保存しない。一時Preconditionsだけを更新する同内容再試行は既存C06条件に従う。既成功なら元targetの現在read認可を満たした保存receiptを返し、現在masterや現在preview digestを再計算して過去成功を否定しない。未成功attemptでsource/previewが変わった場合はdependency-changedとして再preview・明示確認し、内容変更は旧操作の結果確定後に新keyで行う。unknownのまま新keyに移らない。
+
+実API/fixtureは別ownerが公開する。本節は採用投影の文書化であり、公開済み機械schemaを意味しない。
 
 ## 4. 新設補助表 treatment_package_catalog_versions
 
@@ -236,6 +254,9 @@ no-opは架空revisionなし。business rejectionはplan/application/成功recei
 ## 7. RLSと既存action権限
 
 6domain＋catalog版の全7表に既存tenant_clinic_isolation helperとhas_clinic_access(clinic_id)を適用する採用設計。新GRANT/BYPASS role/鍵/接続設定なし。既存helperはENABLEでFORCEではないため強い保証へ読み替えない。repoはscoped queryとtrusted selected clinicを維持し、RLSの許可医院配列をrecord IDによる医院切替許可にしない。
+
+<a id="non-force-rls-boundary"></a>
+非FORCE RLSはtable owner・superuser・BYPASSRLS roleには適用されない。本書は本番接続roleがそれらに該当しないことを確認済みとはせず、ENABLEだけをtenant隔離の証明にしない。既存runtime接続roleと7表のownership/BYPASS属性を既存導入工程で照合し、その境界を確認できる場合だけRLSを追加の防御層として扱う。未確認の場合もscoped query・trusted selected clinic・各action認可は必須であり、RLSで代替しない。本PRはrole作成/変更、GRANT/FORCE、接続設定変更、DB適用、試験実行を行わない。実環境の境界確認や変更が必要なら既存担当工程へ分離し、未検証を検証済みと記録しない。
 
 package CRUDはResourceMasterMedicalの各action。source lookupは個別resource（ResourceCheckups/ResourceMasterMerchandiseを含む）を追加確認する。予定追加applyは既存単品POST同様ResourceMedicalRecords.create＋現在edit-session/fence＋単品選択条件を使用し、ResourceMedicalRecords.editやmaster管理createを追加要求しない。edit-sessionは並行性制御でaction grantと別。既存item変更は各既存edit/delete対応、実施/結果は各owner既存権限。歴史applicationも現在record認可が必要。
 
