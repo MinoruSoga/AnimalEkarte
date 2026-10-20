@@ -353,3 +353,86 @@ func assertCheckupTypeInternalError(t *testing.T, err error) {
 	require.True(t, errors.As(err, &appErr))
 	assert.Equal(t, "INTERNAL", appErr.Code)
 }
+
+func TestCheckupTypeService_InvalidDirectInputsStopBeforeRepository(t *testing.T) {
+	svc := NewCheckupTypeService(&mockCheckupTypeRepository{}, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{})
+	got, err := svc.Create(context.Background(), 1, nil)
+	assert.Nil(t, got)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	for _, version := range []int64{0, -1} {
+		got, err = svc.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{Name: checkupRuntimeString("a"), Version: &version})
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	}
+}
+func checkupRuntimeString(value string) *string { return &value }
+
+type checkupRuntimeTxMarker struct{}
+type checkupRuntimeTx struct{}
+
+func (checkupRuntimeTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return fn(context.WithValue(ctx, checkupRuntimeTxMarker{}, true))
+}
+
+type checkupRuntimeAudit struct {
+	log func(context.Context, *AuditEntry) error
+}
+
+func (a checkupRuntimeAudit) LogEntryTx(ctx context.Context, entry *AuditEntry) error {
+	return a.log(ctx, entry)
+}
+
+// This verifies context composition, not a database commit/rollback.
+func TestCheckupTypeService_CreateAndUpdateShareAuditTransactionContext(t *testing.T) {
+	for _, operation := range []string{"create", "update"} {
+		t.Run(operation, func(t *testing.T) {
+			checks, writes, audits := 0, 0, 0
+			check := func(ctx context.Context) { require.Equal(t, true, ctx.Value(checkupRuntimeTxMarker{})); checks++ }
+			repo := &mockCheckupTypeRepository{
+				findByIDFn: func(ctx context.Context, _, _ uint64) (*model.CheckupType, error) {
+					check(ctx)
+					return &model.CheckupType{ID: 9, ClinicID: 1, Version: 7, IsNonInsurance: nil}, nil
+				},
+				createFn: func(ctx context.Context, item *model.CheckupType) error {
+					check(ctx)
+					writes++
+					item.ID = 9
+					item.Version = 1
+					return nil
+				},
+				updateFieldsFn: func(ctx context.Context, _, _ uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error) {
+					check(ctx)
+					writes++
+					require.Equal(t, int64(7), *cmd.expectedVersion)
+					return &model.CheckupType{ID: 9, ClinicID: 1, Version: 8, IsNonInsurance: cmd.IsNonInsurance}, nil
+				},
+			}
+			audit := checkupRuntimeAudit{log: func(ctx context.Context, entry *AuditEntry) error {
+				check(ctx)
+				audits++
+				require.Equal(t, uint64(1), *entry.ClinicID)
+				require.Equal(t, testCheckupTypeActorID, *entry.ActorID)
+				if operation == "update" {
+					require.Nil(t, entry.OldValue.(map[string]any)["is_non_insurance"])
+				}
+				return nil
+			}}
+			svc := NewCheckupTypeService(repo, checkupRuntimeTx{}, audit)
+			if operation == "create" {
+				got, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "a", ActorID: &testCheckupTypeActorID})
+				require.NoError(t, err)
+				require.NotNil(t, got.IsNonInsurance)
+				require.True(t, *got.IsNonInsurance)
+				require.NotNil(t, got.SortOrder)
+			} else {
+				got, err := svc.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{IsNonInsurance: boolPtr(false), Version: int64Ptr(7), ActorID: &testCheckupTypeActorID})
+				require.NoError(t, err)
+				require.False(t, *got.IsNonInsurance)
+				require.Equal(t, int64(8), got.Version)
+			}
+			require.Equal(t, 1, writes)
+			require.Equal(t, 1, audits)
+			require.GreaterOrEqual(t, checks, 2)
+		})
+	}
+}

@@ -141,6 +141,9 @@ func (s *checkupTypeService) GetByID(ctx context.Context, clinicID, id uint64) (
 	return result, nil
 }
 func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input *CreateCheckupTypeInput) (*model.CheckupType, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
@@ -202,7 +205,7 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	// EMR-456: 更新要求は編集開始時の client 版で必須。service が読取時点の版で補う fallback は、
 	// 画面を開いた後の他者更新を検出できず無音上書きになるため廃止した（review 4320626569・チケット回答 2026-10-20）。
-	if input.Version == nil {
+	if input.Version == nil || *input.Version < 1 {
 		return nil, apperrors.WrapInvalidInput(errMsgCheckupTypeVersionRequired)
 	}
 	var checkupType *model.CheckupType
