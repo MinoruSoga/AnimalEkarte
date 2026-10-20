@@ -154,9 +154,9 @@ function EmptyUnanswered() {
   return (
     <div className={`space-y-1 rounded-lg border ${C.borderLight} ${C.bgPage} p-3`}>
       <p className={`text-sm ${C.text80}`}>この予約の事前問診は届いていません。</p>
-      <p className={`text-xs ${C.text60}`}>
-        問診は任意提出です。受付前まで飼主が LINE から回答できます。
-      </p>
+      {/* 職員の閲覧権限と飼主の LINE 回答資格は別。資格を示す契約 field が無いため、
+          LINE で回答できるとは案内しない（手動予約・未連携の飼主を含む）。 */}
+      <p className={`text-xs ${C.text60}`}>問診は任意提出です。</p>
       <p className={`text-xs ${C.text60}`}>
         次の操作: 受付時に聞き取り、補足は「予約内容」またはスタッフ側の記録へ。
       </p>

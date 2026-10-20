@@ -105,6 +105,12 @@ describe("RevisitIntakeSection", () => {
     expect(screen.getByText("この予約の事前問診は届いていません。")).toBeInTheDocument();
     expect(screen.getByText(/任意提出/)).toBeInTheDocument();
     expect(screen.getByText(/受付時に聞き取り/)).toBeInTheDocument();
+    // 職員の閲覧権限と飼主の LINE 回答資格は別。資格を示す契約 field が無いため、
+    // 未回答時に「LINE で回答できる」とは案内しない（手動予約・未連携の飼主を含む）。
+    expect(screen.queryByText(/LINE から回答できます/)).not.toBeInTheDocument();
+    // 職員は問診原文の入力・消去・複写を行わない（操作 UI を出さない）。
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("回答済みは 7 項目をラベル変換して read-only 表示し、版・受信時刻・出所を出す", async () => {
