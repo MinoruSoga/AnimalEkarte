@@ -15,6 +15,20 @@ import (
 // internal/manualarticle's identically named type (BE9-2B pilot).
 type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
+// PermissionRequirement identifies one resource/action pair for an OR authorization
+// gate. Consumer-side mirror of the composition-root's requirement struct — same
+// rule as PermissionMiddleware: medicalrecord never imports internal/auth.
+type PermissionRequirement struct {
+	Resource string
+	Action   string
+}
+
+// PermissionAnyMiddleware builds the gin.HandlerFunc that gates a route when at
+// least one requirement holds (RequirePermissionAny). The composition root adapts
+// auth's any-of middleware onto this type. It must still attach the clinic
+// permission checker so handler-level any-of re-checks can peek it.
+type PermissionAnyMiddleware func(requirements ...PermissionRequirement) gin.HandlerFunc
+
 // Handler composes this slice's per-entity handlers and registers their routes under a
 // single, package-unique RegisterRoutes entry point. Exactly one exported RegisterRoutes
 // per migrated dir is required by internal/apicontract/openapi_route_drift_test.go's
@@ -53,6 +67,7 @@ type Handler struct {
 	medicalRecordAddendum *MedicalRecordAddendumHandler
 	examination           *ExaminationHandler
 	requirePermission     PermissionMiddleware
+	requirePermissionAny  PermissionAnyMiddleware
 }
 
 // NewHandler initializes a Handler.
@@ -86,6 +101,7 @@ func NewHandler(
 	medicalRecordAddendum *MedicalRecordAddendumHandler,
 	examination *ExaminationHandler,
 	requirePermission PermissionMiddleware,
+	requirePermissionAny PermissionAnyMiddleware,
 ) *Handler {
 	return &Handler{
 		diagnosis:             diagnosis,
@@ -117,6 +133,7 @@ func NewHandler(
 		medicalRecordAddendum: medicalRecordAddendum,
 		examination:           examination,
 		requirePermission:     requirePermission,
+		requirePermissionAny:  requirePermissionAny,
 	}
 }
 
@@ -131,6 +148,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	perm := func(resource model.Resource, action string) gin.HandlerFunc {
 		return h.requirePermission(string(resource), action)
 	}
+	permAny := func(requirements ...PermissionRequirement) gin.HandlerFunc {
+		return h.requirePermissionAny(requirements...)
+	}
 	masters := rg.Group("/masters")
 	h.registerEarlyMasterRoutes(masters, perm)
 	h.registerVaccinationAndCheckupRoutes(rg, perm)
@@ -139,7 +159,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	h.registerPetTreatmentHistoryRoute(rg, perm)
 	h.registerLateMasterRoutes(masters, perm)
 	hospitalizations := rg.Group("/hospitalizations")
-	h.registerHospitalizationRoutes(hospitalizations, perm)
+	h.registerHospitalizationRoutes(hospitalizations, perm, permAny)
 	h.registerTreatmentPlanRoutes(records, hospitalizations, perm)
 	h.registerMedicalRecordCoreRoutes(records, perm)
 	h.registerExaminationAndPackageRoutes(rg, perm)

@@ -13004,10 +13004,11 @@ paths:
         （連結構成員の ID もそのまま含む。代表の空き判定は呼び出し側が構成員を合算する）。
         exclude_hospitalization_id を指定すると、その入院（同医院のみ）の占有行だけを除外し、
         編集中の自己占有を他滞在の占有と誤認しない。患者・入院情報は返さない。
-        middleware は hospitalization:view、handler で選択医院の hospitalization:create
-        または hospitalization:edit を再判定する（マスタ編集権限は不要）。
         候補表示用の読取りであり、保存時は create/update/cage-swap が現在状態を再検査して
         競合を 409 で拒否する。
+        middleware は hospitalization:create または hospitalization:edit の any-of、
+        handler で選択医院の create/edit を再判定する（hospitalization:view は前提としない。
+        マスタ編集権限は不要）。
       tags: [Hospitalizations]
       parameters:
         - name: exclude_hospitalization_id

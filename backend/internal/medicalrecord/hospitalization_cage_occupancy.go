@@ -58,7 +58,8 @@ func (s *hospitalizationService) OccupiedCageIDsForAssignment(ctx context.Contex
 
 // requireSelectedClinicHospitalizationWriteGrant は選択医院で hospitalization の
 // create または edit を持つかを判定する（httpapi.RequireSelectedClinicGrant の any-of 版）。
-// middleware の view は checker を attach する土台で、他院の grant では通さない。
+// middleware は create/edit の any-of で checker を attach する土台になり、他院の grant
+// では通さない（view を暗黙の追加前提にしない）。
 func requireSelectedClinicHospitalizationWriteGrant(c *gin.Context) bool {
 	if isAdmin, ok := httpapi.PeekIsSystemAdmin(c); ok && isAdmin {
 		return true

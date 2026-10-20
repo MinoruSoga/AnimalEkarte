@@ -997,15 +997,15 @@
     "handler": "github.com/animal-ekarte/backend/internal/medicalrecord.(*HospitalizationHandler).GetCageOccupancy-fm",
     "class": "clinic-fixed",
     "resource": "hospitalization",
-    "action": "view",
+    "action": "create",
     "source": "internal/medicalrecord/routes_hospitalization.go",
-    "routeExpression": "hospitalizations.GET(\"/cage-occupancy\", perm(model.ResourceHospitalization, \"view\"), h.hospitalization.GetCageOccupancy)",
+    "routeExpression": "hospitalizations.GET(\"/cage-occupancy\", permAny(PermissionRequirement{hospitalization, create}, PermissionRequirement{hospitalization, edit}), h.hospitalization.GetCageOccupancy)",
     "handlerSource": "internal/medicalrecord/hospitalization_cage_occupancy.go",
     "marker": "requireSelectedClinicHospitalizationWriteGrant",
-    "authorization": "assigned grant in composition; selected create-or-edit grant in handler",
+    "authorization": "assigned any-of(create,edit) grant in composition; selected create-or-edit any-of grant in handler; view is not an implicit prerequisite (EMR-461 approved boundary 2026-10-20)",
     "scope": "selected-clinic",
     "regression": "internal/medicalrecord/hospitalization_cage_occupancy_test.go#TestGetCageOccupancyHandler_SelectedClinicWriteGrant",
-    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; handler-grant-test-referenced; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/hospitalization_cage_occupancy_test.go#TestRealDB_HospitalizationCageOccupancyClinicScopedAndExcludesSelf"
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; row-approximation:single-action create row stands in for the real any-of(create,edit) middleware; handler-grant-test-referenced; remaining-data-scope-not-assessed; realdb-return-data:internal/medicalrecord/hospitalization_cage_occupancy_test.go#TestRealDB_HospitalizationCageOccupancyClinicScopedAndExcludesSelf"
   },
   {
     "method": "GET",
