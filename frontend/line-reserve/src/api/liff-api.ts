@@ -12,6 +12,10 @@ import type {
   CreateReservationResponse,
   TrimmingCourse,
   TrimmingOption,
+  RevisitIntakeLIFFRead,
+  RevisitIntakeSubmitRequest,
+  RevisitIntakeResultResponse,
+  RevisitIntakeLookupResult,
 } from "../types/models";
 import { API_BASE_URL } from "../lib/liff-config";
 import { sanitizeNullBytes } from "@/shared-liff/sanitize";
@@ -27,6 +31,9 @@ import {
   availableTimeSchema,
   reservationSchema,
   createReservationResponseSchema,
+  revisitIntakeLIFFReadSchema,
+  revisitIntakeResultResponseSchema,
+  revisitIntakeLookupNotFoundSchema,
 } from "./schemas";
 
 const httpClient = axios.create({
@@ -160,5 +167,78 @@ export const liffApi = {
     await httpClient.delete(`${clinicPath(clinicId)}/my-reservations/${id}`, {
       headers: authHeaders(idToken),
     });
+  },
+
+  /**
+   * EMR-474: GET /my-reservations/{appointmentId}/revisit-intake（RevisitIntakeLIFFRead）。
+   * 未知 query は 400 になる契約のため cursor / limit 以外を送らない。
+   */
+  getRevisitIntake: async (
+    clinicId: string,
+    appointmentId: string,
+    idToken: string,
+    page: { cursor?: string; limit?: number } = {},
+  ): Promise<RevisitIntakeLIFFRead> => {
+    const params: Record<string, string | number> = {};
+    if (page.cursor !== undefined) params.cursor = page.cursor;
+    if (page.limit !== undefined) params.limit = page.limit;
+    const res = await httpClient.get<unknown>(
+      `${clinicPath(clinicId)}/my-reservations/${encodeURIComponent(appointmentId)}/revisit-intake`,
+      { headers: authHeaders(idToken), params },
+    );
+    return parseOrThrow(revisitIntakeLIFFReadSchema, res.data, "getRevisitIntake");
+  },
+
+  /**
+   * EMR-474: POST …/revisit-intake/submissions（Idempotency-Key 必須）。
+   * 4xx/5xx は AxiosError のまま投げ、呼び出し側が HTTP status と code で分岐する。
+   */
+  submitRevisitIntake: async (
+    clinicId: string,
+    appointmentId: string,
+    body: RevisitIntakeSubmitRequest,
+    operationKey: string,
+    idToken: string,
+  ): Promise<RevisitIntakeResultResponse> => {
+    const res = await httpClient.post<unknown>(
+      `${clinicPath(clinicId)}/my-reservations/${encodeURIComponent(appointmentId)}/revisit-intake/submissions`,
+      body,
+      {
+        headers: {
+          ...authHeaders(idToken),
+          "Content-Type": "application/json",
+          "Idempotency-Key": operationKey,
+        },
+      },
+    );
+    return parseOrThrow(revisitIntakeResultResponseSchema, res.data, "submitRevisitIntake");
+  },
+
+  /**
+   * EMR-474: GET /revisit-intake/operations/{operationKey}。
+   * 404 RevisitIntakeLookupNotFound は失敗確定ではないため state=not_found の結果として返す。
+   * それ以外の失敗（401/429/5xx/通信断/形不正）は投げる。
+   */
+  getRevisitIntakeOperation: async (
+    clinicId: string,
+    operationKey: string,
+    idToken: string,
+  ): Promise<RevisitIntakeLookupResult> => {
+    try {
+      const res = await httpClient.get<unknown>(
+        `${clinicPath(clinicId)}/revisit-intake/operations/${encodeURIComponent(operationKey)}`,
+        { headers: authHeaders(idToken) },
+      );
+      return parseOrThrow(revisitIntakeResultResponseSchema, res.data, "getRevisitIntakeOperation");
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        return parseOrThrow(
+          revisitIntakeLookupNotFoundSchema,
+          err.response.data,
+          "getRevisitIntakeOperation",
+        );
+      }
+      throw err;
+    }
   },
 };
