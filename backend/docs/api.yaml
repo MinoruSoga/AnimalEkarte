@@ -4,6 +4,8 @@ info:
   description: |
     動物病院電子カルテシステム API (Implementation Synced v3.1.0)
 
+    EMR-502 / EMR-493 の x-contract-status: selected は実装先行契約。runtime追従・実機受入は別工程。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -4510,88 +4512,181 @@ components:
                 delete:
                   type: boolean
 
-    # ─── ShiftEntry ───────────────────────────────────────────────────────────
+    # Sources: docs/spec/domains/staff-workforce/README.md, docs/spec/screens/24-shift-calendar.md,
+    # docs/design/domains/staff-workforce/technical-spec.md, docs/design/shared/integration-contracts.md.
+    # Adopted storage/model baseline: e60ba31e86f88e0e0a6a870989ac491fd8872654 (001, #729).
+    # EMR-493 selected wire contract; implementation pending. Not a model serialization.
+    ShiftWorkBreak:
+      type: object
+      additionalProperties: false
+      required: [starts_at, ends_at]
+      description: >-
+        勤務内の明示日時。starts_at < ends_at、勤務区間内、他休憩と正の時間幅で重複しない。
+        区間は[start,end)。休憩開始ちょうどの予約終了と休憩終了ちょうどの予約開始は非重複。
+        templateのbreak_start/break_end（時刻）をこのDTOへ流用しない。
+      properties:
+        starts_at: { type: string, format: date-time, example: '2026-10-21T01:00:00+09:00' }
+        ends_at: { type: string, format: date-time, example: '2026-10-21T02:00:00+09:00' }
+    ShiftWorkBreakView:
+      type: object
+      additionalProperties: false
+      required: [starts_at, ends_at, interval_state]
+      description: >-
+        応答専用。旧休憩の明示日時が未解決ならNULLとunknownを保持し、配列から黙って除外しない。
+        knownでは両日時が非NULL。入力用ShiftWorkBreakと分離し、unknownを保存要求へ流用しない。
+      properties:
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        interval_state: { type: string, enum: [known, unknown] }
     ShiftEntry:
       type: object
+      additionalProperties: false
+      required: [id, clinic_id, staff_id, date, shift_type, starts_at, ends_at, version, notes, breaks, interval_state, created_at, updated_at]
+      description: |
+        EMR-493応答専用DTO。選択医院の勤務。start_time/end_timeやDB行を返さない。
+        dateは勤務開始側のJST日付。日跨ぎを分割・自動補完しない。
+        full/morning/afternoonの名称だけから時間を推測しない。
+        interval_state=unknownは勤務または休憩の旧日時が未解決。NULLを休日・勤務可能と扱わず、訂正確認まで保存を停止する。
+        off/paid_leaveは終日非勤務、両日時NULL、breaks=[]。勤務未登録は行不存在でありoffとは別。
+        versionは勤務aggregateのCAS版（休憩変更も含む）。updated_atやtemplate版で代替しない。
       properties:
-        id:
-          type: string
-        clinic_id:
-          type: string
-        staff_id:
-          type: string
-        staff_name:
-          type: string
-        date:
-          type: string
-          format: date
-          example: "2026-03-16"
-        shift_type:
-          type: string
-          enum: &id004
-            - full
-            - morning
-            - afternoon
-            - off
-            - paid_leave
-        start_time:
-          type: string
-          nullable: true
-          example: "09:00"
-        end_time:
-          type: string
-          nullable: true
-          example: "18:00"
-        notes:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        staff:
-          $ref: '#/components/schemas/StaffSummary'
-          nullable: true
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        staff_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        staff_name: { type: string }
+        date: { type: string, format: date }
+        shift_type: { type: string, enum: &id004 [full, morning, afternoon, 'off', paid_leave] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        version: { type: integer, format: int64, minimum: 1, readOnly: true }
+        interval_state: { type: string, enum: [known, unknown], readOnly: true }
+        notes: { type: string }
+        breaks:
+          type: array
+          items: { $ref: '#/components/schemas/ShiftWorkBreakView' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     CreateShiftRequest:
       type: object
-      required: [staff_id, date, shift_type]
+      additionalProperties: false
+      required: [operation_key, staff_id, date, shift_type, starts_at, ends_at, breaks, notes]
+      description: |
+        EMR-493。全入力を明示しNULL/未指定を同一視しない。notesの空文字とbreaks=[]は有効。
+        full/morning/afternoonは両日時必須・非NULL、starts_at < ends_at、dateはstarts_atのJST日付。
+        off/paid_leaveは両日時を明示NULL、breaks=[]とする。時刻から翌日を推測しない。
+        有効templateは入力値のコピー元のみ。template IDや時刻列を保存要求へ混在させない。
+        leave期間のCRUD・複製・CSVは対象外。医院は認証済み選択scope、bodyで切り替えない。
+      oneOf:
+        - properties:
+            shift_type: { enum: [full, morning, afternoon] }
+            starts_at: { type: string, format: date-time }
+            ends_at: { type: string, format: date-time }
+        - properties:
+            shift_type: { enum: ['off', paid_leave] }
+            starts_at: { type: string, nullable: true, enum: [null] }
+            ends_at: { type: string, nullable: true, enum: [null] }
+            breaks: { type: array, maxItems: 0 }
       properties:
-        staff_id:
-          type: integer
-          format: int64
-        date:
-          type: string
-          format: date
-          example: "2026-03-16"
-        shift_type:
-          type: string
-          enum: [full, morning, afternoon, off, paid_leave]
-        start_time:
-          type: string
-          example: "09:00"
-        end_time:
-          type: string
-          example: "18:00"
-        note:
-          type: string
-
+        operation_key: { type: string, format: uuid }
+        staff_id: { type: integer, format: int64, minimum: 1 }
+        date: { type: string, format: date }
+        shift_type: { type: string, enum: [full, morning, afternoon, 'off', paid_leave] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        breaks:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ShiftWorkBreak' }
+        notes: { type: string, maxLength: 2000 }
     UpdateShiftRequest:
       type: object
+      additionalProperties: false
+      required: [operation_key, expected_version]
+      description: |
+        PATCH。未指定は維持。明示NULLを許すのはstarts_at/ends_atだけ（終日非勤務への変更時に両方指定）。
+        breaksは配列全置換、[]は全休憩解除、NULLは400。notesは空文字で解除、NULLは400。
+        変更後の全体にCreateShiftRequestと同じ日時・終日非勤務条件を適用する。
+        勤務から非勤務へはshift_type・両日時NULL・breaks=[]を明示する。
+        非勤務から勤務へはshift_type・両日時を明示する。staff_id/date/clinic_idの付替えは受け付けない。
+        1つ以上の業務fieldを必要とする。版不一致は409、入力案を保持し最新状態を別読取して再確認する。
+      minProperties: 3
       properties:
-        shift_type:
+        operation_key: { type: string, format: uuid }
+        expected_version: { type: integer, format: int64, minimum: 1 }
+        shift_type: { type: string, enum: [full, morning, afternoon, 'off', paid_leave] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        breaks:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ShiftWorkBreak' }
+        notes: { type: string, maxLength: 2000 }
+    ShiftMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [operation_key, intent, shift_id, resulting_version, shift]
+      description: |
+        保存と同じtransactionの確定結果。shiftはその操作で確定したDTO、後日の最新値ではない。
+        deleteはshift=NULL、resulting_version=NULL（削除後の架空版を作らない）。
+        create/updateはshiftとresulting_versionが非NULLで一致する。新規版は1、更新の内容変更時に版を進める。
+      properties:
+        operation_key: { type: string, format: uuid }
+        intent: { type: string, enum: [create, update, delete] }
+        shift_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        resulting_version: { type: integer, format: int64, minimum: 1, nullable: true }
+        shift:
+          oneOf:
+            - $ref: '#/components/schemas/ShiftEntry'
+            - type: object
+              nullable: true
+              enum: [null]
+    ShiftOperationResult:
+      type: object
+      additionalProperties: false
+      required: [operation_key, state, receipt]
+      description: succeededはreceipt非NULL、unknownはNULL。unknownは未実行・失敗・不存在の証明ではない。
+      oneOf:
+        - properties:
+            state: { enum: [succeeded] }
+            receipt: { $ref: '#/components/schemas/ShiftMutationReceipt' }
+        - properties:
+            state: { enum: [unknown] }
+            receipt: { type: object, nullable: true, enum: [null] }
+      properties:
+        operation_key: { type: string, format: uuid }
+        state: { type: string, enum: [succeeded, unknown] }
+        receipt:
+          oneOf:
+            - $ref: '#/components/schemas/ShiftMutationReceipt'
+            - type: object
+              nullable: true
+              enum: [null]
+    ShiftContractError:
+      type: object
+      required: [error, code]
+      description: |
+        codeで処理しerror文字列を分岐に使わない。競合時は勤務・休憩・必要監査・結果を全て未反映。
+        protected_bookingsでは認可済み対象予約だけを返す。権限不足なら予約詳細を漏らさず403。
+        他院重複は相手医院名と重複時間だけを返し、患者・他院勤務全体を開示しない。
+      properties:
+        error: { type: string }
+        code:
           type: string
-          enum: [full, morning, afternoon, off, paid_leave]
-          nullable: true
-        start_time:
-          type: string
-          nullable: true
-        end_time:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
+          enum: [version_conflict, operation_key_reused, shift_exists, cross_clinic_overlap, protected_bookings, source_unresolved]
+        conflicting_clinic_name: { type: string }
+        overlap_starts_at: { type: string, format: date-time }
+        overlap_ends_at: { type: string, format: date-time }
+        protected_bookings:
+          type: array
+          items:
+            type: object
+            required: [appointment_id, starts_at, ends_at, patient_label, reservation_type_label]
+            properties:
+              appointment_id: { type: integer, format: int64, minimum: 1 }
+              starts_at: { type: string, format: date-time }
+              ends_at: { type: string, format: date-time }
+              patient_label: { type: string }
+              reservation_type_label: { type: string }
 
     # ─── Estimate ─────────────────────────────────────────────────────────────
     Estimate:
@@ -7958,88 +8053,152 @@ components:
         has_ungrouped:
           type: boolean
     # ─── Manual articles (医院共通マニュアル・clinic_id なし) ──────────
-    ManualArticle:
+    # Sources: docs/spec/domains/internal-manual/README.md,
+    # docs/design/domains/internal-manual/technical-spec.md#manual-selected-save-contract.
+    # EMR-502 existing article edit wire contract. Publish/restore implementations are separate.
+    ManualArticleContent:
       type: object
+      additionalProperties: false
+      required: [title, order_value, section, body_markdown]
+      description: >-
+        編集・表示内容の値object。全field非NULL・全置換。未指定は400。
+        order_valueはnumeric(10,2)に表現可能な値。digestはserverがこの内容から算出し、clientで再構成しない。
       properties:
-        id:
-          type: integer
-          format: int64
-        category:
-          type: string
-          enum: [screens, workflows]
-        slug:
-          type: string
-        title:
-          type: string
-        order_value:
-          type: number
-          format: double
-        section:
-          type: string
-        body_markdown:
-          type: string
-        updated_by_staff_id:
-          type: integer
-          format: int64
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    ManualArticleListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ManualArticle'
-    UpsertManualArticleRequest:
-      type: object
-      required: [title, section, body_markdown]
-      properties:
-        title:
-          type: string
-        order_value:
-          type: number
-          format: double
-        section:
-          type: string
-        body_markdown:
-          type: string
+        title: { type: string, minLength: 1, maxLength: 255 }
+        order_value: { type: number, multipleOf: 0.01, minimum: -99999999.99, maximum: 99999999.99 }
+        section: { type: string, minLength: 1, maxLength: 255 }
+        body_markdown: { type: string, minLength: 1, maxLength: 100000 }
     ManualArticleVersion:
       type: object
+      additionalProperties: false
+      required: [id, article_id, content_revision, content_digest, source_kind, restored_from_id, content, edited_by_staff_id, edited_at]
+      description: |
+        応答専用の不変内容版。idは内容版ID、content_revisionは記事内の内容改訂番号。
+        article.version（CAS版）とは別。公開だけの操作で内容版を増やさない。
+        source_kindの旧NULLはadapterでlegacy_unknownとして示す。legacy_unknownやNULLのdigest/revisionは未解決出所。架空値で埋めず編集・公開・復元の元にしない。
       properties:
-        id:
-          type: integer
-          format: int64
-        article_id:
-          type: integer
-          format: int64
-        title:
-          type: string
-        order_value:
-          type: number
-          format: double
-        section:
-          type: string
-        body_markdown:
-          type: string
-        edited_by_staff_id:
-          type: integer
-          format: int64
-          nullable: true
-        edited_at:
-          type: string
-          format: date-time
-    ManualArticleVersionListResponse:
+        id: { type: integer, format: int64, minimum: 1 }
+        article_id: { type: integer, format: int64, minimum: 1 }
+        content_revision: { type: integer, format: int64, minimum: 1, nullable: true }
+        content_digest: { type: string, pattern: '^[0-9a-f]{64}$', nullable: true, description: '32byte digestのhex表現。内容一致のtoken、CAS版の代用ではない。' }
+        source_kind: { type: string, enum: [static, override, edited, restored, legacy_unknown] }
+        restored_from_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        content: { $ref: '#/components/schemas/ManualArticleContent' }
+        edited_by_staff_id: { type: integer, format: int64, nullable: true }
+        edited_at: { type: string, format: date-time }
+    ManualArticle:
       type: object
+      additionalProperties: false
+      required: [id, category, slug, published]
+      description: |
+        公開READ用DTO（認証済みスタッフ）。医院共通。publishedは公開確定済みの同じ内容版。
+        一覧・検索・印刷はこの版ID/内容を使い、未公開current、CAS版、hidden情報を返さない。
+        未公開・非表示・不存在は単体404/一覧から除外。取得障害を不存在や静的版への黙ったfallbackにしない。
+        static/override adapterでも出所と版を識別し、公開状態不明のoverrideを全員公開しない。
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        category: { type: string, enum: [screens, workflows] }
+        slug: { type: string }
+        published: { $ref: '#/components/schemas/ManualArticleVersion' }
+    ManualArticleListResponse:
+      type: object
+      required: [data]
       properties:
         data:
           type: array
-          items:
-            $ref: '#/components/schemas/ManualArticleVersion'
+          items: { $ref: '#/components/schemas/ManualArticle' }
+    ManualArticleEditView:
+      type: object
+      additionalProperties: false
+      required: [id, category, slug, version, current, published_version_id, hidden]
+      description: |
+        編集権限者限定の応答DTO。versionは記事状態のCAS版（編集・公開・復元・非表示等で進む）。
+        currentは現在の編集内容版で、published_version_idとは一致を仮定しない。
+        current=NULLや出所未解決なら元内容確認へ戻す。医院は操作認可元であり記事の所有医院ではない。
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        category: { type: string, enum: [screens, workflows] }
+        slug: { type: string }
+        version: { type: integer, format: int64, minimum: 1 }
+        current:
+          oneOf:
+            - $ref: '#/components/schemas/ManualArticleVersion'
+            - type: object
+              nullable: true
+              enum: [null]
+        published_version_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        hidden: { type: boolean }
+    UpsertManualArticleRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, article_id, expected_version, expected_content_version_id, content]
+      description: |
+        EMR-502の既存記事edit専用。名称は互換だが不存在の新規upsertはしない（404）。
+        path category/slugとarticle_idを同じ対象へ拘束し、違えば409。
+        全field必須・非NULL。Contentを全置換しtitle/bodyの直置きや部分更新を受け付けない。
+        expected_versionは記事CAS版、expected_content_version_idは編集開始時のcurrent.id。
+        元内容/出所を再構成できない時はsource_unresolvedで停止。clientから版加算・公開pointer指定はできない。
+        編集は新内容版・履歴・必須監査・receiptを同一owner transactionで保存する。公開版とhiddenは維持。
+        publishは別の明示操作で対象内容版を指定、restoreは保持済み元版から新内容版を作る境界。
+        本edit要求にpublish/restoreのフラグや復元元版を混在させない。理由必須欄・承認workflowを新設しない。
+      properties:
+        operation_key: { type: string, format: uuid }
+        article_id: { type: integer, format: int64, minimum: 1 }
+        expected_version: { type: integer, format: int64, minimum: 1 }
+        expected_content_version_id: { type: integer, format: int64, minimum: 1 }
+        content: { $ref: '#/components/schemas/ManualArticleContent' }
+    ManualEditReceipt:
+      type: object
+      additionalProperties: false
+      required: [operation_key, article_id, intent, previous_version, resulting_version, content_version_id, content_digest, published_version_id]
+      description: |
+        業務変更と原子的に確定したreceipt。resulting_version=previous_version+1。
+        成功表示は対象articleと版・内容digestの一致時のみ。編集成功は公開成功を意味しない。
+        再照会/同一要求の再送では元receiptを返し、後日の最新状態で書き換えない。
+        operation_bindings等のDB行・fingerprint・actor_ref・before/after JSONは公開しない。
+      properties:
+        operation_key: { type: string, format: uuid }
+        article_id: { type: integer, format: int64, minimum: 1 }
+        intent: { type: string, enum: [edit] }
+        previous_version: { type: integer, format: int64, minimum: 1 }
+        resulting_version: { type: integer, format: int64, minimum: 2 }
+        content_version_id: { type: integer, format: int64, minimum: 1 }
+        content_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        published_version_id: { type: integer, format: int64, minimum: 1, nullable: true }
+    ManualEditOperationResult:
+      type: object
+      additionalProperties: false
+      required: [operation_key, state, receipt]
+      description: succeededはreceipt非NULL、unknownはNULL。unknownは未保存/失敗の確定ではなく入力保持して停止。
+      oneOf:
+        - properties:
+            state: { enum: [succeeded] }
+            receipt: { $ref: '#/components/schemas/ManualEditReceipt' }
+        - properties:
+            state: { enum: [unknown] }
+            receipt: { type: object, nullable: true, enum: [null] }
+      properties:
+        operation_key: { type: string, format: uuid }
+        state: { type: string, enum: [succeeded, unknown] }
+        receipt:
+          oneOf:
+            - $ref: '#/components/schemas/ManualEditReceipt'
+            - type: object
+              nullable: true
+              enum: [null]
+    ManualEditConflict:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [version_conflict, operation_key_reused, target_mismatch, source_unresolved] }
+    ManualArticleVersionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ManualArticleVersion' }
     # ─── Shared files (LINE 送信添付ファイル管理) ──────────────────────
     SharedFile:
       type: object
@@ -20429,13 +20588,20 @@ paths:
     get:
       operationId: listShifts
       summary: シフト一覧
+      x-contract-status: selected
+      description: |
+        EMR-493。shifts:view。選択医院の勤務を返す。dateは開始側JST日付の年月フィルタ。
+        date省略時はJST当月。staff_id省略時は医院内全staff。並び順はdate, staff_id, idの昇順。
+        空配列は当該filterの勤務未登録であり、休日・他院勤務なし・勤務可能の証明ではない。
+        unknown日時を時刻や休日で補完しない。結果不明のmutationはこの一覧だけで成功判定しない。
       tags: [Shifts]
       parameters:
         - name: date
           in: query
-          description: 年月フィルタ（YYYY-MM）
+          description: 開始日側JST年月フィルタ（YYYY-MM、省略時はJST当月）
           schema:
             type: string
+            pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
             example: "2026-03"
         - name: staff_id
           in: query
@@ -20455,11 +20621,30 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
     post:
       operationId: createShift
       summary: シフト作成
+      x-contract-status: selected
+      description: |
+        shifts:createが必要。
+        EMR-493選定wire契約。ownerはstaff。認証済み選択医院に拘束し、他医院へ自動再送しない。
+        対象staffの所属/有効性、対象勤務の医院、現在grantをserverで検査する。
+        勤務・休憩の原子的保存に加え、予約と他院勤務の並行変更を同じ整合性境界で再検査する。
+        医院間の正の時間幅の重複は409。移動時間は手動確保し固定1時間や自動補完を加えない。
+        勤務短縮・休憩追加・非勤務化・削除で未来/未終了の既指名予約（予定終了超過の診療中を含む）を
+        不適格にする場合は409 protected_bookings。自動取消/指名解除/診療終了はしない。
+        過去完了だけで永久拒否せず、予約・カルテ・会計履歴を自動改変しない。
+        operation_keyはUUID。選択医院・認証actor・intent・対象・業務内容へ拘束する。
+        期待版はfingerprintと分離しwrite直前に再検査、成功receipt再返却時も現在認可を再検査する。
+        同じkey/同じ業務内容の確定済み操作は元receiptを返し重複効果を作らない。
+        同keyで対象/業務内容が異なれば409 operation_key_reused。未成功確定後の期待版変更は現値との比較・明示再確認が必要。
+        結果応答喪失や5xxはunknownとして同じkeyの結果照会を行う。照合不能中は入力保持して停止し、
+        新keyで再送しない。競合解消・案変更後は最新状態の再確認から別操作を作る。
+        この契約はleave/copy/CSV・予約編集・template改訂の契約を追加しない。
       tags: [Shifts]
       requestBody:
         required: true
@@ -20473,13 +20658,54 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShiftEntry'
+                $ref: '#/components/schemas/ShiftMutationReceipt'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftContractError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /shifts/operations/{operation_key}:
+    get:
+      operationId: getShiftOperationResult
+      summary: 単件勤務操作の結果照会
+      x-contract-status: selected
+      description: |
+        EMR-493。選択医院・同一actor・元操作intentの現在create/edit/delete権限を検査する。
+        shifts:viewだけで他人のreceiptを参照させない。別医院/別actorのkeyから情報を返さない。
+        成功receiptが確認できない場合200 unknown。不存在を未実行と推測せず停止する。
+        現在の勤務が別操作で更新/削除済みでも、元の確定receiptを返す。照会はwriteしない。
+        結果store障害は500、権限失効は403でありunknownや空receiptの成功へ変換しない。
+      tags: [Shifts]
+      parameters:
+        - name: operation_key
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intent
+          in: query
+          required: true
+          schema: { type: string, enum: [create, update, delete] }
+      responses:
+        '200':
+          description: 操作結果（unknownは成功でも失敗でもない）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftOperationResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /shifts/on-duty-staffs:
     get:
       operationId: getOnDutyStaffs
@@ -20511,9 +20737,48 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /shifts/{id}:
+    get:
+      operationId: getShift
+      summary: 勤務の現在状態取得
+      x-contract-status: selected
+      description: EMR-493。shifts:view、認証済み選択医院内の対象だけを返す。scope外と不存在は共に404。404は操作結果の失敗を証明しない。
+      tags: [Shifts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+      responses:
+        '200':
+          description: 最新勤務（編集案を上書きせず比較用に取得する）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
     patch:
       operationId: updateShift
       summary: シフト更新
+      x-contract-status: selected
+      description: |
+        shifts:editが必要。
+        EMR-493選定wire契約。ownerはstaff。認証済み選択医院に拘束し、他医院へ自動再送しない。
+        対象staffの所属/有効性、対象勤務の医院、現在grantをserverで検査する。
+        勤務・休憩の原子的保存に加え、予約と他院勤務の並行変更を同じ整合性境界で再検査する。
+        医院間の正の時間幅の重複は409。移動時間は手動確保し固定1時間や自動補完を加えない。
+        勤務短縮・休憩追加・非勤務化・削除で未来/未終了の既指名予約（予定終了超過の診療中を含む）を
+        不適格にする場合は409 protected_bookings。自動取消/指名解除/診療終了はしない。
+        過去完了だけで永久拒否せず、予約・カルテ・会計履歴を自動改変しない。
+        operation_keyはUUID。選択医院・認証actor・intent・対象・業務内容へ拘束する。
+        期待版はfingerprintと分離しwrite直前に再検査、成功receipt再返却時も現在認可を再検査する。
+        同じkey/同じ業務内容の確定済み操作は元receiptを返し重複効果を作らない。
+        同keyで対象/業務内容が異なれば409 operation_key_reused。未成功確定後の期待版変更は現値との比較・明示再確認が必要。
+        結果応答喪失や5xxはunknownとして同じkeyの結果照会を行う。照合不能中は入力保持して停止し、
+        新keyで再送しない。競合解消・案変更後は最新状態の再確認から別操作を作る。
+        この契約はleave/copy/CSV・予約編集・template改訂の契約を追加しない。
       tags: [Shifts]
       parameters:
         - name: id
@@ -20534,18 +20799,43 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShiftEntry'
+                $ref: '#/components/schemas/ShiftMutationReceipt'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftContractError'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
       operationId: deleteShift
       summary: シフト削除
+      x-contract-status: selected
+      description: |
+        shifts:deleteが必要。
+        EMR-493選定wire契約。ownerはstaff。認証済み選択医院に拘束し、他医院へ自動再送しない。
+        対象staffの所属/有効性、対象勤務の医院、現在grantをserverで検査する。
+        勤務・休憩の原子的保存に加え、予約と他院勤務の並行変更を同じ整合性境界で再検査する。
+        医院間の正の時間幅の重複は409。移動時間は手動確保し固定1時間や自動補完を加えない。
+        勤務短縮・休憩追加・非勤務化・削除で未来/未終了の既指名予約（予定終了超過の診療中を含む）を
+        不適格にする場合は409 protected_bookings。自動取消/指名解除/診療終了はしない。
+        過去完了だけで永久拒否せず、予約・カルテ・会計履歴を自動改変しない。
+        operation_keyはUUID。選択医院・認証actor・intent・対象・業務内容へ拘束する。
+        期待版はfingerprintと分離しwrite直前に再検査、成功receipt再返却時も現在認可を再検査する。
+        同じkey/同じ業務内容の確定済み操作は元receiptを返し重複効果を作らない。
+        同keyで対象/業務内容が異なれば409 operation_key_reused。未成功確定後の期待版変更は現値との比較・明示再確認が必要。
+        結果応答喪失や5xxはunknownとして同じkeyの結果照会を行う。照合不能中は入力保持して停止し、
+        新keyで再送しない。競合解消・案変更後は最新状態の再確認から別操作を作る。
+        この契約はleave/copy/CSV・予約編集・template改訂の契約を追加しない。
       tags: [Shifts]
       parameters:
         - name: id
@@ -20554,13 +20844,36 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: expected_version
+          in: query
+          required: true
+          description: 表示時の勤務aggregate版。休憩変更を含め不一致なら409。
+          schema: { type: integer, format: int64, minimum: 1 }
+        - name: operation_key
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
       responses:
-        '204':
-          description: 削除成功
+        '200':
+          description: 削除確定receipt（再送時も同じ結果）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftMutationReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftContractError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -24200,7 +24513,11 @@ paths:
     get:
       operationId: listManualArticles
       summary: マニュアル記事一覧
-      description: 認証済みユーザー全員が閲覧可能(ResourceManualEdit view 権限)。
+      x-contract-status: selected
+      description: |
+        EMR-502接続境界。認証済みスタッフ全員が公開確定版を閲覧可能（manual-edit:viewを前提にしない）。
+        医院共通。公開済み・非表示でない記事のみ。同じ公開版ID/Contentで検索・印刷する。
+        未公開currentや公開不明overrideを混ぜず、障害時は500（静的版へ黙ってfallbackしない）。
       tags: [Manual]
       responses:
         '200':
@@ -24217,6 +24534,11 @@ paths:
     get:
       operationId: getManualArticle
       summary: マニュアル記事取得
+      x-contract-status: selected
+      description: |
+        EMR-502公開READ境界。認証済みスタッフ全員、manual-edit:view不要。
+        公開版だけを返す。未公開・非表示・不存在は404、取得障害は500。
+        編集用current/記事CAS版は別の編集権限付きreadを用いる。
       tags: [Manual]
       parameters:
         - name: category
@@ -24245,8 +24567,20 @@ paths:
           $ref: '#/components/responses/InternalError'
     put:
       operationId: upsertManualArticle
-      summary: マニュアル記事の作成・更新
-      description: ResourceManualEdit edit 権限が必要。監査ログに記録される。
+      summary: 既存マニュアル記事の編集保存
+      x-contract-status: selected
+      description: |
+        EMR-502既存記事の編集保存。manual-edit:editの現在権限をowner境界で再検査する。
+        UpsertManualArticleRequestのContent・元内容版・記事CAS版・対象IDを同一操作へ拘束する。
+        operation_keyは選択医院（認可元）・認証actor・intent=editへ束縛。記事そのものは医院共通。
+        同一key/同一対象/同一業務内容の確定済み操作は元receiptを返し、版・内容・履歴・監査を重複作成しない。
+        期待版/元内容版はfingerprintと分離してwrite前に再検査し、成功receipt再返却時も現在認可を再検査する。
+        異なる対象/業務内容へのkey再利用は409 operation_key_reused。期待版不一致は409 version_conflict。
+        権限失効は403。必須履歴/監査/receiptの失敗は全rollback、公開版・旧履歴は不変。
+        応答喪失や5xxは結果不明。元keyで結果照会し新keyの再保存で救済しない。
+        照合不能なら編集案と元版を保持して停止。成功はreceiptの対象/版一致時のみ表示する。
+        競合は元案を保持し最新edit viewを別取得、比較・再確認して新しい操作を作る。
+        公開・復元の実行endpoint/DTOと新規記事作成はこの単位の対象外。
       tags: [Manual]
       parameters:
         - name: category
@@ -24272,17 +24606,32 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManualArticle'
+                $ref: '#/components/schemas/ManualEditReceipt'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualEditConflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
       operationId: deleteManualArticle
       summary: マニュアルオーバーライド削除(MD ファイル版に戻す)
-      description: ResourceManualEdit delete 権限が必要。監査ログに記録される。
+      x-contract-status: legacy-out-of-scope
+      deprecated: true
+      description: >-
+        EMR-502既存editの引渡し対象外。旧route記録であり、履歴物理削除の許可ではない。
+        非表示/override解除は履歴を保持する選定契約へ別途追従が必要。新edit callerから呼ばない。
+        ResourceManualEdit delete 権限が必要。
       tags: [Manual]
       parameters:
         - name: category
@@ -26429,10 +26778,79 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /manual/articles/{category}/{slug}/edit:
+    get:
+      operationId: getManualArticleEditView
+      summary: 既存記事の編集元とCAS版の取得
+      x-contract-status: selected
+      description: |
+        EMR-502。manual-edit:editが必要。現在権限を検査し、医院共通の対象のcurrentとCAS版を返す。
+        公開版readの内容で未公開currentを上書きしない。元内容未解決なら編集送信を停止する。
+      tags: [Manual]
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema: { type: string, enum: [screens, workflows] }
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 編集元の状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualArticleEditView' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /manual/articles/{category}/{slug}/operations/{operation_key}:
+    get:
+      operationId: getManualEditOperationResult
+      summary: 既存記事編集の結果照会
+      x-contract-status: selected
+      description: |
+        EMR-502。manual-edit:editの現在権限、元の選択医院・認証actor・intent=edit・記事対象へ拘束する。
+        200 succeededは元の確定receipt、200 unknownは照合不能（未実行・失敗とは断定しない）。
+        後続編集・非表示で現在状態が変わっても元receiptを返す。照会は新しい版や履歴を作らない。
+        権限失効は403、結果store障害は500。別医院・別actorのreceiptを開示しない。
+        unknown中は入力案を保持し新keyで再保存しない。照合成功後に現在状態を別取得して比較する。
+      tags: [Manual]
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema: { type: string, enum: [screens, workflows] }
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: operation_key
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 確定receiptまたはunknown
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualEditOperationResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /manual/articles/{category}/{slug}/versions:
     get:
       operationId: listManualArticleVersions
       summary: マニュアル記事の編集履歴一覧
+      x-contract-status: selected
+      description: |
+        EMR-502編集元確認の境界。manual-edit:editを現在権限で検査する。
+        非公開内容を含むため一般公開READと分離。保持済み内容版を返し、legacy_unknownを補完しない。
+        復元は保持済み元版から新内容版を作る別操作。履歴の上書き・削除をしない。
       tags: [Manual]
       parameters:
         - name: category
@@ -26457,6 +26875,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
 
