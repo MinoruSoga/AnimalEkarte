@@ -1,6 +1,8 @@
 package medicalrecord
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -186,4 +188,73 @@ func TestUpdateConsultationRequest_ToServiceInput_NilFields(t *testing.T) {
 	if input.TaxRate != nil {
 		t.Fatalf("TaxRate = %v, want nil", input.TaxRate)
 	}
+	if input.IsNonInsurance != nil {
+		t.Fatalf("IsNonInsurance = %v, want nil (未指定=変更なし)", *input.IsNonInsurance)
+	}
+}
+
+// EMR-454: create は省略時 nil（service が新規初期値=対象外 true を明示保存）・明示 null=400、
+// update は未指定= nil / 明示 null=400 / true・false=明示更新を区別する。
+func TestConsultationRequest_IsNonInsuranceWireContract(t *testing.T) {
+	t.Run("create omits is_non_insurance", func(t *testing.T) {
+		var req createConsultationRequest
+		if err := json.Unmarshal([]byte(`{"name":"診察"}`), &req); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := req.IsNonInsurance.toServiceInput(); got != nil {
+			t.Fatalf("IsNonInsurance = %v, want nil", *got)
+		}
+	})
+
+	t.Run("create explicit null is rejected with 400", func(t *testing.T) {
+		var req createConsultationRequest
+		if err := json.Unmarshal([]byte(`{"name":"診察","is_non_insurance":null}`), &req); err == nil {
+			t.Fatal("explicit null must be rejected, got nil error")
+		}
+	})
+
+	for _, value := range []bool{true, false} {
+		t.Run(fmt.Sprintf("create explicit %v", value), func(t *testing.T) {
+			var req createConsultationRequest
+			body := fmt.Sprintf(`{"name":"診察","is_non_insurance":%v}`, value)
+			if err := json.Unmarshal([]byte(body), &req); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := req.IsNonInsurance.toServiceInput()
+			if got == nil || *got != value {
+				t.Fatalf("IsNonInsurance = %v, want %v", got, value)
+			}
+		})
+	}
+
+	t.Run("update omits is_non_insurance", func(t *testing.T) {
+		var req updateConsultationRequest
+		if err := json.Unmarshal([]byte(`{"name":"診察"}`), &req); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := req.toServiceInput().IsNonInsurance; got != nil {
+			t.Fatalf("IsNonInsurance = %v, want nil", *got)
+		}
+	})
+
+	for _, value := range []bool{true, false} {
+		t.Run(fmt.Sprintf("update explicit %v", value), func(t *testing.T) {
+			var req updateConsultationRequest
+			body := fmt.Sprintf(`{"is_non_insurance":%v}`, value)
+			if err := json.Unmarshal([]byte(body), &req); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := req.toServiceInput().IsNonInsurance
+			if got == nil || *got != value {
+				t.Fatalf("IsNonInsurance = %v, want %v", got, value)
+			}
+		})
+	}
+
+	t.Run("update explicit null is rejected", func(t *testing.T) {
+		var req updateConsultationRequest
+		if err := json.Unmarshal([]byte(`{"is_non_insurance":null}`), &req); err == nil {
+			t.Fatal("explicit null must be rejected, got nil error")
+		}
+	})
 }

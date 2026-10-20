@@ -26,6 +26,7 @@
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:741](../../../backend/migrations/001_init.sql#L741) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:742](../../../backend/migrations/001_init.sql#L742) |
 | `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7608](../../../backend/migrations/001_init.sql#L7608) |
+| `version` | `bigint` | NOT NULL | `1` | — | [004_master_insurance_versions.sql:11](../../../backend/migrations/004_master_insurance_versions.sql#L11) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -53,6 +54,7 @@ erDiagram
         timestamptz updated_at
         timestamptz deleted_at
         BOOLEAN is_non_insurance
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -84,6 +86,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `vaccines_pkey` | primary | `PRIMARY KEY` | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
+| `ck_vaccines_positive_version` | check | `CONSTRAINT ck_vaccines_positive_version CHECK (version > 0)` | [004_master_insurance_versions.sql:12](../../../backend/migrations/004_master_insurance_versions.sql#L12) |
 
 ## インデックス
 

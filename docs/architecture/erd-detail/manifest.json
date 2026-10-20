@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "a87887b221af2a2a7051cd2f05242f6a9cbe11ab268d00acc64b8dd3c95dc5c2",
+  "source_digest": "a16550e1fadcfa277fd84fc6ff2a26b5faf71eb68e051c5c390a525de186a32d",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,7 +18,7 @@
   ],
   "counts": {
     "tables": 242,
-    "columns": 2697,
+    "columns": 2700,
     "foreign_keys": 740
   },
   "migrations": [
@@ -29,6 +29,10 @@
     {
       "name": "003_trimming_course_image_uploads.sql",
       "sha256": "a86a626288b251d02a9071b2b8eb60e83e15216ff474887b12afd57ebea2cd23"
+    },
+    {
+      "name": "004_master_insurance_versions.sql",
+      "sha256": "580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b"
     }
   ],
   "reviewed_do_blocks": [

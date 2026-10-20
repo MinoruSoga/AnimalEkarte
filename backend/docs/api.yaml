@@ -294,6 +294,8 @@ components:
           description: 課税区分に応じて算出した税額
         is_insurance_applicable:
           type: boolean
+          nullable: true
+          description: 未設定の保存値は null のまま返す。false へ補完しない。
         source:
           type: string
           enum: [medical_record, hospitalization, manual, trimming]
@@ -2378,7 +2380,7 @@ components:
           description: >
             items+warnings の決定的フィンガープリント（EMR-196）。
             POST /accountings/complete の expected_unbilled_revision として返送する
-            楽観ロック token。形式は "u1:<sha256-hex>"。
+            楽観ロック token。形式は "u2:<sha256-hex>"。
         owner_discount_rate:
           type: number
           format: double
@@ -3161,8 +3163,14 @@ components:
           format: int64
     Consultation:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -3197,6 +3205,10 @@ components:
           default: true
         description:
           type: string
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。読み取りでは旧欠落を null のまま返す（false 補完しない）。create / update の request 契約は CreateConsultationRequest / UpdateConsultationRequest を参照。
         time_condition:
           type: string
         duration:
@@ -3205,6 +3217,8 @@ components:
           nullable: true
         sort_order:
           type: integer
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
         created_at:
           type: string
           format: date-time
@@ -3215,8 +3229,14 @@ components:
           readOnly: true
     Procedure:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -3246,13 +3266,21 @@ components:
           nullable: true
         anesthesia:
           type: string
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
           enum:
             - none
             - local
             - sedation
             - general
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。読み取りでは旧欠落を null のまま返す（false 補完しない）。create / update の request 契約は CreateProcedureRequest / UpdateProcedureRequest を参照。
         sort_order:
           type: integer
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
         created_at:
           type: string
           format: date-time
@@ -3267,6 +3295,201 @@ components:
         tax_rate:
           type: number
           format: double
+    CreateConsultationRequest:
+      type: object
+      required: [name]
+      description: 診察項目登録の request body（EMR-454）。response の Consultation とは別 schema（is_non_insurance は null 不許可・読み取りの nullable と分離）。
+      properties:
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親診察項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        tax_type:
+          type: string
+          enum: *id001
+          default: excluded
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          default: 0.10
+          description: 税率
+        is_active:
+          type: boolean
+          default: true
+        description:
+          type: string
+        time_condition:
+          type: string
+        duration:
+          type: integer
+          description: 所要時間（分）
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は 0 として登録する。
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
+    UpdateConsultationRequest:
+      type: object
+      required: [version]
+      description: 診察項目更新の request body（EMR-454・PATCH 部分更新）。response の Consultation とは別 schema（is_non_insurance は null 不許可）。
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親診察項目ID（自己参照）
+        clear_parent_id:
+          type: boolean
+          description: true で親診察項目の関連を解除する（parent_id との同時指定はしない）
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        tax_type:
+          type: string
+          enum: *id001
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          description: 税率
+        is_active:
+          type: boolean
+        description:
+          type: string
+        time_condition:
+          type: string
+        duration:
+          type: integer
+          description: 所要時間（分）
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は変更なし。明示 0 は更新する。
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は変更なし（DB NULL=旧欠落を書き換えない）、null は 400 invalid input、true/false は明示更新。
+    CreateProcedureRequest:
+      type: object
+      required: [name, anesthesia, tax_type]
+      description: 処置項目登録の request body（EMR-454）。response の Procedure とは別 schema（is_non_insurance は null 不許可）。
+      properties:
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親処置項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
+        price:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+          default: false
+        description:
+          type: string
+        duration:
+          type: integer
+          nullable: true
+        anesthesia:
+          type: string
+          enum:
+            - none
+            - local
+            - sedation
+            - general
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は 0 として登録する。
+        tax_type:
+          type: string
+          enum: *id001
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          default: 0.10
+          description: 税率
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
+    UpdateProcedureRequest:
+      type: object
+      required: [version]
+      description: 処置項目更新の request body（EMR-454・PATCH 部分更新）。response の Procedure とは別 schema（is_non_insurance は null 不許可）。
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親処置項目ID（自己参照）
+        clear_parent_id:
+          type: boolean
+          description: true で親処置項目の関連を解除する（parent_id との同時指定はしない）
+        price:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        duration:
+          type: integer
+          nullable: true
+        anesthesia:
+          type: string
+          nullable: true
+          description: 省略または null は変更なし。明示 enum 値は更新する。
+          enum:
+            - none
+            - local
+            - sedation
+            - general
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は変更なし。明示 0 は更新する。
+        tax_type:
+          type: string
+          enum: *id001
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          description: 税率
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は変更なし（DB NULL=旧欠落を書き換えない）、null は 400 invalid input、true/false は明示更新。
     HospitalizationPlan:
       type: object
       required: [name]
@@ -5550,6 +5773,8 @@ components:
           type: boolean
         is_insurance:
           type: boolean
+          nullable: true
+          description: 未設定の保存値は null のまま返す。false へ補完しない。
         deleted_at:
           type: string
           format: date-time
@@ -18592,7 +18817,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consultation'
+              $ref: '#/components/schemas/CreateConsultationRequest'
       responses:
         '201':
           description: 登録成功
@@ -18697,7 +18922,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consultation'
+              $ref: '#/components/schemas/UpdateConsultationRequest'
       responses:
         '200':
           description: 更新成功
@@ -18713,6 +18938,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -18766,7 +18993,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Procedure'
+              $ref: '#/components/schemas/CreateProcedureRequest'
       responses:
         '201':
           description: 登録成功
@@ -18871,7 +19098,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Procedure'
+              $ref: '#/components/schemas/UpdateProcedureRequest'
       responses:
         '200':
           description: 更新成功
@@ -18887,6 +19114,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:

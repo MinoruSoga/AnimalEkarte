@@ -22,6 +22,7 @@ import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, LAYOUT } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type { TaxType } from "@/types/generated/models";
+import type { ItemInsuranceSetting } from "@/types/treatment";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   ANESTHESIA_OPTIONS,
@@ -38,7 +39,13 @@ export type TreatmentFormData = {
   isActive: boolean;
   taxType: TaxType;
   taxRate: number;
-  isNonInsurance: boolean;
+  /**
+   * 品目別保険設定（EMR-454）。true=対象外 / false=対象 / null=旧欠落（未設定）。
+   * null は「未保存」であり false（保険対象）へ補完しない。
+   */
+  isNonInsurance: ItemInsuranceSetting;
+  insuranceChanged?: boolean;
+  version?: number | null;
   /** undefined = 未変更(Update時に送らない), "" = 親なし明示, "123" = 親指定 */
   parentId?: string;
   /** Procedure only — BE create requires anesthesia enum */
@@ -52,6 +59,32 @@ const ANESTHESIA_SELECT_ITEMS = ANESTHESIA_OPTIONS.map((option) => (
 ));
 
 const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-full`;
+
+/**
+ * 品目別保険設定の表示（EMR-454）。
+ * null は旧欠落（未設定）であり「いいえ＝保険対象」と混同しない。
+ */
+function formatItemInsuranceLabel(value: ItemInsuranceSetting): string {
+  if (value === null) return "未設定";
+  return value ? "はい" : "いいえ";
+}
+
+/**
+ * 品目別保険設定の初期値（EMR-454）。
+ * - 三状態モード（診察・処置）: 新規行の初期値は「保険対象外」。既存行の旧欠落 null は
+ *   そのまま保持し、false（保険対象）へ補完しない。
+ * - boolean モード（検査・予防・健診）: 既存どおり item 未設定は false。
+ */
+function resolveInitialItemInsurance(
+  item: TreatmentItem | null,
+  insuranceTriState: boolean,
+): ItemInsuranceSetting {
+  if (!insuranceTriState) return item?.isNonInsurance ?? false;
+  if (!item) return true;
+  return "insuranceSetting" in item
+    ? (item.insuranceSetting ?? null)
+    : (item.isNonInsurance ?? null);
+}
 
 interface TreatmentItemSidePanelProps {
   item: TreatmentItem | null;
@@ -67,6 +100,11 @@ interface TreatmentItemSidePanelProps {
   details?: ReactNode;
   /** true = 処置タブ — 麻酔区分入力を表示 */
   showAnesthesia?: boolean;
+  /**
+   * EMR-454: 診察・処置タブは is_non_insurance が nullable（旧欠落=null）。
+   * true のとき三状態で扱い、新規行の初期値は「保険対象外」にする。
+   */
+  insuranceTriState?: boolean;
 }
 
 export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
@@ -80,9 +118,15 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
   onDirtyChange,
   details,
   showAnesthesia = false,
+  insuranceTriState = false,
 }: TreatmentItemSidePanelProps) {
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
+
+  const initialIsNonInsurance: ItemInsuranceSetting = resolveInitialItemInsurance(
+    item,
+    insuranceTriState,
+  );
 
   const {
     formData,
@@ -96,7 +140,9 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       isActive: item?.isActive ?? true,
       taxType: (item ? (item.taxType ?? "excluded") : "included") as TaxType,
       taxRate: item?.taxRate ?? 0.1,
-      isNonInsurance: item?.isNonInsurance ?? false,
+      isNonInsurance: initialIsNonInsurance,
+      insuranceChanged: false,
+      version: item?.version,
       parentId: undefined,
       anesthesia: initialAnesthesia(item?.anesthesia),
     },
@@ -203,17 +249,25 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       </PropertyRow>
       <PropertyRow
         label="保険対象外"
-        description="この項目が保険適用の対象外かどうかです。対象外にすると保険計算から除外されます。"
+        description={
+          insuranceTriState
+            ? "この項目が保険適用の対象外かどうかです。未設定は旧データの未保存値で、変更しなければそのまま保持されます。"
+            : "この項目が保険適用の対象外かどうかです。対象外にすると保険計算から除外されます。"
+        }
       >
         <PropertyToggleButton
           label="保険対象外"
-          pressed={formData.isNonInsurance}
-          onPressedChange={(value) =>
-            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: value }))
+          pressed={
+            insuranceTriState && formData.isNonInsurance === null
+              ? "mixed"
+              : formData.isNonInsurance === true
           }
-          className={`text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          onPressedChange={(value) =>
+            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: value, insuranceChanged: true }))
+          }
+          className={`text-sm ${formData.isNonInsurance === true ? C.textBrand : C.text50}`}
         >
-          {formData.isNonInsurance ? "はい" : "いいえ"}
+          {formatItemInsuranceLabel(formData.isNonInsurance)}
         </PropertyToggleButton>
       </PropertyRow>
       {hasChildren ? (

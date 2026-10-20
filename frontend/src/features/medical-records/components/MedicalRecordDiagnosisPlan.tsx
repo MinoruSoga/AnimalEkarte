@@ -269,15 +269,21 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         toast.error(doseResult.message);
         return;
       }
-      createTreatmentFn({
-        ...buildMasterSelectionPayload({
-          item,
-          quantity: doseResult.quantity,
-          sortOrder: latest.nextOrder,
-        }),
-        memo: item.category,
-        is_insurance: true,
-      });
+      try {
+        createTreatmentFn({
+          ...buildMasterSelectionPayload({
+            item,
+            quantity: doseResult.quantity,
+            sortOrder: latest.nextOrder,
+            // 本経路の従来既定は保険対象。master の明示値はビルダーが反転写像する（EMR-454）。
+            insuranceFallback: true,
+          }),
+          memo: item.category,
+        });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "保険設定を確認してください");
+        return;
+      }
     },
     [medicalRecordId, recordClinicId, petSpecies, queryClient, createTreatmentFn],
   );

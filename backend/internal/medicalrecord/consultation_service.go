@@ -3,22 +3,24 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 const (
-	colConsultationName          = "name"
-	colConsultationPrice         = "price"
-	colConsultationIsActive      = "is_active"
-	colConsultationDescription   = "description"
-	colConsultationTimeCondition = "time_condition"
-	colConsultationDuration      = "duration"
-	colConsultationParentID      = "parent_id"
-	colConsultationSortOrder     = "sort_order"
-	colConsultationTaxType       = "tax_type"
-	colConsultationTaxRate       = "tax_rate"
+	colConsultationName           = "name"
+	colConsultationPrice          = "price"
+	colConsultationIsActive       = "is_active"
+	colConsultationDescription    = "description"
+	colConsultationTimeCondition  = "time_condition"
+	colConsultationDuration       = "duration"
+	colConsultationParentID       = "parent_id"
+	colConsultationSortOrder      = "sort_order"
+	colConsultationTaxType        = "tax_type"
+	colConsultationTaxRate        = "tax_rate"
+	colConsultationIsNonInsurance = "is_non_insurance"
 )
 
 func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
@@ -51,6 +53,9 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 	if input.TaxRate != nil {
 		fields[colConsultationTaxRate] = *input.TaxRate
 	}
+	if input.IsNonInsurance != nil {
+		fields[colConsultationIsNonInsurance] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -58,6 +63,7 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 
 // CreateConsultationInput は診察種別作成のサービス入力 DTO
 type CreateConsultationInput struct {
+	ActorID       *uint64
 	Name          string
 	Price         *int64
 	IsActive      bool
@@ -68,10 +74,15 @@ type CreateConsultationInput struct {
 	SortOrder     int
 	TaxType       *string  // nil = "excluded" (default)
 	TaxRate       *float64 // nil = 0.10 (default)
+
+	// IsNonInsurance は品目別保険設定。nil = 新規登録の初期値（保険対象外=true）。
+	IsNonInsurance *bool
 }
 
 // UpdateConsultationInput は診察料金更新のサービス入力 DTO
 type UpdateConsultationInput struct {
+	Version       int64 // Required editing-start version; never replaced with a freshly read version.
+	ActorID       *uint64
 	Name          *string
 	Price         *int64
 	IsActive      *bool
@@ -83,6 +94,9 @@ type UpdateConsultationInput struct {
 	SortOrder     *int
 	TaxType       *string
 	TaxRate       *float64
+
+	// IsNonInsurance は nil = 変更なし（DB の未保存/旧欠落 NULL を書き換えない）。
+	IsNonInsurance *bool
 }
 
 type ConsultationService interface {
@@ -95,11 +109,17 @@ type ConsultationService interface {
 }
 
 type consultationService struct {
-	repo ConsultationRepository
+	insuranceWrites MasterInsuranceWriteDependencies
+	repo            ConsultationRepository
 }
 
 func NewConsultationService(repo ConsultationRepository) ConsultationService {
 	return &consultationService{repo: repo}
+}
+
+// NewConsultationServiceWithAudit enables atomic item-setting writes and durable audit.
+func NewConsultationServiceWithAudit(repo ConsultationRepository, deps MasterInsuranceWriteDependencies) ConsultationService {
+	return &consultationService{repo: repo, insuranceWrites: deps}
 }
 
 func (s *consultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
@@ -117,6 +137,28 @@ func (s *consultationService) GetByID(ctx context.Context, clinicID, id uint64) 
 	return result, nil
 }
 func (s *consultationService) Create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	var result *model.Consultation
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var err error
+		result, err = s.create(txCtx, clinicID, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *consultationService) create(ctx context.Context, clinicID uint64, input *CreateConsultationInput) (*model.Consultation, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
@@ -134,6 +176,17 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
+	// EMR-454: 新規登録の初期値は保険対象外（true）。DB に DEFAULT を持たせず
+	// API 層で明示保存する。明示指定（false=保険対象）は上書きしない。
+	isNonInsurance := true
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
+	}
+	var exactTaxRate model.ExactNumeric
+	if err := exactTaxRate.Scan(strconv.FormatFloat(taxRate, 'f', -1, 64)); err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid tax rate")
+	}
+	sortOrder := input.SortOrder
 	consultation := &model.Consultation{
 		ClinicID:      clinicID,
 		Name:          input.Name,
@@ -143,9 +196,11 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		TimeCondition: input.TimeCondition,
 		Duration:      input.Duration,
 		ParentID:      input.ParentID,
-		SortOrder:     input.SortOrder,
+		SortOrder:     &sortOrder,
 		TaxType:       taxType,
-		TaxRate:       taxRate,
+		TaxRate:       exactTaxRate,
+
+		IsNonInsurance: &isNonInsurance,
 	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
 		if conflict := apperrors.AsNameUniqueConflict(
@@ -159,9 +214,42 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		return nil, apperrors.Wrap(err, "failed to create consultation")
 	}
 	slog.InfoContext(ctx, "consultation created", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", consultation.ID))
-	return consultation, nil
+	return s.repo.FindByID(ctx, clinicID, consultation.ID)
 }
 func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	if input.Version < 1 {
+		return nil, apperrors.WrapInvalidInput("positive editing-start version is required")
+	}
+	var result *model.Consultation
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.update", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var oldSetting *bool
+		if before.IsNonInsurance != nil {
+			value := *before.IsNonInsurance
+			oldSetting = &value
+		}
+		result, err = s.update(txCtx, clinicID, id, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance, SkipInsuranceAudit: input.IsNonInsurance == nil}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *consultationService) update(ctx context.Context, clinicID, id uint64, input *UpdateConsultationInput) (*model.Consultation, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
@@ -201,25 +289,36 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find consultation")
+	if s.insuranceWrites.Transactor == nil {
+		return apperrors.WrapInternalServerError("consultation write transaction dependency is required")
 	}
-	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check consultation children")
-	}
-	if childCount > 0 {
-		return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
-	}
-	count, err := s.repo.CountUsageByConsultationID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check consultation dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この診察項目はカルテで使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete consultation")
+	if err := s.insuranceWrites.Transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to find consultation")
+		}
+		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check consultation children")
+		}
+		if childCount > 0 {
+			return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
+		}
+		count, err := s.repo.CountUsageByConsultationID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check consultation dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この診察項目はカルテで使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete consultation")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "consultation deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", id))
 	return nil

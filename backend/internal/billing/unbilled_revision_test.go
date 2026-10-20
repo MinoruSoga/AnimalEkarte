@@ -47,7 +47,7 @@ func TestComputeUnbilledRevision(t *testing.T) {
 		r1 := computeUnbilledRevision(items, nil)
 		r2 := computeUnbilledRevision(items, nil)
 		require.Equal(t, r1, r2)
-		assert.Contains(t, r1, "u1:", "algorithm 接頭辞で方式版を識別する")
+		assert.Contains(t, r1, "u2:", "algorithm 接頭辞で方式版を識別する")
 	})
 
 	t.Run("集約内の順序差は同一 revision（順序非依存）", func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestComputeUnbilledRevision(t *testing.T) {
 		changed.TaxType = model.TaxTypeIncluded
 		assert.NotEqual(t, before, computeUnbilledRevision([]model.BillingItem{changed}, nil))
 		changed = baseItem()
-		changed.IsInsuranceApplicable = true
+		changed.IsInsuranceApplicable = ptrBool(true)
 		assert.NotEqual(t, before, computeUnbilledRevision([]model.BillingItem{changed}, nil))
 		changed = baseItem()
 		changed.MedicalRecordID = ptrU64(10)
@@ -109,7 +109,7 @@ func TestComputeUnbilledRevision(t *testing.T) {
 		r1 := computeUnbilledRevision(nil, nil)
 		r2 := computeUnbilledRevision([]model.BillingItem{}, []UnbilledWarning{})
 		assert.Equal(t, r1, r2)
-		assert.Contains(t, r1, "u1:")
+		assert.Contains(t, r1, "u2:")
 		// 明細が1件でもあれば空集合版とは一致しない（未指定トークン相当のすり抜けなし）。
 		assert.NotEqual(t, r1, computeUnbilledRevision([]model.BillingItem{baseItem()}, nil))
 	})

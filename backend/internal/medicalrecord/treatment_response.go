@@ -24,7 +24,7 @@ type treatmentResponse struct {
 	Content         string  `json:"content"`
 	Memo            string  `json:"memo"`
 	AdminRoute      string  `json:"admin_route"`
-	Insurance       bool    `json:"is_insurance"`
+	Insurance       *bool   `json:"is_insurance"`
 	DiscountRate    float64 `json:"discount_rate"`
 	DiscountAmount  int64   `json:"discount_amount"`
 	SortOrder       int     `json:"sort_order"`

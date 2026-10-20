@@ -262,7 +262,9 @@ export function AccountingItemRow({
         {formatCurrency(item.taxAmount)}
       </TableCell>
       <TableCell className="text-center">
-        {item.isInsuranceApplicable ? (
+        {item.isInsuranceApplicable === null ? (
+          <span className={`text-xs ${C.text60}`}>未設定</span>
+        ) : item.isInsuranceApplicable ? (
           <span className={`${C.textStatusGreen} font-normal text-xs`}>●</span>
         ) : (
           <span className={`${C.text20} text-xs`}>-</span>

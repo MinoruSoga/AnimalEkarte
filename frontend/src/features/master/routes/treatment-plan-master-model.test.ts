@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 import {
+  applyItemInsuranceForCreate,
+  applyItemInsuranceForUpdate,
+  buildTreatmentTabConfigs,
   buildCheckupCreateRequest,
+  buildCheckupUpdateRequest,
   buildConsultationCreateRequest,
   buildConsultationUpdateRequest,
   buildExaminationCreateRequest,
@@ -23,6 +27,7 @@ function makeFormData(overrides: Partial<TreatmentFormData> = {}): TreatmentForm
     taxRate: 0.1,
     isNonInsurance: false,
     anesthesia: "none",
+    version: 7,
     ...overrides,
   };
 }
@@ -82,7 +87,7 @@ describe("buildProcedureCreateRequest", () => {
     ["local", "local"],
     ["sedation", "sedation"],
     ["general", "general"],
-  ] as const)("sends anesthesia=%s when form selects %s", (selected) => {
+  ] as const)("sends anesthesia=%s when form selects %s", (selected, _expected) => {
     const request = buildProcedureCreateRequest(makeFormData({ anesthesia: selected }));
     expect(request.anesthesia).toBe(selected);
     expect(request.name).toBe("V04処置テスト");
@@ -169,4 +174,130 @@ describe("buildCheckupCreateRequest", () => {
     const priced = buildCheckupCreateRequest(makeFormData({ name: "年次健診", price: 1200 }));
     expect(priced.price).toBe(1200);
   });
+});
+
+// ─────────────────────────────────────────────────
+// EMR-454: 品目別保険設定（create=対象外初期値 / update=未指定・null・false・true の区別）
+// ─────────────────────────────────────────────────
+
+describe("applyItemInsuranceForCreate", () => {
+  it("新規登録は未設定(null)でも保険対象外(true)を明示する", () => {
+    const request = applyItemInsuranceForCreate(
+      buildConsultationCreateRequest(makeFormData()),
+      null,
+    );
+    expect(request.is_non_insurance).toBe(true);
+  });
+
+  it("処置も同じく新規登録は保険対象外(true)を明示する", () => {
+    const request = applyItemInsuranceForCreate(buildProcedureCreateRequest(makeFormData()), null);
+    expect(request.is_non_insurance).toBe(true);
+  });
+
+  it("利用者が選んだ false(保険対象)を上書きしない", () => {
+    const request = applyItemInsuranceForCreate(
+      buildConsultationCreateRequest(makeFormData()),
+      false,
+    );
+    expect(request.is_non_insurance).toBe(false);
+  });
+});
+
+describe("applyItemInsuranceForUpdate", () => {
+  it("未指定(undefined)は is_non_insurance を送らない", () => {
+    const request = applyItemInsuranceForUpdate(
+      buildConsultationUpdateRequest(makeFormData()),
+      undefined,
+    );
+    expect(request).not.toHaveProperty("is_non_insurance");
+  });
+
+  it("旧欠落(null)は送らず、既存値を反転させない", () => {
+    const request = applyItemInsuranceForUpdate(buildProcedureUpdateRequest(makeFormData()), null);
+    expect(request).not.toHaveProperty("is_non_insurance");
+    expect(request.name).toBe("V04処置テスト");
+  });
+
+  it("明示 false を送る", () => {
+    const request = applyItemInsuranceForUpdate(
+      buildConsultationUpdateRequest(makeFormData()),
+      false,
+    );
+    expect(request.is_non_insurance).toBe(false);
+  });
+
+  it("明示 true を送る", () => {
+    const request = applyItemInsuranceForUpdate(buildProcedureUpdateRequest(makeFormData()), true);
+    expect(request.is_non_insurance).toBe(true);
+  });
+
+  it("親クリア指定を保険設定の付与で落とさない", () => {
+    const request = applyItemInsuranceForUpdate(
+      buildConsultationUpdateRequest(makeFormData({ parentId: "" })),
+      true,
+    );
+    expect(request.clear_parent_id).toBe(true);
+    expect(request.is_non_insurance).toBe(true);
+  });
+});
+
+describe("consumer capability and editing snapshot stay aligned", () => {
+  const configs = buildTreatmentTabConfigs({
+    consultationData: [],
+    examinationData: [],
+    procedureData: [],
+    vaccineData: [],
+    checkupData: [],
+    onReorderConsultations: () => {},
+    onReorderExaminations: () => {},
+    onReorderProcedures: () => {},
+    onReorderVaccines: () => {},
+    onReorderCheckups: () => {},
+  });
+  it.each([
+    { kind: "vaccine" as const, build: buildVaccineUpdateRequest },
+    { kind: "checkup" as const, build: buildCheckupUpdateRequest },
+  ])("keeps $kind editing compatible with its adopted API", ({ kind, build }) => {
+    if (configs[kind].insuranceTriState) {
+      expect(() => build(makeFormData({ version: undefined }))).toThrow("編集開始時");
+      expect(build(makeFormData({ version: 7 }))).toMatchObject({ version: 7 });
+    } else {
+      expect(build(makeFormData({ version: undefined, parentId: "" }))).toMatchObject({
+        name: "V04処置テスト",
+        clear_parent_id: true,
+      });
+      expect(build(makeFormData({ version: 7 }))).not.toHaveProperty("version");
+    }
+  });
+});
+
+describe("editing snapshot CAS for consultation/procedure", () => {
+  const builders = [buildConsultationUpdateRequest, buildProcedureUpdateRequest];
+  it.each(builders)("roundtrips captured version through update builder", (build) => {
+    expect(build(makeFormData({ version: 7 })).version).toBe(7);
+    expect(build(makeFormData({ version: 7, parentId: "" }))).toMatchObject({
+      version: 7,
+      clear_parent_id: true,
+    });
+  });
+  it.each(builders)("rejects missing or invalid version without replacing it", (build) => {
+    for (const version of [
+      undefined,
+      null,
+      0,
+      -1,
+      1.5,
+      NaN,
+      Infinity,
+      Number.MAX_SAFE_INTEGER + 1,
+    ]) {
+      expect(() => build(makeFormData({ version }))).toThrow("編集開始時");
+    }
+  });
+  it.each([buildConsultationCreateRequest, buildProcedureCreateRequest, buildVaccineCreateRequest])(
+    "new rows require no version",
+    (build) => {
+      expect(build(makeFormData({ version: undefined }))).not.toHaveProperty("version");
+    },
+  );
 });

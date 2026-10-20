@@ -7,13 +7,16 @@ import type {
 } from "@/types/generated/models";
 
 // Backend 型エイリアス
-export type BackendAccounting = Billing & {
+export type BackendAccounting = Omit<Billing, "items"> & {
+  items?: BackendAccountingItem[];
   /** BUG-007: 未収残高（waiting 全額 or クレジット訂正差額） */
   outstanding_amount?: number | null;
 };
 
 // BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
-export interface BackendAccountingItem extends BillingItem {
+export interface BackendAccountingItem extends Omit<BillingItem, "is_insurance_applicable"> {
+  /** null = legacy unset; absent = unavailable. Neither is an explicit false. */
+  is_insurance_applicable?: boolean | null;
   vaccination_id?: number;
   exam_id?: number;
   other_reason?: string;

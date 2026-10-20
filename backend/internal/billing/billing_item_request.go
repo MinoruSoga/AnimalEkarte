@@ -142,7 +142,7 @@ type BillingItemResponse struct {
 	TaxType               string  `json:"tax_type"`
 	TaxRate               float64 `json:"tax_rate"`
 	TaxAmount             int64   `json:"tax_amount"`
-	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	IsInsuranceApplicable *bool   `json:"is_insurance_applicable"`
 	Source                string  `json:"source"`
 	OtherReason           *string `json:"other_reason,omitempty" binding:"omitempty,max=500"`
 	TreatmentID           *uint64 `json:"treatment_id,omitempty"`

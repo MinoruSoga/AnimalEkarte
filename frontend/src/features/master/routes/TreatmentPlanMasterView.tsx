@@ -80,6 +80,7 @@ export function TreatmentPlanMasterView({
             canEdit={activeCanEdit}
             examinationType={resources.selectedExamination}
             showAnesthesia={activeTab === "procedure"}
+            insuranceTriState={resources.tabConfigs[activeTab].insuranceTriState}
             onClose={onClose}
             onSave={onSave}
             onDeleteRequest={onDeleteRequest}
