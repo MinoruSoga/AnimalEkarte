@@ -3,7 +3,7 @@ import { memo, useState, useCallback, useRef, useEffect, useLayoutEffect } from 
 import { C } from "@/lib/design-tokens";
 
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
-import type { Treatment, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 import {
   TreatmentInsuranceCell,
   TreatmentRowActions,
@@ -18,12 +18,13 @@ import {
   TreatmentUnitPriceCell,
 } from "./TreatmentRowEditors";
 import { TreatmentQuantityCell } from "./TreatmentQuantityCell";
+import { TreatmentThreeValuesCell } from "./TreatmentThreeValuesCell";
 
 interface TreatmentRowProps {
   treatment: Treatment;
   isFirst: boolean;
   isLast: boolean;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
   onDelete: (treatmentId: string) => void;
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
@@ -88,7 +89,11 @@ export const TreatmentRow = memo(function TreatmentRow({
   );
 
   const startEdit = useCallback((field: string) => setEditField(field), []);
-  const stopEdit = useCallback(() => setEditField(null), []);
+  // EMR-488: 行内エディタの非同期 commit 完了時に、ユーザーが既に別フィールドへ
+  // 移動していた場合はその編集を閉じない（Codex review P2: stale onStopEdit 対策）。
+  const stopEdit = useCallback((field?: string) => {
+    setEditField((cur) => (field === undefined || cur === field ? null : cur));
+  }, []);
   const handleDelete = useCallback(() => onDelete(treatment.id), [treatment.id, onDelete]);
   const handleMoveUp = useCallback(() => onMoveUp(treatment.id), [treatment.id, onMoveUp]);
   const handleMoveDown = useCallback(() => onMoveDown(treatment.id), [treatment.id, onMoveDown]);
@@ -112,6 +117,15 @@ export const TreatmentRow = memo(function TreatmentRow({
         {...editor}
         isEditing={editField === "content"}
         onStartEdit={() => startEdit("content")}
+      />
+      {/* EMR-488: 薬剤3値（1回製剤量・用法・処方総量）の常時区別表示。薬剤行以外は空セル */}
+      <TreatmentThreeValuesCell
+        treatment={treatment}
+        editField={editField}
+        inputRef={inputRef}
+        onStartEdit={startEdit}
+        onStopEdit={stopEdit}
+        onUpdate={onUpdate}
       />
       <TreatmentInsuranceCell checked={treatment.is_insurance} onChange={handleInsuranceChange} />
       <TreatmentUnitPriceCell

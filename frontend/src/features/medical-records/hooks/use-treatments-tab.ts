@@ -10,6 +10,7 @@ import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDia
 import { useGetTreatments } from "../api/treatments";
 import { useCreateTreatment } from "../api/treatments";
 import { useUpdateTreatment } from "../api/treatments";
+import type { TreatmentUpdateOutcome } from "../types";
 import { useDeleteTreatment } from "../api/treatments";
 import { useReorderTreatments } from "../api/treatments";
 import { useGetVitals } from "../api/vitals";
@@ -41,7 +42,7 @@ export function useTreatmentsTab({
   const createMutation = useCreateTreatment(medicalRecordId, recordClinicId);
   const { mutate: createTreatmentFn } = createMutation;
   const updateMutation = useUpdateTreatment(medicalRecordId, recordClinicId);
-  const { mutate: updateTreatmentFn } = updateMutation;
+  const { mutateAsync: updateTreatmentFn } = updateMutation;
   const deleteMutation = useDeleteTreatment(medicalRecordId, recordClinicId);
   const { mutate: deleteTreatmentFn } = deleteMutation;
   const reorderMutation = useReorderTreatments(medicalRecordId, recordClinicId);
@@ -141,18 +142,27 @@ export function useTreatmentsTab({
 
   // ── handlers ──
 
+  // EMR-488: PATCH 結果を呼出し元へ返す（行内エディタが解決後に閉じ、失敗時に下書きを保持する）。
+  // mutateAsync の reject をここで "failed" に畳むため、fire-and-forget の呼出し元でも
+  // unhandled rejection が発生しない（Codex review P2）。エラートーストは mutation の onError が表示する。
   const handleUpdate = useCallback(
-    (treatmentId: string, input: UpdateTreatmentInput) => {
+    (
+      treatmentId: string,
+      input: UpdateTreatmentInput,
+    ): Promise<TreatmentUpdateOutcome> | undefined => {
       const gate = latestWriteGateRef.current;
-      if (gate.isWriteBlocked || !gate.canEdit) return;
+      if (gate.isWriteBlocked || !gate.canEdit) return Promise.resolve("skipped" as const);
       const target = sortedTreatments.find((t) => t.id === treatmentId);
       // UAT-R2-EXCLUSIVE-LOCK: version 未確定のまま送ると BE は CAS 照合をスキップするため
       // fail-closed で拒否する（clinical_plan の保存アクションと同じ方針）。
       if (typeof target?.version !== "number") {
         toast.error("治療明細の読み込みが完了してから保存してください");
-        return;
+        return Promise.resolve("skipped" as const);
       }
-      updateTreatmentFn({ treatmentId, input: { ...input, version: target.version } });
+      return updateTreatmentFn({ treatmentId, input: { ...input, version: target.version } }).then(
+        () => "saved" as const,
+        () => "failed" as const,
+      );
     },
     [sortedTreatments, updateTreatmentFn],
   );

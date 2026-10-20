@@ -1,5 +1,9 @@
 import { C } from "@/lib/design-tokens";
-import type { Treatment, UpdateTreatmentInput } from "../types";
+import type {
+  Treatment,
+  TreatmentUpdateOutcome,
+  UpdateTreatmentInput,
+} from "../types";
 import {
   computeDoseGate,
   type DoseGateResult,
@@ -37,7 +41,7 @@ export interface QuantityCommitParams {
   onStopEdit: () => void;
   treatment: Treatment;
   doseGateSource: DoseGateSource;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
 }
 
 export function commitTreatmentQuantity(params: QuantityCommitParams) {

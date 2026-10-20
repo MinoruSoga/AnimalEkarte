@@ -40,6 +40,13 @@ func (s *treatmentService) createTreatmentInTx(
 		DiscountRate:    input.DiscountRate,
 		DiscountAmount:  input.DiscountAmount,
 		SortOrder:       input.SortOrder,
+
+		// EMR-488: 薬剤3値。nil は未入力で NULL 保存（推測補完なし・0 は明示 0）。
+		AdministrationDoseAmount:   input.AdministrationDoseAmount,
+		AdministrationDoseUnit:     input.AdministrationDoseUnit,
+		AdministrationInstructions: input.AdministrationInstructions,
+		PrescriptionTotalAmount:    input.PrescriptionTotalAmount,
+		PrescriptionTotalUnit:      input.PrescriptionTotalUnit,
 	}
 
 	// #201 B-2: per_weight 医薬の保存時 BE 再検証＋スナップショット値固定（C1/両上限/species 一致）。
@@ -119,6 +126,17 @@ func (s *treatmentService) updateTreatmentInTx(
 	}
 	effective := *input
 	if err := applyTreatmentDiscountGuard(current, &effective); err != nil {
+		return err
+	}
+	// EMR-488: 行ロック後の locked snapshot で3値ペア不変条件を再検証する（事前チェックとの TOCTOU 閉じ）。
+	effItemTypeTx := current.ItemType
+	if effective.ItemType != nil {
+		effItemTypeTx = *effective.ItemType
+	}
+	if err := validateDoseFieldsMedicineOnlyForUpdate(effItemTypeTx, current, &effective); err != nil {
+		return err
+	}
+	if err := validateDosePairsForUpdate(current, &effective); err != nil {
 		return err
 	}
 	if len(buildTreatmentUpdate(&effective)) == 0 {

@@ -234,6 +234,42 @@ describe("buildCopiedTreatmentPayload", () => {
     expect(payload.status).toBe("completed");
   });
 
+  it("EMR-488: 薬剤3値は複写元の保存値をそのまま保持する（null は未指定、推測補完しない）", () => {
+    const payload = buildCopiedTreatmentPayload({
+      source: {
+        ...baseSource,
+        item_type: "medicine",
+        medicine_id: "42",
+        administration_dose_amount: 2.5,
+        administration_dose_unit: "錠",
+        administration_instructions: "1日2回朝夕食後に",
+        prescription_total_amount: 14,
+        prescription_total_unit: "錠",
+      },
+      masters,
+      sortOrderOffset: 0,
+    });
+    expect(payload.administration_dose_amount).toBe(2.5);
+    expect(payload.administration_dose_unit).toBe("錠");
+    expect(payload.administration_instructions).toBe("1日2回朝夕食後に");
+    expect(payload.prescription_total_amount).toBe(14);
+    expect(payload.prescription_total_unit).toBe("錠");
+
+    const nullPayload = buildCopiedTreatmentPayload({
+      source: {
+        ...baseSource,
+        item_type: "medicine",
+        medicine_id: "42",
+        administration_dose_amount: null,
+        prescription_total_unit: null,
+      },
+      masters,
+      sortOrderOffset: 0,
+    });
+    expect(nullPayload.administration_dose_amount).toBeUndefined();
+    expect(nullPayload.prescription_total_unit).toBeUndefined();
+  });
+
   it("sort_order は複写先の現在最大 +1（offset）をソース値へ加算する", () => {
     const payload = buildCopiedTreatmentPayload({
       source: { ...baseSource, consultation_id: "7", sort_order: 0 },

@@ -11,7 +11,7 @@ import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
-import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentItemType, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
@@ -21,6 +21,7 @@ const TABLE_HEADER = (
       <TableHead className="w-10" />
       <TableHead className="w-24">種別</TableHead>
       <TableHead>内容</TableHead>
+      <TableHead className="w-48">1回量・用法・総量</TableHead>
       <TableHead className="w-16 text-center">保険</TableHead>
       <TableHead className="w-28 text-right">単価</TableHead>
       <TableHead className="w-20 text-right">数量</TableHead>
@@ -60,7 +61,7 @@ interface TreatmentsTableProps {
   canDelete: boolean;
   canEditDiscount: boolean;
   focusLastRow: boolean;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
   onDelete: (treatmentId: string) => void;
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
@@ -91,7 +92,7 @@ export function TreatmentsTable({
       <tbody>
         {treatments.length === 0 ? (
           <tr>
-            <TableCell data-empty-state colSpan={10} className={STYLE.tableEmptySm}>
+            <TableCell data-empty-state colSpan={11} className={STYLE.tableEmptySm}>
               {/* EMR-412 K5: 通常時は実ボタン名（マスタから追加/手入力で追加）を書く。ロック中は理由文言。 */}
               {lockedEmptyMessage ??
                 "治療明細がありません。「マスタから追加」または「手入力で追加」ボタンから追加してください。"}

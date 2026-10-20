@@ -34,6 +34,14 @@ type CreateTreatmentInput struct {
 	// DoseDeviationReason は TASK-377: 上限内の下限割れ/著しい乖離で必須の free-text 理由。
 	// reason-required でない経路では無視され snapshot に残さない。
 	DoseDeviationReason string
+	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。nil は未入力で NULL 保存する。
+	// master・投与日数・quantity からの推測補完は行わない。0 は明示 0 として NULL に変換しない。
+	// dose_amount_mg 等の mg 計算値・会計 quantity・dose_pattern_revision_id（EMR-498 所有）とは別枠。
+	AdministrationDoseAmount   *model.ExactNumeric
+	AdministrationDoseUnit     *string
+	AdministrationInstructions *string
+	PrescriptionTotalAmount    *model.ExactNumeric
+	PrescriptionTotalUnit      *string
 }
 
 // UpdateTreatmentInput は治療項目更新の入力DTO（ポインタ型 = nil は未送信）
@@ -60,6 +68,14 @@ type UpdateTreatmentInput struct {
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
 	DiscountEditAllowed bool
+	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。nil は未送信 = 変更なし
+	// （既存 PATCH 方式。明示 null は request 層の doseAmountField/doseTextField が 400 で拒否する。
+	// checkup_types.is_non_insurance と同一の家契約）。0 は明示 0 として送れる。
+	AdministrationDoseAmount   *model.ExactNumeric
+	AdministrationDoseUnit     *string
+	AdministrationInstructions *string
+	PrescriptionTotalAmount    *model.ExactNumeric
+	PrescriptionTotalUnit      *string
 	// Version は楽観的ロック用 expectedVersion（nil=照合スキップ・後方互換）。
 	// UpdateClinicalPlanInput.Version と同型: repository Update の WHERE version=? 述語に
 	// そのまま渡り、一致時のみ version+1 で書き戻す。0/負値はどの行にも一致せず Conflict。
@@ -191,6 +207,14 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
 	}
+	// EMR-488: 薬剤3値の量・単位ペア不変条件（DB CHECK と同一条件）を tx 前に検証し 400 で拒否する。
+	// 3値は medicine 明細専用のため、非 medicine 明細への指定もここで拒否する。
+	if err := validateDoseFieldsMedicineOnlyForCreate(input.ItemType, input); err != nil {
+		return nil, err
+	}
+	if err := validateDosePairsForCreate(input); err != nil {
+		return nil, err
+	}
 
 	status := model.TreatmentStatusPending
 	if input.Status != "" {
@@ -278,6 +302,11 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
 			return nil, err
 		}
+	}
+	// EMR-488: 薬剤3値の量・単位ペア不変条件（DB CHECK と同一条件）を適用後状態で検証し 400 で拒否する。
+	// 既存の有効ペアに対する片側のみの変更（単位維持で量だけ変更等）は許可する。
+	if err := validateDosePairsForUpdate(existing, input); err != nil {
+		return nil, err
 	}
 
 	fields := buildTreatmentUpdate(input)

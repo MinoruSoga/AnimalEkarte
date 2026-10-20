@@ -77,6 +77,14 @@ export interface Treatment {
   discount_rate: number;
   discount_amount: number;
   sort_order: number;
+  // EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。
+  // null は未保存の NULL。0 は明示 0。undefined は旧 wire / テストフィクスチャの欠落（null 同様に扱う）。
+  // mg 計算値(dose_amount_mg)・会計数量(quantity)とは別枠。
+  administration_dose_amount?: number | null;
+  administration_dose_unit?: string | null;
+  administration_instructions?: string | null;
+  prescription_total_amount?: number | null;
+  prescription_total_unit?: string | null;
   // #201 投与量自動計算の計算根拠スナップショット（全て nullable・BE treatment.go:52-56 に追随）
   dose_weight_kg?: number | null;
   dose_weight_source?: string | null;
@@ -110,6 +118,12 @@ export interface CreateTreatmentInput {
   sort_order?: number;
   /** TASK-377: 上限内の下限割れ/著しい乖離時に必須の free-text 逸脱理由（1〜500 Unicode） */
   dose_deviation_reason?: string;
+  // EMR-488: 薬剤3値。未指定は NULL 保存（推測補完なし）。0 は明示 0 で送れる。
+  administration_dose_amount?: number;
+  administration_dose_unit?: string;
+  administration_instructions?: string;
+  prescription_total_amount?: number;
+  prescription_total_unit?: string;
 }
 
 export interface UpdateTreatmentInput {
@@ -130,6 +144,13 @@ export interface UpdateTreatmentInput {
   sort_order?: number;
   /** TASK-377: 上限内の下限割れ/著しい乖離時に必須の free-text 逸脱理由（1〜500 Unicode） */
   dose_deviation_reason?: string;
+  // EMR-488: 薬剤3値。未送信は変更なし（既存 PATCH 方式）。明示 null は 400
+  // （checkup_types.is_non_insurance と同一の null 契約。doseAmountField/doseTextField で区別）。
+  administration_dose_amount?: number;
+  administration_dose_unit?: string;
+  administration_instructions?: string;
+  prescription_total_amount?: number;
+  prescription_total_unit?: string;
   /**
    * UAT-R2-EXCLUSIVE-LOCK: 楽観的ロック expectedVersion。
    * 呼出側は読取済み Treatment.version を必ず同送する（省略時は BE が照合スキップ＝後方互換）。
@@ -208,3 +229,8 @@ export interface UpdateVitalInput {
    */
   version?: number;
 }
+
+// ── Treatment update outcome (EMR-488) ──────────────────────────────────
+
+/** 治療明細 PATCH の結果。行内エディタは "failed" でエディタを開いたまま下書きを保持する。 */
+export type TreatmentUpdateOutcome = "saved" | "failed" | "skipped";
