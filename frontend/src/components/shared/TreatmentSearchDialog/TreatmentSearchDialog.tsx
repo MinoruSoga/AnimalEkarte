@@ -93,13 +93,27 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
     consultations.forEach((c) => {
       if (c.isActive) {
-        items.push({ id: c.id, name: c.name, unitPrice: c.price, category: "診察" });
+        items.push({
+          id: c.id,
+          name: c.name,
+          unitPrice: c.price,
+          category: "診察",
+          isNonInsurance: c.isNonInsurance,
+          insuranceContract: "master",
+        });
       }
     });
 
     procedures.forEach((p) => {
       if (p.isActive) {
-        items.push({ id: p.id, name: p.name, unitPrice: p.price, category: "処置" });
+        items.push({
+          id: p.id,
+          name: p.name,
+          unitPrice: p.price,
+          category: "処置",
+          isNonInsurance: p.isNonInsurance,
+          insuranceContract: "master",
+        });
       }
     });
 
@@ -133,6 +147,8 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
           unitPrice: m.price,
           category: "薬剤",
           medicineId: m.id,
+          isNonInsurance: m.isNonInsurance,
+          insuranceContract: "master",
         });
       }
     });

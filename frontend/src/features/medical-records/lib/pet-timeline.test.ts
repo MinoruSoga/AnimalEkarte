@@ -79,7 +79,7 @@ describe("toTrimmingTimelineItem（NO32 統合タイムライン）", () => {
     const item = toTrimmingTimelineItem(makeTrimming({ remarks: "", staff: "" }));
 
     expect(item.content).toBe("（記録なし）");
-    expect(item.author).toBe("-");
+    expect(item.author).toBe("—");
   });
 
   it("status がバッジに反映される（予約/キャンセルも履歴として見える）", () => {
@@ -147,7 +147,7 @@ describe("mergePetTimelineItems（NO32 統合タイムライン）", () => {
     );
 
     expect(merged.map((i) => i.id)).toEqual(["1", `${TRIMMING_TIMELINE_ID_PREFIX}9`]);
-    expect(merged[1].date).toBe("-");
+    expect(merged[1].date).toBe("—");
   });
 
   it("カルテ行の copySource と既定遷移先（href 未指定）はそのまま維持する", () => {

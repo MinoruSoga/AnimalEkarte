@@ -23,7 +23,7 @@ Checkupパッケージ（checkup_types／checkup_type_fields／checkups／checku
 
 <a id="fr-checkups-record"></a>
 ## FR-checkups-record：どの入口でも同じカルテ帰属を保つ
-Path Aは保存済みカルテの健診タブで親に紐付ける。Path Bは一覧→患者選択→独立フォームで実施日を診療日とするカルテを作成し健診を紐付ける既存経路。Path Cは一覧から対象カルテの健診タブ＋checkupIdを開いて編集し、別の独立編集系を作らない。通常カルテ全タブ一括保存を追加しない。
+Path Aは保存済みカルテの健診タブで親に紐付ける。Path Bの一覧→患者選択→独立フォームで実施日を診療日とするカルテを作成し健診を紐付ける動作は、現行経路の観察である。目標仕様は[D03の通常受付必須と過去専用入力](../medical-records/lifecycle.md#requirement-fr-medical-records-reception-and-retrospective-entry)を優先し、通常受付を迂回する新しい例外にしない。Path Cは一覧から対象カルテの健診タブ＋checkupIdを開いて編集し、別の独立編集系を作らない。通常カルテ全タブ一括保存を追加しない。
 
 健診種別・実施日を既存フォーム必須とし、担当医・次回日・所見・型付き項目結果は保存対象。担当医未選択を新たな必須にしない。担当医の解除と未送信を区別する。次回日は下記のパッケージ設定／手入力・設定なし空欄の合意へ従う。通常Path BをD03の過去専用入力や患者訂正の代用にしない。
 
@@ -64,7 +64,7 @@ Path Bは現状、カルテ作成→健診作成→値があればfield置換の
 | AC-checkups-canonical | 健診を新規記録 | 保存・集計 | Checkup系一つ、Examinationへ同じ記録を重複生成しない | canonical |
 | AC-checkups-retired-id | 旧健診seedの予約ID範囲 | 新割当／移行 | 再利用せず、実旧値確認前に削除・推測移行しない | canonical |
 | AC-checkups-chart-entry | 保存済みカルテあり | タブから追加 | 同親へ紐付けて即時個別保存 | record |
-| AC-checkups-quick-entry | 独立入口で患者・種別・実施日選択 | 保存 | 実施日を診療日とする親と健診を対応付け | record |
+| AC-checkups-quick-entry | 一覧から患者・種別・実施日を選ぶ。通常受付済みと、理由・医師確認を伴う過去専用入力を対照する | 保存 | D03の通常受付／過去専用入力の条件を満たす同じ親と健診を対応付ける。現行Path Bの受付なし親自動作成を目標の例外や実装必須条件とせず、通常受付を迂回しない | [record](#fr-checkups-record)・[D03](../medical-records/lifecycle.md#requirement-fr-medical-records-reception-and-retrospective-entry) |
 | AC-checkups-edit-entry | 一覧の既存行 | 編集 | 同recordの健診タブ＋対象checkupを開く | record |
 | AC-checkups-required | 種別／実施日欠損 | 保存 | 既存必須エラー、担当医等を新規必須にしない | record |
 | AC-checkups-doctor-clear | 既存担当医あり | 明示解除／未送信 | 解除操作と保持を区別、nullを無条件解除にしない | record |
@@ -113,3 +113,10 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 カルテ内の健診本体／fieldの保存単位と実際の取得・部分保存状態を保ち、通常編集を新たな全タブ一括保存としない。field置換における未送信／null拒否、明示[]、必要監査の原子性は維持する。クリアを空配列による無条件削除に変換せず、対象タブを開いた時点の同じcheckup・fieldと版を確認する。新しい健診実施やフォロー送信対象確認を復元から生成しない。
 
 タブクリア／履歴複製Undoは対象入力の復元であり、患者・親recordの付替え、保存済み原履歴の物理削除、別タブ／別患者／他者変更の消去、通知の回収、会計／入金・実在庫の逆実行へ拡張しない。現在版・対象ID・由来が復元基準から変わっていれば無警告上書きをせず、既存内容と入力を保持して再取得・確認へ進む。保存結果不明を復元成功や未保存扱いにせず、元操作結果を照合してから続ける。復元できた状態とその前後差分も履歴に残す。独立フォーム／機器実行の自動保存方式を、カルテタブの回答だけで新設・変更しない。
+
+<a id="checkups-plan-tab-link"></a>
+## 治療プランから定期健診タブへの接続（2026-10-20追加採用）
+
+本人承認の[共通FRと10AC](../medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を本領域の受け手へ接続する。治療プランに追加した予定をタブで未実施として表示し、同じ予定の識別と実施／結果への対応を辿る。Checkup系を唯一の健診正系統とし、パッケージ・型付き結果・保存時snapshot・次回予定の既決を維持する。予定追加だけで健診完了・結果生成・親カルテ自動作成へ進めず、Examinationへ同じ健診を二重保存しない。既存の通常受付・過去専用入力を迂回する新経路にしない。
+
+実績／結果は本領域の正本一つを参照し、プラン表示用の別本文を独立編集しない。医院・患者・カルテ・予定の照合、結果不明の照会、誤関連訂正・中止時の原記録保護と二重請求防止は上記共通FR／ACへ従う。新規FR／ACの重複定義は置かない。物理作成／projection・関連の多重度は[技術設計](../../../design/domains/checkups/technical-spec.md#plan-tab-link-design)へ分け、実装・実機適合は未確認。

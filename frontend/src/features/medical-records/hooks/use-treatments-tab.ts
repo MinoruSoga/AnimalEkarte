@@ -308,12 +308,17 @@ export function useTreatmentsTab({
       ) {
         return;
       }
-      const payload = buildMasterSelectionPayload({
-        item,
-        quantity,
-        sortOrder: latestGate.nextSortOrder,
-      });
-      createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
+      try {
+        const payload = buildMasterSelectionPayload({
+          item,
+          quantity,
+          sortOrder: latestGate.nextSortOrder,
+        });
+        createTreatmentFn(payload, { onSuccess: () => setFocusLastRow(true) });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "保険設定を確認してください");
+        return;
+      }
     },
     [createTreatmentFn, petSpecies, queryClient, medicalRecordId, recordClinicId],
   );

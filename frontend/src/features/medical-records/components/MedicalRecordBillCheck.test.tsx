@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { toast } from "sonner";
 
+import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { queryKeys } from "@/lib/query-keys";
@@ -75,13 +76,7 @@ const { mockDialogProps } = vi.hoisted(() => ({
 vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () => ({
   TreatmentSearchDialog: (props: {
     clinicId?: string;
-    onSelect: (item: {
-      id: string;
-      name: string;
-      unitPrice: number;
-      category: string;
-      medicineId?: string;
-    }) => void;
+    onSelect: (item: TreatmentMasterItem) => void;
   }) => {
     mockDialogProps.current = props as unknown as Record<string, unknown>;
     return (
@@ -89,7 +84,14 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
         <button
           type="button"
           onClick={() =>
-            props.onSelect({ id: "7", name: "初診", unitPrice: 3307, category: "診察" })
+            props.onSelect({
+              id: "7",
+              name: "初診",
+              unitPrice: 3307,
+              category: "診察",
+              insuranceContract: "master",
+              isNonInsurance: false,
+            })
           }
         >
           診察Aを選択
@@ -97,10 +99,32 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
         <button
           type="button"
           onClick={() =>
-            props.onSelect({ id: "8", name: "処置X", unitPrice: 3306, category: "処置" })
+            props.onSelect({
+              id: "8",
+              name: "処置X",
+              unitPrice: 3306,
+              category: "処置",
+              insuranceContract: "master",
+              isNonInsurance: false,
+            })
           }
         >
           処置Xを選択
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.onSelect({
+              id: "9",
+              name: "自費診察",
+              unitPrice: 5000,
+              category: "診察",
+              insuranceContract: "master",
+              isNonInsurance: true,
+            })
+          }
+        >
+          保険対象外診察を選択
         </button>
         <button
           type="button"
@@ -110,6 +134,8 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
               name: "抗生剤A",
               unitPrice: 3303,
               category: "薬剤",
+              insuranceContract: "master",
+              isNonInsurance: false,
               medicineId: "42",
             })
           }
@@ -146,6 +172,54 @@ afterEach(() => {
 // "薬剤"）と比較していたため常に一致せず "other" にフォールバックしていた。
 // TreatmentsTab と同じ共有 resolveItemTypeFromCategory に統一し、"薬剤" → "medicine" を保証する。
 describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
+  it.each(["予防", "検査"])("未採用 %s は caller の保険対象=true を維持する", async (category) => {
+    server.use(
+      http.get("*/v1/medical-records/:id/clinical-plan", () => HttpResponse.json({})),
+      http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+        HttpResponse.json({ id: "1", medical_record_id: "10", status: "pending" }),
+      ),
+      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+    render(
+      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" recordClinicId="2" />,
+      { wrapper: createTestWrapper() },
+    );
+    await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
+    const select = mockDialogProps.current.onSelect as (item: TreatmentMasterItem) => void;
+    await act(async () => {
+      select({ id: "71", name: "legacy master", unitPrice: 1000, category });
+    });
+    await waitFor(() =>
+      expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ item_type: "other", memo: category, is_insurance: true }),
+      ),
+    );
+  });
+
+  it("EMR-454: master が明示的に保険対象外の品目は is_insurance=false で作成する", async () => {
+    server.use(
+      http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+        HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
+      ),
+      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+    render(
+      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" recordClinicId="2" />,
+      { wrapper: createTestWrapper() },
+    );
+
+    await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
+    await user.click(screen.getByRole("button", { name: "保険対象外診察を選択" }));
+
+    await waitFor(() =>
+      expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ consultation_id: 9, is_insurance: false }),
+      ),
+    );
+  });
+
   it.each([
     { label: "診察Aを選択", refKey: "consultation_id", refId: 7, memo: "診察", price: 3307 },
     { label: "処置Xを選択", refKey: "procedure_id", refId: 8, memo: "処置", price: 3306 },
@@ -206,7 +280,7 @@ describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
         ),
         http.get("*/v1/masters/medicines", () => {
           getSeen = true;
-          return new Promise<HttpResponse>((resolve) => {
+          return new Promise<ReturnType<typeof HttpResponse.json>>((resolve) => {
             releaseGet = () =>
               resolve(HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]));
           });
@@ -224,7 +298,15 @@ describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
       });
       let resolveDone = false;
       const promise = Promise.resolve(
-        select!({ id: "42", name: "薬A", unitPrice: 3303, category: "薬剤", medicineId: "42" }),
+        select!({
+          id: "42",
+          name: "薬A",
+          unitPrice: 3303,
+          category: "薬剤",
+          insuranceContract: "master",
+          isNonInsurance: false,
+          medicineId: "42",
+        }),
       ).finally(() => {
         resolveDone = true;
       });
@@ -270,7 +352,14 @@ describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
       await waitFor(() => expect(mockDialogProps.current.onSelect).toBeDefined());
       const select = mockDialogProps.current.onSelect as ((item: unknown) => void) | undefined;
       expect(select).toBeDefined();
-      select?.({ id: "7", name: "初診", unitPrice: 3307, category: "診察" });
+      select?.({
+        id: "7",
+        name: "初診",
+        unitPrice: 3307,
+        category: "診察",
+        insuranceContract: "master",
+        isNonInsurance: false,
+      });
       expect(mockCreateTreatmentMutate).not.toHaveBeenCalled();
       if (guard === "deceased") expect(toast.error).toHaveBeenCalled();
       view.unmount();

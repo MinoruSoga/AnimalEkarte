@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | lifecycle.accounting／業務・保存境界 |
-| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離 |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離 |
 | 実装状態 | 未確認。現行との差分は技術仕様に明示 |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15） |
+| 文書確認日 | 2026-10-20（本差分。従来：2026-10-17追加差分（従来確認2026-10-15）） |
 
 <a id="accounting-agreement-first-five"></a>
 ## 目的・対象範囲
@@ -345,7 +345,7 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 | AC-accounting-invoice-receipt-separated | 10,000円請求・実入金3,000円で帳票発行 | 請求書と受領3,000円の領収書を分け、全額受領としない | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-document-reissue-history | 帳票を訂正・再発行 | 再発行と表示し訂正前帳票を履歴に保持 | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-aged-debt-without-current-sales | 今月売上なし・過去未納ありの飼主 | 未納一覧に表示。今月売上なしを理由に除外しない | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
-| AC-accounting-original-bill-and-movement-date | 過去請求へ今日実入金／実返金、後日前金充当 | 原請求日と実入出金日を保持、充当を再受領にしない。締め内部D12 | [FR](#requirement-fr-accounting-post-close-separate-movement)。対象・残高・履歴を照合、実機未実施 |
+| AC-accounting-original-bill-and-movement-date | 複数診療日の請求を今日確定し、後日実入金／実返金・訂正・前金充当、取消後は別請求で再請求する | 原請求日は請求確定日。確定前は不存在で作成日／予定日から補完しない。診療日・実入出金日を別保持し、訂正で原請求日を変更しない。別identityの再請求は元請求を保持し新請求の確定日を持つ。充当を再受領にしない。締め内部D12 | [FR](#requirement-fr-accounting-post-close-separate-movement)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-deposit-without-reservation | 飼主指定・予約なしで5,000円を受領 | 受領可能。飼主帰属と残高・受領履歴を保持 | [FR](#requirement-fr-accounting-reservation-advance)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-deposit-other-reservation | 同飼主の別予約会計へ預り金を利用 | 充当先／額を確認して利用でき元受領参照を保持 | [FR](#requirement-fr-accounting-reservation-advance)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-deposit-other-pet | 同飼主の別ペット会計へ利用 | 確認付きで充当し元飼主と対象請求／ペットを保持 | [FR](#requirement-fr-accounting-reservation-advance)。対象・残高・履歴を照合、実機未実施 |
@@ -529,7 +529,7 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 
 医師確認前から会計ページを用意し内容確認・準備を可能にする。「医師確認待ち・金額未確定」と表示し、医師確認まで請求確定・精算を停止する。会計タブのチェックが医師確認完了。診療終了で受付状態を会計待ちへ移し、確認状態は受付カードへ別軸表示する。独立した医師確認待ち受付ステータスは作らない。会計ページ準備と請求データ永続化の時点は別の設計事項。
 
-確認後の単価・割引等の金額だけの変更は警告了承で保存でき、医師再確認不要。薬剤・処置の追加削除や数量変更は医師再確認まで請求確定・精算を止め、変更者・日時・前後内容を記録する。会計から治療プランを自動書換えせず、金額調整は会計に保持し、臨床変更は医師が差分を確認して必要修正・再確認する。通常保存に医師確認必須を一律導入しない。
+確認後の単価・割引等の金額だけの変更は警告了承で保存でき、医師再確認不要。薬剤・処置の追加削除や数量変更は医師再確認まで請求確定・精算を止め、変更者・日時・前後内容を記録する。会計から治療プランを自動書換えせず、金額調整は会計に保持し、臨床変更は医師が差分を確認して必要修正・再確認する。通常保存に医師確認必須を一律導入しない。[D03側の通常保存・旧確定結果版／現在参照版との接続](../medical-records/lifecycle.md#medical-record-accounting-review-handoff)も参照する。
 
 <a id="requirement-fr-accounting-plan-sync"></a>
 ### FR-accounting-plan-sync — 未確定明細の3分岐
@@ -547,7 +547,7 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 
 通常プランは実施済み項目だけを実請求へ含め、未実施・後日予定・中止を当日請求から除外する。予定金額を請求対象と区別し、確定売上・入金・月次実受取へ混ぜない。院内投薬・注射は実施後、持帰薬・物販は渡す内容数量が確定し用意できた時点で請求対象。診療終了・医師確認だけで全項目実施済みにしない。
 
-準備完了は実引渡し・在庫出庫と別。実物の入出庫・返却は別記録とし、請求取消・返金・プラン修正で在庫を自動増減させない。トリミング等の個別中止料、入院等の専用会計・終了取消条件は維持し、通常中止項目除外の一般則で廃止しない。請求・精算・返金・実資金移動、元締めと未納繰越も別の事実として保持する。
+準備完了は実引渡し・在庫出庫と別。[D13の2026-10-20本人回答](../inventory/business-rules.md#inventory-outflow-confirmation-20261020)に従い、院内投薬は実施時、持帰薬・物販は実引渡し時に担当スタッフが出庫確定し、カルテ保存・請求確定だけでは在庫を減らさない。実物の入出庫・返却は別記録とし、請求取消・返金・プラン修正で在庫を自動増減させない。トリミング等の個別中止料、入院等の専用会計・終了取消条件は維持し、通常中止項目除外の一般則で廃止しない。請求・精算・返金・実資金移動、元締めと未納繰越も別の事実として保持する。
 
 ### 受入条件
 
@@ -620,7 +620,7 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 <a id="accounting-input-gross-preservation"></a>
 ## EMR-367追加確認：税込入力額・行別値引率と計算の段階
 
-[EMR-367](https://app.plane.so/baritechllc/browse/EMR-367/)の本人回答と追加照合に従う。税込で入力した元額を保持し、割引等の明示操作がないのに内税換算の丸めだけで減額しない。明細ごとの値引率を保持し、見出しの率から全行の率を推定しない。観察された小額値引きは手動操作であり、10円未満の自動切捨てを追加しない。
+[EMR-367](https://app.plane.so/baritechllc/browse/EMR-367/)の本人回答と追加照合に従う。税込で入力した元額を保持し、割引等の明示操作がないのに内税換算の丸めだけで減額しない。EMR-367の2026-10-20最新引継ぎに従い、元数量0.25／0.49等を保存・API・計算途中で丸めず保持する。丸め対象の行金額と元数量は別である。明細ごとの値引率を保持し、見出しの率から全行の率を推定しない。観察された小額値引きは手動操作であり、10円未満の自動切捨てを追加しない。
 
 明細計算、請求書／税率ごとの税集計、請求額、受領・釣銭・繰越は別段階とする。既決の「行単価×数量を四捨五入→割合値引額を四捨五入して控除→請求書／税率ごとの税額を切捨て」は、確認した旧画面の実例と矛盾しない。ただし旧システムの唯一の算式や、実際の現行診療システムとの完全一致を証明したものではない。第五群の税抜入力例・配賦案は税込入力の元額を減らす根拠にしない。私的な原数値・画像・資料リンクは転載しない。
 
@@ -635,3 +635,33 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 ### 品目保険設定の引継ぎ先（EMR-447）
 
 [品目保険設定FR](#requirement-fr-accounting-item-insurance-setting)の初期値から新規会計明細への受渡しと参照版／snapshotは、[EMR-447](https://app.plane.so/baritechllc/browse/EMR-447/)の本人回答により既存EMR-454〜456の責務（共有owner EMR-454）へ含める。採否未決に戻さない。旧欠落値の推測補完・追加済み行の自動更新・健診保存からの会計自動生成は含めない。新規明細が品目の明示設定と参照版を保持し、master変更後も保存済み明細を無断変更しないことを同FRの受入で確認する。実装は未検証。
+
+<a id="accounting-stay-charge-handoff"></a>
+## 入院退院・ホテル退室の会計受け手
+
+[D05の退院・会計FR／AC](../hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)と[D10の他owner引継ぎ設計](../../../design/domains/accounting/technical-spec.md#accounting-handoff-contract)へ接続する。入院・宿泊の元記録／元明細identityと版、医院・飼主・ペット対応を現在状態で照合し、同じ元明細の二重請求を防ぐ。結果不明は元操作・作成済み会計IDを照合し、再createで救済しない。既存会計再利用・取消会計の扱いと退院時の原子性の現行差は[D05設計](../../../design/domains/hospitalization/technical-spec.md#退院会計の現行と目標の差)に残す。
+
+ホテル個別料金・必要前金・取消料は既決のスタッフ確認入力へ従い、新source enum・日数自動課金・中間請求を追加しない。退院／退室や会計候補作成を請求確定・実入金成功と同一視しない。
+
+<a id="accounting-bill-date-agreement-20261020"></a>
+## 請求日と確定前の取扱い（2026-10-20本人回答）
+
+決定者はユーザー。質問 Sentinel_e10fac72a1e88191aaaf49cae1dbfafb の1「複数日の診療をまとめて今日請求確定した場合、請求日は今日の確定日、診療日・実際の入金日は別保持」に対する Sentinel_c119f08e86f8819193b76d2b4c52a55d「1 ok」を根拠とする。原請求日は当該請求の請求確定日とし、各診療日・実入金日を別に保持する。確定前には請求確定日がまだ存在せず、作成日や会計予定日を無断で請求日扱いしない。具体的な保存型・確定時刻から日付を導く物理方式は本回答で新設しない。
+
+[既存の訂正・実移動分離](#requirement-fr-accounting-post-close-separate-movement)に従い、後日入金・返金・請求訂正で元請求日を今日へ上書きしない。[取消後の選択確認による再請求](#accounting-rebill-and-collection)は元請求を保持して別identity／新番号の請求を作り、その新請求の確定日を持つ。元請求日・元番号と再請求先を対応付け、同じ請求の訂正や帳票再発行と混同しない。既存AC-accounting-original-bill-and-movement-dateで確定前／確定時／後日訂正／別請求の再請求を照合し、実装・実機受入は未実施。
+
+### 最終保存正本との対応（静的参照・実装未検証）
+
+[末尾DROP後の最終billings定義](../../../architecture/erd-detail/billings.md)では、旧status／completed_at／ever_finalized等は退役済み。001初期CREATEに残る旧列を現在DDLとして引用せず、旧列を復活させない。[採用済みの会計全体契約](../../../design/domains/accounting/technical-spec.md#accounting-reconciled-contract)と[保存対応表](../../../work/db-contracts/spec-storage-trace.md)へ、次の意味を接続する。
+
+| 業務上の意味 | 最終保存正本への参照・確認残件 |
+|:---|:---|
+| 当該請求の確定とその日付 | billings.claim_stateと[billing_change_events](../../../architecture/erd-detail/billing_change_events.md)のfinalize intent／元請求参照が確定の対応先。記録時刻recorded_atを実際の確定日へ無条件に代用しない。日付projectionは[finance_source_events](../../../architecture/erd-detail/finance_source_events.md)の元change eventと発生時刻の意味を照合して接続する設計／consumer残件で、暦日adapterの実装済みを意味しない |
+| 診療日と実入金日 | 元診療の実日付を保持し、実入金は[payment_funds](../../../architecture/erd-detail/payment_funds.md)のreceived_atと元資金へ対応。請求確定日や作成日から実入金日を推定しない |
+| 取消後の新請求との関係 | [billing_reissue_links](../../../architecture/erd-detail/billing_reissue_links.md)のoriginal_billing_id／new_billing_idと元計算版を参照し、元請求の確定日と新請求の確定日を混同しない |
+
+確定前／確定後／訂正／再請求、記録時刻と実発生のずれ、読取欠損をconsumer fixtureで検証する。日付化方式・旧データ対応を検証前に完成とせず、実DB／model／migrationは今回変更しない。
+
+## 主飼主変更時の会計帰属
+
+[D04の2026-10-20本人回答](../owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)に従い、未確定会計も元飼主へ残し、主飼主変更から自動移管しない。必要なら別途変更するという回答は、確定済み請求・預り金・発行原本の保護解除や無条件の付替え権限を与えない。別途変更の操作はD10の現在認可・医院／患者・元明細・版・履歴と既決訂正境界を照合する。

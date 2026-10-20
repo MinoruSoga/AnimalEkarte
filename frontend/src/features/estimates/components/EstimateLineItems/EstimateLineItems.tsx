@@ -8,6 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import { calcEstimateLineAmount } from "@/lib/estimate-totals";
 import type { EstimateLineItem } from "../../types";
 import { C, STYLE } from "@/lib/design-tokens";
@@ -55,7 +56,7 @@ export const EstimateLineItems = memo(function EstimateLineItems({
                   : `${item.taxType === "included" ? "内税" : "外税"} ${Math.round(item.taxRate * 100)}%`}
               </TableCell>
               <TableCell className="text-right">
-                {item.discountAmount > 0 ? formatCurrency(-item.discountAmount) : "-"}
+                {item.discountAmount > 0 ? formatCurrency(-item.discountAmount) : EMPTY_VALUE}
               </TableCell>
               <TableCell className="text-right font-mono font-medium">
                 {formatCurrency(lineTotal)}

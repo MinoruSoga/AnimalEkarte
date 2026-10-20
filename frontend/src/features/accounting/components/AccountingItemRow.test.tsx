@@ -302,3 +302,8 @@ describe("AccountingItemRow EMR-229/230 editable cells", () => {
     expect(document.getElementById("item-name-error-item-1")).toBeNull();
   });
 });
+
+it("renders null insurance as unset rather than excluded", () => {
+  renderRow(false, { ...ITEM, isInsuranceApplicable: null });
+  expect(screen.getByText("未設定")).toBeInTheDocument();
+});

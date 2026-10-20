@@ -1430,3 +1430,238 @@ test("checkC23: BADGE コンボのコントラスト 4.5:1 未満を検出、適
 test("checkC23: BADGE/C ブロックが無い場合は 0 件", () => {
   assert.equal(checkC23("export const OTHER = {}").length, 0);
 });
+
+// ── C25〜C29（design-patterns.md §9 由来。2026-10-20 追加） ───────────────
+
+test("checkC25: truncate を持つ opening tag に title / aria-label / aria-labelledby のいずれも無ければ検出する", () => {
+  const text = [
+    '<span className="truncate">{owner.name}</span>',
+    '<span className="truncate" title={owner.name}>{owner.name}</span>',
+    '<p className="line-clamp-2" aria-label={note}>{note}</p>',
+    '<td className={`${C.text} truncate max-w-[200px]`}',
+    '  aria-labelledby="chief-complaint-full">{row.chiefComplaint}</td>',
+    '<div className="text-ellipsis overflow-hidden">{memo}</div>',
+    '// className="truncate" in a comment is ignored',
+  ].join("\n");
+  const violations = audit.checkC25(text, "src/features/owners/components/List.tsx");
+  assert.deepEqual(violations.map((v) => v.lineNumber), [1, 6]);
+});
+
+test("checkC25: allowlist のファイルと test / 非 TSX は対象外", () => {
+  const text = '<span className="truncate">{x}</span>';
+  assert.equal(audit.checkC25(text, "src/features/a/B.test.tsx").length, 0);
+  assert.equal(audit.checkC25(text, "src/features/a/b.ts").length, 0);
+  const [first] = audit.C25_TRUNCATE_BASELINE.keys();
+  if (first) assert.equal(audit.checkC25(text, first).length, 0);
+});
+
+test("checkC26: nav ブロック内と Layout/Sidebar*.tsx の truncate を検出する", () => {
+  const navText = [
+    "<nav aria-label=\"メイン\">",
+    '  <a className="truncate">{label}</a>',
+    "</nav>",
+    '<span className="truncate">outside nav</span>',
+  ].join("\n");
+  assert.deepEqual(
+    audit.checkC26(navText, "src/features/x/Nav.tsx").map((v) => v.lineNumber),
+    [2],
+  );
+  const sidebarText = '<span className="truncate flex-1">{item.label}</span>';
+  assert.equal(audit.checkC26(sidebarText, path.join("src", "components", "shared", "Layout", "SidebarItemsNew.tsx")).length, 1);
+  assert.equal(audit.checkC26(sidebarText, "src/features/x/Other.tsx").length, 0);
+});
+
+test("checkC27: Z トークン外の z-index 直書き（z-[N] / zIndex: N）を検出し、Z.* 参照は許可する", () => {
+  const text = [
+    'className="fixed z-[9999]"',
+    "style={{ zIndex: 50 }}",
+    "style={{ zIndex: Z.overlay }}",
+    'className={Z_CLASS.overlay}',
+    'className="z-10"',
+  ].join("\n");
+  assert.deepEqual(audit.checkC27(text, "src/features/x/Y.tsx").map((v) => v.lineNumber), [1, 2, 5]);
+  assert.equal(audit.checkC27(text, path.join("src", "lib", "design-tokens.ts")).length, 0);
+});
+
+test("checkC28: src/features の raw <select> と <input type=\"date\"> を検出し、許容文脈の allowlist は除外する", () => {
+  const text = [
+    "<select value={v} onChange={h}>",
+    '<input type="date" value={d} />',
+    '<input type="time" value={t} />',
+    "<Select value={v}>",
+  ].join("\n");
+  assert.deepEqual(
+    audit.checkC28(text, "src/features/settings/components/NewSettingsForm.tsx").map((v) => v.lineNumber),
+    [1, 2],
+  );
+  assert.equal(audit.checkC28(text, path.join("src", "components", "ui", "native-select.tsx")).length, 0);
+  const [filterFile] = audit.C28_NATIVE_INPUT_CONTEXT_ALLOWLIST;
+  if (filterFile) assert.equal(audit.checkC28(text, filterFile).length, 0);
+});
+
+test("checkC29: バリデーション理由の disabled を検出し、権限・送信中理由は許可する", () => {
+  const text = [
+    "<SubmitButton disabled={!isValid}>保存</SubmitButton>",
+    "<Button disabled={!isFormValid || isPending}>保存</Button>",
+    "<Button disabled={errors.length > 0}>保存</Button>",
+    "<Button disabled={isPending}>保存</Button>",
+    "<fieldset disabled={!canEdit}>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(text, "src/features/x/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
+});
+
+test("collectViolations: C25〜C29 の集計キーを持つ", async () => {
+  const { root, routesDir } = makeFixture();
+  try {
+    writeFileSync(
+      path.join(routesDir, "WidgetPage.tsx"),
+      'export function WidgetPage() { return <PageLayout><span className="truncate">{x}</span></PageLayout>; }',
+    );
+    const result = await collectViolations(root);
+    assert.equal(result.c25.length, 1);
+    assert.deepEqual([result.c26, result.c27, result.c28, result.c29].map((v) => v.length), [0, 0, 0, 0]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ── C25〜C29 レビュー対応（PR #737: 件数ラチェット・z-N・shared・submitDisabled） ──
+
+test("checkC25: baseline 件数を超えた分だけ検出し、baseline 以内は許可する", () => {
+  const two = ['<span className="truncate">{a}</span>', '<span className="truncate">{b}</span>'].join("\n");
+  const three = `${two}\n<span className="line-clamp-2">{c}</span>`;
+  const [file, count] = [...audit.C25_TRUNCATE_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 2];
+  const within = Array.from({ length: count }, (_, i) => `<span className="truncate">{v${i}}</span>`).join("\n");
+  assert.equal(audit.checkC25(within, file).length, 0);
+  const over = audit.checkC25(`${within}\n<span className="truncate">{extra}</span>`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C25_TRUNCATE_BASELINE"));
+  assert.equal(audit.checkC25(two, "src/features/new/Fresh.tsx").length, 2);
+  assert.equal(audit.checkC25(three, "src/features/new/Fresh.tsx").length, 3);
+});
+
+test("checkC27: 標準 Tailwind の z-N と variant 付き z-N も検出し、baseline 以内は許可する", () => {
+  const text = ['className="relative z-10"', 'className="focus:z-20 hover:z-[5]"', "style={{ zIndex: Z.overlay }}"].join("\n");
+  // 2 行目は variant 付きが 2 つ並ぶので出現数 2 で数える（行数ではなく件数）。
+  assert.deepEqual(audit.checkC27(text, "src/features/new/Fresh.tsx").map((v) => v.lineNumber), [1, 2, 2]);
+  const [file, count] = [...audit.C27_Z_INDEX_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
+  const within = Array.from({ length: count }, () => 'className="z-10"').join("\n");
+  assert.equal(audit.checkC27(within, file).length, 0);
+  assert.equal(audit.checkC27(`${within}\nclassName="z-50"`, file).length, 1);
+});
+
+test("checkC28: src/components/shared の raw select / date も検査する", () => {
+  const text = "<select value={v}>";
+  assert.equal(audit.checkC28(text, path.join("src", "components", "shared", "NewField", "NewField.tsx")).length, 1);
+  assert.equal(audit.checkC28(text, path.join("src", "components", "ui", "select.tsx")).length, 0);
+  const [file, count] = [...audit.C28_NATIVE_INPUT_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
+  const within = Array.from({ length: count }, () => text).join("\n");
+  assert.equal(audit.checkC28(within, file).length, 0);
+  const over = audit.checkC28(`${within}\n<input type="date" />`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C28_NATIVE_INPUT_BASELINE"));
+});
+
+test("checkC25: variant 付きの truncate / line-clamp も検出する", () => {
+  const text = [
+    '<span className="lg:truncate">{name}</span>',
+    '<SelectPrimitive.Value className="*:data-[slot=select-value]:line-clamp-1">{v}</SelectPrimitive.Value>',
+    '<span className="md:truncate" title={name}>{name}</span>',
+  ].join("\n");
+  assert.deepEqual(audit.checkC25(text, "src/features/new/Fresh.tsx").map((v) => v.lineNumber), [1, 2]);
+});
+
+test("checkC26: baseline 件数を超えた分だけ検出し、baseline 以内は許可する", () => {
+  const [file, count] = [...audit.C26_NAV_TRUNCATE_BASELINE.entries()][0] ?? ["src/components/shared/Layout/SidebarX.tsx", 1];
+  const within = Array.from({ length: count }, (_, i) => `<nav><a className="truncate">{v${i}}</a></nav>`).join("\n");
+  assert.equal(audit.checkC26(within, file).length, 0);
+  const over = audit.checkC26(`${within}\n<nav><a className="truncate">{extra}</a></nav>`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C26_NAV_TRUNCATE_BASELINE"));
+});
+
+test("checkC26: 行の途中から始まる <nav> 内の truncate も検出する", () => {
+  const text = 'export function Crumbs() { return <nav aria-label="パンくず"><a className="truncate">{label}</a></nav>; }';
+  assert.deepEqual(audit.checkC26(text, "src/features/x/Crumbs.tsx").map((v) => v.lineNumber), [1]);
+  assert.equal(audit.checkC26('<a className="truncate">{label}</a>', "src/features/x/Plain.tsx").length, 0);
+});
+
+test("checkC29: submitDisabled とバリデーション式（trim / === \"\" / length）を検出し、権限・送信中は許可する", () => {
+  const text = [
+    "<FormHeaderActions submitDisabled={!form.title.trim()} />",
+    '<FormHeaderActions submitDisabled={actualCash === "" || Number(actualCash) < 0} />',
+    "<Button disabled={items.length === 0}>保存</Button>",
+    "<FormHeaderActions submitDisabled={isPending} />",
+    "<FormHeaderActions submitDisabled={isPending || !canSubmit} />",
+    "<fieldset disabled={!canEdit}>",
+    "<SubmitButton disabled={submitDisabled}>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
+  const [file, count] = [...audit.C29_VALIDATION_DISABLED_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
+  const within = Array.from({ length: count }, () => "<FormHeaderActions submitDisabled={!form.title.trim()} />").join("\n");
+  assert.equal(audit.checkC29(within, file).length, 0);
+  const over = audit.checkC29(`${within}\n<SubmitButton disabled={!isValid}>保存</SubmitButton>`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C29_VALIDATION_DISABLED_BASELINE"));
+});
+
+test("checkC29: 値の否定（!form.time / !selectedFile）は検出し、権限・状態フラグの否定は許可する", () => {
+  const text = [
+    "<SubmitButton disabled={!form.time}>保存</SubmitButton>",
+    "<SubmitButton disabled={isPending || !selectedFile}>保存</SubmitButton>",
+    "<SubmitButton disabled={!canSubmit}>保存</SubmitButton>",
+    "<SubmitButton disabled={!isDirty}>保存</SubmitButton>",
+    "<SubmitButton disabled={!hydrated || isPending}>保存</SubmitButton>",
+    "<Button disabled={!owner?.canEdit}>保存</Button>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2]);
+});
+
+test("applyCountBaseline: baseline 未満（下げ忘れ）は「baseline が古い」として fail する", () => {
+  const [file, count] = [...audit.C25_TRUNCATE_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 2];
+  const fewer = Array.from({ length: count - 1 }, (_, i) => `<span className="truncate">{v${i}}</span>`).join("\n");
+  const stale = audit.checkC25(fewer, file);
+  assert.equal(stale.length, 1);
+  assert.ok(stale[0].text.includes("が古い"));
+  assert.ok(stale[0].text.includes(`${count - 1}`));
+});
+
+test("checkC27: 数字始まり・任意値 variant（2xl: / data-[state=open]:）付きの z-N も検出する", () => {
+  const text = 'className="2xl:z-50 data-[state=open]:z-50 md:hover:z-[5]"';
+  assert.equal(audit.checkC27(text, "src/features/new/Fresh.tsx").length, 3);
+});
+
+test("checkC28: JSX 式の type={\"date\"} も検出する", () => {
+  const text = ["<input type={\"date\"} />", "<input type={'date'} />", "<input type={`date`} />", "<input type={\"time\"} />"].join("\n");
+  assert.deepEqual(audit.checkC28(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
+});
+
+test("checkC29: 複数行の disabled prop と、prop 内に入れ子になった送信部品を opening tag 単位で検出する", () => {
+  const multiline = [
+    "<PrimaryButton",
+    '  type="button"',
+    "  disabled={",
+    "    isSaving || !formData.name.trim()",
+    "  }",
+    ">",
+    "  保存",
+    "</PrimaryButton>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(multiline, "src/features/x/Y.tsx").map((v) => v.lineNumber), [1]);
+  const nested = [
+    "<PageLayout",
+    '  title="見積"',
+    "  headerAction={",
+    "    <FormHeaderActions",
+    "      submitDisabled={!form.title.trim()}",
+    "    />",
+    "  }",
+    ">",
+  ].join("\n");
+  const found = audit.checkC29(nested, "src/features/x/Y.tsx");
+  assert.deepEqual(found.map((v) => v.lineNumber), [4]);
+  assert.ok(found[0].text.startsWith("<FormHeaderActions"));
+  // 検索ボタン（保存契約でない）の未選択 disabled は複数行でも対象外
+  const search = ["<Button", "  disabled={", "    selected.length === 0", "  }", ">", "  検索", "</Button>"].join("\n");
+  assert.equal(audit.checkC29(search, "src/features/x/Y.tsx").length, 0);
+});

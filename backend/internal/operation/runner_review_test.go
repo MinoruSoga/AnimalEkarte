@@ -1,0 +1,853 @@
+package operation
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/stretchr/testify/require"
+)
+
+// Tests added for the 2026-10-20 PR #736 review round. Each test names the
+// review finding it pins so the review trail stays traceable.
+
+// TestExecute_GateBusyRecordsNothingAndReportsInProgress pins the codex P2
+// finding "map shared-gate contention to operation-in-progress": an owner gate
+// that cannot take its lock reports *Busy, the runner answers with the same
+// operation-in-progress contract as the binding row lock, and no failure
+// attempt is recorded over the contention.
+func TestExecute_GateBusyRecordsNothingAndReportsInProgress(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failGateWith(&Busy{Cause: errors.New("owner gate row is locked")})
+
+	out, err := f.runner.Execute(t.Context(), Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}, f.owner)
+
+	require.NoError(t, err)
+	require.Equal(t, StatusInProgress, out.Status)
+	require.Nil(t, out.Result)
+	require.Zero(t, f.owner.applyCount())
+	stored, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.Zero(t, f.store.attemptCount(stored.Binding.ID))
+}
+
+// TestExecute_UnknownDisclosureRequiresCurrentGrant pins the codex P2 finding
+// "recheck authorization before exposing an unknown state": a stored unknown is
+// disclosed through the current grant like every stored state, so a revoked
+// actor sees not-authorized instead of learning that the binding is stuck.
+func TestExecute_UnknownDisclosureRequiresCurrentGrant(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
+	ctx := t.Context()
+	req := Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}
+
+	out, err := f.runner.Execute(ctx, req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, out.Status)
+
+	// Same key, current CAS, but the grant is gone now.
+	f.owner.revoke()
+	blocked, err := f.runner.Execute(ctx, req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, blocked.Status)
+	require.Nil(t, blocked.Result)
+}
+
+// TestLookup_BusyBindingRollsBackAbortedTransaction pins the coderabbitai
+// finding on runner.go settledState: NOWAIT 55P03 aborts the transaction block,
+// so the busy error must leave the callback (rollback) and be classified as
+// operation-in-progress outside the transaction. With the old code the callback
+// returned nil, the transactor tried to commit an aborted block, and Lookup
+// surfaced that commit error instead of operation-in-progress.
+func TestLookup_BusyBindingRollsBackAbortedTransaction(t *testing.T) {
+	f := newR2Fixture(t)
+	// A binding exists without a success: the first attempt is rejected.
+	f.owner.setVersions("2", "1")
+	rejected, err := f.runner.Execute(t.Context(), Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusVersionConflict, rejected.Status)
+
+	// Another attempt holds the binding row while the lookup runs.
+	f.store.holdBinding(f.key)
+	looked, err := f.runner.Lookup(t.Context(), f.scope, f.key, allowLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusInProgress, looked.Status)
+	require.Nil(t, looked.Result)
+}
+
+// TestExecute_UnknownCommitsUnderLockBeforeRelease pins the codex P1 /
+// coderabbitai finding "keep the binding stopped while recording unknown
+// effects": the unknown row is recorded inside the business transaction while
+// the binding row lock is still held, so no concurrent execution can acquire
+// the binding and re-run Apply in the window between the rollback and the
+// unknown record. The owner write is undone (savepoint) and the versions stay
+// untouched.
+func TestExecute_UnknownCommitsUnderLockBeforeRelease(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
+	req := Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}
+
+	out, err := f.runner.Execute(t.Context(), req, f.owner)
+
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, out.Status)
+	require.Equal(t, 1, f.owner.applyCount())
+	// The savepoint undid the owner write of the rolled-back attempt.
+	require.Equal(t, "1", f.owner.version("billing_version"))
+	// The stop state was recorded inside the open transaction (under the
+	// binding lock), not after the rollback released it.
+	require.True(t, f.store.unknownWasRecordedInTx())
+	// The transaction itself must not have rolled back: a rollback would have
+	// released the binding lock before the stop state became durable — the
+	// exact race window the review flagged.
+	require.Zero(t, f.store.rollbackCount())
+	// The apply savepoint was created before the owner write ran, so rolling
+	// back to it actually undid the write (a savepoint created after the
+	// writes would undo nothing — review round 4).
+	markSeq, marked := f.store.applySavepointOrdering()
+	require.True(t, marked)
+	require.Greater(t, f.owner.applyOrderSeq(), markSeq)
+	stored, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.Equal(t, 1, f.store.attemptCount(stored.Binding.ID))
+
+	// A later execution of the same key observes the committed unknown and
+	// never reaches Apply again.
+	retried, err := f.runner.Execute(t.Context(), req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, retried.Status)
+	require.Equal(t, 1, f.owner.applyCount())
+}
+
+// TestExecute_UnknownPersistenceFailureKeepsResponseStopped pins the second
+// half of the same finding: when the unknown persistence keeps failing, only
+// the current response stops. There is no durable stop state, so a later
+// execution re-runs Apply — the documented residual that a durable
+// binding-owned stop state (shared 001 DDL, owned by the storage-contract
+// tickets) would remove. This test exists to make the residual explicit, not
+// to endorse it.
+func TestExecute_UnknownPersistenceFailureKeepsResponseStopped(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
+	f.store.failRecordOutcome(errors.New("attempt store unavailable"))
+	req := Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}
+
+	// Both the in-transaction record and the outside-transaction fallback
+	// fail: the response still stops, no attempt row exists.
+	out, err := f.runner.Execute(t.Context(), req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, out.Status)
+	require.Equal(t, 1, f.owner.applyCount())
+	stored, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.Zero(t, f.store.attemptCount(stored.Binding.ID))
+
+	// With no durable unknown row, the later DB-only execution re-runs Apply.
+	// The earlier owner database write was rolled back, not committed.
+	retried, err := f.runner.Execute(t.Context(), req, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, retried.Status)
+	require.Equal(t, 2, f.owner.applyCount())
+	require.Equal(t, "1", f.owner.version("billing_version"))
+}
+
+// TestExecute_AppliesTheFingerprintedContent pins the codex P1 finding "bind
+// the applied payload to the fingerprinted content": Apply receives the exact
+// Request whose Content was fingerprinted, and the content values are readable
+// by an owner adapter through the exported accessor — so the owner write and
+// the stored receipt cannot diverge from the bound content.
+func TestExecute_AppliesTheFingerprintedContent(t *testing.T) {
+	f := newR2Fixture(t)
+
+	out, err := f.runner.Execute(t.Context(), Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+	}, f.owner)
+
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, out.Status)
+	require.NotNil(t, f.owner.lastReq)
+	require.Equal(t, f.key, f.owner.lastReq.Key)
+	require.Equal(t, f.scope, f.owner.lastReq.Scope)
+	// Read through the exported accessor, exactly like an adapter in another
+	// package would.
+	require.Equal(t, f.content.Fields(), f.owner.lastReq.Content.Fields())
+}
+
+// TestExecute_KeyConflictHidesFromRevokedGrant pins the codex P2 finding
+// "authorize before reporting operation-key conflicts": the conflict answer is
+// an equality oracle over the fingerprinted content, so a revoked actor must
+// see not-authorized instead of being able to distinguish a wrong content
+// guess from the stored one.
+func TestExecute_KeyConflictHidesFromRevokedGrant(t *testing.T) {
+	f := newR2Fixture(t)
+	// Bind the key to the fixture content with a first successful execution.
+	f.owner.setVersions("2", "1")
+	out, err := f.runner.Execute(t.Context(), Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "2", "line_version": "1"},
+	}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, out.Status)
+
+	other, err := NewContent(r483Content("9", "99999"))
+	require.NoError(t, err)
+	probe := Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       other,
+		Preconditions: Preconditions{"billing_version": "2", "line_version": "1"},
+	}
+
+	// A current grant sees the conflict.
+	conflict, err := f.runner.Execute(t.Context(), probe, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusKeyConflict, conflict.Status)
+
+	// The same probe from a revoked actor learns nothing.
+	f.owner.revoke()
+	denied, err := f.runner.Execute(t.Context(), probe, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, denied.Status)
+}
+
+// Rejected scopes never reach binding creation or owner code.
+type unsupportedEffects struct{ *fakeBillingParticipant }
+
+func (p unsupportedEffects) Effects() EffectScope { return "external-send" }
+
+func TestExecute_RejectsNontransactionalEffectsBeforeClaim(t *testing.T) {
+	f := newR2Fixture(t)
+	_, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content}, unsupportedEffects{f.owner})
+	require.Error(t, err)
+	require.Zero(t, f.store.bindingCount())
+	require.Zero(t, f.owner.applyCount())
+}
+
+type failedReadStore struct {
+	store
+	resultErr, unknownErr error
+}
+
+func (s failedReadStore) LoadResult(ctx context.Context, b Binding) (*Result, error) {
+	if s.resultErr != nil {
+		return nil, s.resultErr
+	}
+	return s.store.LoadResult(ctx, b)
+}
+func (s failedReadStore) HasUnknownOutcome(ctx context.Context, b Binding) (bool, error) {
+	if s.unknownErr != nil {
+		return false, s.unknownErr
+	}
+	return s.store.HasUnknownOutcome(ctx, b)
+}
+func TestFailedAttempt_AllStoredStatesRecheckGrant(t *testing.T) {
+	for _, name := range []string{"busy", "sticky-unknown", "result-read-error", "unknown-read-error"} {
+		t.Run(name, func(t *testing.T) {
+			f := newR2Fixture(t)
+			f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("uncertain database result")})
+			f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+			b, _ := f.store.bindingFor(f.scope, f.key)
+			f.owner.revoke()
+			txErr := errors.New("gate failed")
+			switch name {
+			case "busy":
+				txErr = &Busy{}
+			case "result-read-error":
+				f.runner.store = failedReadStore{store: f.store, resultErr: errors.New("unavailable")}
+			case "unknown-read-error":
+				f.runner.store = failedReadStore{store: f.store, unknownErr: errors.New("unavailable")}
+			}
+			got, err := f.runner.resolveFailedAttempt(t.Context(), b.Binding, f.owner, txErr)
+			require.NoError(t, err)
+			require.Equal(t, StatusNotAuthorized, got.Status)
+			require.Nil(t, got.Result)
+		})
+	}
+}
+
+func TestExecute_UnknownCommitFailureRetainsCause(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
+	f.runner.tx = &oneShotCommitErrorTx{store: f.store, rollback: true}
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, got.Status)
+	b, _ := f.store.bindingFor(f.scope, f.key)
+	a, ok := f.store.latestAttempt(b.Binding.ID)
+	require.True(t, ok)
+	require.Equal(t, OutcomeUnknown, a.Outcome)
+	require.Equal(t, "1", f.owner.version("billing_version"))
+}
+
+// resolvedLookup models a domain's persisted binding -> resource index. The
+// grant permits B; the stored operation targets A. Current input cannot replace A.
+type resolvedLookup struct {
+	persisted  map[uint64]LookupTarget
+	allowed    string
+	resolveErr error
+	authorized []LookupTarget
+}
+
+func (a *resolvedLookup) ResolveLookupTarget(_ context.Context, b Binding, res *Result) (LookupTarget, error) {
+	if a.resolveErr != nil {
+		return LookupTarget{}, a.resolveErr
+	}
+	if target, ok := a.persisted[b.ID]; ok {
+		return target, nil
+	}
+	// Success result_refs belong to the helper-loaded receipt for this binding;
+	// the fixture's owner resolver recognizes billing_id as its original root.
+	if res != nil && res.ResultRefs["billing_id"] != "" {
+		return LookupTarget{BindingID: b.ID, ClinicID: b.ClinicID, Kind: "billing", Ref: res.ResultRefs["billing_id"]}, nil
+	}
+	return LookupTarget{}, errors.New("no original target")
+}
+func (a *resolvedLookup) AuthorizeLookup(_ context.Context, target LookupTarget) error {
+	a.authorized = append(a.authorized, target)
+	if target.Ref != a.allowed {
+		return errors.New("original resource denied")
+	}
+	return nil
+}
+
+type targetParticipant struct {
+	*fakeBillingParticipant
+	*resolvedLookup
+}
+
+func (p targetParticipant) ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error) {
+	return p.resolvedLookup.ResolveLookupTarget(ctx, b, res)
+}
+func (p targetParticipant) AuthorizeLookup(ctx context.Context, target LookupTarget) error {
+	return p.resolvedLookup.AuthorizeLookup(ctx, target)
+}
+
+func TestExecute_KeyConflictAuthorizesPersistedOriginalNotCurrentTarget(t *testing.T) {
+	f := newR2Fixture(t)
+	// A rejected operation still binds the key but has no success receipt.
+	f.owner.setVersions("2", "1")
+	f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+	b, _ := f.store.bindingFor(f.scope, f.key)
+	auth := &resolvedLookup{persisted: map[uint64]LookupTarget{b.Binding.ID: {BindingID: b.Binding.ID, ClinicID: b.Binding.ClinicID, Kind: "billing", Ref: "A"}}, allowed: "B"}
+	fields := f.content.Fields()
+	fields["billing_id"] = "B"
+	content, err := NewContent(fields)
+	require.NoError(t, err)
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: content}, targetParticipant{f.owner, auth})
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, got.Status)
+	require.Len(t, auth.authorized, 1)
+	require.Equal(t, "A", auth.authorized[0].Ref)
+	require.Equal(t, 1, f.owner.applyCount())
+}
+func TestDisclosure_UnresolvedOrWrongBindingTargetFailsClosed(t *testing.T) {
+	b := Binding{ID: 10, ClinicID: 1}
+	for _, name := range []string{"missing", "resolver-error", "other-clinic", "other-binding", "empty-resource"} {
+		t.Run(name, func(t *testing.T) {
+			a := &resolvedLookup{allowed: "B", persisted: map[uint64]LookupTarget{}}
+			switch name {
+			case "resolver-error":
+				a.resolveErr = errors.New("unavailable")
+			case "other-clinic":
+				a.persisted[10] = LookupTarget{BindingID: 10, ClinicID: 2, Kind: "billing", Ref: "B"}
+			case "other-binding":
+				a.persisted[10] = LookupTarget{BindingID: 11, ClinicID: 1, Kind: "billing", Ref: "B"}
+			case "empty-resource":
+				a.persisted[10] = LookupTarget{BindingID: 10, ClinicID: 1, Kind: "billing"}
+			}
+			got := disclose(t.Context(), a, b, StatusKeyConflict, nil)
+			require.Equal(t, StatusNotAuthorized, got.Status)
+			require.Empty(t, a.authorized)
+		})
+	}
+}
+func TestDisclosure_MayResolveOriginalFromBoundSuccessReceipt(t *testing.T) {
+	b := Binding{ID: 10, ClinicID: 1}
+	a := &resolvedLookup{allowed: "A"}
+	got := disclose(t.Context(), a, b, StatusReplayed, &Result{ResultRefs: map[string]string{"billing_id": "A"}})
+	require.Equal(t, StatusReplayed, got.Status)
+	require.Equal(t, "A", a.authorized[0].Ref)
+}
+
+// actorScopeProbe catches any invalid spelling reaching persistence.
+type actorScopeProbe struct {
+	store
+	claims, lookups int
+}
+
+func (s *actorScopeProbe) ClaimBinding(context.Context, Scope, uuid.UUID, []byte, string) (storedBinding, error) {
+	s.claims++
+	return storedBinding{}, errors.New("unexpected claim")
+}
+func (s *actorScopeProbe) FindBinding(context.Context, Scope, uuid.UUID) (storedBinding, bool, error) {
+	s.lookups++
+	return storedBinding{}, false, errors.New("unexpected lookup")
+}
+func TestActorScope_RejectsNonCanonicalIDsBeforeStoreOrOwner(t *testing.T) {
+	for _, kind := range []ActorKind{ActorStaff, ActorCustomer} {
+		for _, ref := range []string{"012", " 12", "12 ", "+12", "0", "-12", "18446744073709551616", "", "12.0"} {
+			t.Run(string(kind)+"/"+ref, func(t *testing.T) {
+				f := newR2Fixture(t)
+				probe := &actorScopeProbe{store: f.store}
+				f.runner.store = probe
+				scope := f.scope
+				scope.ActorKind, scope.ActorRef = kind, ref
+				_, err := f.runner.Execute(t.Context(), Request{Scope: scope, Key: f.key, Content: f.content}, f.owner)
+				require.Error(t, err)
+				_, err = f.runner.Lookup(t.Context(), scope, f.key, allowLookup{})
+				require.Error(t, err)
+				require.Zero(t, probe.claims)
+				require.Zero(t, probe.lookups)
+				require.Zero(t, f.owner.gates)
+				require.Zero(t, f.owner.applyCount())
+			})
+		}
+	}
+}
+func TestActorScope_CanonicalIDReplaysOnceAndSystemNamesRemainValid(t *testing.T) {
+	for _, kind := range []ActorKind{ActorStaff, ActorCustomer, ActorSystem} {
+		t.Run(string(kind), func(t *testing.T) {
+			f := newR2Fixture(t)
+			f.scope.ActorKind = kind
+			if kind == ActorSystem {
+				f.scope.ActorRef = "scheduled-billing"
+			}
+			require.Equal(t, StatusSucceeded, f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"}).Status)
+			require.Equal(t, StatusReplayed, f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"}).Status)
+			got, err := f.runner.Lookup(t.Context(), f.scope, f.key, allowLookup{})
+			require.NoError(t, err)
+			require.Equal(t, StatusSucceeded, got.Status)
+			require.Equal(t, 1, f.owner.applyCount())
+		})
+	}
+}
+
+// An owner resolver may inspect a receipt, but cannot rewrite what is returned.
+type mutatingReceiptLookup struct {
+	allowLookup
+	received *Result
+}
+
+func (a *mutatingReceiptLookup) ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error) {
+	a.received = res
+	if res != nil {
+		for _, fields := range []map[string]string{res.ResultRefs, res.CommittedVersions, res.EffectSummary} {
+			for key := range fields {
+				fields[key] = "changed"
+				delete(fields, key)
+			}
+			if fields != nil {
+				fields["injected"] = "changed"
+			}
+		}
+		res.RecordedAt = res.RecordedAt.Add(time.Hour)
+	}
+	return a.allowLookup.ResolveLookupTarget(ctx, b, res)
+}
+
+type mutatingReceiptParticipant struct {
+	*fakeBillingParticipant
+	auth *mutatingReceiptLookup
+}
+
+func (p mutatingReceiptParticipant) ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error) {
+	return p.auth.ResolveLookupTarget(ctx, b, res)
+}
+func (p mutatingReceiptParticipant) AuthorizeLookup(ctx context.Context, target LookupTarget) error {
+	return p.auth.AuthorizeLookup(ctx, target)
+}
+
+// lostCommitResponseTx commits the fake transaction, then loses its reply.
+// It models only the helper recovery branch, not a real PostgreSQL failure.
+type lostCommitResponseTx struct{ *fakeTx }
+
+func (tx lostCommitResponseTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	if err := tx.fakeTx.WithTx(ctx, fn); err != nil {
+		return err
+	}
+	return errors.New("commit reply lost after commit")
+}
+func TestReceiptResolver_CannotMutateLookupReplayOrCommitRecovery(t *testing.T) {
+	for _, path := range []string{"lookup", "replay", "commit-recovery"} {
+		t.Run(path, func(t *testing.T) {
+			f := newR2Fixture(t)
+			first := f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+			expected := cloneResult(*first.Result)
+			expected.EffectSummary = map[string]string{"effect": "saved"}
+			f.store.commitResultForTest(first.Binding.ID, expected)
+			auth := &mutatingReceiptLookup{}
+			participant := mutatingReceiptParticipant{f.owner, auth}
+			var got Outcome
+			var err error
+			if path == "lookup" {
+				got, err = f.runner.Lookup(t.Context(), f.scope, f.key, auth)
+			} else {
+				if path == "commit-recovery" {
+					f.runner.tx = lostCommitResponseTx{&fakeTx{store: f.store}}
+				}
+				got, err = f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content}, participant)
+			}
+			require.NoError(t, err)
+			require.NotNil(t, auth.received)
+			require.NotSame(t, auth.received, got.Result)
+			require.Equal(t, expected, *got.Result)
+			stored, err := f.store.LoadResult(t.Context(), *first.Binding)
+			require.NoError(t, err)
+			require.Equal(t, expected, *stored)
+			require.Equal(t, 1, f.owner.applyCount())
+		})
+	}
+}
+func TestCopyLookupReceipt_PreservesNilMapsAndTimestamp(t *testing.T) {
+	require.Nil(t, copyLookupReceipt(nil))
+	original := &Result{RecordedAt: fakeRecordedAt}
+	copied := copyLookupReceipt(original)
+	require.NotSame(t, original, copied)
+	require.Equal(t, original, copied)
+	require.Nil(t, copied.ResultRefs)
+	require.Nil(t, copied.CommittedVersions)
+	require.Nil(t, copied.EffectSummary)
+}
+
+// oneShotCommitErrorTx injects a single lost/failed COMMIT response, then lets
+// the recovery transaction run. Its hooks model visibility/lock ordering only;
+// these are helper regressions, not real database concurrency tests.
+type oneShotCommitErrorTx struct {
+	store    *fakeStore
+	rollback bool
+	after    func()
+	failed   bool
+}
+
+func (tx *oneShotCommitErrorTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	inner := &fakeTx{store: tx.store}
+	if tx.failed {
+		return inner.WithTx(ctx, fn)
+	}
+	tx.failed = true
+	commitErr := errors.New("commit response lost")
+	if tx.rollback {
+		inner.failCommit = commitErr
+	}
+	if err := inner.WithTx(ctx, fn); err != nil {
+		return err
+	}
+	if tx.after != nil {
+		tx.after()
+	}
+	return commitErr
+}
+func TestExecute_CommitResponseLostSettlesUnderBindingLock(t *testing.T) {
+	for _, mode := range []string{"still-locked", "commit-before-lock"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newR2Fixture(t)
+			var pending Result
+			var binding Binding
+			f.runner.tx = &oneShotCommitErrorTx{store: f.store, after: func() {
+				b, ok := f.store.bindingFor(f.scope, f.key)
+				require.True(t, ok)
+				binding = b.Binding
+				// The callback saw its own receipt, but a different connection
+				// cannot see it until the original commit becomes observable.
+				f.store.mu.Lock()
+				pending = cloneResult(f.store.results[binding.ID])
+				delete(f.store.results, binding.ID)
+				f.store.mu.Unlock()
+				if mode == "still-locked" {
+					f.store.holdBinding(f.key)
+				} else {
+					f.store.onLock(func() { f.store.commitResultForTest(binding.ID, pending) })
+				}
+			}}
+			got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+			require.NoError(t, err)
+			if mode == "still-locked" {
+				require.Equal(t, StatusInProgress, got.Status)
+				require.Nil(t, got.Result)
+			} else {
+				require.Equal(t, StatusSucceeded, got.Status)
+				require.Equal(t, pending, *got.Result)
+			}
+			require.Zero(t, f.store.attemptCount(binding.ID))
+			require.Equal(t, 1, f.owner.applyCount())
+		})
+	}
+}
+func TestExecute_CommitSettlementFailureDoesNotRecordDefiniteFailure(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("uncertain database result")})
+	// Both COMMIT and the later settlement transaction fail. No unlocked
+	// absence read may turn this into rejected/retryable_failure.
+	f.runner.tx = &fakeTx{store: f.store, failCommit: errors.New("commit unavailable")}
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, got.Status)
+	b, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.Zero(t, f.store.attemptCount(b.Binding.ID))
+	require.Equal(t, "1", f.owner.version("billing_version"))
+}
+
+func TestExecute_CommitErrorClassifiesFailureOnlyAfterSettledRollback(t *testing.T) {
+	f := newR2Fixture(t)
+	f.runner.tx = &oneShotCommitErrorTx{store: f.store, rollback: true}
+	_, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.Error(t, err)
+	b, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	attempt, ok := f.store.latestAttempt(b.Binding.ID)
+	require.True(t, ok)
+	require.Equal(t, OutcomeRetryableFailure, attempt.Outcome)
+	receipt, err := f.store.LoadResult(t.Context(), b.Binding)
+	require.NoError(t, err)
+	require.Nil(t, receipt)
+	require.Equal(t, "1", f.owner.version("billing_version"))
+}
+
+func TestExecute_KeyConflictUsesReceiptOnlyForOriginalAuthorization(t *testing.T) {
+	for _, mode := range []string{"receipt-authorized", "receipt-revoked", "metadata-without-receipt", "unresolved-without-receipt"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newR2Fixture(t)
+			withoutReceipt := mode == "metadata-without-receipt" || mode == "unresolved-without-receipt"
+			if withoutReceipt {
+				f.owner.setVersions("2", "1")
+			}
+			f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+			b, ok := f.store.bindingFor(f.scope, f.key)
+			require.True(t, ok)
+			attempts := f.store.attemptCount(b.Binding.ID)
+			auth := &resolvedLookup{allowed: fakeBillingID}
+			if mode == "receipt-revoked" {
+				auth.allowed = "B"
+			}
+			if mode == "metadata-without-receipt" {
+				auth.persisted = map[uint64]LookupTarget{b.Binding.ID: {BindingID: b.Binding.ID, ClinicID: b.Binding.ClinicID, Kind: "billing", Ref: fakeBillingID}}
+			}
+			fields := f.content.Fields()
+			fields["billing_id"] = "B"
+			changed, err := NewContent(fields)
+			require.NoError(t, err)
+			got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: changed}, targetParticipant{f.owner, auth})
+			require.NoError(t, err)
+			want := StatusKeyConflict
+			if mode == "receipt-revoked" || mode == "unresolved-without-receipt" {
+				want = StatusNotAuthorized
+			}
+			require.Equal(t, want, got.Status)
+			require.Nil(t, got.Result, "authorization receipt is never a conflict response body")
+			if mode != "unresolved-without-receipt" {
+				require.Equal(t, fakeBillingID, auth.authorized[0].Ref)
+			}
+			require.Equal(t, 1, f.owner.applyCount())
+			require.Equal(t, attempts, f.store.attemptCount(b.Binding.ID))
+		})
+	}
+}
+func TestExecute_UnknownTakesPrecedenceOverGateBusy(t *testing.T) {
+	for _, mode := range []string{"unknown", "no-unknown", "unknown-read-error"} {
+		for _, revoked := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/revoked=%v", mode, revoked), func(t *testing.T) {
+				f := newR2Fixture(t)
+				if mode == "unknown" {
+					f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("uncertain")})
+				} else {
+					f.owner.setVersions("2", "1")
+				}
+				f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+				b, _ := f.store.bindingFor(f.scope, f.key)
+				attempts := f.store.attemptCount(b.Binding.ID)
+				f.owner.failGateWith(&Busy{})
+				if mode == "unknown-read-error" {
+					f.runner.store = failedReadStore{store: f.store, unknownErr: errors.New("unknown unreadable")}
+				}
+				if revoked {
+					f.owner.revoke()
+				}
+				got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content}, f.owner)
+				require.NoError(t, err)
+				want := StatusResultUnavailable
+				if mode == "no-unknown" {
+					want = StatusInProgress
+				}
+				if revoked {
+					want = StatusNotAuthorized
+				}
+				require.Equal(t, want, got.Status)
+				require.Nil(t, got.Result)
+				require.Equal(t, attempts, f.store.attemptCount(b.Binding.ID))
+				require.Equal(t, 1, f.owner.applyCount())
+			})
+		}
+	}
+}
+
+func TestExecute_OwnerScopeNotFoundCannotHideExistingBinding(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&Rejection{Status: StatusScopeNotFound})
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.Error(t, err, "reserved status misuse is not a business rejection")
+	require.NotEqual(t, StatusScopeNotFound, got.Status)
+	binding, found := f.store.bindingFor(f.scope, f.key)
+	require.True(t, found)
+	attempt, recorded := f.store.latestAttempt(binding.Binding.ID)
+	require.True(t, recorded)
+	require.Equal(t, OutcomeRetryableFailure, attempt.Outcome)
+	looked, err := f.runner.Lookup(t.Context(), f.scope, f.key, allowLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusNotSucceeded, looked.Status)
+	require.Equal(t, binding.Binding.ID, looked.Binding.ID)
+}
+
+func TestExecute_CommitRecoveryKeepsReplayStatusAndReauthorizes(t *testing.T) {
+	for _, replay := range []bool{false, true} {
+		for _, revoked := range []bool{false, true} {
+			t.Run(fmt.Sprintf("replay=%v/revoked=%v", replay, revoked), func(t *testing.T) {
+				f := newR2Fixture(t)
+				var original *Result
+				if replay {
+					first := f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+					original = first.Result
+				}
+				f.runner.tx = &oneShotCommitErrorTx{store: f.store, after: func() {
+					if revoked {
+						f.owner.revoke()
+					}
+				}}
+				got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+				require.NoError(t, err)
+				want := StatusSucceeded
+				if replay {
+					want = StatusReplayed
+				}
+				if revoked {
+					want = StatusNotAuthorized
+				}
+				require.Equal(t, want, got.Status)
+				require.Equal(t, 1, f.owner.applyCount())
+				binding, found := f.store.bindingFor(f.scope, f.key)
+				require.True(t, found)
+				stored, err := f.store.LoadResult(t.Context(), binding.Binding)
+				require.NoError(t, err)
+				if replay {
+					require.Equal(t, original, stored)
+				}
+				if revoked {
+					require.Nil(t, got.Result)
+				} else {
+					require.Equal(t, stored, got.Result)
+				}
+			})
+		}
+	}
+}
+
+type lookupFailureStore struct {
+	store
+	reads, failRead     int
+	findErr, unknownErr error
+}
+
+func (s *lookupFailureStore) FindBinding(ctx context.Context, scope Scope, key uuid.UUID) (storedBinding, bool, error) {
+	if s.findErr != nil {
+		return storedBinding{}, false, s.findErr
+	}
+	return s.store.FindBinding(ctx, scope, key)
+}
+func (s *lookupFailureStore) LoadResult(ctx context.Context, b Binding) (*Result, error) {
+	s.reads++
+	if s.reads == s.failRead {
+		return nil, errors.New("receipt unreadable")
+	}
+	return s.store.LoadResult(ctx, b)
+}
+func (s *lookupFailureStore) HasUnknownOutcome(ctx context.Context, b Binding) (bool, error) {
+	if s.unknownErr != nil {
+		return false, s.unknownErr
+	}
+	return s.store.HasUnknownOutcome(ctx, b)
+}
+func TestLookup_ExistingUnreadableBindingStopsWithCurrentAuthorization(t *testing.T) {
+	for _, failure := range []string{"first-receipt", "locked-receipt", "unknown"} {
+		for _, grant := range []string{"allowed", "revoked", "resolver-failed"} {
+			t.Run(failure+"/"+grant, func(t *testing.T) {
+				f := newR2Fixture(t)
+				f.owner.setVersions("2", "1")
+				f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+				probe := &lookupFailureStore{store: f.store}
+				switch failure {
+				case "first-receipt":
+					probe.failRead = 1
+				case "locked-receipt":
+					probe.failRead = 2
+				case "unknown":
+					probe.unknownErr = errors.New("unknown unreadable")
+				}
+				f.runner.store = probe
+				var auth LookupAuthorizer = f.owner
+				if grant == "revoked" {
+					f.owner.revoke()
+				}
+				if grant == "resolver-failed" {
+					auth = &resolvedLookup{resolveErr: errors.New("target unavailable")}
+				}
+				got, err := f.runner.Lookup(t.Context(), f.scope, f.key, auth)
+				require.NoError(t, err)
+				want := StatusResultUnavailable
+				if grant != "allowed" {
+					want = StatusNotAuthorized
+				}
+				require.Equal(t, want, got.Status)
+				require.NotNil(t, got.Binding)
+				require.Nil(t, got.Result)
+				require.Equal(t, 1, f.owner.applyCount())
+			})
+		}
+	}
+}
+func TestLookup_FindBindingErrorDoesNotInferExistence(t *testing.T) {
+	f := newR2Fixture(t)
+	findErr := errors.New("binding unavailable")
+	probe := &lookupFailureStore{store: f.store, findErr: findErr}
+	f.runner.store = probe
+	auth := &resolvedLookup{persisted: map[uint64]LookupTarget{}, allowed: "A"}
+	got, err := f.runner.Lookup(t.Context(), f.scope, f.key, auth)
+	require.ErrorIs(t, err, findErr)
+	require.Nil(t, got.Binding)
+	require.Empty(t, got.Status)
+	require.Zero(t, probe.reads)
+	require.Empty(t, auth.authorized)
+}

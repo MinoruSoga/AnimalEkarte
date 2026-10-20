@@ -57,11 +57,11 @@ describe("Vaccination displayed date and name", () => {
     show("2026-10-14", "2000-01-01");
     expect(screen.getByRole("cell", { name: "2026/10/14" })).toHaveClass("whitespace-nowrap");
     expect(screen.getByText("2000/01/01")).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "-" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "—" })).toBeInTheDocument();
   });
   it("missing dates and vaccine name are em dashes", () => {
     show("", "");
-    expect(screen.getAllByRole("cell", { name: "-" })).toHaveLength(3);
+    expect(screen.getAllByRole("cell", { name: "—" })).toHaveLength(3);
   });
 });
 

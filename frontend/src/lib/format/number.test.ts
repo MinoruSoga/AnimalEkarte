@@ -14,9 +14,9 @@ describe("formatCurrency", () => {
     expect(formatCurrency(1234)).toBe("¥1,234");
   });
 
-  it("null / undefined はダッシュにする", () => {
-    expect(formatCurrency(null)).toBe("-");
-    expect(formatCurrency(undefined)).toBe("-");
+  it("null / undefined はEM DASH にする", () => {
+    expect(formatCurrency(null)).toBe("—");
+    expect(formatCurrency(undefined)).toBe("—");
   });
 });
 
@@ -29,10 +29,10 @@ describe("formatCurrencyIfNonzero", () => {
     expect(formatCurrencyIfNonzero(-500)).toBe("-¥500");
   });
 
-  it("0 / null / undefined はダッシュにする", () => {
-    expect(formatCurrencyIfNonzero(0)).toBe("-");
-    expect(formatCurrencyIfNonzero(null)).toBe("-");
-    expect(formatCurrencyIfNonzero(undefined)).toBe("-");
+  it("0 / null / undefined はEM DASH にする", () => {
+    expect(formatCurrencyIfNonzero(0)).toBe("—");
+    expect(formatCurrencyIfNonzero(null)).toBe("—");
+    expect(formatCurrencyIfNonzero(undefined)).toBe("—");
   });
 });
 
@@ -41,17 +41,17 @@ describe("formatCurrencyOrDash", () => {
     expect(formatCurrencyOrDash(1234)).toBe("¥1,234");
   });
 
-  it("0 はダッシュにする", () => {
-    expect(formatCurrencyOrDash(0)).toBe("-");
+  it("0 はEM DASH にする", () => {
+    expect(formatCurrencyOrDash(0)).toBe("—");
   });
 
-  it("負値はダッシュにする", () => {
-    expect(formatCurrencyOrDash(-500)).toBe("-");
+  it("負値はEM DASH にする", () => {
+    expect(formatCurrencyOrDash(-500)).toBe("—");
   });
 
-  it("null/undefined はダッシュにする", () => {
-    expect(formatCurrencyOrDash(null)).toBe("-");
-    expect(formatCurrencyOrDash(undefined)).toBe("-");
+  it("null/undefined はEM DASH にする", () => {
+    expect(formatCurrencyOrDash(null)).toBe("—");
+    expect(formatCurrencyOrDash(undefined)).toBe("—");
   });
 
   it("7 桁区切り", () => {

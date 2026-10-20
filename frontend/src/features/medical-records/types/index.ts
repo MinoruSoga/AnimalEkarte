@@ -72,7 +72,8 @@ export interface Treatment {
   status: string;
   content: string;
   memo: string;
-  is_insurance: boolean;
+  /** null is an unset stored value, not insurance ineligible. */
+  is_insurance: boolean | null;
   discount_rate: number;
   discount_amount: number;
   sort_order: number;

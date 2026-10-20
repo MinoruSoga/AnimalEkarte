@@ -14,7 +14,7 @@ interface BillingItem {
   unitPrice: number;
   quantity: number;
   discountAmount?: number;
-  isInsuranceApplicable?: boolean;
+  isInsuranceApplicable?: boolean | null;
   /** 明細税率（未指定時は calculateBillingTotals の taxRate 引数） */
   taxRate?: number;
   /** 課税区分。未指定は外税 */
@@ -107,7 +107,7 @@ export function calculateBillingTotals(
 
   // 5. Insurance Coverage (Applied to applicable items raw price)
   const insuranceTargetTotal = items
-    .filter((item) => item.isInsuranceApplicable)
+    .filter((item) => item.isInsuranceApplicable === true)
     .reduce((sum, item) => sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0), 0);
 
   // EMR-62: insurance_amount の wire/保存契約は正の magnitude（円）。

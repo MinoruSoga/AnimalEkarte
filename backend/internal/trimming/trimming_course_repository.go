@@ -51,6 +51,20 @@ func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id ui
 	return &course, nil
 }
 
+// LockForImageUpdate returns the authoritative before-value under an UPDATE
+// lock, preserving the course -> ordered image-key lock acquisition order.
+func (r *trimmingCourseRepository) LockForImageUpdate(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("course image update requires an ambient transaction")
+	}
+	var course model.TrimmingCourse
+	if err := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&course).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
+	}
+	return &course, nil
+}
+
 func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
 	db := persistence.DBOrTx(ctx, r.db)
 	// Capture intent before Create: gorm default:true omits zero bools from INSERT.

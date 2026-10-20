@@ -55,8 +55,8 @@ func newMedicalRecordMasterServices(
 	auditTx medicalrecord.AuditTxLogger,
 ) medicalRecordMasterServices {
 	return medicalRecordMasterServices{
-		consultations: medicalrecord.NewConsultationService(r.consultations),
-		procedures:    medicalrecord.NewProcedureService(r.procedures, d.Transactor),
+		consultations: medicalrecord.NewConsultationServiceWithAudit(r.consultations, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: auditTx}),
+		procedures:    medicalrecord.NewProcedureServiceWithAudit(r.procedures, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: auditTx}),
 		medicines: medicalrecord.NewMedicineServiceWithAudit(
 			r.medicines,
 			d.Inventory,

@@ -146,3 +146,9 @@ describe("getUnbilledItemDetails", () => {
     expect(result.ownerDiscountRate).toBe(0);
   });
 });
+
+it.each([null, false, true])("unbilled HTTP read retains insurance %s", async (setting) => {
+  mockedGet.mockResolvedValue({ data: [buildItem({ is_insurance_applicable: setting })] });
+  const result = await getUnbilledItems("7");
+  expect(result[0].isInsuranceApplicable).toBe(setting);
+});
