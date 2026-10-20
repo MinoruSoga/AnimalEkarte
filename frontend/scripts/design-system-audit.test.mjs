@@ -1605,6 +1605,37 @@ test("checkC29: submitDisabled とバリデーション式（trim / === \"\" / l
   assert.ok(over[0].text.includes("C29_VALIDATION_DISABLED_BASELINE"));
 });
 
+test("checkC29: 値の否定（!form.time / !selectedFile）は検出し、権限・状態フラグの否定は許可する", () => {
+  const text = [
+    "<SubmitButton disabled={!form.time}>保存</SubmitButton>",
+    "<SubmitButton disabled={isPending || !selectedFile}>保存</SubmitButton>",
+    "<SubmitButton disabled={!canSubmit}>保存</SubmitButton>",
+    "<SubmitButton disabled={!isDirty}>保存</SubmitButton>",
+    "<SubmitButton disabled={!hydrated || isPending}>保存</SubmitButton>",
+    "<Button disabled={!owner?.canEdit}>保存</Button>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2]);
+});
+
+test("applyCountBaseline: baseline 未満（下げ忘れ）は「baseline が古い」として fail する", () => {
+  const [file, count] = [...audit.C25_TRUNCATE_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 2];
+  const fewer = Array.from({ length: count - 1 }, (_, i) => `<span className="truncate">{v${i}}</span>`).join("\n");
+  const stale = audit.checkC25(fewer, file);
+  assert.equal(stale.length, 1);
+  assert.ok(stale[0].text.includes("が古い"));
+  assert.ok(stale[0].text.includes(`${count - 1}`));
+});
+
+test("checkC27: 数字始まり・任意値 variant（2xl: / data-[state=open]:）付きの z-N も検出する", () => {
+  const text = 'className="2xl:z-50 data-[state=open]:z-50 md:hover:z-[5]"';
+  assert.equal(audit.checkC27(text, "src/features/new/Fresh.tsx").length, 3);
+});
+
+test("checkC28: JSX 式の type={\"date\"} も検出する", () => {
+  const text = ["<input type={\"date\"} />", "<input type={'date'} />", "<input type={`date`} />", "<input type={\"time\"} />"].join("\n");
+  assert.deepEqual(audit.checkC28(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
+});
+
 test("checkC29: 複数行の disabled prop と、prop 内に入れ子になった送信部品を opening tag 単位で検出する", () => {
   const multiline = [
     "<PrimaryButton",

@@ -236,7 +236,7 @@ export const C26_NAV_TRUNCATE_BASELINE = new Map([
   ["src/features/manual/components/ManualContent.tsx", 2],
 ]);
 /** C27: Tailwind の z-N（variant 付き含む）・任意値 z-[N]・インライン style の数値 z-index。`Z.*` / `Z_CLASS.*` 参照は対象外。 */
-const C27_Z_INDEX_RE = /(?:^|[\s"'`{(])(?:[a-z-]+:)*-?z-(?:[0-9]+|\[[0-9]+\])(?=$|[\s"'`}\)])|\bzIndex\s*:\s*[0-9]+/;
+const C27_Z_INDEX_RE = /(?:^|[\s"'`{(])(?:[^\s"'`{}()]*:)?-?z-(?:[0-9]+|\[[0-9]+\])(?=$|[\s"'`}\)])|\bzIndex\s*:\s*[0-9]+/;
 /**
  * C27: 既存の直書きをファイル別件数で棚卸しした baseline（2026-10-20 時点）。`Z` に段を追加して置換したら件数を下げる。
  * baseline に無いファイルは 1 件目から fail。
@@ -278,7 +278,8 @@ export const C27_Z_INDEX_BASELINE = new Map([
 ]);
 /** C28: raw `<select` と `<input ... type="date"`（`<Select` 共有部品は対象外）。 */
 const C28_NATIVE_OPENING_TAG_START_RE = /<(?:select|input)\b/g;
-const C28_INPUT_DATE_RE = /\btype\s*=\s*["']date["']/;
+/** C28: `type="date"` に加えて JSX 式の `type={"date"}` / `{'date'}` / `{`date`}` も認識する。 */
+const C28_INPUT_DATE_RE = /\btype\s*=\s*(?:\{\s*)?["'`]date["'`]/;
 /**
  * C28: design-patterns.md §4.4 が許容する文脈（検索・一覧フィルター・表の行内編集・時刻入力）の
  * ファイル。許容理由が §3.4 の列挙に無いものは入れない。
@@ -311,7 +312,18 @@ export const C28_NATIVE_INPUT_BASELINE = new Map([
  * （isPending / isSubmitting / isSaving）・ワークフロー状態（isFinalized 等）は含めない。
  */
 const C29_SUBMIT_CONTEXT_RE = /\bsubmitDisabled\s*=|\bSubmitButton\b|\bPrimaryButton\b|type\s*=\s*["']submit["']|保存/;
-const C29_VALIDATION_DISABLED_RE = /\b(?:disabled|submitDisabled)\s*=\s*\{[^}]*(?:\bis(?:Form)?Valid\b|\bformValid\b|\bisComplete\b|\bhasErrors\b|\berrors\s*\.\s*length\b|Object\s*\.\s*keys\s*\(\s*errors\s*\)|\.trim\s*\(\s*\)|[!=]==?\s*(?:""|''|``)|\.length\s*(?:[<>]=?|[!=]==?)\s*[0-9])/;
+/**
+ * 未入力判定の「値の否定」（`!form.time`、`!selectedFile`）。最終セグメントが権限・送信中・状態フラグ
+ * （`can*` / `is*` / `has*` / `should*` / `may*` / `allow*`、`hydrated` / `loading` / `pending` / `saving` /
+ * `submitting` / `ready` / `mounted` / `enabled` / `dirty`）のものは対象外。
+ */
+const C29_NEGATED_VALUE_SRC =
+  "!\\s*(?:[\\w$]+\\s*\\??\\.\\s*)*(?!(?:is|can|has|should|may|allow)[A-Z0-9_]|(?:hydrated|loading|pending|saving|submitting|ready|mounted|enabled|dirty)\\b)[\\w$]+(?![\\w$(.?])";
+const C29_VALIDATION_DISABLED_RE = new RegExp(
+  "\\b(?:disabled|submitDisabled)\\s*=\\s*\\{[^}]*(?:\\bis(?:Form)?Valid\\b|\\bformValid\\b|\\bisComplete\\b|\\bhasErrors\\b|\\berrors\\s*\\.\\s*length\\b|Object\\s*\\.\\s*keys\\s*\\(\\s*errors\\s*\\)|\\.trim\\s*\\(\\s*\\)|[!=]==?\\s*(?:\"\"|''|``)|\\.length\\s*(?:[<>]=?|[!=]==?)\\s*[0-9]|"
+    + C29_NEGATED_VALUE_SRC
+    + ")",
+);
 /**
  * C29: 既存のバリデーション disabled のファイル別件数（STG 監査で観測。ラチェット）。
  * baseline を超える追加は既存ファイルでも違反。押下→エラー表示へ直したら件数を下げる／エントリを削る。
@@ -325,6 +337,15 @@ export const C29_VALIDATION_DISABLED_BASELINE = new Map([
   ["src/features/shifts/components/ShiftTemplateSettingsParts.tsx", 1],
   // ヘルプチャットの送信（type="submit"）が空メッセージ理由で disabled。保存フォームではないため §1.1 の適用可否は決裁待ち
   ["src/features/support/components/HelpChat.tsx", 1],
+  // 値の否定（`!form.time` 等）で検出された既存分（2026-10-20 追加棚卸し）
+  ["src/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection.tsx", 1],
+  ["src/features/lstep/components/LstepCsvImportSection.tsx", 1],
+  ["src/features/medical-records/components/VitalsTab/VitalsTabRows.tsx", 1],
+  // `!owner?.deliveryExcluded` / `!owner?.deliveryCaution` はフラグ ON のときだけ理由を保存する状態ゲート（§1.1 で許容）。
+  // 名前だけでは入力値と区別できないため件数で棚卸しし、名前判定の限界として記録する。
+  ["src/features/owners/components/LineIntegrationCardSections.tsx", 2],
+  // LINE 予約（line-reserve）の日付未選択で「次へ」が disabled
+  ["line-reserve/src/pages/DateSelectPage.tsx", 1],
 ]);
 /** C29: 走査する opening tag（JSX 要素すべて。`<` 直後の要素名）。 */
 const C29_OPENING_TAG_START_RE = /<([A-Za-z][\w.]*)\b/g;
@@ -1147,12 +1168,21 @@ export function checkC25(text, relPath = "") {
 }
 
 /**
- * applyCountBaseline は件数ラチェット: baseline 件数以内なら 0 件、超過分だけを「baseline 超過」として返す。
- * baseline が無いファイルは全件返す。
+ * applyCountBaseline は件数ラチェット: baseline と同数なら 0 件、超過分は「baseline 超過」、baseline 未満は
+ * 「baseline が古い」（下げ忘れ）として返す。baseline が無いファイルは全件返す。
  */
 function applyCountBaseline(violations, baseline, baselineName) {
   if (baseline === undefined) return violations;
-  if (violations.length <= baseline) return [];
+  if (violations.length < baseline) {
+    // 減らしたのに baseline を下げていない: 余った枠が後の追加を隠すので、同一コミットで baseline を下げさせる。
+    return [
+      {
+        lineNumber: 1,
+        text: `${baselineName} が古い: 現在 ${violations.length} 件 < baseline ${baseline} 件。baseline を ${violations.length} に下げる（0 ならエントリを削る）`,
+      },
+    ];
+  }
+  if (violations.length === baseline) return [];
   return violations.slice(baseline).map((v) => ({
     ...v,
     text: `${v.text}（${baselineName} ${baseline} 件を超過: ${violations.length} 件）`,
