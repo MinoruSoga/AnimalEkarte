@@ -23,6 +23,7 @@ import { RevisitIntakePage } from "./pages/RevisitIntakePage";
 import type { RevisitIntakeRoute } from "./app-flow-handlers";
 import type { RevisitIntakeDraftStore } from "./hooks/use-revisit-intake-drafts";
 import { formatJapaneseDate } from "@/shared-liff/jst-date";
+import { toRevisitIntakeAppointmentId } from "./lib/revisit-intake-appointment-id";
 
 export interface ReservationPageSwitchProps {
   page: PageType;
@@ -95,17 +96,20 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
         clinicId={props.clinicId}
         idToken={props.idToken}
         onBack={() => props.goTo("top")}
-        onOpenRevisitIntake={(reservation) =>
+        onOpenRevisitIntake={(reservation) => {
+          // D4: 安全整数でない ID（丸められている恐れ）からは問診 request を出さない。
+          const appointmentId = toRevisitIntakeAppointmentId(reservation.id);
+          if (appointmentId === null) return;
           props.handleOpenRevisitIntake({
-            appointmentId: String(reservation.id),
+            appointmentId,
             returnTo: "my-reservations",
             summary: {
               petName: reservation.pet_name || undefined,
               dateLabel: reservation.date ? formatJapaneseDate(reservation.date) : undefined,
               courseName: reservation.course_name || undefined,
             },
-          })
-        }
+          });
+        }}
       />
     );
   }
@@ -276,7 +280,7 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         onMyReservations={props.handleCompleteToMyReservations}
         onNewReservation={props.handleCompleteNewReservation}
         onRevisitIntake={
-          props.completedReservationId > 0
+          toRevisitIntakeAppointmentId(props.completedReservationId) !== null
             ? () =>
                 props.handleOpenRevisitIntake({
                   appointmentId: String(props.completedReservationId),

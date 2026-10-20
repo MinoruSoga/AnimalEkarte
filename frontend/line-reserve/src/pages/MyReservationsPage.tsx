@@ -4,6 +4,10 @@ import type { Reservation } from "../types/models";
 import { BackButton } from "../components/BackButton";
 import { formatJSTApplicationDate } from "@/shared-liff/jst-date";
 import { useFetchState } from "@/shared-liff/use-fetch-state";
+import {
+  REVISIT_INTAKE_UNAVAILABLE_MESSAGE,
+  isRevisitIntakeAppointmentIdUsable,
+} from "../lib/revisit-intake-appointment-id";
 
 interface MyReservationsPageProps {
   clinicId: string;
@@ -15,6 +19,22 @@ interface MyReservationsPageProps {
    */
   onOpenRevisitIntake?: (reservation: Reservation) => void;
 }
+
+// EMR-474 / D6: 取消済み以外に導線を出し、編集可否は問診 GET の current_target.editable だけが決める。
+// 受付後（以降）は書き込みを BE が editable=false で止めるため、閲覧の入口として「回答を見る」を出す。
+// no_show は FE で read-only 固定にせず、サーバー判定に従う。
+const VIEW_ONLY_ENTRY_STATUSES: ReadonlySet<Reservation["status"]> = new Set([
+  "checked_in",
+  "in_consultation",
+  "accounting",
+  "completed",
+]);
+const REVISIT_ENTRY_STATUSES: ReadonlySet<Reservation["status"]> = new Set([
+  "confirmed",
+  "pending",
+  "no_show",
+  ...VIEW_ONLY_ENTRY_STATUSES,
+]);
 
 const revisitCtaClassName =
   "min-h-11 w-full rounded-lg border border-noah-teal px-3 text-sm font-semibold text-noah-teal-dark hover:bg-noah-teal-light";
@@ -146,17 +166,23 @@ export function MyReservationsPage({
                     </p>
                   ) : null}
 
-                  {/* 編集可否は問診 GET の current_target.editable が決める（契約: confirmed 限定の cutoff を設けない）。 */}
-                  {(reservation.status === "confirmed" || reservation.status === "pending") &&
-                  onOpenRevisitIntake ? (
+                  {REVISIT_ENTRY_STATUSES.has(reservation.status) && onOpenRevisitIntake ? (
                     <div className="mt-3 pt-3 border-t border-noah-border-light">
-                      <button
-                        type="button"
-                        onClick={() => onOpenRevisitIntake(reservation)}
-                        className={revisitCtaClassName}
-                      >
-                        問診を回答する／訂正する
-                      </button>
+                      {isRevisitIntakeAppointmentIdUsable(reservation.id) ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenRevisitIntake(reservation)}
+                          className={revisitCtaClassName}
+                        >
+                          {VIEW_ONLY_ENTRY_STATUSES.has(reservation.status)
+                            ? "回答を見る"
+                            : "問診を回答する／訂正する"}
+                        </button>
+                      ) : (
+                        <p role="status" className="text-sm text-noah-text-sub">
+                          {REVISIT_INTAKE_UNAVAILABLE_MESSAGE}
+                        </p>
+                      )}
                     </div>
                   ) : null}
 

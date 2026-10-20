@@ -219,6 +219,85 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     );
   });
 
+  it.each(["checked_in", "in_consultation", "accounting", "completed"] as const)(
+    "%s のカードには閲覧の入口「回答を見る」を出す（書き込みはサーバーの editable=false が止める）",
+    async (status) => {
+      const user = userEvent.setup();
+      const onOpenRevisitIntake = vi.fn();
+      server.use(
+        http.get("/api/liff/:clinicId/my-reservations", () =>
+          HttpResponse.json([{ ...confirmedReservation, id: 4, status }]),
+        ),
+      );
+
+      render(
+        <MyReservationsPage
+          {...BASE_PROPS}
+          onBack={vi.fn()}
+          onOpenRevisitIntake={onOpenRevisitIntake}
+        />,
+      );
+
+      await user.click(await screen.findByRole("button", { name: "回答を見る" }));
+      expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 4, status }));
+    },
+  );
+
+  it("no_show でも導線を出し、FE では閲覧専用に固定しない（サーバー判定に従う）", async () => {
+    const user = userEvent.setup();
+    const onOpenRevisitIntake = vi.fn();
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([{ ...confirmedReservation, id: 5, status: "no_show" }]),
+      ),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpenRevisitIntake}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
+    expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }));
+  });
+
+  it("安全整数でない予約 ID では導線を出さず、「現在開けません」を表示し問診 API を呼ばない", async () => {
+    let revisitCalls = 0;
+    const onOpenRevisitIntake = vi.fn();
+    server.use(
+      // JSON 上の巨大 ID は parse で number に丸められる（BE が文字列化するまでの暫定ガード）。
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.text(
+          JSON.stringify([{ ...confirmedReservation, id: 0 }]).replace(
+            '"id":0',
+            '"id":9007199254740993',
+          ),
+          { headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", () => {
+        revisitCalls += 1;
+        return HttpResponse.json({});
+      }),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpenRevisitIntake}
+      />,
+    );
+
+    expect(await screen.findByText("この予約の問診は現在開けません。")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /問診|回答を見る/ })).not.toBeInTheDocument();
+    expect(onOpenRevisitIntake).not.toHaveBeenCalled();
+    expect(revisitCalls).toBe(0);
+  });
+
   it("取消済みカードには問診の導線を出さず、一覧表示だけで問診 API を呼ばない", async () => {
     let revisitCalls = 0;
     server.use(

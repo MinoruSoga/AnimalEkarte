@@ -82,7 +82,7 @@ describe("CompletePage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("EMR-474: 複数頭を選んだ予約では、ほかのペットは予約一覧の各予約から回答する旨を示す", () => {
+  it("EMR-474: 複数頭を選んでも、各ペット・各予約に回答できるとは案内しない", () => {
     render(
       <CompletePage
         reservationId={12001}
@@ -103,6 +103,27 @@ describe("CompletePage", () => {
       />,
     );
 
-    expect(screen.getByText(/問診は予約ごとに1頭分です/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "事前問診に回答する（任意）" })).toBeInTheDocument();
+    expect(screen.queryByText(/予約ごとに1頭分|それぞれの予約|各ペット|各予約/)).toBeNull();
+  });
+
+  it("EMR-474: 安全整数でない予約 ID では CTA を出さず「現在開けません」を表示する", () => {
+    const onRevisitIntake = vi.fn();
+    render(
+      <CompletePage
+        reservationId={Number.MAX_SAFE_INTEGER + 2}
+        notes=""
+        flow={baseFlow}
+        onMyReservations={vi.fn()}
+        onNewReservation={vi.fn()}
+        onRevisitIntake={onRevisitIntake}
+      />,
+    );
+
+    expect(screen.getByText("この予約の問診は現在開けません。")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "事前問診に回答する（任意）" }),
+    ).not.toBeInTheDocument();
+    expect(onRevisitIntake).not.toHaveBeenCalled();
   });
 });
