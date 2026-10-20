@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
 import type { CertificateApi } from "../api/certificate-api";
 import { newOperationKey } from "../api/certificate-operation-key";
 import { CertificateApiError } from "../api/certificate-errors";
@@ -61,8 +61,11 @@ export function useCertificateIssue({
   );
   // 編集のたびに進める。遅れて返った preview が編集後の画面に載らないようにする。
   const epochRef = useRef(0);
+  // 非同期ハンドラが最新の state を読むための ref（render 中には書かない）。
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const edit = useCallback(
     (patch: { kind?: CertificateKind; layout?: IssueState["layout"]; draft?: Partial<CertificateInputDraft> }) => {
