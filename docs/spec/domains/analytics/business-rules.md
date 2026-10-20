@@ -120,3 +120,19 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 ## 未決事項・関連仕様・根拠
 
 来院集計の変更は2026-10-15の確認6（Sentinel_4230d91e7dd88191b67f30714ed073ba）へのユーザー「ok」（Sentinel_ae272463dc248191b51fbef540e04109）が根拠。実来院日、飼主は同日1回、ペットは各1回を承認範囲とする。既存の他計数とD10の金銭境界を保持し、D10新台帳の読取adapter、税務・外部会計ソフトへの適合と実運用受入は設計／検証残件として分離する。既存計数を新方針の業務承認にせず、変更が必要なら別の明示決定を残す。[技術整理](../../../design/domains/finance-operations/technical-spec.md#analytics-current-gap)が現行ソースと差分の参照先。
+
+<a id="analytics-metric-dictionary"></a>
+## 指標辞書・帰属日の参照表
+
+以下は本書の既存FRと正本の接続索引であり、新指標や統一日界の採用ではない。現行読取との差・未検証を保持する。
+
+| 指標／単位 | 帰属・区別 | 正本 |
+|:---|:---|:---|
+| 請求確定額／請求 | 実入金・未納回収・預り金と別。原請求日の生成基準は未決で、completed_at等で補完しない | [金銭分離](#requirement-fr-analytics-money-separation)・[D10](../accounting/lifecycle.md#accounting-open-decisions) |
+| 月次日次明細／会計 | 現行completed_atのJST暦日。旧顧客売上SQLのカルテ日／予定日帰属・完了状態filterと別 | [期間](#requirement-fr-analytics-period-basis) |
+| 実受領・実返金／金銭イベント | 実日時と元資金・請求を区別。保険負担は保険会社の実入金ではなく実受取額へ加算しない | [金銭分離](#requirement-fr-analytics-money-separation)・[D10引継ぎ](../../../design/domains/accounting/technical-spec.md#accounting-handoff-contract) |
+| 部門×方法／配賦・会計distinct | 返金は発生日負値、現行支払はcompleted_at。行件数を総件数へ単純合算しない | [matrix](#requirement-fr-analytics-matrix-report)・[配賦正本](../../screens/29-closing-aggregation.md#closing-allocation-contract) |
+| レジ営業日／AM・PM・EMG | am_start前の深夜は前日EMG。月次JST暦日と差があり日付ラベルだけで一致要求しない | [レジ正本](../../cash-register.md)・[既存境界AC](#requirement-fr-analytics-period-basis) |
+| 来院回数／医院・飼主・日、医院・ペット・日 | 確認済み実来院日。同日複数頭・再受付の重複加算なし。年次rolling365日と暦年売上は別 | [来院FR／既存AC](#requirement-fr-analytics-owner-counts) |
+
+今期対象外の顧客ランキング・CPM等をこの表で公開範囲へ戻さず、欠損／不明を0や来院なしに変換しない。

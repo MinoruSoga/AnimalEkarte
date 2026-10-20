@@ -310,3 +310,7 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 ## 10/19追加承認：一覧・選択用検索の実行契機
 
 [本人回答と4追加ACの正本](../../shared/ui-contracts.md#owner-pet-explicit-search-20261019)へ従い、飼主・ペット一覧と飼主/ペット選択用検索は入力後の自動検索から検索ボタン押下へ変更する。検索語/飼主Noの入力中値と適用済み条件を区別し、入力消去だけで検索せず明示適用する。医院・日付・pet等の既存filter、URL/詳細復帰、AND/カナ/空白/番号/死亡・認可を保持する。後続の[横断承認](../../shared/ui-contracts.md#interaction-consistency-20261019)は既存業務一覧にも検索ボタン方式を適用する。登録時重複照合のタイミングは別用途の既存契約を維持する。実装・実機は未確認。
+
+## 死亡状態を維持する専用処理の参照
+
+[死亡後の既決境界](#requirement-fr-owners-pets-safety-and-private-notes)に従う生前分の後日入力・訂正・退院精算は、[D03](../medical-records/lifecycle.md#medical-record-deceased-retrospective)、[D05](../hospitalization/lifecycle.md#requirement-fr-hospitalization-delete-and-preserve)、[D10](../accounting/lifecycle.md#accounting-posthumous-settlement)、[健診](../checkups/lifecycle.md#fr-checkups-protection)の目的別専用条件を照合する。死亡状態・元記録と理由／履歴を維持し、不明な実施時点を推測しない。死亡取消の追加権限・条件、取消後の予約自動再開を新設しない。

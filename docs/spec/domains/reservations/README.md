@@ -305,3 +305,9 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細]
 [決定根拠・適用範囲](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](pages/reservation-management.md#line-revisit-intake-20261017)。予約完了・予約詳細から任意の再診問診へ進み、受付前に訂正する。予約選択ペットごと7項目を自動取込し、カルテ未作成でも別保存、飼主由来・最新／旧回答と日時を保持する。未回答で予約・受付を止めない。日時変更は継承、新予約・ペット変更は未回答、取消履歴保持。既存のプロフィール転記・入力保持だけを問診本文取込済みの証拠にしない。本人LINE認証・対象患者認可を維持し、共通患者の自院利用を他院記録への認可免除としない。
+
+## 休業・複数頭作成の参照
+
+指名候補・保存時の現在適格性は[D14の休業期間・移行済み実効能力](../staff-workforce/README.md#staff-leave-booking-handoff)も参照する。休業の衝突から既存予約を自動取消しない。
+
+院内の同一枠複数頭作成は[既存closed contract](../../../design/domains/reservations/technical-spec.md#reservation-api-closed-contract)へ接続する。共通予定枠・区分・指名、順序付きpetsと頭別visit_type、全体atomicの既存設計を参照し、新たな頭数上限や頭別日時・区分・指名の業務を追加しない。受入では[既存のペット別初再診条件](pages/reservation-management.md#acceptance)と併せて、送信順と結果ID対応、後段失敗時に一部予約だけ成功しないことを確認する（未実施）。

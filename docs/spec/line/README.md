@@ -18,6 +18,8 @@
 - **[architecture.md](./architecture.md)**: 予約システム(v1)と Lステップ(v2)の全体像、認証フロー、非同期同期ロジック。
 - **[reservation-spec.md](./reservation-spec.md)**: 飼主向け予約アプリ（LIFF）の機能要件、画面遷移、空き枠計算エンジン。
 
+- **[LINE再診問診の既存FR・受入条件](../domains/reservations/pages/reservation-management.md#line-revisit-intake-20261017)**: 予約完了／詳細からの任意回答、ペット別保存、受付前訂正とカルテ取込。LINE予約・再診問診はLステップ今期対象外とは別範囲。
+
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
 - **[lstep-integration.md](./lstep-integration.md)**: **【重要】** マーケティング戦略、CPM 判定ロジック、17 種の自動配信トリガー詳細。

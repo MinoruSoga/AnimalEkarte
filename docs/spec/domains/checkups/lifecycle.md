@@ -23,7 +23,7 @@ Checkupパッケージ（checkup_types／checkup_type_fields／checkups／checku
 
 <a id="fr-checkups-record"></a>
 ## FR-checkups-record：どの入口でも同じカルテ帰属を保つ
-Path Aは保存済みカルテの健診タブで親に紐付ける。Path Bは一覧→患者選択→独立フォームで実施日を診療日とするカルテを作成し健診を紐付ける既存経路。Path Cは一覧から対象カルテの健診タブ＋checkupIdを開いて編集し、別の独立編集系を作らない。通常カルテ全タブ一括保存を追加しない。
+Path Aは保存済みカルテの健診タブで親に紐付ける。Path Bの一覧→患者選択→独立フォームで実施日を診療日とするカルテを作成し健診を紐付ける動作は、現行経路の観察である。目標仕様は[D03の通常受付必須と過去専用入力](../medical-records/lifecycle.md#requirement-fr-medical-records-reception-and-retrospective-entry)を優先し、通常受付を迂回する新しい例外にしない。Path Cは一覧から対象カルテの健診タブ＋checkupIdを開いて編集し、別の独立編集系を作らない。通常カルテ全タブ一括保存を追加しない。
 
 健診種別・実施日を既存フォーム必須とし、担当医・次回日・所見・型付き項目結果は保存対象。担当医未選択を新たな必須にしない。担当医の解除と未送信を区別する。次回日は下記のパッケージ設定／手入力・設定なし空欄の合意へ従う。通常Path BをD03の過去専用入力や患者訂正の代用にしない。
 

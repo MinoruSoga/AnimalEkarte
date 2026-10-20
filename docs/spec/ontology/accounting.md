@@ -33,7 +33,7 @@
 | 保険確認結果／保険負担額 | スタッフが外部画面等で確認した資格・残限度と今回保険が負担する額。未確認／不明は有効と別、窓口利用不可は補償対象外と別。保険会社の実入金ではない | [窓口保険](../domains/accounting/lifecycle.md#accounting-insurance-window-scope) |
 | 今回利用する保険契約 | 保険を使うペットごとに1回の会計で1契約。同じ診療費への複数契約併用・給付調整は対象外 | [契約の単位](../domains/accounting/lifecycle.md#accounting-insurance-window-scope) |
 | マスタ変更権限付きスタッフ | 対象の価格・割引・保険・支払方法マスタ変更を許可されたスタッフ。管理者以外も含み、全スタッフとは別 | [権限](../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance) |
-| 税抜計算／税込表示 | 価格・値引きの内部算定は税抜、飼主向け料金は税込。表示用明細税込額と請求書の税率別税額を区別 | [計算](../domains/accounting/lifecycle.md#accounting-calculation-order) |
+| 税抜入力計算／税込入力額保持 | 第五群の税抜入力例と税込入力を区別する。後続合意に従い元税込額・税区分・元数量を保持し、換算丸めだけで減額しない。表示用明細税込額と請求書の税率別税額は別段階 | [後続合意を優先](../domains/accounting/lifecycle.md#accounting-input-gross-preservation)・[税抜入力例](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 請求書の税率別税額 | 値引き・配賦後の税抜額を請求書／税率ごとに集約し、税額の1円未満を一度切り捨てる製品方針 | [税と根拠](../domains/accounting/lifecycle.md#accounting-tax-evidence) |
 | 返金必要額／未実行返金 | 訂正後料金を超える請求への支払等から表示する返金必要額。実返金履歴とは別 | [訂正](../domains/accounting/lifecycle.md#requirement-fr-accounting-reasoned-financial-correction) |
 | 請求書／領収書 | 請求する額と実際に受け取った額の帳票。飼主宛名・ペット別明細・ペットに紐づかない共通料金別枠。訂正／部分返金は元取引と今回変更額を区別し、再発行表示と訂正前履歴を保持 | [帳票](../domains/accounting/lifecycle.md#requirement-fr-accounting-document-and-aged-debt) |
@@ -127,3 +127,7 @@
 [過受領承認](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)では入力ミス訂正、実返金、飼主了承の明示預り金登録を区別する。AC-accounting-excess-input-correction／AC-accounting-excess-actual-refund-once／AC-accounting-excess-consented-deposit-single-receipt。一実受領8,500円を請求8,000円と預り500円に対応付けても実入金は一度だけで、架空の追加入金500円を作らない。了承なしの自動預り金化・売上加算・返金未実行の返金済み化をしない。元額/方法/実受領日/返金日/配分を保持し、同じ返却を釣銭と返金で二重控除しない。
 
 個別会計の割引変更権限と価格マスタ変更権限は別（AC-accounting-individual-discount-permission）。通常単価/割引の理由任意と、手入力その他行/実施中止/確定会計訂正/実返金等の既存理由必須は操作別の制約で、一律理由必須又は一律任意へまとめない。
+
+## 計算説明の後続合意への追従（2026-10-20）
+
+[税込入力・小数数量・手動端数値引き](../domains/accounting/lifecycle.md#accounting-input-gross-preservation)を旧税抜説明より適用範囲内で優先する。元数量0.25／0.49を行金額の丸めで変更せず、手動の小額値引きを自動10円未満切捨てに変換しない。割引・配賦・税率別税・税込入力保持を合成したケースの照合はEMR-367の残件で、語彙追従や開発コード間一致だけを実際の現行カルテへの適合済みとしない。新算式は追加しない。
