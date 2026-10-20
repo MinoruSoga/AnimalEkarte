@@ -61,7 +61,7 @@ const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません
 const EDIT_FETCH_CONTEXT = "マニュアル編集元の取得";
 const SAVE_CONTEXT = "マニュアル保存";
 const RECEIPT_MISMATCH_NOTICE =
-  "保存結果の照合に失敗しました。入力は保持されています。下の「保存結果を再照会」で同じ保存の結果を確認できます。閉じる場合は入力が破棄されるため、必要ならコピー・ダウンロードで退避してください。";
+  "保存結果の照合に失敗しました。入力は保持されています。閉じる場合は入力が破棄されるため、必要ならコピー・ダウンロードで退避してください。";
 const UNKNOWN_NOTICE =
   "保存結果を確認できていません（unknown）。入力は保持されています。新しい保存は行われません。下の「保存結果を再照会」で同じ保存の結果を確認できます。閉じる場合は入力が破棄されるため、必要ならコピー・ダウンロードで退避してください。";
 const RESOLVE_QUERY_FAILED_NOTICE =
@@ -140,8 +140,8 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
   const editStartPublishedVersionIdRef = useRef<string | null>(null);
   /** 進行中の保存を示し、二重クリックによる複数 operation_key 送信を防ぐ */
   const savingRef = useRef(false);
-  /** 停止中に再照会できる operation_key（unknown/照会失敗になった保存） */
-  const lastOperationKeyRef = useRef<string | null>(null);
+  /** 停止中に再照会できる operation_key（unknown/照会失敗になった保存）。描画条件に使うためstate */
+  const [lastOperationKey, setLastOperationKey] = useState<string | null>(null);
   useLayoutEffect(() => {
     canEditRef.current = canEdit;
   }, [canEdit]);
@@ -279,7 +279,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
       setNotice({ kind: "error", text: UNKNOWN_NOTICE });
       return;
     }
-    // 照会結果もreceipt照合を通す（公開版不変の照合を含む）
+    // 照会結果もreceipt照合を通す（公開版不変の照合を含む）。通過した時点で保存は確定
     try {
       verifyManualEditReceipt(result.receipt, {
         operationKey,
@@ -294,32 +294,21 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
       return;
     }
     // 照合成功後、現在状態を別取得して比較する（api.yaml operations契約）。
-    // 照会で得たreceiptが古い可能性に備え、最新のedit viewが保存結果と一致しなければ成功表示をしない。
-    let fresh: ManualArticleEditView;
+    // receipt照合で保存は確定済み。比較は表示のための補助であり、
+    // 不一致（その後さらに編集が進んだ等）・取得失敗は確定した成功を否定しない。情報として伝える
     try {
-      fresh = await getManualArticleEditView(article.category, article.slug);
-    } catch (freshErr) {
-      setSaveStopped(true);
-      setNotice({
-        kind: "error",
-        text: `保存は確定しましたが、最新の編集元の取得に失敗しました。入力は保持されています。${extractApiErrorMessage(
-          freshErr,
-          EDIT_FETCH_CONTEXT,
-        )}`,
-      });
-      return;
-    }
-    if (
-      fresh.version !== result.receipt.resulting_version ||
-      fresh.current === null ||
-      fresh.current.id !== result.receipt.content_version_id
-    ) {
-      setSaveStopped(true);
-      setNotice({
-        kind: "error",
-        text: "保存結果と最新の編集元が一致しません。その後さらに編集が進んでいる可能性があります。入力は保持されています。最新状態を確認してください。",
-      });
-      return;
+      const fresh = await getManualArticleEditView(article.category, article.slug);
+      if (
+        fresh.version !== result.receipt.resulting_version ||
+        fresh.current === null ||
+        fresh.current.id !== result.receipt.content_version_id
+      ) {
+        toast.info(
+          "保存は確定しました。その後ほかの操作でこの記事が更新されています。最新状態をご確認ください。",
+        );
+      }
+    } catch {
+      toast.info("保存は確定しました。最新状態の取得に失敗したため、後ほどご確認ください。");
     }
     handleVerifiedSuccess();
   };
@@ -353,7 +342,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         // 応答喪失・5xxは結果不明。元keyで結果照会し新keyの再保存で救済しない。
         // 照会のawait中に保存ボタンが再有効化されないよう、先に停止状態へする
         setSaveStopped(true);
-        lastOperationKeyRef.current = err.operationKey;
+        setLastOperationKey(err.operationKey);
         await resolveUnknownOperation(err.operationKey);
         return;
       }
@@ -435,7 +424,12 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
 
   /** 停止中の保存結果を同じ operation_key で再照会する（新keyの保存はしない） */
   const handleRequeryOperation = () => {
-    const operationKey = lastOperationKeyRef.current;
+    if (canEditRef.current !== true) {
+      // 照会にも現在権限が必要（api.yaml: 照会はmanual-edit:editの現在権限で拘束）
+      toast.error(PERMISSION_DENIED_MESSAGE);
+      return;
+    }
+    const operationKey = lastOperationKey;
     if (operationKey === null || resolvingOperation) {
       return;
     }
@@ -634,7 +628,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           className={`px-4 py-2 text-xs border-b ${C.borderDivider} ${C.bgDanger10} ${C.danger}`}
         >
           {notice.text}
-          {saveStopped && lastOperationKeyRef.current !== null ? (
+          {saveStopped && lastOperationKey !== null ? (
             <button
               type="button"
               onClick={handleRequeryOperation}

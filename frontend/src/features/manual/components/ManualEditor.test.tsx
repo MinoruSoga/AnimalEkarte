@@ -32,7 +32,7 @@ const { editViewMock, saveMock, operationsMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }));
 
 // adapterの関数だけを差し替え、エラークラス等は実物を使う（instanceof分岐の同一性を保つ）
@@ -149,6 +149,7 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     operationsMock.mockReset();
     vi.mocked(toast.error).mockClear();
     vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.info).mockClear();
   });
 
   it("編集元のcurrent内容版を表示し、保存成功（receipt照合一致）で閉じる", async () => {
@@ -366,8 +367,9 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     });
   });
 
-  it("operations succeededでも最新edit viewが保存結果と不一致なら成功表示せず停止する", async () => {
-    // 2回目の取得も古いviewのまま（その後さらに編集が進んだ等）→ 成功表示を差し控える
+  it("operations succeededでも最新edit viewが不一致なら、確定した成功を伝え追加情報を出す（成功扱い）", async () => {
+    // receipt照合は通過＝保存確定。2回目の取得も古いviewのまま（その後さらに編集が進んだ等）でも
+    // 確定した成功を否定せず、追加情報（toast.info）を出して閉じる
     editViewMock.mockResolvedValue(editViewFixture());
     saveMock.mockRejectedValue(
       new ManualArticleSaveError({
@@ -380,7 +382,7 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
       state: "succeeded",
       receipt: receiptFixture(),
     });
-    renderEditor({ canEdit: true });
+    const { onClose } = renderEditor({ canEdit: true });
 
     const textarea = await screen.findByLabelText("マニュアル本文編集");
     await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
@@ -388,9 +390,13 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     await userEvent.type(textarea, "古い照会結果の入力");
     await userEvent.click(screen.getByRole("button", { name: "保存" }));
 
-    const alert = await screen.findByRole("alert");
-    await waitFor(() => expect(alert).toHaveTextContent("一致しません"));
-    expect(toast.success).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("マニュアルを保存しました");
+      expect(toast.info).toHaveBeenCalledWith(
+        expect.stringContaining("ほかの操作でこの記事が更新されています"),
+      );
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 
   it("unknown停止後に同じoperation_keyで再照会できる（新key保存はしない）", async () => {
