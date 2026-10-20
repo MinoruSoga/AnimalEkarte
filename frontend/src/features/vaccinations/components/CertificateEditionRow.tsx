@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BADGE, C } from "@/lib/design-tokens";
 import { formatDate } from "@/lib/format/date";
 import { formatCurrency } from "@/lib/format/number";
 import type { CertificateApi } from "../api/certificate-api";
 import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateEdition, CertificateLayout, CertificateSavedPreview } from "../api/certificate-schemas";
-import { useCertificateReprint } from "../hooks/use-certificate-reprint";
+import { isReprintUnresolved, useCertificateReprint } from "../hooks/use-certificate-reprint";
 import { LAYOUT_LABEL } from "../lib/certificate-inputs";
 import { VALIDITY_LABEL } from "../lib/certificate-messages";
 import { CertificateArtifactPrint } from "./CertificateArtifactPrint";
@@ -30,14 +30,22 @@ export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }
   const [savedError, setSavedError] = useState<string | null>(null);
   const [savedBusy, setSavedBusy] = useState(false);
   const reprint = useCertificateReprint({ api, edition, sourceVersion, onRefetch });
+  // 再印刷の結果が未確定の間は、同じ key の照会・再試行だけを許す（別操作・向き変更を止める）。
+  const reprintLocked = isReprintUnresolved(reprint.state);
+  // 保存版プレビューの応答が、向き変更後の画面に載らないようにする。
+  const savedRequestRef = useRef(0);
   const inputs = edition.snapshot.inputs;
 
   async function showSaved() {
+    savedRequestRef.current += 1;
+    const requestId = savedRequestRef.current;
     setSavedBusy(true);
     setSavedError(null);
     try {
-      setSaved(await api.previewSaved(String(edition.id), layout));
+      const result = await api.previewSaved(String(edition.id), layout);
+      if (requestId === savedRequestRef.current) setSaved(result);
     } catch (error) {
+      if (requestId !== savedRequestRef.current) return;
       setSaved(null);
       const kind = error instanceof CertificateApiError ? error.kind : "network";
       setSavedError(
@@ -47,11 +55,14 @@ export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }
       );
       if (kind === "dependency-changed") onRefetch();
     } finally {
-      setSavedBusy(false);
+      if (requestId === savedRequestRef.current) setSavedBusy(false);
     }
   }
 
   function changeLayout(next: CertificateLayout) {
+    if (reprintLocked) return;
+    savedRequestRef.current += 1;
+    setSavedBusy(false);
     setLayout(next);
     setSaved(null);
     setSavedError(null);
@@ -83,17 +94,22 @@ export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }
             {edition.available_layouts.length > 1 ? (
               <div className="flex flex-col">
                 <Label htmlFor={`layout-${edition.id}`}>用紙の向き</Label>
-                <NativeSelect
-                  id={`layout-${edition.id}`}
+                <Select
                   value={layout}
-                  onChange={(e) => changeLayout(e.target.value as CertificateLayout)}
+                  disabled={reprintLocked}
+                  onValueChange={(v) => changeLayout(v as CertificateLayout)}
                 >
-                  {edition.available_layouts.map((l) => (
-                    <option key={l} value={l}>
-                      {LAYOUT_LABEL[l]}
-                    </option>
-                  ))}
-                </NativeSelect>
+                  <SelectTrigger id={`layout-${edition.id}`} className="min-w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {edition.available_layouts.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {LAYOUT_LABEL[l]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             ) : null}
             <Button type="button" variant="outline" disabled={savedBusy} onClick={() => void showSaved()}>
@@ -101,7 +117,7 @@ export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }
             </Button>
             <Button
               type="button"
-              disabled={reprint.state.phase === "running"}
+              disabled={reprintLocked}
               onClick={() => void reprint.start(layout)}
             >
               再印刷の準備

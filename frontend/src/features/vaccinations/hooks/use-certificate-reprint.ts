@@ -14,6 +14,11 @@ import { decideIssueFailure, type IssueNoticeCode } from "../lib/certificate-iss
  * 保存版の再印刷（POST /reprints）。issue と同じ operation_key 規則:
  * 結果不明では同 key で照会し、新しい key は「成功なし」確定後の新しい操作でだけ作る。
  */
+/** 結果が確定していない間（同じ key で照会・再試行するだけの状態）。 */
+export function isReprintUnresolved(state: ReprintState): boolean {
+  return state.phase === "running" || state.phase === "unknown" || state.phase === "not-issued";
+}
+
 export type ReprintState =
   | { phase: "idle" }
   | { phase: "running" }
@@ -49,6 +54,7 @@ export function useCertificateReprint(args: {
         setState({ phase: "unknown", notice: "contract-violation" });
         return;
       }
+      pendingRef.current = null;
       setState({ phase: "done", ...refs, replayed: result.status === "replayed" });
     },
     [],
@@ -61,9 +67,13 @@ export function useCertificateReprint(args: {
       } catch (error) {
         const kind = error instanceof CertificateApiError ? error.kind : "network";
         if (kind === "scope-not-found") setState({ phase: "not-issued", notice: "not-claimed" });
-        else if (kind === "forbidden") setState({ phase: "blocked", notice: "forbidden" });
-        else if (kind === "unauthenticated") setState({ phase: "blocked", notice: "unauthenticated" });
-        else if (kind === "operation-in-progress") setState({ phase: "unknown", notice: "busy" });
+        else if (kind === "forbidden") {
+          pendingRef.current = null;
+          setState({ phase: "blocked", notice: "forbidden" });
+        } else if (kind === "unauthenticated") {
+          pendingRef.current = null;
+          setState({ phase: "blocked", notice: "unauthenticated" });
+        } else if (kind === "operation-in-progress") setState({ phase: "unknown", notice: "busy" });
         else setState({ phase: "unknown", notice: "unavailable" });
       }
     },
@@ -84,9 +94,11 @@ export function useCertificateReprint(args: {
       } catch (error) {
         const decision = decideIssueFailure(error);
         if (decision.type === "stale") {
+          pendingRef.current = null;
           setState({ phase: "stale", notice: decision.notice });
           onRefetch();
         } else if (decision.type === "blocked") {
+          pendingRef.current = null;
           setState({ phase: "blocked", notice: decision.notice });
         } else {
           setState({ phase: "unknown", notice: decision.notice });
@@ -99,6 +111,8 @@ export function useCertificateReprint(args: {
 
   const start = useCallback(
     async (layout: CertificateLayout) => {
+      // 結果不明の操作が残っている間は新しい key を作らない（同 key の照会・再試行だけ）。
+      if (pendingRef.current !== null) return;
       const pending: Pending = {
         editionId: String(edition.id),
         request: {
@@ -121,9 +135,11 @@ export function useCertificateReprint(args: {
     if (pendingRef.current) await execute(pendingRef.current);
   }, [execute]);
 
-  const reset = useCallback(() => {
-    pendingRef.current = null;
+  /** 画面上の表示を初期化する。未確定の key があるときは拒否して false を返す。 */
+  const reset = useCallback((): boolean => {
+    if (pendingRef.current !== null) return false;
     setState({ phase: "idle" });
+    return true;
   }, []);
 
   return { state, start, recheck, retrySameKey, reset };

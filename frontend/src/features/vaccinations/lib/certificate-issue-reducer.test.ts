@@ -76,6 +76,22 @@ describe("発行フローの状態遷移", () => {
   });
 });
 
+describe("発行済みからの新規発行", () => {
+  it("issued から startNew で editing に戻り、preview / pending / issued を空にする", () => {
+    let s = issueReducer(previewed(), { type: "issueStart", pending });
+    s = issueReducer(s, { type: "issueOk", refs: { editionId: "1", artifactId: "2", replayed: false } });
+    const next = issueReducer(s, { type: "startNew" });
+    expect(next.phase).toBe("editing");
+    expect(next.preview).toBeNull();
+    expect(next.pending).toBeNull();
+    expect(next.issued).toBeNull();
+  });
+  it("issued 以外では startNew は何もしない", () => {
+    const s = previewed();
+    expect(issueReducer(s, { type: "startNew" })).toBe(s);
+  });
+});
+
 describe("発行失敗の分類", () => {
   const err = (kind: ConstructorParameters<typeof CertificateApiError>[0]) => new CertificateApiError(kind);
   it("結果不明の失敗は同 key の照会へ回す", () => {

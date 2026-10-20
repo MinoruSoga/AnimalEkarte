@@ -1,7 +1,7 @@
 import { MoneyInput } from "@/components/shared/SidePeek";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { C } from "@/lib/design-tokens";
 import {
@@ -18,6 +18,9 @@ interface CertificateInputsFormProps {
   disabled: boolean;
   onChange: (patch: Partial<CertificateInputDraft>) => void;
 }
+
+/** Radix Select は空文字の value を持てないため、未選択の番兵値を使う。 */
+const BODY_SIZE_UNSET = "unset";
 
 const FEE_LABEL: Record<CertificateFeeKey, string> = {
   registration_fee: "登録手数料",
@@ -54,19 +57,25 @@ export function CertificateInputsForm({ draft, errors, disabled, onChange }: Cer
       {text("cert-dog-tag", "犬鑑札番号", "dog_registration_tag_number")}
       <div className="flex flex-col">
         <Label htmlFor="cert-body-size">体格</Label>
-        <NativeSelect
-          id="cert-body-size"
-          value={draft.body_size}
+        <Select
+          value={draft.body_size === "" ? BODY_SIZE_UNSET : draft.body_size}
           disabled={disabled}
-          onChange={(e) => onChange({ body_size: e.target.value as CertificateInputDraft["body_size"] })}
+          onValueChange={(v) =>
+            onChange({ body_size: v === BODY_SIZE_UNSET ? "" : (v as CertificateInputDraft["body_size"]) })
+          }
         >
-          <option value="">未選択</option>
-          {Object.entries(BODY_SIZE_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </NativeSelect>
+          <SelectTrigger id="cert-body-size">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={BODY_SIZE_UNSET}>未選択</SelectItem>
+            {Object.entries(BODY_SIZE_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex flex-col sm:col-span-2">
         <Label htmlFor="cert-features">特徴</Label>

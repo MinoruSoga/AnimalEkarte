@@ -238,5 +238,12 @@ export function useCertificateIssue({
     dispatch({ type: "acknowledgeResolved" });
   }, []);
 
-  return { state, fieldErrors, edit, copyFrom, requestPreview, issue, recheck, retrySameKey, discardAndEdit };
+  /** 発行済みの画面から、新しい発行を始める。 */
+  const startNew = useCallback(() => {
+    epochRef.current += 1;
+    setFieldErrors({});
+    dispatch({ type: "startNew" });
+  }, []);
+
+  return { state, fieldErrors, edit, copyFrom, startNew, requestPreview, issue, recheck, retrySameKey, discardAndEdit };
 }

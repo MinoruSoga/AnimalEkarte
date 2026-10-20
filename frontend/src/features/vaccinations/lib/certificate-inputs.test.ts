@@ -28,6 +28,14 @@ describe("証明書の入力 10 欄の変換", () => {
     expect(parseFee("9007199254740993")).toHaveProperty("error");
   });
 
+  it("非正準な整数表記(007 / -0)は黙って変換せず検証エラーにする", () => {
+    expect(parseFee("007")).toHaveProperty("error");
+    expect(parseFee("00")).toHaveProperty("error");
+    expect(parseFee("-0")).toHaveProperty("error");
+    expect(parseFee("0")).toEqual({ value: 0 });
+    expect(parseFee("-5")).toEqual({ value: -5 });
+  });
+
   it("先頭 0 の番号文字列をトリム・数値化せずそのまま保持する", () => {
     const draft = { ...emptyDraft(), certificate_number: "0001", distinguishing_features: " 白 " };
     const result = draftToInputs(draft);

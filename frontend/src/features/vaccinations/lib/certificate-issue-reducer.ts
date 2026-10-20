@@ -105,7 +105,8 @@ export type IssueAction =
   | { type: "retryStart" }
   | { type: "stale"; notice: IssueNoticeCode }
   | { type: "blocked"; notice: IssueNoticeCode }
-  | { type: "acknowledgeResolved" };
+  | { type: "acknowledgeResolved" }
+  | { type: "startNew" };
 
 const LOCKED: readonly IssuePhase[] = ["issuing", "unknown", "issued", "blocked"];
 
@@ -159,6 +160,11 @@ export function issueReducer(state: IssueState, action: IssueAction): IssueState
       return { ...state, phase: "stale", preview: null, previewRequest: null, pending: null, notice: action.notice };
     case "blocked":
       return { ...state, phase: "blocked", notice: action.notice };
+    case "startNew":
+      // 発行済みから新しい発行へ。preview / pending を残さない（新 key は次の preview の後）。
+      return state.phase === "issued"
+        ? initialIssueState({ kind: state.kind, layout: state.layout })
+        : state;
     case "acknowledgeResolved":
       return { ...state, phase: "editing", preview: null, previewRequest: null, pending: null, notice: null };
   }

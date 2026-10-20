@@ -71,6 +71,9 @@ export function CertificateIssuePanel({
           artifactId={state.issued.artifactId}
           heading="発行しました"
         />
+        <Button type="button" variant="outline" onClick={flow.startNew}>
+          新しく発行する
+        </Button>
       </div>
     );
   }

@@ -7,7 +7,7 @@ import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateContext, CertificateKind } from "../api/certificate-schemas";
 import { KIND_LABEL } from "../lib/certificate-inputs";
 import { CertificateEditionRow } from "./CertificateEditionRow";
-import { certificateHistoryQueryKey, certificateQueryOptions } from "./certificate-query";
+import { certificateHistoryPageQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface CertificateHistoryProps {
   api: CertificateApi;
@@ -26,7 +26,7 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch }: C
   const [kind, setKind] = useState<CertificateKind>(kinds[0] ?? "normal");
   const [page, setPage] = useState(1);
   const history = useQuery({
-    queryKey: [...certificateHistoryQueryKey(vaccinationId, kind), page, context.source_version],
+    queryKey: certificateHistoryPageQueryKey(vaccinationId, kind, page, context.source_version),
     queryFn: ({ signal }) => api.listEditions(vaccinationId, { kind, page, limit: PAGE_SIZE }, signal),
     ...certificateQueryOptions,
   });

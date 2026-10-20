@@ -36,11 +36,28 @@ function asErrorBody(value: unknown): ErrorBody | null {
   };
 }
 
+/** Blob.text() が無い環境(jsdom 等)でも読めるよう FileReader へフォールバックする。 */
+async function readBlobText(blob: Blob): Promise<string> {
+  if (typeof blob.text === "function") {
+    try {
+      return await blob.text();
+    } catch {
+      // FileReader へフォールバック
+    }
+  }
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error ?? new Error("blob read failed"));
+    reader.readAsText(blob);
+  });
+}
+
 /** blob 要求の失敗 body は Blob で届く。text → JSON に戻してから分類する。 */
 async function readErrorBody(data: unknown): Promise<ErrorBody | null> {
   if (typeof Blob !== "undefined" && data instanceof Blob) {
     try {
-      return asErrorBody(JSON.parse(await data.text()));
+      return asErrorBody(JSON.parse(await readBlobText(data)));
     } catch {
       return null;
     }

@@ -10,7 +10,7 @@ import { KIND_LABEL } from "../lib/certificate-inputs";
 import { VALIDITY_LABEL } from "../lib/certificate-messages";
 import { printPdfBlob } from "../lib/pdf";
 import { CertificatePdfFrame } from "./CertificatePdfFrame";
-import { certificateEditionQueryKey, certificateQueryOptions } from "./certificate-query";
+import { certificateEditionQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface CertificateArtifactPrintProps {
   api: CertificateApi;
@@ -43,14 +43,24 @@ export function CertificateArtifactPrint({ api, editionId, artifactId, heading }
   const isCurrent = edition.data?.validity === "current";
   const content = useCertificateArtifactContent(api, artifactId, isCurrent);
   const [printError, setPrintError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
   const readyBlob = content.state.status === "ready" ? content.state.blob : null;
 
   async function handlePrint(blob: Blob) {
+    if (printing) return;
     setPrintError(null);
+    setPrinting(true);
     try {
       await printPdfBlob(blob);
-    } catch {
-      setPrintError("印刷を開始できませんでした。ブラウザの設定を確認してください。");
+    } catch (error) {
+      const timedOut = error instanceof Error && error.message.includes("タイムアウト");
+      setPrintError(
+        timedOut
+          ? "PDF の読み込みがタイムアウトしました。ブラウザの設定（埋め込み表示の制限）を確認し、もう一度お試しください。"
+          : "印刷を開始できませんでした。ブラウザの設定を確認してください。",
+      );
+    } finally {
+      setPrinting(false);
     }
   }
 
@@ -99,9 +109,9 @@ export function CertificateArtifactPrint({ api, editionId, artifactId, heading }
       {readyBlob !== null ? (
         <div className="space-y-3">
           <CertificatePdfFrame blob={readyBlob} title="印刷する証明書（保存された発行版）" />
-          <Button type="button" onClick={() => void handlePrint(readyBlob)}>
+          <Button type="button" disabled={printing} onClick={() => void handlePrint(readyBlob)}>
             <Printer aria-hidden="true" />
-            印刷する
+            {printing ? "印刷を準備中…" : "印刷する"}
           </Button>
           {printError ? (
             <p role="alert" className={`text-sm ${C.danger}`}>

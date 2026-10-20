@@ -290,6 +290,42 @@ describe("履歴・保存版・再印刷", () => {
     expect(callsOf(controls, "reprint")).toHaveLength(1);
   });
 
+  it("再印刷の結果が不明の間は再実行も向き変更もできず、同じ key で照会する", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("発行結果を確認できません")).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
+    expect(within(row).getByRole("combobox")).toBeDisabled();
+
+    await user.click(within(row).getByRole("button", { name: "結果を照会する" }));
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    const reprintKey = (callsOf(controls, "reprint")[0].detail as { body: { operation_key: string } }).body.operation_key;
+    const lookupKeys = callsOf(controls, "lookupOperation").map((c) => (c.detail as { operationKey: string }).operationKey);
+    expect(callsOf(controls, "reprint")).toHaveLength(1);
+    expect(lookupKeys.every((k) => k === reprintKey)).toBe(true);
+  });
+
+  it("発行済みの画面から「新しく発行する」で編集に戻り、プレビューと key を持ち越さない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    renderScreen(api);
+    await createPreview(user);
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    await screen.findByRole("heading", { name: "発行しました" });
+    await user.click(screen.getByRole("button", { name: "新しく発行する" }));
+    expect(await screen.findByRole("heading", { name: "証明書を発行する" })).toBeInTheDocument();
+    expect(screen.queryByTitle("証明書の確認プレビュー")).toBeNull();
+    expect(screen.queryByRole("button", { name: "この内容で発行する" })).toBeNull();
+    await waitFor(() => expect(screen.getByRole("button", { name: "プレビューを作成" })).toBeInTheDocument());
+    expect(callsOf(controls, "issue")).toHaveLength(1);
+  });
+
   it("旧版(接種訂正後)は履歴参照のみで、再印刷・保存版確認の導線を出さない", async () => {
     const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
     await seedNormalEdition(api);

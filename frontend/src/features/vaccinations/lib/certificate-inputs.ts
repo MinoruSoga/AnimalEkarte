@@ -70,6 +70,8 @@ export function draftFromInputs(inputs: CertificateInputs): CertificateInputDraf
 }
 
 const INTEGER_PATTERN = /^-?\d+$/;
+/** 正準な整数表記のみ（"007" や "-0" を黙って 7 / 0 に変えない）。 */
+const CANONICAL_INTEGER_PATTERN = /^(0|-?[1-9]\d*)$/;
 
 export type DraftErrors = Partial<Record<CertificateFeeKey, string>>;
 
@@ -77,11 +79,14 @@ export type DraftErrors = Partial<Record<CertificateFeeKey, string>>;
 export function parseFee(raw: string): { value: number | null } | { error: string } {
   if (raw === "") return { value: null };
   if (!INTEGER_PATTERN.test(raw)) return { error: "整数（円）で入力してください" };
+  if (!CANONICAL_INTEGER_PATTERN.test(raw)) {
+    return { error: "先頭の 0 や「-0」を除いた整数（円）で入力してください" };
+  }
   const n = Number(raw);
   if (!Number.isSafeInteger(n)) {
     return { error: "桁数が大きすぎます（9,007,199,254,740,991 以下）" };
   }
-  return { value: n === 0 ? 0 : n }; // -0 は 0
+  return { value: n };
 }
 
 export function draftToInputs(

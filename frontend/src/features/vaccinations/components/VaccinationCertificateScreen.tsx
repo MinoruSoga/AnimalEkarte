@@ -8,7 +8,7 @@ import { CertificateApiError, type CertificateErrorKind } from "../api/certifica
 import { httpCertificateApi } from "../api/certificate-http-client";
 import { CertificateHistory } from "./CertificateHistory";
 import { CertificateIssuePanel } from "./CertificateIssuePanel";
-import { certificateContextQueryKey, certificateQueryOptions } from "./certificate-query";
+import { certificateContextQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface VaccinationCertificateScreenProps {
   vaccinationId: number;
@@ -95,7 +95,7 @@ export function VaccinationCertificateScreen({
         getCanEdit={getCanEdit}
         onRefetchContext={refetchAll}
       />
-      <CertificateHistory api={api} vaccinationId={vaccinationId} context={context.data} onRefetch={refetchAll} />
+      <CertificateHistory key={vaccinationId} api={api} vaccinationId={vaccinationId} context={context.data} onRefetch={refetchAll} />
     </div>
   );
 }

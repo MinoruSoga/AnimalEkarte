@@ -16,8 +16,11 @@ export function base64ToPdfBlob(base64: string): Blob {
 /** 組み込みビューアのツールバー（印刷・保存）を出さないための fragment。best effort でありコピー防止の保証ではない。 */
 export const PDF_VIEWER_FRAGMENT = "#toolbar=0&navpanes=0";
 
+/** iframe の読込が終わらない（CSP で拒否された等）場合に待ち続けない上限。 */
+export const PRINT_LOAD_TIMEOUT_MS = 15_000;
+
 /** 隠し iframe へ PDF を読み込み、そのまま印刷ダイアログを開く。完了後に後始末する。 */
-export function printPdfBlob(blob: Blob): Promise<void> {
+export function printPdfBlob(blob: Blob, timeoutMs: number = PRINT_LOAD_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const frame = document.createElement("iframe");
@@ -30,7 +33,13 @@ export function printPdfBlob(blob: Blob): Promise<void> {
         URL.revokeObjectURL(url);
       }, 60_000);
     };
+    const timer = window.setTimeout(() => {
+      frame.onload = null;
+      cleanup();
+      reject(new Error("PDF の読み込みがタイムアウトしました"));
+    }, timeoutMs);
     frame.onload = () => {
+      window.clearTimeout(timer);
       try {
         frame.contentWindow?.focus();
         frame.contentWindow?.print();
@@ -42,6 +51,7 @@ export function printPdfBlob(blob: Blob): Promise<void> {
       }
     };
     frame.onerror = () => {
+      window.clearTimeout(timer);
       cleanup();
       reject(new Error("PDF を読み込めませんでした"));
     };

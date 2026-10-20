@@ -18,5 +18,10 @@ export const certificateContextQueryKey = (vaccinationId: number) =>
 export const certificateEditionQueryKey = (editionId: string) =>
   ["vaccinations", "certificate-edition", editionId] as const;
 
-export const certificateHistoryQueryKey = (vaccinationId: number, kind: string) =>
-  ["vaccinations", "certificate-history", vaccinationId, kind] as const;
+/** 履歴 1 ページ分の key。source_version を含め、接種訂正後の旧ページを再利用しない。 */
+export const certificateHistoryPageQueryKey = (
+  vaccinationId: number,
+  kind: string,
+  page: number,
+  sourceVersion: number,
+) => ["vaccinations", "certificate-history", vaccinationId, kind, page, sourceVersion] as const;
