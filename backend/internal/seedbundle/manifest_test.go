@@ -74,8 +74,9 @@ func TestBundleOrder_IsFullFKSafeOrder(t *testing.T) {
 	t.Parallel()
 
 	// BundleOrder remains the canonical full load order for non-env-aware
-	// tooling (seed-export, docs). Env gating is BundleOrderForEnv only.
-	want := []string{"002_master"}
+	// tooling (seed-export, docs). Env gating is BundleOrderForEnv /
+	// PostLoginBundleOrderForEnv only.
+	want := []string{"002_master", "004_demo"}
 	if !slices.Equal(BundleOrder, want) {
 		t.Fatalf("BundleOrder = %v, want %v", BundleOrder, want)
 	}

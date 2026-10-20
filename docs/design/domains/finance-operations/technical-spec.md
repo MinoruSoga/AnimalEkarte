@@ -341,6 +341,8 @@ preview版を出力時にも照合し、版変化は再取得、0件確認は空
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
 
 <a id="doctor-confirm-gate-20261019"></a>
-## 医師確認 gate と金額了承の設計接続（EMR-462 案・2026-10-19）
+## 医師確認 gate と金額了承の設計接続（EMR-462 案・2026-10-19・2026-10-20 訂正）
 
 Completeの医師確認gateは[medical-records側の本人決定・最終DDL接続](../medical-records/technical-spec.md#doctor-confirm-gate-and-price-ack-20261019)へ従う。廃止済み`billing_confirmations.status`を残す旧最小gate案は使用せず、`doctor_review_sets`・`doctor_review_records`・会計の確認参照と現在の対象集合／臨床世代を照合する。金額了承は既存`billing_price_acknowledgements`＋`billing_change_events`へ接続する。確認後の金額変更は警告了承で可能・医師再確認不要とし、薬剤処置追加削除／数量変更は医師再確認まで請求確定・精算を停止する。確認前の準備／金額未確定表示は可。会計からプランを自動書換えしない。旧調査案の再掲は本人回答の撤回ではない。保存形状の存在をComplete・全writer・画面の実装／実機合格とせず、API／業務処理・DDLは今回変更しない。
+
+具体的なgateのtransaction参加・operation_bindings/operation_resultsへの接続設計はEMR-462の着手前に確定する。保存形状の選定と、後続のgate実装方式が未確定であることを分けて扱う。

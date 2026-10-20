@@ -669,6 +669,7 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 <a id="doctor-confirm-gate-and-price-ack-20261019"></a>
 ## 医師確認gateと金額了承：本人決定と最終DDLへの接続
 
+<a id="doctor-confirm-gate-revision-20261020"></a>
 本人の確定回答と最終001を優先する。`billing_confirmations.status`を残してCompleteへ追加する旧「最小gate」案は失効しており、最終DDLで廃止された表・モデルを復活させない。調査コメントへの旧案再掲を回答撤回や採用根拠にしない。
 
 医師確認の保存形状は既存`doctor_review_sets`・`doctor_review_records`と`billings.doctor_review_set_id`へ対応させる。Complete（`POST /v1/accountings/complete`）の前提では、医院・会計・対象カルテ集合と、確認時／現在の臨床世代・digestの整合を照合する。表の存在や参照IDだけを現在有効な医師確認の証明にしない。確認前・確認不明／失効時は請求確定・精算を停止し、確認前の準備操作と金額未確定表示は可（AC-accounting-before-doctor-review）。具体的な接続・transaction参加・全writer適合は後続実装で確認し、今回新しいDDLやoperation基盤を設けない。
@@ -676,6 +677,8 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 金額了承は既存`billing_price_acknowledgements`（before/after・billing_version/line_version/calculation_version・operation_key・acknowledged_by/at）と`billing_change_events`（intent別before/after・reason）へ接続する。**確認後の金額変更は警告了承で可能、医師再確認は不要**。薬剤・処置の追加削除や数量変更は別intentとし、医師再確認まで確定・精算を停止する。会計から治療プランを自動書換えせず、医師が差分を確認して必要な修正を行う既決境界を維持する。
 
 受入は「確認前Completeは拒否」「確認後の金額変更だけなら警告了承・医師再確認なし」「薬剤処置追加削除／数量変更は再確認まで停止」「準備操作・金額未確定表示は可」を分ける。billing_items.line_version等の保存形状は存在するが、今回のモデル整合をgate・各writer・画面の実装／実機合格と扱わない。会計側の接続は[finance-operations](../finance-operations/technical-spec.md#doctor-confirm-gate-20261019)へ対応させる。
+
+具体的なgateのtransaction参加・`operation_bindings`/`operation_results`への接続設計はEMR-462の着手前に確定する。医師確認集合という保存形状の選定と、後続のgate実装方式が未確定であることを分けて扱う。方式の設計確定まではEMR-462の実装に着手しない。
 
 ## EMR-368／452の後続実装境界
 

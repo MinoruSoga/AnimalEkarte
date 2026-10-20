@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/animal-ekarte/backend/internal/seedbundle"
 	"github.com/animal-ekarte/backend/internal/seedlogin"
 )
 
@@ -22,8 +23,11 @@ func TestExpectedSeedBundleDirs_IncludesLoginForLocalAndStaging(t *testing.T) {
 
 	t.Setenv("APP_ENV", "staging")
 	got = expectedSeedBundleDirs()
-	if !slices.Equal(got, want) {
-		t.Fatalf("staging plan = %v, want %v", got, want)
+	// staging は login seed 後に 004_demo をロードする（デモ業務データ。staff FK のため
+	// login の後。production / local には乗せない）。
+	wantStaging := []string{"002_master", "004_demo", seedlogin.BundleDir}
+	if !slices.Equal(got, wantStaging) {
+		t.Fatalf("staging plan = %v, want %v", got, wantStaging)
 	}
 }
 
@@ -151,4 +155,39 @@ func (r *loginSeedChecksumRows) Next(dest []driver.Value) error {
 	}
 	dest[0] = r.checksum
 	return nil
+}
+
+func TestPostLoginBundleOrderForEnv_StagingOnly(t *testing.T) {
+	t.Parallel()
+	for _, env := range []string{"staging", "STAGING", " staging "} {
+		if got := seedbundle.PostLoginBundleOrderForEnv(env); !slices.Equal(got, []string{"004_demo"}) {
+			t.Fatalf("env %q post-login plan = %v, want [004_demo]", env, got)
+		}
+	}
+	for _, env := range []string{"", "production", "development", "local", "test", "prod", "weird"} {
+		if got := seedbundle.PostLoginBundleOrderForEnv(env); len(got) != 0 {
+			t.Fatalf("env %q post-login plan = %v, want empty", env, got)
+		}
+	}
+}
+
+func TestAllBundlesForEnv_LoadOrder(t *testing.T) {
+	t.Parallel()
+	if got := seedbundle.AllBundlesForEnv("staging"); !slices.Equal(got, []string{"002_master", "004_demo"}) {
+		t.Fatalf("staging all-bundles plan = %v, want [002_master 004_demo]", got)
+	}
+	for _, env := range []string{"", "production", "development", "local"} {
+		if got := seedbundle.AllBundlesForEnv(env); !slices.Equal(got, []string{"002_master"}) {
+			t.Fatalf("env %q all-bundles plan = %v, want master only", env, got)
+		}
+	}
+}
+
+func TestExpectedSeedBundleDirs_OrderingPostLoginAfterLogin(t *testing.T) {
+	t.Setenv("APP_ENV", "staging")
+	got := expectedSeedBundleDirs()
+	// 期待キー集合は load 順の全体（pre-login → login → post-login）。
+	if got[len(got)-1] != seedlogin.BundleDir {
+		t.Fatalf("login seed must be the last expected key, got %v", got)
+	}
 }
