@@ -3345,6 +3345,27 @@ components:
           nullable: true
         sort_order:
           type: integer
+        short_name:
+          type: string
+          nullable: true
+          description: 任意の短縮名（EMR-457）。null は未登録。空白のみは null として保存し、PATCH で "" を送ると未登録へ戻す。省略時は既存値を保持する。
+        image_object_key:
+          type: string
+          nullable: true
+          description: 任意の画像。POST /trimmings/images/upload が返した同一医院の object key のみ受け付ける（署名付き URL・他医院 key・旧形式は 400）。PATCH で "" を送ると未登録へ戻し、省略時は既存値を保持する。削除予約済み key は 409。
+        image_url:
+          type: string
+          nullable: true
+          readOnly: true
+          description: 表示専用の署名付き URL。保存しない。署名に失敗した場合は null。
+        allowed_weekdays:
+          type: array
+          nullable: true
+          description: 予約可能な曜日（0=日〜6=土）。null または空配列は全曜日で、休診・勤務・空き枠等の既決条件は免除しない。重複は除去して昇順で保存する。PATCH で [] を送ると全曜日へ戻し、省略時は既存値を保持する。
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
         created_at:
           type: string
           format: date-time

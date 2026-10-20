@@ -118,7 +118,22 @@ func (r *appointmentTrimmingDetailRepository) ImageKeyInUse(ctx context.Context,
 			}
 		}
 	}
-	return false, nil
+	return trimmingCourseImageKeyInUse(ctx, r.db, clinicID, key)
+}
+
+// trimmingCourseImageKeyInUse は施術コースマスタの画像参照（EMR-457）を数える。
+// コースは canonical key だけを保存するため完全一致で照合し、論理削除済みコースも
+// 参照として残す（消さない方向への過剰保持は許容）。
+func trimmingCourseImageKeyInUse(ctx context.Context, db *gorm.DB, clinicID uint64, key string) (bool, error) {
+	var count int64
+	if err := persistence.DBOrTx(ctx, db).
+		Unscoped().
+		Model(&model.TrimmingCourse{}).
+		Where("clinic_id = ? AND image_object_key = ?", clinicID, key).
+		Count(&count).Error; err != nil {
+		return false, apperrors.Wrap(err, "failed to check trimming course image reference")
+	}
+	return count > 0, nil
 }
 
 // SetOptions は appointment に紐づく trimming オプションを全置換する。

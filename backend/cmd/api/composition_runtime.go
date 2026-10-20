@@ -500,6 +500,7 @@ func newRuntimeTrimming(
 			repositories.trimmingCourses,
 			repositories.trimmingCourseType,
 			transactor,
+			trimmingCourseImageLifecycleOption(repositories.trimmingDetails),
 		),
 		options: trimming.NewTrimmingOptionService(
 			repositories.trimmingOptions,
@@ -816,4 +817,12 @@ func newSupportEmbedder(cfg *config.Config) support.ManualEmbedder {
 		cfg.SupportEmbeddingModel,
 		time.Duration(cfg.SupportEmbeddingTimeoutMS)*time.Millisecond,
 	)
+}
+
+// trimmingCourseImageLifecycleOption shares the trimming image key lock and
+// tombstone protocol with course images (EMR-457). A detail repository without
+// the lifecycle capability leaves course image writes fail-closed.
+func trimmingCourseImageLifecycleOption(details trimming.AppointmentTrimmingDetailRepository) trimming.TrimmingCourseServiceOption {
+	lifecycle, _ := details.(trimming.ImageLifecycleRepository)
+	return trimming.WithCourseImageLifecycle(lifecycle)
 }

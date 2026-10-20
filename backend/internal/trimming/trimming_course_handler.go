@@ -1,7 +1,9 @@
 package trimming
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -25,7 +27,11 @@ func (h *Handler) ListTrimmingCourses(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(courses, toTrimmingCourseResponse))
+	responses := make([]trimmingCourseResponse, 0, len(courses))
+	for i := range courses {
+		responses = append(responses, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, &courses[i]))
+	}
+	c.JSON(http.StatusOK, responses)
 }
 
 // GetTrimmingCourse godoc
@@ -46,7 +52,7 @@ func (h *Handler) GetTrimmingCourse(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingCourseResponse(course))
+	c.JSON(http.StatusOK, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, course))
 }
 
 // CreateTrimmingCourse godoc
@@ -68,7 +74,7 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/trimming-courses/%d", course.ID))
-	c.JSON(http.StatusCreated, toTrimmingCourseResponse(course))
+	c.JSON(http.StatusCreated, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, course))
 }
 
 // UpdateTrimmingCourse godoc
@@ -92,7 +98,27 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingCourseResponse(course))
+	c.JSON(http.StatusOK, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, course))
+}
+
+// signedTrimmingCourseResponse adds a display-only signed URL for the stored
+// image key. Signing failures degrade to no URL (the key stays in the
+// response) so one image cannot hide the master list; the signed URL is never
+// persisted.
+func (h *Handler) signedTrimmingCourseResponse(ctx context.Context, clinicID uint64, course *model.TrimmingCourse) trimmingCourseResponse {
+	resp := toTrimmingCourseResponse(course)
+	if resp.ImageObjectKey == nil {
+		return resp
+	}
+	signed, err := h.signStoredTrimmingImageURL(ctx, clinicID, *resp.ImageObjectKey)
+	if err != nil {
+		slog.WarnContext(ctx, "trimming course image signing failed",
+			slog.String("error", err.Error()),
+			slog.Uint64("clinic_id", clinicID))
+		return resp
+	}
+	resp.ImageURL = &signed
+	return resp
 }
 
 // DeleteTrimmingCourse godoc
