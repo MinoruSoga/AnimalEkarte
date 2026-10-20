@@ -311,7 +311,7 @@ describe("OwnerIntakeReadOnlyCard — 履歴（固定 target 内の旧 revision�
           return HttpResponse.json(
             boundBody({
               history: [
-                { target: REF, answer: answer("3", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
+                { target: REF, answer: { ...answer("1", { visit_purpose: "合成の次ページ目的" }), answer_id: "95" }, target_relation: "current" },
               ],
               next_cursor: null,
             }),
@@ -426,7 +426,7 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
           return HttpResponse.json(
             boundBody({
               history: [
-                { target: REF, answer: answer("3", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
+                { target: REF, answer: { ...answer("1", { visit_purpose: "合成の次ページ目的" }), answer_id: "95" }, target_relation: "current" },
               ],
               next_cursor: null,
             }),
@@ -635,7 +635,7 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     await screen.findByText("合成の来院目的 v2");
     await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("対象が変わりました");
+    expect(await screen.findByRole("alert")).toHaveTextContent("対象または回答状態が変わりました");
     expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
     expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
   });
@@ -765,5 +765,81 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     renderCard();
 
     expect(await screen.findByText("合成の来院目的 v2")).toBeInTheDocument();
+  });
+
+  it("同じ ref でも後続ページで回答状態が変わったら本文を出さず再読込へ誘導する", async () => {
+    server.use(
+      http.get(ROUTE, ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        if (cursor === "cur-2") {
+          return HttpResponse.json({
+            binding: "bound",
+            target: {
+              ref: REF,
+              head_revision: "2",
+              answer_state: "answered",
+              latest_answer: null,
+              content_available: false,
+            },
+            history: [],
+            next_cursor: null,
+          });
+        }
+        return HttpResponse.json(boundBody({ next_cursor: "cur-2" }));
+      }),
+    );
+    renderCard();
+
+    await screen.findByText("合成の来院目的 v2");
+    await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("対象または回答状態が変わりました");
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+  });
+
+  it("同 ref の履歴 revision が head_revision を超える応答は契約失敗（桁数比較）", async () => {
+    // "10" > "9" を辞書順で誤判定しない（head=9, history=10）。
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "9",
+          answer_state: "answered",
+          latest_answer: answer("9"),
+          content_available: true,
+        },
+        history: [{ target: REF, answer: answer("10"), target_relation: "current" }],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v9")).toBeNull();
+  });
+
+  it("未回答（head=null）なのに同 ref の履歴行がある応答は契約失敗", async () => {
+    useIntake({
+      binding: "bound",
+      target: {
+        ref: REF,
+        head_revision: null,
+        answer_state: "unanswered",
+        latest_answer: null,
+        content_available: false,
+      },
+      history: [{ target: REF, answer: answer("1"), target_relation: "current" }],
+      next_cursor: null,
+    });
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("この予約の飼主事前問診の回答はありません。")).toBeNull();
+  });
+
+  it("next_cursor が空文字なら契約失敗", async () => {
+    useIntake(boundBody({ history: [], next_cursor: "" }));
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
   });
 });

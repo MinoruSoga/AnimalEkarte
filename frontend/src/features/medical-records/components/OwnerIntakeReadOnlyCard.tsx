@@ -350,20 +350,26 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
   }
 
   const boundPages = pages.flatMap((page) => (page.binding === "bound" ? [page] : []));
-  const ref = first.target.ref;
-  const targetChanged = boundPages.some(
-    (page) =>
-      page.target.ref.target_id !== ref.target_id ||
-      page.target.ref.appointment_id !== ref.appointment_id ||
-      page.target.ref.pet_id !== ref.pet_id ||
-      page.target.ref.target_generation !== ref.target_generation,
-  );
+    // 対象 ref と回答状態（権限変更による redacted 化等を含む）のいずれかが変わったら本文を出さない。
+  const changeKey = (page: (typeof boundPages)[number]) =>
+    JSON.stringify([
+      page.target.ref.target_id,
+      page.target.ref.appointment_id,
+      page.target.ref.pet_id,
+      page.target.ref.target_generation,
+      page.target.answer_state,
+      page.target.content_available,
+      page.target.head_revision,
+      page.target.latest_answer?.answer_id ?? null,
+    ]);
+  const firstKey = changeKey(first);
+  const targetChanged = boundPages.some((page) => changeKey(page) !== firstKey);
   if (targetChanged) {
     // ページ間で固定 target が変わった: 本文を出さず再読込へ誘導する。
     return (
       <CardShell>
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-          <span className={C.text}>対象が変わりました。再読み込みしてください。</span>
+          <span className={C.text}>対象または回答状態が変わりました。再読み込みしてください。</span>
           <Button
             type="button"
             variant="outline"

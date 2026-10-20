@@ -86,6 +86,22 @@ export function isCanonicalDecimalId(value: unknown): value is string {
   return value.length === MAX_BIGINT_DECIMAL.length && value <= MAX_BIGINT_DECIMAL;
 }
 
+function compareDecimal(a: string, b: string): number {
+  // 正規形十進文字列同士。JS Number へ変換せず、桁数 → 辞書順で比較する。
+  if (a.length !== b.length) return a.length < b.length ? -1 : 1;
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+function sameRef(a: RevisitIntakePersistedTargetRef, b: RevisitIntakePersistedTargetRef): boolean {
+  return (
+    a.target_id === b.target_id &&
+    a.appointment_id === b.appointment_id &&
+    a.pet_id === b.pet_id &&
+    a.target_generation === b.target_generation
+  );
+}
+
 function parseRef(value: unknown): RevisitIntakePersistedTargetRef {
   if (
     !isRecord(value) ||
@@ -187,7 +203,7 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
     throw new Error("revisit-intake: invalid binding");
   }
   const rawCursor = value.next_cursor;
-  if (rawCursor !== null && typeof rawCursor !== "string") {
+  if (rawCursor !== null && (typeof rawCursor !== "string" || rawCursor === "")) {
     throw new Error("revisit-intake: invalid next_cursor");
   }
   const nextCursor: string | null = rawCursor;
@@ -215,28 +231,37 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
     // 可視本文は head revision の回答でなければならない。
     throw new Error("revisit-intake: latest answer is not head revision");
   }
+  const targetRef = parseRef(t.ref);
+  const history: RevisitIntakeHistoryEntry[] = value.history.map((entry) => {
+    if (
+      !isRecord(entry) ||
+      (entry.target_relation !== "current" && entry.target_relation !== "previous")
+    ) {
+      throw new Error("revisit-intake: invalid history entry");
+    }
+    return {
+      target: parseRef(entry.target),
+      answer: parseAnswer(entry.answer),
+      target_relation: entry.target_relation,
+    };
+  });
+  // head は固定 target の最大 revision。同 ref の履歴が head を超える／未回答なのに存在する応答は矛盾。
+  for (const entry of history) {
+    if (!sameRef(entry.target, targetRef)) continue;
+    if (headRevision === null || compareDecimal(entry.answer.revision, headRevision) > 0) {
+      throw new Error("revisit-intake: history exceeds head revision");
+    }
+  }
   return {
     binding: "bound",
     target: {
-      ref: parseRef(t.ref),
+      ref: targetRef,
       head_revision: headRevision,
       answer_state: answerState,
       latest_answer: latest,
       content_available: contentAvailable,
     },
-    history: value.history.map((entry) => {
-      if (
-        !isRecord(entry) ||
-        (entry.target_relation !== "current" && entry.target_relation !== "previous")
-      ) {
-        throw new Error("revisit-intake: invalid history entry");
-      }
-      return {
-        target: parseRef(entry.target),
-        answer: parseAnswer(entry.answer),
-        target_relation: entry.target_relation,
-      };
-    }),
+    history,
     next_cursor: nextCursor,
   };
 }
