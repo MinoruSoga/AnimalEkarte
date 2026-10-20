@@ -34,11 +34,14 @@
 
 ### バックエンド統合
 
-- API クライアント: `api/upsert-manual-article.ts`（保存）。記事取得は `@/hooks/use-manual-article-overrides`（support feature と共有のため src/hooks へ昇格）
-- 取得: GET /api/v1/manual/articles（認証済全員、失敗時は空配列に fallback）
-- 保存: PUT /api/v1/manual/articles/:category/:slug（`ResourceManualEdit` edit 権限）
+- API クライアント: `api/manual-article-edit.ts`（EMR-513 契約 adapter: 編集元取得・保存・結果照会）+ `api/upsert-manual-article.ts`（保存 mutation wrapper）。記事取得は `@/hooks/use-manual-article-overrides`（support feature と共有のため src/hooks へ昇格）
+- 編集元: GET /api/v1/manual/articles/:category/:slug/edit（`ResourceManualEdit` edit 権限）。CAS版 `version` と current 内容版（id / content_revision / content_digest）を**別物**として扱う。current=NULL / legacy_unknown / digest・revision欠落は架空補完せず保存停止
+- 保存: PUT /api/v1/manual/articles/:category/:slug（同 edit 権限）。`operation_key`（UUID）+ 文字列ID + 全置換 content。応答 receipt は対象/版/公開版不変を照合し、一致したときだけ成功表示
+- 結果照会: GET /api/v1/manual/articles/:category/:slug/operations/:operation_key（5xx・応答断後に**同一 key** で照会。unknown中は新keyでの再保存をしない。停止中はエディタの「保存結果を再照会」で同じkeyを再照会できる）
+- 競合: 409 は `code` で分岐。`version_conflict` は最新 edit view を別取得して比較・再確認（自動再送しない）。それ以外の code は停止
 - 履歴: GET /api/v1/manual/articles/:category/:slug/versions（同 view 権限）
 - 削除: DELETE /api/v1/manual/articles/:category/:slug（同 delete 権限 = MD 版に戻す）
+- ID はすべて正数十進**文字列**で往復（JS Number 変換禁止。int64 誤差防止）。digest は server 算出値を透過保持（client で再計算しない）
 
 ### 読み込み時のマージロジック
 
@@ -76,7 +79,7 @@ DB が空の場合・取得失敗時は MD バンドル版が常に表示され�
 
 - `components/ManualEditor.tsx` — textarea + プレビュー + 編集 / 分割 / プレビューモード + 保存/コピー/ダウンロードボタン
 - 編集 / 分割 / プレビュー の 3 モード切替
-- 「保存」: `useUpsertManualArticle()` で PUT 送信 → 成功時にエディタを閉じる、失敗時はトースト
+- 「保存」: `useUpsertManualArticle()`（契約 adapter 経由の PUT）→ receipt 照合（対象/版/公開版不変）を通したときだけ成功表示でエディタを閉じる。409 は code 分岐・入力保持、5xx/応答断は同 key 照会、unknown/照合不能は停止（「保存結果を再照会」で同じ key を再照会可能）。編集開始時の CAS 版を拘束し、背景 refetch では保存基準を差し替えない
 - 「コピー」: frontmatter 含む完全な MD をクリップボードへ
 - 「ダウンロード」: 同上を .md ファイルとして保存
 
