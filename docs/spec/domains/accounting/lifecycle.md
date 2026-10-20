@@ -650,6 +650,18 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 
 [既存の訂正・実移動分離](#requirement-fr-accounting-post-close-separate-movement)に従い、後日入金・返金・請求訂正で元請求日を今日へ上書きしない。[取消後の選択確認による再請求](#accounting-rebill-and-collection)は元請求を保持して別identity／新番号の請求を作り、その新請求の確定日を持つ。元請求日・元番号と再請求先を対応付け、同じ請求の訂正や帳票再発行と混同しない。既存AC-accounting-original-bill-and-movement-dateで確定前／確定時／後日訂正／別請求の再請求を照合し、実装・実機受入は未実施。
 
+### 最終保存正本との対応（静的参照・実装未検証）
+
+[末尾DROP後の最終billings定義](../../../architecture/erd-detail/billings.md)では、旧status／completed_at／ever_finalized等は退役済み。001初期CREATEに残る旧列を現在DDLとして引用せず、旧列を復活させない。[採用済みの会計全体契約](../../../design/domains/accounting/technical-spec.md#accounting-reconciled-contract)と[保存対応表](../../../work/db-contracts/spec-storage-trace.md)へ、次の意味を接続する。
+
+| 業務上の意味 | 最終保存正本への参照・確認残件 |
+|:---|:---|
+| 当該請求の確定とその日付 | billings.claim_stateと[billing_change_events](../../../architecture/erd-detail/billing_change_events.md)のfinalize intent／元請求参照が確定の対応先。記録時刻recorded_atを実際の確定日へ無条件に代用しない。日付projectionは[finance_source_events](../../../architecture/erd-detail/finance_source_events.md)の元change eventと発生時刻の意味を照合して接続する設計／consumer残件で、暦日adapterの実装済みを意味しない |
+| 診療日と実入金日 | 元診療の実日付を保持し、実入金は[payment_funds](../../../architecture/erd-detail/payment_funds.md)のreceived_atと元資金へ対応。請求確定日や作成日から実入金日を推定しない |
+| 取消後の新請求との関係 | [billing_reissue_links](../../../architecture/erd-detail/billing_reissue_links.md)のoriginal_billing_id／new_billing_idと元計算版を参照し、元請求の確定日と新請求の確定日を混同しない |
+
+確定前／確定後／訂正／再請求、記録時刻と実発生のずれ、読取欠損をconsumer fixtureで検証する。日付化方式・旧データ対応を検証前に完成とせず、実DB／model／migrationは今回変更しない。
+
 ## 主飼主変更時の会計帰属
 
 [D04の2026-10-20本人回答](../owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)に従い、未確定会計も元飼主へ残し、主飼主変更から自動移管しない。必要なら別途変更するという回答は、確定済み請求・預り金・発行原本の保護解除や無条件の付替え権限を与えない。別途変更の操作はD10の現在認可・医院／患者・元明細・版・履歴と既決訂正境界を照合する。

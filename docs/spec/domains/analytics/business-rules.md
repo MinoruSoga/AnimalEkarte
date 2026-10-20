@@ -29,6 +29,8 @@ D16は月次／任意期間レポート、飼主集計、Lステップ分析の�
 <a id="requirement-fr-analytics-period-basis"></a>
 ### FR-analytics-period-basis：指標と期間を対にする
 
+以下のcompleted_at／completedは旧consumer SQLの観察であり、001末尾DROP後の現存DDLではない。[請求日と最終保存正本の対応](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)を参照し、旧列復活や新暦日adapterの実装済みを前提にしない。
+
 月次レポートはJST当月を既定とし、月または開始／終了日を選ぶ。現行日次明細はcompleted_atのJST暦日で、D12のAM開始を日界にした営業日ではない。深夜の会計は両者で別の日付行へ入る。日付ラベルだけで締めと月次の一致を要求しない。
 
 顧客売上タブの既定は当暦年、明示期間があればそれを使う。annual_visit_countはrolling365日で暦年売上と別。現行SQLでは金額・会計件数の期間帰属がカルテ日（なければ会計予定日）であり、旧文書の『その年に完了した会計』をcompleted_at期間条件と誤読しない。completed状態フィルタと日付帰属の列は別である。D10の新請求・実入金に対応する読取adapterは未検証で、現行SQLを新台帳の正本としない。
@@ -129,7 +131,7 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 | 指標／単位 | 帰属・区別 | 正本 |
 |:---|:---|:---|
 | 請求確定額／請求 | 実入金・未納回収・預り金と別。[2026-10-20本人回答](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)で原請求日は請求確定日。確定前は未存在で、作成日／会計予定日を代用しない。診療日・実入金日を別保持 | [金銭分離](#requirement-fr-analytics-money-separation)・[D10](../accounting/lifecycle.md#accounting-open-decisions) |
-| 月次日次明細／会計 | 現行completed_atのJST暦日。旧顧客売上SQLのカルテ日／予定日帰属・完了状態filterと別 | [期間](#requirement-fr-analytics-period-basis) |
+| 月次日次明細／会計 | 旧consumer観察はcompleted_atのJST暦日（最終DDLの存続列ではない）。旧顧客売上SQLのカルテ日／予定日帰属・完了状態filterと別 | [期間](#requirement-fr-analytics-period-basis) |
 | 実受領・実返金／金銭イベント | 実日時と元資金・請求を区別。保険負担は保険会社の実入金ではなく実受取額へ加算しない | [金銭分離](#requirement-fr-analytics-money-separation)・[D10引継ぎ](../../../design/domains/accounting/technical-spec.md#accounting-handoff-contract) |
 | 部門×方法／配賦・会計distinct | 返金は発生日負値、現行支払はcompleted_at。行件数を総件数へ単純合算しない | [matrix](#requirement-fr-analytics-matrix-report)・[配賦正本](../../screens/29-closing-aggregation.md#closing-allocation-contract) |
 | レジ営業日／AM・PM・EMG | am_start前の深夜は前日EMG。月次JST暦日と差があり日付ラベルだけで一致要求しない | [レジ正本](../../cash-register.md)・[既存境界AC](#requirement-fr-analytics-period-basis) |
