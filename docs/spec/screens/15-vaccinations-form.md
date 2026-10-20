@@ -1,5 +1,7 @@
 # 予防接種入力/編集 仕様書 (Vaccination Form)
 
+> 2026-10-20追加目標：カルテ内の予防接種タブは[治療プランの同一予定追跡FR／10AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)へ接続し、追加した予定を未実施として示す。保存済み実績／結果と区別し、予定追加だけで実施・結果確定・証明書発行・健診完了・機器送信・請求確定を行わない。実績の既決入力・訂正・認可は[領域正本](../domains/vaccinations/lifecycle.md#vaccinations-plan-tab-link)を維持し、別本文の二重入力を作らない。[設計差分](../../design/domains/vaccinations/technical-spec.md#plan-tab-link-design)は未実装／実機未確認。独立一覧・過去履歴の全件を未実施予定へ置換する意味ではない。
+
 ## 2026-10-15 D08仕様整理の優先順位
 
 [死亡後の生前接種記録](../domains/vaccinations/lifecycle.md#fr-vaccinations-correction)は死亡状態を戻さず理由・履歴付きで後日入力／誤記訂正できる目標。通常フォームの死亡拒否とは分けて専用経路を設計し、新たな接種・未来予約を許可しない。実装適合は未確認。

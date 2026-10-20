@@ -1,5 +1,7 @@
 # 定期健診一覧・登録 仕様書 (Checkups)
 
+> 2026-10-20追加目標：カルテ内の定期健診タブは[治療プランの同一予定追跡FR／10AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)へ接続し、追加した予定を未実施として示す。保存済み実績／結果と区別し、予定追加だけで実施・結果確定・証明書発行・健診完了・機器送信・請求確定を行わない。実績の既決入力・訂正・認可は[領域正本](../domains/checkups/lifecycle.md#checkups-plan-tab-link)を維持し、別本文の二重入力を作らない。[設計差分](../../design/domains/checkups/technical-spec.md#plan-tab-link-design)は未実装／実機未確認。独立一覧・過去履歴の全件を未実施予定へ置換する意味ではない。
+
 ## 2026-10-15 D09仕様整理の優先順位
 
 業務・例外・GWTは[健診ライフサイクル](../domains/checkups/lifecycle.md)、現wire／部分成功は[技術契約](../../design/domains/checkups/technical-spec.md)を正本とする。以下は現行UI参照として保持する。

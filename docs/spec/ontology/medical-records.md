@@ -144,3 +144,12 @@
 接種実績はD08の記録、証明書は認可された保存済み内容を発行時に固定した版である。通常予防接種縦/横、狂犬病予防注射済証という3様式を、別の接種事実3件とは扱わない。訂正後は新発行し旧内容を履歴に保持する。再印刷は最新版、旧訂正版は有効証明として印刷しない。共通基本情報の更新で発行版を自動変更せず、同じ発行版の再印刷は当時内容の再現である。発行番号書式・記録との物理多重度・版保存方式は本整理で決めない。
 
 正本：[証明書の版と3様式](../domains/vaccinations/lifecycle.md#certificate-editions-20261017)、AC-vaccinations-certificate-three-layouts／AC-vaccinations-certificate-correction／AC-vaccinations-certificate-basic-update／AC-vaccinations-certificate-no-side-effect。12:53 UTC本人第3項Aによる[縦横の最新版共有](../domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018)は同じ通常証明書の同じ版から印刷様式を選ぶ業務関係で、layout変更と新発行を区別する。未保存印刷・印刷時自動登録・preview省略を復活しない。専用実装の所在/適合と採用仕様を区別する。
+
+<a id="plan-domain-tab-concept"></a>
+## 治療プラン予定と3タブの実績／結果
+
+[2026-10-20本人承認の共通FR／AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)の語彙。今回の治療プラン予定は元プラン項目を識別でき、検査・予防接種・定期健診タブに未実施として現れる。予定とD07検査結果・D08接種実績・D09健診結果は別の意味を持つが、実施後も同じ予定との対応を辿る。各タブ表示を独立した別予定や別の編集可能な結果本文にしない。
+
+未実施／後日予定／中止、実施済み結果待ち、原値／実績あり、検査確定、取得失敗／対応不明を区別する。予定の存在は実施・正常・証明書発行・健診完了・請求確定の事実ではない。医院・患者・カルテ・元項目と結果ID／必要版の対応は業務上の同一性条件であり、名称一致や物理的な一律1対1ではない。パネル・複数結果との多重度、物理作成かprojectionかは技術設計残件。既存のCheckup正系統・接種一記録・D07結果版を維持する。
+
+後日予定の保持と、別来院での元予定消化は別概念。本人確定の[後日予定レポート確認](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)は、既存D21で過去カルテの元予定と現在の実施・中止状態を読む機能だけを追加する。別record実績との関連消化、来院だけの自動実施、元予定の移動・上書き、新たな消化操作を含まない。同一record後日入力と新来院選択copyは既存の別操作として維持する。
