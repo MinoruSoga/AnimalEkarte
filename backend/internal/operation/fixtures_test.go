@@ -567,6 +567,11 @@ type fakeAttempt struct {
 // what it inserted; a successful fn keeps it.
 type fakeJournal struct {
 	undos []func()
+	// savepointIndex is the undo-stack position captured by
+	// MarkApplySavepoint (-1 when the savepoint was not created). It models
+	// PostgreSQL ROLLBACK TO SAVEPOINT, which undoes only the writes made
+	// after the savepoint was established.
+	savepointIndex int
 }
 
 // errAbortedCommit models PostgreSQL rejecting the COMMIT of a transaction
@@ -631,6 +636,12 @@ type fakeStore struct {
 	// attempt); a rollback would release the binding lock before the stop
 	// state is durable — the race the review flagged.
 	txRollbacks int
+	// opSeq is a monotonic operation counter shared by MarkApplySavepoint and
+	// the participant fake, so tests can pin that the savepoint is created
+	// before the owner write runs.
+	opSeq       int
+	lastMarkSeq int
+	markSeen    bool
 }
 
 func newFakeStore() *fakeStore {
@@ -670,9 +681,34 @@ func (s *fakeStore) rollbackCount() int {
 	return s.txRollbacks
 }
 
+// MarkApplySavepoint captures the current undo-stack position of the open
+// transaction. RecordUnknownUnderLock later rolls back to it, so only the
+// owner writes made after this point are undone.
+func (s *fakeStore) MarkApplySavepoint(_ context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if n := len(s.journals); n == 0 {
+		return errors.New("fake savepoint requires an open transaction")
+	}
+	journal := s.journals[len(s.journals)-1]
+	journal.savepointIndex = len(journal.undos)
+	s.lastMarkSeq = s.opSeq
+	s.opSeq++
+	s.markSeen = true
+	return nil
+}
+
+// savepointBeforeApply reports whether MarkApplySavepoint ran after the last
+// unknown record and before the participant's Apply (order pinned via opSeq).
+func (s *fakeStore) applySavepointOrdering() (markSeq int, marked bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastMarkSeq, s.markSeen
+}
+
 // RecordUnknownUnderLock models the savepoint-based in-transaction unknown
-// record: it undoes the owner writes recorded so far in the open transaction
-// and appends the unknown attempt row, which then commits with the caller's
+// record: it rolls back the owner writes made after MarkApplySavepoint and
+// appends the unknown attempt row, which then commits with the caller's
 // transaction while the binding lock is still held.
 func (s *fakeStore) RecordUnknownUnderLock(_ context.Context, b Binding, attemptKey uuid.UUID, status Status) error {
 	s.mu.Lock()
@@ -682,13 +718,17 @@ func (s *fakeStore) RecordUnknownUnderLock(_ context.Context, b Binding, attempt
 		return s.recordErr
 	}
 	s.unknownInTx = len(s.journals) > 0
-	if n := len(s.journals); n > 0 {
-		journal := s.journals[n-1]
-		for i := len(journal.undos) - 1; i >= 0; i-- {
-			journal.undos[i]()
-		}
-		journal.undos = journal.undos[:0]
+	if n := len(s.journals); n == 0 {
+		return errors.New("fake unknown record requires an open transaction")
 	}
+	journal := s.journals[len(s.journals)-1]
+	if journal.savepointIndex < 0 {
+		return errors.New("fake unknown record requires a prior apply savepoint")
+	}
+	for i := len(journal.undos) - 1; i >= journal.savepointIndex; i-- {
+		journal.undos[i]()
+	}
+	journal.undos = journal.undos[:journal.savepointIndex]
 	s.outcomes[b.ID] = append(s.outcomes[b.ID], fakeAttempt{
 		AttemptKey: attemptKey,
 		Outcome:    OutcomeUnknown,
@@ -825,7 +865,7 @@ func (s *fakeStore) begin() *fakeJournal {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	journal := &fakeJournal{}
+	journal := &fakeJournal{savepointIndex: -1}
 	s.journals = append(s.journals, journal)
 	return journal
 }
@@ -956,6 +996,7 @@ type fakeBillingParticipant struct {
 	applies  int
 	gates    int
 	lastReq  *Request
+	applySeq int
 }
 
 func newFakeBillingParticipant(store *fakeStore) *fakeBillingParticipant {
@@ -977,6 +1018,7 @@ func (p *fakeBillingParticipant) Apply(_ context.Context, _ Binding, req Request
 	defer p.mu.Unlock()
 
 	p.applies++
+	p.applySeq = p.store.opSeq
 	captured := req
 	p.lastReq = &captured
 
@@ -1023,6 +1065,15 @@ func (p *fakeBillingParticipant) revoke() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.revoked = true
+}
+
+// applyOrderSeq reports the shared operation counter value captured when Apply
+// ran. Compared against the store's savepoint marker it pins that the
+// savepoint was created before the owner write.
+func (p *fakeBillingParticipant) applyOrderSeq() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.applySeq
 }
 
 func (p *fakeBillingParticipant) failGateWith(err error) {

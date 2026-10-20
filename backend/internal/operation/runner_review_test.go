@@ -120,6 +120,12 @@ func TestExecute_UnknownCommitsUnderLockBeforeRelease(t *testing.T) {
 	// released the binding lock before the stop state became durable — the
 	// exact race window the review flagged.
 	require.Zero(t, f.store.rollbackCount())
+	// The apply savepoint was created before the owner write ran, so rolling
+	// back to it actually undid the write (a savepoint created after the
+	// writes would undo nothing — review round 4).
+	markSeq, marked := f.store.applySavepointOrdering()
+	require.True(t, marked)
+	require.Greater(t, f.owner.applyOrderSeq(), markSeq)
 	stored, ok := f.store.bindingFor(f.scope, f.key)
 	require.True(t, ok)
 	require.Equal(t, 1, f.store.attemptCount(stored.Binding.ID))
@@ -170,8 +176,9 @@ func TestExecute_UnknownPersistenceFailureKeepsResponseStopped(t *testing.T) {
 
 // TestExecute_AppliesTheFingerprintedContent pins the codex P1 finding "bind
 // the applied payload to the fingerprinted content": Apply receives the exact
-// Request whose Content was fingerprinted, so the owner write and the stored
-// receipt cannot diverge from the bound content.
+// Request whose Content was fingerprinted, and the content values are readable
+// by an owner adapter through the exported accessor — so the owner write and
+// the stored receipt cannot diverge from the bound content.
 func TestExecute_AppliesTheFingerprintedContent(t *testing.T) {
 	f := newR2Fixture(t)
 
@@ -187,5 +194,46 @@ func TestExecute_AppliesTheFingerprintedContent(t *testing.T) {
 	require.NotNil(t, f.owner.lastReq)
 	require.Equal(t, f.key, f.owner.lastReq.Key)
 	require.Equal(t, f.scope, f.owner.lastReq.Scope)
-	require.Equal(t, f.content.fields, f.owner.lastReq.Content.fields)
+	// Read through the exported accessor, exactly like an adapter in another
+	// package would.
+	require.Equal(t, f.content.Fields(), f.owner.lastReq.Content.Fields())
+}
+
+// TestExecute_KeyConflictHidesFromRevokedGrant pins the codex P2 finding
+// "authorize before reporting operation-key conflicts": the conflict answer is
+// an equality oracle over the fingerprinted content, so a revoked actor must
+// see not-authorized instead of being able to distinguish a wrong content
+// guess from the stored one.
+func TestExecute_KeyConflictHidesFromRevokedGrant(t *testing.T) {
+	f := newR2Fixture(t)
+	// Bind the key to the fixture content with a first successful execution.
+	f.owner.setVersions("2", "1")
+	out, err := f.runner.Execute(t.Context(), Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       f.content,
+		Preconditions: Preconditions{"billing_version": "2", "line_version": "1"},
+	}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusSucceeded, out.Status)
+
+	other, err := NewContent(r483Content("9", "99999"))
+	require.NoError(t, err)
+	probe := Request{
+		Scope:         f.scope,
+		Key:           f.key,
+		Content:       other,
+		Preconditions: Preconditions{"billing_version": "2", "line_version": "1"},
+	}
+
+	// A current grant sees the conflict.
+	conflict, err := f.runner.Execute(t.Context(), probe, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusKeyConflict, conflict.Status)
+
+	// The same probe from a revoked actor learns nothing.
+	f.owner.revoke()
+	denied, err := f.runner.Execute(t.Context(), probe, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, denied.Status)
 }

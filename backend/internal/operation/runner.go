@@ -31,10 +31,15 @@ type store interface {
 	InsertResult(ctx context.Context, b Binding, res Result) error
 	// HasUnknownOutcome reports whether any unknown outcome exists (sticky).
 	HasUnknownOutcome(ctx context.Context, b Binding) (bool, error)
+	// MarkApplySavepoint creates the savepoint that RecordUnknownUnderLock
+	// rolls back to. It must run before Participant.Apply: a savepoint created
+	// after the owner writes cannot undo them.
+	MarkApplySavepoint(ctx context.Context) error
 	// RecordUnknownUnderLock records the unknown attempt inside the caller's
-	// business transaction (savepoint: undo owner writes, then insert). The
-	// unknown commits with that transaction while the binding row lock is
-	// still held, so the stop state is durable before the lock is released.
+	// business transaction by rolling back to the apply savepoint (undoing the
+	// owner writes) and inserting the unknown row. The unknown commits with
+	// that transaction while the binding row lock is still held, so the stop
+	// state is durable before the lock is released.
 	RecordUnknownUnderLock(ctx context.Context, b Binding, attemptKey uuid.UUID, status Status) error
 	// RecordOutcome appends one attempt outcome. It must run outside an
 	// ambient transaction.
@@ -111,8 +116,11 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 	}
 	if !matches {
 		// Same key, different content. Never execute and never record an
-		// attempt: the binding belongs to the earlier content.
-		return Outcome{Status: StatusKeyConflict, Binding: &binding}, nil
+		// attempt: the binding belongs to the earlier content. The conflict
+		// answer itself can leak the stored content (an equality oracle for
+		// clinical or financial fields), so the current grant is re-checked
+		// before it is exposed: a revoked actor sees not-authorized.
+		return disclose(ctx, p, binding, StatusKeyConflict, nil), nil
 	}
 
 	var outcome Outcome
@@ -249,6 +257,11 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 		return nil
 	}
 
+	// The savepoint must exist before the owner writes: a savepoint created
+	// after an indeterminate Apply could not undo them.
+	if err := r.store.MarkApplySavepoint(ctx); err != nil {
+		return err
+	}
 	applied, err := p.Apply(ctx, binding, req)
 	var indeterminate *IndeterminateEffect
 	if errors.As(err, &indeterminate) {

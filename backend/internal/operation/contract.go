@@ -50,6 +50,18 @@ type Content struct {
 	fields map[string]string
 }
 
+// Fields returns a detached copy of the canonical content values. Owner
+// participants derive their write from this map — the exact fingerprinted
+// values — and never from a separately captured command. Mutating the returned
+// map does not change the content or its fingerprint.
+func (c Content) Fields() map[string]string {
+	out := make(map[string]string, len(c.fields))
+	for k, v := range c.fields {
+		out[k] = v
+	}
+	return out
+}
+
 // Preconditions are execution prerequisites (CAS versions, edit-right fences).
 // They are never fingerprinted. The Participant re-verifies them under lock.
 type Preconditions map[string]string

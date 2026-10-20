@@ -21,6 +21,10 @@ type gormStore struct {
 	db *gorm.DB
 }
 
+// applySavepointName is the savepoint created before Participant.Apply so the
+// owner writes can be undone when Apply reports an indeterminate effect.
+const applySavepointName = "operation_apply_savepoint"
+
 // newGormStore returns the storage used by NewRunner.
 func newGormStore(db *gorm.DB) store {
 	return &gormStore{db: db}
@@ -226,9 +230,24 @@ func (s *gormStore) RecordOutcome(
 	return nil
 }
 
+// MarkApplySavepoint creates the savepoint that RecordUnknownUnderLock rolls
+// back to. The runner calls it immediately before Participant.Apply: a
+// savepoint created after the owner writes would undo nothing, so the writes
+// could commit together with an unknown outcome.
+func (s *gormStore) MarkApplySavepoint(ctx context.Context) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("operation apply savepoint requires an ambient transaction")
+	}
+	if err := persistence.DBOrTx(ctx, s.db).SavePoint(applySavepointName).Error; err != nil {
+		return apperrors.FromGORM(err, "operation_attempt_outcome", "")
+	}
+	return nil
+}
+
 // RecordUnknownUnderLock records the unknown attempt outcome inside the
-// caller's business transaction: it takes a savepoint, undoes the owner
-// writes, and inserts the unknown row. The caller's commit then makes the
+// caller's business transaction: it rolls back to the savepoint that
+// MarkApplySavepoint established before the owner writes — undoing those
+// writes — and inserts the unknown row. The caller's commit then makes the
 // stop state durable while the binding row lock is still held, so no
 // concurrent execution can run Apply in the window between the rollback and
 // the unknown record. details carries only the status code: no content,
@@ -243,11 +262,7 @@ func (s *gormStore) RecordUnknownUnderLock(
 		return apperrors.WrapInternalServerError("operation unknown record requires an ambient transaction")
 	}
 	tx := persistence.DBOrTx(ctx, s.db)
-	const savepoint = "operation_unknown_under_lock"
-	if err := tx.SavePoint(savepoint).Error; err != nil {
-		return apperrors.FromGORM(err, "operation_attempt_outcome", "")
-	}
-	if err := tx.RollbackTo(savepoint).Error; err != nil {
+	if err := tx.RollbackTo(applySavepointName).Error; err != nil {
 		return apperrors.FromGORM(err, "operation_attempt_outcome", "")
 	}
 	details, err := encodeStringMap(map[string]string{"status": string(status)})
