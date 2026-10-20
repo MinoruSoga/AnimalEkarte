@@ -34,6 +34,7 @@ import {
   firstErrorField,
   revisitIntakeFingerprint,
   validateRevisitIntakeAnswers,
+  revisitIntakeRetryAfterSeconds,
   type RevisitIntakeFieldErrors,
 } from "../../lib/revisit-intake-submit";
 import {
@@ -105,6 +106,13 @@ function isLookupNotFound(
 const LOOKUP_FAILED_MESSAGE =
   "送信結果を確認できませんでした。通信状況をご確認のうえ、もう一度お試しください。";
 
+const MISMATCHED_RESULT_MESSAGE =
+  "送信結果を確認できませんでした。二重に保存されないよう、同じ内容で再送信するか結果を確認してください。";
+
+function lookupRetryMessage(seconds: number): string {
+  return `ただいま混み合っています。${seconds}秒ほど待ってから、送信結果を確認してください。`;
+}
+
 function serviceUnavailableMessage(seconds: number): string {
   return `ただいま混み合っています。${seconds}秒ほど待ってから、同じ内容で再送信するか送信結果を確認してください。`;
 }
@@ -162,7 +170,7 @@ function PendingPanel({
         <button
           type="button"
           onClick={onLookup}
-          disabled={busy || authBlocked}
+          disabled={busy || resendBlocked || authBlocked}
           className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
         >
           送信結果を確認
@@ -251,10 +259,40 @@ export function RevisitIntakeEditor({
     persist(values, next);
   }
 
+  /**
+   * 応答が要求した操作・target のものかを確かめる（fail-closed）。operation_id が key と違う、
+   * または成功応答の current_state / result_refs が要求した appointment・pet・世代と違うなら適用しない。
+   */
+  function resultMatchesOperation(
+    result: ResolvedLookupResult,
+    op: RevisitIntakePendingOperation,
+  ): boolean {
+    if (result.operation_result.operation_id !== op.key) return false;
+    if (result.operation_result.state !== "succeeded") return true;
+    const refs = result.operation_result.result_refs;
+    if (refs && (refs.appointment_id !== appointmentId || refs.pet_id !== op.body.pet_id)) {
+      return false;
+    }
+    const state = result.current_state;
+    if (
+      state &&
+      (state.ref.appointment_id !== appointmentId ||
+        state.ref.pet_id !== op.body.pet_id ||
+        state.ref.target_generation !== op.body.target_generation)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
   function applyResult(
     result: ResolvedLookupResult,
     op: RevisitIntakePendingOperation,
   ): EditorOutcome {
+    if (!resultMatchesOperation(result, op)) {
+      updatePending({ ...op, status: "unknown" });
+      return { kind: "unresolved", message: MISMATCHED_RESULT_MESSAGE };
+    }
     if (result.operation_result.state === "succeeded") {
       setPending(null);
       setValues(op.body.answers);
@@ -275,14 +313,29 @@ export function RevisitIntakeEditor({
     try {
       const result = await liffApi.getRevisitIntakeOperation(clinicId, op.key, idToken);
       if (isLookupNotFound(result)) {
+        if (result.operation_result.operation_id !== op.key) {
+          updatePending({ ...op, status: "unknown" });
+          return { kind: "unresolved", message: MISMATCHED_RESULT_MESSAGE };
+        }
         updatePending({ ...op, status: "not_found" });
         return { kind: "unresolved", message: null };
       }
       return applyResult(result, op);
     } catch (err: unknown) {
-      updatePending(op);
       const info = resolveFetchError(err, "送信結果の確認");
-      if (info.status === 401) return { kind: "unauthorized", message: info.message };
+      if (info.status === 401) {
+        updatePending(op);
+        return { kind: "unauthorized", message: info.message };
+      }
+      // 照会 route の 429 / Retry-After 付き 503 も期限まで再送・照会を止める。
+      const retryAfter = revisitIntakeRetryAfterSeconds(err);
+      if (retryAfter !== null) {
+        const availableAt = Date.now() + retryAfter * 1000;
+        updatePending({ ...op, resendAvailableAt: availableAt });
+        setResendAvailableAt(availableAt);
+        return { kind: "unresolved", message: lookupRetryMessage(retryAfter) };
+      }
+      updatePending(op);
       return { kind: "unresolved", message: LOOKUP_FAILED_MESSAGE };
     }
   }
@@ -337,6 +390,8 @@ export function RevisitIntakeEditor({
           if (fresh) updatePending(null);
           return { kind: "unauthorized", message: resolveFetchError(err, "問診の送信").message };
         case "access_denied":
+          // 新規送信の 403/404 は処理前の拒否。未確定の操作として残さない（再送では保持する）。
+          if (fresh) updatePending(null);
           onAccessDenied();
           return { kind: "idle" };
         case "rate_limited":
@@ -392,6 +447,7 @@ export function RevisitIntakeEditor({
         if (resendAvailableAt !== null && Date.now() < resendAvailableAt) return previous;
         return await send(pending, false);
       }
+      if (resendAvailableAt !== null && Date.now() < resendAvailableAt) return previous;
       return await lookup(pending);
     } finally {
       inFlightRef.current = false;

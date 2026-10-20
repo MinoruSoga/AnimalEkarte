@@ -114,6 +114,18 @@ function parseRetryAfter(value: unknown): number | null {
   return Math.max(0, Math.ceil((date - Date.now()) / 1000));
 }
 
+/**
+ * 429 / 503 の Retry-After 秒（正の値のときだけ）。結果照会など submit 以外の route でも
+ * 同じ期限を尊重するために使う。それ以外の失敗・Retry-After なしは null。
+ */
+export function revisitIntakeRetryAfterSeconds(err: unknown): number | null {
+  if (!axios.isAxiosError(err) || !err.response) return null;
+  const { status, headers } = err.response;
+  if (status !== 429 && status !== 503) return null;
+  const seconds = parseRetryAfter(headers?.["retry-after"]);
+  return seconds !== null && seconds > 0 ? seconds : null;
+}
+
 /** HTTP status と code だけで分岐する（error 文言では分岐しない）。 */
 export function classifyRevisitIntakeSubmitError(err: unknown): RevisitIntakeSubmitErrorKind {
   if (!axios.isAxiosError(err) || !err.response) return { type: "unknown" };

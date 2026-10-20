@@ -30,6 +30,11 @@ import type { RevisitIntakeHistoryEntry, RevisitIntakeOwnerCurrentTarget } from 
 
 /** 予約一覧・完了画面から渡す表示用の予約概要（API DTO は変えない）。 */
 export interface RevisitIntakeReservationSummary {
+  /**
+   * 表示用 snapshot の対象ペット ID（分かる導線だけ渡す）。現在 target の pet と一致しない、
+   * または不明なまま target が変わった場合は summary を表示しない（pet 名は推定しない）。
+   */
+  petId?: string;
   petName?: string;
   dateLabel?: string;
   courseName?: string;
@@ -113,6 +118,7 @@ export function RevisitIntakePage({
   const [notice, setNotice] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [firstTargetIdentity, setFirstTargetIdentity] = useState<string | null>(null);
   const { refetch } = intake;
 
   const handleDirtyChange = useCallback((next: boolean) => setDirty(next), []);
@@ -146,6 +152,18 @@ export function RevisitIntakePage({
 
   const { read } = intake;
   const current = read?.current_target ?? null;
+  const currentTargetIdentity = current
+    ? `${current.ref.pet_id}|${current.ref.target_generation}`
+    : null;
+  // 最初に読み込んだ target を覚え、その後 target が変わったら一覧 snapshot の summary を出さない。
+  if (firstTargetIdentity === null && currentTargetIdentity !== null) {
+    setFirstTargetIdentity(currentTargetIdentity);
+  }
+  const summaryMatchesTarget =
+    current === null ||
+    (summary?.petId !== undefined
+      ? summary.petId === current.ref.pet_id
+      : firstTargetIdentity === null || firstTargetIdentity === currentTargetIdentity);
 
   function renderCurrent() {
     if (!read) return null;
@@ -260,7 +278,9 @@ export function RevisitIntakePage({
             </div>
           ) : null}
           <h1 className="text-lg font-bold text-noah-teal-dark">再診の事前問診</h1>
-          {summary && (summary.petName || summary.dateLabel || summary.courseName) ? (
+          {summary &&
+          summaryMatchesTarget &&
+          (summary.petName || summary.dateLabel || summary.courseName) ? (
             <p className="mt-1 text-sm text-noah-text-sub">
               {[summary.petName, summary.dateLabel, summary.courseName].filter(Boolean).join(" / ")}
             </p>
