@@ -334,10 +334,41 @@ describe("RevisitIntakeSection", () => {
     renderSection();
     await userEvent.click(await screen.findByRole("button", { name: "さらに表示" }));
     expect(
-      await screen.findByText("対象が変わりました。再読み込みしてください。"),
+      await screen.findByText("対象または回答状態が変わりました。再読み込みしてください。"),
     ).toBeInTheDocument();
     expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
     expect(screen.queryByText("目的z0")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();
+  });
+
+  it("ref が同じでも後続ページで回答状態が変わったら merge せず再読み込みを促す", async () => {
+    server.use(
+      http.get(PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor")) {
+          return HttpResponse.json(
+            body({
+              current_target: {
+                ref: ref(),
+                head_revision: "3",
+                answer_state: "answered",
+                latest_answer: answer("a3", "3"),
+                content_available: true,
+              },
+              history: [
+                { target: ref(), answer: answer("a3", "3"), target_relation: "current" },
+              ],
+            }),
+          );
+        }
+        return HttpResponse.json(body({ next_cursor: "CURSOR_2" }));
+      }),
+    );
+    renderSection();
+    await userEvent.click(await screen.findByRole("button", { name: "さらに表示" }));
+    expect(
+      await screen.findByText("対象または回答状態が変わりました。再読み込みしてください。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+    expect(screen.queryByText("目的a3")).not.toBeInTheDocument();
   });
 });

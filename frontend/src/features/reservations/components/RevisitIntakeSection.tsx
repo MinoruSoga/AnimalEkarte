@@ -176,12 +176,21 @@ export function RevisitIntakeSection({
   const errorStatus = query.isError ? getRevisitIntakeErrorStatus(query.error) : undefined;
   const denied = errorStatus === 403 || errorStatus === 404;
 
-  // ページ間で対象（ref）が変わったら後続ページを混ぜない。
+  // ページ間で対象（ref）または回答状態が変わったら後続ページを混ぜない。
   const targetChanged = useMemo(() => {
     if (!pages || pages.length < 2) return false;
     const key = (t: (typeof pages)[number]["current_target"]) =>
       t
-        ? [t.ref.appointment_id, t.ref.pet_id, t.ref.target_generation, t.ref.target_id].join("|")
+        ? [
+            t.ref.appointment_id,
+            t.ref.pet_id,
+            t.ref.target_generation,
+            t.ref.target_id,
+            t.head_revision,
+            t.answer_state,
+            t.latest_answer?.answer_id ?? null,
+            t.content_available,
+          ].join("|")
         : "";
     const first = key(pages[0].current_target);
     return pages.some((p) => key(p.current_target) !== first);
@@ -255,7 +264,7 @@ export function RevisitIntakeSection({
       <SectionFrame>
         <div className="flex items-center justify-between gap-2" role="alert">
           <p className={`text-sm ${C.textWarning}`}>
-            対象が変わりました。再読み込みしてください。
+            対象または回答状態が変わりました。再読み込みしてください。
           </p>
           <Button
             type="button"
