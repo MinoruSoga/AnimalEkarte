@@ -91,3 +91,38 @@ describe("buildMasterSelectionPayload (EMR-280)", () => {
     expect(payload.procedure_id).toBeUndefined();
   });
 });
+
+describe("buildMasterSelectionPayload 品目別保険設定の受渡し (EMR-454)", () => {
+  it.each([
+    { category: "診察", isNonInsurance: true, expected: false },
+    { category: "診察", isNonInsurance: false, expected: true },
+    { category: "処置", isNonInsurance: true, expected: false },
+    { category: "処置", isNonInsurance: false, expected: true },
+    { category: "薬剤", isNonInsurance: true, expected: false },
+    { category: "薬剤", isNonInsurance: false, expected: true },
+  ])(
+    "$category の master 明示値 is_non_insurance=$isNonInsurance は is_insurance=$expected へ反転写像される",
+    ({ category, isNonInsurance, expected }) => {
+      const payload = buildMasterSelectionPayload({
+        item: masterItem({ category, id: "5", isNonInsurance }),
+        quantity: 1,
+        sortOrder: 0,
+      });
+
+      expect(payload.is_insurance).toBe(expected);
+    },
+  );
+
+  it.each([
+    { label: "旧欠落 null", isNonInsurance: null },
+    { label: "未取得 undefined", isNonInsurance: undefined },
+  ])("$label は対象へ推測変換せず従来既定 is_insurance=false を維持する", ({ isNonInsurance }) => {
+    const payload = buildMasterSelectionPayload({
+      item: masterItem({ category: "診察", id: "5", isNonInsurance }),
+      quantity: 1,
+      sortOrder: 0,
+    });
+
+    expect(payload.is_insurance).toBe(false);
+  });
+});

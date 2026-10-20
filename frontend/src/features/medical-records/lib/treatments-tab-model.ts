@@ -37,11 +37,20 @@ export function buildMasterSelectionPayload(params: {
     consultation_id: item.category === "診察" ? toNumericId(item.id) : undefined,
     procedure_id: item.category === "処置" ? toNumericId(item.id) : undefined,
     is_selected: true,
-    is_insurance: false,
+    is_insurance: toInsuranceApplicable(item.isNonInsurance),
     discount_amount: 0,
     sort_order: sortOrder,
     memo: "",
   };
+}
+
+/**
+ * EMR-454: master の品目別保険設定（is_non_insurance）を治療明細の適用対象 field へ反転写像する。
+ * 明示 true（対象外）→ false、明示 false（対象）→ true。旧欠落 null・未取得は対象へ推測変換せず
+ * 従来既定 false を維持する（AC-accounting-item-insurance-legacy-missing）。
+ */
+function toInsuranceApplicable(isNonInsurance: boolean | null | undefined): boolean {
+  return isNonInsurance === false;
 }
 
 // ─────────────────────────────────────────────────────────────────────
