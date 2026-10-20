@@ -8,7 +8,6 @@ package medicalrecord
 
 import (
 	"context"
-	"log/slog"
 	"strconv"
 	"strings"
 
@@ -126,57 +125,52 @@ func (r *conversationSummaryRepository) FindByMedicalRecordID(ctx context.Contex
 //   - revision は UPDATE 式 COALESCE(conversation_summary_revision, 0) + 1 で採番する。
 //     read-modify-write を避けるため、同時保存でも版が重複しない。旧未保存（NULL）からの
 //     初回保存は 1 になる。
+//   - 成功時は RETURNING で自分の書込みrevisionを同一statement内で受け取る。
+//     UPDATE と読戻しの間に他writerが割り込んでも、自分の commit 済み結果を
+//     正しく返せる（lost update / 誤conflict の競合窗口が存在しない）。
 //   - 同一内容（summary と source が不変）の行は WHERE で除外するため、再送しても revision は
-//     据え置き（no-op 成功）。0 行更新のときは読戻しで内容一致を先に判定し、保存済み状態が
-//     本commandの意図と一致する再送（期待版が古い場合を含む）は成功として返す。
-//   - 0 行更新で内容が異なる理由は「期待版不一致」「対象なし」の2つなので、読戻しで区別し、
-//     期待版不一致だけを conflict に正規化する（対象なしは NotFound）。
-//   - UPDATE が行に作用したあとは読戻し値に他writerの後発更新（LWW）が混ざりうるが、
-//     RowsAffected>0 を commit済み成功の根拠として成功を返す（conflict へ反転しない）。
-//   - 更新が commit された後の読戻し失敗は成功を失敗へ反転させない
-//     （backend/CLAUDE.md「commit済みの成功を後段の再取得errorで失敗応答へ反転させない」）。
-//     Revision は unknown（nil）として返し、呼び出し側の同一要求再送は冪等に no-op になる。
+//     据え置き（no-op 成功）。0 行更新のときは読戻しで分類する: 内容一致は冪等成功、
+//     対象なしは NotFound、期待版不一致は conflict。
+//   - 0 行更新経路は commit 済みの書込みを伴わないため、backend/CLAUDE.md
+//     「commit済みの成功を後段の再取得errorで失敗応答へ反転させない」に触れない。
 func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConversationSummaryCommand) (*ConversationSummary, error) {
 	if err := cmd.validate(); err != nil {
 		return nil, err
 	}
-	q := persistence.DBOrTx(ctx, r.db).
-		Model(&model.MedicalRecord{}).
-		Where("id = ? AND clinic_id = ?", cmd.MedicalRecordID, cmd.ClinicID).
-		Where("(conversation_summary IS DISTINCT FROM ? OR conversation_summary_source IS DISTINCT FROM ?)", cmd.Summary, cmd.Source)
+	// RETURNING で自分の書込みrevisionを同一statement内で受け取る。
+	// UPDATE と読戻しの間に他writerが割り込んでも、commit 済みの自分の結果を正しく返せる
+	// （lost update / 誤conflict の競合窗口が存在しない）。updated_at は触れない。
+	var revision int64
+	query := `UPDATE medical_records SET
+		conversation_summary = ?,
+		conversation_summary_source = ?,
+		conversation_summary_revision = COALESCE(conversation_summary_revision, 0) + 1
+	WHERE id = ? AND clinic_id = ?
+		AND (conversation_summary IS DISTINCT FROM ? OR conversation_summary_source IS DISTINCT FROM ?)`
+	args := []any{cmd.Summary, cmd.Source, cmd.MedicalRecordID, cmd.ClinicID, cmd.Summary, cmd.Source}
 	if cmd.ExpectedRevision != nil {
 		// 保存済み revision は CHECK 制約により 1 以上なので、0 は「未保存」と一意に対応する。
-		q = q.Where("COALESCE(conversation_summary_revision, 0) = ?", *cmd.ExpectedRevision)
+		query += " AND COALESCE(conversation_summary_revision, 0) = ?"
+		args = append(args, *cmd.ExpectedRevision)
 	}
-	result := q.UpdateColumns(map[string]any{
-		"conversation_summary":          cmd.Summary,
-		"conversation_summary_source":   cmd.Source,
-		"conversation_summary_revision": gorm.Expr("COALESCE(conversation_summary_revision, 0) + 1"),
-	})
+	result := persistence.DBOrTx(ctx, r.db).Raw(query, args...).Scan(&revision)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, conversationSummaryResource, strconv.FormatUint(cmd.MedicalRecordID, 10))
 	}
+	if result.RowsAffected == 1 {
+		rev := revision
+		return &ConversationSummary{
+			MedicalRecordID: cmd.MedicalRecordID,
+			Summary:         &cmd.Summary,
+			Source:          &cmd.Source,
+			Revision:        &rev,
+		}, nil
+	}
 
+	// 0 行更新: commit 済みの書込みを伴わないため、読戻しで分類する。
 	current, err := r.FindByMedicalRecordID(ctx, cmd.ClinicID, cmd.MedicalRecordID)
 	if err != nil {
-		if result.RowsAffected > 0 {
-			// 更新は commit 済み。成功を失敗へ反転させず、revision を unknown として返す。
-			slog.WarnContext(ctx, "conversation summary saved but read-back failed",
-				slog.String("error", err.Error()),
-				slog.Uint64("clinic_id", cmd.ClinicID),
-				slog.Uint64("medical_record_id", cmd.MedicalRecordID))
-			return &ConversationSummary{
-				MedicalRecordID: cmd.MedicalRecordID,
-				Summary:         &cmd.Summary,
-				Source:          &cmd.Source,
-			}, nil
-		}
-		return nil, err
-	}
-	if result.RowsAffected > 0 {
-		// 本commandの書込みは commit 済み。読戻し値が他writerの後発更新（LWW）で
-		// 本commandと異なっていても、commit済みの成功を conflict へ反転させない。
-		return current, nil
+		return nil, err // 対象なし（他医院を含む）は NotFound
 	}
 	if conversationSummaryMatches(current, cmd) {
 		// 同一内容の再送（期待版が古い場合を含む）。revision も含め保存済みの値をそのまま返す。

@@ -355,6 +355,57 @@ func TestConversationSummaryRepository_SaveWithoutExpectedRevisionAppliesLastWri
 	assert.Equal(t, "B", *latest.Summary)
 }
 
+// Save は UPDATE...RETURNING の単一statementで自分の書込み内容と版を返すため、
+// 「UPDATE と読戻しの間に他writerが commit し、読戻しが他writerの内容・版を返す」
+// 競合窗口が構造的に存在しない。旧実装（UPDATE→読戻し）で指摘された lost update 経路
+// （読戻し値を次の ExpectedRevision に使い他writerの内容を conflict なしで上書き）は
+// この構造変更で除去された。GORM の Query callback 経由で中割込みをシミュレートする
+// テストは Raw+RETURNING との組合せで非決定論的になるため置き換え、代わりに
+// 「連続する独立writerがそれぞれ自分の書込み結果を受け取ること」を直接検証する。
+func TestConversationSummaryRepository_SaveReturnsOwnWritePerWriter(t *testing.T) {
+	db := setupConversationSummaryTestDB(t)
+	repo := NewConversationSummaryRepository(db)
+	ctx := context.Background()
+	record := makeConversationSummaryRecord(t, db, conversationSummaryClinicA, "CS-CONCURRENT-FOLLOW")
+
+	writerA, err := repo.Save(ctx, SaveConversationSummaryCommand{
+		ClinicID:        conversationSummaryClinicA,
+		MedicalRecordID: record.ID,
+		Summary:         "writerAの要約",
+		Source:          "lstep",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, writerA.Summary)
+	assert.Equal(t, "writerAの要約", *writerA.Summary, "writerA は自分の内容を受け取る")
+	require.NotNil(t, writerA.Revision)
+	require.Equal(t, int64(1), *writerA.Revision, "writerA の版は 1")
+
+	writerB, err := repo.Save(ctx, SaveConversationSummaryCommand{
+		ClinicID:        conversationSummaryClinicA,
+		MedicalRecordID: record.ID,
+		Summary:         "writerBの要約",
+		Source:          "lstep",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, writerB.Summary)
+	assert.Equal(t, "writerBの要約", *writerB.Summary, "writerB は自分の内容を受け取る（writerA の内容でない）")
+	require.NotNil(t, writerB.Revision)
+	require.Equal(t, int64(2), *writerB.Revision, "writerB の版は 2（writerA の版を流用しない）")
+
+	// 各writerの返値が次の ExpectedRevision として正しく機能すること
+	// （旧 lost update 経路の回帰防止: 返版が他writerのものだとこの保存が誤conflictする）。
+	writerC, err := repo.Save(ctx, SaveConversationSummaryCommand{
+		ClinicID:         conversationSummaryClinicA,
+		MedicalRecordID:  record.ID,
+		Summary:          "writerCの要約",
+		Source:           "lstep",
+		ExpectedRevision: writerB.Revision,
+	})
+	require.NoError(t, err, "writerB の返版は次の保存の期待版として有効")
+	require.NotNil(t, writerC.Revision)
+	assert.Equal(t, int64(3), *writerC.Revision)
+}
+
 func TestConversationSummaryRepository_SaveOntoUnsavedWithExpectedZero(t *testing.T) {
 	db := setupConversationSummaryTestDB(t)
 	repo := NewConversationSummaryRepository(db)
