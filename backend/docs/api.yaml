@@ -13748,6 +13748,7 @@ components:
             - "included"
             - "excluded"
             - "exempt"
+            - null
           "nullable": true
         "tax_rate":
           "type": "string"
@@ -14282,6 +14283,9 @@ components:
           "$ref": "#/components/schemas/MedicalRecordPlanOriginPackage"
       "discriminator":
         "propertyName": "kind"
+        "mapping":
+          "single": "#/components/schemas/MedicalRecordPlanOriginSingle"
+          "package": "#/components/schemas/MedicalRecordPlanOriginPackage"
     MedicalRecordPlanClinicalExecution:
       "type": "object"
       "additionalProperties": false
@@ -14338,6 +14342,9 @@ components:
           "$ref": "#/components/schemas/MedicalRecordPlanCommercialExecution"
       "discriminator":
         "propertyName": "kind"
+        "mapping":
+          "clinical": "#/components/schemas/MedicalRecordPlanClinicalExecution"
+          "commercial": "#/components/schemas/MedicalRecordPlanCommercialExecution"
       "description": "Only clinical/commercial for new plans. Unknown legacy remains separate explicit legacy projection, not inferred migration."
     MedicalRecordPlanOwnerLink:
       "type": "object"
