@@ -4802,6 +4802,16 @@ components:
         保存と同じtransactionの確定結果。shiftはその操作で確定したDTO、後日の最新値ではない。
         deleteはshift=NULL、resulting_version=NULL（削除後の架空版を作らない）。
         create/updateはshiftとresulting_versionが非NULLで一致する。新規版は1、更新の内容変更時に版を進める。
+        resulting_version=shift.versionとshift_id=shift.idはserver/clientの意味検証で照合し、JSON Schemaだけで一致を保証したとしない。
+      oneOf:
+        - properties:
+            intent: { enum: [delete] }
+            resulting_version: { type: integer, nullable: true, enum: [null] }
+            shift: { type: object, nullable: true, enum: [null] }
+        - properties:
+            intent: { enum: [create, update] }
+            resulting_version: { type: integer, format: int64, minimum: 1 }
+            shift: { $ref: '#/components/schemas/ShiftEntry' }
       properties:
         operation_key: { type: string, format: uuid }
         intent: { type: string, enum: [create, update, delete] }
@@ -21029,7 +21039,11 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: integer, format: int64, minimum: 1 }
+          description: >-
+            応答ShiftEntry.idと同じ先頭ゼロなし正数十進文字列。JS Numberへ変換せずpathへ渡す。
+            serverは厳密に整数解析しPostgreSQL bigintの1..9223372036854775807を検査、範囲外/不正形式は400。
+            桁数/辞書順だけで存在やscopeを判定しない。
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
       responses:
         '200':
           description: 最新勤務（編集案を上書きせず比較用に取得する）
@@ -21066,9 +21080,13 @@ paths:
         - name: id
           in: path
           required: true
+          description: >-
+            応答ShiftEntry.idと同じ先頭ゼロなし正数十進文字列。JS Numberへ変換せずpathへ渡す。
+            serverは厳密に整数解析しPostgreSQL bigintの1..9223372036854775807を検査、範囲外/不正形式は400。
+            桁数/辞書順だけで存在やscopeを判定しない。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -21123,9 +21141,13 @@ paths:
         - name: id
           in: path
           required: true
+          description: >-
+            応答ShiftEntry.idと同じ先頭ゼロなし正数十進文字列。JS Numberへ変換せずpathへ渡す。
+            serverは厳密に整数解析しPostgreSQL bigintの1..9223372036854775807を検査、範囲外/不正形式は400。
+            桁数/辞書順だけで存在やscopeを判定しない。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: expected_version
           in: query
           required: true
