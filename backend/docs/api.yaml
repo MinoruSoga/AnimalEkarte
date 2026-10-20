@@ -4654,6 +4654,9 @@ components:
         memo: { type: string }
         owner_request: { type: string }
         staff_notes: { type: string }
+        is_insurance: { type: boolean }
+        insurance_company_name: { type: string }
+        insurance_number: { type: string }
     HospitalizationCreateRequest:
       type: object
       description: |
@@ -4668,6 +4671,31 @@ components:
       description: |
         PATCH入力専用DTO。owner/pet/type/start/endは必須ではなく、非送信fieldは更新要求に含まれない。
         cage_idのNULL禁止、明示clear、期待割当CASは標準allOfで適用し、vendor拡張の解釈を前提としない。
+        既存buildHospitalizationUpdateが更新fieldを一つも作らない要求は400。空object、未知fieldだけ、
+        falseのclearだけはno-op。memo空文字やis_insurance=false等の明示値は更新fieldとして数える。
+        DB現値との実差分を必須にする新業務ルールではなく、既存のfield存在検査に合わせる。
+      anyOf:
+        - required: [owner_id]
+        - required: [pet_id]
+        - required: [hospitalization_type]
+        - required: [start_date]
+        - required: [end_date]
+        - required: [next_visit]
+          properties: { next_visit: { type: string, format: date } }
+        - required: [status]
+        - required: [doctor_id]
+          properties: { doctor_id: { type: integer, format: int64 } }
+        - required: [memo]
+        - required: [owner_request]
+        - required: [staff_notes]
+        - required: [is_insurance]
+        - required: [insurance_company_name]
+        - required: [insurance_number]
+        - required: [cage_id]
+        - required: [clear_cage_id]
+          properties: { clear_cage_id: { enum: [true] } }
+        - required: [clear_next_visit]
+          properties: { clear_next_visit: { enum: [true] } }
       allOf:
         - $ref: '#/components/schemas/HospitalizationFormFields'
         - $ref: '#/components/schemas/HospitalizationCagePatchFields'
@@ -4887,6 +4915,7 @@ components:
         - required: [protected_bookings]
           properties:
             code: { enum: [protected_bookings] }
+            protected_bookings: { type: array, minItems: 1 }
         - required: [conflicting_clinic_name, overlap_starts_at, overlap_ends_at]
           properties:
             code: { enum: [cross_clinic_overlap] }
@@ -8313,28 +8342,43 @@ components:
       description: |
         応答専用の不変内容版。idは内容版ID、content_revisionは記事内の内容改訂番号。
         article.version（CAS版）とは別。公開だけの操作で内容版を増やさない。
+        記事/内容版/復元元IDは先頭ゼロなし正数十進文字列。NULLの未知参照を架空IDへ補完しない。
+        全read/request/receiptでJS Numberへ変換せず往復し、serverはPostgreSQL bigintの1..9223372036854775807を検査する。
         restoredは正数の復元元参照、static/override/editedは復元元NULL。
         legacy_unknownはNULLまたは既知の正数参照を保持し、参照だけからsourceを推定したり既知IDを消したりしない。
         source_kindの旧NULLはadapterでlegacy_unknownとして示す。legacy_unknownやNULLのdigest/revisionは未解決出所。架空値で埋めず編集・公開・復元の元にしない。
       oneOf:
         - properties:
             source_kind: { enum: [restored] }
-            restored_from_id: { type: integer, format: int64, minimum: 1 }
+            restored_from_id: { type: string, pattern: '^[1-9][0-9]*$' }
         - properties:
             source_kind: { enum: [static, override, edited] }
-            restored_from_id: { type: integer, nullable: true, enum: [null] }
+            restored_from_id: { type: string, nullable: true, enum: [null] }
         - properties:
             source_kind: { enum: [legacy_unknown] }
       properties:
-        id: { type: integer, format: int64, minimum: 1 }
-        article_id: { type: integer, format: int64, minimum: 1 }
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        article_id: { type: string, pattern: '^[1-9][0-9]*$' }
         content_revision: { type: integer, format: int64, minimum: 1, nullable: true }
         content_digest: { type: string, pattern: '^[0-9a-f]{64}$', nullable: true, description: '32byte digestのhex表現。内容一致のtoken、CAS版の代用ではない。' }
         source_kind: { type: string, enum: [static, override, edited, restored, legacy_unknown] }
-        restored_from_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        restored_from_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
         content: { $ref: '#/components/schemas/ManualArticleContent' }
         edited_by_staff_id: { type: integer, format: int64, nullable: true }
         edited_at: { type: string, format: date-time }
+    ManualPublishedVersion:
+      type: object
+      additionalProperties: false
+      required: [id, content_digest, source_kind, content]
+      description: |
+        公開内容専用projection。編集者staff ID、編集日時、復元元参照等の編集/history情報を公開readへ含めない。
+        医院共通の記事内容を読めることは他院staff識別子の閲覧許可ではない。
+        内容版ID/digest/出所を公開内容と束縛し、未知digestを捏造しない。公開状態不明overrideは自動公開しない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        content_digest: { type: string, pattern: '^[0-9a-f]{64}$', nullable: true }
+        source_kind: { type: string, enum: [static, override, edited, restored, legacy_unknown] }
+        content: { $ref: '#/components/schemas/ManualArticleContent' }
     ManualArticle:
       type: object
       additionalProperties: false
@@ -8345,10 +8389,10 @@ components:
         未公開・非表示・不存在は単体404/一覧から除外。取得障害を不存在や静的版への黙ったfallbackにしない。
         static/override adapterでも出所と版を識別し、公開状態不明のoverrideを全員公開しない。
       properties:
-        id: { type: integer, format: int64, minimum: 1 }
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
         category: { type: string, enum: [screens, workflows] }
         slug: { type: string }
-        published: { $ref: '#/components/schemas/ManualArticleVersion' }
+        published: { $ref: '#/components/schemas/ManualPublishedVersion' }
     ManualArticleListResponse:
       type: object
       required: [data]
@@ -8365,7 +8409,7 @@ components:
         currentは現在の編集内容版で、published_version_idとは一致を仮定しない。
         current=NULLや出所未解決なら元内容確認へ戻す。医院は操作認可元であり記事の所有医院ではない。
       properties:
-        id: { type: integer, format: int64, minimum: 1 }
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
         category: { type: string, enum: [screens, workflows] }
         slug: { type: string }
         version: { type: integer, format: int64, minimum: 1 }
@@ -8375,7 +8419,7 @@ components:
             - type: object
               nullable: true
               enum: [null]
-        published_version_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        published_version_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
         hidden: { type: boolean }
     UpsertManualArticleRequest:
       type: object
@@ -8384,6 +8428,7 @@ components:
       description: |
         EMR-502の既存記事edit専用。名称は互換だが不存在の新規upsertはしない（404）。
         path category/slugとarticle_idを同じ対象へ拘束し、違えば409。
+        記事/内容版IDは応答と同じ正数十進文字列で受け、JS Number変換しない。範囲外/不正形式は400。
         全field必須・非NULL。Contentを全置換しtitle/bodyの直置きや部分更新を受け付けない。
         expected_versionは記事CAS版、expected_content_version_idは編集開始時のcurrent.id。
         元内容/出所を再構成できない時はsource_unresolvedで停止。clientから版加算・公開pointer指定はできない。
@@ -8392,9 +8437,9 @@ components:
         本edit要求にpublish/restoreのフラグや復元元版を混在させない。理由必須欄・承認workflowを新設しない。
       properties:
         operation_key: { type: string, format: uuid }
-        article_id: { type: integer, format: int64, minimum: 1 }
+        article_id: { type: string, pattern: '^[1-9][0-9]*$' }
         expected_version: { type: integer, format: int64, minimum: 1 }
-        expected_content_version_id: { type: integer, format: int64, minimum: 1 }
+        expected_content_version_id: { type: string, pattern: '^[1-9][0-9]*$' }
         content: { $ref: '#/components/schemas/ManualArticleEditContent' }
     ManualEditReceipt:
       type: object
@@ -8407,13 +8452,13 @@ components:
         operation_bindings等のDB行・fingerprint・actor_ref・before/after JSONは公開しない。
       properties:
         operation_key: { type: string, format: uuid }
-        article_id: { type: integer, format: int64, minimum: 1 }
+        article_id: { type: string, pattern: '^[1-9][0-9]*$' }
         intent: { type: string, enum: [edit] }
         previous_version: { type: integer, format: int64, minimum: 1 }
         resulting_version: { type: integer, format: int64, minimum: 2 }
-        content_version_id: { type: integer, format: int64, minimum: 1 }
+        content_version_id: { type: string, pattern: '^[1-9][0-9]*$' }
         content_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
-        published_version_id: { type: integer, format: int64, minimum: 1, nullable: true }
+        published_version_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
     ManualEditOperationResult:
       type: object
       additionalProperties: false
