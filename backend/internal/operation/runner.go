@@ -3,6 +3,7 @@ package operation
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -111,7 +112,7 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 
 	var outcome Outcome
 	txErr := r.tx.WithTx(ctx, func(txCtx context.Context) error {
-		return r.participate(txCtx, binding, req.Preconditions, p, &outcome)
+		return r.participate(txCtx, binding, req, p, &outcome)
 	})
 	if txErr == nil {
 		return outcome, nil
@@ -168,8 +169,10 @@ func (r *Runner) settledState(ctx context.Context, binding Binding) (Status, *Re
 	err = r.tx.WithTx(ctx, func(txCtx context.Context) error {
 		lockErr := r.store.LockBindingNoWait(txCtx, binding)
 		if errors.Is(lockErr, errBindingBusy) {
-			status = StatusInProgress
-			return nil
+			// 55P03 has aborted the transaction block: the only way out is a
+			// rollback, so hand the busy error to the transactor instead of
+			// letting it commit an aborted transaction.
+			return errBindingBusy
 		}
 		if lockErr != nil {
 			return lockErr
@@ -191,6 +194,10 @@ func (r *Runner) settledState(ctx context.Context, binding Binding) (Status, *Re
 		}
 		return nil
 	})
+	if errors.Is(err, errBindingBusy) {
+		// The lock was held: roll back happened, nothing is disclosed.
+		return StatusInProgress, nil, nil
+	}
 	if err != nil {
 		return "", nil, err
 	}
@@ -208,7 +215,7 @@ func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, statu
 
 // participate is the outermost business transaction body: owner gate, binding
 // row lock, receipt check, owner write and receipt insert.
-func (r *Runner) participate(ctx context.Context, binding Binding, pre Preconditions, p Participant, outcome *Outcome) error {
+func (r *Runner) participate(ctx context.Context, binding Binding, req Request, p Participant, outcome *Outcome) error {
 	if err := p.Gate(ctx); err != nil {
 		return err
 	}
@@ -230,12 +237,14 @@ func (r *Runner) participate(ctx context.Context, binding Binding, pre Precondit
 		return err
 	}
 	if unknown {
-		// An unresolved effect must not be executed again.
-		*outcome = Outcome{Status: StatusResultUnavailable, Binding: &binding}
+		// An unresolved effect must not be executed again, and the stored
+		// stop-state is disclosed only to the current grant, like every other
+		// stored state.
+		*outcome = disclose(ctx, p, binding, StatusResultUnavailable, nil)
 		return nil
 	}
 
-	applied, err := p.Apply(ctx, binding, pre)
+	applied, err := p.Apply(ctx, binding, req)
 	if err != nil {
 		return err
 	}
@@ -266,9 +275,10 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 	if committed != nil {
 		return disclose(ctx, p, binding, StatusSucceeded, committed), nil
 	}
-	if errors.Is(txErr, errBindingBusy) {
-		// Another attempt is inside the business transaction. Nothing is
-		// recorded: the winner owns the outcome row.
+	var busy *Busy
+	if errors.Is(txErr, errBindingBusy) || errors.As(txErr, &busy) {
+		// Another attempt holds the binding row or a resource behind the owner
+		// gate. Nothing is recorded: the winner owns the outcome row.
 		return Outcome{Status: StatusInProgress, Binding: &binding}, nil
 	}
 	unknown, err := r.store.HasUnknownOutcome(ctx, binding)
@@ -285,7 +295,13 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 		// The owner cannot tell whether its effect happened: record unknown so
 		// the binding stops until the owner resolves it.
 		if err := r.recordOutcome(ctx, binding, OutcomeUnknown, StatusResultUnavailable); err != nil {
-			return Outcome{}, err
+			// Fail closed: the effect may have happened. Never answer with a
+			// retriable failure — a retry would re-run Apply on top of an
+			// effect whose outcome nobody knows. The recording error goes to
+			// the log so an operator resolves the binding by hand.
+			slog.Error("operation unknown outcome recording failed",
+				"clinic_id", binding.ClinicID, "operation_key", binding.Key, "err", err)
+			return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil //nolint:nilerr // 意図的: unknown記録に失敗しても結果不明として停止し、再実行を誘発しない
 		}
 		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
 	}

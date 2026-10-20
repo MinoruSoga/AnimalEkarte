@@ -146,6 +146,20 @@ func (e *IndeterminateEffect) Error() string { return "operation effect is indet
 
 func (e *IndeterminateEffect) Unwrap() error { return e.Cause }
 
+// Busy reports that a resource the attempt must hold is locked by another
+// attempt right now: the operation binding row, or a row behind the owner
+// gate. Gate or Apply may return it (wrapping the driver error as needed) so
+// the runner classifies the attempt as StatusInProgress and records nothing:
+// the client queries the same key again later. A new key never rescues a busy
+// binding.
+type Busy struct {
+	Cause error
+}
+
+func (e *Busy) Error() string { return "operation resource is held by another attempt" }
+
+func (e *Busy) Unwrap() error { return e.Cause }
+
 // Participant is implemented by each write owner (consumer-side adapter).
 // AuthorizeLookup is also applied before a stored result is replayed, so a
 // resend never discloses a result the current grant may no longer read.
@@ -156,9 +170,13 @@ type Participant interface {
 	// without a shared gate return nil. The helper never takes a gate itself.
 	Gate(ctx context.Context) error
 	// Apply runs inside the outermost business transaction after the binding
-	// row lock. It re-verifies current authorization, scope and Preconditions,
-	// performs the owner write and required audit, and returns the receipt.
-	Apply(ctx context.Context, b Binding, pre Preconditions) (Result, error)
+	// row lock. It re-verifies current authorization, scope and Preconditions
+	// from req, performs the owner write derived from req.Content — the exact
+	// value that was fingerprinted for this binding — and returns the receipt.
+	// Taking the Request here is what keeps the fingerprinted content and the
+	// written content from diverging: a receipt can never be stored under a
+	// payload other than the one bound to the key.
+	Apply(ctx context.Context, b Binding, req Request) (Result, error)
 }
 
 // LookupAuthorizer re-checks the current grant before a stored result is

@@ -569,17 +569,33 @@ type fakeJournal struct {
 	undos []func()
 }
 
+// errAbortedCommit models PostgreSQL rejecting the COMMIT of a transaction
+// block that a NOWAIT lock error already aborted.
+var errAbortedCommit = errors.New("fake commit: transaction is aborted")
+
 // fakeTx is the persistence.Transactor used by the fixtures. It runs fn and, when
-// fn returns an error, rolls back what fn wrote through fakeStore.
+// fn returns an error, rolls back what fn wrote through fakeStore. A callback
+// that returns nil on an aborted transaction block fails the commit, like the
+// real PostgreSQL transactor would.
 type fakeTx struct {
 	store *fakeStore
 }
 
 func (t *fakeTx) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	journal := t.store.begin()
+	t.store.mu.Lock()
+	t.store.txAborted = false
+	t.store.mu.Unlock()
 	if err := fn(ctx); err != nil {
 		t.store.rollback(journal)
 		return err
+	}
+	t.store.mu.Lock()
+	aborted := t.store.txAborted
+	t.store.mu.Unlock()
+	if aborted {
+		t.store.rollback(journal)
+		return errAbortedCommit
 	}
 	t.store.commit(journal)
 	return nil
@@ -598,6 +614,11 @@ type fakeStore struct {
 	journals   []*fakeJournal
 	held       map[uuid.UUID]bool
 	beforeLock func()
+	// txAborted models a PostgreSQL transaction block aborted by a NOWAIT
+	// lock error: a callback that returns nil afterwards cannot commit.
+	txAborted bool
+	// recordErr fails the next RecordOutcome, modeling a broken attempt store.
+	recordErr error
 }
 
 func newFakeStore() *fakeStore {
@@ -607,6 +628,14 @@ func newFakeStore() *fakeStore {
 		outcomes: map[uint64][]fakeAttempt{},
 		held:     map[uuid.UUID]bool{},
 	}
+}
+
+// failRecordOutcome makes the next RecordOutcome call fail once, modeling an
+// unavailable attempt store.
+func (s *fakeStore) failRecordOutcome(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.recordErr = err
 }
 
 func (s *fakeStore) ClaimBinding(_ context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string) (storedBinding, error) {
@@ -653,6 +682,8 @@ func (s *fakeStore) LockBindingNoWait(_ context.Context, b Binding) error {
 	defer s.mu.Unlock()
 
 	if s.held[b.Key] {
+		// A NOWAIT lock error aborts the surrounding transaction block.
+		s.txAborted = true
 		return errBindingBusy
 	}
 	return nil
@@ -702,6 +733,11 @@ func (s *fakeStore) RecordOutcome(_ context.Context, b Binding, attemptKey uuid.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.recordErr != nil {
+		err := s.recordErr
+		s.recordErr = nil
+		return err
+	}
 	s.outcomes[b.ID] = append(s.outcomes[b.ID], fakeAttempt{
 		AttemptKey: attemptKey,
 		Outcome:    outcome,
@@ -852,6 +888,7 @@ type fakeBillingParticipant struct {
 	revoked  bool
 	applies  int
 	gates    int
+	lastReq  *Request
 }
 
 func newFakeBillingParticipant(store *fakeStore) *fakeBillingParticipant {
@@ -868,12 +905,15 @@ func (p *fakeBillingParticipant) Gate(_ context.Context) error {
 	return p.gateErr
 }
 
-func (p *fakeBillingParticipant) Apply(_ context.Context, _ Binding, pre Preconditions) (Result, error) {
+func (p *fakeBillingParticipant) Apply(_ context.Context, _ Binding, req Request) (Result, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.applies++
+	captured := req
+	p.lastReq = &captured
 
+	pre := req.Preconditions
 	if pre["billing_version"] != p.versions["billing_version"] ||
 		pre["line_version"] != p.versions["line_version"] {
 		return Result{}, &Rejection{Status: StatusVersionConflict}
