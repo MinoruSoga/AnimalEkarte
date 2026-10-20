@@ -75,9 +75,9 @@ export type UpdateExaminationTypeRequest = Partial<ExaminationTypeWritable> & {
 
 type ProcedureWritable = Omit<Procedure, ServerFields>;
 
-// anesthesia は BE create binding:"required" と一致させる（BUG-028）
-export type CreateProcedureRequest = Pick<ProcedureWritable, "name" | "anesthesia"> &
-  Partial<Omit<ProcedureWritable, "name" | "anesthesia">> & {
+// anesthesia と tax_type は BE create binding:"required" と一致させる。
+export type CreateProcedureRequest = Pick<ProcedureWritable, "name" | "anesthesia" | "tax_type"> &
+  Partial<Omit<ProcedureWritable, "name" | "anesthesia" | "tax_type">> & {
     is_non_insurance: boolean;
   };
 

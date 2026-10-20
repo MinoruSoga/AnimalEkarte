@@ -3450,7 +3450,6 @@ components:
         tax_type:
           type: string
           enum: *id001
-          default: excluded
           description: 税種別（included=内税, excluded=外税, exempt=非課税）
         tax_rate:
           type: number
