@@ -121,7 +121,7 @@ DESIGN.md は意味的カラーを定義しない（本書へ委譲）。臨床�
 | ステータス: 青（受付済/checked_in） | `C.bgStatusBlueDot` | `bg-blue-500` |
 | ステータス: 空/緑/emerald 系 | `C.bgStatusSkyDot` / `C.bgStatusEmeraldDot` 他 | Tailwind パレット |
 | グラフ系列: 体温 / 呼吸数 / 体重 | `PALETTE.chartTemperature` / `chartRespiratory` / `chartWeight` | `#E07B54` / `#9C6EDE` / `#4CAF82` |
-| グラフ: 罫線・軸文字 | `PALETTE.chartGrid` / `chartAxisText` | `#E8E6E3` / `#9B9B97` |
+| グラフ: 罫線・軸文字 | `PALETTE.chartGrid` / `chartAxisText` | `#E8E6E3` / `#615D59`（軸文字は ink-muted と同値。白地 7.0:1・canvas 5.99:1。旧 `#9B9B97` は 2.79:1 で AA 非達のため 2026-10-20 に変更） |
 
 グラフ系列色は**計測量の識別子**（体温＝橙系、体重＝緑系）であり、ステータス色・構造色と兼用しない。新しい計測量の系列を足すときは本表に追加してから `PALETTE` へ流す。業務ステータスをそのまま棒グラフにする場合（配信済／失敗など）は、系列色ではなく当該ステータスの `STATUS_COLORS` を使う（同じ状態が画面とグラフで同じ色になるため）。使い方は [design-patterns.md §7.4](design-patterns.md#chart)。
 
@@ -232,15 +232,11 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 
 ### 4.4 Responsive Strategy
 
-| Name | Width | 主な変化 |
-|---|---|---|
-| Wide | 1440px+ | フルマルチカラム |
-| Desktop | 1080–1300px | 標準 3-up グリッド |
-| Tablet | 768–840px | 2-up 折りたたみ、ナビ condense |
-| Mobile | ≤600px | 単一カラム、ハンバーガー、full-width CTA |
+Breakpoints の正本は [DESIGN.md Responsive Strategy](../../DESIGN.md)（連続した区分と、サイドバーが折りたたまれる 1280px 境界）。本書は表を再掲しない（2026-10-20 に旧表を削除）。
+
 
 - **タッチターゲット**: 寸法・ヒット領域の正本は [design-states.md §1.1](design-states.md)（44×44px。16〜20px のコントロールはラベル込みでヒット領域を確保）。dense 行アクションの例外は §7.2。本節では再定義しない。
-- **折りたたみ**: タブレット以下でナビ condense、マルチカラム → スタック
+- **折りたたみ**: サイドバーは 1280px 未満で折りたたむ（DESIGN.md Collapsing Strategy）。マルチカラム → スタック
 - AE は **タブレットファースト**（§8）— iPad 横画面を primary breakpoint として設計
 
 ---
