@@ -42,6 +42,13 @@ export function RevisitIntakeDeniedPendingLookup({
   const [state, setState] = useState<LookupState>({ kind: "idle" });
   const [availableAt, setAvailableAt] = useState<number | null>(pending.resendAvailableAt ?? null);
 
+  // editor と同じく store の pending を更新する（アクセスが戻ったとき editor の fail-closed 規則が効く）。
+  function updatePending(patch: Partial<RevisitIntakePendingOperation>) {
+    const entry = draftStore.get(targetKey);
+    if (entry === undefined || entry.pending === null) return;
+    draftStore.set(targetKey, { ...entry, pending: { ...entry.pending, ...patch } });
+  }
+
   async function lookup() {
     if (availableAt !== null && Date.now() < availableAt) return;
     setState({ kind: "busy" });
@@ -54,9 +61,11 @@ export function RevisitIntakeDeniedPendingLookup({
       }
       if (op.state === "succeeded") {
         const refs = op.result_refs;
+        const versions = op.committed_versions;
         if (
-          refs &&
-          (refs.appointment_id !== appointmentId || refs.pet_id !== pending.body.pet_id)
+          (refs &&
+            (refs.appointment_id !== appointmentId || refs.pet_id !== pending.body.pet_id)) ||
+          (versions && versions.target_generation !== pending.body.target_generation)
         ) {
           setState({ kind: "message", text: MISMATCH_TEXT });
           return;
@@ -65,6 +74,7 @@ export function RevisitIntakeDeniedPendingLookup({
         setState({ kind: "succeeded" });
         return;
       }
+      updatePending({ status: op.state });
       setState(
         op.state === "not_found"
           ? { kind: "not_found" }
@@ -76,7 +86,9 @@ export function RevisitIntakeDeniedPendingLookup({
     } catch (err: unknown) {
       const retryAfter = revisitIntakeRetryAfterSeconds(err);
       if (retryAfter !== null) {
-        setAvailableAt(Date.now() + retryAfter * 1000);
+        const deadline = Date.now() + retryAfter * 1000;
+        updatePending({ resendAvailableAt: deadline });
+        setAvailableAt(deadline);
         setState({
           kind: "message",
           text: `ただいま混み合っています。${retryAfter}秒ほど待ってから、送信結果を確認してください。`,

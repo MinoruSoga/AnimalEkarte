@@ -425,6 +425,77 @@ describe("RevisitIntakePage 表示状態", () => {
     expect(store.get(targetKey)).toBeUndefined();
   });
 
+  describe("403 後の結果照会の永続化", () => {
+    const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    function seededStore() {
+      const body = {
+        pet_id: PET_A,
+        target_generation: "3",
+        expected_revision: null,
+        form_definition_version: 1,
+        answers: answers({ visit_purpose: "合成目的" }),
+      };
+      const store = createStore();
+      store.set(targetKey, {
+        values: body.answers,
+        pending: { key: KEYS[0], fingerprint: "synthetic", body, status: "unknown" },
+      });
+      return store;
+    }
+
+    beforeEach(() => {
+      server.use(
+        http.get(READ_PATH, () => HttpResponse.json({ error: "forbidden" }, { status: 403 })),
+      );
+    });
+
+    it("照会の Retry-After 期限を store に残し、開き直しても「送信結果を確認」を無効にする", async () => {
+      const store = seededStore();
+      captureLookups(() =>
+        HttpResponse.json(
+          { error: "unavailable", code: "SERVICE_UNAVAILABLE", details: null },
+          { status: 503, headers: { "Retry-After": "30" } },
+        ),
+      );
+      const first = renderPage({ store });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+      await screen.findByText(/30秒ほど待ってから/);
+      expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeDisabled();
+      expect(store.get(targetKey)?.pending?.resendAvailableAt).toBeGreaterThan(Date.now());
+      first.unmount();
+
+      renderPage({ store });
+      expect(await screen.findByRole("button", { name: "送信結果を確認" })).toBeDisabled();
+    });
+
+    it("result_unavailable は status として store に残る（アクセス復旧後も editor が再送を止める）", async () => {
+      const store = seededStore();
+      captureLookups((key) => HttpResponse.json(unresolvedResponse(key, "result_unavailable")));
+      renderPage({ store });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+
+      await screen.findByText(/送信の保存はまだ確認できていません/);
+      expect(store.get(targetKey)?.pending?.status).toBe("result_unavailable");
+    });
+
+    it("成功応答の committed_versions の target_generation が違えば適用せず pending を残す", async () => {
+      const store = seededStore();
+      captureLookups((key) => {
+        const res = successResponse(key, "1");
+        res.operation_result.committed_versions.target_generation = "9";
+        return HttpResponse.json(res);
+      });
+      renderPage({ store });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+
+      await screen.findByText(/送信結果を確認できませんでした/);
+      expect(store.get(targetKey)?.pending?.key).toBe(KEYS[0]);
+    });
+  });
+
   it("401 は再ログイン案内を表示し再試行ボタンを出さない", async () => {
     server.use(
       http.get(READ_PATH, () => HttpResponse.json({ error: "unauthorized" }, { status: 401 })),
