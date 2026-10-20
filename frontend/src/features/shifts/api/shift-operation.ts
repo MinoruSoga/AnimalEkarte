@@ -3,6 +3,7 @@ import { axios } from "@/lib/axios";
 import type {
   ShiftContractError,
   ShiftMutationIntent,
+  ShiftMutationReceipt,
   ShiftOperationResult,
 } from "./contract-types";
 import { extractShiftContractError } from "./contract-types";
@@ -11,9 +12,19 @@ import { extractShiftContractError } from "./contract-types";
  * UUID v4 の operation_key を発行する。
  * mutation 意図ごとに 1 回発行し、結果照会が確定するまで同じ key を保持する
  * （unknown 中の新 key 再送は契約で禁止）。
+ * crypto.randomUUID はセキュアコンテキスト専用のため、非対応環境では
+ * getRandomValues による v4 生成へフォールバックする。
  */
 export function newOperationKey(): string {
-  return crypto.randomUUID();
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === "function") {
+    return c.randomUUID();
+  }
+  const bytes = c.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /**
@@ -66,4 +77,19 @@ export function classifyMutationError(err: unknown): ShiftMutationError {
  */
 export function isUnknownOutcome(error: ShiftMutationError): boolean {
   return error.kind === "network" || (error.kind === "http" && error.status >= 500);
+}
+
+/**
+ * receipt の intent 別成功契約を検証する（B8/m3）。
+ * - delete: shift=NULL・resulting_version=NULL（削除後の架空版を作らない）
+ * - create/update: shift と resulting_version が非NULLで一致
+ * - 照合: resulting_version === shift.version かつ shift_id === shift.id（server/clientの意味検証）
+ */
+export function isReceiptCoherent(receipt: ShiftMutationReceipt): boolean {
+  if (receipt.intent === "delete") {
+    return receipt.shift === null && receipt.resulting_version === null;
+  }
+  const shift = receipt.shift;
+  if (shift === null || receipt.resulting_version === null) return false;
+  return receipt.shift_id === shift.id && receipt.resulting_version === shift.version;
 }

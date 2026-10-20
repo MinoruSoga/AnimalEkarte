@@ -37,12 +37,12 @@ export type ShiftWorkBreakView =
       ends_at: string | null;
     };
 
-/** GET /shifts・GET /shifts/{id} の応答DTO（選択医院の勤務） */
+/** GET /shifts・GET /shifts/{id} の応答DTO（選択医院の勤務）。staff_name はwire必須外（応答補助） */
 export interface ShiftEntry {
   id: string;
   clinic_id: string;
   staff_id: string;
-  staff_name: string;
+  staff_name?: string;
   date: string;
   shift_type: ShiftType;
   starts_at: string | null;
@@ -137,7 +137,21 @@ export function isShiftContractErrorPayload(value: unknown): value is ShiftContr
   if (typeof value.error !== "string" || typeof value.code !== "string") {
     return false;
   }
-  return (SHIFT_CONTRACT_ERROR_CODES as readonly string[]).includes(value.code);
+  if (!(SHIFT_CONTRACT_ERROR_CODES as readonly string[]).includes(value.code)) {
+    return false;
+  }
+  // codeごとの契約required詳細field（api.yamlのoneOf）も検証する
+  if (value.code === "cross_clinic_overlap") {
+    return (
+      typeof value.conflicting_clinic_name === "string" &&
+      typeof value.overlap_starts_at === "string" &&
+      typeof value.overlap_ends_at === "string"
+    );
+  }
+  if (value.code === "protected_bookings") {
+    return Array.isArray(value.protected_bookings) && value.protected_bookings.length > 0;
+  }
+  return true;
 }
 
 /** axios等の例外から契約エラーpayloadを取り出す。契約外の形は null */

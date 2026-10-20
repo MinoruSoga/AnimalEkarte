@@ -8,7 +8,7 @@ import type {
   ShiftMutationReceipt,
 } from "./contract-types";
 
-/** msm resolverが返せる応答（HttpResponse.error() / HttpResponse.json() の共用型） */
+/** msw resolverが返せる応答（HttpResponse.error() / HttpResponse.json() の共用型） */
 type MockResponse = Exclude<ResponseResolverReturnType, undefined | void>;
 /**
  * EMR-514 固定API契約の MSW モック（テスト専用）。
@@ -80,11 +80,12 @@ function receipt(
   shift: ShiftEntry | null,
   resultingVersion: number | null,
   operationKey: string,
+  shiftId = shift?.id ?? "",
 ): ShiftMutationReceipt {
   const r: ShiftMutationReceipt = {
     operation_key: operationKey,
     intent,
-    shift_id: shift?.id ?? "",
+    shift_id: shiftId,
     resulting_version: resultingVersion,
     shift,
   };
@@ -114,8 +115,12 @@ export function createShiftContractHandlers(
       if (overridden) return overridden;
       const req = body as Record<string, unknown>;
       const key = String(req.operation_key ?? "");
+      // 同じkeyの確定済み操作は元receiptを返す（重複効果を作らない）
+      const existing = store.receipts.get(key);
+      if (existing) return HttpResponse.json(existing, { status: 201 });
       const breaksReq = (req.breaks ?? []) as { starts_at: string; ends_at: string }[];
       const shift = makeMockShift({
+        id: nextMockId(),
         staff_id: String(req.staff_id ?? ""),
         date: String(req.date ?? ""),
         shift_type: (req.shift_type ?? "full") as ShiftEntry["shift_type"],
@@ -128,7 +133,6 @@ export function createShiftContractHandlers(
           ends_at: b.ends_at,
         })),
       });
-      shift.id = nextMockId();
       shift.version = 1;
       store.shifts.set(shift.id, shift);
       return HttpResponse.json(receipt(store, "create", shift, shift.version, key), {
@@ -174,6 +178,18 @@ export function createShiftContractHandlers(
       const current = store.shifts.get(id);
       if (!current) return HttpResponse.json({ error: "not found" }, { status: 404 });
       const req = body as Record<string, unknown>;
+      const key = String(req.operation_key ?? "");
+      // 同じkeyの確定済み操作は元receiptを返す（重複効果を作らない）
+      const existing = store.receipts.get(key);
+      if (existing) return HttpResponse.json(existing);
+      // 期待版（aggregate版・休憩変更を含む）不一致は409 version_conflict
+      const expectedVersion = Number(req.expected_version);
+      if (Number.isInteger(expectedVersion) && expectedVersion !== current.version) {
+        return shiftContractErrorResponse({
+          error: "version mismatch",
+          code: "version_conflict",
+        });
+      }
       const breaksPatchReq = (req.breaks ?? []) as { starts_at: string; ends_at: string }[];
       const updated: ShiftEntry = {
         ...current,
@@ -194,9 +210,7 @@ export function createShiftContractHandlers(
         updated_at: "2026-10-20T12:00:00+09:00",
       };
       store.shifts.set(id, updated);
-      return HttpResponse.json(
-        receipt(store, "update", updated, updated.version, String(req.operation_key ?? "")),
-      );
+      return HttpResponse.json(receipt(store, "update", updated, updated.version, key));
     }),
 
     http.delete("*/v1/shifts/:id", ({ params, request }) => {
@@ -206,10 +220,21 @@ export function createShiftContractHandlers(
       if (overridden) return overridden;
       const current = store.shifts.get(id);
       if (!current) return HttpResponse.json({ error: "not found" }, { status: 404 });
+      const key = query.get("operation_key") ?? "";
+      // 同じkeyの確定済み操作は元receiptを返す（重複効果を作らない）
+      const existing = store.receipts.get(key);
+      if (existing) return HttpResponse.json(existing);
+      // 期待版不一致（休憩変更を含む）は409 version_conflict
+      const expectedVersion = Number(query.get("expected_version"));
+      if (Number.isInteger(expectedVersion) && expectedVersion !== current.version) {
+        return shiftContractErrorResponse({
+          error: "version mismatch",
+          code: "version_conflict",
+        });
+      }
       store.shifts.delete(id);
-      return HttpResponse.json(
-        receipt(store, "delete", null, null, query.get("operation_key") ?? ""),
-      );
+      // 削除の成功契約: shift=NULL・resulting_version=NULL。shift_idは対象id（pattern準拠）
+      return HttpResponse.json(receipt(store, "delete", null, null, key, id));
     }),
   ];
 }

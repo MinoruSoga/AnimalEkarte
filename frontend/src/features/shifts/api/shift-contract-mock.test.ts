@@ -131,6 +131,58 @@ describe("shift contract mock — stateful success", () => {
     expect(result.state).toBe("unknown");
     expect(result.receipt).toBeNull();
   });
+
+  it("同一operation_keyの再送は元receiptを返し重複効果を作らない（B11）", async () => {
+    const store = createShiftMockStore();
+    server.use(...createShiftContractHandlers(store));
+
+    const req = {
+      operation_key: "66666666-6666-4666-8666-666666666690",
+      staff_id: "2",
+      date: "2026-10-21",
+      shift_type: "full" as const,
+      starts_at: "2026-10-21T09:00:00+09:00",
+      ends_at: "2026-10-21T18:00:00+09:00",
+      breaks: [],
+      notes: "",
+    };
+    const first = await createShift(req);
+    const second = await createShift(req);
+    expect(second).toStrictEqual(first);
+    // 同じ内容のため勤務は1件のみ
+    expect(store.shifts.size).toBe(1);
+  });
+
+  it("期待版不一致のPATCH/DELETEは409 version_conflict（B11: CAS）", async () => {
+    const store = createShiftMockStore([makeMockShift({ id: "30", version: 3 })]);
+    server.use(...createShiftContractHandlers(store));
+
+    try {
+      await updateShift("30", {
+        operation_key: "66666666-6666-4666-8666-666666666691",
+        expected_version: 2, // 現在は3
+        notes: "x",
+      });
+      throw new Error("should not reach");
+    } catch (err) {
+      expect(httpErrorStatus(err)).toBe(409);
+      expect(extractShiftContractError(err)?.code).toBe("version_conflict");
+    }
+
+    try {
+      await deleteShift({
+        shiftId: "30",
+        expectedVersion: 2, // 現在は3
+        operationKey: "66666666-6666-4666-8666-666666666692",
+      });
+      throw new Error("should not reach");
+    } catch (err) {
+      expect(httpErrorStatus(err)).toBe(409);
+      expect(extractShiftContractError(err)?.code).toBe("version_conflict");
+    }
+    // 409でも業務変更なし
+    expect(store.shifts.get("30")?.version).toBe(3);
+  });
 });
 
 describe("shift contract mock — error & unknown scenarios", () => {

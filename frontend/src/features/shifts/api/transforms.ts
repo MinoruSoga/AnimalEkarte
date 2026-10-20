@@ -11,7 +11,7 @@ export function transformShift(data: ShiftEntry) {
     id: data.id,
     clinic_id: data.clinic_id,
     staff_id: data.staff_id,
-    staff_name: data.staff_name,
+    staff_name: data.staff_name ?? "",
     date: data.date,
     shift_type: data.shift_type,
     starts_at: data.starts_at,

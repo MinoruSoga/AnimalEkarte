@@ -8,14 +8,6 @@
 import type { ShiftType } from "@/types/generated/models";
 export type { ShiftType };
 
-import type { CreateShiftRequest, UpdateShiftRequest } from "../api/contract-types";
-
-/** @see {@link import("./contract-types").CreateShiftRequest} */
-export type CreateShiftInput = CreateShiftRequest;
-
-/** @see {@link import("./contract-types").UpdateShiftRequest} */
-export type UpdateShiftInput = UpdateShiftRequest;
-
 /** UI-facing shift (post-transform — EMR-514 新契約) */
 export type { Shift } from "../api/transforms";
 

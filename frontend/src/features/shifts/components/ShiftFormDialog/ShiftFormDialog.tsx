@@ -49,6 +49,7 @@ import {
   classifyMutationError,
   getShiftOperationResult,
   isUnknownOutcome,
+  isReceiptCoherent,
   newOperationKey,
 } from "../../api/shift-operation";
 import { useGetShiftTemplates } from "../../api/get-shift-templates";
@@ -188,6 +189,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
     payload: ShiftContractError;
     latest: ShiftEntry | null;
   } | null>(null);
+  // version_conflict後に利用者が最新版の採用を明示したときの基準（B1/M4）
+  const [adoptedLatest, setAdoptedLatest] = useState<ShiftEntry | null>(null);
   const conflictLatestLoadingRef = useRef(false);
 
   // FE-RC-032: open 切り替え時の state リセットは useEffect ではなく、
@@ -195,46 +198,51 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   // 付与することでコンポーネントを再マウントさせ、上記の useState 初期化子に
   // 委ねる（ShiftTemplateSidePanel と同様の設計に統一）。
 
-  /** 休憩入力行を契約の ShiftWorkBreak へ変換する（work種別のみ呼ぶ） */
-  const buildBreaksPayload = useCallback((): {
-    breaks?: ShiftWorkBreak[];
-    error?: string;
-  } => {
-    const rows = breaksRef.current;
-    const hasUnresolved = unresolvedBreaksRef.current.length > 0;
-    const filled = rows.filter((b) => b.break_start !== "" || b.break_end !== "");
-    if (filled.some((b) => b.break_start === "" || b.break_end === "")) {
-      return { error: "休憩の開始時刻と終了時刻を入力してください" };
-    }
-    for (const b of filled) {
-      if (b.break_end <= b.break_start) {
-        return { error: "休憩の終了時刻は開始時刻より後に設定してください" };
+  /** 休憩入力行を契約の ShiftWorkBreak へ変換する（work種別のみ呼ぶ）。基準は採用済み最新版 */
+  const buildBreaksPayload = useCallback(
+    (baseline: {
+      breaks: ShiftWorkBreakView[];
+    }): {
+      breaks?: ShiftWorkBreak[];
+      error?: string;
+    } => {
+      const rows = breaksRef.current;
+      const hasUnresolved = unresolvedBreaksRef.current.length > 0;
+      const filled = rows.filter((b) => b.break_start !== "" || b.break_end !== "");
+      if (filled.some((b) => b.break_start === "" || b.break_end === "")) {
+        return { error: "休憩の開始時刻と終了時刻を入力してください" };
       }
-      if (startTime !== "" && endTime !== "") {
-        if (b.break_start < startTime || b.break_end > endTime) {
-          return { error: "休憩は勤務時間内に収めてください" };
+      for (const b of filled) {
+        if (b.break_end <= b.break_start) {
+          return { error: "休憩の終了時刻は開始時刻より後に設定してください" };
+        }
+        if (startTime !== "" && endTime !== "") {
+          if (b.break_start < startTime || b.break_end > endTime) {
+            return { error: "休憩は勤務時間内に収めてください" };
+          }
         }
       }
-    }
-    // 未指定は「維持」、明示したいときだけ配列を送る（PATCH最小差分）
-    const breaksChanged =
-      !isEdit ||
-      JSON.stringify(filled) !==
-        JSON.stringify(editShift ? splitKnownAndUnresolvedBreaks(editShift.breaks).known : []);
-    if (!breaksChanged) return {};
-    if (hasUnresolved) {
-      // 配列全置換のため、未解決行の無断消去を避ける（訂正確認まで送信停止）
+      // 未指定は「維持」、明示したいときだけ配列を送る（PATCH最小差分）
+      const breaksChanged =
+        !isEdit ||
+        JSON.stringify(filled) !==
+          JSON.stringify(splitKnownAndUnresolvedBreaks(baseline.breaks).known);
+      if (!breaksChanged) return {};
+      if (hasUnresolved) {
+        // 配列全置換のため、未解決行の無断消去を避ける（訂正確認まで送信停止）
+        return {
+          error: "未解決の休憩があります。訂正確認するまで休憩の変更は送信できません",
+        };
+      }
       return {
-        error: "未解決の休憩があります。訂正確認するまで休憩の変更は送信できません",
+        breaks: filled.map((b) => ({
+          starts_at: buildJSTDateTime(date, b.break_start),
+          ends_at: buildJSTDateTime(date, b.break_end),
+        })),
       };
-    }
-    return {
-      breaks: filled.map((b) => ({
-        starts_at: buildJSTDateTime(date, b.break_start),
-        ends_at: buildJSTDateTime(date, b.break_end),
-      })),
-    };
-  }, [date, isEdit, editShift, startTime, endTime]);
+    },
+    [date, isEdit, startTime, endTime],
+  );
 
   const formAction = useCallback(
     async (_prevState: FormActionState, formData: FormData): Promise<FormActionState> => {
@@ -262,14 +270,38 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       if (hasStartTime !== hasEndTime) {
         return { timeError: "開始時刻と終了時刻を入力してください" };
       }
-      // 勤務種別は時刻必須。ただし旧日時がNULL（unknown）の編集では
-      // メモ等の部分修正を時刻再入力なしで許す（未指定=時刻維持）
-      const oldTimesKnown = isEdit && editShift !== undefined && editShift.starts_at !== null;
-      if (workType && !hasStartTime && (!isEdit || oldTimesKnown)) {
+      // EMR-514: 旧日時が未解決（interval_state=unknown）の勤務は、時刻を明示して
+      // 訂正確認するまで保存を停止する（NULLを休日・勤務可と扱わない）
+      const isUnknownRecord =
+        isEdit && editShift !== undefined && editShift.interval_state === "unknown";
+      if (isUnknownRecord && !hasStartTime) {
+        return {
+          formError:
+            "時刻が未解決の勤務です。開始・終了時刻を入力して訂正確認するまで保存できません",
+        };
+      }
+      // 勤務種別は時刻必須（off/paid_leave からの切替も含む。契約: 両日時を明示）
+      if (workType && !hasStartTime) {
         return { timeError: "開始時刻と終了時刻を入力してください" };
       }
       if (hasStartTime && hasEndTime && resolvedEndTime <= resolvedStartTime) {
-        return { timeError: "終了時刻は開始時刻より後に設定してください" };
+        // 既存勤務の時刻を変更していない場合は検証しない（日跨ぎ勤務の保持保存を許す）
+        const endsUnchanged =
+          isEdit &&
+          editShift !== undefined &&
+          editShift.ends_at !== null &&
+          formatJSTTime(editShift.ends_at) === resolvedEndTime;
+        const startsUnchanged =
+          isEdit &&
+          editShift !== undefined &&
+          editShift.starts_at !== null &&
+          formatJSTTime(editShift.starts_at) === resolvedStartTime;
+        if (!(isEdit && startsUnchanged && endsUnchanged)) {
+          return {
+            timeError:
+              "終了時刻は開始時刻より後に設定してください（日跨ぎ勤務の時刻変更はこの画面からは行えません）",
+          };
+        }
       }
 
       const notesValue = formData.has("notes") ? String(formData.get("notes") ?? "") : null;
@@ -277,10 +309,13 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
 
       // mutation意図ごとに1回発行し、結果照会が確定するまで同じkeyを使う
       const operationKey = newOperationKey();
+      // 新しい送信では前回の409表示をクリアする（B9）
+      setConflict(null);
 
       try {
         if (isEdit && editShiftId) {
-          const editShiftSnapshot = editShift;
+          // version_conflict で最新版の採用を明示した場合はそれを基準にする（B1/M4）
+          const editShiftSnapshot = adoptedLatest ?? editShift;
           if (!editShiftSnapshot) return {};
           const req: Parameters<typeof updateShift>[1] = {
             operation_key: operationKey,
@@ -291,7 +326,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             req.shift_type = resolvedShiftType;
           }
           if (workType) {
-            const breakResult = buildBreaksPayload();
+            const breakResult = buildBreaksPayload(editShiftSnapshot);
             if (breakResult.error) return { breakError: breakResult.error };
             if (hasStartTime && hasEndTime) {
               const newStartsAt = buildJSTDateTime(date, resolvedStartTime);
@@ -304,22 +339,27 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                 if (breakResult.breaks !== undefined) req.breaks = breakResult.breaks;
               } else {
                 // 勤務→勤務: 変更した項目だけ送る（未指定は維持）。
-                // 旧値がNULL（旧unknown日時）のときは明示日時への遷移として必ず送る
-                if (
-                  editShiftSnapshot.starts_at === null ||
-                  editShiftSnapshot.starts_at !== newStartsAt
-                ) {
-                  req.starts_at = newStartsAt;
-                }
-                if (editShiftSnapshot.ends_at === null || editShiftSnapshot.ends_at !== newEndsAt) {
-                  req.ends_at = newEndsAt;
-                }
+                // 変更判定はJST HH:mmで正規化し、date-time表現差で誤送信しない（B7）
+                const startsUnchanged =
+                  editShiftSnapshot.starts_at !== null &&
+                  formatJSTTime(editShiftSnapshot.starts_at) === resolvedStartTime;
+                const endsUnchanged =
+                  editShiftSnapshot.ends_at !== null &&
+                  formatJSTTime(editShiftSnapshot.ends_at) === resolvedEndTime;
+                if (!startsUnchanged) req.starts_at = newStartsAt;
+                if (!endsUnchanged) req.ends_at = newEndsAt;
                 if (breakResult.breaks !== undefined) req.breaks = breakResult.breaks;
               }
             }
-            // 時刻未入力（旧unknown編集の部分修正）のときは日時を送らない（維持）
           } else if (wasWork) {
-            // 勤務→非勤務: shift_type・両日時NULL・breaks[] を明示する
+            // 勤務→非勤務: shift_type・両日時NULL・breaks[] を明示する。
+            // ただし未解決（unknown）休憩があると全置換で消去するため変更不可（B5）
+            if (unresolvedBreaksRef.current.length > 0) {
+              return {
+                breakError:
+                  "未解決の休憩があります。訂正確認するまで休日・有休への変更はできません",
+              };
+            }
             req.shift_type = resolvedShiftType;
             req.starts_at = null;
             req.ends_at = null;
@@ -334,8 +374,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             return { formError: "変更がありません" };
           }
           const receipt = await updateShift(editShiftId, req);
-          if (receipt.shift === null || receipt.resulting_version === null) {
-            // update成功契約は shift / resulting_version 非NULL
+          if (!isReceiptCoherent(receipt) || receipt.shift === null) {
+            // update成功契約: shift / resulting_version 非NULLかつ整合（B8）
             return { formError: "更新結果の形式が不正です" };
           }
           await queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all() });
@@ -346,7 +386,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
         // create: 全入力を明示する（NULL/未指定を同一視しない）
         let breaksPayload: ShiftWorkBreak[] = [];
         if (workType) {
-          const breakResult = buildBreaksPayload();
+          const breakResult = buildBreaksPayload({ breaks: [] });
           if (breakResult.error) return { breakError: breakResult.error };
           breaksPayload = breakResult.breaks ?? [];
         }
@@ -361,7 +401,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           notes: resolvedNotes,
         };
         const receipt = await createShift(createReq);
-        if (receipt.shift === null || receipt.resulting_version === null) {
+        if (!isReceiptCoherent(receipt) || receipt.shift === null) {
           return { formError: "作成結果の形式が不正です" };
         }
         await queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all() });
@@ -389,6 +429,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       isEdit,
       editShiftId,
       editShift,
+      adoptedLatest,
       staffId,
       date,
       shiftType,
@@ -419,6 +460,11 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
         pendingOperation.intent,
       );
       if (result.state === "succeeded") {
+        // receiptの意味検証（intent別成功契約・shift_id/resulting_versionの照合）を満たすときだけ確定
+        if (result.receipt === null || !isReceiptCoherent(result.receipt)) {
+          toast.error("操作結果の形式が不正です");
+          return;
+        }
         await queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all() });
         setPendingOperation(null);
         onClose();
@@ -470,7 +516,13 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
     setEndTime(e.target.value);
   }, []);
 
+  const handleNotesChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setNotes(e.target.value);
+  }, []);
+
   // EMR-514: unknown休憩の訂正確認。既知の片側だけが判明している場合はその値を引き継ぐ
+  // EMR-514: unknown休憩の訂正確認。NULL側をデフォルト値で補完せず（M3・AC2「補完しない」）、
+  // 利用者が明示時刻を入力した時点で訂正確認済みになる
   const handleResolveUnresolvedBreak = useCallback((index: number) => {
     setUnresolvedBreaks((prev) => {
       const target = prev[index];
@@ -478,8 +530,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       setBreaks((rows) => [
         ...rows,
         {
-          break_start: target.starts_at ? formatJSTTime(target.starts_at) : DEFAULT_BREAK_START,
-          break_end: target.ends_at ? formatJSTTime(target.ends_at) : DEFAULT_BREAK_END,
+          break_start: target.starts_at ? formatJSTTime(target.starts_at) : "",
+          break_end: target.ends_at ? formatJSTTime(target.ends_at) : "",
         },
       ]);
       return prev.filter((_, i) => i !== index);
@@ -553,7 +605,11 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       <Dialog
         open={open}
         onOpenChange={(o) => {
-          if (!o) onClose();
+          // unknown操作の確定前は閉じて新key再送させない（B2/M5）。破棄は明示ボタンのみ
+          if (!o) {
+            if (pendingOperation !== null) return;
+            onClose();
+          }
         }}
       >
         <DialogContent className="sm:max-w-md">
@@ -639,7 +695,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                 name="notes"
                 placeholder="メモ（任意）"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={handleNotesChange}
               />
             </div>
 
@@ -799,12 +855,32 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                 {conflict.payload.code === "version_conflict" ? (
                   <div className="space-y-1">
                     {conflict.latest ? (
-                      <p data-testid="latest-shift-summary">
-                        最新: {SHIFT_TYPE_LABELS[conflict.latest.shift_type]}{" "}
-                        {conflict.latest.starts_at ? formatJSTTime(conflict.latest.starts_at) : "—"}
-                        〜{conflict.latest.ends_at ? formatJSTTime(conflict.latest.ends_at) : "—"}
-                        （版 {conflict.latest.version}）
-                      </p>
+                      <>
+                        <p data-testid="latest-shift-summary">
+                          最新: {SHIFT_TYPE_LABELS[conflict.latest.shift_type]}{" "}
+                          {conflict.latest.starts_at
+                            ? formatJSTTime(conflict.latest.starts_at)
+                            : "—"}
+                          〜{conflict.latest.ends_at ? formatJSTTime(conflict.latest.ends_at) : "—"}
+                          （版 {conflict.latest.version}）
+                        </p>
+                        {/* 採用を明示すると期待版・比較基準が最新版へ切り替わる（B1/M4） */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          data-testid="adopt-latest"
+                          onClick={() => {
+                            if (conflict.latest) {
+                              setAdoptedLatest(conflict.latest);
+                              setConflict(null);
+                            }
+                          }}
+                        >
+                          この最新版（版 {conflict.latest.version}）を基準にする
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         type="button"
@@ -817,7 +893,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                       </Button>
                     )}
                     <p className={C.text50}>
-                      内容を調整して保存し直すと、最新の版で新しい操作を作ります。
+                      最新版を基準にするを選ぶと、期待版と比較基準を最新に切り替えます。
                     </p>
                   </div>
                 ) : null}
@@ -841,15 +917,31 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                 className={`rounded border p-3 text-xs space-y-2 ${C.bgStatusGray} ${C.borderMuted}`}
               >
                 <p>送信の結果が未確定です。重複を避けるため新しい操作は送信できません。</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={inquirePendingOperation}
-                >
-                  結果を照会
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={inquirePendingOperation}
+                  >
+                    結果を照会
+                  </Button>
+                  {/* 明示的な放棄のみ閉じられる（再送はしない。B10の出口） */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    data-testid="discard-pending"
+                    onClick={() => {
+                      setPendingOperation(null);
+                      onClose();
+                    }}
+                  >
+                    破棄して閉じる
+                  </Button>
+                </div>
               </div>
             ) : null}
 
@@ -869,7 +961,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                disabled={isPending || isDeletePending}
+                disabled={isPending || isDeletePending || pendingOperation !== null}
               >
                 キャンセル
               </Button>

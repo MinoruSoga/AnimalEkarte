@@ -47,7 +47,7 @@ export const ShiftCell = memo(function ShiftCell({
     return canCreate ? (
       <button
         onClick={handleAdd}
-        className={`w-full h-full min-h-11 flex items-center justify-center ${C.text20} ${C.hoverText}`}
+        className={`w-full h-full min-h-11 flex items-center justify-center ${C.text20} ${C.hoverText60} ${C.hoverBgPage} rounded transition-colors text-xs`}
         type="button"
         aria-label={`${staffName} ${dateStr} シフトを追加`}
       >
