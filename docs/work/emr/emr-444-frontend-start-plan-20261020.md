@@ -258,23 +258,38 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 | EMR-477 | `feat/emr-477-record-revisit-intake-fe` / #753 | e315c46 | Dots 回答反映（空状態文言、固定 target 内履歴のみ、unbound/mismatch 非補完）。CodeRabbit 4 件・Codex 11 件修正: `target_relation` 閉 enum、`target_id` 必須、bound 3 組合せ検証、任意項目の null/型/許容 code 厳格化、visit_purpose 空拒否、head revision 一致、next_cursor 厳格化、form 版 1 固定、received_at RFC3339、pet 照合、履歴の relation 非依存、ページ間 binding/target/回答状態 整合、既取得データ保持の inline 再試行、disabled fieldset 外の `leading` slot、skeleton 読込、ID/revision の正規形十進（BIGINT 範囲）検証、履歴 revision ≤ head、空 cursor 拒否。CodeRabbit 追加 2 件（RFC3339 の暦・時刻範囲検証、閏秒 :60 の表示正規化）も修正 | green / mergeable clean / 未解決スレッドなし。CodeRabbit Merge Risk Minimal（commit 連続で自動レビュー一時停止中。最終 head は `@coderabbitai review` で単発レビュー要求済み） |
 | EMR-463 | `feat/emr-463-owners-clinic-scope-fe` / #754 | 884ff1f | Codex 4 件修正（`/me` 更新で再検証、連続トグル合成、暗黙選択の replace、BE 先行問題）。Dots 推奨により新 scope 経路を owners feature 内の静的 activation `OWNERS_CLINIC_SCOPE_ACTIVE = false` の背後に置き、非活性時は PR 前（main 05da02f3）と同じ一覧挙動。応答を見た fallback ではない | green / mergeable clean / 未解決スレッドなし。Codex findings なし、CodeRabbit Merge Risk Low。Trivial nitpick（legacy/scoped loader の query 解析重複）は次のコード push に同乗 |
 | EMR-474 | `feat/emr-474-liff-revisit-intake-fe` / #756 | a00f81d | Gitleaks 誤検知は `.gitleaksignore` fingerprint で解消。CodeRabbit 1 件・Codex 14 件修正: TARGET_CHANGED 後のブロック、429/503/照会/読込の Retry-After 尊重と期限の draft 保持、401 非再試行、head 一致 refine、h1、結果応答の operation_id/target 照合、新規送信の 403/404 で pending 破棄、Enter 暗黙送信防止、head 変化時の入力同期、読込応答の予約/target 照合、pet 名の検証付き表示、古い draft の baseline token 保持と明示確認（不可視 head 時は文言分岐）、送信中/未確定時の離脱確認、履歴追加読込の Retry-After 期限、route 共通の期限中は再読込ボタン無効、「さらに表示」の 401/403/404 で保持 read を破棄、期限中の再取得は保留して期限後に自動実行、履歴は版 1 の回答のみ表示、date-time の RFC3339 検査、「さらに表示」で target が変わったページは破棄して再読込、成功 receipt は operation_id・result_refs・committed_versions で照合（current_state 非依存） | CI green（a00f81d）/ 未解決スレッド: Dots 判断待ちの複数頭・pending 予約 CTA・BIGINT appointment ID、500 の Retry-After（契約の記述が食い違うため未実装）。Codex が a00f81d を再レビュー中、CodeRabbit は 1 時間 10 回の枠切れで a00f81d 未レビュー |
-| EMR-487 | — | — | — | 486 契約 PR #760 open（未マージ）。§11.1 参照 |
+| EMR-487 | `feat/emr-487-certificate-fe` / #763 | c79728a89 | Fable レビューの HIGH（再印刷の同 key ガード）・MEDIUM・LOW を修正 | open。CSP が Dots 判断待ち（§11.2） |
 
 ### 11.1 2026-10-21 引き継ぎセッションの追記
 
 - #756: Codex 未解決 7 件のうち、feature 内で閉じる 2 件を修正した。1 件目は閲覧 403/404 の後も未確定送信の結果照会を残すこと（本文・回答・再送は出さない）。2 件目は読込の Retry-After 期限を画面の開き直しをまたいで保持すること（module memory。localStorage は使わない）。Fable レビューは APPROVE（CRITICAL/HIGH 0）。指摘された MEDIUM（拒否画面の照会結果と期限を draft store へ書き戻す）も修正した。head は b3478c9d1（38518f84f・18b450fff・b3478c9d1）。対応した 2 スレッドは返信して resolve した。pending 予約 CTA と 500 の Retry-After は、下記のとおり Dots 判断待ちのまま実装しない。
 - EMR-487: #760 の契約草案を読んだ結果、3 様式の描画は server 側 487 renderer（versioned template/font/PDF）が所有する。FE は印刷ボタンのない PDF 確認 preview を表示し、印刷はその PDF だけを使う（#760 契約文書 31・100・108 行）。このため FE 側の React 帳票 renderer は作らない。二重管理になるため、試作した commit（`feat/emr-487-certificate-renderer-fe` c90104a53、未 push）は採用しない。§5 冒頭の「renderer・golden（487-A）の準備だけ先行可」は server renderer を指すと読み替える。FE の着手は、#760 の root レビュー確定後（契約 239 行「公開 PR head を固定契約」）に、9 操作の mock adapter、発行前入力（10 欄、料金 4 欄は null と明示 0 を区別、合計は自動計算しない）、PDF preview、発行、edition 読取、PDF 取得の各画面で行う。
 
+### 11.2 Dots 回答（2026-10-21）の反映
+
+| 項目 | Dots 回答 | 反映 |
+|:--|:--|:--|
+| #760 | マージ済み（main 6cb8184ca） | EMR-487 FE を #763 で作成 |
+| #753 / #754 | マージ判断は実装セッション | 本人の指示（今回の 2 件は Claude がマージ）により merge commit でマージ（10789ce48 / e4c7b7fef）。リモートの head ブランチを削除。`claim/EMR-463-C` は ID が PR と一致しないため保持 |
+| #754 活性化 | 非活性のまま先行マージ可。463-BE 後に後続 PR で活性化。許可医院 0 件・失権時は安全停止、他アカウントの保存値へ fallback しない | 後続 PR（未着手） |
+| #756 BIGINT ID | BE が文字列で返す（EMR-519）。それまで安全整数でない ID からは要求しない | 423deeb65 でガード |
+| #756 複数頭 | 本 PR では頭数分の予約を作らない（EMR-460 の残件） | 423deeb65 で「各ペットに回答」の文言を削除 |
+| #756 入口 | pending にも出し、editable に従う。受付後は閲覧可、no_show はサーバー判定 | 8a3f88d8c / 423deeb65 |
+| #756 500 Retry-After | optional として尊重。待機後も「結果不明・同 key」を維持し、無条件に再送しない | 97bcdb0a4 / 0f72cb90b / d8641263c（期限後も照会が not_found / claimed_uncommitted を返すまで再送不可）。api.yaml への optional header 追補は契約側の作業 |
+| #756 pet 名 | 暫定の非表示は妥当。EMR-520（Blocked） | 変更なし |
+| #752 401 | 遷移でキャッシュ非表示は保証されない | 3c477667b で 401 も本文非表示にし、返答を撤回して resolve |
+| 487 狂犬病判定 | `vaccines.rabies_certificate_eligible` と接種時 snapshot。true のみ狂犬病様式 | #763 は `eligibility.state=eligible` のときだけ rabies を選択可 |
+| 487 編集欄 | 10 欄すべて発行前入力として optional/nullable で編集可 | #763 で実装 |
+| 487 様式 | 狂犬病の「種類」は品種。日付は見本の年月日表記（通常は和暦、狂犬病は生年月日が和暦＋年齢・接種日が西暦）。用紙サイズ・向きは本人確認待ち | server renderer 側の事項（FE は PDF 表示のみ） |
+
+#752 は 3c477667b、#756 は d8641263c、#763 は c79728a89 が head。3 PR とも未解決スレッドは 0（#763 は新規）。テストはすべて NOT_RUN。
+
 ### Dots へ残る判断事項
 
-- #760 EMR-486/487: 契約 PR の root レビューとマージ。FE 487 の着手条件。
-- EMR-487 Q-A（継続）: 狂犬病様式の対象判定（契約 `eligibility`）。FE はスタッフが明示した kind/layout を渡すだけで、自動判定しない。
-
-- #756 BIGINT appointment ID: LIFF 予約 DTO（`my-reservations` / `POST reservations`）の ID を文字列で返すか、FE 側で JSON reviver 文字列化するか。revisit-intake 契約だけでは解決しない。
-- #756 pet 名の非表示: 予約 DTO に pet_id が無く検証できないため、LIFF 問診ページでは pet 名を出さない（日時・コースは表示）。DTO に pet_id を載せるかは別チケット。
-- #756 複数頭予約: 現行 LIFF は選択頭数に関わらず appointment を 1 件しか作らないため、「各ペットに回答」は予約 1 件単位でしか成立しない。
-- #756 500 の Retry-After: technical-spec 769 行は 413/415/429/500/503 を並べて「Retry-After があれば尊重」とするが、api.yaml の 500（RevisitIntakeInternalError）は Retry-After header を定義せず、header を持つのは 429/503 のみ。500 を対象に含めるなら 429/503 と同じ期限を pending に保存する小さな追加で足りる。
-- #754 活性化: 463-BE の GetMeResponse 実装後に定数を true へ切り替える後続 PR で接続。本 PR は非活性のまま単独マージ可能。
+- #763 CSP: `index.html` / `public/_headers` / `vercel.json` の CSP は `default-src 'self'` で、`frame-src`（必要に応じて `object-src`）に `blob:` の許可が無い。このため blob iframe での PDF preview と印刷が実ブラウザで表示されない。共通設定なので FE PR では変更しない。画面をルートに接続する前提条件。
+- #763 PDF 取得: 共通 axios が `/content` の GET にも `Accept: application/json` を送る。BE 実装時に受け入れるかを確認する。
+- #756 500 Retry-After: api.yaml の `RevisitIntakeInternalError` に optional `Retry-After` header を追補する（契約側）。
+- 487 用紙サイズ・向き: 本人確認待ち（server renderer の事項）。
 
 ### Codex 単独指摘の扱い
 
