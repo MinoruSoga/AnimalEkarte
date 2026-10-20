@@ -73,7 +73,7 @@ func (m *mockTrimmingCourseService) Reorder(ctx context.Context, clinicID uint64
 // ---- helper ----
 
 func newHandlerWithTrimmingCourseSvc(courseSvc TrimmingCourseService) *Handler {
-	return &Handler{svc: &handlerServices{
+	return &Handler{courseImageDrafts: legacyUnknownCourseImageDrafts(), svc: &handlerServices{
 		TrimmingCourse: courseSvc,
 		TrimmingOption: &mockTrimmingOptionService{},
 	}}
@@ -305,7 +305,7 @@ func TestUpdateTrimmingCourse(t *testing.T) {
 			name:     "updates course successfully",
 			paramID:  "1",
 			body:     map[string]any{"name": "更新コース"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			courseSvc: &mockTrimmingCourseService{
 				updateFn: func(_ context.Context, _, id uint64, input *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 					require.NotNil(t, input.Name)
@@ -324,6 +324,16 @@ func TestUpdateTrimmingCourse(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:    "returns 401 without staff and never calls service",
+			paramID: "1", body: map[string]any{"name": "test"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			courseSvc: &mockTrimmingCourseService{updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+				t.Fatal("unauthenticated write")
+				return nil, nil
+			}},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "xyz",
 			body:       map[string]any{"name": "test"},
@@ -335,7 +345,7 @@ func TestUpdateTrimmingCourse(t *testing.T) {
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"name": "test"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			courseSvc: &mockTrimmingCourseService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
 					return nil, apperrors.WrapNotFound("trimming_course", "999")
@@ -470,4 +480,21 @@ func TestReorderTrimmingCourses(t *testing.T) {
 		h.ReorderTrimmingCourses(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+}
+
+func TestCreateTrimmingCourse_ImageHistoryRequiresStaffActor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	called := false
+	h := &Handler{svc: &handlerServices{TrimmingCourse: &mockTrimmingCourseService{createFn: func(context.Context, uint64, *CreateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+		called = true
+		return nil, nil
+	}}}}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	setClinicID(c)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/masters/trimming-courses", bytes.NewBufferString(`{"name":"A","image_object_key":"trimming-images/1/a.jpg"}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.CreateTrimmingCourse(c)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.False(t, called)
 }

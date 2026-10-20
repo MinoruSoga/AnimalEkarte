@@ -23,9 +23,15 @@ function toNullableNumber(value: string): number | null {
   return value !== "" ? Number(value) : null;
 }
 
+function sortedWeekdays(days: number[]): number[] {
+  return [...new Set(days)].sort((a, b) => a - b);
+}
+
 export function buildTrimmingCourseCreateRequest(
   data: CourseFormData,
 ): CreateTrimmingCourseRequest {
+  const shortName = data.shortName.trim();
+  const weekdays = sortedWeekdays(data.allowedWeekdays);
   return {
     name: data.name,
     price: toNullableNumber(data.price),
@@ -34,15 +40,31 @@ export function buildTrimmingCourseCreateRequest(
     duration: toNullableNumber(data.duration),
     description: data.description || undefined,
     is_active: true,
+    short_name: shortName !== "" ? shortName : undefined,
+    allowed_weekdays: weekdays.length > 0 ? weekdays : undefined,
+    image_object_key: data.imageObjectKey !== "" ? data.imageObjectKey : undefined,
   };
 }
 
+/**
+ * 更新は編集した属性だけ送る（省略 = 既存値保持）。編集した短縮名・曜日は
+ * "" / [] で未登録・全曜日へ戻す。画像も変更時だけ送る。
+ */
 export function buildTrimmingCourseUpdateRequest(
   data: CourseFormData,
 ): UpdateTrimmingCourseRequest {
+  const {
+    image_object_key: _createImage,
+    short_name: _createShortName,
+    allowed_weekdays: _createWeekdays,
+    ...base
+  } = buildTrimmingCourseCreateRequest(data);
   return {
-    ...buildTrimmingCourseCreateRequest(data),
+    ...base,
     is_active: data.isActive,
+    ...(data.shortNameChanged ? { short_name: data.shortName.trim() } : {}),
+    ...(data.weekdaysChanged ? { allowed_weekdays: sortedWeekdays(data.allowedWeekdays) } : {}),
+    ...(data.imageChanged ? { image_object_key: data.imageObjectKey } : {}),
   };
 }
 

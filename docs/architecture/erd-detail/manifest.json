@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "9e697c24d2800b37777557164ed3b2394f4f005bfc56c2689e57c6d58652e42b",
+  "source_digest": "a87887b221af2a2a7051cd2f05242f6a9cbe11ab268d00acc64b8dd3c95dc5c2",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,14 +17,18 @@
     }
   ],
   "counts": {
-    "tables": 241,
-    "columns": 2691,
-    "foreign_keys": 738
+    "tables": 242,
+    "columns": 2697,
+    "foreign_keys": 740
   },
   "migrations": [
     {
       "name": "001_init.sql",
       "sha256": "2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0"
+    },
+    {
+      "name": "003_trimming_course_image_uploads.sql",
+      "sha256": "a86a626288b251d02a9071b2b8eb60e83e15216ff474887b12afd57ebea2cd23"
     }
   ],
   "reviewed_do_blocks": [
@@ -267,6 +271,7 @@
     "treatments.md",
     "trimming_booking_revision_options.md",
     "trimming_booking_revisions.md",
+    "trimming_course_image_uploads.md",
     "trimming_course_included_services.md",
     "trimming_course_types.md",
     "trimming_courses.md",
