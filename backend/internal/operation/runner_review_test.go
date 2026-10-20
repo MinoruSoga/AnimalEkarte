@@ -3,6 +3,7 @@ package operation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -635,4 +636,81 @@ func TestExecute_CommitErrorClassifiesFailureOnlyAfterSettledRollback(t *testing
 	require.NoError(t, err)
 	require.Nil(t, receipt)
 	require.Equal(t, "1", f.owner.version("billing_version"))
+}
+
+func TestExecute_KeyConflictUsesReceiptOnlyForOriginalAuthorization(t *testing.T) {
+	for _, mode := range []string{"receipt-authorized", "receipt-revoked", "metadata-without-receipt", "unresolved-without-receipt"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newR2Fixture(t)
+			withoutReceipt := mode == "metadata-without-receipt" || mode == "unresolved-without-receipt"
+			if withoutReceipt {
+				f.owner.setVersions("2", "1")
+			}
+			f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+			b, ok := f.store.bindingFor(f.scope, f.key)
+			require.True(t, ok)
+			attempts := f.store.attemptCount(b.Binding.ID)
+			auth := &resolvedLookup{allowed: fakeBillingID}
+			if mode == "receipt-revoked" {
+				auth.allowed = "B"
+			}
+			if mode == "metadata-without-receipt" {
+				auth.persisted = map[uint64]LookupTarget{b.Binding.ID: {BindingID: b.Binding.ID, ClinicID: b.Binding.ClinicID, Kind: "billing", Ref: fakeBillingID}}
+			}
+			fields := f.content.Fields()
+			fields["billing_id"] = "B"
+			changed, err := NewContent(fields)
+			require.NoError(t, err)
+			got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: changed}, targetParticipant{f.owner, auth})
+			require.NoError(t, err)
+			want := StatusKeyConflict
+			if mode == "receipt-revoked" || mode == "unresolved-without-receipt" {
+				want = StatusNotAuthorized
+			}
+			require.Equal(t, want, got.Status)
+			require.Nil(t, got.Result, "authorization receipt is never a conflict response body")
+			if mode != "unresolved-without-receipt" {
+				require.Equal(t, fakeBillingID, auth.authorized[0].Ref)
+			}
+			require.Equal(t, 1, f.owner.applyCount())
+			require.Equal(t, attempts, f.store.attemptCount(b.Binding.ID))
+		})
+	}
+}
+func TestExecute_UnknownTakesPrecedenceOverGateBusy(t *testing.T) {
+	for _, mode := range []string{"unknown", "no-unknown", "unknown-read-error"} {
+		for _, revoked := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/revoked=%v", mode, revoked), func(t *testing.T) {
+				f := newR2Fixture(t)
+				if mode == "unknown" {
+					f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("uncertain")})
+				} else {
+					f.owner.setVersions("2", "1")
+				}
+				f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+				b, _ := f.store.bindingFor(f.scope, f.key)
+				attempts := f.store.attemptCount(b.Binding.ID)
+				f.owner.failGateWith(&Busy{})
+				if mode == "unknown-read-error" {
+					f.runner.store = failedReadStore{store: f.store, unknownErr: errors.New("unknown unreadable")}
+				}
+				if revoked {
+					f.owner.revoke()
+				}
+				got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content}, f.owner)
+				require.NoError(t, err)
+				want := StatusResultUnavailable
+				if mode == "no-unknown" {
+					want = StatusInProgress
+				}
+				if revoked {
+					want = StatusNotAuthorized
+				}
+				require.Equal(t, want, got.Status)
+				require.Nil(t, got.Result)
+				require.Equal(t, attempts, f.store.attemptCount(b.Binding.ID))
+				require.Equal(t, 1, f.owner.applyCount())
+			})
+		}
+	}
 }

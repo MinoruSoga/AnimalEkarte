@@ -124,7 +124,13 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 		// answer itself can leak the stored content (an equality oracle for
 		// clinical or financial fields), so the current grant is re-checked
 		// before it is exposed: a revoked actor sees not-authorized.
-		return disclose(ctx, p, binding, StatusKeyConflict, nil), nil
+		receipt, loadErr := r.store.LoadResult(ctx, binding)
+		if loadErr != nil {
+			return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil
+		}
+		// A success receipt may identify the original target for permission
+		// lookup, but conflict never returns that receipt to the caller.
+		return discloseUsingReceipt(ctx, p, binding, StatusKeyConflict, receipt, nil), nil
 	}
 
 	var outcome Outcome
@@ -242,14 +248,20 @@ func (r *Runner) settledState(ctx context.Context, binding Binding) (Status, *Re
 // disclose applies the current grant to an outcome. A denied grant hides the
 // status detail and the result body behind not-authorized.
 func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, status Status, res *Result) Outcome {
-	target, err := auth.ResolveLookupTarget(ctx, binding, copyLookupReceipt(res))
+	return discloseUsingReceipt(ctx, auth, binding, status, res, res)
+}
+
+// Authorization evidence and the response body are separate: key-conflict may
+// resolve the original resource from a receipt without disclosing its body.
+func discloseUsingReceipt(ctx context.Context, auth LookupAuthorizer, binding Binding, status Status, receipt, result *Result) Outcome {
+	target, err := auth.ResolveLookupTarget(ctx, binding, copyLookupReceipt(receipt))
 	if err != nil || target.BindingID != binding.ID || target.ClinicID != binding.ClinicID || strings.TrimSpace(target.Kind) == "" || strings.TrimSpace(target.Ref) == "" {
 		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
 	}
 	if err := auth.AuthorizeLookup(ctx, target); err != nil {
 		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
 	}
-	return Outcome{Status: status, Binding: &binding, Result: res}
+	return Outcome{Status: status, Binding: &binding, Result: result}
 }
 
 // copyLookupReceipt gives the owner resolver a detached view. It must not be
@@ -364,12 +376,6 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 	if committed != nil {
 		return disclose(ctx, p, binding, StatusSucceeded, committed), nil
 	}
-	var busy *Busy
-	if errors.Is(txErr, errBindingBusy) || errors.As(txErr, &busy) {
-		// Another attempt holds the binding row or a resource behind the owner
-		// gate. Nothing is recorded: the winner owns the outcome row.
-		return disclose(ctx, p, binding, StatusInProgress, nil), nil
-	}
 	unknown, err := r.store.HasUnknownOutcome(ctx, binding)
 	if err != nil {
 		return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil //nolint:nilerr // 意図的: unknown 有無を確認できないときは記録せず結果不明として停止する
@@ -377,6 +383,13 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 	if unknown {
 		// Unknown is sticky: no failure row is recorded over it.
 		return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil
+	}
+
+	var busy *Busy
+	if errors.Is(txErr, errBindingBusy) || errors.As(txErr, &busy) {
+		// Another attempt holds the binding row or a resource behind the owner
+		// gate. Nothing is recorded: the winner owns the outcome row.
+		return disclose(ctx, p, binding, StatusInProgress, nil), nil
 	}
 
 	var indeterminate *IndeterminateEffect

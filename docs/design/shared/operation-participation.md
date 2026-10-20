@@ -58,6 +58,8 @@ consumerは成功receiptがないbindingも含め、binding ID＋医院から元
 
 照会（`Runner.Lookup`）は、resultが見えなければbinding行をNOWAITでlockしてからresultと`unknown`を再読取する。lock取得前に他の試行がcommitした成功を`not-succeeded`と返さない。結果を返す全経路（照会・replay・失敗後の成功確認）で`AuthorizeLookup`を通す。`Participant`はこのため`LookupAuthorizer`を含む。
 
+conflictの元対象認可には保存済み成功receiptを解決根拠として渡せるが、conflict応答のResult本文は常に空とする。成功前はbindingに対応するowner metadataで解決し、解決不能なら非開示。失敗後分類は成功receipt→既存unknown（読取不能も保守的停止）→Busyの順で、Gate競合によってunknown停止を隠さない。
+
 共通helperはgateを自分で取らない。EMR-467の予約graph gateを全domainへ拡張しない。owner固有のlock順は`Apply`内で各ownerの既存規約に従う。
 
 ### 1.3 結果区分
@@ -133,4 +135,5 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 | deferred trigger `operation_success_required`・RLSとの結合 | 未実施（test DBはAutoMigrate double） | 最初のconsumer接続時 |
 | HMAC鍵のconfig配線・鍵rotation手順 | 未選定 | 最初のconsumer接続時 |
 | 結果照会route・OpenAPI・codegen | 未着手。router／api.yamlは共有ファイルのため各ownerで追加 | EMR-483ほか |
+| cancel済みcontextからの即時結果照合 | 後続の可用性改善。現在はfail-closedで停止し、新しい有効contextの同key Lookup/Executeで再照合する。キャンセル後の即時照合成功は保証しない | helper/consumerのcontext契約検討 |
 | 491／493／502の参加行 | subset照合のみ・未判定 | 各票 |
