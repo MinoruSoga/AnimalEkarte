@@ -685,3 +685,26 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 保存時の入力者・最終更新者氏名は[本体表示の正本](../../../spec/domains/medical-records/pages/medical-record-form.md#medical-record-main-author-name-display)へ従い、正常保存時のID／氏名と現在名を区別する。氏名snapshotの物理保存先、既存全writerとの原子性、旧欠落表示は未選定の実装課題であり、model合わせのために新DDLを作らない。
 
 飼主原文の独立reader EMR-477は今回phase（依存476／472）として引き継ぐ。取得時に医院・予約・pet・世代・原文版と現在認可を照合し、スタッフ記録のコピー／clear／Undoから分離する。取得失敗を未回答やスタッフ記録へ変換しない。音声／外部連携320・322全体はPhase2を維持する。reader・認可・全callerの実装確認は別受入である。
+
+<a id="plan-domain-tabs-target-gap"></a>
+## 治療プランと検査・予防接種・定期健診タブ（2026-10-20）
+
+| 区分 | 根拠・状態 |
+|:---|:---|
+| 採用目標 | [D03の1FR／10AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)。予定表示と同一予定への実績／結果関連を3タブへ適用 |
+| 静的観察基準 | main `32b648eb8780c578b6c5b0f3b7e02796f2382695`。以下の限定FE読取のみで、全writer／API／DB適合証明ではない |
+| 実装／実機検証 | 今回未実施。既存の検索候補・保存済み結果表示だけでは連動達成ではない |
+
+### 現行の限定観察
+
+[検索候補](../../../../frontend/src/components/shared/TreatmentSearchDialog/TreatmentSearchDialog.tsx)はvaccinesを「予防」、checkupTypesを「検査」カテゴリへ出す。[治療明細変換](../../../../frontend/src/features/medical-records/lib/treatments-tab-model.ts)はconsultation／procedure／medicine以外をotherとし、上記カテゴリ名だけで結果ownerと元予定の型付き関連を保持したとは言えない。「検査」という表示名からD07とD09を同一にしない。
+
+[タブ配線](../../../../frontend/src/features/medical-records/components/MedicalRecordServiceTabs.tsx)は検査・接種・健診それぞれのコンポーネントへrecord／pet等を渡す。[検査タブ](../../../../frontend/src/features/medical-records/components/MedicalRecordExamination.tsx)はrecordの検査取得結果を表示し、[接種タブ](../../../../frontend/src/features/medical-records/components/MedicalRecordVaccination.tsx)と[健診タブ](../../../../frontend/src/features/medical-records/components/CheckupsTab/CheckupsTab.tsx)も各専用保存／取得経路を使う。これらの配線に治療プランの元予定を渡す契約は確認できず、プランへ追加するだけで3タブの未実施予定と同一実績を追跡できる状態とは扱わない。
+
+### 設計すべき接続とowner
+
+元プラン項目の安定した識別と未保存→保存済み対応、予定種別と各ownerの明示対応、医院・患者・カルテ・権限／必要版、実績ID／結果版、誤関連訂正と競合／結果不明の照合を設計する。D07の受信患者選択だけで予定の特定を代用せず、候補複数／不明では保留する。プランと実績からD10へ渡す元明細を二重生成しない。[D07](../examinations/technical-spec.md#plan-tab-link-design)・[D08](../vaccinations/technical-spec.md#plan-tab-link-design)・[D09](../checkups/technical-spec.md#plan-tab-link-design)は独自の実施／結果・訂正・証明書／次回日を維持する。
+
+2026-10-20の既存owner照合では、[EMR-452](https://app.plane.so/baritechllc/browse/EMR-452/)が横断業務接続／残差切出し、[EMR-500](https://app.plane.so/baritechllc/browse/EMR-500/)が健診親子結果、[EMR-481](https://app.plane.so/baritechllc/browse/EMR-481/)が会計binding、[EMR-484](https://app.plane.so/baritechllc/browse/EMR-484/)が実施readyの受け手。検査・接種の専用consumer ownerは未特定で、452で残差を切り出す。EMR-501の他院手入力provenance、455／456のmaster保険、486の証明書だけへ連動全体を割り当てない。EMR-320／322の全面統合はPhase2境界を維持する。この整理は実装着手／完了や重複票の新規作成を意味しない。
+
+パネル／複数結果の関連多重度と、予定時点に物理資源を作るかprojectionとするか、wire／schema・関連保存単位は未選定。物理設計の未決を理由に業務上の3タブ接続を未承認へ戻さず、全owner一括transaction・自動機器送信・実績自動生成・既存見積／過去記録の再生成へ拡張しない。

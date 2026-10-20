@@ -212,3 +212,10 @@ D03の通常編集は、検査自身の確定解除や原結果変更の権限�
 | 条件ID | 受入条件 | 根拠 | 検証状態 |
 |:---|:---|:---|:---|
 | AC-examinations-receive-access-separation | 受信画面の閲覧権限のみ／受信作成権限あり／各紐付け等操作権限なしを比較し、現在の操作別grantに応じて閲覧とwriteを分ける。不足時は必要な操作権限を案内し、閲覧だけで受信・attach・detach・切戻しを許可しない。具体的既存grant名は既存正本へ従い、固定の新ロールを作らない。 | Phase1 F42:G42 | 未実施 |
+
+<a id="examinations-plan-tab-link"></a>
+## 治療プランから検査タブへの接続（2026-10-20追加採用）
+
+本人承認の[共通FRと10AC](../medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を本領域の受け手へ接続する。治療プランに追加した予定をタブで未実施として表示し、同じ予定の識別と実施／結果への対応を辿る。D07の受信・患者選択／待機・attach／detach・再送同定とofficial版／訂正保護を維持する。機器結果と手入力結果は対応する同じ予定へ結び付けるが、患者一致だけで複数予定の一つを推測しない。予定表示を機器へのオーダー送信や結果確定へ変換しない。
+
+実績／結果は本領域の正本一つを参照し、プラン表示用の別本文を独立編集しない。医院・患者・カルテ・予定の照合、結果不明の照会、誤関連訂正・中止時の原記録保護と二重請求防止は上記共通FR／ACへ従う。新規FR／ACの重複定義は置かない。物理作成／projection・関連の多重度は[技術設計](../../../design/domains/examinations/technical-spec.md#plan-tab-link-design)へ分け、実装・実機適合は未確認。

@@ -92,9 +92,9 @@
 |:---:|:---|:---|
 | 統合 | **治療プラン** | スタッフ問診・主訴・症状・生活環境と、別区画の飼主事前問診、移設した右側の過去カルテ履歴。身体検査所見（SOAPのS/O/A）、診断名（第1・第2を保持し、それぞれ複数登録）、今後の治療方針（Plan）。 |
 | 維持 | **治療** | 実施した処置、処置項目、および処方薬の明細。 |
-| 維持 | **予防接種** | 左ペインに当該ペットの接種記録一覧（`GET /vaccinations?pet_id=` + `page`/`limit`）。空なら EmptyState、「記録を追加」で入力フォーム。右カラムは `VaccinationHistory`。カルテネストの `/medical-records/:id/vaccinations` は存在せず使わない。次回日は[D08最新合意](../../vaccinations/lifecycle.md#fr-vaccinations-schedule)の種類別設定または手入力へ統一する。現行mainはEMR-430により `calculateNextDate` 配線の既定がカルテ・独立画面とも `1year` に統一された。これは実装観察で、種類別設定／手入力の目標に対する固定既定の採用ではない。[過去接種の専用後日入力](../../vaccinations/lifecycle.md#vaccination-retrospective-next-date)では、実接種日より後の当時の次回日が既に過ぎていても保持する。通常入力の制約全面解除はしない。 |
-| 維持 | **定期健診** | 健康診断の結果記録。`/checkups` の編集は `?tab=定期健診&checkupId=` で本タブを開き、該当行を編集状態にする。[最新第3項合意](../../checkups/lifecycle.md#checkup-next-date-approved)により、次回日はパッケージ設定候補または手入力。設定・保存済み日付・手入力日がなければ空欄とし、一律1年後を補完しない。 |
-| 維持 | **検査** | 検査結果の一覧表示と既存検査の取込（カルテへの紐付け）、基準値との比較（HIGH/LOW判定ハイライト）。[D07最新合意](../../examinations/lifecycle.md#fr-examinations-record)に従い担当医未選択でも保存可、入力者ログは担当医と別に保持する。 |
+| 維持 | **予防接種** | [今回プランの未実施予定と同一接種追跡](#requirement-fr-medical-records-plan-domain-tabs)を表示する採用目標を追加（実装未確認）。既存の保存済み履歴は左ペインに当該ペットの接種記録一覧（`GET /vaccinations?pet_id=` + `page`/`limit`）。空なら EmptyState、「記録を追加」で入力フォーム。右カラムは `VaccinationHistory`。カルテネストの `/medical-records/:id/vaccinations` は存在せず使わない。次回日は[D08最新合意](../../vaccinations/lifecycle.md#fr-vaccinations-schedule)の種類別設定または手入力へ統一する。現行mainはEMR-430により `calculateNextDate` 配線の既定がカルテ・独立画面とも `1year` に統一された。これは実装観察で、種類別設定／手入力の目標に対する固定既定の採用ではない。[過去接種の専用後日入力](../../vaccinations/lifecycle.md#vaccination-retrospective-next-date)では、実接種日より後の当時の次回日が既に過ぎていても保持する。通常入力の制約全面解除はしない。 |
+| 維持 | **定期健診** | [今回プランの未実施予定と同一健診追跡](#requirement-fr-medical-records-plan-domain-tabs)を表示する採用目標を追加（実装未確認）。既存の健康診断の結果記録を維持。`/checkups` の編集は `?tab=定期健診&checkupId=` で本タブを開き、該当行を編集状態にする。[最新第3項合意](../../checkups/lifecycle.md#checkup-next-date-approved)により、次回日はパッケージ設定候補または手入力。設定・保存済み日付・手入力日がなければ空欄とし、一律1年後を補完しない。 |
+| 維持 | **検査** | [今回プランの未実施予定と同一検査追跡](#requirement-fr-medical-records-plan-domain-tabs)を表示する採用目標を追加（実装未確認）。既存の検査結果の一覧表示と既存検査の取込（カルテへの紐付け）、基準値との比較（HIGH/LOW判定ハイライト）。[D07最新合意](../../examinations/lifecycle.md#fr-examinations-record)に従い担当医未選択でも保存可、入力者ログは担当医と別に保持する。 |
 | 維持 | **画像** | 患部写真、レントゲン、エコー画像、PDF資料のファイル選択によるアップロード・管理。ドラッグ&ドロップ追加は[追加3項目合意](#requirement-fr-medical-records-image-drop-selected-print)で業務採用。#235の現実装・価値実測の状態は今回更新／確認していない。 |
 | 維持 | **見積書** | 提示した概算費用の管理。 |
 | 維持 | **会計(医師確認)** | 診療費の最終確認と会計ステータスの送信。 |
@@ -590,3 +590,47 @@ Backlog No.37（F38:G38）の名前近くでの常時表示とバイタル記録
 | AC-medical-records-main-author-save-time-name | 初回実入力を正常保存後にスタッフ名を変更し、再表示。その後別名で実編集を正常保存 | 改名だけでは保存時の初回・最終氏名を変更しない。実編集の正常保存で最終氏名をその保存時名へ更新し、最初のID／保存時名を保持。失敗保存や空カルテ作成を初回実入力としない |
 
 物理保存先・既存全writerでの同時成立・表示/API・旧履歴の欠落表現は実装設計の残件。今回のモデル整合から未定の氏名列を追加しない。
+
+<a id="requirement-fr-medical-records-plan-domain-tabs"></a>
+## FR-medical-records-plan-domain-tabs：治療プランの予定を検査・予防接種・定期健診タブで追跡する
+
+| 項目 | 状態 |
+|:---|:---|
+| 決定状態 | 2026-10-20本人承認。検査連動の提案への「ok」と、予防接種・定期健診への同様適用を採用 |
+| 実装状態 | 未実装差分を[技術契約](../../../../design/domains/medical-records/technical-spec.md#plan-domain-tabs-target-gap)で分離。今回コード・API・DB変更なし |
+| 実機検証状態 | 未実施。下記ACは目標でありPASSではない |
+
+根拠は、本人 Sentinel_11913f0f582481918f93b98e4f19f374 の検査表示要望、提案 Sentinel_4a0d0b7b7f348191b6af93b542806766（未実施の予定表示・同じ予定への機器／手入力結果紐付け・二重登録回避）に対する本人 Sentinel_450f505598f88191bcdea5c4ac422eb3「ok」、および本人 Sentinel_1c747dcd206c8191a23800cc36e1666c「予防接種タブ、定期健診タブも同様ですね」。目的は同じ予定の再入力と、予定・実績の別々の追跡を減らすこと。所要時間・操作数は未計測。
+
+治療プランに追加した検査・予防接種・定期健診の予定を、それぞれのタブに未実施として表示する。元の治療プラン項目を安定して識別し、実施／結果記録ができた後も同じ予定との対応を辿れるようにする。名称・日付・行位置の一致だけで別の予定へ自動紐付けしない。同名／同日の別予定を区別し、タブの再表示・保存再試行から予定や実績を重複登録しない。今回の予定表示と既存の保存済み履歴は識別する。
+
+| 対応先 | 予定から実施／結果へ渡す契約 |
+|:---|:---|
+| 検査 | [D07の患者帰属・結果原値](../../examinations/lifecycle.md#fr-examinations-record)、[受信・患者選択](../../examinations/lifecycle.md#fr-examinations-receive)、[同一性・attach／detach](../../examinations/lifecycle.md#fr-examinations-idempotency)を維持し、機器受信又は手入力した結果を同じ予定に関連付ける。機器受信の患者指定と予定の特定は別の照合で、同じ患者というだけで予定を自動決定しない |
+| 予防接種 | [D08の一接種一記録](../../vaccinations/lifecycle.md#fr-vaccinations-record)と[訂正保護](../../vaccinations/lifecycle.md#fr-vaccinations-correction)を保ち、実接種日・名称・lot等の同じ保存済み接種を予定から参照する。予定自体を接種実績へ変換せず、[次回予定日](../../vaccinations/lifecycle.md#fr-vaccinations-schedule)・証明書発行版の既決を維持する |
+| 定期健診 | [D09のCheckup正系統](../../checkups/lifecycle.md#fr-checkups-canonical)と[カルテ帰属](../../checkups/lifecycle.md#fr-checkups-record)、型付き結果・保存時snapshot・訂正保護を維持し、同じ健診予定に実施／結果を関連付ける。検査へ同じ健診を二重保存しない |
+
+結果本文・接種実績・健診結果の正本は各ownerに置き、プラン側で別の編集可能な本文を作らない。実施状況、結果待ち／原値あり、取得失敗／対応不明、検査の確定状態を分ける。予定追加・通常保存・診療終了、結果未到着だけを根拠に、実施済み・正常・接種済み・健診完了・検査確定へ進めない。予定追加だけから機器オーダー送信・接種証明書発行・外部通知・請求確定を起動しない。[D10の実施対象](../../accounting/lifecycle.md#requirement-fr-accounting-billable-performance)と元明細対応を使い、プランと実績の両方を別明細として二重請求しない。見積・過去記録を無断で再生成しない。
+
+保存済み関連付けは医院・患者・カルテ・元プラン項目と対象ownerのID／必要版を照合し、現在の閲覧／操作権限を維持する。別患者・別カルテ・古い版への遅延応答を適用しない。未保存行は保存後の同じ項目との対応を維持し、保存前に架空の実績を作らない。競合・保存結果不明・対応候補複数／不明では元操作と保存状態を照合し、無条件再createや推測紐付けをしない。誤関連の訂正は各ownerの専用手順・変更前後／理由／actor／時刻・元版保護へ渡し、通常FK付替えや履歴削除で代用しない。
+
+プランの未実施／後日予定／実施済み／中止は[実施状態の既決](#requirement-fr-medical-records-plan-execution-states)へ従い、実施操作と結果登録を同一イベントに固定しない。中止・タブクリア／複製取消だけで受信済み結果、接種実績、健診結果を自動破棄・巻戻ししない。既に実施／請求等に使われた場合は影響を示して各ownerの訂正へ渡す。通常受付・過去専用入力・死亡後生前記録の既決条件を迂回する新しい入口は作らない。
+
+### 追加受入条件（1FR／10AC、各条件独立、実機未実施）
+
+| AC ID | Given | When | Then | 成功条件・証跡状態 |
+|:---|:---|:---|:---|:---|
+| AC-medical-records-plan-tabs-examination | 今回プランへ検査予定を追加、まだ実施しておらず結果未到着。実施済み・結果待ちの別予定もある | 検査タブを開く | 前者は同じ予定を未実施として表示し、後者は実施済み・結果待ちと区別。保存済み結果履歴と識別し、正常／確定へ補完しない | 個別対照、未実施 |
+| AC-medical-records-plan-tabs-vaccination | 今回プランへ予防接種予定を追加 | 予防接種タブを開き実接種を別途記録 | 予定表示から同じ接種を参照でき、追加だけでは接種実績・証明書・次回日を生成しない。実績の既決保存条件を維持 | 個別対照、未実施 |
+| AC-medical-records-plan-tabs-checkup | 今回プランへ健診予定を追加 | 定期健診タブを開き型付き結果を記録 | 未実施の予定から同じCheckup結果を追跡し、追加だけで完了にしない。Examinationへ二重保存しない | 個別対照、未実施 |
+| AC-medical-records-plan-tabs-result-identity | 同名／同日を含む複数の検査予定 | 機器結果又は手入力結果を関連付け再表示 | 医院・患者・カルテと予定を照合し、対応した同じ結果ID／版を参照。結果本文の二重編集や別予定への推測関連なし | 各入力経路、未実施 |
+| AC-medical-records-plan-tabs-scope | 別医院／患者／カルテ、権限変更、古い応答がある | 表示／関連付けを試す | 現在scope・権限・必要版を照合し対象外へ適用しない。閲覧をwrite許可にしない | 各不一致、未実施 |
+| AC-medical-records-plan-tabs-unknown | 3種それぞれ保存断・結果不明又は対応候補複数 | 再表示／再試行 | 元操作・保存済みIDを照合し、重複create・推測関連・0件／正常への置換なし | 各種／不明条件、未実施 |
+| AC-medical-records-plan-tabs-correction | 保存済みの関連に誤り又は結果訂正版あり | 各ownerの訂正経路を使う | 元版と変更前後・理由／actor／時刻を保持し、現在参照版を区別。通常FK付替えや原版上書きで代用しない | 各owner、未実施 |
+| AC-medical-records-plan-tabs-cancel | 結果又は実績が既に存在する予定 | 中止／クリア／複製取消を行う | 既決プラン状態とowner保護に従い、実績を自動破棄しない。実施済みへの変更だけで結果確定なし | 各操作／3種、未実施 |
+| AC-medical-records-plan-tabs-side-effects | 3種の未実施予定 | 追加／通常保存／診療終了 | 機器送信・証明書発行・外部通知・請求確定・見積／過去記録再生成なし。結果待ちは完了ではない | 各操作／3種、未実施 |
+| AC-medical-records-plan-tabs-billing | 同じ予定と実績の対応あり | 会計対象を取得する | D10の元明細・実施適格性で同じ対象を扱い、プランと実績から二重請求しない。未実施を自動課金対象にしない | D10対照、未実施 |
+
+### 技術設計へ残す事項
+
+パネル／複数結果と一つの予定の多重度、物理的な検査等の作成時点かprojectionによる表示か、関連参照のwire／schemaは技術設計へ委ねる。各ownerの既存多重度を一律1対1へ変更せず、受信結果から対応予定が一意に決まる方式も未選定。業務上の同一予定追跡・状態分離・重複防止の採用とは区別する。
