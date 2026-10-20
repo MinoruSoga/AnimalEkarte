@@ -311,3 +311,51 @@ func TestValidateDosePairsForUpdate(t *testing.T) {
 	})
 	assert.Error(t, err)
 }
+
+func TestBuildTreatmentUpdate_ThreeValues_DoNotTouchExistingDerivedColumns(t *testing.T) {
+	// P2-F2（サイクル1・レビューB）: 既存行が dose_param_snapshot / mg 値 / quantity を持っていても、
+	// 3値だけを送った PATCH の writer map は派生列・会計列を一切含まない（旧snapshot 保護）。
+	amount := exactFromJSON(t, "1.5")
+	fields := buildTreatmentUpdate(&UpdateTreatmentInput{
+		AdministrationDoseAmount:   amount,
+		AdministrationDoseUnit:     strPtr("錠"),
+		AdministrationInstructions: strPtr("1日2回"),
+		PrescriptionTotalAmount:    exactFromJSON(t, "7"),
+		PrescriptionTotalUnit:      strPtr("錠"),
+	})
+	for _, forbidden := range []string{
+		"dose_amount_mg", "dose_amount_unit", "dose_param_snapshot", "dose_weight_kg", "dose_weight_source",
+		"quantity", "unit_price", "discount_rate", "discount_amount", "status", "item_type",
+	} {
+		assert.NotContains(t, fields, forbidden)
+	}
+	assert.Len(t, fields, 5)
+}
+
+func TestCreateTreatmentRequest_ThreeValues_ExplicitNullAndNaNAreRejected(t *testing.T) {
+	// 明示 null は 400（省略=NULL 保存と区別する。checkupTypeInsuranceField と同一の家契約）
+	body := `{"item_type": "medicine", "administration_dose_amount": null}`
+	var req createTreatmentRequest
+	err := json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+
+	// NaN 文字列は 400（PostgreSQL numeric は NaN を格納できてしまうため wire で拒否）
+	body = `{"item_type": "medicine", "administration_dose_amount": "NaN"}`
+	err = json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+
+	body = `{"item_type": "medicine", "administration_instructions": null}`
+	err = json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+}
+
+func TestValidateDoseAmountUnitPair_RejectsNegativeAmount(t *testing.T) {
+	negative := exactFromJSON(t, "-1")
+	blank := "  "
+	err := validateDoseAmountUnitPair(negative, &blank)
+	assert.Error(t, err)
+
+	validUnit := "錠"
+	err = validateDoseAmountUnitPair(negative, &validUnit)
+	assert.Error(t, err)
+}

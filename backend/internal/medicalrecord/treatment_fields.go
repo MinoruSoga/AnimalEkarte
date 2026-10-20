@@ -13,11 +13,18 @@ import (
 // DB の ck_administration_dose_pair / ck_prescription_total_pair と同一条件を service 境界で先に検証し、
 // CHECK 違反（23514→500）ではなく 400 で拒否する。書込は全体不成立。
 const errMsgDoseAmountUnitPair = "1回製剤量（処方総量）とその単位はペアで入力してください。単位は空白のみの値を許可しません"
+const errMsgDoseAmountNegative = "1回製剤量・処方総量に負の値は指定できません"
 
 // validateDoseAmountUnitPair は 量・単位 のペア不変条件（両 NULL または 量非NULL かつ trim 後非空の単位）
 // を検証する純関数（001_init.sql の ck_administration_dose_pair / ck_prescription_total_pair と同一条件）。
 // EMR-488: 単位の推測補完はしないため、片側のみの入力は保存せず 400 で拒否する。
+// 量の負値も 400（臨床量として無意味。FE の入力ガードの裏返しとして wire 単体でも拒否する）。
 func validateDoseAmountUnitPair(amount *model.ExactNumeric, unit *string) error {
+	if amount != nil {
+		if amount.NaN || (amount.Int != nil && amount.Int.Sign() < 0) {
+			return apperrors.WrapInvalidInput(errMsgDoseAmountNegative)
+		}
+	}
 	if amount == nil && unit == nil {
 		return nil
 	}

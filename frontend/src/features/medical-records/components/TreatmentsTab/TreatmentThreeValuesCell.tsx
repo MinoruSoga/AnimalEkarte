@@ -291,7 +291,13 @@ function PairEditor({
       setInvalid(true);
       return;
     }
+    // 未変更なら PATCH を送らない（既存エディタと同じ規約。二重送信・不要な版加算を防ぐ）
+    if (parsed === initialAmount && trimmedUnit === (initialUnit ?? "")) {
+      onStopEdit();
+      return;
+    }
     onCommit(parsed, trimmedUnit);
+    onStopEdit();
   };
 
   return (
@@ -355,12 +361,13 @@ function AmountEditor({
       setInvalid(true);
       return;
     }
-    if (parsed === undefined) {
-      // 空入力は明示クリア経路がないため変更なし（BE PATCH 契約）
+    if (parsed === undefined || parsed === initial) {
+      // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
       onStopEdit();
       return;
     }
     onCommit(parsed);
+    onStopEdit();
   };
 
   return (
@@ -403,12 +410,13 @@ function UnitEditor({
 
   const commit = () => {
     const text = local.trim();
-    if (text === "") {
-      // 空入力は明示クリア経路がないため変更なし（BE PATCH 契約）
+    if (text === "" || text === (initial ?? "")) {
+      // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
       onStopEdit();
       return;
     }
     onCommit(text);
+    onStopEdit();
   };
 
   return (
@@ -446,12 +454,13 @@ function TextEditor({
 
   const commit = () => {
     const text = local.trim();
-    if (text === "") {
-      // 空入力は明示クリア経路がないため変更なし（BE PATCH 契約）
+    if (text === "" || text === (initial ?? "")) {
+      // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
       onStopEdit();
       return;
     }
     onCommit(text);
+    onStopEdit();
   };
 
   return (

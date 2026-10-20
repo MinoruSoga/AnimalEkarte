@@ -158,6 +158,23 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     });
   });
 
+  it("commit 成功後にエディタを閉じる（onStopEdit 呼び出し・P2-N1）", async () => {
+    const user = userEvent.setup();
+    const { onUpdate, onStopEdit, inputRef } = renderCell({
+      treatment: buildTreatment({
+        administration_dose_amount: 2.5,
+        administration_dose_unit: "錠",
+      }),
+      editField: "administration_dose_amount",
+    });
+    const input = inputRef.current as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, "3");
+    fireEvent.blur(input);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onStopEdit).toHaveBeenCalled();
+  });
+
   it("0 を入力すると明示 0 として送る（NULL に変換しない）。ペアの単位も同時送信する", async () => {
     const user = userEvent.setup();
     const { onUpdate, inputRef } = renderCell({
