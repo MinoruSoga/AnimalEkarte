@@ -144,6 +144,9 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	}
 	var result *model.Procedure
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "procedure", "procedure.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
 		var err error
 		result, err = s.create(txCtx, clinicID, input)
 		if err != nil {
@@ -235,13 +238,10 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	}
 	var result *model.Procedure
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "procedure", "procedure.update", func(txCtx context.Context) (masterInsuranceChange, error) {
-		locker, ok := s.repo.(interface {
-			LockByIDForUpdate(context.Context, uint64, uint64) (*model.Procedure, error)
-		})
-		if !ok {
-			return masterInsuranceChange{}, apperrors.WrapInternalServerError("master insurance target lock dependency is required")
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
 		}
-		before, err := locker.LockByIDForUpdate(txCtx, clinicID, id)
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
 			return masterInsuranceChange{}, err
 		}
@@ -317,6 +317,9 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 		return apperrors.WrapInternalServerError("procedure write transaction dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
 		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to get procedure")
 		}

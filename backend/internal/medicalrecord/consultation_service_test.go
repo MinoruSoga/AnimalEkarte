@@ -14,6 +14,7 @@ import (
 // ---- Consultation モック ----
 
 type mockConsultationRepository struct {
+	lockWriteRowsFn              func(context.Context, uint64, []uint64) error
 	created                      *model.Consultation
 	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
 	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
@@ -729,4 +730,11 @@ func TestConsultationService_Reorder(t *testing.T) {
 
 func (m *mockConsultationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
 	return m.FindByID(ctx, clinicID, id)
+}
+
+func (m *mockConsultationRepository) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.lockWriteRowsFn != nil {
+		return m.lockWriteRowsFn(ctx, clinicID, ids)
+	}
+	return nil
 }

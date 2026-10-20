@@ -485,6 +485,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Runtime: clinical_master_delete_tx_atomicity_test.go
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindAll":                    {},
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindByID":                   {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.LockWriteRows":              {},
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.LockByIDForUpdate":          {},
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Create":                     {},
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.update":                     {},
@@ -609,6 +610,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// procedure (MRC-07 ambient tx for delete usage check)
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindAll":                 {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindByID":                {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.LockWriteRows":           {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.LockByIDForUpdate":       {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Create":                  {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.update":                  {},

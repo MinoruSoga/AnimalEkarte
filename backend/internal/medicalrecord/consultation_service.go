@@ -141,6 +141,9 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 	}
 	var result *model.Consultation
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
 		var err error
 		result, err = s.create(txCtx, clinicID, input)
 		if err != nil {
@@ -218,13 +221,10 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	}
 	var result *model.Consultation
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "consultation", "consultation.update", func(txCtx context.Context) (masterInsuranceChange, error) {
-		locker, ok := s.repo.(interface {
-			LockByIDForUpdate(context.Context, uint64, uint64) (*model.Consultation, error)
-		})
-		if !ok {
-			return masterInsuranceChange{}, apperrors.WrapInternalServerError("master insurance target lock dependency is required")
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
 		}
-		before, err := locker.LockByIDForUpdate(txCtx, clinicID, id)
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
 			return masterInsuranceChange{}, err
 		}
@@ -285,25 +285,36 @@ func (s *consultationService) update(ctx context.Context, clinicID, id uint64, i
 	return consultation, nil
 }
 func (s *consultationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to find consultation")
+	if s.insuranceWrites.Transactor == nil {
+		return apperrors.WrapInternalServerError("consultation write transaction dependency is required")
 	}
-	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check consultation children")
-	}
-	if childCount > 0 {
-		return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
-	}
-	count, err := s.repo.CountUsageByConsultationID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check consultation dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この診察項目はカルテで使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete consultation")
+	if err := s.insuranceWrites.Transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to find consultation")
+		}
+		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check consultation children")
+		}
+		if childCount > 0 {
+			return apperrors.WrapConflict("この診察項目にはサブ項目が登録されているため削除できません")
+		}
+		count, err := s.repo.CountUsageByConsultationID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check consultation dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この診察項目はカルテで使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete consultation")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "consultation deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("consultation_id", id))
 	return nil
