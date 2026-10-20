@@ -103,7 +103,7 @@ func wireMastersHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 	medicineSvc := MedicineService(NewMedicineServiceWithAudit(medRepo, nil, nil, nil))
 	doseSvc := MedicineDoseParamService(NewMedicineDoseParamService(NewMedicineDoseParamRepository(db), medRepo, tx, nil))
 	procedureSvc := ProcedureService(NewProcedureService(NewProcedureRepository(db), tx))
-	vaccineSvc := VaccineService(NewVaccineService(NewVaccineRepository(db)))
+	vaccineSvc := VaccineService(NewVaccineServiceWithAudit(NewVaccineRepository(db), MasterInsuranceWriteDependencies{Transactor: tx, Audit: masterTestAudit{}}))
 	cageSvc := CageService(NewCageService(NewCageRepository(db), tx))
 	hospPlanSvc := HospitalizationPlanService(NewHospitalizationPlanService(NewHospitalizationPlanRepository(db)))
 	checkupTypeSvc := CheckupTypeService(NewCheckupTypeService(NewCheckupTypeRepository(db)))
