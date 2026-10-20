@@ -469,6 +469,42 @@ describe("RevisitIntakePage 表示状態", () => {
       expect(await screen.findByRole("button", { name: "送信結果を確認" })).toBeDisabled();
     });
 
+    it("照会が 401 でも LINE の再起動を案内せず、pending を残して再確認できる", async () => {
+      const store = seededStore();
+      captureLookups(() => HttpResponse.json({ error: "unauthorized" }, { status: 401 }));
+      renderPage({ store });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+
+      expect(
+        await screen.findByText(/送信結果が未確定のため、この画面を閉じずに/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/LINEアプリを再起動して開き直してください/),
+      ).not.toBeInTheDocument();
+      expect(store.get(targetKey)?.pending?.key).toBe(KEYS[0]);
+      expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeEnabled();
+    });
+
+    it("照会の Retry-After 期限が来たら、再描画なしで「送信結果を確認」が有効に戻る", async () => {
+      const store = seededStore();
+      captureLookups(() =>
+        HttpResponse.json(
+          { error: "unavailable", code: "SERVICE_UNAVAILABLE", details: null },
+          { status: 503, headers: { "Retry-After": "1" } },
+        ),
+      );
+      renderPage({ store });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+      expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeDisabled();
+
+      await waitFor(
+        () => expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeEnabled(),
+        { timeout: 3000 },
+      );
+    });
+
     it("result_unavailable は status として store に残る（アクセス復旧後も editor が再送を止める）", async () => {
       const store = seededStore();
       captureLookups((key) => HttpResponse.json(unresolvedResponse(key, "result_unavailable")));
@@ -831,6 +867,47 @@ describe("RevisitIntakePage 409", () => {
     expect(await screen.findByText(/予約の対象が変更されたため/)).toBeInTheDocument();
     await waitFor(() => expect(calls).toHaveLength(2));
     await waitFor(() => expect(purposeInput().value).toBe(""));
+  });
+
+  it("editable=false の再開でも、未確定の送信が残っていれば結果照会だけ行える（再送はしない）", async () => {
+    const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    const body = {
+      pet_id: PET_A,
+      target_generation: "3",
+      expected_revision: null,
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成目的" }),
+    };
+    const store = createStore();
+    store.set(targetKey, {
+      values: body.answers,
+      pending: { key: KEYS[0], fingerprint: "synthetic", body, status: "unknown" },
+    });
+    mockReadSequence([
+      read(
+        answeredTarget(answer("1", answers({ visit_purpose: "合成目的1" })), {
+          editable: false,
+          edit_block_reason: "reception_started",
+        }),
+      ),
+    ]);
+    const submits = captureSubmits(() => HttpResponse.error());
+    const lookups = captureLookups((key) => HttpResponse.json(successResponse(key, "2")));
+    renderPage({ store });
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText(/この問診は現在編集できませんが、直前の送信の結果が未確定/),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "同じ内容で再送信" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+
+    expect(await screen.findByText("回答の送信は完了しています。")).toBeInTheDocument();
+    expect(lookups).toEqual([KEYS[0]]);
+    expect(submits).toHaveLength(0);
+    expect(store.get(targetKey)).toBeUndefined();
   });
 
   it("INTAKE_CLOSED: 閲覧へ切り替える", async () => {
@@ -1483,6 +1560,30 @@ describe("RevisitIntakePage 追加の fail-closed（レビュー対応）", () =
               appointment_id: APPT_A,
               pet_id: PET_A,
               target_generation: "2",
+            },
+            answer: latest,
+            target_relation: "current",
+          },
+        ],
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText(/問診の取得に失敗しました/)).toBeInTheDocument();
+    expect(screen.queryByText("合成目的")).not.toBeInTheDocument();
+  });
+
+  it("current 履歴の target_id が現在 target と違う応答は読込エラーにする", async () => {
+    const latest = answer("1", answers({ visit_purpose: "合成目的" }));
+    mockReadSequence([
+      read(answeredTarget(latest), {
+        history: [
+          {
+            target: {
+              target_id: "9999",
+              appointment_id: APPT_A,
+              pet_id: PET_A,
+              target_generation: "3",
             },
             answer: latest,
             target_relation: "current",

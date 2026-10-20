@@ -232,6 +232,10 @@ export function RevisitIntakePage({
     }
     const answered = current.answer_state === "answered";
     const targetKey = revisitIntakeTargetKey(clinicId, current.ref);
+    // 編集不可でも、未確定の送信が残っていれば key を失わないよう結果照会だけ出す（照会 route は編集可否と独立）。
+    const readOnlyPending = current.editable
+      ? undefined
+      : draftStore.findPending(clinicId, appointmentId);
     return (
       <div className="space-y-4">
         <div className="rounded-xl border border-noah-border bg-white p-4">
@@ -283,6 +287,17 @@ export function RevisitIntakePage({
                 ? EDIT_BLOCK_MESSAGES[current.edit_block_reason]
                 : EDIT_BLOCK_FALLBACK_MESSAGE}
             </p>
+            {readOnlyPending !== undefined ? (
+              <RevisitIntakeDeniedPendingLookup
+                clinicId={clinicId}
+                idToken={idToken}
+                appointmentId={appointmentId}
+                targetKey={readOnlyPending.targetKey}
+                pending={readOnlyPending.pending}
+                draftStore={draftStore}
+                reason="read_only"
+              />
+            ) : null}
             {current.content_available && current.latest_answer ? (
               <div className="rounded-xl border border-noah-border bg-white px-4 py-2">
                 <p className="pt-2 text-sm font-semibold text-noah-text">最新の回答</p>

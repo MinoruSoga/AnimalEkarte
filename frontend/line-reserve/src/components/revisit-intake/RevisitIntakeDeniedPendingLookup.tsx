@@ -1,7 +1,7 @@
 // EMR-474: 予約の閲覧が 403 / 404 になった後も、未確定の送信の結果だけは照会できるようにする。
 // 結果照会 route は現予約の閲覧権限と分離されている（technical-spec#revisit-intake-api-selected-v3）。
 // ここでは回答本文・target の中身を出さず、送信が保存されたかの状態文言だけを表示する。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { liffApi } from "../../api/liff-api";
 import { resolveFetchError } from "@/shared-liff/handle-fetch-error";
 import type {
@@ -17,6 +17,11 @@ interface RevisitIntakeDeniedPendingLookupProps {
   targetKey: string;
   pending: RevisitIntakePendingOperation;
   draftStore: RevisitIntakeDraftStore;
+  /**
+   * 結果照会だけを出す理由。denied: 予約の閲覧が 403/404。read_only: 閲覧はできるが
+   * current_target.editable が false（受付後など）。照会 route は編集可否と独立している。
+   */
+  reason?: "denied" | "read_only";
 }
 
 type LookupState =
@@ -30,6 +35,12 @@ const MISMATCH_TEXT = "送信結果を確認できませんでした。もう一
 
 const IDLE_TEXT =
   "この予約の問診は表示できませんが、直前の送信の結果が未確定です。結果だけ確認できます。";
+const IDLE_TEXT_READ_ONLY =
+  "この問診は現在編集できませんが、直前の送信の結果が未確定です。結果だけ確認できます。";
+
+// 401 でも未確定の key は store に残る。LINE の再起動は memory-only の key を失わせるため案内しない。
+const UNAUTHORIZED_TEXT =
+  "ログインの有効期限が切れました。送信結果が未確定のため、この画面を閉じずに、時間をおいてもう一度「送信結果を確認」してください。";
 
 export function RevisitIntakeDeniedPendingLookup({
   clinicId,
@@ -38,9 +49,23 @@ export function RevisitIntakeDeniedPendingLookup({
   targetKey,
   pending,
   draftStore,
+  reason = "denied",
 }: RevisitIntakeDeniedPendingLookupProps) {
   const [state, setState] = useState<LookupState>({ kind: "idle" });
-  const [availableAt, setAvailableAt] = useState<number | null>(pending.resendAvailableAt ?? null);
+  const [availableAt, setAvailableAt] = useState<number | null>(
+    pending.resendAvailableAt !== undefined &&
+      pending.resendAvailableAt !== null &&
+      pending.resendAvailableAt > Date.now()
+      ? pending.resendAvailableAt
+      : null,
+  );
+
+  // Retry-After の期限が来たら再び押せるようにする（Date.now() は reactive でないため）。
+  useEffect(() => {
+    if (availableAt === null) return;
+    const timer = setTimeout(() => setAvailableAt(null), Math.max(0, availableAt - Date.now()));
+    return () => clearTimeout(timer);
+  }, [availableAt]);
 
   // editor と同じく store の pending を更新する（アクセスが戻ったとき editor の fail-closed 規則が効く）。
   function updatePending(patch: Partial<RevisitIntakePendingOperation>) {
@@ -50,7 +75,7 @@ export function RevisitIntakeDeniedPendingLookup({
   }
 
   async function lookup() {
-    if (availableAt !== null && Date.now() < availableAt) return;
+    if (availableAt !== null) return;
     setState({ kind: "busy" });
     try {
       const result = await liffApi.getRevisitIntakeOperation(clinicId, pending.key, idToken);
@@ -84,6 +109,11 @@ export function RevisitIntakeDeniedPendingLookup({
             },
       );
     } catch (err: unknown) {
+      if (resolveFetchError(err, "送信結果の確認").status === 401) {
+        // pending は store に残したまま、再起動を促さず待って再確認させる。
+        setState({ kind: "message", text: UNAUTHORIZED_TEXT });
+        return;
+      }
       const retryAfter = revisitIntakeRetryAfterSeconds(err);
       if (retryAfter !== null) {
         const deadline = Date.now() + retryAfter * 1000;
@@ -103,10 +133,14 @@ export function RevisitIntakeDeniedPendingLookup({
     state.kind === "succeeded"
       ? "回答の送信は完了しています。"
       : state.kind === "not_found"
-        ? "送信の記録は見つかりませんでした。現在この予約を閲覧できないため、再送信はできません。医院へお問い合わせください。"
+        ? reason === "read_only"
+          ? "送信の記録は見つかりませんでした。現在この問診は編集できないため、再送信はできません。医院へお問い合わせください。"
+          : "送信の記録は見つかりませんでした。現在この予約を閲覧できないため、再送信はできません。医院へお問い合わせください。"
         : state.kind === "message"
           ? state.text
-          : IDLE_TEXT;
+          : reason === "read_only"
+            ? IDLE_TEXT_READ_ONLY
+            : IDLE_TEXT;
 
   return (
     <div
@@ -118,7 +152,7 @@ export function RevisitIntakeDeniedPendingLookup({
         <button
           type="button"
           onClick={() => void lookup()}
-          disabled={state.kind === "busy" || (availableAt !== null && Date.now() < availableAt)}
+          disabled={state.kind === "busy" || availableAt !== null}
           className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
         >
           {state.kind === "busy" ? "確認中..." : "送信結果を確認"}

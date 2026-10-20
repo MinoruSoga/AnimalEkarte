@@ -78,7 +78,7 @@ function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, fnName: string): T
 
 /**
  * EMR-474: 1 appointment = 1 pet の現在 target 固定を検査する（fail-closed）。要求した予約以外の
- * target・履歴、または現在 target と pet / 世代が違う current 履歴を含む応答は契約エラーとして投げる。
+ * target・履歴、または現在 target と pet / 世代 / target_id が違う current 履歴を含む応答は契約エラーとして投げる。
  */
 function assertRevisitIntakeReadMatchesAppointment(
   read: RevisitIntakeLIFFRead,
@@ -93,6 +93,8 @@ function assertRevisitIntakeReadMatchesAppointment(
         (h.target_relation === "current" &&
           (current === null ||
             h.target.pet_id !== current.ref.pet_id ||
+            current.ref.target_id === null ||
+            h.target.target_id !== current.ref.target_id ||
             h.target.target_generation !== current.ref.target_generation)),
     );
   if (mismatch) {
