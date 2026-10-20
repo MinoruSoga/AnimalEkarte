@@ -6,6 +6,8 @@ info:
 
     EMR-502 / EMR-493 / EMR-461 の x-contract-status: selected（461保存はx-cage-contract-status） は実装先行契約。runtime追従・実機受入は別工程。
 
+    EMR-471 / 472 / 473 / 476 の再診問診5操作もx-contract-status: selectedの先行契約。runtime未実装/未検証。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -39,6 +41,30 @@ components:
       schema:
         type: string
         enum: [XMLHttpRequest]
+    RevisitIntakeCursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: opaque cursor。既存facilityを再利用し、なければversion付きbase64url closed payload。route/scope/upper-boundを照合し不正400。新署名鍵必須なし。全ページで行認可し改ざんでgrantを広げない。cursorにも作者ID/sub/hash/ownerIDや不可視refを露出しない。
+    RevisitIntakeLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 50
+        minimum: 1
+        maximum: 100
+      description: 履歴ページサイズ。履歴保存上限ではない。
+    RevisitIntakeIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        $ref: '#/components/schemas/RevisitIntakeOperationKey'
+      description: 同key同内容を維持。既存CORS許可を利用。fingerprintはintent+appointment+pet+generation+form版+回答、expected_revisionは除外。未成功のCAS-only訂正は同key再検証可、自動上書きなし。
   securitySchemes:
     CookieAuth:
       type: apiKey
@@ -61,7 +87,866 @@ components:
       bearerFormat: JWT
       description: |
         後方互換のフォールバック。Cookie が利用不可な環境（CLI クライアント等）向け。
+    LiffIDToken:
+      type: http
+      scheme: bearer
+      bearerFormat: LINE ID token
+      description: '既存LIFFのAuthorization: BearerによるLINE ID token検証方式。staff Cookie/JWTではない。新再診問診3routeはread-only
+        customer lookupへ注入し、既存他routeのLiffAuthは変更しない。'
   schemas:
+    RevisitIntakeId:
+      type: string
+      pattern: ^[1-9][0-9]*$
+      description: 正の正規形10進文字列。serverでBIGINT範囲1..9223372036854775807を検査。JS Numberへ変換しない。
+    RevisitIntakeRevision:
+      type: string
+      pattern: ^[1-9][0-9]*$
+      description: 同targetの回答版。正の正規形10進文字列/BIGINT範囲。updated_atや回答件数で代替しない。
+    RevisitIntakeGeneration:
+      type: string
+      pattern: ^[1-9][0-9]*$
+      description: 予約の対象世代。日時変更は維持、pet A→B→Aは別世代。正規形10進文字列/BIGINT範囲。
+    RevisitIntakeOperationKey:
+      type: string
+      format: uuid
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      not:
+        enum:
+        - 00000000-0000-0000-0000-000000000000
+      description: operation.ParseOperationKeyと同じlowercase hyphenated/non-nil UUID。暗黙正規化しない。
+    RevisitIntakeFormVersion:
+      description: 正の整数の項目定義版。現在受付可能な版は1（serverの意味検証）。POSTで整数の未対応版は409 FORM_VERSION_MISMATCH、型不正/1未満は400。応答の過去回答は旧版を保持し得る。
+      type: integer
+      minimum: 1
+    RevisitIntakeReceivedAt:
+      type: string
+      format: date-time
+      description: server UTC日時。clientから受け付けない。
+    RevisitIntakeEnergyAppetite:
+      type: string
+      nullable: true
+      enum:
+      - usual
+      - slightly_reduced
+      - markedly_reduced
+      - null
+    RevisitIntakeImprovement:
+      type: string
+      nullable: true
+      enum:
+      - improved
+      - slightly_improved
+      - unchanged
+      - worse
+      - new_symptoms
+      - null
+    RevisitIntakeExaminationPreference:
+      type: string
+      nullable: true
+      enum:
+      - consultation_only
+      - medication_only
+      - examination
+      - decide_with_vet
+      - null
+    RevisitIntakeInputAnswers:
+      type: object
+      additionalProperties: false
+      required:
+      - visit_purpose
+      properties:
+        visit_purpose:
+          type: string
+          minLength: 1
+          description: 送信時必須。Unicode空白のみは400。原文trim/暗黙補正なし。
+        onset:
+          type: string
+          nullable: true
+        energy:
+          $ref: '#/components/schemas/RevisitIntakeEnergyAppetite'
+        appetite:
+          $ref: '#/components/schemas/RevisitIntakeEnergyAppetite'
+        current_symptoms:
+          type: string
+          nullable: true
+        improvement:
+          $ref: '#/components/schemas/RevisitIntakeImprovement'
+        examination_preference:
+          $ref: '#/components/schemas/RevisitIntakeExaminationPreference'
+        main_concern:
+          type: string
+          nullable: true
+      description: 8保存値/7表示項目。元気と食欲は独立した単一選択。任意値は省略/null可、fingerprintでは省略→null。空文字はnullにしない。未知enum/配列は400。
+    RevisitIntakeFullAnswers:
+      type: object
+      additionalProperties: false
+      required:
+      - visit_purpose
+      - onset
+      - energy
+      - appetite
+      - current_symptoms
+      - improvement
+      - examination_preference
+      - main_concern
+      properties:
+        visit_purpose:
+          type: string
+          minLength: 1
+          description: 送信時必須。Unicode空白のみは400。原文trim/暗黙補正なし。
+        onset:
+          type: string
+          nullable: true
+        energy:
+          $ref: '#/components/schemas/RevisitIntakeEnergyAppetite'
+        appetite:
+          $ref: '#/components/schemas/RevisitIntakeEnergyAppetite'
+        current_symptoms:
+          type: string
+          nullable: true
+        improvement:
+          $ref: '#/components/schemas/RevisitIntakeImprovement'
+        examination_preference:
+          $ref: '#/components/schemas/RevisitIntakeExaminationPreference'
+        main_concern:
+          type: string
+          nullable: true
+    RevisitIntakeSubmitRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - pet_id
+      - target_generation
+      - expected_revision
+      - form_definition_version
+      - answers
+      properties:
+        pet_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        target_generation:
+          $ref: '#/components/schemas/RevisitIntakeGeneration'
+        expected_revision:
+          type: string
+          pattern: ^[1-9][0-9]*$
+          description: 初回は明示null（最新回答なし）。訂正は現在head_revision。省略不可。
+          nullable: true
+        form_definition_version:
+          $ref: '#/components/schemas/RevisitIntakeFormVersion'
+        answers:
+          $ref: '#/components/schemas/RevisitIntakeInputAnswers'
+      description: closed request。clinic/appointment/actor/owner/time/status/target_id/スタッフ補足を受け付けない。全階層duplicate
+        JSON key等はraw境界で400。
+    RevisitIntakeTargetRef:
+      type: object
+      additionalProperties: false
+      required:
+      - target_id
+      - appointment_id
+      - pet_id
+      - target_generation
+      properties:
+        target_id:
+          type: string
+          pattern: ^[1-9][0-9]*$
+          description: 正の正規形10進文字列。serverでBIGINT範囲1..9223372036854775807を検査。JS Numberへ変換しない。
+          nullable: true
+        appointment_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        pet_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        target_generation:
+          $ref: '#/components/schemas/RevisitIntakeGeneration'
+    RevisitIntakePersistedTargetRef:
+      allOf:
+      - $ref: '#/components/schemas/RevisitIntakeTargetRef'
+      - type: object
+        properties:
+          target_id:
+            $ref: '#/components/schemas/RevisitIntakeId'
+      description: 保存済みtargetの参照。target_idは非NULL。
+    RevisitIntakeAnswer:
+      type: object
+      additionalProperties: false
+      required:
+      - answer_id
+      - revision
+      - form_definition_version
+      - received_at
+      - provenance
+      - answers
+      properties:
+        answer_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        revision:
+          $ref: '#/components/schemas/RevisitIntakeRevision'
+        form_definition_version:
+          $ref: '#/components/schemas/RevisitIntakeFormVersion'
+        received_at:
+          $ref: '#/components/schemas/RevisitIntakeReceivedAt'
+        provenance:
+          type: string
+          enum:
+          - owner_submission
+        answers:
+          $ref: '#/components/schemas/RevisitIntakeFullAnswers'
+    RevisitIntakeCurrentAnswerState:
+      description: 未回答/可視head/不可視headの整合。ID/版の相互一致はserverの意味検証でありschemaだけで保証しない。
+      oneOf:
+      - properties:
+          answer_state:
+            type: string
+            enum:
+            - unanswered
+          head_revision:
+            type: string
+            nullable: true
+            enum:
+            - null
+          latest_answer:
+            type: object
+            nullable: true
+            enum:
+            - null
+          content_available:
+            enum:
+            - false
+      - properties:
+          ref:
+            $ref: '#/components/schemas/RevisitIntakePersistedTargetRef'
+          answer_state:
+            type: string
+            enum:
+            - answered
+          head_revision:
+            $ref: '#/components/schemas/RevisitIntakeRevision'
+          latest_answer:
+            $ref: '#/components/schemas/RevisitIntakeAnswer'
+          content_available:
+            enum:
+            - true
+      - properties:
+          ref:
+            $ref: '#/components/schemas/RevisitIntakePersistedTargetRef'
+          answer_state:
+            type: string
+            enum:
+            - answered
+          head_revision:
+            $ref: '#/components/schemas/RevisitIntakeRevision'
+          latest_answer:
+            type: object
+            nullable: true
+            enum:
+            - null
+          content_available:
+            enum:
+            - false
+    RevisitIntakeReadOnlyCurrentTarget:
+      type: object
+      additionalProperties: false
+      required:
+      - ref
+      - head_revision
+      - answer_state
+      - latest_answer
+      - content_available
+      properties:
+        ref:
+          $ref: '#/components/schemas/RevisitIntakeTargetRef'
+        head_revision:
+          type: string
+          pattern: ^[1-9][0-9]*$
+          description: 同targetの回答版。正の正規形10進文字列/BIGINT範囲。updated_atや回答件数で代替しない。
+          nullable: true
+        answer_state:
+          type: string
+          enum:
+          - unanswered
+          - answered
+        latest_answer:
+          oneOf:
+          - $ref: '#/components/schemas/RevisitIntakeAnswer'
+          - type: object
+            nullable: true
+            enum:
+            - null
+        content_available:
+          type: boolean
+      description: head_revisionは全answerのMAX。未回答はhead/latestともNULL。head原文が不可視ならanswered/headあり/latest=null/content_available=false。旧自分回答を最新へ置換しない。本文がある場合は当該headのAnswerで、作者ID/sub/hash/owner
+        IDは非公開。head/current/body/lifecycle/historyは1request同SQL snapshot。
+      allOf:
+      - $ref: '#/components/schemas/RevisitIntakeCurrentAnswerState'
+    RevisitIntakeOwnerCurrentTarget:
+      type: object
+      additionalProperties: false
+      required:
+      - ref
+      - head_revision
+      - answer_state
+      - latest_answer
+      - content_available
+      - editable
+      - edit_block_reason
+      properties:
+        ref:
+          $ref: '#/components/schemas/RevisitIntakeTargetRef'
+        head_revision:
+          type: string
+          pattern: ^[1-9][0-9]*$
+          description: 同targetの回答版。正の正規形10進文字列/BIGINT範囲。updated_atや回答件数で代替しない。
+          nullable: true
+        answer_state:
+          type: string
+          enum:
+          - unanswered
+          - answered
+        latest_answer:
+          oneOf:
+          - $ref: '#/components/schemas/RevisitIntakeAnswer'
+          - type: object
+            nullable: true
+            enum:
+            - null
+        content_available:
+          type: boolean
+        editable:
+          type: boolean
+        edit_block_reason:
+          type: string
+          nullable: true
+          enum:
+          - null
+          - reception_started
+          - cancelled
+          - deleted
+          - target_unresolved
+          - authorization_denied
+          - unsupported_lifecycle
+      description: head_revisionは全answerのMAX。未回答はhead/latestともNULL。head原文が不可視ならanswered/headあり/latest=null/content_available=false。旧自分回答を最新へ置換しない。本文がある場合は当該headのAnswerで、作者ID/sub/hash/owner
+        IDは非公開。head/current/body/lifecycle/historyは1request同SQL snapshot。 editableとblock_reasonはserverの現在lifecycle/current
+        grantで決定。tentative/no_show/過去日だけの新cutoffは設けず、未知lifecycleはeditable=false。
+      allOf:
+      - $ref: '#/components/schemas/RevisitIntakeCurrentAnswerState'
+    RevisitIntakeReadOnlyBoundTarget:
+      allOf:
+      - $ref: '#/components/schemas/RevisitIntakeReadOnlyCurrentTarget'
+      - type: object
+        properties:
+          ref:
+            $ref: '#/components/schemas/RevisitIntakePersistedTargetRef'
+      description: recordが固定参照する保存済みtarget。現在予約targetへ追従しない。
+    RevisitIntakeHistoryEntry:
+      type: object
+      additionalProperties: false
+      required:
+      - target
+      - answer
+      - target_relation
+      properties:
+        target:
+          $ref: '#/components/schemas/RevisitIntakePersistedTargetRef'
+        answer:
+          $ref: '#/components/schemas/RevisitIntakeAnswer'
+        target_relation:
+          type: string
+          enum:
+          - current
+          - previous
+    RevisitIntakeLIFFRead:
+      type: object
+      additionalProperties: false
+      required:
+      - availability
+      - form_definition_version
+      - current_target
+      - history
+      - next_cursor
+      properties:
+        availability:
+          type: string
+          enum:
+          - available
+          - target_unresolved
+        form_definition_version:
+          $ref: '#/components/schemas/RevisitIntakeFormVersion'
+        current_target:
+          oneOf:
+          - $ref: '#/components/schemas/RevisitIntakeOwnerCurrentTarget'
+          - type: object
+            nullable: true
+            enum:
+            - null
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevisitIntakeHistoryEntry'
+        next_cursor:
+          type: string
+          nullable: true
+          description: 可視履歴の次ページ。不可視件数/IDを返さない。
+      description: 1 appointment=1 pet、current_targetは単数。未保存targetのtarget_idはnullで初回expected_revision=null。GETはtarget/answer/customer/linkを作らない。現在target読取自体が不可なら404。履歴はgeneration
+        DESC/revision DESC、各行を現在認可し、旧targetは新入力へコピーしない。
+    RevisitIntakeStaffReservationRead:
+      type: object
+      additionalProperties: false
+      required:
+      - availability
+      - form_definition_version
+      - current_target
+      - history
+      - next_cursor
+      properties:
+        availability:
+          type: string
+          enum:
+          - available
+          - target_unresolved
+        form_definition_version:
+          $ref: '#/components/schemas/RevisitIntakeFormVersion'
+        current_target:
+          oneOf:
+          - $ref: '#/components/schemas/RevisitIntakeReadOnlyCurrentTarget'
+          - type: object
+            nullable: true
+            enum:
+            - null
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevisitIntakeHistoryEntry'
+        next_cursor:
+          type: string
+          nullable: true
+          description: 可視履歴の次ページ。不可視件数/IDを返さない。
+      description: 1 appointment=1 pet、current_targetは単数。未保存targetのtarget_idはnullで初回expected_revision=null。GETはtarget/answer/customer/linkを作らない。現在target読取自体が不可なら404。履歴はgeneration
+        DESC/revision DESC、各行を現在認可し、旧targetは新入力へコピーしない。
+    RevisitIntakeRecordRead:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - binding
+        - target
+        - history
+        - next_cursor
+        properties:
+          binding:
+            type: string
+            enum:
+            - unbound
+          target:
+            type: object
+            nullable: true
+            enum:
+            - null
+          history:
+            type: array
+            maxItems: 0
+            items:
+              $ref: '#/components/schemas/RevisitIntakeHistoryEntry'
+          next_cursor:
+            type: string
+            nullable: true
+            enum:
+            - null
+      - type: object
+        additionalProperties: false
+        required:
+        - binding
+        - target
+        - history
+        - next_cursor
+        properties:
+          binding:
+            type: string
+            enum:
+            - mismatch
+          target:
+            type: object
+            nullable: true
+            enum:
+            - null
+          history:
+            type: array
+            maxItems: 0
+            items:
+              $ref: '#/components/schemas/RevisitIntakeHistoryEntry'
+          next_cursor:
+            type: string
+            nullable: true
+            enum:
+            - null
+      - type: object
+        additionalProperties: false
+        required:
+        - binding
+        - target
+        - history
+        - next_cursor
+        properties:
+          binding:
+            type: string
+            enum:
+            - bound
+          target:
+            $ref: '#/components/schemas/RevisitIntakeReadOnlyBoundTarget'
+          history:
+            type: array
+            items:
+              $ref: '#/components/schemas/RevisitIntakeHistoryEntry'
+          next_cursor:
+            type: string
+            nullable: true
+            description: 可視履歴の次ページ。不可視件数/IDを返さない。
+      description: unboundの旧NULLは未特定で未回答ではない。mismatchはrecord clinic/appointment/petとbinding不一致。boundのhistoryは固定target内だけ。現在予約fallback/同日pet推定/旧NULL
+        backfillなし。GET/copy/clear/Undoからbindingを変更しない。
+    RevisitIntakeResultRefs:
+      type: object
+      additionalProperties: false
+      required:
+      - appointment_id
+      - pet_id
+      - target_id
+      - answer_id
+      properties:
+        appointment_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        pet_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        target_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+        answer_id:
+          $ref: '#/components/schemas/RevisitIntakeId'
+    RevisitIntakeCommittedVersions:
+      type: object
+      additionalProperties: false
+      required:
+      - target_generation
+      - answer_revision
+      properties:
+        target_generation:
+          $ref: '#/components/schemas/RevisitIntakeGeneration'
+        answer_revision:
+          $ref: '#/components/schemas/RevisitIntakeRevision'
+    RevisitIntakeSucceededOperation:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_id
+      - intent
+      - state
+      - committed_at
+      - result_refs
+      - committed_versions
+      properties:
+        operation_id:
+          $ref: '#/components/schemas/RevisitIntakeOperationKey'
+        intent:
+          type: string
+          enum:
+          - revisit-intake.submit
+        state:
+          type: string
+          enum:
+          - succeeded
+        committed_at:
+          $ref: '#/components/schemas/RevisitIntakeReceivedAt'
+        result_refs:
+          oneOf:
+          - $ref: '#/components/schemas/RevisitIntakeResultRefs'
+          - type: object
+            nullable: true
+            enum:
+            - null
+        committed_versions:
+          oneOf:
+          - $ref: '#/components/schemas/RevisitIntakeCommittedVersions'
+          - type: object
+            nullable: true
+            enum:
+            - null
+    RevisitIntakeSuccessResponse:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - operation_result
+        - current_state
+        - content_available
+        properties:
+          operation_result:
+            allOf:
+            - $ref: '#/components/schemas/RevisitIntakeSucceededOperation'
+            - type: object
+              properties:
+                result_refs:
+                  $ref: '#/components/schemas/RevisitIntakeResultRefs'
+                committed_versions:
+                  $ref: '#/components/schemas/RevisitIntakeCommittedVersions'
+          current_state:
+            oneOf:
+            - $ref: '#/components/schemas/RevisitIntakeOwnerCurrentTarget'
+            - type: object
+              nullable: true
+              enum:
+              - null
+          content_available:
+            type: boolean
+            enum:
+            - true
+      - type: object
+        additionalProperties: false
+        required:
+        - operation_result
+        - current_state
+        - content_available
+        properties:
+          operation_result:
+            allOf:
+            - $ref: '#/components/schemas/RevisitIntakeSucceededOperation'
+            - type: object
+              properties:
+                result_refs:
+                  type: object
+                  nullable: true
+                  enum:
+                  - null
+                committed_versions:
+                  type: object
+                  nullable: true
+                  enum:
+                  - null
+          current_state:
+            type: object
+            nullable: true
+            enum:
+            - null
+          content_available:
+            type: boolean
+            enum:
+            - false
+      description: 初回POST/replayとも200。operation_resultは初回不変結果、current_stateは現在snapshot。成功answerのgrantあり/現在予約不可視ならrefs可/current_state=null。成功answer失権時は固定redacted200で新writeなし。
+    RevisitIntakeUnresolvedResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_result
+      - current_state
+      - content_available
+      properties:
+        operation_result:
+          type: object
+          additionalProperties: false
+          required:
+          - operation_id
+          - intent
+          - state
+          properties:
+            operation_id:
+              $ref: '#/components/schemas/RevisitIntakeOperationKey'
+            intent:
+              type: string
+              enum:
+              - revisit-intake.submit
+            state:
+              type: string
+              enum:
+              - claimed_uncommitted
+              - result_unavailable
+        current_state:
+          type: object
+          nullable: true
+          enum:
+          - null
+        content_available:
+          type: boolean
+          enum:
+          - false
+      description: committed_at/result_refs/committed_versionsは存在しない。claimedは実行中保証でなく、result_unavailableは成功/失敗を判定できない。
+    RevisitIntakeResultResponse:
+      oneOf:
+      - $ref: '#/components/schemas/RevisitIntakeSuccessResponse'
+      - $ref: '#/components/schemas/RevisitIntakeUnresolvedResponse'
+    RevisitIntakeLookupNotFound:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      - code
+      - operation_result
+      - current_state
+      - content_available
+      properties:
+        error:
+          type: string
+          enum:
+          - not found
+        code:
+          type: string
+          enum:
+          - NOT_FOUND
+        operation_result:
+          type: object
+          additionalProperties: false
+          required:
+          - operation_id
+          - intent
+          - state
+          properties:
+            operation_id:
+              $ref: '#/components/schemas/RevisitIntakeOperationKey'
+            intent:
+              type: string
+              enum:
+              - revisit-intake.submit
+            state:
+              type: string
+              enum:
+              - not_found
+        current_state:
+          type: object
+          nullable: true
+          enum:
+          - null
+        content_available:
+          type: boolean
+          enum:
+          - false
+      description: scope内未発見/別scope/subject不一致は完全に同じ404。echo UUIDは要求自身のkey。not_foundは失敗確定ではなく新key再create禁止。
+    RevisitIntakeDomainError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      - code
+      - details
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          nullable: true
+      oneOf:
+      - properties:
+          code:
+            type: string
+            enum:
+            - INVALID_INPUT
+          details:
+            oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+              - fields
+              properties:
+                fields:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - path
+                    - reason
+                    properties:
+                      path:
+                        type: string
+                      reason:
+                        type: string
+            - type: object
+              nullable: true
+              enum:
+              - null
+      - properties:
+          code:
+            type: string
+            enum:
+            - REVISION_CONFLICT
+          details:
+            type: object
+            additionalProperties: false
+            required:
+            - head_revision
+            properties:
+              head_revision:
+                type: string
+                pattern: ^[1-9][0-9]*$
+                description: 同targetの回答版。正の正規形10進文字列/BIGINT範囲。updated_atや回答件数で代替しない。
+                nullable: true
+      - properties:
+          code:
+            type: string
+            enum:
+            - FORM_VERSION_MISMATCH
+          details:
+            type: object
+            additionalProperties: false
+            required:
+            - supported_form_definition_version
+            properties:
+              supported_form_definition_version:
+                $ref: '#/components/schemas/RevisitIntakeFormVersion'
+      - properties:
+          code:
+            type: string
+            enum:
+            - INTAKE_CLOSED
+          details:
+            type: object
+            additionalProperties: false
+            required:
+            - reason
+            properties:
+              reason:
+                type: string
+                enum:
+                - reception_started
+                - cancelled
+                - deleted
+                - unsupported_lifecycle
+      - properties:
+          code:
+            type: string
+            enum:
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - TARGET_CHANGED
+            - KEY_CONTENT_MISMATCH
+            - PAYLOAD_TOO_LARGE
+            - UNSUPPORTED_MEDIA_TYPE
+            - TOO_MANY_REQUESTS
+            - INTERNAL
+            - SERVICE_UNAVAILABLE
+          details:
+            type: object
+            nullable: true
+            enum:
+            - null
+      description: RespondErrorWithExtrasで生成するflat形。REVISION_CONFLICTのheadは対象行認可済みの場合だけ。不可視のINTAKE_CLOSEDは404。原文/内部詳細をerrorやlogへechoしない。
+    RevisitIntakeMiddlewareError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          nullable: true
+      not:
+        required:
+        - code
+        - details
+      description: 既存middlewareのerrorのみも許容。transportではcode/detailsが省略され得る。両方あるdomain応答はDomainError。HTTPで処理し、error文言分岐は禁止。
+    RevisitIntakeError:
+      anyOf:
+      - $ref: '#/components/schemas/RevisitIntakeDomainError'
+      - $ref: '#/components/schemas/RevisitIntakeMiddlewareError'
     SupportChatRequest:
       type: object
       description: |
@@ -11421,6 +12306,173 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
   responses:
+    RevisitIntakeBadRequest:
+      description: 'INVALID_INPUT: 構文/型/全階層重複key/Unicode空白purpose/cursor。不正原文をechoしない。'
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeUnauthorized:
+      description: 'UNAUTHORIZED: 認証不成立。'
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeForbidden:
+      description: 'FORBIDDEN: read可能でもnewwrite不可の場合を含む。過去成功の同本人scope照会を403にしない。'
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeNotFound:
+      description: 'NOT_FOUND: customer不在/対象不可視。存在・他scopeを漏らさない。'
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeTooManyRequests:
+      description: TOO_MANY_REQUESTS。Retry-Afterがあれば尊重。
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+        Retry-After:
+          description: 任意。返された場合は尊重する。
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeInternalError:
+      description: INTERNAL。内部detail/原文非公開。
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeServiceUnavailable:
+      description: SERVICE_UNAVAILABLE。Retry-Afterがあれば尊重。
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+        Retry-After:
+          description: 任意。返された場合は尊重する。
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeConflict:
+      description: REVISION_CONFLICT / FORM_VERSION_MISMATCH / TARGET_CHANGED / INTAKE_CLOSED / KEY_CONTENT_MISMATCH。入力保持。不可視のhead/閉鎖理由は返さない。
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+          example:
+            error: 回答が更新されています。現在の状態を確認してください。
+            code: REVISION_CONFLICT
+            details:
+              head_revision: '2'
+    RevisitIntakePayloadTooLarge:
+      description: 'PAYLOAD_TOO_LARGE: raw bodyが1MiB超。'
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeUnsupportedMediaType:
+      description: 'UNSUPPORTED_MEDIA_TYPE: application/json以外（charset parameterは可）。'
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RevisitIntakeError'
+    RevisitIntakeLookupNotFound:
+      description: scope内未発見/別scope/subject不一致は同一形。認証不成立は401。middleware段階の既存errorのみも許容。
+      headers:
+        Cache-Control:
+          description: 認証scope・原文をキャッシュしない。
+          schema:
+            type: string
+            enum:
+            - no-store
+      content:
+        application/json:
+          schema:
+            anyOf:
+            - $ref: '#/components/schemas/RevisitIntakeLookupNotFound'
+            - $ref: '#/components/schemas/RevisitIntakeMiddlewareError'
+          example:
+            error: not found
+            code: NOT_FOUND
+            operation_result:
+              operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+              intent: revisit-intake.submit
+              state: not_found
+            current_state: null
+            content_available: false
     BadRequest:
       description: バリデーションエラー
       content:
@@ -28626,3 +29678,458 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /reservations/{appointmentId}/revisit-intake:
+    get:
+      operationId: getReservationRevisitIntake
+      summary: 予約の再診問診参照
+      description: runtime未実装/未検証。EMR-471 root採用v3。未知queryは400。cursor/limitだけを許可し、履歴はgeneration DESC/revision
+        DESC。各ページで現在行認可、head/current/body/lifecycle/historyは1request同SQL snapshot。target/answer/customer/linkを作らない純GET。履歴ページングを保存上限としない。既存reservations:view＋clinic＋各target.pet行別grant。LINE
+        author一致をstaffに強制しない。現在/旧targetを分離し、取消/削除済み原文も認可された行だけ履歴で保持する。
+      x-contract-status: selected
+      tags:
+      - RevisitIntake
+      parameters:
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - $ref: '#/components/parameters/RevisitIntakeCursor'
+      - $ref: '#/components/parameters/RevisitIntakeLimit'
+      responses:
+        '200':
+          description: 認可された原文と状態。全property required、nullableはschemaで明示。
+          headers:
+            Cache-Control:
+              description: 認証scope・原文をキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisitIntakeStaffReservationRead'
+        '400':
+          $ref: '#/components/responses/RevisitIntakeBadRequest'
+        '401':
+          $ref: '#/components/responses/RevisitIntakeUnauthorized'
+        '403':
+          $ref: '#/components/responses/RevisitIntakeForbidden'
+        '404':
+          $ref: '#/components/responses/RevisitIntakeNotFound'
+        '429':
+          $ref: '#/components/responses/RevisitIntakeTooManyRequests'
+        '500':
+          $ref: '#/components/responses/RevisitIntakeInternalError'
+        '503':
+          $ref: '#/components/responses/RevisitIntakeServiceUnavailable'
+  /medical-records/{recordId}/revisit-intake:
+    get:
+      operationId: getMedicalRecordRevisitIntake
+      summary: カルテ固定targetの再診問診参照
+      description: runtime未実装/未検証。EMR-471 root採用v3。未知queryは400。cursor/limitだけを許可し、履歴はgeneration DESC/revision
+        DESC。各ページで現在行認可、head/current/body/lifecycle/historyは1request同SQL snapshot。target/answer/customer/linkを作らない純GET。履歴ページングを保存上限としない。既存medical-records:view＋clinic＋固定target.pet行別grant。LINE
+        author一致をstaffに強制しない。record clinic/appointment/petと固定bindingを照合。unbound/mismatchは未回答と異なる。boundのhistoryは固定target内だけ。現在予約へのfallback/同日pet推定/旧NULL
+        backfillなし。原文read-only、スタッフ補足は既存Inquiry。
+      x-contract-status: selected
+      tags:
+      - RevisitIntake
+      parameters:
+      - name: recordId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - $ref: '#/components/parameters/RevisitIntakeCursor'
+      - $ref: '#/components/parameters/RevisitIntakeLimit'
+      responses:
+        '200':
+          description: 認可された原文と状態。全property required、nullableはschemaで明示。
+          headers:
+            Cache-Control:
+              description: 認証scope・原文をキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisitIntakeRecordRead'
+        '400':
+          $ref: '#/components/responses/RevisitIntakeBadRequest'
+        '401':
+          $ref: '#/components/responses/RevisitIntakeUnauthorized'
+        '403':
+          $ref: '#/components/responses/RevisitIntakeForbidden'
+        '404':
+          $ref: '#/components/responses/RevisitIntakeNotFound'
+        '429':
+          $ref: '#/components/responses/RevisitIntakeTooManyRequests'
+        '500':
+          $ref: '#/components/responses/RevisitIntakeInternalError'
+        '503':
+          $ref: '#/components/responses/RevisitIntakeServiceUnavailable'
+  /api/liff/{clinicId}/my-reservations/{appointmentId}/revisit-intake:
+    servers:
+    - url: http://localhost:8080
+      description: 既存LIFFと同じEngine直下。/api/v1プレフィックスなし。
+    get:
+      operationId: getLiffReservationRevisitIntake
+      summary: 本人の再診問診現在targetと履歴参照
+      description: runtime未実装/未検証。EMR-471 root採用v3。未知queryは400。cursor/limitだけを許可し、履歴はgeneration DESC/revision
+        DESC。各ページで現在行認可、head/current/body/lifecycle/historyは1request同SQL snapshot。target/answer/customer/linkを作らない純GET。履歴ページングを保存上限としない。URLは本人証明ではない。既存LINE
+        ID token検証→既存customerのread-only lookup→最新owner_line_binding_states/common owner-pet binding revision→現在grantを照合する新route限定adapter。FindOrCreateByLineUserID/リンクhealerは禁止、customer不在404。LINE本文は行ごと現在target.pet
+        grant＋元author customer＋subject hashを検査。作者ID/sub/hash/owner IDはwire非公開。1 appointment=1 pet。current_target単数で未保存targetも純GETで表現。head原文が他author不可視ならanswered/headあり/latest=null。confirmed限定、tentative/no_show/過去日だけの新cutoffは禁止。未知lifecycleはeditable=false。
+      x-contract-status: selected
+      tags:
+      - RevisitIntake
+      - LIFF
+      security:
+      - LiffIDToken: []
+      parameters:
+      - name: clinicId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - $ref: '#/components/parameters/RevisitIntakeCursor'
+      - $ref: '#/components/parameters/RevisitIntakeLimit'
+      responses:
+        '200':
+          description: 本人の認可済みtarget/原文。未保存target_id=nullは未回答として表示可能。
+          headers:
+            Cache-Control:
+              description: 認証scope・原文をキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisitIntakeLIFFRead'
+              examples:
+                unpersisted:
+                  value:
+                    availability: available
+                    form_definition_version: 1
+                    current_target:
+                      ref:
+                        target_id: null
+                        appointment_id: '12001'
+                        pet_id: '801'
+                        target_generation: '3'
+                      head_revision: null
+                      answer_state: unanswered
+                      latest_answer: null
+                      content_available: false
+                      editable: true
+                      edit_block_reason: null
+                    history: []
+                    next_cursor: null
+        '400':
+          $ref: '#/components/responses/RevisitIntakeBadRequest'
+        '401':
+          $ref: '#/components/responses/RevisitIntakeUnauthorized'
+        '403':
+          $ref: '#/components/responses/RevisitIntakeForbidden'
+        '404':
+          $ref: '#/components/responses/RevisitIntakeNotFound'
+        '429':
+          $ref: '#/components/responses/RevisitIntakeTooManyRequests'
+        '500':
+          $ref: '#/components/responses/RevisitIntakeInternalError'
+        '503':
+          $ref: '#/components/responses/RevisitIntakeServiceUnavailable'
+  /api/liff/{clinicId}/my-reservations/{appointmentId}/revisit-intake/submissions:
+    servers:
+    - url: http://localhost:8080
+      description: 既存LIFFと同じEngine直下。/api/v1プレフィックスなし。
+    post:
+      operationId: submitLiffRevisitIntake
+      summary: 本人の再診問診送信・訂正
+      description: runtime未実装/未検証。EMR-473 root採用v3。URLは本人証明ではない。既存LINE ID token検証→既存customerのread-only lookup→最新owner_line_binding_states/common
+        owner-pet binding revision→現在grantを照合する新route限定adapter。FindOrCreateByLineUserID/リンクhealerは禁止、customer不在404。LINE本文は行ごと現在target.pet
+        grant＋元author customer＋subject hashを検査。作者ID/sub/hash/owner IDはwire非公開。application/jsonのみ（charset可）、raw
+        1MiB。submit限定のstrict raw検査をglobal SanitizeNullBytesより前に置き、同raw bytesを戻す。全階層duplicate JSON key、複数JSON値、不正UTF8/surrogate、decoded
+        NULは400。本文/空白/改行をtrim・補正せずログ/エラーへechoしない。未知query/closed request違反は400。認証/strict DTO→短いmetadata-only claim
+        TX→最外TX→reservation-graph:write:v1→receipt lock→既存予約/認可/binding保護順→現在generation/lifecycle/head再照合→target/answer/成功receipt原子commit。成功replayは再writeなし。予約/カルテ/検査注文/会計/LINE通知を生成しない。fingerprintはintent+appointment+pet+generation+form版+回答、expected_revision除外。未成功CAS-only修正は同key再検証可、自動上書きなし。成功後訂正は新key。内容変更は旧結果確定後だけ新key。応答断/5xx/claimed/not_found/result_unavailableを失敗確定とせず新keycreate禁止。旧target
+        draftを新targetへ転用しない。
+      x-contract-status: selected
+      tags:
+      - RevisitIntake
+      - LIFF
+      security:
+      - LiffIDToken: []
+      parameters:
+      - name: clinicId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - name: appointmentId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - $ref: '#/components/parameters/RevisitIntakeIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevisitIntakeSubmitRequest'
+            example:
+              pet_id: '801'
+              target_generation: '3'
+              expected_revision: null
+              form_definition_version: 1
+              answers:
+                visit_purpose: 前回の咳の経過確認
+                onset: 昨日から
+                energy: usual
+                appetite: slightly_reduced
+                current_symptoms: 夜に咳
+                improvement: unchanged
+                examination_preference: decide_with_vet
+                main_concern: null
+      responses:
+        '200':
+          description: 初回POST/replayとも200。成功不変結果/現在snapshot/結果不明を区別する。
+          headers:
+            Cache-Control:
+              description: 認証scope・原文をキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisitIntakeResultResponse'
+              examples:
+                succeeded:
+                  summary: 初回/replay成功（原結果と現在snapshotを分離）
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: succeeded
+                      committed_at: '2026-10-20T13:00:00Z'
+                      result_refs:
+                        appointment_id: '12001'
+                        pet_id: '801'
+                        target_id: '5401'
+                        answer_id: '9101'
+                      committed_versions:
+                        target_generation: '3'
+                        answer_revision: '1'
+                    current_state:
+                      ref:
+                        target_id: '5401'
+                        appointment_id: '12001'
+                        pet_id: '801'
+                        target_generation: '3'
+                      head_revision: '1'
+                      answer_state: answered
+                      latest_answer:
+                        answer_id: '9101'
+                        revision: '1'
+                        form_definition_version: 1
+                        received_at: '2026-10-20T13:00:00Z'
+                        provenance: owner_submission
+                        answers:
+                          visit_purpose: 前回の咳の経過確認
+                          onset: 昨日から
+                          energy: usual
+                          appetite: slightly_reduced
+                          current_symptoms: 夜に咳
+                          improvement: unchanged
+                          examination_preference: decide_with_vet
+                          main_concern: null
+                      content_available: true
+                      editable: true
+                      edit_block_reason: null
+                    content_available: true
+                redacted:
+                  summary: 成功answerのgrant失効後も同本人scopeの成功事実だけを返す
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: succeeded
+                      committed_at: '2026-10-20T13:00:00Z'
+                      result_refs: null
+                      committed_versions: null
+                    current_state: null
+                    content_available: false
+                claimed:
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: claimed_uncommitted
+                    current_state: null
+                    content_available: false
+                unavailable:
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: result_unavailable
+                    current_state: null
+                    content_available: false
+        '400':
+          $ref: '#/components/responses/RevisitIntakeBadRequest'
+        '401':
+          $ref: '#/components/responses/RevisitIntakeUnauthorized'
+        '403':
+          $ref: '#/components/responses/RevisitIntakeForbidden'
+        '404':
+          $ref: '#/components/responses/RevisitIntakeNotFound'
+        '409':
+          $ref: '#/components/responses/RevisitIntakeConflict'
+        '413':
+          $ref: '#/components/responses/RevisitIntakePayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/RevisitIntakeUnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/RevisitIntakeTooManyRequests'
+        '500':
+          $ref: '#/components/responses/RevisitIntakeInternalError'
+        '503':
+          $ref: '#/components/responses/RevisitIntakeServiceUnavailable'
+  /api/liff/{clinicId}/revisit-intake/operations/{operationKey}:
+    servers:
+    - url: http://localhost:8080
+      description: 既存LIFFと同じEngine直下。/api/v1プレフィックスなし。
+    get:
+      operationId: getLiffRevisitIntakeOperation
+      summary: 本人scopeの問診送信結果照会
+      description: runtime未実装/未検証。EMR-473 root採用v3。URLは本人証明ではない。既存LINE ID token検証→既存customerのread-only lookup→最新owner_line_binding_states/common
+        owner-pet binding revision→現在grantを照合する新route限定adapter。FindOrCreateByLineUserID/リンクhealerは禁止、customer不在404。LINE本文は行ごと現在target.pet
+        grant＋元author customer＋subject hashを検査。作者ID/sub/hash/owner IDはwire非公開。既存予約view認可middlewareの外側で検証済clinic/customer/key/subjectだけを使いreceipt本人scopeを検証。global
+        key存在検索は禁止。現在予約read不可/患者grant失効でも同本人scopeの過去成功はredacted200で、403化しない。scope内未発見/別scope/subject不一致は同一404形、echo
+        keyは要求自身。not_found/claimed_uncommitted/result_unavailableは失敗確定・実行中保証ではなく、新key再createをしない。未知queryは400。
+      x-contract-status: selected
+      tags:
+      - RevisitIntake
+      - LIFF
+      security:
+      - LiffIDToken: []
+      parameters:
+      - name: clinicId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeId'
+      - name: operationKey
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RevisitIntakeOperationKey'
+      responses:
+        '200':
+          description: 元operation結果と許可された現在snapshot。成功失権時は固定redacted形。
+          headers:
+            Cache-Control:
+              description: 認証scope・原文をキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevisitIntakeResultResponse'
+              examples:
+                succeeded:
+                  summary: 初回/replay成功（原結果と現在snapshotを分離）
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: succeeded
+                      committed_at: '2026-10-20T13:00:00Z'
+                      result_refs:
+                        appointment_id: '12001'
+                        pet_id: '801'
+                        target_id: '5401'
+                        answer_id: '9101'
+                      committed_versions:
+                        target_generation: '3'
+                        answer_revision: '1'
+                    current_state:
+                      ref:
+                        target_id: '5401'
+                        appointment_id: '12001'
+                        pet_id: '801'
+                        target_generation: '3'
+                      head_revision: '1'
+                      answer_state: answered
+                      latest_answer:
+                        answer_id: '9101'
+                        revision: '1'
+                        form_definition_version: 1
+                        received_at: '2026-10-20T13:00:00Z'
+                        provenance: owner_submission
+                        answers:
+                          visit_purpose: 前回の咳の経過確認
+                          onset: 昨日から
+                          energy: usual
+                          appetite: slightly_reduced
+                          current_symptoms: 夜に咳
+                          improvement: unchanged
+                          examination_preference: decide_with_vet
+                          main_concern: null
+                      content_available: true
+                      editable: true
+                      edit_block_reason: null
+                    content_available: true
+                redacted:
+                  summary: 成功answerのgrant失効後も同本人scopeの成功事実だけを返す
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: succeeded
+                      committed_at: '2026-10-20T13:00:00Z'
+                      result_refs: null
+                      committed_versions: null
+                    current_state: null
+                    content_available: false
+                claimed:
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: claimed_uncommitted
+                    current_state: null
+                    content_available: false
+                unavailable:
+                  value:
+                    operation_result:
+                      operation_id: 0bdbb5d2-87e0-4df5-bd93-3f62008bd776
+                      intent: revisit-intake.submit
+                      state: result_unavailable
+                    current_state: null
+                    content_available: false
+        '400':
+          $ref: '#/components/responses/RevisitIntakeBadRequest'
+        '401':
+          $ref: '#/components/responses/RevisitIntakeUnauthorized'
+        '404':
+          $ref: '#/components/responses/RevisitIntakeLookupNotFound'
+        '429':
+          $ref: '#/components/responses/RevisitIntakeTooManyRequests'
+        '500':
+          $ref: '#/components/responses/RevisitIntakeInternalError'
+        '503':
+          $ref: '#/components/responses/RevisitIntakeServiceUnavailable'
