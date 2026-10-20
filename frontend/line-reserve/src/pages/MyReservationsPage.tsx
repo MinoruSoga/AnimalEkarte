@@ -1,5 +1,6 @@
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { liffApi } from "../api/liff-api";
+import type { Reservation } from "../types/models";
 import { BackButton } from "../components/BackButton";
 import { formatJSTApplicationDate } from "@/shared-liff/jst-date";
 import { useFetchState } from "@/shared-liff/use-fetch-state";
@@ -8,6 +9,56 @@ interface MyReservationsPageProps {
   clinicId: string;
   idToken: string;
   onBack: () => void;
+  /**
+   * EMR-474: 予約カード行内の再診問診 CTA（LIFF に予約詳細画面が無いため、カード行内を予約詳細相当とする）。
+   * 未指定なら CTA を出さない。
+   */
+  onOpenRevisitIntake?: (reservation: Reservation) => void;
+}
+
+const revisitCtaClassName =
+  "min-h-11 w-full rounded-lg border border-noah-teal px-3 text-sm font-semibold text-noah-teal-dark hover:bg-noah-teal-light";
+
+/**
+ * EMR-474: 取消済み予約は回答履歴があるときだけ「回答履歴を見る」を出す。予約一覧 DTO を変えないため、
+ * 取消済みカードごとに問診を1件だけ読み取って判定する。取得失敗・403/404 は何も表示しない（有無を推測しない）。
+ */
+function CancelledRevisitHistoryLink({
+  clinicId,
+  idToken,
+  reservation,
+  onOpen,
+}: {
+  clinicId: string;
+  idToken: string;
+  reservation: Reservation;
+  onOpen: (reservation: Reservation) => void;
+}) {
+  const [hasHistory, setHasHistory] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    liffApi
+      .getRevisitIntake(clinicId, String(reservation.id), idToken, { limit: 1 })
+      .then((read) => {
+        if (cancelled) return;
+        setHasHistory(read.history.length > 0 || read.current_target?.answer_state === "answered");
+      })
+      .catch(() => {
+        // 表示しない（取消済みの予約・回答はこの画面から操作しない）
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clinicId, idToken, reservation.id]);
+
+  if (!hasHistory) return null;
+  return (
+    <div className="mt-3 pt-3 border-t border-noah-border-light">
+      <button type="button" onClick={() => onOpen(reservation)} className={revisitCtaClassName}>
+        回答履歴を見る
+      </button>
+    </div>
+  );
 }
 
 function formatDate(dateStr: string): string {
@@ -43,7 +94,12 @@ const STATUS_COLORS: Record<string, string> = {
   no_show: "bg-noah-danger-bg-strong text-noah-danger-text",
 };
 
-export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservationsPageProps) {
+export function MyReservationsPage({
+  clinicId,
+  idToken,
+  onBack,
+  onOpenRevisitIntake,
+}: MyReservationsPageProps) {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cancelError, setCancelError] = useState<{ id: number; message: string } | null>(null);
@@ -163,6 +219,27 @@ export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservations
                     <p className="text-xs text-noah-text-faint mt-2">
                       {formatCreatedAt(reservation.created_at)}
                     </p>
+                  ) : null}
+
+                  {reservation.status === "confirmed" && onOpenRevisitIntake ? (
+                    <div className="mt-3 pt-3 border-t border-noah-border-light">
+                      <button
+                        type="button"
+                        onClick={() => onOpenRevisitIntake(reservation)}
+                        className={revisitCtaClassName}
+                      >
+                        問診を回答する／訂正する
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {reservation.status === "cancelled" && onOpenRevisitIntake ? (
+                    <CancelledRevisitHistoryLink
+                      clinicId={clinicId}
+                      idToken={idToken}
+                      reservation={reservation}
+                      onOpen={onOpenRevisitIntake}
+                    />
                   ) : null}
 
                   {reservation.status === "confirmed" ? (

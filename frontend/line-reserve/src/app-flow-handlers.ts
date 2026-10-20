@@ -1,6 +1,14 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 import type { PageType } from "./types/models";
+import type { RevisitIntakeReservationSummary } from "./pages/RevisitIntakePage";
+
+/** EMR-474: 再診問診画面へ渡す state（予約 ID は URL へ載せない）。 */
+export interface RevisitIntakeRoute {
+  appointmentId: string;
+  returnTo: PageType;
+  summary?: RevisitIntakeReservationSummary;
+}
 
 export function useReservationAppHandlers(
   goTo: (page: PageType) => void,
@@ -8,6 +16,7 @@ export function useReservationAppHandlers(
   setNotice: Dispatch<SetStateAction<string | null>>,
   setCompletedReservationId: Dispatch<SetStateAction<number>>,
   setCompletedNotes: Dispatch<SetStateAction<string>>,
+  setRevisitIntake?: Dispatch<SetStateAction<RevisitIntakeRoute | null>>,
 ) {
   const handleNewReservation = useCallback(() => {
     setNotice(null);
@@ -52,7 +61,17 @@ export function useReservationAppHandlers(
     goTo("step1");
   }, [resetFlow, goTo, setNotice]);
 
+  const handleOpenRevisitIntake = useCallback(
+    (route: RevisitIntakeRoute) => {
+      setNotice(null);
+      setRevisitIntake?.(route);
+      goTo("revisit-intake");
+    },
+    [goTo, setNotice, setRevisitIntake],
+  );
+
   return {
+    handleOpenRevisitIntake,
     handleNewReservation,
     handleConfirm,
     handleSlotTaken,

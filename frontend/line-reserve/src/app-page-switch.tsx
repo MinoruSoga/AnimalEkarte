@@ -19,6 +19,10 @@ import { RequestPage } from "./pages/RequestPage";
 import { ConfirmPage } from "./pages/ConfirmPage";
 import { CompletePage } from "./pages/CompletePage";
 import { MyReservationsPage } from "./pages/MyReservationsPage";
+import { RevisitIntakePage } from "./pages/RevisitIntakePage";
+import type { RevisitIntakeRoute } from "./app-flow-handlers";
+import type { RevisitIntakeDraftStore } from "./hooks/use-revisit-intake-drafts";
+import { formatJapaneseDate } from "@/shared-liff/jst-date";
 
 export interface ReservationPageSwitchProps {
   page: PageType;
@@ -30,6 +34,8 @@ export interface ReservationPageSwitchProps {
   isTrimming: boolean;
   completedReservationId: number;
   completedNotes: string;
+  revisitIntake: RevisitIntakeRoute | null;
+  revisitIntakeDraftStore: RevisitIntakeDraftStore;
   goTo: (page: PageType) => void;
   setCustomerInfo: (info: CustomerInfo) => void;
   setCourse: (id: number, name: string, category?: "general" | "trimming") => void;
@@ -44,6 +50,7 @@ export interface ReservationPageSwitchProps {
   handleSlotTaken: (message: string, redirectStep: number) => void;
   handleCompleteToMyReservations: () => void;
   handleCompleteNewReservation: () => void;
+  handleOpenRevisitIntake: (route: RevisitIntakeRoute) => void;
 }
 
 export function ReservationNoticeBanner({
@@ -88,6 +95,32 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
         clinicId={props.clinicId}
         idToken={props.idToken}
         onBack={() => props.goTo("top")}
+        onOpenRevisitIntake={(reservation) =>
+          props.handleOpenRevisitIntake({
+            appointmentId: String(reservation.id),
+            returnTo: "my-reservations",
+            summary: {
+              petName: reservation.pet_name || undefined,
+              dateLabel: reservation.date ? formatJapaneseDate(reservation.date) : undefined,
+              courseName: reservation.course_name || undefined,
+            },
+          })
+        }
+      />
+    );
+  }
+  if (props.page === "revisit-intake") {
+    if (props.revisitIntake === null) return <ErrorPage />;
+    const route = props.revisitIntake;
+    return (
+      <RevisitIntakePage
+        key={route.appointmentId}
+        clinicId={props.clinicId}
+        idToken={props.idToken}
+        appointmentId={route.appointmentId}
+        summary={route.summary}
+        draftStore={props.revisitIntakeDraftStore}
+        onBack={() => props.goTo(route.returnTo)}
       />
     );
   }
@@ -242,6 +275,23 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         flow={props.flow}
         onMyReservations={props.handleCompleteToMyReservations}
         onNewReservation={props.handleCompleteNewReservation}
+        onRevisitIntake={
+          props.completedReservationId > 0
+            ? () =>
+                props.handleOpenRevisitIntake({
+                  appointmentId: String(props.completedReservationId),
+                  returnTo: "step8",
+                  summary: {
+                    petName:
+                      props.flow.customerInfo.pets.length === 1
+                        ? props.flow.customerInfo.pets[0].name
+                        : undefined,
+                    dateLabel: props.flow.date ? formatJapaneseDate(props.flow.date) : undefined,
+                    courseName: props.flow.courseName || undefined,
+                  },
+                })
+            : undefined
+        }
       />
     );
   }

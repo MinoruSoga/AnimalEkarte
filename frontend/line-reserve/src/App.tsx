@@ -8,7 +8,8 @@ import { ErrorPage } from "@/shared-liff/ErrorPage";
 import { useReservationFlow } from "./hooks/use-reservation-flow";
 import { getClinicId } from "./lib/liff-config";
 import { MaintenancePage } from "./pages/MaintenancePage";
-import { useReservationAppHandlers } from "./app-flow-handlers";
+import { useReservationAppHandlers, type RevisitIntakeRoute } from "./app-flow-handlers";
+import { useRevisitIntakeDraftStore } from "./hooks/use-revisit-intake-drafts";
 import { ReservationNoticeBanner, ReservationPageSwitch } from "./app-page-switch";
 
 export function App() {
@@ -23,6 +24,9 @@ export function App() {
   const [completedReservationId, setCompletedReservationId] = useState<number>(0);
   const [completedNotes, setCompletedNotes] = useState<string>("");
   const [liffId, setLiffId] = useState<string>("");
+  // EMR-474: 再診問診の対象予約（state のみ。URL・ストレージへ載せない）と target 別 draft の memory store
+  const [revisitIntake, setRevisitIntake] = useState<RevisitIntakeRoute | null>(null);
+  const revisitIntakeDraftStore = useRevisitIntakeDraftStore();
 
   const {
     flow,
@@ -46,6 +50,7 @@ export function App() {
     setNotice,
     setCompletedReservationId,
     setCompletedNotes,
+    setRevisitIntake,
   );
 
   useEffect(() => {
@@ -144,6 +149,8 @@ export function App() {
         isTrimming={isTrimming}
         completedReservationId={completedReservationId}
         completedNotes={completedNotes}
+        revisitIntake={revisitIntake}
+        revisitIntakeDraftStore={revisitIntakeDraftStore}
         goTo={goTo}
         setCustomerInfo={setCustomerInfo}
         setCourse={setCourse}

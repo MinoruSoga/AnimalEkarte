@@ -9,6 +9,8 @@ interface CompletePageProps {
   flow: ReservationFlow;
   onMyReservations: () => void;
   onNewReservation: () => void;
+  /** EMR-474: 任意の再診事前問診へ進む。予約 ID が無いときは渡さない（CTA 非表示）。 */
+  onRevisitIntake?: () => void;
 }
 
 function extractConfirmationNumber(notes: string): string | null {
@@ -22,6 +24,7 @@ export function CompletePage({
   flow,
   onMyReservations,
   onNewReservation,
+  onRevisitIntake,
 }: CompletePageProps) {
   const confirmationNumber = useMemo(() => extractConfirmationNumber(notes), [notes]);
   const displayNumber =
@@ -75,6 +78,28 @@ export function CompletePage({
             ) : null}
           </div>
         </div>
+
+        {/* EMR-474: 任意の再診事前問診。未回答でも予約は確定済みで、受付も止めない */}
+        {onRevisitIntake ? (
+          <div className="w-full bg-white rounded-xl border border-noah-border p-4 mb-4">
+            <p className="text-sm text-noah-text mb-1">再診の方は、来院前に問診へ回答できます。</p>
+            <p className="text-xs text-noah-text-sub mb-3">
+              回答は任意です。回答しなくても予約は確定しています。受付前であれば、予約一覧から訂正できます。
+            </p>
+            {flow.customerInfo.pets.length > 1 ? (
+              <p className="text-xs text-noah-text-sub mb-3">
+                問診は予約ごとに1頭分です。ほかのペットの問診は、予約一覧のそれぞれの予約から回答してください。
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={onRevisitIntake}
+              className="w-full min-h-11 py-3 px-4 border border-noah-teal rounded-xl text-noah-teal-dark font-semibold hover:bg-noah-teal-light"
+            >
+              事前問診に回答する（任意）
+            </button>
+          </div>
+        ) : null}
 
         {/* キャンセル案内 */}
         <div className="w-full bg-white/60 rounded-xl p-4 mb-6 text-center">
