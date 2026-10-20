@@ -163,10 +163,18 @@ assert_eq "escape repeated delimiters and preserve backslashes" \
 # Exercise the real orchestration with a file-backed HTTP fake. State writes
 # survive command-substitution subshells; no network or credentials are used.
 API_FIXTURE_ROOT="$(mktemp -d)"
-trap 'rm -f "$FIXTURE"; rm -rf "$API_FIXTURE_ROOT"' EXIT
-plane_http() {
-  local method="$1" url="$2" payload="$3" dest="$4"
+RATE_ROOT="$(mktemp -d)"
+trap 'rm -f "$FIXTURE"; rm -rf "$API_FIXTURE_ROOT" "$RATE_ROOT"' EXIT
+# Deterministic policy for the orchestration fixtures below.
+export PLANE_MERGE_STATE_THROTTLE_MS=0
+plane_sleep_seconds() {
+  # No real sleeping in tests; waits are charged to the budget counter.
+  :
+}
+plane_http_once() {
+  local method="$1" url="$2" payload="$3" dest="$4" headers_file="$5"
   printf '%s\n' "$method" >> "$CASE_DIR/calls"
+  : > "$headers_file"
   case "$method:$url" in
     GET:*/work-items/EMR-999/\?expand=state)
       jq -n --arg state "$(cat "$CASE_DIR/state")" --arg project "$PLANE_PROJECT_ID" \
@@ -183,8 +191,8 @@ plane_http() {
       printf '%s' "$(cat "$CASE_DIR/comment_lookup_status")"
       ;;
     POST:*/comments/)
-      if [[ "$(cat "$CASE_DIR/fail_once")" == "1" ]]; then
-        printf '0' > "$CASE_DIR/fail_once"
+      if [[ "$(cat "$CASE_DIR/fail_once")" -gt 0 ]]; then
+        printf '%s' "$(( $(cat "$CASE_DIR/fail_once") - 1 ))" > "$CASE_DIR/fail_once"
         printf '{"detail":"fixture transient failure"}' > "$dest"
         printf '503'
       else
@@ -212,19 +220,21 @@ for base in main staging; do
   printf '200' > "$CASE_DIR/comment_lookup_status"
   : > "$CASE_DIR/calls"
   if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
-    ng "$base partial comment failure is reported"
+    ok "$base transient comment failure heals through the dedupe re-check"
   else
-    ok "$base partial comment failure is reported"
+    ng "$base transient comment failure heals through the dedupe re-check"
   fi
   assert_eq "$base state PATCH succeeded before comment failure" "$target" "$(cat "$CASE_DIR/state")"
-  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
-    ok "$base rerun recovers missing comment"
-  else
-    ng "$base rerun recovers missing comment"
-  fi
-  assert_eq "$base recovery does not repeat PATCH" '1' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
-  assert_eq "$base recovery posts the intended comment identity" "gh-merge:606:$base:$target" \
+  assert_eq "$base in-run comment retry does not repeat PATCH" '1' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
+  assert_eq "$base in-run comment retry posts exactly twice" '2' "$(grep -c '^POST$' "$CASE_DIR/calls")"
+  assert_eq "$base comment identity is preserved across the retry" "gh-merge:606:$base:$target" \
     "$(jq -r '.[0].external_id' "$CASE_DIR/comments")"
+  if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+    ok "$base rerun is idempotent after the in-run recovery"
+  else
+    ng "$base rerun is idempotent after the in-run recovery"
+  fi
+  assert_eq "$base rerun does not repeat PATCH" '1' "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
   if sync_one_ticket EMR-999 "$base" 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
     ok "$base completed reconciliation is idempotent"
   else
@@ -332,7 +342,7 @@ assert_eq "main UAT lookup failure logs no moved wording" '0' "$(printf '%s' "$o
 assert_eq "main UAT lookup failure leaves state unchanged" 'UAT' "$(cat "$CASE_DIR/state")"
 printf '200' > "$CASE_DIR/comment_lookup_status"
 
-printf '1' > "$CASE_DIR/fail_once"
+printf '4' > "$CASE_DIR/fail_once"
 printf '[]' > "$CASE_DIR/comments"
 if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
   ng "main UAT comment POST failure is reported"
@@ -367,6 +377,292 @@ for order in main-first staging-first; do
   assert_eq "$order later main event performs no regressive PATCH" "$expected_patches" \
     "$(grep -c '^PATCH$' "$CASE_DIR/calls")"
 done
+
+# ---------------------------------------------------------------------------
+# EMR-442: finite retry, whole-run wait budget, Retry-After handling, and
+# write-result reconciliation. The plan-driven fake replays exact request
+# sequences: each consumed line is "status|retry-after-value|body-kind".
+RATE_EPOCH_NOW=1760000000
+plane_now_epoch() { printf '%s\n' "$RATE_EPOCH_NOW"; }
+SLEEP_LOG="$RATE_ROOT/sleeps"
+plane_sleep_seconds() {
+  printf '%s\n' "$1" >> "$SLEEP_LOG"
+}
+plane_http_once() {
+  local method="$1" url="$2" payload="$3" dest="$4" headers_file="$5"
+  local line status rahdr bodykind state_match
+  printf '%s %s\n' "$method" \
+    "$(printf '%s' "$url" | sed -E 's#https?://[^/]+##; s#^/api/v2/##; s#\?.*##')" >> "$CASE_DIR/calls"
+  line="$(head -n 1 "$CASE_DIR/plan" 2>/dev/null || true)"
+  if [[ -z "$line" ]]; then
+    printf '{}' > "$dest"
+    : > "$headers_file"
+    printf '500'
+    return 0
+  fi
+  tail -n +2 "$CASE_DIR/plan" > "$CASE_DIR/plan.next" && mv "$CASE_DIR/plan.next" "$CASE_DIR/plan"
+  IFS='|' read -r status rahdr bodykind <<< "$line"
+  local ticket_from_url
+  ticket_from_url="$(printf '%s' "$url" | sed -E 's#.*/work-items/([^/]+)/.*#\1#')"
+  case "$bodykind" in
+    item:*)
+      state_match="${bodykind#item:}"
+      jq -n --arg id "$ticket_from_url" --arg state "$state_match" --arg project "$PLANE_PROJECT_ID" \
+        '{identifier:$id, id:"fixture-item", project_id:$project, state:{name:$state}}' > "$dest"
+      ;;
+    item)
+      jq -n --arg id "$ticket_from_url" --arg state "$(cat "$CASE_DIR/state")" --arg project "$PLANE_PROJECT_ID" \
+        '{identifier:$id, id:"fixture-item", project_id:$project, state:{name:$state}}' > "$dest"
+      ;;
+    comments-posted)
+      jq -n --arg e "$(cat "$CASE_DIR/posted_ext")" '[{external_id:$e}]' > "$dest"
+      ;;
+    comments)
+      cat "$CASE_DIR/comments" > "$dest"
+      ;;
+    detail)
+      printf '{"detail":"fixture"}' > "$dest"
+      ;;
+    *)
+      printf '{}' > "$dest"
+      ;;
+  esac
+  if [[ "$status" == "200" && "$method" == "PATCH" ]]; then
+    jq -r '.state' <<< "$payload" > "$CASE_DIR/state"
+  fi
+  if [[ "$status" == "201" && "$method" == "POST" ]]; then
+    jq -n --argjson comment "$payload" '[$comment]' > "$CASE_DIR/comments"
+    jq -r '.external_id' <<< "$payload" > "$CASE_DIR/posted_ext"
+  fi
+  if [[ -n "$rahdr" ]]; then
+    printf 'Retry-After: %s\n' "$rahdr" > "$headers_file"
+  else
+    : > "$headers_file"
+  fi
+  printf '%s' "$status"
+}
+
+rate_case() {
+  CASE_DIR="$RATE_ROOT/$1"
+  mkdir -p "$CASE_DIR"
+  printf 'Running' > "$CASE_DIR/state"
+  printf '[]' > "$CASE_DIR/comments"
+  : > "$CASE_DIR/calls"
+  : > "$SLEEP_LOG"
+  RUN_WAIT_BUDGET_REMAINING_MS=120000
+  # shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
+  RUN_BUDGET_EXHAUSTED=0
+  # shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
+  RUN_ANY_REQUEST_MADE=""
+  PLANE_MERGE_STATE_MAX_ATTEMPTS=4
+}
+
+rate_calls() { grep -c "$1" "$CASE_DIR/calls" || true; }
+
+# lookup 429 (Retry-After: 2) then 200: respected wait, then success.
+rate_case "429-then-200"
+printf '%s\n' '429|2|detail' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "lookup 429 with Retry-After recovers and completes"
+else
+  ng "lookup 429 with Retry-After recovers and completes"
+fi
+assert_eq "lookup 429 retries the same ticket finitely" '2' "$(rate_calls '^GET .*work-items/EMR-999')"
+assert_eq "lookup 429 honors the Retry-After wait" '1' "$(grep -c '^2\.000$' "$SLEEP_LOG")"
+assert_eq "lookup 429 budget spends only the honored wait" '118000' "$RUN_WAIT_BUDGET_REMAINING_MS"
+
+# continuous 429 exhausts the bounded attempts and fails the ticket.
+rate_case "continuous-429"
+printf '%s\n' '429|2|detail' '429|2|detail' '429|2|detail' '429|2|detail' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ng "continuous 429 fails the ticket after bounded attempts"
+else
+  ok "continuous 429 fails the ticket after bounded attempts"
+fi
+assert_eq "continuous 429 stops at the attempt cap" '4' "$(rate_calls '^GET .*work-items/EMR-999')"
+assert_eq "continuous 429 sends no PATCH" '0' "$(rate_calls '^PATCH')"
+assert_eq "continuous 429 sends no POST" '0' "$(rate_calls '^POST')"
+
+# missing Retry-After falls back to capped exponential backoff.
+rate_case "headerless-429"
+printf '%s\n' '429||detail' '429||detail' '429||detail' '429||detail' > "$CASE_DIR/plan"
+sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null 2>&1 || true
+assert_eq "headerless 429 backs off exponentially" '1' "$(grep -c '^2\.000$' "$SLEEP_LOG")"
+assert_eq "headerless 429 second step doubles" '1' "$(grep -c '^4\.000$' "$SLEEP_LOG")"
+assert_eq "headerless 429 third step doubles again" '1' "$(grep -c '^8\.000$' "$SLEEP_LOG")"
+
+# invalid Retry-After value falls back to the same backoff path.
+rate_case "invalid-retry-after"
+printf '%s\n' '429|soon|detail' '429|soon|detail' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "invalid Retry-After falls back to capped backoff and recovers"
+else
+  ng "invalid Retry-After falls back to capped backoff and recovers"
+fi
+assert_eq "invalid Retry-After waits the backoff step" '1' "$(grep -c '^2\.000$' "$SLEEP_LOG")"
+
+# HTTP-date Retry-After converts to the remaining seconds. The date string is
+# parsed back through the script's own dialect-falling-back parser so the
+# expectation holds on both GNU and BSD date hosts.
+rate_case "httpdate-retry-after"
+HTTPDATE_FIXTURE="Wed, 21 Oct 2026 12:00:00 GMT"
+RATE_EPOCH_NOW=$(( $(plane_httpdate_to_epoch "$HTTPDATE_FIXTURE") - 37 ))
+printf '%s\n' "429|$HTTPDATE_FIXTURE|detail" '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "HTTP-date Retry-After converts to a wait"
+else
+  ng "HTTP-date Retry-After converts to a wait"
+fi
+assert_eq "HTTP-date Retry-After waits the delta" '1' "$(grep -c '^37\.000$' "$SLEEP_LOG")"
+
+# a Retry-After beyond the whole-run budget stops without re-hitting.
+rate_case "budget-exhausted"
+RUN_WAIT_BUDGET_REMAINING_MS=5000
+printf '%s\n' '429|3600|detail' > "$CASE_DIR/plan"
+if out="$(sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main 2>&1 >/dev/null)"; then
+  ng "retry wait beyond the budget defers the ticket"
+else
+  ok "retry wait beyond the budget defers the ticket"
+fi
+assert_eq "budget-exhausted defers without re-hitting the API" '1' "$(rate_calls '^GET .*work-items/EMR-999')"
+assert_eq "budget-exhausted logs the deferred wording" '1' \
+  "$(printf '%s' "$out" | grep -c 'lookup deferred: wait budget exhausted')"
+
+# 401/403 are permanent and never retried.
+for code in 401 403; do
+  rate_case "permanent-$code"
+  printf '%s\n' "$code||detail" > "$CASE_DIR/plan"
+  if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+    ng "HTTP $code lookup fails without retry"
+  else
+    ok "HTTP $code lookup fails without retry"
+  fi
+  assert_eq "HTTP $code sends exactly one request" '1' "$(rate_calls '^GET .*work-items/EMR-999')"
+done
+
+# transport failure on a lookup retries within the same bounded attempts.
+rate_case "lookup-transport-failure"
+printf '%s\n' '000||detail' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "lookup transport failure recovers within bounded attempts"
+else
+  ng "lookup transport failure recovers within bounded attempts"
+fi
+assert_eq "lookup transport failure retries once" '2' "$(rate_calls '^GET .*work-items/EMR-999')"
+
+# PATCH uncertainty: verify shows the target state; no duplicate state write.
+rate_case "patch-landed-despite-uncertainty"
+printf '%s\n' '200||item' '000||detail' '200||item:Review' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "uncertain PATCH that landed is not repeated"
+else
+  ng "uncertain PATCH that landed is not repeated"
+fi
+assert_eq "uncertain-but-landed PATCH sends no second write" '1' "$(rate_calls '^PATCH')"
+assert_eq "uncertain-but-landed PATCH still posts the comment" '1' "$(rate_calls '^POST')"
+
+# PATCH uncertainty: verify shows the old state; the write is retried once.
+rate_case "patch-not-executed"
+printf '%s\n' '200||item' '000||detail' '200||item:Running' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "unexecuted PATCH is retried after verification"
+else
+  ng "unexecuted PATCH is retried after verification"
+fi
+assert_eq "verified-unexecuted PATCH is retried exactly once" '2' "$(rate_calls '^PATCH')"
+
+# PATCH uncertainty whose verify lookup also fails stops as UNKNOWN.
+rate_case "patch-verify-unavailable"
+printf '%s\n' '200||item' '000||detail' '000||detail' '000||detail' '000||detail' '000||detail' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ng "unverifiable PATCH stops as UNKNOWN without posting"
+else
+  ok "unverifiable PATCH stops as UNKNOWN without posting"
+fi
+assert_eq "unverifiable PATCH sends no comment POST" '0' "$(rate_calls '^POST')"
+assert_eq "unverifiable PATCH leaves the state file unchanged" 'Running' "$(cat "$CASE_DIR/state")"
+
+# comment POST uncertainty: the dedupe re-check finds it already posted.
+rate_case "post-landed-despite-uncertainty"
+printf 'gh-merge:606:main:Review' > "$CASE_DIR/posted_ext"
+printf '%s\n' '200||item' '200||empty' '200||comments' '000||detail' '200||comments-posted' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "uncertain comment POST that landed is not repeated"
+else
+  ng "uncertain comment POST that landed is not repeated"
+fi
+assert_eq "uncertain-but-landed POST sends no duplicate" '1' "$(rate_calls '^POST')"
+
+# comment POST uncertainty with a confirmed absence retries exactly once.
+rate_case "post-not-executed"
+printf '%s\n' '200||item' '200||empty' '200||comments' '000||detail' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "unexecuted comment POST is retried after the re-check"
+else
+  ng "unexecuted comment POST is retried after the re-check"
+fi
+assert_eq "verified-unexecuted POST is retried exactly once" '2' "$(rate_calls '^POST')"
+
+# partial success then rerun: the rerun must not PATCH or POST again.
+rate_case "partial-success-rerun"
+printf '%s\n' '429|1|detail' '200||item' '200||empty' '200||comments' '000||detail' '200||comments' '201||empty' > "$CASE_DIR/plan"
+sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null 2>&1 || true
+before_patches="$(rate_calls '^PATCH')"
+before_posts="$(rate_calls '^POST')"
+printf '%s\n' '200||item' '200||comments-posted' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ok "rerun after partial success completes idempotently"
+else
+  ng "rerun after partial success completes idempotently"
+fi
+assert_eq "partial-success rerun sends no new PATCH" '0' "$(( $(rate_calls '^PATCH') - before_patches ))"
+assert_eq "partial-success rerun sends no new POST" '0' "$(( $(rate_calls '^POST') - before_posts ))"
+
+# request pacing: every request after the first is throttled.
+rate_case "throttle-pacing"
+PLANE_MERGE_STATE_THROTTLE_MS=400
+printf '%s\n' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null 2>&1 || true
+assert_eq "inter-request throttle sleeps between requests" '3' "$(grep -c '^0\.400$' "$SLEEP_LOG")"
+PLANE_MERGE_STATE_THROTTLE_MS=0
+
+# 25-ticket equivalent: shared budget forces a finite stop with a summary.
+# The fake shares one comment collection across tickets, so after the first
+# full success the next three tickets resolve through the external_id dedupe
+# (no PATCH/POST), and the rest are deferred by the exhausted budget — the
+# point is the finite stop and the summary, not the exact per-ticket path.
+rate_case "twentyfive-tickets"
+RUN_WAIT_BUDGET_REMAINING_MS=8000
+# shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
+PLANE_MERGE_STATE_MAX_ATTEMPTS=2
+{
+  printf '%s\n' '429||detail' '200||item' '200||empty' '200||comments' '201||empty'
+  i=0
+  while (( i < 3 )); do
+    printf '%s\n' '429||detail' '200||item' '200||comments'
+    i=$((i + 1))
+  done
+  i=0
+  while (( i < 42 )); do
+    printf '%s\n' '429||detail'
+    i=$((i + 1))
+  done
+} > "$CASE_DIR/plan"
+tickets_file="$CASE_DIR/tickets"
+seq 1 25 | sed 's/^/EMR-/' > "$tickets_file"
+if run_ticket_passes "$tickets_file" main 606 'https://github.com/example/repo/pull/606' main > "$CASE_DIR/summary.out" 2>&1; then
+  ng "25-ticket 429 mix stops finitely with unresolved tickets"
+else
+  ok "25-ticket 429 mix stops finitely with unresolved tickets"
+fi
+assert_eq "25-ticket run reports the summary line" '1' \
+  "$(grep -c '^SUMMARY  ok=4 skip=0 fail=0 unknown=0 deferred=21' "$CASE_DIR/summary.out")"
+assert_eq "25-ticket run stays within the bounded request count" '1' \
+  "$(( $(wc -l < "$CASE_DIR/calls" | tr -d ' ') <= 90 ? 1 : 0 ))"
+assert_eq "25-ticket successful tickets are never re-written" '1' "$(rate_calls '^PATCH')"
+assert_eq "25-ticket comment is never posted twice" '1' "$(rate_calls '^POST')"
+assert_eq "25-ticket run never spends a negative budget" '1' \
+  "$(( RUN_WAIT_BUDGET_REMAINING_MS >= 0 ? 1 : 0 ))"
 
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"
