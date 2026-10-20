@@ -16,6 +16,8 @@ import type {
 } from "@/types/treatment";
 import type { CreateCheckupTypeRequest, UpdateCheckupTypeRequest } from "@/types/treatment";
 import {
+  applyItemInsuranceForCreate,
+  applyItemInsuranceForUpdate,
   buildCheckupCreateRequest,
   buildCheckupUpdateRequest,
   buildConsultationCreateRequest,
@@ -140,8 +142,13 @@ export function useTreatmentPlanMasterSaves({
         return MASTER_EDIT_VERSION_ERROR;
       return null;
     },
-    toCreateRequest: buildCheckupCreateRequest,
-    toUpdateRequest: buildCheckupUpdateRequest,
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildCheckupCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(
+        buildCheckupUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const saveHooksByTab = useMemo(
