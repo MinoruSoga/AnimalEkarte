@@ -153,12 +153,12 @@ describe("revisit-intake-submit（EMR-474）", () => {
     );
   });
 
-  it("Retry-After 付き 500 は service_unavailable（期限まで照会・再送しない）、無い 500 は unknown", () => {
+  it("Retry-After 付き 500 は unknown_with_backoff（期限まで待ち、照会を必須にする）、無い 500 は unknown", () => {
     expect(
       classifyRevisitIntakeSubmitError(
         axiosError(500, { error: "internal" }, { "retry-after": "15" }),
       ),
-    ).toEqual({ type: "service_unavailable", retryAfterSeconds: 15 });
+    ).toEqual({ type: "unknown_with_backoff", retryAfterSeconds: 15 });
     expect(classifyRevisitIntakeSubmitError(axiosError(500, { error: "internal" })).type).toBe(
       "unknown",
     );

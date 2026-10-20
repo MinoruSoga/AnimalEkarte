@@ -93,8 +93,13 @@ export type RevisitIntakeSubmitErrorKind =
   | { type: "payload_too_large" }
   | { type: "unsupported_media_type" }
   | { type: "rate_limited"; retryAfterSeconds: number | null }
-  /** Retry-After 付き 500 / 503: 結果不明のまま、期限まで同 key の再送を待つ */
+  /** Retry-After 付き 503: 期限まで同 key の再送を待つ */
   | { type: "service_unavailable"; retryAfterSeconds: number }
+  /**
+   * Retry-After 付き 500: 結果不明。期限まで待ち、期限後も結果照会が済むまで同 key の再送を許さない
+   * （照会が not_found / claimed_uncommitted を返して初めて再送できる）。
+   */
+  | { type: "unknown_with_backoff"; retryAfterSeconds: number }
   /** 応答喪失・5xx・応答形不正・未知 409 code: 結果不明として同 key で照会する */
   | { type: "unknown" };
 
@@ -183,10 +188,15 @@ export function classifyRevisitIntakeSubmitError(err: unknown): RevisitIntakeSub
         type: "rate_limited",
         retryAfterSeconds: parseRetryAfter(headers?.["retry-after"]),
       };
-    case 500:
+    case 500: {
+      // 500 は結果不明。Retry-After があれば期限まで照会・再送を待ち、期限後は照会を必須にする。
+      const retryAfterSeconds = parseRetryAfter(headers?.["retry-after"]);
+      return retryAfterSeconds !== null && retryAfterSeconds > 0
+        ? { type: "unknown_with_backoff", retryAfterSeconds }
+        : { type: "unknown" };
+    }
     case 503: {
-      // 契約: 500 / 503 の Retry-After があれば尊重する（期限前に照会・再送しない）。
-      // 無い・0 秒の 500 / 503 は他の 5xx と同じく結果不明として照会する。
+      // 契約: Retry-After があれば尊重する。無い・0 秒の 503 は他の 5xx と同じく結果不明として照会する。
       const retryAfterSeconds = parseRetryAfter(headers?.["retry-after"]);
       return retryAfterSeconds !== null && retryAfterSeconds > 0
         ? { type: "service_unavailable", retryAfterSeconds }

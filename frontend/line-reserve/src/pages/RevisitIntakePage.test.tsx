@@ -1188,7 +1188,7 @@ describe("RevisitIntakePage 再試行の抑止（レビュー対応）", () => {
     expect(submits[1].key).toBe(submits[0].key);
   });
 
-  it("Retry-After 付き 500 も即時照会せず、期限まで同じ key の再送を無効にする", async () => {
+  it("Retry-After 付き 500 は即時照会せず、期限後も照会が済むまで再送を無効にし、not_found の照会後に同じ key で再送できる", async () => {
     const user = userEvent.setup();
     mockReadSequence([read(unansweredTarget())]);
     const submits = captureSubmits((c, i) =>
@@ -1207,11 +1207,24 @@ describe("RevisitIntakePage 再試行の抑止（レビュー対応）", () => {
     await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
     await user.click(screen.getByRole("button", { name: "回答を送信する" }));
 
+    // 期限前: 照会も再送も無効、照会は自動で出ない。
     expect(await screen.findByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeDisabled();
     expect(lookups).toHaveLength(0);
+
+    // 期限後: 照会だけ有効。再送は照会が済むまで無効のまま。
     await waitFor(
-      () => expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeEnabled(),
+      () => expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeEnabled(),
       { timeout: 3000 },
+    );
+    expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+    expect(submits).toHaveLength(1);
+
+    // 照会 not_found で初めて同じ key の再送が有効になる。
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(lookups).toEqual([KEYS[0]]));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeEnabled(),
     );
     await user.click(screen.getByRole("button", { name: "同じ内容で再送信" }));
     await waitFor(() => expect(submits).toHaveLength(2));

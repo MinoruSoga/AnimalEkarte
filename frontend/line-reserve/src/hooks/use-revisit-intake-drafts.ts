@@ -26,6 +26,11 @@ export interface RevisitIntakePendingOperation {
    * 期限前に「同じ内容で再送信」を有効にしない。期限切れは null と同じ扱い。
    */
   resendAvailableAt?: number | null;
+  /**
+   * Retry-After 付き 500（結果不明）の後は、結果照会が not_found / claimed_uncommitted を返すまで
+   * 同 key の再送を許さない。期限が過ぎても残り、画面を開き直しても保持する。
+   */
+  lookupRequired?: boolean;
 }
 
 export interface RevisitIntakeDraftEntry {

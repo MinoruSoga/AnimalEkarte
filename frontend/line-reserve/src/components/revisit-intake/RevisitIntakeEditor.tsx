@@ -128,6 +128,10 @@ function serviceUnavailableMessage(seconds: number): string {
   return `ただいま混み合っています。${seconds}秒ほど待ってから、同じ内容で再送信するか送信結果を確認してください。`;
 }
 
+function internalBackoffMessage(seconds: number): string {
+  return `ただいま混み合っています。${seconds}秒ほど待ってから、送信結果を確認してください。結果を確認するまで再送信はできません。`;
+}
+
 function rateLimitedMessage(seconds: number | null): string {
   return seconds !== null && seconds > 0
     ? `アクセスが集中しています。${seconds}秒ほど待ってから、同じ内容で再送信してください。`
@@ -373,7 +377,7 @@ export function RevisitIntakeEditor({
         submitted: op.body.answers,
       };
     }
-    updatePending({ ...op, status: result.operation_result.state });
+    updatePending({ ...op, status: result.operation_result.state, lookupRequired: false });
     return { kind: "unresolved", message: null };
   }
 
@@ -385,7 +389,7 @@ export function RevisitIntakeEditor({
           updatePending({ ...op, status: "unknown" });
           return { kind: "unresolved", message: MISMATCHED_RESULT_MESSAGE };
         }
-        updatePending({ ...op, status: "not_found" });
+        updatePending({ ...op, status: "not_found", lookupRequired: false });
         return { kind: "unresolved", message: null };
       }
       return applyResult(result, op);
@@ -491,6 +495,18 @@ export function RevisitIntakeEditor({
                 : serviceUnavailableMessage(kind.retryAfterSeconds),
           };
         }
+        case "unknown_with_backoff": {
+          // 500 + Retry-After: 結果不明のまま期限まで待ち、期限後も照会が済むまで再送を許さない。
+          const availableAt = Date.now() + kind.retryAfterSeconds * 1000;
+          updatePending({
+            ...op,
+            status: "unknown",
+            resendAvailableAt: availableAt,
+            lookupRequired: true,
+          });
+          setResendAvailableAt(availableAt);
+          return { kind: "unresolved", message: internalBackoffMessage(kind.retryAfterSeconds) };
+        }
         case "unknown":
           // 応答喪失・5xx: 失敗確定ではない。同じ key で結果を照会する。
           return lookup({
@@ -527,6 +543,7 @@ export function RevisitIntakeEditor({
       if (pending === null) return previous;
       if (action === "resend") {
         if (pending.status === "result_unavailable") return previous;
+        if (pending.lookupRequired === true) return previous;
         if (resendAvailableAt !== null && Date.now() < resendAvailableAt) return previous;
         if (
           (previous.kind === "unauthorized" && previous.pendingKept) ||
@@ -739,7 +756,9 @@ export function RevisitIntakeEditor({
           pending={pending}
           message={outcome.kind === "unresolved" ? outcome.message : null}
           busy={isPending}
-          resendBlocked={resendAvailableAt !== null || pendingResendLocked}
+          resendBlocked={
+            resendAvailableAt !== null || pending.lookupRequired === true || pendingResendLocked
+          }
           lookupBlocked={resendAvailableAt !== null}
           onResend={() => trigger("resend")}
           onLookup={() => trigger("lookup")}
