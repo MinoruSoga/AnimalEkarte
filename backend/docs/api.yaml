@@ -8234,8 +8234,8 @@ components:
       additionalProperties: false
       required: [title, order_value, section, body_markdown]
       description: >-
-        編集・表示内容の値object。field存在と文字列の長さを区別する。
-        編集要求は全field非NULL・全置換で未指定は400。空文字や長文を未承認の長さ制限で拒否しない。
+        表示/履歴内容の値object。field存在と文字列の長さを区別し、未承認の文字数上限を追加しない。
+        編集要求の全置換・非NULL・title/section空文字拒否は入力専用ManualArticleEditContentへ分離する。
         公開/過去版の応答も旧空本文/長文をそのまま表現できる。
         order_valueはnumeric(10,2)に表現可能な値。digestはserverがこの内容から算出し、clientで再構成しない。
       properties:
@@ -8243,6 +8243,18 @@ components:
         order_value: { type: number, multipleOf: 0.01, minimum: -99999999.99, maximum: 99999999.99 }
         section: { type: string }
         body_markdown: { type: string }
+    ManualArticleEditContent:
+      type: object
+      description: |
+        編集入力専用。既存manualarticle/service.goのTitle/Section == ""拒否を保持する。
+        title/sectionは空文字を400で拒否するが、新たなtrimや空白のみ拒否・文字数上限は追加しない。
+        body_markdownの空文字拒否は追加しない。旧空値/長文を含む公開/過去版はManualArticleContentで表現する。
+      allOf:
+        - $ref: '#/components/schemas/ManualArticleContent'
+        - type: object
+          properties:
+            title: { type: string, minLength: 1 }
+            section: { type: string, minLength: 1 }
     ManualArticleVersion:
       type: object
       additionalProperties: false
@@ -8321,7 +8333,7 @@ components:
         article_id: { type: integer, format: int64, minimum: 1 }
         expected_version: { type: integer, format: int64, minimum: 1 }
         expected_content_version_id: { type: integer, format: int64, minimum: 1 }
-        content: { $ref: '#/components/schemas/ManualArticleContent' }
+        content: { $ref: '#/components/schemas/ManualArticleEditContent' }
     ManualEditReceipt:
       type: object
       additionalProperties: false
