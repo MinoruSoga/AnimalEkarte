@@ -11,7 +11,8 @@ package operation
 // Explicit opt-in (needs the worktree DB stack and a compiling internal/testdb):
 //   go test -tags operationrealdb -count=1 ./internal/operation/...
 // The tag keeps the DB-free C06 fixtures runnable while internal/testdb does not
-// compile against the PR #729 models (pre-existing on main 5c5219965).
+// compile against the PR #729 models (pre-existing on main 5c5219965). This file
+// has therefore never been type-checked or run; treat it as unverified.
 
 import (
 	"context"

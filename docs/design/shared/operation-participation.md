@@ -15,7 +15,7 @@
 
 | 実ファイル | 単一owner | 内容 |
 |:---|:---|:---|
-| [contract.go](../../../backend/internal/operation/contract.go) | EMR-489 | `Scope`／`Content`／`Preconditions`／`Request`／`Binding`／`Result`／`Status`／`AttemptOutcome`／`Rejection`／`Participant`／`LookupAuthorizer`／`Outcome` |
+| [contract.go](../../../backend/internal/operation/contract.go) | EMR-489 | `Scope`／`Content`／`Preconditions`／`Request`／`Binding`／`Result`／`Status`／`AttemptOutcome`／`Rejection`／`IndeterminateEffect`／`Participant`／`LookupAuthorizer`／`Outcome` |
 | [fingerprint.go](../../../backend/internal/operation/fingerprint.go) | EMR-489 | `NewContent`、HMAC-SHA-256鍵リング（`NewFingerprinter`、鍵versionで旧鍵照合） |
 | [runner.go](../../../backend/internal/operation/runner.go) | EMR-489 | `Runner.Execute`／`Runner.Lookup`、取得順・最外transaction境界 |
 | [store.go](../../../backend/internal/operation/store.go) | EMR-489 | `operation_bindings`／`operation_results`／`operation_attempt_outcomes`のGORM adapter。全queryに`clinic_id`条件 |
@@ -27,7 +27,8 @@
 ### 1.1 束縛とfingerprint（R2）
 
 - 束縛scopeは認証済みの`clinic_id`＋`owner_kind`＋`actor_kind`/`actor_ref`＋`intent`＋`operation_key`（DDLの一意キーと同じ）。clientが指定したclinic・actorで行を選ばない。
-- `Content`（業務内容）と`Preconditions`（CAS・fence等の実行前提）は別の型である。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。
+- `Content`（業務内容）と`Preconditions`（CAS・fence等の実行前提）は別の型である。集合値（例: 対象行ID集合）はadapterが正規順（昇順）で1つの値にしてから`Content`へ入れる。順序違いの同じ内容を別fingerprintにしない。
+- ownerが効果の有無を判定できない場合（外部送信の応答喪失など）は`Apply`が`*IndeterminateEffect`を返す。helperは`unknown`を記録し、そのbindingは`result-unavailable`で停止し続ける。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。
 - fingerprintはサーバー鍵によるHMAC-SHA-256。鍵versionを保存し、旧鍵versionで再計算して照合する。鍵はconstructorへ注入し、環境変数名・設定配線は未選定（§5）。
 
 ### 1.2 取得順・最外transaction境界
@@ -37,7 +38,7 @@
 | 0 | ambient transaction内からの呼出しを拒否（最外であること） | 実行しない |
 | 1 claim（短い独立tx） | bindingをINSERT（同scope・keyが既存なら何もしない）→保存行を読む。保存fingerprintとContentが不一致なら終了 | `operation-key-conflict`。attemptは記録しない |
 | 2 最外業務tx | ownerが渡すgate（例: 予約graph参加者だけ）→binding行`FOR UPDATE NOWAIT`→成功resultがあれば現在認可（`AuthorizeLookup`）を再検査して再実行せず返す→`unknown`が1件でもあれば停止（後の失敗行で解除しない）→`Participant.Apply`（現在認可・scope・Preconditionsの再照合、owner write、必須監査）→`operation_results` INSERT | gateもlockも待たない。lock取得不可は`operation-in-progress` |
-| 3 失敗後 | 新しい読取でresultの有無を再確認。あれば現在認可を再検査して成功（commit済みを失敗へ反転しない） | 読取失敗・`unknown`記録済みは`result-unavailable`（失敗行を重ねない）。それ以外は別txでattemptを記録（`*Rejection`→`rejected`、その他→`retryable_failure`）。attempt_keyは毎回サーバー生成、detailsは`{"status": ...}`だけ |
+| 3 失敗後 | 新しい読取でresultの有無を再確認。あれば現在認可を再検査して成功（commit済みを失敗へ反転しない） | 読取失敗・`unknown`記録済みは`result-unavailable`（失敗行を重ねない）。それ以外は別txでattemptを記録（`*IndeterminateEffect`→`unknown`で以後停止、`*Rejection`→`rejected`、その他→`retryable_failure`）。attempt_keyは毎回サーバー生成、detailsは`{"status": ...}`だけ |
 
 照会（`Runner.Lookup`）は、resultが見えなければbinding行をNOWAITでlockしてからresultと`unknown`を再読取する。lock取得前に他の試行がcommitした成功を`not-succeeded`と返さない。結果を返す全経路（照会・replay・失敗後の成功確認）で`AuthorizeLookup`を通す。`Participant`はこのため`LookupAuthorizer`を含む。
 
@@ -89,7 +90,7 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 | `ack_before_after_version_changed` | 成功後、同keyで了承after計算版だけ変更 | `operation-key-conflict`、Apply追加なし。別keyなら新bindingで実行可 |
 | `same_key_different_content` | 成功後、同keyで金額を変更 | `operation-key-conflict`、Apply追加なし、保存結果は不変 |
 | `succeeded_result_resent` | 成功後、同key同内容を再送 | `replayed`、保存結果と一致、Apply追加なし |
-| `unknown_result_lookup` | bindingに`unknown`を記録 | 実行も照会も`result-unavailable`、Apply呼ばれない。新key＋古いCASはownerのCASで`version-conflict`となり二重了承しない |
+| `unknown_result_lookup` | 別keyの実行でParticipantが`IndeterminateEffect`を返す | 初回は`result-unavailable`で`unknown`記録・成功receiptなし。同keyの再実行も照会も`result-unavailable`でApply呼ばれない。新key＋古いCASはownerのCASで`version-conflict`となり二重了承しない |
 | `current_permission_revoked` | 成功後に認可を失効 | 照会は`not-authorized`、結果本文なし |
 
 `current_permission_revoked`は照会に加えて`Execute`の同key再送でも`not-authorized`・Apply追加なしを確認する。
@@ -106,7 +107,7 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 
 | 項目 | 状態 | 次の担当 |
 |:---|:---|:---|
-| 実DBのstore試験（claim一意性、ambient tx、NOWAIT、rollback、clinic scope） | 未実施。試験は`store_realdb_test.go`（build tag `operationrealdb`）。`internal/testdb`がPR #729のmodelに対しcompileできない状態はmain上で既存 | worktree stack起動後に実行 |
+| 実DBのstore試験（claim一意性、ambient tx、NOWAIT、rollback、clinic scope、sticky unknown） | 未実施・未compile。`store_realdb_test.go`（build tag `operationrealdb`）は、main上で`internal/testdb`がPR #729のmodelに対しcompileできない（既存）ため、型検査も一度も通していない | worktree stack起動後に実行 |
 | deferred trigger `operation_success_required`・RLSとの結合 | 未実施（test DBはAutoMigrate double） | 最初のconsumer接続時 |
 | HMAC鍵のconfig配線・鍵rotation手順 | 未選定 | 最初のconsumer接続時 |
 | 結果照会route・OpenAPI・codegen | 未着手。router／api.yamlは共有ファイルのため各ownerで追加 | EMR-483ほか |

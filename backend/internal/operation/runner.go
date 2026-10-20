@@ -280,6 +280,16 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
 	}
 
+	var indeterminate *IndeterminateEffect
+	if errors.As(txErr, &indeterminate) {
+		// The owner cannot tell whether its effect happened: record unknown so
+		// the binding stops until the owner resolves it.
+		if err := r.recordOutcome(ctx, binding, OutcomeUnknown, StatusResultUnavailable); err != nil {
+			return Outcome{}, err
+		}
+		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
+	}
+
 	attemptOutcome := OutcomeRetryableFailure
 	status := Status("")
 	var rejection *Rejection

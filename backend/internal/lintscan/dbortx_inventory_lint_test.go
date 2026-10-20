@@ -829,7 +829,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit":                     {},
 	// operation (EMR-489 C06 receipts). Lock/InsertResult require the ambient owner
 	// tx; Claim/RecordOutcome refuse it (separate short tx). Runtime proof:
-	// operation/store_realdb_test.go (real DB, explicit integration opt-in).
+	// operation/store_realdb_test.go (build tag operationrealdb; not yet compiled
+	// or run because internal/testdb does not compile on main after PR #729).
 	"operation/store.go|gormStore.ClaimBinding":      {},
 	"operation/store.go|gormStore.FindBinding":       {},
 	"operation/store.go|gormStore.HasUnknownOutcome": {},

@@ -133,6 +133,19 @@ type Rejection struct {
 
 func (r *Rejection) Error() string { return "operation rejected: " + string(r.Status) }
 
+// IndeterminateEffect is returned by Participant.Apply when the owner cannot
+// tell whether its effect happened (e.g. an external send whose response was
+// lost). The transaction rolls back, the attempt is recorded as unknown, and
+// every later attempt of the binding stops with StatusResultUnavailable until
+// the owner resolves it; a new key never rescues it.
+type IndeterminateEffect struct {
+	Cause error
+}
+
+func (e *IndeterminateEffect) Error() string { return "operation effect is indeterminate" }
+
+func (e *IndeterminateEffect) Unwrap() error { return e.Cause }
+
 // Participant is implemented by each write owner (consumer-side adapter).
 // AuthorizeLookup is also applied before a stored result is replayed, so a
 // resend never discloses a result the current grant may no longer read.

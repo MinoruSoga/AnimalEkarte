@@ -214,30 +214,27 @@ func r2UnknownResultLookup(t *testing.T) {
 	acknowledged := f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
 	require.Equal(t, StatusSucceeded, acknowledged.Status)
 
-	// Arrange: a second key was attempted against the stale version and its
-	// effect could not be determined afterwards (transport unknown).
+	// Arrange: a second key runs with current preconditions, but the owner
+	// cannot tell whether its effect happened (e.g. the external send lost its
+	// response). The participant reports an indeterminate effect.
 	unknownKey := uuid.MustParse("33333333-3333-4333-8333-333333333333")
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
 	attempted, err := f.runner.Execute(ctx, Request{
 		Scope:         f.scope,
 		Key:           unknownKey,
 		Content:       f.content,
-		Preconditions: Preconditions{"billing_version": "1", "line_version": "1"},
+		Preconditions: Preconditions{"billing_version": "2", "line_version": "1"},
 	}, f.owner)
 	require.NoError(t, err)
-	require.Equal(t, StatusVersionConflict, attempted.Status)
+	require.Equal(t, StatusResultUnavailable, attempted.Status)
+	require.Nil(t, attempted.Result)
 	unknownBinding, ok := f.store.bindingFor(f.scope, unknownKey)
 	require.True(t, ok)
-	require.NoError(t, f.store.RecordOutcome(
-		ctx,
-		unknownBinding.Binding,
-		uuid.MustParse("44444444-4444-4444-8444-444444444444"),
-		OutcomeUnknown,
-		StatusResultUnavailable,
-	))
 	unknownAttempt, ok := f.store.latestAttempt(unknownBinding.Binding.ID)
 	require.True(t, ok)
 	require.Equal(t, OutcomeUnknown, unknownAttempt.Outcome)
-	require.Equal(t, uuid.MustParse("44444444-4444-4444-8444-444444444444"), unknownAttempt.AttemptKey)
+	require.False(t, f.store.hasResult(unknownBinding.Binding.ID))
+	f.owner.failApplyWith(nil)
 	appliesBefore := f.owner.applyCount()
 
 	// Act: the same key is executed again with current preconditions.
@@ -402,15 +399,17 @@ func TestExecute_UnknownStaysStickyAfterGateFailure(t *testing.T) {
 	ctx := t.Context()
 	pre := Preconditions{"billing_version": "1", "line_version": "1"}
 
-	f.owner.failGateWith(errors.New("gate unavailable"))
-	_, err := f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
-	require.Error(t, err)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	first, err := f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, first.Status)
+	f.owner.failApplyWith(nil)
 	stored, ok := f.store.bindingFor(f.scope, f.key)
 	require.True(t, ok)
-	require.NoError(t, f.store.RecordOutcome(ctx, stored.Binding,
-		uuid.MustParse("66666666-6666-4666-8666-666666666666"), OutcomeUnknown, StatusResultUnavailable))
+	appliesAfterUnknown := f.owner.applyCount()
 
-	// Act: the gate rejects once more, then recovers.
+	// Act: the gate rejects once, then recovers.
+	f.owner.failGateWith(errors.New("gate unavailable"))
 	_, err = f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
 	require.NoError(t, err)
 	f.owner.failGateWith(nil)
@@ -420,7 +419,7 @@ func TestExecute_UnknownStaysStickyAfterGateFailure(t *testing.T) {
 	// recorded over the unknown outcome.
 	require.NoError(t, err)
 	require.Equal(t, StatusResultUnavailable, again.Status)
-	require.Equal(t, 0, f.owner.applyCount())
+	require.Equal(t, appliesAfterUnknown, f.owner.applyCount())
 	attempt, ok := f.store.latestAttempt(stored.Binding.ID)
 	require.True(t, ok)
 	require.Equal(t, OutcomeUnknown, attempt.Outcome)
