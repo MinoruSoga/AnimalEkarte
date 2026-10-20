@@ -13035,6 +13035,7 @@ paths:
               required: [hospitalization_ids, expected_cage_ids]
               properties:
                 hospitalization_ids:
+                  x-runtime-implementation: pending-emr-499-decimal-string-dto
                   type: array
                   minItems: 2
                   maxItems: 2
@@ -13044,6 +13045,7 @@ paths:
                     pattern: '^[1-9][0-9]*$'
                   description: ケージを交換する入院IDのペア（expected_cage_idsと同位置対応）
                 expected_cage_ids:
+                  x-runtime-implementation: pending-emr-499-decimal-string-dto
                   type: array
                   minItems: 2
                   maxItems: 2

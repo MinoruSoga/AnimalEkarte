@@ -15,7 +15,7 @@
 | 740 occupancy read | clinic/編集対象を文字列IDでecho、knownは両配列非NULL、unknownは200かつoccupied/candidate両配列NULL、実取得障害500 | 部分候補や空配列でunknownを偽装しない。患者/滞在明細を返さない |
 | 現在割当と候補 | current_assignmentを別fieldで保持。同院の有効な独立/代表のみ候補、構成員に他滞在の占有があれば代表も除外 | core不明・候補外・無効・旧構成員という理由だけで現値を消さない。現値保持は新規候補への追加許可ではない |
 | lossless ID / 認可 | 正規なPostgreSQL bigint正数文字列。未許可/重複queryと範囲外は400。選択医院createまたはedit、自己除外には同医院editも必須。scope外/不存在/削除済みは同じ404 | view/master編集権限を暗黙の前提にしない。実認可DBの受入は未実施 |
-| APIとfixture | api.yamlのcage-occupancy/cage-swapおよび関連3 schemaは上記main契約本文に一致。HTTP境界/純粋projection/同contextの限定fixtureを追加 | swap DTO/write実装の追随完了ではない。fixture追加・静的確認をunit/実DB PASSとしない |
+| APIとfixture | api.yamlのcage-occupancy/cage-swapおよび関連3 schemaは上記mainの選定契約を維持。swapの文字列request IDは実装未接続を示すx-runtime-implementationを追記。HTTP境界/純粋projection/同contextの限定fixtureを追加 | swap DTO/write実装の追随完了ではない。fixture追加・静的確認をunit/実DB PASSとしない |
 
 source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effective_state.go)、[reader](../../backend/internal/medicalrecord/stay_cage_effective_state_reader.go)、[adapter](../../backend/internal/medicalrecord/cage_occupancy_projection.go)、[HTTP](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_http.go)、[候補projection](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_read.go)、[snapshot runner](../../backend/internal/medicalrecord/cage_occupancy_read_snapshot.go)。
 
@@ -26,6 +26,16 @@ source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effect
 - 候補read全体（現在割当・占有・movement・ケージ）を明示的なread-only snapshotへ接続する。PostgreSQLのread-only TXではFOR SHAREを使わない。保存ambient coreにはこの省略を適用せず、元TXと行ロックを維持する。既存候補ambientのisolationが不適合でも別TXを作らない。
 
 回帰例: hotel/inpatient参照差、無履歴head=0→unknown/current保持、既知cancel/no_show.actual_at保持、snapshot TX option/行ロック、保存ambientの維持、候補ambient不適合拒否、入れ子なし・callback失敗rollback。[snapshot fixture](../../backend/internal/medicalrecord/cage_occupancy_read_snapshot_test.go)は外部接続しないSQL driverのコードであり、実行・実DB MVCC/競合検証はしていない。共有persistence、migration/model/ERDは変更しない。
+
+### CodeRabbit指摘への保存境界修正（r4323694747 / r4323694738）
+
+- 旧CreateはStayCaseID/受入証跡を生成しないため、非NULLケージを保存前に409 `occupancy_unknown`で拒否する。ケージ未指定Createは従来の所有・患者等の検証と保存を維持する。
+- Updateはlocked現在CageIDと異なる新規非NULL割当だけを対象とする。既存cage/group lock後、同じambient TXの単一coreで対象自身の同院stayを検査し、reserved/admittedの現在根拠を確認してから自己除外する。unknownは409、known releasedは既存の400不適格。旧statusで第三者占有検査をskipしない。
+- swapは既存順で両cage/groupをロックし、両対象stayを確認した後に2件を自己除外して第三者占有を検査する。片側拒否は更新前に返し、既存の単一TX/rollbackを維持する。stay先行→cage後続の順序を追加しない。
+- 未指定・同一locked割当の維持・明示clearに新規割当検査を課さない。期待割当CASとscope検査は保持する。保存の3種409は公開740のcodeをhandlerまで返す。数値swap DTOは未対応のまま、文字列契約を旧runtimeへ戻さず、OpenAPIの該当request fieldsに未実装注記を付ける（r4323694738の代替対応）。
+- [保存境界fixture](../../backend/internal/medicalrecord/hospitalization_cage_write_guard_test.go)にCreate/変更割当/未指定・維持・clear・stale CAS/swap両側検査/unknownと取得障害/409 wireの回帰例を追加。既存snapshot fixtureも同院stay/ambientを明示する。コード追加のみで実行していない。
+
+既存の証跡なし行・訂正等による候補全体unknownは隠さない。DI切断、旧status推測、feature flag、既存行の推測backfillは行わない。この修正は証跡なし割当を新しく作る経路を閉じる範囲であり、予約proof・訂正保存・複合CAS・全writer gate参加の実装完了を示さない。
 
 ## 2. 未実装（後続499が実装まで所有）
 
@@ -40,15 +50,15 @@ source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effect
 | Q3 通常遷移 | 通常writerは未開始→admit→discharge、未開始→cancel/no_showを検証し、discharge単独・admit後cancel/no_show・退院後再admit・実時刻逆転を拒否する。訂正解決後も通常遷移を検証し、不正ならunknown | 正常履歴readerのunknown判定は存在するが、旧保存callerから単一writerへの接続はない。readerの拒否をwriterの拒否実装と数えない |
 | Q4 gate / lock | 既選定 `reservation-graph:write:v1` を最外業務TXの先頭で取得→receipt/binding→各ownerの既存lock順。新gate namespaceを作らず、ambient participantは別TX/入れ子Runnerを開始しない | 関連blocking writerのgate実参加は未実装。経路別の実参加、または当該経路停止を後続499で明記し、単一reader注入で全体安全と主張しない |
 | 候補readの一貫性 | 候補readは一貫snapshot。保存は候補readの結果を確保とみなさず、同TXの現在根拠を再評価する | 734にread専用snapshot runnerを追加。非ambientはREPEATABLE READ / READ ONLY、既存ambientはrepeatable read/serializableを確認し、不適合なら別TXを作らず拒否する。保存coreのambientは元TXでFOR SHAREを維持する。SQL shape/TX optionの回帰例は追加済みだが実DBのMVCC/競合受入は未実施 |
-| 461の保存境界 | 変更save入口で旧日付/statusから有効状態を捏造しない。新規非NULL割当のunknownは409。未指定/維持/明示clearの既存意味を壊さない | 旧Create/Update/退院/swapに旧status/type/start/end依存が残る。現typed unknownは保存側では503へ伝播し、採用409のwrite接続は未実装。旧statusにより占有再検査をskipする分岐も置換対象 |
+| 461の保存境界 | 変更save入口で旧日付/statusから有効状態を捏造しない。新規非NULL割当のunknownは409。未指定/維持/明示clearの既存意味を壊さない | 734でCreate非NULLの拒否、Update新規割当の自己stay確認、swap両側確認、typed unknown→409、第三者占有の常時検査を接続。Create/Update/退院の旧status/type/start/endや旧列mapは残り、499の証跡writerと複合CASへの完全接続が未実装 |
 
 ### 具体的な保存callerとコンパイル残差
 
 | 接続箇所 | 未完のコードと後続499の責務 |
 |---|---|
-| [hospitalization_service.go](../../backend/internal/medicalrecord/hospitalization_service.go) / [create](../../backend/internal/medicalrecord/hospitalization_service_create.go) | Createの予定日由来default status、結果statusを使う占有判定、Updateの旧status遷移・旧列update mapを499の単一core/writerへ接続。未指定/維持/clear/新規非NULLを区別し、unknown新規割当を409で拒否する |
+| [hospitalization_service.go](../../backend/internal/medicalrecord/hospitalization_service.go) / [create](../../backend/internal/medicalrecord/hospitalization_service_create.go) | Createの予定日由来default statusと旧field、Updateの旧列update map/退院処理を499の単一core/writerへ接続。734では非NULL Createを409で止め、Update新規非NULLを対象stayと他占有の同TX検査へ接続済み。受入proofを同TX生成する正式Create writerは未実装 |
 | [hospitalization_repository.go](../../backend/internal/medicalrecord/hospitalization_repository.go) / [退院](../../backend/internal/medicalrecord/hospitalization_discharge.go) | `status != discharged` の旧SQL、退院更新と会計・監査・成功receiptを採用された状態根拠/owner/TXへ接続。既存の部分write防止を保持する |
-| [swap service](../../backend/internal/medicalrecord/hospitalization_service_cage_swap.go) / [request DTO](../../backend/internal/medicalrecord/hospitalization_request.go) / [handler](../../backend/internal/medicalrecord/hospitalization_handler.go) | 旧status依存、数値ID DTO、公開740の409 code、両対象の現在認可/期待割当・原子性、同TXの有効状態再検査を整合する。結果不明時にreceipt保証が既にあると推定しない |
+| [swap service](../../backend/internal/medicalrecord/hospitalization_service_cage_swap.go) / [request DTO](../../backend/internal/medicalrecord/hospitalization_request.go) / [handler](../../backend/internal/medicalrecord/hospitalization_handler.go) | 数値ID DTOは文字列契約へ未接続（OpenAPIに注記）。734で旧statusによるswap適格判定を両側stay coreへ置換し、期待割当不一致・他占有・unknownの公開409 codeを接続。選択医院認可、複合CAS、全writer lock協調、結果receiptを499の実writerまで整合する。結果不明時にreceipt保証が既にあると推定しない |
 | [model.Hospitalization](../../backend/internal/model/hospitalization.go)との型不一致 | modelに存在しないStatus/StartDate/EndDate/HospitalizationTypeを旧callerが参照・struct literalへ設定している。**現在コードはこの型不整合でコンパイル不能であり、「試験待ちのみ」ではない。** 旧列/fieldを復活して隠さず、499の実接続で解消する。現セッションでGo compilerを実行したという主張ではない |
 
 ### 後続499の着手プラン（実装開始指示前の記録）
@@ -69,7 +79,7 @@ source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effect
 | 競合 / snapshot | 本人指示後、候補read対movement、訂正対ケージ保存、逆順swap、予約接続対開始でlock待ち後の再検査、複合CAS、snapshot、rollback後の変更/成功receipt不残存を確認。context markerやfile-list fixtureを代用にしない |
 | API / 結合 / UI / 実機 | 本人指示後、740 wire・scope/認可・lossless ID・unknownと取得障害・現在割当保持・未指定/維持/clear・新規409・交換原子性を確認。734だけで利用開始可とはしない |
 
-現sourceで確認済みなのはdiff-check、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parse、cageの2 path/3 schemaと指定main契約の本文一致。`verify-agent-task.py --base 06ae59aca --plan` は対象列挙だけで実行件数0。今回の追補は上記3点のsource/回帰例/文書を変更し、runtime検査は実行していない。検査未実施をコード未実装の代わりにせず、Docker実行を進行停止・マージ必須条件にしない。
+現sourceで確認済みなのはdiff-check、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parse、cageの2 path/3 schemaと指定mainの契約保持（swap request fieldsの未実装annotationのみ追記）。`verify-agent-task.py --base 06ae59aca --plan` は対象列挙だけで実行件数0。今回の追補は上記3点のsource/回帰例/文書を変更し、runtime検査は実行していない。検査未実施をコード未実装の代わりにせず、Docker実行を進行停止・マージ必須条件にしない。
 
 Docker拒否の記録（検査未実施の履歴であり、進行停止・マージ必須条件ではない）:
 

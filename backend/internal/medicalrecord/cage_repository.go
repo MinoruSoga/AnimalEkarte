@@ -318,6 +318,15 @@ func (r *cageRepositoryImpl) ListOccupiedCageIDs(ctx context.Context, clinicID u
 	return r.ListOccupiedCageIDsExcludingHospitalization(ctx, clinicID, nil)
 }
 
+// ReadEffectiveStatesForCageAssignment exposes the same core to the subject
+// eligibility guard. It retains the save caller's ambient transaction.
+func (r *cageRepositoryImpl) ReadEffectiveStatesForCageAssignment(ctx context.Context, clinicID uint64, stayCaseIDs []uint64) ([]StayCageEffectiveState, error) {
+	if r.stayOccupancy == nil {
+		return nil, apperrors.WrapInternalServerError("stay effective-state reader dependency is required")
+	}
+	return r.stayOccupancy.ReadEffectiveStatesForCageAssignment(ctx, clinicID, stayCaseIDs)
+}
+
 // The physical assignment remains on hospitalizations.cage_id. Effective
 // occupancy is exclusively the 499 core's decision for the linked stay case.
 // All reads use DBOrTx: save-time calls participate in the caller's transaction.

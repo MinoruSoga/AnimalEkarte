@@ -77,17 +77,7 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		}
 		for i, hospitalization := range inputOrder {
 			if hospitalization.CageID == nil || *hospitalization.CageID != expectedCageIDs[i] {
-				return apperrors.WrapConflict("ケージの割当が変更されています。最新の入院ボードを確認してください")
-			}
-		}
-
-		// Codex PR606 #26: 臨床状態は行ロック下で再検証する。
-		// ボード表示時の禁止判定から PATCH 到達までの間に退院・死亡へ変わり得る
-		// （TOCTOU）ため、両方ともここで止める。退院済み行の cage_id は退院時点の
-		// 履歴として残し、この経路では変更しない（spec 確認済み: discharged は swap 不可）。
-		for _, h := range []*model.Hospitalization{first, second} {
-			if !isOccupyingHospitalizationStatus(h.Status) {
-				return apperrors.WrapInvalidInput("退院済みの入院はケージを入れ替えできません")
+				return hospitalizationCageConflict(codeCageAssignmentChanged, "ケージの割当が変更されています。最新の入院ボードを確認してください")
 			}
 		}
 
@@ -126,21 +116,32 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		// 割当ガードはターゲットケージ id の昇順で実行し、2グループのケージ行ロック
 		// 取得順を merge/unmerge・単体割当と同じ昇順規約に揃える。
 		moves := []struct {
-			hosp   *model.Hospitalization
 			target uint64
 		}{
-			{first, *second.CageID},
-			{second, *first.CageID},
+			{*second.CageID},
+			{*first.CageID},
 		}
 		if moves[1].target < moves[0].target {
 			moves[0], moves[1] = moves[1], moves[0]
 		}
-		// EMR-461: 交換当事者2件の占有はこの tx で入れ替わるため占有集計から除外する
-		// （使用中同士の交換を禁止しない）。第三者の占有があれば従来どおり 409。
-		swapping := []uint64{first.ID, second.ID}
+		// Lock both cage groups before reading either subject's stay. Keep the
+		// existing cage -> stay order and the original ambient transaction.
+		groups := make([][]model.Cage, 0, len(moves))
 		for _, mv := range moves {
-			if err := s.validateCageAssignmentGuard(txCtx, clinicID, &mv.target,
-				isOccupyingHospitalizationStatus(mv.hosp.Status), swapping); err != nil {
+			group, err := s.lockCageAssignmentGroup(txCtx, clinicID, mv.target)
+			if err != nil {
+				return err
+			}
+			groups = append(groups, group)
+		}
+		// Neither subject may disappear through self exclusion before its own
+		// current stay has been resolved as reserved/admitted.
+		if err := s.validateCageAssignmentSubjects(txCtx, clinicID, []*model.Hospitalization{first, second}); err != nil {
+			return err
+		}
+		swapping := []uint64{first.ID, second.ID}
+		for _, group := range groups {
+			if err := s.validateCageAssignmentOccupancy(txCtx, clinicID, group, swapping); err != nil {
 				return err
 			}
 		}
