@@ -1,51 +1,26 @@
 /**
- * upsert-manual-article.ts — マニュアル記事の編集保存 API
+ * upsert-manual-article.ts — マニュアル記事の編集保存 hook（EMR-513）
  *
- * 管理者権限（ResourceManualEdit）が必要。
- * 編集内容を DB にオーバーライド版として保存。
+ * 保存は契約wire adapter (`./manual-article-edit`) へ統合した:
+ * PUT /v1/manual/articles/{category}/{slug} + receipt照合（対象/版一致のみ成功）。
+ * 旧wire（operation_key無・number ID・応答を一覧DTOとして扱う形式）は廃止。
+ *
+ * 成功/409 code別/結果不明（同operation_keyでの照会）/4xx,5xx の分岐は
+ * 呼び出し側（ManualEditor）で行う。このhookは保存入口（mutation wrapper）のみを担う。
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 
-import { axios } from "@/lib/axios";
-import { handleApiError } from "@/lib/handle-api-error";
-import { queryKeys } from "@/lib/query-keys";
+import {
+  saveManualArticleEdit,
+  type ManualArticleSaveOutcome,
+  type SaveManualArticleEditParams,
+} from "./manual-article-edit";
 
-import type { ManualCategory } from "@/lib/manual-index";
-import type { ManualArticleOverride } from "@/hooks/use-manual-article-overrides";
-
-interface UpsertManualArticleParams {
-  category: ManualCategory;
-  slug: string;
-  title: string;
-  order_value: number;
-  section: string;
-  body_markdown: string;
-}
-
-async function upsertManualArticle(
-  params: UpsertManualArticleParams,
-): Promise<ManualArticleOverride> {
-  const { category, slug, ...body } = params;
-  const { data } = await axios.put<ManualArticleOverride>(
-    `/v1/manual/articles/${category}/${slug}`,
-    body,
-  );
-  return data;
-}
+export type { ManualArticleSaveOutcome, SaveManualArticleEditParams };
 
 export function useUpsertManualArticle() {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: upsertManualArticle,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.manualArticles.all() });
-      toast.success("マニュアルを保存しました");
-    },
-    onError: (error) => {
-      handleApiError(error, "マニュアル保存");
-    },
+    mutationFn: saveManualArticleEdit,
   });
 }

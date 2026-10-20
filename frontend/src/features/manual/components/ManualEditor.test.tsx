@@ -1,26 +1,59 @@
+/**
+ * ManualEditor.test.tsx — 既存記事編集フローのユーザ視点テスト（EMR-513）
+ *
+ * 契約wire adapter（../api/manual-article-edit）をmockし、
+ * 編集元取得 → 編集 → 保存（receipt照合） → 409分岐 → unknown照会停止 → 権限喪失
+ * の振る舞いを検証する。wire自体の契約は api/manual-article-edit.test.ts（MSW契約mock）で検証する。
+ */
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
+import {
+  ManualArticleSaveError,
+  ManualEditConflictError,
+  ManualReceiptMismatchError,
+  type ManualArticleEditView,
+  type ManualEditContentVersion,
+  type ManualEditReceipt,
+} from "../api/manual-article-edit";
 import type { ManualArticle } from "@/lib/manual-index";
 import { ManualEditor } from "./ManualEditor";
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
-const mutate = vi.fn();
+const { editViewMock, saveMock, operationsMock } = vi.hoisted(() => ({
+  editViewMock: vi.fn(),
+  saveMock: vi.fn(),
+  operationsMock: vi.fn(),
+}));
 
 vi.mock("sonner", () => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock("../api/upsert-manual-article", () => ({
-  useUpsertManualArticle: () => ({ mutate, isPending: false }),
-}));
+// adapterの関数だけを差し替え、エラークラス等は実物を使う（instanceof分岐の同一性を保つ）
+vi.mock("../api/manual-article-edit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/manual-article-edit")>();
+  return {
+    ...actual,
+    getManualArticleEditView: editViewMock,
+    saveManualArticleEdit: saveMock,
+    getManualEditOperationResult: operationsMock,
+  };
+});
 
 vi.mock("./ManualContent", () => ({
   ManualContent: () => <div>preview</div>,
 }));
+
+const ARTICLE_ID = "9223372036854775807";
+const CONTENT_VERSION_ID = "4100000000000000123";
+const SHA_DIGEST = "3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca4c6a1c";
+const OPERATION_KEY = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
 const article: ManualArticle = {
   category: "screens",
@@ -32,58 +65,407 @@ const article: ManualArticle = {
   searchText: "概要 初期本文",
 };
 
-describe("ManualEditor permission re-check", () => {
+function currentFixture(
+  overrides: Partial<ManualEditContentVersion> = {},
+): ManualEditContentVersion {
+  return {
+    id: CONTENT_VERSION_ID,
+    article_id: ARTICLE_ID,
+    content_revision: 7,
+    content_digest: SHA_DIGEST,
+    source_kind: "edited",
+    restored_from_id: null,
+    content: {
+      title: "概要",
+      order_value: 12.34,
+      section: "基本",
+      body_markdown: "現在の本文",
+    },
+    edited_by_staff_id: 12,
+    edited_at: "2026-10-19T09:00:00Z",
+    ...overrides,
+  };
+}
+
+function editViewFixture(overrides: Partial<ManualArticleEditView> = {}): ManualArticleEditView {
+  return {
+    id: ARTICLE_ID,
+    category: "screens",
+    slug: "00-overview",
+    version: 41,
+    current: currentFixture(),
+    published_version_id: "4100000000000000100",
+    hidden: false,
+    ...overrides,
+  };
+}
+
+function receiptFixture(overrides: Partial<ManualEditReceipt> = {}): ManualEditReceipt {
+  return {
+    operation_key: OPERATION_KEY,
+    article_id: ARTICLE_ID,
+    intent: "edit",
+    previous_version: 41,
+    resulting_version: 42,
+    content_version_id: "4100000000000000124",
+    content_digest: SHA_DIGEST,
+    published_version_id: "4100000000000000100",
+    ...overrides,
+  };
+}
+
+/** axiosの応答だけを持つ擬似AxiosError（extractApiErrorMessageの分岐用） */
+function fakeAxiosError(status: number, body: Record<string, unknown> = {}): unknown {
+  return Object.assign(new Error(`Request failed with status code ${status}`), {
+    isAxiosError: true,
+    response: { status, data: body },
+  });
+}
+
+/** 編集元の取得完了を待ってから本文を書き換える */
+async function typeBodyAfterLoad(text: string): Promise<void> {
+  const textarea = await screen.findByLabelText("マニュアル本文編集");
+  await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+  await userEvent.clear(textarea);
+  await userEvent.type(textarea, text);
+}
+
+function renderEditor(props: { canEdit?: boolean; onClose?: () => void } = {}) {
+  const onClose = props.onClose ?? vi.fn();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ManualEditor article={article} onClose={onClose} canEdit={props.canEdit} />
+    </QueryClientProvider>,
+  );
+  return { onClose };
+}
+
+describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
   beforeEach(() => {
-    mutate.mockReset();
+    editViewMock.mockReset();
+    saveMock.mockReset();
+    operationsMock.mockReset();
     vi.mocked(toast.error).mockClear();
+    vi.mocked(toast.success).mockClear();
   });
 
-  it("canEdit=true なら dirty 保存で mutate を呼ぶ", async () => {
-    const user = userEvent.setup();
-    render(<ManualEditor article={article} onClose={vi.fn()} canEdit={true} />);
+  it("編集元のcurrent内容版を表示し、保存成功（receipt照合一致）で閉じる", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockResolvedValue({
+      operationKey: OPERATION_KEY,
+      receipt: receiptFixture(),
+    });
+    const { onClose } = renderEditor({ canEdit: true });
 
-    await user.clear(screen.getByLabelText("マニュアル本文編集"));
-    await user.type(screen.getByLabelText("マニュアル本文編集"), "更新本文");
-    await user.click(screen.getByRole("button", { name: "保存" }));
+    // バンドル版ではなくcurrent内容版を編集対象にする
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
 
-    await waitFor(() => {
-      expect(mutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          category: "screens",
-          slug: "00-overview",
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "更新本文");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(saveMock).toHaveBeenCalled());
+    // mutate(variables, options) の2引数呼び出しのため1引数目（保存要求変数）を検証する
+    expect(saveMock.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        category: "screens",
+        slug: "00-overview",
+        articleId: ARTICLE_ID,
+        expectedVersion: 41,
+        expectedContentVersionId: CONTENT_VERSION_ID,
+        content: expect.objectContaining({
+          title: "概要",
+          order_value: 12.34,
+          section: "基本",
           body_markdown: "更新本文",
         }),
-        expect.any(Object),
+      }),
+    );
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith("マニュアルを保存しました");
+      expect(onClose).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("current=null は架空補完せず元内容確認で保存停止する", async () => {
+    editViewMock.mockResolvedValue(editViewFixture({ current: null }));
+    renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    // 編集対象が解決するまでは閲覧（readOnly）のみ
+    await waitFor(() => expect(textarea).toHaveProperty("readOnly", true));
+    expect(textarea).toHaveValue("初期本文");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("元内容を確認");
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "legacy_unknown",
+      editViewFixture({ current: currentFixture({ source_kind: "legacy_unknown" }) }),
+    ],
+    ["digest欠落", editViewFixture({ current: currentFixture({ content_digest: null }) })],
+  ] as const)("%s でも保存を停止する", async (_name, view) => {
+    editViewMock.mockResolvedValue(view);
+    renderEditor({ canEdit: true });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("元内容を確認");
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
+  it("409 version_conflict: 入力を保持し最新edit viewを別取得して比較・再確認を促す（自動再送しない）", async () => {
+    const freshView = editViewFixture({
+      version: 42,
+      current: currentFixture({
+        id: "4100000000000000125",
+        content_revision: 8,
+        content: {
+          title: "概要",
+          order_value: 12.34,
+          section: "基本",
+          body_markdown: "最新の本文",
+        },
+      }),
+    });
+    editViewMock
+      .mockResolvedValue(freshView)
+      .mockResolvedValueOnce(editViewFixture())
+      .mockResolvedValueOnce(freshView);
+    saveMock
+      .mockRejectedValueOnce(
+        new ManualEditConflictError({
+          operationKey: OPERATION_KEY,
+          conflict: { error: "conflict", code: "version_conflict" },
+        }),
+      )
+      .mockResolvedValueOnce({ operationKey: OPERATION_KEY, receipt: receiptFixture() });
+    const { onClose } = renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "競合時の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // 入力保持・別取得・比較メッセージ（自動再送しないのでsaveMockは1回）
+    const notice = await screen.findByRole("alert");
+    await waitFor(() => expect(editViewMock).toHaveBeenCalledTimes(2));
+    expect(notice).toHaveTextContent("version_conflict");
+    expect(notice).toHaveTextContent("自動再送はしません");
+    expect(notice).toHaveTextContent("本文が更新されています");
+    expect(textarea).toHaveValue("競合時の入力");
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 再確認後の保存は取得した最新CAS/内容版を使う
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(saveMock).toHaveBeenCalledTimes(2));
+    // mutate(variables, options) の2引数呼び出しのため1引数目（保存要求変数）を検証する
+    expect(saveMock.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        expectedVersion: 42,
+        expectedContentVersionId: "4100000000000000125",
+        content: expect.objectContaining({ body_markdown: "競合時の入力" }),
+      }),
+    );
+  });
+
+  it("409 source_unresolved: 入力を保持して保存を停止する", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(
+      new ManualEditConflictError({
+        operationKey: OPERATION_KEY,
+        conflict: { error: "unresolved", code: "source_unresolved" },
+      }),
+    );
+    renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "停止確認用の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("source_unresolved");
+    expect(textarea).toHaveValue("停止確認用の入力");
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    expect(saveMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("通信断→operations unknown: 同一operation_keyで照会し、入力保持で停止する（新keyでの再保存をしない）", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(
+      new ManualArticleSaveError({
+        operationKey: OPERATION_KEY,
+        message: "manual article save failed: no response",
+      }),
+    );
+    operationsMock.mockResolvedValue({
+      operation_key: OPERATION_KEY,
+      state: "unknown",
+      receipt: null,
+    });
+    renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "unknown確認用の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(operationsMock).toHaveBeenCalledWith("screens", "00-overview", OPERATION_KEY);
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("unknown");
+    expect(textarea).toHaveValue("unknown確認用の入力");
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+    // 新しいoperation_keyでの再保存はしない
+    expect(saveMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("通信断→operations succeeded: 照会結果もreceipt照合を通して成功扱いにする", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(
+      new ManualArticleSaveError({
+        operationKey: OPERATION_KEY,
+        message: "manual article save failed: no response",
+      }),
+    );
+    operationsMock.mockResolvedValue({
+      operation_key: OPERATION_KEY,
+      state: "succeeded",
+      receipt: receiptFixture(),
+    });
+    const { onClose } = renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "照会成功の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(operationsMock).toHaveBeenCalledWith("screens", "00-overview", OPERATION_KEY);
+      expect(toast.success).toHaveBeenCalledWith("マニュアルを保存しました");
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it("receipt不一致は成功表示せず停止する", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(new ManualReceiptMismatchError("article_id mismatch"));
+    const { onClose } = renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "照合失敗の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("照合に失敗");
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
+  });
+
+  it("403 は権限メッセージを表示し、入力を保持して自動再試行しない", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(
+      new ManualArticleSaveError({
+        operationKey: OPERATION_KEY,
+        status: 403,
+        message: "manual article save failed: 403",
+        requestError: fakeAxiosError(403),
+      }),
+    );
+    renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "権限確認用の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("権限がありません");
+    expect(textarea).toHaveValue("権限確認用の入力");
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("title空文字はクライアントでも保存しない（trim・文字数上限は追加しない）", async () => {
+    editViewMock.mockResolvedValue(
+      editViewFixture({
+        current: currentFixture({
+          content: {
+            title: "",
+            order_value: 12.34,
+            section: "基本",
+            body_markdown: "現在の本文",
+          },
+        }),
+      }),
+    );
+    renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "空titleの保存");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "タイトルとセクションが空のため保存できません。元内容を確認してください。",
       );
     });
-    expect(toast.error).not.toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+    expect(saveMock).not.toHaveBeenCalled();
   });
 
-  it("canEdit=false では mutate せず toast.error する", async () => {
-    const user = userEvent.setup();
-    render(<ManualEditor article={article} onClose={vi.fn()} canEdit={false} />);
+  describe("保存権限の再確認（fail-closed）", () => {
+    it("canEdit=true なら dirty 保存で保存要求を呼ぶ", async () => {
+      editViewMock.mockResolvedValue(editViewFixture());
+      saveMock.mockResolvedValue({ operationKey: OPERATION_KEY, receipt: receiptFixture() });
+      const { onClose } = renderEditor({ canEdit: true });
 
-    await user.clear(screen.getByLabelText("マニュアル本文編集"));
-    await user.type(screen.getByLabelText("マニュアル本文編集"), "権限失効後の本文");
-    await user.click(screen.getByRole("button", { name: "保存" }));
+      await typeBodyAfterLoad("更新本文");
+      await userEvent.click(screen.getByRole("button", { name: "保存" }));
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+      await waitFor(() => expect(saveMock).toHaveBeenCalled());
+      expect(toast.error).not.toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+      expect(onClose).toHaveBeenCalled();
     });
-    expect(mutate).not.toHaveBeenCalled();
-  });
 
-  it("canEdit 省略時は fail-closed で mutate せず toast.error する", async () => {
-    const user = userEvent.setup();
-    render(<ManualEditor article={article} onClose={vi.fn()} />);
+    it("canEdit=false では保存要求を呼ばず toast.error する", async () => {
+      editViewMock.mockResolvedValue(editViewFixture());
+      const { onClose } = renderEditor({ canEdit: false });
 
-    await user.clear(screen.getByLabelText("マニュアル本文編集"));
-    await user.type(screen.getByLabelText("マニュアル本文編集"), "省略時本文");
-    await user.click(screen.getByRole("button", { name: "保存" }));
+      await typeBodyAfterLoad("権限失効後の本文");
+      await userEvent.click(screen.getByRole("button", { name: "保存" }));
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+      });
+      expect(saveMock).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
     });
-    expect(mutate).not.toHaveBeenCalled();
+
+    it("canEdit 省略時は fail-closed で保存要求を呼ばず toast.error する", async () => {
+      editViewMock.mockResolvedValue(editViewFixture());
+      renderEditor();
+
+      await typeBodyAfterLoad("省略時本文");
+      await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
+      });
+      expect(saveMock).not.toHaveBeenCalled();
+    });
   });
 });
