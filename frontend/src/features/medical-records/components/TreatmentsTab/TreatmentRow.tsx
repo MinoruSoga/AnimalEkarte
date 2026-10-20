@@ -89,7 +89,11 @@ export const TreatmentRow = memo(function TreatmentRow({
   );
 
   const startEdit = useCallback((field: string) => setEditField(field), []);
-  const stopEdit = useCallback(() => setEditField(null), []);
+  // EMR-488: 行内エディタの非同期 commit 完了時に、ユーザーが既に別フィールドへ
+  // 移動していた場合はその編集を閉じない（Codex review P2: stale onStopEdit 対策）。
+  const stopEdit = useCallback((field?: string) => {
+    setEditField((cur) => (field === undefined || cur === field ? null : cur));
+  }, []);
   const handleDelete = useCallback(() => onDelete(treatment.id), [treatment.id, onDelete]);
   const handleMoveUp = useCallback(() => onMoveUp(treatment.id), [treatment.id, onMoveUp]);
   const handleMoveDown = useCallback(() => onMoveDown(treatment.id), [treatment.id, onMoveDown]);

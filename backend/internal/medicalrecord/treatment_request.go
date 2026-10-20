@@ -3,6 +3,8 @@ package medicalrecord
 import (
 	"encoding/json"
 	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -39,18 +41,17 @@ func (f *doseAmountField) UnmarshalJSON(data []byte) error {
 	if len(data) > 0 && data[0] == '"' {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
 	}
-	// json.Number 経由で受理し、指数表記（例: Python クライアントの 1e-06）を
-	// ScanScientific で exact な固定小数へ正規化する（pgtype の素の UnmarshalJSON は
-	// 指数表記を拒否するため、範囲内の妥当な数値が 400 になるのを防ぐ。Codex review P2）。
+	// json.Number 経由で受理し、big.Rat で厳密に解析する（Codex review P2）。
+	// pgtype の素の UnmarshalJSON は指数表記を拒否し、ScanScientific は float64 経由で
+	// 精度が落ちる（例: 1.00000000000000001e-6 が 0.000001 に丸まり、送信値と異なる臨床量を
+	// 保存し得る）。そのため仮数部×10^exp を big.Rat で厳密に計算し、numeric(12,6) 適合
+	// （小数6桁以内・絶対値 ≤ 999999.999999）を満たさない入力は 400 で拒否する。
 	var num json.Number
 	if err := json.Unmarshal(data, &num); err != nil {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
 	}
-	// ScanScientific は内部で big.Float→float64 を経由するため、桁数が多い入力は
-	// 変換で精度が落ちる。numeric(12,6) への適合は big.Rat による厳密検証で先に確認し、
-	// 範囲外・6桁を超える小数は 400 で拒否する（CodeRabbit review minor: 精度落ちの値を保存しない）。
-	rat, ok := new(big.Rat).SetString(num.String())
-	if !ok {
+	rat, exact := parseDecimalWithExponent(num.String())
+	if !exact {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
 	}
 	scaled := new(big.Rat).Mul(rat, big.NewRat(1000000, 1))
@@ -61,16 +62,50 @@ func (f *doseAmountField) UnmarshalJSON(data []byte) error {
 	if scaled.Num().CmpAbs(limit) > 0 {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountRange)
 	}
-	var value model.ExactNumeric
-	if err := value.ScanScientific(num.String()); err != nil {
-		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
-	}
-	if value.NaN || value.InfinityModifier != pgtype.Finite {
-		return apperrors.WrapInvalidInput(errMsgDoseAmountNaN)
-	}
+	// numeric(12,6) に正規化して保存（Int = 6桁スケールの整数, Exp = -6）
 	f.set = true
-	f.value = value
+	f.value = model.ExactNumeric{pgtype.Numeric{
+		Int:   new(big.Int).Set(scaled.Num()),
+		Exp:   -6,
+		Valid: true,
+	}}
 	return nil
+}
+
+// parseDecimalWithExponent は 10進リテラル（任意の指数部付き）を big.Rat へ厳密に変換する。
+// "2.5" / "1e-06" / "-1.5E+3" 等を受理し、形式が不正な場合は ok=false を返す。
+func parseDecimalWithExponent(text string) (*big.Rat, bool) {
+	mantissa, expPart, hasExp := strings.Cut(text, "e")
+	if !hasExp {
+		mantissa, expPart, hasExp = strings.Cut(text, "E")
+	}
+	exp := 0
+	if hasExp {
+		var err error
+		exp, err = strconv.Atoi(expPart)
+		if err != nil {
+			return nil, false
+		}
+	}
+	mantissaRat, ok := new(big.Rat).SetString(mantissa)
+	if !ok {
+		return nil, false
+	}
+	if exp == 0 {
+		return mantissaRat, true
+	}
+	factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(absInt(exp))), nil)
+	if exp > 0 {
+		return mantissaRat.Mul(mantissaRat, new(big.Rat).SetInt(factor)), true
+	}
+	return mantissaRat.Quo(mantissaRat, new(big.Rat).SetInt(factor)), true
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 // toServiceInput は未送信を nil に変換する（create=NULL 保存 / PATCH=変更なし）。

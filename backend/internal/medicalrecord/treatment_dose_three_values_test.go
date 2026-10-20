@@ -54,13 +54,13 @@ func TestCreateTreatmentRequest_ThreeValues_DecodeAndMap(t *testing.T) {
 	input := req.toServiceInput()
 
 	require.NotNil(t, input.AdministrationDoseAmount)
-	assert.Equal(t, "2.5", exactText(t, input.AdministrationDoseAmount))
+	assert.Equal(t, "2.500000", exactText(t, input.AdministrationDoseAmount))
 	require.NotNil(t, input.AdministrationDoseUnit)
 	assert.Equal(t, "錠", *input.AdministrationDoseUnit)
 	require.NotNil(t, input.AdministrationInstructions)
 	assert.Equal(t, "1日2回朝夕食後に", *input.AdministrationInstructions)
 	require.NotNil(t, input.PrescriptionTotalAmount)
-	assert.Equal(t, "14", exactText(t, input.PrescriptionTotalAmount))
+	assert.Equal(t, "14.000000", exactText(t, input.PrescriptionTotalAmount))
 	require.NotNil(t, input.PrescriptionTotalUnit)
 	assert.Equal(t, "錠", *input.PrescriptionTotalUnit)
 }
@@ -93,9 +93,9 @@ func TestCreateTreatmentRequest_ThreeValues_ZeroIsExplicitZero(t *testing.T) {
 	input := req.toServiceInput()
 
 	require.NotNil(t, input.AdministrationDoseAmount)
-	assert.Equal(t, "0", exactText(t, input.AdministrationDoseAmount))
+	assert.Equal(t, "0.000000", exactText(t, input.AdministrationDoseAmount))
 	require.NotNil(t, input.PrescriptionTotalAmount)
-	assert.Equal(t, "0", exactText(t, input.PrescriptionTotalAmount))
+	assert.Equal(t, "0.000000", exactText(t, input.PrescriptionTotalAmount))
 }
 
 func TestUpdateTreatmentRequest_ThreeValues_PartialAbsentIsNoChange(t *testing.T) {
@@ -114,7 +114,7 @@ func TestUpdateTreatmentRequest_ThreeValues_PartialAbsentIsNoChange(t *testing.T
 	require.NotNil(t, input.AdministrationInstructions)
 	assert.Equal(t, "1日3回毎食後", *input.AdministrationInstructions)
 	require.NotNil(t, input.PrescriptionTotalAmount)
-	assert.Equal(t, "21", exactText(t, input.PrescriptionTotalAmount))
+	assert.Equal(t, "21.000000", exactText(t, input.PrescriptionTotalAmount))
 	assert.Nil(t, input.AdministrationDoseAmount)
 	assert.Nil(t, input.AdministrationDoseUnit)
 	assert.Nil(t, input.PrescriptionTotalUnit)
@@ -234,10 +234,10 @@ func TestThreeValues_ReEditRoundTrip(t *testing.T) {
 	require.NoError(t, json.Unmarshal(patchRaw, &req))
 	input := req.toServiceInput()
 
-	assert.Equal(t, "2.5", exactText(t, input.AdministrationDoseAmount))
+	assert.Equal(t, "2.500000", exactText(t, input.AdministrationDoseAmount))
 	assert.Equal(t, "錠", *input.AdministrationDoseUnit)
 	assert.Equal(t, "1日2回朝夕食後に", *input.AdministrationInstructions)
-	assert.Equal(t, "14", exactText(t, input.PrescriptionTotalAmount))
+	assert.Equal(t, "14.000000", exactText(t, input.PrescriptionTotalAmount))
 	assert.Equal(t, "錠", *input.PrescriptionTotalUnit)
 }
 
@@ -478,12 +478,22 @@ func TestCreateTreatmentRequest_ThreeValues_PrecisionAndExponentEdges(t *testing
 	err = json.Unmarshal([]byte(body), &req)
 	assert.Error(t, err)
 
-	// 指数表記で範囲内（2.5e0 = 2.5）は受理
+	// 指数表記で範囲内（2.5e0 = 2.5）は受理（numeric(12,6) の6桁スケールに正規化される）
 	body = `{"item_type": "medicine", "administration_dose_amount": 2.5e0, "administration_dose_unit": "錠"}`
 	req = createTreatmentRequest{}
 	err = json.Unmarshal([]byte(body), &req)
 	assert.NoError(t, err)
 	input := req.toServiceInput()
 	require.NotNil(t, input.AdministrationDoseAmount)
-	assert.Equal(t, "2.5", exactText(t, input.AdministrationDoseAmount))
+	assert.Equal(t, "2.500000", exactText(t, input.AdministrationDoseAmount))
+}
+
+func TestCreateTreatmentRequest_ThreeValues_ExponentPrecisionIsExact(t *testing.T) {
+	// Codex review P2: 1.00000000000000001e-6 は numeric(12,6) に収まらない（小数13桁）。
+	// float64 経由の解析だと 0.000001 に丸まり送信値と異なる臨床量を保存するため、
+	// 厳密解析により 400 で拒否されることを固定する。
+	body := `{"item_type": "medicine", "administration_dose_amount": 1.00000000000000001e-6}`
+	var req createTreatmentRequest
+	err := json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
 }

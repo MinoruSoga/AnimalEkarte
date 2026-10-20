@@ -37,7 +37,8 @@ interface TreatmentThreeValuesCellProps {
   editField: string | null;
   inputRef: RefObject<HTMLInputElement | null>;
   onStartEdit: (field: TreatmentThreeValuesField) => void;
-  onStopEdit: () => void;
+  /** 指定フィールドがまだ編集中のときだけ閉じる（stale close 防止のため field を受け取る） */
+  onStopEdit: (field?: string) => void;
   onUpdate: OnTreatmentUpdate;
 }
 
@@ -192,7 +193,7 @@ interface PairValueRowProps {
   incomplete: boolean;
   editField: string | null;
   inputRef: RefObject<HTMLInputElement | null>;
-  onStopEdit: () => void;
+  onStopEdit: (field?: string) => void;
   onCommitPair: (amount: number, unit: string) => void | Promise<TreatmentUpdateOutcome>;
   onCommitAmountOnly: (amount: number) => void | Promise<TreatmentUpdateOutcome>;
   onCommitUnitOnly: (unit: string) => void | Promise<TreatmentUpdateOutcome>;
@@ -230,7 +231,11 @@ const PairValueRow = memo(function PairValueRow({
             inputRef={inputRef}
             initialAmount={amount}
             initialUnit={unit}
-            onStopEdit={onStopEdit}
+            onStopEdit={() => {
+              // 自分のペアのフィールドが編集中のときだけ閉じる（stale close 防止）
+              onStopEdit(amountField);
+              onStopEdit(unitField);
+            }}
             onCommit={onCommitPair}
             amountAriaLabel={amountAriaLabel}
             unitAriaLabel={unitAriaLabel}
@@ -239,7 +244,7 @@ const PairValueRow = memo(function PairValueRow({
           <AmountEditor
             inputRef={inputRef}
             initial={amount}
-            onStopEdit={onStopEdit}
+            onStopEdit={() => onStopEdit(amountField)}
             onCommit={onCommitAmountOnly}
             ariaLabel={amountAriaLabel}
           />
@@ -247,7 +252,7 @@ const PairValueRow = memo(function PairValueRow({
           <UnitEditor
             inputRef={inputRef}
             initial={unit}
-            onStopEdit={onStopEdit}
+            onStopEdit={() => onStopEdit(unitField)}
             onCommit={onCommitUnitOnly}
             ariaLabel={unitAriaLabel}
           />
@@ -499,8 +504,7 @@ function UnitEditor({
   onStopEdit: () => void;
   onCommit: (value: string) => void | Promise<TreatmentUpdateOutcome>;
   ariaLabel: string;
-}) {
-  const [local, setLocal] = useState(initial ?? "");
+}) {  const [local, setLocal] = useState(initial ?? "");
   const committingRef = useRef(false);
 
   useEffect(() => {
