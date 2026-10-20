@@ -1,4 +1,5 @@
 import type { CertificateReprintRequest } from "../api/certificate-api";
+import type { CertificateLayout } from "../api/certificate-schemas";
 import type { IssueNoticeCode } from "./certificate-issue-reducer";
 
 /**
@@ -26,6 +27,8 @@ export interface ReprintEntry {
   readonly state: ReprintState;
   /** 結果が確定するまで保持する操作。null なら新しい操作を始められる。 */
   readonly pending: ReprintPending | null;
+  /** 最後に実行した再印刷の向き。行が作り直されても、実際に使った向きを表示するために保持する。 */
+  readonly layout: CertificateLayout | null;
 }
 
 export interface ReprintStore {
@@ -34,7 +37,7 @@ export interface ReprintStore {
   subscribe(listener: () => void): () => void;
 }
 
-const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null };
+const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null, layout: null };
 
 export function createReprintStore(): ReprintStore {
   const entries = new Map<number, ReprintEntry>();

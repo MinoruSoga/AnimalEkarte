@@ -124,6 +124,17 @@ describe("実 API クライアント", () => {
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
   });
 
+  it("本体が PDF なら Content-Type の誤ラベルでは拒否せず、application/pdf に正規化して返す", async () => {
+    server.use(
+      http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>
+        new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "application/octet-stream" } }),
+      ),
+    );
+    const blob = await api.getArtifactContent("401");
+    expect(blob.type).toBe("application/pdf");
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
   it("PDF 取得の失敗 body（Blob で届く JSON）も code で分類する", async () => {
     server.use(
       http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>

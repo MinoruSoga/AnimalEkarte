@@ -402,6 +402,8 @@ describe("再印刷の安全側の挙動", () => {
     await user.click(within(history).getByRole("button", { name: "通常の予防接種証明書" }));
     row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
 
+    // 実行した向き(縦)が、作り直された行でも表示される。
+    expect(within(row).getByRole("combobox")).toHaveTextContent("縦");
     // 作り直された行でも、新しい key を作れず（再印刷は無効）、同じ key で照会できる。
     expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
     await user.click(within(row).getByRole("button", { name: "結果を照会する" }));

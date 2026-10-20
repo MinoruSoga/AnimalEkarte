@@ -40,6 +40,8 @@ export function useCertificateReprint(args: {
     () => store.get(editionKey),
   );
   const state = entry.state;
+  // 実行中・結果待ち・完了の間は、実際に使った向きを返す（行が作り直されても表示がずれない）。
+  const activeLayout = isReprintUnresolved(state) || state.phase === "done" ? entry.layout : null;
 
   const commit = useCallback(
     (patch: Partial<ReprintEntry>) => store.set(editionKey, { ...store.get(editionKey), ...patch }),
@@ -87,7 +89,7 @@ export function useCertificateReprint(args: {
         commit({ pending: null, state: { phase: "blocked", notice: "forbidden" } });
         return;
       }
-      commit({ pending, state: { phase: "running" } });
+      commit({ pending, layout: pending.request.layout, state: { phase: "running" } });
       try {
         const result = await api.reprint(pending.editionId, pending.request);
         if (result.status === "not-succeeded") {
@@ -152,5 +154,5 @@ export function useCertificateReprint(args: {
     return true;
   }, [store, editionKey, commit]);
 
-  return { state, start, recheck, retrySameKey, discard, reset };
+  return { state, activeLayout, start, recheck, retrySameKey, discard, reset };
 }

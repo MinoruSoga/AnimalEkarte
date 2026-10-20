@@ -52,6 +52,7 @@ export function CertificateEditionRow({
     getCanEdit,
     store: reprintStore,
   });
+  const shownLayout = reprint.activeLayout ?? layout;
   // 再印刷の結果が未確定の間は、同じ key の照会・再試行だけを許す（別操作・向き変更を止める）。
   const reprintLocked = isReprintUnresolved(reprint.state);
   // 保存版プレビューの応答が、向き変更後の画面に載らないようにする。
@@ -117,7 +118,7 @@ export function CertificateEditionRow({
               <div className="flex flex-col">
                 <Label htmlFor={`layout-${edition.id}`}>用紙の向き</Label>
                 <Select
-                  value={layout}
+                  value={shownLayout}
                   disabled={reprintLocked}
                   onValueChange={(v) => changeLayout(v as CertificateLayout)}
                 >
@@ -140,7 +141,7 @@ export function CertificateEditionRow({
             <Button
               type="button"
               disabled={reprintLocked || !canReprint}
-              onClick={() => void reprint.start(layout)}
+              onClick={() => void reprint.start(shownLayout)}
             >
               再印刷の準備
             </Button>

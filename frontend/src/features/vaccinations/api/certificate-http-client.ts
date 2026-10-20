@@ -159,10 +159,11 @@ export function createHttpCertificateApi(): CertificateApi {
         throw new CertificateApiError("malformed", { message: "PDF の取得結果が空です" });
       }
       // 200 でも HTML/JSON（プロキシ・認証エッジ・障害ページ）が届きうる。PDF と確認できたものだけ印刷対象にする。
-      if (!(await isPdfBlob(data))) {
+      // 判定は本体の %PDF- で行う。Content-Type は誤ラベル（octet-stream・空）がありうるため根拠にしない。
+      if (!(await hasPdfMagic(data))) {
         throw new CertificateApiError("malformed", { message: "PDF ではない応答を受け取りました" });
       }
-      return data;
+      return isPdfMediaType(data.type) ? data : new Blob([data], { type: "application/pdf" });
     },
     async lookupOperation(operationKey, intent, signal) {
       const { data } = await call(() =>
@@ -176,9 +177,12 @@ export function createHttpCertificateApi(): CertificateApi {
   };
 }
 
-/** Content-Type が application/pdf で、先頭が %PDF- の Blob だけを PDF とみなす（共有 axios には手を入れない）。 */
-async function isPdfBlob(blob: Blob): Promise<boolean> {
-  if (blob.type.split(";")[0].trim().toLowerCase() !== "application/pdf") return false;
+function isPdfMediaType(type: string): boolean {
+  return type.split(";")[0].trim().toLowerCase() === "application/pdf";
+}
+
+/** 先頭が %PDF- の Blob だけを PDF とみなす（共有 axios には手を入れない）。 */
+async function hasPdfMagic(blob: Blob): Promise<boolean> {
   const head = await readHead(blob.slice(0, PDF_MAGIC.length));
   return PDF_MAGIC.every((byte, i) => head[i] === byte);
 }
