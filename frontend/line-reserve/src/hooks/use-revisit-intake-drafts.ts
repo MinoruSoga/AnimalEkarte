@@ -1,0 +1,89 @@
+// EMR-474: 再診事前問診の未送信 draft を target 別に memory だけで保持する。
+// 技術契約（technical-spec#revisit-intake-api-selected-v3）: draft は target 別 memory のみ、
+// URL / localStorage / sessionStorage / server へ保存しない。再読込・LINE 終了で失われる（OS 終了保証なし）。
+// target key は clinic|appointment|pet|target_generation。別 target（取り直し・対象変更・A→B→A）の
+// draft は別 key になり、旧 target の入力を新 target へコピーしない。
+import { useMemo, useRef } from "react";
+import type {
+  RevisitIntakeFullAnswers,
+  RevisitIntakeSubmitRequest,
+  RevisitIntakeTargetRef,
+} from "../types/models";
+
+/**
+ * 結果が確定していない送信。同じ key・同じ内容でのみ再送／照会する。
+ * - unknown: 応答喪失・5xx・429 等で結果を確認できていない
+ * - claimed_uncommitted / not_found: 同 key で再送してよい（失敗確定ではない）
+ * - result_unavailable: 成功/失敗を判定できない。新しい送信を作らない
+ */
+export interface RevisitIntakePendingOperation {
+  key: string;
+  fingerprint: string;
+  body: RevisitIntakeSubmitRequest;
+  status: "unknown" | "claimed_uncommitted" | "not_found" | "result_unavailable";
+}
+
+export interface RevisitIntakeDraftEntry {
+  values: RevisitIntakeFullAnswers;
+  pending: RevisitIntakePendingOperation | null;
+}
+
+export interface RevisitIntakeDraftStore {
+  get: (targetKey: string) => RevisitIntakeDraftEntry | undefined;
+  set: (targetKey: string, entry: RevisitIntakeDraftEntry) => void;
+  clear: (targetKey: string) => void;
+}
+
+export function revisitIntakeTargetKey(clinicId: string, ref: RevisitIntakeTargetRef): string {
+  return [clinicId, ref.appointment_id, ref.pet_id, ref.target_generation].join("|");
+}
+
+export const EMPTY_REVISIT_INTAKE_ANSWERS: RevisitIntakeFullAnswers = {
+  visit_purpose: "",
+  onset: null,
+  energy: null,
+  appetite: null,
+  current_symptoms: null,
+  improvement: null,
+  examination_preference: null,
+  main_concern: null,
+};
+
+export function areRevisitIntakeAnswersEqual(
+  a: RevisitIntakeFullAnswers,
+  b: RevisitIntakeFullAnswers,
+): boolean {
+  return (
+    a.visit_purpose === b.visit_purpose &&
+    a.onset === b.onset &&
+    a.energy === b.energy &&
+    a.appetite === b.appetite &&
+    a.current_symptoms === b.current_symptoms &&
+    a.improvement === b.improvement &&
+    a.examination_preference === b.examination_preference &&
+    a.main_concern === b.main_concern
+  );
+}
+
+/**
+ * App 単位で1つだけ持つ memory store。ページ遷移（予約一覧へ戻る等）をまたいで同じ target の
+ * draft を復元するため、ページではなく App で生成して渡す。
+ */
+export function useRevisitIntakeDraftStore(): RevisitIntakeDraftStore {
+  const mapRef = useRef<Map<string, RevisitIntakeDraftEntry> | null>(null);
+  return useMemo<RevisitIntakeDraftStore>(() => {
+    const map = (): Map<string, RevisitIntakeDraftEntry> => {
+      if (mapRef.current === null) mapRef.current = new Map();
+      return mapRef.current;
+    };
+    return {
+      get: (targetKey) => map().get(targetKey),
+      set: (targetKey, entry) => {
+        map().set(targetKey, entry);
+      },
+      clear: (targetKey) => {
+        map().delete(targetKey);
+      },
+    };
+  }, []);
+}
