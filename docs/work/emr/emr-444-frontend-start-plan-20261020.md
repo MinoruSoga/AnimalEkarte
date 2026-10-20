@@ -73,7 +73,7 @@
 | 履歴 | `target_relation=current` は訂正履歴、`previous` は「以前の対象ペットの回答」。入力へコピーしない。`next_cursor` で「さらに表示」 |
 | 送信中 | `aria-busy`・二重送信抑止・入力保持 |
 | 成功 | 成功表示。`liff.sendMessages` は呼ばない |
-| 409 `REVISION_CONFLICT` | 入力保持・再取得案内。再送は新 key |
+| 409 `REVISION_CONFLICT` | 入力保持・再取得案内。head revision を更新し、回答内容が同じなら同 key で再送する（`expected_revision` は fingerprint から除外。technical-spec 767 行）。内容を変えたときと成功後の訂正だけ新 key |
 | 409 `FORM_VERSION_MISMATCH` / `TARGET_CHANGED` | 再取得して form を作り直す |
 | 409 `INTAKE_CLOSED` | 閲覧へ |
 | 409 `KEY_CONTENT_MISMATCH` | 新 key |
@@ -129,7 +129,7 @@
 
 | 状態 | 追加・変更 |
 |:--|:--|
-| 未発行 preview | 料金欄が編集可能（`MoneyInput`）。既定値は 486 契約の snapshot 提案値、無ければ空欄。自動計算・採番をしない |
+| 未発行 preview | 料金欄が編集可能（`MoneyInput`）。初期値は 4 欄とも null（空欄）で、現在の会計・master から転記しない（#760 契約 `initial_inputs`）。自動計算・採番をしない |
 | 発行 | 編集後の値を snapshot に固定して `issue` operation へ渡す。以後は不変 |
 | 最新版 preview / 再印刷 | 料金欄は read-only（保存済み snapshot）。訂正は接種訂正 → 新版発行の既決経路 |
 | 会計 | 証明書の料金編集は会計(医師確認)・未請求候補・請求確定へ一切影響しない |
@@ -309,10 +309,10 @@ Dots の方針（修正依頼は CodeRabbit の契約実装指摘に限定、Cod
 
 ### 引き継ぎ（別セッション向け）
 
-- 4 PR は全て open。マージ判断は Dots。テストは全て NOT_RUN。api.yaml・生成型・共通 auth・共通医院 scope hook・共通 MSW fixture は変更禁止。force-push / reset --hard / clean 禁止。Plane の状態・担当は変更しない。GitHub コメントは末尾に Claude Code の footer を付ける。
-- 各 PR の worktree: `AnimalEkarte-emr-463` / `-emr-474` / `-emr-475` / `-emr-477`（兄弟ディレクトリ。新セッションに無ければ各ブランチから `git worktree add` で作り直す）。
+- 2026-10-21 時点: #753 / #754 はマージ済み（リモートの head ブランチ削除済み）。open は #752 / #756 / #763 で、レビュー対応・最終確認・マージは実装セッションが行う（Dots 第 2 回回答）。現在の状態は Plane と GitHub で確認する。テストは全て NOT_RUN。api.yaml・生成型・共通 auth・共通医院 scope hook・共通 MSW fixture は変更禁止。force-push / reset --hard / clean 禁止。Plane の状態・担当は変更しない。GitHub コメントは末尾に Claude Code の footer を付ける。
+- open PR の worktree: `AnimalEkarte-emr-475-review`（#752）/ `-emr-474-review`（#756）/ `-emr-487-fe`（#763）。兄弟ディレクトリで、新セッションに無ければ各ブランチから `git worktree add` で作り直す。マージ済み PR の worktree は作らない。
 - 見守りの手順: 各 PR を subscribe し、Codex / CodeRabbit の指摘は「確定契約か fail-closed の clinic/pet 境界に根拠があり、feature 内の小差分で収まるもの」だけ修正する。それ以外は返信のみで Dots へ回す。修正は担当ブランチで通常 push し、返信して該当スレッドを resolve する。Dots の判断待ちスレッドは resolve しない。
 - CodeRabbit は自動停止後、`@coderabbitai review` で単発レビューを依頼できる。上限は Advanced プランで 1 時間 10 回で、上限中は実行されない。#756 a00f81d の単発レビューは枠が戻ってから 1 回だけ依頼する。
-- 2026-10-21 追記: #756 の作業 worktree は `AnimalEkarte-emr-474-review`。不採用にした 4 件版は local `backup/emr-474-four-fixes-20261021` に残してある（未 push）。EMR-487 の試作は `AnimalEkarte-emr-487`（未 push・不採用）。
-- 残作業: #756 a00f81d の Codex 再レビュー結果の確認、#754 の CodeRabbit nitpick（legacy / scoped loader の query 解析重複）を次のコード push に同乗、EMR-487 は EMR-486 契約待ち、この文書 §11 の head 更新。
+- 不採用にした #756 の 4 件版と EMR-487 の FE renderer 試作は、ブランチ・worktree とも削除済み。
+- 残作業: open PR のレビュー対応とマージ、CSP（`frame-src 'self' blob:`）と共通 axios の Accept 修正の後続 PR（Dots が Plane へ切り出し中）、#763 の接種詳細への接続（別 PR）、#754 の活性化（463-BE 完成後の別 PR）。
 - 後片付け: ローカルの `plan-doc-tmp` ブランチと storybook-ci の worktree は、AGENTS.md の作成者別規則に従って確認してから扱う。
