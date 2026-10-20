@@ -13,8 +13,7 @@ import (
 
 // mockVaccineRepository は VaccineRepository のテスト用モック実装
 type mockVaccineRepository struct {
-	findParentByIDFn          func(context.Context, uint64, uint64) (*model.Vaccine, error)
-	lockByIDFn                func(context.Context, uint64, uint64) (*model.Vaccine, error)
+	lockWriteRowsFn           func(context.Context, uint64, []uint64) error
 	created                   *model.Vaccine
 	findAllFn                 func(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
@@ -37,17 +36,11 @@ func (m *mockVaccineRepository) FindByID(ctx context.Context, clinicID, id uint6
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
-func (m *mockVaccineRepository) FindParentByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
-	if m.findParentByIDFn != nil {
-		return m.findParentByIDFn(ctx, clinicID, id)
+func (m *mockVaccineRepository) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.lockWriteRowsFn != nil {
+		return m.lockWriteRowsFn(ctx, clinicID, ids)
 	}
-	return m.FindByID(ctx, clinicID, id)
-}
-func (m *mockVaccineRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
-	if m.lockByIDFn != nil {
-		return m.lockByIDFn(ctx, clinicID, id)
-	}
-	return m.FindByID(ctx, clinicID, id)
+	return nil
 }
 
 func (m *mockVaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {

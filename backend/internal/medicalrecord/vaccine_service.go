@@ -132,6 +132,9 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 	}
 	var result *model.Vaccine
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
 		created, err := s.create(txCtx, clinicID, input)
 		if err != nil {
 			return masterInsuranceChange{}, err
@@ -205,7 +208,10 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	}
 	var result *model.Vaccine
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.update", func(txCtx context.Context) (masterInsuranceChange, error) {
-		before, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
 			return masterInsuranceChange{}, err
 		}
@@ -269,6 +275,18 @@ func (s *vaccineService) update(ctx context.Context, clinicID, id uint64, input 
 }
 
 func (s *vaccineService) Delete(ctx context.Context, clinicID, id uint64) error {
+	if s.insuranceWrites.Transactor == nil {
+		return apperrors.WrapInternalServerError("vaccine delete requires transactor")
+	}
+	return s.insuranceWrites.Transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
+		return s.delete(txCtx, clinicID, id)
+	})
+}
+
+func (s *vaccineService) delete(ctx context.Context, clinicID, id uint64) error {
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to get vaccine")
 	}
@@ -309,7 +327,7 @@ func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uin
 func (s *vaccineService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
 	return validateOwnedMasterFK(ctx, "parent vaccine", clinicID, parentID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repo.FindParentByID(actx, cid, mid)
+			_, err := s.repo.FindByID(actx, cid, mid)
 			return err
 		})
 }

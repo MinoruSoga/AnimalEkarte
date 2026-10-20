@@ -66,12 +66,12 @@ func (r *vaccineAuditRepo) FindByID(ctx context.Context, clinicID, id uint64) (*
 	require.Equal(r.t, uint64(17), id)
 	return r.row, nil
 }
-func (r *vaccineAuditRepo) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+func (r *vaccineAuditRepo) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
 	r.assertTX(ctx)
 	*r.events = append(*r.events, "lock-target")
 	require.Equal(r.t, uint64(2), clinicID)
-	require.Equal(r.t, uint64(17), id)
-	return r.row, nil
+	require.Equal(r.t, []uint64{17}, ids)
+	return nil
 }
 
 func (r *vaccineAuditRepo) Update(ctx context.Context, clinicID, id uint64, input UpdateVaccineInput) (*model.Vaccine, error) {
@@ -182,7 +182,7 @@ func TestVaccineService_AtomicInsuranceAudit(t *testing.T) {
 				require.Equal(t, map[string]any{"is_non_insurance": wantSetting}, audit.NewValue)
 				wantEvents := []string{"begin", "create", "read", "audit"}
 				if updating {
-					wantEvents = []string{"begin", "lock-target", "update", "read", "audit"}
+					wantEvents = []string{"begin", "lock-target", "read", "update", "read", "audit"}
 				}
 				if failure == "none" {
 					wantEvents = append(wantEvents, "commit")
@@ -223,25 +223,21 @@ func TestVaccineService_MissingAuditDependenciesOrActorStopsBeforeMutation(t *te
 	}
 }
 
-func TestVaccineService_ParentValidationUsesSeparateReader(t *testing.T) {
+func TestVaccineService_ParentValidationAfterWriteLocks(t *testing.T) {
 	var events []string
 	name, parentID := "after", uint64(10)
 	repo := &mockVaccineRepository{
-		lockByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+		lockWriteRowsFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
 			require.Equal(t, uint64(2), clinicID)
-			require.Equal(t, uint64(17), id)
-			events = append(events, "target-lock")
-			return &model.Vaccine{ID: 17, ClinicID: 2}, nil
+			require.Equal(t, []uint64{10, 17}, ids)
+			events = append(events, "write-locks")
+			return nil
 		},
-		findParentByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccine, error) {
-			require.Equal(t, uint64(2), clinicID)
-			require.Equal(t, parentID, id)
-			events = append(events, "parent-read")
-			return &model.Vaccine{ID: parentID, ClinicID: 2}, nil
-		},
-		findByIDFn: func(context.Context, uint64, uint64) (*model.Vaccine, error) {
-			t.Fatal("parent must not use generic reference-lock reader")
-			return nil, nil
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+			require.NotEmpty(t, events)
+			require.Equal(t, "write-locks", events[0])
+			events = append(events, "read")
+			return &model.Vaccine{ID: id, ClinicID: clinicID}, nil
 		},
 		updateFieldsFn: func(context.Context, uint64, uint64, UpdateVaccineInput) (*model.Vaccine, error) {
 			events = append(events, "update")
@@ -250,5 +246,5 @@ func TestVaccineService_ParentValidationUsesSeparateReader(t *testing.T) {
 	}
 	_, err := newVaccineServiceForTest(repo).Update(t.Context(), 2, 17, &UpdateVaccineInput{ActorID: vaccineTestActorID(), Name: &name, ParentID: &parentID})
 	require.NoError(t, err)
-	require.Equal(t, []string{"target-lock", "parent-read", "update"}, events)
+	require.Equal(t, []string{"write-locks", "read", "read", "update"}, events)
 }
