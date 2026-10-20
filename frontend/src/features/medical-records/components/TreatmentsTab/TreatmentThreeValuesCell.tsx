@@ -127,13 +127,13 @@ export const TreatmentThreeValuesCell = memo(function TreatmentThreeValuesCell({
             <TextEditor
               inputRef={inputRef}
               initial={treatment.administration_instructions}
-              onStopEdit={onStopEdit}
-              onCommit={(value) => {
+              onStopEdit={() => onStopEdit("administration_instructions")}
+              onCommit={(value) =>
                 onUpdate(treatment.id, {
                   administration_instructions: value,
                   version: treatment.version,
-                });
-              }}
+                })
+              }
               ariaLabel="用法"
             />
           ) : (
