@@ -4,6 +4,13 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 // Internal
 import { axios } from "@/lib/axios";
 
+// Relative
+import {
+  REVISIT_INTAKE_ENERGY_APPETITE_LABELS,
+  REVISIT_INTAKE_EXAMINATION_PREFERENCE_LABELS,
+  REVISIT_INTAKE_IMPROVEMENT_LABELS,
+} from "../lib/revisit-intake-options";
+
 // EMR-477: カルテ固定 target の飼主事前問診（再診問診）原文 reader。
 // 契約: backend/docs/api.yaml GET /medical-records/{recordId}/revisit-intake
 //   → RevisitIntakeRecordRead（binding: unbound | mismatch | bound）。
@@ -87,8 +94,16 @@ function parseRef(value: unknown): RevisitIntakePersistedTargetRef {
   };
 }
 
-function optionalText(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
+// 契約: 任意項目は key 必須で null か値。欠落(undefined)・型違いは「未回答」に見せず契約失敗にする。
+function nullableText(value: unknown): string | null {
+  if (value === null || typeof value === "string") return value;
+  throw new Error("revisit-intake: invalid answer");
+}
+
+function nullableChoice(value: unknown, labels: Readonly<Record<string, string>>): string | null {
+  if (value === null) return null;
+  if (typeof value === "string" && Object.hasOwn(labels, value)) return value;
+  throw new Error("revisit-intake: invalid answer");
 }
 
 function parseAnswer(value: unknown): RevisitIntakeAnswer {
@@ -113,13 +128,13 @@ function parseAnswer(value: unknown): RevisitIntakeAnswer {
     provenance: "owner_submission",
     answers: {
       visit_purpose: a.visit_purpose as string,
-      onset: optionalText(a.onset),
-      energy: optionalText(a.energy),
-      appetite: optionalText(a.appetite),
-      current_symptoms: optionalText(a.current_symptoms),
-      improvement: optionalText(a.improvement),
-      examination_preference: optionalText(a.examination_preference),
-      main_concern: optionalText(a.main_concern),
+      onset: nullableText(a.onset),
+      energy: nullableChoice(a.energy, REVISIT_INTAKE_ENERGY_APPETITE_LABELS),
+      appetite: nullableChoice(a.appetite, REVISIT_INTAKE_ENERGY_APPETITE_LABELS),
+      current_symptoms: nullableText(a.current_symptoms),
+      improvement: nullableChoice(a.improvement, REVISIT_INTAKE_IMPROVEMENT_LABELS),
+      examination_preference: nullableChoice(a.examination_preference, REVISIT_INTAKE_EXAMINATION_PREFERENCE_LABELS),
+      main_concern: nullableText(a.main_concern),
     },
   };
 }
@@ -194,6 +209,7 @@ export const revisitIntakeQueryKeys = {
 export const getRecordRevisitIntake = async (
   recordId: string,
   clinicId: string,
+  petId: string,
   cursor?: string,
 ): Promise<RevisitIntakeRecordRead> => {
   const { data } = await axios.get<unknown>(
@@ -204,7 +220,15 @@ export const getRecordRevisitIntake = async (
       params: cursor ? { cursor } : undefined,
     },
   );
-  return parseRevisitIntakeRecordRead(data);
+  const parsed = parseRevisitIntakeRecordRead(data);
+  // 呼び出し時点の患者と異なる pet の原文は契約エラー（現在予約への追従・fallback はしない）。
+  if (
+    parsed.binding === "bound" &&
+    (parsed.target.ref.pet_id !== petId || parsed.history.some((h) => h.target.pet_id !== petId))
+  ) {
+    throw new Error("revisit-intake: pet mismatch");
+  }
+  return parsed;
 };
 
 function errorStatus(error: unknown): number | undefined {
@@ -235,7 +259,7 @@ export const useGetRecordRevisitIntake = ({
   const ready = enabled && !!recordId && !!clinicId && !!petId;
   return useInfiniteQuery({
     queryKey: revisitIntakeQueryKeys.record(recordId ?? "", clinicId ?? "", petId ?? ""),
-    queryFn: ({ pageParam }) => getRecordRevisitIntake(recordId ?? "", clinicId ?? "", pageParam),
+    queryFn: ({ pageParam }) => getRecordRevisitIntake(recordId ?? "", clinicId ?? "", petId ?? "", pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) =>
       last.binding === "bound" ? (last.next_cursor ?? undefined) : undefined,

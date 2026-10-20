@@ -111,7 +111,7 @@ describe("OwnerIntakeReadOnlyCard — bound・回答あり", () => {
     expect(within(card).queryByRole("button", { name: /保存|コピー|複写|クリア|元に戻す|編集/ })).toBeNull();
   });
 
-  it("未知 code は最初の選択肢へ補完せず未対応の選択肢と表示する", async () => {
+  it("未知 code は最初の選択肢へ補完せず契約失敗として扱う", async () => {
     useIntake(
       boundBody({
         target: {
@@ -126,8 +126,9 @@ describe("OwnerIntakeReadOnlyCard — bound・回答あり", () => {
     );
     renderCard();
 
-    expect(await screen.findByText(/元気: 未対応の選択肢/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
     expect(screen.queryByText(/元気: いつも通り/)).toBeNull();
+    expect(screen.queryByText("未回答")).toBeNull();
   });
 
   it("X-Clinic-ID に record 自身の clinicId を送る", async () => {
@@ -163,7 +164,7 @@ describe("OwnerIntakeReadOnlyCard — bound・その他の状態", () => {
 
     expect(await screen.findByText("未回答")).toBeInTheDocument();
     expect(screen.getByText("この予約の飼主事前問診の回答はありません。")).toBeInTheDocument();
-    expect(screen.getByText(/飼主が LINE から送信すると/)).toBeInTheDocument();
+    expect(screen.getByText(/受付後は飼主からの新しい送信はできません/)).toBeInTheDocument();
     expect(screen.getByText(/スタッフ用の問診欄に記録してください/)).toBeInTheDocument();
   });
 
@@ -444,5 +445,81 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
 
     await userEvent.click(screen.getByRole("button", { name: "再試行" }));
     expect(await screen.findByText("合成の次ページ目的")).toBeInTheDocument();
+  });
+
+  it("任意項目の key 欠落・型違いは「未回答」にせず契約失敗", async () => {
+    const missing = answer("1");
+    delete (missing.answers as Record<string, unknown>).onset;
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "1",
+          answer_state: "answered",
+          latest_answer: missing,
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    const { unmount } = renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    unmount();
+
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "1",
+          answer_state: "answered",
+          latest_answer: answer("1", { main_concern: 123 }),
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("予約側 target が変わり relation が previous でも、固定 target 内の旧版は表示する", async () => {
+    useIntake(
+      boundBody({
+        history: [
+          {
+            target: REF,
+            answer: answer("1", { visit_purpose: "合成の固定target旧版" }),
+            target_relation: "previous",
+          },
+        ],
+      }),
+    );
+    renderCard();
+
+    await screen.findByText("合成の来院目的 v2");
+    expect(screen.getByText("合成の固定target旧版")).toBeInTheDocument();
+  });
+
+  it("応答の pet が呼び出し患者と違えば（target / 履歴いずれも）契約失敗", async () => {
+    useIntake(boundBody({ history: [] }));
+    const first = renderCard({ petId: "pet-other" });
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+    first.unmount();
+
+    useIntake(
+      boundBody({
+        history: [
+          {
+            target: { ...REF, pet_id: "pet-other" },
+            answer: answer("1"),
+            target_relation: "current",
+          },
+        ],
+      }),
+    );
+    renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
   });
 });

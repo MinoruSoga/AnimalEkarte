@@ -142,7 +142,7 @@ function UnansweredEmptyState() {
   return (
     <div className={`text-sm ${C.text} flex flex-col gap-1`}>
       <p>この予約の飼主事前問診の回答はありません。</p>
-      <p className={C.text60}>飼主が LINE から送信すると、ここに原文が表示されます。</p>
+      <p className={C.text60}>受付後は飼主からの新しい送信はできません。</p>
       <p className={C.text60}>
         診察で確認した内容やスタッフの補足は、スタッフ用の問診欄に記録してください。
       </p>
@@ -217,7 +217,6 @@ function BoundBody({
   // 固定 target 内の旧 revision だけを出す。他 target の行・現在版との重複は出さない。
   const pastEntries = history.filter(
     (entry) =>
-      entry.target_relation === "current" &&
       entry.target.target_id === target.ref.target_id &&
       entry.target.appointment_id === target.ref.appointment_id &&
       entry.target.pet_id === target.ref.pet_id &&
