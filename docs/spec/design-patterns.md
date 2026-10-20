@@ -297,7 +297,7 @@ C25〜C29 の定義は [ui-design-compliance.md §1](ui-design-compliance.md)、
 | 体重 | `26.5kg`、整数は `26kg` | `formatWeight` | 小数 1 桁、単位との間に空白なし |
 | 体温・その他の計測値 | `38.5℃` | 画面仕様 | 単位は入力欄内の右端サフィックス（§4.4）。共有関数が無い値は `number.ts` に追加する |
 | 件数 | `1,234件`、`1–20件 / 1,234件` | — | 数字と「件」の間に空白なし |
-| 空値 | **`—`（U+2014 EM DASH）1 文字**、`C.textInkMuted` | — | 2026-10-20 決裁。ink-faint は 2.44:1 で不可（design-states §2.2）。共有フォーマッタ（`lib/format/number.ts` / `date.ts`）は現状 ASCII の `-` を返しており未整合。`EMPTY_VALUE`（`—`、`src/constants/empty-value.ts`）を返す形への統一は PR #739 で行う（本ブランチには未反映） |
+| 空値 | **`—`（U+2014 EM DASH）1 文字**、`C.textInkMuted` | — | 2026-10-20 決裁。ink-faint は 2.44:1 で不可（design-states §2.2）。共有フォーマッタ（`lib/format/number.ts` / `date.ts`）と画面側フォールバックは `EMPTY_VALUE`（`—`、`src/constants/empty-value.ts`）を返す（PR #739 で統一済み。新規コードは文字列直書きではなくこの定数を使う） |
 | 数字の等幅 | 表の数値列・金額列は `tabular-nums` | — | DESIGN.md Typography Principles |
 
 - 和文の中の英数字は半角、単位記号は `kg` / `℃` / `%` / `¥` を上表の位置に固定する。
