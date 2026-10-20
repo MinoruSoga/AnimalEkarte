@@ -101,14 +101,18 @@ describe("実 API クライアント", () => {
     expect(search).toContain("limit=20");
   });
 
-  it("PDF 本体は /content から Blob で取得する", async () => {
+  it("PDF 本体は /content から Accept: application/pdf の Blob で取得する", async () => {
+    let accept: string | null = null;
     server.use(
-      http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>
-        new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "application/pdf" } }),
-      ),
+      http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, ({ request }) => {
+        accept = request.headers.get("Accept");
+        return new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "application/pdf" } });
+      }),
     );
     const blob = await api.getArtifactContent("401");
     expect(blob.size).toBeGreaterThan(0);
+    expect(blob.type).toBe("application/pdf");
+    expect(accept).toBe("application/pdf");
   });
 
   it("200 でも PDF ではない応答（HTML・JSON・magic 不一致）は malformed で拒否する", async () => {
@@ -124,14 +128,26 @@ describe("実 API クライアント", () => {
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
   });
 
-  it("本体が PDF なら Content-Type の誤ラベルでは拒否せず、application/pdf に正規化して返す", async () => {
+  it("200 でも Content-Type が PDF でなければ、本体が %PDF- でも契約不正として拒否する（EMR-525）", async () => {
+    const url = `${BASE}/vaccination-certificate-artifacts/401/content`;
     server.use(
-      http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>
+      http.get(url, () =>
         new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "application/octet-stream" } }),
       ),
     );
+    await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
+
+    server.use(http.get(url, () => new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "" } })));
+    await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
+  });
+
+  it("Content-Type の parameter と大小文字は PDF 判定に影響しない", async () => {
+    server.use(
+      http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>
+        new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "Application/PDF; charset=binary" } }),
+      ),
+    );
     const blob = await api.getArtifactContent("401");
-    expect(blob.type).toBe("application/pdf");
     expect(blob.size).toBeGreaterThan(0);
   });
 
