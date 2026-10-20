@@ -2,7 +2,7 @@
 
 > 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体 88 製品ルート（+ wildcard 404）とその実装コンポーネントに対して判定した結果（2026-09-29 訂正: 86 → 87。`/settings/bug-reports` が 2026-09-26 コミット `48ec94c7` で追加。2026-10-02 訂正: 87 → 88。`/settings/chat-history` がコミット `e9574b28a` で追加され、`route-inventory.test.tsx` の期待値は 88）。最終 runtime 監査日 **2026-07-24**。2026-09-06 に静的な route 在庫・C8 allowlist・C20 検査定義を照合し、2026-09-29 に在庫数の静的再照合を行った（いずれもブラウザ再実行ではない）。
 
-> **2026-10-20 手動監査（STG）**: 79 ルートを 1280×900（代表 7 ページは 768×1024）でブラウザ目視 + DOM 計測した。結果は [docs/work/design/stg-ui-audit-20261020.md](../work/design/stg-ui-audit-20261020.md)。重要度 H 13 系統のうち、C1〜C24 で検出できるものは無く、大半はレイアウトの結果（列幅・重なり・省略・ナビ現在地）だった。規定が無かった事項は [design-patterns.md](design-patterns.md) に規約化し、同 §9 に追加検査 C25〜C29 と e2e 2 件を提案している（C21〜C24 は `design-system-audit.mjs` で使用済みのため採番しない）。本監査は `ui-design-compliance-readonly.spec.ts` の実行ではなく、§2 表の「runtime 監査」列は更新していない。
+> **2026-10-20 手動監査（STG）**: 79 ルートを 1280×900（代表 7 ページは 768×1024）でブラウザ目視 + DOM 計測した。結果は [docs/work/design/stg-ui-audit-20261020.md](../work/design/stg-ui-audit-20261020.md)。重要度 H 13 系統のうち、C1〜C24 で検出できるものは無く、大半はレイアウトの結果（列幅・重なり・省略・ナビ現在地）だった。規定が無かった事項は [design-patterns.md](design-patterns.md) に規約化し、同 §9 の追加検査 C25〜C29（本表 §1 に定義、`design-system-audit.mjs` に実装・既存分は allowlist ラチェット）と e2e 2 件（`ui-design-compliance-readonly.spec.ts`、既定は検知モード）は PR #737 で実装した。本監査は `ui-design-compliance-readonly.spec.ts` の実行ではなく、§2 表の「runtime 監査」列は更新していない。
 
 ## 1. 準拠チェック定義
 
@@ -29,6 +29,11 @@
 | C18 | `TableHead` / `TableCell` とraw `th` / `td` で header eyebrow・body-sm・12px vertical / 16px horizontal paddingを非仕様値へ上書きしない | DESIGN.md `ex-data-table-cell` | **機械化**（C18。test除外、空stateと`data-c18-structural-cell`付きself-closing構造セルは許可。raw は `C18_RAW_CELL_ALLOWLIST` / `*PrintArea*` / FE11除外のみ。件数ratchetなし・違反はstrict fail） |
 | C19 | `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` に行全体の `onClick` を付けない。遷移はcell内のnative link、表示・編集はnative button、並べ替えは44px drag handleを使う | DESIGN.md §7.4, §8.2 | **機械化**（C19。production `.tsx` の4種のrow opening tagをmultiline対応で検査） |
 | C20 | Tailwind が走査できない実行時クラス合成（`hover:${C.x}` / `focus:${C.x}` / `text-[${value}]`）禁止 | design-system.md §10 | **機械化**（C20。非test TypeScript、コメント除外） |
+| C25 | 省略（`truncate` / `text-ellipsis` / `line-clamp-N`）を持つ要素は `title` / `aria-label` / `aria-labelledby` のいずれかで全文を保持する。focus・タッチで開くツールチップ／展開は静的に判定できないためレビュー項目 | design-patterns.md §3.1 | **機械化**（C25。opening tag 単位。2026-10-20 棚卸しの 57 ファイルは `C25_TRUNCATE_ALLOWLIST` で削減方向のラチェット） |
+| C26 | `<nav>` 内と `Layout/Sidebar*.tsx` のナビ文言を `truncate` しない | design-patterns.md §1.2 | **機械化**（C26。既存 3 ファイルは `C26_NAV_TRUNCATE_ALLOWLIST`。文言短縮か省略解除で削る） |
+| C27 | z-index は `Z` / `Z_CLASS` トークンのみ。`z-[N]` / `zIndex: N` の直書き禁止 | design-patterns.md §5.1 | **機械化**（C27。`design-tokens.ts` 除外。既存 2 ファイルは `C27_Z_INDEX_ALLOWLIST`） |
+| C28 | `src/features/**` の業務・設定フォームで raw `<select>` / `<input type="date">` を使わない（共有 `Select` / `DatePicker`）。検索・一覧フィルター・行内編集・時刻入力は許容 | design-system.md §3.4 | **機械化**（C28。許容文脈は `C28_NATIVE_INPUT_CONTEXT_ALLOWLIST`（5 ファイル・理由付き）、既存違反 2 ファイルは `C28_NATIVE_INPUT_RATCHET_ALLOWLIST`） |
+| C29 | バリデーション結果（`isValid` / `isFormValid` / `errors.length` 等）を保存ボタンの `disabled` に流さない。権限（`can*`）・送信中（`isPending`）は対象外 | design-states.md §1.1（2026-10-20 決裁） | **機械化**（C29。現状 0 件。`canSubmit` は本リポジトリでは RBAC 由来の命名のため対象外） |
 
 **FE11 正本分割（2026-07-21、色役割更新 2026-07-27）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand と primary は同じ teal 値を使い、製品識別と汎用操作・選択・focus の意味役割だけをトークン名で分ける。臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
 

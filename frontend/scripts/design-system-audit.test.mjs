@@ -1430,3 +1430,97 @@ test("checkC23: BADGE コンボのコントラスト 4.5:1 未満を検出、適
 test("checkC23: BADGE/C ブロックが無い場合は 0 件", () => {
   assert.equal(checkC23("export const OTHER = {}").length, 0);
 });
+
+// ── C25〜C29（design-patterns.md §9 由来。2026-10-20 追加） ───────────────
+
+test("checkC25: truncate を持つ opening tag に title / aria-label / aria-labelledby のいずれも無ければ検出する", () => {
+  const text = [
+    '<span className="truncate">{owner.name}</span>',
+    '<span className="truncate" title={owner.name}>{owner.name}</span>',
+    '<p className="line-clamp-2" aria-label={note}>{note}</p>',
+    '<td className={`${C.text} truncate max-w-[200px]`}',
+    '  aria-labelledby="chief-complaint-full">{row.chiefComplaint}</td>',
+    '<div className="text-ellipsis overflow-hidden">{memo}</div>',
+    '// className="truncate" in a comment is ignored',
+  ].join("\n");
+  const violations = audit.checkC25(text, "src/features/owners/components/List.tsx");
+  assert.deepEqual(violations.map((v) => v.lineNumber), [1, 6]);
+});
+
+test("checkC25: allowlist のファイルと test / 非 TSX は対象外", () => {
+  const text = '<span className="truncate">{x}</span>';
+  assert.equal(audit.checkC25(text, "src/features/a/B.test.tsx").length, 0);
+  assert.equal(audit.checkC25(text, "src/features/a/b.ts").length, 0);
+  const [first] = audit.C25_TRUNCATE_ALLOWLIST;
+  if (first) assert.equal(audit.checkC25(text, first).length, 0);
+});
+
+test("checkC26: nav ブロック内と Layout/Sidebar*.tsx の truncate を検出する", () => {
+  const navText = [
+    "<nav aria-label=\"メイン\">",
+    '  <a className="truncate">{label}</a>',
+    "</nav>",
+    '<span className="truncate">outside nav</span>',
+  ].join("\n");
+  assert.deepEqual(
+    audit.checkC26(navText, "src/features/x/Nav.tsx").map((v) => v.lineNumber),
+    [2],
+  );
+  const sidebarText = '<span className="truncate flex-1">{item.label}</span>';
+  assert.equal(audit.checkC26(sidebarText, path.join("src", "components", "shared", "Layout", "SidebarItemsNew.tsx")).length, 1);
+  assert.equal(audit.checkC26(sidebarText, "src/features/x/Other.tsx").length, 0);
+});
+
+test("checkC27: Z トークン外の z-index 直書き（z-[N] / zIndex: N）を検出し、Z.* 参照は許可する", () => {
+  const text = [
+    'className="fixed z-[9999]"',
+    "style={{ zIndex: 50 }}",
+    "style={{ zIndex: Z.overlay }}",
+    'className={Z_CLASS.overlay}',
+    'className="z-10"',
+  ].join("\n");
+  assert.deepEqual(audit.checkC27(text, "src/features/x/Y.tsx").map((v) => v.lineNumber), [1, 2]);
+  assert.equal(audit.checkC27(text, path.join("src", "lib", "design-tokens.ts")).length, 0);
+});
+
+test("checkC28: src/features の raw <select> と <input type=\"date\"> を検出し、許容文脈の allowlist は除外する", () => {
+  const text = [
+    "<select value={v} onChange={h}>",
+    '<input type="date" value={d} />',
+    '<input type="time" value={t} />',
+    "<Select value={v}>",
+  ].join("\n");
+  assert.deepEqual(
+    audit.checkC28(text, "src/features/settings/components/NewSettingsForm.tsx").map((v) => v.lineNumber),
+    [1, 2],
+  );
+  assert.equal(audit.checkC28(text, "src/components/shared/Filter.tsx").length, 0);
+  const [filterFile] = audit.C28_NATIVE_INPUT_CONTEXT_ALLOWLIST;
+  if (filterFile) assert.equal(audit.checkC28(text, filterFile).length, 0);
+});
+
+test("checkC29: バリデーション理由の disabled を検出し、権限・送信中理由は許可する", () => {
+  const text = [
+    "<SubmitButton disabled={!isValid}>保存</SubmitButton>",
+    "<Button disabled={!isFormValid || isPending}>保存</Button>",
+    "<Button disabled={errors.length > 0}>保存</Button>",
+    "<Button disabled={isPending}>保存</Button>",
+    "<fieldset disabled={!canEdit}>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(text, "src/features/x/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
+});
+
+test("collectViolations: C25〜C29 の集計キーを持つ", async () => {
+  const { root, routesDir } = makeFixture();
+  try {
+    writeFileSync(
+      path.join(routesDir, "WidgetPage.tsx"),
+      'export function WidgetPage() { return <PageLayout><span className="truncate">{x}</span></PageLayout>; }',
+    );
+    const result = await collectViolations(root);
+    assert.equal(result.c25.length, 1);
+    assert.deepEqual([result.c26, result.c27, result.c28, result.c29].map((v) => v.length), [0, 0, 0, 0]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
