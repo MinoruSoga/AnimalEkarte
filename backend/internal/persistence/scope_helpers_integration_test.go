@@ -60,8 +60,9 @@ func TestReorderByClinicID(t *testing.T) {
 
 	t.Run("別医院のidを含むとエラーになり全体がロールバックされる", func(t *testing.T) {
 		const clinicA, clinicB = uint64(10), uint64(20)
-		own := &model.ChiefComplaintType{ClinicID: clinicA, Name: "own", SortOrder: 99}
-		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign", SortOrder: 99}
+		sortOrder := 99
+		own := &model.ChiefComplaintType{ClinicID: clinicA, Name: "own", SortOrder: &sortOrder}
+		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign", SortOrder: &sortOrder}
 		require.NoError(t, db.Create(own).Error)
 		require.NoError(t, db.Create(foreign).Error)
 
@@ -76,7 +77,8 @@ func TestReorderByClinicID(t *testing.T) {
 
 	t.Run("存在しないidを含むとエラーになりロールバックされる", func(t *testing.T) {
 		const clinicID = uint64(30)
-		existing := &model.ChiefComplaintType{ClinicID: clinicID, Name: "existing", SortOrder: 99}
+		sortOrder99 := 99
+		existing := &model.ChiefComplaintType{ClinicID: clinicID, Name: "existing", SortOrder: &sortOrder99}
 		require.NoError(t, db.Create(existing).Error)
 
 		err := ReorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, []uint64{existing.ID, 9_999_999}, "sort_order")
@@ -113,7 +115,8 @@ func TestReorderGlobal(t *testing.T) {
 	})
 
 	t.Run("存在しないidを含むとエラーになりロールバックされる", func(t *testing.T) {
-		existing := &model.AnimalSpecies{Name: "鳥", SortOrder: 99}
+		sortOrder99 := 99
+		existing := &model.AnimalSpecies{Name: "鳥", SortOrder: &sortOrder99}
 		require.NoError(t, db.Create(existing).Error)
 
 		err := ReorderGlobal(ctx, db, &model.AnimalSpecies{}, "animal_species", []uint64{existing.ID, 9_999_998}, "sort_order")
