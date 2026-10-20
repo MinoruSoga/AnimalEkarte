@@ -104,7 +104,7 @@ export type CreateVaccineRequest = Pick<VaccineWritable, "name"> &
 
 export type UpdateVaccineRequest = Partial<VaccineWritable> &
   ItemInsuranceWire & {
-    version: number;
+    version?: number;
     clear_parent_id?: boolean;
   };
 
@@ -120,7 +120,7 @@ export type CreateCheckupTypeRequest = Pick<CheckupTypeWritable, "name"> &
 
 export type UpdateCheckupTypeRequest = Partial<CheckupTypeWritable> &
   ItemInsuranceWire & {
-    version: number;
+    version?: number;
     clear_parent_id?: boolean;
   };
 

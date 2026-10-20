@@ -240,29 +240,21 @@ describe("applyItemInsuranceForUpdate", () => {
   });
 });
 
-describe("checkup editing contract", () => {
-  it("requires the captured editing version instead of substituting a current version", () => {
-    expect(() => buildCheckupUpdateRequest(makeFormData({ version: undefined }))).toThrow(
-      "編集開始時",
-    );
-    const req = buildCheckupUpdateRequest(makeFormData({ version: 7, isNonInsurance: false }));
-    expect(req.version).toBe(7);
-    expect(applyItemInsuranceForUpdate(req, false).is_non_insurance).toBe(false);
-  });
-  it("omits an unchanged or legacy insurance value", () => {
-    expect(applyItemInsuranceForUpdate({ name: "A" }, undefined)).not.toHaveProperty(
-      "is_non_insurance",
-    );
-    expect(applyItemInsuranceForUpdate({ name: "A" }, null)).not.toHaveProperty("is_non_insurance");
-  });
+describe("foundation retains legacy consumer editing until its API is adopted", () => {
+  it.each([buildVaccineUpdateRequest, buildCheckupUpdateRequest])(
+    "does not require a version absent from the legacy GET response",
+    (build) => {
+      expect(build(makeFormData({ version: undefined, parentId: "" }))).toMatchObject({
+        name: "V04処置テスト",
+        clear_parent_id: true,
+      });
+      expect(build(makeFormData({ version: 7 }))).not.toHaveProperty("version");
+    },
+  );
 });
 
-describe("editing snapshot CAS for consultation/procedure/vaccine", () => {
-  const builders = [
-    buildConsultationUpdateRequest,
-    buildProcedureUpdateRequest,
-    buildVaccineUpdateRequest,
-  ];
+describe("editing snapshot CAS for consultation/procedure", () => {
+  const builders = [buildConsultationUpdateRequest, buildProcedureUpdateRequest];
   it.each(builders)("roundtrips captured version through update builder", (build) => {
     expect(build(makeFormData({ version: 7 })).version).toBe(7);
     expect(build(makeFormData({ version: 7, parentId: "" }))).toMatchObject({

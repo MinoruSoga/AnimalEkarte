@@ -61,6 +61,7 @@ export function buildTreatmentTabConfigs({
 }: BuildTreatmentTabConfigsOptions): Record<TreatmentPlanTabValue, TreatmentTabConfig> {
   return {
     consultation: {
+      insuranceTriState: true,
       data: consultationData,
       entityLabel: "診察",
       emptyMessage: "診察が登録されていません",
@@ -75,6 +76,7 @@ export function buildTreatmentTabConfigs({
       onReorder: onReorderExaminations,
     },
     procedure: {
+      insuranceTriState: true,
       data: procedureData,
       entityLabel: "処置",
       emptyMessage: "処置が登録されていません",
@@ -176,10 +178,7 @@ export function buildVaccineCreateRequest(data: TreatmentFormData): CreateVaccin
 }
 
 export function buildVaccineUpdateRequest(data: TreatmentFormData): UpdateVaccineRequest {
-  const base = {
-    ...buildVaccineCreateRequest(data),
-    version: requireMasterEditVersion(data.version),
-  };
+  const base = buildVaccineCreateRequest(data);
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }
@@ -195,10 +194,7 @@ export function buildCheckupCreateRequest(data: TreatmentFormData): CreateChecku
 }
 
 export function buildCheckupUpdateRequest(data: TreatmentFormData): UpdateCheckupTypeRequest {
-  if (typeof data.version !== "number" || !Number.isSafeInteger(data.version) || data.version < 1) {
-    throw new Error("編集開始時の版を取得できません。再読込してください");
-  }
-  const base = { ...buildCheckupCreateRequest(data), version: data.version };
+  const base = buildCheckupCreateRequest(data);
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }

@@ -140,7 +140,7 @@ export function useTreatmentPlanMasterSaves({
     createMutation: resources.createVaccine,
     updateMutation: resources.updateVaccine,
     permissions: { canCreate, canEdit },
-    validate: validateVersionedMaster,
+    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildVaccineCreateRequest(data), data.isNonInsurance),
     toUpdateRequest: (data) =>
@@ -160,18 +160,7 @@ export function useTreatmentPlanMasterSaves({
     createMutation: resources.createCheckup,
     updateMutation: resources.updateCheckup,
     permissions: { canCreate: canCreateCheckup, canEdit: canEditCheckup },
-    validate: (data) => {
-      if (!data.name.trim()) return "名称を入力してください";
-      if (
-        editTarget !== "new" &&
-        (typeof data.version !== "number" ||
-          !Number.isSafeInteger(data.version) ||
-          data.version < 1)
-      ) {
-        return "編集開始時の版を取得できません。再読込してください";
-      }
-      return null;
-    },
+    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildCheckupCreateRequest(data), data.isNonInsurance),
     toUpdateRequest: (data) =>
