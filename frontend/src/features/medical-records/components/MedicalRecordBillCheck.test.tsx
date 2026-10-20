@@ -81,6 +81,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
       unitPrice: number;
       category: string;
       medicineId?: string;
+      isNonInsurance?: boolean | null;
     }) => void;
   }) => {
     mockDialogProps.current = props as unknown as Record<string, unknown>;
@@ -101,6 +102,20 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
           }
         >
           処置Xを選択
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.onSelect({
+              id: "9",
+              name: "自費診察",
+              unitPrice: 5000,
+              category: "診察",
+              isNonInsurance: true,
+            })
+          }
+        >
+          保険対象外診察を選択
         </button>
         <button
           type="button"
@@ -146,6 +161,29 @@ afterEach(() => {
 // "薬剤"）と比較していたため常に一致せず "other" にフォールバックしていた。
 // TreatmentsTab と同じ共有 resolveItemTypeFromCategory に統一し、"薬剤" → "medicine" を保証する。
 describe("MedicalRecordBillCheck PR670 マスタ選択", () => {
+  it("EMR-454: master が明示的に保険対象外の品目は is_insurance=false で作成する", async () => {
+    server.use(
+      http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+        HttpResponse.json({ id: "1", medical_record_id: MEDICAL_RECORD_ID, status: "pending" }),
+      ),
+      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+    render(
+      <MedicalRecordBillCheck medicalRecordId={MEDICAL_RECORD_ID} petId="1" recordClinicId="2" />,
+      { wrapper: createTestWrapper() },
+    );
+
+    await user.click(screen.getByRole("button", { name: "行を追加（検索）" }));
+    await user.click(screen.getByRole("button", { name: "保険対象外診察を選択" }));
+
+    await waitFor(() =>
+      expect(mockCreateTreatmentMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ consultation_id: 9, is_insurance: false }),
+      ),
+    );
+  });
+
   it.each([
     { label: "診察Aを選択", refKey: "consultation_id", refId: 7, memo: "診察", price: 3307 },
     { label: "処置Xを選択", refKey: "procedure_id", refId: 8, memo: "処置", price: 3306 },

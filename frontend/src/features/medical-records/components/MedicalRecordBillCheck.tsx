@@ -358,9 +358,10 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({
           item,
           quantity: doseResult.quantity,
           sortOrder: latest.nextOrder,
+          // 本経路の従来既定は保険対象。master の明示値はビルダーが反転写像する（EMR-454）。
+          insuranceFallback: true,
         }),
         memo: item.category,
-        is_insurance: true,
       });
       setIsSearchOpen(false);
     },

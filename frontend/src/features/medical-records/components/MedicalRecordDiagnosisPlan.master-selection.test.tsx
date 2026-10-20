@@ -75,6 +75,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
       unitPrice: number;
       category: string;
       medicineId?: string;
+      isNonInsurance?: boolean | null;
     }) => void;
   }) => {
     mockDialogProps.current = props as unknown as Record<string, unknown>;
@@ -96,6 +97,20 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
           }
         >
           処置Xを選択
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            props.onSelect({
+              id: "9",
+              name: "自費診察",
+              unitPrice: 5000,
+              category: "診察",
+              isNonInsurance: true,
+            })
+          }
+        >
+          保険対象外診察を選択
         </button>
         <button
           type="button"
@@ -148,6 +163,26 @@ const BASE_PROPS = {
 };
 
 describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
+  it("EMR-454: master が明示的に保険対象外の品目は is_insurance=false で作成する", async () => {
+    server.use(
+      http.get("*/v1/medical-records/10/clinical-plan", () => HttpResponse.json({})),
+      http.get("*/v1/medical-records/10/vitals", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+    render(<MedicalRecordDiagnosisPlan {...BASE_PROPS} recordClinicId="2" />, {
+      wrapper: createTestWrapper(),
+    });
+
+    await user.click(await screen.findByRole("button", { name: /検索|マスタ|追加/ }));
+    await user.click(screen.getByRole("button", { name: "保険対象外診察を選択" }));
+
+    await waitFor(() =>
+      expect(mockCreateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ consultation_id: 9, is_insurance: false }),
+      ),
+    );
+  });
+
   it.each([
     { label: "診察Aを選択", ref: { consultation_id: 7 }, memo: "診察" },
     { label: "処置Xを選択", ref: { procedure_id: 8 }, memo: "処置" },
