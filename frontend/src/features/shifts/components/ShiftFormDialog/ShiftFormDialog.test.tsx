@@ -707,6 +707,59 @@ describe("ShiftFormDialog EMR-514 conflict & pending", () => {
     });
   });
 
+  it("時刻判明済みでも未解決休憩が残ればメモ修正も停止する（R1/M2残）", async () => {
+    const user = userEvent.setup();
+    const KNOWN_TIMES_UNKNOWN_BREAK: Shift = {
+      ...EDIT_SHIFT,
+      interval_state: "unknown",
+      breaks: [{ interval_state: "unknown", starts_at: null, ends_at: null }],
+    };
+    renderDialog({ editShift: KNOWN_TIMES_UNKNOWN_BREAK });
+
+    // 時刻は既知で入力済みだが、未解決休憩があるため保存は停止
+    await user.type(screen.getByLabelText("メモ"), "a");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(
+      await screen.findByText(/未解決の休憩があります。訂正確認するまで保存できません/),
+    ).toBeInTheDocument();
+    expect(updateShiftMock).not.toHaveBeenCalled();
+  });
+
+  it("訂正確認後に保存できる（R1の出口）", async () => {
+    const user = userEvent.setup();
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
+    const KNOWN_TIMES_UNKNOWN_BREAK: Shift = {
+      ...EDIT_SHIFT,
+      interval_state: "unknown",
+      breaks: [{ interval_state: "unknown", starts_at: null, ends_at: null }],
+    };
+    renderDialog({ editShift: KNOWN_TIMES_UNKNOWN_BREAK });
+
+    // 最初の保存は未解決休憩で停止（フォームエラーと常設ノートの両方に文言が出る）
+    await user.type(screen.getByLabelText("メモ"), "a");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    const gateMessages = await screen.findAllByText(/未解決の休憩があります/);
+    expect(gateMessages.length).toBeGreaterThan(0);
+    expect(updateShiftMock).not.toHaveBeenCalled();
+
+    // 訂正確認（空欄行に明示時刻を入力）→ 保存できる
+    await user.click(screen.getByRole("button", { name: "休憩（未解決）1を訂正する" }));
+    await user.type(screen.getByLabelText("休憩1 開始時刻"), "12:00");
+    await user.type(screen.getByLabelText("休憩1 終了時刻"), "13:00");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    });
+    const req = updateShiftMock.mock.calls[0][1] as {
+      starts_at?: string;
+      ends_at?: string;
+      breaks?: unknown[];
+    };
+    expect(req.breaks).toHaveLength(1);
+  });
+
   it("protected_bookings は予約一覧を表示し自動解除の文言を出さない", async () => {
     const user = userEvent.setup();
     updateShiftMock.mockRejectedValue(
@@ -866,6 +919,48 @@ describe("ShiftFormDialog EMR-514 conflict & pending", () => {
       expect(toastError).toHaveBeenCalledWith("操作結果の形式が不正です");
     });
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("削除もversion_conflict後に最新版を採用して再削除できる（R2/M4残）", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    deleteShiftMock
+      .mockRejectedValueOnce(axiosConflict({ error: "conflict", code: "version_conflict" }))
+      .mockResolvedValueOnce({
+        operation_key: "op-key-fixed",
+        intent: "delete",
+        shift_id: "shift-1",
+        resulting_version: null,
+        shift: null,
+      });
+    getShiftByIdMock.mockResolvedValue({ ...EDIT_SHIFT, version: 4 });
+    renderDialog({ editShift: EDIT_SHIFT, canDelete: true, onClose });
+
+    await user.click(screen.getByRole("button", { name: "削除" }));
+    const confirmButtons = screen.getAllByRole("button", { name: "削除" });
+    await user.click(confirmButtons[confirmButtons.length - 1]);
+
+    // 1回目は旧版で409 → conflict表示
+    await screen.findByTestId("shift-conflict");
+    await user.click(screen.getByRole("button", { name: "最新の勤務を取得" }));
+    await screen.findByTestId("latest-shift-summary");
+    await user.click(screen.getByRole("button", { name: /この最新版（版 4）を基準にする/ }));
+
+    // 再削除は採用した版4で送られる
+    await user.click(screen.getByRole("button", { name: "削除" }));
+    const confirmButtons2 = screen.getAllByRole("button", { name: "削除" });
+    await user.click(confirmButtons2[confirmButtons2.length - 1]);
+
+    await waitFor(() => {
+      expect(deleteShiftMock).toHaveBeenCalledTimes(2);
+    });
+    expect(deleteShiftMock.mock.calls[1][0]).toMatchObject({
+      shiftId: "shift-1",
+      expectedVersion: 4,
+    });
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 
   it("削除の通信断も同じkeyの結果照会へ切り替える", async () => {

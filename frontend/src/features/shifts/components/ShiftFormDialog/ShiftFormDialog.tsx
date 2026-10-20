@@ -270,32 +270,45 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       if (hasStartTime !== hasEndTime) {
         return { timeError: "開始時刻と終了時刻を入力してください" };
       }
-      // EMR-514: 旧日時が未解決（interval_state=unknown）の勤務は、時刻を明示して
-      // 訂正確認するまで保存を停止する（NULLを休日・勤務可と扱わない）
-      const isUnknownRecord =
-        isEdit && editShift !== undefined && editShift.interval_state === "unknown";
-      if (isUnknownRecord && !hasStartTime) {
-        return {
-          formError:
-            "時刻が未解決の勤務です。開始・終了時刻を入力して訂正確認するまで保存できません",
-        };
+      // EMR-514: 未解決（interval_state=unknown / 未解決休憩）の編集は訂正確認まで保存停止。
+      // 時刻が判明していても未解決休憩が残れば停止する（R1・契約「訂正確認まで保存を停止する」）
+      const unresolvedCount = unresolvedBreaksRef.current.length;
+      if (
+        isEdit &&
+        editShift !== undefined &&
+        (editShift.interval_state === "unknown" || unresolvedCount > 0)
+      ) {
+        if (unresolvedCount > 0) {
+          return {
+            formError: "未解決の休憩があります。訂正確認するまで保存できません",
+          };
+        }
+        if (!hasStartTime) {
+          return {
+            formError:
+              "時刻が未解決の勤務です。開始・終了時刻を入力して訂正確認するまで保存できません",
+          };
+        }
+        // 時刻が明示入力され訂正確認済み → 保存へ進む（明示日時・全置換を送る）
       }
       // 勤務種別は時刻必須（off/paid_leave からの切替も含む。契約: 両日時を明示）
       if (workType && !hasStartTime) {
         return { timeError: "開始時刻と終了時刻を入力してください" };
       }
       if (hasStartTime && hasEndTime && resolvedEndTime <= resolvedStartTime) {
-        // 既存勤務の時刻を変更していない場合は検証しない（日跨ぎ勤務の保持保存を許す）
+        // 既存勤務の時刻を変更していない場合は検証しない（日跨ぎ勤務の保持保存を許す）。
+        // 基準は採用済み最新版（N2）
+        const compareBase = adoptedLatest ?? editShift;
         const endsUnchanged =
           isEdit &&
-          editShift !== undefined &&
-          editShift.ends_at !== null &&
-          formatJSTTime(editShift.ends_at) === resolvedEndTime;
+          compareBase !== undefined &&
+          compareBase.ends_at !== null &&
+          formatJSTTime(compareBase.ends_at) === resolvedEndTime;
         const startsUnchanged =
           isEdit &&
-          editShift !== undefined &&
-          editShift.starts_at !== null &&
-          formatJSTTime(editShift.starts_at) === resolvedStartTime;
+          compareBase !== undefined &&
+          compareBase.starts_at !== null &&
+          formatJSTTime(compareBase.starts_at) === resolvedStartTime;
         if (!(isEdit && startsUnchanged && endsUnchanged)) {
           return {
             timeError:
@@ -505,7 +518,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
   );
 
   const handleShiftTypeChange = useCallback((value: string) => {
-    setShiftType(value as ShiftType);
+    // Select の値は契約enumだが、無検査の as を避ける（S4残）
+    if (isShiftType(value)) setShiftType(value);
   }, []);
 
   const handleStartTimeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -549,15 +563,17 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
     if (!editShift) return;
     setIsDeleteConfirmOpen(false);
     if (pendingOperation !== null) return;
+    // version_conflict で最新版を採用していればその版を期待版にする（R2/M4残）
+    const baseline = adoptedLatest ?? editShift;
     const operationKey = newOperationKey();
     try {
       const receipt = await deleteShiftAsync({
         shiftId: editShift.id,
-        expectedVersion: editShift.version,
+        expectedVersion: baseline.version,
         operationKey,
       });
-      if (receipt.shift !== null || receipt.resulting_version !== null) {
-        // 削除の成功契約は shift=NULL / resulting_version=NULL
+      if (!isReceiptCoherent(receipt) || receipt.shift !== null) {
+        // 削除の成功契約: shift=NULL / resulting_version=NULL（B8残）
         toast.error("削除結果の形式が不正です");
         return;
       }
@@ -574,7 +590,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       }
       handleApiError(err, "シフト削除");
     }
-  }, [editShift, deleteShiftAsync, onClose, pendingOperation]);
+  }, [editShift, adoptedLatest, deleteShiftAsync, onClose, pendingOperation]);
 
   // js-cache-function-results: テンプレート選択肢を useMemo でキャッシュ
   const templateSelectItems = useMemo(
@@ -927,7 +943,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                   >
                     結果を照会
                   </Button>
-                  {/* 明示的な放棄のみ閉じられる（再送はしない。B10の出口） */}
+                  {/* 明示的な放棄のみ閉じられる（再送はしない。B10の出口）。
+                      破棄後は裏で成功していた場合に備えて一覧を最新化する */}
                   <Button
                     type="button"
                     variant="ghost"
@@ -936,7 +953,9 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                     data-testid="discard-pending"
                     onClick={() => {
                       setPendingOperation(null);
-                      onClose();
+                      queryClient
+                        .invalidateQueries({ queryKey: queryKeys.shifts.all() })
+                        .finally(() => onClose());
                     }}
                   >
                     破棄して閉じる

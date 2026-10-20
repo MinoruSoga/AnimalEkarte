@@ -81,7 +81,7 @@ export const ShiftCell = memo(function ShiftCell({
   return interactive ? (
     <button
       onClick={handleEdit}
-      className={`w-full min-h-11 px-1 py-1 rounded border text-xs font-medium transition-opacity overflow-hidden ${colorClass}`}
+      className={`w-full min-h-11 px-1 py-1 rounded border text-xs font-medium transition-opacity hover:opacity-80 overflow-hidden ${colorClass}`}
       type="button"
       aria-label={`${staffName} ${dateStr} ${label}シフト（${timeRangeLabel}）を編集`}
     >
