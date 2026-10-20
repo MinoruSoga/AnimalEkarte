@@ -32,6 +32,13 @@ export type TreatmentMasterItem = {
   category: string;
   /** #201: category="薬剤" の場合のみ設定。投与量自動計算・medicine_id 紐付けに使う */
   medicineId?: string;
+  /**
+   * EMR-454: 選択時点の master 品目別保険設定（true=対象外 / false=対象 / null=旧欠落）。
+   * 未設定（undefined）は未取得として扱い、明示値へ補完しない。
+   */
+  isNonInsurance?: boolean | null;
+  /** 専用 consumer が保険契約を採用済みの項目のみ指定する。 */
+  insuranceContract?: "master";
 };
 
 interface TreatmentSearchDialogProps {
@@ -98,7 +105,14 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
     vaccines.forEach((v) => {
       if (v.isActive) {
-        items.push({ id: v.id, name: v.name, unitPrice: v.price, category: "予防" });
+        items.push({
+          id: v.id,
+          name: v.name,
+          unitPrice: v.price,
+          category: "予防",
+          isNonInsurance: v.insuranceSetting,
+          insuranceContract: "master",
+        });
       }
     });
 

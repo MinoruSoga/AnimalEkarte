@@ -148,6 +148,21 @@ func TestVaccineService_AtomicInsuranceAudit(t *testing.T) {
 					}
 					got, err = svc.Create(t.Context(), 2, input)
 				}
+				if operation == "update-omit-setting" {
+					require.Nil(t, audit, "name-only PATCH must not emit insurance audit")
+					if failure == "commit" {
+						require.Error(t, err)
+						require.Nil(t, got)
+						require.Equal(t, before, repo.row)
+					} else {
+						require.NoError(t, err)
+						require.NotNil(t, got)
+						require.Nil(t, got.IsNonInsurance, "legacy NULL must be preserved")
+						require.Equal(t, "after", got.Name)
+						require.Equal(t, []string{"begin", "lock-target", "read", "update", "read", "commit"}, events)
+					}
+					return
+				}
 				if failure != "none" {
 					require.Error(t, err)
 					require.Nil(t, got)
