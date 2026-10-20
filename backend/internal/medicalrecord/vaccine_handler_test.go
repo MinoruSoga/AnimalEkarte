@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -236,6 +237,7 @@ func TestCreateVaccine(t *testing.T) {
 				createFn: func(_ context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "5種混合ワクチン", input.Name)
+					assert.Equal(t, uint64(1), *input.ActorID)
 					return &model.Vaccine{ID: 1, Name: input.Name}, nil
 				},
 			},
@@ -300,6 +302,7 @@ func TestCreateVaccine(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			tt.setupCtx(c)
 
+			setStaffID(c)
 			h.CreateVaccine(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -330,6 +333,8 @@ func TestUpdateVaccine(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockVaccineService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(1), *input.ActorID)
 					require.NotNil(t, input.Name)
 					assert.Equal(t, "更新ワクチン", *input.Name)
 					return &model.Vaccine{ID: 1, Name: *input.Name}, nil
@@ -381,6 +386,7 @@ func TestUpdateVaccine(t *testing.T) {
 			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
 			tt.setupCtx(c)
 
+			setStaffID(c)
 			h.UpdateVaccine(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
@@ -560,6 +566,26 @@ func TestVaccineSelectedClinicGrant(t *testing.T) {
 			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")
 			tt.invoke(h, c)
 			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	}
+}
+
+func TestVaccineWriteHandlers_RequireAuthenticatedActor(t *testing.T) {
+	for _, action := range []string{"create", "update"} {
+		t.Run(action, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"valid","is_non_insurance":false}`))
+			c.Request.Header.Set("Content-Type", "application/json")
+			setClinicID(c)
+			c.Params = gin.Params{{Key: "id", Value: "17"}}
+			h := NewVaccineHandler(&mockVaccineService{})
+			if action == "create" {
+				h.CreateVaccine(c)
+			} else {
+				h.UpdateVaccine(c)
+			}
+			require.Equal(t, http.StatusUnauthorized, w.Code)
 		})
 	}
 }

@@ -20,6 +20,8 @@ import (
 type VaccineRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
+	FindParentByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	Create(ctx context.Context, vaccine *model.Vaccine) error
 	Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -59,8 +61,28 @@ func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 	return &vaccine, nil
 }
 
+// FindParentByID validates the parent without acquiring another row lock after
+// the target lock. Other consumers keep FindByID's reference-stability SHARE.
+func (r *vaccineRepository) FindParentByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+	return persistence.FindByIDScoped[model.Vaccine](ctx, persistence.DBOrTx(ctx, r.db), "vaccine", clinicID, id)
+}
+
+// LockByIDForUpdate takes the target lock before reading its audit before-image.
+// Parent validation uses its dedicated unlocked reader to avoid inverse ordering.
+func (r *vaccineRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("vaccine target lock requires transaction context")
+	}
+	var vaccine model.Vaccine
+	db := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"})
+	if err := db.Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&vaccine).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
+	}
+	return &vaccine, nil
+}
+
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
-	db := r.db.WithContext(ctx)
+	db := persistence.DBOrTx(ctx, r.db)
 	wantActive := vaccine.IsActive
 	if err := db.Create(vaccine).Error; err != nil {
 		return apperrors.FromGORM(err, "vaccine", "")
@@ -82,7 +104,7 @@ func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, cmd
 }
 
 func (r *vaccineRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id, fields)
+	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Vaccine{}, "vaccine", clinicID, id, fields)
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

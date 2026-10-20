@@ -12,6 +12,7 @@ import (
 
 // CreateVaccineInput はワクチン作成の入力DTO
 type CreateVaccineInput struct {
+	ActorID     *uint64
 	Name        string
 	Price       *int64
 	IsActive    bool
@@ -26,6 +27,7 @@ type CreateVaccineInput struct {
 
 // UpdateVaccineInput はワクチン更新のサービス入力 DTO
 type UpdateVaccineInput struct {
+	ActorID       *uint64
 	Name          *string
 	Price         *int64
 	IsActive      *bool
@@ -94,10 +96,20 @@ type VaccineService interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type vaccineService struct{ repo VaccineRepository }
+type vaccineService struct {
+	repo            VaccineRepository
+	insuranceWrites MasterInsuranceWriteDependencies
+}
 
+// NewVaccineService preserves read-only construction; audited writes fail closed
+// until NewVaccineServiceWithAudit supplies the shared dependencies.
 func NewVaccineService(repo VaccineRepository) VaccineService {
 	return &vaccineService{repo: repo}
+}
+
+// NewVaccineServiceWithAudit enables the shared atomic setting/audit boundary.
+func NewVaccineServiceWithAudit(repo VaccineRepository, deps MasterInsuranceWriteDependencies) VaccineService {
+	return &vaccineService{repo: repo, insuranceWrites: deps}
 }
 
 func (s *vaccineService) List(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
@@ -115,6 +127,28 @@ func (s *vaccineService) GetByID(ctx context.Context, clinicID, id uint64) (*mod
 	return result, nil
 }
 func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	var result *model.Vaccine
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		created, err := s.create(txCtx, clinicID, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		result, err = s.repo.FindByID(txCtx, clinicID, created.ID)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *vaccineService) create(ctx context.Context, clinicID uint64, input *CreateVaccineInput) (*model.Vaccine, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
@@ -169,8 +203,32 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get vaccine")
+	var result *model.Vaccine
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.update", func(txCtx context.Context) (masterInsuranceChange, error) {
+		before, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var oldSetting *bool
+		if before.IsNonInsurance != nil {
+			value := *before.IsNonInsurance
+			oldSetting = &value
+		}
+		result, err = s.update(txCtx, clinicID, id, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *vaccineService) update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
 		return nil, err
@@ -251,7 +309,7 @@ func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uin
 func (s *vaccineService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
 	return validateOwnedMasterFK(ctx, "parent vaccine", clinicID, parentID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repo.FindByID(actx, cid, mid)
+			_, err := s.repo.FindParentByID(actx, cid, mid)
 			return err
 		})
 }

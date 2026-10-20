@@ -107,9 +107,9 @@ func TestVaccineService_Create_IsNonInsurance(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
-			_, err := svc.Create(context.Background(), 1, &CreateVaccineInput{Name: "v", IsNonInsurance: tt.input})
+			_, err := svc.Create(context.Background(), 1, &CreateVaccineInput{ActorID: vaccineTestActorID(), Name: "v", IsNonInsurance: tt.input})
 
 			require.NoError(t, err)
 			require.NotNil(t, saved)
@@ -130,9 +130,9 @@ func TestVaccineService_Update_IsNonInsuranceOnly(t *testing.T) {
 			return &model.Vaccine{ID: id, ClinicID: 1, Name: "v", IsNonInsurance: cmd.IsNonInsurance}, nil
 		},
 	}
-	svc := NewVaccineService(repo)
+	svc := newVaccineServiceForTest(repo)
 
-	got, err := svc.Update(context.Background(), 1, 9, &UpdateVaccineInput{IsNonInsurance: vaccineBoolPtr(false)})
+	got, err := svc.Update(context.Background(), 1, 9, &UpdateVaccineInput{ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(false)})
 
 	require.NoError(t, err, "is_non_insurance 単独更新は at-least-one-field ガードを通過する")
 	require.NotNil(t, gotCmd.IsNonInsurance)
@@ -145,11 +145,11 @@ func TestBuildVaccineUpdate_IsNonInsurance(t *testing.T) {
 	name := "renamed"
 
 	assert.Equal(t, map[string]any{colVaccineIsNonInsurance: true},
-		buildVaccineUpdate(&UpdateVaccineInput{IsNonInsurance: vaccineBoolPtr(true)}))
+		buildVaccineUpdate(&UpdateVaccineInput{ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(true)}))
 	assert.Equal(t, map[string]any{colVaccineIsNonInsurance: false},
-		buildVaccineUpdate(&UpdateVaccineInput{IsNonInsurance: vaccineBoolPtr(false)}))
+		buildVaccineUpdate(&UpdateVaccineInput{ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(false)}))
 
-	fields := buildVaccineUpdate(&UpdateVaccineInput{Name: &name})
+	fields := buildVaccineUpdate(&UpdateVaccineInput{ActorID: vaccineTestActorID(), Name: &name})
 	_, touched := fields[colVaccineIsNonInsurance]
 	assert.False(t, touched, "未指定の再編集は保存済み/旧欠落値を上書きしない")
 }
@@ -186,6 +186,7 @@ func serveVaccineInsuranceRequest(t *testing.T, method string, body string, svc 
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Params = gin.Params{{Key: "id", Value: "1"}}
 	setClinicID(c)
+	setStaffID(c)
 	h := NewVaccineHandler(svc)
 	if method == http.MethodPost {
 		h.CreateVaccine(c)
