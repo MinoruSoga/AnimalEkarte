@@ -2,7 +2,10 @@
 // previous を入力欄へコピーする操作は設けない。next_cursor があれば「さらに表示」で継続取得する。
 import type { RevisitIntakeHistoryEntry } from "../../types/models";
 import { RevisitIntakeAnswerView } from "./RevisitIntakeAnswerView";
-import { formatRevisitIntakeDateTime } from "../../lib/revisit-intake-options";
+import {
+  REVISIT_INTAKE_SUPPORTED_FORM_VERSION,
+  formatRevisitIntakeDateTime,
+} from "../../lib/revisit-intake-options";
 
 interface RevisitIntakeHistoryProps {
   history: RevisitIntakeHistoryEntry[];
@@ -25,7 +28,14 @@ function HistoryList({ entries }: { entries: RevisitIntakeHistoryEntry[] }) {
           <p className="text-xs text-noah-text-sub">
             送信日時 {formatRevisitIntakeDateTime(entry.answer.received_at)}
           </p>
-          <RevisitIntakeAnswerView answers={entry.answer.answers} />
+          {entry.answer.form_definition_version === REVISIT_INTAKE_SUPPORTED_FORM_VERSION ? (
+            <RevisitIntakeAnswerView answers={entry.answer.answers} />
+          ) : (
+            // v1 以外の回答に v1 のラベルを当てない。値は表示しない。
+            <p className="mt-2 text-sm text-noah-text-sub">
+              この回答は表示できない形式です。最新の状態を確認してください。
+            </p>
+          )}
         </li>
       ))}
     </ul>

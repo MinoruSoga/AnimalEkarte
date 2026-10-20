@@ -54,11 +54,25 @@ export function useRevisitIntakeRead(
   // route 共通の Retry-After 期限。読込の再試行と「さらに表示」の両方をこの期限まで止める。
   const [backoff, setBackoff] = useState<{ until: number; seconds: number } | null>(null);
 
+  // 期限中に要求された再取得（送信成功後・INTAKE_CLOSED 後など）は捨てずに保留し、期限が来たら実行する。
+  // 保留中は refetching として扱い、editor は古い snapshot のまま送信できない。
+  const [refetchQueued, setRefetchQueued] = useState(false);
+
   useEffect(() => {
     if (backoff === null) return;
-    const timer = setTimeout(() => setBackoff(null), Math.max(0, backoff.until - Date.now()));
+    const timer = setTimeout(
+      () => {
+        setBackoff(null);
+        if (refetchQueued) {
+          setRefetchQueued(false);
+          setState((prev) => ({ ...prev, error: null }));
+          setRequestToken((t) => t + 1);
+        }
+      },
+      Math.max(0, backoff.until - Date.now()),
+    );
     return () => clearTimeout(timer);
-  }, [backoff]);
+  }, [backoff, refetchQueued]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +104,10 @@ export function useRevisitIntakeRead(
   }, [clinicId, appointmentId, idToken, requestToken]);
 
   const refetch = useCallback(() => {
-    if (backoff !== null && Date.now() < backoff.until) return;
+    if (backoff !== null && Date.now() < backoff.until) {
+      setRefetchQueued(true);
+      return;
+    }
     setState((prev) => ({ ...prev, error: null }));
     setRequestToken((t) => t + 1);
   }, [backoff]);
@@ -121,7 +138,8 @@ export function useRevisitIntakeRead(
         if (retryAfter !== null) {
           setBackoff({ until: Date.now() + retryAfter * 1000, seconds: retryAfter });
         }
-        if (info.status === 401) {
+        // 401 / 403 / 404 では保持中の本文・履歴を捨てる（403/404 はページが ErrorPage へ替わる）。
+        if (info.status === 401 || info.status === 403 || info.status === 404) {
           setState((prev) => ({
             read: null,
             error: {
@@ -148,7 +166,7 @@ export function useRevisitIntakeRead(
     error: state.error,
     retryBlocked: backoff !== null,
     loading: state.read === null && state.error === null,
-    refetching: state.loadedToken !== requestToken && state.read !== null,
+    refetching: (state.loadedToken !== requestToken || refetchQueued) && state.read !== null,
     refetch,
     history,
     nextCursor,

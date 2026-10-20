@@ -363,7 +363,7 @@ export function RevisitIntakePage({
 
           {renderCurrent()}
 
-          {read ? (
+          {read && read.form_definition_version === REVISIT_INTAKE_SUPPORTED_FORM_VERSION ? (
             <RevisitIntakeHistory
               history={intake.history}
               hasMore={intake.nextCursor !== null}

@@ -1702,3 +1702,139 @@ describe("RevisitIntakePage Retry-After 期限中の再取得導線", () => {
     expect(reads).toBe(2);
   });
 });
+
+describe("RevisitIntakePage さらに表示の 403・保留再取得・履歴の版", () => {
+  const ref = { target_id: "5401", appointment_id: APPT_A, pet_id: PET_A, target_generation: "3" };
+
+  it("「さらに表示」が 403 なら保持中の本文・履歴を捨てて ErrorPage にする", async () => {
+    const user = userEvent.setup();
+    const latest = answer("1", answers({ visit_purpose: "保護された合成本文" }));
+    server.use(
+      http.get(READ_PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor") === null) {
+          return HttpResponse.json(
+            read(answeredTarget(latest), {
+              history: [{ target: ref, answer: latest, target_relation: "current" }],
+              next_cursor: "synthetic-cursor-1",
+            }),
+          );
+        }
+        return HttpResponse.json({ error: "forbidden" }, { status: 403 });
+      }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+
+    expect(await screen.findByText(/この予約の問診を表示できません/)).toBeInTheDocument();
+    expect(screen.queryByText("保護された合成本文")).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("Retry-After 期限中に送信が成功したら再取得を保留し、期限後に自動で再取得するまで送信できない", async () => {
+    const user = userEvent.setup();
+    const latest = answer("1", answers({ visit_purpose: "合成目的1" }));
+    let firstPageReads = 0;
+    server.use(
+      http.get(READ_PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor") !== null) {
+          return HttpResponse.json(
+            { error: "too many requests" },
+            { status: 429, headers: { "Retry-After": "1" } },
+          );
+        }
+        firstPageReads += 1;
+        return HttpResponse.json(
+          read(answeredTarget(latest), {
+            history: [{ target: ref, answer: latest, target_relation: "current" }],
+            next_cursor: firstPageReads === 1 ? "synthetic-cursor-1" : null,
+          }),
+        );
+      }),
+    );
+    const submits = captureSubmits((c) => HttpResponse.json(successResponse(c.key ?? "", "2")));
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+    await screen.findByText(/1秒ほど待ってから、もう一度お試しください/);
+    await user.type(purposeInput(), "の訂正");
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+
+    expect(await screen.findByText(/回答を送信しました/)).toBeInTheDocument();
+    expect(firstPageReads).toBe(1);
+    expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeDisabled();
+
+    await waitFor(() => expect(firstPageReads).toBe(2), { timeout: 3000 });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "訂正して再送信" })).toBeEnabled(),
+    );
+    expect(submits).toHaveLength(1);
+  });
+
+  it("履歴は版 1 の回答だけ値を表示し、他の版は値を出さず案内だけにする", async () => {
+    const v1 = answer("1", answers({ visit_purpose: "版1の合成本文" }));
+    const v2 = {
+      ...answer("2", answers({ visit_purpose: "版2の合成本文" })),
+      form_definition_version: 2,
+    };
+    mockReadSequence([
+      read(unansweredTarget(), {
+        history: [
+          {
+            target: {
+              target_id: "5300",
+              appointment_id: APPT_A,
+              pet_id: "799",
+              target_generation: "2",
+            },
+            answer: v2,
+            target_relation: "previous",
+          },
+          {
+            target: {
+              target_id: "5300",
+              appointment_id: APPT_A,
+              pet_id: "799",
+              target_generation: "2",
+            },
+            answer: v1,
+            target_relation: "previous",
+          },
+        ],
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText("版1の合成本文")).toBeInTheDocument();
+    expect(screen.queryByText("版2の合成本文")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("この回答は表示できない形式です。最新の状態を確認してください。"),
+    ).toBeInTheDocument();
+  });
+
+  it("読込全体の版が未対応なら履歴も表示しない", async () => {
+    const v1 = answer("1", answers({ visit_purpose: "版1の合成本文" }));
+    mockReadSequence([
+      read(unansweredTarget(), {
+        form_definition_version: 2,
+        history: [
+          {
+            target: {
+              target_id: "5300",
+              appointment_id: APPT_A,
+              pet_id: "799",
+              target_generation: "2",
+            },
+            answer: v1,
+            target_relation: "previous",
+          },
+        ],
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText(/この問診の形式にはまだ対応していません/)).toBeInTheDocument();
+    expect(screen.queryByText("版1の合成本文")).not.toBeInTheDocument();
+    expect(screen.queryByText("回答履歴")).not.toBeInTheDocument();
+  });
+});
