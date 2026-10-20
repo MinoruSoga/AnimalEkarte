@@ -449,6 +449,40 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     expect(editViewMock).toHaveBeenCalledTimes(1);
   });
 
+  it("409後に最新edit viewが未解決でも入力を保持し、閉じる際に離脱確認が出る", async () => {
+    // 競合後に取得した最新viewがcurrent=nullでも、draftは「未編集」扱いにしない（codex review C4）
+    editViewMock
+      .mockResolvedValueOnce(editViewFixture())
+      .mockResolvedValueOnce(editViewFixture({ current: null }));
+    saveMock.mockRejectedValue(
+      new ManualEditConflictError({
+        operationKey: OPERATION_KEY,
+        conflict: { error: "", code: "version_conflict" },
+      }),
+    );
+    const { onClose } = renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "競合後未解決の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // 競合通知（action notice）と未解決source通知の両方がalertとして出る
+    const alerts = await screen.findAllByRole("alert");
+    await waitFor(() => {
+      const text = alerts.map((a) => a.textContent).join(" ");
+      expect(text).toContain("version_conflict");
+      expect(text).toContain("未解決");
+    });
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 入力があるので閉じる操作では離脱確認が出る（静かな破棄をしない）
+    await userEvent.click(screen.getByRole("button", { name: "編集を終了" }));
+    expect(screen.getByText("編集内容が保存されていません")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("receipt不一致は成功表示せず停止する", async () => {
     editViewMock.mockResolvedValue(editViewFixture());
     saveMock.mockRejectedValue(new ManualReceiptMismatchError("article_id mismatch"));

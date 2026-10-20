@@ -110,9 +110,12 @@ interface LastSaveRecord {
   previousBase: ManualEditBase;
 }
 
-/** frontmatter + 本文を結合した完全な MD 文字列を返す */
-function buildFullMarkdown(article: ManualArticle, body: string): string {
-  return `---\ntitle: ${article.title}\norder: ${article.order}\nsection: ${article.section}\n---\n\n${body}`;
+/** frontmatter + 本文を結合した完全な MD 文字列を返す。metadataは編集元（current内容版）由来を使う */
+function buildFullMarkdown(
+  meta: { title: string; order: number; section: string },
+  body: string,
+): string {
+  return `---\ntitle: ${meta.title}\norder: ${meta.order}\nsection: ${meta.section}\n---\n\n${body}`;
 }
 
 export function ManualEditor({ article, onClose, canEdit = false }: ManualEditorProps) {
@@ -193,7 +196,10 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
   // 編集対象はあくまで current 内容版で、解決後に差し替わる。
   const initialBodyForDisplay = base?.initialBody ?? article.content;
   const currentBody = body ?? initialBodyForDisplay;
-  const isDirty = base !== null && body !== null && body !== base.initialBody;
+  // dirty判定は編集開始時に凍結したbase（editStart）基準。
+  // 競合後の最新取得が未解決（current=null等）でbaseがnullになっても、
+  // 入力済みdraftを「未編集」扱いにせず離脱確認を通す（codex review C4）
+  const isDirty = body !== null && (base !== null ? body !== base.initialBody : true);
   const saveDisabled =
     !isDirty || saveMutation.isPending || source.phase !== "ready" || saveStopped;
 
@@ -444,8 +450,19 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
     });
   };
 
+  // Copy/Download のfrontmatterは編集元（current内容版）由来にする。
+  // バンドル表示用の article メタデータと current が乖離している場合、
+  // 古いメタデータを本文と混ぜて書き出すと取り込み時に巻き戻るため（codex review C1）
+  const exportMeta = editStart
+    ? {
+        title: editStart.base.title,
+        order: editStart.base.orderValue,
+        section: editStart.base.section,
+      }
+    : { title: article.title, order: article.order, section: article.section };
+
   const handleCopy = async () => {
-    const full = buildFullMarkdown(article, currentBody);
+    const full = buildFullMarkdown(exportMeta, currentBody);
     try {
       await navigator.clipboard.writeText(full);
       setCopyStatus("copied");
@@ -456,7 +473,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
   };
 
   const handleDownload = () => {
-    const full = buildFullMarkdown(article, currentBody);
+    const full = buildFullMarkdown(exportMeta, currentBody);
     const blob = new Blob([full], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -638,7 +655,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
               type="button"
               onClick={handleRequeryOperation}
               disabled={resolvingOperation}
-              className={`ml-2 inline-flex min-h-8 items-center gap-1 rounded-xxs border px-2 py-0.5 text-xs ${C.borderDivider} ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${resolvingOperation ? "opacity-50" : C.hoverBgActionPrimarySolid}`}
+              className={`ml-2 inline-flex min-h-11 items-center gap-1 rounded-xxs border px-2 py-0.5 text-xs ${C.borderDivider} ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${resolvingOperation ? "opacity-50" : C.hoverBgActionPrimarySolid}`}
             >
               保存結果を再照会
             </button>
