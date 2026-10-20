@@ -275,13 +275,13 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `902632b8f0b278705bd8e361a072402696f9fdf99c813eb81925d64c30deeac1`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `a16550e1fadcfa277fd84fc6ff2a26b5faf71eb68e051c5c390a525de186a32d`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
 | [001_init.sql](../../../backend/migrations/001_init.sql) | `2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0` |
-| [002_master_insurance_versions.sql](../../../backend/migrations/002_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
 | [003_trimming_course_image_uploads.sql](../../../backend/migrations/003_trimming_course_image_uploads.sql) | `a86a626288b251d02a9071b2b8eb60e83e15216ff474887b12afd57ebea2cd23` |
+| [004_master_insurance_versions.sql](../../../backend/migrations/004_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

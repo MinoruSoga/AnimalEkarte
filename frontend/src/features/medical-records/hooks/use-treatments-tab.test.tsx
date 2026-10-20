@@ -86,6 +86,7 @@ const SAFE_MASTER_ITEM: TreatmentMasterItem = {
   name: "一般診察",
   unitPrice: 500,
   category: "診察",
+  insuranceContract: "master",
   isNonInsurance: true,
 };
 
@@ -96,6 +97,7 @@ const MED_MASTER_ITEM: TreatmentMasterItem = {
   name: "薬A",
   unitPrice: 100,
   category: "薬剤",
+  insuranceContract: "master",
   isNonInsurance: true,
   medicineId: "1",
 };

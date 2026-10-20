@@ -316,12 +316,27 @@ describe("useCopyTreatmentDetails", () => {
     );
 
     const selections: TreatmentMasterItem[] = [
-      { id: "7", name: "初診", unitPrice: 3307, isNonInsurance: true, category: "診察" },
-      { id: "8", name: "創傷処置", unitPrice: 3306, isNonInsurance: true, category: "処置" },
+      {
+        id: "7",
+        name: "初診",
+        unitPrice: 3307,
+        insuranceContract: "master",
+        isNonInsurance: true,
+        category: "診察",
+      },
+      {
+        id: "8",
+        name: "創傷処置",
+        unitPrice: 3306,
+        insuranceContract: "master",
+        isNonInsurance: true,
+        category: "処置",
+      },
       {
         id: "42",
         name: "アモキシシリン",
         unitPrice: 3303,
+        insuranceContract: "master",
         isNonInsurance: true,
         category: "薬剤",
         medicineId: "42",

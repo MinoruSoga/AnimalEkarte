@@ -27,7 +27,7 @@
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:917](../../../backend/migrations/001_init.sql#L917) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:918](../../../backend/migrations/001_init.sql#L918) |
 | `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7602](../../../backend/migrations/001_init.sql#L7602) |
-| `version` | `bigint` | NOT NULL | `1` | — | [002_master_insurance_versions.sql:5](../../../backend/migrations/002_master_insurance_versions.sql#L5) |
+| `version` | `bigint` | NOT NULL | `1` | — | [004_master_insurance_versions.sql:5](../../../backend/migrations/004_master_insurance_versions.sql#L5) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -83,7 +83,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `consultations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:904](../../../backend/migrations/001_init.sql#L904) |
 | `uq_consultations_id_clinic` | unique | `CONSTRAINT uq_consultations_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:922](../../../backend/migrations/001_init.sql#L922) |
-| `ck_consultations_positive_version` | check | `CONSTRAINT ck_consultations_positive_version CHECK (version > 0)` | [002_master_insurance_versions.sql:6](../../../backend/migrations/002_master_insurance_versions.sql#L6) |
+| `ck_consultations_positive_version` | check | `CONSTRAINT ck_consultations_positive_version CHECK (version > 0)` | [004_master_insurance_versions.sql:6](../../../backend/migrations/004_master_insurance_versions.sql#L6) |
 
 ## インデックス
 
