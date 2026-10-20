@@ -11,6 +11,19 @@
 # Auth: PLANE_GITHUB_AUTOMATION_KEY (Plane API key). This is not PLANE_API_KEY.
 # The key is never printed. Scopes: projects.work_items:read,
 # projects.work_items:write, projects.work_items.comments:write.
+#
+# Rate limiting: Plane API 429 answers are waited out honoring Retry-After
+# (seconds or HTTP-date); missing or invalid headers fall back to capped
+# exponential backoff, and every request is paced by a small throttle. All
+# waits share one finite whole-run budget, and per-request transfer time is
+# bounded by a whole-run wall deadline (each transfer timeout is derived
+# from the remaining seconds): when either is exhausted, remaining tickets
+# are recorded as deferred without another request instead of being re-hit
+# with a shortened wait. Writes whose outcome is unknown (transport
+# failure, 5xx) are re-verified against the live state / comment dedupe
+# before any resend, so an executed write is never repeated. Permanent 4xx
+# errors (401/403, bad input) are never retried, and the end-of-run retry
+# pass reruns only transient and unknown outcomes.
 set -euo pipefail
 
 PLANE_API_ORIGIN="${PLANE_API_ORIGIN:-https://api.plane.so}"
@@ -231,11 +244,126 @@ require_command() {
   fi
 }
 
-plane_http() {
+# Tunable finite-retry policy. Values are re-read at call time so tests and
+# CI can scope them per run. All waits are charged to one whole-run budget.
+#   PLANE_MERGE_STATE_MAX_ATTEMPTS      per-request attempt cap (default 4)
+#   PLANE_MERGE_STATE_MAX_WAIT_SECONDS  whole-run wait budget (default 120s)
+#   PLANE_MERGE_STATE_THROTTLE_MS       pacing sleep between requests (default 400ms)
+#   PLANE_MERGE_STATE_BACKOFF_CAP_SECONDS  cap for headerless backoff (default 15s)
+# Normalize a digit-only override to a bounded base-10 integer: leading
+# zeros are decimal (Bash would read them as octal and abort on digits 8/9),
+# and the length cap keeps later arithmetic inside int64. Non-numeric input
+# falls back to the supplied default.
+plane_base10() {
+  local value="$1" fallback="$2"
+  case "$value" in ''|*[!0-9]*) value="$fallback" ;; esac
+  if (( ${#value} > 9 )); then
+    value="$fallback"
+  fi
+  printf '%s\n' $((10#$value))
+}
+
+plane_now_epoch() {
+  date +%s
+}
+
+# Whole-run wait budget in milliseconds, derived from a sanitized integer
+# second count so a malformed override cannot defeat the budget arithmetic.
+plane_wait_budget_ms() {
+  local seconds
+  seconds="$(plane_base10 "${PLANE_MERGE_STATE_MAX_WAIT_SECONDS:-120}" 120)"
+  printf '%s\n' $(( seconds * 1000 ))
+}
+
+# Whole-run wall deadline in seconds; per-request transfer timeouts are
+# derived from it so cumulative transfer time cannot exceed the deadline.
+plane_total_seconds() {
+  plane_base10 "${PLANE_MERGE_STATE_MAX_TOTAL_SECONDS:-600}" 600
+}
+
+RUN_WAIT_BUDGET_REMAINING_MS="$(plane_wait_budget_ms)"
+RUN_BUDGET_EXHAUSTED=0
+RUN_ANY_REQUEST_MADE=""
+# plane_http / plane_write_http store the response code here instead of a
+# command substitution, so wait-budget accounting survives in this shell.
+PLANE_HTTP_CODE="000"
+# Wall-clock deadline for cumulative transfer time (epoch seconds).
+RUN_DEADLINE_EPOCH=$(( $(plane_now_epoch) + $(plane_total_seconds) ))
+
+plane_sleep_seconds() {
+  sleep "$1"
+}
+
+# Charge milliseconds against the whole-run wait budget. Refuses when the
+# requested wait does not fit the budget or the remaining wall time: the
+# caller must stop instead of shortening the wait and re-hitting the API.
+plane_budget_charge_ms() {
+  local ms="$1"
+  case "$ms" in ''|*[!0-9]*) RUN_BUDGET_EXHAUSTED=1; return 1 ;; esac
+  ms="$((10#$ms))"
+  if (( ms > RUN_WAIT_BUDGET_REMAINING_MS )); then
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+  fi
+  local now
+  now="$(plane_now_epoch)"
+  case "$now" in ''|*[!0-9]*)
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+    ;;
+  esac
+  if (( ms >= (RUN_DEADLINE_EPOCH - now) * 1000 )); then
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+  fi
+  RUN_WAIT_BUDGET_REMAINING_MS=$(( RUN_WAIT_BUDGET_REMAINING_MS - ms ))
+  if (( ms > 0 )); then
+    plane_sleep_seconds "$(printf '%d.%03d' $(( ms / 1000 )) $(( ms % 1000 )))"
+  fi
+  return 0
+}
+
+plane_throttle() {
+  local ms
+  ms="$(plane_base10 "${PLANE_MERGE_STATE_THROTTLE_MS:-400}" 400)"
+  (( ms <= 0 )) && return 0
+  if [[ -z "$RUN_ANY_REQUEST_MADE" ]]; then
+    RUN_ANY_REQUEST_MADE=1
+    return 0
+  fi
+  if (( ms > RUN_WAIT_BUDGET_REMAINING_MS )); then
+    # Pacing no longer fits the budget: refuse so the caller stops instead
+    # of sending an unpaced request.
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+  fi
+  # A pacing sleep that would outlive the wall deadline defeats the limit;
+  # refuse it on the same deadline-aware terms as retry waits.
+  local now
+  now="$(plane_now_epoch)"
+  case "$now" in ''|*[!0-9]*)
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+    ;;
+  esac
+  if (( ms >= (RUN_DEADLINE_EPOCH - now) * 1000 )); then
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
+  fi
+  RUN_WAIT_BUDGET_REMAINING_MS=$(( RUN_WAIT_BUDGET_REMAINING_MS - ms ))
+  plane_sleep_seconds "$(printf '%d.%03d' $(( ms / 1000 )) $(( ms % 1000 )))"
+}
+
+# Single un-retried HTTP request. Headers are dumped so the retry loop can
+# honor Retry-After. Never logs the request, headers, key, or response body.
+plane_http_once() {
   local method="$1"
   local url="$2"
   local payload="$3"
   local body_file="$4"
+  local headers_file="$5"
+  local max_time="${6:-30}"
+  max_time="$(plane_base10 "$max_time" 30)"
   local config_file http_code
   config_file="$(mktemp)"
   chmod 600 "$config_file"
@@ -244,13 +372,13 @@ plane_http() {
   if [[ -n "$payload" ]]; then
     printf 'header = "Content-Type: application/json"\n' >>"$config_file"
     http_code="$(
-      curl -sS --max-time 30 --config "$config_file" \
-        -o "$body_file" -w '%{http_code}' -X "$method" --data "$payload" "$url" || true
+      curl -sS --max-time "$max_time" --config "$config_file" \
+        -o "$body_file" -D "$headers_file" -w '%{http_code}' -X "$method" --data "$payload" "$url" || true
     )"
   else
     http_code="$(
-      curl -sS --max-time 30 --config "$config_file" \
-        -o "$body_file" -w '%{http_code}' -X "$method" "$url" || true
+      curl -sS --max-time "$max_time" --config "$config_file" \
+        -o "$body_file" -D "$headers_file" -w '%{http_code}' -X "$method" "$url" || true
     )"
   fi
   rm -f "$config_file"
@@ -258,6 +386,180 @@ plane_http() {
     http_code="000"
   fi
   printf '%s\n' "$http_code"
+}
+
+plane_retry_after_from_headers() {
+  awk 'tolower($0) ~ /^retry-after:/ { sub(/^[^:]*:[ \t]*/, ""); sub(/\r$/, ""); print; exit }' "$1" 2>/dev/null
+}
+
+# RFC 7231 HTTP-date to epoch seconds, across GNU and BSD date dialects.
+# Prints nothing when the value cannot be parsed.
+plane_httpdate_to_epoch() {
+  local value="$1" epoch=""
+  epoch="$(date -u -d "$value" +%s 2>/dev/null || true)"
+  case "$epoch" in ''|*[!0-9]*)
+    epoch="$(date -u -j -f '%a, %d %b %Y %H:%M:%S %Z' "$value" +%s 2>/dev/null || true)"
+    ;;
+  esac
+  case "$epoch" in ''|*[!0-9]*) return 0 ;; esac
+  printf '%s\n' "$epoch"
+}
+
+# Retry-After raw header value to seconds. Empty output means "no usable
+# value" (missing or invalid) and the caller falls back to capped backoff.
+plane_retry_after_seconds() {
+  local raw="$1" epoch now
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  raw="${raw%"${raw##*[![:space:]]}"}"
+  if [[ -z "$raw" ]]; then
+    return 0
+  fi
+  case "$raw" in
+    *[!0-9]*)
+      epoch="$(plane_httpdate_to_epoch "$raw")"
+      if [[ -z "$epoch" ]]; then
+        return 0
+      fi
+      now="$(plane_now_epoch)"
+      case "$now" in ''|*[!0-9]*) return 0 ;; esac
+      if (( epoch > now )); then
+        raw=$(( epoch - now ))
+        # Bound the delta so later arithmetic cannot overflow int64.
+        if (( raw > 999999999 )); then
+          raw=999999999
+        fi
+        printf '%s\n' "$raw"
+      else
+        # An already-elapsed date means retry immediately.
+        printf '0\n'
+      fi
+      ;;
+    *)
+      # RFC 9110 delay-seconds is a decimal integer. Strip leading zeros
+      # (Bash would read them as octal and abort on digits 8/9) and bound
+      # the magnitude so later arithmetic cannot overflow.
+      if (( ${#raw} > 9 )); then
+        printf '999999999\n'
+        return 0
+      fi
+      raw="$((10#$raw))"
+      printf '%s\n' "$raw"
+      ;;
+  esac
+}
+
+# Capped exponential backoff for missing/invalid Retry-After and transient
+# failures: 2s, 4s, 8s, ... up to the cap. The loop stops doubling once the
+# cap is reached so a large step count cannot overflow int64 arithmetic.
+plane_backoff_wait_ms() {
+  local step="$1" cap="$2"
+  local wait_ms=2000
+  local limit=$(( cap * 1000 ))
+  local d=1
+  while (( d < step && wait_ms < limit )); do
+    wait_ms=$(( wait_ms * 2 ))
+    d=$(( d + 1 ))
+  done
+  if (( wait_ms > limit )); then
+    wait_ms=$limit
+  fi
+  printf '%s\n' "$wait_ms"
+}
+
+# Core retry loop. allow_transient_retry=1 (GET lookups) retries transport
+# failures and 5xx with capped backoff; =0 (PATCH/POST writes) returns them
+# immediately so the caller can reconcile what actually landed. 429 is always
+# waited out (Retry-After respected, headerless capped backoff) within the
+# run budget; when the requested wait exceeds the budget the loop stops
+# without re-hitting. Permanent 4xx codes return immediately.
+plane_http_inner() {
+  local allow_transient="$1"
+  shift
+  local method="$1" url="$2" payload="$3" body_file="$4"
+  local max_attempts backoff_cap
+  max_attempts="$(plane_base10 "${PLANE_MERGE_STATE_MAX_ATTEMPTS:-4}" 4)"
+  backoff_cap="$(plane_base10 "${PLANE_MERGE_STATE_BACKOFF_CAP_SECONDS:-15}" 15)"
+  local attempt=0 code raw_wait wait_ms backoff_step=1 headers
+  local max_time now remaining
+  headers="$(mktemp)"
+  while :; do
+    # Pacing must fit the budget first; a refusal stops without an unpaced
+    # request.
+    if ! plane_throttle; then
+      rm -f "$headers"
+      PLANE_HTTP_CODE="000"
+      return 0
+    fi
+    # The whole-run wall deadline bounds cumulative transfer time: derive
+    # each transfer timeout from the remaining seconds AFTER the pacing
+    # sleep, and stop (deferred) once the deadline has passed, without
+    # starting another transfer.
+    max_time=30
+    now="$(plane_now_epoch)"
+    case "$now" in ''|*[!0-9]*) now="$(date +%s)" ;; esac
+    remaining=$(( RUN_DEADLINE_EPOCH - now ))
+    if (( remaining <= 0 )); then
+      RUN_BUDGET_EXHAUSTED=1
+      rm -f "$headers"
+      PLANE_HTTP_CODE="000"
+      return 0
+    fi
+    if (( remaining < max_time )); then
+      max_time=$remaining
+    fi
+    attempt=$(( attempt + 1 ))
+    code="$(plane_http_once "$method" "$url" "$payload" "$body_file" "$headers" "$max_time")"
+    case "$code" in
+      429)
+        raw_wait="$(plane_retry_after_from_headers "$headers")"
+        wait_ms="$(plane_retry_after_seconds "$raw_wait")"
+        if [[ -n "$wait_ms" ]]; then
+          wait_ms=$(( wait_ms * 1000 ))
+        else
+          wait_ms="$(plane_backoff_wait_ms "$backoff_step" "$backoff_cap")"
+          backoff_step=$(( backoff_step + 1 ))
+        fi
+        ;;
+      000|408|5??)
+        if [[ "$allow_transient" != "1" ]]; then
+          rm -f "$headers"
+          PLANE_HTTP_CODE="$code"
+          return 0
+        fi
+        wait_ms="$(plane_backoff_wait_ms "$backoff_step" "$backoff_cap")"
+        backoff_step=$(( backoff_step + 1 ))
+        ;;
+      *)
+        rm -f "$headers"
+        PLANE_HTTP_CODE="$code"
+        return 0
+        ;;
+    esac
+    if (( attempt >= max_attempts )); then
+      # Honor the final response's wait before returning so the run-level
+      # retry pass does not immediately re-hit the API. A refused charge
+      # marks the budget exhausted, which classifies the ticket as deferred.
+      plane_budget_charge_ms "$wait_ms" || true
+      rm -f "$headers"
+      PLANE_HTTP_CODE="$code"
+      return 0
+    fi
+    if ! plane_budget_charge_ms "$wait_ms"; then
+      rm -f "$headers"
+      PLANE_HTTP_CODE="$code"
+      return 0
+    fi
+  done
+}
+
+plane_http() {
+  plane_http_inner 1 "$@"
+}
+
+# Write variant: uncertain outcomes (transport failure, 5xx) are surfaced to
+# the caller for state/comment re-verification instead of blind resend.
+plane_write_http() {
+  plane_http_inner 0 "$@"
 }
 
 plane_detail() {
@@ -298,15 +600,35 @@ sync_one_ticket() {
   local http_code identifier project_id item_uuid current_state decision
   local external_id comment_html list_url patch_url comment_url payload
   local reconcile_only=0
+  local move_from=""
+  local max_attempts
+  max_attempts="$(plane_base10 "${PLANE_MERGE_STATE_MAX_ATTEMPTS:-4}" 4)"
+  # Outcome kind for the run-level retry pass: ok / skip / permanent /
+  # transient / unknown / deferred. rc: 0 ok, 1 failed, 2 unresolved
+  # (unknown or deferred by the wait budget).
+  SYNC_OUTCOME_KIND="transient"
 
   item_body="$(mktemp)"
   patch_body="$(mktemp)"
   comment_body="$(mktemp)"
 
-  http_code="$(plane_http GET \
+  plane_http GET \
     "${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/work-items/${ticket_id}/?expand=state" \
-    "" "$item_body")"
+    "" "$item_body"
+  http_code="$PLANE_HTTP_CODE"
   if [[ "$http_code" != "200" ]]; then
+    case "$http_code" in
+      429|000|408|5??)
+        if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+          log_line "WAIT  ${ticket_id}  lookup deferred: wait budget exhausted (HTTP ${http_code})"
+          rm -f "$item_body" "$patch_body" "$comment_body"
+          SYNC_OUTCOME_KIND="deferred"
+          return 2
+        fi
+        SYNC_OUTCOME_KIND="transient"
+        ;;
+      *) SYNC_OUTCOME_KIND="permanent" ;;
+    esac
     log_line "FAIL  ${ticket_id}  lookup HTTP ${http_code} $(plane_detail "$item_body")"
     rm -f "$item_body" "$patch_body" "$comment_body"
     return 1
@@ -319,11 +641,13 @@ sync_one_ticket() {
   if [[ "$(fold_state "$identifier")" != "$(fold_state "$ticket_id")" || -z "$item_uuid" ]]; then
     log_line "FAIL  ${ticket_id}  lookup response did not match the identifier"
     rm -f "$item_body" "$patch_body" "$comment_body"
+    SYNC_OUTCOME_KIND="permanent"
     return 1
   fi
   if [[ -n "$project_id" && "$project_id" != "$PLANE_PROJECT_ID" ]]; then
     log_line "FAIL  ${ticket_id}  work item is outside project ${PLANE_PROJECT_IDENTIFIER}"
     rm -f "$item_body" "$patch_body" "$comment_body"
+    SYNC_OUTCOME_KIND="permanent"
     return 1
   fi
 
@@ -345,14 +669,17 @@ sync_one_ticket() {
       log_line "SKIP  ${ticket_id}  ${decision#SKIP }  current=${current_state:-unreadable}"
       rm -f "$item_body" "$patch_body" "$comment_body"
       if [[ "$decision" == "SKIP unknown" ]]; then
+        SYNC_OUTCOME_KIND="permanent"
         return 1
       fi
+      SYNC_OUTCOME_KIND="skip"
       return 0
       ;;
     Review|UAT) ;;
     *)
       log_line "FAIL  ${ticket_id}  unexpected decision"
       rm -f "$item_body" "$patch_body" "$comment_body"
+      SYNC_OUTCOME_KIND="permanent"
       return 1
       ;;
   esac
@@ -360,17 +687,101 @@ sync_one_ticket() {
   if [[ "${PLANE_MERGE_STATE_DRY_RUN:-}" == "1" ]]; then
     log_line "DRY   ${ticket_id}  ${current_state} -> ${decision}"
     rm -f "$item_body" "$patch_body" "$comment_body"
+    SYNC_OUTCOME_KIND="ok"
     return 0
   fi
 
+  # The MOVE/AUDIT record names the state observed at lookup time, even
+  # when an uncertain write later turns out to have landed.
+  move_from="$current_state"
+
+  # State write with uncertainty reconciliation. A transport failure or 5xx
+  # does not tell whether the PATCH landed: re-read the current state and
+  # only resend when the lookup confirms the write never happened.
   if [[ "$reconcile_only" == "0" ]]; then
-    payload="$(jq -n --arg state "$decision" '{state:$state}')"
+    local pre_state="$current_state"
+    local verify_code verify_state patch_attempt=0 state_written=0
     patch_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/"
-    http_code="$(plane_http PATCH "$patch_url" "$payload" "$patch_body")"
-    if [[ "$http_code" != "200" ]]; then
-      log_line "FAIL  ${ticket_id}  state update HTTP ${http_code} $(plane_detail "$patch_body")"
+    payload="$(jq -n --arg state "$decision" '{state:$state}')"
+    while :; do
+      patch_attempt=$(( patch_attempt + 1 ))
+      plane_write_http PATCH "$patch_url" "$payload" "$patch_body"
+      http_code="$PLANE_HTTP_CODE"
+      if [[ "$http_code" == "200" ]]; then
+        state_written=1
+        break
+      fi
+      case "$http_code" in
+        429)
+          if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+            log_line "WAIT  ${ticket_id}  state update deferred: wait budget exhausted (HTTP 429)"
+            rm -f "$item_body" "$patch_body" "$comment_body"
+            SYNC_OUTCOME_KIND="deferred"
+            return 2
+          fi
+          # A 429 answer means the state was not changed; the bounded
+          # attempts are used up, so leave this ticket to the retry pass.
+          log_line "FAIL  ${ticket_id}  state update HTTP 429 after ${patch_attempt} attempt(s)"
+          rm -f "$item_body" "$patch_body" "$comment_body"
+          SYNC_OUTCOME_KIND="transient"
+          return 1
+          ;;
+        000|408|5??)
+          plane_http GET \
+            "${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/work-items/${ticket_id}/?expand=state" \
+            "" "$item_body"
+          verify_code="$PLANE_HTTP_CODE"
+          if [[ "$verify_code" != "200" ]]; then
+            if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+              log_line "WAIT  ${ticket_id}  state update uncertain (HTTP ${http_code}); verify deferred: wait budget exhausted"
+              rm -f "$item_body" "$patch_body" "$comment_body"
+              SYNC_OUTCOME_KIND="deferred"
+              return 2
+            fi
+            log_line "UNKNOWN  ${ticket_id}  state update uncertain (HTTP ${http_code}); verify lookup HTTP ${verify_code}"
+            rm -f "$item_body" "$patch_body" "$comment_body"
+            SYNC_OUTCOME_KIND="unknown"
+            return 2
+          fi
+          verify_state="$(jq -r '.state.name // empty' "$item_body")"
+          if [[ "$(fold_state "$verify_state")" == "$(fold_state "$decision")" ]]; then
+            # The write landed despite the uncertain answer; no resend.
+            current_state="$verify_state"
+            state_written=1
+            break
+          fi
+          if [[ "$(fold_state "$verify_state")" != "$(fold_state "$pre_state")" ]]; then
+            log_line "UNKNOWN  ${ticket_id}  state update uncertain: state is '${verify_state}', expected '${decision}' or pre-update '${pre_state}'"
+            rm -f "$item_body" "$patch_body" "$comment_body"
+            SYNC_OUTCOME_KIND="unknown"
+            return 2
+          fi
+          if (( patch_attempt >= max_attempts )); then
+            log_line "FAIL  ${ticket_id}  state update HTTP ${http_code} after ${patch_attempt} attempt(s), state confirmed unchanged"
+            rm -f "$item_body" "$patch_body" "$comment_body"
+            SYNC_OUTCOME_KIND="transient"
+            return 1
+          fi
+          if ! plane_budget_charge_ms 2000; then
+            log_line "WAIT  ${ticket_id}  state update deferred: wait budget exhausted before resend"
+            rm -f "$item_body" "$patch_body" "$comment_body"
+            SYNC_OUTCOME_KIND="deferred"
+            return 2
+          fi
+          ;;
+        *)
+          log_line "FAIL  ${ticket_id}  state update HTTP ${http_code} $(plane_detail "$patch_body")"
+          rm -f "$item_body" "$patch_body" "$comment_body"
+          SYNC_OUTCOME_KIND="permanent"
+          return 1
+          ;;
+      esac
+    done
+    if [[ "$state_written" != "1" ]]; then
+      # Defensive: unreachable, but never fall through without a decision.
       rm -f "$item_body" "$patch_body" "$comment_body"
-      return 1
+      SYNC_OUTCOME_KIND="unknown"
+      return 2
     fi
   fi
 
@@ -380,54 +791,115 @@ sync_one_ticket() {
     comment_html="<p>$(html_escape "$base") へのマージ後、現在の $(html_escape "$current_state") 状態を確認し、状態変更なしでこのPRの監査コメントを補完しました。</p><p>PR: <a href=\"$(html_escape "$pr_url")\">$(html_escape "$pr_url")</a></p>"
   fi
   list_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/?external_source=github&external_id=$(jq -nr --arg v "$external_id" '$v|@uri')"
-  http_code="$(plane_http GET "$list_url" "" "$comment_body")"
-  if [[ "$http_code" != "200" ]]; then
-    if [[ "$reconcile_only" == "1" ]]; then
-      log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
-    else
-      log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
-    fi
-    rm -f "$item_body" "$patch_body" "$comment_body"
-    return 1
-  fi
-  if ! valid_comment_collection "$comment_body"; then
-    log_line "FAIL  ${ticket_id}  comment lookup returned an invalid collection"
-    rm -f "$item_body" "$patch_body" "$comment_body"
-    return 1
-  fi
-  if comment_already_posted "$comment_body" "$external_id"; then
-    if [[ "$reconcile_only" == "1" ]]; then
-      log_line "AUDIT  ${ticket_id}  current=${current_state} target=${decision} state=unchanged comment=already"
-    else
-      log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}  comment=already"
-    fi
-    rm -f "$item_body" "$patch_body" "$comment_body"
-    return 0
-  fi
-
   payload="$(jq -n \
     --arg html "$comment_html" \
     --arg external_id "$external_id" \
     '{comment_html:$html, access:"INTERNAL", external_source:"github", external_id:$external_id}')"
   comment_url="${PLANE_API_ORIGIN}/api/v2/workspaces/${PLANE_WORKSPACE_SLUG}/projects/${PLANE_PROJECT_ID}/work-items/${item_uuid}/comments/"
-  http_code="$(plane_http POST "$comment_url" "$payload" "$comment_body")"
-  if [[ "$http_code" != "200" && "$http_code" != "201" ]]; then
-    if [[ "$reconcile_only" == "1" ]]; then
-      log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
-    else
-      log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
-    fi
-    rm -f "$item_body" "$patch_body" "$comment_body"
-    return 1
-  fi
 
-  if [[ "$reconcile_only" == "1" ]]; then
-    log_line "AUDIT  ${ticket_id}  current=${current_state} target=${decision} state=unchanged comment=backfilled"
-  else
-    log_line "MOVE  ${ticket_id}  ${current_state} -> ${decision}"
-  fi
-  rm -f "$item_body" "$patch_body" "$comment_body"
-  return 0
+  # Comment phase. Each loop round re-reads the comment collection first, so
+  # a comment that landed despite an uncertain POST answer is detected by
+  # the external_id dedupe and never posted twice.
+  local comment_attempt=0
+  while :; do
+    comment_attempt=$(( comment_attempt + 1 ))
+    plane_http GET "$list_url" "" "$comment_body"
+    http_code="$PLANE_HTTP_CODE"
+    if [[ "$http_code" != "200" ]]; then
+      case "$http_code" in
+        429|000|408|5??)
+          if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+            log_line "WAIT  ${ticket_id}  comment lookup deferred: wait budget exhausted (HTTP ${http_code})"
+            rm -f "$item_body" "$patch_body" "$comment_body"
+            SYNC_OUTCOME_KIND="deferred"
+            return 2
+          fi
+          SYNC_OUTCOME_KIND="transient"
+          ;;
+        *) SYNC_OUTCOME_KIND="permanent" ;;
+      esac
+      if [[ "$reconcile_only" == "1" ]]; then
+        log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+      else
+        log_line "FAIL  ${ticket_id}  comment lookup HTTP ${http_code} $(plane_detail "$comment_body")"
+      fi
+      rm -f "$item_body" "$patch_body" "$comment_body"
+      return 1
+    fi
+    if ! valid_comment_collection "$comment_body"; then
+      log_line "FAIL  ${ticket_id}  comment lookup returned an invalid collection"
+      rm -f "$item_body" "$patch_body" "$comment_body"
+      SYNC_OUTCOME_KIND="transient"
+      return 1
+    fi
+    if comment_already_posted "$comment_body" "$external_id"; then
+      if [[ "$reconcile_only" == "1" ]]; then
+        log_line "AUDIT  ${ticket_id}  current=${move_from} target=${decision} state=unchanged comment=already"
+      else
+        log_line "MOVE  ${ticket_id}  ${move_from} -> ${decision}  comment=already"
+      fi
+      rm -f "$item_body" "$patch_body" "$comment_body"
+      SYNC_OUTCOME_KIND="ok"
+      return 0
+    fi
+
+    plane_write_http POST "$comment_url" "$payload" "$comment_body"
+    http_code="$PLANE_HTTP_CODE"
+    if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
+      if [[ "$reconcile_only" == "1" ]]; then
+        log_line "AUDIT  ${ticket_id}  current=${move_from} target=${decision} state=unchanged comment=backfilled"
+      else
+        log_line "MOVE  ${ticket_id}  ${move_from} -> ${decision}"
+      fi
+      rm -f "$item_body" "$patch_body" "$comment_body"
+      SYNC_OUTCOME_KIND="ok"
+      return 0
+    fi
+    case "$http_code" in
+      429)
+        if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+          log_line "WAIT  ${ticket_id}  comment post deferred: wait budget exhausted (HTTP 429)"
+          rm -f "$item_body" "$patch_body" "$comment_body"
+          SYNC_OUTCOME_KIND="deferred"
+          return 2
+        fi
+        log_line "FAIL  ${ticket_id}  comment post HTTP 429 after ${comment_attempt} attempt(s)"
+        rm -f "$item_body" "$patch_body" "$comment_body"
+        SYNC_OUTCOME_KIND="transient"
+        return 1
+        ;;
+      000|408|5??)
+        # Uncertain: the next round re-reads the collection and dedupes, so
+        # a landed comment is never resent. Bound the retries.
+        if (( comment_attempt >= max_attempts )); then
+          if [[ "$reconcile_only" == "1" ]]; then
+            log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+          else
+            log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+          fi
+          rm -f "$item_body" "$patch_body" "$comment_body"
+          SYNC_OUTCOME_KIND="transient"
+          return 1
+        fi
+        if ! plane_budget_charge_ms 2000; then
+          log_line "WAIT  ${ticket_id}  comment post deferred: wait budget exhausted"
+          rm -f "$item_body" "$patch_body" "$comment_body"
+          SYNC_OUTCOME_KIND="deferred"
+          return 2
+        fi
+        ;;
+      *)
+        if [[ "$reconcile_only" == "1" ]]; then
+          log_line "FAIL  ${ticket_id}  audit reconciliation current=${current_state} target=${decision} state=unchanged comment HTTP ${http_code} $(plane_detail "$comment_body")"
+        else
+          log_line "FAIL  ${ticket_id}  moved to ${decision} but comment HTTP ${http_code} $(plane_detail "$comment_body")"
+        fi
+        rm -f "$item_body" "$patch_body" "$comment_body"
+        SYNC_OUTCOME_KIND="permanent"
+        return 1
+        ;;
+    esac
+  done
 }
 
 assert_no_truncated_associations() {
@@ -591,11 +1063,93 @@ collect_source_text() {
   rm -f "$pr_numbers_file"
 }
 
+# Run the per-ticket sync over every referenced ticket, then one bounded
+# retry pass for tickets that did not resolve. Permanent failures (401/403,
+# malformed lookups, protected states) are never resent. Every wait —
+# throttle, backoff, Retry-After — is charged to the same whole-run budget,
+# and tickets the budget deferred are listed in the summary instead of
+# being re-hit with a shortened wait.
+run_ticket_passes() {
+  local tickets_file="$1"
+  local base="$2"
+  local number="$3"
+  local pr_url="$4"
+  local head="$5"
+  local ticket_id rc outcome_file rerun_file kept_file
+  local ok=0 skip=0 failed=0 unknown=0 deferred=0 total=0
+
+  outcome_file="$(mktemp)"
+  : >"$outcome_file"
+  while IFS= read -r ticket_id; do
+    [[ -z "$ticket_id" ]] && continue
+    total=$((total + 1))
+    if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+      # The wait budget is gone: record the ticket as deferred without
+      # hitting the API, honoring the very wait that exhausted the budget.
+      log_line "WAIT  ${ticket_id}  skipped: wait budget already exhausted"
+      printf '%s\t%s\t%s\n' "$ticket_id" 2 deferred >>"$outcome_file"
+      continue
+    fi
+    SYNC_OUTCOME_KIND="transient"
+    rc=0
+    # A conditional call keeps one ticket failure from aborting the pass
+    # without a subshell, so wait-budget accounting persists across tickets.
+    sync_one_ticket "$ticket_id" "$base" "$number" "$pr_url" "$head" || rc=$?
+    printf '%s\t%s\t%s\n' "$ticket_id" "$rc" "$SYNC_OUTCOME_KIND" >>"$outcome_file"
+  done <"$tickets_file"
+
+  rerun_file="$(mktemp)"
+  # Only outcomes eligible for an immediate retry are rerun. Deferred
+  # tickets were deferred by a wait that exceeded the budget; re-hitting
+  # the API now would ignore that wait, and permanent failures must never
+  # be resent.
+  awk -F'\t' '$2 != 0 && ($3 == "transient" || $3 == "unknown") { print $1 }' "$outcome_file" >"$rerun_file"
+  if [[ -s "$rerun_file" ]]; then
+    kept_file="$(mktemp)"
+    awk -F'\t' '$2 == 0 || $3 == "permanent" || $3 == "deferred"' "$outcome_file" >"$kept_file"
+    while IFS= read -r ticket_id; do
+      [[ -z "$ticket_id" ]] && continue
+      total=$((total + 1))
+      if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+        log_line "WAIT  ${ticket_id}  skipped: wait budget already exhausted"
+        printf '%s\t%s\t%s\n' "$ticket_id" 2 deferred >>"$kept_file"
+        continue
+      fi
+      SYNC_OUTCOME_KIND="transient"
+      rc=0
+      sync_one_ticket "$ticket_id" "$base" "$number" "$pr_url" "$head" || rc=$?
+      printf '%s\t%s\t%s\n' "$ticket_id" "$rc" "$SYNC_OUTCOME_KIND" >>"$kept_file"
+    done <"$rerun_file"
+    rm -f "$outcome_file"
+    outcome_file="$kept_file"
+  fi
+  rm -f "$rerun_file"
+
+  while IFS=$'\t' read -r _ticket_id _rc kind; do
+    [[ -z "$kind" ]] && continue
+    case "$kind" in
+      ok) ok=$((ok + 1)) ;;
+      skip) skip=$((skip + 1)) ;;
+      permanent|transient) failed=$((failed + 1)) ;;
+      unknown) unknown=$((unknown + 1)) ;;
+      deferred) deferred=$((deferred + 1)) ;;
+    esac
+  done <"$outcome_file"
+  rm -f "$outcome_file"
+
+  log_line "SUMMARY  ok=${ok} skip=${skip} fail=${failed} unknown=${unknown} deferred=${deferred} ticket-attempts=${total} wait-budget-left-ms=${RUN_WAIT_BUDGET_REMAINING_MS}"
+  if (( failed + unknown + deferred > 0 )); then
+    log_line "FAIL  $(( failed + unknown + deferred )) work item update(s) unresolved (fail=${failed} unknown=${unknown} deferred=${deferred}) for ${base} PR #${number}"
+    return 1
+  fi
+  log_line "PASS  Plane states checked for ${base} PR #${number}"
+}
+
 main() {
   local event_path="${GITHUB_EVENT_PATH:-}"
   local repository="${GITHUB_REPOSITORY:-}"
   local merged base head number title body pr_url owner name
-  local sources tickets_file ticket_id failures=0 rc
+  local sources tickets_file ticket_id
 
   require_command jq
   require_command gh
@@ -656,27 +1210,11 @@ main() {
     exit 0
   fi
 
-  while IFS= read -r ticket_id; do
-    [[ -z "$ticket_id" ]] && continue
-    # A conditional call would disable set -e inside the updater. Run it in a
-    # subshell so one ticket failure is recorded and the rest still run.
-    set +e
-    (
-      set -euo pipefail
-      sync_one_ticket "$ticket_id" "$base" "$number" "$pr_url" "$head"
-    )
-    rc=$?
-    set -e
-    if [[ "$rc" -ne 0 ]]; then
-      failures=$((failures + 1))
-    fi
-  done <"$tickets_file"
-
-  if [[ "$failures" -ne 0 ]]; then
-    log_line "FAIL  ${failures} work item update(s) failed"
-    exit 1
-  fi
-  log_line "PASS  Plane states checked for ${base} PR #${number}"
+  RUN_WAIT_BUDGET_REMAINING_MS="$(plane_wait_budget_ms)"
+  RUN_BUDGET_EXHAUSTED=0
+  RUN_ANY_REQUEST_MADE=""
+  RUN_DEADLINE_EPOCH=$(( $(plane_now_epoch) + $(plane_total_seconds) ))
+  run_ticket_passes "$tickets_file" "$base" "$number" "$pr_url" "$head"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
