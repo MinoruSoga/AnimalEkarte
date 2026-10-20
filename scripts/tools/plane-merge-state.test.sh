@@ -689,6 +689,8 @@ assert_eq "fractional wait budget override falls back to the default" '120000' \
   "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='120.5' plane_wait_budget_ms)"
 assert_eq "integer wait budget override is honored" '300000' \
   "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='300' plane_wait_budget_ms)"
+assert_eq "absurdly long digit budget override falls back to the default" '120000' \
+  "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='99999999999999999999' plane_wait_budget_ms)"
 
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"

@@ -252,6 +252,10 @@ require_command() {
 plane_wait_budget_ms() {
   local seconds="${PLANE_MERGE_STATE_MAX_WAIT_SECONDS:-120}"
   case "$seconds" in ''|*[!0-9]*) seconds=120 ;; esac
+  # Cap digit length so an absurd override cannot wrap int64 arithmetic.
+  if (( ${#seconds} > 9 )); then
+    seconds=120
+  fi
   printf '%s\n' $(( seconds * 1000 ))
 }
 
