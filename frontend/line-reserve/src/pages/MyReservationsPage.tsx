@@ -1,13 +1,29 @@
 import { useCallback, useState, useTransition } from "react";
 import { liffApi } from "../api/liff-api";
+import type { Reservation } from "../types/models";
 import { BackButton } from "../components/BackButton";
 import { formatJSTApplicationDate } from "@/shared-liff/jst-date";
 import { useFetchState } from "@/shared-liff/use-fetch-state";
+import type { RevisitIntakeDraftStore } from "../hooks/use-revisit-intake-drafts";
+import {
+  REVISIT_INTAKE_UNAVAILABLE_MESSAGE,
+  isRevisitIntakeAppointmentIdUsable,
+} from "../lib/revisit-intake-appointment-id";
 
 interface MyReservationsPageProps {
   clinicId: string;
   idToken: string;
   onBack: () => void;
+  /**
+   * EMR-474: 予約カード行内の再診問診 CTA（LIFF に予約詳細画面が無いため、カード行内を予約詳細相当とする）。
+   * 未指定なら CTA を出さない。
+   */
+  onOpenRevisitIntake?: (reservation: Reservation) => void;
+  /**
+   * 未確定の送信（memory-only の operation key）が残る予約では、取消後も結果照会の入口を残すために使う。
+   * 未指定なら取消済み予約には入口を出さない。
+   */
+  draftStore?: RevisitIntakeDraftStore;
 }
 
 function formatDate(dateStr: string): string {
@@ -43,7 +59,32 @@ const STATUS_COLORS: Record<string, string> = {
   no_show: "bg-noah-danger-bg-strong text-noah-danger-text",
 };
 
-export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservationsPageProps) {
+// EMR-474 / D6: 取消済み以外に導線を出し、編集可否は問診 GET の current_target.editable だけが決める。
+// 受付後（以降）は書き込みを BE が editable=false で止めるため、閲覧の入口として「回答を見る」を出す。
+// no_show は FE で read-only 固定にせず、サーバー判定に従う。
+const VIEW_ONLY_ENTRY_STATUSES: ReadonlySet<Reservation["status"]> = new Set([
+  "checked_in",
+  "in_consultation",
+  "accounting",
+  "completed",
+]);
+const REVISIT_ENTRY_STATUSES: ReadonlySet<Reservation["status"]> = new Set([
+  "confirmed",
+  "pending",
+  "no_show",
+  ...VIEW_ONLY_ENTRY_STATUSES,
+]);
+
+const revisitCtaClassName =
+  "min-h-11 w-full rounded-lg border border-noah-teal px-3 text-sm font-semibold text-noah-teal-dark hover:bg-noah-teal-light";
+
+export function MyReservationsPage({
+  clinicId,
+  idToken,
+  onBack,
+  onOpenRevisitIntake,
+  draftStore,
+}: MyReservationsPageProps) {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cancelError, setCancelError] = useState<{ id: number; message: string } | null>(null);
@@ -163,6 +204,42 @@ export function MyReservationsPage({ clinicId, idToken, onBack }: MyReservations
                     <p className="text-xs text-noah-text-faint mt-2">
                       {formatCreatedAt(reservation.created_at)}
                     </p>
+                  ) : null}
+
+                  {reservation.status === "cancelled" &&
+                  onOpenRevisitIntake &&
+                  isRevisitIntakeAppointmentIdUsable(reservation.id) &&
+                  draftStore?.findPending(clinicId, String(reservation.id)) !== undefined ? (
+                    // 取消済みでは通常の問診導線を出さない。未確定の送信がある間だけ、結果照会に戻る入口を残す。
+                    <div className="mt-3 pt-3 border-t border-noah-border-light">
+                      <button
+                        type="button"
+                        onClick={() => onOpenRevisitIntake(reservation)}
+                        className={revisitCtaClassName}
+                      >
+                        送信結果を確認する
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {REVISIT_ENTRY_STATUSES.has(reservation.status) && onOpenRevisitIntake ? (
+                    <div className="mt-3 pt-3 border-t border-noah-border-light">
+                      {isRevisitIntakeAppointmentIdUsable(reservation.id) ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenRevisitIntake(reservation)}
+                          className={revisitCtaClassName}
+                        >
+                          {VIEW_ONLY_ENTRY_STATUSES.has(reservation.status)
+                            ? "回答を見る"
+                            : "問診を回答する／訂正する"}
+                        </button>
+                      ) : (
+                        <p role="status" className="text-sm text-noah-text-sub">
+                          {REVISIT_INTAKE_UNAVAILABLE_MESSAGE}
+                        </p>
+                      )}
+                    </div>
                   ) : null}
 
                   {reservation.status === "confirmed" ? (

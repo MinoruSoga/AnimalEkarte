@@ -175,4 +175,148 @@ export type PageType =
   | "step5"
   | "step6"
   | "step7"
-  | "step8";
+  | "step8"
+  | "revisit-intake"; // EMR-474: 予約単位（1 予約 = 1 ペット）の再診事前問診
+
+// ---------------------------------------------------------------------------
+// EMR-474: LIFF 再診事前問診（api.yaml RevisitIntake* 契約の手書き型）
+// ID・版・世代は JS Number へ変換しない正規形10進文字列（RevisitIntakeId 等）。
+// ---------------------------------------------------------------------------
+
+export type RevisitIntakeEnergyAppetite = "usual" | "slightly_reduced" | "markedly_reduced";
+export type RevisitIntakeImprovement =
+  | "improved"
+  | "slightly_improved"
+  | "unchanged"
+  | "worse"
+  | "new_symptoms";
+export type RevisitIntakeExaminationPreference =
+  | "consultation_only"
+  | "medication_only"
+  | "examination"
+  | "decide_with_vet";
+
+/** RevisitIntakeFullAnswers（応答。8保存値すべて present、任意値は null 可、空文字は null と区別） */
+export interface RevisitIntakeFullAnswers {
+  visit_purpose: string;
+  onset: string | null;
+  energy: RevisitIntakeEnergyAppetite | null;
+  appetite: RevisitIntakeEnergyAppetite | null;
+  current_symptoms: string | null;
+  improvement: RevisitIntakeImprovement | null;
+  examination_preference: RevisitIntakeExaminationPreference | null;
+  main_concern: string | null;
+}
+
+/** RevisitIntakeInputAnswers（送信。visit_purpose 必須、任意値は null 可） */
+export type RevisitIntakeInputAnswers = RevisitIntakeFullAnswers;
+
+export interface RevisitIntakeTargetRef {
+  target_id: string | null;
+  appointment_id: string;
+  pet_id: string;
+  target_generation: string;
+}
+
+export interface RevisitIntakeAnswer {
+  answer_id: string;
+  revision: string;
+  form_definition_version: number;
+  received_at: string;
+  provenance: "owner_submission";
+  answers: RevisitIntakeFullAnswers;
+}
+
+export type RevisitIntakeEditBlockReason =
+  | "reception_started"
+  | "cancelled"
+  | "deleted"
+  | "target_unresolved"
+  | "authorization_denied"
+  | "unsupported_lifecycle";
+
+export interface RevisitIntakeOwnerCurrentTarget {
+  ref: RevisitIntakeTargetRef;
+  head_revision: string | null;
+  answer_state: "unanswered" | "answered";
+  latest_answer: RevisitIntakeAnswer | null;
+  content_available: boolean;
+  editable: boolean;
+  edit_block_reason: RevisitIntakeEditBlockReason | null;
+}
+
+export interface RevisitIntakeHistoryEntry {
+  target: RevisitIntakeTargetRef & { target_id: string };
+  answer: RevisitIntakeAnswer;
+  target_relation: "current" | "previous";
+}
+
+export interface RevisitIntakeLIFFRead {
+  availability: "available" | "target_unresolved";
+  form_definition_version: number;
+  current_target: RevisitIntakeOwnerCurrentTarget | null;
+  history: RevisitIntakeHistoryEntry[];
+  next_cursor: string | null;
+}
+
+export interface RevisitIntakeSubmitRequest {
+  pet_id: string;
+  target_generation: string;
+  expected_revision: string | null;
+  form_definition_version: number;
+  answers: RevisitIntakeInputAnswers;
+}
+
+export interface RevisitIntakeResultRefs {
+  appointment_id: string;
+  pet_id: string;
+  target_id: string;
+  answer_id: string;
+}
+
+export interface RevisitIntakeCommittedVersions {
+  target_generation: string;
+  answer_revision: string;
+}
+
+/** RevisitIntakeSuccessResponse（visible / redacted の2形）。 */
+export interface RevisitIntakeSucceededResult {
+  operation_result: {
+    operation_id: string;
+    intent: "revisit-intake.submit";
+    state: "succeeded";
+    committed_at: string;
+    result_refs: RevisitIntakeResultRefs | null;
+    committed_versions: RevisitIntakeCommittedVersions | null;
+  };
+  current_state: RevisitIntakeOwnerCurrentTarget | null;
+  content_available: boolean;
+}
+
+/** RevisitIntakeUnresolvedResponse（claimed_uncommitted / result_unavailable）。失敗確定ではない。 */
+export interface RevisitIntakeUnresolvedResult {
+  operation_result: {
+    operation_id: string;
+    intent: "revisit-intake.submit";
+    state: "claimed_uncommitted" | "result_unavailable";
+  };
+  current_state: null;
+  content_available: false;
+}
+
+export type RevisitIntakeResultResponse =
+  | RevisitIntakeSucceededResult
+  | RevisitIntakeUnresolvedResult;
+
+/** 結果照会の結果。404 RevisitIntakeLookupNotFound は not_found（失敗確定ではない）として返す。 */
+export type RevisitIntakeLookupResult =
+  | RevisitIntakeResultResponse
+  | {
+      operation_result: {
+        operation_id: string;
+        intent: "revisit-intake.submit";
+        state: "not_found";
+      };
+      current_state: null;
+      content_available: false;
+    };

@@ -11,6 +11,12 @@ import {
   availableTimeSchema,
   reservationSchema,
   createReservationResponseSchema,
+  revisitIntakeLIFFReadSchema,
+  revisitIntakeResultResponseSchema,
+  revisitIntakeEnergyAppetiteSchema,
+  revisitIntakeImprovementSchema,
+  revisitIntakeExaminationPreferenceSchema,
+  isRfc3339DateTime,
 } from "./schemas";
 
 describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
@@ -240,5 +246,204 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
   it("createReservationResponseSchema: 必須フィールド欠落が reject される", () => {
     const fixture = { id: 1 };
     expect(createReservationResponseSchema.safeParse(fixture).success).toBe(false);
+  });
+});
+
+describe("revisit intake schemas（EMR-474）", () => {
+  const unanswered = {
+    availability: "available",
+    form_definition_version: 1,
+    current_target: {
+      ref: { target_id: null, appointment_id: "12001", pet_id: "801", target_generation: "3" },
+      head_revision: null,
+      answer_state: "unanswered",
+      latest_answer: null,
+      content_available: false,
+      editable: true,
+      edit_block_reason: null,
+    },
+    history: [],
+    next_cursor: null,
+  };
+
+  it("api.yaml の unpersisted 例が通る", () => {
+    expect(revisitIntakeLIFFReadSchema.safeParse(unanswered).success).toBe(true);
+  });
+
+  it("ID を Number で返す応答は reject する（10進文字列のみ）", () => {
+    const bad = {
+      ...unanswered,
+      current_target: {
+        ...unanswered.current_target,
+        ref: { ...unanswered.current_target.ref, appointment_id: 12001 },
+      },
+    };
+    expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("未知の edit_block_reason は補完せず reject する", () => {
+    const bad = {
+      ...unanswered,
+      current_target: { ...unanswered.current_target, edit_block_reason: "staff_locked" },
+    };
+    expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("未回答なのに head_revision がある不整合は reject する", () => {
+    const bad = {
+      ...unanswered,
+      current_target: { ...unanswered.current_target, head_revision: "1" },
+    };
+    expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("可視 head の latest_answer.revision が head_revision と一致しない応答は reject する", () => {
+    const ans = {
+      answer_id: "9101",
+      revision: "1",
+      form_definition_version: 1,
+      received_at: "2026-10-20T13:00:00Z",
+      provenance: "owner_submission",
+      answers: {
+        visit_purpose: "合成目的",
+        onset: null,
+        energy: null,
+        appetite: null,
+        current_symptoms: null,
+        improvement: null,
+        examination_preference: null,
+        main_concern: null,
+      },
+    };
+    const target = {
+      ...unanswered.current_target,
+      ref: { ...unanswered.current_target.ref, target_id: "5401" },
+      answer_state: "answered",
+      latest_answer: ans,
+      content_available: true,
+    };
+    const matched = { ...unanswered, current_target: { ...target, head_revision: "1" } };
+    const mismatched = { ...unanswered, current_target: { ...target, head_revision: "2" } };
+    expect(revisitIntakeLIFFReadSchema.safeParse(matched).success).toBe(true);
+    expect(revisitIntakeLIFFReadSchema.safeParse(mismatched).success).toBe(false);
+  });
+
+  it("未知の選択肢 code は reject する", () => {
+    expect(revisitIntakeEnergyAppetiteSchema.safeParse("fine").success).toBe(false);
+    expect(revisitIntakeImprovementSchema.safeParse("new_symptoms").success).toBe(true);
+    expect(revisitIntakeExaminationPreferenceSchema.safeParse("examination").success).toBe(true);
+  });
+
+  it("結果 union: redacted 成功と claimed / result_unavailable が通り、未知 state は reject", () => {
+    const operationId = "00000000-0000-4000-8000-000000000001";
+    const redacted = {
+      operation_result: {
+        operation_id: operationId,
+        intent: "revisit-intake.submit",
+        state: "succeeded",
+        committed_at: "2026-10-20T13:00:00Z",
+        result_refs: null,
+        committed_versions: null,
+      },
+      current_state: null,
+      content_available: false,
+    };
+    const claimed = {
+      operation_result: {
+        operation_id: operationId,
+        intent: "revisit-intake.submit",
+        state: "claimed_uncommitted",
+      },
+      current_state: null,
+      content_available: false,
+    };
+    expect(revisitIntakeResultResponseSchema.safeParse(redacted).success).toBe(true);
+    expect(revisitIntakeResultResponseSchema.safeParse(claimed).success).toBe(true);
+    expect(
+      revisitIntakeResultResponseSchema.safeParse({
+        ...claimed,
+        operation_result: { ...claimed.operation_result, state: "failed" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("revisit intake date-time（RFC3339）", () => {
+  it.each([
+    ["2026-10-20T13:00:00Z", true],
+    ["2026-10-20T13:00:00.123+09:00", true],
+    ["2028-02-29T00:00:00Z", true],
+    ["2026-06-30T23:59:60Z", true],
+    ["2026-02-29T00:00:00Z", false],
+    ["2026-13-01T00:00:00Z", false],
+    ["2026-10-20T24:00:00Z", false],
+    ["2026-10-20T13:00:61Z", false],
+    ["2026-10-20T13:00:00+24:00", false],
+    ["2026-10-20 13:00:00Z", false],
+    ["2026-10-20T13:00:00", false],
+    ["yesterday", false],
+  ])("%s → %s", (value, expected) => {
+    expect(isRfc3339DateTime(value)).toBe(expected);
+  });
+
+  const answers = {
+    visit_purpose: "合成目的",
+    onset: null,
+    energy: null,
+    appetite: null,
+    current_symptoms: null,
+    improvement: null,
+    examination_preference: null,
+    main_concern: null,
+  };
+  const ans = (receivedAt: string) => ({
+    answer_id: "9101",
+    revision: "1",
+    form_definition_version: 1,
+    received_at: receivedAt,
+    provenance: "owner_submission",
+    answers,
+  });
+  const ref = { target_id: "5401", appointment_id: "12001", pet_id: "801", target_generation: "3" };
+  const readWith = (latestAt: string, historyAt: string) => ({
+    availability: "available",
+    form_definition_version: 1,
+    current_target: {
+      ref,
+      head_revision: "1",
+      answer_state: "answered",
+      latest_answer: ans(latestAt),
+      content_available: true,
+      editable: true,
+      edit_block_reason: null,
+    },
+    history: [{ target: ref, answer: ans(historyAt), target_relation: "current" }],
+    next_cursor: null,
+  });
+
+  it("読込の latest_answer と履歴の received_at が不正なら reject する", () => {
+    const ok = "2026-10-20T13:00:00Z";
+    expect(revisitIntakeLIFFReadSchema.safeParse(readWith(ok, ok)).success).toBe(true);
+    expect(revisitIntakeLIFFReadSchema.safeParse(readWith("2026-10-20", ok)).success).toBe(false);
+    expect(revisitIntakeLIFFReadSchema.safeParse(readWith(ok, "not-a-date")).success).toBe(false);
+  });
+
+  it("成功 receipt の committed_at が不正なら reject する", () => {
+    const receipt = (committedAt: string) => ({
+      operation_result: {
+        operation_id: "00000000-0000-4000-8000-000000000001",
+        intent: "revisit-intake.submit",
+        state: "succeeded",
+        committed_at: committedAt,
+        result_refs: null,
+        committed_versions: null,
+      },
+      current_state: null,
+      content_available: false,
+    });
+    expect(
+      revisitIntakeResultResponseSchema.safeParse(receipt("2026-10-20T13:00:00Z")).success,
+    ).toBe(true);
+    expect(revisitIntakeResultResponseSchema.safeParse(receipt("2026/10/20")).success).toBe(false);
   });
 });

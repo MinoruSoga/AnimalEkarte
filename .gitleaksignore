@@ -1,0 +1,7 @@
+# gitleaks の fingerprint 単位の誤検知除外（<commit>:<path>:<rule>:<line>）。
+# 実シークレットを登録しない。履歴上の合成テスト値だけを対象にする。
+#
+# EMR-474 (PR #756): line-reserve の zod テストで操作 key 用の合成 UUID を `const key = "…"` として
+# 置いた行が generic-api-key に誤検知された。後続 commit 684af3592 で変数名と値を差し替え済みだが、
+# gitleaks は PR 範囲の全 commit を走査するため履歴側の fingerprint を除外する。
+0d93cc069bdb6116493e772e8c99a9842f543367:frontend/line-reserve/src/api/schemas.test.ts:generic-api-key:306
