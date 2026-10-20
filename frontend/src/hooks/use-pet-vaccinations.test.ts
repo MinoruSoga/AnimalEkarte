@@ -111,11 +111,11 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.[0].next).toBe("-");
+    expect(result.current.data?.[0].next).toBe("—");
     expect(result.current.data?.[0].nextDate).toBe("");
   });
 
-  it("未設定の実施日は dateISO を空にし表示側で '-' になる", async () => {
+  it("未設定の実施日は dateISO を空にし表示側で '—' になる", async () => {
     server.use(
       http.get("/api/v1/vaccinations", () =>
         HttpResponse.json({ data: [makeVaccination({ date: undefined as unknown as string })] }),
@@ -128,7 +128,7 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.[0].date).toBe("-");
+    expect(result.current.data?.[0].date).toBe("—");
     expect(result.current.data?.[0].dateISO).toBe("");
   });
 
@@ -147,7 +147,7 @@ describe("useGetPetVaccinations (SD-19: JST 壁日付整形)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(result.current.data?.[0].next).toBe("-");
+    expect(result.current.data?.[0].next).toBe("—");
     expect(result.current.data?.[0].nextDate).toBe("");
   });
 

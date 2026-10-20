@@ -1,4 +1,5 @@
 import { formatJSTDate } from "@/lib/jst-date";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 export const CLINICAL_HISTORY_KINDS = [
   "診療",
@@ -257,7 +258,9 @@ function vaccinationEntries(
         source: "接種記録",
         title: vaccination.name || "ワクチン名なし",
         detail: joinDetail([
-          vaccination.next && vaccination.next !== "-" ? `次回 ${vaccination.next}` : undefined,
+          vaccination.next && vaccination.next !== EMPTY_VALUE
+            ? `次回 ${vaccination.next}`
+            : undefined,
           vaccination.remarks,
         ]),
         status: "実施済",

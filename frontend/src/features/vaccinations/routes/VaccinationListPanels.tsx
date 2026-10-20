@@ -25,6 +25,7 @@ import {
   vaccinationListDetailHref,
   type VaccinationListDetailState,
 } from "./vaccinations-list-model";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 interface VaccinationRowActionsProps {
   record: VaccinationRecord;
@@ -92,11 +93,11 @@ function VaccinationListRow({
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "-"}
+        {record.date ? formatDate(record.date) : EMPTY_VALUE}
       </TableCell>
       <TableCell className={`font-mono whitespace-nowrap ${C.text}`}>
         <div className="flex items-center gap-1.5">
-          {record.nextDate ? formatDate(record.nextDate) : "-"}
+          {record.nextDate ? formatDate(record.nextDate) : EMPTY_VALUE}
           <CheckupAlertBadge nextDate={record.nextDate} />
         </div>
       </TableCell>
@@ -111,7 +112,7 @@ function VaccinationListRow({
         </DataTableRowLink>
       </TableCell>
       <TableCell className={`font-medium ${C.text} min-w-[160px]`}>
-        {record.vaccineName || "-"}
+        {record.vaccineName || EMPTY_VALUE}
       </TableCell>
       <TableCell className="text-right">
         {canEdit || canDelete ? (

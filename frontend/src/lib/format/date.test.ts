@@ -21,19 +21,19 @@ describe("formatDate", () => {
     expect(formatDate("2026-12-31")).toBe("2026/12/31");
   });
 
-  it("undefined を渡すと '-' を返す", () => {
-    expect(formatDate(undefined)).toBe("-");
+  it("undefined を渡すと '—' を返す", () => {
+    expect(formatDate(undefined)).toBe("—");
   });
 
-  it("null を渡すと '-' を返す", () => {
-    expect(formatDate(null)).toBe("-");
+  it("null を渡すと '—' を返す", () => {
+    expect(formatDate(null)).toBe("—");
   });
 
-  it("空文字を渡すと '-' を返す", () => {
-    expect(formatDate("")).toBe("-");
+  it("空文字を渡すと '—' を返す", () => {
+    expect(formatDate("")).toBe("—");
   });
 
-  it("不正な日付文字列を渡すと '-' を返す", () => {
-    expect(formatDate("not-a-date")).toBe("-");
+  it("不正な日付文字列を渡すと '—' を返す", () => {
+    expect(formatDate("not-a-date")).toBe("—");
   });
 });
