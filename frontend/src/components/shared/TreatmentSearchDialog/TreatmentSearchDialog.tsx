@@ -115,13 +115,25 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
     vaccines.forEach((v) => {
       if (v.isActive) {
-        items.push({ id: v.id, name: v.name, unitPrice: v.price, category: "予防" });
+        items.push({
+          id: v.id,
+          name: v.name,
+          unitPrice: v.price,
+          category: "予防",
+          isNonInsurance: v.insuranceSetting,
+        });
       }
     });
 
     checkupTypes.forEach((ct) => {
       if (ct.isActive) {
-        items.push({ id: ct.id, name: ct.name, unitPrice: ct.price, category: "検査" });
+        items.push({
+          id: ct.id,
+          name: ct.name,
+          unitPrice: ct.price,
+          category: "検査",
+          isNonInsurance: ct.insuranceSetting,
+        });
       }
     });
 

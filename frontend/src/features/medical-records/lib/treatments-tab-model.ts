@@ -27,8 +27,8 @@ export function buildMasterSelectionPayload(params: {
   quantity: number;
   sortOrder: number;
   /**
-   * EMR-454: master の保険設定が未設定（旧欠落 null・未取得）のときに使う各経路の従来既定。
-   * 明示値（true/false）はこの値に関係なく反転写像する。
+   * 互換引数。未設定値のboolean補完には使わない。
+   * 未設定・未取得は保存前に停止する。明示値だけ反転写像する。
    */
   insuranceFallback?: boolean;
 }): CreateTreatmentInput {
@@ -51,15 +51,15 @@ export function buildMasterSelectionPayload(params: {
 
 /**
  * EMR-454: master の品目別保険設定（is_non_insurance）を治療明細の適用対象 field へ反転写像する。
- * 明示 true（対象外）→ false、明示 false（対象）→ true。旧欠落 null・未取得は master 値から
- * 推測せず、呼び出し経路の従来既定 fallback を維持する（AC-accounting-item-insurance-legacy-missing）。
+ * 明示 true（対象外）→ false、明示 false（対象）→ true。旧欠落 null・未取得は保存を停止し、
+ * 明示booleanへ推測補完しない（AC-accounting-item-insurance-legacy-missing）。
  */
 function toInsuranceApplicable(
   isNonInsurance: boolean | null | undefined,
-  fallback: boolean,
+  _fallback: boolean,
 ): boolean {
   if (typeof isNonInsurance === "boolean") return !isNonInsurance;
-  return fallback;
+  throw new Error("保険設定が未設定または未取得です。マスタの設定を確認してください");
 }
 
 // ─────────────────────────────────────────────────────────────────────

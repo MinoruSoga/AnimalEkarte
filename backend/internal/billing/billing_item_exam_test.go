@@ -84,21 +84,8 @@ func TestBillingItemExamProvenance_UnbilledCandidates(t *testing.T) {
 		assert.True(t, *items[0].IsInsuranceApplicable)
 	})
 
-	// EMR-454（2026-10-20 チケット回答 Q1）: 現在 master JOIN と fallback の境界。
-	// master の NULL（旧欠落）は従来既定 true/false へ推測補完せず nil のまま候補へ載せる。
-	t.Run("keeps candidate without speculating when master setting is legacy NULL", func(t *testing.T) {
-		f := setupBillingItemReferenceFixture(t)
-		price := int64(4200)
-		// is_non_insurance を明示更新しない（NULL のまま = 旧欠落相当）
-		makeBillingExam(t, f, "旧欠落検査", &price)
-
-		items, unbillable, err := f.repo.FindUnbilledExamItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
-		require.NoError(t, err)
-		assert.Zero(t, unbillable)
-		require.Len(t, items, 1)
-		assert.Nil(t, items[0].IsInsuranceApplicable)
-	})
-
+	// ExaminationType.is_non_insurance is NOT NULL. A default false is an
+	// explicit insured value, not a legacy NULL fixture (nullable kinds differ).
 	// master 行が取得できない（削除済み）場合は候補化せず unbillable として止める。
 	// 旧欠落を既定値へ落として会計行を作らない。
 	t.Run("stops deleted master as blocking unbillable without speculation", func(t *testing.T) {

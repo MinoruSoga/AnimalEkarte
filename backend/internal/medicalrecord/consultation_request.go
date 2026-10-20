@@ -30,7 +30,7 @@ func (r *createConsultationRequest) toServiceInput() *CreateConsultationInput {
 		TaxType:       nilIfEmpty(r.TaxType),
 		TaxRate:       r.TaxRate,
 
-		IsNonInsurance: r.IsNonInsurance,
+		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
 	}
 }
 

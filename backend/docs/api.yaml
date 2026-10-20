@@ -2951,6 +2951,10 @@ components:
           description: 在庫ID
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 応答のnullは旧欠落、trueは保険対象外、falseは保険対象。requestはCreateVaccineRequest/UpdateVaccineRequestを参照。
         created_at:
           type: string
           format: date-time
@@ -2959,6 +2963,61 @@ components:
           type: string
           format: date-time
           readOnly: true
+    CreateVaccineRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        species:
+          type: string
+          enum: [dog, cat, both]
+        interval:
+          type: string
+        is_non_insurance:
+          type: boolean
+          description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
+    UpdateVaccineRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        species:
+          type: string
+          enum: [dog, cat, both]
+        interval:
+          type: string
+        is_non_insurance:
+          type: boolean
+          description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
+        clear_parent_id:
+          type: boolean
     AnimalSpecies:
       type: object
       required: [name]
@@ -3357,7 +3416,7 @@ components:
           description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は変更なし（DB NULL=旧欠落を書き換えない）、null は 400 invalid input、true/false は明示更新。
     CreateProcedureRequest:
       type: object
-      required: [name]
+      required: [name, anesthesia, tax_type]
       description: 処置項目登録の request body（EMR-454）。response の Procedure とは別 schema（is_non_insurance は null 不許可）。
       properties:
         name:
@@ -3373,7 +3432,7 @@ components:
           nullable: true
         is_active:
           type: boolean
-          default: true
+          default: false
         description:
           type: string
         duration:
@@ -3949,6 +4008,15 @@ components:
           nullable: true
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 応答のnullは旧欠落（未設定）。trueは保険対象外、falseは保険対象。POST省略はtrue、POST/PATCHのnullは400、PATCH省略は維持。
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 応答の現在版。PATCHでは編集開始版が必須。不一致は409。省略や現在版で代用しない。
         created_at:
           type: string
           format: date-time
@@ -3962,6 +4030,65 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
+    CreateCheckupTypeRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        interval:
+          type: string
+        target_age:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        is_non_insurance:
+          type: boolean
+          description: 省略はPOSTでtrue、PATCHで現値維持。明示nullは400。
+    UpdateCheckupTypeRequest:
+      type: object
+      required: [version]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        interval:
+          type: string
+        target_age:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        is_non_insurance:
+          type: boolean
+          description: 省略はPOSTでtrue、PATCHで現値維持。明示nullは400。
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 編集開始時の版。必須。競合は409。
+        clear_parent_id:
+          type: boolean
     Occupation:
       type: object
       required: [name]
@@ -17116,7 +17243,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vaccine'
+              $ref: '#/components/schemas/CreateVaccineRequest'
       responses:
         '201':
           description: 登録成功
@@ -17220,7 +17347,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vaccine'
+              $ref: '#/components/schemas/UpdateVaccineRequest'
       responses:
         '200':
           description: 更新成功
@@ -19839,7 +19966,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CheckupType'
+              $ref: '#/components/schemas/CreateCheckupTypeRequest'
       responses:
         '201':
           description: 登録成功
@@ -19944,7 +20071,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CheckupType'
+              $ref: '#/components/schemas/UpdateCheckupTypeRequest'
       responses:
         '200':
           description: 更新成功

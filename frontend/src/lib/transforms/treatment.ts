@@ -94,7 +94,7 @@ export type ProcedureItem = ReturnType<typeof transformProcedure>;
 // Vaccine
 // ─────────────────────────────────────────────────
 
-export const transformVaccine = (data: Vaccine) => ({
+export const transformVaccine = (data: Vaccine & { is_non_insurance?: boolean | null }) => ({
   id: String(data.id ?? 0),
   name: data.name,
   parentId: data.parent_id !== undefined ? String(data.parent_id) : undefined,
@@ -104,6 +104,9 @@ export const transformVaccine = (data: Vaccine) => ({
   sortOrder: data.sort_order ?? 0,
   species: data.species,
   interval: data.interval ?? "",
+  // Compatibility alias matches the dedicated vaccine adapter; canonical null is retained below.
+  isNonInsurance: typeof data.is_non_insurance === "boolean" ? data.is_non_insurance : undefined,
+  insuranceSetting: toItemInsuranceSetting(data.is_non_insurance),
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -114,7 +117,9 @@ export type VaccineItem = ReturnType<typeof transformVaccine>;
 // CheckupType
 // ─────────────────────────────────────────────────
 
-export const transformCheckupType = (data: CheckupType) => ({
+export const transformCheckupType = (
+  data: CheckupType & { is_non_insurance?: boolean | null; version?: number },
+) => ({
   // EMR-225: サイドパネルが「この行は健診区分」と識別するための discriminant
   // （健診フィールド定義エディタの出し分けに使用。他タブの TreatmentItem には付かない）。
   masterKind: "checkup" as const,
@@ -127,6 +132,9 @@ export const transformCheckupType = (data: CheckupType) => ({
   sortOrder: data.sort_order ?? 0,
   interval: data.interval ?? "",
   targetAge: data.target_age ?? "",
+  isNonInsurance: toItemInsuranceSetting(data.is_non_insurance),
+  insuranceSetting: toItemInsuranceSetting(data.is_non_insurance),
+  version: typeof data.version === "number" ? data.version : null,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -156,4 +164,6 @@ export type TreatmentItem = {
   anesthesia?: AnesthesiaType;
   /** Checkup only — present when the item is a checkup package master row (EMR-225) */
   masterKind?: "checkup";
+  version?: number | null;
+  insuranceSetting?: ItemInsuranceSetting;
 };

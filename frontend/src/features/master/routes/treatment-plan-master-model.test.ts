@@ -5,6 +5,7 @@ import {
   applyItemInsuranceForCreate,
   applyItemInsuranceForUpdate,
   buildCheckupCreateRequest,
+  buildCheckupUpdateRequest,
   buildConsultationCreateRequest,
   buildConsultationUpdateRequest,
   buildExaminationCreateRequest,
@@ -84,7 +85,7 @@ describe("buildProcedureCreateRequest", () => {
     ["local", "local"],
     ["sedation", "sedation"],
     ["general", "general"],
-  ] as const)("sends anesthesia=%s when form selects %s", (selected) => {
+  ] as const)("sends anesthesia=%s when form selects %s", (selected, _expected) => {
     const request = buildProcedureCreateRequest(makeFormData({ anesthesia: selected }));
     expect(request.anesthesia).toBe(selected);
     expect(request.name).toBe("V04処置テスト");
@@ -235,5 +236,20 @@ describe("applyItemInsuranceForUpdate", () => {
     );
     expect(request.clear_parent_id).toBe(true);
     expect(request.is_non_insurance).toBe(true);
+  });
+});
+
+describe("checkup editing contract", () => {
+  it("requires the captured editing version instead of substituting a current version", () => {
+    expect(() => buildCheckupUpdateRequest(makeFormData())).toThrow("編集開始時");
+    const req = buildCheckupUpdateRequest(makeFormData({ version: 7, isNonInsurance: false }));
+    expect(req.version).toBe(7);
+    expect(applyItemInsuranceForUpdate(req, false).is_non_insurance).toBe(false);
+  });
+  it("omits an unchanged or legacy insurance value", () => {
+    expect(applyItemInsuranceForUpdate({ name: "A" }, undefined)).not.toHaveProperty(
+      "is_non_insurance",
+    );
+    expect(applyItemInsuranceForUpdate({ name: "A" }, null)).not.toHaveProperty("is_non_insurance");
   });
 });

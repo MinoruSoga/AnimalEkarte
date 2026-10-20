@@ -31,6 +31,7 @@ describe("buildMasterSelectionPayload", () => {
       name: "アモキシシリン",
       unitPrice: 100,
       category: "薬剤",
+      isNonInsurance: true,
       medicineId: "42",
     };
 
@@ -48,6 +49,7 @@ describe("buildMasterSelectionPayload", () => {
       name: "一般診察",
       unitPrice: 3000,
       category: "診察",
+      isNonInsurance: true,
     };
 
     const payload = buildMasterSelectionPayload({ item, quantity: 1, sortOrder: 3 });
@@ -63,6 +65,7 @@ describe("buildMasterSelectionPayload", () => {
       name: "テスト",
       unitPrice: 0,
       category: "薬剤",
+      isNonInsurance: true,
       medicineId: "",
     };
 

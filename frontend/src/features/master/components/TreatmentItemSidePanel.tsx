@@ -44,6 +44,8 @@ export type TreatmentFormData = {
    * null は「未保存」であり false（保険対象）へ補完しない。
    */
   isNonInsurance: ItemInsuranceSetting;
+  insuranceChanged?: boolean;
+  version?: number | null;
   /** undefined = 未変更(Update時に送らない), "" = 親なし明示, "123" = 親指定 */
   parentId?: string;
   /** Procedure only — BE create requires anesthesia enum */
@@ -79,7 +81,9 @@ function resolveInitialItemInsurance(
 ): ItemInsuranceSetting {
   if (!insuranceTriState) return item?.isNonInsurance ?? false;
   if (!item) return true;
-  return item.isNonInsurance ?? null;
+  return "insuranceSetting" in item
+    ? (item.insuranceSetting ?? null)
+    : (item.isNonInsurance ?? null);
 }
 
 interface TreatmentItemSidePanelProps {
@@ -137,6 +141,8 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
       taxType: (item ? (item.taxType ?? "excluded") : "included") as TaxType,
       taxRate: item?.taxRate ?? 0.1,
       isNonInsurance: initialIsNonInsurance,
+      insuranceChanged: false,
+      version: item?.version,
       parentId: undefined,
       anesthesia: initialAnesthesia(item?.anesthesia),
     },
@@ -257,7 +263,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
               : formData.isNonInsurance === true
           }
           onPressedChange={(value) =>
-            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: value }))
+            setFormDataDirty((prev) => ({ ...prev, isNonInsurance: value, insuranceChanged: true }))
           }
           className={`text-sm ${formData.isNonInsurance === true ? C.textBrand : C.text50}`}
         >

@@ -185,7 +185,10 @@ export function buildCheckupCreateRequest(data: TreatmentFormData): CreateChecku
 }
 
 export function buildCheckupUpdateRequest(data: TreatmentFormData): UpdateCheckupTypeRequest {
-  const base = buildCheckupCreateRequest(data);
+  if (typeof data.version !== "number" || !Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new Error("編集開始時の版を取得できません。再読込してください");
+  }
+  const base = { ...buildCheckupCreateRequest(data), version: data.version };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }

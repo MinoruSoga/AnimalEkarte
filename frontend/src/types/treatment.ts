@@ -31,7 +31,7 @@ export type ItemInsuranceSetting = boolean | null;
  * 診察・処置だけ応答/要求の受け口をローカルに拡張する。
  */
 type ItemInsuranceWire = {
-  is_non_insurance?: ItemInsuranceSetting;
+  is_non_insurance?: boolean;
 };
 
 // ─────────────────────────────────────────────────
@@ -97,11 +97,13 @@ export type UpdateProcedureRequest = Partial<ProcedureWritable> &
 type VaccineWritable = Omit<Vaccine, ServerFields | "inventory_id">;
 
 export type CreateVaccineRequest = Pick<VaccineWritable, "name"> &
-  Partial<Omit<VaccineWritable, "name">>;
+  Partial<Omit<VaccineWritable, "name">> &
+  ItemInsuranceWire;
 
-export type UpdateVaccineRequest = Partial<VaccineWritable> & {
-  clear_parent_id?: boolean;
-};
+export type UpdateVaccineRequest = Partial<VaccineWritable> &
+  ItemInsuranceWire & {
+    clear_parent_id?: boolean;
+  };
 
 // ─────────────────────────────────────────────────
 // CheckupType
@@ -110,11 +112,14 @@ export type UpdateVaccineRequest = Partial<VaccineWritable> & {
 type CheckupTypeWritable = Omit<CheckupType, ServerFields>;
 
 export type CreateCheckupTypeRequest = Pick<CheckupTypeWritable, "name"> &
-  Partial<Omit<CheckupTypeWritable, "name">>;
+  Partial<Omit<CheckupTypeWritable, "name">> &
+  ItemInsuranceWire;
 
-export type UpdateCheckupTypeRequest = Partial<CheckupTypeWritable> & {
-  clear_parent_id?: boolean;
-};
+export type UpdateCheckupTypeRequest = Partial<CheckupTypeWritable> &
+  ItemInsuranceWire & {
+    version: number;
+    clear_parent_id?: boolean;
+  };
 
 // ─────────────────────────────────────────────────
 // 共通 Reorder リクエスト

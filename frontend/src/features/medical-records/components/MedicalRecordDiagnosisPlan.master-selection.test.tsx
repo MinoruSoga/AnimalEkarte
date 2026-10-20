@@ -85,7 +85,13 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
         <button
           type="button"
           onClick={() =>
-            props.onSelect({ id: "7", name: "初診", unitPrice: 3307, category: "診察" })
+            props.onSelect({
+              id: "7",
+              name: "初診",
+              unitPrice: 3307,
+              category: "診察",
+              isNonInsurance: false,
+            })
           }
         >
           診察Aを選択
@@ -93,7 +99,13 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
         <button
           type="button"
           onClick={() =>
-            props.onSelect({ id: "8", name: "処置X", unitPrice: 3306, category: "処置" })
+            props.onSelect({
+              id: "8",
+              name: "処置X",
+              unitPrice: 3306,
+              category: "処置",
+              isNonInsurance: false,
+            })
           }
         >
           処置Xを選択
@@ -120,6 +132,7 @@ vi.mock("@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog", () =>
               name: "抗生剤A",
               unitPrice: 3303,
               category: "薬剤",
+              isNonInsurance: false,
               medicineId: "42",
             })
           }
@@ -250,7 +263,14 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
       });
       let resolveDone = false;
       const promise = Promise.resolve(
-        select!({ id: "42", name: "薬A", unitPrice: 3303, category: "薬剤", medicineId: "42" }),
+        select!({
+          id: "42",
+          name: "薬A",
+          unitPrice: 3303,
+          category: "薬剤",
+          isNonInsurance: false,
+          medicineId: "42",
+        }),
       ).finally(() => {
         resolveDone = true;
       });
@@ -291,7 +311,7 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
       await waitFor(() => expect(mockDialogProps.current.onSelect).toBeDefined());
       const select = mockDialogProps.current.onSelect as ((item: unknown) => void) | undefined;
       expect(select).toBeDefined();
-      select?.({ id: "7", name: "初診", unitPrice: 3307, category: "診察" });
+      select?.({ id: "7", name: "初診", unitPrice: 3307, category: "診察", isNonInsurance: false });
       expect(mockCreateMutate).not.toHaveBeenCalled();
       if (guard === "deceased") expect(toast.error).toHaveBeenCalled();
     },

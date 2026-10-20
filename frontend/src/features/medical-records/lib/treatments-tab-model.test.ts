@@ -11,6 +11,7 @@ function masterItem(overrides: Partial<TreatmentMasterItem> = {}): TreatmentMast
     name: "テスト項目",
     unitPrice: 1000,
     category: "検査",
+    isNonInsurance: true,
     ...overrides,
   };
 }
@@ -113,37 +114,30 @@ describe("buildMasterSelectionPayload 品目別保険設定の受渡し (EMR-454
     },
   );
 
-  it.each([
-    { label: "旧欠落 null", isNonInsurance: null },
-    { label: "未取得 undefined", isNonInsurance: undefined },
-  ])("$label は対象へ推測変換せず従来既定 is_insurance=false を維持する", ({ isNonInsurance }) => {
-    const payload = buildMasterSelectionPayload({
-      item: masterItem({ category: "診察", id: "5", isNonInsurance }),
-      quantity: 1,
-      sortOrder: 0,
-    });
-
-    expect(payload.is_insurance).toBe(false);
-  });
-});
-
-describe("buildMasterSelectionPayload insuranceFallback (EMR-454)", () => {
-  it.each([
-    { isNonInsurance: null, expected: true },
-    { isNonInsurance: undefined, expected: true },
-    { isNonInsurance: true, expected: false },
-    { isNonInsurance: false, expected: true },
-  ])(
-    "fallback=true の経路でも明示値は反転写像し、未設定 $isNonInsurance は fallback を使う",
-    ({ isNonInsurance, expected }) => {
-      const payload = buildMasterSelectionPayload({
-        item: masterItem({ category: "処置", id: "5", isNonInsurance }),
-        quantity: 1,
-        sortOrder: 0,
-        insuranceFallback: true,
-      });
-
-      expect(payload.is_insurance).toBe(expected);
+  it.each([null, undefined])(
+    "unknown insurance %s is blocked before payload creation",
+    (isNonInsurance) => {
+      expect(() =>
+        buildMasterSelectionPayload({
+          item: masterItem({ isNonInsurance }),
+          quantity: 1,
+          sortOrder: 0,
+        }),
+      ).toThrow("保険設定が未設定");
     },
   );
 });
+
+it.each([true, false])(
+  "a caller fallback cannot turn unknown into explicit %s",
+  (insuranceFallback) => {
+    expect(() =>
+      buildMasterSelectionPayload({
+        item: masterItem({ isNonInsurance: null }),
+        quantity: 1,
+        sortOrder: 0,
+        insuranceFallback,
+      }),
+    ).toThrow("保険設定が未設定");
+  },
+);

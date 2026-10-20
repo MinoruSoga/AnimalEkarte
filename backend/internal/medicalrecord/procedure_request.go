@@ -30,7 +30,7 @@ func (r *createProcedureRequest) toServiceInput() *CreateProcedureInput {
 		TaxType:     r.TaxType,
 		TaxRate:     r.TaxRate,
 
-		IsNonInsurance: r.IsNonInsurance,
+		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
 	}
 }
 

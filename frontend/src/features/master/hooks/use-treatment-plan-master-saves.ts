@@ -80,7 +80,10 @@ export function useTreatmentPlanMasterSaves({
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildConsultationCreateRequest(data), data.isNonInsurance),
     toUpdateRequest: (data) =>
-      applyItemInsuranceForUpdate(buildConsultationUpdateRequest(data), data.isNonInsurance),
+      applyItemInsuranceForUpdate(
+        buildConsultationUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const examinationSave = useMasterSave<
@@ -113,7 +116,10 @@ export function useTreatmentPlanMasterSaves({
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildProcedureCreateRequest(data), data.isNonInsurance),
     toUpdateRequest: (data) =>
-      applyItemInsuranceForUpdate(buildProcedureUpdateRequest(data), data.isNonInsurance),
+      applyItemInsuranceForUpdate(
+        buildProcedureUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const vaccineSave = useMasterSave<
@@ -127,8 +133,13 @@ export function useTreatmentPlanMasterSaves({
     updateMutation: resources.updateVaccine,
     permissions: { canCreate, canEdit },
     validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: buildVaccineCreateRequest,
-    toUpdateRequest: buildVaccineUpdateRequest,
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildVaccineCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(
+        buildVaccineUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const checkupSave = useMasterSave<
@@ -141,9 +152,25 @@ export function useTreatmentPlanMasterSaves({
     createMutation: resources.createCheckup,
     updateMutation: resources.updateCheckup,
     permissions: { canCreate: canCreateCheckup, canEdit: canEditCheckup },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: buildCheckupCreateRequest,
-    toUpdateRequest: buildCheckupUpdateRequest,
+    validate: (data) => {
+      if (!data.name.trim()) return "名称を入力してください";
+      if (
+        editTarget !== "new" &&
+        (typeof data.version !== "number" ||
+          !Number.isSafeInteger(data.version) ||
+          data.version < 1)
+      ) {
+        return "編集開始時の版を取得できません。再読込してください";
+      }
+      return null;
+    },
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildCheckupCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(
+        buildCheckupUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const saveHooksByTab = useMemo(
