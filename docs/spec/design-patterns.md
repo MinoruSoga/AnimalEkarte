@@ -270,8 +270,8 @@
 
 | 検査 | 状態 | 検出方法 | 対応する規約 |
 |:--|:--|:--|:--|
-| C25 | **実装済み**（件数ラチェット） | `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` / `aria-labelledby` が無い。focus/タッチで開くツールチップの有無は静的に判定できないため、機械化は「全文がどこにも無い」最低線のみ。既存 57 ファイルはファイル別件数の baseline（超過のみ fail） | §3.1 |
-| C26 | **実装済み**（ラチェット） | `<nav>` 内（行の途中から始まる `<nav>` も含む）と `Layout/Sidebar*.tsx` の `truncate`。既存 3 ファイルは allowlist | §1.2 |
+| C25 | **実装済み**（件数ラチェット） | `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` / `aria-labelledby` が無い。focus/タッチで開くツールチップの有無は静的に判定できないため、機械化は「全文がどこにも無い」最低線のみ。既存 58 ファイル / 99 箇所（variant 付き `lg:truncate` 等を含む）はファイル別件数の baseline（超過のみ fail） | §3.1 |
+| C26 | **実装済み**（ラチェット） | `<nav>` 内（行の途中から始まる `<nav>` も含む）と `Layout/Sidebar*.tsx` の `truncate`（variant 付き含む）。既存 3 ファイル / 6 箇所はファイル別件数の baseline | §1.2 |
 | C27 | **実装済み**（件数ラチェット） | `z-N` / `focus:z-N` / `z-[N]` / `zIndex: N` の直書き（`Z` / `Z_CLASS` 参照は許可）。既存 33 ファイルはファイル別件数の baseline | §5.1 |
 | C28 | **実装済み**（ラチェット） | `src/features/**` と `src/components/shared/**` の raw `<select>` / `<input type="date">`。§4.4 の許容文脈（フィルター等）は理由付き allowlist、既存違反 3 ファイルはファイル別件数の baseline（超過分だけ違反） | §4.4 |
 | C29 | **実装済み**（ラチェット） | 保存／送信ボタンの `disabled` / `submitDisabled` に妥当性（`isValid` 系・`.trim()`・`=== ""`・`.length` 比較）を流す式。権限・送信中・ワークフロー状態は対象外。opening tag 単位で判定するため複数行の prop も対象。既存 4 ファイル（見積・レジ締め・シフトテンプレート・ヘルプチャット送信）はファイル別件数の baseline | §4.2 |

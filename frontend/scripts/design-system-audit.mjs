@@ -153,11 +153,12 @@ const C22_VARIANT_PREFIX_RE = /^(?:hover|focus|focus-visible|focus-within|active
 const C22_UTILITY_PREFIX_RE = /^[a-z][a-z]*-[a-z0-9]/;
 
 /** C25: 省略を起こす class。opening tag 単位で title / aria-label / aria-labelledby の有無を見る。 */
-const C25_TRUNCATE_RE = /(?:^|[\s"'`{(])(?:truncate|text-ellipsis|line-clamp-[0-9]+)(?=$|[\s"'`}\)])/;
+/** C25: variant 付き（`lg:truncate`、`*:data-[slot=select-value]:line-clamp-1`）も含める。 */
+const C25_TRUNCATE_RE = /(?:^|[\s"'`{(])(?:[^\s"'`{}()]*:)?(?:truncate|text-ellipsis|line-clamp-[0-9]+)(?=$|[\s"'`}\)])/;
 const C25_AFFORDANCE_RE = /(?:^|\s)(?:title|aria-label|aria-labelledby)\s*=/;
 const C25_OPENING_TAG_START_RE = /<[A-Za-z][\w.]*\b/g;
 /**
- * C25: 既存の truncate をファイル別件数で棚卸しした baseline（2026-10-20 時点 57 ファイル / 96 箇所）。
+ * C25: 既存の truncate をファイル別件数で棚卸しした baseline（2026-10-20 時点 58 ファイル / 99 箇所。variant 付き含む）。
  * ラチェット運用 — baseline を超える追加は fail。全文到達手段を付けて減らしたら件数を下げる（増やさない）。
  * baseline に無いファイルは 1 件目から fail。
  */
@@ -171,7 +172,7 @@ export const C25_TRUNCATE_BASELINE = new Map([
   ["src/components/shared/OwnerSearchModal/OwnerSearchModal.tsx", 1],
   ["src/components/shared/PastRecordHistoryPanel/PastRecordHistoryPanel.tsx", 2],
   ["src/components/shared/PatientContextHeader/PatientContextHeader.tsx", 3],
-  ["src/components/shared/PatientInfoCard/PatientInfoCard.tsx", 6],
+  ["src/components/shared/PatientInfoCard/PatientInfoCard.tsx", 8],
   ["src/components/shared/PropertyFilter/FilterRuleRow.tsx", 1],
   ["src/components/shared/PropertyFilter/InlineSelector.tsx", 2],
   ["src/components/shared/PropertyFilter/SortPill.tsx", 1],
@@ -179,6 +180,7 @@ export const C25_TRUNCATE_BASELINE = new Map([
   ["src/components/shared/ReservationFormModal/ReservationTypeAndStaffFields.tsx", 1],
   ["src/components/shared/SidePeek/PropertyRow.tsx", 1],
   ["src/components/ui/searchable-select.tsx", 1],
+  ["src/components/ui/select.tsx", 1],
   ["src/features/accounting/components/RefundSection.tsx", 1],
   ["src/features/auth/components/LoginForm.tsx", 1],
   ["src/features/checkups/routes/CheckupsListPanels.tsx", 1],
@@ -223,12 +225,15 @@ export const C25_TRUNCATE_BASELINE = new Map([
 /** C26: nav ブロック。SidebarItems は別ファイルで `<nav>` を持たないため path でも判定する。 */
 const C26_NAV_BLOCK_RE = /<nav\b[\s\S]*?<\/nav>/g;
 const C26_SIDEBAR_FILE_RE = /^src[/\\]components[/\\]shared[/\\]Layout[/\\]Sidebar[^/\\]*\.tsx$/;
-/** C26: 既存のナビ省略（STG 監査 H-2）。文言を短くするか省略を外したらエントリを削る。 */
-export const C26_NAV_TRUNCATE_ALLOWLIST = new Set([
+/**
+ * C26: 既存のナビ省略（STG 監査 H-2）のファイル別件数（ラチェット）。baseline を超える追加は既存ファイルでも違反。
+ * 文言を短くするか省略を外したら件数を下げる／エントリを削る。
+ */
+export const C26_NAV_TRUNCATE_BASELINE = new Map([
   // 2026-10-20 STG 監査 H-2（サイドバー項目名の末尾切れ）と manual の文書 TOC。
-  "src/components/shared/Layout/SidebarChrome.tsx",
-  "src/components/shared/Layout/SidebarItems.tsx",
-  "src/features/manual/components/ManualContent.tsx",
+  ["src/components/shared/Layout/SidebarChrome.tsx", 2],
+  ["src/components/shared/Layout/SidebarItems.tsx", 2],
+  ["src/features/manual/components/ManualContent.tsx", 2],
 ]);
 /** C27: Tailwind の z-N（variant 付き含む）・任意値 z-[N]・インライン style の数値 z-index。`Z.*` / `Z_CLASS.*` 参照は対象外。 */
 const C27_Z_INDEX_RE = /(?:^|[\s"'`{(])(?:[a-z-]+:)*-?z-(?:[0-9]+|\[[0-9]+\])(?=$|[\s"'`}\)])|\bzIndex\s*:\s*[0-9]+/;
@@ -250,7 +255,7 @@ export const C27_Z_INDEX_BASELINE = new Map([
   ["src/components/ui/select.tsx", 1],
   ["src/components/ui/sheet.tsx", 2],
   ["src/components/ui/switch.tsx", 1],
-  ["src/components/ui/toggle-group.tsx", 1],
+  ["src/components/ui/toggle-group.tsx", 2],
   ["src/constants/medical-record-fixed-action-layout.ts", 1],
   ["src/features/accounting/components/AccountingItemRow.tsx", 2],
   ["src/features/accounting/components/ItemListCard.tsx", 3],
@@ -1160,7 +1165,6 @@ function applyCountBaseline(violations, baseline, baselineName) {
  */
 export function checkC26(text, relPath = "") {
   if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
-  if (C26_NAV_TRUNCATE_ALLOWLIST.has(relPath)) return [];
 
   const code = stripTsCommentsPreservingLines(text);
   const ranges = [];
@@ -1184,15 +1188,19 @@ export function checkC26(text, relPath = "") {
     }
     offset += line.length + 1;
   });
-  return violations;
+  return applyCountBaseline(violations, C26_NAV_TRUNCATE_BASELINE.get(relPath), "C26_NAV_TRUNCATE_BASELINE");
 }
 
 /** checkC27 は `Z` / `Z_CLASS` を介さない z-index 直書きを検出する（design-patterns.md §5.1）。 */
 export function checkC27(text, relPath = "") {
   if (isDesignTokensFile(relPath) || isTestFile(path.basename(relPath))) return [];
   const violations = [];
+  // 1 行に複数の直書き（`focus:z-10 focus-visible:z-10`）があれば件数分を数える（行数ではなく出現数で baseline と比較）。
+  const zIndexRe = new RegExp(C27_Z_INDEX_RE.source, "g");
   stripTsCommentsPreservingLines(text).split("\n").forEach((line, i) => {
-    if (C27_Z_INDEX_RE.test(line)) violations.push({ lineNumber: i + 1, text: line.trim() });
+    for (const match of line.matchAll(zIndexRe)) {
+      violations.push({ lineNumber: i + 1, text: `${line.trim()}（${match[0].trim()}）` });
+    }
   });
   return applyCountBaseline(violations, C27_Z_INDEX_BASELINE.get(relPath), "C27_Z_INDEX_BASELINE");
 }

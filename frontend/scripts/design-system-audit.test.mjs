@@ -1542,7 +1542,8 @@ test("checkC25: baseline 件数を超えた分だけ検出し、baseline 以内�
 
 test("checkC27: 標準 Tailwind の z-N と variant 付き z-N も検出し、baseline 以内は許可する", () => {
   const text = ['className="relative z-10"', 'className="focus:z-20 hover:z-[5]"', "style={{ zIndex: Z.overlay }}"].join("\n");
-  assert.deepEqual(audit.checkC27(text, "src/features/new/Fresh.tsx").map((v) => v.lineNumber), [1, 2]);
+  // 2 行目は variant 付きが 2 つ並ぶので出現数 2 で数える（行数ではなく件数）。
+  assert.deepEqual(audit.checkC27(text, "src/features/new/Fresh.tsx").map((v) => v.lineNumber), [1, 2, 2]);
   const [file, count] = [...audit.C27_Z_INDEX_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
   const within = Array.from({ length: count }, () => 'className="z-10"').join("\n");
   assert.equal(audit.checkC27(within, file).length, 0);
@@ -1559,6 +1560,24 @@ test("checkC28: src/components/shared の raw select / date も検査する", ()
   const over = audit.checkC28(`${within}\n<input type="date" />`, file);
   assert.equal(over.length, 1);
   assert.ok(over[0].text.includes("C28_NATIVE_INPUT_BASELINE"));
+});
+
+test("checkC25: variant 付きの truncate / line-clamp も検出する", () => {
+  const text = [
+    '<span className="lg:truncate">{name}</span>',
+    '<SelectPrimitive.Value className="*:data-[slot=select-value]:line-clamp-1">{v}</SelectPrimitive.Value>',
+    '<span className="md:truncate" title={name}>{name}</span>',
+  ].join("\n");
+  assert.deepEqual(audit.checkC25(text, "src/features/new/Fresh.tsx").map((v) => v.lineNumber), [1, 2]);
+});
+
+test("checkC26: baseline 件数を超えた分だけ検出し、baseline 以内は許可する", () => {
+  const [file, count] = [...audit.C26_NAV_TRUNCATE_BASELINE.entries()][0] ?? ["src/components/shared/Layout/SidebarX.tsx", 1];
+  const within = Array.from({ length: count }, (_, i) => `<nav><a className="truncate">{v${i}}</a></nav>`).join("\n");
+  assert.equal(audit.checkC26(within, file).length, 0);
+  const over = audit.checkC26(`${within}\n<nav><a className="truncate">{extra}</a></nav>`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C26_NAV_TRUNCATE_BASELINE"));
 });
 
 test("checkC26: 行の途中から始まる <nav> 内の truncate も検出する", () => {
