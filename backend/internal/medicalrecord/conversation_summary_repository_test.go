@@ -265,24 +265,23 @@ func TestConversationSummaryRepository_SaveIdempotentResend(t *testing.T) {
 	ctx := context.Background()
 	record := makeConversationSummaryRecord(t, db, conversationSummaryClinicA, "CS-IDEMPOTENT")
 
-	first, err := repo.Save(ctx, SaveConversationSummaryCommand{
-		ClinicID:        conversationSummaryClinicA,
-		MedicalRecordID: record.ID,
-		Summary:         "再送される要約",
-		Source:          "lstep",
-	})
-	require.NoError(t, err)
-	require.NotNil(t, first.Revision)
-	require.Equal(t, int64(1), *first.Revision)
-
-	// 同一内容 + 同一期待版 → no-op 成功（revision 据え置き）。
-	resent, err := repo.Save(ctx, SaveConversationSummaryCommand{
+	// 同一要求（期待版0=未保存期待）を2回送る。応答消失後の再送を模する。
+	request := SaveConversationSummaryCommand{
 		ClinicID:         conversationSummaryClinicA,
 		MedicalRecordID:  record.ID,
 		Summary:          "再送される要約",
 		Source:           "lstep",
-		ExpectedRevision: conversationSummaryInt64Ptr(1),
-	})
+		ExpectedRevision: conversationSummaryInt64Ptr(0),
+	}
+
+	first, err := repo.Save(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, first.Revision)
+	require.Equal(t, int64(1), *first.Revision)
+
+	// 同一要求の再送 → no-op 成功（revision 据え置き）。期待版が古くなっていても
+	// 保存済み内容が要求の意図と一致するため成功を返す。
+	resent, err := repo.Save(ctx, request)
 	require.NoError(t, err)
 	require.NotNil(t, resent.Revision)
 	assert.Equal(t, int64(1), *resent.Revision)
@@ -297,6 +296,18 @@ func TestConversationSummaryRepository_SaveIdempotentResend(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resentWithoutExpected.Revision)
 	assert.Equal(t, int64(1), *resentWithoutExpected.Revision)
+
+	// 同一内容だが期待版だけ未来値（現在と不一致）で内容一致 → 冪等成功。
+	// （内容が要求の意図と一致するため conflict にしない）
+	resentStaleExpected, err := repo.Save(ctx, SaveConversationSummaryCommand{
+		ClinicID:         conversationSummaryClinicA,
+		MedicalRecordID:  record.ID,
+		Summary:          "再送される要約",
+		Source:           "lstep",
+		ExpectedRevision: conversationSummaryInt64Ptr(99),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), *resentStaleExpected.Revision)
 
 	row := fetchConversationSummaryRecordRow(t, db, record.ID)
 	require.NotNil(t, row.ConversationSummaryRevision)

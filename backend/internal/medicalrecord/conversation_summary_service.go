@@ -30,6 +30,14 @@ type SaveConversationSummaryInput struct {
 }
 
 // ConversationSummaryService は来院カルテ単位の非公開会話要約の保存/読戻しを担う。
+//
+// 認可契約（EMR-485 監査3「現在認可/医院境界…をその保存subsetへだけ接続」）:
+//   - 本service は公開経路（route/handler）を持たない。clinic/来院の取り違えと
+//     他医院アクセスは repository の clinic_id 境界で拒否する（NotFound で存在を漏らさない）。
+//   - staff 認可（permission）は HTTP 経線で検査する既存構成のため、公開API未選定の
+//     今回時点では接続点が存在しない。Phase2 で route を結線する際は、当該 route に
+//     選択 clinic スコープの medicalrecord 編集系 permission middleware を付与し、
+//     本service へは認可済み clinicID のみを渡すこと。service 単体で権限を握らない。
 type ConversationSummaryService interface {
 	// Get は3列を返す。未保存は3列すべて nil（unknown）で返し、推定値を生成しない。
 	Get(ctx context.Context, clinicID, medicalRecordID uint64) (*ConversationSummary, error)

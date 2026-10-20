@@ -8,6 +8,7 @@ package medicalrecord
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -114,9 +115,13 @@ func (r *conversationSummaryRepository) FindByMedicalRecordID(ctx context.Contex
 //     read-modify-write を避けるため、同時保存でも版が重複しない。旧未保存（NULL）からの
 //     初回保存は 1 になる。
 //   - 同一内容（summary と source が不変）の行は WHERE で除外するため、再送しても revision は
-//     据え置き（no-op 成功）。
-//   - 0 行更新の理由は「内容不変（冪等再送）」「期待版不一致」「対象なし」の3つなので、
-//     読戻しで区別し、期待版不一致だけを conflict に正規化する（対象なしは NotFound）。
+//     据え置き（no-op 成功）。0 行更新のときは読戻しで内容一致を先に判定し、保存済み状態が
+//     本commandの意図と一致する再送（期待版が古い場合を含む）は成功として返す。
+//   - 0 行更新で内容が異なる理由は「期待版不一致」「対象なし」の2つなので、読戻しで区別し、
+//     期待版不一致だけを conflict に正規化する（対象なしは NotFound）。
+//   - 更新が commit された後の読戻し失敗は成功を失敗へ反転させない
+//     （backend/CLAUDE.md「commit済みの成功を後段の再取得errorで失敗応答へ反転させない」）。
+//     Revision は unknown（nil）として返し、呼び出し側の同一要求再送は冪等に no-op になる。
 func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConversationSummaryCommand) (*ConversationSummary, error) {
 	if err := cmd.validate(); err != nil {
 		return nil, err
@@ -140,19 +145,29 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 
 	current, err := r.FindByMedicalRecordID(ctx, cmd.ClinicID, cmd.MedicalRecordID)
 	if err != nil {
-		// 更新できていても読戻しできない場合は成功にしない（黙って成功を返さない）。
+		if result.RowsAffected > 0 {
+			// 更新は commit 済み。成功を失敗へ反転させず、revision を unknown として返す。
+			slog.WarnContext(ctx, "conversation summary saved but read-back failed",
+				slog.String("error", err.Error()),
+				slog.Uint64("clinic_id", cmd.ClinicID),
+				slog.Uint64("medical_record_id", cmd.MedicalRecordID))
+			return &ConversationSummary{
+				MedicalRecordID: cmd.MedicalRecordID,
+				Summary:         &cmd.Summary,
+				Source:          &cmd.Source,
+			}, nil
+		}
 		return nil, err
 	}
-	if result.RowsAffected > 0 {
+	if conversationSummaryMatches(current, cmd) {
+		// 同一内容の再送（期待版が古い場合を含む）。revision も含め保存済みの値をそのまま返す。
 		return current, nil
 	}
 	if cmd.ExpectedRevision != nil && conversationSummaryRevisionValue(current) != *cmd.ExpectedRevision {
 		return nil, apperrors.WrapConflict(conversationSummaryConflictMessage)
 	}
-	if conversationSummaryMatches(current, cmd) {
-		// 同一内容 + 同一期待版の再送。revision も含め保存済みの値をそのまま返す。
-		return current, nil
-	}
+	// 内容が異なり、期待版指定もないのに 0 行更新になる経路はない（WHERE は内容差分だけ）。
+	// 到達した場合は競合状態として conflict に倒す（fail-closed）。
 	return nil, apperrors.WrapConflict(conversationSummaryConflictMessage)
 }
 
