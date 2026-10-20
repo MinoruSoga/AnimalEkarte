@@ -258,9 +258,17 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 | EMR-477 | `feat/emr-477-record-revisit-intake-fe` / #753 | e315c46 | Dots 回答反映（空状態文言、固定 target 内履歴のみ、unbound/mismatch 非補完）。CodeRabbit 4 件・Codex 11 件修正: `target_relation` 閉 enum、`target_id` 必須、bound 3 組合せ検証、任意項目の null/型/許容 code 厳格化、visit_purpose 空拒否、head revision 一致、next_cursor 厳格化、form 版 1 固定、received_at RFC3339、pet 照合、履歴の relation 非依存、ページ間 binding/target/回答状態 整合、既取得データ保持の inline 再試行、disabled fieldset 外の `leading` slot、skeleton 読込、ID/revision の正規形十進（BIGINT 範囲）検証、履歴 revision ≤ head、空 cursor 拒否。CodeRabbit 追加 2 件（RFC3339 の暦・時刻範囲検証、閏秒 :60 の表示正規化）も修正 | green / mergeable clean / 未解決スレッドなし。CodeRabbit Merge Risk Minimal（commit 連続で自動レビュー一時停止中。最終 head は `@coderabbitai review` で単発レビュー要求済み） |
 | EMR-463 | `feat/emr-463-owners-clinic-scope-fe` / #754 | 884ff1f | Codex 4 件修正（`/me` 更新で再検証、連続トグル合成、暗黙選択の replace、BE 先行問題）。Dots 推奨により新 scope 経路を owners feature 内の静的 activation `OWNERS_CLINIC_SCOPE_ACTIVE = false` の背後に置き、非活性時は PR 前（main 05da02f3）と同じ一覧挙動。応答を見た fallback ではない | green / mergeable clean / 未解決スレッドなし。Codex findings なし、CodeRabbit Merge Risk Low。Trivial nitpick（legacy/scoped loader の query 解析重複）は次のコード push に同乗 |
 | EMR-474 | `feat/emr-474-liff-revisit-intake-fe` / #756 | a00f81d | Gitleaks 誤検知は `.gitleaksignore` fingerprint で解消。CodeRabbit 1 件・Codex 14 件修正: TARGET_CHANGED 後のブロック、429/503/照会/読込の Retry-After 尊重と期限の draft 保持、401 非再試行、head 一致 refine、h1、結果応答の operation_id/target 照合、新規送信の 403/404 で pending 破棄、Enter 暗黙送信防止、head 変化時の入力同期、読込応答の予約/target 照合、pet 名の検証付き表示、古い draft の baseline token 保持と明示確認（不可視 head 時は文言分岐）、送信中/未確定時の離脱確認、履歴追加読込の Retry-After 期限、route 共通の期限中は再読込ボタン無効、「さらに表示」の 401/403/404 で保持 read を破棄、期限中の再取得は保留して期限後に自動実行、履歴は版 1 の回答のみ表示、date-time の RFC3339 検査、「さらに表示」で target が変わったページは破棄して再読込、成功 receipt は operation_id・result_refs・committed_versions で照合（current_state 非依存） | CI green（a00f81d）/ 未解決スレッド: Dots 判断待ちの複数頭・pending 予約 CTA・BIGINT appointment ID、500 の Retry-After（契約の記述が食い違うため未実装）。Codex が a00f81d を再レビュー中、CodeRabbit は 1 時間 10 回の枠切れで a00f81d 未レビュー |
-| EMR-487 | — | — | — | 486 契約待ち |
+| EMR-487 | — | — | — | 486 契約 PR #760 open（未マージ）。§11.1 参照 |
+
+### 11.1 2026-10-21 引き継ぎセッションの追記
+
+- #756: Codex 未解決 7 件のうち、feature 内で閉じる 2 件を修正した。1 件目は閲覧 403/404 の後も未確定送信の結果照会を残すこと（本文・回答・再送は出さない）。2 件目は読込の Retry-After 期限を画面の開き直しをまたいで保持すること（module memory。localStorage は使わない）。Fable レビューは APPROVE（CRITICAL/HIGH 0）。指摘された MEDIUM（拒否画面の照会結果と期限を draft store へ書き戻す）も修正した。head は b3478c9d1（38518f84f・18b450fff・b3478c9d1）。対応した 2 スレッドは返信して resolve した。pending 予約 CTA と 500 の Retry-After は、下記のとおり Dots 判断待ちのまま実装しない。
+- EMR-487: #760 の契約草案を読んだ結果、3 様式の描画は server 側 487 renderer（versioned template/font/PDF）が所有する。FE は印刷ボタンのない PDF 確認 preview を表示し、印刷はその PDF だけを使う（#760 契約文書 31・100・108 行）。このため FE 側の React 帳票 renderer は作らない。二重管理になるため、試作した commit（`feat/emr-487-certificate-renderer-fe` c90104a53、未 push）は採用しない。§5 冒頭の「renderer・golden（487-A）の準備だけ先行可」は server renderer を指すと読み替える。FE の着手は、#760 の root レビュー確定後（契約 239 行「公開 PR head を固定契約」）に、9 操作の mock adapter、発行前入力（10 欄、料金 4 欄は null と明示 0 を区別、合計は自動計算しない）、PDF preview、発行、edition 読取、PDF 取得の各画面で行う。
 
 ### Dots へ残る判断事項
+
+- #760 EMR-486/487: 契約 PR の root レビューとマージ。FE 487 の着手条件。
+- EMR-487 Q-A（継続）: 狂犬病様式の対象判定（契約 `eligibility`）。FE はスタッフが明示した kind/layout を渡すだけで、自動判定しない。
 
 - #756 BIGINT appointment ID: LIFF 予約 DTO（`my-reservations` / `POST reservations`）の ID を文字列で返すか、FE 側で JSON reviver 文字列化するか。revisit-intake 契約だけでは解決しない。
 - #756 pet 名の非表示: 予約 DTO に pet_id が無く検証できないため、LIFF 問診ページでは pet 名を出さない（日時・コースは表示）。DTO に pet_id を載せるかは別チケット。
@@ -280,5 +288,6 @@ Dots の方針（修正依頼は CodeRabbit の契約実装指摘に限定、Cod
 - 各 PR の worktree: `AnimalEkarte-emr-463` / `-emr-474` / `-emr-475` / `-emr-477`（兄弟ディレクトリ。新セッションに無ければ各ブランチから `git worktree add` で作り直す）。
 - 見守りの手順: 各 PR を subscribe し、Codex / CodeRabbit の指摘は「確定契約か fail-closed の clinic/pet 境界に根拠があり、feature 内の小差分で収まるもの」だけ修正する。それ以外は返信のみで Dots へ回す。修正は担当ブランチで通常 push し、返信して該当スレッドを resolve する。Dots の判断待ちスレッドは resolve しない。
 - CodeRabbit は自動停止後、`@coderabbitai review` で単発レビューを依頼できる。上限は Advanced プランで 1 時間 10 回で、上限中は実行されない。#756 a00f81d の単発レビューは枠が戻ってから 1 回だけ依頼する。
+- 2026-10-21 追記: #756 の作業 worktree は `AnimalEkarte-emr-474-review`。不採用にした 4 件版は local `backup/emr-474-four-fixes-20261021` に残してある（未 push）。EMR-487 の試作は `AnimalEkarte-emr-487`（未 push・不採用）。
 - 残作業: #756 a00f81d の Codex 再レビュー結果の確認、#754 の CodeRabbit nitpick（legacy / scoped loader の query 解析重複）を次のコード push に同乗、EMR-487 は EMR-486 契約待ち、この文書 §11 の head 更新。
 - 後片付け: ローカルの `plan-doc-tmp` ブランチと storybook-ci の worktree は、AGENTS.md の作成者別規則に従って確認してから扱う。
