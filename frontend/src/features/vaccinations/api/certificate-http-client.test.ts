@@ -16,7 +16,11 @@ describe("実 API クライアント", () => {
   const api = createHttpCertificateApi();
 
   it("context を /v1/vaccinations/{id}/certificate-context から読み、契約外の応答は malformed で拒否する", async () => {
-    server.use(http.get(`${BASE}/vaccinations/101/certificate-context`, () => HttpResponse.json({ nope: true })));
+    server.use(
+      http.get(`${BASE}/vaccinations/101/certificate-context`, () =>
+        HttpResponse.json({ nope: true }),
+      ),
+    );
     await expect(api.getContext(101)).rejects.toMatchObject({ kind: "malformed" });
   });
 
@@ -29,7 +33,12 @@ describe("実 API クライアント", () => {
           {
             status: "succeeded",
             operation_key: KEY,
-            result_refs: { vaccination_id: "101", series_id: "201", edition_id: "301", artifact_id: "401" },
+            result_refs: {
+              vaccination_id: "101",
+              series_id: "201",
+              edition_id: "301",
+              artifact_id: "401",
+            },
             committed_versions: { edition: "1", source_version: "7" },
             recorded_at: "2026-10-20T14:30:00Z",
           },
@@ -55,7 +64,12 @@ describe("実 API クライアント", () => {
     server.use(
       http.post(`${BASE}/vaccinations/101/certificate-editions`, () =>
         HttpResponse.json(
-          { error: "changed", code: "dependency-changed", status: "dependency-changed", operation_key: KEY },
+          {
+            error: "changed",
+            code: "dependency-changed",
+            status: "dependency-changed",
+            operation_key: KEY,
+          },
           { status: 409 },
         ),
       ),
@@ -80,10 +94,15 @@ describe("実 API クライアント", () => {
     server.use(
       http.get(`${BASE}/vaccination-certificate-operations/${KEY}`, ({ request }) => {
         intent = new URL(request.url).searchParams.get("intent");
-        return HttpResponse.json({ error: "x", code: "scope-not-found", status: "scope-not-found" }, { status: 404 });
+        return HttpResponse.json(
+          { error: "x", code: "scope-not-found", status: "scope-not-found" },
+          { status: 404 },
+        );
       }),
     );
-    await expect(api.lookupOperation(KEY, "issue")).rejects.toMatchObject({ kind: "scope-not-found" });
+    await expect(api.lookupOperation(KEY, "issue")).rejects.toMatchObject({
+      kind: "scope-not-found",
+    });
     expect(intent).toBe("issue");
   });
 
@@ -106,7 +125,9 @@ describe("実 API クライアント", () => {
     server.use(
       http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, ({ request }) => {
         accept = request.headers.get("Accept");
-        return new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "application/pdf" } });
+        return new HttpResponse("%PDF-1.1 mock", {
+          headers: { "Content-Type": "application/pdf" },
+        });
       }),
     );
     const blob = await api.getArtifactContent("401");
@@ -117,34 +138,57 @@ describe("実 API クライアント", () => {
 
   it("200 でも PDF ではない応答（HTML・JSON・magic 不一致）は malformed で拒否する", async () => {
     const url = `${BASE}/vaccination-certificate-artifacts/401/content`;
-    server.use(http.get(url, () => new HttpResponse("<html>login</html>", { headers: { "Content-Type": "text/html" } })));
+    server.use(
+      http.get(
+        url,
+        () => new HttpResponse("<html>login</html>", { headers: { "Content-Type": "text/html" } }),
+      ),
+    );
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
 
     server.use(http.get(url, () => HttpResponse.json({ ok: true })));
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
 
     // Content-Type だけ PDF を名乗っても、本体が PDF でなければ拒否する。
-    server.use(http.get(url, () => new HttpResponse("<html>login</html>", { headers: { "Content-Type": "application/pdf" } })));
+    server.use(
+      http.get(
+        url,
+        () =>
+          new HttpResponse("<html>login</html>", {
+            headers: { "Content-Type": "application/pdf" },
+          }),
+      ),
+    );
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
   });
 
   it("200 でも Content-Type が PDF でなければ、本体が %PDF- でも契約不正として拒否する（EMR-525）", async () => {
     const url = `${BASE}/vaccination-certificate-artifacts/401/content`;
     server.use(
-      http.get(url, () =>
-        new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "application/octet-stream" } }),
+      http.get(
+        url,
+        () =>
+          new HttpResponse("%PDF-1.1 mock", {
+            headers: { "Content-Type": "application/octet-stream" },
+          }),
       ),
     );
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
 
-    server.use(http.get(url, () => new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "" } })));
+    server.use(
+      http.get(url, () => new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "" } })),
+    );
     await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
   });
 
   it("Content-Type の parameter と大小文字は PDF 判定に影響しない", async () => {
     server.use(
-      http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>
-        new HttpResponse("%PDF-1.1 mock", { headers: { "Content-Type": "Application/PDF; charset=binary" } }),
+      http.get(
+        `${BASE}/vaccination-certificate-artifacts/401/content`,
+        () =>
+          new HttpResponse("%PDF-1.1 mock", {
+            headers: { "Content-Type": "Application/PDF; charset=binary" },
+          }),
       ),
     );
     const blob = await api.getArtifactContent("401");
@@ -157,6 +201,8 @@ describe("実 API クライアント", () => {
         HttpResponse.json({ error: "x", code: "artifact_unavailable" }, { status: 503 }),
       ),
     );
-    await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "render-unavailable" });
+    await expect(api.getArtifactContent("401")).rejects.toMatchObject({
+      kind: "render-unavailable",
+    });
   });
 });

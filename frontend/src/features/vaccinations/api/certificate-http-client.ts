@@ -69,7 +69,10 @@ async function toApiError(error: unknown): Promise<CertificateApiError> {
   if (error instanceof CertificateApiError) return error;
   if (isAxiosError(error)) {
     if (error.response === undefined) return classifyCertificateError(undefined, null);
-    return classifyCertificateError(error.response.status, await readErrorBody(error.response.data));
+    return classifyCertificateError(
+      error.response.status,
+      await readErrorBody(error.response.data),
+    );
   }
   return new CertificateApiError("network");
 }
@@ -117,7 +120,9 @@ export function createHttpCertificateApi(): CertificateApi {
     },
     async getEdition(editionId, signal) {
       const { data } = await call(() =>
-        axios.get<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}`, { signal }),
+        axios.get<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}`, {
+          signal,
+        }),
       );
       return parse(certificateEditionSchema, data);
     },
@@ -142,7 +147,10 @@ export function createHttpCertificateApi(): CertificateApi {
     },
     async reprint(editionId, body) {
       const { data } = await call(() =>
-        axios.post<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}/reprints`, body),
+        axios.post<unknown>(
+          `${BASE}/vaccination-certificate-editions/${seg(editionId)}/reprints`,
+          body,
+        ),
       );
       return parse(certificateResultSchema, data);
     },
