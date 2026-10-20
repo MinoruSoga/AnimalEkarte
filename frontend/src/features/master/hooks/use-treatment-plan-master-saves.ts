@@ -141,13 +141,8 @@ export function useTreatmentPlanMasterSaves({
     updateMutation: resources.updateVaccine,
     permissions: { canCreate, canEdit },
     validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: (data) =>
-      applyItemInsuranceForCreate(buildVaccineCreateRequest(data), data.isNonInsurance),
-    toUpdateRequest: (data) =>
-      applyItemInsuranceForUpdate(
-        buildVaccineUpdateRequest(data),
-        data.insuranceChanged ? data.isNonInsurance : undefined,
-      ),
+    toCreateRequest: buildVaccineCreateRequest,
+    toUpdateRequest: buildVaccineUpdateRequest,
   });
 
   const checkupSave = useMasterSave<
@@ -161,13 +156,8 @@ export function useTreatmentPlanMasterSaves({
     updateMutation: resources.updateCheckup,
     permissions: { canCreate: canCreateCheckup, canEdit: canEditCheckup },
     validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: (data) =>
-      applyItemInsuranceForCreate(buildCheckupCreateRequest(data), data.isNonInsurance),
-    toUpdateRequest: (data) =>
-      applyItemInsuranceForUpdate(
-        buildCheckupUpdateRequest(data),
-        data.insuranceChanged ? data.isNonInsurance : undefined,
-      ),
+    toCreateRequest: buildCheckupCreateRequest,
+    toUpdateRequest: buildCheckupUpdateRequest,
   });
 
   const saveHooksByTab = useMemo(

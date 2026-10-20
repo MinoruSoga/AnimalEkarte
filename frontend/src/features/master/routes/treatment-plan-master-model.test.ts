@@ -4,6 +4,7 @@ import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 import {
   applyItemInsuranceForCreate,
   applyItemInsuranceForUpdate,
+  buildTreatmentTabConfigs,
   buildCheckupCreateRequest,
   buildCheckupUpdateRequest,
   buildConsultationCreateRequest,
@@ -240,17 +241,34 @@ describe("applyItemInsuranceForUpdate", () => {
   });
 });
 
-describe("foundation retains legacy consumer editing until its API is adopted", () => {
-  it.each([buildVaccineUpdateRequest, buildCheckupUpdateRequest])(
-    "does not require a version absent from the legacy GET response",
-    (build) => {
+describe("consumer capability and editing snapshot stay aligned", () => {
+  const configs = buildTreatmentTabConfigs({
+    consultationData: [],
+    examinationData: [],
+    procedureData: [],
+    vaccineData: [],
+    checkupData: [],
+    onReorderConsultations: () => {},
+    onReorderExaminations: () => {},
+    onReorderProcedures: () => {},
+    onReorderVaccines: () => {},
+    onReorderCheckups: () => {},
+  });
+  it.each([
+    { kind: "vaccine" as const, build: buildVaccineUpdateRequest },
+    { kind: "checkup" as const, build: buildCheckupUpdateRequest },
+  ])("keeps $kind editing compatible with its adopted API", ({ kind, build }) => {
+    if (configs[kind].insuranceTriState) {
+      expect(() => build(makeFormData({ version: undefined }))).toThrow("編集開始時");
+      expect(build(makeFormData({ version: 7 }))).toMatchObject({ version: 7 });
+    } else {
       expect(build(makeFormData({ version: undefined, parentId: "" }))).toMatchObject({
         name: "V04処置テスト",
         clear_parent_id: true,
       });
       expect(build(makeFormData({ version: 7 }))).not.toHaveProperty("version");
-    },
-  );
+    }
+  });
 });
 
 describe("editing snapshot CAS for consultation/procedure", () => {
