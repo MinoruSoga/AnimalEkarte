@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/require"
 )
@@ -396,4 +399,144 @@ func TestDisclosure_MayResolveOriginalFromBoundSuccessReceipt(t *testing.T) {
 	got := disclose(t.Context(), a, b, StatusReplayed, &Result{ResultRefs: map[string]string{"billing_id": "A"}})
 	require.Equal(t, StatusReplayed, got.Status)
 	require.Equal(t, "A", a.authorized[0].Ref)
+}
+
+// actorScopeProbe catches any invalid spelling reaching persistence.
+type actorScopeProbe struct {
+	store
+	claims, lookups int
+}
+
+func (s *actorScopeProbe) ClaimBinding(context.Context, Scope, uuid.UUID, []byte, string) (storedBinding, error) {
+	s.claims++
+	return storedBinding{}, errors.New("unexpected claim")
+}
+func (s *actorScopeProbe) FindBinding(context.Context, Scope, uuid.UUID) (storedBinding, bool, error) {
+	s.lookups++
+	return storedBinding{}, false, errors.New("unexpected lookup")
+}
+func TestActorScope_RejectsNonCanonicalIDsBeforeStoreOrOwner(t *testing.T) {
+	for _, kind := range []ActorKind{ActorStaff, ActorCustomer} {
+		for _, ref := range []string{"012", " 12", "12 ", "+12", "0", "-12", "18446744073709551616", "", "12.0"} {
+			t.Run(string(kind)+"/"+ref, func(t *testing.T) {
+				f := newR2Fixture(t)
+				probe := &actorScopeProbe{store: f.store}
+				f.runner.store = probe
+				scope := f.scope
+				scope.ActorKind, scope.ActorRef = kind, ref
+				_, err := f.runner.Execute(t.Context(), Request{Scope: scope, Key: f.key, Content: f.content}, f.owner)
+				require.Error(t, err)
+				_, err = f.runner.Lookup(t.Context(), scope, f.key, allowLookup{})
+				require.Error(t, err)
+				require.Zero(t, probe.claims)
+				require.Zero(t, probe.lookups)
+				require.Zero(t, f.owner.gates)
+				require.Zero(t, f.owner.applyCount())
+			})
+		}
+	}
+}
+func TestActorScope_CanonicalIDReplaysOnceAndSystemNamesRemainValid(t *testing.T) {
+	for _, kind := range []ActorKind{ActorStaff, ActorCustomer, ActorSystem} {
+		t.Run(string(kind), func(t *testing.T) {
+			f := newR2Fixture(t)
+			f.scope.ActorKind = kind
+			if kind == ActorSystem {
+				f.scope.ActorRef = "scheduled-billing"
+			}
+			require.Equal(t, StatusSucceeded, f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"}).Status)
+			require.Equal(t, StatusReplayed, f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"}).Status)
+			got, err := f.runner.Lookup(t.Context(), f.scope, f.key, allowLookup{})
+			require.NoError(t, err)
+			require.Equal(t, StatusSucceeded, got.Status)
+			require.Equal(t, 1, f.owner.applyCount())
+		})
+	}
+}
+
+// An owner resolver may inspect a receipt, but cannot rewrite what is returned.
+type mutatingReceiptLookup struct {
+	allowLookup
+	received *Result
+}
+
+func (a *mutatingReceiptLookup) ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error) {
+	a.received = res
+	if res != nil {
+		for _, fields := range []map[string]string{res.ResultRefs, res.CommittedVersions, res.EffectSummary} {
+			for key := range fields {
+				fields[key] = "changed"
+				delete(fields, key)
+			}
+			if fields != nil {
+				fields["injected"] = "changed"
+			}
+		}
+		res.RecordedAt = res.RecordedAt.Add(time.Hour)
+	}
+	return a.allowLookup.ResolveLookupTarget(ctx, b, res)
+}
+
+type mutatingReceiptParticipant struct {
+	*fakeBillingParticipant
+	auth *mutatingReceiptLookup
+}
+
+func (p mutatingReceiptParticipant) ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error) {
+	return p.auth.ResolveLookupTarget(ctx, b, res)
+}
+func (p mutatingReceiptParticipant) AuthorizeLookup(ctx context.Context, target LookupTarget) error {
+	return p.auth.AuthorizeLookup(ctx, target)
+}
+
+// lostCommitResponseTx commits the fake transaction, then loses its reply.
+// It models only the helper recovery branch, not a real PostgreSQL failure.
+type lostCommitResponseTx struct{ *fakeTx }
+
+func (tx lostCommitResponseTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	if err := tx.fakeTx.WithTx(ctx, fn); err != nil {
+		return err
+	}
+	return errors.New("commit reply lost after commit")
+}
+func TestReceiptResolver_CannotMutateLookupReplayOrCommitRecovery(t *testing.T) {
+	for _, path := range []string{"lookup", "replay", "commit-recovery"} {
+		t.Run(path, func(t *testing.T) {
+			f := newR2Fixture(t)
+			first := f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+			expected := cloneResult(*first.Result)
+			expected.EffectSummary = map[string]string{"effect": "saved"}
+			f.store.commitResultForTest(first.Binding.ID, expected)
+			auth := &mutatingReceiptLookup{}
+			participant := mutatingReceiptParticipant{f.owner, auth}
+			var got Outcome
+			var err error
+			if path == "lookup" {
+				got, err = f.runner.Lookup(t.Context(), f.scope, f.key, auth)
+			} else {
+				if path == "commit-recovery" {
+					f.runner.tx = lostCommitResponseTx{&fakeTx{store: f.store}}
+				}
+				got, err = f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content}, participant)
+			}
+			require.NoError(t, err)
+			require.NotNil(t, auth.received)
+			require.NotSame(t, auth.received, got.Result)
+			require.Equal(t, expected, *got.Result)
+			stored, err := f.store.LoadResult(t.Context(), *first.Binding)
+			require.NoError(t, err)
+			require.Equal(t, expected, *stored)
+			require.Equal(t, 1, f.owner.applyCount())
+		})
+	}
+}
+func TestCopyLookupReceipt_PreservesNilMapsAndTimestamp(t *testing.T) {
+	require.Nil(t, copyLookupReceipt(nil))
+	original := &Result{RecordedAt: fakeRecordedAt}
+	copied := copyLookupReceipt(original)
+	require.NotSame(t, original, copied)
+	require.Equal(t, original, copied)
+	require.Nil(t, copied.ResultRefs)
+	require.Nil(t, copied.CommittedVersions)
+	require.Nil(t, copied.EffectSummary)
 }

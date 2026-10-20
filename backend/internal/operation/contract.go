@@ -38,7 +38,7 @@ type Scope struct {
 	ClinicID  uint64
 	OwnerKind string // write owner, e.g. "billing"
 	ActorKind ActorKind
-	ActorRef  string // canonical decimal staff ID etc.
+	ActorRef  string // staff/customer: canonical positive uint64 decimal; system: nonblank named principal.
 	Intent    string // owner-defined operation family, e.g. "billing.price_acknowledgement"
 }
 
@@ -213,7 +213,8 @@ type LookupTarget struct {
 // LookupAuthorizer resolves the stored operation's original target before
 // re-checking the current grant. ResolveLookupTarget must use persisted owner
 // metadata indexed by binding (including bindings without a success receipt).
-// res is a receipt read by the helper for this binding: its result_refs may be
+// res is a detached copy of the receipt read by the helper for this binding;
+// resolver mutations are discarded. Its result_refs may be
 // used only if they authoritatively identify that original resource, with the
 // same clinic and domain identity verified. Never use captured current-request
 // content/target as a substitute, including on key-conflict. If the original

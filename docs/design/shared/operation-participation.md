@@ -31,6 +31,7 @@
 失敗後のbusy/sticky unknown/結果読取エラー/unknown読取エラーもrollback後に現在認可を通す。unknown行記録後のcommitエラーには元のIndeterminateEffectを保持し、generic retryable_failureへ落とさない。永続停止を保存できない状態は引き続き未成立であり、外部consumer接続の許可にはならない。
 
 
+- staff/customer の `actor_ref` は正の uint64 を先頭ゼロ・空白・符号なしの10進文字列で表す。Execute/Lookup は非正規入力を保存検索前に拒否し、黙って正規化しない。system は非空の命名 principal を使い数値化しない。
 - 束縛scopeは認証済みの`clinic_id`＋`owner_kind`＋`actor_kind`/`actor_ref`＋`intent`＋`operation_key`（DDLの一意キーと同じ）。clientが指定したclinic・actorで行を選ばない。
 - `Content`（業務内容）と`Preconditions`（CAS・fence等の実行前提）は別の型である。集合値（例: 対象行ID集合）はadapterが正規順（昇順）で1つの値にしてから`Content`へ入れる。順序違いの同じ内容を別fingerprintにしない。
 - ownerがDB内効果の有無を判定できない場合は`Apply`が`*IndeterminateEffect`を返す。helperは`unknown`を、binding行lockを保持したままの同一transaction内でsavepointにより記録する。savepointは`Apply`の**前に**張る（書込後のsavepointではowner writeをundoできない）。lock解放前に停止状態がcommitされるため、rollback〜記録間に並行実行が`Apply`を再実行する窓はない。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。

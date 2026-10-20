@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -224,7 +225,7 @@ func (r *Runner) settledState(ctx context.Context, binding Binding) (Status, *Re
 // disclose applies the current grant to an outcome. A denied grant hides the
 // status detail and the result body behind not-authorized.
 func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, status Status, res *Result) Outcome {
-	target, err := auth.ResolveLookupTarget(ctx, binding, res)
+	target, err := auth.ResolveLookupTarget(ctx, binding, copyLookupReceipt(res))
 	if err != nil || target.BindingID != binding.ID || target.ClinicID != binding.ClinicID || strings.TrimSpace(target.Kind) == "" || strings.TrimSpace(target.Ref) == "" {
 		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
 	}
@@ -232,6 +233,30 @@ func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, statu
 		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
 	}
 	return Outcome{Status: status, Binding: &binding, Result: res}
+}
+
+// copyLookupReceipt gives the owner resolver a detached view. It must not be
+// able to change either the stored success receipt or the disclosed result.
+func copyLookupReceipt(res *Result) *Result {
+	if res == nil {
+		return nil
+	}
+	copyMap := func(src map[string]string) map[string]string {
+		if src == nil {
+			return nil
+		}
+		dst := make(map[string]string, len(src))
+		for key, value := range src {
+			dst[key] = value
+		}
+		return dst
+	}
+	return &Result{
+		ResultRefs:        copyMap(res.ResultRefs),
+		CommittedVersions: copyMap(res.CommittedVersions),
+		EffectSummary:     copyMap(res.EffectSummary),
+		RecordedAt:        res.RecordedAt,
+	}
 }
 
 // participate is the outermost business transaction body: owner gate, binding
@@ -416,7 +441,13 @@ func validateScope(scope Scope) error {
 		return apperrors.WrapInvalidInput("operation owner is required")
 	}
 	switch scope.ActorKind {
-	case ActorStaff, ActorCustomer, ActorSystem:
+	case ActorStaff, ActorCustomer:
+		id, err := strconv.ParseUint(scope.ActorRef, 10, 64)
+		if err != nil || id == 0 || strconv.FormatUint(id, 10) != scope.ActorRef {
+			return apperrors.WrapInvalidInput("operation actor must be a canonical positive decimal ID")
+		}
+	case ActorSystem:
+		// Named system principals are not numeric staff/customer identities.
 	default:
 		return apperrors.WrapInvalidInput("operation actor kind is not supported")
 	}
