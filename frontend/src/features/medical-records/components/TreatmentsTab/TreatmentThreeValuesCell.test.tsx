@@ -308,3 +308,20 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(onUpdate).toHaveBeenCalledTimes(1);
   });
+
+  it("小数7桁・整数7桁の入力は commit しない（numeric(12,6) 契約・Codex review P2）", async () => {
+    const user = userEvent.setup();
+    const { onUpdate, inputRef } = renderCell({
+      treatment: buildTreatment(),
+      editField: "administration_dose_amount",
+    });
+    const input = inputRef.current as HTMLInputElement;
+    await user.type(input, "0.1234561"); // 小数7桁
+    fireEvent.blur(input);
+    expect(onUpdate).not.toHaveBeenCalled();
+
+    await user.clear(input);
+    await user.type(input, "1234567"); // 整数7桁
+    fireEvent.blur(input);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });

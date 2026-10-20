@@ -83,7 +83,10 @@ func parseDecimalWithExponent(text string) (*big.Rat, bool) {
 	if hasExp {
 		var err error
 		exp, err = strconv.Atoi(expPart)
-		if err != nil {
+		// 指数が極端に大きい/小さい入力（例: 1e1000000000）による big.Int 巨大計算の
+		// DoS を防ぐため、numeric(12,6) の取り得る範囲を大きく外れる指数は解析前に拒否する
+		// （Codex review P1 / CodeRabbit Major）。
+		if err != nil || exp > 40 || exp < -40 {
 			return nil, false
 		}
 	}

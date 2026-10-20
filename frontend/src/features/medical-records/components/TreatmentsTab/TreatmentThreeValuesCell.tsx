@@ -55,7 +55,10 @@ function isPairIncomplete(amount: number | null | undefined, unit: string | null
 function parseAmountInput(raw: string): number | null | undefined {
   const text = raw.trim();
   if (text === "") return undefined;
-  if (!/^\d+(\.\d+)?$/.test(text)) return null;
+  const m = /^(\d+)(?:\.(\d+))?$/.exec(text);
+  if (!m) return null;
+  // numeric(12,6) 契約: 整数部6桁・小数部6桁。超過は Number() の黙り丸めの前に拒否する
+  if (m[1].length > 6 || (m[2]?.length ?? 0) > 6) return null;
   return Number(text);
 }
 

@@ -497,3 +497,16 @@ func TestCreateTreatmentRequest_ThreeValues_ExponentPrecisionIsExact(t *testing.
 	err := json.Unmarshal([]byte(body), &req)
 	assert.Error(t, err)
 }
+
+func TestCreateTreatmentRequest_ThreeValues_ExponentBound(t *testing.T) {
+	// Codex review P1 / CodeRabbit Major: 極端な指数（1e1000000000 等）による
+	// big.Int 巨大計算 DoS を解析前にはじく（400）。
+	body := `{"item_type": "medicine", "administration_dose_amount": 1e1000000000}`
+	var req createTreatmentRequest
+	err := json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+
+	body = `{"item_type": "medicine", "prescription_total_amount": 1e-1000000000}`
+	err = json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+}

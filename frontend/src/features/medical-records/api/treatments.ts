@@ -97,8 +97,9 @@ export const useUpdateTreatment = (medicalRecordId: string, clinicId?: string) =
       // EMR-488: PATCH 応答（加算済み version）でキャッシュ行を即時更新する。
       // 無効化の再取得を待たずに次の編集が始まっても、最新版で送られるため
       // 連続する3値編集が 409 になることを防ぐ（Codex review P2）。
-      queryClient.setQueryData<Treatment[]>(
-        queryKeys.medicalRecords.treatments(medicalRecordId),
+      // setQueriesData で clinic スコープ付きのキー亜種も全て更新する（CodeRabbit review minor）。
+      queryClient.setQueriesData<Treatment[]>(
+        { queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) },
         (old) => (old ? old.map((t) => (t.id === data.id ? data : t)) : old),
       );
       queryClient.invalidateQueries({
