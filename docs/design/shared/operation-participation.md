@@ -38,6 +38,14 @@
 - gateや`Apply`が保持できないlockを取れなかった場合は`*Busy`を返す。helperは`operation-in-progress`として応答し、attemptを記録しない（binding行のlock失敗と同一契約）。
 - fingerprintはサーバー鍵によるHMAC-SHA-256。鍵versionを保存し、旧鍵versionで再計算して照合する。鍵はconstructorへ注入し、環境変数名・設定配線は未選定（§5）。
 
+### 1.1a 元対象の認可resolver（接続条件）
+
+`LookupAuthorizer` はまず `ResolveLookupTarget(ctx, binding, storedResult)` で保存済み元対象を解決し、その `LookupTarget` だけを `AuthorizeLookup` へ渡す。helperはbinding ID/clinic一致と対象kind/refの存在を検査し、解決不能なら `not-authorized` で停止する。今回requestの別resourceによる認可代用は禁止（key-conflictでも同じ）。
+
+consumerは成功receiptがないbindingも含め、binding ID＋医院から元対象を解決する永続owner metadata/readerを提供する必要がある。成功時はhelperがそのbindingから読んだreceiptのresult_refsを利用できるが、元対象の正本として十分な参照であり医院/identityを検査できる場合に限る。削除/欠損/曖昧で元対象が不明なら失敗扱いとし、今回のContentやURL IDへfallbackしない。現在schemaのfingerprintは対象を復元するデータではない。
+
+実consumer用resolverと未成功bindingの元対象metadataは未接続。大規模storage変更をここへ追加せず各consumer/446の必要subsetとして残し、resolverがないconsumerの結果開示は利用開始BLOCKED。合成fixtureはbinding→元対象Aと、現在要求Bの権限を分けて検証する。実漏洩を確認した報告ではない。
+
 ### 1.2 取得順・最外transaction境界
 
 | 段 | 処理 | 失敗時 |

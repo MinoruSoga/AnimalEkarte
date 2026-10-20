@@ -224,7 +224,11 @@ func (r *Runner) settledState(ctx context.Context, binding Binding) (Status, *Re
 // disclose applies the current grant to an outcome. A denied grant hides the
 // status detail and the result body behind not-authorized.
 func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, status Status, res *Result) Outcome {
-	if err := auth.AuthorizeLookup(ctx, binding, res); err != nil {
+	target, err := auth.ResolveLookupTarget(ctx, binding, res)
+	if err != nil || target.BindingID != binding.ID || target.ClinicID != binding.ClinicID || strings.TrimSpace(target.Kind) == "" || strings.TrimSpace(target.Ref) == "" {
+		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
+	}
+	if err := auth.AuthorizeLookup(ctx, target); err != nil {
 		return Outcome{Status: StatusNotAuthorized, Binding: &binding}
 	}
 	return Outcome{Status: status, Binding: &binding, Result: res}

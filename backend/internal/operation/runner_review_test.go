@@ -307,3 +307,93 @@ func TestExecute_UnknownCommitFailureRetainsCause(t *testing.T) {
 	require.Equal(t, OutcomeUnknown, a.Outcome)
 	require.Equal(t, "1", f.owner.version("billing_version"))
 }
+
+// resolvedLookup models a domain's persisted binding -> resource index. The
+// grant permits B; the stored operation targets A. Current input cannot replace A.
+type resolvedLookup struct {
+	persisted  map[uint64]LookupTarget
+	allowed    string
+	resolveErr error
+	authorized []LookupTarget
+}
+
+func (a *resolvedLookup) ResolveLookupTarget(_ context.Context, b Binding, res *Result) (LookupTarget, error) {
+	if a.resolveErr != nil {
+		return LookupTarget{}, a.resolveErr
+	}
+	if target, ok := a.persisted[b.ID]; ok {
+		return target, nil
+	}
+	// Success result_refs belong to the helper-loaded receipt for this binding;
+	// the fixture's owner resolver recognizes billing_id as its original root.
+	if res != nil && res.ResultRefs["billing_id"] != "" {
+		return LookupTarget{BindingID: b.ID, ClinicID: b.ClinicID, Kind: "billing", Ref: res.ResultRefs["billing_id"]}, nil
+	}
+	return LookupTarget{}, errors.New("no original target")
+}
+func (a *resolvedLookup) AuthorizeLookup(_ context.Context, target LookupTarget) error {
+	a.authorized = append(a.authorized, target)
+	if target.Ref != a.allowed {
+		return errors.New("original resource denied")
+	}
+	return nil
+}
+
+type targetParticipant struct {
+	*fakeBillingParticipant
+	*resolvedLookup
+}
+
+func (p targetParticipant) ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error) {
+	return p.resolvedLookup.ResolveLookupTarget(ctx, b, res)
+}
+func (p targetParticipant) AuthorizeLookup(ctx context.Context, target LookupTarget) error {
+	return p.resolvedLookup.AuthorizeLookup(ctx, target)
+}
+
+func TestExecute_KeyConflictAuthorizesPersistedOriginalNotCurrentTarget(t *testing.T) {
+	f := newR2Fixture(t)
+	// A rejected operation still binds the key but has no success receipt.
+	f.owner.setVersions("2", "1")
+	f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+	b, _ := f.store.bindingFor(f.scope, f.key)
+	auth := &resolvedLookup{persisted: map[uint64]LookupTarget{b.Binding.ID: {BindingID: b.Binding.ID, ClinicID: b.Binding.ClinicID, Kind: "billing", Ref: "A"}}, allowed: "B"}
+	fields := f.content.Fields()
+	fields["billing_id"] = "B"
+	content, err := NewContent(fields)
+	require.NoError(t, err)
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: content}, targetParticipant{f.owner, auth})
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, got.Status)
+	require.Len(t, auth.authorized, 1)
+	require.Equal(t, "A", auth.authorized[0].Ref)
+	require.Equal(t, 1, f.owner.applyCount())
+}
+func TestDisclosure_UnresolvedOrWrongBindingTargetFailsClosed(t *testing.T) {
+	b := Binding{ID: 10, ClinicID: 1}
+	for _, name := range []string{"missing", "resolver-error", "other-clinic", "other-binding", "empty-resource"} {
+		t.Run(name, func(t *testing.T) {
+			a := &resolvedLookup{allowed: "B", persisted: map[uint64]LookupTarget{}}
+			switch name {
+			case "resolver-error":
+				a.resolveErr = errors.New("unavailable")
+			case "other-clinic":
+				a.persisted[10] = LookupTarget{BindingID: 10, ClinicID: 2, Kind: "billing", Ref: "B"}
+			case "other-binding":
+				a.persisted[10] = LookupTarget{BindingID: 11, ClinicID: 1, Kind: "billing", Ref: "B"}
+			case "empty-resource":
+				a.persisted[10] = LookupTarget{BindingID: 10, ClinicID: 1, Kind: "billing"}
+			}
+			got := disclose(t.Context(), a, b, StatusKeyConflict, nil)
+			require.Equal(t, StatusNotAuthorized, got.Status)
+			require.Empty(t, a.authorized)
+		})
+	}
+}
+func TestDisclosure_MayResolveOriginalFromBoundSuccessReceipt(t *testing.T) {
+	b := Binding{ID: 10, ClinicID: 1}
+	a := &resolvedLookup{allowed: "A"}
+	got := disclose(t.Context(), a, b, StatusReplayed, &Result{ResultRefs: map[string]string{"billing_id": "A"}})
+	require.Equal(t, StatusReplayed, got.Status)
+	require.Equal(t, "A", a.authorized[0].Ref)
+}

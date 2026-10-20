@@ -1059,7 +1059,12 @@ func (p *fakeBillingParticipant) Apply(_ context.Context, _ Binding, req Request
 	}, nil
 }
 
-func (p *fakeBillingParticipant) AuthorizeLookup(_ context.Context, _ Binding, _ *Result) error {
+// The fixture's persisted owner mapping has one billing root for all bindings.
+func (p *fakeBillingParticipant) ResolveLookupTarget(_ context.Context, b Binding, _ *Result) (LookupTarget, error) {
+	return LookupTarget{BindingID: b.ID, ClinicID: b.ClinicID, Kind: "billing", Ref: fakeBillingID}, nil
+}
+
+func (p *fakeBillingParticipant) AuthorizeLookup(_ context.Context, _ LookupTarget) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.revoked {
@@ -1123,14 +1128,17 @@ func (p *fakeBillingParticipant) gateCount() int {
 // allowLookup is the current grant that still allows reading the result.
 type allowLookup struct{}
 
-func (allowLookup) AuthorizeLookup(_ context.Context, _ Binding, _ *Result) error {
+func (allowLookup) ResolveLookupTarget(_ context.Context, b Binding, _ *Result) (LookupTarget, error) {
+	return LookupTarget{BindingID: b.ID, ClinicID: b.ClinicID, Kind: "fixture", Ref: "fixture"}, nil
+}
+func (allowLookup) AuthorizeLookup(_ context.Context, _ LookupTarget) error {
 	return nil
 }
 
 // denyLookup is the revoked grant: the stored result must not be disclosed.
-type denyLookup struct{}
+type denyLookup struct{ allowLookup }
 
-func (denyLookup) AuthorizeLookup(_ context.Context, _ Binding, _ *Result) error {
+func (denyLookup) AuthorizeLookup(_ context.Context, _ LookupTarget) error {
 	return errors.New("operation grant was revoked")
 }
 

@@ -199,11 +199,30 @@ type Participant interface {
 	Apply(ctx context.Context, b Binding, req Request) (Result, error)
 }
 
-// LookupAuthorizer re-checks the current grant before a stored result is
-// disclosed. res is nil when no success exists. A non-nil error hides the
-// result (StatusNotAuthorized).
+// LookupTarget is the original resource resolved from persisted owner metadata
+// keyed by Binding.ID + ClinicID. It is never built from the current Request.
+// A participant with more than one resource must resolve its authoritative
+// aggregate/authorization root; this helper does not invent that mapping.
+type LookupTarget struct {
+	BindingID uint64
+	ClinicID  uint64
+	Kind      string
+	Ref       string
+}
+
+// LookupAuthorizer resolves the stored operation's original target before
+// re-checking the current grant. ResolveLookupTarget must use persisted owner
+// metadata indexed by binding (including bindings without a success receipt).
+// res is a receipt read by the helper for this binding: its result_refs may be
+// used only if they authoritatively identify that original resource, with the
+// same clinic and domain identity verified. Never use captured current-request
+// content/target as a substitute, including on key-conflict. If the original
+// target is absent, deleted without an authorization anchor, ambiguous or
+// otherwise unresolvable, return an error: disclosure is denied. A consumer
+// without this resolver remains blocked before connecting result disclosure.
 type LookupAuthorizer interface {
-	AuthorizeLookup(ctx context.Context, b Binding, res *Result) error
+	ResolveLookupTarget(ctx context.Context, b Binding, res *Result) (LookupTarget, error)
+	AuthorizeLookup(ctx context.Context, target LookupTarget) error
 }
 
 // Outcome is what Execute and Lookup return. Result is set only for
