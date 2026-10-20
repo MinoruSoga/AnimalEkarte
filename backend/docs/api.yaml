@@ -14838,6 +14838,10 @@ components:
             type: string
             enum:
             - no-store
+        Retry-After:
+          description: 任意。返された場合は尊重する。
+          schema:
+            type: string
       content:
         application/json:
           schema:

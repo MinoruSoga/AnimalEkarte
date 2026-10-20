@@ -4,6 +4,8 @@
 
 機械契約は [backend/docs/api.yaml](../../../backend/docs/api.yaml) の `Certificate*` schemas と `VaccinationCertificates` operations。全操作の `x-contract-status: selected` / `x-runtime-status: not-implemented` を固定する。API公開revisionはこの文書とYAMLを含むPR headで識別し、rootレビュー後にFEへ引き渡す。旧 `emr486-certificate-design-proposal.md` の曖昧なHTTP/receipt案より、本採用契約を優先する。
 
+Fable向けの入力・帳票表示・実装着手境界は [2026-10-21 Q&A](fable-qa-20261021.md) を参照。
+
 ## 基準・参照と照合
 
 - 最新main基準: `05da02f30cc5320c929095c6c9d6f96a4ac3f065`（PR748再診契約を含む）。PR746由来 `/me` 契約も保持。
