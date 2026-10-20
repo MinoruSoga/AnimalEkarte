@@ -11,6 +11,9 @@ import type { OwnersLoaderData } from "../loaders";
 import type { AuthUser, ResourceAction } from "@/types/auth";
 import type { Pet } from "@/types";
 
+// EMR-463: このファイルは活性時（OWNERS_CLINIC_SCOPE_ACTIVE=true）の経路を検証する。
+vi.mock("../lib/owners-clinic-scope-activation", () => ({ OWNERS_CLINIC_SCOPE_ACTIVE: true }));
+
 // EMR-463: 一覧の医院フィルタは loader が確定した現在許可医院だけを表示し、
 // 明示選択を URL ?clinics= と保存先 owners-list.clinics.v1.<user.id> の両方へ反映する。
 // 値はすべて合成（実患者・実飼主の値なし）。

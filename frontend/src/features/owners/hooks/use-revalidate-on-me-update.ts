@@ -13,7 +13,7 @@ const ME_QUERY_HASH = hashKey(ME_QUERY_KEY);
  * QueryClientContext を直接引くのは、provider の無い単体 render でも落とさないため
  * （use-copy-treatment-details.ts と同じ流儀）。
  */
-export function useRevalidateOnMeUpdate(revalidate: () => void) {
+export function useRevalidateOnMeUpdate(revalidate: () => void, enabled = true) {
   const queryClient = useContext(QueryClientContext);
   const revalidateRef = useRef(revalidate);
   useLayoutEffect(() => {
@@ -21,7 +21,7 @@ export function useRevalidateOnMeUpdate(revalidate: () => void) {
   }, [revalidate]);
 
   useEffect(() => {
-    if (!queryClient) return undefined;
+    if (!enabled || !queryClient) return undefined;
     const cache = queryClient.getQueryCache();
     // 購読開始時点の値を基準にし、mount 直後に既存 cache だけで再検証しない。
     let lastUpdatedAt =
@@ -35,5 +35,5 @@ export function useRevalidateOnMeUpdate(revalidate: () => void) {
       lastUpdatedAt = updatedAt;
       revalidateRef.current();
     });
-  }, [queryClient]);
+  }, [queryClient, enabled]);
 }

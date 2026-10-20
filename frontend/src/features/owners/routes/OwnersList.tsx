@@ -19,6 +19,7 @@ import {
 // Hooks
 import { useModalState } from "@/hooks/use-modal-state";
 import { useAuth } from "@/hooks/use-auth";
+import { useClinicScope } from "@/hooks/use-clinic-scope";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
 // External
@@ -46,12 +47,15 @@ import { OwnersListTable } from "../components/OwnersListTable";
 import { OwnersListScopeState } from "../components/OwnersListScopeState";
 import { useOwnersClinicScope } from "../hooks/use-owners-clinic-scope";
 import { useRevalidateOnMeUpdate } from "../hooks/use-revalidate-on-me-update";
+import { OWNERS_CLINIC_SCOPE_ACTIVE } from "../lib/owners-clinic-scope-activation";
 import {
   activeFiltersToParams,
   paramsToActiveFilters,
   buildSpeciesFilterOptions,
   buildOwnerFilterProperties,
 } from "../lib/owners-list-filters";
+
+const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 
 export function OwnersList() {
   const navigate = useNavigate();
@@ -68,11 +72,21 @@ export function OwnersList() {
   const { pets, page, limit, total, listState, clinicScope } = useLoaderData<OwnersLoaderData>();
   const { currentClinicId } = useAuth();
 
-  // #86 / EMR-463: 拠点横断表示 — 表示医院は loader が GET /me `owners_view_clinic_ids`
-  // （現在の owners:view 許可）から確定した医院だけ。初期値は全許可医院、明示選択は
-  // URL ?clinics= と保存先へ反映する。最終認可はサーバ側 (GET /pets) が行う。
-  const { clinics, selectedClinicIds, isMultiClinic, clinicNameById, handleToggleClinic } =
-    useOwnersClinicScope(clinicScope);
+  // EMR-463: loader が現在許可 scope を使った（clinicScope あり）ときだけ owners 専有 adapter で表示する。
+  // 非活性時（OWNERS_CLINIC_SCOPE_ACTIVE=false）は clinicScope=null・ready となり、PR 前と同じ
+  // #86 の useClinicScope（URL ?clinics=、未指定は現在の医院のみ）表示へ戻る。両 hook は常に呼ぶ。
+  const ownersScope = useOwnersClinicScope(clinicScope);
+  const legacyScope = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
+  const isLegacyScope = clinicScope === null && listState.kind === "ready";
+  const clinics = isLegacyScope ? legacyScope.assignedClinics : ownersScope.clinics;
+  const selectedClinicIds = isLegacyScope
+    ? legacyScope.selectedClinicIds
+    : ownersScope.selectedClinicIds;
+  const isMultiClinic = isLegacyScope ? legacyScope.isMultiClinic : ownersScope.isMultiClinic;
+  const clinicNameById = isLegacyScope ? legacyScope.clinicNameById : ownersScope.clinicNameById;
+  const handleToggleClinic = isLegacyScope
+    ? legacyScope.handleToggleClinic
+    : ownersScope.handleToggleClinic;
 
   // #266: 検索・フィルタ・ページはすべて URL 経由でサーバに転送する（loaders.ts 参照）。
   // EMR-247: searchTerm は PropertyFilter の確定操作（Enter / 検索ボタン / クリア）で
@@ -180,7 +194,8 @@ export function OwnersList() {
   }, [revalidator]);
   // EMR-463: 全体 /me（ME_QUERY_KEY）の更新は loader の再検証トリガにだけ使う。
   // 現在許可は loader が owners 専有 adapter で取り直す。
-  useRevalidateOnMeUpdate(handleReload);
+  // 非活性時は PR 前と同じく再検証しない。
+  useRevalidateOnMeUpdate(handleReload, OWNERS_CLINIC_SCOPE_ACTIVE);
 
   // #266: loader 再フェッチ中（検索・フィルタ・ページ変更）の視覚フィードバック
   const isFiltering = navigation.state === "loading";

@@ -8,6 +8,7 @@ import {
   pruneSavedSelection,
   type OwnersClinicSelectionDecision,
 } from "./lib/owners-clinic-scope-model";
+import { OWNERS_CLINIC_SCOPE_ACTIVE } from "./lib/owners-clinic-scope-activation";
 import {
   readOwnersClinicSelection,
   removeOwnersClinicSelection,
@@ -73,7 +74,10 @@ export interface OwnersLoaderData {
   limit: number;
   total: number;
   listState: OwnersListState;
-  /** scope 取得失敗時は null（所属全件・現在医院・旧 scope へ fallback しない）。 */
+  /**
+   * 活性時: scope 取得失敗なら null（所属全件・現在医院・旧 scope へ fallback しない）。
+   * 非活性時（OWNERS_CLINIC_SCOPE_ACTIVE=false）: 常に null で listState は ready。
+   */
   clinicScope: OwnersClinicScopeView | null;
 }
 
@@ -199,6 +203,47 @@ function httpStatusOf(err: unknown): number {
 }
 
 /**
+ * EMR-463 非活性時（OWNERS_CLINIC_SCOPE_ACTIVE=false）の一覧取得。PR 前（main 05da02f3）と同じ挙動:
+ * URL の `?clinics=` をそのまま `clinic_ids` へ透過し（未指定は現在の医院のみ）、GET /me は呼ばない。
+ * 所属検証はサーバ側 resolveListClinicIDs が行う。
+ */
+async function legacyOwnersLoader(request: Request): Promise<OwnersLoaderData> {
+  try {
+    const searchParams = new URL(request.url).searchParams;
+    const clinics = searchParams.get("clinics") ?? undefined;
+    const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
+    const search = searchParams.get("search") || undefined;
+    const species = searchParams.get("species") || undefined;
+    const includeDeceased = searchParams.get("include_deceased") === "true" ? "true" : undefined;
+    const checkupHistory = searchParams.get("checkup_history") || undefined;
+
+    const { data: result } = await axios.get<PetsResponse>("/v1/pets", {
+      params: {
+        ...(clinics ? { clinic_ids: clinics } : {}),
+        page,
+        limit: OWNERS_PAGE_SIZE,
+        ...(search ? { search } : {}),
+        ...(species ? { species } : {}),
+        ...(includeDeceased ? { include_deceased: includeDeceased } : {}),
+        ...(checkupHistory ? { checkup_history: checkupHistory } : {}),
+      },
+    });
+
+    return {
+      pets: result.data.map(transformPetListItemToFrontend),
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      listState: { kind: "ready", scopeRechecked: false },
+      // null = 現在許可 scope を使っていない（OwnersList は既存の useClinicScope 表示に戻る）
+      clinicScope: null,
+    };
+  } catch (err) {
+    throw new Response("飼主一覧の取得に失敗しました", { status: httpStatusOf(err) });
+  }
+}
+
+/**
  * 飼主・ペット一覧ローダー — #266: GET /v1/pets をペット行粒度でサーバサイドページネーション取得する
  * （owners-pets-list-plan.md の PO 決定: owners API+EXISTS 応急案ではなく pets API 拡張を正本とする）。
  * URL の page/search/species/include_deceased/checkup_history をそのまま backend に転送する
@@ -211,12 +256,14 @@ function httpStatusOf(err: unknown): number {
  * 取得不能時の所属全件・現在医院・旧 scope への fallback は行わない。
  * GET /v1/pets の最終認可は維持し、403 は scope を 1 回だけ再取得して照合し直す
  * （同じ選択のまま再送しない）。`request.signal` で旧要求を中断する。
+ * EMR-463 の経路は OWNERS_CLINIC_SCOPE_ACTIVE が true のときだけ使う（静的 activation。応答を見た fallback ではない）。
  */
 export const ownersLoader = async ({
   request,
 }: {
   request: Request;
 }): Promise<OwnersLoaderData> => {
+  if (!OWNERS_CLINIC_SCOPE_ACTIVE) return legacyOwnersLoader(request);
   const { signal } = request;
   const searchParams = new URL(request.url).searchParams;
   const urlClinicIds = parseClinicsParam(searchParams.get("clinics"));

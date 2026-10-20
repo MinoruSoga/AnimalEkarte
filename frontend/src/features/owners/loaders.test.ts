@@ -7,6 +7,9 @@ vi.mock("@/lib/axios", () => ({
 import { axios } from "@/lib/axios";
 import { ownerLoader, ownersLoader } from "./loaders";
 
+// EMR-463: このファイルは活性時（OWNERS_CLINIC_SCOPE_ACTIVE=true）の経路を検証する。
+vi.mock("./lib/owners-clinic-scope-activation", () => ({ OWNERS_CLINIC_SCOPE_ACTIVE: true }));
+
 const mockedGet = vi.mocked(axios.get);
 
 // EMR-463: ownersLoader は GET /v1/me（owners 専有 scope）→ GET /v1/pets の順に呼ぶ。

@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { ownersLoader } from "./loaders";
+
+// EMR-463: このファイルは活性時（OWNERS_CLINIC_SCOPE_ACTIVE=true）の経路を検証する。
+vi.mock("./lib/owners-clinic-scope-activation", () => ({ OWNERS_CLINIC_SCOPE_ACTIVE: true }));
 
 // EMR-463: technical-spec#owners-list-scope-contract-emr463 の FE 受入ケース（契約 mock）。
 // GET /v1/me の owners_view_clinic_ids は runtime 未実装（x-contract-status:
