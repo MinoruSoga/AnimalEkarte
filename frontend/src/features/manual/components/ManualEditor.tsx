@@ -19,7 +19,7 @@
  * 詳細は業務フロー「マニュアルの編集依頼方法」(workflows/27-manual-edit-request.md) を参照。
  */
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Download, X, FileText, Eye, Columns2, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -61,9 +61,11 @@ const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません
 const EDIT_FETCH_CONTEXT = "マニュアル編集元の取得";
 const SAVE_CONTEXT = "マニュアル保存";
 const RECEIPT_MISMATCH_NOTICE =
-  "保存結果の照合に失敗しました。入力は保持されています。編集を閉じて開き直し、最新状態を確認してください。";
+  "保存結果の照合に失敗しました。入力は保持されています。下の「保存結果を再照会」で同じ保存の結果を確認できます。閉じる場合は入力が破棄されるため、必要ならコピー・ダウンロードで退避してください。";
 const UNKNOWN_NOTICE =
-  "保存結果を確認できていません（unknown）。入力は保持されています。新しい保存は行われません。編集を閉じて開き直し、最新状態を確認してください。";
+  "保存結果を確認できていません（unknown）。入力は保持されています。新しい保存は行われません。下の「保存結果を再照会」で同じ保存の結果を確認できます。閉じる場合は入力が破棄されるため、必要ならコピー・ダウンロードで退避してください。";
+const RESOLVE_QUERY_FAILED_NOTICE =
+  "保存結果の照会に失敗しました（通信断の可能性）。入力は保持されています。下の「保存結果を再照会」でやり直せます。";
 const SOURCE_UNRESOLVED_CONFLICT_NOTICE =
   "保存が競合しました（source_unresolved）。編集元の内容が解決できなくなっています。入力は保持されています。元内容を確認してください。";
 const TITLE_SECTION_EMPTY_MESSAGE =
@@ -119,6 +121,8 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
   const [body, setBody] = useState<string | null>(null);
   /** 結果照会でも確定できなかった等、この編集セッションで保存を停止した状態 */
   const [saveStopped, setSaveStopped] = useState(false);
+  /** 保存結果の再照会（同一 operation_key の GET operations）実行中 */
+  const [resolvingOperation, setResolvingOperation] = useState(false);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -127,17 +131,31 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
   const saveMutation = useUpsertManualArticle();
   const canEditRef = useRef(canEdit);
   const lastSaveRef = useRef<LastSaveRecord | null>(null);
+  /**
+   * 編集開始時に確定した編集元（CAS版・current内容版・公開版ID）。
+   * 保存は必ずこの版で行う。query data が背景refetch等で変わっても
+   * 保存基準を無言で差し替えない（競合は409として検出させ、比較・再確認を経る）。
+   */
+  const editStartRef = useRef<ManualEditBase | null>(null);
+  const editStartPublishedVersionIdRef = useRef<string | null>(null);
+  /** 進行中の保存を示し、二重クリックによる複数 operation_key 送信を防ぐ */
+  const savingRef = useRef(false);
+  /** 停止中に再照会できる operation_key（unknown/照会失敗になった保存） */
+  const lastOperationKeyRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     canEditRef.current = canEdit;
   }, [canEdit]);
 
   // 編集開始時（マウント時）に編集元を取得する。editorは編集再開のたびに
   // マウントし直すため、gcTime 0 で旧receipt/CASを混ぜずに毎回取り直す。
+  // refetchOnReconnectを無効化する: 再接続時の背景refetchがCAS版を無言で差し替えると、
+  // 競合検出（409）を迂回した上書き保存が成立するため（編集開始時の版を拘束する）。
   const editViewQuery = useQuery({
     queryKey: manualArticleEditViewQueryKey(article.category, article.slug),
     queryFn: () => getManualArticleEditView(article.category, article.slug),
     retry: false,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     staleTime: 0,
     gcTime: 0,
     meta: { silentError: true, errorContext: EDIT_FETCH_CONTEXT },
@@ -156,7 +174,17 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
     return { phase: "ready", base: resolution.base };
   }, [editViewQuery.data, editViewQuery.isPending, editViewQuery.isError, editViewQuery.error]);
 
-  const base = source.phase === "ready" ? source.base : null;
+  // 編集開始時（初回解決時）に編集元を確定させる。以降の保存はこの版で行う。
+  // query data が後から変わっても保存基準を差し替えない（B-1: 競合検出の迂回防止）。
+  useEffect(() => {
+    if (editStartRef.current === null && source.phase === "ready") {
+      editStartRef.current = source.base;
+      editStartPublishedVersionIdRef.current = editViewQuery.data?.published_version_id ?? null;
+    }
+  }, [source, editViewQuery.data]);
+
+  // 保存の基準は編集開始時に確定した編集元。queryの後続取得で無言差し替えしない。
+  const base = source.phase === "ready" ? (editStartRef.current ?? source.base) : null;
   // 編集元が解決するまではバンドル（表示中）の内容を閲覧・コピー用に表示する。
   // 編集対象はあくまで current 内容版で、解決後に差し替わる。
   const initialBodyForDisplay = base?.initialBody ?? article.content;
@@ -201,6 +229,9 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
       return;
     }
     const freshBase = resolution.base;
+    // 再確認で編集元を採用したので、保存基準（編集開始時版）をこちらへ付け替える
+    editStartRef.current = freshBase;
+    editStartPublishedVersionIdRef.current = fresh.published_version_id;
     const changed: string[] = [];
     if (previous !== null && freshBase.initialBody !== previous.initialBody) {
       changed.push("本文");
@@ -232,10 +263,11 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
     try {
       result = await getManualEditOperationResult(article.category, article.slug, operationKey);
     } catch (queryErr) {
+      // 照会リクエスト自体の失敗。unknown（未確定）とは区別し、同一keyでの再照会に出路を残す
       setSaveStopped(true);
       setNotice({
         kind: "error",
-        text: `保存結果の照会に失敗しました。${extractApiErrorMessage(
+        text: `${RESOLVE_QUERY_FAILED_NOTICE}${extractApiErrorMessage(
           queryErr,
           "マニュアル保存結果の照会",
         )}`,
@@ -247,17 +279,46 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
       setNotice({ kind: "error", text: UNKNOWN_NOTICE });
       return;
     }
-    // 照会結果もreceipt照合を通す
+    // 照会結果もreceipt照合を通す（公開版不変の照合を含む）
     try {
       verifyManualEditReceipt(result.receipt, {
         operationKey,
         articleId: last.expectation.articleId,
         expectedVersion: last.expectation.expectedVersion,
         expectedContentVersionId: last.expectation.expectedContentVersionId,
+        expectedPublishedVersionId: last.expectation.expectedPublishedVersionId,
       });
     } catch {
       setSaveStopped(true);
       setNotice({ kind: "error", text: RECEIPT_MISMATCH_NOTICE });
+      return;
+    }
+    // 照合成功後、現在状態を別取得して比較する（api.yaml operations契約）。
+    // 照会で得たreceiptが古い可能性に備え、最新のedit viewが保存結果と一致しなければ成功表示をしない。
+    let fresh: ManualArticleEditView;
+    try {
+      fresh = await getManualArticleEditView(article.category, article.slug);
+    } catch (freshErr) {
+      setSaveStopped(true);
+      setNotice({
+        kind: "error",
+        text: `保存は確定しましたが、最新の編集元の取得に失敗しました。入力は保持されています。${extractApiErrorMessage(
+          freshErr,
+          EDIT_FETCH_CONTEXT,
+        )}`,
+      });
+      return;
+    }
+    if (
+      fresh.version !== result.receipt.resulting_version ||
+      fresh.current === null ||
+      fresh.current.id !== result.receipt.content_version_id
+    ) {
+      setSaveStopped(true);
+      setNotice({
+        kind: "error",
+        text: "保存結果と最新の編集元が一致しません。その後さらに編集が進んでいる可能性があります。入力は保持されています。最新状態を確認してください。",
+      });
       return;
     }
     handleVerifiedSuccess();
@@ -289,7 +350,10 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
     }
     if (err instanceof ManualArticleSaveError) {
       if (err.status === undefined || err.status >= 500) {
-        // 応答喪失・5xxは結果不明。元keyで結果照会し新keyの再保存で救済しない
+        // 応答喪失・5xxは結果不明。元keyで結果照会し新keyの再保存で救済しない。
+        // 照会のawait中に保存ボタンが再有効化されないよう、先に停止状態へする
+        setSaveStopped(true);
+        lastOperationKeyRef.current = err.operationKey;
         await resolveUnknownOperation(err.operationKey);
         return;
       }
@@ -315,6 +379,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         articleId: editBase.articleId,
         expectedVersion: editBase.casVersion,
         expectedContentVersionId: editBase.contentVersionId,
+        expectedPublishedVersionId: editStartPublishedVersionIdRef.current,
       },
       content,
       previousBase: editBase,
@@ -327,6 +392,7 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
         articleId: editBase.articleId,
         expectedVersion: editBase.casVersion,
         expectedContentVersionId: editBase.contentVersionId,
+        expectedPublishedVersionId: editStartPublishedVersionIdRef.current,
         content,
       });
       handleVerifiedSuccess();
@@ -336,6 +402,10 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
   };
 
   const handleSave = () => {
+    if (savingRef.current) {
+      // 二重クリックで複数の operation_key を同時送信しない
+      return;
+    }
     if (canEditRef.current !== true) {
       toast.error(PERMISSION_DENIED_MESSAGE);
       return;
@@ -357,7 +427,22 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
       return;
     }
     setNotice(null);
-    void runSaveFlow(base);
+    savingRef.current = true;
+    void runSaveFlow(base).finally(() => {
+      savingRef.current = false;
+    });
+  };
+
+  /** 停止中の保存結果を同じ operation_key で再照会する（新keyの保存はしない） */
+  const handleRequeryOperation = () => {
+    const operationKey = lastOperationKeyRef.current;
+    if (operationKey === null || resolvingOperation) {
+      return;
+    }
+    setResolvingOperation(true);
+    void resolveUnknownOperation(operationKey).finally(() => {
+      setResolvingOperation(false);
+    });
   };
 
   const handleCopy = async () => {
@@ -549,6 +634,16 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           className={`px-4 py-2 text-xs border-b ${C.borderDivider} ${C.bgDanger10} ${C.danger}`}
         >
           {notice.text}
+          {saveStopped && lastOperationKeyRef.current !== null ? (
+            <button
+              type="button"
+              onClick={handleRequeryOperation}
+              disabled={resolvingOperation}
+              className={`ml-2 inline-flex min-h-8 items-center gap-1 rounded-xxs border px-2 py-0.5 text-xs ${C.borderDivider} ${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${resolvingOperation ? "opacity-50" : C.hoverBgActionPrimarySolid}`}
+            >
+              保存結果を再照会
+            </button>
+          ) : null}
         </div>
       ) : null}
 

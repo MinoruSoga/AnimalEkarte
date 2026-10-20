@@ -100,6 +100,7 @@ const saveParams = {
   articleId: ARTICLE_ID,
   expectedVersion: CAS_VERSION,
   expectedContentVersionId: CONTENT_VERSION_ID,
+  expectedPublishedVersionId: PUBLISHED_VERSION_ID,
   content: {
     title: "概要",
     order_value: 12.34,
@@ -293,6 +294,7 @@ describe("manual-article-edit adapter（EMR-513 固定API契約）", () => {
           articleId: ARTICLE_ID,
           expectedVersion: CAS_VERSION,
           expectedContentVersionId: CONTENT_VERSION_ID,
+          expectedPublishedVersionId: PUBLISHED_VERSION_ID,
         }),
       ).not.toThrow();
     });
@@ -338,6 +340,41 @@ describe("manual-article-edit adapter（EMR-513 固定API契約）", () => {
       const err = await saveManualArticleEdit(saveParams).catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(ManualReceiptMismatchError);
+    });
+
+    it("receiptのpublished_version_idが編集開始時と異なる場合は拒否する（editは公開版を変えない）", async () => {
+      server.use(
+        http.put(EDIT_PATH, async ({ request }) => {
+          const body = (await request.json()) as UpsertManualArticleRequest;
+          return HttpResponse.json(
+            receiptFixture({
+              operation_key: body.operation_key,
+              published_version_id: "4100000000000000999",
+            }),
+            { status: 200 },
+          );
+        }),
+      );
+
+      const err = await saveManualArticleEdit(saveParams).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ManualReceiptMismatchError);
+    });
+
+    it("edit viewのcurrent.article_idが対象と不一致なら元確認へ戻す（保存要求を送らない）", async () => {
+      const brokenView = editViewFixture();
+      brokenView.current = { ...brokenView.current, article_id: "999" };
+      server.use(
+        http.get(`${EDIT_PATH}/edit`, () => HttpResponse.json(brokenView), { once: true }),
+      );
+
+      const view = await getManualArticleEditView("screens", "00-overview");
+      const resolution = resolveManualEditSource(view);
+
+      expect(resolution.ok).toBe(false);
+      if (!resolution.ok) {
+        expect(resolution.reason).toBe("invalid_target");
+      }
     });
 
     it("モック未定義の経路では偽成功を作らずrejectする（黙ってfallbackしない）", async () => {
@@ -390,6 +427,7 @@ describe("manual-article-edit adapter（EMR-513 固定API契約）", () => {
       articleId: ARTICLE_ID,
       expectedVersion: CAS_VERSION,
       expectedContentVersionId: CONTENT_VERSION_ID,
+      expectedPublishedVersionId: PUBLISHED_VERSION_ID,
     };
 
     it("対象/版/内容版が一致するreceiptは通過する", () => {

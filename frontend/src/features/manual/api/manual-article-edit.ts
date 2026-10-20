@@ -173,6 +173,10 @@ export function resolveManualEditSource(view: ManualArticleEditView): ManualEdit
   ) {
     return { ok: false, reason: "content_unidentified" };
   }
+  if (current.article_id !== view.id) {
+    // server不変条件だが、編集対象の取り違えは保存前に拒否する（fail-closed）
+    return { ok: false, reason: "invalid_target" };
+  }
   if (typeof current.content_digest !== "string" || !SHA256_HEX_RE.test(current.content_digest)) {
     return { ok: false, reason: "content_unidentified" };
   }
@@ -205,6 +209,8 @@ export interface ManualEditReceiptExpectation {
   expectedVersion: number;
   /** 編集開始時の current.id。receiptはこの版とは別の新内容版を指す */
   expectedContentVersionId: string;
+  /** 編集開始時の edit view published_version_id。editは公開版を変えないため一致する必要がある */
+  expectedPublishedVersionId: string | null;
 }
 
 /** receipt照合（対象/版/内容版の一致）の失敗。成功表示をしてはいけない */
@@ -243,6 +249,12 @@ export function verifyManualEditReceipt(
   }
   if (receipt.resulting_version !== receipt.previous_version + 1) {
     throw new ManualReceiptMismatchError("resulting_version is not previous_version + 1");
+  }
+  if (receipt.published_version_id !== expectation.expectedPublishedVersionId) {
+    // editは公開版を変えない（契約: 編集成功は公開成功を意味しない）。矛盾するreceiptは成功扱いにしない
+    throw new ManualReceiptMismatchError(
+      "published_version_id is not the publication at edit start",
+    );
   }
   if (!isPositiveDecimalString(receipt.content_version_id)) {
     throw new ManualReceiptMismatchError("content_version_id is not a positive decimal string");
@@ -348,6 +360,8 @@ export interface SaveManualArticleEditParams {
   expectedVersion: number;
   /** 編集開始時の current.id */
   expectedContentVersionId: string;
+  /** 編集開始時の view.published_version_id（editは公開版を変えないためreceipt照合に使う） */
+  expectedPublishedVersionId: string | null;
   /** 全置換content（title/section空文字はserver 400。clientでも同じ条件で拒否する） */
   content: ManualEditContent;
 }
@@ -404,6 +418,7 @@ export async function saveManualArticleEdit(
       articleId: params.articleId,
       expectedVersion: params.expectedVersion,
       expectedContentVersionId: params.expectedContentVersionId,
+      expectedPublishedVersionId: params.expectedPublishedVersionId,
     });
     return { operationKey, receipt: data };
   } catch (err) {

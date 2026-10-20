@@ -52,6 +52,7 @@ vi.mock("./ManualContent", () => ({
 
 const ARTICLE_ID = "9223372036854775807";
 const CONTENT_VERSION_ID = "4100000000000000123";
+const NEW_CONTENT_VERSION_ID = "4100000000000000124";
 const SHA_DIGEST = "3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca4c6a1c";
 const OPERATION_KEY = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
@@ -107,7 +108,7 @@ function receiptFixture(overrides: Partial<ManualEditReceipt> = {}): ManualEditR
     intent: "edit",
     previous_version: 41,
     resulting_version: 42,
-    content_version_id: "4100000000000000124",
+    content_version_id: NEW_CONTENT_VERSION_ID,
     content_digest: SHA_DIGEST,
     published_version_id: "4100000000000000100",
     ...overrides,
@@ -329,8 +330,14 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     expect(saveMock).toHaveBeenCalledTimes(1);
   });
 
-  it("通信断→operations succeeded: 照会結果もreceipt照合を通して成功扱いにする", async () => {
-    editViewMock.mockResolvedValue(editViewFixture());
+  it("通信断→operations succeeded: 照会結果もreceipt照合と最新edit view比較を通して成功扱いにする", async () => {
+    // 照合成功後の「現在状態を別取得して比較」で、保存後のview（version進行・新内容版）を返す
+    editViewMock.mockResolvedValueOnce(editViewFixture()).mockResolvedValueOnce(
+      editViewFixture({
+        version: 42,
+        current: currentFixture({ id: NEW_CONTENT_VERSION_ID, content_revision: 8 }),
+      }),
+    );
     saveMock.mockRejectedValue(
       new ManualArticleSaveError({
         operationKey: OPERATION_KEY,
@@ -352,9 +359,88 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
 
     await waitFor(() => {
       expect(operationsMock).toHaveBeenCalledWith("screens", "00-overview", OPERATION_KEY);
+      // 初回取得 + 照合後の「現在状態を別取得して比較」（成功後のinvalidate再取得は対象外）
+      expect(editViewMock.mock.calls.length).toBeGreaterThanOrEqual(2);
       expect(toast.success).toHaveBeenCalledWith("マニュアルを保存しました");
       expect(onClose).toHaveBeenCalled();
     });
+  });
+
+  it("operations succeededでも最新edit viewが保存結果と不一致なら成功表示せず停止する", async () => {
+    // 2回目の取得も古いviewのまま（その後さらに編集が進んだ等）→ 成功表示を差し控える
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(
+      new ManualArticleSaveError({
+        operationKey: OPERATION_KEY,
+        message: "manual article save failed: no response",
+      }),
+    );
+    operationsMock.mockResolvedValue({
+      operation_key: OPERATION_KEY,
+      state: "succeeded",
+      receipt: receiptFixture(),
+    });
+    renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "古い照会結果の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(alert).toHaveTextContent("一致しません"));
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("unknown停止後に同じoperation_keyで再照会できる（新key保存はしない）", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    saveMock.mockRejectedValue(
+      new ManualArticleSaveError({
+        operationKey: OPERATION_KEY,
+        message: "manual article save failed: no response",
+      }),
+    );
+    operationsMock
+      .mockResolvedValueOnce({ operation_key: OPERATION_KEY, state: "unknown", receipt: null })
+      .mockResolvedValueOnce({
+        operation_key: OPERATION_KEY,
+        state: "succeeded",
+        receipt: receiptFixture(),
+      });
+    const { onClose } = renderEditor({ canEdit: true });
+
+    const textarea = await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(textarea).toHaveValue("現在の本文"));
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "再照会の入力");
+    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    // 1回目の照会はunknownで停止。入力保持・保存停止
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(alert).toHaveTextContent("unknown"));
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 再照会ボタンで同じkeyをもう一度問い合わせる
+    await userEvent.click(screen.getByRole("button", { name: "保存結果を再照会" }));
+    expect(operationsMock).toHaveBeenCalledTimes(2);
+    expect(operationsMock).toHaveBeenLastCalledWith("screens", "00-overview", OPERATION_KEY);
+  });
+
+  it("ネットワーク再接続でも編集元を背景refetchしない（保存基準を無言で差し替えない）", async () => {
+    editViewMock.mockResolvedValue(editViewFixture());
+    renderEditor({ canEdit: true });
+
+    await screen.findByLabelText("マニュアル本文編集");
+    await waitFor(() => expect(editViewMock).toHaveBeenCalledTimes(1));
+
+    // offline→online を疑似的に発生させる（TanStackのreconnect契約）
+    window.dispatchEvent(new Event("offline"));
+    window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(editViewMock).toHaveBeenCalledTimes(1);
   });
 
   it("receipt不一致は成功表示せず停止する", async () => {
