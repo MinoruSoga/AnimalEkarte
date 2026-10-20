@@ -83,7 +83,7 @@ afterEach(() => {
 
 describe("OwnerIntakeReadOnlyCard — bound・回答あり", () => {
   it("7 項目・回答版・受信時刻・出所を読み取り専用で表示する", async () => {
-    useIntake(boundBody());
+    useIntake(boundBody({ history: [] }));
     renderCard();
 
     const card = await screen.findByTestId("owner-intake-card");
