@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CircleDashed, CircleCheck, ClipboardList, Lock, MessageSquareText } from "lucide-react";
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
@@ -30,6 +30,22 @@ interface RevisitIntakeSectionProps {
 
 const SECTION_LABEL = "飼主事前問診（LINE）";
 const PROVENANCE_LABEL = "飼主（LINE）";
+/** docs/spec/ui-design-guide.md / design-patterns §6.2: 読込は 300ms 超でスケルトン。 */
+const SKELETON_DELAY_MS = 300;
+
+/** pending が threshold を超えて続いたときだけ true（短い読込でのスケルトン点滅を避ける）。 */
+function useElapsed(active: boolean, delayMs: number): boolean {
+  const [elapsed, setElapsed] = useState(false);
+  useEffect(() => {
+    if (!active) {
+      setElapsed(false);
+      return;
+    }
+    const timer = setTimeout(() => setElapsed(true), delayMs);
+    return () => clearTimeout(timer);
+  }, [active, delayMs]);
+  return active && elapsed;
+}
 
 function formatReceivedAt(iso: string): string {
   const date = formatDate(iso);
@@ -175,6 +191,7 @@ export function RevisitIntakeSection({
   const query = useGetRevisitIntake({ appointmentId, clinicId, enabled });
   const queryClient = useQueryClient();
   const pages = query.data?.pages;
+  const showSkeleton = useElapsed(query.isPending, SKELETON_DELAY_MS);
   // 401/403/404 は cached pages の有無に関係なく最優先（再取得・追加ページでセッション失効・権限喪失した場合も本文を出さない）。
   const errorStatus = query.isError ? getRevisitIntakeErrorStatus(query.error) : undefined;
   const denied = errorStatus === 401 || errorStatus === 403 || errorStatus === 404;
@@ -219,15 +236,23 @@ export function RevisitIntakeSection({
       <SectionFrame busy>
         <div role="status" className="space-y-2">
           <span className="sr-only">問診を読み込み中</span>
-          <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
-          <div className={`h-4 w-full rounded ${C.bgSkeleton} animate-pulse`} />
-          <div className={`h-4 w-3/4 rounded ${C.bgSkeleton} animate-pulse`} />
+          {showSkeleton ? (
+            <>
+              <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
+              <div className={`h-4 w-full rounded ${C.bgSkeleton} animate-pulse`} />
+              <div className={`h-4 w-3/4 rounded ${C.bgSkeleton} animate-pulse`} />
+            </>
+          ) : null}
         </div>
       </SectionFrame>
     );
   }
 
-  if (denied || (query.isError && !pages)) {
+  // 再取得（reconnect 等）が失敗したのに取得済み本文を「最新」として出し続けない。
+  // 追加ページ取得の失敗だけは、取得済みページを残して下部の注記で扱う。
+  const refetchFailed = query.isError && !!pages && !query.isFetchNextPageError;
+
+  if (denied || (query.isError && !pages) || refetchFailed) {
     const status = errorStatus;
     if (status === 404) {
       // 対象予約の問診を読めない: セクションは出さず 1 行のみ（存在可否の詳細は出さない）。

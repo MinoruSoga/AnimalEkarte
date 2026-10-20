@@ -66,20 +66,46 @@ function respond(json: unknown, status = 200) {
 }
 
 describe("RevisitIntakeSection", () => {
-  it("読込中はセクション内スケルトンを aria-busy で出す", async () => {
+  it("読込中は aria-busy と読み上げ文言を即時に出し、スケルトン描画は 300ms 超まで遅らせる", async () => {
     server.use(
       http.get(PATH, async () => {
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise((r) => setTimeout(r, 700));
         return HttpResponse.json(body());
       }),
     );
-    renderSection();
+    const { container } = renderSection();
     expect(screen.getByRole("status")).toHaveTextContent("問診を読み込み中");
     expect(screen.getByRole("region", { name: "飼主事前問診（LINE）" })).toHaveAttribute(
       "aria-busy",
       "true",
     );
+    // 300ms 未満はスケルトンを出さない（短い読込での点滅防止）。
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    await waitFor(() => expect(container.querySelector(".animate-pulse")).not.toBeNull());
     expect(await screen.findByText("回答済み")).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+  });
+
+  it("再取得が失敗したら取得済みの本文を最新として出し続けず、エラーと再試行を出す", async () => {
+    let calls = 0;
+    server.use(
+      http.get(PATH, () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json(body())
+          : HttpResponse.json(
+              { error: "x", code: "SERVICE_UNAVAILABLE" },
+              { status: 503, headers: { "Retry-After": "60" } },
+            );
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("目的a2")).toBeInTheDocument();
+    // reconnect / focus 復帰相当の自動再取得を起こす。
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
   });
 
   it("target_unresolved は「対象を特定できません」を出す", async () => {
