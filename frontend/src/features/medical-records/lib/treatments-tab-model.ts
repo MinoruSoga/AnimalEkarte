@@ -27,9 +27,8 @@ export function buildMasterSelectionPayload(params: {
   quantity: number;
   sortOrder: number;
   /**
-   * 互換引数。未設定値のboolean補完には使わない。
+   * 未採用 consumer に限り、caller の従来既定を維持する（省略時は false）。
    * 採用済み master の未設定・未取得は保存前に停止する。明示値だけ反転写像する。
-   * 未採用 consumer は保険 field 自体を省略し、従来の作成契約を維持する。
    */
   insuranceFallback?: boolean;
 }): CreateTreatmentInput {
@@ -43,9 +42,10 @@ export function buildMasterSelectionPayload(params: {
     consultation_id: item.category === "診察" ? toNumericId(item.id) : undefined,
     procedure_id: item.category === "処置" ? toNumericId(item.id) : undefined,
     is_selected: true,
-    ...(item.insuranceContract === "master"
-      ? { is_insurance: toInsuranceApplicable(item.isNonInsurance, insuranceFallback) }
-      : {}),
+    is_insurance:
+      item.insuranceContract === "master"
+        ? toInsuranceApplicable(item.isNonInsurance)
+        : insuranceFallback,
     discount_amount: 0,
     sort_order: sortOrder,
     memo: "",
@@ -57,10 +57,7 @@ export function buildMasterSelectionPayload(params: {
  * 明示 true（対象外）→ false、明示 false（対象）→ true。旧欠落 null・未取得は保存を停止し、
  * 明示booleanへ推測補完しない（AC-accounting-item-insurance-legacy-missing）。
  */
-function toInsuranceApplicable(
-  isNonInsurance: boolean | null | undefined,
-  _fallback: boolean,
-): boolean {
+function toInsuranceApplicable(isNonInsurance: boolean | null | undefined): boolean {
   if (typeof isNonInsurance === "boolean") return !isNonInsurance;
   throw new Error("保険設定が未設定または未取得です。マスタの設定を確認してください");
 }

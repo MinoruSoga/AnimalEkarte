@@ -82,7 +82,7 @@ describe("clinical selection follows the adopted master contract", () => {
       else expect(build).toThrow("保険設定");
     } else {
       expect(selected).not.toHaveProperty("insuranceContract");
-      expect(build()).not.toHaveProperty("is_insurance");
+      expect(build().is_insurance).toBe(true);
     }
   });
 });

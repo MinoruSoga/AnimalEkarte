@@ -129,12 +129,16 @@ describe("buildMasterSelectionPayload 品目別保険設定の受渡し (EMR-454
   );
 });
 
-it.each([true, false])(
-  "a caller fallback cannot turn unknown into explicit %s",
-  (insuranceFallback) => {
+it.each(
+  [true, false].flatMap((insuranceFallback) =>
+    [null, undefined].map((isNonInsurance) => ({ insuranceFallback, isNonInsurance })),
+  ),
+)(
+  "adopted unknown $isNonInsurance rejects caller fallback $insuranceFallback",
+  ({ insuranceFallback, isNonInsurance }) => {
     expect(() =>
       buildMasterSelectionPayload({
-        item: masterItem({ isNonInsurance: null }),
+        item: masterItem({ isNonInsurance }),
         quantity: 1,
         sortOrder: 0,
         insuranceFallback,
@@ -143,12 +147,20 @@ it.each([true, false])(
   },
 );
 
-// 未採用 consumer は値の有無で保険契約を推測せず、従来の入力を送る。
-it.each([undefined, null, true, false])("legacy selection omits insurance: %s", (setting) => {
-  const payload = buildMasterSelectionPayload({
-    item: masterItem({ insuranceContract: undefined, isNonInsurance: setting }),
-    quantity: 1,
-    sortOrder: 0,
-  });
-  expect(payload).not.toHaveProperty("is_insurance");
-});
+// 未採用では master 値を推測せず、caller の従来既定だけを維持する。
+it.each(
+  [undefined, true, false].flatMap((insuranceFallback) =>
+    [undefined, null, true, false].map((isNonInsurance) => ({ insuranceFallback, isNonInsurance })),
+  ),
+)(
+  "legacy ignores setting $isNonInsurance and preserves fallback $insuranceFallback",
+  ({ insuranceFallback, isNonInsurance }) => {
+    const payload = buildMasterSelectionPayload({
+      item: masterItem({ insuranceContract: undefined, isNonInsurance }),
+      quantity: 1,
+      sortOrder: 0,
+      insuranceFallback,
+    });
+    expect(payload.is_insurance).toBe(insuranceFallback ?? false);
+  },
+);

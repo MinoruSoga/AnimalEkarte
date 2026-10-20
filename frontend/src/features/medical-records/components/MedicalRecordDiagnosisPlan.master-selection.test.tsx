@@ -174,6 +174,31 @@ const BASE_PROPS = {
 };
 
 describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
+  it.each(["予防", "検査"])("未採用 %s は caller の保険対象=true を維持する", async (category) => {
+    server.use(
+      http.get("*/v1/medical-records/:id/clinical-plan", () => HttpResponse.json({})),
+      http.get("*/v1/medical-records/:id/billing-confirmation", () =>
+        HttpResponse.json({ id: "1", medical_record_id: "10", status: "pending" }),
+      ),
+      http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
+    );
+    const user = userEvent.setup();
+    render(
+      <MedicalRecordDiagnosisPlan {...BASE_PROPS} recordClinicId="2" />,
+      { wrapper: createTestWrapper() },
+    );
+    await user.click(await screen.findByRole("button", { name: /検索|マスタ|追加/ }));
+    const select = mockDialogProps.current.onSelect as (item: TreatmentMasterItem) => void;
+    await act(async () => {
+      select({ id: "71", name: "legacy master", unitPrice: 1000, category });
+    });
+    await waitFor(() =>
+      expect(mockCreateMutate).toHaveBeenCalledWith(
+        expect.objectContaining({ item_type: "other", memo: category, is_insurance: true }),
+      ),
+    );
+  });
+
   it("EMR-454: master が明示的に保険対象外の品目は is_insurance=false で作成する", async () => {
     server.use(
       http.get("*/v1/medical-records/10/clinical-plan", () => HttpResponse.json({})),
