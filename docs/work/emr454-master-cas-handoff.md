@@ -27,3 +27,19 @@ CAS成功はreceipt完成を意味しない。採用済みoperation.Runner/Parti
 ## 適用・検証状態
 
 DDLソースの追加だけであり、DBへのmigration適用・reset・STG/本番操作・mergeは行っていない。採用/適用後の利用前にはAGENTSの手順に従う手動migrationが必要。限定source/SQLDryRun/fake/httptestは実DB trigger・2接続・実HTTP/UI/UATのPASSではない。
+
+## 段階採用のコード分離（2026-10-20 追補）
+
+計画のみの状態から、基盤と専有consumerの活性化を実際に分離した。
+
+1. **#735 基盤**：3model/002・共通audit/parent lock・診察/処置CAS。vaccine/checkupのproduction constructor、専有API request/response、FE版必須化・保険送信は先取りしない。旧GETに版がないconsumerでも既存項目を編集できる。共通nullable型/transform/insurance helperはここだけで所有する。
+2. **#730 vaccine consumer**：専有監査/CAS writer・responseと同時にcomposition、専有API記述、共有saveのvaccine活性化、編集開始版必須化を採用する。default reference servicesを構築してからvaccineだけaudited serviceへ差し替え、未採用checkupの契約を変更しない。
+3. **#732 checkup consumer**：既存の専有constructor配線と同時に専有API記述、共有saveのcheckup活性化、編集開始版必須化を採用する。
+
+`git merge-tree` の一時treeで基盤→vaccine→checkupを合成し、content conflictがないことを確認した。PRブランチ同士のmerge・ref更新・公開はこの検証で行っていない。各worktree全体の単純上書きで共有ファイルを失う方式は使わない。
+
+段階別FEは89/104/114 tests＋scoped tsc/eslint/format PASS。所有するactual-source限定Goは247/390/523 test/subtest nodes＋vet PASS。実際のcompositionにあるmaster constructor呼出しを取り出し、同じactual service/portに対する署名契約もコンパイルした。APIはYAML・内部参照・段階別版契約を限定検証した。これらはcmd/api全体のbuildや実HTTPのPASSではない。
+
+前2段階で未採用の旧consumerまで含めた試験は、既存main同一のvaccine/checkup service/responseのSortOrder int対model *int不整合により4箇所/2箇所でcompile失敗した。失敗証跡を保持し、未採用旧consumerを除いた所有scopeのPASSと区別した。4ファイルがmainと同一であることを照合し、各専有consumerに存在する修正を基盤へ複製していない。全backend/API独立buildは、sharedkernel/testdb等も含む既存model caller移行が済むまで未成立である。
+
+003画像台帳を追加した#731との統合では、ERD index/manifestを両migrationを含む採用treeから再生成する必要がある。002/003のDB適用は未実施。receipt保存/照会、source adoption/staff overrideもこの段階分離で完成扱いにしない。
