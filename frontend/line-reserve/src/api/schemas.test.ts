@@ -11,6 +11,11 @@ import {
   availableTimeSchema,
   reservationSchema,
   createReservationResponseSchema,
+  revisitIntakeLIFFReadSchema,
+  revisitIntakeResultResponseSchema,
+  revisitIntakeEnergyAppetiteSchema,
+  revisitIntakeImprovementSchema,
+  revisitIntakeExaminationPreferenceSchema,
 } from "./schemas";
 
 describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
@@ -240,5 +245,93 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
   it("createReservationResponseSchema: 必須フィールド欠落が reject される", () => {
     const fixture = { id: 1 };
     expect(createReservationResponseSchema.safeParse(fixture).success).toBe(false);
+  });
+});
+
+describe("revisit intake schemas（EMR-474）", () => {
+  const unanswered = {
+    availability: "available",
+    form_definition_version: 1,
+    current_target: {
+      ref: { target_id: null, appointment_id: "12001", pet_id: "801", target_generation: "3" },
+      head_revision: null,
+      answer_state: "unanswered",
+      latest_answer: null,
+      content_available: false,
+      editable: true,
+      edit_block_reason: null,
+    },
+    history: [],
+    next_cursor: null,
+  };
+
+  it("api.yaml の unpersisted 例が通る", () => {
+    expect(revisitIntakeLIFFReadSchema.safeParse(unanswered).success).toBe(true);
+  });
+
+  it("ID を Number で返す応答は reject する（10進文字列のみ）", () => {
+    const bad = {
+      ...unanswered,
+      current_target: {
+        ...unanswered.current_target,
+        ref: { ...unanswered.current_target.ref, appointment_id: 12001 },
+      },
+    };
+    expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("未知の edit_block_reason は補完せず reject する", () => {
+    const bad = {
+      ...unanswered,
+      current_target: { ...unanswered.current_target, edit_block_reason: "staff_locked" },
+    };
+    expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("未回答なのに head_revision がある不整合は reject する", () => {
+    const bad = {
+      ...unanswered,
+      current_target: { ...unanswered.current_target, head_revision: "1" },
+    };
+    expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("未知の選択肢 code は reject する", () => {
+    expect(revisitIntakeEnergyAppetiteSchema.safeParse("fine").success).toBe(false);
+    expect(revisitIntakeImprovementSchema.safeParse("new_symptoms").success).toBe(true);
+    expect(revisitIntakeExaminationPreferenceSchema.safeParse("examination").success).toBe(true);
+  });
+
+  it("結果 union: redacted 成功と claimed / result_unavailable が通り、未知 state は reject", () => {
+    const key = "0bdbb5d2-87e0-4df5-bd93-3f62008bd776";
+    const redacted = {
+      operation_result: {
+        operation_id: key,
+        intent: "revisit-intake.submit",
+        state: "succeeded",
+        committed_at: "2026-10-20T13:00:00Z",
+        result_refs: null,
+        committed_versions: null,
+      },
+      current_state: null,
+      content_available: false,
+    };
+    const claimed = {
+      operation_result: {
+        operation_id: key,
+        intent: "revisit-intake.submit",
+        state: "claimed_uncommitted",
+      },
+      current_state: null,
+      content_available: false,
+    };
+    expect(revisitIntakeResultResponseSchema.safeParse(redacted).success).toBe(true);
+    expect(revisitIntakeResultResponseSchema.safeParse(claimed).success).toBe(true);
+    expect(
+      revisitIntakeResultResponseSchema.safeParse({
+        ...claimed,
+        operation_result: { ...claimed.operation_result, state: "failed" },
+      }).success,
+    ).toBe(false);
   });
 });

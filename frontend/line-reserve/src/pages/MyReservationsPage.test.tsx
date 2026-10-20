@@ -164,3 +164,150 @@ describe("MyReservationsPage（R-F25: ネイティブダイアログ→インラ
     expect(callCount).toBe(2);
   });
 });
+
+describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
+  const cancelledReservation: Reservation = {
+    ...confirmedReservation,
+    id: 2,
+    status: "cancelled",
+    notes: "R-20260802-0002",
+  };
+
+  function revisitRead(answered: boolean, historyCount: number) {
+    const ref = { target_id: "5401", appointment_id: "2", pet_id: "801", target_generation: "1" };
+    const ans = {
+      answer_id: "9101",
+      revision: "1",
+      form_definition_version: 1,
+      received_at: "2026-07-20T01:00:00Z",
+      provenance: "owner_submission",
+      answers: {
+        visit_purpose: "合成の来院目的",
+        onset: null,
+        energy: null,
+        appetite: null,
+        current_symptoms: null,
+        improvement: null,
+        examination_preference: null,
+        main_concern: null,
+      },
+    };
+    return {
+      availability: "available",
+      form_definition_version: 1,
+      current_target: answered
+        ? {
+            ref,
+            head_revision: "1",
+            answer_state: "answered",
+            latest_answer: ans,
+            content_available: true,
+            editable: false,
+            edit_block_reason: "cancelled",
+          }
+        : {
+            ref: { ...ref, target_id: null },
+            head_revision: null,
+            answer_state: "unanswered",
+            latest_answer: null,
+            content_available: false,
+            editable: false,
+            edit_block_reason: "cancelled",
+          },
+      history: Array.from({ length: historyCount }, () => ({
+        target: ref,
+        answer: ans,
+        target_relation: "current",
+      })),
+      next_cursor: null,
+    };
+  }
+
+  it("confirmed カードに「問診を回答する／訂正する」を出し、押すとその予約で問診を開く", async () => {
+    const user = userEvent.setup();
+    const onOpenRevisitIntake = vi.fn();
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([confirmedReservation]),
+      ),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpenRevisitIntake}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
+    expect(onOpenRevisitIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, status: "confirmed" }),
+    );
+  });
+
+  it("取消済みカードは回答履歴があるときだけ「回答履歴を見る」を出す", async () => {
+    const user = userEvent.setup();
+    const onOpenRevisitIntake = vi.fn();
+    const requested: URL[] = [];
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([cancelledReservation]),
+      ),
+      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", ({ request }) => {
+        requested.push(new URL(request.url));
+        return HttpResponse.json(revisitRead(true, 1));
+      }),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpenRevisitIntake}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "回答履歴を見る" }));
+    expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
+    expect(requested[0].searchParams.get("limit")).toBe("1");
+    expect(
+      screen.queryByRole("button", { name: "問診を回答する／訂正する" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("取消済みで回答履歴が無い場合と、取得に失敗した場合は導線を出さない", async () => {
+    const cancelledWithoutHistory: Reservation = { ...cancelledReservation, id: 3 };
+    let resolved = 0;
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([cancelledReservation, cancelledWithoutHistory]),
+      ),
+      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", ({ params }) => {
+        resolved += 1;
+        if (params.id === "2") return HttpResponse.json({ error: "not found" }, { status: 404 });
+        return HttpResponse.json(revisitRead(false, 0));
+      }),
+    );
+
+    render(<MyReservationsPage {...BASE_PROPS} onBack={vi.fn()} onOpenRevisitIntake={vi.fn()} />);
+
+    await screen.findAllByText("キャンセル済");
+    await waitFor(() => expect(resolved).toBe(2));
+    expect(screen.queryByRole("button", { name: "回答履歴を見る" })).not.toBeInTheDocument();
+  });
+
+  it("onOpenRevisitIntake 未指定なら問診の導線を出さず、問診 API も呼ばない", async () => {
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([confirmedReservation, cancelledReservation]),
+      ),
+    );
+
+    render(<MyReservationsPage {...BASE_PROPS} onBack={vi.fn()} />);
+
+    expect(await screen.findByText("キャンセル済")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /問診/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "回答履歴を見る" })).not.toBeInTheDocument();
+  });
+});
