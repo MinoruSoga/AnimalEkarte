@@ -198,7 +198,7 @@ components:
 
 > **位置づけ**: 本書は Animal Ekarte の**意匠言語**であり、**タイポグラフィ・形状（角丸）・余白・エレベーション・コンポーネント寸法の正本**である。実装はこれらの値に字義で従う。
 > **色は本書の正本範囲外**: 色の値・採否・臨床/業務ステータス色は [docs/spec/design-system.md](docs/spec/design-system.md) §2 が正本（FE11 決裁・2026-07-21）。本書のフロントマター `colors:` は本文の `{colors.*}` 参照を解決するための同値再掲であり、ここを編集して色を変えてはならない。
-> **関連正本**: 画面の組み立て（ナビ現在地・一覧の列設計・フォーム・固定要素・空状態）は [design-patterns.md](docs/spec/design-patterns.md)、状態（hover / focus-visible / disabled / loading / invalid）は [design-states.md](docs/spec/design-states.md)、トークンの配置と参照方向は [design-token-layers.md](docs/spec/design-token-layers.md)、部品契約は [components/](docs/spec/components/README.md)、準拠検査 C1〜C20 は [ui-design-compliance.md](docs/spec/ui-design-compliance.md)。全エージェント共通の入口は [ui-design-guide.md](docs/spec/ui-design-guide.md)。
+> **関連正本**: 画面の組み立て（ナビ現在地・一覧の列設計・フォーム・固定要素・空状態）は [design-patterns.md](docs/spec/design-patterns.md)、状態（hover / focus-visible / disabled / loading / invalid）は [design-states.md](docs/spec/design-states.md)、トークンの配置と参照方向は [design-token-layers.md](docs/spec/design-token-layers.md)、部品契約は [components/](docs/spec/components/README.md)、準拠検査 C1〜C24 は [ui-design-compliance.md](docs/spec/ui-design-compliance.md)（C21〜C24 の定義は [design-token-layers.md §6](docs/spec/design-token-layers.md)）。全エージェント共通の入口は [ui-design-guide.md](docs/spec/ui-design-guide.md)。
 > **履歴**: 初版（alpha）は Notion のマーケティングサイトを分析した意匠言語を転用したものだった。2026-10-20 に Animal Ekarte 自身の意匠言語として書き直し、本製品で使わないマーケ専用パターン（スティッカーパレット 8 色、hero-band、pricing-plan-card、footer、ex-pricing-tier、ex-product-selector、ex-cart-drawer、button-icon-circular）を削除した。**colors / typography / rounded / spacing の値はすべて初版と同一**であり、`design-tokens.ts` / `globals.css` / design-audit への影響はない。`nav-bar` と `ex-app-shell-row` の面だけは design-system.md §7.1 の既存決裁（canvas-soft）に合わせて参照先を揃えた。
 
 ## Overview
@@ -247,7 +247,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 |---|---|---|---|---|---|
 | `{typography.display-1}` | 64px | 700 | 1.0 | −2.125px | 予約段。本体画面では使わない |
 | `{typography.display-2}` | 54px | 700 | 1.04 | −1.875px | 予約段。本体画面では使わない |
-| `{typography.heading-1}` | 40px | 700 | 1.1 | −1px | ページ見出し（`text-heading-1`） |
+| `{typography.heading-1}` | 40px | 700 | 1.1 | −1px | ページ級の大見出し。**例外的な大判画面専用**で、通常のページタイトル（`PageLayout` / `FormHeader`）は `{typography.title}` 20px（design-system §3.4、design-patterns §1.4）（`text-heading-1`） |
 | `{typography.heading-2}` | 26px | 700 | 1.23 | −0.625px | セクション見出し（`text-heading-2`） |
 | `{typography.heading-3}` | 22px | 700 | 1.27 | −0.25px | カード・ダイアログのタイトル（`text-heading-3`） |
 | `{typography.title}` | 20px | 600 | 1.4 | −0.125px | フィーチャータイトル・callout（`text-xl`） |
@@ -277,7 +277,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 
 ### Grid & Container
 
-ページ本文は `PageLayout` の中央寄せカラムに置く。最大幅は `LAYOUT.pageContentMaxWidth` のトークンから選び、`max-w-full` / `max-w-[Npx]` の生値は書かない（compliance C7）。一覧系は横スクロールを許容し、識別情報・ステータス・操作列をスクロールしないと到達できない位置へ切り落とさない。
+ページ本文は `PageLayout` の中央寄せカラムに置く。最大幅は `LAYOUT.pageContentMaxWidth` のトークンから選び、`max-w-full` / `max-w-[Npx]` の生値は書かない（compliance C7）。フォームの最大幅も同じトークンの既存段（`form` 1400px / `formMid` 1200px / `formNarrow` 900px）から選ぶ。より狭い段が必要になった場合は、本節に値と決裁（日付・決定者）を記録してからトークンへ追加する。他文書（design-patterns.md を含む）はフォーム幅の値を持たない。一覧系は横スクロールを許容し、識別情報・ステータス・操作列をスクロールしないと到達できない位置へ切り落とさない。
 
 ### Whitespace Philosophy
 
@@ -287,12 +287,15 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 
 #### Breakpoints（タブレットファースト）
 
+区分は連続（隙間なし）で定義する。サイドバーの折りたたみ境界は実装（`Sidebar.tsx` の `window.innerWidth < 1280` / `(max-width: 1279px)`）と同じ **1280px** である。
+
 | 名称 | 幅 | 主な変化 |
 |---|---|---|
-| Wide | 1440px+ | 複数カラムの一覧・詳細を並置 |
-| Desktop | 1080–1300px | 標準の中央寄せカラム |
-| Tablet | 768–840px | 診察室 iPad の基準。サイドバーは折りたたみ、補助列は非表示 |
-| Mobile | ≤600px | 単一カラム。LIFF / line-reserve は別アプリとして design-system §2.6 の適用範囲外 |
+| Wide | 1440px 以上 | 複数カラムの一覧・詳細を並置。サイドバー展開 |
+| Desktop | 1280–1439px | 標準の中央寄せカラム。サイドバー展開 |
+| Compact desktop | 1024–1279px | サイドバーは折りたたみ（アイコン幅）。一覧は補助列を `lg` で段階的に非表示にしてよい |
+| Tablet | 768–1023px | 診察室 iPad の基準。サイドバー折りたたみ、補助列は非表示。識別・ステータス・操作列は常に到達可能 |
+| Mobile | 767px 以下 | 本体画面の規定外（375px の規定は未整備。必要になった時点で本表へ決裁を追加する）。LIFF / line-reserve は別アプリとして design-system §2.6 の適用範囲外 |
 
 #### Touch Targets
 
@@ -300,7 +303,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 
 #### Collapsing Strategy
 
-サイドバーは tablet 以下で折りたたみ、一覧は補助列を `md` / `lg` で段階的に表示する。日付・識別情報・ステータス・操作の列は常に到達可能にする。
+サイドバーは 1280px 未満（Compact desktop 以下）で折りたたみ、一覧は補助列を `md` / `lg` で段階的に表示する。日付・識別情報・ステータス・操作の列は常に到達可能にする。
 
 ## Elevation & Depth
 
@@ -334,7 +337,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 ### Navigation
 
 **`nav-bar`** — サイドバー / アプリシェルのナビ
-- 面は `{colors.canvas-soft}`（本文カードとの図地関係を保つため白にしない — design-system §7.1 FE11 決裁）。リンクは `{colors.ink}` の `{typography.body-sm}`、padding `{spacing.md}`。tablet 以下で折りたたむ。
+- 面は `{colors.canvas-soft}`（本文カードとの図地関係を保つため白にしない — design-system §7.1 FE11 決裁）。リンクは `{colors.ink}` の `{typography.body-sm}`、padding `{spacing.md}`。1280px 未満で折りたたむ（Breakpoints 表）。
 - 項目名は省略しない。現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする（[design-patterns.md §1](docs/spec/design-patterns.md)）。
 
 **`ex-app-shell-row`** — サイドバーのナビ行
@@ -348,7 +351,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 - 1 画面（1 ダイアログ）に Primary は原則 1 つ。
 
 **`button-brand`** — 認証・製品識別 CTA（ログイン等）
-- 形状・タイポは `button-primary` と同じ。`{colors.brand}` / `{colors.brand-active}` を使い、`colorVariant="brand"` を明示する（compliance C5）。
+- 形状・タイポは `button-primary` と同じ。塗りの実装値は design-system §7.2 の `brand-identity-solid` 系（`C.bgBrandIdentitySolid` = `#027078`、白文字 5.85:1。hover / active は `*BrandIdentitySolid` 系 `#025F66`）。`{colors.brand}`（`#038b94`）は白文字と 4.10:1 で AA 非達のため**塗りには使わず**、ロゴ・装飾・focus ring など非テキスト用途に限る（design-states §2.3 決裁。`SubmitButton` の brand 分岐が参照実装）。`colorVariant="brand"` を明示する（compliance C5）。
 
 **`button-secondary`** — 二次 CTA（キャンセル・戻る・別アクション）
 - `{colors.surface}` 面、`{colors.ink}` 文字、`{typography.button}`、pill `{rounded.full}`、Level-1 shadow。Primary の隣に置く。薄い面上の hover で文字を白くしない。

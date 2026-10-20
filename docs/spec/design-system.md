@@ -46,8 +46,8 @@ flowchart TB
 
 - 暖色 paper-soft canvas `{colors.canvas-soft}` — 純白ページではなく document-like な落ち着き
 - 近黒 `{colors.ink}` の Inter 系タイポ。display サイズではネガティブ tracking
-- **semantic primary** — `{colors.primary}` = **`#038B94`** — 汎用 Primary CTA・リンク・active/focus
-- **brand identity** — `{colors.brand}` = **`#038B94`** — ログインなど認証・製品識別・明示的 brand CTA
+- **semantic primary** — `{colors.primary}` = **`#038B94`** — リンク・selection・active/focus。Primary CTA の塗りは `C.bgActionPrimarySolid`（`#027078`。§2.1 / §7.2）
+- **brand identity** — `{colors.brand}` = **`#038B94`** — ログインなど認証・製品識別（ロゴ・装飾）。brand CTA の塗りは `C.bgBrandIdentitySolid`（`#027078`。§7.2）
 - 業務ステータス色（紫/橙/青/緑）は状態の識別子。構造には使わない（§2.5）
 - Primary CTA は pill `{rounded.full}`、ユーティリティボタンは `{rounded.md}`（8px）— 意図的な対比
 - hairline `#E6E6E6` + 極薄レイヤードシャドウによる elevation（重い drop-shadow 禁止）
@@ -80,8 +80,8 @@ flowchart TB
 
 | トークン | 値 | 用途 |
 |---|---|---|
-| `{colors.canvas}` / `{colors.surface}` | `#FFFFFF` | カード・パネル・ナビ・フォームフィールド |
-| `{colors.canvas-soft}` | `#F6F5F4` | ページ canvas・フッター帯 — document-like な暖色オフホワイト |
+| `{colors.canvas}` / `{colors.surface}` | `#FFFFFF` | カード・パネル・フォームフィールド（サイドバーは含まない — §7.1） |
+| `{colors.canvas-soft}` | `#F6F5F4` | ページ canvas・サイドバー（`nav-bar`）・フッター帯 — document-like な暖色オフホワイト |
 | `{colors.hairline}` | `#E6E6E6` | 1px カード境界・区切り線 |
 
 ### 2.3 Text
@@ -120,6 +120,8 @@ DESIGN.md は意味的カラーを定義しない（本書へ委譲）。臨床�
 | ステータス: 橙（会計待ち/割引） | `C.bgDiscount` | `#D9730D` |
 | ステータス: 青（受付済/checked_in） | `C.bgStatusBlueDot` | `bg-blue-500` |
 | ステータス: 空/緑/emerald 系 | `C.bgStatusSkyDot` / `C.bgStatusEmeraldDot` 他 | Tailwind パレット |
+
+バッジの文字色（`C.textBadge*`。例: orange `#793400`、gray `#615D59`）は 2026-09-30 の AA 是正決裁で本節が所有する値であり、実装は `design-tokens.ts` の `BADGE`、計測値の記録は design-states.md §2.3 に置く（本節＝決定、`design-tokens.ts`＝実装、design-states＝実測記録の三者で、第二の決定源を作らない）。
 
 **規律（DESIGN.md と共通で維持する原則）**:
 
@@ -174,7 +176,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 |---|---|---|---|---|---|
 | `{typography.display-1}` | 64px | 700 | 1.0 | −2.125px | 予約段（本体画面では未使用） |
 | `{typography.display-2}` | 54px | 700 | 1.04 | −1.875px | 予約段（本体画面では未使用） |
-| `{typography.heading-1}` | 40px | 700 | 1.1 | −1px | ページ見出し |
+| `{typography.heading-1}` | 40px | 700 | 1.1 | −1px | ページ級の大見出し（例外。通常のページタイトルは title — §3.4） |
 | `{typography.heading-2}` | 26px | 700 | 1.23 | −0.625px | サブセクション |
 | `{typography.heading-3}` | 22px | 700 | 1.27 | −0.25px | カードタイトル |
 | `{typography.title}` | 20px | 600 | 1.4 | −0.125px | フィーチャータイトル |
@@ -314,7 +316,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 ### 7.1 Navigation
 
-**`nav-bar`** — AE では **`{colors.canvas-soft}` surface**（`C.bgPage`）、`{colors.ink}` link、`{typography.body-sm}`、`{spacing.md}` padding。DESIGN.md は白 canvas を規定するが、白にすると本文カードとの図地関係が消えるため色軸の正本である本書の判断で canvas-soft を採用する（FE11 決裁）。
+**`nav-bar`** — AE では **`{colors.canvas-soft}` surface**（`C.bgPage`）、`{colors.ink}` link、`{typography.body-sm}`、`{spacing.md}` padding。白にすると本文カードとの図地関係が消えるため色軸の正本である本書の判断で canvas-soft を採用する（FE11 決裁）。DESIGN.md の `nav-bar` / `ex-app-shell-row` も同じ面を参照しており、両文書に差はない（2026-10-20 整合）。
 
 ### 7.2 Buttons
 
@@ -322,7 +324,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 |---|---|---|
 | `button-primary` | bg `action-primary-solid`（**`#027078`**、white-on 5.85:1 ✅）、text `{colors.on-primary}`、`{typography.button}`、`{rounded.full}` pill | `C.bgActionPrimarySolid` — `SubmitButton` / `PrimaryButton` — `colorVariant="primary"`（既定）。§2 決裁により塗りは Solid 系に統一（`#038B94` は 4.10:1 で AA 非達のため装飾専用） |
 | `button-primary-pressed` | bg `action-primary-solid-active`（`#025F66`）、text `{colors.on-primary-active}`（`#FFFFFF`） | `C.activeBgActionPrimarySolid` / `C.activeTextOnActionPrimary` ✅ |
-| `button-brand` | bg `{colors.brand}`（`#038B94`）、hover/pressed `{colors.brand-active}`（`#027078`） | 認証などで `colorVariant="brand"` を明示 |
+| `button-brand` | bg `brand-identity-solid`（**`#027078`**、white-on 5.85:1 ✅）、hover/pressed `#025F66`（`*BrandIdentitySolid` 系）。`{colors.brand}`（`#038B94`）は 4.10:1 で AA 非達のため塗りに使わず、ロゴ・装飾・focus ring 専用 | `C.bgBrandIdentitySolid` — `SubmitButton` brand 分岐 — 認証などで `colorVariant="brand"` を明示（design-states §2.3 決裁） |
 | `button-secondary` | white surface、`{colors.ink}`、pill、Level-1 shadow | 二次 CTA |
 | `button-utility` | white surface、`{rounded.md}`、4px 14px padding、hairline border | ナビ / ユーティリティ操作 |
 
