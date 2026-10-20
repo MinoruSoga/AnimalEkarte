@@ -6,14 +6,14 @@
 
 - [全241表の索引](table-inventory.md)：既存122モデルと新規119モデル。最終DDLで有効な2,691列を全件対応し、対象外として省略したテーブルはない。
 - [全列TSV](columns.tsv)／[詳細JSON](model-schema-map.json)：SQL型・Go型・NULL・PK・既定値・最終FK/制約/index・実ソースhashを記録。
-- [静的照合結果](static-check.json)：GORMの実解析結果とDDLを比較した30,020項目、不一致0。DBの制約実行・同時保存・認可の試験ではない。
+- [静的照合結果](static-check.json)：GORMの実解析結果とDDLを比較した30,048項目、不一致0。DBの制約実行・同時保存・認可の試験ではない。
 - [未追従consumer一覧](consumer-impact.json)：廃止型参照、型/列変更、構造体literal、旧計算helper呼出しの位置。文字列候補の棚卸しであり全プログラムのコンパイル診断ではない。
 
 ## 型・キーの対応方針
 
 CREATEだけでなくALTER/DROP後の有効定義を、既存 `scripts/tools/erd_schema.py` から取得した。未対応構文を黙って無視する方式ではない。最終SQLは正本のまま変更していない。
 
-SQL text/varcharはstring。既存Goの名前付き文字列型をSQL enumへ割り当てる推定は、実際にCREATE TYPEされたenum名へ限定した。元の推定がSQL textにCheckupPackageImportStatusを全体適用する誤りを起こしたため、個別修正ではなく元のモデルsnapshotから全件再生成した。JSON既定値の引用符も生成元でescapeし、reflect/GORM解析で検証した。
+SQL text/varcharはGoの基底がstringの型を使い、既存の名前付き文字列型をフィールド単位で保持する。SQL型タグはtext/varcharのままで、Goの名前付きstringをSQL enumとはみなさない。既存Goの名前付き文字列型をSQL enumへ割り当てる推定は、実際にCREATE TYPEされたenum名へ限定した。元の推定がSQL textにCheckupPackageImportStatusを全体適用する誤りを起こしたため、個別修正ではなく元のモデルsnapshotから全件再生成した。JSON既定値の引用符も生成元でescapeし、reflect/GORM解析で検証した。
 
 NUMERIC/DECIMALは既存依存pgx/v5のpgtype.Numericを包むローカルExactNumericとし、2進floatへ変換しない。GormDataTypeでnumericを明示し、pgtypeのValidからboolを誤推定させない。列ごとの精度/scaleはtypeタグを保持。Scanner/Valuer/JSONの既存インターフェース適合はcompile-timeで確認した。新ライブラリ・go.mod/go.sumの変更、計算式・丸め・NULLの0補完は追加しない。NULL列はポインタ、既存のsoft-delete列はgorm.DeletedAtを保持する。ExactNumericのValid=falseもSQL NULLを意味するため、非NULL列のwriterは値の成立を明示する必要がある。
 
@@ -27,7 +27,7 @@ JSONBはjson.RawMessage、UUIDは既存google/uuid、日付/時刻はtime.Time�
 
 廃止9モデルは、Payment/payments、PaymentSplit/payment_splits、StaffReservationExclusion/staff_reservation_exclusions、ReservationTypeOccupation/reservation_type_occupations、LineSendLog/line_send_logs、BillingRefund/billing_refunds、AppointmentTrimmingOption/appointment_trimming_options、CashRegisterCloseAdjustment/cash_register_close_adjustments、BillingConfirmation/billing_confirmations。旧backendのために削除済みschemaや列を復活させない。非永続DTO/enum語彙は他層の互換参照として残るものがあるが、廃止TableNameへ戻していない。
 
-既存75モデルに形状差分（削除98フィールド、型変更139、追加89）がある。旧billing/payment/refund/confirmation、LINE送信履歴、予約属性/個人適格性、共通owner/pet基本情報、旧計算/DTO等に追従が必要。廃止モデル型だけでもproduction31ファイル（test含む106ファイル）に参照が残る。現状の他層は未追従であり、そのままアプリを利用・deployできるとは扱わない。全体buildは今回実施していない。
+既存72モデルに形状差分（削除98フィールド、型変更129、追加89）がある。旧billing/payment/refund/confirmation、LINE送信履歴、予約属性/個人適格性、共通owner/pet基本情報、旧計算/DTO等に追従が必要。廃止モデル型だけでもproduction31ファイル（test含む106ファイル）に参照が残る。現状の他層は未追従であり、そのままアプリを利用・deployできるとは扱わない。全体buildは今回実施していない。
 
 旧BillingItem/EstimateItem.CalculateTaxAmountはfloat・旧形状へ依存するため外し、代替税式は導入していない。productionの5呼出し位置をconsumer-impact.jsonへ記録。既存calculator/DTOの新しいexact型・NULL・入力税込額契約への適合、旧テストの追従は所有領域の残件。今回API/service/repositoryの業務実装へ範囲を広げない。
 
@@ -58,9 +58,9 @@ Plane本文/最新コメントをread-onlyで確認した。下記は2026-10-19�
 
 - 実施：SQL静的解釈、生成元修正、gofmt、modelの正規固定依存でのコンパイル、productionモデルファイル限定go vet、GORM schema.Parse全241型、実解析フィールドと最終DDL/対応表の照合、呼出し候補棚卸し、差分/追加リンク確認。既存詳細ERDのindex/manifestに残っていた旧DDL hashのみ更新し、詳細ERD生成チェックも確認。
 - 初回はキャッシュ不足のためx/text v0.41.0への一時置換で補助確認した。その後の明示指示により、既存固定版x/text v0.43.0とpostgres driver v1.6.3を公式proxy.golang.org／sum.golang.org経路で取得できた。最終確認は正規go.mod/go.sum、置換なし、ネットワークなしでモデルbuildとproductionモデル限定vetを実施。正規版の結果は[依存・コマンド結果](dependency-verification.json)へ。通常のpackage単位vetは旧accounting_test.go等が数値literalをExactNumericへ代入するコンパイルエラーでFAILとなる。これはキャッシュ不足ではなく旧テスト未追従。テスト本体は実行していない。依存定義・他層・旧テストは今回変更しない。
-- Dockerは既存golang:1.26-alpine、read-only root、隔離tmpを使用。固定依存取得時のみ公式経路へ接続し、最終build/vet/メタデータ解析はnetwork noneで実施。DBを起動/接続するコードを実行せず、解析helperだけを実行した。新規testは作らず、既存testも実行していない。
+- Dockerは既存golang:1.26-alpineと隔離した一時領域を使用。固定依存取得時のみ公式経路へ接続し、最終build/vet/メタデータ解析はnetwork noneで実施。DBを起動/接続するコードを実行せず、解析helperだけを実行した。新規testは作らず、既存testも実行していない。
 - [独立レビュー結果](independent-review.md)：Standards1件とSpec2件を修正し、各担当が読み取りで再確認した。生成元と異なる観点でALTER/DROP、型/キー、driver I/Oと文書を照合し、検証数の大きさだけを保証にしていない。
-- 未実施：DB作成/適用、migration/制約/RLS/並行性試験、実アプリ起動、API/UI、実ユーザー/実データ、税計算の実行受入、STG/本番、CI手動起動、commit/push/PR/merge。
+- 未実施：DB作成/適用、migration/制約/RLS/並行性試験、実アプリ起動、API/UI、実ユーザー/実データ、税計算の実行受入、STG/本番、CI手動起動、merge。公開状態はPR #729で追跡する。
 
 既存DBのchecksum guardを回避せず、resetや切替の許可は推定しない。現行システムとの計算同等性は未確認なので、条件付きのSTG制約緩和の成立も未確認。本番過去取引・発行物、医院/飼主/pet/staff境界、原文の不変履歴、認可・write owner・監査/operation receiptの契約を維持する。今回の保存型定義から実装や権限成立を推定しない。
 
@@ -69,3 +69,31 @@ Plane本文/最新コメントをread-onlyで確認した。下記は2026-10-19�
 ## 旧調査案の再掲に対する追加照合
 
 本人回答の撤回ではない旧調査コメントの再掲と照合した結果、カルテ設計とリンク先の財務設計に、廃止billing_confirmationsを残す最小Complete gateと、金額変更時に医師再確認を求める旧文が残っていた。2文書だけを訂正し、最終001のdoctor_review_sets/doctor_review_recordsと現在の対象集合・臨床世代の照合へ接続。金額だけの変更は警告了承で可・医師再確認不要、薬剤処置追加削除/数量変更は再確認まで確定精算停止という本人決定を維持した。API/業務処理/DDLの実装は追加していない。別担当が局所修正と4決定の維持を再読確認した。既存文書の変更対象は、この直接のリンク先1件を加えて18件である。
+
+## PR #729 自動レビュー指摘の切り分けと追加修正
+
+公開b741に対するCodeRabbitはCOMMENTED（actionable17件：Critical3、Major14、nitpick2）。指摘を実コード・最終001で確認し、モデル/docs内の修正だけを行った。Go named-string10項目、SQL unique6組、識別子3箇所、241/246表の説明を訂正。6組は既存SQLのunique支援index名を使い、全SQL indexとの非衝突・列順をschema.Parseで確認。モデルからAutoMigrateを実行した意味ではない。独立Standards/Specの追加修正再確認は各0件。
+
+| 指摘 | 対応 | 残る依存／根拠 |
+|:---|:---|:---|
+| [r4320033128](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033128) | 未対応：他層 | BillingItem/EstimateItemの旧税計算helper、Payment/PaymentSplit参照の移行。廃止表・旧float式を復活させない。 |
+| [r4320033137](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033137) | 未対応：他層 | ClinicalPlanの廃止診断ID/Preloadからclinical_plan_diagnosesを使うreader/responseへの移行。 |
+| [r4320033143](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033143) | 未対応：他層 | ExactNumericをfloat64と扱うconsumerと旧fixtureの移行。保存型だけから全体コンパイル成功とはしない。 |
+| [r4320033150](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033150) | 未対応：他層 | トリミング明細、ReservationTypeOccupation、ShiftEntry旧fieldを使うworkflowの移行。 |
+| [r4320033165](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033165) | 未対応：他層 | nullable JSONのLLMRequest/Response readerの移行。 |
+| [r4320033170](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033170) | 未対応：他層 | SlotsJSONのRawMessageと旧string callerの変換。 |
+| [r4320033178](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033178) | 部分対応 | EventType/UseKindの既存named-stringとRetractedExamIDs綴りを修正。JSONのstring変換などcaller移行は残る。 |
+| [r4320033188](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033188) | 未対応：他層 | 廃止OwnerID/Owner Preloadをowner_line_binding_state等の現行bindingへ移行。列を戻さない。 |
+| [r4320033196](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033196) | 未対応：他層 | nullable ErrorLogのlen/変換処理を持つhandler移行。 |
+| [r4320033206](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033206) | 未対応：他層 | nullable Tags/Scenariosとdatatypes.JSON callerの移行。 |
+| [r4320033212](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033212) | 対応：静的確認 | SQL uniqueの支援index名と列順で6組のメタデータを保持。SQL自体の制約欠落ではない。AutoMigrate/DB試験未実施。 |
+| [r4320033243](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033243) | 部分対応 | CategoryのManualCategory型を保持。旧article fieldのconsumerはManualArticleVersion等への移行が残る。 |
+| [r4320033252](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033252) | 未対応：他層 | Petの旧AnimalSpecies Preloadを共通基本改訂readerへ移行。pets.animal_species_idは最終SQLでDROP済み。 |
+| [r4320033266](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033266) | 未対応：他層 | ShiftEntry.StartsAt/EndsAtへconsumerとwire responseを移行。 |
+| [r4320033273](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033273) | 部分対応 | StatusのSupportBugReportStatus型を保持。Plane列の復活案は最終SQLのDROPに反する。旧Plane callerの移行は残る。 |
+| [r4320033287](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033287) | 対応：静的確認 | RoleのSupportChatMessageRoleを保持。SQL varchar(16)タグは不変。 |
+| [r4320033305](https://github.com/MinoruSoga/AnimalEkarte/pull/729#discussion_r4320033305) | 未対応：旧テスト | 通常package vetはaccounting_test.go等のExactNumeric未追従でFAIL。テスト本体は未実行。 |
+
+Nitpick2件も、ERDの現行241表と246表の履歴を一文で区別し、ClinicalPlanDiagnosis/VaccinationCertificateSeriesへ訂正した。TableNameは不変。MedicalRecordStatus型・定数が存在することはMedicalRecord structにstatus fieldが残る証拠ではなく、最終DROP済み列は戻していない。既存31本番ファイルの廃止型参照と旧税計算helper5呼出しは残り、未解決指摘をresolve済みにはしない。
+
+最終照合30,048項目は、従前30,020項目にnamed-string10項目とunique6組×3項目を追加したもの。通常package vetのFAIL、DB・機能・全体build未確認という境界は変わらない。Codex自動レビューはcode review usage limitで未実行であり、合格/実コード指摘とは扱わない。

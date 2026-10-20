@@ -74,8 +74,8 @@ type CheckupSaveStageResult struct {
 
 func (CheckupSaveStageResult) TableName() string { return "checkup_save_stage_results" }
 
-// ClinicalPlanDiagnose maps the current clinical_plan_diagnoses storage contract. Required write-owner/authorization/receipt rules remain in the owning workflow.
-type ClinicalPlanDiagnose struct {
+// ClinicalPlanDiagnosis maps the current clinical_plan_diagnoses storage contract. Required write-owner/authorization/receipt rules remain in the owning workflow.
+type ClinicalPlanDiagnosis struct {
 	ID                    uint64     `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"-"`
 	ClinicID              uint64     `gorm:"column:clinic_id;type:bigint;not null" json:"-"`
 	ClinicalPlanID        uint64     `gorm:"column:clinical_plan_id;type:bigint;not null" json:"-"`
@@ -91,7 +91,7 @@ type ClinicalPlanDiagnose struct {
 	DeletedAt             *time.Time `gorm:"column:deleted_at;type:timestamptz" json:"-"`
 }
 
-func (ClinicalPlanDiagnose) TableName() string { return "clinical_plan_diagnoses" }
+func (ClinicalPlanDiagnosis) TableName() string { return "clinical_plan_diagnoses" }
 
 // ExaminationFieldSemanticMapping maps the current examination_field_semantic_mappings storage contract. Required write-owner/authorization/receipt rules remain in the owning workflow.
 type ExaminationFieldSemanticMapping struct {
@@ -594,8 +594,8 @@ func (VaccinationCertificateOperation) TableName() string {
 	return "vaccination_certificate_operations"
 }
 
-// VaccinationCertificateSery maps the current vaccination_certificate_series storage contract. Required write-owner/authorization/receipt rules remain in the owning workflow.
-type VaccinationCertificateSery struct {
+// VaccinationCertificateSeries maps the current vaccination_certificate_series storage contract. Required write-owner/authorization/receipt rules remain in the owning workflow.
+type VaccinationCertificateSeries struct {
 	ID              uint64    `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"-"`
 	ClinicID        uint64    `gorm:"column:clinic_id;type:bigint;not null" json:"-"`
 	VaccinationID   uint64    `gorm:"column:vaccination_id;type:bigint;not null" json:"-"`
@@ -603,4 +603,4 @@ type VaccinationCertificateSery struct {
 	CreatedAt       time.Time `gorm:"column:created_at;type:timestamptz;not null;default:clock_timestamp();autoCreateTime:false;autoUpdateTime:false" json:"-"`
 }
 
-func (VaccinationCertificateSery) TableName() string { return "vaccination_certificate_series" }
+func (VaccinationCertificateSeries) TableName() string { return "vaccination_certificate_series" }

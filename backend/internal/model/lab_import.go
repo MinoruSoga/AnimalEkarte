@@ -95,7 +95,7 @@ type LabImportEvent struct {
 	ID               uint64              `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
 	ClinicID         uint64              `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
 	JobID            uuid.UUID           `gorm:"column:job_id;type:uuid;not null" json:"job_id"`
-	EventType        string              `gorm:"column:event_type;type:varchar(50);not null" json:"event_type"`
+	EventType        LabImportEventType  `gorm:"column:event_type;type:varchar(50);not null" json:"event_type"`
 	FromStatus       *LabImportJobStatus `gorm:"column:from_status;type:lab_import_job_status" json:"from_status,omitempty"`
 	ToStatus         *LabImportJobStatus `gorm:"column:to_status;type:lab_import_job_status" json:"to_status,omitempty"`
 	RowCount         int                 `gorm:"column:row_count;type:int;not null;default:0" json:"row_count"`
@@ -162,13 +162,13 @@ const (
 // LabImportUsageReceipt は import 由来 exam の clinical use / manual mutation を記録する append-only 台帳。
 // audit_logs には相乗りしない（sink 分離）。
 type LabImportUsageReceipt struct {
-	ID        uint64    `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
-	ClinicID  uint64    `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
-	JobID     uuid.UUID `gorm:"column:job_id;type:uuid;not null" json:"job_id"`
-	ExamID    uint64    `gorm:"column:exam_id;type:bigint;not null" json:"exam_id"`
-	UseKind   string    `gorm:"column:use_kind;type:text;not null" json:"use_kind"`
-	ActorID   *uint64   `gorm:"column:actor_id;type:bigint" json:"actor_id,omitempty"`
-	CreatedAt time.Time `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	ID        uint64             `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID  uint64             `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	JobID     uuid.UUID          `gorm:"column:job_id;type:uuid;not null" json:"job_id"`
+	ExamID    uint64             `gorm:"column:exam_id;type:bigint;not null" json:"exam_id"`
+	UseKind   LabImportUsageKind `gorm:"column:use_kind;type:text;not null" json:"use_kind"`
+	ActorID   *uint64            `gorm:"column:actor_id;type:bigint" json:"actor_id,omitempty"`
+	CreatedAt time.Time          `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
 }
 
 func (LabImportUsageReceipt) TableName() string { return "lab_import_usage_receipts" }
@@ -212,7 +212,7 @@ type LabImportRevertReceipt struct {
 	Reason           string          `gorm:"column:reason;type:text;not null" json:"reason"`
 	ActorID          *uint64         `gorm:"column:actor_id;type:bigint" json:"actor_id,omitempty"`
 	ResultStatus     string          `gorm:"column:result_status;type:text;not null" json:"result_status"`
-	RetractedExamIds json.RawMessage `gorm:"column:retracted_exam_ids;type:jsonb;not null;default:'[]'::jsonb" json:"-"`
+	RetractedExamIDs json.RawMessage `gorm:"column:retracted_exam_ids;type:jsonb;not null;default:'[]'::jsonb" json:"-"`
 	CreatedAt        time.Time       `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
 }
 

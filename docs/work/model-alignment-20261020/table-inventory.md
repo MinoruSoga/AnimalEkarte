@@ -48,7 +48,7 @@
 | `clinic_holidays` | [ClinicHoliday](../../../backend/internal/model/clinic_holiday.go) | 6 | id | 1 | 既存対応 |
 | `clinic_integrations` | [ClinicIntegration](../../../backend/internal/model/clinic_integration.go) | 7 | id | 1 | 既存対応 |
 | `clinic_settings` | [ClinicSettings](../../../backend/internal/model/clinic_settings.go) | 32 | clinic_id | 1 | 既存対応 |
-| `clinical_plan_diagnoses` | [ClinicalPlanDiagnose](../../../backend/internal/model/storage_clinical.go) | 13 | id | 4 | 追加 |
+| `clinical_plan_diagnoses` | [ClinicalPlanDiagnosis](../../../backend/internal/model/storage_clinical.go) | 13 | id | 4 | 追加 |
 | `clinical_plans` | [ClinicalPlan](../../../backend/internal/model/clinical_plan.go) | 10 | id | 3 | 既存対応 |
 | `clinics` | [Clinic](../../../backend/internal/model/clinic.go) | 26 | id | 1 | 既存対応 |
 | `closing_boundary_revisions` | [ClosingBoundaryRevision](../../../backend/internal/model/storage_finance.go) | 5 | clinic_id, revision | 2 | 追加 |
@@ -241,7 +241,7 @@
 | `vaccination_certificate_artifacts` | [VaccinationCertificateArtifact](../../../backend/internal/model/storage_clinical.go) | 9 | id | 2 | 追加 |
 | `vaccination_certificate_editions` | [VaccinationCertificateEdition](../../../backend/internal/model/storage_clinical.go) | 9 | id | 4 | 追加 |
 | `vaccination_certificate_operations` | [VaccinationCertificateOperation](../../../backend/internal/model/storage_clinical.go) | 8 | clinic_id, operation_key | 3 | 追加 |
-| `vaccination_certificate_series` | [VaccinationCertificateSery](../../../backend/internal/model/storage_clinical.go) | 5 | id | 2 | 追加 |
+| `vaccination_certificate_series` | [VaccinationCertificateSeries](../../../backend/internal/model/storage_clinical.go) | 5 | id | 2 | 追加 |
 | `vaccinations` | [Vaccination](../../../backend/internal/model/vaccination_record.go) | 19 | id | 7 | 既存対応 |
 | `vaccines` | [Vaccine](../../../backend/internal/model/vaccine.go) | 15 | id | 3 | 既存対応 |
 | `vital_records` | [VitalRecord](../../../backend/internal/model/vital.go) | 17 | id | 5 | 既存対応 |

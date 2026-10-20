@@ -30,33 +30,33 @@ type ExaminationDisplaySnapshot struct {
 // ExaminationRevision is an append-only snapshot of one examination parent version.
 // Mutable identity and master rows are intentionally not modeled as GORM relations.
 type ExaminationRevision struct {
-	ID                         uint64            `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
-	ClinicID                   uint64            `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
-	ExaminationID              uint64            `gorm:"column:examination_id;type:bigint;not null" json:"examination_id"`
-	Version                    uint64            `gorm:"column:version;type:bigint;not null" json:"version"`
-	Kind                       string            `gorm:"column:kind;type:text;not null" json:"kind"`
-	Status                     ExaminationStatus `gorm:"column:status;type:exam_status;not null" json:"status"`
-	MedicalRecordID            *uint64           `gorm:"column:medical_record_id;type:bigint" json:"medical_record_id,omitempty"`
-	PetID                      *uint64           `gorm:"column:pet_id;type:bigint" json:"pet_id,omitempty"`
-	MedicalRecordOwnerID       *uint64           `gorm:"column:medical_record_owner_id;type:bigint" json:"medical_record_owner_id,omitempty"`
-	PetOwnerID                 *uint64           `gorm:"column:pet_owner_id;type:bigint" json:"pet_owner_id,omitempty"`
-	AnimalSpeciesID            *uint64           `gorm:"column:animal_species_id;type:bigint" json:"animal_species_id,omitempty"`
-	ExamTypeID                 uint64            `gorm:"column:exam_type_id;type:bigint;not null" json:"exam_type_id"`
-	DoctorID                   *uint64           `gorm:"column:doctor_id;type:bigint" json:"doctor_id,omitempty"`
-	JobID                      *uuid.UUID        `gorm:"column:job_id;type:uuid" json:"job_id,omitempty"`
-	ActorID                    uint64            `gorm:"column:actor_id;type:bigint;not null" json:"actor_id"`
-	Date                       *time.Time        `gorm:"column:date;type:date" json:"date"`
-	ResultSummary              string            `gorm:"column:result_summary;type:text;not null;default:''" json:"result_summary"`
-	Machine                    string            `gorm:"column:machine;type:text;not null;default:''" json:"machine"`
-	DisplaySnapshot            json.RawMessage   `gorm:"column:display_snapshot;type:jsonb;not null" json:"display_snapshot"`
-	SchemaVersion              int16             `gorm:"column:schema_version;type:smallint;not null;default:1" json:"schema_version"`
-	ChangeReason               *string           `gorm:"column:change_reason;type:text" json:"change_reason"`
-	CreatedAt                  time.Time         `gorm:"column:created_at;type:timestamptz;not null;default:CURRENT_TIMESTAMP;autoCreateTime" json:"created_at"`
-	PerformedDatePrecision     *string           `gorm:"column:performed_date_precision;type:text" json:"-"`
-	MeasuredAt                 *time.Time        `gorm:"column:measured_at;type:timestamptz" json:"-"`
-	ResultSourceKind           *string           `gorm:"column:result_source_kind;type:text" json:"-"`
-	ResultSourceDetails        *string           `gorm:"column:result_source_details;type:text" json:"-"`
-	PreviousOfficialRevisionID *uint64           `gorm:"column:previous_official_revision_id;type:bigint" json:"-"`
+	ID                         uint64                  `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	ClinicID                   uint64                  `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	ExaminationID              uint64                  `gorm:"column:examination_id;type:bigint;not null" json:"examination_id"`
+	Version                    uint64                  `gorm:"column:version;type:bigint;not null" json:"version"`
+	Kind                       ExaminationRevisionKind `gorm:"column:kind;type:text;not null" json:"kind"`
+	Status                     ExaminationStatus       `gorm:"column:status;type:exam_status;not null" json:"status"`
+	MedicalRecordID            *uint64                 `gorm:"column:medical_record_id;type:bigint" json:"medical_record_id,omitempty"`
+	PetID                      *uint64                 `gorm:"column:pet_id;type:bigint" json:"pet_id,omitempty"`
+	MedicalRecordOwnerID       *uint64                 `gorm:"column:medical_record_owner_id;type:bigint" json:"medical_record_owner_id,omitempty"`
+	PetOwnerID                 *uint64                 `gorm:"column:pet_owner_id;type:bigint" json:"pet_owner_id,omitempty"`
+	AnimalSpeciesID            *uint64                 `gorm:"column:animal_species_id;type:bigint" json:"animal_species_id,omitempty"`
+	ExamTypeID                 uint64                  `gorm:"column:exam_type_id;type:bigint;not null" json:"exam_type_id"`
+	DoctorID                   *uint64                 `gorm:"column:doctor_id;type:bigint" json:"doctor_id,omitempty"`
+	JobID                      *uuid.UUID              `gorm:"column:job_id;type:uuid" json:"job_id,omitempty"`
+	ActorID                    uint64                  `gorm:"column:actor_id;type:bigint;not null" json:"actor_id"`
+	Date                       *time.Time              `gorm:"column:date;type:date" json:"date"`
+	ResultSummary              string                  `gorm:"column:result_summary;type:text;not null;default:''" json:"result_summary"`
+	Machine                    string                  `gorm:"column:machine;type:text;not null;default:''" json:"machine"`
+	DisplaySnapshot            json.RawMessage         `gorm:"column:display_snapshot;type:jsonb;not null" json:"display_snapshot"`
+	SchemaVersion              int16                   `gorm:"column:schema_version;type:smallint;not null;default:1" json:"schema_version"`
+	ChangeReason               *string                 `gorm:"column:change_reason;type:text" json:"change_reason"`
+	CreatedAt                  time.Time               `gorm:"column:created_at;type:timestamptz;not null;default:CURRENT_TIMESTAMP;autoCreateTime" json:"created_at"`
+	PerformedDatePrecision     *string                 `gorm:"column:performed_date_precision;type:text" json:"-"`
+	MeasuredAt                 *time.Time              `gorm:"column:measured_at;type:timestamptz" json:"-"`
+	ResultSourceKind           *string                 `gorm:"column:result_source_kind;type:text" json:"-"`
+	ResultSourceDetails        *string                 `gorm:"column:result_source_details;type:text" json:"-"`
+	PreviousOfficialRevisionID *uint64                 `gorm:"column:previous_official_revision_id;type:bigint" json:"-"`
 }
 
 func (ExaminationRevision) TableName() string { return "examination_revisions" }

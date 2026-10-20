@@ -393,7 +393,7 @@ checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/mod
 checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	namespace	text	Namespace	string	False	False	NO DEFAULT
 checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	version	text	Version	string	False	False	NO DEFAULT
 checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	content_digest	text	ContentDigest	string	False	False	NO DEFAULT
-checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	status	text	Status	string	False	False	NO DEFAULT
+checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	status	text	Status	CheckupPackageImportStatus	False	False	NO DEFAULT
 checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	actor_id	bigint	ActorID	uint64	False	False	NO DEFAULT
 checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	types_created	integer	TypesCreated	int	False	False	0
 checkup_package_import_receipts	CheckupPackageImportReceipt	backend/internal/model/checkup_package_import.go	fields_created	integer	FieldsCreated	int	False	False	0
@@ -529,19 +529,19 @@ clinic_settings	ClinicSettings	backend/internal/model/clinic_settings.go	vaccine
 clinic_settings	ClinicSettings	backend/internal/model/clinic_settings.go	created_at	timestamptz	CreatedAt	time.Time	False	False	now()
 clinic_settings	ClinicSettings	backend/internal/model/clinic_settings.go	updated_at	timestamptz	UpdatedAt	time.Time	False	False	now()
 clinic_settings	ClinicSettings	backend/internal/model/clinic_settings.go	closing_am_start	time	ClosingAmStart	string	False	False	'09:00'
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	clinical_plan_id	bigint	ClinicalPlanID	uint64	False	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	diagnosis_slot	smallint	DiagnosisSlot	int16	False	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	diagnosis_type_id	bigint	DiagnosisTypeID	*uint64	True	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	diagnosis_name_id	bigint	DiagnosisNameID	*uint64	True	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	diagnosis_name_snapshot	text	DiagnosisNameSnapshot	*string	True	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	category_name_snapshot	text	CategoryNameSnapshot	*string	True	False	NO DEFAULT
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	sort_order	integer	SortOrder	int	False	False	0
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	version	bigint	Version	int64	False	False	1
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	created_at	timestamptz	CreatedAt	time.Time	False	False	clock_timestamp()
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	updated_at	timestamptz	UpdatedAt	time.Time	False	False	clock_timestamp()
-clinical_plan_diagnoses	ClinicalPlanDiagnose	backend/internal/model/storage_clinical.go	deleted_at	timestamptz	DeletedAt	*time.Time	True	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	clinical_plan_id	bigint	ClinicalPlanID	uint64	False	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	diagnosis_slot	smallint	DiagnosisSlot	int16	False	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	diagnosis_type_id	bigint	DiagnosisTypeID	*uint64	True	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	diagnosis_name_id	bigint	DiagnosisNameID	*uint64	True	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	diagnosis_name_snapshot	text	DiagnosisNameSnapshot	*string	True	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	category_name_snapshot	text	CategoryNameSnapshot	*string	True	False	NO DEFAULT
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	sort_order	integer	SortOrder	int	False	False	0
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	version	bigint	Version	int64	False	False	1
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	created_at	timestamptz	CreatedAt	time.Time	False	False	clock_timestamp()
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	updated_at	timestamptz	UpdatedAt	time.Time	False	False	clock_timestamp()
+clinical_plan_diagnoses	ClinicalPlanDiagnosis	backend/internal/model/storage_clinical.go	deleted_at	timestamptz	DeletedAt	*time.Time	True	False	NO DEFAULT
 clinical_plans	ClinicalPlan	backend/internal/model/clinical_plan.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
 clinical_plans	ClinicalPlan	backend/internal/model/clinical_plan.go	medical_record_id	bigint	MedicalRecordID	uint64	False	False	NO DEFAULT
 clinical_plans	ClinicalPlan	backend/internal/model/clinical_plan.go	physical_exam	text	PhysicalExam	string	False	False	''
@@ -921,7 +921,7 @@ examination_revisions	ExaminationRevision	backend/internal/model/examination_rev
 examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	clinic_id	BIGINT	ClinicID	uint64	False	False	NO DEFAULT
 examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	examination_id	BIGINT	ExaminationID	uint64	False	False	NO DEFAULT
 examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	version	BIGINT	Version	uint64	False	False	NO DEFAULT
-examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	kind	TEXT	Kind	string	False	False	NO DEFAULT
+examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	kind	TEXT	Kind	ExaminationRevisionKind	False	False	NO DEFAULT
 examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	status	exam_status	Status	ExaminationStatus	False	False	NO DEFAULT
 examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	medical_record_id	BIGINT	MedicalRecordID	*uint64	True	False	NO DEFAULT
 examination_revisions	ExaminationRevision	backend/internal/model/examination_revision.go	pet_id	BIGINT	PetID	*uint64	True	False	NO DEFAULT
@@ -1289,7 +1289,7 @@ lab_devices	LabDevice	backend/internal/model/lab_device.go	updated_at	timestampt
 lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	id	bigserial	ID	uint64	False	True	NO DEFAULT
 lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
 lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	job_id	uuid	JobID	uuid.UUID	False	False	NO DEFAULT
-lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	event_type	varchar(50)	EventType	string	False	False	NO DEFAULT
+lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	event_type	varchar(50)	EventType	LabImportEventType	False	False	NO DEFAULT
 lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	from_status	lab_import_job_status	FromStatus	*LabImportJobStatus	True	False	NO DEFAULT
 lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	to_status	lab_import_job_status	ToStatus	*LabImportJobStatus	True	False	NO DEFAULT
 lab_import_events	LabImportEvent	backend/internal/model/lab_import.go	row_count	int	RowCount	int	False	False	0
@@ -1356,13 +1356,13 @@ lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_imp
 lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_import.go	reason	TEXT	Reason	string	False	False	NO DEFAULT
 lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_import.go	actor_id	BIGINT	ActorID	*uint64	True	False	NO DEFAULT
 lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_import.go	result_status	TEXT	ResultStatus	string	False	False	NO DEFAULT
-lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_import.go	retracted_exam_ids	JSONB	RetractedExamIds	json.RawMessage	False	False	'[]'::jsonb
+lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_import.go	retracted_exam_ids	JSONB	RetractedExamIDs	json.RawMessage	False	False	'[]'::jsonb
 lab_import_revert_receipts	LabImportRevertReceipt	backend/internal/model/lab_import.go	created_at	TIMESTAMPTZ	CreatedAt	time.Time	False	False	now()
 lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
 lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	clinic_id	BIGINT	ClinicID	uint64	False	False	NO DEFAULT
 lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	job_id	UUID	JobID	uuid.UUID	False	False	NO DEFAULT
 lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	exam_id	BIGINT	ExamID	uint64	False	False	NO DEFAULT
-lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	use_kind	TEXT	UseKind	string	False	False	NO DEFAULT
+lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	use_kind	TEXT	UseKind	LabImportUsageKind	False	False	NO DEFAULT
 lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	actor_id	BIGINT	ActorID	*uint64	True	False	NO DEFAULT
 lab_import_usage_receipts	LabImportUsageReceipt	backend/internal/model/lab_import.go	created_at	TIMESTAMPTZ	CreatedAt	time.Time	False	False	now()
 line_customers	LineCustomer	backend/internal/model/line_customer.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
@@ -1581,7 +1581,7 @@ manual_article_versions	ManualArticleVersion	backend/internal/model/manual_artic
 manual_article_versions	ManualArticleVersion	backend/internal/model/manual_article.go	restored_from_id	bigint	RestoredFromID	*uint64	True	False	NO DEFAULT
 manual_article_versions	ManualArticleVersion	backend/internal/model/manual_article.go	source_kind	text	SourceKind	*string	True	False	NO DEFAULT
 manual_articles	ManualArticle	backend/internal/model/manual_article.go	id	bigserial	ID	uint64	False	True	NO DEFAULT
-manual_articles	ManualArticle	backend/internal/model/manual_article.go	category	text	Category	string	False	False	NO DEFAULT
+manual_articles	ManualArticle	backend/internal/model/manual_article.go	category	text	Category	ManualCategory	False	False	NO DEFAULT
 manual_articles	ManualArticle	backend/internal/model/manual_article.go	slug	text	Slug	string	False	False	NO DEFAULT
 manual_articles	ManualArticle	backend/internal/model/manual_article.go	created_at	timestamptz	CreatedAt	time.Time	False	False	now()
 manual_articles	ManualArticle	backend/internal/model/manual_article.go	updated_at	timestamptz	UpdatedAt	time.Time	False	False	now()
@@ -2098,7 +2098,7 @@ reservation_notification_eligibility	ReservationNotificationEligibility	backend/
 reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
 reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
 reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	reservation_type_id	bigint	ReservationTypeID	uint64	False	False	NO DEFAULT
-reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	available_type	text	AvailableType	string	False	False	NO DEFAULT
+reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	available_type	text	AvailableType	AvailableSlotType	False	False	NO DEFAULT
 reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	day_of_week	smallint	DayOfWeek	*int16	True	False	NO DEFAULT
 reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	specific_date	date	SpecificDate	*time.Time	True	False	NO DEFAULT
 reservation_type_available_slots	ReservationTypeAvailableSlot	backend/internal/model/reservation_type.go	start_time	varchar(5)	StartTime	string	False	False	NO DEFAULT
@@ -2126,7 +2126,7 @@ reservation_type_name_revisions	ReservationTypeNameRevision	backend/internal/mod
 reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
 reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
 reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	reservation_type_id	bigint	ReservationTypeID	uint64	False	False	NO DEFAULT
-reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	unavailable_type	text	UnavailableType	string	False	False	NO DEFAULT
+reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	unavailable_type	text	UnavailableType	UnavailableType	False	False	NO DEFAULT
 reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	day_of_week	smallint	DayOfWeek	*int16	True	False	NO DEFAULT
 reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	specific_date	date	SpecificDate	*time.Time	True	False	NO DEFAULT
 reservation_type_unavailable_times	ReservationTypeUnavailableTime	backend/internal/model/reservation_type.go	start_time	varchar(5)	StartTime	string	False	False	NO DEFAULT
@@ -2149,7 +2149,7 @@ reservation_types	ReservationType	backend/internal/model/reservation_type.go	res
 reservation_types	ReservationType	backend/internal/model/reservation_type.go	reservation_image_url	text	ReservationImageURL	string	False	False	''
 reservation_types	ReservationType	backend/internal/model/reservation_type.go	parent_id	bigint	ParentID	*uint64	True	False	NO DEFAULT
 reservation_types	ReservationType	backend/internal/model/reservation_type.go	max_concurrent	integer	MaxConcurrent	*int	True	False	NO DEFAULT
-reservation_types	ReservationType	backend/internal/model/reservation_type.go	reservation_day_option	text	ReservationDayOption	string	False	False	'none'
+reservation_types	ReservationType	backend/internal/model/reservation_type.go	reservation_day_option	text	ReservationDayOption	ReservationDayOption	False	False	'none'
 reservation_types	ReservationType	backend/internal/model/reservation_type.go	is_internal	boolean	IsInternal	bool	False	False	false
 reservation_types	ReservationType	backend/internal/model/reservation_type.go	created_at	timestamptz	CreatedAt	time.Time	False	False	now()
 reservation_types	ReservationType	backend/internal/model/reservation_type.go	updated_at	timestamptz	UpdatedAt	time.Time	False	False	now()
@@ -2391,7 +2391,7 @@ support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.g
 support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	viewport	text	Viewport	string	False	False	''
 support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	app_version	text	AppVersion	string	False	False	''
 support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	screenshot_key	text	ScreenshotKey	*string	True	False	NO DEFAULT
-support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	status	varchar(20)	Status	string	False	False	'open'
+support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	status	varchar(20)	Status	SupportBugReportStatus	False	False	'open'
 support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	created_at	timestamptz	CreatedAt	time.Time	False	False	now()
 support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	updated_at	timestamptz	UpdatedAt	time.Time	False	False	now()
 support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.go	deleted_at	timestamptz	DeletedAt	gorm.DeletedAt	True	False	NO DEFAULT
@@ -2399,7 +2399,7 @@ support_bug_reports	SupportBugReport	backend/internal/model/support_bug_report.g
 support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
 support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
 support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	staff_id	bigint	StaffID	uint64	False	False	NO DEFAULT
-support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	role	varchar(16)	Role	string	False	False	NO DEFAULT
+support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	role	varchar(16)	Role	SupportChatMessageRole	False	False	NO DEFAULT
 support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	content	text	Content	string	False	False	NO DEFAULT
 support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	sources	jsonb	Sources	*json.RawMessage	True	False	NO DEFAULT
 support_chat_messages	SupportChatMessage	backend/internal/model/support_chat_message.go	created_at	timestamptz	CreatedAt	time.Time	False	False	now()
@@ -2639,11 +2639,11 @@ vaccination_certificate_operations	VaccinationCertificateOperation	backend/inter
 vaccination_certificate_operations	VaccinationCertificateOperation	backend/internal/model/storage_clinical.go	artifact_id	bigint	ArtifactID	uint64	False	False	NO DEFAULT
 vaccination_certificate_operations	VaccinationCertificateOperation	backend/internal/model/storage_clinical.go	performed_by	bigint	PerformedBy	uint64	False	False	NO DEFAULT
 vaccination_certificate_operations	VaccinationCertificateOperation	backend/internal/model/storage_clinical.go	committed_at	timestamptz	CommittedAt	time.Time	False	False	clock_timestamp()
-vaccination_certificate_series	VaccinationCertificateSery	backend/internal/model/storage_clinical.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
-vaccination_certificate_series	VaccinationCertificateSery	backend/internal/model/storage_clinical.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
-vaccination_certificate_series	VaccinationCertificateSery	backend/internal/model/storage_clinical.go	vaccination_id	bigint	VaccinationID	uint64	False	False	NO DEFAULT
-vaccination_certificate_series	VaccinationCertificateSery	backend/internal/model/storage_clinical.go	certificate_kind	text	CertificateKind	string	False	False	NO DEFAULT
-vaccination_certificate_series	VaccinationCertificateSery	backend/internal/model/storage_clinical.go	created_at	timestamptz	CreatedAt	time.Time	False	False	clock_timestamp()
+vaccination_certificate_series	VaccinationCertificateSeries	backend/internal/model/storage_clinical.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
+vaccination_certificate_series	VaccinationCertificateSeries	backend/internal/model/storage_clinical.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
+vaccination_certificate_series	VaccinationCertificateSeries	backend/internal/model/storage_clinical.go	vaccination_id	bigint	VaccinationID	uint64	False	False	NO DEFAULT
+vaccination_certificate_series	VaccinationCertificateSeries	backend/internal/model/storage_clinical.go	certificate_kind	text	CertificateKind	string	False	False	NO DEFAULT
+vaccination_certificate_series	VaccinationCertificateSeries	backend/internal/model/storage_clinical.go	created_at	timestamptz	CreatedAt	time.Time	False	False	clock_timestamp()
 vaccinations	Vaccination	backend/internal/model/vaccination_record.go	id	BIGSERIAL	ID	uint64	False	True	NO DEFAULT
 vaccinations	Vaccination	backend/internal/model/vaccination_record.go	clinic_id	bigint	ClinicID	uint64	False	False	NO DEFAULT
 vaccinations	Vaccination	backend/internal/model/vaccination_record.go	medical_record_id	bigint	MedicalRecordID	*uint64	True	False	NO DEFAULT

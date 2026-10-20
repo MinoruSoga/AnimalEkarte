@@ -132,7 +132,7 @@
           "source": "001_init.sql:271"
         }
       ],
-      "model_source_sha256": "3a6b02e0fcbca8f968826045fd42259321b21191ac2ca0ff5bbb1a60f10e41f6"
+      "model_source_sha256": "5f5a174a25a080acce56d8d9b43e6f6826e2ce423d4b7922f1c2ba950334ea43"
     },
     {
       "table": "actual_visit_facts",
@@ -622,7 +622,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "admission_records",
@@ -10389,7 +10389,7 @@
         {
           "column": "status",
           "field": "Status",
-          "go_type": "string",
+          "go_type": "CheckupPackageImportStatus",
           "sql_type": "text",
           "nullable": false,
           "default": null,
@@ -10598,7 +10598,7 @@
           "source": "001_init.sql:5298"
         }
       ],
-      "model_source_sha256": "25160d2e924c319b60359754b4aa8b2d349d79469f1401fa4d29bb6c0e083083"
+      "model_source_sha256": "163d2ccf8587a01f59bed5952270f13523d24730cc27f3614617604b5ee404c6"
     },
     {
       "table": "checkup_result_revisions",
@@ -10964,7 +10964,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "checkup_save_attempts",
@@ -11220,7 +11220,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "checkup_save_stage_results",
@@ -11502,7 +11502,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "checkup_type_fields",
@@ -13550,7 +13550,7 @@
     },
     {
       "table": "clinical_plan_diagnoses",
-      "model": "ClinicalPlanDiagnose",
+      "model": "ClinicalPlanDiagnosis",
       "columns": [
         {
           "column": "id",
@@ -13852,7 +13852,7 @@
           "source": "001_init.sql:10994"
         }
       ],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "clinical_plans",
@@ -21921,7 +21921,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "examination_revision_items",
@@ -22203,7 +22203,7 @@
           "source": "001_init.sql:5073"
         }
       ],
-      "model_source_sha256": "a3bbf9f3faf9a4a56916af54577626e4fe8c7cb37c8d540e66322d38dbb05b38"
+      "model_source_sha256": "e63a2d615bd28d69bb362de241b10849e27e96c33930508103f10a519ea65584"
     },
     {
       "table": "examination_revisions",
@@ -22248,7 +22248,7 @@
         {
           "column": "kind",
           "field": "Kind",
-          "go_type": "string",
+          "go_type": "ExaminationRevisionKind",
           "sql_type": "TEXT",
           "nullable": false,
           "default": null,
@@ -22687,7 +22687,7 @@
           "source": "001_init.sql:5070"
         }
       ],
-      "model_source_sha256": "a3bbf9f3faf9a4a56916af54577626e4fe8c7cb37c8d540e66322d38dbb05b38"
+      "model_source_sha256": "e63a2d615bd28d69bb362de241b10849e27e96c33930508103f10a519ea65584"
     },
     {
       "table": "exams",
@@ -27561,7 +27561,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "initial_intake_revisions",
@@ -27987,7 +27987,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "inquiries",
@@ -29615,7 +29615,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "inventory_quantity_bases",
@@ -29914,7 +29914,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "lab_device_item_masters",
@@ -31632,7 +31632,7 @@
         {
           "column": "event_type",
           "field": "EventType",
-          "go_type": "string",
+          "go_type": "LabImportEventType",
           "sql_type": "varchar(50)",
           "nullable": false,
           "default": null,
@@ -31826,7 +31826,7 @@
           "source": "001_init.sql:5435"
         }
       ],
-      "model_source_sha256": "0939f20227cf736c55234a4cdc48a07385d8f133f952f1421c6c97b0939f6e07"
+      "model_source_sha256": "4d7cb521d8208df6079d4fc8a84451c9b660e815bbc81cb7b6dfcd7ea2524e65"
     },
     {
       "table": "lab_import_exam_retraction_items",
@@ -31990,7 +31990,7 @@
           "source": "001_init.sql:5501"
         }
       ],
-      "model_source_sha256": "0939f20227cf736c55234a4cdc48a07385d8f133f952f1421c6c97b0939f6e07"
+      "model_source_sha256": "4d7cb521d8208df6079d4fc8a84451c9b660e815bbc81cb7b6dfcd7ea2524e65"
     },
     {
       "table": "lab_import_exam_retractions",
@@ -32197,7 +32197,7 @@
           "source": "001_init.sql:5465"
         }
       ],
-      "model_source_sha256": "0939f20227cf736c55234a4cdc48a07385d8f133f952f1421c6c97b0939f6e07"
+      "model_source_sha256": "4d7cb521d8208df6079d4fc8a84451c9b660e815bbc81cb7b6dfcd7ea2524e65"
     },
     {
       "table": "lab_import_job_items",
@@ -32777,7 +32777,7 @@
           "source": "001_init.sql:5993"
         }
       ],
-      "model_source_sha256": "0939f20227cf736c55234a4cdc48a07385d8f133f952f1421c6c97b0939f6e07"
+      "model_source_sha256": "4d7cb521d8208df6079d4fc8a84451c9b660e815bbc81cb7b6dfcd7ea2524e65"
     },
     {
       "table": "lab_import_revert_receipts",
@@ -32857,7 +32857,7 @@
         },
         {
           "column": "retracted_exam_ids",
-          "field": "RetractedExamIds",
+          "field": "RetractedExamIDs",
           "go_type": "json.RawMessage",
           "sql_type": "JSONB",
           "nullable": false,
@@ -32952,7 +32952,7 @@
           "source": "001_init.sql:5568"
         }
       ],
-      "model_source_sha256": "0939f20227cf736c55234a4cdc48a07385d8f133f952f1421c6c97b0939f6e07"
+      "model_source_sha256": "4d7cb521d8208df6079d4fc8a84451c9b660e815bbc81cb7b6dfcd7ea2524e65"
     },
     {
       "table": "lab_import_usage_receipts",
@@ -32997,7 +32997,7 @@
         {
           "column": "use_kind",
           "field": "UseKind",
-          "go_type": "string",
+          "go_type": "LabImportUsageKind",
           "sql_type": "TEXT",
           "nullable": false,
           "default": null,
@@ -33136,7 +33136,7 @@
           "source": "001_init.sql:5531"
         }
       ],
-      "model_source_sha256": "0939f20227cf736c55234a4cdc48a07385d8f133f952f1421c6c97b0939f6e07"
+      "model_source_sha256": "4d7cb521d8208df6079d4fc8a84451c9b660e815bbc81cb7b6dfcd7ea2524e65"
     },
     {
       "table": "line_customers",
@@ -34460,7 +34460,7 @@
           "source": "001_init.sql:425"
         }
       ],
-      "model_source_sha256": "ae524da7005801ec594c1e7a0c8d2a10aef00f7eb005070dd682d04531391ded"
+      "model_source_sha256": "f5777dc94f5f1e13c62eba2f7505438b8d9b0afc2318f0500130e6cee8abd345"
     },
     {
       "table": "line_reservation_settings",
@@ -36236,7 +36236,7 @@
           "source": "001_init.sql:480"
         }
       ],
-      "model_source_sha256": "ff59b66b8c98d7465fb2b7b77ba047c6fcefa1237ff51df03a329af8951c6169"
+      "model_source_sha256": "fd96cc223cfc87abb6156cc6d3f4cf1ac25cb5228c248631517f6567935a8b92"
     },
     {
       "table": "lstep_sync_error_counters",
@@ -36892,7 +36892,7 @@
           "source": "001_init.sql:536"
         }
       ],
-      "model_source_sha256": "fbb162dd2a7412d3295ceb39d844ab813b5befc7ce8b385a5cbab54a2b9a62f2"
+      "model_source_sha256": "490479d09ec7fe146cb7b036d83226e66e99273508c02bc9d2627268a05d86a0"
     },
     {
       "table": "manual_article_operations",
@@ -37666,7 +37666,7 @@
           "source": "001_init.sql:2908"
         }
       ],
-      "model_source_sha256": "bb209b67ae1cc231327133ad2dd57cbff50676c640bfcbe6a458f78928b7b84e"
+      "model_source_sha256": "d3ed976f9318d7e2e392c61ff8e98f716551dc93c145bf6f5d35f8e0dc4e7bf5"
     },
     {
       "table": "manual_articles",
@@ -37684,7 +37684,7 @@
         {
           "column": "category",
           "field": "Category",
-          "go_type": "string",
+          "go_type": "ManualCategory",
           "sql_type": "text",
           "nullable": false,
           "default": null,
@@ -37896,7 +37896,7 @@
           "source": "001_init.sql:2888"
         }
       ],
-      "model_source_sha256": "bb209b67ae1cc231327133ad2dd57cbff50676c640bfcbe6a458f78928b7b84e"
+      "model_source_sha256": "d3ed976f9318d7e2e392c61ff8e98f716551dc93c145bf6f5d35f8e0dc4e7bf5"
     },
     {
       "table": "medical_record_addenda",
@@ -38463,7 +38463,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "medical_record_correction_links",
@@ -38847,7 +38847,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "medical_record_dependency_versions",
@@ -38983,7 +38983,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "medical_record_image_deletions",
@@ -39191,7 +39191,7 @@
           "source": "001_init.sql:6921"
         }
       ],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "medical_record_image_upload_quota",
@@ -39374,7 +39374,7 @@
           "source": "001_init.sql:4804"
         }
       ],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "medical_record_images",
@@ -41075,7 +41075,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "medicines",
@@ -42089,7 +42089,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "operation_bindings",
@@ -42335,7 +42335,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "operation_results",
@@ -42512,7 +42512,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "owner_deposit_accounts",
@@ -46905,7 +46905,7 @@
           "source": "001_init.sql:4123"
         }
       ],
-      "model_source_sha256": "8da9b1f1dbafa50302f445b03f3726f3e40052147681d6ee192b139c4b9b9ac8"
+      "model_source_sha256": "6ac0b1f232f6877c1ba2d7bf1a9d22e38af55e35db470e335d8ac4fca1272d00"
     },
     {
       "table": "pets",
@@ -47352,7 +47352,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "preventive_medication_revisions",
@@ -47842,7 +47842,7 @@
           "source": "001_init.sql:9241"
         }
       ],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "preventive_prescription_revisions",
@@ -48420,7 +48420,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "preventive_prescriptions",
@@ -48735,7 +48735,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "procedures",
@@ -49381,7 +49381,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "record_edit_rights",
@@ -49616,7 +49616,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "refund_requests",
@@ -49992,7 +49992,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "reservation_capacity_gates",
@@ -50770,7 +50770,7 @@
         {
           "column": "available_type",
           "field": "AvailableType",
-          "go_type": "string",
+          "go_type": "AvailableSlotType",
           "sql_type": "text",
           "nullable": false,
           "default": null,
@@ -50978,7 +50978,7 @@
           "source": "001_init.sql:883"
         }
       ],
-      "model_source_sha256": "a8b9df7cc08089a11bd20e245addf95f1352064f8e23dc7a0b409bf7677a7b5b"
+      "model_source_sha256": "0a26e289ec06e3d1318b07a33507725b2e08924b44f461ec40c443ef762dc1b2"
     },
     {
       "table": "reservation_type_groups",
@@ -51434,7 +51434,7 @@
         {
           "column": "unavailable_type",
           "field": "UnavailableType",
-          "go_type": "string",
+          "go_type": "UnavailableType",
           "sql_type": "text",
           "nullable": false,
           "default": null,
@@ -51679,7 +51679,7 @@
           "source": "001_init.sql:2781"
         }
       ],
-      "model_source_sha256": "a8b9df7cc08089a11bd20e245addf95f1352064f8e23dc7a0b409bf7677a7b5b"
+      "model_source_sha256": "0a26e289ec06e3d1318b07a33507725b2e08924b44f461ec40c443ef762dc1b2"
     },
     {
       "table": "reservation_types",
@@ -51832,7 +51832,7 @@
         {
           "column": "reservation_day_option",
           "field": "ReservationDayOption",
-          "go_type": "string",
+          "go_type": "ReservationDayOption",
           "sql_type": "text",
           "nullable": false,
           "default": "'none'",
@@ -52150,7 +52150,7 @@
           "source": "001_init.sql:2484"
         }
       ],
-      "model_source_sha256": "a8b9df7cc08089a11bd20e245addf95f1352064f8e23dc7a0b409bf7677a7b5b"
+      "model_source_sha256": "0a26e289ec06e3d1318b07a33507725b2e08924b44f461ec40c443ef762dc1b2"
     },
     {
       "table": "revisit_intake_answers",
@@ -52649,7 +52649,7 @@
           "source": "001_init.sql:7698"
         }
       ],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "revisit_intake_submit_receipts",
@@ -52914,7 +52914,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "revisit_intake_targets",
@@ -53125,7 +53125,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "shared_files",
@@ -54430,7 +54430,7 @@
           "source": "001_init.sql:1200"
         }
       ],
-      "model_source_sha256": "3a6b02e0fcbca8f968826045fd42259321b21191ac2ca0ff5bbb1a60f10e41f6"
+      "model_source_sha256": "5f5a174a25a080acce56d8d9b43e6f6826e2ce423d4b7922f1c2ba950334ea43"
     },
     {
       "table": "staff_leave_changes",
@@ -55400,7 +55400,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "staff_record_drafts",
@@ -55722,7 +55722,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "staff_reservation_capabilities",
@@ -58212,7 +58212,7 @@
         {
           "column": "status",
           "field": "Status",
-          "go_type": "string",
+          "go_type": "SupportBugReportStatus",
           "sql_type": "varchar(20)",
           "nullable": false,
           "default": "'open'",
@@ -58378,7 +58378,7 @@
           "source": "001_init.sql:6584"
         }
       ],
-      "model_source_sha256": "3049bccb9bf520172e90c48bd2adcb3bcd61771198cf92fced486098b343c3cc"
+      "model_source_sha256": "ddbf318c13484475a9b94c26e2c122a3f856b3b2994c387f3b72baf1dc4552de"
     },
     {
       "table": "support_chat_messages",
@@ -58414,7 +58414,7 @@
         {
           "column": "role",
           "field": "Role",
-          "go_type": "string",
+          "go_type": "SupportChatMessageRole",
           "sql_type": "varchar(16)",
           "nullable": false,
           "default": null,
@@ -58558,7 +58558,7 @@
           "source": "001_init.sql:6628"
         }
       ],
-      "model_source_sha256": "765c10f9de0124c9b1b9f69b3747146a5b6e59f6b720dab4bc446888339d18c8"
+      "model_source_sha256": "1ad2979cc811266cb8abfccc8e9022143009eb67e21e393f0b330f173f93cd1a"
     },
     {
       "table": "support_delivery_attempts",
@@ -64262,7 +64262,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "vaccination_certificate_editions",
@@ -64570,7 +64570,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "vaccination_certificate_operations",
@@ -64797,11 +64797,11 @@
           "source": "001_init.sql:8675"
         }
       ],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "vaccination_certificate_series",
-      "model": "VaccinationCertificateSery",
+      "model": "VaccinationCertificateSeries",
       "columns": [
         {
           "column": "id",
@@ -64967,7 +64967,7 @@
         }
       ],
       "indexes": [],
-      "model_source_sha256": "b41440c74715bd2c025969a975af9e806776cd2f38d074f17966a79d6a628cd2"
+      "model_source_sha256": "f3e3fb0f7f8142c94a9ea07202fb32bb0cab9f92942345d4d6026ea236cc731e"
     },
     {
       "table": "vaccinations",

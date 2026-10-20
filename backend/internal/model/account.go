@@ -7,7 +7,7 @@ import (
 
 type Account struct {
 	ID            uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
-	Email         string         `gorm:"column:email;type:text;not null" json:"email"`
+	Email         string         `gorm:"column:email;type:text;not null;uniqueIndex:accounts_email_key" json:"email"`
 	PasswordHash  string         `gorm:"column:password_hash;type:text;not null" json:"-"`
 	IsActive      bool           `gorm:"column:is_active;type:boolean;not null;default:true" json:"is_active"`
 	IsSystemAdmin bool           `gorm:"column:is_system_admin;type:boolean;not null;default:false" json:"is_system_admin"`
@@ -21,8 +21,8 @@ func (Account) TableName() string { return "accounts" }
 
 type StaffClinicAssignment struct {
 	ID                       uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
-	StaffID                  uint64         `gorm:"column:staff_id;type:bigint;not null" json:"staff_id"`
-	ClinicID                 uint64         `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
+	StaffID                  uint64         `gorm:"column:staff_id;type:bigint;not null;uniqueIndex:uk_staff_clinic,priority:1" json:"staff_id"`
+	ClinicID                 uint64         `gorm:"column:clinic_id;type:bigint;not null;uniqueIndex:uk_staff_clinic,priority:2" json:"clinic_id"`
 	IsMain                   bool           `gorm:"column:is_main;type:boolean;not null;default:false" json:"is_main"`
 	CreatedAt                time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
 	UpdatedAt                time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`

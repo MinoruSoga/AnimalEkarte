@@ -396,13 +396,7 @@
         "PlaneIssueURL",
         "PlaneSyncError"
       ],
-      "type_changes": [
-        {
-          "field": "Status",
-          "before": "SupportBugReportStatus",
-          "after": "string"
-        }
-      ],
+      "type_changes": [],
       "added_fields": [
         "Version"
       ]
@@ -457,11 +451,6 @@
           "field": "SortOrder",
           "before": "int",
           "after": "*int"
-        },
-        {
-          "field": "ReservationDayOption",
-          "before": "ReservationDayOption",
-          "after": "string"
         }
       ],
       "added_fields": [
@@ -477,11 +466,6 @@
       "removed_fields": [],
       "type_changes": [
         {
-          "field": "UnavailableType",
-          "before": "UnavailableType",
-          "after": "string"
-        },
-        {
           "field": "DayOfWeek",
           "before": "*int8",
           "after": "*int16"
@@ -494,11 +478,6 @@
       "model": "ReservationTypeAvailableSlot",
       "removed_fields": [],
       "type_changes": [
-        {
-          "field": "AvailableType",
-          "before": "AvailableSlotType",
-          "after": "string"
-        },
         {
           "field": "DayOfWeek",
           "before": "*int8",
@@ -600,32 +579,6 @@
       "added_fields": []
     },
     {
-      "table": "lab_import_events",
-      "model": "LabImportEvent",
-      "removed_fields": [],
-      "type_changes": [
-        {
-          "field": "EventType",
-          "before": "LabImportEventType",
-          "after": "string"
-        }
-      ],
-      "added_fields": []
-    },
-    {
-      "table": "lab_import_usage_receipts",
-      "model": "LabImportUsageReceipt",
-      "removed_fields": [],
-      "type_changes": [
-        {
-          "field": "UseKind",
-          "before": "LabImportUsageKind",
-          "after": "string"
-        }
-      ],
-      "added_fields": []
-    },
-    {
       "table": "lab_import_exam_retractions",
       "model": "LabImportExamRetraction",
       "removed_fields": [],
@@ -659,7 +612,7 @@
       ],
       "type_changes": [],
       "added_fields": [
-        "RetractedExamIds"
+        "RetractedExamIDs"
       ]
     },
     {
@@ -725,11 +678,6 @@
       "removed_fields": [],
       "type_changes": [
         {
-          "field": "Role",
-          "before": "SupportChatMessageRole",
-          "after": "string"
-        },
-        {
           "field": "Sources",
           "before": "json.RawMessage",
           "after": "*json.RawMessage"
@@ -766,19 +714,6 @@
       ]
     },
     {
-      "table": "checkup_package_import_receipts",
-      "model": "CheckupPackageImportReceipt",
-      "removed_fields": [],
-      "type_changes": [
-        {
-          "field": "Status",
-          "before": "CheckupPackageImportStatus",
-          "after": "string"
-        }
-      ],
-      "added_fields": []
-    },
-    {
       "table": "chief_complaint_types",
       "model": "ChiefComplaintType",
       "removed_fields": [],
@@ -801,13 +736,7 @@
         "BodyMarkdown",
         "UpdatedByStaffID"
       ],
-      "type_changes": [
-        {
-          "field": "Category",
-          "before": "ManualCategory",
-          "after": "string"
-        }
-      ],
+      "type_changes": [],
       "added_fields": [
         "Version",
         "CurrentVersionID",
@@ -838,11 +767,6 @@
       "model": "ExaminationRevision",
       "removed_fields": [],
       "type_changes": [
-        {
-          "field": "Kind",
-          "before": "ExaminationRevisionKind",
-          "after": "string"
-        },
         {
           "field": "Date",
           "before": "time.Time",
@@ -35584,24 +35508,6 @@
     },
     {
       "path": "backend/internal/medicalrecord/lab_import_repository.go",
-      "line": 201,
-      "model": "LabImportEvent",
-      "test": false
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository.go",
-      "line": 251,
-      "model": "LabImportUsageReceipt",
-      "test": false
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository.go",
-      "line": 263,
-      "model": "LabImportUsageReceipt",
-      "test": false
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository.go",
       "line": 415,
       "model": "Examination",
       "test": false
@@ -36733,18 +36639,6 @@
       "line": 124,
       "model": "MedicalRecordImage",
       "test": false
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_handler_test.go",
-      "line": 776,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_handler_test.go",
-      "line": 805,
-      "model": "LabImportEvent",
-      "test": true
     },
     {
       "path": "backend/internal/medicalrecord/medical_record_image_response_test.go",
@@ -38395,18 +38289,6 @@
       "line": 812,
       "model": "Cage",
       "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_usage_tracker.go",
-      "line": 91,
-      "model": "LabImportUsageReceipt",
-      "test": false
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_result_import_service.go",
-      "line": 249,
-      "model": "LabImportEvent",
-      "test": false
     },
     {
       "path": "backend/internal/medicalrecord/consultation_response_test.go",
@@ -42310,12 +42192,6 @@
     },
     {
       "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
-      "line": 66,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
       "line": 67,
       "model": "AnimalSpecies",
       "test": true
@@ -42354,30 +42230,6 @@
       "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
       "line": 92,
       "model": "ExaminationType",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
-      "line": 185,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
-      "line": 207,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
-      "line": 210,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_repository_test.go",
-      "line": 213,
-      "model": "LabImportEvent",
       "test": true
     },
     {
@@ -42883,18 +42735,6 @@
       "line": 157,
       "model": "Treatment",
       "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_service.go",
-      "line": 103,
-      "model": "LabImportEvent",
-      "test": false
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_service.go",
-      "line": 140,
-      "model": "LabImportEvent",
-      "test": false
     },
     {
       "path": "backend/internal/medicalrecord/vaccination_repository_compact_search_test.go",
@@ -45291,12 +45131,6 @@
       "test": true
     },
     {
-      "path": "backend/internal/medicalrecord/lab_device_exam_persist.go",
-      "line": 221,
-      "model": "LabImportEvent",
-      "test": false
-    },
-    {
       "path": "backend/internal/medicalrecord/procedure_service_test.go",
       "line": 43,
       "model": "Procedure",
@@ -45367,12 +45201,6 @@
       "line": 112,
       "model": "VitalRecord",
       "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_tx.go",
-      "line": 93,
-      "model": "LabImportEvent",
-      "test": false
     },
     {
       "path": "backend/internal/medicalrecord/lab_import_revert_tx.go",
@@ -46486,12 +46314,6 @@
     },
     {
       "path": "backend/internal/medicalrecord/realdb_lab_isolation_test.go",
-      "line": 47,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/realdb_lab_isolation_test.go",
       "line": 48,
       "model": "LabDeviceStationSettings",
       "test": true
@@ -46530,18 +46352,6 @@
       "path": "backend/internal/medicalrecord/realdb_lab_isolation_test.go",
       "line": 50,
       "model": "Pet",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/realdb_lab_isolation_test.go",
-      "line": 151,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/realdb_lab_isolation_test.go",
-      "line": 154,
-      "model": "LabImportEvent",
       "test": true
     },
     {
@@ -47794,12 +47604,6 @@
     },
     {
       "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 29,
-      "model": "LabImportUsageReceipt",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
       "line": 30,
       "model": "LabImportRevertReceipt",
       "test": true
@@ -47820,12 +47624,6 @@
       "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
       "line": 33,
       "model": "MedicalRecord",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 64,
-      "model": "LabImportEvent",
       "test": true
     },
     {
@@ -47854,26 +47652,8 @@
     },
     {
       "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 132,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 155,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
       "line": 158,
       "model": "LabImportRevertReceipt",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 167,
-      "model": "LabImportEvent",
       "test": true
     },
     {
@@ -47884,38 +47664,8 @@
     },
     {
       "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 214,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 228,
-      "model": "LabImportUsageReceipt",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 238,
-      "model": "LabImportUsageReceipt",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
       "line": 248,
       "model": "MedicalRecord",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 270,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_import_revert_service_test.go",
-      "line": 288,
-      "model": "LabImportEvent",
       "test": true
     },
     {
@@ -49564,12 +49314,6 @@
     },
     {
       "path": "backend/internal/medicalrecord/lab_device_exam_persist_test.go",
-      "line": 26,
-      "model": "LabImportEvent",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_device_exam_persist_test.go",
       "line": 27,
       "model": "ExaminationType",
       "test": true
@@ -49590,12 +49334,6 @@
       "path": "backend/internal/medicalrecord/lab_device_exam_persist_test.go",
       "line": 30,
       "model": "ExamResult",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_device_exam_persist_test.go",
-      "line": 31,
-      "model": "LabImportUsageReceipt",
       "test": true
     },
     {
@@ -49626,12 +49364,6 @@
       "path": "backend/internal/medicalrecord/lab_device_exam_persist_test.go",
       "line": 175,
       "model": "Examination",
-      "test": true
-    },
-    {
-      "path": "backend/internal/medicalrecord/lab_device_exam_persist_test.go",
-      "line": 274,
-      "model": "LabImportUsageReceipt",
       "test": true
     },
     {
@@ -61850,13 +61582,13 @@
     }
   ],
   "summary": {
-    "existing_models_with_shape_changes": 75,
+    "existing_models_with_shape_changes": 72,
     "removed_fields": 98,
-    "changed_field_types": 139,
+    "changed_field_types": 129,
     "added_existing_fields": 89,
     "retired_type_reference_files": 106,
     "retired_type_reference_production_files": 31,
-    "changed_literal_candidate_files": 938,
+    "changed_literal_candidate_files": 933,
     "helper_production_calls": 5
   }
 }

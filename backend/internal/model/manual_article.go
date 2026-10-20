@@ -26,15 +26,15 @@ func IsValidManualCategory(c string) bool {
 //   - 編集時: 該当 slug を DB に upsert
 //   - マニュアルは医院共通の情報のため clinic_id は持たない
 type ManualArticle struct {
-	ID                 uint64     `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
-	Category           string     `gorm:"column:category;type:text;not null" json:"category"`
-	Slug               string     `gorm:"column:slug;type:text;not null" json:"slug"`
-	CreatedAt          time.Time  `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
-	UpdatedAt          time.Time  `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
-	Version            int64      `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
-	CurrentVersionID   *uint64    `gorm:"column:current_version_id;type:bigint" json:"-"`
-	PublishedVersionID *uint64    `gorm:"column:published_version_id;type:bigint" json:"-"`
-	HiddenAt           *time.Time `gorm:"column:hidden_at;type:timestamptz" json:"-"`
+	ID                 uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
+	Category           ManualCategory `gorm:"column:category;type:text;not null" json:"category"`
+	Slug               string         `gorm:"column:slug;type:text;not null" json:"slug"`
+	CreatedAt          time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
+	UpdatedAt          time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+	Version            int64          `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
+	CurrentVersionID   *uint64        `gorm:"column:current_version_id;type:bigint" json:"-"`
+	PublishedVersionID *uint64        `gorm:"column:published_version_id;type:bigint" json:"-"`
+	HiddenAt           *time.Time     `gorm:"column:hidden_at;type:timestamptz" json:"-"`
 }
 
 // TableName は ManualArticle のテーブル名

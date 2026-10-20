@@ -55,7 +55,7 @@
       "scope": "Existing tests kept unchanged; not a dependency/network blocker."
     }
   ],
-  "static_comparison_checks": 30020,
+  "static_comparison_checks": 30048,
   "static_comparison_errors": 0,
   "no_db_or_application_execution": true,
   "historical_alternate_cache_run": "Earlier temporary replacement v0.41.0 is superseded by exact-version final verification; not counted as exact-version evidence.",
@@ -68,5 +68,12 @@
       "current_sha256": "f9b4b659560c29fc1f61b484962977a286da02bc94fe94316a057f2c37fffe23",
       "unchanged_from_baseline": true
     }
+  },
+  "review_followup": {
+    "model_build": "PASS exact fixed deps network none",
+    "production_file_vet": "PASS",
+    "schema_Parse": "PASS 241 models",
+    "unique_metadata": "PASS 6 exact SQL unique-support index names and ordered columns, no collisions with SQL indexes",
+    "normal_package_vet": "FAIL accounting_test.go old numeric literals; test bodies not run"
   }
 }
