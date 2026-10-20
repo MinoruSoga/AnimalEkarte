@@ -59,6 +59,7 @@ flowchart TB
 | [plane-ready-triage-20260927/](plane/plane-ready-triage-20260927) | 2026-09-27 Plane Needs Human/Blocked 65 件の ready 判定 verdicts（ready=0、verdicts.json あり） |
 | [linear-f1-f6-mapping.md](plane/linear-f1-f6-mapping.md) | repo の実装履歴と旧 Linear の対応案（2026-09-11 時点の記録。Linear は閉鎖済みで F1–F6 対応は未特定のまま） |
 | **emr/** | Plane `EMR-*` チケットの調査・設計・証跡票 |
+| [emr-445-plan-handoff-20261020.md](emr/emr-445-plan-handoff-20261020.md) | 全512票点検・非終端229票の入口、必要subset／owner／未実装依存、PR736への文書整合引渡し。状態正本はPlane |
 | [emr-89-karte-copy-verification.md](emr/emr-89-karte-copy-verification.md) · [emr-180-note-staff-starttime-rdt-investigation.md](emr/emr-180-note-staff-starttime-rdt-investigation.md) · [emr-200-note2-coverage/](emr/emr-200-note2-coverage) · [emr-211-synthetic-teardown-audit-logs.md](emr/emr-211-synthetic-teardown-audit-logs.md) | 各 Plane チケットの調査・検証記録（証跡票） |
 | [emr-105-vaccine-multi-20261002.md](emr/emr-105-vaccine-multi-20261002.md) · [emr-114-reservation-reference-20261002.md](emr/emr-114-reservation-reference-20261002.md) · [emr-116-repro-20261002.md](emr/emr-116-repro-20261002.md) · [emr-131-local-uat-20261002.md](emr/emr-131-local-uat-20261002.md) · [emr-164-verification-20261002.md](emr/emr-164-verification-20261002.md) | emr-*-20261002 証跡・再検証票（EMR-105/114/116/131/164 の 2026-10-02 検証・再現記録。現在の状態は Plane を正とする） |
 | [emr-245-list-filter-column-inventory.md](emr/emr-245-list-filter-column-inventory.md) | EMR-245 一覧フィルタと表示列の対応棚卸し（チケット作業メモ。docs/ops/ から移動） |
@@ -81,6 +82,7 @@ flowchart TB
 | [reorg-plan.md](infra/reorg-plan.md) | 2026-07 起案のインフラ再編計画の履歴資料（HISTORICAL・実行不可。docs/ops/infra/ から移設） |
 | **design/** | デザイン関連の選定・監査資料 |
 | [design/frontend-design-review-tools.md](./design/frontend-design-review-tools.md) | フロントエンドのデザイン改善ツール候補を既存規約・React/Vite構成・ブラウザ運用から比較した選定資料（2026-10-13） |
+| [design/stg-ui-audit-20261020.md](./design/stg-ui-audit-20261020.md) | STG 79 ルートの目視 + DOM 計測監査（2026-10-20）。重要度 H 13 系統、実装の違反一覧、規定が無かった事項（→ spec/design-patterns.md）。実行 SoT ではなく、修正は Plane で起票する |
 | **campaigns/** | 日付付きキャンペーンの準備票・台帳 |
 | [linmig-campaign-20260919/](campaigns/linmig-campaign-20260919) | P1–P5/P8・検査機器・実LINE・migrate・件数・フォント・締め時間・bundle のローカル準備票。実行完了ではない |
 | [remaining-campaign-20260920/](campaigns/remaining-campaign-20260920) | P6/P7 と Slack 14件（計16票）の判断材料・ケース票。PO裁定と実機/STGは未了 |

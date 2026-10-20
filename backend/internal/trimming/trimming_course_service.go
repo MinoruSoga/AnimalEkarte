@@ -3,6 +3,10 @@ package trimming
 import (
 	"context"
 	"log/slog"
+	"sort"
+	"strings"
+
+	"github.com/lib/pq"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -18,6 +22,12 @@ type CreateTrimmingCourseInput struct {
 	IsActive     bool
 	Description  string
 	SortOrder    int
+	// EMR-457: 任意属性。空文字・空配列は未登録（NULL、曜日は全曜日）。
+	ShortName       string
+	ImageObjectKey  string
+	AllowedWeekdays []int
+	// Authenticated actor for durable image-reference history.
+	ActorStaffID uint64
 }
 
 // UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
@@ -30,6 +40,15 @@ type UpdateTrimmingCourseInput struct {
 	CourseTypeID *uint64 // #73 種別マスタ FK(nullable)
 	Duration     *int
 	SortOrder    *int
+	// nil は既存値を保持する。ShortName/ImageObjectKey の "" と AllowedWeekdays の
+	// 空配列は NULL へ戻す（曜日 NULL = 全曜日）。service が正規化してから repo へ渡す。
+	ShortName       *string
+	ImageObjectKey  *string
+	AllowedWeekdays *[]int
+
+	// Authenticated actor for same-transaction image-reference history.
+	// Saved originals are retained; this is never a deletion reservation.
+	ActorStaffID uint64
 }
 
 const (
@@ -41,6 +60,13 @@ const (
 	colTrimmingCourseCourseTypeID = "course_type_id"
 	colTrimmingCourseDuration     = "duration"
 	colTrimmingCourseSortOrder    = "sort_order"
+
+	colTrimmingCourseShortName       = "short_name"
+	colTrimmingCourseImageObjectKey  = "image_object_key"
+	colTrimmingCourseAllowedWeekdays = "allowed_weekdays"
+
+	minTrimmingCourseWeekday = 0 // Sunday
+	maxTrimmingCourseWeekday = 6 // Saturday
 )
 
 func buildTrimmingCourseUpdate(input *UpdateTrimmingCourseInput) map[string]any {
@@ -69,7 +95,116 @@ func buildTrimmingCourseUpdate(input *UpdateTrimmingCourseInput) map[string]any 
 	if input.SortOrder != nil {
 		fields[colTrimmingCourseSortOrder] = *input.SortOrder
 	}
+	if input.ShortName != nil {
+		fields[colTrimmingCourseShortName] = nullableCourseText(*input.ShortName)
+	}
+	if input.ImageObjectKey != nil {
+		fields[colTrimmingCourseImageObjectKey] = nullableCourseText(*input.ImageObjectKey)
+	}
+	if input.AllowedWeekdays != nil {
+		if len(*input.AllowedWeekdays) == 0 {
+			fields[colTrimmingCourseAllowedWeekdays] = nil
+		} else {
+			fields[colTrimmingCourseAllowedWeekdays] = toWeekdayArray(*input.AllowedWeekdays)
+		}
+	}
 	return fields
+}
+
+// nullableCourseText maps an already-normalized optional text to its column
+// value: "" is stored as NULL because the CHECK constraints reject blank text.
+func nullableCourseText(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func toWeekdayArray(days []int) pq.Int64Array {
+	out := make(pq.Int64Array, len(days))
+	for i, day := range days {
+		out[i] = int64(day)
+	}
+	return out
+}
+
+// normalizeCourseWeekdays validates 0=Sunday..6=Saturday and returns a sorted,
+// de-duplicated copy. An empty result means every weekday (stored as NULL).
+func normalizeCourseWeekdays(days []int) ([]int, error) {
+	seen := make(map[int]bool, len(days))
+	out := make([]int, 0, len(days))
+	for _, day := range days {
+		if day < minTrimmingCourseWeekday || day > maxTrimmingCourseWeekday {
+			return nil, apperrors.WrapInvalidInput("allowed_weekdays must be between 0 (Sunday) and 6 (Saturday)")
+		}
+		if !seen[day] {
+			seen[day] = true
+			out = append(out, day)
+		}
+	}
+	sort.Ints(out)
+	return out, nil
+}
+
+// normalizeCourseImageKey accepts only an object key owned by the clinic
+// (the trimming image upload contract). URLs, legacy values and other clinics'
+// keys are rejected; "" means no image.
+func normalizeCourseImageKey(clinicID uint64, value string) (string, error) {
+	normalized, err := normalizeTrimmingImageForPersist(clinicID, value)
+	if err != nil {
+		return "", err
+	}
+	if normalized == "" {
+		return "", nil
+	}
+	key, err := ownedImageKey(clinicID, normalized)
+	if err != nil {
+		return "", err
+	}
+	return key.value, nil
+}
+
+type normalizedCourseAttributes struct {
+	shortName string
+	imageKey  string
+	weekdays  []int
+}
+
+func normalizeCourseAttributes(clinicID uint64, shortName, imageKey string, weekdays []int) (normalizedCourseAttributes, error) {
+	days, err := normalizeCourseWeekdays(weekdays)
+	if err != nil {
+		return normalizedCourseAttributes{}, err
+	}
+	key, err := normalizeCourseImageKey(clinicID, imageKey)
+	if err != nil {
+		return normalizedCourseAttributes{}, err
+	}
+	return normalizedCourseAttributes{shortName: strings.TrimSpace(shortName), imageKey: key, weekdays: days}, nil
+}
+
+// normalizeUpdateCourseAttributes returns a copy of input whose attribute
+// pointers hold normalized values; nil pointers (keep) stay nil.
+func normalizeUpdateCourseAttributes(clinicID uint64, input *UpdateTrimmingCourseInput) (UpdateTrimmingCourseInput, error) {
+	out := *input
+	if input.ShortName != nil {
+		trimmed := strings.TrimSpace(*input.ShortName)
+		out.ShortName = &trimmed
+	}
+	if input.ImageObjectKey != nil {
+		key, err := normalizeCourseImageKey(clinicID, *input.ImageObjectKey)
+		if err != nil {
+			return UpdateTrimmingCourseInput{}, err
+		}
+		out.ImageObjectKey = &key
+	}
+	if input.AllowedWeekdays != nil {
+		days, err := normalizeCourseWeekdays(*input.AllowedWeekdays)
+		if err != nil {
+			return UpdateTrimmingCourseInput{}, err
+		}
+		out.AllowedWeekdays = &days
+	}
+	return out, nil
 }
 
 // TrimmingCourseService はトリミングコースのビジネスロジックインターフェース
@@ -86,6 +221,23 @@ type trimmingCourseService struct {
 	repo           TrimmingCourseRepository
 	courseTypeRepo TrimmingCourseTypeRepository
 	transactor     Transactor
+	imageLifecycle ImageLifecycleRepository
+	imageAudit     AuditTxLogger
+}
+
+// TrimmingCourseServiceOption configures optional trimming course dependencies.
+type TrimmingCourseServiceOption func(*trimmingCourseService)
+
+// WithCourseImageLifecycle wires the shared trimming image key lock/tombstone
+// protocol. Without it, writes that set a course image fail closed.
+func WithCourseImageLifecycle(lifecycle ImageLifecycleRepository) TrimmingCourseServiceOption {
+	return func(s *trimmingCourseService) { s.imageLifecycle = lifecycle }
+}
+
+// WithCourseImageAudit records original image references in the course write
+// transaction. Image writes fail closed when this dependency is absent.
+func WithCourseImageAudit(logger AuditTxLogger) TrimmingCourseServiceOption {
+	return func(s *trimmingCourseService) { s.imageAudit = logger }
 }
 
 // NewTrimmingCourseService は TrimmingCourseService を生成する
@@ -93,12 +245,53 @@ func NewTrimmingCourseService(
 	repo TrimmingCourseRepository,
 	courseTypeRepo TrimmingCourseTypeRepository,
 	transactor Transactor,
+	opts ...TrimmingCourseServiceOption,
 ) TrimmingCourseService {
-	return &trimmingCourseService{
+	s := &trimmingCourseService{
 		repo:           repo,
 		courseTypeRepo: courseTypeRepo,
 		transactor:     transactor,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// lockCourseImageInTx keeps a newly referenced image key alive until commit:
+// the same advisory lock as trimming records serializes it with deletion
+// reservations, and a tombstoned key must be uploaded again.
+func (s *trimmingCourseService) lockCourseImageInTx(ctx context.Context, clinicID uint64, key string, previous ...string) error {
+	keys := make([]ImageKey, 0, len(previous)+1)
+	seen := make(map[string]bool)
+	for _, value := range append(previous, key) {
+		canonical, owned := trimmingImageObjectKey(value, clinicID)
+		if owned && !seen[canonical] {
+			seen[canonical] = true
+			keys = append(keys, ImageKey{clinicID: clinicID, value: canonical})
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	if s.imageLifecycle == nil {
+		return apperrors.WrapInternalServerError("trimming course image lifecycle is not configured")
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].value < keys[j].value })
+	if err := s.imageLifecycle.LockImageKeys(ctx, keys); err != nil {
+		return apperrors.Wrap(err, "failed to lock trimming course images")
+	}
+	if key == "" {
+		return nil
+	}
+	deleted, err := s.imageLifecycle.ImageKeyDeleted(ctx, ImageKey{clinicID: clinicID, value: key})
+	if err != nil {
+		return apperrors.Wrap(err, "failed to check trimming course image lifecycle")
+	}
+	if deleted {
+		return apperrors.WrapConflict("trimming image has been deleted; upload it again")
+	}
+	return nil
 }
 
 func (s *trimmingCourseService) List(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
@@ -124,6 +317,11 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
+	attrs, err := normalizeCourseAttributes(clinicID, input.ShortName, input.ImageObjectKey, input.AllowedWeekdays)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate trimming course attributes")
+	}
+	sortOrder := input.SortOrder
 	course := &model.TrimmingCourse{
 		ClinicID:     clinicID,
 		Name:         input.Name,
@@ -132,7 +330,17 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		Description:  input.Description,
 		CourseTypeID: input.CourseTypeID,
 		Duration:     input.Duration,
-		SortOrder:    input.SortOrder,
+		SortOrder:    &sortOrder,
+	}
+	if attrs.shortName != "" {
+		course.ShortName = &attrs.shortName
+	}
+	if attrs.imageKey != "" {
+		course.ImageObjectKey = &attrs.imageKey
+	}
+	if len(attrs.weekdays) > 0 {
+		days := toWeekdayArray(attrs.weekdays)
+		course.AllowedWeekdays = &days
 	}
 	if input.TargetSize != "" {
 		ts := model.TargetSize(input.TargetSize)
@@ -147,8 +355,21 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 				return apperrors.WrapInvalidInput("course_type_id not found in this clinic")
 			}
 		}
+		if err := s.lockCourseImageInTx(txCtx, clinicID, attrs.imageKey); err != nil {
+			return err
+		}
+		if attrs.imageKey != "" {
+			if err := s.requireCourseImageAudit(input.ActorStaffID); err != nil {
+				return err
+			}
+		}
 		if err := s.repo.Create(txCtx, course); err != nil {
 			return apperrors.Wrap(err, "failed to create trimming course")
+		}
+		if attrs.imageKey != "" {
+			if err := s.logCourseImageHistory(txCtx, clinicID, input.ActorStaffID, course.ID, "create", nil, course.ImageObjectKey); err != nil {
+				return err
+			}
 		}
 		return nil
 	}); err != nil {
@@ -164,6 +385,11 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(ErrMsgInputNotNil)
 	}
+	normalized, err := normalizeUpdateCourseAttributes(clinicID, input)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate trimming course attributes")
+	}
+	input = &normalized
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to get trimming course")
 	}
@@ -187,9 +413,45 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 		}
+		var previousImage *string
+		if input.ImageObjectKey != nil {
+			if err := s.requireCourseImageAudit(input.ActorStaffID); err != nil {
+				return err
+			}
+			locker, ok := s.repo.(courseImageUpdateLocker)
+			if !ok {
+				return apperrors.WrapInternalServerError("course image update lock is not configured")
+			}
+			previous, err := locker.LockForImageUpdate(txCtx, clinicID, id)
+			if err != nil {
+				return err
+			}
+			if previous == nil {
+				return apperrors.WrapInternalServerError("locked course is missing")
+			}
+			if previous.ImageObjectKey != nil {
+				oldKey := *previous.ImageObjectKey
+				previousImage = &oldKey
+			}
+			stored := ""
+			if previousImage != nil {
+				stored = *previousImage
+			}
+			if err := s.lockCourseImageInTx(txCtx, clinicID, *input.ImageObjectKey, stored); err != nil {
+				return err
+			}
+		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to update trimming course")
+		}
+		if input.ImageObjectKey != nil {
+			if updated == nil {
+				return apperrors.WrapInternalServerError("updated course is missing")
+			}
+			if err := s.logCourseImageHistory(txCtx, clinicID, input.ActorStaffID, id, "update", previousImage, updated.ImageObjectKey); err != nil {
+				return err
+			}
 		}
 		course = updated
 		return nil

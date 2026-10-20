@@ -141,7 +141,10 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 	//   PUT    /api/v1/reservations/pets/:petId/next-visit-intent
 	//   DELETE /api/v1/reservations/pets/:petId/next-visit-intent
 	//   POST   /api/v1/reservations/:id/confirm-tentative
-	require.Len(t, routes, 548)
+	// 550 — EMR-457 master course image upload and protected draft discard:
+	//   POST   /api/v1/masters/trimming-courses/images/upload
+	//   DELETE /api/v1/masters/trimming-courses/images
+	require.Len(t, routes, 550)
 	for _, expected := range []string{
 		"GET /health",
 		"GET /health/db",
@@ -168,6 +171,8 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/medical-records",
 		"GET /api/v1/reservations",
 		"POST /api/v1/trimmings/images/upload",
+		"POST /api/v1/masters/trimming-courses/images/upload",
+		"DELETE /api/v1/masters/trimming-courses/images",
 		"DELETE /api/v1/trimmings/images",
 		"GET /api/v1/accountings",
 		"GET /api/v1/lstep-settings",

@@ -718,6 +718,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                                  {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                                  {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindAll":                                 {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.LockForImageUpdate":                      {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                                {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.update":                                  {},
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID":       {},
@@ -726,6 +727,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindAll":                        {},
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                       {},
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.update":                         {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.Find":                               {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.Reserve":                            {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.MarkUploaded":                       {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.MarkSubmitted":                      {},
 	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.ImageKeyDeleted":     {},
 	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.LockImageKeys":       {},
 	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.MarkImageKeyDeleted": {},
@@ -837,6 +842,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.PermissionGroupsBelongToClinic": {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.StaffAssignedToClinic":          {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit":                     {},
+	// operation (EMR-489 C06 receipts). Lock/InsertResult require the ambient owner
+	// tx; Claim/RecordOutcome refuse it (separate short tx). Runtime proof:
+	// operation/store_realdb_test.go (build tag operationrealdb; not yet compiled
+	// or run because internal/testdb does not compile on main after PR #729).
+	"operation/store.go|gormStore.ClaimBinding":      {},
+	"operation/store.go|gormStore.FindBinding":       {},
+	"operation/store.go|gormStore.HasUnknownOutcome": {},
+	"operation/store.go|gormStore.InsertResult":      {},
+	"operation/store.go|gormStore.LoadResult":        {},
+	"operation/store.go|gormStore.LockBindingNoWait": {},
+	"operation/store.go|gormStore.RecordOutcome":     {},
 	// identitylink (#239 Phase 1). Runtime ambient-tx proofs:
 	// identitylink/repository_tx_atomicity_test.go
 	"identitylink/repository.go|repository.conn":             {},

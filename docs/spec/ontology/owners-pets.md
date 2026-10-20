@@ -1,15 +1,15 @@
 # 飼主・ペットの用語と関係
 
-文書確認日2026-10-15。既存台帳仕様、追加合意4・5と[台帳・会員区分・LINE希望の共同確認](../domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)の語彙整理であり、その他の関係の新しい承認や実装済み宣言ではない。[業務正本](../domains/owners-pets/lifecycle.md)・[技術契約](../../design/domains/owners-pets/technical-spec.md)。
+文書確認日2026-10-20（従来確認2026-10-15）。主飼主変更時の未確定会計・未提示見積の帰属は下表の2026-10-20本人回答を参照。既存台帳仕様、追加合意4・5と[台帳・会員区分・LINE希望の共同確認](../domains/owners-pets/lifecycle.md#agreement-owner-membership-dm-20261015)の語彙整理であり、その他の関係の新しい承認や実装済み宣言ではない。[業務正本](../domains/owners-pets/lifecycle.md)・[技術契約](../../design/domains/owners-pets/technical-spec.md)。
 
 | 概念 | 意味・識別 | 関係・境界 |
 |:---|:---|:---|
 | 飼主 | 共通基本情報を持つ顧客。owner IDと表示上の飼主Noを区別し、内部共有ID方式は未選定 | 一人に複数pet。共通患者の自院利用とD19の既存手動リンクを区別 |
 | ペット／患者 | 診療・施術等を受ける個体の台帳。pet IDとpet_numberを区別 | 現在主飼主一人、他の副飼主リンクは複数可。臨床記録IDとは別 |
-| 主飼主 | pet.owner_idの現在の帰属 | 今後の予約・LINE通知先への影響一覧確認後に切替。過去請求・預り金は元ownerを保持 |
+| 主飼主 | pet.owner_idの現在の帰属 | 今後の予約・LINE通知先への影響一覧確認後に切替。過去請求・預り金は元ownerを保持。[2026-10-20追加回答](../domains/owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)で未確定会計・未提示見積も元飼主へ残し自動移管しない。提示済み原本も保持 |
 | 副飼主／共同飼育 | pet-ownerの追加リンクと続柄 | 主飼主との重複・同一owner重複なし。請求先・LINE通知先は自動変更せず、会計／LINE／割引の主飼主も変えない |
 | identity group | D19既存scope内の手動連携。共通患者の認可内自院利用の業務とは別で、内部共有方式を代用決定しない | 台帳移管・予約移管・自動名寄せとは別、D19正本 |
-| 生死状態 | alive／deceased、死亡日・理由 | 専用死亡／復活writer。生前診療の後日入力・理由付き訂正・退院・精算はdeceasedを保つ専用経路で、復活や履歴消去ではない |
+| 生死状態 | alive／deceased、死亡日・理由 | 専用死亡／復活writer。[誤登録取消](../domains/owners-pets/lifecycle.md#pet-death-misregistration-undo-20261020)は権限あるスタッフの理由・履歴付き別操作で、予約／通知の自動再開なし。生前診療の後日入力・理由付き訂正・退院・精算はdeceasedを保つ専用経路で、取消不要・履歴消去なし |
 | 飼主特記 | owners.is_dangerous、人への対応上の注意 | ペットの特記レベルとは別概念。スタッフ限定 |
 | ペット特記 | danger_levelとdanger_reason、取扱い上の注意 | 高／中／低・未設定。高は理由必須。スタッフ専用、限定DTO除外を維持 |
 | 動物種 | 全医院共有の分類master。追加・名称変更・無効化はシステム管理者のみ | ワクチン／投薬量の固定enumとは別。名称犬／猫のサジェストとの現行関係を保持 |

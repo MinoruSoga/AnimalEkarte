@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -49,6 +48,7 @@ type PermissionAnyMiddleware func(...PermissionRequirement) gin.HandlerFunc
 type ImageDependencies struct {
 	Uploader             FileUploader
 	Quota                ImageUploadQuotaStore
+	CourseImages         CourseImageDrafts
 	RequireAnyPermission PermissionAnyMiddleware
 }
 
@@ -59,7 +59,12 @@ type ImageDependencies struct {
 func (h *Handler) WithImageSupport(deps ImageDependencies) *Handler {
 	h.imageUploader = deps.Uploader
 	h.imageQuota = deps.Quota
+	h.courseImageDrafts = deps.CourseImages
 	if deps.RequireAnyPermission != nil {
+		h.courseImageWritePermission = deps.RequireAnyPermission(
+			PermissionRequirement{Resource: string(model.ResourceMasterTrimming), Action: "create"},
+			PermissionRequirement{Resource: string(model.ResourceMasterTrimming), Action: "edit"},
+		)
 		h.imageWritePermission = deps.RequireAnyPermission(
 			PermissionRequirement{Resource: string(model.ResourceTrimming), Action: "create"},
 			PermissionRequirement{Resource: string(model.ResourceTrimming), Action: "edit"},
@@ -83,6 +88,21 @@ func (h *Handler) trimmingImageUploadPermission() gin.HandlerFunc {
 // POST /trimmings/images/upload
 // multipart/form-data のフォームフィールド名は `file`。レコード未存在でも使える
 // 無キー endpoint として create|edit の any-of 権限でゲートされる（routes.go 参照）。
+func (h *Handler) UploadCourseImage(c *gin.Context) {
+	if _, ok := httpapi.ExtractClinicID(c); !ok {
+		return
+	}
+	if _, ok := httpapi.ExtractStaffID(c); !ok {
+		return
+	}
+	if h.courseImageDrafts == nil {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("course image provenance unavailable"))
+		return
+	}
+	c.Set("courseImageDraftUpload", true)
+	h.UploadTrimmingImage(c)
+}
+
 func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
@@ -158,14 +178,37 @@ func (h *Handler) UploadTrimmingImage(c *gin.Context) {
 
 	// Upload via FileUploader (S3 or local). Persist/return the object key, never a public URL.
 	key := imageupload.StoredKey(trimmingImageStorageKeyPrefix, clinicID, storedName)
+	courseUpload := c.GetBool("courseImageDraftUpload")
+	if courseUpload {
+		if err := h.courseImageDrafts.ReserveUpload(c.Request.Context(), clinicID, staffID, key); err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+	}
+
 	if _, err := h.imageUploader.Upload(c.Request.Context(), key, file, uploadMeta.MIMEType); err != nil {
+		if courseUpload {
+			err = errors.Join(err, h.protectUnknownCourseUpload(c.Request.Context(), clinicID, staffID, key))
+		}
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to upload file"))
 		return
 	}
 
+	if courseUpload {
+		if err := h.courseImageDrafts.CompleteUpload(c.Request.Context(), clinicID, staffID, key); err != nil {
+			err = errors.Join(err, h.protectUnknownCourseUpload(c.Request.Context(), clinicID, staffID, key))
+			httpapi.RespondError(c, err)
+			return
+		}
+	}
 	signedURL, err := h.imageUploader.GetSignedURL(c.Request.Context(), key, trimmingImageSignedURLTTL)
 	if err != nil {
-		h.bestEffortDeleteTrimmingImageKeys(c.Request.Context(), clinicID, 0, staffID, key)
+		if courseUpload {
+			err = errors.Join(err, h.protectUnknownCourseUpload(c.Request.Context(), clinicID, staffID, key))
+		}
+		if !courseUpload {
+			h.bestEffortDeleteTrimmingImageKeys(c.Request.Context(), clinicID, 0, staffID, key)
+		}
 		httpapi.RespondError(c, apperrors.Wrap(err, "failed to sign trimming image url"))
 		return
 	}
@@ -220,49 +263,61 @@ type trimmingImageDeleteRequest struct {
 // best-effort 掃除専用で、永続化済みフィールドの削除は PATCH/DELETE の
 // superseded 処理が担う。
 func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "unproven image cleanup is deferred"})
+}
+
+// courseImagePermission is restricted to the approved master create/edit scope.
+func (h *Handler) courseImagePermission() gin.HandlerFunc {
+	if h.courseImageWritePermission != nil {
+		return h.courseImageWritePermission
+	}
+	return func(c *gin.Context) { c.AbortWithStatus(http.StatusForbidden) }
+}
+
+// DiscardCourseImage permits only an owned, completed and never-submitted draft.
+func (h *Handler) DiscardCourseImage(c *gin.Context) {
+	clinic, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	staffID, ok := httpapi.ExtractStaffID(c)
+	actor, ok := httpapi.ExtractStaffID(c)
 	if !ok {
 		return
 	}
-	if h.imageUploader == nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "image upload not configured"})
+	if h.courseImageDrafts == nil || h.imageUploader == nil {
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("course image provenance unavailable"))
 		return
 	}
 	var req trimmingImageDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("key is required"))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("key required"))
 		return
 	}
-	key, isObject, err := resolveTrimmingImageStorageKey(req.Key)
-	if err != nil || !isObject || !trimmingImageKeyBelongsToClinic(key, clinicID) {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("invalid trimming image key"))
-		return
-	}
-	// 参照チェックを fail-closed で行う — 参照状況を確認できない限り消さない。
-	if h.svc == nil || h.svc.Trimming == nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "trimming image reference check is not configured"})
-		return
-	}
-	reserved, err := h.svc.Trimming.ReserveImageDeletion(c.Request.Context(), clinicID, key, 0, staffID)
+	reserved, err := h.courseImageDrafts.ReserveDiscard(c.Request.Context(), clinic, actor, req.Key)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to reserve trimming image deletion"))
+		httpapi.RespondError(c, err)
 		return
 	}
 	if !reserved {
-		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "trimming image is referenced by a record"})
+		httpapi.RespondError(c, apperrors.WrapConflict("course image is protected"))
 		return
 	}
-	if err := h.imageUploader.Delete(c.Request.Context(), key); err != nil {
-		httpapi.RespondError(c, apperrors.Wrap(err, "failed to delete trimming image"))
+	// The permanent tombstone has committed before this external operation.
+	if err := h.imageUploader.Delete(c.Request.Context(), req.Key); err != nil {
+		httpapi.RespondError(c, apperrors.Wrap(err, "course image delete pending retry"))
 		return
 	}
-	slog.InfoContext(c.Request.Context(), "trimming image object deleted",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("staff_id", staffID),
-		slog.String("key", key))
 	c.Status(http.StatusNoContent)
+}
+
+// Upload/sign/response preparation failures do not establish an absent object.
+// Preserve the key even when the request has already been cancelled.
+func (h *Handler) protectUnknownCourseUpload(ctx context.Context, clinic, actor uint64, key string) error {
+	protectCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), supersededImageCleanupTimeout)
+	defer cancel()
+	err := h.courseImageDrafts.ProtectSubmission(protectCtx, clinic, actor, key)
+	if errors.Is(err, apperrors.ErrConflict) {
+		return nil
+	}
+	return err
 }

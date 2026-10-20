@@ -62,6 +62,10 @@ func (m *mockTrimmingCourseRepository) FindByID(ctx context.Context, clinicID, i
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockTrimmingCourseRepository) LockForImageUpdate(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
 func (m *mockTrimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {
 	return m.createFn(ctx, course)
 }

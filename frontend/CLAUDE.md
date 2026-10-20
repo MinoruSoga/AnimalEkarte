@@ -64,7 +64,9 @@ import { C, STYLE } from '@/lib/design-tokens';
 <div style={{ color: '#37352F' }}>
 ```
 
-`lib/design-tokens.ts`（897行）は 800行の目安（必須の上限ではない。pre-commit と hook は警告のみ）を超える documented exception。トークンテーブルの分割は可読性を下げるだけで得られる便益がないため、分割しない（FE7-4 判断・2026-07-18。FE-RC-121 で実測に同期）。
+`lib/design-tokens.ts`（950行・2026-10-20 実測）は 800行の目安（必須の上限ではない。pre-commit と hook は警告のみ）を超える documented exception。トークンテーブルの分割は可読性を下げるだけで得られる便益がないため、分割しない（FE7-4 判断・2026-07-18。FE-RC-121 で実測に同期）。
+
+UI 作業の読む順・ハードルール要約・完了条件は [docs/spec/ui-design-guide.md](../docs/spec/ui-design-guide.md)（全エージェント共通入口）。正本は本節末尾の「DESIGN.md / 製品デザイン適用範囲」と同じ。
 
 ## Feature Indexing (MANDATORY)
 
@@ -142,7 +144,7 @@ docker compose exec frontend pnpm install
 - `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
 - `tsc --noEmit`（`pnpm type-check`）は `tsconfig.json` の `exclude` によりテストファイルを検証しない。import 改名・移行の検証罠（3アプリ全域grep・vitest実証手順）は `.claude/skills/scoped-verification-gates/SKILL.md`「検証の罠」節を参照。
 - `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
-- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7〜C19 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page /相対パス完全一致 allowlist（44件 = 独自page 9 + helper 35）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の対応する allowlist へ同一コミットで追記すること。C18 は `TableHead` / `TableCell` 呼び出し側による非仕様 typography・vertical padding の再上書き、C19 は `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` の行全体 `onClick` を禁止する。遷移・表示・選択はcell内のnative link/button、並べ替えは44px drag handleを使う。空stateで追加vertical paddingが必要な場合だけ `data-empty-state` + `colSpan` + `text-center` を明示する。
+- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7〜C19 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page /相対パス完全一致 allowlist（43件 = 独自page 9 + helper 34。`design-system-audit.mjs` の `C8_PAGE_ALLOWLIST` / `C8_ROUTE_HELPER_ALLOWLIST` が正本で、件数はそこを数える）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の対応する allowlist へ同一コミットで追記すること。C18 は `TableHead` / `TableCell` 呼び出し側による非仕様 typography・vertical padding の再上書き、C19 は `DataTableRow` / `SortableDataTableRow` / `TableRow` / raw `tr` の行全体 `onClick` を禁止する。遷移・表示・選択はcell内のnative link/button、並べ替えは44px drag handleを使う。空stateで追加vertical paddingが必要な場合だけ `data-empty-state` + `colSpan` + `text-center` を明示する。
 
 ## DESIGN.md / 製品デザイン適用範囲（MANDATORY・FE11 2026-07-21）
 

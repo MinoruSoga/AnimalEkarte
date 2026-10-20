@@ -48,7 +48,7 @@ describe("Examinations display-only date and missing values", () => {
   });
   it("missing date displays em dash", () => {
     show("");
-    expect(screen.getAllByRole("cell")[0]).toHaveTextContent("-");
+    expect(screen.getAllByRole("cell")[0]).toHaveTextContent("—");
   });
 });
 

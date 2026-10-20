@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -83,8 +84,11 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 		return
 	}
 
+	if !protectCourseImageBody(c, clinicID, h.courseImageDrafts, "style_image", "completed_image") {
+		return
+	}
 	var req createTrimmingRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
@@ -126,8 +130,11 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 		return
 	}
 
+	if !protectCourseImageBody(c, clinicID, h.courseImageDrafts, "style_image", "completed_image") {
+		return
+	}
 	var req updateTrimmingRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}

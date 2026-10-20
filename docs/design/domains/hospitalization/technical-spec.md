@@ -142,6 +142,15 @@ clientは現在割当表示と新規候補集合を分離し、自己以外の�
 
 実機は空き/占有/別院/取得失敗/現在値/自己除外/連結後旧値/選択後競合/期間だけ変更/医院切替の遅延応答を3ACへ対応し、候補表示と保存結果・元割当不変を別々に記録する。未割当可の既存ACを併用し、候補制限だけで実装・実機合格を宣言しない。
 
+<a id="stay-core-cage-handoff-20261020"></a>
+## 499の有効状態coreから461への必要subset
+
+[EMR-499](https://app.plane.so/baritechllc/browse/EMR-499/)がstay_cases／stay_movement_eventsのwriterと、訂正・取消チェーンを織り込む有効ライフサイクルcoreを単一所有する。[EMR-461](https://app.plane.so/baritechllc/browse/EMR-461/)はその結果から同院／未削除／自己除外／連結を扱う占有ケージID adapter、候補reader、create/update/swap保存再検査と必要subset統合を所有し、同種projectorを二重実装しない。EMR-452はstay入力・訂正関係の設計根拠を提供する。
+
+先行引渡しは医院付きStayCaseID、有効状態と根拠版、訂正／無効化／欠損／actual_at NULLの判定表、unknownと非占有の区別、同TXで再検査可能なreader／lock契約と固定fixture。予定終了だけで実退院とせず、解釈不能を空きへ倒さない。占有・訂正chain・unknown・同時割当／交換を同じ根拠で検査する。具体DTO／lock手段・未確定の判定条件は499と461で明示して公開し、契約公開と実DB／実機受入を区別する。
+
+499全体（ホテル定員・料金合意・全画面）のDoneは461着手条件ではない。候補UI・既存承認範囲のID限定read・fixture準備は先行でき、未確定coreに依存する占有接続／受入だけを保留する。共有pathは単一編集owner、必要DDLは446／466へ限定依頼する。[全件引渡し索引](../../../work/emr/emr-445-plan-handoff-20261020.md)を参照。
+
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。

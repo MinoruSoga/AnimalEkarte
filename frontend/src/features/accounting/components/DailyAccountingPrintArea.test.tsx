@@ -313,7 +313,7 @@ describe("EMR-269: 往診列", () => {
     const trimCells = within(trimRow)
       .getAllByRole("cell")
       .map((c) => c.textContent);
-    expect(trimCells[headers.indexOf("往診")]).toBe("-");
+    expect(trimCells[headers.indexOf("往診")]).toBe("—");
     expect(trimCells[headers.indexOf("合計")]).toBe("¥3,000");
 
     const allRow = screen.getByText("全体合計").closest("tr")!;

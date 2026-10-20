@@ -23,20 +23,27 @@ interface PropertyRowProps {
   label: string;
   /** 項目の説明文。指定すると行右端に ⓘ ツールチップを表示する */
   description?: string;
+  /**
+   * 行のラッパー要素。既定は "label"（単一コントロールの暗黙的ラベル関連付け）。
+   * ボタン群など複数の対話要素を置く場合は "div" を使う — label 内の
+   * 非対話部分のクリックが最初の対話要素へ転送され、誤操作の原因になるため。
+   */
+  as?: "label" | "div";
   children: ReactNode;
 }
 
-export function PropertyRow({ label, description, children }: PropertyRowProps) {
+export function PropertyRow({ label, description, as = "label", children }: PropertyRowProps) {
+  const Wrapper = as;
   return (
     <div className={STYLE.propertyRow}>
-      <label className="flex flex-1 min-w-0 items-center gap-2">
+      <Wrapper className="flex flex-1 min-w-0 items-center gap-2">
         <span
           className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}
         >
           {label}
         </span>
         <span className="flex-1 min-w-0 flex items-center">{children}</span>
-      </label>
+      </Wrapper>
       {description ? <FieldHelp label={label} content={description} /> : null}
     </div>
   );
