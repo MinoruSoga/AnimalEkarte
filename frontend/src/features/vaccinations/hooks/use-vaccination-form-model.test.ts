@@ -271,6 +271,19 @@ describe("vaccinationOverridesOnVaccineId — 種別選択の interval 従属（
     expect(overrides.nextDate).toBe("2027-10-15");
     expect(overrides.vaccineId).toBe("3");
   });
+
+  // AC-vaccinations-manual: 明示手入力の次回予定日（other＋日付あり）は種別変更でも上書きしない
+  it("手入力の nextDate（other＋日付あり）は interval が解決しても保持される", () => {
+    const overrides = vaccinationOverridesOnVaccineId(
+      { date: "2026-10-15", nextScheduleType: "other", nextDate: "2028-02-01" },
+      "3",
+      "2026-10-15",
+      "1年",
+    );
+    expect(overrides.nextScheduleType).toBe("other");
+    expect(overrides.nextDate).toBe("2028-02-01");
+    expect(overrides.vaccineId).toBe("3");
+  });
 });
 
 // レビュー指摘（EMR-431）: 「以外（手動）」へ切り替えたとき、EMR-431 が既定で

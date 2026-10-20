@@ -23,7 +23,7 @@ const INITIAL_SAVE_STATE: VaccinationSaveState = { success: false, timestamp: 0 
 // 未選択・設定なし種別は空欄とする。既知マッピングは独立フォーム
 // (features/vaccinations/hooks/use-vaccination-form-model.ts) の scheduleTypeForInterval と
 // 同じ対応だが、feature 間 import 境界のためここに置く。
-function scheduleTypeForVaccineInterval(interval: string): string {
+function scheduleTypeForVaccineInterval(interval: string | undefined): string {
   switch (interval) {
     case "1年":
       return "1year";
@@ -36,9 +36,12 @@ function scheduleTypeForVaccineInterval(interval: string): string {
 
 // EMR-430（2026-10-20 本人回答）+ EMR-438: 複製元の実施日と次回日から既知プリセットを
 // 逆算し、固定間隔が復元できる場合だけ間隔を引き継ぐ。解決できない（手動）日は
-// 「以外（手動）」として扱う。NEXT_SCHEDULE_OPTIONS と同じ候補集合に対して
-// calculateNextDate の結果を突き合わせる（feature 境界のため共有 helper は使わない）。
-const RESOLVABLE_SCHEDULE_TYPES = ["3weeks", "4weeks", "6weeks", "6months", "1year"] as const;
+// 「以外（手動）」として扱う。
+// 候補は実際に NextScheduleField の Select が表示できる値（NEXT_SCHEDULE_OPTIONS の
+// 3weeks/4weeks/1year）に限定する。6weeks/6months は calculateNextDate が扱えても
+// Select に option が無く再選択不能な値が状態へ入るため、複製の解決候補には含めない
+// （feature 境界のため共有 helper は使わず、ここで同じ候補集合を持つ）。
+const RESOLVABLE_SCHEDULE_TYPES = ["3weeks", "4weeks", "1year"] as const;
 
 function resolveScheduleTypeFromDates(baseDate: string, nextDate: string): string {
   if (!baseDate || !nextDate) return "other";
@@ -46,6 +49,14 @@ function resolveScheduleTypeFromDates(baseDate: string, nextDate: string): strin
     if (calculateNextDate(baseDate, type) === nextDate) return type;
   }
   return "other";
+}
+
+// 明示的に手入力された次回予定日かどうか。手入力（setNextDate / 間隔「以外（手動）」の
+// 選択）は resolveScheduleTypeAfterManualDate により type が "other" になるため、
+// 「other + 日付あり」を手入力の印として扱い、種別変更で上書きしない
+// （docs/spec/domains/vaccinations/lifecycle.md AC-vaccinations-manual）。
+function isManualNextDate(nextScheduleType: string, nextDate: string): boolean {
+  return nextScheduleType === "other" && nextDate !== "";
 }
 
 /**
@@ -74,7 +85,13 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { data: historyItems = [], isLoading } = useGetPetVaccinations(petId);
-  const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  // 取得失敗は「設定なし」と誤認させないため status も取り出し、UI へ再試行導線を渡す
+  // （docs/spec/domains/vaccinations/lifecycle.md AC-vaccinations-no-setting-default）。
+  const {
+    data: vaccinesMaster = [],
+    isError: isVaccinesMasterError,
+    refetch: refetchVaccinesMaster,
+  } = useGetAllVaccinesMaster();
   const { mutateAsync: createVaccination } = useCreateVaccination();
 
   const vaccineOptions = useMemo(
@@ -113,14 +130,14 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
       setNextDateRaw(item.nextDate);
       // EMR-430: 複製するのは次回予定日だけで実施日は複製しない。写した次回予定日と
       // 間隔が食い違ったまま表示・保存されないよう、間隔を再判定する。
-      // EMR-430（2026-10-20 本人回答）により初期 type は空欄になったため、再判定は
-      // フォームの現在 type ではなく複製元の実施日+次回日から既知プリセット
-      // （3/4/6週・6ヶ月・1年）を逆算して行う。初期状態でも複製元の固定間隔を復元できる。
+      // 再判定は複製元の実施日+次回日から既知プリセットを逆算して行う。
+      // 実施日は VaccinationHistoryItem.date が表示形式（YY/M/D）のため ISO の
+      // dateISO を使う（calculateNextDate は "YYYY-MM-DDT00:00:00" を解釈する）。
       // EMR-438: 逆算できない（手動）場合は旧実施日基準の次回予定日を残さず
       // 「以外（手動）」＋空欄にする（Codex P2: 未解決の旧日付が新実施日入力後も
       // 残って backend 拒否や誤リマインダになる問題の再発防止）。
       if (item.nextDate) {
-        const resolvedType = resolveScheduleTypeFromDates(item.date, item.nextDate);
+        const resolvedType = resolveScheduleTypeFromDates(item.dateISO, item.nextDate);
         setNextScheduleTypeRaw(resolvedType);
         if (resolvedType === "other") {
           setNextDateRaw("");
@@ -138,7 +155,8 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
       // 未選択（""）と interval 不明（マスタ取得中・失敗・遅延で find できない）では
       // 既存の type/date を壊さず保持する。マッピング可（"1年"/"1ヶ月"）なら実施日から
       // 再計算し、設定なし種別（""・未対応値）なら空欄へ上書きする。
-      if (value !== "") {
+      // 明示的な手入力の次回予定日（AC-vaccinations-manual）は種別変更でも上書きしない。
+      if (value !== "" && !isManualNextDate(nextScheduleType, nextDate)) {
         const selected = vaccinesMaster.find((v) => v.id === value);
         if (selected) {
           const mappedType = scheduleTypeForVaccineInterval(selected.interval);
@@ -152,21 +170,24 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
         return rest;
       });
     },
-    [vaccinesMaster, date],
+    [vaccinesMaster, date, nextScheduleType, nextDate],
   );
 
   const setDate = useCallback(
     (value: string) => {
       setDateRaw(value);
-      const calculated = calculateNextDate(value, nextScheduleType);
-      if (calculated) setNextDateRaw(calculated);
+      // 明示手入力の次回予定日（other＋日付あり）は実施日変更でも黙って上書きしない
+      if (!isManualNextDate(nextScheduleType, nextDate)) {
+        const calculated = calculateNextDate(value, nextScheduleType);
+        if (calculated) setNextDateRaw(calculated);
+      }
       setFieldErrors((prev) => {
         if (!prev.date) return prev;
         const { date: _removed, ...rest } = prev;
         return rest;
       });
     },
-    [nextScheduleType],
+    [nextScheduleType, nextDate],
   );
 
   const setNextScheduleType = useCallback(
@@ -268,5 +289,9 @@ export function useMedicalRecordVaccinationForm(petId?: string, medicalRecordId?
     handleDuplicate,
     historyItems,
     isLoading,
+    isVaccinesMasterError,
+    retryVaccinesMaster: () => {
+      void refetchVaccinesMaster();
+    },
   };
 }

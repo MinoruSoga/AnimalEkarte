@@ -180,16 +180,19 @@ export function buildCreateVaccinationRequest(
 }
 
 // EMR-430（2026-10-20 本人回答）: 種別選択時の次回予定はマスタ interval に従属する。
-// interval === undefined（マスタ取得中・失敗・遅延で種別が解決できない）では既存の
-// type/date を保持する。解決できた場合は設定の有無にかかわらず type と再計算した
-// nextDate で上書きする（設定なし種別への切替時は空欄で上書きし、旧日付を残さない）。
+// 明示的な手入力の次回予定日（type "other" + 日付あり、AC-vaccinations-manual）は
+// 種別変更でも上書きしない。interval === undefined（マスタ取得中・失敗・遅延で種別が
+// 解決できない）でも既存の type/date を保持する。解決できた場合は設定の有無にかかわらず
+// type と再計算した nextDate で上書きする（設定なし種別への切替時は空欄で上書きし、
+// 旧日付を残さない）。
 export function vaccinationOverridesOnVaccineId(
   prev: Partial<VaccinationFormState>,
   vaccineId: string,
   currentDate: string,
   interval: string | undefined,
 ): Partial<VaccinationFormState> {
-  if (interval === undefined) {
+  const manualDate = prev.nextScheduleType === "other" && (prev.nextDate ?? "") !== "";
+  if (manualDate || interval === undefined) {
     return { ...prev, vaccineId };
   }
   const scheduleType = scheduleTypeForInterval(interval);

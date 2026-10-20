@@ -93,6 +93,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
     handleDuplicate,
     historyItems,
     isLoading,
+    isVaccinesMasterError,
+    retryVaccinesMaster,
   } = useMedicalRecordVaccinationForm(petId, medicalRecordId);
 
   // jsx-no-leaked-render: JSX 属性内の && 連鎖を避けて変数化
@@ -120,6 +122,8 @@ export const MedicalRecordVaccination = memo(function MedicalRecordVaccination({
               vaccineOptions={vaccineOptions}
               vaccineName={vaccineName}
               setVaccineName={setVaccineName}
+              isVaccinesMasterError={isVaccinesMasterError}
+              onRetryVaccinesMaster={retryVaccinesMaster}
               date={date}
               setDate={setDate}
               supplemental={supplemental}
