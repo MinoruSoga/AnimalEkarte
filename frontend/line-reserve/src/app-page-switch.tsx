@@ -96,6 +96,7 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
         clinicId={props.clinicId}
         idToken={props.idToken}
         onBack={() => props.goTo("top")}
+        draftStore={props.revisitIntakeDraftStore}
         onOpenRevisitIntake={(reservation) => {
           // D4: 安全整数でない ID（丸められている恐れ）からは問診 request を出さない。
           const appointmentId = toRevisitIntakeAppointmentId(reservation.id);

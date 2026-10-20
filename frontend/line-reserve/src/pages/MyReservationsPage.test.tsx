@@ -331,3 +331,65 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     expect(screen.queryByRole("button", { name: "回答履歴を見る" })).not.toBeInTheDocument();
   });
 });
+
+describe("MyReservationsPage 取消後の送信結果照会", () => {
+  const cancelledReservation: Reservation = {
+    ...confirmedReservation,
+    id: 2,
+    status: "cancelled",
+    notes: "R-20260802-0002",
+  };
+  const pendingStore = (has: boolean) => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    clear: vi.fn(),
+    findPending: vi.fn((clinicId: string, appointmentId: string) =>
+      has && clinicId === "1" && appointmentId === String(cancelledReservation.id)
+        ? ({ targetKey: "k", pending: {} } as never)
+        : undefined,
+    ),
+  });
+
+  it("取消済みでも未確定の送信がある予約には結果照会の入口だけを出し、通常の問診導線は出さない", async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([cancelledReservation]),
+      ),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpen}
+        draftStore={pendingStore(true)}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認する" }));
+    expect(onOpen).toHaveBeenCalledWith(cancelledReservation);
+    expect(screen.queryByRole("button", { name: /問診を回答/ })).not.toBeInTheDocument();
+  });
+
+  it("取消済みで未確定の送信が無ければ入口を出さない", async () => {
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([cancelledReservation]),
+      ),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={vi.fn()}
+        draftStore={pendingStore(false)}
+      />,
+    );
+
+    expect(await screen.findByText("キャンセル済")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "送信結果を確認する" })).not.toBeInTheDocument();
+  });
+});

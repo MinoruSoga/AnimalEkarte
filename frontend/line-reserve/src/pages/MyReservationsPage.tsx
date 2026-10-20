@@ -4,6 +4,7 @@ import type { Reservation } from "../types/models";
 import { BackButton } from "../components/BackButton";
 import { formatJSTApplicationDate } from "@/shared-liff/jst-date";
 import { useFetchState } from "@/shared-liff/use-fetch-state";
+import type { RevisitIntakeDraftStore } from "../hooks/use-revisit-intake-drafts";
 import {
   REVISIT_INTAKE_UNAVAILABLE_MESSAGE,
   isRevisitIntakeAppointmentIdUsable,
@@ -18,6 +19,11 @@ interface MyReservationsPageProps {
    * 未指定なら CTA を出さない。
    */
   onOpenRevisitIntake?: (reservation: Reservation) => void;
+  /**
+   * 未確定の送信（memory-only の operation key）が残る予約では、取消後も結果照会の入口を残すために使う。
+   * 未指定なら取消済み予約には入口を出さない。
+   */
+  draftStore?: RevisitIntakeDraftStore;
 }
 
 // EMR-474 / D6: 取消済み以外に導線を出し、編集可否は問診 GET の current_target.editable だけが決める。
@@ -44,6 +50,7 @@ export function MyReservationsPage({
   idToken,
   onBack,
   onOpenRevisitIntake,
+  draftStore,
 }: MyReservationsPageProps) {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
@@ -164,6 +171,22 @@ export function MyReservationsPage({
                     <p className="text-xs text-noah-text-faint mt-2">
                       {formatCreatedAt(reservation.created_at)}
                     </p>
+                  ) : null}
+
+                  {reservation.status === "cancelled" &&
+                  onOpenRevisitIntake &&
+                  isRevisitIntakeAppointmentIdUsable(reservation.id) &&
+                  draftStore?.findPending(clinicId, String(reservation.id)) !== undefined ? (
+                    // 取消済みでは通常の問診導線を出さない。未確定の送信がある間だけ、結果照会に戻る入口を残す。
+                    <div className="mt-3 pt-3 border-t border-noah-border-light">
+                      <button
+                        type="button"
+                        onClick={() => onOpenRevisitIntake(reservation)}
+                        className={revisitCtaClassName}
+                      >
+                        送信結果を確認する
+                      </button>
+                    </div>
                   ) : null}
 
                   {REVISIT_ENTRY_STATUSES.has(reservation.status) && onOpenRevisitIntake ? (

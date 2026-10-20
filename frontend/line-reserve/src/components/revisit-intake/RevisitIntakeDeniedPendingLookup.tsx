@@ -21,7 +21,9 @@ interface RevisitIntakeDeniedPendingLookupProps {
    * 結果照会だけを出す理由。denied: 予約の閲覧が 403/404。read_only: 閲覧はできるが
    * current_target.editable が false（受付後など）。照会 route は編集可否と独立している。
    */
-  reason?: "denied" | "read_only";
+  reason?: "denied" | "read_only" | "other_target" | "read_failed";
+  /** 成功が確定して pending を store から消した直後に呼ぶ（親が再描画・再取得できるようにする）。 */
+  onSucceeded?: () => void;
 }
 
 type LookupState =
@@ -35,11 +37,15 @@ const MISMATCH_TEXT = "送信結果を確認できませんでした。もう一
 
 const IDLE_TEXT =
   "この予約の問診は表示できませんが、直前の送信の結果が未確定です。結果だけ確認できます。";
+const IDLE_TEXT_OTHER_TARGET =
+  "予約の対象が変わったため、新しい回答は送信できません。直前の送信の結果が未確定です。結果だけ確認できます。";
+const IDLE_TEXT_READ_FAILED =
+  "問診を読み込めませんが、直前の送信の結果が未確定です。結果だけ確認できます。";
 const IDLE_TEXT_READ_ONLY =
   "この問診は現在編集できませんが、直前の送信の結果が未確定です。結果だけ確認できます。";
 
 // 401 でも未確定の key は store に残る。LINE の再起動は memory-only の key を失わせるため案内しない。
-const UNAUTHORIZED_TEXT =
+export const PENDING_UNAUTHORIZED_TEXT =
   "ログインの有効期限が切れました。送信結果が未確定のため、この画面を閉じずに、時間をおいてもう一度「送信結果を確認」してください。";
 
 export function RevisitIntakeDeniedPendingLookup({
@@ -50,6 +56,7 @@ export function RevisitIntakeDeniedPendingLookup({
   pending,
   draftStore,
   reason = "denied",
+  onSucceeded,
 }: RevisitIntakeDeniedPendingLookupProps) {
   const [state, setState] = useState<LookupState>({ kind: "idle" });
   const [availableAt, setAvailableAt] = useState<number | null>(
@@ -97,6 +104,7 @@ export function RevisitIntakeDeniedPendingLookup({
         }
         draftStore.clear(targetKey);
         setState({ kind: "succeeded" });
+        onSucceeded?.();
         return;
       }
       // not_found / claimed_uncommitted なら照会は済んだ（editor と同じく照会必須を解く）。
@@ -116,7 +124,7 @@ export function RevisitIntakeDeniedPendingLookup({
     } catch (err: unknown) {
       if (resolveFetchError(err, "送信結果の確認").status === 401) {
         // pending は store に残したまま、再起動を促さず待って再確認させる。
-        setState({ kind: "message", text: UNAUTHORIZED_TEXT });
+        setState({ kind: "message", text: PENDING_UNAUTHORIZED_TEXT });
         return;
       }
       const retryAfter = revisitIntakeRetryAfterSeconds(err);
@@ -145,12 +153,20 @@ export function RevisitIntakeDeniedPendingLookup({
       : state.kind === "not_found"
         ? reason === "read_only"
           ? "送信の記録は見つかりませんでした。現在この問診は編集できないため、再送信はできません。医院へお問い合わせください。"
-          : "送信の記録は見つかりませんでした。現在この予約を閲覧できないため、再送信はできません。医院へお問い合わせください。"
+          : reason === "other_target"
+            ? "送信の記録は見つかりませんでした。予約の対象が変わったため、この送信は再送できません。結果が確定するまで新しい回答は送信できないため、医院へお問い合わせください。"
+            : reason === "read_failed"
+              ? "送信の記録は見つかりませんでした。問診を読み込めたあとに、画面の案内に従ってください。"
+              : "送信の記録は見つかりませんでした。現在この予約を閲覧できないため、再送信はできません。医院へお問い合わせください。"
         : state.kind === "message"
           ? state.text
           : reason === "read_only"
             ? IDLE_TEXT_READ_ONLY
-            : IDLE_TEXT;
+            : reason === "other_target"
+              ? IDLE_TEXT_OTHER_TARGET
+              : reason === "read_failed"
+                ? IDLE_TEXT_READ_FAILED
+                : IDLE_TEXT;
 
   return (
     <div

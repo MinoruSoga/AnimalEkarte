@@ -24,7 +24,10 @@ import {
   RevisitIntakeEditor,
   type RevisitIntakeClosedReason,
 } from "../components/revisit-intake/RevisitIntakeEditor";
-import { RevisitIntakeDeniedPendingLookup } from "../components/revisit-intake/RevisitIntakeDeniedPendingLookup";
+import {
+  PENDING_UNAUTHORIZED_TEXT,
+  RevisitIntakeDeniedPendingLookup,
+} from "../components/revisit-intake/RevisitIntakeDeniedPendingLookup";
 import { RevisitIntakeHistory } from "../components/revisit-intake/RevisitIntakeHistory";
 import { RevisitIntakeAnswerView } from "../components/revisit-intake/RevisitIntakeAnswerView";
 import type { RevisitIntakeHistoryEntry, RevisitIntakeOwnerCurrentTarget } from "../types/models";
@@ -121,7 +124,13 @@ export function RevisitIntakePage({
   const [leavePrompt, setLeavePrompt] = useState<"dirty" | "unresolved" | "in_flight" | null>(null);
   const [submitInFlight, setSubmitInFlight] = useState(false);
   const [submitUnresolved, setSubmitUnresolved] = useState(false);
+  const [, setPendingEpoch] = useState(0);
   const { refetch } = intake;
+  // store は reactive でないため、照会で pending が消えたら再描画と再取得を起こす。
+  const handlePendingResolved = useCallback(() => {
+    setPendingEpoch((n) => n + 1);
+    refetch();
+  }, [refetch]);
 
   const handleDirtyChange = useCallback((next: boolean) => setDirty(next), []);
   const handlePendingChange = useCallback((inFlight: boolean, unresolved: boolean) => {
@@ -214,28 +223,67 @@ export function RevisitIntakePage({
       : undefined;
   const summaryParts = [summaryPetName, summary?.dateLabel, summary?.courseName].filter(Boolean);
 
+  // 予約単位の未確定送信。現 target・編集可否・形式対応に関わらず、結果照会の入口は常に残す
+  // （照会 route は閲覧・編集権限と独立。key を失うと結果を確かめられず新 key の送信が起こり得る）。
+  const appointmentPending = draftStore.findPending(clinicId, appointmentId);
+
+  function renderPendingLookup(
+    reason: "read_only" | "other_target" | "read_failed",
+    found: NonNullable<typeof appointmentPending>,
+  ) {
+    return (
+      <RevisitIntakeDeniedPendingLookup
+        key={found.targetKey}
+        clinicId={clinicId}
+        idToken={idToken}
+        appointmentId={appointmentId}
+        targetKey={found.targetKey}
+        pending={found.pending}
+        draftStore={draftStore}
+        reason={reason}
+        onSucceeded={handlePendingResolved}
+      />
+    );
+  }
+
   function renderCurrent() {
     if (!read) return null;
     if (read.form_definition_version !== REVISIT_INTAKE_SUPPORTED_FORM_VERSION) {
       return (
-        <p role="status" className="rounded-lg bg-white px-4 py-3 text-sm text-noah-text">
-          この問診の形式にはまだ対応していません。LINEアプリを最新にしてから開き直してください。
-        </p>
+        <div className="space-y-3">
+          <p role="status" className="rounded-lg bg-white px-4 py-3 text-sm text-noah-text">
+            この問診の形式にはまだ対応していません。LINEアプリを最新にしてから開き直してください。
+          </p>
+          {appointmentPending !== undefined
+            ? renderPendingLookup("read_only", appointmentPending)
+            : null}
+        </div>
       );
     }
     if (read.availability === "target_unresolved" || current === null) {
       return (
-        <p role="status" className="rounded-lg bg-white px-4 py-3 text-sm text-noah-text">
-          {EDIT_BLOCK_MESSAGES.target_unresolved}
-        </p>
+        <div className="space-y-3">
+          <p role="status" className="rounded-lg bg-white px-4 py-3 text-sm text-noah-text">
+            {EDIT_BLOCK_MESSAGES.target_unresolved}
+          </p>
+          {appointmentPending !== undefined
+            ? renderPendingLookup("read_only", appointmentPending)
+            : null}
+        </div>
       );
     }
     const answered = current.answer_state === "answered";
     const targetKey = revisitIntakeTargetKey(clinicId, current.ref);
     // 編集不可でも、未確定の送信が残っていれば key を失わないよう結果照会だけ出す（照会 route は編集可否と独立）。
-    const readOnlyPending = current.editable
-      ? undefined
-      : draftStore.findPending(clinicId, appointmentId);
+    const readOnlyPending = current.editable ? undefined : appointmentPending;
+    // 別 target（旧世代・別ペット）の未確定送信が残っている間は editor を載せない。新 key の送信を起こさず、
+    // 旧 operation の結果が succeeded と確定するまで照会だけを出す（not_found 等からは新 key を許さない）。
+    const otherTargetPending =
+      current.editable &&
+      appointmentPending !== undefined &&
+      appointmentPending.targetKey !== targetKey
+        ? appointmentPending
+        : undefined;
     return (
       <div className="space-y-4">
         <div className="rounded-xl border border-noah-border bg-white p-4">
@@ -256,7 +304,9 @@ export function RevisitIntakePage({
           ) : null}
         </div>
 
-        {current.editable ? (
+        {otherTargetPending !== undefined ? (
+          renderPendingLookup("other_target", otherTargetPending)
+        ) : current.editable ? (
           <RevisitIntakeEditor
             key={targetKey}
             clinicId={clinicId}
@@ -287,17 +337,9 @@ export function RevisitIntakePage({
                 ? EDIT_BLOCK_MESSAGES[current.edit_block_reason]
                 : EDIT_BLOCK_FALLBACK_MESSAGE}
             </p>
-            {readOnlyPending !== undefined ? (
-              <RevisitIntakeDeniedPendingLookup
-                clinicId={clinicId}
-                idToken={idToken}
-                appointmentId={appointmentId}
-                targetKey={readOnlyPending.targetKey}
-                pending={readOnlyPending.pending}
-                draftStore={draftStore}
-                reason="read_only"
-              />
-            ) : null}
+            {readOnlyPending !== undefined
+              ? renderPendingLookup("read_only", readOnlyPending)
+              : null}
             {current.content_available && current.latest_answer ? (
               <div className="rounded-xl border border-noah-border bg-white px-4 py-2">
                 <p className="pt-2 text-sm font-semibold text-noah-text">最新の回答</p>
@@ -367,7 +409,12 @@ export function RevisitIntakePage({
 
           {intake.error !== null ? (
             <div className="py-4 text-center text-noah-danger">
-              <p role="alert">{intake.error.message}</p>
+              <p role="alert">
+                {/* 読込 401 で LINE の再起動を案内すると memory-only の key を失う。未確定送信があるときは閉じさせない。 */}
+                {intake.error.status === 401 && read === null && appointmentPending !== undefined
+                  ? PENDING_UNAUTHORIZED_TEXT
+                  : intake.error.message}
+              </p>
               {intake.error.canRetry ? (
                 <>
                   {intake.retryBlocked && intake.error.retryAfterSeconds !== null ? (
@@ -387,6 +434,10 @@ export function RevisitIntakePage({
               ) : null}
             </div>
           ) : null}
+
+          {intake.error !== null && read === null && appointmentPending !== undefined
+            ? renderPendingLookup("read_failed", appointmentPending)
+            : null}
 
           {notice !== null ? (
             <div

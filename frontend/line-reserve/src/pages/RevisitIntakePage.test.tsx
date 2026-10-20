@@ -2333,3 +2333,140 @@ describe("RevisitIntakePage 500 後の照会必須（lookupRequired）", () => {
     await waitFor(() => expect(store.get(targetKey)?.pending?.lookupRequired).toBe(false));
   });
 });
+
+describe("RevisitIntakePage 別 target の未確定送信・読込 401・cursor の target_id", () => {
+  function pendingStore(generation: string, petId = PET_A) {
+    const body = {
+      pet_id: petId,
+      target_generation: generation,
+      expected_revision: null,
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成目的" }),
+    };
+    const store = createStore();
+    const key = [CLINIC, APPT_A, petId, generation].join("|");
+    store.set(key, {
+      values: body.answers,
+      pending: {
+        key: KEYS[0],
+        fingerprint: "synthetic",
+        body,
+        status: "unknown",
+        lookupRequired: false,
+        resendAvailableAt: null,
+      },
+    });
+    return { store, key };
+  }
+
+  it("cursor ページの target_id だけが違っても追記せず、1ページ目から読み直す", async () => {
+    const user = userEvent.setup();
+    const latest = answer("1", answers({ visit_purpose: "最初の対象の合成本文" }));
+    const ref = {
+      target_id: "5401",
+      appointment_id: APPT_A,
+      pet_id: PET_A,
+      target_generation: "3",
+    };
+    let firstPageReads = 0;
+    server.use(
+      http.get(READ_PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor") !== null) {
+          const otherRef = { ...ref, target_id: "5402" };
+          return HttpResponse.json(
+            read(answeredTarget(latest, { ref: otherRef }), {
+              history: [
+                {
+                  target: otherRef,
+                  answer: answer("1", answers({ visit_purpose: "混ざってはいけない合成本文" })),
+                  target_relation: "current",
+                },
+              ],
+            }),
+          );
+        }
+        firstPageReads += 1;
+        return HttpResponse.json(
+          read(answeredTarget(latest), {
+            history: [{ target: ref, answer: latest, target_relation: "current" }],
+            next_cursor: "synthetic-cursor-1",
+          }),
+        );
+      }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+
+    await waitFor(() => expect(firstPageReads).toBe(2));
+    expect(screen.queryByText("混ざってはいけない合成本文")).not.toBeInTheDocument();
+  });
+
+  it("旧 target の未確定送信が残る間は新 target の editor を載せず、照会で succeeded が確定したら載せる", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget(APPT_A, PET_A, "3"))]);
+    const { store, key } = pendingStore("2");
+    captureLookups((k) => {
+      const ok = successResponse(k, "1");
+      ok.operation_result.committed_versions = { target_generation: "2", answer_revision: "1" };
+      return HttpResponse.json(ok);
+    });
+    renderPage({ store });
+
+    expect(await screen.findByRole("button", { name: "送信結果を確認" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "回答を送信する" })).not.toBeInTheDocument();
+    expect(store.get(key)?.pending?.key).toBe(KEYS[0]);
+
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+
+    expect(await screen.findByLabelText(/^来院目的/)).toBeInTheDocument();
+    expect(store.get(key)).toBeUndefined();
+  });
+
+  it("旧 target の照会が not_found でも新 key の送信は許さず、editor を載せない", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget(APPT_A, PET_A, "3"))]);
+    const { store, key } = pendingStore("2");
+    const lookups = captureLookups((k) => HttpResponse.json(lookupNotFound(k), { status: 404 }));
+    renderPage({ store });
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+
+    expect(
+      await screen.findByText(/結果が確定するまで新しい回答は送信できない/),
+    ).toBeInTheDocument();
+    expect(lookups).toEqual([KEYS[0]]);
+    expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument();
+    expect(store.get(key)?.pending?.key).toBe(KEYS[0]);
+  });
+
+  it("target_unresolved の読込でも未確定送信の照会を残す", async () => {
+    mockReadSequence([read(null, { availability: "target_unresolved" })]);
+    const { store } = pendingStore("3");
+    renderPage({ store });
+
+    expect(await screen.findByRole("button", { name: "送信結果を確認" })).toBeInTheDocument();
+  });
+
+  it("再オープン後の読込が 401 でも、未確定送信があれば LINE 再起動を案内せず照会を残す", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(READ_PATH, () => HttpResponse.json({ error: "unauthorized" }, { status: 401 })),
+    );
+    const { store, key } = pendingStore("3");
+    const lookups = captureLookups((k) =>
+      HttpResponse.json(unresolvedResponse(k, "claimed_uncommitted")),
+    );
+    renderPage({ store });
+
+    expect(await screen.findAllByText(/送信結果が未確定のため、この画面を閉じずに/)).not.toHaveLength(
+      0,
+    );
+    expect(screen.queryByText(/LINEアプリを再起動して開き直してください/)).not.toBeInTheDocument();
+    expect(store.get(key)?.pending?.key).toBe(KEYS[0]);
+
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(lookups).toEqual([KEYS[0]]));
+  });
+});

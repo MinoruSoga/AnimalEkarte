@@ -70,6 +70,8 @@ function sameTargetIdentity(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead):
   const y = b.current_target?.ref ?? null;
   if (x === null || y === null) return x === y && a.availability === b.availability;
   return (
+    // 履歴の混在を避けるため、保存済み target の識別子（target_id）も一致を要求する。
+    x.target_id === y.target_id &&
     x.appointment_id === y.appointment_id &&
     x.pet_id === y.pet_id &&
     x.target_generation === y.target_generation
