@@ -1,0 +1,43 @@
+{
+  "id": "409",
+  "version": "1",
+  "record_id": "91",
+  "clinic_id": "7",
+  "pet_id": "801",
+  "item": {
+    "kind": "manual_other",
+    "manual": {
+      "name": "手入力項目",
+      "reason": "医院で明示した項目",
+      "unit_label": null,
+      "unit_price": "110",
+      "tax_type": "included",
+      "tax_rate": "0.1",
+      "is_non_insurance": true
+    }
+  },
+  "name_snapshot": "手入力項目",
+  "unit_label_snapshot": null,
+  "quantity": "1",
+  "price_snapshot": {
+    "unit_price": "110",
+    "tax_type": "included",
+    "tax_rate": "0.1",
+    "is_non_insurance": true,
+    "insurance_setting_state": "explicit",
+    "price_source": "manual",
+    "tax_source": "manual",
+    "insurance_source": "manual",
+    "amount_basis": "included",
+    "uncertainty": []
+  },
+  "origin": {
+    "kind": "single"
+  },
+  "execution": {
+    "kind": "commercial",
+    "state": "selected",
+    "revision_id": "609"
+  },
+  "owner_links": []
+}

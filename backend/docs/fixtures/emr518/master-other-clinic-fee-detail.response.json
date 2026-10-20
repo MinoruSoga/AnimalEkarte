@@ -1,0 +1,29 @@
+{
+  "id": "202",
+  "clinic_id": "8",
+  "version": "3",
+  "name": "医院Bのダミー構成",
+  "description": "契約ダミー。臨床・料金推奨ではない。",
+  "is_active": true,
+  "components": [
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000012",
+      "item": {
+        "kind": "procedure",
+        "procedure_id": "102"
+      },
+      "quantity": "1"
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000015",
+      "item": {
+        "kind": "vaccine",
+        "vaccine_id": "105"
+      },
+      "quantity": "1"
+    }
+  ],
+  "sort_order": 0,
+  "created_at": "2026-10-20T14:00:00Z",
+  "updated_at": "2026-10-20T14:00:00Z"
+}

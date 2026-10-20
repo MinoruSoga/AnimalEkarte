@@ -1,0 +1,40 @@
+{
+  "id": "401",
+  "version": "2",
+  "record_id": "91",
+  "clinic_id": "7",
+  "pet_id": "801",
+  "item": {
+    "kind": "consultation",
+    "consultation_id": "101"
+  },
+  "name_snapshot": "診察サンプル",
+  "unit_label_snapshot": null,
+  "quantity": "1",
+  "price_snapshot": {
+    "unit_price": "110",
+    "tax_type": "included",
+    "tax_rate": "0.1",
+    "is_non_insurance": true,
+    "insurance_setting_state": "explicit",
+    "price_source": "master",
+    "tax_source": "master",
+    "insurance_source": "master",
+    "amount_basis": "included",
+    "uncertainty": []
+  },
+  "origin": {
+    "kind": "package",
+    "application_id": "302",
+    "package_id": "201",
+    "package_version": "3",
+    "component_key": "a0000000-0000-4000-8000-000000000011"
+  },
+  "execution": {
+    "kind": "clinical",
+    "state": "cancelled",
+    "revision_id": "601",
+    "result_state": "none"
+  },
+  "owner_links": []
+}

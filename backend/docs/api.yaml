@@ -10,6 +10,8 @@ info:
 
     EMR-486 / EMR-487 の証明書8 unique paths / 9 operationsは x-contract-status: selected。専用runtime/DB adapter/renderer未実装、試験NOT_RUN。
 
+    EMR-518のpackage13操作（共通516 plan read/494 operation lookupを含む）はselected契約先行公開。runtime未実装・全fixture NOT_RUN、FE mock先行用。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -13316,6 +13318,1322 @@ components:
           description: 直近の Plane 起票失敗理由。成功・未試行なら省略。管理画面の再送判断に使用。
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    # EMR-518 / EMR-516 selected contract-first schemas; runtime NOT_IMPLEMENTED.
+    TreatmentPackageId:
+      "type": "string"
+      "pattern": "^[1-9][0-9]*$"
+      "maxLength": 19
+      "description": "Canonical positive signed-64 decimal string (1..9223372036854775807). Server checks exact bigint range; regex/length alone do not prove range. Reject unsafe JS number conversion; never round IDs."
+    TreatmentPackageVersion:
+      "type": "string"
+      "pattern": "^[1-9][0-9]*$"
+      "maxLength": 19
+      "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+    TreatmentPackageDecimal:
+      "type": "string"
+      "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+      "description": "Exact canonical decimal string, no exponent/NaN/Infinity/whitespace/leading plus/trailing fraction zeros/negative zero. Server checks finite exact value without binary float; owner precision retained. No shared scale limit."
+      "not":
+        "enum":
+          - "-0"
+    TreatmentPackageQuantity:
+      "type": "string"
+      "pattern": "^([1-9][0-9]*(\\.[0-9]*[1-9])?|0\\.[0-9]*[1-9])$"
+      "description": "Positive exact canonical decimal; owner-specific quantity/unit restrictions at the same stage as single selection. No common 2-decimal scale and no rounding to owner precision."
+    TreatmentPackageYen:
+      "type": "string"
+      "pattern": "^(0|[1-9][0-9]*)$"
+      "maxLength": 19
+      "description": "JPY integer string 0..9223372036854775807, exact server range check. No decimal money migration. Quantity multiplication/rounding remains existing accounting owner; unknown is null, distinct from zero."
+    TreatmentPackageCanonicalUuid:
+      "type": "string"
+      "format": "uuid"
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      "description": "Canonical lowercase hyphenated non-nil UUID; reject rather than normalize. C06 operation_key follows operation.ParseOperationKey; edit_session_ref reuses EMR-494 session UUID, never bearer authority."
+      "not":
+        "enum":
+          - "00000000-0000-0000-0000-000000000000"
+    TreatmentPackageDigestHex:
+      "type": "string"
+      "pattern": "^[0-9a-f]{64}$"
+      "description": "SHA-256 lowercase 64 hex; no transport prefix in projection or stored bytea32. Not an authorization capability."
+    TreatmentPackagePreviewToken:
+      "type": "string"
+      "pattern": "^pkg-preview-v1:[0-9a-f]{64}$"
+      "description": "Transport prefix plus SHA-256 of RFC8785 JCS PreviewProjection. Server recomputes under locks for an uncommitted attempt; old success replay uses authorized saved receipt, not current master/digest."
+    TreatmentPackageSourceToken:
+      "type": "string"
+      "pattern": "^pkg-source-v1:[0-9a-f]{64}$"
+      "description": "Opaque comparison-only transport token for SourceProjection digest; prefix excluded from ComponentProjection.source_digest and stored bytea32."
+    TreatmentPackageManualDefinition:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "name"
+        - "reason"
+        - "unit_label"
+        - "unit_price"
+        - "tax_type"
+        - "tax_rate"
+        - "is_non_insurance"
+      "properties":
+        "name":
+          "type": "string"
+          "minLength": 1
+          "pattern": "\\S"
+        "reason":
+          "type": "string"
+          "minLength": 1
+          "pattern": "\\S"
+        "unit_label":
+          "type": "string"
+          "nullable": true
+        "unit_price":
+          "$ref": "#/components/schemas/TreatmentPackageYen"
+        "tax_type":
+          "type": "string"
+          "enum":
+            - "included"
+            - "excluded"
+            - "exempt"
+        "tax_rate":
+          "$ref": "#/components/schemas/TreatmentPackageDecimal"
+        "is_non_insurance":
+          "type": "boolean"
+      "description": "Legitimate manual item only, trim name/reason nonblank. Existing manual price/tax/insurance/reason validation applies. Never fallback from missing/unauthorized master; no new dose thresholds."
+    TreatmentPackageItemConsultation:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "consultation_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "consultation"
+        "consultation_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemProcedure:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "procedure_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "procedure"
+        "procedure_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemMedicine:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "medicine_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "medicine"
+        "medicine_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemExaminationType:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "examination_type_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "examination_type"
+        "examination_type_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemVaccine:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "vaccine_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "vaccine"
+        "vaccine_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemCheckupType:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "checkup_type_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "checkup_type"
+        "checkup_type_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemMerchandiseItem:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "merchandise_item_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "merchandise_item"
+        "merchandise_item_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    TreatmentPackageItemManualOther:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "manual"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "manual_other"
+        "manual":
+          "$ref": "#/components/schemas/TreatmentPackageManualDefinition"
+    TreatmentPackageItemRef:
+      "oneOf":
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemConsultation"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemProcedure"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemMedicine"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemExaminationType"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemVaccine"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemCheckupType"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemMerchandiseItem"
+        -
+          "$ref": "#/components/schemas/TreatmentPackageItemManualOther"
+      "discriminator":
+        "propertyName": "kind"
+        "mapping":
+          "consultation": "#/components/schemas/TreatmentPackageItemConsultation"
+          "procedure": "#/components/schemas/TreatmentPackageItemProcedure"
+          "medicine": "#/components/schemas/TreatmentPackageItemMedicine"
+          "examination_type": "#/components/schemas/TreatmentPackageItemExaminationType"
+          "vaccine": "#/components/schemas/TreatmentPackageItemVaccine"
+          "checkup_type": "#/components/schemas/TreatmentPackageItemCheckupType"
+          "merchandise_item": "#/components/schemas/TreatmentPackageItemMerchandiseItem"
+          "manual_other": "#/components/schemas/TreatmentPackageItemManualOther"
+      "description": "Exactly seven typed master alternatives plus legitimate manual_other; each branch closed. Existing checkup set/exam panel is one owner item with its child definition preserved, not nested generic packages. Cross-kind FK mixing rejected."
+    TreatmentPackageComponentInput:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "component_key"
+        - "item"
+        - "quantity"
+      "properties":
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "item":
+          "$ref": "#/components/schemas/TreatmentPackageItemRef"
+        "quantity":
+          "$ref": "#/components/schemas/TreatmentPackageQuantity"
+      "description": "Client canonical UUID stable across edit/reorder. Distinct keys permit intentional duplicate master items. Array order is package order."
+    TreatmentPackageCreate:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "name"
+        - "description"
+        - "is_active"
+        - "components"
+      "properties":
+        "name":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 255
+          "pattern": "\\S"
+        "description":
+          "type": "string"
+        "is_active":
+          "type": "boolean"
+        "components":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageComponentInput"
+          "minItems": 1
+    TreatmentPackagePatch:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "version"
+      "properties":
+        "version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "name":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 255
+          "pattern": "\\S"
+        "description":
+          "type": "string"
+        "is_active":
+          "type": "boolean"
+        "components":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageComponentInput"
+          "minItems": 1
+      "description": "Omitted field is unchanged; explicit null forbidden. Components replaces full ordered collection under parent CAS, increment once. Empty description allowed. No actual-change no-op produces fake revision. Ambiguous master create must not be blindly retried or inferred by name."
+    TreatmentPackage:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "id"
+        - "clinic_id"
+        - "version"
+        - "name"
+        - "description"
+        - "is_active"
+        - "sort_order"
+        - "components"
+        - "created_at"
+        - "updated_at"
+      "properties":
+        "id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "clinic_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "name":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 255
+          "pattern": "\\S"
+        "description":
+          "type": "string"
+        "is_active":
+          "type": "boolean"
+        "sort_order":
+          "type": "integer"
+          "minimum": 0
+        "components":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageComponentInput"
+          "minItems": 1
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "updated_at":
+          "type": "string"
+          "format": "date-time"
+    TreatmentPackageList:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "items"
+        - "order_version"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackage"
+        "order_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+      "description": "Selected clinic only, empty items allowed. Persisted catalog revision; absent row invariant/setup error, not read-created version1."
+    TreatmentPackageReorder:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "order_version"
+        - "ids"
+      "properties":
+        "order_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "ids":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+          "uniqueItems": true
+      "description": "All nondeleted packages exactly once including inactive. Missing/duplicate/foreign-clinic ID rejects entire reorder. Membership/order changes catalog revision once; component/text/active changes do not. No-op preserves revisions. An empty ids list is valid only when the current nondeleted clinic catalog is empty; otherwise complete-membership validation rejects it."
+    TreatmentPackagePreviewRequest:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "package_id"
+        - "package_version"
+      "properties":
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+    TreatmentPackageSourceStamp:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "native_version"
+        - "dependency_token"
+      "properties":
+        "native_version":
+          "type": "string"
+          "pattern": "^[1-9][0-9]*$"
+          "maxLength": 19
+          "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+          "nullable": true
+        "dependency_token":
+          "$ref": "#/components/schemas/TreatmentPackageSourceToken"
+    TreatmentPackageUncertainty:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "field"
+        - "reason"
+        - "required_at"
+      "properties":
+        "field":
+          "type": "string"
+          "enum":
+            - "unit_price"
+            - "tax"
+            - "insurance"
+        "reason":
+          "type": "string"
+          "enum":
+            - "legacy_unset"
+            - "not_configured_on_master"
+            - "pending_owner_confirmation"
+        "required_at":
+          "type": "string"
+          "enum":
+            - "selection"
+            - "execution"
+            - "billing"
+    TreatmentPackagePriceSnapshot:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "unit_price"
+        - "tax_type"
+        - "tax_rate"
+        - "is_non_insurance"
+        - "insurance_setting_state"
+        - "price_source"
+        - "tax_source"
+        - "insurance_source"
+        - "amount_basis"
+        - "uncertainty"
+      "properties":
+        "unit_price":
+          "type": "string"
+          "pattern": "^(0|[1-9][0-9]*)$"
+          "maxLength": 19
+          "description": "JPY integer string 0..9223372036854775807, exact server range check. No decimal money migration. Quantity multiplication/rounding remains existing accounting owner; unknown is null, distinct from zero."
+          "nullable": true
+        "tax_type":
+          "type": "string"
+          "enum":
+            - "included"
+            - "excluded"
+            - "exempt"
+            - null
+          "nullable": true
+        "tax_rate":
+          "type": "string"
+          "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$"
+          "description": "Exact canonical decimal string, no exponent/NaN/Infinity/whitespace/leading plus/trailing fraction zeros/negative zero. Server checks finite exact value without binary float; owner precision retained. No shared scale limit."
+          "not":
+            "enum":
+              - "-0"
+          "nullable": true
+        "is_non_insurance":
+          "type": "boolean"
+          "nullable": true
+        "insurance_setting_state":
+          "type": "string"
+          "enum":
+            - "explicit"
+            - "legacy_unset"
+            - "not_configured_on_master"
+        "price_source":
+          "type": "string"
+          "enum":
+            - "master"
+            - "owner-policy"
+            - "manual"
+            - "unresolved"
+        "tax_source":
+          "type": "string"
+          "enum":
+            - "master"
+            - "owner-policy"
+            - "manual"
+            - "unresolved"
+        "insurance_source":
+          "type": "string"
+          "enum":
+            - "master"
+            - "owner-policy"
+            - "manual"
+            - "unresolved"
+        "amount_basis":
+          "type": "string"
+          "enum":
+            - "included"
+            - "excluded"
+            - "exempt"
+            - "unresolved"
+        "uncertainty":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageUncertainty"
+      "description": "All keys required including explicit null and financial provenance. Single-item-allowed unknown survives preview/apply/read with warning; do not default 0/10%/false or infer insurance for merchandise. PriceSnapshot uncertainty remains when current issues are removed from historical snapshot. Included input 110 stays 110; no new clinic tax rule."
+    TreatmentPackageComponentIssue:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "component_key"
+        - "severity"
+        - "required_at"
+        - "code"
+        - "message"
+      "properties":
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "severity":
+          "type": "string"
+          "enum":
+            - "blocking"
+            - "warning"
+        "required_at":
+          "type": "string"
+          "enum":
+            - "selection"
+            - "execution"
+            - "billing"
+        "code":
+          "type": "string"
+          "enum":
+            - "inactive-item"
+            - "invalid-quantity"
+            - "price-unresolved"
+            - "tax-unresolved"
+            - "insurance-unresolved"
+            - "owner-contract-unresolved"
+            - "invalid-reference"
+            - "owner-selection-rule-rejected"
+        "message":
+          "type": "string"
+      "description": "Financial unknown is warning/billing where single-item permits selection. Owner/classification unresolved is blocking/selection; never disguise financial null as owner unresolved. Acquisition failure is infrastructure error, not stored-unset warning."
+    TreatmentPackagePreviewItem:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "component_key"
+        - "item"
+        - "quantity"
+        - "name"
+        - "unit_label"
+        - "source_stamp"
+        - "price"
+        - "classification"
+        - "issues"
+      "properties":
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "item":
+          "$ref": "#/components/schemas/TreatmentPackageItemRef"
+        "quantity":
+          "$ref": "#/components/schemas/TreatmentPackageQuantity"
+        "name":
+          "type": "string"
+        "unit_label":
+          "type": "string"
+          "nullable": true
+        "source_stamp":
+          "$ref": "#/components/schemas/TreatmentPackageSourceStamp"
+        "price":
+          "$ref": "#/components/schemas/TreatmentPackagePriceSnapshot"
+        "classification":
+          "type": "string"
+          "enum":
+            - "clinical"
+            - "commercial"
+            - "unresolved"
+        "issues":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageComponentIssue"
+    TreatmentPackagePreviewItemSnapshot:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "component_key"
+        - "item"
+        - "quantity"
+        - "name"
+        - "unit_label"
+        - "source_stamp"
+        - "price"
+        - "classification"
+      "properties":
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "item":
+          "$ref": "#/components/schemas/TreatmentPackageItemRef"
+        "quantity":
+          "$ref": "#/components/schemas/TreatmentPackageQuantity"
+        "name":
+          "type": "string"
+        "unit_label":
+          "type": "string"
+          "nullable": true
+        "source_stamp":
+          "$ref": "#/components/schemas/TreatmentPackageSourceStamp"
+        "price":
+          "$ref": "#/components/schemas/TreatmentPackagePriceSnapshot"
+        "classification":
+          "type": "string"
+          "enum":
+            - "clinical"
+            - "commercial"
+      "description": "Immutable applied values with current issues removed; price.uncertainty remains. Successful new application cannot contain unresolved classification."
+    TreatmentPackagePreviewTotal:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "status"
+        - "amount"
+      "properties":
+        "status":
+          "type": "string"
+          "enum":
+            - "available"
+            - "unresolved"
+        "amount":
+          "type": "string"
+          "pattern": "^(0|[1-9][0-9]*)$"
+          "maxLength": 19
+          "description": "JPY integer string 0..9223372036854775807, exact server range check. No decimal money migration. Quantity multiplication/rounding remains existing accounting owner; unknown is null, distinct from zero."
+          "nullable": true
+      "oneOf":
+        -
+          "properties":
+            "status":
+              "type": "string"
+              "enum":
+                - "available"
+            "amount":
+              "type": "string"
+              "pattern": "^(0|[1-9][0-9]*)$"
+              "maxLength": 19
+              "description": "JPY integer string 0..9223372036854775807, exact server range check. No decimal money migration. Quantity multiplication/rounding remains existing accounting owner; unknown is null, distinct from zero."
+        -
+          "properties":
+            "status":
+              "type": "string"
+              "enum":
+                - "unresolved"
+            "amount":
+              "type": "string"
+              "nullable": true
+              "enum":
+                - null
+      "description": "Existing accounting-owner calculation only. Unknown/unavailable expected calculation is unresolved/null, not zero, not a selection block by itself. No FE tax calculation or parent charge; unrelated to certificate manually confirmed total."
+    TreatmentPackagePreview:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "record_id"
+        - "clinic_id"
+        - "pet_id"
+        - "package_id"
+        - "package_version"
+        - "plan_collection_version"
+        - "version_state"
+        - "preview_token"
+        - "applicable"
+        - "items"
+        - "total"
+      "properties":
+        "record_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "clinic_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "pet_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "plan_collection_version":
+          "type": "string"
+          "pattern": "^[1-9][0-9]*$"
+          "maxLength": 19
+          "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+          "nullable": true
+        "version_state":
+          "type": "string"
+          "enum":
+            - "ready"
+            - "uninitialized"
+        "preview_token":
+          "$ref": "#/components/schemas/TreatmentPackagePreviewToken"
+        "applicable":
+          "type": "boolean"
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackagePreviewItem"
+          "minItems": 1
+        "total":
+          "$ref": "#/components/schemas/TreatmentPackagePreviewTotal"
+      "oneOf":
+        -
+          "properties":
+            "version_state":
+              "type": "string"
+              "enum":
+                - "ready"
+            "plan_collection_version":
+              "type": "string"
+              "pattern": "^[1-9][0-9]*$"
+              "maxLength": 19
+              "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+        -
+          "properties":
+            "version_state":
+              "type": "string"
+              "enum":
+                - "uninitialized"
+            "plan_collection_version":
+              "type": "string"
+              "nullable": true
+              "enum":
+                - null
+      "description": "Read-only: no receipt/save/execution/results/stock/billing/certificate. applicable requires zero blocking issues AND ready CAS scope. Package version mismatch is409; readable inactive/owner-unresolved item returns200 applicable:false. Missing source pet is selection identity failure422 before returning a preview, never client-inferred. Finance warnings shown from preview onward. Scope change discards token; read never bootstraps CAS."
+    TreatmentPackageApply:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "operation_key"
+        - "edit_session_ref"
+        - "edit_epoch"
+        - "owner_expected_version"
+        - "package_id"
+        - "package_version"
+        - "preview_token"
+      "properties":
+        "operation_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "edit_session_ref":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "edit_epoch":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "owner_expected_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "preview_token":
+          "$ref": "#/components/schemas/TreatmentPackagePreviewToken"
+      "description": "Flat EMR494 body. Trusted clinic/actor/record pet server-only. No caller price/quantity/components overrides. Server-internal C06 Content=record_ref (derived from authorized route {record_id}, never accepted in the body)/package_id/package_version/preview_token; preconditions=owner_expected_version/edit_session_ref/edit_epoch. Current holder/session/epoch required; create grant plus edit fence, no extra edit grant. Whole application+N plan+N revision+audit+receipt in one TX, aggregate version increments once. Same-key ambiguity uses lookup, never blind new UUID."
+    MedicalRecordPlanOperationResultRefs:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "record_id"
+        - "application_id"
+      "properties":
+        "record_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "application_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+    MedicalRecordPlanCommittedVersions:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "application"
+        - "plan_items"
+      "properties":
+        "application":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "plan_items":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+    MedicalRecordPlanOperationSuccess:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "status"
+        - "operation_key"
+        - "result_refs"
+        - "committed_versions"
+        - "recorded_at"
+      "properties":
+        "status":
+          "type": "string"
+          "enum":
+            - "succeeded"
+            - "replayed"
+        "operation_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "result_refs":
+          "$ref": "#/components/schemas/MedicalRecordPlanOperationResultRefs"
+        "committed_versions":
+          "$ref": "#/components/schemas/MedicalRecordPlanCommittedVersions"
+        "recorded_at":
+          "type": "string"
+          "format": "date-time"
+      "description": "Exact existing operation.ResultResponse wire, package consumer success projection. Replay returns identical stored refs/versions/time, not current masters. EffectSummary remains internal; no items/price/receipt wrapper."
+    MedicalRecordPlanOperationNonSuccess:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "status"
+        - "operation_key"
+      "properties":
+        "status":
+          "type": "string"
+          "enum":
+            - "not-succeeded"
+            - "operation-key-conflict"
+            - "operation-in-progress"
+            - "result-unavailable"
+            - "scope-not-found"
+            - "not-authorized"
+            - "validation"
+            - "version-conflict"
+            - "dependency-changed"
+            - "edit-right-lost"
+        "operation_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+      "description": "Existing C06 ResultResponse non-success: no result_refs/committed_versions/recorded_at/row issues. Never treat not-succeeded200 as success."
+    MedicalRecordPlanOperationResultResponse:
+      "oneOf":
+        -
+          "$ref": "#/components/schemas/MedicalRecordPlanOperationSuccess"
+        -
+          "$ref": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+      "discriminator":
+        "propertyName": "status"
+        "mapping":
+          "succeeded": "#/components/schemas/MedicalRecordPlanOperationSuccess"
+          "replayed": "#/components/schemas/MedicalRecordPlanOperationSuccess"
+          "not-succeeded": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "operation-key-conflict": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "operation-in-progress": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "result-unavailable": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "scope-not-found": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "not-authorized": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "validation": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "version-conflict": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "dependency-changed": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+          "edit-right-lost": "#/components/schemas/MedicalRecordPlanOperationNonSuccess"
+      "description": "Reuse Go operation.ResultResponse (no generic shared OpenAPI component existed at publication base). EMR494/489 consumer HTTP mapping: succeeded/replayed/not-succeeded200, operation-in-progress202, result-unavailable503, conflict/version/dependency/edit-right409, validation400, scope404, unauthorized403. Non-success has only status/key; safe read-only preview supplies row explanations."
+    TreatmentPackageApplicationSummary:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "id"
+        - "record_id"
+        - "package_id"
+        - "package_version"
+        - "package_name_snapshot"
+        - "applied_at"
+        - "item_count"
+      "properties":
+        "id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "record_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "package_name_snapshot":
+          "type": "string"
+        "applied_at":
+          "type": "string"
+          "format": "date-time"
+        "item_count":
+          "type": "integer"
+          "minimum": 1
+    TreatmentPackageAppliedComponent:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "component_key"
+        - "plan_item_id"
+        - "applied_item"
+      "properties":
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "plan_item_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "applied_item":
+          "$ref": "#/components/schemas/TreatmentPackagePreviewItemSnapshot"
+    TreatmentPackageApplication:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "id"
+        - "record_id"
+        - "package_id"
+        - "package_version"
+        - "package_name_snapshot"
+        - "applied_at"
+        - "item_count"
+        - "clinic_id"
+        - "pet_id"
+        - "version"
+        - "operation_key"
+        - "items"
+      "properties":
+        "id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "record_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "package_name_snapshot":
+          "type": "string"
+        "applied_at":
+          "type": "string"
+          "format": "date-time"
+        "item_count":
+          "type": "integer"
+          "minimum": 1
+        "clinic_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "pet_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "operation_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageAppliedComponent"
+          "minItems": 1
+      "description": "Historical application snapshot even after master/package change/delete. Not reconstructed from current master; current plan edits only available from plan GET. Applied classification clinical/commercial; uncertainty retained. Current target authorization still required."
+    TreatmentPackageApplicationList:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "items"
+      "properties":
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageApplicationSummary"
+      "description": "Stable applied_at/id order; authorized record only. No undocumented query pagination."
+    MedicalRecordPlanOriginSingle:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "single"
+    MedicalRecordPlanOriginPackage:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "application_id"
+        - "package_id"
+        - "package_version"
+        - "component_key"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "package"
+        "application_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+    MedicalRecordPlanOrigin:
+      "oneOf":
+        -
+          "$ref": "#/components/schemas/MedicalRecordPlanOriginSingle"
+        -
+          "$ref": "#/components/schemas/MedicalRecordPlanOriginPackage"
+      "discriminator":
+        "propertyName": "kind"
+        "mapping":
+          "single": "#/components/schemas/MedicalRecordPlanOriginSingle"
+          "package": "#/components/schemas/MedicalRecordPlanOriginPackage"
+    MedicalRecordPlanClinicalExecution:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "state"
+        - "revision_id"
+        - "result_state"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "clinical"
+        "state":
+          "type": "string"
+          "enum":
+            - "not_performed"
+            - "performed"
+            - "deferred"
+            - "cancelled"
+        "revision_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "result_state":
+          "type": "string"
+          "enum":
+            - "none"
+            - "awaiting"
+            - "linked"
+      "description": "DB pending->not_performed; performed/deferred/cancelled unchanged. Sole writer PlanExecutionCoordinator, reverse mapping only in authorized intents. Performed awaiting allowed; result attach never marks performed."
+    MedicalRecordPlanCommercialExecution:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "kind"
+        - "state"
+        - "revision_id"
+      "properties":
+        "kind":
+          "type": "string"
+          "enum":
+            - "commercial"
+        "state":
+          "type": "string"
+          "enum":
+            - "selected"
+        "revision_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+      "description": "DB clinical_state=NULL. Unprocessed selected plan projection, not commercial fulfillment/charge eligibility/clinical completed."
+    MedicalRecordPlanExecution:
+      "oneOf":
+        -
+          "$ref": "#/components/schemas/MedicalRecordPlanClinicalExecution"
+        -
+          "$ref": "#/components/schemas/MedicalRecordPlanCommercialExecution"
+      "discriminator":
+        "propertyName": "kind"
+        "mapping":
+          "clinical": "#/components/schemas/MedicalRecordPlanClinicalExecution"
+          "commercial": "#/components/schemas/MedicalRecordPlanCommercialExecution"
+      "description": "Only clinical/commercial for new plans. Unknown legacy remains separate explicit legacy projection, not inferred migration."
+    MedicalRecordPlanOwnerLink:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "id"
+        - "owner_kind"
+        - "owner_id"
+        - "owner_version"
+        - "fixed_revision_id"
+        - "status"
+      "properties":
+        "id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "owner_kind":
+          "type": "string"
+          "enum":
+            - "treatment"
+            - "vaccination"
+            - "examination"
+            - "checkup"
+            - "billing_item"
+        "owner_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "owner_version":
+          "type": "string"
+          "pattern": "^[1-9][0-9]*$"
+          "maxLength": 19
+          "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+          "nullable": true
+        "fixed_revision_id":
+          "type": "string"
+          "pattern": "^[1-9][0-9]*$"
+          "maxLength": 19
+          "description": "Canonical positive signed-64 decimal string (1..9223372036854775807). Server checks exact bigint range; regex/length alone do not prove range. Reject unsafe JS number conversion; never round IDs."
+          "nullable": true
+        "status":
+          "type": "string"
+          "enum":
+            - "active"
+            - "revoked"
+      "description": "Array supports panel/checkup child multiplicity; no duplicate active owner identity or multiple charge sources. Minimal reference only if authorized; detail read permissions remain owner API. No invented version1."
+    MedicalRecordPlanItem:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "id"
+        - "version"
+        - "record_id"
+        - "clinic_id"
+        - "pet_id"
+        - "item"
+        - "name_snapshot"
+        - "unit_label_snapshot"
+        - "quantity"
+        - "price_snapshot"
+        - "origin"
+        - "execution"
+        - "owner_links"
+      "properties":
+        "id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "record_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "clinic_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "pet_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "item":
+          "$ref": "#/components/schemas/TreatmentPackageItemRef"
+        "name_snapshot":
+          "type": "string"
+        "unit_label_snapshot":
+          "type": "string"
+          "nullable": true
+        "quantity":
+          "$ref": "#/components/schemas/TreatmentPackageQuantity"
+        "price_snapshot":
+          "$ref": "#/components/schemas/TreatmentPackagePriceSnapshot"
+        "origin":
+          "$ref": "#/components/schemas/MedicalRecordPlanOrigin"
+        "execution":
+          "$ref": "#/components/schemas/MedicalRecordPlanExecution"
+        "owner_links":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/MedicalRecordPlanOwnerLink"
+      "description": "EMR516 shared plan read DTO, also for single selection, not package-only plan store. Existing results/inventory/accounting owners unchanged; no free state write API. Source classification grounded in owner route/explicit use, never item name."
+    MedicalRecordPlanList:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "collection_version"
+        - "version_state"
+        - "items"
+      "properties":
+        "collection_version":
+          "type": "string"
+          "pattern": "^[1-9][0-9]*$"
+          "maxLength": 19
+          "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+          "nullable": true
+        "version_state":
+          "type": "string"
+          "enum":
+            - "ready"
+            - "uninitialized"
+        "items":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/MedicalRecordPlanItem"
+      "oneOf":
+        -
+          "properties":
+            "version_state":
+              "type": "string"
+              "enum":
+                - "ready"
+            "collection_version":
+              "type": "string"
+              "pattern": "^[1-9][0-9]*$"
+              "maxLength": 19
+              "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+        -
+          "properties":
+            "version_state":
+              "type": "string"
+              "enum":
+                - "uninitialized"
+            "collection_version":
+              "type": "string"
+              "nullable": true
+              "enum":
+                - null
+      "description": "Reuse dependency_versions namespace plan_items; missing row null/uninitialized, no read INSERT or fabricated0/1. EMR494 acquire/takeover prepares baseline under published lock order; apply cannot late-bootstrap. All plan writers participate before cutover."
+    TreatmentPackageFieldIssue:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "path"
+        - "code"
+        - "message"
+      "properties":
+        "path":
+          "type": "string"
+        "code":
+          "type": "string"
+        "message":
+          "type": "string"
+    TreatmentPackageError:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "error"
+        - "code"
+      "properties":
+        "error":
+          "type": "string"
+        "code":
+          "type": "string"
+          "enum":
+            - "invalid-input"
+            - "unauthorized"
+            - "not-authorized"
+            - "scope-not-found"
+            - "version-conflict"
+            - "dependency-changed"
+            - "edit-right-lost"
+            - "validation"
+            - "internal-error"
+            - "temporarily-unavailable"
+        "issues":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageFieldIssue"
+      "description": "Pre-operation/master/preview RespondErrorWithExtras safe flat envelope. Never mix C06 refs/current prices/SQL/cross-clinic names. 400 invalid-input,401 unauthorized,403 not-authorized,404 scope-not-found,409 version/dependency/edit-right,422 owner validation,500 internal,503 temporarily unavailable. Write timeout/parse failure -> original-key lookup."
+    TreatmentPackageSourceProjection:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "schema"
+        - "clinic_id"
+        - "item"
+        - "active"
+        - "name"
+        - "unit_label"
+        - "native_version"
+        - "price"
+        - "owner_definition_digest"
+        - "eligibility_digest"
+      "properties":
+        "schema":
+          "type": "string"
+          "enum":
+            - "pkg-source-v1"
+        "clinic_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "item":
+          "$ref": "#/components/schemas/TreatmentPackageItemRef"
+        "active":
+          "type": "boolean"
+        "name":
+          "type": "string"
+        "unit_label":
+          "type": "string"
+          "nullable": true
+        "native_version":
+          "type": "string"
+          "pattern": "^[1-9][0-9]*$"
+          "maxLength": 19
+          "description": "Canonical positive signed-64 version string, server exact range 1..9223372036854775807 and checked overflow. No invented native version for unversioned masters."
+          "nullable": true
+        "price":
+          "$ref": "#/components/schemas/TreatmentPackagePriceSnapshot"
+        "owner_definition_digest":
+          "type": "string"
+          "pattern": "^[0-9a-f]{64}$"
+          "description": "SHA-256 lowercase 64 hex; no transport prefix in projection or stored bytea32. Not an authorization capability."
+          "nullable": true
+        "eligibility_digest":
+          "type": "string"
+          "pattern": "^[0-9a-f]{64}$"
+          "description": "SHA-256 lowercase 64 hex; no transport prefix in projection or stored bytea32. Not an authorization capability."
+          "nullable": true
+      "description": "Server JCS projection. Native version/definition/eligibility may be explicit null, not invented. No result measurements/created_at. Exact numeric strings before JCS; source token prefixes are transport only."
+    TreatmentPackageComponentProjection:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "component_key"
+        - "item"
+        - "quantity"
+        - "source_digest"
+        - "classification"
+      "properties":
+        "component_key":
+          "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        "item":
+          "$ref": "#/components/schemas/TreatmentPackageItemRef"
+        "quantity":
+          "$ref": "#/components/schemas/TreatmentPackageQuantity"
+        "source_digest":
+          "$ref": "#/components/schemas/TreatmentPackageDigestHex"
+        "classification":
+          "type": "string"
+          "enum":
+            - "clinical"
+            - "commercial"
+            - "unresolved"
+    TreatmentPackagePreviewProjection:
+      "type": "object"
+      "additionalProperties": false
+      "required":
+        - "schema"
+        - "record_id"
+        - "clinic_id"
+        - "pet_id"
+        - "package_id"
+        - "package_version"
+        - "price_policy_digest"
+        - "components"
+      "properties":
+        "schema":
+          "type": "string"
+          "enum":
+            - "pkg-preview-v1"
+        "record_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "clinic_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "pet_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_id":
+          "$ref": "#/components/schemas/TreatmentPackageId"
+        "package_version":
+          "$ref": "#/components/schemas/TreatmentPackageVersion"
+        "price_policy_digest":
+          "type": "string"
+          "pattern": "^[0-9a-f]{64}$"
+          "description": "SHA-256 lowercase 64 hex; no transport prefix in projection or stored bytea32. Not an authorization capability."
+          "nullable": true
+        "components":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/TreatmentPackageComponentProjection"
+          "minItems": 1
+      "description": "Storage PR759 §3.4 authoritative: SHA256 of RFC8785 JCS UTF8 bytes, not application snapshot/jsonb::text. Components retain order/duplicates. Exclude generated application/plan IDs, actor/time/edit session/epoch/CAS/display/total availability. UTF16 key sort, no Unicode normalization/BOM/newline, reject duplicate JSON keys/lone surrogate/invalid UTF8. Escape only JCS quote/backslash/control, slash unescaped; null/false/\"0\" distinct. Decimal string canonicalization exact, no binary64. Canonicalization version changes never invalidate old success receipt; old uncommitted token dependency-changed->explicit repreview."
   responses:
     CertificateBadRequest:
       description: 'validation: malformed JSON/ID/key/enum。重複key/未知property/不正UTF-8/lone
@@ -31678,3 +32996,1004 @@ paths:
           "$ref": "#/components/responses/CertificateInternalError"
         '503':
           "$ref": "#/components/responses/CertificateUnavailable"
+
+  # EMR-518: 13 selected operations / 9 paths; runtime registration is follow-up owner work.
+  "/masters/treatment-packages":
+    "get":
+      "operationId": "listTreatmentPackages"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "listTreatmentPackages"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 Selected trusted clinic only; ResourceMasterMedical.view AND each referenced master resource.view. No partial contents on failed authorization; empty items allowed. Existing seven master lists unchanged."
+      "parameters": []
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageList"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+    "post":
+      "operationId": "createTreatmentPackage"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "createTreatmentPackage"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMasterMedical.create and type-specific master view/current clinic. No C06 master-create receipt exists; unknown create response must not auto-rePOST or be inferred by same name."
+      "parameters":
+        -
+          "$ref": "#/components/parameters/XRequestedWith"
+      "responses":
+        "201":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackage"
+          "headers":
+            "Location":
+              "description": "Server-generated actual registered /api/v1/masters/treatment-packages/{id}; FE never constructs it."
+              "schema":
+                "type": "string"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/TreatmentPackageCreate"
+  "/masters/treatment-packages/{id}":
+    "get":
+      "operationId": "getTreatmentPackage"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "getTreatmentPackage"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMasterMedical.view plus all typed master view grants; forbidden mixed component gives403 without partial disclosure."
+      "parameters":
+        -
+          "name": "id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackage"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+    "patch":
+      "operationId": "updateTreatmentPackage"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "updateTreatmentPackage"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMasterMedical.edit plus source view; parent version CAS; omitted fields unchanged, explicit null rejected; components full replacement and stable keys."
+      "parameters":
+        -
+          "name": "id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "$ref": "#/components/parameters/XRequestedWith"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackage"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/TreatmentPackagePatch"
+    "delete":
+      "operationId": "deleteTreatmentPackage"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "deleteTreatmentPackage"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMasterMedical.delete. Version query mandatory, logical deletion preserves all historical snapshots. Locks catalog before package; no grants added."
+      "parameters":
+        -
+          "name": "id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "$ref": "#/components/parameters/XRequestedWith"
+        -
+          "name": "version"
+          "in": "query"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageVersion"
+      "responses":
+        "204":
+          "description": "No content"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+  "/masters/treatment-packages/reorder":
+    "patch":
+      "operationId": "reorderTreatmentPackages"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "reorderTreatmentPackages"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMasterMedical.edit; current nondeleted complete catalog including inactive, expected persisted order_version; no duplicates/partial reorder."
+      "parameters":
+        -
+          "$ref": "#/components/parameters/XRequestedWith"
+      "responses":
+        "204":
+          "description": "No content"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/TreatmentPackageReorder"
+  "/medical-records/{record_id}/treatment-package-previews":
+    "post":
+      "operationId": "previewTreatmentPackage"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "previewTreatmentPackage"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMedicalRecords.view plus each master resource.view, selected clinic/record/pet. Read-only POST. Source pet NULL is selection identity failure422 without fabricated pet. Readable inactive or owner-unresolved200 applicable:false; financial unknown warnings allow single-item-permitted selection; no read CAS bootstrap. Package version mismatch409."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "$ref": "#/components/parameters/XRequestedWith"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackagePreview"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/TreatmentPackagePreviewRequest"
+  "/medical-records/{record_id}/treatment-package-applications":
+    "post":
+      "operationId": "applyTreatmentPackage"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "applyTreatmentPackage"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMedicalRecords.create (same single treatment POST), no extra edit grant/master create. Existing edit_session_ref/epoch/fence and all typed source view conditions remain. Trusted clinic/actor only; owner_kind=medical_record, intent=medical_record.package_apply. Gate->binding NOWAIT->saved receipt/unknown->savepoint->Apply lifecycle/edit-right/record/plan/CAS/package/master order. Recheck nonnull pet under record lock before new writes. Whole package zero/all write; no owner result/stock/charge/print effects. Replay returns original authorized receipt before current-master checks."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "$ref": "#/components/parameters/XRequestedWith"
+      "responses":
+        "200":
+          "description": "succeeded/replayed or not-succeeded (not success); saved C06 ResultResponse"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+        "202":
+          "description": "operation-in-progress, same-key lookup"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+        "400":
+          "description": "validation; zero business effect; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized, no result details; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found (original target/binding); before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "operation-key-conflict / version-conflict / dependency-changed / edit-right-lost; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "result-unavailable, no new-key retry/compensation; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/TreatmentPackageApply"
+    "get":
+      "operationId": "listTreatmentPackageApplications"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "listTreatmentPackageApplications"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 ResourceMedicalRecords.view original record clinic; immutable historical summary in applied_at/id order."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageApplicationList"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+  "/medical-records/{record_id}/treatment-package-applications/{application_id}":
+    "get":
+      "operationId": "getTreatmentPackageApplication"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "getTreatmentPackageApplication"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 Current original-target ResourceMedicalRecords.view, same trusted clinic. Historical applied snapshots, never current master reconstruction; follow-up read failure does not undo succeeded receipt."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "name": "application_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageApplication"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+  "/medical-records/{record_id}/operations/{operation_key}":
+    "get":
+      "operationId": "getMedicalRecordOperationResult"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "getMedicalRecordOperationResult"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 EMR494 shared medical-record operation lookup, currently selected intent allowlist medical_record.package_apply. ResourceMedicalRecords.view original binding anchor target/current grant. No body/content/actor/clinic query; record URL mismatch404. Existing shared C06 wire reused; no package-specific lookup route. Preserve any independently published other intent contracts during integration."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "name": "operation_key"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageCanonicalUuid"
+        -
+          "name": "intent"
+          "in": "query"
+          "required": true
+          "schema":
+            "type": "string"
+            "enum":
+              - "medical_record.package_apply"
+      "responses":
+        "200":
+          "description": "succeeded/replayed or not-succeeded (not success); saved C06 ResultResponse"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+        "202":
+          "description": "operation-in-progress, same-key lookup"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+        "400":
+          "description": "validation; zero business effect; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized, no result details; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found (original target/binding); before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "operation-key-conflict / version-conflict / dependency-changed / edit-right-lost; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "result-unavailable, no new-key retry/compensation; before C06: flat TreatmentPackageError"
+          "content":
+            "application/json":
+              "schema":
+                "oneOf":
+                  -
+                    "$ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse"
+                  -
+                    "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+  "/medical-records/{record_id}/plan-items":
+    "get":
+      "operationId": "listMedicalRecordPlanItems"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "listMedicalRecordPlanItems"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 EMR516 common read ResourceMedicalRecords.view, no new owner-detail permissions. Missing collection version null/uninitialized, read-only. 494 explicit acquire/takeover prepares baseline; all writers namespace plan_items. Old unknown legacy remains explicit legacy projection elsewhere."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/MedicalRecordPlanList"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+  "/medical-records/{record_id}/plan-items/{plan_item_id}":
+    "get":
+      "operationId": "getMedicalRecordPlanItem"
+      "x-contract-status": "selected"
+      "tags":
+        - "TreatmentPackages"
+      "summary": "getMedicalRecordPlanItem"
+      "description": "EMR-518 selected contract-first; runtime未実装・試験NOT_RUN。EMR-516共通plan/CAS、EMR-494編集権/共通operationと責務共有。FE mockは本API/fixture公開版で先行可能、runtime/SQL完成を意味しない。 EMR516 common read ResourceMedicalRecords.view original clinic/record/pet. Minimal permitted owner refs; owner detail uses existing owner authorization. No state-change/owner-link/write operation in this publication."
+      "parameters":
+        -
+          "name": "record_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+        -
+          "name": "plan_item_id"
+          "in": "path"
+          "required": true
+          "schema":
+            "$ref": "#/components/schemas/TreatmentPackageId"
+      "responses":
+        "200":
+          "description": "Selected contract response"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/MedicalRecordPlanItem"
+        "400":
+          "description": "invalid-input"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "401":
+          "description": "unauthorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "403":
+          "description": "not-authorized"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "404":
+          "description": "scope-not-found"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "409":
+          "description": "version-conflict / dependency-changed / edit-right-lost"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "422":
+          "description": "validation (pre-operation owner conditions)"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "500":
+          "description": "internal-error"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"
+        "503":
+          "description": "temporarily-unavailable; write ambiguity keeps key"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/TreatmentPackageError"

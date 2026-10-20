@@ -1,0 +1,305 @@
+{
+  "record_id": "91",
+  "clinic_id": "7",
+  "pet_id": "801",
+  "package_id": "201",
+  "package_version": "3",
+  "plan_collection_version": null,
+  "version_state": "uninitialized",
+  "preview_token": "pkg-preview-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "applicable": false,
+  "items": [
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000011",
+      "item": {
+        "kind": "consultation",
+        "consultation_id": "101"
+      },
+      "quantity": "1",
+      "name": "診察サンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": "2",
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": "included",
+        "tax_rate": "0.1",
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "master",
+        "tax_source": "master",
+        "insurance_source": "master",
+        "amount_basis": "included",
+        "uncertainty": []
+      },
+      "classification": "clinical",
+      "issues": []
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000012",
+      "item": {
+        "kind": "procedure",
+        "procedure_id": "102"
+      },
+      "quantity": "1",
+      "name": "処置サンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": "2",
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000002"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": "included",
+        "tax_rate": "0.1",
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "master",
+        "tax_source": "master",
+        "insurance_source": "master",
+        "amount_basis": "included",
+        "uncertainty": []
+      },
+      "classification": "clinical",
+      "issues": []
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000013",
+      "item": {
+        "kind": "medicine",
+        "medicine_id": "103"
+      },
+      "quantity": "0.25",
+      "name": "薬剤サンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": null,
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000003"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": "included",
+        "tax_rate": "0.1",
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "master",
+        "tax_source": "master",
+        "insurance_source": "master",
+        "amount_basis": "included",
+        "uncertainty": []
+      },
+      "classification": "clinical",
+      "issues": []
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000014",
+      "item": {
+        "kind": "examination_type",
+        "examination_type_id": "104"
+      },
+      "quantity": "1",
+      "name": "検査パネルサンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": null,
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000004"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": null,
+        "tax_rate": null,
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "master",
+        "tax_source": "unresolved",
+        "insurance_source": "master",
+        "amount_basis": "unresolved",
+        "uncertainty": [
+          {
+            "field": "tax",
+            "reason": "not_configured_on_master",
+            "required_at": "billing"
+          }
+        ]
+      },
+      "classification": "clinical",
+      "issues": [
+        {
+          "component_key": "a0000000-0000-4000-8000-000000000014",
+          "severity": "warning",
+          "required_at": "billing",
+          "code": "tax-unresolved",
+          "message": "ダミー未設定。予定選択を妨げず請求owner必要段階へ引継ぎ。"
+        }
+      ]
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000015",
+      "item": {
+        "kind": "vaccine",
+        "vaccine_id": "105"
+      },
+      "quantity": "1",
+      "name": "接種サンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": "2",
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000005"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": null,
+        "tax_rate": null,
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "master",
+        "tax_source": "unresolved",
+        "insurance_source": "master",
+        "amount_basis": "unresolved",
+        "uncertainty": [
+          {
+            "field": "tax",
+            "reason": "not_configured_on_master",
+            "required_at": "billing"
+          }
+        ]
+      },
+      "classification": "clinical",
+      "issues": [
+        {
+          "component_key": "a0000000-0000-4000-8000-000000000015",
+          "severity": "warning",
+          "required_at": "billing",
+          "code": "tax-unresolved",
+          "message": "ダミー未設定。予定選択を妨げず請求owner必要段階へ引継ぎ。"
+        }
+      ]
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000016",
+      "item": {
+        "kind": "checkup_type",
+        "checkup_type_id": "106"
+      },
+      "quantity": "1",
+      "name": "健診セットサンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": "2",
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000006"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": null,
+        "tax_rate": null,
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "master",
+        "tax_source": "unresolved",
+        "insurance_source": "master",
+        "amount_basis": "unresolved",
+        "uncertainty": [
+          {
+            "field": "tax",
+            "reason": "not_configured_on_master",
+            "required_at": "billing"
+          }
+        ]
+      },
+      "classification": "clinical",
+      "issues": [
+        {
+          "component_key": "a0000000-0000-4000-8000-000000000016",
+          "severity": "warning",
+          "required_at": "billing",
+          "code": "tax-unresolved",
+          "message": "ダミー未設定。予定選択を妨げず請求owner必要段階へ引継ぎ。"
+        }
+      ]
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000017",
+      "item": {
+        "kind": "merchandise_item",
+        "merchandise_item_id": "107"
+      },
+      "quantity": "1",
+      "name": "物販サンプル",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": null,
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000007"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": "included",
+        "tax_rate": "0.1",
+        "is_non_insurance": null,
+        "insurance_setting_state": "not_configured_on_master",
+        "price_source": "master",
+        "tax_source": "master",
+        "insurance_source": "unresolved",
+        "amount_basis": "included",
+        "uncertainty": [
+          {
+            "field": "insurance",
+            "reason": "not_configured_on_master",
+            "required_at": "billing"
+          }
+        ]
+      },
+      "classification": "commercial",
+      "issues": [
+        {
+          "component_key": "a0000000-0000-4000-8000-000000000017",
+          "severity": "warning",
+          "required_at": "billing",
+          "code": "insurance-unresolved",
+          "message": "ダミー未設定。予定選択を妨げず請求owner必要段階へ引継ぎ。"
+        }
+      ]
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000018",
+      "item": {
+        "kind": "manual_other",
+        "manual": {
+          "name": "手入力項目",
+          "reason": "医院で明示した項目",
+          "unit_label": null,
+          "unit_price": "110",
+          "tax_type": "included",
+          "tax_rate": "0.1",
+          "is_non_insurance": true
+        }
+      },
+      "quantity": "1",
+      "name": "手入力項目",
+      "unit_label": null,
+      "source_stamp": {
+        "native_version": null,
+        "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000008"
+      },
+      "price": {
+        "unit_price": "110",
+        "tax_type": "included",
+        "tax_rate": "0.1",
+        "is_non_insurance": true,
+        "insurance_setting_state": "explicit",
+        "price_source": "manual",
+        "tax_source": "manual",
+        "insurance_source": "manual",
+        "amount_basis": "included",
+        "uncertainty": []
+      },
+      "classification": "clinical",
+      "issues": []
+    }
+  ],
+  "total": {
+    "status": "unresolved",
+    "amount": null
+  }
+}
