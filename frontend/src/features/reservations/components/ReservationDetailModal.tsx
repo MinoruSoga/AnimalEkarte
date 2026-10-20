@@ -55,6 +55,7 @@ import {
   isTentativeReservation,
   TENTATIVE_APPOINTMENT_LABEL,
 } from "../lib/tentative";
+import { RevisitIntakeSection } from "./RevisitIntakeSection";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;
@@ -330,6 +331,15 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
               </InfoRow>
             </div>
           </div>
+
+          {/* EMR-475: 飼主由来の事前問診原文（read-only）。予約切替・閉鎖で unmount され query を破棄する。
+              スタッフ補足は下の「予約内容」または Inquiry へ（原文とは別欄） */}
+          <RevisitIntakeSection
+            key={`${effective.id}|${effective.clinicId ?? ""}`}
+            appointmentId={effective.id}
+            clinicId={effective.clinicId}
+            enabled={isOpen}
+          />
 
           {/* Notes */}
           {effective.notes ? (
