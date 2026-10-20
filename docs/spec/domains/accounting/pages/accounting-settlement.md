@@ -264,6 +264,7 @@ flowchart TB
 |:---|:---|:---|:---|
 | AC-accounting-a4-document-output | A4明細兼領収書をブラウザ印刷／PDF保存する際、インボイス登録番号と税率別内訳が同じ保存対象に対応して出力される。請求と実受領の別帳票契約を維持し、ロール紙直接印字・ドロアー連動を起動しない。 | Phase1 F37:G37 | 未実施 |
 
+<a id="accounting-owner-discount-default"></a>
 ### 割引初期値／飼主設定との引継ぎ
 
 | 条件ID | 受入条件 | 根拠 | 検証状態 |
@@ -300,6 +301,6 @@ flowchart TB
 
 ## 割引候補とカード金額訂正の境界
 
-飼主設定由来の候補は[既存の初期値AC](#割引初期値飼主設定との引継ぎ)と[計算正本](../lifecycle.md#accounting-calculation-order)へ接続する。正常取得した未登録値の0と取得失敗／不明を分け、候補取得失敗を割引0へ変換して手修正値・保存済みsnapshotを上書きしない。未承認の候補上限・適用条件・配賦規則は追加しない。
+飼主設定由来の候補は[既存の初期値AC](#accounting-owner-discount-default)と[計算正本](../lifecycle.md#accounting-calculation-order)へ接続する。正常取得した未登録値の0と取得失敗／不明を分け、候補取得失敗を割引0へ変換して手修正値・保存済みsnapshotを上書きしない。未承認の候補上限・適用条件・配賦規則は追加しない。
 
 既存credit-correction APIの成功は院内のカード金額訂正結果であり、実決済サービスの返金／取消成功を意味しない。[金額訂正と実入出金の分離](../lifecycle.md#requirement-fr-accounting-post-close-separate-movement)と[理由付き訂正／返金](../lifecycle.md#requirement-fr-accounting-reasoned-financial-correction)に従い、元取引・理由・履歴と外部結果を分ける。外部結果不明は照合し、API再送だけで実返金済みと扱わない。

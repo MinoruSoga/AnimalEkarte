@@ -76,7 +76,7 @@ flowchart TB
 
 ### 通常治療createの副作用との分離
 
-[全writer参加表](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)で、現通常治療createはinventory ID指定時に在庫減算することを静的確認した。患者転記／過去入力／カルテ訂正の保存をこの入口へ無条件流用しない。[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)は歴史的記録と新しい在庫実績を分離し、影響表示・関連inventory ID／現在版・元訂正ref・理由を在庫ownerへ渡す。実増減・返却・取消の内部ルールとreceiptはD13で確認し、今回新しい増減を確定しない。
+[全writer参加表](../../design/domains/medical-records/technical-spec.md#medical-record-writer-matrix)で、旧通常治療createはinventory ID指定時に在庫減算することを静的確認した。これは[最新の担当スタッフによる実施／引渡し時出庫確定](../domains/inventory/business-rules.md#inventory-outflow-confirmation-20261020)に対する実装差で、カルテ保存だけの減算を目標や適合済みとしない。患者転記／過去入力／カルテ訂正の保存をこの入口へ無条件流用しない。[専用intent](../../design/domains/medical-records/technical-spec.md#medical-record-legacy-and-special-contract)は歴史的記録と新しい在庫実績を分離し、影響表示・関連inventory ID／現在版・元訂正ref・理由を在庫ownerへ渡す。実増減・返却・取消の内部ルールとreceiptはD13で確認し、今回新しい増減を確定しない。
 
 <a id="cross-ui-search-20261019"></a>
 ## 10/19後続承認：同種操作・検索ボタン方式
