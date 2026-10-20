@@ -4810,6 +4810,8 @@ components:
       required: [operation_key, staff_id, date, shift_type, starts_at, ends_at, breaks, notes]
       description: |
         EMR-493。全入力を明示しNULL/未指定を同一視しない。notesの空文字とbreaks=[]は有効。
+        staff_idはShiftEntry.staff_idと同じ正数十進文字列。JS Numberへ変換せずread→createへ渡す。
+        serverは1..9223372036854775807のbigint範囲を厳密検査し、不正形式/範囲外は400。
         full/morning/afternoonは両日時必須・非NULL、starts_at < ends_at、dateはstarts_atのJST日付。
         off/paid_leaveは両日時を明示NULL、breaks=[]とする。時刻から翌日を推測しない。
         有効templateは入力値のコピー元のみ。template IDや時刻列を保存要求へ混在させない。
@@ -4826,7 +4828,7 @@ components:
             breaks: { type: array, maxItems: 0 }
       properties:
         operation_key: { type: string, format: uuid }
-        staff_id: { type: integer, format: int64, minimum: 1 }
+        staff_id: { type: string, pattern: '^[1-9][0-9]*$' }
         date: { type: string, format: date }
         shift_type: { type: string, enum: [full, morning, afternoon, 'off', paid_leave] }
         starts_at: { type: string, format: date-time, nullable: true }
@@ -20999,9 +21001,10 @@ paths:
             example: "2026-03"
         - name: staff_id
           in: query
+          description: ShiftEntry.staff_idと同じ正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: シフト一覧
