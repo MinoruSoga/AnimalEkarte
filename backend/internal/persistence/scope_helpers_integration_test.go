@@ -34,6 +34,13 @@ func setupHelpersTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// sortOrderValue は *int 化された SortOrder（#729）を nil-safe に取り出す。
+func sortOrderValue(t *testing.T, v *int) int {
+	t.Helper()
+	require.NotNil(t, v)
+	return *v
+}
+
 func TestReorderByClinicID(t *testing.T) {
 	db := setupHelpersTestDB(t)
 	ctx := context.Background()
@@ -53,15 +60,16 @@ func TestReorderByClinicID(t *testing.T) {
 		require.NoError(t, db.First(&reloadedA, a.ID).Error)
 		require.NoError(t, db.First(&reloadedB, b.ID).Error)
 		require.NoError(t, db.First(&reloadedC, c.ID).Error)
-		assert.Equal(t, 1, reloadedC.SortOrder, "先頭に指定したcがsort_order=1")
-		assert.Equal(t, 2, reloadedA.SortOrder)
-		assert.Equal(t, 3, reloadedB.SortOrder)
+		assert.Equal(t, 1, sortOrderValue(t, reloadedC.SortOrder), "先頭に指定したcがsort_order=1")
+		assert.Equal(t, 2, sortOrderValue(t, reloadedA.SortOrder))
+		assert.Equal(t, 3, sortOrderValue(t, reloadedB.SortOrder))
 	})
 
 	t.Run("別医院のidを含むとエラーになり全体がロールバックされる", func(t *testing.T) {
 		const clinicA, clinicB = uint64(10), uint64(20)
-		own := &model.ChiefComplaintType{ClinicID: clinicA, Name: "own", SortOrder: 99}
-		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign", SortOrder: 99}
+		sortOrder := 99
+		own := &model.ChiefComplaintType{ClinicID: clinicA, Name: "own", SortOrder: &sortOrder}
+		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign", SortOrder: &sortOrder}
 		require.NoError(t, db.Create(own).Error)
 		require.NoError(t, db.Create(foreign).Error)
 
@@ -71,12 +79,13 @@ func TestReorderByClinicID(t *testing.T) {
 
 		var reloadedOwn model.ChiefComplaintType
 		require.NoError(t, db.First(&reloadedOwn, own.ID).Error)
-		assert.Equal(t, 99, reloadedOwn.SortOrder, "先に処理された own.ID の更新もロールバックされ元の値のまま")
+		assert.Equal(t, 99, sortOrderValue(t, reloadedOwn.SortOrder), "先に処理された own.ID の更新もロールバックされ元の値のまま")
 	})
 
 	t.Run("存在しないidを含むとエラーになりロールバックされる", func(t *testing.T) {
 		const clinicID = uint64(30)
-		existing := &model.ChiefComplaintType{ClinicID: clinicID, Name: "existing", SortOrder: 99}
+		sortOrder99 := 99
+		existing := &model.ChiefComplaintType{ClinicID: clinicID, Name: "existing", SortOrder: &sortOrder99}
 		require.NoError(t, db.Create(existing).Error)
 
 		err := ReorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, []uint64{existing.ID, 9_999_999}, "sort_order")
@@ -85,7 +94,7 @@ func TestReorderByClinicID(t *testing.T) {
 
 		var reloaded model.ChiefComplaintType
 		require.NoError(t, db.First(&reloaded, existing.ID).Error)
-		assert.Equal(t, 99, reloaded.SortOrder, "トランザクション全体がロールバックされる")
+		assert.Equal(t, 99, sortOrderValue(t, reloaded.SortOrder), "トランザクション全体がロールバックされる")
 	})
 }
 
@@ -107,13 +116,14 @@ func TestReorderGlobal(t *testing.T) {
 		require.NoError(t, db.First(&reloadedDog, dog.ID).Error)
 		require.NoError(t, db.First(&reloadedCat, cat.ID).Error)
 		require.NoError(t, db.First(&reloadedRabbit, rabbit.ID).Error)
-		assert.Equal(t, 1, reloadedRabbit.SortOrder)
-		assert.Equal(t, 2, reloadedDog.SortOrder)
-		assert.Equal(t, 3, reloadedCat.SortOrder)
+		assert.Equal(t, 1, sortOrderValue(t, reloadedRabbit.SortOrder))
+		assert.Equal(t, 2, sortOrderValue(t, reloadedDog.SortOrder))
+		assert.Equal(t, 3, sortOrderValue(t, reloadedCat.SortOrder))
 	})
 
 	t.Run("存在しないidを含むとエラーになりロールバックされる", func(t *testing.T) {
-		existing := &model.AnimalSpecies{Name: "鳥", SortOrder: 99}
+		sortOrder99 := 99
+		existing := &model.AnimalSpecies{Name: "鳥", SortOrder: &sortOrder99}
 		require.NoError(t, db.Create(existing).Error)
 
 		err := ReorderGlobal(ctx, db, &model.AnimalSpecies{}, "animal_species", []uint64{existing.ID, 9_999_998}, "sort_order")
@@ -122,7 +132,7 @@ func TestReorderGlobal(t *testing.T) {
 
 		var reloaded model.AnimalSpecies
 		require.NoError(t, db.First(&reloaded, existing.ID).Error)
-		assert.Equal(t, 99, reloaded.SortOrder, "トランザクション全体がロールバックされる")
+		assert.Equal(t, 99, sortOrderValue(t, reloaded.SortOrder), "トランザクション全体がロールバックされる")
 	})
 }
 
