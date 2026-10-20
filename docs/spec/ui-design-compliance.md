@@ -2,6 +2,8 @@
 
 > 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体 88 製品ルート（+ wildcard 404）とその実装コンポーネントに対して判定した結果（2026-09-29 訂正: 86 → 87。`/settings/bug-reports` が 2026-09-26 コミット `48ec94c7` で追加。2026-10-02 訂正: 87 → 88。`/settings/chat-history` がコミット `e9574b28a` で追加され、`route-inventory.test.tsx` の期待値は 88）。最終 runtime 監査日 **2026-07-24**。2026-09-06 に静的な route 在庫・C8 allowlist・C20 検査定義を照合し、2026-09-29 に在庫数の静的再照合を行った（いずれもブラウザ再実行ではない）。
 
+> **2026-10-20 手動監査（STG）**: 79 ルートを 1280×900（代表 7 ページは 768×1024）でブラウザ目視 + DOM 計測した。結果は [docs/work/design/stg-ui-audit-20261020.md](../work/design/stg-ui-audit-20261020.md)。重要度 H 13 系統のうち、C1〜C24 で検出できるものは無く、大半はレイアウトの結果（列幅・重なり・省略・ナビ現在地）だった。規定が無かった事項は [design-patterns.md](design-patterns.md) に規約化し、同 §9 に追加検査 C25〜C29 と e2e 2 件を提案している（C21〜C24 は `design-system-audit.mjs` で使用済みのため採番しない）。本監査は `ui-design-compliance-readonly.spec.ts` の実行ではなく、§2 表の「runtime 監査」列は更新していない。
+
 ## 1. 準拠チェック定義
 
 | ID | 観点 | 参照 | 判定方法 |

@@ -82,6 +82,7 @@ flowchart TB
 | [reorg-plan.md](infra/reorg-plan.md) | 2026-07 起案のインフラ再編計画の履歴資料（HISTORICAL・実行不可。docs/ops/infra/ から移設） |
 | **design/** | デザイン関連の選定・監査資料 |
 | [design/frontend-design-review-tools.md](./design/frontend-design-review-tools.md) | フロントエンドのデザイン改善ツール候補を既存規約・React/Vite構成・ブラウザ運用から比較した選定資料（2026-10-13） |
+| [design/stg-ui-audit-20261020.md](./design/stg-ui-audit-20261020.md) | STG 79 ルートの目視 + DOM 計測監査（2026-10-20）。重要度 H 13 系統、実装の違反一覧、規定が無かった事項（→ spec/design-patterns.md）。実行 SoT ではなく、修正は Plane で起票する |
 | **campaigns/** | 日付付きキャンペーンの準備票・台帳 |
 | [linmig-campaign-20260919/](campaigns/linmig-campaign-20260919) | P1–P5/P8・検査機器・実LINE・migrate・件数・フォント・締め時間・bundle のローカル準備票。実行完了ではない |
 | [remaining-campaign-20260920/](campaigns/remaining-campaign-20260920) | P6/P7 と Slack 14件（計16票）の判断材料・ケース票。PO裁定と実機/STGは未了 |
