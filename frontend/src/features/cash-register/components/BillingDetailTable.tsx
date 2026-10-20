@@ -37,7 +37,7 @@ function DetailDataRow({ row }: { row: BillingDetailDisplayRow }) {
           </TableCell>
         ))
       )}
-      <TableCell className={`text-center ${C.text}`}>{row.paymentMethodLabel || "-"}</TableCell>
+      <TableCell className={`text-center ${C.text}`}>{row.paymentMethodLabel || EMPTY_VALUE}</TableCell>
       <TableCell className={`text-right whitespace-nowrap ${C.text}`}>
         {formatCurrency(row.totalAmount)}
       </TableCell>
@@ -48,10 +48,10 @@ function DetailDataRow({ row }: { row: BillingDetailDisplayRow }) {
         {formatCurrency(row.netAmount)}
       </TableCell>
       <TableCell className={`${C.text}`}>
-        {row.ownerName || "-"}
+        {row.ownerName || EMPTY_VALUE}
         {row.isHospitalization ? <span className={`ml-1 ${C.textStatusAmber}`}>(入院)</span> : null}
       </TableCell>
-      <TableCell className={`${C.text}`}>{row.petName || "-"}</TableCell>
+      <TableCell className={`${C.text}`}>{row.petName || EMPTY_VALUE}</TableCell>
     </tr>
   );
 }
