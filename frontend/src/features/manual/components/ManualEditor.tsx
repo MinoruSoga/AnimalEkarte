@@ -669,7 +669,12 @@ export function ManualEditor({ article, onClose, canEdit = false }: ManualEditor
           <textarea
             value={currentBody}
             onChange={(e) => setBody(e.target.value)}
-            readOnly={source.phase !== "ready" || saveMutation.isPending}
+            readOnly={
+              source.phase !== "ready" ||
+              saveMutation.isPending ||
+              resolvingOperation ||
+              saveStopped
+            }
             className={`flex-1 p-4 font-mono text-sm resize-none outline-none focus-visible:ring-2 focus-visible:ring-inset ${C.focusRingAccent40} ${C.bgSubtle} ${mode === "split" ? `border-r ${C.borderDivider}` : ""}`}
             spellCheck={false}
             aria-label="マニュアル本文編集"

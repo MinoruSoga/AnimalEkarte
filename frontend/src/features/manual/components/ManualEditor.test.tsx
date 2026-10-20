@@ -428,7 +428,8 @@ describe("ManualEditor 既存記事編集フロー（EMR-513）", () => {
     expect(saveMock).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
 
-    // 再照会ボタンで同じkeyをもう一度問い合わせる
+    // 再照会ボタンで同じkeyをもう一度問い合わせる（照会中・停止中もtextareaは凍結）
+    expect(textarea).toHaveAttribute("readonly");
     await userEvent.click(screen.getByRole("button", { name: "保存結果を再照会" }));
     expect(operationsMock).toHaveBeenCalledTimes(2);
     expect(operationsMock).toHaveBeenLastCalledWith("screens", "00-overview", OPERATION_KEY);
