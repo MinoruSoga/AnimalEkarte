@@ -172,8 +172,16 @@ func TestProcedureRequest_IsNonInsuranceWireContract(t *testing.T) {
 		if err := json.Unmarshal([]byte(body), &req); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if req.IsNonInsurance != nil {
-			t.Fatalf("IsNonInsurance = %v, want nil", *req.IsNonInsurance)
+		if got := req.IsNonInsurance.toServiceInput(); got != nil {
+			t.Fatalf("IsNonInsurance = %v, want nil", *got)
+		}
+	})
+
+	t.Run("create explicit null is rejected with 400", func(t *testing.T) {
+		var req createProcedureRequest
+		body := `{"name":"処置","is_non_insurance":null}`
+		if err := json.Unmarshal([]byte(body), &req); err == nil {
+			t.Fatal("explicit null must be rejected, got nil error")
 		}
 	})
 
@@ -184,8 +192,9 @@ func TestProcedureRequest_IsNonInsuranceWireContract(t *testing.T) {
 			if err := json.Unmarshal([]byte(body), &req); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if req.IsNonInsurance == nil || *req.IsNonInsurance != value {
-				t.Fatalf("IsNonInsurance = %v, want %v", req.IsNonInsurance, value)
+			got := req.IsNonInsurance.toServiceInput()
+			if got == nil || *got != value {
+				t.Fatalf("IsNonInsurance = %v, want %v", got, value)
 			}
 		})
 	}

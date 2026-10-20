@@ -46,3 +46,34 @@ func (f boolUpdateField) toServiceInput() *bool {
 	value := f.value
 	return &value
 }
+
+// boolCreateField は POST DTO で「未送信」と「明示 true/false」を区別する。
+// EMR-454 技術計画どおり、create の is_non_insurance は
+// 省略 = 新規登録初期値（保険対象外 true）をサービス層で明示保存、
+// null = 400（null を省略と同一視しない）、true/false = 指定値保存。
+type boolCreateField struct {
+	set   bool
+	value bool
+}
+
+func (f *boolCreateField) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return apperrors.WrapInvalidInput(errMsgInsuranceSettingNullNotAllowed)
+	}
+	var value bool
+	if err := json.Unmarshal(data, &value); err != nil {
+		return apperrors.WrapInvalidInput(errMsgInsuranceSettingInvalid)
+	}
+	f.set = true
+	f.value = value
+	return nil
+}
+
+// toServiceInput は未送信を nil（初期値適用）に変換する。
+func (f boolCreateField) toServiceInput() *bool {
+	if !f.set {
+		return nil
+	}
+	value := f.value
+	return &value
+}

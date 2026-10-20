@@ -13,7 +13,8 @@ type createProcedureRequest struct {
 	TaxRate     *float64 `json:"tax_rate" binding:"omitempty,min=0,max=1"`
 
 	// EMR-454: 品目別保険設定。省略時は新規登録の初期値=保険対象外（true）を保存する。
-	IsNonInsurance *bool `json:"is_non_insurance"`
+	// 明示 null は 400（null を省略と同一視しない）。
+	IsNonInsurance boolCreateField `json:"is_non_insurance"`
 }
 
 func (r *createProcedureRequest) toServiceInput() *CreateProcedureInput {

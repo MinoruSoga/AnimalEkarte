@@ -193,7 +193,7 @@ func TestUpdateConsultationRequest_ToServiceInput_NilFields(t *testing.T) {
 	}
 }
 
-// EMR-454: create は省略時 nil（service が新規初期値=対象外 true を明示保存）、
+// EMR-454: create は省略時 nil（service が新規初期値=対象外 true を明示保存）・明示 null=400、
 // update は未指定= nil / 明示 null=400 / true・false=明示更新を区別する。
 func TestConsultationRequest_IsNonInsuranceWireContract(t *testing.T) {
 	t.Run("create omits is_non_insurance", func(t *testing.T) {
@@ -201,8 +201,15 @@ func TestConsultationRequest_IsNonInsuranceWireContract(t *testing.T) {
 		if err := json.Unmarshal([]byte(`{"name":"診察"}`), &req); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if req.IsNonInsurance != nil {
-			t.Fatalf("IsNonInsurance = %v, want nil", *req.IsNonInsurance)
+		if got := req.IsNonInsurance.toServiceInput(); got != nil {
+			t.Fatalf("IsNonInsurance = %v, want nil", *got)
+		}
+	})
+
+	t.Run("create explicit null is rejected with 400", func(t *testing.T) {
+		var req createConsultationRequest
+		if err := json.Unmarshal([]byte(`{"name":"診察","is_non_insurance":null}`), &req); err == nil {
+			t.Fatal("explicit null must be rejected, got nil error")
 		}
 	})
 
@@ -213,8 +220,9 @@ func TestConsultationRequest_IsNonInsuranceWireContract(t *testing.T) {
 			if err := json.Unmarshal([]byte(body), &req); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if req.IsNonInsurance == nil || *req.IsNonInsurance != value {
-				t.Fatalf("IsNonInsurance = %v, want %v", req.IsNonInsurance, value)
+			got := req.IsNonInsurance.toServiceInput()
+			if got == nil || *got != value {
+				t.Fatalf("IsNonInsurance = %v, want %v", got, value)
 			}
 		})
 	}
