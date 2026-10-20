@@ -239,7 +239,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 
 ### Font Family
 
-実装のフォントスタックは **`'Inter', 'Noto Sans JP'`**（フォールバック `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`。`frontend/src/styles/globals.css`）。単一スタックで display から eyebrow まで担う。serif・monospace の表示用書体は使わない。日本語は Noto Sans JP が受け、下表の letter-spacing は欧文見出しを前提とした値であるため、和文見出しで詰まりすぎる場合も**ロールの値を上書きしない**（compliance C14）。必要ならロール自体の変更を design-system.md に決裁として記録する。
+実装のフォントスタックは **`'Inter', 'Noto Sans JP'`**（フォールバック `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`。`frontend/src/styles/globals.css`）。単一スタックで display から eyebrow まで担う。serif・monospace の表示用書体は使わない。日本語は Noto Sans JP が受け、下表の letter-spacing は欧文見出しを前提とした値であるため、和文見出しで詰まりすぎる場合も**ロールの値を上書きしない**（compliance C14）。必要ならロール自体の変更を本書の Hierarchy 表に決裁（日付・決定者）として記録する（タイポグラフィの決定は本書が所有し、design-system.md には記録しない）。
 
 ### Hierarchy
 
@@ -277,7 +277,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 
 ### Grid & Container
 
-ページ本文は `PageLayout` の中央寄せカラムに置く。最大幅は `LAYOUT.pageContentMaxWidth` のトークンから選び、`max-w-full` / `max-w-[Npx]` の生値は書かない（compliance C7）。フォームの最大幅も同じトークンの既存段（`form` 1400px / `formMid` 1200px / `formNarrow` 900px）から選ぶ。より狭い段が必要になった場合は、本節に値と決裁（日付・決定者）を記録してからトークンへ追加する。他文書（design-patterns.md を含む）はフォーム幅の値を持たない。一覧系は横スクロールを許容し、識別情報・ステータス・操作列をスクロールしないと到達できない位置へ切り落とさない。
+ページ本文は `PageLayout` の中央寄せカラムに置く。最大幅は `LAYOUT.pageContentMaxWidth` のトークンから選び、`max-w-full` / `max-w-[Npx]` の生値は書かない（`PageLayout` の `maxWidth` prop は compliance C7 が機械検査する。本文・フォーム側の raw `max-w-[Npx]` は機械検査が無く、レビューで見る）。フォームの最大幅も同じトークンの既存段（`form` 1400px / `formMid` 1200px / `formNarrow` 900px）から選ぶ。より狭い段が必要になった場合は、本節に値と決裁（日付・決定者）を記録してからトークンへ追加する。他文書（design-patterns.md を含む）はフォーム幅の値を持たない。一覧系は横スクロールを許容し、識別情報・ステータス・操作列をスクロールしないと到達できない位置へ切り落とさない。
 
 ### Whitespace Philosophy
 
@@ -310,8 +310,10 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 | Level | 扱い | 用途 | 実装トークン |
 |---|---|---|---|
 | 0 — Flat | hairline `{colors.hairline}` のみ、shadow なし | 既定のカード・テーブル・フォームセクション | border のみ |
-| 1 — Soft | レイヤード微小シャドウ: `rgba(0,0,0,0.01) 0 0.175px 1.041px`, `rgba(0,0,0,0.02) 0 0.8px 2.925px`, `rgba(0,0,0,0.027) 0 2.025px 7.847px`, `rgba(0,0,0,0.04) 0 4px 18px` | 浮動パネル・secondary ボタン・トースト・入力 focus | `shadow-level1` |
-| 2 — Elevated | 5 段スタック。最終段 `rgba(0,0,0,0.05) 0 23px 52px` | モーダル・ポップオーバー・ドロップダウン | `shadow-level2` |
+| 1 — Soft | レイヤード微小シャドウ: `rgba(0,0,0,0.01) 0 0.175px 1.041px`, `rgba(0,0,0,0.02) 0 0.8px 2.925px`, `rgba(0,0,0,0.027) 0 2.025px 7.847px`, `rgba(0,0,0,0.04) 0 4px 18px` | 浮動パネル・ポップオーバー・ドロップダウン・Select・ツールチップ・secondary ボタン・入力 focus（design-system §5.1 と `popover.tsx` / `select.tsx` / `dropdown-menu.tsx` の実装に一致） | `shadow-level1` |
+| 2 — Elevated | 5 段スタック。最終段 `rgba(0,0,0,0.05) 0 23px 52px` | モーダル（Dialog / AlertDialog）・Sheet / SidePeek | `shadow-level2` |
+
+トースト（`sonner.tsx`）は現状ライブラリ既定の影で、elevation トークンを当てていない（既知のドリフト。当てるなら Level 1）。
 
 エレベーションは **barely-there** を原則とする。多層の透明に近い影で面が紙から静かに浮く印象を作り、硬い影を落とさない。Tailwind 既定の `shadow-sm〜2xl`・`shadow-[...]` 任意値・CSS 直書きの `box-shadow` は compliance C10 / C17 が禁止し、elevation トークン（`shadow-level1` / `shadow-level2` / `shadow-btn` / `shadow-panel` / `shadow-focus-brand` 等）だけを使う。
 
@@ -322,7 +324,7 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 | 段 | 時間 | 用途 | 実装 |
 |---|---|---|---|
 | micro | 150ms | hover / focus の色・不透明度、ツールチップの出現 | `transition-colors`（既定 150ms）、`tooltip.tsx` の `duration-150` |
-| overlay | 200ms | ダイアログ・ポップオーバー・ドロップダウン・Select の出現（fade + zoom 95%）と消失 | `data-[state=open]:animate-in fade-in-0 zoom-in-95` + `duration-200` |
+| overlay | 200ms（**未実装**） | ダイアログ・ポップオーバー・ドロップダウン・Select の出現（fade + zoom 95%）と消失。実装には `animate-in` / `fade-in-0` / `zoom-in-95` が書かれているが、`tw-animate-css` が未導入のためこれらのクラスは効かず、現状は即時表示。導入して有効化するか、クラスを除去して「overlay は動かない」と確定するかは決裁待ち | `data-[state=open]:animate-in fade-in-0 zoom-in-95` + `duration-200` |
 | panel | 300ms（閉）/ 500ms（開） | Sheet / SidePeek のスライド、サイドバーの折りたたみ（300ms） | `sheet.tsx`、`STYLE.sidebarContainer` の `duration-300` |
 | indeterminate | 1.5s ループ | 読込中のプログレス帯、スピナーは連続回転 | `.animate-progress-indeterminate`、`Loader2 animate-spin` |
 

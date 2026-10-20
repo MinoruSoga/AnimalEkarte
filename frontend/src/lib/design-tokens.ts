@@ -91,8 +91,8 @@ export const PALETTE = {
   chartWeight: "#4CAF82",
   /** Chart: grid / axis stroke */
   chartGrid: "#e8e6e3",
-  /** Chart: axis tick text fill */
-  chartAxisText: "#9B9B97",
+  /** Chart: axis tick text fill — ink-muted と同値（白地 7.0:1）。旧 #9B9B97 は 2.79:1 で AA 非達（design-system §2.5・2026-10-20） */
+  chartAxisText: "#615D59",
 
 } as const;
 
