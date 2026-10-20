@@ -14,6 +14,34 @@ export interface RevisitIntakeReadError extends FetchErrorInfo {
 
 const READ_CONTEXT = "問診の取得";
 
+interface ReadBackoff {
+  until: number;
+  seconds: number;
+}
+
+// route（clinic + 予約）別の Retry-After 期限。画面を閉じて開き直しても期限前に GET を出さないよう、
+// hook ではなく module の memory に持つ（localStorage 等へは保存しない。LINE 終了で消える）。
+const readBackoffs = new Map<string, ReadBackoff>();
+
+function backoffKey(clinicId: string, appointmentId: string): string {
+  return `${clinicId}|${appointmentId}`;
+}
+
+function activeBackoff(key: string): ReadBackoff | null {
+  const stored = readBackoffs.get(key);
+  if (stored === undefined) return null;
+  if (Date.now() >= stored.until) {
+    readBackoffs.delete(key);
+    return null;
+  }
+  return stored;
+}
+
+/** テスト用: module memory の期限をすべて破棄する。 */
+export function clearRevisitIntakeReadBackoffs(): void {
+  readBackoffs.clear();
+}
+
 interface ReadState {
   read: RevisitIntakeLIFFRead | null;
   error: RevisitIntakeReadError | null;
@@ -63,7 +91,16 @@ export function useRevisitIntakeRead(
   }>({ forRead: null, entries: [], nextCursor: null, error: null });
   const [loadingMore, startLoadMore] = useTransition();
   // route 共通の Retry-After 期限。読込の再試行と「さらに表示」の両方をこの期限まで止める。
-  const [backoff, setBackoff] = useState<{ until: number; seconds: number } | null>(null);
+  const routeKey = backoffKey(clinicId, appointmentId);
+  const [backoff, setBackoffState] = useState<ReadBackoff | null>(() => activeBackoff(routeKey));
+  const setBackoff = useCallback(
+    (next: ReadBackoff | null) => {
+      if (next === null) readBackoffs.delete(routeKey);
+      else readBackoffs.set(routeKey, next);
+      setBackoffState(next);
+    },
+    [routeKey],
+  );
 
   // 期限中に要求された再取得（送信成功後・INTAKE_CLOSED 後など）は捨てずに保留し、期限が来たら実行する。
   // 保留中は refetching として扱い、editor は古い snapshot のまま送信できない。
@@ -83,36 +120,43 @@ export function useRevisitIntakeRead(
       Math.max(0, backoff.until - Date.now()),
     );
     return () => clearTimeout(timer);
-  }, [backoff, refetchQueued]);
+  }, [backoff, refetchQueued, setBackoff]);
 
   useEffect(() => {
     let cancelled = false;
-    liffApi
-      .getRevisitIntake(clinicId, appointmentId, idToken)
-      .then((read) => {
-        if (cancelled) return;
-        setState({ read, error: null, loadedToken: requestToken });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const retryAfterSeconds = revisitIntakeRetryAfterSeconds(err);
-        const retryAvailableAt =
-          retryAfterSeconds !== null ? Date.now() + retryAfterSeconds * 1000 : null;
-        const info = resolveFetchError(err, READ_CONTEXT);
-        // 401 では保持中の本文・履歴を出し続けない（403/404 と同じく保護された snapshot を捨てる）。
-        setState((prev) => ({
-          read: info.status === 401 ? null : prev.read,
-          error: { ...info, retryAfterSeconds, retryAvailableAt },
-          loadedToken: requestToken,
-        }));
-        if (retryAfterSeconds !== null && retryAvailableAt !== null) {
-          setBackoff({ until: retryAvailableAt, seconds: retryAfterSeconds });
-        }
-      });
+    // 開き直し直後でも、保存された期限前には GET を出さない（期限後に取得する）。
+    const waitMs = Math.max(0, (activeBackoff(routeKey)?.until ?? 0) - Date.now());
+    const request = () => {
+      liffApi
+        .getRevisitIntake(clinicId, appointmentId, idToken)
+        .then((read) => {
+          if (cancelled) return;
+          setState({ read, error: null, loadedToken: requestToken });
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          const retryAfterSeconds = revisitIntakeRetryAfterSeconds(err);
+          const retryAvailableAt =
+            retryAfterSeconds !== null ? Date.now() + retryAfterSeconds * 1000 : null;
+          const info = resolveFetchError(err, READ_CONTEXT);
+          // 401 では保持中の本文・履歴を出し続けない（403/404 と同じく保護された snapshot を捨てる）。
+          setState((prev) => ({
+            read: info.status === 401 ? null : prev.read,
+            error: { ...info, retryAfterSeconds, retryAvailableAt },
+            loadedToken: requestToken,
+          }));
+          if (retryAfterSeconds !== null && retryAvailableAt !== null) {
+            setBackoff({ until: retryAvailableAt, seconds: retryAfterSeconds });
+          }
+        });
+    };
+    const timer = waitMs > 0 ? setTimeout(request, waitMs) : null;
+    if (timer === null) request();
     return () => {
       cancelled = true;
+      if (timer !== null) clearTimeout(timer);
     };
-  }, [clinicId, appointmentId, idToken, requestToken]);
+  }, [clinicId, appointmentId, idToken, requestToken, routeKey, setBackoff]);
 
   const refetch = useCallback(() => {
     if (backoff !== null && Date.now() < backoff.until) {
@@ -177,7 +221,7 @@ export function useRevisitIntakeRead(
         }));
       }
     });
-  }, [read, nextCursor, backoff, clinicId, appointmentId, idToken]);
+  }, [read, nextCursor, backoff, clinicId, appointmentId, idToken, setBackoff]);
 
   return {
     read,

@@ -20,6 +20,7 @@ vi.mock("@line/liff", () => ({
   default: { isInClient: () => true, sendMessages: sendMessagesMock },
 }));
 
+import { clearRevisitIntakeReadBackoffs } from "../hooks/use-revisit-intake-read";
 import { RevisitIntakePage, type RevisitIntakeReservationSummary } from "./RevisitIntakePage";
 import {
   findPendingEntry,
@@ -267,6 +268,7 @@ function purposeInput(): HTMLTextAreaElement {
 }
 
 beforeEach(() => {
+  clearRevisitIntakeReadBackoffs();
   let n = 0;
   keyMock.mockReset();
   keyMock.mockImplementation(
@@ -1431,6 +1433,36 @@ describe("RevisitIntakePage 追加の fail-closed（レビュー対応）", () =
     });
     await user.click(screen.getByRole("button", { name: "再試行" }));
     expect(await screen.findByText("未回答")).toBeInTheDocument();
+  });
+
+  it("読込の Retry-After 期限は画面を開き直しても保持し、期限前に GET を出さず期限後に取得する", async () => {
+    let reads = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        reads += 1;
+        if (reads === 1) {
+          return HttpResponse.json(
+            { error: "too many requests" },
+            { status: 429, headers: { "Retry-After": "1" } },
+          );
+        }
+        return HttpResponse.json(read(unansweredTarget()));
+      }),
+    );
+    const first = renderPage();
+    expect(await screen.findByText(/1秒ほど待ってから再試行してください/)).toBeInTheDocument();
+    first.unmount();
+
+    // 期限内に開き直しても GET を出さない（hook ローカルの期限が消えて即時 GET になる退行を防ぐ）。
+    renderPage();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+    expect(reads).toBe(1);
+    expect(screen.queryByText("未回答")).not.toBeInTheDocument();
+
+    expect(await screen.findByText("未回答", undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(reads).toBe(2);
   });
 
   it("同じ target で head が変わったとき、local draft が無ければ入力を新しい最新回答へ同期する", async () => {
