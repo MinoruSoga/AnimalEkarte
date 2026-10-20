@@ -96,6 +96,9 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 	if p == nil {
 		return Outcome{}, apperrors.WrapInternalServerError("operation participant is required")
 	}
+	if p.Effects() != EffectsDatabaseOnly {
+		return Outcome{}, apperrors.WrapInvalidInput("operation supports database-transaction-only effects")
+	}
 	if r.fp == nil {
 		return Outcome{}, apperrors.WrapInternalServerError("operation fingerprinter is required")
 	}
@@ -124,13 +127,14 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 	}
 
 	var outcome Outcome
+	var applyFailure error
 	txErr := r.tx.WithTx(ctx, func(txCtx context.Context) error {
-		return r.participate(txCtx, binding, req, p, &outcome)
+		return r.participate(txCtx, binding, req, p, &outcome, &applyFailure)
 	})
 	if txErr == nil {
 		return outcome, nil
 	}
-	return r.resolveFailedAttempt(ctx, binding, p, txErr)
+	return r.resolveFailedAttempt(ctx, binding, p, errors.Join(txErr, applyFailure))
 }
 
 // Lookup returns the stored state of one binding without performing the owner
@@ -228,7 +232,7 @@ func disclose(ctx context.Context, auth LookupAuthorizer, binding Binding, statu
 
 // participate is the outermost business transaction body: owner gate, binding
 // row lock, receipt check, owner write and receipt insert.
-func (r *Runner) participate(ctx context.Context, binding Binding, req Request, p Participant, outcome *Outcome) error {
+func (r *Runner) participate(ctx context.Context, binding Binding, req Request, p Participant, outcome *Outcome, applyFailure *error) error {
 	if err := p.Gate(ctx); err != nil {
 		return err
 	}
@@ -265,6 +269,7 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 	applied, err := p.Apply(ctx, binding, req)
 	var indeterminate *IndeterminateEffect
 	if errors.As(err, &indeterminate) {
+		*applyFailure = indeterminate // retain this cause if the later commit fails
 		// The effect may or may not have happened. Undo the owner writes and
 		// commit the unknown row inside this transaction, while the binding
 		// row lock is still held: the stop state is durable before the lock is
@@ -280,7 +285,7 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 			// not mask the indeterminate cause.
 			return errors.Join(indeterminate, unknownErr)
 		}
-		*outcome = Outcome{Status: StatusResultUnavailable, Binding: &binding}
+		*outcome = disclose(ctx, p, binding, StatusResultUnavailable, nil)
 		return nil
 	}
 	if err != nil {
@@ -308,7 +313,7 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Participant, txErr error) (Outcome, error) {
 	committed, err := r.store.LoadResult(ctx, binding)
 	if err != nil {
-		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil //nolint:nilerr // 意図的: 成否を再読取できないときは結果不明として停止し、再実行させない
+		return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil //nolint:nilerr // 意図的: 成否を再読取できないときは結果不明として停止し、再実行させない
 	}
 	if committed != nil {
 		return disclose(ctx, p, binding, StatusSucceeded, committed), nil
@@ -317,15 +322,15 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 	if errors.Is(txErr, errBindingBusy) || errors.As(txErr, &busy) {
 		// Another attempt holds the binding row or a resource behind the owner
 		// gate. Nothing is recorded: the winner owns the outcome row.
-		return Outcome{Status: StatusInProgress, Binding: &binding}, nil
+		return disclose(ctx, p, binding, StatusInProgress, nil), nil
 	}
 	unknown, err := r.store.HasUnknownOutcome(ctx, binding)
 	if err != nil {
-		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil //nolint:nilerr // 意図的: unknown 有無を確認できないときは記録せず結果不明として停止する
+		return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil //nolint:nilerr // 意図的: unknown 有無を確認できないときは記録せず結果不明として停止する
 	}
 	if unknown {
 		// Unknown is sticky: no failure row is recorded over it.
-		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
+		return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil
 	}
 
 	var indeterminate *IndeterminateEffect
@@ -343,9 +348,9 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 			// the log so an operator resolves the binding by hand.
 			slog.Error("operation unknown outcome recording failed",
 				"clinic_id", binding.ClinicID, "operation_key", binding.Key, "err", err)
-			return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil //nolint:nilerr // 意図的: unknown記録に失敗しても結果不明として停止し、再実行を誘発しない
+			return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil //nolint:nilerr // 意図的: unknown記録に失敗しても結果不明として停止し、再実行を誘発しない
 		}
-		return Outcome{Status: StatusResultUnavailable, Binding: &binding}, nil
+		return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil
 	}
 
 	attemptOutcome := OutcomeRetryableFailure

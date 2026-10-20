@@ -132,7 +132,7 @@ const (
 	OutcomeRejected AttemptOutcome = "rejected"
 	// OutcomeRetryableFailure: the transaction rolled back for a non-business reason.
 	OutcomeRetryableFailure AttemptOutcome = "retryable_failure"
-	// OutcomeUnknown: the owner cannot determine the effect (e.g. external send).
+	// OutcomeUnknown: the owner cannot determine its transactional database effect.
 	// Executions for the binding stop until resolved.
 	OutcomeUnknown AttemptOutcome = "unknown"
 )
@@ -145,11 +145,10 @@ type Rejection struct {
 
 func (r *Rejection) Error() string { return "operation rejected: " + string(r.Status) }
 
-// IndeterminateEffect is returned by Participant.Apply when the owner cannot
-// tell whether its effect happened (e.g. an external send whose response was
-// lost). The transaction rolls back, the attempt is recorded as unknown, and
-// every later attempt of the binding stops with StatusResultUnavailable until
-// the owner resolves it; a new key never rescues it.
+// IndeterminateEffect conservatively stops an uncertain database attempt. It
+// does not make nontransactional effects safe: external sends, filesystem writes
+// and other effects outside the owner transaction are unsupported. Such work
+// needs a separately owned transactional outbox and delivery/reconciliation.
 type IndeterminateEffect struct {
 	Cause error
 }
@@ -172,11 +171,20 @@ func (e *Busy) Error() string { return "operation resource is held by another at
 
 func (e *Busy) Unwrap() error { return e.Cause }
 
+// EffectScope declares which effects an owner performs. Only database writes
+// within the supplied outer transaction (including an outbox INSERT) are supported.
+type EffectScope string
+
+const EffectsDatabaseOnly EffectScope = "database-transaction-only"
+
 // Participant is implemented by each write owner (consumer-side adapter).
 // AuthorizeLookup is also applied before a stored result is replayed, so a
 // resend never discloses a result the current grant may no longer read.
 type Participant interface {
 	LookupAuthorizer
+	// Effects must explicitly select EffectsDatabaseOnly. A zero/unknown scope
+	// is rejected before claiming a binding or calling Gate/Apply.
+	Effects() EffectScope
 	// Gate acquires the owner's shared gate as the first step of the outermost
 	// business transaction (e.g. a reservation-graph participant). Owners
 	// without a shared gate return nil. The helper never takes a gate itself.

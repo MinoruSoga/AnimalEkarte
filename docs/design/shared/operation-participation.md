@@ -26,9 +26,14 @@
 
 ### 1.1 束縛とfingerprint（R2）
 
+**適用境界（今回の訂正が以下の旧外部効果例に優先）**: Participant は `Effects() == EffectsDatabaseOnly` を明示する。未指定・外部送信等は claim/Gate/Apply の前に拒否する。Apply は渡された同一DB transactionで完結する書込・必須監査・receiptだけを行う。outbox行INSERTは含められるが、実際の外部送信・ファイル書込・他DB等は対象外。送信は別ownerのoutbox配送/結果照合契約が必要で、本helperのunknown保存を外部送信の再実行fenceとして利用開始してはならない。以下に残るunknown fixtureはDBエラーの保守的停止であり、外部効果の安全性を実証しない。
+
+失敗後のbusy/sticky unknown/結果読取エラー/unknown読取エラーもrollback後に現在認可を通す。unknown行記録後のcommitエラーには元のIndeterminateEffectを保持し、generic retryable_failureへ落とさない。永続停止を保存できない状態は引き続き未成立であり、外部consumer接続の許可にはならない。
+
+
 - 束縛scopeは認証済みの`clinic_id`＋`owner_kind`＋`actor_kind`/`actor_ref`＋`intent`＋`operation_key`（DDLの一意キーと同じ）。clientが指定したclinic・actorで行を選ばない。
 - `Content`（業務内容）と`Preconditions`（CAS・fence等の実行前提）は別の型である。集合値（例: 対象行ID集合）はadapterが正規順（昇順）で1つの値にしてから`Content`へ入れる。順序違いの同じ内容を別fingerprintにしない。
-- ownerが効果の有無を判定できない場合（外部送信の応答喪失など）は`Apply`が`*IndeterminateEffect`を返す。helperは`unknown`を、binding行lockを保持したままの同一transaction内でsavepointにより記録する。savepointは`Apply`の**前に**張る（書込後のsavepointではowner writeをundoできない）。lock解放前に停止状態がcommitされるため、rollback〜記録間に並行実行が`Apply`を再実行する窓はない。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。
+- ownerがDB内効果の有無を判定できない場合は`Apply`が`*IndeterminateEffect`を返す。helperは`unknown`を、binding行lockを保持したままの同一transaction内でsavepointにより記録する。savepointは`Apply`の**前に**張る（書込後のsavepointではowner writeをundoできない）。lock解放前に停止状態がcommitされるため、rollback〜記録間に並行実行が`Apply`を再実行する窓はない。fingerprintの入力は`owner_kind`・`intent`・`Content`だけで、`Preconditions`は型の上でfingerprintへ入らない。`expected_versions`のように両者を一括する名前は使わない。
 - `Apply`はfingerprint済みの`Request`そのものを受け取り、owner writeは`req.Content.Fields()`（読取専用の複製）から導出する。fingerprintされた内容と書き込まれた内容が乖離しreceiptを別内容で保存する経路を型とAPIで閉じる。
 - gateや`Apply`が保持できないlockを取れなかった場合は`*Busy`を返す。helperは`operation-in-progress`として応答し、attemptを記録しない（binding行のlock失敗と同一契約）。
 - fingerprintはサーバー鍵によるHMAC-SHA-256。鍵versionを保存し、旧鍵versionで再計算して照合する。鍵はconstructorへ注入し、環境変数名・設定配線は未選定（§5）。

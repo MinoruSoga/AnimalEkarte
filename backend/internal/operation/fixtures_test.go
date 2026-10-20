@@ -218,7 +218,7 @@ func r2UnknownResultLookup(t *testing.T) {
 	// cannot tell whether its effect happened (e.g. the external send lost its
 	// response). The participant reports an indeterminate effect.
 	unknownKey := uuid.MustParse("33333333-3333-4333-8333-333333333333")
-	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
 	attempted, err := f.runner.Execute(ctx, Request{
 		Scope:         f.scope,
 		Key:           unknownKey,
@@ -399,7 +399,7 @@ func TestExecute_UnknownStaysStickyAfterGateFailure(t *testing.T) {
 	ctx := t.Context()
 	pre := Preconditions{"billing_version": "1", "line_version": "1"}
 
-	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
 	first, err := f.runner.Execute(ctx, Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: pre}, f.owner)
 	require.NoError(t, err)
 	require.Equal(t, StatusResultUnavailable, first.Status)
@@ -583,7 +583,8 @@ var errAbortedCommit = errors.New("fake commit: transaction is aborted")
 // that returns nil on an aborted transaction block fails the commit, like the
 // real PostgreSQL transactor would.
 type fakeTx struct {
-	store *fakeStore
+	store      *fakeStore
+	failCommit error
 }
 
 func (t *fakeTx) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
@@ -604,6 +605,10 @@ func (t *fakeTx) WithTx(ctx context.Context, fn func(ctx context.Context) error)
 	if aborted {
 		t.store.rollback(journal)
 		return errAbortedCommit
+	}
+	if t.failCommit != nil {
+		t.store.rollback(journal)
+		return t.failCommit
 	}
 	t.store.commit(journal)
 	return nil
@@ -1005,6 +1010,8 @@ func newFakeBillingParticipant(store *fakeStore) *fakeBillingParticipant {
 		versions: map[string]string{"billing_version": "1", "line_version": "1"},
 	}
 }
+
+func (p *fakeBillingParticipant) Effects() EffectScope { return EffectsDatabaseOnly }
 
 func (p *fakeBillingParticipant) Gate(_ context.Context) error {
 	p.mu.Lock()

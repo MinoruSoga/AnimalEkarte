@@ -1,6 +1,7 @@
 package operation
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -41,7 +42,7 @@ func TestExecute_GateBusyRecordsNothingAndReportsInProgress(t *testing.T) {
 // actor sees not-authorized instead of learning that the binding is stuck.
 func TestExecute_UnknownDisclosureRequiresCurrentGrant(t *testing.T) {
 	f := newR2Fixture(t)
-	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
 	ctx := t.Context()
 	req := Request{
 		Scope:         f.scope,
@@ -98,7 +99,7 @@ func TestLookup_BusyBindingRollsBackAbortedTransaction(t *testing.T) {
 // untouched.
 func TestExecute_UnknownCommitsUnderLockBeforeRelease(t *testing.T) {
 	f := newR2Fixture(t)
-	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
 	req := Request{
 		Scope:         f.scope,
 		Key:           f.key,
@@ -147,7 +148,7 @@ func TestExecute_UnknownCommitsUnderLockBeforeRelease(t *testing.T) {
 // to endorse it.
 func TestExecute_UnknownPersistenceFailureKeepsResponseStopped(t *testing.T) {
 	f := newR2Fixture(t)
-	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("send response lost")})
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
 	f.store.failRecordOutcome(errors.New("attempt store unavailable"))
 	req := Request{
 		Scope:         f.scope,
@@ -236,4 +237,73 @@ func TestExecute_KeyConflictHidesFromRevokedGrant(t *testing.T) {
 	denied, err := f.runner.Execute(t.Context(), probe, f.owner)
 	require.NoError(t, err)
 	require.Equal(t, StatusNotAuthorized, denied.Status)
+}
+
+// Rejected scopes never reach binding creation or owner code.
+type unsupportedEffects struct{ *fakeBillingParticipant }
+
+func (p unsupportedEffects) Effects() EffectScope { return "external-send" }
+
+func TestExecute_RejectsNontransactionalEffectsBeforeClaim(t *testing.T) {
+	f := newR2Fixture(t)
+	_, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content}, unsupportedEffects{f.owner})
+	require.Error(t, err)
+	require.Zero(t, f.store.bindingCount())
+	require.Zero(t, f.owner.applyCount())
+}
+
+type failedReadStore struct {
+	store
+	resultErr, unknownErr error
+}
+
+func (s failedReadStore) LoadResult(ctx context.Context, b Binding) (*Result, error) {
+	if s.resultErr != nil {
+		return nil, s.resultErr
+	}
+	return s.store.LoadResult(ctx, b)
+}
+func (s failedReadStore) HasUnknownOutcome(ctx context.Context, b Binding) (bool, error) {
+	if s.unknownErr != nil {
+		return false, s.unknownErr
+	}
+	return s.store.HasUnknownOutcome(ctx, b)
+}
+func TestFailedAttempt_AllStoredStatesRecheckGrant(t *testing.T) {
+	for _, name := range []string{"busy", "sticky-unknown", "result-read-error", "unknown-read-error"} {
+		t.Run(name, func(t *testing.T) {
+			f := newR2Fixture(t)
+			f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("uncertain database result")})
+			f.execute(f.content, Preconditions{"billing_version": "1", "line_version": "1"})
+			b, _ := f.store.bindingFor(f.scope, f.key)
+			f.owner.revoke()
+			txErr := errors.New("gate failed")
+			switch name {
+			case "busy":
+				txErr = &Busy{}
+			case "result-read-error":
+				f.runner.store = failedReadStore{store: f.store, resultErr: errors.New("unavailable")}
+			case "unknown-read-error":
+				f.runner.store = failedReadStore{store: f.store, unknownErr: errors.New("unavailable")}
+			}
+			got, err := f.runner.resolveFailedAttempt(t.Context(), b.Binding, f.owner, txErr)
+			require.NoError(t, err)
+			require.Equal(t, StatusNotAuthorized, got.Status)
+			require.Nil(t, got.Result)
+		})
+	}
+}
+
+func TestExecute_UnknownCommitFailureRetainsCause(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
+	f.runner.tx = &fakeTx{store: f.store, failCommit: errors.New("commit failed")}
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, got.Status)
+	b, _ := f.store.bindingFor(f.scope, f.key)
+	a, ok := f.store.latestAttempt(b.Binding.ID)
+	require.True(t, ok)
+	require.Equal(t, OutcomeUnknown, a.Outcome)
+	require.Equal(t, "1", f.owner.version("billing_version"))
 }
