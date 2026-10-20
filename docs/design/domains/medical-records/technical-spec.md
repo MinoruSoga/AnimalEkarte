@@ -692,7 +692,7 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 | 区分 | 根拠・状態 |
 |:---|:---|
 | 採用目標 | [D03の1FR／10AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)。予定表示と同一予定への実績／結果関連を3タブへ適用 |
-| 静的観察基準 | main `32b648eb8780c578b6c5b0f3b7e02796f2382695`。以下の限定FE読取のみで、全writer／API／DB適合証明ではない |
+| 静的観察基準 | main `32b648eb8780c578b6c5b0f3b7e02796f2382695`。以下の限定FE／BE読取のみで、全writer／API／DB適合証明ではない |
 | 実装／実機検証 | 今回未実施。既存の検索候補・保存済み結果表示だけでは連動達成ではない |
 
 ### 現行の限定観察
