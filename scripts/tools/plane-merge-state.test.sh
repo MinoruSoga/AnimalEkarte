@@ -454,10 +454,18 @@ rate_case() {
   RUN_BUDGET_EXHAUSTED=0
   # shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
   RUN_ANY_REQUEST_MADE=""
+  # shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
+  RUN_DEADLINE_EPOCH=$(( $(plane_now_epoch) + $(plane_total_seconds) ))
   PLANE_MERGE_STATE_MAX_ATTEMPTS=4
 }
 
 rate_calls() { grep -c "$1" "$CASE_DIR/calls" || true; }
+
+# Retry-After is parsed as a bounded base-10 integer: leading zeros are
+# decimal (RFC 9110), not octal, and absurd magnitudes cannot overflow.
+assert_eq "leading-zero Retry-After is decimal" '8' "$(plane_retry_after_seconds '08')"
+assert_eq "zero Retry-After is preserved" '0' "$(plane_retry_after_seconds '0')"
+assert_eq "huge Retry-After is bounded" '999999999' "$(plane_retry_after_seconds '99999999999999999999')"
 
 # lookup 429 (Retry-After: 2) then 200: respected wait, then success.
 rate_case "429-then-200"
@@ -507,6 +515,8 @@ assert_eq "invalid Retry-After waits the backoff step" '1' "$(grep -c '^2\.000$'
 rate_case "httpdate-retry-after"
 HTTPDATE_FIXTURE="Wed, 21 Oct 2026 12:00:00 GMT"
 RATE_EPOCH_NOW=$(( $(plane_httpdate_to_epoch "$HTTPDATE_FIXTURE") - 37 ))
+# shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
+RUN_DEADLINE_EPOCH=$(( RATE_EPOCH_NOW + $(plane_total_seconds) ))
 printf '%s\n' "429|$HTTPDATE_FIXTURE|detail" '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
 if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
   ok "HTTP-date Retry-After converts to a wait"
@@ -643,6 +653,32 @@ assert_eq "passes summary separates fail from ok" '1' \
   "$(grep -c '^SUMMARY  ok=1 skip=0 fail=1 unknown=0 deferred=0' "$CASE_DIR/summary.out")"
 assert_eq "passes retry writes the transient ticket once" '1' "$(rate_calls '^PATCH')"
 
+# an unaffordable throttle must stop requests instead of sending unpaced.
+rate_case "throttle-refusal"
+PLANE_MERGE_STATE_THROTTLE_MS=400
+RUN_WAIT_BUDGET_REMAINING_MS=300
+printf '%s\n' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ng "unaffordable throttle defers the ticket without unpaced requests"
+else
+  ok "unaffordable throttle defers the ticket without unpaced requests"
+fi
+assert_eq "unaffordable throttle sends only the first lookup" '1' "$(wc -l < "$CASE_DIR/calls" | tr -d ' ')"
+assert_eq "unaffordable throttle sends no PATCH" '0' "$(rate_calls '^PATCH')"
+PLANE_MERGE_STATE_THROTTLE_MS=0
+
+# a passed wall deadline stops requests before they are sent.
+rate_case "deadline-exhausted"
+# shellcheck disable=SC2034  # read by plane-merge-state.sh at runtime
+RUN_DEADLINE_EPOCH=$(( RATE_EPOCH_NOW - 1 ))
+printf '%s\n' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+if sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main >/dev/null; then
+  ng "passed deadline defers the ticket without requests"
+else
+  ok "passed deadline defers the ticket without requests"
+fi
+assert_eq "passed deadline sends no request" '0' "$(wc -l < "$CASE_DIR/calls" | tr -d ' ')"
+
 # 25-ticket equivalent: shared budget forces a finite stop with a summary.
 # The fake shares one comment collection across tickets, so after the first
 # full success the next three tickets resolve through the external_id dedupe
@@ -674,8 +710,8 @@ else
 fi
 assert_eq "25-ticket run reports the summary line" '1' \
   "$(grep -c '^SUMMARY  ok=4 skip=0 fail=0 unknown=0 deferred=21' "$CASE_DIR/summary.out")"
-assert_eq "25-ticket run stays within the bounded request count" '1' \
-  "$(( $(wc -l < "$CASE_DIR/calls" | tr -d ' ') <= 90 ? 1 : 0 ))"
+assert_eq "no request is sent after the budget is exhausted" '15' \
+  "$(wc -l < "$CASE_DIR/calls" | tr -d ' ')"
 assert_eq "25-ticket successful tickets are never re-written" '1' "$(rate_calls '^PATCH')"
 assert_eq "25-ticket comment is never posted twice" '1' "$(rate_calls '^POST')"
 assert_eq "25-ticket run never spends a negative budget" '1' \

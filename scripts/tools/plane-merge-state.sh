@@ -15,12 +15,15 @@
 # Rate limiting: Plane API 429 answers are waited out honoring Retry-After
 # (seconds or HTTP-date); missing or invalid headers fall back to capped
 # exponential backoff, and every request is paced by a small throttle. All
-# waits share one finite whole-run budget: when a requested wait exceeds it,
-# the ticket is deferred and listed in the summary instead of being re-hit.
-# Writes whose outcome is unknown (transport failure, 5xx) are re-verified
-# against the live state / comment dedupe before any resend, so an executed
-# write is never repeated. Permanent 4xx errors (401/403, bad input) are
-# never retried.
+# waits share one finite whole-run budget, and per-request transfer time is
+# bounded by a whole-run wall deadline (each transfer timeout is derived
+# from the remaining seconds): when either is exhausted, remaining tickets
+# are recorded as deferred without another request instead of being re-hit
+# with a shortened wait. Writes whose outcome is unknown (transport
+# failure, 5xx) are re-verified against the live state / comment dedupe
+# before any resend, so an executed write is never repeated. Permanent 4xx
+# errors (401/403, bad input) are never retried, and the end-of-run retry
+# pass reruns only transient and unknown outcomes.
 set -euo pipefail
 
 PLANE_API_ORIGIN="${PLANE_API_ORIGIN:-https://api.plane.so}"
@@ -247,6 +250,10 @@ require_command() {
 #   PLANE_MERGE_STATE_MAX_WAIT_SECONDS  whole-run wait budget (default 120s)
 #   PLANE_MERGE_STATE_THROTTLE_MS       pacing sleep between requests (default 400ms)
 #   PLANE_MERGE_STATE_BACKOFF_CAP_SECONDS  cap for headerless backoff (default 15s)
+plane_now_epoch() {
+  date +%s
+}
+
 # Whole-run wait budget in milliseconds, derived from a sanitized integer
 # second count so a malformed override cannot defeat the budget arithmetic.
 plane_wait_budget_ms() {
@@ -259,16 +266,25 @@ plane_wait_budget_ms() {
   printf '%s\n' $(( seconds * 1000 ))
 }
 
+# Whole-run wall deadline in seconds; per-request transfer timeouts are
+# derived from it so cumulative transfer time cannot exceed the deadline.
+plane_total_seconds() {
+  local seconds="${PLANE_MERGE_STATE_MAX_TOTAL_SECONDS:-600}"
+  case "$seconds" in ''|*[!0-9]*) seconds=600 ;; esac
+  if (( ${#seconds} > 9 )); then
+    seconds=600
+  fi
+  printf '%s\n' "$seconds"
+}
+
 RUN_WAIT_BUDGET_REMAINING_MS="$(plane_wait_budget_ms)"
 RUN_BUDGET_EXHAUSTED=0
 RUN_ANY_REQUEST_MADE=""
 # plane_http / plane_write_http store the response code here instead of a
 # command substitution, so wait-budget accounting survives in this shell.
 PLANE_HTTP_CODE="000"
-
-plane_now_epoch() {
-  date +%s
-}
+# Wall-clock deadline for cumulative transfer time (epoch seconds).
+RUN_DEADLINE_EPOCH=$(( $(plane_now_epoch) + $(plane_total_seconds) ))
 
 plane_sleep_seconds() {
   sleep "$1"
@@ -300,7 +316,10 @@ plane_throttle() {
     return 0
   fi
   if (( ms > RUN_WAIT_BUDGET_REMAINING_MS )); then
-    return 0
+    # Pacing no longer fits the budget: refuse so the caller stops instead
+    # of sending an unpaced request.
+    RUN_BUDGET_EXHAUSTED=1
+    return 1
   fi
   RUN_WAIT_BUDGET_REMAINING_MS=$(( RUN_WAIT_BUDGET_REMAINING_MS - ms ))
   plane_sleep_seconds "$(printf '%d.%03d' $(( ms / 1000 )) $(( ms % 1000 )))"
@@ -314,6 +333,8 @@ plane_http_once() {
   local payload="$3"
   local body_file="$4"
   local headers_file="$5"
+  local max_time="${6:-30}"
+  case "$max_time" in ''|*[!0-9]*) max_time=30 ;; esac
   local config_file http_code
   config_file="$(mktemp)"
   chmod 600 "$config_file"
@@ -322,12 +343,12 @@ plane_http_once() {
   if [[ -n "$payload" ]]; then
     printf 'header = "Content-Type: application/json"\n' >>"$config_file"
     http_code="$(
-      curl -sS --max-time 30 --config "$config_file" \
+      curl -sS --max-time "$max_time" --config "$config_file" \
         -o "$body_file" -D "$headers_file" -w '%{http_code}' -X "$method" --data "$payload" "$url" || true
     )"
   else
     http_code="$(
-      curl -sS --max-time 30 --config "$config_file" \
+      curl -sS --max-time "$max_time" --config "$config_file" \
         -o "$body_file" -D "$headers_file" -w '%{http_code}' -X "$method" "$url" || true
     )"
   fi
@@ -373,25 +394,42 @@ plane_retry_after_seconds() {
       now="$(plane_now_epoch)"
       case "$now" in ''|*[!0-9]*) return 0 ;; esac
       if (( epoch > now )); then
-        printf '%s\n' $(( epoch - now ))
+        raw=$(( epoch - now ))
+        # Bound the delta so later arithmetic cannot overflow int64.
+        if (( raw > 999999999 )); then
+          raw=999999999
+        fi
+        printf '%s\n' "$raw"
       fi
       ;;
     *)
+      # RFC 9110 delay-seconds is a decimal integer. Strip leading zeros
+      # (Bash would read them as octal and abort on digits 8/9) and bound
+      # the magnitude so later arithmetic cannot overflow.
+      if (( ${#raw} > 9 )); then
+        printf '999999999\n'
+        return 0
+      fi
+      raw="$((10#$raw))"
       printf '%s\n' "$raw"
       ;;
   esac
 }
 
 # Capped exponential backoff for missing/invalid Retry-After and transient
-# failures: 2s, 4s, 8s, ... up to the cap.
+# failures: 2s, 4s, 8s, ... up to the cap. The loop stops doubling once the
+# cap is reached so a large step count cannot overflow int64 arithmetic.
 plane_backoff_wait_ms() {
-  local step="$1" cap="$2" wait_ms=2000 d=1
-  while (( d < step )); do
+  local step="$1" cap="$2"
+  local wait_ms=2000
+  local limit=$(( cap * 1000 ))
+  local d=1
+  while (( d < step && wait_ms < limit )); do
     wait_ms=$(( wait_ms * 2 ))
     d=$(( d + 1 ))
   done
-  if (( wait_ms > cap * 1000 )); then
-    wait_ms=$(( cap * 1000 ))
+  if (( wait_ms > limit )); then
+    wait_ms=$limit
   fi
   printf '%s\n' "$wait_ms"
 }
@@ -410,12 +448,35 @@ plane_http_inner() {
   local backoff_cap="${PLANE_MERGE_STATE_BACKOFF_CAP_SECONDS:-15}"
   case "$max_attempts" in ''|*[!0-9]*) max_attempts=4 ;; esac
   case "$backoff_cap" in ''|*[!0-9]*) backoff_cap=15 ;; esac
+  if (( ${#backoff_cap} > 9 )); then backoff_cap=15; fi
   local attempt=0 code raw_wait wait_ms backoff_step=1 headers
+  local max_time now remaining
   headers="$(mktemp)"
   while :; do
+    # The whole-run wall deadline bounds cumulative transfer time: derive
+    # each transfer timeout from the remaining seconds and stop (deferred)
+    # once the deadline has passed, without sending another request.
+    max_time=30
+    now="$(plane_now_epoch)"
+    case "$now" in ''|*[!0-9]*) now="$(date +%s)" ;; esac
+    remaining=$(( RUN_DEADLINE_EPOCH - now ))
+    if (( remaining <= 0 )); then
+      RUN_BUDGET_EXHAUSTED=1
+      rm -f "$headers"
+      PLANE_HTTP_CODE="000"
+      return 0
+    fi
+    if (( remaining < max_time )); then
+      max_time=$remaining
+    fi
+    if ! plane_throttle; then
+      # Pacing no longer fits the budget: stop without an unpaced request.
+      rm -f "$headers"
+      PLANE_HTTP_CODE="000"
+      return 0
+    fi
     attempt=$(( attempt + 1 ))
-    plane_throttle
-    code="$(plane_http_once "$method" "$url" "$payload" "$body_file" "$headers")"
+    code="$(plane_http_once "$method" "$url" "$payload" "$body_file" "$headers" "$max_time")"
     case "$code" in
       429)
         raw_wait="$(plane_retry_after_from_headers "$headers")"
@@ -981,6 +1042,13 @@ run_ticket_passes() {
   while IFS= read -r ticket_id; do
     [[ -z "$ticket_id" ]] && continue
     total=$((total + 1))
+    if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+      # The wait budget is gone: record the ticket as deferred without
+      # hitting the API, honoring the very wait that exhausted the budget.
+      log_line "WAIT  ${ticket_id}  skipped: wait budget already exhausted"
+      printf '%s\t%s\t%s\n' "$ticket_id" 2 deferred >>"$outcome_file"
+      continue
+    fi
     SYNC_OUTCOME_KIND="transient"
     rc=0
     # A conditional call keeps one ticket failure from aborting the pass
@@ -990,13 +1058,22 @@ run_ticket_passes() {
   done <"$tickets_file"
 
   rerun_file="$(mktemp)"
-  awk -F'\t' '$2 != 0 && $3 != "permanent" { print $1 }' "$outcome_file" >"$rerun_file"
+  # Only outcomes eligible for an immediate retry are rerun. Deferred
+  # tickets were deferred by a wait that exceeded the budget; re-hitting
+  # the API now would ignore that wait, and permanent failures must never
+  # be resent.
+  awk -F'\t' '$2 != 0 && ($3 == "transient" || $3 == "unknown") { print $1 }' "$outcome_file" >"$rerun_file"
   if [[ -s "$rerun_file" ]]; then
     kept_file="$(mktemp)"
-    awk -F'\t' '$2 == 0 || $3 == "permanent"' "$outcome_file" >"$kept_file"
+    awk -F'\t' '$2 == 0 || $3 == "permanent" || $3 == "deferred"' "$outcome_file" >"$kept_file"
     while IFS= read -r ticket_id; do
       [[ -z "$ticket_id" ]] && continue
       total=$((total + 1))
+      if [[ "$RUN_BUDGET_EXHAUSTED" == "1" ]]; then
+        log_line "WAIT  ${ticket_id}  skipped: wait budget already exhausted"
+        printf '%s\t%s\t%s\n' "$ticket_id" 2 deferred >>"$kept_file"
+        continue
+      fi
       SYNC_OUTCOME_KIND="transient"
       rc=0
       sync_one_ticket "$ticket_id" "$base" "$number" "$pr_url" "$head" || rc=$?
@@ -1095,6 +1172,7 @@ main() {
   RUN_WAIT_BUDGET_REMAINING_MS="$(plane_wait_budget_ms)"
   RUN_BUDGET_EXHAUSTED=0
   RUN_ANY_REQUEST_MADE=""
+  RUN_DEADLINE_EPOCH=$(( $(plane_now_epoch) + $(plane_total_seconds) ))
   run_ticket_passes "$tickets_file" "$base" "$number" "$pr_url" "$head"
 }
 
