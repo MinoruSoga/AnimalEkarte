@@ -1,0 +1,264 @@
+# EMR-494 編集権・本人暗号draftと EMR-495 接続契約
+
+採用日: 2026-10-20。状態: **技術設計採用済み・未実装・検証 NOT_RUN**。識別: `DESIGN-494-20261020-R21`。
+
+Dots採用のA（編集権）／B（本人暗号draft）分離、server broker＋memory DEK＋ciphertext journal方式、Revision 2のschema／API細部、および最終Revision 2.1（13:20 UTC）のclaim lock順・CAS baseline補正を統合した。旧「提案／親最終確認待ち」「方式未選定」「足りなければanchor DDL」は現在の状態を表さない。**Aのmetadata claim anchorはbindingへの複合FKのみとし、medical_records FKもclinics直接FKも付けない。**
+
+調査基準mainは `da27989fa812c1319b62a1c3b4684c419b110fe1`、公開作業の基準mainは `86c9caa34d8498133eb46d4f019c0b08549db554`。本書の根拠となるD03／C06／schema／実装ファイルは両者間で未変更。repoリンクは公開基準SHAへ固定する。[Plane 494](https://app.plane.so/baritechllc/browse/EMR-494/)のR2.1採用本文（更新13:24 UTC）とコメント `77e37512-dc9b-4124-90ee-062f39709130`（更新12:30 UTC）を再確認した。
+
+## 1. 採用範囲と既決業務
+
+- 494 AとBは独立PR。495 Aの複数診断DTO／reader／adapter移行は両方の完成を待たず開始できる。
+- Aの最小実装は編集権の状態readと操作・結果照会、および通常問診PATCHの実fence参加。取得・移譲だけで完成にせず旧epochの実保存を拒否する。未参加writerが残ったままカルテ全体の単独編集保証を有効化しない。
+- Bはserver側本人認可付きkey broker、browser memory-only DEK、端末永続領域は暗号文のみ。設計／コード／fake fixtureのPRは実鍵なしに進められる。実鍵生成・登録、credentials／KMS権限設定、live provider接続は別途明示承認を要し、本PRでは行わない。
+- 閲覧で編集権を取得しない、idleだけで解放しない、一般編集権スタッフの確認付き強制取得、logout後の本人draft保持、再認可・最新比較・明示選択は既決。管理者限定や追加の理由必須、保持期限・自動削除・端末間共有を新設しない。
+- 診療終了、医師確認、会計確定、編集権を別軸として扱い、削除済み `medical_records.status` や旧finalized一律編集禁止を復活させない。
+
+業務正本: [D03編集権取得・解放](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/spec/domains/medical-records/lifecycle.md#record-edit-right-lifecycle-20261018)、[logout後の本人回収](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/spec/domains/medical-records/lifecycle.md#draft-logout-recovery-20261018)。本書は既決を満たす技術方式を固定し、業務承認を再質問するものではない。
+
+## 2. 現状と未接続箇所
+
+| 一次資料／現コード | 静的に確認した事実と接続要求 |
+|---|---|
+| `backend/internal/model/storage_clinical.go` | RecordEditRight／RecordEditRightEvent／StaffRecordDraft／StaffRecordDraftOperationはモデルあり。consumer完成を意味しない |
+| `record_edit_rights` | PK(clinic_id,medical_record_id)、epoch>0、free／held、holder_staff_id、session_ref UUID、時刻 |
+| `record_edit_right_events` | previous／resulting_epoch、intent、prior／new_holder、operation_id |
+| `staff_record_drafts` | unique(account×clinic×record×tab)、input_generation、base_owner_versions、ciphertext、encryption_format、key_reference、hash。device／epoch列なし |
+| `medical_record_dependency_versions` | PK(clinic_id,medical_record_id,owner_kind)、revision bigint>0。問診CASに再利用 |
+| draft RLS／`auth/http_session_me.go` | clinic access AND trusted app.current_account_id。`/me` userはstaff、accountはstaff.AccountIDから別解決。user.idをaccount IDへ流用しない |
+| `routes_records.go` | 問診PATCH、clinical-plan PATCH／DELETE、record PATCHあり。編集権専用routeはこの登録ファイルにない |
+| `inquiry_repository.go` | SaveByMedicalRecordIDは独自TX／親row lockを持ち、削除済み親status参照が残る。ambient participantへ移さない名目fence追加では同一TXにならない |
+| `clinical_plan_service.go`／response／model | Update／Deleteの旧draft lock、GetOrCreateのread経由createを参加台帳へ。responseの旧DiagnosisTypeID等と最終modelの不一致は495 Aで移行 |
+| `operation/{contract,dto,runner,store}.go` | Gate→binding→Apply、canonical UUID、現認可付きreplay、ResultResponseが実在。独自receipt規則を複製しない。bindingにはrecord IDがない |
+
+根拠: [D03詳細設計](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/design/domains/medical-records/technical-spec.md#integrated-save-edit-right-proposal)、[C06共通契約](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/design/shared/integration-contracts.md#detail-design-proposals-20261018)、[詳細ERD一覧](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/architecture/erd-detail/index.md)。現状は静的観察であり、稼働DBやruntimeを確認した結果ではない。
+
+## 3. A: HTTP／DTO契約
+
+本節は採用設計であり新route／wireの実装済み記録ではない。共有API ownerが `backend/docs/api.yaml` へ正式反映し採用SHAを公開する。既存serversは `http://localhost:8080/api/v1`。pathsはprefixなしの `/medical-records/...`、実URLは `/api/v1/medical-records/...` とし二重に `/v1` を加えない。
+
+既存HttpOnly Cookie認証とCSRF `X-Requested-With: XMLHttpRequest` を継承する。operation_key／edit_session_ref／edit_epochまたはexpected_epoch／owner_expected_versionとowner payloadはJSON bodyの平坦なfieldに置く。queryでclinic／accountを選ばせず、新しい `{data:...}`／`{operation:...}` wrapper、Authorization／edit bearer方式、別Idempotency-Keyヘッダを追加しない。
+
+### 3.1 資源操作
+
+| method／path | 入出力・成立条件 |
+|---|---|
+| GET `/medical-records/{id}/edit-right` | 現在view認可と医院／record／petを照合。state=free／held、正のdecimal文字列epoch、認可済みholder表示projection、acquired_at、is_current_sessionを返す。他session_refを返さず、readで取得／延命しない。unknownは通信／取得失敗のUI状態でDB stateではない |
+| POST 同 `/acquire` | operation_key、編集session UUID、expected_epoch。staffは認証から。freeならepoch増分・holder／session・event・receipt・問診baseline準備を同一TX。heldから移転しない。同session・同key成功再送はreceiptのみ |
+| POST 同 `/take-over` | operation_key、新しい編集session UUID、expected_epoch、confirmed=true、confirmed_holder_staff_ref。確認対象が変わればdependency／version conflictで再確認。管理者限定・理由必須は加えない |
+| POST 同 `/release` | operation_key、編集session UUID、expected_epoch、未解決operation refs。現在権と対象保存結果を照合後のみfree＋epoch増分。clientの「未解決なし」だけを信用せず、同key成功再送は元receipt |
+| GET `/medical-records/{id}/operations/{operation_key}?intent=...` | 元targetをpersisted metadata anchorから解決し現在認可後のみ返す。intentは固定allowlist。URL recordと元targetが不一致なら404。URL recordをresolverの根拠にしない |
+
+編集session UUIDのwire fieldはR2-WIREの `edit_session_ref` を使い、DBの `session_ref` と区別する。通常writeは `operation_key, edit_session_ref, edit_epoch, owner_expected_version` とowner payloadを同bodyへ置く。owner版とepochは別。C06 Contentは業務payloadから、現在fence／CASはPreconditionsへ。強制取得で確認したholder／epochは確認内容としてfingerprintへも結び、意味が変わる再確認は新keyにする。認証tokenやopaque編集証明をURL／ログ／draftへ保存しない。
+
+schema名は `MedicalRecordEditRightResponse` / `MedicalRecordEditRightAcquireRequest` / `MedicalRecordEditRightTakeOverRequest` / `MedicalRecordEditRightReleaseRequest` / `MedicalRecordOperationResult`。問診のowner fieldsは既存update requestへ追加する。成功後の画面内容はreadで取得し、receiptへ問診本文を複製しない。
+
+### 3.2 C06結果wireとHTTP mapping
+
+`MedicalRecordOperationResult` は既存 `operation.ResultResponse` の `status, operation_key, result_refs?, committed_versions?, recorded_at?` と同一形。statusをstateへ改名せずreceipt／results／dataラッパーやEffectSummaryを返さない。
+
+| C06 status | このA consumerのHTTP |
+|---|---|
+| succeeded／replayed | 200、保存済み成功結果 |
+| validation | 400 |
+| version-conflict／dependency-changed／edit-right-lost／operation-key-conflict | 409 |
+| operation-in-progress | 202、同key照会のみ |
+| scope-not-found | 404 |
+| not-authorized | 403 |
+| result-unavailable | 503、結果不明として停止 |
+| not-succeeded | 200。成功ではなく、人の再確認後に同key再試行する候補 |
+
+入口のJSON不正・認証欠落等は既存 `ErrorResponse {error:string}` と400／401／403／404。C06到達後のstatus付き結果は平坦ResultResponse。internal error詳細・鍵・fingerprintは公開しない。共通runnerのstatus enumは変更しない。
+
+## 4. A: claim anchorと489の限定追加subset
+
+### 4.1 metadata anchorの確定schema
+
+`operation_bindings` の実列はid／clinic_id／owner_kind／actor_kind／actor_ref／intent／operation_key／fingerprint／fingerprint_key_version／created_atで、record IDは存在しない。fingerprintから逆算できず、成功event／receiptだけでは不成功bindingの認可元を解決できない。新表 `medical_record_operation_targets` を採用する（未作成・未適用）。
+
+| 列・制約 | 採用定義 |
+|---|---|
+| clinic_id／binding_id／medical_record_id | すべてbigint NOT NULL。medical_record_idはCHECK >0の不変metadata |
+| PK | `(clinic_id,binding_id)` |
+| **唯一のFK** | `(binding_id,clinic_id) REFERENCES operation_bindings(id,clinic_id) ON DELETE RESTRICT` |
+| 付けないFK | **medical_recordsへの業務FK、clinicsへの直接FKを付けない**。clinic境界はbinding複合FKとRLSで維持 |
+| RLS | 既存app_private.apply_rls_policyによるhas_clinic_access(clinic_id)。actor／intent／current grantはresolverで別途再照合 |
+
+1 bindingの元recordは1件で不変。Aのacquire／take-over／release／inquiry.saveはowner_kind=`medical_record`、intentは `medical_record.edit_right.acquire` / `medical_record.edit_right.take_over` / `medical_record.edit_right.release` / `medical_record.inquiry.save` とする。
+
+anchorは臨床効果／成功履歴ではなく操作bindingの対象認可anchorで、不成功時も残す。成功eventとだけ同時作成する方式は禁止。record論理削除でも付替えず保持し、削除済み結果の開示は既存現在閲覧grantに従う。解決不能／現在読取不許可ならfail closed。
+
+### 4.2 ClaimTargetとlock順（R2.1）
+
+489が所有する既存Runner ClaimBindingへ、オプショナルなowner `ClaimTarget` participantを追加する。一般consumerへD03知識を入れず、callbackに同TXと新Bindingを渡す。A participantは必須として提供する。
+
+1. claim前にserverが対象clinic／record／現在既存grantを**非lockingで早期検査**する。これは業務成功の認可根拠ではない。
+2. 新binding INSERTとanchor INSERTを同じ短いclaim TXでcommitする。targetはfingerprint対象Contentのrecord_refから導き、別captured targetを使わない。`INSERT ... ON CONFLICT DO NOTHING RETURNING` で新規作成者か判別し、新規時だけcallbackを実行する。anchor失敗はbindingもrollback。
+3. 既存bindingにincoming targetを挿入／上書き／補完しない。同key別recordでも元anchorをresolverで読み元targetの現在認可を適用する。旧anchor欠落はsource-unresolved相当の `StatusResultUnavailable` または `StatusNotAuthorized` でfail closedとし自動補修しない。
+4. claim TXはbindingと不変metadataだけを保存し、既存C06のbinding／clinic lock境界を広げない。record FK検査のKEY SHAREを暗黙取得し共通gate前に業務rowをlockする逆順を作らない。業務row FOR UPDATE、編集権取得、owner CAS、必須監査、成功receiptは後段業務TXに置く。
+5. claim TX終了後に必要なshared gateを取得する。後段はshared gate→既存lifecycle保護→edit row→record／owner順で現在存在／scope／grantを再検査する。claim直後のrecord変更／論理削除を成功させず、anchorだけ残る失敗として扱う。
+6. lookupもanchor自体を認可証明にせず、現在record／clinic／本人actor／intentの現在grantを確認する。locking readが必要なら既存共通gateの後。binding lockを保持したままgateを後取りしない。
+
+Runnerのambient TX内からExecute不可を維持し、ClaimTargetなし既存consumerの挙動は変更しない。[runner](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/operation/runner.go)・[store](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/operation/store.go)・[LookupAuthorizer契約](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/operation/contract.go)への限定変更は489へ引き渡し、494が共有ファイルを並行上書きしない。
+
+494 API／FEモックと495診断adapterは先行可能。A runtimeのlookup／再送接続はanchor付きclaim subsetに依存する。
+
+## 5. A: 最初の実writerと問診CAS
+
+最初の対象は **PATCH `/medical-records/{id}/inquiries`**。494が `inquiry_{handler,request,service,repository}.go`、FE `api/inquiries.ts` とactive-tab save hookの参加を担当する。repository独自TXをouter ambient participantへ移し、必要な経路はGateで先に参加する。
+
+現在staff→account対応、clinic／record／pet、grant、held／holder／session／epoch、owner CAS、必要履歴・audit、依存版、receiptを同じ業務TXへ入れる。既存予約gateと順序を照合し、binding lock→既存lifecycle保護→編集権row→owner／依存子の安定順を維持する。全ownerへ無条件に予約lockを拡大しない。
+
+### 5.1 問診namespaceとbaseline（最終R2.1）
+
+独自CAS列／表は増やさず `medical_record_dependency_versions.owner_kind='inquiry'` を採用。API `owner_expected_version` は正のdecimal文字列、`committed_versions` keyは `inquiry`。
+
+acquire／take-over成功TXの具体順序:
+
+1. shared gate（必要経路）→既存lifecycle保護→`record_edit_rights` row→`medical_records` row。
+2. 対象recordの**既存inquiry rowをID順FOR UPDATE**。
+3. inquiry dependency行がmissingなら `(clinic_id,record_id,'inquiry',1)` を `INSERT ON CONFLICT DO NOTHING`、続いてSELECT FOR UPDATE。
+
+baseline revision=1はこのlock下で観測した現在内容（未作成も含む）のCAS開始点であり、昔の履歴を生成したという意味ではない。inquiry未作成ならrecord rowをcreation serialization pointにし、baseline用の空inquiryは新設しない。既存inquiryのlock前にbaselineを準備しない。bootstrap失敗なら編集権取得もrollbackし、編集可能と表示しない。acquire成功応答は準備済みowner_versionを返す。
+
+初回readに版rowがない場合は `owner_version=null, version_state=uninitialized`。readで0／1を捏造せずINSERTもしない。初回acquireで準備してから入力可能にする。inquiry writerは版row欠落時「準備未完了」として拒否し、保存時に無条件bootstrapして古いreadを承認しない。
+
+変更writeはfence／認可後、`revision=expected` 条件の更新を同TXで行いrevision+1（初回1→2）。実変更なしno-opは増分せず現在版を成功receiptへ。既存PATCH omitted／null区別を保つ。inquiry作成／更新／clear／copy／Undo／内部adapterの全writeは親→inquiry→dependency順と同namespace増分に参加する。GetOrCreateや旧writerが親lockなしで作成する場合はadapter閉包に含め、未参加のままAをruntime切替しない。
+
+問診履歴・audit・dependency増分・receiptの同時commitを維持し、旧statusを復活させない。医師確認等の別owner版をinquiry版へ合算しない。495のclinical_plan既存version／clinical_plan_diagnoses行versionは別で、将来dependency namespace=clinical_planをprojectionに使っても診断行versionと同一視せず、494が勝手に更新しない。
+
+### 5.2 未参加writerとsession境界
+
+header PATCH、clinical-plan PATCH／DELETE／GetOrCreate、vitals、treatment／bulk sort、images、checkups、vaccinations、旧client・内部writerを参加台帳へ列挙する。限定PR完成と全体切替を区別する。D07機器結果等の独立ownerには人のsessionを一律要求せず、自owner認可／CAS／履歴／receiptとD03依存版gateへ接続し、本文編集bypassを作らない。
+
+session_ref単独をbearer権限にしない。auth identity＋現在grant＋stored session／epoch一致を必須とする。同staffでも別タブは別session。reload後は自動取得／自動再送せず、新sessionで明示取得または確認付き強制取得する。session_ref共有・URL露出・localStorage保持で別タブを同一扱いにしない。失権時は旧epoch保存を拒否し入力を保持する。
+
+## 6. 494 Aと495のPR境界
+
+| 単位 | 完了範囲／依存 |
+|---|---|
+| 494-A0 | API／DTO、fence participant interface、writer参加台帳、operation lookup metadata設計。Bなし |
+| 494-A1 | 編集権操作＋inquiry実writer＋audit／CAS／receipt。隠れwriteを含め、全体運用有効化はまだ行わない |
+| 494-A2 FE | API公開SHA固定後、モックで閲覧／取得／確認／競合／権移転／入力保持を独立PR化。Bや全BE完成を待たない |
+| 495-A | clinical_plan_diagnoses slot1／2各複数行、sort_order／id、nullable参照、当時snapshot、versionをrequest／service／repository／response／API／FE adapterへ通す。旧単一値へ切捨てず、494-A0 interfaceの準備を使いB待ちにしない |
+| 495-B | consultation event、通常編集／過去保存版・編集者履歴。実writeは494 fenceへ接続。診療終了は編集権／医師確認／会計確定と別 |
+| 495-C | correction_links、元先record、理由／確認／実診療日／元revision／receipt。複数recordの編集権rowはID順。原患者ID付替えや自動受付／請求／在庫作成なし |
+
+routes／api.yaml／codegenは単一ownerが統合する。494は495所有の `clinical_plan_*` を並行編集しない。B鍵設計と495-Aは並行可能。495は必要subset受領で進め、全BE完成を一括gateにしない。
+
+## 7. B: 採用方式とscope
+
+| owner | 責務 |
+|---|---|
+| Browser | 暗号化／復号、memory-only DEK、ciphertext journal、dirty／比較UI |
+| Server draft owner | 本人とclinic／record／tab、generation CAS、operation refs、current grantを照合して暗号文保管 |
+| Server key broker | opaque key_referenceから同本人・元scope・現在認可を照合後だけDEK利用を許可。server KEK／KMSでwrapped DEK保管 |
+| 認証／TX | trusted staff→accountの現在有効対応をserver解決。欠落／不整合時は本人draft利用不可、staff ID fallbackなし。TXごとに `app.current_account_id` をSET LOCALしpoolへ漏らさない |
+
+scopeは既存の **account×clinic×record×tab**。tab_keyは臨床UIの安定tab区分でbrowser editing sessionと別。別タブciphertextの自動復元、端末間draft一覧／共有／転送／回収UIを新設しない。device情報やランダムbrowser ID／localStorage値を認証因子にしない。journal出所識別が必要なら秘密でないopaque local journal IDを暗号化payloadにだけ持たせ、server権限へ使わない。
+
+server unique scopeへのexpected_generation CASにより同account／tabを別sessionが更新してもsilent last-write-winsにしない。server世代とlocal未同期世代を比較してcollisionを明示し、旧ciphertextを自動廃棄しない。`input_generation` は内容版、`key_version` は鍵版、`edit_epoch` は現在編集権で互いに独立。
+
+## 8. B: 最小key registry DDL設計
+
+新表 **staff_record_draft_keys** を採用する（未作成・未適用）。全列NOT NULL。
+
+| 列 | 型・制約 |
+|---|---|
+| key_reference | text PK。canonical lowercase hyphenated UUID文字列。意味を埋め込まない |
+| clinic_id | bigint REFERENCES clinics(id) ON DELETE RESTRICT |
+| principal_account_id | bigint REFERENCES accounts(id) ON DELETE RESTRICT |
+| medical_record_id | bigint |
+| tab_key | text、CHECK btrim(tab_key)<>'' |
+| key_version | bigint、CHECK >0 |
+| wrapped_dek | bytea、CHECK octet_length(wrapped_dek)>0。平文鍵本体を保存しない |
+| wrapping_format | text、CHECK ='kms-envelope-v1' |
+| kek_reference | text、CHECK btrim(kek_reference)<>''。server provider内の鍵識別子でcredentialではない |
+| created_at | timestamptz DEFAULT clock_timestamp() |
+
+追加制約:
+
+- FK `(medical_record_id,clinic_id) REFERENCES medical_records(id,clinic_id) ON DELETE RESTRICT`。
+- UNIQUE `(clinic_id,principal_account_id,medical_record_id,tab_key,key_version)`。
+- UNIQUE `(key_reference,clinic_id,principal_account_id,medical_record_id,tab_key)`。
+- RLSはdraft同様clinic access AND principal_account_id=trusted app.current_account_id。generic draft read APIからwrapped_dek／kek_referenceを返さず、brokerだけ内部取得する。
+
+既存 `staff_record_drafts` へ `(key_reference,clinic_id,principal_account_id,medical_record_id,tab_key)` からkey registryの同uniqueへのRESTRICT複合FKを追加する。既存ciphertext／encryption_format／key_reference／hash／input_generation／base_owner_versionsは再利用し、epoch・鍵本体・device ID列を増やさない。
+
+**A metadata anchorとB key registryはlock責務が異なる。** Aに業務record FKを付けないR2.1は、B registryの上記record複合FKを削除する指示ではない。追加DDLは2表とdraft-key複合FK。既存表の重複CREATEはしない。初回導入時に既存draft key_referenceが未解決なら復元不能／source-unresolvedとして隔離し、未知鍵を推測backfillしない。実データmigration／削除の許可を意味しない。
+
+### provisioningとprovider
+
+初期scope keyはkey_version=1。同scope同時provisionはUNIQUE(scope,version)で勝者を決め、敗者はcommit済み同scope登録を読む。候補DEKのwrap準備→DB key row commit→可用確認の順とし、provider失敗時は復元準備成功にしない。未使用wrapped candidateを失敗DBに残さず、provider処理の不確実性を照合する。外部KMS処理をC06のDB-only participant内で成功扱いしない。
+
+provider interfaceは `Provision(scope,key_reference,key_version)` / `Unwrap(scope,key_reference)` と利用拒否／障害の分類を持ちfakeで契約可能。secret取得は既存安全設定／正式接続工程へ渡す。key_version更新・rotation・失効／削除管理画面は今回作らず、将来の過去key削除方針も決めない。registryへinput_generationを重複保存しない。
+
+## 9. B: 暗号形式・AAD・鍵利用境界
+
+採用形式は `encryption_format='aes-256-gcm-v1'`。DEKは256-bit、暗号化ごと新しい96-bit nonce、128-bit tag、同鍵nonce再利用禁止。ciphertext envelopeは `nonce(12 bytes) || ciphertext || tag(16 bytes)`。ciphertext_sha256はenvelope全体のdigestであり、認可／AEADの代用ではない。wireはbase64でencodingを固定する。
+
+AAD bytesは以下の順序の **JSON string arrayをUTF-8** で符号化する。数値もcanonical decimal文字列、空白なし、UUID lowercaseとする。
+
+```text
+["staff-record-draft","1",key_reference,key_version,principal_account_id,clinic_id,medical_record_id,tab_key,input_generation]
+```
+
+記号部分もすべてstring要素としてserializeする。AADへauth token／session証明を入れない。元epoch等は暗号化payload内の履歴情報に置き、payload schema versionも暗号化本文内で検証する。registry scope／body scope／AAD不一致は拒否。body accountを認可根拠にせず、復号AADは信頼済registry scopeから組み立てる。他account／recordへのmetadata改変移植はtag検証で失敗する。
+
+IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localStorage／sessionStorage／Service Worker cache／ログ／analyticsに本文・DEK・auth／edit証明を保存しない。key-accessはno-storeでmemory-only鍵利用を渡す境界とし、wrapped_dek／KEKはbrowserへ送らない。browserはprovider由来DEKをimport後memory keyにしraw buffersを可能な範囲で破棄する。ログ／trace／キャッシュ／Service Worker interceptionからの除外を後続受入へ含める。
+
+ブラウザ暗号APIの根拠: [MDN AesGcmParams](https://developer.mozilla.org/en-US/docs/Web/API/AesGcmParams)、[SubtleCrypto.encrypt](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/encrypt)。HTTPS前提、IV一意、AAD照合、tagを用いる。JS heapの完全消去や侵害端末からの完全保護は保証しない。
+
+## 10. B: lifecycle・回収・候補API
+
+最初のオンライン編集開始時に対象key_referenceと暗号能力を準備する。取得失敗で平文永続化せず「再読み込み復元が未確保」を表示し、保証を黙って外さない。
+
+- DEKはmemoryのみ。reload後は本人再認証／現認可後にbrokerから再取得する。logoutはmemory keyとUI／plaintext cacheを無効化し、ciphertextを保持して自動upload／retryを停止する。
+- offlineでは既決どおり新編集／送信を停止する。切断直前の未送達入力は取得済みmemory DEKでlocal ciphertextとして保持できる。reload後offlineは鍵を回収できないため「復元待ち」とし、消去や平文fallbackをしない。online再認可後に回復する。
+- 鍵不在／破損／対応不能は「復元できない／照合待ち」。空draft成功にせず、旧ciphertextを上書きしない。自動鍵再作成で復号できるふりをしない。
+- restoreは元scopeと現在grant確認→未解決receipt照会→編集権取得→base／current／draft三者比較→明示field選択。現在の新epochとowner版で通常writerへ渡し、新履歴を残す。
+- base_owner_versionsには元owner版、元input_generation、必要な元epoch参照を保持する。元epochは履歴であって現在保存権に再利用しない。
+
+**旧epochの整合した解釈:** 旧epochを現在の編集／保存権として受理せず、失権中の旧証明による復号能力再取得を拒否する。本人が現在認可・編集権を再取得し、元scope／未解決結果／現在版を照合した後は、旧draftを比較用に回収し明示選択できる。旧入力を永久復旧禁止にする解釈は採用しない。
+
+| 採用API境界（未実装） | 契約 |
+|---|---|
+| GET `/medical-records/{id}/personal-drafts/{tab}` | 自本人scopeのcurrent ciphertext envelopeのみ |
+| PUT 同route | operation_key、expected_generation、new generation、base_owner_versions、envelope、未解決operation refs。clientが認可主体を指定しない |
+| POST 同route `/key-access` | 現在auth／account／scope／grantとkey_reference検査後、no-storeでsession限定鍵利用。他人鍵の汎用取得APIにせずログへ鍵を出さない |
+
+key provisioning APIとregistry／provider契約の反映はB0の小PRへ分ける。保存先は上記registryへ固定済みであり、既存key_referenceをDEK本体と見立てたりciphertextへ復号鍵を同梱したりしない。
+
+### 採用理由と保護限界
+
+| 比較した方式 | 判断 |
+|---|---|
+| serverだけで暗号化／復号して保存 | 未送達→reloadの本人入力回収を満たさず、server部分PRにはできてもB全体完成にはならない |
+| IndexedDBへnon-extractable CryptoKeyとciphertextを同時保存 | 共有originの別staff scriptからの鍵利用を防げず、採用しない |
+| memory DEK＋server再認可broker＋local ciphertext | 採用。online reload回収／共有端末logout後の本人分離へ接続 |
+| passphrase／WebAuthn等の本人端末鍵 | 利用者操作・復旧責任・対応端末条件を増やすため、勝手に必須化しない |
+
+保護対象はlogout後の通常の別staffセッションが永続draftを開けないこと。memoryへ渡した鍵／平文を、権限取消の瞬間に敵対的scriptや端末管理者から暗号学的に回収できない。XSS・侵害browser・OS processからの完全保護を主張しない。失権を知った時点でUI／key利用を止め、serverは取得／保存／再取得を現在認可で検査する。通信断でも新編集停止。端末attestationやoffline新規編集の追加は別設計。
+
+保持期限・自動破棄・端末間共有は本設計で追加しない。これらや復旧不能時の業務データ破棄を新たに導入する場合だけ別途本人判断が必要。既決logout保持を再質問せず、今回の設計／コード着手を期間回答待ちにしない。
+
+## 11. ownerへの受渡し順と後続受入（全件NOT_RUN）
+
+1. schema owner: A新規metadata anchor、B新規key registry＋draft複合FK。migration／model／ERDは446/466等の専有ownerへ集約し並行上書きしない。既存表を重複CREATEしない。
+2. 489 shared owner: 新規binding時のatomic ClaimTarget metadata callbackだけを追加。既存receipt wire／status／consumer契約は維持。
+3. 494 A: actor／session／fence、inquiry baseline／CAS、metadata resolver、flat DTO／HTTP mapping、失権入力保持。A UI／APIと495-Aは1／2のruntime完成待ちにしない。
+4. 494 B0: envelope／AAD／key-reference／identity／状態API／schema・provider契約とfake fixture。実鍵なし。
+5. B1: server ciphertext repository、account TX-local／RLS、generation CAS、current auth、operation lookup。provider未設定runtimeはfail closed。
+6. B2: browser ciphertext journal、memory key provider、logout／reload／切断、三者比較選択。公開契約モックで独立PR可能。
+7. B3: 明示承認後のlive provider接続・運用設定。未実行なら未接続と報告。
+
+後段確認計画: 同staff2sessionの取得勝者1つ、take-overとwriteの両順、releaseとunknown、old client、別account／同名再作成、別clinic／record／tab、現在grant失効、corrupt／鍵不在、quota、未送達reload、logout後別staff、同key別payload／別record、anchor欠落・claim rollback・record変更／論理削除、baseline bootstrap rollback・全inquiry writerの版参加、draft generation CAS、旧成功receiptの現在認可、旧draftの再取得後比較回収、ログ／cache等の鍵非保存。すべて記述のみで **NOT_RUN**。
+
+## 12. 根拠・実施状態
+
+- [Plane EMR-494](https://app.plane.so/baritechllc/browse/EMR-494/): R2.1採用本文が旧「鍵方式未選定」「古いepochは復号不可」の総論に優先。限定PR／試験時期コメント（12:30 UTC）は受入計画として保持。
+- [Plane EMR-495](https://app.plane.so/baritechllc/browse/EMR-495/): A診断consumer、B終了event、C目的別訂正の分割。494 B完成をAの着手gateにしない。
+- [storage_clinical.go](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/model/storage_clinical.go)、[編集権ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/architecture/erd-detail/record_edit_rights.md)、[draft ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/architecture/erd-detail/staff_record_drafts.md)、[dependency版ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/docs/architecture/erd-detail/medical_record_dependency_versions.md)。
+- [本人account解決](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/auth/http_session_me.go#L19-L103)、[draft RLS](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/migrations/001_init.sql#L10512)、[既存route](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/medicalrecord/routes_records.go)、[問診repository](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/medicalrecord/inquiry_repository.go)、[C06 ResultResponse](https://github.com/MinoruSoga/AnimalEkarte/blob/86c9caa34d8498133eb46d4f019c0b08549db554/backend/internal/operation/dto.go)。
+
+この公開PRはdocsのみ。API公開SHA・runtime接続・schema実装／DB適用・実機受入は未完了。試験、Docker、隔離環境、実鍵作成、KMS／資格情報／権限設定を実行していない。runtime検証はSKIP、fixtureはNOT_RUNであり、設計採用を機能完成・セキュリティ設定変更の承認・試験PASSと扱わない。既存必須CIは無効化しない。
