@@ -1,0 +1,226 @@
+// React/Framework
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+// Internal
+import { axios } from "@/lib/axios";
+
+// EMR-477: カルテ固定 target の飼主事前問診（再診問診）原文 reader。
+// 契約: backend/docs/api.yaml GET /medical-records/{recordId}/revisit-intake
+//   → RevisitIntakeRecordRead（binding: unbound | mismatch | bound）。
+// 純 GET。binding / target / answer を作らず変えない。書き込み API はこのファイルに置かない。
+// runtime は未実装（EMR-476 の固定 binding capture/reader、EMR-472 の認可に依存）。
+
+// ── Types (api.yaml の手書き写像。generated 型は未生成) ─────────────────
+
+export interface RevisitIntakeAnswers {
+  visit_purpose: string;
+  onset: string | null;
+  energy: string | null;
+  appetite: string | null;
+  current_symptoms: string | null;
+  improvement: string | null;
+  examination_preference: string | null;
+  main_concern: string | null;
+}
+
+export interface RevisitIntakeAnswer {
+  answer_id: string;
+  revision: string;
+  form_definition_version: number;
+  received_at: string;
+  provenance: "owner_submission";
+  answers: RevisitIntakeAnswers;
+}
+
+export interface RevisitIntakePersistedTargetRef {
+  target_id: string | null;
+  appointment_id: string;
+  pet_id: string;
+  target_generation: string;
+}
+
+export interface RevisitIntakeBoundTarget {
+  ref: RevisitIntakePersistedTargetRef;
+  head_revision: string | null;
+  answer_state: "unanswered" | "answered";
+  latest_answer: RevisitIntakeAnswer | null;
+  content_available: boolean;
+}
+
+export interface RevisitIntakeHistoryEntry {
+  target: RevisitIntakePersistedTargetRef;
+  answer: RevisitIntakeAnswer;
+  target_relation: "current" | "previous";
+}
+
+export type RevisitIntakeRecordRead =
+  | { binding: "unbound"; target: null; history: []; next_cursor: null }
+  | { binding: "mismatch"; target: null; history: []; next_cursor: null }
+  | {
+      binding: "bound";
+      target: RevisitIntakeBoundTarget;
+      history: RevisitIntakeHistoryEntry[];
+      next_cursor: string | null;
+    };
+
+// ── Parse（想定外の形は取得失敗として扱い、本文を推測表示しない） ─────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseRef(value: unknown): RevisitIntakePersistedTargetRef {
+  if (
+    !isRecord(value) ||
+    typeof value.appointment_id !== "string" ||
+    typeof value.pet_id !== "string" ||
+    typeof value.target_generation !== "string"
+  ) {
+    throw new Error("revisit-intake: invalid target ref");
+  }
+  return {
+    target_id: typeof value.target_id === "string" ? value.target_id : null,
+    appointment_id: value.appointment_id,
+    pet_id: value.pet_id,
+    target_generation: value.target_generation,
+  };
+}
+
+function optionalText(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function parseAnswer(value: unknown): RevisitIntakeAnswer {
+  if (
+    !isRecord(value) ||
+    typeof value.answer_id !== "string" ||
+    typeof value.revision !== "string" ||
+    typeof value.form_definition_version !== "number" ||
+    typeof value.received_at !== "string" ||
+    value.provenance !== "owner_submission" ||
+    !isRecord(value.answers) ||
+    typeof value.answers.visit_purpose !== "string"
+  ) {
+    throw new Error("revisit-intake: invalid answer");
+  }
+  const a = value.answers;
+  return {
+    answer_id: value.answer_id,
+    revision: value.revision,
+    form_definition_version: value.form_definition_version,
+    received_at: value.received_at,
+    provenance: "owner_submission",
+    answers: {
+      visit_purpose: a.visit_purpose as string,
+      onset: optionalText(a.onset),
+      energy: optionalText(a.energy),
+      appetite: optionalText(a.appetite),
+      current_symptoms: optionalText(a.current_symptoms),
+      improvement: optionalText(a.improvement),
+      examination_preference: optionalText(a.examination_preference),
+      main_concern: optionalText(a.main_concern),
+    },
+  };
+}
+
+export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecordRead {
+  if (!isRecord(value)) throw new Error("revisit-intake: invalid response");
+  if (value.binding === "unbound" || value.binding === "mismatch") {
+    // 契約上 target=null / history=[]。万一本文が付いていても採用しない。
+    return { binding: value.binding, target: null, history: [], next_cursor: null };
+  }
+  if (value.binding !== "bound" || !isRecord(value.target) || !Array.isArray(value.history)) {
+    throw new Error("revisit-intake: invalid binding");
+  }
+  const t = value.target;
+  if (t.answer_state !== "unanswered" && t.answer_state !== "answered") {
+    throw new Error("revisit-intake: invalid answer_state");
+  }
+  return {
+    binding: "bound",
+    target: {
+      ref: parseRef(t.ref),
+      head_revision: typeof t.head_revision === "string" ? t.head_revision : null,
+      answer_state: t.answer_state,
+      latest_answer: t.latest_answer === null ? null : parseAnswer(t.latest_answer),
+      content_available: t.content_available === true,
+    },
+    history: value.history.map((entry) => {
+      if (!isRecord(entry)) throw new Error("revisit-intake: invalid history entry");
+      return {
+        target: parseRef(entry.target),
+        answer: parseAnswer(entry.answer),
+        target_relation: entry.target_relation === "previous" ? "previous" : "current",
+      };
+    }),
+    next_cursor: typeof value.next_cursor === "string" ? value.next_cursor : null,
+  };
+}
+
+// ── Query key（feature 内定義。共通 queryKeys への追加は報告のみ） ────────
+
+export const revisitIntakeQueryKeys = {
+  all: () => ["medical-record-revisit-intake"] as const,
+  // 別カルテ・別医院・別患者の原文キャッシュを使い回さない。
+  record: (recordId: string, clinicId: string, petId: string) =>
+    ["medical-record-revisit-intake", recordId, clinicId, petId] as const,
+};
+
+// ── Fetch ─────────────────────────────────────────────────────────────
+
+export const getRecordRevisitIntake = async (
+  recordId: string,
+  clinicId: string,
+  cursor?: string,
+): Promise<RevisitIntakeRecordRead> => {
+  const { data } = await axios.get<unknown>(
+    `/v1/medical-records/${encodeURIComponent(recordId)}/revisit-intake`,
+    {
+      // 拠点横断で開いたカルテは record 自身の clinicId を送る（treatments.ts と同流儀）。
+      headers: { "X-Clinic-ID": clinicId },
+      params: cursor ? { cursor } : undefined,
+    },
+  );
+  return parseRevisitIntakeRecordRead(data);
+};
+
+function errorStatus(error: unknown): number | undefined {
+  if (isRecord(error) && isRecord(error.response) && typeof error.response.status === "number") {
+    return error.response.status;
+  }
+  return undefined;
+}
+
+export function getRevisitIntakeErrorStatus(error: unknown): number | undefined {
+  return errorStatus(error);
+}
+
+interface UseGetRecordRevisitIntakeParams {
+  recordId: string | undefined;
+  clinicId: string | undefined;
+  petId: string | undefined;
+  /** 新規カルテ等で false。ID が揃わない間は取得しない。 */
+  enabled?: boolean;
+}
+
+export const useGetRecordRevisitIntake = ({
+  recordId,
+  clinicId,
+  petId,
+  enabled = true,
+}: UseGetRecordRevisitIntakeParams) => {
+  const ready = enabled && !!recordId && !!clinicId && !!petId;
+  return useInfiniteQuery({
+    queryKey: revisitIntakeQueryKeys.record(recordId ?? "", clinicId ?? "", petId ?? ""),
+    queryFn: ({ pageParam }) => getRecordRevisitIntake(recordId ?? "", clinicId ?? "", pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) =>
+      last.binding === "bound" ? (last.next_cursor ?? undefined) : undefined,
+    enabled: ready,
+    // 認証 scope の原文は Cache-Control: no-store。常に再取得し、unmount 後に保持しない。
+    staleTime: 0,
+    gcTime: 0,
+    // 502/504 は axios interceptor が GET を再試行済み。その他の失敗はカード内「再試行」で明示操作させる。
+    retry: false,
+  });
+};
