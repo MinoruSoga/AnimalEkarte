@@ -87,6 +87,8 @@ interface RevisitIntakeEditorProps {
   refetching: boolean;
   /** 直近の GET が失敗している（read は旧 snapshot のまま）。最新取得までは送信しない */
   readError: boolean;
+  /** 読込 route の Retry-After 期限中 */
+  retryBlocked: boolean;
   onRefetch: () => void;
   onDirtyChange: (dirty: boolean) => void;
   /** 送信処理中（inFlight）と結果未確定（unresolved = pending あり）をページの離脱確認へ通知する */
@@ -190,10 +192,13 @@ function PendingPanel({
 function RefetchBanner({
   message,
   refetching,
+  blocked,
   onRefetch,
 }: {
   message: string;
   refetching: boolean;
+  /** route 共通の Retry-After 期限中（refetch は無視されるため押せないようにする） */
+  blocked: boolean;
   onRefetch: () => void;
 }) {
   return (
@@ -205,7 +210,7 @@ function RefetchBanner({
       <button
         type="button"
         onClick={onRefetch}
-        disabled={refetching}
+        disabled={refetching || blocked}
         aria-busy={refetching}
         className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
       >
@@ -225,6 +230,7 @@ export function RevisitIntakeEditor({
   draftStore,
   refetching,
   readError,
+  retryBlocked,
   onRefetch,
   onDirtyChange,
   onPendingChange,
@@ -623,6 +629,7 @@ export function RevisitIntakeEditor({
           <RefetchBanner
             message="ほかの操作で回答が更新されています。入力内容はそのまま残っています。最新の状態を読み込み、保存済みの回答を確認してから再送信してください。"
             refetching={refetching}
+            blocked={retryBlocked}
             onRefetch={onRefetch}
           />
         ) : (
@@ -636,6 +643,7 @@ export function RevisitIntakeEditor({
         <RefetchBanner
           message="問診の項目が更新されています。最新の状態を読み込んでから送信してください。"
           refetching={refetching}
+          blocked={retryBlocked}
           onRefetch={onRefetch}
         />
       ) : null}
@@ -644,6 +652,7 @@ export function RevisitIntakeEditor({
         <RefetchBanner
           message="最新の状態を読み込めませんでした。読み込みに成功するまで送信できません。"
           refetching={refetching}
+          blocked={retryBlocked}
           onRefetch={onRefetch}
         />
       ) : null}
@@ -652,6 +661,7 @@ export function RevisitIntakeEditor({
         <RefetchBanner
           message="予約の対象が変更されました。最新の内容を読み込むまで送信できません。"
           refetching={refetching}
+          blocked={retryBlocked}
           onRefetch={onRefetch}
         />
       ) : null}

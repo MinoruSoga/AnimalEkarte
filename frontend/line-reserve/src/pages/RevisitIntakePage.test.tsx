@@ -1664,3 +1664,41 @@ describe("RevisitIntakePage 共通 backoff・未確定操作の 401/403・401 �
     expect(screen.queryByText("保護された合成本文")).not.toBeInTheDocument();
   });
 });
+
+describe("RevisitIntakePage Retry-After 期限中の再取得導線", () => {
+  it("FORM_VERSION_MISMATCH 後の再取得が 429 なら、期限中は「最新の状態を読み込む」を無効にする", async () => {
+    const user = userEvent.setup();
+    let reads = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        reads += 1;
+        if (reads === 1) return HttpResponse.json(read(unansweredTarget()));
+        return HttpResponse.json(
+          { error: "too many requests" },
+          { status: 429, headers: { "Retry-After": "30" } },
+        );
+      }),
+    );
+    captureSubmits(() =>
+      HttpResponse.json(
+        {
+          error: "conflict",
+          code: "FORM_VERSION_MISMATCH",
+          details: { supported_form_definition_version: 1 },
+        },
+        { status: 409 },
+      ),
+    );
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+    await user.click(await screen.findByRole("button", { name: "最新の状態を読み込む" }));
+
+    expect(await screen.findByText(/30秒ほど待ってから再試行してください/)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "最新の状態を読み込む" })).toBeDisabled(),
+    );
+    expect(reads).toBe(2);
+  });
+});

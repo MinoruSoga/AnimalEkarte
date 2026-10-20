@@ -230,6 +230,7 @@ export function RevisitIntakePage({
             draftStore={draftStore}
             refetching={intake.refetching}
             readError={intake.error !== null}
+            retryBlocked={intake.retryBlocked}
             onRefetch={refetch}
             onDirtyChange={handleDirtyChange}
             onPendingChange={handlePendingChange}
