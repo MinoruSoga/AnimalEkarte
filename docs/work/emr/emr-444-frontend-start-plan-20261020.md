@@ -253,7 +253,7 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 | 票 | ブランチ | 状態 | PR |
 |:--|:--|:--|:--|
 | EMR-463 | `feat/emr-463-owners-clinic-scope-fe` | FE 実装済み・レビュー済み（Opus）。BE `GetMe` 新 field 未実装のため BE と同時または先行マージが必要 | #754 |
-| EMR-474 | `feat/emr-474-liff-revisit-intake-fe` | FE 実装済み（Opus）。取消済みカードの N+1 GET 除去を修正依頼中 | 作成待ち |
+| EMR-474 | `feat/emr-474-liff-revisit-intake-fe` | FE 実装済み・レビュー済み（Opus）。取消済みカードの N+1 GET は除去済み | #756 |
 | EMR-475 | `feat/emr-475-reservation-revisit-intake-fe` | FE 実装済み・レビュー済み（Sonnet） | #752 |
 | EMR-477 | `feat/emr-477-record-revisit-intake-fe` | FE 実装済み・レビュー済み（Sonnet） | #753 |
 | EMR-487 | — | 486 契約待ち | — |
