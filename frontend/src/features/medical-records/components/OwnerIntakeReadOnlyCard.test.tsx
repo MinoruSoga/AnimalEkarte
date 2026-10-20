@@ -16,13 +16,13 @@ const ROUTE = "/api/v1/medical-records/:recordId/revisit-intake";
 const REF = {
   target_id: "501",
   appointment_id: "301",
-  pet_id: "pet-1",
+  pet_id: "11",
   target_generation: "1",
 };
 
 function answer(revision: string, overrides: Record<string, unknown> = {}) {
   return {
-    answer_id: `ans-${revision}`,
+    answer_id: `9${revision}`,
     revision,
     form_definition_version: 1,
     received_at: "2026-10-18T01:30:00Z", // JST 10:30
@@ -69,7 +69,7 @@ function renderCard(props: Partial<ComponentProps<typeof OwnerIntakeReadOnlyCard
     <OwnerIntakeReadOnlyCard
       recordId="10"
       recordClinicId="7"
-      petId="pet-1"
+      petId="11"
       isNewRecord={false}
       {...props}
     />,
@@ -288,7 +288,7 @@ describe("OwnerIntakeReadOnlyCard — 履歴（固定 target 内の旧 revision�
       boundBody({
         history: [
           {
-            target: { ...REF, target_id: "999", target_generation: "0" },
+            target: { ...REF, target_id: "999", target_generation: "9" },
             answer: answer("1", { visit_purpose: "別targetの本文" }),
             target_relation: "previous",
           },
@@ -311,7 +311,7 @@ describe("OwnerIntakeReadOnlyCard — 履歴（固定 target 内の旧 revision�
           return HttpResponse.json(
             boundBody({
               history: [
-                { target: REF, answer: answer("0x", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
+                { target: REF, answer: answer("3", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
               ],
               next_cursor: null,
             }),
@@ -426,7 +426,7 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
           return HttpResponse.json(
             boundBody({
               history: [
-                { target: REF, answer: answer("0x", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
+                { target: REF, answer: answer("3", { visit_purpose: "合成の次ページ目的" }), target_relation: "current" },
               ],
               next_cursor: null,
             }),
@@ -502,7 +502,7 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
 
   it("応答の pet が呼び出し患者と違えば（target / 履歴いずれも）契約失敗", async () => {
     useIntake(boundBody({ history: [] }));
-    const first = renderCard({ petId: "pet-other" });
+    const first = renderCard({ petId: "12" });
     expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
     expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
     first.unmount();
@@ -511,7 +511,7 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
       boundBody({
         history: [
           {
-            target: { ...REF, pet_id: "pet-other" },
+            target: { ...REF, pet_id: "12" },
             answer: answer("1"),
             target_relation: "current",
           },
@@ -670,5 +670,71 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     expect(card).toHaveAttribute("aria-busy", "true");
     expect(within(card).getByRole("status")).toHaveTextContent("飼主事前問診を読み込み中");
     expect(card.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["空文字", ""],
+    ["0", "0"],
+    ["先頭ゼロ", "01"],
+    ["20 桁", "12345678901234567890"],
+    ["BIGINT 超 19 桁", "9223372036854775808"],
+  ])("ID・revision が正規形十進文字列でない（%s）なら契約失敗", async (_label, bad) => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: { ...REF, target_id: bad },
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: answer("2"),
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+  });
+
+  it("answer_id・revision・head_revision も正規形十進文字列を要求する", async () => {
+    for (const latest of [
+      { ...answer("2"), answer_id: "ans-2" },
+      { ...answer("2"), revision: "02" },
+    ]) {
+      useIntake(
+        boundBody({
+          target: {
+            ref: REF,
+            head_revision: latest.revision,
+            answer_state: "answered",
+            latest_answer: latest,
+            content_available: true,
+          },
+          history: [],
+        }),
+      );
+      const view = renderCard();
+      expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it("BIGINT 上限ちょうどの ID は受理する", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: { ...REF, target_id: "9223372036854775807" },
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: answer("2"),
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByText("合成の来院目的 v2")).toBeInTheDocument();
   });
 });

@@ -76,13 +76,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// 契約 RevisitIntakeDecimalId: 正の正規形十進文字列（先頭ゼロ・空・符号・小数不可）で
+// BIGINT 範囲内（1..9223372036854775807）。JS Number へは変換しない。
+const MAX_BIGINT_DECIMAL = "9223372036854775807";
+
+export function isCanonicalDecimalId(value: unknown): value is string {
+  if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value)) return false;
+  if (value.length < MAX_BIGINT_DECIMAL.length) return true;
+  return value.length === MAX_BIGINT_DECIMAL.length && value <= MAX_BIGINT_DECIMAL;
+}
+
 function parseRef(value: unknown): RevisitIntakePersistedTargetRef {
   if (
     !isRecord(value) ||
-    typeof value.target_id !== "string" ||
-    typeof value.appointment_id !== "string" ||
-    typeof value.pet_id !== "string" ||
-    typeof value.target_generation !== "string"
+    !isCanonicalDecimalId(value.target_id) ||
+    !isCanonicalDecimalId(value.appointment_id) ||
+    !isCanonicalDecimalId(value.pet_id) ||
+    !isCanonicalDecimalId(value.target_generation)
   ) {
     throw new Error("revisit-intake: invalid target ref");
   }
@@ -119,8 +129,8 @@ function isRfc3339(value: unknown): value is string {
 function parseAnswer(value: unknown): RevisitIntakeAnswer {
   if (
     !isRecord(value) ||
-    typeof value.answer_id !== "string" ||
-    typeof value.revision !== "string" ||
+    !isCanonicalDecimalId(value.answer_id) ||
+    !isCanonicalDecimalId(value.revision) ||
     value.form_definition_version !== 1 ||
     !isRfc3339(value.received_at) ||
     value.provenance !== "owner_submission" ||
@@ -171,7 +181,7 @@ export function parseRevisitIntakeRecordRead(value: unknown): RevisitIntakeRecor
   if (
     (answerState !== "unanswered" && answerState !== "answered") ||
     typeof contentAvailable !== "boolean" ||
-    (headRevision !== null && typeof headRevision !== "string") ||
+    (headRevision !== null && !isCanonicalDecimalId(headRevision)) ||
     t.latest_answer === undefined
   ) {
     throw new Error("revisit-intake: invalid target state");

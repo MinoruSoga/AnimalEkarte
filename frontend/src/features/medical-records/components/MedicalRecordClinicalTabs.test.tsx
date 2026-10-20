@@ -39,7 +39,7 @@ vi.mock("../api/get-chief-complaint-types", () => ({
 }));
 
 const ALIVE_PET: Pet = {
-  id: "pet-1",
+  id: "11",
   clinicId: "7",
   ownerId: "owner-1",
   ownerNumber: 1,
@@ -114,7 +114,7 @@ const baseProps: TabsProps = {
   isLocked: false,
   isFinalized: false,
   recordClinicId: "7",
-  recordPetId: "pet-1",
+  recordPetId: "11",
   // EMR356-1: 既存 fixture の 2026-03-01 測定が引き続き「過去」になるよう翌日を境界にする
   recordBoundary: new Date("2026-03-02T00:00:00+09:00"),
   onChiefComplaintChange: () => {},
@@ -359,7 +359,7 @@ describe("MedicalRecordClinicalTabs — 親フラグの最新値が書き込み�
   });
 
   it("選択中カルテの petId が selectedPet と不一致なら記録 control を出さない", () => {
-    renderTabs({ recordPetId: "pet-999" });
+    renderTabs({ recordPetId: "999" });
 
     expect(screen.queryByRole("button", { name: "体重を記録" })).toBeNull();
     expect(screen.queryByLabelText("体重")).toBeNull();
@@ -395,13 +395,13 @@ const INTAKE_ROUTE = "/api/v1/medical-records/:recordId/revisit-intake";
 
 function intakeBody(petLabel: string) {
   const ref = {
-    target_id: `t-${petLabel}`,
+    target_id: `5${petLabel}`,
     appointment_id: "301",
     pet_id: petLabel,
     target_generation: "1",
   };
   const answer = {
-    answer_id: `a-${petLabel}`,
+    answer_id: `7${petLabel}`,
     revision: "1",
     form_definition_version: 1,
     received_at: "2026-10-18T01:30:00Z",
@@ -462,7 +462,7 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
     server.use(
       http.get(INTAKE_ROUTE, () => {
         called += 1;
-        return HttpResponse.json(intakeBody("pet-1"));
+        return HttpResponse.json(intakeBody("11"));
       }),
     );
     render(
@@ -483,10 +483,10 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
     server.use(
       http.get(INTAKE_ROUTE, () => {
         called += 1;
-        return HttpResponse.json(intakeBody("pet-1"));
+        return HttpResponse.json(intakeBody("11"));
       }),
     );
-    render(treeFor(makeClient(), PLAN_TAB, { recordPetId: "pet-999" }));
+    render(treeFor(makeClient(), PLAN_TAB, { recordPetId: "999" }));
 
     expect(screen.queryByTestId("owner-intake-card")).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -502,29 +502,29 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
       http.get(INTAKE_ROUTE, async ({ params }) => {
         if (params.recordId === "20") {
           await gate;
-          return HttpResponse.json(intakeBody("pet-2"));
+          return HttpResponse.json(intakeBody("12"));
         }
-        return HttpResponse.json(intakeBody("pet-1"));
+        return HttpResponse.json(intakeBody("11"));
       }),
     );
     const client = makeClient();
     const { rerender } = render(treeFor(client, PLAN_TAB));
 
-    expect(await screen.findByText("合成の来院目的-pet-1")).toBeInTheDocument();
+    expect(await screen.findByText("合成の来院目的-11")).toBeInTheDocument();
 
     rerender(
       treeFor(client, PLAN_TAB, {
         recordId: "20",
-        recordPetId: "pet-2",
-        selectedPet: { ...ALIVE_PET, id: "pet-2" },
+        recordPetId: "12",
+        selectedPet: { ...ALIVE_PET, id: "12" },
       }),
     );
 
     // 新患者の応答待ち: 旧患者の本文は残らない。
-    expect(screen.queryByText("合成の来院目的-pet-1")).toBeNull();
+    expect(screen.queryByText("合成の来院目的-11")).toBeNull();
     releaseSecond?.();
-    expect(await screen.findByText("合成の来院目的-pet-2")).toBeInTheDocument();
-    expect(screen.queryByText("合成の来院目的-pet-1")).toBeNull();
+    expect(await screen.findByText("合成の来院目的-12")).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的-11")).toBeNull();
   });
 
   it("問診履歴のコピー操作を起こしても原文の表示・DTO は不変で、原文 route へ書き込まない", async () => {
@@ -533,7 +533,7 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
     server.use(
       http.get(INTAKE_ROUTE, () => {
         gets += 1;
-        return HttpResponse.json(intakeBody("pet-1"));
+        return HttpResponse.json(intakeBody("11"));
       }),
       http.post(INTAKE_ROUTE, () => {
         writes.push("POST");
@@ -573,7 +573,7 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
     };
     const client = makeClient();
     const { rerender } = render(treeFor(client, PLAN_TAB, copyProps));
-    expect(await screen.findByText("合成の来院目的-pet-1")).toBeInTheDocument();
+    expect(await screen.findByText("合成の来院目的-11")).toBeInTheDocument();
     const before = screen.getByTestId("owner-intake-card").textContent;
 
     // 問診タブでコピーを実行
@@ -585,7 +585,7 @@ describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）",
 
     // 診察/治療プランへ戻る: 原文は同一、複写由来の書き込みは発生しない
     rerender(treeFor(client, PLAN_TAB, copyProps));
-    expect(await screen.findByText("合成の来院目的-pet-1")).toBeInTheDocument();
+    expect(await screen.findByText("合成の来院目的-11")).toBeInTheDocument();
     expect(screen.getByTestId("owner-intake-card").textContent).toBe(before);
     expect(writes).toEqual([]);
     expect(gets).toBeGreaterThanOrEqual(1);
