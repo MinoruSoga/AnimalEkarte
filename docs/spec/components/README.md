@@ -17,9 +17,20 @@
 | [tabs.md](tabs.md) | Radix Tabs ベースのタブ切替（`tabs.tsx`） |
 | [_TEMPLATE.md](_TEMPLATE.md) | 新規コンポーネント仕様書テンプレート（`_TEMPLATE.md` をコピーして `<component-name>.md` として起票） |
 
+## カバレッジ（2026-10-20 静的棚卸し）
+
+`frontend/src/components/ui/` の UI プリミティブは **25 本**（`*-variants.ts` / `utils.ts` / `dialog-portaled-overlay.ts` のヘルパを除く）。全 25 本に colocated `*.stories.tsx` があり、design-audit **C21**（`C21_STORIES_ALLOWLIST` は空）が欠落を strict fail で検出する。
+
+| 正本の形 | 本数 | 対象 |
+|:--|--:|:--|
+| md 仕様書 + stories | 7 | 上表の badge / button / dialog / input / select / table / tabs |
+| stories + autodocs のみ（FE-DS2 決裁: 契約が stories から読み取れるもの） | 18 | alert-dialog / calendar / card / checkbox / command / dropdown-menu / label / popover / radio-group / scroll-area / searchable-select / separator / sheet / sonner / switch / textarea / toggle-group / tooltip |
+
+md を追加する基準は design-system.md FE-DS2 のとおり「stories を読んでも分からない振る舞い契約」がある場合のみ。候補として `alert-dialog`（確認必須操作の契約。dialog.md が一部カバー）と `searchable-select`（検索・空結果・読込中の状態遷移）を認識しているが、未起票・未決定。新しいプリミティブを足したら本表の本数と行を同一コミットで更新する。
+
 ---
 
-**最新更新**: 2026-10-07 | **ステータス**: 本 README がファイル単位の索引の正本（docs/README.md 2層索引の第 2 層）
+**最新更新**: 2026-10-20（カバレッジ節を追加） | **ステータス**: 本 README がファイル単位の索引の正本（docs/README.md 2層索引の第 2 層）
 
 ## このフォルダの役割と使い方
 

@@ -538,7 +538,7 @@ export const C = {
   textBadgeGray:   "text-[#615D59]",
   /** yellow — textCheckupDueSoon 同値 #7A5C00（bg #FDECC8 で 5.36:1） */
   textBadgeYellow: "text-[#7A5C00]",
-  /** orange — DESIGN.md accent-orange-deep #793400（bg #FAEBDD で 7.81:1） */
+  /** orange — #793400（bg #FAEBDD で 7.81:1。design-states.md §2.1 実測表） */
   textBadgeOrange: "text-[#793400]",
   /** red — danger 系 #B03A2E（bg #FFE2DD で ~5.0:1） */
   textBadgeRed:    "text-[#B03A2E]",

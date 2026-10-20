@@ -68,7 +68,7 @@ WCAG 2.2 AA: 通常文字 4.5:1 / 大文字（18pt+ または 14pt bold+）3:1 /
 |---|---|---:|---|
 | gray | `#615D59`（`textBadgeGray`） | 5.52:1 | 死亡 sentinel の可読性を実質改善 |
 | yellow | `#7A5C00`（`textBadgeYellow`、textCheckupDueSoon 同値） | 5.36:1 | |
-| orange | `#793400`（`textBadgeOrange`、DESIGN.md accent-orange-deep） | 7.81:1 | |
+| orange | `#793400`（`textBadgeOrange`。値の正本は `design-tokens.ts` BADGE と本表） | 7.81:1 | |
 | red | `#B03A2E`（`textBadgeRed`） | ~5.0:1 | 4.45 は境界値のため #B03A2E を採用 |
 | green | `#0C6E5F`（`textBadgeGreen`） | 5.09:1 | |
 | muted | `#615D59`（`textBadgeMuted`） | 5.77:1 | |

@@ -15,8 +15,11 @@ const preview: Preview = {
       },
     },
     a11y: {
-      // axe を全 story に適用（design-states.md §2 の実測表と併用）
-      test: "todo",
+      // axe を全 story に適用（design-states.md §2 の実測表と併用）。
+      // "error": 違反を a11y パネルで失敗として表示し、Chromatic の Accessibility
+      // tests と Storybook の Vitest 連携（導入時）では story を fail させる。
+      // 正当な例外は story 側で parameters.a11y.config.rules に理由付きで記録する。
+      test: "error",
     },
   },
   initialGlobals: {

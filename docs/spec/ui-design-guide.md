@@ -19,7 +19,7 @@
 | 順 | 文書 | 何の正本か | いつ読むか |
 |:--|:--|:--|:--|
 | 1 | [design-system.md](design-system.md) | **色**（brand / primary / ink / 臨床・業務ステータス色）と SSOT の分担表 | すべての UI 作業の最初 |
-| 2 | [`DESIGN.md`](../../DESIGN.md)（ルート） | **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法**（字義で従う） | 見た目の値を決める・変えるとき |
+| 2 | [`DESIGN.md`](../../DESIGN.md)（ルート・Animal Ekarte Design Language） | **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法**（字義で従う）。色の値は持たない | 見た目の値を決める・変えるとき |
 | 3 | [design-states.md](design-states.md) | hover / focus-visible / disabled / readonly / loading / invalid の**状態仕様**と WCAG 2.2 AA コントラスト | インタラクティブ要素を触るとき |
 | 4 | [design-token-layers.md](design-token-layers.md) | トークンの**配置と参照方向**（Primitive → Semantic → Component） | トークン追加・色変更・新規プリミティブ |
 | 5 | [components/README.md](components/README.md) | `components/ui/` 7 プリミティブの**契約**（Anatomy・状態表・既知ギャップ） | `components/ui/*` を変更する前 |
@@ -47,7 +47,8 @@
 | タッチターゲット 44×44px（dense 行アクション例外は design-system §7.2） | design-states §1.1 |
 | 汎用 CTA は `colorVariant="primary"`（既定）。`brand` は認証・製品識別のみ | compliance C5、design-system §7.2 |
 | `TableHead` / `TableCell` の typography・padding 上書き禁止。行全体 `onClick` 禁止（cell 内 native link / button を使う） | compliance C18 / C19、components/table.md |
-| `components/ui/` の新規プリミティブは colocated `.stories.tsx` 必須。md 仕様書は「stories を読んでも分からない契約」がある場合だけ | design-system FE-DS2 決裁、components/README.md |
+| `components/ui/` の新規プリミティブは colocated `.stories.tsx` 必須（C21）。md 仕様書は「stories を読んでも分からない契約」がある場合だけ | compliance C21、design-system FE-DS2 決裁、components/README.md カバレッジ表 |
+| story の axe 違反は失敗扱い（`.storybook/preview.ts` の `a11y.test: "error"`）。正当な例外は story 側の `parameters.a11y.config.rules` に理由付きで記録し、黙って `"off"` にしない | design-states §2、accessibility-rules.md |
 | 新しい色・値を決めるときは design-system.md（色）/ DESIGN.md（寸法）に決裁（日付・決定者）を記録してからトークンへ流す。本書や他文書に第二正本を作らない | token-layers §2 |
 
 ## 3. 完了前チェック（Definition of Done・UI 変更を含む PR）
@@ -55,6 +56,8 @@
 1. **機械検査**: `docker compose exec frontend pnpm design-audit` を実行し違反 0 件（`make ci` にも配線済み。スコープ限定の許可コマンドであり自動実行してよい）。
 2. **スコープ限定テスト**: `docker compose exec frontend npx vitest run <変更ファイルのパス>`（`pnpm test:run -- <path>` は全件実行になる罠。`frontend/CLAUDE.md` 参照）。
 3. **状態の目視**: 変更した要素で hover / focus-visible（キーボード Tab）/ disabled / loading / invalid を実ブラウザまたは Storybook で確認。静的検査では C6a（臨床安全 UI）と状態の見え方は判定できない。
+   - **見た目の回帰**: `frontend/**` を触る PR では `.github/workflows/chromatic.yml` が Storybook を Chromatic へ publish し visual / accessibility tests を実行する（`CHROMATIC_PROJECT_TOKEN` 未設定時は notice を出して skip する。skip された PR は Chromatic による保証がないので、その旨を報告する）。
+   - **実機の準拠監査**: ルートの shell・canvas・テーブル様式・臨床 sentinel 表示を実ブラウザで検査する `frontend/e2e/ui-design-compliance-readonly.spec.ts`（4 viewport）がある。`./scripts/run-e2e.sh e2e/ui-design-compliance-readonly.spec.ts`（frontend ディレクトリ・ローカル Docker スタック起動済みが前提・ユーザー実行）。レイアウト・テーブル・PageLayout に触れた PR では実行し、`ui-design-compliance.md` の最終 runtime 監査日を更新する。
 4. **文書同期**: 新規ルート → compliance §2 と C8 allowlist。新規 `ui/` プリミティブ → stories（必要なら `components/_TEMPLATE.md` から md）。新しい色・値 → 正本へ決裁記録。
 5. **報告**: 実行した検査コマンドと結果、目視した状態、更新した文書を PR 本文に書く。実行していない検査を PASS と書かない。
 
