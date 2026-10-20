@@ -12,9 +12,17 @@ import (
 // Correction effects and no-event reservation identity are deliberately not
 // inferred from the available storage columns.
 func projectStayCageEffectiveState(stay model.StayCase, movements []model.StayMovementEvent) StayCageEffectiveState {
-	result := StayCageEffectiveState{ClinicID: stay.ClinicID, StayCaseID: stay.ID, State: StayCageUnknown}
+	result := StayCageEffectiveState{
+		ClinicID: stay.ClinicID, StayCaseID: stay.ID, State: StayCageUnknown,
+		Evidence: StayCageEvidence{StayVersion: stay.Version, MovementHeadRevision: 0},
+	}
 	if stay.ID == 0 || stay.ClinicID == 0 || stay.DeletedAt != nil || stay.Version <= 0 ||
-		(stay.StayKind != "inpatient" && stay.StayKind != "hotel") || len(movements) == 0 {
+		(stay.StayKind != "inpatient" && stay.StayKind != "hotel") {
+		return result
+	}
+	if len(movements) == 0 {
+		// A valid stay has movement head 0 until its first event. Missing
+		// acceptance proof leaves it unknown; it is not a malformed revision.
 		return result
 	}
 	events := slices.Clone(movements)
@@ -42,11 +50,14 @@ func projectStayCageEffectiveState(stay model.StayCase, movements []model.StayMo
 		previousRevision = event.Revision
 		// This is a history-evidence revision, not a CAS version and not a
 		// rule that the last event kind alone defines the lifecycle.
-		result.EvidenceVersion = event.Revision
+		result.Evidence.MovementHeadRevision = event.Revision
 		switch event.EventKind {
 		case "admit":
-			if i != 0 || event.ActualAt == nil || event.HospitalizationID == nil || *event.HospitalizationID == 0 ||
-				event.AdmissionRecordRef == nil || (stay.StayKind == "inpatient" && event.DoctorID == nil) {
+			if i != 0 || event.ActualAt == nil || event.HospitalizationID == nil || *event.HospitalizationID == 0 {
+				return result
+			}
+			if stay.StayKind == "inpatient" && (event.AdmissionRecordRef == nil || *event.AdmissionRecordRef <= 0 ||
+				event.DoctorID == nil || *event.DoctorID == 0) {
 				return result
 			}
 			state, admitted = StayCageAdmitted, event

@@ -173,7 +173,7 @@ func TestCageOccupancyRead_KnownGroupsSelfExclusionAndStringIDs(t *testing.T) {
 	core := fixedStayCageReader{readFn: func(received context.Context, clinic uint64, ids []uint64) ([]StayCageEffectiveState, error) {
 		require.Same(t, ctx, received)
 		require.Equal(t, []uint64{stayID}, ids)
-		return []StayCageEffectiveState{{ClinicID: clinic, StayCaseID: stayID, State: StayCageAdmitted, EvidenceVersion: 2}}, nil
+		return []StayCageEffectiveState{{ClinicID: clinic, StayCaseID: stayID, State: StayCageAdmitted, Evidence: StayCageEvidence{StayVersion: 1, MovementHeadRevision: 2}}}, nil
 	}}
 	source := cageOccupancySourceFixture{
 		listFn: func(received context.Context, clinic uint64, excluded *uint64) ([]uint64, error) {
@@ -261,4 +261,33 @@ func TestCageOccupancyRead_TargetScopeAndEmptySets(t *testing.T) {
 		require.Equal(t, "known", result.CurrentAssignment.State)
 	}
 	require.Equal(t, []string{strconv.FormatInt(math.MaxInt64, 10)}, cageProjectionStrings([]uint64{math.MaxInt64, math.MaxInt64}))
+}
+
+func TestCageOccupancyRead_EmptyHistoryKeepsZeroHeadAndCurrentAssignment(t *testing.T) {
+	target, stayID, current := uint64(9), uint64(11), uint64(10)
+	state := projectStayCageEffectiveState(model.StayCase{ID: stayID, ClinicID: 7, StayKind: "hotel", Version: 4, DeletedAt: nil}, nil)
+	core := fixedStayCageReader{readFn: func(context.Context, uint64, []uint64) ([]StayCageEffectiveState, error) {
+		return []StayCageEffectiveState{state}, nil
+	}}
+	source := cageOccupancySourceFixture{
+		listFn: func(ctx context.Context, clinic uint64, _ *uint64) ([]uint64, error) {
+			_, err := countEffectiveStayCages(ctx, clinic, []stayCageAssignment{
+				{HospitalizationID: 8, ClinicID: clinic, StayCaseID: &stayID, CageID: current},
+			}, nil, core)
+			var unknown *cageOccupancyUnknown
+			require.ErrorAs(t, err, &unknown)
+			require.Equal(t, "stay occupancy is unknown", unknown.reason)
+			return nil, err
+		},
+	}
+	finder := cageAssignmentFinderFunc(func(_ context.Context, clinic, id uint64) (*model.Hospitalization, error) {
+		return &model.Hospitalization{ID: id, ClinicID: clinic, CageID: &current}, nil
+	})
+	result, err := readHospitalizationCageOccupancy(t.Context(), 7, &target, finder, source)
+	require.NoError(t, err)
+	require.Equal(t, "unknown", result.State)
+	require.Nil(t, result.OccupiedCageIDs)
+	require.Nil(t, result.CandidateCageIDs)
+	require.Equal(t, "10", *result.CurrentAssignment.CageID)
+	require.Equal(t, StayCageEvidence{StayVersion: 4, MovementHeadRevision: 0}, state.Evidence)
 }

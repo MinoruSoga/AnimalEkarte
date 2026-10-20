@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CageOccupancyForAssignment reads the selected-clinic projection through the
@@ -15,14 +13,12 @@ func (s *hospitalizationService) CageOccupancyForAssignment(ctx context.Context,
 	if !ok {
 		return hospitalizationCageOccupancyResponse{}, errCageOccupancyReadFailed
 	}
-	if persistence.TxFromContext(ctx) != nil {
-		return readHospitalizationCageOccupancy(ctx, clinicID, excludeHospitalizationID, s.hospRepo, source)
-	}
-	if s.transactor == nil {
+	snapshot, ok := s.cageRepo.(cageOccupancySnapshotRunner)
+	if !ok {
 		return hospitalizationCageOccupancyResponse{}, errCageOccupancyReadFailed
 	}
 	var result hospitalizationCageOccupancyResponse
-	err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+	err := snapshot.WithCageOccupancyReadSnapshot(ctx, func(txCtx context.Context) error {
 		var err error
 		result, err = readHospitalizationCageOccupancy(txCtx, clinicID, excludeHospitalizationID, s.hospRepo, source)
 		return err

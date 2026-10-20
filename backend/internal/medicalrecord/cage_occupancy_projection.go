@@ -27,13 +27,20 @@ const (
 	StayCageUnknown  StayCageOccupancyState = "unknown"
 )
 
-// StayCageEffectiveState is the minimum 499 -> 461 handoff. EvidenceVersion is
-// the owner's effective-state evidence revision, not a cage CAS version.
+// StayCageEvidence keeps the stay version separate from the movement head.
+// Head 0 is a valid empty history. Appointment proof and leaf expectations are
+// to be connected by the follow-up 499 writer; this subset is not a write CAS.
+type StayCageEvidence struct {
+	StayVersion          int64
+	MovementHeadRevision int64
+}
+
+// StayCageEffectiveState is the minimum 499 -> 461 handoff.
 type StayCageEffectiveState struct {
-	ClinicID        uint64
-	StayCaseID      uint64
-	State           StayCageOccupancyState
-	EvidenceVersion int64
+	ClinicID   uint64
+	StayCaseID uint64
+	State      StayCageOccupancyState
+	Evidence   StayCageEvidence
 }
 
 // StayCageEffectiveStateReader is provided by the one EMR-499 lifecycle core.
@@ -101,7 +108,7 @@ func countEffectiveStayCages(ctx context.Context, clinicID uint64, assignments [
 	for _, state := range states {
 		_, requested := seenStays[state.StayCaseID]
 		_, duplicate := byStay[state.StayCaseID]
-		if state.ClinicID != clinicID || !requested || duplicate || state.EvidenceVersion <= 0 {
+		if state.ClinicID != clinicID || !requested || duplicate || state.Evidence.StayVersion <= 0 || state.Evidence.MovementHeadRevision < 0 {
 			return nil, &cageOccupancyUnknown{reason: "stay occupancy evidence is unresolved"}
 		}
 		byStay[state.StayCaseID] = state
@@ -110,6 +117,11 @@ func countEffectiveStayCages(ctx context.Context, clinicID uint64, assignments [
 		state, ok := byStay[*row.StayCaseID]
 		if !ok {
 			return nil, &cageOccupancyUnknown{reason: "stay occupancy evidence is missing"}
+		}
+		// Empty history is legitimate. A known lifecycle still needs its
+		// movement or the accepted reservation proof that 499 has yet to connect.
+		if state.State != StayCageUnknown && state.Evidence.MovementHeadRevision == 0 {
+			return nil, &cageOccupancyUnknown{reason: "stay occupancy proof is not connected"}
 		}
 		switch state.State {
 		case StayCageReserved, StayCageAdmitted:

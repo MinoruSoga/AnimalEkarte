@@ -32,10 +32,57 @@ func TestStayCageEffectiveState_ConfirmedNormalCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := projectStayCageEffectiveState(stay, tc.events)
 			require.Equal(t, tc.want, got.State)
-			require.Equal(t, tc.revision, got.EvidenceVersion)
+			require.Equal(t, tc.revision, got.Evidence.MovementHeadRevision)
+			require.Equal(t, stay.Version, got.Evidence.StayVersion)
 			require.Equal(t, uint64(3), got.ClinicID)
 			require.Equal(t, uint64(11), got.StayCaseID)
 		})
+	}
+}
+
+func TestStayCageEffectiveState_HotelDoesNotRequireInpatientReferences(t *testing.T) {
+	actual := time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
+	hospitalization, doctor, record := uint64(7), uint64(8), int64(9)
+	for _, tc := range []struct {
+		name, kind string
+		doctor     *uint64
+		record     *int64
+		want       StayCageOccupancyState
+	}{
+		{"hotel without inpatient references", "hotel", nil, nil, StayCageAdmitted},
+		{"inpatient without references", "inpatient", nil, nil, StayCageUnknown},
+		{"inpatient without doctor", "inpatient", nil, &record, StayCageUnknown},
+		{"inpatient without record", "inpatient", &doctor, nil, StayCageUnknown},
+		{"inpatient with both references", "inpatient", &doctor, &record, StayCageAdmitted},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stay := model.StayCase{ID: 11, ClinicID: 3, StayKind: tc.kind, Version: 4, DeletedAt: nil}
+			event := model.StayMovementEvent{
+				ID: 1, ClinicID: 3, StayCaseID: 11, Revision: 1, EventKind: "admit", ActualAt: &actual,
+				HospitalizationID: &hospitalization, DoctorID: tc.doctor, AdmissionRecordRef: tc.record, CorrectedEventID: nil,
+			}
+			got := projectStayCageEffectiveState(stay, []model.StayMovementEvent{event})
+			require.Equal(t, tc.want, got.State)
+			require.Equal(t, StayCageEvidence{StayVersion: 4, MovementHeadRevision: 1}, got.Evidence)
+		})
+	}
+}
+
+func TestStayCageEffectiveState_EmptyHistoryHasZeroHeadAndNeedsProof(t *testing.T) {
+	planned := time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
+	stay := model.StayCase{ID: 11, ClinicID: 3, StayKind: "hotel", Version: 7, PlannedEntryAt: &planned, DeletedAt: nil}
+	got := projectStayCageEffectiveState(stay, nil)
+	require.Equal(t, StayCageUnknown, got.State)
+	require.Equal(t, StayCageEvidence{StayVersion: 7, MovementHeadRevision: 0}, got.Evidence)
+}
+
+func TestStayCageEffectiveState_CancellationKeepsKnownActualAt(t *testing.T) {
+	actual := time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC)
+	stay := model.StayCase{ID: 11, ClinicID: 3, StayKind: "hotel", Version: 1, DeletedAt: nil}
+	for _, kind := range []string{"cancel", "no_show"} {
+		events := []model.StayMovementEvent{{ID: 1, ClinicID: 3, StayCaseID: 11, Revision: 1, EventKind: kind, ActualAt: &actual, CorrectedEventID: nil}}
+		require.Equal(t, StayCageReleased, projectStayCageEffectiveState(stay, events).State)
+		require.Equal(t, &actual, events[0].ActualAt)
 	}
 }
 func TestStayCageEffectiveState_AmbiguousHistoryIsUnknownForThatStay(t *testing.T) {

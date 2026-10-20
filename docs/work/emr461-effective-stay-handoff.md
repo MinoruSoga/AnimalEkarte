@@ -2,22 +2,30 @@
 
 2026-10-20の親ChatGPT Dotsの採用決定を記録する。旧head `06ae59aca8f3912d567ff87397f00d581f68c158` の検討案は[当時のhandoff](https://github.com/MinoruSoga/AnimalEkarte/blob/06ae59aca8f3912d567ff87397f00d581f68c158/docs/work/emr461-effective-stay-handoff.md)に保全し、現契約は本書で更新する。本書は親決定の記録であり、列型・migration番号など未提示の詳細を独自に確定しない。
 
-**2段階の完成条件**: PR734はsource先行。後続499 PRが保存意味論と461の実write接続まで所有する。734だけで機能完了・利用開始可とは扱わず、旧保存caller・swapを第三の未定チケットへ移さない。今回の更新は文書のみで、後続実装・migration編集は別途の着手指示と共有claim調整を待つ。
+**2段階の完成条件**: PR734はsource先行。後続499 PRが保存意味論と461の実write接続まで所有する。734だけで機能完了・利用開始可とは扱わず、旧保存caller・swapを第三の未定チケットへ移さない。734の追加修正は下記3点に限定する。後続499実装・migration編集は別途の着手指示と共有claim調整を待つ。
 
 ## 1. 実装済み（sourceに存在、実行受入とは別）
 
-基準source headは `0e79ae86bcbcda1de7dcc87d97bd33ad014a0fce`。公開wireの正本はmain採用済みPR740（照合main `4debcf9961fdd8735afe57b2886ae354ac0b1a5a`）。
+先行wire実装の基準headは `0e79ae86bcbcda1de7dcc87d97bd33ad014a0fce`。下表は親の追加指示によるcore/reader修正も含む現sourceを記述する。公開wireの正本はmain採用済みPR740（照合main `4debcf9961fdd8735afe57b2886ae354ac0b1a5a`）。
 
 | 範囲 | 現source | 成立範囲・制限 |
 |---|---|---|
 | 正常movementの単一core | 実admit→admitted、矛盾しないadmit→dischargeと開始前cancel/no_show→released。全履歴をrevision順で検査し、不正・未解決履歴をstay単位のunknownにする | 予定日/status/最新eventだけから予約・退院を生成しない。訂正resolver、予約proof、通常writerの拒否接続は未実装 |
-| core reader / 461 adapter | 医院付きStayCaseID、同TXのstay行ID昇順FOR SHAREとmovement read。候補/保存側の集計は同じcore面を使い、hospitalization IDだけを自己除外する | 原event不変・INSERT時stay lockは既存001と静的に照合しただけ。全writer参加、一貫snapshot、複合CASの成立証拠ではない |
+| core reader / 461 adapter | 医院付きStayCaseID。保存ambient TXではstay行ID昇順FOR SHAREとmovement readを維持し、read-only snapshotでは行ロックを取らない。集計は同じcore面を使いhospitalization IDだけを自己除外する | 候補readはREPEATABLE READ / READ ONLY TX。ambient TXは別TX/入れ子へ逃がさず、一貫snapshot可能なisolationを確認。全writer参加、完全な複合CAS、実DBでの成立証拠ではない |
 | 740 occupancy read | clinic/編集対象を文字列IDでecho、knownは両配列非NULL、unknownは200かつoccupied/candidate両配列NULL、実取得障害500 | 部分候補や空配列でunknownを偽装しない。患者/滞在明細を返さない |
 | 現在割当と候補 | current_assignmentを別fieldで保持。同院の有効な独立/代表のみ候補、構成員に他滞在の占有があれば代表も除外 | core不明・候補外・無効・旧構成員という理由だけで現値を消さない。現値保持は新規候補への追加許可ではない |
 | lossless ID / 認可 | 正規なPostgreSQL bigint正数文字列。未許可/重複queryと範囲外は400。選択医院createまたはedit、自己除外には同医院editも必須。scope外/不存在/削除済みは同じ404 | view/master編集権限を暗黙の前提にしない。実認可DBの受入は未実施 |
 | APIとfixture | api.yamlのcage-occupancy/cage-swapおよび関連3 schemaは上記main契約本文に一致。HTTP境界/純粋projection/同contextの限定fixtureを追加 | swap DTO/write実装の追随完了ではない。fixture追加・静的確認をunit/実DB PASSとしない |
 
-source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effective_state.go)、[reader](../../backend/internal/medicalrecord/stay_cage_effective_state_reader.go)、[adapter](../../backend/internal/medicalrecord/cage_occupancy_projection.go)、[HTTP](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_http.go)、[候補projection](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_read.go)。
+source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effective_state.go)、[reader](../../backend/internal/medicalrecord/stay_cage_effective_state_reader.go)、[adapter](../../backend/internal/medicalrecord/cage_occupancy_projection.go)、[HTTP](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_http.go)、[候補projection](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_read.go)、[snapshot runner](../../backend/internal/medicalrecord/cage_occupancy_read_snapshot.go)。
+
+### 親追加指示で734に修正した3点
+
+- hotelのadmitにinpatient専用の医師/入院記録を必須としない。inpatientには両参照を要求する。
+- 根拠をstay.versionとmovement headに分ける。無履歴はhead=0の正当な状態で、予約proof不足はunknownのまま保持する。正数を捏造せず、無履歴をreserved/releasedとして解放しない。
+- 候補read全体（現在割当・占有・movement・ケージ）を明示的なread-only snapshotへ接続する。PostgreSQLのread-only TXではFOR SHAREを使わない。保存ambient coreにはこの省略を適用せず、元TXと行ロックを維持する。既存候補ambientのisolationが不適合でも別TXを作らない。
+
+回帰例: hotel/inpatient参照差、無履歴head=0→unknown/current保持、既知cancel/no_show.actual_at保持、snapshot TX option/行ロック、保存ambientの維持、候補ambient不適合拒否、入れ子なし・callback失敗rollback。[snapshot fixture](../../backend/internal/medicalrecord/cage_occupancy_read_snapshot_test.go)は外部接続しないSQL driverのコードであり、実行・実DB MVCC/競合検証はしていない。共有persistence、migration/model/ERDは変更しない。
 
 ## 2. 未実装（後続499が実装まで所有）
 
@@ -27,11 +35,11 @@ source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effect
 |---|---|---|
 | Q1 予約proof | 既存immutable `appointment_change_events.after_values.stay_acceptance_changes` の型付きv1配列を明示受入の証跡とする。同院・同appointment・同stayの受入系列、現在appointment.versionに一致するevent、初回/現在eventの成功operation receipt、その参照・保存版を検証する | decoder、証跡writer、現効力resolver、readerへの接続なし。予定日・status・行の存在だけでreservedを作らず、旧行を推測backfillしない。別stayへの付替えを新しい通常操作として追加しない。専用writerの意味が未成立なら拒否して旧割当を保持する |
 | Q2 訂正保存 | 新correction effect子表にreplace/voidと完全置換payload。親のnullable `correction_effect_schema_version` は新correction=1、旧=NULL。親子同TX完全性はdeferred guard、子にもimmutable/RLS/同医院・同stayのscope保護 | 追加migration/model/ERD、writer、deferred guardとも未実装。001は変更せず、446/466とclaim調整後に追加差分を作る。旧correctionの意味を推測して埋めない |
-| Q2 effect解決 | 現在leafの完全effectで解決し、中間の旧effect不明だけで修復を妨げない。構造不正・分岐・現在effect不明はunknown。既知のcancel/no_show.actual_atは保持しNULL強制しない。inpatientの医師/入院記録必須をhotelへ拡張しない | 現coreはcorrectionを一律unknownにする。さらにadmitのAdmissionRecordRefをhotelにも要求しており、この点は採用契約より厳しい。resolver/対象fixtureで解消が必要 |
-| 版とCAS | `stay.version` + movement head revision（0も有効）+ 必要なappointment.version + leaf期待値の複合CAS。保存時に現在根拠を同TXで再評価する | 現EvidenceVersionは検査したmovement revisionだけで、adapterは正数を要求する。予約証跡を含む複合版ではなく、CAS/fence/stay.versionの代用にしない。0を避ける偽正数、versionだけの偽更新を作らない |
+| Q2 effect解決 | 現在leafの完全effectで解決し、中間の旧effect不明だけで修復を妨げない。構造不正・分岐・現在effect不明はunknown。既知のcancel/no_show.actual_atは保持しNULL強制しない。inpatientの医師/入院記録必須をhotelへ拡張しない | 現coreはraw correctionをunknownにし、完全leaf resolverは未接続。医師/入院記録必須はinpatientだけへ限定する修正とhotelの回帰例を734に追加済み。cancel/no_showの既知actual_atを保持する回帰例も追加（未実施） |
+| 版とCAS | `stay.version` + movement head revision（0も有効）+ 必要なappointment.version + leaf期待値の複合CAS。保存時に現在根拠を同TXで再評価する | 734のread根拠を `StayCageEvidence{StayVersion, MovementHeadRevision}` に分離し、無履歴head=0と証跡不足unknownを保持する。headを偽正数にしない。appointment proof/leaf期待値を含む完全なwrite CASは未接続であり、このread tupleを代用にしない。予約proof未接続のままhead=0をknown reserved/releasedにはしない |
 | Q3 通常遷移 | 通常writerは未開始→admit→discharge、未開始→cancel/no_showを検証し、discharge単独・admit後cancel/no_show・退院後再admit・実時刻逆転を拒否する。訂正解決後も通常遷移を検証し、不正ならunknown | 正常履歴readerのunknown判定は存在するが、旧保存callerから単一writerへの接続はない。readerの拒否をwriterの拒否実装と数えない |
 | Q4 gate / lock | 既選定 `reservation-graph:write:v1` を最外業務TXの先頭で取得→receipt/binding→各ownerの既存lock順。新gate namespaceを作らず、ambient participantは別TX/入れ子Runnerを開始しない | 関連blocking writerのgate実参加は未実装。経路別の実参加、または当該経路停止を後続499で明記し、単一reader注入で全体安全と主張しない |
-| 候補readの一貫性 | 候補readは一貫snapshot。保存は候補readの結果を確保とみなさず、同TXの現在根拠を再評価する | ambient TXへの参加と短いread TXはあるが、現WithTxは明示のsnapshot設定なし。複数queryを同TXへ置いただけではsnapshot成立を認定しない |
+| 候補readの一貫性 | 候補readは一貫snapshot。保存は候補readの結果を確保とみなさず、同TXの現在根拠を再評価する | 734にread専用snapshot runnerを追加。非ambientはREPEATABLE READ / READ ONLY、既存ambientはrepeatable read/serializableを確認し、不適合なら別TXを作らず拒否する。保存coreのambientは元TXでFOR SHAREを維持する。SQL shape/TX optionの回帰例は追加済みだが実DBのMVCC/競合受入は未実施 |
 | 461の保存境界 | 変更save入口で旧日付/statusから有効状態を捏造しない。新規非NULL割当のunknownは409。未指定/維持/明示clearの既存意味を壊さない | 旧Create/Update/退院/swapに旧status/type/start/end依存が残る。現typed unknownは保存側では503へ伝播し、採用409のwrite接続は未実装。旧statusにより占有再検査をskipする分岐も置換対象 |
 
 ### 具体的な保存callerとコンパイル残差
@@ -48,7 +56,7 @@ source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effect
 1. 共有本体で499と関係claim/branch/worktree/dirtyを再確認し、446/466と追加migration/model/ERDの所有範囲・番号を調整する。現在の読取では `claim/EMR-461` と `claim/EMR-466` が存在し、499/446 claimは見当たらないが、未claimを着手許可とは扱わない。今回499のclaim取得・移管・migration番号予約は行わない。
 2. 関連blocking writer（予約受入/取消/未来院/接続、開始/退院/訂正、ケージcreate/edit/swap等）を実際のowner呼出しまで列挙し、既存gate/receipt/binding/lock順とambient参加を対応付ける。未参加のまま安全と認定せず、実参加または経路停止を決めて実装する。第三の未定チケットへ残さない。
 3. 446/466と調整した追加保存差分を前提に、型付きv1予約proof、schema-version付き訂正親子、完全leaf resolver、複合CASを単一499 core/writerに実装する。旧行推測backfill、通常付替え/再入院、ホテルへの不要な必須条件を追加しない。
-4. 最外TX先頭の既選定gate→receipt/binding→owner既存lockを接続し、保存時の現在根拠再評価と候補readの一貫snapshotを成立させる。ambient参加者に新TX/入れ子Runnerを作らない。
+4. 最外TX先頭の既選定gate→receipt/binding→owner既存lockと保存時の現在根拠再評価を接続する。734のread-only snapshotを維持し、ambient参加者に新TX/入れ子Runnerを作らない。
 5. 上記のCreate/Update/退院/swapを実writerまで接続し、削除済みfield/SQL依存、文字列ID、409コードを解消する。新規非NULLunknownの409と、未指定/維持/明示clearを別fixtureで確認する。
 6. 既存の簡単なsource確認で進められる差分を進め、対象head・残差・確認内容を固定してレビューする。compile/unit/vet/gofmtを実行していなければ未実施と記録し、Docker検査を進行停止・マージ必須条件にしない。実DB/結合/実機は本人が指示した時にmainローカルで行い、検証専用環境を新設しない。
 
@@ -61,7 +69,7 @@ source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effect
 | 競合 / snapshot | 本人指示後、候補read対movement、訂正対ケージ保存、逆順swap、予約接続対開始でlock待ち後の再検査、複合CAS、snapshot、rollback後の変更/成功receipt不残存を確認。context markerやfile-list fixtureを代用にしない |
 | API / 結合 / UI / 実機 | 本人指示後、740 wire・scope/認可・lossless ID・unknownと取得障害・現在割当保持・未指定/維持/clear・新規409・交換原子性を確認。734だけで利用開始可とはしない |
 
-現sourceで確認済みなのはdiff-check、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parse、cageの2 path/3 schemaと指定main契約の本文一致。`verify-agent-task.py --base 06ae59aca --plan` は対象列挙だけで実行件数0。今回の更新は文書のみで、runtime検査は実行していない。検査未実施をコード未実装の代わりにせず、Docker実行を進行停止・マージ必須条件にしない。
+現sourceで確認済みなのはdiff-check、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parse、cageの2 path/3 schemaと指定main契約の本文一致。`verify-agent-task.py --base 06ae59aca --plan` は対象列挙だけで実行件数0。今回の追補は上記3点のsource/回帰例/文書を変更し、runtime検査は実行していない。検査未実施をコード未実装の代わりにせず、Docker実行を進行停止・マージ必須条件にしない。
 
 Docker拒否の記録（検査未実施の履歴であり、進行停止・マージ必須条件ではない）:
 

@@ -48,14 +48,15 @@ func (r *stayCageEffectiveStateReader) ReadEffectiveStatesForCageAssignment(ctx 
 		if err := read(ctx); err != nil {
 			return nil, err
 		}
-	} else if err := persistence.NewTransactor(r.db).WithTx(ctx, read); err != nil {
+	} else if err := withCageOccupancyReadSnapshot(ctx, r.db, read); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-// readLocked retains FOR SHARE on the stay rows through the event read and,
-// for allocation writes, through the caller's commit. The adopted
+// readLocked uses a verified read-only snapshot without row locks, since
+// PostgreSQL forbids FOR SHARE in a read-only transaction. All allocation reads
+// keep the caller's transaction and retain FOR SHARE until its commit. The adopted
 // app_private.stay_movement_guard BEFORE INSERT takes FOR UPDATE on this same
 // stay row, so a movement INSERT cannot cross this protected read. All writer
 // lock ordering still requires owner integration. The adopted immutable-history
@@ -66,7 +67,11 @@ func (r *stayCageEffectiveStateReader) readLocked(ctx context.Context, clinicID 
 	}
 	db := persistence.DBOrTx(ctx, r.db)
 	var stays []model.StayCase
-	if err := db.Clauses(clause.Locking{Strength: "SHARE"}).
+	stayQuery := db
+	if !cageReadOnlySnapshot(ctx) {
+		stayQuery = stayQuery.Clauses(clause.Locking{Strength: "SHARE"})
+	}
+	if err := stayQuery.
 		Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, ids).
 		Order("id ASC").Find(&stays).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "stay case", "")

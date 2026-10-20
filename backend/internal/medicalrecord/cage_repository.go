@@ -46,6 +46,10 @@ func NewCageRepositoryWithStayOccupancyReader(db *gorm.DB, reader StayCageEffect
 	return &cageRepositoryImpl{db: db, stayOccupancy: reader}
 }
 
+func (r *cageRepositoryImpl) WithCageOccupancyReadSnapshot(ctx context.Context, read func(context.Context) error) error {
+	return withCageOccupancyReadSnapshot(ctx, r.db, read)
+}
+
 func (r *cageRepositoryImpl) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
 	cages := make([]model.Cage, 0)
 	q := persistence.DBOrTx(ctx, r.db).Model(&model.Cage{}).Scopes(persistence.ClinicScope(clinicID))

@@ -37,8 +37,8 @@ func TestEffectiveStayCageAdapter_PreservesCoreDecisionAndSelfExclusion(t *testi
 				require.Equal(t, uint64(7), clinic)
 				require.Equal(t, []uint64{12, 13}, ids)
 				return []StayCageEffectiveState{
-					{ClinicID: 7, StayCaseID: 12, State: tc.state, EvidenceVersion: 5},
-					{ClinicID: 7, StayCaseID: 13, State: StayCageReleased, EvidenceVersion: 4},
+					{ClinicID: 7, StayCaseID: 12, State: tc.state, Evidence: StayCageEvidence{StayVersion: 1, MovementHeadRevision: 5}},
+					{ClinicID: 7, StayCaseID: 13, State: StayCageReleased, Evidence: StayCageEvidence{StayVersion: 1, MovementHeadRevision: 4}},
 				}, nil
 			}}
 			got, err := countEffectiveStayCages(t.Context(), 7, rows, []uint64{1}, reader)
@@ -50,10 +50,10 @@ func TestEffectiveStayCageAdapter_PreservesCoreDecisionAndSelfExclusion(t *testi
 func TestEffectiveStayCageAdapter_UnresolvedNeverMeansVacant(t *testing.T) {
 	stay := uint64(11)
 	base := stayCageAssignment{HospitalizationID: 1, ClinicID: 7, StayCaseID: &stay, CageID: 10}
-	for _, mode := range []string{"nil-reader", "reader-error", "missing-state", "unknown", "invalid-state", "wrong-clinic", "zero-evidence", "duplicate-state", "foreign-state", "missing-stay", "duplicate-assignment"} {
+	for _, mode := range []string{"nil-reader", "reader-error", "missing-state", "unknown", "invalid-state", "wrong-clinic", "zero-stay-version", "duplicate-state", "foreign-state", "missing-stay", "duplicate-assignment"} {
 		t.Run(mode, func(t *testing.T) {
 			rows := []stayCageAssignment{base}
-			states := []StayCageEffectiveState{{ClinicID: 7, StayCaseID: 11, State: StayCageReserved, EvidenceVersion: 1}}
+			states := []StayCageEffectiveState{{ClinicID: 7, StayCaseID: 11, State: StayCageReserved, Evidence: StayCageEvidence{StayVersion: 1, MovementHeadRevision: 1}}}
 			var readErr error
 			switch mode {
 			case "reader-error":
@@ -66,8 +66,8 @@ func TestEffectiveStayCageAdapter_UnresolvedNeverMeansVacant(t *testing.T) {
 				states[0].State = "correction"
 			case "wrong-clinic":
 				states[0].ClinicID = 8
-			case "zero-evidence":
-				states[0].EvidenceVersion = 0
+			case "zero-stay-version":
+				states[0].Evidence.StayVersion = 0
 			case "duplicate-state":
 				states = append(states, states[0])
 			case "foreign-state":
@@ -95,9 +95,36 @@ func TestEffectiveStayCageAdapter_PreservesCallerTransactionContext(t *testing.T
 	stay := uint64(11)
 	reader := fixedStayCageReader{readFn: func(received context.Context, clinic uint64, ids []uint64) ([]StayCageEffectiveState, error) {
 		require.Same(t, ctx, received)
-		return []StayCageEffectiveState{{ClinicID: 7, StayCaseID: 11, State: StayCageAdmitted, EvidenceVersion: 1}}, nil
+		return []StayCageEffectiveState{{ClinicID: 7, StayCaseID: 11, State: StayCageAdmitted, Evidence: StayCageEvidence{StayVersion: 1, MovementHeadRevision: 1}}}, nil
 	}}
 	got, err := countEffectiveStayCages(ctx, 7, []stayCageAssignment{{HospitalizationID: 1, ClinicID: 7, StayCaseID: &stay, CageID: 10}}, nil, reader)
 	require.NoError(t, err)
 	require.Equal(t, map[uint64]int64{10: 1}, got)
+}
+
+func TestEffectiveStayCageAdapter_ZeroHeadIsValidUnknownWithoutFabrication(t *testing.T) {
+	stayID := uint64(11)
+	rows := []stayCageAssignment{{HospitalizationID: 1, ClinicID: 7, StayCaseID: &stayID, CageID: 10}}
+	for _, tc := range []struct {
+		state StayCageOccupancyState
+		want  string
+	}{
+		{StayCageUnknown, "stay occupancy is unknown"},
+		{StayCageReserved, "stay occupancy proof is not connected"},
+		{StayCageAdmitted, "stay occupancy proof is not connected"},
+		{StayCageReleased, "stay occupancy proof is not connected"},
+	} {
+		t.Run(string(tc.state), func(t *testing.T) {
+			evidence := StayCageEvidence{StayVersion: 7, MovementHeadRevision: 0}
+			reader := fixedStayCageReader{readFn: func(context.Context, uint64, []uint64) ([]StayCageEffectiveState, error) {
+				return []StayCageEffectiveState{{ClinicID: 7, StayCaseID: stayID, State: tc.state, Evidence: evidence}}, nil
+			}}
+			counts, err := countEffectiveStayCages(t.Context(), 7, rows, nil, reader)
+			var unknown *cageOccupancyUnknown
+			require.ErrorAs(t, err, &unknown)
+			require.Equal(t, tc.want, unknown.reason)
+			require.Nil(t, counts)
+			require.Zero(t, evidence.MovementHeadRevision)
+		})
+	}
 }
