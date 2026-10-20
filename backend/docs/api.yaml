@@ -2117,7 +2117,7 @@ components:
           readOnly: true
           description: 測定日時（vital_records.recorded_at）
     Hospitalization:
-      description: 全体は旧stay DTO記録。461のケージfieldはoperationのx-cage-assignment-fieldsを正本とし、499 coreの状態公開契約と混同しない。
+      description: 全体は旧stay DTO記録。461のケージfieldはoperationの専用requestBody schemaを参照し、499 coreの状態公開契約と混同しない。
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
@@ -4635,6 +4635,42 @@ components:
                   not: { required: [expected_cage_is_null] }
                 - required: [expected_cage_is_null]
                   not: { required: [expected_cage_id] }
+    HospitalizationFormFields:
+      type: object
+      description: |
+        既存入院フォームの非ケージ入力field（互換記録）。応答用HospitalizationやDB行を入力DTOへ流用しない。
+        本断片は全field任意で、createに必要なfieldはHospitalizationCreateRequestだけで指定する。
+        旧status等の入力互換を499の有効状態判定契約へ転用しない。全stay lifecycleの再設計は対象外。
+      properties:
+        owner_id: { type: integer, format: int64 }
+        pet_id: { type: integer, format: int64 }
+        hospitalization_type: { type: string, enum: [hospitalization, hotel] }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        next_visit: { type: string, format: date, nullable: true }
+        clear_next_visit: { type: boolean }
+        status: { type: string, enum: [admitted, discharged, reserved] }
+        doctor_id: { type: integer, format: int64, nullable: true }
+        memo: { type: string }
+        owner_request: { type: string }
+        staff_notes: { type: string }
+    HospitalizationCreateRequest:
+      type: object
+      description: |
+        既存createの入力専用DTO。非ケージfieldの既存必須条件を継承し、461のケージ制約を標準allOfで適用する。
+        入力の医院/actorは認証済みscopeから決定する。status等の入力値だけで現在占有を判断しない。
+      required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
+      allOf:
+        - $ref: '#/components/schemas/HospitalizationFormFields'
+        - $ref: '#/components/schemas/HospitalizationCageCreateFields'
+    HospitalizationPatchRequest:
+      type: object
+      description: |
+        PATCH入力専用DTO。owner/pet/type/start/endは必須ではなく、非送信fieldは更新要求に含まれない。
+        cage_idのNULL禁止、明示clear、期待割当CASは標準allOfで適用し、vendor拡張の解釈を前提としない。
+      allOf:
+        - $ref: '#/components/schemas/HospitalizationFormFields'
+        - $ref: '#/components/schemas/HospitalizationCagePatchFields'
     HospitalizationCageWriteConflict:
       type: object
       required: [error, code]
@@ -4645,7 +4681,8 @@ components:
 
     # Sources: docs/spec/domains/staff-workforce/README.md, docs/spec/screens/24-shift-calendar.md,
     # docs/design/domains/staff-workforce/technical-spec.md, docs/design/shared/integration-contracts.md.
-    # Adopted storage/model baseline: e60ba31e86f88e0e0a6a870989ac491fd8872654 (001, #729).
+    # Reference storage/model baseline: e60ba31e86f88e0e0a6a870989ac491fd8872654 (001, #729).
+    # Aggregate version for break-only writes is a target; baseline storage does not implement it.
     # EMR-493 selected wire contract; implementation pending. Not a model serialization.
     ShiftWorkBreak:
       type: object
@@ -4679,7 +4716,14 @@ components:
         full/morning/afternoonの名称だけから時間を推測しない。
         interval_state=unknownは勤務または休憩の旧日時が未解決。NULLを休日・勤務可能と扱わず、訂正確認まで保存を停止する。
         off/paid_leaveは終日非勤務、両日時NULL、breaks=[]。勤務未登録は行不存在でありoffとは別。
-        versionは勤務aggregateのCAS版（休憩変更も含む）。updated_atやtemplate版で代替しない。
+        versionは勤務aggregateの目標CAS版（休憩単独変更も含む）。updated_atやtemplate版で代替しない。
+        採用001のentity_version_guardは親業務列変更だけを増分し、version単独更新を拒否する。
+        shift_entry_breaksから親版を増分するtriggerはなく、休憩単独変更の契約は採用001だけでは未成立。
+        446/466へ限定storage差分を引渡す必要がある。方式は未選定で、このPRではDDLを変更しない。
+        休憩単独更新と親/別休憩更新を同じCAS境界で直列化し、内容変更がある保存単位ごとに親版を一度進めること、
+        失敗/rollback/同操作再送で余分に増分しないことをstorage引渡しの受入条件とする。
+        偽のnotes等の親列更新でtriggerを起動する回避は採用しない。
+      x-storage-dependency: EMR-446/466 aggregate-version support for break-only changes (mechanism unselected)
       properties:
         id: { type: string, pattern: '^[1-9][0-9]*$' }
         clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
@@ -4726,9 +4770,8 @@ components:
         ends_at: { type: string, format: date-time, nullable: true }
         breaks:
           type: array
-          maxItems: 50
           items: { $ref: '#/components/schemas/ShiftWorkBreak' }
-        notes: { type: string, maxLength: 2000 }
+        notes: { type: string }
     UpdateShiftRequest:
       type: object
       additionalProperties: false
@@ -4749,9 +4792,8 @@ components:
         ends_at: { type: string, format: date-time, nullable: true }
         breaks:
           type: array
-          maxItems: 50
           items: { $ref: '#/components/schemas/ShiftWorkBreak' }
-        notes: { type: string, maxLength: 2000 }
+        notes: { type: string }
     ShiftMutationReceipt:
       type: object
       additionalProperties: false
@@ -8192,13 +8234,15 @@ components:
       additionalProperties: false
       required: [title, order_value, section, body_markdown]
       description: >-
-        編集・表示内容の値object。全field非NULL・全置換。未指定は400。
+        編集・表示内容の値object。field存在と文字列の長さを区別する。
+        編集要求は全field非NULL・全置換で未指定は400。空文字や長文を未承認の長さ制限で拒否しない。
+        公開/過去版の応答も旧空本文/長文をそのまま表現できる。
         order_valueはnumeric(10,2)に表現可能な値。digestはserverがこの内容から算出し、clientで再構成しない。
       properties:
-        title: { type: string, minLength: 1, maxLength: 255 }
+        title: { type: string }
         order_value: { type: number, multipleOf: 0.01, minimum: -99999999.99, maximum: 99999999.99 }
-        section: { type: string, minLength: 1, maxLength: 255 }
-        body_markdown: { type: string, minLength: 1, maxLength: 100000 }
+        section: { type: string }
+        body_markdown: { type: string }
     ManualArticleVersion:
       type: object
       additionalProperties: false
@@ -13198,7 +13242,7 @@ paths:
         候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
         現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
         期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
-        ケージfield以外のstay DTO/lifecycleは499等のowner契約で別整備。Hospitalization全体を採用001の公開行とみなさない。
+        ケージfield以外のstay lifecycleは499等のowner契約で別整備。専用requestBody DTOに既存入力互換だけを分離し、Hospitalization全体を採用001の公開行とみなさない。
         461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
         対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
         操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
@@ -13208,7 +13252,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Hospitalization'
+              $ref: '#/components/schemas/HospitalizationCreateRequest'
       responses:
         '201':
           description: 登録成功
@@ -13402,7 +13446,7 @@ paths:
         候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
         現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
         期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
-        ケージfield以外のstay DTO/lifecycleは499等のowner契約で別整備。Hospitalization全体を採用001の公開行とみなさない。
+        ケージfield以外のstay lifecycleは499等のowner契約で別整備。専用requestBody DTOに既存入力互換だけを分離し、Hospitalization全体を採用001の公開行とみなさない。
         461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
         対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
         操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
@@ -13419,7 +13463,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Hospitalization'
+              $ref: '#/components/schemas/HospitalizationPatchRequest'
       responses:
         '200':
           description: 更新成功
