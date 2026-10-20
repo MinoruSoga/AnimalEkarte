@@ -41,6 +41,12 @@ func setClinicID(c *gin.Context) {
 	})
 }
 
+// setStaffID は ExtractStaffID（画像の削除予約など staff actor が必須の処理）が
+// 読む user_id コンテキストを設定する。
+func setStaffID(c *gin.Context) {
+	c.Set("user_id", "7")
+}
+
 func strPtr(value string) *string {
 	return &value
 }
