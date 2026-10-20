@@ -39,6 +39,8 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 | **行動・安全属性** | **特記レベル (`danger_level`)**: 咬癖や攻撃性がある場合、`高 / 中 / 低` で設定。モーダルでは折りたたみ「スタッフ向け特記」の内側にあり、一覧・ヘッダーでは文言なしのアイコンバッジで示されます（EMR-231）。 |
 | **医療背景** | 常用フード、飼育環境（自由入力）、加入保険（マスタ選択）。 |
 
+- **死亡誤登録の取消（2026-10-20採用目標）**: [本人承認の正本](../domains/owners-pets/lifecycle.md#pet-death-misregistration-undo-20261020)に従い、権限内の専用操作で取消理由を必須入力する。状態変更と変更前後・actor・理由の取消履歴は同じtransactionで保存し、理由なし／保存失敗を取消成功と表示しない。取消だけで予約・通知を再開しない。現行 `HandlePetRevival` は理由引数がなく、理由入力・履歴内容の目標充足は[未実装差分](../../design/domains/owners-pets/technical-spec.md#pet-revival-target-gap)。今回の実装変更・実機受入は未実施。
+
 - **名前の由来・出逢いのストーリー (`pets.name_origin` / `pets.meeting_story`)**: EMR-174 の任意項目。 最新本人回答（Sentinel_c304f9c1412081918729c65d530e183c）のAによりペットのみを対象とし、飼主側は対象外。Backlog No.39旧回答の双方という範囲は[領域正本の訂正記録](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-identity-and-search)へ置き換える。識別セクション（`PetIdentitySection`）に入力欄があり、ペット一括登録フォームと `PetEditModal` の双方から記録できる。名前の由来は最大500文字（Input）、出逢いのストーリーは最大2000文字（Textarea・3行）。NULL は未記録を意味し、空文字・空白のみの入力は API 境界で NULL に正規化される。PATCH では省略=変更なし、`null`=NULL クリア、値=更新の3状態を使い分ける。
 - **ペット詳細の閲覧**: 飼主配下一覧のペット名リンク・操作メニュー「詳細・編集」のいずれでも `PetEditModal` が開く。`owners:edit` を持たない閲覧ユーザーにも詳細は開くが、`fieldset disabled` で入力は不可・保存ボタンは出ない（EMR-174）。`?pet=` クエリを付けて飼主詳細を開くと、ローダー完了後に対象ペットのモーダルを自動で開き、クエリは `replace` で除去される（同じリンクを再利用可能）。
 - **ペット特記 (`pets.danger_level` / `danger_reason`)**: `danger_reason` は動物を安全に取り扱うための補足メモです。理由の入力は特記レベル「高」の場合のみ必須で、「中」では任意です。スタッフ内部情報として扱い、Owner Report・LIFF・line-reserve の owner-facing 応答にはフィールド自体を含めません。フォーム上の項目名は「特記レベル」「理由」に中立化され（EMR-231）、フィールドは「スタッフ向け特記」折りたたみ内に配置されます。
