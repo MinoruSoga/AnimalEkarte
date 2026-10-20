@@ -281,3 +281,29 @@ describe("TreatmentThreeValuesCell — EMR-488 薬剤3値", () => {
       }),
     );
   });
+
+  it("Enter 後の blur で二重 commit しない（in-flight ガード）", async () => {
+    const user = userEvent.setup();
+    let resolvePatch: (v: "saved") => void = () => {};
+    const onUpdate = vi.fn(
+      () => new Promise<"saved">((resolve) => { resolvePatch = resolve; }),
+    );
+    const { inputRef } = renderCell({
+      treatment: buildTreatment({
+        administration_dose_amount: 2.5,
+        administration_dose_unit: "錠",
+      }),
+      editField: "administration_dose_amount",
+      onUpdate,
+    });
+    const input = inputRef.current as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, "3");
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.blur(input);
+    resolvePatch("saved");
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+    // in-flight 中の blur による 2 回目の commit は送らない
+    await new Promise((r) => setTimeout(r, 10));
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+  });

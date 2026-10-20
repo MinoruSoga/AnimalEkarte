@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useState, type RefObject } from "react";
+import { memo, useEffect, useId, useRef, useState, type RefObject } from "react";
 
 import { TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -311,6 +311,7 @@ function PairEditor({
   const [localAmount, setLocalAmount] = useState(initialAmount == null ? "" : String(initialAmount));
   const [localUnit, setLocalUnit] = useState(initialUnit ?? "");
   const [invalid, setInvalid] = useState(false);
+  const committingRef = useRef(false);
   const errorId = useId();
 
   useEffect(() => {
@@ -319,6 +320,8 @@ function PairEditor({
   }, [inputRef]);
 
   const commit = async () => {
+    // Enter 直後の blur 等による二重 commit を防ぐ（Codex/CodeRabbit review minor）
+    if (committingRef.current) return;
     const parsed = parseAmountInput(localAmount);
     const trimmedUnit = localUnit.trim();
     // ペア不変条件: 量は必須（数値）、単位は trim 後非空。片側だけでは送信しない
@@ -332,8 +335,13 @@ function PairEditor({
       return;
     }
     // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
-    const outcome = await onCommit(parsed, trimmedUnit);
-    if (outcome !== "failed") onStopEdit();
+    committingRef.current = true;
+    try {
+      const outcome = await onCommit(parsed, trimmedUnit);
+      if (outcome !== "failed") onStopEdit();
+    } finally {
+      committingRef.current = false;
+    }
   };
 
   return (
@@ -382,7 +390,11 @@ function PairEditor({
           }}
           onKeyDown={(e) => {
             if (isComposingKeyEvent(e)) return;
-            if (e.key === "Enter") void commit();
+            if (e.key === "Enter") {
+              // カルテ本体フォームの暗黙 submit を防ぐ（Codex review P2）
+              e.preventDefault();
+              void commit();
+            }
             if (e.key === "Escape") onStopEdit();
           }}
           className="h-9 w-12 text-sm px-1"
@@ -412,6 +424,7 @@ function AmountEditor({
 }) {
   const [local, setLocal] = useState(initial == null ? "" : String(initial));
   const [invalid, setInvalid] = useState(false);
+  const committingRef = useRef(false);
   const errorId = useId();
 
   useEffect(() => {
@@ -420,6 +433,7 @@ function AmountEditor({
   }, [inputRef]);
 
   const commit = async () => {
+    if (committingRef.current) return;
     const parsed = parseAmountInput(local);
     if (parsed === null) {
       setInvalid(true);
@@ -431,8 +445,13 @@ function AmountEditor({
       return;
     }
     // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
-    const outcome = await onCommit(parsed);
-    if (outcome !== "failed") onStopEdit();
+    committingRef.current = true;
+    try {
+      const outcome = await onCommit(parsed);
+      if (outcome !== "failed") onStopEdit();
+    } finally {
+      committingRef.current = false;
+    }
   };
 
   return (
@@ -482,6 +501,7 @@ function UnitEditor({
   ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial ?? "");
+  const committingRef = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -489,6 +509,7 @@ function UnitEditor({
   }, [inputRef]);
 
   const commit = async () => {
+    if (committingRef.current) return;
     const text = local.trim();
     if (text === "" || text === (initial ?? "")) {
       // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
@@ -496,8 +517,13 @@ function UnitEditor({
       return;
     }
     // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
-    const outcome = await onCommit(text);
-    if (outcome !== "failed") onStopEdit();
+    committingRef.current = true;
+    try {
+      const outcome = await onCommit(text);
+      if (outcome !== "failed") onStopEdit();
+    } finally {
+      committingRef.current = false;
+    }
   };
 
   return (
@@ -530,10 +556,11 @@ function TextEditor({
   initial: string | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (value: string) => void | Promise<void>;
+  onCommit: (value: string) => void | Promise<TreatmentUpdateOutcome>;
   ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial ?? "");
+  const committingRef = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -541,15 +568,21 @@ function TextEditor({
   }, [inputRef]);
 
   const commit = async () => {
+    if (committingRef.current) return;
     const text = local.trim();
     if (text === "" || text === (initial ?? "")) {
       // 空入力は明示クリア経路がないため変更なし。未変更も送らない（BE PATCH 契約・既存エディタ規約）
       onStopEdit();
       return;
     }
-    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
-    await onCommit(text);
-    onStopEdit();
+    // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
+    committingRef.current = true;
+    try {
+      const outcome = await onCommit(text);
+      if (outcome !== "failed") onStopEdit();
+    } finally {
+      committingRef.current = false;
+    }
   };
 
   return (
@@ -561,7 +594,10 @@ function TextEditor({
       onBlur={commit}
       onKeyDown={(e) => {
         if (isComposingKeyEvent(e)) return;
-        if (e.key === "Enter") void commit();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void commit();
+        }
         if (e.key === "Escape") onStopEdit();
       }}
       className={`h-9 flex-1 min-w-11 text-sm px-1 ${C.borderMedium}`}

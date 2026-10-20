@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"encoding/json"
+	"math/big"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -44,6 +45,21 @@ func (f *doseAmountField) UnmarshalJSON(data []byte) error {
 	var num json.Number
 	if err := json.Unmarshal(data, &num); err != nil {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
+	}
+	// ScanScientific は内部で big.Float→float64 を経由するため、桁数が多い入力は
+	// 変換で精度が落ちる。numeric(12,6) への適合は big.Rat による厳密検証で先に確認し、
+	// 範囲外・6桁を超える小数は 400 で拒否する（CodeRabbit review minor: 精度落ちの値を保存しない）。
+	rat, ok := new(big.Rat).SetString(num.String())
+	if !ok {
+		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
+	}
+	scaled := new(big.Rat).Mul(rat, big.NewRat(1000000, 1))
+	if !scaled.IsInt() {
+		return apperrors.WrapInvalidInput(errMsgDoseAmountRange)
+	}
+	limit := big.NewInt(999999999999) // 999999.999999 × 10^6
+	if scaled.Num().CmpAbs(limit) > 0 {
+		return apperrors.WrapInvalidInput(errMsgDoseAmountRange)
 	}
 	var value model.ExactNumeric
 	if err := value.ScanScientific(num.String()); err != nil {

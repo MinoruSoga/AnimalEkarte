@@ -465,3 +465,25 @@ func TestCreateTreatmentRequest_ThreeValues_QuotedAmountIsRejected(t *testing.T)
 	err := json.Unmarshal([]byte(body), &req)
 	assert.Error(t, err)
 }
+
+func TestCreateTreatmentRequest_ThreeValues_PrecisionAndExponentEdges(t *testing.T) {
+	// 有効13桁（0.0000012345678）は numeric(12,6) を超えるため 400（精度落ちを保存しない）
+	body := `{"item_type": "medicine", "administration_dose_amount": 0.0000012345678}`
+	var req createTreatmentRequest
+	err := json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+
+	// 指数表記で範囲外（1e+20）も 400
+	body = `{"item_type": "medicine", "administration_dose_amount": 1e+20}`
+	err = json.Unmarshal([]byte(body), &req)
+	assert.Error(t, err)
+
+	// 指数表記で範囲内（2.5e0 = 2.5）は受理
+	body = `{"item_type": "medicine", "administration_dose_amount": 2.5e0, "administration_dose_unit": "錠"}`
+	req = createTreatmentRequest{}
+	err = json.Unmarshal([]byte(body), &req)
+	assert.NoError(t, err)
+	input := req.toServiceInput()
+	require.NotNil(t, input.AdministrationDoseAmount)
+	assert.Equal(t, "2.5", exactText(t, input.AdministrationDoseAmount))
+}
