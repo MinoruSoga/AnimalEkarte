@@ -26,6 +26,8 @@ type CreateTrimmingCourseInput struct {
 	ShortName       string
 	ImageObjectKey  string
 	AllowedWeekdays []int
+	// Authenticated actor for durable image-reference history.
+	ActorStaffID uint64
 }
 
 // UpdateTrimmingCourseInput はトリミングコース更新のサービス入力 DTO
@@ -44,9 +46,8 @@ type UpdateTrimmingCourseInput struct {
 	ImageObjectKey  *string
 	AllowedWeekdays *[]int
 
-	// 画像の置換・解除で不要になった旧 key の削除予約（tombstone）を打つ staff
-	// actor。0 は呼び出し元が staff を特定できないことを意味し、削除予約が必要な
-	// 更新は既存 lifecycle 契約どおり invalid input で拒否する（fail-closed）。
+	// Authenticated actor for same-transaction image-reference history.
+	// Saved originals are retained; this is never a deletion reservation.
 	ActorStaffID uint64
 }
 
@@ -221,6 +222,7 @@ type trimmingCourseService struct {
 	courseTypeRepo TrimmingCourseTypeRepository
 	transactor     Transactor
 	imageLifecycle ImageLifecycleRepository
+	imageAudit     AuditTxLogger
 }
 
 // TrimmingCourseServiceOption configures optional trimming course dependencies.
@@ -230,6 +232,12 @@ type TrimmingCourseServiceOption func(*trimmingCourseService)
 // protocol. Without it, writes that set a course image fail closed.
 func WithCourseImageLifecycle(lifecycle ImageLifecycleRepository) TrimmingCourseServiceOption {
 	return func(s *trimmingCourseService) { s.imageLifecycle = lifecycle }
+}
+
+// WithCourseImageAudit records original image references in the course write
+// transaction. Image writes fail closed when this dependency is absent.
+func WithCourseImageAudit(logger AuditTxLogger) TrimmingCourseServiceOption {
+	return func(s *trimmingCourseService) { s.imageAudit = logger }
 }
 
 // NewTrimmingCourseService は TrimmingCourseService を生成する
@@ -253,18 +261,30 @@ func NewTrimmingCourseService(
 // lockCourseImageInTx keeps a newly referenced image key alive until commit:
 // the same advisory lock as trimming records serializes it with deletion
 // reservations, and a tombstoned key must be uploaded again.
-func (s *trimmingCourseService) lockCourseImageInTx(ctx context.Context, clinicID uint64, key string) error {
-	if key == "" {
+func (s *trimmingCourseService) lockCourseImageInTx(ctx context.Context, clinicID uint64, key string, previous ...string) error {
+	keys := make([]ImageKey, 0, len(previous)+1)
+	seen := make(map[string]bool)
+	for _, value := range append(previous, key) {
+		canonical, owned := trimmingImageObjectKey(value, clinicID)
+		if owned && !seen[canonical] {
+			seen[canonical] = true
+			keys = append(keys, ImageKey{clinicID: clinicID, value: canonical})
+		}
+	}
+	if len(keys) == 0 {
 		return nil
 	}
 	if s.imageLifecycle == nil {
 		return apperrors.WrapInternalServerError("trimming course image lifecycle is not configured")
 	}
-	imageKey := ImageKey{clinicID: clinicID, value: key}
-	if err := s.imageLifecycle.LockImageKeys(ctx, []ImageKey{imageKey}); err != nil {
-		return apperrors.Wrap(err, "failed to lock trimming course image")
+	sort.Slice(keys, func(i, j int) bool { return keys[i].value < keys[j].value })
+	if err := s.imageLifecycle.LockImageKeys(ctx, keys); err != nil {
+		return apperrors.Wrap(err, "failed to lock trimming course images")
 	}
-	deleted, err := s.imageLifecycle.ImageKeyDeleted(ctx, imageKey)
+	if key == "" {
+		return nil
+	}
+	deleted, err := s.imageLifecycle.ImageKeyDeleted(ctx, ImageKey{clinicID: clinicID, value: key})
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check trimming course image lifecycle")
 	}
@@ -338,8 +358,18 @@ func (s *trimmingCourseService) Create(ctx context.Context, clinicID uint64, inp
 		if err := s.lockCourseImageInTx(txCtx, clinicID, attrs.imageKey); err != nil {
 			return err
 		}
+		if attrs.imageKey != "" {
+			if err := s.requireCourseImageAudit(input.ActorStaffID); err != nil {
+				return err
+			}
+		}
 		if err := s.repo.Create(txCtx, course); err != nil {
 			return apperrors.Wrap(err, "failed to create trimming course")
+		}
+		if attrs.imageKey != "" {
+			if err := s.logCourseImageHistory(txCtx, clinicID, input.ActorStaffID, course.ID, "create", nil, course.ImageObjectKey); err != nil {
+				return err
+			}
 		}
 		return nil
 	}); err != nil {
@@ -383,14 +413,45 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 		if len(fields) == 0 {
 			return apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 		}
+		var previousImage *string
 		if input.ImageObjectKey != nil {
-			if err := s.lockCourseImageInTx(txCtx, clinicID, *input.ImageObjectKey); err != nil {
+			if err := s.requireCourseImageAudit(input.ActorStaffID); err != nil {
+				return err
+			}
+			locker, ok := s.repo.(courseImageUpdateLocker)
+			if !ok {
+				return apperrors.WrapInternalServerError("course image update lock is not configured")
+			}
+			previous, err := locker.LockForImageUpdate(txCtx, clinicID, id)
+			if err != nil {
+				return err
+			}
+			if previous == nil {
+				return apperrors.WrapInternalServerError("locked course is missing")
+			}
+			if previous.ImageObjectKey != nil {
+				oldKey := *previous.ImageObjectKey
+				previousImage = &oldKey
+			}
+			stored := ""
+			if previousImage != nil {
+				stored = *previousImage
+			}
+			if err := s.lockCourseImageInTx(txCtx, clinicID, *input.ImageObjectKey, stored); err != nil {
 				return err
 			}
 		}
 		updated, err := s.repo.Update(txCtx, clinicID, id, *input)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to update trimming course")
+		}
+		if input.ImageObjectKey != nil {
+			if updated == nil {
+				return apperrors.WrapInternalServerError("updated course is missing")
+			}
+			if err := s.logCourseImageHistory(txCtx, clinicID, input.ActorStaffID, id, "update", previousImage, updated.ImageObjectKey); err != nil {
+				return err
+			}
 		}
 		course = updated
 		return nil

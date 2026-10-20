@@ -28,7 +28,7 @@ func setupImageReferenceTestDB(t *testing.T) *gorm.DB {
 	}
 	require.NoError(t, ensureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
-		&model.AppointmentTrimmingDetail{}, &model.AppointmentTrimmingOption{}))
+		&model.AppointmentTrimmingDetail{}, &model.AppointmentTrimmingOption{}, &model.TrimmingCourse{}, &model.AuditLog{}))
 	return db
 }
 
@@ -129,4 +129,44 @@ func TestImageKeyInUse_ObservesAmbientTx(t *testing.T) {
 	inUse, err := repo.ImageKeyInUse(ctx, clinicID, key, 0)
 	require.NoError(t, err)
 	assert.False(t, inUse, "rolled-back rows must not count as references")
+}
+
+// This DB regression verifies that a cleared/replaced course image remains a
+// protected original even after no current course row references its key.
+func TestCourseImageHistoryInUse_RetainsOriginalReferences(t *testing.T) {
+	db := setupImageReferenceTestDB(t)
+	const key = "trimming-images/1/original.jpg"
+	for _, tc := range []struct {
+		name, resource, oldValue, newValue string
+		clinicID                           uint64
+		want                               bool
+	}{
+		{"before reference", courseImageAuditResource, `{"image_object_key":"trimming-images/1/original.jpg"}`, `{"image_object_key":null}`, 1, true},
+		{"after reference", courseImageAuditResource, `{"image_object_key":null}`, `{"image_object_key":"trimming-images/1/original.jpg"}`, 1, true},
+		{"legacy wrapped reference", courseImageAuditResource, `{"image_object_key":"/uploads/trimming-images/1/original.jpg"}`, `null`, 1, true},
+		{"other clinic", courseImageAuditResource, `{"image_object_key":"trimming-images/1/original.jpg"}`, `null`, 2, false},
+		{"unrelated resource", "unrelated", `{"image_object_key":"trimming-images/1/original.jpg"}`, `null`, 1, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Use an isolated per-subtest rollback so one retained reference
+			// cannot make a later negative case pass accidentally.
+			tx := db.Begin()
+			require.NoError(t, tx.Error)
+			t.Cleanup(func() { require.NoError(t, tx.Rollback().Error) })
+			require.NoError(t, tx.Exec(`INSERT INTO audit_logs (clinic_id, actor_type, action, resource, resource_id, old_value, new_value)
+				VALUES (?, 'system', 'trimming_course.image_update', ?, 10, ?::jsonb, ?::jsonb)`, tc.clinicID, tc.resource, tc.oldValue, tc.newValue).Error)
+			got, err := trimmingCourseImageHistoryInUse(t.Context(), tx, 1, key)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestCourseImageHistoryInUse_ReadFailureDoesNotPermitDeletion(t *testing.T) {
+	db := setupImageReferenceTestDB(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	got, err := trimmingCourseImageHistoryInUse(ctx, db, 1, "trimming-images/1/original.jpg")
+	require.Error(t, err)
+	assert.False(t, got, "caller must reject deletion on error; false is not a proof")
 }

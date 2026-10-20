@@ -501,6 +501,7 @@ func newRuntimeTrimming(
 			repositories.trimmingCourseType,
 			transactor,
 			trimmingCourseImageLifecycleOption(repositories.trimmingDetails),
+			trimming.WithCourseImageAudit(trimmingAuditTxAdapter{inner: auditKernel}),
 		),
 		options: trimming.NewTrimmingOptionService(
 			repositories.trimmingOptions,

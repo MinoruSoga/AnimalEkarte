@@ -57,9 +57,9 @@ func newSupersedeUpdateRepo(existing *model.TrimmingCourse, captured *map[string
 
 func newAttributeCourseService(repo TrimmingCourseRepository, lifecycle ImageLifecycleRepository) TrimmingCourseService {
 	if lifecycle == nil {
-		return NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{})
+		return NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{}, WithCourseImageAudit(noopTrimmingAuditTxLogger{}))
 	}
-	return NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{}, WithCourseImageLifecycle(lifecycle))
+	return NewTrimmingCourseService(repo, &mockMinimalCourseTypeRepo{}, &mockTransactor{}, WithCourseImageLifecycle(lifecycle), WithCourseImageAudit(noopTrimmingAuditTxLogger{}))
 }
 
 func captureCreateRepo(captured **model.TrimmingCourse) *mockTrimmingCourseRepository {
@@ -78,6 +78,7 @@ func TestTrimmingCourseService_CreateNormalizesAttributes(t *testing.T) {
 
 	_, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseInput{
 		Name:            "シャンプー",
+		ActorStaffID:    7,
 		ShortName:       "  シャン  ",
 		ImageObjectKey:  " trimming-images/1/course.jpg ",
 		AllowedWeekdays: []int{6, 1, 1, 3},
@@ -148,7 +149,7 @@ func TestTrimmingCourseService_CreateRejectsDeletedImageKey(t *testing.T) {
 	lifecycle := &courseImageLifecycleFake{deleted: map[string]bool{"trimming-images/1/gone.jpg": true}}
 	svc := newAttributeCourseService(repo, lifecycle)
 
-	_, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseInput{Name: "A", ImageObjectKey: "trimming-images/1/gone.jpg"})
+	_, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseInput{Name: "A", ImageObjectKey: "trimming-images/1/gone.jpg", ActorStaffID: 7})
 
 	require.Error(t, err)
 	assert.True(t, apperrors.IsConflict(err), "want conflict, got %v", err)
@@ -228,6 +229,7 @@ func TestTrimmingCourseService_UpdateAttributeTriState(t *testing.T) {
 			svc := newAttributeCourseService(updateCaptureRepo(&fields), lifecycle)
 
 			input := tt.input
+			input.ActorStaffID = 7
 			_, err := svc.Update(context.Background(), 1, 10, &input)
 
 			require.NoError(t, err)

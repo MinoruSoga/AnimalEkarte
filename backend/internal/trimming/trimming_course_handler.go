@@ -68,7 +68,15 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 		return
 	}
 
-	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	input := req.toServiceInput()
+	if req.ImageObjectKey != "" {
+		staffID, ok := httpapi.ExtractStaffID(c)
+		if !ok {
+			return
+		}
+		input.ActorStaffID = staffID
+	}
+	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -92,7 +100,7 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	// 画像の置換・解除時に旧 key の削除予約（tombstone）を打つため staff actor が必須
+	// 原本参照の同一TX監査を残すため authenticated staff actor が必須
 	//（ExtractStaffID は失敗時に応答を書く）
 	staffID, ok := httpapi.ExtractStaffID(c)
 	if !ok {
