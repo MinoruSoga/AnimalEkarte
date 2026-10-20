@@ -120,42 +120,52 @@ func (r *conversationSummaryRepository) FindByMedicalRecordID(ctx context.Contex
 // Save は会話要約3列のみを原子的に更新する。
 //
 //   - 対象は clinic_id + medical_record_id で限定する（他医院・他カルテ・他の診療記録列は触らない）。
-//     UpdateColumns を使うため updated_at 等の自動タイムスタンプも進めない
+//     CASE/SET に updated_at を含めないため自動タイムスタンプも進まない
 //     （非表示保存が通常カルテの「最終更新」に見えることを防ぐ）。
-//   - revision は UPDATE 式 COALESCE(conversation_summary_revision, 0) + 1 で採番する。
+//   - revision は内容が変化したときだけ COALESCE(revision, 0) + 1 で採番する（CASE式）。
 //     read-modify-write を避けるため、同時保存でも版が重複しない。旧未保存（NULL）からの
-//     初回保存は 1 になる。
-//   - 成功時は RETURNING で自分の書込みrevisionを同一statement内で受け取る。
-//     UPDATE と読戻しの間に他writerが割り込んでも、自分の commit 済み結果を
-//     正しく返せる（lost update / 誤conflict の競合窗口が存在しない）。
-//   - 同一内容（summary と source が不変）の行は WHERE で除外するため、再送しても revision は
-//     据え置き（no-op 成功）。0 行更新のときは読戻しで分類する: 内容一致は冪等成功、
-//     対象なしは NotFound、期待版不一致は conflict。
-//   - 0 行更新経路は commit 済みの書込みを伴わないため、backend/CLAUDE.md
-//     「commit済みの成功を後段の再取得errorで失敗応答へ反転させない」に触れない。
+//     初回保存は 1 になる。同一内容の再送は revision 据え置き（no-op 成功）。
+//   - 成功時は RETURNING で自分のstatementが採番した revision を受け取る。
+//     他writerが先行・後続しても自分の書込み結果を返す（lost update / 誤conflict の
+//     競合窗口が存在しない）。no-op 判定も同じstatementのスナップショットで確定する。
+//   - 0 行更新のときは読戻しで分類する: 対象なし（論理削除済みを含む）は NotFound、
+//     内容一致は冪等成功、期待版不一致は conflict。この経路は commit 済みの書込みを
+//     伴わないため、backend/CLAUDE.md「commit済みの成功を後段の再取得errorで
+//     失敗応答へ反転させない」に触れない。
 func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConversationSummaryCommand) (*ConversationSummary, error) {
 	if err := cmd.validate(); err != nil {
 		return nil, err
 	}
-	// Save は UPDATE...RETURNING の単一statement: deleted_at IS NULL は手書きSQLに
-	// GORMのsoft-delete scopeが効かないため明示する（論理削除済みへの保存はNotFound扱い）。
-	// RETURNING で自分の書込みrevisionを同一statement内で受け取る。
-	// UPDATE と読戻しの間に他writerが割り込んでも、commit 済みの自分の結果を正しく返せる
-	// （lost update / 誤conflict の競合窗口が存在しない）。updated_at は触れない。
+	// Save は UPDATE...RETURNING の単一statementで完結する。
+	//
+	//   - deleted_at IS NULL は手書きSQLにGORMのsoft-delete scopeが効かないため明示する
+	//     （論理削除済みへの保存は NotFound 扱い。読戻し側のscopeと整合）。
+	//   - 内容（summary+source）が保存済み値と同一のときは CASE 式で revision を据え置く
+	//     （冪等再送 = no-op 成功、版は進まない）。内容が異なるときだけ COALESCE+1 で採番。
+	//     WHERE に内容差分を置かないため、no-op 判定もこのstatementのスナップショットで
+	//     原子的に確定し、別statementの読戻し競合で誤conflictになる窗口が存在しない。
+	//   - expected revision（ある場合）の不一致は 0 行更新になり、読戻しで conflict /
+	//     NotFound / 冪當成功を分類する。呼び出し側が版を指定したときの conflict は契約。
+	//   - RETURNING で自分のstatementが採番した revision を受け取るため、
+	//     他writerが先行しても自分の書込み結果を返す（lost update にならない）。
+	//   - updated_at は CASE/SET に含めないため進まない（非表示保存が通常カルテの
+	//     「最終更新」に見えることを防ぐ）。
 	var revision int64
 	query := `UPDATE medical_records SET
 		conversation_summary = ?,
 		conversation_summary_source = ?,
-		conversation_summary_revision = COALESCE(conversation_summary_revision, 0) + 1
-	WHERE id = ? AND clinic_id = ? AND deleted_at IS NULL
-		AND (conversation_summary IS DISTINCT FROM ? OR conversation_summary_source IS DISTINCT FROM ?)`
-	args := []any{cmd.Summary, cmd.Source, cmd.MedicalRecordID, cmd.ClinicID, cmd.Summary, cmd.Source}
+		conversation_summary_revision = CASE
+			WHEN conversation_summary IS NOT DISTINCT FROM ? AND conversation_summary_source IS NOT DISTINCT FROM ?
+			THEN conversation_summary_revision
+			ELSE COALESCE(conversation_summary_revision, 0) + 1
+		END
+	WHERE id = ? AND clinic_id = ? AND deleted_at IS NULL`
+	args := []any{cmd.Summary, cmd.Source, cmd.Summary, cmd.Source, cmd.MedicalRecordID, cmd.ClinicID}
 	if cmd.ExpectedRevision != nil {
 		// 保存済み revision は CHECK 制約により 1 以上なので、0 は「未保存」と一意に対応する。
 		query += " AND COALESCE(conversation_summary_revision, 0) = ?"
 		args = append(args, *cmd.ExpectedRevision)
 	}
-	// RETURNING は WHERE句（条件の追記）より常に後ろに置く。
 	query += " RETURNING conversation_summary_revision"
 	result := persistence.DBOrTx(ctx, r.db).Raw(query, args...).Scan(&revision)
 	if result.Error != nil {
@@ -171,20 +181,20 @@ func (r *conversationSummaryRepository) Save(ctx context.Context, cmd SaveConver
 		}, nil
 	}
 
-	// 0 行更新: commit 済みの書込みを伴わないため、読戻しで分類する。
+	// 0 行更新: 対象なし / 期待版不一致。読戻しで分類する。
+	// nil 期待版でここへ来るのは対象なし（または論理削除済み）のみ。
 	current, err := r.FindByMedicalRecordID(ctx, cmd.ClinicID, cmd.MedicalRecordID)
 	if err != nil {
 		return nil, err // 対象なし（他医院を含む）は NotFound
 	}
 	if conversationSummaryMatches(current, cmd) {
-		// 同一内容の再送（期待版が古い場合を含む）。revision も含め保存済みの値をそのまま返す。
+		// 同一内容 + 期待版不一致の再送。期待版が古くても内容は本commandの意図と一致する
+		// ため冪等成功（revision 据え置きの保存済み値をそのまま返す）。
 		return current, nil
 	}
 	if cmd.ExpectedRevision != nil && conversationSummaryRevisionValue(current) != *cmd.ExpectedRevision {
 		return nil, apperrors.WrapConflict(conversationSummaryConflictMessage)
 	}
-	// 内容が異なり、期待版指定もないのに 0 行更新になる経路はない（WHERE は内容差分だけ）。
-	// 到達した場合は競合状態として conflict に倒す（fail-closed）。
 	return nil, apperrors.WrapConflict(conversationSummaryConflictMessage)
 }
 
