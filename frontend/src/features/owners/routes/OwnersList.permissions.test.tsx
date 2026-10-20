@@ -8,6 +8,7 @@ import { AuthContext } from "@/hooks/auth-context";
 import type { AuthUser, ResourceAction } from "@/types/auth";
 import type { Pet } from "@/types";
 import { OwnersList } from "./OwnersList";
+import type { OwnersLoaderData } from "../loaders";
 
 const permissionMocks = vi.hoisted(() => ({
   canDelete: true,
@@ -44,6 +45,14 @@ vi.mock("@/components/shared/ConfirmDialog/ConfirmDialog", () => ({
 }));
 
 const CLINIC_ID = "1";
+
+// EMR-463: loader は現在許可（GET /me owners_view_clinic_ids）から確定した表示医院を返す。
+const READY_STATE: OwnersLoaderData["listState"] = { kind: "ready", scopeRechecked: false };
+const SINGLE_CLINIC_SCOPE: OwnersLoaderData["clinicScope"] = {
+  userId: "10",
+  clinics: [{ clinicId: CLINIC_ID, clinicName: "本院", isMain: true }],
+  selectedClinicIds: [CLINIC_ID],
+};
 
 function makeAuthContext() {
   const user: AuthUser = {
@@ -107,7 +116,14 @@ function renderOwnersList() {
       {
         path: "/owners",
         element: <DeleteRevocationHarness />,
-        loader: () => ({ pets: [makePet()], page: 1, limit: 20, total: 1 }),
+        loader: () => ({
+          pets: [makePet()],
+          page: 1,
+          limit: 20,
+          total: 1,
+          listState: READY_STATE,
+          clinicScope: SINGLE_CLINIC_SCOPE,
+        }),
       },
     ],
     { initialEntries: ["/owners"] },
