@@ -33,7 +33,7 @@ func newMedicalRecordReferenceServices(
 		examinationTypes: medicalrecord.NewExamTypeService(r.examinationTypes, d.Transactor),
 		chiefComplaints:  medicalrecord.NewChiefComplaintTypeService(r.chiefComplaints),
 		checkupTypes:     medicalrecord.NewCheckupTypeService(r.checkupTypes),
-		vaccines:         medicalrecord.NewVaccineService(r.vaccines),
+		vaccines:         medicalrecord.NewVaccineServiceWithAudit(r.vaccines, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: medicalRecordAuditTxBridge{logger: d.Audit}}),
 		inquiryTemplates: medicalrecord.NewInquiryTemplateService(r.inquiryTemplates),
 	}
 }

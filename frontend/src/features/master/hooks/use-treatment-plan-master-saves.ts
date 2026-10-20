@@ -1,3 +1,4 @@
+import { isMasterEditVersion, MASTER_EDIT_VERSION_ERROR } from "@/lib/master-edit-version";
 import { useCallback, useMemo, type TransitionStartFunction } from "react";
 
 import { useMasterSave } from "../hooks/use-master-save";
@@ -112,13 +113,18 @@ export function useTreatmentPlanMasterSaves({
     TreatmentItem,
     TreatmentFormData,
     CreateVaccineMasterRequest,
-    UpdateVaccineMasterRequest
+    UpdateVaccineMasterRequest & { version: number }
   >({
     crud: minimalCrud,
     createMutation: resources.createVaccine,
     updateMutation: resources.updateVaccine,
     permissions: { canCreate, canEdit },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
+    validate: (data) => {
+      if (!data.name.trim()) return "名称を入力してください";
+      if (editTarget !== "new" && !isMasterEditVersion(data.version))
+        return MASTER_EDIT_VERSION_ERROR;
+      return null;
+    },
     toCreateRequest: buildVaccineCreateRequest,
     toUpdateRequest: buildVaccineUpdateRequest,
   });
