@@ -286,10 +286,20 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 
 ### Dots へ残る判断事項
 
-- #763 CSP: `index.html` / `public/_headers` / `vercel.json` の CSP は `default-src 'self'` で、`frame-src`（必要に応じて `object-src`）に `blob:` の許可が無い。このため blob iframe での PDF preview と印刷が実ブラウザで表示されない。共通設定なので FE PR では変更しない。画面をルートに接続する前提条件。
-- #763 PDF 取得: 共通 axios が `/content` の GET にも `Accept: application/json` を送る。BE 実装時に受け入れるかを確認する。
-- #756 500 Retry-After: api.yaml の `RevisitIntakeInternalError` に optional `Retry-After` header を追補する（契約側）。
-- 487 用紙サイズ・向き: 本人確認待ち（server renderer の事項）。
+2026-10-21 第 2 回として Dots へ送付する内容（番号は送付文と同じ）。
+
+| # | 区分 | 確認事項 | FE の現状・暫定前提 |
+|:--|:--|:--|:--|
+| 1 | マージ | #752 EMR-475 / #756 EMR-474 は未解決スレッド 0。実装セッション側の最終確認を経てマージしてよいか | マージ待ち |
+| 2 | マージ | #763 EMR-487 をルート未接続（`index.ts` から export のみ）のまま先行マージしてよいか | 3 が解決するまでルート接続しない |
+| 3 | #763 CSP | `index.html` / `public/_headers` / `vercel.json` の CSP は `default-src 'self'` で、`frame-src` に `blob:` の許可が無い（`object-src 'none'` も要確認）。このため blob iframe での PDF preview と印刷が実ブラウザで動かない。`frame-src blob:` を追加してよいか、その担当（共通設定の取りまとめ側か #763 か） | 共通設定のため未変更。別タブ方式は印刷導線と端末依存が増えるため非推奨 |
+| 4 | #763 PDF 取得 | 共通 axios が `GET /vaccination-certificate-artifacts/{id}/content` にも `Accept: application/json` を送る。BE が受け付けるか、FE がこの操作だけ `Accept: application/pdf` を送るか | 共通 axios は変更しない。後者でも request 単位の header 指定で済む |
+| 5 | #763 契約 | ArtifactDescriptor の返却位置が契約で未指定。C06 result_refs の artifact_id から content path を組み立てる扱いで確定してよいか | その扱いで実装済み |
+| 6 | #763 配置 | ルート接続先を接種記録画面のどこに置くか（接種行の操作か、接種詳細の別画面か） | CSP 解決と BE 実装の後に別 PR で接続 |
+| 7 | 契約追補 | api.yaml の `RevisitIntakeInternalError`（500）に optional `Retry-After` header を追補する担当と時期 | FE は追補を待たずに実装済み |
+| 8 | #756 契約 | 429 / 503 を契約上「未コミット確定」と扱ってよいか | FE は 429 / 503 を結果不明とし、期限後の同 key 明示再送を許可（500 のような照会必須にはしていない）。不可なら 500 と同じく照会必須にする |
+| 9 | 後続 | 463-BE（`GetMeResponse.owners_view_clinic_ids`）の完成予定 | 完成後に #754 活性化の後続 PR |
+| 10 | 後続 | 487 の用紙サイズ・向き（本人確認の結果） | server renderer 側の事項 |
 
 ### Codex 単独指摘の扱い
 
