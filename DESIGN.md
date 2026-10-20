@@ -196,7 +196,7 @@ components:
 
 # Animal Ekarte Design Language
 
-> **位置づけ**: 本書は Animal Ekarte の**意匠言語**であり、**タイポグラフィ・形状（角丸）・余白・エレベーション・コンポーネント寸法の正本**である。実装はこれらの値に字義で従う。
+> **位置づけ**: 本書は Animal Ekarte の**意匠言語**であり、**タイポグラフィ・形状（角丸）・余白・エレベーション・動き（Motion）・コンポーネント寸法の正本**である。実装はこれらの値に字義で従う。
 > **色は本書の正本範囲外**: 色の値・採否・臨床/業務ステータス色は [docs/spec/design-system.md](docs/spec/design-system.md) §2 が正本（FE11 決裁・2026-07-21）。本書のフロントマター `colors:` は本文の `{colors.*}` 参照を解決するための同値再掲であり、ここを編集して色を変えてはならない。
 > **関連正本**: 画面の組み立て（ナビ現在地・一覧の列設計・フォーム・固定要素・空状態）は [design-patterns.md](docs/spec/design-patterns.md)、状態（hover / focus-visible / disabled / loading / invalid）は [design-states.md](docs/spec/design-states.md)、トークンの配置と参照方向は [design-token-layers.md](docs/spec/design-token-layers.md)、部品契約は [components/](docs/spec/components/README.md)、準拠検査 C1〜C24 は [ui-design-compliance.md](docs/spec/ui-design-compliance.md)（C21〜C24 の定義は [design-token-layers.md §6](docs/spec/design-token-layers.md)）。全エージェント共通の入口は [ui-design-guide.md](docs/spec/ui-design-guide.md)。
 > **履歴**: 初版（alpha）は Notion のマーケティングサイトを分析した意匠言語を転用したものだった。2026-10-20 に Animal Ekarte 自身の意匠言語として書き直し、本製品で使わないマーケ専用パターン（スティッカーパレット 8 色、hero-band、pricing-plan-card、footer、ex-pricing-tier、ex-product-selector、ex-cart-drawer、button-icon-circular）を削除した。**colors / typography / rounded / spacing の値はすべて初版と同一**であり、`design-tokens.ts` / `globals.css` / design-audit への影響はない。`nav-bar` と `ex-app-shell-row` の面だけは design-system.md §7.1 の既存決裁（canvas-soft）に合わせて参照先を揃えた。
@@ -314,6 +314,22 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 | 2 — Elevated | 5 段スタック。最終段 `rgba(0,0,0,0.05) 0 23px 52px` | モーダル・ポップオーバー・ドロップダウン | `shadow-level2` |
 
 エレベーションは **barely-there** を原則とする。多層の透明に近い影で面が紙から静かに浮く印象を作り、硬い影を落とさない。Tailwind 既定の `shadow-sm〜2xl`・`shadow-[...]` 任意値・CSS 直書きの `box-shadow` は compliance C10 / C17 が禁止し、elevation トークン（`shadow-level1` / `shadow-level2` / `shadow-btn` / `shadow-panel` / `shadow-focus-brand` 等）だけを使う。
+
+## Motion
+
+動きは**状態の変化を知らせるためだけ**に使い、装飾として使わない。値は実装（`tw-animate-css` の `animate-in` / `animate-out`、Tailwind の `transition-*`）に合わせて次の 4 段に固定する。
+
+| 段 | 時間 | 用途 | 実装 |
+|---|---|---|---|
+| micro | 150ms | hover / focus の色・不透明度、ツールチップの出現 | `transition-colors`（既定 150ms）、`tooltip.tsx` の `duration-150` |
+| overlay | 200ms | ダイアログ・ポップオーバー・ドロップダウン・Select の出現（fade + zoom 95%）と消失 | `data-[state=open]:animate-in fade-in-0 zoom-in-95` + `duration-200` |
+| panel | 300ms（閉）/ 500ms（開） | Sheet / SidePeek のスライド、サイドバーの折りたたみ（300ms） | `sheet.tsx`、`STYLE.sidebarContainer` の `duration-300` |
+| indeterminate | 1.5s ループ | 読込中のプログレス帯、スピナーは連続回転 | `.animate-progress-indeterminate`、`Loader2 animate-spin` |
+
+- トーストの自動消去は **4,000ms**（`sonner.tsx`）。エラートーストも同じ時間で消えるため、操作が必要なエラーはトーストではなくインラインのエラー文で出す（design-states §1 invalid）。
+- 位置が動くアニメーション（スライド・ズーム・カードの移動）は `prefers-reduced-motion: reduce` で止める。判定は共有フック `useReducedMotion`（`src/hooks/use-reduced-motion.ts`。参照実装 `WeekViewAppointmentCard`）か `motion-reduce:` を使う。色・不透明度の遷移は止めなくてよい。
+- 入力中・保存中にレイアウトが動くアニメーション（高さが変わる展開、行の挿入でのスライド）を本文に置かない。読込はスケルトンで高さを先に確保する（[design-patterns.md §6.2](docs/spec/design-patterns.md)）。
+- 上表にない時間（`duration-700`、任意値 `duration-[Nms]`）と、無限ループの装飾アニメーションは使わない。
 
 ## Shapes
 

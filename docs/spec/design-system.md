@@ -120,6 +120,10 @@ DESIGN.md は意味的カラーを定義しない（本書へ委譲）。臨床�
 | ステータス: 橙（会計待ち/割引） | `C.bgDiscount` | `#D9730D` |
 | ステータス: 青（受付済/checked_in） | `C.bgStatusBlueDot` | `bg-blue-500` |
 | ステータス: 空/緑/emerald 系 | `C.bgStatusSkyDot` / `C.bgStatusEmeraldDot` 他 | Tailwind パレット |
+| グラフ系列: 体温 / 呼吸数 / 体重 | `PALETTE.chartTemperature` / `chartRespiratory` / `chartWeight` | `#E07B54` / `#9C6EDE` / `#4CAF82` |
+| グラフ: 罫線・軸文字 | `PALETTE.chartGrid` / `chartAxisText` | `#E8E6E3` / `#9B9B97` |
+
+グラフ系列色は**計測量の識別子**（体温＝橙系、体重＝緑系）であり、ステータス色・構造色と兼用しない。新しい計測量の系列を足すときは本表に追加してから `PALETTE` へ流す。業務ステータスをそのまま棒グラフにする場合（配信済／失敗など）は、系列色ではなく当該ステータスの `STATUS_COLORS` を使う（同じ状態が画面とグラフで同じ色になるため）。使い方は [design-patterns.md §7.4](design-patterns.md#chart)。
 
 バッジの文字色（`C.textBadge*`。例: orange `#793400`、gray `#615D59`）は 2026-09-30 の AA 是正決裁で本節が所有する値であり、実装は `design-tokens.ts` の `BADGE`、計測値の記録は design-states.md §2.3 に置く（本節＝決定、`design-tokens.ts`＝実装、design-states＝実測記録の三者で、第二の決定源を作らない）。
 
@@ -222,7 +226,7 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 - **フォームラベル**: `Label` の基底は 16px（`text-base`）。15px の個別指定は、コンパクトなフィルター・行内操作・`h-9` 以下の入力に限る。
 - **必須マーカー**: `RequiredMark` を使い、間隔は親ラベルの `gap-2` で 8px に統一する。マーカーは装飾として `aria-hidden` とする。
 - **ページ見出し**: PageLayout/FormHeader のタイトルにはアイコンを付けない。セクション、パネル、ボタン、サイドバー内のアイコンは対象外。
-- **登録・編集フォームの操作**: ヘッダーに `[削除] キャンセル 保存` の順で置き、権限・状態（送信中・確定済み等）の既存ゲートを維持する。**未入力を理由とする保存 `disabled` は使わない**（2026-10-20 決裁。押下→欄直下にエラー→先頭エラー欄へフォーカス。[design-patterns.md §4.2](design-patterns.md#form-validation)）。削除対象外の画面では該当操作を省く。
+- **登録・編集フォームの操作**: ヘッダーに `[削除] キャンセル 保存` の順で置き、権限・状態（送信中・確定済み等）の既存ゲートを維持する。未入力を理由とする保存 `disabled` の扱いは [design-states.md §1.1](design-states.md) が正本（禁止・2026-10-20 決裁）。削除対象外の画面では該当操作を省く。
 - **日付・数値入力**: 業務フォーム・設定フォームでは共有 `DatePicker` / `NumberInput` を使う。検索・一覧フィルター、表の行内編集、時刻入力はネイティブ入力を許容する。金額入力は `MoneyInput` を使う。
 - **本節と画面パターンの分担**: 見出しロール・フォーム操作の並び・入力部品の採用範囲・必須マーカーは本節が正本。それらを画面としてどう配置するか（h1 の一意性、見出しの DOM レベル、保存ボタンの到達性、破壊操作のスタイル、固定要素との重なり）は [design-patterns.md](design-patterns.md) が正本。
 

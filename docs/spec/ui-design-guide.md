@@ -19,9 +19,9 @@
 | 順 | 文書 | 何の正本か | いつ読むか |
 |:--|:--|:--|:--|
 | 1 | [design-system.md](design-system.md) | **色**（brand / primary / ink / 臨床・業務ステータス色）と SSOT の分担表 | すべての UI 作業の最初 |
-| 2 | [`DESIGN.md`](../../DESIGN.md)（ルート・Animal Ekarte Design Language） | **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法**（字義で従う）。色の値は持たない | 見た目の値を決める・変えるとき |
+| 2 | [`DESIGN.md`](../../DESIGN.md)（ルート・Animal Ekarte Design Language） | **タイポ / 形状 / 余白 / エレベーション / 動き（Motion の 4 段とトースト時間）/ コンポーネント寸法**（字義で従う）。色の値は持たない | 見た目の値・アニメーションを決める・変えるとき |
 | 3 | [design-states.md](design-states.md) | hover / focus-visible / disabled / readonly / loading / invalid の**状態仕様**と WCAG 2.2 AA コントラスト | インタラクティブ要素を触るとき |
-| 3b | [design-patterns.md](design-patterns.md) | **画面の組み立て**: ナビ現在地、一覧の列幅優先度・横スクロール、省略の全文到達、フォームの幅/検証/部品、固定要素の重なり、空状態/読込、カレンダー/ボード | 一覧・フォーム・画面シェルを作る/直すとき |
+| 3b | [design-patterns.md](design-patterns.md) | **画面の組み立て**: ナビ現在地、一覧の列幅優先度・横スクロール、省略の全文到達、フォームの幅/検証/部品、固定要素の重なり、空状態/読込、カレンダー/ボード/グラフ、**表記**（日付・金額・空値 `—` は §10） | 一覧・フォーム・画面シェル・グラフを作る/直すとき、値を画面に出すとき |
 | 4 | [design-token-layers.md](design-token-layers.md) | トークンの**配置と参照方向**（Primitive → Semantic → Component） | トークン追加・色変更・新規プリミティブ |
 | 5 | [components/README.md](components/README.md) | `components/ui/` 7 プリミティブの**契約**（Anatomy・状態表・既知ギャップ） | `components/ui/*` を変更する前 |
 | 6 | [ui-design-compliance.md](ui-design-compliance.md) | 準拠チェック **C1〜C20** の定義と全 88 ルートの正本対応表。`pnpm design-audit` が strict fail するのは **C1〜C24** で、C21〜C24（`ui/` の stories 必須・`PALETTE` 層の純度・`BADGE` コントラスト 4.5:1・`shared/` の stories ラチェット）の定義は [design-token-layers.md §6](design-token-layers.md) | 新規ルート追加・監査失敗の調査・トークン / 共有 UI の変更 |
@@ -60,6 +60,8 @@
 | カレンダー・シフト表の土日を青／赤で塗らない（赤は `C.danger` と衝突）。曜日は文字 + ink-muted、休診日は `C.bgPage` + 「休診」 | patterns §7.1、design-system §2.5（2026-10-20 決裁） |
 | ステータス色を構造の面に使わない。唯一の例外は受付ボードの列面（design-system §2.5 の例外表）で、他画面へ広げない | design-system §2.5、patterns §7.2 |
 | 空状態は「何が無いか／条件／次の操作」の 3 点。読込は 300ms 超でスケルトン | patterns §6 |
+| 日付・時刻・金額・体重・件数・空値は `lib/format` / `lib/jst-date` の共有関数で整形する（`toLocaleString` / `toFixed` の直書き禁止）。日付 `yyyy/MM/dd`、金額 `¥1,234`、空値 `—` | patterns §10 |
+| グラフの系列色は `PALETTE.chart*`、ステータス集計は `STATUS_COLORS`。凡例はドット + ラベル、系列は 4 本まで。動きは DESIGN.md Motion の 4 段のみ、位置の動きは reduced-motion で止める | design-system §2.5、patterns §7.4、DESIGN.md Motion |
 | 新しい色・値を決めるときは design-system.md（色）/ DESIGN.md（寸法）に決裁（日付・決定者）を記録してからトークンへ流す。本書や他文書に第二正本を作らない | token-layers §2 |
 
 ## 3. 完了前チェック（Definition of Done・UI 変更を含む PR）
