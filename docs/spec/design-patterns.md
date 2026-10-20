@@ -260,6 +260,6 @@
 | C27 | `z-[9999]` など `Z` トークン外の z-index 直書き | §5.1 |
 | C28 | `<input type="date">`・素の `<select>` を業務・設定フォーム（design-system §3.4 の許容範囲外）で使用。検索・フィルター・行内編集・時刻入力は allowlist | §4.4 |
 | C29 | `disabled={!isValid}` 系（保存ボタンのバリデーション disabled）パターン（§4.2 は 2026-10-20 決裁済み。既存違反 `/estimates/new`・`/estimates/:id/edit` は allowlist で棚卸し） | §4.2 |
-| e2e | 各ルートで `[aria-current=page]` が viewport 内にあること／FAB と `button,a` の重なりが無いこと | §1.1, §5.1 |
+| e2e | **実装済み（検知モード）**: `ui-design-compliance-readonly.spec.ts` が各ルート × 4 viewport で `nav [aria-current=page]` の viewport 内在と、`position: fixed` の操作要素と他の操作要素の非重なりを採取する（判定は `e2e/helpers/ui-design-patterns.ts`）。既定は test annotation への記録のみで、`UI_DESIGN_PATTERNS_STRICT=1` で hard fail。実装修正が揃ったら strict を既定にする | §1.1, §5.1 |
 
 C21〜C24 は `design-system-audit.mjs` で使用済み（C21 `ui/` stories 必須、C22 `PALETTE` 層の純度、C23 `BADGE` コントラスト、C24 `shared/` stories ラチェット）のため、本表は C25 から採番する。追加時は `ui-design-compliance.md` §1 と `design-system-audit.mjs` へ同一コミットで登録し、既存番号と重複させない。
