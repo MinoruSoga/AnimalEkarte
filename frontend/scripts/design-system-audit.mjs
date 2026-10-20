@@ -29,6 +29,24 @@
  *        （design-token-layers.md §3）。状態系は STATE、shadow 等は STYLE 側へ。
  *   C23 — `BADGE.*` コンボの text/bg コントラストが WCAG 4.5:1 以上であること
  *        （design-states.md §2.3）。`text-[#hex]`/`bg-[#hex]` 形式の C member を解決して計算。
+ *   C25 — `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` /
+ *        `aria-labelledby` のいずれも無いことを禁止（design-patterns.md §3.1 の静的段。focus/タッチで
+ *        開くツールチップの有無は静的に判定できないためレビュー項目）。既存分はファイル別の件数 baseline
+ *        （C25_TRUNCATE_BASELINE）でラチェット: baseline を超えた追加だけを fail、削減時は baseline を下げる。
+ *   C26 — `<nav>` ブロック内と `components/shared/Layout/Sidebar*.tsx` のナビ文言に `truncate` 禁止（§1.2）。
+ *   C27 — `Z` / `Z_CLASS` トークン外の z-index 直書き（`z-N` / `focus:z-N` / `z-[N]` / `zIndex: N`）禁止（§5.1）。
+ *        既存分はファイル別の件数 baseline（C27_Z_INDEX_BASELINE）でラチェット。
+ *   C28 — `src/features/**` と `src/components/shared/**` で raw `<select>` と `<input type="date">` を
+ *        業務・設定フォームに置くことを禁止（design-patterns.md §4.4）。検索・一覧フィルター・行内編集は
+ *        C28 context allowlist で許容。shared 配下も見るのは、業務フォームが shared の部品経由で native 入力を
+ *        描画するため（DynamicCheckupFields）。
+ *   C29 — バリデーション理由の `disabled` / `submitDisabled`（`isValid` 系の名前、`.trim()`、`=== ""`、
+ *        `.length` 比較）禁止（design-states.md §1.1・2026-10-20 決裁）。権限・送信中・ワークフロー状態
+ *        （`canEdit` / `isPending` / `isFinalized`）は対象外。`FormHeaderActions` の `submitDisabled` prop は
+ *        `SubmitButton disabled` に流れるため呼び出し側の式を検査する。対象は保存／送信ボタンの契約
+ *        （submitDisabled・SubmitButton・PrimaryButton・type="submit"・「保存」を含む行）に限り、検索や
+ *        一括操作の「選択 0 件で無効」は対象外。既存分は C29 allowlist でラチェット。
+ *        注: 本リポジトリの `canSubmit` は RBAC 由来の命名のため C29 の対象にしない。
  *
  * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
  * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
@@ -133,6 +151,204 @@ const C22_PALETTE_BLOCK_RE = /export const PALETTE = \{([\s\S]*?)\} as const;/;
 const C22_MEMBER_RE = /^\s*(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"/;
 const C22_VARIANT_PREFIX_RE = /^(?:hover|focus|focus-visible|focus-within|active|disabled|enabled|data-\[|aria-|group-|peer-|dark|sm|md|lg|xl|2xl|before|after|placeholder|selection|marker|file|backdrop|first|last|odd|even|visited|checked|empty):/;
 const C22_UTILITY_PREFIX_RE = /^[a-z][a-z]*-[a-z0-9]/;
+
+/** C25: 省略を起こす class。opening tag 単位で title / aria-label / aria-labelledby の有無を見る。 */
+/** C25: variant 付き（`lg:truncate`、`*:data-[slot=select-value]:line-clamp-1`）も含める。 */
+const C25_TRUNCATE_RE = /(?:^|[\s"'`{(])(?:[^\s"'`{}()]*:)?(?:truncate|text-ellipsis|line-clamp-[0-9]+)(?=$|[\s"'`}\)])/;
+const C25_AFFORDANCE_RE = /(?:^|\s)(?:title|aria-label|aria-labelledby)\s*=/;
+const C25_OPENING_TAG_START_RE = /<[A-Za-z][\w.]*\b/g;
+/**
+ * C25: 既存の truncate をファイル別件数で棚卸しした baseline（2026-10-20 時点 58 ファイル / 99 箇所。variant 付き含む）。
+ * ラチェット運用 — baseline を超える追加は fail。全文到達手段を付けて減らしたら件数を下げる（増やさない）。
+ * baseline に無いファイルは 1 件目から fail。
+ */
+export const C25_TRUNCATE_BASELINE = new Map([
+  ["line-reserve/src/components/ListItem.tsx", 1],
+  ["line-reserve/src/pages/TrimmingOptionSelectPage.tsx", 1],
+  ["src/components/shared/DatePicker/DatePickerRange.tsx", 1],
+  ["src/components/shared/Layout/SidebarChrome.tsx", 2],
+  ["src/components/shared/Layout/SidebarItems.tsx", 2],
+  ["src/components/shared/MasterSelectModal/MasterSelectTrigger.tsx", 1],
+  ["src/components/shared/OwnerSearchModal/OwnerSearchModal.tsx", 1],
+  ["src/components/shared/PastRecordHistoryPanel/PastRecordHistoryPanel.tsx", 2],
+  ["src/components/shared/PatientContextHeader/PatientContextHeader.tsx", 3],
+  ["src/components/shared/PatientInfoCard/PatientInfoCard.tsx", 8],
+  ["src/components/shared/PropertyFilter/FilterRuleRow.tsx", 1],
+  ["src/components/shared/PropertyFilter/InlineSelector.tsx", 2],
+  ["src/components/shared/PropertyFilter/SortPill.tsx", 1],
+  ["src/components/shared/PropertyFilter/SortPopover.tsx", 2],
+  ["src/components/shared/ReservationFormModal/ReservationTypeAndStaffFields.tsx", 1],
+  ["src/components/shared/SidePeek/PropertyRow.tsx", 1],
+  ["src/components/ui/searchable-select.tsx", 1],
+  ["src/components/ui/select.tsx", 1],
+  ["src/features/accounting/components/RefundSection.tsx", 1],
+  ["src/features/auth/components/LoginForm.tsx", 1],
+  ["src/features/checkups/routes/CheckupsListPanels.tsx", 1],
+  ["src/features/clinic-settings/components/ClinicMasterSidePanelProperties.tsx", 1],
+  ["src/features/examinations/components/ExaminationCard.tsx", 2],
+  ["src/features/examinations/routes/ExaminationsListPanels.tsx", 1],
+  ["src/features/hospitalization/components/CarePlanTab/ItemRow.tsx", 2],
+  ["src/features/hospitalization/components/HospitalizationBoard.tsx", 1],
+  ["src/features/hospitalization/components/HospitalizationExpandedView.tsx", 1],
+  ["src/features/hospitalization/components/HospitalizationUnassignedSection.tsx", 1],
+  ["src/features/line-reservation/components/LinkedLineCustomers.tsx", 2],
+  ["src/features/lstep/components/LstepCsvImportSection.tsx", 1],
+  ["src/features/lstep/components/TagOwnerListDrawer.tsx", 2],
+  ["src/features/manual/components/ManualContent.tsx", 2],
+  ["src/features/manual/components/ManualEditor.tsx", 1],
+  ["src/features/master/components/DiagnosisTabRows.tsx", 1],
+  ["src/features/master/components/ReservationTypeGroupedTableRows.tsx", 1],
+  ["src/features/master/components/ReservationTypeTree.tsx", 3],
+  ["src/features/master/routes/MasterSettingsIndex.tsx", 1],
+  ["src/features/medical-records/components/ExaminationImportDialog.tsx", 1],
+  ["src/features/medical-records/components/ImageGalleryGroup.tsx", 2],
+  ["src/features/medical-records/components/InterviewHistory.tsx", 2],
+  ["src/features/medical-records/components/MedicalRecordStickyHeader.tsx", 3],
+  ["src/features/medical-records/components/VaccinationHistory.tsx", 1],
+  ["src/features/owner-report/components/ClinicalBriefingPanel.tsx", 1],
+  ["src/features/owner-report/components/ClinicalHistoryMatrix.tsx", 1],
+  ["src/features/owner-report/components/OwnerReportPanel.tsx", 2],
+  ["src/features/owner-report/components/ReportPanel.tsx", 1],
+  ["src/features/owners/components/LineSendHistory.tsx", 1],
+  ["src/features/owners/components/OwnerPetsSection.tsx", 2],
+  ["src/features/owners/components/PetSubOwnersSection.tsx", 2],
+  ["src/features/reception/components/AppointmentCard.tsx", 5],
+  ["src/features/reservations/components/MonthView.tsx", 3],
+  ["src/features/reservations/components/WeekViewAppointmentCard.tsx", 8],
+  ["src/features/reservations/components/WeekViewParts.tsx", 1],
+  ["src/features/shifts/components/ShiftTemplateSidePanelFields.tsx", 1],
+  ["src/features/support/components/ManualHelpTab.tsx", 1],
+  ["src/features/support/routes/ChatHistoryPage.tsx", 1],
+  ["src/features/trimming/components/TrimmingListTable.tsx", 1],
+  ["src/features/vaccinations/components/VaccinationCard.tsx", 1],
+]);
+/** C26: nav ブロック。SidebarItems は別ファイルで `<nav>` を持たないため path でも判定する。 */
+const C26_NAV_BLOCK_RE = /<nav\b[\s\S]*?<\/nav>/g;
+const C26_SIDEBAR_FILE_RE = /^src[/\\]components[/\\]shared[/\\]Layout[/\\]Sidebar[^/\\]*\.tsx$/;
+/**
+ * C26: 既存のナビ省略（STG 監査 H-2）のファイル別件数（ラチェット）。baseline を超える追加は既存ファイルでも違反。
+ * 文言を短くするか省略を外したら件数を下げる／エントリを削る。
+ */
+export const C26_NAV_TRUNCATE_BASELINE = new Map([
+  // 2026-10-20 STG 監査 H-2（サイドバー項目名の末尾切れ）と manual の文書 TOC。
+  ["src/components/shared/Layout/SidebarChrome.tsx", 2],
+  ["src/components/shared/Layout/SidebarItems.tsx", 2],
+  ["src/features/manual/components/ManualContent.tsx", 2],
+]);
+/** C27: Tailwind の z-N（variant 付き含む）・任意値 z-[N]・インライン style の数値 z-index。`Z.*` / `Z_CLASS.*` 参照は対象外。 */
+const C27_Z_INDEX_RE = /(?:^|[\s"'`{(])(?:[^\s"'`{}()]*:)?-?z-(?:[0-9]+|\[[0-9]+\])(?=$|[\s"'`}\)])|\bzIndex\s*:\s*[0-9]+/;
+/**
+ * C27: 既存の直書きをファイル別件数で棚卸しした baseline（2026-10-20 時点）。`Z` に段を追加して置換したら件数を下げる。
+ * baseline に無いファイルは 1 件目から fail。
+ */
+export const C27_Z_INDEX_BASELINE = new Map([
+  ["line-reserve/src/components/Calendar.tsx", 1],
+  ["src/components/shared/DataTable/DataTable.tsx", 1],
+  ["src/components/shared/PatientInfoCard/PatientInfoCard.tsx", 1],
+  ["src/components/shared/PetSelection/PetSelectionResultsTable.tsx", 2],
+  ["src/components/shared/ReservationFormModal/PatientSelectionResults.tsx", 1],
+  ["src/components/ui/alert-dialog.tsx", 2],
+  ["src/components/ui/calendar.tsx", 1],
+  ["src/components/ui/dialog.tsx", 2],
+  ["src/components/ui/dropdown-menu.tsx", 1],
+  ["src/components/ui/popover.tsx", 1],
+  ["src/components/ui/select.tsx", 1],
+  ["src/components/ui/sheet.tsx", 2],
+  ["src/components/ui/switch.tsx", 1],
+  ["src/components/ui/toggle-group.tsx", 2],
+  ["src/constants/medical-record-fixed-action-layout.ts", 1],
+  ["src/features/accounting/components/AccountingItemRow.tsx", 2],
+  ["src/features/accounting/components/ItemListCard.tsx", 3],
+  ["src/features/auth/components/ClinicSelectionBlockedScreen.tsx", 1],
+  ["src/features/hospitalization/components/HospitalizationExpandedView.tsx", 1],
+  ["src/features/manual/components/ManualPageChrome.tsx", 3],
+  ["src/features/master/components/CageSortableTable.tsx", 1],
+  ["src/features/master/components/MedicineTable.tsx", 1],
+  ["src/features/master/components/MerchandiseSortableTable.tsx", 1],
+  ["src/features/medical-records/components/MedicalRecordImage.tsx", 1],
+  ["src/features/medical-records/components/MedicalRecordStickyHeader.tsx", 1],
+  ["src/features/owner-report/components/ClinicalHistoryMatrix.tsx", 3],
+  ["src/features/owner-report/components/HistoryTable.tsx", 1],
+  ["src/features/owner-report/routes/OwnerReport.tsx", 1],
+  ["src/features/reservations/components/WeekViewAppointmentCard.tsx", 5],
+  ["src/features/reservations/components/WeekViewDayColumn.tsx", 2],
+  ["src/features/reservations/components/WeekViewParts.tsx", 4],
+  ["src/features/reservations/lib/week-view-grid-constants.ts", 2],
+  ["src/features/shifts/components/ShiftCalendar/ShiftCalendar.tsx", 3],
+]);
+/** C28: raw `<select` と `<input ... type="date"`（`<Select` 共有部品は対象外）。 */
+const C28_NATIVE_OPENING_TAG_START_RE = /<(?:select|input)\b/g;
+/** C28: `type="date"` に加えて JSX 式の `type={"date"}` / `{'date'}` / `{`date`}` も認識する。 */
+const C28_INPUT_DATE_RE = /\btype\s*=\s*(?:\{\s*)?["'`]date["'`]/;
+/**
+ * C28: design-patterns.md §4.4 が許容する文脈（検索・一覧フィルター・表の行内編集・時刻入力）の
+ * ファイル。許容理由が §3.4 の列挙に無いものは入れない。
+ */
+export const C28_NATIVE_INPUT_CONTEXT_ALLOWLIST = new Set([
+  // 検索・一覧フィルター（集計レポートの期間、レジ締め履歴、Lステップ連携・配信モニターの絞り込み）
+  "src/features/accounting-reports/routes/AccountingReportsPagePanels.tsx",
+  "src/features/cash-register/components/CashRegisterHistoryFilters.tsx",
+  "src/features/lstep/components/CheckupSyncFilterForm.tsx",
+  "src/features/lstep/components/LstepDeliveryStatsSection.tsx",
+  // 単独ウィンドウ（飼主レポート）の表示対象ペット切替 — 一覧フィルターと同じ役割
+  "src/features/owner-report/components/PetSwitcher.tsx",
+  // 一覧・集計の期間フィルター部品（shared）
+  "src/components/shared/DateRangeInputs/DateRangeInputs.tsx",
+]);
+/**
+ * C28: 業務・設定フォームに残る既存の native 入力のファイル別件数（ラチェット）。
+ * baseline を超える追加は既存ファイルでも違反。共有 `ui/` へ置換したら件数を下げる／エントリを削る。
+ */
+export const C28_NATIVE_INPUT_BASELINE = new Map([
+  // 2026-10-20 STG 監査: 業務・設定フォームに残る native 入力。共有 DatePicker / Select へ置換したら削る。
+  ["src/features/cash-register/components/CashRegisterClosePanels.tsx", 1],
+  ["src/features/settings/components/LstepSettingsFields.tsx", 1],
+  // 健診フォーム（features/checkups/CheckupFormPanels）が描画する shared の動的項目
+  ["src/components/shared/DynamicCheckupFields/DynamicCheckupFields.tsx", 1],
+]);
+/**
+ * C29: バリデーション結果を disabled / submitDisabled に流す式。妥当性の名前（isValid 系）、未入力判定
+ * （`.trim()`、`=== ""` / `!== ""`、`.length` 比較、`errors`）を検出する。権限（can*）・送信中
+ * （isPending / isSubmitting / isSaving）・ワークフロー状態（isFinalized 等）は含めない。
+ */
+const C29_SUBMIT_CONTEXT_RE = /\bsubmitDisabled\s*=|\bSubmitButton\b|\bPrimaryButton\b|type\s*=\s*["']submit["']|保存/;
+/**
+ * 未入力判定の「値の否定」（`!form.time`、`!selectedFile`）。最終セグメントが権限・送信中・状態フラグ
+ * （`can*` / `is*` / `has*` / `should*` / `may*` / `allow*`、`hydrated` / `loading` / `pending` / `saving` /
+ * `submitting` / `ready` / `mounted` / `enabled` / `dirty`）のものは対象外。
+ */
+const C29_NEGATED_VALUE_SRC =
+  "!\\s*(?:[\\w$]+\\s*\\??\\.\\s*)*(?!(?:is|can|has|should|may|allow)[A-Z0-9_]|(?:hydrated|loading|pending|saving|submitting|ready|mounted|enabled|dirty)\\b)[\\w$]+(?![\\w$(.?])";
+const C29_VALIDATION_DISABLED_RE = new RegExp(
+  "\\b(?:disabled|submitDisabled)\\s*=\\s*\\{[^}]*(?:\\bis(?:Form)?Valid\\b|\\bformValid\\b|\\bisComplete\\b|\\bhasErrors\\b|\\berrors\\s*\\.\\s*length\\b|Object\\s*\\.\\s*keys\\s*\\(\\s*errors\\s*\\)|\\.trim\\s*\\(\\s*\\)|[!=]==?\\s*(?:\"\"|''|``)|\\.length\\s*(?:[<>]=?|[!=]==?)\\s*[0-9]|"
+    + C29_NEGATED_VALUE_SRC
+    + ")",
+);
+/**
+ * C29: 既存のバリデーション disabled のファイル別件数（STG 監査で観測。ラチェット）。
+ * baseline を超える追加は既存ファイルでも違反。押下→エラー表示へ直したら件数を下げる／エントリを削る。
+ */
+export const C29_VALIDATION_DISABLED_BASELINE = new Map([
+  // 2026-10-20 STG 監査: 見積の保存が未入力理由で disabled（submitDisabled={!form.title.trim()}）
+  ["src/features/estimates/routes/EstimateForm.tsx", 1],
+  // レジ締めの確定が未入力理由で disabled（submitDisabled={actualCash === "" ...}）
+  ["src/features/cash-register/routes/CashRegisterClosePage.tsx", 1],
+  // シフトテンプレートの保存が名前未入力理由で disabled（disabled={isSaving || !formData.name.trim()}。複数行 prop）
+  ["src/features/shifts/components/ShiftTemplateSettingsParts.tsx", 1],
+  // ヘルプチャットの送信（type="submit"）が空メッセージ理由で disabled。保存フォームではないため §1.1 の適用可否は決裁待ち
+  ["src/features/support/components/HelpChat.tsx", 1],
+  // 値の否定（`!form.time` 等）で検出された既存分（2026-10-20 追加棚卸し）
+  ["src/features/hospitalization/components/DailyRecordsTab/DailyVitalsSection.tsx", 1],
+  ["src/features/lstep/components/LstepCsvImportSection.tsx", 1],
+  ["src/features/medical-records/components/VitalsTab/VitalsTabRows.tsx", 1],
+  // `!owner?.deliveryExcluded` / `!owner?.deliveryCaution` はフラグ ON のときだけ理由を保存する状態ゲート（§1.1 で許容）。
+  // 名前だけでは入力値と区別できないため件数で棚卸しし、名前判定の限界として記録する。
+  ["src/features/owners/components/LineIntegrationCardSections.tsx", 2],
+  // LINE 予約（line-reserve）の日付未選択で「次へ」が disabled
+  ["line-reserve/src/pages/DateSelectPage.tsx", 1],
+]);
+/** C29: 走査する opening tag（JSX 要素すべて。`<` 直後の要素名）。 */
+const C29_OPENING_TAG_START_RE = /<([A-Za-z][\w.]*)\b/g;
 
 /** C23: BADGE コンボの WCAG コントラスト検査用パターン（design-tokens.ts 限定で呼ぶ）。 */
 const C23_C_BLOCK_RE = /export const C = \{([\s\S]*?)\} as const;/;
@@ -894,6 +1110,196 @@ export function checkC19(text, relPath = "") {
 }
 
 /**
+ * readOpeningTag は `<Tag` の直後から、brace / quote を考慮して opening tag の終端 `>` を探し、
+ * tag 全文と終端 index を返す（C19 と同じ走査規則）。
+ */
+function readOpeningTag(text, startIndex, afterNameIndex) {
+  let braceDepth = 0;
+  let quote = null;
+  let escaped = false;
+  let endIndex = text.length;
+  for (let index = afterNameIndex; index < text.length; index += 1) {
+    const char = text[index];
+    if (quote !== null) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") quote = char;
+    else if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (char === ">" && braceDepth === 0) {
+      endIndex = index + 1;
+      break;
+    }
+  }
+  return { tag: text.slice(startIndex, endIndex), endIndex };
+}
+
+function lineNumberAt(text, index) {
+  return text.slice(0, index).split("\n").length;
+}
+
+function firstLineOf(tag) {
+  return tag.split("\n")[0].trim();
+}
+
+/**
+ * checkC25 は省略（truncate / text-ellipsis / line-clamp-N）を持つ opening tag を調べ、
+ * title / aria-label / aria-labelledby のいずれも無いものを検出する（design-patterns.md §3.1）。
+ * ツールチップ／展開の有無は静的に判定できないため、本検査は「全文がどこにも無い」最低線だけを機械化する。
+ */
+export function checkC25(text, relPath = "") {
+  if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
+
+  const violations = [];
+  const openingTagRe = new RegExp(C25_OPENING_TAG_START_RE.source, "g");
+  let match;
+  while ((match = openingTagRe.exec(text)) !== null) {
+    if (isC18IgnoredOpeningTag(text, match.index)) continue;
+    const { tag, endIndex } = readOpeningTag(text, match.index, openingTagRe.lastIndex);
+    if (C25_TRUNCATE_RE.test(tag) && !C25_AFFORDANCE_RE.test(tag)) {
+      violations.push({ lineNumber: lineNumberAt(text, match.index), text: firstLineOf(tag) });
+    }
+    openingTagRe.lastIndex = Math.max(endIndex, openingTagRe.lastIndex);
+  }
+  return applyCountBaseline(violations, C25_TRUNCATE_BASELINE.get(relPath), "C25_TRUNCATE_BASELINE");
+}
+
+/**
+ * applyCountBaseline は件数ラチェット: baseline と同数なら 0 件、超過分は「baseline 超過」、baseline 未満は
+ * 「baseline が古い」（下げ忘れ）として返す。baseline が無いファイルは全件返す。
+ */
+function applyCountBaseline(violations, baseline, baselineName) {
+  if (baseline === undefined) return violations;
+  if (violations.length < baseline) {
+    // 減らしたのに baseline を下げていない: 余った枠が後の追加を隠すので、同一コミットで baseline を下げさせる。
+    return [
+      {
+        lineNumber: 1,
+        text: `${baselineName} が古い: 現在 ${violations.length} 件 < baseline ${baseline} 件。baseline を ${violations.length} に下げる（0 ならエントリを削る）`,
+      },
+    ];
+  }
+  if (violations.length === baseline) return [];
+  return violations.slice(baseline).map((v) => ({
+    ...v,
+    text: `${v.text}（${baselineName} ${baseline} 件を超過: ${violations.length} 件）`,
+  }));
+}
+
+/**
+ * checkC26 はナビ文言の省略を検出する（design-patterns.md §1.2）。`<nav>…</nav>` ブロック内、
+ * および `components/shared/Layout/Sidebar*.tsx` 全体を対象にする。
+ */
+export function checkC26(text, relPath = "") {
+  if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
+
+  const code = stripTsCommentsPreservingLines(text);
+  const ranges = [];
+  if (C26_SIDEBAR_FILE_RE.test(relPath)) {
+    ranges.push([0, code.length]);
+  } else {
+    const navRe = new RegExp(C26_NAV_BLOCK_RE.source, "g");
+    let match;
+    while ((match = navRe.exec(code)) !== null) ranges.push([match.index, match.index + match[0].length]);
+  }
+  if (ranges.length === 0) return [];
+
+  const violations = [];
+  let offset = 0;
+  code.split("\n").forEach((line, i) => {
+    // 行の区間 [offset, lineEnd) が nav 区間と交差するか（行の途中から始まる <nav> も含める）。
+    const lineEnd = offset + line.length;
+    const inRange = ranges.some(([start, end]) => offset < end && lineEnd > start);
+    if (inRange && C25_TRUNCATE_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+    offset += line.length + 1;
+  });
+  return applyCountBaseline(violations, C26_NAV_TRUNCATE_BASELINE.get(relPath), "C26_NAV_TRUNCATE_BASELINE");
+}
+
+/** checkC27 は `Z` / `Z_CLASS` を介さない z-index 直書きを検出する（design-patterns.md §5.1）。 */
+export function checkC27(text, relPath = "") {
+  if (isDesignTokensFile(relPath) || isTestFile(path.basename(relPath))) return [];
+  const violations = [];
+  // 1 行に複数の直書き（`focus:z-10 focus-visible:z-10`）があれば件数分を数える（行数ではなく出現数で baseline と比較）。
+  const zIndexRe = new RegExp(C27_Z_INDEX_RE.source, "g");
+  stripTsCommentsPreservingLines(text).split("\n").forEach((line, i) => {
+    for (const match of line.matchAll(zIndexRe)) {
+      violations.push({ lineNumber: i + 1, text: `${line.trim()}（${match[0].trim()}）` });
+    }
+  });
+  return applyCountBaseline(violations, C27_Z_INDEX_BASELINE.get(relPath), "C27_Z_INDEX_BASELINE");
+}
+
+/**
+ * checkC28 は `src/features/**` の raw `<select>` と `<input type="date">` を検出する
+ * （design-patterns.md §4.4: 業務・設定フォームは共有 `DatePicker` / `Select`）。
+ * §3.4 の許容文脈は C28_NATIVE_INPUT_CONTEXT_ALLOWLIST、既存の違反は RATCHET allowlist。
+ */
+export function checkC28(text, relPath = "") {
+  if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
+  const parts = relPath.split(path.sep);
+  const inScope =
+    parts[0] === "src" && (parts[1] === "features" || (parts[1] === "components" && parts[2] === "shared"));
+  if (!inScope) return [];
+  if (C28_NATIVE_INPUT_CONTEXT_ALLOWLIST.has(relPath)) return [];
+
+  const violations = [];
+  const openingTagRe = new RegExp(C28_NATIVE_OPENING_TAG_START_RE.source, "g");
+  let match;
+  while ((match = openingTagRe.exec(text)) !== null) {
+    if (isC18IgnoredOpeningTag(text, match.index)) continue;
+    const { tag, endIndex } = readOpeningTag(text, match.index, openingTagRe.lastIndex);
+    const isSelect = tag.startsWith("<select");
+    if (isSelect || C28_INPUT_DATE_RE.test(tag)) {
+      violations.push({ lineNumber: lineNumberAt(text, match.index), text: firstLineOf(tag) });
+    }
+    openingTagRe.lastIndex = Math.max(endIndex, openingTagRe.lastIndex);
+  }
+  return applyCountBaseline(violations, C28_NATIVE_INPUT_BASELINE.get(relPath), "C28_NATIVE_INPUT_BASELINE");
+}
+
+/**
+ * checkC29 はバリデーション結果を直接 `disabled` / `submitDisabled` に流す式を検出する（design-states.md §1.1）。
+ * opening tag 全文（複数行の prop を含む）と直後のテキスト子（「保存」ラベル）を 1 単位として判定する。
+ * 保存／送信ボタンの契約（submitDisabled prop・SubmitButton・PrimaryButton・type="submit"・「保存」）に限り、
+ * 検索・一括操作ボタンの「選択 0 件で無効」は対象外（design-states §1.1 は保存ボタンの規則）。
+ */
+export function checkC29(text, relPath = "") {
+  if (path.extname(relPath) !== ".tsx" || isTestFile(path.basename(relPath))) return [];
+  const code = stripTsCommentsPreservingLines(text);
+  // prop 内に入れ子の JSX（`headerAction={<FormHeaderActions … />}`）があると外側の tag 全文にも式が含まれるため、
+  // 式の位置をキーにして最も内側の tag（後から見つかる方）を採用する。
+  const innermostByExpression = new Map();
+  const openingTagRe = new RegExp(C29_OPENING_TAG_START_RE.source, "g");
+  let match;
+  while ((match = openingTagRe.exec(code)) !== null) {
+    if (isC18IgnoredOpeningTag(code, match.index)) continue;
+    const { tag, endIndex } = readOpeningTag(code, match.index, openingTagRe.lastIndex);
+    const expressionOffset = tag.search(C29_VALIDATION_DISABLED_RE);
+    if (expressionOffset === -1) continue;
+    innermostByExpression.set(match.index + expressionOffset, { index: match.index, tag, endIndex });
+  }
+  const violations = [];
+  for (const { index, tag, endIndex } of [...innermostByExpression.values()].sort((a, b) => a.index - b.index)) {
+    const nextTagIndex = code.indexOf("<", endIndex);
+    const textChild = code.slice(endIndex, nextTagIndex === -1 ? code.length : nextTagIndex);
+    if (C29_SUBMIT_CONTEXT_RE.test(tag) || C29_SUBMIT_CONTEXT_RE.test(textChild)) {
+      violations.push({ lineNumber: lineNumberAt(code, index), text: firstLineOf(tag) });
+    }
+  }
+  return applyCountBaseline(
+    violations,
+    C29_VALIDATION_DISABLED_BASELINE.get(relPath),
+    "C29_VALIDATION_DISABLED_BASELINE",
+  );
+}
+
+/**
  * stripTsCommentsPreservingLines は行コメントとブロックコメントを空白化し、行番号を保つ。
  * 文字列・テンプレートリテラル内はそのまま残す（C20 の検出対象は template 内の合成）。
  */
@@ -1156,11 +1562,11 @@ async function walk(dir, exts, excludeNames) {
 
 /**
  * collectViolations は cwd 配下の SCAN_ROOTS（src・liff/src・line-reserve/src）を走査し、
- * C1〜C24 違反を集計する純粋寄りの関数。
- * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC24 に委譲する。
+ * C1〜C29 違反を集計する純粋寄りの関数。
+ * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1〜checkC29 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [], c23: [], c24: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [], c12: [], c13: [], c14: [], c15: [], c16: [], c17: [], c18: [], c19: [], c20: [], c21: [], c22: [], c23: [], c24: [], c25: [], c26: [], c27: [], c28: [], c29: [] };
   const allRelPaths = new Set();
   const c24SeenDirs = new Set();
 
@@ -1230,6 +1636,21 @@ export async function collectViolations(cwd) {
         }
         for (const v of checkC20(text)) {
           result.c20.push({ file: relPath, ...v });
+        }
+        for (const v of checkC25(text, relPath)) {
+          result.c25.push({ file: relPath, ...v });
+        }
+        for (const v of checkC26(text, relPath)) {
+          result.c26.push({ file: relPath, ...v });
+        }
+        for (const v of checkC27(text, relPath)) {
+          result.c27.push({ file: relPath, ...v });
+        }
+        for (const v of checkC28(text, relPath)) {
+          result.c28.push({ file: relPath, ...v });
+        }
+        for (const v of checkC29(text, relPath)) {
+          result.c29.push({ file: relPath, ...v });
         }
       }
       if (isDesignTokensFile(relPath)) {
@@ -1319,12 +1740,13 @@ async function main() {
   printGroup("C22 PALETTE クラス文字列", result.c22);
   printGroup("C23 BADGE コントラスト", result.c23);
   printGroup("C24 shared stories 不在", result.c24);
+  printGroup("C25 truncate 全文到達手段なし", result.c25);
+  printGroup("C26 nav 文言の truncate", result.c26);
+  printGroup("C27 z-index 直書き", result.c27);
+  printGroup("C28 features の native select/date", result.c28);
+  printGroup("C29 バリデーション理由の disabled", result.c29);
 
-  const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
-    + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length
-    + result.c12.length + result.c13.length + result.c14.length + result.c15.length + result.c16.length
-    + result.c17.length + result.c18.length + result.c19.length + result.c20.length
-    + result.c21.length + result.c22.length + result.c23.length + result.c24.length;
+  const total = Object.values(result).reduce((sum, group) => sum + group.length, 0);
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

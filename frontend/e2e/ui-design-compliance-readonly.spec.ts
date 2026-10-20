@@ -17,9 +17,17 @@ import {
   inspectPage,
   type SyntheticRenderedAssertion,
 } from "./helpers/ui-design-audit";
+import { collectPatternSignals, evaluatePatternSignals } from "./helpers/ui-design-patterns";
 
 const VIEWPORTS = [1440, 1200, 800, 500] as const;
 const AUDIT_HEIGHT = 900;
+/**
+ * design-patterns.md §1.1（現在地が viewport 内）/ §5.1（固定要素の非重なり）。
+ * 2026-10-20 STG 監査時点では 10 ページ以上が違反しているため、既定は検知のみ
+ * （test annotation に記録して fail させない）。実装修正後に
+ * `UI_DESIGN_PATTERNS_STRICT=1` で hard fail に切り替える。
+ */
+const PATTERNS_STRICT = process.env.UI_DESIGN_PATTERNS_STRICT === "1";
 const AUDIT_ORIGIN = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3003")
   .origin;
 
@@ -428,6 +436,30 @@ async function auditRoute(
       expect(result.overflow, `${path} @ ${width}px: document overflow`).toBe(0);
       expect(result.unnamed, `${path} @ ${width}px: accessible names`).toEqual([]);
       expect(result.undersized, `${path} @ ${width}px: 44px targets`).toEqual([]);
+      const patterns = evaluatePatternSignals(await collectPatternSignals(page));
+      if (PATTERNS_STRICT) {
+        expect(
+          patterns.offscreenCurrent,
+          `${path} @ ${width}px: nav current location in viewport (design-patterns §1.1)`,
+        ).toBeNull();
+        expect(
+          patterns.fixedOverlaps,
+          `${path} @ ${width}px: fixed elements over operable elements (design-patterns §5.1)`,
+        ).toEqual([]);
+      } else {
+        // 検知モード: annotation（HTML / JSON reporter 向け）と stdout（run-e2e.sh の list reporter 向け）の両方に出す。
+        const findings = [
+          ...(patterns.offscreenCurrent
+            ? [{ type: "design-patterns §1.1", description: `current location offscreen ${patterns.offscreenCurrent}` }]
+            : []),
+          ...patterns.fixedOverlaps.map((overlap) => ({ type: "design-patterns §5.1", description: overlap })),
+        ];
+        for (const finding of findings) {
+          const description = `${path} @ ${width}px: ${finding.description}`;
+          test.info().annotations.push({ type: finding.type, description });
+          console.log(`[${finding.type}] ${description}`);
+        }
+      }
       assertRequestSafety(path, `@ ${width}px`, interceptor, options, {
         consoleErrors,
         failedResponses,
@@ -448,10 +480,10 @@ async function auditRoute(
   }
 }
 
-test("route matrix inventory is exactly 86 product pages", () => {
+test("route matrix inventory is exactly 85 product pages (88 routes minus 3 unregistered)", () => {
   expect(PUBLIC_ROUTES).toHaveLength(3);
   expect(PROTECTED_ROUTES).toHaveLength(82);
-  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(86);
+  expect([...PUBLIC_ROUTES, ...PROTECTED_ROUTES]).toHaveLength(85);
   expect(PROTECTED_ROUTES.filter((route) => route.syntheticClinical)).toHaveLength(5);
 });
 

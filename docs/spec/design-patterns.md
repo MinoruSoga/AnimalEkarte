@@ -268,16 +268,16 @@
 
 ## 9. 機械化の候補（design-audit への追加提案）
 
-| 候補 | 検出方法 | 対応する規約 |
-|:--|:--|:--|
-| C25 | `truncate` / `text-ellipsis` / `max-w-[Npx]` を持つ要素に、ツールチップトリガー・展開操作・`aria-label`・`sr-only` のいずれも無い。`title` だけの要素は §3.1 を満たさないため警告 | §3.1 |
-| C26 | `nav` 内のリンク文言に `truncate` | §1.2 |
-| C27 | `z-[9999]` など `Z` トークン外の z-index 直書き | §5.1 |
-| C28 | `<input type="date">`・素の `<select>` を業務・設定フォーム（§4.4 の許容範囲外）で使用。検索・フィルター・行内編集・時刻入力は allowlist | §4.4 |
-| C29 | `disabled={!isValid}` 系（保存ボタンのバリデーション disabled）パターン（§4.2 は 2026-10-20 決裁済み。既存違反 `/estimates/new`・`/estimates/:id/edit` は allowlist で棚卸し） | §4.2 |
-| e2e | 各ルートで `[aria-current=page]` が viewport 内にあること／FAB と `button,a` の重なりが無いこと | §1.1, §5.1 |
+| 検査 | 状態 | 検出方法 | 対応する規約 |
+|:--|:--|:--|:--|
+| C25 | **実装済み**（件数ラチェット） | `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` / `aria-labelledby` が無い。focus/タッチで開くツールチップの有無は静的に判定できないため、機械化は「全文がどこにも無い」最低線のみ。既存 58 ファイル / 99 箇所（variant 付き `lg:truncate` 等を含む）はファイル別件数の baseline（超過のみ fail） | §3.1 |
+| C26 | **実装済み**（ラチェット） | `<nav>` 内（行の途中から始まる `<nav>` も含む）と `Layout/Sidebar*.tsx` の `truncate`（variant 付き含む）。既存 3 ファイル / 6 箇所はファイル別件数の baseline | §1.2 |
+| C27 | **実装済み**（件数ラチェット） | `z-N` / `focus:z-N` / `z-[N]` / `zIndex: N` の直書き（`Z` / `Z_CLASS` 参照は許可）。既存 33 ファイルはファイル別件数の baseline | §5.1 |
+| C28 | **実装済み**（ラチェット） | `src/features/**` と `src/components/shared/**` の raw `<select>` / `<input type="date">`。§4.4 の許容文脈（フィルター等）は理由付き allowlist、既存違反 3 ファイルはファイル別件数の baseline（超過分だけ違反） | §4.4 |
+| C29 | **実装済み**（ラチェット） | 保存／送信ボタンの `disabled` / `submitDisabled` に妥当性（`isValid` 系・`.trim()`・`=== ""`・`.length` 比較）を流す式。権限・送信中・ワークフロー状態は対象外。opening tag 単位で判定するため複数行の prop も対象。値の否定（`!form.time`）も対象。既存 9 ファイル / 10 箇所はファイル別件数の baseline | §4.2 |
+| e2e | **実装済み（検知モード）**: `ui-design-compliance-readonly.spec.ts` が各ルート × 4 viewport で `nav [aria-current=page]` の viewport 内在と、`position: fixed` の操作要素と他の操作要素の非重なりを採取する（判定は `e2e/helpers/ui-design-patterns.ts`）。既定は test annotation と stdout（`[design-patterns §x.y] …` 行）への記録のみで、`UI_DESIGN_PATTERNS_STRICT=1` で hard fail（`run-e2e.sh` がコンテナへ転送する）。現在地はメインナビ（`nav[aria-label="メインナビゲーション"]`）内だけを見て、nav の可視矩形と viewport の両方に収まることを要求し、展開幅（≥1280px）で現在地が無い場合も違反。固定要素は通常要素と他の固定要素の両方と比較する。実装修正が揃ったら strict を既定にする | §1.1, §5.1 |
 
-C21〜C24 は `design-system-audit.mjs` で使用済み（C21 `ui/` stories 必須、C22 `PALETTE` 層の純度、C23 `BADGE` コントラスト、C24 `shared/` stories ラチェット）のため、本表は C25 から採番する。追加時は `ui-design-compliance.md` §1 と `design-system-audit.mjs` へ同一コミットで登録し、既存番号と重複させない。
+C25〜C29 の定義は [ui-design-compliance.md §1](ui-design-compliance.md)、実装は `frontend/scripts/design-system-audit.mjs`（`pnpm design-audit`。件数 baseline は削減方向のみ: 超過は違反、減らして baseline を下げ忘れた場合も「baseline が古い」として fail する）。C21〜C24 は既存（stories / `PALETTE` 純度 / `BADGE` コントラスト / `shared/` stories）。新しい検査を足すときは同 §1 と audit スクリプトへ同一コミットで登録し、既存番号と重複させない。
 
 ---
 
@@ -297,7 +297,7 @@ C21〜C24 は `design-system-audit.mjs` で使用済み（C21 `ui/` stories 必�
 | 体重 | `26.5kg`、整数は `26kg` | `formatWeight` | 小数 1 桁、単位との間に空白なし |
 | 体温・その他の計測値 | `38.5℃` | 画面仕様 | 単位は入力欄内の右端サフィックス（§4.4）。共有関数が無い値は `number.ts` に追加する |
 | 件数 | `1,234件`、`1–20件 / 1,234件` | — | 数字と「件」の間に空白なし |
-| 空値 | **`—`（U+2014 EM DASH）1 文字**、`C.textInkMuted` | — | 2026-10-20 決裁。ink-faint は 2.44:1 で不可（design-states §2.2）。**実装側の未整合**: `formatDate` / `formatCurrency*` / `formatWeight` は現在 `"-"` を返す。共有関数と呼び出し側のテストを `—` へ揃える修正が必要（本書は仕様のみ） |
+| 空値 | **`—`（U+2014 EM DASH）1 文字**、`C.textInkMuted` | — | 2026-10-20 決裁。ink-faint は 2.44:1 で不可（design-states §2.2）。共有フォーマッタ（`lib/format/number.ts` / `date.ts`）と画面側フォールバックは `EMPTY_VALUE`（`—`、`src/constants/empty-value.ts`）を返す（PR #739 で統一済み。新規コードは文字列直書きではなくこの定数を使う） |
 | 数字の等幅 | 表の数値列・金額列は `tabular-nums` | — | DESIGN.md Typography Principles |
 
 - 和文の中の英数字は半角、単位記号は `kg` / `℃` / `%` / `¥` を上表の位置に固定する。
