@@ -2377,7 +2377,7 @@ components:
           description: >
             items+warnings の決定的フィンガープリント（EMR-196）。
             POST /accountings/complete の expected_unbilled_revision として返送する
-            楽観ロック token。形式は "u1:<sha256-hex>"。
+            楽観ロック token。形式は "u2:<sha256-hex>"。
         owner_discount_rate:
           type: number
           format: double
@@ -3214,6 +3214,8 @@ components:
           nullable: true
         sort_order:
           type: integer
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
         created_at:
           type: string
           format: date-time
@@ -3261,6 +3263,8 @@ components:
           nullable: true
         anesthesia:
           type: string
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
           enum:
             - none
             - local
@@ -3272,6 +3276,8 @@ components:
           description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。読み取りでは旧欠落を null のまま返す（false 補完しない）。create / update の request 契約は CreateProcedureRequest / UpdateProcedureRequest を参照。
         sort_order:
           type: integer
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
         created_at:
           type: string
           format: date-time
@@ -3325,6 +3331,8 @@ components:
           nullable: true
         sort_order:
           type: integer
+          nullable: true
+          description: 省略または null は 0 として登録する。
         is_non_insurance:
           type: boolean
           description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
@@ -3372,6 +3380,8 @@ components:
           nullable: true
         sort_order:
           type: integer
+          nullable: true
+          description: 省略または null は変更なし。明示 0 は更新する。
         is_non_insurance:
           type: boolean
           description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は変更なし（DB NULL=旧欠落を書き換えない）、null は 400 invalid input、true/false は明示更新。
@@ -3408,6 +3418,8 @@ components:
             - general
         sort_order:
           type: integer
+          nullable: true
+          description: 省略または null は 0 として登録する。
         tax_type:
           type: string
           enum: *id001
@@ -3453,6 +3465,8 @@ components:
           nullable: true
         anesthesia:
           type: string
+          nullable: true
+          description: 省略または null は変更なし。明示 enum 値は更新する。
           enum:
             - none
             - local
@@ -3460,6 +3474,8 @@ components:
             - general
         sort_order:
           type: integer
+          nullable: true
+          description: 省略または null は変更なし。明示 0 は更新する。
         tax_type:
           type: string
           enum: *id001

@@ -37,6 +37,8 @@ export type TreatmentMasterItem = {
    * 未設定（undefined）は未取得として扱い、明示値へ補完しない。
    */
   isNonInsurance?: boolean | null;
+  /** 専用 consumer が保険契約を採用済みの項目のみ指定する。 */
+  insuranceContract?: "master";
 };
 
 interface TreatmentSearchDialogProps {
@@ -97,6 +99,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
           unitPrice: c.price,
           category: "診察",
           isNonInsurance: c.isNonInsurance,
+          insuranceContract: "master",
         });
       }
     });
@@ -109,31 +112,20 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
           unitPrice: p.price,
           category: "処置",
           isNonInsurance: p.isNonInsurance,
+          insuranceContract: "master",
         });
       }
     });
 
     vaccines.forEach((v) => {
       if (v.isActive) {
-        items.push({
-          id: v.id,
-          name: v.name,
-          unitPrice: v.price,
-          category: "予防",
-          isNonInsurance: v.insuranceSetting,
-        });
+        items.push({ id: v.id, name: v.name, unitPrice: v.price, category: "予防" });
       }
     });
 
     checkupTypes.forEach((ct) => {
       if (ct.isActive) {
-        items.push({
-          id: ct.id,
-          name: ct.name,
-          unitPrice: ct.price,
-          category: "検査",
-          isNonInsurance: ct.insuranceSetting,
-        });
+        items.push({ id: ct.id, name: ct.name, unitPrice: ct.price, category: "検査" });
       }
     });
 
@@ -149,6 +141,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
           category: "薬剤",
           medicineId: m.id,
           isNonInsurance: m.isNonInsurance,
+          insuranceContract: "master",
         });
       }
     });

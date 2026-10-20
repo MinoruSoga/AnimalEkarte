@@ -11,6 +11,7 @@ function masterItem(overrides: Partial<TreatmentMasterItem> = {}): TreatmentMast
     name: "テスト項目",
     unitPrice: 1000,
     category: "検査",
+    insuranceContract: "master",
     isNonInsurance: true,
     ...overrides,
   };
@@ -141,3 +142,13 @@ it.each([true, false])(
     ).toThrow("保険設定が未設定");
   },
 );
+
+// 未採用 consumer は値の有無で保険契約を推測せず、従来の入力を送る。
+it.each([undefined, null, true, false])("legacy selection omits insurance: %s", (setting) => {
+  const payload = buildMasterSelectionPayload({
+    item: masterItem({ insuranceContract: undefined, isNonInsurance: setting }),
+    quantity: 1,
+    sortOrder: 0,
+  });
+  expect(payload).not.toHaveProperty("is_insurance");
+});

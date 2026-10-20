@@ -155,21 +155,7 @@ describe("TreatmentSearchDialog", () => {
     expect(onSelect).toHaveBeenNthCalledWith(3, expect.objectContaining({ isNonInsurance: true }));
   });
 
-  it("EMR-454: vaccine/checkup explicit settings reach the selection callback", async () => {
-    const user = userEvent.setup();
-    const onSelect = vi.fn();
-    vi.mocked(useGetAllVaccinesMaster).mockReturnValue({
-      data: [{ ...VACCINES[0], insuranceSetting: false, isNonInsurance: undefined }],
-    } as ReturnType<typeof useGetAllVaccinesMaster>);
-    vi.mocked(useGetAllCheckupTypes).mockReturnValue({
-      data: [{ ...CHECKUP_TYPES[0], insuranceSetting: true, isNonInsurance: true, version: 7 }],
-    } as ReturnType<typeof useGetAllCheckupTypes>);
-    render(<TreatmentSearchDialog open onOpenChange={() => {}} onSelect={onSelect} />);
-    await user.click(screen.getByText("混合ワクチン"));
-    await user.click(screen.getByText("血液検査"));
-    expect(onSelect).toHaveBeenNthCalledWith(1, expect.objectContaining({ isNonInsurance: false }));
-    expect(onSelect).toHaveBeenNthCalledWith(2, expect.objectContaining({ isNonInsurance: true }));
-  });
+  // vaccine/checkup adoption is covered with raw API responses by the composition-level selection test.
 
   it("カテゴリチップで当該カテゴリのみに絞り込まれる", async () => {
     const user = userEvent.setup();

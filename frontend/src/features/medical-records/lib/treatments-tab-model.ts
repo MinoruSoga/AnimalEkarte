@@ -28,7 +28,8 @@ export function buildMasterSelectionPayload(params: {
   sortOrder: number;
   /**
    * 互換引数。未設定値のboolean補完には使わない。
-   * 未設定・未取得は保存前に停止する。明示値だけ反転写像する。
+   * 採用済み master の未設定・未取得は保存前に停止する。明示値だけ反転写像する。
+   * 未採用 consumer は保険 field 自体を省略し、従来の作成契約を維持する。
    */
   insuranceFallback?: boolean;
 }): CreateTreatmentInput {
@@ -42,7 +43,9 @@ export function buildMasterSelectionPayload(params: {
     consultation_id: item.category === "診察" ? toNumericId(item.id) : undefined,
     procedure_id: item.category === "処置" ? toNumericId(item.id) : undefined,
     is_selected: true,
-    is_insurance: toInsuranceApplicable(item.isNonInsurance, insuranceFallback),
+    ...(item.insuranceContract === "master"
+      ? { is_insurance: toInsuranceApplicable(item.isNonInsurance, insuranceFallback) }
+      : {}),
     discount_amount: 0,
     sort_order: sortOrder,
     memo: "",

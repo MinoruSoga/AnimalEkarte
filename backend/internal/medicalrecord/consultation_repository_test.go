@@ -141,14 +141,14 @@ func TestConsultationRepository_Update(t *testing.T) {
 	t.Run("同一医院の更新は成功する", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "更新前", nil)
 		name := "更新後"
-		got, err := repo.Update(ctx, clinicA, c.ID, UpdateConsultationInput{Name: &name})
+		got, err := repo.Update(ctx, clinicA, c.ID, UpdateConsultationInput{Version: c.Version, Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後", got.Name)
 	})
 
 	t.Run("存在しないIDはNotFoundを返す", func(t *testing.T) {
 		name := "無効"
-		_, err := repo.Update(ctx, clinicA, uint64(9999999), UpdateConsultationInput{Name: &name})
+		_, err := repo.Update(ctx, clinicA, uint64(9999999), UpdateConsultationInput{Version: c.Version, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -156,7 +156,7 @@ func TestConsultationRepository_Update(t *testing.T) {
 	t.Run("別医院IDからの更新はNotFoundを返し値は変わらない", func(t *testing.T) {
 		c := makeConsultation(t, db, clinicA, "越境前", nil)
 		name := "越境後"
-		_, err := repo.Update(ctx, clinicB, c.ID, UpdateConsultationInput{Name: &name})
+		_, err := repo.Update(ctx, clinicB, c.ID, UpdateConsultationInput{Version: c.Version, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 

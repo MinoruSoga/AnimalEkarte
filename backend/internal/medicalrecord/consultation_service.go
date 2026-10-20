@@ -241,7 +241,7 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 		if err != nil {
 			return masterInsuranceChange{}, err
 		}
-		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance}, nil
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance, SkipInsuranceAudit: input.IsNonInsurance == nil}, nil
 	})
 	if err != nil {
 		return nil, err

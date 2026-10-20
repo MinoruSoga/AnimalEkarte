@@ -15,10 +15,11 @@ type MasterInsuranceWriteDependencies struct {
 }
 
 type masterInsuranceChange struct {
-	ID           uint64
-	BeforeExists bool
-	Before       *bool
-	After        *bool
+	ID                 uint64
+	BeforeExists       bool
+	SkipInsuranceAudit bool
+	Before             *bool
+	After              *bool
 }
 
 func masterInsuranceAuditValue(setting *bool) map[string]any {
@@ -43,6 +44,9 @@ func (d MasterInsuranceWriteDependencies) write(
 		change, err := mutate(txCtx)
 		if err != nil {
 			return err
+		}
+		if change.SkipInsuranceAudit {
+			return nil
 		}
 		var before any
 		if change.BeforeExists {
