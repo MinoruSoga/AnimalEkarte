@@ -60,6 +60,10 @@ func (h *Handler) WithImageSupport(deps ImageDependencies) *Handler {
 	h.imageUploader = deps.Uploader
 	h.imageQuota = deps.Quota
 	if deps.RequireAnyPermission != nil {
+		h.courseImageWritePermission = deps.RequireAnyPermission(
+			PermissionRequirement{Resource: string(model.ResourceMasterTrimming), Action: "create"},
+			PermissionRequirement{Resource: string(model.ResourceMasterTrimming), Action: "edit"},
+		)
 		h.imageWritePermission = deps.RequireAnyPermission(
 			PermissionRequirement{Resource: string(model.ResourceTrimming), Action: "create"},
 			PermissionRequirement{Resource: string(model.ResourceTrimming), Action: "edit"},
@@ -265,4 +269,19 @@ func (h *Handler) DeleteTrimmingImage(c *gin.Context) {
 		slog.Uint64("staff_id", staffID),
 		slog.String("key", key))
 	c.Status(http.StatusNoContent)
+}
+
+// courseImagePermission is restricted to the approved master create/edit scope.
+func (h *Handler) courseImagePermission() gin.HandlerFunc {
+	if h.courseImageWritePermission != nil {
+		return h.courseImageWritePermission
+	}
+	return func(c *gin.Context) { c.AbortWithStatus(http.StatusForbidden) }
+}
+
+// DenyCourseImageDiscard keeps originals safe until a server-side capability
+// proves that a key is this actor's unsubmitted draft. Current-reference absence
+// alone does not establish that: replaced originals have no live reference.
+func (h *Handler) DenyCourseImageDiscard(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "course image cannot be discarded"})
 }

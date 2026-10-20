@@ -1,4 +1,4 @@
-import { useId, useRef, useTransition, useState, type ChangeEvent } from "react";
+import { useId, useTransition, useState, type ChangeEvent } from "react";
 import { Upload, X } from "lucide-react";
 
 import { FormFieldError } from "@/components/shared/FormFieldError";
@@ -6,10 +6,7 @@ import { PropertyRow } from "@/components/shared/SidePeek";
 import { Button } from "@/components/ui/button";
 import { C, ICON } from "@/lib/design-tokens";
 
-import {
-  discardTrimmingCourseImage,
-  uploadTrimmingCourseImage,
-} from "../api/upload-trimming-course-image";
+import { uploadTrimmingCourseImage } from "../api/upload-trimming-course-image";
 
 // BE の受理形式（jpeg/png/gif）と一致させる
 const COURSE_IMAGE_ACCEPT = "image/jpeg,image/png,image/gif";
@@ -67,7 +64,6 @@ interface ImageFieldProps {
 }
 
 export function TrimmingCourseImageField({
-  currentKey,
   previewUrl,
   hasImage,
   onUploaded,
@@ -78,33 +74,15 @@ export function TrimmingCourseImageField({
   const inputId = useId();
   const [isUploading, startUpload] = useTransition();
   const [error, setError] = useState("");
-  // この編集中にアップロードした key。置換・削除で不要になったものだけ掃除する
-  const sessionUploads = useRef(new Set<string>());
-
-  const discardIfSessionUpload = (key: string) => {
-    if (key === "" || !sessionUploads.current.has(key)) return;
-    sessionUploads.current.delete(key);
-    discardTrimmingCourseImage(key).catch(() => {
-      // best-effort: 残っても参照されない object が残るだけ
-    });
-  };
-
-  const handleRemove = () => {
-    discardIfSessionUpload(currentKey);
-    onRemove();
-  };
-
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!file || readOnly || isUploading) return;
     setError("");
     onUploadingChange(true);
     startUpload(async () => {
       try {
         const result = await uploadTrimmingCourseImage(file);
-        sessionUploads.current.add(result.key);
-        discardIfSessionUpload(currentKey);
         onUploaded(result.key, result.signedUrl);
       } catch {
         // 失敗時は直前の画像を保持する
@@ -132,8 +110,8 @@ export function TrimmingCourseImageField({
             {readOnly ? null : (
               <button
                 type="button"
-                onClick={handleRemove}
-                disabled={isUploading}
+                onClick={onRemove}
+                disabled={isUploading || readOnly}
                 aria-label="画像を削除"
                 className={`absolute top-1 right-1 min-h-11 min-w-11 flex items-center justify-center ${C.bgWhite} rounded-full shadow-level1 ${C.hoverBgPage}`}
               >
@@ -154,7 +132,7 @@ export function TrimmingCourseImageField({
               type="file"
               accept={COURSE_IMAGE_ACCEPT}
               onChange={handleChange}
-              disabled={isUploading}
+              disabled={isUploading || readOnly}
               className="sr-only"
             />
           </label>

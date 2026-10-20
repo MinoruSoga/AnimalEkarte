@@ -154,7 +154,7 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
     expect(discard).not.toHaveBeenCalled();
   });
 
-  it("discards an unsaved upload when it is replaced", async () => {
+  it("leaves cleanup ownership to the parent when replaced", async () => {
     upload
       .mockResolvedValueOnce({ key: "trimming-images/1/a.jpg", signedUrl: "https://signed/a.jpg" })
       .mockResolvedValueOnce({ key: "trimming-images/1/b.jpg", signedUrl: "https://signed/b.jpg" });
@@ -175,7 +175,6 @@ describe("TrimmingCourseImageField (EMR-457)", () => {
 
     selectFile(new File(["y"], "b.jpg", { type: "image/jpeg" }));
     await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(2));
-    expect(discard).toHaveBeenCalledWith("trimming-images/1/a.jpg");
-    expect(discard).toHaveBeenCalledTimes(1);
+    expect(discard).not.toHaveBeenCalled();
   });
 });

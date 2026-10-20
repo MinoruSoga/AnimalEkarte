@@ -250,7 +250,7 @@ func TestTrimmingCourseService_UpdateRejectsForeignImage(t *testing.T) {
 	assert.Nil(t, fields)
 }
 
-func TestTrimmingCourseService_UpdateSupersedesReplacedImage(t *testing.T) {
+func TestTrimmingCourseService_UpdatePreservesReplacedOriginal(t *testing.T) {
 	captured := map[string]any{}
 	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/old.jpg")}
 	lifecycle := &courseImageLifecycleFake{}
@@ -262,10 +262,10 @@ func TestTrimmingCourseService_UpdateSupersedesReplacedImage(t *testing.T) {
 		ActorStaffID:   7,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"trimming-images/1/old.jpg"}, lifecycle.tombstoned)
+	assert.Empty(t, lifecycle.tombstoned)
 }
 
-func TestTrimmingCourseService_UpdateSupersedesClearedImage(t *testing.T) {
+func TestTrimmingCourseService_UpdatePreservesClearedOriginal(t *testing.T) {
 	captured := map[string]any{}
 	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/old.jpg")}
 	lifecycle := &courseImageLifecycleFake{}
@@ -276,7 +276,7 @@ func TestTrimmingCourseService_UpdateSupersedesClearedImage(t *testing.T) {
 		ActorStaffID:   7,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"trimming-images/1/old.jpg"}, lifecycle.tombstoned)
+	assert.Empty(t, lifecycle.tombstoned)
 }
 
 func TestTrimmingCourseService_UpdateKeepsImageReferencedElsewhere(t *testing.T) {
@@ -307,21 +307,6 @@ func TestTrimmingCourseService_UpdateSkipsSupersedeWhenImageUnchanged(t *testing
 		ActorStaffID:   7,
 	})
 	require.NoError(t, err)
-	assert.Empty(t, lifecycle.tombstoned)
-}
-
-func TestTrimmingCourseService_UpdateRequiresActorForSupersede(t *testing.T) {
-	captured := map[string]any{}
-	existing := &model.TrimmingCourse{ID: 10, ClinicID: 1, ImageObjectKey: courseAttrStrPtr("trimming-images/1/old.jpg")}
-	lifecycle := &courseImageLifecycleFake{}
-	svc := newAttributeCourseService(newSupersedeUpdateRepo(existing, &captured), lifecycle)
-
-	newKey := "trimming-images/1/new.jpg"
-	_, err := svc.Update(context.Background(), 1, 10, &UpdateTrimmingCourseInput{
-		ImageObjectKey: &newKey,
-	})
-	require.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
 	assert.Empty(t, lifecycle.tombstoned)
 }
 

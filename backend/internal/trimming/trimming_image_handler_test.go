@@ -979,3 +979,50 @@ func TestDeleteTrimmingImage_WithoutServiceFailsClosed(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Empty(t, uploader.deletes)
 }
+
+func TestCourseImageRoute_UsesOnlyMasterCreateEdit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, allowMaster := range []bool{true, false} {
+		t.Run(fmt.Sprintf("master=%v", allowMaster), func(t *testing.T) {
+			h := NewHandlerWithPermission(&mockService{}, nil, nil, nil, func(_, _ string) gin.HandlerFunc { return func(c *gin.Context) { c.Next() } }).WithImageSupport(ImageDependencies{
+				RequireAnyPermission: func(reqs ...PermissionRequirement) gin.HandlerFunc {
+					return func(c *gin.Context) {
+						allowed := false
+						for _, req := range reqs {
+							if req.Resource == "master-trimming" && (req.Action == "create" || req.Action == "edit") && allowMaster {
+								allowed = true
+							}
+						}
+						if !allowed {
+							c.AbortWithStatus(http.StatusForbidden)
+							return
+						}
+						c.Next()
+					}
+				},
+			})
+			router := gin.New()
+			h.RegisterRoutes(router.Group("/api/v1"))
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/masters/trimming-courses/images/upload", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if allowMaster {
+				assert.Equal(t, http.StatusUnauthorized, w.Code)
+			} else {
+				assert.Equal(t, http.StatusForbidden, w.Code)
+			}
+		})
+	}
+}
+
+func TestCourseImageDiscard_PreservesUnprovenOriginals(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	uploader := &fakeTrimmingImageUploader{}
+	h := &Handler{imageUploader: uploader}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/masters/trimming-courses/images", strings.NewReader(`{"key":"trimming-images/1/old.jpg"}`))
+	h.DenyCourseImageDiscard(c)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Empty(t, uploader.deletes)
+}

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useTransition, useState } from "react";
 import { Scissors } from "lucide-react";
 
 import {
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
+import { useCourseImageDrafts } from "../hooks/use-course-image-drafts";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
@@ -35,6 +36,7 @@ import {
 
 interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;
+  refreshedImageUrl?: string | null;
   onClose: () => void;
   onSave: (data: CourseFormData) => Promise<boolean> | boolean;
   onDeleteRequest?: (item: TrimmingCourse) => void;
@@ -44,6 +46,7 @@ interface TrimmingCourseSidePanelProps {
 
 export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   item,
+  refreshedImageUrl,
   onClose,
   onSave,
   onDeleteRequest,
@@ -54,6 +57,9 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
   const [nameError, setNameError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const [isImageUploading, setIsImageUploading] = useState(false);
+  const [isSaving, startSaving] = useTransition();
+  const savePending = useRef(false);
+  const { register, discard, protectSubmitted } = useCourseImageDrafts();
   const clinicName = useCurrentClinicName();
   const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
   const activeCourseTypes = courseTypes.filter((t) => t.isActive || t.id === formData.courseTypeId);
@@ -69,18 +75,26 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 
   const handleAction = useCallback(async () => {
     // 画像 upload 中は保存しない（成功 key を受け取る前の送信で画像を失わないため）
-    if (isImageUploading) return;
+    if (isImageUploading || savePending.current) return;
     if (!formData.name.trim()) {
       setNameError("名称を入力してください");
       return;
     }
     setNameError("");
-    const saved = await onSave(formData);
-    if (saved) {
-      setIsDirty(false);
-      onDirtyChange?.(false);
-    }
-  }, [formData, isImageUploading, onSave, onDirtyChange]);
+    savePending.current = true;
+    protectSubmitted(formData.imageObjectKey);
+    startSaving(async () => {
+      try {
+        const saved = await onSave(formData);
+        if (saved) {
+          setIsDirty(false);
+          onDirtyChange?.(false);
+        }
+      } finally {
+        savePending.current = false;
+      }
+    });
+  }, [formData, isImageUploading, onSave, onDirtyChange, protectSubmitted]);
 
   const handleTitleChange = useCallback(
     (value: string) => {
@@ -137,6 +151,8 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 
   const handleImageUploaded = useCallback(
     (imageObjectKey: string, imagePreviewUrl: string) => {
+      if (!register(imageObjectKey)) return;
+      discard(formData.imageObjectKey);
       setFormDataDirty((prev) => ({
         ...prev,
         imageObjectKey,
@@ -144,17 +160,19 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
         imageChanged: true,
       }));
     },
-    [setFormDataDirty],
+    [setFormDataDirty, register, discard, formData.imageObjectKey],
   );
 
   const handleImageRemove = useCallback(() => {
+    if (savePending.current) return;
+    discard(formData.imageObjectKey);
     setFormDataDirty((prev) => ({
       ...prev,
       imageObjectKey: "",
       imagePreviewUrl: "",
       imageChanged: true,
     }));
-  }, [setFormDataDirty]);
+  }, [setFormDataDirty, discard, formData.imageObjectKey]);
 
   const handleDescriptionChange = useCallback(
     (value: string) => {
@@ -170,6 +188,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
       title={formData.name}
       onTitleChange={handleTitleChange}
       onClose={onClose}
+      isPending={isSaving || isImageUploading}
       action={readOnly ? undefined : handleAction}
       onDelete={item !== null && onDeleteRequest ? () => onDeleteRequest(item) : undefined}
       icon={<Scissors className={LAYOUT.pageIcon.innerIcon} />}
@@ -272,12 +291,19 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
 
       <TrimmingCourseImageField
         currentKey={formData.imageObjectKey}
-        previewUrl={formData.imagePreviewUrl}
+        previewUrl={
+          !formData.imageChanged && refreshedImageUrl != null
+            ? refreshedImageUrl
+            : formData.imagePreviewUrl
+        }
         hasImage={formData.imageObjectKey !== ""}
         onUploaded={handleImageUploaded}
         onRemove={handleImageRemove}
-        onUploadingChange={setIsImageUploading}
-        readOnly={readOnly}
+        onUploadingChange={(uploading) => {
+          setIsImageUploading(uploading);
+          if (uploading) setIsDirty(true);
+        }}
+        readOnly={readOnly || isSaving}
       />
 
       <PropertyRow label="備考" description={FIELD_DESCRIPTIONS.note}>

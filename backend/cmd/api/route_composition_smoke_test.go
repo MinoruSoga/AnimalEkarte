@@ -168,6 +168,8 @@ func TestRouteCompositionSmoke_TargetGraphRegistersEverySurface(t *testing.T) {
 		"GET /api/v1/medical-records",
 		"GET /api/v1/reservations",
 		"POST /api/v1/trimmings/images/upload",
+		"POST /api/v1/masters/trimming-courses/images/upload",
+		"DELETE /api/v1/masters/trimming-courses/images",
 		"DELETE /api/v1/trimmings/images",
 		"GET /api/v1/accountings",
 		"GET /api/v1/lstep-settings",

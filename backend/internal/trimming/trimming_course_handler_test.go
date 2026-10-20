@@ -324,6 +324,16 @@ func TestUpdateTrimmingCourse(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:    "returns 401 without staff and never calls service",
+			paramID: "1", body: map[string]any{"name": "test"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			courseSvc: &mockTrimmingCourseService{updateFn: func(_ context.Context, _, _ uint64, _ *UpdateTrimmingCourseInput) (*model.TrimmingCourse, error) {
+				t.Fatal("unauthenticated write")
+				return nil, nil
+			}},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "xyz",
 			body:       map[string]any{"name": "test"},
