@@ -120,6 +120,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/hospitalizations/:id/daily-records ListDailyRecords\n" +
 		"GET /api/v1/hospitalizations/:id/daily-records/:date GetDailyRecord\n" +
 		"GET /api/v1/hospitalizations/:id/treatment-plans ListTreatmentPlansByHospitalization\n" +
+		"GET /api/v1/hospitalizations/cage-occupancy GetCageOccupancy\n" +
 		"GET /api/v1/lab-device-item-masters ListLabDeviceItemMasters\n" +
 		"GET /api/v1/lab-device/agent-consumer GetLabDeviceAgentConsumer\n" +
 		"GET /api/v1/lab-device/board GetLabDeviceBoard\n" +
