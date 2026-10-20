@@ -21,6 +21,7 @@
 | 1 | [design-system.md](design-system.md) | **色**（brand / primary / ink / 臨床・業務ステータス色）と SSOT の分担表 | すべての UI 作業の最初 |
 | 2 | [`DESIGN.md`](../../DESIGN.md)（ルート・Animal Ekarte Design Language） | **タイポ / 形状 / 余白 / エレベーション / コンポーネント寸法**（字義で従う）。色の値は持たない | 見た目の値を決める・変えるとき |
 | 3 | [design-states.md](design-states.md) | hover / focus-visible / disabled / readonly / loading / invalid の**状態仕様**と WCAG 2.2 AA コントラスト | インタラクティブ要素を触るとき |
+| 3b | [design-patterns.md](design-patterns.md) | **画面の組み立て**: ナビ現在地、一覧の列幅優先度・横スクロール、省略の全文到達、フォームの幅/検証/部品、固定要素の重なり、空状態/読込、カレンダー/ボード | 一覧・フォーム・画面シェルを作る/直すとき |
 | 4 | [design-token-layers.md](design-token-layers.md) | トークンの**配置と参照方向**（Primitive → Semantic → Component） | トークン追加・色変更・新規プリミティブ |
 | 5 | [components/README.md](components/README.md) | `components/ui/` 7 プリミティブの**契約**（Anatomy・状態表・既知ギャップ） | `components/ui/*` を変更する前 |
 | 6 | [ui-design-compliance.md](ui-design-compliance.md) | 準拠チェック **C1〜C20** の定義と全 88 ルートの正本対応表 | 新規ルート追加・監査失敗の調査 |
@@ -49,6 +50,12 @@
 | `TableHead` / `TableCell` の typography・padding 上書き禁止。行全体 `onClick` 禁止（cell 内 native link / button を使う） | compliance C18 / C19、components/table.md |
 | `components/ui/` の新規プリミティブは colocated `.stories.tsx` 必須（C21）。md 仕様書は「stories を読んでも分からない契約」がある場合だけ | compliance C21、design-system FE-DS2 決裁、components/README.md カバレッジ表 |
 | story の axe 違反は失敗扱い（`.storybook/preview.ts` の `a11y.test: "error"`）。正当な例外は story 側の `parameters.a11y.config.rules` に理由付きで記録し、黙って `"off"` にしない | design-states §2、accessibility-rules.md |
+| 省略（`truncate` / `max-w`）した要素には `title`・ツールチップ・展開のいずれかで**全文到達手段**を必ず付ける。識別子（ID・氏名・ペット名・金額・日付）とナビ項目は省略しない | patterns §3.1, §1.2 |
+| 一覧は識別列を折り返さず、長文列は `max-width` + 省略、操作列は右端 sticky。表が溢れたら識別列と操作列を残して中間列だけスクロールする。空値は `—`、件数は「1,234件」 | patterns §2 |
+| サイドバーの現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする。ページ `h1` は 1 つで、ページ内の見出しを `h1` より大きくしない | patterns §1 |
+| 固定要素（浮遊ボタン・固定アクションバー・トースト）は操作要素に重ねない。スクロール末尾に固定要素分の余白を取り、`z-index` は `Z` トークンから選ぶ | patterns §5 |
+| 保存ボタンを未入力理由で `disabled` にしない。入力部品は共有 `ui/` のみ（標準 date/time/select・素の 16px チェック禁止）。破壊操作は `destructive` で主要操作の隣に置かない | patterns §4、design-states §1.1 |
+| 空状態は「何が無いか／条件／次の操作」の 3 点。読込は 300ms 超でスケルトン | patterns §6 |
 | 新しい色・値を決めるときは design-system.md（色）/ DESIGN.md（寸法）に決裁（日付・決定者）を記録してからトークンへ流す。本書や他文書に第二正本を作らない | token-layers §2 |
 
 ## 3. 完了前チェック（Definition of Done・UI 変更を含む PR）
@@ -59,7 +66,8 @@
    - **見た目の回帰**: `frontend/**` を触る PR では `.github/workflows/chromatic.yml` が Storybook を Chromatic へ publish し visual / accessibility tests を実行する（`CHROMATIC_PROJECT_TOKEN` 未設定時は notice を出して skip する。skip された PR は Chromatic による保証がないので、その旨を報告する）。
    - **実機の準拠監査**: ルートの shell・canvas・テーブル様式・臨床 sentinel 表示を実ブラウザで検査する `frontend/e2e/ui-design-compliance-readonly.spec.ts`（4 viewport）がある。`./scripts/run-e2e.sh e2e/ui-design-compliance-readonly.spec.ts`（frontend ディレクトリ・ローカル Docker スタック起動済みが前提・ユーザー実行）。レイアウト・テーブル・PageLayout に触れた PR では実行し、`ui-design-compliance.md` の最終 runtime 監査日を更新する。
 4. **文書同期**: 新規ルート → compliance §2 と C8 allowlist。新規 `ui/` プリミティブ → stories（必要なら `components/_TEMPLATE.md` から md）。新しい色・値 → 正本へ決裁記録。
-5. **報告**: 実行した検査コマンドと結果、目視した状態、更新した文書を PR 本文に書く。実行していない検査を PASS と書かない。
+5. **実データ幅での確認**: 一覧・フォームを触った PR は、氏名 10 文字・ID 16 桁・長文 100 文字の値を入れて、識別列の折り返し・省略の全文到達・操作列の可視・現在地の可視・固定要素の非重なり（[design-patterns.md](design-patterns.md) §1〜§5）を 1280px と 768px で確認する。STG の合成データ（`UAT20261015_*`）で崩れる場合は実運用値でも再現するかを見て報告する。
+6. **報告**: 実行した検査コマンドと結果、目視した状態、更新した文書を PR 本文に書く。実行していない検査を PASS と書かない。
 
 ## 4. ランタイム別の読み込み方
 

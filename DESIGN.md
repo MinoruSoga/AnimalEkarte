@@ -198,7 +198,7 @@ components:
 
 > **位置づけ**: 本書は Animal Ekarte の**意匠言語**であり、**タイポグラフィ・形状（角丸）・余白・エレベーション・コンポーネント寸法の正本**である。実装はこれらの値に字義で従う。
 > **色は本書の正本範囲外**: 色の値・採否・臨床/業務ステータス色は [docs/spec/design-system.md](docs/spec/design-system.md) §2 が正本（FE11 決裁・2026-07-21）。本書のフロントマター `colors:` は本文の `{colors.*}` 参照を解決するための同値再掲であり、ここを編集して色を変えてはならない。
-> **関連正本**: 状態（hover / focus-visible / disabled / loading / invalid）は [design-states.md](docs/spec/design-states.md)、トークンの配置と参照方向は [design-token-layers.md](docs/spec/design-token-layers.md)、部品契約は [components/](docs/spec/components/README.md)、準拠検査 C1〜C20 は [ui-design-compliance.md](docs/spec/ui-design-compliance.md)。全エージェント共通の入口は [ui-design-guide.md](docs/spec/ui-design-guide.md)。
+> **関連正本**: 画面の組み立て（ナビ現在地・一覧の列設計・フォーム・固定要素・空状態）は [design-patterns.md](docs/spec/design-patterns.md)、状態（hover / focus-visible / disabled / loading / invalid）は [design-states.md](docs/spec/design-states.md)、トークンの配置と参照方向は [design-token-layers.md](docs/spec/design-token-layers.md)、部品契約は [components/](docs/spec/components/README.md)、準拠検査 C1〜C20 は [ui-design-compliance.md](docs/spec/ui-design-compliance.md)。全エージェント共通の入口は [ui-design-guide.md](docs/spec/ui-design-guide.md)。
 > **履歴**: 初版（alpha）は Notion のマーケティングサイトを分析した意匠言語を転用したものだった。2026-10-20 に Animal Ekarte 自身の意匠言語として書き直し、本製品で使わないマーケ専用パターン（スティッカーパレット 8 色、hero-band、pricing-plan-card、footer、ex-pricing-tier、ex-product-selector、ex-cart-drawer、button-icon-circular）を削除した。**colors / typography / rounded / spacing の値はすべて初版と同一**であり、`design-tokens.ts` / `globals.css` / design-audit への影響はない。`nav-bar` と `ex-app-shell-row` の面だけは design-system.md §7.1 の既存決裁（canvas-soft）に合わせて参照先を揃えた。
 
 ## Overview
@@ -335,6 +335,7 @@ tablet 以下の全タッチ面は **44×44px**（`min-h-11 min-w-11`）。ラ�
 
 **`nav-bar`** — サイドバー / アプリシェルのナビ
 - 面は `{colors.canvas-soft}`（本文カードとの図地関係を保つため白にしない — design-system §7.1 FE11 決裁）。リンクは `{colors.ink}` の `{typography.body-sm}`、padding `{spacing.md}`。tablet 以下で折りたたむ。
+- 項目名は省略しない。現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする（[design-patterns.md §1](docs/spec/design-patterns.md)）。
 
 **`ex-app-shell-row`** — サイドバーのナビ行
 - `{rounded.sm}`、padding `{spacing.sm} {spacing.md}`。active は `{colors.primary}` のインジケータと文字色で示し、色以外に太字または左端バーを併置する。
@@ -377,6 +378,7 @@ tablet 以下の全タッチ面は **44×44px**（`min-h-11 min-w-11`）。ラ�
 - ヘッダ: `{colors.canvas-soft}` 帯 + `{typography.eyebrow}`（12px / 600 / +0.125px）。本文: `{typography.body-sm}`。セル padding `{spacing.sm} {spacing.md}`（縦 12px / 横 16px）。行区切り `{colors.hairline}`。
 - 実装は `STYLE.tableHeaderRow` / `STYLE.tableHeaderCell` と `TableHead` / `TableCell` が保証する。呼び出し側で typography や padding を上書きしない（compliance C18）。行全体に `onClick` を付けず、遷移は cell 内の native link、操作は native button、並べ替えは 44px のドラッグハンドルで行う（compliance C19）。
 - 空状態の行だけ `data-empty-state` + `colSpan` + `text-center` で縦 padding を追加できる。
+- 列の役割（識別列は折り返さない・長文列は `max-width` + 全文到達手段・操作列は右端 sticky）、横スクロール時に残す列、空値 `—`・件数の表記は [design-patterns.md §2](docs/spec/design-patterns.md) が正本。
 
 ### Dialogs, Toasts, Empty States
 
@@ -387,7 +389,7 @@ tablet 以下の全タッチ面は **44×44px**（`min-h-11 min-w-11`）。ラ�
 - `feature-card` の chrome（`{rounded.xl}`、padding `{spacing.lg}`）に `text-input` と `button-brand` を内包する。
 
 **`ex-empty-state-card`** — 空状態
-- `{colors.canvas-soft}`、`{rounded.xl}`、padding `{spacing.xxl}`、キャプション `{typography.body-md}`。次に取るべき操作を 1 つだけ示す。
+- `{colors.canvas-soft}`、`{rounded.xl}`、padding `{spacing.xxl}`、キャプション `{typography.body-md}`。「何が無いか／条件／次の操作」の 3 点を含め、次に取るべき操作を 1 つだけ示す（最小要件は [design-patterns.md §6](docs/spec/design-patterns.md)）。
 
 **`ex-toast`** — トースト通知
 - `{colors.surface}`、`{rounded.xl}`、padding `{spacing.sm} {spacing.md}`、`{typography.body-sm}`、Level-1 shadow。成功・失敗はアイコンと文言で区別し、色だけに頼らない。

@@ -93,6 +93,7 @@ flowchart LR
 | 顧客集計業務 | [spec/customer-aggregation.md](spec/customer-aggregation.md) |
 | 画面挙動 | [spec/ui-design-compliance.md §2](spec/ui-design-compliance.md) の primary 仕様リンク |
 | UI 作業の入口（読む順・ハードルール・DoD） | [spec/ui-design-guide.md](spec/ui-design-guide.md) |
+| 一覧・フォーム・ナビ・固定要素・空状態の画面パターン | [spec/design-patterns.md](spec/design-patterns.md) |
 | 共有 UI の色 | [spec/design-system.md](spec/design-system.md) |
 | ジオメトリ・タイポグラフィ | [`DESIGN.md`](../DESIGN.md) |
 | GORM 型の write owner | [architecture/model-write-owner-catalog.md](architecture/model-write-owner-catalog.md) |
