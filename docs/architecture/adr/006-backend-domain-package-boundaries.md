@@ -43,6 +43,7 @@ backend/internal/
   authjwt/ apperrors/ apicontract/ lintscan/
   audit/ persistence/ scheduler/ sharedkernel/
   textsearch/ testdb/
+  operation/  # C06共通operation binding/result/attempt helper（EMR-489）。domain ruleなし
   clinicale2e/  # APP_ENV=test 専用の disposable clinical E2E fixture。domain ではない
 ```
 
