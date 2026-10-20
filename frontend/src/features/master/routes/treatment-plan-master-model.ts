@@ -1,3 +1,4 @@
+import { requireMasterEditVersion } from "@/lib/master-edit-version";
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
 import type { TreatmentTabConfig } from "../lib/treatment-plan-tab-content-model";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
@@ -112,7 +113,10 @@ export function buildConsultationCreateRequest(
 }
 
 export function buildConsultationUpdateRequest(data: TreatmentFormData): UpdateConsultationRequest {
-  const base = buildConsultationCreateRequest(data);
+  const base = {
+    ...buildConsultationCreateRequest(data),
+    version: requireMasterEditVersion(data.version),
+  };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }
@@ -153,7 +157,10 @@ export function buildProcedureCreateRequest(data: TreatmentFormData): CreateProc
 }
 
 export function buildProcedureUpdateRequest(data: TreatmentFormData): UpdateProcedureRequest {
-  const base = buildProcedureCreateRequest(data);
+  const base = {
+    ...buildProcedureCreateRequest(data),
+    version: requireMasterEditVersion(data.version),
+  };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }
@@ -169,7 +176,10 @@ export function buildVaccineCreateRequest(data: TreatmentFormData): CreateVaccin
 }
 
 export function buildVaccineUpdateRequest(data: TreatmentFormData): UpdateVaccineRequest {
-  const base = buildVaccineCreateRequest(data);
+  const base = {
+    ...buildVaccineCreateRequest(data),
+    version: requireMasterEditVersion(data.version),
+  };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }

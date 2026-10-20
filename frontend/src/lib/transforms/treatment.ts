@@ -24,8 +24,18 @@ export const toItemInsuranceSetting = (value: boolean | null | undefined): ItemI
  * generated `Consultation` / `Procedure` は is_non_insurance 未反映のため、
  * 応答の受け口だけローカルに拡張する（nullable の保持のみが目的）。
  */
-type ConsultationWire = Consultation & { is_non_insurance?: ItemInsuranceSetting };
-type ProcedureWire = Procedure & { is_non_insurance?: ItemInsuranceSetting };
+export type ConsultationWire = Omit<Consultation, "is_non_insurance"> & {
+  is_non_insurance?: ItemInsuranceSetting;
+  version?: number | null;
+};
+export type ProcedureWire = Omit<Procedure, "is_non_insurance"> & {
+  is_non_insurance?: ItemInsuranceSetting;
+  version?: number | null;
+};
+export type VaccineWire = Omit<Vaccine, "is_non_insurance"> & {
+  is_non_insurance?: ItemInsuranceSetting;
+  version?: number | null;
+};
 
 // ─────────────────────────────────────────────────
 // Consultation
@@ -44,6 +54,7 @@ export const transformConsultation = (data: ConsultationWire) => ({
   taxType: (data.tax_type ?? "excluded") as TaxType,
   taxRate: data.tax_rate ?? 0.1,
   isNonInsurance: toItemInsuranceSetting(data.is_non_insurance),
+  version: typeof data.version === "number" ? data.version : null,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -84,6 +95,7 @@ export const transformProcedure = (data: ProcedureWire) => ({
   taxType: (data.tax_type ?? "excluded") as TaxType,
   taxRate: data.tax_rate ?? 0.1,
   isNonInsurance: toItemInsuranceSetting(data.is_non_insurance),
+  version: typeof data.version === "number" ? data.version : null,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });
@@ -94,7 +106,7 @@ export type ProcedureItem = ReturnType<typeof transformProcedure>;
 // Vaccine
 // ─────────────────────────────────────────────────
 
-export const transformVaccine = (data: Vaccine & { is_non_insurance?: boolean | null }) => ({
+export const transformVaccine = (data: VaccineWire) => ({
   id: String(data.id ?? 0),
   name: data.name,
   parentId: data.parent_id !== undefined ? String(data.parent_id) : undefined,
@@ -107,6 +119,7 @@ export const transformVaccine = (data: Vaccine & { is_non_insurance?: boolean | 
   // Compatibility alias matches the dedicated vaccine adapter; canonical null is retained below.
   isNonInsurance: typeof data.is_non_insurance === "boolean" ? data.is_non_insurance : undefined,
   insuranceSetting: toItemInsuranceSetting(data.is_non_insurance),
+  version: typeof data.version === "number" ? data.version : null,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
 });

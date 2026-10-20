@@ -3,18 +3,18 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { TreatmentItem } from "@/lib/transforms/treatment";
-import { TreatmentItemSidePanel } from "./TreatmentItemSidePanel";
+import { TreatmentItemSidePanel, type TreatmentFormData } from "./TreatmentItemSidePanel";
 
 function renderPanel({
   item = null,
   showAnesthesia = true,
   insuranceTriState = false,
-  onSave = vi.fn(),
+  onSave = vi.fn(() => false),
 }: {
   item?: TreatmentItem | null;
   showAnesthesia?: boolean;
   insuranceTriState?: boolean;
-  onSave?: ReturnType<typeof vi.fn>;
+  onSave?: (data: TreatmentFormData) => boolean | Promise<boolean>;
 } = {}) {
   render(
     <TreatmentItemSidePanel
@@ -265,4 +265,38 @@ describe("TreatmentItemSidePanel 保険設定（EMR-454）", () => {
     expect(toggle).toHaveTextContent("いいえ");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
+});
+
+it("keeps unsaved fields and editing-start version when the same item refetches", async () => {
+  const user = userEvent.setup();
+  const onSave = vi.fn(() => false);
+  const item: TreatmentItem = {
+    id: "100",
+    name: "existing",
+    price: 100,
+    isActive: true,
+    description: "",
+    sortOrder: 1,
+    version: 7,
+  };
+  const props = {
+    parentCandidates: [],
+    hasChildren: false,
+    onClose: vi.fn(),
+    onSave,
+    insuranceTriState: true,
+  };
+  const view = render(<TreatmentItemSidePanel {...props} item={item} />);
+  const title = document.getElementById("master-title")!;
+  await user.clear(title);
+  await user.type(title, "unsaved edit");
+  view.rerender(
+    <TreatmentItemSidePanel {...props} item={{ ...item, name: "refetched", version: 99 }} />,
+  );
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  await waitFor(() =>
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "unsaved edit", version: 7 }),
+    ),
+  );
 });

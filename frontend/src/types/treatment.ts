@@ -11,7 +11,7 @@ import type { ReorderRequest } from "@/types/form";
 // 共通: サーバーが自動生成するフィールド
 // ─────────────────────────────────────────────────
 
-type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at";
+type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "version";
 
 // ─────────────────────────────────────────────────
 // 品目別保険設定（EMR-454 / wire: is_non_insurance）
@@ -52,6 +52,7 @@ export type CreateConsultationRequestBase = Omit<CreateConsultationRequest, "is_
 /** update は未指定（key なし）/ false / true を区別する。null は旧欠落なので送らない。 */
 export type UpdateConsultationRequest = Partial<ConsultationWritable> &
   ItemInsuranceWire & {
+    version: number;
     clear_parent_id?: boolean;
   };
 
@@ -87,6 +88,7 @@ export type CreateProcedureRequestBase = Omit<CreateProcedureRequest, "is_non_in
 /** update は未指定（key なし）/ false / true を区別する。null は旧欠落なので送らない。 */
 export type UpdateProcedureRequest = Partial<ProcedureWritable> &
   ItemInsuranceWire & {
+    version: number;
     clear_parent_id?: boolean;
   };
 
@@ -102,6 +104,7 @@ export type CreateVaccineRequest = Pick<VaccineWritable, "name"> &
 
 export type UpdateVaccineRequest = Partial<VaccineWritable> &
   ItemInsuranceWire & {
+    version: number;
     clear_parent_id?: boolean;
   };
 

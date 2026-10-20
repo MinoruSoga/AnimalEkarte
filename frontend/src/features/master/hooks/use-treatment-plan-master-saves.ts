@@ -1,3 +1,4 @@
+import { isMasterEditVersion, MASTER_EDIT_VERSION_ERROR } from "@/lib/master-edit-version";
 import { useCallback, useMemo, type TransitionStartFunction } from "react";
 
 import { useMasterSave } from "../hooks/use-master-save";
@@ -65,6 +66,13 @@ export function useTreatmentPlanMasterSaves({
     [editTarget, setEditTarget, startSaveTransition],
   );
 
+  const validateVersionedMaster = (data: TreatmentFormData) => {
+    if (!data.name.trim()) return "名称を入力してください";
+    if (editTarget !== "new" && !isMasterEditVersion(data.version))
+      return MASTER_EDIT_VERSION_ERROR;
+    return null;
+  };
+
   const consultationSave = useMasterSave<
     TreatmentItem,
     TreatmentFormData,
@@ -75,7 +83,7 @@ export function useTreatmentPlanMasterSaves({
     createMutation: resources.createConsultation,
     updateMutation: resources.updateConsultation,
     permissions: { canCreate, canEdit },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
+    validate: validateVersionedMaster,
     // EMR-454: 診察は is_non_insurance が nullable。保存時だけ保険設定を明示的に足す。
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildConsultationCreateRequest(data), data.isNonInsurance),
@@ -111,7 +119,7 @@ export function useTreatmentPlanMasterSaves({
     createMutation: resources.createProcedure,
     updateMutation: resources.updateProcedure,
     permissions: { canCreate, canEdit },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
+    validate: validateVersionedMaster,
     // EMR-454: 処置も診察と同じ三状態規則で保存する（未指定/null は送らない）。
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildProcedureCreateRequest(data), data.isNonInsurance),
@@ -132,7 +140,7 @@ export function useTreatmentPlanMasterSaves({
     createMutation: resources.createVaccine,
     updateMutation: resources.updateVaccine,
     permissions: { canCreate, canEdit },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
+    validate: validateVersionedMaster,
     toCreateRequest: (data) =>
       applyItemInsuranceForCreate(buildVaccineCreateRequest(data), data.isNonInsurance),
     toUpdateRequest: (data) =>

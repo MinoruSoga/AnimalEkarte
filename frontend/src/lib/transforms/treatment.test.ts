@@ -1,10 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { transformConsultation, transformExaminationType, transformProcedure } from "./treatment";
+import {
+  transformConsultation,
+  transformExaminationType,
+  transformProcedure,
+  transformVaccine,
+} from "./treatment";
 import type { Consultation, ExaminationType, Procedure } from "@/types/generated/models";
 
 const minimalExamType: ExaminationType = {
   id: 1,
   name: "血液検査",
+  clinic_id: 1,
+  description: "",
+  sort_order: 0,
   is_active: true,
   is_non_insurance: false,
   created_at: "",
@@ -97,5 +105,30 @@ describe("transformConsultation / transformProcedure の is_non_insurance", () =
     expect(
       transformProcedure({ ...minimalProcedure, is_non_insurance: null }).isNonInsurance,
     ).toBeNull();
+  });
+});
+
+describe("master editing version read roundtrip", () => {
+  it("retains consultation/procedure version and leaves missing legacy version unavailable", () => {
+    expect(transformConsultation({ ...minimalConsultation, version: 7 }).version).toBe(7);
+    expect(transformProcedure({ ...minimalProcedure, version: 8 }).version).toBe(8);
+    expect(transformConsultation(minimalConsultation).version).toBeNull();
+    expect(transformProcedure(minimalProcedure).version).toBeNull();
+  });
+  it("retains vaccine version without filling a missing version", () => {
+    const wire = {
+      id: 1,
+      clinic_id: 7,
+      name: "vaccine",
+      is_active: true,
+      description: "",
+      interval: "",
+      sort_order: 1,
+      is_non_insurance: false,
+      created_at: "",
+      updated_at: "",
+    };
+    expect(transformVaccine({ ...wire, version: 9 }).version).toBe(9);
+    expect(transformVaccine(wire).version).toBeNull();
   });
 });

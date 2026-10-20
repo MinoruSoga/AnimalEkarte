@@ -1,3 +1,4 @@
+import { requireMasterEditVersion } from "@/lib/master-edit-version";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -5,7 +6,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { transformProcedure } from "@/lib/transforms/treatment";
 import type { ProcedureItem } from "@/lib/transforms/treatment";
-import type { Procedure } from "@/types/generated/models";
+import type { ProcedureWire } from "@/lib/transforms/treatment";
 import type {
   CreateProcedureRequest,
   UpdateProcedureRequest,
@@ -15,7 +16,7 @@ import type {
 export type { ProcedureItem };
 
 const getAllProcedures = async (): Promise<ProcedureItem[]> => {
-  const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
+  const { data } = await axios.get<ProcedureWire[]>("/v1/masters/procedures");
   return data.map(transformProcedure);
 };
 
@@ -31,7 +32,7 @@ export const useCreateProcedure = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (req: CreateProcedureRequest): Promise<ProcedureItem> => {
-      const { data } = await axios.post<Procedure>("/v1/masters/procedures", req);
+      const { data } = await axios.post<ProcedureWire>("/v1/masters/procedures", req);
       return transformProcedure(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("procedures") }),
@@ -49,7 +50,8 @@ export const useUpdateProcedure = () => {
       id: string;
       req: UpdateProcedureRequest;
     }): Promise<ProcedureItem> => {
-      const { data } = await axios.patch<Procedure>(`/v1/masters/procedures/${id}`, req);
+      requireMasterEditVersion(req.version);
+      const { data } = await axios.patch<ProcedureWire>(`/v1/masters/procedures/${id}`, req);
       return transformProcedure(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("procedures") }),

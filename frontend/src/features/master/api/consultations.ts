@@ -1,3 +1,4 @@
+import { requireMasterEditVersion } from "@/lib/master-edit-version";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -5,7 +6,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { transformConsultation } from "@/lib/transforms/treatment";
 import type { ConsultationItem } from "@/lib/transforms/treatment";
-import type { Consultation } from "@/types/generated/models";
+import type { ConsultationWire } from "@/lib/transforms/treatment";
 import type {
   CreateConsultationRequest,
   UpdateConsultationRequest,
@@ -15,7 +16,7 @@ import type {
 export type { ConsultationItem };
 
 const getAllConsultations = async (): Promise<ConsultationItem[]> => {
-  const { data } = await axios.get<Consultation[]>("/v1/masters/consultations");
+  const { data } = await axios.get<ConsultationWire[]>("/v1/masters/consultations");
   return data.map(transformConsultation);
 };
 
@@ -31,7 +32,7 @@ export const useCreateConsultation = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (req: CreateConsultationRequest): Promise<ConsultationItem> => {
-      const { data } = await axios.post<Consultation>("/v1/masters/consultations", req);
+      const { data } = await axios.post<ConsultationWire>("/v1/masters/consultations", req);
       return transformConsultation(data);
     },
     onSuccess: () =>
@@ -50,7 +51,8 @@ export const useUpdateConsultation = () => {
       id: string;
       req: UpdateConsultationRequest;
     }): Promise<ConsultationItem> => {
-      const { data } = await axios.patch<Consultation>(`/v1/masters/consultations/${id}`, req);
+      requireMasterEditVersion(req.version);
+      const { data } = await axios.patch<ConsultationWire>(`/v1/masters/consultations/${id}`, req);
       return transformConsultation(data);
     },
     onSuccess: () =>
