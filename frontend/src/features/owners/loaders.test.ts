@@ -7,17 +7,42 @@ vi.mock("@/lib/axios", () => ({
 import { axios } from "@/lib/axios";
 import { ownerLoader, ownersLoader } from "./loaders";
 
+// EMR-463: このファイルは活性時（OWNERS_CLINIC_SCOPE_ACTIVE=true）の経路を検証する。
+vi.mock("./lib/owners-clinic-scope-activation", () => ({ OWNERS_CLINIC_SCOPE_ACTIVE: true }));
+
 const mockedGet = vi.mocked(axios.get);
+
+// EMR-463: ownersLoader は GET /v1/me（owners 専有 scope）→ GET /v1/pets の順に呼ぶ。
+// 既存の一覧変換・転送テストは /v1/pets 側だけを petsGet で差し替える（合成 ID のみ）。
+const ME_SCOPE_RESPONSE = {
+  data: {
+    id: "10",
+    clinics: [
+      { clinic_id: "1", clinic_name: "本院", is_main: true },
+      { clinic_id: "2", clinic_name: "分院", is_main: false },
+    ],
+    owners_view_clinic_ids: ["1", "2"],
+  },
+};
+const petsGet = vi.fn();
+
+function routeOwnersListGets() {
+  petsGet.mockReset();
+  mockedGet.mockImplementation(((url: string, config?: unknown) =>
+    url === "/v1/me" ? Promise.resolve(ME_SCOPE_RESPONSE) : petsGet(url, config)) as never);
+  window.localStorage.clear();
+}
 
 // #266: owners-pets-list-plan.md の PO 決定により GET /v1/pets（ペット行粒度）へ再設計。
 // owner 情報は petListResponse.owner サマリから直接埋め込まれる（飼主→ペットのフラット化は不要）。
 describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
   beforeEach(() => {
     mockedGet.mockReset();
+    routeOwnersListGets();
   });
 
   it("pet 行を Pet 型へ変換する（owner サマリ埋め込み）", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: {
         data: [
           {
@@ -101,7 +126,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
         is_dangerous: isDangerous,
       },
     });
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: {
         data: [makeRow(1, true), makeRow(2, false)],
         total: 2,
@@ -118,7 +143,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
   });
 
   it("owner が無い pet 行でもクラッシュせず安全な既定値になる", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: {
         data: [
           {
@@ -170,7 +195,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
       environment: "",
       remarks: "",
     });
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: {
         data: [makeRow(1, "deceased"), makeRow(2, "unexpected"), makeRow(3, null)],
         total: 3,
@@ -186,7 +211,7 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
 
   // EMR-174: name_origin / meeting_story を list DTO から Pet へ写す
   it("pet 行の name_origin / meeting_story を nameOrigin / meetingStory へ変換する", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: {
         data: [
           {
@@ -231,20 +256,21 @@ describe("ownersLoader — #266 pets API (ペット行粒度)", () => {
 describe("ownersLoader — #266 サーバサイドページネーション", () => {
   beforeEach(() => {
     mockedGet.mockReset();
+    routeOwnersListGets();
   });
 
   it("total が大きくてもリクエストは1回だけ発火する（全ページ取得の回帰防止）", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: { data: [], total: 10370, page: 1, limit: 20 },
     });
 
     await ownersLoader({ request: new Request("http://localhost/owners") });
 
-    expect(mockedGet).toHaveBeenCalledTimes(1);
+    expect(petsGet).toHaveBeenCalledTimes(1);
   });
 
   it("URL の page/search/species/include_deceased/clinics を backend にそのまま転送する", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: { data: [], total: 0, page: 3, limit: 20 },
     });
 
@@ -254,7 +280,8 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
       ),
     });
 
-    expect(mockedGet).toHaveBeenCalledWith("/v1/pets", {
+    expect(petsGet).toHaveBeenCalledWith("/v1/pets", {
+      signal: expect.anything(),
       params: {
         clinic_ids: "1,2",
         page: 3,
@@ -267,7 +294,7 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
   });
 
   it("URL の checkup_history を backend にそのまま転送する（EMR-197-01）", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: { data: [], total: 0, page: 1, limit: 20 },
     });
 
@@ -275,8 +302,10 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
       request: new Request("http://localhost/owners?checkup_history=within_2y"),
     });
 
-    expect(mockedGet).toHaveBeenCalledWith("/v1/pets", {
+    expect(petsGet).toHaveBeenCalledWith("/v1/pets", {
+      signal: expect.anything(),
       params: {
+        clinic_ids: "1,2",
         page: 1,
         limit: 20,
         checkup_history: "within_2y",
@@ -285,30 +314,32 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
   });
 
   it("checkup_history 未指定では backend にパラメータを送らない（フィルタ無し）", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: { data: [], total: 0, page: 1, limit: 20 },
     });
 
     await ownersLoader({ request: new Request("http://localhost/owners") });
 
-    const params = mockedGet.mock.calls[0][1]?.params as Record<string, unknown>;
+    const params = (petsGet.mock.calls[0][1] as { params?: unknown } | undefined)?.params as Record<string, unknown>;
     expect(params).not.toHaveProperty("checkup_history");
   });
 
   it("include_deceased が未指定の場合は backend にパラメータを送らない（既定=生存のみ）", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: { data: [], total: 0, page: 1, limit: 20 },
     });
 
     await ownersLoader({ request: new Request("http://localhost/owners") });
 
-    expect(mockedGet).toHaveBeenCalledWith("/v1/pets", {
-      params: { page: 1, limit: 20 },
+    expect(petsGet).toHaveBeenCalledWith("/v1/pets", {
+      signal: expect.anything(),
+      // EMR-463: clinic_ids は常に現在許可から確定した有効選択（初回は全許可）を送る。
+      params: { clinic_ids: "1,2", page: 1, limit: 20 },
     });
   });
 
   it("page/limit/total を loader data として返す", async () => {
-    mockedGet.mockResolvedValue({
+    petsGet.mockResolvedValue({
       data: { data: [], total: 42, page: 2, limit: 20 },
     });
 
@@ -328,6 +359,7 @@ describe("ownersLoader — #266 サーバサイドページネーション", () 
 describe("ownersLoader — 上流ステータスの保全", () => {
   beforeEach(() => {
     mockedGet.mockReset();
+    routeOwnersListGets();
   });
 
   it.each([
@@ -335,7 +367,7 @@ describe("ownersLoader — 上流ステータスの保全", () => {
     [403, "権限不足"],
     [404, "未検出"],
   ])("上流の%dを500へ潰さずそのまま伝播する", async (status, _label) => {
-    mockedGet.mockRejectedValue({
+    petsGet.mockRejectedValue({
       isAxiosError: true,
       response: { status },
     });
@@ -354,7 +386,7 @@ describe("ownersLoader — 上流ステータスの保全", () => {
   });
 
   it("response を持たない通信エラー（ネットワーク断）は500になる", async () => {
-    mockedGet.mockRejectedValue({ isAxiosError: true, response: undefined });
+    petsGet.mockRejectedValue({ isAxiosError: true, response: undefined });
 
     const thrown = await ownersLoader({
       request: new Request("http://localhost/owners"),
@@ -367,7 +399,7 @@ describe("ownersLoader — 上流ステータスの保全", () => {
   });
 
   it("axios 由来でない例外は500になる", async () => {
-    mockedGet.mockRejectedValue(new Error("boom"));
+    petsGet.mockRejectedValue(new Error("boom"));
 
     const thrown = await ownersLoader({
       request: new Request("http://localhost/owners"),

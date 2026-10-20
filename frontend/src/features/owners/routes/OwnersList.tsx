@@ -18,6 +18,7 @@ import {
 
 // Hooks
 import { useModalState } from "@/hooks/use-modal-state";
+import { useAuth } from "@/hooks/use-auth";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
@@ -43,6 +44,10 @@ import type { OwnersLoaderData } from "../loaders";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
+import { OwnersListScopeState } from "../components/OwnersListScopeState";
+import { useOwnersClinicScope } from "../hooks/use-owners-clinic-scope";
+import { useRevalidateOnMeUpdate } from "../hooks/use-revalidate-on-me-update";
+import { OWNERS_CLINIC_SCOPE_ACTIVE } from "../lib/owners-clinic-scope-activation";
 import {
   activeFiltersToParams,
   paramsToActiveFilters,
@@ -64,18 +69,24 @@ export function OwnersList() {
   const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
   const navigation = useNavigation();
-  const { pets, page, limit, total } = useLoaderData<OwnersLoaderData>();
+  const { pets, page, limit, total, listState, clinicScope } = useLoaderData<OwnersLoaderData>();
+  const { currentClinicId } = useAuth();
 
-  // #86: 拠点横断表示 — URL の ?clinics=1,2 が表示拠点。未指定は現在の医院のみ（従来挙動）。
-  // 選択変更で loader が再実行され、サーバ側 (resolveListClinicIDs) で所属検証される。
-  const {
-    assignedClinics,
-    selectedClinicIds,
-    isMultiClinic,
-    clinicNameById,
-    currentClinicId,
-    handleToggleClinic,
-  } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
+  // EMR-463: loader が現在許可 scope を使った（clinicScope あり）ときだけ owners 専有 adapter で表示する。
+  // 非活性時（OWNERS_CLINIC_SCOPE_ACTIVE=false）は clinicScope=null・ready となり、PR 前と同じ
+  // #86 の useClinicScope（URL ?clinics=、未指定は現在の医院のみ）表示へ戻る。両 hook は常に呼ぶ。
+  const ownersScope = useOwnersClinicScope(clinicScope);
+  const legacyScope = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
+  const isLegacyScope = clinicScope === null && listState.kind === "ready";
+  const clinics = isLegacyScope ? legacyScope.assignedClinics : ownersScope.clinics;
+  const selectedClinicIds = isLegacyScope
+    ? legacyScope.selectedClinicIds
+    : ownersScope.selectedClinicIds;
+  const isMultiClinic = isLegacyScope ? legacyScope.isMultiClinic : ownersScope.isMultiClinic;
+  const clinicNameById = isLegacyScope ? legacyScope.clinicNameById : ownersScope.clinicNameById;
+  const handleToggleClinic = isLegacyScope
+    ? legacyScope.handleToggleClinic
+    : ownersScope.handleToggleClinic;
 
   // #266: 検索・フィルタ・ページはすべて URL 経由でサーバに転送する（loaders.ts 参照）。
   // EMR-247: searchTerm は PropertyFilter の確定操作（Enter / 検索ボタン / クリア）で
@@ -178,6 +189,14 @@ export function OwnersList() {
     [totalPages, setSearchParams],
   );
 
+  const handleReload = useCallback(() => {
+    void revalidator.revalidate();
+  }, [revalidator]);
+  // EMR-463: 全体 /me（ME_QUERY_KEY）の更新は loader の再検証トリガにだけ使う。
+  // 現在許可は loader が owners 専有 adapter で取り直す。
+  // 非活性時は PR 前と同じく再検証しない。
+  useRevalidateOnMeUpdate(handleReload, OWNERS_CLINIC_SCOPE_ACTIVE);
+
   // #266: loader 再フェッチ中（検索・フィルタ・ページ変更）の視覚フィードバック
   const isFiltering = navigation.state === "loading";
 
@@ -239,15 +258,25 @@ export function OwnersList() {
       }
       maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
-      {/* #86: 複数所属ユーザーのみ拠点横断フィルタを表示 */}
-      {assignedClinics.length >= 2 ? (
+      {/* #86 / EMR-463: 許可医院が2院以上のときだけ拠点横断フィルタを表示 */}
+      {clinics.length >= 2 ? (
         <div className="mb-3">
           <ClinicScopeFilter
-            clinics={assignedClinics}
+            clinics={clinics}
             selectedIds={selectedClinicIds}
             onToggle={handleToggleClinic}
           />
         </div>
+      ) : null}
+      {listState.kind === "ready" && listState.scopeRechecked ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className={`mb-3 text-sm ${C.text60}`}
+        >
+          表示できる医院が変わったため、現在表示できる医院で一覧を取得し直しました。
+        </p>
       ) : null}
       {isSpeciesError ? (
         <p role="alert" aria-atomic="true" className={`mb-3 text-sm ${C.danger}`}>
@@ -272,26 +301,34 @@ export function OwnersList() {
           動物種類が登録されていません。
         </p>
       ) : null}
-      <OwnersListTable
-        pets={pets}
-        pagination={{ currentPage: page, totalPages, totalCount: total, startIndex, endIndex }}
-        searchTerm={searchTerm}
-        activeFilters={activeFilters}
-        filterProperties={filterProperties}
-        isFiltering={isFiltering}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        canReport={canReport}
-        showClinicColumn={isMultiClinic}
-        clinicNameById={clinicNameById}
-        currentClinicId={currentClinicId}
-        onSearchChange={setSearchTerm}
-        onFilterChange={handleFilterChange}
-        onEdit={handleEdit}
-        onDeleteRequest={handleDeleteRequest}
-        onReport={handleReport}
-        onPageChange={handlePageChange}
-      />
+      {listState.kind !== "ready" ? (
+        <OwnersListScopeState
+          listState={listState}
+          onReload={handleReload}
+          isReloading={revalidator.state === "loading" || navigation.state === "loading"}
+        />
+      ) : (
+        <OwnersListTable
+          pets={pets}
+          pagination={{ currentPage: page, totalPages, totalCount: total, startIndex, endIndex }}
+          searchTerm={searchTerm}
+          activeFilters={activeFilters}
+          filterProperties={filterProperties}
+          isFiltering={isFiltering}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canReport={canReport}
+          showClinicColumn={isMultiClinic}
+          clinicNameById={clinicNameById}
+          currentClinicId={currentClinicId}
+          onSearchChange={setSearchTerm}
+          onFilterChange={handleFilterChange}
+          onEdit={handleEdit}
+          onDeleteRequest={handleDeleteRequest}
+          onReport={handleReport}
+          onPageChange={handlePageChange}
+        />
+      )}
 
       {/* Delete Confirm Dialog */}
       <ConfirmDialog

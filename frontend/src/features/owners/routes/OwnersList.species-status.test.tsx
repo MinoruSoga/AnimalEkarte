@@ -55,6 +55,14 @@ function createSpeciesState(overrides: Partial<AnimalSpeciesState> = {}): Animal
 
 const CLINIC_ID = "1";
 
+// EMR-463: loader は現在許可（GET /me owners_view_clinic_ids）から確定した表示医院を返す。
+const READY_STATE: OwnersLoaderData["listState"] = { kind: "ready", scopeRechecked: false };
+const SINGLE_CLINIC_SCOPE: OwnersLoaderData["clinicScope"] = {
+  userId: "10",
+  clinics: [{ clinicId: CLINIC_ID, clinicName: "本院", isMain: true }],
+  selectedClinicIds: [CLINIC_ID],
+};
+
 function createAuthContext() {
   const user: AuthUser = {
     id: "10",
@@ -91,6 +99,8 @@ function renderOwnersList() {
           page: 1,
           limit: 20,
           total: 0,
+          listState: READY_STATE,
+          clinicScope: SINGLE_CLINIC_SCOPE,
         }),
       },
     ],

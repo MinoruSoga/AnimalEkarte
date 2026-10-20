@@ -31,6 +31,14 @@ vi.mock("@/hooks/use-animal-species", () => ({
 
 const CLINIC_ID = "1";
 
+// EMR-463: loader は現在許可（GET /me owners_view_clinic_ids）から確定した表示医院を返す。
+const READY_STATE: OwnersLoaderData["listState"] = { kind: "ready", scopeRechecked: false };
+const SINGLE_CLINIC_SCOPE: OwnersLoaderData["clinicScope"] = {
+  userId: "10",
+  clinics: [{ clinicId: CLINIC_ID, clinicName: "本院", isMain: true }],
+  selectedClinicIds: [CLINIC_ID],
+};
+
 function makeUser(): AuthUser {
   return {
     id: "10",
@@ -103,7 +111,14 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
     const requests: string[] = [];
     const loaderFn = vi.fn((request: Request) => {
       requests.push(new URL(request.url).search);
-      return { pets: [makePet()], page: 1, limit: 20, total: 1 };
+      return {
+        pets: [makePet()],
+        page: 1,
+        limit: 20,
+        total: 1,
+        listState: READY_STATE,
+        clinicScope: SINGLE_CLINIC_SCOPE,
+      };
     });
 
     const router = renderOwnersList(loaderFn);
@@ -193,7 +208,14 @@ describe("OwnersList — #266 サーバサイド検索・フィルタ・ペー�
     const requests: string[] = [];
     const loaderFn = vi.fn((request: Request) => {
       requests.push(new URL(request.url).search);
-      return { pets: [makePet()], page: 1, limit: 20, total: 41 };
+      return {
+        pets: [makePet()],
+        page: 1,
+        limit: 20,
+        total: 41,
+        listState: READY_STATE,
+        clinicScope: SINGLE_CLINIC_SCOPE,
+      };
     });
 
     renderOwnersList(loaderFn);
