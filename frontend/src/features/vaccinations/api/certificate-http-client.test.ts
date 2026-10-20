@@ -111,6 +111,19 @@ describe("実 API クライアント", () => {
     expect(blob.size).toBeGreaterThan(0);
   });
 
+  it("200 でも PDF ではない応答（HTML・JSON・magic 不一致）は malformed で拒否する", async () => {
+    const url = `${BASE}/vaccination-certificate-artifacts/401/content`;
+    server.use(http.get(url, () => new HttpResponse("<html>login</html>", { headers: { "Content-Type": "text/html" } })));
+    await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
+
+    server.use(http.get(url, () => HttpResponse.json({ ok: true })));
+    await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
+
+    // Content-Type だけ PDF を名乗っても、本体が PDF でなければ拒否する。
+    server.use(http.get(url, () => new HttpResponse("<html>login</html>", { headers: { "Content-Type": "application/pdf" } })));
+    await expect(api.getArtifactContent("401")).rejects.toMatchObject({ kind: "malformed" });
+  });
+
   it("PDF 取得の失敗 body（Blob で届く JSON）も code で分類する", async () => {
     server.use(
       http.get(`${BASE}/vaccination-certificate-artifacts/401/content`, () =>

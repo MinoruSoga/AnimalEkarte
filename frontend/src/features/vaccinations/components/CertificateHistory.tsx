@@ -7,6 +7,7 @@ import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateContext, CertificateKind } from "../api/certificate-schemas";
 import { KIND_LABEL } from "../lib/certificate-inputs";
 import { CertificateEditionRow } from "./CertificateEditionRow";
+import { createReprintStore } from "../lib/certificate-reprint-store";
 import { certificateHistoryPageQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface CertificateHistoryProps {
@@ -14,12 +15,15 @@ interface CertificateHistoryProps {
   vaccinationId: number;
   context: CertificateContext;
   onRefetch: () => void;
+  getCanEdit: () => boolean;
 }
 
 const PAGE_SIZE = 20;
 
 /** 発行履歴（edition 降順）。旧版は参照のみで、印刷導線を持たない。 */
-export function CertificateHistory({ api, vaccinationId, context, onRefetch }: CertificateHistoryProps) {
+export function CertificateHistory({ api, vaccinationId, context, onRefetch, getCanEdit }: CertificateHistoryProps) {
+  // 様式タブ・ページ送り・context 更新で行が unmount されても、未確定の再印刷 key を保持する。
+  const [reprintStore] = useState(createReprintStore);
   const kinds: CertificateKind[] = (["normal", "rabies"] as const).filter(
     (k) => context.eligibility.allowed_kinds.includes(k) || context.latest[k] !== null,
   );
@@ -87,6 +91,9 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch }: C
               edition={edition}
               sourceVersion={context.source_version}
               onRefetch={onRefetch}
+              canReprint={context.can_issue}
+              getCanEdit={getCanEdit}
+              reprintStore={reprintStore}
             />
           ))}
         </ul>

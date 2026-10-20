@@ -124,4 +124,48 @@ describe("契約モック adapter（実 API ではない）", () => {
     const { api } = createMockCertificateApi({ rabiesEligible: true });
     expect((await api.getContext(101)).initial_inputs).toEqual(emptyCertificateInputs());
   });
+  it("operation の照会は (operation_key, intent) の scope で行い、intent が違えば別 scope 扱いにする", async () => {
+    const { api } = createMockCertificateApi({ rabiesEligible: false });
+    await issueNormal(api);
+    await expect(api.lookupOperation(KEY, "issue")).resolves.toMatchObject({ status: "succeeded" });
+    await expect(api.lookupOperation(KEY, "reprint")).rejects.toMatchObject({ kind: "scope-not-found" });
+  });
+
+  it("claim のみの操作も intent が違えば not-succeeded にせず scope-not-found にする", async () => {
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const { result } = await issueNormal(api);
+    const edition = (await api.listEditions(101, { kind: "normal" })).data[0];
+    controls.failNext("reprint", { error: new CertificateApiError("network"), claimOnly: true });
+    const key = "22222222-2222-4222-8222-222222222222";
+    await api
+      .reprint(String(edition.id), {
+        operation_key: key,
+        layout: "portrait",
+        preconditions: { source_version: 7, latest_edition_id: edition.id },
+      })
+      .catch(() => undefined);
+    expect(result.status).toBe("succeeded");
+    await expect(api.lookupOperation(key, "reprint")).resolves.toMatchObject({ status: "not-succeeded" });
+    await expect(api.lookupOperation(key, "issue")).rejects.toMatchObject({ kind: "scope-not-found" });
+  });
+
+  it("要求された接種記録に束縛し、範囲外の ID は not-found にする", async () => {
+    const { api } = createMockCertificateApi({ rabiesEligible: false, vaccinationId: 202 });
+    expect((await api.getContext(202)).vaccination_id).toBe(202);
+    await expect(api.getContext(101)).rejects.toMatchObject({ kind: "not-found" });
+    await expect(api.previewForIssue(101, normalRequest())).rejects.toMatchObject({ kind: "not-found" });
+    await expect(api.listEditions(101, { kind: "normal" })).rejects.toMatchObject({ kind: "not-found" });
+
+    const preview = await api.previewForIssue(202, normalRequest());
+    expect(preview.snapshot.source.vaccination_id).toBe(202);
+    await api.issue(202, {
+      ...normalRequest(),
+      operation_key: KEY,
+      preview_fingerprint: preview.preview_fingerprint,
+      preview_display_issue_date: preview.snapshot.display_issue_date,
+    });
+    const page = await api.listEditions(202, { kind: "normal" });
+    expect(page.data[0].vaccination_id).toBe(202);
+    expect(page.data[0].snapshot.source.vaccination_id).toBe(202);
+  });
 });

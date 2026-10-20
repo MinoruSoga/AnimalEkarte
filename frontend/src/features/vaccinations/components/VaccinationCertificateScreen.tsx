@@ -68,7 +68,8 @@ export function VaccinationCertificateScreen({
       </p>
     );
   }
-  if (context.isError) {
+  // 背景の再取得が失敗しても、取得済みの data があれば画面（発行結果・未確定の操作）を維持する。
+  if (context.isError && context.data === undefined) {
     const kind = context.error instanceof CertificateApiError ? context.error.kind : "network";
     return (
       <div role="alert" className="space-y-2">
@@ -84,8 +85,21 @@ export function VaccinationCertificateScreen({
     );
   }
 
+  const refetchFailedKind =
+    context.isError && context.error instanceof CertificateApiError ? context.error.kind : "network";
   return (
     <div className="space-y-8">
+      {context.isError ? (
+        <div role="alert" className="space-y-2">
+          <p className={`text-sm ${C.danger}`}>
+            {CONTEXT_ERROR_TEXT[refetchFailedKind] ??
+              "証明書の情報の更新に失敗しました。表示は最新ではない可能性があります。"}
+          </p>
+          <Button type="button" variant="outline" onClick={() => void context.refetch()}>
+            再読み込み
+          </Button>
+        </div>
+      ) : null}
       <CertificateIssuePanel
         // 別の接種記録へ移ったら入力・preview を持ち越さない（同一記録の context 更新では保持する）。
         key={vaccinationId}
@@ -95,7 +109,7 @@ export function VaccinationCertificateScreen({
         getCanEdit={getCanEdit}
         onRefetchContext={refetchAll}
       />
-      <CertificateHistory key={vaccinationId} api={api} vaccinationId={vaccinationId} context={context.data} onRefetch={refetchAll} />
+      <CertificateHistory key={vaccinationId} api={api} vaccinationId={vaccinationId} context={context.data} onRefetch={refetchAll} getCanEdit={getCanEdit} />
     </div>
   );
 }

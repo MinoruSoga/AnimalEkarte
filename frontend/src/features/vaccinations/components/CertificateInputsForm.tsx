@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { MoneyInput } from "@/components/shared/SidePeek";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,11 @@ const FEE_LABEL: Record<CertificateFeeKey, string> = {
  * - 初期値は空欄。会計・マスタからの転記はしない。
  */
 export function CertificateInputsForm({ draft, errors, disabled, onChange }: CertificateInputsFormProps) {
+  // preview 検証で料金欄にエラーが出たら、最初の不正欄へフォーカスを移す（キーボード・読み上げ利用者向け）。
+  useEffect(() => {
+    const firstInvalid = CERTIFICATE_FEE_KEYS.find((key) => errors[key] !== undefined);
+    if (firstInvalid) document.getElementById(`cert-${firstInvalid}`)?.focus();
+  }, [errors]);
   const text = (id: string, label: string, key: keyof CertificateInputDraft) => (
     <div className="flex flex-col">
       <Label htmlFor={id}>{label}</Label>

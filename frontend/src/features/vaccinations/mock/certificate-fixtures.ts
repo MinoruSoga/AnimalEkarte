@@ -47,12 +47,14 @@ export function buildSnapshot(args: {
   rabiesEligible: boolean | null;
   inputs: CertificateInputs;
   displayIssueDate?: string;
+  /** 省略時は MOCK_VACCINATION_ID。 */
+  vaccinationId?: number;
 }): CertificateSnapshot {
   return {
     schema_version: 1,
     kind: args.kind,
     source: {
-      vaccination_id: MOCK_VACCINATION_ID,
+      vaccination_id: args.vaccinationId ?? MOCK_VACCINATION_ID,
       version: args.sourceVersion,
       vaccine_id: 11,
       vaccine_name: "合成ワクチン",

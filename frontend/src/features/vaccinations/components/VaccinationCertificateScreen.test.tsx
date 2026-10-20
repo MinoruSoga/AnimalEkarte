@@ -344,6 +344,100 @@ describe("履歴・保存版・再印刷", () => {
   });
 });
 
+describe("再印刷の安全側の挙動", () => {
+  it("再印刷の直前に edit 権限が失われていたら API を呼ばず中止する", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const view = renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    permission.canEdit = false;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("この操作を行う権限がありません")).toBeInTheDocument();
+    expect(callsOf(controls, "reprint")).toHaveLength(0);
+  });
+
+  it("context の can_issue が false なら再印刷の導線を無効にする", async () => {
+    const { api } = createMockCertificateApi({ rabiesEligible: false, canIssue: false });
+    await seedNormalEdition(api);
+    renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
+  });
+
+  it("「成功なし」が確定した再印刷は職員が破棄でき、向き変更と新しい key での再印刷へ進める", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), claimOnly: true });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    await user.click(await within(row).findByRole("button", { name: "この再印刷をやめる" }));
+    expect(within(row).getByRole("combobox")).toBeEnabled();
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeEnabled();
+
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    const keys = callsOf(controls, "reprint").map((c) => (c.detail as { body: { operation_key: string } }).body.operation_key);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("結果不明の再印刷は履歴の様式タブを切り替えて行が作り直されても同じ key で照会する", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: true });
+    await seedNormalEdition(api);
+    renderScreen(api);
+    let row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("発行結果を確認できません")).toBeInTheDocument();
+
+    const history = screen.getByRole("region", { name: "発行履歴" });
+    await user.click(within(history).getByRole("button", { name: "狂犬病予防注射済証" }));
+    await waitFor(() => expect(screen.queryByText("第1版")).toBeNull());
+    await user.click(within(history).getByRole("button", { name: "通常の予防接種証明書" }));
+    row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+
+    // 作り直された行でも、新しい key を作れず（再印刷は無効）、同じ key で照会できる。
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
+    await user.click(within(row).getByRole("button", { name: "結果を照会する" }));
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    const reprintKey = (callsOf(controls, "reprint")[0].detail as { body: { operation_key: string } }).body.operation_key;
+    const lookupKeys = callsOf(controls, "lookupOperation").map((c) => (c.detail as { operationKey: string }).operationKey);
+    expect(callsOf(controls, "reprint")).toHaveLength(1);
+    expect(lookupKeys.every((k) => k === reprintKey)).toBe(true);
+  });
+});
+
+describe("入力検証と背景再取得", () => {
+  it("不正な料金があるときは最初の不正欄へフォーカスを移す", async () => {
+    const user = userEvent.setup();
+    const { api } = createMockCertificateApi({ rabiesEligible: true });
+    renderScreen(api);
+    await user.click(await screen.findByRole("radio", { name: "狂犬病予防注射済証" }));
+    await user.type(screen.getByLabelText("注射料"), "1.5");
+    await user.type(screen.getByLabelText("合計"), "2.5");
+    await user.click(screen.getByRole("button", { name: "プレビューを作成" }));
+    await waitFor(() => expect(screen.getByLabelText("注射料")).toHaveFocus());
+  });
+
+  it("発行後の context 再取得が失敗しても発行済みの画面を残し、更新失敗を知らせる", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    renderScreen(api);
+    await createPreview(user);
+    controls.failNext("getContext", { error: new CertificateApiError("result-unavailable", { httpStatus: 503 }) });
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    expect(await screen.findByRole("heading", { name: "発行しました" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "再読み込み" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "発行しました" })).toBeInTheDocument();
+  });
+});
+
 describe("context 読込の失敗", () => {
   it("403 は権限なしを示し再読み込みを出さない", async () => {
     const { api, controls } = createMockCertificateApi({ rabiesEligible: false });

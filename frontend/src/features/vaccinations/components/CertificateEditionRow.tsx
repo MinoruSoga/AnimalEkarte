@@ -9,6 +9,7 @@ import type { CertificateApi } from "../api/certificate-api";
 import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateEdition, CertificateLayout, CertificateSavedPreview } from "../api/certificate-schemas";
 import { isReprintUnresolved, useCertificateReprint } from "../hooks/use-certificate-reprint";
+import type { ReprintStore } from "../lib/certificate-reprint-store";
 import { LAYOUT_LABEL } from "../lib/certificate-inputs";
 import { VALIDITY_LABEL } from "../lib/certificate-messages";
 import { CertificateArtifactPrint } from "./CertificateArtifactPrint";
@@ -20,16 +21,37 @@ interface CertificateEditionRowProps {
   edition: CertificateEdition;
   sourceVersion: number;
   onRefetch: () => void;
+  /** 再印刷できる権限（context.can_issue）。false なら再印刷の導線を無効にする。 */
+  canReprint: boolean;
+  /** 再印刷 POST の直前に最新の edit 権限を返す。 */
+  getCanEdit: () => boolean;
+  /** 未確定の再印刷 key を行の外で保持する store（行が unmount されても失わない）。 */
+  reprintStore: ReprintStore;
 }
 
 /** 履歴 1 行。現在有効な版だけ保存版プレビュー・再印刷を出す。旧版は閲覧のみ（印刷不可）。 */
-export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }: CertificateEditionRowProps) {
+export function CertificateEditionRow({
+  api,
+  edition,
+  sourceVersion,
+  onRefetch,
+  canReprint,
+  getCanEdit,
+  reprintStore,
+}: CertificateEditionRowProps) {
   const isCurrent = edition.validity === "current";
   const [layout, setLayout] = useState<CertificateLayout>(edition.available_layouts[0] ?? "portrait");
   const [saved, setSaved] = useState<CertificateSavedPreview | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
   const [savedBusy, setSavedBusy] = useState(false);
-  const reprint = useCertificateReprint({ api, edition, sourceVersion, onRefetch });
+  const reprint = useCertificateReprint({
+    api,
+    edition,
+    sourceVersion,
+    onRefetch,
+    getCanEdit,
+    store: reprintStore,
+  });
   // 再印刷の結果が未確定の間は、同じ key の照会・再試行だけを許す（別操作・向き変更を止める）。
   const reprintLocked = isReprintUnresolved(reprint.state);
   // 保存版プレビューの応答が、向き変更後の画面に載らないようにする。
@@ -117,7 +139,7 @@ export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }
             </Button>
             <Button
               type="button"
-              disabled={reprintLocked}
+              disabled={reprintLocked || !canReprint}
               onClick={() => void reprint.start(layout)}
             >
               再印刷の準備
@@ -147,9 +169,14 @@ export function CertificateEditionRow({ api, edition, sourceVersion, onRefetch }
               ) : null}
               {reprint.state.phase === "not-issued" ? (
                 <div className="mt-2">
-                  <Button type="button" onClick={() => void reprint.retrySameKey()}>
-                    同じ内容で再試行
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" onClick={() => void reprint.retrySameKey()}>
+                      同じ内容で再試行
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => reprint.discard()}>
+                      この再印刷をやめる
+                    </Button>
+                  </div>
                 </div>
               ) : null}
             </CertificateNotice>

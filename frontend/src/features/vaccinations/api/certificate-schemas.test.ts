@@ -31,7 +31,7 @@ describe("証明書 wire の解析", () => {
   });
 
   it("int64 が JS で安全に表せない ID は丸めずに拒否する", () => {
-    expect(certificateEditionSchema.safeParse({ ...edition, id: 9007199254740993 }).success).toBe(false);
+    expect(certificateEditionSchema.safeParse({ ...edition, id: Number.MAX_SAFE_INTEGER + 2 }).success).toBe(false);
   });
 
   it("snapshot の必須キー欠落を補完せず拒否する", () => {

@@ -56,9 +56,12 @@ export interface MockCertificateOptions {
   rabiesEligible: boolean | null;
   canIssue?: boolean;
   sourceVersion?: number;
+  /** このモックが扱う接種記録 ID。これ以外の ID への呼び出しは not-found（既定: MOCK_VACCINATION_ID）。 */
+  vaccinationId?: number;
 }
 
 interface StoredOperation {
+  intent: CertificateOperationIntent;
   contentSignature: string;
   result: CertificateResult;
 }
@@ -86,13 +89,14 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
   let sourceVersion = options.sourceVersion ?? MOCK_SOURCE_VERSION;
   let today = MOCK_TODAY;
   let canIssue = options.canIssue ?? true;
+  const boundVaccinationId = options.vaccinationId ?? MOCK_VACCINATION_ID;
   let nextEditionId = 301;
   let nextArtifactId = 401;
   const editions: CertificateEdition[] = [];
   const operations = new Map<string, StoredOperation>();
   const artifacts = new Map<number, StoredArtifact>();
   const failures = new Map<MockOperationName, MockInjectedFailure>();
-  const claimedKeys = new Set<string>();
+  const claimedKeys = new Map<string, CertificateOperationIntent>();
   const calls: MockCertificateControls["calls"] = [];
 
   const eligibilityState = options.rabiesEligible === true ? "eligible" : options.rabiesEligible === false ? "ineligible" : "unknown";
@@ -117,6 +121,13 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
     const found = editions.find((e) => String(e.id) === String(id));
     if (!found) throw new CertificateApiError("not-found", { httpStatus: 404, code: "not_found" });
     return found;
+  }
+
+  /** 契約どおり、別の接種記録の ID は存在しない扱い（404）にする。 */
+  function assertScope(vaccinationId: number) {
+    if (vaccinationId !== boundVaccinationId) {
+      throw new CertificateApiError("not-found", { httpStatus: 404, code: "not_found" });
+    }
   }
 
   function takeFailure(operation: MockOperationName): MockInjectedFailure | undefined {
@@ -170,6 +181,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
       rabiesEligible: options.rabiesEligible,
       inputs,
       displayIssueDate: today,
+      vaccinationId: boundVaccinationId,
     });
   }
 
@@ -200,6 +212,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
       return track("getContext", vaccinationId, () => {
         const failure = takeFailure("getContext");
         if (failure) throw failure.error;
+        assertScope(vaccinationId);
         const context: CertificateContext = {
           vaccination_id: vaccinationId,
           source_version: sourceVersion,
@@ -218,10 +231,11 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
         return context;
       });
     },
-    async previewForIssue(_vaccinationId, body) {
+    async previewForIssue(vaccinationId, body) {
       return track("previewForIssue", body, () => {
         const failure = takeFailure("previewForIssue");
         if (failure) throw failure.error;
+        assertScope(vaccinationId);
         if (!canIssue) throw new CertificateApiError("forbidden", { httpStatus: 403, code: "not-authorized" });
         const inputs = assertInputsValid(body);
         assertCas(body.preconditions, body.kind);
@@ -239,16 +253,17 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
         };
       });
     },
-    async issue(_vaccinationId, body) {
+    async issue(vaccinationId, body) {
       return track("issue", body, () => {
         const failure = takeFailure("issue");
-        if (failure?.claimOnly) claimedKeys.add(body.operation_key);
+        assertScope(vaccinationId);
+        if (failure?.claimOnly) claimedKeys.set(body.operation_key, "issue");
         if (failure && !failure.commitFirst) throw failure.error;
         if (!canIssue) throw new CertificateApiError("forbidden", { httpStatus: 403, code: "edit-right-lost", c06Status: "edit-right-lost" });
         const signature = contentSignature(body);
         const existing = operations.get(body.operation_key);
         if (existing) {
-          if (existing.contentSignature !== signature) {
+          if (existing.intent !== "issue" || existing.contentSignature !== signature) {
             throw new CertificateApiError("operation-key-conflict", {
               httpStatus: 409,
               code: "operation-key-conflict",
@@ -276,7 +291,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
         const edition: CertificateEdition = {
           id,
           series_id: body.kind === "normal" ? 201 : 202,
-          vaccination_id: MOCK_VACCINATION_ID,
+          vaccination_id: boundVaccinationId,
           kind: body.kind,
           edition: (previous?.edition ?? 0) + 1,
           source_version: sourceVersion,
@@ -294,7 +309,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
           status: "succeeded",
           operation_key: body.operation_key,
           result_refs: {
-            vaccination_id: String(MOCK_VACCINATION_ID),
+            vaccination_id: String(boundVaccinationId),
             series_id: String(edition.series_id),
             edition_id: String(id),
             artifact_id: String(artifactId),
@@ -302,7 +317,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
           committed_versions: { edition: String(edition.edition), source_version: String(sourceVersion) },
           recorded_at: "2026-10-20T14:30:00Z",
         };
-        operations.set(body.operation_key, { contentSignature: signature, result });
+        operations.set(body.operation_key, { intent: "issue", contentSignature: signature, result });
         if (failure) throw failure.error; // commitFirst: 確定済みだが応答は失われた
         return result;
       });
@@ -314,10 +329,11 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
         return withValidity(findEdition(editionId));
       });
     },
-    async listEditions(_vaccinationId, query) {
+    async listEditions(vaccinationId, query) {
       return track("listEditions", query, () => {
         const failure = takeFailure("listEditions");
         if (failure) throw failure.error;
+        assertScope(vaccinationId);
         const all = editions.filter((e) => e.kind === query.kind).map(withValidity).reverse();
         const limit = query.limit ?? 20;
         const page = query.page ?? 1;
@@ -349,13 +365,13 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
     async reprint(editionId, body: CertificateReprintRequest) {
       return track("reprint", { editionId, body }, () => {
         const failure = takeFailure("reprint");
-        if (failure?.claimOnly) claimedKeys.add(body.operation_key);
+        if (failure?.claimOnly) claimedKeys.set(body.operation_key, "reprint");
         if (failure && !failure.commitFirst) throw failure.error;
         const edition = findEdition(editionId);
         const signature = JSON.stringify([edition.id, body.layout]);
         const existing = operations.get(body.operation_key);
         if (existing) {
-          if (existing.contentSignature !== signature) {
+          if (existing.intent !== "reprint" || existing.contentSignature !== signature) {
             throw new CertificateApiError("operation-key-conflict", { httpStatus: 409, code: "operation-key-conflict", c06Status: "operation-key-conflict" });
           }
           if (failure) throw failure.error;
@@ -383,7 +399,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
           committed_versions: { edition: String(edition.edition), source_version: String(sourceVersion) },
           recorded_at: "2026-10-20T15:00:00Z",
         };
-        operations.set(body.operation_key, { contentSignature: signature, result });
+        operations.set(body.operation_key, { intent: "reprint", contentSignature: signature, result });
         if (failure) throw failure.error;
         return result;
       });
@@ -405,8 +421,10 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
       return track("lookupOperation", { operationKey, intent }, () => {
         const failure = takeFailure("lookupOperation");
         if (failure) throw failure.error;
-        const existing = operations.get(operationKey);
-        if (!existing && claimedKeys.has(operationKey)) {
+        // 照会の scope は (operation_key, intent)。intent が違えば別 scope なので未 claim 扱い。
+        const stored = operations.get(operationKey);
+        const existing = stored?.intent === intent ? stored : undefined;
+        if (!existing && claimedKeys.get(operationKey) === intent) {
           return { status: "not-succeeded", operation_key: operationKey } as CertificateResult;
         }
         if (!existing) {
