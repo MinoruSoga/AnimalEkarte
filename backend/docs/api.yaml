@@ -2951,6 +2951,14 @@ components:
           description: 在庫ID
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: |
+            品目別保険設定（EMR-455）。true=保険対象外、false=保険対象、null=未保存/旧欠落（応答のみ。false等へ補完しない）。
+            作成時に未送信/null の場合は新規初期値 true（対象外）を保存する。
+            更新(PATCH)時は未送信=変更なし、true/false=明示保存、null は 400（明示値を欠落へ戻せない）。
+            ペットの保険資格・補償可否を表さない。
         created_at:
           type: string
           format: date-time

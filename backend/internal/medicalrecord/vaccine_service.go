@@ -20,6 +20,8 @@ type CreateVaccineInput struct {
 	Interval    string
 	ParentID    *uint64
 	SortOrder   int
+	// IsNonInsurance が nil の場合は新規初期値（保険対象外=true）を保存する。
+	IsNonInsurance *bool
 }
 
 // UpdateVaccineInput はワクチン更新のサービス入力 DTO
@@ -33,17 +35,24 @@ type UpdateVaccineInput struct {
 	ParentID      *uint64
 	ClearParentID bool
 	SortOrder     *int
+	// IsNonInsurance が nil の場合は変更しない（旧欠落値を推測補完しない）。
+	IsNonInsurance *bool
 }
 
+// newVaccineDefaultNonInsurance は新規登録時の保険設定初期値（対象外）。
+// 再編集・既存データの読取には適用しない（AC-accounting-item-insurance-default-unresolved）。
+const newVaccineDefaultNonInsurance = true
+
 const (
-	colVaccineName        = "name"
-	colVaccinePrice       = "price"
-	colVaccineIsActive    = "is_active"
-	colVaccineDescription = "description"
-	colVaccineSpecies     = "species"
-	colVaccineInterval    = "interval"
-	colVaccineParentID    = "parent_id"
-	colVaccineSortOrder   = "sort_order"
+	colVaccineName           = "name"
+	colVaccinePrice          = "price"
+	colVaccineIsActive       = "is_active"
+	colVaccineDescription    = "description"
+	colVaccineSpecies        = "species"
+	colVaccineInterval       = "interval"
+	colVaccineParentID       = "parent_id"
+	colVaccineSortOrder      = "sort_order"
+	colVaccineIsNonInsurance = "is_non_insurance"
 )
 
 func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
@@ -69,6 +78,9 @@ func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
 	setNullableUint64Field(fields, colVaccineParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colVaccineSortOrder] = *input.SortOrder
+	}
+	if input.IsNonInsurance != nil {
+		fields[colVaccineIsNonInsurance] = *input.IsNonInsurance
 	}
 	return fields
 }
@@ -122,16 +134,22 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 		s := model.VaccineSpecies(*input.Species)
 		species = &s
 	}
+	sortOrder := input.SortOrder
+	isNonInsurance := newVaccineDefaultNonInsurance
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
+	}
 	vaccine := &model.Vaccine{
-		ClinicID:    clinicID,
-		Name:        input.Name,
-		Price:       input.Price,
-		IsActive:    input.IsActive,
-		Description: input.Description,
-		Species:     species,
-		Interval:    input.Interval,
-		ParentID:    input.ParentID,
-		SortOrder:   input.SortOrder,
+		ClinicID:       clinicID,
+		Name:           input.Name,
+		Price:          input.Price,
+		IsActive:       input.IsActive,
+		Description:    input.Description,
+		Species:        species,
+		Interval:       input.Interval,
+		ParentID:       input.ParentID,
+		SortOrder:      &sortOrder,
+		IsNonInsurance: &isNonInsurance,
 	}
 	if err := s.repo.Create(ctx, vaccine); err != nil {
 		if conflict := apperrors.AsNameUniqueConflict(
