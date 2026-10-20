@@ -21,7 +21,11 @@ vi.mock("@line/liff", () => ({
 }));
 
 import { RevisitIntakePage, type RevisitIntakeReservationSummary } from "./RevisitIntakePage";
-import type { RevisitIntakeDraftStore } from "../hooks/use-revisit-intake-drafts";
+import {
+  findPendingEntry,
+  type RevisitIntakeDraftEntry,
+  type RevisitIntakeDraftStore,
+} from "../hooks/use-revisit-intake-drafts";
 import type {
   RevisitIntakeAnswer,
   RevisitIntakeFullAnswers,
@@ -221,7 +225,7 @@ function captureLookups(respond: (key: string, index: number) => Response): stri
 }
 
 function createStore(): RevisitIntakeDraftStore {
-  const map = new Map<string, ReturnType<RevisitIntakeDraftStore["get"]>>();
+  const map = new Map<string, RevisitIntakeDraftEntry>();
   return {
     get: (k) => map.get(k),
     set: (k, v) => {
@@ -230,6 +234,8 @@ function createStore(): RevisitIntakeDraftStore {
     clear: (k) => {
       map.delete(k);
     },
+    findPending: (clinicId, appointmentId) =>
+      findPendingEntry(map, clinicId, appointmentId),
   };
 }
 
@@ -382,6 +388,39 @@ describe("RevisitIntakePage 表示状態", () => {
     expect(screen.queryByText("未回答")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "戻る" }));
     expect(onBack).toHaveBeenCalled();
+  });
+
+  it("403 でも未確定の送信が store に残っていれば、本文を出さず結果照会だけ行え、成功で pending を消す", async () => {
+    server.use(
+      http.get(READ_PATH, () => HttpResponse.json({ error: "forbidden" }, { status: 403 })),
+    );
+    const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    const body = {
+      pet_id: PET_A,
+      target_generation: "3",
+      expected_revision: null,
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成目的" }),
+    };
+    const store = createStore();
+    store.set(targetKey, {
+      values: body.answers,
+      pending: { key: KEYS[0], fingerprint: "synthetic", body, status: "unknown" },
+    });
+    const lookups = captureLookups((key) => HttpResponse.json(successResponse(key, "1")));
+    renderPage({ store });
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(/この予約の問診を表示できません/)).toBeInTheDocument();
+    expect(screen.queryByText("未回答")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument();
+    expect(lookups).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+
+    expect(await screen.findByText("回答の送信は完了しています。")).toBeInTheDocument();
+    expect(lookups).toEqual([KEYS[0]]);
+    expect(store.get(targetKey)).toBeUndefined();
   });
 
   it("401 は再ログイン案内を表示し再試行ボタンを出さない", async () => {

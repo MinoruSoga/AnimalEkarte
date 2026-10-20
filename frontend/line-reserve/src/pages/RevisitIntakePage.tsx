@@ -24,6 +24,7 @@ import {
   RevisitIntakeEditor,
   type RevisitIntakeClosedReason,
 } from "../components/revisit-intake/RevisitIntakeEditor";
+import { RevisitIntakeDeniedPendingLookup } from "../components/revisit-intake/RevisitIntakeDeniedPendingLookup";
 import { RevisitIntakeHistory } from "../components/revisit-intake/RevisitIntakeHistory";
 import { RevisitIntakeAnswerView } from "../components/revisit-intake/RevisitIntakeAnswerView";
 import type { RevisitIntakeHistoryEntry, RevisitIntakeOwnerCurrentTarget } from "../types/models";
@@ -171,7 +172,34 @@ export function RevisitIntakePage({
   };
 
   if (accessDenied || isRevisitIntakeAccessDenied(intake.error)) {
-    return <ErrorPage message={ACCESS_DENIED_MESSAGE} onAction={onBack} actionLabel="戻る" />;
+    // 照会 route は閲覧権限と分離されている。未確定の送信が残っていれば key を失わないよう結果照会だけ出す。
+    const deniedPending = draftStore.findPending(clinicId, appointmentId);
+    if (deniedPending === undefined) {
+      return <ErrorPage message={ACCESS_DENIED_MESSAGE} onAction={onBack} actionLabel="戻る" />;
+    }
+    return (
+      <div className="min-h-screen bg-noah-teal-light flex flex-col">
+        <div className="max-w-md mx-auto w-full flex flex-col flex-1">
+          <div className="px-4 pt-4">
+            <BackButton onClick={onBack} />
+            <h1 className="text-lg font-bold text-noah-teal-dark">再診の事前問診</h1>
+          </div>
+          <div className="flex-1 space-y-4 px-4 py-4">
+            <p role="status" className="text-sm text-noah-text">
+              {ACCESS_DENIED_MESSAGE}
+            </p>
+            <RevisitIntakeDeniedPendingLookup
+              clinicId={clinicId}
+              idToken={idToken}
+              appointmentId={appointmentId}
+              targetKey={deniedPending.targetKey}
+              pending={deniedPending.pending}
+              draftStore={draftStore}
+            />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const { read } = intake;

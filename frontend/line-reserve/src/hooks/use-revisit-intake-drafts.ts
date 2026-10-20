@@ -42,10 +42,33 @@ export interface RevisitIntakeDraftStore {
   get: (targetKey: string) => RevisitIntakeDraftEntry | undefined;
   set: (targetKey: string, entry: RevisitIntakeDraftEntry) => void;
   clear: (targetKey: string) => void;
+  /**
+   * 指定予約に未確定の送信があれば返す。予約の GET が 403 / 404 になった後でも、key を失わずに
+   * 結果照会へ戻れるようにするための索引（target の ref を読めない状況で使う）。
+   */
+  findPending: (
+    clinicId: string,
+    appointmentId: string,
+  ) => { targetKey: string; pending: RevisitIntakePendingOperation } | undefined;
 }
 
 export function revisitIntakeTargetKey(clinicId: string, ref: RevisitIntakeTargetRef): string {
   return [clinicId, ref.appointment_id, ref.pet_id, ref.target_generation].join("|");
+}
+
+/** target key（clinic|appointment|pet|generation）の先頭 2 要素で、予約単位の未確定送信を探す。 */
+export function findPendingEntry(
+  entries: ReadonlyMap<string, RevisitIntakeDraftEntry>,
+  clinicId: string,
+  appointmentId: string,
+): { targetKey: string; pending: RevisitIntakePendingOperation } | undefined {
+  const prefix = `${clinicId}|${appointmentId}|`;
+  for (const [targetKey, entry] of entries) {
+    if (targetKey.startsWith(prefix) && entry.pending !== null) {
+      return { targetKey, pending: entry.pending };
+    }
+  }
+  return undefined;
 }
 
 export const EMPTY_REVISIT_INTAKE_ANSWERS: RevisitIntakeFullAnswers = {
@@ -94,6 +117,7 @@ export function useRevisitIntakeDraftStore(): RevisitIntakeDraftStore {
       clear: (targetKey) => {
         map().delete(targetKey);
       },
+      findPending: (clinicId, appointmentId) => findPendingEntry(map(), clinicId, appointmentId),
     };
   }, []);
 }
