@@ -1,7 +1,7 @@
 import { EmptyState } from "@/components/shared/DataStates";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, EMPTY_VALUE } from "@/lib/format/number";
 import { formatJSTTime } from "@/lib/jst-date";
 import {
   DETAIL_DEPARTMENT_BUCKETS,
@@ -16,7 +16,7 @@ function formatPaidAt(value: string): string {
 }
 
 function formatAmountCell(amount: number): string {
-  return amount === 0 ? "-" : formatCurrency(amount);
+  return amount === 0 ? EMPTY_VALUE : formatCurrency(amount);
 }
 
 function DetailDataRow({ row }: { row: BillingDetailDisplayRow }) {
@@ -41,7 +41,7 @@ function DetailDataRow({ row }: { row: BillingDetailDisplayRow }) {
         {formatCurrency(row.totalAmount)}
       </TableCell>
       <TableCell className={`text-right whitespace-nowrap ${C.text}`}>
-        {row.refundAmount > 0 ? formatCurrency(-row.refundAmount) : "-"}
+        {row.refundAmount > 0 ? formatCurrency(-row.refundAmount) : EMPTY_VALUE}
       </TableCell>
       <TableCell className={`text-right whitespace-nowrap ${C.text}`}>
         {formatCurrency(row.netAmount)}
@@ -137,7 +137,7 @@ export function BillingDetailTable({
                 {formatCurrency(totals.totalAmount)}
               </TableCell>
               <TableCell className={`text-right font-semibold whitespace-nowrap ${C.text}`}>
-                {totals.refundAmount > 0 ? formatCurrency(-totals.refundAmount) : "-"}
+                {totals.refundAmount > 0 ? formatCurrency(-totals.refundAmount) : EMPTY_VALUE}
               </TableCell>
               <TableCell className={`text-right font-semibold whitespace-nowrap ${C.text}`}>
                 {formatCurrency(totals.netAmount)}

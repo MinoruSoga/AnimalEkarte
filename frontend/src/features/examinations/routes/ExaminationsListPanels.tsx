@@ -25,6 +25,7 @@ import {
   examinationListDetailHref,
   type ServerPagePagination,
 } from "./examinations-list-model";
+import { EMPTY_VALUE } from "@/lib/format/number";
 
 interface ExaminationsListRowProps {
   record: ExaminationRecord;
@@ -42,7 +43,7 @@ function ExaminationsListRow({
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`${STYLE.tableCellMono} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "-"}
+        {record.date ? formatDate(record.date) : EMPTY_VALUE}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} whitespace-nowrap`}>{record.ownerName}</TableCell>
       <TableCell className={STYLE.tableCell}>

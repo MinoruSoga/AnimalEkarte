@@ -18,6 +18,7 @@ import {
   FILTER_PROPERTIES,
   checkupChartHref,
 } from "./checkups-list-model";
+import { EMPTY_VALUE } from "@/lib/format/number";
 
 interface CheckupsListRowProps {
   record: CheckupRecord;
@@ -30,7 +31,7 @@ function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowPr
   return (
     <DataTableRow key={record.id}>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap`}>
-        {record.date ? formatDate(record.date) : "-"}
+        {record.date ? formatDate(record.date) : EMPTY_VALUE}
       </TableCell>
       <TableCell className={C.text}>{record.ownerName || "-"}</TableCell>
       <TableCell className={C.text}>
@@ -50,7 +51,7 @@ function CheckupsListRow({ record, canView, canEdit, onEdit }: CheckupsListRowPr
       </TableCell>
       <TableCell className={`font-mono ${C.text} whitespace-nowrap hidden md:table-cell`}>
         <div className="flex items-center gap-1.5">
-          {record.nextDate ? formatDate(record.nextDate) : "-"}
+          {record.nextDate ? formatDate(record.nextDate) : EMPTY_VALUE}
           <CheckupAlertBadge nextDate={record.nextDate} />
         </div>
       </TableCell>

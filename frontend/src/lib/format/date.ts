@@ -1,4 +1,5 @@
 import { formatJSTDate } from "@/lib/jst-date";
+import { EMPTY_VALUE } from "@/lib/format/number";
 import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 /** 表示用の標準日付・時刻フォーマット(PO決定2026-07-12。wire用 "yyyy-MM-dd" とは別物) */
@@ -8,20 +9,20 @@ export const DISPLAY_TIME_FORMAT = "HH:mm";
 /**
  * 日付をYYYY/MM/DD形式にフォーマット
  * @param dateString ISO形式の日付文字列 (e.g., "2024-01-15" or "2024-01-15T00:00:00+09:00")
- * @returns フォーマットされた日付文字列 (e.g., "2024/01/15") または未設定の場合は "-"
+ * @returns フォーマットされた日付文字列 (e.g., "2024/01/15") または未設定の場合は EMPTY_VALUE（"—"）
  */
 export function formatDate(dateString: string | undefined | null): string {
-  if (!dateString) return "-";
+  if (!dateString) return EMPTY_VALUE;
 
   try {
     const formatted = formatJSTDate(dateString);
-    if (formatted === "NaN-NaN-NaN") return "-";
+    if (formatted === "NaN-NaN-NaN") return EMPTY_VALUE;
 
     const [year, month, day] = formatted.split("-");
 
     return `${year}/${month}/${day}`;
   } catch {
-    return "-";
+    return EMPTY_VALUE;
   }
 }
 
