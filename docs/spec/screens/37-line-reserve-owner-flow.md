@@ -154,7 +154,7 @@ flowchart LR
 
 | 要件ID | 操作・契約 | 根拠と決定状態 |
 |:---|:---|:---|
-| FR-line-channel-settings-publication | 稼働状態・受付期間・休業日・予約区分公開・文言を区別する。文言の保存は公開反映を伴い、未保存プレビューと同義にしない | 設定正本の既存継承。法的文言の内容は医院が管理 |
+| FR-line-channel-settings-publication | [共通医院scheduleの範囲内のLINE設定](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)として公開し、医院時間外／休診をLINEだけで開放しない。稼働状態・受付期間・休業日・予約区分公開・文言を区別する。文言の保存は公開反映を伴い、未保存プレビューと同義にしない | 設定正本の既存継承。法的文言の内容は医院が管理 |
 | FR-line-channel-auth-scope | 本人・医院scopeでマイ予約を取得／取消する。予約入力の氏名電話からowner_idを自動推定しない | 本文主要機能§3〜4、architecture§2 |
 | FR-line-channel-confirm-recheck | 選択時表示だけで確定せず、受付状態・予定枠重複・シフト/休憩・対応能力等の合意済み条件を保存時に再検証する | D01/LINE合意を参照。現行shift再検証gapは実装残件 |
 | FR-line-channel-input-retention | 戻る操作・確定時の枠競合では入力を保持して必要な日時再選択へ戻す。受付停止/取得失敗を初期化成功で上書きしない | 本文状態機械、D01の状況変化時合意 |

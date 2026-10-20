@@ -108,3 +108,14 @@ describe("treatments API クリニックスコープ (#186 review P2-15)", () =>
     await waitFor(() => expect(receivedClinicHeader).toBe("2"));
   });
 });
+
+it("retains an unset stored insurance response as null", async () => {
+  server.use(
+    http.get("*/v1/medical-records/:id/treatments", () =>
+      HttpResponse.json([{ id: "7", is_insurance: null }]),
+    ),
+  );
+  const { result } = renderHook(() => useGetTreatments("42"), { wrapper: createTestWrapper() });
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(result.current.data?.[0].is_insurance).toBeNull();
+});

@@ -13,8 +13,14 @@ export async function createAccountingItemsSequentially(
   items: ReadonlyArray<AccountingItem>,
   createItem: CreateItem = createBillingItem,
 ): Promise<void> {
+  if (items.some((item) => typeof item.isInsuranceApplicable !== "boolean")) {
+    throw new Error("保険設定が未設定の明細があります。確認してから保存してください");
+  }
   // 会計明細は副作用を伴う。失敗後の追加POSTを止めて部分作成範囲を限定するため、意図的に直列化する。
   for (const item of items) {
+    if (typeof item.isInsuranceApplicable !== "boolean") {
+      throw new Error("保険設定が未設定の明細があります");
+    }
     await createItem({
       billing_id: Number(accountingId),
       category: item.category,

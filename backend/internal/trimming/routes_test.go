@@ -37,6 +37,7 @@ func TestRegisterRoutes_SnapshotAndRBAC(t *testing.T) {
 	wantRoutes := "" +
 		"DELETE /api/v1/masters/trimming-course-types/:id DeleteTrimmingCourseType\n" +
 		"DELETE /api/v1/masters/trimming-courses/:id DeleteTrimmingCourse\n" +
+		"DELETE /api/v1/masters/trimming-courses/images DiscardCourseImage\n" +
 		"DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption\n" +
 		"DELETE /api/v1/trimmings/:id DeleteTrimming\n" +
 		"DELETE /api/v1/trimmings/images DeleteTrimmingImage\n" +
@@ -57,6 +58,7 @@ func TestRegisterRoutes_SnapshotAndRBAC(t *testing.T) {
 		"PATCH /api/v1/trimmings/:id UpdateTrimming\n" +
 		"POST /api/v1/masters/trimming-course-types CreateTrimmingCourseType\n" +
 		"POST /api/v1/masters/trimming-courses CreateTrimmingCourse\n" +
+		"POST /api/v1/masters/trimming-courses/images/upload UploadCourseImage\n" +
 		"POST /api/v1/masters/trimming-options CreateTrimmingOption\n" +
 		"POST /api/v1/trimmings CreateTrimming\n" +
 		"POST /api/v1/trimmings/images/upload UploadTrimmingImage\n"

@@ -26,8 +26,13 @@ export function buildMasterSelectionPayload(params: {
   item: TreatmentMasterItem;
   quantity: number;
   sortOrder: number;
+  /**
+   * 未採用 consumer に限り、caller の従来既定を維持する（省略時は false）。
+   * 採用済み master の未設定・未取得は保存前に停止する。明示値だけ反転写像する。
+   */
+  insuranceFallback?: boolean;
 }): CreateTreatmentInput {
-  const { item, quantity, sortOrder } = params;
+  const { item, quantity, sortOrder, insuranceFallback = false } = params;
   return {
     item_type: resolveItemTypeFromCategory(item.category),
     content: item.name,
@@ -37,11 +42,24 @@ export function buildMasterSelectionPayload(params: {
     consultation_id: item.category === "診察" ? toNumericId(item.id) : undefined,
     procedure_id: item.category === "処置" ? toNumericId(item.id) : undefined,
     is_selected: true,
-    is_insurance: false,
+    is_insurance:
+      item.insuranceContract === "master"
+        ? toInsuranceApplicable(item.isNonInsurance)
+        : insuranceFallback,
     discount_amount: 0,
     sort_order: sortOrder,
     memo: "",
   };
+}
+
+/**
+ * EMR-454: master の品目別保険設定（is_non_insurance）を治療明細の適用対象 field へ反転写像する。
+ * 明示 true（対象外）→ false、明示 false（対象）→ true。旧欠落 null・未取得は保存を停止し、
+ * 明示booleanへ推測補完しない（AC-accounting-item-insurance-legacy-missing）。
+ */
+function toInsuranceApplicable(isNonInsurance: boolean | null | undefined): boolean {
+  if (typeof isNonInsurance === "boolean") return !isNonInsurance;
+  throw new Error("保険設定が未設定または未取得です。マスタの設定を確認してください");
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -110,6 +128,9 @@ export function buildCopiedTreatmentPayload(params: {
   sortOrderOffset: number;
 }): CreateTreatmentInput {
   const { source, masters, sortOrderOffset } = params;
+  if (typeof source.is_insurance !== "boolean") {
+    throw new Error("複写元の保険設定が未設定です。確認してから複写してください");
+  }
   const deviationReason = source.dose_param_snapshot?.dose_deviation_reason;
   const payload: CreateTreatmentInput = {
     item_type: source.item_type,

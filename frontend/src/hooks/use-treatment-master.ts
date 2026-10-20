@@ -14,13 +14,13 @@ import type {
   CheckupTypeItem,
   ConsultationItem,
   ProcedureItem,
+  ConsultationWire,
+  ProcedureWire,
+  VaccineWire,
 } from "@/lib/transforms/treatment";
 import type { Medicine } from "@/lib/transforms/medicine";
 import type {
-  Vaccine,
   CheckupType,
-  Consultation,
-  Procedure,
   Medicine as MedicineModel,
   HospitalizationPlan as HospitalizationPlanModel,
 } from "@/types/generated/models";
@@ -37,7 +37,7 @@ export function useGetAllVaccinesMaster() {
   return useQuery({
     queryKey: queryKeys.masters.category("vaccines"),
     queryFn: async (): Promise<VaccineItem[]> => {
-      const { data } = await axios.get<Vaccine[]>("/v1/masters/vaccines");
+      const { data } = await axios.get<VaccineWire[]>("/v1/masters/vaccines");
       return data.map(transformVaccine);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -69,10 +69,10 @@ export function useGetAllConsultations({ clinicId }: { clinicId?: string } = {})
       : queryKeys.masters.category("consultations"),
     queryFn: async (): Promise<ConsultationItem[]> => {
       const { data } = clinicId
-        ? await axios.get<Consultation[]>("/v1/masters/consultations", {
+        ? await axios.get<ConsultationWire[]>("/v1/masters/consultations", {
             headers: { "X-Clinic-ID": clinicId },
           })
-        : await axios.get<Consultation[]>("/v1/masters/consultations");
+        : await axios.get<ConsultationWire[]>("/v1/masters/consultations");
       return data.map(transformConsultation);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -96,10 +96,10 @@ export function useGetAllProcedures({
       : queryKeys.masters.category("procedures"),
     queryFn: async (): Promise<ProcedureItem[]> => {
       const { data } = clinicId
-        ? await axios.get<Procedure[]>("/v1/masters/procedures", {
+        ? await axios.get<ProcedureWire[]>("/v1/masters/procedures", {
             headers: { "X-Clinic-ID": clinicId },
           })
-        : await axios.get<Procedure[]>("/v1/masters/procedures");
+        : await axios.get<ProcedureWire[]>("/v1/masters/procedures");
       return data.map(transformProcedure);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,

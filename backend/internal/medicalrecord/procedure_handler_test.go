@@ -77,8 +77,11 @@ func TestListProcedures(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns all procedures",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns all procedures",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				listFn: func(_ context.Context, clinicID uint64) ([]model.Procedure, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -89,8 +92,11 @@ func TestListProcedures(t *testing.T) {
 			wantBody:   `"name":"去勢手術"`,
 		},
 		{
-			name:     "returns empty list when no procedures",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns empty list when no procedures",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Procedure, error) {
 					return []model.Procedure{}, nil
@@ -100,8 +106,11 @@ func TestListProcedures(t *testing.T) {
 			wantBody:   "[]",
 		},
 		{
-			name:     "returns procedures with hierarchy (parent_id)",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns procedures with hierarchy (parent_id)",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Procedure, error) {
 					parentID := uint64(1)
@@ -121,8 +130,11 @@ func TestListProcedures(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:     "returns 500 on service error",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns 500 on service error",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Procedure, error) {
 					return nil, fmt.Errorf("db error")
@@ -165,9 +177,12 @@ func TestGetProcedure(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns procedure for valid id",
-			paramID:  "5",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns procedure for valid id",
+			paramID: "5",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Procedure, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -186,16 +201,22 @@ func TestGetProcedure(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 for non-numeric id",
-			paramID:    "abc",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for non-numeric id",
+			paramID: "abc",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 404 when procedure not found",
-			paramID:  "999",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 404 when procedure not found",
+			paramID: "999",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Procedure, error) {
 					return nil, apperrors.WrapNotFound("procedure", "999")
@@ -248,9 +269,12 @@ func TestCreateProcedure(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "creates procedure successfully",
-			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "creates procedure successfully",
+			body: validBody(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				createFn: func(_ context.Context, clinicID uint64, input *CreateProcedureInput) (*model.Procedure, error) {
 					assert.Equal(t, uint64(1), clinicID)
@@ -270,7 +294,10 @@ func TestCreateProcedure(t *testing.T) {
 				"tax_type":   "excluded",
 				"parent_id":  10,
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				createFn: func(_ context.Context, _ uint64, input *CreateProcedureInput) (*model.Procedure, error) {
 					require.NotNil(t, input.ParentID)
@@ -288,37 +315,52 @@ func TestCreateProcedure(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 when required name is missing",
-			body:       map[string]any{"anesthesia": "none", "tax_type": "excluded"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name: "returns 400 when required name is missing",
+			body: map[string]any{"anesthesia": "none", "tax_type": "excluded"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 when required anesthesia is missing",
-			body:       map[string]any{"name": "テスト処置", "tax_type": "excluded"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name: "returns 400 when required anesthesia is missing",
+			body: map[string]any{"name": "テスト処置", "tax_type": "excluded"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 when required tax_type is missing",
-			body:       map[string]any{"name": "テスト処置", "anesthesia": "none"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name: "returns 400 when required tax_type is missing",
+			body: map[string]any{"name": "テスト処置", "anesthesia": "none"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 when anesthesia value is invalid",
-			body:       map[string]any{"name": "テスト", "anesthesia": "invalid", "tax_type": "excluded"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name: "returns 400 when anesthesia value is invalid",
+			body: map[string]any{"name": "テスト", "anesthesia": "invalid", "tax_type": "excluded"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 409 when procedure name conflicts",
-			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns 409 when procedure name conflicts",
+			body: validBody(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				createFn: func(_ context.Context, _ uint64, _ *CreateProcedureInput) (*model.Procedure, error) {
 					return nil, apperrors.WrapAlreadyExists("procedure", "歯石除去")
@@ -327,9 +369,12 @@ func TestCreateProcedure(t *testing.T) {
 			wantStatus: http.StatusConflict,
 		},
 		{
-			name:     "returns 500 on service error",
-			body:     validBody(),
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name: "returns 500 on service error",
+			body: validBody(),
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				createFn: func(_ context.Context, _ uint64, _ *CreateProcedureInput) (*model.Procedure, error) {
 					return nil, fmt.Errorf("db error")
@@ -377,10 +422,13 @@ func TestUpdateProcedure(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "updates procedure name successfully",
-			paramID:  "1",
-			body:     map[string]any{"name": "更新済み処置"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "updates procedure name successfully",
+			paramID: "1",
+			body:    map[string]any{"version": int64(1), "name": "更新済み処置"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
 					require.NotNil(t, input.Name)
@@ -394,9 +442,10 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:    "clears parent_id with clear_parent_id flag",
 			paramID: "1",
-			body:    map[string]any{"clear_parent_id": true},
+			body:    map[string]any{"version": int64(1), "clear_parent_id": true},
 			setupCtx: func(c *gin.Context) {
 				setClinicID(c)
+				setStaffID(c)
 			},
 			svc: &mockProcedureService{
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
@@ -409,24 +458,30 @@ func TestUpdateProcedure(t *testing.T) {
 		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "1",
-			body:       map[string]any{"name": "テスト"},
+			body:       map[string]any{"version": int64(1), "name": "テスト"},
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "returns 400 for non-numeric id",
-			paramID:    "xyz",
-			body:       map[string]any{"name": "テスト"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for non-numeric id",
+			paramID: "xyz",
+			body:    map[string]any{"version": int64(1), "name": "テスト"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 404 when procedure not found",
-			paramID:  "999",
-			body:     map[string]any{"name": "テスト"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 404 when procedure not found",
+			paramID: "999",
+			body:    map[string]any{"version": int64(1), "name": "テスト"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateProcedureInput) (*model.Procedure, error) {
 					return nil, apperrors.WrapNotFound("procedure", "999")
@@ -435,10 +490,13 @@ func TestUpdateProcedure(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 		},
 		{
-			name:     "returns 400 for empty update body (BUG-397)",
-			paramID:  "1",
-			body:     map[string]any{},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for empty update body (BUG-397)",
+			paramID: "1",
+			body:    map[string]any{"version": int64(1)},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc: &mockProcedureService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateProcedureInput) (*model.Procedure, error) {
 					return nil, apperrors.WrapInvalidInput("少なくとも1つのフィールドを指定してください")
@@ -447,10 +505,13 @@ func TestUpdateProcedure(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 for invalid anesthesia value",
-			paramID:    "1",
-			body:       map[string]any{"anesthesia": "invalid_type"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			name:    "returns 400 for invalid anesthesia value",
+			paramID: "1",
+			body:    map[string]any{"version": int64(1), "anesthesia": "invalid_type"},
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				setStaffID(c)
+			},
 			svc:        &mockProcedureService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -487,6 +548,7 @@ func newDeleteProcedureRouter(svc ProcedureService) *gin.Engine {
 	h := newHandlerWithProcedureSvc(svc)
 	r.DELETE("/procedures/:id", func(c *gin.Context) {
 		setClinicID(c)
+		setStaffID(c)
 	}, h.DeleteProcedure)
 	return r
 }
@@ -578,6 +640,7 @@ func newReorderProceduresRouter(svc ProcedureService) *gin.Engine {
 	h := newHandlerWithProcedureSvc(svc)
 	r.PUT("/procedures/reorder", func(c *gin.Context) {
 		setClinicID(c)
+		setStaffID(c)
 	}, h.ReorderProcedures)
 	return r
 }
@@ -684,6 +747,7 @@ func TestProcedureSelectedClinicGrant(t *testing.T) {
 			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			c.Params = gin.Params{{Key: "id", Value: "10"}}
 			setClinicID(c)
+			setStaffID(c)
 			c.Set("clinic_id", "2")
 			c.Set("is_system_admin", false)
 			setResourcePermissionOnlyClinic(c, 1, string(model.ResourceMasterMedical), "view")

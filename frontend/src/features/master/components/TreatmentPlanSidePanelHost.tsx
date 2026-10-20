@@ -16,6 +16,8 @@ interface TreatmentPlanSidePanelHostProps {
   examinationType?: ExaminationTypeMaster;
   /** true when active tab is procedure — show anesthesia control (BUG-028) */
   showAnesthesia?: boolean;
+  /** true when active tab is consultation/procedure — is_non_insurance is nullable (EMR-454) */
+  insuranceTriState?: boolean;
   onClose: () => void;
   onSave: (data: TreatmentFormData) => Promise<boolean> | boolean;
   onDeleteRequest: () => void;
@@ -44,6 +46,7 @@ function TreatmentPlanSidePanelHostContent({
   canEdit,
   examinationType,
   showAnesthesia = false,
+  insuranceTriState = false,
   onClose,
   onSave,
   onDeleteRequest,
@@ -74,6 +77,7 @@ function TreatmentPlanSidePanelHostContent({
       readOnly={!canEdit}
       onDirtyChange={setParentDirty}
       showAnesthesia={showAnesthesia}
+      insuranceTriState={insuranceTriState}
       details={
         examinationType ? (
           <ExamTypeFieldsEditor

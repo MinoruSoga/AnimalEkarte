@@ -892,3 +892,37 @@ describe("useAccountingCompletionAction item discount payload (EMR-229)", () => 
     });
   });
 });
+
+it.each([undefined, "123"])(
+  "unresolved insurance prevents complete for billing %s",
+  async (accountingId) => {
+    completeAccountingMock.mockReset();
+    updateAccountingMock.mockReset();
+    handleApiErrorMock.mockReset();
+    const args = {
+      ...buildHookArgs({ accountingId }),
+      displayItems: [
+        {
+          id: "unknown",
+          category: "vaccine" as const,
+          name: "旧設定",
+          unitPrice: 1000,
+          quantity: 1,
+          discountRate: 0,
+          discountAmount: 0,
+          taxType: "excluded" as const,
+          taxRate: 0.1,
+          taxAmount: 100,
+          subtotal: 1000,
+          isInsuranceApplicable: null,
+          source: "medical_record" as const,
+        },
+      ],
+    };
+    const { result } = renderHook(() => useAccountingCompletionAction(args));
+    await submitCompletionAction(result.current.formAction);
+    expect(completeAccountingMock).not.toHaveBeenCalled();
+    expect(updateAccountingMock).not.toHaveBeenCalled();
+    expect(handleApiErrorMock).toHaveBeenCalled();
+  },
+);

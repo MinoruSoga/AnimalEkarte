@@ -86,6 +86,8 @@ const SAFE_MASTER_ITEM: TreatmentMasterItem = {
   name: "一般診察",
   unitPrice: 500,
   category: "診察",
+  insuranceContract: "master",
+  isNonInsurance: true,
 };
 
 // dose lookup を await させるため medicineId 持ちの選択肢。dose-params を空配列で解決し
@@ -95,6 +97,8 @@ const MED_MASTER_ITEM: TreatmentMasterItem = {
   name: "薬A",
   unitPrice: 100,
   category: "薬剤",
+  insuranceContract: "master",
+  isNonInsurance: true,
   medicineId: "1",
 };
 
@@ -552,4 +556,19 @@ describe("useTreatmentsTab", () => {
     // 既存3行（最大 sort_order=2）の次は 3
     expect(result.current.focusLastRow).toBe(true);
   });
+
+  it.each([null, undefined])(
+    "master insurance %s blocks before create with an actionable message",
+    async (isNonInsurance) => {
+      const { result } = renderTreatmentsTab();
+      await waitForLoaded(result);
+      await act(async () => {
+        await result.current.handleSelectFromMaster({ ...SAFE_MASTER_ITEM, isNonInsurance });
+      });
+      expect(toastErrorSpy).toHaveBeenCalledWith(
+        "保険設定が未設定または未取得です。マスタの設定を確認してください",
+      );
+      expect(counts.post).toBe(0);
+    },
+  );
 });

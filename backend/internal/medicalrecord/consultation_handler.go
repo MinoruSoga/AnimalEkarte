@@ -75,7 +75,13 @@ func (h *ConsultationHandler) CreateConsultation(c *gin.Context) {
 		return
 	}
 
-	consultation, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	consultation, err := h.service.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
@@ -100,7 +106,13 @@ func (h *ConsultationHandler) UpdateConsultation(c *gin.Context) {
 		return
 	}
 
-	consultation, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	consultation, err := h.service.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return

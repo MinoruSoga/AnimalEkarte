@@ -91,8 +91,8 @@ export const PALETTE = {
   chartWeight: "#4CAF82",
   /** Chart: grid / axis stroke */
   chartGrid: "#e8e6e3",
-  /** Chart: axis tick text fill */
-  chartAxisText: "#9B9B97",
+  /** Chart: axis tick text fill — ink-muted と同値（白地 7.0:1）。旧 #9B9B97 は 2.79:1 で AA 非達（design-system §2.5・2026-10-20） */
+  chartAxisText: "#615D59",
 
 } as const;
 
@@ -538,7 +538,7 @@ export const C = {
   textBadgeGray:   "text-[#615D59]",
   /** yellow — textCheckupDueSoon 同値 #7A5C00（bg #FDECC8 で 5.36:1） */
   textBadgeYellow: "text-[#7A5C00]",
-  /** orange — DESIGN.md accent-orange-deep #793400（bg #FAEBDD で 7.81:1） */
+  /** orange — #793400（bg #FAEBDD で 7.81:1。design-states.md §2.1 実測表） */
   textBadgeOrange: "text-[#793400]",
   /** red — danger 系 #B03A2E（bg #FFE2DD で ~5.0:1） */
   textBadgeRed:    "text-[#B03A2E]",

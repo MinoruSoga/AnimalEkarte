@@ -132,6 +132,31 @@ describe("TreatmentSearchDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("EMR-454: 診察・処置・薬剤の選択は master の品目別保険設定を onSelect へ渡す", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    vi.mocked(useGetAllConsultations).mockReturnValue({
+      data: [{ id: "1", name: "一般診察", price: 1000, isActive: true, isNonInsurance: false }],
+    } as ReturnType<typeof useGetAllConsultations>);
+    vi.mocked(useGetAllProcedures).mockReturnValue({
+      data: [{ id: "2", name: "点滴処置", price: 2000, isActive: true, isNonInsurance: null }],
+    } as ReturnType<typeof useGetAllProcedures>);
+    vi.mocked(useGetAllMedicinesMaster).mockReturnValue({
+      data: [{ ...MEDICINES[0], isNonInsurance: true }],
+    } as unknown as ReturnType<typeof useGetAllMedicinesMaster>);
+    render(<TreatmentSearchDialog open onOpenChange={() => {}} onSelect={onSelect} />);
+
+    await user.click(screen.getByText("一般診察"));
+    await user.click(screen.getByText("点滴処置"));
+    await user.click(screen.getByText("アモキシシリン"));
+
+    expect(onSelect).toHaveBeenNthCalledWith(1, expect.objectContaining({ isNonInsurance: false }));
+    expect(onSelect).toHaveBeenNthCalledWith(2, expect.objectContaining({ isNonInsurance: null }));
+    expect(onSelect).toHaveBeenNthCalledWith(3, expect.objectContaining({ isNonInsurance: true }));
+  });
+
+  // vaccine/checkup adoption is covered with raw API responses by the composition-level selection test.
+
   it("カテゴリチップで当該カテゴリのみに絞り込まれる", async () => {
     const user = userEvent.setup();
     renderDialog();

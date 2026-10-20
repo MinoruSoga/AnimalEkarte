@@ -34,6 +34,7 @@ import type { useMedicalRecordAutoCreate } from "./use-medical-record-auto-creat
 import type { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
 import type { useMedicalRecordQuickPatchActions } from "./use-medical-record-quick-patch-actions";
 import { paths } from "@/config/paths";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
   return pets.filter(
@@ -298,7 +299,7 @@ export function toMedicalRecordFormResult(input: {
     // EMR-168: 相方トリミング解決の基準日（YYYY-MM-DD）。既存カルテはその日付、
     // 新規は visitDate 指定 or 当日。formatDate は "YYYY/MM/DD" を返すため "/"→"-" で戻す。
     partnerVisitDate:
-      input.read.existingRecord?.date && input.read.existingRecord.date !== "-"
+      input.read.existingRecord?.date && input.read.existingRecord.date !== EMPTY_VALUE
         ? input.read.existingRecord.date.replaceAll("/", "-")
         : (input.read.visitDateFromState ?? formatJSTDate(new Date())),
     handleChangeDate: input.handleChangeDate,

@@ -10,6 +10,7 @@ import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { RequiredMark } from "@/components/shared/RequiredMark";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 interface PatientInfoCardProps {
   ownerName: string;
@@ -272,7 +273,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             ) : null}
           </div>
 
-          {nextVisitDate && nextVisitDate !== "-" ? (
+          {nextVisitDate && nextVisitDate !== EMPTY_VALUE ? (
             <div
               className={`flex min-w-0 flex-col gap-0.5 px-3 py-1.5 rounded min-h-[38px] justify-center ${C.bgPage} border ${C.borderLight} basis-[140px] grow`}
             >
@@ -283,7 +284,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
                 </span>
               </div>
               {nextVisitShowAlert ? <CheckupAlertBadge nextDate={nextVisitAlertDate} /> : null}
-              {nextVisitContent && nextVisitContent !== "-" ? (
+              {nextVisitContent && nextVisitContent !== EMPTY_VALUE ? (
                 <span className={`text-sm ${C.text60} truncate`}>{nextVisitContent}</span>
               ) : null}
             </div>

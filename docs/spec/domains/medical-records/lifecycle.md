@@ -529,3 +529,10 @@ stateDiagram-v2
 最初の実入力者／最終更新者は[カルテ本体の保存時氏名契約とAC](pages/medical-record-form.md#medical-record-main-author-name-display)へ従う。正常保存時の氏名とIDを保持し、改名で保存済み名を追従させず、旧欠落を現在名で埋めない。担当医・受付者・空カルテ作成者との区別、監査・同時保存保護は継続する。
 
 [EMR-452](https://app.plane.so/baritechllc/browse/EMR-452/)の本人回答により、飼主原文の独立reader EMR-477は今回phaseの対象。EMR-476の予約／pet結合とEMR-472の認可へ依存し、原文・版・回答日時を独立に参照する。スタッフによる原文編集・コピー・クリア・Undoへ取り込まない。音声入力／外部連携EMR-320・322全体はPhase2のままであり、readerの採用を理由に前倒ししない。保存項目の存在をreader・認可・画面の実装済みとはしない。
+
+<a id="medical-record-accounting-review-handoff"></a>
+## D10の医師再確認との接続
+
+[D10の医師確認FR／既存AC](../accounting/lifecycle.md#requirement-fr-accounting-doctor-review)を双方の接続正本とする。医師確認後の薬剤・処置の追加削除／数量変更は、会計直接変更とプラン由来の同期のいずれでも再確認まで請求確定・精算を止める。通常保存・自動保存は一律停止せず、金額のみの変更は既決の警告了承へ従う。検査・物販等の新しい確認対象を包括追加しない。
+
+旧医師確定時の結果版は履歴として保持し、現在の保存／参照版や今回確認済みの対象版と混同しない。旧確定履歴の存在だけで現在内容を確認済みにせず、再確認時は現在の対象差分を照合する。版識別の物理方式は[D10詳細設計案](../../../design/domains/accounting/technical-spec.md#review-version-sync-proposal)へ分離し、その提案を実装済みとしない。通常編集の保存版・旧履歴保持は本書の既決を維持する。

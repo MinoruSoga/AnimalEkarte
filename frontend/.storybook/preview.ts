@@ -15,8 +15,20 @@ const preview: Preview = {
       },
     },
     a11y: {
-      // axe を全 story に適用（design-states.md §2 の実測表と併用）
-      test: "todo",
+      // axe を全 story に適用（design-states.md §2 の実測表と併用）。
+      // "error": 違反を a11y パネルで失敗として表示し、Chromatic の Accessibility
+      // tests と Storybook の Vitest 連携（導入時）では story を fail させる。
+      // 正当な例外は story 側で parameters.a11y.config.rules に理由付きで記録する。
+      test: "error",
+      config: {
+        rules: [
+          // WCAG 2.2 AA（design-states.md / accessibility-rules.md の担保ライン）のうち
+          // axe が機械判定できるのは SC 2.5.8 Target Size の target-size だけで、
+          // axe-core 既定では無効なため明示的に有効化する。2.4.11 / 2.5.7 / 3.2.6 /
+          // 3.3.7 / 3.3.8 は accessibility-rules.md §9 の手動レビューで担保する。
+          { id: "target-size", enabled: true },
+        ],
+      },
     },
   },
   initialGlobals: {

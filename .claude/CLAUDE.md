@@ -24,7 +24,7 @@
 
 ## Spec Kit routing
 
-For feature-change requests (new capability or behavior change), check whether `docs/work/spec-kit/<feature>/spec.md` exists for the change. If not, invoke `$speckit-specify` first (`SPECIFY_FEATURE_DIRECTORY=docs/work/spec-kit/<meaningful-name>`), then `$speckit-clarify` before planning. Bug fixes, docs-only edits, and existing scoped Plane tickets do not require this. Skill invocation is not implementation permission; Plane remains execution SoT. Operating procedure: [spec-kit.md](../docs/ops/spec-kit.md).
+For feature-change requests (new capability or behavior change), check whether `docs/work/spec-kit/<feature>/spec.md` exists for the change. If not, invoke `$speckit-specify` first (`SPECIFY_FEATURE_DIRECTORY=docs/work/spec-kit/<meaningful-name>`), then `$speckit-clarify` before planning. Bug fixes, docs-only edits, and existing scoped Plane tickets do not require this. Skill invocation is not implementation permission; Plane remains execution SoT. Canonical business specs live in `docs/spec/` (per-domain `domains/`); spec-kit artifacts index change requests against canonical FR-IDs and do not copy spec bodies. Operating procedure: [spec-kit.md](../docs/ops/spec-kit.md).
 
 ---
 
@@ -128,6 +128,7 @@ Read the user's task, determine its type, then load only relevant references bel
 
 | 作業 | 必須のプロジェクト固有補足 |
 |------|---------------------------|
+| フロントエンド UI 実装・変更・レビュー | [UI デザインガイド（読む順・ハードルール・DoD）](../docs/spec/ui-design-guide.md) |
 | Docker 設定・開発環境 | [Docker 運用規則](skills/docker-patterns/SKILL.md) |
 | SQL・DB 設計・クエリ変更 | [PostgreSQL / clinic_id / GORM 規則](skills/postgres-patterns/SKILL.md) |
 | Go テスト作成・変更 | [Go テストの配置・モック・実 DB・検証規則](skills/golang-testing/SKILL.md) |

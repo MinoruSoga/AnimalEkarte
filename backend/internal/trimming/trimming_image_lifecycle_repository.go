@@ -59,3 +59,27 @@ func (r *appointmentTrimmingDetailRepository) MarkImageKeyDeleted(ctx context.Co
 }
 
 var _ ImageLifecycleRepository = (*appointmentTrimmingDetailRepository)(nil)
+
+func (r *appointmentTrimmingDetailRepository) CourseImageDiscardEligible(ctx context.Context, key ImageKey, actor uint64) (bool, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return false, apperrors.WrapInternalServerError("course provenance check requires ambient transaction")
+	}
+	row, err := (&courseImageUploadRepository{db: r.db}).Find(ctx, key)
+	if err != nil {
+		return false, err
+	}
+	return row != nil && row.UploaderStaffID == actor && row.UploadedAt != nil && row.SubmittedAt == nil, nil
+}
+func (r *appointmentTrimmingDetailRepository) ProtectCourseImageReference(ctx context.Context, key ImageKey) error {
+	row, err := (&courseImageUploadRepository{db: r.db}).Find(ctx, key)
+	if err != nil {
+		return err
+	}
+	if row == nil {
+		return nil
+	}
+	if row.UploadedAt == nil {
+		return apperrors.WrapConflict("course image upload result unknown")
+	}
+	return (&courseImageUploadRepository{db: r.db}).MarkSubmitted(ctx, key)
+}

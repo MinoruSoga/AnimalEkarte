@@ -1,3 +1,4 @@
+import { useGetTrimmingCourses } from "../api/trimming";
 import type { TrimmingCourse, TrimmingOption } from "../api/trimming";
 import type { CourseFormData, OptionFormData } from "../lib/trimming-side-panel-model";
 import type { TrimmingTabValue } from "../routes/trimming-settings-model";
@@ -37,12 +38,19 @@ export function TrimmingSettingsSidePanels({
   onOptionDeleteRequest,
   onDirtyChange,
 }: TrimmingSettingsSidePanelsProps) {
+  const { data: latestCourses } = useGetTrimmingCourses();
+  const refreshed = latestCourses?.find((course) => course.id === coursePanelItem?.id);
   return (
     <>
       {activeTab === "course" && courseEditTarget !== null ? (
         <TrimmingCourseSidePanel
           key={coursePanelItem ? String(coursePanelItem.id) : "new-trimming-course"}
           item={coursePanelItem}
+          refreshedImageUrl={
+            refreshed?.imageObjectKey === coursePanelItem?.imageObjectKey
+              ? refreshed?.imageUrl
+              : undefined
+          }
           onClose={onCourseClose}
           onSave={onCourseSave}
           onDeleteRequest={canDelete ? onCourseDeleteRequest : undefined}

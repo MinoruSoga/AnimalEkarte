@@ -4,6 +4,7 @@ import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { formatJSTDate, toJSTWallDate } from "@/lib/jst-date";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import type { Vaccination } from "@/types/generated/models";
 
 /**
@@ -12,9 +13,9 @@ import type { Vaccination } from "@/types/generated/models";
  * JST 以外のローカル TZ で閲覧すると日付が 1 日ずれ得た。
  */
 function formatDate(iso?: string): string {
-  if (!iso) return "-";
+  if (!iso) return EMPTY_VALUE;
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return "-";
+  if (isNaN(d.getTime())) return EMPTY_VALUE;
   const jst = toJSTWallDate(d);
   const yy = String(jst.getFullYear()).slice(2);
   const m = String(jst.getMonth() + 1);

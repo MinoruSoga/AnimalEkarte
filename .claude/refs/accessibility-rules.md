@@ -1,12 +1,12 @@
 ---
-description: Web accessibility standards (WCAG 2.1 AA, a11y)
+description: Web accessibility standards (WCAG 2.2 AA, a11y)
 alwaysApply: false
 globs: ["frontend/src/**/*.{tsx,jsx}"]
 ---
 
 # Accessibility Rules
 
-Web accessibility standards (WCAG 2.1 AA).
+Web accessibility standards (WCAG 2.2 AA — the same baseline as [docs/spec/design-states.md](../../docs/spec/design-states.md); 2.1 criteria remain included). Visual state specs (hover / focus-visible / disabled / loading / invalid), measured contrast ratios and touch-target sizes are owned by design-states.md; this file covers semantic HTML, labels, ARIA and keyboard behavior.
 
 ## Core Rules
 
@@ -108,9 +108,10 @@ function Toolbar({ items, activeIndex, onNavigate }: ToolbarProps) {
 ### 5. Color Contrast
 
 ```
-Target: WCAG AA or better
+Target: WCAG 2.2 AA or better (measured values: docs/spec/design-states.md §2)
 - Normal text: 4.5:1
-- Large text (18pt+): 3:1
+- Large text (18pt+ or 14pt bold+): 3:1
+- Non-text UI (borders, focus rings, icons): 3:1
 
 Tools: axe DevTools, WebAIM Contrast Checker
 ```
@@ -192,9 +193,23 @@ useEffect(() => {
 </div>
 ```
 
+### 9. WCAG 2.2 — criteria added since 2.1 (AA)
+
+Claiming WCAG 2.2 AA means covering the criteria 2.2 added on top of 2.1. None of them is fully automatable (axe-core checks only `target-size`), so each has an owner document and a manual review check.
+
+| SC | Requirement | Owner / rule | Review check |
+|---|---|---|---|
+| 2.4.11 Focus Not Obscured (Minimum) | A focused element is not entirely hidden by author content (sticky bars, FAB, toasts, dialogs) | `design-patterns.md` §5.1 / §5.2 (fixed elements do not overlap operable elements; trailing padding) | Tab through the page at 1280px and 768px; the focused element stays at least partially visible under fixed bars, the help FAB and open toasts |
+| 2.5.7 Dragging Movements | Any drag operation has a single-pointer, non-drag alternative | `design-patterns.md` §2.6 (sortable lists: focused handle + arrow keys, or an up/down action in the row menu) | Every `dnd-kit` / sortable surface can be reordered without dragging; the alternative is reachable with keyboard and with a single tap |
+| 2.5.8 Target Size (Minimum) | Targets are at least 24×24 CSS px, or have enough spacing | `design-states.md` §1.1 (44×44 hit area; dense row actions `h-9` min-w-11 per design-system §7.2 still exceed 24px) | `target-size` rule enabled in `.storybook/preview.ts`; manual check for inline links/icons inside text |
+| 3.2.6 Consistent Help | A help mechanism that appears on multiple pages is in the same relative position on each | `design-patterns.md` §5.1 (fixed help button position) | The floating help button keeps the same corner and offset on every route |
+| 3.3.7 Redundant Entry | Information already entered in a flow is auto-populated or selectable | Screen specs under `docs/spec/screens/`; product-philosophy (二重入力禁止) | Multi-step forms (select-pet → record, estimate → accounting) reuse owner/pet context instead of asking again |
+| 3.3.8 Accessible Authentication (Minimum) | Login has no cognitive function test unless an alternative exists | `docs/spec/screens/` login spec | Password managers and paste are not blocked; no CAPTCHA/puzzle without an alternative |
+
 ## Checklist
 
 - [ ] Semantic HTML (button, form, label etc.)
+- [ ] WCAG 2.2 additions reviewed (focus not obscured, no drag-only interaction, 24px targets, consistent help position, no redundant entry, accessible login) — see §9
 - [ ] Form labels linked via htmlFor to input
 - [ ] Color contrast 4.5:1 or better
 - [ ] Image alt text (meaningful)
@@ -215,6 +230,6 @@ docker compose exec frontend pnpm lighthouse  # a11y score check
 
 ## References
 
-- [WCAG 2.1](https://www.w3.org/WAI/WCAG21/quickref/)
+- [WCAG 2.2](https://www.w3.org/WAI/WCAG22/quickref/)
 - [ARIA Practices](https://www.w3.org/WAI/ARIA/apg/)
 - [WebAIM](https://webaim.org/)

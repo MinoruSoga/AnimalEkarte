@@ -130,14 +130,14 @@ func TestRepository_Update(t *testing.T) {
 
 	t.Run("同一医院では Update が反映される", func(t *testing.T) {
 		name := "更新後手技"
-		got, err := repo.Update(ctx, clinicA, p.ID, UpdateProcedureInput{Name: &name})
+		got, err := repo.Update(ctx, clinicA, p.ID, UpdateProcedureInput{Version: p.Version, Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後手技", got.Name)
 	})
 
 	t.Run("別医院からの Update は NotFound", func(t *testing.T) {
 		name := "改ざん試行"
-		_, err := repo.Update(ctx, clinicB, p.ID, UpdateProcedureInput{Name: &name})
+		_, err := repo.Update(ctx, clinicB, p.ID, UpdateProcedureInput{Version: p.Version, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -148,7 +148,7 @@ func TestRepository_Update(t *testing.T) {
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
 		name := "x"
-		_, err := repo.Update(ctx, clinicA, 999999, UpdateProcedureInput{Name: &name})
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateProcedureInput{Version: p.Version, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

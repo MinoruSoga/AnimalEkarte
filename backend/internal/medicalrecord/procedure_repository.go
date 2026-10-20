@@ -7,8 +7,10 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -44,7 +46,40 @@ func (r *procedureRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) 
 
 func (r *procedureRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
 	// MRC-07: ambient-tx participation for delete usage re-check under WithTx.
-	return persistence.FindByIDScoped[model.Procedure](ctx, persistence.DBOrTx(ctx, r.db), "procedure", clinicID, id)
+	db := persistence.DBOrTx(ctx, r.db)
+	return persistence.FindByIDScoped[model.Procedure](ctx, db, "procedure", clinicID, id)
+}
+
+// LockWriteRows locks target and requested parent before validation/mutation.
+func (r *procedureRepositoryImpl) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("master parent lock requires an ambient transaction")
+	}
+	// Sort again at the repository boundary; callers cannot invert the lock order.
+	ordered := append([]uint64(nil), ids...)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+	for i, id := range ordered {
+		if id == 0 {
+			return apperrors.WrapInvalidInput("master write row id must be positive")
+		}
+		if i > 0 && id == ordered[i-1] {
+			continue
+		}
+		db := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"})
+		if _, err := persistence.FindByIDScoped[model.Procedure](ctx, db, "procedure", clinicID, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// LockByIDForUpdate locks only the mutation target for an exact audit before-image.
+func (r *procedureRepositoryImpl) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("master insurance lock requires an ambient transaction")
+	}
+	db := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"})
+	return persistence.FindByIDScoped[model.Procedure](ctx, db, "procedure", clinicID, id)
 }
 
 func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.Procedure) error {
@@ -62,18 +97,39 @@ func (r *procedureRepositoryImpl) Create(ctx context.Context, procedure *model.P
 	return nil
 }
 
+// Update compares the editing-start version; the storage trigger owns increments.
 func (r *procedureRepositoryImpl) Update(ctx context.Context, clinicID, id uint64, cmd UpdateProcedureInput) (*model.Procedure, error) {
-	if err := r.update(ctx, clinicID, id, buildProcedureUpdate(&cmd)); err != nil {
-		return nil, err
+	if cmd.Version < 1 {
+		return nil, apperrors.WrapInvalidInput("positive editing-start version is required")
+	}
+	fields := buildProcedureUpdate(&cmd)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Procedure{}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ? AND version = ?", id, cmd.Version).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict("編集後に変更されています。再読み込みしてから保存してください")
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *procedureRepositoryImpl) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Procedure{}, "procedure", clinicID, id, fields)
-}
-
 func (r *procedureRepositoryImpl) Delete(ctx context.Context, clinicID, id uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return persistence.NewTransactor(r.db).WithTx(ctx, func(txCtx context.Context) error { return r.Delete(txCtx, clinicID, id) })
+	}
+	// Acquire the target before starting the guarded mutation statement. A wait
+	// must finish before its READ COMMITTED snapshot checks newly committed children.
+	if err := r.LockWriteRows(ctx, clinicID, []uint64{id}); err != nil {
+		return err
+	}
 	result := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).

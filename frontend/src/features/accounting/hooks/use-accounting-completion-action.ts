@@ -94,32 +94,37 @@ export function focusAccountingCompletionError(target: AccountingCompletionFocus
 }
 
 function toCompleteItems(items: ReadonlyArray<AccountingItem>): CompleteAccountingItemRequest[] {
-  return items.map((item) => ({
-    category: item.category,
-    name: item.name,
-    unit_price: item.unitPrice,
-    quantity: item.quantity,
-    // EMR-229: 手入力（社販）明細の割引は表示中の owner_rate 事前適用を echo せず、
-    // 0 を送って BE の自動割引解決（飼主率 vs キャンペーンの大きい方・確定時点の会計日）に委ねる。
-    // カルテ/トリミング由来など非 manual 行は表示中の値を echo し、カルテ上の明示割引額を保持する。
-    ...(item.source === "manual"
-      ? { discount_rate: 0, discount_amount: 0 }
-      : { discount_rate: item.discountRate, discount_amount: item.discountAmount }),
-    tax_type: item.taxType,
-    tax_rate: item.taxRate,
-    is_insurance_applicable: item.isInsuranceApplicable,
-    source: item.source,
-    ...(item.source === "manual" && item.category === "other" && item.otherReason !== undefined
-      ? { other_reason: item.otherReason }
-      : {}),
-    merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
-    vaccination_id: item.vaccinationId ? Number(item.vaccinationId) : undefined,
-    exam_id: item.examId ? Number(item.examId) : undefined,
-    treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
-    appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
-    trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
-    trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
-  }));
+  return items.map((item) => {
+    if (typeof item.isInsuranceApplicable !== "boolean") {
+      throw new Error("保険設定が未設定の明細があります。確認してから確定してください");
+    }
+    return {
+      category: item.category,
+      name: item.name,
+      unit_price: item.unitPrice,
+      quantity: item.quantity,
+      // EMR-229: 手入力（社販）明細の割引は表示中の owner_rate 事前適用を echo せず、
+      // 0 を送って BE の自動割引解決（飼主率 vs キャンペーンの大きい方・確定時点の会計日）に委ねる。
+      // カルテ/トリミング由来など非 manual 行は表示中の値を echo し、カルテ上の明示割引額を保持する。
+      ...(item.source === "manual"
+        ? { discount_rate: 0, discount_amount: 0 }
+        : { discount_rate: item.discountRate, discount_amount: item.discountAmount }),
+      tax_type: item.taxType,
+      tax_rate: item.taxRate,
+      is_insurance_applicable: item.isInsuranceApplicable,
+      source: item.source,
+      ...(item.source === "manual" && item.category === "other" && item.otherReason !== undefined
+        ? { other_reason: item.otherReason }
+        : {}),
+      merchandise_item_id: item.merchandiseItemId ? Number(item.merchandiseItemId) : undefined,
+      vaccination_id: item.vaccinationId ? Number(item.vaccinationId) : undefined,
+      exam_id: item.examId ? Number(item.examId) : undefined,
+      treatment_id: item.treatmentId ? Number(item.treatmentId) : undefined,
+      appointment_id: item.appointmentId ? Number(item.appointmentId) : undefined,
+      trimming_course_id: item.trimmingCourseId ? Number(item.trimmingCourseId) : undefined,
+      trimming_option_id: item.trimmingOptionId ? Number(item.trimmingOptionId) : undefined,
+    };
+  });
 }
 
 /** BUG-011: complete ヘッダ medical_record_id。会計本体 → 明細の一意値の順で解決。 */

@@ -20,7 +20,7 @@ If a specification unknown blocks the current unit, ask before executing that un
 - Never expose secrets, tokens, credentials, private data, or operationally sensitive details.
 - After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
 - Agents must not auto-apply migrations; when the post-pull rule applies, surface `make migrate` for the user to run manually.
-- Spec Kit: for feature-change requests without a `docs/work/spec-kit/<feature>/spec.md`, route through `$speckit-specify` → `$speckit-clarify` first. See `.claude/CLAUDE.md` § Spec Kit routing and `docs/ops/spec-kit.md`.
+- Spec Kit: for feature-change requests without a `docs/work/spec-kit/<feature>/spec.md`, route through `$speckit-specify` → `$speckit-clarify` first. Canonical business specs stay in `docs/spec/` (per-domain `domains/`); `docs/work/spec-kit/` artifacts are change-request indexes referencing canonical FR-IDs, not copies of spec bodies. See `.claude/CLAUDE.md` § Spec Kit routing and `docs/ops/spec-kit.md`.
 
 ## Git / Parallel Agent Safety (Mandatory)
 
@@ -117,6 +117,10 @@ Generic AI workflow, model preferences, sandbox, Hooks and external connectors b
 - Report changed behavior, checked worktree/diff, commands and results, unresolved items and external state separately.
 - Missing tools, skipped checks and untested behavior are BLOCKED, SKIP or UNKNOWN, never PASS. Static/candidate checks do not establish runtime or release readiness.
 - Keep Plane (workspace `baritechllc`, project `EMR`) as execution SoT. When unavailable, prepare a local draft and report its current state UNKNOWN; ticket format and intake rules follow [docs/ops/plane-ticket-conventions.md](docs/ops/plane-ticket-conventions.md).
+
+## Frontend / UI Work (Mandatory for every runtime)
+
+Any change under `frontend/` that touches rendered UI (components, routes, styles, tokens) starts from [docs/spec/ui-design-guide.md](docs/spec/ui-design-guide.md). It is the single runtime-neutral entry point: it gives the reading order (color SSOT `docs/spec/design-system.md`, geometry/typography SSOT `DESIGN.md`, interaction states, token layers, component contracts), the hard rules enforced by `pnpm design-audit` (C1–C29; C21–C24 cover stories, `PALETTE` layering, `BADGE` contrast and shared-component stories; C25–C29 cover truncation affordances, nav labels, z-index tokens, native inputs in forms and validation-driven disabled buttons), and the UI definition of done. Claude Code also auto-loads `frontend/CLAUDE.md`; Codex, opencode, Devin and other agents must open the guide and its linked sources explicitly. Do not record new design values anywhere except the SSOT files it names.
 
 ## Verification
 

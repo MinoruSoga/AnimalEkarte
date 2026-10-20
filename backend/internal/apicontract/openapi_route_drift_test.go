@@ -156,6 +156,18 @@ var knownPhantomInSpec = map[string]bool{
 	"DELETE /api/v1/clinics/{id}": true,
 	"GET /api/v1/clinics/{id}":    true,
 	"PATCH /api/v1/clinics/{id}":  true,
+	// PR #740: contract-first provisional routes for FE/BE parallel implementation only.
+	// Follow-up EMR-461 owner: register the form-only ID read, then remove this exact
+	// entry in the same runtime-registration change. No lifecycle/core implementation exemption.
+	"GET /api/v1/hospitalizations/cage-occupancy": true,
+	// Follow-up EMR-493 owner: register exact-shift read and same-key result inquiry,
+	// then remove each corresponding entry when its runtime route is registered.
+	"GET /api/v1/shifts/{id}":                       true,
+	"GET /api/v1/shifts/operations/{operation_key}": true,
+	// Follow-up EMR-502 owner: register permission-bound edit-view and edit-result reads,
+	// then remove each corresponding entry when its runtime route is registered.
+	"GET /api/v1/manual/articles/{category}/{slug}/edit":                       true,
+	"GET /api/v1/manual/articles/{category}/{slug}/operations/{operation_key}": true,
 }
 
 // ─── Real route enumeration (go/ast) ────────────────────────────────────────────────

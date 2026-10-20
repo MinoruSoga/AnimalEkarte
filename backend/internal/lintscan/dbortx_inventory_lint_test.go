@@ -489,12 +489,20 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Update":   {},
 	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
 	// Runtime: clinical_master_delete_tx_atomicity_test.go
-	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":            {},
-	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Delete":                 {},
-	"medicalrecord/hospitalization_plan_repository.go|hospitalizationPlanRepository.Delete": {},
-	"medicalrecord/chief_complaint_repository.go|chiefComplaintTypeRepository.Delete":       {},
-	"medicalrecord/diagnosis_name_repository.go|diagnosisNameRepository.Delete":             {},
-	"medicalrecord/diagnosis_type_repository.go|diagnosisTypeRepository.Delete":             {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindAll":                    {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindByID":                   {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.LockWriteRows":              {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.LockByIDForUpdate":          {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Create":                     {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Update":                     {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.CountUsageByConsultationID": {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.CountChildrenByParentID":    {},
+	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.Delete":                     {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Delete":                          {},
+	"medicalrecord/hospitalization_plan_repository.go|hospitalizationPlanRepository.Delete":          {},
+	"medicalrecord/chief_complaint_repository.go|chiefComplaintTypeRepository.Delete":                {},
+	"medicalrecord/diagnosis_name_repository.go|diagnosisNameRepository.Delete":                      {},
+	"medicalrecord/diagnosis_type_repository.go|diagnosisTypeRepository.Delete":                      {},
 	// Runtime: TestInquiryTemplateRepository_Delete_JoinsAmbientTransaction
 	"medicalrecord/inquiry_template_repository.go|inquiryTemplateRepository.Delete": {},
 	// BUG-425: tag-code replacement is one transaction; every replacement write must use DBOrTx.
@@ -608,8 +616,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// procedure (MRC-07 ambient tx for delete usage check)
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindAll":                 {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.FindByID":                {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.LockWriteRows":           {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.LockByIDForUpdate":       {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Create":                  {},
-	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.update":                  {},
+	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Update":                  {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.Delete":                  {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.CountUsageByProcedureID": {},
 	"medicalrecord/procedure_repository.go|procedureRepositoryImpl.CountChildrenByParentID": {},
@@ -714,6 +724,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.Create":                                  {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.Delete":                                  {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindAll":                                 {},
+	"trimming/trimming_course_repository.go|trimmingCourseRepository.LockForImageUpdate":                      {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.FindByID":                                {},
 	"trimming/trimming_course_repository.go|trimmingCourseRepository.update":                                  {},
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.CountUsageByCourseTypeID":       {},
@@ -722,6 +733,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindAll":                        {},
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.FindByID":                       {},
 	"trimming/trimming_course_type_repository.go|trimmingCourseTypeRepository.update":                         {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.Find":                               {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.Reserve":                            {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.MarkUploaded":                       {},
+	"trimming/trimming_course_image_drafts.go|courseImageUploadRepository.MarkSubmitted":                      {},
 	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.ImageKeyDeleted":     {},
 	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.LockImageKeys":       {},
 	"trimming/trimming_image_lifecycle_repository.go|appointmentTrimmingDetailRepository.MarkImageKeyDeleted": {},
@@ -833,6 +848,17 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.PermissionGroupsBelongToClinic": {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.StaffAssignedToClinic":          {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit":                     {},
+	// operation (EMR-489 C06 receipts). Lock/InsertResult require the ambient owner
+	// tx; Claim/RecordOutcome refuse it (separate short tx). Runtime proof:
+	// operation/store_realdb_test.go (build tag operationrealdb; not yet compiled
+	// or run because internal/testdb does not compile on main after PR #729).
+	"operation/store.go|gormStore.ClaimBinding":      {},
+	"operation/store.go|gormStore.FindBinding":       {},
+	"operation/store.go|gormStore.HasUnknownOutcome": {},
+	"operation/store.go|gormStore.InsertResult":      {},
+	"operation/store.go|gormStore.LoadResult":        {},
+	"operation/store.go|gormStore.LockBindingNoWait": {},
+	"operation/store.go|gormStore.RecordOutcome":     {},
 	// identitylink (#239 Phase 1). Runtime ambient-tx proofs:
 	// identitylink/repository_tx_atomicity_test.go
 	"identitylink/repository.go|repository.conn":             {},

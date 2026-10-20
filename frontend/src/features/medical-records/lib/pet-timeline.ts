@@ -1,5 +1,6 @@
 import { paths } from "@/config/paths";
 import { formatDate } from "@/lib/format/date";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import type { TrimmingUI } from "@/lib/transforms/trimming";
 import type { InterviewHistoryItem } from "../types";
 
@@ -23,7 +24,7 @@ export function toTrimmingTimelineItem(trimming: TrimmingUI): InterviewHistoryIt
   return {
     id: `${TRIMMING_TIMELINE_ID_PREFIX}${trimming.id}`,
     date: formatDate(trimming.date),
-    author: trimming.staff || "-",
+    author: trimming.staff || EMPTY_VALUE,
     type: `トリミング（${trimming.status}）`,
     title: trimming.styleRequest || trimming.courseName || "トリミング",
     content: trimming.remarks || "（記録なし）",

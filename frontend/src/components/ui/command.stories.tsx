@@ -23,7 +23,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <Command style={{ maxWidth: 320, border: "1px solid var(--border)", borderRadius: 6 }}>
-      <CommandInput placeholder="マスタを検索" />
+      <CommandInput placeholder="マスタを検索" aria-label="マスタを検索" />
       <CommandList>
         <CommandEmpty>該当なし</CommandEmpty>
         <CommandGroup heading="診療">
