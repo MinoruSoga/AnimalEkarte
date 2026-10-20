@@ -23,6 +23,13 @@ type createTreatmentRequest struct {
 	SortOrder      int     `json:"sort_order"`
 	// DoseDeviationReason は TASK-377: 上限内の著しい乖離/下限割れで必須。service が最終権限で再評価する。
 	DoseDeviationReason string `json:"dose_deviation_reason"`
+	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。nil は未入力で NULL 保存。
+	// master・投与日数・quantity からの推測補完はしない。0 は明示 0。
+	AdministrationDoseAmount   *model.ExactNumeric `json:"administration_dose_amount"`
+	AdministrationDoseUnit     *string             `json:"administration_dose_unit"`
+	AdministrationInstructions *string             `json:"administration_instructions"`
+	PrescriptionTotalAmount    *model.ExactNumeric `json:"prescription_total_amount"`
+	PrescriptionTotalUnit      *string             `json:"prescription_total_unit"`
 }
 
 func (r *createTreatmentRequest) toServiceInput() *CreateTreatmentInput {
@@ -44,6 +51,12 @@ func (r *createTreatmentRequest) toServiceInput() *CreateTreatmentInput {
 		DiscountAmount:      r.DiscountAmount,
 		SortOrder:           r.SortOrder,
 		DoseDeviationReason: r.DoseDeviationReason,
+
+		AdministrationDoseAmount:   r.AdministrationDoseAmount,
+		AdministrationDoseUnit:     r.AdministrationDoseUnit,
+		AdministrationInstructions: r.AdministrationInstructions,
+		PrescriptionTotalAmount:    r.PrescriptionTotalAmount,
+		PrescriptionTotalUnit:      r.PrescriptionTotalUnit,
 	}
 }
 
@@ -67,6 +80,12 @@ type updateTreatmentRequest struct {
 	// DoseDeviationReason は TASK-377: reason-required 時に必須。
 	DoseDeviationReason *string `json:"dose_deviation_reason"`
 	Version             *int    `json:"version"` // 楽観的ロック用
+	// EMR-488: 薬剤3値。nil は未送信 = 変更なし（既存 PATCH 方式。JSON null も nil = 変更なし）。
+	AdministrationDoseAmount   *model.ExactNumeric `json:"administration_dose_amount"`
+	AdministrationDoseUnit     *string             `json:"administration_dose_unit"`
+	AdministrationInstructions *string             `json:"administration_instructions"`
+	PrescriptionTotalAmount    *model.ExactNumeric `json:"prescription_total_amount"`
+	PrescriptionTotalUnit      *string             `json:"prescription_total_unit"`
 }
 
 func (r *updateTreatmentRequest) toServiceInput() *UpdateTreatmentInput {
@@ -88,6 +107,12 @@ func (r *updateTreatmentRequest) toServiceInput() *UpdateTreatmentInput {
 		SortOrder:           r.SortOrder,
 		DoseDeviationReason: r.DoseDeviationReason,
 		Version:             r.Version,
+
+		AdministrationDoseAmount:   r.AdministrationDoseAmount,
+		AdministrationDoseUnit:     r.AdministrationDoseUnit,
+		AdministrationInstructions: r.AdministrationInstructions,
+		PrescriptionTotalAmount:    r.PrescriptionTotalAmount,
+		PrescriptionTotalUnit:      r.PrescriptionTotalUnit,
 	}
 	if r.ItemType != nil {
 		itemType := model.TreatmentItemType(*r.ItemType)

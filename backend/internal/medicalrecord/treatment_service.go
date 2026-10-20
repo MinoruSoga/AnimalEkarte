@@ -34,6 +34,14 @@ type CreateTreatmentInput struct {
 	// DoseDeviationReason は TASK-377: 上限内の下限割れ/著しい乖離で必須の free-text 理由。
 	// reason-required でない経路では無視され snapshot に残さない。
 	DoseDeviationReason string
+	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。nil は未入力で NULL 保存する。
+	// master・投与日数・quantity からの推測補完は行わない。0 は明示 0 として NULL に変換しない。
+	// dose_amount_mg 等の mg 計算値・会計 quantity・dose_pattern_revision_id（EMR-498 所有）とは別枠。
+	AdministrationDoseAmount   *model.ExactNumeric
+	AdministrationDoseUnit     *string
+	AdministrationInstructions *string
+	PrescriptionTotalAmount    *model.ExactNumeric
+	PrescriptionTotalUnit      *string
 }
 
 // UpdateTreatmentInput は治療項目更新の入力DTO（ポインタ型 = nil は未送信）
@@ -60,6 +68,14 @@ type UpdateTreatmentInput struct {
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
 	DiscountEditAllowed bool
+	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。nil は未送信 = 変更なし
+	// （既存 PATCH 方式に従う。JSON null は Go で nil に潰れるため明示 NULL クリア経路は持たない。
+	// PR #732 の checkup_types.is_non_insurance と同じ枠）。0 は明示 0 として送れる。
+	AdministrationDoseAmount   *model.ExactNumeric
+	AdministrationDoseUnit     *string
+	AdministrationInstructions *string
+	PrescriptionTotalAmount    *model.ExactNumeric
+	PrescriptionTotalUnit      *string
 	// Version は楽観的ロック用 expectedVersion（nil=照合スキップ・後方互換）。
 	// UpdateClinicalPlanInput.Version と同型: repository Update の WHERE version=? 述語に
 	// そのまま渡り、一致時のみ version+1 で書き戻す。0/負値はどの行にも一致せず Conflict。

@@ -5951,6 +5951,32 @@ components:
           format: double
         sort_order:
           type: integer
+        administration_dose_amount:
+          type: number
+          nullable: true
+          description: |
+            EMR-488: 1回製剤量（錠/mL等の製剤量）。NULL は未保存、0 は明示 0。
+            dose_amount_mg（mg 計算値）・quantity（会計数量）とは別枠。master 等からの補完はしない。
+        administration_dose_unit:
+          type: string
+          nullable: true
+          description: |
+            EMR-488: 1回製剤量の単位（free text。錠/mL等）
+        administration_instructions:
+          type: string
+          nullable: true
+          description: |
+            EMR-488: 用法（1日何回・何日おき等の free text）
+        prescription_total_amount:
+          type: number
+          nullable: true
+          description: |
+            EMR-488: 処方総量（今回渡す総量）。NULL は未保存、0 は明示 0
+        prescription_total_unit:
+          type: string
+          nullable: true
+          description: |
+            EMR-488: 処方総量の単位（free text）
         dose_weight_kg:
           type: number
           format: double
@@ -6032,6 +6058,25 @@ components:
           type: string
         memo:
           type: string
+        administration_dose_amount:
+          type: number
+          nullable: true
+          description: |
+            EMR-488: 1回製剤量。未指定は NULL 保存（推測補完なし）。0 は明示 0
+        administration_dose_unit:
+          type: string
+          nullable: true
+        administration_instructions:
+          type: string
+          nullable: true
+        prescription_total_amount:
+          type: number
+          nullable: true
+          description: |
+            EMR-488: 処方総量。未指定は NULL 保存（推測補完なし）。0 は明示 0
+        prescription_total_unit:
+          type: string
+          nullable: true
         insurance:
           type: boolean
         discount_rate:
@@ -6114,6 +6159,25 @@ components:
           description: |
             TASK-377: 上限内の下限割れまたは推奨値からの著しい乖離時に必須の free-text 逸脱理由。
             transport 技術上限は trim 後 1〜500 Unicode 文字。backend が再評価する。
+        administration_dose_amount:
+          type: number
+          nullable: true
+          description: |
+            EMR-488: 1回製剤量。未送信は変更なし（既存 PATCH 方式。null も未送信扱い）
+        administration_dose_unit:
+          type: string
+          nullable: true
+        administration_instructions:
+          type: string
+          nullable: true
+        prescription_total_amount:
+          type: number
+          nullable: true
+          description: |
+            EMR-488: 処方総量。未送信は変更なし（既存 PATCH 方式。null も未送信扱い）
+        prescription_total_unit:
+          type: string
+          nullable: true
         version:
           type: integer
           format: int32

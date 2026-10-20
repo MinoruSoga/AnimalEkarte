@@ -101,6 +101,23 @@ func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder
 	}
+	// EMR-488: 薬剤3値。nil = 未送信 = 変更なし。送信時はその値（0 含む）をそのまま保存する。
+	// persistDose（mg 計算値スナップショット）とは列が異なり、ここで混同・上書きしない。
+	if input.AdministrationDoseAmount != nil {
+		fields["administration_dose_amount"] = *input.AdministrationDoseAmount
+	}
+	if input.AdministrationDoseUnit != nil {
+		fields["administration_dose_unit"] = *input.AdministrationDoseUnit
+	}
+	if input.AdministrationInstructions != nil {
+		fields["administration_instructions"] = *input.AdministrationInstructions
+	}
+	if input.PrescriptionTotalAmount != nil {
+		fields["prescription_total_amount"] = *input.PrescriptionTotalAmount
+	}
+	if input.PrescriptionTotalUnit != nil {
+		fields["prescription_total_unit"] = *input.PrescriptionTotalUnit
+	}
 	if len(input.persistDose) > 0 {
 		maps.Copy(fields, input.persistDose)
 	}

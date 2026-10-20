@@ -18,6 +18,7 @@ import {
   TreatmentUnitPriceCell,
 } from "./TreatmentRowEditors";
 import { TreatmentQuantityCell } from "./TreatmentQuantityCell";
+import { TreatmentThreeValuesCell } from "./TreatmentThreeValuesCell";
 
 interface TreatmentRowProps {
   treatment: Treatment;
@@ -87,8 +88,7 @@ export const TreatmentRow = memo(function TreatmentRow({
     [treatment.id, onUpdate],
   );
 
-  const startEdit = useCallback((field: string) => setEditField(field), []);
-  const stopEdit = useCallback(() => setEditField(null), []);
+  const startEdit = useCallback((field: string) => setEditField(field), []);  const stopEdit = useCallback(() => setEditField(null), []);
   const handleDelete = useCallback(() => onDelete(treatment.id), [treatment.id, onDelete]);
   const handleMoveUp = useCallback(() => onMoveUp(treatment.id), [treatment.id, onMoveUp]);
   const handleMoveDown = useCallback(() => onMoveDown(treatment.id), [treatment.id, onMoveDown]);
@@ -112,6 +112,15 @@ export const TreatmentRow = memo(function TreatmentRow({
         {...editor}
         isEditing={editField === "content"}
         onStartEdit={() => startEdit("content")}
+      />
+      {/* EMR-488: 薬剤3値（1回製剤量・用法・処方総量）の常時区別表示。薬剤行以外は空セル */}
+      <TreatmentThreeValuesCell
+        treatment={treatment}
+        editField={editField}
+        inputRef={inputRef}
+        onStartEdit={startEdit}
+        onStopEdit={stopEdit}
+        onUpdate={onUpdate}
       />
       <TreatmentInsuranceCell checked={treatment.is_insurance} onChange={handleInsuranceChange} />
       <TreatmentUnitPriceCell

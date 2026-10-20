@@ -145,6 +145,12 @@ export function buildCopiedTreatmentPayload(params: {
     unit_price: source.unit_price,
     sort_order: source.sort_order + sortOrderOffset,
     dose_deviation_reason: typeof deviationReason === "string" ? deviationReason : undefined,
+    // EMR-488: 薬剤3値は複写元の保存値をそのまま引き継ぐ（null は未指定＝NULL 複写。推測補完しない）。
+    administration_dose_amount: source.administration_dose_amount ?? undefined,
+    administration_dose_unit: source.administration_dose_unit ?? undefined,
+    administration_instructions: source.administration_instructions ?? undefined,
+    prescription_total_amount: source.prescription_total_amount ?? undefined,
+    prescription_total_unit: source.prescription_total_unit ?? undefined,
   };
 
   const REJECT = "複写先のマスタを確認し、治療明細を再選択してください";

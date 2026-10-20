@@ -21,6 +21,7 @@ const TABLE_HEADER = (
       <TableHead className="w-10" />
       <TableHead className="w-24">種別</TableHead>
       <TableHead>内容</TableHead>
+      <TableHead className="w-48">1回量・用法・総量</TableHead>
       <TableHead className="w-16 text-center">保険</TableHead>
       <TableHead className="w-28 text-right">単価</TableHead>
       <TableHead className="w-20 text-right">数量</TableHead>

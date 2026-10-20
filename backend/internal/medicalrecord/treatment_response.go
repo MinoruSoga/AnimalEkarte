@@ -28,6 +28,13 @@ type treatmentResponse struct {
 	DiscountRate    float64 `json:"discount_rate"`
 	DiscountAmount  int64   `json:"discount_amount"`
 	SortOrder       int     `json:"sort_order"`
+	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。
+	// NULL は null、0 は 0 として出力する（omitempty を付けず未保存と 0 を区別する）。
+	AdministrationDoseAmount   *model.ExactNumeric `json:"administration_dose_amount"`
+	AdministrationDoseUnit     *string             `json:"administration_dose_unit"`
+	AdministrationInstructions *string             `json:"administration_instructions"`
+	PrescriptionTotalAmount    *model.ExactNumeric `json:"prescription_total_amount"`
+	PrescriptionTotalUnit      *string             `json:"prescription_total_unit"`
 	// #201 投与量自動計算の保存時スナップショット（medicine 明細・per_weight 計算時のみ値あり）
 	DoseWeightKg      *float64        `json:"dose_weight_kg,omitempty"`
 	DoseWeightSource  *string         `json:"dose_weight_source,omitempty"`
@@ -42,32 +49,37 @@ type treatmentResponse struct {
 func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 	masterIDs := treatmentMasterIDsForResponse(t)
 	return treatmentResponse{
-		ID:                strconv.FormatUint(t.ID, 10),
-		MedicalRecordID:   strconv.FormatUint(t.MedicalRecordID, 10),
-		ItemType:          string(t.ItemType),
-		ConsultationID:    masterIDs.consultation,
-		ProcedureID:       masterIDs.procedure,
-		MedicineID:        masterIDs.medicine,
-		InventoryID:       masterIDs.inventory,
-		UnitPrice:         t.UnitPrice,
-		Quantity:          t.Quantity,
-		Selected:          t.IsSelected,
-		Status:            string(t.Status),
-		Content:           t.Content,
-		Memo:              t.Memo,
-		AdminRoute:        t.AdminRoute,
-		Insurance:         t.IsInsurance,
-		DiscountRate:      t.DiscountRate,
-		DiscountAmount:    t.DiscountAmount,
-		SortOrder:         t.SortOrder,
-		DoseWeightKg:      t.DoseWeightKg,
-		DoseWeightSource:  t.DoseWeightSource,
-		DoseAmountMg:      t.DoseAmountMg,
-		DoseAmountUnit:    t.DoseAmountUnit,
-		DoseParamSnapshot: t.DoseParamSnapshot,
-		Version:           t.Version,
-		CreatedAt:         httpapi.LocalTime(t.CreatedAt),
-		UpdatedAt:         httpapi.LocalTime(t.UpdatedAt),
+		ID:                         strconv.FormatUint(t.ID, 10),
+		MedicalRecordID:            strconv.FormatUint(t.MedicalRecordID, 10),
+		ItemType:                   string(t.ItemType),
+		ConsultationID:             masterIDs.consultation,
+		ProcedureID:                masterIDs.procedure,
+		MedicineID:                 masterIDs.medicine,
+		InventoryID:                masterIDs.inventory,
+		UnitPrice:                  t.UnitPrice,
+		Quantity:                   t.Quantity,
+		Selected:                   t.IsSelected,
+		Status:                     string(t.Status),
+		Content:                    t.Content,
+		Memo:                       t.Memo,
+		AdminRoute:                 t.AdminRoute,
+		Insurance:                  t.IsInsurance,
+		DiscountRate:               t.DiscountRate,
+		DiscountAmount:             t.DiscountAmount,
+		SortOrder:                  t.SortOrder,
+		AdministrationDoseAmount:   t.AdministrationDoseAmount,
+		AdministrationDoseUnit:     t.AdministrationDoseUnit,
+		AdministrationInstructions: t.AdministrationInstructions,
+		PrescriptionTotalAmount:    t.PrescriptionTotalAmount,
+		PrescriptionTotalUnit:      t.PrescriptionTotalUnit,
+		DoseWeightKg:               t.DoseWeightKg,
+		DoseWeightSource:           t.DoseWeightSource,
+		DoseAmountMg:               t.DoseAmountMg,
+		DoseAmountUnit:             t.DoseAmountUnit,
+		DoseParamSnapshot:          t.DoseParamSnapshot,
+		Version:                    t.Version,
+		CreatedAt:                  httpapi.LocalTime(t.CreatedAt),
+		UpdatedAt:                  httpapi.LocalTime(t.UpdatedAt),
 	}
 }
 
