@@ -63,13 +63,80 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isStr(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isNullableStr(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isNullableText(value: unknown): boolean {
+  return isNullableStr(value);
+}
+
+function isTargetRef(value: unknown, allowNullTargetId: boolean): value is RevisitIntakeTargetRef {
+  return (
+    isRecord(value) &&
+    (allowNullTargetId ? isNullableStr(value.target_id) : isStr(value.target_id)) &&
+    isStr(value.appointment_id) &&
+    isStr(value.pet_id) &&
+    isStr(value.target_generation)
+  );
+}
+
+function isAnswer(value: unknown): value is RevisitIntakeAnswer {
+  if (!isRecord(value) || !isRecord(value.answers)) return false;
+  const a = value.answers;
+  return (
+    isStr(value.answer_id) &&
+    isStr(value.revision) &&
+    typeof value.form_definition_version === "number" &&
+    isStr(value.received_at) &&
+    value.provenance === "owner_submission" &&
+    isStr(a.visit_purpose) &&
+    isNullableText(a.onset) &&
+    isNullableStr(a.energy) &&
+    isNullableStr(a.appetite) &&
+    isNullableText(a.current_symptoms) &&
+    isNullableStr(a.improvement) &&
+    isNullableStr(a.examination_preference) &&
+    isNullableText(a.main_concern)
+  );
+}
+
+function isCurrentTarget(value: unknown): value is RevisitIntakeCurrentTarget {
+  if (!isRecord(value) || !isTargetRef(value.ref, true)) return false;
+  if (typeof value.content_available !== "boolean" || !isNullableStr(value.head_revision)) {
+    return false;
+  }
+  const latest = value.latest_answer;
+  if (latest !== null && !isAnswer(latest)) return false;
+  if (value.answer_state === "unanswered") {
+    return value.head_revision === null && latest === null && value.content_available === false;
+  }
+  if (value.answer_state !== "answered" || value.head_revision === null) return false;
+  // 可視 head（本文あり）か不可視 head（本文なし）のどちらかのみ。
+  return value.content_available ? latest !== null : latest === null;
+}
+
+function isHistoryEntry(value: unknown): value is RevisitIntakeHistoryEntry {
+  return (
+    isRecord(value) &&
+    isTargetRef(value.target, false) &&
+    isAnswer(value.answer) &&
+    (value.target_relation === "current" || value.target_relation === "previous")
+  );
+}
+
 function isStaffRead(value: unknown): value is RevisitIntakeStaffReservationRead {
   if (!isRecord(value)) return false;
   return (
     (value.availability === "available" || value.availability === "target_unresolved") &&
     Array.isArray(value.history) &&
+    value.history.every(isHistoryEntry) &&
     (value.next_cursor === null || typeof value.next_cursor === "string") &&
-    (value.current_target === null || isRecord(value.current_target))
+    (value.current_target === null || isCurrentTarget(value.current_target))
   );
 }
 

@@ -260,4 +260,84 @@ describe("RevisitIntakeSection", () => {
     await screen.findByText("回答済み");
     expect(header).toBe("2");
   });
+
+  it("契約外の nested 応答は fail-closed で取得失敗表示にする", async () => {
+    respond(
+      body({
+        history: [
+          {
+            target: { pet_id: "10" },
+            answer: answer("a1", "1"),
+            target_relation: "current",
+          },
+        ],
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
+  it("answered なのに content_available と latest_answer が不整合なら fail-closed", async () => {
+    respond(
+      body({
+        current_target: {
+          ref: ref(),
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: null,
+          content_available: true,
+        },
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+  });
+
+  it("2 ページ目が 403 になったら取得済みの本文を表示しない", async () => {
+    server.use(
+      http.get(PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor")) {
+          return HttpResponse.json({ error: "forbidden", code: "FORBIDDEN" }, { status: 403 });
+        }
+        return HttpResponse.json(body({ next_cursor: "CURSOR_2" }));
+      }),
+    );
+    renderSection();
+    await userEvent.click(await screen.findByRole("button", { name: "さらに表示" }));
+    expect(await screen.findByText("閲覧権限がありません。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
+  it("ページ間で current_target.ref が変わったら後続ページを merge せず再読み込みを促す", async () => {
+    server.use(
+      http.get(PATH, ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor")) {
+          return HttpResponse.json(
+            body({
+              current_target: {
+                ref: ref("99", "3"),
+                head_revision: "1",
+                answer_state: "answered",
+                latest_answer: answer("z1", "1"),
+                content_available: true,
+              },
+              history: [
+                { target: ref("99", "3"), answer: answer("z0", "1"), target_relation: "current" },
+              ],
+            }),
+          );
+        }
+        return HttpResponse.json(body({ next_cursor: "CURSOR_2" }));
+      }),
+    );
+    renderSection();
+    await userEvent.click(await screen.findByRole("button", { name: "さらに表示" }));
+    expect(
+      await screen.findByText("対象が変わりました。再読み込みしてください。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+    expect(screen.queryByText("目的z0")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();
+  });
 });

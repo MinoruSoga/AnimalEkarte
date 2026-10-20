@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CircleDashed, CircleCheck, ClipboardList, Lock, MessageSquareText } from "lucide-react";
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { formatDate } from "@/lib/format/date";
 import { formatJSTTime } from "@/lib/jst-date";
 import {
   getRevisitIntakeErrorStatus,
+  revisitIntakeQueryKey,
   useGetRevisitIntake,
   type RevisitIntakeAnswer,
   type RevisitIntakeHistoryEntry,
@@ -168,7 +170,22 @@ export function RevisitIntakeSection({
   enabled = true,
 }: RevisitIntakeSectionProps) {
   const query = useGetRevisitIntake({ appointmentId, clinicId, enabled });
+  const queryClient = useQueryClient();
   const pages = query.data?.pages;
+  // 403/404 は cached pages の有無に関係なく最優先（再取得・追加ページで権限を失った場合も本文を出さない）。
+  const errorStatus = query.isError ? getRevisitIntakeErrorStatus(query.error) : undefined;
+  const denied = errorStatus === 403 || errorStatus === 404;
+
+  // ページ間で対象（ref）が変わったら後続ページを混ぜない。
+  const targetChanged = useMemo(() => {
+    if (!pages || pages.length < 2) return false;
+    const key = (t: (typeof pages)[number]["current_target"]) =>
+      t
+        ? [t.ref.appointment_id, t.ref.pet_id, t.ref.target_generation, t.ref.target_id].join("|")
+        : "";
+    const first = key(pages[0].current_target);
+    return pages.some((p) => key(p.current_target) !== first);
+  }, [pages]);
 
   const { currentTarget, availability, currentHistory, previousHistory } = useMemo(() => {
     const first = pages?.[0];
@@ -198,8 +215,8 @@ export function RevisitIntakeSection({
     );
   }
 
-  if (query.isError && !pages) {
-    const status = getRevisitIntakeErrorStatus(query.error);
+  if (denied || (query.isError && !pages)) {
+    const status = errorStatus;
     if (status === 404) {
       // 対象予約の問診を読めない: セクションは出さず 1 行のみ（存在可否の詳細は出さない）。
       return <p className={`text-xs ${C.text60}`}>問診情報はありません。</p>;
@@ -227,6 +244,31 @@ export function RevisitIntakeSection({
             onClick={() => void query.refetch()}
           >
             再試行
+          </Button>
+        </div>
+      </SectionFrame>
+    );
+  }
+
+  if (targetChanged) {
+    return (
+      <SectionFrame>
+        <div className="flex items-center justify-between gap-2" role="alert">
+          <p className={`text-sm ${C.textWarning}`}>
+            対象が変わりました。再読み込みしてください。
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-11"
+            onClick={() =>
+              void queryClient.resetQueries({
+                queryKey: revisitIntakeQueryKey(appointmentId, clinicId),
+              })
+            }
+          >
+            再読み込み
           </Button>
         </div>
       </SectionFrame>
