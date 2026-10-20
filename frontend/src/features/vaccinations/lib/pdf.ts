@@ -2,8 +2,7 @@
  * EMR-487: PDF の取り扱い。FE はレイアウトを描画しない（server renderer の PDF を表示・印刷するだけ）。
  * - 確認 preview は PDF の表示のみ（アプリ側に印刷ボタンを置かない）。
  * - 印刷は GET /vaccination-certificate-artifacts/{artifact_id}/content の PDF だけ。
- * 注意: frontend の CSP は frame-src を指定せず default-src 'self' にフォールバックするため、
- *   blob: iframe の表示・印刷は CSP に `frame-src blob:` を足すまで実ブラウザで拒否される（要・別途対応）。
+ * blob: iframe での表示・印刷は、frontend の CSP の `frame-src 'self' blob:`（EMR-525）で許可している。
  */
 
 export function base64ToPdfBlob(base64: string): Blob {
