@@ -75,7 +75,9 @@ export const ShiftCell = memo(function ShiftCell({
     ? "時刻未確認"
     : shift.starts_at
       ? `${formatJSTTime(shift.starts_at)}${shift.ends_at ? `〜${formatJSTTime(shift.ends_at)}` : ""}`
-      : "";
+      : isNonWork
+        ? "終日"
+        : "";
   const interactive = canEdit;
 
   return interactive ? (

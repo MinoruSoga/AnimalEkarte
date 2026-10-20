@@ -284,7 +284,10 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
             formError: "未解決の休憩があります。訂正確認するまで保存できません",
           };
         }
-        if (!hasStartTime) {
+        // 時刻ゲートは勤務種別の保存にのみ要求する。
+        // 旧unknownの非勤務（off/paid_leave）は時刻入力できないため、種別維持のまま
+        // メモ修正等を保存できる（Codex: 訂正経路のデッドエンド防止）。NULLは既存どおり維持
+        if (!hasStartTime && workType) {
           return {
             formError:
               "時刻が未解決の勤務です。開始・終了時刻を入力して訂正確認するまで保存できません",
@@ -298,8 +301,8 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
       }
       if (hasStartTime && hasEndTime && resolvedEndTime <= resolvedStartTime) {
         // 既存勤務の時刻を変更していない場合は検証しない（日跨ぎ勤務の保持保存を許す）。
-        // 基準は採用済み最新版（N2）
-        const compareBase = adoptedLatest ?? editShift;
+        // 比較基準は編集開始時の editShift（フォーム初期値の由来。CodeRabbit Majorと同じ基準）
+        const compareBase = editShift;
         const endsUnchanged =
           isEdit &&
           compareBase !== undefined &&
@@ -328,12 +331,15 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
 
       try {
         if (isEdit && editShiftId) {
-          // version_conflict で最新版の採用を明示した場合はそれを基準にする（B1/M4）
-          const editShiftSnapshot = adoptedLatest ?? editShift;
+          // 競合後に最新版を採用した場合は期待版だけ最新へ（B1/M4）。
+          // 差分基準は編集開始時の editShift のまま — 採用最新版を差分基準にすると
+          // 他ユーザー変更箇所が「自分の変更」と誤判定され旧値で上書きされる（CodeRabbit Major）
+          const editShiftSnapshot = editShift;
           if (!editShiftSnapshot) return {};
+          const expectedVersion = (adoptedLatest ?? editShift).version;
           const req: Parameters<typeof updateShift>[1] = {
             operation_key: operationKey,
-            expected_version: editShiftSnapshot.version,
+            expected_version: expectedVersion,
           };
           const wasWork = isWorkType(editShiftSnapshot.shift_type);
           if (resolvedShiftType !== editShiftSnapshot.shift_type) {
@@ -537,20 +543,19 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
 
   // EMR-514: unknown休憩の訂正確認。既知の片側だけが判明している場合はその値を引き継ぐ
   // EMR-514: unknown休憩の訂正確認。NULL側をデフォルト値で補完せず（M3・AC2「補完しない」）、
-  // 利用者が明示時刻を入力した時点で訂正確認済みになる
+  // 利用者が明示時刻を入力した時点で訂正確認済みになる。
+  // state updater内で別setStateを呼ばない（StrictModeの二重呼び出しで二重追加されるため・CodeRabbit Minor）
   const handleResolveUnresolvedBreak = useCallback((index: number) => {
-    setUnresolvedBreaks((prev) => {
-      const target = prev[index];
-      if (!target) return prev;
-      setBreaks((rows) => [
-        ...rows,
-        {
-          break_start: target.starts_at ? formatJSTTime(target.starts_at) : "",
-          break_end: target.ends_at ? formatJSTTime(target.ends_at) : "",
-        },
-      ]);
-      return prev.filter((_, i) => i !== index);
-    });
+    const target = unresolvedBreaksRef.current[index];
+    if (!target) return;
+    setBreaks((rows) => [
+      ...rows,
+      {
+        break_start: target.starts_at ? formatJSTTime(target.starts_at) : "",
+        break_end: target.ends_at ? formatJSTTime(target.ends_at) : "",
+      },
+    ]);
+    setUnresolvedBreaks((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const workType = isWorkType(shiftType);

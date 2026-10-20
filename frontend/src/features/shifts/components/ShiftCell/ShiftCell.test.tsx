@@ -129,4 +129,11 @@ describe("ShiftCell — EMR-514 interval_state=unknown", () => {
 
     expect(screen.queryByRole("button", { name: /シフトを追加/ })).not.toBeInTheDocument();
   });
+
+  it("既知の非勤務セルは読取時も「終日」を表示する（CodeRabbit quick win）", () => {
+    render(<ShiftCell {...defaultProps} shift={OFF_SHIFT} canCreate={false} canEdit={false} />);
+
+    const cell = screen.getByText("終日");
+    expect(cell).toBeInTheDocument();
+  });
 });

@@ -731,9 +731,12 @@ describe("ShiftFormDialog EMR-514 conflict & pending", () => {
     await waitFor(() => {
       expect(updateShiftMock).toHaveBeenCalledTimes(2);
     });
-    expect(updateShiftMock.mock.calls[1][1]).toMatchObject({
+    // 差分基準は編集開始時の editShift。他ユーザー変更分（morning 08:00）を
+    // 旧値で上書きする項目は送られず、自分の編集（notes）と期待版4だけを送る
+    expect(updateShiftMock.mock.calls[1][1]).toStrictEqual({
       operation_key: "op-key-fixed",
       expected_version: 4,
+      notes: "x",
     });
   });
 
@@ -788,6 +791,33 @@ describe("ShiftFormDialog EMR-514 conflict & pending", () => {
       breaks?: unknown[];
     };
     expect(req.breaks).toHaveLength(1);
+  });
+
+  it("旧unknownの非勤務は種別維持のままメモ修正を保存できる（Codex: 訂正経路）", async () => {
+    const user = userEvent.setup();
+    updateShiftMock.mockReset().mockResolvedValue(RECEIPT);
+    const UNKNOWN_OFF: Shift = {
+      ...EDIT_SHIFT,
+      shift_type: "off",
+      starts_at: null,
+      ends_at: null,
+      interval_state: "unknown",
+    };
+    renderDialog({ editShift: UNKNOWN_OFF });
+
+    await user.type(screen.getByLabelText("メモ"), "a");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateShiftMock).toHaveBeenCalledTimes(1);
+    });
+    // 非勤務の時刻NULLは既存どおり維持（未指定=維持）。メモだけ送る
+    const req = updateShiftMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(req).toStrictEqual({
+      operation_key: "op-key-fixed",
+      expected_version: 3,
+      notes: "a",
+    });
   });
 
   it("protected_bookings は予約一覧を表示し自動解除の文言を出さない", async () => {

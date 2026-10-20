@@ -149,7 +149,22 @@ export function isShiftContractErrorPayload(value: unknown): value is ShiftContr
     );
   }
   if (value.code === "protected_bookings") {
-    return Array.isArray(value.protected_bookings) && value.protected_bookings.length > 0;
+    const bookings = value.protected_bookings;
+    // 各要素の契約required field（appointment_id/starts_at/ends_at/patient_label/
+    // reservation_type_label）も検証してから型を狭める（Codex P2）
+    return (
+      Array.isArray(bookings) &&
+      bookings.length > 0 &&
+      bookings.every(
+        (b) =>
+          isRecord(b) &&
+          typeof b.appointment_id === "string" &&
+          typeof b.starts_at === "string" &&
+          typeof b.ends_at === "string" &&
+          typeof b.patient_label === "string" &&
+          typeof b.reservation_type_label === "string",
+      )
+    );
   }
   return true;
 }
