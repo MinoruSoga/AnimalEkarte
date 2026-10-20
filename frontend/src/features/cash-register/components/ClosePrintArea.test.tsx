@@ -153,13 +153,13 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
       .getAllByRole("cell")
       .map((cell) => cell.textContent);
     expect(houseCallCells[houseCallIndex]).toBe("¥1,000");
-    expect(houseCallCells[goodsIndex]).toBe("-");
+    expect(houseCallCells[goodsIndex]).toBe("—");
 
     const goodsDetail = within(detailsTable).getByText("物販飼主").closest("tr")!;
     const goodsCells = within(goodsDetail)
       .getAllByRole("cell")
       .map((cell) => cell.textContent);
-    expect(goodsCells[houseCallIndex]).toBe("-");
+    expect(goodsCells[houseCallIndex]).toBe("—");
     expect(goodsCells[goodsIndex]).toBe("¥200");
 
     const detailsFooter = within(detailsTable).getAllByRole("row").at(-1)!;

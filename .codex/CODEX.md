@@ -6,6 +6,8 @@ Generic model, sandbox, Hook, connector and lifecycle preferences belong in user
 
 Use the accepted task and its acceptance criteria to investigate, implement, review, test and fix findings. Do not require the user to write separate BE/FE prompts or approve each iteration. Preserve clinical isolation and foreign WIP; migration application and integration into main remain user actions, and claim release follows the creator-aware rules in [AGENTS.md](../AGENTS.md) packet claim protocol.
 
+For any change to rendered UI under `frontend/`, read [docs/spec/ui-design-guide.md](../docs/spec/ui-design-guide.md) first and follow its reading order and definition of done; Codex does not auto-load `frontend/CLAUDE.md`.
+
 Read the relevant specification via [docs/README.md](../docs/README.md), the API contract at [backend/docs/api.yaml](../backend/docs/api.yaml), and Plane (workspace `baritechllc` / project `EMR`) for current task state. A missing connector means UNKNOWN external state, not completed work. Plane work item create/update/comment/state transitions within [docs/ops/plane-ticket-conventions.md](../docs/ops/plane-ticket-conventions.md) are pre-authorized; all other external updates stay draft-local until posting is authorized.
 
 Discover tools and Skills in the current session. Legacy `/harness` or `/implement` examples are not proof that Codex exposes those commands. Do not infer feature maturity or available agents from a different runtime.

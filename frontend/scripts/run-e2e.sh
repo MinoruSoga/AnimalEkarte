@@ -120,6 +120,8 @@ if [ -n "${E2E_AUTH_STATE_PATH:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_AUTH_S
 if [ -n "${APP_ENV:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e APP_ENV"; fi
 if [ -n "${E2E_CLINICAL_FIXTURE:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_CLINICAL_FIXTURE"; fi
 if [ -n "${E2E_CLINICAL_TEARDOWN:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e E2E_CLINICAL_TEARDOWN"; fi
+# design-patterns §1.1 / §5.1 の e2e 信号を hard fail に切り替える（既定は検知のみ。ui-design-compliance-readonly.spec.ts）。
+if [ -n "${UI_DESIGN_PATTERNS_STRICT:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e UI_DESIGN_PATTERNS_STRICT"; fi
 # S09 synthetic closing fixture: password + optional API origin (name-only -e; never =value on argv).
 if [ -n "${UAT_SYNTHETIC_CLOSING_PASSWORD:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_PASSWORD"; fi
 if [ -n "${UAT_SYNTHETIC_CLOSING_SECRET:-}" ]; then DOCKER_ENV="$DOCKER_ENV -e UAT_SYNTHETIC_CLOSING_SECRET"; fi

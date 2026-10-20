@@ -12,7 +12,9 @@ const meta = {
     disabled: { control: "boolean" },
     placeholder: { control: "text" },
   },
-  args: { placeholder: "飼主名を入力" },
+  // args だけで描画する story（Default / Disabled）は <Label> を持たないため、
+  // axe の label ルールを満たすアクセシブルな名前を aria-label で与える。
+  args: { placeholder: "飼主名を入力", "aria-label": "飼主名" },
 } satisfies Meta<typeof Input>;
 
 // eslint-disable-next-line no-restricted-syntax -- Storybook CSF は `export default meta` が必須形式
