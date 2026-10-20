@@ -24,7 +24,7 @@
 | 3b | [design-patterns.md](design-patterns.md) | **画面の組み立て**: ナビ現在地、一覧の列幅優先度・横スクロール、省略の全文到達、フォームの幅/検証/部品、固定要素の重なり、空状態/読込、カレンダー/ボード/グラフ、**表記**（日付・金額・空値 `—` は §10） | 一覧・フォーム・画面シェル・グラフを作る/直すとき、値を画面に出すとき |
 | 4 | [design-token-layers.md](design-token-layers.md) | トークンの**配置と参照方向**（Primitive → Semantic → Component） | トークン追加・色変更・新規プリミティブ |
 | 5 | [components/README.md](components/README.md) | `components/ui/` 7 プリミティブの**契約**（Anatomy・状態表・既知ギャップ） | `components/ui/*` を変更する前 |
-| 6 | [ui-design-compliance.md](ui-design-compliance.md) | 準拠チェック **C1〜C20** の定義と全 88 ルートの正本対応表。`pnpm design-audit` が strict fail するのは **C1〜C24** で、C21〜C24（`ui/` の stories 必須・`PALETTE` 層の純度・`BADGE` コントラスト 4.5:1・`shared/` の stories ラチェット）の定義は [design-token-layers.md §6](design-token-layers.md) | 新規ルート追加・監査失敗の調査・トークン / 共有 UI の変更 |
+| 6 | [ui-design-compliance.md](ui-design-compliance.md) | 準拠チェック **C1〜C20** の定義と全 88 ルートの正本対応表。`pnpm design-audit` が strict fail するのは **C1〜C29**。C21〜C24（`ui/` の stories 必須・`PALETTE` 層の純度・`BADGE` コントラスト 4.5:1・`shared/` の stories ラチェット）の定義は [design-token-layers.md §6](design-token-layers.md)、C25〜C29（省略の全文保持・ナビ省略・z-index・native 入力・バリデーション disabled）は compliance §1 | 新規ルート追加・監査失敗の調査・トークン / 共有 UI の変更 |
 | 7 | [shared/ui-contracts.md](shared/ui-contracts.md) | 共通 UI・患者選択の**受入観点**（FR-common-ui-*） | 画面間で共有する部品・患者文脈を扱うとき |
 | 実装 | `frontend/src/lib/design-tokens.ts` | 上記決定を実装する `PALETTE` / `C` / `STYLE` / `BADGE` / `LAYOUT` | コードを書くとき。**独自判断で値を足さない** |
 | 補助 | [`.claude/refs/accessibility-rules.md`](../../.claude/refs/accessibility-rules.md) | semantic HTML / label / ARIA / キーボード操作 | フォーム・操作 UI を書くとき |
@@ -50,12 +50,12 @@
 | `TableHead` / `TableCell` の typography・padding 上書き禁止。行全体 `onClick` 禁止（cell 内 native link / button を使う） | compliance C18 / C19、components/table.md |
 | `components/ui/` の新規プリミティブは colocated `.stories.tsx` 必須（C21）。md 仕様書は「stories を読んでも分からない契約」がある場合だけ | compliance C21、design-system FE-DS2 決裁、components/README.md カバレッジ表 |
 | story の axe 違反は失敗扱い（`.storybook/preview.ts` の `a11y.test: "error"`）。正当な例外は story 側の `parameters.a11y.config.rules` に理由付きで記録し、黙って `"off"` にしない | design-states §2、accessibility-rules.md |
-| 省略（`truncate` / `max-w`）した要素には、focus とタッチの両方で開くツールチップか展開（「…もっと見る」）で**全文到達手段**を必ず付ける。`title` 属性は hover 専用なので補助にしかならず、単独では不可。識別子（ID・氏名・ペット名・金額・日付）とナビ項目は省略しない | patterns §3.1, §1.2 |
+| 省略（`truncate` / `max-w`）した要素には、focus とタッチの両方で開くツールチップか展開（「…もっと見る」）で**全文到達手段**を必ず付ける。`title` 属性は hover 専用なので補助にしかならず、単独では不可。識別子（ID・氏名・ペット名・金額・日付）とナビ項目は省略しない | patterns §3.1, §1.2、compliance C25 / C26（静的段は `title` / `aria-*` の有無のみ） |
 | 一覧は識別列を折り返さず、長文列は `max-width` + 省略、操作列は右端 sticky。表が溢れたら識別列と操作列を残して中間列だけスクロールする。空値は `—`、件数は「1,234件」 | patterns §2 |
 | サイドバーの現在地（`aria-current="page"`）は初期表示で見える位置へスクロールする。ページ `h1` は 1 つで、ページ内の見出しを `h1` より大きくしない | patterns §1 |
-| 固定要素（浮遊ボタン・固定アクションバー・トースト）は操作要素に重ねない。スクロール末尾に固定要素分の余白を取り、`z-index` は `Z` トークンから選ぶ | patterns §5 |
-| 業務・設定フォームの入力部品は共有 `ui/`（`DatePicker` / `NumberInput` / `MoneyInput` / `checkbox` / `switch`）。ネイティブ入力の許容範囲（検索・一覧フィルター・行内編集・時刻）は patterns §4.4。破壊操作は `Button variant="destructive"`（塗り）で `[削除] キャンセル 保存` の順 | patterns §4、design-states §1.1 |
-| 保存ボタンを未入力理由で `disabled` にしない（押下→欄直下にエラー→先頭エラー欄へフォーカス）。`disabled` は送信中と権限なしのときだけ | patterns §4.2、design-states §1.1（2026-10-20 決裁） |
+| 固定要素（浮遊ボタン・固定アクションバー・トースト）は操作要素に重ねない。スクロール末尾に固定要素分の余白を取り、`z-index` は `Z` トークンから選ぶ | patterns §5、compliance C27 |
+| 業務・設定フォームの入力部品は共有 `ui/`（`DatePicker` / `NumberInput` / `MoneyInput` / `checkbox` / `switch`）。ネイティブ入力の許容範囲（検索・一覧フィルター・行内編集・時刻）は patterns §4.4。破壊操作は `Button variant="destructive"`（塗り）で `[削除] キャンセル 保存` の順 | patterns §4、design-states §1.1、compliance C28 |
+| 保存ボタンを未入力理由で `disabled` にしない（押下→欄直下にエラー→先頭エラー欄へフォーカス）。`disabled` は送信中・権限なし・ワークフロー状態ゲート（確定済み等）だけ | patterns §4.2、design-states §1.1（2026-10-20 決裁） |
 | 本体画面のセクション見出しはページタイトル（title 20px）以下。heading-2 / heading-3 はダイアログ・大型サイドパネル・文書型画面のみ | design-system §3.4、patterns §1.4（2026-10-20 決裁） |
 | カレンダー・シフト表の土日を青／赤で塗らない（赤は `C.danger` と衝突）。曜日は文字 + ink-muted、休診日は `C.bgPage` + 「休診」 | patterns §7.1、design-system §2.5（2026-10-20 決裁） |
 | ステータス色を構造の面に使わない。唯一の例外は受付ボードの列面（design-system §2.5 の例外表）で、他画面へ広げない | design-system §2.5、patterns §7.2 |
@@ -70,7 +70,7 @@
 2. **スコープ限定テスト**: `docker compose exec frontend npx vitest run <変更した *.test.ts(x) のパス>`。位置引数はテストファイルのフィルタなので、本番ソース（`src/components/ui/button.tsx` 等）のパスを渡すと `No test files found` で exit 1 になる。本番ファイルから隣接テストを選びたいときは `docker compose exec frontend npx vitest related <src のパス> --run`。`pnpm test:run -- <path>` は全件実行になる罠（`frontend/CLAUDE.md` 参照）。
 3. **状態の目視**: 変更した要素で hover / focus-visible（キーボード Tab）/ disabled / readonly / loading / invalid を実ブラウザまたは Storybook で確認。静的検査では C6a（臨床安全 UI）と状態の見え方は判定できない。
    - **見た目の回帰**: `frontend/**` を触る PR では `.github/workflows/chromatic.yml` が Storybook を Chromatic へ publish し visual / accessibility tests を実行する（`CHROMATIC_PROJECT_TOKEN` 未設定時は notice を出して skip する。skip された PR は Chromatic による保証がないので、その旨を報告する）。
-   - **実機の準拠監査**: ルートの shell・canvas・テーブル様式・臨床 sentinel 表示を実ブラウザで検査する `frontend/e2e/ui-design-compliance-readonly.spec.ts`（4 viewport）がある。`./scripts/run-e2e.sh e2e/ui-design-compliance-readonly.spec.ts`（frontend ディレクトリ・ローカル Docker スタック起動済みが前提・ユーザー実行）。レイアウト・テーブル・PageLayout に触れた PR では実行する。この spec の route inventory は 88 ルートを全て含まない（`/examinations/new`・`/settings/bug-reports`・`/settings/chat-history` が未登載 — [docs/ops/testing/README.md](../ops/testing/README.md)）ため、結果を `ui-design-compliance.md` に記録するときは「実行した spec の対象ルート数」を明記し、未登載ルートが残る間は最終 runtime 監査日を**全 88 ルートの監査として更新しない**（部分監査として記録する）。未登載ルートを spec へ追加した PR だけが全件の監査日を更新できる。
+   - **実機の準拠監査**: ルートの shell・canvas・テーブル様式・臨床 sentinel 表示を実ブラウザで検査する `frontend/e2e/ui-design-compliance-readonly.spec.ts`（4 viewport）がある。`./scripts/run-e2e.sh e2e/ui-design-compliance-readonly.spec.ts`（frontend ディレクトリ・ローカル Docker スタック起動済みが前提・ユーザー実行）。レイアウト・テーブル・PageLayout に触れた PR では実行する。同 spec は design-patterns §1.1（現在地が viewport 内）と §5.1（固定要素の非重なり）も採取し、既定では annotation に記録するだけ、`UI_DESIGN_PATTERNS_STRICT=1` で fail させる（HTML レポートの annotations を確認する）。この spec の route inventory は 88 ルートを全て含まない（`/examinations/new`・`/settings/bug-reports`・`/settings/chat-history` が未登載 — [docs/ops/testing/README.md](../ops/testing/README.md)）ため、結果を `ui-design-compliance.md` に記録するときは「実行した spec の対象ルート数」を明記し、未登載ルートが残る間は最終 runtime 監査日を**全 88 ルートの監査として更新しない**（部分監査として記録する）。未登載ルートを spec へ追加した PR だけが全件の監査日を更新できる。
 4. **文書同期**: 新規ルート → compliance §2（C8 allowlist は非 shell ページだけ）。新規 `ui/` プリミティブ → stories（必要なら `components/_TEMPLATE.md` から md）。新しい色・値 → 正本へ決裁記録。
 5. **実データ幅での確認**: 一覧・フォームを触った PR は、氏名 10 文字・ID 16 桁・長文 100 文字の値を入れて、識別列の折り返し・省略の全文到達・操作列の可視・現在地の可視・固定要素の非重なり（[design-patterns.md](design-patterns.md) §1〜§5）を 1280px と 768px で確認する。STG の合成データ（`UAT20261015_*`）で崩れる場合は実運用値でも再現するかを見て報告する。
 6. **報告**: 実行した検査コマンドと結果、目視した状態、更新した文書を PR 本文に書く。実行していない検査を PASS と書かない。

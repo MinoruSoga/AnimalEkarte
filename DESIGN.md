@@ -248,8 +248,8 @@ Animal Ekarte の画面は、**良い光の下で整理された診察机**の�
 | `{typography.display-1}` | 64px | 700 | 1.0 | −2.125px | 予約段。本体画面では使わない |
 | `{typography.display-2}` | 54px | 700 | 1.04 | −1.875px | 予約段。本体画面では使わない |
 | `{typography.heading-1}` | 40px | 700 | 1.1 | −1px | ページ級の大見出し。**例外的な大判画面専用**で、通常のページタイトル（`PageLayout` / `FormHeader`）は `{typography.title}` 20px（design-system §3.4、design-patterns §1.4）（`text-heading-1`） |
-| `{typography.heading-2}` | 26px | 700 | 1.23 | −0.625px | セクション見出し（`text-heading-2`） |
-| `{typography.heading-3}` | 22px | 700 | 1.27 | −0.25px | カード・ダイアログのタイトル（`text-heading-3`） |
+| `{typography.heading-2}` | 26px | 700 | 1.23 | −0.625px | 大型サイドパネルタイトル・文書型画面（`/manual/*`・単独ウィンドウ）の大見出し。本体画面のセクション見出しには使わない（2026-10-20 決裁、design-system §3.4）（`text-heading-2`） |
+| `{typography.heading-3}` | 22px | 700 | 1.27 | −0.25px | ダイアログタイトル・文書型画面の見出し。本体画面のカード／セクション見出しには使わない（2026-10-20 決裁。それらは `title` 以下）（`text-heading-3`） |
 | `{typography.title}` | 20px | 600 | 1.4 | −0.125px | フィーチャータイトル・callout（`text-xl`） |
 | `{typography.body-md}` | 16px | 400 | 1.5 | 0 | 標準本文（`text-base`） |
 | `{typography.body-sm}` | 15px | 400 | 1.33 | 0 | テーブル行・密な UI・ナビ（`text-sm`、`ex-data-table-cell` body） |
