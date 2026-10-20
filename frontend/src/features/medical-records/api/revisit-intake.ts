@@ -106,13 +106,23 @@ function nullableChoice(value: unknown, labels: Readonly<Record<string, string>>
   throw new Error("revisit-intake: invalid answer");
 }
 
+// RFC3339（UTC offset 必須）。offset 無し・日付のみ・解釈不能な値は契約外。
+const RFC3339_WITH_OFFSET =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+function isRfc3339(value: unknown): value is string {
+  return (
+    typeof value === "string" && RFC3339_WITH_OFFSET.test(value) && !Number.isNaN(Date.parse(value))
+  );
+}
+
 function parseAnswer(value: unknown): RevisitIntakeAnswer {
   if (
     !isRecord(value) ||
     typeof value.answer_id !== "string" ||
     typeof value.revision !== "string" ||
     value.form_definition_version !== 1 ||
-    typeof value.received_at !== "string" ||
+    !isRfc3339(value.received_at) ||
     value.provenance !== "owner_submission" ||
     !isRecord(value.answers) ||
     typeof value.answers.visit_purpose !== "string" ||

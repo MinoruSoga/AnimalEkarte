@@ -595,4 +595,80 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
     expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
   });
+
+  it("2 ページ目が mismatch を返したら 1 ページ目の本文を出し続けない", async () => {
+    server.use(
+      http.get(ROUTE, ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        if (cursor === "cur-2") {
+          return HttpResponse.json({ binding: "mismatch", target: null, history: [], next_cursor: null });
+        }
+        return HttpResponse.json(boundBody({ next_cursor: "cur-2" }));
+      }),
+    );
+    renderCard();
+
+    await screen.findByText("合成の来院目的 v2");
+    await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
+
+    expect(await screen.findByText("出所不明")).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+  });
+
+  it("ページ間で target.ref が変わったら本文を出さず再読込へ誘導する", async () => {
+    server.use(
+      http.get(ROUTE, ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        if (cursor === "cur-2") {
+          const other = { ...REF, target_generation: "2" };
+          return HttpResponse.json({
+            ...boundBody({ history: [] }),
+            target: { ...boundBody().target, ref: other },
+            next_cursor: null,
+          });
+        }
+        return HttpResponse.json(boundBody({ next_cursor: "cur-2" }));
+      }),
+    );
+    renderCard();
+
+    await screen.findByText("合成の来院目的 v2");
+    await userEvent.click(screen.getByRole("button", { name: "さらに表示" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("対象が変わりました");
+    expect(screen.queryByText("合成の来院目的 v2")).toBeNull();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("received_at が offset 無し・不正な日時なら契約失敗", async () => {
+    const bad = (receivedAt: string) =>
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "1",
+          answer_state: "answered",
+          latest_answer: { ...answer("1"), received_at: receivedAt },
+          content_available: true,
+        },
+        history: [],
+      });
+    useIntake(bad("2026-10-18T10:30:00"));
+    const first = renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+    first.unmount();
+
+    useIntake(bad("2026-13-45T10:30:00+09:00"));
+    renderCard();
+    expect(await screen.findByRole("button", { name: "再試行" })).toBeInTheDocument();
+  });
+
+  it("読込中は aria-busy の skeleton（role=status）を出す", async () => {
+    server.use(http.get(ROUTE, () => new Promise(() => {})));
+    renderCard();
+
+    const card = await screen.findByTestId("owner-intake-card");
+    expect(card).toHaveAttribute("aria-busy", "true");
+    expect(within(card).getByRole("status")).toHaveTextContent("飼主事前問診を読み込み中");
+    expect(card.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
 });

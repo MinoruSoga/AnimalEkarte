@@ -282,9 +282,12 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
   if (query.isPending) {
     return (
       <CardShell busy>
-        <p role="status" className={`text-sm ${C.text60}`}>
-          飼主事前問診を読み込み中…
-        </p>
+        <div role="status" className="flex flex-col gap-2">
+          <span className="sr-only">飼主事前問診を読み込み中</span>
+          <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
+          <div className={`h-4 w-full rounded ${C.bgSkeleton} animate-pulse`} />
+          <div className={`h-4 w-3/4 rounded ${C.bgSkeleton} animate-pulse`} />
+        </div>
       </CardShell>
     );
   }
@@ -317,7 +320,9 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
     refreshError = alert;
   }
 
-  const first = query.data?.pages[0];
+  const pages = query.data?.pages ?? [];
+  // いずれかのページが bound 以外なら、全体をその状態として扱う（前ページの本文を残さない）。
+  const first = pages.find((page) => page.binding !== "bound") ?? pages[0];
   if (!first) return null;
 
   if (first.binding === "unbound") {
@@ -344,9 +349,34 @@ export const OwnerIntakeReadOnlyCard = memo(function OwnerIntakeReadOnlyCard({
     );
   }
 
-  const history = query.data.pages.flatMap((page) =>
-    page.binding === "bound" ? page.history : [],
+  const boundPages = pages.flatMap((page) => (page.binding === "bound" ? [page] : []));
+  const ref = first.target.ref;
+  const targetChanged = boundPages.some(
+    (page) =>
+      page.target.ref.target_id !== ref.target_id ||
+      page.target.ref.appointment_id !== ref.appointment_id ||
+      page.target.ref.pet_id !== ref.pet_id ||
+      page.target.ref.target_generation !== ref.target_generation,
   );
+  if (targetChanged) {
+    // ページ間で固定 target が変わった: 本文を出さず再読込へ誘導する。
+    return (
+      <CardShell>
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
+          <span className={C.text}>対象が変わりました。再読み込みしてください。</span>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+          >
+            再試行
+          </Button>
+        </div>
+      </CardShell>
+    );
+  }
+  const history = boundPages.flatMap((page) => page.history);
 
   return (
     <BoundBody
