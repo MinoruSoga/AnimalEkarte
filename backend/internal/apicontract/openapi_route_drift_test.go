@@ -168,6 +168,20 @@ var knownPhantomInSpec = map[string]bool{
 	// then remove each corresponding entry when its runtime route is registered.
 	"GET /api/v1/manual/articles/{category}/{slug}/edit":                       true,
 	"GET /api/v1/manual/articles/{category}/{slug}/operations/{operation_key}": true,
+
+	// PR #760: contract-first certificate routes for FE487 mock / BE parallel work.
+	// Runtime owner EMR-486: remove each corresponding entry in the same change
+	// that registers its exact runtime route. Authorization, lifecycle, C06, DB,
+	// renderer and acceptance checks remain required; this is no exemption.
+	"GET /api/v1/vaccinations/{vaccination_id}/certificate-context":       true,
+	"POST /api/v1/vaccinations/{vaccination_id}/certificate-preview":      true,
+	"POST /api/v1/vaccinations/{vaccination_id}/certificate-editions":     true,
+	"GET /api/v1/vaccinations/{vaccination_id}/certificate-editions":      true,
+	"GET /api/v1/vaccination-certificate-editions/{edition_id}":           true,
+	"POST /api/v1/vaccination-certificate-editions/{edition_id}/preview":  true,
+	"POST /api/v1/vaccination-certificate-editions/{edition_id}/reprints": true,
+	"GET /api/v1/vaccination-certificate-artifacts/{artifact_id}/content": true,
+	"GET /api/v1/vaccination-certificate-operations/{operation_key}":      true,
 }
 
 // ─── Real route enumeration (go/ast) ────────────────────────────────────────────────
