@@ -1535,3 +1535,132 @@ describe("RevisitIntakePage 古い draft（最新回答が不可視）", () => {
     expect(submits[0].body.expected_revision).toBe("2");
   });
 });
+
+describe("RevisitIntakePage 共通 backoff・未確定操作の 401/403・401 での snapshot 破棄", () => {
+  it("読込の再試行が Retry-After 期限中は「さらに表示」も無効になる（route 共通の期限）", async () => {
+    const user = userEvent.setup();
+    const ref = {
+      target_id: "5401",
+      appointment_id: APPT_A,
+      pet_id: PET_A,
+      target_generation: "3",
+    };
+    const latest = answer("1", answers({ visit_purpose: "合成目的1" }));
+    let firstPageCalls = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        firstPageCalls += 1;
+        if (firstPageCalls === 1) {
+          return HttpResponse.json(
+            read(answeredTarget(latest), {
+              history: [{ target: ref, answer: latest, target_relation: "current" }],
+              next_cursor: "synthetic-cursor-1",
+            }),
+          );
+        }
+        return HttpResponse.json(
+          { error: "too many requests" },
+          { status: 429, headers: { "Retry-After": "30" } },
+        );
+      }),
+    );
+    captureSubmits(() =>
+      HttpResponse.json(
+        {
+          error: "conflict",
+          code: "FORM_VERSION_MISMATCH",
+          details: { supported_form_definition_version: 1 },
+        },
+        { status: 409 },
+      ),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "訂正して再送信" }));
+    await user.click(await screen.findByRole("button", { name: "最新の状態を読み込む" }));
+
+    expect(await screen.findByText(/30秒ほど待ってから再試行してください/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "さらに表示" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeDisabled();
+  });
+
+  it("未確定操作の照会で 401 になっても LINE を開き直す案内を出さず、pending を保持して照会だけ許す", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    captureSubmits(() => HttpResponse.error());
+    const lookups = captureLookups((key, i) =>
+      i === 0
+        ? HttpResponse.json({ error: "unauthorized" }, { status: 401 })
+        : HttpResponse.json(lookupNotFound(key), { status: 404 }),
+    );
+    const { store } = renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+
+    expect(
+      await screen.findByText(/送信結果が未確定のため、この画面を閉じずに/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/LINEアプリを再起動して開き直してください/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+    expect(purposeInput()).toBeDisabled();
+    expect(store.get([CLINIC, APPT_A, PET_A, "3"].join("|"))?.pending?.key).toBe(KEYS[0]);
+
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(lookups).toEqual([KEYS[0], KEYS[0]]));
+  });
+
+  it("未確定操作の再送が 403 でも ErrorPage へ替えず、送信結果の確認だけ行える", async () => {
+    const user = userEvent.setup();
+    mockReadSequence([read(unansweredTarget())]);
+    captureSubmits((_c, i) =>
+      i === 0
+        ? HttpResponse.error()
+        : HttpResponse.json(
+            { error: "forbidden", code: "FORBIDDEN", details: null },
+            { status: 403 },
+          ),
+    );
+    const lookups = captureLookups((key) =>
+      HttpResponse.json(unresolvedResponse(key, "claimed_uncommitted")),
+    );
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+    await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+    await user.click(await screen.findByRole("button", { name: "同じ内容で再送信" }));
+
+    expect(
+      await screen.findByText("現在この予約を閲覧できません。送信結果の確認だけ行えます。"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/この予約の問診を表示できません/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "同じ内容で再送信" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "送信結果を確認" }));
+    await waitFor(() => expect(lookups).toHaveLength(2));
+  });
+
+  it("成功済み読込の後の再取得が 401 なら、保持していた本文と履歴を表示しない", async () => {
+    const user = userEvent.setup();
+    let reads = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        reads += 1;
+        if (reads === 1) {
+          return HttpResponse.json(
+            read(answeredTarget(answer("1", answers({ visit_purpose: "保護された合成本文" })))),
+          );
+        }
+        return HttpResponse.json({ error: "unauthorized" }, { status: 401 });
+      }),
+    );
+    captureSubmits((c) => HttpResponse.json(successResponse(c.key ?? "", "2")));
+    renderPage();
+
+    await user.type(await screen.findByLabelText(/^来院目的/), "追記");
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+
+    expect(await screen.findByText(/ログイン情報の有効期限が切れました/)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText("保護された合成本文")).not.toBeInTheDocument();
+  });
+});

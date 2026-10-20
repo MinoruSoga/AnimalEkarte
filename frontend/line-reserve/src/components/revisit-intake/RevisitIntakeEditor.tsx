@@ -65,7 +65,9 @@ type EditorOutcome =
   /** TARGET_CHANGED 後、新しい target snapshot の取得に成功するまで入力・送信を止める */
   | { kind: "target_changed"; atRead: RevisitIntakeLIFFRead }
   /** 401: 再認証が必要。同じ画面からは再試行・新規送信をさせない */
-  | { kind: "unauthorized"; message: string }
+  | { kind: "unauthorized"; message: string; pendingKept: boolean }
+  /** 未確定操作の再送が 403/404: ErrorPage へ替えず、結果照会だけ行えるようにする */
+  | { kind: "pending_access_denied" }
   | { kind: "invalid"; fieldErrors: RevisitIntakeFieldErrors }
   | { kind: "revision_conflict"; atRead: RevisitIntakeLIFFRead }
   | { kind: "form_version_mismatch"; atRead: RevisitIntakeLIFFRead }
@@ -108,6 +110,9 @@ function isLookupNotFound(
 const LOOKUP_FAILED_MESSAGE =
   "送信結果を確認できませんでした。通信状況をご確認のうえ、もう一度お試しください。";
 
+const PENDING_UNAUTHORIZED_MESSAGE =
+  "ログインの有効期限が切れました。送信結果が未確定のため、この画面を閉じずに、時間をおいてもう一度「送信結果を確認」してください。";
+
 const MISMATCHED_RESULT_MESSAGE =
   "送信結果を確認できませんでした。二重に保存されないよう、同じ内容で再送信するか結果を確認してください。";
 
@@ -130,7 +135,7 @@ function PendingPanel({
   message,
   busy,
   resendBlocked,
-  authBlocked,
+  lookupBlocked,
   onResend,
   onLookup,
 }: {
@@ -138,7 +143,7 @@ function PendingPanel({
   message: string | null;
   busy: boolean;
   resendBlocked: boolean;
-  authBlocked: boolean;
+  lookupBlocked: boolean;
   onResend: () => void;
   onLookup: () => void;
 }) {
@@ -165,14 +170,14 @@ function PendingPanel({
       </p>
       <div className="flex flex-col gap-2">
         {canResend ? (
-          <PrimaryButton onClick={onResend} disabled={busy || resendBlocked || authBlocked}>
+          <PrimaryButton onClick={onResend} disabled={busy || resendBlocked}>
             同じ内容で再送信
           </PrimaryButton>
         ) : null}
         <button
           type="button"
           onClick={onLookup}
-          disabled={busy || resendBlocked || authBlocked}
+          disabled={busy || lookupBlocked}
           className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
         >
           送信結果を確認
@@ -365,7 +370,7 @@ export function RevisitIntakeEditor({
       const info = resolveFetchError(err, "送信結果の確認");
       if (info.status === 401) {
         updatePending(op);
-        return { kind: "unauthorized", message: info.message };
+        return { kind: "unauthorized", message: PENDING_UNAUTHORIZED_MESSAGE, pendingKept: true };
       }
       // 照会 route の 429 / Retry-After 付き 503 も期限まで再送・照会を止める。
       const retryAfter = revisitIntakeRetryAfterSeconds(err);
@@ -427,13 +432,26 @@ export function RevisitIntakeEditor({
           };
         case "unauthorized":
           // 認証前に拒否されるため、新規送信なら結果未確定の操作は残さない。
-          if (fresh) updatePending(null);
-          return { kind: "unauthorized", message: resolveFetchError(err, "問診の送信").message };
+          if (fresh) {
+            updatePending(null);
+            return {
+              kind: "unauthorized",
+              message: resolveFetchError(err, "問診の送信").message,
+              pendingKept: false,
+            };
+          }
+          // 未確定操作の key は memory にしか無い。LINE を開き直すと key を失い二重送信になりうるため、
+          // 閉じないよう案内して pending を保持する（LIFF 再認証の共通処理が決まるまでは案内のみ）。
+          return { kind: "unauthorized", message: PENDING_UNAUTHORIZED_MESSAGE, pendingKept: true };
         case "access_denied":
           // 新規送信の 403/404 は処理前の拒否。未確定の操作として残さない（再送では保持する）。
-          if (fresh) updatePending(null);
-          onAccessDenied();
-          return { kind: "idle" };
+          if (fresh) {
+            updatePending(null);
+            onAccessDenied();
+            return { kind: "idle" };
+          }
+          // 照会 route は現予約の閲覧権限と分離されている。結果確認の導線を残す。
+          return { kind: "pending_access_denied" };
         case "rate_limited":
         case "service_unavailable": {
           const availableAt =
@@ -487,6 +505,12 @@ export function RevisitIntakeEditor({
       if (action === "resend") {
         if (pending.status === "result_unavailable") return previous;
         if (resendAvailableAt !== null && Date.now() < resendAvailableAt) return previous;
+        if (
+          (previous.kind === "unauthorized" && previous.pendingKept) ||
+          previous.kind === "pending_access_denied"
+        ) {
+          return previous;
+        }
         return await send(pending, false);
       }
       if (resendAvailableAt !== null && Date.now() < resendAvailableAt) return previous;
@@ -560,6 +584,10 @@ export function RevisitIntakeEditor({
   // 旧 target の snapshot のままでは送らない（再取得中・再取得失敗時も含む）。
   const targetChangeLocked = outcome.kind === "target_changed" && outcome.atRead === read;
   const authBlocked = outcome.kind === "unauthorized";
+  // 未確定操作で 401 / 403・404 を受けた後は再送させず、結果照会だけ許す。
+  const pendingResendLocked =
+    (outcome.kind === "unauthorized" && outcome.pendingKept) ||
+    outcome.kind === "pending_access_denied";
   const inputsLocked = isPending || pending !== null || targetChangeLocked;
   const answered = current.answer_state === "answered";
 
@@ -628,6 +656,17 @@ export function RevisitIntakeEditor({
         />
       ) : null}
 
+      {outcome.kind === "pending_access_denied" ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-noah-danger-border bg-noah-danger-bg px-4 py-3"
+        >
+          <p className="text-sm text-noah-danger-text">
+            現在この予約を閲覧できません。送信結果の確認だけ行えます。
+          </p>
+        </div>
+      ) : null}
+
       {outcome.kind === "unauthorized" ? (
         <div
           role="alert"
@@ -673,8 +712,8 @@ export function RevisitIntakeEditor({
           pending={pending}
           message={outcome.kind === "unresolved" ? outcome.message : null}
           busy={isPending}
-          resendBlocked={resendAvailableAt !== null}
-          authBlocked={authBlocked}
+          resendBlocked={resendAvailableAt !== null || pendingResendLocked}
+          lookupBlocked={resendAvailableAt !== null}
           onResend={() => trigger("resend")}
           onLookup={() => trigger("lookup")}
         />

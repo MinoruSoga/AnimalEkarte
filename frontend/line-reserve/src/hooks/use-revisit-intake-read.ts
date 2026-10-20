@@ -51,28 +51,14 @@ export function useRevisitIntakeRead(
     error: string | null;
   }>({ forRead: null, entries: [], nextCursor: null, error: null });
   const [loadingMore, startLoadMore] = useTransition();
-  const [retryBlockedUntil, setRetryBlockedUntil] = useState<number | null>(null);
-  const [loadMoreBlocked, setLoadMoreBlocked] = useState<{ until: number; seconds: number } | null>(
-    null,
-  );
+  // route 共通の Retry-After 期限。読込の再試行と「さらに表示」の両方をこの期限まで止める。
+  const [backoff, setBackoff] = useState<{ until: number; seconds: number } | null>(null);
 
   useEffect(() => {
-    if (loadMoreBlocked === null) return;
-    const timer = setTimeout(
-      () => setLoadMoreBlocked(null),
-      Math.max(0, loadMoreBlocked.until - Date.now()),
-    );
+    if (backoff === null) return;
+    const timer = setTimeout(() => setBackoff(null), Math.max(0, backoff.until - Date.now()));
     return () => clearTimeout(timer);
-  }, [loadMoreBlocked]);
-
-  useEffect(() => {
-    if (retryBlockedUntil === null) return;
-    const timer = setTimeout(
-      () => setRetryBlockedUntil(null),
-      Math.max(0, retryBlockedUntil - Date.now()),
-    );
-    return () => clearTimeout(timer);
-  }, [retryBlockedUntil]);
+  }, [backoff]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,12 +73,16 @@ export function useRevisitIntakeRead(
         const retryAfterSeconds = revisitIntakeRetryAfterSeconds(err);
         const retryAvailableAt =
           retryAfterSeconds !== null ? Date.now() + retryAfterSeconds * 1000 : null;
+        const info = resolveFetchError(err, READ_CONTEXT);
+        // 401 では保持中の本文・履歴を出し続けない（403/404 と同じく保護された snapshot を捨てる）。
         setState((prev) => ({
-          read: prev.read,
-          error: { ...resolveFetchError(err, READ_CONTEXT), retryAfterSeconds, retryAvailableAt },
+          read: info.status === 401 ? null : prev.read,
+          error: { ...info, retryAfterSeconds, retryAvailableAt },
           loadedToken: requestToken,
         }));
-        setRetryBlockedUntil(retryAvailableAt);
+        if (retryAfterSeconds !== null && retryAvailableAt !== null) {
+          setBackoff({ until: retryAvailableAt, seconds: retryAfterSeconds });
+        }
       });
     return () => {
       cancelled = true;
@@ -100,10 +90,10 @@ export function useRevisitIntakeRead(
   }, [clinicId, appointmentId, idToken, requestToken]);
 
   const refetch = useCallback(() => {
-    if (retryBlockedUntil !== null && Date.now() < retryBlockedUntil) return;
+    if (backoff !== null && Date.now() < backoff.until) return;
     setState((prev) => ({ ...prev, error: null }));
     setRequestToken((t) => t + 1);
-  }, [retryBlockedUntil]);
+  }, [backoff]);
 
   const read = state.read;
   // 追加ページは取得元の read と対応しているときだけ使う（再取得で1ページ目から読み直す）。
@@ -113,7 +103,7 @@ export function useRevisitIntakeRead(
 
   const loadMore = useCallback(() => {
     if (!read || nextCursor === null) return;
-    if (loadMoreBlocked !== null && Date.now() < loadMoreBlocked.until) return;
+    if (backoff !== null && Date.now() < backoff.until) return;
     const baseRead = read;
     const cursor = nextCursor;
     startLoadMore(async () => {
@@ -129,7 +119,19 @@ export function useRevisitIntakeRead(
         const info = resolveFetchError(err, "履歴の取得");
         const retryAfter = revisitIntakeRetryAfterSeconds(err);
         if (retryAfter !== null) {
-          setLoadMoreBlocked({ until: Date.now() + retryAfter * 1000, seconds: retryAfter });
+          setBackoff({ until: Date.now() + retryAfter * 1000, seconds: retryAfter });
+        }
+        if (info.status === 401) {
+          setState((prev) => ({
+            read: null,
+            error: {
+              ...resolveFetchError(err, READ_CONTEXT),
+              retryAfterSeconds: null,
+              retryAvailableAt: null,
+            },
+            loadedToken: prev.loadedToken,
+          }));
+          return;
         }
         setMore((prev) => ({
           ...(prev.forRead === baseRead
@@ -139,12 +141,12 @@ export function useRevisitIntakeRead(
         }));
       }
     });
-  }, [read, nextCursor, loadMoreBlocked, clinicId, appointmentId, idToken]);
+  }, [read, nextCursor, backoff, clinicId, appointmentId, idToken]);
 
   return {
     read,
     error: state.error,
-    retryBlocked: retryBlockedUntil !== null,
+    retryBlocked: backoff !== null,
     loading: state.read === null && state.error === null,
     refetching: state.loadedToken !== requestToken && state.read !== null,
     refetch,
@@ -153,7 +155,7 @@ export function useRevisitIntakeRead(
     loadMore,
     loadingMore,
     loadMoreError: extra?.error ?? null,
-    loadMoreRetryAfterSeconds: loadMoreBlocked?.seconds ?? null,
+    loadMoreRetryAfterSeconds: backoff?.seconds ?? null,
   };
 }
 
