@@ -216,7 +216,7 @@ AAD bytesは以下の順序の **JSON string arrayをUTF-8** で符号化する�
 
 ### AAD v1のcanonical string serialization
 
-全要素に同じstring serialization規則を適用する。各要素はUnicode scalar value列とし、unpaired surrogateとDB textに保存不能なU+0000はvalidationで拒否する。Unicode正規化（NFC／NFD等）、大小文字変換、trimを行わず、serverがscopeとして照合したtab_keyのscalar列をそのまま使う。見た目が同じでも異なるscalar列は別tab_keyであり、browserが正規化して同じscopeとみなしてはならない。既存 `btrim(tab_key)<>''` 条件も維持し、ASCII限定へ狭めない。
+全要素に同じstring serialization規則を適用する。各要素はUnicode scalar value列とし、unpaired surrogateとDB textに保存不能なU+0000はvalidationで拒否する。Unicode正規化（NFC／NFD等）、大小文字変換、trimを行わず、serverがscopeとして照合したtab_keyのscalar列をそのまま使う。見た目が同じでも異なるscalar列は別tab_keyであり、browserが正規化して同じscopeとみなしてはならない。既存 `btrim(tab_key)<>''` 条件も維持し、ASCII限定へ狭めない。URL上の表現は§10の `t1_` 形式とし、AADにはB経路adapterが復元・検査したraw tab_keyを使う。
 
 JSON stringは前後をU+0022で囲む。U+0022は `\"`、U+005Cは `\\`、U+0008／0009／000A／000C／000Dはそれぞれ `\b`／`\t`／`\n`／`\f`／`\r` とする。それ以外のU+0001〜U+001Fは小文字hexの6文字 `\u00xx`、その他のscalarはescapeせずそのままUTF-8へ符号化する。`/`、HTML文字、U+2028／U+2029、非ASCIIを任意にescapeしない。配列要素の区切りは`,`、前後は`[`／`]`だけで、BOM・空白・改行を加えない。数値文字列・UUIDのcanonical規則と要素順は上記のまま。browserとserverはこの同一serializerを用い、既定JSON encoderの任意escapeに依存しない。[JSON stringの構文](https://www.rfc-editor.org/rfc/rfc8259.html#section-7)のうち、この表現をAAD v1の唯一のbyte表現として選定する。
 
@@ -242,9 +242,23 @@ IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localSto
 
 ### Bのtrusted clinicと共通scope
 
-BのGET／PUT／key-accessでいうclinicはURLからの独立推定値ではなく、server-side認証・現在医院アクセス解決済みcontextのclinic_idである。入口でrequestのtrusted clinic_idを一度確定し、認証主体から解決したprincipal_account_idとともにrequest内で共用する。record_idはURLをparseしてこのclinic内で存在・現在grantを照合する。tab_keyはURLの通常の一回のdecode後に§9のscope文字列規則で検査する。別helperがdefault clinicやclient希望clinicを再解決して差し替えてはならない。
+BのGET／PUT／key-accessでいうclinicはURLからの独立推定値ではなく、server-side認証・現在医院アクセス解決済みcontextのclinic_idである。入口でrequestのtrusted clinic_idを一度確定し、認証主体から解決したprincipal_account_idとともにrequest内で共用する。record_idはURLをparseしてこのclinic内で存在・現在grantを照合する。tab_keyは下記B専用経路adapterが `t1_` segmentから一回だけbase64url decodeして復元し、§9のscope文字列規則で検査したraw値を用いる。URLのpercent-decodeでraw tab_keyを取得する契約にはしない。別helperがdefault clinicやclient希望clinicを再解決して差し替えてはならない。
 
 この同じclinic_idをregistry／draft lookup、TX-localのclinic／account contextとRLS、provider scope、GET復号metadata、AAD構築・照合へ渡す。PUT bodyやqueryのclinic／account指定は認可根拠として無視するのではなくvalidationで拒否し、URL recordが当該clinicに属さなければscope-not-foundとする。provider前後の現在認可再検査も同じclinicを対象とし、context失効／変更時は失敗させ別clinicへ暗黙切替しない。GETのclinic_idも単独の認可証明ではなく、次requestでは再び現在server contextから検査する。body／AAD scopeはこの正規値との一致検査に使い、clientに認可主体を選ばせない。
+
+### B専用の単一segment routing表現
+
+GET／PUT／key-accessのURL placeholder `{tab}` はraw tab_keyではなく、`t1_` + base64url-no-padding(UTF-8(raw tab_key))というversion付きrouting表現に固定する。[base64urlのalphabet](https://www.rfc-editor.org/rfc/rfc4648.html#section-5) は `A-Z a-z 0-9 - _`、padding `=` と改行は禁止。raw tab_keyにUnicode正規化・trim・大小文字変換・percent-decodeを行わない。共通URL builderでraw scalar列をUTF-8 bytesへ符号化し、そのbytesをbase64urlにして固定prefixを加え、単一path segmentとして配置する。key-accessの固定suffixはこのsegmentの後へ別segmentとして追加する。
+
+encoded segmentはASCII unreserved文字のみでslash・percent・空白・dot segmentを含まない。raw `.`／`..` もprefix付きの別表現となるため、percent-onlyのdot正規化／encoded slash処理へ依存しない。既存Gin全体のUseRawPath／UnescapePathValues等を変更せず、他APIへraw-path設定を波及させない。このprefix付き文字列は暗号鍵・secret・認可証明ではなく、可逆なrouting表現である。base64urlは暗号化ではなく、URLへ秘密を移せる意味ではない。
+
+B専用経路adapterはliteral `t1_` prefixと後続の非空base64url alphabetを検査し、padding付き、標準base64の`+`／`/`、空suffix、不正長・不正末尾bits等の非canonical表現を拒否する。prefix除去後に一回だけbase64url decodeし、strict UTF-8として復元する。復元値へ§9のUnicode scalar／NUL拒否／`btrim(tab_key)<>''` 等の検査を適用し、同じUTF-8 bytesを再encodeしたprefix付き文字列と受信segmentの完全一致を要求する。不正時は400 `{ "error": "validation" }` としscope lookupへ進まない。旧raw tab、percent-encoded raw tab、他version prefixへのfallbackを設けない。
+
+URL builderはencoded segment自体を追加でpercent-encodeしない。既存HTTP routerの通常URL処理後にadapterへ渡されたsegmentに上記canonical検査を適用し、adapter独自のpercent-decodeを追加しない。adapterにpercent文字が残る入力はalphabet不正として拒否する。base64url復元後のraw tab_keyを再decode・再splitせず、raw `%2F` はその3文字を保持してslashへ変換しない。
+
+復元したraw tab_keyをregistry／draft scope、GETのtab_key metadata、AAD string arrayに共用し、DB／AAD／GET metadataへ `t1_...` を代入しない。clientはGETのraw tab_keyから同じ共通URL builderで後続requestを組み立てる。raw値が `t1_` で始まっても全体を通常のrawデータとしてencodeし、「既にencoded」とみなさない。許可scalar範囲を狭めず、3経路すべてで同じscopeに到達する。
+
+以下のAPI表は `{tab}` 表記を保つが、いずれもこのB専用 `t1_` routing segmentを意味する。raw値・既存他APIのroute規約を変更するものではない。
 
 | 採用API境界（未実装） | 契約 |
 |---|---|
@@ -278,7 +292,7 @@ expected_generationはcanonical非負整数文字列とし、`"0"` だけをdraf
 
 browserも暗号化前に同じ次版を計算してAADのinput_generationに使う。requestのnew generationは主張値でありserverが算出値との一致を検査し、暗号文を別世代へ付替えない。operation_keyの成功replayは保存receiptを返して世代を再増分せず、応答不明は同key結果照会を先行する。新key／次世代で自動再送しない。C06 fingerprint／precondition分類は既存規則を維持し、AAD／ciphertextを含む内容が変わる操作を「CAS-onlyだから同じ内容」と扱わない。新暗号文・内容への切替は旧結果を確定してから行う。
 
-browserはB0のkey provisioning結果で準備済みのkey_reference／key_versionをPUTで明示する。serverは認証から解決したaccountと上記trusted clinic、照合済みURL record、検査済みURL tabでregistryを読み、request参照と当該scope／versionが一致することを検査する。初回も既存draft行からの逆引きを前提としない。body／queryのclinic／account指定はvalidationで拒否し、clientによる新registry登録は不可。初期key_version=1、同scopeの勝者keyに固定し、既存draftのkey付替え・rotationをPUTに混ぜない。
+browserはB0のkey provisioning結果で準備済みのkey_reference／key_versionをPUTで明示する。serverは認証から解決したaccountと上記trusted clinic、照合済みURL record、B経路adapterが復元・検査したraw tab_keyでregistryを読み、request参照と当該scope／versionが一致することを検査する。初回も既存draft行からの逆引きを前提としない。body／queryのclinic／account指定はvalidationで拒否し、clientによる新registry登録は不可。初期key_version=1、同scopeの勝者keyに固定し、既存draftのkey付替え・rotationをPUTに混ぜない。
 
 既存keyと異なる参照、不明参照、scope不一致は拒否し、新鍵生成やNULL／ダミー補完をしない。key_reference／key_versionはAADの同値に対応し、wrapped DEK／raw DEKをPUT本文へ含めない。参照一致を現在auth／grant／編集権の代用にせず、旧epoch回収の既決境界も維持する。
 
@@ -332,7 +346,7 @@ provider呼出をC06 DB-only participantや長い業務lockに入れない。Unw
 1. schema owner: A新規metadata anchor、B新規key registry＋draft複合FK。§8の読取棚卸し→証明済み参照の正規登録→NOT VALID FKによる新規保護→全既存参照の証明後にVALIDATE、の段階を分ける。未解決scopeは原行温存・停止とし、全体検証未完了を明示する。migration／model／ERDは446/466等の専有ownerへ集約し並行上書きしない。既存表を重複CREATEしない。
 2. 489 shared owner: 新規binding時のatomic ClaimTarget metadata callbackだけを追加。既存receipt wire／status／consumer契約は維持。
 3. 494 A: actor／session／fence、inquiry baseline／CAS、metadata resolver、flat DTO／HTTP mapping、失権入力保持。A UI／APIと495-Aは1／2のruntime完成待ちにしない。
-4. 494 B0: envelope／AAD v1のcanonical serializer／key-reference／identity／状態API／schema・provider契約とfake fixture。GETのpresent／absent／source-unresolvedと各HTTP／JSON／no-store、key-accessの平坦request／response／error、PUTの初回／単調CASと準備済み鍵参照をDTOへ固定。実鍵なし。
+4. 494 B0: envelope／AAD v1のcanonical serializer／B専用t1_ URL builderと経路adapter契約／key-reference／identity／状態API／schema・provider契約とfake fixture。GETのpresent／absent／source-unresolvedと各HTTP／JSON／no-store、key-accessの平坦request／response／error、PUTの初回／単調CASと準備済み鍵参照をDTOへ固定。実鍵なし。
 5. B1: server ciphertext repository、account TX-local／RLS、generation CAS、current auth、operation lookupとbroker error mapping。Bの全経路で同じtrusted clinicを用い、provider未設定runtimeはfail closed。
 6. B2: browser ciphertext journal、memory key provider、logout／reload／切断、三者比較選択。公開契約モックで独立PR可能。canonical AAD再構成、key-accessのmemory importとerror分岐を同wireへ接続。
 7. B3: 明示承認後のlive provider接続・運用設定。未実行なら未接続と報告。
@@ -342,6 +356,26 @@ provider呼出をC06 DB-only participantや長い業務lockに入れない。Unw
 Bの後段fixtureもNOT_RUN: 新規FK違反拒否と未解決旧scopeだけの停止／原行温存、未解決残存時のVALIDATE未完了表示、候補unwrap確認失敗時の非公開、provision競合敗者の勝者key再取得・Unwrap失敗、provider後日停止／commit不明の非破壊再照合、fresh GET metadataによるAAD再構成・不整合とabsentの区別、全GET応答no-storeとlogout別account分離、初回PUT競合の勝者1件・0→1・以後+1・上限／後退／ジャンプ拒否、成功replay非増分・応答不明の照会先行、初回鍵選定・異scope／異key拒否。記述の追加を実装／DDL適用／実鍵／試験実行の完了と扱わない。
 
 wireの後段fixture（NOT_RUN）: AADのquote／backslash／control、非ASCII、結合文字と合成文字、U+2028／U+2029のbyte一致／区別とunpaired surrogate／U+0000拒否。GETの200 present／200 absent／409 unresolvedの正確な形、409をabsentへ読み替えないこと、全応答no-store。key-accessの32-byte DEK標準base64・memory import、各HTTP／error分岐、旧session／epoch拒否・再取得後回収、provider前後の認可取消と秘密非出力。GET／PUT／broker／RLS／AADでtrusted clinicが一致し、body／query clinic拒否と別clinicへの暗黙切替がないこと。追加のfixtureを実行済みとは扱わない。
+
+### routingの後続golden組（文案用値・NOT_RUN）
+
+| raw tab_key | URLの{tab} segment | server decoded tab_key | §9 validation |
+|---|---|---|---|
+| `a/b` | `t1_YS9i` | `a/b` | 許可 |
+| `/` | `t1_Lw` | `/` | 許可 |
+| `%2F` | `t1_JTJG` | `%2F` | 許可 |
+| `a%2Fb` | `t1_YSUyRmI` | `a%2Fb` | 許可 |
+| `.` | `t1_Lg` | `.` | 許可 |
+| `..` | `t1_Li4` | `..` | 許可 |
+| `診察` | `t1_6Ki65a-f` | `診察` | 許可 |
+| `a b` | `t1_YSBi` | `a b` | 許可 |
+| `a+b` | `t1_YSti` | `a+b` | 許可 |
+| `+` | `t1_Kw` | `+` | 許可 |
+| 半角space 1文字（U+0020） | `t1_IA` | 半角space 1文字（U+0020） | btrim空のため拒否 |
+
+spaceを含む非blank値は許可するが、spaceのみは既存btrim制約で拒否する。raw `a/b` と `a%2Fb` は異なるrouting表現・異なるscopeとなる。値はUTF-8／base64urlによる文案用表記であり、fixture実行結果ではない。
+
+後続受入計画は全件NOT_RUN。上記goldenをGET／PUT／key-access共通で参照し、raw→encoded→decoded一致、DB／GET metadata／AADへのraw値利用を確認する。不正prefix、padding、非canonical末尾bits、不正長、標準base64 alphabet、adapterに残るpercent文字、invalid UTF-8／NUL、blank、再encode不一致、legacy raw fallback拒否を計画する。raw `t1_...` を既encode扱いしないこと、browser／proxy／routerのdot／slash正規化に依存せず既存他route設定を変えないことも確認範囲とする。API公開SHA・runtime接続・試験の完了を意味しない。
 
 ## 12. 根拠・実施状態
 
