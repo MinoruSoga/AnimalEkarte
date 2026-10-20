@@ -691,6 +691,24 @@ describe("OwnerIntakeReadOnlyCard — 契約の厳格検証と部分失敗", () 
     expect(await screen.findByText(/受信: 2024\/02\/29 00:00/)).toBeInTheDocument();
   });
 
+  it("閏秒（:60）の received_at は受理し、表示は :59 へ正規化して空にしない", async () => {
+    useIntake(
+      boundBody({
+        target: {
+          ref: REF,
+          head_revision: "1",
+          answer_state: "answered",
+          latest_answer: { ...answer("1"), received_at: "2026-06-30T23:59:60Z" },
+          content_available: true,
+        },
+        history: [],
+      }),
+    );
+    renderCard();
+
+    expect(await screen.findByText(/受信: 2026\/07\/01 08:59/)).toBeInTheDocument();
+  });
+
   it("読込中は aria-busy の skeleton（role=status）を出す", async () => {
     server.use(http.get(ROUTE, () => new Promise(() => {})));
     renderCard();

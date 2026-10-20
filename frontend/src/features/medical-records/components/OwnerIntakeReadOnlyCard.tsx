@@ -41,9 +41,11 @@ export interface OwnerIntakeReadOnlyCardProps {
 }
 
 function formatReceivedAt(receivedAt: string): string {
-  const date = formatDate(receivedAt);
+  // 閏秒（:60）は Date が解釈しない実装があるため、表示用に :59 へ正規化する（parser 側と同じ扱い）。
+  const displayValue = receivedAt.replace(/:60(?=[.Z+-])/, ":59");
+  const date = formatDate(displayValue);
   if (date === EMPTY_VALUE) return EMPTY_VALUE;
-  return `${date} ${formatJSTTime(receivedAt)}`;
+  return `${date} ${formatJSTTime(displayValue)}`;
 }
 
 function textOrNull(value: string | null): string | null {
