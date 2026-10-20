@@ -57,16 +57,18 @@ Dotsが採用した保存設計と13:15 UTCの補正を本文に統合した。�
 | `pricing.tax.status` | `known` / `unknown` | unknownをfalse／0%へ変換しない |
 | `pricing.tax.type` | `included` / `excluded` / `exempt` またはnull | 既存TaxType enumに一致。known時必須、unknown時null |
 | `pricing.tax.rate` | decimal文字列 またはnull | 比率。10%=`"0.10"`。exemptは明示`"0"`で課税0%とtypeで区別。unknown時null |
-| `pricing.tax.origin` | `master` / `staff_confirmed` / `legacy_unknown` | free text名から推定しない |
+| `pricing.tax.origin` | `master` / `staff_confirmed` / `legacy_unknown` / `unconfirmed` | knownはmaster／staff_confirmed。unknownは旧データ由来ならlegacy_unknown、新規税未確認ならunconfirmed。free text名から推定しない |
 | `pricing.tax.master` | object またはnull | master適用時のkind／id／tax_type／tax_rateの実値。正規versionがある場合だけversion、ない場合はnullと実updated_atを別保持 |
 | `pricing.tax.confirmed_by` / `confirmed_at` | server actor ID／timestamp またはnull | 明示選択・確認を成立させたserver actor／time。client任意値は信用せず、unknownはnull |
+
+unknown時はtype／rate／master／confirmed_by／confirmed_atをすべてnullにする。新規未確認をlegacy扱いせず、名前や0円からknownを生成しない。後日の明示税確認はbeforeにunknown／unconfirmed（旧データならlegacy_unknown）、afterにknown／staff_confirmedまたは実master再適用根拠を保存し、当時から確認済みと偽装しない。
 
 `pricing.input_unit_price` と `tax.type=included` が元税込単価を一意に表す。同義の `original_gross_unit_price` を重複保存せず、税抜換算後額へ差し替えない。行積／丸め結果は505の派生結果として別名・規則版で保持する。before／afterは税だけでなく元金額・数量・割引を識別できる既存料金snapshotのshapeを含む。
 
 ### 入力・変更・旧行確認
 
 - 新規master-backed care: actorが選択した同医院・有効masterの税区分／率をserverで読みeventに固定する。client指定IDを無検証で信用しない。金額手修正で税情報を消さず、master変更時の明示再適用は前後を新eventへ残す。
-- free text treatment／manual other care: 既存手入力理由を維持し、スタッフの明示確認から税区分／率を保存する。架空master IDは作らない。unknownで概算保存できるが確定税額／確定税込総額と表示しない。food／instructionの0円だけで非課税と推定しない。
+- free text treatment／manual other care: 既存手入力理由を維持し、スタッフの明示確認から税区分／率を保存する。架空master IDは作らない。新規税未確認はunknown／unconfirmedで概算保存できるが確定税額／確定税込総額と表示しない。food／instructionの0円だけで非課税と推定しない。
 - 旧行の税確認: 通常更新可能ならchange event、完了後なら既存 `post_completion_correction` と理由必須を継承。「今確認した事実」であり作成当時から既知と記さない。最新masterの明示再適用も新eventにする。
 - PATCH: 未指定は保持。tax指定時はstatus／type／rate／originを一体検証し、typeだけの部分mergeをしない。known→unknownの通常clearは不可、誤記訂正の正式操作でのみ履歴付きにする。旧unknownでmemoだけ更新する場合はunknownを保持。0は実値、NULLは不明。
 
@@ -106,7 +108,7 @@ care IDのない既存入院請求は名称／金額から逆推定しない。�
 | 元 | binding／draft | 最終固定版 |
 |---|---|---|
 | care.id／入院id／event.id＋revision | source_kind=hospitalization、3参照列、applied_source_version | `line.source_snapshot.source={kind,care_plan_item_id,hospitalization_id,event_id,event_revision}` |
-| event.after_values.pricing | `imported_values.pricing` 全copy。billing_itemsの単価／数量／tax_type／tax_rateを明示設定 | line単価／数量／率と `source_snapshot.pricing` 全copy |
+| event.after_values.pricing | originを含め `imported_values.pricing` 全copy。billing_itemsの単価／数量／tax_type／tax_rateを明示設定。unknownは§4.3の取込停止を継承 | line単価／数量／率と `source_snapshot.pricing` 全copy。現在masterや確認済みoriginへ読み替えない |
 | known tax.type | billing_items.tax_type | tax_categoryとの対応は505 adapter内で明示。included／excludedは入力基準、exemptは非課税 |
 | master実値・スタッフ確認actor／time | imported_valuesに保持 | source_snapshotに保持。現在masterから再生成しない |
 | event.revision | applied_source_version | snapshot.source_versionsの行参照。billing.Version／snapshot.revisionと別 |
@@ -141,6 +143,7 @@ HTTP契約: enum／decimal／presence不正は400、権限403（存在秘匿は�
 7. 別医院master／event、異care／入院／版の複合FK拒否、CAS競合、同key別内容、途中失敗、eventだけ／投影だけのcommit拒否と全体rollback。
 8. treatment数量 `"0.25"`／`"0.49"` が保存／APIを丸めなしで往復。care数量1から日数課金へ拡張しない。
 9. 税込割引・混在税率は元額保持の不変条件を確認し、実数期待値は505既決規則に従う。未確認legacy内税算式を新採用しない。
+10. 新規free-text／manual careの税未確認はunknown／unconfirmed、type／rate／master／確認actor／timeはnullで概算保存。後日の明示確認はbeforeの未確認根拠を保持してknown／staff_confirmed等へ遷移し、確認前は会計取込を停止。
 
 405保存契約について本人へ再質問する業務項目はない。446/466／481／499への契約反映は実装受渡しである。旧システムとの内税逆算・小数数量・混在税率・割引複合の完全一致証明はEMR-367／505の別残件であり、本設計採用で完了しない。公開不要な原資料・原画像・Driveリンク・ローカル作業パスは転載しない。
 

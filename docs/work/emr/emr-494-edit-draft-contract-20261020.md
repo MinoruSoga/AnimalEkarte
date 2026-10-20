@@ -35,7 +35,7 @@ Dots採用のA（編集権）／B（本人暗号draft）分離、server broker�
 
 ## 3. A: HTTP／DTO契約
 
-本節は採用設計であり新route／wireの実装済み記録ではない。共有API ownerが `backend/docs/api.yaml` へ正式反映し採用SHAを公開する。既存serversは `http://localhost:8080/api/v1`。pathsはprefixなしの `/medical-records/...`、実URLは `/api/v1/medical-records/...` とし二重に `/v1` を加えない。
+本節は採用設計であり新route／wireの実装済み記録ではない。共有API ownerが `backend/docs/api.yaml` へ正式反映し採用SHAを公開する。既存serversの `http://localhost:8080/api/v1` はローカル開発用の例。デプロイ時のbrowser-facing API／key-broker originはHTTPSを必須とし、HTTPは認証処理・`/key-access` に到達させず入口で拒否する。既存TLS終端構成を利用し、本書の修正で証明書・ネットワーク・credentialsを設定したとは扱わない。pathsはprefixなしの `/medical-records/...`、実URLは `/api/v1/medical-records/...` とし二重に `/v1` を加えない。Bの暗号利用も§9からこのtransport境界を参照する。
 
 既存HttpOnly Cookie認証とCSRF `X-Requested-With: XMLHttpRequest` を継承する。operation_key／edit_session_ref／edit_epochまたはexpected_epoch／owner_expected_versionとowner payloadはJSON bodyの平坦なfieldに置く。queryでclinic／accountを選ばせず、新しい `{data:...}`／`{operation:...}` wrapper、Authorization／edit bearer方式、別Idempotency-Keyヘッダを追加しない。
 
@@ -157,7 +157,7 @@ routes／api.yaml／codegenは単一ownerが統合する。494は495所有の `c
 
 scopeは既存の **account×clinic×record×tab**。tab_keyは臨床UIの安定tab区分でbrowser editing sessionと別。別タブciphertextの自動復元、端末間draft一覧／共有／転送／回収UIを新設しない。device情報やランダムbrowser ID／localStorage値を認証因子にしない。journal出所識別が必要なら秘密でないopaque local journal IDを暗号化payloadにだけ持たせ、server権限へ使わない。
 
-server unique scopeへのexpected_generation CASにより同account／tabを別sessionが更新してもsilent last-write-winsにしない。server世代とlocal未同期世代を比較してcollisionを明示し、旧ciphertextを自動廃棄しない。`input_generation` は内容版、`key_version` は鍵版、`edit_epoch` は現在編集権で互いに独立。
+server unique scopeへのexpected_generation CASにより同account／tabを別sessionが更新してもsilent last-write-winsにしない。server世代とlocal未同期入力世代を区別して比較し、collisionを明示する。localの任意世代をserver版へ強制せず、旧ciphertextを自動廃棄しない。`input_generation` はserver保存内容版、`key_version` は鍵版、`edit_epoch` は現在編集権で互いに独立。初回0→1と以後のexpected+1の原子CASは§10に固定する。
 
 ## 8. B: 最小key registry DDL設計
 
@@ -183,13 +183,24 @@ server unique scopeへのexpected_generation CASにより同account／tabを別s
 - UNIQUE `(key_reference,clinic_id,principal_account_id,medical_record_id,tab_key)`。
 - RLSはdraft同様clinic access AND principal_account_id=trusted app.current_account_id。generic draft read APIからwrapped_dek／kek_referenceを返さず、brokerだけ内部取得する。
 
-既存 `staff_record_drafts` へ `(key_reference,clinic_id,principal_account_id,medical_record_id,tab_key)` からkey registryの同uniqueへのRESTRICT複合FKを追加する。既存ciphertext／encryption_format／key_reference／hash／input_generation／base_owner_versionsは再利用し、epoch・鍵本体・device ID列を増やさない。
+既存 `staff_record_drafts` へ `(key_reference,clinic_id,principal_account_id,medical_record_id,tab_key)` からkey registryの同uniqueへのRESTRICT複合FKを、下記の **NOT VALID段階導入** で追加する。既存ciphertext／encryption_format／key_reference／hash／input_generation／base_owner_versionsは再利用し、epoch・鍵本体・device ID列を増やさない。
 
-**A metadata anchorとB key registryはlock責務が異なる。** Aに業務record FKを付けないR2.1は、B registryの上記record複合FKを削除する指示ではない。追加DDLは2表とdraft-key複合FK。既存表の重複CREATEはしない。初回導入時に既存draft key_referenceが未解決なら復元不能／source-unresolvedとして隔離し、未知鍵を推測backfillしない。実データmigration／削除の許可を意味しない。
+**A metadata anchorとB key registryはlock責務が異なる。** Aに業務record FKを付けないR2.1は、B registryの上記record複合FKを削除する指示ではない。追加DDLは2表とdraft-key複合FK。既存表の重複CREATEはしない。以下は設計であり、実データmigration／削除やSQL実行の許可を意味しない。
+
+### 旧draftの非破壊・段階導入
+
+1. schema ownerが既存scope／key_referenceを読取棚卸しして対応を分類する。実在する正しいwrapped keyとscopeを証明できるものだけ、別途認可された導入工程でregistryへ正規登録する。未知鍵の推測backfill、架空wrapped_dek、ダミー親行、別鍵への付替え、勝手な再暗号化を行わない。
+2. draft-key複合FKを `ADD CONSTRAINT ... FOREIGN KEY (...) REFERENCES ... ON DELETE RESTRICT NOT VALID` で追加する設計とする。旧行の一括検証を省略しつつ、新INSERTおよびFK検査対象更新には制約を適用する。NOT VALIDは制約なしを意味しない。[PostgreSQL 18のADD／VALIDATE CONSTRAINT契約](https://www.postgresql.org/docs/18/sql-altertable.html#SQL-ALTERTABLE-DESC-ADD-TABLE-CONSTRAINT)に従う。
+3. 未解決旧draftは既存表内の原行を変更せず温存し、registry不一致を読取時source-unresolvedとする**論理隔離**に限定する。原ciphertext／元metadataを維持し、復元可能と表示しない。PUTによる置換・世代更新・自動修復・自動削除を拒否し、一意scopeを空き扱いして新規draftで上書きしない。新しい隔離表への移送を必須にしない。
+4. 対応が証明された旧行は正規registry関係が成立した後に利用可能とする。未解決scopeだけfail closedとし、新規scopeは正規registry＋新規書込みを拘束するFKの下で利用可能。既存行の関係をすべて証明した時だけVALIDATE CONSTRAINTへ進み、未解決が残る間は検証完了と報告しない。新規保護の導入と全体FK検証の完了を別々に報告する。解決不能な行の破棄等は別の本人判断であり、本設計では要求しない。
 
 ### provisioningとprovider
 
-初期scope keyはkey_version=1。同scope同時provisionはUNIQUE(scope,version)で勝者を決め、敗者はcommit済み同scope登録を読む。候補DEKのwrap準備→DB key row commit→可用確認の順とし、provider失敗時は復元準備成功にしない。未使用wrapped candidateを失敗DBに残さず、provider処理の不確実性を照合する。外部KMS処理をC06のDB-only participant内で成功扱いしない。
+初期scope keyはkey_version=1。候補DEK生成／wrap→同providerで候補wrapped DEKをunwrapして候補DEKとの一致を確認→確認済み候補だけを短いDB TXでregistryへINSERT／commit→現在認可と対象keyの利用可否を再検査して応答、の順とする。確認失敗なら候補registry行を公開・commitしない。provider呼出をC06のDB-only participantや長い業務lock内へ持ち込まない。
+
+同scope／versionの同時provisionはUNIQUE(scope,version)で勝者を決める。敗者は自分の候補DEKを応答せず、commit済み勝者key_referenceを読み直し、その勝者wrapped DEKのUnwrapが成功してからだけ利用成功を返す。Provision結果のkey_reference／key_versionはこの勝者keyを指し、初回PUTも既存draft行から逆引きせずこの準備済み参照を使う。DB行の存在や一時点の確認を、現在・将来のprovider可用性の保証にしない。
+
+後からproviderが停止／失効した場合は当該利用をfail closedとし、既存ciphertext／registryを自動削除・置換せず同key_referenceで再照合可能にする。DB commit成否不明もscope／version／key_referenceの読取照合で解決し、新鍵で既存scopeを上書きしない。未使用wrapped candidateを失敗DBに残さず、provider処理の不確実性を照合する。pending／failed状態列、rotation、実鍵作成を追加する設計変更には広げない。
 
 provider interfaceは `Provision(scope,key_reference,key_version)` / `Unwrap(scope,key_reference)` と利用拒否／障害の分類を持ちfakeで契約可能。secret取得は既存安全設定／正式接続工程へ渡す。key_version更新・rotation・失効／削除管理画面は今回作らず、将来の過去key削除方針も決めない。registryへinput_generationを重複保存しない。
 
@@ -203,11 +214,11 @@ AAD bytesは以下の順序の **JSON string arrayをUTF-8** で符号化する�
 ["staff-record-draft","1",key_reference,key_version,principal_account_id,clinic_id,medical_record_id,tab_key,input_generation]
 ```
 
-記号部分もすべてstring要素としてserializeする。AADへauth token／session証明を入れない。元epoch等は暗号化payload内の履歴情報に置き、payload schema versionも暗号化本文内で検証する。registry scope／body scope／AAD不一致は拒否。body accountを認可根拠にせず、復号AADは信頼済registry scopeから組み立てる。他account／recordへのmetadata改変移植はtag検証で失敗する。
+記号部分もすべてstring要素としてserializeする。AADへauth token／session証明を入れない。元epoch等は暗号化payload内の履歴情報に置き、payload schema versionも暗号化本文内で検証する。registry scope／body scope／AAD不一致は拒否。body accountを認可根拠にせず、復号AADは信頼済registry scopeから組み立てる。fresh load時は§10のGETが照合済みkey／世代／scope metadataを返す。暗号化時のinput_generationは§10のserver規則と同じ次版をbrowserが計算し、serverは一致を検査する。serverが暗号文を別世代へ付替えたり書換えたりしない。他account／recordへのmetadata改変移植はtag検証で失敗する。
 
-IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localStorage／sessionStorage／Service Worker cache／ログ／analyticsに本文・DEK・auth／edit証明を保存しない。key-accessはno-storeでmemory-only鍵利用を渡す境界とし、wrapped_dek／KEKはbrowserへ送らない。browserはprovider由来DEKをimport後memory keyにしraw buffersを可能な範囲で破棄する。ログ／trace／キャッシュ／Service Worker interceptionからの除外を後続受入へ含める。
+IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localStorage／sessionStorage／Service Worker cache／ログ／analyticsに本文・DEK・auth／edit証明を保存しない。本人draft GETの全応答も `Cache-Control: no-store` とし、共有browser／intermediary／Service Worker HTTP cacheへ保存・別accountで再利用しない。明示設計のIndexedDB ciphertext journalはHTTP cacheではなく、本人scopeで管理する暗号文永続化として保持する。key-accessはno-storeでmemory-only鍵利用を渡す境界とし、wrapped_dek／KEKはbrowserへ送らない。browserはprovider由来DEKをimport後memory keyにしraw buffersを可能な範囲で破棄する。ログ／trace／キャッシュ／Service Worker interceptionからの除外を後続受入へ含める。
 
-ブラウザ暗号APIの根拠: [MDN AesGcmParams](https://developer.mozilla.org/en-US/docs/Web/API/AesGcmParams)、[SubtleCrypto.encrypt](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/encrypt)。HTTPS前提、IV一意、AAD照合、tagを用いる。JS heapの完全消去や侵害端末からの完全保護は保証しない。
+ブラウザ暗号APIの根拠: [MDN AesGcmParams](https://developer.mozilla.org/en-US/docs/Web/API/AesGcmParams)、[SubtleCrypto.encrypt](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/encrypt)。デプロイ時のbrowser-facing API／key-brokerのHTTPS必須・HTTP入口拒否は§3に従い、IV一意、AAD照合、tagを用いる。JS heapの完全消去や侵害端末からの完全保護は保証しない。
 
 ## 10. B: lifecycle・回収・候補API
 
@@ -215,7 +226,7 @@ IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localSto
 
 - DEKはmemoryのみ。reload後は本人再認証／現認可後にbrokerから再取得する。logoutはmemory keyとUI／plaintext cacheを無効化し、ciphertextを保持して自動upload／retryを停止する。
 - offlineでは既決どおり新編集／送信を停止する。切断直前の未送達入力は取得済みmemory DEKでlocal ciphertextとして保持できる。reload後offlineは鍵を回収できないため「復元待ち」とし、消去や平文fallbackをしない。online再認可後に回復する。
-- 鍵不在／破損／対応不能は「復元できない／照合待ち」。空draft成功にせず、旧ciphertextを上書きしない。自動鍵再作成で復号できるふりをしない。
+- 鍵不在／破損／対応不能、registry不整合、provider停止／失効は「復元できない／照合待ち」。空draft成功にせず、旧ciphertext／registryを自動削除・置換しない。同key_referenceで再照合し、自動鍵再作成で復号できるふりをしない。§8の未解決旧draftはsource-unresolvedとして原行を温存し、PUTによる置換・世代更新も拒否する。
 - restoreは元scopeと現在grant確認→未解決receipt照会→編集権取得→base／current／draft三者比較→明示field選択。現在の新epochとowner版で通常writerへ渡し、新履歴を残す。
 - base_owner_versionsには元owner版、元input_generation、必要な元epoch参照を保持する。元epochは履歴であって現在保存権に再利用しない。
 
@@ -223,9 +234,25 @@ IndexedDBは暗号文envelopeと最小の非本文routing情報だけ。localSto
 
 | 採用API境界（未実装） | 契約 |
 |---|---|
-| GET `/medical-records/{id}/personal-drafts/{tab}` | 自本人scopeのcurrent ciphertext envelopeのみ |
-| PUT 同route | operation_key、expected_generation、new generation、base_owner_versions、envelope、未解決operation refs。clientが認可主体を指定しない |
+| GET `/medical-records/{id}/personal-drafts/{tab}` | 自本人scopeのcurrent ciphertext envelopeと下記のserver照合済み復号metadata。未作成はdraft=null、未解決旧draftはsource-unresolved。全応答 `Cache-Control: no-store` |
+| PUT 同route | operation_key、expected_generation、new generation、準備済みkey_reference／key_version、base_owner_versions、envelope、未解決operation refs。初回0→1、以後expected+1の原子CASと下記鍵参照照合を必須とし、clientが認可主体を指定しない |
 | POST 同route `/key-access` | 現在auth／account／scope／grantとkey_reference検査後、no-storeでsession限定鍵利用。他人鍵の汎用取得APIにせずログへ鍵を出さない |
+
+### GET: fresh loadの復号metadataとcache境界
+
+GETは正規registryと保存draftをserverが照合した `key_reference, key_version, input_generation, encryption_format, ciphertext_sha256, base_owner_versions` と、AAD用正規scopeの `principal_account_id, clinic_id, medical_record_id, tab_key` をenvelopeとともに返す。これらは秘密鍵ではなく、client指定値を本人認可の根拠にしない。wrapped_dek／KEK／資格情報は返さない。metadata不整合はsource-unresolvedとし、復号可能な正常draftに見せない。未解決operation refsの回収契約を維持し、metadataを成功receiptの証明へ代用しない。
+
+本当にdraft未作成なら `draft=null` を返し、input_generation=0の偽DB行を作らない。未解決旧draftをabsentへ縮退させず、元scopeが空いていると扱わない。GETの全応答はno-storeとし、logout時のplaintext UI／memory key破棄と併せて別accountへのHTTP応答再利用を防ぐ。これは既決のIndexedDB ciphertext保持を削除する指示ではない。
+
+### PUT: 初回・単調generation CASと鍵選定
+
+expected_generationはcanonical非負整数文字列とし、`"0"` だけをdraft未作成のcreate preconditionに使う。DB input_generationは従来どおり正整数で初回1。初回0→1はscope一意制約付きINSERTで勝者1件とし、敗者は409競合で勝者内容を自動上書きしない。既存scopeをexpected=0で置換しない。既存draftはexpectedが現在版に一致する場合だけ原子更新し、次版はserver規則でexpected+1。DB bigint上限超過・任意ジャンプ・後退を拒否する。
+
+browserも暗号化前に同じ次版を計算してAADのinput_generationに使う。requestのnew generationは主張値でありserverが算出値との一致を検査し、暗号文を別世代へ付替えない。operation_keyの成功replayは保存receiptを返して世代を再増分せず、応答不明は同key結果照会を先行する。新key／次世代で自動再送しない。C06 fingerprint／precondition分類は既存規則を維持し、AAD／ciphertextを含む内容が変わる操作を「CAS-onlyだから同じ内容」と扱わない。新暗号文・内容への切替は旧結果を確定してから行う。
+
+browserはB0のkey provisioning結果で準備済みのkey_reference／key_versionをPUTで明示する。serverは認証から解決したaccountとrouteのclinic／record／tabでregistryを読み、request参照と当該scope／versionが一致することを検査する。初回も既存draft行からの逆引きを前提としない。body accountによる認可、clientによる新registry登録は不可。初期key_version=1、同scopeの勝者keyに固定し、既存draftのkey付替え・rotationをPUTに混ぜない。
+
+既存keyと異なる参照、不明参照、scope不一致は拒否し、新鍵生成やNULL／ダミー補完をしない。key_reference／key_versionはAADの同値に対応し、wrapped DEK／raw DEKをPUT本文へ含めない。参照一致を現在auth／grant／編集権の代用にせず、旧epoch回収の既決境界も維持する。
 
 key provisioning APIとregistry／provider契約の反映はB0の小PRへ分ける。保存先は上記registryへ固定済みであり、既存key_referenceをDEK本体と見立てたりciphertextへ復号鍵を同梱したりしない。
 
@@ -244,15 +271,17 @@ key provisioning APIとregistry／provider契約の反映はB0の小PRへ分け�
 
 ## 11. ownerへの受渡し順と後続受入（全件NOT_RUN）
 
-1. schema owner: A新規metadata anchor、B新規key registry＋draft複合FK。migration／model／ERDは446/466等の専有ownerへ集約し並行上書きしない。既存表を重複CREATEしない。
+1. schema owner: A新規metadata anchor、B新規key registry＋draft複合FK。§8の読取棚卸し→証明済み参照の正規登録→NOT VALID FKによる新規保護→全既存参照の証明後にVALIDATE、の段階を分ける。未解決scopeは原行温存・停止とし、全体検証未完了を明示する。migration／model／ERDは446/466等の専有ownerへ集約し並行上書きしない。既存表を重複CREATEしない。
 2. 489 shared owner: 新規binding時のatomic ClaimTarget metadata callbackだけを追加。既存receipt wire／status／consumer契約は維持。
 3. 494 A: actor／session／fence、inquiry baseline／CAS、metadata resolver、flat DTO／HTTP mapping、失権入力保持。A UI／APIと495-Aは1／2のruntime完成待ちにしない。
-4. 494 B0: envelope／AAD／key-reference／identity／状態API／schema・provider契約とfake fixture。実鍵なし。
+4. 494 B0: envelope／AAD／key-reference／identity／状態API／schema・provider契約とfake fixture。GETの照合済み復号metadata・absent／source-unresolved・no-store、PUTの初回／単調CASと準備済み鍵参照をDTOへ固定。実鍵なし。
 5. B1: server ciphertext repository、account TX-local／RLS、generation CAS、current auth、operation lookup。provider未設定runtimeはfail closed。
 6. B2: browser ciphertext journal、memory key provider、logout／reload／切断、三者比較選択。公開契約モックで独立PR可能。
 7. B3: 明示承認後のlive provider接続・運用設定。未実行なら未接続と報告。
 
 後段確認計画: 同staff2sessionの取得勝者1つ、take-overとwriteの両順、releaseとunknown、old client、別account／同名再作成、別clinic／record／tab、現在grant失効、corrupt／鍵不在、quota、未送達reload、logout後別staff、同key別payload／別record、anchor欠落・claim rollback・record変更／論理削除、baseline bootstrap rollback・全inquiry writerの版参加、draft generation CAS、旧成功receiptの現在認可、旧draftの再取得後比較回収、ログ／cache等の鍵非保存。すべて記述のみで **NOT_RUN**。
+
+Bの後段fixtureもNOT_RUN: 新規FK違反拒否と未解決旧scopeだけの停止／原行温存、未解決残存時のVALIDATE未完了表示、候補unwrap確認失敗時の非公開、provision競合敗者の勝者key再取得・Unwrap失敗、provider後日停止／commit不明の非破壊再照合、fresh GET metadataによるAAD再構成・不整合とabsentの区別、全GET応答no-storeとlogout別account分離、初回PUT競合の勝者1件・0→1・以後+1・上限／後退／ジャンプ拒否、成功replay非増分・応答不明の照会先行、初回鍵選定・異scope／異key拒否。記述の追加を実装／DDL適用／実鍵／試験実行の完了と扱わない。
 
 ## 12. 根拠・実施状態
 
