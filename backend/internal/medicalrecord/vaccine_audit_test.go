@@ -136,7 +136,7 @@ func TestVaccineService_AtomicInsuranceAudit(t *testing.T) {
 				setting := false
 				if updating {
 					name := "after"
-					input := &UpdateVaccineInput{ActorID: vaccineTestActorID(), Name: &name}
+					input := &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Name: &name}
 					if operation == "update-legacy-null" || operation == "update-existing-true" {
 						input.IsNonInsurance = &setting
 					}
@@ -215,7 +215,7 @@ func TestVaccineService_MissingAuditDependenciesOrActorStopsBeforeMutation(t *te
 			require.Error(t, err)
 			require.Nil(t, got)
 			require.False(t, called)
-			updated, err := svc.Update(t.Context(), clinicID, 17, &UpdateVaccineInput{ActorID: actor})
+			updated, err := svc.Update(t.Context(), clinicID, 17, &UpdateVaccineInput{Version: 1, ActorID: actor})
 			require.Error(t, err)
 			require.Nil(t, updated)
 			require.False(t, called)
@@ -244,7 +244,7 @@ func TestVaccineService_ParentValidationAfterWriteLocks(t *testing.T) {
 			return &model.Vaccine{ID: 17, ClinicID: 2}, nil
 		},
 	}
-	_, err := newVaccineServiceForTest(repo).Update(t.Context(), 2, 17, &UpdateVaccineInput{ActorID: vaccineTestActorID(), Name: &name, ParentID: &parentID})
+	_, err := newVaccineServiceForTest(repo).Update(t.Context(), 2, 17, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Name: &name, ParentID: &parentID})
 	require.NoError(t, err)
 	require.Equal(t, []string{"write-locks", "read", "read", "update"}, events)
 }

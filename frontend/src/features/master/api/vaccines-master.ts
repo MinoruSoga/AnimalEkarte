@@ -17,18 +17,22 @@ export type { VaccineItem };
 // EMR-455: 予防接種の品目別保険設定。共有の生成型・transform・request 型は EMR-454 所有のため、
 // vaccine 専有の wire 拡張をこのファイルに閉じる。wire の null（未保存/旧欠落）は undefined として保持し、
 // false 等へ補完しない（共有 TreatmentItem.isNonInsurance?: boolean と同じ表現）。
-type VaccineMasterResponse = Vaccine & { is_non_insurance?: boolean | null };
+type VaccineMasterResponse = Vaccine & { version: number; is_non_insurance?: boolean | null };
 
-export type VaccineMasterItem = VaccineItem & { isNonInsurance?: boolean };
+export type VaccineMasterItem = VaccineItem & { version: number; isNonInsurance?: boolean };
 
 // 作成時に未送信の場合はサーバーが新規初期値（対象外=true）を保存する。
 export type CreateVaccineMasterRequest = CreateVaccineRequest & { is_non_insurance?: boolean };
 
 // 更新時は未送信=変更なし。null はサーバーが 400 で拒否するため型でも許さない。
-export type UpdateVaccineMasterRequest = UpdateVaccineRequest & { is_non_insurance?: boolean };
+export type UpdateVaccineMasterRequest = UpdateVaccineRequest & {
+  version: number;
+  is_non_insurance?: boolean;
+};
 
 export const transformVaccineMaster = (data: VaccineMasterResponse): VaccineMasterItem => ({
   ...transformVaccine(data),
+  version: data.version,
   isNonInsurance: data.is_non_insurance ?? undefined,
 });
 
@@ -48,6 +52,9 @@ export const updateVaccineMaster = async (
   id: string,
   req: UpdateVaccineMasterRequest,
 ): Promise<VaccineMasterItem> => {
+  if (!Number.isSafeInteger(req.version) || req.version <= 0) {
+    throw new Error("編集開始時のバージョンがありません。再読み込みしてください。");
+  }
   const { data } = await axios.patch<VaccineMasterResponse>(`/v1/masters/vaccines/${id}`, req);
   return transformVaccineMaster(data);
 };

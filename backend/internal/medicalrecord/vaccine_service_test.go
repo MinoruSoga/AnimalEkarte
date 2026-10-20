@@ -295,7 +295,7 @@ func TestVaccineService_Update(t *testing.T) {
 	}{
 		{
 			name: "updates vaccine successfully",
-			input: UpdateVaccineInput{ActorID: vaccineTestActorID(),
+			input: UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name: &name,
 			},
 			repoErr: nil,
@@ -303,13 +303,13 @@ func TestVaccineService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateVaccineInput{ActorID: vaccineTestActorID()},
+			input:   UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID()},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name: "returns not found error when vaccine does not exist",
-			input: UpdateVaccineInput{ActorID: vaccineTestActorID(),
+			input: UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("vaccine", "999"),
@@ -317,7 +317,7 @@ func TestVaccineService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			input: UpdateVaccineInput{ActorID: vaccineTestActorID(),
+			input: UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name: &name,
 			},
 			repoErr: errors.New("db error"),
@@ -554,12 +554,12 @@ func TestBuildVaccineUpdate(t *testing.T) {
 	}{
 		{
 			name:  "全フィールドnilの場合は空map",
-			input: &UpdateVaccineInput{ActorID: vaccineTestActorID()},
+			input: &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID()},
 			want:  map[string]any{},
 		},
 		{
 			name: "全フィールド設定",
-			input: &UpdateVaccineInput{ActorID: vaccineTestActorID(),
+			input: &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name:        &name,
 				Price:       &price,
 				IsActive:    &isActive,
@@ -582,7 +582,7 @@ func TestBuildVaccineUpdate(t *testing.T) {
 		},
 		{
 			name: "ClearParentIDがtrueの場合はparent_idをnilに設定",
-			input: &UpdateVaccineInput{ActorID: vaccineTestActorID(),
+			input: &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				ClearParentID: true,
 			},
 			want: map[string]any{
@@ -651,7 +651,7 @@ func TestVaccineService_Update_InvalidName(t *testing.T) {
 	}
 	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{ActorID: vaccineTestActorID(), Name: &invalidName})
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Name: &invalidName})
 
 	assert.Error(t, err)
 	assert.Nil(t, vaccine)
@@ -667,7 +667,7 @@ func TestVaccineService_Update_NegativePrice(t *testing.T) {
 	}
 	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{ActorID: vaccineTestActorID(), Price: &negativePrice})
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Price: &negativePrice})
 
 	assert.Error(t, err)
 	assert.Nil(t, vaccine)
@@ -683,7 +683,7 @@ func TestVaccineService_Update_InvalidSpecies(t *testing.T) {
 	}
 	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{ActorID: vaccineTestActorID(), Species: &invalidSpecies})
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Species: &invalidSpecies})
 
 	assert.Error(t, err)
 	assert.Nil(t, vaccine)

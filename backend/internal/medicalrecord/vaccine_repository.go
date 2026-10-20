@@ -99,14 +99,26 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 }
 
 func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error) {
-	if err := r.update(ctx, clinicID, id, buildVaccineUpdate(&cmd)); err != nil {
-		return nil, err
+	if cmd.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput("version must be positive")
+	}
+	fields := buildVaccineUpdate(&cmd)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Vaccine{}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ? AND version = ?", id, cmd.Version).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict("ワクチンが更新されました。再読み込みして変更を確認してください")
 	}
 	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *vaccineRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Vaccine{}, "vaccine", clinicID, id, fields)
 }
 
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

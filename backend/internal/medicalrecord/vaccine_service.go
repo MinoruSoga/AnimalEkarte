@@ -27,6 +27,7 @@ type CreateVaccineInput struct {
 
 // UpdateVaccineInput はワクチン更新のサービス入力 DTO
 type UpdateVaccineInput struct {
+	Version       int64
 	ActorID       *uint64
 	Name          *string
 	Price         *int64
@@ -205,6 +206,9 @@ func (s *vaccineService) create(ctx context.Context, clinicID uint64, input *Cre
 func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateVaccineInput) (*model.Vaccine, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	if input.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput("version must be positive")
 	}
 	var result *model.Vaccine
 	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "vaccine", "vaccine.update", func(txCtx context.Context) (masterInsuranceChange, error) {

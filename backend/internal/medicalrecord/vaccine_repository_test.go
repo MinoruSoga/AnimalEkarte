@@ -137,14 +137,14 @@ func TestVaccineRepository_Update(t *testing.T) {
 
 	t.Run("同一医院では Update が反映される", func(t *testing.T) {
 		name := "更新後ワクチン"
-		got, err := repo.Update(ctx, clinicA, v.ID, UpdateVaccineInput{Name: &name})
+		got, err := repo.Update(ctx, clinicA, v.ID, UpdateVaccineInput{Version: 1, Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後ワクチン", got.Name)
 	})
 
 	t.Run("別医院からの Update は NotFound", func(t *testing.T) {
 		name := "改ざん試行"
-		_, err := repo.Update(ctx, clinicB, v.ID, UpdateVaccineInput{Name: &name})
+		_, err := repo.Update(ctx, clinicB, v.ID, UpdateVaccineInput{Version: 1, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -155,7 +155,7 @@ func TestVaccineRepository_Update(t *testing.T) {
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
 		name := "x"
-		_, err := repo.Update(ctx, clinicA, 999999, UpdateVaccineInput{Name: &name})
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateVaccineInput{Version: 1, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -311,7 +311,7 @@ func TestVaccineRepository_IsNonInsurance_RoundTripAndLegacyNull(t *testing.T) {
 
 	t.Run("名称だけの更新は NULL を維持する", func(t *testing.T) {
 		name := "旧欠落ワクチン改"
-		got, err := repo.Update(ctx, clinicA, legacy.ID, UpdateVaccineInput{Name: &name})
+		got, err := repo.Update(ctx, clinicA, legacy.ID, UpdateVaccineInput{Version: 1, Name: &name})
 		require.NoError(t, err)
 		assert.Nil(t, got.IsNonInsurance, "旧欠落値を推測補完してはならない")
 	})
@@ -319,7 +319,7 @@ func TestVaccineRepository_IsNonInsurance_RoundTripAndLegacyNull(t *testing.T) {
 	t.Run("明示 false/true を保存し再読込で一致する", func(t *testing.T) {
 		for _, want := range []bool{false, true} {
 			value := want
-			_, err := repo.Update(ctx, clinicA, legacy.ID, UpdateVaccineInput{IsNonInsurance: &value})
+			_, err := repo.Update(ctx, clinicA, legacy.ID, UpdateVaccineInput{Version: 1, IsNonInsurance: &value})
 			require.NoError(t, err)
 			got, err := repo.FindByID(ctx, clinicA, legacy.ID)
 			require.NoError(t, err)
@@ -330,7 +330,7 @@ func TestVaccineRepository_IsNonInsurance_RoundTripAndLegacyNull(t *testing.T) {
 
 	t.Run("別医院からの保険設定変更は NotFound で値を変えない", func(t *testing.T) {
 		value := false
-		_, err := repo.Update(ctx, clinicB, legacy.ID, UpdateVaccineInput{IsNonInsurance: &value})
+		_, err := repo.Update(ctx, clinicB, legacy.ID, UpdateVaccineInput{Version: 1, IsNonInsurance: &value})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 		got, err := repo.FindByID(ctx, clinicA, legacy.ID)

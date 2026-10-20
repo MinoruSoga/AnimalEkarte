@@ -26,9 +26,9 @@ func TestCreateVaccineRequest_IsNonInsurance_Decode(t *testing.T) {
 		body string
 		want *bool
 	}{
-		{name: "未送信はnil（service が新規初期値を適用）", body: `{"name":"v"}`, want: nil},
-		{name: "trueは明示値", body: `{"name":"v","is_non_insurance":true}`, want: vaccineBoolPtr(true)},
-		{name: "falseは明示値", body: `{"name":"v","is_non_insurance":false}`, want: vaccineBoolPtr(false)},
+		{name: "未送信はnil（service が新規初期値を適用）", body: `{"version":1,"name":"v"}`, want: nil},
+		{name: "trueは明示値", body: `{"version":1,"name":"v","is_non_insurance":true}`, want: vaccineBoolPtr(true)},
+		{name: "falseは明示値", body: `{"version":1,"name":"v","is_non_insurance":false}`, want: vaccineBoolPtr(false)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -41,9 +41,9 @@ func TestCreateVaccineRequest_IsNonInsurance_Decode(t *testing.T) {
 
 func TestCreateVaccineRequest_IsNonInsurance_RejectsNullAndNonBoolean(t *testing.T) {
 	for _, body := range []string{
-		`{"name":"v","is_non_insurance":null}`,
-		`{"name":"v","is_non_insurance":"true"}`,
-		`{"name":"v","is_non_insurance":1}`,
+		`{"version":1,"name":"v","is_non_insurance":null}`,
+		`{"version":1,"name":"v","is_non_insurance":"true"}`,
+		`{"version":1,"name":"v","is_non_insurance":1}`,
 	} {
 		t.Run(body, func(t *testing.T) {
 			var req createVaccineRequest
@@ -60,9 +60,9 @@ func TestUpdateVaccineRequest_IsNonInsurance_Decode(t *testing.T) {
 		body string
 		want *bool
 	}{
-		{name: "未送信は変更なし", body: `{"name":"v"}`, want: nil},
-		{name: "trueは明示保存", body: `{"is_non_insurance":true}`, want: vaccineBoolPtr(true)},
-		{name: "falseは明示保存", body: `{"is_non_insurance":false}`, want: vaccineBoolPtr(false)},
+		{name: "未送信は変更なし", body: `{"version":1,"name":"v"}`, want: nil},
+		{name: "trueは明示保存", body: `{"version":1,"is_non_insurance":true}`, want: vaccineBoolPtr(true)},
+		{name: "falseは明示保存", body: `{"version":1,"is_non_insurance":false}`, want: vaccineBoolPtr(false)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -75,9 +75,9 @@ func TestUpdateVaccineRequest_IsNonInsurance_Decode(t *testing.T) {
 
 func TestUpdateVaccineRequest_IsNonInsurance_RejectsNullAndNonBoolean(t *testing.T) {
 	for _, body := range []string{
-		`{"is_non_insurance":null}`,
-		`{"is_non_insurance":"true"}`,
-		`{"is_non_insurance":1}`,
+		`{"version":1,"is_non_insurance":null}`,
+		`{"version":1,"is_non_insurance":"true"}`,
+		`{"version":1,"is_non_insurance":1}`,
 	} {
 		t.Run(body, func(t *testing.T) {
 			var req updateVaccineRequest
@@ -132,7 +132,7 @@ func TestVaccineService_Update_IsNonInsuranceOnly(t *testing.T) {
 	}
 	svc := newVaccineServiceForTest(repo)
 
-	got, err := svc.Update(context.Background(), 1, 9, &UpdateVaccineInput{ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(false)})
+	got, err := svc.Update(context.Background(), 1, 9, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(false)})
 
 	require.NoError(t, err, "is_non_insurance 単独更新は at-least-one-field ガードを通過する")
 	require.NotNil(t, gotCmd.IsNonInsurance)
@@ -145,11 +145,11 @@ func TestBuildVaccineUpdate_IsNonInsurance(t *testing.T) {
 	name := "renamed"
 
 	assert.Equal(t, map[string]any{colVaccineIsNonInsurance: true},
-		buildVaccineUpdate(&UpdateVaccineInput{ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(true)}))
+		buildVaccineUpdate(&UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(true)}))
 	assert.Equal(t, map[string]any{colVaccineIsNonInsurance: false},
-		buildVaccineUpdate(&UpdateVaccineInput{ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(false)}))
+		buildVaccineUpdate(&UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), IsNonInsurance: vaccineBoolPtr(false)}))
 
-	fields := buildVaccineUpdate(&UpdateVaccineInput{ActorID: vaccineTestActorID(), Name: &name})
+	fields := buildVaccineUpdate(&UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Name: &name})
 	_, touched := fields[colVaccineIsNonInsurance]
 	assert.False(t, touched, "未指定の再編集は保存済み/旧欠落値を上書きしない")
 }
@@ -204,7 +204,7 @@ func TestUpdateVaccineHandler_IsNonInsurance(t *testing.T) {
 				return nil, nil
 			},
 		}
-		w := serveVaccineInsuranceRequest(t, http.MethodPatch, `{"is_non_insurance":null}`, svc)
+		w := serveVaccineInsuranceRequest(t, http.MethodPatch, `{"version":1,"is_non_insurance":null}`, svc)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -216,7 +216,7 @@ func TestUpdateVaccineHandler_IsNonInsurance(t *testing.T) {
 				return &model.Vaccine{ID: id, Name: "v", IsNonInsurance: input.IsNonInsurance}, nil
 			},
 		}
-		w := serveVaccineInsuranceRequest(t, http.MethodPatch, `{"is_non_insurance":false}`, svc)
+		w := serveVaccineInsuranceRequest(t, http.MethodPatch, `{"version":1,"is_non_insurance":false}`, svc)
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.JSONEq(t, `false`, string(decodeVaccineField(t, w, "is_non_insurance")))
 	})
@@ -230,7 +230,7 @@ func TestCreateVaccineHandler_IsNonInsuranceOmittedReachesServiceAsNil(t *testin
 			return &model.Vaccine{ID: 1, Name: input.Name, IsNonInsurance: &v}, nil
 		},
 	}
-	w := serveVaccineInsuranceRequest(t, http.MethodPost, `{"name":"v"}`, svc)
+	w := serveVaccineInsuranceRequest(t, http.MethodPost, `{"version":1,"name":"v"}`, svc)
 	require.Equal(t, http.StatusCreated, w.Code)
 	assert.JSONEq(t, `true`, string(decodeVaccineField(t, w, "is_non_insurance")))
 }
@@ -242,7 +242,7 @@ func TestCreateVaccineHandler_IsNonInsuranceRejectsNull(t *testing.T) {
 			return nil, nil
 		},
 	}
-	w := serveVaccineInsuranceRequest(t, http.MethodPost, `{"name":"v","is_non_insurance":null}`, svc)
+	w := serveVaccineInsuranceRequest(t, http.MethodPost, `{"version":1,"name":"v","is_non_insurance":null}`, svc)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 

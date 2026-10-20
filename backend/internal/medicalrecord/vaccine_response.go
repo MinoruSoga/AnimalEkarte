@@ -8,6 +8,7 @@ import (
 )
 
 type vaccineResponse struct {
+	Version     int64                 `json:"version"`
 	ID          uint64                `json:"id"`
 	ClinicID    uint64                `json:"clinic_id"`
 	Name        string                `json:"name"`
@@ -27,6 +28,7 @@ type vaccineResponse struct {
 
 func toVaccineResponse(v *model.Vaccine) vaccineResponse {
 	return vaccineResponse{
+		Version:        v.Version,
 		ID:             v.ID,
 		ClinicID:       v.ClinicID,
 		Name:           v.Name,

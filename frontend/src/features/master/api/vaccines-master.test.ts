@@ -18,6 +18,7 @@ vi.mock("@/lib/axios", () => ({
 
 const baseVaccine = {
   id: 7,
+  version: 4,
   clinic_id: 1,
   name: "混合ワクチン",
   price: 5000,
@@ -43,6 +44,7 @@ describe("vaccine master insurance setting (EMR-455)", () => {
     const item = transformVaccineMaster({ ...baseVaccine, is_non_insurance: wire });
 
     expect(item.isNonInsurance).toBe(expected);
+    expect(item.version).toBe(4);
     expect(item).toEqual(expect.objectContaining({ id: "7", name: "混合ワクチン", price: 5000 }));
   });
 
@@ -65,13 +67,16 @@ describe("vaccine master insurance setting (EMR-455)", () => {
     vi.mocked(axios.patch).mockResolvedValue({ data: { ...baseVaccine, is_non_insurance: true } });
 
     const created = await createVaccineMaster({ name: "混合ワクチン", is_non_insurance: false });
-    const updated = await updateVaccineMaster("7", { is_non_insurance: true });
+    const updated = await updateVaccineMaster("7", { version: 4, is_non_insurance: true });
 
     expect(axios.post).toHaveBeenCalledWith("/v1/masters/vaccines", {
       name: "混合ワクチン",
       is_non_insurance: false,
     });
-    expect(axios.patch).toHaveBeenCalledWith("/v1/masters/vaccines/7", { is_non_insurance: true });
+    expect(axios.patch).toHaveBeenCalledWith("/v1/masters/vaccines/7", {
+      version: 4,
+      is_non_insurance: true,
+    });
     expect(created.isNonInsurance).toBe(false);
     expect(updated.isNonInsurance).toBe(true);
   });
@@ -79,9 +84,35 @@ describe("vaccine master insurance setting (EMR-455)", () => {
   it("does not add an insurance setting the caller did not send", async () => {
     vi.mocked(axios.patch).mockResolvedValue({ data: { ...baseVaccine, is_non_insurance: null } });
 
-    const updated = await updateVaccineMaster("7", { name: "名称のみ変更" });
+    const updated = await updateVaccineMaster("7", { version: 4, name: "名称のみ変更" });
 
-    expect(axios.patch).toHaveBeenCalledWith("/v1/masters/vaccines/7", { name: "名称のみ変更" });
+    expect(axios.patch).toHaveBeenCalledWith("/v1/masters/vaccines/7", {
+      version: 4,
+      name: "名称のみ変更",
+    });
     expect(updated.isNonInsurance).toBeUndefined();
+  });
+});
+
+// The edit snapshot is supplied by the caller; this API never refreshes it.
+describe("vaccine master CAS", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it.each([0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
+    "rejects invalid editing version %s before HTTP",
+    async (version) => {
+      await expect(updateVaccineMaster("7", { version, name: "edit" })).rejects.toThrow();
+      expect(axios.patch).not.toHaveBeenCalled();
+      expect(axios.get).not.toHaveBeenCalled();
+    },
+  );
+  it("passes the editing version unchanged and exposes the returned version", async () => {
+    vi.mocked(axios.patch).mockResolvedValue({ data: { ...baseVaccine, version: 5 } });
+    const result = await updateVaccineMaster("7", { version: 4, name: "edit" });
+    expect(axios.patch).toHaveBeenCalledWith("/v1/masters/vaccines/7", {
+      version: 4,
+      name: "edit",
+    });
+    expect(axios.get).not.toHaveBeenCalled();
+    expect(result.version).toBe(5);
   });
 });
