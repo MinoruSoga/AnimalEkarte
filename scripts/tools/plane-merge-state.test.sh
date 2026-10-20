@@ -626,6 +626,23 @@ sync_one_ticket EMR-999 main 606 'https://github.com/example/repo/pull/606' main
 assert_eq "inter-request throttle sleeps between requests" '3' "$(grep -c '^0\.400$' "$SLEEP_LOG")"
 PLANE_MERGE_STATE_THROTTLE_MS=0
 
+# run_ticket_passes: a permanent failure is never resent by the retry pass,
+# while a transient failure from the same pass is retried exactly once.
+rate_case "passes-permanent"
+PLANE_MERGE_STATE_MAX_ATTEMPTS=2
+printf '%s\n' '403||detail' '429||detail' '429||detail' '200||item' '200||empty' '200||comments' '201||empty' > "$CASE_DIR/plan"
+printf 'EMR-A\nEMR-B\n' > "$CASE_DIR/tickets"
+if run_ticket_passes "$CASE_DIR/tickets" main 606 'https://github.com/example/repo/pull/606' main > "$CASE_DIR/summary.out" 2>&1; then
+  ng "permanent ticket is excluded from the retry pass"
+else
+  ok "permanent ticket is excluded from the retry pass"
+fi
+assert_eq "permanent ticket sends exactly one lookup" '1' "$(grep -c 'work-items/EMR-A/' "$CASE_DIR/calls")"
+assert_eq "transient ticket is retried once by the retry pass" '3' "$(grep -c 'work-items/EMR-B/' "$CASE_DIR/calls")"
+assert_eq "passes summary separates fail from ok" '1' \
+  "$(grep -c '^SUMMARY  ok=1 skip=0 fail=1 unknown=0 deferred=0' "$CASE_DIR/summary.out")"
+assert_eq "passes retry writes the transient ticket once" '1' "$(rate_calls '^PATCH')"
+
 # 25-ticket equivalent: shared budget forces a finite stop with a summary.
 # The fake shares one comment collection across tickets, so after the first
 # full success the next three tickets resolve through the external_id dedupe
@@ -663,6 +680,15 @@ assert_eq "25-ticket successful tickets are never re-written" '1' "$(rate_calls 
 assert_eq "25-ticket comment is never posted twice" '1' "$(rate_calls '^POST')"
 assert_eq "25-ticket run never spends a negative budget" '1' \
   "$(( RUN_WAIT_BUDGET_REMAINING_MS >= 0 ? 1 : 0 ))"
+
+# malformed whole-run budget override must fall back to the default, never
+# produce a non-integer millisecond ledger that silently disables the budget.
+assert_eq "malformed wait budget override falls back to the default" '120000' \
+  "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='2m' plane_wait_budget_ms)"
+assert_eq "fractional wait budget override falls back to the default" '120000' \
+  "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='120.5' plane_wait_budget_ms)"
+assert_eq "integer wait budget override is honored" '300000' \
+  "$(PLANE_MERGE_STATE_MAX_WAIT_SECONDS='300' plane_wait_budget_ms)"
 
 echo "----"
 echo "PASS ${PASS_COUNT}  FAIL ${FAIL_COUNT}"

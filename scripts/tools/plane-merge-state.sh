@@ -247,7 +247,15 @@ require_command() {
 #   PLANE_MERGE_STATE_MAX_WAIT_SECONDS  whole-run wait budget (default 120s)
 #   PLANE_MERGE_STATE_THROTTLE_MS       pacing sleep between requests (default 400ms)
 #   PLANE_MERGE_STATE_BACKOFF_CAP_SECONDS  cap for headerless backoff (default 15s)
-RUN_WAIT_BUDGET_REMAINING_MS="${PLANE_MERGE_STATE_MAX_WAIT_SECONDS:-120}000"
+# Whole-run wait budget in milliseconds, derived from a sanitized integer
+# second count so a malformed override cannot defeat the budget arithmetic.
+plane_wait_budget_ms() {
+  local seconds="${PLANE_MERGE_STATE_MAX_WAIT_SECONDS:-120}"
+  case "$seconds" in ''|*[!0-9]*) seconds=120 ;; esac
+  printf '%s\n' $(( seconds * 1000 ))
+}
+
+RUN_WAIT_BUDGET_REMAINING_MS="$(plane_wait_budget_ms)"
 RUN_BUDGET_EXHAUSTED=0
 RUN_ANY_REQUEST_MADE=""
 # plane_http / plane_write_http store the response code here instead of a
@@ -1080,7 +1088,7 @@ main() {
     exit 0
   fi
 
-  RUN_WAIT_BUDGET_REMAINING_MS="${PLANE_MERGE_STATE_MAX_WAIT_SECONDS:-120}000"
+  RUN_WAIT_BUDGET_REMAINING_MS="$(plane_wait_budget_ms)"
   RUN_BUDGET_EXHAUSTED=0
   RUN_ANY_REQUEST_MADE=""
   run_ticket_passes "$tickets_file" "$base" "$number" "$pr_url" "$head"
