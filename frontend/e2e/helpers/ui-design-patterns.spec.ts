@@ -10,8 +10,10 @@ import {
 
 const VIEWPORT = { width: 1280, height: 900 };
 
+const NAV = { top: 0, left: 0, width: 240, height: 900 };
+
 function signals(overrides: Partial<PatternSignals> = {}): PatternSignals {
-  return { current: null, fixed: [], operable: [], viewport: VIEWPORT, ...overrides };
+  return { nav: NAV, current: null, fixed: [], operable: [], viewport: VIEWPORT, ...overrides };
 }
 
 test.describe("isFullyInViewport", () => {
@@ -31,8 +33,26 @@ test.describe("isFullyInViewport", () => {
 });
 
 test.describe("findOffscreenCurrent (design-patterns §1.1)", () => {
-  test("no current item (login) is not a finding", () => {
-    expect(findOffscreenCurrent(signals())).toBeNull();
+  test("no main nav (login / standalone window) is not a finding", () => {
+    expect(findOffscreenCurrent(signals({ nav: null }))).toBeNull();
+  });
+
+  test("main nav without a current item is a finding at expanded width", () => {
+    expect(findOffscreenCurrent(signals())).toBe("main nav has no [aria-current=page] item");
+  });
+
+  test("main nav without a current item is skipped at collapsed width (<1280)", () => {
+    expect(findOffscreenCurrent(signals({ viewport: { width: 1200, height: 900 } }))).toBeNull();
+  });
+
+  test("current item inside the viewport but clipped below the nav scroll box is a finding", () => {
+    const result = findOffscreenCurrent(
+      signals({
+        nav: { top: 0, left: 0, width: 240, height: 748 },
+        current: { descriptor: "a(設定)", rect: { top: 800, left: 0, width: 240, height: 44 } },
+      }),
+    );
+    expect(result).toBe("a(設定)@0,800 240x44 (nav 0,0 240x748)");
   });
 
   test("visible current item passes", () => {
@@ -53,7 +73,7 @@ test.describe("findOffscreenCurrent (design-patterns §1.1)", () => {
         },
       }),
     );
-    expect(result).toBe("a(スタッフマスタ)@0,1683 240x44");
+    expect(result).toBe("a(スタッフマスタ)@0,1683 240x44 (nav 0,0 240x900)");
   });
 });
 
@@ -100,13 +120,20 @@ test.describe("findFixedOverlaps (design-patterns §5.1)", () => {
     expect(result).toEqual([]);
   });
 
-  test("fixed elements do not count as overlapping each other", () => {
+  test("two fixed controls overlapping each other (FAB vs fixed action bar) are reported once per side", () => {
     const result = findFixedOverlaps(
       signals({
         fixed: [fab, { descriptor: "button(保存)", rect: { top: 840, left: 1220, width: 40, height: 40 } }],
       }),
     );
-    expect(result).toEqual([]);
+    expect(result).toEqual([
+      "button(保存)@1220,840 40x40 covers button[aria-label=サポート・ヘルプを開く]@1216,836 48x48",
+      "button[aria-label=サポート・ヘルプを開く]@1216,836 48x48 covers button(保存)@1220,840 40x40",
+    ]);
+  });
+
+  test("a fixed control is never compared with itself", () => {
+    expect(findFixedOverlaps(signals({ fixed: [fab] }))).toEqual([]);
   });
 });
 
@@ -118,6 +145,6 @@ test("evaluatePatternSignals combines both findings", () => {
       operable: [{ descriptor: "button(last)", rect: { top: 856, left: 1200, width: 44, height: 44 } }],
     }),
   );
-  expect(findings.offscreenCurrent).toBe("a(設定)@0,1200 240x44");
+  expect(findings.offscreenCurrent).toBe("a(設定)@0,1200 240x44 (nav 0,0 240x900)");
   expect(findings.fixedOverlaps).toHaveLength(1);
 });

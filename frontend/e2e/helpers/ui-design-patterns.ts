@@ -23,7 +23,9 @@ export interface MeasuredElement {
 }
 
 export interface PatternSignals {
-  /** `[aria-current="page"]` の矩形。無いページ（ログイン等）は null */
+  /** メインナビ（`nav[aria-label="メインナビゲーション"]`）の矩形。アプリシェル外（ログイン等）は null */
+  nav: Rect | null;
+  /** メインナビ内の `[aria-current="page"]` の矩形。無ければ null */
   current: MeasuredElement | null;
   /** position: fixed の操作要素 */
   fixed: MeasuredElement[];
@@ -33,7 +35,7 @@ export interface PatternSignals {
 }
 
 export interface PatternFindings {
-  /** §1.1 違反: 現在地が viewport 外（descriptor と矩形）。null なら合格 */
+  /** §1.1 違反: 現在地がメインナビの可視範囲または viewport の外、あるいは展開ナビに現在地が無い。null なら合格 */
   offscreenCurrent: string | null;
   /** §5.1 違反: 「fixed要素 ⟂ 操作要素」の重なり */
   fixedOverlaps: string[];
@@ -41,13 +43,24 @@ export interface PatternFindings {
 
 /** 矩形が viewport に完全に収まっているか（部分的に見えるだけでは不可: §1.1「スクロールなしで視認」） */
 export function isFullyInViewport(rect: Rect, viewport: { width: number; height: number }): boolean {
+  return isContained(rect, { top: 0, left: 0, width: viewport.width, height: viewport.height });
+}
+
+/** inner が outer に完全に含まれるか（nav のスクロール範囲に対するクリップ判定にも使う）。 */
+export function isContained(inner: Rect, outer: Rect): boolean {
   return (
-    rect.top >= 0 &&
-    rect.left >= 0 &&
-    rect.top + rect.height <= viewport.height &&
-    rect.left + rect.width <= viewport.width
+    inner.top >= outer.top &&
+    inner.left >= outer.left &&
+    inner.top + inner.height <= outer.top + outer.height &&
+    inner.left + inner.width <= outer.left + outer.width
   );
 }
+
+/**
+ * サイドバーが展開される幅（`Sidebar.tsx` の `window.innerWidth < 1280` と同じ境界）。
+ * これ未満では折りたたみ表示で現在地の子項目を描画しないため、現在地の有無は判定しない。
+ */
+export const SIDEBAR_EXPANDED_MIN_WIDTH = 1280;
 
 function intersects(a: Rect, b: Rect): boolean {
   return (
@@ -62,24 +75,41 @@ function describeRect(rect: Rect): string {
   return `${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)}`;
 }
 
-/** §1.1: 現在地が viewport 外なら descriptor を返す。現在地が無いページは null（判定対象外）。 */
+/**
+ * §1.1: 現在地がメインナビの可視矩形と viewport の両方に収まっていなければ descriptor を返す。
+ * メインナビが無いページ（公開ルート・単独ウィンドウ）は対象外。メインナビがあり展開幅
+ * （>= 1280px）なのに現在地が無い場合も違反（折りたたみ幅では子項目を描画しないため判定しない）。
+ */
 export function findOffscreenCurrent(signals: PatternSignals): string | null {
-  if (!signals.current) return null;
-  if (isFullyInViewport(signals.current.rect, signals.viewport)) return null;
-  return `${signals.current.descriptor}@${describeRect(signals.current.rect)}`;
+  if (!signals.nav) return null;
+  if (!signals.current) {
+    return signals.viewport.width >= SIDEBAR_EXPANDED_MIN_WIDTH
+      ? "main nav has no [aria-current=page] item"
+      : null;
+  }
+  const { rect } = signals.current;
+  if (isFullyInViewport(rect, signals.viewport) && isContained(rect, signals.nav)) return null;
+  return `${signals.current.descriptor}@${describeRect(rect)} (nav ${describeRect(signals.nav)})`;
 }
 
-/** §5.1: fixed 操作要素が他の操作要素と矩形で重なる組を返す（重複排除・決定的順序）。 */
+/**
+ * §5.1: fixed 操作要素が他の操作要素（通常要素と、自分以外の fixed 要素）と矩形で重なる組を返す
+ * （重複排除・決定的順序）。固定アクションバーのボタンと FAB の衝突も検出する。
+ */
 export function findFixedOverlaps(signals: PatternSignals): string[] {
   const overlaps: string[] = [];
-  for (const fixed of signals.fixed) {
-    for (const target of signals.operable) {
+  signals.fixed.forEach((fixed, index) => {
+    const targets = [
+      ...signals.operable,
+      ...signals.fixed.filter((_, otherIndex) => otherIndex !== index),
+    ];
+    for (const target of targets) {
       if (!intersects(fixed.rect, target.rect)) continue;
       overlaps.push(
         `${fixed.descriptor}@${describeRect(fixed.rect)} covers ${target.descriptor}@${describeRect(target.rect)}`,
       );
     }
-  }
+  });
   return [...new Set(overlaps)].sort();
 }
 
@@ -128,7 +158,10 @@ export async function collectPatternSignals(page: Page): Promise<PatternSignals>
       return false;
     };
 
-    const currentElement = document.querySelector<HTMLElement>("nav [aria-current='page']");
+    // メインナビだけを見る（ページネーション等の nav[aria-current] を拾わない）。
+    const navElement = document.querySelector<HTMLElement>("nav[aria-label='メインナビゲーション']");
+    const nav = navElement && isVisible(navElement) ? toRect(navElement) : null;
+    const currentElement = navElement?.querySelector<HTMLElement>("[aria-current='page']") ?? null;
     const current =
       currentElement && isVisible(currentElement)
         ? { descriptor: describe(currentElement), rect: toRect(currentElement) }
@@ -143,6 +176,7 @@ export async function collectPatternSignals(page: Page): Promise<PatternSignals>
       else operable.push(measured);
     }
     return {
+      nav,
       current,
       fixed,
       operable,

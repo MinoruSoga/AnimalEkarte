@@ -1451,7 +1451,7 @@ test("checkC25: allowlist のファイルと test / 非 TSX は対象外", () =>
   const text = '<span className="truncate">{x}</span>';
   assert.equal(audit.checkC25(text, "src/features/a/B.test.tsx").length, 0);
   assert.equal(audit.checkC25(text, "src/features/a/b.ts").length, 0);
-  const [first] = audit.C25_TRUNCATE_ALLOWLIST;
+  const [first] = audit.C25_TRUNCATE_BASELINE.keys();
   if (first) assert.equal(audit.checkC25(text, first).length, 0);
 });
 
@@ -1479,7 +1479,7 @@ test("checkC27: Z トークン外の z-index 直書き（z-[N] / zIndex: N）を
     'className={Z_CLASS.overlay}',
     'className="z-10"',
   ].join("\n");
-  assert.deepEqual(audit.checkC27(text, "src/features/x/Y.tsx").map((v) => v.lineNumber), [1, 2]);
+  assert.deepEqual(audit.checkC27(text, "src/features/x/Y.tsx").map((v) => v.lineNumber), [1, 2, 5]);
   assert.equal(audit.checkC27(text, path.join("src", "lib", "design-tokens.ts")).length, 0);
 });
 
@@ -1494,7 +1494,7 @@ test("checkC28: src/features の raw <select> と <input type=\"date\"> を検�
     audit.checkC28(text, "src/features/settings/components/NewSettingsForm.tsx").map((v) => v.lineNumber),
     [1, 2],
   );
-  assert.equal(audit.checkC28(text, "src/components/shared/Filter.tsx").length, 0);
+  assert.equal(audit.checkC28(text, path.join("src", "components", "ui", "native-select.tsx")).length, 0);
   const [filterFile] = audit.C28_NATIVE_INPUT_CONTEXT_ALLOWLIST;
   if (filterFile) assert.equal(audit.checkC28(text, filterFile).length, 0);
 });
@@ -1523,4 +1523,51 @@ test("collectViolations: C25〜C29 の集計キーを持つ", async () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ── C25〜C29 レビュー対応（PR #737: 件数ラチェット・z-N・shared・submitDisabled） ──
+
+test("checkC25: baseline 件数を超えた分だけ検出し、baseline 以内は許可する", () => {
+  const two = ['<span className="truncate">{a}</span>', '<span className="truncate">{b}</span>'].join("\n");
+  const three = `${two}\n<span className="line-clamp-2">{c}</span>`;
+  const [file, count] = [...audit.C25_TRUNCATE_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 2];
+  const within = Array.from({ length: count }, (_, i) => `<span className="truncate">{v${i}}</span>`).join("\n");
+  assert.equal(audit.checkC25(within, file).length, 0);
+  const over = audit.checkC25(`${within}\n<span className="truncate">{extra}</span>`, file);
+  assert.equal(over.length, 1);
+  assert.ok(over[0].text.includes("C25_TRUNCATE_BASELINE"));
+  assert.equal(audit.checkC25(two, "src/features/new/Fresh.tsx").length, 2);
+  assert.equal(audit.checkC25(three, "src/features/new/Fresh.tsx").length, 3);
+});
+
+test("checkC27: 標準 Tailwind の z-N と variant 付き z-N も検出し、baseline 以内は許可する", () => {
+  const text = ['className="relative z-10"', 'className="focus:z-20 hover:z-[5]"', "style={{ zIndex: Z.overlay }}"].join("\n");
+  assert.deepEqual(audit.checkC27(text, "src/features/new/Fresh.tsx").map((v) => v.lineNumber), [1, 2]);
+  const [file, count] = [...audit.C27_Z_INDEX_BASELINE.entries()][0] ?? ["src/features/x/Y.tsx", 1];
+  const within = Array.from({ length: count }, () => 'className="z-10"').join("\n");
+  assert.equal(audit.checkC27(within, file).length, 0);
+  assert.equal(audit.checkC27(`${within}\nclassName="z-50"`, file).length, 1);
+});
+
+test("checkC28: src/components/shared の raw select / date も検査する", () => {
+  const text = "<select value={v}>";
+  assert.equal(audit.checkC28(text, path.join("src", "components", "shared", "NewField", "NewField.tsx")).length, 1);
+  assert.equal(audit.checkC28(text, path.join("src", "components", "ui", "select.tsx")).length, 0);
+  const [ratchet] = audit.C28_NATIVE_INPUT_RATCHET_ALLOWLIST;
+  if (ratchet) assert.equal(audit.checkC28(text, ratchet).length, 0);
+});
+
+test("checkC29: submitDisabled とバリデーション式（trim / === \"\" / length）を検出し、権限・送信中は許可する", () => {
+  const text = [
+    "<FormHeaderActions submitDisabled={!form.title.trim()} />",
+    '<FormHeaderActions submitDisabled={actualCash === "" || Number(actualCash) < 0} />',
+    "<Button disabled={items.length === 0}>保存</Button>",
+    "<FormHeaderActions submitDisabled={isPending} />",
+    "<FormHeaderActions submitDisabled={isPending || !canSubmit} />",
+    "<fieldset disabled={!canEdit}>",
+    "<SubmitButton disabled={submitDisabled}>",
+  ].join("\n");
+  assert.deepEqual(audit.checkC29(text, "src/features/new/Form.tsx").map((v) => v.lineNumber), [1, 2, 3]);
+  const [ratchet] = audit.C29_VALIDATION_DISABLED_ALLOWLIST;
+  if (ratchet) assert.equal(audit.checkC29(text, ratchet).length, 0);
 });

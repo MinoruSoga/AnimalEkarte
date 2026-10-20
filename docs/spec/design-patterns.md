@@ -270,12 +270,12 @@
 
 | 検査 | 状態 | 検出方法 | 対応する規約 |
 |:--|:--|:--|:--|
-| C25 | **実装済み**（ラチェット） | `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` / `aria-labelledby` が無い。focus/タッチで開くツールチップの有無は静的に判定できないため、機械化は「全文がどこにも無い」最低線のみ。既存 57 ファイルは `C25_TRUNCATE_ALLOWLIST` | §3.1 |
+| C25 | **実装済み**（件数ラチェット） | `truncate` / `text-ellipsis` / `line-clamp-N` を持つ opening tag に `title` / `aria-label` / `aria-labelledby` が無い。focus/タッチで開くツールチップの有無は静的に判定できないため、機械化は「全文がどこにも無い」最低線のみ。既存 57 ファイルはファイル別件数の baseline（超過のみ fail） | §3.1 |
 | C26 | **実装済み**（ラチェット） | `<nav>` 内と `Layout/Sidebar*.tsx` の `truncate`。既存 3 ファイルは allowlist | §1.2 |
-| C27 | **実装済み**（ラチェット） | `z-[N]` / `zIndex: N` の直書き（`Z` / `Z_CLASS` 参照は許可）。既存 2 ファイルは allowlist | §5.1 |
-| C28 | **実装済み**（ラチェット） | `src/features/**` の raw `<select>` / `<input type="date">`。§4.4 の許容文脈（フィルター等）は理由付き allowlist、既存違反 2 ファイルはラチェット allowlist | §4.4 |
-| C29 | **実装済み**（0 件） | `disabled={…isValid / isFormValid / errors.length…}`。権限 `can*` と送信中は対象外。`/estimates` の `canSubmit` は RBAC 由来で検出対象外（監査で観測した disabled の原因は要再確認） | §4.2 |
-| e2e | **実装済み（検知モード）**: `ui-design-compliance-readonly.spec.ts` が各ルート × 4 viewport で `nav [aria-current=page]` の viewport 内在と、`position: fixed` の操作要素と他の操作要素の非重なりを採取する（判定は `e2e/helpers/ui-design-patterns.ts`）。既定は test annotation への記録のみで、`UI_DESIGN_PATTERNS_STRICT=1` で hard fail。実装修正が揃ったら strict を既定にする | §1.1, §5.1 |
+| C27 | **実装済み**（件数ラチェット） | `z-N` / `focus:z-N` / `z-[N]` / `zIndex: N` の直書き（`Z` / `Z_CLASS` 参照は許可）。既存 33 ファイルはファイル別件数の baseline | §5.1 |
+| C28 | **実装済み**（ラチェット） | `src/features/**` と `src/components/shared/**` の raw `<select>` / `<input type="date">`。§4.4 の許容文脈（フィルター等）は理由付き allowlist、既存違反 3 ファイルはラチェット allowlist | §4.4 |
+| C29 | **実装済み**（ラチェット） | 保存／送信ボタンの `disabled` / `submitDisabled` に妥当性（`isValid` 系・`.trim()`・`=== ""`・`.length` 比較）を流す式。権限・送信中・ワークフロー状態は対象外。既存の見積（`submitDisabled={!form.title.trim()}`）とレジ締めは allowlist | §4.2 |
+| e2e | **実装済み（検知モード）**: `ui-design-compliance-readonly.spec.ts` が各ルート × 4 viewport で `nav [aria-current=page]` の viewport 内在と、`position: fixed` の操作要素と他の操作要素の非重なりを採取する（判定は `e2e/helpers/ui-design-patterns.ts`）。既定は test annotation と stdout（`[design-patterns §x.y] …` 行）への記録のみで、`UI_DESIGN_PATTERNS_STRICT=1` で hard fail（`run-e2e.sh` がコンテナへ転送する）。現在地はメインナビ（`nav[aria-label="メインナビゲーション"]`）内だけを見て、nav の可視矩形と viewport の両方に収まることを要求し、展開幅（≥1280px）で現在地が無い場合も違反。固定要素は通常要素と他の固定要素の両方と比較する。実装修正が揃ったら strict を既定にする | §1.1, §5.1 |
 
 C25〜C29 の定義は [ui-design-compliance.md §1](ui-design-compliance.md)、実装は `frontend/scripts/design-system-audit.mjs`（`pnpm design-audit`。allowlist は削減方向のみ）。C21〜C24 は既存（stories / `PALETTE` 純度 / `BADGE` コントラスト / `shared/` stories）。新しい検査を足すときは同 §1 と audit スクリプトへ同一コミットで登録し、既存番号と重複させない。
 

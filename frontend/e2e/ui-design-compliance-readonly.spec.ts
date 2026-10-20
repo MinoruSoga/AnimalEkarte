@@ -447,17 +447,17 @@ async function auditRoute(
           `${path} @ ${width}px: fixed elements over operable elements (design-patterns §5.1)`,
         ).toEqual([]);
       } else {
-        if (patterns.offscreenCurrent) {
-          test.info().annotations.push({
-            type: "design-patterns §1.1",
-            description: `${path} @ ${width}px: current location offscreen ${patterns.offscreenCurrent}`,
-          });
-        }
-        for (const overlap of patterns.fixedOverlaps) {
-          test.info().annotations.push({
-            type: "design-patterns §5.1",
-            description: `${path} @ ${width}px: ${overlap}`,
-          });
+        // 検知モード: annotation（HTML / JSON reporter 向け）と stdout（run-e2e.sh の list reporter 向け）の両方に出す。
+        const findings = [
+          ...(patterns.offscreenCurrent
+            ? [{ type: "design-patterns §1.1", description: `current location offscreen ${patterns.offscreenCurrent}` }]
+            : []),
+          ...patterns.fixedOverlaps.map((overlap) => ({ type: "design-patterns §5.1", description: overlap })),
+        ];
+        for (const finding of findings) {
+          const description = `${path} @ ${width}px: ${finding.description}`;
+          test.info().annotations.push({ type: finding.type, description });
+          console.log(`[${finding.type}] ${description}`);
         }
       }
       assertRequestSafety(path, `@ ${width}px`, interceptor, options, {
