@@ -25,7 +25,7 @@ export function MedicalRecordMountedTab({
   children: ReactNode;
 }) {
   if (!mountedTabs.has(tab)) return null;
-  if (leading && !internalLock) {
+  if (leading !== undefined && !internalLock) {
     return (
       <UnifiedTabsContent value={tab} className={contentClassName}>
         <div className={`${LAYOUT.fullHeight} ${activeTab === tab ? "" : "hidden"}`}>
