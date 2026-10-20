@@ -6,7 +6,7 @@
 | 決定状態 | [C06選定契約](integration-contracts.md#detail-design-proposals-20261018)とEMR-489レビュー訂正R2を技術接続へ具体化。新しい業務判断を追加しない |
 | 実装状態 | 共通helper・DTO・結果区分・取得順を公開（`backend/internal/operation`）。consumer（domain adapter・route・OpenAPI）は未接続 |
 | 実機検証状態 | 未実施（DBを使うstore試験・API・UIは未実行。下記「未実施・残件」） |
-| 文書確認日・基準 | 2026-10-20／main `5c5219965ad44258b8ccd918ffe52179a6139ade`（PR #729 merge後） |
+| 文書確認日・基準 | 2026-10-20／実装base main `5c5219965ad44258b8ccd918ffe52179a6139ade`（PR #729 merge後）。業務内容の追補は#738 merge `5c812ee0e7b1f603fc0a58e70b9bf5ec08a88246`の引渡しを参照（本PRへのmergeはしない） |
 | 対象 | 共通binding/result/attemptのhelper契約と、参加する操作familyの必要subset。各domainの実writer/reader/adapterは各consumer票が所有 |
 
 本書は契約公開であり、結合実装・受入合格を表さない。全owner接続の完了を他票の着手条件にしない。
@@ -54,7 +54,7 @@ consumerは成功receiptがないbindingも含め、binding ID＋医院から元
 | 0 | ambient transaction内からの呼出しを拒否（最外であること） | 実行しない |
 | 1 claim（短い独立tx） | bindingをINSERT（同scope・keyが既存なら何もしない）→保存行を読む。保存fingerprintとContentが不一致なら、現在認可を再検査してから終了（conflict応答自体が fingerprinted content の等値オラクルになるため、認可なきactorには`not-authorized`で隠す） | 認可あれば`operation-key-conflict`・認可なければ`not-authorized`。attemptは記録しない |
 | 2 最外業務tx | ownerが渡すgate（例: 予約graph参加者だけ）→binding行`FOR UPDATE NOWAIT`→成功resultがあれば現在認可（`AuthorizeLookup`）を再検査して再実行せず返す→`unknown`が1件でもあれば現在認可を再検査して停止（認可なきactorには`not-authorized`で隠す。後の失敗行で解除しない）→`Apply`前にsavepoint作成→`Participant.Apply`（現在認可・scope・Preconditionsの再照合、`req.Content.Fields()`由来のowner write、必須監査）。`*IndeterminateEffect`時はsavepointへrollbackしてowner writeをundoし、同一tx内で`unknown`行を記録してcommit（lock解放前に停止状態を永続化）→`operation_results` INSERT | gateもlockも待たない。lock取得不可はbinding行・owner gateの双方で`operation-in-progress`（`*Busy`含む）とし、attemptを記録しない |
-| 3 失敗後 | 新しい読取でresultの有無を再確認。あれば現在認可を再検査して成功（commit済みを失敗へ反転しない） | 読取失敗・`unknown`記録済みは`result-unavailable`（失敗行を重ねない）。それ以外は別txでattemptを記録（`*IndeterminateEffect`は通常tx内で記録済み。tx内記録に失敗した場合のみtx外でbest-effort記録し以後停止、`*Rejection`→`rejected`、`*Busy`・binding lock保持中→`operation-in-progress`で記録なし、その他→`retryable_failure`）。tx内記録とtx外fallbackの双方が失敗した場合は応答だけ停止し、永続的な停止状態は残らない（residual。binding自身への停止状態保持はDDLを要し、shared 001 owner＝EMR-446/466系へ依存切り分け済み。記録エラーはログへ出し、オペレーターがbindingを解消）。attempt_keyは毎回サーバー生成、detailsは`{"status": ...}`だけ |
+| 3 失敗後 | callback成功後のcommitエラーは`settledState`で再確認。receiptが見えなければbindingをNOWAITでlockしresult/unknownを再読取。保持中は`operation-in-progress`、再読取不能は`result-unavailable`、成功receiptありは現在認可を再検査して`succeeded`。lock下で未成功を確定できた場合のみfailure分類へ。callbackエラーによるrollbackは従来の失敗分類 | 読取失敗・`unknown`記録済みは`result-unavailable`（失敗行を重ねない）。それ以外は別txでattemptを記録（`*IndeterminateEffect`は通常tx内で記録済み。tx内記録に失敗した場合のみtx外でbest-effort記録し以後停止、`*Rejection`→`rejected`、`*Busy`・binding lock保持中→`operation-in-progress`で記録なし、その他→`retryable_failure`）。tx内記録とtx外fallbackの双方が失敗した場合は応答だけ停止し、永続unknown行は残らない。DB-onlyのcallbackエラーはowner writeをrollbackし、再Executeはbinding lock＋receipt再読取を通る。外部副作用を再実行してよいという意味ではなく、外部送信は本helperの非対象。commit結果未決着は上記lock下の再確認で区別する。attempt_keyは毎回サーバー生成、detailsは`{"status": ...}`だけ |
 
 照会（`Runner.Lookup`）は、resultが見えなければbinding行をNOWAITでlockしてからresultと`unknown`を再読取する。lock取得前に他の試行がcommitした成功を`not-succeeded`と返さない。結果を返す全経路（照会・replay・失敗後の成功確認）で`AuthorizeLookup`を通す。`Participant`はこのため`LookupAuthorizer`を含む。
 
@@ -90,10 +90,10 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 | 固定fixture | §3の6ケース | 未作成 |
 | C06との優先関係・adapter変換 | C06共通規則に従う。金額のみ変更は警告了承で医師確認receiptを失効させない（AC-accounting-reviewed-price-only） | 未判定 |
 
-483の未判定・技術残件（EMR-483が確定する。本票で推測しない）:
+483の判定履歴と保存契約の技術残件（確定した業務内容と未実装のDB subsetを分ける）:
 
-- `billing_price_acknowledgements.calculation_version`がContent（了承したafter計算版）かPreconditions（CAS）か、DDL単独では判定できない。BLOCKED。
-- `billing_price_acknowledgements.request_hash`と`operation_bindings.fingerprint`は同じ要求を二箇所で識別する二重管理の候補。同値コピーとは定義しない。解消方針は483が決める。
+- 判定履歴: 初稿では`billing_price_acknowledgements.calculation_version`の意味をDDL単独で判定せず保留した。#738の[2026-10-20引渡し](https://github.com/MinoruSoga/AnimalEkarte/blob/5c812ee0e7b1f603fc0a58e70b9bf5ec08a88246/docs/design/domains/accounting/technical-spec.md#price-acknowledgement-handoff-20261020)で、了承したbefore/after計算revision・対象行・提示金額／条件はContent、現在会計／行のCAS・fenceはPreconditionsと確定した。旧列名をこの合意だけで新しい保存契約へ読み替えず、必要なschema subsetは446／466へ渡す。
+- 判定履歴: 初稿では`request_hash`と共通fingerprintの二重管理を483の判断待ちとした。最新の[446／466限定DB条件](https://github.com/MinoruSoga/AnimalEkarte/blob/5c812ee0e7b1f603fc0a58e70b9bf5ec08a88246/docs/work/db-contracts/unified-db-20261019.md#price-ack-db-handoff-20261020)では、二重再送正本の整理に必要な最小参照／制約、および理由不要price-only了承のevent契約が未実装。専用`price_acknowledgement` intentは第一候補であり採用DDLではない。保存契約は446、限定DB統合・受入は466、domain adapter／writer／readerは483、共通helper／DTO／参加表は489が所有する。
 - 旧`billings.completion_request_id`／hashは除去済みで、復活させない。
 
 ## 3. 固定fixture（R2の6ケース）
@@ -111,7 +111,7 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 
 `current_permission_revoked`は照会に加えて`Execute`の同key再送でも`not-authorized`・Apply追加なしを確認する。
 
-補助テスト: unknown後のgate拒否→回復でも停止が続く（`TestExecute_UnknownStaysStickyAfterGateFailure`）、初回読取とlockの間にcommitされた成功を照会が`succeeded`と返す（`TestLookup_SeesSuccessCommittedBeforeLock`）、gate失敗時に見つかった成功receiptも現在認可で隠す（`TestExecute_GateFailureWithCommittedReceiptRechecksGrant`）、gate競合は`*Busy`で`operation-in-progress`・attempt記録なし（`TestExecute_GateBusyRecordsNothingAndReportsInProgress`）、unknown停止も現在認可で開示（`TestExecute_UnknownDisclosureRequiresCurrentGrant`）、NOWAIT abort後はrollbackして`operation-in-progress`（`TestLookup_BusyBindingRollsBackAbortedTransaction`）、`unknown`はlock保持下の同一txでcommitされ後続実行がApplyに届かない（`TestExecute_UnknownCommitsUnderLockBeforeRelease`・savepointはApply前に作成されることを順序でpin）、unknown永続化の継続失敗時は応答のみ停止しresidualを明示（`TestExecute_UnknownPersistenceFailureKeepsResponseStopped`）、`Apply`はfingerprint済み`Request`を受け`Content.Fields()`経由で読む（`TestExecute_AppliesTheFingerprintedContent`）、key-conflict開示前にも現在認可を再検査（`TestExecute_KeyConflictHidesFromRevokedGrant`）、ambient tx内からの実行拒否、`retryable_failure`記録とrollback、lock保持中の`operation-in-progress`、binding不在の`scope-not-found`。
+補助テスト: unknown後のgate拒否→回復でも停止が続く（`TestExecute_UnknownStaysStickyAfterGateFailure`）、初回読取とlockの間にcommitされた成功を照会が`succeeded`と返す（`TestLookup_SeesSuccessCommittedBeforeLock`）、gate失敗時に見つかった成功receiptも現在認可で隠す（`TestExecute_GateFailureWithCommittedReceiptRechecksGrant`）、gate競合は`*Busy`で`operation-in-progress`・attempt記録なし（`TestExecute_GateBusyRecordsNothingAndReportsInProgress`）、unknown停止も現在認可で開示（`TestExecute_UnknownDisclosureRequiresCurrentGrant`）、NOWAIT abort後はrollbackして`operation-in-progress`（`TestLookup_BusyBindingRollsBackAbortedTransaction`）、`unknown`はlock保持下の同一txでcommitされ後続実行がApplyに届かない（`TestExecute_UnknownCommitsUnderLockBeforeRelease`・savepointはApply前に作成されることを順序でpin）、unknown永続化の継続失敗時は応答のみ停止し、DB-only callback rollback後の再試行と外部副作用を区別（`TestExecute_UnknownPersistenceFailureKeepsResponseStopped`）、`Apply`はfingerprint済み`Request`を受け`Content.Fields()`経由で読む（`TestExecute_AppliesTheFingerprintedContent`）、key-conflict開示前にも現在認可を再検査（`TestExecute_KeyConflictHidesFromRevokedGrant`）、ambient tx内からの実行拒否、`retryable_failure`記録とrollback、lock保持中の`operation-in-progress`、binding不在の`scope-not-found`。
 
 ## 4. 非対象・維持する別契約
 
@@ -119,7 +119,13 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 - EMR-473のS1再診回答claimed/succeeded receiptは別契約のまま。C06へ統合しない。
 - 旧列（`operation_results.state`、旧completion UUID／hash）を復活させない。migrationを追加しない。
 
-## 5. 未実施・残件
+## 5. libraryのmerge条件と利用開始条件
+
+本PRは実consumer・route未接続のDB-only libraryである。libraryのmerge判断ではhelper契約の整合、限定test/vet、既知未検証の明記を確認する。全consumer接続・実RLS受入をlibrary mergeの前提へ混同しない。merge自体は別途判断し、本追補は承認や受入合格を意味しない。
+
+利用開始には各consumerの現在認可・元対象metadata/resolver・CAS/fence・必須監査と成功receiptの同一TX接続、必要schema/fixture subset、実001/RLS/deferred/並行実行・結果照合の検証が必要である。下表は未実施のまま保持する。DB-only callbackがrollbackした場合のunknown記録失敗を、外部送信の二重効果の窓としてlibrary merge blockerにしない。外部送信・filesystem等は引き続き非対応で、別ownerのtransactional outbox／配信・照合契約が必要である。
+
+### 5.1 未実施・残件
 
 | 項目 | 状態 | 次の担当 |
 |:---|:---|:---|

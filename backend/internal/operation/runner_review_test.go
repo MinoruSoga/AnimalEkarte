@@ -170,12 +170,13 @@ func TestExecute_UnknownPersistenceFailureKeepsResponseStopped(t *testing.T) {
 	require.True(t, ok)
 	require.Zero(t, f.store.attemptCount(stored.Binding.ID))
 
-	// Residual (documented): with no durable stop state, the later execution
-	// re-runs Apply. Removing this requires the binding-owned stop state DDL.
+	// With no durable unknown row, the later DB-only execution re-runs Apply.
+	// The earlier owner database write was rolled back, not committed.
 	retried, err := f.runner.Execute(t.Context(), req, f.owner)
 	require.NoError(t, err)
 	require.Equal(t, StatusResultUnavailable, retried.Status)
 	require.Equal(t, 2, f.owner.applyCount())
+	require.Equal(t, "1", f.owner.version("billing_version"))
 }
 
 // TestExecute_AppliesTheFingerprintedContent pins the codex P1 finding "bind
@@ -300,7 +301,7 @@ func TestFailedAttempt_AllStoredStatesRecheckGrant(t *testing.T) {
 func TestExecute_UnknownCommitFailureRetainsCause(t *testing.T) {
 	f := newR2Fixture(t)
 	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("database result uncertain")})
-	f.runner.tx = &fakeTx{store: f.store, failCommit: errors.New("commit failed")}
+	f.runner.tx = &oneShotCommitErrorTx{store: f.store, rollback: true}
 	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
 	require.NoError(t, err)
 	require.Equal(t, StatusResultUnavailable, got.Status)
@@ -539,4 +540,99 @@ func TestCopyLookupReceipt_PreservesNilMapsAndTimestamp(t *testing.T) {
 	require.Nil(t, copied.ResultRefs)
 	require.Nil(t, copied.CommittedVersions)
 	require.Nil(t, copied.EffectSummary)
+}
+
+// oneShotCommitErrorTx injects a single lost/failed COMMIT response, then lets
+// the recovery transaction run. Its hooks model visibility/lock ordering only;
+// these are helper regressions, not real database concurrency tests.
+type oneShotCommitErrorTx struct {
+	store    *fakeStore
+	rollback bool
+	after    func()
+	failed   bool
+}
+
+func (tx *oneShotCommitErrorTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	inner := &fakeTx{store: tx.store}
+	if tx.failed {
+		return inner.WithTx(ctx, fn)
+	}
+	tx.failed = true
+	commitErr := errors.New("commit response lost")
+	if tx.rollback {
+		inner.failCommit = commitErr
+	}
+	if err := inner.WithTx(ctx, fn); err != nil {
+		return err
+	}
+	if tx.after != nil {
+		tx.after()
+	}
+	return commitErr
+}
+func TestExecute_CommitResponseLostSettlesUnderBindingLock(t *testing.T) {
+	for _, mode := range []string{"still-locked", "commit-before-lock"} {
+		t.Run(mode, func(t *testing.T) {
+			f := newR2Fixture(t)
+			var pending Result
+			var binding Binding
+			f.runner.tx = &oneShotCommitErrorTx{store: f.store, after: func() {
+				b, ok := f.store.bindingFor(f.scope, f.key)
+				require.True(t, ok)
+				binding = b.Binding
+				// The callback saw its own receipt, but a different connection
+				// cannot see it until the original commit becomes observable.
+				f.store.mu.Lock()
+				pending = cloneResult(f.store.results[binding.ID])
+				delete(f.store.results, binding.ID)
+				f.store.mu.Unlock()
+				if mode == "still-locked" {
+					f.store.holdBinding(f.key)
+				} else {
+					f.store.onLock(func() { f.store.commitResultForTest(binding.ID, pending) })
+				}
+			}}
+			got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+			require.NoError(t, err)
+			if mode == "still-locked" {
+				require.Equal(t, StatusInProgress, got.Status)
+				require.Nil(t, got.Result)
+			} else {
+				require.Equal(t, StatusSucceeded, got.Status)
+				require.Equal(t, pending, *got.Result)
+			}
+			require.Zero(t, f.store.attemptCount(binding.ID))
+			require.Equal(t, 1, f.owner.applyCount())
+		})
+	}
+}
+func TestExecute_CommitSettlementFailureDoesNotRecordDefiniteFailure(t *testing.T) {
+	f := newR2Fixture(t)
+	f.owner.failApplyWith(&IndeterminateEffect{Cause: errors.New("uncertain database result")})
+	// Both COMMIT and the later settlement transaction fail. No unlocked
+	// absence read may turn this into rejected/retryable_failure.
+	f.runner.tx = &fakeTx{store: f.store, failCommit: errors.New("commit unavailable")}
+	got, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, got.Status)
+	b, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	require.Zero(t, f.store.attemptCount(b.Binding.ID))
+	require.Equal(t, "1", f.owner.version("billing_version"))
+}
+
+func TestExecute_CommitErrorClassifiesFailureOnlyAfterSettledRollback(t *testing.T) {
+	f := newR2Fixture(t)
+	f.runner.tx = &oneShotCommitErrorTx{store: f.store, rollback: true}
+	_, err := f.runner.Execute(t.Context(), Request{Scope: f.scope, Key: f.key, Content: f.content, Preconditions: Preconditions{"billing_version": "1", "line_version": "1"}}, f.owner)
+	require.Error(t, err)
+	b, ok := f.store.bindingFor(f.scope, f.key)
+	require.True(t, ok)
+	attempt, ok := f.store.latestAttempt(b.Binding.ID)
+	require.True(t, ok)
+	require.Equal(t, OutcomeRetryableFailure, attempt.Outcome)
+	receipt, err := f.store.LoadResult(t.Context(), b.Binding)
+	require.NoError(t, err)
+	require.Nil(t, receipt)
+	require.Equal(t, "1", f.owner.version("billing_version"))
 }

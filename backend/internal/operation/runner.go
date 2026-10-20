@@ -129,11 +129,28 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 
 	var outcome Outcome
 	var applyFailure error
+	callbackSucceeded := false
 	txErr := r.tx.WithTx(ctx, func(txCtx context.Context) error {
-		return r.participate(txCtx, binding, req, p, &outcome, &applyFailure)
+		callbackErr := r.participate(txCtx, binding, req, p, &outcome, &applyFailure)
+		callbackSucceeded = callbackErr == nil
+		return callbackErr
 	})
 	if txErr == nil {
 		return outcome, nil
+	}
+	if callbackSucceeded {
+		// COMMIT may still be undecided after its reply is lost. A single
+		// lock-free read with no receipt cannot establish rollback.
+		status, receipt, settleErr := r.settledState(ctx, binding)
+		if settleErr != nil {
+			return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil
+		}
+		if status != StatusNotSucceeded {
+			return disclose(ctx, p, binding, status, receipt), nil
+		}
+		// Only a receipt/unknown re-read under the acquired binding lock
+		// establishes no success. Definite callback failures already rolled
+		// back and use the existing classification below.
 	}
 	return r.resolveFailedAttempt(ctx, binding, p, errors.Join(txErr, applyFailure))
 }
@@ -365,16 +382,14 @@ func (r *Runner) resolveFailedAttempt(ctx context.Context, binding Binding, p Pa
 	var indeterminate *IndeterminateEffect
 	if errors.As(txErr, &indeterminate) {
 		// The in-transaction unknown record failed and the transaction rolled
-		// back. Best effort: record the unknown outside any transaction so the
-		// binding still stops; if that also fails, only this response stops —
-		// a retry would re-run Apply on top of an effect whose outcome nobody
-		// knows. The durable binding-owned stop state that removes this
-		// residual requires shared 001 DDL and is owned elsewhere.
+		// back. Best effort: record unknown outside the transaction. If both
+		// recordings fail, no durable stop remains; the current response stops.
+		// A later DB-only attempt re-locks the binding and re-reads receipts
+		// before Apply. Rollback undid this attempt's database writes; this is
+		// not permission to retry an unsupported external effect.
 		if err := r.recordOutcome(ctx, binding, OutcomeUnknown, StatusResultUnavailable); err != nil {
-			// Fail closed: the effect may have happened. Never answer with a
-			// retriable failure — a retry would re-run Apply on top of an
-			// effect whose outcome nobody knows. The recording error goes to
-			// the log so an operator resolves the binding by hand.
+			// Preserve the conservative unknown response. The recording error
+			// goes to the log; no persistent unknown row is claimed to exist.
 			slog.Error("operation unknown outcome recording failed",
 				"clinic_id", binding.ClinicID, "operation_key", binding.Key, "err", err)
 			return disclose(ctx, p, binding, StatusResultUnavailable, nil), nil //nolint:nilerr // 意図的: unknown記録に失敗しても結果不明として停止し、再実行を誘発しない
