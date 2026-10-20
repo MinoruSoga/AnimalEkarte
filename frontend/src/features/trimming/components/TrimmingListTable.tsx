@@ -23,7 +23,7 @@ import { formatDate } from "@/lib/format/date";
 import type { TrimmingUI } from "@/types";
 import { getTrimmingStatusColor } from "@/lib/status-helpers";
 import { paths } from "@/config/paths";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 // フィルタ定義 (TRIMMING_STATIC_FILTER_PROPERTIES / buildTrimmingDynamicFilterProperties) は
 // TrimmingListTableModel.ts に分離済み (react-refresh/only-export-components)。

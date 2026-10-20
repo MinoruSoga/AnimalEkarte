@@ -2,11 +2,7 @@
  * 数値フォーマットユーティリティ
  */
 
-/**
- * 空値の表記（design-patterns.md §10・2026-10-20 決裁）。U+2014 EM DASH 1 文字。
- * 負の金額の `-¥1,234` と視覚的に区別するため半角ハイフンは使わない。画面側で `"-"` を直書きせずこれを使う。
- */
-export const EMPTY_VALUE = "—";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 /**
  * 体重をフォーマット（単位付き）

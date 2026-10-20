@@ -7,7 +7,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, EMPTY_VALUE } from "@/lib/format/number";
+import { formatCurrency } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import { calcEstimateLineAmount } from "@/lib/estimate-totals";
 import type { EstimateLineItem } from "../../types";
 import { C, STYLE } from "@/lib/design-tokens";

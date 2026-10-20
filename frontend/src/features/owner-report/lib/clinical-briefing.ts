@@ -1,5 +1,5 @@
 import { formatJSTDate } from "@/lib/jst-date";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 export const CLINICAL_HISTORY_KINDS = [
   "診療",

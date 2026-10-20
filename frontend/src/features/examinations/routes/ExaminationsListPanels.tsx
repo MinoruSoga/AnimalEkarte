@@ -25,7 +25,7 @@ import {
   examinationListDetailHref,
   type ServerPagePagination,
 } from "./examinations-list-model";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 interface ExaminationsListRowProps {
   record: ExaminationRecord;

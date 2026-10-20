@@ -18,7 +18,7 @@ import {
   FILTER_PROPERTIES,
   checkupChartHref,
 } from "./checkups-list-model";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 interface CheckupsListRowProps {
   record: CheckupRecord;

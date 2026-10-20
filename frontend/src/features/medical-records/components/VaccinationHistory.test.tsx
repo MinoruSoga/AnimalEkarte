@@ -110,15 +110,15 @@ describe("VaccinationHistory — 日付表示 (EMR-429)", () => {
     expect(screen.queryByText("26/1/1")).toBeNull();
   });
 
-  it("日付未設定の項目は '-' を表示する", () => {
+  it("日付未設定の項目は '—' を表示する", () => {
     const items = [
-      { ...BLANK, id: 1, name: "未設定ワクチン", date: "-", dateISO: "", next: "-", nextDate: "" },
+      { ...BLANK, id: 1, name: "未設定ワクチン", date: "—", dateISO: "", next: "—", nextDate: "" },
     ];
     render(<VaccinationHistory historyItems={items} />);
 
     const row = screen.getByText("未設定ワクチン").parentElement;
-    expect(row?.querySelectorAll("div")[1]).toHaveTextContent("-");
-    expect(row?.querySelectorAll("div")[2]).toHaveTextContent("-");
+    expect(row?.querySelectorAll("div")[1]).toHaveTextContent("—");
+    expect(row?.querySelectorAll("div")[2]).toHaveTextContent("—");
   });
 
   it("ヘッダと行の日付列は折り返さない幅 w-[110px] を持つ", () => {

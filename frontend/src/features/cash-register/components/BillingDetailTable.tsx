@@ -1,7 +1,8 @@
 import { EmptyState } from "@/components/shared/DataStates";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
-import { formatCurrency, EMPTY_VALUE } from "@/lib/format/number";
+import { formatCurrency } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import { formatJSTTime } from "@/lib/jst-date";
 import {
   DETAIL_DEPARTMENT_BUCKETS,

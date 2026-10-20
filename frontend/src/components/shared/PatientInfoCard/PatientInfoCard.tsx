@@ -10,7 +10,7 @@ import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { RequiredMark } from "@/components/shared/RequiredMark";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 interface PatientInfoCardProps {
   ownerName: string;

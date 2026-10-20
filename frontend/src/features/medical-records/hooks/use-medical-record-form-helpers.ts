@@ -34,7 +34,7 @@ import type { useMedicalRecordAutoCreate } from "./use-medical-record-auto-creat
 import type { useMedicalRecordOwnerChange } from "./use-medical-record-owner-change";
 import type { useMedicalRecordQuickPatchActions } from "./use-medical-record-quick-patch-actions";
 import { paths } from "@/config/paths";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 export function selectCohabitingPets(pets: Pet[], selectedPet: Pet): Pet[] {
   return pets.filter(

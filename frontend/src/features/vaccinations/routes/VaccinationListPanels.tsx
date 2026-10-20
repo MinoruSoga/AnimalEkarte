@@ -25,7 +25,7 @@ import {
   vaccinationListDetailHref,
   type VaccinationListDetailState,
 } from "./vaccinations-list-model";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 
 interface VaccinationRowActionsProps {
   record: VaccinationRecord;
@@ -112,7 +112,7 @@ function VaccinationListRow({
         </DataTableRowLink>
       </TableCell>
       <TableCell className={`font-medium ${C.text} min-w-[160px]`}>
-        {record.vaccineName || "-"}
+        {record.vaccineName || EMPTY_VALUE}
       </TableCell>
       <TableCell className="text-right">
         {canEdit || canDelete ? (

@@ -1,5 +1,5 @@
 import { formatJSTDate } from "@/lib/jst-date";
-import { EMPTY_VALUE } from "@/lib/format/number";
+import { EMPTY_VALUE } from "@/constants/empty-value";
 import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 /** 表示用の標準日付・時刻フォーマット(PO決定2026-07-12。wire用 "yyyy-MM-dd" とは別物) */
