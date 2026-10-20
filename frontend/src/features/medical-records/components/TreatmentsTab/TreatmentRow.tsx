@@ -3,7 +3,7 @@ import { memo, useState, useCallback, useRef, useEffect, useLayoutEffect } from 
 import { C } from "@/lib/design-tokens";
 
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
-import type { Treatment, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 import {
   TreatmentInsuranceCell,
   TreatmentRowActions,
@@ -24,7 +24,7 @@ interface TreatmentRowProps {
   treatment: Treatment;
   isFirst: boolean;
   isLast: boolean;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
   onDelete: (treatmentId: string) => void;
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;

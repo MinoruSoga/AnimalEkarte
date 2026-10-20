@@ -5,7 +5,7 @@ import { TableCell } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
 
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
-import type { Treatment, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 import { TreatmentDoseMessages } from "./TreatmentDoseMessages";
 import {
   commitTreatmentDeviationReason,
@@ -24,7 +24,7 @@ interface TreatmentQuantityCellProps {
   inputRef: RefObject<HTMLInputElement | null>;
   onStartEdit: () => void;
   onStopEdit: () => void;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
 }
 
 export function TreatmentQuantityCell({

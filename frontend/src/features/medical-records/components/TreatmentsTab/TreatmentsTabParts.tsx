@@ -11,7 +11,7 @@ import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
-import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentItemType, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
@@ -61,7 +61,7 @@ interface TreatmentsTableProps {
   canDelete: boolean;
   canEditDiscount: boolean;
   focusLastRow: boolean;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
   onDelete: (treatmentId: string) => void;
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;

@@ -4,7 +4,7 @@ import { TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { C } from "@/lib/design-tokens";
 
-import type { Treatment, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 
 // EMR-488: 薬剤行の3値（1回製剤量・用法・処方総量）を常時区別表示するセル。
 // - 薬剤行以外では表示しない（会計数量・単価とは別枠で、mg 計算値(dose_amount_mg)とも混同しない）
@@ -29,7 +29,7 @@ export type TreatmentThreeValuesField =
 type OnTreatmentUpdate = (
   treatmentId: string,
   input: UpdateTreatmentInput,
-) => void | Promise<void>;
+) => void | Promise<TreatmentUpdateOutcome> | undefined;
 
 interface TreatmentThreeValuesCellProps {
   treatment: Treatment;
@@ -91,25 +91,25 @@ export const TreatmentThreeValuesCell = memo(function TreatmentThreeValuesCell({
           editField={editField}
           inputRef={inputRef}
           onStopEdit={onStopEdit}
-          onCommitPair={(amount, unit) => {
+          onCommitPair={(amount, unit) =>
             onUpdate(treatment.id, {
               administration_dose_amount: amount,
               administration_dose_unit: unit,
               version: treatment.version,
-            });
-          }}
-          onCommitAmountOnly={(amount) => {
+            })
+          }
+          onCommitAmountOnly={(amount) =>
             onUpdate(treatment.id, {
               administration_dose_amount: amount,
               version: treatment.version,
-            });
-          }}
-          onCommitUnitOnly={(unit) => {
+            })
+          }
+          onCommitUnitOnly={(unit) =>
             onUpdate(treatment.id, {
               administration_dose_unit: unit,
               version: treatment.version,
-            });
-          }}
+            })
+          }
           onStartEdit={onStartEdit}
           amountField="administration_dose_amount"
           unitField="administration_dose_unit"
@@ -155,25 +155,25 @@ export const TreatmentThreeValuesCell = memo(function TreatmentThreeValuesCell({
           editField={editField}
           inputRef={inputRef}
           onStopEdit={onStopEdit}
-          onCommitPair={(amount, unit) => {
+          onCommitPair={(amount, unit) =>
             onUpdate(treatment.id, {
               prescription_total_amount: amount,
               prescription_total_unit: unit,
               version: treatment.version,
-            });
-          }}
-          onCommitAmountOnly={(amount) => {
+            })
+          }
+          onCommitAmountOnly={(amount) =>
             onUpdate(treatment.id, {
               prescription_total_amount: amount,
               version: treatment.version,
-            });
-          }}
-          onCommitUnitOnly={(unit) => {
+            })
+          }
+          onCommitUnitOnly={(unit) =>
             onUpdate(treatment.id, {
               prescription_total_unit: unit,
               version: treatment.version,
-            });
-          }}
+            })
+          }
           onStartEdit={onStartEdit}
           amountField="prescription_total_amount"
           unitField="prescription_total_unit"
@@ -193,9 +193,9 @@ interface PairValueRowProps {
   editField: string | null;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommitPair: (amount: number, unit: string) => void | Promise<void>;
-  onCommitAmountOnly: (amount: number) => void | Promise<void>;
-  onCommitUnitOnly: (unit: string) => void | Promise<void>;
+  onCommitPair: (amount: number, unit: string) => void | Promise<TreatmentUpdateOutcome>;
+  onCommitAmountOnly: (amount: number) => void | Promise<TreatmentUpdateOutcome>;
+  onCommitUnitOnly: (unit: string) => void | Promise<TreatmentUpdateOutcome>;
   onStartEdit: (field: TreatmentThreeValuesField) => void;
   amountField: TreatmentThreeValuesField;
   unitField: TreatmentThreeValuesField;
@@ -304,7 +304,7 @@ function PairEditor({
   initialUnit: string | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (amount: number, unit: string) => void | Promise<void>;
+  onCommit: (amount: number, unit: string) => void | Promise<TreatmentUpdateOutcome>;
   amountAriaLabel: string;
   unitAriaLabel: string;
 }) {
@@ -331,9 +331,9 @@ function PairEditor({
       onStopEdit();
       return;
     }
-    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
-    await onCommit(parsed, trimmedUnit);
-    onStopEdit();
+    // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
+    const outcome = await onCommit(parsed, trimmedUnit);
+    if (outcome !== "failed") onStopEdit();
   };
 
   return (
@@ -353,7 +353,11 @@ function PairEditor({
           }}
           onKeyDown={(e) => {
             if (isComposingKeyEvent(e)) return;
-            if (e.key === "Enter") void commit();
+            if (e.key === "Enter") {
+              // カルテ本体フォームの暗黙 submit を防ぐ（Codex review P2）
+              e.preventDefault();
+              void commit();
+            }
             if (e.key === "Escape") onStopEdit();
           }}
           className="h-9 w-14 text-sm px-1"
@@ -395,7 +399,7 @@ function AmountEditor({
   initial: number | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (value: number) => void | Promise<void>;
+  onCommit: (value: number) => void | Promise<TreatmentUpdateOutcome>;
   ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial == null ? "" : String(initial));
@@ -418,9 +422,9 @@ function AmountEditor({
       onStopEdit();
       return;
     }
-    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
-    await onCommit(parsed);
-    onStopEdit();
+    // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
+    const outcome = await onCommit(parsed);
+    if (outcome !== "failed") onStopEdit();
   };
 
   return (
@@ -439,7 +443,10 @@ function AmountEditor({
         onBlur={commit}
         onKeyDown={(e) => {
           if (isComposingKeyEvent(e)) return;
-          if (e.key === "Enter") void commit();
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void commit();
+          }
           if (e.key === "Escape") onStopEdit();
         }}
         className="h-9 w-16 text-sm px-1"
@@ -463,7 +470,7 @@ function UnitEditor({
   initial: string | null | undefined;
   inputRef: RefObject<HTMLInputElement | null>;
   onStopEdit: () => void;
-  onCommit: (value: string) => void | Promise<void>;
+  onCommit: (value: string) => void | Promise<TreatmentUpdateOutcome>;
   ariaLabel: string;
 }) {
   const [local, setLocal] = useState(initial ?? "");
@@ -480,9 +487,9 @@ function UnitEditor({
       onStopEdit();
       return;
     }
-    // PATCH の解決後に閉じる（失敗時は下書きを保持。Codex review minor）
-    await onCommit(text);
-    onStopEdit();
+    // PATCH の解決後に閉じる。失敗時はエディタを開いたまま下書きを保持（Codex review P2）
+    const outcome = await onCommit(text);
+    if (outcome !== "failed") onStopEdit();
   };
 
   return (
@@ -494,7 +501,10 @@ function UnitEditor({
       onBlur={commit}
       onKeyDown={(e) => {
         if (isComposingKeyEvent(e)) return;
-        if (e.key === "Enter") void commit();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void commit();
+        }
         if (e.key === "Escape") onStopEdit();
       }}
       className={`h-9 min-w-11 text-sm px-1 ${C.borderMedium}`}

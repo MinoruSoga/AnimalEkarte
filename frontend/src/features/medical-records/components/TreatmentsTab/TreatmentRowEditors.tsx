@@ -6,7 +6,7 @@ import { TableCell } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
 import { formatCurrency } from "@/lib/format/number";
 
-import type { Treatment, UpdateTreatmentInput } from "../../types";
+import type { Treatment, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 
 function handleTreatmentEditorKeyDown(
   event: KeyboardEvent,
@@ -23,7 +23,7 @@ interface TreatmentEditorCellProps {
   inputRef: RefObject<HTMLInputElement | null>;
   onStartEdit: () => void;
   onStopEdit: () => void;
-  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<void>;
+  onUpdate: (treatmentId: string, input: UpdateTreatmentInput) => void | Promise<TreatmentUpdateOutcome> | undefined;
 }
 
 export function TreatmentContentCell({

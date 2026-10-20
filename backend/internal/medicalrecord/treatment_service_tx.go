@@ -133,7 +133,7 @@ func (s *treatmentService) updateTreatmentInTx(
 	if effective.ItemType != nil {
 		effItemTypeTx = *effective.ItemType
 	}
-	if err := validateDoseFieldsMedicineOnlyForUpdate(effItemTypeTx, &effective); err != nil {
+	if err := validateDoseFieldsMedicineOnlyForUpdate(effItemTypeTx, current, &effective); err != nil {
 		return err
 	}
 	if err := validateDosePairsForUpdate(current, &effective); err != nil {

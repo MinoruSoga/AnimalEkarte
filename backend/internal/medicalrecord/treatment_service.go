@@ -69,8 +69,8 @@ type UpdateTreatmentInput struct {
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F09).
 	DiscountEditAllowed bool
 	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。nil は未送信 = 変更なし
-	// （既存 PATCH 方式に従う。JSON null は Go で nil に潰れるため明示 NULL クリア経路は持たない。
-	// PR #732 の checkup_types.is_non_insurance と同じ枠）。0 は明示 0 として送れる。
+	// （既存 PATCH 方式。明示 null は request 層の doseAmountField/doseTextField が 400 で拒否する。
+	// checkup_types.is_non_insurance と同一の家契約）。0 は明示 0 として送れる。
 	AdministrationDoseAmount   *model.ExactNumeric
 	AdministrationDoseUnit     *string
 	AdministrationInstructions *string

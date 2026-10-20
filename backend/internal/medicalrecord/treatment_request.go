@@ -33,13 +33,22 @@ func (f *doseAmountField) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNull)
 	}
-	if err := json.Unmarshal(data, &f.value); err != nil {
+	// json.Number 経由で受理し、指数表記（例: Python クライアントの 1e-06）を
+	// ScanScientific で exact な固定小数へ正規化する（pgtype の素の UnmarshalJSON は
+	// 指数表記を拒否するため、範囲内の妥当な数値が 400 になるのを防ぐ。Codex review P2）。
+	var num json.Number
+	if err := json.Unmarshal(data, &num); err != nil {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
 	}
-	if f.value.NaN || f.value.InfinityModifier != pgtype.Finite {
+	var value model.ExactNumeric
+	if err := value.ScanScientific(num.String()); err != nil {
+		return apperrors.WrapInvalidInput(errMsgDoseAmountNotNumber)
+	}
+	if value.NaN || value.InfinityModifier != pgtype.Finite {
 		return apperrors.WrapInvalidInput(errMsgDoseAmountNaN)
 	}
 	f.set = true
+	f.value = value
 	return nil
 }
 

@@ -426,3 +426,33 @@ func TestValidateDoseAmountUnitPair_Numeric12_6Range(t *testing.T) {
 	err = validateDoseAmountUnitPair(exactFromJSON(t, "0.0000001"), &unit)
 	assert.Error(t, err)
 }
+
+func TestValidateDoseFieldsMedicineOnlyForUpdate_RejectsTypeChangeHidingStoredValues(t *testing.T) {
+	// Codex review P2: 3値が保存済みの medicine 行を item_type だけ非medicine へ替える更新は 400
+	// （保存済み臨床値が FE で非表示になる退避を防ぐ）。
+	current := &model.Treatment{
+		ItemType:                 model.TreatmentItemTypeMedicine,
+		AdministrationDoseAmount: exactFromJSON(t, "2.5"),
+		AdministrationDoseUnit:   strPtr("錠"),
+	}
+	otherType := model.TreatmentItemTypeOther
+	err := validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeOther, current, &UpdateTreatmentInput{
+		ItemType: &otherType,
+	})
+	assert.Error(t, err)
+
+	// medicine 行のままの 3値なし更新は OK
+	err = validateDoseFieldsMedicineOnlyForUpdate(model.TreatmentItemTypeMedicine, current, &UpdateTreatmentInput{})
+	assert.NoError(t, err)
+}
+
+func TestCreateTreatmentRequest_ThreeValues_ExponentFormIsAccepted(t *testing.T) {
+	// Codex review P2: Python クライアント等が送る指数表記（1e-06）も妥当な numeric として受理する。
+	body := `{"item_type": "medicine", "administration_dose_amount": 1e-06, "administration_dose_unit": "mL"}`
+	var req createTreatmentRequest
+	require.NoError(t, json.Unmarshal([]byte(body), &req))
+
+	input := req.toServiceInput()
+	require.NotNil(t, input.AdministrationDoseAmount)
+	assert.Equal(t, "0.000001", exactText(t, input.AdministrationDoseAmount))
+}

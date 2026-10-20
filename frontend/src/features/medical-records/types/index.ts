@@ -229,3 +229,8 @@ export interface UpdateVitalInput {
    */
   version?: number;
 }
+
+// ── Treatment update outcome (EMR-488) ──────────────────────────────────
+
+/** 治療明細 PATCH の結果。行内エディタは "failed" でエディタを開いたまま下書きを保持する。 */
+export type TreatmentUpdateOutcome = "saved" | "failed" | "skipped";

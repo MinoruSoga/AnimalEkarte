@@ -88,16 +88,25 @@ func validateDoseFieldsMedicineOnlyForCreate(itemType model.TreatmentItemType, i
 	return nil
 }
 
-// validateDoseFieldsMedicineOnlyForUpdate は 適用後の item_type が非 medicine なのに
-// 3値の入力がある更新を拒否する（既存行への3値入力の追加も不可）。
-func validateDoseFieldsMedicineOnlyForUpdate(effItemType model.TreatmentItemType, input *UpdateTreatmentInput) error {
+// validateDoseFieldsMedicineOnlyForUpdate は 適用後の item_type が非 medicine になる更新で
+// 3値が保持される経路を拒否する（Codex review P2）: 3値の入力がある case に加え、
+// 既存行に 3値が保存済みで item_type だけを非 medicine へ替える case も拒否する
+// （保存済みの臨床値が FE で非表示になる退避を防ぐ。クリア経路は別途設計する）。
+func validateDoseFieldsMedicineOnlyForUpdate(effItemType model.TreatmentItemType, current *model.Treatment, input *UpdateTreatmentInput) error {
 	if effItemType == model.TreatmentItemTypeMedicine {
 		return nil
 	}
-	if hasAnyDoseThreeValuesInput(input) {
+	if hasAnyDoseThreeValuesInput(input) || hasAnyStoredDoseThreeValues(current) {
 		return apperrors.WrapInvalidInput(errMsgDoseFieldsMedicineOnly)
 	}
 	return nil
+}
+
+// hasAnyStoredDoseThreeValues は 行に保存済みの3値があるかを返す。
+func hasAnyStoredDoseThreeValues(current *model.Treatment) bool {
+	return current.AdministrationDoseAmount != nil || current.AdministrationDoseUnit != nil ||
+		current.AdministrationInstructions != nil || current.PrescriptionTotalAmount != nil ||
+		current.PrescriptionTotalUnit != nil
 }
 
 // validateDosePairsForCreate は create の3値ペア（1回製剤量・処方総量）を検証する。
