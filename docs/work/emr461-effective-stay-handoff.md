@@ -1,83 +1,78 @@
-# EMR-499 → EMR-461 有効状態 subset の実装と未確定case
+# EMR-461 / EMR-499: 734の先行実装と後続の保存接続
 
-本表はPR734の実装境界と担当間の技術契約の証跡。新しい業務仕様やDDLの採用ではない。公開wireの正本はmain採用済みPR740。下記の親Dotsによる採用範囲に限り、その契約へruntimeを整合する。
+2026-10-20の親ChatGPT Dotsの採用決定を記録する。旧head `06ae59aca8f3912d567ff87397f00d581f68c158` の検討案は[当時のhandoff](https://github.com/MinoruSoga/AnimalEkarte/blob/06ae59aca8f3912d567ff87397f00d581f68c158/docs/work/emr461-effective-stay-handoff.md)に保全し、現契約は本書で更新する。本書は親決定の記録であり、列型・migration番号など未提示の詳細を独自に確定しない。
 
-| 入力履歴 | 今回の判定 | 根拠・残差 |
+**2段階の完成条件**: PR734はsource先行。後続499 PRが保存意味論と461の実write接続まで所有する。734だけで機能完了・利用開始可とは扱わず、旧保存caller・swapを第三の未定チケットへ移さない。今回の更新は文書のみで、後続実装・migration編集は別途の着手指示と共有claim調整を待つ。
+
+## 1. 実装済み（sourceに存在、実行受入とは別）
+
+基準source headは `0e79ae86bcbcda1de7dcc87d97bd33ad014a0fce`。公開wireの正本はmain採用済みPR740（照合main `4debcf9961fdd8735afe57b2886ae354ac0b1a5a`）。
+
+| 範囲 | 現source | 成立範囲・制限 |
 |---|---|---|
-| 実admit（actual_atあり）から終了eventなし | admitted | [開始の明示確定](../spec/domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-entry-and-start)。予定終了超過は実退院ではない |
-| admit → 有効discharge、実退院時刻が入院以上 | released | [明示退院](../spec/domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)。通常の再check-inは追加しない |
-| admit前のcancel/no_show | released | [計数正本](../spec/domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-hotel-stay-capacity)の取消・未来院除外 |
-| no movement（予定entry/exitだけあり） | unknown | **未確定Q1**: stay行の作成だけで予約成立を表すか、予約受入/成立の別参照が必要か。予定日時の存在からreservedを捏造しない。499の明示契約が必要 |
-| correction・無効化・訂正参照あり | 当該stayのみunknown | **未確定Q2**: 置換後effectの指定、元effect継承か、無効化、actual_at NULLの意味。corrected_event_id/reasonのDDLだけから推測しない |
-| discharge単独、admit後cancel/no_show、退院後再admit、実時刻逆転、scope/ID/revision不正 | 当該stayのみunknown | **未確定Q3**: 専用訂正を通した有効履歴の解決規則。最大revisionのevent_kindでは決めない |
+| 正常movementの単一core | 実admit→admitted、矛盾しないadmit→dischargeと開始前cancel/no_show→released。全履歴をrevision順で検査し、不正・未解決履歴をstay単位のunknownにする | 予定日/status/最新eventだけから予約・退院を生成しない。訂正resolver、予約proof、通常writerの拒否接続は未実装 |
+| core reader / 461 adapter | 医院付きStayCaseID、同TXのstay行ID昇順FOR SHAREとmovement read。候補/保存側の集計は同じcore面を使い、hospitalization IDだけを自己除外する | 原event不変・INSERT時stay lockは既存001と静的に照合しただけ。全writer参加、一貫snapshot、複合CASの成立証拠ではない |
+| 740 occupancy read | clinic/編集対象を文字列IDでecho、knownは両配列非NULL、unknownは200かつoccupied/candidate両配列NULL、実取得障害500 | 部分候補や空配列でunknownを偽装しない。患者/滞在明細を返さない |
+| 現在割当と候補 | current_assignmentを別fieldで保持。同院の有効な独立/代表のみ候補、構成員に他滞在の占有があれば代表も除外 | core不明・候補外・無効・旧構成員という理由だけで現値を消さない。現値保持は新規候補への追加許可ではない |
+| lossless ID / 認可 | 正規なPostgreSQL bigint正数文字列。未許可/重複queryと範囲外は400。選択医院createまたはedit、自己除外には同医院editも必須。scope外/不存在/削除済みは同じ404 | view/master編集権限を暗黙の前提にしない。実認可DBの受入は未実施 |
+| APIとfixture | api.yamlのcage-occupancy/cage-swapおよび関連3 schemaは上記main契約本文に一致。HTTP境界/純粋projection/同contextの限定fixtureを追加 | swap DTO/write実装の追随完了ではない。fixture追加・静的確認をunit/実DB PASSとしない |
 
-`StayCageEffectiveStateReader` は医院付きStayCaseIDについて状態と`EvidenceVersion`を返す。今回の根拠版は検査したmovement履歴の最新revisionで、CAS/fenceやstay行versionの代用ではない。全履歴をrevision順に検査し、同revision・同ID・scope不整合をunknownにする。予定期間は占有解放に使わない。
+source配置: [正常core](../../backend/internal/medicalrecord/stay_cage_effective_state.go)、[reader](../../backend/internal/medicalrecord/stay_cage_effective_state_reader.go)、[adapter](../../backend/internal/medicalrecord/cage_occupancy_projection.go)、[HTTP](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_http.go)、[候補projection](../../backend/internal/medicalrecord/hospitalization_cage_occupancy_read.go)。
 
-## readerとlockの成立範囲
+## 2. 未実装（後続499が実装まで所有）
 
-readerはambient transaction内のstay行をID昇順`FOR SHARE`で保護し、同じtransactionでmovementを読む。候補読取にambient transactionがなければ短いtransactionを作り、stay読取とevent読取の間のINSERT競合を避ける。
+### 親Dotsが採用した保存・解決契約
 
-採用済み001の [`stay_movement_guard`](https://github.com/MinoruSoga/AnimalEkarte/blob/e60ba31e86f88e0e0a6a870989ac491fd8872654/backend/migrations/001_init.sql#L10388) はmovementのBEFORE INSERTで同stay行を`FOR UPDATE`する。このINSERTとの直列化は静的な対応関係であり、実DBのlock/2接続試験PASSではない。
+| 契約 | 採用内容 | 現sourceとの差 |
+|---|---|---|
+| Q1 予約proof | 既存immutable `appointment_change_events.after_values.stay_acceptance_changes` の型付きv1配列を明示受入の証跡とする。同院・同appointment・同stayの受入系列、現在appointment.versionに一致するevent、初回/現在eventの成功operation receipt、その参照・保存版を検証する | decoder、証跡writer、現効力resolver、readerへの接続なし。予定日・status・行の存在だけでreservedを作らず、旧行を推測backfillしない。別stayへの付替えを新しい通常操作として追加しない。専用writerの意味が未成立なら拒否して旧割当を保持する |
+| Q2 訂正保存 | 新correction effect子表にreplace/voidと完全置換payload。親のnullable `correction_effect_schema_version` は新correction=1、旧=NULL。親子同TX完全性はdeferred guard、子にもimmutable/RLS/同医院・同stayのscope保護 | 追加migration/model/ERD、writer、deferred guardとも未実装。001は変更せず、446/466とclaim調整後に追加差分を作る。旧correctionの意味を推測して埋めない |
+| Q2 effect解決 | 現在leafの完全effectで解決し、中間の旧effect不明だけで修復を妨げない。構造不正・分岐・現在effect不明はunknown。既知のcancel/no_show.actual_atは保持しNULL強制しない。inpatientの医師/入院記録必須をhotelへ拡張しない | 現coreはcorrectionを一律unknownにする。さらにadmitのAdmissionRecordRefをhotelにも要求しており、この点は採用契約より厳しい。resolver/対象fixtureで解消が必要 |
+| 版とCAS | `stay.version` + movement head revision（0も有効）+ 必要なappointment.version + leaf期待値の複合CAS。保存時に現在根拠を同TXで再評価する | 現EvidenceVersionは検査したmovement revisionだけで、adapterは正数を要求する。予約証跡を含む複合版ではなく、CAS/fence/stay.versionの代用にしない。0を避ける偽正数、versionだけの偽更新を作らない |
+| Q3 通常遷移 | 通常writerは未開始→admit→discharge、未開始→cancel/no_showを検証し、discharge単独・admit後cancel/no_show・退院後再admit・実時刻逆転を拒否する。訂正解決後も通常遷移を検証し、不正ならunknown | 正常履歴readerのunknown判定は存在するが、旧保存callerから単一writerへの接続はない。readerの拒否をwriterの拒否実装と数えない |
+| Q4 gate / lock | 既選定 `reservation-graph:write:v1` を最外業務TXの先頭で取得→receipt/binding→各ownerの既存lock順。新gate namespaceを作らず、ambient participantは別TX/入れ子Runnerを開始しない | 関連blocking writerのgate実参加は未実装。経路別の実参加、または当該経路停止を後続499で明記し、単一reader注入で全体安全と主張しない |
+| 候補readの一貫性 | 候補readは一貫snapshot。保存は候補readの結果を確保とみなさず、同TXの現在根拠を再評価する | ambient TXへの参加と短いread TXはあるが、現WithTxは明示のsnapshot設定なし。複数queryを同TXへ置いただけではsnapshot成立を認定しない |
+| 461の保存境界 | 変更save入口で旧日付/statusから有効状態を捏造しない。新規非NULL割当のunknownは409。未指定/維持/明示clearの既存意味を壊さない | 旧Create/Update/退院/swapに旧status/type/start/end依存が残る。現typed unknownは保存側では503へ伝播し、採用409のwrite接続は未実装。旧statusにより占有再検査をskipする分岐も置換対象 |
 
-採用済み001には [`stay_movement_events_immutable`](https://github.com/MinoruSoga/AnimalEkarte/blob/e60ba31e86f88e0e0a6a870989ac491fd8872654/backend/migrations/001_init.sql#L10529) のBEFORE UPDATE OR DELETE→`contract_history_immutable`も存在する。DDL上の原event不変条件は確認済みで、実DB適用/受入は未検証。
+### 具体的な保存callerとコンパイル残差
 
-**未確定Q4**: 499全writerの取得順と、461のhospitalization/cage-group→stay行の順との整合。現reader注入だけで訂正writer全体の安全性を認定しない。
+| 接続箇所 | 未完のコードと後続499の責務 |
+|---|---|
+| [hospitalization_service.go](../../backend/internal/medicalrecord/hospitalization_service.go) / [create](../../backend/internal/medicalrecord/hospitalization_service_create.go) | Createの予定日由来default status、結果statusを使う占有判定、Updateの旧status遷移・旧列update mapを499の単一core/writerへ接続。未指定/維持/clear/新規非NULLを区別し、unknown新規割当を409で拒否する |
+| [hospitalization_repository.go](../../backend/internal/medicalrecord/hospitalization_repository.go) / [退院](../../backend/internal/medicalrecord/hospitalization_discharge.go) | `status != discharged` の旧SQL、退院更新と会計・監査・成功receiptを採用された状態根拠/owner/TXへ接続。既存の部分write防止を保持する |
+| [swap service](../../backend/internal/medicalrecord/hospitalization_service_cage_swap.go) / [request DTO](../../backend/internal/medicalrecord/hospitalization_request.go) / [handler](../../backend/internal/medicalrecord/hospitalization_handler.go) | 旧status依存、数値ID DTO、公開740の409 code、両対象の現在認可/期待割当・原子性、同TXの有効状態再検査を整合する。結果不明時にreceipt保証が既にあると推定しない |
+| [model.Hospitalization](../../backend/internal/model/hospitalization.go)との型不一致 | modelに存在しないStatus/StartDate/EndDate/HospitalizationTypeを旧callerが参照・struct literalへ設定している。**現在コードはこの型不整合でコンパイル不能であり、「試験待ちのみ」ではない。** 旧列/fieldを復活して隠さず、499の実接続で解消する。現セッションでGo compilerを実行したという主張ではない |
 
-## 現在の未完範囲
+### 後続499の着手プラン（実装開始指示前の記録）
 
-通常caseのreaderをcompositionへ注入し、nil依存だけで全stayを常時503にする構成は除去する。一方、Q1–Q3の対象stayはunknownであり、対象ケージの空き確認を止める。採用済み740 wireへ追随した候補readは、対象stayが1件でもunknownなら200 state=unknown・occupied/candidate両配列NULLを返す。編集対象の物理的な現在割当は別fieldで保持する。実際のreader/DB取得障害は500。既知の他stayだけから部分候補を返さない。保存側のunknown拒否と499全writer接続は未完であり、このread修正をwriter完成とは扱わない。
+1. 共有本体で499と関係claim/branch/worktree/dirtyを再確認し、446/466と追加migration/model/ERDの所有範囲・番号を調整する。現在の読取では `claim/EMR-461` と `claim/EMR-466` が存在し、499/446 claimは見当たらないが、未claimを着手許可とは扱わない。今回499のclaim取得・移管・migration番号予約は行わない。
+2. 関連blocking writer（予約受入/取消/未来院/接続、開始/退院/訂正、ケージcreate/edit/swap等）を実際のowner呼出しまで列挙し、既存gate/receipt/binding/lock順とambient参加を対応付ける。未参加のまま安全と認定せず、実参加または経路停止を決めて実装する。第三の未定チケットへ残さない。
+3. 446/466と調整した追加保存差分を前提に、型付きv1予約proof、schema-version付き訂正親子、完全leaf resolver、複合CASを単一499 core/writerに実装する。旧行推測backfill、通常付替え/再入院、ホテルへの不要な必須条件を追加しない。
+4. 最外TX先頭の既選定gate→receipt/binding→owner既存lockを接続し、保存時の現在根拠再評価と候補readの一貫snapshotを成立させる。ambient参加者に新TX/入れ子Runnerを作らない。
+5. 上記のCreate/Update/退院/swapを実writerまで接続し、削除済みfield/SQL依存、文字列ID、409コードを解消する。新規非NULLunknownの409と、未指定/維持/明示clearを別fixtureで確認する。
+6. 既存の簡単なsource確認で進められる差分を進め、対象head・残差・確認内容を固定してレビューする。compile/unit/vet/gofmtを実行していなければ未実施と記録し、Docker検査を進行停止・マージ必須条件にしない。実DB/結合/実機は本人が指示した時にmainローカルで行い、検証専用環境を新設しない。
 
-hospitalization create/update/swap等の旧status/type/start/end利用の499 writer接続、必要認可・監査・receipt、PR740のknown/unknown・current_assignment等へのruntime追随、実DB/API/UI受入は別途必要。DDL変更の必要性はQ1/Q2の意味・表現が確定してから446/466へ具体差分を渡す。今回はDDLを追加しない。
+## 3. 後日試験（未実施・未検証）
 
+| 検査 | 必要な証拠 / 現在の扱い |
+|---|---|
+| compile / unit / vet / gofmt | 現変更では未実施。Docker検査の実行・環境復旧を進行停止やマージ必須条件にしない。別途実施時は734の限定fixtureと後続499のproof/leaf/複合CAS/保存境界、対象headを記録する。2節の型不整合・保存未接続はコードの未実装として独立に扱う |
+| 実DB保存制約 | 本人指示後、追加migration適用、親子deferred completeness、immutable/RLS/scope、成功receiptとの同TX・rollbackを確認。001変更・推測backfillなし |
+| 競合 / snapshot | 本人指示後、候補read対movement、訂正対ケージ保存、逆順swap、予約接続対開始でlock待ち後の再検査、複合CAS、snapshot、rollback後の変更/成功receipt不残存を確認。context markerやfile-list fixtureを代用にしない |
+| API / 結合 / UI / 実機 | 本人指示後、740 wire・scope/認可・lossless ID・unknownと取得障害・現在割当保持・未指定/維持/clear・新規409・交換原子性を確認。734だけで利用開始可とはしない |
 
-## 担当間で閉じる技術契約と最小の次工程
+現sourceで確認済みなのはdiff-check、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parse、cageの2 path/3 schemaと指定main契約の本文一致。`verify-agent-task.py --base 06ae59aca --plan` は対象列挙だけで実行件数0。今回の更新は文書のみで、runtime検査は実行していない。検査未実施をコード未実装の代わりにせず、Docker実行を進行停止・マージ必須条件にしない。
 
-Q1–Q4は承認済み業務方針を実装へ落とすための技術契約であり、ユーザーへの業務再承認依頼ではない。以下の型名・取得順は検討用の具体案で、現行の採用契約・DDLではない。461は確定した499 reader契約を利用し、各consumerに独自の予約成立／訂正解釈を複製しない。
+Docker拒否の記録（検査未実施の履歴であり、進行停止・マージ必須条件ではない）:
 
-### Q1: 予約成立を確認する入力（499、予約writer担当、446）
+```sh
+docker ps --format '{{.Names}}\t{{.Image}}'
+```
 
-[001のstay接続](https://github.com/MinoruSoga/AnimalEkarte/blob/e60ba31e86f88e0e0a6a870989ac491fd8872654/backend/migrations/001_init.sql#L9247)には`appointments.stay_case_id`と医院付きFKがある。一方、[reservation_contract_states](https://github.com/MinoruSoga/AnimalEkarte/blob/e60ba31e86f88e0e0a6a870989ac491fd8872654/backend/migrations/001_init.sql#L8915)の`enabled`は医院・契約種別のcutover状態で、個別予約の受入成功を示す行ではない。stay作成・予定日時・cutoverだけで予約済みにしない。
+`unix:///Users/minoru/.orbstack/run/docker.sock` への接続が `permission denied`。同操作の再試行、権限拒否の別経路迂回、ホストGo/npm代替、検証環境新設を行わない。DB適用/reset、実DB/結合/実機、STG/prod/storage操作も行っていない。
 
-次工程は予約writerの採用実装で、同医院のappointment→stay接続が受入成功時にどの状態／履歴／成功receiptと同一TXで確定するかを追跡する。499 readerへの入力案は`AcceptedStayReservationProof{ClinicID, StayCaseID, AppointmentID, AppointmentVersion, AcceptanceEvidenceRef}`。`AcceptanceEvidenceRef`は既存writerが成功確定に使用する履歴・receiptの参照を渡す想定で、存在未確認の新しい受入eventを作る提案ではない。予約writer担当と446が、現在有効な受入と取消・未来院の判別元、参照の版、同stayの重複予約の扱いを既存保存契約から特定し、499が予約成立proofの有無を解決する。証明できた予約のみreservedへ投影するfixtureを追加する。参照先の採用契約が確定するまではno eventをunknownのままとする。
+### 所有権・保全の証跡
 
-### Q2: 訂正後のeffectを明示する型（499、446、必要時466）
-
-[現movement行](https://github.com/MinoruSoga/AnimalEkarte/blob/e60ba31e86f88e0e0a6a870989ac491fd8872654/backend/migrations/001_init.sql#L9278)は`corrected_event_id`、`actual_at`、`reason`を保持するが、correction行が元effectの時刻だけを置換するのか、kindまで置換するのか、無効化するのかを区別する明示フィールドはない。NULL時刻だけで無効化や継承を判定しない。[専用訂正の正本](../spec/domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-special-correction)は原記録・変更内容・理由・actor・時刻・関連の保持と頭数再照合を要求する。
-
-499の内部解決結果の型案は`ResolvedStayMovementEffect{SourceEventID, ResolutionRevision, Disposition, ReplacementEffect}`。`Disposition`を`retain / replace / void`の識別子にし、`replace`だけ`ReplacementEffect{Kind, ActualAt, HospitalizationID, AdmissionRecordRef, DoctorID}`を持つ判別共用体とする。これはkindや時刻をNULLから推測しないための表現案で、void操作の新規業務許可を意味しない。499/446が許可済み専用訂正の保存内容と照合して、実際に必要な分岐・訂正対象の重複／連鎖解決・版を確定する。既存保存先で表せない場合に限り、466へ必要列・制約・移行方針を具体化して渡す。461は解決済みeffect列だけを通常遷移へ入力し、raw correctionを解釈しない。
-
-### Q3: 通常遷移の拒否と訂正解決の分離（499）
-
-通常writerは`未開始→admit→discharge`と`未開始→cancel/no_show`を検証し、discharge単独・admit後cancel/no_show・同stay退院後再admit・実時刻逆転を通常書込として拒否する。[退院の正本](../spec/domains/hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)どおり通常の再check-inは追加しない。既存の異常履歴を新しい通常操作で救済せず、専用訂正の対象として扱う。
-
-499の訂正resolverがQ2の確定契約に従って原履歴を保持した有効effect列へ解決した後、同じ通常遷移検証へ渡す。解決不能・なお不正な場合はunknownを返す。fixtureは「通常writerで拒否」「原履歴を保持した解決済み訂正」「解決不能unknown」を分け、最新kind採用や自動再入院を追加しない。
-
-### Q4: 全writerのlock順と実DB検証（499、461、予約writer担当、466）
-
-現在の461はhospitalization/cage-groupを扱う経路からstayをロックし、movement INSERT triggerはstayを`FOR UPDATE`する。trigger単体の存在だけでは、全writerがその前に取るlockとの循環を否定できない。499と461で全経路（admit/discharge/cancel/no_show/correction、ケージcreate/edit/swap、予約接続）のlock一覧を作り、複数対象のID昇順を含む共通順を1つ決める。既存writerの `hospitalization → pet → cage → stay` を調査の出発点とし、同種の複数IDを昇順に揃える。逆順となる cage→hospitalization 案は採用しない。予約・患者writerのgate/lock順も照合し、医院gateの追加は既存booking/patient gateとの整合が確認できた場合だけ検討する。lock待ち後の候補/保存再検査を省略しない。
-
-466の実001 fixtureが利用可能になった後、同医院2接続で候補読取対movement INSERT、ケージ保存再検査対訂正、逆順のswap、予約接続対開始を実行し、ロック待ち後に再検査されること、deadlock／stale stateで保存成功しないこと、rollback後に変更とreceiptが残らないことを確認する。immutable triggerとRLSの実適用も確認する。現在のcontext fixtureやfile-list PASSをこの実DB検証の代用にしない。
-
-
-## 2026-10-20 技術入力の具体化（未採用、コード/DDL変更なし）
-
-- **Q1 / 499・予約writer・446**：現在の調査では、予約成功時にStayCaseIDを設定する既存writerは確認できていない。候補は `appointment_change_events.after_values` の医院/予約/stayを型付きで検証し、同じ成功operation receiptと結び付けた `AcceptedStayReservationProof{ClinicID, StayCaseID, AppointmentID, AppointmentVersion, ChangeEventID, OperationID}`。後続の取消・未来院・付替えまで追跡して現在有効な予約を解決する。JSON内にIDがあるだけでは成功・現効力を認定せず、予約成立の解釈を461へ複製しない。入力元・成功判定・改訂版の契約が499で確定するまで no movement はunknown。
-- **Q2 / 499・446、保存差分は466**：correctionのreplace/voidを保存する候補は `stay_movement_correction_effects(clinic_id, correction_event_id, stay_case_id, disposition, replacement_kind, effective_actual_at, required_reference_ids)` の子表。具体の列型・FK・必要参照は既存writerとの照合後に確定する。actor/reason/operationは親eventを正本に保ち、child completenessと同医院/同stayをDBで検査する案。replaceだけに必要effectを持たせ、voidでNULL時刻を推測解釈しない。前節のretainは原eventをそのまま有効にする内部解決状態であり、訂正childの保存識別子はreplace/voidを候補とする。既存correctionの意味を推測したbackfillは行わない。
-- **訂正writer境界**：同医院/同stay、期待revision、現在のchain leafだけを訂正対象とし、分岐・循環を拒否する契約とfixtureが必要。void dischargeは専用訂正であり通常再入院へ読み替えない。admit訂正は既存admission recordの一意制約との関係も確定する。461は解決済みeffect列だけを消費する。
-- **Q3 / EvidenceRevision**：通常遷移・異常履歴unknown・予定終了超過で解放しない方針を維持する。現在のmovement revisionだけではQ1予約証跡を統合した版にならない。movement、予約変更、成功receiptの根拠を区別した複合evidence契約を499が定義する。stay行のversionはmovement INSERTで自動増分する版ではなく、writer CAS/fence・業務内容の版・readerの根拠版を同一視しない。
-- **Q4 / 次の実装単位**：まず499と461で、admit/discharge/cancel/no_show/correction・予約接続・ケージcreate/edit/swapの各writerが取るlockとgateを一覧化し、上記既存順とpost-lock recheckを照合する。その後に499の単一core/writer、461のadapter、740 ownerのruntime DTOへ順に接続する。今回の文書はAPI740への変更や新migration番号の予約ではない。仕様/技術契約の採用後に必要な最小DDL/実fixtureを446/466へ渡す。
-
-この案ではまだQ1–Q4が解消したことにはならない。候補readの200 unknownは採用済みwireへの追随として別途実装し、旧writer接続と実DB受入の未完を維持する。
-
-## 2026-10-20 親Dotsによる正式handoffと採用済みwireの先行実装
-
-- 旧ownerの `task-3/pr734` はhead `06ae59aca8f3912d567ff87397f00d581f68c158`・dirty空を読取で再確認。親Dotsが旧ownerの734新規編集停止とtask-6への担当切替を明示承認した。旧worktreeは保全。
-- 共有本体の `claim/EMR-461` は旧tip `5c5219965ad44258b8ccd918ffe52179a6139ade` と未checkoutを確認後、通常の `git branch -d` → `git branch claim/EMR-461` で再取得。新tipは共有本体の `e60ba31e86f88e0e0a6a870989ac491fd8872654`。他claim/branchの解放・削除なし。claimのtipは所有権取得の基点であり、PRの修正headや状態根拠版ではない。
-- 新owner領域: `task-6/AnimalEkarte-pr734`、local branch `fix/pr734-emr461-499-20261020`。通常push先は既存PR734 head branch `feature/emr461-cage-recheck-20261020`。
-- 親Dotsの採用範囲はmain `4debcf9961fdd8735afe57b2886ae354ac0b1a5a` のPR740公開契約へのreader/adapter/handler整合。`api.yaml` のcage-occupancy/cage-swapと関連3 schemaを同mainからそのまま採用し、旧wireへ戻さない。swapのwriter/DTO追随完了を意味しない。
-- readはclinic/編集対象の文字列ID echo、known時の非NULL全件配列、unknown時の両配列NULL、現在割当の独立保持を実装する。全IDは先頭ゼロなしのPostgreSQL bigint正数。許可外query・重複query・範囲外を400、自己除外には選択医院のeditを追加要求し、scope外/不存在/削除済みは同じ404にする。
-- 候補は同院の有効な独立/代表ケージ。構成員の他滞在占有を代表へ集約する。自己除外は既存adapterでhospitalization IDに限定し、同ケージの別滞在は残す。現割当が無効/構成員/候補外でも表示値を保持する。
-- Q1予約proof、Q2訂正保存/replace/void、Q4全writer参加は親の採用内容待ち。既存通常履歴coreのQ3異常履歴unknownを維持し、通常再入院や予定日時による予約/退院推測を追加しない。専用writerによる通常不正遷移拒否の接続はこのread先行実装に含めない。
-- 限定fixtureはproduction HTTP境界/純粋projection/同context伝播を対象とする。SQL、実DB lock、認可DB、HTTPサーバー全体や実機の受入証拠にはしない。旧inventoryにあった未存在のrealDB test参照は未実行表示へ訂正する。
-- 現セッションの静的確認: `git diff --check`、inventory JSON parse、Ruby PsychによるOpenAPI YAML構文parseを確認。cageの2 path/3 schemaは指定main740契約と本文一致。`verify-agent-task.py --base 06ae59aca --plan` は対象を列挙しただけで、実行件数0。
-- 検査blocker: `docker ps --format ...` は `/Users/minoru/.orbstack/run/docker.sock` への権限拒否で未実行。同操作を再試行・迂回していない。Docker unit/vet/build/gofmtは現変更で未実行（BLOCKED）。ホストGo/npm代替、検証環境新設、DB適用/reset/実DB/結合/実機/STG/prod/storage操作なし。限定fixture追加をPASSと記載しない。
+- 旧ownerの `task-3/pr734` はhead `06ae59aca8f3912d567ff87397f00d581f68c158`・dirty空を確認し、親Dotsが旧ownerの734編集停止とtask-6への正式handoffを承認した。旧worktreeは保全。
+- 共有本体の `claim/EMR-461` は旧tip `5c5219965ad44258b8ccd918ffe52179a6139ade` と未checkoutを確認後、通常の非強制削除→再取得を実施。新tipは `e60ba31e86f88e0e0a6a870989ac491fd8872654`。他claim/branchの解放・削除なし。このtipは取得基点であり、修正head/CAS/状態根拠版ではない。
+- 新owner領域: `task-6/AnimalEkarte-pr734`、local branch `fix/pr734-emr461-499-20261020`。通常push先はPR734の `feature/emr461-cage-recheck-20261020`。source先行head `0e79ae86bcbcda1de7dcc87d97bd33ad014a0fce` はpush済み・Draft維持。
