@@ -126,6 +126,39 @@ func ensureConfirmedMedicalRecord(t *testing.T, f billingItemReferenceFixture) {
 	}).Error)
 }
 
+// EMR-454: repository SELECT/scan and candidate construction must preserve
+// explicit vaccine values and distinguish legacy NULL. This is a DB-backed
+// regression; the pure mapping test alone does not validate SQL or wire DTOs.
+func TestBillingItemVaccinationUnbilled_InsuranceSetting(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		setting any
+		want    *bool
+	}{
+		{name: "excluded", setting: true, want: ptrBool(false)},
+		{name: "insured", setting: false, want: ptrBool(true)},
+		{name: "legacy null", setting: nil, want: nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := setupBillingItemReferenceFixture(t)
+			price := int64(4200)
+			vaccine, _ := makeBillingVaccination(t, f, "保険設定ワクチン", &price)
+			require.NoError(t, f.db.Model(vaccine).Update("is_non_insurance", tc.setting).Error)
+			finder := f.repo.(unbilledVaccinationFinder)
+			items, unbillable, err := finder.FindUnbilledVaccinationItemsByPetID(context.Background(), f.clinicID, f.pet.ID)
+			require.NoError(t, err)
+			assert.Zero(t, unbillable)
+			require.Len(t, items, 1)
+			if tc.want == nil {
+				assert.Nil(t, items[0].IsInsuranceApplicable)
+			} else {
+				require.NotNil(t, items[0].IsInsuranceApplicable)
+				assert.Equal(t, *tc.want, *items[0].IsInsuranceApplicable)
+			}
+		})
+	}
+}
+
 func TestBillingItemVaccinationProvenance_UnbilledCandidates(t *testing.T) {
 	t.Run("derives authoritative vaccine values and preserves event provenance", func(t *testing.T) {
 		f := setupBillingItemReferenceFixture(t)

@@ -19,11 +19,12 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 	clinicID, petID uint64,
 ) ([]model.BillingItem, int, error) {
 	type vaccinationBillingRow struct {
-		VaccinationID uint64
-		VaccineID     *uint64
-		Name          *string
-		UnitPrice     *int64
-		ServiceDate   time.Time
+		VaccinationID  uint64
+		VaccineID      *uint64
+		Name           *string
+		UnitPrice      *int64
+		ServiceDate    time.Time
+		IsNonInsurance *bool
 	}
 	rows := make([]vaccinationBillingRow, 0)
 	if err := r.db.WithContext(ctx).Raw(`
@@ -32,7 +33,8 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			vaccine.id AS vaccine_id,
 			vaccine.name AS name,
 			vaccine.price AS unit_price,
-			vaccination.date AS service_date
+			vaccination.date AS service_date,
+			vaccine.is_non_insurance AS is_non_insurance
 		FROM vaccinations AS vaccination
 		JOIN pets AS pet
 		  ON pet.id = vaccination.pet_id
@@ -102,6 +104,8 @@ func (r *billingItemRepository) FindUnbilledVaccinationItemsByPetID(
 			VaccinationID: &vaccinationID,
 			// EMR-246: 会計画面の当日/過去区分表示用にワクチン接種日を応答へ載せる。
 			ServiceDate: &row.ServiceDate,
+			// 採用前の候補値。旧 NULL は未設定のまま保持する。
+			IsInsuranceApplicable: insuranceApplicableFromMasterSetting(row.IsNonInsurance),
 		})
 	}
 	return items, unbillableCount, nil
@@ -194,11 +198,8 @@ func (r *billingItemRepository) FindUnbilledExamItemsByPetID(
 		}
 		// EMR-454: 検査マスタの明示された保険設定（exam_types.is_non_insurance）を
 		// 未請求候補へ引き継ぐ。true=保険対象外 → is_insurance_applicable=false。
-		// マスタ値が取得できない場合は推測補完せず nil のまま（当行は unbillable で除外済み）。
-		if row.IsNonInsurance != nil {
-			applicable := !*row.IsNonInsurance
-			item.IsInsuranceApplicable = &applicable
-		}
+		// マスタ値が取得できない場合は推測補完せず nil のまま。
+		item.IsInsuranceApplicable = insuranceApplicableFromMasterSetting(row.IsNonInsurance)
 		items = append(items, item)
 	}
 	return items, unbillableCount, nil
