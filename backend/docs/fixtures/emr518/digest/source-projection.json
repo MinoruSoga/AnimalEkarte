@@ -1,0 +1,26 @@
+{
+  "schema": "pkg-source-v1",
+  "clinic_id": "7",
+  "item": {
+    "kind": "consultation",
+    "consultation_id": "101"
+  },
+  "active": true,
+  "name": "診察サンプル",
+  "unit_label": null,
+  "native_version": "2",
+  "price": {
+    "unit_price": "110",
+    "tax_type": "included",
+    "tax_rate": "0.1",
+    "is_non_insurance": true,
+    "insurance_setting_state": "explicit",
+    "price_source": "master",
+    "tax_source": "master",
+    "insurance_source": "master",
+    "amount_basis": "included",
+    "uncertainty": []
+  },
+  "owner_definition_digest": null,
+  "eligibility_digest": null
+}

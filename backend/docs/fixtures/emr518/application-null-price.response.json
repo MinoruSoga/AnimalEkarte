@@ -1,0 +1,301 @@
+{
+  "id": "302",
+  "record_id": "91",
+  "package_id": "201",
+  "package_version": "3",
+  "package_name_snapshot": "医院別ダミーパッケージ",
+  "applied_at": "2026-10-20T14:00:00Z",
+  "item_count": 8,
+  "clinic_id": "7",
+  "pet_id": "801",
+  "version": "1",
+  "operation_key": "a0000000-0000-4000-8000-000000000001",
+  "items": [
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000011",
+      "plan_item_id": "401",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000011",
+        "item": {
+          "kind": "consultation",
+          "consultation_id": "101"
+        },
+        "quantity": "1",
+        "name": "診察サンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": "2",
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000001"
+        },
+        "price": {
+          "unit_price": null,
+          "tax_type": "included",
+          "tax_rate": "0.1",
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "unresolved",
+          "tax_source": "master",
+          "insurance_source": "master",
+          "amount_basis": "included",
+          "uncertainty": [
+            {
+              "field": "unit_price",
+              "reason": "legacy_unset",
+              "required_at": "billing"
+            }
+          ]
+        },
+        "classification": "clinical"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000012",
+      "plan_item_id": "402",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000012",
+        "item": {
+          "kind": "procedure",
+          "procedure_id": "102"
+        },
+        "quantity": "1",
+        "name": "処置サンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": "2",
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000002"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": "included",
+          "tax_rate": "0.1",
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "master",
+          "tax_source": "master",
+          "insurance_source": "master",
+          "amount_basis": "included",
+          "uncertainty": []
+        },
+        "classification": "clinical"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000013",
+      "plan_item_id": "403",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000013",
+        "item": {
+          "kind": "medicine",
+          "medicine_id": "103"
+        },
+        "quantity": "0.25",
+        "name": "薬剤サンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": null,
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000003"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": "included",
+          "tax_rate": "0.1",
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "master",
+          "tax_source": "master",
+          "insurance_source": "master",
+          "amount_basis": "included",
+          "uncertainty": []
+        },
+        "classification": "clinical"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000014",
+      "plan_item_id": "404",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000014",
+        "item": {
+          "kind": "examination_type",
+          "examination_type_id": "104"
+        },
+        "quantity": "1",
+        "name": "検査パネルサンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": null,
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000004"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": null,
+          "tax_rate": null,
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "master",
+          "tax_source": "unresolved",
+          "insurance_source": "master",
+          "amount_basis": "unresolved",
+          "uncertainty": [
+            {
+              "field": "tax",
+              "reason": "not_configured_on_master",
+              "required_at": "billing"
+            }
+          ]
+        },
+        "classification": "clinical"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000015",
+      "plan_item_id": "405",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000015",
+        "item": {
+          "kind": "vaccine",
+          "vaccine_id": "105"
+        },
+        "quantity": "1",
+        "name": "接種サンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": "2",
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000005"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": null,
+          "tax_rate": null,
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "master",
+          "tax_source": "unresolved",
+          "insurance_source": "master",
+          "amount_basis": "unresolved",
+          "uncertainty": [
+            {
+              "field": "tax",
+              "reason": "not_configured_on_master",
+              "required_at": "billing"
+            }
+          ]
+        },
+        "classification": "clinical"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000016",
+      "plan_item_id": "406",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000016",
+        "item": {
+          "kind": "checkup_type",
+          "checkup_type_id": "106"
+        },
+        "quantity": "1",
+        "name": "健診セットサンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": "2",
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000006"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": null,
+          "tax_rate": null,
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "master",
+          "tax_source": "unresolved",
+          "insurance_source": "master",
+          "amount_basis": "unresolved",
+          "uncertainty": [
+            {
+              "field": "tax",
+              "reason": "not_configured_on_master",
+              "required_at": "billing"
+            }
+          ]
+        },
+        "classification": "clinical"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000017",
+      "plan_item_id": "407",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000017",
+        "item": {
+          "kind": "merchandise_item",
+          "merchandise_item_id": "107"
+        },
+        "quantity": "1",
+        "name": "物販サンプル",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": null,
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000007"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": "included",
+          "tax_rate": "0.1",
+          "is_non_insurance": null,
+          "insurance_setting_state": "not_configured_on_master",
+          "price_source": "master",
+          "tax_source": "master",
+          "insurance_source": "unresolved",
+          "amount_basis": "included",
+          "uncertainty": [
+            {
+              "field": "insurance",
+              "reason": "not_configured_on_master",
+              "required_at": "billing"
+            }
+          ]
+        },
+        "classification": "commercial"
+      }
+    },
+    {
+      "component_key": "a0000000-0000-4000-8000-000000000018",
+      "plan_item_id": "408",
+      "applied_item": {
+        "component_key": "a0000000-0000-4000-8000-000000000018",
+        "item": {
+          "kind": "manual_other",
+          "manual": {
+            "name": "手入力項目",
+            "reason": "医院で明示した項目",
+            "unit_label": null,
+            "unit_price": "110",
+            "tax_type": "included",
+            "tax_rate": "0.1",
+            "is_non_insurance": true
+          }
+        },
+        "quantity": "1",
+        "name": "手入力項目",
+        "unit_label": null,
+        "source_stamp": {
+          "native_version": null,
+          "dependency_token": "pkg-source-v1:0000000000000000000000000000000000000000000000000000000000000008"
+        },
+        "price": {
+          "unit_price": "110",
+          "tax_type": "included",
+          "tax_rate": "0.1",
+          "is_non_insurance": true,
+          "insurance_setting_state": "explicit",
+          "price_source": "manual",
+          "tax_source": "manual",
+          "insurance_source": "manual",
+          "amount_basis": "included",
+          "uncertainty": []
+        },
+        "classification": "clinical"
+      }
+    }
+  ]
+}

@@ -1,0 +1,566 @@
+{
+  "contract": "EMR-518 / EMR-516 / EMR-494 selected OpenAPI contract-first",
+  "publication_base": "6cb8184caacffeb63874a64fb93d47c15628136d",
+  "api_file": "../../api.yaml",
+  "verification": "NOT_RUN",
+  "schema_validation": "NOT_RUN",
+  "runtime_status": "NOT_IMPLEMENTED",
+  "dummy_digest_notice": "All success/source token hex are schema-shaped dummy values, not computed hashes; projection/vector expected SHA is null and NOT_RUN.",
+  "fixtures": [
+    {
+      "file": "master-list-empty.response.json",
+      "operationId": "listTreatmentPackages",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageList",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "New empty catalog, persisted version1",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "master-mixed-detail.response.json",
+      "operationId": "getTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackage",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "All seven typed master kinds plus legitimate manual; stable order and keys",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "master-create.request.json",
+      "operationId": "createTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageCreate",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Explicit active and all eight component inputs",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "master-patch.request.json",
+      "operationId": "updateTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackagePatch",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Full components replacement, omitted name/active unchanged",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "master-reorder.request.json",
+      "operationId": "reorderTreatmentPackages",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageReorder",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Complete nondeleted catalog including inactive",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview.request.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackagePreviewRequest",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "No actor/clinic/pet/price override",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-mixed-financial-unknown.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "8 kinds, 3 tax-null and merchandise insurance-null warnings, permitted selection, total unresolved",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-owner-unresolved.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Blocking selection distinct from financial warning; full package rejects",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-inactive.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Blocking selection distinct from financial warning; full package rejects",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-null-price.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Nullable legacy price, single-item-allowed selection, snapshot retains null",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-null-insurance.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Legacy nullable insurance distinct from absent merchandise property",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-explicit-zero.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Explicit stored zero distinct from missing price; no total calculation invented",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-checkup-set.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "One owner-defined planned item preserves checkup set/exam panel children via source definition, no generic recursion",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-exam-panel.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "One owner-defined planned item preserves checkup set/exam panel children via source definition, no generic recursion",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply.request.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageApply",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Flat494/C06 body; create action plus current fence",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-succeeded.response.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Atomic application302 and plans401..408; one aggregate increment17->18",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-replayed.response.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Same refs/versions/time exactly; no new rows or current-master rebuild",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-version-conflict.response.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 409,
+      "expected_schema": "valid",
+      "scenario": "C06 zero business write; original operation retained; no row issues/result refs",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-dependency-changed.response.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 409,
+      "expected_schema": "valid",
+      "scenario": "C06 zero business write; original operation retained; no row issues/result refs",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-key-reused.response.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 409,
+      "expected_schema": "valid",
+      "scenario": "C06 zero business write; original operation retained; no row issues/result refs",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-edit-right-lost.response.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 409,
+      "expected_schema": "valid",
+      "scenario": "C06 zero business write; original operation retained; no row issues/result refs",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "lookup-in-progress.response.json",
+      "operationId": "getMedicalRecordOperationResult",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 202,
+      "expected_schema": "valid",
+      "scenario": "Original-key lookup; non-success carries no refs/time; no blind re-create",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "lookup-result-unavailable.response.json",
+      "operationId": "getMedicalRecordOperationResult",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 503,
+      "expected_schema": "valid",
+      "scenario": "Original-key lookup; non-success carries no refs/time; no blind re-create",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "lookup-not-succeeded.response.json",
+      "operationId": "getMedicalRecordOperationResult",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Original-key lookup; non-success carries no refs/time; no blind re-create",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "scope-not-found.response.json",
+      "operationId": "getMedicalRecordOperationResult",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 404,
+      "expected_schema": "valid",
+      "scenario": "Original-key lookup; non-success carries no refs/time; no blind re-create",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "not-authorized.response.json",
+      "operationId": "getMedicalRecordOperationResult",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanOperationResultResponse",
+      "http_status": 403,
+      "expected_schema": "valid",
+      "scenario": "Original-key lookup; non-success carries no refs/time; no blind re-create",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "application-list.response.json",
+      "operationId": "listTreatmentPackageApplications",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageApplicationList",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Historical summary, stable applied_at/id order",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "application-detail.response.json",
+      "operationId": "getTreatmentPackageApplication",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageApplication",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Applied values after master modification/deletion remain identical; financial uncertainty survives issues removal",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-list.response.json",
+      "operationId": "listMedicalRecordPlanItems",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanList",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Common516 plan, clinical not_performed/result none; commercial selected; no owner effects",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-detail.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Initial pending->not_performed mapping, no links",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-performed-awaiting.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Authorized coordinator event fixture only; result arrival/attach does not imply performed",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-deferred.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Authorized coordinator event fixture only; result arrival/attach does not imply performed",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-cancelled.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Authorized coordinator event fixture only; result arrival/attach does not imply performed",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-commercial.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Commercial selected projection, no billing fulfillment or clinical state",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "invalid/mixed-fk.request.json",
+      "operationId": "createTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageCreate",
+      "http_status": null,
+      "expected_schema": "invalid",
+      "scenario": "Foreign branch ID rejected by discriminated oneOf/additionalProperties:false",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "invalid/unsafe-id.request.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageApply",
+      "http_status": null,
+      "expected_schema": "invalid",
+      "scenario": "JSON number is invalid; never silently round unsafe integer ID",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "invalid/noncanonical-quantity.request.json",
+      "operationId": "createTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageCreate",
+      "http_status": null,
+      "expected_schema": "invalid",
+      "scenario": "Canonical quantity wire rejects trailing zeros; no rounding or exponent",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "invalid/null-patch.request.json",
+      "operationId": "updateTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackagePatch",
+      "http_status": null,
+      "expected_schema": "invalid",
+      "scenario": "Explicit PATCH null rejected, unlike omitted field or nullable finance snapshot",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "invalid/unresolved-plan.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "invalid",
+      "scenario": "New persisted plan never has unresolved execution kind; legacy remains separate",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "digest/source-projection.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "digest_projection",
+      "component_ref": "#/components/schemas/TreatmentPackageSourceProjection",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Complete SourceProjection; no hash computation performed",
+      "verification": "NOT_RUN",
+      "expected_sha256": null,
+      "hash_verification": "NOT_RUN"
+    },
+    {
+      "file": "digest/preview-projection.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "digest_projection",
+      "component_ref": "#/components/schemas/TreatmentPackagePreviewProjection",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Complete PreviewProjection; no generated IDs/actor/CAS/total; dummy source digests not computed",
+      "verification": "NOT_RUN",
+      "expected_sha256": null,
+      "hash_verification": "NOT_RUN"
+    },
+    {
+      "file": "digest/canonicalization-vectors.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "canonicalization_vectors",
+      "component_ref": null,
+      "http_status": null,
+      "expected_schema": "not_applicable",
+      "scenario": "Canonicalizer string-boundary examples, not HTTP body nor projection-schema instances; NOT_RUN",
+      "verification": "NOT_RUN",
+      "hash_verification": "NOT_RUN"
+    },
+    {
+      "file": "master-reorder-stale.response.json",
+      "operationId": "reorderTreatmentPackages",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageError",
+      "http_status": 409,
+      "expected_schema": "valid",
+      "scenario": "Pre-C06 flat error; no partial component/patient/other-clinic disclosure",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "master-delete-stale.response.json",
+      "operationId": "deleteTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageError",
+      "http_status": 409,
+      "expected_schema": "valid",
+      "scenario": "Pre-C06 flat error; no partial component/patient/other-clinic disclosure",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-cross-clinic.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageError",
+      "http_status": 404,
+      "expected_schema": "valid",
+      "scenario": "Pre-C06 flat error; no partial component/patient/other-clinic disclosure",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-lost-master-grant.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageError",
+      "http_status": 403,
+      "expected_schema": "valid",
+      "scenario": "Pre-C06 flat error; no partial component/patient/other-clinic disclosure",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-null-source-patient.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageError",
+      "http_status": 422,
+      "expected_schema": "valid",
+      "scenario": "Pre-C06 flat error; no partial component/patient/other-clinic disclosure",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "apply-cas-only-retry.request.json",
+      "operationId": "applyTreatmentPackage",
+      "body_kind": "request",
+      "component_ref": "#/components/schemas/TreatmentPackageApply",
+      "http_status": null,
+      "expected_schema": "valid",
+      "scenario": "Same key/content, temporary CAS precondition only refreshed after known rejection",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-list-uninitialized.response.json",
+      "operationId": "listMedicalRecordPlanItems",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanList",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Missing baseline; read does not invent version or insert",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "master-other-clinic-fee-detail.response.json",
+      "operationId": "getTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackage",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Separate authorized clinic B request uses its own composition; never cross-clinic package or nationwide fee event",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-manual-commercial.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Existing explicit commercial-use scenario, not classification by manual item name; no fee/certificate generation",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-included-price.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Explicit input unit_price110 included retained; unresolved total avoids invented calculation",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "application-null-price.response.json",
+      "operationId": "getTreatmentPackageApplication",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackageApplication",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Applied nullable price and uncertainty retained, no later master default reconstruction",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "plan-null-insurance.response.json",
+      "operationId": "getMedicalRecordPlanItem",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/MedicalRecordPlanItem",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "Plan read keeps legacy insurance null/source/uncertainty, no false backfill",
+      "verification": "NOT_RUN"
+    },
+    {
+      "file": "preview-uninitialized.response.json",
+      "operationId": "previewTreatmentPackage",
+      "body_kind": "response",
+      "component_ref": "#/components/schemas/TreatmentPackagePreview",
+      "http_status": 200,
+      "expected_schema": "valid",
+      "scenario": "No baseline yet: read-only null/uninitialized, explicit494 acquire prepares; no read INSERT or late apply bootstrap",
+      "verification": "NOT_RUN"
+    }
+  ]
+}

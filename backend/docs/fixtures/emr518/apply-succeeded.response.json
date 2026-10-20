@@ -1,0 +1,13 @@
+{
+  "status": "succeeded",
+  "operation_key": "a0000000-0000-4000-8000-000000000001",
+  "result_refs": {
+    "record_id": "91",
+    "application_id": "302"
+  },
+  "committed_versions": {
+    "application": "1",
+    "plan_items": "18"
+  },
+  "recorded_at": "2026-10-20T14:00:00Z"
+}

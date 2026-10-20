@@ -152,6 +152,22 @@ var knownMissingFromSpec = map[string]bool{
 }
 
 var knownPhantomInSpec = map[string]bool{
+	// EMR-518 contract-first package routes: owner removes each exact entry in the same runtime-registration PR.
+	"GET /api/v1/masters/treatment-packages":                                                  true,
+	"POST /api/v1/masters/treatment-packages":                                                 true,
+	"GET /api/v1/masters/treatment-packages/{id}":                                             true,
+	"PATCH /api/v1/masters/treatment-packages/{id}":                                           true,
+	"DELETE /api/v1/masters/treatment-packages/{id}":                                          true,
+	"PATCH /api/v1/masters/treatment-packages/reorder":                                        true,
+	"POST /api/v1/medical-records/{record_id}/treatment-package-previews":                     true,
+	"POST /api/v1/medical-records/{record_id}/treatment-package-applications":                 true,
+	"GET /api/v1/medical-records/{record_id}/treatment-package-applications":                  true,
+	"GET /api/v1/medical-records/{record_id}/treatment-package-applications/{application_id}": true,
+	// EMR-516 common plan read owner: remove each entry in the same runtime-registration PR.
+	"GET /api/v1/medical-records/{record_id}/plan-items":                true,
+	"GET /api/v1/medical-records/{record_id}/plan-items/{plan_item_id}": true,
+	// EMR-494 shared operation owner: remove when the common route is registered; intent-only additions do not add a phantom.
+	"GET /api/v1/medical-records/{record_id}/operations/{operation_key}": true,
 	// pairs with the clinic_handler.go :clinic_id vs api.yaml {id} param-name drift above.
 	"DELETE /api/v1/clinics/{id}": true,
 	"GET /api/v1/clinics/{id}":    true,

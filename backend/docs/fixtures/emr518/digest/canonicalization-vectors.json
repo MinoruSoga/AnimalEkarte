@@ -1,0 +1,61 @@
+{
+  "canonical_representation": "UTF-8 string without terminal newline/BOM; JSON escapes here encode the expected string bytes",
+  "verification": "NOT_RUN",
+  "expected_sha256": null,
+  "vectors": [
+    {
+      "raw_input": "{\"z\":null,\"q\":\"引用\\\"\\\\/\\n\",\"n\":\"日本語\",\"b\":false,\"a\":\"0\"}",
+      "expected_canonical_utf8": "{\"a\":\"0\",\"b\":false,\"n\":\"日本語\",\"q\":\"引用\\\"\\\\/\\n\",\"z\":null}",
+      "expected": "accept",
+      "reason": "JCS key order; literal slash; quote/backslash/newline escaping; null/false/string0 distinct"
+    },
+    {
+      "raw_input": "{\"😀\":\"astral\",\"\":\"private-use\"}",
+      "expected_canonical_utf8": "{\"😀\":\"astral\",\"\":\"private-use\"}",
+      "expected": "accept",
+      "reason": "UTF16 key order D83D before E000, not Unicode codepoint sort"
+    },
+    {
+      "raw_input": "{\"a\":\"1\",\"a\":\"2\"}",
+      "expected_canonical_utf8": null,
+      "expected": "reject",
+      "reason": "duplicate-key"
+    },
+    {
+      "raw_input": "{\"name\":\"\\ud800\"}",
+      "expected_canonical_utf8": null,
+      "expected": "reject",
+      "reason": "lone-surrogate"
+    },
+    {
+      "raw_input_hex": "ff",
+      "expected_canonical_utf8": null,
+      "expected": "reject",
+      "reason": "invalid-UTF8"
+    },
+    {
+      "raw_input": "{\"x\":\"\\ud83d\\ude00\"}",
+      "expected_canonical_utf8": "{\"x\":\"😀\"}",
+      "expected": "accept",
+      "reason": "Valid surrogate pair equals scalar emoji"
+    },
+    {
+      "raw_input": "{\"x\":\"é\"}",
+      "expected_canonical_utf8": "{\"x\":\"é\"}",
+      "expected": "accept",
+      "reason": "NFC spelling remains unchanged"
+    },
+    {
+      "raw_input": "{\"x\":\"é\"}",
+      "expected_canonical_utf8": "{\"x\":\"é\"}",
+      "expected": "accept",
+      "reason": "Combining spelling remains distinct; no Unicode normalization"
+    },
+    {
+      "raw_input": "{\"x\":\"\\u0000\\b\\t\\n\\f\\r\"}",
+      "expected_canonical_utf8": "{\"x\":\"\\u0000\\b\\t\\n\\f\\r\"}",
+      "expected": "accept",
+      "reason": "JCS canonical controls, lowercase hex for NUL"
+    }
+  ]
+}
