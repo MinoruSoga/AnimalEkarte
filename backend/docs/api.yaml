@@ -292,6 +292,8 @@ components:
           description: 課税区分に応じて算出した税額
         is_insurance_applicable:
           type: boolean
+          nullable: true
+          description: 未設定の保存値は null のまま返す。false へ補完しない。
         source:
           type: string
           enum: [medical_record, hospitalization, manual, trimming]
@@ -5456,6 +5458,8 @@ components:
           type: boolean
         is_insurance:
           type: boolean
+          nullable: true
+          description: 未設定の保存値は null のまま返す。false へ補完しない。
         deleted_at:
           type: string
           format: date-time

@@ -977,3 +977,16 @@ describe("useCopyTreatmentDetails", () => {
     );
   });
 });
+
+it("stops copying unresolved insurance before any POST", async () => {
+  vi.clearAllMocks();
+  const postBodies = useCopyHandlers({ sourceRows: [sourceTreatment({ is_insurance: null })] });
+  const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID), {
+    wrapper: createTestWrapper(),
+  });
+  await act(async () => {
+    await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+  });
+  expect(postBodies).toHaveLength(0);
+  expect(toast.error).toHaveBeenCalled();
+});

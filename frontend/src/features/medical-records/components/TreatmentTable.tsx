@@ -38,7 +38,7 @@ export interface TreatmentItem {
   status?: string;
   content: string;
   memo: string;
-  is_insurance: boolean;
+  is_insurance: boolean | null;
   unitPrice: number;
   quantity: number;
   discountRate: number;
@@ -153,7 +153,7 @@ export const TreatmentTable = memo(function TreatmentTable({
               <Cell align="center">
                 <button
                   type="button"
-                  aria-pressed={item.is_insurance}
+                  aria-pressed={item.is_insurance ?? "mixed"}
                   aria-label="保険適用"
                   disabled={disabled}
                   onClick={() => onUpdate(item.id, "is_insurance", !item.is_insurance)}
@@ -162,7 +162,9 @@ export const TreatmentTable = memo(function TreatmentTable({
                     disabled ? "cursor-not-allowed opacity-60" : `cursor-pointer ${C.hoverBgPage}`,
                   )}
                 >
-                  {item.is_insurance ? (
+                  {item.is_insurance === null ? (
+                    <span className="text-xs">未設定</span>
+                  ) : item.is_insurance ? (
                     <Circle className={`${ICON.action} ${C.textStatusGreen}`} />
                   ) : (
                     <X className={`${ICON.action} ${C.text60}`} />

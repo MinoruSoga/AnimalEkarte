@@ -25,7 +25,7 @@ export function transformAccountingItem(item: BackendAccountingItem) {
     taxRate,
     taxAmount: item.tax_amount ?? 0,
     subtotal: item.subtotal ?? Math.round(unitPrice * quantity) - (item.discount_amount ?? 0),
-    isInsuranceApplicable: item.is_insurance_applicable,
+    isInsuranceApplicable: item.is_insurance_applicable ?? null,
     source: item.source as "medical_record" | "manual" | "hospitalization" | "trimming",
     otherReason: item.other_reason,
     merchandiseItemId: item.merchandise_item_id ? String(item.merchandise_item_id) : undefined,

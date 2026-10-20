@@ -167,3 +167,15 @@ describe("createAccountingItems", () => {
     expect(payload).not.toHaveProperty("checkup_id");
   });
 });
+
+it("stops unresolved insurance before the first POST", async () => {
+  const createItem = vi.fn().mockResolvedValue({});
+  await expect(
+    createAccountingItemsSequentially(
+      42,
+      [ITEMS[0], { ...ITEMS[1], isInsuranceApplicable: null }],
+      createItem,
+    ),
+  ).rejects.toThrow("保険設定");
+  expect(createItem).not.toHaveBeenCalled();
+});

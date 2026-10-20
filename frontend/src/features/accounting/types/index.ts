@@ -39,7 +39,8 @@ export interface AccountingItem {
   taxRate: number;
   taxAmount: number; // BE が計算して返す
   subtotal: number; // (unit_price × quantity − 割引額)（税抜・割引後 #85）
-  isInsuranceApplicable: boolean;
+  /** null is unresolved and must be confirmed before a save. */
+  isInsuranceApplicable: boolean | null;
   source: "medical_record" | "manual" | "hospitalization" | "trimming";
   otherReason?: string;
   merchandiseItemId?: string;

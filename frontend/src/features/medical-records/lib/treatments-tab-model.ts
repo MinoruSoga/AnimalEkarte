@@ -128,6 +128,9 @@ export function buildCopiedTreatmentPayload(params: {
   sortOrderOffset: number;
 }): CreateTreatmentInput {
   const { source, masters, sortOrderOffset } = params;
+  if (typeof source.is_insurance !== "boolean") {
+    throw new Error("複写元の保険設定が未設定です。確認してから複写してください");
+  }
   const deviationReason = source.dose_param_snapshot?.dose_deviation_reason;
   const payload: CreateTreatmentInput = {
     item_type: source.item_type,

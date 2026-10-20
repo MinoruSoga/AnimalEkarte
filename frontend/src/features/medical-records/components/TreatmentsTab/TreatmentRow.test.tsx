@@ -659,3 +659,12 @@ describe("TreatmentRow — quantity Enter×2 / Blur / Escape (GRILL Q8)", () => 
     expect(screen.getByRole("spinbutton", { name: "数量" })).toHaveValue(1);
   });
 });
+
+it("renders stored null insurance as indeterminate", () => {
+  renderRow({ ...baseTreatment, is_insurance: null });
+  expect(screen.getByRole("checkbox", { name: "保険適用" })).toHaveAttribute(
+    "aria-checked",
+    "mixed",
+  );
+  expect(screen.getByText("未設定")).toBeInTheDocument();
+});
