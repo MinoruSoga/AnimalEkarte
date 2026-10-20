@@ -4701,7 +4701,15 @@ components:
       required: [starts_at, ends_at, interval_state]
       description: >-
         応答専用。旧休憩の明示日時が未解決ならNULLとunknownを保持し、配列から黙って除外しない。
-        knownでは両日時が非NULL。入力用ShiftWorkBreakと分離し、unknownを保存要求へ流用しない。
+        knownでは両日時が非NULL。unknownでも判明している片側/両側日時は保持する。
+        入力用ShiftWorkBreakと分離し、unknownを保存要求へ流用しない。時刻順序/勤務内包含は別の意味検証。
+      oneOf:
+        - properties:
+            interval_state: { enum: [known] }
+            starts_at: { type: string, format: date-time }
+            ends_at: { type: string, format: date-time }
+        - properties:
+            interval_state: { enum: [unknown] }
       properties:
         starts_at: { type: string, format: date-time, nullable: true }
         ends_at: { type: string, format: date-time, nullable: true }
@@ -4715,7 +4723,10 @@ components:
         dateは勤務開始側のJST日付。日跨ぎを分割・自動補完しない。
         full/morning/afternoonの名称だけから時間を推測しない。
         interval_state=unknownは勤務または休憩の旧日時が未解決。NULLを休日・勤務可能と扱わず、訂正確認まで保存を停止する。
-        off/paid_leaveは終日非勤務、両日時NULL、breaks=[]。勤務未登録は行不存在でありoffとは別。
+        knownのoff/paid_leaveは終日非勤務、両日時NULL、breaks=[]。勤務未登録は行不存在でありoffとは別。
+        子休憩が一つでもunknownなら親もunknown。親unknownは既知の親日時/子部分値を保持できる。
+        旧off等に矛盾日時/休憩が残る場合はunknown表示で保存を停止し、値を黙って削除・正規化しない。
+        日時順序や休憩の勤務内包含は意味検証であり、このoneOfが保証するとはしない。
         versionは勤務aggregateの目標CAS版（休憩単独変更も含む）。updated_atやtemplate版で代替しない。
         採用001のentity_version_guardは親業務列変更だけを増分し、version単独更新を拒否する。
         shift_entry_breaksから親版を増分するtriggerはなく、休憩単独変更の契約は採用001だけでは未成立。
@@ -4724,6 +4735,25 @@ components:
         失敗/rollback/同操作再送で余分に増分しないことをstorage引渡しの受入条件とする。
         偽のnotes等の親列更新でtriggerを起動する回避は採用しない。
       x-storage-dependency: EMR-446/466 aggregate-version support for break-only changes (mechanism unselected)
+      oneOf:
+        - properties:
+            interval_state: { enum: [known] }
+            shift_type: { enum: [full, morning, afternoon] }
+            starts_at: { type: string, format: date-time }
+            ends_at: { type: string, format: date-time }
+            breaks:
+              type: array
+              items:
+                properties:
+                  interval_state: { enum: [known] }
+        - properties:
+            interval_state: { enum: [known] }
+            shift_type: { enum: ['off', paid_leave] }
+            starts_at: { type: string, nullable: true, enum: [null] }
+            ends_at: { type: string, nullable: true, enum: [null] }
+            breaks: { type: array, maxItems: 0 }
+        - properties:
+            interval_state: { enum: [unknown] }
       properties:
         id: { type: string, pattern: '^[1-9][0-9]*$' }
         clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
@@ -4851,6 +4881,17 @@ components:
         codeで処理しerror文字列を分岐に使わない。競合時は勤務・休憩・必要監査・結果を全て未反映。
         protected_bookingsでは認可済み対象予約だけを返す。権限不足なら予約詳細を漏らさず403。
         他院重複は相手医院名と重複時間だけを返し、患者・他院勤務全体を開示しない。
+        required詳細fieldは閲覧認可を拡大しない。必要詳細の閲覧権限がなければ既存403で拒否し、
+        この409 schemaを満たすために予約/他院情報を漏らしたり、無権限の空一覧を作ったりしない。
+      oneOf:
+        - required: [protected_bookings]
+          properties:
+            code: { enum: [protected_bookings] }
+        - required: [conflicting_clinic_name, overlap_starts_at, overlap_ends_at]
+          properties:
+            code: { enum: [cross_clinic_overlap] }
+        - properties:
+            code: { enum: [version_conflict, operation_key_reused, shift_exists, source_unresolved] }
       properties:
         error: { type: string }
         code:
@@ -8272,7 +8313,18 @@ components:
       description: |
         応答専用の不変内容版。idは内容版ID、content_revisionは記事内の内容改訂番号。
         article.version（CAS版）とは別。公開だけの操作で内容版を増やさない。
+        restoredは正数の復元元参照、static/override/editedは復元元NULL。
+        legacy_unknownはNULLまたは既知の正数参照を保持し、参照だけからsourceを推定したり既知IDを消したりしない。
         source_kindの旧NULLはadapterでlegacy_unknownとして示す。legacy_unknownやNULLのdigest/revisionは未解決出所。架空値で埋めず編集・公開・復元の元にしない。
+      oneOf:
+        - properties:
+            source_kind: { enum: [restored] }
+            restored_from_id: { type: integer, format: int64, minimum: 1 }
+        - properties:
+            source_kind: { enum: [static, override, edited] }
+            restored_from_id: { type: integer, nullable: true, enum: [null] }
+        - properties:
+            source_kind: { enum: [legacy_unknown] }
       properties:
         id: { type: integer, format: int64, minimum: 1 }
         article_id: { type: integer, format: int64, minimum: 1 }
