@@ -256,9 +256,10 @@ func EnsureMedicalRecordImageDeletionsTable(t *testing.T, db *gorm.DB) {
 }
 
 // MakeTestOwner はテスト用の Owner を作成して返す。
+// name を含む owner 基本情報は common_owner_basic_revisions で管理されるため本 fixture では作成しない（EMR-489 の operation fixture が正本経路）。
 func MakeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
 	t.Helper()
-	o := &model.Owner{ClinicID: clinicID, Name: name}
+	o := &model.Owner{ClinicID: clinicID}
 	require.NoError(t, db.WithContext(context.Background()).Create(o).Error)
 	return o
 }
@@ -545,12 +546,9 @@ func setupSharedTestSchema(db *gorm.DB) error {
 		&model.Pet{},
 		&model.MedicalRecord{},
 		&model.Billing{},
-		&model.Payment{},
 		&model.PaymentMethodMaster{},
-		&model.BillingRefund{},
 		&model.BillingItem{},
 		&model.Treatment{},
-		&model.PaymentSplit{},
 		&model.Estimate{},
 		&model.EstimateItem{},
 		&model.MerchandiseItem{},
