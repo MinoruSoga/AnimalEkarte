@@ -500,6 +500,8 @@ func newRuntimeTrimming(
 			repositories.trimmingCourses,
 			repositories.trimmingCourseType,
 			transactor,
+			trimmingCourseImageLifecycleOption(repositories.trimmingDetails),
+			trimming.WithCourseImageAudit(trimmingAuditTxAdapter{inner: auditKernel}),
 		),
 		options: trimming.NewTrimmingOptionService(
 			repositories.trimmingOptions,
@@ -661,14 +663,16 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	).WithImageSupport(trimming.ImageDependencies{
 		Uploader:             uploader,
 		Quota:                medicalrecord.NewPostgresMedicalRecordImageUploadQuotaStore(c.db),
+		CourseImages:         trimming.NewCourseImageDrafts(c.db),
 		RequireAnyPermission: adaptTrimmingPermissionAny(c.auth.Handler.RequirePermissionAny),
 	}).RegisterRoutes(protected)
 	c.medicalRecord.newHandler(
 		medicalRecordHTTPDependencies{
-			Uploader:          uploader,
-			DB:                c.db,
-			HasPermission:     c.auth.Handler.HasPermission,
-			RequirePermission: c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+			Uploader:             uploader,
+			DB:                   c.db,
+			HasPermission:        c.auth.Handler.HasPermission,
+			RequirePermission:    c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+			RequirePermissionAny: adaptMedicalRecordPermissionAny(c.auth.Handler.RequirePermissionAny),
 		},
 	).RegisterRoutes(protected)
 }
@@ -816,4 +820,12 @@ func newSupportEmbedder(cfg *config.Config) support.ManualEmbedder {
 		cfg.SupportEmbeddingModel,
 		time.Duration(cfg.SupportEmbeddingTimeoutMS)*time.Millisecond,
 	)
+}
+
+// trimmingCourseImageLifecycleOption shares the trimming image key lock and
+// tombstone protocol with course images (EMR-457). A detail repository without
+// the lifecycle capability leaves course image writes fail-closed.
+func trimmingCourseImageLifecycleOption(details trimming.AppointmentTrimmingDetailRepository) trimming.TrimmingCourseServiceOption {
+	lifecycle, _ := details.(trimming.ImageLifecycleRepository)
+	return trimming.WithCourseImageLifecycle(lifecycle)
 }

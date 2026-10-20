@@ -4,6 +4,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -13,6 +14,7 @@ import (
 
 // CreateProcedureInput は診療項目作成のサービス入力 DTO
 type CreateProcedureInput struct {
+	ActorID     *uint64
 	Name        string
 	Price       *int64
 	IsActive    bool
@@ -23,10 +25,15 @@ type CreateProcedureInput struct {
 	SortOrder   int
 	TaxType     string   // "" = "excluded" (default), 変換はサービス層で行う (BUG-379)
 	TaxRate     *float64 // nil = 0.10 (default)
+
+	// IsNonInsurance は品目別保険設定。nil = 新規登録の初期値（保険対象外=true）。
+	IsNonInsurance *bool
 }
 
 // UpdateProcedureInput は処置更新のサービス入力 DTO
 type UpdateProcedureInput struct {
+	Version       int64 // Required editing-start version; never replaced with a freshly read version.
+	ActorID       *uint64
 	Name          *string
 	Price         *int64
 	IsActive      *bool
@@ -38,19 +45,23 @@ type UpdateProcedureInput struct {
 	SortOrder     *int
 	TaxType       *string
 	TaxRate       *float64
+
+	// IsNonInsurance は nil = 変更なし（DB の未保存/旧欠落 NULL を書き換えない）。
+	IsNonInsurance *bool
 }
 
 const (
-	colProcedureName        = "name"
-	colProcedurePrice       = "price"
-	colProcedureIsActive    = "is_active"
-	colProcedureDescription = "description"
-	colProcedureDuration    = "duration"
-	colProcedureAnesthesia  = "anesthesia"
-	colProcedureParentID    = "parent_id"
-	colProcedureSortOrder   = "sort_order"
-	colProcedureTaxType     = "tax_type"
-	colProcedureTaxRate     = "tax_rate"
+	colProcedureName           = "name"
+	colProcedurePrice          = "price"
+	colProcedureIsActive       = "is_active"
+	colProcedureDescription    = "description"
+	colProcedureDuration       = "duration"
+	colProcedureAnesthesia     = "anesthesia"
+	colProcedureParentID       = "parent_id"
+	colProcedureSortOrder      = "sort_order"
+	colProcedureTaxType        = "tax_type"
+	colProcedureTaxRate        = "tax_rate"
+	colProcedureIsNonInsurance = "is_non_insurance"
 )
 
 func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
@@ -83,6 +94,9 @@ func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
 	if input.TaxRate != nil {
 		fields[colProcedureTaxRate] = *input.TaxRate
 	}
+	if input.IsNonInsurance != nil {
+		fields[colProcedureIsNonInsurance] = *input.IsNonInsurance
+	}
 	return fields
 }
 
@@ -96,13 +110,19 @@ type ProcedureService interface {
 }
 
 type procedureService struct {
-	repo       ProcedureRepository
-	transactor Transactor
+	insuranceWrites MasterInsuranceWriteDependencies
+	repo            ProcedureRepository
+	transactor      Transactor
 }
 
 // NewProcedureService constructs ProcedureService with a Transactor for atomic delete (MRC-07).
 func NewProcedureService(repo ProcedureRepository, transactor Transactor) ProcedureService {
 	return &procedureService{repo: repo, transactor: transactor}
+}
+
+// NewProcedureServiceWithAudit enables atomic item-setting writes and durable audit.
+func NewProcedureServiceWithAudit(repo ProcedureRepository, deps MasterInsuranceWriteDependencies) ProcedureService {
+	return &procedureService{repo: repo, insuranceWrites: deps, transactor: deps.Transactor}
 }
 
 func (s *procedureService) List(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
@@ -120,6 +140,28 @@ func (s *procedureService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 	return result, nil
 }
 func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *CreateProcedureInput) (*model.Procedure, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	var result *model.Procedure
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "procedure", "procedure.create", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var err error
+		result, err = s.create(txCtx, clinicID, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, After: result.IsNonInsurance}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *procedureService) create(ctx context.Context, clinicID uint64, input *CreateProcedureInput) (*model.Procedure, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
@@ -146,6 +188,17 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
+	// EMR-454: 新規登録の初期値は保険対象外（true）。DB に DEFAULT を持たせず
+	// API 層で明示保存する。明示指定（false=保険対象）は上書きしない。
+	isNonInsurance := true
+	if input.IsNonInsurance != nil {
+		isNonInsurance = *input.IsNonInsurance
+	}
+	var exactTaxRate model.ExactNumeric
+	if err := exactTaxRate.Scan(strconv.FormatFloat(taxRate, 'f', -1, 64)); err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid tax rate")
+	}
+	sortOrder := input.SortOrder
 	procedure := &model.Procedure{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -153,12 +206,15 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 		IsActive:    input.IsActive,
 		Description: input.Description,
 		Duration:    input.Duration,
-		SortOrder:   input.SortOrder,
+		SortOrder:   &sortOrder,
 		TaxType:     taxType,
-		TaxRate:     taxRate,
+		TaxRate:     exactTaxRate,
+
+		IsNonInsurance: &isNonInsurance,
 	}
 	if input.Anesthesia != "" {
-		procedure.Anesthesia = model.AnesthesiaType(input.Anesthesia)
+		value := model.AnesthesiaType(input.Anesthesia)
+		procedure.Anesthesia = &value
 	}
 	if input.ParentID != nil {
 		procedure.ParentID = input.ParentID
@@ -175,9 +231,42 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 		return nil, apperrors.Wrap(err, "failed to create procedure")
 	}
 	slog.InfoContext(ctx, "procedure created", slog.Uint64("clinic_id", clinicID), slog.Uint64("procedure_id", procedure.ID))
-	return procedure, nil
+	return s.repo.FindByID(ctx, clinicID, procedure.ID)
 }
 func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
+	if input == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	if input.Version < 1 {
+		return nil, apperrors.WrapInvalidInput("positive editing-start version is required")
+	}
+	var result *model.Procedure
+	err := s.insuranceWrites.write(ctx, clinicID, input.ActorID, "procedure", "procedure.update", func(txCtx context.Context) (masterInsuranceChange, error) {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return masterInsuranceChange{}, err
+		}
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		var oldSetting *bool
+		if before.IsNonInsurance != nil {
+			value := *before.IsNonInsurance
+			oldSetting = &value
+		}
+		result, err = s.update(txCtx, clinicID, id, input)
+		if err != nil {
+			return masterInsuranceChange{}, err
+		}
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance, SkipInsuranceAudit: input.IsNonInsurance == nil}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *procedureService) update(ctx context.Context, clinicID, id uint64, input *UpdateProcedureInput) (*model.Procedure, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
 	}
@@ -232,6 +321,9 @@ func (s *procedureService) Delete(ctx context.Context, clinicID, id uint64) erro
 		return apperrors.WrapInternalServerError("procedure write transaction dependency is required")
 	}
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
 		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to get procedure")
 		}

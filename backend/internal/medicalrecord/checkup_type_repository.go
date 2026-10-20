@@ -43,12 +43,14 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 	return checkupTypes, nil
 }
 
+// FindByID は ambient tx に参加する（EMR-456: Update の前値読取と parent 検証を書込と同じ tx で行う）。
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
-	return persistence.FindByIDScoped[model.CheckupType](ctx, r.db, "checkup_type", clinicID, id)
+	return persistence.FindByIDScoped[model.CheckupType](ctx, persistence.DBOrTx(ctx, r.db), "checkup_type", clinicID, id)
 }
 
+// Create は ambient tx に参加し、service の保険設定監査と同じ tx に載る（EMR-456）。
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
-	db := r.db.WithContext(ctx)
+	db := persistence.DBOrTx(ctx, r.db)
 	wantActive := checkupType.IsActive
 	if err := db.Create(checkupType).Error; err != nil {
 		return apperrors.FromGORM(err, "checkup_type", "")
@@ -57,20 +59,39 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 		if err := db.Model(checkupType).Update("is_active", false).Error; err != nil {
 			return apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", checkupType.ID))
 		}
-		checkupType.IsActive = false
+		// この UPDATE は内容変更なので entity_version_guard が DB の version を加算する。
+		// 応答・監査が古い版を返さないよう、同じ tx で再読取した行に揃える（EMR-456）。
+		stored, err := r.FindByID(ctx, checkupType.ClinicID, checkupType.ID)
+		if err != nil {
+			return err
+		}
+		*checkupType = *stored
 	}
 	return nil
 }
 
+// Update は ambient tx に参加し、cmd.expectedVersion が非 nil なら version を WHERE で照合する
+// （EMR-456 楽観ロック）。0 行は「存在しない（別医院含む）」と「版不一致」に区別して返す。
+// 返却値は同じ tx 内で再読取するため、commit 後の read error で成功を失敗へ反転させない。
 func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateCheckupTypeInput) (*model.CheckupType, error) {
-	if err := r.update(ctx, clinicID, id, buildCheckupTypeUpdate(&cmd)); err != nil {
-		return nil, err
+	q := persistence.DBOrTx(ctx, r.db).
+		Model(&model.CheckupType{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id)
+	if cmd.expectedVersion != nil {
+		q = q.Where("version = ?", *cmd.expectedVersion)
+	}
+	result := q.Updates(buildCheckupTypeUpdate(&cmd))
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict(errMsgCheckupTypeVersionConflict)
 	}
 	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *checkupTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id, fields)
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -6,6 +6,7 @@ import (
 )
 
 type Consultation struct {
+	Version        int64          `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
 	ID             uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
 	ClinicID       uint64         `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
 	Name           string         `gorm:"column:name;type:text;not null" json:"name"`

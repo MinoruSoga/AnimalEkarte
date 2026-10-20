@@ -4,6 +4,8 @@ info:
   description: |
     動物病院電子カルテシステム API (Implementation Synced v3.1.0)
 
+    EMR-502 / EMR-493 / EMR-461 の x-contract-status: selected（461保存はx-cage-contract-status） は実装先行契約。runtime追従・実機受入は別工程。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -292,6 +294,8 @@ components:
           description: 課税区分に応じて算出した税額
         is_insurance_applicable:
           type: boolean
+          nullable: true
+          description: 未設定の保存値は null のまま返す。false へ補完しない。
         source:
           type: string
           enum: [medical_record, hospitalization, manual, trimming]
@@ -2114,13 +2118,93 @@ components:
           format: date-time
           readOnly: true
           description: 測定日時（vital_records.recorded_at）
+    HospitalizationCageCurrentAssignment:
+      type: object
+      additionalProperties: false
+      required: [state, cage_id]
+      description: >-
+        編集対象の現在割当表示。known+NULLは未割当、unknown+NULLは再構成不能であり未割当の証明ではない。
+        候補外・無効・連結後の旧構成員という理由だけで現値を消さない。候補集合とは独立。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+        - properties:
+            state: { enum: [unknown] }
+            cage_id: { type: string, nullable: true, enum: [null] }
+      properties:
+        state: { type: string, enum: [known, unknown] }
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+
+    HospitalizationCageOccupancyRead:
+      type: object
+      additionalProperties: false
+      required: [clinic_id, exclude_hospitalization_id, state, occupied_cage_ids, candidate_cage_ids, current_assignment]
+      description: |
+        応答専用の最小ID projection。全IDは先頭ゼロなし正数十進文字列で、Numberへ変換せず入力へ往復する。
+        serverはPostgreSQL bigintの1..9223372036854775807を厳密検査し、不正形式/範囲外は400。
+        DB行・患者/飼主/滞在明細・movement event・内部lock情報は返さない。
+        clinic_idとexclude_hospitalization_idは要求contextのecho。clientは医院/編集対象/要求世代を照合し、
+        切替後の遅延応答を破棄する。除外IDはhospitalization IDでありStayCaseIDと同一視しない。
+        occupiedは自己除外後の占有ケージID（構成員も含む）、candidateは空きと確認済みの同院有効な
+        独立/代表ケージIDだけ。代表groupに他滞在の占有が一つでも残れば候補にしない。
+        現在割当は別fieldで返し、現値の保持を新規候補への追加許可としない。
+        knownなら両配列は非NULLで全件。unknownなら両配列NULL（[]や部分集合で空きを示さない）。
+        known+[]のみ当該集合の0件。空き確認は予約/確保ではなく保存時再検査が必要。
+        current_assignmentは新規contextではNULL、編集contextでは状態付きobject（core不明でも現割当を保持可能）。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+            occupied_cage_ids: { type: array }
+            candidate_cage_ids: { type: array }
+        - properties:
+            state: { enum: [unknown] }
+            occupied_cage_ids: { type: array, nullable: true, enum: [null] }
+            candidate_cage_ids: { type: array, nullable: true, enum: [null] }
+      allOf:
+        - oneOf:
+            - properties:
+                exclude_hospitalization_id: { type: string, nullable: true, enum: [null] }
+                current_assignment: { type: object, nullable: true, enum: [null] }
+            - properties:
+                exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$' }
+                current_assignment: { $ref: '#/components/schemas/HospitalizationCageCurrentAssignment' }
+      properties:
+        clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+        state: { type: string, enum: [known, unknown] }
+        occupied_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
+        candidate_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
+        current_assignment:
+          oneOf:
+            - $ref: '#/components/schemas/HospitalizationCageCurrentAssignment'
+            - type: object
+              nullable: true
+              enum: [null]
+
+    HospitalizationCageWriteConflict:
+      type: object
+      required: [error, code]
+      description: 拒否時は元割当を保持し部分writeなし。error文字列ではなくcodeで処理する。患者情報を返さない。
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [cage_assignment_changed, cage_occupied, occupancy_unknown] }
+
     Hospitalization:
+      description: 全体は旧stay DTO記録。461のケージfieldはoperationの専用requestBody schemaを参照し、499 coreの状態公開契約と混同しない。入院IDとその子route/関連応答の参照は正数十進文字列の先行wire契約で、既存runtimeの数値JSON応答適合は499および各関連ownerへ別途引渡す。
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           readOnly: true
         clinic_id:
           type: integer
@@ -2151,7 +2235,7 @@ components:
         clear_next_visit:
           type: boolean
           writeOnly: true
-          description: PATCHでtrueを送るとnext_visitをNULLに戻す。next_visitとの同時指定は400。
+          description: PATCHでtrueを送るとnext_visitをNULLに戻す。trueとnext_visit設定の同時指定は400。
         status:
           type: string
           enum:
@@ -2159,17 +2243,17 @@ components:
             - discharged
             - reserved
         cage_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
+          description: 応答NULLは未割当。create未指定/NULLは未割当。PATCHは未指定=維持、NULL=400、正数=割当（期待値必須）。解除はclear_cage_id=true。
         clear_cage_id:
           type: boolean
           writeOnly: true
           description: PATCHでtrueを送るとcage_idをNULL（未割当）に戻す。cage_idとの同時指定は400。cage_idまたはclear_cage_idを送る場合はexpected_cage_id（正数）またはexpected_cage_is_null=trueのどちらか一方が必須。
         expected_cage_id:
-          type: integer
-          format: int64
-          nullable: true
+          type: string
+          pattern: '^[1-9][0-9]*$'
           writeOnly: true
           description: 表示時点のcage_id。cage_id/clear_cage_id指定時にexpected_cage_is_nullと排他で必須（正数のみ）。ロック行と不一致なら409。ケージ操作を伴わない指定は400。
         expected_cage_is_null:
@@ -2208,7 +2292,7 @@ components:
           description: ペット情報（Preload時のみ含まれる）
           nullable: true
         cage:
-          $ref: '#/components/schemas/CageSummary'
+          $ref: '#/components/schemas/HospitalizationCageSummary'
           description: ケージ情報（Preload時のみ含まれる）
           nullable: true
         doctor:
@@ -2232,8 +2316,8 @@ components:
           format: int64
           nullable: true
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
         owner_id:
           type: integer
@@ -2375,7 +2459,7 @@ components:
           description: >
             items+warnings の決定的フィンガープリント（EMR-196）。
             POST /accountings/complete の expected_unbilled_revision として返送する
-            楽観ロック token。形式は "u1:<sha256-hex>"。
+            楽観ロック token。形式は "u2:<sha256-hex>"。
         owner_discount_rate:
           type: number
           format: double
@@ -2462,8 +2546,8 @@ components:
           format: int64
           nullable: true
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
         owner_id:
           type: integer
@@ -2912,8 +2996,14 @@ components:
           format: double
     Vaccine:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -2951,6 +3041,10 @@ components:
           description: 在庫ID
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 応答のnullは旧欠落、trueは保険対象外、falseは保険対象。requestはCreateVaccineRequest/UpdateVaccineRequestを参照。
         created_at:
           type: string
           format: date-time
@@ -2959,6 +3053,67 @@ components:
           type: string
           format: date-time
           readOnly: true
+    CreateVaccineRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        species:
+          type: string
+          enum: [dog, cat, both]
+        interval:
+          type: string
+        is_non_insurance:
+          type: boolean
+          description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
+    UpdateVaccineRequest:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        species:
+          type: string
+          enum: [dog, cat, both]
+        interval:
+          type: string
+        is_non_insurance:
+          type: boolean
+          description: POST省略はtrue、PATCH省略は維持。明示nullはPOST/PATCHとも400。
+        clear_parent_id:
+          type: boolean
     AnimalSpecies:
       type: object
       required: [name]
@@ -3158,8 +3313,14 @@ components:
           format: int64
     Consultation:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -3194,6 +3355,10 @@ components:
           default: true
         description:
           type: string
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。読み取りでは旧欠落を null のまま返す（false 補完しない）。create / update の request 契約は CreateConsultationRequest / UpdateConsultationRequest を参照。
         time_condition:
           type: string
         duration:
@@ -3202,6 +3367,8 @@ components:
           nullable: true
         sort_order:
           type: integer
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
         created_at:
           type: string
           format: date-time
@@ -3212,8 +3379,14 @@ components:
           readOnly: true
     Procedure:
       type: object
-      required: [name]
+      required: [name, version]
       properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          readOnly: true
+          description: マスタ内容の版。更新時は編集開始時の値を送信する。
         id:
           type: integer
           format: int64
@@ -3243,13 +3416,21 @@ components:
           nullable: true
         anesthesia:
           type: string
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
           enum:
             - none
             - local
             - sedation
             - general
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 品目別保険設定（true=保険対象外 / false=保険対象 / null=未保存・旧欠落）。患者の資格・補償保証ではない。読み取りでは旧欠落を null のまま返す（false 補完しない）。create / update の request 契約は CreateProcedureRequest / UpdateProcedureRequest を参照。
         sort_order:
           type: integer
+          nullable: true
+          description: 保存値の NULL は null のまま返す。
         created_at:
           type: string
           format: date-time
@@ -3264,6 +3445,201 @@ components:
         tax_rate:
           type: number
           format: double
+    CreateConsultationRequest:
+      type: object
+      required: [name]
+      description: 診察項目登録の request body（EMR-454）。response の Consultation とは別 schema（is_non_insurance は null 不許可・読み取りの nullable と分離）。
+      properties:
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親診察項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        tax_type:
+          type: string
+          enum: *id001
+          default: excluded
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          default: 0.10
+          description: 税率
+        is_active:
+          type: boolean
+          default: true
+        description:
+          type: string
+        time_condition:
+          type: string
+        duration:
+          type: integer
+          description: 所要時間（分）
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は 0 として登録する。
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
+    UpdateConsultationRequest:
+      type: object
+      required: [version]
+      description: 診察項目更新の request body（EMR-454・PATCH 部分更新）。response の Consultation とは別 schema（is_non_insurance は null 不許可）。
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親診察項目ID（自己参照）
+        clear_parent_id:
+          type: boolean
+          description: true で親診察項目の関連を解除する（parent_id との同時指定はしない）
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        tax_type:
+          type: string
+          enum: *id001
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          description: 税率
+        is_active:
+          type: boolean
+        description:
+          type: string
+        time_condition:
+          type: string
+        duration:
+          type: integer
+          description: 所要時間（分）
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は変更なし。明示 0 は更新する。
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は変更なし（DB NULL=旧欠落を書き換えない）、null は 400 invalid input、true/false は明示更新。
+    CreateProcedureRequest:
+      type: object
+      required: [name, anesthesia, tax_type]
+      description: 処置項目登録の request body（EMR-454）。response の Procedure とは別 schema（is_non_insurance は null 不許可）。
+      properties:
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親処置項目ID（自己参照）。NULL = カテゴリなし or カテゴリ自身
+        price:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+          default: false
+        description:
+          type: string
+        duration:
+          type: integer
+          nullable: true
+        anesthesia:
+          type: string
+          enum:
+            - none
+            - local
+            - sedation
+            - general
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は 0 として登録する。
+        tax_type:
+          type: string
+          enum: *id001
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          default: 0.10
+          description: 税率
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は true（新規登録の初期値=対象外）を API で明示保存（DB DEFAULT なし）。null は 400 invalid input。
+    UpdateProcedureRequest:
+      type: object
+      required: [version]
+      description: 処置項目更新の request body（EMR-454・PATCH 部分更新）。response の Procedure とは別 schema（is_non_insurance は null 不許可）。
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 必須の編集開始時の期待版。競合は409。versionだけの更新は不可。
+        name:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親処置項目ID（自己参照）
+        clear_parent_id:
+          type: boolean
+          description: true で親処置項目の関連を解除する（parent_id との同時指定はしない）
+        price:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        duration:
+          type: integer
+          nullable: true
+        anesthesia:
+          type: string
+          nullable: true
+          description: 省略または null は変更なし。明示 enum 値は更新する。
+          enum:
+            - none
+            - local
+            - sedation
+            - general
+        sort_order:
+          type: integer
+          nullable: true
+          description: 省略または null は変更なし。明示 0 は更新する。
+        tax_type:
+          type: string
+          enum: *id001
+          description: 税種別（included=内税, excluded=外税, exempt=非課税）
+        tax_rate:
+          type: number
+          format: double
+          description: 税率
+        is_non_insurance:
+          type: boolean
+          description: 品目別保険設定（true=保険対象外 / false=保険対象）。省略時は変更なし（DB NULL=旧欠落を書き換えない）、null は 400 invalid input、true/false は明示更新。
     HospitalizationPlan:
       type: object
       required: [name]
@@ -3345,6 +3721,27 @@ components:
           nullable: true
         sort_order:
           type: integer
+        short_name:
+          type: string
+          nullable: true
+          description: 任意の短縮名（EMR-457）。null は未登録。空白のみは null として保存し、PATCH で "" を送ると未登録へ戻す。省略または null は既存値を保持する。
+        image_object_key:
+          type: string
+          nullable: true
+          description: 任意の画像。POST /masters/trimming-courses/images/upload が返した同一医院の object key のみ受け付ける（署名付き URL・他医院 key・旧形式は 400）。PATCH で "" を送ると未登録へ戻し、省略または null は既存値を保持する。削除予約済み key は 409。
+        image_url:
+          type: string
+          nullable: true
+          readOnly: true
+          description: 表示専用の署名付き URL。保存しない。署名に失敗した場合は null。
+        allowed_weekdays:
+          type: array
+          nullable: true
+          description: 予約可能な曜日（0=日〜6=土）。未指定は全曜日で、休診・勤務・空き枠等の既決条件は免除しない。重複は除去して昇順で保存する。応答の null は全曜日。書込では [] を送ると全曜日へ戻し、PATCH の省略または null は既存値を保持する。
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
         created_at:
           type: string
           format: date-time
@@ -3767,6 +4164,15 @@ components:
           nullable: true
         sort_order:
           type: integer
+        is_non_insurance:
+          type: boolean
+          nullable: true
+          description: 応答のnullは旧欠落（未設定）。trueは保険対象外、falseは保険対象。POST省略はtrue、POST/PATCHのnullは400、PATCH省略は維持。
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 応答の現在版。PATCHでは編集開始版が必須。不一致は409。省略や現在版で代用しない。
         created_at:
           type: string
           format: date-time
@@ -3780,6 +4186,65 @@ components:
           format: date-time
           nullable: true
           description: 削除日時（ソフトデリート）
+    CreateCheckupTypeRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        interval:
+          type: string
+        target_age:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        is_non_insurance:
+          type: boolean
+          description: 省略はPOSTでtrue、PATCHで現値維持。明示nullは400。
+    UpdateCheckupTypeRequest:
+      type: object
+      required: [version]
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+          format: int64
+          nullable: true
+        is_active:
+          type: boolean
+        description:
+          type: string
+        interval:
+          type: string
+        target_age:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+        sort_order:
+          type: integer
+        is_non_insurance:
+          type: boolean
+          description: 省略はPOSTでtrue、PATCHで現値維持。明示nullは400。
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 編集開始時の版。必須。競合は409。
+        clear_parent_id:
+          type: boolean
     Occupation:
       type: object
       required: [name]
@@ -4510,88 +4975,466 @@ components:
                 delete:
                   type: boolean
 
-    # ─── ShiftEntry ───────────────────────────────────────────────────────────
+    # EMR-461 form-only ID read and cage-write fields (not the EMR-499 lifecycle core).
+    # Sources: hospitalization/lifecycle.md#cage-available-selection-20261019,
+    # docs/design/domains/hospitalization/technical-spec.md#stay-core-cage-handoff-20261020.
+    HospitalizationCageSummary:
+      type: object
+      description: 461用の入院応答内ケージsummary。ID表現だけをlossless化し、他用途のCageSummaryは変更しない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        name: { type: string }
+    HospitalizationCageCurrentAssignment:
+      type: object
+      additionalProperties: false
+      required: [state, cage_id]
+      description: >-
+        編集対象の現在割当表示。known+NULLは未割当、unknown+NULLは再構成不能であり未割当の証明ではない。
+        候補外・無効・連結後の旧構成員という理由だけで現値を消さない。候補集合とは独立。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+        - properties:
+            state: { enum: [unknown] }
+            cage_id: { type: string, nullable: true, enum: [null] }
+      properties:
+        state: { type: string, enum: [known, unknown] }
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+    HospitalizationCageOccupancyRead:
+      type: object
+      additionalProperties: false
+      required: [clinic_id, exclude_hospitalization_id, state, occupied_cage_ids, candidate_cage_ids, current_assignment]
+      description: |
+        応答専用の最小ID projection。全IDは先頭ゼロなし正数十進文字列で、Numberへ変換せず入力へ往復する。
+        serverはPostgreSQL bigintの1..9223372036854775807を厳密検査し、不正形式/範囲外は400。
+        DB行・患者/飼主/滞在明細・movement event・内部lock情報は返さない。
+        clinic_idとexclude_hospitalization_idは要求contextのecho。clientは医院/編集対象/要求世代を照合し、
+        切替後の遅延応答を破棄する。除外IDはhospitalization IDでありStayCaseIDと同一視しない。
+        occupiedは自己除外後の占有ケージID（構成員も含む）、candidateは空きと確認済みの同院有効な
+        独立/代表ケージIDだけ。代表groupに他滞在の占有が一つでも残れば候補にしない。
+        現在割当は別fieldで返し、現値の保持を新規候補への追加許可としない。
+        knownなら両配列は非NULLで全件。unknownなら両配列NULL（[]や部分集合で空きを示さない）。
+        known+[]のみ当該集合の0件。空き確認は予約/確保ではなく保存時再検査が必要。
+        current_assignmentは新規contextではNULL、編集contextでは状態付きobject（core不明でも現割当を保持可能）。
+      oneOf:
+        - properties:
+            state: { enum: [known] }
+            occupied_cage_ids: { type: array }
+            candidate_cage_ids: { type: array }
+        - properties:
+            state: { enum: [unknown] }
+            occupied_cage_ids: { type: array, nullable: true, enum: [null] }
+            candidate_cage_ids: { type: array, nullable: true, enum: [null] }
+      allOf:
+        - oneOf:
+            - properties:
+                exclude_hospitalization_id: { type: string, nullable: true, enum: [null] }
+                current_assignment: { type: object, nullable: true, enum: [null] }
+            - properties:
+                exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$' }
+                current_assignment: { $ref: '#/components/schemas/HospitalizationCageCurrentAssignment' }
+      properties:
+        clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        exclude_hospitalization_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+        state: { type: string, enum: [known, unknown] }
+        occupied_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
+        candidate_cage_ids:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items: { type: string, pattern: '^[1-9][0-9]*$' }
+        current_assignment:
+          oneOf:
+            - $ref: '#/components/schemas/HospitalizationCageCurrentAssignment'
+            - type: object
+              nullable: true
+              enum: [null]
+    HospitalizationCageCreateFields:
+      type: object
+      description: |
+        EMR-461のcreate用ケージfield断片。入院/ホテル全体のDTOや499 core writeを再定義しない。
+        cage_id省略/明示NULLは未割当（任意のまま）。正数指定は現在候補であっても保存時再検査。
+        expected_cage_*とclear_cage_idはcreateには送らない。0、負数、不正型は400。IDは応答と同じ正数十進文字列で、serverはbigint範囲を検査する。
+      properties:
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+      not:
+        anyOf:
+          - required: [clear_cage_id]
+          - required: [expected_cage_id]
+          - required: [expected_cage_is_null]
+    HospitalizationCagePatchFields:
+      type: object
+      description: |
+        EMR-461のPATCH用ケージfield断片。未指定とNULLを明確に区別する。
+        cage_id省略は維持、cage_idの正数指定は割当要求、明示NULLは400（解除にはclear_cage_id=true）。
+        clear_cage_id省略/falseは解除しない。cage_idとclear=trueの併用は400。
+        割当/解除にはexpected_cage_id（表示時の正数）またはexpected_cage_is_null=trueの一方だけ必須。
+        expected_cage_id=NULL、expected_cage_is_null=false、両期待値、操作なし期待値は400。
+        期待割当はロック後の現値と比較するCASであり記事/勤務版や499の根拠版とは別。
+        未変更現値が候補外でも自動消去しない。現在割当不明なら期待値をNULLに補完せず割当変更を停止する。
+      properties:
+        cage_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        clear_cage_id: { type: boolean }
+        expected_cage_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        expected_cage_is_null: { type: boolean, enum: [true] }
+      oneOf:
+        - not:
+            anyOf:
+              - required: [cage_id]
+              - properties: { clear_cage_id: { enum: [true] } }
+                required: [clear_cage_id]
+              - required: [expected_cage_id]
+              - required: [expected_cage_is_null]
+        - allOf:
+            - oneOf:
+                - required: [cage_id]
+                  not:
+                    properties: { clear_cage_id: { enum: [true] } }
+                    required: [clear_cage_id]
+                - required: [clear_cage_id]
+                  properties: { clear_cage_id: { enum: [true] } }
+                  not: { required: [cage_id] }
+            - oneOf:
+                - required: [expected_cage_id]
+                  not: { required: [expected_cage_is_null] }
+                - required: [expected_cage_is_null]
+                  not: { required: [expected_cage_id] }
+    HospitalizationFormFields:
+      type: object
+      description: |
+        既存入院フォームの非ケージ入力field（互換記録）。応答用HospitalizationやDB行を入力DTOへ流用しない。
+        本断片は全field任意で、createに必要なfieldはHospitalizationCreateRequestだけで指定する。
+        旧status等の入力互換を499の有効状態判定契約へ転用しない。全stay lifecycleの再設計は対象外。
+      properties:
+        owner_id: { type: integer, format: int64 }
+        pet_id: { type: integer, format: int64 }
+        hospitalization_type: { type: string, enum: [hospitalization, hotel] }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        next_visit: { type: string, format: date, nullable: true }
+        status: { type: string, enum: [admitted, discharged, reserved] }
+        doctor_id: { type: integer, format: int64, nullable: true }
+        memo: { type: string }
+        owner_request: { type: string }
+        staff_notes: { type: string }
+        is_insurance: { type: boolean, nullable: true }
+        insurance_company_name: { type: string, nullable: true }
+        insurance_number: { type: string, nullable: true }
+    HospitalizationCreateRequest:
+      type: object
+      description: |
+        既存createの入力専用DTO。非ケージfieldの既存必須条件を継承し、461のケージ制約を標準allOfで適用する。
+        入力の医院/actorは認証済みscopeから決定する。status等の入力値だけで現在占有を判断しない。
+      required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
+      allOf:
+        - $ref: '#/components/schemas/HospitalizationFormFields'
+        - $ref: '#/components/schemas/HospitalizationCageCreateFields'
+    HospitalizationPatchRequest:
+      type: object
+      description: |
+        PATCH入力専用DTO。owner/pet/type/start/endは必須ではなく、非送信fieldは更新要求に含まれない。
+        cage_idのNULL禁止、明示clear、期待割当CASは標準allOfで適用し、vendor拡張の解釈を前提としない。
+        既存buildHospitalizationUpdateが更新fieldを一つも作らない要求は400。空object、未知fieldだけ、
+        falseのclearだけやis_insurance=trueだけ（保険詳細/他fieldなし）はno-op。
+        memo空文字やis_insurance=false等の明示値は更新fieldとして数える。
+        保険系の明示NULLは既存pointer入力と同じく更新fieldに数えず、別の実入力と併用時は保持する。
+        DB現値との実差分を必須にする新業務ルールではなく、既存のfield存在検査に合わせる。
+        PATCHのdoctor_id/next_visitは明示NULLを400で拒否し、未指定は維持。doctor解除操作は新設しない。
+        next_visit設定とclear_next_visit=trueの併用は既存runtime同様400。解除にはclear_next_visit=trueだけを送る。
+      properties:
+        clear_next_visit: { type: boolean }
+        doctor_id: { type: integer, format: int64 }
+        next_visit: { type: string, format: date }
+      not:
+        required: [next_visit, clear_next_visit]
+        properties:
+          clear_next_visit: { enum: [true] }
+      anyOf:
+        - required: [owner_id]
+        - required: [pet_id]
+        - required: [hospitalization_type]
+        - required: [start_date]
+        - required: [end_date]
+        - required: [next_visit]
+          properties: { next_visit: { type: string, format: date } }
+        - required: [status]
+        - required: [doctor_id]
+          properties: { doctor_id: { type: integer, format: int64 } }
+        - required: [memo]
+        - required: [owner_request]
+        - required: [staff_notes]
+        - required: [is_insurance]
+          properties: { is_insurance: { enum: [false] } }
+        - required: [insurance_company_name]
+          properties: { insurance_company_name: { type: string } }
+        - required: [insurance_number]
+          properties: { insurance_number: { type: string } }
+        - required: [cage_id]
+        - required: [clear_cage_id]
+          properties: { clear_cage_id: { enum: [true] } }
+        - required: [clear_next_visit]
+          properties: { clear_next_visit: { enum: [true] } }
+      allOf:
+        - $ref: '#/components/schemas/HospitalizationFormFields'
+        - $ref: '#/components/schemas/HospitalizationCagePatchFields'
+    HospitalizationCageWriteConflict:
+      type: object
+      required: [error, code]
+      description: 拒否時は元割当を保持し部分writeなし。error文字列ではなくcodeで処理する。患者情報を返さない。
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [cage_assignment_changed, cage_occupied, occupancy_unknown] }
+
+    # Sources: docs/spec/domains/staff-workforce/README.md, docs/spec/screens/24-shift-calendar.md,
+    # docs/design/domains/staff-workforce/technical-spec.md, docs/design/shared/integration-contracts.md.
+    # Reference storage/model baseline: e60ba31e86f88e0e0a6a870989ac491fd8872654 (001, #729).
+    # Aggregate version for break-only writes is a target; baseline storage does not implement it.
+    # EMR-493 selected wire contract; implementation pending. Not a model serialization.
+    ShiftWorkBreak:
+      type: object
+      additionalProperties: false
+      required: [starts_at, ends_at]
+      description: >-
+        勤務内の明示日時。starts_at < ends_at、勤務区間内、他休憩と正の時間幅で重複しない。
+        区間は[start,end)。休憩開始ちょうどの予約終了と休憩終了ちょうどの予約開始は非重複。
+        templateのbreak_start/break_end（時刻）をこのDTOへ流用しない。
+      properties:
+        starts_at: { type: string, format: date-time, example: '2026-10-21T01:00:00+09:00' }
+        ends_at: { type: string, format: date-time, example: '2026-10-21T02:00:00+09:00' }
+    ShiftWorkBreakView:
+      type: object
+      additionalProperties: false
+      required: [starts_at, ends_at, interval_state]
+      description: >-
+        応答専用。旧休憩の明示日時が未解決ならNULLとunknownを保持し、配列から黙って除外しない。
+        knownでは両日時が非NULL。unknownでも判明している片側/両側日時は保持する。
+        入力用ShiftWorkBreakと分離し、unknownを保存要求へ流用しない。時刻順序/勤務内包含は別の意味検証。
+      oneOf:
+        - properties:
+            interval_state: { enum: [known] }
+            starts_at: { type: string, format: date-time }
+            ends_at: { type: string, format: date-time }
+        - properties:
+            interval_state: { enum: [unknown] }
+      properties:
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        interval_state: { type: string, enum: [known, unknown] }
+    ShiftStaffSelection:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      description: |
+        EMR-493スタッフ選択専用projection。idは勤務のstaff_idと同じ正数十進文字列。
+        DBの識別子をJSON数値化する前に文字列化する。旧Staff.idのNumberから変換してはならない。
+        通常Staff/アカウント/権限group/職種の公開DTOではなく、職員の新規登録や権限付与もしない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        name: { type: string }
     ShiftEntry:
       type: object
+      additionalProperties: false
+      required: [id, clinic_id, staff_id, date, shift_type, starts_at, ends_at, version, notes, breaks, interval_state, created_at, updated_at]
+      description: |
+        EMR-493応答専用DTO。選択医院の勤務。start_time/end_timeやDB行を返さない。
+        dateは勤務開始側のJST日付。日跨ぎを分割・自動補完しない。
+        full/morning/afternoonの名称だけから時間を推測しない。
+        interval_state=unknownは勤務または休憩の旧日時が未解決。NULLを休日・勤務可能と扱わず、訂正確認まで保存を停止する。
+        knownのoff/paid_leaveは終日非勤務、両日時NULL、breaks=[]。勤務未登録は行不存在でありoffとは別。
+        子休憩が一つでもunknownなら親もunknown。親unknownは既知の親日時/子部分値を保持できる。
+        旧off等に矛盾日時/休憩が残る場合はunknown表示で保存を停止し、値を黙って削除・正規化しない。
+        日時順序や休憩の勤務内包含は意味検証であり、このoneOfが保証するとはしない。
+        versionは勤務aggregateの目標CAS版（休憩単独変更も含む）。updated_atやtemplate版で代替しない。
+        採用001のentity_version_guardは親業務列変更だけを増分し、version単独更新を拒否する。
+        shift_entry_breaksから親版を増分するtriggerはなく、休憩単独変更の契約は採用001だけでは未成立。
+        446/466へ限定storage差分を引渡す必要がある。方式は未選定で、このPRではDDLを変更しない。
+        休憩単独更新と親/別休憩更新を同じCAS境界で直列化し、内容変更がある保存単位ごとに親版を一度進めること、
+        失敗/rollback/同操作再送で余分に増分しないことをstorage引渡しの受入条件とする。
+        偽のnotes等の親列更新でtriggerを起動する回避は採用しない。
+      x-storage-dependency: EMR-446/466 aggregate-version support for break-only changes (mechanism unselected)
+      oneOf:
+        - properties:
+            interval_state: { enum: [known] }
+            shift_type: { enum: [full, morning, afternoon] }
+            starts_at: { type: string, format: date-time }
+            ends_at: { type: string, format: date-time }
+            breaks:
+              type: array
+              items:
+                properties:
+                  interval_state: { enum: [known] }
+        - properties:
+            interval_state: { enum: [known] }
+            shift_type: { enum: ['off', paid_leave] }
+            starts_at: { type: string, nullable: true, enum: [null] }
+            ends_at: { type: string, nullable: true, enum: [null] }
+            breaks: { type: array, maxItems: 0 }
+        - properties:
+            interval_state: { enum: [unknown] }
       properties:
-        id:
-          type: string
-        clinic_id:
-          type: string
-        staff_id:
-          type: string
-        staff_name:
-          type: string
-        date:
-          type: string
-          format: date
-          example: "2026-03-16"
-        shift_type:
-          type: string
-          enum: &id004
-            - full
-            - morning
-            - afternoon
-            - off
-            - paid_leave
-        start_time:
-          type: string
-          nullable: true
-          example: "09:00"
-        end_time:
-          type: string
-          nullable: true
-          example: "18:00"
-        notes:
-          type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        staff:
-          $ref: '#/components/schemas/StaffSummary'
-          nullable: true
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        clinic_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        staff_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        staff_name: { type: string }
+        date: { type: string, format: date }
+        shift_type: { type: string, enum: &id004 [full, morning, afternoon, 'off', paid_leave] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        version: { type: integer, format: int64, minimum: 1, readOnly: true }
+        interval_state: { type: string, enum: [known, unknown], readOnly: true }
+        notes: { type: string }
+        breaks:
+          type: array
+          items: { $ref: '#/components/schemas/ShiftWorkBreakView' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     CreateShiftRequest:
       type: object
-      required: [staff_id, date, shift_type]
+      additionalProperties: false
+      required: [operation_key, staff_id, date, shift_type, starts_at, ends_at, breaks, notes]
+      description: |
+        EMR-493。全入力を明示しNULL/未指定を同一視しない。notesの空文字とbreaks=[]は有効。
+        staff_idはGET /masters/staffs?projection=shift-selectionのidおよびShiftEntry.staff_idと同じ正数十進文字列。JS Numberへ変換せずread→createへ渡す。
+        serverは1..9223372036854775807のbigint範囲を厳密検査し、不正形式/範囲外は400。
+        full/morning/afternoonは両日時必須・非NULL、starts_at < ends_at、dateはstarts_atのJST日付。
+        off/paid_leaveは両日時を明示NULL、breaks=[]とする。時刻から翌日を推測しない。
+        有効templateは入力値のコピー元のみ。template IDや時刻列を保存要求へ混在させない。
+        leave期間のCRUD・複製・CSVは対象外。医院は認証済み選択scope、bodyで切り替えない。
+      oneOf:
+        - properties:
+            shift_type: { enum: [full, morning, afternoon] }
+            starts_at: { type: string, format: date-time }
+            ends_at: { type: string, format: date-time }
+        - properties:
+            shift_type: { enum: ['off', paid_leave] }
+            starts_at: { type: string, nullable: true, enum: [null] }
+            ends_at: { type: string, nullable: true, enum: [null] }
+            breaks: { type: array, maxItems: 0 }
       properties:
-        staff_id:
-          type: integer
-          format: int64
-        date:
-          type: string
-          format: date
-          example: "2026-03-16"
-        shift_type:
-          type: string
-          enum: [full, morning, afternoon, off, paid_leave]
-        start_time:
-          type: string
-          example: "09:00"
-        end_time:
-          type: string
-          example: "18:00"
-        note:
-          type: string
-
+        operation_key: { type: string, format: uuid }
+        staff_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        date: { type: string, format: date }
+        shift_type: { type: string, enum: [full, morning, afternoon, 'off', paid_leave] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        breaks:
+          type: array
+          items: { $ref: '#/components/schemas/ShiftWorkBreak' }
+        notes: { type: string }
     UpdateShiftRequest:
       type: object
+      additionalProperties: false
+      required: [operation_key, expected_version]
+      description: |
+        PATCH。未指定は維持。明示NULLを許すのはstarts_at/ends_atだけ（終日非勤務への変更時に両方指定）。
+        breaksは配列全置換、[]は全休憩解除、NULLは400。notesは空文字で解除、NULLは400。
+        変更後の全体にCreateShiftRequestと同じ日時・終日非勤務条件を適用する。
+        勤務から非勤務へはshift_type・両日時NULL・breaks=[]を明示する。
+        非勤務から勤務へはshift_type・両日時を明示する。staff_id/date/clinic_idの付替えは受け付けない。
+        1つ以上の業務fieldを必要とする。版不一致は409、入力案を保持し最新状態を別読取して再確認する。
+      minProperties: 3
       properties:
-        shift_type:
+        operation_key: { type: string, format: uuid }
+        expected_version: { type: integer, format: int64, minimum: 1 }
+        shift_type: { type: string, enum: [full, morning, afternoon, 'off', paid_leave] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        breaks:
+          type: array
+          items: { $ref: '#/components/schemas/ShiftWorkBreak' }
+        notes: { type: string }
+    ShiftMutationReceipt:
+      type: object
+      additionalProperties: false
+      required: [operation_key, intent, shift_id, resulting_version, shift]
+      description: |
+        保存と同じtransactionの確定結果。shiftはその操作で確定したDTO、後日の最新値ではない。
+        deleteはshift=NULL、resulting_version=NULL（削除後の架空版を作らない）。
+        create/updateはshiftとresulting_versionが非NULLで一致する。新規版は1、更新の内容変更時に版を進める。
+        resulting_version=shift.versionとshift_id=shift.idはserver/clientの意味検証で照合し、JSON Schemaだけで一致を保証したとしない。
+      oneOf:
+        - properties:
+            intent: { enum: [delete] }
+            resulting_version: { type: integer, nullable: true, enum: [null] }
+            shift: { type: object, nullable: true, enum: [null] }
+        - properties:
+            intent: { enum: [create, update] }
+            resulting_version: { type: integer, format: int64, minimum: 1 }
+            shift: { $ref: '#/components/schemas/ShiftEntry' }
+      properties:
+        operation_key: { type: string, format: uuid }
+        intent: { type: string, enum: [create, update, delete] }
+        shift_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        resulting_version: { type: integer, format: int64, minimum: 1, nullable: true }
+        shift:
+          oneOf:
+            - $ref: '#/components/schemas/ShiftEntry'
+            - type: object
+              nullable: true
+              enum: [null]
+    ShiftOperationResult:
+      type: object
+      additionalProperties: false
+      required: [operation_key, state, receipt]
+      description: succeededはreceipt非NULL、unknownはNULL。unknownは未実行・失敗・不存在の証明ではない。
+      oneOf:
+        - properties:
+            state: { enum: [succeeded] }
+            receipt: { $ref: '#/components/schemas/ShiftMutationReceipt' }
+        - properties:
+            state: { enum: [unknown] }
+            receipt: { type: object, nullable: true, enum: [null] }
+      properties:
+        operation_key: { type: string, format: uuid }
+        state: { type: string, enum: [succeeded, unknown] }
+        receipt:
+          oneOf:
+            - $ref: '#/components/schemas/ShiftMutationReceipt'
+            - type: object
+              nullable: true
+              enum: [null]
+    ShiftContractError:
+      type: object
+      required: [error, code]
+      description: |
+        codeで処理しerror文字列を分岐に使わない。競合時は勤務・休憩・必要監査・結果を全て未反映。
+        protected_bookingsでは認可済み対象予約だけを返す。権限不足なら予約詳細を漏らさず403。
+        他院重複は相手医院名と重複時間だけを返し、患者・他院勤務全体を開示しない。
+        required詳細fieldは閲覧認可を拡大しない。必要詳細の閲覧権限がなければ既存403で拒否し、
+        この409 schemaを満たすために予約/他院情報を漏らしたり、無権限の空一覧を作ったりしない。
+      oneOf:
+        - required: [protected_bookings]
+          properties:
+            code: { enum: [protected_bookings] }
+            protected_bookings: { type: array, minItems: 1 }
+        - required: [conflicting_clinic_name, overlap_starts_at, overlap_ends_at]
+          properties:
+            code: { enum: [cross_clinic_overlap] }
+        - properties:
+            code: { enum: [version_conflict, operation_key_reused, shift_exists, source_unresolved] }
+      properties:
+        error: { type: string }
+        code:
           type: string
-          enum: [full, morning, afternoon, off, paid_leave]
-          nullable: true
-        start_time:
-          type: string
-          nullable: true
-        end_time:
-          type: string
-          nullable: true
-        note:
-          type: string
-          nullable: true
+          enum: [version_conflict, operation_key_reused, shift_exists, cross_clinic_overlap, protected_bookings, source_unresolved]
+        conflicting_clinic_name: { type: string }
+        overlap_starts_at: { type: string, format: date-time }
+        overlap_ends_at: { type: string, format: date-time }
+        protected_bookings:
+          type: array
+          items:
+            type: object
+            required: [appointment_id, starts_at, ends_at, patient_label, reservation_type_label]
+            properties:
+              appointment_id: { type: string, pattern: '^[1-9][0-9]*$' }
+              starts_at: { type: string, format: date-time }
+              ends_at: { type: string, format: date-time }
+              patient_label: { type: string }
+              reservation_type_label: { type: string }
 
     # ─── Estimate ─────────────────────────────────────────────────────────────
     Estimate:
@@ -5148,6 +5991,8 @@ components:
           type: boolean
         is_insurance:
           type: boolean
+          nullable: true
+          description: 未設定の保存値は null のまま返す。false へ補完しない。
         deleted_at:
           type: string
           format: date-time
@@ -5389,8 +6234,8 @@ components:
           format: int64
           nullable: true
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
           nullable: true
         treatment_content:
           type: string
@@ -5790,8 +6635,8 @@ components:
           type: integer
           format: int64
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
         date:
           type: string
           format: date
@@ -5964,8 +6809,8 @@ components:
           type: integer
           format: int64
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
         type:
           type: string
           enum:
@@ -7958,88 +8803,193 @@ components:
         has_ungrouped:
           type: boolean
     # ─── Manual articles (医院共通マニュアル・clinic_id なし) ──────────
-    ManualArticle:
+    # Sources: docs/spec/domains/internal-manual/README.md,
+    # docs/design/domains/internal-manual/technical-spec.md#manual-selected-save-contract.
+    # EMR-502 existing article edit wire contract. Publish/restore implementations are separate.
+    ManualArticleContent:
       type: object
+      additionalProperties: false
+      required: [title, order_value, section, body_markdown]
+      description: >-
+        表示/履歴内容の値object。field存在と文字列の長さを区別し、未承認の文字数上限を追加しない。
+        編集要求の全置換・非NULL・title/section空文字拒否は入力専用ManualArticleEditContentへ分離する。
+        公開/過去版の応答も旧空本文/長文をそのまま表現できる。
+        order_valueはnumeric(10,2)に表現可能な値。digestはserverがこの内容から算出し、clientで再構成しない。
       properties:
-        id:
-          type: integer
-          format: int64
-        category:
-          type: string
-          enum: [screens, workflows]
-        slug:
-          type: string
-        title:
-          type: string
-        order_value:
-          type: number
-          format: double
-        section:
-          type: string
-        body_markdown:
-          type: string
-        updated_by_staff_id:
-          type: integer
-          format: int64
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    ManualArticleListResponse:
+        title: { type: string }
+        order_value: { type: number, multipleOf: 0.01, minimum: -99999999.99, maximum: 99999999.99 }
+        section: { type: string }
+        body_markdown: { type: string }
+    ManualArticleEditContent:
       type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/ManualArticle'
-    UpsertManualArticleRequest:
-      type: object
-      required: [title, section, body_markdown]
-      properties:
-        title:
-          type: string
-        order_value:
-          type: number
-          format: double
-        section:
-          type: string
-        body_markdown:
-          type: string
+      description: |
+        編集入力専用。既存manualarticle/service.goのTitle/Section == ""拒否を保持する。
+        title/sectionは空文字を400で拒否するが、新たなtrimや空白のみ拒否・文字数上限は追加しない。
+        body_markdownの空文字拒否は追加しない。旧空値/長文を含む公開/過去版はManualArticleContentで表現する。
+      allOf:
+        - $ref: '#/components/schemas/ManualArticleContent'
+        - type: object
+          properties:
+            title: { type: string, minLength: 1 }
+            section: { type: string, minLength: 1 }
     ManualArticleVersion:
       type: object
+      additionalProperties: false
+      required: [id, article_id, content_revision, content_digest, source_kind, restored_from_id, content, edited_by_staff_id, edited_at]
+      description: |
+        応答専用の不変内容版。idは内容版ID、content_revisionは記事内の内容改訂番号。
+        article.version（CAS版）とは別。公開だけの操作で内容版を増やさない。
+        記事/内容版/復元元IDは先頭ゼロなし正数十進文字列。NULLの未知参照を架空IDへ補完しない。
+        全read/request/receiptでJS Numberへ変換せず往復し、serverはPostgreSQL bigintの1..9223372036854775807を検査する。
+        restoredは正数の復元元参照、static/override/editedは復元元NULL。
+        legacy_unknownはNULLまたは既知の正数参照を保持し、参照だけからsourceを推定したり既知IDを消したりしない。
+        source_kindの旧NULLはadapterでlegacy_unknownとして示す。legacy_unknownやNULLのdigest/revisionは未解決出所。架空値で埋めず編集・公開・復元の元にしない。
+      oneOf:
+        - properties:
+            source_kind: { enum: [restored] }
+            restored_from_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        - properties:
+            source_kind: { enum: [static, override, edited] }
+            restored_from_id: { type: string, nullable: true, enum: [null] }
+        - properties:
+            source_kind: { enum: [legacy_unknown] }
       properties:
-        id:
-          type: integer
-          format: int64
-        article_id:
-          type: integer
-          format: int64
-        title:
-          type: string
-        order_value:
-          type: number
-          format: double
-        section:
-          type: string
-        body_markdown:
-          type: string
-        edited_by_staff_id:
-          type: integer
-          format: int64
-          nullable: true
-        edited_at:
-          type: string
-          format: date-time
-    ManualArticleVersionListResponse:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        article_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        content_revision: { type: integer, format: int64, minimum: 1, nullable: true }
+        content_digest: { type: string, pattern: '^[0-9a-f]{64}$', nullable: true, description: '32byte digestのhex表現。内容一致のtoken、CAS版の代用ではない。' }
+        source_kind: { type: string, enum: [static, override, edited, restored, legacy_unknown] }
+        restored_from_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+        content: { $ref: '#/components/schemas/ManualArticleContent' }
+        edited_by_staff_id: { type: integer, format: int64, nullable: true }
+        edited_at: { type: string, format: date-time }
+    ManualPublishedVersion:
       type: object
+      additionalProperties: false
+      required: [id, content_digest, source_kind, content]
+      description: |
+        公開内容専用projection。編集者staff ID、編集日時、復元元参照等の編集/history情報を公開readへ含めない。
+        医院共通の記事内容を読めることは他院staff識別子の閲覧許可ではない。
+        内容版ID/digest/出所を公開内容と束縛し、未知digestを捏造しない。公開状態不明overrideは自動公開しない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        content_digest: { type: string, pattern: '^[0-9a-f]{64}$', nullable: true }
+        source_kind: { type: string, enum: [static, override, edited, restored, legacy_unknown] }
+        content: { $ref: '#/components/schemas/ManualArticleContent' }
+    ManualArticle:
+      type: object
+      additionalProperties: false
+      required: [id, category, slug, published]
+      description: |
+        公開READ用DTO（認証済みスタッフ）。医院共通。publishedは公開確定済みの同じ内容版。
+        一覧・検索・印刷はこの版ID/内容を使い、未公開current、CAS版、hidden情報を返さない。
+        未公開・非表示・不存在は単体404/一覧から除外。取得障害を不存在や静的版への黙ったfallbackにしない。
+        static/override adapterでも出所と版を識別し、公開状態不明のoverrideを全員公開しない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        category: { type: string, enum: [screens, workflows] }
+        slug: { type: string }
+        published: { $ref: '#/components/schemas/ManualPublishedVersion' }
+    ManualArticleListResponse:
+      type: object
+      required: [data]
       properties:
         data:
           type: array
-          items:
-            $ref: '#/components/schemas/ManualArticleVersion'
+          items: { $ref: '#/components/schemas/ManualArticle' }
+    ManualArticleEditView:
+      type: object
+      additionalProperties: false
+      required: [id, category, slug, version, current, published_version_id, hidden]
+      description: |
+        編集権限者限定の応答DTO。versionは記事状態のCAS版（編集・公開・復元・非表示等で進む）。
+        currentは現在の編集内容版で、published_version_idとは一致を仮定しない。
+        current=NULLや出所未解決なら元内容確認へ戻す。医院は操作認可元であり記事の所有医院ではない。
+      properties:
+        id: { type: string, pattern: '^[1-9][0-9]*$' }
+        category: { type: string, enum: [screens, workflows] }
+        slug: { type: string }
+        version: { type: integer, format: int64, minimum: 1 }
+        current:
+          oneOf:
+            - $ref: '#/components/schemas/ManualArticleVersion'
+            - type: object
+              nullable: true
+              enum: [null]
+        published_version_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+        hidden: { type: boolean }
+    UpsertManualArticleRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, article_id, expected_version, expected_content_version_id, content]
+      description: |
+        EMR-502の既存記事edit専用。名称は互換だが不存在の新規upsertはしない（404）。
+        path category/slugとarticle_idを同じ対象へ拘束し、違えば409。
+        記事/内容版IDは応答と同じ正数十進文字列で受け、JS Number変換しない。範囲外/不正形式は400。
+        全field必須・非NULL。Contentを全置換しtitle/bodyの直置きや部分更新を受け付けない。
+        expected_versionは記事CAS版、expected_content_version_idは編集開始時のcurrent.id。
+        元内容/出所を再構成できない時はsource_unresolvedで停止。clientから版加算・公開pointer指定はできない。
+        編集は新内容版・履歴・必須監査・receiptを同一owner transactionで保存する。公開版とhiddenは維持。
+        publishは別の明示操作で対象内容版を指定、restoreは保持済み元版から新内容版を作る境界。
+        本edit要求にpublish/restoreのフラグや復元元版を混在させない。理由必須欄・承認workflowを新設しない。
+      properties:
+        operation_key: { type: string, format: uuid }
+        article_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        expected_version: { type: integer, format: int64, minimum: 1 }
+        expected_content_version_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        content: { $ref: '#/components/schemas/ManualArticleEditContent' }
+    ManualEditReceipt:
+      type: object
+      additionalProperties: false
+      required: [operation_key, article_id, intent, previous_version, resulting_version, content_version_id, content_digest, published_version_id]
+      description: |
+        業務変更と原子的に確定したreceipt。resulting_version=previous_version+1。
+        成功表示は対象articleと版・内容digestの一致時のみ。編集成功は公開成功を意味しない。
+        再照会/同一要求の再送では元receiptを返し、後日の最新状態で書き換えない。
+        operation_bindings等のDB行・fingerprint・actor_ref・before/after JSONは公開しない。
+      properties:
+        operation_key: { type: string, format: uuid }
+        article_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        intent: { type: string, enum: [edit] }
+        previous_version: { type: integer, format: int64, minimum: 1 }
+        resulting_version: { type: integer, format: int64, minimum: 2 }
+        content_version_id: { type: string, pattern: '^[1-9][0-9]*$' }
+        content_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        published_version_id: { type: string, pattern: '^[1-9][0-9]*$', nullable: true }
+    ManualEditOperationResult:
+      type: object
+      additionalProperties: false
+      required: [operation_key, state, receipt]
+      description: succeededはreceipt非NULL、unknownはNULL。unknownは未保存/失敗の確定ではなく入力保持して停止。
+      oneOf:
+        - properties:
+            state: { enum: [succeeded] }
+            receipt: { $ref: '#/components/schemas/ManualEditReceipt' }
+        - properties:
+            state: { enum: [unknown] }
+            receipt: { type: object, nullable: true, enum: [null] }
+      properties:
+        operation_key: { type: string, format: uuid }
+        state: { type: string, enum: [succeeded, unknown] }
+        receipt:
+          oneOf:
+            - $ref: '#/components/schemas/ManualEditReceipt'
+            - type: object
+              nullable: true
+              enum: [null]
+    ManualEditConflict:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string }
+        code: { type: string, enum: [version_conflict, operation_key_reused, target_mismatch, source_unresolved] }
+    ManualArticleVersionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ManualArticleVersion' }
     # ─── Shared files (LINE 送信添付ファイル管理) ──────────────────────
     SharedFile:
       type: object
@@ -10400,8 +11350,8 @@ components:
       type: object
       properties:
         hospitalization_id:
-          type: integer
-          format: int64
+          type: string
+          pattern: '^[1-9][0-9]*$'
         accounting_id:
           type: integer
           format: int64
@@ -12894,13 +13844,31 @@ paths:
     post:
       operationId: createHospitalization
       summary: 入院登録
+      x-cage-contract-status: selected
+      x-cage-assignment-fields:
+        $ref: '#/components/schemas/HospitalizationCageCreateFields'
+      description: |
+        hospitalization:createが必要。
+        461ケージ割当の限定契約。選択医院・現在grant・対象医院をwrite直前に再検査。
+        新規割当/割当変更は同院・有効・独立/代表候補に限定する。構成員の新規割当は422。
+        未連結ケージも連結groupも同じ有効状態core根拠で他滞在占有を検査し409 cage_occupied。
+        同一対象の自己占有だけを除外し、別滞在は残す。core verdict unknownは409 occupancy_unknown。
+        499 core reader/lock依存の欠落・障害はfail-closedでwriteしない。旧status・予定期間だけで判定しない。
+        対象/連結groupを一貫した順序でlockし、占有検査と割当を同じtransactionで直列化する。
+        候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
+        現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
+        期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
+        ケージfield以外のstay lifecycleは499等のowner契約で別整備。専用requestBody DTOに既存入力互換だけを分離し、Hospitalization全体を採用001の公開行とみなさない。
+        461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
+        対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
+        操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
       tags: [Hospitalizations]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Hospitalization'
+              $ref: '#/components/schemas/HospitalizationCreateRequest'
       responses:
         '201':
           description: 登録成功
@@ -12922,7 +13890,10 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: ケージ割当CAS不一致/他滞在占有/有効状態不明。元割当を保持。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageWriteConflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -12931,13 +13902,21 @@ paths:
     post:
       operationId: swapHospitalizationCages
       summary: 入院ケージの入れ替え（単一トランザクション）
+      x-cage-contract-status: selected
       description: >-
         2件の入院の cage_id を原子性を持って交換する。ボード DnD の入れ替え専用 —
         2本の独立 PATCH では片方のみ commit され得るため本エンドポイントを使う。
         expected_cage_ids は hospitalization_ids と同じ位置の入院の表示時 cage_id を指定する。
         両入院の行ロック後に現在値と比較し、移動・割当解除による不一致は 409 で書込み前に拒否する。
         連結ケージが絡む場合は通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
-        占有グループ宛は 409 で両方ロールバックする。
+        交換当事者2件以外の占有は未連結/groupとも409 cage_occupiedで両方rollbackする。
+        hospitalization:editを選択医院の両対象に検査し、hospitalization_idsは異なる正数2件。
+        hospitalization_idsとexpected_cage_idsは応答と同じ正数十進文字列（serverでbigint範囲検査）。
+        expected_cage_idsは両方の表示時割当（正数必須、NULL不可）に対するCAS。版や候補readの代用ではない。
+        ソート順の対象/group lock下で期待値と現在の占有を再検査し、499 coreのunknownは409 occupancy_unknown。
+        片側だけ成功させず、構成員422/期待値不一致409 cage_assignment_changedでも元割当を両方保持する。
+        結果不明時に同じswapを再送すると元へ戻り得る。既存routeにoperation_key/receipt保証を推定せず、
+        当該操作結果を照合できなければ入力保持して停止する。DnD交換自体を候補UI制限のため禁止しない。
       tags: [Hospitalizations]
       requestBody:
         required: true
@@ -12948,22 +13927,23 @@ paths:
               required: [hospitalization_ids, expected_cage_ids]
               properties:
                 hospitalization_ids:
+                  x-runtime-implementation: pending-emr-499-decimal-string-dto
                   type: array
                   minItems: 2
                   maxItems: 2
+                  uniqueItems: true
                   items:
-                    type: integer
-                    format: int64
-                    minimum: 1
+                    type: string
+                    pattern: '^[1-9][0-9]*$'
                   description: ケージを交換する入院IDのペア（expected_cage_idsと同位置対応）
                 expected_cage_ids:
+                  x-runtime-implementation: pending-emr-499-decimal-string-dto
                   type: array
                   minItems: 2
                   maxItems: 2
                   items:
-                    type: integer
-                    format: int64
-                    minimum: 1
+                    type: string
+                    pattern: '^[1-9][0-9]*$'
                   description: hospitalization_idsと同じ順序の表示時ケージID。不一致は409。
       responses:
         '200':
@@ -12989,11 +13969,56 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: 期待割当不一致/第三者占有/占有unknown。両方rollback。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageWriteConflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalError'
+  /hospitalizations/cage-occupancy:
+    get:
+      operationId: getHospitalizationCageOccupancy
+      summary: 入院/ホテルフォーム用の占有ID・候補IDと現在割当
+      x-contract-status: selected
+      x-contract-dependency: EMR-499 effective-state core (unresolved verdicts remain unknown)
+      description: |
+        EMR-461専用read。選択医院でhospitalization:createまたはhospitalization:editの現在権限が必要。
+        exclude_hospitalization_id指定時は同院の編集対象存在/未削除とhospitalization:editを検査する。
+        createだけの権限で任意入院の自己除外はできない。対象のscope外/不存在は共に404。
+        hospitalization:viewやmaster-hospitalization:editを前提にせず、マスタ編集/連結権限を付与しない。
+        clinic_id/actorは認証から決め、queryによる医院変更、患者ID・期間・status/filter・ページングは受け付けない。
+        全ページ/表示filter外を含む同院占有を取得。編集対象の占有1件だけを根拠付きで自己除外し、
+        同ケージ/連結groupの別滞在は残す。occupied ID集合から自己占有だけと推測しない。
+        同じcontextの現割当と候補を別々に返し、現割当の表示・保持と新規選択可能性を混同しない。
+        499所有のstay_cases/movement訂正・取消を織り込む有効状態readerを再利用する。
+        旧status列、最新eventだけ、予定終了時刻、DDLのenumだけで有効状態を推測しない。
+        訂正/無効化/欠損/actual_at NULL等を499が確定判定できない場合は200 state=unknown。
+        両集合をNULLとして新規選択を保留し、他の既知行だけで空き候補を作らない。
+        通信/reader取得障害は500（空集合へ変換しない）。未割当の選択肢は任意のまま。
+        読取は保存・予約・lock確保ではない。新規割当時はcreate/update/swapが同じ根拠を現在状態で再検査する。
+        期間を変更しただけで占有を解放せず、ホテル定員の期間アルゴリズムは流用しない。
+        有効状態coreの判定表/根拠版/同TX readerとlock/固定fixtureは499→461の実装引渡し残件。
+        このwire契約は未確定のcore業務条件・物理DDLを補完しない。
+      tags: [Hospitalizations]
+      parameters:
+        - name: exclude_hospitalization_id
+          in: query
+          required: false
+          description: 編集対象hospitalization ID。省略は自己除外なし。NULL文字列/0/負数は400。
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '200':
+          description: contextに束縛した全件ID projection（unknownを空きと扱わない）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageOccupancyRead' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /hospitalizations/{id}:
     get:
       operationId: getHospitalization
@@ -13003,9 +14028,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: 入院情報
@@ -13013,6 +14039,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Hospitalization'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -13024,20 +14052,39 @@ paths:
     patch:
       operationId: updateHospitalization
       summary: 入院情報更新
+      x-cage-contract-status: selected
+      x-cage-assignment-fields:
+        $ref: '#/components/schemas/HospitalizationCagePatchFields'
+      description: |
+        hospitalization:editが必要。
+        461ケージ割当の限定契約。選択医院・現在grant・対象医院をwrite直前に再検査。
+        新規割当/割当変更は同院・有効・独立/代表候補に限定する。構成員の新規割当は422。
+        未連結ケージも連結groupも同じ有効状態core根拠で他滞在占有を検査し409 cage_occupied。
+        同一対象の自己占有だけを除外し、別滞在は残す。core verdict unknownは409 occupancy_unknown。
+        499 core reader/lock依存の欠落・障害はfail-closedでwriteしない。旧status・予定期間だけで判定しない。
+        対象/連結groupを一貫した順序でlockし、占有検査と割当を同じtransactionで直列化する。
+        候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
+        現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
+        期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
+        ケージfield以外のstay lifecycleは499等のowner契約で別整備。専用requestBody DTOに既存入力互換だけを分離し、Hospitalization全体を採用001の公開行とみなさない。
+        461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
+        対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
+        操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
       tags: [Hospitalizations]
       parameters:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Hospitalization'
+              $ref: '#/components/schemas/HospitalizationPatchRequest'
       responses:
         '200':
           description: 更新成功
@@ -13054,7 +14101,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: ケージ割当CAS不一致/他滞在占有/有効状態不明。元割当を保持。
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HospitalizationCageWriteConflict' }
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -13067,12 +14117,15 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '204':
           description: 削除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -13090,9 +14143,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -14759,6 +15813,85 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/trimming-courses/images/upload:
+    post:
+      operationId: uploadTrimmingCourseImage
+      summary: トリミング画像アップロード
+      description: |
+        multipart/form-data。フォームフィールド名は `file`。
+        トリミング ID には紐づかない。認証済み医院で master-trimming の create または edit 権限が必要。
+        ファイル上限 10MiB、リクエスト上限 11MiB。拡張子・MIME・実バイトの content sniff を検証する。
+        共有の医院/スタッフアップロード枠をボディ解析前に確保する。
+        同医院・uploadスタッフに紐づくキーを台帳へ予約してからstorage uploadし、完了証拠を記録して署名URLを返す。
+        保存先は trimming-images/{clinic_id}/...。応答はオブジェクトキーと署名付き表示 URL（TTL 15 分）。
+        upload・完了記録・署名の失敗時に原本を推測削除しない。pending/不明キーは保護する。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: jpeg, png, gif。10MiB 以下。
+      responses:
+        '201':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingImageUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/trimming-courses/images:
+    delete:
+      operationId: deleteTrimmingCourseDraftImage
+      summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
+      description: |
+        現在のselected clinicのmaster-trimming create/edit権限と、同医院・同uploadスタッフの台帳証拠が必要。
+        upload完了・未送信・保存済み/過去履歴を含む全参照なしを同じキーlock下で再検査した作業コピーだけを破棄する。
+        削除予約をcommitしてからstorageを削除する。storage失敗は予約を保持し、retryでも同じ適格性を再検査する。
+        旧未登録・pending・送信済み（保存拒否/rollback/結果不明を含む）・由来不明の原本は削除しない。
+        course/clinicalの画像付きJSONは他の入力検証より前に送信証拠を独立TXで確定する。
+      tags: [Trimmings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+                  description: trimming-images/{clinic_id}/... のオブジェクトキー
+      responses:
+        '204':
+          description: 証明済み未送信作業コピーの削除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings/images/upload:
     post:
       operationId: uploadTrimmingImage
@@ -14806,11 +15939,9 @@ paths:
       operationId: deleteTrimmingImage
       summary: トリミング画像オブジェクト削除（未保存アップロードの掃除）
       description: |
-        フォーム放棄・置換でレコードに永続化されなかったアップロード済みオブジェクトを削除する。
-        ボディの `key` は自医院スコープ `trimming-images/{clinic_id}/...` のオブジェクトキーのみ受理
-        （/uploads/ ラップ形式も可）。レコード参照が残るキーは 409 で拒否する（fail-closed）。
-        永続化済みフィールドの削除は PATCH/DELETE の superseded 処理が担う。
-        trimming の create または edit 権限が必要。
+        現在は認証・権限確認後403で保持する。既存clinical画像には未保存・未送信を証明する台帳がないため、
+        参照なしやTTLだけで原本を削除しない。内部cleanup/retryも正の作業コピー証拠がないキーを保持する。
+        course専用の証明済みdraft破棄は /masters/trimming-courses/images を使用する。
       tags: [Trimmings]
       requestBody:
         required: true
@@ -14824,18 +15955,11 @@ paths:
                   type: string
                   description: trimming-images/{clinic_id}/... のオブジェクトキー
       responses:
-        '204':
-          description: 削除成功
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
+
   /trimmings/{id}:
     get:
       operationId: getTrimming
@@ -15680,21 +16804,34 @@ paths:
     get:
       operationId: listStaffs
       summary: スタッフ一覧
+      description: |
+        projection省略は既存Staff[]。projection=shift-selectionは勤務新規作成の選択元として
+        ShiftStaffSelection[]だけを返す先行wire契約（493/466 ownerへ実装引渡し、現runtime未対応）。
+        選択医院scope・現在の一覧認可/role絞込を保持し、新たなmaster権限の付与や無権限readを作らない。
+        通常Staff.idをNumberで受けて文字列化するfallbackは禁止。未実装/403/取得失敗を空一覧や
+        勤務未登録と扱わず、新規作成を停止する。勤務が0件の職員も同じ選択元で識別する。
+      x-contract-status: selected-projection-not-implemented
       tags: [Masters]
       parameters:
+        - name: projection
+          in: query
+          description: 493専用選択時にshift-selectionを明示。省略時のStaff[]は既存互換のまま。
+          schema: { type: string, enum: [shift-selection] }
         - name: role
           in: query
           schema:
             type: string
       responses:
         '200':
-          description: スタッフ一覧
+          description: projection省略はStaff[]、shift-selection明示はShiftStaffSelection[]。混在不可（queryとの対応は意味検証）。
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Staff'
+                anyOf:
+                  - type: array
+                    items: { $ref: '#/components/schemas/Staff' }
+                  - type: array
+                    items: { $ref: '#/components/schemas/ShiftStaffSelection' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -16934,7 +18071,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vaccine'
+              $ref: '#/components/schemas/CreateVaccineRequest'
       responses:
         '201':
           description: 登録成功
@@ -17038,7 +18175,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Vaccine'
+              $ref: '#/components/schemas/UpdateVaccineRequest'
       responses:
         '200':
           description: 更新成功
@@ -17054,6 +18191,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -17900,7 +19039,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consultation'
+              $ref: '#/components/schemas/CreateConsultationRequest'
       responses:
         '201':
           description: 登録成功
@@ -18005,7 +19144,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consultation'
+              $ref: '#/components/schemas/UpdateConsultationRequest'
       responses:
         '200':
           description: 更新成功
@@ -18021,6 +19160,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -18074,7 +19215,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Procedure'
+              $ref: '#/components/schemas/CreateProcedureRequest'
       responses:
         '201':
           description: 登録成功
@@ -18179,7 +19320,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Procedure'
+              $ref: '#/components/schemas/UpdateProcedureRequest'
       responses:
         '200':
           description: 更新成功
@@ -18195,6 +19336,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -19657,7 +20800,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CheckupType'
+              $ref: '#/components/schemas/CreateCheckupTypeRequest'
       responses:
         '201':
           description: 登録成功
@@ -19762,7 +20905,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CheckupType'
+              $ref: '#/components/schemas/UpdateCheckupTypeRequest'
       responses:
         '200':
           description: 更新成功
@@ -19778,6 +20921,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -20429,19 +21574,27 @@ paths:
     get:
       operationId: listShifts
       summary: シフト一覧
+      x-contract-status: selected
+      description: |
+        EMR-493。shifts:view。選択医院の勤務を返す。dateは開始側JST日付の年月フィルタ。
+        date省略時はJST当月。staff_id省略時は医院内全staff。並び順はdate, staff_id, idの昇順。
+        空配列は当該filterの勤務未登録であり、休日・他院勤務なし・勤務可能の証明ではない。
+        unknown日時を時刻や休日で補完しない。結果不明のmutationはこの一覧だけで成功判定しない。
       tags: [Shifts]
       parameters:
         - name: date
           in: query
-          description: 年月フィルタ（YYYY-MM）
+          description: 開始日側JST年月フィルタ（YYYY-MM、省略時はJST当月）
           schema:
             type: string
+            pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
             example: "2026-03"
         - name: staff_id
           in: query
+          description: ShiftEntry.staff_idと同じ正数十進文字列。Number変換せず渡し、serverはbigint範囲外/不正形式を400で拒否する。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: シフト一覧
@@ -20455,11 +21608,30 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
     post:
       operationId: createShift
       summary: シフト作成
+      x-contract-status: selected
+      description: |
+        shifts:createが必要。
+        EMR-493選定wire契約。ownerはstaff。認証済み選択医院に拘束し、他医院へ自動再送しない。
+        対象staffの所属/有効性、対象勤務の医院、現在grantをserverで検査する。
+        勤務・休憩の原子的保存に加え、予約と他院勤務の並行変更を同じ整合性境界で再検査する。
+        医院間の正の時間幅の重複は409。移動時間は手動確保し固定1時間や自動補完を加えない。
+        勤務短縮・休憩追加・非勤務化・削除で未来/未終了の既指名予約（予定終了超過の診療中を含む）を
+        不適格にする場合は409 protected_bookings。自動取消/指名解除/診療終了はしない。
+        過去完了だけで永久拒否せず、予約・カルテ・会計履歴を自動改変しない。
+        operation_keyはUUID。選択医院・認証actor・intent・対象・業務内容へ拘束する。
+        期待版はfingerprintと分離しwrite直前に再検査、成功receipt再返却時も現在認可を再検査する。
+        同じkey/同じ業務内容の確定済み操作は元receiptを返し重複効果を作らない。
+        同keyで対象/業務内容が異なれば409 operation_key_reused。未成功確定後の期待版変更は現値との比較・明示再確認が必要。
+        結果応答喪失や5xxはunknownとして同じkeyの結果照会を行う。照合不能中は入力保持して停止し、
+        新keyで再送しない。競合解消・案変更後は最新状態の再確認から別操作を作る。
+        この契約はleave/copy/CSV・予約編集・template改訂の契約を追加しない。
       tags: [Shifts]
       requestBody:
         required: true
@@ -20473,13 +21645,54 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShiftEntry'
+                $ref: '#/components/schemas/ShiftMutationReceipt'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftContractError'
         '500':
           $ref: '#/components/responses/InternalError'
+  /shifts/operations/{operation_key}:
+    get:
+      operationId: getShiftOperationResult
+      summary: 単件勤務操作の結果照会
+      x-contract-status: selected
+      description: |
+        EMR-493。選択医院・同一actor・元操作intentの現在create/edit/delete権限を検査する。
+        shifts:viewだけで他人のreceiptを参照させない。別医院/別actorのkeyから情報を返さない。
+        成功receiptが確認できない場合200 unknown。不存在を未実行と推測せず停止する。
+        現在の勤務が別操作で更新/削除済みでも、元の確定receiptを返す。照会はwriteしない。
+        結果store障害は500、権限失効は403でありunknownや空receiptの成功へ変換しない。
+      tags: [Shifts]
+      parameters:
+        - name: operation_key
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intent
+          in: query
+          required: true
+          schema: { type: string, enum: [create, update, delete] }
+      responses:
+        '200':
+          description: 操作結果（unknownは成功でも失敗でもない）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftOperationResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /shifts/on-duty-staffs:
     get:
       operationId: getOnDutyStaffs
@@ -20511,17 +21724,64 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /shifts/{id}:
-    patch:
-      operationId: updateShift
-      summary: シフト更新
+    get:
+      operationId: getShift
+      summary: 勤務の現在状態取得
+      x-contract-status: selected
+      description: EMR-493。shifts:view、認証済み選択医院内の対象だけを返す。scope外と不存在は共に404。404は操作結果の失敗を証明しない。
       tags: [Shifts]
       parameters:
         - name: id
           in: path
           required: true
+          description: >-
+            応答ShiftEntry.idと同じ先頭ゼロなし正数十進文字列。JS Numberへ変換せずpathへ渡す。
+            serverは厳密に整数解析しPostgreSQL bigintの1..9223372036854775807を検査、範囲外/不正形式は400。
+            桁数/辞書順だけで存在やscopeを判定しない。
+          schema: { type: string, pattern: '^[1-9][0-9]*$' }
+      responses:
+        '200':
+          description: 最新勤務（編集案を上書きせず比較用に取得する）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: updateShift
+      summary: シフト更新
+      x-contract-status: selected
+      description: |
+        shifts:editが必要。
+        EMR-493選定wire契約。ownerはstaff。認証済み選択医院に拘束し、他医院へ自動再送しない。
+        対象staffの所属/有効性、対象勤務の医院、現在grantをserverで検査する。
+        勤務・休憩の原子的保存に加え、予約と他院勤務の並行変更を同じ整合性境界で再検査する。
+        医院間の正の時間幅の重複は409。移動時間は手動確保し固定1時間や自動補完を加えない。
+        勤務短縮・休憩追加・非勤務化・削除で未来/未終了の既指名予約（予定終了超過の診療中を含む）を
+        不適格にする場合は409 protected_bookings。自動取消/指名解除/診療終了はしない。
+        過去完了だけで永久拒否せず、予約・カルテ・会計履歴を自動改変しない。
+        operation_keyはUUID。選択医院・認証actor・intent・対象・業務内容へ拘束する。
+        期待版はfingerprintと分離しwrite直前に再検査、成功receipt再返却時も現在認可を再検査する。
+        同じkey/同じ業務内容の確定済み操作は元receiptを返し重複効果を作らない。
+        同keyで対象/業務内容が異なれば409 operation_key_reused。未成功確定後の期待版変更は現値との比較・明示再確認が必要。
+        結果応答喪失や5xxはunknownとして同じkeyの結果照会を行う。照合不能中は入力保持して停止し、
+        新keyで再送しない。競合解消・案変更後は最新状態の再確認から別操作を作る。
+        この契約はleave/copy/CSV・予約編集・template改訂の契約を追加しない。
+      tags: [Shifts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >-
+            応答ShiftEntry.idと同じ先頭ゼロなし正数十進文字列。JS Numberへ変換せずpathへ渡す。
+            serverは厳密に整数解析しPostgreSQL bigintの1..9223372036854775807を検査、範囲外/不正形式は400。
+            桁数/辞書順だけで存在やscopeを判定しない。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -20534,33 +21794,85 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShiftEntry'
+                $ref: '#/components/schemas/ShiftMutationReceipt'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftContractError'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
       operationId: deleteShift
       summary: シフト削除
+      x-contract-status: selected
+      description: |
+        shifts:deleteが必要。
+        EMR-493選定wire契約。ownerはstaff。認証済み選択医院に拘束し、他医院へ自動再送しない。
+        対象staffの所属/有効性、対象勤務の医院、現在grantをserverで検査する。
+        勤務・休憩の原子的保存に加え、予約と他院勤務の並行変更を同じ整合性境界で再検査する。
+        医院間の正の時間幅の重複は409。移動時間は手動確保し固定1時間や自動補完を加えない。
+        勤務短縮・休憩追加・非勤務化・削除で未来/未終了の既指名予約（予定終了超過の診療中を含む）を
+        不適格にする場合は409 protected_bookings。自動取消/指名解除/診療終了はしない。
+        過去完了だけで永久拒否せず、予約・カルテ・会計履歴を自動改変しない。
+        operation_keyはUUID。選択医院・認証actor・intent・対象・業務内容へ拘束する。
+        期待版はfingerprintと分離しwrite直前に再検査、成功receipt再返却時も現在認可を再検査する。
+        同じkey/同じ業務内容の確定済み操作は元receiptを返し重複効果を作らない。
+        同keyで対象/業務内容が異なれば409 operation_key_reused。未成功確定後の期待版変更は現値との比較・明示再確認が必要。
+        結果応答喪失や5xxはunknownとして同じkeyの結果照会を行う。照合不能中は入力保持して停止し、
+        新keyで再送しない。競合解消・案変更後は最新状態の再確認から別操作を作る。
+        この契約はleave/copy/CSV・予約編集・template改訂の契約を追加しない。
       tags: [Shifts]
       parameters:
         - name: id
           in: path
           required: true
+          description: >-
+            応答ShiftEntry.idと同じ先頭ゼロなし正数十進文字列。JS Numberへ変換せずpathへ渡す。
+            serverは厳密に整数解析しPostgreSQL bigintの1..9223372036854775807を検査、範囲外/不正形式は400。
+            桁数/辞書順だけで存在やscopeを判定しない。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
+        - name: expected_version
+          in: query
+          required: true
+          description: 表示時の勤務aggregate版。休憩変更を含め不一致なら409。
+          schema: { type: integer, format: int64, minimum: 1 }
+        - name: operation_key
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
       responses:
-        '204':
-          description: 削除成功
+        '200':
+          description: 削除確定receipt（再送時も同じ結果）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftMutationReceipt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftContractError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -22662,10 +23974,10 @@ paths:
         - name: id
           in: path
           required: true
-          description: 入院ID
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: 日次記録一覧
@@ -22688,9 +24000,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -22726,9 +24039,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -22758,9 +24072,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -22795,9 +24110,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -22832,9 +24148,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: date
           in: path
           required: true
@@ -22871,9 +24188,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: ケアプランアイテム一覧
@@ -22895,9 +24213,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -22926,9 +24245,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: itemId
           in: path
           required: true
@@ -22964,9 +24284,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: itemId
           in: path
           required: true
@@ -22993,9 +24314,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       responses:
         '200':
           description: 治療計画一覧
@@ -23017,9 +24339,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
       requestBody:
         required: true
         content:
@@ -23048,9 +24371,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: planId
           in: path
           required: true
@@ -23086,9 +24410,10 @@ paths:
         - name: id
           in: path
           required: true
+          description: 入院IDの正数十進文字列。Numberへ変換せず渡す。serverでbigint範囲を検査する先行契約（runtime適合は別途）。
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
         - name: planId
           in: path
           required: true
@@ -24200,7 +25525,11 @@ paths:
     get:
       operationId: listManualArticles
       summary: マニュアル記事一覧
-      description: 認証済みユーザー全員が閲覧可能(ResourceManualEdit view 権限)。
+      x-contract-status: selected
+      description: |
+        EMR-502接続境界。認証済みスタッフ全員が公開確定版を閲覧可能（manual-edit:viewを前提にしない）。
+        医院共通。公開済み・非表示でない記事のみ。同じ公開版ID/Contentで検索・印刷する。
+        未公開currentや公開不明overrideを混ぜず、障害時は500（静的版へ黙ってfallbackしない）。
       tags: [Manual]
       responses:
         '200':
@@ -24217,6 +25546,11 @@ paths:
     get:
       operationId: getManualArticle
       summary: マニュアル記事取得
+      x-contract-status: selected
+      description: |
+        EMR-502公開READ境界。認証済みスタッフ全員、manual-edit:view不要。
+        公開版だけを返す。未公開・非表示・不存在は404、取得障害は500。
+        編集用current/記事CAS版は別の編集権限付きreadを用いる。
       tags: [Manual]
       parameters:
         - name: category
@@ -24245,8 +25579,20 @@ paths:
           $ref: '#/components/responses/InternalError'
     put:
       operationId: upsertManualArticle
-      summary: マニュアル記事の作成・更新
-      description: ResourceManualEdit edit 権限が必要。監査ログに記録される。
+      summary: 既存マニュアル記事の編集保存
+      x-contract-status: selected
+      description: |
+        EMR-502既存記事の編集保存。manual-edit:editの現在権限をowner境界で再検査する。
+        UpsertManualArticleRequestのContent・元内容版・記事CAS版・対象IDを同一操作へ拘束する。
+        operation_keyは選択医院（認可元）・認証actor・intent=editへ束縛。記事そのものは医院共通。
+        同一key/同一対象/同一業務内容の確定済み操作は元receiptを返し、版・内容・履歴・監査を重複作成しない。
+        期待版/元内容版はfingerprintと分離してwrite前に再検査し、成功receipt再返却時も現在認可を再検査する。
+        異なる対象/業務内容へのkey再利用は409 operation_key_reused。期待版不一致は409 version_conflict。
+        権限失効は403。必須履歴/監査/receiptの失敗は全rollback、公開版・旧履歴は不変。
+        応答喪失や5xxは結果不明。元keyで結果照会し新keyの再保存で救済しない。
+        照合不能なら編集案と元版を保持して停止。成功はreceiptの対象/版一致時のみ表示する。
+        競合は元案を保持し最新edit viewを別取得、比較・再確認して新しい操作を作る。
+        公開・復元の実行endpoint/DTOと新規記事作成はこの単位の対象外。
       tags: [Manual]
       parameters:
         - name: category
@@ -24272,17 +25618,32 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManualArticle'
+                $ref: '#/components/schemas/ManualEditReceipt'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 競合または元情報未解決。業務変更なし。codeで理由を識別する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualEditConflict'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
       operationId: deleteManualArticle
       summary: マニュアルオーバーライド削除(MD ファイル版に戻す)
-      description: ResourceManualEdit delete 権限が必要。監査ログに記録される。
+      x-contract-status: legacy-out-of-scope
+      deprecated: true
+      description: >-
+        EMR-502既存editの引渡し対象外。旧route記録であり、履歴物理削除の許可ではない。
+        非表示/override解除は履歴を保持する選定契約へ別途追従が必要。新edit callerから呼ばない。
+        ResourceManualEdit delete 権限が必要。
       tags: [Manual]
       parameters:
         - name: category
@@ -26429,10 +27790,79 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /manual/articles/{category}/{slug}/edit:
+    get:
+      operationId: getManualArticleEditView
+      summary: 既存記事の編集元とCAS版の取得
+      x-contract-status: selected
+      description: |
+        EMR-502。manual-edit:editが必要。現在権限を検査し、医院共通の対象のcurrentとCAS版を返す。
+        公開版readの内容で未公開currentを上書きしない。元内容未解決なら編集送信を停止する。
+      tags: [Manual]
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema: { type: string, enum: [screens, workflows] }
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 編集元の状態
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualArticleEditView' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /manual/articles/{category}/{slug}/operations/{operation_key}:
+    get:
+      operationId: getManualEditOperationResult
+      summary: 既存記事編集の結果照会
+      x-contract-status: selected
+      description: |
+        EMR-502。manual-edit:editの現在権限、元の選択医院・認証actor・intent=edit・記事対象へ拘束する。
+        200 succeededは元の確定receipt、200 unknownは照合不能（未実行・失敗とは断定しない）。
+        後続編集・非表示で現在状態が変わっても元receiptを返す。照会は新しい版や履歴を作らない。
+        権限失効は403、結果store障害は500。別医院・別actorのreceiptを開示しない。
+        unknown中は入力案を保持し新keyで再保存しない。照合成功後に現在状態を別取得して比較する。
+      tags: [Manual]
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema: { type: string, enum: [screens, workflows] }
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+        - name: operation_key
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 確定receiptまたはunknown
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ManualEditOperationResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /manual/articles/{category}/{slug}/versions:
     get:
       operationId: listManualArticleVersions
       summary: マニュアル記事の編集履歴一覧
+      x-contract-status: selected
+      description: |
+        EMR-502編集元確認の境界。manual-edit:editを現在権限で検査する。
+        非公開内容を含むため一般公開READと分離。保持済み内容版を返し、legacy_unknownを補完しない。
+        復元は保持済み元版から新内容版を作る別操作。履歴の上書き・削除をしない。
       tags: [Manual]
       parameters:
         - name: category
@@ -26457,6 +27887,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
 

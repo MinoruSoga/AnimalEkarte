@@ -16,7 +16,7 @@ const AccountingCodeUnbilledConflict = "UNBILLED_ITEMS_CHANGED"
 
 // unbilledRevisionAlgorithm は集約フィンガープリントの方式版。
 // 正規化対象フィールドやエンコードを変える場合は接頭辞を上げる。
-const unbilledRevisionAlgorithm = "u1"
+const unbilledRevisionAlgorithm = "u2"
 
 // unbilledRevisionItem は revision に含める候補行の請求意味集合。
 // クライアントに表示される請求意味（種別・名称・金額・税・保険・出所リンク）を網羅し、
@@ -32,7 +32,7 @@ type unbilledRevisionItem struct {
 	DiscountAmount        int64   `json:"discount_amount"`
 	TaxType               string  `json:"tax_type"`
 	TaxRate               float64 `json:"tax_rate"`
-	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
+	IsInsuranceApplicable *bool   `json:"is_insurance_applicable"`
 	Source                string  `json:"source"`
 	OtherReason           string  `json:"other_reason"`
 	MerchandiseItemID     uint64  `json:"merchandise_item_id"`

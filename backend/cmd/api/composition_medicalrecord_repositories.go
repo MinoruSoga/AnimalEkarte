@@ -58,7 +58,7 @@ type medicalRecordRepositories struct {
 
 func newMedicalRecordRepositories(db *gorm.DB) medicalRecordRepositories {
 	return medicalRecordRepositories{
-		cages:                   medicalrecord.NewCageRepository(db),
+		cages:                   medicalrecord.NewCageRepositoryWithStayOccupancyReader(db, medicalrecord.NewStayCageEffectiveStateReader(db)),
 		carePlanItems:           medicalrecord.NewCarePlanItemRepository(db),
 		checkupTypeFields:       medicalrecord.NewCheckupTypeFieldRepository(db),
 		checkupFieldResults:     medicalrecord.NewCheckupFieldResultRepository(db),

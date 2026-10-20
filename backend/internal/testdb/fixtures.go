@@ -14,15 +14,14 @@ import (
 )
 
 // MakeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。
+// petName を含む pet 基本情報は common_pet_basic_revisions で管理されるため本 fixture では作成しない（EMR-489 の operation fixture が正本経路）。
 func MakeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
 	t.Helper()
 	species := &model.AnimalSpecies{Name: "犬"}
 	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
 	pet := &model.Pet{
-		ClinicID:        clinicID,
-		OwnerID:         ownerID,
-		AnimalSpeciesID: species.ID,
-		Name:            petName,
+		ClinicID: clinicID,
+		OwnerID:  ownerID,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
 	return pet
@@ -45,7 +44,6 @@ func MakeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64,
 		RecordNo: recordNo,
 		Date:     date,
 		PetID:    &pet,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr
@@ -71,11 +69,12 @@ func MakeInsurance(t *testing.T, db *gorm.DB, clinicID uint64, name string) *mod
 }
 
 // MakePetWithInsurance はテスト用の保険付き Pet を作成して返す。
+// name を含む pet 基本情報は common_pet_basic_revisions で管理されるため本 fixture では作成しない（EMR-489 の operation fixture が正本経路）。
 func MakePetWithInsurance(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, insuranceID *uint64, name string) *model.Pet {
 	t.Helper()
 	species := &model.AnimalSpecies{Name: "犬"}
 	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
-	pet := &model.Pet{ClinicID: clinicID, OwnerID: ownerID, AnimalSpeciesID: species.ID, Name: name, InsuranceID: insuranceID}
+	pet := &model.Pet{ClinicID: clinicID, OwnerID: ownerID, InsuranceID: insuranceID}
 	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
 	return pet
 }

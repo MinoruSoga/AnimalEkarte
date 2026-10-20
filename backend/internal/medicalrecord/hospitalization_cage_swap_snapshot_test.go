@@ -6,9 +6,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type swapSnapshotPetRepository struct{}
@@ -33,6 +35,19 @@ func (swapSnapshotCageRepository) LockCageGroupForUpdate(_ context.Context, clin
 	return []model.Cage{{ID: id, ClinicID: clinicID}}, nil
 }
 
+// EMR-461: 未連結ケージも占有検査するため、交換当事者を除外した占有は空として返す。
+func (swapSnapshotCageRepository) CountOccupiedCagesExcludingHospitalizations(context.Context, uint64, []uint64, []uint64) (map[uint64]int64, error) {
+	return map[uint64]int64{}, nil
+}
+
+func (swapSnapshotCageRepository) ReadEffectiveStatesForCageAssignment(_ context.Context, clinicID uint64, ids []uint64) ([]StayCageEffectiveState, error) {
+	states := make([]StayCageEffectiveState, 0, len(ids))
+	for _, id := range ids {
+		states = append(states, cageWriteState(clinicID, id, StayCageAdmitted))
+	}
+	return states, nil
+}
+
 func TestHospitalizationSwapCages_RequiresDisplayedCageSnapshot(t *testing.T) {
 	cage1, cage2, cage3, cage4 := uint64(1), uint64(2), uint64(3), uint64(4)
 	for _, tc := range []struct {
@@ -55,9 +70,10 @@ func TestHospitalizationSwapCages_RequiresDisplayedCageSnapshot(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			const clinicID = uint64(1)
+			stayA, stayB := uint64(31), uint64(32)
 			rows := map[uint64]*model.Hospitalization{
-				11: {ID: 11, ClinicID: clinicID, PetID: 21, Status: model.HospitalizationStatusAdmitted, CageID: tc.currentA},
-				12: {ID: 12, ClinicID: clinicID, PetID: 22, Status: model.HospitalizationStatusAdmitted, CageID: tc.currentB},
+				11: {ID: 11, ClinicID: clinicID, PetID: 21, StayCaseID: &stayA, CageID: tc.currentA},
+				12: {ID: 12, ClinicID: clinicID, PetID: 22, StayCaseID: &stayB, CageID: tc.currentB},
 			}
 			if tc.foreignTarget {
 				rows[12].ClinicID = 2
@@ -90,7 +106,7 @@ func TestHospitalizationSwapCages_RequiresDisplayedCageSnapshot(t *testing.T) {
 				transactor: &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
 					inTx = true
 					defer func() { inTx = false }()
-					return fn(ctx)
+					return fn(persistence.WithTxValue(ctx, &gorm.DB{}))
 				}},
 			}
 			idA, idB, expected := uint64(11), uint64(12), [2]uint64{cage1, cage2}

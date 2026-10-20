@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { transformToAccounting } from "./transforms";
+import { transformToAccounting, transformAccountingItem } from "./transforms";
 import type { BackendAccounting, BackendAccountingItem } from "./types";
 
 const item: BackendAccountingItem = {
@@ -329,5 +329,12 @@ describe("transformToAccounting", () => {
   it("EMR-246: service_date が無い明細は serviceDate を持たない", () => {
     const result = transformToAccounting({ ...minimal, items: [item] });
     expect(result.items[0].serviceDate).toBeUndefined();
+  });
+});
+
+describe("nullable insurance response", () => {
+  it.each([null, undefined, false, true])("preserves %s without false coercion", (setting) => {
+    const result = transformAccountingItem({ ...item, is_insurance_applicable: setting });
+    expect(result.isInsuranceApplicable).toBe(setting ?? null);
   });
 });

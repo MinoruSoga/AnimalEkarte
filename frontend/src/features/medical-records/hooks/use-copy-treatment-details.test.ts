@@ -316,10 +316,32 @@ describe("useCopyTreatmentDetails", () => {
     );
 
     const selections: TreatmentMasterItem[] = [
-      { id: "7", name: "初診", unitPrice: 3307, category: "診察" },
-      { id: "8", name: "創傷処置", unitPrice: 3306, category: "処置" },
-      { id: "42", name: "アモキシシリン", unitPrice: 3303, category: "薬剤", medicineId: "42" },
-      { id: "7", name: "検査キット", unitPrice: 2000, category: "検査" },
+      {
+        id: "7",
+        name: "初診",
+        unitPrice: 3307,
+        insuranceContract: "master",
+        isNonInsurance: true,
+        category: "診察",
+      },
+      {
+        id: "8",
+        name: "創傷処置",
+        unitPrice: 3306,
+        insuranceContract: "master",
+        isNonInsurance: true,
+        category: "処置",
+      },
+      {
+        id: "42",
+        name: "アモキシシリン",
+        unitPrice: 3303,
+        insuranceContract: "master",
+        isNonInsurance: true,
+        category: "薬剤",
+        medicineId: "42",
+      },
+      { id: "7", name: "検査キット", unitPrice: 2000, isNonInsurance: true, category: "検査" },
     ];
     for (const [index, item] of selections.entries()) {
       await createTreatment(
@@ -969,4 +991,17 @@ describe("useCopyTreatmentDetails", () => {
       },
     );
   });
+});
+
+it("stops copying unresolved insurance before any POST", async () => {
+  vi.clearAllMocks();
+  const postBodies = useCopyHandlers({ sourceRows: [sourceTreatment({ is_insurance: null })] });
+  const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID), {
+    wrapper: createTestWrapper(),
+  });
+  await act(async () => {
+    await result.current.copyTreatmentsFromRecord(SOURCE_ID);
+  });
+  expect(postBodies).toHaveLength(0);
+  expect(toast.error).toHaveBeenCalled();
 });

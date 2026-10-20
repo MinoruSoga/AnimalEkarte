@@ -1,10 +1,13 @@
 package trimming
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -25,7 +28,11 @@ func (h *Handler) ListTrimmingCourses(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(courses, toTrimmingCourseResponse))
+	responses := make([]trimmingCourseResponse, 0, len(courses))
+	for i := range courses {
+		responses = append(responses, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, &courses[i]))
+	}
+	c.JSON(http.StatusOK, responses)
 }
 
 // GetTrimmingCourse godoc
@@ -46,7 +53,7 @@ func (h *Handler) GetTrimmingCourse(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingCourseResponse(course))
+	c.JSON(http.StatusOK, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, course))
 }
 
 // CreateTrimmingCourse godoc
@@ -56,19 +63,30 @@ func (h *Handler) CreateTrimmingCourse(c *gin.Context) {
 		return
 	}
 
+	if !protectCourseImageBody(c, clinicID, h.courseImageDrafts, "image_object_key") {
+		return
+	}
 	var req createTrimmingCourseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
-	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	input := req.toServiceInput()
+	if req.ImageObjectKey != "" {
+		staffID, ok := httpapi.ExtractStaffID(c)
+		if !ok {
+			return
+		}
+		input.ActorStaffID = staffID
+	}
+	course, err := h.svc.TrimmingCourse.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/trimming-courses/%d", course.ID))
-	c.JSON(http.StatusCreated, toTrimmingCourseResponse(course))
+	c.JSON(http.StatusCreated, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, course))
 }
 
 // UpdateTrimmingCourse godoc
@@ -81,18 +99,49 @@ func (h *Handler) UpdateTrimmingCourse(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !protectCourseImageBody(c, clinicID, h.courseImageDrafts, "image_object_key") {
+		return
+	}
 	var req updateTrimmingCourseRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	// 原本参照の同一TX監査を残すため authenticated staff actor が必須
+	//（ExtractStaffID は失敗時に応答を書く）
+	staffID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
 
-	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorStaffID = staffID
+	course, err := h.svc.TrimmingCourse.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toTrimmingCourseResponse(course))
+	c.JSON(http.StatusOK, h.signedTrimmingCourseResponse(c.Request.Context(), clinicID, course))
+}
+
+// signedTrimmingCourseResponse adds a display-only signed URL for the stored
+// image key. Signing failures degrade to no URL (the key stays in the
+// response) so one image cannot hide the master list; the signed URL is never
+// persisted.
+func (h *Handler) signedTrimmingCourseResponse(ctx context.Context, clinicID uint64, course *model.TrimmingCourse) trimmingCourseResponse {
+	resp := toTrimmingCourseResponse(course)
+	if resp.ImageObjectKey == nil {
+		return resp
+	}
+	signed, err := h.signStoredTrimmingImageURL(ctx, clinicID, *resp.ImageObjectKey)
+	if err != nil {
+		slog.WarnContext(ctx, "trimming course image signing failed",
+			slog.String("error", err.Error()),
+			slog.Uint64("clinic_id", clinicID))
+		return resp
+	}
+	resp.ImageURL = &signed
+	return resp
 }
 
 // DeleteTrimmingCourse godoc

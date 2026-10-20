@@ -7,7 +7,7 @@
 | 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。死亡後の生前分後日入力・誤記訂正、および健診パッケージ設定／手入力・設定なし空欄の最新承認を反映。対象外の未決は保持 |
 | 実装状態 | 本文の現コード観察と目標契約を分離。コードに存在するだけでは業務承認済み・目標実装済みとしない |
 | 実機検証状態 | 今回未実施。既存証跡の引用は今回の実機受入を意味しない |
-| 文書確認日 | 2026-10-15 |
+| 文書確認日 | 2026-10-20 |
 
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
@@ -15,6 +15,8 @@
 [業務正本](../../../spec/domains/checkups/lifecycle.md)の5FR／36AC。基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。静的文書／source照合のみ、実装・DB・runtime未変更。[ADR004](../../../architecture/adr/004-checkup-canonical-system.md)とD03[型／writer](../medical-records/technical-spec.md#medical-record-reconciled-contract)を継承。
 
 ## 正系統・入口・権限
+
+入口・route・grantの以下の記載は現行観察を含む。目標は[健診FRとAC-quick-entry](../../../spec/domains/checkups/lifecycle.md#fr-checkups-record)のD03通常受付／理由・医師確認付き過去専用入力に従い、独立フォームの親自動createを受付迂回の例外・実装必須にしない。段階保存・結果不明の照合は既存の保護を維持する。
 Checkupのみが健診記録／集計／閾値の正系統。Examinationの退役seed IDを再利用しない。masterはcheckup_types／fields、実績はcheckups／field_resultsで医院scopeを保つ。
 - /checkups一覧はcheckups:view、独立select-pet/newはmedical-records:createかつedit。
 - 保存済み親に対するnested /medical-records/:id/checkupsのCRUDはmedical-recordsの操作grant。結果PUTはedit。package本体CRUD/reorderとfield read/writeはcheckupsの操作別grant。検査・ワクチンmasterのmaster-medicalと異なる。[現routes](../../../../backend/internal/medicalrecord/routes_masters.go)を正本とし、存在しない新grantを発明しない。
@@ -106,3 +108,10 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+<a id="plan-tab-link-design"></a>
+## 治療プラン連動の設計受け手（2026-10-20）
+
+業務目標は[D03共通FR／AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、本領域の[接続境界](../../../spec/domains/checkups/lifecycle.md#checkups-plan-tab-link)を参照する。Checkup系を唯一の健診正系統とし、パッケージ・型付き結果・保存時snapshot・次回予定の既決を維持する。予定追加だけで健診完了・結果生成・親カルテ自動作成へ進めず、Examinationへ同じ健診を二重保存しない。既存の通常受付・過去専用入力を迂回する新経路にしない。
+
+[D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。

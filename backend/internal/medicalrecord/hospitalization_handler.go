@@ -123,7 +123,7 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 	ctx := c.Request.Context()
 	hospitalization, err := h.service.Create(ctx, clinicID, svcInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondHospitalizationCageWriteError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", hospitalization.ID))
@@ -155,7 +155,7 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 	ctx := c.Request.Context()
 	hosp, err := h.service.Update(ctx, clinicID, id, &svcInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondHospitalizationCageWriteError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toHospitalizationResponse(hosp))
@@ -214,7 +214,7 @@ func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
 		c.Request.Context(), clinicID, req.HospitalizationIDs[0], req.HospitalizationIDs[1],
 		[2]uint64{req.ExpectedCageIDs[0], req.ExpectedCageIDs[1]})
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondHospitalizationCageWriteError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, CageSwapResponse{

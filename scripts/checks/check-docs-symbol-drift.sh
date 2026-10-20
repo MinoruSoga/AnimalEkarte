@@ -230,7 +230,7 @@ if [[ -d "$ROOT/backend/migrations" ]]; then
   awk '
     /^### 1\.1 / { in_domain_inventory = 1; next }
     /^## 2\./ { in_domain_inventory = 0 }
-    in_domain_inventory && /^\|[[:space:]]*\*\*/ { print }
+    in_domain_inventory && /^\|/ && /`/ { print }
   ' "$ROOT/docs/architecture/erd.md" \
     | grep -oE '`[a-z][a-z0-9_]*`' \
     | tr -d '`' \

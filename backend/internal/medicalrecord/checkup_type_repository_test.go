@@ -59,11 +59,11 @@ func TestCheckupTypeRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ctB := &model.CheckupType{ClinicID: clinicB, Name: "医院Bの健診", SortOrder: 1}
+	ctB := &model.CheckupType{ClinicID: clinicB, Name: "医院Bの健診", SortOrder: intPtr(1)}
 	require.NoError(t, db.WithContext(ctx).Create(ctB).Error)
-	ctSecond := &model.CheckupType{ClinicID: clinicA, Name: "Bタイプ", SortOrder: 2}
+	ctSecond := &model.CheckupType{ClinicID: clinicA, Name: "Bタイプ", SortOrder: intPtr(2)}
 	require.NoError(t, db.WithContext(ctx).Create(ctSecond).Error)
-	ctFirst := &model.CheckupType{ClinicID: clinicA, Name: "Aタイプ", SortOrder: 1}
+	ctFirst := &model.CheckupType{ClinicID: clinicA, Name: "Aタイプ", SortOrder: intPtr(1)}
 	require.NoError(t, db.WithContext(ctx).Create(ctFirst).Error)
 
 	got, err := repo.FindAll(ctx, clinicA)

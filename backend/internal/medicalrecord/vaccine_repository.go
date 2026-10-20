@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -59,8 +60,31 @@ func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 	return &vaccine, nil
 }
 
+// LockWriteRows locks all supplied master rows in a single global order. Writers
+// acquire these before any reference SHARE read, avoiding lock upgrades/inversions.
+func (r *vaccineRepository) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("vaccine write locks require transaction context")
+	}
+	ordered := append([]uint64(nil), ids...)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+	for i, id := range ordered {
+		if id == 0 {
+			return apperrors.WrapInvalidInput("vaccine ID must be positive")
+		}
+		if i > 0 && id == ordered[i-1] {
+			continue
+		}
+		var row model.Vaccine
+		if err := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"}).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&row).Error; err != nil {
+			return apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
+		}
+	}
+	return nil
+}
+
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
-	db := r.db.WithContext(ctx)
+	db := persistence.DBOrTx(ctx, r.db)
 	wantActive := vaccine.IsActive
 	if err := db.Create(vaccine).Error; err != nil {
 		return apperrors.FromGORM(err, "vaccine", "")
@@ -75,17 +99,38 @@ func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) 
 }
 
 func (r *vaccineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error) {
-	if err := r.update(ctx, clinicID, id, buildVaccineUpdate(&cmd)); err != nil {
-		return nil, err
+	if cmd.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput("version must be positive")
+	}
+	fields := buildVaccineUpdate(&cmd)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	result := persistence.DBOrTx(ctx, r.db).Model(&model.Vaccine{}).
+		Scopes(persistence.ClinicScope(clinicID)).Where("id = ? AND version = ?", id, cmd.Version).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict("ワクチンが更新されました。再読み込みして変更を確認してください")
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
-func (r *vaccineRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, id, fields)
-}
-
 func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return persistence.NewTransactor(r.db).WithTx(ctx, func(txCtx context.Context) error { return r.Delete(txCtx, clinicID, id) })
+	}
+	if err := r.LockWriteRows(ctx, clinicID, []uint64{id}); err != nil {
+		return err
+	}
+	// A separate statement after the lock wait observes committed references under
+	// READ COMMITTED; placing the lock and guard in one statement uses a stale snapshot.
+
 	result := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
@@ -132,7 +177,7 @@ func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []
 // CountUsageByVaccineID returns vaccination references (BUG-107).
 func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID, vaccineID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccination{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("vaccine_id = ? AND deleted_at IS NULL", vaccineID).
@@ -145,7 +190,7 @@ func (r *vaccineRepository) CountUsageByVaccineID(ctx context.Context, clinicID,
 // CountChildrenByParentID returns child vaccine count (BUG-390).
 func (r *vaccineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Vaccine{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).

@@ -22,12 +22,12 @@ func uniqueTreatmentNameErr(resource, constraint string) error {
 
 func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	t.Run("consultation", func(t *testing.T) {
-		svc := NewConsultationService(&mockConsultationRepository{
+		svc := NewConsultationServiceWithAudit(&mockConsultationRepository{
 			createFn: func(_ context.Context, _ *model.Consultation) error {
 				return uniqueTreatmentNameErr("consultation", apperrors.ConstraintConsultationName)
 			},
-		})
-		got, err := svc.Create(context.Background(), 1, &CreateConsultationInput{Name: "V04診察"})
+		}, masterTestWriteDependencies())
+		got, err := svc.Create(context.Background(), 1, &CreateConsultationInput{ActorID: masterTestActorID(), Name: "V04診察"})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeConsultationNameConflict))
@@ -53,12 +53,12 @@ func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	})
 
 	t.Run("procedure", func(t *testing.T) {
-		svc := NewProcedureService(&mockProcedureRepository{
+		svc := NewProcedureServiceWithAudit(&mockProcedureRepository{
 			createFn: func(_ context.Context, _ *model.Procedure) error {
 				return uniqueTreatmentNameErr("procedure", apperrors.ConstraintProcedureName)
 			},
-		}, &mockTransactor{})
-		got, err := svc.Create(context.Background(), 1, &CreateProcedureInput{Name: "V04処置"})
+		}, masterTestWriteDependencies())
+		got, err := svc.Create(context.Background(), 1, &CreateProcedureInput{ActorID: masterTestActorID(), Name: "V04処置"})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeProcedureNameConflict))
@@ -68,12 +68,12 @@ func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	})
 
 	t.Run("vaccine", func(t *testing.T) {
-		svc := NewVaccineService(&mockVaccineRepository{
+		svc := NewVaccineServiceWithAudit(&mockVaccineRepository{
 			createFn: func(_ context.Context, _ *model.Vaccine) error {
 				return uniqueTreatmentNameErr("vaccine", apperrors.ConstraintVaccineName)
 			},
-		})
-		got, err := svc.Create(context.Background(), 1, &CreateVaccineInput{Name: "V04予防接種"})
+		}, masterTestWriteDependencies())
+		got, err := svc.Create(context.Background(), 1, &CreateVaccineInput{ActorID: masterTestActorID(), Name: "V04予防接種"})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeVaccineNameConflict))
@@ -83,12 +83,12 @@ func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	})
 
 	t.Run("checkup_type", func(t *testing.T) {
-		svc := NewCheckupTypeService(&mockCheckupTypeRepository{
+		svc := newTestCheckupTypeService(&mockCheckupTypeRepository{
 			createFn: func(_ context.Context, _ *model.CheckupType) error {
 				return uniqueTreatmentNameErr("checkup_type", apperrors.ConstraintCheckupTypeName)
 			},
 		})
-		got, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "V04定期健診"})
+		got, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "V04定期健診", ActorID: &testCheckupTypeActorID})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeCheckupTypeNameConflict))
@@ -100,16 +100,16 @@ func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 
 func TestConsultationService_Update_NameConflictMapsDomainCode(t *testing.T) {
 	name := "V04診察"
-	svc := NewConsultationService(&mockConsultationRepository{
+	svc := NewConsultationServiceWithAudit(&mockConsultationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Consultation, error) {
 			return &model.Consultation{ID: id, ClinicID: 1, Name: "旧"}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateConsultationInput) (*model.Consultation, error) {
 			return nil, uniqueTreatmentNameErr("consultation", apperrors.ConstraintConsultationName)
 		},
-	})
+	}, masterTestWriteDependencies())
 
-	got, err := svc.Update(context.Background(), 1, 1, &UpdateConsultationInput{Name: &name})
+	got, err := svc.Update(context.Background(), 1, 1, &UpdateConsultationInput{Version: 1, ActorID: masterTestActorID(), Name: &name})
 	require.Error(t, err)
 	assert.Nil(t, got)
 	assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeConsultationNameConflict))
@@ -119,12 +119,12 @@ func TestConsultationService_Update_NameConflictMapsDomainCode(t *testing.T) {
 }
 
 func TestConsultationService_Create_GenericAlreadyExistsNotElevated(t *testing.T) {
-	svc := NewConsultationService(&mockConsultationRepository{
+	svc := NewConsultationServiceWithAudit(&mockConsultationRepository{
 		createFn: func(_ context.Context, _ *model.Consultation) error {
 			return apperrors.WrapAlreadyExists("consultation", "")
 		},
-	})
-	_, err := svc.Create(context.Background(), 1, &CreateConsultationInput{Name: "X"})
+	}, masterTestWriteDependencies())
+	_, err := svc.Create(context.Background(), 1, &CreateConsultationInput{ActorID: masterTestActorID(), Name: "X"})
 	require.Error(t, err)
 	assert.False(t, apperrors.IsNameConflict(err, apperrors.CodeConsultationNameConflict))
 	assert.True(t, apperrors.IsAlreadyExists(err))

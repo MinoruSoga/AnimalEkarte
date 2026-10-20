@@ -137,14 +137,14 @@ func TestVaccineRepository_Update(t *testing.T) {
 
 	t.Run("同一医院では Update が反映される", func(t *testing.T) {
 		name := "更新後ワクチン"
-		got, err := repo.Update(ctx, clinicA, v.ID, UpdateVaccineInput{Name: &name})
+		got, err := repo.Update(ctx, clinicA, v.ID, UpdateVaccineInput{Version: 1, Name: &name})
 		require.NoError(t, err)
 		assert.Equal(t, "更新後ワクチン", got.Name)
 	})
 
 	t.Run("別医院からの Update は NotFound", func(t *testing.T) {
 		name := "改ざん試行"
-		_, err := repo.Update(ctx, clinicB, v.ID, UpdateVaccineInput{Name: &name})
+		_, err := repo.Update(ctx, clinicB, v.ID, UpdateVaccineInput{Version: 1, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
@@ -155,7 +155,7 @@ func TestVaccineRepository_Update(t *testing.T) {
 
 	t.Run("存在しない ID の Update は NotFound", func(t *testing.T) {
 		name := "x"
-		_, err := repo.Update(ctx, clinicA, 999999, UpdateVaccineInput{Name: &name})
+		_, err := repo.Update(ctx, clinicA, 999999, UpdateVaccineInput{Version: 1, Name: &name})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -295,5 +295,47 @@ func TestVaccineRepository_CountChildrenByParentID(t *testing.T) {
 		count, err := repo.CountChildrenByParentID(ctx, clinicA, leaf.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
+	})
+}
+
+// EMR-455: 旧欠落(NULL)の保険設定は名称だけの再編集で補完されず、明示値は往復保持される。
+func TestVaccineRepository_IsNonInsurance_RoundTripAndLegacyNull(t *testing.T) {
+	db := setupVaccineRepositoryTestDB(t)
+	repo := NewVaccineRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	legacy := makeVaccineMaster(t, db, clinicA, "旧欠落ワクチン")
+	require.NoError(t, db.Model(&model.Vaccine{}).Where("id = ?", legacy.ID).
+		Update("is_non_insurance", gorm.Expr("NULL")).Error)
+
+	t.Run("名称だけの更新は NULL を維持する", func(t *testing.T) {
+		name := "旧欠落ワクチン改"
+		got, err := repo.Update(ctx, clinicA, legacy.ID, UpdateVaccineInput{Version: 1, Name: &name})
+		require.NoError(t, err)
+		assert.Nil(t, got.IsNonInsurance, "旧欠落値を推測補完してはならない")
+	})
+
+	t.Run("明示 false/true を保存し再読込で一致する", func(t *testing.T) {
+		for _, want := range []bool{false, true} {
+			value := want
+			_, err := repo.Update(ctx, clinicA, legacy.ID, UpdateVaccineInput{Version: 1, IsNonInsurance: &value})
+			require.NoError(t, err)
+			got, err := repo.FindByID(ctx, clinicA, legacy.ID)
+			require.NoError(t, err)
+			require.NotNil(t, got.IsNonInsurance)
+			assert.Equal(t, want, *got.IsNonInsurance)
+		}
+	})
+
+	t.Run("別医院からの保険設定変更は NotFound で値を変えない", func(t *testing.T) {
+		value := false
+		_, err := repo.Update(ctx, clinicB, legacy.ID, UpdateVaccineInput{Version: 1, IsNonInsurance: &value})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+		got, err := repo.FindByID(ctx, clinicA, legacy.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.IsNonInsurance)
+		assert.True(t, *got.IsNonInsurance)
 	})
 }

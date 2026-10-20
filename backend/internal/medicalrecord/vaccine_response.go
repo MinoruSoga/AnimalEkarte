@@ -8,6 +8,7 @@ import (
 )
 
 type vaccineResponse struct {
+	Version     int64                 `json:"version"`
 	ID          uint64                `json:"id"`
 	ClinicID    uint64                `json:"clinic_id"`
 	Name        string                `json:"name"`
@@ -19,24 +20,36 @@ type vaccineResponse struct {
 	InventoryID *uint64               `json:"inventory_id,omitempty"`
 	ParentID    *uint64               `json:"parent_id,omitempty"`
 	SortOrder   int                   `json:"sort_order"`
-	CreatedAt   time.Time             `json:"created_at"`
-	UpdatedAt   time.Time             `json:"updated_at"`
+	// IsNonInsurance は null=未保存/旧欠落、true=対象外、false=対象。欠落を false へ補完しない。
+	IsNonInsurance *bool     `json:"is_non_insurance"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func toVaccineResponse(v *model.Vaccine) vaccineResponse {
 	return vaccineResponse{
-		ID:          v.ID,
-		ClinicID:    v.ClinicID,
-		Name:        v.Name,
-		Price:       v.Price,
-		IsActive:    v.IsActive,
-		Description: v.Description,
-		Species:     v.Species,
-		Interval:    v.Interval,
-		InventoryID: v.InventoryID,
-		ParentID:    v.ParentID,
-		SortOrder:   v.SortOrder,
-		CreatedAt:   httpapi.LocalTime(v.CreatedAt),
-		UpdatedAt:   httpapi.LocalTime(v.UpdatedAt),
+		Version:        v.Version,
+		ID:             v.ID,
+		ClinicID:       v.ClinicID,
+		Name:           v.Name,
+		Price:          v.Price,
+		IsActive:       v.IsActive,
+		Description:    v.Description,
+		Species:        v.Species,
+		Interval:       v.Interval,
+		InventoryID:    v.InventoryID,
+		ParentID:       v.ParentID,
+		SortOrder:      vaccineSortOrderValue(v.SortOrder),
+		IsNonInsurance: v.IsNonInsurance,
+		CreatedAt:      httpapi.LocalTime(v.CreatedAt),
+		UpdatedAt:      httpapi.LocalTime(v.UpdatedAt),
 	}
+}
+
+// vaccineSortOrderValue は nullable な保存列 sort_order を wire の int へ写す（NULL=0。DB default 0 と同値）。
+func vaccineSortOrderValue(sortOrder *int) int {
+	if sortOrder == nil {
+		return 0
+	}
+	return *sortOrder
 }

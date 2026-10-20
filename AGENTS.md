@@ -20,7 +20,7 @@ If a specification unknown blocks the current unit, ask before executing that un
 - Never expose secrets, tokens, credentials, private data, or operationally sensitive details.
 - After pulling a commit that adds or changes migrations, developers must run `make migrate` before using the updated app.
 - Agents must not auto-apply migrations; when the post-pull rule applies, surface `make migrate` for the user to run manually.
-- Spec Kit: for feature-change requests without a `docs/work/spec-kit/<feature>/spec.md`, route through `$speckit-specify` → `$speckit-clarify` first. See `.claude/CLAUDE.md` § Spec Kit routing and `docs/ops/spec-kit.md`.
+- Spec Kit: for feature-change requests without a `docs/work/spec-kit/<feature>/spec.md`, route through `$speckit-specify` → `$speckit-clarify` first. Canonical business specs stay in `docs/spec/` (per-domain `domains/`); `docs/work/spec-kit/` artifacts are change-request indexes referencing canonical FR-IDs, not copies of spec bodies. See `.claude/CLAUDE.md` § Spec Kit routing and `docs/ops/spec-kit.md`.
 
 ## Git / Parallel Agent Safety (Mandatory)
 

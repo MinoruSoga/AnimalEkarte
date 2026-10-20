@@ -29,11 +29,25 @@ type CageRepository interface {
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 }
 
-type cageRepositoryImpl struct{ db *gorm.DB }
+type cageRepositoryImpl struct {
+	db            *gorm.DB
+	stayOccupancy StayCageEffectiveStateReader
+}
 
 // New constructs a Repository.
 func NewCageRepository(db *gorm.DB) CageRepository {
-	return &cageRepositoryImpl{db: db}
+	return NewCageRepositoryWithStayOccupancyReader(db, nil)
+}
+
+// NewCageRepositoryWithStayOccupancyReader connects the one EMR-499 lifecycle
+// core. Without it, occupancy reads and allocation checks fail closed; the old
+// constructor never falls back to the removed hospitalization status column.
+func NewCageRepositoryWithStayOccupancyReader(db *gorm.DB, reader StayCageEffectiveStateReader) CageRepository {
+	return &cageRepositoryImpl{db: db, stayOccupancy: reader}
+}
+
+func (r *cageRepositoryImpl) WithCageOccupancyReadSnapshot(ctx context.Context, read func(context.Context) error) error {
+	return withCageOccupancyReadSnapshot(ctx, r.db, read)
 }
 
 func (r *cageRepositoryImpl) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
@@ -167,12 +181,19 @@ type CageMergeRepository interface {
 	// CountMergedMembers は merged_into_cage_id が representativeIDs に含まれる
 	// ケージ数を代表 id ごとに集計して返す（代表がグループを率いているかの判定）。
 	CountMergedMembers(ctx context.Context, clinicID uint64, representativeIDs []uint64) (map[uint64]int64, error)
-	// CountOccupiedCages は未削除の admitted/reserved 入院をケージ id ごとに集計する。
+	// CountOccupiedCages は499の有効状態がreserved/admittedの未削除割当を集計する。
 	// CountUsageByCageID（退院済みも数える）とは別の、連結可否専用の占有判定。
 	CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error)
-	// ListOccupiedCageIDs は未削除の admitted/reserved 入院が1件以上乗っている
+	// ListOccupiedCageIDs は499の有効占有が1件以上乗っている
 	// ケージ id を全件返す（連結ピッカーの占有表示専用。ページングなし）。
 	ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error)
+	// CountOccupiedCagesExcludingHospitalizations は CountOccupiedCages と同じ占有集計から
+	// excludeHospitalizationIDs の入院行だけを除外する（EMR-461: 同一 tx で移動・解放される
+	// 更新対象/交換当事者の占有を、他滞在の占有と誤認しないため）。空なら除外しない。
+	CountOccupiedCagesExcludingHospitalizations(ctx context.Context, clinicID uint64, cageIDs, excludeHospitalizationIDs []uint64) (map[uint64]int64, error)
+	// ListOccupiedCageIDsExcludingHospitalization は ListOccupiedCageIDs と同じ占有集合から
+	// excludeHospitalizationID の入院行だけを除外する（EMR-461 入院フォームの空き候補 read）。
+	ListOccupiedCageIDsExcludingHospitalization(ctx context.Context, clinicID uint64, excludeHospitalizationID *uint64) ([]uint64, error)
 	// SetMergedInto は memberIDs の merged_into_cage_id に representativeID を設定する。
 	SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error
 	// ClearMergedInto は representativeID を代表とする全構成ケージの
@@ -266,48 +287,68 @@ func (r *cageRepositoryImpl) LockCageGroupForUpdate(ctx context.Context, clinicI
 }
 
 func (r *cageRepositoryImpl) CountOccupiedCages(ctx context.Context, clinicID uint64, cageIDs []uint64) (map[uint64]int64, error) {
-	counts := make(map[uint64]int64, len(cageIDs))
+	return r.CountOccupiedCagesExcludingHospitalizations(ctx, clinicID, cageIDs, nil)
+}
+
+func (r *cageRepositoryImpl) CountOccupiedCagesExcludingHospitalizations(ctx context.Context, clinicID uint64, cageIDs, excludeHospitalizationIDs []uint64) (map[uint64]int64, error) {
 	if len(cageIDs) == 0 {
-		return counts, nil
+		return map[uint64]int64{}, nil
 	}
-	var rows []struct {
-		CageID uint64 `gorm:"column:cage_id"`
-		N      int64  `gorm:"column:n"`
+	return r.readEffectiveCageOccupancy(ctx, clinicID, cageIDs, excludeHospitalizationIDs)
+}
+
+func (r *cageRepositoryImpl) ListOccupiedCageIDsExcludingHospitalization(ctx context.Context, clinicID uint64, excludeHospitalizationID *uint64) ([]uint64, error) {
+	var excluded []uint64
+	if excludeHospitalizationID != nil {
+		excluded = []uint64{*excludeHospitalizationID}
 	}
-	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Select("cage_id, COUNT(*) AS n").
-		Where("cage_id IN ?", cageIDs).
-		Where("deleted_at IS NULL").
-		Where("status IN ?", []string{
-			string(model.HospitalizationStatusAdmitted),
-			string(model.HospitalizationStatusReserved),
-		}).
-		Group("cage_id").
-		Scan(&rows).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "hospitalization", "")
+	counts, err := r.readEffectiveCageOccupancy(ctx, clinicID, nil, excluded)
+	if err != nil {
+		return nil, err
 	}
-	for _, row := range rows {
-		counts[row.CageID] = row.N
+	ids := make([]uint64, 0, len(counts))
+	for id := range counts {
+		ids = append(ids, id)
 	}
-	return counts, nil
+	slices.Sort(ids)
+	return ids, nil
 }
 
 func (r *cageRepositoryImpl) ListOccupiedCageIDs(ctx context.Context, clinicID uint64) ([]uint64, error) {
-	var ids []uint64
-	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
+	return r.ListOccupiedCageIDsExcludingHospitalization(ctx, clinicID, nil)
+}
+
+// ReadEffectiveStatesForCageAssignment exposes the same core to the subject
+// eligibility guard. It retains the save caller's ambient transaction.
+func (r *cageRepositoryImpl) ReadEffectiveStatesForCageAssignment(ctx context.Context, clinicID uint64, stayCaseIDs []uint64) ([]StayCageEffectiveState, error) {
+	if r.stayOccupancy == nil {
+		return nil, apperrors.WrapInternalServerError("stay effective-state reader dependency is required")
+	}
+	return r.stayOccupancy.ReadEffectiveStatesForCageAssignment(ctx, clinicID, stayCaseIDs)
+}
+
+// The physical assignment remains on hospitalizations.cage_id. Effective
+// occupancy is exclusively the 499 core's decision for the linked stay case.
+// All reads use DBOrTx: save-time calls participate in the caller's transaction.
+func (r *cageRepositoryImpl) readEffectiveCageOccupancy(ctx context.Context, clinicID uint64, cageIDs, excluded []uint64) (map[uint64]int64, error) {
+	if r.stayOccupancy == nil {
+		return nil, apperrors.WrapServiceUnavailable("stay effective-state reader is not configured")
+	}
+	var assignments []stayCageAssignment
+	q := persistence.DBOrTx(ctx, r.db).Model(&model.Hospitalization{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Distinct().
-		Where("cage_id IS NOT NULL").
-		Where("deleted_at IS NULL").
-		Where("status IN ?", []string{
-			string(model.HospitalizationStatusAdmitted),
-			string(model.HospitalizationStatusReserved),
-		}).
-		Pluck("cage_id", &ids).Error; err != nil {
+		Select("id AS hospitalization_id, clinic_id, stay_case_id, cage_id").
+		Where("cage_id IS NOT NULL AND deleted_at IS NULL")
+	if len(cageIDs) > 0 {
+		q = q.Where("cage_id IN ?", cageIDs)
+	}
+	if len(excluded) > 0 {
+		q = q.Where("id NOT IN ?", excluded)
+	}
+	if err := q.Order("id ASC").Scan(&assignments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", "")
 	}
-	return ids, nil
+	return countEffectiveStayCages(ctx, clinicID, assignments, excluded, r.stayOccupancy)
 }
 
 func (r *cageRepositoryImpl) SetMergedInto(ctx context.Context, clinicID, representativeID uint64, memberIDs []uint64) error {

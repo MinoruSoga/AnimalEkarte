@@ -303,7 +303,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 |---|---|---|
 | `button-primary` | bg `action-primary-solid`（**`#027078`**、white-on 5.85:1 ✅）、text `{colors.on-primary}`、`{typography.button}`、`{rounded.full}` pill | `C.bgActionPrimarySolid` — `SubmitButton` / `PrimaryButton` — `colorVariant="primary"`（既定）。§2 決裁により塗りは Solid 系に統一（`#038B94` は 4.10:1 で AA 非達のため装飾専用） |
 | `button-primary-pressed` | bg `action-primary-solid-active`（`#025F66`）、text `{colors.on-primary-active}`（`#FFFFFF`） | `C.activeBgActionPrimarySolid` / `C.activeTextOnActionPrimary` ✅ |
-| `button-brand` | bg `brand-identity-solid`（**`#027078`**、white-on 5.85:1 ✅）、hover/pressed `#025F66`（`*BrandIdentitySolid` 系）。`{colors.brand}`（`#038B94`）は 4.10:1 で AA 非達のため塗りに使わず、ロゴ・装飾・focus ring 専用 | `C.bgBrandIdentitySolid` — `SubmitButton` brand 分岐 — 認証などで `colorVariant="brand"` を明示（design-states §2.3 決裁） |
+| `button-brand` | bg `brand-identity-solid`（**`#027078`**、white-on 5.85:1 ✅）、hover/pressed `#025F66`（`C.hoverBgBrandIdentitySolid` / `C.activeBgBrandIdentitySolid`）。`{colors.brand}`（`#038B94`）は 4.10:1 で AA 非達のため塗りに使わず、ロゴ・装飾・focus ring 専用 | `C.bgBrandIdentitySolid` — `SubmitButton` brand 分岐 — 認証などで `colorVariant="brand"` を明示（design-states §2.3 決裁） |
 | `button-secondary` | white surface、`{colors.ink}`、pill、Level-1 shadow | 二次 CTA |
 | `button-utility` | white surface、`{rounded.md}`、4px 14px padding、hairline border | ナビ / ユーティリティ操作 |
 

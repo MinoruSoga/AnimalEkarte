@@ -3,6 +3,8 @@ import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 export interface TreatmentTabConfig {
+  /** Enabled with the corresponding nullable-insurance consumer. */
+  insuranceTriState?: boolean;
   data: TreatmentItem[] | undefined;
   entityLabel: string;
   emptyMessage: string;

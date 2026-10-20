@@ -39,3 +39,7 @@
 | attach／device detach／fixture revert | 患者への明示紐付け、安全条件を満たす解除、fixture終端処理という別操作 | AC-examinations-attach／AC-examinations-detach／AC-examinations-detach-used／AC-examinations-receive-duplicate／AC-examinations-result-unknown。参照/確定/手修正等の使用中保護を迂回せず原指紋を保持 |
 
 機器のorigin排他は受信ポートの保護であり、通常カルテの編集権ではない。受信日時は検査日時と別。既存NX600/AU10Vの日常経路の定義を、新機器/新接続方式の運用承認へ拡張しない。D09健診はpackage/typed field/result setと保存時snapshotを持つ別ownerで、package改定による過去結果/次回日自動再計算をしない。[FR-checkups-canonical](../domains/checkups/lifecycle.md#fr-checkups-canonical)、FR-checkups-results／FR-checkups-record、AC-checkups-value-types／AC-checkups-replace-missing／AC-checkups-replace-empty／AC-checkups-master-change／AC-checkups-next-history-preservedを参照し、0/falseと未入力、意図的空配列と未送信/nullを区別する。
+
+## 治療プラン予定から結果への対応（2026-10-20）
+
+[3タブの予定概念](medical-records.md#plan-domain-tab-concept)と[D03共通FR／AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)へ接続する。検査・接種・健診の予定表示は各結果／実績正本の複製ではない。検査の機器受信／手入力結果も同じ元予定との対応を辿り、結果待ちを未実施・陰性・確定に読み替えない。受信ジョブと予定、パネル／結果版の多重度は一律1対1へ固定せず設計で整理する。接種・健診は各ownerに残す。

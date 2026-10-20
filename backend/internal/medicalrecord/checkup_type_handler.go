@@ -65,6 +65,10 @@ func (h *CheckupTypeHandler) CreateCheckupType(c *gin.Context) {
 	if !ok {
 		return
 	}
+	// EMR-456: 保険設定を含む master 変更は選択医院の現在 grant をサーバー側で再検査する。
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "create") {
+		return
+	}
 
 	var req createCheckupTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,7 +76,9 @@ func (h *CheckupTypeHandler) CreateCheckupType(c *gin.Context) {
 		return
 	}
 
-	checkupType, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorID = httpapi.OptionalStaffID(c)
+	checkupType, err := h.service.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
@@ -87,6 +93,9 @@ func (h *CheckupTypeHandler) UpdateCheckupType(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceCheckups), "edit") {
+		return
+	}
 	id, ok := httpapi.ParseIDParam(c, "id")
 	if !ok {
 		return
@@ -97,7 +106,9 @@ func (h *CheckupTypeHandler) UpdateCheckupType(c *gin.Context) {
 		return
 	}
 
-	checkupType, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	input := req.toServiceInput()
+	input.ActorID = httpapi.OptionalStaffID(c)
+	checkupType, err := h.service.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return

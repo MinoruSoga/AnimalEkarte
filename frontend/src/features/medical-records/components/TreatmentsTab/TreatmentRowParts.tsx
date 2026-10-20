@@ -60,7 +60,7 @@ export function TreatmentTypeCell({ itemType }: TreatmentTypeCellProps) {
 }
 
 interface TreatmentInsuranceCellProps {
-  checked: boolean;
+  checked: boolean | null;
   onChange: (checked: boolean | "indeterminate") => void;
 }
 
@@ -69,11 +69,12 @@ export function TreatmentInsuranceCell({ checked, onChange }: TreatmentInsurance
     <TableCell className="w-16 text-center">
       <Checkbox
         touchTarget
-        checked={checked}
+        checked={checked ?? "indeterminate"}
         onCheckedChange={onChange}
         aria-label="保険適用"
         className="-my-3"
       />
+      {checked === null ? <span className="text-xs">未設定</span> : null}
       {checked ? <Shield className={`${ICON.xs} mt-0.5 mx-auto ${C.textStatusGreen}`} /> : null}
     </TableCell>
   );

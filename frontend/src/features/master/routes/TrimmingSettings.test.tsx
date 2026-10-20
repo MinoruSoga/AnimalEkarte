@@ -153,6 +153,13 @@ function courseForm(overrides: Partial<CourseFormData> = {}): CourseFormData {
     duration: "90",
     description: "",
     isActive: true,
+    shortName: "",
+    allowedWeekdays: [],
+    imageObjectKey: "",
+    imagePreviewUrl: "",
+    imageChanged: false,
+    shortNameChanged: false,
+    weekdaysChanged: false,
     ...overrides,
   };
 }

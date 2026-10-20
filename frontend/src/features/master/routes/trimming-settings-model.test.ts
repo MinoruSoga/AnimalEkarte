@@ -23,6 +23,13 @@ function makeCourseForm(overrides: Partial<CourseFormData> = {}): CourseFormData
     duration: "60",
     description: "",
     isActive: true,
+    shortName: "",
+    allowedWeekdays: [],
+    imageObjectKey: "",
+    imagePreviewUrl: "",
+    imageChanged: false,
+    shortNameChanged: false,
+    weekdaysChanged: false,
     ...overrides,
   };
 }
@@ -112,5 +119,97 @@ describe("trimming form reread", () => {
       isActive: true,
     } as TrimmingOption);
     expect(nullOption.price).toBe("");
+  });
+});
+
+// EMR-457: 短縮名・画像・曜日（利用医院は既存の医院 scope）
+describe("trimming course attributes", () => {
+  it("omits unregistered optional attributes on create", () => {
+    const request = buildTrimmingCourseCreateRequest(makeCourseForm());
+    expect(request.short_name).toBeUndefined();
+    expect(request.image_object_key).toBeUndefined();
+    expect(request.allowed_weekdays).toBeUndefined();
+  });
+
+  it("sends trimmed short name, sorted weekdays and uploaded key on create", () => {
+    const request = buildTrimmingCourseCreateRequest(
+      makeCourseForm({
+        shortName: "  シャン ",
+        allowedWeekdays: [6, 1],
+        imageObjectKey: "trimming-images/1/a.jpg",
+        imageChanged: true,
+      }),
+    );
+    expect(request.short_name).toBe("シャン");
+    expect(request.allowed_weekdays).toEqual([1, 6]);
+    expect(request.image_object_key).toBe("trimming-images/1/a.jpg");
+  });
+
+  it("keeps unedited attributes on update even if the form started without them", () => {
+    // 例: 属性を持たない形で読まれた item から価格だけ編集しても NULL 化しない
+    const form = trimmingCourseToFormData({
+      id: "1",
+      name: "カット",
+      price: 1000,
+    } as TrimmingCourse);
+    const request = buildTrimmingCourseUpdateRequest({ ...form, price: "1500" });
+    expect(request.price).toBe(1500);
+    expect("short_name" in request).toBe(false);
+    expect("allowed_weekdays" in request).toBe(false);
+    expect("image_object_key" in request).toBe(false);
+  });
+
+  it("clears edited short name and weekdays explicitly on update", () => {
+    const request = buildTrimmingCourseUpdateRequest(
+      makeCourseForm({ shortNameChanged: true, weekdaysChanged: true }),
+    );
+    expect(request.short_name).toBe("");
+    expect(request.allowed_weekdays).toEqual([]);
+  });
+
+  it("omits an unchanged image on update and sends an empty key for removal", () => {
+    const unchanged = buildTrimmingCourseUpdateRequest(
+      makeCourseForm({ imageObjectKey: "trimming-images/1/a.jpg" }),
+    );
+    expect("image_object_key" in unchanged).toBe(false);
+
+    const removed = buildTrimmingCourseUpdateRequest(
+      makeCourseForm({ imageObjectKey: "", imageChanged: true }),
+    );
+    expect(removed.image_object_key).toBe("");
+  });
+
+  it("rereads stored attributes into the form", () => {
+    const form = trimmingCourseToFormData({
+      id: "1",
+      name: "カット",
+      price: null,
+      targetSize: null,
+      courseTypeId: null,
+      duration: 60,
+      description: "",
+      isActive: false,
+      shortName: "カ",
+      allowedWeekdays: [0, 6],
+      imageObjectKey: "trimming-images/1/a.jpg",
+      imageUrl: "https://signed.example/a.jpg",
+    } as TrimmingCourse);
+    expect(form.shortName).toBe("カ");
+    expect(form.allowedWeekdays).toEqual([0, 6]);
+    expect(form.imageObjectKey).toBe("trimming-images/1/a.jpg");
+    expect(form.imagePreviewUrl).toBe("https://signed.example/a.jpg");
+    expect(form.imageChanged).toBe(false);
+
+    const empty = trimmingCourseToFormData({
+      id: "2",
+      name: "B",
+      shortName: null,
+      allowedWeekdays: null,
+      imageObjectKey: null,
+      imageUrl: null,
+    } as TrimmingCourse);
+    expect(empty.shortName).toBe("");
+    expect(empty.allowedWeekdays).toEqual([]);
+    expect(empty.imageObjectKey).toBe("");
   });
 });

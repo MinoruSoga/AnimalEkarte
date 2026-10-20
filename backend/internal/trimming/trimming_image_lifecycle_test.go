@@ -231,20 +231,15 @@ func TestImageLifecycle_RollbackAndRetry(t *testing.T) {
 	}
 }
 
-func TestImageLifecycle_DeletionRetryIgnoresRetiredDetailReference(t *testing.T) {
+func TestImageLifecycle_DeletionRetryPreservesRetiredDetailReference(t *testing.T) {
 	f := newImageLifecycleFake()
 	s := lifecycleService(f)
 	key := ImageKey{clinicID: 1, value: "trimming-images/1/style.jpg"}
-	// DELETE's detail row survives appointment soft-delete. Initial cleanup
-	// excludes that retired row, but the standalone orphan retry has no ID.
 	f.refs[key] = map[uint64]bool{7: true}
-	reserved, err := s.ReserveImageDeletion(context.Background(), 1, key.value, 7, 42)
+	reserved, err := s.ReserveImageDeletion(t.Context(), 1, key.value, 7, 42)
 	require.NoError(t, err)
-	require.True(t, reserved)
-	reserved, err = s.ReserveImageDeletion(context.Background(), 1, key.value, 0, 43)
-	require.NoError(t, err)
-	assert.True(t, reserved, "committed reservation must allow storage retry")
-	assert.True(t, f.deleted[key])
+	assert.False(t, reserved)
+	assert.False(t, f.deleted[key])
 }
 
 func TestImageLifecycle_ScopeSortedLocksAndMissingCapability(t *testing.T) {
@@ -323,3 +318,9 @@ func TestDeleteWithImages_UsesLockedSnapshotAndDiscardsOnRollback(t *testing.T) 
 		})
 	}
 }
+
+// These lifecycle fakes represent positively proven unsubmitted work copies.
+func (f *imageLifecycleFake) CourseImageDiscardEligible(context.Context, ImageKey, uint64) (bool, error) {
+	return true, nil
+}
+func (f *imageLifecycleFake) ProtectCourseImageReference(context.Context, ImageKey) error { return nil }

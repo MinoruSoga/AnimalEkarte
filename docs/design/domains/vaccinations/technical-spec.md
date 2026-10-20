@@ -172,3 +172,10 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+<a id="plan-tab-link-design"></a>
+## 治療プラン連動の設計受け手（2026-10-20）
+
+業務目標は[D03共通FR／AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、本領域の[接続境界](../../../spec/domains/vaccinations/lifecycle.md#vaccinations-plan-tab-link)を参照する。一接種一記録、実接種日・lot・種類別設定／手入力の次回日と訂正履歴を維持する。治療プランの予定と接種済み実績を識別し、予定追加を接種記録作成・次回日の生成・証明書発行へ変換しない。既存の保存済み履歴を今回予定に名称一致で付け替えない。
+
+[D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。

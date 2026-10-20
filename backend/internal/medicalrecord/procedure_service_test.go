@@ -14,6 +14,8 @@ import (
 // ---- Procedure モック ----
 
 type mockProcedureRepository struct {
+	lockWriteRowsFn           func(context.Context, uint64, []uint64) error
+	created                   *model.Procedure
 	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
 	createFn                  func(ctx context.Context, procedure *model.Procedure) error
@@ -29,11 +31,20 @@ func (m *mockProcedureRepository) FindAll(ctx context.Context, clinicID uint64) 
 }
 
 func (m *mockProcedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	if m.created != nil && m.created.ID == id {
+		copied := *m.created
+		return &copied, nil
+	}
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
 func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {
-	return m.createFn(ctx, procedure)
+	if err := m.createFn(ctx, procedure); err != nil {
+		return err
+	}
+	copied := *procedure
+	m.created = &copied
+	return nil
 }
 
 func (m *mockProcedureRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateProcedureInput) (*model.Procedure, error) {
@@ -86,12 +97,12 @@ func TestBuildProcedureUpdate(t *testing.T) {
 	}{
 		{
 			name:       "empty input produces empty fields",
-			input:      &UpdateProcedureInput{},
+			input:      &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID()},
 			wantFields: map[string]any{},
 		},
 		{
 			name: "all fields set produces full field map",
-			input: &UpdateProcedureInput{
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name:        &name,
 				Price:       &price,
 				IsActive:    &isActive,
@@ -118,7 +129,7 @@ func TestBuildProcedureUpdate(t *testing.T) {
 		},
 		{
 			name: "ClearParentID clears parent_id to nil",
-			input: &UpdateProcedureInput{
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				ClearParentID: true,
 			},
 			wantFields: map[string]any{
@@ -127,10 +138,24 @@ func TestBuildProcedureUpdate(t *testing.T) {
 		},
 		{
 			name: "only name set produces single field",
-			input: &UpdateProcedureInput{
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			wantFields: map[string]any{colProcedureName: name},
+		},
+		{
+			name: "explicit insurance-eligible is_non_insurance",
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
+				IsNonInsurance: boolPtr(false),
+			},
+			wantFields: map[string]any{colProcedureIsNonInsurance: false},
+		},
+		{
+			name: "explicit non-insurance is_non_insurance",
+			input: &UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
+				IsNonInsurance: boolPtr(true),
+			},
+			wantFields: map[string]any{colProcedureIsNonInsurance: true},
 		},
 	}
 
@@ -183,7 +208,7 @@ func TestProcedureService_List(t *testing.T) {
 					return tt.repoProcedures, tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo, &mockTransactor{})
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 
 			procedures, err := svc.List(context.Background(), 1)
 
@@ -232,7 +257,7 @@ func TestProcedureService_GetByID(t *testing.T) {
 					return tt.repoProcedure, tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo, &mockTransactor{})
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 
 			procedure, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -257,7 +282,7 @@ func TestProcedureService_Create(t *testing.T) {
 	}{
 		{
 			name: "creates procedure successfully",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name:     "New Procedure",
 				IsActive: true,
 			},
@@ -266,7 +291,7 @@ func TestProcedureService_Create(t *testing.T) {
 		},
 		{
 			name: "creates procedure with tax defaults applied",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name: "Default Tax Procedure",
 			},
 			repoErr: nil,
@@ -274,7 +299,7 @@ func TestProcedureService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when repository fails",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name: "Failed Procedure",
 			},
 			repoErr: errors.New("db error"),
@@ -282,14 +307,14 @@ func TestProcedureService_Create(t *testing.T) {
 		},
 		{
 			name: "returns validation error when name is empty",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name: "",
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when price is negative",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name:  "Negative Price Procedure",
 				Price: func(v int64) *int64 { return &v }(-100),
 			},
@@ -297,7 +322,7 @@ func TestProcedureService_Create(t *testing.T) {
 		},
 		{
 			name: "returns validation error when anesthesia type is invalid",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name:       "Invalid Anesthesia Procedure",
 				Anesthesia: "invalid_type",
 			},
@@ -305,7 +330,7 @@ func TestProcedureService_Create(t *testing.T) {
 		},
 		{
 			name: "returns validation error when tax type is invalid",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name:    "Invalid Tax Procedure",
 				TaxType: "invalid_tax",
 			},
@@ -313,7 +338,7 @@ func TestProcedureService_Create(t *testing.T) {
 		},
 		{
 			name: "creates procedure with anesthesia, parent and custom tax settings",
-			input: &CreateProcedureInput{
+			input: &CreateProcedureInput{ActorID: masterTestActorID(),
 				Name:       "Full Option Procedure",
 				Anesthesia: string(model.AnesthesiaTypeGeneral),
 				ParentID:   func(v uint64) *uint64 { return &v }(7),
@@ -334,7 +359,7 @@ func TestProcedureService_Create(t *testing.T) {
 					return &model.Procedure{ID: id}, nil
 				},
 			}
-			svc := NewProcedureService(repo, &mockTransactor{})
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 
 			procedure, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -344,6 +369,44 @@ func TestProcedureService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, procedure)
+			}
+		})
+	}
+}
+
+func TestProcedureService_Create_InsuranceDefault(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *bool
+		want  bool
+	}{
+		{name: "omitted uses non-insurance initial value", input: nil, want: true},
+		{name: "explicit false is preserved", input: boolPtr(false), want: false},
+		{name: "explicit true is preserved", input: boolPtr(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var created *model.Procedure
+			repo := &mockProcedureRepository{
+				createFn: func(_ context.Context, procedure *model.Procedure) error {
+					created = procedure
+					return nil
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					return &model.Procedure{ID: id}, nil
+				},
+			}
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
+
+			_, err := svc.Create(context.Background(), 1, &CreateProcedureInput{ActorID: masterTestActorID(),
+				Name:           "保険設定テスト",
+				IsNonInsurance: tt.input,
+			})
+
+			assert.NoError(t, err)
+			if assert.NotNil(t, created) && assert.NotNil(t, created.IsNonInsurance) {
+				assert.Equal(t, tt.want, *created.IsNonInsurance)
 			}
 		})
 	}
@@ -362,7 +425,7 @@ func TestProcedureService_Update(t *testing.T) {
 	}{
 		{
 			name: "updates procedure successfully",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name:     &name,
 				IsActive: &isActive,
 			},
@@ -371,13 +434,13 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateProcedureInput{},
+			input:   UpdateProcedureInput{Version: 1, ActorID: masterTestActorID()},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name: "returns not found error when procedure does not exist",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("procedure", "999"),
@@ -386,7 +449,7 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error when repository fails",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			repoErr: errors.New("db error"),
@@ -394,7 +457,7 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error when FindByID fails before update",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: &name,
 			},
 			findByIDErr: apperrors.WrapNotFound("procedure", "999"),
@@ -403,28 +466,28 @@ func TestProcedureService_Update(t *testing.T) {
 		},
 		{
 			name: "returns validation error when name is whitespace only",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Name: func(s string) *string { return &s }("   "),
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when price is negative",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Price: func(v int64) *int64 { return &v }(-500),
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when anesthesia type is invalid",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				Anesthesia: func(s string) *string { return &s }("bogus"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "returns validation error when tax type is invalid",
-			input: UpdateProcedureInput{
+			input: UpdateProcedureInput{Version: 1, ActorID: masterTestActorID(),
 				TaxType: func(s string) *string { return &s }("bogus_tax"),
 			},
 			wantErr: true,
@@ -447,7 +510,7 @@ func TestProcedureService_Update(t *testing.T) {
 					return &model.Procedure{ID: 1}, nil
 				},
 			}
-			svc := NewProcedureService(repo, &mockTransactor{})
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 
 			procedure, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -467,7 +530,7 @@ func TestProcedureService_Update(t *testing.T) {
 
 func TestProcedureService_Update_NilInput(t *testing.T) {
 	repo := &mockProcedureRepository{}
-	svc := NewProcedureService(repo, &mockTransactor{})
+	svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -577,7 +640,7 @@ func TestProcedureService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo, &mockTransactor{})
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -634,7 +697,7 @@ func TestProcedureService_Reorder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewProcedureService(repo, &mockTransactor{})
+			svc := NewProcedureServiceWithAudit(repo, masterTestWriteDependencies())
 
 			err := svc.Reorder(context.Background(), tt.clinicID, tt.ids)
 
@@ -649,4 +712,15 @@ func TestProcedureService_Reorder(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (m *mockProcedureRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
+func (m *mockProcedureRepository) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.lockWriteRowsFn != nil {
+		return m.lockWriteRowsFn(ctx, clinicID, ids)
+	}
+	return nil
 }
