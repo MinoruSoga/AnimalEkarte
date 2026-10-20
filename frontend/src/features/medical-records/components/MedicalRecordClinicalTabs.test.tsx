@@ -1,8 +1,12 @@
 import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { http, HttpResponse } from "msw";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { server } from "@/testing/mocks/node";
 
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import type { Pet } from "@/types";
@@ -35,7 +39,7 @@ vi.mock("../api/get-chief-complaint-types", () => ({
 }));
 
 const ALIVE_PET: Pet = {
-  id: "pet-1",
+  id: "11",
   clinicId: "7",
   ownerId: "owner-1",
   ownerNumber: 1,
@@ -110,7 +114,7 @@ const baseProps: TabsProps = {
   isLocked: false,
   isFinalized: false,
   recordClinicId: "7",
-  recordPetId: "pet-1",
+  recordPetId: "11",
   // EMR356-1: 既存 fixture の 2026-03-01 測定が引き続き「過去」になるよう翌日を境界にする
   recordBoundary: new Date("2026-03-02T00:00:00+09:00"),
   onChiefComplaintChange: () => {},
@@ -355,7 +359,7 @@ describe("MedicalRecordClinicalTabs — 親フラグの最新値が書き込み�
   });
 
   it("選択中カルテの petId が selectedPet と不一致なら記録 control を出さない", () => {
-    renderTabs({ recordPetId: "pet-999" });
+    renderTabs({ recordPetId: "999" });
 
     expect(screen.queryByRole("button", { name: "体重を記録" })).toBeNull();
     expect(screen.queryByLabelText("体重")).toBeNull();
@@ -379,5 +383,223 @@ describe("MedicalRecordClinicalTabs — 親フラグの最新値が書き込み�
     expect(screen.queryByLabelText("体重")).toBeNull();
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Enter" });
     expect(createVitalMock).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// EMR-477: 飼主事前問診（読み取り専用）の親合成 contract
+// ─────────────────────────────────────────────────────────────
+
+const PLAN_TAB = "診察/治療プラン";
+const INTAKE_ROUTE = "/api/v1/medical-records/:recordId/revisit-intake";
+
+function intakeBody(petLabel: string) {
+  const ref = {
+    target_id: `5${petLabel}`,
+    appointment_id: "301",
+    pet_id: petLabel,
+    target_generation: "1",
+  };
+  const answer = {
+    answer_id: `7${petLabel}`,
+    revision: "1",
+    form_definition_version: 1,
+    received_at: "2026-10-18T01:30:00Z",
+    provenance: "owner_submission",
+    answers: {
+      visit_purpose: `合成の来院目的-${petLabel}`,
+      onset: null,
+      energy: null,
+      appetite: null,
+      current_symptoms: null,
+      improvement: null,
+      examination_preference: null,
+      main_concern: null,
+    },
+  };
+  return {
+    binding: "bound",
+    target: {
+      ref,
+      head_revision: "1",
+      answer_state: "answered",
+      latest_answer: answer,
+      content_available: true,
+    },
+    history: [],
+    next_cursor: null,
+  };
+}
+
+function makeClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+function treeFor(client: QueryClient, tab: string, overrides: Partial<TabsProps> = {}) {
+  const props = {
+    ...baseProps,
+    mountedTabs: new Set(["問診", PLAN_TAB]),
+    ...overrides,
+  };
+  return (
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <UnifiedTabsRoot value={tab} onValueChange={() => {}}>
+          <MedicalRecordClinicalTabs {...props} />
+        </UnifiedTabsRoot>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
+describe("MedicalRecordClinicalTabs — 飼主事前問診 reader（EMR-477）", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("新規カルテでは表示せず取得もしない", async () => {
+    let called = 0;
+    server.use(
+      http.get(INTAKE_ROUTE, () => {
+        called += 1;
+        return HttpResponse.json(intakeBody("11"));
+      }),
+    );
+    render(
+      treeFor(makeClient(), PLAN_TAB, {
+        isNewRecord: true,
+        recordId: undefined,
+        recordPetId: undefined,
+      }),
+    );
+
+    expect(screen.queryByTestId("owner-intake-card")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(called).toBe(0);
+  });
+
+  it("カルテの petId が選択患者と不一致（切替途中）なら取得も表示もしない", async () => {
+    let called = 0;
+    server.use(
+      http.get(INTAKE_ROUTE, () => {
+        called += 1;
+        return HttpResponse.json(intakeBody("11"));
+      }),
+    );
+    render(treeFor(makeClient(), PLAN_TAB, { recordPetId: "999" }));
+
+    expect(screen.queryByTestId("owner-intake-card")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(called).toBe(0);
+  });
+
+  it("患者切替で前患者の本文を残さない（遷移中は旧本文が消え、新患者の本文だけが出る）", async () => {
+    let releaseSecond: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    server.use(
+      http.get(INTAKE_ROUTE, async ({ params }) => {
+        if (params.recordId === "20") {
+          await gate;
+          return HttpResponse.json(intakeBody("12"));
+        }
+        return HttpResponse.json(intakeBody("11"));
+      }),
+    );
+    const client = makeClient();
+    const { rerender } = render(treeFor(client, PLAN_TAB));
+
+    expect(await screen.findByText("合成の来院目的-11")).toBeInTheDocument();
+
+    rerender(
+      treeFor(client, PLAN_TAB, {
+        recordId: "20",
+        recordPetId: "12",
+        selectedPet: { ...ALIVE_PET, id: "12" },
+      }),
+    );
+
+    // 新患者の応答待ち: 旧患者の本文は残らない。
+    expect(screen.queryByText("合成の来院目的-11")).toBeNull();
+    releaseSecond?.();
+    expect(await screen.findByText("合成の来院目的-12")).toBeInTheDocument();
+    expect(screen.queryByText("合成の来院目的-11")).toBeNull();
+  });
+
+  it("問診履歴のコピー操作を起こしても原文の表示・DTO は不変で、原文 route へ書き込まない", async () => {
+    const writes: string[] = [];
+    let gets = 0;
+    server.use(
+      http.get(INTAKE_ROUTE, () => {
+        gets += 1;
+        return HttpResponse.json(intakeBody("11"));
+      }),
+      http.post(INTAKE_ROUTE, () => {
+        writes.push("POST");
+        return HttpResponse.json({}, { status: 500 });
+      }),
+      http.put(INTAKE_ROUTE, () => {
+        writes.push("PUT");
+        return HttpResponse.json({}, { status: 500 });
+      }),
+      http.patch(INTAKE_ROUTE, () => {
+        writes.push("PATCH");
+        return HttpResponse.json({}, { status: 500 });
+      }),
+      http.delete(INTAKE_ROUTE, () => {
+        writes.push("DELETE");
+        return HttpResponse.json({}, { status: 500 });
+      }),
+    );
+    const onCopyRecordTreatments = vi.fn();
+    const onChiefComplaintChange = vi.fn();
+    const onTreatmentPolicyChange = vi.fn();
+    const copyProps: Partial<TabsProps> = {
+      historyItems: [
+        {
+          ...historyItemBase,
+          id: "9",
+          copySource: {
+            recordId: "9",
+            chiefComplaint: "前回の主訴詳細",
+            treatmentPolicy: "前回の治療方針",
+          },
+        },
+      ],
+      onCopyRecordTreatments,
+      onChiefComplaintChange,
+      onTreatmentPolicyChange,
+    };
+    const client = makeClient();
+    const { rerender } = render(treeFor(client, PLAN_TAB, copyProps));
+    expect(await screen.findByText("合成の来院目的-11")).toBeInTheDocument();
+    const before = screen.getByTestId("owner-intake-card").textContent;
+
+    // 問診タブでコピーを実行
+    rerender(treeFor(client, "問診", copyProps));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "コピー" }));
+    await waitFor(() => expect(onCopyRecordTreatments).toHaveBeenCalledWith("9"));
+    expect(onChiefComplaintChange).toHaveBeenCalledWith("前回の主訴詳細");
+
+    // 診察/治療プランへ戻る: 原文は同一、複写由来の書き込みは発生しない
+    rerender(treeFor(client, PLAN_TAB, copyProps));
+    expect(await screen.findByText("合成の来院目的-11")).toBeInTheDocument();
+    expect(screen.getByTestId("owner-intake-card").textContent).toBe(before);
+    expect(writes).toEqual([]);
+    expect(gets).toBeGreaterThanOrEqual(1);
+  });
+
+  it("isLocked でも再試行ボタンは操作可能（disabled fieldset の外）", async () => {
+    server.use(
+      http.get(INTAKE_ROUTE, () =>
+        HttpResponse.json({ error: "x", code: "INTERNAL", details: null }, { status: 500 }),
+      ),
+    );
+    render(treeFor(makeClient(), PLAN_TAB, { isLocked: true }));
+
+    const retry = await screen.findByRole("button", { name: "再試行" });
+    expect(retry).toBeEnabled();
   });
 });

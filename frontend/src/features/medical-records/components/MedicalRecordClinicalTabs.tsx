@@ -1,5 +1,6 @@
 import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { MedicalRecordDiagnosisPlan } from "./MedicalRecordDiagnosisPlan";
+import { OwnerIntakeReadOnlyCard } from "./OwnerIntakeReadOnlyCard";
 import { MedicalRecordInterview } from "./MedicalRecordInterview";
 import { InterviewWeightPanel } from "./InterviewWeightPanel";
 import { MedicalRecordTreatment } from "./MedicalRecordTreatment";
@@ -107,6 +108,20 @@ export function MedicalRecordClinicalTabs({
         activeTab={activeTab}
         mountedTabs={mountedTabs}
         isLocked={isLocked}
+        leading={
+          // EMR-477: 飼主原文は編集・複写・クリア・Undo と無関係の読み取り専用 reader。
+          // lock（disabled fieldset）の外に置き、再試行・さらに表示を常に操作可能にする。
+          // record / clinic / pet が揃った時だけ描画し、切替で前患者の本文を残さない。
+          writableRecordId && !isNewRecord ? (
+            <OwnerIntakeReadOnlyCard
+              key={`${writableRecordId}|${recordClinicId ?? ""}|${String(selectedPet.id)}`}
+              recordId={writableRecordId}
+              recordClinicId={recordClinicId}
+              petId={recordPetId}
+              isNewRecord={isNewRecord}
+            />
+          ) : null
+        }
       >
         <MedicalRecordDiagnosisPlan
           isNewRecord={isNewRecord}
