@@ -73,7 +73,13 @@ func (h *VaccineHandler) CreateVaccine(c *gin.Context) {
 		return
 	}
 
-	vaccine, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	vaccine, err := h.service.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
@@ -98,7 +104,13 @@ func (h *VaccineHandler) UpdateVaccine(c *gin.Context) {
 		return
 	}
 
-	vaccine, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	vaccine, err := h.service.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return

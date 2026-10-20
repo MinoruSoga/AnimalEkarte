@@ -13,6 +13,8 @@ import (
 
 // mockVaccineRepository は VaccineRepository のテスト用モック実装
 type mockVaccineRepository struct {
+	lockWriteRowsFn           func(context.Context, uint64, []uint64) error
+	created                   *model.Vaccine
 	findAllFn                 func(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error)
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error)
 	createFn                  func(ctx context.Context, vaccine *model.Vaccine) error
@@ -28,11 +30,25 @@ func (m *mockVaccineRepository) FindAll(ctx context.Context, clinicID uint64, sp
 }
 
 func (m *mockVaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
+	if m.created != nil && m.created.ID == id {
+		return m.created, nil
+	}
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockVaccineRepository) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.lockWriteRowsFn != nil {
+		return m.lockWriteRowsFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
 func (m *mockVaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {
-	return m.createFn(ctx, vaccine)
+	if err := m.createFn(ctx, vaccine); err != nil {
+		return err
+	}
+	m.created = vaccine
+	return nil
 }
 
 func (m *mockVaccineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVaccineInput) (*model.Vaccine, error) {
@@ -121,7 +137,7 @@ func TestVaccineService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
 			vaccines, err := svc.List(context.Background(), 1, tt.species)
 
@@ -177,7 +193,7 @@ func TestVaccineService_GetByID(t *testing.T) {
 					return tt.repoVaccine, tt.repoErr
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
 			vaccine, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -205,7 +221,7 @@ func TestVaccineService_Create(t *testing.T) {
 	}{
 		{
 			name: "creates vaccine successfully",
-			input: &CreateVaccineInput{
+			input: &CreateVaccineInput{ActorID: vaccineTestActorID(),
 				Name:     "新規ワクチン",
 				IsActive: true,
 			},
@@ -214,7 +230,7 @@ func TestVaccineService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when name is empty (BUG-396)",
-			input: &CreateVaccineInput{
+			input: &CreateVaccineInput{ActorID: vaccineTestActorID(),
 				Name: "",
 			},
 			repoErr: nil,
@@ -222,7 +238,7 @@ func TestVaccineService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when price is negative (BUG-380)",
-			input: &CreateVaccineInput{
+			input: &CreateVaccineInput{ActorID: vaccineTestActorID(),
 				Name:  "価格エラーワクチン",
 				Price: &negativePrice,
 			},
@@ -231,7 +247,7 @@ func TestVaccineService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error when vaccine already exists",
-			input: &CreateVaccineInput{
+			input: &CreateVaccineInput{ActorID: vaccineTestActorID(),
 				Name: "重複ワクチン",
 			},
 			repoErr: apperrors.WrapAlreadyExists("vaccine", "重複ワクチン"),
@@ -239,7 +255,7 @@ func TestVaccineService_Create(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			input: &CreateVaccineInput{
+			input: &CreateVaccineInput{ActorID: vaccineTestActorID(),
 				Name: "エラーワクチン",
 			},
 			repoErr: errors.New("db error"),
@@ -254,7 +270,7 @@ func TestVaccineService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
 			vaccine, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -279,7 +295,7 @@ func TestVaccineService_Update(t *testing.T) {
 	}{
 		{
 			name: "updates vaccine successfully",
-			input: UpdateVaccineInput{
+			input: UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name: &name,
 			},
 			repoErr: nil,
@@ -287,13 +303,13 @@ func TestVaccineService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error when no fields provided",
-			input:   UpdateVaccineInput{},
+			input:   UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID()},
 			repoErr: nil,
 			wantErr: true,
 		},
 		{
 			name: "returns not found error when vaccine does not exist",
-			input: UpdateVaccineInput{
+			input: UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name: &name,
 			},
 			repoErr: apperrors.WrapNotFound("vaccine", "999"),
@@ -301,7 +317,7 @@ func TestVaccineService_Update(t *testing.T) {
 		},
 		{
 			name: "returns error on repository failure",
-			input: UpdateVaccineInput{
+			input: UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name: &name,
 			},
 			repoErr: errors.New("db error"),
@@ -325,7 +341,7 @@ func TestVaccineService_Update(t *testing.T) {
 					return &model.Vaccine{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
 			vaccine, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -444,7 +460,7 @@ func TestVaccineService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 
@@ -503,7 +519,7 @@ func TestVaccineService_Reorder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewVaccineService(repo)
+			svc := newVaccineServiceForTest(repo)
 
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 
@@ -538,12 +554,12 @@ func TestBuildVaccineUpdate(t *testing.T) {
 	}{
 		{
 			name:  "全フィールドnilの場合は空map",
-			input: &UpdateVaccineInput{},
+			input: &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID()},
 			want:  map[string]any{},
 		},
 		{
 			name: "全フィールド設定",
-			input: &UpdateVaccineInput{
+			input: &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				Name:        &name,
 				Price:       &price,
 				IsActive:    &isActive,
@@ -566,7 +582,7 @@ func TestBuildVaccineUpdate(t *testing.T) {
 		},
 		{
 			name: "ClearParentIDがtrueの場合はparent_idをnilに設定",
-			input: &UpdateVaccineInput{
+			input: &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(),
 				ClearParentID: true,
 			},
 			want: map[string]any{
@@ -592,9 +608,9 @@ func TestVaccineService_Create_InvalidSpecies(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewVaccineService(repo)
+	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Create(context.Background(), 1, &CreateVaccineInput{
+	vaccine, err := svc.Create(context.Background(), 1, &CreateVaccineInput{ActorID: vaccineTestActorID(),
 		Name:    "新規ワクチン",
 		Species: &invalidSpecies,
 	})
@@ -611,9 +627,9 @@ func TestVaccineService_Create_WithValidSpecies(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewVaccineService(repo)
+	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Create(context.Background(), 1, &CreateVaccineInput{
+	vaccine, err := svc.Create(context.Background(), 1, &CreateVaccineInput{ActorID: vaccineTestActorID(),
 		Name:    "犬用ワクチン",
 		Species: &dogSpecies,
 	})
@@ -633,9 +649,9 @@ func TestVaccineService_Update_InvalidName(t *testing.T) {
 			return &model.Vaccine{ID: id}, nil
 		},
 	}
-	svc := NewVaccineService(repo)
+	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Name: &invalidName})
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Name: &invalidName})
 
 	assert.Error(t, err)
 	assert.Nil(t, vaccine)
@@ -649,9 +665,9 @@ func TestVaccineService_Update_NegativePrice(t *testing.T) {
 			return &model.Vaccine{ID: id}, nil
 		},
 	}
-	svc := NewVaccineService(repo)
+	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Price: &negativePrice})
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Price: &negativePrice})
 
 	assert.Error(t, err)
 	assert.Nil(t, vaccine)
@@ -665,9 +681,9 @@ func TestVaccineService_Update_InvalidSpecies(t *testing.T) {
 			return &model.Vaccine{ID: id}, nil
 		},
 	}
-	svc := NewVaccineService(repo)
+	svc := newVaccineServiceForTest(repo)
 
-	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Species: &invalidSpecies})
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Version: 1, ActorID: vaccineTestActorID(), Species: &invalidSpecies})
 
 	assert.Error(t, err)
 	assert.Nil(t, vaccine)

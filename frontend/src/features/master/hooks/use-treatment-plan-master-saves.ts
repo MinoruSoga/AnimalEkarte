@@ -134,15 +134,25 @@ export function useTreatmentPlanMasterSaves({
     TreatmentItem,
     TreatmentFormData,
     CreateVaccineMasterRequest,
-    UpdateVaccineMasterRequest
+    UpdateVaccineMasterRequest & { version: number }
   >({
     crud: minimalCrud,
     createMutation: resources.createVaccine,
     updateMutation: resources.updateVaccine,
     permissions: { canCreate, canEdit },
-    validate: (data) => (data.name.trim() ? null : "名称を入力してください"),
-    toCreateRequest: buildVaccineCreateRequest,
-    toUpdateRequest: buildVaccineUpdateRequest,
+    validate: (data) => {
+      if (!data.name.trim()) return "名称を入力してください";
+      if (editTarget !== "new" && !isMasterEditVersion(data.version))
+        return MASTER_EDIT_VERSION_ERROR;
+      return null;
+    },
+    toCreateRequest: (data) =>
+      applyItemInsuranceForCreate(buildVaccineCreateRequest(data), data.isNonInsurance),
+    toUpdateRequest: (data) =>
+      applyItemInsuranceForUpdate(
+        buildVaccineUpdateRequest(data),
+        data.insuranceChanged ? data.isNonInsurance : undefined,
+      ),
   });
 
   const checkupSave = useMasterSave<

@@ -27,7 +27,7 @@ func newMedicalRecordReferenceServices(
 	r medicalRecordRepositories,
 	d medicalRecordCompositionDependencies,
 ) medicalRecordReferenceServices {
-	return medicalRecordReferenceServices{
+	services := medicalRecordReferenceServices{
 		diagnosisTypes:   medicalrecord.NewDiagnosisTypeService(r.diagnosisTypes),
 		diagnosisNames:   medicalrecord.NewDiagnosisNameService(r.diagnosisNames, r.diagnosisTypes),
 		examinationTypes: medicalrecord.NewExamTypeService(r.examinationTypes, d.Transactor),
@@ -40,6 +40,8 @@ func newMedicalRecordReferenceServices(
 		vaccines:         medicalrecord.NewVaccineService(r.vaccines),
 		inquiryTemplates: medicalrecord.NewInquiryTemplateService(r.inquiryTemplates),
 	}
+	services.vaccines = medicalrecord.NewVaccineServiceWithAudit(r.vaccines, medicalrecord.MasterInsuranceWriteDependencies{Transactor: d.Transactor, Audit: medicalRecordAuditTxBridge{logger: d.Audit}})
+	return services
 }
 
 type medicalRecordMasterServices struct {
