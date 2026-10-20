@@ -68,12 +68,12 @@ func TestTreatmentItemService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	})
 
 	t.Run("vaccine", func(t *testing.T) {
-		svc := NewVaccineServiceWithAudit(&mockVaccineRepository{
+		svc := NewVaccineService(&mockVaccineRepository{
 			createFn: func(_ context.Context, _ *model.Vaccine) error {
 				return uniqueTreatmentNameErr("vaccine", apperrors.ConstraintVaccineName)
 			},
-		}, masterTestWriteDependencies())
-		got, err := svc.Create(context.Background(), 1, &CreateVaccineInput{ActorID: masterTestActorID(), Name: "V04予防接種"})
+		})
+		got, err := svc.Create(context.Background(), 1, &CreateVaccineInput{Name: "V04予防接種"})
 		require.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeVaccineNameConflict))
