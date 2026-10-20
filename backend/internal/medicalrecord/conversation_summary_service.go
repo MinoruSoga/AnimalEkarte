@@ -20,7 +20,11 @@ import (
 // ExpectedRevision:
 //   - nil : 版照合をスキップ（最終書き込み優先）
 //   - 0   : 「未保存（3列すべて NULL）」を期待する
-//   - n>0 : 現在の revision が n のときだけ保存し、不一致は conflict
+//   - n>0 : 現在の revision が n のときだけ保存する
+//
+// 再送例外: 保存済み内容が本入力の意図（summary+source）と一致する再送は
+// 期待版が実際の版と異なっても冪等成功で返す（詳細は repository の
+// SaveConversationSummaryCommand / Save の doc comment を正本とする）。
 type SaveConversationSummaryInput struct {
 	ClinicID         uint64
 	MedicalRecordID  uint64

@@ -297,7 +297,7 @@ func TestConversationSummaryRepository_SaveIdempotentResend(t *testing.T) {
 	require.NotNil(t, resentWithoutExpected.Revision)
 	assert.Equal(t, int64(1), *resentWithoutExpected.Revision)
 
-	// 同一内容だが期待版だけ未来値（現在と不一致）で内容一致 → 冪等成功。
+	// 同一内容だが期待版だけ現在と不一致（未来値99）で内容一致 → 冪等成功。
 	// （内容が要求の意図と一致するため conflict にしない）
 	resentStaleExpected, err := repo.Save(ctx, SaveConversationSummaryCommand{
 		ClinicID:         conversationSummaryClinicA,

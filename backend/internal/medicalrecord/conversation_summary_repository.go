@@ -51,12 +51,22 @@ type SaveConversationSummaryCommand struct {
 	// ExpectedRevision は楽観ロック用の期待版。
 	//   nil : 照合スキップ（最終書き込み優先。冪等再送もこの経路）
 	//   0   : 「未保存（3列すべて NULL）」を期待（CHECK 制約により保存済み revision は 1 以上）
-	//   n>0 : 現在の revision が n のときだけ保存し、不一致は conflict
+	//   n>0 : 現在の revision が n のときだけ保存する
+	//
+	// 再送例外: 0行更新のときは保存済み内容が本commandの意図（summary+source）と
+	// 一致するかを先に判定する。一致する再送（同一要求の再送・期待版が実際の版より
+	// 古い/未来値の場合を含む）は冪等成功で返し、内容が異なる期待版不一致だけを
+	// conflict にする（Save の doc comment を正本とする）。
 	ExpectedRevision *int64
 }
 
-// validate は DB CHECK ck_conversation_summary_metadata 相当をコード側で守る。
-// summary 非NULL ⇒ revision>0 ∧ source 非NULL・非空白、という対応関係を保存経路で保証する。
+// validate は保存経路の入力契約を守る。
+//
+//   - clinic/record 特定・source 非空白・revision>0 は DB CHECK
+//     ck_conversation_summary_metadata と同じ条件のコード側検証
+//     （AutoMigrate のテストDBには CHECK が載らないため）。
+//   - 空本文（空白のみ）の拒否は DB CHECK より狭い**追加の防御的判断**であり
+//     承認済み契約ではない。空本文の保存可否が確定した場合はこの検証を見直す。
 func (c SaveConversationSummaryCommand) validate() error {
 	if c.ClinicID == 0 || c.MedicalRecordID == 0 {
 		return apperrors.WrapInvalidInput("医院とカルテを特定できません")
