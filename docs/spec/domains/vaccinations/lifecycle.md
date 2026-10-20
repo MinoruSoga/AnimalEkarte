@@ -169,3 +169,14 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 本人承認の[共通FRと10AC](../medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を本領域の受け手へ接続する。治療プランに追加した予定をタブで未実施として表示し、同じ予定の識別と実施／結果への対応を辿る。一接種一記録、実接種日・lot・種類別設定／手入力の次回日と訂正履歴を維持する。治療プランの予定と接種済み実績を識別し、予定追加を接種記録作成・次回日の生成・証明書発行へ変換しない。既存の保存済み履歴を今回予定に名称一致で付け替えない。
 
 実績／結果は本領域の正本一つを参照し、プラン表示用の別本文を独立編集しない。医院・患者・カルテ・予定の照合、結果不明の照会、誤関連訂正・中止時の原記録保護と二重請求防止は上記共通FR／ACへ従う。新規FR／ACの重複定義は置かない。物理作成／projection・関連の多重度は[技術設計](../../../design/domains/vaccinations/technical-spec.md#plan-tab-link-design)へ分け、実装・実機適合は未確認。
+
+<a id="certificate-fees-manual-20261020"></a>
+## EMR-518追加合意：証明書料金の発行前手動編集
+
+2026-10-20、要件責任者・決定者MinoruSogaの「証明書発行前に手動で修正できるようにすればいい」「パッケージとして扱うので医院による」という回答を採用。出典は[EMR-518](https://app.plane.so/baritechllc/browse/EMR-518/)。既存FR-vaccinations-certificate-editionsへの追補であり、実装/実機確認はNOT_RUN。
+
+狂犬病証明書の登録料・注射料・注射済票料・合計の4欄はoptional/nullableを維持し、発行前にスタッフが手動修正できる。見本の登録手数料/注射済票費用という表記との対応を保ち、0と未入力を区別する。確認した各欄の値を発行版snapshotへ保存し、会計明細・master価格・package設定へ逆反映しない。
+
+会計現在額との一致を発行条件にせず、自動同期・合計再計算も追加しない。発行/preview/再印刷から料金明細を生成しない。初期値を参照する場合は保存済み内訳との対応を明示し、欠落値を現在masterから推定補完しない。
+
+登録料/済票料等の構成・採用は[医院別の診療項目package](../medical-records/treatment-packages.md#rabies-package-boundary)に従い、医院職員が既存会計候補へ明示追加する。全国/全医院共通の構成・手続完了/済票交付等の発生イベント、新しい料金rule engineを設けない。一般packageの個別金額合算と証明書4欄の確認額は同じ計算器にしない。[受入条件AC-package-certificate-fees / clinic-composition](../medical-records/treatment-packages.md#package-acceptance)を参照し、本文を二重管理しない。

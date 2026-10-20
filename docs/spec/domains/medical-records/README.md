@@ -113,3 +113,7 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 [FR-medical-records-plan-domain-tabs／10AC](pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を追加。検査・予防接種・定期健診の予定を各タブで未実施から追跡する本人承認の正本。実績／結果は各ownerに保持し、予定追加だけで実施・証明書・健診完了・請求確定にしない。[技術差分と設計残件](../../../design/domains/medical-records/technical-spec.md#plan-domain-tabs-target-gap)を分離し、実装・実機受入は未実施。初回合意の履歴件数を改訂するものではない。
 
 [後日予定のカルテレポート確認（1FR／3AC）](pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)を本人回答により追加採用。表示先は既存D21だけで、次回予約・受付・来院時追加表示や別カルテ実績との関連消化は追加しない。上記3タブ連動と合わせ今回追加は2FR／13AC。既存実施・取消状態を尊重し、実装／実機確認は未実施。
+
+## 診療項目パッケージ（2026-10-20、EMR-518）
+
+[業務正本4FR/12AC](treatment-packages.md) → [概念と関係](../../ontology/medical-records.md#treatment-package-concepts) → [採用技術方向](../../../design/domains/medical-records/treatment-packages.md) → [schema/API固定残件・PR分割](../../../work/emr/emr-518-treatment-packages-20261020.md)。医院別の異種混在セットを個別予定へ展開し、証明書料金の発行前手動編集はD08へ委譲する。過去の合意時点別件数とは別の追加4FR/12AC。全DTO/FK固定・API公開・実装/検証完了ではなく、受入条件はNOT_RUN。
