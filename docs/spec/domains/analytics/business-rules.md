@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | domain.analytics.business-rules／業務仕様 |
-| 決定状態 | 2026-10-15の承認6により来院回数は実来院日基準へ変更。旧記録日数との差とD10請求／実移動分離を保持。外部到達・来院因果の保証なし。 |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-15の承認6により来院回数は実来院日基準へ変更。旧記録日数との差とD10請求／実移動分離を保持。外部到達・来院因果の保証なし。 |
 | 実装状態 | 現行差を分離。今回実装変更・網羅監査なし |
 | 実機検証状態 | 未実施。受入条件は検査定義 |
-| 文書確認日 | 2026-10-15 |
+| 文書確認日 | 2026-10-20（本差分。従来：2026-10-15） |
 
 ## 目的・対象範囲
 
@@ -128,7 +128,7 @@ CPM人数は一般条件適用後、CPM区分フィルタとページ分割前�
 
 | 指標／単位 | 帰属・区別 | 正本 |
 |:---|:---|:---|
-| 請求確定額／請求 | 実入金・未納回収・預り金と別。原請求日の生成基準は未決で、completed_at等で補完しない | [金銭分離](#requirement-fr-analytics-money-separation)・[D10](../accounting/lifecycle.md#accounting-open-decisions) |
+| 請求確定額／請求 | 実入金・未納回収・預り金と別。[2026-10-20本人回答](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)で原請求日は請求確定日。確定前は未存在で、作成日／会計予定日を代用しない。診療日・実入金日を別保持 | [金銭分離](#requirement-fr-analytics-money-separation)・[D10](../accounting/lifecycle.md#accounting-open-decisions) |
 | 月次日次明細／会計 | 現行completed_atのJST暦日。旧顧客売上SQLのカルテ日／予定日帰属・完了状態filterと別 | [期間](#requirement-fr-analytics-period-basis) |
 | 実受領・実返金／金銭イベント | 実日時と元資金・請求を区別。保険負担は保険会社の実入金ではなく実受取額へ加算しない | [金銭分離](#requirement-fr-analytics-money-separation)・[D10引継ぎ](../../../design/domains/accounting/technical-spec.md#accounting-handoff-contract) |
 | 部門×方法／配賦・会計distinct | 返金は発生日負値、現行支払はcompleted_at。行件数を総件数へ単純合算しない | [matrix](#requirement-fr-analytics-matrix-report)・[配賦正本](../../screens/29-closing-aggregation.md#closing-allocation-contract) |

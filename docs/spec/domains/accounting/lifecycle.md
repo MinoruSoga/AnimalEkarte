@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | lifecycle.accounting／業務・保存境界 |
-| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離 |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離 |
 | 実装状態 | 未確認。現行との差分は技術仕様に明示 |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15） |
+| 文書確認日 | 2026-10-20（本差分。従来：2026-10-17追加差分（従来確認2026-10-15）） |
 
 <a id="accounting-agreement-first-five"></a>
 ## 目的・対象範囲
@@ -345,7 +345,7 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 | AC-accounting-invoice-receipt-separated | 10,000円請求・実入金3,000円で帳票発行 | 請求書と受領3,000円の領収書を分け、全額受領としない | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-document-reissue-history | 帳票を訂正・再発行 | 再発行と表示し訂正前帳票を履歴に保持 | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-aged-debt-without-current-sales | 今月売上なし・過去未納ありの飼主 | 未納一覧に表示。今月売上なしを理由に除外しない | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
-| AC-accounting-original-bill-and-movement-date | 過去請求へ今日実入金／実返金、後日前金充当 | 原請求日と実入出金日を保持、充当を再受領にしない。締め内部D12 | [FR](#requirement-fr-accounting-post-close-separate-movement)。対象・残高・履歴を照合、実機未実施 |
+| AC-accounting-original-bill-and-movement-date | 複数診療日の請求を今日確定し、後日実入金／実返金・訂正・前金充当、取消後は別請求で再請求する | 原請求日は請求確定日。確定前は不存在で作成日／予定日から補完しない。診療日・実入出金日を別保持し、訂正で原請求日を変更しない。別identityの再請求は元請求を保持し新請求の確定日を持つ。充当を再受領にしない。締め内部D12 | [FR](#requirement-fr-accounting-post-close-separate-movement)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-deposit-without-reservation | 飼主指定・予約なしで5,000円を受領 | 受領可能。飼主帰属と残高・受領履歴を保持 | [FR](#requirement-fr-accounting-reservation-advance)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-deposit-other-reservation | 同飼主の別予約会計へ預り金を利用 | 充当先／額を確認して利用でき元受領参照を保持 | [FR](#requirement-fr-accounting-reservation-advance)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-deposit-other-pet | 同飼主の別ペット会計へ利用 | 確認付きで充当し元飼主と対象請求／ペットを保持 | [FR](#requirement-fr-accounting-reservation-advance)。対象・残高・履歴を照合、実機未実施 |
@@ -642,3 +642,14 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 [D05の退院・会計FR／AC](../hospitalization/lifecycle.md#requirement-fr-hospitalization-discharge-and-billing)と[D10の他owner引継ぎ設計](../../../design/domains/accounting/technical-spec.md#accounting-handoff-contract)へ接続する。入院・宿泊の元記録／元明細identityと版、医院・飼主・ペット対応を現在状態で照合し、同じ元明細の二重請求を防ぐ。結果不明は元操作・作成済み会計IDを照合し、再createで救済しない。既存会計再利用・取消会計の扱いと退院時の原子性の現行差は[D05設計](../../../design/domains/hospitalization/technical-spec.md#退院会計の現行と目標の差)に残す。
 
 ホテル個別料金・必要前金・取消料は既決のスタッフ確認入力へ従い、新source enum・日数自動課金・中間請求を追加しない。退院／退室や会計候補作成を請求確定・実入金成功と同一視しない。
+
+<a id="accounting-bill-date-agreement-20261020"></a>
+## 請求日と確定前の取扱い（2026-10-20本人回答）
+
+決定者はユーザー。質問 Sentinel_e10fac72a1e88191aaaf49cae1dbfafb の1「複数日の診療をまとめて今日請求確定した場合、請求日は今日の確定日、診療日・実際の入金日は別保持」に対する Sentinel_c119f08e86f8819193b76d2b4c52a55d「1 ok」を根拠とする。原請求日は当該請求の請求確定日とし、各診療日・実入金日を別に保持する。確定前には請求確定日がまだ存在せず、作成日や会計予定日を無断で請求日扱いしない。具体的な保存型・確定時刻から日付を導く物理方式は本回答で新設しない。
+
+[既存の訂正・実移動分離](#requirement-fr-accounting-post-close-separate-movement)に従い、後日入金・返金・請求訂正で元請求日を今日へ上書きしない。[取消後の選択確認による再請求](#accounting-rebill-and-collection)は元請求を保持して別identity／新番号の請求を作り、その新請求の確定日を持つ。元請求日・元番号と再請求先を対応付け、同じ請求の訂正や帳票再発行と混同しない。既存AC-accounting-original-bill-and-movement-dateで確定前／確定時／後日訂正／別請求の再請求を照合し、実装・実機受入は未実施。
+
+## 主飼主変更時の会計帰属
+
+[D04の2026-10-20本人回答](../owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)に従い、未確定会計も元飼主へ残し、主飼主変更から自動移管しない。必要なら別途変更するという回答は、確定済み請求・預り金・発行原本の保護解除や無条件の付替え権限を与えない。別途変更の操作はD10の現在認可・医院／患者・元明細・版・履歴と既決訂正境界を照合する。

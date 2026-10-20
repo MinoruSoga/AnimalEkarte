@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.accounting／語彙正本 |
-| 決定状態 | [初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。[初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ |
 | 実装状態 | 未確認。概念と現モデルを同一視しない |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-18（後続業務正本の用語追従） |
+| 文書確認日 | 2026-10-20（本差分。従来：2026-10-18（後続業務正本の用語追従）） |
 
 <a id="accounting-ontology"></a>
 ## 定義と別名
@@ -131,3 +131,9 @@
 ## 計算説明の後続合意への追従（2026-10-20）
 
 [税込入力・小数数量・手動端数値引き](../domains/accounting/lifecycle.md#accounting-input-gross-preservation)を旧税抜説明より適用範囲内で優先する。元数量0.25／0.49を行金額の丸めで変更せず、手動の小額値引きを自動10円未満切捨てに変換しない。割引・配賦・税率別税・税込入力保持を合成したケースの照合はEMR-367の残件で、語彙追従や開発コード間一致だけを実際の現行カルテへの適合済みとしない。新算式は追加しない。
+
+## 請求日・主飼主変更の追加回答への追従（2026-10-20）
+
+[原請求日](../domains/accounting/lifecycle.md#accounting-bill-date-agreement-20261020)は請求確定日。確定前は存在せず、会計作成日・予定日・各診療日・実入金日と別である。後日訂正で元日付を上書きせず、取消後再請求は元請求参照を残した別identity／新番号とその確定日を持つ。再発行や入金追加は新請求の作成と同一視しない。
+
+[主飼主変更時](../domains/owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)は未確定会計・未提示見積も元飼主に残す。現在のpet.owner_id変更から金銭・見積帰属を再導出せず、必要時の別途変更と区別する。確定済請求・預り金・提示済み原本の既決保護を維持する。

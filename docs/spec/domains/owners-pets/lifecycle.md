@@ -3,10 +3,10 @@
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D04 / 業務ライフサイクル・受入条件 |
-| 決定状態 | 2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約を継承し、追加合意4・5、死亡状態を保つ後日記録等、および[台帳・会員区分・LINE希望の共同確認](#agreement-owner-membership-dm-20261015)を区別して反映。対象外を一括承認しない |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約を継承し、追加合意4・5、死亡状態を保つ後日記録等、および[台帳・会員区分・LINE希望の共同確認](#agreement-owner-membership-dm-20261015)を区別して反映。対象外を一括承認しない |
 | 実装状態 | 既存記載を継承。2026-10-15に下記限定ソースを静的照合、実装追従の全件再監査なし |
 | 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-17追加差分（従来確認2026-10-15） |
+| 文書確認日 | 2026-10-20（本差分。従来：2026-10-17追加差分（従来確認2026-10-15）） |
 
 ## 目的・対象範囲
 
@@ -163,7 +163,7 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 | AC-owners-pets-owner-transfer-impact | 移管対象予約とLINE通知先への影響があるpetで主飼主変更を進める | 切替前に対象予約と変更前後の帰属・LINE付替え／解除／変更なしを一覧表示し、確認後だけ保存する | [FR](#requirement-fr-owners-pets-primary-transfer)。表示対象と保存対象を照合。未実施 |
 | AC-owners-pets-owner-transfer-impact-stale | 影響一覧を確認後、対象予約・owner帰属・LINE対応・必要な版／権限が変化する | 古い確認だけで切替せず、現在状態を再取得し差分確認。部分移管なし | [FR](#requirement-fr-owners-pets-primary-transfer)。保存時再検証と認可失効を確認。未実施 |
 | AC-owners-pets-owner-transfer-line-boundary | 元LINE予約／manual予約と、新飼主LINEの確認済一意対応あり／なしを組み合わせる | 元LINE予約だけ既存条件で付替え又は解除。未連携への自動新規紐付けなし。manualはNULLと既存customer_fields保持。通知停止・除外・結果不明保留を解除しない | [FR](#requirement-fr-owners-pets-primary-transfer)。通知到達を台帳保存成功と同一視しない。未実施 |
-| AC-owners-pets-owner-transfer-history | 過去請求・預り金残高・過去予約があるpetの主飼主変更を成功させる | 対象未来予約以外の履歴と、元ownerの過去請求・預り金帰属／金額／残高を保持 | [FR](#requirement-fr-owners-pets-primary-transfer)。成功前後のID・金額・履歴比較。未実施 |
+| AC-owners-pets-owner-transfer-history | 過去請求・預り金残高・過去予約・未確定会計・未提示見積・提示済み見積があるpetの主飼主変更を成功させる | 対象未来予約以外の履歴と元ownerの請求・預り金帰属／金額／残高・提示済み原本を保持。未確定会計・未提示見積も元飼主へ残し自動移管しない。必要時の別途変更と区別 | [FR](#requirement-fr-owners-pets-primary-transfer)。成功前後のID・金額・履歴比較。未実施 |
 | AC-owners-pets-membership-labels | 退亡者／他診/準を保存・表示する | 既存ラベル保持。退亡者を死亡扱いせず、他診/準へ未確認の意味・動作を加えない | FR-owners-pets-membership-dm。台帳状態との分離。未実施 |
 | AC-owners-pets-membership-independent | 会員区分のみ変更する | 料金・予約受付・LINE配信可否を自動変更しない。独立した値引率／停止／本人条件は保持 | 同FR。変更前後の各ownerを比較。未実施 |
 | AC-owners-pets-dm-line-preference | DMを未設定／必要／不要で保存する | LINE希望として区別。郵送設定へ置換せず、値変更だけで送信・再送・停止解除・宛先変更しない | 同FR・D15目的別条件。未実施 |
@@ -314,3 +314,10 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 ## 死亡状態を維持する専用処理の参照
 
 [死亡後の既決境界](#requirement-fr-owners-pets-safety-and-private-notes)に従う生前分の後日入力・訂正・退院精算は、[D03](../medical-records/lifecycle.md#medical-record-deceased-retrospective)、[D05](../hospitalization/lifecycle.md#requirement-fr-hospitalization-delete-and-preserve)、[D10](../accounting/lifecycle.md#accounting-posthumous-settlement)、[健診](../checkups/lifecycle.md#fr-checkups-protection)の目的別専用条件を照合する。死亡状態・元記録と理由／履歴を維持し、不明な実施時点を推測しない。死亡取消の追加権限・条件、取消後の予約自動再開を新設しない。
+
+<a id="owner-transfer-draft-retention-20261020"></a>
+## 主飼主変更時の未確定会計・未提示見積（2026-10-20本人回答）
+
+決定者はユーザー。質問 Sentinel_e10fac72a1e88191aaaf49cae1dbfafb の2に対し、Sentinel_c119f08e86f8819193b76d2b4c52a55d が「2 A」（元の飼主に残し、必要なら別途変更する）を選択した。主飼主を変更しても、未確定会計・未提示見積は元飼主へ残し、自動移管しない。必要な変更は各ownerの別操作として扱い、この選択から新しい一括付替え権限・手順を創作しない。
+
+確定済み請求・預り金・提示済み見積の原本は既決どおり保持する。[D10の請求日・訂正境界](../accounting/lifecycle.md#accounting-bill-date-agreement-20261020)と[D11の原本／後継保護](../estimates/business-rules.md#requirement-fr-estimates-successor)へ接続する。既存FR-owners-pets-primary-transfer／AC-owners-pets-owner-transfer-historyの追加確認範囲であり、実装・実機受入は未実施。
