@@ -15,7 +15,8 @@ const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 function requestInterceptor(config: InternalAxiosRequestConfig) {
   config.headers ??= new Axios.AxiosHeaders() as typeof config.headers;
-  config.headers.Accept = "application/json";
+  // Accept は instance 既定（下の Axios.create）で application/json にする。呼出側が明示した Accept
+  // （例: 証明書 PDF の application/pdf）は axios の header 結合でそのまま残り、ここでは上書きしない（EMR-525）。
   // H1: CSRF 保護用 X-Requested-With ヘッダを全リクエストに追加（preflight 強制で CSRF 防止）
   // テスト環境では Vitest の MSW 制限のためヘッダを省略（Backend CSRF middleware は preflight OPTIONS をスキップ）
   if (import.meta.env.MODE !== "test") {
@@ -56,7 +57,8 @@ export const axios = Axios.create({
   timeout: 60000,
   // httpOnly Cookie を自動送信するために必須
   withCredentials: true,
-  headers: { "Content-Type": "application/json" },
+  // Accept は未指定時の既定値。request 単位の明示値が優先される（EMR-525）。
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
 });
 axios.interceptors.request.use(requestInterceptor);
 

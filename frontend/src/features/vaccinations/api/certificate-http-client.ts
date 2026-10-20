@@ -69,7 +69,10 @@ async function toApiError(error: unknown): Promise<CertificateApiError> {
   if (error instanceof CertificateApiError) return error;
   if (isAxiosError(error)) {
     if (error.response === undefined) return classifyCertificateError(undefined, null);
-    return classifyCertificateError(error.response.status, await readErrorBody(error.response.data));
+    return classifyCertificateError(
+      error.response.status,
+      await readErrorBody(error.response.data),
+    );
   }
   return new CertificateApiError("network");
 }
@@ -117,7 +120,9 @@ export function createHttpCertificateApi(): CertificateApi {
     },
     async getEdition(editionId, signal) {
       const { data } = await call(() =>
-        axios.get<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}`, { signal }),
+        axios.get<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}`, {
+          signal,
+        }),
       );
       return parse(certificateEditionSchema, data);
     },
@@ -142,15 +147,18 @@ export function createHttpCertificateApi(): CertificateApi {
     },
     async reprint(editionId, body) {
       const { data } = await call(() =>
-        axios.post<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}/reprints`, body),
+        axios.post<unknown>(
+          `${BASE}/vaccination-certificate-editions/${seg(editionId)}/reprints`,
+          body,
+        ),
       );
       return parse(certificateResultSchema, data);
     },
     async getArtifactContent(artifactId, signal) {
-      // 共有 axios は Accept を application/json に固定する。PDF 応答は BE が Content-Type で返す前提
-      // （Accept 上書きの要否は BE 実装時の確認事項）。
-      const { data } = await call(() =>
+      // 共通 axios（認証 refresh・CSRF・医院 header）を通したまま、この操作だけ Accept を明示する（EMR-525）。
+      const { data, headers } = await call(() =>
         axios.get<Blob>(`${BASE}/vaccination-certificate-artifacts/${seg(artifactId)}/content`, {
+          headers: { Accept: "application/pdf" },
           responseType: "blob",
           signal,
         }),
@@ -158,9 +166,10 @@ export function createHttpCertificateApi(): CertificateApi {
       if (!(data instanceof Blob) || data.size === 0) {
         throw new CertificateApiError("malformed", { message: "PDF の取得結果が空です" });
       }
-      // 200 でも HTML/JSON（プロキシ・認証エッジ・障害ページ）が届きうる。PDF と確認できたものだけ印刷対象にする。
-      // 判定は本体の %PDF- で行う。Content-Type は誤ラベル（octet-stream・空）がありうるため根拠にしない。
-      if (!(await hasPdfMagic(data))) {
+      // 200 でも HTML/JSON（プロキシ・認証エッジ・障害ページ）が届きうる。Content-Type が PDF で、
+      // かつ本体が %PDF- で始まるものだけを表示・印刷の対象にする（EMR-525: Content-Type 不一致は契約不正）。
+      const contentType = String(headers["content-type"] ?? data.type ?? "");
+      if (!isPdfMediaType(contentType) || !(await hasPdfMagic(data))) {
         throw new CertificateApiError("malformed", { message: "PDF ではない応答を受け取りました" });
       }
       return isPdfMediaType(data.type) ? data : new Blob([data], { type: "application/pdf" });
@@ -181,7 +190,7 @@ function isPdfMediaType(type: string): boolean {
   return type.split(";")[0].trim().toLowerCase() === "application/pdf";
 }
 
-/** 先頭が %PDF- の Blob だけを PDF とみなす（共有 axios には手を入れない）。 */
+/** 先頭が %PDF- の Blob だけを PDF とみなす（Content-Type の検査と併用する）。 */
 async function hasPdfMagic(blob: Blob): Promise<boolean> {
   const head = await readHead(blob.slice(0, PDF_MAGIC.length));
   return PDF_MAGIC.every((byte, i) => head[i] === byte);

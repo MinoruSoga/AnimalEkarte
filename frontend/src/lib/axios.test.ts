@@ -304,6 +304,56 @@ describe("axios GET auto-retry", () => {
   });
 });
 
+describe("axios Accept header (EMR-525)", () => {
+  function captureAccept(): { adapter: AxiosAdapter; received: Array<string | undefined> } {
+    const received: Array<string | undefined> = [];
+    const adapter: AxiosAdapter = async (config) => {
+      received.push(config.headers.get("Accept")?.toString());
+      return { config, data: {}, headers: new AxiosHeaders(), status: 200, statusText: "OK" };
+    };
+    return { adapter, received };
+  }
+
+  it("呼出側が Accept を指定しなければ application/json を送る", async () => {
+    const { adapter, received } = captureAccept();
+    await axios.request({ adapter, method: "get", url: "/v1/example" });
+    await axios.request({ adapter, method: "post", url: "/v1/example", data: { a: 1 } });
+    expect(received).toEqual(["application/json", "application/json"]);
+  });
+
+  it("呼出側が明示した Accept は上書きしない（ヘッダ名の大小文字を問わない）", async () => {
+    const { adapter, received } = captureAccept();
+    await axios.request({
+      adapter,
+      method: "get",
+      url: "/v1/a",
+      headers: { Accept: "application/pdf" },
+    });
+    await axios.request({ adapter, method: "get", url: "/v1/b", headers: { accept: "text/csv" } });
+    expect(received).toEqual(["application/pdf", "text/csv"]);
+  });
+
+  it("明示 Accept の request でも医院 header は共通経路のまま付与する", async () => {
+    let clinicId: string | undefined;
+    const adapter: AxiosAdapter = async (config) => {
+      clinicId = config.headers.get("X-Clinic-ID")?.toString();
+      return { config, data: {}, headers: new AxiosHeaders(), status: 200, statusText: "OK" };
+    };
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "clinic-9");
+    try {
+      await axios.request({
+        adapter,
+        method: "get",
+        url: "/v1/a",
+        headers: { Accept: "application/pdf" },
+      });
+    } finally {
+      localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
+    }
+    expect(clinicId).toBe("clinic-9");
+  });
+});
+
 describe("axios clinic boundary", () => {
   afterEach(() => {
     localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
