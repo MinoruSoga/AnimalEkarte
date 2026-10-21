@@ -44,6 +44,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewCheckupTypeHandler(nil),
 		NewVaccineHandler(nil),
 		NewVaccinationHandler(nil),
+		NewVaccinationCertificateHandler(nil, nil),
 		NewInquiryHandler(nil),
 		NewInquiryTemplateHandler(nil),
 		NewLabImportHandler(nil, nil, nil),
@@ -171,8 +172,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/medical-records/:id/treatments ListTreatments\n" +
 		"GET /api/v1/medical-records/:id/vitals ListVitals\n" +
 		"GET /api/v1/pets/:id/treatment-history ListPetTreatmentHistory\n" +
+		"GET /api/v1/vaccination-certificate-editions/:edition_id GetVaccinationCertificateEdition\n" +
 		"GET /api/v1/vaccinations ListVaccinations\n" +
 		"GET /api/v1/vaccinations/:id GetVaccination\n" +
+		"GET /api/v1/vaccinations/:id/certificate-editions ListVaccinationCertificateEditions\n" +
 		"PATCH /api/v1/examinations/:id UpdateExamination\n" +
 		"PATCH /api/v1/hospitalizations/:id UpdateHospitalization\n" +
 		"PATCH /api/v1/hospitalizations/:id/care-plan-items/:itemId UpdateCarePlanItem\n" +
@@ -257,6 +260,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records/:id/treatment-plans CreateTreatmentPlanForMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/treatments CreateTreatment\n" +
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
+		"POST /api/v1/vaccination-certificate-editions/:edition_id/preview PreviewSavedVaccinationCertificate\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
 		"PUT /api/v1/examinations/:id/items ReplaceExaminationItems\n" +
 		"PUT /api/v1/lab-device/mapping-generation PutLabMappingGeneration\n" +
@@ -299,6 +303,7 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		NewCheckupTypeHandler(nil),
 		NewVaccineHandler(nil),
 		NewVaccinationHandler(nil),
+		NewVaccinationCertificateHandler(nil, nil),
 		NewInquiryHandler(nil),
 		NewInquiryTemplateHandler(nil),
 		NewLabImportHandler(nil, nil, nil),
@@ -387,6 +392,7 @@ func TestRegisterRoutes_CageMergePermissions(t *testing.T) {
 		NewCheckupTypeHandler(nil),
 		NewVaccineHandler(nil),
 		NewVaccinationHandler(nil),
+		NewVaccinationCertificateHandler(nil, nil),
 		NewInquiryHandler(nil),
 		NewInquiryTemplateHandler(nil),
 		NewLabImportHandler(nil, nil, nil),

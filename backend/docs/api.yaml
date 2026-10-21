@@ -32777,7 +32777,7 @@ paths:
       tags:
       - VaccinationCertificates
       x-contract-status: selected
-      x-runtime-status: not-implemented
+      x-runtime-status: implemented
       x-required-grants:
       - vaccinations:view
       parameters:
@@ -32835,7 +32835,7 @@ paths:
       tags:
       - VaccinationCertificates
       x-contract-status: selected
-      x-runtime-status: not-implemented
+      x-runtime-status: implemented
       x-required-grants:
       - vaccinations:view
       parameters:
@@ -32873,7 +32873,7 @@ paths:
       tags:
       - VaccinationCertificates
       x-contract-status: selected
-      x-runtime-status: not-implemented
+      x-runtime-status: implemented
       x-required-grants:
       - vaccinations:view
       parameters:
