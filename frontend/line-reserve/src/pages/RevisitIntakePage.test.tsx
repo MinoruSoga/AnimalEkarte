@@ -460,6 +460,35 @@ describe("RevisitIntakePage 表示状態", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  it("403 の照会が成功して store が空になったら、戻る操作は確認なしで1回で戻る", async () => {
+    server.use(
+      http.get(READ_PATH, () => HttpResponse.json({ error: "forbidden" }, { status: 403 })),
+    );
+    const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    const body = {
+      pet_id: PET_A,
+      target_generation: "3",
+      expected_revision: null,
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成目的" }),
+    };
+    const store = createStore();
+    store.set(targetKey, {
+      values: body.answers,
+      pending: { key: KEYS[0], fingerprint: "synthetic", body, status: "unknown" },
+    });
+    captureLookups((key) => HttpResponse.json(successResponse(key, "1")));
+    const { onBack } = renderPage({ store });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+    await screen.findByText("回答の送信は完了しています。");
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/送信結果が未確定です/)).not.toBeInTheDocument();
+  });
+
   describe("403 後の結果照会の永続化", () => {
     const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
     function seededStore() {
@@ -664,6 +693,31 @@ describe("RevisitIntakePage 履歴（AC-reservations-revisit-new-target / revisi
     expect(calls[1].searchParams.get("cursor")).toBe("synthetic-cursor-1");
     expect(calls[2].searchParams.get("cursor")).toBeNull();
     await waitFor(() => expect(screen.queryByDisplayValue("合成2版")).not.toBeInTheDocument());
+  });
+
+  it("「さらに表示」で snapshot 変化を検出したら、再取得が失敗しても旧本文を出し続けない", async () => {
+    const user = userEvent.setup();
+    const latest = answer("2", answers({ visit_purpose: "合成2版" }));
+    const page1 = read(answeredTarget(latest), { next_cursor: "synthetic-cursor-1" });
+    const revoked = read(
+      answeredTarget(latest, { latest_answer: null, content_available: false, editable: false }),
+    );
+    let n = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        n += 1;
+        if (n === 1) return HttpResponse.json(page1);
+        if (n === 2) return HttpResponse.json(revoked);
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+
+    await waitFor(() => expect(n).toBe(3));
+    await waitFor(() => expect(screen.queryByDisplayValue("合成2版")).not.toBeInTheDocument());
+    expect(screen.queryByText("合成2版")).not.toBeInTheDocument();
   });
 });
 

@@ -191,7 +191,13 @@ export function RevisitIntakePage({
         <div className="max-w-md mx-auto w-full flex flex-col flex-1">
           <div className="px-4 pt-4">
             {/* 未確定の送信（memory のみの key）が残る間は、確認なしに離れない。 */}
-            <BackButton onClick={() => setLeavePrompt("unresolved")} />
+            <BackButton
+              onClick={() => {
+                // 照会成功で store が空になった直後は、古い描画のまま確認を挟まない。
+                if (draftStore.findPending(clinicId, appointmentId) === undefined) onBack();
+                else setLeavePrompt("unresolved");
+              }}
+            />
             {leavePrompt === "unresolved" ? (
               <div
                 role="alert"

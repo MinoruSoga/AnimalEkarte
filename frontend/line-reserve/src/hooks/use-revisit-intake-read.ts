@@ -194,8 +194,9 @@ export function useRevisitIntakeRead(
         const page = await liffApi.getRevisitIntake(clinicId, appointmentId, idToken, { cursor });
         if (!sameSnapshot(baseRead, page)) {
           // 最初の読込の後に target が変わった。旧 read へ追記せず捨て、1ページ目から読み直す
-          // （再取得が走るまで refetching になり editor は送信できない）。
-          setState((prev) => ({ ...prev, error: null }));
+          // 本文可否・権限が変わっている場合に備え、保持中の read は再取得の完了を待たず破棄する
+          // （遅い・失敗する再取得の間も旧本文を出さない。draft は store に残る）。
+          setState((prev) => ({ ...prev, read: null, error: null }));
           setRequestToken((t) => t + 1);
           return;
         }
