@@ -19,7 +19,7 @@
 |新飼主＋複数pet|既存 POST /owners に operation_key と登録契約を追加|既存 owners:create。候補readの view を createから暗黙付与しない|
 |既存自院飼主へ新pet|既存 POST /pets の owners:create を再利用。単一petの既存契約から変更しない|対象ownerの現医院・bindingを検査。複数pet一括追加を勝手に追加しない|
 |確認済common患者の自院利用|POST /common-patients/use-in-clinic|必要local owner/petを作る既存 owners:create と元候補への現在view。新grantなし。これ自体で基本情報editをしない|
-|登録結果lookup|GET /owner-registration-operations/{key}、intentを既知familyに限定|元clinic/actor scopeと現在 owners:view。成功時は結果ownerの現在scopeを検査|
+|登録結果lookup|GET /owner-registration-operations/{key}、intentを既知familyに限定|元clinic/actor/family scopeと現在の元操作grant。register-with-petsはowners:createによるreceipt限定回復を許容し、use-in-clinicは既定のcreate＋元候補viewを維持。成功時は結果ownerの同clinic/当該operation対応を検査|
 
 contact queryとcommon queryを別DTO・別検索処理にする。contactは同院警告だけでcommon一致の証明ではない。名前一致のみで新規停止しない。既存 identity-links/owners/search はD19権限/group用途であり、common利用APIの代用にしない。新しい正規化・あいまい閾値・候補表示項目の公開範囲は選ばない。候補DTOは既存owner/pet許可projectionの§5.1の列挙項目だけ。現在許可医院を減らす変更は次回保存/readでも再検査する。
 
@@ -47,7 +47,7 @@ body = operation_key、common_owner_id、expected_owner_version、expected_owner
 
 新規登録の元targetは生成前owner IDでなく、認証clinic＋actor＋owner.register-with-pets＋operation_keyで一意のC06 bindingそのもの。claimと同TXのimmutable owner metadataでこれを固定し、lookupは成功receipt不在でも元scopeを解決できる。use-in-clinicはcommon owner UUID＋pet集合digestを固定。actor/clinic/owner_kindはbodyから採用しない。C06 contract.go のOwnerKindはstringで固定enumではない。本契約はowner_kind=owner、intent=owner.register-with-pets / owner.use-in-clinicを選ぶ（既存491 owner.basic_revision.saveとは別family）。既存POST /petsの接続はpet write-ownerを維持し、本契約でownerへ移管しない。
 
-immutable typed commandを単一factoryで生成し、Contentはtarget refsとcanonical payload commitment、Preconditionsはexpected versionsに分離。PII payload fingerprintはowners/予約設計の秘密鍵付きcanonical HMAC＋鍵versionを再利用する。生電話/住所をContent/log/cacheへ複製しない。claim metadataのみの短TXの後、業務TX→graph gate→receipt→§8の具体的なowner/pet/common順→binding/改訂。共通UUID改訂だけの491初回sliceへgraph gateを一律追加しないが、登録/local FKや予約関連に影響するwriterは予約§6.4へ参加する。逆順が生じる場合、行取得後のgate追加ではなく最初からやり直す。
+shared RequestのVerifiedCommand限定拡張によりimmutable typed commandを単一factoryで生成し、Contentはtarget refsとcanonical payload commitment、Preconditionsはexpected versionsに分離。PII payload fingerprintはowners/予約設計の秘密鍵付きcanonical HMAC＋鍵versionを再利用する。生電話/住所をContent/log/cacheへ複製しない。claim metadataのみの短TXの後、業務TX→graph gate→receipt→§8の具体的なowner/pet/common順→binding/改訂。共通UUID改訂だけの491初回sliceへgraph gateを一律追加しないが、登録/local FKや予約関連に影響するwriterは予約§6.4へ参加する。逆順が生じる場合、行取得後のgate追加ではなく最初からやり直す。
 
 491から必要なのは(1)認可付きcommon候補readerとcurrent basic revision reader、(2)新subject＋最初のtyped revision＋immutable clinic bindingをambient TXで返すparticipant、(3)既存subject利用の一意binding解決、(4)DOB/Cygramの同revision組成とnull規則、(5)型付きOwner/PetResponse変換、(6)deferred common_basic_publishとのreceipt版整合。初回既存owner saveだけの公開は(2)(3)の完成を意味しない。deferred triggerとappの二重current pointer/version更新は禁止。491への外部writeはせず、490側依存表として引き渡す。
 
@@ -91,6 +91,18 @@ lockは既選定: metadata-only claim TX終了→業務TX→reservation-graph:wr
 PR-A設定: type/group CRUD/restore/reorder・分類intent・version・個別意図とread DTO・C06 lookup・名称revisionを公開する。予約snapshot更新participantが未受領の間は予約に作用するrenameを成功させる独立writeにしない。interface/mock/型作業は進められるが利用開始はcontract stateを保留。空のparticipant成功stubは禁止。
 
 PR-B予約接続: 上記ambient participant、予約read snapshot、新規予約snapshot、許可未来リスケcurrentname、全writer gate/切替、旧admin/LINE route adaptersを接続。受領API schemaとcommit SHAをPR間の入力に固定する。設定PRの存在だけで予約接続完了としない。
+
+### 2.4 新規初期値と旧LINE管理writerの切替
+
+parent_idは本canonical create/PATCHのallowlistに含めず、指定は400。親子分類は未決であり、既存保存parent_idの削除・再解釈・新UIによる編集を今回採用しない。
+
+新typeの保存はusage_resume_pending=false、name_revision=1を明示し、同TXで名称revision1（previous_name=NULL、display_name=新name、同operation/actor/採時）を作る。type createのcommitted_versionsは{master,name_revision}。既存unknownフラグ/名称版に架空初期値をbackfillしない。最終001ではcategory/colorはDROP済みであり、旧defaultを新列へ復活させない。
+
+LINE管理の/clinics/{clinic_id}/reservation-typesは旧wireの無変換互換を約束しない。新管理FEはcanonical masters routeへ移行し、create business_kind/key、全更新key/CAS、DELETE JSON body、status→PATCH changes.individual_active、sort-order direction→最新GETから得た完全items[{id,expected_version}]のreorderを送る。serverはkey/期待版/分類/並び順を推測生成しない。旧管理write endpointは切替時にwriteなしの既存非対応エラーへ閉じ、再読込・新FEへ誘導する。新handlerと旧caller停止を同じactivation条件にし、旧writeが迂回できる状態では有効化しない。旧readと通常LIFF飼主予約routeは本切替の対象外。
+
+### 2.5 旧患者coverageの有効化条件
+
+contact candidateのrequired common refsは既存患者のbinding移行が検証済みのscopeでのみ成立する。最終001では旧owners基本列もDROP済みのため、未bindingを旧氏名/phoneへfallbackしたり架空revisionを生成しない。491から必要な限定受領物に、対象医院の全非削除local ownerに対する一意common binding・読取可能な固定基本版・連絡先候補索引のcoverage検証を追加する。未binding/重複/取得不能が残るscopeは候補読取を完全成功として返さず、新登録activationを保留する。空候補として黙って除外しない。これは確認済み移行実行や全491完了を意味せず、必要scopeの受領条件である。
 
 ## 3. 共通HTTP・未実施受入
 
@@ -138,18 +150,18 @@ PR #784 の追加補正（review 4332795869、共有R4採択契約）に従い�
 
 ### 5.2 492 DTO
 
-- create type: operation_key, name, business_kind, duration_minutes, individual_active?, group_id?, expected_group_versions?, parent_id?, description?, sort_order?, reservation_display_name?, max_concurrent?, short_name?, show_short_name?, reservation_visible?, reservation_comment?, reservation_image_url?, reservation_day_option?, is_internal?。
-- PATCH type: operation_key, expected_version, expected_group_versions[], changes。changesはcreateのname〜is_internalのうちbusiness_kindを除いたfieldのみ、空changesは拒否。group/parent/max_concurrentは明示null消去、他fieldのnullは既存nullable契約以外拒否。旧clear_group_id/clear_parent_id/clear_max_concurrentは新wireで受理しない。旧adapterがある場合は存在フラグ付きnullへ一回だけ変換する。
+- create type: operation_key, name, business_kind, duration_minutes, individual_active?, group_id?, expected_group_versions[], description?, sort_order?, reservation_display_name?, max_concurrent?, short_name?, show_short_name?, reservation_visible?, reservation_comment?, reservation_image_url?, reservation_day_option?, is_internal?。
+- PATCH type: operation_key, expected_version, expected_group_versions[], changes。changesはcreateのname〜is_internalのうちbusiness_kindを除いたfieldのみ、空changesは拒否。group/max_concurrentは明示null消去、他fieldのnullは既存nullable契約以外拒否。旧clear_group_id/clear_max_concurrentは新wireで受理しない。旧adapterがある場合は存在フラグ付きnullへ一回だけ変換する。
 - create group: operation_key,name,color?,sort_order?,is_active?。PATCH group: operation_key,expected_version,changes{name?,color?,sort_order?,is_active?}、空changes拒否。
 - type/group DELETEとrestore: operation_key,expected_versionのみ。restore payloadからis_activeを受け付けない。
 - business-kind change/confirm: operation_key,expected_version,business_kindのみ、権限はmaster-reservation-type:edit。business_kindはgeneral/trimming/inpatient/hotelだけ。
 - reorder: operation_key,items[{id,expected_version}]。配列順が保存順、ID重複不可。clinicの非削除type/group集合をgate内で再検索し同集合でなければdependency-changed。意図した順序をID順ソートしない。
-- expected_group_versionsは今回参照する旧/新groupの{id,version}集合、ID昇順、重複不可。create typeにもgroup_idを指定する場合expected_group_versionsを受理する。groupなしでは空集合。既存group版が変われば再確認する。groupの状態・権限を版が同じだけで省略しない。
+- expected_group_versionsは今回参照する旧/新groupの{id,version}集合、ID昇順、重複不可。create typeのgroup_idが非NULLならexpected_group_versionsは選択groupの{id,version}厳密1件を必須とし、groupなしでは空集合を必須とする。既存group版が変われば再確認する。groupの状態・権限を版が同じだけで省略しない。
 - 個別activeのcreate省略は既存is_activeのtrue defaultへ正規化する。group createも同様。予約公開用fieldは既存意味のままで、本変更からLINE公開範囲/開始枠ルールを拡張しない。category/種別color/occupation関連fieldは拒否。
 
 ### 5.3 hash / Preconditions / captured payload
 
-command factoryはstrict decode・既存validation・存在/nullの区別を終えたtyped valueをdeep copyし、immutable command、Content、Preconditions、Applyを一度に作る。同keyの保存済Content fingerprintとincoming commandの不一致はoperation-key-conflictでzero-write。fingerprint一致後、Apply冒頭でも同じimmutable commandからcommitmentを再検査し、captureの不一致又は業務依存の変化はdependency-changedでzero-write。期待版だけの不一致はversion-conflictとする。これらの詳細は元targetの現在認可を通した後だけ返す。mutable map/slice/後から再parseしたpayloadは使用しない。
+command factoryは後記の共有VerifiedCommand限定拡張を前提とし、strict decode・既存validation・存在/nullの区別を終えたtyped valueをdeep copyし、Request内のimmutable VerifiedCommand、Content、Preconditionsを一度に作る。同keyの保存済Content fingerprintとincoming commandの不一致はoperation-key-conflictでzero-write。fingerprint一致後、Apply冒頭でもreq.VerifiedCommandからcommitmentを再検査し、request内payloadの不一致又は業務依存の変化はdependency-changedでzero-write。期待版だけの不一致はversion-conflictとする。これらの詳細は元targetの現在認可を通した後だけ返す。mutable map/slice/後から再parseしたpayloadは使用しない。
 
 payload commitmentはlowerhex HMAC-SHA256(K_version, UTF8(JCS(projection)))。鍵の実生成/設定/交換は本作業に含めない。payload commitment用のkey versionはcommand_schema単位で固定し、再送では同schemaの固定versionを使う。稼働中keyの自動選択で同内容digestが変わる実装は禁止。C06外側fingerprintの鍵version管理とは区別し、旧schemaのbindingが残る間は対応commitment鍵を照合可能に保つ。鍵廃棄/変更は別の移行設計なしに行わない。projectionはschema=owner-register-v1 / owner-use-v1 / reservation-master-v1、intent、検証済対象refs、全変更fieldのpresence/null/value。ID/版は正規decimal文字列、UUIDはcanonical小文字、日付はYYYY-MM-DD、時刻はUTC RFC3339Nano。十進小数は入力十進値を正規文字列化しbinary floatの丸め値をdigestにしない。文字列は既存validatorが規定する変換だけ、空白や漢字の独自正規化なし。集合はID順、pets登録入力順・reorder順は順序を保持する。
 
@@ -163,7 +175,7 @@ Preconditionsは登録candidate expected_basic_revision、use-in-clinic owner/pe
 
 - register: refs={owner_id,common_owner_id,owner_basic_revision_id,pet_0_id,pet_0_common_id,pet_0_basic_revision_id,pet_0_client_ref,...}、versions={owner_subject,pet_0_subject,...}、summary={pet_count}。pet順は入力順。...は同じ定義のi=0..pet_count-1だけであり任意fieldではない。
 - use: refsはregisterと同じowner/pet ID・revisionキー（client_refなし）、petsはcommon UUID昇順、versionsは同じsubjectキー、summary={pet_count}。既存binding再利用でも同じlocal IDへ収束。対象版は実際に確認した版、common基本情報を更新しない。
-- type/group単独: refs={reservation_type_id}又は{reservation_type_group_id}、versions={master}。renameはversionsにname_revision、summaryにsnapshot_updated_countを追加。renameが更新した全appointment IDを大きなreceiptへ詰めず、操作紐付けのaudit行から照合する。
+- type/group単独: refs={reservation_type_id}又は{reservation_type_group_id}、versions={master}。type createはversionsにname_revision=1を必須追加する。renameはversionsにname_revision、summaryにsnapshot_updated_countを追加。renameが更新した全appointment IDを大きなreceiptへ詰めず、操作紐付けのaudit行から照合する。
 - reorder: refs={target_0_id,...}、versions={target_0,...}、summary={target_count}。定義域はi=0..target_count-1のみ。
 - committed subject versionは491のdeferred publish遷移と同じ値を用い、commit前の古いpointerを採らない。commit/deferred trigger失敗時はResultもrollback。result mapの実helper制約と最大requestサイズの適合は受領試験対象であり、未対応時に結果を切り捨てない。
 
@@ -171,7 +183,7 @@ metadataは§3.1に従いbindingと同短TXで生成し、失敗/unknown/未成�
 
 RLSはENABLE/FORCEし、USING/WITH CHECKは同じambient transactionで検証設定したclinic_idとの一致。API実行roleにBYPASSRLSを付与せず、HTTP bodyでRLS contextを設定しない。immutable triggerでUPDATE/DELETEを拒否し、通常writerにはINSERT/SELECTだけ。claim hook以外からINSERTしない。本人/権限の現在検査はRLSのclinic一致だけで代用しない。cross-clinic common読取は各認可済bindingの既存readerを使用し、anchorのRLSを全院へ広げない。
 
-lookupはscopeのbinding→保存anchor→元targetの現在view→保存receipt。新規未成功は元認証clinic/actor/familyが原target。成功時は結果IDが同clinicに実在し当該operationの作成/利用結果と一致することも検査する。useはanchorの原common ownerと全common_pet_idsの現在候補認可、masterは元type/group（削除済でも権限検査可能な原行）又はclinic集合の現在master:viewを検査。別URL/別対象で元結果を漏らさず、pre-C06不一致は現在認可後の既存409 ErrorResponse、C06保存済Content fingerprint不一致はoperation-key-conflict、fingerprint一致後のApply依存変化はdependency-changed、期待版CAS不一致はversion-conflict。欠落anchor/解決不能は非開示で止め、成功receiptから別targetを捏造しない。
+lookupはscopeのbinding→保存anchor→元targetの現在認可（新規登録は元actorの現在owners:createによる限定receipt、その他は既定view）→保存receipt。新規未成功は元認証clinic/actor/familyが原target。成功時は結果IDが同clinicに実在し当該operationの作成/利用結果と一致することも検査する。useはanchorの原common ownerと全common_pet_idsの現在候補認可、masterは元type/group（削除済でも権限検査可能な原行）又はclinic集合の現在master:viewを検査。別URL/別対象で元結果を漏らさず、pre-C06不一致は現在認可後の既存409 ErrorResponse、C06保存済Content fingerprint不一致はoperation-key-conflict、fingerprint一致後のApply依存変化はdependency-changed、期待版CAS不一致はversion-conflict。欠落anchor/解決不能は非開示で止め、成功receiptから別targetを捏造しない。
 
 ## 7. audit sinkと失敗時原子性
 
@@ -199,6 +211,13 @@ reorderは各対象IDの前後sort_order/versionを1対象1audit行として同�
 
 未成功binding・プロセス再起動・現行rule更新後も元版を使う。元版の算法/固定表を利用できない場合は処理を止める（result-unavailable、結果詳細なし）。最新ruleへ黙って置換した新revisionや新key救済を行わない。rule版の変更を業務内容変更として新操作にするのは旧結果が確定し、改めてその操作を開始するときだけ。初回claim metadata取得を含むfactory/489受領interfaceはこの動作を実現する必要があり、現在の実装成立を宣言しない。
 
-公開型の区別: 既存createOwnerRequestのclinic_id・animal_species_id・insurance_id、既存masterのgroup_id/parent_id/sort_order/duration_minutes/max_concurrentは既存number型を維持する。新expected_versionは対応する公開readerのversion型に合わせる。hash projectionだけID/版/十進値をcanonical decimal string化し、C06 result mapは既存string値のまま。payload型変更や全APIのID string化を本契約に含めない。
+公開型の区別: 既存createOwnerRequestのclinic_id・animal_species_id・insurance_id、既存masterのgroup_id/sort_order/duration_minutes/max_concurrentは既存number型を維持する。新expected_versionは対応する公開readerのversion型に合わせる。hash projectionだけID/版/十進値をcanonical decimal string化し、C06 result mapは既存string値のまま。payload型変更や全APIのID string化を本契約に含めない。
 
-判定順: 認証＋入口の現在write grant→binding/元anchor解決→元target現在認可→保存済Content fingerprint比較（不一致operation-key-conflict）→同Contentならreplay/unknown判定→Applyの現在依存照合（変化dependency-changed）→期待版CAS（不一致version-conflict）。実取得順はC06/graph lock契約を守る。lookupは現在viewを使い、POST再送は入口のwrite grantを省略しない。認可失効をkey/CAS詳細で漏らさない。EffectSummaryのpet_count/target_count/snapshot_updated_countは内部でreceipt整合を検査する値で、公開ResultResponseへ自動marshalしない。
+判定順: writeは認証＋入口の現在write grant→binding/元anchor解決→元target現在認可→保存済Content fingerprint比較（不一致operation-key-conflict）→同Contentならreplay/unknown判定→Applyの現在依存照合（変化dependency-changed）→期待版CAS（不一致version-conflict）。実取得順はC06/graph lock契約を守る。lookupは前述family別の現在認可（登録は同actorの現在owners:createによるreceipt限定）を使い、POST再送は入口のwrite grantを省略しない。認可失効をkey/CAS詳細で漏らさない。EffectSummaryのpet_count/target_count/snapshot_updated_countは内部でreceipt整合を検査する値で、公開ResultResponseへ自動marshalしない。
+
+
+## 統合レビュー共通補正：shared Request の限定 immutable payload
+
+現operation.Participantはreq.Content.Fields由来のwriteのみ許し、private captured commandを許さない。このconsumerには全文を短いContent mapへ格納できないため、共有Requestへoptional VerifiedCommandを追加する限定deltaを必要subsetとして選定する。VerifiedCommandはoperation package所有のimmutable値で、constructorでschemaとcanonical command bytesをdeep-copyし、schema別pure projectorが求めたContent全keysとの一致を検査する。getterはdetached copyのみを返す。Runnerはclaim/fingerprint前とApply直前に同じrequest bytesから再検証し、Applyはreq.VerifiedCommandだけからtyped入力を再構成する。participantへのDTO capture、mutable pointer、別parse結果によるwriteは禁止。CASはPreconditionsのままである。
+
+payloadはrequest memoryのみ、binding/receipt/logへ保存しない。既存consumerはVerifiedCommandなしのContent-only方式を維持する。HMAC/各digestのschemaと鍵版は本文既定どおりで新正規化をしない。489で共通contract/runnerの限定interfaceを一箇所だけ実装するまで、このconsumerを現C06のまま実装可能と扱わない。これは親による技術選定であり、本人がAPI/物理方式を直接承認したとの記載ではない。実装/試験NOT_RUN。
