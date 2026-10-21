@@ -11,7 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // LiffHandler は LIFF 公開 API の HTTP handler。
