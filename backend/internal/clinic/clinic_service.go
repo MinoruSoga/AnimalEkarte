@@ -403,6 +403,10 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 		if err := s.permissionGroupRepo.DeleteSoftDeletedByClinicID(txCtx, id); err != nil {
 			return apperrors.Wrap(err, "failed to clean up soft-deleted permission groups")
 		}
+		// package catalog は医院付属の簿記行。RESTRICT FK で削除阻害にならないよう同TXで除く。
+		if err := s.repo.DeleteTreatmentPackageCatalogVersion(txCtx, id); err != nil {
+			return apperrors.Wrap(err, "failed to clean up package catalog version")
+		}
 		return s.repo.Delete(txCtx, id)
 	}); err != nil {
 		return apperrors.Wrap(err, "failed to delete clinic")

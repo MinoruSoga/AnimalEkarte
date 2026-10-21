@@ -71,6 +71,10 @@ func (m *mockClinicRepository) FindByStaffID(ctx context.Context, staffID uint64
 	return m.findByStaffIDFn(ctx, staffID)
 }
 
+func (m *mockClinicRepository) DeleteTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error {
+	return nil
+}
+
 func (m *mockClinicRepository) CreateTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error {
 	if m.createPackageCatalogFn == nil {
 		return nil
