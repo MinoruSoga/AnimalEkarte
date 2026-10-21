@@ -94,6 +94,8 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 
 snapshotは正本で採用した項目だけ。原見本の縦横差を共通化で消さず、未取得2資料や法定必須項目を推測追加しない。新しい証明番号の業務規則は選定せず、内部edition IDと印字番号を区別する。番号が必要なら既存の印字仕様と利用院の確認を行い、内部UUIDを勝手に法的証明番号として印字しない。
 
+[2026-10-21本人確認の用紙寸法](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)に従い、通常縦はA4縦（210mm×297mm）、通常横・狂犬病はA4横（297mm×210mm）を各様式のtemplate版へ固定する。寸法は固定描画版の一部として保持し、現在templateで過去発行版を黙って描き直さない。
+
 ### 同じ発行版からの縦横出力
 
 [本人第3項A](../../../spec/domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018)は業務決定、内部方式は本案と分ける。通常証明書のeditionは両様式で必要な採用項目の保存値を保持し、縦横別のtemplate版・field projectionを参照する。LOT欄／E-Mail等の差を消さず、現在master/基本情報から欠けた値を黙って補わない。旧editionが他方の様式を表現できるか不明なら未対応／取得不明を返し、推測で成功させない。具体移行の調査は実装課題で、新しい必須入力や新規発行の強制をこの決定から作らない。
@@ -183,7 +185,7 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 <a id="certificate-fee-projection-20261020"></a>
 ## EMR-518：料金projectionと発行版の接続
 
-[料金4欄の業務正本](../../../spec/domains/vaccinations/lifecycle.md#certificate-fees-manual-20261020)を既存[edition/renderer設計](#certificate-edition-proposal)へ接続する採用方向。発行前の手動編集・確認額をcertificate edition snapshotへ固定し、会計/master/packageへ逆writeしない。optional/null・0・未入力を維持する。初期値参照には保存済み内訳との対応を持ち、欠落を現在masterで推定補完しない。
+[料金4欄の業務正本](../../../spec/domains/vaccinations/lifecycle.md#certificate-fees-manual-20261020)を既存[edition/renderer設計](#certificate-edition-proposal)へ接続する採用方向。発行前の手動編集・確認額をcertificate edition snapshotへ固定し、会計/master/packageへ逆writeしない。optional/null・0・未入力を維持する。新規発行時の料金4欄の初期値はすべてnullとし、会計・master・packageから転記しない。発行前のスタッフ入力値をedition snapshotへ固定する。
 
 `certificate_fee_role` は証明書adapterの任意mappingであり、一般packageの必須属性にしない。医院別構成と既存会計候補への明示追加を使用し、一律イベントやrule engineを新設しない。packageの品目合算と証明書の手動確認額（合計欄も含む）は別責務。会計一致gate・自動同期・合計再計算は追加せず、preview/issue/reprintから料金を生成しない。
 
