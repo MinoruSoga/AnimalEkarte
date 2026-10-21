@@ -51,6 +51,8 @@
 - 大きな本文と C06 Content の各値 256-byte 制限を両立するため、本文を Content に入れず共有上限も変更しない。
 - nested content は title:string / order_value:number(double) / section:string / body_markdown:string の全置換。category / slug は immutable route selector。
 - content の 4 項目は required / non-null。JSON 重複 member、lone surrogate / invalid UTF-8、非有限・範囲外 JSON number を拒否する。
+- 現行 `newRouter` は global `SanitizeNullBytes` を route handler より前に登録し、その reader が raw 0x00 等の制御byteを除去する。manual edit 専用 raw body guard をその sanitizer より前に登録し、method と登録済みの対象 PUT `/api/v1/manual/articles/:category/:slug` の一致で限定する。Content-Type の省略・誤指定で検査を迂回させず、他 route の挙動は変更しない。以下は追加する設計であり、guard 実装済みの記載ではない。
+- guard は既存 raw body 上限を維持して chunked を含む未加工 body を検査し、literal raw NUL（0x00）を含む不正 JSON は claim 前 HTTP 400 で拒否する。raw JSON 構文検査を通した同じ bytes を書換えず後段へ戻し、sanitizer による内容変更前の拒否を保証する。後段の一度の domain decode / 検証から既述 factory へ渡し、guard から別 DTO / command を差し込まない。既存 body 上限超過の応答・制限は緩和しない。
 - 保存対象文字列の decoded U+0000 は claim 前に HTTP 400 で拒否し、binding を生成しない。除去・置換はしない。他の Unicode・改行・正当な escape は維持し、文字列としての literal `\u0000`（バックスラッシュと u0000 の6文字）と区別する。
 - 公開 API の `ManualArticleEditContent` に従い、title / section だけ空文字を拒否し、body_markdown は空文字を許容する。新たな文字数制限・trim・空白のみ拒否を導入せず、旧 handler の `max=255` / `required,max=100000` は継承しない。
 - order_value は公開 API どおり numeric(10,2) に対応する number、multipleOf 0.01、最小 -99999999.99・最大 99999999.99 とする。
@@ -85,6 +87,7 @@
 - fixture：global article cross-clinic CAS / required audit rollback / 大本文と digest mismatch / 原 version replay / absent・partial・malformed・duplicate config / 旧 key 不在 / selector と公開 intent 写像。
 - fixture：50回超の edit 後も元 receipt を照会でき、operation 履歴 / receipt / current・published pointer の参照版が削除されない。表示件数上限によって保存版を削除しない。
 - fixture：title / section / body_markdown それぞれの decoded U+0000 を claim 前400で拒否し binding 未生成を確認する。6文字の literal `\u0000`、他の正当な Unicode・改行・escape と区別する。outer の許容5項目と未知 field 拒否も確認する。
+- fixture：実 middleware 登録順で、title / section / body_markdown 内の literal raw 0x00 を sanitizer が除去する前に400で拒否し、binding 未生成を確認する。JSON escape 由来の decoded U+0000 も400、literal backslash-u の6文字は保存可能とし、同じ bytes / decoded 値の hash・保存を確認する。chunked・Content-Type 省略 / 誤指定でも拒否を維持し、他 route の sanitizer 挙動は変更しない。
 - 試験実行は NOT_RUN。隔離環境を構築・使用しない。実鍵設定・DB 適用・deploy は行わない。実 DB / 結合 / UAT は本人指示後に main ローカルでまとめ検証し、未実行を PASS と記さない。
 
 ## 根拠
