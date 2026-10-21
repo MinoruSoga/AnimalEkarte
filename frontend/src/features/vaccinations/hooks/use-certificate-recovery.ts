@@ -193,9 +193,18 @@ export function useCertificateRecovery({ api, target, enabled }: UseCertificateR
     [api],
   );
 
+  /**
+   * この画面の既存フローが、同じ key の成功を要求へ束縛して確認できたとき。保留を外せるのは
+   * 「その key の束縛済みの成功」だけ（not-succeeded・scope-not-found・通信失敗では呼ばれない）。
+   */
+  const adoptSuccess = useCallback((key: string, refs: RecoveryRefs) => {
+    resolvedRef.current = new Map(resolvedRef.current).set(key, refs);
+    dispatch({ type: "lookupDone", run: stateRef.current.run, key, refs, notice: null });
+  }, []);
+
   const canStart = state.status === "loading" || (state.status === "ready" && view !== null && !view.hold);
 
-  return { state, view, canStart, ensureClear, refresh, lookupItem };
+  return { state, view, canStart, ensureClear, refresh, lookupItem, adoptSuccess };
 }
 
 export type CertificateRecovery = ReturnType<typeof useCertificateRecovery>;

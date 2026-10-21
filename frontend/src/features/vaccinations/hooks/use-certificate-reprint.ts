@@ -36,8 +36,10 @@ export function useCertificateReprint(args: {
    * 確認できていない間は false。false なら key を作らない。
    */
   ensureRecoveryClear: () => Promise<boolean>;
+  /** 自分のフローが同じ key の束縛済みの成功を確認したときに通知する（発見側の保留を外すため）。 */
+  onBoundSuccess: (key: string, refs: { editionId: string; artifactId: string }) => void;
 }) {
-  const { api, edition, sourceVersion, onRefetch, getCanEdit, store, ensureRecoveryClear } = args;
+  const { api, edition, sourceVersion, onRefetch, getCanEdit, store, ensureRecoveryClear, onBoundSuccess } = args;
   const editionKey = edition.id;
   const entry = useSyncExternalStore(
     store.subscribe,
@@ -75,8 +77,9 @@ export function useCertificateReprint(args: {
         return;
       }
       commit({ pending: null, state: { phase: "done", ...refs, replayed: result.status === "replayed" } });
+      onBoundSuccess(pending.request.operation_key, refs);
     },
-    [commit, edition.vaccination_id],
+    [commit, edition.vaccination_id, onBoundSuccess],
   );
 
   const lookup = useCallback(

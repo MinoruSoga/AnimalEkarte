@@ -50,6 +50,8 @@ export interface UseCertificateIssueArgs {
    * 未確定の操作が見つかっている・確認できていない間は false。false なら key を作らない。
    */
   ensureRecoveryClear: () => Promise<boolean>;
+  /** 自分のフローが同じ key の束縛済みの成功を確認したときに通知する（発見側の保留を外すため）。 */
+  onBoundSuccess: (key: string, refs: { editionId: string; artifactId: string }) => void;
 }
 
 function initialFor({ context, restored }: { context: CertificateContext; restored: IssuePending | undefined }): IssueState {
@@ -67,6 +69,7 @@ export function useCertificateIssue({
   onRefetchContext,
   refetchCanIssue,
   ensureRecoveryClear,
+  onBoundSuccess,
 }: UseCertificateIssueArgs) {
   const queryClient = useQueryClient();
   const registry = useMemo(() => certificateOperationRegistry(queryClient), [queryClient]);
@@ -192,9 +195,10 @@ export function useCertificateIssue({
         return;
       }
       dispatch({ type: "issueOk", refs: { ...refs, replayed: result.status === "replayed" } });
+      onBoundSuccess(pending.key, refs);
       onRefetchContext();
     },
-    [onRefetchContext, vaccinationId],
+    [onRefetchContext, onBoundSuccess, vaccinationId],
   );
 
   const lookup = useCallback(

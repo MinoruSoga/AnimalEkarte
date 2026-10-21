@@ -375,3 +375,53 @@ describe("同じ operation key を既存フローも持つとき（二重の所�
     expect(callsOf(controls, "reprint")).toHaveLength(1);
   });
 });
+
+describe("自分のフローが保留中の key の成功を確認したとき", () => {
+  it("発行: 同じ内容で再試行して成功すると保留が外れ、新しい発行へ進める", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const view = renderScreen(api);
+    await createPreview(user);
+    controls.failNext("issue", { error: new CertificateApiError("network"), claimOnly: true });
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    await screen.findByText("この操作では発行されていません");
+    view.rerender(<div />);
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    expect(await screen.findByText(HOLD_ISSUE)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "発行結果を照会する" }));
+    await screen.findByText("この操作では発行されていません");
+    expect(screen.getByText(HOLD_ISSUE)).toBeInTheDocument(); // 成功なしでは保留のまま
+    await user.click(screen.getByRole("button", { name: "同じ内容で再試行" }));
+    await screen.findByRole("heading", { name: "発行しました" });
+
+    await user.click(screen.getByRole("button", { name: "新しく発行する" }));
+    await createPreview(user);
+    expect(screen.queryByText(HOLD_ISSUE)).toBeNull();
+    expect(screen.queryByText(/この画面で進行中の操作です/)).toBeNull();
+    expect(screen.getByRole("button", { name: "この内容で発行する" })).toBeEnabled();
+    expect(callsOf(controls, "issue")).toHaveLength(2); // 同じ key の再試行のみ（新 key は未送信）
+  });
+
+  it("再印刷: 同じ内容で再試行して成功すると、その行の保留が外れる", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const view = renderScreen(api);
+    let row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), claimOnly: true });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    await within(row).findByRole("button", { name: "同じ内容で再試行" });
+    view.rerender(<div />);
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    expect(await within(row).findByText(HOLD_REPRINT)).toBeInTheDocument();
+
+    await user.click(within(row).getByRole("button", { name: "同じ内容で再試行" }));
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    expect(within(row).queryByText(HOLD_REPRINT)).toBeNull();
+    expect(within(row).queryByText(/この画面で進行中の操作です/)).toBeNull();
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeEnabled();
+    expect(callsOf(controls, "reprint")).toHaveLength(2);
+  });
+});

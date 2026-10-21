@@ -60,6 +60,7 @@ export function CertificateEditionRow({
     getCanEdit,
     store: reprintStore,
     ensureRecoveryClear: recovery.ensureClear,
+    onBoundSuccess: recovery.adoptSuccess,
   });
   const shownLayout = reprint.activeLayout ?? layout;
   // 再印刷の結果が未確定の間は、同じ key の照会・再試行だけを許す（別操作・向き変更を止める）。

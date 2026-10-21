@@ -53,6 +53,7 @@ export function CertificateIssuePanel({
     onRefetchContext,
     refetchCanIssue,
     ensureRecoveryClear: recovery.ensureClear,
+    onBoundSuccess: recovery.adoptSuccess,
   });
   const { state, fieldErrors } = flow;
   const kinds = selectableKinds(context);
