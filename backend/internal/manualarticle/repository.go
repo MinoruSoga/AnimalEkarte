@@ -218,8 +218,15 @@ func (r *repository) FindVersionByID(ctx context.Context, articleID, versionID u
 }
 
 func (r *repository) LockArticleForUpdate(ctx context.Context, id uint64) (*model.ManualArticle, error) {
+	// ambient tx 必須: tx なしでは FOR UPDATE が文終了で解放されるため
+	// クエリを発行せず fail-closed で内部エラーを返す。lock は必ず
+	// ambient handle 上で走らせる（DBOrTx fallback しない）。
+	tx := persistence.TxFromContext(ctx)
+	if tx == nil {
+		return nil, apperrors.WrapInternalServerError("manual article lock requires an ambient transaction")
+	}
 	var article model.ManualArticle
-	if err := persistence.DBOrTx(ctx, r.db).
+	if err := tx.
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).
 		First(&article).Error; err != nil {

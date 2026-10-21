@@ -20,6 +20,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -198,13 +199,23 @@ func TestRepository_LockArticleForUpdate(t *testing.T) {
 	repo := New(db)
 	ctx := context.Background()
 
+	// ambient tx なしは fail-closed（クエリを発行しない）。
+	_, err := repo.LockArticleForUpdate(ctx, 1)
+	require.Error(t, err)
+	assert.False(t, apperrors.IsNotFound(err))
+
 	article := &model.ManualArticle{Category: model.ManualCategoryScreens, Slug: "lock"}
 	require.NoError(t, db.Create(article).Error)
 
-	locked, err := repo.LockArticleForUpdate(ctx, article.ID)
-	require.NoError(t, err)
-	assert.Equal(t, article.ID, locked.ID)
-
-	_, err = repo.LockArticleForUpdate(ctx, 999999)
-	assert.True(t, apperrors.IsNotFound(err))
+	require.NoError(t, db.Transaction(func(tx *gorm.DB) error {
+		txCtx := persistence.WithTxValue(ctx, tx)
+		locked, lerr := repo.LockArticleForUpdate(txCtx, article.ID)
+		if lerr != nil {
+			return lerr
+		}
+		assert.Equal(t, article.ID, locked.ID)
+		_, lerr = repo.LockArticleForUpdate(txCtx, 999999)
+		assert.True(t, apperrors.IsNotFound(lerr))
+		return nil
+	}))
 }

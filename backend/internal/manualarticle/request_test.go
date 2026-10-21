@@ -58,7 +58,7 @@ func TestParseEditRequest_Rejects(t *testing.T) {
 		{"article_id number not string", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":42,"expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"expected_version zero", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":0,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"bad operation key", `{"operation_key":"not-a-uuid","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
-		{"uppercase uuid", `{"operation_key":"11111111-1111-4111-8111-111111111111".toUpperCase(),"article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
+		{"uppercase uuid", `{"operation_key":"AAAAAAAA-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"not json", `not-json`},
 		{"lone surrogate escape", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t\uD800x","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"quoted expected_version", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":"3","expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},

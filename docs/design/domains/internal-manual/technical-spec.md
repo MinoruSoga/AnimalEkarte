@@ -102,7 +102,7 @@
 
 ### HTTP 写像
 
-- `PUT /manual/articles/{category}/{slug}`: parse 400 → runner 未設定 500 → staff なし 403 →
+- `PUT /manual/articles/{category}/{slug}`: staff なし 403 → edit deps 未設定 500 → slug 空/parse 400 →
   経路記事不存在 404 → `article_id`≠経路記事 409 `target_mismatch` → `Runner.Execute` →
   `succeeded`/`replayed`=200 `ManualEditReceipt`（永続化 receipt のみ）、`operation-key-conflict`=409
   `operation_key_reused`、`version-conflict`=409、`validation`=`target_mismatch`/`source_unresolved`、

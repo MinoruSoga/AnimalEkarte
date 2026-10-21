@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -566,7 +567,9 @@ func (c runtimeComposition) registerDomainRoutes(
 		c.auth.Handler.HasPermission,
 	).RegisterRoutes(protected)
 	c.registerClinicRoutes(protected)
-	c.registerExistingDomainRoutes(ctx, protected, uploader)
+	if err := c.registerExistingDomainRoutes(ctx, protected, uploader); err != nil {
+		return err
+	}
 
 	lstepHandler := c.newLstepHandler()
 	reservationHandler := c.newReservationHandler(ctx, lstepHandler)
@@ -603,12 +606,16 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	ctx context.Context,
 	protected *gin.RouterGroup,
 	uploader infra.FileUploader,
-) {
+) error {
+	manualEditDeps, err := c.manualEditDeps()
+	if err != nil {
+		return err
+	}
 	manualarticle.NewHandler(
 		manualarticle.NewManualArticleService(manualarticle.New(c.db)),
 		manualArticleAuditAdapter{logger: c.audit},
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
-		c.manualEditDeps(),
+		manualEditDeps,
 	).RegisterRoutes(protected)
 	support.NewHandler(
 		support.NewService(
@@ -678,6 +685,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			RequirePermissionAny: adaptMedicalRecordPermissionAny(c.auth.Handler.RequirePermissionAny),
 		},
 	).RegisterRoutes(protected)
+	return nil
 }
 
 func adaptTrimmingPermissionAny(
@@ -733,7 +741,7 @@ func (c runtimeComposition) newReservationHandler(
 // 現在 grant は effective permission rules の manual-edit:edit で評価し、
 // system_admin bypass は request context の session flag 側で処理する
 // （participant 構築時に handler が渡す）。
-func (c runtimeComposition) manualEditDeps() manualarticle.EditDeps {
+func (c runtimeComposition) manualEditDeps() (manualarticle.EditDeps, error) {
 	repo := manualarticle.New(c.db)
 	deps := manualarticle.EditDeps{
 		Store:   repo,
@@ -754,12 +762,21 @@ func (c runtimeComposition) manualEditDeps() manualarticle.EditDeps {
 			return false, nil
 		},
 	}
-	if keys, current, err := c.config.OperationFingerprintKeys(); err == nil && keys != nil {
-		if fp, ferr := operation.NewFingerprinter(current, keys); ferr == nil {
-			deps.Runner = operation.NewRunner(c.db, fp)
-		}
+	// keyring は両方未設定（edit 無効・Runner nil で endpoint fail-closed 500）
+	// または両方有効。設定されているのに parse / Fingerprinter 構築が
+	// 失敗する場合は serving を始めず error を返す（key 値は error に含めない）。
+	keys, current, err := c.config.OperationFingerprintKeys()
+	if err != nil {
+		return deps, fmt.Errorf("manual article edit operation keyring is misconfigured: %w", err)
 	}
-	return deps
+	if keys != nil {
+		fp, ferr := operation.NewFingerprinter(current, keys)
+		if ferr != nil {
+			return deps, fmt.Errorf("manual article edit operation keyring is unusable: %w", ferr)
+		}
+		deps.Runner = operation.NewRunner(c.db, fp)
+	}
+	return deps, nil
 }
 
 type manualArticleAuditAdapter struct {

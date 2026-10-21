@@ -1079,6 +1079,11 @@ type ambientTxParticipationExpectation struct {
 var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpectation{
 	// TASK-027 Slice A append is fail-closed: it must receive an ambient transaction and
 	// never fall back to the repository base DB. Runtime proof is named in the allowlist above.
+	// EMR-502: FOR UPDATE lock は ambient tx 必須（tx なしでは文終了で解放されるため
+	// TxFromContext 先検査で fail-closed）。dbOrTxParticipatingMethods にも登録。
+	"manualarticle/repository.go|repository.LockArticleForUpdate": {
+		shape: ambientTxRequired,
+	},
 	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {
 		shape: ambientTxRequired,
 	},
