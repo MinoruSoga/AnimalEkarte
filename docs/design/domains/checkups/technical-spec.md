@@ -115,3 +115,18 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 業務目標は[D03共通FR／AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、本領域の[接続境界](../../../spec/domains/checkups/lifecycle.md#checkups-plan-tab-link)を参照する。Checkup系を唯一の健診正系統とし、パッケージ・型付き結果・保存時snapshot・次回予定の既決を維持する。予定追加だけで健診完了・結果生成・親カルテ自動作成へ進めず、Examinationへ同じ健診を二重保存しない。既存の通常受付・過去専用入力を迂回する新経路にしない。
 
 [D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。
+
+<a id="checkup-outsourced-pdf-gap"></a>
+## 外注PDFの採択要件と未収録の技術差分（2026-10-21）
+
+[FR・7AC](../../../spec/domains/checkups/lifecycle.md#fr-checkups-outsourced-pdf-20261021)を追加。従来のFR/AC件数表記は旧範囲であり、この追加分を含む完成判定ではない。実装・DB・API変更・試験はNOT_RUN。既存Checkup正系統・型付きfield・置換APIの存在は、原本／抽出／確認版の実装証拠ではない。
+
+| 必要な差分 | 設計で満たす契約／未選定部分 |
+|:---|:---|
+| PDF storage | 認可された医院・患者・親カルテ・Checkupに原本を対応付け、原本所在と各版の由来を保持。既存添付を使う場合も適合確認が必要。保存先・storage adapter・詳細DDLは未選定。TTL・物理削除を追加しない |
+| 抽出／確認wire | 原本登録、抽出候補の取得／再抽出、職員確認・修正保存、確定結果読取を意味的に分離。route・DTO・詳細DDLは未選定。既存field PUTの一括置換だけで確定結果を無履歴上書きしない |
+| 版・監査・再開 | 原本ref、候補版、確定結果版、確認者／actor・時刻・前後差分と操作結果を追跡。現在認可・対象版・依存を再照合。応答断／競合は同一操作と版を照合して再開、再抽出は確定値を変更しない |
+| 状態と受け手 | 原本登録／抽出候補／職員確認済みを区別。失敗・空・未確認をnormalへ畳み込まない。D03は同一Checkup結果ID・版をprojectionし、D07本文を複製しない |
+| 抽出基盤 | PDF見本未受領。OCR provider、課金、外部送信、抽出項目mappingは未選定。実患者PDF処理・外部送信は本作業で実施しない |
+
+現在の医院・患者・record・Checkup・masterの照合、通常受付、過去／死亡後生前分の専用訂正、原結果保持と手入力を維持する。確認保存の必要履歴が失敗した状態を確定成功として返さない。D03の一般PDF閲覧は抽出実行の入口と同一視しない。各差分の受入は上記7ACへ対応し、storageやwireを選ぶ実装工程で具体化する。
