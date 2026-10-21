@@ -222,6 +222,25 @@ func TestUpsertManualArticle_TargetMismatch409(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"code":"target_mismatch"`)
 }
 
+func TestUpsertManualArticle_TargetMismatchWithoutGrant403(t *testing.T) {
+	// 不一致でも現在 grant が失効していれば 403。未認可の caller に
+	// target_mismatch の詳細を開示しない（採択契約 §3）。
+	svc := &mockManualArticleServiceForHandler{
+		findArticleFn: func(context.Context, model.ManualCategory, string) (*model.ManualArticle, error) {
+			return &model.ManualArticle{ID: 1, Category: "screens", Slug: "a"}, nil
+		},
+	}
+	deps := EditDeps{
+		Runner:  &operation.Runner{},
+		Store:   &stubEditTxStore{},
+		Grant:   func(context.Context, uint64, uint64) (bool, error) { return false, nil },
+		TxAudit: &mockEditTxAudit{},
+	}
+	w := doRequest(t, newTestHandler(svc, deps), http.MethodPut, "/api/v1/manual/articles/screens/a", validEditBody)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.NotContains(t, w.Body.String(), "target_mismatch")
+}
+
 func TestGetManualEditOperationResult_RunnerUnconfigured500(t *testing.T) {
 	svc := &mockManualArticleServiceForHandler{}
 	w := doRequest(t, newTestHandler(svc, EditDeps{}), http.MethodGet,

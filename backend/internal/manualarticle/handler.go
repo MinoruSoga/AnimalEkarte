@@ -154,8 +154,20 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	// body.article_id と経路記事の一致を先に検査する。違えば 409 target_mismatch。
+	// body.article_id と経路記事の一致を claim 前に検査する（不一致の対象で
+	// binding/anchor を作らない）。ただし 409 target_mismatch は認可済みの
+	// 不一致に限る（採択契約 §3）。現在 grant を先に再検査し、失効なら
+	// edit-right-lost と同じ 403 を返して不一致の詳細を開示しない。
 	if exec.ArticleID != article.ID {
+		allowed, err := exec.Participant.currentEditGrant(ctx)
+		if err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+		if !allowed {
+			httpapi.RespondError(c, apperrors.WrapForbidden("manual article edit not authorized"))
+			return
+		}
 		c.JSON(http.StatusConflict, ManualEditConflictBody{Error: "manual edit target mismatch", Code: "target_mismatch"})
 		return
 	}
