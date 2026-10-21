@@ -20,6 +20,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/operation"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
@@ -606,6 +608,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		manualarticle.NewManualArticleService(manualarticle.New(c.db)),
 		manualArticleAuditAdapter{logger: c.audit},
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+		c.manualEditDeps(),
 	).RegisterRoutes(protected)
 	support.NewHandler(
 		support.NewService(
@@ -724,8 +727,43 @@ func (c runtimeComposition) newReservationHandler(
 	)
 }
 
+// manualEditDeps は EMR-502 既存記事 edit の C06 接続部品を組み立てる。
+// OPERATION_FINGERPRINT_* keyring が両方有効なときだけ Fingerprinter/Runner を
+// 1つ作る（未設定は Runner=nil → edit 系 endpoint は fail-closed 500）。
+// 現在 grant は effective permission rules の manual-edit:edit で評価し、
+// system_admin bypass は request context の session flag 側で処理する
+// （participant 構築時に handler が渡す）。
+func (c runtimeComposition) manualEditDeps() manualarticle.EditDeps {
+	repo := manualarticle.New(c.db)
+	deps := manualarticle.EditDeps{
+		Store:   repo,
+		TxAudit: manualArticleAuditAdapter{logger: c.audit},
+		Grant: func(ctx context.Context, clinicID, staffID uint64) (bool, error) {
+			if c.auth.PermissionGroups == nil {
+				return false, nil
+			}
+			rules, err := c.auth.PermissionGroups.GetEffectivePermissions(ctx, staffID, clinicID)
+			if err != nil {
+				return false, err
+			}
+			for i := range rules {
+				if rules[i].Resource == string(model.ResourceManualEdit) {
+					return rules[i].CanEdit, nil
+				}
+			}
+			return false, nil
+		},
+	}
+	if keys, current, err := c.config.OperationFingerprintKeys(); err == nil && keys != nil {
+		if fp, ferr := operation.NewFingerprinter(current, keys); ferr == nil {
+			deps.Runner = operation.NewRunner(c.db, fp)
+		}
+	}
+	return deps
+}
+
 type manualArticleAuditAdapter struct {
-	logger audit.Service
+	logger audit.Kernel
 }
 
 func (a manualArticleAuditAdapter) LogEntry(
@@ -733,6 +771,26 @@ func (a manualArticleAuditAdapter) LogEntry(
 	entry manualarticle.AuditEntry,
 ) error {
 	return a.logger.LogEntry(ctx, &audit.Entry{
+		ClinicID:   entry.ClinicID,
+		ActorID:    entry.ActorID,
+		ActorType:  entry.ActorType,
+		Action:     entry.Action,
+		Resource:   entry.Resource,
+		ResourceID: entry.ResourceID,
+		OldValue:   entry.OldValue,
+		NewValue:   entry.NewValue,
+		IPAddress:  entry.IPAddress,
+		UserAgent:  entry.UserAgent,
+	})
+}
+
+// LogEntryTx は必須監査の fail-closed ambient-transaction 経路。
+// 失敗は caller（owner write transaction）を巻き戻す。
+func (a manualArticleAuditAdapter) LogEntryTx(
+	ctx context.Context,
+	entry manualarticle.AuditEntry,
+) error {
+	return a.logger.LogEntryTx(ctx, &audit.Entry{
 		ClinicID:   entry.ClinicID,
 		ActorID:    entry.ActorID,
 		ActorType:  entry.ActorType,

@@ -61,9 +61,9 @@ func TestGormStore_ClaimKeepsFirstContentAndRefusesAmbientTx(t *testing.T) {
 	scope.ClinicID = 1
 	key := uuid.MustParse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
-	first, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1")
+	first, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
-	second, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(2), "k1")
+	second, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(2), "k1", nil)
 	require.NoError(t, err)
 
 	require.Equal(t, first.Binding.ID, second.Binding.ID)
@@ -73,7 +73,7 @@ func TestGormStore_ClaimKeepsFirstContentAndRefusesAmbientTx(t *testing.T) {
 	require.Equal(t, int64(1), n)
 
 	err = persistence.NewTransactor(db).WithTx(context.Background(), func(txCtx context.Context) error {
-		_, claimErr := s.ClaimBinding(txCtx, scope, uuid.New(), storeTestSum(3), "k1")
+		_, claimErr := s.ClaimBinding(txCtx, scope, uuid.New(), storeTestSum(3), "k1", nil)
 		return claimErr
 	})
 	require.Error(t, err)
@@ -84,7 +84,7 @@ func TestGormStore_ReceiptRollsBackWithOwnerTransaction(t *testing.T) {
 	s := newGormStore(db)
 	scope := testScope()
 	scope.ClinicID = 1
-	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1")
+	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
 	b := claimed.Binding
 
@@ -112,7 +112,7 @@ func TestGormStore_LockNoWaitReportsHeldBinding(t *testing.T) {
 	s := newGormStore(db)
 	scope := testScope()
 	scope.ClinicID = 1
-	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1")
+	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
 	b := claimed.Binding
 
@@ -133,7 +133,7 @@ func TestGormStore_OutcomesAreSeparateAndClinicScoped(t *testing.T) {
 	scope := testScope()
 	scope.ClinicID = 1
 	key := uuid.New()
-	claimed, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1")
+	claimed, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
 	b := claimed.Binding
 

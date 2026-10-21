@@ -8,8 +8,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CorpusArticle はサポートチャット検索用のマニュアル記事スナップショット。
@@ -175,10 +173,11 @@ func sha256Hex(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ApplyCorpusOverrides は DB 上書き行（model.ManualArticle 最新行）を base 記事へ
-// 適用する。base に存在する記事は title/section/body を置き換え keywords は保持、
-// DB のみの記事は keywords 空で追加する。base 配列・map は変更しない（immutability）。
-func ApplyCorpusOverrides(base []CorpusArticle, overrides []model.ManualArticle) []CorpusArticle {
+// ApplyCorpusOverrides は DB 公開版行（PublishedArticle = published_version_id の
+// 内容）を base 記事へ適用する。base に存在する記事は title/section/body を
+// 置き換え keywords は保持、DB のみの記事は keywords 空で追加する。
+// 未公開 current・hidden は公開版に現れない。base 配列・map は変更しない（immutability）。
+func ApplyCorpusOverrides(base []CorpusArticle, overrides []PublishedArticle) []CorpusArticle {
 	merged := make([]CorpusArticle, 0, len(base)+len(overrides))
 	index := make(map[string]int, len(base))
 	for _, a := range base {
@@ -221,7 +220,7 @@ func sortCorpusArticles(articles []CorpusArticle) {
 
 // BuildCorpus はソート済み記事列に per-article hash と全体 revision を付与する。
 // base/overrides が nil のときも決定的（空配列・空配列の hash）。
-func BuildCorpus(base []CorpusArticle, overrides []model.ManualArticle) Corpus {
+func BuildCorpus(base []CorpusArticle, overrides []PublishedArticle) Corpus {
 	articles := ApplyCorpusOverrides(base, overrides)
 	for i := range articles {
 		articles[i].Hash = sha256Hex(canonicalArticleJSON(articles[i]))

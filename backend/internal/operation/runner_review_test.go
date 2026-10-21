@@ -409,7 +409,7 @@ type actorScopeProbe struct {
 	claims, lookups int
 }
 
-func (s *actorScopeProbe) ClaimBinding(context.Context, Scope, uuid.UUID, []byte, string) (storedBinding, error) {
+func (s *actorScopeProbe) ClaimBinding(context.Context, Scope, uuid.UUID, []byte, string, func(ctx context.Context, b Binding) error) (storedBinding, error) {
 	s.claims++
 	return storedBinding{}, errors.New("unexpected claim")
 }

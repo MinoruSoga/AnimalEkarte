@@ -1,6 +1,9 @@
 package config
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/mail"
@@ -8,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -168,6 +172,15 @@ type Config struct {
 	// 続行する（best-effort）。webhook URL は秘密値でありログに出力しない。
 	DiscordBugReportWebhookURL string
 	DiscordWebhookTimeoutMS    int
+
+	// OperationFingerprintCurrentKeyVersion / OperationFingerprintKeysJSON は
+	// operation fingerprint の versioned HMAC keyring。
+	// 両方必須・両方未設定のいずれかのみ有効（片方のみ、JSON 重複 member、
+	// 非object、非文字列 value、空 map、空白・trim 変化 version、不正 base64、
+	// decode 後 32 バイト未満、current version 不在は Validate が拒否する）。
+	// key 値は秘密値でありログ・エラー出力へ含めない。
+	OperationFingerprintCurrentKeyVersion string
+	OperationFingerprintKeysJSON          string
 }
 
 // Load reads process environment into Config. Release mode refuses
@@ -264,6 +277,9 @@ func Load() *Config {
 		PlaneLaneLabelID:       os.Getenv("PLANE_LANE_LABEL_ID"),
 
 		DiscordBugReportWebhookURL: os.Getenv("DISCORD_BUG_REPORT_WEBHOOK_URL"),
+
+		OperationFingerprintCurrentKeyVersion: os.Getenv("OPERATION_FINGERPRINT_CURRENT_KEY_VERSION"),
+		OperationFingerprintKeysJSON:          os.Getenv("OPERATION_FINGERPRINT_KEYS_JSON"),
 		DiscordWebhookTimeoutMS:    getEnvInt("DISCORD_WEBHOOK_TIMEOUT_MS", 5000),
 	}
 }
@@ -292,6 +308,12 @@ func (c *Config) Validate() error {
 		if err := validatePlaneLabelID("PLANE_LANE_LABEL_ID", c.PlaneLaneLabelID); err != nil {
 			return err
 		}
+	}
+	// operation fingerprint の keyring は全モードで fail-closed。
+	// 片方のみ設定・ malformed なまま起動すると永続化済み fingerprint と
+	// 計算値がずれ、同一 operation_key の replay/衝突検出が壊れる。
+	if _, _, err := c.OperationFingerprintKeys(); err != nil {
+		return err
 	}
 	if c.GinMode != "release" {
 		return nil
@@ -578,6 +600,82 @@ func (c *Config) DSN() string {
 		dsn += " sslrootcert=" + c.DBSSLRootCert
 	}
 	return dsn
+}
+
+// OperationFingerprintKeys は OPERATION_FINGERPRINT_KEYS_JSON を厳格解析し、
+// version→32バイト以上の HMAC key map と current version を返す。
+// 両方未設定なら (nil, "", nil)。片方のみ・重複 member・非 object・非文字列
+// value・空 map・空白または trim で変化する version・不正/非 canonical
+// base64・decode 後 32 バイト未満・current version 不在はすべて error。
+// エラーメッセージに version・key の値は含めない（秘密値の漏洩防止）。
+func (c *Config) OperationFingerprintKeys() (map[string][]byte, string, error) {
+	if c.OperationFingerprintKeysJSON == "" && c.OperationFingerprintCurrentKeyVersion == "" {
+		return nil, "", nil
+	}
+	if c.OperationFingerprintKeysJSON == "" || c.OperationFingerprintCurrentKeyVersion == "" {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON and OPERATION_FINGERPRINT_CURRENT_KEY_VERSION must be set together")
+	}
+	current := c.OperationFingerprintCurrentKeyVersion
+	if strings.TrimSpace(current) != current {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_CURRENT_KEY_VERSION must not be blank or carry surrounding whitespace")
+	}
+	raw := []byte(c.OperationFingerprintKeysJSON)
+	if !utf8.Valid(raw) {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON is not valid UTF-8")
+	}
+	// token walk で member を1つずつ検査する。map への一度デコードでは
+	// 重複 member が黙って後勝ちになるため使わない（fail-closed）。
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON is not valid JSON")
+	}
+	if delim, ok := tok.(json.Delim); !ok || delim != '{' {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON must be a JSON object")
+	}
+	keys := make(map[string][]byte)
+	for dec.More() {
+		kt, terr := dec.Token()
+		if terr != nil {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON is not valid JSON")
+		}
+		version, ok := kt.(string)
+		if !ok || version == "" || strings.TrimSpace(version) != version {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON contains an invalid key version")
+		}
+		if _, dup := keys[version]; dup {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON contains a duplicate key version")
+		}
+		vt, terr := dec.Token()
+		if terr != nil {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON is not valid JSON")
+		}
+		encoded, ok := vt.(string)
+		if !ok {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON values must be base64 strings")
+		}
+		decoded, derr := base64.StdEncoding.DecodeString(encoded)
+		if derr != nil || base64.StdEncoding.EncodeToString(decoded) != encoded {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON contains an invalid base64 key")
+		}
+		if len(decoded) < 32 {
+			return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON contains a key shorter than 32 bytes")
+		}
+		keys[version] = decoded
+	}
+	if _, terr := dec.Token(); terr != nil {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON is not valid JSON")
+	}
+	if dec.More() {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON has trailing content")
+	}
+	if len(keys) == 0 {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON must not be empty")
+	}
+	if _, ok := keys[current]; !ok {
+		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_CURRENT_KEY_VERSION is not present in OPERATION_FINGERPRINT_KEYS_JSON")
+	}
+	return keys, current, nil
 }
 
 func getEnv(key, defaultVal string) string {

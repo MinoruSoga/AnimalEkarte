@@ -11,419 +11,164 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockManualArticleRepository は ManualArticleRepository のテスト用モック実装
+// mockManualArticleRepository は Repository のテスト用モック実装
 type mockManualArticleRepository struct {
-	findAllFn                 func(ctx context.Context) ([]model.ManualArticle, error)
-	findByCategoryAndSlugFn   func(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error)
-	upsertFn                  func(ctx context.Context, article *model.ManualArticle, editorStaffID *uint64) (*model.ManualArticle, error)
-	deleteFn                  func(ctx context.Context, category model.ManualCategory, slug string) error
-	findVersionsByArticleIDFn func(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error)
+	findAllPublishedFn  func(ctx context.Context) ([]PublishedArticle, error)
+	findPublishedFn     func(ctx context.Context, category model.ManualCategory, slug string) (*PublishedArticle, error)
+	findArticleFn       func(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error)
+	findEditViewFn      func(ctx context.Context, category model.ManualCategory, slug string) (*EditView, error)
+	deleteFn            func(ctx context.Context, category model.ManualCategory, slug string) error
+	findVersionsByIDFn  func(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error)
 }
 
-func (m *mockManualArticleRepository) FindAll(ctx context.Context) ([]model.ManualArticle, error) {
-	return m.findAllFn(ctx)
+func (m *mockManualArticleRepository) FindAllPublished(ctx context.Context) ([]PublishedArticle, error) {
+	return m.findAllPublishedFn(ctx)
 }
 
-func (m *mockManualArticleRepository) FindByCategoryAndSlug(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
-	return m.findByCategoryAndSlugFn(ctx, category, slug)
+func (m *mockManualArticleRepository) FindPublishedByCategoryAndSlug(ctx context.Context, category model.ManualCategory, slug string) (*PublishedArticle, error) {
+	return m.findPublishedFn(ctx, category, slug)
 }
 
-func (m *mockManualArticleRepository) Upsert(ctx context.Context, article *model.ManualArticle, editorStaffID *uint64) (*model.ManualArticle, error) {
-	return m.upsertFn(ctx, article, editorStaffID)
+func (m *mockManualArticleRepository) FindArticleByCategoryAndSlug(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
+	return m.findArticleFn(ctx, category, slug)
+}
+
+func (m *mockManualArticleRepository) FindEditView(ctx context.Context, category model.ManualCategory, slug string) (*EditView, error) {
+	return m.findEditViewFn(ctx, category, slug)
+}
+
+func (m *mockManualArticleRepository) FindVersionsByArticleID(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error) {
+	if m.findVersionsByIDFn != nil {
+		return m.findVersionsByIDFn(ctx, articleID)
+	}
+	return nil, nil
 }
 
 func (m *mockManualArticleRepository) Delete(ctx context.Context, category model.ManualCategory, slug string) error {
 	return m.deleteFn(ctx, category, slug)
 }
 
-func (m *mockManualArticleRepository) FindVersionsByArticleID(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error) {
-	if m.findVersionsByArticleIDFn != nil {
-		return m.findVersionsByArticleIDFn(ctx, articleID)
-	}
-	return []model.ManualArticleVersion{}, nil
+// EditTxStore は mock 対象外 — 空の stub 実装で Repository を満たす。
+func (m *mockManualArticleRepository) InsertOperationTarget(context.Context, uint64, uint64, uint64) error {
+	return nil
 }
 
-func TestNewManualArticleService(t *testing.T) {
-	repo := &mockManualArticleRepository{}
-	svc := NewManualArticleService(repo)
-
-	assert.NotNil(t, svc)
+func (m *mockManualArticleRepository) ResolveOperationTarget(context.Context, uint64, uint64) (uint64, bool, error) {
+	return 0, false, nil
 }
+
+func (m *mockManualArticleRepository) FindArticleByID(context.Context, uint64) (*model.ManualArticle, error) {
+	return nil, nil
+}
+
+func (m *mockManualArticleRepository) FindVersionByID(context.Context, uint64, uint64) (*model.ManualArticleVersion, error) {
+	return nil, nil
+}
+
+func (m *mockManualArticleRepository) LockArticleForUpdate(context.Context, uint64) (*model.ManualArticle, error) {
+	return nil, nil
+}
+
+func (m *mockManualArticleRepository) NextContentRevision(context.Context, uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockManualArticleRepository) InsertVersion(context.Context, *model.ManualArticleVersion) error {
+	return nil
+}
+
+func (m *mockManualArticleRepository) UpdateCurrentVersionCAS(context.Context, uint64, int64, uint64, uint64) (bool, error) {
+	return false, nil
+}
+
+func (m *mockManualArticleRepository) InsertOperation(context.Context, *model.ManualArticleOperation) error {
+	return nil
+}
+
+var _ Repository = (*mockManualArticleRepository)(nil)
 
 func TestManualArticleService_FindAll(t *testing.T) {
-	tests := []struct {
-		name     string
-		articles []model.ManualArticle
-		repoErr  error
-		wantLen  int
-		wantErr  bool
-	}{
-		{
-			name: "returns article list",
-			articles: []model.ManualArticle{
-				{ID: 1, Category: model.ManualCategoryScreens, Slug: "top"},
-				{ID: 2, Category: model.ManualCategoryWorkflows, Slug: "checkin"},
-			},
-			wantLen: 2,
-		},
-		{
-			name:     "returns empty list when none exist",
-			articles: []model.ManualArticle{},
-			wantLen:  0,
-		},
-		{
-			name:    "propagates repository error",
-			repoErr: errors.New("db connection error"),
-			wantErr: true,
-		},
+	want := []PublishedArticle{{ID: 1}}
+	repo := &mockManualArticleRepository{
+		findAllPublishedFn: func(context.Context) ([]PublishedArticle, error) { return want, nil },
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockManualArticleRepository{
-				findAllFn: func(_ context.Context) ([]model.ManualArticle, error) {
-					return tt.articles, tt.repoErr
-				},
-			}
-			svc := NewManualArticleService(repo)
-
-			articles, err := svc.FindAll(context.Background())
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, articles, tt.wantLen)
-			}
-		})
-	}
+	svc := NewManualArticleService(repo)
+	got, err := svc.FindAll(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
 }
 
-func TestManualArticleService_FindByCategoryAndSlug(t *testing.T) {
-	tests := []struct {
-		name     string
-		category model.ManualCategory
-		slug     string
-		repoErr  error
-		wantErr  bool
-	}{
-		{
-			name:     "returns article for valid category",
-			category: model.ManualCategoryScreens,
-			slug:     "top",
-		},
-		{
-			name:     "returns error for invalid category",
-			category: model.ManualCategory("invalid"),
-			slug:     "top",
-			wantErr:  true,
-		},
-		{
-			name:     "propagates repository error",
-			category: model.ManualCategoryWorkflows,
-			slug:     "missing",
-			repoErr:  apperrors.WrapNotFound("manual_article", "missing"),
-			wantErr:  true,
+func TestManualArticleService_FindByCategoryAndSlug_InvalidCategory(t *testing.T) {
+	repo := &mockManualArticleRepository{
+		findPublishedFn: func(context.Context, model.ManualCategory, string) (*PublishedArticle, error) {
+			t.Fatal("repository must not be called for invalid category")
+			return nil, nil
 		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockManualArticleRepository{
-				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
-					if tt.repoErr != nil {
-						return nil, tt.repoErr
-					}
-					return &model.ManualArticle{Category: category, Slug: slug}, nil
-				},
-			}
-			svc := NewManualArticleService(repo)
-
-			article, err := svc.FindByCategoryAndSlug(context.Background(), tt.category, tt.slug)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Nil(t, article)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, article)
-			}
-		})
-	}
+	svc := NewManualArticleService(repo)
+	_, err := svc.FindByCategoryAndSlug(context.Background(), "invalid", "slug")
+	assert.Error(t, err)
 }
 
-func f64p(v float64) *float64 { return &v }
-
-func TestManualArticleService_Upsert(t *testing.T) {
-	staffID := uint64(7)
-
-	tests := []struct {
-		name         string
-		input        *UpsertManualArticleInput
-		existing     *model.ManualArticle
-		existingErr  error
-		upsertErr    error
-		wantErr      bool
-		wantOrderVal float64
-	}{
-		{
-			name: "creates new article with explicit order value",
-			input: &UpsertManualArticleInput{
-				Category:     model.ManualCategoryScreens,
-				Slug:         "top",
-				Title:        "トップ画面",
-				OrderValue:   f64p(1),
-				Section:      "基本操作",
-				BodyMarkdown: "# トップ",
-			},
-			wantOrderVal: 1,
-		},
-		{
-			name: "stores explicit zero order value (MD frontmatter order: 0)",
-			input: &UpsertManualArticleInput{
-				Category:     model.ManualCategoryScreens,
-				Slug:         "zero-order",
-				Title:        "ゼロ順序",
-				OrderValue:   f64p(0),
-				Section:      "基本操作",
-				BodyMarkdown: "# ゼロ",
-			},
-			wantOrderVal: 0,
-		},
-		{
-			name: "returns error for invalid category",
-			input: &UpsertManualArticleInput{
-				Category: model.ManualCategory("invalid"),
-				Slug:     "top",
-				Title:    "タイトル",
-				Section:  "セクション",
-			},
-			wantErr: true,
-		},
-		{
-			name: "returns error when slug is empty",
-			input: &UpsertManualArticleInput{
-				Category: model.ManualCategoryScreens,
-				Slug:     "",
-				Title:    "タイトル",
-				Section:  "セクション",
-			},
-			wantErr: true,
-		},
-		{
-			name: "returns error when title is empty",
-			input: &UpsertManualArticleInput{
-				Category: model.ManualCategoryScreens,
-				Slug:     "top",
-				Title:    "",
-				Section:  "セクション",
-			},
-			wantErr: true,
-		},
-		{
-			name: "returns error when section is empty",
-			input: &UpsertManualArticleInput{
-				Category: model.ManualCategoryScreens,
-				Slug:     "top",
-				Title:    "タイトル",
-				Section:  "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "falls back to existing order value when omitted and article exists",
-			input: &UpsertManualArticleInput{
-				Category:   model.ManualCategoryScreens,
-				Slug:       "top",
-				Title:      "タイトル",
-				OrderValue: nil,
-				Section:    "セクション",
-			},
-			existing:     &model.ManualArticle{OrderValue: 42},
-			wantOrderVal: 42,
-		},
-		{
-			name: "falls back to default 9999 when omitted and article does not exist",
-			input: &UpsertManualArticleInput{
-				Category:   model.ManualCategoryScreens,
-				Slug:       "new-slug",
-				Title:      "タイトル",
-				OrderValue: nil,
-				Section:    "セクション",
-			},
-			existingErr:  apperrors.WrapNotFound("manual_article", "new-slug"),
-			wantOrderVal: 9999,
-		},
-		{
-			name: "returns error when existing lookup fails with non-notfound error",
-			input: &UpsertManualArticleInput{
-				Category:   model.ManualCategoryScreens,
-				Slug:       "top",
-				Title:      "タイトル",
-				OrderValue: nil,
-				Section:    "セクション",
-			},
-			existingErr: errors.New("db error"),
-			wantErr:     true,
-		},
-		{
-			name: "propagates repository upsert error",
-			input: &UpsertManualArticleInput{
-				Category:   model.ManualCategoryScreens,
-				Slug:       "top",
-				Title:      "タイトル",
-				OrderValue: f64p(1),
-				Section:    "セクション",
-			},
-			upsertErr: errors.New("db error"),
-			wantErr:   true,
+func TestManualArticleService_FindByCategoryAndSlug_PublishedOnly(t *testing.T) {
+	// 公開 READ は published_version_id の版のみ — repository の
+	// FindPublishedByCategoryAndSlug に委譲される。
+	repo := &mockManualArticleRepository{
+		findPublishedFn: func(context.Context, model.ManualCategory, string) (*PublishedArticle, error) {
+			return nil, apperrors.WrapNotFound("manual_article", "screens/x")
 		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var capturedOrder float64
-			repo := &mockManualArticleRepository{
-				findByCategoryAndSlugFn: func(_ context.Context, _ model.ManualCategory, _ string) (*model.ManualArticle, error) {
-					if tt.existingErr != nil {
-						return nil, tt.existingErr
-					}
-					if tt.existing != nil {
-						return tt.existing, nil
-					}
-					return &model.ManualArticle{}, nil
-				},
-				upsertFn: func(_ context.Context, article *model.ManualArticle, _ *uint64) (*model.ManualArticle, error) {
-					capturedOrder = article.OrderValue
-					if tt.upsertErr != nil {
-						return nil, tt.upsertErr
-					}
-					return article, nil
-				},
-			}
-			svc := NewManualArticleService(repo)
-
-			saved, err := svc.Upsert(context.Background(), tt.input, &staffID)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Nil(t, saved)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, saved)
-				assert.Equal(t, tt.wantOrderVal, capturedOrder)
-			}
-		})
-	}
+	svc := NewManualArticleService(repo)
+	_, err := svc.FindByCategoryAndSlug(context.Background(), model.ManualCategoryScreens, "x")
+	assert.Error(t, err)
 }
 
-func TestManualArticleService_Delete(t *testing.T) {
-	tests := []struct {
-		name      string
-		category  model.ManualCategory
-		slug      string
-		findErr   error
-		deleteErr error
-		wantErr   bool
-	}{
-		{
-			name:     "deletes existing article",
-			category: model.ManualCategoryScreens,
-			slug:     "top",
-		},
-		{
-			name:     "returns error for invalid category",
-			category: model.ManualCategory("invalid"),
-			slug:     "top",
-			wantErr:  true,
-		},
-		{
-			name:     "returns error when article not found",
-			category: model.ManualCategoryScreens,
-			slug:     "missing",
-			findErr:  apperrors.WrapNotFound("manual_article", "missing"),
-			wantErr:  true,
-		},
-		{
-			name:      "propagates repository delete error",
-			category:  model.ManualCategoryScreens,
-			slug:      "top",
-			deleteErr: errors.New("db error"),
-			wantErr:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockManualArticleRepository{
-				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
-					if tt.findErr != nil {
-						return nil, tt.findErr
-					}
-					return &model.ManualArticle{Category: category, Slug: slug}, nil
-				},
-				deleteFn: func(_ context.Context, _ model.ManualCategory, _ string) error {
-					return tt.deleteErr
-				},
-			}
-			svc := NewManualArticleService(repo)
-
-			err := svc.Delete(context.Background(), tt.category, tt.slug)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
+func TestManualArticleService_FindEditView_InvalidCategory(t *testing.T) {
+	repo := &mockManualArticleRepository{}
+	svc := NewManualArticleService(repo)
+	_, err := svc.FindEditView(context.Background(), "invalid", "s")
+	assert.Error(t, err)
+	_, err = svc.FindEditView(context.Background(), model.ManualCategoryScreens, "")
+	assert.Error(t, err)
 }
 
-func TestManualArticleService_FindVersionsByArticleID(t *testing.T) {
-	tests := []struct {
-		name     string
-		versions []model.ManualArticleVersion
-		repoErr  error
-		wantLen  int
-		wantErr  bool
-	}{
-		{
-			name: "returns versions list",
-			versions: []model.ManualArticleVersion{
-				{ID: 1, ArticleID: 5, Title: "v1"},
-				{ID: 2, ArticleID: 5, Title: "v2"},
-			},
-			wantLen: 2,
+func TestManualArticleService_Delete_NotFoundBeforeDelete(t *testing.T) {
+	repo := &mockManualArticleRepository{
+		findArticleFn: func(context.Context, model.ManualCategory, string) (*model.ManualArticle, error) {
+			return nil, apperrors.WrapNotFound("manual_article", "screens/x")
 		},
-		{
-			name:     "returns empty list when no versions exist",
-			versions: []model.ManualArticleVersion{},
-			wantLen:  0,
-		},
-		{
-			name:    "propagates repository error",
-			repoErr: errors.New("db connection error"),
-			wantErr: true,
+		deleteFn: func(context.Context, model.ManualCategory, string) error {
+			t.Fatal("Delete must not run when the article is missing")
+			return nil
 		},
 	}
+	svc := NewManualArticleService(repo)
+	err := svc.Delete(context.Background(), model.ManualCategoryScreens, "x")
+	assert.Error(t, err)
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockManualArticleRepository{
-				findVersionsByArticleIDFn: func(_ context.Context, _ uint64) ([]model.ManualArticleVersion, error) {
-					return tt.versions, tt.repoErr
-				},
-			}
-			svc := NewManualArticleService(repo)
+func TestManualArticleService_Delete_OK(t *testing.T) {
+	called := false
+	svc := NewManualArticleService(&mockManualArticleRepository{
+		findArticleFn: func(context.Context, model.ManualCategory, string) (*model.ManualArticle, error) {
+			return &model.ManualArticle{ID: 3}, nil
+		},
+		deleteFn: func(context.Context, model.ManualCategory, string) error {
+			called = true
+			return nil
+		},
+	})
+	assert.NoError(t, svc.Delete(context.Background(), model.ManualCategoryScreens, "a"))
+	assert.True(t, called)
+}
 
-			versions, err := svc.FindVersionsByArticleID(context.Background(), 5)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, versions, tt.wantLen)
-			}
-		})
+func TestManualArticleService_FindVersionsByArticleID_PropagatesError(t *testing.T) {
+	repo := &mockManualArticleRepository{
+		findVersionsByIDFn: func(context.Context, uint64) ([]model.ManualArticleVersion, error) {
+			return nil, errors.New("db down")
+		},
 	}
+	svc := NewManualArticleService(repo)
+	_, err := svc.FindVersionsByArticleID(context.Background(), 1)
+	assert.Error(t, err)
 }

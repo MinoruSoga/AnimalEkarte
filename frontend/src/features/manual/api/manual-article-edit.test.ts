@@ -9,6 +9,7 @@
  * receipt不一致拒否 / current=null・legacy_unknownで保存停止判定 / number変換しない文字列ID往復。
  */
 
+import { isAxiosError } from "axios";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -297,6 +298,46 @@ describe("manual-article-edit adapter（EMR-513 固定API契約）", () => {
           expectedPublishedVersionId: PUBLISHED_VERSION_ID,
         }),
       ).not.toThrow();
+    });
+
+    it("照会の409はManualEditConflictError（target_mismatch）として投げる", async () => {
+      const key = "11111111-2222-4333-8444-555555555555";
+      server.use(
+        http.get(`${EDIT_PATH}/operations/:operationKey`, () =>
+          HttpResponse.json(
+            { error: "manual edit target mismatch", code: "target_mismatch" },
+            { status: 409 },
+          ),
+        ),
+      );
+
+      const err = await getManualEditOperationResult("screens", "00-overview", key).catch(
+        (e: unknown) => e,
+      );
+
+      expect(err).toBeInstanceOf(ManualEditConflictError);
+      const conflictErr = err as ManualEditConflictError;
+      expect(conflictErr.conflict.code).toBe("target_mismatch");
+      expect(conflictErr.operationKey).toBe(key);
+    });
+
+    it("照会の500等の非409エラーは元のaxios errorをそのまま再送出する", async () => {
+      const key = "11111111-2222-4333-8444-555555555555";
+      server.use(
+        http.get(`${EDIT_PATH}/operations/:operationKey`, () =>
+          HttpResponse.json({ error: "internal" }, { status: 500 }),
+        ),
+      );
+
+      const err = await getManualEditOperationResult("screens", "00-overview", key).catch(
+        (e: unknown) => e,
+      );
+
+      // ManualArticleSaveError へ包まない — caller が extractApiErrorMessage(queryErr)
+      // で元の axios error を読めるようにするため。
+      expect(err).not.toBeInstanceOf(ManualArticleSaveError);
+      expect(err).not.toBeInstanceOf(ManualEditConflictError);
+      expect(isAxiosError(err)).toBe(true);
     });
 
     it.each([

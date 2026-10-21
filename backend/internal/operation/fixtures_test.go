@@ -431,7 +431,7 @@ func TestExecute_UnknownStaysStickyAfterGateFailure(t *testing.T) {
 func TestLookup_SeesSuccessCommittedBeforeLock(t *testing.T) {
 	f := newR2Fixture(t)
 	ctx := t.Context()
-	claimed, err := f.store.ClaimBinding(ctx, f.scope, f.key, []byte("unused-in-fake"), "k1")
+	claimed, err := f.store.ClaimBinding(ctx, f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
 	require.NoError(t, err)
 	f.store.onLock(func() {
 		f.store.commitResultForTest(claimed.Binding.ID, Result{
@@ -618,6 +618,7 @@ func (t *fakeTx) WithTx(ctx context.Context, fn func(ctx context.Context) error)
 // It models row identity, uniqueness and transaction rollback of the rows the
 // fixture writes; it models nothing else about PostgreSQL.
 type fakeStore struct {
+	claimMetadataCalls int
 	mu       sync.Mutex
 	bindings map[string]storedBinding
 	results  map[uint64]Result
@@ -750,14 +751,12 @@ func (s *fakeStore) RecordUnknownUnderLock(_ context.Context, b Binding, attempt
 	return nil
 }
 
-func (s *fakeStore) ClaimBinding(_ context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string) (storedBinding, error) {
+func (s *fakeStore) ClaimBinding(ctx context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string, writeMetadata func(ctx context.Context, b Binding) error) (storedBinding, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if existing, ok := s.bindings[fakeBindingKey(scope, key)]; ok {
+		s.mu.Unlock()
 		return existing, nil
 	}
-
 	s.nextID++
 	created := storedBinding{
 		Binding:     Binding{ID: s.nextID, ClinicID: scope.ClinicID, Key: key},
@@ -770,6 +769,21 @@ func (s *fakeStore) ClaimBinding(_ context.Context, scope Scope, key uuid.UUID, 
 		defer s.mu.Unlock()
 		delete(s.bindings, fakeBindingKey(scope, key))
 	})
+	s.mu.Unlock()
+
+	if writeMetadata != nil {
+		s.mu.Lock()
+		s.claimMetadataCalls++
+		s.mu.Unlock()
+		if err := writeMetadata(ctx, created.Binding); err != nil {
+			// Winner callback failure: the claim transaction rolls back,
+			// removing the just-inserted binding together with the metadata.
+			s.mu.Lock()
+			delete(s.bindings, fakeBindingKey(scope, key))
+			s.mu.Unlock()
+			return storedBinding{}, err
+		}
+	}
 	return created, nil
 }
 

@@ -31405,6 +31405,12 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: 対象不一致。anchor認可済み照会でroute selectorと元対象が一致しない。業務変更なし。codeはtarget_mismatch。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualEditConflict'
         '500': { $ref: '#/components/responses/InternalError' }
   /manual/articles/{category}/{slug}/versions:
     get:

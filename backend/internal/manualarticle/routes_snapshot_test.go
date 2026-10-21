@@ -17,14 +17,14 @@ import (
 // that golden file was updated to drop them (they moved here — same routes, same methods, same
 // handler names, just registered by manualarticle.Handler.RegisterRoutes instead of
 // *handler.Handler). This test proves the moved routes still exist with the exact same
-// (method, path, handler) triples.
+// (method, path, handler) triples. EMR-502 added the two operation-aware edit routes.
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	noopPermission := func(_, _ string) gin.HandlerFunc {
 		return func(c *gin.Context) {}
 	}
-	h := NewHandler(nil, nil, noopPermission)
+	h := NewHandler(nil, nil, noopPermission, EditDeps{})
 
 	r := gin.New()
 	api := r.Group("/api/v1")
@@ -41,6 +41,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/manual/articles/:category/:slug DeleteManualArticle\n" +
 		"GET /api/v1/manual/articles ListManualArticles\n" +
 		"GET /api/v1/manual/articles/:category/:slug GetManualArticle\n" +
+		"GET /api/v1/manual/articles/:category/:slug/edit GetManualArticleEditView\n" +
+		"GET /api/v1/manual/articles/:category/:slug/operations/:operation_key GetManualEditOperationResult\n" +
 		"GET /api/v1/manual/articles/:category/:slug/versions ListManualArticleVersions\n" +
 		"PUT /api/v1/manual/articles/:category/:slug UpsertManualArticle\n"
 

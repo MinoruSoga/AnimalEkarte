@@ -31,54 +31,81 @@ func newGormStore(db *gorm.DB) store {
 }
 
 // ClaimBinding inserts the binding when this exact scope and key has none, then
-// reads back the stored row. A concurrent claim of the same key yields the
-// winner's fingerprint, which the runner compares with the requested content.
+// reads back the stored row. It runs inside its own explicit short transaction:
+// when this attempt inserts the row (the claim winner, decided by the
+// DO NOTHING insert's RowsAffected, never by a guessed candidate ID) the
+// optional metadata callback runs exactly once inside that transaction, so a
+// callback failure rolls binding and metadata back together. A concurrent
+// loser waits for the winner under normal unique handling, reads the original
+// binding and never invokes the callback. A concurrent claim of the same key
+// yields the winner's fingerprint, which the runner compares with the
+// requested content.
 func (s *gormStore) ClaimBinding(
 	ctx context.Context,
 	scope Scope,
 	key uuid.UUID,
 	sum []byte,
 	keyVersion string,
+	writeMetadata func(ctx context.Context, b Binding) error,
 ) (storedBinding, error) {
 	if persistence.TxFromContext(ctx) != nil {
 		return storedBinding{}, apperrors.WrapInternalServerError("operation claim must not run inside an ambient transaction")
 	}
-	db := persistence.DBOrTx(ctx, s.db)
+	var stored storedBinding
+	txErr := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		candidate := model.OperationBinding{
+			ClinicID:              scope.ClinicID,
+			OwnerKind:             scope.OwnerKind,
+			ActorKind:             string(scope.ActorKind),
+			ActorRef:              scope.ActorRef,
+			Intent:                scope.Intent,
+			OperationKey:          key,
+			Fingerprint:           sum,
+			FingerprintKeyVersion: keyVersion,
+		}
+		// UNIQUE (clinic_id,owner_kind,actor_kind,actor_ref,intent,operation_key)
+		// is the only conflict target; DO NOTHING keeps the first content binding.
+		result := tx.
+			Clauses(clause.OnConflict{DoNothing: true}).
+			Create(&candidate)
+		if result.Error != nil {
+			return apperrors.FromGORM(result.Error, "operation_binding", "")
+		}
+		if result.RowsAffected == 1 && writeMetadata != nil {
+			// Winner: run the owner metadata callback once, inside this claim
+			// transaction. Any failure rolls the binding and metadata back.
+			txCtx := persistence.WithTxValue(ctx, tx)
+			if err := writeMetadata(txCtx, Binding{
+				ID:       candidate.ID,
+				ClinicID: candidate.ClinicID,
+				Key:      candidate.OperationKey,
+			}); err != nil {
+				return err
+			}
+		}
 
-	candidate := model.OperationBinding{
-		ClinicID:              scope.ClinicID,
-		OwnerKind:             scope.OwnerKind,
-		ActorKind:             string(scope.ActorKind),
-		ActorRef:              scope.ActorRef,
-		Intent:                scope.Intent,
-		OperationKey:          key,
-		Fingerprint:           sum,
-		FingerprintKeyVersion: keyVersion,
+		var row model.OperationBinding
+		if err := tx.
+			Where("clinic_id = ? AND owner_kind = ? AND actor_kind = ? AND actor_ref = ? AND intent = ? AND operation_key = ?",
+				scope.ClinicID, scope.OwnerKind, string(scope.ActorKind), scope.ActorRef, scope.Intent, key).
+			Take(&row).Error; err != nil {
+			return apperrors.FromGORM(err, "operation_binding", "")
+		}
+		stored = storedBinding{
+			Binding: Binding{
+				ID:       row.ID,
+				ClinicID: row.ClinicID,
+				Key:      row.OperationKey,
+			},
+			Fingerprint: row.Fingerprint,
+			KeyVersion:  row.FingerprintKeyVersion,
+		}
+		return nil
+	})
+	if txErr != nil {
+		return storedBinding{}, txErr
 	}
-	// UNIQUE (clinic_id,owner_kind,actor_kind,actor_ref,intent,operation_key)
-	// is the only conflict target; DO NOTHING keeps the first content binding.
-	if err := db.
-		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&candidate).Error; err != nil {
-		return storedBinding{}, apperrors.FromGORM(err, "operation_binding", "")
-	}
-
-	var row model.OperationBinding
-	if err := db.
-		Where("clinic_id = ? AND owner_kind = ? AND actor_kind = ? AND actor_ref = ? AND intent = ? AND operation_key = ?",
-			scope.ClinicID, scope.OwnerKind, string(scope.ActorKind), scope.ActorRef, scope.Intent, key).
-		Take(&row).Error; err != nil {
-		return storedBinding{}, apperrors.FromGORM(err, "operation_binding", "")
-	}
-	return storedBinding{
-		Binding: Binding{
-			ID:       row.ID,
-			ClinicID: row.ClinicID,
-			Key:      row.OperationKey,
-		},
-		Fingerprint: row.Fingerprint,
-		KeyVersion:  row.FingerprintKeyVersion,
-	}, nil
+	return stored, nil
 }
 
 // FindBinding returns the binding of this exact scope and key. A binding of

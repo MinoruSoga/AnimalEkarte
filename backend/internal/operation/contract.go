@@ -200,6 +200,22 @@ type Participant interface {
 	Apply(ctx context.Context, b Binding, req Request) (Result, error)
 }
 
+// ClaimMetadataWriter is an optional owner capability. A Participant that also
+// implements it is invoked exactly once inside the store's claim transaction,
+// and only when this attempt inserted the binding (the claim winner). It is how
+// an owner persists claim-time metadata (e.g. the original target anchor)
+// atomically with the binding: a callback failure rolls binding and metadata
+// back together, and a concurrent loser never invokes it.
+//
+// Contract: the callback runs only inside the passed claim transaction ctx.
+// It may read req.Content (the fingerprinted canonical values) and may write
+// only claim metadata in that same transaction. It must not call Execute, open
+// a nested transaction, perform owner business writes (articles, history,
+// receipts) or produce external effects.
+type ClaimMetadataWriter interface {
+	CreateClaimMetadata(ctx context.Context, b Binding, req Request) error
+}
+
 // LookupTarget is the original resource resolved from persisted owner metadata
 // keyed by Binding.ID + ClinicID. It is never built from the current Request.
 // A participant with more than one resource must resolve its authoritative

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
 	"strings"
 	"testing"
@@ -859,6 +860,66 @@ func TestConfigLoad_TrimmingImageCleanupEnabledFailClosed(t *testing.T) {
 			cfg := Load()
 			if cfg.TrimmingImageCleanupEnabled != tt.want {
 				t.Fatalf("TrimmingImageCleanupEnabled = %v, want %v", cfg.TrimmingImageCleanupEnabled, tt.want)
+			}
+		})
+	}
+}
+
+// TestValidate_OperationFingerprintKeys: the versioned HMAC keyring is
+// fail-closed — both unset is allowed, everything else malformed is rejected
+// without ever echoing secret values in errors.
+func TestValidate_OperationFingerprintKeys(t *testing.T) {
+	// Fixed test-only fake keys (never real material).
+	key32 := strings.Repeat("a", 32)
+	key48 := strings.Repeat("b", 48)
+	enc := func(raw string) string {
+		return base64.StdEncoding.EncodeToString([]byte(raw))
+	}
+	validJSON := `{"v1":"` + enc(key32) + `","v2":"` + enc(key48) + `"}`
+
+	tests := []struct {
+		name    string
+		version string
+		keys    string
+		wantErr bool
+	}{
+		{name: "both unset", version: "", keys: "", wantErr: false},
+		{name: "both set valid", version: "v1", keys: validJSON, wantErr: false},
+		{name: "version only", version: "v1", keys: "", wantErr: true},
+		{name: "keys only", version: "", keys: validJSON, wantErr: true},
+		{name: "blank version", version: " ", keys: validJSON, wantErr: true},
+		{name: "trim-changed version", version: " v1", keys: validJSON, wantErr: true},
+		{name: "current version missing", version: "v3", keys: validJSON, wantErr: true},
+		{name: "non-object keys", version: "v1", keys: `["a"]`, wantErr: true},
+		{name: "non-string value", version: "v1", keys: `{"v1":42}`, wantErr: true},
+		{name: "empty map", version: "v1", keys: `{}`, wantErr: true},
+		{name: "duplicate member", version: "v1", keys: `{"v1":"` + enc(key32) + `","v1":"` + enc(key48) + `"}`, wantErr: true},
+		{name: "blank member version", version: "v1", keys: `{"":"` + enc(key32) + `","v1":"` + enc(key48) + `"}`, wantErr: true},
+		{name: "trim-changed member version", version: "v1", keys: `{" v1":"` + enc(key32) + `","v1":"` + enc(key48) + `"}`, wantErr: true},
+		{name: "invalid base64", version: "v1", keys: `{"v1":"!!!not-base64!!!"}`, wantErr: true},
+		{name: "unpadded noncanonical base64", version: "v1", keys: `{"v1":"` + strings.TrimRight(enc(key48), "=") + `"}`, wantErr: true},
+		{name: "short key", version: "v1", keys: `{"v1":"` + enc("short") + `"}`, wantErr: true},
+		{name: "malformed json", version: "v1", keys: `{"v1":`, wantErr: true},
+		{name: "trailing content", version: "v1", keys: validJSON + ` {}`, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				OperationFingerprintCurrentKeyVersion: tt.version,
+				OperationFingerprintKeysJSON:          tt.keys,
+			}
+			err := cfg.Validate()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected validation error for %s", tt.name)
+				}
+				if strings.Contains(err.Error(), enc(key32)) || strings.Contains(err.Error(), enc(key48)) {
+					t.Fatalf("error leaks key material: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected validation error: %v", err)
 			}
 		})
 	}

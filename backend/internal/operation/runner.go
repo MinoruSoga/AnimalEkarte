@@ -18,8 +18,11 @@ import (
 // consumer so tests can run the runner without a database.
 type store interface {
 	// ClaimBinding inserts the binding when absent and returns the stored row.
+	// It runs inside its own short transaction; when this attempt wins the
+	// insert, writeMetadata is invoked exactly once inside that claim
+	// transaction so claim metadata commits or rolls back with the binding.
 	// It must run outside an ambient transaction.
-	ClaimBinding(ctx context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string) (storedBinding, error)
+	ClaimBinding(ctx context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string, writeMetadata func(ctx context.Context, b Binding) error) (storedBinding, error)
 	// FindBinding returns the binding of this exact scope and key.
 	FindBinding(ctx context.Context, scope Scope, key uuid.UUID) (storedBinding, bool, error)
 	// LockBindingNoWait locks the binding row; a held row is errBindingBusy.
@@ -107,8 +110,16 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 	sum, keyVersion := r.fp.Compute(req.Scope, req.Content)
 
 	// Claim transaction: the binding must exist before any business write and
-	// stays bound to this content even when the attempt is rejected.
-	stored, err := r.store.ClaimBinding(ctx, req.Scope, req.Key, sum, keyVersion)
+	// stays bound to this content even when the attempt is rejected. A
+	// participant that implements ClaimMetadataWriter gets the store's claim
+	// callback; the store invokes it once, only on the claim winner.
+	var writeMetadata func(context.Context, Binding) error
+	if writer, ok := p.(ClaimMetadataWriter); ok {
+		writeMetadata = func(ctx context.Context, b Binding) error {
+			return writer.CreateClaimMetadata(ctx, b, req)
+		}
+	}
+	stored, err := r.store.ClaimBinding(ctx, req.Scope, req.Key, sum, keyVersion, writeMetadata)
 	if err != nil {
 		return Outcome{}, err
 	}
