@@ -301,6 +301,20 @@ describe("revisit intake schemas（EMR-474）", () => {
     ).toBe(false);
   });
 
+  it("10進でない ID（abc / 1.5 / 空文字）は例外を投げず reject する", () => {
+    for (const bad of ["abc", "1.5", "", "-1", "0"]) {
+      const input = {
+        ...unanswered,
+        current_target: {
+          ...unanswered.current_target,
+          ref: { ...unanswered.current_target.ref, pet_id: bad },
+        },
+      };
+      expect(() => revisitIntakeLIFFReadSchema.safeParse(input)).not.toThrow();
+      expect(revisitIntakeLIFFReadSchema.safeParse(input).success).toBe(false);
+    }
+  });
+
   it("未知の edit_block_reason は補完せず reject する", () => {
     const bad = {
       ...unanswered,

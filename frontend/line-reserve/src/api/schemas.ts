@@ -138,7 +138,7 @@ const REVISIT_INTAKE_BIGINT_MAX = BigInt("9223372036854775807");
 const revisitIntakeDecimalId = z
   .string()
   .regex(/^[1-9][0-9]*$/)
-  .refine((v) => BigInt(v) <= REVISIT_INTAKE_BIGINT_MAX);
+  .refine((v) => !/^[0-9]+$/.test(v) || BigInt(v) <= REVISIT_INTAKE_BIGINT_MAX);
 const revisitIntakeOperationKey = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
