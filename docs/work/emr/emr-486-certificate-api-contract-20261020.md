@@ -2,7 +2,7 @@
 
 状態: **selected / runtime未実装 / SQL未適用 / 試験NOT_RUN**。依頼者・採用判断者はMinoruSoga。目的は確認した発行内容を不変版へ固定し、再転記・二重発行・旧訂正版の有効出力を防ぐこと。操作数・所要時間の改善実測は実装受入へ残す。採用済み案をHTTP/DTOへ転記する文書で、業務要件の追加や実装完了認定ではない。
 
-機械契約は [backend/docs/api.yaml](../../../backend/docs/api.yaml) の `Certificate*` schemas と `VaccinationCertificates` operations。全操作の `x-contract-status: selected` / `x-runtime-status: not-implemented` を固定する。API公開revisionはこの文書とYAMLを含むPR headで識別し、rootレビュー後にFEへ引き渡す。旧 `emr486-certificate-design-proposal.md` の曖昧なHTTP/receipt案より、本採用契約を優先する。
+機械契約は [backend/docs/api.yaml](../../../backend/docs/api.yaml) の `Certificate*` schemas と `VaccinationCertificates` operations。全操作の `x-contract-status: selected` / `x-runtime-status: not-implemented` を固定する。なお、セッション5の読取・描画PR以降、`getVaccinationCertificateEdition` / `listVaccinationCertificateEditions` / `previewSavedVaccinationCertificate` の3操作は `x-runtime-status: implemented` とする（list の runtime path は gin のワイルドカード命名制約により `GET /vaccinations/{id}/certificate-editions`。文書側の `{vaccination_id}` パラメータ名は変更しない）。API公開revisionはこの文書とYAMLを含むPR headで識別し、rootレビュー後にFEへ引き渡す。旧 `emr486-certificate-design-proposal.md` の曖昧なHTTP/receipt案より、本採用契約を優先する。
 
 Fable向けの入力・帳票表示・実装着手境界は [2026-10-21 Q&A](fable-qa-20261021.md) を参照。
 
@@ -268,3 +268,12 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
   "render_manifest": {"renderer_version":"mock-renderer-v1","font_asset_version":"mock-font-v1","templates":{"rabies":"mock-rabies-v1"}}
 }
 ```
+
+## 2026-10-21 読取・描画部分の実装（セッション5）
+
+- 実装スコープは読取3操作のみ（`getVaccinationCertificateEdition` / `listVaccinationCertificateEditions` / `previewSavedVaccinationCertificate`）。context・issue preview・issue・reprint・content route(#8)・operation lookup・writer・artifact upload/insert・C06・FE は引き続き対象外。
+- artifact 読取アダプタは fail-safe（nil store・open/read失敗・サイズ超過・sha不一致・非PDF先頭 → `artifact_unavailable`）。production の store は未結合（nil）のため、既存 artifact 行があっても writer セッションが storage を結合するまでは 503 `artifact_unavailable` を返す。
+- レンダラーは stdlib の最小 PDF 1.7 実装（固定オブジェクト順・xref・`/ID`・日付は snapshot 由来で実行時刻不使用）。日本語フォントは非埋め込み Adobe-Japan1 `HeiseiKakuGo-W5`（UniJIS-UTF16-H）。埋め込みフォントへの置換は後続判断事項。
+- バージョン定数: renderer `ekarte-certificate-pdf/1`、font asset `adobe-japan1-heisei-kakugo-w5-unembedded/1`、templates `normal-portrait/1` / `normal-landscape/1` / `rabies-a4-landscape/1`。manifest 不一致は `dependency-changed` で失敗する。
+- 用紙: rabies は A4 横（依頼者決定）。normal は spec 未定のため portrait は A4 縦・landscape は A4 横と仮定（コードコメントに仮定を明記）。
+- 検証: compile/test/render/print はいずれも NOT_RUN（依頼による実行禁止）。
