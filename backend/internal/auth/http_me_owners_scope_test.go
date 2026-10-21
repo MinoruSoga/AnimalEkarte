@@ -20,12 +20,14 @@ import (
 // EMR-463: technical-spec#owners-list-scope-contract-emr463 の BE fixture 行。
 // 値はすべて合成 ID（実患者・実飼主の値は含めない）。実行は NOT_RUN。
 
+// assignmentErr は所属取得（CurrentAccess 不在時の fallback）の失敗を模す。
 type ownersScopeFixture struct {
-	staffID    uint64
-	accountID  uint64
-	clinics    []model.Clinic
-	assignment []model.StaffClinicAssignment
-	isAdmin    bool
+	staffID       uint64
+	accountID     uint64
+	clinics       []model.Clinic
+	assignment    []model.StaffClinicAssignment
+	isAdmin       bool
+	assignmentErr error
 }
 
 func ownersScopeHandler(
@@ -55,6 +57,7 @@ func ownersScopeHandler(
 		},
 		StaffAssignments: sessionAssignmentReader{
 			assignments: fixture.assignment,
+			err:         fixture.assignmentErr,
 		},
 		Clinics: sessionClinicLister{
 			clinics: fixture.clinics,
@@ -278,6 +281,32 @@ func TestHTTPHandler_GetMe_OwnersViewClinicIDs(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
 		assert.Contains(t, response.Body.String(), `"owners_view_clinic_ids":[]`)
+	})
+
+	t.Run("所属取得の失敗は 5xx で空の 200 を返さない", func(t *testing.T) {
+		handler := ownersScopeHandler(
+			ownersScopeFixture{
+				staffID:       17,
+				accountID:     41,
+				clinics:       []model.Clinic{{ID: 1, Name: "Clinic One", IsActive: true}},
+				assignmentErr: errors.New("assignments unavailable"),
+			},
+			authServiceEffectivePermissionStub{
+				getFn: func(context.Context, uint64, uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{{
+						Resource: string(model.ResourceOwners),
+						CanView:  true,
+					}}, nil
+				},
+			},
+		)
+
+		response := httptest.NewRecorder()
+		// CurrentAccess 不在で所属取得が失敗 → profile の医院集合が欠けるため評価不能。
+		handler.GetMe(ownersScopeContext(response, []uint64{1}, false))
+
+		assert.Equal(t, http.StatusInternalServerError, response.Code)
+		assert.NotContains(t, response.Body.String(), "owners_view_clinic_ids")
 	})
 
 	t.Run("評価 error は 5xx で部分集合や空の 200 を返さない", func(t *testing.T) {

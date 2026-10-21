@@ -125,6 +125,15 @@ func (h *HTTPHandler) GetMe(c *gin.Context) {
 		allClinics,
 		permissions,
 	)
+	// EMR-463: 所属の取得に失敗した非 system_admin は profile の医院集合が欠けるため、
+	// 許可集合を [] の成功へ縮退させず評価不能として 5xx にする。
+	if !accessValid && !assignmentsOK && !isSystemAdmin {
+		httpapi.RespondError(
+			c,
+			apperrors.WrapInternalServerError("failed to evaluate owners view scope"),
+		)
+		return
+	}
 	// EMR-463: GET /me 専用の許可医院集合。失敗時は応答済みのため即 return。
 	ownersClinicIDs, scopeOK := h.ownersViewClinicIDs(c, meResponse.Clinics)
 	if !scopeOK {
