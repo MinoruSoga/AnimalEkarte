@@ -114,7 +114,10 @@ export function CertificateRecoveryPanel({ api, intent, recovery, ownPendingKey 
           受付 {formatDate(row.item.claimed_at)} ／ 操作 {shortKey(key)} ／{" "}
           {row.kind === "succeeded" ? (state.resolved.has(key) ? "再照会で完了を確認しました" : "完了を確認済み") : RECOVERY_CLOSED_TEXT}
         </p>
-        {row.kind === "succeeded" && row.refs !== null ? (
+        {key === ownPendingKey ? (
+          // 同じ key をこの画面の既存フローも持っている間は、結果の採用・表示を既存フローに一本化する。
+          <p className={C.text60}>{RECOVERY_OWN_PENDING_TEXT}</p>
+        ) : row.kind === "succeeded" && row.refs !== null ? (
           shown.has(key) ? (
             <CertificateArtifactPrint
               api={api}

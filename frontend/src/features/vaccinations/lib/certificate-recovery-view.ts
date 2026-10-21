@@ -12,6 +12,9 @@ import type { CertificateRecoveryDiscovery } from "./certificate-recovery-discov
  *   「成功なし」「対象なし」「通信失敗」は保留のまま（遅れて到着する旧送信が成功しうるため。fence は Slice B）。
  */
 
+/** 再照会（同じ key の既存 lookup）の結果の種類。成功を確認できた以外は保留のまま。 */
+export type RecoveryLookupNotice = "not-succeeded" | "unavailable" | "mismatch";
+
 export interface RecoveryRefs {
   readonly editionId: string;
   readonly artifactId: string;

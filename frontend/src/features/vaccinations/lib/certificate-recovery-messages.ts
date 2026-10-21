@@ -1,5 +1,5 @@
 import type { CertificateErrorKind } from "../api/certificate-errors";
-import type { RecoveryLookupNotice } from "../hooks/use-certificate-recovery";
+import type { RecoveryLookupNotice } from "./certificate-recovery-view";
 
 /** EMR-487 Slice A: 回復 discovery の画面文言。機械判定は state / kind で行い、BE の本文は表示に使わない。 */
 

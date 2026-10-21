@@ -7,7 +7,12 @@ import {
   type CertificateRecoveryDiscovery,
   type CertificateRecoveryTarget,
 } from "../lib/certificate-recovery-discovery";
-import { deriveRecoveryView, type RecoveryRefs, type RecoveryView } from "../lib/certificate-recovery-view";
+import {
+  deriveRecoveryView,
+  type RecoveryLookupNotice,
+  type RecoveryRefs,
+  type RecoveryView,
+} from "../lib/certificate-recovery-view";
 
 /**
  * EMR-487 Slice A: 再 mount / reload 後に、職員本人の未確定・完了済みの issue / reprint を発見して保留を決める。
@@ -17,8 +22,6 @@ import { deriveRecoveryView, type RecoveryRefs, type RecoveryView } from "../lib
  *   （本文を持たない）を作らない。発見した操作の再 lookup は同じ key の lookupOperation だけで、再送はしない。
  * - discovery が空・complete でも新 key を作る根拠にしない。ここは「既知の阻害要因があるか」だけを返す。
  */
-
-export type RecoveryLookupNotice = "not-succeeded" | "unavailable" | "mismatch";
 
 interface LookupState {
   readonly checking: boolean;
