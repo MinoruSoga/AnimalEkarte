@@ -4,6 +4,8 @@
 
 [追加合意](../../../spec/screens/24-shift-calendar.md#shift-copy-csv-agreement-20261015)の業務結果と、以下の成立条件／具体設計残件を分ける。新操作のendpoint、DTO、DB、receiptが既に実装されているとは主張しない。
 
+2026-10-21のCSV技術残件は[EMR-448/493選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)へ具体化した。9列・識別子・UTF-8/Windows-31J明示・JST日時・休憩子行・技術上限・原file非永続・全件preview/明示置換/一括apply・C06/Q/結果照会の方式は同稿を優先する。業務FR/ACとコピーの意味契約は維持し、コード/DDL/API/試験の完成を示さない。
+
 ## 対応と所有者
 
 - [docs/spec/screens/settings/master-staff.md](../../../spec/screens/settings/master-staff.md)：現行の仕様／実装／認可根拠。API・schemaはここに複製しない。
@@ -29,7 +31,7 @@
 
 ## 設計・検証残件
 
-既存テンプレート改訂・過去勤務訂正の境界整理は新しい業務質問を生まない。複製／CSVの相対日付対応・明示置換・確認範囲の原子保存／全体拒否・再プレビューを[追加操作の選定設計](../../../spec/screens/24-shift-calendar.md#shift-copy-csv-open-details)として具体化する。CSVの物理形式等は後続設計へ分離する。各画面の実装方式・既存予約不整合の移行救済・医院別能力保存・日跨ぎ表現・並行保存は設計／移行残件。
+既存テンプレート改訂・過去勤務訂正の境界整理は新しい業務質問を生まない。複製／CSVの相対日付対応・明示置換・確認範囲の原子保存／全体拒否・再プレビューを[追加操作の選定設計](../../../spec/screens/24-shift-calendar.md#shift-copy-csv-open-details)として具体化する。CSVの物理形式と保存/再送方式は[選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)へ分離して具体化した。各画面の実装方式・既存予約不整合の移行救済・医院別能力保存・日跨ぎ表現・並行保存は設計／移行残件。
 
 - 保存前後で対象医院・対象人物・実効権限を拘束する。権限や状態が競合したら最新状態を確認して再操作し、別医院への自動再送を行わない。
 - 必須の履歴／監査があるwriteは対応する既存ownerの原子的保存契約へ接続する。全CUDに同一audit要件があるとは仮定しない。
@@ -44,7 +46,7 @@
 | 項目 | 必要な意味契約 | 具体設計・実装との境界 |
 |:---|:---|:---|
 | 入力と対象 | 操作種別（複製／CSV）、選択医院、操作者、対象スタッフ、元／先期間と対応、入力案、確認した差分を識別する。既存更新には元勤務IDと旧値、追加には対象スタッフ・日付等の重複判定対象を保つ | 元期間→先開始日へ相対日付を保ち、重なる元先でも確認済みの元データから案を作る。物理キー名・DTOは後続設計。staff名だけの同一視や未登録スタッフの自動作成はしない |
-| CSV行の対応 | 元行と解釈済み勤務案・エラー／衝突を対応させ、同じファイル内の重複と既存勤務との衝突を区別する | 対応CSV仕様と識別列は未定。未知の列や空欄を自動補完・削除命令としない。数式等を勤務データとして実行しない |
+| CSV行の対応 | 元行と解釈済み勤務案・エラー／衝突を対応させ、同じファイル内の重複と既存勤務との衝突を区別する | 対応CSV仕様と識別列は[CSV選定契約§2](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md#2-単一profileとファイル境界)を使う。未知の列や空欄を自動補完・削除命令としない。数式等を勤務データとして実行しない |
 | 読取と認可 | 複製元・プレビュー・影響予約一覧の読取は現在の閲覧権限へ従う。反映は対象医院の勤務create／edit等、実行する操作に必要な現在grantをserverで検査する。既存deleteを許す追加仕様が必要ならdelete権限も別に検査する | `shifts:view`、画面入口の表示、CSVを選べたことからmutationを許可しない。専用grant新設・全員への配布を承認しない |
 | 医院・人物 | clientの医院IDやCSV列を認可根拠とせず、対象医院・スタッフの所属／有効性・既存勤務の所属を拘束する。別医院の重複は既存契約の範囲で照合する | cross-clinic複製、所属変更、他医院の勤務・予約の書換えを新操作へ混在させない |
 | 版と依存状態 | 確認時の元勤務・先勤務（不存在も含む）と、予約影響に使った現在の所属・個人対応区分・勤務・休憩・保護予約状態を識別し、反映時に再検査する | 一律Version／ETag／HTTP codeを新設済みとしない。source固定／再読取の実方式は設計だが、変わった内容を無確認で反映しない |
@@ -63,7 +65,7 @@
 - timeout・応答喪失は結果不明とし、同じ医院・操作者の現在照会権限で元操作・保存対象・確定結果を照会する。保存済み、未保存が確認済み、未確定を区別し、照会不能なら停止する。未保存確認後の再操作も現状態を再検査する。単なる全件POST再実行を冪等と呼ばない。
 - 別々に確認された複数操作や、障害／旧経路による保存単位内の不整合を検知した場合の部分結果は、保存済み／未反映／結果不明を対象ごとに説明する。成功分を戻したと偽ったり全件失敗として再送したりせず、未反映分だけを再確認する。自動補償削除・正常行だけの無断保存は行わない。単位内の部分commitは成功ではなく整合性違反として回復対象を残す。
 - 成功結果には確定した対象・内容・結果識別を対応付け、自画面を取得し直して保存済み状態を確認する。LINE等のconsumerは各取得契約で確定勤務を参照し、プレビューを確定勤務として配らない。表示更新成功・他画面取得・外部通知を勤務commitと同義にしない。既存APIの一覧を新しいpush通知の根拠にしない。
-- 履歴・監査は[C05](../../../spec/shared/retention-audit.md#requirement-fr-common-retention-trace)へ従い、操作者、医院、対象、元／先対応、変更前後、結果、同一効果の照合に必要な事実を保持する。任意CSV全体を恒久監査ログへ複製する必要があるとは決めず、元ファイルの保存要否・期間・アクセス／破棄は別設計。既存の業務履歴・監査を一時ファイルとして削除しない。
+- 履歴・監査は[C05](../../../spec/shared/retention-audit.md#requirement-fr-common-retention-trace)へ従い、操作者、医院、対象、元／先対応、変更前後、結果、同一効果の照合に必要な事実を保持する。任意CSV全体を恒久監査ログへ複製する必要があるとは決めず、CSV元fileは[選定契約§5](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md#5-claimq再送と原ファイル保管)のbounded memoryのみとし、digestと確認行/前後値を操作履歴へ保存する。独自TTL/長期raw保管は追加しない。既存の業務履歴・監査を一時ファイルとして削除しない。
 
 <a id="shift-bulk-acceptance-trace"></a>
 ### 追加受入trace
@@ -87,7 +89,7 @@
 
 ### 未決と実装適合の検査
 
-CSV列・表現・上限等は[具体設計の残件](../../../spec/screens/24-shift-calendar.md#shift-copy-csv-open-details)。日付対応・明示置換・一回の確認範囲の原子保存／全体拒否・選び直し時の再プレビューは選定済みの意味契約。一貫性制御・同一操作と結果照会・wire／エラーの具体設計は、その意味契約を満たすことを確認して選定する。基準headにおける新API・実装・migrationの存在調査、旧client経路を含む保護、並行実行・実機受入は未実施で、旧単日保存コードの存在だけで新合意へ対応済みとしない。
+CSV列・表現・上限・typed DTO/claim/receipt/lockは[EMR-448/493選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)で具体選定した。旧候補の「未定」は同稿のCSV subsetについて解消し、実装/DB/API登録/受入は未完。日付対応・明示置換・一回の確認範囲の原子保存／全体拒否・選び直し時の再プレビューは選定済みの意味契約。一貫性制御・同一操作と結果照会・wire／エラーの具体設計は、その意味契約を満たすことを確認して選定する。基準headにおける新API・実装・migrationの存在調査、旧client経路を含む保護、並行実行・実機受入は未実施で、旧単日保存コードの存在だけで新合意へ対応済みとしない。
 
 ## 社員リスト追加採用の設計接続
 
@@ -103,8 +105,8 @@ IR-14/15の具体候補であり、列名・API・DDLの実装済み保証、追
 
 | 対象 | 内部候補 | 失敗・移行・照会 |
 |:---|:---|:---|
-| 複製/CSV共通preview | parser出力を`ShiftBulkDraft{operation_kind,clinic_scope,source_snapshot_ref,rows:[{source_row,staff_ref,date,existing_shift_ref/expected_revision,shift_type,start,end,breaks,replace_confirmed}]}`へ正規化。source snapshotは選択時の元勤務/休憩を不変内容として参照し、元先重複でも変更済み先セルから連鎖copyしない。preview結果は差分digest・元/先の版/不存在・依存revision・エラー/予約衝突を返す | CSV文字コード/列/上限は利用者の実入力と照合する別技術設計。未知列/曖昧staff/同一file重複/不正形式は元行へ対応して拒否。空欄を削除命令にしない。元CSV全体の恒久保存/保持期間をここで選ばない |
-| 一括反映とreceipt | 候補`shift_bulk_operations`は医院/actor/intent/key・payload digest・preview digest・結果ref。確認済みrows全体を一つのambient txへ渡し、既存共通gate→必要staff-global/clinic-booking→staff/assignment→勤務/休憩等の正本順を守る | 既存単日APIの逐次commitは使わない。新規予約/他院勤務/所属/能力/休業変更のphantomも再検索。エラーなら全体rollback。応答断はoperation key照会、確定対象ID/版と現在状態を別返却。無条件再POST・無断正常行除外・自動補償削除なし |
+| 複製/CSV共通preview | parser出力を`ShiftBulkDraft{operation_kind,clinic_scope,source_snapshot_ref,rows:[{source_row,staff_ref,date,existing_shift_ref/expected_revision,shift_type,start,end,breaks,replace_confirmed}]}`へ正規化。source snapshotは選択時の元勤務/休憩を不変内容として参照し、元先重複でも変更済み先セルから連鎖copyしない。preview結果は差分digest・元/先の版/不存在・依存revision・エラー/予約衝突を返す | CSV文字コード/列/上限は[選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)に従い、実入力との適合は受入で照合する。未知列/曖昧staff/同一file重複/不正形式は元行へ対応して拒否。空欄を削除命令にしない。元CSV全体の恒久保存/保持期間をここで選ばない |
+| 一括反映とreceipt | 現存`shift_bulk_operations`をCSVの成功履歴へ再利用し、C06 binding/receiptとの対応と元anchorは[選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)へ具体化した。コピー側は本表の意味候補を維持する。確認済みrows全体を一つのambient txへ渡し、既存共通gate→必要staff-global/clinic-booking→staff/assignment→勤務/休憩等の正本順を守る | 既存単日APIの逐次commitは使わない。新規予約/他院勤務/所属/能力/休業変更のphantomも再検索。エラーなら全体rollback。応答断はoperation key照会、確定対象ID/版と現在状態を別返却。無条件再POST・無断正常行除外・自動補償削除なし |
 | 職員3属性 | 現OccupationIDを職種として保持し、候補position_ref/employment_category_refを別のnullable属性にする。参照表を使う場合もclinic scope・安定ID・表示名/旧元値由来を分ける。staff_typeは予約技術分類であり職種・役職・雇用や認可roleの代用にしない | 現staff DTO/modelのoccupation_id/staff_typeだけで3属性対応済みとはしない。旧略称の対応は出典付きmapping、unknownは未分類のまま。変更でrole/grant/capability/accountを自動変更しない |
 | 休業期間 | 候補`staff_leave_periods{clinic_id,staff_id,開始日,終了日,revision,元値由来}`。医院JST日付を勤務/指名候補日時へ解決し、既存の医院時刻・期間端点契約へ正規化。取得失敗を休業なしにしない | 作成・更新・copy・CSV・LINE候補すべてで現在期間を再照合。変更previewに既存勤務/保護予約を出し既存owner操作へ渡す。自動予約取消/退職/ログイン停止なし。復帰は同一staff/所属/履歴を保持し新勤務を作らない。期間端点の実表現と全caller適合は検証残件 |
 
