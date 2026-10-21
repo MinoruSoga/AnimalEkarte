@@ -54,7 +54,7 @@ export function CertificateEditionRow({
   });
   const shownLayout = reprint.activeLayout ?? layout;
   // 再印刷の結果が未確定の間は、同じ key の照会・再試行だけを許す（別操作・向き変更を止める）。
-  const reprintLocked = isReprintUnresolved(reprint.state);
+  const reprintLocked = isReprintUnresolved(reprint.state) || reprint.hasPending;
   // 保存版プレビューの応答が、向き変更後の画面に載らないようにする。
   const savedRequestRef = useRef(0);
   const inputs = edition.snapshot.inputs;
@@ -163,8 +163,20 @@ export function CertificateEditionRow({
             <CertificateNotice code={reprint.state.notice}>
               {reprint.state.phase === "unknown" ? (
                 <div className="mt-2">
-                  <Button type="button" variant="outline" onClick={() => void reprint.recheck()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={reprint.checking}
+                    onClick={() => void reprint.recheck()}
+                  >
                     結果を照会する
+                  </Button>
+                </div>
+              ) : null}
+              {reprint.state.phase === "blocked" && reprint.hasPending ? (
+                <div className="mt-2">
+                  <Button type="button" variant="outline" onClick={() => void reprint.resumeAfterBlocked()}>
+                    権限を再確認して照会する
                   </Button>
                 </div>
               ) : null}

@@ -4,7 +4,7 @@ import { createReprintStore } from "./certificate-reprint-store";
 describe("再印刷 store", () => {
   it("未登録の edition は idle・pending なしを返し、同じ参照を返し続ける", () => {
     const store = createReprintStore();
-    expect(store.get(1)).toEqual({ state: { phase: "idle" }, pending: null, layout: null });
+    expect(store.get(1)).toEqual({ state: { phase: "idle" }, pending: null, layout: null, checking: false });
     expect(store.get(1)).toBe(store.get(2));
   });
 
@@ -12,12 +12,12 @@ describe("再印刷 store", () => {
     const store = createReprintStore();
     const listener = vi.fn();
     const unsubscribe = store.subscribe(listener);
-    store.set(1, { state: { phase: "running" }, pending: null, layout: null });
+    store.set(1, { state: { phase: "running" }, pending: null, layout: null, checking: false });
     expect(listener).toHaveBeenCalledTimes(1);
     expect(store.get(1).state.phase).toBe("running");
     expect(store.get(2).state.phase).toBe("idle");
     unsubscribe();
-    store.set(1, { state: { phase: "idle" }, pending: null, layout: null });
+    store.set(1, { state: { phase: "idle" }, pending: null, layout: null, checking: false });
     expect(listener).toHaveBeenCalledTimes(1);
   });
 });

@@ -21,6 +21,7 @@ interface CertificateIssuePanelProps {
   /** 現在の vaccinations:edit 権限。mutation 直前にも getCanEdit で再検査する。 */
   getCanEdit: () => boolean;
   onRefetchContext: () => void;
+  refetchCanIssue: () => Promise<boolean>;
 }
 
 const ELIGIBILITY_NOTE = {
@@ -34,8 +35,9 @@ export function CertificateIssuePanel({
   context,
   getCanEdit,
   onRefetchContext,
+  refetchCanIssue,
 }: CertificateIssuePanelProps) {
-  const flow = useCertificateIssue({ api, vaccinationId, context, getCanEdit, onRefetchContext });
+  const flow = useCertificateIssue({ api, vaccinationId, context, getCanEdit, onRefetchContext, refetchCanIssue });
   const { state, fieldErrors } = flow;
   const kinds = selectableKinds(context);
   const editable = isEditable(state.phase);
@@ -164,8 +166,15 @@ export function CertificateIssuePanel({
         <CertificateNotice code={state.notice}>
           {state.phase === "unknown" ? (
             <div className="mt-2">
-              <Button type="button" variant="outline" onClick={() => void flow.recheck()}>
+              <Button type="button" variant="outline" disabled={flow.checking} onClick={() => void flow.recheck()}>
                 発行結果を照会する
+              </Button>
+            </div>
+          ) : null}
+          {state.phase === "blocked" ? (
+            <div className="mt-2">
+              <Button type="button" variant="outline" onClick={() => void flow.resumeAfterBlocked()}>
+                権限を再確認して続ける
               </Button>
             </div>
           ) : null}

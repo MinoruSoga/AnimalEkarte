@@ -5,7 +5,8 @@ import type {
   CertificateLayout,
   CertificatePreviewResponse,
 } from "../api/certificate-schemas";
-import { emptyDraft, type CertificateInputDraft } from "./certificate-inputs";
+import { emptyCertificateInputs } from "../api/certificate-schemas";
+import { draftFromInputs, emptyDraft, type CertificateInputDraft } from "./certificate-inputs";
 
 /**
  * EMR-487: 発行フローの純粋な状態遷移。
@@ -88,6 +89,24 @@ export function initialIssueState(init: {
   };
 }
 
+/**
+ * 画面の再 mount で復元する状態。未確定の発行（key と request）だけを引き継ぎ、確認用 preview は持ち越さない。
+ * 結果は不明として扱い、同じ key で照会してから「成功なし」確定後の同内容再試行 / 修正して再 preview へ進む。
+ */
+export function restoredIssueState(pending: IssuePending): IssueState {
+  const { request } = pending;
+  return {
+    ...initialIssueState({
+      kind: request.kind,
+      layout: request.layout,
+      draft: draftFromInputs({ ...emptyCertificateInputs(), ...request.inputs }),
+    }),
+    phase: "unknown",
+    pending,
+    notice: "unavailable",
+  };
+}
+
 export type IssueAction =
   | { type: "edit"; patch: { kind?: CertificateKind; layout?: CertificateLayout; draft?: Partial<CertificateInputDraft> } }
   | { type: "replaceDraft"; draft: CertificateInputDraft }
@@ -105,6 +124,7 @@ export type IssueAction =
   | { type: "retryStart" }
   | { type: "stale"; notice: IssueNoticeCode }
   | { type: "blocked"; notice: IssueNoticeCode }
+  | { type: "unblock" }
   | { type: "acknowledgeResolved" }
   | { type: "startNew" };
 
@@ -160,6 +180,13 @@ export function issueReducer(state: IssueState, action: IssueAction): IssueState
       return { ...state, phase: "stale", preview: null, previewRequest: null, pending: null, notice: action.notice };
     case "blocked":
       return { ...state, phase: "blocked", notice: action.notice };
+    case "unblock":
+      // 権限が戻ったことを呼び出し側が確認した後の解除。未確定の key があれば捨てずに結果不明へ戻して同 key で照会し、
+      // なければ preview を作り直す編集状態へ戻る（確認済みだった preview は引き継がない）。
+      if (state.phase !== "blocked") return state;
+      return state.pending !== null
+        ? { ...state, phase: "unknown", notice: "unavailable" }
+        : { ...state, phase: "editing", preview: null, previewRequest: null, notice: null };
     case "startNew":
       // 発行済みから新しい発行へ。preview / pending を残さない（新 key は次の preview の後）。
       return state.phase === "issued"

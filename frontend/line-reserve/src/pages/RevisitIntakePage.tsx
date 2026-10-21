@@ -165,11 +165,16 @@ export function RevisitIntakePage({
       setLeavePrompt("in_flight");
       return;
     }
-    if (submitUnresolved) {
+    // 再取得中・失敗中は editor が外れ、submitUnresolved が false に戻る。memory store の未確定送信も見る。
+    if (
+      submitUnresolved ||
+      (intake.read === null && draftStore.findPending(clinicId, appointmentId) !== undefined)
+    ) {
       setLeavePrompt("unresolved");
       return;
     }
-    if (dirty) {
+    // 再取得中・失敗中は editor が外れ dirty が false に戻る。memory store の未送信 draft も見る。
+    if (dirty || (intake.read === null && draftStore.hasDraft(clinicId, appointmentId))) {
       setLeavePrompt("dirty");
       return;
     }
@@ -190,7 +195,40 @@ export function RevisitIntakePage({
       <div className="min-h-screen bg-noah-teal-light flex flex-col">
         <div className="max-w-md mx-auto w-full flex flex-col flex-1">
           <div className="px-4 pt-4">
-            <BackButton onClick={onBack} />
+            {/* 未確定の送信（memory のみの key）が残る間は、確認なしに離れない。 */}
+            <BackButton
+              onClick={() => {
+                // 照会成功で store が空になった直後は、古い描画のまま確認を挟まない。
+                if (draftStore.findPending(clinicId, appointmentId) === undefined) onBack();
+                else setLeavePrompt("unresolved");
+              }}
+            />
+            {leavePrompt === "unresolved" ? (
+              <div
+                role="alert"
+                className="mb-3 space-y-2 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3"
+              >
+                <p className="text-sm text-noah-warning-text">
+                  送信結果が未確定です。この画面を離れると、予約一覧にこの予約が表示されない場合は結果を確認できなくなります。
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={leave}
+                    className="min-h-11 flex-1 rounded-lg bg-noah-teal px-3 text-sm font-semibold text-white"
+                  >
+                    このまま戻る
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeavePrompt(null)}
+                    className="min-h-11 flex-1 rounded-lg border border-noah-border bg-white px-3 text-sm text-noah-text"
+                  >
+                    この画面に留まる
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <h1 className="text-lg font-bold text-noah-teal-dark">再診の事前問診</h1>
           </div>
           <div className="flex-1 space-y-4 px-4 py-4">

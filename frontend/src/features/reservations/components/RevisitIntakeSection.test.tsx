@@ -1,7 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { focusManager, onlineManager } from "@tanstack/react-query";
+import { act } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { RevisitIntakeSection } from "./RevisitIntakeSection";
@@ -66,20 +68,54 @@ function respond(json: unknown, status = 200) {
 }
 
 describe("RevisitIntakeSection", () => {
-  it("読込中はセクション内スケルトンを aria-busy で出す", async () => {
+  afterEach(() => {
+    focusManager.setFocused(undefined);
+    onlineManager.setOnline(undefined);
+  });
+
+  it("読込中は aria-busy と読み上げ文言を即時に出し、スケルトン描画は 300ms 超まで遅らせる", async () => {
     server.use(
       http.get(PATH, async () => {
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise((r) => setTimeout(r, 700));
         return HttpResponse.json(body());
       }),
     );
-    renderSection();
+    const { container } = renderSection();
     expect(screen.getByRole("status")).toHaveTextContent("問診を読み込み中");
     expect(screen.getByRole("region", { name: "飼主事前問診（LINE）" })).toHaveAttribute(
       "aria-busy",
       "true",
     );
+    // 300ms 未満はスケルトンを出さない（短い読込での点滅防止）。
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    await waitFor(() => expect(container.querySelector(".animate-pulse")).not.toBeNull());
     expect(await screen.findByText("回答済み")).toBeInTheDocument();
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+  });
+
+  it("再取得が失敗したら取得済みの本文を最新として出し続けず、エラーと再試行を出す", async () => {
+    let calls = 0;
+    server.use(
+      http.get(PATH, () => {
+        calls += 1;
+        return calls === 1
+          ? HttpResponse.json(body())
+          : HttpResponse.json(
+              { error: "x", code: "SERVICE_UNAVAILABLE" },
+              { status: 503, headers: { "Retry-After": "60" } },
+            );
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("目的a2")).toBeInTheDocument();
+    // reconnect / focus 復帰相当の自動再取得を起こす。
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+    // 再取得が実際に走ったこと（無言で refetch されないケースを通さない）。
+    expect(calls).toBe(2);
   });
 
   it("target_unresolved は「対象を特定できません」を出す", async () => {
@@ -254,6 +290,111 @@ describe("RevisitIntakeSection", () => {
     expect(await screen.findByText("目的a2")).toBeInTheDocument();
   });
 
+  it("429 で Retry-After が長いときは自動再試行せず手動再試行に委ねる", async () => {
+    let calls = 0;
+    server.use(
+      http.get(PATH, () => {
+        calls += 1;
+        return HttpResponse.json(
+          { error: "x", code: "TOO_MANY_REQUESTS" },
+          { status: 429, headers: { "Retry-After": "60" } },
+        );
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(calls).toBe(1);
+  });
+
+  describe("Retry-After 期限までの手動操作", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const tooMany = () =>
+      HttpResponse.json(
+        { error: "x", code: "TOO_MANY_REQUESTS" },
+        { status: 429, headers: { "Retry-After": "10" } },
+      );
+
+    it("再試行は期限まで無効で案内を出し、期限後に有効になる", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      server.use(http.get(PATH, tooMany));
+      renderSection();
+      const retry = await screen.findByRole("button", { name: "再試行" });
+      expect(retry).toBeDisabled();
+      expect(screen.getByText("約10秒後に再試行できます")).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(9_000);
+      });
+      expect(screen.getByRole("button", { name: "再試行" })).toBeDisabled();
+      act(() => {
+        vi.advanceTimersByTime(1_500);
+      });
+      expect(screen.getByRole("button", { name: "再試行" })).toBeEnabled();
+      expect(screen.queryByText(/秒後に再試行できます/)).not.toBeInTheDocument();
+    });
+
+    it("期限内はフォーカス復帰・再接続で再要求せず、期限後は手動再試行できる", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let calls = 0;
+      server.use(
+        http.get(PATH, () => {
+          calls += 1;
+          return calls === 1
+            ? HttpResponse.json(
+                { error: "x", code: "TOO_MANY_REQUESTS" },
+                { status: 429, headers: { "Retry-After": "60" } },
+              )
+            : HttpResponse.json(body());
+        }),
+      );
+      renderSection();
+      await screen.findByRole("button", { name: "再試行" });
+      expect(calls).toBe(1);
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+      });
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(calls).toBe(1);
+      act(() => {
+        vi.advanceTimersByTime(31_000);
+      });
+      const retry = screen.getByRole("button", { name: "再試行" });
+      expect(retry).toBeEnabled();
+      retry.click();
+      expect(await screen.findByText("目的a2")).toBeInTheDocument();
+      expect(calls).toBe(2);
+    });
+
+    it("続き取得の失敗後、さらに表示も期限まで無効で期限後に有効になる", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      server.use(
+        http.get(PATH, ({ request }) =>
+          new URL(request.url).searchParams.get("cursor")
+            ? tooMany()
+            : HttpResponse.json(body({ next_cursor: "CURSOR_2" })),
+        ),
+      );
+      renderSection();
+      const more = await screen.findByRole("button", { name: "さらに表示" });
+      expect(more).toBeEnabled();
+      more.click();
+      await screen.findByText("続きを取得できませんでした。");
+      expect(screen.getByRole("button", { name: "さらに表示" })).toBeDisabled();
+      expect(screen.getByText("約10秒後に再試行できます")).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(10_500);
+      });
+      expect(screen.getByRole("button", { name: "さらに表示" })).toBeEnabled();
+    });
+  });
+
   it("clinicId を X-Clinic-ID ヘッダで送る", async () => {
     let header: string | null = null;
     server.use(
@@ -297,6 +438,41 @@ describe("RevisitIntakeSection", () => {
       body({
         history: [
           { target: ref("77", "2"), answer: answer("x1", "1"), target_relation: "current" },
+        ],
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的x1")).not.toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
+  it("current_target が要求と別の予約なら fail-closed で本文を出さない", async () => {
+    respond(
+      body({
+        current_target: {
+          ref: { ...ref(), appointment_id: "99" },
+          head_revision: "2",
+          answer_state: "answered",
+          latest_answer: answer("a2", "2"),
+          content_available: true,
+        },
+      }),
+    );
+    renderSection();
+    expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
+    expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
+  });
+
+  it("履歴の対象が要求と別の予約なら fail-closed で本文を出さない", async () => {
+    respond(
+      body({
+        history: [
+          {
+            target: { ...ref("10", "1"), appointment_id: "99" },
+            answer: answer("x1", "1"),
+            target_relation: "previous",
+          },
         ],
       }),
     );

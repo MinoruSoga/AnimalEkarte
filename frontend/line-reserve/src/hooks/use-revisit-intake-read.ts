@@ -1,6 +1,6 @@
 // EMR-474: GET …/revisit-intake の取得・再取得・履歴の追加読込。
 // 再取得中も前回の表示を保持し（入力 draft を消さない）、refetching で読込中を示す。
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { liffApi } from "../api/liff-api";
 import { resolveFetchError, type FetchErrorInfo } from "@/shared-liff/handle-fetch-error";
 import type { RevisitIntakeHistoryEntry, RevisitIntakeLIFFRead } from "../types/models";
@@ -65,16 +65,31 @@ export interface UseRevisitIntakeReadResult {
   loadMoreRetryAfterSeconds: number | null;
 }
 
-function sameTargetIdentity(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead): boolean {
+function sameSnapshot(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead): boolean {
   const x = a.current_target?.ref ?? null;
   const y = b.current_target?.ref ?? null;
-  if (x === null || y === null) return x === y && a.availability === b.availability;
+  if (x === null || y === null) {
+    return (
+      x === y &&
+      a.availability === b.availability &&
+      a.form_definition_version === b.form_definition_version
+    );
+  }
   return (
     // 履歴の混在を避けるため、保存済み target の識別子（target_id）も一致を要求する。
     x.target_id === y.target_id &&
     x.appointment_id === y.appointment_id &&
     x.pet_id === y.pet_id &&
-    x.target_generation === y.target_generation
+    x.target_generation === y.target_generation &&
+    // 同じ target でも head・本文可否・編集可否が変わったページは、旧 snapshot へ追記せず読み直す
+    // （別送信での head 更新や回答権限の失効後に、古い本文を表示し続けない）。
+    a.availability === b.availability &&
+    a.form_definition_version === b.form_definition_version &&
+    a.current_target?.head_revision === b.current_target?.head_revision &&
+    a.current_target?.answer_state === b.current_target?.answer_state &&
+    a.current_target?.content_available === b.current_target?.content_available &&
+    a.current_target?.editable === b.current_target?.editable &&
+    a.current_target?.edit_block_reason === b.current_target?.edit_block_reason
   );
 }
 
@@ -170,6 +185,11 @@ export function useRevisitIntakeRead(
   }, [backoff]);
 
   const read = state.read;
+  // cursor 要求の完了時点で、現在の read がまだ要求元（baseRead）かを確かめるために保持する。
+  const latestReadRef = useRef(read);
+  useEffect(() => {
+    latestReadRef.current = read;
+  }, [read]);
   // 追加ページは取得元の read と対応しているときだけ使う（再取得で1ページ目から読み直す）。
   const extra = more.forRead === read ? more : null;
   const history = read ? [...read.history, ...(extra?.entries ?? [])] : [];
@@ -183,10 +203,13 @@ export function useRevisitIntakeRead(
     startLoadMore(async () => {
       try {
         const page = await liffApi.getRevisitIntake(clinicId, appointmentId, idToken, { cursor });
-        if (!sameTargetIdentity(baseRead, page)) {
+        // 要求中に新しい1ページ目の再取得が baseRead を置き換えていたら、古い応答は無視する。
+        if (latestReadRef.current !== baseRead) return;
+        if (!sameSnapshot(baseRead, page)) {
           // 最初の読込の後に target が変わった。旧 read へ追記せず捨て、1ページ目から読み直す
-          // （再取得が走るまで refetching になり editor は送信できない）。
-          setState((prev) => ({ ...prev, error: null }));
+          // 本文可否・権限が変わっている場合に備え、保持中の read は再取得の完了を待たず破棄する
+          // （遅い・失敗する再取得の間も旧本文を出さない。draft は store に残る）。
+          setState((prev) => ({ ...prev, read: null, error: null }));
           setRequestToken((t) => t + 1);
           return;
         }

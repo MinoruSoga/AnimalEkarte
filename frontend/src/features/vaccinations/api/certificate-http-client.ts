@@ -7,6 +7,7 @@ import {
   classifyCertificateError,
   type ErrorBody,
 } from "./certificate-errors";
+import { editionPageMatches, savedPreviewMatches } from "./certificate-binding";
 import {
   certificateContextSchema,
   certificateEditionPageSchema,
@@ -127,13 +128,20 @@ export function createHttpCertificateApi(): CertificateApi {
       return parse(certificateEditionSchema, data);
     },
     async listEditions(vaccinationId, query, signal) {
+      const requestedPage = query.page ?? 1;
+      const requestedLimit = query.limit ?? 20;
       const { data } = await call(() =>
         axios.get<unknown>(`${BASE}/vaccinations/${vaccinationId}/certificate-editions`, {
-          params: { kind: query.kind, page: query.page ?? 1, limit: query.limit ?? 20 },
+          params: { kind: query.kind, page: requestedPage, limit: requestedLimit },
           signal,
         }),
       );
-      return parse(certificateEditionPageSchema, data);
+      const page = parse(certificateEditionPageSchema, data);
+      // 形が正しいだけの別接種・別様式の履歴を、この接種の履歴として載せない。
+      if (!editionPageMatches(page, { vaccinationId, kind: query.kind, page: requestedPage, limit: requestedLimit })) {
+        throw new CertificateApiError("malformed", { message: "履歴が要求した接種・様式と一致しません" });
+      }
+      return page;
     },
     async previewSaved(editionId, layout, signal) {
       const { data } = await call(() =>
@@ -143,7 +151,11 @@ export function createHttpCertificateApi(): CertificateApi {
           { signal },
         ),
       );
-      return parse(certificateSavedPreviewSchema, data);
+      const preview = parse(certificateSavedPreviewSchema, data);
+      if (!savedPreviewMatches(preview, { editionId, layout })) {
+        throw new CertificateApiError("malformed", { message: "保存版プレビューが要求した版・向きと一致しません" });
+      }
+      return preview;
     },
     async reprint(editionId, body) {
       const { data } = await call(() =>
