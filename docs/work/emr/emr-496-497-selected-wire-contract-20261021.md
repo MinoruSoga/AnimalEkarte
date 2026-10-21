@@ -242,6 +242,8 @@ audit INSERT失敗は版/entry/provenance/restore manifest/成功receipt全rollb
 - prescription result_refs={medical_record_id,prescription_id,prescription_revision_id}にrestore時だけrestore_operation_id、committed_versions={preventive_prescription}。
 - medication result_refs={medical_record_id,prescription_id,prescription_revision_id,observation_id,medication_revision_id}にrestore時だけrestore_operation_id、committed_versions={preventive_medication}。参照処方revisionはresult_refに固定し、処方が今回改訂されたようなcommitted_versionsを返さない。
 
+intakeの「存在」はrevision行の実在を指し、臨床payloadの有無とは区別する。presence_state='absent'でもclear / Undoがappendした実revision行のIDをintake_revision_id、当該revisionをcommitted_versions.initial_intakeへ返す。成功replayと固定版readerも同一ID / 版を使い、実revision行がない場合だけこれらrefs / 版を省略する。no-opで現在のabsent版が実在する場合も同じ既存行の規則を使い、新revisionを作らない。
+
 fixture計画（NOT_RUN）：baseline成功responseは必須keyを保持し、`committed_versions: {}` を明示出力する。省略・null・失敗shapeへの変換を拒否し、非成功はstatus / operation_keyのみであることを確認する。
 
 optionalはこの有限列挙条件のみ。null/空文字/0のIDをmapへ入れない。inquiry no-opで未作成ならinquiry_id keyも省略し、body省略が空inquiry自動生成を起こさない。保存後はread projectionを取り、receiptを本文代用にしない。
