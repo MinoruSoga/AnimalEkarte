@@ -496,3 +496,45 @@ describe("未確定の再印刷がある版が旧版になったとき", () => {
     expect(callsOf(controls, "reprint")).toHaveLength(1);
   });
 });
+
+describe("回復した成功で context / 履歴を取り直す・同じ artifact を複数開く", () => {
+  it("context 取得後に遅れて確定した発行が発見で見つかったら、context と履歴を取り直す", async () => {
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gated: CertificateApi = {
+      ...api,
+      queryOperationRecovery: async (request, signal) => {
+        await gate;
+        return api.queryOperationRecovery(request, signal);
+      },
+    };
+    renderScreen(gated);
+    await screen.findByRole("heading", { name: "証明書を発行する" });
+    await waitFor(() => expect(callsOf(controls, "getContext")).toHaveLength(1));
+    await seedNormalEdition(api); // context 取得の後に、遅れた発行が確定した
+    release();
+    await waitFor(() => expect(callsOf(controls, "getContext").length).toBeGreaterThan(1));
+    expect(await screen.findByText("第1版")).toBeInTheDocument();
+  });
+
+  it("同じ artifact を指す回復結果を 2 つ開いても heading の id が重ならない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    // 同じ版・同じ向きの再印刷を 2 回確定させる（artifact は再利用される）。
+    for (const key of ["77777777-7777-4777-8777-777777777771", "77777777-7777-4777-8777-777777777772"]) {
+      await api.reprint("301", { operation_key: key, layout: "portrait", preconditions: { source_version: 7, latest_edition_id: 301 } });
+    }
+    expect(controls.recovery.get("77777777-7777-4777-8777-777777777772")).toBeDefined();
+    renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    await user.click(await within(row).findByText(/確認できた過去の再印刷操作（2件）/));
+    for (const button of within(row).getAllByRole("button", { name: "結果を表示", hidden: true })) await user.click(button);
+    await waitFor(() => expect(row.querySelectorAll("h3").length).toBe(2));
+    const ids = [...row.querySelectorAll("h3")].map((h) => h.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+});

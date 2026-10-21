@@ -43,6 +43,11 @@ export function CertificateIssuePanel({
   const recovery = useCertificateRecovery({
     api,
     target: { intent: "issue", vaccinationId },
+    onRecoveredSuccess: (refs) => {
+      // 回復した版が、表示中の最新版より新しいなら context / 履歴が古い（既存の取り直しを使う）。
+      const latestIds = [context.latest.normal?.id, context.latest.rabies?.id].filter((id) => id !== undefined);
+      if (latestIds.every((id) => Number(refs.editionId) > id)) onRefetchContext();
+    },
     enabled: true, // 発見と既知の成功の再照会は view 権限で足りる（view のみでも走らせる）
   });
   const flow = useCertificateIssue({

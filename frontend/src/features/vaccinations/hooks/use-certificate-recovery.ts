@@ -91,9 +91,14 @@ export interface UseCertificateRecoveryArgs {
   target: CertificateRecoveryTarget;
   /** false なら discovery を走らせず、開始は常に不可（fail-closed）。 */
   enabled: boolean;
+  /**
+   * 発見または再照会で、束縛済みの成功を回復したとき（描画済みの context / 履歴が古い可能性がある）。
+   * 呼び出し側が最新版などと比べて、必要なら既存の query を取り直す。登録簿・key には触れない。
+   */
+  onRecoveredSuccess?: (refs: RecoveryRefs) => void;
 }
 
-export function useCertificateRecovery({ api, target, enabled }: UseCertificateRecoveryArgs) {
+export function useCertificateRecovery({ api, target, enabled, onRecoveredSuccess }: UseCertificateRecoveryArgs) {
   const { intent, vaccinationId } = target;
   const editionId = target.intent === "reprint" ? target.editionId : null;
   const [state, dispatch] = useReducer(recoveryReducer, enabled, initialRecoveryState);
@@ -106,6 +111,10 @@ export function useCertificateRecovery({ api, target, enabled }: UseCertificateR
   const outcomeRef = useRef<Outcome | null>(null);
   const resolvedRef = useRef<ReadonlyMap<string, RecoveryRefs>>(new Map());
   const lookupBusyRef = useRef(new Set<string>());
+  const recoveredRef = useRef(onRecoveredSuccess);
+  useLayoutEffect(() => {
+    recoveredRef.current = onRecoveredSuccess;
+  }, [onRecoveredSuccess]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -125,7 +134,12 @@ export function useCertificateRecovery({ api, target, enabled }: UseCertificateR
       if (controller.signal.aborted) return;
       if (inflightRef.current === promise) inflightRef.current = null;
       outcomeRef.current = outcome;
-      if (outcome.kind === "ready") dispatch({ type: "settled", run, discovery: outcome.discovery });
+      if (outcome.kind === "ready") {
+        dispatch({ type: "settled", run, discovery: outcome.discovery });
+        for (const row of deriveRecoveryView(outcome.discovery, new Map()).rows) {
+          if (row.kind === "succeeded" && row.refs !== null) recoveredRef.current?.(row.refs);
+        }
+      }
       else dispatch({ type: "failed", run, errorKind: outcome.errorKind });
     });
     return () => controller.abort();
@@ -192,6 +206,7 @@ export function useCertificateRecovery({ api, target, enabled }: UseCertificateR
         resolvedRef.current = new Map(resolvedRef.current).set(key, refs);
       }
       dispatch({ type: "lookupDone", run, key, refs, notice });
+      if (refs !== null) recoveredRef.current?.(refs);
     },
     [api],
   );
