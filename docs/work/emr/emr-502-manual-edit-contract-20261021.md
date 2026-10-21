@@ -43,6 +43,7 @@
 - 公開 DTO は既存 ManualEditReceipt / ManualEditConflict / ManualEditOperationResult。raw C06 ResultResponse に差し替えず、既存 513 client schema を保持する。
 - 公開 lookup status は既存 succeeded / unknown のみ。未選定の internal outcome を新公開 state にせず、既存 generic ErrorResponse に写像する。
 - same-key 成功 replay は保存済み履歴/result の原 receipt・原 version を返し、最新 pointer から再構築しない。現在版の変更は原 receipt を失効させない。
+- 新 edit は参照を無視して50版超を削除する旧 `pruneVersionsBeyondRetention` を使用しない。operation 履歴 / receipt / current・published pointer が必要とする内容版を保持する。未参照版は既存保持方針と参照安全性に従い、全版永久保持という新方針は導入しない。履歴の表示件数上限と保存版の削除を分離する。
 - unknown は sticky な停止結果。後続失敗で消さず新 key で救済しない。clinic 切替・別 actor へ receipt を横流ししない。既存 rollback / unknown 機構を維持する。
 
 ## 4. immutable content と正確な hash projection
@@ -50,9 +51,10 @@
 - 大きな本文と C06 Content の各値 256-byte 制限を両立するため、本文を Content に入れず共有上限も変更しない。
 - nested content は title:string / order_value:number(double) / section:string / body_markdown:string の全置換。category / slug は immutable route selector。
 - content の 4 項目は required / non-null。JSON 重複 member、lone surrogate / invalid UTF-8、非有限・範囲外 JSON number を拒否する。
+- 保存対象文字列の decoded U+0000 は claim 前に HTTP 400 で拒否し、binding を生成しない。除去・置換はしない。他の Unicode・改行・正当な escape は維持し、文字列としての literal `\u0000`（バックスラッシュと u0000 の6文字）と区別する。
 - 公開 API の `ManualArticleEditContent` に従い、title / section だけ空文字を拒否し、body_markdown は空文字を許容する。新たな文字数制限・trim・空白のみ拒否を導入せず、旧 handler の `max=255` / `required,max=100000` は継承しない。
 - order_value は公開 API どおり numeric(10,2) に対応する number、multipleOf 0.01、最小 -99999999.99・最大 99999999.99 とする。
-- 上の 4 項目限定は nested content の意味。outer operation_key / article_id / expected_version / expected_content_version_id は公開契約どおり許容し、whole request の新たな一括 unknown-field 拒否を導入しない。
+- 上の 4 項目限定は nested content の意味であり、outer に誤適用しない。outer は公開 `UpsertManualArticleRequest` の `additionalProperties: false` に従い、operation_key / article_id / expected_version / expected_content_version_id / content を許容し、それ以外の未知 field を拒否する。
 - decoded string を保存/hash 共通に用い、trim / NFC / 改行変換をしない。RFC 8785 JCS の key sort・escape・有限 IEEE754 serialization を用いる。-0 は 0 に canonicalize し同じ parsed value を保存する。order_value を数値文字列契約に変えない。
 - `content_digest = lowerhex SHA256(UTF8(JCS({schema:"manual-article-content-v1",title:<exact>,order_value:<parsed finite number>,section:<exact>,body_markdown:<exact>})))`
 - `command_digest = lowerhex SHA256(UTF8(JCS({schema:"manual-article-edit-v1",article_id:<canonical positive signed64 decimal string>,category:<exact enum>,slug:<exact route-decoded string>,content_digest:<above64hex>})))`
@@ -81,6 +83,8 @@
 - 文書・operation 参加表も採択内容へ同期する。公開前に現在の claim / worktree / branch / PR と文書所有者を照合する。docs 差分がないことを所有権不在とみなさない。
 - fixture：claim+anchor rollback / concurrent same-key 1 anchor / target B が原 A を置換しない / failed・unknown の原 A 解決 / missing anchor 非補修 / 失権・別 clinic・actor 非開示。
 - fixture：global article cross-clinic CAS / required audit rollback / 大本文と digest mismatch / 原 version replay / absent・partial・malformed・duplicate config / 旧 key 不在 / selector と公開 intent 写像。
+- fixture：50回超の edit 後も元 receipt を照会でき、operation 履歴 / receipt / current・published pointer の参照版が削除されない。表示件数上限によって保存版を削除しない。
+- fixture：title / section / body_markdown それぞれの decoded U+0000 を claim 前400で拒否し binding 未生成を確認する。6文字の literal `\u0000`、他の正当な Unicode・改行・escape と区別する。outer の許容5項目と未知 field 拒否も確認する。
 - 試験実行は NOT_RUN。隔離環境を構築・使用しない。実鍵設定・DB 適用・deploy は行わない。実 DB / 結合 / UAT は本人指示後に main ローカルでまとめ検証し、未実行を PASS と記さない。
 
 ## 根拠

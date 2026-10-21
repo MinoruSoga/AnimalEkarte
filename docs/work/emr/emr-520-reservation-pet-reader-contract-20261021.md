@@ -32,14 +32,15 @@
 対象一覧：`GET /api/liff/{clinicId}/my-reservations`。
 
 - pet_id と pet_name は一対。新 server は両 key を常に返し、認可済み実 pet が解決した場合のみ両 non-null、それ以外は両 null。
-- pet_id は正の signed-int64 の canonical decimal string。上限は 9223372036854775807。ゼロ・負値・非正規表現・範囲外を成功値にしない。
+- pet_id は正の signed-int64 の canonical decimal string。上限は 9223372036854775807。ゼロ・負値・非正規表現・範囲外を成功値にしない。新 pet_id は string のみで、予約 id の旧 number 互換を流用しない。
 - pet_name はその identity に対応する同 snapshot の認可済み current revision の名前。未知を空文字へ補完せず、名前から ID を推測しない。
 - 後方互換として旧 producer の両 key 省略を許容する。対として扱う形は「両省略」「両 null」「両 non-null」とする。
 - 旧 producer は `pet_name,omitempty` のみを持ち、pet_id なしで customer_fields 由来の名前を返す。旧 pet_name-only（pet_id 省略、pet_name が既存の string 型）の応答は、旧 producer 向け読取 adapter の限定互換として、認可済み identity 不明の両 null / unavailable へ正規化する。その名前を表示・ID 推定に利用しない。
 - この正規化は旧 producer の生 wire が新契約に適合するという意味ではない。新 server の両 key・両 null / 両 non-null 保証は維持する。pet_id-only、片側 null、不正な型など、上記限定互換以外の partial pair は拒否する。この読取 adapter の契約を、現行 client が旧 name-only を既に拒否しているという実装済み判定にしない。
 - 作成 201 は EMR-519 の id 文字列化と既存 notes を維持する。この subset では pet_id / pet_name ペアを作成応答へ追加しない。
-- EMR-519 の予約 ID も canonical positive signed-int64 decimal string とする。数値 JSON の丸め後に FE reviver 等で復元しようとしない。
-- backend/docs/api.yaml と専有 DTO / client / schema を同じ実装 PR で同期する。本文の採択を機械 API 反映済みと読み替えない。
+- EMR-519 の予約 ID の最終契約は canonical positive signed-int64 decimal string。移行第1段階では、新 client の読取 adapter がこの string と、`Number.isSafeInteger(id) && id > 0` を満たす旧 number だけを受け、旧 number は直ちに string 化する。一覧と作成201の双方に適用し、後続 state / 比較まで string に統一する。unsafe number の丸め復元・FE reviver 等による救済は禁止する。
+- 第2段階は、旧 number-only client が利用されないこと（既存 open client の更新 / 再読込を含む）を確認してから producer を string 化する。第3段階は旧 producer 不在を確認した後に numeric 互換を外す。新 pet_id の string-only と旧 pet_name-only の限定正規化は、この予約 id 移行中も維持する。
+- backend/docs/api.yaml と専有 DTO / client / schema は同じ実装 PR で同期するが、同じ PR であることは atomic deploy の証拠ではない。上記は切替の順序契約であり、本書の採択・公開を機械 API 反映済み・実デプロイ済みと読み替えない。今回、実デプロイは行わない。
 
 ## 3. null・失権・取得エラーの区分
 
@@ -69,6 +70,8 @@
 - 両省略の旧 producer、両 null、両 non-null を扱う。旧 pet_name-only（pet_id 省略、pet_name は string）は読取 adapter で両 null / unavailable へ正規化し、名前非表示・ID 推定なしを確認する。pet_id-only、片側 null、不正な型など、それ以外の partial pair は拒否する。
 - positive signed-int64 の境界・範囲外・非正規 ID、current_target.ref.pet_id 不一致での名前非表示を固定する。
 - 作成 201 の id / notes を維持し、未採用 pet pair を追加しない。
+- 予約 id は一覧・作成201の両方で canonical signed-int64 string と正の safe integer だけを受け、旧 number の即時 string 化と後続 state / 比較の string 統一を確認する。unsafe / 非整数 / 非正数の旧 number、不正・範囲外 string は拒否し、新 pet_id に number 互換を適用しない。
+- 切替受入：旧 number-only client（既存 open client を含む）の解消確認 → producer の string 化 → 旧 producer 不在確認 → numeric 互換除去、の順序を守る。これは必要条件の記録であり、切替・実デプロイ実施結果ではない。
 - 試験実行は NOT_RUN。隔離環境は構築・使用しない。実鍵・資格設定、DB 適用、deploy は対象外。
 - 実 DB / 結合 / 実画面 / UAT は概ね機能票消化後、本人の指示を受けて main ローカルで実施する。未実行を PASS と記さず、必要受入条件は削除しない。
 
