@@ -359,6 +359,72 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     expect(postCount).toBe(1);
   });
 
+  it("EMR-519: POST のネットワークエラー（応答喪失）も自動再送せず、予約一覧での確認を案内する", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => {
+        postCount += 1;
+        return HttpResponse.error();
+      }),
+    );
+    const onConfirm = vi.fn();
+    const onResultUnknown = vi.fn();
+    const onMyReservations = vi.fn();
+
+    render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={onConfirm}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onMyReservations={onMyReservations}
+        onResultUnknown={onResultUnknown}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onResultUnknown).toHaveBeenCalledTimes(1);
+
+    // 結果不明のまま確定ボタンは無効化され、再クリックしても2回目のPOSTは送らない
+    const confirmButton = screen.getByRole("button", { name: "予約を確定する" });
+    expect(confirmButton).toBeDisabled();
+    await user.click(confirmButton);
+    expect(postCount).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "予約確認・キャンセル" }));
+    expect(onMyReservations).toHaveBeenCalledTimes(1);
+  });
+
+  it("EMR-519: 409 以外の HTTP エラー（500）は結果不明にせず、再送信できる状態に戻す", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => HttpResponse.json(null, { status: 500 })),
+    );
+    const onConfirm = vi.fn();
+    const onResultUnknown = vi.fn();
+
+    render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={onConfirm}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onResultUnknown={onResultUnknown}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約の確定に失敗しました");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onResultUnknown).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "予約を確定する" })).not.toBeDisabled();
+  });
+
   it.each([
     ["1", "1"],
     [1, "1"],

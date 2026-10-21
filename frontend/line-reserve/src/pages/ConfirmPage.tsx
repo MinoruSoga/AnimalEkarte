@@ -144,13 +144,14 @@ export function ConfirmPage({
         onSlotTaken(message, redirectStep);
         return { error: null };
       }
-      if (axios.isAxiosError(err)) {
+      if (axios.isAxiosError(err) && err.response) {
         return { error: "予約の確定に失敗しました。もう一度お試しください。" };
       }
-      // EMR-519: 201 応答の契約違反（parse 失敗）は POST 自体が成功している可能性を
-      // 消せない。自動再送（二重予約になり得る）は行わず、この画面内では確定ボタンを
-      // 無効化したまま予約一覧での確認を案内する。flow 側にも結果不明を報告し、
-      // Back → 再入場でも確定ボタンが再有効化されないようにする。
+      // EMR-519: 応答喪失（response を持たない Axios エラー。ネットワーク断・タイムアウト等で
+      // サーバ側では予約が保存済みの可能性がある）と 201 応答の契約違反（parse 失敗）は、
+      // POST 自体が成功している可能性を消せない。自動再送（二重予約になり得る）は行わず、
+      // この画面内では確定ボタンを無効化したまま予約一覧での確認を案内する。flow 側にも
+      // 結果不明を報告し、Back → 再入場でも確定ボタンが再有効化されないようにする。
       onResultUnknown?.();
       return { error: RESULT_UNKNOWN_MESSAGE, resultUnknown: true };
     }
