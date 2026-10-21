@@ -88,7 +88,7 @@ newclaim metadata callbackはimmutable command再計算とContent IDsを照合�
 - 休業DELETE/取消は本契約に含めない。調査したD14/493全コメントに休業自体の削除許可は確認できないため、期間短縮・境界変更・履歴保持を先行する。削除が必要になった場合のみその意味を別途確認する。
 - 勤務日時BE/514実API結合、446/466の休憩単独aggregate版は別subset。休業の初回read/create/change/history設計と混ぜない。
 - copyは同医院・選択staff・元期間/先開始日・相対日付・元snapshot・明示置換・確認範囲atomicの既決条件を維持する。既存shift_bulk_operationsを再利用する後続技術契約とし、通常単日APIのループで部分commitしない。
-- CSVの列/識別列/encoding/日時文法/複数休憩表現/サイズ上限/原ファイル保管は別設計。氏名から人物推測、空欄削除、staff自動登録、正常行自動部分保存をしない。共通normalized rows validator/preview基盤だけ先行可能。CSV完成は主張しない。
+- CSVの列/識別列/encoding/日時文法/複数休憩/上限/原file非永続/preview・apply・retryは[448/493 CSV選定契約](emr-448-493-shift-csv-selected-contract-20261021.md)へ具体化した。同稿は休業familyと別のCSV consumerで、staff勤務writer/receipt・休業評価・予約保護の必要subsetだけを再利用する。氏名推測、空欄削除、自動職員登録、正常行の自動部分保存なし。514日時CRUD・241templateを維持し、全勤務/コピー/CSV実装完成とはしない。
 - 新権限、外部通知、予約自動取消/移動/指名解除、勤務自動復帰、実環境データ変更は追加しない。
 
 ## 受入ケースと完了境界
