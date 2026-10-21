@@ -12,6 +12,8 @@ info:
 
     EMR-518のpackage13操作（共通516 plan read/494 operation lookupを含む）はselected契約先行公開。runtime未実装・全fixture NOT_RUN、FE mock先行用。
 
+    EMR-474/487の回復Slice Aはdiscovery query2本のみselected先行契約。runtime未実装。結果確認と保留のみで、新key再開・fenceを提供しない。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -98,6 +100,428 @@ components:
       description: '既存LIFFのAuthorization: BearerによるLINE ID token検証方式。staff Cookie/JWTではない。新再診問診3routeはread-only
         customer lookupへ注入し、既存他routeのLiffAuthは変更しない。'
   schemas:
+    OperationRecoveryGeneration:
+      type: string
+      pattern: "^[1-9][0-9]*$"
+      maxLength: 19
+      description: 正規十進文字列、1..9223372036854775807をserverで厳密検証。LIFF target_generationとは別の実行前提。Numberへ丸めない。
+    OperationRecoveryCursor:
+      type: string
+      nullable: true
+      minLength: 1
+      description: 必須nullableのopaque base64url cursor。version付きclosed payload {v:1,upper_claimed_at,upper_key,last_claimed_at,last_key}。順序はclaimed_at
+        DESC,operation_key DESC、固定50件。scopeはrequest/authから毎回再検査し、cursorを認可証明にしない。不正/未知field/重複keyは400。PII/主体hashを含めない。
+    LiffOperationRecoveryTargetRef:
+      type: object
+      additionalProperties: false
+      required:
+      - appointment_id
+      - pet_id
+      - target_generation
+      properties:
+        appointment_id:
+          "$ref": "#/components/schemas/RevisitIntakeId"
+        pet_id:
+          "$ref": "#/components/schemas/RevisitIntakeId"
+        target_generation:
+          "$ref": "#/components/schemas/RevisitIntakeGeneration"
+    LiffOperationRecoveryQueryRequest:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - scope
+        - target_ref
+        - cursor
+        properties:
+          scope:
+            type: string
+            enum:
+            - target
+          target_ref:
+            "$ref": "#/components/schemas/LiffOperationRecoveryTargetRef"
+          cursor:
+            "$ref": "#/components/schemas/OperationRecoveryCursor"
+      - type: object
+        additionalProperties: false
+        required:
+        - scope
+        - cursor
+        properties:
+          scope:
+            type: string
+            enum:
+            - self
+          cursor:
+            "$ref": "#/components/schemas/OperationRecoveryCursor"
+      description: targetは現在target読取を再認可。selfは認証clinic/customer/subjectの本人receipt scopeだけで探索する。clientからclinic/customer/staff/subject
+        hash/control_idを受け付けない。未知property・全階層重複key・不正型は400。
+    CertificateOperationRecoveryQueryRequest:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - target_ref
+        - intent
+        - cursor
+        properties:
+          target_ref:
+            type: object
+            additionalProperties: false
+            required:
+            - vaccination_id
+            - edition_id
+            properties:
+              vaccination_id:
+                "$ref": "#/components/schemas/CertificateId"
+              edition_id:
+                type: integer
+                nullable: true
+                enum:
+                - null
+          intent:
+            type: string
+            enum:
+            - issue
+          cursor:
+            "$ref": "#/components/schemas/OperationRecoveryCursor"
+      - type: object
+        additionalProperties: false
+        required:
+        - target_ref
+        - intent
+        - cursor
+        properties:
+          target_ref:
+            type: object
+            additionalProperties: false
+            required:
+            - vaccination_id
+            - edition_id
+            properties:
+              vaccination_id:
+                "$ref": "#/components/schemas/CertificateId"
+              edition_id:
+                "$ref": "#/components/schemas/CertificateId"
+          intent:
+            type: string
+            enum:
+            - reprint
+          cursor:
+            "$ref": "#/components/schemas/OperationRecoveryCursor"
+      description: issueはedition_id required null、reprintは正integer/int64。wire intent issue/reprintは既存C06
+        vaccinations.certificate.issue/reprintへ固定対応する。認証clinic/staffをserverから取得、kind/layout別のcontrolを作らない。unsafe
+        integerはlossless decode又は境界拒否し丸めない。未知property・重複key・不正型は400。
+    LiffOperationRecoveryItem:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_key
+      - intent
+      - claimed_at
+      - discovery_state
+      - execution_state
+      - receipt_digest
+      - result
+      properties:
+        operation_key:
+          "$ref": "#/components/schemas/RevisitIntakeOperationKey"
+        intent:
+          type: string
+          enum:
+          - revisit-intake.submit
+        claimed_at:
+          type: string
+          format: date-time
+          description: 元claimのserver時刻。
+        discovery_state:
+          type: string
+          enum:
+          - result
+          - unavailable
+        execution_state:
+          type: string
+          enum:
+          - succeeded
+          - unresolved
+          - closed_without_effect
+        receipt_digest:
+          type: string
+          nullable: true
+          pattern: "^[0-9a-f]{64}$"
+          description: succeeded時だけ不変の原成功receipt canonical bytesのSHA256 lowerhex64。他stateはrequired
+            null。redacted時もdigestから本文を復元/開示しない。
+        result:
+          oneOf:
+          - "$ref": "#/components/schemas/RevisitIntakeResultResponse"
+          - type: object
+            nullable: true
+            enum:
+            - null
+      description: 既存domain lookup response又はnull。operation_key/intentは同じ元scope/keyに一致させる。結果未読取を失敗確定へ落とさない。closure証拠がある未成功keyだけclosed_without_effect。
+      oneOf:
+      - properties:
+          discovery_state:
+            type: string
+            enum:
+            - result
+          execution_state:
+            type: string
+            enum:
+            - succeeded
+          receipt_digest:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+          result:
+            "$ref": "#/components/schemas/RevisitIntakeSuccessResponse"
+      - properties:
+          discovery_state:
+            type: string
+            enum:
+            - result
+          execution_state:
+            type: string
+            enum:
+            - unresolved
+            - closed_without_effect
+          receipt_digest:
+            type: string
+            nullable: true
+            enum:
+            - null
+          result:
+            oneOf:
+            - "$ref": "#/components/schemas/RevisitIntakeUnresolvedResponse"
+            - type: object
+              nullable: true
+              enum:
+              - null
+      - properties:
+          discovery_state:
+            type: string
+            enum:
+            - unavailable
+          execution_state:
+            type: string
+            enum:
+            - unresolved
+          receipt_digest:
+            type: string
+            nullable: true
+            enum:
+            - null
+          result:
+            type: object
+            nullable: true
+            enum:
+            - null
+    LiffOperationRecoveryQueryResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - complete
+      - recovery_generation
+      - active_operation_key
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            "$ref": "#/components/schemas/LiffOperationRecoveryItem"
+          description: claimed_at DESC,operation_key DESC。成功だけの履歴検索にせず未成功binding/receiptも対象。別actorのkey/件数を返さない。
+        next_cursor:
+          "$ref": "#/components/schemas/OperationRecoveryCursor"
+        complete:
+          type: boolean
+          description: 固定上限の走査終了だけ。新claim不存在・未実行・次操作許可の証拠ではない。0件/trueでも新keyを生成せず保留。
+        recovery_generation:
+          oneOf:
+          - "$ref": "#/components/schemas/OperationRecoveryGeneration"
+          - type: object
+            nullable: true
+            enum:
+            - null
+        active_operation_key:
+          oneOf:
+          - "$ref": "#/components/schemas/RevisitIntakeOperationKey"
+          - type: object
+            nullable: true
+            enum:
+            - null
+      description: target queryは現在世代/active keyを返す。control不存在は論理generation="1",active=null、readで行を作らない。active
+        keyも元receipt scope/現在認可に従う。 self queryはrecovery_generation/active_operation_keyが両方required
+        null。本人scopeの成功は既存redacted200形を維持し、現在target/回答/版/本文を追加しない。現在予約からtargetを推測しない。
+      oneOf:
+      - properties:
+          recovery_generation:
+            "$ref": "#/components/schemas/OperationRecoveryGeneration"
+      - properties:
+          recovery_generation:
+            type: string
+            nullable: true
+            enum:
+            - null
+          active_operation_key:
+            type: object
+            nullable: true
+            enum:
+            - null
+    CertificateOperationRecoveryItem:
+      type: object
+      additionalProperties: false
+      required:
+      - operation_key
+      - intent
+      - claimed_at
+      - discovery_state
+      - execution_state
+      - receipt_digest
+      - result
+      properties:
+        operation_key:
+          "$ref": "#/components/schemas/CertificateOperationKey"
+        intent:
+          type: string
+          enum:
+          - issue
+          - reprint
+        claimed_at:
+          type: string
+          format: date-time
+          description: 元claimのserver時刻。
+        discovery_state:
+          type: string
+          enum:
+          - result
+          - unavailable
+        execution_state:
+          type: string
+          enum:
+          - succeeded
+          - unresolved
+          - closed_without_effect
+        receipt_digest:
+          type: string
+          nullable: true
+          pattern: "^[0-9a-f]{64}$"
+          description: succeeded時だけ不変の原成功receipt canonical bytesのSHA256 lowerhex64。他stateはrequired
+            null。redacted時もdigestから本文を復元/開示しない。
+        result:
+          oneOf:
+          - "$ref": "#/components/schemas/CertificateResultResponse"
+          - type: object
+            nullable: true
+            enum:
+            - null
+      description: 既存domain lookup response又はnull。operation_key/intentは同じ元scope/keyに一致させる。結果未読取を失敗確定へ落とさない。closure証拠がある未成功keyだけclosed_without_effect。
+      oneOf:
+      - properties:
+          discovery_state:
+            type: string
+            enum:
+            - result
+          execution_state:
+            type: string
+            enum:
+            - succeeded
+          receipt_digest:
+            type: string
+            pattern: "^[0-9a-f]{64}$"
+          result:
+            "$ref": "#/components/schemas/CertificateSuccessResult"
+      - properties:
+          discovery_state:
+            type: string
+            enum:
+            - result
+          execution_state:
+            type: string
+            enum:
+            - unresolved
+            - closed_without_effect
+          receipt_digest:
+            type: string
+            nullable: true
+            enum:
+            - null
+          result:
+            oneOf:
+            - "$ref": "#/components/schemas/CertificateNotSucceededResult"
+            - type: object
+              nullable: true
+              enum:
+              - null
+      - properties:
+          discovery_state:
+            type: string
+            enum:
+            - unavailable
+          execution_state:
+            type: string
+            enum:
+            - unresolved
+          receipt_digest:
+            type: string
+            nullable: true
+            enum:
+            - null
+          result:
+            type: object
+            nullable: true
+            enum:
+            - null
+    CertificateOperationRecoveryQueryResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      - complete
+      - recovery_generation
+      - active_operation_key
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            "$ref": "#/components/schemas/CertificateOperationRecoveryItem"
+          description: claimed_at DESC,operation_key DESC。成功だけの履歴検索にせず未成功binding/receiptも対象。別actorのkey/件数を返さない。
+        next_cursor:
+          "$ref": "#/components/schemas/OperationRecoveryCursor"
+        complete:
+          type: boolean
+          description: 固定上限の走査終了だけ。新claim不存在・未実行・次操作許可の証拠ではない。0件/trueでも新keyを生成せず保留。
+        recovery_generation:
+          "$ref": "#/components/schemas/OperationRecoveryGeneration"
+        active_operation_key:
+          oneOf:
+          - "$ref": "#/components/schemas/CertificateOperationKey"
+          - type: object
+            nullable: true
+            enum:
+            - null
+      description: target queryは現在世代/active keyを返す。control不存在は論理generation="1",active=null、readで行を作らない。active
+        keyも元receipt scope/現在認可に従う。
+    OperationRecoveryQueryError:
+      type: object
+      additionalProperties: false
+      required:
+      - error
+      - code
+      properties:
+        error:
+          type: string
+          description: safe messageのみ。対象/本文/DB内部を非開示。
+        code:
+          type: string
+          enum:
+          - VALIDATION
+          - NOT_AUTHORIZED
+          - SCOPE_NOT_FOUND
+          - RESULT_UNAVAILABLE
+      description: 新discovery consumerの限定error。既存C06 Status/lookup DTOは変更しない。認証middlewareの応答は各domain既存契約を維持する。
     CertificateId:
       type: integer
       format: int64
@@ -14995,6 +15419,269 @@ security:
   - CookieAuth: []
   - BearerAuth: []
 paths:
+  "/api/liff/{clinicId}/revisit-intake/operation-recovery/query":
+    servers:
+    - url: http://localhost:8080
+      description: LIFFはEngine直下。/api/v1を付けない。
+    post:
+      operationId: queryLiffOperationRecovery
+      summary: 本人の未確定操作を発見し結果確認・保留する（Slice A）
+      description: 採択済み回復契約§3/4/6/11。純read POST。runtime/router未実装・試験NOT_RUN。DB/control/binding/claim/closureを作らず、延命・修復・再送しない。unknown/unavailable/legacy未対応・0件は保留し、新key再開不可。complete=trueは次write許可でない。fenceとsubmit/issueの世代変更は本Sliceに含めない。既存LINE
+        ID tokenを検証し既存customerをread-only lookup、本人clinic/customer/subject receipt scopeを使用。targetは現在予約/pet/世代読取、selfは本人receipt
+        scopeだけ。失権targetは存在非開示でselfへ誘導可能。成功の本人scopeは既存redacted200を維持。別actor/key探索とlink
+        healerは禁止。
+      tags:
+      - RevisitIntake
+      - LIFF
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/LiffOperationRecoveryQueryRequest"
+      responses:
+        '200':
+          description: 本人scopeの結果確認と保留。既存domain lookup responseをitems.resultに保持しwireを混同しない。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/LiffOperationRecoveryQueryResponse"
+        '400':
+          description: closed JSON・cursor・型・intent/edition条件不正。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - VALIDATION
+        '401':
+          description: 既存domain認証middlewareの応答を維持。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RevisitIntakeError"
+        '403':
+          description: 現在認可を満たさない。scope外の存在を非開示。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - NOT_AUTHORIZED
+        '404':
+          description: 元本人scope/targetを開示できない。別scopeとの差を漏らさない。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - SCOPE_NOT_FOUND
+        '503':
+          description: query全体の読取不能。itemごとのlookup不調/metadata不明は200のunavailable+unresolved+result=nullとして保留。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - RESULT_UNAVAILABLE
+      security:
+      - LiffIDToken: []
+      parameters:
+      - name: clinicId
+        in: path
+        required: true
+        schema:
+          "$ref": "#/components/schemas/RevisitIntakeId"
+  "/vaccination-certificate-operation-recovery/query":
+    post:
+      operationId: queryCertificateOperationRecovery
+      summary: 本人の未確定操作を発見し結果確認・保留する（Slice A）
+      description: 採択済み回復契約§3/4/6/11。純read POST。runtime/router未実装・試験NOT_RUN。DB/control/binding/claim/closureを作らず、延命・修復・再送しない。unknown/unavailable/legacy未対応・0件は保留し、新key再開不可。complete=trueは次write許可でない。fenceとsubmit/issueの世代変更は本Sliceに含めない。認証staff本人/選択clinic/元targetの現在vaccinations:viewを検査。URL/body/cursorを元対象認可の代用にせず、他staffのkey/件数は返さない。view喪失は非開示としredacted成功を新設しない。issue実行のedit権限はこの読取へ追加しない。
+      tags:
+      - VaccinationCertificates
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CertificateOperationRecoveryQueryRequest"
+      responses:
+        '200':
+          description: 本人scopeの結果確認と保留。既存domain lookup responseをitems.resultに保持しwireを混同しない。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateOperationRecoveryQueryResponse"
+        '400':
+          description: closed JSON・cursor・型・intent/edition条件不正。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - VALIDATION
+        '401':
+          description: 既存domain認証middlewareの応答を維持。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CertificateMiddlewareError"
+        '403':
+          description: 現在認可を満たさない。scope外の存在を非開示。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - NOT_AUTHORIZED
+        '404':
+          description: 元本人scope/targetを開示できない。別scopeとの差を漏らさない。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - SCOPE_NOT_FOUND
+        '503':
+          description: query全体の読取不能。itemごとのlookup不調/metadata不明は200のunavailable+unresolved+result=nullとして保留。
+          headers:
+            Cache-Control:
+              description: 認証scope・receiptをキャッシュしない。
+              schema:
+                type: string
+                enum:
+                - no-store
+          content:
+            application/json:
+              schema:
+                allOf:
+                - "$ref": "#/components/schemas/OperationRecoveryQueryError"
+                - type: object
+                  properties:
+                    code:
+                      type: string
+                      enum:
+                      - RESULT_UNAVAILABLE
+      x-required-grants:
+      - vaccinations:view
+      parameters:
+      - "$ref": "#/components/parameters/XRequestedWith"
   /login:
     post:
       operationId: login

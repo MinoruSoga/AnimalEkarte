@@ -85,7 +85,7 @@ genericの既存有効手動対応を失効させない。導入baselineは現�
 
 sample draftには raw_sha256（元payload）、selected_frame_sha256、selected_start/end、decoder_version、selected_source_fingerprint、decoded_digest、acquisition_json、linked_job_id nullable、generation_state、version、create_operation_idを追加。現RawFingerprintと元hashを混同しない。linked_job_idはclinic複合FK。sample再生成は新draftで旧rawを上書きしない。C06同keyretryは同draftを返すが、明示新keyは同rawでも別下書きにできる。
 
-原対象回復用 `lab_mapping_operation_targets`：operation_id PK、clinic、kind、draft_id/job_id nullable、content_digest、不変元scope、原actor。claimと同TX追加。targetsはbindingとの同医院FKだけを持ち、まだ存在しないdraftや変動するfield/master/recordへのFKをclaimで取得しない。draft/job/record/pet/planの同医院と存在・状態はApplyで検査し、汎用metadataだけで認可しない。
+原対象回復用 `lab_mapping_operation_targets`：operation_id PK、clinic、kind、draft_id/job_id nullable、content_digest、不変元scope、原actor。claimと同TX追加。canonical command JSON/digestとsample専用private_raw_payloadの保存列・NULL条件・8KiB CHECK・Apply検証は§7aの既存定義に従う。targetsはbindingとの同医院FKだけを持ち、まだ存在しないdraftや変動するfield/master/recordへのFKをclaimで取得しない。draft/job/record/pet/planの同医院と存在・状態はApplyで検査し、汎用metadataだけで認可しない。
 
 ## 7. 同TX / lock / duplicate / C06
 
