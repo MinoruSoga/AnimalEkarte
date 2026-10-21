@@ -24,6 +24,7 @@ import { clearRevisitIntakeReadBackoffs, useRevisitIntakeRead } from "../hooks/u
 import { RevisitIntakePage, type RevisitIntakeReservationSummary } from "./RevisitIntakePage";
 import {
   findPendingEntry,
+  hasDraftEntry,
   type RevisitIntakeDraftEntry,
   type RevisitIntakeDraftStore,
   type RevisitIntakePendingOperation,
@@ -236,6 +237,7 @@ function createStore(): RevisitIntakeDraftStore {
     clear: (k) => {
       map.delete(k);
     },
+    hasDraft: (clinicId, appointmentId) => hasDraftEntry(map, clinicId, appointmentId),
     findPending: (clinicId, appointmentId) =>
       findPendingEntry(map, clinicId, appointmentId),
   };
@@ -725,6 +727,52 @@ describe("RevisitIntakePage 履歴（AC-reservations-revisit-new-target / revisi
 
     expect(result.current.read?.current_target?.head_revision).toBe("3");
     expect(total).toBe(3);
+  });
+
+  it("read 解除中（editor 外れ）でも、未送信 draft が store にあれば戻る操作で未送信の確認を出す", async () => {
+    const user = userEvent.setup();
+    const latest = answer("2", answers({ visit_purpose: "合成2版" }));
+    const page1 = read(answeredTarget(latest), { next_cursor: "synthetic-cursor-1" });
+    const revoked = read(
+      answeredTarget(latest, { latest_answer: null, content_available: false, editable: false }),
+    );
+    let n = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        n += 1;
+        if (n === 1) return HttpResponse.json(page1);
+        if (n === 2) return HttpResponse.json(revoked);
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+    const { onBack } = renderPage();
+
+    await user.clear(await screen.findByLabelText(/^来院目的/));
+    await user.type(purposeInput(), "合成の未送信入力");
+    await user.click(screen.getByRole("button", { name: "さらに表示" }));
+    await waitFor(() => expect(n).toBe(3));
+    await waitFor(() => expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(screen.getByText("回答はまだ送信されていません。このまま戻りますか？")).toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it("current_target が両方 null でも form_definition_version が変わった追加ページは読み直す", async () => {
+    const user = userEvent.setup();
+    const page1 = read(null, {
+      availability: "target_unresolved",
+      form_definition_version: 1,
+      next_cursor: "synthetic-cursor-1",
+    });
+    const page2 = read(null, { availability: "target_unresolved", form_definition_version: 2 });
+    const { calls } = mockReadSequence([page1, page2]);
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+
+    await waitFor(() => expect(calls.length).toBe(3));
+    expect(calls[2].searchParams.get("cursor")).toBeNull();
   });
 
   it("snapshot 変化で read を外した後の再取得中・失敗中も、未確定送信が store にあれば戻る操作で確認する", async () => {

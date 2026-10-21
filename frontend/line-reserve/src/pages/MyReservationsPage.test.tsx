@@ -343,6 +343,7 @@ describe("MyReservationsPage 取消後の送信結果照会", () => {
     get: vi.fn(),
     set: vi.fn(),
     clear: vi.fn(),
+    hasDraft: vi.fn(() => false),
     findPending: vi.fn((clinicId: string, appointmentId: string) =>
       has && clinicId === "1" && appointmentId === String(cancelledReservation.id)
         ? ({ targetKey: "k", pending: {} } as never)

@@ -56,6 +56,8 @@ export interface RevisitIntakeDraftStore {
    * 指定予約に未確定の送信があれば返す。予約の GET が 403 / 404 になった後でも、key を失わずに
    * 結果照会へ戻れるようにするための索引（target の ref を読めない状況で使う）。
    */
+  /** 指定予約に未送信の draft（pending の有無を問わない）が memory にあるか。read 解除中の離脱確認用。 */
+  hasDraft: (clinicId: string, appointmentId: string) => boolean;
   findPending: (
     clinicId: string,
     appointmentId: string,
@@ -79,6 +81,18 @@ export function findPendingEntry(
     }
   }
   return undefined;
+}
+
+export function hasDraftEntry(
+  entries: ReadonlyMap<string, RevisitIntakeDraftEntry>,
+  clinicId: string,
+  appointmentId: string,
+): boolean {
+  const prefix = `${clinicId}|${appointmentId}|`;
+  for (const targetKey of entries.keys()) {
+    if (targetKey.startsWith(prefix)) return true;
+  }
+  return false;
 }
 
 export const EMPTY_REVISIT_INTAKE_ANSWERS: RevisitIntakeFullAnswers = {
@@ -127,6 +141,7 @@ export function useRevisitIntakeDraftStore(): RevisitIntakeDraftStore {
       clear: (targetKey) => {
         map().delete(targetKey);
       },
+      hasDraft: (clinicId, appointmentId) => hasDraftEntry(map(), clinicId, appointmentId),
       findPending: (clinicId, appointmentId) => findPendingEntry(map(), clinicId, appointmentId),
     };
   }, []);

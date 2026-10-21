@@ -173,7 +173,8 @@ export function RevisitIntakePage({
       setLeavePrompt("unresolved");
       return;
     }
-    if (dirty) {
+    // 再取得中・失敗中は editor が外れ dirty が false に戻る。memory store の未送信 draft も見る。
+    if (dirty || (intake.read === null && draftStore.hasDraft(clinicId, appointmentId))) {
       setLeavePrompt("dirty");
       return;
     }

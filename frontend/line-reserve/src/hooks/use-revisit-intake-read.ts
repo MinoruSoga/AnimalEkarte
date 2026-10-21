@@ -68,7 +68,13 @@ export interface UseRevisitIntakeReadResult {
 function sameSnapshot(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead): boolean {
   const x = a.current_target?.ref ?? null;
   const y = b.current_target?.ref ?? null;
-  if (x === null || y === null) return x === y && a.availability === b.availability;
+  if (x === null || y === null) {
+    return (
+      x === y &&
+      a.availability === b.availability &&
+      a.form_definition_version === b.form_definition_version
+    );
+  }
   return (
     // 履歴の混在を避けるため、保存済み target の識別子（target_id）も一致を要求する。
     x.target_id === y.target_id &&
