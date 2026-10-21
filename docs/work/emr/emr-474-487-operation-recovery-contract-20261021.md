@@ -209,7 +209,7 @@ cursor=nullは初回だけ、文字列ならASCIIで1..2048文字（末尾paddin
 
 1. decode前に型・ASCII・2048文字上限を検査する。`=` は末尾のみで0..2個。data部分の長さmod4=1は不正。padding付きなら全長mod4=0かつ必要数と完全一致し、不要なpaddingを拒否する。
 2. paddingなし入力は内部で必要数だけ補ってstrict base64url decodeする。未使用pad bitsが0でない表現を拒否する。decode後に正規padding付きへ再encodeし、padding付き入力とは完全一致、paddingなし入力とは正規形の末尾 `=` を除いた値との完全一致を要求する。正規形へ直すだけで別bytesの表現を受理しない。
-3. decoded bytesはstrict UTF-8 JSON object、重複key/未知key/不正Unicodeを拒否する。v1 exact fieldsは§4どおり `{v:1,upper_claimed_at,upper_key,last_claimed_at,last_key}`。vは整数1だけ、日時はUTC `Z` のcanonical RFC3339Nano、Gregorian年0001..9999・最大小数9桁、UUIDは既存canonical lowercase非nil UUID。last tupleはupper tuple以下。文字列の数値化や日時の省略補完をしない。
+3. decoded bytesはstrict UTF-8 JSON object、重複key/未知key/不正Unicodeを拒否する。v1 exact fieldsは§4どおり `{v:1,upper_claimed_at,upper_key,last_claimed_at,last_key}`。vは整数1だけ、日時はUTC `Z` のcanonical RFC3339Nano、Gregorian年0001..9999・最大小数9桁、UUIDは既存canonical lowercase非nil UUID。last tupleはupper tuple以下。継続pageは固定upper tuple以下の上限を維持し、`claimed_at < last_claimed_at OR (claimed_at = last_claimed_at AND operation_key < last_key)` を満たす行だけを返す。last tuple自身は除外して再返却しない。文字列の数値化や日時の省略補完をしない。
 4. base64url文字列表現の厳密decodeとclosed typed JSONの検査を分ける。JSONの空白やobject key順だけでは拒否せず、JCS再canonical化やdecoded bytesとのbyte一致を要求しない。cursor内値をscope/認可証明にせず、requestと現在認証から毎回絞る。未知versionも400で推測decodeしない。
 
 v1のproducerは、固定5keyを固定順で一度ずつ出力するcompact deterministic UTF-8 JSON（余分な空白なし、上記ASCII値を不要なUnicode escapeにしない）とする。timestampは各最大30 ASCII bytes、UUIDは各36 bytes、key/区切り/v=1を含む**producer出力**は最大211 bytes。padding付きbase64urlは `4×ceil(211/3)=284文字`（最大bytesの場合、paddingなし282文字）。これはproducer出力上限であり、入力decoded bytesの211byte制限ではない。入力全体はpaddingを含め2048文字、decoded bytesはtransport上限1536 bytesとclosed typed v1形・意味値で制限し、許容JSON空白/key順を211byte根拠で拒否しない。新しいJSON正規化ライブラリの導入を要求せず、将来versionの余白を未知version受理の根拠にしない。この算術は静的サイズ計算であり実試験PASSではない。
@@ -227,7 +227,7 @@ v1のproducerは、固定5keyを固定順で一度ずつ出力するcompact dete
 | 既存共通cursor | `OperationRecoveryCursor` にmaxLength2048、transport alphabet/padding patternと厳密decode説明を追補 | nullable/minLength1維持。patternだけで厳密decode済みとしない。v1payloadを公開の自由入力DTOにしない |
 | 完了/エラー | 全query responseのcomplete説明に§12.2の同値条件、全queryにno-store。既存query error schemaとHTTPを参照 | 新status/独自ResultResponse/fenceエラーを足さず、certificate resultの既存string mapを維持 |
 
-受領条件は技術追補採択済み、API正本への反映未完、domain列挙/元target認可/serializerの接続未完、FE read adapter未受領を別欄で管理すること。文書採択を①反映完了や②③完成としない。fixture条件（すべてNOT_RUN）は、履歴別pageの本人未成功reprint・複数edition順序・別staff非開示・元target不明legacy・認可成立後のlookup不調・成功digest条件・途中claim/固定上限・空終端・client走査中断・padding有無/誤数/非zero pad bits・不正UTF-8/重複key/未知version・JSON空白/key順許容・producer最大v1サイズ・入力decoded211bytes超の許容・2048/2049境界とする。fixtureのための実行・新キー再開・Slice Bを先行させない。
+受領条件は技術追補採択済み、API正本への反映未完、domain列挙/元target認可/serializerの接続未完、FE read adapter未受領を別欄で管理すること。文書採択を①反映完了や②③完成としない。fixture条件（すべてNOT_RUN）は、履歴別pageの本人未成功reprint・複数edition順序・同claimed_atでUUID降順にpageを跨いでも境界last tupleの重複/欠落なし・別staff非開示・元target不明legacy・認可成立後のlookup不調・成功digest条件・途中claim/固定上限・空終端・client走査中断・padding有無/誤数/非zero pad bits・不正UTF-8/重複key/未知version・JSON空白/key順許容・producer最大v1サイズ・入力decoded211bytes超の許容・2048/2049境界とする。fixtureのための実行・新キー再開・Slice Bを先行させない。
 
 ## 固定根拠
 
