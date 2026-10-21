@@ -6,6 +6,10 @@
 
 最新の本人指示による①DB/API契約→②全マスタ→③共通UI→④業務ドメイン→⑤後段mainローカル試験は、[段階・対象台帳](emr-445-master-stages-ledger-20261021.md)へ集約する。直接22票は管理範囲で独立PR数ではなく、498のmaster subsetも別にcoverageへ含める。以下は10/20全件点検の履歴で、①②③の現在の実装接続完了や④新規着手許可を意味しない。
 
+## 2026-10-21 ①②③の具体caller・残差・受領条件
+
+[①契約着手プラン](emr-445-stage1-contract-start-plan-20261021.md)、[②全マスタ着手プラン](emr-445-stage2-master-start-plan-20261021.md)、[③検索・共通UI着手プラン](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を公開した。23管理行/生成型独立後続、settings21本文と追加領域、検索72用途と非検索familyを具体化する。新規子票候補3件は番号未起票の管理残で、既存成果を再実装しない。確定業務の正本は[docs/spec/domains](../../spec/domains/README.md)。文書計画完成とAPI/schema反映・実装接続・⑤試験品質証明は別判定で、今回実装指示・④新規着手許可・生成/DB/試験実行はない。NOT_RUNを維持する。
+
 ## 基準と完了境界
 
 - mainをfetchし、`5c5219965ad44258b8ccd918ffe52179a6139ade`と一致、指定基準との差分なしを確認。参照用worktreeへの変更は重ねず、main起点のdocs専用worktree／branchを使用する。
