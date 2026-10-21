@@ -123,7 +123,7 @@ ClaimMetadataWriter.CreateClaimMetadataはcanonical req.Contentからroot IDを�
 順序: 認証preflight→短いclaim(binding+anchor)TX終了→必要な既存owner Gate→binding NOWAIT→原anchor/current authでreplay/unknown判定→savepoint→Apply current write auth→billing又はestimate root FOR UPDATE→関連source/lineを安定ID順→CAS/条件→domain/監査/成功receipt→commit。不要な予約graph gateは追加せず、既存共通gateが必要な経路はその既存順へ参加し逆順を作らない。
 claim commit応答不明は停止し同key lookup。Apply rollbackでもanchorは残り成功なしlookup可。old binding欠落anchor、元target消失/曖昧/認可不能は非開示。
 
-lookupはbinding→保存anchor→元target現在view→route root一致→結果開示。C06到達前のURL不一致は元target現在認可後のみ既存409 ErrorResponse {error:string}。C06内のContent/依存不一致はdependency-changed409へ写像し、target_mismatch独自codeは追加しない。incoming target Bの権限で元Aを開示しない。presentation/document/editionの参照も原rootへ一致検証する。507のinvoice-only anchorを将来fund帳票へ流用しない。
+lookupはbinding→保存anchor→元target現在view→route root一致→結果開示。C06到達前のURL不一致は元target現在認可後のみ既存409 ErrorResponse {error:string}。同keyのcanonical Content fingerprint不一致はoperation-key-conflict。fingerprint一致後のApply対象整合/CAS以外の依存変化はdependency-changed、CASはversion-conflictへ写像し、いずれも既存409とする。元target現在認可前に詳細を開示せず、target_mismatch独自codeは追加しない。incoming target Bの権限で元Aを開示しない。presentation/document/editionの参照も原rootへ一致検証する。507のinvoice-only anchorを将来fund帳票へ流用しない。
 
 ## 7. 公開receipt・error adapter
 
@@ -133,7 +133,7 @@ lookupはbinding→保存anchor→元target現在view→route root一致→結�
 - GET200 not-succeeded: status/operation_keyのみ。
 - 今回507/508の新consumerは既公開C06 HTTP mappingを採用する。succeeded/replayed/not-succeeded=200、operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、validation=400、scope-not-found=404、not-authorized=403。202は処理中であり成功ではない。not-succeeded200も保存成功とは扱わない。
 - C06非成功はHTTP値を問わず{status,operation_key}のみ。error/code/result_refs/committed_versions/recorded_atや原本bodyを混ぜない。C06到達前の認証・構文・body validation等だけ既存{error:string}形と既存HTTPを維持する。401は既存middleware。
-- C06到達前のURL不一致は元target現在認可後に既存409 ErrorResponse {error:string}。C06内Content/依存不一致はdependency-changed409。target_mismatch独自codeは追加しない。未認可には不一致詳細を漏らさない。同source別key発行もdependency-changed409、既返答別keyはC06 validation400。
+- C06到達前のURL不一致は元target現在認可後に既存409 ErrorResponse {error:string}。同keyのcanonical Content fingerprint不一致はoperation-key-conflict409。fingerprint一致後のApply対象整合/CAS以外の依存変化はdependency-changed409、CASはversion-conflict409。元target現在認可前に詳細を開示せず、target_mismatch独自codeは追加しない。同source別key発行もdependency-changed409、既返答別keyはC06 validation400。
 - artifact生成/取得失敗はC06業務Apply外の既存エラー形{error:string}と503で返し、C06 statusや成功receiptを捏造しない。
 - EffectSummaryはinternalで公開しない。成功receiptのrefから固定readerへ進み、原文/金額等はそこで現在認可して返す。
 - not-succeeded/not-found/unknownを初回不実行の証明にせず同key照会/人の再確認。同key同内容CAS-only再確認と確認source内容変更を区別。unknown/busyを新keyで救済しない。
