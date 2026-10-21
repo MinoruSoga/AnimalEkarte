@@ -21,7 +21,7 @@ type mockTreatmentPackageService struct {
 	getFn     func(ctx context.Context, clinicID, id uint64) (*TreatmentPackageView, error)
 	createFn  func(ctx context.Context, clinicID uint64, in *CreateTreatmentPackageInput) (*TreatmentPackageView, error)
 	updateFn  func(ctx context.Context, clinicID, id uint64, in *UpdateTreatmentPackageInput) (*TreatmentPackageView, error)
-	deleteFn  func(ctx context.Context, clinicID, id, version uint64, actorID uint64) error
+	deleteFn  func(ctx context.Context, clinicID, id uint64, version int64, actorID uint64) error
 	reorderFn func(ctx context.Context, clinicID uint64, ov int64, ids []uint64, actorID uint64) error
 }
 
@@ -37,7 +37,7 @@ func (m *mockTreatmentPackageService) Create(ctx context.Context, c uint64, in *
 func (m *mockTreatmentPackageService) Update(ctx context.Context, c, id uint64, in *UpdateTreatmentPackageInput) (*TreatmentPackageView, error) {
 	return m.updateFn(ctx, c, id, in)
 }
-func (m *mockTreatmentPackageService) Delete(ctx context.Context, c, id, v, a uint64) error {
+func (m *mockTreatmentPackageService) Delete(ctx context.Context, c, id uint64, v int64, a uint64) error {
 	return m.deleteFn(ctx, c, id, v, a)
 }
 func (m *mockTreatmentPackageService) Reorder(ctx context.Context, c uint64, ov int64, ids []uint64, a uint64) error {

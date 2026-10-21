@@ -215,6 +215,9 @@ func TestTreatmentPackageService_Delete_CatalogLockedBeforePackageAndCAS(t *test
 			order = append(order, "packages")
 			return []model.TreatmentPackage{{ID: 201, ClinicID: 7, Version: 3}}, nil
 		},
+		liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) {
+			return nil, nil
+		},
 		softDeleteFn: func(context.Context, uint64, uint64, int64, uint64, time.Time) error {
 			return apperrors.WrapConflict("stale")
 		},
@@ -270,4 +273,84 @@ func TestTreatmentPackageService_Reorder_MembershipMismatchRejected(t *testing.T
 	svc, _ := newPackageService(repo, nil)
 	assert.ErrorIs(t, svc.Reorder(context.Background(), 7, 7, []uint64{201}, 9), apperrors.ErrInvalidInput)      // incomplete set
 	assert.ErrorIs(t, svc.Reorder(context.Background(), 7, 7, []uint64{201, 999}, 9), apperrors.ErrInvalidInput) // foreign id; inactive 202 still required
+}
+
+// F1: components 未指定の update でも lock 済み package の live items を書込み前に検査する。
+// 権限不足の型を含む場合は 403 で全体非開示（zero-write）。
+func TestTreatmentPackageService_Update_MetadataOnlyDeniedLiveKindForbidden(t *testing.T) {
+	updateCalled := false
+	repo := &mockTreatmentPackageRepo{
+		lockClinicFn: func(context.Context, uint64) error { return nil },
+		lockPkgsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackage, error) {
+			return []model.TreatmentPackage{{ID: 201, ClinicID: 7, Version: 3, Name: "old"}}, nil
+		},
+		liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) {
+			return []model.TreatmentPackageItem{{PackageID: 201, ItemKind: "checkup_type"}}, nil
+		},
+		updateFn: func(context.Context, uint64, uint64, int64, map[string]any) (*model.TreatmentPackage, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	svc, _ := newPackageService(repo, map[model.Resource]bool{model.ResourceCheckups: true})
+	actor := uint64(9)
+	name := "new"
+	_, err := svc.Update(context.Background(), 7, 201, &UpdateTreatmentPackageInput{
+		Version: 3, ActorID: &actor, Name: &name,
+	})
+	assert.ErrorIs(t, err, apperrors.ErrForbidden)
+	assert.False(t, updateCalled) // zero-write
+}
+
+// F1: delete も lock 済み package の live items を書込み前に検査し、権限不足の型を
+// 含む場合は 403 zero-write。
+func TestTreatmentPackageService_Delete_DeniedLiveKindForbiddenZeroWrite(t *testing.T) {
+	deleteCalled := false
+	repo := &mockTreatmentPackageRepo{
+		lockClinicFn:  func(context.Context, uint64) error { return nil },
+		lockCatalogFn: func(context.Context, uint64) (int64, error) { return 3, nil },
+		lockPkgsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackage, error) {
+			return []model.TreatmentPackage{{ID: 201, ClinicID: 7, Version: 3}}, nil
+		},
+		liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) {
+			return []model.TreatmentPackageItem{{PackageID: 201, ItemKind: "checkup_type"}}, nil
+		},
+		softDeleteFn: func(context.Context, uint64, uint64, int64, uint64, time.Time) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	svc, _ := newPackageService(repo, map[model.Resource]bool{model.ResourceCheckups: true})
+	err := svc.Delete(context.Background(), 7, 201, 3, 9)
+	assert.ErrorIs(t, err, apperrors.ErrForbidden)
+	assert.False(t, deleteCalled) // zero-write
+}
+
+// F1: update の応答 items にも同じ検査を適用する。lock 後の live items は権限内だが、
+// 書込後に読み直した応答に権限不足の型が混ざった場合も 403 で全体非開示にする。
+func TestTreatmentPackageService_Update_ResponseDeniedKindForbidden(t *testing.T) {
+	liveCalls := 0
+	repo := &mockTreatmentPackageRepo{
+		lockClinicFn: func(context.Context, uint64) error { return nil },
+		lockPkgsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackage, error) {
+			return []model.TreatmentPackage{{ID: 201, ClinicID: 7, Version: 3, Name: "old"}}, nil
+		},
+		liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) {
+			liveCalls++
+			if liveCalls == 1 {
+				return []model.TreatmentPackageItem{{PackageID: 201, ItemKind: "consultation"}}, nil
+			}
+			return []model.TreatmentPackageItem{{PackageID: 201, ItemKind: "checkup_type"}}, nil
+		},
+		updateFn: func(_ context.Context, _, id uint64, _ int64, fields map[string]any) (*model.TreatmentPackage, error) {
+			return &model.TreatmentPackage{ID: id, ClinicID: 7, Version: 4, Name: fields["name"].(string)}, nil
+		},
+	}
+	svc, _ := newPackageService(repo, map[model.Resource]bool{model.ResourceCheckups: true})
+	actor := uint64(9)
+	name := "new"
+	_, err := svc.Update(context.Background(), 7, 201, &UpdateTreatmentPackageInput{
+		Version: 3, ActorID: &actor, Name: &name,
+	})
+	assert.ErrorIs(t, err, apperrors.ErrForbidden) // 応答 items の権限不足も 403（tx rollback）。
 }

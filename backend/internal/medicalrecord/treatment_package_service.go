@@ -98,7 +98,7 @@ type TreatmentPackageService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*TreatmentPackageView, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateTreatmentPackageInput) (*TreatmentPackageView, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateTreatmentPackageInput) (*TreatmentPackageView, error)
-	Delete(ctx context.Context, clinicID, id, version uint64, actorID uint64) error
+	Delete(ctx context.Context, clinicID, id uint64, version int64, actorID uint64) error
 	Reorder(ctx context.Context, clinicID uint64, orderVersion int64, ids []uint64, actorID uint64) error
 }
 
@@ -370,7 +370,7 @@ func (s *treatmentPackageService) Create(ctx context.Context, clinicID uint64, i
 		pkgID := pkg.ID
 		if err := s.deps.Audit.LogEntryTx(txCtx, &AuditEntry{
 			ClinicID: &clinicID, ActorID: input.ActorID, ActorType: model.AuditActorTypeStaff,
-			Action: "treatment_package.create", Resource: "treatment_package", ResourceID: &pkgID,
+			Action: model.AuditActionTreatmentPackageCreate, Resource: model.AuditResourceTreatmentPackage, ResourceID: &pkgID,
 			NewValue: map[string]any{"name": pkg.Name, "is_active": pkg.IsActive, "components": len(items)},
 		}); err != nil {
 			return err
@@ -419,6 +419,15 @@ func (s *treatmentPackageService) Update(ctx context.Context, clinicID, id uint6
 			// zero-write conflict。
 			return apperrors.WrapConflict("編集後に変更されています。再読み込みしてから保存してください")
 		}
+		// F1: components 未指定の更新でも、lock 済み package の live items を書込み前に検査する。
+		// 権限不足の型を含む場合は 403 で全体非開示（zero-write rollback）。
+		liveItems, err := s.repo.FindLiveItemsByPackageIDs(txCtx, clinicID, []uint64{id})
+		if err != nil {
+			return err
+		}
+		if err := s.authorizeItemKinds(txCtx, clinicID, liveItems); err != nil {
+			return err
+		}
 		fields := map[string]any{}
 		changed := false
 		if input.Name != nil && *input.Name != current.Name {
@@ -450,11 +459,8 @@ func (s *treatmentPackageService) Update(ctx context.Context, clinicID, id uint6
 		}
 		if !changed {
 			// no actual change: no fake revision（zero-write no-op）。
-			items, err := s.repo.FindLiveItemsByPackageIDs(txCtx, clinicID, []uint64{id})
-			if err != nil {
-				return err
-			}
-			view = &TreatmentPackageView{Package: current, Items: items}
+			// 応答 items は lock 後に検査済みの liveItems をそのまま使う。
+			view = &TreatmentPackageView{Package: current, Items: liveItems}
 			return nil
 		}
 		updated, err := s.repo.UpdateFieldsCAS(txCtx, clinicID, id, input.Version, fields)
@@ -463,7 +469,7 @@ func (s *treatmentPackageService) Update(ctx context.Context, clinicID, id uint6
 		}
 		if err := s.deps.Audit.LogEntryTx(txCtx, &AuditEntry{
 			ClinicID: &clinicID, ActorID: input.ActorID, ActorType: model.AuditActorTypeStaff,
-			Action: "treatment_package.update", Resource: "treatment_package", ResourceID: &id,
+			Action: model.AuditActionTreatmentPackageUpdate, Resource: model.AuditResourceTreatmentPackage, ResourceID: &id,
 			OldValue: map[string]any{"name": current.Name, "is_active": current.IsActive, "version": current.Version},
 			NewValue: map[string]any{"name": updated.Name, "is_active": updated.IsActive, "version": updated.Version},
 		}); err != nil {
@@ -471,6 +477,10 @@ func (s *treatmentPackageService) Update(ctx context.Context, clinicID, id uint6
 		}
 		items, err := s.repo.FindLiveItemsByPackageIDs(txCtx, clinicID, []uint64{id})
 		if err != nil {
+			return err
+		}
+		// 応答 items にも同じ検査を適用し、権限不足の型を含むなら 403 で全体非開示。
+		if err := s.authorizeItemKinds(txCtx, clinicID, items); err != nil {
 			return err
 		}
 		view = &TreatmentPackageView{Package: *updated, Items: items}
@@ -584,7 +594,7 @@ func derefRaw(r *json.RawMessage) []byte {
 	return *r
 }
 
-func (s *treatmentPackageService) Delete(ctx context.Context, clinicID, id, version uint64, actorID uint64) error {
+func (s *treatmentPackageService) Delete(ctx context.Context, clinicID, id uint64, version int64, actorID uint64) error {
 	if version < 1 || actorID == 0 {
 		return apperrors.WrapInvalidInput("positive version and staff actor are required")
 	}
@@ -608,7 +618,15 @@ func (s *treatmentPackageService) Delete(ctx context.Context, clinicID, id, vers
 		if len(locked) == 0 {
 			return apperrors.WrapNotFound("treatment_package", "not found")
 		}
-		if err := s.repo.SoftDeleteCAS(txCtx, clinicID, id, int64(version), actorID, now); err != nil {
+		// F1: 削除も書込み前に live items の型別権限を検査する（zero-write）。
+		liveItems, err := s.repo.FindLiveItemsByPackageIDs(txCtx, clinicID, []uint64{id})
+		if err != nil {
+			return err
+		}
+		if err := s.authorizeItemKinds(txCtx, clinicID, liveItems); err != nil {
+			return err
+		}
+		if err := s.repo.SoftDeleteCAS(txCtx, clinicID, id, version, actorID, now); err != nil {
 			return err
 		}
 		if err := s.repo.IncrementCatalogRevision(txCtx, clinicID, revision); err != nil {
@@ -616,7 +634,7 @@ func (s *treatmentPackageService) Delete(ctx context.Context, clinicID, id, vers
 		}
 		return s.deps.Audit.LogEntryTx(txCtx, &AuditEntry{
 			ClinicID: &clinicID, ActorID: &actorID, ActorType: model.AuditActorTypeStaff,
-			Action: "treatment_package.delete", Resource: "treatment_package", ResourceID: &id,
+			Action: model.AuditActionTreatmentPackageDelete, Resource: model.AuditResourceTreatmentPackage, ResourceID: &id,
 			OldValue: map[string]any{"version": version},
 		})
 	})
@@ -698,7 +716,7 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 		}
 		return s.deps.Audit.LogEntryTx(txCtx, &AuditEntry{
 			ClinicID: &clinicID, ActorID: &actorID, ActorType: model.AuditActorTypeStaff,
-			Action: "treatment_package.reorder", Resource: "treatment_package",
+			Action: model.AuditActionTreatmentPackageReorder, Resource: model.AuditResourceTreatmentPackage,
 			NewValue: map[string]any{"count": len(ids)},
 		})
 	})

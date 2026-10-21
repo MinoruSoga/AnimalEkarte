@@ -31,7 +31,12 @@ func (h *TreatmentPackageHandler) ListTreatmentPackages(c *gin.Context) {
 	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
-	views, revision, err := h.service.List(c.Request.Context(), clinicID)
+	ctx, ok := treatmentPackageViewCheckContext(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	views, revision, err := h.service.List(ctx, clinicID)
 	if err != nil {
 		respondTreatmentPackageError(c, err)
 		return
@@ -66,7 +71,12 @@ func (h *TreatmentPackageHandler) CreateTreatmentPackage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	view, err := h.service.Create(c.Request.Context(), clinicID, &CreateTreatmentPackageInput{
+	ctx, ok := treatmentPackageViewCheckContext(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	view, err := h.service.Create(ctx, clinicID, &CreateTreatmentPackageInput{
 		ActorID:     &actorID,
 		Name:        req.Name,
 		Description: req.Description,
@@ -94,7 +104,12 @@ func (h *TreatmentPackageHandler) GetTreatmentPackage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	view, err := h.service.GetByID(c.Request.Context(), clinicID, id)
+	ctx, ok := treatmentPackageViewCheckContext(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	view, err := h.service.GetByID(ctx, clinicID, id)
 	if err != nil {
 		respondTreatmentPackageError(c, err)
 		return
@@ -124,7 +139,12 @@ func (h *TreatmentPackageHandler) UpdateTreatmentPackage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	view, err := h.service.Update(c.Request.Context(), clinicID, id, &UpdateTreatmentPackageInput{
+	ctx, ok := treatmentPackageViewCheckContext(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	view, err := h.service.Update(ctx, clinicID, id, &UpdateTreatmentPackageInput{
 		Version:     req.Version,
 		ActorID:     &actorID,
 		Name:        req.Name,
@@ -167,7 +187,12 @@ func (h *TreatmentPackageHandler) DeleteTreatmentPackage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.Delete(c.Request.Context(), clinicID, id, uint64(version), actorID); err != nil {
+	ctx, ok := treatmentPackageViewCheckContext(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	if err := h.service.Delete(ctx, clinicID, id, version, actorID); err != nil {
 		respondTreatmentPackageError(c, err)
 		return
 	}
@@ -193,7 +218,12 @@ func (h *TreatmentPackageHandler) ReorderTreatmentPackages(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.service.Reorder(c.Request.Context(), clinicID, req.OrderVersion, req.IDs, actorID); err != nil {
+	ctx, ok := treatmentPackageViewCheckContext(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return
+	}
+	if err := h.service.Reorder(ctx, clinicID, req.OrderVersion, req.IDs, actorID); err != nil {
 		respondTreatmentPackageError(c, err)
 		return
 	}

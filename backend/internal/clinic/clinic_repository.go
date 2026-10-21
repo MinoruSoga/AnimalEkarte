@@ -3,6 +3,7 @@ package clinic
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -141,6 +142,18 @@ func (r *Repository) Create(ctx context.Context, clinic *model.Clinic) error {
 			return apperrors.WrapAlreadyExists("clinic", clinic.Name)
 		}
 		return apperrors.FromGORM(err, "clinic", "")
+	}
+	return nil
+}
+
+// CreateTreatmentPackageCatalogVersion creates the clinic's package catalog row
+// (revision 1) inside the caller's ambient transaction (EMR-518 §4 / EMR-521).
+// Reads never create the row, so a clinic without one stays an invariant error —
+// clinic create must initialize it atomically with the clinic row.
+func (r *Repository) CreateTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error {
+	row := &model.TreatmentPackageCatalogVersion{ClinicID: clinicID, Revision: 1, UpdatedAt: time.Now()}
+	if err := persistence.DBOrTx(ctx, r.db).Create(row).Error; err != nil {
+		return apperrors.FromGORM(err, "treatment_package_catalog_version", fmt.Sprintf("%d", clinicID))
 	}
 	return nil
 }

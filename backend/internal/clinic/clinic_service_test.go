@@ -29,6 +29,7 @@ type mockClinicRepository struct {
 	lockForUpdateFn         func(ctx context.Context, id uint64) (*model.Clinic, error)
 	getCompanyFn            func(ctx context.Context) (*model.Company, error)
 	createFn                func(ctx context.Context, clinic *model.Clinic) error
+	createPackageCatalogFn  func(ctx context.Context, clinicID uint64) error
 	updateFn                func(ctx context.Context, id uint64, input *UpdateClinicInput) error
 	deleteFn                func(ctx context.Context, id uint64) error
 	countOwnersByClinicIDFn func(ctx context.Context, clinicID uint64) (int64, error)
@@ -68,6 +69,13 @@ func (m *mockClinicRepository) FindByStaffID(ctx context.Context, staffID uint64
 		return nil, nil
 	}
 	return m.findByStaffIDFn(ctx, staffID)
+}
+
+func (m *mockClinicRepository) CreateTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error {
+	if m.createPackageCatalogFn == nil {
+		return nil
+	}
+	return m.createPackageCatalogFn(ctx, clinicID)
 }
 
 func (m *mockClinicRepository) FindByIDs(ctx context.Context, ids []uint64) ([]model.Clinic, error) {
@@ -424,6 +432,50 @@ func TestService_CreateClinic(t *testing.T) {
 			}
 		})
 	}
+}
+
+// EMR-518 §4 / EMR-521: CreateClinic は新規医院の treatment_package_catalog_versions
+// 行（revision 1）を同じ WithTx 内で初期化する。参加漏れは fail-closed にするため、
+// catalog 初期化が clinic.ID で呼ばれることと、失敗時に clinic 作成全体が失敗することを
+// ここで固定する。
+func TestService_CreateClinic_InitializesPackageCatalogInTx(t *testing.T) {
+	var catalogClinicID uint64
+	repo := &mockClinicRepository{
+		getCompanyFn: func(context.Context) (*model.Company, error) {
+			return &model.Company{ID: 5, Name: "グループ本社"}, nil
+		},
+		createFn: func(_ context.Context, c *model.Clinic) error {
+			c.ID = 42
+			return nil
+		},
+		createPackageCatalogFn: func(_ context.Context, clinicID uint64) error {
+			catalogClinicID = clinicID
+			return nil
+		},
+	}
+	pgRepo := &mockPermissionGroupRepository{
+		createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
+	}
+	svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	result, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新規院"})
+	require.NoError(t, err)
+	assert.Equal(t, result.ID, catalogClinicID) // 参加漏れなし（clinic 行と同じ tx で初期化）。
+}
+
+func TestService_CreateClinic_PackageCatalogFailureRollsBack(t *testing.T) {
+	repo := &mockClinicRepository{
+		getCompanyFn: func(context.Context) (*model.Company, error) {
+			return &model.Company{ID: 5, Name: "グループ本社"}, nil
+		},
+		createFn: func(_ context.Context, _ *model.Clinic) error { return nil },
+		createPackageCatalogFn: func(context.Context, uint64) error {
+			return errors.New("catalog insert failed")
+		},
+	}
+	pgRepo := &mockPermissionGroupRepository{}
+	svc := NewService(repo, pgRepo, &clinicServiceTransactorDouble{})
+	_, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新規院"})
+	assert.Error(t, err) // catalog 初期化失敗は fail-closed（clinic 作成も失敗）。
 }
 
 // SD-9: CreateClinic はグループ (permission_groups) を作るだけでルール

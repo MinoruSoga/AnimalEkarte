@@ -37,6 +37,9 @@ type clinicServiceRepository interface {
 	LockByIDForUpdate(ctx context.Context, id uint64) (*model.Clinic, error)
 	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
+	// CreateTreatmentPackageCatalogVersion は新規医院の package catalog 行
+	// （revision 1）を呼び出し側の ambient transaction 内で作る（EMR-518 §4 / EMR-521）。
+	CreateTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error
 	UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error
 	Delete(ctx context.Context, id uint64) error
 	CountOwnersByClinicID(ctx context.Context, clinicID uint64) (int64, error)

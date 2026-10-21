@@ -125,6 +125,13 @@ const (
 
 	// 診療画像の物理削除。監査は同じ transaction の fail-closed 記録であり、削除権限そのものではない。
 	AuditActionMedicalRecordImageDelete = "medical_record_image.delete"
+
+	// EMR-518/EMR-521 治療パッケージマスタ。membership/order 変更のみ catalog revision 増分と対応し、
+	// text/components/active 編集は update で記録する（reorder は並び順 CAS 版の変更）。
+	AuditActionTreatmentPackageCreate  = "treatment_package.create"
+	AuditActionTreatmentPackageUpdate  = "treatment_package.update"
+	AuditActionTreatmentPackageDelete  = "treatment_package.delete"
+	AuditActionTreatmentPackageReorder = "treatment_package.reorder"
 )
 
 // audit_logs.resource 定数
@@ -156,6 +163,8 @@ const (
 	AuditResourceStaffProvisionBatch = "staff_provision_batch"
 	// 診療画像の物理削除。署名停止の正本は medical_record_image_deletions であり、この resource 名は監査のラベル。
 	AuditResourceMedicalRecordImage = "medical_record_image"
+	// EMR-518/EMR-521 治療パッケージマスタ（treatment_packages 行の create/update/delete/reorder 監査）。
+	AuditResourceTreatmentPackage = "treatment_package"
 )
 
 // care plan item destructive actions (MRA-01)
