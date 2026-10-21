@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -192,7 +193,8 @@ func decodeStrictObject(raw []byte) (map[string]json.RawMessage, error) {
 	if _, terr := dec.Token(); terr != nil {
 		return nil, fmt.Errorf("unclosed object")
 	}
-	if dec.More() {
+	// More() は top-level では trailing `}` `]` を見逃すため、EOF で閉じる。
+	if tok, terr := dec.Token(); terr != io.EOF || tok != nil {
 		return nil, fmt.Errorf("trailing content")
 	}
 	return out, nil
@@ -295,8 +297,23 @@ func positiveDecimalMember(raw json.RawMessage) (string, uint64, error) {
 	return s, n, nil
 }
 
+// jsonNumberStart は member の raw value が JSON number として始まるかを
+// raw byte で検査する（`"-"` または数字で始まる）。json.Number decode は
+// JSON string の数字も受け取るため、token 型の先検査が必須。
+func jsonNumberStart(raw json.RawMessage) bool {
+	s := bytes.TrimSpace(raw)
+	if len(s) == 0 {
+		return false
+	}
+	return s[0] == '-' || (s[0] >= '0' && s[0] <= '9')
+}
+
 // positiveIntMember は整数 member（非文字列 JSON number）を >=1 int64 として検査する。
+// JSON string の数字（"3"）は受け付けない。
 func positiveIntMember(raw json.RawMessage) (int64, error) {
+	if !jsonNumberStart(raw) {
+		return 0, fmt.Errorf("not a number")
+	}
 	var num json.Number
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
@@ -315,6 +332,9 @@ func positiveIntMember(raw json.RawMessage) (int64, error) {
 // canonical decimal text は受け取った有限 double を最短10進へ写したもので、
 // 浮動小数点の丸め・許容誤差は使わない。返す text は JCS と DB 保存が共有する。
 func parseOrderValue(raw json.RawMessage) (string, model.ExactNumeric, error) {
+	if !jsonNumberStart(raw) {
+		return "", model.ExactNumeric{}, fmt.Errorf("not a number")
+	}
 	var num json.Number
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()

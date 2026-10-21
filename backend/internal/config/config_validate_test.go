@@ -901,6 +901,9 @@ func TestValidate_OperationFingerprintKeys(t *testing.T) {
 		{name: "short key", version: "v1", keys: `{"v1":"` + enc("short") + `"}`, wantErr: true},
 		{name: "malformed json", version: "v1", keys: `{"v1":`, wantErr: true},
 		{name: "trailing content", version: "v1", keys: validJSON + ` {}`, wantErr: true},
+		// More() misses a trailing `}`/`]` — strict end-of-input regression.
+		{name: "trailing brace", version: "v1", keys: validJSON + `}`, wantErr: true},
+		{name: "trailing bracket", version: "v1", keys: validJSON + `]`, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

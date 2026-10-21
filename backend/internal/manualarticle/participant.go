@@ -261,19 +261,21 @@ func (p *EditParticipant) Apply(ctx context.Context, b operation.Binding, req op
 	if err != nil || preExpectedContentID != p.cmd.ExpectedContentVersionID {
 		return operation.Result{}, apperrors.WrapInternalServerError("manual edit precondition mismatch")
 	}
-	// CAS fence: CAS 版と期待元内容版を lock 下で再検証する（値は req.Preconditions）。
-	if locked.Version != preExpectedVersion ||
-		locked.CurrentVersionID == nil || *locked.CurrentVersionID != preExpectedContentID {
-		return operation.Result{}, &operation.Rejection{Status: operation.StatusVersionConflict}
-	}
-	// 元内容の出所解決: current=NULL / legacy_unknown / digest・revision NULL は
-	// 架空値で埋めず編集を止める。
+	// 元内容の出所解決: current=NULL / 行不存在 / legacy_unknown /
+	// digest・revision NULL は架空値で埋めず編集を止める。
+	// CAS より先に出所を判定する（expected_content_version_id が NULL
+	// current を指す場合でも、競合ではなく出所未解決として報告する）。
 	current, err := p.currentVersionRow(ctx, locked)
 	if err != nil {
 		return operation.Result{}, err
 	}
 	if current == nil || !isResolvedSource(current) {
 		return operation.Result{}, p.rejectSourceUnresolved()
+	}
+	// CAS fence: CAS 版と期待元内容版を lock 下で再検証する（値は req.Preconditions）。
+	if locked.Version != preExpectedVersion ||
+		locked.CurrentVersionID == nil || *locked.CurrentVersionID != preExpectedContentID {
+		return operation.Result{}, &operation.Rejection{Status: operation.StatusVersionConflict}
 	}
 	// 両 digest を再計算し fingerprint 済み Content と照合する。
 	// 不一致は業務効果なしで失敗（未実行保証）。

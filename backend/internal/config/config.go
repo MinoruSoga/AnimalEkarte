@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/mail"
 	"net/url"
@@ -666,7 +667,8 @@ func (c *Config) OperationFingerprintKeys() (map[string][]byte, string, error) {
 	if _, terr := dec.Token(); terr != nil {
 		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON is not valid JSON")
 	}
-	if dec.More() {
+	// More() は top-level では trailing `}` `]` を見逃すため、EOF で閉じる。
+	if tok, terr := dec.Token(); terr != io.EOF || tok != nil {
 		return nil, "", fmt.Errorf("OPERATION_FINGERPRINT_KEYS_JSON has trailing content")
 	}
 	if len(keys) == 0 {

@@ -61,6 +61,10 @@ func TestParseEditRequest_Rejects(t *testing.T) {
 		{"uppercase uuid", `{"operation_key":"11111111-1111-4111-8111-111111111111".toUpperCase(),"article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"not json", `not-json`},
 		{"lone surrogate escape", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t\uD800x","order_value":1,"section":"s","body_markdown":"b"}}`},
+		{"quoted expected_version", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":"3","expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
+		{"quoted order_value", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":"1.25","section":"s","body_markdown":"b"}}`},
+		{"trailing brace", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}}`},
+		{"trailing bracket", `[{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}]]`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
