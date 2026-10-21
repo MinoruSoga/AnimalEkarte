@@ -89,7 +89,7 @@
 
 ### 未決と実装適合の検査
 
-CSV列・表現・上限・typed DTO/claim/receipt/lockは[EMR-448/493選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)で具体選定した。旧候補の「未定」は同稿のCSV subsetについて解消し、実装/DB/API登録/受入は未完。日付対応・明示置換・一回の確認範囲の原子保存／全体拒否・選び直し時の再プレビューは選定済みの意味契約。CSVの一貫性制御・同一操作と結果照会・wire／エラー・lock境界は同選定契約に定義済みで、実装はそのlifecycle契約に準拠する。API登録・migration・runtime・並行性/実機受入は未完であり、コピー側の未選定subsetと混同しない。基準headにおける新API・実装・migrationの存在調査、旧client経路を含む保護、並行実行・実機受入は未実施で、旧単日保存コードの存在だけで新合意へ対応済みとしない。
+CSV列・表現・上限・typed DTO/claim/receipt/lockは[EMR-448/493選定契約](../../../work/emr/emr-448-493-shift-csv-selected-contract-20261021.md)で具体選定した。旧候補の「未定」は同稿のCSV subsetについて解消し、実装/DB/API登録/受入は未完。日付対応・明示置換・一回の確認範囲の原子保存／全体拒否・選び直し時の再プレビューは選定済みの意味契約。CSVの一貫性制御・同一操作と結果照会・wire／エラー・lock境界は同選定契約に定義済みで、実装はそのlifecycle契約に準拠する。API登録・migration・runtime・並行性/実機受入は未完であり、[コピー固有の選定契約](../../../work/emr/emr-448-493-shift-copy-contract-20261021.md)の元snapshot/日付写像/wire・claim/同TXも技術選定済みで、runtime/API登録完了とは区別する。基準headにおける新API・実装・migrationの存在調査、旧client経路を含む保護、並行実行・実機受入は未実施で、旧単日保存コードの存在だけで新合意へ対応済みとしない。
 
 ## 社員リスト追加採用の設計接続
 
@@ -115,3 +115,7 @@ IR-14/15の具体候補であり、列名・API・DDLの実装済み保証、追
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+## 2026-10-21 医院別eligibilityと段階の接続
+
+[医院別指名停止・個人positive集合契約](../../../work/emr/emr-493-reservation-eligibility-contract-20261021.md)で追加API、assignment aggregate版/digest、同TX保護・監査/receipt、旧CASなしwriter切替を選定した。業務正本のA院保護/B院保持/手動解消を変更せず、API正本収録・DDL/model・runtimeは未完。所属解除や全staff無効化を指名停止の代用にしない。[①②③段階台帳](../../../work/emr/emr-445-master-stages-ledger-20261021.md)へ未収録/未実装/受領を分けて引き渡し、④新規着手の許可や全勤務機能完成としない。実行NOT_RUN。

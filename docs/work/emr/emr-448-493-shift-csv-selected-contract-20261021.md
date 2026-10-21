@@ -185,3 +185,7 @@ API正本/schema/operationIdは共有ownerが本closed契約から後続の同CS
 - [staff/assignmentとcell lock](https://github.com/MinoruSoga/AnimalEkarte/blob/9a1d50f9dcc7d275456f1214507ef0a55441ac98/backend/internal/staff/shift_entry_repository.go)
 - [既存DDL・bulk/休業/RLS/版](https://github.com/MinoruSoga/AnimalEkarte/blob/9a1d50f9dcc7d275456f1214507ef0a55441ac98/backend/migrations/001_init.sql)
 - [共有operation契約](https://github.com/MinoruSoga/AnimalEkarte/blob/9a1d50f9dcc7d275456f1214507ef0a55441ac98/backend/internal/operation/contract.go)
+
+## 2026-10-21 コピー・段階台帳への接続
+
+コピー固有の元snapshot/日付写像/closed wireは[コピー選定契約](emr-448-493-shift-copy-contract-20261021.md)へ追加選定し、本CSVのparser/profileを呼ばず勤務aggregate・予約保護・claim metadata・結果履歴の必要subsetを再利用する。CSVの選定済み範囲を未決へ戻さない。①契約→②master/勤務入力→③共通UI→④新業務consumerと⑤後段試験の完了境界は[集約台帳](emr-445-master-stages-ledger-20261021.md)に従う。④全予約完成を②へ逆依存させず、既存予約を守る必要reader/gateが未接続なら該当CSV/copy保存だけを未活性にする。試験実行NOT_RUN。
