@@ -1,4 +1,5 @@
 import type {
+  CertificateEdition,
   CertificateEditionPage,
   CertificateKind,
   CertificatePreviewResponse,
@@ -44,6 +45,15 @@ export function previewMatchesRequest(
   );
 }
 
+/**
+ * edition 自身の版が整合しているか。外側の source_version は発行時の接種版で、保存 snapshot の
+ * source.version と同じ値（契約）。食い違う応答は混在・古い応答として扱う。
+ * 現在の接種版と過去の発行版が違うこと自体は正常なので、現在版との一致は要求しない。
+ */
+export function editionVersionConsistent(edition: CertificateEdition): boolean {
+  return edition.source_version === edition.snapshot.source.version;
+}
+
 /** 履歴 1 ページの全 edition が、要求した接種・様式のものか。 */
 export function editionPageMatches(
   page: CertificateEditionPage,
@@ -57,8 +67,7 @@ export function editionPageMatches(
       edition.kind === expected.kind &&
       edition.snapshot.kind === expected.kind &&
       edition.snapshot.source.vaccination_id === expected.vaccinationId &&
-      // 外側の source_version は発行時の接種版で、保存 snapshot の source.version と同じ値（契約）。食い違う応答は混在・古い応答として拒否する。
-      edition.source_version === edition.snapshot.source.version,
+      editionVersionConsistent(edition),
   );
 }
 
