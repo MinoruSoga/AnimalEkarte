@@ -288,8 +288,8 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
 | RV4種類のmaster | kind=rabies／layout=rabiesだけでは4種類を識別できない。帳票種別identity・帳票セット構成版とtemplate／snapshot／artifact対応が必要。4名称・見本はクライアントから後日共有予定、種類名・様式・紙寸法は未確定。既知A4横を全種類に適用しない |
 | 一括出力wire／batch | 単一issue／reprintと単一edition/artifact refsだけでは4種類の一括結果を表現できない。構成の欠損／重複検出、種類ごとの成功／失敗／unknown・版とartifact対応、同一操作の照合・再開が必要。batch receipt・commit単位・route／DTOは未選定。4種類を4ページや特定の結合PDF方式と同一視しない |
 | 再発行の表示発行日 | 当初の発行日を追跡して初期値にし、変更した日を確認した新版snapshot／preview／fingerprintへ固定する入力が必要。現行preview_display_issue_dateはv1初回previewとの照合値であり、任意の再発行日選択fieldではない。現行reprintは固定版のみ。初回の任意過去日不可・日跨ぎ再previewを再発行へ一律適用する旧読替えは採用しない |
-| 時刻／版／PDF storage | 表示日と実issued_at／recorded_atを分離し、後者はサーバー操作時刻。表示日変更は新版を保存し旧版・artifactを保持。同版再印刷は版増分なし。種類・構成版・edition・固定描画版・digestとstorageを結合する必要がある。既存store未結合の部分実装で充足とはせず、DDL／storage方式・wire拡張は未選定 |
+| 時刻／版／PDF storage | 表示日と実issued_at／recorded_atを分離し、後者はサーバー操作時刻。表示日変更は新版を保存し旧版・artifactを保持。同版再印刷は版増分なし。種類・構成版・edition・固定描画版・digestとstorageを結合する必要がある。既存store未結合の部分実装で充足とはせず、DDL／storage境界・wire拡張は[RV4・再発行日採択契約](emr-486-487-rv-batch-reissue-contract-20261021.md)へ選定済み、実store配線・selector=2と全writer閉包は未実装 |
 
-再発行日の詳細validationは後続設計とし、初回発行日の未回答の自由度、接種日変更、未知様式の独立発行日欄を追加しない。通常縦横は同版の表示方式を維持する。診療項目packageと帳票セットを分離し、package applyから自動発行しない。現在認可・患者対応・有効性gate・旧訂正版保護と結果不明時の照合を維持し、一部失敗を全成功にせず成功分を無条件再発行しない。
+再発行日の詳細validationとorigin lineageは[RV4・再発行日採択契約](emr-486-487-rv-batch-reissue-contract-20261021.md) §4へ選定済みとし、初回発行日の未回答の自由度、接種日変更、未知様式の独立発行日欄を追加しない。通常縦横は同版の表示方式を維持する。診療項目packageと帳票セットを分離し、package applyから自動発行しない。現在認可・患者対応・有効性gate・旧訂正版保護と結果不明時の照合を維持し、一部失敗を全成功にせず成功分を無条件再発行しない。
 
 受入は上記正本の欠損・重複・一部失敗・再発行日・履歴不変の9ACへ対応付ける。試験はNOT_RUN、静的差分・参照確認のみ。api.yaml・実装・DB・外部OCR／実患者PDF処理・実印刷は今回の対象外。Lステップ／DMはこのPRへ含めない。

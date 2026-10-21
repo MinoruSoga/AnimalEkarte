@@ -200,8 +200,10 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 |:---|:---|
 | master／snapshot | 4種類の安定したidentity、帳票セットと構成版、各template／用紙との対応を保持。通常縦横の同版表示と区別し、診療項目packageへ混ぜない。4名称・見本未受領、DDL・管理API・画面は未選定 |
 | batch／wire | 4種類の構成照合と出力要求、各種類の結果・版／artifact対応、欠損／重複／一部失敗／unknownを表現。現在の単一kind/layout APIを4種類一括対応済みとしない。batchのcommit／回復単位、同key照合とreceipt拡張は後続選定。4種類=4ページとしない |
-| 再発行wire／版 | 当初の発行日由来refと選択した表示日を確認内容へ固定し、新版のsnapshot／hash／preview／CAS／監査へ反映。同版reprint DTOへ未定義fieldを送らない。初回の任意日許可へ拡張せず、再発行のdate validationは別設計 |
+| 再発行wire／版 | 当初の発行日由来refと選択した表示日を確認内容へ固定し、新版のsnapshot／hash／preview／CAS／監査へ反映。同版reprint DTOへ未定義fieldを送らない。初回の任意日許可へ拡張せず、再発行のdate validationは[RV4・再発行日採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md) §4へ選定済み・runtime未実装 |
 | PDF storage／履歴 | 種類・構成版・edition・template／renderer版・digestとimmutable artifactの対応を追跡。旧artifactを上書きせず、失敗候補を有効出力へ公開しない。storage結合とbatchの出力形式は未選定。結合PDF／ZIP等を推測で固定しない |
 | 時刻と認可 | 表示発行日は選択した日、issued_at／recorded_atはサーバー操作時刻。再印刷・再発行・batch各要求で現在scope／grant・患者・接種版・有効版を再検査。応答不明は元結果を照合し成功分を再発行しない |
 
 履歴参照と有効出力を分離する既決を維持し、再発行で旧訂正版の有効出力を復活させない。master改定で過去の構成・版やartifactを書き換えず、資料待ちを推測実装で埋めない。実装コード・api.yaml・DDLは本追補で変更しない。
+
+[RV4・再発行日採択技術契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)をmaster構成版・batch/edition・初版日lineage・normal selector=2互換の具体契約とする。既存v1は保持し、selector=2 reader/parser/validatorとwriterの接続は未実装。4名称・見本・紙寸法・mappingおよび実renderer/store資産は資料待ち／実装依存のまま、文書採択をruntime完了としない。
