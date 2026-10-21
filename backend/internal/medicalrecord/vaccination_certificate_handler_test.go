@@ -528,3 +528,49 @@ func TestVaccinationCertificateReader_ClinicIsolation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "source_deleted", validity)
 }
+
+// TestVaccinationCertificateReader_EditionValiditySnapshot pins that the
+// scoped vaccination read and the newer-edition count share one snapshot:
+// a bumped source version alongside a newer edition must project
+// source_changed (priority over superseded), not a mixed-read superseded.
+func TestVaccinationCertificateReader_EditionValiditySnapshot(t *testing.T) {
+	db := setupCertificateIsolationDB(t)
+	reader := NewVaccinationCertificateReader(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	ensureVaccinationTestClinics(t, db, clinicA)
+
+	owner := makeTestOwner(t, db, clinicA, "validity owner")
+	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "validity pet")
+	vaccine := makeVaccineMaster(t, db, clinicA, "validity vaccine")
+	doctor := makeDoctor(t, db, clinicA, "validity doctor")
+	vacc := &model.Vaccination{
+		ClinicID: clinicA, PetID: &pet.ID, VaccineID: vaccine.ID,
+		DoctorID: &doctor.ID, Date: time.Now(), Version: 3,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(vacc).Error)
+
+	series := &model.VaccinationCertificateSeries{
+		ClinicID: clinicA, VaccinationID: vacc.ID, CertificateKind: "normal",
+	}
+	require.NoError(t, db.WithContext(ctx).Create(series).Error)
+	ed1 := &model.VaccinationCertificateEdition{
+		ClinicID: clinicA, SeriesID: series.ID, Edition: 1,
+		SourceVaccinationVersion: 3, Snapshot: json.RawMessage(`{}`),
+		IssuedBy: doctor.ID,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(ed1).Error)
+	ed2 := &model.VaccinationCertificateEdition{
+		ClinicID: clinicA, SeriesID: series.ID, Edition: 2,
+		SourceVaccinationVersion: 5, Snapshot: json.RawMessage(`{}`),
+		IssuedBy: doctor.ID,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(ed2).Error)
+	require.NoError(t, db.WithContext(ctx).Model(vacc).Update("version", 5).Error)
+
+	// One consistent snapshot: current version 5 != stored source 3 and a
+	// newer edition exists -> source_changed takes priority over superseded.
+	validity, err := reader.EditionValidity(ctx, clinicA, ed1, series)
+	require.NoError(t, err)
+	assert.Equal(t, "source_changed", validity)
+}

@@ -83,18 +83,32 @@ func (r *VaccinationCertificateReader) FindVaccinationSource(ctx context.Context
 }
 
 // EditionValidity projects current validity for one edition:
-// source_deleted > source_changed > superseded > current. The source lookup
-// shares FindVaccinationSource's scoped read: a row missing under the current
+// source_deleted > source_changed > superseded > current. The scoped
+// vaccination read and the newer-edition count run inside one read-only
+// REPEATABLE READ transaction so the projection uses a single snapshot: a
+// concurrent correction committed between otherwise independent reads could
+// hide source_changed behind superseded. A row missing under the current
 // relation scope is not_found, never silently treated as deleted.
 func (r *VaccinationCertificateReader) EditionValidity(ctx context.Context, clinicID uint64, ed *model.VaccinationCertificateEdition, series *model.VaccinationCertificateSeries) (string, error) {
-	vacc, err := r.FindVaccinationSource(ctx, clinicID, series.VaccinationID)
-	if err != nil {
-		return "", err
-	}
+	var vacc model.Vaccination
 	var newer int64
-	if err := r.db.WithContext(ctx).Model(&model.VaccinationCertificateEdition{}).
-		Where("clinic_id = ? AND series_id = ? AND edition > ?", clinicID, ed.SeriesID, ed.Edition).
-		Count(&newer).Error; err != nil {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Unscoped().
+			Select("id", "clinic_id", "version", "deleted_at").
+			Scopes(vaccinationPatientRelationsScope(clinicID)).
+			Where("id = ? AND clinic_id = ?", series.VaccinationID, clinicID).
+			Take(&vacc).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errCertificateNotFound
+		}
+		if err != nil {
+			return err
+		}
+		return tx.Model(&model.VaccinationCertificateEdition{}).
+			Where("clinic_id = ? AND series_id = ? AND edition > ?", clinicID, ed.SeriesID, ed.Edition).
+			Count(&newer).Error
+	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
 		return "", err
 	}
 	return certificateValidity(vacc.DeletedAt.Valid, int64(vacc.Version), ed.SourceVaccinationVersion, newer > 0), nil
