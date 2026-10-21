@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSnapshot, mockHash, mockPdfBase64 } from "../mock/certificate-fixtures";
-import { boundSucceededRefs, previewMatchesRequest, resultMatchesOperation } from "./certificate-binding";
+import { boundSucceededRefs, editionPageMatches, previewMatchesRequest, resultMatchesOperation } from "./certificate-binding";
 import {
   emptyCertificateInputs,
   type CertificatePreviewResponse,
@@ -21,7 +21,7 @@ const preview: CertificatePreviewResponse = {
   template_version: "t",
   renderer_version: "r",
 };
-const expected = { vaccinationId: 101, kind: "normal" as const, sourceVersion: 7, latestEditionId: null };
+const expected = { vaccinationId: 101, kind: "normal" as const, sourceVersion: 7, latestEditionId: null, inputs: {} };
 
 describe("発行前 preview の束縛", () => {
   it("接種・様式・source_version・最新 edition が要求と一致するときだけ true", () => {
@@ -31,6 +31,18 @@ describe("発行前 preview の束縛", () => {
     expect(previewMatchesRequest(preview, { ...expected, sourceVersion: 8 })).toBe(false);
     expect(previewMatchesRequest(preview, { ...expected, latestEditionId: 5 })).toBe(false);
     expect(previewMatchesRequest({ ...preview, source_version: 8 }, { ...expected, sourceVersion: 8 })).toBe(false);
+  });
+
+  it("送った inputs と snapshot の inputs が違う preview（遅れて届いた別内容）は拒否する。省略は null と同じ", () => {
+    const rabies = {
+      ...preview,
+      snapshot: { ...preview.snapshot, kind: "rabies" as const, inputs: { ...preview.snapshot.inputs, certificate_number: "0001", total: 0 } },
+    };
+    const sent = { ...expected, kind: "rabies" as const, inputs: { certificate_number: "0001", total: 0, tag_fee: null } };
+    expect(previewMatchesRequest(rabies, sent)).toBe(true);
+    expect(previewMatchesRequest(rabies, { ...sent, inputs: { ...sent.inputs, certificate_number: "0002" } })).toBe(false);
+    expect(previewMatchesRequest(rabies, { ...sent, inputs: { ...sent.inputs, total: null } })).toBe(false); // 明示 0 と null は別物
+    expect(previewMatchesRequest(preview, { ...expected, inputs: { total: 100 } })).toBe(false);
   });
 });
 
@@ -56,5 +68,15 @@ describe("C06 結果の束縛", () => {
     expect(boundSucceededRefs(succeeded, { operationKey: KEY, vaccinationId: 101, editionId: "302" })).toBeNull();
     const noVaccination = { ...succeeded, result_refs: { edition_id: "301", artifact_id: "401" } };
     expect(boundSucceededRefs(noVaccination, { operationKey: KEY, vaccinationId: 101 })).toBeNull();
+  });
+});
+
+describe("履歴ページの束縛", () => {
+  const page = { data: [], total: 0, page: 2, limit: 20 };
+  it("要求した page / limit と違う応答は拒否する", () => {
+    const want = { vaccinationId: 101, kind: "normal" as const, page: 2, limit: 20 };
+    expect(editionPageMatches(page, want)).toBe(true);
+    expect(editionPageMatches(page, { ...want, page: 1 })).toBe(false);
+    expect(editionPageMatches(page, { ...want, limit: 50 })).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
 import type { CertificateApi } from "../api/certificate-api";
@@ -7,7 +7,7 @@ import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateContext, CertificateKind } from "../api/certificate-schemas";
 import { KIND_LABEL } from "../lib/certificate-inputs";
 import { CertificateEditionRow } from "./CertificateEditionRow";
-import { certificateOperationRegistry, reprintStoreFor } from "../lib/certificate-operation-registry";
+import { certificateOperationRegistry, releaseReprintStore, reprintStoreFor } from "../lib/certificate-operation-registry";
 import { certificateHistoryPageQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface CertificateHistoryProps {
@@ -26,6 +26,12 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
   // （メモリ上のみ。接種記録ごとの store を QueryClient 単位の登録簿から得る）。
   const queryClient = useQueryClient();
   const [reprintStore] = useState(() => reprintStoreFor(certificateOperationRegistry(queryClient), vaccinationId));
+  // 離れるときは、未確定の key を持つ store だけを残す（StrictMode の模擬 unmount でも再登録する）。
+  useEffect(() => {
+    const registry = certificateOperationRegistry(queryClient);
+    registry.reprintStores.set(vaccinationId, reprintStore);
+    return () => releaseReprintStore(registry, vaccinationId, reprintStore);
+  }, [queryClient, vaccinationId, reprintStore]);
   const kinds: CertificateKind[] = (["normal", "rabies"] as const).filter(
     (k) => context.eligibility.allowed_kinds.includes(k) || context.latest[k] !== null,
   );

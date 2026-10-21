@@ -128,15 +128,17 @@ export function createHttpCertificateApi(): CertificateApi {
       return parse(certificateEditionSchema, data);
     },
     async listEditions(vaccinationId, query, signal) {
+      const requestedPage = query.page ?? 1;
+      const requestedLimit = query.limit ?? 20;
       const { data } = await call(() =>
         axios.get<unknown>(`${BASE}/vaccinations/${vaccinationId}/certificate-editions`, {
-          params: { kind: query.kind, page: query.page ?? 1, limit: query.limit ?? 20 },
+          params: { kind: query.kind, page: requestedPage, limit: requestedLimit },
           signal,
         }),
       );
       const page = parse(certificateEditionPageSchema, data);
       // 形が正しいだけの別接種・別様式の履歴を、この接種の履歴として載せない。
-      if (!editionPageMatches(page, { vaccinationId, kind: query.kind })) {
+      if (!editionPageMatches(page, { vaccinationId, kind: query.kind, page: requestedPage, limit: requestedLimit })) {
         throw new CertificateApiError("malformed", { message: "履歴が要求した接種・様式と一致しません" });
       }
       return page;

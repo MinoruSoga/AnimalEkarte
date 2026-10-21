@@ -149,6 +149,7 @@ export function useCertificateIssue({
         kind: request.kind,
         sourceVersion: request.preconditions.source_version,
         latestEditionId: request.preconditions.latest_edition_id,
+        inputs: request.inputs,
       });
       if (!bound) return fail("preview-failed", "previewFail");
       dispatch({ type: "previewOk", preview, request });

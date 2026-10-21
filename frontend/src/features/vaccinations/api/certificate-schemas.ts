@@ -209,13 +209,20 @@ export type CertificateContext = z.infer<typeof certificateContextSchema>;
  * 確認できない内容の発行ボタンが有効になる）。base64 として正しく、先頭が %PDF- のものだけ受理する。
  */
 export function isPdfBase64(value: string): boolean {
+  // 全体を文字種・padding まで正規表現で検査する（線形。全量の decode は繰り返さない）。
   if (value.length < 8 || value.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return false;
   try {
-    return atob(value.slice(0, 8)).startsWith("%PDF-");
+    if (!atob(value.slice(0, 8)).startsWith("%PDF-")) return false;
+    // 途中で切れた PDF を弾く: 末尾の一定範囲に %%EOF があること（直後の空白・改行は許容）。
+    // 全長は 4 の倍数なので、末尾から 4 の倍数文字を切り出せば decode の境界が合う。
+    const tail = value.slice(Math.max(0, value.length - PDF_EOF_WINDOW_CHARS));
+    return atob(tail).includes("%%EOF");
   } catch {
     return false;
   }
 }
+/** 末尾 2049 バイト相当（4 の倍数）。PDF 仕様は %%EOF を末尾 1024 バイト内に置くことを求める。 */
+const PDF_EOF_WINDOW_CHARS = 2732;
 const pdfBase64 = z.string().min(1).refine(isPdfBase64, "pdf_base64 が PDF ではありません");
 
 export const certificatePreviewResponseSchema = z.object({

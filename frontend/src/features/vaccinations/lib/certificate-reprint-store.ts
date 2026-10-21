@@ -38,6 +38,8 @@ export interface ReprintStore {
   get(editionId: number): ReprintEntry;
   set(editionId: number, entry: ReprintEntry): void;
   subscribe(listener: () => void): () => void;
+  /** 結果が確定していない操作（pending key）を持つ edition があるか。 */
+  hasPending(): boolean;
 }
 
 const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null, layout: null, checking: false };
@@ -51,6 +53,7 @@ export function createReprintStore(): ReprintStore {
       entries.set(editionId, entry);
       for (const listener of [...listeners]) listener();
     },
+    hasPending: () => [...entries.values()].some((entry) => entry.pending !== null),
     subscribe(listener) {
       listeners.add(listener);
       return () => {

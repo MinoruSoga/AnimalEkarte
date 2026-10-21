@@ -6,7 +6,12 @@ import type {
   CertificateSavedPreview,
   CertificateSucceededResult,
 } from "./certificate-schemas";
-import { readSucceededRefs, type CertificateLayout } from "./certificate-schemas";
+import {
+  CERTIFICATE_INPUT_KEYS,
+  readSucceededRefs,
+  type CertificateInputs,
+  type CertificateLayout,
+} from "./certificate-schemas";
 
 /**
  * EMR-487: 応答が「要求した対象」のものかを確かめる純関数。
@@ -22,10 +27,15 @@ export function previewMatchesRequest(
     kind: CertificateKind;
     sourceVersion: number;
     latestEditionId: number | null;
+    /** 送った inputs。省略した欄は null と同じ（契約: 未送信と null は同じ空欄へ正規化、保存 snapshot は全 10 キー）。 */
+    inputs: Partial<CertificateInputs>;
   },
 ): boolean {
   const { snapshot } = preview;
+  // layout は snapshot に載らない（preview_fingerprint に含まれる hash 値のみ）ため、FE では照合できない。
+  const sameInputs = CERTIFICATE_INPUT_KEYS.every((key) => snapshot.inputs[key] === (expected.inputs[key] ?? null));
   return (
+    sameInputs &&
     snapshot.source.vaccination_id === expected.vaccinationId &&
     snapshot.kind === expected.kind &&
     snapshot.source.version === preview.source_version &&
@@ -37,8 +47,10 @@ export function previewMatchesRequest(
 /** 履歴 1 ページの全 edition が、要求した接種・様式のものか。 */
 export function editionPageMatches(
   page: CertificateEditionPage,
-  expected: { vaccinationId: number; kind: CertificateKind },
+  expected: { vaccinationId: number; kind: CertificateKind; page: number; limit: number },
 ): boolean {
+  // 要求した頁・件数と違う応答（別頁のキャッシュ等）は、その頁として表示しない。
+  if (page.page !== expected.page || page.limit !== expected.limit || page.data.length > expected.limit) return false;
   return page.data.every(
     (edition) =>
       edition.vaccination_id === expected.vaccinationId &&

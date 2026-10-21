@@ -107,6 +107,9 @@ describe("preview PDF payload の検証", () => {
     expect(isPdfBase64("not base64!!")).toBe(false);
     expect(isPdfBase64(btoa("<html>login</html>"))).toBe(false);
     expect(isPdfBase64(`${mockPdfBase64()}=`)).toBe(false); // 長さが 4 の倍数でない
+    expect(isPdfBase64(`${mockPdfBase64().slice(0, 40)}`)).toBe(false); // 途中で切れている（%%EOF なし）
+    expect(isPdfBase64(btoa("%PDF-1.4\nbody\n%%EOF\r\n  \n"))).toBe(true); // 末尾の空白は許容
+    expect(isPdfBase64(btoa(`%PDF-1.4\n${"x".repeat(10_000)}\n%%EOF\n`))).toBe(true); // 大きい本体でも末尾で判定
   });
 
   it("確認できない PDF を含む preview 応答は両 schema で拒否する", () => {

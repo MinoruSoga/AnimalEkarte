@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import type { IssuePending } from "./certificate-issue-reducer";
-import { certificateOperationRegistry, reprintStoreFor } from "./certificate-operation-registry";
+import { certificateOperationRegistry, releaseReprintStore, reprintStoreFor } from "./certificate-operation-registry";
 
 const pending = {
   key: "11111111-1111-4111-8111-111111111111",
@@ -29,5 +29,31 @@ describe("未確定操作の登録簿", () => {
     certificateOperationRegistry(client).issuePending.set(101, pending);
     client.clear();
     expect(certificateOperationRegistry(client).issuePending.size).toBe(0);
+  });
+});
+
+describe("再印刷 store の解放", () => {
+  const entry = (hasKey: boolean) => ({
+    state: { phase: "unknown" as const, notice: "unavailable" as const },
+    pending: hasKey ? { editionId: "1", request: {} as never } : null,
+    layout: null,
+    checking: false,
+  });
+
+  it("未確定の key が無ければ離れるときに外す", () => {
+    const registry = certificateOperationRegistry(new QueryClient());
+    const store = reprintStoreFor(registry, 101);
+    releaseReprintStore(registry, 101, store);
+    expect(registry.reprintStores.has(101)).toBe(false);
+  });
+
+  it("未確定の key があれば残し、確定した時点で外す", () => {
+    const registry = certificateOperationRegistry(new QueryClient());
+    const store = reprintStoreFor(registry, 101);
+    store.set(1, entry(true));
+    releaseReprintStore(registry, 101, store);
+    expect(registry.reprintStores.get(101)).toBe(store);
+    store.set(1, entry(false));
+    expect(registry.reprintStores.has(101)).toBe(false);
   });
 });

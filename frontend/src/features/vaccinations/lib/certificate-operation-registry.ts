@@ -32,6 +32,26 @@ export function certificateOperationRegistry(queryClient: QueryClient): Certific
   return created;
 }
 
+/**
+ * 画面を離れるとき、未確定の再印刷 key が無い store は登録簿に残さない（完了済みの表示や個人情報に近い状態を
+ * メモリに溜めない）。未確定なら残し、確定した時点で外す（購読は外れたら自己解除する）。
+ */
+export function releaseReprintStore(
+  registry: CertificateOperationRegistry,
+  vaccinationId: number,
+  store: ReprintStore,
+): void {
+  const drop = () => {
+    if (registry.reprintStores.get(vaccinationId) === store) registry.reprintStores.delete(vaccinationId);
+  };
+  if (!store.hasPending()) return drop();
+  const off = store.subscribe(() => {
+    if (store.hasPending()) return;
+    off();
+    drop();
+  });
+}
+
 /** 接種記録の再印刷 store。なければ作る（同じ接種記録に戻ると同じ store を返す）。 */
 export function reprintStoreFor(registry: CertificateOperationRegistry, vaccinationId: number): ReprintStore {
   const existing = registry.reprintStores.get(vaccinationId);
