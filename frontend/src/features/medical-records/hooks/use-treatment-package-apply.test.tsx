@@ -100,7 +100,9 @@ describe("useTreatmentPackageApply（同key照会・成功後の再取得・scop
     vi.mocked(axios.post).mockRejectedValue(new Error("network"));
     vi.mocked(axios.get).mockImplementation(async (url) => {
       expect(String(url)).toContain("/operations/");
-      return { data: ok("a0000000-0000-4000-8000-000000000001") };
+      // identity照合のため照会先URLの key をそのまま返す（別key成功を受理しない）。
+      const key = String(url).split("/operations/")[1]!;
+      return { data: ok(key) };
     });
     const { result } = renderHook(
       () =>

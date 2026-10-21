@@ -138,8 +138,10 @@ export function TreatmentPackageSettings() {
           conflict={editor.conflict}
           createUnknown={editor.createUnknown}
           onResolveCreateUnknown={() => {
-            void list.refetch();
-            editor.allowCreateRetry();
+            // 再取得の成功を待ってから解除する。失敗・遅延中は再送禁止を維持。
+            void list.refetch().then((res) => {
+              if (!res.isError) editor.allowCreateRetry();
+            });
           }}
           canSave={(target === "new" ? canCreate : canEdit) && !editor.createUnknown}
           canDelete={canDelete}

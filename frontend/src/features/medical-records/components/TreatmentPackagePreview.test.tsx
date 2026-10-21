@@ -23,7 +23,7 @@ const item = {
     tax_source: "unresolved" as const,
     insurance_source: "unresolved" as const,
     amount_basis: "unresolved" as const,
-    uncertainty: [{ field: "unit_price", reason: "legacy_unset", required_at: "billing" }],
+    uncertainty: [{ field: "unit_price", reason: "legacy_unset", required_at: "billing" } as const],
   },
   issues: [] as never[],
 };

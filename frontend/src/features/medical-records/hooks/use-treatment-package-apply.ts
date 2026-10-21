@@ -94,6 +94,18 @@ interface PendingOperation {
   clinicId?: string;
 }
 
+/** C06応答のoperation identity照合。発行key・対象recordと一致する結果のみ受理する。 */
+function matchesOperation(
+  result: { operation_key: string; result_refs?: { record_id: string } },
+  held: PendingOperation,
+): boolean {
+  if (result.operation_key !== held.operationKey) return false;
+  if (result.result_refs !== undefined && result.result_refs.record_id !== held.recordId) {
+    return false;
+  }
+  return true;
+}
+
 export function useTreatmentPackageApply({
   scope,
   editContext,
@@ -158,6 +170,12 @@ export function useTreatmentPackageApply({
         }
         const resolution = resolveOperationResult(outcome.result);
         if (resolution.kind === "success") {
+          const pending = pendingRef.current.get(sk);
+          // identity 不一致の成功bodyは受理しない（pending保持・照会継続）。
+          if (pending === undefined || !matchesOperation(resolution.result, pending)) {
+            setState({ kind: "unknown", operationKey: command.operationKey });
+            return;
+          }
           pendingRef.current.delete(sk);
           const applicationId = resolution.result.result_refs.application_id;
           // 成功確認 → plan 一覧再取得。再取得失敗は apply 失敗にしない。
@@ -197,14 +215,12 @@ export function useTreatmentPackageApply({
     );
     if (scopeKey(scopeRef.current) !== sk) return;
     if (outcome.kind === "unavailable") return; // 取得失敗は unknown 維持
-    if (outcome.kind === "error-envelope") {
-      if (outcome.httpStatus >= 500) return;
-      pendingRef.current.delete(sk);
-      setState({ kind: "failed", status: outcome.code ?? `http-${outcome.httpStatus}` });
-      return;
-    }
+    // 前段 error envelope（認可拒否等）は操作の失敗確定ではない。pending を保持し unknown を維持する。
+    if (outcome.kind === "error-envelope") return;
     const resolution = resolveOperationResult(outcome.result);
     if (resolution.kind === "success") {
+      // identity 不一致の成功bodyは受理しない（pending保持・照会継続）。
+      if (!matchesOperation(resolution.result, held)) return;
       pendingRef.current.delete(sk);
       setState({
         kind: "succeeded",

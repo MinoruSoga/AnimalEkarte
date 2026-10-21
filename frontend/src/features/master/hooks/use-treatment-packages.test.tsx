@@ -11,7 +11,7 @@ import {
   useUpdateTreatmentPackage,
 } from "./use-treatment-packages";
 import { draftFromPackage } from "../lib/treatment-package-form";
-import type { TreatmentPackage } from "../api/treatment-packages";
+import type { TreatmentPackage, TreatmentPackagePatch } from "../api/treatment-packages";
 
 vi.mock("@/lib/axios", () => ({
   axios: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -67,7 +67,7 @@ describe("editor session（CAS・競合・入力保持）", () => {
       create: vi.fn(),
       update: (id, body) => useUpdateImpl(id, body),
     });
-    async function useUpdateImpl(id: string, body: never) {
+    async function useUpdateImpl(id: string, body: TreatmentPackagePatch) {
       await axios.patch(`/v1/masters/treatment-packages/${id}`, body);
       throw conflict();
     }

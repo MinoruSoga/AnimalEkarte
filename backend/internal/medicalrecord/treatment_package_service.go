@@ -683,6 +683,18 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 		if len(ids) != len(locked) {
 			return apperrors.WrapInvalidInput("並び替えは現在の全パッケージを対象にしてください")
 		}
+		// reorder も書込み前に live items の型別権限を検査する（Update/Delete と同じ zero-write）。
+		pkgIDs := make([]uint64, 0, len(locked))
+		for i := range locked {
+			pkgIDs = append(pkgIDs, locked[i].ID)
+		}
+		liveItems, err := s.repo.FindLiveItemsByPackageIDs(txCtx, clinicID, pkgIDs)
+		if err != nil {
+			return err
+		}
+		if err := s.authorizeItemKinds(txCtx, clinicID, liveItems); err != nil {
+			return err
+		}
 		wanted := make(map[uint64]int, len(ids))
 		for i, id := range ids {
 			wanted[id] = i
