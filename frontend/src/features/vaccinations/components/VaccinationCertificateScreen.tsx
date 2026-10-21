@@ -61,6 +61,12 @@ export function VaccinationCertificateScreen({
     });
   }, [queryClient]);
 
+  // 再開の判断用: context を取り直し、取り直した後の can_issue を返す（取得できなければ false）。
+  const refetchCanIssue = useCallback(async () => {
+    const result = await context.refetch();
+    return result.data?.can_issue ?? false;
+  }, [context]);
+
   if (context.isPending) {
     return (
       <p role="status" aria-busy="true" className={`text-sm ${C.text60}`}>
@@ -108,6 +114,7 @@ export function VaccinationCertificateScreen({
         context={context.data}
         getCanEdit={getCanEdit}
         onRefetchContext={refetchAll}
+        refetchCanIssue={refetchCanIssue}
       />
       <CertificateHistory key={vaccinationId} api={api} vaccinationId={vaccinationId} context={context.data} onRefetch={refetchAll} getCanEdit={getCanEdit} />
     </div>

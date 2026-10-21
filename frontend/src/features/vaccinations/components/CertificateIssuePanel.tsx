@@ -21,6 +21,7 @@ interface CertificateIssuePanelProps {
   /** 現在の vaccinations:edit 権限。mutation 直前にも getCanEdit で再検査する。 */
   getCanEdit: () => boolean;
   onRefetchContext: () => void;
+  refetchCanIssue: () => Promise<boolean>;
 }
 
 const ELIGIBILITY_NOTE = {
@@ -34,8 +35,9 @@ export function CertificateIssuePanel({
   context,
   getCanEdit,
   onRefetchContext,
+  refetchCanIssue,
 }: CertificateIssuePanelProps) {
-  const flow = useCertificateIssue({ api, vaccinationId, context, getCanEdit, onRefetchContext });
+  const flow = useCertificateIssue({ api, vaccinationId, context, getCanEdit, onRefetchContext, refetchCanIssue });
   const { state, fieldErrors } = flow;
   const kinds = selectableKinds(context);
   const editable = isEditable(state.phase);

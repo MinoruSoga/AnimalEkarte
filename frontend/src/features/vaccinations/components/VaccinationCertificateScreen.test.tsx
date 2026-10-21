@@ -731,3 +731,36 @@ describe("画面の離脱・再 mount を越えた未確定操作の保持（メ
     expect(callsOf(controls, "reprint")).toHaveLength(1);
   });
 });
+
+describe("再印刷の照会が権限エラーだったときの key 保持", () => {
+  it("照会が 403 でも送信済みの key を捨てず、新しい key で再印刷せず、権限回復後に同じ key で照会する", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const view = renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", {
+      error: new CertificateApiError("forbidden", { httpStatus: 403, code: "not-authorized" }),
+    });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("この操作を行う権限がありません")).toBeInTheDocument();
+    // 送信済みの key があるので、新しい再印刷は始められない。
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
+
+    permission.canEdit = false;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    await user.click(within(row).getByRole("button", { name: "権限を再確認して照会する" }));
+    expect(callsOf(controls, "lookupOperation")).toHaveLength(1);
+
+    permission.canEdit = true;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    await user.click(within(row).getByRole("button", { name: "権限を再確認して照会する" }));
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    const reprintKey = (callsOf(controls, "reprint")[0].detail as { body: { operation_key: string } }).body.operation_key;
+    const lookupKeys = callsOf(controls, "lookupOperation").map((c) => (c.detail as { operationKey: string }).operationKey);
+    expect(callsOf(controls, "reprint")).toHaveLength(1);
+    expect(lookupKeys).toHaveLength(2);
+    expect(lookupKeys.every((k) => k === reprintKey)).toBe(true);
+  });
+});

@@ -43,6 +43,8 @@ export interface UseCertificateIssueArgs {
   getCanEdit: () => boolean;
   /** 前提変更（version-conflict など）で context を再取得してほしいとき。 */
   onRefetchContext: () => void;
+  /** context を取り直し、最新の can_issue を返す（再開の判断に古い値を使わない）。 */
+  refetchCanIssue: () => Promise<boolean>;
 }
 
 function initialFor({ context, restored }: { context: CertificateContext; restored: IssuePending | undefined }): IssueState {
@@ -58,6 +60,7 @@ export function useCertificateIssue({
   context,
   getCanEdit,
   onRefetchContext,
+  refetchCanIssue,
 }: UseCertificateIssueArgs) {
   const queryClient = useQueryClient();
   const registry = useMemo(() => certificateOperationRegistry(queryClient), [queryClient]);
@@ -267,11 +270,11 @@ export function useCertificateIssue({
   const resumeAfterBlocked = useCallback(async () => {
     const current = stateRef.current;
     if (current.phase !== "blocked") return;
-    onRefetchContext();
-    if (!getCanEdit() || !context.can_issue) return;
+    const canIssue = await refetchCanIssue();
+    if (!getCanEdit() || !canIssue) return;
     dispatch({ type: "unblock" });
     if (current.pending !== null) await lookup(current.pending);
-  }, [context.can_issue, getCanEdit, lookup, onRefetchContext]);
+  }, [getCanEdit, lookup, refetchCanIssue]);
 
   /** 照会で「成功なし」確定後の再試行。同 key・同 request のまま。 */
   const retrySameKey = useCallback(async () => {
