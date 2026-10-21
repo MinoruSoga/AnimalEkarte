@@ -1,6 +1,6 @@
 # EMR-503 / EMR-504：採択技術契約と Phase 境界
 
-更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 今回の技術整備A/B。504のA/Bは技術作業sliceを指し、互換adapter・契約整備を今期LSTEP利用開始・納品必須gateへ追加しない。LINE予約・本人紐付け・再診問診のunlink/対象認可の必要受け手は今期別枠として維持する。504 C は将来 Phase の研究設計であり、現 ticket 完了 gate に追加しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
+更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 今回の技術整備A/B。本人の最新指示「Lステップ／DM連携側の機能はPhase1」に従い、LSTEP連携・DMをPhase1対象外とした旧記述を撤回する。504 A/BはPhase1内の今回の技術整備slice、Cは後続の技術研究としてA/Bの完了判定と分け、後続という理由でPhase1外とは扱わない。LINE予約・本人紐付け・再診問診のunlink/対象認可の必要受け手も維持する。未来予約の時刻predicateは本人回答待ちで未選定であり、本書は今すぐの送信有効化・実送信を許可しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
 
 ## 1. 結論と調査証拠
 
@@ -12,7 +12,7 @@
 - [503選定済み保存/配送契約](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/docs/design/domains/support/technical-spec.md#support-selected-delivery-contract)：同TXの院内報告＋確認snapshot＋intent＋receipt、宛先別claim、成功/unknown再送禁止、verified absent後の管理再試行、原本保持。
 - [503業務FR/AC](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/docs/spec/domains/support/README.md)：全院共有READ、mutationは報告医院、個人history別scope、スクショ個人情報包含可・強制マスクなし。
 - [504業務FR/AC](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/docs/spec/line/lstep-integration.md#requirement-fr-crm-line-unlink-future)：予約/参照保持、unlink停止、relink自動再開なし、選択再開は即時送信でない。followup・DM・unknownの各節も再利用。
-- [504対象Phase境界](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/docs/spec/line/architecture.md#future-phase-followup-adapter-20261019)：IR-07/IR-D01/IR-D02と全17trigger適合は対象Phase開始時。今期必須gateへ繰上げない。現PhaseのLINE予約/問診は対象外にしない。
+- [504の旧Phase記述（固定SHAの調査履歴）](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/docs/spec/line/architecture.md#future-phase-followup-adapter-20261019)：当時の記述は調査履歴として保持する。現在のPhase範囲は最新本人指示を優先し、LSTEP／DMをPhase1対象外とする根拠に使わない。IR-07/IR-D01/IR-D02・全17triggerを含む受領/実装確認は別に残る。
 - [現API support](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/backend/docs/api.yaml#L31996)：旧multipart create、best-effort自動Plane、旧plane_issue列、手動plane-ticketのみ。確認snapshot/operation/CAS/宛先別結果の新DTO・lookupはない。SupportBugReportはL13358。
 - [現API LINE](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/backend/docs/api.yaml#L15452)：旧link/unlink/confirm、L15801のsend/send-logs、L28825のlink-ownerのみ。選択再開・確認・dispatch結果照会wireはない。
 - [実owner route](https://github.com/MinoruSoga/AnimalEkarte/blob/455ec2f4d84c5e08da568bf99fc6d825506b499d/backend/internal/owner/http_routes.go)：canonical `/owners/:id/*`。装飾的clinic-prefix PATCH aliasesは除去済み。本契約に古いFE/docsのclinic-prefixをコピーしない。
@@ -51,6 +51,20 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 
 宛先 projection：`destination_id, provider, destination_label, latest_attempt_id:null|string, latest_result_id:null|string, latest_result_revision:null|string, result_state:null|succeeded|definite_failure|unknown|verified_absent, external_id:null|string, external_url:null|string, dispatch_enabled:boolean`。attemptなしは「未試行」、attemptありresultなしは「未確定」として区別し、nullを未送信確定へ変換しない。設定なしとworker未有効を外部成功にしない。院内open/resolvedは独立。
 
+### 異operation key間の同等intent抑止（採択済み・未実装）
+
+第二request keyは追加しない。semantic identityは `(clinic_id, report_id, report_version, content_digest, destination_set_digest)` とする。別reportの同文を同じ事象へ自動統合しない。既存の confirmation 全体digestは `payload_digest` として保持し、以下の2digestで置換しない。
+
+- `content_digest` は UTF-8 JCS の `{schema:"support-delivery-content-v1",content:{title,detail,page_url,route_path,user_agent,viewport,app_version},screenshot}` の SHA-256 raw32bytes。contentは確認済みの7string、screenshotはnull又は `{sha256,media_type}` のclosed shapeとし、添付bytesへの既存commitmentを維持する。
+- `destination_set_digest` は UTF-8 JCS の `{schema:"support-delivery-destinations-v1",destinations:[{provider,destination_ref,configuration_digest},...]}` の SHA-256 raw32bytes。各要素はこの3fieldのみ、provider/destination_ref順へ整列し同組の重複を拒否する。既存のprovider/ref/configuration digestの意味・検証を再利用し、任意宛先や資格を含めない。
+- 新規confirmationのreport_ref/report_version=nullは不変のまま保持し、生成後のreport ID/versionと上記2projectionを用いて既存report確認と同じsemantic identityを構成する。確認payload全体のdigestを直接同等性比較してnull refsと生成済refsの差を別intentへ逃がさない。
+
+採択するschema差分は `support_delivery_intents.content_digest bytea` / `destination_set_digest bytea`。両方NULLを許すのは既存legacy行だけで、pairのCHECKは両NULL又は両非NULLかつ各 `octet_length=32`、新INSERTは両非NULL必須guardとする。UNIQUE `(clinic_id,report_id,report_version,content_digest,destination_set_digest)` を追加する設計であり、現DDLに存在するとは記載しない。既存の `UNIQUE(clinic_id,operation_id)`、RLS、immutable制約は維持する。共有446/466 ownerによる後続schema統合と、保存modelの `ConfirmedDestinations` 欠落・2digest field追従は必要な実装subsetであり、本PRでは実DDL/modelを変更しない。
+
+短いmetadata claim終了後、業務TXのbinding/receipt処理→現在認可→report `FOR UPDATE`→現版・内容・確認・設定再検査→同reportの全intentのsemantic比較→同等なしの場合だけintent/destination/必須audit/receiptを保存する。同key成功replayは通常どおり優先する。全confirm writerは同じ親report lockへ参加し、workerのdestination lockをこの経路へ追加せず逆順を作らない。異keyで同等intentが既にあれば状態がsucceeded/unknown/未試行/失敗のいずれでも `dependency-changed`409・業務zero-writeとし、現在認可された既存delivery-intents GETへ戻す。別keyの成功receiptを作って新配送chainへ迂回せず、許可されたretryは元intentだけを使う。claim metadataが残ることと業務write成立は区別する。
+
+既存両NULL行も同親lock下で保存 `confirmed_payload` / `confirmed_destinations` から上記closed projectionを厳密復元して全intentと比較する。復元不能・不整合は500 invariantで停止し送信0、同等なしと推測しない。移行前に既存重複を検査し、重複の自動統合・削除は行わず、解消/厳密比較が成立しなければ移行・有効化を停止する。runtimeでimmutable制約を解除したりlegacy行をbackfillしたりしない。これらは後続実装・移行条件の設計記述であり、今回のDB実行許可ではない。
+
 ### 宛先claim・照合・再試行
 
 初回claim、結果記録、provider照合、管理再試行はworker/service境界であり、FEにraw claim/result登録APIを公開しない。管理UIが必要なら下記を別 operation として次の route を採用する。
@@ -61,9 +75,9 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 - 初回/再試行の各外部送信直前に、現在 report の identity/version と本文・添付の content commitment を intent の report_id/report_version および保存済み確認 snapshot と再照合する。現在の本文・添付を同じ schema/正規化規則で再計算し、版又は commitment 不一致・確認不能なら外部送信0で再preview・再確認待ちとし、古い intent/snapshot を上書きしない。新規作成時の confirmation_payload の report_ref/report_version=null は確認時の原値として保持し、生成後の report identity/version は intent の保存列で照合する。照合した immutable 本文・添付だけを外部 call へ渡し、検査後の別 payload 再読に差し替えない。加えて、保存した destination_ref と非secret configuration_digest を現在設定から再計算して照合する。Aで保存しBで送る滞留 intent も例外にしない。不一致/設定不足なら外部送信0で再確認待ちとし、保存済み intent の宛先を上書きしない。照合済み同一 immutable 設定値をその呼出しへ渡し、検査後に別の現在設定を読み直して宛先をすり替えない。credential は digest/ログへ含めず、同じ宛先 identity に対応する設定として取得する。送信と設定変更がDB TXで原子的になる、又は開始済み外部効果を回収できるとは主張しない。
 - provider側が「不存在」を証明できない場合はunknownのまま。新しいroot権限・管理者限定・証拠なし手動上書きを発明しない。署名済みURL失効や外部コピー消去は保証しない。
 
-## 4. EMR-504：今回の技術整備A/B と将来 Phase C
+## 4. EMR-504：Phase1内の技術整備A/B と後続技術研究C
 
-[確定済み納品Phase正本](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/spec/line/lstep-integration.md#crm-delivery-phase-boundary-20261017)ではLSTEP連携・DM自体は今期Phase1外。本節A/Bは今回の技術整備sliceであり、A互換adapterやB契約整備を今期の利用開始/納品必須gateにしない。LINE予約・本人紐付け・再診問診のunlink/対象認可に必要な受け手は今期別枠で維持し、将来Cの研究設計も繰り上げない。
+[旧Phase記述（固定SHAの履歴）](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/spec/line/lstep-integration.md#crm-delivery-phase-boundary-20261017)のLSTEP／DM対象外という扱いは、本人の最新指示「Lステップ／DM連携側の機能はPhase1」により撤回する。本節A/BはPhase1内の技術整備sliceとして整理し、A互換adapter・B契約整備をPhase1外へ除外しない。Cは後続技術研究でありA/Bの完了判定と分離するが、機能のPhase1範囲を狭める意味ではない。LINE予約・本人紐付け・再診問診の必要なunlink/対象認可も維持する。scope正本の修正は別担当の作業であり、本書だけを更新する。未来予約の時刻predicateは未選定のため4332982327は未解決のまま保持し、任意horizonや別用途の時刻/状態述語で補完しない。送信有効化・実送信は本作業では行わない。
 
 ### A：既存互換adapterは新wire不要
 
@@ -87,7 +101,7 @@ eligibilityには独立revisionが存在しないため架空のversion列をwir
 
 unlinkとeligibility停止は469最外TX/graph参加に接続。relinkは停止を保持し、revisionを更新しても旧confirmedを再利用しない。死亡誤登録訂正も再開しない。具体的なgraph→C06 binding→owner/recipient/binding→pet/appointment/eligibilityの順は第7節に固定する。全予約一律lockを追加しない。保存直前にbinding revision・予約版・現在認可を再検証する。
 
-### C：目的別確認・dispatch（将来Phase研究設計、現ticket完了gateへ加えない）
+### C：目的別確認・dispatch（後続技術研究、A/B完了判定と分離）
 
 | 操作候補 | DTO / 結果 |
 |---|---|
@@ -96,7 +110,7 @@ unlinkとeligibility停止は469最外TX/graph参加に接続。relinkは停止�
 | GET `/owners/{owner_id}/line-operations/{operation_key}?intent=line.followup_confirm` | 元owner/record/checkupの現在read認可、保存された確認結果を返す。送信成功を意味しない |
 | GET `/owners/{owner_id}/line-dispatch-intents/{intent_id}` | immutable purpose/source/binding revision、確認ID、宛先の許可された表示、attempt/result別状態。現在owners:viewと元source read scope、secret/原evidence非公開 |
 
-dispatch intent作成は既存の予約/案内送信callerが504 serviceへ渡す内部契約にし、任意payload/任意purposeを送れる新汎用public send APIを追加しない。既存POST `/owners/{id}/line/send`も同じgateへ接続する必要があるが、そのcaller全種の変更をPhase1へ自動繰上げしない。明示送信preview/confirmationの必要subsetは対象Phaseで固定する。
+dispatch intent作成は既存の予約/案内送信callerが504 serviceへ渡す内部契約にし、任意payload/任意purposeを送れる新汎用public send APIを追加しない。既存POST `/owners/{id}/line/send`も同じgateへ接続する必要があるが、そのcaller全種の実装済みを本技術契約だけで宣言しない。明示送信preview/confirmationの必要subsetと未実装依存をPhase1範囲の中で固定する。
 
 内部CreateDispatch入力は、元source typed ref、元事象identity、固定purpose、確認snapshot/payload digest、binding revision、必要ならfollowup_confirmation_id、元operation。DB purpose enumはreservation_confirmation/reservation_change/reservation_reminder/guidance/promotion/medical_followup。followup一般案内の`general_guidance`はdispatch `guidance`へ明示mappingし、同名だと仮定しない。
 
@@ -110,7 +124,7 @@ claim前と外部呼出直前で、現在source、確認内容、医師指定（
 
 1. 503 現 Phase A/B：署名なし full immutable confirmation submit、新 confirmed path、純 preview、宛先別 read、管理 reconciliation/retry route を採用する。共有 READ・医院 mutation の既決 scope は変更しない。A は院内原子保存と配送未起動の表示、B は宛先別 claim・結果・照合・管理再試行を扱う。B の契約採択は外部送信実行の許可ではない。
 2. 504 今回の技術整備A/B：A の既存 JSON adapter と B の選択集合 atomic 再開、eligibility operation_id CAS、owners:edit 入口を採用する。469 の binding writer と共通 lock 順・lookup anchor へ接続する。B の確認保存は即時通知を起動しない。
-3. 504 C は将来 Phase 研究として保持する。医師指定/実施 source の正本 ref・version/digest と同一事象 dedup projection は対象 Phase の設計残であり、現 A/B の完了 gate に追加しない。doctor 列の存在だけを指定証拠にせず、新業務 workflow を捏造しない。
+3. 504 C はPhase1範囲を狭めない後続技術研究として保持する。医師指定/実施 source の正本 ref・version/digest と同一事象 dedup projection は後続技術設計残であり、今回A/Bの完了判定とは分離する。doctor 列の存在だけを指定証拠にせず、新業務 workflow を捏造しない。
 4. 503/504 の metadata table と domain repository は各 owner が所有する。schema 統合は446/466、共有 claim capability は489、binding writer closure は469、OpenAPI の統合は共有 API owner が担当する。採択済み能力の runtime 有無は別に確認し、共有 helper/router/OpenAPI を並行編集しない。
 5. provider の不存在を証明できなければ unknown を保持し再試行不可。外部疎通・資格設定・キー生成・送信実行はこの契約で許可しない。モデル/DDL の存在を adapter や運用完成の証拠にしない。
 
@@ -122,9 +136,9 @@ claim前と外部呼出直前で、現在source、確認内容、医師指定（
 
 504 A：NULL/空/有効JSONを区別しroundtrip。504 B：unlink予約保持、relink/死亡訂正で自動再開0、選択対象だけ確認、未選択保持、binding/予約/eligibility競合zero-write、同key replayでも即送信0。
 
-504 C（将来 Phase の研究受入であり現 ticket gate ではない）：一般/医療目的分離、医師指定なし拒否、記録createだけで送信0、claim後unlink/失権、DM例外と独立停止の分離、unknownの新key再送0、source同一別key重複0。
+504 C（後続技術研究の受入であり今回A/Bの完了判定とは別）：一般/医療目的分離、医師指定なし拒否、記録createだけで送信0、claim後unlink/失権、DM例外と独立停止の分離、unknownの新key再送0、source同一別key重複0。
 
-以上はfixture/testの定義であり、実行は全てNOT_RUN。503 現 A/B・504 今回の技術整備A/B と将来 C を分離する。採択 wire を OpenAPI へ公開する作業とconsumer実装・実機受入は別に判定する。
+以上はfixture/testの定義であり、実行は全てNOT_RUN。503 現 A/B・504 Phase1内の今回技術整備A/B と後続技術研究 C の完了判定を分離する。採択 wire を OpenAPI へ公開する作業とconsumer実装・実機受入は別に判定する。
 
 ## 7. 閉じた C06 契約・claim metadata・B の実体接続
 
@@ -147,7 +161,7 @@ claim前と外部呼出直前で、現在source、確認内容、医師指定（
 
 専用success refsのclosed keys：503 create=`report_id,intent_id`／versions=`report`、503既存report確認=`report_id,intent_id`／versions=`report`、503照合=`report_id,destination_id,attempt_id,result_id`／versions=`result`、503 retry=`report_id,destination_id,attempt_id,authorized_retry_result_id`／versions=`attempt`（保存されたattempt_number）、504 B=`owner_id,resumption_operation_id`／versions=`binding`。可変の選択予約詳細はeligibility GETで取得しreceiptに新arrayを足さない。resumption_operation_idは保存済みC06 binding ID。履歴再現に必要な選択集合は不変owner operation metadataに保持する。
 
-lookup intent allowlist：support全体routeは`support.report_confirmed_create`だけ、report配下は`support.delivery_confirm,support.delivery_reconcile,support.delivery_retry`だけ、504 B owner配下は`line.notification_resume`だけ。将来Cは現allowlistへ先取り登録しない。
+lookup intent allowlist：support全体routeは`support.report_confirmed_create`だけ、report配下は`support.delivery_confirm,support.delivery_reconcile,support.delivery_retry`だけ、504 B owner配下は`line.notification_resume`だけ。後続技術研究Cは今回A/Bのallowlistへ先取り登録しない。
 
 pre-C06 errorは既存 `ErrorResponse` の `{error:string}` を採用し、C06 status/key/refsを混ぜない。HTTPは400=不正構文/型/UUID/未知field、401=未認証、403=現在認可拒否、404=対象不在/scope外/認可後URL不一致、409=確認内容/依存版変化、413=既存upload上限、415=既存media型拒否、422=owner意味検証、500=DB/invariant、503=サービス利用不可。新error.code enumを追加しない。query/submit応答喪失時は元key lookupへ。外部provider失敗はcommit済み内部操作のHTTP成功を巻戻さず、配送result DTOで表す。
 
@@ -177,7 +191,7 @@ pre-C06 errorは既存 `ErrorResponse` の `{error:string}` を採用し、C06 s
 
 route grant 契約：eligibility GETとoperation lookupはowners:view＋認証医院owner scope＋選択予約のreservations:view/現在行scope。POST resumptionsはowners:edit＋同じ読取scope。既存LINE手動writeのowners:editを再利用し、reservations:editや新resourceを要求しない。GET router は read grant、POST router は既存 owners:edit middleware 必須とする。POST は成功 replay を含むすべての入口で現在 edit grant を要求し、その後も原 anchor の現在 read scope を再確認する。view-only 利用者には POST 成功 replay を許可せず、GET operation lookup で同 actor/clinic の保存済み原 receipt を取得する。GET は edit 不足を新書込権限へ昇格しない。既存469 PATCH `/owners/:id/line-user-id` / `/line` とline-id-confirmはowners:editを維持。既存DELETE独立経路を本契約だけで権限変更しない。503は専用grantなしの認証済スタッフ共有READ、mutationは報告医院のまま。
 
-今回の技術整備の残りは上記新metadata schema/489 callback、469全対象writer参加と新bindingへの置換、採択済み public OpenAPI の反映・公開。504 Cのdoctor source/dedup/全triggerの研究残はB・Aの完了gateへ追加しない。署名鍵の準備・expiry選定は残件から削除した。
+今回の技術整備の残りは上記新metadata schema/489 callback、469全対象writer参加と新bindingへの置換、採択済み public OpenAPI の反映・公開。504 Cのdoctor source/dedup/全triggerの研究残は今回B・Aの完了判定と分け、LSTEP／DMのPhase1範囲を除外しない。署名鍵の準備・expiry選定は残件から削除した。
 
 
 ## Revision 4 追加採択契約：context gate・必須監査
@@ -197,4 +211,4 @@ route grant 契約：eligibility GETとoperation lookupはowners:view＋認証�
 - 503 reconciliation/retry は action=`support.delivery_reconcile` / `support.delivery_retry`、同 report resource/root、old/new に対象 destination_id/attempt_id と前後 result_id/revision/state（不存在はnull）又は前後 attempt ID。metadata は schema=`support-audit-v1`、C06 operation_id/key/intent。worker claim/result の action=`support.delivery_claim` / `support.delivery_result`、同 report root、元 operation/intent/destination/attempt/result 参照を保持。claim と監査成立前に HTTP を開始せず、外部結果＋必要監査の保存失敗は外部効果を rollback と主張せず unknown 照合へ。
 - 504 B は action=`line.notification_resume`、resource=`owner`、resource_id=owner_id。metadata は schema=`line-notification-resume-audit-v1`、C06 operation_id/key/intent、binding_revision、numeric昇順の選択 appointment_ids。old_value/new_value は同じ選択順で appointment_id、eligibility state/binding_revision/operation_id（行不存在はnull）を保持し、全選択 eligibility の変更と1 audit rowと成功 receipt を同一最外 TX で commitする。監査欠落/失敗は全選択 zero-write、receipt不成立。replay/GET は新しい監査行や送信を作らない。
 
-追加 fixture 定義（実行 NOT_RUN）：初回/再試行の外部 call 前に report 版又は本文/添付が変われば送信0・再確認停止、新規作成 snapshot の null refs を保持したまま intent の生成後 report identity/version と照合、resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持、削除監査失敗で論理削除rollback、operation参照なしの既存DELETEでも架空bindingなしで必須監査成立。外部書込・コード/DB変更・試験・送信は本契約で行わない。
+追加 fixture 定義（実行 NOT_RUN）：異key同semanticの同時確認/全配送状態で新intent0、同keyreplay優先、別report同文は非統合、新規null refsと生成後refsの同一identity、2digest正規化/宛先順序/重複拒否/new INSERT NULL拒否、legacy厳密比較/復元不能500送信0/既存重複で移行停止、初回/再試行の外部 call 前に report 版又は本文/添付が変われば送信0・再確認停止、新規作成 snapshot の null refs を保持したまま intent の生成後 report identity/version と照合、resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持、削除監査失敗で論理削除rollback、operation参照なしの既存DELETEでも架空bindingなしで必須監査成立。外部書込・コード/DB変更・試験・送信は本契約で行わない。
