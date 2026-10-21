@@ -29,8 +29,19 @@ func (p *metadataParticipant) CreateClaimMetadata(_ context.Context, b Binding, 
 
 var _ ClaimMetadataWriter = (*metadataParticipant)(nil)
 
+// request carries the fixture's current CAS preconditions, which the embedded
+// fakeBillingParticipant checks in Apply; without them every Execute would be
+// rejected as version-conflict instead of exercising claim metadata.
 func (f *r2Fixture) request(content Content) Request {
-	return Request{Scope: f.scope, Key: f.key, Content: content}
+	return Request{
+		Scope:   f.scope,
+		Key:     f.key,
+		Content: content,
+		Preconditions: Preconditions{
+			"billing_version": f.owner.version("billing_version"),
+			"line_version":    f.owner.version("line_version"),
+		},
+	}
 }
 
 // TestExecute_ClaimMetadata_InvokedOnceOnWinner: a participant implementing
