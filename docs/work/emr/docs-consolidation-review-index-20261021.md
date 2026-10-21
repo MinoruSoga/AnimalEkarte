@@ -1,6 +1,6 @@
 # docs PR #784 集約・レビュー引継ぎ台帳（2026-10-21）
 
-本人の「docs変更は1PR、既存PRへ追加」という最新指示に基づき、#784を唯一の集約先とする。これは本文保全・文書差分集約の記録であり、レビュー対応完了・マージ可能・runtime完成の宣言ではない。試験はNOT_RUN。元PRは親の統合確認までclose/deleteせず、旧レビューのresolved状態を変更しない。
+本人の「docs変更は1PR、既存PRへ追加」という最新指示に基づき、#784を唯一の集約先とする。これは本文保全・文書差分集約の記録であり、レビュー対応完了・マージ可能・runtime完成の宣言ではない。試験はNOT_RUN。親の統合保全確認後、元10PR（#785–790・#792–795）へ保全先コメントを付けてclose済み・未マージをreadback確認した。branch/worktreeを保持し、旧レビューのresolved状態は変更しない。
 
 ## 固定した入力
 
@@ -139,3 +139,76 @@
 | #792 | [4333432919](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432919) | 未解決・引継ぎ | `docs/work/emr/emr-516-517-plan-owner-link-contract-20261021.md` | なし |
 
 コード/API/DDL/設定/資格/DB/実送信/試験/マージは本集約で実行しない。本文中の未実装依存・未確認根拠・NOT_RUNを保持する。
+
+## 固定45件の文書対応結果（旧thread状態は未変更）
+
+親の独立判定を反映し、44件を文書修正、4333039070は旧DDL前提不成立と記録する。以下は固定commitの本文根拠であり、runtime検証・レビュー返信／resolve完了ではない。新規レビューや後続owner実装は別途残る。
+
+| 元PR・指摘 | 文書対応／判断 | 固定修正根拠 |
+|---|---|---|
+| [#784 / 4333034886](https://github.com/MinoruSoga/AnimalEkarte/pull/784#discussion_r4333034886) | dispatch開始CASとreport親lock。開始済み外部効果の回収保証は追加しない | [本文L79](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-503-504-selected-wire-contract-20261021.md#L79) |
+| [#784 / 4333052761](https://github.com/MinoruSoga/AnimalEkarte/pull/784#discussion_r4333052761) | claim/start/resultと各必須監査を同TX | [本文L83](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-503-504-selected-wire-contract-20261021.md#L83) |
+| [#784 / 4333052762](https://github.com/MinoruSoga/AnimalEkarte/pull/784#discussion_r4333052762) | 未開始失効CAS、開始済みはprovider終結＋不存在証拠の両方 | [本文L87](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-503-504-selected-wire-contract-20261021.md#L87) |
+| [#786 / 4332998766](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998766) | invoice専用番号生成・初回固定 | [本文L167](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L167) |
+| [#786 / 4332998776](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998776) | 原finalize/finance event＋Asia/Tokyo暦日 | [本文L173](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L173) |
+| [#786 / 4332998783](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998783) | 旧CRUD status迂回を同sliceで閉鎖 | [本文L181](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L181) |
+| [#786 / 4332998790](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998790) | current計算＋correct after参照。過去replayは別 | [本文L187](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L187) |
+| [#786 / 4332998796](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998796) | title/comment固定header snapshot | [本文L193](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L193) |
+| [#786 / 4332998801](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998801) | billing単位edition発見read | [本文L199](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L199) |
+| [#786 / 4332998805](https://github.com/MinoruSoga/AnimalEkarte/pull/786#discussion_r4332998805) | 提示版に対応するnullable reply | [本文L205](https://github.com/MinoruSoga/AnimalEkarte/blob/ff03c02deaf3ed9701a5fb660c95a192fd547535/docs/work/emr/emr-507-508-selected-wire-contract-20261021.md#L205) |
+| [#787 / 4332996978](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4332996978) | parent_idはallowlist外、既存階層を再解釈しない | [本文L95](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L95) |
+| [#787 / 4332996979](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4332996979) | 現C06でprivate capture可能とはせずRequest VerifiedCommand限定deltaを明記 | [本文L219](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L219) |
+| [#787 / 4332996982](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4332996982) | 旧LINE write無作用閉鎖＋canonical FE移行 | [本文L101](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L101) |
+| [#787 / 4332996984](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4332996984) | group選択createは期待版1件、groupなし空集合 | [本文L159](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L159) |
+| [#787 / 4333039061](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4333039061) | create-only本人に限定receipt回復、本文view昇格なし | [本文L186](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L186) |
+| [#787 / 4333039067](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4333039067) | 全local ownerのbinding/候補索引coverage未検証ならactivation保留 | [本文L103](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L103) |
+| [#787 / 4333039070](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4333039070) | 不成立：最終001 L10864でreservation_types.category/colorはDROP済み。旧category defaultを修復する前提は採用せず、新列も復活しない | [本文L99](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L99) |
+| [#787 / 4333039073](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4333039073) | usage_resume_pending=false明示、unknown既存値はbackfillしない | [本文L99](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L99) |
+| [#787 / 4333039077](https://github.com/MinoruSoga/AnimalEkarte/pull/787#discussion_r4333039077) | 同TX名称revision1＋receipt name_revision | [本文L99](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L99) |
+| [#788 / 4333278069](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333278069) | clinic-scoped copy provenance、private本人baselineを公開しない | [本文L301](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L301) |
+| [#788 / 4333278078](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333278078) | 現在有効staff_clinic_assignmentsのscope/lock検証 | [本文L314](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L314) |
+| [#788 / 4333278083](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333278083) | source group＋全entry childでlossless保存 | [本文L306](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L306) |
+| [#788 / 4333278087](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333278087) | branchごとclosed hash projection | [本文L309](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L309) |
+| [#788 / 4333278092](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333278092) | current presenceでabsent表現、旧scalar保持 | [本文L301](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L301) |
+| [#788 / 4333310878](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333310878) | 重複指摘：entry配列のgroup/child cardinalityを同補正で閉じる | [本文L306](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L306) |
+| [#788 / 4333323628](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333323628) | Request VerifiedCommand限定delta、未実装を明記 | [本文L318](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L318) |
+| [#788 / 4333323635](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333323635) | 現在tenure session/epoch一致 | [本文L60](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L60) |
+| [#788 / 4333323640](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333323640) | 版別effective_display_year、過去unknown非補完 | [本文L324](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L324) |
+| [#788 / 4333323646](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333323646) | inquiry refは作成前後ともrecord ID | [本文L275](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L275) |
+| [#788 / 4333323652](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333323652) | 当時主訴名/basis固定、現masterで過去補完なし | [本文L314](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L314) |
+| [#788 / 4333323657](https://github.com/MinoruSoga/AnimalEkarte/pull/788#discussion_r4333323657) | principal-qualified unique/lookup | [本文L202](https://github.com/MinoruSoga/AnimalEkarte/blob/d81904989d084234c4e9543c77d3072437ce26e7/docs/work/emr/emr-496-497-selected-wire-contract-20261021.md#L202) |
+| [#789 / 4333333724](https://github.com/MinoruSoga/AnimalEkarte/pull/789#discussion_r4333333724) | ownerごとのclosed保存値before/after、一般trimなし | [本文L87](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-368-selected-author-attribution-contract-20261021.md#L87) |
+| [#789 / 4333333732](https://github.com/MinoruSoga/AnimalEkarte/pull/789#discussion_r4333333732) | 4tupleで版を含めdedup | [本文L136](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-368-selected-author-attribution-contract-20261021.md#L136) |
+| [#789 / 4333333735](https://github.com/MinoruSoga/AnimalEkarte/pull/789#discussion_r4333333735) | graph advisory/bindingだけpre-actor、business rowはactor後 | [本文L89](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-368-selected-author-attribution-contract-20261021.md#L89) |
+| [#790 / 4333359305](https://github.com/MinoruSoga/AnimalEkarte/pull/790#discussion_r4333359305) | 文書確認日2026-10-21 | [本文L10](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/design/domains/checkups/technical-spec.md#L10) |
+| [#790 / 4333359307](https://github.com/MinoruSoga/AnimalEkarte/pull/790#discussion_r4333359307) | normal独立欄は当初値default、既知RV欄新設なし、RV4mapping資料待ち | [本文L203](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/spec/domains/vaccinations/lifecycle.md#L203) |
+| [#792 / 4333431638](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333431638) | 了承snapshotはcommand、live CAS/fenceはPreconditions。提案digestへ結合しCASをhashしない | [本文L155](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-495-consultation-correction-contract-20261021.md#L155) |
+| [#792 / 4333431649](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333431649) | 既存raw JSON1MiB上限をparse/deep-copy/hash/claim前へ。新500文字業務制限なし | [本文L196](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-516-517-plan-owner-link-contract-20261021.md#L196) |
+| [#792 / 4333432895](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432895) | 既存target nonNULL拒否、通常編集又は実source C0/C1へ。架空source作成なし | [本文L169](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-495-consultation-correction-contract-20261021.md#L169) |
+| [#792 / 4333432900](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432900) | owner-private耐久request/commandと同claim TX、現在本文で再採取しない | [本文L153](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-495-consultation-correction-contract-20261021.md#L153) |
+| [#792 / 4333432905](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432905) | 既存494担当準備済みcohortに限定、GET/endでbaseline生成なし・受付へedit追加なし | [本文L171](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-495-consultation-correction-contract-20261021.md#L171) |
+| [#792 / 4333432909](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432909) | 適格actual_visit_factsを訂正・receipt同outer TX、単なる転記は来院事実へ変換なし | [本文L175](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-495-consultation-correction-contract-20261021.md#L175) |
+| [#792 / 4333432913](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432913) | 選択先owner明示不存在CAS・同TX初期作成 | [本文L173](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-495-consultation-correction-contract-20261021.md#L173) |
+| [#792 / 4333432916](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432916) | 要求どおりreceiptへgeneration追加せず、旧新treatment tupleから既存484 GETを別read。treatment-onlyを他ownerへ拡張しない | [本文L192](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-516-517-plan-owner-link-contract-20261021.md#L192) |
+| [#792 / 4333432919](https://github.com/MinoruSoga/AnimalEkarte/pull/792#discussion_r4333432919) | 既存idを保持しclosed owner_reference/plan_revision_id等を加算、非空fixtureを固定 | [本文L188](https://github.com/MinoruSoga/AnimalEkarte/blob/86640ed4f5fe232ab464b77dcf07031e4ae67adc/docs/work/emr/emr-516-517-plan-owner-link-contract-20261021.md#L188) |
+
+## 追加受領稿と照合
+
+すべてEND後に連結し、HTML entity復元後の原文SHA-256一致を確認した。原稿とpatchはrepo外へ保全し、旧2稿の重複追加はしない。回復・PDF・RVの冒頭だけ、親指示による採択済み技術契約／runtime未実装へ最小整合した。既存checkups/D08技術文書と486旧契約は今回選定範囲への参照を同期し、v1・見本・provider・実環境の未完を保持する。
+
+| 受領物 | 原文SHA-256 | 反映commit |
+|---|---|---|
+| [481](emr-481-source-binding-contract-20261021.md) | `0bee471992cf02df8f3ca8e07efd494a79be82a9e4f2ccfbdec30dddac23d82c` | `ff03c02` |
+| [474/487回復](emr-474-487-operation-recovery-contract-20261021.md) | `2d57276cef89af282dbe2a3ed6fac4e5b97bdf4cac4e9595afa748b8c440a056` | `ff03c02` |
+| 786修正patch | `7d9a8454b6348a2c53ee5d851dbdb5164cb7dfb6aa637e12fd4381f314831eca` | `ff03c02` |
+| 787/788修正patch | `fbb6d1b95602867ca1a798892a264f53220d55dcf04cc4cf55350d20ac83f3a8` | `d819049` |
+| [510統合全文](emr-510-inventory-selected-contract-20261021.md) | `c007a4bc15d3ba77d5fadc8c30a860974956ee2c08eff711372dd0e1c8b2efa4` | `4025f7d` |
+| 固定残り17件patch | `8ffc51f26927e6eb5ea62cfbb363ae9be2fdb01f43fa559aeedfa58ac43a0cd4` | `86640ed` |
+| [500PDF](emr-500-outsourced-checkup-pdf-contract-20261021.md) | `57c8308e8d858b3a58803c73f59d9118b023fe7535027bacd677c51a49224595` | `194fe12` |
+| [486/487 RV R3](emr-486-487-rv-batch-reissue-contract-20261021.md) | `78f83ca3650d4bef7c49ca9ed79f75d5611f016456de32ae287206b4d7238693` | `6660db7` |
+
+490/492適用後全文SHAは `061eb1f2adad8ab30828a4a125acf44e7fb6af81664f496c2e92e623aba9955e` で親指定値と一致。496/497適用後全文SHAは `dd655f6da74acb75498576cd5e9c9fa020e599536f51f16a90218a0c40619f43`。patch末尾の空行contextだけ既存EOFへ合わせ、本文の推測補完なしで置換対象を全件一致検査した。
+
+PDF §2のC06到達後HTTP mappingは親追加指示により `12702fe` でnot-succeeded=200／operation-in-progress=202／edit-right-lost=409へ訂正した。前段validationや媒体/サイズ/認証errorは変更していない。原稿SHAはこの公開時整合前の受領値である。
+
+試験・fixture・DB・provider・PDF実処理・実送信はNOT_RUN。文書対応をもってレビューthread完了やマージ可能とは宣言しない。
