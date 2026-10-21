@@ -1,6 +1,6 @@
 # UI Design Compliance — 全ルートページ準拠監査
 
-> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体 88 製品ルート（+ wildcard 404）とその実装コンポーネントに対して判定した結果（2026-09-29 訂正: 86 → 87。`/settings/bug-reports` が 2026-09-26 コミット `48ec94c7` で追加。2026-10-02 訂正: 87 → 88。`/settings/chat-history` がコミット `e9574b28a` で追加され、`route-inventory.test.tsx` の期待値は 88）。最終 runtime 監査日 **2026-07-24**。2026-09-06 に静的な route 在庫・C8 allowlist・C20 検査定義を照合し、2026-09-29 に在庫数の静的再照合を行った（いずれもブラウザ再実行ではない）。
+> 正本。[DESIGN.md](../../DESIGN.md)（タイポ・形状・余白・エレベーション・寸法）と [docs/spec/design-system.md](design-system.md)（AE 製品色）への準拠を、本体 89 製品ルート（+ wildcard 404）とその実装コンポーネントに対して判定した結果（2026-09-29 訂正: 86 → 87。`/settings/bug-reports` が 2026-09-26 コミット `48ec94c7` で追加。2026-10-02 訂正: 87 → 88。`/settings/chat-history` がコミット `e9574b28a` で追加。2026-10-21 訂正: 88 → 89。`/settings/treatment-packages`（治療パッケージマスタ・EMR-523）が追加され、`route-inventory.test.tsx` の期待値は 89）。最終 runtime 監査日 **2026-07-24**。2026-09-06 に静的な route 在庫・C8 allowlist・C20 検査定義を照合し、2026-09-29 に在庫数の静的再照合を行った（いずれもブラウザ再実行ではない）。
 
 > **2026-10-20 手動監査（STG）**: 79 ルートを 1280×900（代表 7 ページは 768×1024）でブラウザ目視 + DOM 計測した。結果は [docs/work/design/stg-ui-audit-20261020.md](../work/design/stg-ui-audit-20261020.md)。重要度 H 13 系統のうち、C1〜C24 で検出できるものは無く、大半はレイアウトの結果（列幅・重なり・省略・ナビ現在地）だった。規定が無かった事項は [design-patterns.md](design-patterns.md) に規約化し、同 §9 の追加検査 C25〜C29（本表 §1 に定義、`design-system-audit.mjs` に実装・既存分は allowlist ラチェット）と e2e 2 件（`ui-design-compliance-readonly.spec.ts`、既定は検知モード）は PR #737 で実装した。本監査は `ui-design-compliance-readonly.spec.ts` の実行ではなく、§2 表の「runtime 監査」列は更新していない。
 
@@ -20,9 +20,9 @@
 | C9 | `rounded-[Npx]` 任意値禁止 | `--radius-xxs/xs/...` | **機械化**（C9） |
 | C10 | Tailwind 既定影（`shadow-2xs〜2xl`）と `shadow-[...]` 任意値禁止。`shadow-level1/level2/btn/panel/focus-brand` 等の elevation トークンのみ使用可 | design-system.md §5.1 | **機械化**（`pnpm design-audit` / make ci） |
 | C11 | `text-[Npx\|Nrem]` font-size 任意値禁止 | design-system.md §3.4 | **機械化**（C11） |
-| C12 | DESIGN.md にない `text-lg/2xl/3xl/4xl+` 禁止。`text-heading-1/2/3`・`text-xl/base/sm/xs/2xs` へ写像 | design-system.md §3.4 | **機械化**（C12。本体 88 製品ルート対象） |
+| C12 | DESIGN.md にない `text-lg/2xl/3xl/4xl+` 禁止。`text-heading-1/2/3`・`text-xl/base/sm/xs/2xs` へ写像 | design-system.md §3.4 | **機械化**（C12。本体 89 製品ルート対象） |
 | C13 | ink 4段を迂回する黒アルファ text / placeholder 禁止 | design-system.md §2.1, §3.4 | **機械化**（C13） |
-| C14 | ロール固有 letter-spacing を上書きする `tracking-*` built-in / 任意値 / shorthand 禁止 | design-system.md §3.1, §3.4 | **機械化**（C14。本体 88 製品ルート対象。`*PrintArea*` は印刷透かしとして除外） |
+| C14 | ロール固有 letter-spacing を上書きする `tracking-*` built-in / 任意値 / shorthand 禁止 | design-system.md §3.1, §3.4 | **機械化**（C14。本体 89 製品ルート対象。`*PrintArea*` は印刷透かしとして除外） |
 | C15 | 本体 routes/pages の white/black named color 直接指定禁止。色token経由必須 | design-system.md §2, §9 | **機械化**（C15） |
 | C16 | spacing scale にない20px utility（`*-5`、負値、`[20px]` / `[1.25rem]`）禁止 | design-system.md §4.1 | **機械化**（C16） |
 | C17 | CSS の直接 `box-shadow:` / `filter: drop-shadow()` 禁止。elevation token経由必須 | design-system.md §5.1 | **機械化**（C17） |
@@ -37,7 +37,7 @@
 
 **FE11 正本分割（2026-07-21、色役割更新 2026-07-27）**: 色は DESIGN_SYSTEM の製品判断、タイポ・形状・余白・エレベーション・寸法は DESIGN.md 字義を正本とする。brand と primary は同じ teal 値を使い、製品識別と汎用操作・選択・focus の意味役割だけをトークン名で分ける。臨床 semantic 色・業務 status 色・nav canvas-soft も DESIGN_SYSTEM の判断を維持する。
 
-**監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11 の静的在庫対象は本体 88 製品ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive（`TableHead` / `TableCell`）とraw `th` / `td` opening tag、C19は4種のrow opening tagを対象にする。C18 は呼び出し側による非仕様 typography / vertical padding（raw は横padding・セル背景も含む）の再上書きを検出し、検出1件でも strict failする（件数ratchetなし。raw の正当な除外は `C18_RAW_CELL_ALLOWLIST`・`*PrintArea*` basename・FE11除外のみ）。ロール内での意味的誤選択、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
+**監査範囲の限界**: `design-system-audit.mjs` は `src`・`liff/src`・`line-reserve/src` の非test TypeScriptを全数走査し、C17だけは CSS も走査する。FE11 の静的在庫対象は本体 89 製品ルートのため、C12/C14〜C17は LIFF・line-reserve・shared-liff を明示除外し、画面用規範と異なる `MedicalRecordPrintView` も除外する。C15 は本体 routes/pages、C18は `.tsx` の共通 Table primitive（`TableHead` / `TableCell`）とraw `th` / `td` opening tag、C19は4種のrow opening tagを対象にする。C18 は呼び出し側による非仕様 typography / vertical padding（raw は横padding・セル背景も含む）の再上書きを検出し、検出1件でも strict failする（件数ratchetなし。raw の正当な除外は `C18_RAW_CELL_ALLOWLIST`・`*PrintArea*` basename・FE11除外のみ）。ロール内での意味的誤選択、全viewport、C6a（臨床安全 UI）は静的判定できないためコードレビュー/ブラウザ確認を併用する。
 
 **機械化（FE11 更新）**: C1/C3/C5/C6b/C7〜C20 は `frontend/scripts/design-system-audit.mjs` で strict fail（C18 も件数ratchetなし。違反0件が合格条件）。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
 ```bash
@@ -56,7 +56,7 @@ flowchart LR
 
 ## 2. ページ別対応状況表
 
-**静的在庫: 88 製品ルート + wildcard 404 = 89 行**（2026-09-29 訂正: 86 → 87、行数 87 → 88。2026-10-02 訂正: 87 → 88、行数 88 → 89）。この docs refresh では source / route inventory を静的に照合したが、runtime E2E は再実行していない。表の静的列は現行 source との対応だけを示し、runtime 合格を意味しない。
+**静的在庫: 89 製品ルート + wildcard 404 = 90 行**（2026-09-29 訂正: 86 → 87、行数 87 → 88。2026-10-02 訂正: 87 → 88、行数 88 → 89。2026-10-21 訂正: 88 → 89、行数 89 → 90）。この docs refresh では source / route inventory を静的に照合したが、runtime E2E は再実行していない。表の静的列は現行 source との対応だけを示し、runtime 合格を意味しない。
 
 **E2E inventory gap と監査証跡の管理先**: 追記（2026-10-07 監査）: 既知の E2E inventory gap（`frontend/e2e/ui-design-compliance-readonly.spec.ts` の route template 欠落）の詳細、runtime 監査履歴（2026-07-23 の 83 製品ページ aggregate run）、synthetic-API write safety 証跡、targeted coverage 実測はテスト証跡として [docs/ops/testing/README.md](../ops/testing/README.md) の「ui-design-compliance 監査証跡（2026-10-07 spec/ から移設）」節へ移設した。本表の runtime 列「pending（未実行）」の解釈は同節を参照すること。
 
@@ -126,7 +126,7 @@ flowchart LR
 | 設定/マスタ | 設定トップ | /settings | MasterSettingsIndex | ✅ | 未記録（現行在庫） |  | [20-master-settings.md](screens/20-master-settings.md) |
 | 設定/マスタ | スタッフマスタ | /settings/staff | StaffSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-staff.md](screens/settings/master-staff.md) |
 | 設定/マスタ | 診療項目マスタ | /settings/treatment-items | TreatmentPlanMaster | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-treatment.md](screens/settings/master-treatment.md) |
-| 設定/マスタ | 治療パッケージマスタ | /settings/treatment-packages | TreatmentPackageSettings | ✅ | 未記録（新規リーフ EMR-523） | MasterPageShell経由 |  |
+| 設定/マスタ | 治療パッケージマスタ | /settings/treatment-packages | TreatmentPackageSettings | ✅ | 未記録（新規リーフ EMR-523） | MasterPageShell経由 | [treatment-packages.md](domains/medical-records/treatment-packages.md) |
 | 設定/マスタ | 診断マスタ | /settings/diagnosis | DiagnosisSettings | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-diagnosis.md](screens/settings/master-diagnosis.md) |
 | 設定/マスタ | 動物種類マスタ | /settings/animal-species | AnimalSpeciesSettings | ✅ | 未記録（現行在庫） | MasterCRUDPage経由 | [master-animal-species.md](screens/settings/master-animal-species.md) |
 | 設定/マスタ | トリミングマスタ | /settings/trimming | TrimmingSettings | ✅ | 未記録（現行在庫） | MasterTabPage経由 | [master-trimming.md](screens/settings/master-trimming.md) |
@@ -155,14 +155,14 @@ flowchart LR
 
 **脚注**:
 - EMR-400（2026-10-14 追記）: 画面名は業務一覧「X管理」、マスタ「Xマスタ」。フォームは新規「X登録」、保存可能な既存レコード「X編集」、保存不可の既存レコード「X詳細」とし、一覧の新規ボタンは「新規X登録」。ページタイトルにアイコンは付けない。ダイアログや会計精算など本票対象外の操作文言はこの規則の対象にしない。
-- `仕様正本` 列（2026-10-11 追記）: 88 product path それぞれの primary 画面仕様への navigation。静的計測は base `f457821c4` で実施し、route/API/workflow の source は `f82badf36` と同一（差分は CI fixture/test のみ）。redirect 12 件と wildcard 1 件は対象外。本列は primary 仕様リンクの一意性を示すもので、画面 assertion・runtime 受入の認証ではない。
+- `仕様正本` 列（2026-10-11 追記）: 89 product path それぞれの primary 画面仕様への navigation。静的計測は base `f457821c4` で実施し、route/API/workflow の source は `f82badf36` と同一（差分は CI fixture/test のみ）。redirect 12 件と wildcard 1 件は対象外。本列は primary 仕様リンクの一意性を示すもので、画面 assertion・runtime 受入の認証ではない。
 - runtime 履歴・write safety（synthetic-API 3/3 PASS）・targeted coverage 実測・C15〜C19 の 2026-07-24 監査値履歴: 追記（2026-10-07 監査）— テスト証跡として [docs/ops/testing/README.md](../ops/testing/README.md)「ui-design-compliance 監査証跡（2026-10-07 spec/ から移設）」節へ移設。本表の runtime 列の解釈も同節を参照。
 - リダイレクト専用route（`<Navigate replace />`）は表から除外: `/settings/job-title`, `/settings/service-type`, `/settings/diagnosis-type`, `/settings/diagnosis-name`, `/settings/trimming-course`, `/settings/trimming-option`, `/settings/examination`, `/settings/vaccine`, `/settings/consultation`, `/settings/procedure`, `/settings/inquiry-template`, `/settings/shift-template` の **12件**。
-- C1（legacy accent）・C3（route表面hex直書き）の現行静的結果は design-audit で再確認する。本 docs refresh は runtime / design-audit を再実行しておらず、88 route 全体の新しい合格値を記録しない。
+- C1（legacy accent）・C3（route表面hex直書き）の現行静的結果は design-audit で再確認する。本 docs refresh は runtime / design-audit を再実行しておらず、89 route 全体の新しい合格値を記録しない。
 - C5（Primary CTA colorVariant）の現行分布は `primary` 16件、認証の明示的 `brand` 3件。`default` の明示使用と未定義 variant は0件。
 - DESIGN_SYSTEM §10 の既知baseline「route表面accent 0件」は再現。2026-07-06時点で `AccountingReportsPage` / `CashRegisterClosePage` / `CashRegisterHistoryPage` を `PageLayout` 化し、非PageLayout例は解消済み。`ManualPage` は二ペインdocビューア構造のため引き続き `PageLayout` 非採用・独自 canvas-soft shell（`C.bgPage`）で C2 準拠。`IdentityLinksPage`（`/identity-links`）は PageLayout shell を採用する（C2/C4/C8）。
 
 
 ## 2026-10-15 全領域仕様への案内
 
-[全37管理行・88ルートの責務と文書照合](domains/SPECIFICATION_PROGRESS.md)を参照する。既存のルートprimary対応と過去の実行検証記録は保持し、今回の文書検査をruntime／実機合格へ転用しない。
+[全37管理行・89ルートの責務と文書照合](domains/SPECIFICATION_PROGRESS.md)を参照する。既存のルートprimary対応と過去の実行検証記録は保持し、今回の文書検査をruntime／実機合格へ転用しない。

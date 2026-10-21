@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -372,7 +373,7 @@ func (r *createTreatmentPackageRequest) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
-	if err := json.Unmarshal(raw["name"], &r.Name); err != nil || strings.TrimSpace(r.Name) == "" || len(r.Name) > 255 {
+	if err := json.Unmarshal(raw["name"], &r.Name); err != nil || strings.TrimSpace(r.Name) == "" || utf8.RuneCountInString(r.Name) > 255 {
 		return apperrors.WrapInvalidInput("name は非空白の255文字以内で指定してください")
 	}
 	if err := json.Unmarshal(raw["description"], &r.Description); err != nil {
@@ -456,7 +457,7 @@ func (r *updateTreatmentPackageRequest) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		var s string
-		if err := json.Unmarshal(v, &s); err != nil || strings.TrimSpace(s) == "" || len(s) > 255 {
+		if err := json.Unmarshal(v, &s); err != nil || strings.TrimSpace(s) == "" || utf8.RuneCountInString(s) > 255 {
 			return apperrors.WrapInvalidInput("name は非空白の255文字以内で指定してください")
 		}
 		r.Name = &s

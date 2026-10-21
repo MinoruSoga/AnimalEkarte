@@ -93,10 +93,10 @@ func AuthorizeClinicIDsForPermission(
 	return true
 }
 
-// RequireSelectedClinicGrant rejects selected-clinic-scoped reads when the
-// request only passed middleware because another assigned clinic holds the grant.
-// Missing checker is 403 (fail-closed).
-func RequireSelectedClinicGrant(c *gin.Context, resource, action string) bool {
+// PeekSelectedClinicGrant performs the same selected-clinic grant check as
+// RequireSelectedClinicGrant without writing an HTTP response. Domains that
+// map failures into their own error envelope use this variant.
+func PeekSelectedClinicGrant(c *gin.Context, resource, action string) bool {
 	if peekedSystemAdmin(c) {
 		return true
 	}
@@ -105,7 +105,14 @@ func RequireSelectedClinicGrant(c *gin.Context, resource, action string) bool {
 		return false
 	}
 	clinicID, ok := PeekClinicID(c)
-	if !ok || clinicID == 0 || !check(c, clinicID, resource, action) {
+	return ok && clinicID != 0 && check(c, clinicID, resource, action)
+}
+
+// RequireSelectedClinicGrant rejects selected-clinic-scoped reads when the
+// request only passed middleware because another assigned clinic holds the grant.
+// Missing checker is 403 (fail-closed).
+func RequireSelectedClinicGrant(c *gin.Context, resource, action string) bool {
+	if !PeekSelectedClinicGrant(c, resource, action) {
 		RespondError(c, apperrors.WrapForbidden("forbidden"))
 		return false
 	}

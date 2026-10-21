@@ -30,7 +30,7 @@ type mockTreatmentPackageRepo struct {
 	updateFn       func(ctx context.Context, clinicID, id uint64, expected int64, fields map[string]any) (*model.TreatmentPackage, error)
 	replaceItemsFn func(ctx context.Context, clinicID, packageID uint64, keep []model.TreatmentPackageItem, removeIDs []uint64, now time.Time) error
 	softDeleteFn   func(ctx context.Context, clinicID, id uint64, expected int64, actorID uint64, now time.Time) error
-	reorderFn      func(ctx context.Context, clinicID, id uint64, sortOrder int) error
+	reorderFn      func(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error
 }
 
 func (m *mockTreatmentPackageRepo) FindAll(ctx context.Context, c uint64) ([]model.TreatmentPackage, error) {
@@ -75,8 +75,8 @@ func (m *mockTreatmentPackageRepo) ReplaceItems(ctx context.Context, c, p uint64
 func (m *mockTreatmentPackageRepo) SoftDeleteCAS(ctx context.Context, c, id uint64, e int64, a uint64, now time.Time) error {
 	return m.softDeleteFn(ctx, c, id, e, a, now)
 }
-func (m *mockTreatmentPackageRepo) UpdateSortOrderBumpVersion(ctx context.Context, c, id uint64, s int) error {
-	return m.reorderFn(ctx, c, id, s)
+func (m *mockTreatmentPackageRepo) UpdateSortOrderBumpVersion(ctx context.Context, c, id uint64, s int, a uint64) error {
+	return m.reorderFn(ctx, c, id, s, a)
 }
 
 type mockPackageTx struct{}
@@ -251,7 +251,7 @@ func TestTreatmentPackageService_Reorder_NoOpKeepsVersions(t *testing.T) {
 			return []model.TreatmentPackage{{ID: 201, SortOrder: 0}, {ID: 202, SortOrder: 1}}, nil
 		},
 		incCatalogFn: func(context.Context, uint64, int64) error { catalogBumped = true; return nil },
-		reorderFn:    func(context.Context, uint64, uint64, int) error { moved = true; return nil },
+		reorderFn:    func(context.Context, uint64, uint64, int, uint64) error { moved = true; return nil },
 	}
 	svc, _ := newPackageService(repo, nil)
 	require.NoError(t, svc.Reorder(context.Background(), 7, 7, []uint64{201, 202}, 9))

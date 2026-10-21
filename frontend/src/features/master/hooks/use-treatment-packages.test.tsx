@@ -11,7 +11,7 @@ import {
   useUpdateTreatmentPackage,
 } from "./use-treatment-packages";
 import { draftFromPackage } from "../lib/treatment-package-form";
-import type { TreatmentPackage, TreatmentPackagePatch } from "../api/treatment-packages";
+import type { TreatmentPackage } from "../api/treatment-packages";
 
 vi.mock("@/lib/axios", () => ({
   axios: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -58,20 +58,16 @@ const conflict = () => {
 
 describe("editor session（CAS・競合・入力保持）", () => {
   it("409 は conflict 化し draft を保持。無断上書きしない", async () => {
-    vi.mocked(axios.patch).mockRejectedValue(conflict());
     const { result } = renderHook(() => useTreatmentPackageEditor(pkg), { wrapper: wrapper() });
-    const draft = result.current.draft!;
-    draft.name = "変更";
     act(() => result.current.updateDraft({ name: "変更" }));
-    const outcome = await result.current.save({
-      create: vi.fn(),
-      update: (id, body) => useUpdateImpl(id, body),
+    const update = vi.fn().mockRejectedValue(conflict());
+    let outcome!: Awaited<ReturnType<typeof result.current.save>>;
+    await act(async () => {
+      outcome = await result.current.save({ create: vi.fn(), update });
     });
-    async function useUpdateImpl(id: string, body: TreatmentPackagePatch) {
-      await axios.patch(`/v1/masters/treatment-packages/${id}`, body);
-      throw conflict();
-    }
-    expect(outcome.kind === "error" || outcome.kind === "conflict").toBe(true);
+    expect(update).toHaveBeenCalledWith("201", { version: "3", name: "変更" });
+    expect(outcome.kind).toBe("conflict");
+    expect(result.current.conflict).toBe(true);
     expect(result.current.draft!.name).toBe("変更");
   });
 

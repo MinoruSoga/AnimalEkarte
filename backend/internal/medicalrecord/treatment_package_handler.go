@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,13 +23,60 @@ func NewTreatmentPackageHandler(service TreatmentPackageService) *TreatmentPacka
 	return &TreatmentPackageHandler{service: service}
 }
 
+// Package routes must answer every early failure with the TreatmentPackageError
+// envelope (code required). The shared Extract*/Require* helpers write plain
+// {error} bodies, so the package boundary uses peek variants and maps failures
+// through respondTreatmentPackageError.
+func packageClinicID(c *gin.Context) (uint64, bool) {
+	if _, exists := c.Get("clinic_id"); !exists {
+		respondTreatmentPackageError(c, apperrors.WrapUnauthorized("missing clinic context"))
+		return 0, false
+	}
+	id, ok := httpapi.PeekClinicID(c)
+	if !ok || id == 0 {
+		respondTreatmentPackageError(c, apperrors.WrapInvalidInput("invalid clinic context"))
+		return 0, false
+	}
+	return id, true
+}
+
+func packageStaffID(c *gin.Context) (uint64, bool) {
+	if _, exists := c.Get("user_id"); !exists {
+		respondTreatmentPackageError(c, apperrors.WrapUnauthorized("missing user context"))
+		return 0, false
+	}
+	id, ok := httpapi.PeekStaffID(c)
+	if !ok {
+		respondTreatmentPackageError(c, apperrors.WrapInvalidInput("invalid user context"))
+		return 0, false
+	}
+	return id, true
+}
+
+func packageRequireGrant(c *gin.Context, resource, action string) bool {
+	if !httpapi.PeekSelectedClinicGrant(c, resource, action) {
+		respondTreatmentPackageError(c, apperrors.WrapForbidden("forbidden"))
+		return false
+	}
+	return true
+}
+
+func packageIDParam(c *gin.Context, key string) (uint64, bool) {
+	id, err := strconv.ParseUint(c.Param(key), 10, 64)
+	if err != nil || id == 0 {
+		respondTreatmentPackageError(c, apperrors.WrapInvalidInput("id は正の整数で指定してください"))
+		return 0, false
+	}
+	return id, true
+}
+
 // ListTreatmentPackages handles GET /masters/treatment-packages.
 func (h *TreatmentPackageHandler) ListTreatmentPackages(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := packageClinicID(c)
 	if !ok {
 		return
 	}
-	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+	if !packageRequireGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
 	ctx, ok := treatmentPackageViewCheckContext(c)
@@ -55,11 +103,11 @@ func (h *TreatmentPackageHandler) ListTreatmentPackages(c *gin.Context) {
 // No C06 master-create receipt exists; an ambiguous response must not be
 // rescued by same-name search or blind re-POST.
 func (h *TreatmentPackageHandler) CreateTreatmentPackage(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := packageClinicID(c)
 	if !ok {
 		return
 	}
-	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "create") {
+	if !packageRequireGrant(c, string(model.ResourceMasterMedical), "create") {
 		return
 	}
 	var req createTreatmentPackageRequest
@@ -67,7 +115,7 @@ func (h *TreatmentPackageHandler) CreateTreatmentPackage(c *gin.Context) {
 		respondTreatmentPackageError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	actorID, ok := httpapi.ExtractStaffID(c)
+	actorID, ok := packageStaffID(c)
 	if !ok {
 		return
 	}
@@ -93,14 +141,14 @@ func (h *TreatmentPackageHandler) CreateTreatmentPackage(c *gin.Context) {
 
 // GetTreatmentPackage handles GET /masters/treatment-packages/:id.
 func (h *TreatmentPackageHandler) GetTreatmentPackage(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := packageClinicID(c)
 	if !ok {
 		return
 	}
-	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "view") {
+	if !packageRequireGrant(c, string(model.ResourceMasterMedical), "view") {
 		return
 	}
-	id, ok := httpapi.ParseIDParam(c, "id")
+	id, ok := packageIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -119,14 +167,14 @@ func (h *TreatmentPackageHandler) GetTreatmentPackage(c *gin.Context) {
 
 // UpdateTreatmentPackage handles PATCH /masters/treatment-packages/:id.
 func (h *TreatmentPackageHandler) UpdateTreatmentPackage(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := packageClinicID(c)
 	if !ok {
 		return
 	}
-	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "edit") {
+	if !packageRequireGrant(c, string(model.ResourceMasterMedical), "edit") {
 		return
 	}
-	id, ok := httpapi.ParseIDParam(c, "id")
+	id, ok := packageIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -135,7 +183,7 @@ func (h *TreatmentPackageHandler) UpdateTreatmentPackage(c *gin.Context) {
 		respondTreatmentPackageError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	actorID, ok := httpapi.ExtractStaffID(c)
+	actorID, ok := packageStaffID(c)
 	if !ok {
 		return
 	}
@@ -162,14 +210,14 @@ func (h *TreatmentPackageHandler) UpdateTreatmentPackage(c *gin.Context) {
 // DeleteTreatmentPackage handles DELETE /masters/treatment-packages/:id?version=.
 // version query is mandatory; logical deletion preserves history.
 func (h *TreatmentPackageHandler) DeleteTreatmentPackage(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := packageClinicID(c)
 	if !ok {
 		return
 	}
-	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "delete") {
+	if !packageRequireGrant(c, string(model.ResourceMasterMedical), "delete") {
 		return
 	}
-	id, ok := httpapi.ParseIDParam(c, "id")
+	id, ok := packageIDParam(c, "id")
 	if !ok {
 		return
 	}
@@ -183,7 +231,7 @@ func (h *TreatmentPackageHandler) DeleteTreatmentPackage(c *gin.Context) {
 		respondTreatmentPackageError(c, err)
 		return
 	}
-	actorID, ok := httpapi.ExtractStaffID(c)
+	actorID, ok := packageStaffID(c)
 	if !ok {
 		return
 	}
@@ -202,11 +250,11 @@ func (h *TreatmentPackageHandler) DeleteTreatmentPackage(c *gin.Context) {
 // ReorderTreatmentPackages handles PATCH /masters/treatment-packages/reorder.
 // Route registration must place this static segment before /:id.
 func (h *TreatmentPackageHandler) ReorderTreatmentPackages(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
+	clinicID, ok := packageClinicID(c)
 	if !ok {
 		return
 	}
-	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceMasterMedical), "edit") {
+	if !packageRequireGrant(c, string(model.ResourceMasterMedical), "edit") {
 		return
 	}
 	var req reorderTreatmentPackagesRequest
@@ -214,7 +262,7 @@ func (h *TreatmentPackageHandler) ReorderTreatmentPackages(c *gin.Context) {
 		respondTreatmentPackageError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	actorID, ok := httpapi.ExtractStaffID(c)
+	actorID, ok := packageStaffID(c)
 	if !ok {
 		return
 	}

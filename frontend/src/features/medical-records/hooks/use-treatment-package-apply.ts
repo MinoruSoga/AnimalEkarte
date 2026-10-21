@@ -4,7 +4,7 @@
  * 成功後は application IDs を確認してから plan 一覧を再取得し、
  * 再取得失敗を apply 失敗にしない。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import {
@@ -113,7 +113,10 @@ export function useTreatmentPackageApply({
 }: UseTreatmentPackageApplyArgs) {
   const qc = useQueryClient();
   const scopeRef = useRef(scope);
-  scopeRef.current = scope;
+  // render 中の ref 書込みは React refs ルール違反のため effect 側で同期する。
+  useLayoutEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
   const currentScopeKey = scopeKey(scope);
   const [state, setState] = useState<ApplyState>({ kind: "idle" });
   // scopeKey → 未解決の pending operation。key と発行時 scope を不可分に保持し、
@@ -168,6 +171,11 @@ export function useTreatmentPackageApply({
           setState({ kind: "failed", status: outcome.code ?? `http-${outcome.httpStatus}` });
           return;
         }
+        // identity 不一致（別 key の結果）は成功・失敗・再照会いずれも受理しない。
+        if (outcome.result.operation_key !== command.operationKey) {
+          setState({ kind: "unknown", operationKey: command.operationKey });
+          return;
+        }
         const resolution = resolveOperationResult(outcome.result);
         if (resolution.kind === "success") {
           const pending = pendingRef.current.get(sk);
@@ -217,6 +225,8 @@ export function useTreatmentPackageApply({
     if (outcome.kind === "unavailable") return; // 取得失敗は unknown 維持
     // 前段 error envelope（認可拒否等）は操作の失敗確定ではない。pending を保持し unknown を維持する。
     if (outcome.kind === "error-envelope") return;
+    // identity 不一致（別 key の結果）は受理せず unknown を維持する。
+    if (outcome.result.operation_key !== held.operationKey) return;
     const resolution = resolveOperationResult(outcome.result);
     if (resolution.kind === "success") {
       // identity 不一致の成功bodyは受理しない（pending保持・照会継続）。
@@ -242,7 +252,10 @@ export function useTreatmentPackageApply({
     setState({ kind: "idle" });
   }, []);
 
-  const heldOperationKey = pendingRef.current.get(currentScopeKey)?.operationKey ?? null;
+  // pending key は render 中の ref 読出しではなく state から導出する
+  // （scope 切替 effect が held key 付き unknown 状態を立てるため一致する）。
+  const heldOperationKey =
+    state.kind === "unknown" || state.kind === "submitting" ? state.operationKey : null;
   return useMemo(
     () => ({ state, submit, resolveUnknown, reset, heldOperationKey }),
     [state, submit, resolveUnknown, reset, heldOperationKey],

@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
@@ -431,7 +432,7 @@ func (s *treatmentPackageService) Update(ctx context.Context, clinicID, id uint6
 		if err := s.authorizeItemKinds(txCtx, clinicID, liveItems); err != nil {
 			return err
 		}
-		fields := map[string]any{}
+		fields := map[string]any{"updated_by": *input.ActorID}
 		changed := false
 		if input.Name != nil && *input.Name != current.Name {
 			if err := validateRequiredName(*input.Name); err != nil {
@@ -583,11 +584,25 @@ func componentsUnchanged(existing []model.TreatmentPackageItem, keep []model.Tre
 			derefPackageFK(prev.MerchandiseItemID) != derefPackageFK(keep[i].MerchandiseItemID) {
 			return false
 		}
-		if string(derefRaw(prev.ManualDefinition)) != string(derefRaw(keep[i].ManualDefinition)) {
+		if !jsonSemanticEqual(derefRaw(prev.ManualDefinition), derefRaw(keep[i].ManualDefinition)) {
 			return false
 		}
 	}
 	return true
+}
+
+// jsonSemanticEqual compares two JSON documents semantically: PostgreSQL jsonb
+// normalizes key order and whitespace, so byte equality is wrong for no-op detection.
+// Undecodable input falls back to byte comparison.
+func jsonSemanticEqual(a, b []byte) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	var av, bv any
+	if json.Unmarshal(a, &av) != nil || json.Unmarshal(b, &bv) != nil {
+		return string(a) == string(b)
+	}
+	return reflect.DeepEqual(av, bv)
 }
 
 func derefRaw(r *json.RawMessage) []byte {
@@ -730,7 +745,7 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 			// 順位が変わった行、または欠番で旧 sort 値が残った行へ dense な順位を
 			// 割当てる。全行が一意の要求順位を持つため、最終取得順は要求列と一致する。
 			if currentOrder[id] != target || locked[i].SortOrder != target {
-				if err := s.repo.UpdateSortOrderBumpVersion(txCtx, clinicID, id, target); err != nil {
+				if err := s.repo.UpdateSortOrderBumpVersion(txCtx, clinicID, id, target, actorID); err != nil {
 					return err
 				}
 				moved = true

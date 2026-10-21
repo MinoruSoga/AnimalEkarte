@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axios } from "@/lib/axios";
@@ -85,14 +85,14 @@ describe("useTreatmentPackageApply（同key照会・成功後の再取得・scop
         }),
       { wrapper: wrapper() },
     );
-    await result.current.submit(preview);
+    await act(() => result.current.submit(preview));
     expect(result.current.state.kind).toBe("succeeded");
     expect(axios.post).toHaveBeenCalledTimes(1);
     const body = vi.mocked(axios.post).mock.calls[0]![1] as Record<string, string>;
     expect(body.package_id).toBe("201");
     expect(body.edit_epoch).toBe("9");
     // 2回目の明示 apply は別 application（別key）
-    await result.current.submit(preview);
+    await act(() => result.current.submit(preview));
     expect(vi.mocked(axios.post).mock.calls[1]![1]).not.toEqual(body);
   });
 
@@ -113,9 +113,9 @@ describe("useTreatmentPackageApply（同key照会・成功後の再取得・scop
         }),
       { wrapper: wrapper() },
     );
-    await result.current.submit(preview);
+    await act(() => result.current.submit(preview));
     expect(result.current.state.kind).toBe("unknown");
-    await result.current.resolveUnknown();
+    await act(() => result.current.resolveUnknown());
     expect(result.current.state.kind).toBe("succeeded");
     // POST は1回だけ（照会は GET のみ）
     expect(axios.post).toHaveBeenCalledTimes(1);
@@ -129,7 +129,7 @@ describe("useTreatmentPackageApply（同key照会・成功後の再取得・scop
       () => useTreatmentPackageApply({ scope: { recordId: "91" }, editContext: null }),
       { wrapper: wrapper() },
     );
-    await result.current.submit(preview);
+    await act(() => result.current.submit(preview));
     expect(result.current.state.kind).toBe("idle");
     expect(axios.post).not.toHaveBeenCalled();
   });
@@ -147,7 +147,7 @@ describe("useTreatmentPackageApply（同key照会・成功後の再取得・scop
         }),
       { wrapper: wrapper() },
     );
-    await result.current.submit(preview);
+    await act(() => result.current.submit(preview));
     expect(result.current.state.kind).toBe("unknown");
   });
 });

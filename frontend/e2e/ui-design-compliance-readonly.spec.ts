@@ -135,6 +135,7 @@ const PROTECTED_ROUTES: RouteTemplate[] = [
   { label: "設定トップ", path: "/settings" },
   { label: "スタッフマスタ", path: "/settings/staff" },
   { label: "診療項目マスタ", path: "/settings/treatment-items" },
+  { label: "治療パッケージマスタ", path: "/settings/treatment-packages" },
   { label: "診断マスタ", path: "/settings/diagnosis" },
   { label: "動物種類マスタ", path: "/settings/animal-species" },
   { label: "トリミングマスタ", path: "/settings/trimming" },
@@ -450,9 +451,17 @@ async function auditRoute(
         // 検知モード: annotation（HTML / JSON reporter 向け）と stdout（run-e2e.sh の list reporter 向け）の両方に出す。
         const findings = [
           ...(patterns.offscreenCurrent
-            ? [{ type: "design-patterns §1.1", description: `current location offscreen ${patterns.offscreenCurrent}` }]
+            ? [
+                {
+                  type: "design-patterns §1.1",
+                  description: `current location offscreen ${patterns.offscreenCurrent}`,
+                },
+              ]
             : []),
-          ...patterns.fixedOverlaps.map((overlap) => ({ type: "design-patterns §5.1", description: overlap })),
+          ...patterns.fixedOverlaps.map((overlap) => ({
+            type: "design-patterns §5.1",
+            description: overlap,
+          })),
         ];
         for (const finding of findings) {
           const description = `${path} @ ${width}px: ${finding.description}`;

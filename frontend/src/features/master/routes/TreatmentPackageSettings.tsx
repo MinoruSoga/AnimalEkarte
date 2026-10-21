@@ -147,7 +147,10 @@ export function TreatmentPackageSettings() {
           canDelete={canDelete}
           saving={createMut.isPending || updateMut.isPending}
           deleting={deleteMut.isPending}
-          onChange={editor.updateDraft}
+          onChange={(patch) => {
+            editor.updateDraft(patch);
+            dirty.markDirty();
+          }}
           onComponentsChange={(components: ComponentDraft[]) => {
             editor.updateComponents(components);
             dirty.markDirty();

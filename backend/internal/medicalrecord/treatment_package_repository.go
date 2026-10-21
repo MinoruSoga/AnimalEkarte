@@ -8,6 +8,7 @@ package medicalrecord
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -44,7 +45,7 @@ type TreatmentPackageRepository interface {
 	// missing keys keep their row with removed_at/position=NULL. No physical delete.
 	ReplaceItems(ctx context.Context, clinicID, packageID uint64, keep []model.TreatmentPackageItem, removeIDs []uint64, now time.Time) error
 	SoftDeleteCAS(ctx context.Context, clinicID, id uint64, expectedVersion int64, actorID uint64, now time.Time) error
-	UpdateSortOrderBumpVersion(ctx context.Context, clinicID, id uint64, sortOrder int) error
+	UpdateSortOrderBumpVersion(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error
 }
 
 type treatmentPackageRepositoryImpl struct{ db *gorm.DB }
@@ -140,7 +141,7 @@ func (r *treatmentPackageRepositoryImpl) LockCatalogRow(ctx context.Context, cli
 		Where("clinic_id = ?", clinicID).
 		First(&row).Error
 	if err != nil {
-		if apperrors.IsNotFound(err) {
+		if errors.Is(err, gorm.ErrRecordNotFound) || apperrors.IsNotFound(err) {
 			return 0, errPackageCatalogNotInitialized
 		}
 		return 0, apperrors.FromGORM(err, "treatment_package_catalog_version", fmt.Sprintf("%d", clinicID))
@@ -155,7 +156,7 @@ func (r *treatmentPackageRepositoryImpl) GetCatalogRevision(ctx context.Context,
 		Where("clinic_id = ?", clinicID).
 		First(&row).Error
 	if err != nil {
-		if apperrors.IsNotFound(err) {
+		if errors.Is(err, gorm.ErrRecordNotFound) || apperrors.IsNotFound(err) {
 			return 0, errPackageCatalogNotInitialized
 		}
 		return 0, apperrors.FromGORM(err, "treatment_package_catalog_version", fmt.Sprintf("%d", clinicID))
@@ -233,6 +234,9 @@ func (r *treatmentPackageRepositoryImpl) Create(ctx context.Context, pkg *model.
 	for i := range items {
 		items[i].ClinicID = pkg.ClinicID
 		items[i].PackageID = pkg.ID
+	}
+	if len(items) == 0 {
+		return nil
 	}
 	if err := db.Create(&items).Error; err != nil {
 		return apperrors.FromGORM(err, "treatment_package_item", "")
@@ -326,6 +330,7 @@ func (r *treatmentPackageRepositoryImpl) SoftDeleteCAS(ctx context.Context, clin
 		Updates(map[string]any{
 			"deleted_at": now,
 			"deleted_by": actorID,
+			"updated_by": actorID,
 			"version":    gorm.Expr("version + 1"),
 			"updated_at": now,
 		})
@@ -340,7 +345,7 @@ func (r *treatmentPackageRepositoryImpl) SoftDeleteCAS(ctx context.Context, clin
 
 // UpdateSortOrderBumpVersion applies one sort_order change and one version bump
 // to a package already locked by the reorder caller.
-func (r *treatmentPackageRepositoryImpl) UpdateSortOrderBumpVersion(ctx context.Context, clinicID, id uint64, sortOrder int) error {
+func (r *treatmentPackageRepositoryImpl) UpdateSortOrderBumpVersion(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error {
 	if persistence.TxFromContext(ctx) == nil {
 		return apperrors.WrapInternalServerError("reorder requires an ambient transaction")
 	}
@@ -350,6 +355,7 @@ func (r *treatmentPackageRepositoryImpl) UpdateSortOrderBumpVersion(ctx context.
 		Where("id = ? AND deleted_at IS NULL", id).
 		Updates(map[string]any{
 			"sort_order": sortOrder,
+			"updated_by": actorID,
 			"version":    gorm.Expr("version + 1"),
 			"updated_at": time.Now(),
 		})
