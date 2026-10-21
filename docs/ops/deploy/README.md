@@ -45,7 +45,7 @@
 - **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./rehearsals/MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
 - **[A4 UI rehearsal isolated stack (A4_UI_REHEARSAL.md)](./rehearsals/A4_UI_REHEARSAL.md)**: 正式21表CSVの画面確認専用localhost-only disposable Compose環境とruntime証跡手順。
 - **[F8 G4 synthetic failure rehearsal (F8_G4_FAILURE_REHEARSAL.md)](./rehearsals/F8_G4_FAILURE_REHEARSAL.md)**: 固定synthetic FK違反でtransaction rollback・21表空band・seed preflightを証明する専用disposable runner。
-- **[旧] Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./rehearsals/VERCEL-FRONTEND-STAGING-TEST.md)**: Vercel 時代の検証手順。EMR-255 で frontend は Cloudflare Workers Static Assets へ移行済み — rollback 期間中の参照専用（現行確認手順は frontend Worker の smoke/tail）。
+- **[旧] Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./rehearsals/VERCEL-FRONTEND-STAGING-TEST.md)**: Vercel 時代の検証手順。EMR-255 で frontend は Cloudflare Workers Static Assets へ移行済み — 履歴資料としてのみ参照可。Vercel は現行配信・rollback のいずれにも使用しない（現行確認手順は frontend Worker の smoke/tail）。
 
 **seeds/（DB リセット・seed・CSV 投入）**
 

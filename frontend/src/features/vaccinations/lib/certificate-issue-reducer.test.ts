@@ -7,6 +7,7 @@ import {
   initialIssueState,
   isEditable,
   issueReducer,
+  restoredIssueState,
   type IssuePending,
 } from "./certificate-issue-reducer";
 
@@ -108,5 +109,43 @@ describe("発行失敗の分類", () => {
   it("権限・認証の失敗は blocked", () => {
     expect(decideIssueFailure(err("forbidden")).type).toBe("blocked");
     expect(decideIssueFailure(err("unauthenticated")).type).toBe("blocked");
+  });
+});
+
+describe("権限なしからの再開", () => {
+  it("未確定の key があれば捨てず、結果不明へ戻して同じ key で照会できる状態にする", () => {
+    let s = issueReducer(previewed(), { type: "issueStart", pending });
+    s = issueReducer(s, { type: "blocked", notice: "forbidden" });
+    const resumed = issueReducer(s, { type: "unblock" });
+    expect(resumed.phase).toBe("unknown");
+    expect(resumed.pending).toBe(pending);
+    expect(resumed.notice).toBe("unavailable");
+  });
+
+  it("key がなければ preview を引き継がず編集へ戻る", () => {
+    const blocked = issueReducer(previewed(), { type: "blocked", notice: "forbidden" });
+    const resumed = issueReducer(blocked, { type: "unblock" });
+    expect(resumed.phase).toBe("editing");
+    expect(resumed.preview).toBeNull();
+    expect(resumed.previewRequest).toBeNull();
+    expect(resumed.pending).toBeNull();
+    expect(isEditable(resumed.phase)).toBe(true);
+  });
+
+  it("blocked 以外では何もしない", () => {
+    const s = previewed();
+    expect(issueReducer(s, { type: "unblock" })).toBe(s);
+  });
+});
+
+describe("再 mount での復元", () => {
+  it("未確定の key と request だけを結果不明として復元し、preview は持ち越さない", () => {
+    const restored = restoredIssueState(pending);
+    expect(restored.phase).toBe("unknown");
+    expect(restored.pending).toBe(pending);
+    expect(restored.kind).toBe("rabies");
+    expect(restored.preview).toBeNull();
+    expect(restored.previewRequest).toBeNull();
+    expect(isEditable(restored.phase)).toBe(false);
   });
 });

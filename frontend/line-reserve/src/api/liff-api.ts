@@ -30,6 +30,7 @@ import {
   availableDatesResponseSchema,
   availableTimeSchema,
   reservationSchema,
+  reservationDecimalId,
   createReservationResponseSchema,
   revisitIntakeLIFFReadSchema,
   revisitIntakeResultResponseSchema,
@@ -190,8 +191,12 @@ export const liffApi = {
     return parseOrThrow(z.array(reservationSchema), res.data, "getMyReservations");
   },
 
-  cancelReservation: async (clinicId: string, id: number, idToken: string): Promise<void> => {
-    await httpClient.delete(`${clinicPath(clinicId)}/my-reservations/${id}`, {
+  cancelReservation: async (clinicId: string, id: string, idToken: string): Promise<void> => {
+    // EMR-519: 公開契約（正の int64 十進文字列）以外の ID では request を発行しない。
+    if (!reservationDecimalId.safeParse(id).success) {
+      throw new Error("cancelReservation invalid reservation id");
+    }
+    await httpClient.delete(`${clinicPath(clinicId)}/my-reservations/${encodeURIComponent(id)}`, {
       headers: authHeaders(idToken),
     });
   },

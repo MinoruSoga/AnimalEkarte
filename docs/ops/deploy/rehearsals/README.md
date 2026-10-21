@@ -10,4 +10,4 @@
 | [F8_G4_FAILURE_REHEARSAL.md](F8_G4_FAILURE_REHEARSAL.md) | synthetic FK 違反による rollback 証明リハーサル |
 | [CRUD-SMOKE-TEST.md](CRUD-SMOKE-TEST.md) | デプロイ直後の CRUD スモークテスト |
 | [MIXED-PAYMENT-SMOKE-TEST.md](MIXED-PAYMENT-SMOKE-TEST.md) | 混在会計 (payment_splits) スモークテスト |
-| [VERCEL-FRONTEND-STAGING-TEST.md](VERCEL-FRONTEND-STAGING-TEST.md) | 旧 Vercel 検証手順（rollback 期間中の参照専用） |
+| [VERCEL-FRONTEND-STAGING-TEST.md](VERCEL-FRONTEND-STAGING-TEST.md) | 旧 Vercel 検証手順（履歴資料としてのみ参照可。Vercel は現行配信・rollback のいずれにも使用しない） |

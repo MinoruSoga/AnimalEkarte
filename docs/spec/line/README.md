@@ -18,7 +18,7 @@
 - **[architecture.md](./architecture.md)**: 予約システム(v1)と Lステップ(v2)の全体像、認証フロー、非同期同期ロジック。
 - **[reservation-spec.md](./reservation-spec.md)**: 飼主向け予約アプリ（LIFF）の機能要件、画面遷移、空き枠計算エンジン。
 
-- **[LINE再診問診の既存FR・受入条件](../domains/reservations/pages/reservation-management.md#line-revisit-intake-20261017)**: 予約完了／詳細からの任意回答、ペット別保存、受付前訂正とカルテ取込。LINE予約・再診問診はLステップ今期対象外とは別範囲。
+- **[LINE再診問診の既存FR・受入条件](../domains/reservations/pages/reservation-management.md#line-revisit-intake-20261017)**: 予約完了／詳細からの任意回答、ペット別保存、受付前訂正とカルテ取込。LINE予約・再診問診は各ownerの業務範囲。Lステップ・DMもPhase1対象だが、その仕様確定は日常業務の後に進める。
 
 ### 導入・設定
 - **[setup.md](./setup.md)**: LINE Developers Console、Messaging API、および Lステップ管理画面の初期設定手順。
@@ -60,6 +60,10 @@ flowchart LR
 ---
 
 ## 納品Phaseの読む順
+
+2026-10-21本人回答（Sentinel_7c13214d95c881918743e12334d521ca）により、Lステップ連携・DMはPhase1対象。後続回答（Sentinel_bf3be66e21148191a893d5a78ef5ff37）により、マーケティング領域の仕様確定は日常業務の後、最後に進める。Phase1対象外／Phase2への移動ではなく、Phase1内の作業順を示す。実送信・資格情報登録・gate有効化・試験開始の許可ではない。 [D15最新境界](lstep-integration.md#crm-phase1-priority-20261021)を優先する。
+
+以下の旧納品範囲の段落は履歴であり、現在の対象外判断には使用しない。
 
 Lステップ連携・DMはBacklog Phase1 G24の2026/10/15曽我回答で今期スコープ外。[D15の納品Phase境界](lstep-integration.md#crm-delivery-phase-boundary-20261017)を参照する。以下の既存再開条件・実装説明と納品範囲は別で、G29の画面仕様肯定を今期納品への変更と解釈しない。LINE予約・再診問診へ除外を広げない。
 

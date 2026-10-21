@@ -12,6 +12,10 @@ import { formatJapaneseDate, formatTimeHHMM } from "@/shared-liff/jst-date";
 import { getStepProgress } from "../lib/step-progress";
 import { FINAL_CONFIRM_CTA_LABEL } from "../lib/advance-policy";
 
+// EMR-519: 201 契約違反で予約が登録済みか不明なときの案内。
+const RESULT_UNKNOWN_MESSAGE =
+  "予約結果を確認できませんでした。予約が登録されている可能性があります。「予約確認・キャンセル」からご確認ください。";
+
 const slotTakenResponseSchema = z.object({
   error: z.string().optional(),
   code: z.string().optional(),
@@ -25,13 +29,21 @@ interface ConfirmPageProps {
   reservationNotice?: string;
   cancelNotice?: string;
   privacyPolicy?: string;
-  onConfirm: (reservationId: number, notes: string) => void;
+  onConfirm: (reservationId: string, notes: string) => void;
   onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
+  /** EMR-519: 201 契約違反（予約が登録済みか不明）のときだけ使う予約一覧への導線。 */
+  onMyReservations?: () => void;
+  /** EMR-519: 201 契約違反を flow state へ報告する（遷移を挟んでも再 POST しないため）。 */
+  onResultUnknown?: () => void;
+  /** EMR-519: flow 側に保持された結果不明フラグ。true の間は確定ボタンを無効化する。 */
+  createResultUnknown?: boolean;
 }
 
 interface ConfirmFormState {
   error: string | null;
+  /** 201 契約違反で結果不明。以後この画面内では確定ボタンを無効化し自動再送しない。 */
+  resultUnknown?: boolean;
 }
 
 /** 予約完了後に LINE トーク画面へメッセージを送信する */
@@ -78,6 +90,9 @@ export function ConfirmPage({
   onConfirm,
   onSlotTaken,
   onBack,
+  onMyReservations,
+  onResultUnknown,
+  createResultUnknown,
 }: ConfirmPageProps) {
   // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
   const { current, total } = getStepProgress("confirm", flow.courseCategory === "trimming");
@@ -129,11 +144,22 @@ export function ConfirmPage({
         onSlotTaken(message, redirectStep);
         return { error: null };
       }
-      return { error: "予約の確定に失敗しました。もう一度お試しください。" };
+      if (axios.isAxiosError(err) && err.response) {
+        return { error: "予約の確定に失敗しました。もう一度お試しください。" };
+      }
+      // EMR-519: 応答喪失（response を持たない Axios エラー。ネットワーク断・タイムアウト等で
+      // サーバ側では予約が保存済みの可能性がある）と 201 応答の契約違反（parse 失敗）は、
+      // POST 自体が成功している可能性を消せない。自動再送（二重予約になり得る）は行わず、
+      // この画面内では確定ボタンを無効化したまま予約一覧での確認を案内する。flow 側にも
+      // 結果不明を報告し、Back → 再入場でも確定ボタンが再有効化されないようにする。
+      onResultUnknown?.();
+      return { error: RESULT_UNKNOWN_MESSAGE, resultUnknown: true };
     }
   }
 
   const [formState, formAction, isPending] = useActionState(confirmAction, { error: null });
+  // EMR-519: 結果不明は画面内 state（新規の契約違反）と flow state（再入場）の和。
+  const resultUnknown = Boolean(formState.resultUnknown) || Boolean(createResultUnknown);
 
   const petDisplay =
     flow.customerInfo.pets.length > 0
@@ -166,13 +192,17 @@ export function ConfirmPage({
         </div>
 
         <div className="flex-1 px-4 space-y-4">
-          {/* 警告メッセージ */}
-          <div className="bg-noah-warning-box-bg border border-noah-warning-border rounded-xl px-4 py-3">
-            <p className="text-sm text-noah-warning-text font-medium">まだ予約は完了していません</p>
-            <p className="text-xs text-noah-warning-text-sub mt-1">
-              「予約を確定する」ボタンを押してください
-            </p>
-          </div>
+          {/* 警告メッセージ（EMR-519: 結果不明時は「未完了」と断定しない） */}
+          {resultUnknown ? null : (
+            <div className="bg-noah-warning-box-bg border border-noah-warning-border rounded-xl px-4 py-3">
+              <p className="text-sm text-noah-warning-text font-medium">
+                まだ予約は完了していません
+              </p>
+              <p className="text-xs text-noah-warning-text-sub mt-1">
+                「予約を確定する」ボタンを押してください
+              </p>
+            </div>
+          )}
 
           {/* 予約内容テーブル */}
           <div className="bg-white rounded-xl border border-noah-border overflow-hidden">
@@ -205,10 +235,10 @@ export function ConfirmPage({
             </div>
           ) : null}
 
-          {formState.error ? (
+          {formState.error || resultUnknown ? (
             <div className="bg-noah-danger-bg border border-noah-danger-border rounded-lg px-4 py-3">
               <p className="text-sm text-noah-danger-text" role="alert">
-                {formState.error}
+                {formState.error ?? RESULT_UNKNOWN_MESSAGE}
               </p>
             </div>
           ) : null}
@@ -220,9 +250,18 @@ export function ConfirmPage({
               {privacyPolicy}
             </p>
           ) : null}
-          <PrimaryButton type="submit" disabled={isPending}>
+          <PrimaryButton type="submit" disabled={isPending || resultUnknown}>
             {isPending ? "送信中..." : FINAL_CONFIRM_CTA_LABEL}
           </PrimaryButton>
+          {resultUnknown && onMyReservations ? (
+            <button
+              type="button"
+              onClick={onMyReservations}
+              className="w-full py-3 px-4 border border-noah-teal rounded-xl text-noah-teal-dark font-semibold hover:bg-noah-teal-light"
+            >
+              予約確認・キャンセル
+            </button>
+          ) : null}
         </form>
       </div>
     </div>

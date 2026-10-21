@@ -85,10 +85,13 @@ export interface AvailableTime {
 }
 
 // status は backend ReservationStatus (backend/internal/model/reservation.go) と1:1一致。
+// EMR-519: id / pet_id は正の int64 範囲の十進文字列。pet_id / pet_name は両方 non-null か
+// 両方 null（schemas.ts で旧応答の両方省略も両方 null に正規化する）。
 export interface Reservation {
-  id: number;
+  id: string;
+  pet_id: string | null;
+  pet_name: string | null;
   course_name: string;
-  pet_name?: string;
   staff_name: string; // 指名なし予約は backend が省略するため schemas.ts 側で '' デフォルト
   date: string; // "YYYY-MM-DD"
   start_time: string; // "HH:MM"
@@ -108,7 +111,7 @@ export interface Reservation {
 
 /** POST /reservations のレスポンス（予約作成直後は id と notes のみ返す） */
 export interface CreateReservationResponse {
-  id: number;
+  id: string; // 正の int64 範囲の十進文字列（EMR-519）
   notes: string;
 }
 

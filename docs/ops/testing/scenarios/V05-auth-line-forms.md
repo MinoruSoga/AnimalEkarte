@@ -253,6 +253,6 @@ clinic 単位 1 レコードの PATCH（C3(b) は UI 上到達不能）。フィ
 | V05-6コース/option | [予約正本](../../../spec/domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017) | 未設定時間と明示0分option、複数異種option、同option重複、変更前後の終了時刻表示を個別確認。既存予約の時間snapshotを後日master変更で書換えない |
 | V05-6/7予約後問診 | [予約再診問診](../../../spec/domains/reservations/pages/reservation-management.md) | 同一予約の多頭別回答、未回答予約完了、受付前訂正・受付と同時送信、日時変更/取消/対象変更を別々に確認。原文と旧回答日時を保持し、対象変更後へ旧回答を自動転用しない |
 | V05-11/19 LINE解除・再連携 | [D02業務正本](../../../spec/domains/owners-pets/lifecycle.md)・[LINE設計](../../../design/domains/owners-pets/technical-spec.md) | 発信確保と解除の両先行順を確認。解除完了後の旧版で新発信しない。再連携後は必要な対象予約の選択前に再開せず、別の停止・結果不明を解除しない |
-| V05-12〜18/20 LSTEP | [対象Phase境界](../../../spec/line/README.md) | 今期対象外を維持。対象Phase開始時にのみ設定、目的・DM判定、dual gate、実送信とcronの別証跡へ接続。設定保存成功だけを運用再開にしない |
+| V05-12〜18/20 LSTEP | [対象Phase境界](../../../spec/line/README.md) | Phase1対象。マーケティング仕様確定は日常業務の後に進め、目的・DM判定、dual gate、実送信とcronの別証跡を区別する。試験・設定・実送信は別の実施指示まで行わない。設定保存成功だけを運用再開にしない |
 
 auth V05-1〜4の現行認証・権限失効は既存auth正本へ接続し、専用accountだけで検証する。実LINE/tokenとlocal mockを別runにし、cross-clinicの静的test参照があっても実受入のscope証跡を省略しない。全fieldのFとCは別軸で必要で、上記接続表だけでV05を完了にしない。

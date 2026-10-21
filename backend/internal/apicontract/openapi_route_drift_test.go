@@ -114,6 +114,13 @@ var knownMissingFromSpec = map[string]bool{
 	"GET /api/v1/clinics/{clinic_id}":    true,
 	"PATCH /api/v1/clinics/{clinic_id}":  true,
 
+	// EMR-486: runtime registers /vaccinations/:id/certificate-editions (gin requires
+	// the :id wildcard name next to /vaccinations/:id) while api.yaml documents the
+	// same operation as /vaccinations/{vaccination_id}/certificate-editions —
+	// param-name-only drift, same precedent as /clinics/{clinic_id} vs {id} above.
+	// Pairs with the retained knownPhantomInSpec entry for {vaccination_id}.
+	"GET /api/v1/vaccinations/{id}/certificate-editions": true,
+
 	// --- G1-2 residual follow-up (2026-07-10): audited the 63 entries pinned above against the
 	// actual Go route registrations. 14 of them turned out to be the exact same
 	// "duplicate registration of an already-documented handler" pattern as the Phase D-1 aliases
@@ -191,8 +198,6 @@ var knownPhantomInSpec = map[string]bool{
 	"POST /api/v1/vaccinations/{vaccination_id}/certificate-preview":      true,
 	"POST /api/v1/vaccinations/{vaccination_id}/certificate-editions":     true,
 	"GET /api/v1/vaccinations/{vaccination_id}/certificate-editions":      true,
-	"GET /api/v1/vaccination-certificate-editions/{edition_id}":           true,
-	"POST /api/v1/vaccination-certificate-editions/{edition_id}/preview":  true,
 	"POST /api/v1/vaccination-certificate-editions/{edition_id}/reprints": true,
 	"GET /api/v1/vaccination-certificate-artifacts/{artifact_id}/content": true,
 	"GET /api/v1/vaccination-certificate-operations/{operation_key}":      true,

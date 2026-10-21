@@ -7,6 +7,7 @@ import {
   classifyCertificateError,
   type ErrorBody,
 } from "./certificate-errors";
+import { editionPageMatches, editionVersionConsistent, savedPreviewMatches } from "./certificate-binding";
 import {
   certificateContextSchema,
   certificateEditionPageSchema,
@@ -69,7 +70,10 @@ async function toApiError(error: unknown): Promise<CertificateApiError> {
   if (error instanceof CertificateApiError) return error;
   if (isAxiosError(error)) {
     if (error.response === undefined) return classifyCertificateError(undefined, null);
-    return classifyCertificateError(error.response.status, await readErrorBody(error.response.data));
+    return classifyCertificateError(
+      error.response.status,
+      await readErrorBody(error.response.data),
+    );
   }
   return new CertificateApiError("network");
 }
@@ -99,7 +103,13 @@ export function createHttpCertificateApi(): CertificateApi {
       const { data } = await call(() =>
         axios.get<unknown>(`${BASE}/vaccinations/${vaccinationId}/certificate-context`, { signal }),
       );
-      return parse(certificateContextSchema, data);
+      const context = parse(certificateContextSchema, data);
+      // latest の edition の版が食い違う応答を、正常データとして表示・発行処理へ渡さない。
+      const latest = [context.latest.normal, context.latest.rabies];
+      if (!latest.every((edition) => edition === null || editionVersionConsistent(edition))) {
+        throw new CertificateApiError("malformed", { message: "最新版の発行版が食い違っています" });
+      }
+      return context;
     },
     async previewForIssue(vaccinationId, body, signal) {
       const { data } = await call(() =>
@@ -117,18 +127,31 @@ export function createHttpCertificateApi(): CertificateApi {
     },
     async getEdition(editionId, signal) {
       const { data } = await call(() =>
-        axios.get<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}`, { signal }),
-      );
-      return parse(certificateEditionSchema, data);
-    },
-    async listEditions(vaccinationId, query, signal) {
-      const { data } = await call(() =>
-        axios.get<unknown>(`${BASE}/vaccinations/${vaccinationId}/certificate-editions`, {
-          params: { kind: query.kind, page: query.page ?? 1, limit: query.limit ?? 20 },
+        axios.get<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}`, {
           signal,
         }),
       );
-      return parse(certificateEditionPageSchema, data);
+      const edition = parse(certificateEditionSchema, data);
+      if (!editionVersionConsistent(edition)) {
+        throw new CertificateApiError("malformed", { message: "発行版が食い違っています" });
+      }
+      return edition;
+    },
+    async listEditions(vaccinationId, query, signal) {
+      const requestedPage = query.page ?? 1;
+      const requestedLimit = query.limit ?? 20;
+      const { data } = await call(() =>
+        axios.get<unknown>(`${BASE}/vaccinations/${vaccinationId}/certificate-editions`, {
+          params: { kind: query.kind, page: requestedPage, limit: requestedLimit },
+          signal,
+        }),
+      );
+      const page = parse(certificateEditionPageSchema, data);
+      // 形が正しいだけの別接種・別様式の履歴を、この接種の履歴として載せない。
+      if (!editionPageMatches(page, { vaccinationId, kind: query.kind, page: requestedPage, limit: requestedLimit })) {
+        throw new CertificateApiError("malformed", { message: "履歴が要求した接種・様式と一致しません" });
+      }
+      return page;
     },
     async previewSaved(editionId, layout, signal) {
       const { data } = await call(() =>
@@ -138,19 +161,26 @@ export function createHttpCertificateApi(): CertificateApi {
           { signal },
         ),
       );
-      return parse(certificateSavedPreviewSchema, data);
+      const preview = parse(certificateSavedPreviewSchema, data);
+      if (!savedPreviewMatches(preview, { editionId, layout })) {
+        throw new CertificateApiError("malformed", { message: "保存版プレビューが要求した版・向きと一致しません" });
+      }
+      return preview;
     },
     async reprint(editionId, body) {
       const { data } = await call(() =>
-        axios.post<unknown>(`${BASE}/vaccination-certificate-editions/${seg(editionId)}/reprints`, body),
+        axios.post<unknown>(
+          `${BASE}/vaccination-certificate-editions/${seg(editionId)}/reprints`,
+          body,
+        ),
       );
       return parse(certificateResultSchema, data);
     },
     async getArtifactContent(artifactId, signal) {
-      // 共有 axios は Accept を application/json に固定する。PDF 応答は BE が Content-Type で返す前提
-      // （Accept 上書きの要否は BE 実装時の確認事項）。
-      const { data } = await call(() =>
+      // 共通 axios（認証 refresh・CSRF・医院 header）を通したまま、この操作だけ Accept を明示する（EMR-525）。
+      const { data, headers } = await call(() =>
         axios.get<Blob>(`${BASE}/vaccination-certificate-artifacts/${seg(artifactId)}/content`, {
+          headers: { Accept: "application/pdf" },
           responseType: "blob",
           signal,
         }),
@@ -158,9 +188,10 @@ export function createHttpCertificateApi(): CertificateApi {
       if (!(data instanceof Blob) || data.size === 0) {
         throw new CertificateApiError("malformed", { message: "PDF の取得結果が空です" });
       }
-      // 200 でも HTML/JSON（プロキシ・認証エッジ・障害ページ）が届きうる。PDF と確認できたものだけ印刷対象にする。
-      // 判定は本体の %PDF- で行う。Content-Type は誤ラベル（octet-stream・空）がありうるため根拠にしない。
-      if (!(await hasPdfMagic(data))) {
+      // 200 でも HTML/JSON（プロキシ・認証エッジ・障害ページ）が届きうる。Content-Type が PDF で、
+      // かつ本体が %PDF- で始まるものだけを表示・印刷の対象にする（EMR-525: Content-Type 不一致は契約不正）。
+      const contentType = String(headers["content-type"] ?? data.type ?? "");
+      if (!isPdfMediaType(contentType) || !(await hasPdfMagic(data))) {
         throw new CertificateApiError("malformed", { message: "PDF ではない応答を受け取りました" });
       }
       return isPdfMediaType(data.type) ? data : new Blob([data], { type: "application/pdf" });
@@ -181,7 +212,7 @@ function isPdfMediaType(type: string): boolean {
   return type.split(";")[0].trim().toLowerCase() === "application/pdf";
 }
 
-/** 先頭が %PDF- の Blob だけを PDF とみなす（共有 axios には手を入れない）。 */
+/** 先頭が %PDF- の Blob だけを PDF とみなす（Content-Type の検査と併用する）。 */
 async function hasPdfMagic(blob: Blob): Promise<boolean> {
   const head = await readHead(blob.slice(0, PDF_MAGIC.length));
   return PDF_MAGIC.every((byte, i) => head[i] === byte);

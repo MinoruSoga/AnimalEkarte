@@ -75,13 +75,13 @@ dispatch 後も run の `headSha == REVIEWED_SHA` を確認する。不一致、
 
 `/api/*` は `frontend/worker/index.ts` が `API` service binding 経由で backend Worker へ同一オリジン中継する。`VITE_API_URL` の注入は廃止 — `src/lib/axios.ts` が `"/api"` fallback し、PROD ビルドが STG API を叩く事故を構造的に防ぐ。`APP_ENV=stg` は旧 `VERCEL_ENV=preview` 相当で demo ログイン表示の tree-shake 契約を維持する。
 
-`frontend/vercel.json` は移行期のロールバック経路として残置（rewrite/header 規則は `frontend/worker/index.ts` と `frontend/public/_headers` が引き継ぎ済み）。実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel 時代の runbook](rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) を CF 経路へ読み替えて実施する。設定を読んだだけで稼働済みにしない。
+`frontend/vercel.json` の残存は履歴であり、現行配信・ロールバック経路には使用しない（rewrite/header 規則は `frontend/worker/index.ts` と `frontend/public/_headers` が引き継ぎ済み）。実デプロイの SHA、API 接続先、cookie/CORS、assets の検証は [Vercel 時代の runbook](rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) を CF 経路へ読み替えて実施する。設定を読んだだけで稼働済みにしない。
 
 ## 4. Rollback / monitoring / backup
 
 - rollback は last-known-good Cloudflare artifact/ref と migration 互換性を確認して行う。[#99](https://github.com/MinoruSoga/AnimalEkarte/issues/99) は旧 ECS 経路不在の確認として CLOSED。AWS/ECS は切り戻し先ではない。
 - DB 非互換の場合は forward fix または承認済み restore plan。復旧手順は [STG](../infra/staging/runbook.md) / [PROD](../infra/production/runbook.md)。
-- health、5xx、Workers/Container logs、Actions failure を監視する。Vercel deployment は rollback 残存期間のみ対象（EMR-255 以降 frontend 通常経路では不使用）。`infra/cloudflare/notifications.tf`（STG）には通知ポリシーのリソース定義があるが、`infra/cloudflare/production/notifications.tf` はコメントのみでリソースなし。いずれも checked-in 定義は live のポリシー適用・配送実績を証明しない — Cloudflare Notification Policy の存在、通知先、実配送は外部検証が必要。Terraform tombstone を有効な通知ポリシーとして数えない。
+- health、5xx、Workers/Container logs、Actions failure を監視する。Vercel deployment は現行監視・rollback 対象ではない。`infra/cloudflare/notifications.tf`（STG）には通知ポリシーのリソース定義があるが、`infra/cloudflare/production/notifications.tf` はコメントのみでリソースなし。いずれも checked-in 定義は live のポリシー適用・配送実績を証明しない — Cloudflare Notification Policy の存在、通知先、実配送は外部検証が必要。Terraform tombstone を有効な通知ポリシーとして数えない。
 - backup は owner、target、取得方式、保護された保存先、取得時刻、サイズ、checksum、retention、receipt、隔離 restore rehearsal を記録する。[production runbook §4](../infra/production/runbook.md#4-backuprestore-rehearsal) が正本。RPO/RTO は承認済み目標と rehearsal 実測を用い、推測しない。
 - secret/PHI を log、artifact、Issue に出さない。資格情報の投入・rotation は [外部資格情報 runbook](runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) の USER 作業。
 

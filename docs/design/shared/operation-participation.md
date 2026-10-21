@@ -141,3 +141,12 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 | 491／493の参加行 | subset照合のみ・未判定 | 各票 |
 
 本PRの実装差分の実行検証は **NOT_RUN**（`go`・`npm`・`pnpm`・`npx`・`docker`・`make`・test・build・lint・codegen 未実行）。コンパイル・動作は未検証。
+
+<a id="verified-command-selected-20261021"></a>
+## 採択済みQ：Requestの限定immutable command（2026-10-21）
+
+本節のimmutable typed commandは、採択済みQのoperation.Request.VerifiedCommandから取得する。共通constructorはschemaとcanonical bytesをdeep-copyし、pure projectorによる既定Content全key一致を検証する。Runnerはclaim/fingerprint前とApply直前に再検証し、Applyはreq.VerifiedCommandだけからtyped入力を再構成する。participantが別command/DTO/pointerを捕捉してwriteする方式は採用しない。Qはrequest-memoryのみで、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetが実装されるまで本consumerを現C06へ直接接続可能と扱わず、既存Content-only consumerは変更しない。
+
+VerifiedCommandはoperation package所有のoptional immutable値とし、constructorがschemaとcanonical command bytesを保持し、getterはdetached copyだけを返す。payloadをbinding/receipt/logへ保存する共通耐久機構にはしない。各consumerの既定hash/HMAC・schema・鍵版・正規化を変更しない。owner-private耐久commandを持つconsumerは現在元target認可後に保存bytesをdecode・再canonical化・hash検証してQへ載せ、Applyの別payload参照で迂回しない。
+
+これは親採択の技術契約で、本人がAPI/物理方式を直接指定した意味ではない。489が共通Request/Runnerの必要subsetを一箇所で実装するまでruntime適合済みとはしない。既存Content-only/v1 consumerを一律変更せず、実装・試験はNOT_RUN。

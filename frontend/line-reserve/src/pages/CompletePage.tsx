@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { ReservationFlow } from "../types/models";
+import { LIFF_REVISIT_INTAKE_ACTIVE } from "../lib/revisit-intake-activation";
 import { formatJapaneseDate, formatTimeHHMM } from "@/shared-liff/jst-date";
 import {
   REVISIT_INTAKE_UNAVAILABLE_MESSAGE,
@@ -8,7 +9,7 @@ import {
 } from "../lib/revisit-intake-appointment-id";
 
 interface CompletePageProps {
-  reservationId: number;
+  reservationId: string | null;
   notes: string;
   flow: ReservationFlow;
   onMyReservations: () => void;
@@ -32,8 +33,7 @@ export function CompletePage({
 }: CompletePageProps) {
   const confirmationNumber = useMemo(() => extractConfirmationNumber(notes), [notes]);
   const displayNumber =
-    confirmationNumber ??
-    (reservationId > 0 ? `R-${String(reservationId).padStart(6, "0")}` : null);
+    confirmationNumber ?? (reservationId !== null ? `R-${reservationId.padStart(6, "0")}` : null);
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
@@ -85,13 +85,15 @@ export function CompletePage({
 
         {/* EMR-474: 任意の再診事前問診。未回答でも予約は確定済みで、受付も止めない。
             回答先はこの予約の実際の対象（BE の current_target）で、ペットごとの予約作成は約束しない。 */}
-        {reservationId > 0 && !isRevisitIntakeAppointmentIdUsable(reservationId) ? (
+        {LIFF_REVISIT_INTAKE_ACTIVE &&
+        reservationId !== null &&
+        !isRevisitIntakeAppointmentIdUsable(reservationId) ? (
           <div className="w-full bg-white rounded-xl border border-noah-border p-4 mb-4">
             <p role="status" className="text-sm text-noah-text-sub">
               {REVISIT_INTAKE_UNAVAILABLE_MESSAGE}
             </p>
           </div>
-        ) : onRevisitIntake ? (
+        ) : LIFF_REVISIT_INTAKE_ACTIVE && onRevisitIntake ? (
           <div className="w-full bg-white rounded-xl border border-noah-border p-4 mb-4">
             <p className="text-sm text-noah-text mb-1">再診の方は、来院前に問診へ回答できます。</p>
             <p className="text-xs text-noah-text-sub mb-3">

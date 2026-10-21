@@ -7,7 +7,7 @@
 | 決定状態 | 既存記載を継承（個別の決定根拠は本文参照。根拠未確認部分は承認済みとしない）＋D03合意目標への接続。死亡後の生前分後日入力・誤記訂正、および健診パッケージ設定／手入力・設定なし空欄の最新承認を反映。対象外の未決は保持 |
 | 実装状態 | 本文の現コード観察と目標契約を分離。コードに存在するだけでは業務承認済み・目標実装済みとしない |
 | 実機検証状態 | 今回未実施。既存証跡の引用は今回の実機受入を意味しない |
-| 文書確認日 | 2026-10-20 |
+| 文書確認日 | 2026-10-21 |
 
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
@@ -115,3 +115,18 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 業務目標は[D03共通FR／AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、本領域の[接続境界](../../../spec/domains/checkups/lifecycle.md#checkups-plan-tab-link)を参照する。Checkup系を唯一の健診正系統とし、パッケージ・型付き結果・保存時snapshot・次回予定の既決を維持する。予定追加だけで健診完了・結果生成・親カルテ自動作成へ進めず、Examinationへ同じ健診を二重保存しない。既存の通常受付・過去専用入力を迂回する新経路にしない。
 
 [D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。
+
+<a id="checkup-outsourced-pdf-gap"></a>
+## 外注PDFの採択要件と未収録の技術差分（2026-10-21）
+
+[FR・7AC](../../../spec/domains/checkups/lifecycle.md#fr-checkups-outsourced-pdf-20261021)を追加。従来のFR/AC件数表記は旧範囲であり、この追加分を含む完成判定ではない。実装・DB・API変更・試験はNOT_RUN。既存Checkup正系統・型付きfield・置換APIの存在は、原本／抽出／確認版の実装証拠ではない。
+
+| 必要な差分 | 設計で満たす契約／未選定部分 |
+|:---|:---|
+| PDF storage | 認可された医院・患者・親カルテ・Checkupに原本を対応付け、原本所在と各版の由来を保持。既存添付を使う場合も適合確認が必要。不変原本port・DB境界・詳細DDLの選定は[EMR-500 PDF採択技術契約](../../../work/emr/emr-500-outsourced-checkup-pdf-contract-20261021.md) §§3–4に従う。実保存先・実環境配線は未完。TTL・物理削除を追加しない |
+| 抽出／確認wire | 原本登録、抽出候補の取得／再抽出、職員確認・修正保存、確定結果読取を意味的に分離。route・closed DTO・詳細DDLは[EMR-500 PDF採択技術契約](../../../work/emr/emr-500-outsourced-checkup-pdf-contract-20261021.md) §§2–6へ選定済み、runtime未実装。既存field PUTの一括置換だけで確定結果を無履歴上書きしない |
+| 版・監査・再開 | 原本ref、候補版、確定結果版、確認者／actor・時刻・前後差分と操作結果を追跡。現在認可・対象版・依存を再照合。応答断／競合は同一操作と版を照合して再開、再抽出は確定値を変更しない |
+| 状態と受け手 | 原本登録／抽出候補／職員確認済みを区別。失敗・空・未確認をnormalへ畳み込まない。D03は同一Checkup結果ID・版をprojectionし、D07本文を複製しない |
+| 抽出基盤 | PDF見本未受領。OCR provider、課金、外部送信、抽出項目mappingは未選定。実患者PDF処理・外部送信は本作業で実施しない |
+
+現在の医院・患者・record・Checkup・masterの照合、通常受付、過去／死亡後生前分の専用訂正、原結果保持と手入力を維持する。確認保存の必要履歴が失敗した状態を確定成功として返さない。D03の一般PDF閲覧は抽出実行の入口と同一視しない。各差分の受入は上記7ACへ対応する。storage／wireの選定範囲は[EMR-500 PDF採択技術契約](../../../work/emr/emr-500-outsourced-checkup-pdf-contract-20261021.md)を正とし、providerなしで先行する必要subsetと全writer/readerの実装依存を着手プランへ渡す。provider・費用・外部転送承認、見本mapping、実環境配線と受入は未完のまま。

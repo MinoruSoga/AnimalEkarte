@@ -116,4 +116,4 @@ Sentinel_7e6b0beed1b48191ae86bc2332800109 に基づくdocs限定更新。現API�
 
 ## 診療項目パッケージ（2026-10-20、EMR-518）
 
-[業務正本4FR/12AC](treatment-packages.md) → [概念と関係](../../ontology/medical-records.md#treatment-package-concepts) → [採用技術方向](../../../design/domains/medical-records/treatment-packages.md) → [schema/API固定残件・PR分割](../../../work/emr/emr-518-treatment-packages-20261020.md)。医院別の異種混在セットを個別予定へ展開し、証明書料金の発行前手動編集はD08へ委譲する。過去の合意時点別件数とは別の追加4FR/12AC。全DTO/FK固定・API公開・実装/検証完了ではなく、受入条件はNOT_RUN。
+[業務正本4FR/12AC](treatment-packages.md) → [概念と関係](../../ontology/medical-records.md#treatment-package-concepts) → [採用技術方向](../../../design/domains/medical-records/treatment-packages.md) → [公開済みpackage契約・残件・PR分割](../../../work/emr/emr-518-treatment-packages-20261020.md#初期候補の履歴と公開済み契約)。医院別の異種混在セットを個別予定へ展開し、証明書料金の発行前手動編集はD08へ委譲する。過去の合意時点別件数とは別の追加4FR/12AC。packageの機械API契約は13操作 / 9 paths / 55 fixturesを公開済み（共通plan一覧・個別GET 2本を含む）。plan write/state-change/owner-linkは公開範囲に含まず未固定。契約公開はpackage runtimeの実装完成やfixture実行済みを意味せず、実装・受入検証は未完了／NOT_RUN。

@@ -143,7 +143,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
 
   it("reservationSchema: models.ts どおりの fixture が通る", () => {
     const fixture = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -157,13 +157,13 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
   });
 
   it("reservationSchema: 必須フィールド欠落が reject される", () => {
-    const fixture = { id: 1, course_name: "一般診察" };
+    const fixture = { id: "1", course_name: "一般診察" };
     expect(reservationSchema.safeParse(fixture).success).toBe(false);
   });
 
   it("reservationSchema: 指名なし予約（staff_name 省略）が通り '' デフォルトになる", () => {
     const { staff_name: _omit, ...fixture } = {
-      id: 1,
+      id: "1",
       staff_name: "佐藤",
       course_name: "一般診察",
       date: "2026-08-01",
@@ -182,7 +182,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
 
   it("reservationSchema: notes 省略が通り '' デフォルトになる", () => {
     const { notes: _omit, ...fixture } = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -210,7 +210,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
     "no_show",
   ])("reservationSchema: backend ReservationStatus 値 %s を許容する", (status) => {
     const fixture = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -225,7 +225,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
 
   it("reservationSchema: backend ReservationStatus に存在しない値は reject される", () => {
     const fixture = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -239,7 +239,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
   });
 
   it("createReservationResponseSchema: models.ts どおりの fixture が通る", () => {
-    const fixture = { id: 1, notes: "R-20260801-0001" };
+    const fixture = { id: "1", notes: "R-20260801-0001" };
     expect(createReservationResponseSchema.safeParse(fixture).success).toBe(true);
   });
 
@@ -279,6 +279,136 @@ describe("revisit intake schemas（EMR-474）", () => {
       },
     };
     expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("BIGINT 上限（9223372036854775807）を超える10進 ID・版・世代は reject する", () => {
+    const withRef = (patch: Record<string, string>) => ({
+      ...unanswered,
+      current_target: {
+        ...unanswered.current_target,
+        ref: { ...unanswered.current_target.ref, ...patch },
+      },
+    });
+    expect(
+      revisitIntakeLIFFReadSchema.safeParse(withRef({ pet_id: "9223372036854775807" })).success,
+    ).toBe(true);
+    expect(
+      revisitIntakeLIFFReadSchema.safeParse(withRef({ pet_id: "9223372036854775808" })).success,
+    ).toBe(false);
+    expect(
+      revisitIntakeLIFFReadSchema.safeParse(withRef({ target_generation: "99999999999999999999" }))
+        .success,
+    ).toBe(false);
+  });
+
+  it("10進でない ID（abc / 1.5 / 空文字）は例外を投げず reject する", () => {
+    for (const bad of ["abc", "1.5", "", "-1", "0"]) {
+      const input = {
+        ...unanswered,
+        current_target: {
+          ...unanswered.current_target,
+          ref: { ...unanswered.current_target.ref, pet_id: bad },
+        },
+      };
+      expect(() => revisitIntakeLIFFReadSchema.safeParse(input)).not.toThrow();
+      expect(revisitIntakeLIFFReadSchema.safeParse(input).success).toBe(false);
+    }
+  });
+
+  // 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+  const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
+  const validReservationFixture = {
+    id: "1",
+    pet_id: null,
+    pet_name: null,
+    course_name: "再診",
+    staff_name: "",
+    date: "2026-08-01",
+    start_time: "10:00",
+    end_time: "10:15",
+    status: "confirmed",
+    notes: "",
+    created_at: "2026-08-01T00:00:00Z",
+  };
+  const validCreatedFixture = { id: "1", notes: "n" };
+
+  it("EMR-519: 有効 fixture は list・201 ともに通る（sanity）", () => {
+    expect(reservationSchema.safeParse(validReservationFixture).success).toBe(true);
+    expect(createReservationResponseSchema.safeParse(validCreatedFixture).success).toBe(true);
+  });
+
+  it.each([
+    // EMR-519 stage1: 正規形十進文字列と 0 より大きい safe integer 数値を受理し、
+    // 数値は即 string へ変換する（出力は常に string）。
+    ["正規形文字列", "1", "1"],
+    ["safe 数値", 42, "42"],
+    ["safe integer 境界", 9007199254740991, "9007199254740991"],
+    ["2^53 超文字列", "9007199254740992", "9007199254740992"],
+    ["int64 最大値", "9223372036854775807", "9223372036854775807"],
+  ] as const)(
+    "EMR-519: reservation id の %s（%s）は受理し %s へ正規化する",
+    (_name, input, expected) => {
+      const list = { ...validReservationFixture, id: input };
+      const parsed = reservationSchema.safeParse(list);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.id).toBe(expected);
+      const created = createReservationResponseSchema.safeParse({
+        ...validCreatedFixture,
+        id: input,
+      });
+      expect(created.success).toBe(true);
+      if (created.success) expect(created.data.id).toBe(expected);
+    },
+  );
+
+  it("EMR-519: '9007199254740992' と '9007199254740993' の文字列は区別される", () => {
+    for (const id of ["9007199254740992", "9007199254740993"]) {
+      const parsed = reservationSchema.safeParse({ ...validReservationFixture, id });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.id).toBe(id);
+    }
+  });
+
+  const MISSING_ID = Symbol("missing-id");
+  it.each([
+    ["数値 0", 0],
+    ["負の数値", -1],
+    ["unsafe 数値", UNSAFE_RESERVATION_ID_NUMBER],
+    ["非整数数値", 1.5],
+    ["NaN", Number.NaN],
+    ["先頭ゼロ", "01"],
+    ["符号付き", "+1"],
+    ["小数", "1.0"],
+    ["指数", "1e3"],
+    ["空白付き", " 1"],
+    ["null", null],
+    ["キー欠落", MISSING_ID],
+    ["int64 超過", "9223372036854775808"],
+  ] as const)("EMR-519: reservation id の %s は例外を投げず reject する", (_name, badId) => {
+    // 違反は id のみ。有効 fixture を起点に id だけを壊す（キー欠落は削除で再現）。
+    const list: Record<string, unknown> = { ...validReservationFixture };
+    const created: Record<string, unknown> = { ...validCreatedFixture };
+    if (badId === MISSING_ID) {
+      delete list.id;
+      delete created.id;
+    } else {
+      list.id = badId;
+      created.id = badId;
+    }
+    expect(() => reservationSchema.safeParse(list)).not.toThrow();
+    expect(reservationSchema.safeParse(list).success).toBe(false);
+    expect(createReservationResponseSchema.safeParse(created).success).toBe(false);
+  });
+
+  it("EMR-520: 旧 producer の pet_name-only（pet_id キー欠落）は両方 null に正規化する", () => {
+    const { pet_id: _dropped, ...legacy } = validReservationFixture;
+    const parsed = reservationSchema.safeParse({ ...legacy, pet_name: "ポチ" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.pet_id).toBeNull();
+      expect(parsed.data.pet_name).toBeNull();
+    }
   });
 
   it("未知の edit_block_reason は補完せず reject する", () => {
@@ -445,5 +575,70 @@ describe("revisit intake date-time（RFC3339）", () => {
       revisitIntakeResultResponseSchema.safeParse(receipt("2026-10-20T13:00:00Z")).success,
     ).toBe(true);
     expect(revisitIntakeResultResponseSchema.safeParse(receipt("2026/10/20")).success).toBe(false);
+  });
+});
+
+describe("line-reserve schemas（EMR-519: 予約 ID 十進文字列・pet ペア）", () => {
+  const base = {
+    id: "1",
+    course_name: "一般診察",
+    staff_name: "佐藤",
+    date: "2026-08-01",
+    start_time: "10:00",
+    end_time: "10:30",
+    status: "confirmed",
+    notes: "",
+    created_at: "2026-07-01T00:00:00Z",
+  };
+
+  it("pet_id/pet_name は両方 string・両方 null・両方省略の3形だけ受理され、省略は両方 null に正規化する", () => {
+    const both = reservationSchema.safeParse({
+      ...base,
+      pet_id: "9007199254740993",
+      pet_name: "ポチ",
+    });
+    expect(both.success).toBe(true);
+    if (both.success) {
+      expect(both.data.pet_id).toBe("9007199254740993");
+      expect(both.data.pet_name).toBe("ポチ");
+    }
+    expect(reservationSchema.safeParse({ ...base, pet_id: null, pet_name: null }).success).toBe(
+      true,
+    );
+    const omitted = reservationSchema.safeParse(base);
+    expect(omitted.success).toBe(true);
+    if (omitted.success) {
+      expect(omitted.data.pet_id).toBeNull();
+      expect(omitted.data.pet_name).toBeNull();
+    }
+  });
+
+  it.each([
+    { pet_id: "2" },
+    { pet_id: "2", pet_name: null },
+    { pet_id: null, pet_name: "ポチ" },
+    { pet_id: "01", pet_name: "ポチ" },
+    { pet_id: 2, pet_name: "ポチ" },
+  ])("pet ペアが片方だけ・非正規形の %j は reject される", (pair) => {
+    expect(reservationSchema.safeParse({ ...base, ...pair }).success).toBe(false);
+  });
+
+  it.each([{ id: 0 }, { id: "0" }, { id: "01" }, { id: "9223372036854775808" }])(
+    "id が 0・非正規形・int64 超の %j は reject される",
+    (idField) => {
+      expect(reservationSchema.safeParse({ ...base, ...idField }).success).toBe(false);
+    },
+  );
+
+  it("createReservationResponseSchema: id は十進文字列と正の safe integer を受理し string 化する", () => {
+    expect(
+      createReservationResponseSchema.safeParse({ id: "9007199254740993", notes: "R-1" }).success,
+    ).toBe(true);
+    const numberId = createReservationResponseSchema.safeParse({ id: 1, notes: "R-1" });
+    expect(numberId.success).toBe(true);
+    if (numberId.success) {
+      expect(numberId.data.id).toBe("1");
+    }
+    expect(createReservationResponseSchema.safeParse({ id: 0, notes: "R-1" }).success).toBe(false);
   });
 });

@@ -24,6 +24,7 @@ import type { RevisitIntakeRoute } from "./app-flow-handlers";
 import type { RevisitIntakeDraftStore } from "./hooks/use-revisit-intake-drafts";
 import { formatJapaneseDate } from "@/shared-liff/jst-date";
 import { toRevisitIntakeAppointmentId } from "./lib/revisit-intake-appointment-id";
+import { LIFF_REVISIT_INTAKE_ACTIVE } from "./lib/revisit-intake-activation";
 
 export interface ReservationPageSwitchProps {
   page: PageType;
@@ -33,7 +34,8 @@ export interface ReservationPageSwitchProps {
   idToken: string;
   flow: ReservationFlow;
   isTrimming: boolean;
-  completedReservationId: number;
+  completedReservationId: string | null;
+  createResultUnknown: boolean;
   completedNotes: string;
   revisitIntake: RevisitIntakeRoute | null;
   revisitIntakeDraftStore: RevisitIntakeDraftStore;
@@ -47,7 +49,8 @@ export interface ReservationPageSwitchProps {
   setTrimmingCourse: (id: number, name: string) => void;
   setTrimmingOptions: (ids: number[]) => void;
   handleNewReservation: () => void;
-  handleConfirm: (reservationId: number, notes: string) => void;
+  handleConfirm: (reservationId: string, notes: string) => void;
+  handleResultUnknown: () => void;
   handleSlotTaken: (message: string, redirectStep: number) => void;
   handleCompleteToMyReservations: () => void;
   handleCompleteNewReservation: () => void;
@@ -98,14 +101,15 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
         onBack={() => props.goTo("top")}
         draftStore={props.revisitIntakeDraftStore}
         onOpenRevisitIntake={(reservation) => {
-          // D4: 安全整数でない ID（丸められている恐れ）からは問診 request を出さない。
+          // EMR-519: 正規形の十進文字列でない ID からは問診 request を出さない。
           const appointmentId = toRevisitIntakeAppointmentId(reservation.id);
           if (appointmentId === null) return;
           props.handleOpenRevisitIntake({
             appointmentId,
             returnTo: "my-reservations",
             summary: {
-              petName: reservation.pet_name || undefined,
+              petId: reservation.pet_id ?? undefined,
+              petName: reservation.pet_name ?? undefined,
               dateLabel: reservation.date ? formatJapaneseDate(reservation.date) : undefined,
               courseName: reservation.course_name || undefined,
             },
@@ -115,7 +119,8 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
     );
   }
   if (props.page === "revisit-intake") {
-    if (props.revisitIntake === null) return <ErrorPage />;
+    // EMR-474: 利用開始前は問診ページを mount しない（mount すると問診 API を呼ぶため）。
+    if (!LIFF_REVISIT_INTAKE_ACTIVE || props.revisitIntake === null) return <ErrorPage />;
     const route = props.revisitIntake;
     return (
       <RevisitIntakePage
@@ -269,6 +274,9 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         onConfirm={props.handleConfirm}
         onSlotTaken={props.handleSlotTaken}
         onBack={() => props.goTo("step6")}
+        onMyReservations={props.handleCompleteToMyReservations}
+        onResultUnknown={props.handleResultUnknown}
+        createResultUnknown={props.createResultUnknown}
       />
     );
   }
@@ -282,9 +290,11 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         onNewReservation={props.handleCompleteNewReservation}
         onRevisitIntake={
           toRevisitIntakeAppointmentId(props.completedReservationId) !== null
-            ? () =>
+            ? () => {
+                const appointmentId = toRevisitIntakeAppointmentId(props.completedReservationId);
+                if (appointmentId === null) return;
                 props.handleOpenRevisitIntake({
-                  appointmentId: String(props.completedReservationId),
+                  appointmentId,
                   returnTo: "step8",
                   summary: {
                     petName:
@@ -294,7 +304,8 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
                     dateLabel: props.flow.date ? formatJapaneseDate(props.flow.date) : undefined,
                     courseName: props.flow.courseName || undefined,
                   },
-                })
+                });
+              }
             : undefined
         }
       />

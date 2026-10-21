@@ -108,6 +108,9 @@ func (m *delegateMockReservationAdminRepository) CancelByID(_ context.Context, _
 func (m *delegateMockReservationAdminRepository) FindByIDForNotify(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
+func (m *delegateMockReservationAdminRepository) FindLiffPetPairs(_ context.Context, _, _ uint64, _ []uint64) (map[uint64]LiffPetPair, error) {
+	return map[uint64]LiffPetPair{}, nil
+}
 
 func TestLiffService_DelegateStaff(t *testing.T) {
 	date := time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)

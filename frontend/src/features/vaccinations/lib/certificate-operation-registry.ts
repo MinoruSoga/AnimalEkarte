@@ -1,0 +1,85 @@
+import type { QueryClient } from "@tanstack/react-query";
+import type { IssuePending } from "./certificate-issue-reducer";
+import { createReprintStore, type ReprintStore } from "./certificate-reprint-store";
+
+/**
+ * 未確定の発行・再印刷の operation_key を、画面の unmount を越えて「メモリ上だけ」で保持する登録簿。
+ * 画面から離れて戻ったときに key を失うと、先の POST が commit 済みでも別 key で二重発行しうるため。
+ *
+ * - 永続化しない: localStorage / sessionStorage / URL / IndexedDB には書かない（リロードで消える。
+ *   リロードを越える保持が必要かは仕様判断待ち）。
+ * - 範囲: 接種記録（vaccinationId）ごと。この feature 専用で、他 feature からは参照しない。
+ * - 寿命: QueryClient の query cache に載せる。ログアウト・医院切替の `queryClient.clear()` で一緒に消え、
+ *   別ユーザーへ未確定の操作を持ち越さない。unmount 後も gc されないよう gcTime は無限にする。
+ * - 保持するのは key と request（入力欄の値を含むが、飼主・ペットの個人情報や PDF は含まない）。
+ *   確認用 preview（個人情報を含む snapshot / PDF）は持たない。
+ */
+const REGISTRY_QUERY_KEY = ["vaccinations", "operation-registry"] as const;
+
+export interface CertificateOperationRegistry {
+  /** 発行（POST /certificate-editions）の未確定操作。接種記録ごとに高々 1 つ。 */
+  readonly issuePending: Map<number, IssuePending>;
+  /** 再印刷の store（edition ごとの key と進行状態）。 */
+  readonly reprintStores: Map<number, ReprintStore>;
+  /** 離脱後に store を外す予約（購読の解除関数）。同じ接種記録の store が再び使われたら取り消す。 */
+  readonly releases: Map<number, () => void>;
+}
+
+export function certificateOperationRegistry(queryClient: QueryClient): CertificateOperationRegistry {
+  const existing = queryClient.getQueryData<CertificateOperationRegistry>(REGISTRY_QUERY_KEY);
+  if (existing !== undefined) return existing;
+  queryClient.setQueryDefaults(REGISTRY_QUERY_KEY, { gcTime: Infinity, structuralSharing: false });
+  const created: CertificateOperationRegistry = { issuePending: new Map(), reprintStores: new Map(), releases: new Map() };
+  queryClient.setQueryData(REGISTRY_QUERY_KEY, created);
+  return created;
+}
+
+/**
+ * 画面を離れるとき、未確定の再印刷 key が無い store は登録簿に残さない（完了済みの表示や個人情報に近い状態を
+ * メモリに溜めない）。未確定なら残し、確定した時点で外す（購読は外れたら自己解除する）。
+ */
+export function releaseReprintStore(
+  registry: CertificateOperationRegistry,
+  vaccinationId: number,
+  store: ReprintStore,
+): void {
+  cancelRelease(registry, vaccinationId);
+  const drop = () => {
+    if (registry.reprintStores.get(vaccinationId) === store) registry.reprintStores.delete(vaccinationId);
+  };
+  if (!store.hasPending()) return drop();
+  const off = store.subscribe(() => {
+    if (store.hasPending()) return;
+    cancelRelease(registry, vaccinationId);
+    drop();
+  });
+  registry.releases.set(vaccinationId, off);
+}
+
+/** 離脱後の解放予約を取り消す（その store が再び画面で使われるとき）。 */
+function cancelRelease(registry: CertificateOperationRegistry, vaccinationId: number): void {
+  registry.releases.get(vaccinationId)?.();
+  registry.releases.delete(vaccinationId);
+}
+
+/** store を画面が使い始める。予約済みの解放があれば取り消し、登録簿に置く。 */
+export function retainReprintStore(
+  registry: CertificateOperationRegistry,
+  vaccinationId: number,
+  store: ReprintStore,
+): void {
+  cancelRelease(registry, vaccinationId);
+  registry.reprintStores.set(vaccinationId, store);
+}
+
+/** 接種記録の再印刷 store。なければ作る（同じ接種記録に戻ると同じ store を返す）。 */
+export function reprintStoreFor(registry: CertificateOperationRegistry, vaccinationId: number): ReprintStore {
+  const existing = registry.reprintStores.get(vaccinationId);
+  if (existing !== undefined) {
+    cancelRelease(registry, vaccinationId);
+    return existing;
+  }
+  const created = createReprintStore();
+  registry.reprintStores.set(vaccinationId, created);
+  return created;
+}

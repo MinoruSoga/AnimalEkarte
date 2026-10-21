@@ -1,9 +1,10 @@
-import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { CertificateApi } from "../api/certificate-api";
 import { newOperationKey } from "../api/certificate-operation-key";
+import { boundSucceededRefs, previewMatchesRequest, resultMatchesOperation } from "../api/certificate-binding";
 import { CertificateApiError } from "../api/certificate-errors";
 import {
-  readSucceededRefs,
   type CertificateContext,
   type CertificateEdition,
   type CertificateKind,
@@ -13,10 +14,12 @@ import {
   decideIssueFailure,
   initialIssueState,
   issueReducer,
+  restoredIssueState,
   type IssueNoticeCode,
   type IssuePending,
   type IssueState,
 } from "../lib/certificate-issue-reducer";
+import { certificateOperationRegistry } from "../lib/certificate-operation-registry";
 import {
   draftFromInputs,
   draftToInputs,
@@ -40,9 +43,13 @@ export interface UseCertificateIssueArgs {
   getCanEdit: () => boolean;
   /** 前提変更（version-conflict など）で context を再取得してほしいとき。 */
   onRefetchContext: () => void;
+  /** context を取り直し、最新の can_issue を返す（再開の判断に古い値を使わない）。 */
+  refetchCanIssue: () => Promise<boolean>;
 }
 
-function initialFor(context: CertificateContext): IssueState {
+function initialFor({ context, restored }: { context: CertificateContext; restored: IssuePending | undefined }): IssueState {
+  // 画面を離れて戻っても、未確定の発行は同じ key のまま結果不明として復元する（別 key での二重発行を防ぐ）。
+  if (restored !== undefined) return restoredIssueState(restored);
   const kind = selectableKinds(context)[0] ?? "normal";
   return initialIssueState({ kind, layout: layoutsForKind(kind)[0] });
 }
@@ -53,19 +60,31 @@ export function useCertificateIssue({
   context,
   getCanEdit,
   onRefetchContext,
+  refetchCanIssue,
 }: UseCertificateIssueArgs) {
-  const [state, dispatch] = useReducer(issueReducer, context, initialFor);
+  const queryClient = useQueryClient();
+  const registry = useMemo(() => certificateOperationRegistry(queryClient), [queryClient]);
+  const [state, dispatch] = useReducer(issueReducer, { context, restored: registry.issuePending.get(vaccinationId) }, initialFor);
   const [fieldErrors, setFieldErrors] = useReducer(
     (_: DraftErrors, next: DraftErrors) => next,
     {} as DraftErrors,
   );
   // 編集のたびに進める。遅れて返った preview が編集後の画面に載らないようにする。
   const epochRef = useRef(0);
+  // 結果の照会は同時に 1 本だけ（重なった照会が先に確定した結果を後から上書きしない）。
+  const lookupBusyRef = useRef(false);
+  const [checking, setChecking] = useState(false);
   // 非同期ハンドラが最新の state を読むための ref（render 中には書かない）。
   const stateRef = useRef(state);
   useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // 未確定の key が無くなった（発行済み・前提変更・破棄・新規開始）ら、登録簿からも外す。
+  // 未確定のまま unmount しても外さない（戻ったときに復元するため）。
+  useEffect(() => {
+    if (state.pending === null || state.phase === "issued") registry.issuePending.delete(vaccinationId);
+  }, [registry, vaccinationId, state.pending, state.phase]);
 
   const edit = useCallback(
     (patch: { kind?: CertificateKind; layout?: IssueState["layout"]; draft?: Partial<CertificateInputDraft> }) => {
@@ -124,6 +143,15 @@ export function useCertificateIssue({
     try {
       const preview = await api.previewForIssue(vaccinationId, request);
       if (epoch !== epochRef.current) return;
+      // 形が正しいだけの別接種・別様式・別 CAS の preview を、確認対象として載せない。
+      const bound = previewMatchesRequest(preview, {
+        vaccinationId,
+        kind: request.kind,
+        sourceVersion: request.preconditions.source_version,
+        latestEditionId: request.preconditions.latest_edition_id,
+        inputs: request.inputs,
+      });
+      if (!bound) return fail("preview-failed", "previewFail");
       dispatch({ type: "previewOk", preview, request });
     } catch (error) {
       if (epoch !== epochRef.current) return;
@@ -140,12 +168,17 @@ export function useCertificateIssue({
   }, [api, vaccinationId, context, getCanEdit, fail]);
 
   const applyResult = useCallback(
-    (result: CertificateResult): void => {
+    (result: CertificateResult, pending: IssuePending): void => {
+      // 待っている操作以外の結果は、成功でも「成功なし」でも採用しない（結果不明のまま照会に戻す）。
+      if (!resultMatchesOperation(result, pending.key)) {
+        dispatch({ type: "issueUnknown", notice: "contract-violation" });
+        return;
+      }
       if (result.status === "not-succeeded") {
         dispatch({ type: "lookupNotSucceeded", notice: "not-succeeded" });
         return;
       }
-      const refs = readSucceededRefs(result);
+      const refs = boundSucceededRefs(result, { operationKey: pending.key, vaccinationId });
       if (refs === null) {
         dispatch({ type: "issueUnknown", notice: "contract-violation" });
         return;
@@ -153,13 +186,16 @@ export function useCertificateIssue({
       dispatch({ type: "issueOk", refs: { ...refs, replayed: result.status === "replayed" } });
       onRefetchContext();
     },
-    [onRefetchContext],
+    [onRefetchContext, vaccinationId],
   );
 
   const lookup = useCallback(
     async (pending: IssuePending) => {
+      if (lookupBusyRef.current) return;
+      lookupBusyRef.current = true;
+      setChecking(true);
       try {
-        applyResult(await api.lookupOperation(pending.key, "issue"));
+        applyResult(await api.lookupOperation(pending.key, "issue"), pending);
       } catch (error) {
         if (!(error instanceof CertificateApiError)) return fail("unavailable", "unknown");
         if (error.kind === "scope-not-found") {
@@ -168,6 +204,9 @@ export function useCertificateIssue({
         else if (error.kind === "unauthenticated") fail("unauthenticated", "blocked");
         else if (error.kind === "operation-in-progress") fail("busy", "unknown");
         else fail("unavailable", "unknown");
+      } finally {
+        lookupBusyRef.current = false;
+        setChecking(false);
       }
     },
     [api, fail, applyResult],
@@ -183,7 +222,7 @@ export function useCertificateIssue({
           await lookup(pending);
           return;
         }
-        applyResult(result);
+        applyResult(result, pending);
       } catch (error) {
         const decision = decideIssueFailure(error);
         if (decision.type === "stale") fail(decision.notice, "stale", decision.refetchContext);
@@ -212,9 +251,11 @@ export function useCertificateIssue({
         preview_display_issue_date: current.preview.snapshot.display_issue_date,
       },
     };
+    // POST を送る前に登録簿へ置く。以後に画面を離れても、この key を失わずに照会できる。
+    registry.issuePending.set(vaccinationId, pending);
     dispatch({ type: "issueStart", pending });
     await execute(pending);
-  }, [execute, getCanEdit, fail]);
+  }, [execute, getCanEdit, fail, registry, vaccinationId]);
 
   /** 結果不明の手動照会（同 key）。 */
   const recheck = useCallback(async () => {
@@ -222,6 +263,19 @@ export function useCertificateIssue({
     if (pending === null) return;
     await lookup(pending);
   }, [lookup]);
+
+  /**
+   * 権限なし・未認証で止まった後の再開。権限が戻っていることを確認できたときだけ解除する。
+   * 未確定の key があれば捨てず、同じ key の照会から再開する。
+   */
+  const resumeAfterBlocked = useCallback(async () => {
+    const current = stateRef.current;
+    if (current.phase !== "blocked") return;
+    const canIssue = await refetchCanIssue();
+    if (!getCanEdit() || !canIssue) return;
+    dispatch({ type: "unblock" });
+    if (current.pending !== null) await lookup(current.pending);
+  }, [getCanEdit, lookup, refetchCanIssue]);
 
   /** 照会で「成功なし」確定後の再試行。同 key・同 request のまま。 */
   const retrySameKey = useCallback(async () => {
@@ -245,5 +299,5 @@ export function useCertificateIssue({
     dispatch({ type: "startNew" });
   }, []);
 
-  return { state, fieldErrors, edit, copyFrom, startNew, requestPreview, issue, recheck, retrySameKey, discardAndEdit };
+  return { state, fieldErrors, checking, edit, copyFrom, startNew, requestPreview, issue, recheck, retrySameKey, discardAndEdit, resumeAfterBlocked };
 }
