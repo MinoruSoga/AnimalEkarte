@@ -858,6 +858,29 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 		_, err := svc.GetMyReservations(ctx, 3, 1)
 		require.Error(t, err)
 	})
+
+	t.Run("pet ペア取得エラー → 一覧自体のエラーとして伝播", func(t *testing.T) {
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{
+				findByCustomerIDFn: func(_ context.Context, _, _ uint64) ([]model.Reservation, error) {
+					return []model.Reservation{{ID: 1, ClinicID: 3}}, nil
+				},
+				findLiffPetPairsFn: func(_ context.Context, _, _ uint64, _ []uint64) (map[uint64]LiffPetPair, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+
+		_, err := svc.GetMyReservations(ctx, 3, 1)
+		require.Error(t, err)
+	})
 }
 
 // ================================================================

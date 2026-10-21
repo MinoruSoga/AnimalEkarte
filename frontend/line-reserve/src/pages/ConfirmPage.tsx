@@ -28,10 +28,14 @@ interface ConfirmPageProps {
   onConfirm: (reservationId: string, notes: string) => void;
   onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
+  /** EMR-519: 201 契約違反（予約が登録済みか不明）のときだけ使う予約一覧への導線。 */
+  onMyReservations?: () => void;
 }
 
 interface ConfirmFormState {
   error: string | null;
+  /** 201 契約違反で結果不明。以後この画面内では確定ボタンを無効化し自動再送しない。 */
+  resultUnknown?: boolean;
 }
 
 /** 予約完了後に LINE トーク画面へメッセージを送信する */
@@ -78,6 +82,7 @@ export function ConfirmPage({
   onConfirm,
   onSlotTaken,
   onBack,
+  onMyReservations,
 }: ConfirmPageProps) {
   // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
   const { current, total } = getStepProgress("confirm", flow.courseCategory === "trimming");
@@ -133,10 +138,12 @@ export function ConfirmPage({
         return { error: "予約の確定に失敗しました。もう一度お試しください。" };
       }
       // EMR-519: 201 応答の契約違反（parse 失敗）は POST 自体が成功している可能性を
-      // 消せない。自動再送（二重予約になり得る）は行わず、予約一覧での確認を案内する。
+      // 消せない。自動再送（二重予約になり得る）は行わず、この画面内では確定ボタンを
+      // 無効化したまま予約一覧での確認を案内する。
       return {
         error:
           "予約結果を確認できませんでした。予約が登録されている可能性があります。「予約確認・キャンセル」からご確認ください。",
+        resultUnknown: true,
       };
     }
   }
@@ -174,13 +181,15 @@ export function ConfirmPage({
         </div>
 
         <div className="flex-1 px-4 space-y-4">
-          {/* 警告メッセージ */}
-          <div className="bg-noah-warning-box-bg border border-noah-warning-border rounded-xl px-4 py-3">
-            <p className="text-sm text-noah-warning-text font-medium">まだ予約は完了していません</p>
-            <p className="text-xs text-noah-warning-text-sub mt-1">
-              「予約を確定する」ボタンを押してください
-            </p>
-          </div>
+          {/* 警告メッセージ（EMR-519: 結果不明時は「未完了」と断定しない） */}
+          {formState.resultUnknown ? null : (
+            <div className="bg-noah-warning-box-bg border border-noah-warning-border rounded-xl px-4 py-3">
+              <p className="text-sm text-noah-warning-text font-medium">まだ予約は完了していません</p>
+              <p className="text-xs text-noah-warning-text-sub mt-1">
+                「予約を確定する」ボタンを押してください
+              </p>
+            </div>
+          )}
 
           {/* 予約内容テーブル */}
           <div className="bg-white rounded-xl border border-noah-border overflow-hidden">
@@ -228,9 +237,18 @@ export function ConfirmPage({
               {privacyPolicy}
             </p>
           ) : null}
-          <PrimaryButton type="submit" disabled={isPending}>
+          <PrimaryButton type="submit" disabled={isPending || Boolean(formState.resultUnknown)}>
             {isPending ? "送信中..." : FINAL_CONFIRM_CTA_LABEL}
           </PrimaryButton>
+          {formState.resultUnknown && onMyReservations ? (
+            <button
+              type="button"
+              onClick={onMyReservations}
+              className="w-full py-3 px-4 border border-noah-teal rounded-xl text-noah-teal-dark font-semibold hover:bg-noah-teal-light"
+            >
+              予約確認・キャンセル
+            </button>
+          ) : null}
         </form>
       </div>
     </div>

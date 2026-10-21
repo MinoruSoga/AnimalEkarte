@@ -193,10 +193,26 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 	return resp
 }
 
-func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) liffReservationResponse {
+// liffPublicIDMaxUint64 は公開 ID として認められる signed int64 の上限。
+const liffPublicIDMaxUint64 = uint64(9223372036854775807)
+
+// liffPublicID は公開契約（1 〜 int64 最大値）の十進文字列を返す。
+// 0 または int64 上限超過は公開 ID として成立しないため false を返す（fail-closed）。
+func liffPublicID(id uint64) (string, bool) {
+	if id == 0 || id > liffPublicIDMaxUint64 {
+		return "", false
+	}
+	return strconv.FormatUint(id, 10), true
+}
+
+func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) (liffReservationResponse, bool) {
+	id, ok := liffPublicID(r.ID)
+	if !ok {
+		return liffReservationResponse{}, false
+	}
 	petID, petName := liffReservationPet(pair)
 	res := liffReservationResponse{
-		ID:        strconv.FormatUint(r.ID, 10),
+		ID:        id,
 		Date:      r.StartTime.In(time.Local).Format(time.DateOnly),
 		StartTime: r.StartTime.In(time.Local).Format("15:04"),
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
@@ -215,7 +231,7 @@ func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) liffRese
 			res.StaffName = r.Doctor.Name
 		}
 	}
-	return res
+	return res, true
 }
 
 func liffCourseName(rt *model.ReservationType) string {
@@ -233,10 +249,13 @@ func liffCourseName(rt *model.ReservationType) string {
 // 片方だけ値がある形は返さない。pair が無い（未紐付・紐付け取り消し・別医院・
 // 削除済み等で未解決）場合は両方 nil。既存メモや先頭ペット名からは補完しない。
 func liffReservationPet(pair *LiffPetPair) (petID *string, petName *string) {
-	if pair == nil || pair.PetID == 0 {
+	if pair == nil {
 		return nil, nil
 	}
-	id := strconv.FormatUint(pair.PetID, 10)
+	id, ok := liffPublicID(pair.PetID)
+	if !ok {
+		return nil, nil
+	}
 	name := pair.PetName
 	return &id, &name
 }
@@ -248,11 +267,15 @@ type liffReservationCreatedResponse struct {
 	Notes string `json:"notes"`
 }
 
-func toLiffReservationCreatedResponse(r *model.Reservation) liffReservationCreatedResponse {
-	return liffReservationCreatedResponse{
-		ID:    strconv.FormatUint(r.ID, 10),
-		Notes: r.Notes,
+func toLiffReservationCreatedResponse(r *model.Reservation) (liffReservationCreatedResponse, bool) {
+	id, ok := liffPublicID(r.ID)
+	if !ok {
+		return liffReservationCreatedResponse{}, false
 	}
+	return liffReservationCreatedResponse{
+		ID:    id,
+		Notes: r.Notes,
+	}, true
 }
 
 // liffHealthCardVaccineResponse はLIFF向け健康手帳ワクチン接種履歴レスポンス。

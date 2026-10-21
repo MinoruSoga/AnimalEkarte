@@ -416,4 +416,39 @@ describe("MyReservationsPage 取消後の送信結果照会", () => {
     expect(await screen.findByText("キャンセル済")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "送信結果を確認する" })).not.toBeInTheDocument();
   });
+
+  it("EMR-519: 隣接する大きな ID の取消はその ID 文字列のまま DELETE し、他カードに影響しない", async () => {
+    const user = userEvent.setup();
+    const deletedIds: string[] = [];
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([
+          { ...confirmedReservation, id: "9007199254740992" },
+          { ...confirmedReservation, id: "9007199254740993" },
+        ]),
+      ),
+      http.delete("/api/liff/:clinicId/my-reservations/:id", ({ params }) => {
+        deletedIds.push(String(params.id));
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={vi.fn()}
+        draftStore={pendingStore(false)}
+      />,
+    );
+
+    const cancelButtons = await screen.findAllByRole("button", { name: "キャンセルする" });
+    await user.click(cancelButtons[0]);
+    await user.click(screen.getByRole("button", { name: "はい、キャンセルする" }));
+
+    const cancelledBadges = await screen.findAllByText("キャンセル済");
+    expect(cancelledBadges).toHaveLength(1);
+    expect(deletedIds).toEqual(["9007199254740992"]);
+    expect(screen.getByRole("button", { name: "キャンセルする" })).toBeInTheDocument();
+  });
 });

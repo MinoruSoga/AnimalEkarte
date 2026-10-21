@@ -276,15 +276,30 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
       }),
     );
     const onConfirm = vi.fn();
+    const onMyReservations = vi.fn();
 
     render(
-      <ConfirmPage {...BASE_PROPS} onConfirm={onConfirm} onSlotTaken={vi.fn()} onBack={vi.fn()} />,
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={onConfirm}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onMyReservations={onMyReservations}
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "予約を確定する" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
     expect(onConfirm).not.toHaveBeenCalled();
+
+    // 結果不明のまま確定ボタンは無効化され、再クリックしても2回目のPOSTは送らない
+    const confirmButton = screen.getByRole("button", { name: "予約を確定する" });
+    expect(confirmButton).toBeDisabled();
+    await user.click(confirmButton);
     expect(postCount).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "予約確認・キャンセル" }));
+    expect(onMyReservations).toHaveBeenCalledTimes(1);
   });
 });

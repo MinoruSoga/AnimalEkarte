@@ -270,6 +270,7 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         onConfirm={props.handleConfirm}
         onSlotTaken={props.handleSlotTaken}
         onBack={() => props.goTo("step6")}
+        onMyReservations={() => props.goTo("my-reservations")}
       />
     );
   }

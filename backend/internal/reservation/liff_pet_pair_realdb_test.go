@@ -210,6 +210,75 @@ func TestFindLiffPetPairs(t *testing.T) {
 		assert.Empty(t, got)
 	})
 
+	t.Run("予約の pet が別 pet に差し替え → 旧名は出ず、認可済みなら新 pet のみ", func(t *testing.T) {
+		petNew := makeLiffPairPet(t, db, clinicA, owner.ID)
+		linkCommonPetForLiff(t, db, clinicA, staff.ID, petNew, species.ID, "ハク")
+		appt := newAppt(&owner.ID, &pet.ID, &customer.ID)
+		require.NoError(t, db.Model(appt).Update("pet_id", petNew.ID).Error)
+
+		got, err := repo.FindLiffPetPairs(ctx, clinicA, customer.ID, []uint64{appt.ID})
+		require.NoError(t, err)
+		require.Contains(t, got, appt.ID)
+		assert.Equal(t, petNew.ID, got[appt.ID].PetID)
+		assert.Equal(t, "ハク", got[appt.ID].PetName)
+
+		unbound := makeLiffPairPet(t, db, clinicA, owner.ID)
+		require.NoError(t, db.Model(appt).Update("pet_id", unbound.ID).Error)
+		got, err = repo.FindLiffPetPairs(ctx, clinicA, customer.ID, []uint64{appt.ID})
+		require.NoError(t, err)
+		assert.NotContains(t, got, appt.ID)
+	})
+
+	t.Run("pet.owner_id が予約の owner と不一致 → 含まれない", func(t *testing.T) {
+		owner2 := testdb.MakeTestOwner(t, db, clinicA, "別飼主")
+		petOtherOwner := makeLiffPairPet(t, db, clinicA, owner2.ID)
+		linkCommonPetForLiff(t, db, clinicA, staff.ID, petOtherOwner, species.ID, "チビ")
+		appt := newAppt(&owner.ID, &petOtherOwner.ID, &customer.ID)
+
+		got, err := repo.FindLiffPetPairs(ctx, clinicA, customer.ID, []uint64{appt.ID})
+		require.NoError(t, err)
+		assert.NotContains(t, got, appt.ID)
+	})
+
+	t.Run("soft-deleted pet → 含まれない", func(t *testing.T) {
+		petDel := makeLiffPairPet(t, db, clinicA, owner.ID)
+		linkCommonPetForLiff(t, db, clinicA, staff.ID, petDel, species.ID, "モモ")
+		appt := newAppt(&owner.ID, &petDel.ID, &customer.ID)
+		require.NoError(t, db.Delete(&model.Pet{}, petDel.ID).Error)
+
+		got, err := repo.FindLiffPetPairs(ctx, clinicA, customer.ID, []uint64{appt.ID})
+		require.NoError(t, err)
+		assert.NotContains(t, got, appt.ID)
+	})
+
+	t.Run("soft-deleted owner → 含まれない", func(t *testing.T) {
+		ownerDel := testdb.MakeTestOwner(t, db, clinicA, "削除飼主")
+		customerDel := makeLineCustomerForAdmin(t, db, clinicA, "U-petpair-delowner")
+		linkLineCustomerForLiff(t, db, clinicA, ownerDel.ID, customerDel, "linked")
+		petDel := makeLiffPairPet(t, db, clinicA, ownerDel.ID)
+		linkCommonPetForLiff(t, db, clinicA, staff.ID, petDel, species.ID, "ルナ")
+		appt := newAppt(&ownerDel.ID, &petDel.ID, &customerDel.ID)
+		require.NoError(t, db.Delete(&model.Owner{}, ownerDel.ID).Error)
+
+		got, err := repo.FindLiffPetPairs(ctx, clinicA, customerDel.ID, []uint64{appt.ID})
+		require.NoError(t, err)
+		assert.NotContains(t, got, appt.ID)
+	})
+
+	t.Run("linked でも line_customer_id が別顧客 → 含まれない", func(t *testing.T) {
+		ownerX := testdb.MakeTestOwner(t, db, clinicA, "別顧客飼主")
+		customerX := makeLineCustomerForAdmin(t, db, clinicA, "U-petpair-x")
+		otherCustomer := makeLineCustomerForAdmin(t, db, clinicA, "U-petpair-y")
+		linkLineCustomerForLiff(t, db, clinicA, ownerX.ID, otherCustomer, "linked")
+		petX := makeLiffPairPet(t, db, clinicA, ownerX.ID)
+		linkCommonPetForLiff(t, db, clinicA, staff.ID, petX, species.ID, "クロ")
+		appt := newAppt(&ownerX.ID, &petX.ID, &customerX.ID)
+
+		got, err := repo.FindLiffPetPairs(ctx, clinicA, customerX.ID, []uint64{appt.ID})
+		require.NoError(t, err)
+		assert.NotContains(t, got, appt.ID)
+	})
+
 	t.Run("appointmentIDs が空なら空 map（クエリを発行しない）", func(t *testing.T) {
 		got, err := repo.FindLiffPetPairs(ctx, clinicA, customer.ID, nil)
 		require.NoError(t, err)

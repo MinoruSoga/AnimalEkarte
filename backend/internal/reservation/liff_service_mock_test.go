@@ -226,6 +226,7 @@ type mockLiffAdminRepository struct {
 	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error)
 	findByIDForNotifyFn         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	findTimeRangesByDateRangeFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
+	findLiffPetPairsFn          func(ctx context.Context, clinicID, customerID uint64, appointmentIDs []uint64) (map[uint64]LiffPetPair, error)
 }
 
 func (m *mockLiffAdminRepository) FindAllByMonth(_ context.Context, _ uint64, _ int, _ time.Month) ([]model.Reservation, error) {
@@ -273,7 +274,10 @@ func (m *mockLiffAdminRepository) FindByIDForNotify(ctx context.Context, clinicI
 	return nil, nil
 }
 
-func (m *mockLiffAdminRepository) FindLiffPetPairs(_ context.Context, _, _ uint64, _ []uint64) (map[uint64]LiffPetPair, error) {
+func (m *mockLiffAdminRepository) FindLiffPetPairs(ctx context.Context, clinicID, customerID uint64, appointmentIDs []uint64) (map[uint64]LiffPetPair, error) {
+	if m.findLiffPetPairsFn != nil {
+		return m.findLiffPetPairsFn(ctx, clinicID, customerID, appointmentIDs)
+	}
 	return map[uint64]LiffPetPair{}, nil
 }
 
