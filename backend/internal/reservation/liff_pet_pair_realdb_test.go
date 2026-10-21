@@ -32,15 +32,11 @@ func setupLiffPetPairTestDB(t *testing.T) *gorm.DB {
 		&model.CommonPetSubject{}, &model.CommonPetClinicBinding{}, &model.CommonPetBasicRevision{},
 		&model.OwnerLineBindingState{},
 	))
-	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	db.Exec("TRUNCATE TABLE pets CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
-	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	db.Exec("TRUNCATE TABLE line_customers CASCADE")
-	db.Exec("TRUNCATE TABLE common_pet_basic_revisions CASCADE")
-	db.Exec("TRUNCATE TABLE common_pet_clinic_bindings CASCADE")
-	db.Exec("TRUNCATE TABLE common_pet_subjects CASCADE")
-	db.Exec("TRUNCATE TABLE owner_line_binding_states CASCADE")
+	testdb.Truncate(t, db,
+		"reservation_types", "pets", "owners", "animal_species", "line_customers",
+		"common_pet_basic_revisions", "common_pet_clinic_bindings",
+		"common_pet_subjects", "owner_line_binding_states",
+	)
 	return db
 }
 

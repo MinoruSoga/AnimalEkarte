@@ -354,7 +354,11 @@ func parseLiffReservationIDParam(c *gin.Context) (uint64, bool) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: id"))
 		return 0, false
 	}
-	id, _ := strconv.ParseUint(s, 10, 64)
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil || id == 0 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: id"))
+		return 0, false
+	}
 	return id, true
 }
 
