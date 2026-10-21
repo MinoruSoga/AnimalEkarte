@@ -87,6 +87,9 @@ Scopeはtrusted context由来のclinic、owner_kind=`medical_record`、actor_kin
 
 bodyを検証後、全nested struct、slice、nullable stringをdeep-copyして変更不可のconsumer commandとする。commandのexact keysは `schema_version,action,record_id,plan_item_id,owner_kind,new_source,old_link,reason`。schema_version='1'、action=link/replace/unlink。new_sourceはlink/replaceで `{owner_id,reference,source_component_path}`、unlinkではNULL。referenceは§4のtyped source_revision又は接種 `{kind:'vaccination',vaccination_id,version}`。old_linkはreplace/unlinkで `{link_id,plan_revision_id,owner_id,reference,source_component_path}`、linkではNULL。old_linkは現在認可付きserver readから生成し、bodyのexpected_link_revision_idと一致検査する。reasonはlinkでNULL、replace/unlinkでは原入力文字列を保持しtrim判定だけで非空を検査。原文を256byteへ切り捨てない。new/oldとも参照に必要なNULLを明記しunknown fieldを受けない。
 
+本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+
+
 old_link再構成はrevoked履歴も読む。linkの固定owner/ref/component/plan_revision_idはrevokeで変更しないため、同keyのreplace/unlink再送でも元commandを再構成できる。activeであることは新Applyだけで検査し、replay前段でrevokedを拒否しない。既存bindingなら保存metadataを先に現在認可付きで照会し、現在ownerの内容や現在版を要求し直さず元payload hashと不変link参照を照合する。新bindingだけに次節の新規target preflightを適用する。現在のmaster/owner更新を理由に認可済み過去成功receiptを再実行へ回さない。
 
 command_sha256はこの全commandのJCS SHA256。reason_sha256はJCS(reason string又はNULL)のSHA256、component_sha256はJCS `{old:old_link.source_component_path又はNULL,new:new_source.source_component_path又はNULL}` のSHA256。いずれもlowercase64hex。JCS UTF-8、Unicode文字列の勝手な正規化なし、NULLと空文字は区別。componentはowner返却安定identityであり、hash化は意味の変更や任意文字列の許可ではない。
@@ -114,7 +117,7 @@ Preconditions exact keysは `edit_session_ref,edit_epoch,owner_expected_version,
 
 record/plan/pet/old ownerは認可済みscoped preflight readから、新ownerは検証したcommandから導く。新ownerの同clinic/record/petを非lock readで確認してからclaimし、Applyで全てlock下再検査する。clinical identityが不一致に変わったら業務write拒否。metadataと494 record anchorのrecord、command hash、Scope.intentとactionは一致必須。claim時に読んだbusiness情報を権限永続化とみなさない。
 
-lookupはtrusted clinic/actorと既存6intent allowlistでbindingを特定し、保存metadataのrecordがURLと一致することを照合。metadataからplan/pet/旧新ownerを復元し現在record/owner viewとscopeを検査する。replaceは旧新双方。未成功にも同じ処理。planのsoft deleteやlink revokeは元metadataを破棄しない。現在ownerのpatientが変わり元対象の履歴認可を立証できなければnot-authorizedで非開示。metadata欠落・不整合はresult-unavailableとして修復担当へ渡し、incoming targetやsuccess refsで補完・作成しない。結果照会で元write grantを要求せず、viewによる開示だけを判定する。
+lookupはtrusted clinic/actorと既存6intent allowlistでbindingを特定し、保存metadataのrecordがURLと一致することを照合。metadataからplan/pet/旧新ownerを復元し現在record/owner viewとscopeを検査する。replaceは旧新双方。未成功にも同じ処理。planのsoft deleteやlink revokeは元metadataを破棄しない。現在ownerのpatientが変わり元対象の履歴認可を立証できなければnot-authorizedで非開示。認可anchorのmetadata欠落・不整合・解決不能は現Runner同様not-authorized/403で非開示として修復担当へ渡し、incoming targetやsuccess refsで補完・作成しない。結果照会で元write grantを要求せず、viewによる開示だけを判定する。元targetと現在開示認可が確定した後の結果読取失敗だけresult-unavailable/503とする。
 
 ## 6. 現在認可・整合・lock・同一TX
 

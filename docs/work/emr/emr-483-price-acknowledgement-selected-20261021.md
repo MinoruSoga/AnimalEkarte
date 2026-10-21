@@ -196,6 +196,9 @@ before は closed `{calculation_id,revision,rule_version,snapshot_digest}`、ID/
 
 これ以外のfieldは拒否。ID/版は上記canonical decimal、hashはlowercase64hex。changes hashは§3のnullを保持したclosed changesのJCS、affected IDsと超過集合hashは各canonical配列のJCS。rule_versionはbefore/after projection digestに完全拘束し、256byte制限のContentへ長い規則名を別重複fieldとして入れない。clinic/actor/owner/intentは認証Scope、operation_keyはRequest.Key。preconditionsの現在CAS値はFieldsへ入れない。Applyは同じtyped commandから全11fieldsを再生成して比較する。nullの会計割引「保持」は、固定before snapshotと組にして解決するため、同key再送で別の現在条件へ意味変更しない。
 
+本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+
+
 ### 9.3 audit_logs の exact 値
 
 - actor_type=`staff`、actor_id=認証staff、clinic_id=認証clinic。

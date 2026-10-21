@@ -100,7 +100,12 @@ family=null 又は {issue_event_id,effective_issued_quantity,effective_returned_
 POST closed: {operation_key,expected_item_version,expected_quantity_base_id,expected_latest_count_event_id,management_unit,reason,changes}。
 changesは非空配列、各要素 {root_event_id,expected_correction_head_event_id,corrected_quantity}。重複root拒否、正規化時root ID昇順。単一count/restock/waste又は同issue familyだけ。expected_latest_count_event_idはnullable。比較は登録版の最新count。ID/版はcanonical positive decimal string、数量はcanonical nonnegative decimal string、signed bigint上限以下。wire number、小数、指数、+、先頭ゼロ、未知field、重複JSONkey、不正Unicodeを拒否。reason/unitはtrimして非空、それ以外のUnicode正規化なし。operation/physical keyはcanonical UUID。offset付きRFC3339を検証しUTC instantへ正規化。hashはRFC8785 JCS UTF-8のSHA256 lower hex64。新専用DTOの規則であり、既存numeric API全体をstringへ移行しない。算術は広い整数で中間値を計算し、保存値/版はint64範囲を検査する。
 
-owner_kind=inventory、intent=inventory.movement.correct、schema_version=1。Content={schema_version,item_ref,root_event_ref,quantity_base_ref,command_sha256}。hash対象はURL item/rootとPOSTのoperation_key/expected_item_versionを除いた全command。changesのhead、latestcount、baseを意味的依存として固定。item CASだけlive precondition。immutable typed commandをclaim metadataとApplyで同じcanonical bytesから再構成する。
+owner_kind=inventory、intent=inventory.movement.correct、schema_version:"1"。Content={schema_version,item_ref,root_event_ref,quantity_base_ref,command_sha256}。hash対象はURL item/rootとPOSTのoperation_key/expected_item_versionを除いた全command。changesのhead、latestcount、baseを意味的依存として固定。item CASだけlive precondition。immutable typed commandをclaim metadataとApplyで同じcanonical bytesから再構成する。
+
+本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+
+owner-private canonical_command_bytesは既定の業務意味値だけを保持する。既存keyでは現在元target認可後に保存bytesのdecode・再canonical化・hashを検証して同じQへ載せ、現在item CASを保存業務commandへ混入しない。Qを第二の耐久保管先にしない。
+
 
 新keyは現在inventory:editでpreflightしてからclaim。binding lookup errorを不在と扱わず、view-only新keyはbinding/anchor/attemptの永続化ゼロ。claim race loserは勝者bindingの元anchorを再認可しincoming URLで補完しない。既存bindingは元anchorの現在inventory:viewでlookup/replay。Applyはeditを再検査。元target現在認可後URL不一致は既存404。既存mutation routeのedit middlewareを勝手にviewへ緩めない。POST入口がedit必須の配置ではview-onlyの保存済結果回復はGET lookupを使用し、内部replayのview認可規則だけでPOSTの入口grantを迂回しない。binding初回callbackは選定中のinventory_operation_targetsへ保存する。この表は既実装ではない。列はclinic_id bigint NOT NULL、binding_id bigint NOT NULL、inventory_item_id bigint NOT NULL CHECK >0、root_event_id bigint NULL CHECK >0、canonical_command_bytes bytea NOT NULL。PK(clinic_id,binding_id)、唯一のFKは(binding_id,clinic_id)→operation_bindings(id,clinic_id) ON DELETE RESTRICT。base/count新規記録はroot=NULL、訂正はURL root、returnは元issueをrootとする。UUIDのphysical keyと検証済みimmutable source参照/期待stampはcanonical commandに保持し、重複claim registryを追加しない。claim callback内でsource proofの読取・lockを行わず、Applyで保存参照/期待stampからsource proofを再構成して比較する。
 
@@ -108,7 +113,7 @@ owner_kind=inventory、intent=inventory.movement.correct、schema_version=1。Co
 
 Content不一致=operation-key-conflict。Content一致後item CAS不一致=version-conflict。base/head/latestcount/単位/依存の変化=dependency-changed。無効数量/過返却/不足=validation。保存済成功は現在head/CASで再実行せず元receipt。unknown/busy中は同key照会のみ、別key開始禁止。
 
-公開HTTP/statusは succeeded/replayed/not-succeeded=200、operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed=409、validation=400、scope-not-found=404、not-authorized=403。pre-C06入口だけ既存{error:string}。既存finance他routeは変更しない。成功refs={inventory_item_id,quantity_base_id,root_event_id,correction_operation_id}、versions={item_version}。correction_operation_idはbinding IDであり、同operation_idのevent列をledgerから読める。配列やEffectSummaryをResultResponseへ追加しない。非成功refsなし。no-opも同形式、event0件でaudit/receiptだけを保持する。
+公開HTTP/statusは succeeded/replayed/not-succeeded=200、operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、validation=400、scope-not-found=404、not-authorized=403。pre-C06入口だけ既存{error:string}。既存finance他routeは変更しない。本consumerで通常発生しない状態も共有12値のenum/HTTP対応を維持し、新しいedit fenceを導入する意味ではない。成功refs={inventory_item_id,quantity_base_id,root_event_id,correction_operation_id}、versions={item_version}。correction_operation_idはbinding IDであり、同operation_idのevent列をledgerから読める。配列やEffectSummaryをResultResponseへ追加しない。非成功refsなし。no-opも同形式、event0件でaudit/receiptだけを保持する。
 
 ## 5. 原子性・監査・旧writer閉包
 

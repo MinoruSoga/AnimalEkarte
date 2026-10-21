@@ -23,6 +23,9 @@
 - prefix `/api/v1`。新DTOのbigint ID/revisionはcanonical正のsigned-64 decimal string、operation keyは既採用UUID。既存legacy DTOをこの文書だけで一括string化しない。
 - write bodyはclosed object。認証actor/clinic、confirmed_by/at、外部結果・配送成功、doctor指定の事実をclient申告で作らない。確認する対象ID/内容/目的はContent、実行CAS/fenceはPreconditionsとして区別する。
 - 大きい本文/配列はschema名付きcanonical JSONのSHA-256 commitmentをC06 Contentへ束縛する。typed immutable commandを保存しApply直前に同じprojectionから再計算する。別のunchecked payloadでwriteしない。確認対象の内容版はContent、単なる現在CASはPreconditions。
+
+本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+
 - 新規操作は非変更の現在認可/scope preflight後にclaim。claimと元targetの認可anchorを同じclaim TXで保存し、失敗bindingにもlookup可能な元対象を残す。既存keyでは保存済み元anchorから現在のlookup権限を検証してから内容競合/receipt開示。要求bodyのtargetへ付け替えない。
 - 成功receiptは内部保存成功のみ。provider状態を成功receiptの一語で置換しない。GET/replayはprovider HTTPを起動しない。lookup/responseは明示DTOへ写像し、C06 EffectSummaryを丸ごと公開しない。
 - C06到達後は既存Go `operation.ResultResponse` / OpenAPI `MedicalRecordPlanOperationResultResponse` の形を再利用する（package固有result_refs型は流用しない）。closed status/HTTP表は第7節に固定。新writeも200 succeeded、replay/lookupは200、busyは202。初案の201/処理中409/operation wrapperは撤回。

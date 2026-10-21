@@ -59,6 +59,9 @@ pathの{edition}は文書内版番号であり、edition_id（financial_document
 
 502と同じ単一factoryが、検証済DTOからprivate immutable command、C06 Content、Preconditions、participantを同時生成する。map/slice/pointerをdefensive copyしsetterを公開しない。Applyはwriter前に同commandからdigestを再計算しreq.Contentと完全一致を検証する。異なるcaptured payloadや再parse差込みは禁止。
 
+本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+
+
 Canonical hash = lowerhex SHA256(UTF8(JCS(projection)))。JCSの文字列/keysはRFC8785、数値意味のあるID/金額/数量/版は正規decimal stringとして投影し、float誤差を持ち込まない。object key順はJCS、集合はID順、表示行順はordinalとIDを値として保持する。表示上の行順変更を勝手に同内容へ潰さない。
 
 - invoice source projection schema=financial-invoice-source-v1: billing_id、document_kind=invoice、calculation_id、calculation_revision、原取引番号、元owner/元pet・共通料金区分、原請求日、固定source_snapshot/display_snapshot、layout_version。snapshotは当該sourceの固定実値のみ。
