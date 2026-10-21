@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { buildSnapshot, mockHash, mockPdfBase64 } from "../mock/certificate-fixtures";
 import { boundSucceededRefs, previewMatchesRequest, resultMatchesOperation } from "./certificate-binding";
-import type { CertificatePreviewResponse, CertificateSucceededResult } from "./certificate-schemas";
+import {
+  emptyCertificateInputs,
+  type CertificatePreviewResponse,
+  type CertificateSucceededResult,
+} from "./certificate-schemas";
 
 const KEY = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 
 const preview: CertificatePreviewResponse = {
-  snapshot: buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false }),
+  snapshot: buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false, inputs: emptyCertificateInputs() }),
   snapshot_sha256: mockHash("a"),
   preview_fingerprint: mockHash("b"),
   source_version: 7,

@@ -6,6 +6,7 @@ import {
   certificatePreviewResponseSchema,
   certificateResultSchema,
   certificateSavedPreviewSchema,
+  emptyCertificateInputs,
   isPdfBase64,
   readSucceededRefs,
   type CertificateSucceededResult,
@@ -109,7 +110,7 @@ describe("preview PDF payload の検証", () => {
   });
 
   it("確認できない PDF を含む preview 応答は両 schema で拒否する", () => {
-    const snapshot = buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false });
+    const snapshot = buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false, inputs: emptyCertificateInputs() });
     const base = {
       snapshot,
       snapshot_sha256: mockHash("x"),

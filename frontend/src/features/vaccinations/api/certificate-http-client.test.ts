@@ -1,6 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { server } from "@/testing/mocks/node";
+import { emptyCertificateInputs } from "./certificate-schemas";
 import { buildSnapshot, mockHash, mockPdfBase64 } from "../mock/certificate-fixtures";
 import { CertificateApiError } from "./certificate-errors";
 import { createHttpCertificateApi } from "./certificate-http-client";
@@ -210,7 +211,7 @@ describe("実 API クライアント", () => {
   describe("応答の対象束縛（形が正しいだけの別対象を載せない）", () => {
     const editionFor = (over: { vaccination_id?: number; kind?: "normal" | "rabies"; snapshotVaccinationId?: number }) => {
       const kind = over.kind ?? "normal";
-      const snapshot = buildSnapshot({ kind, layout: kind === "normal" ? "portrait" : "rabies", sourceVersion: 7, rabiesEligible: kind === "rabies" });
+      const snapshot = buildSnapshot({ kind, layout: kind === "normal" ? "portrait" : "rabies", sourceVersion: 7, rabiesEligible: kind === "rabies", inputs: emptyCertificateInputs() });
       return {
         id: 301,
         series_id: 201,
