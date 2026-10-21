@@ -219,13 +219,14 @@ export function getRevisitIntakeErrorStatus(error: unknown): number | undefined 
 const MAX_AUTO_RETRY_AFTER_MS = 5_000;
 
 /**
- * 429/503 の Retry-After（秒または HTTP-date）をミリ秒へ。無い・解釈不能は undefined。
+ * 429/500/503 の Retry-After（秒または HTTP-date）をミリ秒へ。無い・解釈不能は undefined。
  * 契約（api.yaml 429/503）は Retry-After があれば尊重することを求める。
  */
 export function getRetryAfterMs(error: unknown, now: number = Date.now()): number | undefined {
   if (!isAxiosError(error)) return undefined;
   const status = error.response?.status;
-  if (status !== 429 && status !== 503) return undefined;
+  // api.yaml: 429/500/503 は Retry-After があれば尊重する。
+  if (status !== 429 && status !== 500 && status !== 503) return undefined;
   // ヘッダ名の大文字小文字に依存しない（AxiosHeaders は元の表記で保持する）。
   const raw: unknown = error.response?.headers
     ? AxiosHeaders.from(error.response.headers as AxiosHeaders).get("retry-after")

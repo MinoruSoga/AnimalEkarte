@@ -19,6 +19,10 @@ describe("getRetryAfterMs", () => {
     expect(getRetryAfterMs(axiosError(503, { "Retry-After": "0" }))).toBe(0);
   });
 
+  it("500 の Retry-After も尊重する（api.yaml RevisitIntakeInternalError）", () => {
+    expect(getRetryAfterMs(axiosError(500, { "Retry-After": "9" }))).toBe(9000);
+  });
+
   it("ヘッダ名の大文字小文字を区別しない", () => {
     expect(getRetryAfterMs(axiosError(429, { "retry-after": "3" }))).toBe(3000);
     expect(getRetryAfterMs(axiosError(503, { "RETRY-after": "4" }))).toBe(4000);
@@ -35,7 +39,7 @@ describe("getRetryAfterMs", () => {
   it("ヘッダ無し・解釈不能・対象外 status・非 axios は undefined", () => {
     expect(getRetryAfterMs(axiosError(429))).toBeUndefined();
     expect(getRetryAfterMs(axiosError(429, { "Retry-After": "soon" }))).toBeUndefined();
-    expect(getRetryAfterMs(axiosError(500, { "Retry-After": "5" }))).toBeUndefined();
+    expect(getRetryAfterMs(axiosError(404, { "Retry-After": "5" }))).toBeUndefined();
     expect(getRetryAfterMs(new Error("net"))).toBeUndefined();
   });
 });

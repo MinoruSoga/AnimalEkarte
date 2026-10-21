@@ -33,18 +33,24 @@ const PROVENANCE_LABEL = "飼主（LINE）";
 /** docs/spec/ui-design-guide.md / design-patterns §6.2: 読込は 300ms 超でスケルトン。 */
 const SKELETON_DELAY_MS = 300;
 
-/** pending が threshold を超えて続いたときだけ true（短い読込でのスケルトン点滅を避ける）。 */
-function useElapsed(active: boolean, delayMs: number): boolean {
+/**
+ * 読込開始から SKELETON_DELAY_MS 経過後にだけバーを描く（短い読込での点滅防止）。
+ * pending の間だけ mount されるため、状態のリセットは unmount で済み effect 内の同期 setState は不要。
+ */
+function DelayedSkeleton() {
   const [elapsed, setElapsed] = useState(false);
   useEffect(() => {
-    if (!active) {
-      setElapsed(false);
-      return;
-    }
-    const timer = setTimeout(() => setElapsed(true), delayMs);
+    const timer = setTimeout(() => setElapsed(true), SKELETON_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [active, delayMs]);
-  return active && elapsed;
+  }, []);
+  if (!elapsed) return null;
+  return (
+    <>
+      <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
+      <div className={`h-4 w-full rounded ${C.bgSkeleton} animate-pulse`} />
+      <div className={`h-4 w-3/4 rounded ${C.bgSkeleton} animate-pulse`} />
+    </>
+  );
 }
 
 function formatReceivedAt(iso: string): string {
@@ -191,7 +197,6 @@ export function RevisitIntakeSection({
   const query = useGetRevisitIntake({ appointmentId, clinicId, enabled });
   const queryClient = useQueryClient();
   const pages = query.data?.pages;
-  const showSkeleton = useElapsed(query.isPending, SKELETON_DELAY_MS);
   // 401/403/404 は cached pages の有無に関係なく最優先（再取得・追加ページでセッション失効・権限喪失した場合も本文を出さない）。
   const errorStatus = query.isError ? getRevisitIntakeErrorStatus(query.error) : undefined;
   const denied = errorStatus === 401 || errorStatus === 403 || errorStatus === 404;
@@ -236,13 +241,7 @@ export function RevisitIntakeSection({
       <SectionFrame busy>
         <div role="status" className="space-y-2">
           <span className="sr-only">問診を読み込み中</span>
-          {showSkeleton ? (
-            <>
-              <div className={`h-4 w-40 rounded ${C.bgSkeleton} animate-pulse`} />
-              <div className={`h-4 w-full rounded ${C.bgSkeleton} animate-pulse`} />
-              <div className={`h-4 w-3/4 rounded ${C.bgSkeleton} animate-pulse`} />
-            </>
-          ) : null}
+          <DelayedSkeleton />
         </div>
       </SectionFrame>
     );
