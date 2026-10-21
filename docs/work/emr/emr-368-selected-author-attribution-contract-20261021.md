@@ -83,6 +83,11 @@ A初回実入力成功→初回/最終A、A改名のみ→旧表示保持、同A
 - [認証actor guard](https://github.com/MinoruSoga/AnimalEkarte/blob/5f6ac6c03500e63d18165b14c22631e586f044ed/backend/internal/medicalrecord/medical_record_entered_by_actor.go)
 - [既存route登録](https://github.com/MinoruSoga/AnimalEkarte/blob/5f6ac6c03500e63d18165b14c22631e586f044ed/backend/internal/medicalrecord/routes_records.go)
 
+
+no-opの比較projectionは各ownerのclosed保存値before/afterとし、wireの省略fieldと明示NULLをowner契約に従って適用した結果を比較する。owner adapterごとにschema version・対象field・NULL/空文字・decimal/date・順序の既存規約を固定する。共通のtrim、NULLから空文字への変換、float比較は行わない。正常な履歴コピーでも有効保存値が同じならeventを作らない。projection未選定ownerはhook有効化対象に含めず、その必要subsetを実装引渡しに残す。これは実編集の業務定義の再質問ではない。
+
+pre-actorの許可lockは既存reservation graph advisory gateとoperation binding NOWAITのみ。ParticipantGateはrecord/pet/clinical owner等のbusiness row lockを取得しない。現在staff/assignment/account guardの後にlifecycle/record/owner row lockを取得する。既存LockDraftMedicalRecordはrecord FOR UPDATEを行うのでpre-actorへ移さない。別gateはlock footprintを明示するまで接続しない。graph advisory gateをactor後へ移して既存規約を逆転させない。
+
 ## 8. 追加調査：system経路と最小scope閉包
 
 実在コード確認（同5f6ac6c0）：medical_record_auto_create.go L77–93は予約由来空作成後にCreateSubRecordsInput{}を渡す。medical_record_subrecords.goのupsertInquirySubRecordは入力なしなら保存せず、ensureClinicalPlanSubRecordは空row確保のみで、臨床fieldがない場合更新しない。この内部空生成/修復は実入力者への帰属対象外。自動生成した時点でunenteredを確立し、初回職員の実入力成功まではfirst/last staffを持たせない。既存rowに対する空修復はlegacy_unknownをunenteredに変えない。
@@ -128,7 +133,7 @@ lab_device_exam_persist.go persistMappedLabExams L289以降はLabExamPersistInpu
 
 新privateファイルは backend/internal/medicalrecord/medical_record_author_attribution.go（resolver/RecordSuccessfulEdit）、medical_record_author_repository.go（2表）、medical_record_author_response.go（projection）とする。新汎用監査framework/別worker/outboxを作らない。これらは後続実装の配置契約であり、本PRでファイルを作成しない。
 
-RecordSuccessfulEdit(ctx, immutable attribution input) はambient TX必須。入力はserver解決したclinic/record、trusted actor、C06 operation_id、同operation内の正規化済み変更集合 changes[]（各要素owner_kind/owner_ref/committed_owner_version/change_kind）、正規化後の実差分判定だけで、body指定名・別captured actor・新たなoperation_keyを受けない。親record lock保持を必須とする。event INSERTとprojection UPDATEを実行し、成功event IDを返す。業務本文やbefore/afterの第二コピーは持たない。snapshotはTX内でlock済staffから読み、外側participantが全子保存結果を集約し、changes[]を(owner_kind,owner_ref,change_kind)順に整列・重複排除して最後に1回だけ呼ぶ。子repositoryから独立にeventを作らない。同record同operationの再呼出は全変更集合とactorが一致した場合だけ同eventを返す。異owner/ref/版の正当な複数子は集合の別要素であって競合ではない。途中の部分集合でeventを確定した後に別子を追記する方式は禁止。
+RecordSuccessfulEdit(ctx, immutable attribution input) はambient TX必須。入力はserver解決したclinic/record、trusted actor、C06 operation_id、同operation内の正規化済み変更集合 changes[]（各要素owner_kind/owner_ref/committed_owner_version/change_kind）、正規化後の実差分判定だけで、body指定名・別captured actor・新たなoperation_keyを受けない。親record lock保持を必須とする。event INSERTとprojection UPDATEを実行し、成功event IDを返す。業務本文やbefore/afterの第二コピーは持たない。snapshotはTX内でlock済staffから読み、外側participantが全子保存結果を集約し、changes[]を(owner_kind,owner_ref,committed_owner_version,change_kind)順に整列・重複排除して最後に1回だけ呼ぶ。子repositoryから独立にeventを作らない。同record同operationの再呼出は全変更集合とactorが一致した場合だけ同eventを返す。異owner/ref/版の正当な複数子は集合の別要素であって競合ではない。途中の部分集合でeventを確定した後に別子を追記する方式は禁止。
 
 C06参加：494既存record owner/元anchor/lookupを再利用し、root/childの外側業務操作に統合する。新帰属専用HTTP write route、別帰属claim、別receiptは作らない。実差分保存→既存必須履歴/audit→帰属event/projection→既存C06成功結果の順を同ambient TX内に置く（auditとeventの前後が保存結果を変えないよう、どちらも成功必須）。親recordに対するevent順はそのrecord lockで直列化し、timestamp/MAX(id)でfirst/lastを再推定しない。no-opはevent/projection更新なし。既存consumerがno-op receipt/auditを必要とする場合はそれを維持する。
 

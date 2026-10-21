@@ -180,3 +180,17 @@ warning receiptを新規承認トークンとして要求しない。関連訂�
 ## 10. 別要件との境界
 
 新MTGの健診PDFと狂犬病関連4文書はEMR-500/486/487側の別要件。本契約のlink-onlyは結果・実績identityを関連付けるだけで、自動PDF生成、OCR、証明書発行を追加しない。帳票が4文書になることと、同じ接種実績のprimary execution_source link数は無関係であり、§1と518 §5.3の既決制約は変更しない。文書作成ごとに同じ接種の主linkを4本作成しない。
+
+
+
+### 8.1 owner_linksとgeneration読取のclosed必要subset
+
+既存MedicalRecordPlanOwnerLink.idは既にlink IDであり削除/再採番しない。既存id/owner_kind/owner_id/owner_version/fixed_revision_id/statusの互換を維持し、required fields `plan_revision_id,link_purpose,source_component_path,owner_reference,fulfillment_sources` を加算する。plan_revision_idはlinkが作成された不変plan revisionの正IDで、現在plan headではない。link_purposeはexecution_source/result/charge_sourceの既存3値、source_component_pathはrequired nullable string（§4の安定IDのみ）。owner_referenceは§4の検査revision/legacy digest/接種versionの同じclosed unionであり、unknownをNULLや架空revisionにしない。current guardはowner detailのplan_link_sourceから取得し、owner_referenceと混同しない。
+
+fulfillment_sourcesはrequired配列で、要素のexact keysは `{record_id,plan_item_id,owner_link_id,treatment_id}`（全canonical正ID）。authoritative関係が§6.8で影響させる実存484 treatment sourceだけを列挙し、tuple順・重複無し。無関係なら空配列、未読込/失権なら成功空配列にせずerror/既存unknown扱い。exam/vaccinationに新generationを設けず、結果linkからtreatmentを生成しない。履歴linkでも現在認可された同じ元sourceを辿れなければ推測しない。
+
+成功/replay後は操作前後の旧新fulfillment_sourcesを別々に保持し、各tupleの既存484 GET /medical-records/{record_id}/plan-items/{plan_item_id}/fulfillment を再取得する。返却active owner_link/treatment identityがtupleと一致する場合だけ、そのfulfillment_generationを当該sourceの現在source_generationとして次の明示操作へ渡す。source変更/失権/unknownなら次writeを停止し再選択する。両sourceが同じtupleならGETは一回。これは現在値であり先のlink receiptのcommit時値ではない。内部EffectSummaryを公開値とせずcommitted_versionsの既存2keyを維持する。484のtreatment-only範囲をexam等の実施操作へ拡張しない。必要なsource関係resolverと現在認可を同じreader引渡しsubsetに含める。
+
+非空fixtureのexact JSONは `{"id":"81","owner_kind":"examination","owner_id":"61","owner_version":"4","fixed_revision_id":"71","status":"active","plan_revision_id":"23","link_purpose":"result","source_component_path":null,"owner_reference":{"kind":"revision","revision_id":"71","revision_version":"4"},"fulfillment_sources":[]}`。対応するexam61/revision71(version4)、plan revision23が同clinic/record/petに存在するfixtureを併置する。replace/unlinkのexpected_link_revision_id='23'が現在plan.versionではなく当該link作成版から組み立つことを固定する。さらに旧新の異なるtreatment tupleを持つfixtureでは2回の484 GETと各返却generationを混ぜずに保持する。owner_reference/link_purposeを任意文字列を許すschemaにしない。no-source case、失権、同source重複、現在owner差替えもnegative fixtureへ含める。
+
+reasonは原文保持、trimは非空判定だけ。既存JSON raw body 1MiB制限をparse/deep-copy/hash/claim前に当該routeへ適用し、誤Content-Typeのbinary上限へ逃がさない。内部callerも同上限、超過413既存ErrorResponse、切捨て無し。新しい500文字業務制限は追加しない。

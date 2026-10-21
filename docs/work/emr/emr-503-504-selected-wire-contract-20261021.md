@@ -75,6 +75,19 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 - 初回/再試行の各外部送信直前に、現在 report の identity/version と本文・添付の content commitment を intent の report_id/report_version および保存済み確認 snapshot と再照合する。現在の本文・添付を同じ schema/正規化規則で再計算し、版又は commitment 不一致・確認不能なら外部送信0で再preview・再確認待ちとし、古い intent/snapshot を上書きしない。新規作成時の confirmation_payload の report_ref/report_version=null は確認時の原値として保持し、生成後の report identity/version は intent の保存列で照合する。照合した immutable 本文・添付だけを外部 call へ渡し、検査後の別 payload 再読に差し替えない。加えて、保存した destination_ref と非secret configuration_digest を現在設定から再計算して照合する。Aで保存しBで送る滞留 intent も例外にしない。不一致/設定不足なら外部送信0で再確認待ちとし、保存済み intent の宛先を上書きしない。照合済み同一 immutable 設定値をその呼出しへ渡し、検査後に別の現在設定を読み直して宛先をすり替えない。credential は digest/ログへ含めず、同じ宛先 identity に対応する設定として取得する。送信と設定変更がDB TXで原子的になる、又は開始済み外部効果を回収できるとは主張しない。
 - provider側が「不存在」を証明できない場合はunknownのまま。新しいroot権限・管理者限定・証拠なし手動上書きを発明しない。署名済みURL失効や外部コピー消去は保証しない。
 
+
+### dispatch実行制御と再送不在証明（固定レビュー補正）
+
+attempt/resultのimmutable履歴とは別に、owner-private `support_delivery_attempt_executions` を追加する。columnsは `clinic_id bigint NOT NULL, attempt_id bigint NOT NULL, destination_id bigint NOT NULL, state text NOT NULL, fence bigint NOT NULL DEFAULT 1, started_at timestamptz NULL, finished_at timestamptz NULL`。PK(clinic_id,attempt_id)、FK(attempt_id,clinic_id,destination_id)→support_delivery_attempts(id,clinic_id,destination_id) RESTRICT。stateはclaimed/started/finished/revoked、fence>0。claimed/revokedは両時刻NULL、startedはstarted_atのみ非NULL、finishedは両非NULLかつfinished_at>=started_at。許可遷移はclaimed→started、claimed→revoked、started→finishedだけ。revoked/finishedはterminal。全更新はexpected state/fenceのCASでfenceを1増分し、BIGINT上限では停止してwrapしない。tenant RLSと同clinic検証、DELETE禁止、state逆行禁止をDDL・model・repositoryで揃える。これらは新設計であり既存schema適合済みとはしない。
+
+全関係writerの順はreport親→destination→attempt execution。report本文更新も同report親lockへ参加する。claimはattempt・execution(claimed)・support.delivery_claim監査を同一短TXでcommitし、監査失敗は全てrollback、HTTPは0。workerは開始前の短TXで現在認可、report版/content、宛先設定commitmentと最新attemptを再照合し、executionのclaimed→started CASとstart監査を同TXで確定する。このcommitがdispatch開始の線形化点であり、その後は固定済み本文・宛先だけでHTTPを一度実行する。CAS失敗、版変更、監査失敗は送信0。start監査は既存audit_logsへaction=support.delivery_start、attempt_id/fenceを保存する。後からreportが改訂されても開始済み外部効果を回収できるとは保証しない。設定更新も同じ非secret設定identityの同期規約を満たすまで送信subsetを有効化しない。
+
+HTTPの確定応答後はexecutionのstarted→finished、result、result監査、delivery receiptを同一結果TXでcommitする。監査/DB失敗は全結果遷移rollback、外部送信済みの可能性をblocking unknownとして維持する。started行の時間経過・worker終了・lease切れだけでfinished/未送信へ補完しない。終了不能ならstartedのまま照合待ちであり、二重claimしない。
+
+reconciliationは未開始claimedを同lock下でrevokedへCASし、その監査を同TXに記録してから不在証拠を評価する。この失効後、旧workerはstart CASに成功できない。started/finishedの場合は、元呼出しが今後新しい外部効果を作れないというprovider契約上の終結証拠と、そのattempt宛の不存在証拠の両方が必要。単発の検索不在、HTTP timeout、DB result=NULL、fence更新、cancel要求の送信は終結証拠ではない。remoteが遅延処理し得る場合はunknownのまま再送不可。確定応答finishedもそれだけでは不存在を証明しない。照合中も同attempt/fenceと最新result CASをcommit時再検証し、成功履歴terminalを維持する。証拠を提供できないproviderでは再送不可を明示し、安全確認のない管理者上書きや新key迂回を作らない。
+
+execution行不在の既存attemptは未開始と推定しない。移行時の厳密な履歴判定で安全な初期状態を確定できない行はunknown/再送不可として保持し、runtime GETで行を補完しない。DDL/model/RLS/CAS/監査fixtureの必要subsetが揃うまでBの当該dispatcher/retryを有効化しない。Aの報告保存とは別の完成判定とする。
+
 ## 4. EMR-504：Phase1内の技術整備A/B と後続技術研究C
 
 [旧Phase記述（固定SHAの履歴）](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/spec/line/lstep-integration.md#crm-delivery-phase-boundary-20261017)のLSTEP／DM対象外という扱いは、本人の最新指示「Lステップ／DM連携側の機能はPhase1」により撤回する。本節A/BはPhase1内の技術整備sliceとして整理し、A互換adapter・B契約整備をPhase1外へ除外しない。Cは後続技術研究でありA/Bの完了判定と分離するが、機能のPhase1範囲を狭める意味ではない。LINE予約・本人紐付け・再診問診の必要なunlink/対象認可も維持する。scope正本の修正は別担当の作業であり、本書だけを更新する。通知再開は本人の追加回答「ok」により開始時刻が現在より後の予約を対象とし、開始済みを除外する。任意horizonや別用途の時刻/状態述語で補完しない。送信有効化・実送信は本作業では行わない。
