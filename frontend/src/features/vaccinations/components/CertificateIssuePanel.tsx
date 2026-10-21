@@ -169,6 +169,13 @@ export function CertificateIssuePanel({
               </Button>
             </div>
           ) : null}
+          {state.phase === "blocked" ? (
+            <div className="mt-2">
+              <Button type="button" variant="outline" onClick={() => void flow.resumeAfterBlocked()}>
+                権限を再確認して続ける
+              </Button>
+            </div>
+          ) : null}
           {state.phase === "not-issued" ? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button type="button" onClick={() => void flow.retrySameKey()}>

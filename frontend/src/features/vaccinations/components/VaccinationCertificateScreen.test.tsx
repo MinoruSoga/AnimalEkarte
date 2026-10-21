@@ -609,3 +609,48 @@ describe("自動照会中の手動照会", () => {
     expect(callsOf(controls, "lookupOperation")).toHaveLength(1);
   });
 });
+
+describe("権限が戻った後の再開", () => {
+  it("確認済み preview の発行直前に権限を失っても、権限が戻れば再 preview から続けられる", async () => {
+    const user = userEvent.setup();
+    const { api } = createMockCertificateApi({ rabiesEligible: false });
+    const view = renderScreen(api);
+    await createPreview(user);
+    permission.canEdit = false;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    expect(await screen.findByText("この操作を行う権限がありません")).toBeInTheDocument();
+
+    // 権限が戻っていない間は解除しない。
+    await user.click(screen.getByRole("button", { name: "権限を再確認して続ける" }));
+    expect(screen.getByText("この操作を行う権限がありません")).toBeInTheDocument();
+
+    permission.canEdit = true;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    await user.click(screen.getByRole("button", { name: "権限を再確認して続ける" }));
+    expect(await screen.findByRole("button", { name: "プレビューを作成" })).toBeEnabled();
+    expect(screen.queryByText("この操作を行う権限がありません")).toBeNull();
+  });
+
+  it("発行 POST が 403 だった場合は、権限が戻ったら同じ key の照会から再開し、未受付なら同じ内容で再試行できる", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    renderScreen(api);
+    await createPreview(user);
+    controls.failNext("issue", {
+      error: new CertificateApiError("forbidden", { httpStatus: 403, code: "edit-right-lost" }),
+    });
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    await screen.findByText("この操作を行う権限がありません");
+
+    await user.click(screen.getByRole("button", { name: "権限を再確認して続ける" }));
+    expect(await screen.findByText("この操作は受け付けられていません")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "同じ内容で再試行" }));
+    await screen.findByRole("heading", { name: "発行しました" });
+    const keys = callsOf(controls, "issue").map((c) => (c.detail as CertificateIssueRequest).operation_key);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBe(keys[1]);
+    const lookupKeys = callsOf(controls, "lookupOperation").map((c) => (c.detail as { operationKey: string }).operationKey);
+    expect(lookupKeys).toEqual([keys[0]]);
+  });
+});

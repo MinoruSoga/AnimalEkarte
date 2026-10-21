@@ -245,6 +245,19 @@ export function useCertificateIssue({
     await lookup(pending);
   }, [lookup]);
 
+  /**
+   * 権限なし・未認証で止まった後の再開。権限が戻っていることを確認できたときだけ解除する。
+   * 未確定の key があれば捨てず、同じ key の照会から再開する。
+   */
+  const resumeAfterBlocked = useCallback(async () => {
+    const current = stateRef.current;
+    if (current.phase !== "blocked") return;
+    onRefetchContext();
+    if (!getCanEdit() || !context.can_issue) return;
+    dispatch({ type: "unblock" });
+    if (current.pending !== null) await lookup(current.pending);
+  }, [context.can_issue, getCanEdit, lookup, onRefetchContext]);
+
   /** 照会で「成功なし」確定後の再試行。同 key・同 request のまま。 */
   const retrySameKey = useCallback(async () => {
     const pending = stateRef.current.pending;
@@ -267,5 +280,5 @@ export function useCertificateIssue({
     dispatch({ type: "startNew" });
   }, []);
 
-  return { state, fieldErrors, checking, edit, copyFrom, startNew, requestPreview, issue, recheck, retrySameKey, discardAndEdit };
+  return { state, fieldErrors, checking, edit, copyFrom, startNew, requestPreview, issue, recheck, retrySameKey, discardAndEdit, resumeAfterBlocked };
 }
