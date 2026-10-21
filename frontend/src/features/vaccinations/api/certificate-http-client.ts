@@ -7,7 +7,7 @@ import {
   classifyCertificateError,
   type ErrorBody,
 } from "./certificate-errors";
-import { editionPageMatches, savedPreviewMatches } from "./certificate-binding";
+import { editionPageMatches, editionVersionConsistent, savedPreviewMatches } from "./certificate-binding";
 import {
   certificateContextSchema,
   certificateEditionPageSchema,
@@ -103,7 +103,13 @@ export function createHttpCertificateApi(): CertificateApi {
       const { data } = await call(() =>
         axios.get<unknown>(`${BASE}/vaccinations/${vaccinationId}/certificate-context`, { signal }),
       );
-      return parse(certificateContextSchema, data);
+      const context = parse(certificateContextSchema, data);
+      // latest の edition の版が食い違う応答を、正常データとして表示・発行処理へ渡さない。
+      const latest = [context.latest.normal, context.latest.rabies];
+      if (!latest.every((edition) => edition === null || editionVersionConsistent(edition))) {
+        throw new CertificateApiError("malformed", { message: "最新版の発行版が食い違っています" });
+      }
+      return context;
     },
     async previewForIssue(vaccinationId, body, signal) {
       const { data } = await call(() =>
@@ -125,7 +131,11 @@ export function createHttpCertificateApi(): CertificateApi {
           signal,
         }),
       );
-      return parse(certificateEditionSchema, data);
+      const edition = parse(certificateEditionSchema, data);
+      if (!editionVersionConsistent(edition)) {
+        throw new CertificateApiError("malformed", { message: "発行版が食い違っています" });
+      }
+      return edition;
     },
     async listEditions(vaccinationId, query, signal) {
       const requestedPage = query.page ?? 1;

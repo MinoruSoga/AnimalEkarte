@@ -1703,6 +1703,127 @@ describe("RevisitIntakePage draft（target 別 memory のみ）", () => {
 
     expect(onBack).toHaveBeenCalledTimes(1);
   });
+
+  describe("editor が外れた read でも memory draft を離脱確認に含める", () => {
+    const DRAFT_KEY = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    const seedDraft = (store: RevisitIntakeDraftStore) =>
+      store.set(DRAFT_KEY, {
+        values: answers({ visit_purpose: "未送信の合成入力" }),
+        pending: null,
+        baselineToken: "0|false|",
+      });
+
+    it("編集不可の read で draft が store に残るとき、戻る操作は確認を挟む", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read({ ...unansweredTarget(), editable: false })]);
+      const store = createStore();
+      seedDraft(store);
+      const { onBack } = renderPage({ store });
+
+      await screen.findByRole("status");
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(
+        screen.getByText("回答はまだ送信されていません。このまま戻りますか？"),
+      ).toBeInTheDocument();
+      expect(onBack).not.toHaveBeenCalled();
+      await user.click(screen.getByRole("button", { name: "送信せずに戻る" }));
+      expect(onBack).toHaveBeenCalledTimes(1);
+    });
+
+    it("未対応の形式 version の read でも draft があれば確認する", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read(unansweredTarget(), { form_definition_version: 99 })]);
+      const store = createStore();
+      seedDraft(store);
+      const { onBack } = renderPage({ store });
+
+      await screen.findByText(/この問診の形式にはまだ対応していません/);
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(
+        screen.getByText("回答はまだ送信されていません。このまま戻りますか？"),
+      ).toBeInTheDocument();
+      expect(onBack).not.toHaveBeenCalled();
+    });
+
+    it("current target が無い read でも draft があれば確認する", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read(null, { availability: "target_unresolved" })]);
+      const store = createStore();
+      seedDraft(store);
+      const { onBack } = renderPage({ store });
+
+      await screen.findByRole("status");
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(
+        screen.getByText("回答はまだ送信されていません。このまま戻りますか？"),
+      ).toBeInTheDocument();
+      expect(onBack).not.toHaveBeenCalled();
+    });
+
+    it("別 target の未確定送信で editor が外れているときは、未送信ではなく結果未確定の確認を出す", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read(unansweredTarget(APPT_A, PET_A, "3"))]);
+      const store = createStore();
+      const body = {
+        pet_id: PET_A,
+        target_generation: "2",
+        expected_revision: null,
+        form_definition_version: 1,
+        answers: answers({ visit_purpose: "合成目的" }),
+      };
+      store.set([CLINIC, APPT_A, PET_A, "2"].join("|"), {
+        values: body.answers,
+        pending: {
+          key: KEYS[0],
+          fingerprint: "synthetic",
+          body,
+          status: "unknown",
+          lookupRequired: false,
+          resendAvailableAt: null,
+        },
+      });
+      const { onBack } = renderPage({ store });
+
+      await screen.findByText("問診の状態");
+      expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(screen.getByText(/送信結果が未確定です/)).toBeInTheDocument();
+      expect(
+        screen.queryByText("回答はまだ送信されていません。このまま戻りますか？"),
+      ).not.toBeInTheDocument();
+      expect(onBack).not.toHaveBeenCalled();
+    });
+
+    it("draft が無ければ編集不可の read でもそのまま戻る", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read({ ...unansweredTarget(), editable: false })]);
+      const { onBack } = renderPage();
+
+      await screen.findByRole("status");
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(onBack).toHaveBeenCalledTimes(1);
+    });
+
+    it("送信成功で draft が消えた後は、戻る操作で確認しない", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read(unansweredTarget())]);
+      captureSubmits((c) => HttpResponse.json(successResponse(c.key ?? "", "1")));
+      const { onBack, store } = renderPage();
+
+      await user.type(await screen.findByLabelText(/^来院目的/), "合成目的");
+      await user.click(screen.getByRole("button", { name: "回答を送信する" }));
+      await screen.findByText(/回答を送信しました/);
+      expect(store.hasDraft(CLINIC, APPT_A)).toBe(false);
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(onBack).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe("RevisitIntakePage 結果と target の照合（fail-closed）", () => {

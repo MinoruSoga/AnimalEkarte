@@ -85,6 +85,8 @@ ArtifactDescriptorは `artifact_id,edition_id,layout,template_version,renderer_v
 
 serverは `http://localhost:8080/api/v1`、以下は相対path。JSON request/responseは `Content-Type: application/json`、PDF contentだけ `application/pdf` binary。単一DTOは直接返し、一般 `{data:...}` envelopeを新設しない。履歴collectionだけ既存pagination envelope。認証は既存Cookie/JWT、POSTは既存 `X-Requested-With: XMLHttpRequest`。
 
+JSONの `pdf_base64` は標準base64（必要な末尾paddingあり、改行なし）。content GETの呼出側は `Accept: application/pdf` を指定し、200成功は `application/pdf` のbinary bodyとして読む。非成功は既存error契約を維持する。新しい406応答判定は追加しない。BEの実対応は担当実装の残件であり、この文書追記を実装済みとはしない。
+
 | # | method / path | request → 成功response |
 | --- | --- | --- |
 | 1 | GET /vaccinations/{vaccination_id}/certificate-context | 200 `{vaccination_id,source_version,eligibility:{state,allowed_kinds,provenance},can_issue,latest:{normal:Edition/null,rabies:Edition/null},initial_inputs}` |

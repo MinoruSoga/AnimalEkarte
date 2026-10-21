@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { buildSnapshot, mockHash, mockPdfBase64 } from "../mock/certificate-fixtures";
-import { boundSucceededRefs, editionPageMatches, previewMatchesRequest, resultMatchesOperation } from "./certificate-binding";
+import {
+  boundSucceededRefs,
+  editionPageMatches,
+  editionVersionConsistent,
+  previewMatchesRequest,
+  resultMatchesOperation,
+} from "./certificate-binding";
 import {
   emptyCertificateInputs,
+  type CertificateEdition,
   type CertificatePreviewResponse,
   type CertificateSucceededResult,
 } from "./certificate-schemas";
@@ -78,5 +85,57 @@ describe("履歴ページの束縛", () => {
     expect(editionPageMatches(page, want)).toBe(true);
     expect(editionPageMatches(page, { ...want, page: 1 })).toBe(false);
     expect(editionPageMatches(page, { ...want, limit: 50 })).toBe(false);
+  });
+  it("外側の source_version と snapshot.source.version が食い違う edition を含む頁は拒否する", () => {
+    const want = { vaccinationId: 101, kind: "normal" as const, page: 1, limit: 20 };
+    const edition: CertificateEdition = {
+      id: 301,
+      series_id: 201,
+      vaccination_id: 101,
+      kind: "normal",
+      edition: 1,
+      source_version: 7,
+      previous_edition_id: null,
+      issued_at: "2026-10-20T14:30:00Z",
+      issued_by: 9,
+      validity: "current",
+      snapshot: buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false, inputs: emptyCertificateInputs() }),
+      snapshot_sha256: mockHash("a"),
+      available_layouts: ["portrait"],
+    };
+    const page = (e: CertificateEdition) => ({ data: [e], total: 1, page: 1, limit: 20 });
+    expect(editionPageMatches(page(edition), want)).toBe(true);
+    expect(editionPageMatches(page({ ...edition, source_version: 8 }), want)).toBe(false);
+  });
+});
+
+describe("edition の版の整合（EMR-487）", () => {
+  const edition: CertificateEdition = {
+    id: 301,
+    series_id: 201,
+    vaccination_id: 101,
+    kind: "normal",
+    edition: 1,
+    source_version: 7,
+    previous_edition_id: null,
+    issued_at: "2026-10-20T14:30:00Z",
+    issued_by: 9,
+    validity: "current",
+    snapshot: buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false, inputs: emptyCertificateInputs() }),
+    snapshot_sha256: mockHash("a"),
+    available_layouts: ["portrait"],
+  };
+
+  it("外側の source_version と snapshot.source.version が一致する edition は整合している", () => {
+    expect(editionVersionConsistent(edition)).toBe(true);
+  });
+
+  it("食い違う edition は整合していない", () => {
+    expect(editionVersionConsistent({ ...edition, source_version: 8 })).toBe(false);
+  });
+
+  it("現在の接種版と過去の発行版が違うこと自体は正常で、edition 自身の整合だけを見る", () => {
+    // 発行時の版 7 の edition。現在の接種版が 9 でも、edition の中が一致していれば整合している。
+    expect(editionVersionConsistent(edition)).toBe(true);
   });
 });

@@ -744,11 +744,15 @@ func TestHTTPHandler_GetMe(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	c.Set("user_id", "17")
 	c.Set("clinic_id", "23")
+	// EMR-463: GetMe は検証済み clinic_ids と system admin 判定を owners scope に使う。
+	c.Set("clinic_ids", []uint64{23})
+	c.Set("is_system_admin", false)
 	handler.GetMe(c)
 
 	assert.Equal(t, http.StatusOK, response.Code, response.Body.String())
 	assert.Contains(t, response.Body.String(), `"display_name":"Session Staff"`)
 	assert.Contains(t, response.Body.String(), `"owners":{"view":true`)
+	assert.Contains(t, response.Body.String(), `"owners_view_clinic_ids":["23"]`)
 
 	missingResponse := httptest.NewRecorder()
 	missing, _ := gin.CreateTestContext(missingResponse)
@@ -795,6 +799,9 @@ func TestHTTPHandler_GetMe_ReusesCurrentAccessAssignments(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	c.Set("user_id", "17")
 	c.Set("clinic_id", "23")
+	// EMR-463: GetMe は検証済み clinic_ids と system admin 判定を owners scope に使う。
+	c.Set("clinic_ids", []uint64{23})
+	c.Set("is_system_admin", false)
 	c.Set(CurrentAccessGinKey, &CurrentAccess{
 		StaffID:      17,
 		AccountEpoch: 1,
@@ -841,6 +848,9 @@ func TestHTTPHandler_GetMe_ListsAssignedClinicsWithoutCatalog(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/me", http.NoBody)
 	c.Set("user_id", "17")
 	c.Set("clinic_id", "23")
+	// EMR-463: GetMe は検証済み clinic_ids と system admin 判定を owners scope に使う。
+	c.Set("clinic_ids", []uint64{23})
+	c.Set("is_system_admin", false)
 	c.Set(CurrentAccessGinKey, &CurrentAccess{
 		StaffID:      17,
 		AccountEpoch: 1,

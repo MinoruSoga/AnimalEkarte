@@ -92,6 +92,8 @@ RV4memberのdisplay_issue_dateは同じ一つの確認日をsnapshotへ保存す
 
 全pathは/api/v1を除く。既存wireのID/source版/edition版はinteger/int64を維持。新UUID identityのみUUID、C06 refs/versionsはdecimal strings。FEはunsafe integerを丸めずlossless decode/境界拒否。hash projectionだけ全integerをcanonical decimal stringへ変換する既存JCS方式を維持。全DTO closed、未知property/重複key/不正UTF8拒否。date/UUID/hashの型規則を固定し、opaque IDから名前/法的種別を推定しない。
 
+全preview（RV batch・normal v2・保存版preview）のJSON `pdf_base64` と、batch/normal v2のcontent GETは[既存HTTP節のPDF wire規則](emr-486-certificate-api-contract-20261020.md#http-9操作)を継承する。`pdf_base64` は標準base64（必要な末尾paddingあり、改行なし）、content呼出側は `Accept: application/pdf` を指定し、200は `application/pdf` binary bodyとして読む。非成功は既存error契約を維持し、新たな406判定やwrapperを追加しない。BEでの実対応は担当実装の残件とする。
+
 - GET /vaccinations/{id}/rv-certificate-context
   {vaccination_id,source_version,eligibility,can_issue,set:null|{id,version,active_revision_id,members},latest_batch:Batch|null,legacy_single:null|{latest_edition_id,source_version,validity},initial_display_issue_date,blocking_reasons}。setはrequired nullable。membersはactive_revision_idがあればその固定revision、active=NULLならrevision最大のdraftを返す（設定済setにrevisionなしは整合エラー）。members exact={position,document_type_id,template_revision_id,resolution}、resolution=awaiting_material|resolved。未設定set=NULLはblocking_reasons=["set-not-configured"]、設定済みactiveなしは["set-not-active"]、未解決active参照は["template-material-pending"]とし全てcan_issue=false。その他のclosed reasonsは"source-ineligible","legacy-mapping-pending"で、複数理由はこの列挙順に返す。DB不整合/DB障害/認可失敗をset=NULLや資料待ち200へ潰さず既存ErrorResponseで停止。eligibility/validityは既存閉enum構造を継承する。GETでsetやclaimを作らない。legacy_singleは同医院旧document_type_id=NULLのrabies系列最新版metadataだけで、なければNULL。4memberへ補完しない。
 - POST /vaccinations/{id}/rv-certificate-preview
