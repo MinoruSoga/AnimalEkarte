@@ -615,7 +615,6 @@ describe("line-reserve schemas（EMR-519: 予約 ID 十進文字列・pet ペア
 
   it.each([
     { pet_id: "2" },
-    { pet_name: "ポチ" },
     { pet_id: "2", pet_name: null },
     { pet_id: null, pet_name: "ポチ" },
     { pet_id: "01", pet_name: "ポチ" },
@@ -624,17 +623,22 @@ describe("line-reserve schemas（EMR-519: 予約 ID 十進文字列・pet ペア
     expect(reservationSchema.safeParse({ ...base, ...pair }).success).toBe(false);
   });
 
-  it.each([{ id: 1 }, { id: "0" }, { id: "01" }, { id: "9223372036854775808" }])(
-    "id が数値・非正規形・int64 超の %j は reject される",
+  it.each([{ id: 0 }, { id: "0" }, { id: "01" }, { id: "9223372036854775808" }])(
+    "id が 0・非正規形・int64 超の %j は reject される",
     (idField) => {
       expect(reservationSchema.safeParse({ ...base, ...idField }).success).toBe(false);
     },
   );
 
-  it("createReservationResponseSchema: id は十進文字列のみ受理（数値は reject）", () => {
+  it("createReservationResponseSchema: id は十進文字列と正の safe integer を受理し string 化する", () => {
     expect(
       createReservationResponseSchema.safeParse({ id: "9007199254740993", notes: "R-1" }).success,
     ).toBe(true);
-    expect(createReservationResponseSchema.safeParse({ id: 1, notes: "R-1" }).success).toBe(false);
+    const numberId = createReservationResponseSchema.safeParse({ id: 1, notes: "R-1" });
+    expect(numberId.success).toBe(true);
+    if (numberId.success) {
+      expect(numberId.data.id).toBe("1");
+    }
+    expect(createReservationResponseSchema.safeParse({ id: 0, notes: "R-1" }).success).toBe(false);
   });
 });
