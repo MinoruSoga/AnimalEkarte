@@ -29,6 +29,7 @@ type fakeCertificateStore struct {
 	validitySeq   []string
 	validityCalls int
 	vacc          *model.Vaccination
+	listVacc      *model.Vaccination
 	seriesFound   bool
 	eds           []model.VaccinationCertificateEdition
 	total         int64
@@ -70,8 +71,15 @@ func (f *fakeCertificateStore) FindSeries(_ context.Context, _, _ uint64, _ stri
 	return f.series, true, nil
 }
 
-func (f *fakeCertificateStore) ListEditions(_ context.Context, _, _ uint64, _, _ int) ([]model.VaccinationCertificateEdition, int64, int64, error) {
-	return f.eds, f.total, f.maxEdition, nil
+func (f *fakeCertificateStore) ListEditions(_ context.Context, _, _, _ uint64, _, _ int) (*model.Vaccination, []model.VaccinationCertificateEdition, int64, int64, error) {
+	v := f.vacc
+	if f.listVacc != nil {
+		v = f.listVacc
+	}
+	if v == nil {
+		return nil, nil, 0, 0, errCertificateNotFound
+	}
+	return v, f.eds, f.total, f.maxEdition, nil
 }
 
 func (f *fakeCertificateStore) FindArtifact(_ context.Context, _, _ uint64, _ string) (*model.VaccinationCertificateArtifact, bool, error) {
@@ -215,6 +223,30 @@ func TestListVaccinationCertificateEditions(t *testing.T) {
 	body = decodeBody(t, w)
 	assert.Equal(t, "0", body["total"].Num.String())
 	assert.Empty(t, body["data"].Arr)
+}
+
+// Validity must be projected from the vaccination row read inside the
+// ListEditions transaction snapshot, not the earlier existence gate: the
+// fake's FindVaccinationSource still reports version 2 while the
+// transaction-scoped row reports version 5, so the stored edition
+// (source_version 2) must project source_changed, not current.
+func TestListVaccinationCertificateEditions_TxSnapshotValidity(t *testing.T) {
+	ed, series := testCertificateEditionFixture()
+	store := &fakeCertificateStore{
+		ed: ed, series: series, seriesFound: true,
+		vacc:       &model.Vaccination{ID: 100, ClinicID: 1, Version: 2},
+		listVacc:   &model.Vaccination{ID: 100, ClinicID: 1, Version: 5},
+		eds:        []model.VaccinationCertificateEdition{*ed},
+		total:      1,
+		maxEdition: 1,
+	}
+	h := NewVaccinationCertificateHandler(store, nil)
+	c, w := newCertCtx(t, http.MethodGet, "/?kind=normal", nil, gin.Params{{Key: "id", Value: "100"}})
+	h.ListVaccinationCertificateEditions(c)
+	require.Equal(t, http.StatusOK, w.Code)
+	body := decodeBody(t, w)
+	require.Len(t, body["data"].Arr, 1)
+	assert.Equal(t, "source_changed", body["data"].Arr[0].Obj["validity"].Str)
 }
 
 func TestPreviewSavedVaccinationCertificate_BodyValidation(t *testing.T) {

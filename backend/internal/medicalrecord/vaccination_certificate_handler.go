@@ -206,8 +206,10 @@ func (h *VaccinationCertificateHandler) ListVaccinationCertificateEditions(c *gi
 		return
 	}
 	ctx := c.Request.Context()
-	vacc, err := h.store.FindVaccinationSource(ctx, clinicID, vaccinationID)
-	if err != nil {
+	// Current relation/existence gate only: version and deleted_at used for
+	// validity must come from the single ListEditions snapshot below, not
+	// this earlier read.
+	if _, err := h.store.FindVaccinationSource(ctx, clinicID, vaccinationID); err != nil {
 		writeCertificateError(c, err)
 		return
 	}
@@ -225,7 +227,7 @@ func (h *VaccinationCertificateHandler) ListVaccinationCertificateEditions(c *gi
 		})
 		return
 	}
-	eds, total, maxEdition, err := h.store.ListEditions(ctx, clinicID, series.ID, (page-1)*limit, limit)
+	vacc, eds, total, maxEdition, err := h.store.ListEditions(ctx, clinicID, vaccinationID, series.ID, (page-1)*limit, limit)
 	if err != nil {
 		writeCertificateError(c, err)
 		return

@@ -27,7 +27,7 @@ type certificateStore interface {
 	EditionValidity(ctx context.Context, clinicID uint64, ed *model.VaccinationCertificateEdition, series *model.VaccinationCertificateSeries) (string, error)
 	FindVaccinationSource(ctx context.Context, clinicID, vaccinationID uint64) (*model.Vaccination, error)
 	FindSeries(ctx context.Context, clinicID, vaccinationID uint64, kind string) (*model.VaccinationCertificateSeries, bool, error)
-	ListEditions(ctx context.Context, clinicID, seriesID uint64, offset, limit int) ([]model.VaccinationCertificateEdition, int64, int64, error)
+	ListEditions(ctx context.Context, clinicID, vaccinationID, seriesID uint64, offset, limit int) (*model.Vaccination, []model.VaccinationCertificateEdition, int64, int64, error)
 	FindArtifact(ctx context.Context, clinicID, editionID uint64, layout string) (*model.VaccinationCertificateArtifact, bool, error)
 }
 
@@ -117,13 +117,27 @@ func (r *VaccinationCertificateReader) FindSeries(ctx context.Context, clinicID,
 
 // ListEditions returns one page ordered by edition DESC plus total count and
 // the maximum edition number in the series (for superseded projection). The
-// three queries run inside one read-only REPEATABLE READ transaction so they
-// share a single snapshot: a concurrent issue between otherwise independent
-// reads could mark two editions current.
-func (r *VaccinationCertificateReader) ListEditions(ctx context.Context, clinicID, seriesID uint64, offset, limit int) ([]model.VaccinationCertificateEdition, int64, int64, error) {
+// scoped vaccination read and the three series queries run inside one
+// read-only REPEATABLE READ transaction so validity is projected from a
+// single snapshot: an independent earlier read could mix a stale source
+// version/deleted_at with a newer page and mark two editions current.
+// Missing or relation-failing vaccination rows -> not_found.
+func (r *VaccinationCertificateReader) ListEditions(ctx context.Context, clinicID, vaccinationID, seriesID uint64, offset, limit int) (*model.Vaccination, []model.VaccinationCertificateEdition, int64, int64, error) {
 	var total, maxEdition int64
 	var eds []model.VaccinationCertificateEdition
+	var vacc model.Vaccination
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Unscoped().
+			Select("id", "clinic_id", "version", "deleted_at").
+			Scopes(vaccinationPatientRelationsScope(clinicID)).
+			Where("id = ? AND clinic_id = ?", vaccinationID, clinicID).
+			Take(&vacc).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errCertificateNotFound
+		}
+		if err != nil {
+			return err
+		}
 		if err := tx.Model(&model.VaccinationCertificateEdition{}).
 			Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
 			Count(&total).Error; err != nil {
@@ -142,9 +156,9 @@ func (r *VaccinationCertificateReader) ListEditions(ctx context.Context, clinicI
 			Find(&eds).Error
 	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, nil, 0, 0, err
 	}
-	return eds, total, maxEdition, nil
+	return &vacc, eds, total, maxEdition, nil
 }
 
 // FindArtifact returns the (clinic, edition, layout) artifact row, or

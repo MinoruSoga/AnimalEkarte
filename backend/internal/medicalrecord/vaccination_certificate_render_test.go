@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,6 +111,23 @@ func TestRenderCertificatePDF_RenderFailures(t *testing.T) {
 		[]byte(`"display_issue_date": "1900-01-01"`), 1)))
 	_, err = renderCertificatePDF(preShowa, "portrait")
 	assert.ErrorIs(t, err, errCertificateRenderFailed)
+}
+
+// TestRenderCertificatePDF_RabiesCertificateNumberFit pins that the rabies
+// certificate number is drawn inside a bounded box: a normal value renders,
+// while an absurdly long one fails render_failed instead of overflowing the
+// A4 landscape page.
+func TestRenderCertificatePDF_RabiesCertificateNumberFit(t *testing.T) {
+	long := bytes.Replace(
+		[]byte(testCertificateRabiesSnapshot(100, 2)),
+		[]byte(`"certificate_number": "R-123"`),
+		[]byte(`"certificate_number": "`+strings.Repeat("1234567890", 200)+`"`), 1)
+	snap := mustDecodeSnapshot(t, string(long))
+	_, err := renderCertificatePDF(snap, "rabies")
+	assert.ErrorIs(t, err, errCertificateRenderFailed)
+
+	pdf := mustRenderPDF(t, testCertificateRabiesSnapshot(100, 2), "rabies")
+	assert.True(t, bytes.HasPrefix(pdf, []byte("%PDF-1.7\n")))
 }
 
 func TestCertificateFitText_OverflowFails(t *testing.T) {

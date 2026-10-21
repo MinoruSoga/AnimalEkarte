@@ -323,7 +323,12 @@ func drawCertificateNormalPortrait(c *pdfCanvas, snap *certificateSnapshot) erro
 	if err != nil {
 		return err
 	}
-	c.text(400, 812, 9, "発行日 "+issueDate)
+	// Snapshot-derived values go through fitting inside a bounded box (x to
+	// the right margin, single line, shrink to fit) so a long value can never
+	// overflow the page edge.
+	if err := certificateFitText(c, "発行日 "+issueDate, 400, 821, 145, 13, 9); err != nil {
+		return err
+	}
 	c.text(235, 780, 16, "予防接種証明書")
 	y, err := drawCertificateSection(c, 50, 756, 495, []certRow{
 		{label: "郵便番号", value: certText(snap.Owner.PostalCode)},
@@ -387,7 +392,9 @@ func drawCertificateNormalLandscape(c *pdfCanvas, snap *certificateSnapshot) err
 	if err != nil {
 		return err
 	}
-	c.text(650, 565, 9, "発行日 "+issueDate)
+	if err := certificateFitText(c, "発行日 "+issueDate, 650, 574, 141, 13, 9); err != nil {
+		return err
+	}
 	c.text(330, 540, 16, "予防接種証明書")
 	y, err := drawCertificateSection(c, 50, 520, 741, []certRow{
 		{label: "郵便番号", value: certText(snap.Owner.PostalCode)},
@@ -443,7 +450,13 @@ func drawCertificateRabies(c *pdfCanvas, snap *certificateSnapshot) error {
 		}
 	}
 	c.text(320, 562, 16, "狂犬病予防注射済証")
-	c.text(640, 562, 10, "証明番号 "+certText(snap.Inputs.CertificateNumber))
+	// The certificate number prints inside a bounded box (x to the right
+	// margin, up to two lines): a long value wraps/shrinks instead of
+	// running off the A4 landscape page, and fails render_failed when even
+	// two minimum-size lines cannot hold it.
+	if err := certificateFitText(c, "証明番号 "+certText(snap.Inputs.CertificateNumber), 640, 572, 151, 18, 10); err != nil {
+		return err
+	}
 	c.text(54, 548, 7.5, "所有者（管理者）")
 	y, err := drawCertificateTable(c, 50, 542, 500, 100, []certRow{
 		{label: "住所", value: certText(snap.Owner.Address), h: 24},
