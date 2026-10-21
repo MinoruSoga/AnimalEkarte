@@ -89,8 +89,12 @@ Plane445の分類と対象IDを保持する。各リンク先の最新本文・�
 
 本PRの既存main文書更新とは独立した引渡しであり、mainにまだ存在しない736所有文書を本PRへ複製しない。共通pathの直接競合は今回回避したが、双方の統合時にリンク・field分類を再確認する。
 
-## 今回の検証記録
+## 2026-10-20 当時の検証記録（履歴）
 
-文書diffとdocs/のみの変更範囲を確認した。変更9文書の相対リンク339件はパス／anchor不整合0、索引229対象は重複0、予防接種の設定なし初期値未確定記述は解消。git diff --checkとpre-commit gitleaksも問題なし。verify-agent-task.pyの判定はdocs-onlyのruntime SKIP（実行0・unmappedなし）であり、runtime PASSではない。詳細をPRへ記録し、過去のmodel整合試験結果を今回の結果へ転用しない。
+以下は冒頭の10/20基準SHAに対する当時の範囲・結果であり、PR #803の検証値ではない。文書diffとdocs/のみの変更範囲を確認した。変更9文書の相対リンク339件はパス／anchor不整合0、索引229対象は重複0、予防接種の設定なし初期値未確定記述は解消。git diff --checkとpre-commit gitleaksも問題なし。verify-agent-task.pyの判定はdocs-onlyのruntime SKIP（実行0・unmappedなし）であり、runtime PASSではない。詳細をPRへ記録し、過去のmodel整合試験結果を今回の結果へ転用しない。
 
 製品コード／model／SQL／生成物／環境設定は変更対象外。全体build／lint／test、DB操作、STG／本番操作、deploy、merge、実機／UATは未実施。docs-onlyのためruntime検証は不要だが、後続consumerの実001／RLS／deferred・共同profile・臨床承認等の必要条件は残る。秘密・患者データ・私的原資料を含めない。
+
+## PR #803 初回公開の静的確認（別の範囲）
+
+初回公開head `be87f4083e9362ee5296553090aae291b094c26d` の変更6文書について、相対リンク64件のパス欠落0、固定source path160件の存在、③72用途、docs-only差分を確認した。これを上の10/20当時の9文書・339リンク・229対象の記録へ上書きしない。生成・DB・runtime・試験はNOT_RUNであり、静的なパス存在を内容適合や実行合格に変換しない。

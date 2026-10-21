@@ -1,5 +1,7 @@
 # EMR-450 第③段階 非検索操作family・受領条件
 
+要件判断の窓口はMinoru Soga。既決仕様準拠・重複工程削減・計画coverage指標と未測定の業務成果の区別は[共通の要件検証](emr-445-stage1-contract-start-plan-20261021.md#requirement-validation-20261021)へ従う。実装担当claim・開始許可・実績測定は別。試験NOT_RUN。
+
 [検索・共通責務・PR単位](emr-450-stage3-common-ui-start-plan-20261021.md)と合わせて適用する。各ownerに同じ5操作が存在するとは仮定せず、実在する保存・確認・保持・戻る・結果照会の接点と将来受領を区別する。全repository writerの網羅監査や実機合格を宣言する文書ではない。
 
 固定code ref: a88fa4add58d43cff643590f9f507c8ab1a3c085。O1実行、O2 clear/resetと永続復元、O3保持/戻る、O4閉じると取消/削除、O5失敗/再試行。E=既存接点、F=④owner受領、N=当該操作familyに非適用、U=受入未確認、G=具体的な③最小接続差。
@@ -366,9 +368,16 @@ handler: handleSave L327,400,404,560, handleRequeryOperation L437,656, handleClo
 
 実接点: [frontend/src/features/support/routes/BugReportsPage.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/support/routes/BugReportsPage.tsx) blob f36e954a0b41f6a20aee363d99c2cac5aa055666
 
-handler: useCreatePlaneTicket.mutate L112,128,153,331, useDeleteBugReport.mutate L112,128,153,331, ConfirmDialog.onConfirm L328
+実操作別のhandler・責務（固定ref a88fa4add58d43cff643590f9f507c8ab1a3c085）:
 
-状態/共通接点: BugReportTab handleSubmit/canSubmit/createReport.isPending。BugReportsPage selected/pendingDelete、ErrorFallback/LoadingFallback
+| 操作 | 実在するfile / handler | 受領・再利用の境界 |
+|---|---|---|
+| 新報告の院内保存 | [components/BugReportTab.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/support/components/BugReportTab.tsx#L102) のhandleSubmit→createReport.mutate（useCreateBugReport、L107） | global [SupportWidget.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/support/components/SupportWidget.tsx#L199)→[SupportPanel.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/support/components/SupportPanel.tsx#L56)→BugReportTabの入口。canSubmit/createReport.isPendingを再利用。BugReportsPage上の作成操作ではない |
+| 既存報告からの外部Plane票作成・再試行 | BugReportsPage.tsxのPlaneTicketCellで受けるuseCreatePlaneTicket mutation、L112（再送）/L128（起票） | 新報告の保存と外部票結果を分け、503の現在認可・明示確認・unknown停止契約を受領する。通常の画面再試行を外部再送許可としない |
+| 院内報告status変更 | 同file BugReportDetailDialog.handleToggle→useUpdateBugReportStatusのupdateStatus.mutate、L153 | status変更のpending/失敗/現在認可を保持。外部票の作成/削除や新報告保存へ混同しない |
+| 院内報告削除 | 同file ConfirmDialog.onConfirm L328→useDeleteBugReportのdeleteReport.mutate L331 | pendingDelete、取消/失敗時保持、削除dialogを再利用。作成済み外部Plane票削除の操作にしない |
+
+状態/共通接点: BugReportTabのform state/canSubmit/createReport.isPending、BugReportsPageのselected/pendingDelete、status変更/外部票作成それぞれのmutation状態、ErrorFallback/LoadingFallback。
 
 適用: O1:E 報告/外部票; O2:N 外部送信取消なし; O3:E form state; O4:E deletion confirm; O5:F 院内保存/外部結果分離
 

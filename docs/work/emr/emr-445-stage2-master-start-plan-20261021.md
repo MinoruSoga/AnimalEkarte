@@ -1,5 +1,7 @@
 # EMR-445 ②全マスタの着手プランと採用証跡
 
+要件判断の窓口はMinoru Soga。既決仕様準拠・重複工程削減・計画coverage指標と未測定の業務成果の区別は[共通の要件検証](emr-445-stage1-contract-start-plan-20261021.md#requirement-validation-20261021)へ従う。実装担当claim・開始許可・実績測定は別。試験NOT_RUN。
+
 2026-10-21。対象はsettings索引21本文と、その索引外の医院/法人・LINE予約設定・検査機器対応・package。医院と法人は別resourceとして行を分けたため下表は26行だが、26件の新規実装票・PRではない。
 
 基準main `a88fa4add58d43cff643590f9f507c8ab1a3c085`（10:45 UTC再取得）。業務正本は[settings索引](../../spec/screens/settings/README.md)と各領域の確定FR/AC。[①②③段階台帳](emr-445-master-stages-ledger-20261021.md)の直接22票＋498は管理対象であって全属性実装完了の証明ではない。現コードは差分確認の証拠であり、正本を縮小しない。実装・試験・DB操作は今回行っておらずNOT_RUN。

@@ -6,6 +6,21 @@
 
 本書で選定した計画と移行DTOの境界は採択済み。本書に基づく新規実装は未開始で、必要な API・schema・model・generated の反映・受領は未完了。共通生成型の管理票は[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445、Ready、個人担当未割当）として作成済み。起票は実装・生成実行・試験の開始承認ではなく、技術方式の未選定でもない。正規 `make codegen` による Docker 実行許可は未取得。実装・生成・DB適用・試験は本書の作成では実施しておらず、試験は `NOT_RUN`。
 
+<a id="requirement-validation-20261021"></a>
+## 要件検証：既決仕様を実現する計画の採用境界
+
+[AGENTS.md](../../../AGENTS.md)→[.claude/CLAUDE.md](../../../.claude/CLAUDE.md)→[product-philosophy](../../product-philosophy.md)の要件検証に従う。要件判断の窓口は本人 **Minoru Soga**。これは既存確定仕様への準拠と着手プラン整備を求めた本人指示（「改善して」「1,2,3は最優先に全てを完璧にしてから、4に進みたい」）の反映で、新しい業務要求・KPI・実装開始の承認を作るものではない。各実装の担当は別途単一claimで決まり、要件判断窓口を未割当の実装担当へ置換しない。②全マスタ・③検索/非検索操作の詳細計画にも本節を適用する。
+
+| 設計思想の順序 | この計画で確認した目的・削減対象・境界 |
+|---|---|
+| ①要件を疑う | 目的は確定仕様と保存/API/画面の不整合、未説明の接続不足を具体化して、後段で同じ判断・転記・調査を繰り返す工程を減らすこと。業務正本docs/spec/domains/と採択済み共通契約を起点にし、現コードの不足に合わせて要件を縮小しない。臨床値・新業務判断は追加しない |
+| ②不要工程・入力を除く | #775等の既採用CRUD・既存共通UIの再開発、同一共有hunkの二重実装、同じmaster値の別管理、keywordのない用途への検索欄新設、入力補完の一括置換を計画から除く。無差分は採用証拠で閉じ、空PRや試験だけの新規開発票を増やさない。患者情報の追加入力・未承認の自動連携は増やさない |
+| ③残る工程を簡素化 | ①23管理行の正本/変更path/責務/受領条件、②26領域の保存/参照/画面、③72用途と非検索familyの既存接点を一つの文書PRと既存索引で辿れる形にする。新しい二重台帳・独自generator・別receipt方式を必須にしない |
+| ④サイクル短縮の確認方法 | 計画指標は各対象行に正本・変更path（又は無修正理由）・完了/受領条件・担当責務があること、差分を未説明のまま残さないこと（目標は未説明差分0）。U/未受領/NOT_RUNは理由付き残件として可視化し、欠陥や完成へ換算しない。これらは計画coverageの指標で、診療時間/クリック数/売上等の本人未承認の業務KPIではない。業務実績のbaseline・改善量は未測定で、効果達成を宣言しない |
+| ⑤自動化は最後 | 本稿は自動化の新規選定や実行をしない。生成型も既存正規generatorと入力保全の必要範囲だけで、実行許可は別。既存の現在認可・監査・unknown停止・同TX保護を維持し、安全な保護を空stubへ置換しない |
+
+以上は計画の要件検証結果であり、実装接続・品質証明・業務効果測定の完了ではない。実装・生成・試験はNOT_RUN。本人の新しい業務判断が必要な変更が見つかった場合は該当項目だけを判断窓口へ返し、既決内容の再承認や全領域の一括停止へ広げない。
+
 ## 1. 計画の配置と所有境界
 
 - EMR-445：API正本の単一統合窓口・下表の引渡し台帳。API専有hunk準備は並行可能だが api.yaml の最終統合は一人。新しい個人担当を本計画で指定しない。
@@ -74,7 +89,7 @@
 
 正規コマンドは既存 `make codegen`。Makefileから docker-compose.yml のcodegen serviceへ進み、backend/tygo.yamlを出力先置換して `go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml`、続いて `go run ./cmd/manual-corpus --frontend /frontend --backend /app`。Go imageはgolang:1.26-alpine。ここを無断の手書き生成や独自generatorへ置換しない。DB serviceを起動するターゲットではないが、Docker生成環境を実際に使う許可は実装指示時に明示する。
 
-既存出力12件：frontend/src/types/generated/ 配下の models.ts、auth-responses.ts、trimming-responses.ts、pet-responses.ts、owner-responses.ts、medicalrecord-responses.ts、hospitalization-responses.ts、identitylink-responses.ts、および backend/internal/manualarticle/corpus.generated.json、backend/internal/support/search_dict.go、frontend/src/constants/manual-corpus.generated.ts、frontend/src/constants/manual-search-dict.json。codegen-checkのdiff対象はこの全体と同じとは限らないため、生成が触れた12出力をPRで確認する。生成物手編集・失敗出力の採用禁止。今回の静的調査は生成成功の証明ではない。
+既存出力11件（tygoの8 TS＋manual-corpusの3件）：frontend/src/types/generated/ 配下の models.ts、auth-responses.ts、trimming-responses.ts、pet-responses.ts、owner-responses.ts、medicalrecord-responses.ts、hospitalization-responses.ts、identitylink-responses.ts、および backend/internal/manualarticle/corpus.generated.json、backend/internal/support/search_dict.go、frontend/src/constants/manual-corpus.generated.ts。frontend/src/constants/manual-search-dict.jsonはmanual-corpus/main.goがreadManualSourceで読む手書き入力であり、生成物として置換・手編集しない。本同期では入力を保全し、codegen-checkに検査対象として含まれることを出力の証拠にしない。codegen-checkのdiff対象はこの全体と同じとは限らないため、生成が触れた11出力をPRで確認する。生成物手編集・失敗出力の採用禁止。今回の静的調査は生成成功の証明ではない。
 
 ### 具体consumerと採用する置換境界
 
@@ -105,7 +120,7 @@
 
 ### 完了条件
 
-- 入力採用commit・上記source path・正規コマンド・12出力の変更有無を1つのPR対照表で確認できる。
+- 入力採用commit・上記source path・正規コマンド・11出力の変更有無と手書き辞書入力の保全を1つのPR対照表で確認できる。
 - 上の具体consumer表を満たし、削除型の直接importと保存model由来のHTTP Pick/Omit依存が指定境界から除かれる。新API側を旧互換型へ戻さない。
 - 正規生成の成功結果だけを採用し、生成物手編集がない。
 - 必要最小caller修正を同じPRで回収。②/④機能を追加しない。
@@ -147,7 +162,7 @@
 
 | 票 | S 固定採択doc（docs/work/emr/以下） | W追加familyとclosed型 | D/X差分とP必要subset | E受領条件 |
 |---|---|---|---|---|
-|448|emr-448-493-shift-csv-selected-contract-20261021.md、emr-448-493-shift-copy-contract-20261021.md|CSV template、POST csv-imports/preview・apply、GET csv-operations/{key}・details・reconciliation。copyはPOST shifts/copies/preview・apply、GET copy-operations/{key}・details・reconciliation。PreviewResponse/Preconditions/Details、CopySelection/CopyProjection/CopyPreconditionsは各closed定義をそのままschema化|shift_bulk_operation_targets1表を両family共有、staff.go既存ShiftEntry/Break、aggregate版・deferred exclusion差分。489 Q/ContextGateと#778 ClaimMetadataWriter必要subset。CSVとcopyのowner rowlockはbinding後Applyで統一|全route/schema/認可/C06status/details shapeを対照。metadata既存化の二重作成なし、scope/版/null fixture。consumer実装や実CSV入力は②/⑤|
+|448|emr-448-493-shift-csv-selected-contract-20261021.md、emr-448-493-shift-copy-contract-20261021.md|CSV template、POST /shifts/csv-imports/preview と /shifts/csv-imports/apply、GET /shifts/csv-operations/{operation_key} と同pathの/details・/reconciliation。copyはPOST /shifts/copies/preview と /shifts/copies/apply、GET /shifts/copy-operations/{operation_key} と同pathの/details・/reconciliation。PreviewResponse/Preconditions/Details、CopySelection/CopyProjection/CopyPreconditionsは各closed定義をそのままschema化|`shift_bulk_operation_targets` 1表を両family共有、staff.go既存ShiftEntry/Break、aggregate版・deferred exclusion差分。489 Q/ContextGateと#778 ClaimMetadataWriter必要subset。CSVとcopyのowner rowlockはbinding後Applyで統一|全route/schema/認可/C06status/details shapeを対照。metadata既存化の二重作成なし、scope/版/null fixture。consumer実装や実CSV入力は②/⑤|
 |493|emr-493-staff-leave-selected-contract-20261021.md、emr-493-reservation-eligibility-contract-20261021.md＋上記CSV/copy|leave-periods/leave-operations選定family、GET/PATCH masters/staffs/{id}/reservation-eligibility、GET reservation-eligibility-operations/{key}。PATCH={operation_key,expected_version,changes}、changes=nomination_paused/reservation_type_ids。旧capable-reservation-types PUTへ版/keyを捏造しない|staff_leave_periods/changes既存、assignment eligibility_version/digest追加、staff_eligibility_operation_targets。model/account.go・staff.go再利用。467予約保護の最小participantだけ。旧休業row/CASなしwriteは切替時の停止adapterが②必須|API整合＋selected DTO/modelの対応。unknown/未設定/明示空を区別し、結果別再送表に一致。旧API停止の記述を含めるがこのPRでactivateしない|
 |458|emr-458-option-assignment-selected-contract-20261021.md §3,8|9設定操作＋1lookup＝計10 method/path：service-identities GET/POST、options/{id}/service-identity GET/POST、courses/{id}/included-services GET/POST、option-rule-sets GET/POST、option-candidates GET、およびoperations lookup。4resource_kindのContent/success branchを固定|既存T2表/model再利用、course included_services_configured/digest、設定元anchor。CHECKでdigest IS NOT NULL明示。T2設定全writerのinterface/lock契約とValidateAndCaptureConfiguration、489 Q/ClaimMetadata/ContextGate必要subset|未設定/明示空、no_course refs省略、identitycreate versions={}、scope digest CASをschema/fixtureで対応。実writer閉包②、480/482採用④|
 |492|emr-490-492-selected-wire-contract-20261021.md 492節|既存type/group CRUD/reorderのoperation_key/CAS envelope、restore POST2本、business-kind change/confirm、reservation-master-operations lookup。renameは既存PATCH name branch|model/reservation_type.go・reservation_type_group.go、name revision・reservation_master_operation_anchorsを既存保存型へ対応。予約保護interfaceと489必要subset|型/NULL/旧wire移行/失敗をapi.yamlへ収録。490登録wireはこのsubsetから除外。保護participant実接続②|

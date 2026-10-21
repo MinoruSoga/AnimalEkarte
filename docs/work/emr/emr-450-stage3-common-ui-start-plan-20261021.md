@@ -1,5 +1,7 @@
 # EMR-450 第③段階 共通UI 着手プラン
 
+要件判断の窓口はMinoru Soga。既決仕様準拠・重複工程削減・計画coverage指標と未測定の業務成果の区別は[共通の要件検証](emr-445-stage1-contract-start-plan-20261021.md#requirement-validation-20261021)へ従う。実装担当claim・開始許可・実績測定は別。試験NOT_RUN。
+
 ## 目的・実行境界
 
 ①DB/API契約、②全マスタ、③共通UIを優先し、その後に④新規業務UIへ進む。本書は③の対象・既存接点・最小差分・受領条件を固定する。実装・試験・runtime有効化は本書の作成に含まれない。既存Done/UAT/Review/merged成果を保持し、進行中claimと重複する実装を開始しない。
