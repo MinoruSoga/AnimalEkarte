@@ -57,7 +57,7 @@
 | 画面 | 役割 | 根拠 |
 |:--|:--|:--|
 | `CompletePage`（step8） | 「事前問診に回答する（任意）」CTA | FR「予約完了画面と予約詳細から回答へ進み」 |
-| `MyReservationsPage` | `cancelled` 以外の全 status（LIFF `Reservation.status` の `pending` / `confirmed` / `checked_in` / `in_consultation` / `accounting` / `completed` / `no_show`）のカードに入口を出し、status だけで入口の有無・編集可否を決めない（`confirmed` 限定の cutoff を FE に置かない）。編集可否はサーバーの `current_target.editable` が唯一の根拠で、受付後は server が `editable=false` を返す閲覧のみ。未知 status も FE で隠さず GET の結果に従う（LIFF の status 型に `tentative` は無く、次回予定 tentative は予約一覧の対象外。reservations technical-spec「editable は…tentative/no_show/過去日だけの新 cutoff は設けない」）。`cancelled` は履歴があるときだけ「回答履歴を見る」（2026-10-21 本人決定、§11.2 #756 入口） | LIFF の予約詳細相当はマイ予約カード（screens/37） |
+| `MyReservationsPage` | `cancelled` 以外の全 status（FE が parse できる既知の `pending` / `confirmed` / `checked_in` / `in_consultation` / `accounting` / `completed` / `no_show`。実装は `MyReservationsPage` の `REVISIT_ENTRY_STATUSES`）のカードに入口を出し、status だけで入口の有無・編集可否を決めない（`confirmed` 限定の cutoff を FE に置かない）。編集可否はサーバーの `current_target.editable` が唯一の根拠で、受付後は server が `editable=false` を返す閲覧のみ。FE が知らない status はこの計画の対象外（現行の予約一覧は `reservationSchema` の閉じた `z.enum` で parse するため未知 status は一覧ごと拒否され、入口の判定まで届かない。変更は予約 DTO の担当（EMR-519/520 のセッション）の事項で、ここでは計画しない）。LIFF の status 型に `tentative` は無い（次回予定 tentative は予約一覧の対象外）。reservations technical-spec「editable は…tentative/no_show/過去日だけの新 cutoff は設けない」。`cancelled` は履歴があるときだけ「回答履歴を見る」（2026-10-21 本人決定、§11.2 #756 入口） | LIFF の予約詳細相当はマイ予約カード（screens/37） |
 | 新規 `RevisitIntakePage`（`PageType: revisit-intake`） | 1 予約 = 1 ペットの form。履歴（current の旧版 / previous target）は別セクション read-only | technical-spec v3「current_target 単数」 |
 
 ### 2.2 画面状態（`RevisitIntakeLIFFRead` / error code に対応）
