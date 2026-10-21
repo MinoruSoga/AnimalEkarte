@@ -1,6 +1,6 @@
 # EMR-503 / EMR-504：採択技術契約と Phase 境界
 
-更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 今回の技術整備A/B。本人の最新指示「Lステップ／DM連携側の機能はPhase1」に従い、LSTEP連携・DMをPhase1対象外とした旧記述を撤回する。504 A/BはPhase1内の今回の技術整備slice、Cは後続の技術研究としてA/Bの完了判定と分け、後続という理由でPhase1外とは扱わない。LINE予約・本人紐付け・再診問診のunlink/対象認可の必要受け手も維持する。未来予約の時刻predicateは本人回答待ちで未選定であり、本書は今すぐの送信有効化・実送信を許可しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
+更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 今回の技術整備A/B。本人の最新指示「Lステップ／DM連携側の機能はPhase1」に従い、LSTEP連携・DMをPhase1対象外とした旧記述を撤回する。504 A/BはPhase1内の今回の技術整備slice、Cは後続の技術研究としてA/Bの完了判定と分け、後続という理由でPhase1外とは扱わない。LINE予約・本人紐付け・再診問診のunlink/対象認可の必要受け手も維持する。通知再開の時刻境界は本人回答「ok」に基づき予約開始時刻 > authoritative server現在時刻へ確定したが、本書は今すぐの送信有効化・実送信を許可しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
 
 ## 1. 結論と調査証拠
 
@@ -77,7 +77,7 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 
 ## 4. EMR-504：Phase1内の技術整備A/B と後続技術研究C
 
-[旧Phase記述（固定SHAの履歴）](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/spec/line/lstep-integration.md#crm-delivery-phase-boundary-20261017)のLSTEP／DM対象外という扱いは、本人の最新指示「Lステップ／DM連携側の機能はPhase1」により撤回する。本節A/BはPhase1内の技術整備sliceとして整理し、A互換adapter・B契約整備をPhase1外へ除外しない。Cは後続技術研究でありA/Bの完了判定と分離するが、機能のPhase1範囲を狭める意味ではない。LINE予約・本人紐付け・再診問診の必要なunlink/対象認可も維持する。scope正本の修正は別担当の作業であり、本書だけを更新する。未来予約の時刻predicateは未選定のため4332982327は未解決のまま保持し、任意horizonや別用途の時刻/状態述語で補完しない。送信有効化・実送信は本作業では行わない。
+[旧Phase記述（固定SHAの履歴）](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/spec/line/lstep-integration.md#crm-delivery-phase-boundary-20261017)のLSTEP／DM対象外という扱いは、本人の最新指示「Lステップ／DM連携側の機能はPhase1」により撤回する。本節A/BはPhase1内の技術整備sliceとして整理し、A互換adapter・B契約整備をPhase1外へ除外しない。Cは後続技術研究でありA/Bの完了判定と分離するが、機能のPhase1範囲を狭める意味ではない。LINE予約・本人紐付け・再診問診の必要なunlink/対象認可も維持する。scope正本の修正は別担当の作業であり、本書だけを更新する。通知再開は本人の追加回答「ok」により開始時刻が現在より後の予約を対象とし、開始済みを除外する。任意horizonや別用途の時刻/状態述語で補完しない。送信有効化・実送信は本作業では行わない。
 
 ### A：既存互換adapterは新wire不要
 
@@ -94,6 +94,8 @@ LstepCsvImport.ErrorLog、snapshot Tags/ScenariosのNULL/空/JSON変換だけ。
 | GET `/owners/{owner_id}/line-operations/{operation_key}?intent=line.notification_resume` | C06元owner anchor・現在owners:viewと医院/各予約閲覧scopeを確認。内部再開結果だけを返す |
 
 eligibility GET の query allowlist は optional `cursor` のみ（省略=先頭、空文字/重複/未知 query は400）。page size は100件という技術上限で固定し、対象期間・選択可能総件数の業務制限にしない。appointment ID 数値昇順の keyset pagination。cursor は base64url-no-padding UTF-8 JSON の closed shape `{schema:"line-eligibility-cursor-v1",clinic_id,owner_id,binding_revision,after_appointment_id}` とし、各 ID/版は canonical 正 signed64 string。正規形・型・未知 key・URL owner/認証 clinic 不一致は400。各ページで現在 owners:view/reservations:view と行 scope を再検査し、cursor 自体を認可根拠にしない。現在 binding revision 不一致は409 ErrorResponseで先頭から再取得する。未終端は最後の返却 appointment ID の next_cursor、終端はnull。ページ横断の予約 snapshot は保証せず、表示候補の同時追加/変更は再取得でき、submit では選択全件の現在 CAS/認可を必ず再確認する。新しい署名鍵や永続 cursor state は追加しない。
+
+通知再開候補の時刻predicateは `appointment.start_time > authoritative server現在時刻` とする。GET候補抽出で適用し、POSTでは選択appointmentのlock下の最終検査時点にauthoritative server現在時刻を再取得して全選択へ再適用する。開始時刻=現在時刻も対象外、当日開始済みも対象外とし、client clockやGET時点の古い時刻を保存時の判定根拠にしない。GET後に開始時刻へ到達した選択があればPOSTは再開せず全選択zero-writeのdependency-changed409とする。固定future horizon・対象期間の業務上限を追加せず、既存の状態・本人紐付け・現在権限・版・停止理由の検査は全て維持する。この境界は本人が「予約開始時刻が現在より後、開始済みは除外」に回答した「ok」による確定であり、既存の別用途readerから推測したものではない。
 
 eligibilityには独立revisionが存在しないため架空のversion列をwire根拠にしない。既存operation_id＋state/binding_revision/appointment_versionを比較し、行欠落は明示nullの期待として区別する。APIにはoperation_idをcanonical stringでopaqueに返す。版競合後の再確認は同内容/同keyで現在Preconditionsを更新でき、選択集合変更は別の明示操作。
 
@@ -211,4 +213,4 @@ route grant 契約：eligibility GETとoperation lookupはowners:view＋認証�
 - 503 reconciliation/retry は action=`support.delivery_reconcile` / `support.delivery_retry`、同 report resource/root、old/new に対象 destination_id/attempt_id と前後 result_id/revision/state（不存在はnull）又は前後 attempt ID。metadata は schema=`support-audit-v1`、C06 operation_id/key/intent。worker claim/result の action=`support.delivery_claim` / `support.delivery_result`、同 report root、元 operation/intent/destination/attempt/result 参照を保持。claim と監査成立前に HTTP を開始せず、外部結果＋必要監査の保存失敗は外部効果を rollback と主張せず unknown 照合へ。
 - 504 B は action=`line.notification_resume`、resource=`owner`、resource_id=owner_id。metadata は schema=`line-notification-resume-audit-v1`、C06 operation_id/key/intent、binding_revision、numeric昇順の選択 appointment_ids。old_value/new_value は同じ選択順で appointment_id、eligibility state/binding_revision/operation_id（行不存在はnull）を保持し、全選択 eligibility の変更と1 audit rowと成功 receipt を同一最外 TX で commitする。監査欠落/失敗は全選択 zero-write、receipt不成立。replay/GET は新しい監査行や送信を作らない。
 
-追加 fixture 定義（実行 NOT_RUN）：異key同semanticの同時確認/全配送状態で新intent0、同keyreplay優先、別report同文は非統合、新規null refsと生成後refsの同一identity、2digest正規化/宛先順序/重複拒否/new INSERT NULL拒否、legacy厳密比較/復元不能500送信0/既存重複で移行停止、初回/再試行の外部 call 前に report 版又は本文/添付が変われば送信0・再確認停止、新規作成 snapshot の null refs を保持したまま intent の生成後 report identity/version と照合、resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持、削除監査失敗で論理削除rollback、operation参照なしの既存DELETEでも架空bindingなしで必須監査成立。外部書込・コード/DB変更・試験・送信は本契約で行わない。
+追加 fixture 定義（実行 NOT_RUN）：GET/POST両方の開始時刻>server現在時刻、等時刻/当日開始済み除外、GET後開始到達で全選択zero-write、client clock変更無効・固定horizonなし、異key同semanticの同時確認/全配送状態で新intent0、同keyreplay優先、別report同文は非統合、新規null refsと生成後refsの同一identity、2digest正規化/宛先順序/重複拒否/new INSERT NULL拒否、legacy厳密比較/復元不能500送信0/既存重複で移行停止、初回/再試行の外部 call 前に report 版又は本文/添付が変われば送信0・再確認停止、新規作成 snapshot の null refs を保持したまま intent の生成後 report identity/version と照合、resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持、削除監査失敗で論理削除rollback、operation参照なしの既存DELETEでも架空bindingなしで必須監査成立。外部書込・コード/DB変更・試験・送信は本契約で行わない。
