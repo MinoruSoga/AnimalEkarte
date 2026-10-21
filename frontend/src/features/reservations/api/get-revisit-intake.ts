@@ -238,6 +238,13 @@ export function getRetryAfterMs(error: unknown, now: number = Date.now()): numbe
   return Number.isNaN(at) ? undefined : Math.max(0, at - now);
 }
 
+/** 直近の失敗の Retry-After 期限内か（メモリ上の query state から導出。保存しない）。 */
+function isWithinRetryAfter(state: { error: unknown; errorUpdatedAt: number }): boolean {
+  if (state.error === null || state.error === undefined) return false;
+  const wait = getRetryAfterMs(state.error, state.errorUpdatedAt);
+  return wait !== undefined && Date.now() < state.errorUpdatedAt + wait;
+}
+
 /**
  * 原文は認証 scope の機微情報（Cache-Control: no-store）。
  * staleTime 0 / gcTime 0 で、unmount（モーダル閉鎖・予約切替）時にキャッシュを破棄し再利用しない。
@@ -254,6 +261,9 @@ export function useGetRevisitIntake(params: GetRevisitIntakeParams & { enabled?:
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: "always",
+    // Retry-After の期限内は、フォーカス復帰・再接続による自動再取得で期限前に再要求しない。
+    refetchOnWindowFocus: (query) => !isWithinRetryAfter(query.state),
+    refetchOnReconnect: (query) => !isWithinRetryAfter(query.state),
     // 403/404 は再試行しても結果が変わらず、権限の存在確認連打にもなるため即確定。
     retry: (failureCount, error) => {
       const status = getRevisitIntakeErrorStatus(error);

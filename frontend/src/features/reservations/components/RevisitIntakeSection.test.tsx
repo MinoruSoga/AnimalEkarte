@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { focusManager } from "@tanstack/react-query";
+import { focusManager, onlineManager } from "@tanstack/react-query";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { server } from "@/testing/mocks/node";
@@ -70,6 +70,7 @@ function respond(json: unknown, status = 200) {
 describe("RevisitIntakeSection", () => {
   afterEach(() => {
     focusManager.setFocused(undefined);
+    onlineManager.setOnline(undefined);
   });
 
   it("読込中は aria-busy と読み上げ文言を即時に出し、スケルトン描画は 300ms 超まで遅らせる", async () => {
@@ -332,6 +333,43 @@ describe("RevisitIntakeSection", () => {
       });
       expect(screen.getByRole("button", { name: "再試行" })).toBeEnabled();
       expect(screen.queryByText(/秒後に再試行できます/)).not.toBeInTheDocument();
+    });
+
+    it("期限内はフォーカス復帰・再接続で再要求せず、期限後は手動再試行できる", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let calls = 0;
+      server.use(
+        http.get(PATH, () => {
+          calls += 1;
+          return calls === 1
+            ? HttpResponse.json(
+                { error: "x", code: "TOO_MANY_REQUESTS" },
+                { status: 429, headers: { "Retry-After": "60" } },
+              )
+            : HttpResponse.json(body());
+        }),
+      );
+      renderSection();
+      await screen.findByRole("button", { name: "再試行" });
+      expect(calls).toBe(1);
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+      });
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(calls).toBe(1);
+      act(() => {
+        vi.advanceTimersByTime(31_000);
+      });
+      const retry = screen.getByRole("button", { name: "再試行" });
+      expect(retry).toBeEnabled();
+      retry.click();
+      expect(await screen.findByText("目的a2")).toBeInTheDocument();
+      expect(calls).toBe(2);
     });
 
     it("続き取得の失敗後、さらに表示も期限まで無効で期限後に有効になる", async () => {
