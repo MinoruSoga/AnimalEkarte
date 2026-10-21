@@ -457,6 +457,22 @@ def support_referenced_staff_ids(export_dir: Path) -> set[int]:
     return referenced
 
 
+def report_restored(entry: dict, filtered: bool, lines: list[str], report: dict[str, dict[str, int]]) -> None:
+    """Print and record the staged/kept counts that one table's script returned."""
+    table = entry["name"]
+    staged = int(lines[0]) if lines else 0
+    kept = staged
+    if filtered:
+        kept = int(lines[1]) if len(lines) > 1 else staged
+        print(
+            f"restored {table}: {entry['rows']} export rows, "
+            f"{staged} staged, {staged - kept} skipped by restore filters"
+        )
+    else:
+        print(f"restored {table}: {entry['rows']} rows")
+    report[table] = {"staged": staged, "kept": kept, "skipped": staged - kept}
+
+
 def restore(args: argparse.Namespace) -> None:
     export_dir = Path(args.dir).resolve()
     manifest = load_manifest(export_dir)
@@ -475,6 +491,7 @@ def restore(args: argparse.Namespace) -> None:
     env = psql_env(cfg)
 
     report: dict[str, dict[str, int]] = {}
+    held_manual: tuple[dict, str, bool] | None = None
     for entry in manifest["tables"]:
         table = entry["name"]
         conflict = dict(TABLES)[table]
@@ -524,22 +541,36 @@ def restore(args: argparse.Namespace) -> None:
             f"ON CONFLICT {conflict} {conflict_clause};\n"
             "DROP TABLE stage;\n"
         )
-        if table == "manual_article_versions":
-            article_entry = next(e for e in manifest["tables"] if e["name"] == "manual_articles")
-            script += manual_pointer_restore_sql(export_dir, article_entry["columns"])
+        if table == "manual_articles":
+            # Run together with the versions and the pointer update below.
+            held_manual = (entry, script, bool(filters))
+            continue
+        parts = [(entry, bool(filters))]
+        if table == "manual_article_versions" and held_manual is not None:
+            # One transaction for the article insert, the version insert and
+            # the pointer update: a failure in any step rolls back all three
+            # (ON_ERROR_STOP aborts before COMMIT).
+            article_entry, article_script, article_filtered = held_manual
+            held_manual = None
+            script = (
+                "BEGIN;\n"
+                + article_script
+                + script
+                + manual_pointer_restore_sql(export_dir, article_entry["columns"])
+                + "COMMIT;\n"
+            )
+            parts.insert(0, (article_entry, article_filtered))
         out = run_psql(env, script=script)
         lines = [line for line in out.splitlines() if line.strip()]
-        staged = int(lines[0]) if lines else 0
-        kept = staged
-        if filters:
-            kept = int(lines[1]) if len(lines) > 1 else staged
-            print(
-                f"restored {table}: {entry['rows']} export rows, "
-                f"{staged} staged, {staged - kept} skipped by restore filters"
-            )
-        else:
-            print(f"restored {table}: {entry['rows']} rows")
-        report[table] = {"staged": staged, "kept": kept, "skipped": staged - kept}
+        for part_entry, filtered in parts:
+            count_lines = 2 if filtered else 1
+            report_restored(part_entry, filtered, lines[:count_lines], report)
+            lines = lines[count_lines:]
+    if held_manual is not None:
+        article_entry, article_script, article_filtered = held_manual
+        out = run_psql(env, script=article_script)
+        lines = [line for line in out.splitlines() if line.strip()]
+        report_restored(article_entry, article_filtered, lines, report)
 
     report_path = export_dir / "restore-report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
