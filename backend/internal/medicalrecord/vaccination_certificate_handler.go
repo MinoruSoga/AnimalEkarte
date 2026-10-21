@@ -341,6 +341,10 @@ func (h *VaccinationCertificateHandler) PreviewSavedVaccinationCertificate(c *gi
 			writeCertificateError(c, errCertificateDependencyChanged)
 			return
 		}
+		if !certificateRendererProductionEnabled {
+			writeCertificateError(c, errCertificateRenderFailed)
+			return
+		}
 		pdf, err = renderCertificatePDF(snap, body.Layout)
 		if err != nil {
 			writeCertificateError(c, err)

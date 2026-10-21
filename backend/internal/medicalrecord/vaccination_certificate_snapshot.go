@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -447,7 +448,9 @@ func validateCertificateManifest(manifest map[string]any, kind string) (renderer
 // ─── Strict JSON plumbing ────────────────────────────────────────────────────
 
 // strictJSONObject parses one complete JSON object, preserving integers as
-// json.Number and rejecting duplicate keys and trailing data.
+// json.Number and rejecting duplicate keys and trailing data. The end of the
+// input is verified by reading the next token: dec.More() cannot be used here
+// because it also reports false on a stray trailing '}' or ']'.
 func strictJSONObject(raw []byte) (map[string]any, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
@@ -455,7 +458,7 @@ func strictJSONObject(raw []byte) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if dec.More() {
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return nil, errCertificateInvalidSnapshot
 	}
 	return obj, nil

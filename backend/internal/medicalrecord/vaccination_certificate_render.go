@@ -22,9 +22,15 @@ const (
 	certificateTemplateRabies    = "rabies-a4-landscape/1"
 )
 
-// Paper: rabies is user-decided A4 landscape (841.89x595.28pt). The normal
-// paper size is not fixed by the spec — assumption: A4 portrait for the
-// portrait layout and A4 landscape for the landscape layout.
+// certificateRendererProductionEnabled stays false while the Japanese font is
+// the non-embedded Adobe-Japan1 HeiseiKakuGo-W5: a host-dependent font
+// violates the contract's fixed font/asset rule. Enable pure rendering only
+// after adopting a conforming embedded font asset.
+const certificateRendererProductionEnabled = false
+
+// Paper (decided 2026-10-21, PR #772 comment 6305181050): normal portrait is
+// A4 portrait 210x297mm, normal landscape is A4 landscape 297x210mm, and
+// rabies is A4 landscape 841.89x595.28pt.
 const (
 	certificateA4W         = 595.28
 	certificateA4H         = 841.89

@@ -273,7 +273,7 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
 
 - 実装スコープは読取3操作のみ（`getVaccinationCertificateEdition` / `listVaccinationCertificateEditions` / `previewSavedVaccinationCertificate`）。context・issue preview・issue・reprint・content route(#8)・operation lookup・writer・artifact upload/insert・C06・FE は引き続き対象外。
 - artifact 読取アダプタは fail-safe（nil store・open/read失敗・サイズ超過・sha不一致・非PDF先頭 → `artifact_unavailable`）。production の store は未結合（nil）のため、既存 artifact 行があっても writer セッションが storage を結合するまでは 503 `artifact_unavailable` を返す。
-- レンダラーは stdlib の最小 PDF 1.7 実装（固定オブジェクト順・xref・`/ID`・日付は snapshot 由来で実行時刻不使用）。日本語フォントは非埋め込み Adobe-Japan1 `HeiseiKakuGo-W5`（UniJIS-UTF16-H）。埋め込みフォントへの置換は後続判断事項。
+- レンダラーは stdlib の最小 PDF 1.7 実装（固定オブジェクト順・xref・`/ID`・日付は snapshot 由来で実行時刻不使用）。日本語フォントの非埋め込み Adobe-Japan1 `HeiseiKakuGo-W5`（UniJIS-UTF16-H）は契約の固定 font/asset 規則を満たさないため、production の純描画は `certificateRendererProductionEnabled=false` で無効化し 503 `render_failed` で停止する（適合する埋め込みフォント asset 採用まで）。保存版 preview は production で現状 503 を返す（artifact store 未結合 + 純描画停止）。
 - バージョン定数: renderer `ekarte-certificate-pdf/1`、font asset `adobe-japan1-heisei-kakugo-w5-unembedded/1`、templates `normal-portrait/1` / `normal-landscape/1` / `rabies-a4-landscape/1`。manifest 不一致は `dependency-changed` で失敗する。
-- 用紙: rabies は A4 横（依頼者決定）。normal は spec 未定のため portrait は A4 縦・landscape は A4 横と仮定（コードコメントに仮定を明記）。
+- 用紙（2026-10-21 依頼者確定、PR #772 comment 6305181050）: normal portrait = A4 縦 210x297mm、normal landscape = A4 横 297x210mm、rabies = A4 横 297x210mm。
 - 検証: compile/test/render/print はいずれも NOT_RUN（依頼による実行禁止）。

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -248,20 +247,13 @@ func TestPreviewSavedVaccinationCertificate_RenderPath(t *testing.T) {
 	}, nil)
 	params := gin.Params{{Key: "edition_id", Value: "20"}}
 
+	// Pure re-render is disabled in production while the font asset is
+	// non-embedded: the no-artifact normal branch answers 503 render_failed
+	// instead of a PDF.
 	c, w := newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"portrait"}`), params)
 	h.PreviewSavedVaccinationCertificate(c)
-	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
-	body := decodeBody(t, w)
-	assert.Equal(t, "application/pdf", body["media_type"])
-	assert.Equal(t, certificateTemplatePortrait, body["template_version"])
-	assert.Equal(t, certificateRendererVersion, body["renderer_version"])
-	assert.Len(t, body["content_sha256"], 64)
-	pdf, err := base64.StdEncoding.DecodeString(body["pdf_base64"].(string))
-	require.NoError(t, err)
-	assert.True(t, bytes.HasPrefix(pdf, []byte("%PDF-")))
-	sum := sha256.Sum256(pdf)
-	assert.Equal(t, hexEncode(sum[:]), body["content_sha256"])
-	assert.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Equal(t, "render_failed", decodeBody(t, w)["code"])
 }
 
 func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
@@ -291,8 +283,18 @@ func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 	assert.Equal(t, http.StatusConflict, w.Code)
 	assert.Equal(t, "dependency-changed", decodeBody(t, w)["code"])
 
-	// Stale between render and second validity read -> 409.
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current", "superseded"}}, nil)
+	// Stale between the artifact read and the second validity read -> 409.
+	stalePDF := append([]byte("%PDF-1.7\n"), bytes.Repeat([]byte("x"), 16)...)
+	staleSum := sha256.Sum256(stalePDF)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{
+		ed: ed, series: series, vacc: vacc, validitySeq: []string{"current", "superseded"},
+		artifact: &model.VaccinationCertificateArtifact{
+			ID: 30, ClinicID: 1, EditionID: 20, Layout: "portrait",
+			TemplateVersion: "normal-portrait/1", RendererVersion: "ekarte-certificate-pdf/1",
+			ObjectKey: "k", ContentSHA256: staleSum[:],
+		},
+		artifactFound: true,
+	}, &fakeArtifactStore{data: stalePDF})
 	c, w = newCertCtx(t, http.MethodPost, "/", portrait, params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusConflict, w.Code)
@@ -397,16 +399,6 @@ func TestPreviewSavedVaccinationCertificate_ArtifactPath(t *testing.T) {
 	c, w = newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"portrait"}`), params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-}
-
-func hexEncode(b []byte) string {
-	const digits = "0123456789abcdef"
-	out := make([]byte, len(b)*2)
-	for i, v := range b {
-		out[i*2] = digits[v>>4]
-		out[i*2+1] = digits[v&0x0f]
-	}
-	return string(out)
 }
 
 // ─── Clinic isolation (testdb) ───────────────────────────────────────────────

@@ -106,6 +106,8 @@ func TestDecodeCertificateSnapshot_ShapeFailures(t *testing.T) {
 		{"not an object", `[1,2]`},
 		{"malformed json", `{"schema_version":1,`},
 		{"duplicate key", `{"schema_version":1,"schema_version":1}`},
+		{"trailing close brace", `{"schema_version":1}}`},
+		{"trailing close bracket", `{"schema_version":1}]`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
