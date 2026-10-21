@@ -5,7 +5,7 @@ import type { ClinicMembership } from "@/types/auth";
  * EMR-463: 飼主・ペット一覧の現在許可医院（owners:view）を GET /v1/me から取得する owners 専有 adapter。
  *
  * 契約: backend/docs/api.yaml `GetMeResponse.owners_view_clinic_ids`
- * （x-contract-status: selected-not-implemented）と
+ * （x-contract-status: selected）と
  * docs/design/domains/owners-pets/technical-spec.md#owners-list-scope-contract-emr463。
  *
  * - loader の各実行・再検証で毎回取得する。全体 `ME_QUERY_KEY` の cached profile や

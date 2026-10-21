@@ -180,6 +180,38 @@ func TestHTTPHandler_GetMe_OwnersViewClinicIDs(t *testing.T) {
 		assert.NotContains(t, response.Body.String(), `"owners_view_clinic_ids":null`)
 	})
 
+	t.Run("交差0件は 200 と非nullの空配列", func(t *testing.T) {
+		handler := ownersScopeHandler(
+			ownersScopeFixture{
+				staffID:   17,
+				accountID: 41,
+				clinics: []model.Clinic{
+					{ID: 1, Name: "Clinic One", IsActive: true},
+					{ID: 2, Name: "Clinic Two", IsActive: true},
+				},
+				assignment: []model.StaffClinicAssignment{
+					{StaffID: 17, ClinicID: 2, IsMain: true},
+				},
+			},
+			// どの医院でも owners:view を許可する。交差外の医院が混入すれば空配列にならない。
+			authServiceEffectivePermissionStub{
+				getFn: func(context.Context, uint64, uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{{
+						Resource: string(model.ResourceOwners),
+						CanView:  true,
+					}}, nil
+				},
+			},
+		)
+
+		response := httptest.NewRecorder()
+		// 現在context [1]、active profile [2] → 交差なし。
+		handler.GetMe(ownersScopeContext(response, []uint64{1}, false))
+
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		assert.Contains(t, response.Body.String(), `"owners_view_clinic_ids":[]`)
+	})
+
 	t.Run("評価 error は 5xx で部分集合や空の 200 を返さない", func(t *testing.T) {
 		handler := ownersScopeHandler(
 			ownersScopeFixture{
