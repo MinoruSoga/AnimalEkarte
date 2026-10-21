@@ -158,6 +158,19 @@ export function RevisitIntakePage({
   );
   const handleAccessDenied = useCallback(() => setAccessDenied(true), []);
 
+  // renderCurrent が RevisitIntakeEditor を載せる条件と同一（ここを変えるときは両方を揃える）。
+  const isEditorMounted = () => {
+    const { read: r } = intake;
+    const cur = r?.current_target ?? null;
+    if (r === null || cur === null) return false;
+    if (r.form_definition_version !== REVISIT_INTAKE_SUPPORTED_FORM_VERSION) return false;
+    if (r.availability === "target_unresolved" || !cur.editable) return false;
+    const pending = draftStore.findPending(clinicId, appointmentId);
+    return (
+      pending === undefined || pending.targetKey === revisitIntakeTargetKey(clinicId, cur.ref)
+    );
+  };
+
   // アプリ内の離脱だけを確認する（LINE 終了・OS による破棄は保証しない）。
   // 送信中は戻らせない。結果未確定・未送信の入力は、それぞれ正確な文言で確認する。
   const handleBack = () => {
@@ -173,8 +186,9 @@ export function RevisitIntakePage({
       setLeavePrompt("unresolved");
       return;
     }
-    // 再取得中・失敗中は editor が外れ dirty が false に戻る。memory store の未送信 draft も見る。
-    if (dirty || (intake.read === null && draftStore.hasDraft(clinicId, appointmentId))) {
+    // editor が外れている間（再取得中・失敗中・読み取り専用・未対応形式・target 不明・別 target の未確定送信）は
+    // dirty が false に戻る。editor が draft を代表していないときは memory store の未送信 draft を見る。
+    if (dirty || (!isEditorMounted() && draftStore.hasDraft(clinicId, appointmentId))) {
       setLeavePrompt("dirty");
       return;
     }
