@@ -53,7 +53,7 @@ immutable typed commandを単一factoryで生成し、Contentはtarget refsとca
 
 ## 2. 492 設定wire（今回選定する追加差分）
 
-既存 /masters/reservation-types と /masters/reservation-type-groups のGET/POST/PATCH/DELETE/reorderを再利用。既存grant master-reservation-type の view/create/edit/delete を各現routeどおり維持。追加restore POST /masters/{reservation-types|reservation-type-groups}/{id}/restore は master-reservation-type:edit。2026-10-21 03:55 UTC、本人 Sentinel_fc62ffe7af188191b2e001d0f3d15036 の「ok」による新たな業務権限確定であり、旧routeに存在した契約と偽らない。復元後無効・利用再開は別操作を維持し、新grantは増やさない。既存LINE管理 /clinics/{clinic_id}/reservation-types も同じwriterへadapter接続し、旧category/color/occupation経由の別正本を残さない。
+既存 /masters/reservation-types と /masters/reservation-type-groups のGET/POST/PATCH/DELETE/reorderを再利用。既存grant master-reservation-type の view/create/edit/delete を各現routeどおり維持。追加restoreは POST `/masters/reservation-types/{id}/restore` と POST `/masters/reservation-type-groups/{id}/restore` の2 routeを明示し、いずれも master-reservation-type:edit。2026-10-21 03:55 UTC、本人 Sentinel_fc62ffe7af188191b2e001d0f3d15036 の「ok」による新たな業務権限確定であり、旧routeに存在した契約と偽らない。復元後無効・利用再開は別操作を維持し、新grantは増やさない。既存LINE管理 /clinics/{clinic_id}/reservation-types も同じwriterへadapter接続し、旧category/color/occupation経由の別正本を残さない。
 
 全writeにoperation_key、更新/削除/restoreにexpected_version。PATCHの変更項目だけContentに束縛し、省略保持/null消去を既存型に沿って区別。削除/restoreは専用intent、DELETEはversion/keyをJSON bodyとしてOpenAPIに明記する。reorderは順序付きID＋期待版集合を受け、当該scope集合との一致も検査する。
 
