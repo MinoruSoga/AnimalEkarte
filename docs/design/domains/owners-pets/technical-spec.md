@@ -163,6 +163,28 @@ login/logout、user/clinic切替、`ME_QUERY_KEY`更新では、進行中のscop
 | login/logout・user/clinic切替・ME_QUERY_KEY更新後に旧応答到着 | 旧scope/listを表示・保存へ反映しない。別userのkeyを読まない |
 | login／refresh／既存builder | 新fieldを必須にしない。GET /me専用wrapper以外へ追加しない |
 
+### 入口判定：一覧 index と詳細・新規枝の分離（2026-10-21 follow-up）
+
+[/owners の route 構造](../../../../frontend/src/app/routes/clinical-general-routes.tsx)を「一覧 index」と既存の「詳細 `:id`／新規 `new`」枝へ分けた。親 route が持っていた選択医院 view wrapper（`RequirePermission` owners:view）は撤去し、`errorElement` だけを維持する。
+
+- 一覧 index は [OwnersListRouteGuard](../../../../frontend/src/features/owners/components/OwnersListRouteGuard.tsx) を index の lazy 解決内で一覧 Component に被せる（owners feature を route 定義へ静的 import せず、code splitting を維持）。`OWNERS_CLINIC_SCOPE_ACTIVE=true` では追加の view guard を掛けず、入口判定は同一 `ownersLoader` 実行が返す owners 専有 scope／`listState` が担う（guard 専用の別 GET /me、古い profile cache による二重判定は行わない）。非活性時（テスト専用の退避経路）は guard が従来どおり owners:view を要求する。
+- 詳細枝 `:id` は `element` に owners:view＋`<Outlet />` を持ち、index child が `OwnerFormPage + ownerLoader` を lazy 解決する（element と lazy Component を同一 route に置かない BUG-20260906-003 の方針を維持）。
+- 新規枝 `new` は owners:view の内側に既存の owners:create を入れ、view＋create を従来どおり両方要求する。
+- 共通 `RequirePermission`・`AuthProvider.hasPermission`・`use-clinic-scope` の全 caller の意味は変更しない。フォーム／保存の edit・create、BE 認可、共通の認証 guard も維持する。BE 変更なし。
+
+fail-closed の判定は既存 loader／OwnersList の挙動を維持する: 現在 scope が非空のときだけ一覧データを表示し、正規の `[]` は no-permitted-clinics 表示で `/pets` を呼ばず、missing／null／不正／取得失敗は scope-error＋再試行。所属一覧・選択医院・system_admin フラグ・旧 scope への fallback はしない。選択上限超過・遅延応答／切替／失権の既存無効化も変えない。
+
+| 受入記述 | 判定箇所 | 担保 |
+|:---|:---|:---|
+| B選択／Aのみ許可 → 一覧はAのみ | ownersLoader の現在許可交差 | 既存 loaders.scope.test.ts（交差選択）で担保済み。新規ケース不要 |
+| 現在許可ゼロ | `listState=no-permitted-clinics` で /pets 非呼出 | 既存 loaders.scope.test.ts・OwnersList.clinic-scope.test.tsx で担保済み |
+| scope 取得失敗 | `listState=scope-error`＋再試行表示 | 同上 |
+| 失権 | /pets 403 → scope 再取得・再照合 | 既存 loaders.scope.test.ts で担保済み |
+| 親に view wrapper なし／index は lazy leaf（guard は lazy 内）／new は view＋create／:id は view | route 構造 | 新規 clinical-general-routes.test.ts（作成・NOT_RUN） |
+| guard active=true で子描画・false で RequirePermission 経由 | OwnersListRouteGuard | 新規 OwnersListRouteGuard.test.tsx（作成・NOT_RUN） |
+
+詳細 view 拒否・新規 view+create・保存 edit 拒否は route guard と既存フォーム／BE 認可で維持される。
+
 ## 受け渡しと検証対応
 
 | FR ID | 先行台帳FRのAC ID（追加分は後続節の対応表） | 技術対応 |
