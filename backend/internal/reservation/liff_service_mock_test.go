@@ -273,6 +273,10 @@ func (m *mockLiffAdminRepository) FindByIDForNotify(ctx context.Context, clinicI
 	return nil, nil
 }
 
+func (m *mockLiffAdminRepository) FindLiffPetPairs(_ context.Context, _, _ uint64, _ []uint64) (map[uint64]LiffPetPair, error) {
+	return map[uint64]LiffPetPair{}, nil
+}
+
 // --- mockLiffCustomerRepository ---
 
 type mockLiffCustomerRepository struct {

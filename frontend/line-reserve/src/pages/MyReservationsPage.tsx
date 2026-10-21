@@ -178,11 +178,9 @@ export function MyReservationsPage({
                           表示する契約。このページは current_target を持たないため表示しない
                           （HOLD・補完しない）。 */}
                       <p className="font-semibold text-noah-text">{reservation.course_name}</p>
-                      <p className="text-sm text-noah-text-sub">
-                        {[reservation.course_name, reservation.staff_name]
-                          .filter(Boolean)
-                          .join(" / ")}
-                      </p>
+                      {reservation.staff_name ? (
+                        <p className="text-sm text-noah-text-sub">{reservation.staff_name}</p>
+                      ) : null}
                     </div>
                     <span
                       className={`shrink-0 whitespace-nowrap text-xs px-2 py-1 rounded-full font-medium ${

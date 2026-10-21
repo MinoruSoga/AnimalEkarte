@@ -8,8 +8,8 @@ const APPOINTMENT_ID_INT64_MAX = "9223372036854775807";
 const CANONICAL_DECIMAL_ID = /^[1-9][0-9]*$/;
 
 /** 再診問診 API の appointment_id (decimal string) に使える、正規形の正の int64 十進文字列か。 */
-export function isRevisitIntakeAppointmentIdUsable(id: string): boolean {
-  if (!CANONICAL_DECIMAL_ID.test(id)) return false;
+export function isRevisitIntakeAppointmentIdUsable(id: string | null): boolean {
+  if (id === null || !CANONICAL_DECIMAL_ID.test(id)) return false;
   return (
     id.length < APPOINTMENT_ID_INT64_MAX.length ||
     (id.length === APPOINTMENT_ID_INT64_MAX.length && id <= APPOINTMENT_ID_INT64_MAX)
@@ -17,6 +17,6 @@ export function isRevisitIntakeAppointmentIdUsable(id: string): boolean {
 }
 
 /** 使えない ID は null を返し、呼び出し側は request を発行しない。 */
-export function toRevisitIntakeAppointmentId(id: string): string | null {
+export function toRevisitIntakeAppointmentId(id: string | null): string | null {
   return isRevisitIntakeAppointmentIdUsable(id) ? id : null;
 }

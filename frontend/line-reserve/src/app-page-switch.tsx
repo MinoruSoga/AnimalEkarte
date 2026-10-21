@@ -33,7 +33,7 @@ export interface ReservationPageSwitchProps {
   idToken: string;
   flow: ReservationFlow;
   isTrimming: boolean;
-  completedReservationId: string;
+  completedReservationId: string | null;
   completedNotes: string;
   revisitIntake: RevisitIntakeRoute | null;
   revisitIntakeDraftStore: RevisitIntakeDraftStore;
@@ -283,9 +283,11 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         onNewReservation={props.handleCompleteNewReservation}
         onRevisitIntake={
           toRevisitIntakeAppointmentId(props.completedReservationId) !== null
-            ? () =>
+            ? () => {
+                const appointmentId = toRevisitIntakeAppointmentId(props.completedReservationId);
+                if (appointmentId === null) return;
                 props.handleOpenRevisitIntake({
-                  appointmentId: props.completedReservationId,
+                  appointmentId,
                   returnTo: "step8",
                   summary: {
                     petName:
@@ -295,7 +297,8 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
                     dateLabel: props.flow.date ? formatJapaneseDate(props.flow.date) : undefined,
                     courseName: props.flow.courseName || undefined,
                   },
-                })
+                });
+              }
             : undefined
         }
       />

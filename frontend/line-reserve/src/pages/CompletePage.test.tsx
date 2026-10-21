@@ -29,7 +29,7 @@ const baseFlow: ReservationFlow = {
 function renderCompletePage(flow: ReservationFlow) {
   render(
     <CompletePage
-      reservationId={""}
+      reservationId={null}
       notes=""
       flow={flow}
       onMyReservations={vi.fn()}

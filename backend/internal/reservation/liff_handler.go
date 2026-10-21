@@ -11,6 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // LiffHandler は LIFF 公開 API の HTTP handler。
@@ -268,12 +269,18 @@ func (h *LiffHandler) GetLiffMyReservations(c *gin.Context) {
 		return
 	}
 
-	items, err := h.svc.GetMyReservations(c.Request.Context(), clinicID, customerID)
+	result, err := h.svc.GetMyReservations(c.Request.Context(), clinicID, customerID)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	resp := httpapi.MapSlice(items, toLiffReservationResponse)
+	resp := httpapi.MapSlice(result.Items, func(r *model.Reservation) liffReservationResponse {
+		var pair *LiffPetPair
+		if p, ok := result.PetPairs[r.ID]; ok {
+			pair = &p
+		}
+		return toLiffReservationResponse(r, pair)
+	})
 	c.JSON(http.StatusOK, resp)
 }
 

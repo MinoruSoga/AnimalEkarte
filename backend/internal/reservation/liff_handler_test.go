@@ -34,7 +34,7 @@ type mockLiffService struct {
 	getAvailableDatesFn  func(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	getAvailableTimesFn  func(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
 	createReservationFn  func(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error)
-	getMyReservationsFn  func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
+	getMyReservationsFn  func(ctx context.Context, clinicID, customerID uint64) (*LiffMyReservationsResult, error)
 	cancelReservationFn  func(ctx context.Context, clinicID, customerID, reservationID uint64) error
 	getHealthCardFn      func(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error)
 }
@@ -102,11 +102,11 @@ func (m *mockLiffService) CreateReservation(ctx context.Context, clinicID, custo
 	return &model.Reservation{ID: 1, ClinicID: clinicID}, nil
 }
 
-func (m *mockLiffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
+func (m *mockLiffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) (*LiffMyReservationsResult, error) {
 	if m.getMyReservationsFn != nil {
 		return m.getMyReservationsFn(ctx, clinicID, customerID)
 	}
-	return []model.Reservation{}, nil
+	return &LiffMyReservationsResult{}, nil
 }
 
 func (m *mockLiffService) CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error {
@@ -667,11 +667,14 @@ func TestGetLiffMyReservations(t *testing.T) {
 	t.Run("正常系: 予約一覧を返す", func(t *testing.T) {
 		now := time.Now()
 		h := newLiffHandler(&mockLiffService{
-			getMyReservationsFn: func(_ context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
+			getMyReservationsFn: func(_ context.Context, clinicID, customerID uint64) (*LiffMyReservationsResult, error) {
 				assert.Equal(t, uint64(3), clinicID)
 				assert.Equal(t, uint64(1), customerID)
-				return []model.Reservation{
-					{ID: 10, ClinicID: 3, StartTime: now, EndTime: now.Add(15 * time.Minute)},
+				return &LiffMyReservationsResult{
+					Items: []model.Reservation{
+						{ID: 10, ClinicID: 3, StartTime: now, EndTime: now.Add(15 * time.Minute)},
+					},
+					PetPairs: map[uint64]LiffPetPair{},
 				}, nil
 			},
 		})
@@ -699,7 +702,7 @@ func TestGetLiffMyReservations(t *testing.T) {
 
 	t.Run("サービスエラー → 500", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{
-			getMyReservationsFn: func(_ context.Context, _, _ uint64) ([]model.Reservation, error) {
+			getMyReservationsFn: func(_ context.Context, _, _ uint64) (*LiffMyReservationsResult, error) {
 				return nil, errors.New("internal error")
 			},
 		})

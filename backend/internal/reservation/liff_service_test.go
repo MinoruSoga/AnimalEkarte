@@ -836,7 +836,7 @@ func TestLiffService_GetMyReservations(t *testing.T) {
 
 		got, err := svc.GetMyReservations(ctx, 3, 1)
 		require.NoError(t, err)
-		assert.Equal(t, want, got)
+		assert.Equal(t, want, got.Items)
 	})
 
 	t.Run("リポジトリエラー → エラー伝播", func(t *testing.T) {

@@ -204,7 +204,7 @@ func TestToLiffReservationResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := toLiffReservationResponse(tt.r)
+			got := toLiffReservationResponse(tt.r, nil)
 			assert.Equal(t, strconv.FormatUint(tt.r.ID, 10), got.ID)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("2006-01-02"), got.Date)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("15:04"), got.StartTime)
@@ -228,7 +228,7 @@ func TestToLiffReservationResponseJSON(t *testing.T) {
 		Status:         model.ReservationStatusConfirmed,
 		CustomerFields: json.RawMessage(`{"pets":[{"name":"ポチ","type":"柴犬"}]}`),
 	}
-	body, err := json.Marshal(toLiffReservationResponse(r))
+	body, err := json.Marshal(toLiffReservationResponse(r, nil))
 	require.NoError(t, err)
 
 	var payload map[string]any
@@ -244,6 +244,34 @@ func TestToLiffReservationResponseJSON(t *testing.T) {
 	assert.Nil(t, petName)
 
 	assert.NotContains(t, string(body), "ポチ")
+}
+
+// EMR-520: pair がある場合は両方値を返し、無い場合は両方 null。
+// customer_fields の先頭ペット名は補完に使わない。
+func TestToLiffReservationResponsePetPairJSON(t *testing.T) {
+	start := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	r := &model.Reservation{
+		ID:             42,
+		StartTime:      start,
+		EndTime:        start.Add(15 * time.Minute),
+		Status:         model.ReservationStatusConfirmed,
+		CustomerFields: json.RawMessage(`{"pets":[{"name":"ポチA","type":"柴犬"}]}`),
+	}
+
+	pair := &LiffPetPair{PetID: 9007199254740993, PetName: "タマB"}
+	body, err := json.Marshal(toLiffReservationResponse(r, pair))
+	require.NoError(t, err)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.Equal(t, "9007199254740993", payload["pet_id"])
+	assert.Equal(t, "タマB", payload["pet_name"])
+	assert.NotContains(t, string(body), "ポチA")
+
+	body, err = json.Marshal(toLiffReservationResponse(r, nil))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.Nil(t, payload["pet_id"])
+	assert.Nil(t, payload["pet_name"])
 }
 
 // EMR-519: 201 応答は id（十進文字列）と notes の 2 キーのみ。

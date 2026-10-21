@@ -14,7 +14,7 @@ export function useReservationAppHandlers(
   goTo: (page: PageType) => void,
   resetFlow: () => void,
   setNotice: Dispatch<SetStateAction<string | null>>,
-  setCompletedReservationId: Dispatch<SetStateAction<string>>,
+  setCompletedReservationId: Dispatch<SetStateAction<string | null>>,
   setCompletedNotes: Dispatch<SetStateAction<string>>,
   setRevisitIntake?: Dispatch<SetStateAction<RevisitIntakeRoute | null>>,
 ) {

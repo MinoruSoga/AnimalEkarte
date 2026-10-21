@@ -30,9 +30,16 @@ type LiffService interface {
 	GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error)
 	GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
 	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error)
-	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
+	GetMyReservations(ctx context.Context, clinicID, customerID uint64) (*LiffMyReservationsResult, error)
 	CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error
 	GetHealthCard(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error)
+}
+
+// LiffMyReservationsResult は予約一覧と各予約の EMR-520 pet ペアをまとめた結果。
+// PetPairs に無い予約は pet 未解決（一覧応答では pet_id/pet_name 両方 null）。
+type LiffMyReservationsResult struct {
+	Items    []model.Reservation
+	PetPairs map[uint64]LiffPetPair
 }
 
 type liffService struct {

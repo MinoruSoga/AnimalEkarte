@@ -11,6 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/pet"
 )
 
 // ReservationAdminRepository は管理者向け予約管理のデータアクセスインターフェース
@@ -28,6 +29,18 @@ type ReservationAdminRepository interface {
 	CancelByID(ctx context.Context, clinicID, customerID, id uint64) (*uint64, error)
 	// 通知用（キャンセル前に関連エンティティを含めて取得）
 	FindByIDForNotify(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	// FindLiffPetPairs は LIFF マイ予約一覧用に、各予約の EMR-520 pet ペア（ローカル pet.id と
+	// common 現行 revision 名）を1クエリで取得する。認可パスは同一スナップショットで評価し、
+	// 未解決（未紐付・紐付け取り消し・別医院・削除済み等）の予約は map に含めない
+	// （呼び出し側で pet_id/pet_name 両方 null に読み替える）。appointmentIDs が空ならクエリを発行しない。
+	FindLiffPetPairs(ctx context.Context, clinicID, customerID uint64, appointmentIDs []uint64) (map[uint64]LiffPetPair, error)
+}
+
+// LiffPetPair は LIFF 一覧応答の pet_id（ローカル pet.id）と pet_name（common 現行 revision 名）。
+// common UUID や revision ID/番号は公開しない。
+type LiffPetPair struct {
+	PetID   uint64
+	PetName string
 }
 
 type reservationAdminRepository struct{ db *gorm.DB }
@@ -170,4 +183,41 @@ func (r *reservationAdminRepository) CancelByID(ctx context.Context, clinicID, c
 		return nil, apperrors.WrapNotFound("appointment", fmt.Sprintf("%d", id))
 	}
 	return cancelled.OwnerID, nil
+}
+
+// FindLiffPetPairs は EMR-520 の認可パスを1スナップショットで評価する。
+// appointments a → 非削除 pet（pet.owner_id = a.owner_id）→ 非削除 owner →
+// owner_line_binding_states（同一医院/owner・state='linked'・line_customer_id = a.line_customer_id）
+// → pet.JoinCurrentCommonBasicName（common 現行名）。name-match・customer_fields・
+// キャッシュ・r.Pet.Name には依らない。
+func (r *reservationAdminRepository) FindLiffPetPairs(ctx context.Context, clinicID, customerID uint64, appointmentIDs []uint64) (map[uint64]LiffPetPair, error) {
+	pairs := make(map[uint64]LiffPetPair, len(appointmentIDs))
+	if len(appointmentIDs) == 0 {
+		return pairs, nil
+	}
+	type row struct {
+		AppointmentID uint64 `gorm:"column:appointment_id"`
+		PetID         uint64 `gorm:"column:pet_id"`
+		PetName       string `gorm:"column:pet_name"`
+	}
+	var rows []row
+	err := pet.JoinCurrentCommonBasicName(
+		r.db.WithContext(ctx).
+			Table("appointments a").
+			Select("a.id AS appointment_id, p.id AS pet_id, rev.name AS pet_name").
+			Joins("JOIN pets p ON p.id = a.pet_id AND p.clinic_id = a.clinic_id AND p.deleted_at IS NULL AND p.owner_id = a.owner_id").
+			Joins("JOIN owners o ON o.id = a.owner_id AND o.clinic_id = a.clinic_id AND o.deleted_at IS NULL").
+			Joins("JOIN owner_line_binding_states lb ON lb.clinic_id = a.clinic_id AND lb.owner_id = a.owner_id AND lb.state = 'linked' AND lb.line_customer_id = a.line_customer_id"),
+		"p", "rev",
+	).
+		Where("a.clinic_id = ? AND a.line_customer_id = ? AND a.id IN ? AND a.deleted_at IS NULL",
+			clinicID, customerID, appointmentIDs).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "appointment", "")
+	}
+	for _, rw := range rows {
+		pairs[rw.AppointmentID] = LiffPetPair{PetID: rw.PetID, PetName: rw.PetName}
+	}
+	return pairs, nil
 }

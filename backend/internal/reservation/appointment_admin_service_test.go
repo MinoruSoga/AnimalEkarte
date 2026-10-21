@@ -69,6 +69,9 @@ func (m *mockReservationAdminRepository) FindByIDForNotify(ctx context.Context, 
 	}
 	return nil, nil
 }
+func (m *mockReservationAdminRepository) FindLiffPetPairs(_ context.Context, _, _ uint64, _ []uint64) (map[uint64]LiffPetPair, error) {
+	return map[uint64]LiffPetPair{}, nil
+}
 
 // ---- Tests ----
 

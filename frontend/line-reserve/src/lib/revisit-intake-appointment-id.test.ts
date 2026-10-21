@@ -19,7 +19,7 @@ describe("revisit-intake appointment id guard", () => {
     expect(toRevisitIntakeAppointmentId("9007199254740993")).toBe("9007199254740993");
   });
 
-  it.each([
+  it.each<[string, string | null]>([
     ["0", "0"],
     ["先頭ゼロ", "01"],
     ["負数", "-1"],
@@ -28,6 +28,7 @@ describe("revisit-intake appointment id guard", () => {
     ["指数", "1e3"],
     ["空白", " 1"],
     ["空文字", ""],
+    ["null", null],
     ["int64 超", "9223372036854775808"],
   ])("%s（%s）は使えず null", (_label, id) => {
     expect(isRevisitIntakeAppointmentIdUsable(id)).toBe(false);

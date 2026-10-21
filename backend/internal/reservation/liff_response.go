@@ -193,8 +193,8 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 	return resp
 }
 
-func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
-	petID, petName := liffReservationPet(r)
+func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) liffReservationResponse {
+	petID, petName := liffReservationPet(pair)
 	res := liffReservationResponse{
 		ID:        strconv.FormatUint(r.ID, 10),
 		Date:      r.StartTime.In(time.Local).Format(time.DateOnly),
@@ -230,10 +230,15 @@ func liffCourseName(rt *model.ReservationType) string {
 
 // liffReservationPet は一覧応答の pet_id / pet_name を返す。
 // 「両方 nonnull か両方 null」の不変条件はこの関数の戻り値だけで保証し、
-// 片方だけ値がある形は返さない。Stage 1 では常に (nil, nil) を返す。
-// どのペット情報・関係を読むかの reader 接続は Stage 2 で行う。
-func liffReservationPet(r *model.Reservation) (petID *string, petName *string) {
-	return nil, nil
+// 片方だけ値がある形は返さない。pair が無い（未紐付・紐付け取り消し・別医院・
+// 削除済み等で未解決）場合は両方 nil。既存メモや先頭ペット名からは補完しない。
+func liffReservationPet(pair *LiffPetPair) (petID *string, petName *string) {
+	if pair == nil || pair.PetID == 0 {
+		return nil, nil
+	}
+	id := strconv.FormatUint(pair.PetID, 10)
+	name := pair.PetName
+	return &id, &name
 }
 
 // liffReservationCreatedResponse はLIFF予約作成（201）専用レスポンス。

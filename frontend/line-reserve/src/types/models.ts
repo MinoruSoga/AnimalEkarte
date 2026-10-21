@@ -188,9 +188,16 @@ export type PageType =
 
 export type RevisitIntakeEnergyAppetite = "usual" | "slightly_reduced" | "markedly_reduced";
 export type RevisitIntakeImprovement =
-  "improved" | "slightly_improved" | "unchanged" | "worse" | "new_symptoms";
+  | "improved"
+  | "slightly_improved"
+  | "unchanged"
+  | "worse"
+  | "new_symptoms";
 export type RevisitIntakeExaminationPreference =
-  "consultation_only" | "medication_only" | "examination" | "decide_with_vet";
+  | "consultation_only"
+  | "medication_only"
+  | "examination"
+  | "decide_with_vet";
 
 /** RevisitIntakeFullAnswers（応答。8保存値すべて present、任意値は null 可、空文字は null と区別） */
 export interface RevisitIntakeFullAnswers {
@@ -301,7 +308,8 @@ export interface RevisitIntakeUnresolvedResult {
 }
 
 export type RevisitIntakeResultResponse =
-  RevisitIntakeSucceededResult | RevisitIntakeUnresolvedResult;
+  | RevisitIntakeSucceededResult
+  | RevisitIntakeUnresolvedResult;
 
 /** 結果照会の結果。404 RevisitIntakeLookupNotFound は not_found（失敗確定ではない）として返す。 */
 export type RevisitIntakeLookupResult =

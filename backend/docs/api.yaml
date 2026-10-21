@@ -11890,11 +11890,11 @@ components:
           type: string
           pattern: '^[1-9][0-9]*$'
           nullable: true
-          description: 正の int64 範囲の十進文字列。pet_name と両方 non-null か両方 null
+          description: 正の int64 範囲の十進文字列。pet_name と両方 non-null か両方 null。未解決・紐付け取り消し・別医院の場合は両方 null（取得失敗は一覧自体がエラー）
         pet_name:
           type: string
           nullable: true
-          description: pet_id と両方 non-null か両方 null
+          description: pet_id と両方 non-null か両方 null。未解決・紐付け取り消し・別医院の場合は両方 null
         date:
           type: string
         start_time:
