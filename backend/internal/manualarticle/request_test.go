@@ -67,7 +67,7 @@ func TestParseEditRequest_Rejects(t *testing.T) {
 		{"decoded NUL in title", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t\u0000x","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"decoded NUL in section", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"\u0000","body_markdown":"b"}}`},
 		{"decoded NUL in body", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b\u0000"}}`},
-		{"trailing bracket", `[{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}]]`},
+		{"trailing bracket", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}]`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

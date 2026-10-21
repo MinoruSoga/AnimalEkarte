@@ -46,6 +46,20 @@ func setupEditRealDB(t *testing.T) *gorm.DB {
 	require.NoError(t, db.Exec(`CREATE TABLE IF NOT EXISTS manual_article_operation_targets (
 		clinic_id bigint NOT NULL, binding_id bigint NOT NULL, article_id bigint NOT NULL,
 		PRIMARY KEY (clinic_id, binding_id))`).Error)
+	// AutoMigrate double には 001_init.sql の storage trigger がないため
+	// version が進まない。同一 body を verbatim で建てる（immutable-history・
+	// anchor immutability trigger は本 suite の依存なし＝不 mirror）。
+	require.NoError(t, db.Exec(`CREATE SCHEMA IF NOT EXISTS app_private`).Error)
+	require.NoError(t, db.Exec(`CREATE OR REPLACE FUNCTION app_private.entity_version_guard()
+RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ IF (to_jsonb(NEW)-'version'-'updated_at') IS DISTINCT FROM(to_jsonb(OLD)-'version'-'updated_at') THEN
+ NEW.version:=OLD.version+1;
+ ELSIF NEW.version IS DISTINCT FROM OLD.version THEN
+ RAISE EXCEPTION 'version is maintained by storage' USING ERRCODE='23514'; END IF;
+ RETURN NEW;
+END; $$;`).Error)
+	require.NoError(t, db.Exec(`DROP TRIGGER IF EXISTS manual_articles_storage_version ON manual_articles`).Error)
+	require.NoError(t, db.Exec(`CREATE TRIGGER manual_articles_storage_version BEFORE UPDATE ON manual_articles FOR EACH ROW EXECUTE FUNCTION app_private.entity_version_guard()`).Error)
 	require.NoError(t, db.Exec(`TRUNCATE TABLE manual_article_operation_targets,
 		manual_article_operations, manual_article_versions, manual_articles,
 		operation_attempt_outcomes, operation_results, operation_bindings RESTART IDENTITY CASCADE`).Error)
@@ -54,12 +68,16 @@ func setupEditRealDB(t *testing.T) *gorm.DB {
 }
 
 // seedEditArticle creates article 42 (screens/intro, version 3, current=7,
-// published=9) plus its resolved-source current content version — matching the
-// package helper fixtures (newCmdForTest expects article "42", expected 3/7).
+// published=9) plus its resolved-source current AND published content
+// versions — matching the package helper fixtures (newCmdForTest expects
+// article "42", expected 3/7; the published pointer must resolve too).
 func seedEditArticle(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	currentID := uint64(7)
 	publishedID := uint64(9)
+	// 参照版を先に seed してから記事を作る（pointer が必ず解決する）。
+	require.NoError(t, db.Create(resolvedSourceVersion(7)).Error)
+	require.NoError(t, db.Create(resolvedSourceVersion(9)).Error)
 	article := &model.ManualArticle{
 		ID:                 42,
 		Category:           model.ManualCategoryScreens,
@@ -69,7 +87,6 @@ func seedEditArticle(t *testing.T, db *gorm.DB) {
 		PublishedVersionID: &publishedID,
 	}
 	require.NoError(t, db.Create(article).Error)
-	require.NoError(t, db.Create(resolvedSourceVersion(7)).Error)
 }
 
 func editTestFingerprinter(t *testing.T) *operation.Fingerprinter {
@@ -157,9 +174,12 @@ func TestEditRealDB_CrossClinicStaleCASAndLookupScope(t *testing.T) {
 	require.Equal(t, operation.StatusSucceeded, outA.Status)
 
 	cmdB := newCmdForTest(t) // identical stale expected_version=3 / content_version_id=7
+	cmdB.OperationKey = uuid.New() // clinic B は別 key = 別 binding
 	pB := NewEditParticipant(repo, editAllowGrant, &mockEditTxAudit{},
 		2, 8, false, model.ManualCategoryScreens, "intro", cmdB)
-	outB, err := runner.Execute(context.Background(), reqForTest(t, cmdB), pB)
+	reqB := reqForTest(t, cmdB)
+	reqB.Scope = editScopes(2, "8") // participant と同じ B scope（clinic 2 のままにしない）
+	outB, err := runner.Execute(context.Background(), reqB, pB)
 	require.NoError(t, err, "a rejected attempt reports its status, not an error")
 	require.Equal(t, operation.StatusVersionConflict, outB.Status)
 
