@@ -26,6 +26,61 @@ describe("実 API クライアント", () => {
     await expect(api.getContext(101)).rejects.toMatchObject({ kind: "malformed" });
   });
 
+  describe("edition の版の整合（EMR-487）", () => {
+    const sourceVersion = 7;
+    const edition = (overrides: { source_version?: number } = {}) => ({
+      id: 301,
+      series_id: 201,
+      vaccination_id: 101,
+      kind: "normal",
+      edition: 1,
+      source_version: sourceVersion,
+      previous_edition_id: null,
+      issued_at: "2026-10-20T14:30:00Z",
+      issued_by: 9,
+      validity: "current",
+      snapshot: buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion, rabiesEligible: false, inputs: emptyCertificateInputs() }),
+      snapshot_sha256: mockHash("a"),
+      available_layouts: ["portrait"],
+      ...overrides,
+    });
+    const context = (latestNormal: unknown) => ({
+      vaccination_id: 101,
+      source_version: sourceVersion,
+      eligibility: { state: "ineligible", allowed_kinds: ["normal"], provenance: "master_snapshot" },
+      can_issue: true,
+      latest: { normal: latestNormal, rabies: null },
+      initial_inputs: emptyCertificateInputs(),
+    });
+
+    it("getEdition は外側の版と snapshot の版が食い違う応答を malformed で拒否し、一致する応答は返す", async () => {
+      const url = `${BASE}/vaccination-certificate-editions/301`;
+      server.use(http.get(url, () => HttpResponse.json(edition())));
+      await expect(api.getEdition("301")).resolves.toMatchObject({ id: 301, source_version: 7 });
+
+      server.use(http.get(url, () => HttpResponse.json(edition({ source_version: 8 }))));
+      await expect(api.getEdition("301")).rejects.toMatchObject({ kind: "malformed" });
+    });
+
+    it("getContext は latest の edition の版が食い違う応答を malformed で拒否し、null と一致する edition は受け入れる", async () => {
+      const url = `${BASE}/vaccinations/101/certificate-context`;
+      server.use(http.get(url, () => HttpResponse.json(context(null))));
+      await expect(api.getContext(101)).resolves.toMatchObject({ latest: { normal: null, rabies: null } });
+
+      server.use(http.get(url, () => HttpResponse.json(context(edition()))));
+      await expect(api.getContext(101)).resolves.toMatchObject({ latest: { normal: { id: 301 } } });
+
+      server.use(http.get(url, () => HttpResponse.json(context(edition({ source_version: 8 })))));
+      await expect(api.getContext(101)).rejects.toMatchObject({ kind: "malformed" });
+    });
+
+    it("現在の接種版と違う過去の発行版の edition は、edition 自身が整合していれば正常として返す", async () => {
+      // 発行時の版は 7。この接種の現在の版が進んでいても、edition は過去の発行版として正常。
+      server.use(http.get(`${BASE}/vaccination-certificate-editions/301`, () => HttpResponse.json(edition())));
+      await expect(api.getEdition("301")).resolves.toMatchObject({ source_version: 7 });
+    });
+  });
+
   it("発行 POST は /certificate-editions へ operation_key 付きで送り、C06 結果をそのまま返す", async () => {
     let received: unknown;
     server.use(

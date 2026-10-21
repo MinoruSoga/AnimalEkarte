@@ -35,13 +35,16 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
   const kinds: CertificateKind[] = (["normal", "rabies"] as const).filter(
     (k) => context.eligibility.allowed_kinds.includes(k) || context.latest[k] !== null,
   );
-  // 様式と頁は一緒に持つ。context の更新で選択中の様式が選べなくなったら、effect を使わず先頭の様式・1 頁目へ導出する
-  // （選択肢が 1 つになると切替ボタンも消えるため、残った選択を持ち越すと戻れなくなる）。
-  const [selection, setSelection] = useState<{ kind: CertificateKind; page: number }>({
-    kind: kinds[0] ?? "normal",
-    page: 1,
-  });
-  const { kind, page } = kinds.includes(selection.kind) ? selection : { kind: kinds[0] ?? "normal", page: 1 };
+  // 様式と頁は一緒に持つ。context の更新で選択中の様式が選べなくなったら、保持している選択そのものを
+  // 先頭の様式・1 頁目へ作り直す（描画中の state 調整。導出だけだと、後で様式が戻ったときに古い選択が復活する）。
+  // 選択肢が 1 つになると切替ボタンも消えるため、残った選択を持ち越すと戻れなくなる。
+  const fallback = { kind: kinds[0] ?? "normal", page: 1 };
+  const [selection, setSelection] = useState<{ kind: CertificateKind; page: number }>(fallback);
+  const selectionValid = kinds.includes(selection.kind);
+  if (!selectionValid && (selection.kind !== fallback.kind || selection.page !== fallback.page)) {
+    setSelection(fallback);
+  }
+  const { kind, page } = selectionValid ? selection : fallback;
   const history = useQuery({
     queryKey: certificateHistoryPageQueryKey(vaccinationId, kind, page, context.source_version),
     queryFn: ({ signal }) => api.listEditions(vaccinationId, { kind, page, limit: PAGE_SIZE }, signal),

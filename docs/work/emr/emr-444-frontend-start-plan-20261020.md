@@ -284,6 +284,12 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 
 #752 は 3c477667b、#756 は d8641263c、#763 は c79728a89 が head。3 PR とも未解決スレッドは 0（#763 は新規）。テストはすべて NOT_RUN。
 
+### 11.3 #756 r4329838868「API 実装まで問診の入口を出さない」の判断（2026-10-21）
+
+- 判断: LIFF の再診問診は静的 flag `LIFF_REVISIT_INTAKE_ACTIVE`（専用ファイル `frontend/line-reserve/src/lib/revisit-intake-activation.ts`）で制御し、既定は `false`。`false` の間は、予約一覧・完了画面の問診入口、問診ページの mount 前、問診 API の呼び出しを同じ flag で止める。完了画面は unsafe ID の案内を含む問診ブロック全体を非表示にする。通常の予約作成・取消は変えない。
+- `true` への変更は別 PR。条件は、必要な BE の 3 route と認可・receipt 処理が揃い、配信先でも利用可能になった後。有効化後も、pending 予約の入口許可、server の `current_target.editable`、履歴、結果照会の規則は維持する。公開後の障害時スイッチとしては流用しない。
+- 先例は EMR-463 の `OWNERS_CLINIC_SCOPE_ACTIVE`。技術設計への追記は reservations technical-spec の「LIFF再診問診の利用開始flag」節。実装 PR は EMR-474 の follow-up（本 §11.3 の記載時点では作成中）。
+
 ### Dots へ残る判断事項
 
 2026-10-21 第 2 回として Dots へ送付する内容（番号は送付文と同じ）。

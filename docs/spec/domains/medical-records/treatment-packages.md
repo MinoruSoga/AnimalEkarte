@@ -4,7 +4,7 @@
 
 目的は頻用項目の繰り返し選択を一度の明示追加へまとめること。構成品の再入力・二重実績・二重請求を減らす。比較する指標は同じ構成の選択操作数と所要時間で、基準値・改善実測は未計測。実施や請求の判断自体を自動化しない。
 
-[既存D03の4状態](pages/medical-record-form.md#medical-record-agreement-input-four)と[3タブ連動](pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を継承する。用語は[カルテ概念](../../ontology/medical-records.md#treatment-package-concepts)、技術方向は[設計](../../../design/domains/medical-records/treatment-packages.md)、未完の契約固定は[作業記録](../../../work/emr/emr-518-treatment-packages-20261020.md)を参照する。
+[既存D03の4状態](pages/medical-record-form.md#medical-record-agreement-input-four)と[3タブ連動](pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)を継承する。用語は[カルテ概念](../../ontology/medical-records.md#treatment-package-concepts)、技術方向は[設計](../../../design/domains/medical-records/treatment-packages.md)、公開済みAPI契約と残る実装依存は[公開済み契約](../../../work/emr/emr-518-package-api-contract-20261020.md)を参照する。
 
 <a id="fr-package-composition"></a>
 ## FR-package-composition — 医院別の診療項目セット

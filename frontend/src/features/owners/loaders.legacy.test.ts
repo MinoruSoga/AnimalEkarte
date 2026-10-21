@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { OWNERS_CLINIC_SCOPE_ACTIVE } from "./lib/owners-clinic-scope-activation";
 import { ownersLoader } from "./loaders";
 
-// EMR-463: 非活性時（OWNERS_CLINIC_SCOPE_ACTIVE=false・既定）は PR 前（main 05da02f3）と同じ挙動。
+// EMR-463: 本番 activation は true（463-BE 実装済み）だが、このファイルは非活性経路
+// （PR 前 main 05da02f3 と同じ挙動）の退避確認用として定数を false に固定する。
+vi.mock("./lib/owners-clinic-scope-activation", () => ({ OWNERS_CLINIC_SCOPE_ACTIVE: false }));
+
+// EMR-463: 非活性時（OWNERS_CLINIC_SCOPE_ACTIVE=false）は PR 前（main 05da02f3）と同じ挙動。
 // GET /me を呼ばず、?clinics= をそのまま clinic_ids へ透過する。値は合成のみ。
 
 let meCalls = 0;

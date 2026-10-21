@@ -42,11 +42,11 @@
 7. 全列DDL・FK/index・model・ERDの対応を同じ実装PRで確定する。共通schema編集ownerはEMR-516へ集約する。
 
 <a id="api-freeze"></a>
-## API候補と公開前固定作業（未完）
+## 初期候補の履歴と公開済み契約
 
-server prefixは既存 `/api/v1`。下記は提案pathであり実装済みrouteではない。候補はdesign/workに留め、確定済みAPIとして業務specへ掲載しない。
+server prefixは既存 `/api/v1`。下記はPR #755時点の初期候補の履歴であり、実装済みrouteを示さない。現在の機械契約はmain公開済みのPR #761の[API契約・fixture](emr-518-package-api-contract-20261020.md)を参照する。公開範囲は13操作 / 9 paths / 55 fixturesであり、runtime完成・fixture実行済みを意味しない。共通planの一覧・個別GET 2本を含むが、plan write/state-change/owner-linkは含まず、引き続き未固定とする。
 
-| method | prefix以降の候補path | 用途 |
+| method | prefix以降の旧候補path | 用途 |
 |:---|:---|:---|
 | GET / POST | `/masters/treatment-packages` | 一覧/作成 |
 | GET / PATCH / DELETE | `/masters/treatment-packages/{id}` | 個別読取/更新/論理削除 |
@@ -54,14 +54,14 @@ server prefixは既存 `/api/v1`。下記は提案pathであり実装済みroute
 | POST | `/medical-records/{record_id}/treatment-package-previews` | read-only preview |
 | POST / GET | `/medical-records/{record_id}/treatment-package-applications` | apply/一覧 |
 | GET | `/medical-records/{record_id}/treatment-package-applications/{id}` | 保存済み適用結果 |
-| GET | `/medical-records/{record_id}/operations/{operation_key}?intent=medical_record.package_apply` | 494共通routeによる元操作結果照会（採用案。旧package専用lookup候補は廃止、機械契約公開は別工程） |
+| GET | `/medical-records/{record_id}/operations/{operation_key}?intent=medical_record.package_apply` | 494共通routeによる元操作結果照会（旧package専用lookup候補は廃止。公開済み契約を参照） |
 | 未固定 | `/medical-records/{record_id}/plan-items` と個別adapter | 共通予定の更新/状態変更/履歴/owner-link |
 
-固定するrequest/responseは、version必須範囲、canonical ID/decimal、preview依存fingerprint、全行適否（単品と同じ段階別gateのblocking/warning。財務unknownを一律blockingにしない）、apply component→保存plan ID、C06 status/結果参照、CAS/依存変更/失権/結果不明応答、scope切替時の無効化。state-changeはcoordinator専用intentとしgeneric state PATCHにしない。
+初期候補で固定対象としたrequest/responseは、version必須範囲、canonical ID/decimal、preview依存fingerprint、全行適否（単品と同じ段階別gateのblocking/warning。財務unknownを一律blockingにしない）、apply component→保存plan ID、C06 status/結果参照、CAS/依存変更/失権/結果不明応答、scope切替時の無効化。state-changeはcoordinator専用intentとしgeneric state PATCHにしない。
 
 新grantを追加せず既存master/record/各owner操作へ対応させる。現 `routes_masters.go` の診療masterはResourceMasterMedical、checkup-typesはResourceCheckups、merchandise-itemsはResourceMasterMerchandise。package管理が他種類の候補閲覧・実施権限を迂回しないよう、操作ごとの既存grant対応表を先に固定する。当時未固定だったgrant対応は[採用storage契約§7](emr-518-storage-contract-20261020.md)で既存actionへ固定した。「全員使用可能」と補完しない。
 
-api.yamlの新route/DTOとfixtureの公開まではFE独自draft契約を増やさない。共有router/OpenAPI/modelの編集担当と順序を着手前に一本化する。
+FEは公開済みroute/DTOとfixtureを参照し、独自draft契約を増やさない。実API結合/有効化は必要backend subsetの後とし、共有router/OpenAPI/modelの編集担当と順序は既定のまま維持する。
 
 ## 最小PR単位と依存subset
 

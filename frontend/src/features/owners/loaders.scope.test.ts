@@ -7,8 +7,8 @@ import { ownersLoader } from "./loaders";
 vi.mock("./lib/owners-clinic-scope-activation", () => ({ OWNERS_CLINIC_SCOPE_ACTIVE: true }));
 
 // EMR-463: technical-spec#owners-list-scope-contract-emr463 の FE 受入ケース（契約 mock）。
-// GET /v1/me の owners_view_clinic_ids は runtime 未実装（x-contract-status:
-// selected-not-implemented）のため、共有 handlers.ts を変えずにこのファイル内の server.use で代替する。
+// GET /v1/me の owners_view_clinic_ids は共有 handlers.ts を変えず、このファイル内の server.use で
+// ケースごとに与える。
 // 値はすべて合成 ID・合成名称（実患者・実飼主の値は含めない）。
 
 const USER_ID = "10";

@@ -136,8 +136,8 @@ login/logout、user/clinic切替、`ME_QUERY_KEY`更新では、進行中のscop
 | 引渡し | 完了条件 | 今回の状態 |
 |:---|:---|:---|
 | 463-C 契約公開 | api.yamlとこの処理境界の採用SHAを公開 | 文書PRでレビュー対象。runtime未変更 |
-| 463-BE 最小DTO | GetMe専用wrapper・交差・三値順次評価。login/refreshとbuilder互換を保持 | 未実装／NOT_RUN |
-| 463-FE 専有adapter | 必須parse・scope先行loader・選択保持・要求無効化 | 採用SHA後の契約mock PRで着手可。未実装／NOT_RUN |
+| 463-BE 最小DTO | GetMe専用wrapper・交差・三値順次評価。login/refreshとbuilder互換を保持 | 実装済み／試験作成済み・NOT_RUN |
+| 463-FE 専有adapter | 必須parse・scope先行loader・選択保持・要求無効化 | 実装済み・activation接続済み／NOT_RUN |
 | 実API結合 | BE/FEが同じ採用SHAを参照し、現在認可・失敗・切替を実APIで確認 | 契約mock合格と別。未実施／NOT_RUN |
 
 ### 後続用fixture・受入ケース定義（全件NOT_RUN）

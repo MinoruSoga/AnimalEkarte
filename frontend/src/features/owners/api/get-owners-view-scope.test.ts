@@ -9,7 +9,7 @@ import {
 
 // EMR-463: GET /me owners_view_clinic_ids の必須 parse（technical-spec#owners-list-scope-contract-emr463
 // fixture 表「field欠落／NULL／数値ID／"0"／"01"／重複」「"9007199254740993"」）。
-// GET /me の新 field は runtime 未実装のため、値はすべて合成 fixture。
+// 値はすべて合成 fixture。
 function meBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: "10",

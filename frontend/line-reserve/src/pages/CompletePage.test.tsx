@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import { CompletePage } from "./CompletePage";
 import type { ReservationFlow } from "../types/models";
 
+// 有効化後の入口の挙動を確認するため、flag を true にする（既定 false の抑止は RevisitIntakeGate.test.tsx）。
+vi.mock("../lib/revisit-intake-activation", () => ({ LIFF_REVISIT_INTAKE_ACTIVE: true }));
+
 const baseFlow: ReservationFlow = {
   customerInfo: {
     name: "",

@@ -13,6 +13,14 @@ func (h *Handler) registerVaccinationAndCheckupRoutes(rg *gin.RouterGroup, perm 
 	vaccinations.POST("", perm(model.ResourceVaccinations, "create"), h.vaccination.CreateVaccination)
 	vaccinations.PATCH("/:id", perm(model.ResourceVaccinations, "edit"), h.vaccination.UpdateVaccination)
 	vaccinations.DELETE("/:id", perm(model.ResourceVaccinations, "delete"), h.vaccination.DeleteVaccination)
+	// EMR-486 read/render (session 5): the wildcard is :id to match the
+	// existing /vaccinations/:id sibling routes (gin panics on a different
+	// wildcard name at the same position).
+	vaccinations.GET("/:id/certificate-editions", perm(model.ResourceVaccinations, "view"), h.vaccinationCertificate.ListVaccinationCertificateEditions)
+
+	certificateEditions := rg.Group("/vaccination-certificate-editions")
+	certificateEditions.GET("/:edition_id", perm(model.ResourceVaccinations, "view"), h.vaccinationCertificate.GetVaccinationCertificateEdition)
+	certificateEditions.POST("/:edition_id/preview", perm(model.ResourceVaccinations, "view"), h.vaccinationCertificate.PreviewSavedVaccinationCertificate)
 
 	checkups := rg.Group("/checkups")
 	checkups.GET("", perm(model.ResourceCheckups, "view"), h.checkup.ListGlobalCheckups)
