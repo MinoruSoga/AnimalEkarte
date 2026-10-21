@@ -29,7 +29,7 @@
 
 ## 3. EMR-503 現 Phase A/B：操作・DTO 契約
 
-既存一覧/status/chatは別機能として保持する。DELETE の route と報告医院 scope は保持するが、旧 handler の uploader.Delete は保持対象ではない。通常削除を論理削除だけに置換し、確認済み報告の添付原本・snapshot・intent・attempt/result・receipt と再送抑止 identity を残すことを A の利用開始条件とする。旧 create-error cleanup も commit 成否不明時や既存原本を物理削除しない。未参照 staging の扱いと別承認の保存期間/削除手続を混同しない。新規配送に旧auto-sendを残して迂回経路にしない。旧plane-ticketの「外部IDなしなら再送」は廃止対象。未移行旧clientには明確な契約不一致を返し、未確認送信を互換動作として続けない。切替順は確認対応client→旧送信経路遮断→新intent worker有効化で、A段階ではworker未起動。
+既存一覧/status/chatは別機能として保持する。DELETE の route と報告医院 scope は保持するが、旧 handler の uploader.Delete は保持対象ではない。通常削除を論理削除だけに置換し、確認済み報告の添付原本・snapshot・intent・attempt/result・receipt と再送抑止 identity を残すことを A の利用開始条件とする。論理削除と必須 audit_logs（action=support_bug_report.delete、既存report resource/root、trusted actor/clinic/report IDと前後削除状態）を同じsupport-owner TXへ保存し、監査失敗では削除もrollbackする。現 handler の service.Delete commit後best-effort logAuditはこの必須監査へ流用しない。既存DELETEを本補正だけで新C06 operation APIへ移行せず、新route/DTO/roleや架空bindingを追加しない。実在するoperation参照がある場合だけ監査へ保持する。旧 create-error cleanup も commit 成否不明時や既存原本を物理削除しない。未参照 staging の扱いと別承認の保存期間/削除手続を混同しない。新規配送に旧auto-sendを残して迂回経路にしない。旧plane-ticketの「外部IDなしなら再送」は廃止対象。未移行旧clientには明確な契約不一致を返し、未確認送信を互換動作として続けない。切替順は確認対応client→旧送信経路遮断→新intent worker有効化で、A段階ではworker未起動。
 
 | 操作 | request | response / 責務 |
 |---|---|---|
@@ -193,7 +193,8 @@ route grant 契約：eligibility GETとoperation lookupはowners:view＋認証�
 既存 audit_logs 列へ明示的に写像する。staff 起因は認証 clinic_id/actor_id、actor_type=staff、worker 起因は actor_type=system/actor_id=null とし、元 staff operation は metadata の参照に保存する。created_at はserver記録時刻。新しい IP/UA 収集必須要件を追加しない。本文/画像bytes/credential/provider証拠原文を監査へ複製しない。
 
 - 503 create の action=`support_bug_report.create`、resource=`support_bug_report`、resource_id=report_id、old_value=null、new_value は report_id/intent_id/report_version/confirmation_digest。既存報告確認は action=`support.delivery_confirm`、同 resource/root、old/new に前後 report版と今回 intent/digest参照。
+- 503 logical delete の action=`support_bug_report.delete`、resource=`support_bug_report`、resource_id=report_id。認証由来のtrusted actor/clinic/report IDと前後deleted_at/削除状態を必須とし、論理削除と同じsupport-owner TXでaudit_logsへ保存する。監査欠落/失敗は削除もrollback。実在operation参照があるときだけmetadataへ保持し、既存経路に架空C06 bindingを作らない。添付原本の物理削除を起動せず、receipt/intent/historyと再送抑止identityを保持する。
 - 503 reconciliation/retry は action=`support.delivery_reconcile` / `support.delivery_retry`、同 report resource/root、old/new に対象 destination_id/attempt_id と前後 result_id/revision/state（不存在はnull）又は前後 attempt ID。metadata は schema=`support-audit-v1`、C06 operation_id/key/intent。worker claim/result の action=`support.delivery_claim` / `support.delivery_result`、同 report root、元 operation/intent/destination/attempt/result 参照を保持。claim と監査成立前に HTTP を開始せず、外部結果＋必要監査の保存失敗は外部効果を rollback と主張せず unknown 照合へ。
 - 504 B は action=`line.notification_resume`、resource=`owner`、resource_id=owner_id。metadata は schema=`line-notification-resume-audit-v1`、C06 operation_id/key/intent、binding_revision、numeric昇順の選択 appointment_ids。old_value/new_value は同じ選択順で appointment_id、eligibility state/binding_revision/operation_id（行不存在はnull）を保持し、全選択 eligibility の変更と1 audit rowと成功 receipt を同一最外 TX で commitする。監査欠落/失敗は全選択 zero-write、receipt不成立。replay/GET は新しい監査行や送信を作らない。
 
-追加 fixture 定義（実行 NOT_RUN）：resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持。外部書込・コード/DB変更・試験・送信は本契約で行わない。
+追加 fixture 定義（実行 NOT_RUN）：resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持、削除監査失敗で論理削除rollback、operation参照なしの既存DELETEでも架空bindingなしで必須監査成立。外部書込・コード/DB変更・試験・送信は本契約で行わない。
