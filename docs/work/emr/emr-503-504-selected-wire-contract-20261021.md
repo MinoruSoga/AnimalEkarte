@@ -1,6 +1,6 @@
 # EMR-503 / EMR-504：採択技術契約と Phase 境界
 
-更新日：2026-10-21。最終版（Revision 3）。本文は設計レビューで選定した技術契約を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 現 Phase A/B。504 C は将来 Phase の研究設計であり、現 ticket 完了 gate に追加しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
+更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 現 Phase A/B。504 C は将来 Phase の研究設計であり、現 ticket 完了 gate に追加しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
 
 ## 1. 結論と調査証拠
 
@@ -29,7 +29,7 @@
 
 ## 3. EMR-503 現 Phase A/B：操作・DTO 契約
 
-既存一覧/status/delete/chatは別機能として保持し、新規配送に旧auto-sendを残して迂回経路にしない。旧plane-ticketの「外部IDなしなら再送」は廃止対象。未移行旧clientには明確な契約不一致を返し、未確認送信を互換動作として続けない。切替順は確認対応client→旧送信経路遮断→新intent worker有効化で、A段階ではworker未起動。
+既存一覧/status/chatは別機能として保持する。DELETE の route と報告医院 scope は保持するが、旧 handler の uploader.Delete は保持対象ではない。通常削除を論理削除だけに置換し、確認済み報告の添付原本・snapshot・intent・attempt/result・receipt と再送抑止 identity を残すことを A の利用開始条件とする。旧 create-error cleanup も commit 成否不明時や既存原本を物理削除しない。未参照 staging の扱いと別承認の保存期間/削除手続を混同しない。新規配送に旧auto-sendを残して迂回経路にしない。旧plane-ticketの「外部IDなしなら再送」は廃止対象。未移行旧clientには明確な契約不一致を返し、未確認送信を互換動作として続けない。切替順は確認対応client→旧送信経路遮断→新intent worker有効化で、A段階ではworker未起動。
 
 | 操作 | request | response / 責務 |
 |---|---|---|
@@ -47,7 +47,7 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 
 旧request.goのtrim/入力検証をpreviewとsubmitで共通化し、確認画面には実際に保存/送信される正規化後の内容を表示する。既存8MiBとPNG/JPEG/WebPを維持し、文字数とbyte数を混同しない。ハッシュはHTTP multipart境界や一時URLでなく保存する本文/添付bytesの内容へ結び付ける。decoded NUL等保存不能textはclaim前に拒否。確認後の無断screening書換えは禁止、変更なら再確認。
 
-添付object uploadはDB TXと原子的でない。previewでは永続uploadしない。submitでは検証済み同じbytesをstaging扱いで保持し、object成功後にreportの原本参照・intent・receiptを同DB TXへ。DB失敗時に外部送信0、object孤立を報告成功にしない。保存済み原本を失敗cleanupで物理削除しない。一時物cleanupの具体方式は既存storage owner契約へ接続する。
+添付object uploadはDB TXと原子的でない。previewでは永続uploadしない。submitでは検証済み同じbytesをstaging扱いで保持し、object 成功後に report・原本参照・確認 snapshot・intent・必須 audit_logs・receipt を同じ support owner DB TX へ保存する。監査欠落/書込失敗は report を含む全業務 write と成功 receipt を rollback する。旧 handler の保存後 best-effort logAudit をこの必須監査の実装に流用しない。DB失敗時に外部送信0、object孤立を報告成功にしない。保存済み原本を失敗cleanupで物理削除しない。一時物cleanupの具体方式は既存storage owner契約へ接続する。
 
 宛先 projection：`destination_id, provider, destination_label, latest_attempt_id:null|string, latest_result_id:null|string, latest_result_revision:null|string, result_state:null|succeeded|definite_failure|unknown|verified_absent, external_id:null|string, external_url:null|string, dispatch_enabled:boolean`。attemptなしは「未試行」、attemptありresultなしは「未確定」として区別し、nullを未送信確定へ変換しない。設定なしとworker未有効を外部成功にしない。院内open/resolvedは独立。
 
@@ -55,9 +55,10 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 
 初回claim、結果記録、provider照合、管理再試行はworker/service境界であり、FEにraw claim/result登録APIを公開しない。管理UIが必要なら下記を別 operation として次の route を採用する。
 
-- POST `/support/delivery-destinations/{destination_id}/reconciliations`：`operation_key, expected_attempt_id, expected_result_revision`。原report医院の既存mutation権限、現在元target照合。問い合わせだけで新規sendなし。provider証拠に基づく新result revisionを追記。
-- POST `/support/delivery-destinations/{destination_id}/retries`：`operation_key, expected_attempt_id, authorized_retry_result_id`。その宛先/attemptの最新`verified_absent`を再照合、現在の確認内容/宛先/認可が有効な場合だけ同intentの次attemptを作る。前attemptとauthorized result FKを保持。definite_failureだけやID欠落で不在証明を代用しない。
+- POST `/support/delivery-destinations/{destination_id}/reconciliations`：`operation_key, expected_attempt_id, expected_result_revision:null|string`。原report医院の既存mutation権限、現在元target照合。問い合わせだけで新規 send なし。expected_result_revision は required nullable とし、null は当該 attempt に result 行が存在しないことへの CAS、string は canonical 正 signed64 の最新結果版への CAS とする。欠落/null/0を同一視しない。destination lock 下で最新 attempt ID と結果の不存在又は最新版を照合し、競合は dependency-changed409・zero-write。provider 証拠を受け取る読取 HTTP は C06 Apply/TX の外に置き、server が同じ attempt に束縛した証拠で再確認し、result revision・audit_logs・receipt を同 TX に追記する。client が provider 証拠や成功を自己申告する DTO は追加しない。
+- POST `/support/delivery-destinations/{destination_id}/retries`：`operation_key, expected_attempt_id, authorized_retry_result_id`。その宛先/attempt の最新 `verified_absent` を再照合し、同じ intent の同じ destination に属する全 attempt/result 履歴に succeeded が一度もないことを destination lock 下で検査する。歴史上 succeeded は配送済みとして terminal とし、外部側の後日削除/検索不在で verified_absent へ降格させたり、新しい retry を認可したりしない。照合 result writer と全 attempt writer も同じ destination lock・terminal 検査へ参加する。既存 support_attempt_guard は最新 result のみを見て definite_failure も許すため適合済みとはせず、446/466 の必要制約補正と503全 writer で上記条件を満たすまで B を有効化しない。現在の確認内容/宛先/認可が有効な場合だけ同intentの次attemptを作る。前attemptとauthorized result FKを保持。definite_failureだけやID欠落で不在証明を代用しない。
 - 両操作の結果照会は同元reportのoperations routeへそれぞれの固定intentで接続。worker claim成功後は期限切れだけで二重claimしない。provider応答断・成功後DB失敗はblocking unknownで照合待ち。
+- 初回/再試行の各外部送信直前に、保存した destination_ref と非secret configuration_digest を現在設定から再計算して照合する。Aで保存しBで送る滞留 intent も例外にしない。不一致/設定不足なら外部送信0で再確認待ちとし、保存済み intent の宛先を上書きしない。照合済み同一 immutable 設定値をその呼出しへ渡し、検査後に別の現在設定を読み直して宛先をすり替えない。credential は digest/ログへ含めず、同じ宛先 identity に対応する設定として取得する。送信と設定変更がDB TXで原子的になる、又は開始済み外部効果を回収できるとは主張しない。
 - provider側が「不存在」を証明できない場合はunknownのまま。新しいroot権限・管理者限定・証拠なし手動上書きを発明しない。署名済みURL失効や外部コピー消去は保証しない。
 
 ## 4. EMR-504：現 Phase A/B と将来 Phase C
@@ -72,9 +73,11 @@ LstepCsvImport.ErrorLog、snapshot Tags/ScenariosのNULL/空/JSON変換だけ。
 
 | 操作 | DTO / 結果 |
 |---|---|
-| GET `/owners/{owner_id}/line-notification-eligibility` | `binding_revision, binding_state, reservations:[{appointment_id, appointment_version, eligibility_state, eligibility_operation_id, can_resume, blocking_reasons}], next_cursor`。候補欠落を全件なしにせずページング。新期間の業務制限なし |
+| GET `/owners/{owner_id}/line-notification-eligibility?cursor=...` | `binding_revision, binding_state, reservations:[{appointment_id, appointment_version, eligibility_state, eligibility_operation_id, can_resume, blocking_reasons}], next_cursor`。候補欠落を全件なしにせずページング。新期間の業務制限なし |
 | POST `/owners/{owner_id}/line-notification-resumptions` | `operation_key, expected_binding_revision, selections:[{appointment_id, expected_appointment_version, expected_eligibility_operation_id:null\|string}]`。選択集合をContentに束縛。選択対象のみ同TXでconfirmedとreceiptを保存、通知即時送信なし。競合が1件でも全選択 zero-write |
 | GET `/owners/{owner_id}/line-operations/{operation_key}?intent=line.notification_resume` | C06元owner anchor・現在owners:viewと医院/各予約閲覧scopeを確認。内部再開結果だけを返す |
+
+eligibility GET の query allowlist は optional `cursor` のみ（省略=先頭、空文字/重複/未知 query は400）。page size は100件という技術上限で固定し、対象期間・選択可能総件数の業務制限にしない。appointment ID 数値昇順の keyset pagination。cursor は base64url-no-padding UTF-8 JSON の closed shape `{schema:"line-eligibility-cursor-v1",clinic_id,owner_id,binding_revision,after_appointment_id}` とし、各 ID/版は canonical 正 signed64 string。正規形・型・未知 key・URL owner/認証 clinic 不一致は400。各ページで現在 owners:view/reservations:view と行 scope を再検査し、cursor 自体を認可根拠にしない。現在 binding revision 不一致は409 ErrorResponseで先頭から再取得する。未終端は最後の返却 appointment ID の next_cursor、終端はnull。ページ横断の予約 snapshot は保証せず、表示候補の同時追加/変更は再取得でき、submit では選択全件の現在 CAS/認可を必ず再確認する。新しい署名鍵や永続 cursor state は追加しない。
 
 eligibilityには独立revisionが存在しないため架空のversion列をwire根拠にしない。既存operation_id＋state/binding_revision/appointment_versionを比較し、行欠落は明示nullの期待として区別する。APIにはoperation_idをcanonical stringでopaqueに返す。版競合後の再確認は同内容/同keyで現在Preconditionsを更新でき、選択集合変更は別の明示操作。
 
@@ -164,12 +167,31 @@ pre-C06 errorは既存 `ErrorResponse` の `{error:string}` を採用し、C06 s
 
 ### 504 B の認可と lock 順（採択契約と実装観察を区別）
 
-現在実装：`persistence.AcquireReservationGraphWriteGate` / `AssertReservationGraphWriteGate` は現mainに存在する。古いrevisit-intake.mdの「共通実装未確認」は当時の履歴。gate namespaceは既存 `reservation-graph:write:v1`、最外TXの最初の業務read/lockより前。`operation.Runner`はGate→binding FOR UPDATE NOWAIT→現在lookup認可/receipt照合→Apply savepointの責務を持つ。既採択 ClaimMetadataWriter capability の runtime 統合は489の責務であり、この採択を現 runner への実装済み宣言にしない。
+現在実装：`persistence.AcquireReservationGraphWriteGate` / `AssertReservationGraphWriteGate` は現mainに存在する。古いrevisit-intake.mdの「共通実装未確認」は当時の履歴。gate namespaceは既存 `reservation-graph:write:v1`、最外TXの最初の業務read/lockより前。現 `operation.Runner.participate` は error-only Participant.Gate(ctx)→binding FOR UPDATE NOWAIT→保存 receipt/unknown 検査→新規なら savepoint→Apply の順であり、新規 binding の Apply 前に ResolveLookupTarget/AuthorizeLookup を自動実行しない。保存結果の disclose/replay 時の現在 read 認可と新規 write の認可を混同しない。503/504 の Apply 自身が immutable 元 anchor と trusted actor/clinic を解決し、同 TX 内の現在 write grant/read scope・対象関係を業務 write 前に必ず再検証する。入口 preflight だけでは代替不可。既採択 ClaimMetadataWriter capability の runtime 統合は489の責務であり、この採択を現 runner への実装済み宣言にしない。
 
 現在の469対象W08 `ownerRepository.UpdateLineUserID` は owner FOR UPDATE→旧新recipientをsort/dedupe→`AcquireLineRecipientLock`→旧owner列write。W09 `lineCustomerRepository.UpdateOwnerLink` はbaseDB直接旧owner_id更新。これらは新binding/eligibility contractへ適合済みではない。469が同じgated ambient writerへ置換する依存を明示し、504が旧コードを再使用して正本を戻さない。
 
-504 B 採択 lock 順：短いmetadata claim終了→最外業務TX開始直後のgraph gate→C06 binding NOWAIT→元anchor現在read認可/成功replay→Apply savepoint→owner row FOR UPDATE→現在/旧recipient lockを文字列昇順（変更しないresumeは現在recipientだけ）→owner_line_binding_states FOR UPDATE→対象pet行ID昇順FOR SHARE→選択appointments ID昇順FOR UPDATE→reservation_notification_eligibilityを同appointment順FOR UPDATE→現在認可/版/停止再照合→selected eligibility＋必要監査＋receipt commit。eligibility行欠落のinsertは親appointment lockで直列化する。受理するsource/owner/LINE writerは全て上位graph gateへ参加し、下位取得後にgateを後付けしない。469 unlink/relinkもowner→recipient→binding→影響appointment→eligibilityの相対順を共有する。移管の既存NOWAIT保護は維持し、別業務の既存下位順を勝手に反転しない。相対順を共有できない既存writerは469のclosure残として停止/adapter化し、runtime cutover条件を明記する。
+504 B 採択 lock 順：短いmetadata claim終了→最外業務TX開始直後のgraph gate→C06 binding NOWAIT→保存 receipt/unknown 検査（開示時は元 anchor 現在 read 認可）→新規は Apply savepoint→Apply 内の元 anchor/current write/read 認可→owner row FOR UPDATE→現在/旧recipient lockを文字列昇順（変更しないresumeは現在recipientだけ）→owner_line_binding_states FOR UPDATE→対象pet行ID昇順FOR SHARE→選択appointments ID昇順FOR UPDATE→reservation_notification_eligibilityを同appointment順FOR UPDATE→現在認可/版/停止再照合→selected eligibility＋必須 audit_logs＋receipt commit（監査失敗は全選択とreceiptをrollback）。eligibility行欠落のinsertは親appointment lockで直列化する。受理するsource/owner/LINE writerは全て上位graph gateへ参加し、下位取得後にgateを後付けしない。469 unlink/relinkもowner→recipient→binding→影響appointment→eligibilityの相対順を共有する。移管の既存NOWAIT保護は維持し、別業務の既存下位順を勝手に反転しない。相対順を共有できない既存writerは469のclosure残として停止/adapter化し、runtime cutover条件を明記する。
 
 route grant 契約：eligibility GETとoperation lookupはowners:view＋認証医院owner scope＋選択予約のreservations:view/現在行scope。POST resumptionsはowners:edit＋同じ読取scope。既存LINE手動writeのowners:editを再利用し、reservations:editや新resourceを要求しない。GET router は read grant、POST router は既存 owners:edit middleware 必須とする。POST は成功 replay を含むすべての入口で現在 edit grant を要求し、その後も原 anchor の現在 read scope を再確認する。view-only 利用者には POST 成功 replay を許可せず、GET operation lookup で同 actor/clinic の保存済み原 receipt を取得する。GET は edit 不足を新書込権限へ昇格しない。既存469 PATCH `/owners/:id/line-user-id` / `/line` とline-id-confirmはowners:editを維持。既存DELETE独立経路を本契約だけで権限変更しない。503は専用grantなしの認証済スタッフ共有READ、mutationは報告医院のまま。
 
 現Phaseの残りは上記新metadata schema/489 callback、469全対象writer参加と新bindingへの置換、採択済み public OpenAPI の反映・公開。504 Cのdoctor source/dedup/全triggerの研究残はB・Aの完了gateへ追加しない。署名鍵の準備・expiry選定は残件から削除した。
+
+
+## Revision 4 追加採択契約：context gate・必須監査
+
+### 489 の nonbreaking ContextGate capability（単一方式）
+
+実 `AcquireReservationGraphWriteGate(ctx)` は gate marker を持つ derived context を返す一方、現 Participant.Gate(ctx) は error-only、現 Runner は元 ctx を使い続ける。このままでは下位 AssertReservationGraphWriteGate が失敗する。既存 Participant interface は変えず、optional capability `ContextGate` の `GateContext(context.Context) (context.Context,error)` を489が追加する採択契約に固定する。Runner.participate は最外 WithTx callback の先頭で capability があれば GateContext だけ、なければ既存 Gate だけを1回実行し、両方を呼ばない。
+
+504 participant は GateContext で既存 AcquireReservationGraphWriteGate に渡された tx ctx をそのまま渡し、返された ctx を返す。Runner は nil ctx と ambient TxFromContext の pointer 不一致を拒否し、元 tx と同一であることを検査する。以降の binding lock、receipt/unknown 読取、disclose、savepoint、Apply、監査、InsertResult、同 TX 内の unknown 記録まで returned ctx を一貫して使う。504 は returned ctx で AssertReservationGraphWriteGate を維持する。marker の自作/participant mutable field への ctx 捕捉/Assert 迂回/nested TX/DetachTx/下位 lock 後の再取得は禁止。実 graph gate が不要な503・既存 consumer は既存 Gate 挙動を維持し、新capabilityの副作用を及ぼさない。rollback 後の別 TX・read-only lookupへ終了済み gate ctx を流用しない。これは489の実装依存であり現在実装済みではない。
+
+### audit_logs の同 TX event 契約
+
+既存 audit_logs 列へ明示的に写像する。staff 起因は認証 clinic_id/actor_id、actor_type=staff、worker 起因は actor_type=system/actor_id=null とし、元 staff operation は metadata の参照に保存する。created_at はserver記録時刻。新しい IP/UA 収集必須要件を追加しない。本文/画像bytes/credential/provider証拠原文を監査へ複製しない。
+
+- 503 create の action=`support_bug_report.create`、resource=`support_bug_report`、resource_id=report_id、old_value=null、new_value は report_id/intent_id/report_version/confirmation_digest。既存報告確認は action=`support.delivery_confirm`、同 resource/root、old/new に前後 report版と今回 intent/digest参照。
+- 503 reconciliation/retry は action=`support.delivery_reconcile` / `support.delivery_retry`、同 report resource/root、old/new に対象 destination_id/attempt_id と前後 result_id/revision/state（不存在はnull）又は前後 attempt ID。metadata は schema=`support-audit-v1`、C06 operation_id/key/intent。worker claim/result の action=`support.delivery_claim` / `support.delivery_result`、同 report root、元 operation/intent/destination/attempt/result 参照を保持。claim と監査成立前に HTTP を開始せず、外部結果＋必要監査の保存失敗は外部効果を rollback と主張せず unknown 照合へ。
+- 504 B は action=`line.notification_resume`、resource=`owner`、resource_id=owner_id。metadata は schema=`line-notification-resume-audit-v1`、C06 operation_id/key/intent、binding_revision、numeric昇順の選択 appointment_ids。old_value/new_value は同じ選択順で appointment_id、eligibility state/binding_revision/operation_id（行不存在はnull）を保持し、全選択 eligibility の変更と1 audit rowと成功 receipt を同一最外 TX で commitする。監査欠落/失敗は全選択 zero-write、receipt不成立。replay/GET は新しい監査行や送信を作らない。
+
+追加 fixture 定義（実行 NOT_RUN）：resultなし/null CAS の照合と競合、fresh Apply前失権、503/504監査失敗全rollback、eligibility複数ページ/不正cursor、ContextGate伝播・同TX assert・旧participant互換、過去成功後のprovider削除で再送不可、submit後設定変更で初回send0、通常DELETE後も添付原本保持。外部書込・コード/DB変更・試験・送信は本契約で行わない。
