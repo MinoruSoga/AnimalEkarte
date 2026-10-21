@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "fbb85cd777a820bb940f5b31dff7e47572372be199bf16e9885d38526b5c927f",
+  "source_digest": "6d75437565c0ea8585326281b0b9ec3c23c4f9ddaddb5cd021025bade7ed1e26",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 245,
-    "columns": 2734,
-    "foreign_keys": 754
+    "tables": 246,
+    "columns": 2737,
+    "foreign_keys": 755
   },
   "migrations": [
     {
@@ -33,6 +33,10 @@
     {
       "name": "004_master_insurance_versions.sql",
       "sha256": "580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b"
+    },
+    {
+      "name": "005_manual_article_operation_targets.sql",
+      "sha256": "15b43e500710322544094d5f89528f2c4780f130bdcf648ce663d2d97cd4fcd1"
     }
   ],
   "reviewed_do_blocks": [
@@ -183,6 +187,7 @@
     "lstep_tag_cache.md",
     "lstep_tag_code_mappings.md",
     "lstep_trigger_priorities.md",
+    "manual_article_operation_targets.md",
     "manual_article_operations.md",
     "manual_article_versions.md",
     "manual_articles.md",

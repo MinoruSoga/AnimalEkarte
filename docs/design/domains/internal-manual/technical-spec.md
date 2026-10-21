@@ -141,5 +141,5 @@ Preconditions / immutable command の participant を生成し、order_value は
 ### 残件
 
 - publish・restore・新規記事作成・hide/remove_override・all-owner C06・EMR-494 暗号化draftは対象外。
-- ERD 生成（`docs/architecture/erd-detail/manual_article_operation_targets.md`）は codegen のため未生成（Lead 作業）。
+- ERD 生成（`docs/architecture/erd-detail/manual_article_operation_targets.md`）は `scripts/tools/generate-erd-detail.py` 公式 generator で生成済み（generated file・手編集なし。`--check` PASS・246 tables）。
 - 実機検証（migration 適用・実行・並行・RLS・deferred trigger）は stack 起動後に別途実施。
