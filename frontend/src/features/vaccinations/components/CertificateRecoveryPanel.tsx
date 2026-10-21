@@ -1,4 +1,4 @@
-import { AlertTriangle, OctagonAlert } from "lucide-react";
+import { AlertTriangle, Loader2, OctagonAlert } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
@@ -113,6 +113,12 @@ export function CertificateRecoveryPanel({ api, intent, recovery, ownPendingKey,
             この操作の結果を再照会
           </Button>
         )}
+        {lookup?.checking === true ? (
+          <p role="status" aria-busy="true" className={`flex items-center gap-1.5 ${C.text60}`}>
+            <Loader2 className={`${ICON.xs} animate-spin`} aria-hidden="true" />
+            結果を確認しています…
+          </p>
+        ) : null}
         {lookup?.notice ? (
           <p role="status" className={C.text60}>
             {RECOVERY_LOOKUP_NOTICE[lookup.notice]}

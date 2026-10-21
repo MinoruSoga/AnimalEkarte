@@ -538,3 +538,89 @@ describe("回復した成功で context / 履歴を取り直す・同じ artifac
     expect(new Set(ids).size).toBe(2);
   });
 });
+
+describe("回復した成功の取り直しは対象の様式の最新版と比べる", () => {
+  async function issueEdition(api: CertificateApi, kind: "normal" | "rabies", key: string, latestId: number | null) {
+    const base = {
+      kind,
+      layout: kind === "normal" ? ("portrait" as const) : ("rabies" as const),
+      inputs: {},
+      preconditions: { source_version: 7, latest_edition_id: latestId },
+    };
+    const preview = await api.previewForIssue(101, base);
+    await api.issue(101, {
+      ...base,
+      operation_key: key,
+      preview_fingerprint: preview.preview_fingerprint,
+      preview_display_issue_date: preview.snapshot.display_issue_date,
+    });
+  }
+
+  function gatedDiscovery(api: CertificateApi) {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gated: CertificateApi = {
+      ...api,
+      queryOperationRecovery: async (request, signal) => {
+        await gate;
+        return api.queryOperationRecovery(request, signal);
+      },
+    };
+    return { gated, release };
+  }
+
+  it("通常の最新版より古くても、狂犬病様式として新しい版なら取り直す", async () => {
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: true });
+    await issueEdition(api, "normal", "11111111-1111-4111-8111-1111111111a1", null); // 301
+    const { gated, release } = gatedDiscovery(api);
+    renderScreen(gated);
+    await waitFor(() => expect(callsOf(controls, "getContext")).toHaveLength(1));
+    await issueEdition(api, "rabies", "11111111-1111-4111-8111-1111111111a2", null); // 302（rabies の最新は無し）
+    release();
+    await waitFor(() => expect(callsOf(controls, "getContext").length).toBeGreaterThan(1));
+  });
+
+  it("その様式の最新版より古い（または同じ）回復結果では取り直さない", async () => {
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await issueEdition(api, "normal", "11111111-1111-4111-8111-1111111111b1", null); // 301
+    await issueEdition(api, "normal", "11111111-1111-4111-8111-1111111111b2", 301); // 302 = 最新
+    const { gated, release } = gatedDiscovery(api);
+    renderScreen(gated);
+    await screen.findByText("第2版");
+    release();
+    await waitFor(() => expect(callsOf(controls, "getEdition").length).toBeGreaterThanOrEqual(2));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(callsOf(controls, "getContext")).toHaveLength(1);
+  });
+});
+
+describe("再照会の進行表示", () => {
+  it("再照会の最中は進行を示し、ボタンを無効にして二重に照会しない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    controls.recovery.seedUnresolved(1, "issue", null);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gated: CertificateApi = {
+      ...api,
+      lookupOperation: async (key, intent, signal) => {
+        await gate;
+        return api.lookupOperation(key, intent, signal);
+      },
+    };
+    renderScreen(gated);
+    const button = await screen.findByRole("button", { name: "この操作の結果を再照会" });
+    await user.click(button);
+    expect(await screen.findByText("結果を確認しています…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "この操作の結果を再照会" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "この操作の結果を再照会" }));
+    release();
+    expect(await screen.findByText(/現時点では成功を確認できません/)).toBeInTheDocument();
+    expect(screen.queryByText("結果を確認しています…")).toBeNull();
+    expect(callsOf(controls, "lookupOperation")).toHaveLength(1);
+  });
+});

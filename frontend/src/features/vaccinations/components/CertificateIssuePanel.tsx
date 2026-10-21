@@ -44,9 +44,16 @@ export function CertificateIssuePanel({
     api,
     target: { intent: "issue", vaccinationId },
     onRecoveredSuccess: (refs) => {
-      // 回復した版が、表示中の最新版より新しいなら context / 履歴が古い（既存の取り直しを使う）。
-      const latestIds = [context.latest.normal?.id, context.latest.rabies?.id].filter((id) => id !== undefined);
-      if (latestIds.every((id) => Number(refs.editionId) > id)) onRefetchContext();
+      // 回復した版が、その様式の表示中の最新版より新しいなら context / 履歴が古い（既存の取り直しを使う）。
+      // 様式は版を読んで判定する。読めない/別の接種のときは古い可能性を捨てず取り直す。
+      void api.getEdition(refs.editionId).then(
+        (edition) => {
+          if (edition.vaccination_id !== vaccinationId) return;
+          const latestId = context.latest[edition.kind]?.id;
+          if (latestId === undefined || edition.id > latestId) onRefetchContext();
+        },
+        () => onRefetchContext(),
+      );
     },
     enabled: true, // 発見と既知の成功の再照会は view 権限で足りる（view のみでも走らせる）
   });
