@@ -1,11 +1,19 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { createElement, isValidElement, type ComponentType, type ReactNode } from "react";
+import {
+  createElement,
+  isValidElement,
+  type ComponentProps,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { ResourceOwners } from "@/types/generated/models";
 
 import { clinicalGeneralRoutes } from "./clinical-general-routes";
+
+type RequirePermissionProps = ComponentProps<typeof RequirePermission>;
 
 // EMR-463: 一覧 index の lazy 解決が guard で一覧 Component を包むことを検証するため、
 // lazy が読み込む page と owners feature を合成 stub に差し替える。
@@ -77,11 +85,13 @@ describe("EMR-463 /owners route structure", () => {
     expect(newRoute).toBeDefined();
     expect(newRoute?.lazy).toBeUndefined();
     const viewGuard = newRoute?.element;
-    if (!isValidElement(viewGuard)) throw new Error("new route element is missing");
+    if (!isValidElement<RequirePermissionProps>(viewGuard))
+      throw new Error("new route element is missing");
     expect(viewGuard.type).toBe(RequirePermission);
     expect(viewGuard.props.resource).toBe(ResourceOwners);
     const createGuard = viewGuard.props.children;
-    if (!isValidElement(createGuard)) throw new Error("new route create guard is missing");
+    if (!isValidElement<RequirePermissionProps>(createGuard))
+      throw new Error("new route create guard is missing");
     expect(createGuard.type).toBe(RequirePermission);
     expect(createGuard.props.resource).toBe(ResourceOwners);
     expect(createGuard.props.action).toBe("create");
@@ -95,7 +105,8 @@ describe("EMR-463 /owners route structure", () => {
     expect(idRoute).toBeDefined();
     expect(idRoute?.lazy).toBeUndefined();
     const viewGuard = idRoute?.element;
-    if (!isValidElement(viewGuard)) throw new Error(":id route element is missing");
+    if (!isValidElement<RequirePermissionProps>(viewGuard))
+      throw new Error(":id route element is missing");
     expect(viewGuard.type).toBe(RequirePermission);
     expect(viewGuard.props.resource).toBe(ResourceOwners);
     const leaf = idRoute?.children?.[0];
