@@ -81,7 +81,7 @@ erDiagram
         bigint clinic_id FK,UK
     }
     merchandise_items {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     pets {
         BIGSERIAL id PK,UK

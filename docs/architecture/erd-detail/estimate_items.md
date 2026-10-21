@@ -72,7 +72,7 @@ erDiagram
         BIGSERIAL id PK,UK
     }
     merchandise_items {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     procedures {
         BIGSERIAL id PK,UK

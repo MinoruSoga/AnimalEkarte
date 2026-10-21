@@ -77,7 +77,7 @@ erDiagram
         BIGSERIAL id PK,UK
     }
     vaccines {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     clinics ||..o{ vaccinations : "clinic_id"
     medical_records o|..o{ vaccinations : "medical_record_id"

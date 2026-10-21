@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "a16550e1fadcfa277fd84fc6ff2a26b5faf71eb68e051c5c390a525de186a32d",
+  "source_digest": "fbb85cd777a820bb940f5b31dff7e47572372be199bf16e9885d38526b5c927f",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,14 +17,14 @@
     }
   ],
   "counts": {
-    "tables": 242,
-    "columns": 2700,
-    "foreign_keys": 740
+    "tables": 245,
+    "columns": 2734,
+    "foreign_keys": 754
   },
   "migrations": [
     {
       "name": "001_init.sql",
-      "sha256": "2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0"
+      "sha256": "b970c3a2ec01b7e91d0aa343dd975312bf457edca31a8e1eda947d1bb874cf0b"
     },
     {
       "name": "003_trimming_course_image_uploads.sql",
@@ -271,6 +271,9 @@
     "support_llm_budgets.md",
     "support_manual_embeddings.md",
     "token_blacklist.md",
+    "treatment_package_catalog_versions.md",
+    "treatment_package_items.md",
+    "treatment_packages.md",
     "treatment_plans.md",
     "treatments.md",
     "trimming_booking_revision_options.md",

@@ -11203,3 +11203,124 @@ ALTER TABLE billings DROP COLUMN completion_request_id, DROP COLUMN completion_r
 -- Plan subtotal is a projection of selected values; fixed accounting totals belong to calculation revisions.
 ALTER TABLE treatment_plans DROP COLUMN subtotal;
 COMMENT ON TABLE cash_register_closes IS 'Immutable original closing count/context. Later source corrections and late events remain separate; actual count corrections append to cash_actual_corrections.';
+
+-- ===== S0 treatment package master (EMR-518 storage contract §3/§4, EMR-521) =====
+-- 承認済み回答（EMR-521 comment fb08506b）: 新連番ではなく001へS0限定統合。
+-- 3表・2master複合unique（vaccines/merchandise_items・他5表は既存 uq_*_id_clinic）・
+-- RLS・既存clinic catalog初期化を含む。001編集≠既存DB適用。
+
+ALTER TABLE vaccines ADD CONSTRAINT uq_vaccines_id_clinic UNIQUE (id, clinic_id);
+ALTER TABLE merchandise_items ADD CONSTRAINT uq_merchandise_items_id_clinic UNIQUE (id, clinic_id);
+
+CREATE TABLE treatment_packages (
+    id          bigserial    PRIMARY KEY,
+    clinic_id   bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    name        text         NOT NULL CHECK (btrim(name) <> ''),
+    description text         NOT NULL DEFAULT '',
+    is_active   boolean      NOT NULL,
+    sort_order  integer      NOT NULL CHECK (sort_order >= 0),
+    version     bigint       NOT NULL DEFAULT 1 CHECK (version > 0),
+    created_by  bigint       NOT NULL REFERENCES staffs(id),
+    updated_by  bigint       NOT NULL REFERENCES staffs(id),
+    created_at  timestamptz  NOT NULL DEFAULT clock_timestamp(),
+    updated_at  timestamptz  NOT NULL DEFAULT clock_timestamp(),
+    deleted_at  timestamptz,
+    deleted_by  bigint       REFERENCES staffs(id),
+    CONSTRAINT uq_treatment_packages_id_clinic UNIQUE (id, clinic_id),
+    CONSTRAINT ck_treatment_packages_soft_delete_pair
+        CHECK ((deleted_at IS NULL) = (deleted_by IS NULL))
+);
+-- list索引: (clinic_id,deleted_at,is_active,sort_order,id)。
+CREATE INDEX idx_treatment_packages_list
+    ON treatment_packages (clinic_id, deleted_at, is_active, sort_order, id);
+
+CREATE TABLE treatment_package_items (
+    id                    bigserial    PRIMARY KEY,
+    clinic_id             bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    package_id            bigint       NOT NULL,
+    component_key         uuid         NOT NULL CHECK (component_key <> '00000000-0000-0000-0000-000000000000'::uuid),
+    position              integer      CHECK (position IS NULL OR position >= 0),
+    removed_at            timestamptz,
+    item_kind             text         NOT NULL CHECK (item_kind IN (
+        'consultation','procedure','medicine','examination_type',
+        'vaccine','checkup_type','merchandise_item','manual_other')),
+    consultation_id       bigint,
+    procedure_id          bigint,
+    medicine_id           bigint,
+    exam_type_id          bigint,
+    vaccine_id            bigint,
+    checkup_type_id       bigint,
+    merchandise_item_id   bigint,
+    quantity              numeric      NOT NULL CHECK (
+        quantity > 0
+        AND quantity <> 'Infinity'::numeric
+        AND quantity <> '-Infinity'::numeric
+        AND quantity <> 'NaN'::numeric),
+    manual_definition     jsonb,
+    created_at            timestamptz  NOT NULL DEFAULT clock_timestamp(),
+    updated_at            timestamptz  NOT NULL DEFAULT clock_timestamp(),
+    CONSTRAINT fk_treatment_package_items_package
+        FOREIGN KEY (package_id, clinic_id)
+        REFERENCES treatment_packages (id, clinic_id) ON DELETE RESTRICT,
+    CONSTRAINT ck_treatment_package_items_position_removed
+        CHECK ((removed_at IS NULL) = (position IS NOT NULL)),
+    CONSTRAINT uq_treatment_package_items_component
+        UNIQUE (clinic_id, package_id, component_key),
+    -- 原子並替のため DEFERRABLE（removed行はposition=NULLで対象外）。
+    CONSTRAINT uq_treatment_package_items_position
+        UNIQUE (clinic_id, package_id, position) DEFERRABLE INITIALLY DEFERRED,
+    -- item_kind↔typed FKのexact matrix: 対応FKのみ非NULL（num_nonnulls=1）、
+    -- manual_otherは全7FK NULL。manualは欠落masterのfallbackにしない。
+    CONSTRAINT ck_treatment_package_items_typed_fk CHECK (
+        CASE item_kind
+            WHEN 'consultation'       THEN consultation_id     IS NOT NULL
+            WHEN 'procedure'          THEN procedure_id        IS NOT NULL
+            WHEN 'medicine'           THEN medicine_id         IS NOT NULL
+            WHEN 'examination_type'   THEN exam_type_id        IS NOT NULL
+            WHEN 'vaccine'            THEN vaccine_id          IS NOT NULL
+            WHEN 'checkup_type'       THEN checkup_type_id     IS NOT NULL
+            WHEN 'merchandise_item'   THEN merchandise_item_id IS NOT NULL
+            ELSE TRUE
+        END
+        AND num_nonnulls(consultation_id, procedure_id, medicine_id, exam_type_id,
+            vaccine_id, checkup_type_id, merchandise_item_id)
+            = CASE WHEN item_kind = 'manual_other' THEN 0 ELSE 1 END),
+    -- manual_definition: manual_otherのみobject必須、それ以外は禁止。
+    CONSTRAINT ck_treatment_package_items_manual_definition CHECK (
+        CASE WHEN item_kind = 'manual_other'
+             THEN manual_definition IS NOT NULL AND jsonb_typeof(manual_definition) = 'object'
+             ELSE manual_definition IS NULL END),
+    CONSTRAINT fk_treatment_package_items_consultation
+        FOREIGN KEY (consultation_id, clinic_id) REFERENCES consultations (id, clinic_id),
+    CONSTRAINT fk_treatment_package_items_procedure
+        FOREIGN KEY (procedure_id, clinic_id) REFERENCES procedures (id, clinic_id),
+    CONSTRAINT fk_treatment_package_items_medicine
+        FOREIGN KEY (medicine_id, clinic_id) REFERENCES medicines (id, clinic_id),
+    CONSTRAINT fk_treatment_package_items_exam_type
+        FOREIGN KEY (exam_type_id, clinic_id) REFERENCES exam_types (id, clinic_id),
+    CONSTRAINT fk_treatment_package_items_vaccine
+        FOREIGN KEY (vaccine_id, clinic_id) REFERENCES vaccines (id, clinic_id),
+    CONSTRAINT fk_treatment_package_items_checkup_type
+        FOREIGN KEY (checkup_type_id, clinic_id) REFERENCES checkup_types (id, clinic_id),
+    CONSTRAINT fk_treatment_package_items_merchandise_item
+        FOREIGN KEY (merchandise_item_id, clinic_id) REFERENCES merchandise_items (id, clinic_id)
+);
+CREATE INDEX idx_treatment_package_items_live
+    ON treatment_package_items (clinic_id, package_id, position) WHERE removed_at IS NULL;
+
+-- §4: package catalog版（clinic単位・CAS開始revision=1）。read INSERT/架空1を作らず、
+-- row欠落はsetup/invariant error。以後の医院作成は同clinic-create TXで行を作る。
+CREATE TABLE treatment_package_catalog_versions (
+    clinic_id  bigint      PRIMARY KEY REFERENCES clinics(id) ON DELETE RESTRICT,
+    revision   bigint      NOT NULL CHECK (revision > 0),
+    updated_at timestamptz NOT NULL
+);
+
+-- 既存医院のcatalog初期化（新設空catalogのCAS開始。001適用時点ではpackage行は
+-- まだ存在しないため「package在りでcatalog欠落」の不整合隠しには当たらない）。
+INSERT INTO treatment_package_catalog_versions (clinic_id, revision, updated_at)
+    SELECT id, 1, clock_timestamp() FROM clinics;
+
+SELECT app_private.apply_rls_policy('treatment_packages','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('treatment_package_items','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');
+SELECT app_private.apply_rls_policy('treatment_package_catalog_versions','tenant_clinic_isolation','app_private.has_clinic_access(clinic_id)','app_private.has_clinic_access(clinic_id)');

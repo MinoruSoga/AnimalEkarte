@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:730](../../../backend/migrations/001_init.sql#L730) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:730](../../../backend/migrations/001_init.sql#L730) |
 | `name` | `text` | NOT NULL | — | — | [001_init.sql:731](../../../backend/migrations/001_init.sql#L731) |
 | `price` | `bigint` | NULL | — | — | [001_init.sql:732](../../../backend/migrations/001_init.sql#L732) |
 | `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:733](../../../backend/migrations/001_init.sql#L733) |
@@ -39,8 +39,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     vaccines {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         text name
         bigint price
         boolean is_active
@@ -86,6 +86,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `vaccines_pkey` | primary | `PRIMARY KEY` | [001_init.sql:729](../../../backend/migrations/001_init.sql#L729) |
+| `uq_vaccines_id_clinic` | unique | `CONSTRAINT uq_vaccines_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:11212](../../../backend/migrations/001_init.sql#L11212) |
 | `ck_vaccines_positive_version` | check | `CONSTRAINT ck_vaccines_positive_version CHECK (version > 0)` | [004_master_insurance_versions.sql:12](../../../backend/migrations/004_master_insurance_versions.sql#L12) |
 
 ## インデックス

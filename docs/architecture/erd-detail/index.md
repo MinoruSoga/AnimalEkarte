@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **3ファイル** から **242テーブル・2700カラム・740外部キー** を静的に導出しています。
+マイグレーション **3ファイル** から **245テーブル・2734カラム・754外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -249,6 +249,9 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [support_llm_budgets](support_llm_budgets.md) | 3 | 0 |
 | [support_manual_embeddings](support_manual_embeddings.md) | 7 | 0 |
 | [token_blacklist](token_blacklist.md) | 3 | 0 |
+| [treatment_package_catalog_versions](treatment_package_catalog_versions.md) | 3 | 1 |
+| [treatment_package_items](treatment_package_items.md) | 18 | 9 |
+| [treatment_packages](treatment_packages.md) | 13 | 4 |
 | [treatment_plans](treatment_plans.md) | 15 | 3 |
 | [treatments](treatments.md) | 36 | 11 |
 | [trimming_booking_revision_options](trimming_booking_revision_options.md) | 5 | 3 |
@@ -275,11 +278,11 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `a16550e1fadcfa277fd84fc6ff2a26b5faf71eb68e051c5c390a525de186a32d`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `fbb85cd777a820bb940f5b31dff7e47572372be199bf16e9885d38526b5c927f`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `2341e6b0a5407e9a4e25cd58c00762c77e11030cd3248dfcc70137d956ccb6f0` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `b970c3a2ec01b7e91d0aa343dd975312bf457edca31a8e1eda947d1bb874cf0b` |
 | [003_trimming_course_image_uploads.sql](../../../backend/migrations/003_trimming_course_image_uploads.sql) | `a86a626288b251d02a9071b2b8eb60e83e15216ff474887b12afd57ebea2cd23` |
 | [004_master_insurance_versions.sql](../../../backend/migrations/004_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
 
