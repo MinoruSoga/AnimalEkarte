@@ -48,6 +48,12 @@ export class RevisitIntakeRecoveryQueryError extends Error {
   }
 }
 
+/**
+ * 1 request の上限。無いと止まった接続で発見が永久に pending になり、保留 UI も再確認も出ない。
+ * 超過は応答なしの axios error（ECONNABORTED）となり "network" に分類される。
+ */
+const RECOVERY_REQUEST_TIMEOUT_MS = 20_000;
+
 const httpClient = axios.create({ baseURL: API_BASE_URL });
 
 // liff-api.ts と同じ NULL バイトサニタイズ（本 adapter は liff-api.ts を編集しないため独自 instance に付ける）。
@@ -89,6 +95,8 @@ interface QueryRevisitIntakeRecoveryArgs {
   idToken: string;
   request: RevisitIntakeRecoveryQueryRequest;
   signal?: AbortSignal;
+  /** テスト用。既定は RECOVERY_REQUEST_TIMEOUT_MS。 */
+  timeoutMs?: number;
 }
 
 /**
@@ -108,6 +116,7 @@ export async function queryRevisitIntakeOperationRecoveryPage(
     res = await httpClient.post<unknown>(recoveryPath(args.clinicId), request.data, {
       headers: { Authorization: `Bearer ${args.idToken}`, "Content-Type": "application/json" },
       signal: args.signal,
+      timeout: args.timeoutMs ?? RECOVERY_REQUEST_TIMEOUT_MS,
     });
   } catch (err: unknown) {
     if (axios.isCancel(err)) throw new RevisitIntakeRecoveryQueryError("aborted", "aborted");

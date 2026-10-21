@@ -124,6 +124,17 @@ describe("discoverRevisitIntakeRecovery（paging）", () => {
     ).rejects.toMatchObject({ kind: "result_unavailable" });
   });
 
+  it("発見全体の deadline を超えたら完結扱いにせず失敗する", async () => {
+    const fetchPage = fetcherOf([
+      targetPage([], { next_cursor: "c1", complete: false }),
+      targetPage([]),
+    ]);
+    await expect(
+      discoverRevisitIntakeRecovery(fetchPage, TARGET, { deadlineMs: -1 }),
+    ).rejects.toMatchObject({ kind: "network" });
+    expect(fetchPage).not.toHaveBeenCalled();
+  });
+
   it("self scope は self request を送る", async () => {
     const fetchPage = fetcherOf([selfPage([])]);
     await discoverRevisitIntakeRecovery(fetchPage, { scope: "self" });

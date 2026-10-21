@@ -207,6 +207,15 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(await screen.findByRole("button", { name: SUBMIT_LABEL })).toBeInTheDocument();
   });
 
+  it("通信断・timeout（応答なし）は network 文言と再確認 button を出し、editor は出さない", async () => {
+    mockRead();
+    server.use(http.post("/api/liff/:clinicId/revisit-intake/operation-recovery/query", () => HttpResponse.error()));
+    renderPage();
+    expect(await screen.findByText(/通信できませんでした/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "もう一度確認する" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
+  });
+
   it("契約違反の応答（未知 field）も保留側へ倒す", async () => {
     mockRead();
     server.use(

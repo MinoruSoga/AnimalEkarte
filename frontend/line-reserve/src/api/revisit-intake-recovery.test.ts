@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, delay } from "msw";
 import { server } from "@/testing/mocks/node";
 import {
   REVISIT_INTAKE_RECOVERY_RUNTIME_STATUS,
@@ -218,6 +218,11 @@ describe("queryRevisitIntakeOperationRecoveryPage（adapter）", () => {
     await expectKind(queryRevisitIntakeOperationRecoveryPage(args), "unclassified");
     server.use(http.post(RECOVERY_QUERY_PATH, () => HttpResponse.error()));
     await expectKind(queryRevisitIntakeOperationRecoveryPage(args), "network");
+  });
+
+  it("止まった接続は timeout で応答なし扱い（network）になり、永久に pending にならない", async () => {
+    server.use(http.post(RECOVERY_QUERY_PATH, async () => { await delay("infinite"); return noStoreJson(targetPage()); }));
+    await expectKind(queryRevisitIntakeOperationRecoveryPage({ ...args, timeoutMs: 50 }), "network");
   });
 
   it("不正な request は送信せず validation", async () => {

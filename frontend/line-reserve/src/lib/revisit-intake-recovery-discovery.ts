@@ -21,6 +21,9 @@ import type {
 /** 1 page は server 固定 50 件。1000 件を超える履歴は先を読まず truncated（保留）にする。 */
 export const RECOVERY_MAX_PAGES = 20;
 
+/** 発見全体の上限。各 request の timeout と合わせ、paging が checking 状態を延々保持しないようにする。 */
+export const RECOVERY_DISCOVERY_DEADLINE_MS = 60_000;
+
 export type RevisitIntakeRecoveryScope =
   | { scope: "target"; targetRef: RevisitIntakeRecoveryTargetRef }
   | { scope: "self" };
@@ -77,9 +80,10 @@ function isDescending(prev: RevisitIntakeRecoveryItem, next: RevisitIntakeRecove
 export async function discoverRevisitIntakeRecovery(
   fetchPage: RecoveryPageFetcher,
   scope: RevisitIntakeRecoveryScope,
-  options: { maxPages?: number; signal?: AbortSignal } = {},
+  options: { maxPages?: number; signal?: AbortSignal; deadlineMs?: number } = {},
 ): Promise<RevisitIntakeRecoveryDiscovery> {
   const maxPages = options.maxPages ?? RECOVERY_MAX_PAGES;
+  const deadline = Date.now() + (options.deadlineMs ?? RECOVERY_DISCOVERY_DEADLINE_MS);
   const items: RevisitIntakeRecoveryItem[] = [];
   const seenKeys = new Set<string>();
   const seenCursors = new Set<string>();
@@ -90,6 +94,10 @@ export async function discoverRevisitIntakeRecovery(
 
   for (let pageNo = 0; ; pageNo += 1) {
     if (options.signal?.aborted) throw new RevisitIntakeRecoveryQueryError("aborted", "aborted");
+    if (Date.now() > deadline) {
+      // 未読の page を残したまま完結扱いにしない。失敗として保留側へ倒す。
+      throw new RevisitIntakeRecoveryQueryError("network", "recovery discovery deadline exceeded");
+    }
     if (pageNo >= maxPages) {
       truncated = true;
       break;
