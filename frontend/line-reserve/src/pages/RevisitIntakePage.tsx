@@ -228,7 +228,7 @@ export function RevisitIntakePage({
     // それだけで「この予約に回答済み」と読める表示にはしない（従来どおり ErrorPage）。
     const deniedRecoveryVisible =
       recovery.status === "error" ||
-      (recovery.summary !== null && recovery.summary.newSubmissionBlocked);
+      (recovery.summary !== null && recovery.summary.hasOperationHold);
     if (deniedPending === undefined && !deniedRecoveryVisible) {
       return <ErrorPage message={ACCESS_DENIED_MESSAGE} onAction={onBack} actionLabel="戻る" />;
     }
@@ -563,7 +563,12 @@ export function RevisitIntakePage({
             </p>
           ) : null}
 
-          <RevisitIntakeRecoveryPanel recovery={recovery} clinicId={clinicId} idToken={idToken} />
+          <RevisitIntakeRecoveryPanel
+            recovery={recovery}
+            clinicId={clinicId}
+            idToken={idToken}
+            fenceNoticeRelevant={current !== null && current.editable}
+          />
 
           {renderCurrent()}
 

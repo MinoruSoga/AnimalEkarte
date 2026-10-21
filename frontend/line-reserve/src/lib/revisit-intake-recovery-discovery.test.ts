@@ -1,4 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+
+const fence = vi.hoisted(() => ({ available: true }));
+vi.mock("./revisit-intake-recovery-fence", () => ({
+  get LIFF_REVISIT_INTAKE_RECOVERY_FENCE_AVAILABLE() {
+    return fence.available;
+  },
+}));
 import {
   RECOVERY_MAX_PAGES,
   discoverRevisitIntakeRecovery,
@@ -135,6 +142,38 @@ describe("discoverRevisitIntakeRecovery（paging）", () => {
     expect(fetchPage).not.toHaveBeenCalled();
   });
 
+  it("同一 claimed_at は operation_key DESC を強制する", async () => {
+    const t = "2026-10-20T01:00:00Z";
+    await expectViolation(
+      discoverRevisitIntakeRecovery(
+        fetcherOf([targetPage([succeededItem(KEY_A, t), succeededItem(KEY_B, t)])]),
+        TARGET,
+      ),
+    );
+    const d = await discoverRevisitIntakeRecovery(
+      fetcherOf([targetPage([succeededItem(KEY_B, t), succeededItem(KEY_A, t)])]),
+      TARGET,
+    );
+    expect(d.items.map((i) => i.operation_key)).toEqual([KEY_B, KEY_A]);
+  });
+
+  it("page 要求の pending 中にも deadline を適用する（signal を無視する fetcher でも止める）", async () => {
+    const hang: RecoveryPageFetcher = () => new Promise(() => undefined);
+    await expect(
+      discoverRevisitIntakeRecovery(hang, TARGET, { deadlineMs: 30 }),
+    ).rejects.toMatchObject({ kind: "network" });
+  });
+
+  it("deadline 後に完了した page は採用しない", async () => {
+    const late: RecoveryPageFetcher = (_r, signal) =>
+      new Promise((resolve) => {
+        signal?.addEventListener("abort", () => resolve(targetPage() as never));
+      });
+    await expect(
+      discoverRevisitIntakeRecovery(late, TARGET, { deadlineMs: 30 }),
+    ).rejects.toMatchObject({ kind: "network" });
+  });
+
   it("self scope は self request を送る", async () => {
     const fetchPage = fetcherOf([selfPage([])]);
     await discoverRevisitIntakeRecovery(fetchPage, { scope: "self" });
@@ -158,8 +197,24 @@ describe("summarizeRevisitIntakeRecovery（保留理由。許可は返さない�
 
   it("succeeded / closed_without_effect だけなら保留理由なし（これは許可ではなく理由が無いだけ）", async () => {
     const s = await summarize(targetPage([succeededItem(KEY_B, "2026-10-20T05:00:00Z"), closedItem(KEY_A)]));
-    expect(s).toEqual({ newSubmissionBlocked: false, reasons: [] });
+    expect(s).toEqual({ newSubmissionBlocked: false, hasOperationHold: false, reasons: [] });
     // 許可を表す field は存在しない
-    expect(Object.keys(s).sort()).toEqual(["newSubmissionBlocked", "reasons"]);
+    expect(Object.keys(s).sort()).toEqual(["hasOperationHold", "newSubmissionBlocked", "reasons"]);
+  });
+
+  it("Slice A（fence 不可）: 0 件・complete・成功のみでも常に保留（fence_unavailable）", async () => {
+    fence.available = false;
+    try {
+      expect(await summarize(targetPage([]))).toEqual({
+        newSubmissionBlocked: true,
+        hasOperationHold: false,
+        reasons: ["fence_unavailable"],
+      });
+      const s = await summarize(targetPage([unresolvedItem(KEY_A)]));
+      expect(s.newSubmissionBlocked).toBe(true);
+      expect(s.hasOperationHold).toBe(true);
+    } finally {
+      fence.available = true;
+    }
   });
 });

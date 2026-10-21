@@ -6,6 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 
+const fence = vi.hoisted(() => ({ available: false }));
+vi.mock("../lib/revisit-intake-recovery-fence", () => ({
+  get LIFF_REVISIT_INTAKE_RECOVERY_FENCE_AVAILABLE() {
+    return fence.available;
+  },
+}));
+
 vi.mock("@line/liff", () => ({
   default: { isInClient: () => true, sendMessages: vi.fn(() => Promise.resolve()) },
 }));
@@ -154,12 +161,27 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
   });
 
-  it("0 件・complete の発見は保留しない（既存の初回送信は従来どおり）。許可の表示は作らない", async () => {
+  it("Slice A: 0 件・complete でも editor を出さず、fence 待ちの停止告知を出す", async () => {
     mockRead();
+    const traps = trapSubmits();
     server.use(recoveryHandler(() => noStoreJson(targetPage([]))).handler);
     renderPage();
-    expect(await screen.findByRole("button", { name: SUBMIT_LABEL })).toBeInTheDocument();
-    expect(screen.queryByText(/一時停止/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/操作の回復確認機能が利用できるようになるまで/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "もう一度確認する" })).not.toBeInTheDocument();
+    expect(traps.count()).toBe(0);
+  });
+
+  it("Slice B 相当（fence 利用可）でのみ、保留理由が無い発見の後に editor が出る", async () => {
+    fence.available = true;
+    try {
+      mockRead();
+      server.use(recoveryHandler(() => noStoreJson(targetPage([]))).handler);
+      renderPage();
+      expect(await screen.findByRole("button", { name: SUBMIT_LABEL })).toBeInTheDocument();
+    } finally {
+      fence.available = false;
+    }
   });
 
   it("succeeded は既存 result の範囲（完了と日時）だけ表示し、redacted は本文を足さない", async () => {
@@ -178,8 +200,8 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(await screen.findByText("回答の送信は完了しています。")).toBeInTheDocument();
     expect(screen.getByText("回答内容はこの画面では表示できません。")).toBeInTheDocument();
     expect(screen.getByText(/反映されずに終了した送信が1件/)).toBeInTheDocument();
-    // active key が無ければ保留しない
-    expect(await screen.findByRole("button", { name: SUBMIT_LABEL })).toBeInTheDocument();
+    // 成功・終了の表示は残るが、Slice A では editor は出さない
+    expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
   });
 
   it("active_operation_key が残る間は（fence は後続 Slice のため）新規送信を止める", async () => {
@@ -204,7 +226,9 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(await screen.findByText(/確認できるまで、新しい回答は送信できません/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole("button", { name: "もう一度確認する" }));
-    expect(await screen.findByRole("button", { name: SUBMIT_LABEL })).toBeInTheDocument();
+    // 再確認が成功しても Slice A では editor を出さない（fence 待ちの告知へ変わる）
+    expect(await screen.findByText(/操作の回復確認機能が利用できるようになるまで/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
   });
 
   it("通信断・timeout（応答なし）は network 文言と再確認 button を出し、editor は出さない", async () => {

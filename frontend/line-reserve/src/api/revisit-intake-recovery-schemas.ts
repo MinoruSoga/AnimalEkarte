@@ -73,6 +73,61 @@ export type RevisitIntakeRecoveryTargetRef = z.infer<typeof recoveryTargetRefSch
 // Response item
 // ---------------------------------------------------------------------------
 
+// 既存 lookup response schema（api/schemas.ts）は strip 型で、編集対象外。ここでは raw 値の key 集合が
+// 既存 wire の許可 key に収まることを別途検査し、未知 field を含む result を fail-closed に拒否する。
+type KeySpec = { [key: string]: KeySpec | true };
+const OWNER_CURRENT_TARGET_KEYS: KeySpec = {
+  ref: { target_id: true, appointment_id: true, pet_id: true, target_generation: true },
+  head_revision: true,
+  answer_state: true,
+  latest_answer: {
+    answer_id: true,
+    revision: true,
+    form_definition_version: true,
+    received_at: true,
+    provenance: true,
+    answers: {
+      visit_purpose: true,
+      onset: true,
+      energy: true,
+      appetite: true,
+      current_symptoms: true,
+      improvement: true,
+      examination_preference: true,
+      main_concern: true,
+    },
+  },
+  content_available: true,
+  editable: true,
+  edit_block_reason: true,
+};
+const RESULT_KEYS: KeySpec = {
+  operation_result: {
+    operation_id: true,
+    intent: true,
+    state: true,
+    committed_at: true,
+    result_refs: { appointment_id: true, pet_id: true, target_id: true, answer_id: true },
+    committed_versions: { target_generation: true, answer_revision: true },
+  },
+  current_state: OWNER_CURRENT_TARGET_KEYS,
+  content_available: true,
+};
+
+function hasOnlyKnownKeys(value: unknown, spec: KeySpec): boolean {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return true; // 型は後段 schema が検査
+  return Object.entries(value).every(([key, child]) => {
+    const allowed = spec[key];
+    if (allowed === undefined) return false;
+    return allowed === true ? true : hasOnlyKnownKeys(child, allowed);
+  });
+}
+
+const closedLookupResult = z
+  .unknown()
+  .refine((v) => hasOnlyKnownKeys(v, RESULT_KEYS), { message: "unknown key in result" })
+  .pipe(revisitIntakeResultResponseSchema.nullable());
+
 const itemShape = {
   operation_key: recoveryOperationKeySchema,
   intent: z.literal("revisit-intake.submit"),
@@ -80,7 +135,7 @@ const itemShape = {
   discovery_state: z.enum(["result", "unavailable"]),
   execution_state: z.enum(["succeeded", "unresolved", "closed_without_effect"]),
   receipt_digest: receiptDigestSchema.nullable(),
-  result: revisitIntakeResultResponseSchema.nullable(),
+  result: closedLookupResult,
 };
 
 export const recoveryItemSchema = z.strictObject(itemShape).superRefine((item, ctx) => {

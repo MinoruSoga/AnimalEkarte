@@ -16,6 +16,10 @@ const BLOCKED_NOTICE =
   "未確定の操作があるため、新しい回答の送信を一時停止しています。結果を確認できるまでお待ちください。";
 
 // self scope（予約を特定できない発見）は本人の全予約の送信が対象。この予約の結果とは言い切らない。
+// Slice A: 回復の確認機能（fence）が無いため、未確定が見つからなくても新しい送信は再開しない。
+const FENCE_UNAVAILABLE_NOTICE =
+  "新しい回答の送信は、操作の回復確認機能が利用できるようになるまで一時停止しています。これまでの送信結果の確認はできます。";
+
 const BLOCKED_NOTICE_SELF =
   "未確定の送信があるため（予約を特定できていません）、新しい回答の送信を一時停止しています。結果を確認できるまでお待ちください。";
 
@@ -64,10 +68,13 @@ export function RevisitIntakeRecoveryPanel({
   recovery,
   clinicId,
   idToken,
+  fenceNoticeRelevant = false,
 }: {
   recovery: UseRevisitIntakeRecoveryResult;
   clinicId: string;
   idToken: string;
+  /** 新規送信の入口（editable な target）があるときだけ、fence 待ちの停止告知を出す。 */
+  fenceNoticeRelevant?: boolean;
 }) {
   const [lookups, setLookups] = useState<Record<string, ItemLookup>>({});
   const { refresh } = recovery;
@@ -140,19 +147,24 @@ export function RevisitIntakeRecoveryPanel({
     ? []
     : discovery.items.filter((i) => i.execution_state === "closed_without_effect");
   const latestSucceeded = succeeded[0];
-  if (!summary.newSubmissionBlocked && latestSucceeded === undefined && closed.length === 0) {
+  const showBlocked = summary.hasOperationHold || (summary.newSubmissionBlocked && fenceNoticeRelevant);
+  if (!showBlocked && latestSucceeded === undefined && closed.length === 0) {
     return null;
   }
 
   return (
     <section aria-label="未確定の操作の確認" className="space-y-3">
-      {summary.newSubmissionBlocked ? (
+      {showBlocked ? (
         <div
           role="alert"
           className="space-y-2 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3"
         >
           <p className="text-sm text-noah-warning-text">
-            {isSelf ? BLOCKED_NOTICE_SELF : BLOCKED_NOTICE}
+            {!summary.hasOperationHold
+              ? FENCE_UNAVAILABLE_NOTICE
+              : isSelf
+                ? BLOCKED_NOTICE_SELF
+                : BLOCKED_NOTICE}
           </p>
           {summary.reasons.includes("scan_incomplete") ? (
             <p className="text-sm text-noah-warning-text">
@@ -164,7 +176,7 @@ export function RevisitIntakeRecoveryPanel({
               直前の操作の確認が済むまで、この画面からは新しい回答を送信できません。
             </p>
           ) : null}
-          {holdItems.length === 0 ? (
+          {holdItems.length === 0 && summary.hasOperationHold ? (
             <button
               type="button"
               onClick={refresh}

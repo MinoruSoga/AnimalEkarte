@@ -11,6 +11,11 @@ const { keyMock, sendMessagesMock } = vi.hoisted(() => ({
   sendMessagesMock: vi.fn(() => Promise.resolve()),
 }));
 
+// 既存の editor 系テストは Slice B（fence 利用可）相当の経路を検証する。Slice A の停止は RevisitIntakeRecovery.test.tsx。
+vi.mock("../lib/revisit-intake-recovery-fence", () => ({
+  LIFF_REVISIT_INTAKE_RECOVERY_FENCE_AVAILABLE: true,
+}));
+
 vi.mock("../lib/revisit-intake-operation-key", () => ({
   createRevisitIntakeOperationKey: keyMock,
 }));

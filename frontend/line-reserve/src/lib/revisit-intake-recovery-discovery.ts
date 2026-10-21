@@ -11,6 +11,7 @@ import {
   RevisitIntakeRecoveryQueryError,
   queryRevisitIntakeOperationRecoveryPage,
 } from "../api/revisit-intake-recovery";
+import { LIFF_REVISIT_INTAKE_RECOVERY_FENCE_AVAILABLE } from "./revisit-intake-recovery-fence";
 import type {
   RevisitIntakeRecoveryItem,
   RevisitIntakeRecoveryPage,
@@ -46,6 +47,7 @@ export interface RevisitIntakeRecoveryDiscovery {
 }
 
 type RecoveryHoldReason =
+  | "fence_unavailable" // Slice A: fence が無いため、発見の結果によらず新規送信を許可しない
   | "unresolved_operation" // 結果未確定の送信がある
   | "result_unavailable" // 結果を読めない（discovery_state=unavailable）
   | "active_operation" // 世代の active key が残る（解除は後続 Slice の fence が担当）
@@ -53,6 +55,8 @@ type RecoveryHoldReason =
 
 export interface RevisitIntakeRecoverySummary {
   newSubmissionBlocked: boolean;
+  /** fence_unavailable 以外の保留理由がある（表示・再確認の対象がある）。 */
+  hasOperationHold: boolean;
   reasons: RecoveryHoldReason[];
 }
 
@@ -67,14 +71,52 @@ function violation(message: string): RevisitIntakeRecoveryQueryError {
 }
 
 /**
- * claimed_at DESC の順序を ms 精度で検査する。server はマイクロ秒精度で並べるため、同一 ms 内の
- * 前後（と key の tiebreak）は client では判定できず許容する（誤って契約違反にしない）。
+ * claimed_at DESC → operation_key DESC を検査する。文字列が同一なら key で厳密に比較する。
+ * 異なる文字列が同一 ms に収まる場合は、server のマイクロ秒順を client で判定できないため許容する。
  */
 function isDescending(prev: RevisitIntakeRecoveryItem, next: RevisitIntakeRecoveryItem): boolean {
+  // 同一 claimed_at は operation_key DESC（重複 key は別途拒否済みのため厳密に降順）。
+  if (prev.claimed_at === next.claimed_at) return prev.operation_key > next.operation_key;
   const a = Date.parse(prev.claimed_at);
   const b = Date.parse(next.claimed_at);
   if (Number.isNaN(a) || Number.isNaN(b)) return false;
   return a >= b;
+}
+
+/** page 取得を残り時間で打ち切る。signal を結合し、signal を無視する fetcher でも race で止める。 */
+async function fetchWithinDeadline(
+  fetchPage: RecoveryPageFetcher,
+  request: RevisitIntakeRecoveryQueryRequest,
+  deadline: number,
+  parent?: AbortSignal,
+): Promise<RevisitIntakeRecoveryPage> {
+  const remaining = deadline - Date.now();
+  const expired = () =>
+    new RevisitIntakeRecoveryQueryError("network", "recovery discovery deadline exceeded");
+  if (remaining <= 0) throw expired();
+  const controller = new AbortController();
+  const onParentAbort = () => controller.abort();
+  parent?.addEventListener("abort", onParentAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  const deadlinePromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      reject(expired());
+    }, remaining);
+  });
+  try {
+    const page = await Promise.race([fetchPage(request, controller.signal), deadlinePromise]);
+    // 期限後に完了した page は採用しない。
+    if (timedOut || Date.now() > deadline) throw expired();
+    return page;
+  } catch (err: unknown) {
+    throw timedOut ? expired() : err;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    parent?.removeEventListener("abort", onParentAbort);
+  }
 }
 
 export async function discoverRevisitIntakeRecovery(
@@ -102,7 +144,7 @@ export async function discoverRevisitIntakeRecovery(
       truncated = true;
       break;
     }
-    const page: RevisitIntakeRecoveryPage = await fetchPage(requestFor(scope, cursor), options.signal);
+    const page = await fetchWithinDeadline(fetchPage, requestFor(scope, cursor), deadline, options.signal);
     if (first === null) first = page;
     // 世代・active key が page 間で変わったら、集合が一貫した 1 時点のものでないため信用しない。
     if (
@@ -156,7 +198,10 @@ export function summarizeRevisitIntakeRecovery(
   }
   if (discovery.activeOperationKey !== null) reasons.push("active_operation");
   if (!discovery.scanComplete) reasons.push("scan_incomplete");
-  return { newSubmissionBlocked: reasons.length > 0, reasons };
+  const hasOperationHold = reasons.length > 0;
+  // fence が無い間は、0 件・complete・理由なしでも解除しない（再読込直後と区別できず、旧 receipt は target query に出ない）。
+  if (!LIFF_REVISIT_INTAKE_RECOVERY_FENCE_AVAILABLE) reasons.push("fence_unavailable");
+  return { newSubmissionBlocked: reasons.length > 0, hasOperationHold, reasons };
 }
 
 /** 既定の fetcher（実 adapter）。mock へのフォールバックは持たない。 */

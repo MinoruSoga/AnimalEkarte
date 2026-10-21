@@ -98,6 +98,14 @@ describe("recoveryItemSchema（状態の組）", () => {
       { ...unavailableItem(KEY_A), result: unresolvedResult(KEY_A, "claimed_uncommitted") },
       { ...succeededItem(KEY_A), result: succeededItem(KEY_B).result },
       { ...succeededItem(KEY_A), extra: true },
+      { ...succeededItem(KEY_A), result: { ...(succeededItem(KEY_A).result as object), target: 1 } },
+      {
+        ...succeededItem(KEY_A),
+        result: {
+          ...(succeededItem(KEY_A).result as { operation_result: object }),
+          operation_result: { ...(succeededItem(KEY_A).result as { operation_result: object }).operation_result, answer: "x" },
+        },
+      },
       { ...succeededItem("00000000-0000-0000-0000-000000000000") },
       { ...succeededItem("00000000-0000-4000-8000-0000000000A1") },
       { ...succeededItem(KEY_A), intent: "other" },
