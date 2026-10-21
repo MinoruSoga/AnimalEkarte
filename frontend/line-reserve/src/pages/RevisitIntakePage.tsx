@@ -402,7 +402,12 @@ export function RevisitIntakePage({
 
         {otherTargetPending !== undefined ? (
           renderPendingLookup("other_target", otherTargetPending)
-        ) : current.editable && recovery.newSubmissionBlocked ? null : current.editable ? (
+        ) : current.editable && recovery.newSubmissionBlocked ? (
+          // Editor を外す間も、同 target の memory pending は結果照会だけ出す（再送・新規送信は出さない）。
+          appointmentPending !== undefined && appointmentPending.targetKey === targetKey ? (
+            renderPendingLookup("read_only", appointmentPending)
+          ) : null
+        ) : current.editable ? (
           <RevisitIntakeEditor
             key={targetKey}
             clinicId={clinicId}

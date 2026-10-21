@@ -48,6 +48,9 @@ describe("recoveryQueryRequestSchema（oneOf・closed）", () => {
     ).toBe(true);
     expect(recoveryQueryRequestSchema.safeParse({ scope: "self", cursor: "abc_-9" }).success).toBe(true);
     expect(recoveryQueryRequestSchema.safeParse({ scope: "self" }).success).toBe(false);
+    // base64url の末尾 "=" padding は許容する
+    expect(recoveryQueryRequestSchema.safeParse({ scope: "self", cursor: "YWJj_-8=" }).success).toBe(true);
+    expect(recoveryQueryRequestSchema.safeParse({ scope: "self", cursor: "YWJj===" }).success).toBe(false);
   });
 
   it("未知 field・clinic/customer などの client 指定・非正規 ID・不正 cursor を拒否する", () => {

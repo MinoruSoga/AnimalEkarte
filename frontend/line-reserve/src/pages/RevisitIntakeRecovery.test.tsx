@@ -251,6 +251,52 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(screen.queryByText(/反映されずに終了/)).not.toBeInTheDocument();
   });
 
+  it("同 target の memory pending + 発見の保留: 結果照会だけ出し、成功で store が空になり Back は確認しない", async () => {
+    mockRead();
+    server.use(
+      recoveryHandler(() => noStoreJson(targetPage([unavailableItem(KEY_B)]))).handler,
+      http.get(LOOKUP_PATH, () => HttpResponse.json(redactedSuccessResult(KEY_A))),
+    );
+    const store = createStore();
+    const targetKey = `${CLINIC}|${APPT}|801|3`;
+    store.set(targetKey, {
+      values: {
+        visit_purpose: "合成",
+        onset: null,
+        energy: null,
+        appetite: null,
+        current_symptoms: null,
+        improvement: null,
+        examination_preference: null,
+        main_concern: null,
+      },
+      pending: {
+        key: KEY_A,
+        fingerprint: "fp",
+        body: {} as never,
+        status: "unknown",
+      },
+    });
+    const onBack = vi.fn();
+    render(
+      <RevisitIntakePage
+        clinicId={CLINIC}
+        idToken="synthetic-id-token"
+        appointmentId={APPT}
+        draftStore={store}
+        onBack={onBack}
+      />,
+    );
+    const user = userEvent.setup();
+    expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
+    const buttons = await screen.findAllByRole("button", { name: "送信結果を確認" });
+    expect(buttons.length).toBe(2); // 発見 item 用 + 同 target pending 用
+    await user.click(buttons[buttons.length - 1]);
+    await waitFor(() => expect(store.findPending(CLINIC, APPT)).toBeUndefined());
+    await user.click(screen.getByRole("button", { name: /戻る/ }));
+    expect(onBack).toHaveBeenCalled();
+  });
+
   it("page を最後までたどる（最初の page が空でも 2 page 目の未確定を見落とさない）", async () => {
     mockRead();
     const rec = recoveryHandler((body) =>

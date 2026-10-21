@@ -36,12 +36,13 @@ const recoveryGenerationSchema = canonicalPositiveDecimal;
 const receiptDigestSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
 /** opaque base64url cursor。server が発行した値をそのまま返す（client は中身を解釈・構築しない）。 */
-const RECOVERY_CURSOR_MAX_LENGTH = 1024;
+const RECOVERY_CURSOR_MAX_LENGTH = 2048;
 export const recoveryCursorSchema = z
   .string()
   .min(1)
   .max(RECOVERY_CURSOR_MAX_LENGTH)
-  .regex(/^[A-Za-z0-9_-]+$/);
+  // base64url は末尾 "=" padding を含み得る（api.yaml は minLength 1 / base64url のみ）。
+  .regex(/^[A-Za-z0-9_-]+={0,2}$/);
 
 // ---------------------------------------------------------------------------
 // Request（oneOf: target / self）。cursor は required nullable。
