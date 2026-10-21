@@ -947,6 +947,8 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 具体差分/再利用: 最小共通hunk: PastRecordHistoryPanel のsearchTermをdraft/appliedに分離しbutton適用、filteredItemsはappliedのみ、clearはdraft。callerのitems集合・onItemClick/onHistoryClickは維持。健診result/false/0の業務動作を検索handlerへ追加しない。
 
+追加静的差分（固定main c86c8dd2）：CheckupForm.tsx L50–59はuseGetCheckupsのerror/refetchを受けずdata??[]へ変換し、L146–151はitems/isLoadingだけをPastRecordHistoryPanelへ渡すため、初回GET失敗と成功0件が「履歴がありません」へ合流する。H05の450 consumer接続としてerror/retryを既存panel又は同じcallerのDataStatesへ通し、取得中/失敗/成功0件を分離する。再試行は同患者・医院・条件に限り、失権/遅延応答で旧履歴を操作根拠にしない。G3のdirty接続とは別差分。500の④receipt/保存再開/lookupをこの受入へ混ぜない。fixtureは初回失敗・成功0件・成功あり・再試行失敗/成功・患者切替後遅延（NOT_RUN）。
+
 ### H06 E-existing
 
 担当: EMR-450。consumer境界: 499/461
@@ -1165,6 +1167,8 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 - G1 M09: use-reservation-type-settings のtype/group query loading/error/refetchを ReservationTypeSettings → ReservationTypeSettingsContentへ通す。450/492。
 - G2 M20: ShiftTemplateSettings のquery状態を Workspace → Listへ通す。450/448/493。514既存日時CRUDを再実装しない。
 - G3 D09: CheckupFormのdirty/戻る確認を既存useUnsavedChanges/NavigationBlockerへ接続。450/500。段階保存の成功ID/lookupは④の500受領。
+- H05追加: 上記CheckupFormの履歴GET error/retry接続。450、G3 dirtyとは別。
+- P01追加: package masterのSPA戻るdirty保護。523/450、非検索操作表の追加受入へ。
 - G4 D15: CsvImportHistoryTableのerror/refetchを0件分岐前へ通しDataStatesを再利用。450/504。マーケ優先順により後順明示保留。
 
 ## 計画・実装の終了条件
@@ -1172,3 +1176,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 各行の用途、source接点、最小差分又は無修正理由、owner、必要subsetが確認できることを計画の終了条件とする。実装後の受入は別途、draft/applied・clear・context復元・状態・race・scope・無副作用を各consumerで記録する。共通部品1件の成功を全callerへ代入しない。臨床値承認待ち・型生成進行・runtime未完・試験待ちは別状態で管理する。
 
 S13は現inline handlerなし。既存S07と重複計上せず、451/517がdistinct inline flowか既存入口との置換関係を確定するまで新UI実装を開始しない。E05旧LINE候補pickerは現カードsourceに所在を確立していないため既存実装済みとしない。E07登録重複warningは490/491選定wire受領であり、形式validationから適合済みとしない。
+
+## 限定静的監査の範囲（監査追補）
+
+基準main `c86c8dd2530bbea3d1810e07badb72f3ed1a07e1`。今回の認定はH05初回履歴エラーと、[非検索P01操作表](emr-450-stage3-common-ui-start-plan-20261021-operations.md#package-operation-audit-20261021)のSPA戻るdirty接続差だけで、全72用途・全実操作familyの受入完了ではない。P01の部品名訂正は名称整合であり単独の欠陥ではない。focus等はNOT_RUN。create結果不明後の一覧refetch→allowCreateRetryは確認候補で、確定二重作成の欠陥件数へ加算せず、③へ新しい専用lookupを強制しない。試験・runtime修正・公開flag変更なし。
