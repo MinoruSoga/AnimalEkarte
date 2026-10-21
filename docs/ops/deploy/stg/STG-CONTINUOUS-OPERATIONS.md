@@ -107,7 +107,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - [ ] エラーコンソールなし（ブラウザ DevTools F12 → Console）
 - [ ] ネットワークエラーなし（Network タブ）
 
-**失敗時アクション**: `npx wrangler tail animalekarte-stg-frontend` と Cloudflare ダッシュボードの Worker ログ/`frontend-deploy.yml` run を確認。旧 [VERCEL-FRONTEND-STAGING-TEST.md](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) は Vercel 時代の手順で、rollback 期間中の参照専用。
+**失敗時アクション**: `npx wrangler tail animalekarte-stg-frontend` と Cloudflare ダッシュボードの Worker ログ/`frontend-deploy.yml` run を確認。旧 [VERCEL-FRONTEND-STAGING-TEST.md](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) は Vercel 時代の手順で、履歴参照専用で実行・rollback には使用しない。
 
 ---
 
@@ -130,7 +130,7 @@ Container stdout は Worker の request log と別の表示面になる場合が
 - Cookie 検証（F12 → Application → Cookies）
 - Token 期限確認（`refresh_token` が残っているか）
 
-**現行確認手順**: `frontend-deploy.yml` の smoke / `npx wrangler tail animalekarte-stg-frontend`（旧 VERCEL-FRONTEND-STAGING-TEST.md は Vercel 時代の手順で rollback 期間中の参照専用）
+**現行確認手順**: `frontend-deploy.yml` の smoke / `npx wrangler tail animalekarte-stg-frontend`（旧 VERCEL-FRONTEND-STAGING-TEST.md は Vercel 時代の手順で 履歴参照専用で実行・rollback には使用しない）
 
 ---
 
@@ -276,5 +276,5 @@ Demo login account は `002_master` には含まれず、許可された `APP_EN
 - [README.md](../../README.md) - デプロイメント・運用ドキュメント（障害判定、コマンド集）
 - [CI-CD-PIPELINE.md](../CI-CD-PIPELINE.md) - 自動デプロイ・手動トリガー
 - [CRUD-SMOKE-TEST.md](../rehearsals/CRUD-SMOKE-TEST.md) - CRUD 操作テスト詳細
-- [VERCEL-FRONTEND-STAGING-TEST.md](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証 — 旧手順（rollback 期間中の参照専用）
+- [VERCEL-FRONTEND-STAGING-TEST.md](../rehearsals/VERCEL-FRONTEND-STAGING-TEST.md) - フロントエンド検証 — 旧手順（履歴参照専用で実行・rollback には使用しない）
 - [STG-DEMO-DATA-LIFECYCLE.md](STG-DEMO-DATA-LIFECYCLE.md) - データ分類とライフサイクル

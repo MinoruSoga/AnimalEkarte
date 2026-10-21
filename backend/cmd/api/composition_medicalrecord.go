@@ -99,6 +99,10 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewCheckupTypeHandler(s.reference.checkupTypes),
 		medicalrecord.NewVaccineHandler(s.reference.vaccines),
 		medicalrecord.NewVaccinationHandler(s.preventive.vaccinations),
+		// EMR-486: artifact store is nil — no storage binding/config exists yet, so
+		// saved-preview artifact reads return 503 artifact_unavailable until the
+		// owning writer session binds storage.
+		medicalrecord.NewVaccinationCertificateHandler(medicalrecord.NewVaccinationCertificateReader(dependencies.DB), nil),
 		medicalrecord.NewInquiryHandler(s.preventive.inquiries),
 		medicalrecord.NewInquiryTemplateHandler(s.reference.inquiryTemplates),
 		medicalrecord.NewLabImportHandler(s.lab.resultImport, s.lab.jobs, s.lab.audit, s.lab.revert).

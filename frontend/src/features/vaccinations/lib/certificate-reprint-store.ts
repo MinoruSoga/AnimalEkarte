@@ -6,7 +6,8 @@ import type { IssueNoticeCode } from "./certificate-issue-reducer";
  * 再印刷の operation_key と進行状態を、履歴行（CertificateEditionRow）より上で保持する feature 内 store。
  * 履歴の様式タブ・ページ送り・context 再取得で行が unmount されても、未確定の key を失わない
  * （失うと新しい key で二重に再印刷しうる）。edition id ごとに 1 エントリ。
- * 画面（CertificateHistory）が所有し、接種記録が変わったら一緒に破棄される。永続化はしない。
+ * 接種記録ごとの store は certificate-operation-registry が QueryClient 単位でメモリ上に保持する。画面を離れて戻っても
+ * 同じ store が返り、ログアウト・医院切替（queryClient.clear()）で消える。localStorage 等への永続化はしない。
  */
 
 export type ReprintState =
@@ -29,15 +30,19 @@ export interface ReprintEntry {
   readonly pending: ReprintPending | null;
   /** 最後に実行した再印刷の向き。行が作り直されても、実際に使った向きを表示するために保持する。 */
   readonly layout: CertificateLayout | null;
+  /** 結果の照会が通信中か。中の間は別の照会を始めさせない（古い照会が新しい結果を上書きするのを防ぐ）。 */
+  readonly checking: boolean;
 }
 
 export interface ReprintStore {
   get(editionId: number): ReprintEntry;
   set(editionId: number, entry: ReprintEntry): void;
   subscribe(listener: () => void): () => void;
+  /** 結果が確定していない操作（pending key）を持つ edition があるか。 */
+  hasPending(): boolean;
 }
 
-const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null, layout: null };
+const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null, layout: null, checking: false };
 
 export function createReprintStore(): ReprintStore {
   const entries = new Map<number, ReprintEntry>();
@@ -48,6 +53,7 @@ export function createReprintStore(): ReprintStore {
       entries.set(editionId, entry);
       for (const listener of [...listeners]) listener();
     },
+    hasPending: () => [...entries.values()].some((entry) => entry.pending !== null),
     subscribe(listener) {
       listeners.add(listener);
       return () => {

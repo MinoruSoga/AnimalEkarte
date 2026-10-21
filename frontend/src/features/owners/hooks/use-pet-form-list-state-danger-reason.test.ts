@@ -97,7 +97,15 @@ describe("dangerReason shared transform contract", () => {
   });
 
   it("pets 一覧の再読込で danger_reason を dangerReason として保持する", async () => {
-    mockAxiosGet.mockResolvedValue({
+    // EMR-463: ownersLoader は GET /v1/me（owners 専有 scope）→ GET /v1/pets の順に呼ぶ（合成 ID のみ）。
+    const meScopeResponse = {
+      data: {
+        id: "10",
+        clinics: [{ clinic_id: "1", clinic_name: "本院", is_main: true }],
+        owners_view_clinic_ids: ["1"],
+      },
+    };
+    const petsResponse = {
       data: {
         data: [
           {
@@ -123,7 +131,11 @@ describe("dangerReason shared transform contract", () => {
         page: 1,
         limit: 20,
       },
-    });
+    };
+    mockAxiosGet.mockImplementation((url: string) =>
+      Promise.resolve(url === "/v1/me" ? meScopeResponse : petsResponse),
+    );
+    window.localStorage.clear();
 
     const result = await ownersLoader({
       request: new Request("http://localhost/owners"),

@@ -88,11 +88,13 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 | 接種事実／D08 | vaccination ID・記録版・元医院/pet・接種日と当時の値 | 発行操作から接種create／実施／会計を起動しない。独立接種も同じ型で照合 |
 | 証明系譜／D08 | clinic＋対象接種ref＋証明種別＋不変series ID、series revision | 通常縦横は本人第3項Aにより同じ証明書の最新版を共有する。内部seriesはその共通管理を表す技術案。狂犬病を同じ系譜へ統合せず、LINE／飼主／表示名をkeyにしない |
 | 発行版／D08 | 不変edition ID、系譜内単調版、元接種版・発行時基本情報snapshot、issuer actor/時刻・訂正元edition | 発行後payloadを上書きしない。基本情報の現在値から再構築しない。未発行draftと有効発行を区別 |
-| 描画定義／帳票adapter | 3様式のtemplate版、font/asset・renderer版、項目対応・表示ルール、snapshot digest | 旧見本と版付きgolden fixtureで照合。現在templateで過去発行版を黙って描き直さない |
+| 描画定義／帳票adapter | 既知3見本のtemplate版（RV4種類の追加対応は未収録）、font/asset・renderer版、項目対応・表示ルール、snapshot digest | 旧見本と版付きgolden fixtureで照合。現在templateで過去発行版を黙って描き直さない |
 | 出力artifact／帳票adapter | edition＋様式＋template/renderer版＋digest、immutable blob参照・状態 | blobの所在不明／digest不一致は失敗。新しいblank artifactや別接種へfallbackしない |
 | 発行／再印刷操作結果 | operation keyとedition/印刷attempt ID・出力版・必要履歴 | 印刷dialogを開いたことと物理印刷完了を区別。取消・通信断で接種や発行を二重登録しない |
 
 snapshotは正本で採用した項目だけ。原見本の縦横差を共通化で消さず、未取得2資料や法定必須項目を推測追加しない。新しい証明番号の業務規則は選定せず、内部edition IDと印字番号を区別する。番号が必要なら既存の印字仕様と利用院の確認を行い、内部UUIDを勝手に法的証明番号として印字しない。
+
+[2026-10-21本人確認の用紙寸法](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)に従い、通常縦はA4縦（210mm×297mm）、通常横・既知の狂犬病見本はA4横（297mm×210mm）を各様式のtemplate版へ固定する。未知のRV4種類へこの寸法を一律適用せず、名称・見本との対応と用紙は資料待ちとする。寸法は固定描画版の一部として保持し、現在templateで過去発行版を黙って描き直さない。
 
 ### 同じ発行版からの縦横出力
 
@@ -135,7 +137,7 @@ DC-V01：3様式の項目／配置・改頁・font、旧見本とのgolden比較
 
 [決定根拠・適用範囲](../../../spec/domains/SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
-[業務正本・受入条件](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)。通常縦横・狂犬病の3様式は旧見本に従う。訂正後新発行・旧版履歴保持、再印刷は最新版、旧訂正版は有効印刷不可。共通基本情報更新で発行版は自動変更しない。旧印刷時自動登録等は復活させない。専用証明書実装の所在・適合と仕様採用を分ける。
+[業務正本・受入条件](../../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)。既知の通常縦横・単一狂犬病見本は旧見本に従う。これで全要件完成とはせず、[RV4種類と再発行日](#certificate-mtg-technical-gap)の追加対応を必要とする。訂正後新発行・旧版履歴保持、再印刷は最新版、旧訂正版は有効印刷不可。共通基本情報更新で発行版は自動変更しない。旧印刷時自動登録等は復活させない。専用証明書実装の所在・適合と仕様採用を分ける。
 
 
 <a id="vaccination-supplemental-read-trace"></a>
@@ -161,7 +163,7 @@ DC-V01：3様式の項目／配置・改頁・font、旧見本とのgolden比較
 
 CL-R12の限定検索はmedicalrecord route群とvaccinationsのroute／component範囲で証明書専用route／画面を確認できなかった。一般のexamination print-snapshotは証明書専用経路ではない。repository全体の不存在証明や専用実装済み判定はしない。
 
-固定版案の実装引継ぎ表は、採用済み3様式の項目→不変snapshot field→template版／field projection→golden fixture→出力receiptとする。通常縦横のLOT／E-Mail等の固有欄は別projectionで、snapshot欠落を現在共通情報から埋めない。初回発行、縦横切替、同版再印刷、基本情報変更、接種訂正commit、render／upload／監査失敗、応答断、artifact直参照の各行をDC-V01〜08へ対応付ける。訂正後新版render失敗でも旧版を復活させず、両順競合と物理印刷の記録を分離する。見本項目・配置を読取照合した証跡と、実描画golden／実印刷の証跡は別に必要で、今回後者は未実施。
+固定版案の実装引継ぎ表は、既知3見本の項目（RV4種類全体の充足ではない）→不変snapshot field→template版／field projection→golden fixture→出力receiptとする。通常縦横のLOT／E-Mail等の固有欄は別projectionで、snapshot欠落を現在共通情報から埋めない。初回発行、縦横切替、同版再印刷、基本情報変更、接種訂正commit、render／upload／監査失敗、応答断、artifact直参照の各行をDC-V01〜08へ対応付ける。訂正後新版render失敗でも旧版を復活させず、両順競合と物理印刷の記録を分離する。見本項目・配置を読取照合した証跡と、実描画golden／実印刷の証跡は別に必要で、今回後者は未実施。
 
 ### CL-R12の保存済み見本照合証跡の再利用
 
@@ -183,8 +185,25 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 <a id="certificate-fee-projection-20261020"></a>
 ## EMR-518：料金projectionと発行版の接続
 
-[料金4欄の業務正本](../../../spec/domains/vaccinations/lifecycle.md#certificate-fees-manual-20261020)を既存[edition/renderer設計](#certificate-edition-proposal)へ接続する採用方向。発行前の手動編集・確認額をcertificate edition snapshotへ固定し、会計/master/packageへ逆writeしない。optional/null・0・未入力を維持する。初期値参照には保存済み内訳との対応を持ち、欠落を現在masterで推定補完しない。
+[料金4欄の業務正本](../../../spec/domains/vaccinations/lifecycle.md#certificate-fees-manual-20261020)を既存[edition/renderer設計](#certificate-edition-proposal)へ接続する採用方向。発行前の手動編集・確認額をcertificate edition snapshotへ固定し、会計/master/packageへ逆writeしない。optional/null・0・未入力を維持する。新規発行時の料金4欄の初期値はすべてnullとし、会計・master・packageから転記しない。発行前のスタッフ入力値をedition snapshotへ固定する。
 
 `certificate_fee_role` は証明書adapterの任意mappingであり、一般packageの必須属性にしない。医院別構成と既存会計候補への明示追加を使用し、一律イベントやrule engineを新設しない。packageの品目合算と証明書の手動確認額（合計欄も含む）は別責務。会計一致gate・自動同期・合計再計算は追加せず、preview/issue/reprintから料金を生成しない。
 
 具体edition DTO/保存列/rendererはEMR-486/487担当の最終契約へ接続し、本文書の追補を実装済みとしない。[package設計](../medical-records/treatment-packages.md#billing-certificate-adapter)と[未完の固定作業](../../../work/emr/emr-518-treatment-packages-20261020.md)を参照。受入条件は業務正本から辿り、実行はNOT_RUN。
+
+<a id="certificate-mtg-technical-gap"></a>
+## 10-21追加要件：RV4種類・一括出力・再発行日の未収録差分
+
+[業務FRと9AC](../../../spec/domains/vaccinations/lifecycle.md#fr-vaccinations-rv-batch-20261021)を採用し、[現行v1選定契約と追加差分](../../../work/emr/emr-486-certificate-api-contract-20261020.md#certificate-mtg-contract-gap)を分ける。従来の証明書6AC／DC-V01〜08は既知見本の限定範囲で、追加要件の完了根拠ではない。既知3見本のreader／rendererの部分実装があるが、4種類のmaster・batch・変更可能な再発行日は未収録。試験NOT_RUN。
+
+| 必要技術差分 | 要求される不変条件／設計残件 |
+|:---|:---|
+| master／snapshot | 4種類の安定したidentity、帳票セットと構成版、各template／用紙との対応を保持。通常縦横の同版表示と区別し、診療項目packageへ混ぜない。4名称・見本未受領、DDL・管理API・画面は未選定 |
+| batch／wire | 4種類の構成照合と出力要求、各種類の結果・版／artifact対応、欠損／重複／一部失敗／unknownを表現。現在の単一kind/layout APIを4種類一括対応済みとしない。batchのcommit／回復単位、同key照合とreceipt拡張は後続選定。4種類=4ページとしない |
+| 再発行wire／版 | 当初の発行日由来refと選択した表示日を確認内容へ固定し、新版のsnapshot／hash／preview／CAS／監査へ反映。同版reprint DTOへ未定義fieldを送らない。初回の任意日許可へ拡張せず、再発行のdate validationは[RV4・再発行日採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md) §4へ選定済み・runtime未実装 |
+| PDF storage／履歴 | 種類・構成版・edition・template／renderer版・digestとimmutable artifactの対応を追跡。旧artifactを上書きせず、失敗候補を有効出力へ公開しない。storage結合とbatchの出力形式は未選定。結合PDF／ZIP等を推測で固定しない |
+| 時刻と認可 | 表示発行日は選択した日、issued_at／recorded_atはサーバー操作時刻。再印刷・再発行・batch各要求で現在scope／grant・患者・接種版・有効版を再検査。応答不明は元結果を照合し成功分を再発行しない |
+
+履歴参照と有効出力を分離する既決を維持し、再発行で旧訂正版の有効出力を復活させない。master改定で過去の構成・版やartifactを書き換えず、資料待ちを推測実装で埋めない。実装コード・api.yaml・DDLは本追補で変更しない。
+
+[RV4・再発行日採択技術契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)をmaster構成版・batch/edition・初版日lineage・normal selector=2互換の具体契約とする。既存v1は保持し、selector=2 reader/parser/validatorとwriterの接続は未実装。4名称・見本・紙寸法・mappingおよび実renderer/store資産は資料待ち／実装依存のまま、文書採択をruntime完了としない。

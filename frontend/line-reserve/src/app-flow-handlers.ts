@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 import type { PageType } from "./types/models";
 import type { RevisitIntakeReservationSummary } from "./pages/RevisitIntakePage";
+import { LIFF_REVISIT_INTAKE_ACTIVE } from "./lib/revisit-intake-activation";
 
 /** EMR-474: 再診問診画面へ渡す state（予約 ID は URL へ載せない）。 */
 export interface RevisitIntakeRoute {
@@ -63,6 +64,8 @@ export function useReservationAppHandlers(
 
   const handleOpenRevisitIntake = useCallback(
     (route: RevisitIntakeRoute) => {
+      // EMR-474: 利用開始前は問診ページへ遷移しない。
+      if (!LIFF_REVISIT_INTAKE_ACTIVE) return;
       setNotice(null);
       setRevisitIntake?.(route);
       goTo("revisit-intake");

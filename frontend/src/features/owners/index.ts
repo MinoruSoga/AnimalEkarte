@@ -6,3 +6,4 @@ export type { OwnerLoaderData } from "./loaders";
 
 export { LineIntegrationCard } from "./components/LineIntegrationCard";
 export { LineSendPanel } from "./components/LineSendPanel";
+export { OwnersListRouteGuard } from "./components/OwnersListRouteGuard";

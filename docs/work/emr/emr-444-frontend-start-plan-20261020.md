@@ -57,7 +57,7 @@
 | 画面 | 役割 | 根拠 |
 |:--|:--|:--|
 | `CompletePage`（step8） | 「事前問診に回答する（任意）」CTA | FR「予約完了画面と予約詳細から回答へ進み」 |
-| `MyReservationsPage` | `confirmed` カードに「問診を回答する／訂正する」。取消済みは履歴があるときだけ「回答履歴を見る」 | LIFF の予約詳細相当はマイ予約カード（screens/37） |
+| `MyReservationsPage` | `cancelled` 以外の全 status（FE が parse できる既知の `pending` / `confirmed` / `checked_in` / `in_consultation` / `accounting` / `completed` / `no_show`。実装は `MyReservationsPage` の `REVISIT_ENTRY_STATUSES`）のカードに入口を出し、status だけで入口の有無・編集可否を決めない（`confirmed` 限定の cutoff を FE に置かない）。編集可否はサーバーの `current_target.editable` が唯一の根拠で、受付後は server が `editable=false` を返す閲覧のみ。FE が知らない status はこの計画の対象外（現行の予約一覧は `reservationSchema` の閉じた `z.enum` で parse するため未知 status は一覧ごと拒否され、入口の判定まで届かない。変更は予約 DTO の担当（EMR-519/520 のセッション）の事項で、ここでは計画しない）。LIFF の status 型に `tentative` は無い（次回予定 tentative は予約一覧の対象外）。reservations technical-spec「editable は…tentative/no_show/過去日だけの新 cutoff は設けない」。`cancelled` は履歴があるときだけ「回答履歴を見る」（2026-10-21 本人決定、§11.2 #756 入口） | LIFF の予約詳細相当はマイ予約カード（screens/37） |
 | 新規 `RevisitIntakePage`（`PageType: revisit-intake`） | 1 予約 = 1 ペットの form。履歴（current の旧版 / previous target）は別セクション read-only | technical-spec v3「current_target 単数」 |
 
 ### 2.2 画面状態（`RevisitIntakeLIFFRead` / error code に対応）
@@ -123,7 +123,7 @@
 
 - 証明書の料金欄（狂犬病様式の登録手数料／注射料／注射済票費用／合計）は、**発行前にスタッフが手動修正できる**。
 - 証明書上の料金編集を**会計明細へ逆反映しない**。証明書出力から課金行を作らない。
-- 登録料・済票料の構成・運用は医院ごとに異なる（EMR-518 の汎用パッケージ構成に従う）。全国一律の請求イベントを新設しない。名称一致で接種種別や料金 role を推定しない。
+- 登録料・済票料の構成・運用は医院ごとに異なる。証明書の料金欄は EMR-518 のパッケージ構成・会計・master に接続せず、初期値は 4 欄とも null（§5.2、#760 `initial_inputs`）。全国一律の請求イベントを新設しない。名称一致で接種種別や料金 role を推定しない。
 
 ### 5.2 画面への反映
 
@@ -136,7 +136,7 @@
 
 ### 5.3 その他（第 2 版から変更なし）
 
-3 様式・縦横同一 edition・旧版履歴 read-only・operation key / 結果照会・renderer 所在の技術分担は第 2 版 §5 のとおり。狂犬病様式の対象判定は §9 Q-A。
+3 様式・縦横同一 edition・旧版履歴 read-only・operation key / 結果照会・renderer 所在の技術分担は第 2 版 §5 のとおり。狂犬病様式の対象判定は `vaccines.rabies_certificate_eligible` と接種時 snapshot（`eligibility.state=eligible` のときだけ rabies。§9 Q-A 解決済み）。
 
 ---
 
@@ -190,7 +190,7 @@
 | 463 の保存媒体・key | `localStorage` `owners-list.clinics.v1.<user.id>` | PR #746 technical-spec |
 | 463 の scope 取得元 | `GET /me` の `owners_view_clinic_ids`。所属全件・現在医院・system_admin から FE で補完しない | 同上 |
 | 487 料金欄 | 発行前に手動修正可、会計へ逆反映しない | 本人回答 2026-10-20 14:15 UTC（EMR-518 本文） |
-| 487 料金の既定値 | 一律に決めない。医院別パッケージ構成（518）に従う | EMR-518 本文 |
+| 487 料金の既定値 | 4 欄とも初期値 null。会計・master・package から転記しない（2026-10-21 本人決定。旧記載「518 の package 構成に従う」は撤回） | #760 契約 `initial_inputs`（`backend/docs/api.yaml` CertificateContext: 新規料金 4 欄は明示 null、現在会計/master から転記しない） |
 
 Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実データ経路 `GET /v1/pets` と一致しない（第 2 版から継続）。
 
@@ -200,9 +200,9 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 
 | # | 票 | 未決事項 | FE 側の暫定前提 |
 |:--|:--|:--|:--|
-| Q-A | EMR-487 / 486 | 狂犬病予防注射済証の対象接種の識別基準。ワクチンマスタに証明書種別属性が無く、`certificate_kind`（normal / rabies）を何から決めるか。518 は「名称一致で接種種別を推定しない」とのみ定める | 発行画面でスタッフが様式を明示選択。FE は自動判定しない |
+| Q-A（解決済み 2026-10-21） | EMR-487 / 486 | 狂犬病予防注射済証の対象接種の識別基準。**決定**: `vaccines.rabies_certificate_eligible` と接種時 snapshot が正本。true -> 狂犬病様式を選択可、false / unknown -> normal のみ。名称・価格・種別からの推定はしない（#760 契約: unknown の rabies 要求は 422 validation） | eligibility は選べる様式を絞るだけで様式を自動決定しない。eligible のとき `allowed_kinds` は normal / rabies の両方で、スタッフが `allowed_kinds` の範囲で選択する（`CertificateIssuePanel` の radio）。false / unknown は normal のみ（§11.2） |
 
-第 2 版の Q-B（料金欄の入力元・必須性）は本人回答で「発行前手動修正・会計へ逆反映なし・構成は医院別」と確定したため解消。既定値の出所は 518 の設計へ委ねる。
+第 2 版の Q-B（料金欄の入力元・必須性）は本人回答で「発行前手動修正・会計へ逆反映なし・構成は医院別」と確定したため解消。料金欄の初期値は 2026-10-21 に「4 欄とも null、会計・master・package から転記しない」と確定した（§5.2）。
 
 ---
 
@@ -227,7 +227,7 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 | 会計(医師確認) `MedicalRecordBillCheck.tsx`、`billing_item_unbilled.go` | 治療行 + 接種 + 検査を別々に未請求候補へ。予防を other 行で追加すると接種記録と二重候補 | package 構成行の単一請求元（EMR-481/484/505） |
 | 見積書 `MedicalRecordEstimate.tsx` | 治療行と無関係なローカル行 | package からの見積展開は対象外（要確認なら Dots） |
 | 診療マスタ `/settings/treatment-items`（`TreatmentPlanMaster`） | 5 タブ（診察/検査/処置/予防接種/定期健診）、薬剤・物販は別ページ、親子区分 | package 定義 CRUD（FE master）の配置先。既存 CRUD を再作成しない |
-| 証明書（487） | 狂犬病の登録料・済票料は package 構成の利用例 | 証明書料金欄の既定値は package 構成から参照し得るが、会計へ逆反映しない境界を維持 |
+| 証明書（487） | 証明書料金欄は package と無関係 | 料金欄の初期値は null 固定（#760 `initial_inputs`）。package 構成・会計・master から転記せず、会計へ逆反映もしない。package 実装側で証明書の既定値を供給しない |
 
 ### 10.3 依存（FE から見た必要 subset）
 
@@ -244,7 +244,7 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 
 - 474/475/477/463 は package と無関係。実装に package 対応を混ぜない。
 - 477 の read-only カードは治療プランタブ内に置くが、治療行・package 行の state に接続しない。
-- 487 は料金欄の手動編集を FE で持ち、既定値の出所だけ 518 へ委ねる。
+- 487 は料金欄の手動編集を FE で持つ。初期値は null 固定で 518 とは接続しない（2026-10-21 確定、§5.2）。
 
 ---
 
@@ -280,9 +280,15 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 | #752 401 | 遷移でキャッシュ非表示は保証されない | 3c477667b で 401 も本文非表示にし、返答を撤回して resolve |
 | 487 狂犬病判定 | `vaccines.rabies_certificate_eligible` と接種時 snapshot。true のみ狂犬病様式 | #763 は `eligibility.state=eligible` のときだけ rabies を選択可 |
 | 487 編集欄 | 10 欄すべて発行前入力として optional/nullable で編集可 | #763 で実装 |
-| 487 様式 | 狂犬病の「種類」は品種。日付は見本の年月日表記（通常は和暦、狂犬病は生年月日が和暦＋年齢・接種日が西暦）。用紙サイズ・向きは本人確認待ち | server renderer 側の事項（FE は PDF 表示のみ） |
+| 487 様式 | 狂犬病の「種類」は品種。日付は見本の年月日表記（通常は和暦、狂犬病は生年月日が和暦＋年齢・接種日が西暦）。用紙は狂犬病様式 A4 横（297x210mm）、`layout=rabies`（2026-10-21 本人決定） | server renderer 側の事項（FE は PDF 表示のみ） |
 
 #752 は 3c477667b、#756 は d8641263c、#763 は c79728a89 が head。3 PR とも未解決スレッドは 0（#763 は新規）。テストはすべて NOT_RUN。
+
+### 11.3 #756 r4329838868「API 実装まで問診の入口を出さない」の判断（2026-10-21）
+
+- 判断: LIFF の再診問診は静的 flag `LIFF_REVISIT_INTAKE_ACTIVE`（専用ファイル `frontend/line-reserve/src/lib/revisit-intake-activation.ts`）で制御し、既定は `false`。`false` の間は、予約一覧・完了画面の問診入口、問診ページの mount 前、問診 API の呼び出しを同じ flag で止める。完了画面は unsafe ID の案内を含む問診ブロック全体を非表示にする。通常の予約作成・取消は変えない。
+- `true` への変更は別 PR。条件は、必要な BE の 3 route と認可・receipt 処理が揃い、配信先でも利用可能になった後。有効化後も、pending 予約の入口許可、server の `current_target.editable`、履歴、結果照会の規則は維持する。公開後の障害時スイッチとしては流用しない。
+- 先例は EMR-463 の `OWNERS_CLINIC_SCOPE_ACTIVE`。技術設計への追記は reservations technical-spec の「LIFF再診問診の利用開始flag」節。実装 PR は EMR-474 の follow-up（本 §11.3 の記載時点では作成中）。
 
 ### Dots へ残る判断事項
 
@@ -299,7 +305,7 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 | 7 | 契約追補 | api.yaml の `RevisitIntakeInternalError`（500）に optional `Retry-After` header を追補する担当と時期 | FE は追補を待たずに実装済み |
 | 8 | #756 契約 | 429 / 503 を契約上「未コミット確定」と扱ってよいか | FE は 429 / 503 を結果不明とし、期限後の同 key 明示再送を許可（500 のような照会必須にはしていない）。不可なら 500 と同じく照会必須にする |
 | 9 | 後続 | 463-BE（`GetMeResponse.owners_view_clinic_ids`）の完成予定 | 完成後に #754 活性化の後続 PR |
-| 10 | 後続 | 487 の用紙サイズ・向き（本人確認の結果） | server renderer 側の事項 |
+| 10 | 後続（解決済み） | 487 の用紙サイズ・向き | 狂犬病様式は A4 横 297x210mm、`layout=rabies` で確定。server renderer 側の事項 |
 
 ### Codex 単独指摘の扱い
 

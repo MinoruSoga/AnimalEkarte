@@ -1,4 +1,4 @@
-import { isAxiosError } from "axios";
+import { AxiosHeaders, isAxiosError } from "axios";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 
@@ -148,16 +148,25 @@ function isCurrentRelationConsistent(
   );
 }
 
-function isStaffRead(value: unknown): value is RevisitIntakeStaffReservationRead {
+function isStaffRead(
+  value: unknown,
+  expectedAppointmentId: string,
+): value is RevisitIntakeStaffReservationRead {
   if (!isRecord(value)) return false;
   if (!(value.current_target === null || isCurrentTarget(value.current_target))) return false;
   const currentTarget = value.current_target as RevisitIntakeCurrentTarget | null;
+  // 要求した予約以外の原文は、形が正しくても表示しない（中間層の取り違え対策・fail-closed）。
+  if (currentTarget !== null && currentTarget.ref.appointment_id !== expectedAppointmentId) {
+    return false;
+  }
   return (
     (value.availability === "available" || value.availability === "target_unresolved") &&
     Array.isArray(value.history) &&
     value.history.every(isHistoryEntry) &&
-    (value.history as RevisitIntakeHistoryEntry[]).every((h) =>
-      isCurrentRelationConsistent(h, currentTarget),
+    (value.history as RevisitIntakeHistoryEntry[]).every(
+      (h) =>
+        h.target.appointment_id === expectedAppointmentId &&
+        isCurrentRelationConsistent(h, currentTarget),
     ) &&
     // 空文字 cursor は「次ページあり」と誤解され 1 ページ目を重複取得するため契約外として拒否する。
     (value.next_cursor === null ||
@@ -189,7 +198,7 @@ export async function getRevisitIntake(
     },
   );
   // 契約外の応答は原文として扱わない（fail-closed）。
-  if (!isStaffRead(data)) throw new Error("再診問診の応答形式が不正です");
+  if (!isStaffRead(data, appointmentId)) throw new Error("再診問診の応答形式が不正です");
   return data;
 }
 
@@ -204,6 +213,36 @@ export function revisitIntakeQueryKey(appointmentId: string, clinicId?: string) 
 /** 失敗の HTTP status（axios 以外・通信断は undefined）。 */
 export function getRevisitIntakeErrorStatus(error: unknown): number | undefined {
   return isAxiosError(error) ? error.response?.status : undefined;
+}
+
+/** 自動再試行で待つ Retry-After の上限。超える場合は自動再試行せず、手動の再試行に委ねる。 */
+const MAX_AUTO_RETRY_AFTER_MS = 5_000;
+
+/**
+ * 429/500/503 の Retry-After（秒または HTTP-date）をミリ秒へ。無い・解釈不能は undefined。
+ * 契約（api.yaml 429/503）は Retry-After があれば尊重することを求める。
+ */
+export function getRetryAfterMs(error: unknown, now: number = Date.now()): number | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const status = error.response?.status;
+  // api.yaml: 429/500/503 は Retry-After があれば尊重する。
+  if (status !== 429 && status !== 500 && status !== 503) return undefined;
+  // ヘッダ名の大文字小文字に依存しない（AxiosHeaders は元の表記で保持する）。
+  const raw: unknown = error.response?.headers
+    ? AxiosHeaders.from(error.response.headers as AxiosHeaders).get("retry-after")
+    : undefined;
+  if (typeof raw !== "string" || raw.trim() === "") return undefined;
+  const value = raw.trim();
+  if (/^\d+$/.test(value)) return Number(value) * 1000;
+  const at = Date.parse(value);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - now);
+}
+
+/** 直近の失敗の Retry-After 期限内か（メモリ上の query state から導出。保存しない）。 */
+function isWithinRetryAfter(state: { error: unknown; errorUpdatedAt: number }): boolean {
+  if (state.error === null || state.error === undefined) return false;
+  const wait = getRetryAfterMs(state.error, state.errorUpdatedAt);
+  return wait !== undefined && Date.now() < state.errorUpdatedAt + wait;
 }
 
 /**
@@ -222,12 +261,20 @@ export function useGetRevisitIntake(params: GetRevisitIntakeParams & { enabled?:
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: "always",
+    // Retry-After の期限内は、フォーカス復帰・再接続による自動再取得で期限前に再要求しない。
+    refetchOnWindowFocus: (query) => !isWithinRetryAfter(query.state),
+    refetchOnReconnect: (query) => !isWithinRetryAfter(query.state),
     // 403/404 は再試行しても結果が変わらず、権限の存在確認連打にもなるため即確定。
     retry: (failureCount, error) => {
       const status = getRevisitIntakeErrorStatus(error);
       if (status === 400 || status === 401 || status === 403 || status === 404) return false;
-      return failureCount < 1;
+      if (failureCount >= 1) return false;
+      // Retry-After が長い場合は早すぎる自動再試行で過負荷・レート制限を延ばさない。
+      const retryAfter = getRetryAfterMs(error);
+      return retryAfter === undefined || retryAfter <= MAX_AUTO_RETRY_AFTER_MS;
     },
+    retryDelay: (failureCount, error) =>
+      getRetryAfterMs(error) ?? Math.min(1000 * 2 ** failureCount, 30_000),
     // セクション内で表示するためグローバル toast は抑止する。
     meta: { silentError: true },
   });

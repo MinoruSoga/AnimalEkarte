@@ -136,10 +136,10 @@ LSTEP 周辺の「best-effort」は一語で混同しない。経路ごとに契
 
 
 <a id="future-phase-followup-adapter-20261019"></a>
-## 対象Phase開始時の内部adapter候補（未実行）
+## Phase1内で後順とする内部adapter（未実行）
 
-IR-07/IR-D01/IR-D02はLSTEP/DM対象Phase開始時だけの残工程で、今期必須gateへ加算しない。現PhaseのLINE予約・問診を対象外へ広げない。
+2026-10-21の本人指示によりLSTEP／DMはPhase1対象であり、IR-07/IR-D01/IR-D02のsource・確認adapterもPhase1内の必要subsetとする。旧「今期必須gateへ加算しない」は撤回する。マーケティング領域の仕様確定は日常業務の後、最後に進めるが、Phase1対象外という意味ではない。LINE予約・問診の既存範囲は維持する。詳細未確定・実送信未実施をPhase1完成扱いにしない。
 
-将来の初診/健診後followup入力候補はsource owner/record ref・source revision・実施済みstaff確認ref・医療目的の医師指定ref・binding revision・operation key。D03/D09の保存済み事象をreadするadapterであり、単なるrecord作成やtag付与を実施確認・送信許可としない。source取消/訂正・確認版変更ならclaim前に再照合、旧版/結果不明を発火可へ変換しない。送信caller表に事象/目的/DM現在値/独立停止/binding/claim/外部結果を列別に持ち、未分類callerを予約通知例外へ落とさない。DM nullable、lstep_opt_out、delivery_excludedは独立に維持する。
+Phase1内の後順作業としての初診/健診後followup入力候補はsource owner/record ref・source revision・実施済みstaff確認ref・医療目的の医師指定ref・binding revision・operation key。D03/D09の保存済み事象をreadするadapterであり、単なるrecord作成やtag付与を実施確認・送信許可としない。source取消/訂正・確認版変更ならclaim前に再照合、旧版/結果不明を発火可へ変換しない。送信caller表に事象/目的/DM現在値/独立停止/binding/claim/外部結果を列別に持ち、未分類callerを予約通知例外へ落とさない。DM nullable、lstep_opt_out、delivery_excludedは独立に維持する。
 
-将来のenable判定は先方確認・実送受信・cron停止・件数の同一版証跡で行う。HTTP成功やrepo配線だけで稼働済みにしない。今回は実送信・外部enable・cron操作なし。採用済みの実施確認/医師目的の業務を再質問せず、具体DTO/保存ref/全17trigger対応と実機証跡を対象Phaseの技術作業へ残す。
+実運用enable判定は先方確認・実送受信・cron停止・件数の同一版証跡で行う。HTTP成功やrepo配線だけで稼働済みにしない。今回は実送信・外部enable・cron操作なし。採用済みの実施確認/医師目的の業務を再質問せず、具体DTO/保存ref/全17trigger対応と実機証跡をPhase1内の後順の技術作業へ残す。

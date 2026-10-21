@@ -24,6 +24,7 @@ import type { RevisitIntakeRoute } from "./app-flow-handlers";
 import type { RevisitIntakeDraftStore } from "./hooks/use-revisit-intake-drafts";
 import { formatJapaneseDate } from "@/shared-liff/jst-date";
 import { toRevisitIntakeAppointmentId } from "./lib/revisit-intake-appointment-id";
+import { LIFF_REVISIT_INTAKE_ACTIVE } from "./lib/revisit-intake-activation";
 
 export interface ReservationPageSwitchProps {
   page: PageType;
@@ -115,7 +116,8 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
     );
   }
   if (props.page === "revisit-intake") {
-    if (props.revisitIntake === null) return <ErrorPage />;
+    // EMR-474: 利用開始前は問診ページを mount しない（mount すると問診 API を呼ぶため）。
+    if (!LIFF_REVISIT_INTAKE_ACTIVE || props.revisitIntake === null) return <ErrorPage />;
     const route = props.revisitIntake;
     return (
       <RevisitIntakePage
