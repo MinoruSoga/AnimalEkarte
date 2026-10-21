@@ -288,7 +288,7 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
 | 採択済み要件 | v1に未収録の必要差分／未決 |
 |:---|:---|
 | RV4種類のmaster | kind=rabies／layout=rabiesだけでは4種類を識別できない。帳票種別identity・帳票セット構成版とtemplate／snapshot／artifact対応が必要。4名称・見本はクライアントから後日共有予定、種類名・様式・紙寸法は未確定。既知A4横を全種類に適用しない |
-| 一括出力wire／batch | 単一issue／reprintと単一edition/artifact refsだけでは4種類の一括結果を表現できない。構成の欠損／重複検出、種類ごとの成功／失敗／unknown・版とartifact対応、同一操作の照合・再開が必要。batch receipt・commit単位・route／DTOは未選定。4種類を4ページや特定の結合PDF方式と同一視しない |
+| 一括出力wire／batch | 単一issue／reprintと単一edition/artifact refsだけでは4種類の一括結果を表現できない。構成の欠損／重複検出、種類ごとの成功／失敗／unknown・版とartifact対応、同一操作の照合・再開が必要。v1に未収録。batch receipt・commit単位・route／DTOは[RV4・再発行日採択契約](emr-486-487-rv-batch-reissue-contract-20261021.md)へ選定済み、selector=2の実装は未完。4種類を4ページと同一視しない。結合PDFは同採択契約の技術選定であり、本人による形式指定とはしない |
 | 再発行の表示発行日 | 当初の発行日を追跡して初期値にし、変更した日を確認した新版snapshot／preview／fingerprintへ固定する入力が必要。現行preview_display_issue_dateはv1初回previewとの照合値であり、任意の再発行日選択fieldではない。現行reprintは固定版のみ。初回の任意過去日不可・日跨ぎ再previewを再発行へ一律適用する旧読替えは採用しない |
 | 時刻／版／PDF storage | 表示日と実issued_at／recorded_atを分離し、後者はサーバー操作時刻。表示日変更は新版を保存し旧版・artifactを保持。同版再印刷は版増分なし。種類・構成版・edition・固定描画版・digestとstorageを結合する必要がある。既存store未結合の部分実装で充足とはせず、DDL／storage境界・wire拡張は[RV4・再発行日採択契約](emr-486-487-rv-batch-reissue-contract-20261021.md)へ選定済み、実store配線・selector=2と全writer閉包は未実装 |
 
