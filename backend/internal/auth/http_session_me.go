@@ -117,17 +117,23 @@ func (h *HTTPHandler) GetMe(c *gin.Context) {
 	if !permsReady {
 		permissions = h.CalculateEffectivePermissions(c, isSystemAdmin, staff.ID)
 	}
-	c.JSON(
-		http.StatusOK,
-		h.buildMeResponseWithPermissions(
-			staff,
-			account,
-			mainClinicID,
-			isSystemAdmin,
-			allClinics,
-			permissions,
-		),
+	meResponse := h.buildMeResponseWithPermissions(
+		staff,
+		account,
+		mainClinicID,
+		isSystemAdmin,
+		allClinics,
+		permissions,
 	)
+	// EMR-463: GET /me 専用の許可医院集合。失敗時は応答済みのため即 return。
+	ownersClinicIDs, scopeOK := h.ownersViewClinicIDs(c, meResponse.Clinics)
+	if !scopeOK {
+		return
+	}
+	c.JSON(http.StatusOK, GetMeResponse{
+		MeResponse:          *meResponse,
+		OwnersViewClinicIDs: ownersClinicIDs,
+	})
 }
 
 // AuthenticateUser validates credentials and records attributable password failures.
