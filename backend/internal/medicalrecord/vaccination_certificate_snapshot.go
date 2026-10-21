@@ -332,8 +332,10 @@ func requireExactKeys(obj map[string]certJSONValue, keys []string) bool {
 }
 
 func validateCertificateSource(source certJSONValue) bool {
+	// Stored IDs follow api.yaml CertificateId/CertificateSourceVersion:
+	// integer/int64 with minimum 1.
 	for _, k := range []string{"vaccination_id", "version", "vaccine_id"} {
-		if !isJSONInt64(source.Obj[k]) {
+		if !isPositiveJSONInt64(source.Obj[k]) {
 			return false
 		}
 	}
@@ -415,10 +417,10 @@ func validateCertificateEligibility(eligibility certJSONValue) bool {
 			return false
 		}
 	}
-	if !isJSONInt64(eligibility.Obj["vaccine_id"]) {
+	if !isPositiveJSONInt64(eligibility.Obj["vaccine_id"]) {
 		return false
 	}
-	if !isNullOrJSONInt64(eligibility.Obj["vaccine_version"]) {
+	if !isNullOrPositiveJSONInt64(eligibility.Obj["vaccine_version"]) {
 		return false
 	}
 	provenance := eligibility.Obj["provenance"]
@@ -687,6 +689,20 @@ func isJSONInt64(v certJSONValue) bool {
 
 func isNullOrJSONInt64(v certJSONValue) bool {
 	return v.Kind == certJSONNull || isJSONInt64(v)
+}
+
+// isPositiveJSONInt64 reports whether v is a JSON integer >= 1, matching the
+// api.yaml minimum for stored IDs. Fee fields keep the signed isJSONInt64.
+func isPositiveJSONInt64(v certJSONValue) bool {
+	if v.Kind != certJSONNumber || !jsonIntegerLiteral(v.Num.String()) {
+		return false
+	}
+	n, err := strconv.ParseInt(v.Num.String(), 10, 64)
+	return err == nil && n >= 1
+}
+
+func isNullOrPositiveJSONInt64(v certJSONValue) bool {
+	return v.Kind == certJSONNull || isPositiveJSONInt64(v)
 }
 
 // certInt64Field reads a required integer field as int64.

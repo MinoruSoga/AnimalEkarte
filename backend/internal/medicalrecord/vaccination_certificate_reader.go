@@ -11,6 +11,7 @@ package medicalrecord
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"gorm.io/gorm"
@@ -115,26 +116,32 @@ func (r *VaccinationCertificateReader) FindSeries(ctx context.Context, clinicID,
 }
 
 // ListEditions returns one page ordered by edition DESC plus total count and
-// the maximum edition number in the series (for superseded projection).
+// the maximum edition number in the series (for superseded projection). The
+// three queries run inside one read-only REPEATABLE READ transaction so they
+// share a single snapshot: a concurrent issue between otherwise independent
+// reads could mark two editions current.
 func (r *VaccinationCertificateReader) ListEditions(ctx context.Context, clinicID, seriesID uint64, offset, limit int) ([]model.VaccinationCertificateEdition, int64, int64, error) {
-	var total int64
-	if err := r.db.WithContext(ctx).Model(&model.VaccinationCertificateEdition{}).
-		Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
-		Count(&total).Error; err != nil {
-		return nil, 0, 0, err
-	}
-	var maxEdition int64
-	if err := r.db.WithContext(ctx).Model(&model.VaccinationCertificateEdition{}).
-		Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
-		Select("COALESCE(MAX(edition),0)").
-		Scan(&maxEdition).Error; err != nil {
-		return nil, 0, 0, err
-	}
-	eds := make([]model.VaccinationCertificateEdition, 0, limit)
-	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
-		Order("edition DESC").Offset(offset).Limit(limit).
-		Find(&eds).Error; err != nil {
+	var total, maxEdition int64
+	var eds []model.VaccinationCertificateEdition
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.VaccinationCertificateEdition{}).
+			Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
+			Count(&total).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.VaccinationCertificateEdition{}).
+			Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
+			Select("COALESCE(MAX(edition),0)").
+			Scan(&maxEdition).Error; err != nil {
+			return err
+		}
+		eds = make([]model.VaccinationCertificateEdition, 0, limit)
+		return tx.
+			Where("clinic_id = ? AND series_id = ?", clinicID, seriesID).
+			Order("edition DESC").Offset(offset).Limit(limit).
+			Find(&eds).Error
+	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
 		return nil, 0, 0, err
 	}
 	return eds, total, maxEdition, nil

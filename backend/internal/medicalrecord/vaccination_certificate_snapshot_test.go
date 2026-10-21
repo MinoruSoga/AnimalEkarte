@@ -135,6 +135,33 @@ func TestDecodeCertificateSnapshot_ShapeFailures(t *testing.T) {
 	}
 }
 
+// TestDecodeCertificateSnapshot_NonPositiveIDs pins that stored IDs follow the
+// api.yaml integer/int64 minimum 1: source ids/version and eligibility IDs are
+// positive. Violations are a shape failure -> 503 result-unavailable. Fee
+// fields stay signed int64 and are not covered by this rule.
+func TestDecodeCertificateSnapshot_NonPositiveIDs(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		from string
+		to   string
+	}{
+		{"vaccination_id 0", `"vaccination_id": 100`, `"vaccination_id": 0`},
+		{"vaccination_id -1", `"vaccination_id": 100`, `"vaccination_id": -1`},
+		{"source version 0", `"version": 2`, `"version": 0`},
+		{"source version -1", `"version": 2`, `"version": -1`},
+		{"source vaccine_id 0", `"vaccine_id": 7`, `"vaccine_id": 0`},
+		{"source vaccine_id -1", `"vaccine_id": 7`, `"vaccine_id": -1`},
+		{"eligibility vaccine_id 0", `"vaccine_id": 7, "vaccine_version"`, `"vaccine_id": 0, "vaccine_version"`},
+		{"eligibility vaccine_id -1", `"vaccine_id": 7, "vaccine_version"`, `"vaccine_id": -1, "vaccine_version"`},
+		{"vaccine_version 0", `"vaccine_version": 3`, `"vaccine_version": 0`},
+		{"vaccine_version -1", `"vaccine_version": 3`, `"vaccine_version": -1`},
+	} {
+		raw := bytes.Replace([]byte(testCertificateSnapshotJSON), []byte(tc.from), []byte(tc.to), 1)
+		_, err := decodeCertificateSnapshot(raw)
+		assert.Equal(t, "result-unavailable", certErrCode(t, err), tc.name)
+	}
+}
+
 // TestDecodeCertificateSnapshot_RabiesEligibilityGate pins the contract rule
 // that only a stored eligibility.rabies_eligible == true may carry a rabies
 // edition: stored false/null is a contradiction read as 503
