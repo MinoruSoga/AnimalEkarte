@@ -4,6 +4,10 @@
 
 調査基準main `755f77abd2e6d63a2fc608fcfe6a518a61afcfff`。業務正本は [マスタ画面索引](../../spec/screens/settings/README.md) と各domainの確定FR/AC。現コードは差分確認の証拠であり、コードに合うよう確定仕様を縮小しない。実行状態・担当・正式依存の正本はPlane。旧[445引渡し索引](emr-445-plan-handoff-20261020.md)の全512票/229票は当時の対象数で、現在の全票契約・実装・品質完了数ではない。
 
+## 2026-10-21 詳細着手プランへの入口
+
+本台帳の段階境界を具体化した公開計画は、[①DB/API・23管理行と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）。新規管理4票527–530ともReady・個人担当未割当であり、起票を実装・生成実行・試験の開始承認にしない。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
+
 ## 1. 段階と完了の意味
 
 | 段階 | 揃える成果 | 現時点の判定・後続への境界 |
@@ -42,8 +46,8 @@
 | 459 停止支払方法追跡 | 金銭限定契約・465と同一 | 465行に集約 | 465行に集約 | 別実装owner/別PRを作らない |
 | 465 新受領guard | 金銭限定契約§2–6 | 内部guard shape選定、専用APIなし | 既存method/fund型再利用、旧usage参照の修正残 | 465-M②と465-C④。7AC全合格ではない |
 | 518 package親契約 | [storage](emr-518-storage-contract-20261020.md)・[API](emr-518-package-api-contract-20261020.md) | #761で13操作/9path/58schema採用 | S0は#775採用。S1/S1a/F0は④apply依存と分離 | 521/523成果、522/524 runtimeは④、親全体Doneではない |
-| 521 package master BE | 上記契約＋#775採用 | master6操作は#775 routes/DI接続 | S0/clinic初期化採用、生成型同期受領は未完 | input ae65ffd4aをsession3へ引渡し済み。受領commit照合まで①型整合未完 |
-| 523 package master FE | 上記API契約＋#775採用 | 専有client既採用 | generated/models.ts同期はsession3単一owner、手編集/再割当なし | 管理画面採用。実BE結合・⑤試験を製品完成と偽らない |
+| 521 package master BE | 上記契約＋#775採用 | master6操作は#775 routes/DI接続 | S0/clinic初期化採用、生成型同期受領は未完 | input ae65ffd4aの旧session3向け引渡しは履歴。生成型は①詳細計画の独立後続・単一claimへ、受領commit照合まで型整合未完 |
+| 523 package master FE | 上記API契約＋#775採用 | 専有client既採用 | generated/models.ts同期は独立後続の単一claim owner、担当未割当・手編集なし | 管理画面採用。実BE結合・⑤試験を製品完成と偽らない |
 
 ### 498のmaster subset（直接22票とは別の必要coverage）
 

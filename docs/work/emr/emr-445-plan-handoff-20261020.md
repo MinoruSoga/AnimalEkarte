@@ -6,6 +6,10 @@
 
 最新の本人指示による①DB/API契約→②全マスタ→③共通UI→④業務ドメイン→⑤後段mainローカル試験は、[段階・対象台帳](emr-445-master-stages-ledger-20261021.md)へ集約する。直接22票は管理範囲で独立PR数ではなく、498のmaster subsetも別にcoverageへ含める。以下は10/20全件点検の履歴で、①②③の現在の実装接続完了や④新規着手許可を意味しない。
 
+## 2026-10-21 ①②③の具体caller・残差・受領条件
+
+[①契約着手プラン](emr-445-stage1-contract-start-plan-20261021.md)、[②全マスタ着手プラン](emr-445-stage2-master-start-plan-20261021.md)、[③検索・共通UI着手プラン](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を公開した。23管理行/生成型独立後続、settings21本文と追加領域、検索72用途と非検索familyを具体化する。管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）として作成済み。新規管理4票527–530は全Ready・個人担当未割当、起票は実装・生成実行・試験の開始承認ではなく、既存成果を再実装しない。確定業務の正本は[docs/spec/domains](../../spec/domains/README.md)。文書計画完成とAPI/schema反映・実装接続・⑤試験品質証明は別判定で、今回実装指示・④新規着手許可・生成/DB/試験実行はない。NOT_RUNを維持する。
+
 ## 基準と完了境界
 
 - mainをfetchし、`5c5219965ad44258b8ccd918ffe52179a6139ade`と一致、指定基準との差分なしを確認。参照用worktreeへの変更は重ねず、main起点のdocs専用worktree／branchを使用する。
@@ -85,8 +89,12 @@ Plane445の分類と対象IDを保持する。各リンク先の最新本文・�
 
 本PRの既存main文書更新とは独立した引渡しであり、mainにまだ存在しない736所有文書を本PRへ複製しない。共通pathの直接競合は今回回避したが、双方の統合時にリンク・field分類を再確認する。
 
-## 今回の検証記録
+## 2026-10-20 当時の検証記録（履歴）
 
-文書diffとdocs/のみの変更範囲を確認した。変更9文書の相対リンク339件はパス／anchor不整合0、索引229対象は重複0、予防接種の設定なし初期値未確定記述は解消。git diff --checkとpre-commit gitleaksも問題なし。verify-agent-task.pyの判定はdocs-onlyのruntime SKIP（実行0・unmappedなし）であり、runtime PASSではない。詳細をPRへ記録し、過去のmodel整合試験結果を今回の結果へ転用しない。
+以下は冒頭の10/20基準SHAに対する当時の範囲・結果であり、PR #803の検証値ではない。文書diffとdocs/のみの変更範囲を確認した。変更9文書の相対リンク339件はパス／anchor不整合0、索引229対象は重複0、予防接種の設定なし初期値未確定記述は解消。git diff --checkとpre-commit gitleaksも問題なし。verify-agent-task.pyの判定はdocs-onlyのruntime SKIP（実行0・unmappedなし）であり、runtime PASSではない。詳細をPRへ記録し、過去のmodel整合試験結果を今回の結果へ転用しない。
 
 製品コード／model／SQL／生成物／環境設定は変更対象外。全体build／lint／test、DB操作、STG／本番操作、deploy、merge、実機／UATは未実施。docs-onlyのためruntime検証は不要だが、後続consumerの実001／RLS／deferred・共同profile・臨床承認等の必要条件は残る。秘密・患者データ・私的原資料を含めない。
+
+## PR #803 初回公開の静的確認（別の範囲）
+
+初回公開head `be87f4083e9362ee5296553090aae291b094c26d` の変更6文書について、相対リンク64件のパス欠落0、固定source path160件の存在、③72用途、docs-only差分を確認した。これを上の10/20当時の9文書・339リンク・229対象の記録へ上書きしない。生成・DB・runtime・試験はNOT_RUNであり、静的なパス存在を内容適合や実行合格に変換しない。
