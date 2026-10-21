@@ -138,6 +138,7 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 
 | 条件ID | 前提／操作 | 期待結果 | 確認手順／証跡 |
 |:---|:---|:---|:---|
+| AC-vaccinations-certificate-paper-size | 通常portrait・通常landscape・rabiesのPDFを生成し、各ページの実効的な幅・高さと向きを確認する | 通常portraitはA4縦（幅210mm×高さ297mm）、通常landscapeとrabiesはA4横（幅297mm×高さ210mm）。renderer既定値やLetterへ置換しない | PDFページ寸法・向きの取得結果を3様式ごとに照合する。旧見本のセル配置・項目対応の検証とは分け、セル位置から紙寸法を推定しない。未実施（NOT_RUN） |
 | AC-vaccinations-certificate-three-layouts | 通常縦横・狂犬病を発行 | 旧見本のレイアウト・項目・様式差を保持し実値差込 | 3見本と出力の対応確認、未実施 |
 | AC-vaccinations-certificate-layout-shared-edition | 同じ通常証明書を縦から横、横から縦へ切り替えて印刷する | 同じ最新版の発行内容を再現し、切替だけで別証明書・新発行版を作らない | 12:53 UTC第3項A、未実施 |
 | AC-vaccinations-certificate-layout-fields-fixed | 縦横に固有のLOT／E-Mail等があり、発行後に基本情報が変わる | 各様式の項目差を保ち、保存済み発行内容を使用。現在値で黙って補完・書換えしない | 同回答・既存版保護、未実施 |
