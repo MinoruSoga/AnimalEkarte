@@ -151,6 +151,74 @@ func TestHTTPHandler_GetMe_OwnersViewClinicIDs(t *testing.T) {
 		assert.Contains(t, response.Body.String(), `"owners_view_clinic_ids":["1"]`)
 	})
 
+	t.Run("非 active 医院は context と所属にあっても評価・返却しない", func(t *testing.T) {
+		var evaluated []uint64
+		handler := ownersScopeHandler(
+			ownersScopeFixture{
+				staffID:   17,
+				accountID: 41,
+				clinics: []model.Clinic{
+					{ID: 1, Name: "Clinic One", IsActive: true},
+					{ID: 2, Name: "Clinic Two", IsActive: false},
+				},
+				assignment: []model.StaffClinicAssignment{
+					{StaffID: 17, ClinicID: 1, IsMain: true},
+					{StaffID: 17, ClinicID: 2},
+				},
+			},
+			authServiceEffectivePermissionStub{
+				getFn: func(_ context.Context, _, clinicID uint64) ([]model.PermissionGroupRule, error) {
+					evaluated = append(evaluated, clinicID)
+					return []model.PermissionGroupRule{{
+						Resource: string(model.ResourceOwners),
+						CanView:  true,
+					}}, nil
+				},
+			},
+		)
+
+		response := httptest.NewRecorder()
+		handler.GetMe(ownersScopeContext(response, []uint64{1, 2}, false))
+
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		assert.Contains(t, response.Body.String(), `"owners_view_clinic_ids":["1"]`)
+		assert.NotContains(t, evaluated, uint64(2))
+	})
+
+	t.Run("大きな医院 ID を精度を落とさず10進文字列で返す", func(t *testing.T) {
+		const bigClinicID = uint64(9007199254740993)
+		handler := ownersScopeHandler(
+			ownersScopeFixture{
+				staffID:   17,
+				accountID: 41,
+				clinics: []model.Clinic{
+					{ID: bigClinicID, Name: "Clinic Big", IsActive: true},
+				},
+				assignment: []model.StaffClinicAssignment{
+					{StaffID: 17, ClinicID: bigClinicID, IsMain: true},
+				},
+			},
+			authServiceEffectivePermissionStub{
+				getFn: func(context.Context, uint64, uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{{
+						Resource: string(model.ResourceOwners),
+						CanView:  true,
+					}}, nil
+				},
+			},
+		)
+
+		response := httptest.NewRecorder()
+		handler.GetMe(ownersScopeContext(response, []uint64{bigClinicID}, false))
+
+		require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+		assert.Contains(
+			t,
+			response.Body.String(),
+			`"owners_view_clinic_ids":["9007199254740993"]`,
+		)
+	})
+
 	t.Run("全候補 false は 200 と非nullの空配列", func(t *testing.T) {
 		handler := ownersScopeHandler(
 			ownersScopeFixture{
