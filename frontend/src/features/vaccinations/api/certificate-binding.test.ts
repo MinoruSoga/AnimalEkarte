@@ -83,15 +83,15 @@ describe("履歴ページの束縛", () => {
   it("外側の source_version と snapshot.source.version が食い違う edition を含む頁は拒否する", () => {
     const want = { vaccinationId: 101, kind: "normal" as const, page: 1, limit: 20 };
     const edition: CertificateEdition = {
-      id: "301",
-      series_id: "201",
-      vaccination_id: "101",
+      id: 301,
+      series_id: 201,
+      vaccination_id: 101,
       kind: "normal",
-      edition: "1",
-      source_version: "7",
+      edition: 1,
+      source_version: 7,
       previous_edition_id: null,
       issued_at: "2026-10-20T14:30:00Z",
-      issued_by: "9",
+      issued_by: 9,
       validity: "current",
       snapshot: buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false, inputs: emptyCertificateInputs() }),
       snapshot_sha256: mockHash("a"),
@@ -99,6 +99,6 @@ describe("履歴ページの束縛", () => {
     };
     const page = (e: CertificateEdition) => ({ data: [e], total: 1, page: 1, limit: 20 });
     expect(editionPageMatches(page(edition), want)).toBe(true);
-    expect(editionPageMatches(page({ ...edition, source_version: "8" }), want)).toBe(false);
+    expect(editionPageMatches(page({ ...edition, source_version: 8 }), want)).toBe(false);
   });
 });
