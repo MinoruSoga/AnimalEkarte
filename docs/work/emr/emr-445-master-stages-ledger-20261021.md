@@ -6,7 +6,7 @@
 
 ## 2026-10-21 詳細着手プランへの入口
 
-本台帳の段階境界を具体化した公開計画は、[①DB/API・23管理行と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、子票番号は未起票の管理残として扱う。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
+本台帳の段階境界を具体化した公開計画は、[①DB/API・23管理行と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）。3票ともReady・個人担当未割当であり、起票を実装・生成実行・試験の開始承認にしない。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
 
 ## 1. 段階と完了の意味
 

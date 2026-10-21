@@ -4,10 +4,12 @@
 
 基準main `a88fa4add58d43cff643590f9f507c8ab1a3c085`（10:45 UTC再取得）。業務正本は[settings索引](../../spec/screens/settings/README.md)と各領域の確定FR/AC。[①②③段階台帳](emr-445-master-stages-ledger-20261021.md)の直接22票＋498は管理対象であって全属性実装完了の証明ではない。現コードは差分確認の証拠であり、正本を縮小しない。実装・試験・DB操作は今回行っておらずNOT_RUN。
 
+EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・生成実行・試験の開始承認ではない。その他の条件付き新規票案は作成済みへ変更しない。
+
 ## 1. 責務・開始条件・完了の意味
 
 - 447/448/449は集約・引渡し票。実装claimは既存実装票の限定subset、または下記の具体差分単位に固定する。450は③共通UIであり、全CRUDや認可モデルの代替ではない。
-- ①API/schema/model/generatedが必要な行は、その必要subsetの収録/採用commitを単一統合ownerから受領する。api.yamlを複数claimで同時に編集しない。生成型同期は独立後続で担当未割当、①生成型後続の単一claim ownerへ受領する。旧session3表記は履歴で、現claimは着手時に確認する。
+- ①API/schema/model/generatedが必要な行は、その必要subsetの収録/採用commitを単一統合ownerから受領する。api.yamlを複数claimで同時に編集しない。生成型同期は[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)の独立後続で担当未割当、①生成型後続の単一claim ownerへ受領する。旧session3表記は履歴で、現claimは着手時に確認する。
 - ②は設定保存/再GET・停止削除と保存済み参照保護まで。④の全予約/臨床/会計consumer完成を逆依存させない。ただし既存参照を壊す新writerを有効化しない。
 - 各属性の型・null/省略・保存・再GET、旧writer、現在認可、履歴保持、関連fixture期待値を一票の完了条件にする。対応済み関数は再作成せず採用SHAを記録する。無差分は採用証跡だけで閉じ、空PRや試験実施だけの新規開発票を作らない。
 - 表中「採用」は記載した操作・主要guardの静的存在確認に限定する。全属性の実行適合や未読の全callerをPASSにしない。未確認を欠陥とせず、追加調査が必要なら属性・経路を特定する。
@@ -29,7 +31,7 @@
 - 判定・境界：既採用：CRUD/merge/unmerge/occupancy、Deleteの同TX lockと連結guardを確認。461必要readの受領と現場occupancy実行は未確認だが、新しいmaster CRUDを再作成しない。
 ### 3. 入院・宿泊プラン
 - 属性/操作：name/body_size/billing_unit/price/tax/description/active。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：448集約 / MM-HOSPITAL-OPTIONAL / §3Aの専有差分。
+- 集約 / 実装単位 / 専有hunk：448集約 / EMR-528（MM-HOSPITAL-OPTIONAL） / §3Aの専有差分。
 - BE：B/medicalrecord/hospitalization_plan_{handler,service}.go。model：B/model/hospitalization_plan.go。FE：F/master/routes/HospitalizationSettings.tsx。
 - 判定・境界：既存CRUD/税nullable model/ケア参照削除guard採用。備考空・体格/料金単位null・明示0送信の差分は§3Aの固定契約で修正する。
 ### 4. トリミングコース/option
@@ -99,7 +101,7 @@
 - 判定・境界：既採用：5種個別serviceと共通FE、診察/処置454・ワクチン455・健診456成果。365 vaccine price文字列/numeric23,4は明確な①残。検査fieldとの差分は臨床補助unit。
 ### 17. 診断カテゴリ/病名
 - 属性/操作：カテゴリ・病名のname/description/active/order/必須category。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：447集約 / MM-DIAGNOSIS-DESCRIPTION / §3Bの専有差分。
+- 集約 / 実装単位 / 専有hunk：447集約 / EMR-529（MM-DIAGNOSIS-DESCRIPTION） / §3Bの専有差分。
 - BE：B/medicalrecord/diagnosis_{handler,service}.go。model：B/model/diagnosis.go。FE：F/master/routes/DiagnosisSettings.tsx。
 - 判定・境界：カテゴリ必須NOT NULL/同医院存在検査/参照削除guardは採用済み。備考clearだけ§3Bの限定差分。第1/第2複数診断は495④。
 ### 18. 薬剤・用量pattern
@@ -157,8 +159,8 @@
 
 ## 3. 具体差分と受領interface
 
-### A. 入院プラン：具体差分あり、MM-HOSPITAL-OPTIONAL の最小1PR案
-集約448、専有実装単位MM-HOSPITAL-OPTIONAL（新規子票案、未起票）。トリミング分類など無差分対象を同票へ増やさない。
+### A. 入院プラン：EMR-528（MM-HOSPITAL-OPTIONAL）の最小1PR範囲
+集約448、専有実装単位[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（MM-HOSPITAL-OPTIONAL、親448、Ready、個人担当未割当）。トリミング分類など無差分対象を同票へ増やさない。
 根拠：master-hospitalization-plan.md「詳細編集サイドパネル」「API連携」、D05 master変更は過去/追加済会計へ自動反映しない。BE hospitalization_plan_request.goはUpdate Description/BodySize/BillingUnitを*string、service buildHospitalizationPlanUpdateはnilなら更新なし。FE routes/hospitalization-settings-model.tsは備考空をundefined、体格/料金単位空をnullとして送る。従って備考の空への変更と明示nullのクリアが静的に保存されない。
 選定する最小契約:
 - 既存PATCH /api/v1/masters/hospitalization-plans/{id}を維持。body_size/billing_unitは省略=保持、null=SQL NULL、許容enum値=設定。空文字をNULLの代用品にしない。
@@ -171,7 +173,7 @@
 受入fixture: 備考非空→空、体格/料金単位値→null、各省略→既存値保持、値→別値、不正enum zero-write、0価格作成、同院/他院、参照中削除拒否、master更新でcare/会計row無変更。NOT_RUN。
 
 ### B. 診断：カテゴリ契約は既決、備考clearだけ具体差分
-集約447、専有実装単位MM-DIAGNOSIS-DESCRIPTION（新規子票案、未起票）。診断/主訴/template一式の再開発票に広げない。
+集約447、専有実装単位[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（MM-DIAGNOSIS-DESCRIPTION、親447、Ready、個人担当未割当）。診断/主訴/template一式の再開発票に広げない。
 確定: master-diagnosis.md「所属カテゴリ必須選択」。model.DiagnosisName.DiagnosisTypeIDはNOT NULL uint64、create request required、service Create/Updateが同医院カテゴリFindByIDで検査。分類nullableは未選定ではなく不要。PATCH省略は保持、明示0/不存在/他院は既存validation拒否。カテゴリそのものの設計変更なし。
 具体差分: frontend/src/features/master/routes/diagnosis-settings-model.tsのType/Name UpdateがCreate builderを再利用し、description空をundefinedへ落とす。BE UpdateDescription *stringとbuild mapは空文字を保存可能。
 修正: TypeとNameのUpdate builderだけdescription:data.descriptionを明示する。新規Create既定は変更不要。API/schema/DDL/model/BE変更不要。既存api/diagnosis.tsを経由する両更新callerを維持。
