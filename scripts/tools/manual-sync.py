@@ -11,13 +11,12 @@
 #   export → git diff 確認 → commit/PR → デプロイ → prune（stale override の後始末）
 #
 # STG 再構築時の退避・復元（DB_RESET で manual_articles は消える）:
-#   rebuild 前:  export --env stg --content-dir <backup-dir>
-#   rebuild 後:  push   --env stg --content-dir <backup-dir> --execute
+#   docs/ops/deploy/stg/STG-PRESERVE-DATA.md の SQL 手順を使う（export/push は停止中）。
 #
 # Verbs:
-#   status   DB override と MD ファイルの差分一覧（read-only）
-#   export   DB override を MD ファイルへ書き出す（既定: リポジトリ content 配下）
-#   push     --content-dir 配下の MD ファイルを全て PUT /manual/articles へ送る
+#   status   DB 公開版と MD ファイルの差分一覧（read-only）
+#   export   停止中（公開版しか読めず未公開下書きを取りこぼすため）
+#   push     停止中（旧形式の body は新しい編集プロトコルで 400 になるため）
 #   prune    MD ファイルと内容一致する DB override を DELETE する
 #
 # 認証: POST /api/v1/login（Cookie セッション）+ X-Requested-With ヘッダ。
@@ -53,6 +52,24 @@ CATEGORIES = ("screens", "workflows")
 ENV_BASE_URLS = {
     "local": "http://localhost:8080",
     "stg": "https://animalekarte-stg-api.baritech-soga.workers.dev",
+}
+
+# EMR-502 以降、公開 READ（GET /manual/articles）は公開版だけを返し、PUT は
+# operation_key・期待版・digest 付きの編集プロトコルだけを受け付ける。export は
+# 未公開の current（保存済み下書き）を取りこぼし、push は旧形式の body で必ず
+# 400 になるため、黙って誤った結果を出さないよう実行前に停止する。STG 再構築時の
+# 退避・復元は docs/ops/deploy/stg/STG-PRESERVE-DATA.md の SQL 手順を使う。
+STOPPED_VERBS = {
+    "export": (
+        "export は停止中です: 公開 READ は公開版だけを返すため、保存済みの未公開下書きを"
+        "書き出せません。manual_articles / manual_article_versions は "
+        "docs/ops/deploy/stg/STG-PRESERVE-DATA.md の SQL 手順で退避してください。"
+    ),
+    "push": (
+        "push は停止中です: PUT /manual/articles は operation_key・期待版・digest 付きの"
+        "編集プロトコルだけを受け付け、旧形式の body は 400 になります。復元は "
+        "docs/ops/deploy/stg/STG-PRESERVE-DATA.md の SQL 手順を使ってください。"
+    ),
 }
 
 # frontend/src/lib/manual-index.ts の parseFrontmatter と同じ規則
@@ -446,6 +463,9 @@ def main(argv: list[str] | None = None) -> int:
         if name in ("push", "prune"):
             sp.add_argument("--execute", action="store_true", help="実際に変更を適用（既定は dry-run）")
     args = p.parse_args(argv)
+
+    if args.verb in STOPPED_VERBS:
+        fail(STOPPED_VERBS[args.verb])
 
     base_url = resolve_base_url(args)
     email, password = resolve_credentials(args)
