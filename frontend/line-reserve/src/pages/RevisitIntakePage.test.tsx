@@ -1763,6 +1763,41 @@ describe("RevisitIntakePage draft（target 別 memory のみ）", () => {
       expect(onBack).not.toHaveBeenCalled();
     });
 
+    it("別 target の未確定送信で editor が外れているときは、未送信ではなく結果未確定の確認を出す", async () => {
+      const user = userEvent.setup();
+      mockReadSequence([read(unansweredTarget(APPT_A, PET_A, "3"))]);
+      const store = createStore();
+      const body = {
+        pet_id: PET_A,
+        target_generation: "2",
+        expected_revision: null,
+        form_definition_version: 1,
+        answers: answers({ visit_purpose: "合成目的" }),
+      };
+      store.set([CLINIC, APPT_A, PET_A, "2"].join("|"), {
+        values: body.answers,
+        pending: {
+          key: KEYS[0],
+          fingerprint: "synthetic",
+          body,
+          status: "unknown",
+          lookupRequired: false,
+          resendAvailableAt: null,
+        },
+      });
+      const { onBack } = renderPage({ store });
+
+      await screen.findByText("問診の状態");
+      expect(screen.queryByLabelText(/^来院目的/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "戻る" }));
+
+      expect(screen.getByText(/送信結果が未確定です/)).toBeInTheDocument();
+      expect(
+        screen.queryByText("回答はまだ送信されていません。このまま戻りますか？"),
+      ).not.toBeInTheDocument();
+      expect(onBack).not.toHaveBeenCalled();
+    });
+
     it("draft が無ければ編集不可の read でもそのまま戻る", async () => {
       const user = userEvent.setup();
       mockReadSequence([read({ ...unansweredTarget(), editable: false })]);
