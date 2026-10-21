@@ -295,9 +295,16 @@ export function RevisitIntakeEditor({
   // 409 REVISION_CONFLICT で未成功が確定した操作の key。同内容（expected_revision を除く fingerprint が同じ）の
   // 再送信は同 key で再検証し、内容が変わったときだけ新 key にする（technical-spec#revisit-intake-api-selected-v3）。
   // 自動再送はしない。回答が成功した後の訂正は常に新 key（成功時は pending 経由で消える）。
-  const [conflictedOp, setConflictedOp] = useState<{ key: string; fingerprint: string } | null>(
-    null,
-  );
+  // 離脱して同じ draft を復元しても同 key で再検証できるよう、draft と一緒に memory store へ持つ。
+  const [conflictedOp, setConflictedOpState] = useState<{
+    key: string;
+    fingerprint: string;
+  } | null>(() => draftStore.get(targetKey)?.conflict ?? null);
+  const conflictRef = useRef(conflictedOp);
+  function setConflictedOp(next: { key: string; fingerprint: string } | null) {
+    conflictRef.current = next;
+    setConflictedOpState(next);
+  }
   const inFlightRef = useRef(false);
   const alertRef = useRef<HTMLDivElement>(null);
 
@@ -306,13 +313,19 @@ export function RevisitIntakeEditor({
     nextPending: RevisitIntakePendingOperation | null,
     nextBaseToken: string = draftBaseToken,
   ) {
-    if (nextPending === null && areRevisitIntakeAnswersEqual(nextValues, baseline)) {
+    const conflict = conflictRef.current;
+    if (
+      nextPending === null &&
+      conflict === null &&
+      areRevisitIntakeAnswersEqual(nextValues, baseline)
+    ) {
       draftStore.clear(targetKey);
     } else {
       draftStore.set(targetKey, {
         values: nextValues,
         pending: nextPending,
         baselineToken: nextBaseToken,
+        conflict,
       });
     }
   }

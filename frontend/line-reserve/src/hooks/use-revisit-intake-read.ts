@@ -65,7 +65,7 @@ export interface UseRevisitIntakeReadResult {
   loadMoreRetryAfterSeconds: number | null;
 }
 
-function sameTargetIdentity(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead): boolean {
+function sameSnapshot(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead): boolean {
   const x = a.current_target?.ref ?? null;
   const y = b.current_target?.ref ?? null;
   if (x === null || y === null) return x === y && a.availability === b.availability;
@@ -74,7 +74,16 @@ function sameTargetIdentity(a: RevisitIntakeLIFFRead, b: RevisitIntakeLIFFRead):
     x.target_id === y.target_id &&
     x.appointment_id === y.appointment_id &&
     x.pet_id === y.pet_id &&
-    x.target_generation === y.target_generation
+    x.target_generation === y.target_generation &&
+    // 同じ target でも head・本文可否・編集可否が変わったページは、旧 snapshot へ追記せず読み直す
+    // （別送信での head 更新や回答権限の失効後に、古い本文を表示し続けない）。
+    a.availability === b.availability &&
+    a.form_definition_version === b.form_definition_version &&
+    a.current_target?.head_revision === b.current_target?.head_revision &&
+    a.current_target?.answer_state === b.current_target?.answer_state &&
+    a.current_target?.content_available === b.current_target?.content_available &&
+    a.current_target?.editable === b.current_target?.editable &&
+    a.current_target?.edit_block_reason === b.current_target?.edit_block_reason
   );
 }
 
@@ -183,7 +192,7 @@ export function useRevisitIntakeRead(
     startLoadMore(async () => {
       try {
         const page = await liffApi.getRevisitIntake(clinicId, appointmentId, idToken, { cursor });
-        if (!sameTargetIdentity(baseRead, page)) {
+        if (!sameSnapshot(baseRead, page)) {
           // 最初の読込の後に target が変わった。旧 read へ追記せず捨て、1ページ目から読み直す
           // （再取得が走るまで refetching になり editor は送信できない）。
           setState((prev) => ({ ...prev, error: null }));

@@ -41,6 +41,11 @@ export interface RevisitIntakeDraftEntry {
    */
   baselineToken?: string;
   pending: RevisitIntakePendingOperation | null;
+  /**
+   * 409 REVISION_CONFLICT で未成功が確定した操作の key と fingerprint。離脱後に同じ draft を復元しても、
+   * 同内容の再送信は同 key で再検証できるようにする（draft と同じく memory のみ。内容が変われば新 key）。
+   */
+  conflict?: { key: string; fingerprint: string } | null;
 }
 
 export interface RevisitIntakeDraftStore {

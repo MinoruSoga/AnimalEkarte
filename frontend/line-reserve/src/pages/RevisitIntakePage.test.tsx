@@ -426,6 +426,40 @@ describe("RevisitIntakePage 表示状態", () => {
     expect(store.get(targetKey)).toBeUndefined();
   });
 
+  it("403 で未確定の送信が残るとき、戻る操作は確認を挟み、留まれば戻らない", async () => {
+    server.use(
+      http.get(READ_PATH, () => HttpResponse.json({ error: "forbidden" }, { status: 403 })),
+    );
+    const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    const body = {
+      pet_id: PET_A,
+      target_generation: "3",
+      expected_revision: null,
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成目的" }),
+    };
+    const store = createStore();
+    store.set(targetKey, {
+      values: body.answers,
+      pending: { key: KEYS[0], fingerprint: "synthetic", body, status: "unknown" },
+    });
+    const { onBack } = renderPage({ store });
+    const user = userEvent.setup();
+
+    await screen.findByRole("button", { name: "送信結果を確認" });
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+    expect(screen.getByText(/送信結果が未確定です/)).toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "この画面に留まる" }));
+    expect(screen.queryByText(/送信結果が未確定です/)).not.toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+    await user.click(screen.getByRole("button", { name: "このまま戻る" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   describe("403 後の結果照会の永続化", () => {
     const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
     function seededStore() {
@@ -605,6 +639,31 @@ describe("RevisitIntakePage 履歴（AC-reservations-revisit-new-target / revisi
     expect(calls[1].searchParams.get("cursor")).toBe("synthetic-cursor-1");
     expect(calls[0].searchParams.toString()).toBe("");
     expect(screen.queryByRole("button", { name: "さらに表示" })).not.toBeInTheDocument();
+  });
+
+  it("「さらに表示」の応答で同 target の content_available が false になったら、追記せず1ページ目から読み直す", async () => {
+    const user = userEvent.setup();
+    const latest = answer("2", answers({ visit_purpose: "合成2版" }));
+    const page1 = read(answeredTarget(latest), { next_cursor: "synthetic-cursor-1" });
+    // 同じ target・同じ head のまま、回答権限の失効で本文が不可視になった応答。
+    const revoked = read(
+      answeredTarget(latest, {
+        latest_answer: null,
+        content_available: false,
+        editable: false,
+        edit_block_reason: "authorization_denied",
+      }),
+    );
+    const { calls } = mockReadSequence([page1, revoked]);
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+
+    // cursor 付きページの後、cursor なしで再取得される。
+    await waitFor(() => expect(calls.length).toBe(3));
+    expect(calls[1].searchParams.get("cursor")).toBe("synthetic-cursor-1");
+    expect(calls[2].searchParams.get("cursor")).toBeNull();
+    await waitFor(() => expect(screen.queryByDisplayValue("合成2版")).not.toBeInTheDocument());
   });
 });
 
@@ -818,6 +877,42 @@ describe("RevisitIntakePage 409", () => {
     await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
     await waitFor(() => expect(submits).toHaveLength(2));
     expect(submits[1].body.expected_revision).toBe("2");
+    expect(submits[1].key).toBe(submits[0].key);
+  });
+
+  it("REVISION_CONFLICT 後に離脱して同じ draft を復元しても、同内容の再送信は同じ key を使う（memory store のみ）", async () => {
+    const user = userEvent.setup();
+    const before = read(answeredTarget(answer("1", answers({ visit_purpose: "合成目的1" }))));
+    const latest = read(
+      answeredTarget(answer("2", answers({ visit_purpose: "他端末の合成目的" }))),
+    );
+    mockReadSequence([before, latest]);
+    const submits = captureSubmits((c, i) =>
+      i === 0
+        ? HttpResponse.json(
+            { error: "conflict", code: "REVISION_CONFLICT", details: { head_revision: "2" } },
+            { status: 409 },
+          )
+        : HttpResponse.json(successResponse(c.key ?? "", "3")),
+    );
+    const first = renderPage();
+
+    await user.clear(await screen.findByLabelText(/^来院目的/));
+    await user.type(purposeInput(), "合成の私の訂正");
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+    await screen.findByText(/ほかの操作で回答が更新されています/);
+    const targetKey = [CLINIC, APPT_A, PET_A, "3"].join("|");
+    expect(first.store.get(targetKey)?.conflict?.key).toBe(submits[0].key);
+
+    // 画面を離れて、同じ store で開き直す。
+    first.unmount();
+    renderPage({ store: first.store });
+
+    expect(await screen.findByDisplayValue("合成の私の訂正")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "最新の回答を確認した" }));
+    await user.click(screen.getByRole("button", { name: "訂正して再送信" }));
+
+    await waitFor(() => expect(submits).toHaveLength(2));
     expect(submits[1].key).toBe(submits[0].key);
   });
 
