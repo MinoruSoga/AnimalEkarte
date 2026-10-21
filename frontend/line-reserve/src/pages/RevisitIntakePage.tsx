@@ -165,7 +165,11 @@ export function RevisitIntakePage({
       setLeavePrompt("in_flight");
       return;
     }
-    if (submitUnresolved) {
+    // 再取得中・失敗中は editor が外れ、submitUnresolved が false に戻る。memory store の未確定送信も見る。
+    if (
+      submitUnresolved ||
+      (intake.read === null && draftStore.findPending(clinicId, appointmentId) !== undefined)
+    ) {
       setLeavePrompt("unresolved");
       return;
     }

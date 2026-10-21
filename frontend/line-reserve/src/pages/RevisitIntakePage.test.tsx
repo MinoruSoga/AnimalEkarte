@@ -1,6 +1,6 @@
 // EMR-474: 再診事前問診画面のページ単位テスト。3 route とも runtime 未実装のため msw で契約どおりの応答を返す。
 // fixture はすべて合成値（実在の医院・飼主・ペットではない）。
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { http, HttpResponse, delay } from "msw";
@@ -20,7 +20,7 @@ vi.mock("@line/liff", () => ({
   default: { isInClient: () => true, sendMessages: sendMessagesMock },
 }));
 
-import { clearRevisitIntakeReadBackoffs } from "../hooks/use-revisit-intake-read";
+import { clearRevisitIntakeReadBackoffs, useRevisitIntakeRead } from "../hooks/use-revisit-intake-read";
 import { RevisitIntakePage, type RevisitIntakeReservationSummary } from "./RevisitIntakePage";
 import {
   findPendingEntry,
@@ -693,6 +693,77 @@ describe("RevisitIntakePage 履歴（AC-reservations-revisit-new-target / revisi
     expect(calls[1].searchParams.get("cursor")).toBe("synthetic-cursor-1");
     expect(calls[2].searchParams.get("cursor")).toBeNull();
     await waitFor(() => expect(screen.queryByDisplayValue("合成2版")).not.toBeInTheDocument());
+  });
+
+  it("古い cursor 応答が snapshot 変化を示しても、既に新しい1ページ目へ置き換わった read は消さず再取得もしない", async () => {
+    const latest = answer("2", answers({ visit_purpose: "合成2版" }));
+    const page1 = read(answeredTarget(latest), { next_cursor: "synthetic-cursor-1" });
+    const revoked = read(
+      answeredTarget(latest, { latest_answer: null, content_available: false, editable: false }),
+    );
+    const fresh = read(answeredTarget(answer("3", answers({ visit_purpose: "合成3版" }))));
+    let firstPageGets = 0;
+    let total = 0;
+    server.use(
+      http.get(READ_PATH, async ({ request }) => {
+        total += 1;
+        if (new URL(request.url).searchParams.get("cursor") !== null) {
+          await delay(150);
+          return HttpResponse.json(revoked);
+        }
+        firstPageGets += 1;
+        return HttpResponse.json(firstPageGets === 1 ? page1 : fresh);
+      }),
+    );
+    const { result } = renderHook(() => useRevisitIntakeRead(CLINIC, APPT_A, "synthetic-id-token"));
+    await waitFor(() => expect(result.current.read).not.toBeNull());
+
+    act(() => result.current.loadMore());
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.read?.current_target?.head_revision).toBe("3"));
+    await delay(300);
+
+    expect(result.current.read?.current_target?.head_revision).toBe("3");
+    expect(total).toBe(3);
+  });
+
+  it("snapshot 変化で read を外した後の再取得中・失敗中も、未確定送信が store にあれば戻る操作で確認する", async () => {
+    const user = userEvent.setup();
+    const latest = answer("2", answers({ visit_purpose: "合成2版" }));
+    const page1 = read(answeredTarget(latest), { next_cursor: "synthetic-cursor-1" });
+    const revoked = read(
+      answeredTarget(latest, { latest_answer: null, content_available: false, editable: false }),
+    );
+    let n = 0;
+    server.use(
+      http.get(READ_PATH, () => {
+        n += 1;
+        if (n === 1) return HttpResponse.json(page1);
+        if (n === 2) return HttpResponse.json(revoked);
+        return HttpResponse.json({ error: "boom" }, { status: 500 });
+      }),
+    );
+    const body = {
+      pet_id: PET_A,
+      target_generation: "3",
+      expected_revision: "2",
+      form_definition_version: 1,
+      answers: answers({ visit_purpose: "合成2版" }),
+    };
+    const store = createStore();
+    store.set([CLINIC, APPT_A, PET_A, "3"].join("|"), {
+      values: body.answers,
+      pending: { key: KEYS[0], fingerprint: "synthetic", body, status: "unknown" },
+    });
+    const { onBack } = renderPage({ store });
+
+    await user.click(await screen.findByRole("button", { name: "さらに表示" }));
+    await waitFor(() => expect(n).toBe(3));
+    await waitFor(() => expect(screen.queryByDisplayValue("合成2版")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "戻る" }));
+
+    expect(screen.getByText(/送信結果が未確定です/)).toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
   });
 
   it("「さらに表示」で snapshot 変化を検出したら、再取得が失敗しても旧本文を出し続けない", async () => {

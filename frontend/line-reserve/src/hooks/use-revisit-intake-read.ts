@@ -1,6 +1,6 @@
 // EMR-474: GET …/revisit-intake の取得・再取得・履歴の追加読込。
 // 再取得中も前回の表示を保持し（入力 draft を消さない）、refetching で読込中を示す。
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { liffApi } from "../api/liff-api";
 import { resolveFetchError, type FetchErrorInfo } from "@/shared-liff/handle-fetch-error";
 import type { RevisitIntakeHistoryEntry, RevisitIntakeLIFFRead } from "../types/models";
@@ -179,6 +179,11 @@ export function useRevisitIntakeRead(
   }, [backoff]);
 
   const read = state.read;
+  // cursor 要求の完了時点で、現在の read がまだ要求元（baseRead）かを確かめるために保持する。
+  const latestReadRef = useRef(read);
+  useEffect(() => {
+    latestReadRef.current = read;
+  }, [read]);
   // 追加ページは取得元の read と対応しているときだけ使う（再取得で1ページ目から読み直す）。
   const extra = more.forRead === read ? more : null;
   const history = read ? [...read.history, ...(extra?.entries ?? [])] : [];
@@ -192,6 +197,8 @@ export function useRevisitIntakeRead(
     startLoadMore(async () => {
       try {
         const page = await liffApi.getRevisitIntake(clinicId, appointmentId, idToken, { cursor });
+        // 要求中に新しい1ページ目の再取得が baseRead を置き換えていたら、古い応答は無視する。
+        if (latestReadRef.current !== baseRead) return;
         if (!sameSnapshot(baseRead, page)) {
           // 最初の読込の後に target が変わった。旧 read へ追記せず捨て、1ページ目から読み直す
           // 本文可否・権限が変わっている場合に備え、保持中の read は再取得の完了を待たず破棄する
