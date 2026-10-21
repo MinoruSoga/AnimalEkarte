@@ -212,3 +212,7 @@
 PDF §2のC06到達後HTTP mappingは親追加指示により `12702fe` でnot-succeeded=200／operation-in-progress=202／edit-right-lost=409へ訂正した。前段validationや媒体/サイズ/認証errorは変更していない。原稿SHAはこの公開時整合前の受領値である。
 
 試験・fixture・DB・provider・PDF実処理・実送信はNOT_RUN。文書対応をもってレビューthread完了やマージ可能とは宣言しない。
+
+## 横断契約の接続補正（2026-10-21 06:34 UTC親採択）
+
+[Q共通節](../../design/shared/operation-participation.md#verified-command-selected-20261021)へRequest.VerifiedCommandの全文を集約し、指定consumerは同じQからApply入力を再構成する。owner-private耐久commandとは別で、既存Content-only/v1・CAS/fence・短Contentの契約は変更しない。489の限定Request/Runner deltaは未実装依存のまま。481/516/517/RVの認可anchor欠落・不整合・解決不能は403非開示、元targetと現在開示認可確定後の結果読取失敗だけ503へ整合した。510はschema_version文字列とedit-right-lost409を明記。PDFの公開済み3状態HTTP訂正は再適用せず保持。504 Cは未受領のため、この補正batchには含めない。実装・試験・DB・mergeなし。
