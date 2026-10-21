@@ -6,17 +6,25 @@ import { ReservationPageSwitch, type ReservationPageSwitchProps } from "./app-pa
 import type { LiffSettings, ReservationFlow } from "./types/models";
 import type { RevisitIntakeDraftStore } from "./hooks/use-revisit-intake-drafts";
 
-const settings = {
+const settings: LiffSettings = {
   liff_id: "2000000000-abcdefgh",
+  header_text: "",
+  phone_number: "",
   status: "running",
-} as unknown as LiffSettings;
+  request_example: "",
+  reservation_notice: "",
+  cancel_notice: "",
+  privacy_policy: "",
+  show_no_staff_option: false,
+  booking_window: 30,
+};
 
-const flow = {
-  courseCategory: "normal",
+const flow: ReservationFlow = {
   customerInfo: { name: "山田", phone: "090", ownerName: "", pets: [] },
-  courseName: "再診",
   courseId: null,
-  staffId: null,
+  courseName: "再診",
+  courseCategory: "general",
+  staffId: 0,
   staffName: "",
   date: "2026-08-01",
   startTime: "1000",
@@ -25,15 +33,15 @@ const flow = {
   trimmingCourseId: null,
   trimmingCourseName: "",
   trimmingOptionIds: [],
-} as unknown as ReservationFlow;
+};
 
-const draftStore = {
-  get: vi.fn(),
-  set: vi.fn(),
-  clear: vi.fn(),
-  hasDraft: vi.fn(() => false),
-  findPending: vi.fn(() => null),
-} as unknown as RevisitIntakeDraftStore;
+const draftStore: RevisitIntakeDraftStore = {
+  get: () => undefined,
+  set: () => undefined,
+  clear: () => undefined,
+  hasDraft: () => false,
+  findPending: () => undefined,
+};
 
 function makeProps(
   completedReservationId: string,
