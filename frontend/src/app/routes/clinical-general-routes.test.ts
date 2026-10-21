@@ -14,6 +14,12 @@ import { ResourceOwners } from "@/types/generated/models";
 import { clinicalGeneralRoutes } from "./clinical-general-routes";
 
 type RequirePermissionProps = ComponentProps<typeof RequirePermission>;
+type LazyRouteResult = { Component?: ComponentType; loader?: unknown };
+
+async function resolveLazy(lazy: unknown): Promise<LazyRouteResult> {
+  if (typeof lazy !== "function") throw new Error("lazy is missing");
+  return (lazy as () => Promise<LazyRouteResult>)();
+}
 
 // EMR-463: 一覧 index の lazy 解決が guard で一覧 Component を包むことを検証するため、
 // lazy が読み込む page と owners feature を合成 stub に差し替える。
@@ -21,10 +27,15 @@ vi.mock("@/app/pages/OwnersListPage", async () => {
   const { createElement: h } = await import("react");
   return { OwnersListPage: () => h("div", { "data-testid": "owners-list-page" }) };
 });
+vi.mock("@/app/pages/OwnerFormPage", async () => {
+  const { createElement: h } = await import("react");
+  return { OwnerFormPage: () => h("div", { "data-testid": "owner-form-page" }) };
+});
 vi.mock("@/features/owners", async () => {
   const { createElement: h } = await import("react");
   return {
     ownersLoader: vi.fn(),
+    ownerLoader: vi.fn(),
     OwnersListRouteGuard: ({ children }: { children?: ReactNode }) =>
       h("section", { "data-testid": "owners-list-guard" }, children),
   };
@@ -65,11 +76,7 @@ describe("EMR-463 /owners route structure", () => {
 
   it("一覧 index の lazy は ownersLoader と、OwnersListRouteGuard で包んだ一覧 Component を返す", async () => {
     const indexRoute = ownersChildren.find((child) => child.index === true);
-    const lazy = indexRoute?.lazy as
-      | (() => Promise<{ Component?: ComponentType; loader?: unknown }>)
-      | undefined;
-    if (typeof lazy !== "function") throw new Error("owners index lazy is missing");
-    const resolved = await lazy();
+    const resolved = await resolveLazy(indexRoute?.lazy);
     const owners = await import("@/features/owners");
     expect(resolved.loader).toBe(owners.ownersLoader);
     if (!resolved.Component) throw new Error("owners index Component is missing");
@@ -80,7 +87,7 @@ describe("EMR-463 /owners route structure", () => {
     expect(within(guard).getByTestId("owners-list-page")).toBeInTheDocument();
   });
 
-  it("new は owners:view の内側に owners:create を要求する", () => {
+  it("new は owners:view の内側に owners:create を要求する", async () => {
     const newRoute = ownersChildren.find((child) => child.path === "new");
     expect(newRoute).toBeDefined();
     expect(newRoute?.lazy).toBeUndefined();
@@ -98,9 +105,13 @@ describe("EMR-463 /owners route structure", () => {
     const leaf = newRoute?.children?.[0];
     expect(leaf?.index).toBe(true);
     expect(leaf?.lazy).toEqual(expect.any(Function));
+    const resolved = await resolveLazy(leaf?.lazy);
+    const { OwnerFormPage } = await import("@/app/pages/OwnerFormPage");
+    expect(resolved.Component).toBe(OwnerFormPage);
+    expect(resolved.loader).toBeUndefined();
   });
 
-  it(":id は owners:view の element と lazy index child を持つ", () => {
+  it(":id は owners:view の element と lazy index child を持つ", async () => {
     const idRoute = ownersChildren.find((child) => child.path === ":id");
     expect(idRoute).toBeDefined();
     expect(idRoute?.lazy).toBeUndefined();
@@ -113,5 +124,12 @@ describe("EMR-463 /owners route structure", () => {
     expect(leaf?.index).toBe(true);
     expect(leaf?.lazy).toEqual(expect.any(Function));
     expect(leaf?.element).toBeUndefined();
+    const resolved = await resolveLazy(leaf?.lazy);
+    const [{ OwnerFormPage }, owners] = await Promise.all([
+      import("@/app/pages/OwnerFormPage"),
+      import("@/features/owners"),
+    ]);
+    expect(resolved.Component).toBe(OwnerFormPage);
+    expect(resolved.loader).toBe(owners.ownerLoader);
   });
 });
