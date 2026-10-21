@@ -764,3 +764,28 @@ describe("再印刷の照会が権限エラーだったときの key 保持", ()
     expect(lookupKeys.every((k) => k === reprintKey)).toBe(true);
   });
 });
+
+describe("権限の取り直しに失敗したとき", () => {
+  it("context の再取得が失敗したら、古い can_issue で解除せずブロックのままにする", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const view = renderScreen(api);
+    await createPreview(user);
+    permission.canEdit = false;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    await screen.findByText("この操作を行う権限がありません");
+
+    permission.canEdit = true;
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    controls.failNext("getContext", { error: new CertificateApiError("network") });
+    await user.click(screen.getByRole("button", { name: "権限を再確認して続ける" }));
+    await waitFor(() => expect(callsOf(controls, "getContext").length).toBeGreaterThanOrEqual(2));
+    expect(screen.getByText("この操作を行う権限がありません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "プレビューを作成" })).toBeNull();
+
+    // 次の取り直しが成功すれば再開できる。
+    await user.click(screen.getByRole("button", { name: "権限を再確認して続ける" }));
+    expect(await screen.findByRole("button", { name: "プレビューを作成" })).toBeEnabled();
+  });
+});

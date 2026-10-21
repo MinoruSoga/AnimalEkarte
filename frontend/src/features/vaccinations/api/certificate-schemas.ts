@@ -216,11 +216,13 @@ export function isPdfBase64(value: string): boolean {
     // 途中で切れた PDF を弾く: 末尾の一定範囲に %%EOF があること（直後の空白・改行は許容）。
     // 全長は 4 の倍数なので、末尾から 4 の倍数文字を切り出せば decode の境界が合う。
     const tail = value.slice(Math.max(0, value.length - PDF_EOF_WINDOW_CHARS));
-    return atob(tail).includes("%%EOF");
+    return PDF_EOF_PATTERN.test(atob(tail));
   } catch {
     return false;
   }
 }
+/** 最後の %%EOF の後ろは空白類（CR / LF / 空白 / タブ / NUL / FF）だけを許す。 */
+const PDF_EOF_PATTERN = /%%EOF[\r\n\t\f \0]*$/;
 /** 末尾 2049 バイト相当（4 の倍数）。PDF 仕様は %%EOF を末尾 1024 バイト内に置くことを求める。 */
 const PDF_EOF_WINDOW_CHARS = 2732;
 const pdfBase64 = z.string().min(1).refine(isPdfBase64, "pdf_base64 が PDF ではありません");

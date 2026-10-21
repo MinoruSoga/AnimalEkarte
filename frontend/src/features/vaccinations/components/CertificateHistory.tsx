@@ -7,7 +7,7 @@ import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateContext, CertificateKind } from "../api/certificate-schemas";
 import { KIND_LABEL } from "../lib/certificate-inputs";
 import { CertificateEditionRow } from "./CertificateEditionRow";
-import { certificateOperationRegistry, releaseReprintStore, reprintStoreFor } from "../lib/certificate-operation-registry";
+import { certificateOperationRegistry, releaseReprintStore, reprintStoreFor, retainReprintStore } from "../lib/certificate-operation-registry";
 import { certificateHistoryPageQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface CertificateHistoryProps {
@@ -29,7 +29,7 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
   // 離れるときは、未確定の key を持つ store だけを残す（StrictMode の模擬 unmount でも再登録する）。
   useEffect(() => {
     const registry = certificateOperationRegistry(queryClient);
-    registry.reprintStores.set(vaccinationId, reprintStore);
+    retainReprintStore(registry, vaccinationId, reprintStore);
     return () => releaseReprintStore(registry, vaccinationId, reprintStore);
   }, [queryClient, vaccinationId, reprintStore]);
   const kinds: CertificateKind[] = (["normal", "rabies"] as const).filter(

@@ -64,7 +64,8 @@ export function VaccinationCertificateScreen({
   // 再開の判断用: context を取り直し、取り直した後の can_issue を返す（取得できなければ false）。
   const refetchCanIssue = useCallback(async () => {
     const result = await context.refetch();
-    return result.data?.can_issue ?? false;
+    // 取り直しに失敗したときは data が古い値のまま残る。成功した取得の値だけで判断し、失敗は「回復なし」とする。
+    return result.isSuccess && !result.isError ? result.data.can_issue : false;
   }, [context]);
 
   if (context.isPending) {

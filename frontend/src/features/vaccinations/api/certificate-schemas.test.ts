@@ -109,6 +109,8 @@ describe("preview PDF payload の検証", () => {
     expect(isPdfBase64(`${mockPdfBase64()}=`)).toBe(false); // 長さが 4 の倍数でない
     expect(isPdfBase64(`${mockPdfBase64().slice(0, 40)}`)).toBe(false); // 途中で切れている（%%EOF なし）
     expect(isPdfBase64(btoa("%PDF-1.4\nbody\n%%EOF\r\n  \n"))).toBe(true); // 末尾の空白は許容
+    expect(isPdfBase64(btoa("%PDF-1.4\n%%EOF\nGARBAGE"))).toBe(false); // %%EOF の後ろに空白以外がある
+    expect(isPdfBase64(btoa("%PDF-1.4\n%%EOF\n%%EOF"))).toBe(true); // 最後の %%EOF で終わる
     expect(isPdfBase64(btoa(`%PDF-1.4\n${"x".repeat(10_000)}\n%%EOF\n`))).toBe(true); // 大きい本体でも末尾で判定
   });
 

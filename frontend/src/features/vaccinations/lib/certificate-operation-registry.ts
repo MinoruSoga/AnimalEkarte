@@ -21,13 +21,15 @@ export interface CertificateOperationRegistry {
   readonly issuePending: Map<number, IssuePending>;
   /** 再印刷の store（edition ごとの key と進行状態）。 */
   readonly reprintStores: Map<number, ReprintStore>;
+  /** 離脱後に store を外す予約（購読の解除関数）。同じ接種記録の store が再び使われたら取り消す。 */
+  readonly releases: Map<number, () => void>;
 }
 
 export function certificateOperationRegistry(queryClient: QueryClient): CertificateOperationRegistry {
   const existing = queryClient.getQueryData<CertificateOperationRegistry>(REGISTRY_QUERY_KEY);
   if (existing !== undefined) return existing;
   queryClient.setQueryDefaults(REGISTRY_QUERY_KEY, { gcTime: Infinity, structuralSharing: false });
-  const created: CertificateOperationRegistry = { issuePending: new Map(), reprintStores: new Map() };
+  const created: CertificateOperationRegistry = { issuePending: new Map(), reprintStores: new Map(), releases: new Map() };
   queryClient.setQueryData(REGISTRY_QUERY_KEY, created);
   return created;
 }
@@ -41,21 +43,42 @@ export function releaseReprintStore(
   vaccinationId: number,
   store: ReprintStore,
 ): void {
+  cancelRelease(registry, vaccinationId);
   const drop = () => {
     if (registry.reprintStores.get(vaccinationId) === store) registry.reprintStores.delete(vaccinationId);
   };
   if (!store.hasPending()) return drop();
   const off = store.subscribe(() => {
     if (store.hasPending()) return;
-    off();
+    cancelRelease(registry, vaccinationId);
     drop();
   });
+  registry.releases.set(vaccinationId, off);
+}
+
+/** 離脱後の解放予約を取り消す（その store が再び画面で使われるとき）。 */
+function cancelRelease(registry: CertificateOperationRegistry, vaccinationId: number): void {
+  registry.releases.get(vaccinationId)?.();
+  registry.releases.delete(vaccinationId);
+}
+
+/** store を画面が使い始める。予約済みの解放があれば取り消し、登録簿に置く。 */
+export function retainReprintStore(
+  registry: CertificateOperationRegistry,
+  vaccinationId: number,
+  store: ReprintStore,
+): void {
+  cancelRelease(registry, vaccinationId);
+  registry.reprintStores.set(vaccinationId, store);
 }
 
 /** 接種記録の再印刷 store。なければ作る（同じ接種記録に戻ると同じ store を返す）。 */
 export function reprintStoreFor(registry: CertificateOperationRegistry, vaccinationId: number): ReprintStore {
   const existing = registry.reprintStores.get(vaccinationId);
-  if (existing !== undefined) return existing;
+  if (existing !== undefined) {
+    cancelRelease(registry, vaccinationId);
+    return existing;
+  }
   const created = createReprintStore();
   registry.reprintStores.set(vaccinationId, created);
   return created;

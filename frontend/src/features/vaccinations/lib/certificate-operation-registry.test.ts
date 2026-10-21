@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import type { IssuePending } from "./certificate-issue-reducer";
-import { certificateOperationRegistry, releaseReprintStore, reprintStoreFor } from "./certificate-operation-registry";
+import { certificateOperationRegistry, releaseReprintStore, reprintStoreFor, retainReprintStore } from "./certificate-operation-registry";
 
 const pending = {
   key: "11111111-1111-4111-8111-111111111111",
@@ -55,5 +55,16 @@ describe("再印刷 store の解放", () => {
     expect(registry.reprintStores.get(101)).toBe(store);
     store.set(1, entry(false));
     expect(registry.reprintStores.has(101)).toBe(false);
+  });
+
+  it("解放を予約した後に同じ store が再び使われたら予約を取り消し、使用中の store を消さない", () => {
+    const registry = certificateOperationRegistry(new QueryClient());
+    const store = reprintStoreFor(registry, 101);
+    store.set(1, entry(true));
+    releaseReprintStore(registry, 101, store); // 離脱（未確定なので残して予約）
+    retainReprintStore(registry, 101, store); // 戻る
+    store.set(1, entry(false)); // 確定
+    expect(registry.reprintStores.get(101)).toBe(store);
+    expect(reprintStoreFor(registry, 101)).toBe(store);
   });
 });
