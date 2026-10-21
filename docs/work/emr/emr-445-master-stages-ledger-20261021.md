@@ -99,4 +99,6 @@
 
 ## 今回5枠の限定追補
 
+本節の基準mainは `06213d5778807f9ecbc9a8501dd579e8190a0d3b`（#804採用）。冒頭の `755f77abd2e6d63a2fc608fcfe6a518a61afcfff` は元の履歴調査基準であり、本節の追加受領範囲と区別する。
+
 [①A〜E引渡し表](emr-445-stage1-contract-start-plan-20261021.md#stage-current-five-20261021)で今回の共有契約/生成/限定master hunkと次便の既選定subsetを区別する。直接22票＋498 master＋297-A設定subsetの①24管理行は②26resource・③検索72用途とは別集計で、24行すべて実装完了という意味ではない。493の休業元targetと297-Aの設定mapping版は既選定保存契約の①受領漏れ補正。A採用modelと同一固定commitの本人生成結果をBが最終受領し、A前の生成結果だけで①全体完了にしない。未割当を未設計とせず、計画追補を実装開始・全親Done・品質証明へ換算しない。試験NOT_RUN。
