@@ -56,7 +56,9 @@ export function editionPageMatches(
       edition.vaccination_id === expected.vaccinationId &&
       edition.kind === expected.kind &&
       edition.snapshot.kind === expected.kind &&
-      edition.snapshot.source.vaccination_id === expected.vaccinationId,
+      edition.snapshot.source.vaccination_id === expected.vaccinationId &&
+      // 外側の source_version は発行時の接種版で、保存 snapshot の source.version と同じ値（契約）。食い違う応答は混在・古い応答として拒否する。
+      edition.source_version === edition.snapshot.source.version,
   );
 }
 
