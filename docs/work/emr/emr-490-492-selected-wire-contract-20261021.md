@@ -25,7 +25,7 @@ contact queryとcommon queryを別DTO・別検索処理にする。contactは同
 
 ### 1.1 新規登録DTO・原子性
 
-既存createOwnerRequestとpets[]を移行adapterで再利用する。追加 envelope は operation_key(UUID)、必要な identity_decisions[]。患者項目の上限・null/省略・gender・DOB検証は既存DTO/491型対応をそのまま用い、保存storage型をAPIへ公開しない。追加の臨床必須項目や自由文理由を設けない。
+既存createOwnerRequestとpets[]の公開field・検証意味を移行adapterで再利用する。ただしdiscount_rateとpets[].weightのfloat64 decodeは再利用せず、JSON numberのwireを維持した存在/null付きjson.RawMessage又はjson.NumberからExactNumericへ直接decodeする。追加 envelope は operation_key(UUID)、必要な identity_decisions[]。患者項目の上限・null/省略・gender・DOB検証は既存DTO/491型対応をそのまま用い、保存storage型をAPIへ公開しない。追加の臨床必須項目や自由文理由を設けない。
 
 再送identityはC06 operation_keyだけとする。第二registration_request_id・dedup registryは設けない。同key/同Contentは同じ成功owner/pet IDsへreplayし、異Contentはconflict。in-progress/unknown中は新key救済を禁止し、元keyの現在認可付きlookupを継続する。確定拒否後のCASだけの変更はC06既存規則、業務入力の変更は旧結果確定後の新keyへ。異なるkeyの独立した新規登録を電話/メール/氏名一致で同一操作に潰さない。different_peopleとして同連絡先の複数登録は許可し、スタッフsame_person確認による新規停止は維持する。これでC06再送に必要な二重実行防止を満たすが、誤って独立した新操作を起こした場合まで自動名寄せで防ぐ保証は加えない。
 
@@ -158,6 +158,12 @@ PR #784 の追加補正（review 4332795869、共有R4採択契約）に従い�
 - reorder: operation_key,items[{id,expected_version}]。配列順が保存順、ID重複不可。clinicの非削除type/group集合をgate内で再検索し同集合でなければdependency-changed。意図した順序をID順ソートしない。
 - expected_group_versionsは今回参照する旧/新groupの{id,version}集合、ID昇順、重複不可。create typeのgroup_idが非NULLならexpected_group_versionsは選択groupの{id,version}厳密1件を必須とし、groupなしでは空集合を必須とする。既存group版が変われば再確認する。groupの状態・権限を版が同じだけで省略しない。
 - 個別activeのcreate省略は既存is_activeのtrue defaultへ正規化する。group createも同様。予約公開用fieldは既存意味のままで、本変更からLINE公開範囲/開始枠ルールを拡張しない。category/種別color/occupation関連fieldは拒否。
+
+### 5.2a 登録十進入力のlossless adapter
+
+discount_rateとpets[].weightはJSON number tokenをbinary floatへ通す前にexact decimalとして検証・正規化し、commandとHMAC projectionの同じ不変値へ束縛する。数値の指数表記・末尾0は同じ十進値へ正規化するが、別の十進値をfloat64の一致により同一視しない。公開wireをstringへ変更せず、存在/null/defaultと既存の率・体重validationは継承し、新しい範囲・小数桁数の入力制限を追加しない。既存float64 ServiceInputへの変換で精度を失わないよう、この登録participantの必要decimal fieldをExactNumericでambient writerまで渡す限定adapterを必須とする。
+
+保存尺度は最終DDL/491の対象列に従う。owners.discount_rateはnumeric(5,2)の既存保存尺度を維持し、exact値から既存PostgreSQL numeric代入のscale変換を行う。commitmentはその保存丸め前の検証済入力値を保持するため、同じ保存値に丸まる別入力でも同key内容一致としない。登録weightの新common経路はcommon_pet_basic_revisions.registration_weightの無指定scale numericへ保存し、既にDROP済みの旧pets.weight numeric(6,2)を根拠に一律2桁丸めを復活させない。491の既存validation/単位/未設定の意味は変更しない。旧経路を黙ってfallbackにせず、このexact adapterと選定保存先の接続を登録activationの条件にする。fixtureは1.20/1.2/12e-1の同一値、float64で潰れる異なる有効十進値の別commitment、numeric(5,2)の既存保存scale、weight精度保持、null/省略/0の既存判定、同key異値conflict。NOT_RUN。
 
 ### 5.3 hash / Preconditions / captured payload
 

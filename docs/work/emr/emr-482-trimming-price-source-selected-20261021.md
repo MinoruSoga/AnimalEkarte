@@ -46,7 +46,7 @@ GET responseはclosed `{appointment_id,detail_id,appointment_version,detail_revi
 
 POST bodyはclosed `{operation_key,lines,preconditions}`。linesは今回の全source集合で、各要素closed `{source_line_id,master,adoption,adopted_master,input,tax_adoption,tax_input}`。source_line_idは新規master初採用時のみnull、既存はcanonical ID。adoption=`retain|adopt_current`。retainは直前の同source採用値と完全一致、adopt_currentは指定master現在版/価格と完全一致。重複master/source、複数course、同ID別master、clinic/detail不一致、未知fieldは拒否。empty linesは施術記録の部分保存として許可し、請求可能な架空0円行を作らない。preconditionsはclosed `{appointment_version,detail_revision,source_digest}`。CAS-only前提と、入力に明示した採用元master版という業務内容を区別する。
 
-新規source行採番、全revision lines、detail_values、audit、receiptは同TX。source集合の変更を旧SetOptionsと別TXに分けない。新source_line_idはreceipt detailsで返す。全入力が現保存値と同じなら成功receiptを保存し `changed=false`、同じcurrent revisionを返す。no-opで新revision/業務auditを増やさず、再送は同receipt。旧snapshotなしの新たな明示採用はno-op扱いしない。
+新規source行採番、全revision lines、detail_values、audit、receiptは同TX。source集合の変更を旧SetOptionsと別TXに分けない。新source_line_idは下記の固定receipt details readerで返す。全入力が現保存値と同じなら成功receiptを保存し `changed=false`、同じcurrent revisionを返す。no-opで新revision/業務auditを増やさず、再送は同receipt。旧snapshotなしの新たな明示採用はno-op扱いしない。
 
 `detail_values` はT4の閉じたschema=1 projectionとして `{schema_version,appointment_id,owner_id,pet_id,style_request,body_weight,bw_unit,body_temperature,used_shampoo,used_ribbon,remarks,style_image,completed_image}` を保存する。IDはnullableを現在model通り保持、本文/画像は保存済みstring、身体数値はnullable exact decimal、bw_unitは既存BodyWeightUnit enum又はnull。POST価格bodyから本文は更新しない。対応本文writerも同じT4保存関数で全projectionと価格行を同TX改訂するので、価格更新が旧本文へ巻き戻さない。
 
@@ -150,7 +150,7 @@ schemaはそれぞれ `trimming-price-revision-v1` / `trimming-source-import-v1`
 
 最小metadata新表候補 `trimming_billing_operation_targets(clinic_id,operation_id,appointment_id,billing_id)`。clinic_id/operation_idはNOT NULL正bigint、appointment_id/billing_idはnullable正bigint、PK(clinic_id,operation_id)、binding複合FK RESTRICT、price intentはappointment_idのみ、billing intentsはbilling_idのみというCHECK/insert guard。immutable、既存apply_rls_policy clinic scope、scoped repo。業務targetへのFKを張らず短いclaimで業務lockを先取りしない。489 ClaimMetadataWriterのwinnerだけ同claim TXで保存し、失敗はclaimもrollback。第二operation registry/別fingerprintは作らない。元target消失/失権/別target再送は元anchorでfail-closedし、最新request targetで認可を代替しない。
 
-price成功result_refs `{appointment_id,detail_id,detail_revision_id}`、committed_versions `{detail,appointment}`。import成功result_refs `{billing_id,billing_item_id,calculation_id}`、committed_versions `{billing,item,binding,source,calculation}`。resolution成功result_refs `{billing_id,billing_item_id,difference_id,calculation_id}`、committed_versionsはimportと同形。calculation_idはkeepの場合現在保存ID。成功recorded_at必須。詳細は固定保存revision/binding履歴/監査から返し、current値を過去receiptへ代入しない。price no-opはdetails.changed=false、それ以外true。financial_effect/inventory_effectはnone（請求額改訂と実金銭移動は別）。
+price成功result_refs `{appointment_id,detail_id,detail_revision_id}`、committed_versions `{detail,appointment}`。import成功result_refs `{billing_id,billing_item_id,calculation_id}`、committed_versions `{billing,item,binding,source,calculation}`。resolution成功result_refs `{billing_id,billing_item_id,difference_id,calculation_id}`、committed_versionsはimportと同形。calculation_idはkeepの場合現在保存ID。成功recorded_at必須。詳細は固定保存revision/binding履歴/監査から返し、current値を過去receiptへ代入しない。price no-opは専用detailsのchanged=false、それ以外true。financial_effect/inventory_effectはnone（請求額改訂と実金銭移動は別）。
 
 現C06 ResultResponse直body、12status/HTTPは succeeded/replayed/not-succeeded=200、operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、validation=400、scope-not-found=404、not-authorized=403。非成功はstatus/operation_keyだけ。pre-C06構文拒否だけ既存ErrorResponse。unknown/busyで新key再発行・再取込・自動補償しない。成功receiptは後続source失効でも過去成功のまま。現在認可を満たすlookupで原結果を再取得する。
 
@@ -159,6 +159,12 @@ price成功result_refs `{appointment_id,detail_id,detail_revision_id}`、committ
 - action=`trimming_source_import`、resource=`billings`、resource_id=billing ID、old/new=`{billing_version,calculation_id}`、metadata=`{schema_version,operation_id,operation_key,billing_item_id,source_line_id,source_revision,binding_version}`。
 - action=`trimming_source_resolution`、resource=`billings`、old/new同上、metadataはimport同形に`decision,difference_id`を追加。
 必要な既表拡張として trimming_detail_revisions.operation_id nullable bigint と billing_source_difference_resolutions.operation_id nullable bigint / decision nullable text(apply_source|keep_billing)を追加する。既存行はnullを保持、新writerは必須、operation_idはclinic付きbinding FK RESTRICT、actor/key/intentの一致guard、新枝だけ成功receipt必須のdeferred検査を設ける。既存immutable/RLSは保持し、no-opは既存revisionのoperation_idを書き換えず今回receiptだけを追加する。独立resolution_idや第二履歴表は不要。新historyの成功operation参照はreceiptと同TXを検証し、audit失敗もrollback。業務no-opだけ新auditを作らない。Contentと監査の大きい本文を二重fingerprint正本にしない。
+
+### 7.1 price成功detailsのclosed response
+
+GET `/trimmings/{appointment_id}/price-operations/{operation_key}/details` はintent=`trimming.price_revision`固定、元C06 scope・保存anchor・現在trimming:viewを検査する。通常の結果GETとPOSTは既存ResultResponseのままとし、details/EffectSummaryを共通DTOへ追加しない。非成功は§7の既存status/HTTPとstatus/operation_keyのみ。成功時の専用response exact keysは `{status,operation_key,result_refs,committed_versions,recorded_at,changed,lines}`。statusはsucceeded又はreplayed、refs/versions/recorded_atは元成功receipt保存値、changedはboolean。linesは元receiptのdetail_revision_idが指すimmutable revisionの全行で、各要素exact `{source_line_id,master}`、master exact `{kind,id}`（kind=trimming_course|trimming_option、IDはcanonical正十進文字列）、master kind/id順。入力の新規source_line_id=nullも、request内で一意なmaster kind/idにより採番結果へ照合でき、現在revisionや入力順から推測しない。
+
+price Applyは既存C06 Result.EffectSummaryのallowlistに `changed` を追加し、値を文字列 `true|false` として成功receiptと同TXで保存する。これは内部保存のみで、専用readerがbooleanへ検証変換する。no-opでも元current revisionのIDとchanged=falseを今回receiptへ固定し、後日currentの比較でchangedを再計算しない。固定revision・行集合・保存changedの欠落/不整合は現在認可後503 result-unavailableで止め、falseや空linesへ補完しない。新永続表/第二receiptは作らない。fixtureは新規masterのnull→ID対応、並行source追加、no-op後の別改訂でも元changed/lines不変、失権/別scope非開示、内部EffectSummaryが共通ResultResponseへ漏れないこと。NOT_RUN。
 
 ## 8. 最小実装sliceと未決の限定
 
