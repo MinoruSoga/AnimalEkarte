@@ -259,26 +259,26 @@ export const certificateEditionPageSchema = z.object({
 });
 export type CertificateEditionPage = z.infer<typeof certificateEditionPageSchema>;
 
-const operationKey = z
+export const certificateOperationKeySchema = z
   .string()
   .regex(/^(?!00000000-0000-0000-0000-000000000000$)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
 
-const succeededSchema = z.object({
+export const certificateSucceededResultSchema = z.object({
   status: z.enum(["succeeded", "replayed"]),
-  operation_key: operationKey,
+  operation_key: certificateOperationKeySchema,
   // ID は string 値のまま保持（Number へ変換しない）。
   result_refs: z.record(z.string(), z.string()),
   committed_versions: z.record(z.string(), z.string()),
   recorded_at: z.string(),
 });
-const notSucceededSchema = z.object({
+export const certificateNotSucceededResultSchema = z.object({
   status: z.literal("not-succeeded"),
-  operation_key: operationKey,
+  operation_key: certificateOperationKeySchema,
 });
 
-export const certificateResultSchema = z.union([succeededSchema, notSucceededSchema]);
+export const certificateResultSchema = z.union([certificateSucceededResultSchema, certificateNotSucceededResultSchema]);
 export type CertificateResult = z.infer<typeof certificateResultSchema>;
-export type CertificateSucceededResult = z.infer<typeof succeededSchema>;
+export type CertificateSucceededResult = z.infer<typeof certificateSucceededResultSchema>;
 
 /** 成功 result から edition / artifact の ID(string) を取り出す。欠落は契約違反として null。 */
 export function readSucceededRefs(

@@ -5,8 +5,14 @@ import type { CertificateApi } from "./certificate-api";
 import {
   CertificateApiError,
   classifyCertificateError,
+  classifyRecoveryError,
   type ErrorBody,
 } from "./certificate-errors";
+import { recoveryPageMatchesRequest } from "./certificate-recovery-binding";
+import {
+  certificateRecoveryQueryRequestSchema,
+  certificateRecoveryQueryResponseSchema,
+} from "./certificate-recovery-schemas";
 import { editionPageMatches, editionVersionConsistent, savedPreviewMatches } from "./certificate-binding";
 import {
   certificateContextSchema,
@@ -66,14 +72,16 @@ async function readErrorBody(data: unknown): Promise<ErrorBody | null> {
   return asErrorBody(data);
 }
 
-async function toApiError(error: unknown): Promise<CertificateApiError> {
+type Classifier = typeof classifyCertificateError;
+
+async function toApiError(
+  error: unknown,
+  classify: Classifier = classifyCertificateError,
+): Promise<CertificateApiError> {
   if (error instanceof CertificateApiError) return error;
   if (isAxiosError(error)) {
-    if (error.response === undefined) return classifyCertificateError(undefined, null);
-    return classifyCertificateError(
-      error.response.status,
-      await readErrorBody(error.response.data),
-    );
+    if (error.response === undefined) return classify(undefined, null);
+    return classify(error.response.status, await readErrorBody(error.response.data));
   }
   return new CertificateApiError("network");
 }
@@ -87,11 +95,11 @@ function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S> {
   return result.data;
 }
 
-async function call<T>(run: () => Promise<T>): Promise<T> {
+async function call<T>(run: () => Promise<T>, classify: Classifier = classifyCertificateError): Promise<T> {
   try {
     return await run();
   } catch (error) {
-    throw await toApiError(error);
+    throw await toApiError(error, classify);
   }
 }
 
@@ -204,6 +212,28 @@ export function createHttpCertificateApi(): CertificateApi {
         }),
       );
       return parse(certificateResultSchema, data);
+    },
+    // EMR-487 Slice A: 実 route は契約 selected・runtime 未実装（NOT-CONNECTED）。BE 完成までは 404/5xx になり、
+    // その失敗は保留（新しい操作を始めさせない）として扱う。モックへの自動フォールバックは無い。
+    async queryOperationRecovery(request, signal) {
+      // 送信前に契約を強制する: issue は edition_id=null、reprint は正の安全整数。違反は送らない。
+      const checked = certificateRecoveryQueryRequestSchema.safeParse(request);
+      if (!checked.success) {
+        throw new CertificateApiError("validation", { message: "回復照会の要求が契約に合いません" });
+      }
+      const { data } = await call(
+        () =>
+          axios.post<unknown>(`${BASE}/vaccination-certificate-operation-recovery/query`, checked.data, {
+            signal,
+          }),
+        classifyRecoveryError,
+      );
+      const page = parse(certificateRecoveryQueryResponseSchema, data);
+      // 形が正しいだけの別 intent・別接種・別版の結果を、この要求の応答として採用しない。
+      if (!recoveryPageMatchesRequest(page, checked.data)) {
+        throw new CertificateApiError("malformed", { message: "回復照会の応答が要求した対象と一致しません" });
+      }
+      return page;
     },
   };
 }

@@ -45,6 +45,13 @@ export interface UseCertificateIssueArgs {
   onRefetchContext: () => void;
   /** context を取り直し、最新の can_issue を返す（再開の判断に古い値を使わない）。 */
   refetchCanIssue: () => Promise<boolean>;
+  /**
+   * 新しい operation key を作る直前の関門（EMR-487 Slice A）。再 mount / reload 後の回復 discovery で
+   * 未確定の操作が見つかっている・確認できていない間は false。false なら key を作らない。
+   */
+  ensureRecoveryClear: () => Promise<boolean>;
+  /** 自分のフローが同じ key の束縛済みの成功を確認したときに通知する（発見側の保留を外すため）。 */
+  onBoundSuccess: (key: string, refs: { editionId: string; artifactId: string }) => void;
 }
 
 function initialFor({ context, restored }: { context: CertificateContext; restored: IssuePending | undefined }): IssueState {
@@ -61,6 +68,8 @@ export function useCertificateIssue({
   getCanEdit,
   onRefetchContext,
   refetchCanIssue,
+  ensureRecoveryClear,
+  onBoundSuccess,
 }: UseCertificateIssueArgs) {
   const queryClient = useQueryClient();
   const registry = useMemo(() => certificateOperationRegistry(queryClient), [queryClient]);
@@ -73,6 +82,8 @@ export function useCertificateIssue({
   const epochRef = useRef(0);
   // 結果の照会は同時に 1 本だけ（重なった照会が先に確定した結果を後から上書きしない）。
   const lookupBusyRef = useRef(false);
+  // key を作る前の関門（非同期）の間に二重に進まないための印。
+  const mintingRef = useRef(false);
   const [checking, setChecking] = useState(false);
   // 非同期ハンドラが最新の state を読むための ref（render 中には書かない）。
   const stateRef = useRef(state);
@@ -184,9 +195,10 @@ export function useCertificateIssue({
         return;
       }
       dispatch({ type: "issueOk", refs: { ...refs, replayed: result.status === "replayed" } });
+      onBoundSuccess(pending.key, refs);
       onRefetchContext();
     },
-    [onRefetchContext, vaccinationId],
+    [onRefetchContext, onBoundSuccess, vaccinationId],
   );
 
   const lookup = useCallback(
@@ -237,25 +249,34 @@ export function useCertificateIssue({
   );
 
   const issue = useCallback(async () => {
-    const current = stateRef.current;
-    if (current.phase !== "previewed" || current.preview === null || current.previewRequest === null) return;
-    if (!getCanEdit()) return fail("forbidden", "blocked");
-    // key は確認済み preview 1 つに束縛して、発行の直前に 1 度だけ作る。
-    const key = newOperationKey();
-    const pending: IssuePending = {
-      key,
-      request: {
-        ...current.previewRequest,
-        operation_key: key,
-        preview_fingerprint: current.preview.preview_fingerprint,
-        preview_display_issue_date: current.preview.snapshot.display_issue_date,
-      },
-    };
-    // POST を送る前に登録簿へ置く。以後に画面を離れても、この key を失わずに照会できる。
-    registry.issuePending.set(vaccinationId, pending);
-    dispatch({ type: "issueStart", pending });
-    await execute(pending);
-  }, [execute, getCanEdit, fail, registry, vaccinationId]);
+    if (mintingRef.current) return;
+    mintingRef.current = true;
+    let pending: IssuePending | null = null;
+    try {
+      // 回復 discovery の関門。保留・未確認なら key を作らない（空/complete を許可とみなさない）。
+      if (!(await ensureRecoveryClear())) return;
+      const current = stateRef.current;
+      if (current.phase !== "previewed" || current.preview === null || current.previewRequest === null) return;
+      if (!getCanEdit()) return fail("forbidden", "blocked");
+      // key は確認済み preview 1 つに束縛して、発行の直前に 1 度だけ作る。
+      const key = newOperationKey();
+      pending = {
+        key,
+        request: {
+          ...current.previewRequest,
+          operation_key: key,
+          preview_fingerprint: current.preview.preview_fingerprint,
+          preview_display_issue_date: current.preview.snapshot.display_issue_date,
+        },
+      };
+      // POST を送る前に登録簿へ置く。以後に画面を離れても、この key を失わずに照会できる。
+      registry.issuePending.set(vaccinationId, pending);
+      dispatch({ type: "issueStart", pending });
+    } finally {
+      mintingRef.current = false;
+    }
+    if (pending !== null) await execute(pending);
+  }, [execute, getCanEdit, fail, registry, vaccinationId, ensureRecoveryClear]);
 
   /** 結果不明の手動照会（同 key）。 */
   const recheck = useCallback(async () => {

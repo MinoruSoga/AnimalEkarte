@@ -31,8 +31,15 @@ export function useCertificateReprint(args: {
   /** mutation 直前に最新の edit 権限を返す（UI の disabled だけを最終防壁にしない）。 */
   getCanEdit: () => boolean;
   store: ReprintStore;
+  /**
+   * 新しい operation key を作る直前の関門（EMR-487 Slice A）。回復 discovery で未確定の再印刷が見つかっている・
+   * 確認できていない間は false。false なら key を作らない。
+   */
+  ensureRecoveryClear: () => Promise<boolean>;
+  /** 自分のフローが同じ key の束縛済みの成功を確認したときに通知する（発見側の保留を外すため）。 */
+  onBoundSuccess: (key: string, refs: { editionId: string; artifactId: string }) => void;
 }) {
-  const { api, edition, sourceVersion, onRefetch, getCanEdit, store } = args;
+  const { api, edition, sourceVersion, onRefetch, getCanEdit, store, ensureRecoveryClear, onBoundSuccess } = args;
   const editionKey = edition.id;
   const entry = useSyncExternalStore(
     store.subscribe,
@@ -70,8 +77,9 @@ export function useCertificateReprint(args: {
         return;
       }
       commit({ pending: null, state: { phase: "done", ...refs, replayed: result.status === "replayed" } });
+      onBoundSuccess(pending.request.operation_key, refs);
     },
-    [commit, edition.vaccination_id],
+    [commit, edition.vaccination_id, onBoundSuccess],
   );
 
   const lookup = useCallback(
@@ -138,6 +146,10 @@ export function useCertificateReprint(args: {
     async (layout: CertificateLayout) => {
       // 結果不明の操作が残っている間は新しい key を作らない（同 key の照会・再試行だけ）。
       if (store.get(editionKey).pending !== null) return;
+      // 回復 discovery の関門。保留・未確認なら key を作らない（空/complete を許可とみなさない）。
+      if (!(await ensureRecoveryClear())) return;
+      // 関門の待ちの間に別の操作が始まっていたら、二重に key を作らない。
+      if (store.get(editionKey).pending !== null) return;
       await execute({
         editionId: String(editionKey),
         request: {
@@ -147,7 +159,7 @@ export function useCertificateReprint(args: {
         },
       });
     },
-    [store, editionKey, sourceVersion, execute],
+    [store, editionKey, sourceVersion, execute, ensureRecoveryClear],
   );
 
   const recheck = useCallback(async () => {

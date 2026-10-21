@@ -16,7 +16,12 @@ export type CertificateErrorKind =
   | "render-unavailable" // 503 render_failed / artifact_unavailable
   | "network" // 応答なし・タイムアウト
   | "server" // 500 ほか
-  | "malformed"; // 応答形式が契約外
+  | "malformed" // 応答形式が契約外
+  // EMR-487 Slice A: 回復 discovery 専用。いずれも「未確定の操作を確認できない」= 保留として扱い、
+  // 既存の scope-not-found（=未 claim。新しい key へ進める）とは別物にする。
+  | "recovery-scope-not-found" // 404 SCOPE_NOT_FOUND（存在を開示しない）
+  | "recovery-conflict" // 409 RECOVERY_*
+  | "recovery-unavailable"; // 503 RESULT_UNAVAILABLE
 
 export class CertificateApiError extends Error {
   readonly kind: CertificateErrorKind;
@@ -91,5 +96,28 @@ export function classifyCertificateError(
     }
     return new CertificateApiError("result-unavailable", init);
   }
+  return new CertificateApiError("server", init);
+}
+
+/**
+ * 回復 discovery（POST /vaccination-certificate-operation-recovery/query）専用の分類。
+ * 新エラー形 {error,code}（code: VALIDATION / NOT_AUTHORIZED / SCOPE_NOT_FOUND / RECOVERY_* / RESULT_UNAVAILABLE）。
+ * 既存 C06 の classifyCertificateError は変更しない。どの失敗も「保留」で、未 claim・失敗確定には読み替えない。
+ */
+export function classifyRecoveryError(
+  httpStatus: number | undefined,
+  body: ErrorBody | null,
+): CertificateApiError {
+  const init = { message: body?.error, httpStatus, code: body?.code };
+  if (httpStatus === undefined) return new CertificateApiError("network", init);
+  if (httpStatus === 401) return new CertificateApiError("unauthenticated", init);
+  if (httpStatus === 403) return new CertificateApiError("forbidden", init);
+  if (httpStatus === 400 || httpStatus === 422) return new CertificateApiError("validation", init);
+  if (httpStatus === 404) {
+    // 契約外の 404（未実装 route など）を「対象なし」と読み替えない。
+    return new CertificateApiError(body?.code === "SCOPE_NOT_FOUND" ? "recovery-scope-not-found" : "server", init);
+  }
+  if (httpStatus === 409) return new CertificateApiError("recovery-conflict", init);
+  if (httpStatus === 503) return new CertificateApiError("recovery-unavailable", init);
   return new CertificateApiError("server", init);
 }

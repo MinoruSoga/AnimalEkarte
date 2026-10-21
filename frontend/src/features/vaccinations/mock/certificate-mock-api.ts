@@ -6,6 +6,7 @@ import type {
   CertificateReprintRequest,
 } from "../api/certificate-api";
 import { CertificateApiError } from "../api/certificate-errors";
+import { certificateRecoveryQueryRequestSchema } from "../api/certificate-recovery-schemas";
 import {
   emptyCertificateInputs,
   type CertificateContext,
@@ -25,6 +26,7 @@ import {
   mockPdfBase64,
   mockPdfBlob,
 } from "./certificate-fixtures";
+import { createMockRecoveryLog, type MockRecoveryLog } from "./certificate-recovery-mock";
 
 /**
  * EMR-487: 契約モック adapter（明示的に注入したときだけ使われる。実 API の代替ではない）。
@@ -41,7 +43,8 @@ export type MockOperationName =
   | "previewSaved"
   | "reprint"
   | "getArtifactContent"
-  | "lookupOperation";
+  | "lookupOperation"
+  | "queryOperationRecovery";
 
 export interface MockInjectedFailure {
   error: CertificateApiError;
@@ -79,6 +82,8 @@ export interface MockCertificateControls {
   /** 現在日付が変わった状況（preview の display_issue_date と不一致になる）。 */
   setToday(date: string): void;
   setCanIssue(value: boolean): void;
+  /** 回復 discovery の claim 台帳（EMR-487 Slice A）。発見対象の状態をテストから操作する。 */
+  recovery: Pick<MockRecoveryLog, "markUnavailable" | "closeWithoutEffect" | "seedUnresolved" | "get">;
   calls: { operation: MockOperationName; detail?: unknown }[];
 }
 
@@ -96,7 +101,8 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
   const operations = new Map<string, StoredOperation>();
   const artifacts = new Map<number, StoredArtifact>();
   const failures = new Map<MockOperationName, MockInjectedFailure>();
-  const claimedKeys = new Map<string, CertificateOperationIntent>();
+  // claim 済みの操作の台帳。lookup と回復 discovery の唯一の出所（二重管理しない）。
+  const recoveryLog = createMockRecoveryLog();
   const calls: MockCertificateControls["calls"] = [];
 
   const eligibilityState = options.rabiesEligible === true ? "eligible" : options.rabiesEligible === false ? "ineligible" : "unknown";
@@ -257,7 +263,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
       return track("issue", body, () => {
         const failure = takeFailure("issue");
         assertScope(vaccinationId);
-        if (failure?.claimOnly) claimedKeys.set(body.operation_key, "issue");
+        if (failure?.claimOnly) recoveryLog.claim(body.operation_key, "issue", null);
         if (failure && !failure.commitFirst) throw failure.error;
         if (!canIssue) throw new CertificateApiError("forbidden", { httpStatus: 403, code: "edit-right-lost", c06Status: "edit-right-lost" });
         const signature = contentSignature(body);
@@ -318,6 +324,8 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
           recorded_at: "2026-10-20T14:30:00Z",
         };
         operations.set(body.operation_key, { intent: "issue", contentSignature: signature, result });
+        recoveryLog.claim(body.operation_key, "issue", null);
+        recoveryLog.succeed(body.operation_key, result);
         if (failure) throw failure.error; // commitFirst: 確定済みだが応答は失われた
         return result;
       });
@@ -365,7 +373,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
     async reprint(editionId, body: CertificateReprintRequest) {
       return track("reprint", { editionId, body }, () => {
         const failure = takeFailure("reprint");
-        if (failure?.claimOnly) claimedKeys.set(body.operation_key, "reprint");
+        if (failure?.claimOnly) recoveryLog.claim(body.operation_key, "reprint", Number(editionId));
         if (failure && !failure.commitFirst) throw failure.error;
         const edition = findEdition(editionId);
         const signature = JSON.stringify([edition.id, body.layout]);
@@ -400,6 +408,8 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
           recorded_at: "2026-10-20T15:00:00Z",
         };
         operations.set(body.operation_key, { intent: "reprint", contentSignature: signature, result });
+        recoveryLog.claim(body.operation_key, "reprint", edition.id);
+        recoveryLog.succeed(body.operation_key, result);
         if (failure) throw failure.error;
         return result;
       });
@@ -417,6 +427,23 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
         return mockPdfBlob();
       });
     },
+    async queryOperationRecovery(request) {
+      return track("queryOperationRecovery", request, () => {
+        const failure = takeFailure("queryOperationRecovery");
+        if (failure) throw failure.error;
+        // 閉じた契約に反する要求は 400（reprint+null / issue+非 null を含む）。
+        if (!certificateRecoveryQueryRequestSchema.safeParse(request).success) {
+          throw new CertificateApiError("validation", { httpStatus: 400, code: "VALIDATION" });
+        }
+        // 別の接種・存在しない版は存在を開示しない 404 SCOPE_NOT_FOUND。
+        const unknownEdition =
+          request.intent === "reprint" && !editions.some((e) => e.id === request.target_ref.edition_id);
+        if (request.target_ref.vaccination_id !== boundVaccinationId || unknownEdition) {
+          throw new CertificateApiError("recovery-scope-not-found", { httpStatus: 404, code: "SCOPE_NOT_FOUND" });
+        }
+        return recoveryLog.query(request);
+      });
+    },
     async lookupOperation(operationKey, intent: CertificateOperationIntent) {
       return track("lookupOperation", { operationKey, intent }, () => {
         const failure = takeFailure("lookupOperation");
@@ -424,7 +451,8 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
         // 照会の scope は (operation_key, intent)。intent が違えば別 scope なので未 claim 扱い。
         const stored = operations.get(operationKey);
         const existing = stored?.intent === intent ? stored : undefined;
-        if (!existing && claimedKeys.get(operationKey) === intent) {
+        const claimed = recoveryLog.get(operationKey);
+        if (!existing && claimed?.intent === intent) {
           return { status: "not-succeeded", operation_key: operationKey } as CertificateResult;
         }
         if (!existing) {
@@ -448,6 +476,7 @@ export function createMockCertificateApi(options: MockCertificateOptions): {
     setCanIssue(value) {
       canIssue = value;
     },
+    recovery: recoveryLog,
     calls,
   };
   return { api, controls };

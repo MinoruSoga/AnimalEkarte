@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
 import type { CertificateApi } from "../api/certificate-api";
@@ -35,6 +35,8 @@ const CONTENT_ERROR_TEXT: Partial<Record<CertificateErrorKind, string>> = {
  * 再印刷 receipt は「出力準備済み」を表し、紙の印刷成功を保証しない。
  */
 export function CertificateArtifactPrint({ api, editionId, artifactId, heading }: CertificateArtifactPrintProps) {
+  // 同じ artifact を指す結果を複数同時に開いても id が重ならないよう、インスタンスごとに作る。
+  const headingId = `print-${useId()}`;
   const edition = useQuery({
     queryKey: certificateEditionQueryKey(editionId),
     queryFn: ({ signal }) => api.getEdition(editionId, signal),
@@ -65,8 +67,8 @@ export function CertificateArtifactPrint({ api, editionId, artifactId, heading }
   }
 
   return (
-    <section aria-labelledby={`print-${artifactId}`} className="space-y-3" aria-busy={edition.isPending || content.state.status === "loading"}>
-      <h3 id={`print-${artifactId}`} className="text-lg font-semibold">
+    <section aria-labelledby={headingId} className="space-y-3" aria-busy={edition.isPending || content.state.status === "loading"}>
+      <h3 id={headingId} className="text-lg font-semibold">
         {heading}
       </h3>
       {edition.isPending ? (
