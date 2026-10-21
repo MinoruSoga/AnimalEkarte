@@ -184,7 +184,7 @@ Slice Aはdiscovery＋保留だけで独立実装可能。ただし未知/0件�
 
 - 実route: `POST /api/v1/vaccination-certificate-operation-recovery/reprints/query`。
 - OpenAPI相対path: `/vaccination-certificate-operation-recovery/reprints/query`。既存 `/api/v1` serverに従いprefixを重複しない。
-- request exact keys: `{target_ref:{vaccination_id},cursor:null|string}`。両keyとcursorの明示nullは必須。intentはserverで既存 `vaccinations.certificate.reprint` に固定し、edition/clinic/staff/actor/intentのclient指定を受けない。vaccination_idは既存証明書integer/int64、lossless decodeを維持する。
+- request exact keys: `{target_ref:{vaccination_id},cursor:null|string}`。target_ref と cursor の両keyは必須。cursor は初回null、続きのpageでは前応答のnext_cursor文字列をそのまま渡す。intentはserverで既存 `vaccinations.certificate.reprint` に固定し、edition/clinic/staff/actor/intentのclient指定を受けない。vaccination_idは既存証明書integer/int64、lossless decodeを維持する。
 - response exact keys: `{items,next_cursor,complete}`。itemsは最大50件、各要素exact `{target_ref:{vaccination_id,edition_id},operation}`。両ID必須、edition_idは正int64。operationは§4の既存証明書itemと同じclosed shape（`CertificateOperationRecoveryItem`）でintent=`reprint`固定。既存domain lookup resultを再利用し、result_refs/committed_versionsのstring mapを独自の固定key集合へ縮小しない。
 
 item.target_ref.vaccination_idはrequestのvaccination_idと一致、edition_idはimmutable元target metadataに由来し、operation.intentはreprintとする。成功result_refsのvaccination_id/edition_idも同じ原対象への一致を必須とする。その他の既存string map keyを禁止する意味ではない。欠落/不整合を現在値で補完せず、現在認可成立後の結果検証不能は既存unavailable/unresolvedの扱いに従う。現在の接種版と過去editionの保存版との一致は要求せず、履歴内部の整合と現在元target認可を別に検査する。
