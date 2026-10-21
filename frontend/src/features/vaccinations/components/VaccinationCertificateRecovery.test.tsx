@@ -459,3 +459,40 @@ describe("view のみ・旧版でも発見する", () => {
     expect(callsOf(controls, "queryOperationRecovery").filter((c) => (c.detail as { intent: string }).intent === "reprint")).toHaveLength(1);
   });
 });
+
+describe("未確定の再印刷がある版が旧版になったとき", () => {
+  it("同じ key・同じ intent の再照会が残り、再印刷の開始は出さない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const view = renderScreen(api);
+    let row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("発行結果を確認できません")).toBeInTheDocument();
+    const reprintKey = (callsOf(controls, "reprint")[0].detail as { body: { operation_key: string } }).body.operation_key;
+
+    // 別の発行で第1版が旧版になる。
+    const base = { kind: "normal" as const, layout: "portrait" as const, inputs: {}, preconditions: { source_version: 7, latest_edition_id: 301 } };
+    const preview = await api.previewForIssue(101, base);
+    await api.issue(101, {
+      ...base,
+      operation_key: "88888888-8888-4888-8888-888888888888",
+      preview_fingerprint: preview.preview_fingerprint,
+      preview_display_issue_date: preview.snapshot.display_issue_date,
+    });
+    view.rerender(<div />);
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    expect(await within(row).findByText(/旧版のため印刷できません/)).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "再印刷の準備" })).toBeNull();
+
+    const recheck = await within(row).findByRole("button", { name: "結果を照会する" });
+    await user.click(recheck);
+    await waitFor(() =>
+      expect(callsOf(controls, "lookupOperation").at(-1)?.detail).toEqual({ operationKey: reprintKey, intent: "reprint" }),
+    );
+    expect(callsOf(controls, "reprint")).toHaveLength(1);
+  });
+});

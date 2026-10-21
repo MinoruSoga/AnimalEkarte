@@ -102,6 +102,45 @@ export function CertificateEditionRow({
     reprint.reset();
   }
 
+  // 未確定の再印刷の通知と照会の導線。版が旧版になっても（同じ key・同じ intent の照会は）残す。
+  // 再試行・やめる・新規開始は現在有効な版だけ。
+  const reprintNotice =
+    "notice" in reprint.state ? (
+      <CertificateNotice code={reprint.state.notice}>
+        {reprint.state.phase === "unknown" || (reprint.state.phase === "not-issued" && !isCurrent) ? (
+          <div className="mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={reprint.checking}
+              onClick={() => void reprint.recheck()}
+            >
+              結果を照会する
+            </Button>
+          </div>
+        ) : null}
+        {reprint.state.phase === "blocked" && reprint.hasPending ? (
+          <div className="mt-2">
+            <Button type="button" variant="outline" onClick={() => void reprint.resumeAfterBlocked()}>
+              権限を再確認して照会する
+            </Button>
+          </div>
+        ) : null}
+        {reprint.state.phase === "not-issued" && isCurrent ? (
+          <div className="mt-2">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={() => void reprint.retrySameKey()}>
+                同じ内容で再試行
+              </Button>
+              <Button type="button" variant="outline" onClick={() => reprint.discard()}>
+                この再印刷をやめる
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </CertificateNotice>
+    ) : null;
+
   return (
     <li className={`space-y-3 rounded-xs border p-3 ${C.borderLight}`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
@@ -120,7 +159,10 @@ export function CertificateEditionRow({
       </div>
 
       {!isCurrent ? (
-        <p className={`text-sm ${C.text60}`}>旧版のため印刷できません。履歴としての参照のみです。</p>
+        <div className="space-y-3">
+          <p className={`text-sm ${C.text60}`}>旧版のため印刷できません。履歴としての参照のみです。</p>
+          {reprint.hasPending ? reprintNotice : null}
+        </div>
       ) : (
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-2">
@@ -169,41 +211,7 @@ export function CertificateEditionRow({
             </div>
           ) : null}
 
-          {"notice" in reprint.state ? (
-            <CertificateNotice code={reprint.state.notice}>
-              {reprint.state.phase === "unknown" ? (
-                <div className="mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={reprint.checking}
-                    onClick={() => void reprint.recheck()}
-                  >
-                    結果を照会する
-                  </Button>
-                </div>
-              ) : null}
-              {reprint.state.phase === "blocked" && reprint.hasPending ? (
-                <div className="mt-2">
-                  <Button type="button" variant="outline" onClick={() => void reprint.resumeAfterBlocked()}>
-                    権限を再確認して照会する
-                  </Button>
-                </div>
-              ) : null}
-              {reprint.state.phase === "not-issued" ? (
-                <div className="mt-2">
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" onClick={() => void reprint.retrySameKey()}>
-                      同じ内容で再試行
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => reprint.discard()}>
-                      この再印刷をやめる
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-            </CertificateNotice>
-          ) : null}
+          {reprintNotice}
           {reprint.state.phase === "done" ? (
             <CertificateArtifactPrint
               api={api}
