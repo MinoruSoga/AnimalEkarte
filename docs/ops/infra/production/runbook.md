@@ -56,7 +56,7 @@ Schema rollback is not automatic. If `GOOD_SHA` is incompatible with applied mig
 
 ## 4. Backup/restore rehearsal
 
-Backup existence and restore success are external facts. Record dated evidence. EMR-263 selects managed backup as the preferred strategy. Acquisition remains HOLD until the exact target's capability, backup/branch identity, owner, cost ceiling, protected destination, access, retention and restore responsibility are verified and the execution is approved. If that strategy is unavailable, obtain a reviewed alternative decision rather than silently switching to pg_dump. The acquisition record must name the owner, method (managed backup or reviewed `pg_dump` procedure), exact target identity, protected repo-external destination, acquisition timestamp, size, SHA-256 checksum, retention/expiry, receipt ID, and restore-rehearsal link. Never invent commands, destinations, or credentials from this document. Missing any field means No-Go.
+Backup existence and restore success are external facts. Record dated evidence. EMR-263 selects managed backup as the preferred strategy. Acquisition remains HOLD until the exact target's capability, backup/branch identity, owner, cost ceiling, protected destination, access, retention and restore responsibility are verified and the execution is approved. If that strategy is unavailable or cannot satisfy the required conditions or obtain execution approval, obtain a reviewed alternative decision rather than silently switching to pg_dump. The acquisition record must name the owner, method (managed backup or reviewed `pg_dump` procedure), exact target identity, protected repo-external destination, acquisition timestamp, size, SHA-256 checksum, retention/expiry, receipt ID, and restore-rehearsal link. Never invent commands, destinations, or credentials from this document. Missing any field means No-Go.
 
 Restore only to a disposable isolated target. Before any destructive restore option, enforce an explicit identity assertion:
 
@@ -99,7 +99,7 @@ Unchecked items mean stop. This document does not assert current external state.
 | 単位 | 実行前の確定事項 | 実行後の非機密receipt | 停止・復旧条件 |
 |:--|:--|:--|:--|
 | provider/setup | 承認者・操作者、account/project/zone/DBの管理上の識別子、Environment保護、対象ref、frontend/API target | setup.md §1/§6/§8ごとの確認時刻・確認者・実対象ID・保護設定の参照。secretは名称と保護経路だけ | 対象相違、権限・保護・DB接続未確認はHOLD。process healthだけで解除しない |
-| backup方式 | EMR-263に従いmanaged backup優先。対象での利用可否、backup/branch識別、費用上限、正確な対象、保護保存先、アクセス者、保持/expiry、restore責任者を実施前に確認・承認記録へ。利用不可なら代替方式を再判断する。 | artifact識別子、取得時刻、size、checksum、receipt、restore link | 必要な対象確認・保存先・保持・実施承認等が未成立なら取得開始前HOLD。推測の保存先や期限を埋めない |
+| backup方式 | EMR-263に従いmanaged backup優先。対象での利用可否、backup/branch識別、費用上限、正確な対象、保護保存先、アクセス者、保持/expiry、restore責任者を実施前に確認・承認記録へ。利用不可、又は必要条件・実施承認を満たせない場合、黙って切替せず承認付きで代替方式を再判断する。 | artifact識別子、取得時刻、size、checksum、receipt、restore link | 必要な対象確認・保存先・保持・実施承認等が未成立なら取得開始前HOLD。推測の保存先や期限を埋めない |
 | restore rehearsal | 同一backup artifactと承認済み使い捨てtarget、host/name/provider IDの同一性確認、schema互換、cleanup方法 | restore終了値、schema/代表値/アプリ互換、所要時間、操作者、cleanup receipt | target相違・非0終了・結果不明は停止。backupを保全し、復元済みともrollback済みとも推定しない |
 | cutover/rollback | 構築開始日と別に切替日・作業窓・判断者・連絡経路を記入。GOOD_SHAと適用migration互換をレビュー | 実workflow headSha、Environment承認、route、migration、DB確認、frontend target、当日のGo/No-Go | headSha不一致・保護欠落・互換不明は止める。AWSを切戻し先にしない。DB rollbackは別承認 |
 
