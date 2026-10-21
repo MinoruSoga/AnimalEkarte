@@ -68,7 +68,7 @@ reviewed_fieldsの唯一の入力定義は§2aのclosed unionとする。元表�
 
 expected_checkup_version / expected_result_revision / expected_document_version / expected_latest_run_id / expected_package_version / expected_field_versions、および現在grant fenceはPreconditionsのみでfingerprintへ入れない。ただし保持する旧snapshotの出典revisionや実際に採用するfield snapshot identityは業務Contentであり、単なる期待CAS版とは別キーにする。同内容・同keyのCAS差替え再実行は可能、既成功は現在CASより先に元receiptを返す。値・対象・候補・採用定義や出典が変わる場合は内容変更であり新operation_key。expected_latest_run_idは競合検出だけのPreconditionsとし、変更だけで内容を変えない。同keyが既にrunを作成済みならそのrunを返し再抽出しない。明示的なもう一度の再抽出は新operation_keyで、現在latest terminalをCASする。receiptへ任意details/reason一覧を追加しない。必要な現在状態は現在view認可付きdocument/run/result readerから再取得する。EffectSummaryは内部receipt限定でwireへ出さない。
 
-このconsumerの有限HTTP対応は succeeded/replayed=200、not-succeeded/operation-key-conflict/operation-in-progress/version-conflict/dependency-changed=409、result-unavailable=503、scope-not-found=404、not-authorized/edit-right-lost=403、validation=400。共通12statusは追加しない。現ResultResponseのstatus/operation_key/result_refs/committed_versions/recorded_at以外は追加しない。pre-C06の不正JSON・UUID・媒体・サイズ・quota・未配線は既存apperrors/HTTP error形式で400/401/403/404/413/415/429/503、operation receiptが成立したようには返さない。
+このconsumerの有限HTTP対応は succeeded/replayed/not-succeeded=200、operation-in-progress=202、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、result-unavailable=503、scope-not-found=404、not-authorized=403、validation=400。共通12statusは追加しない。現ResultResponseのstatus/operation_key/result_refs/committed_versions/recorded_at以外は追加しない。pre-C06の不正JSON・UUID・媒体・サイズ・quota・未配線は既存apperrors/HTTP error形式で400/401/403/404/413/415/429/503、operation receiptが成立したようには返さない。
 
 
 ### 2a. 全結果entryのclosed union
