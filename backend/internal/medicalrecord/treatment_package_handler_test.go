@@ -106,7 +106,7 @@ func TestTreatmentPackageHandler_Update_VersionConflict(t *testing.T) {
 
 func TestTreatmentPackageHandler_Delete_VersionRequired(t *testing.T) {
 	svc := &mockTreatmentPackageService{
-		deleteFn: func(context.Context, uint64, uint64, uint64, uint64) error { return nil },
+		deleteFn: func(context.Context, uint64, uint64, int64, uint64) error { return nil },
 	}
 	h := NewTreatmentPackageHandler(svc)
 	w := httptest.NewRecorder()

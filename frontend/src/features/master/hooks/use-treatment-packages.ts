@@ -118,6 +118,7 @@ export type SaveOutcome =
   | { kind: "conflict" }
   | { kind: "invalid" }
   | { kind: "create-unknown"; error: unknown }
+  | { kind: "create-unknown-blocked" }
   | { kind: "error"; error: unknown };
 
 /**
@@ -138,19 +139,14 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
   const [createUnknown, setCreateUnknown] = useState(false);
 
   const resetFor = useCallback((next: EditorTarget) => {
-    setDraft(
-      next === null ? null : next === "new" ? emptyPackageDraft() : draftFromPackage(next),
-    );
+    setDraft(next === null ? null : next === "new" ? emptyPackageDraft() : draftFromPackage(next));
     setConflict(false);
     setCreateUnknown(false);
   }, []);
 
-  const updateDraft = useCallback(
-    (patch: Partial<TreatmentPackageDraft>) => {
-      setDraft((prev) => (prev === null ? prev : { ...prev, ...patch }));
-    },
-    [],
-  );
+  const updateDraft = useCallback((patch: Partial<TreatmentPackageDraft>) => {
+    setDraft((prev) => (prev === null ? prev : { ...prev, ...patch }));
+  }, []);
 
   const updateComponents = useCallback((components: ComponentDraft[]) => {
     setDraft((prev) => (prev === null ? prev : { ...prev, components }));
@@ -163,6 +159,9 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
     }): Promise<SaveOutcome> => {
       if (draft === null) return { kind: "invalid" };
       const base = baselineRef.current;
+      // create 結果不明の未解決がある限り同じ POST を再送しない（盲目再送禁止）。
+      // 一覧再読込での確認後、allowCreateRetry で明示解除する。
+      if (base === null && createUnknown) return { kind: "create-unknown-blocked" };
       try {
         if (base === null) {
           const body = toCreateBody(draft);
@@ -193,8 +192,13 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
         return { kind: "error", error };
       }
     },
-    [draft],
+    [draft, createUnknown],
   );
+
+  /** create 結果不明の明示解決。一覧を再読込して結果を確認した後だけ呼ぶ。
+   *  作成済みが見つかった場合は resetFor(作成済みpkg) で baseline を取り込み、
+   *  未作成が確認できた場合だけこの解除で informed な再送を許す。 */
+  const allowCreateRetry = useCallback(() => setCreateUnknown(false), []);
 
   const isDirty = useMemo(() => {
     if (draft === null) return false;
@@ -215,6 +219,7 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
     updateDraft,
     updateComponents,
     save,
+    allowCreateRetry,
     clearConflict: useCallback(() => setConflict(false), []),
   };
 }

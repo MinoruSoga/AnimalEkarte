@@ -152,7 +152,29 @@ function componentDraftFromWire(c: TreatmentPackageComponentInput): ComponentDra
       },
     };
   }
-  return { ...base, masterId: item[`${item.kind}_id` as const] as string };
+  return { ...base, masterId: masterIdFromRef(item) };
+}
+
+/** typed master ref → masterId。kind ごとに narrowing して FK を取る。 */
+function masterIdFromRef(item: TreatmentPackageItemRef): string {
+  switch (item.kind) {
+    case "consultation":
+      return item.consultation_id;
+    case "procedure":
+      return item.procedure_id;
+    case "medicine":
+      return item.medicine_id;
+    case "examination_type":
+      return item.examination_type_id;
+    case "vaccine":
+      return item.vaccine_id;
+    case "checkup_type":
+      return item.checkup_type_id;
+    case "merchandise_item":
+      return item.merchandise_item_id;
+    case "manual_other":
+      return "";
+  }
 }
 
 function buildItemRef(c: ComponentDraft): TreatmentPackageItemRef | null {

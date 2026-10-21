@@ -2,7 +2,7 @@
  * EMR-523: パッケージ編集パネル。未保存入力は競合・失敗時も保持する。
  * version は編集開始時捕捉版のみを CAS に使い、競合は再読込・比較へ誘導（無断上書きしない）。
  */
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +19,8 @@ interface TreatmentPackageEditorProps {
   conflict: boolean;
   /** create 応答不明（timeout/5xx）。盲目再送しない。 */
   createUnknown: boolean;
+  /** create 不明の明示解決（一覧再読込確認後にのみ呼ぶ）。未指定なら解決操作を出さない。 */
+  onResolveCreateUnknown?: () => void;
   canSave: boolean;
   canDelete: boolean;
   saving: boolean;
@@ -37,6 +39,7 @@ export function TreatmentPackageEditor({
   formErrors = [],
   conflict,
   createUnknown,
+  onResolveCreateUnknown,
   canSave,
   canDelete,
   saving,
@@ -61,6 +64,13 @@ export function TreatmentPackageEditor({
       {createUnknown ? (
         <div role="alert" className={`rounded-lg border ${C.borderLight} p-3 text-sm ${C.danger}`}>
           登録結果を確認できませんでした。同じ内容を自動で再送しません。一覧を再読込して結果を確認してください。入力は保持されています。
+          {onResolveCreateUnknown !== undefined ? (
+            <div className="mt-2">
+              <button type="button" className="text-sm underline" onClick={onResolveCreateUnknown}>
+                一覧を再読込して確認しました
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {formErrors.length > 0 ? (
@@ -111,7 +121,7 @@ export function TreatmentPackageEditor({
           onChange={onComponentsChange}
         />
       </fieldset>
-      <div className={`${STYLE.FLEX_BETWEEN} gap-2`}>
+      <div className="flex items-center justify-between gap-2">
         <div>
           {mode === "edit" && canDelete && onDeleteRequest !== undefined ? (
             <button

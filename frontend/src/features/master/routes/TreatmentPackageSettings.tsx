@@ -137,7 +137,11 @@ export function TreatmentPackageSettings() {
           formErrors={formErrors}
           conflict={editor.conflict}
           createUnknown={editor.createUnknown}
-          canSave={target === "new" ? canCreate : canEdit}
+          onResolveCreateUnknown={() => {
+            void list.refetch();
+            editor.allowCreateRetry();
+          }}
+          canSave={(target === "new" ? canCreate : canEdit) && !editor.createUnknown}
           canDelete={canDelete}
           saving={createMut.isPending || updateMut.isPending}
           deleting={deleteMut.isPending}

@@ -538,7 +538,7 @@ func (r *reorderTreatmentPackagesRequest) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		if _, dup := seen[id]; dup {
-			return nil, apperrors.WrapInvalidInput("ids に重複があります")
+			return apperrors.WrapInvalidInput("ids に重複があります")
 		}
 		seen[id] = struct{}{}
 		ids = append(ids, id)

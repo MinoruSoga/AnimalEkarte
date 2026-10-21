@@ -4,7 +4,7 @@
  * 成功後は application IDs を確認してから plan 一覧を再取得し、
  * 再取得失敗を apply 失敗にしない。
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import {
@@ -14,7 +14,6 @@ import {
   listMedicalRecordPlanItems,
   listTreatmentPackageApplications,
   previewTreatmentPackage,
-  type MedicalRecordPlanOperationResult,
   type TreatmentPackageApply,
 } from "../api/treatment-package-applications";
 import {
@@ -89,6 +88,12 @@ export interface UseTreatmentPackageApplyArgs {
  * 明示 apply → C06 応答解釈 → 不明は同 key 照会 → 成功後 application IDs 確認 →
  * plan 一覧再取得。scope 切替後の遅延応答は破棄する。
  */
+interface PendingOperation {
+  operationKey: string;
+  recordId: string;
+  clinicId?: string;
+}
+
 export function useTreatmentPackageApply({
   scope,
   editContext,
@@ -97,25 +102,19 @@ export function useTreatmentPackageApply({
   const qc = useQueryClient();
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  const currentScopeKey = scopeKey(scope);
   const [state, setState] = useState<ApplyState>({ kind: "idle" });
-  const heldKeyRef = useRef<string | null>(null);
+  // scopeKey → 未解決の pending operation。key と発行時 scope を不可分に保持し、
+  // 照会は発行時 scope へ固定する（切替後の対象へ混ぜない）。
+  const pendingRef = useRef<Map<string, PendingOperation>>(new Map());
 
-  const lookupKey = useCallback(
-    async (operationKey: string): Promise<MedicalRecordPlanOperationResult | null> => {
-      const current = scopeRef.current;
-      try {
-        const result = await getMedicalRecordOperationResult(
-          current.recordId,
-          operationKey,
-          current.clinicId,
-        );
-        return result;
-      } catch {
-        return null;
-      }
-    },
-    [],
-  );
+  // scope 切替: 旧 scope の保留表示を新対象へ混ぜない。元 scope に戻れば同 key 照会を再開できる。
+  useEffect(() => {
+    const held = pendingRef.current.get(currentScopeKey);
+    setState(
+      held === undefined ? { kind: "idle" } : { kind: "unknown", operationKey: held.operationKey },
+    );
+  }, [currentScopeKey]);
 
   const apply = useMutation({
     mutationFn: async (command: { body: TreatmentPackageApply; operationKey: string }) => {
@@ -127,18 +126,39 @@ export function useTreatmentPackageApply({
   const submit = useCallback(
     async (preview: Parameters<typeof buildApplyCommand>[0]["preview"]) => {
       if (!runtimeAvailable || editContext === null) return;
-      // 不明保留の key がある限り新しい明示送信はしない（同 key 照会を先に解決）。
-      if (heldKeyRef.current !== null) return;
+      const sk = scopeKey(scope);
+      // 同 scope に未解決 key がある限り新しい明示送信はしない（同 key 照会を先に解決）。
+      if (pendingRef.current.has(sk)) return;
       const command = buildApplyCommand({ preview, editContext, scope });
-      heldKeyRef.current = command.operationKey;
+      pendingRef.current.set(sk, {
+        operationKey: command.operationKey,
+        recordId: scope.recordId,
+        clinicId: scope.clinicId,
+      });
       setState({ kind: "submitting", operationKey: command.operationKey });
-      const heldScope = scopeKey(scope);
       try {
-        const result = await apply.mutateAsync({ body: command.body, operationKey: command.operationKey });
-        if (scopeKey(scopeRef.current) !== heldScope) return; // 切替後の遅延応答は混ぜない
-        const resolution = resolveOperationResult(result);
+        const outcome = await apply.mutateAsync({
+          body: command.body,
+          operationKey: command.operationKey,
+        });
+        if (scopeKey(scopeRef.current) !== sk) return; // 切替後の遅延応答は混ぜない
+        if (outcome.kind === "unavailable") {
+          setState({ kind: "unknown", operationKey: command.operationKey });
+          return;
+        }
+        if (outcome.kind === "error-envelope") {
+          // 前段 error envelope: 5xx は一時障害として照会継続、4xx は確定失敗。
+          if (outcome.httpStatus >= 500) {
+            setState({ kind: "unknown", operationKey: command.operationKey });
+            return;
+          }
+          pendingRef.current.delete(sk);
+          setState({ kind: "failed", status: outcome.code ?? `http-${outcome.httpStatus}` });
+          return;
+        }
+        const resolution = resolveOperationResult(outcome.result);
         if (resolution.kind === "success") {
-          heldKeyRef.current = null;
+          pendingRef.current.delete(sk);
           const applicationId = resolution.result.result_refs.application_id;
           // 成功確認 → plan 一覧再取得。再取得失敗は apply 失敗にしない。
           setState({
@@ -154,50 +174,61 @@ export function useTreatmentPackageApply({
           setState({ kind: "unknown", operationKey: command.operationKey });
           return;
         }
-        heldKeyRef.current = null;
+        pendingRef.current.delete(sk);
         setState({ kind: "failed", status: resolution.status });
       } catch {
         // 通信断/timeout/parse 失敗: 元 key 照会へ。新 key の盲目再送はしない。
-        if (scopeKey(scopeRef.current) !== heldScope) return;
+        if (scopeKey(scopeRef.current) !== sk) return;
         setState({ kind: "unknown", operationKey: command.operationKey });
       }
     },
     [apply, editContext, qc, runtimeAvailable, scope],
   );
 
-  /** 結果不明を元 key で照会。成功確定まで新 key は発行しない。 */
+  /** 結果不明を元 key で照会。照会先は発行時 scope に固定し、成功確定まで新 key は発行しない。 */
   const resolveUnknown = useCallback(async () => {
-    const held = heldKeyRef.current;
-    if (held === null) return;
-    const heldScope = scopeKey(scopeRef.current);
-    const result = await lookupKey(held);
-    if (scopeKey(scopeRef.current) !== heldScope) return;
-    if (result === null) return; // 取得失敗は unknown 維持
-    const resolution = resolveOperationResult(result);
+    const sk = scopeKey(scopeRef.current);
+    const held = pendingRef.current.get(sk);
+    if (held === undefined) return;
+    const outcome = await getMedicalRecordOperationResult(
+      held.recordId,
+      held.operationKey,
+      held.clinicId,
+    );
+    if (scopeKey(scopeRef.current) !== sk) return;
+    if (outcome.kind === "unavailable") return; // 取得失敗は unknown 維持
+    if (outcome.kind === "error-envelope") {
+      if (outcome.httpStatus >= 500) return;
+      pendingRef.current.delete(sk);
+      setState({ kind: "failed", status: outcome.code ?? `http-${outcome.httpStatus}` });
+      return;
+    }
+    const resolution = resolveOperationResult(outcome.result);
     if (resolution.kind === "success") {
-      heldKeyRef.current = null;
+      pendingRef.current.delete(sk);
       setState({
         kind: "succeeded",
         applicationId: resolution.result.result_refs.application_id,
         planItemsVersion: resolution.result.committed_versions.plan_items,
       });
-      qc.invalidateQueries({ queryKey: packageApplyKeys.applications(scope.recordId) });
-      qc.invalidateQueries({ queryKey: packageApplyKeys.planItems(scope.recordId) });
+      qc.invalidateQueries({ queryKey: packageApplyKeys.applications(held.recordId) });
+      qc.invalidateQueries({ queryKey: packageApplyKeys.planItems(held.recordId) });
       return;
     }
     if (resolution.kind === "retry-lookup") return; // まだ不明
-    heldKeyRef.current = null;
+    pendingRef.current.delete(sk);
     setState({ kind: "failed", status: resolution.status });
-  }, [lookupKey, qc, scope.recordId]);
+  }, [qc]);
 
-  /** scope 切替・明示 reset で保留状態を破棄（遅延成功を別対象へ混ぜない）。 */
+  /** 明示 reset で現在 scope の保留状態を破棄（遅延成功を別対象へ混ぜない）。 */
   const reset = useCallback(() => {
-    heldKeyRef.current = null;
+    pendingRef.current.delete(scopeKey(scopeRef.current));
     setState({ kind: "idle" });
   }, []);
 
+  const heldOperationKey = pendingRef.current.get(currentScopeKey)?.operationKey ?? null;
   return useMemo(
-    () => ({ state, submit, resolveUnknown, reset, heldOperationKey: heldKeyRef.current }),
-    [state, submit, resolveUnknown, reset],
+    () => ({ state, submit, resolveUnknown, reset, heldOperationKey }),
+    [state, submit, resolveUnknown, reset, heldOperationKey],
   );
 }

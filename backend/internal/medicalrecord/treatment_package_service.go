@@ -181,6 +181,9 @@ func (s *treatmentPackageService) authorizeItemKinds(ctx context.Context, clinic
 	seen := map[string]struct{}{}
 	for i := range items {
 		kind := items[i].ItemKind
+		if kind == model.TreatmentPackageItemKindManualOther {
+			continue // manual_other は型別権限を持たない（map 未登録は既知の正常kind）
+		}
 		if _, ok := seen[kind]; ok {
 			continue
 		}
@@ -203,6 +206,9 @@ func (s *treatmentPackageService) authorizeItemKinds(ctx context.Context, clinic
 func (s *treatmentPackageService) validateComponents(ctx context.Context, clinicID uint64, components []TreatmentPackageComponentInput) error {
 	authorized := map[model.Resource]bool{}
 	for _, c := range components {
+		if c.Kind == model.TreatmentPackageItemKindManualOther {
+			continue // manual は境界で schema 検証済み。map 検索・typed 検査の対象外
+		}
 		res, ok := treatmentPackageKindViewResource[c.Kind]
 		if !ok {
 			return apperrors.WrapInvalidInput("item.kind の値が不正です")
@@ -212,9 +218,6 @@ func (s *treatmentPackageService) validateComponents(ctx context.Context, clinic
 				return apperrors.WrapForbidden("forbidden")
 			}
 			authorized[res] = true
-		}
-		if c.Kind == model.TreatmentPackageItemKindManualOther {
-			continue
 		}
 		if err := s.validateTypedSource(ctx, clinicID, c); err != nil {
 			return err
@@ -688,6 +691,22 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 		for i := range current {
 			currentOrder[current[i].ID] = i
 		}
+		for id := range wanted {
+			if _, ok := currentOrder[id]; !ok {
+				return apperrors.WrapInvalidInput("存在しない id が含まれています")
+			}
+		}
+		// 要求列が現在順と完全一致なら no-op（版不変）。欠番の正規化だけで版は動かさない。
+		same := true
+		for i := range ids {
+			if ids[i] != current[i].ID {
+				same = false
+				break
+			}
+		}
+		if same {
+			return nil
+		}
 		moved := false
 		// UPDATE は id 昇順で行い行ロック取得順を確定させる。
 		for i := range locked {
@@ -696,16 +715,13 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 			if !ok {
 				return apperrors.WrapInvalidInput("並び替え対象外の id が含まれています")
 			}
-			if target != locked[i].SortOrder && currentOrder[id] != target {
+			// 順位が変わった行、または欠番で旧 sort 値が残った行へ dense な順位を
+			// 割当てる。全行が一意の要求順位を持つため、最終取得順は要求列と一致する。
+			if currentOrder[id] != target || locked[i].SortOrder != target {
 				if err := s.repo.UpdateSortOrderBumpVersion(txCtx, clinicID, id, target); err != nil {
 					return err
 				}
 				moved = true
-			}
-		}
-		for id := range wanted {
-			if _, ok := currentOrder[id]; !ok {
-				return apperrors.WrapInvalidInput("存在しない id が含まれています")
 			}
 		}
 		if !moved {

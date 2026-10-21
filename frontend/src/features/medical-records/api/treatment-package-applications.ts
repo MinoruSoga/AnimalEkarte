@@ -12,7 +12,10 @@ import { axios } from "@/lib/axios";
  * number 化・float 演算・丸め・0 補完をしない。解析は fail-closed。
  */
 
-const int64 = z.string().regex(/^[1-9][0-9]*$/).max(19);
+const int64 = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .max(19);
 const decimal = z
   .string()
   .regex(/^-?(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/)
@@ -31,7 +34,10 @@ const manualSchema = z
     name: z.string().min(1).regex(/\S/),
     reason: z.string().min(1).regex(/\S/),
     unit_label: z.string().nullable(),
-    unit_price: z.string().regex(/^(0|[1-9][0-9]*)$/).max(19),
+    unit_price: z
+      .string()
+      .regex(/^(0|[1-9][0-9]*)$/)
+      .max(19),
     tax_type: z.enum(["included", "excluded", "exempt"]),
     tax_rate: decimal,
     is_non_insurance: z.boolean(),
@@ -60,7 +66,11 @@ const uncertaintySchema = z
 
 export const priceSnapshotSchema = z
   .object({
-    unit_price: z.string().regex(/^(0|[1-9][0-9]*)$/).max(19).nullable(),
+    unit_price: z
+      .string()
+      .regex(/^(0|[1-9][0-9]*)$/)
+      .max(19)
+      .nullable(),
     tax_type: z.enum(["included", "excluded", "exempt"]).nullable(),
     tax_rate: decimal.nullable(),
     is_non_insurance: z.boolean().nullable(),
@@ -119,7 +129,11 @@ export type TreatmentPackagePreviewItem = z.infer<typeof previewItemSchema>;
 const previewTotalSchema = z
   .object({
     status: z.enum(["available", "unresolved"]),
-    amount: z.string().regex(/^(0|[1-9][0-9]*)$/).max(19).nullable(),
+    amount: z
+      .string()
+      .regex(/^(0|[1-9][0-9]*)$/)
+      .max(19)
+      .nullable(),
   })
   .strict();
 export type TreatmentPackagePreviewTotal = z.infer<typeof previewTotalSchema>;
@@ -350,18 +364,46 @@ export async function previewTreatmentPackage(
   return treatmentPackagePreviewSchema.parse(data);
 }
 
-/** apply は C06 wire。同 key 照会のみ許し、盲目再送しない。 */
+/** C06 wire 応答の三分類。ResultResponse body は HTTP status を問わず確定結果として解釈し、
+ *  前段 error envelope と通信断/解析失敗を区別する。 */
+export type OperationCallOutcome =
+  | { kind: "result"; result: MedicalRecordPlanOperationResult }
+  | { kind: "error-envelope"; httpStatus: number; code: string | null }
+  | { kind: "unavailable" };
+
+function asErrorEnvelope(data: unknown): { code: string | null } | null {
+  if (typeof data !== "object" || data === null) return null;
+  if (typeof (data as { error?: unknown }).error !== "string") return null;
+  const code = (data as { code?: unknown }).code;
+  return { code: typeof code === "string" ? code : null };
+}
+
+function operationCallOutcome(data: unknown, httpStatus: number): OperationCallOutcome {
+  const parsed = operationResultSchema.safeParse(data);
+  if (parsed.success) return { kind: "result", result: parsed.data };
+  const envelope = asErrorEnvelope(data);
+  if (envelope !== null) {
+    return { kind: "error-envelope", httpStatus, code: envelope.code };
+  }
+  return { kind: "unavailable" };
+}
+
+/** apply は C06 wire。同 key 照会のみ許し、盲目再送しない。
+ *  非2xxでも ResultResponse body を解析し、確定非成功と通信断・結果不明を分ける。 */
 export async function applyTreatmentPackage(
   recordId: string,
   req: TreatmentPackageApply,
   clinicId?: string,
-): Promise<MedicalRecordPlanOperationResult> {
-  const { data } = await axios.post<unknown>(
-    `${base(recordId)}/treatment-package-applications`,
-    req,
-    clinicHeaderConfig(clinicId),
-  );
-  return operationResultSchema.parse(data);
+): Promise<OperationCallOutcome> {
+  try {
+    const res = await axios.post<unknown>(`${base(recordId)}/treatment-package-applications`, req, {
+      ...clinicHeaderConfig(clinicId),
+      validateStatus: () => true,
+    });
+    return operationCallOutcome(res.data, res.status);
+  } catch {
+    return { kind: "unavailable" };
+  }
 }
 
 export async function listTreatmentPackageApplications(
@@ -387,20 +429,23 @@ export async function getTreatmentPackageApplication(
   return applicationSchema.parse(data);
 }
 
-/** 結果不明は元 key 照会のみ。intent は medical_record.package_apply 固定。 */
+/** 結果不明は元 key 照会のみ。intent は medical_record.package_apply 固定。
+ *  非2xxでも ResultResponse body を解析し、確定非成功と通信断・結果不明を分ける。 */
 export async function getMedicalRecordOperationResult(
   recordId: string,
   operationKey: string,
   clinicId?: string,
-): Promise<MedicalRecordPlanOperationResult> {
-  const { data } = await axios.get<unknown>(
-    `${base(recordId)}/operations/${operationKey}`,
-    {
+): Promise<OperationCallOutcome> {
+  try {
+    const res = await axios.get<unknown>(`${base(recordId)}/operations/${operationKey}`, {
       ...clinicHeaderConfig(clinicId),
       params: { intent: "medical_record.package_apply" },
-    },
-  );
-  return operationResultSchema.parse(data);
+      validateStatus: () => true,
+    });
+    return operationCallOutcome(res.data, res.status);
+  } catch {
+    return { kind: "unavailable" };
+  }
 }
 
 export async function listMedicalRecordPlanItems(
