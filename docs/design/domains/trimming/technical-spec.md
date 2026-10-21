@@ -191,7 +191,7 @@ AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時�
 
 コース別オプションの許可集合・内包施術の識別・所要時間は、確定001が既に持つ次のテーブル群を正本として実装する（新テーブルの追加は不要）。
 
-- `trimming_option_rule_sets`（course_id NULL可・contract_version付き）＋`trimming_option_rules`（rule_set×optionの許可集合）: コース別オプション対応とルールの収容先。course_id NULLは全コース共通ルール
+- `trimming_option_rule_sets`（course_id NULL可・contract_version付き）＋`trimming_option_rules`（rule_set×optionの許可集合）: コース別オプション対応とルールの収容先。course_id NULLはコース未選択（no-course）専用ルールであり、全コース共通やコース別設定欠落時のfallbackではない。コース別候補とコースなし用候補を別設定とする[業務正本](../../../spec/domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)に従う
 - `trimming_course_included_services`（course_id×service_identity_id）: コース内包施術の識別。内包の判定はコースNULLではなく本表の参照で行う
 - `trimming_service_identities`: 施術の同一性参照
 

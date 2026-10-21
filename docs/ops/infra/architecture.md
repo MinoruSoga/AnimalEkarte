@@ -28,8 +28,7 @@ EMR-255 で frontend 配信を Vercel から Cloudflare Workers Static Assets �
 `frontend/vercel.json` の rewrite/header 規則は `frontend/worker/index.ts` と
 `frontend/public/_headers` が引き継ぐ。`/api/*` は同一オリジンの service binding
 経路になり、`api.stg.noah-karte.com` への外部 rewrite は不要になった
-(同ホスト名の backend Worker route は checked-in config 上は残置。稼働は runtime receipt が必要)。`frontend/vercel.json` は
-移行期のロールバック経路として残置し、CF 側の安定稼働確認後に削除する。
+(同ホスト名の backend Worker route は checked-in config 上は残置。稼働は runtime receipt が必要)。Vercel hosting は[退役PR #537](https://github.com/MinoruSoga/AnimalEkarte/pull/537)で退役方針が統合済みであり、現在の切り戻し先にはしない。`frontend/vercel.json` 等の設定ファイルの存在は、live deploymentやDNS切り戻し可能性の証拠ではない。復旧は[本番切替Runbook](../../delivery/GOLIVE_RUNBOOK.md#43-切り戻し手順)のCloudflare正系統に従う。ドメイン登録業務としてのVercel Domainsはhosting退役と別であり、registrar／DNSをこの文書更新で変更しない。
 
 Hyperdrive は Containers から利用できず、credential を Terraform state に載せるため再導入しない。
 

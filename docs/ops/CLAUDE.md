@@ -1,6 +1,6 @@
 # インフラ・運用ディレクトリ (Infrastructure & Operations)
 
-> **目的**: クラウド基盤（Cloudflare Workers + Containers + Static Assets / PlanetScale）、デプロイフロー、およびシステムの安定稼働に関する情報の管理。frontend は EMR-255 で Cloudflare Workers Static Assets へ移行済み（Vercel は退役候補の rollback 残存）。
+> **目的**: クラウド基盤（Cloudflare Workers + Containers + Static Assets / PlanetScale）、デプロイフロー、およびシステムの安定稼働に関する情報の管理。frontend は EMR-255 で Cloudflare Workers Static Assets へ移行済み（Vercel は廃止済みで配信・rollback に使用しない）。
 > **読者**: AI エージェント(Claude Code)。
 > **タイミング**: docs/ops/ 配下編集時。
 >
@@ -20,8 +20,8 @@
 
 ## 🛠 運用の原則
 
-1.  **疎結合の維持**: frontend・backendとも Cloudflare エッジ上で、`/api/*` は frontend Worker の service binding 経由で backend Worker に中継する。Vercel は EMR-255 移行後の rollback 経路として退役判断まで残存し、通常経路では使用しない。
-2.  **機密情報の保護**: 秘密鍵やパスワードはソースコードに含めず、対象サービスの保護ストア（Cloudflare Secrets、GitHub Actions / Environment secrets）を用途に応じて使用する。Vercel の保護された環境変数は退役までの残存管理対象。
+1.  **疎結合の維持**: frontend・backendとも Cloudflare エッジ上で、`/api/*` は frontend Worker の service binding 経由で backend Worker に中継する。Vercel は EMR-255 移行後に廃止され、通常配信・rollback のいずれにも使用しない。切り戻しは現行 Cloudflare の承認済み手順に従う。
+2.  **機密情報の保護**: 秘密鍵やパスワードはソースコードに含めず、対象サービスの保護ストア（Cloudflare Secrets、GitHub Actions / Environment secrets）を用途に応じて使用する。旧 Vercel の環境変数や残存資源の存在は未確認であり、旧環境の再有効化根拠にしない。削除・資格情報操作は別途承認とする。
 3.  **証跡の記録**: 全てのデプロイと大規模な構成変更は、ランブックに基づき実行し、実行者が Actions run、変更チケット、または承認済み運用記録へログを残す。リポジトリだけでは達成状態を証明できない。
 
 ---
