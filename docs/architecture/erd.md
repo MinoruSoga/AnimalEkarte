@@ -27,9 +27,9 @@ EMR-446単独の追加時点ではテーブル数138（S1との統合後は141�
 
 ---
 
-## 1. データモデルの全体像 (全 241 テーブル)
+## 1. データモデルの全体像 (全 244 テーブル)
 
-現行001の最終定義は241表。下表は全表を用途別に分類したもので、制約の実行成功やconsumer適合を示すものではありません。
+現行001の最終定義は244表。下表は全表を用途別に分類したもので、制約の実行成功やconsumer適合を示すものではありません。
 
 ### 1.1 主要ドメイン別構成
 
@@ -49,6 +49,7 @@ EMR-446単独の追加時点ではテーブル数138（S1との統合後は141�
 | 検査機器運用 (15) | `lab_devices`, `lab_device_item_masters`, `lab_device_mapping_draft_items`, `lab_device_mapping_drafts`, `lab_device_mapping_generation`, `lab_device_mapping_specs`, `lab_device_station_settings`, `lab_device_waits`, `lab_import_events`, `lab_import_exam_retraction_items`, `lab_import_exam_retractions`, `lab_import_job_items`, `lab_import_jobs`, `lab_import_revert_receipts`, `lab_import_usage_receipts` |
 | 健診 (8) | `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `checkup_result_revisions`, `checkup_save_attempts`, `checkup_save_stage_results` |
 | 予防接種・証明書 (6) | `vaccines`, `vaccinations`, `vaccination_certificate_series`, `vaccination_certificate_editions`, `vaccination_certificate_artifacts`, `vaccination_certificate_operations` |
+| 治療パッケージ (3) | `treatment_packages`, `treatment_package_items`, `treatment_package_catalog_versions` |
 | 入院・ホテル (14) | `stay_cases`, `hotel_capacity_settings`, `stay_extension_proposals`, `stay_movement_events`, `admission_records`, `stay_plan_change_events`, `stay_price_agreements`, `hospitalizations`, `hospitalization_plans`, `cages`, `daily_records`, `care_logs`, `care_plan_items`, `staff_notes` |
 | トリミング (13) | `appointment_trimming_details`, `trimming_course_types`, `trimming_courses`, `trimming_options`, `trimming_service_identities`, `trimming_course_included_services`, `trimming_option_rule_sets`, `trimming_option_rules`, `trimming_booking_revisions`, `trimming_booking_revision_options`, `trimming_service_lines`, `trimming_detail_revisions`, `trimming_detail_revision_lines` |
 | 会計・受領・預り (29) | `billings`, `billing_items`, `billing_source_bindings`, `billing_source_differences`, `billing_source_difference_resolutions`, `billing_price_acknowledgements`, `billing_fulfillment_events`, `doctor_review_sets`, `doctor_review_records`, `billing_calculation_lines`, `billing_calculation_snapshots`, `billing_change_events`, `billing_reissue_links`, `payment_methods`, `payment_funds`, `fund_consumption_events`, `fund_record_corrections`, `refund_requests`, `owner_deposit_accounts`, `owner_deposit_entries`, `owner_deposit_operations`, `financial_document_identities`, `financial_document_editions`, `financial_document_artifacts`, `insurances`, `merchandise_items`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |

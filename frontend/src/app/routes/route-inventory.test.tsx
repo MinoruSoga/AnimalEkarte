@@ -45,7 +45,7 @@ function flattenLeafRoutes(routes: RouteObject[], parentPath = ""): LeafRoute[] 
 }
 
 describe("main app route inventory", () => {
-  it("88 product pages, 12 redirects, wildcard 1を重複なく維持する", () => {
+  it("89 product pages, 12 redirects, wildcard 1を重複なく維持する", () => {
     const leaves = flattenLeafRoutes(appRoutes);
     const wildcard = leaves.filter((route) => route.path === "*");
     const redirects = leaves
@@ -54,8 +54,8 @@ describe("main app route inventory", () => {
       .toSorted();
     const pages = leaves.filter((route) => route.path !== "*" && !route.isRedirect);
 
-    expect(pages).toHaveLength(88);
-    expect(new Set(pages.map((route) => route.path)).size).toBe(88);
+    expect(pages).toHaveLength(89);
+    expect(new Set(pages.map((route) => route.path)).size).toBe(89);
     expect(wildcard).toHaveLength(1);
     expect(redirects).toEqual(EXPECTED_REDIRECT_PATHS);
   });

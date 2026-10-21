@@ -66,6 +66,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
+		NewTreatmentPackageHandler(nil),
 		noopPermission,
 		noopPermissionAny,
 	)
@@ -100,6 +101,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/masters/medicines/:id DeleteMedicine\n" +
 		"DELETE /api/v1/masters/medicines/:id/dose-params/:species DeleteMedicineDoseParam\n" +
 		"DELETE /api/v1/masters/procedures/:id DeleteProcedure\n" +
+		"DELETE /api/v1/masters/treatment-packages/:id DeleteTreatmentPackage\n" +
 		"DELETE /api/v1/masters/vaccines/:id DeleteVaccine\n" +
 		"DELETE /api/v1/medical-records/:id DeleteMedicalRecord\n" +
 		"DELETE /api/v1/medical-records/:id/checkups/:checkupId DeleteCheckup\n" +
@@ -159,6 +161,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/masters/medicines/:id/dose-params ListMedicineDoseParams\n" +
 		"GET /api/v1/masters/procedures ListProcedures\n" +
 		"GET /api/v1/masters/procedures/:id GetProcedure\n" +
+		"GET /api/v1/masters/treatment-packages ListTreatmentPackages\n" +
+		"GET /api/v1/masters/treatment-packages/:id GetTreatmentPackage\n" +
 		"GET /api/v1/masters/vaccines ListVaccines\n" +
 		"GET /api/v1/masters/vaccines/:id GetVaccine\n" +
 		"GET /api/v1/medical-records ListMedicalRecords\n" +
@@ -206,6 +210,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/medicines/reorder ReorderMedicines\n" +
 		"PATCH /api/v1/masters/procedures/:id UpdateProcedure\n" +
 		"PATCH /api/v1/masters/procedures/reorder ReorderProcedures\n" +
+		"PATCH /api/v1/masters/treatment-packages/:id UpdateTreatmentPackage\n" +
+		"PATCH /api/v1/masters/treatment-packages/reorder ReorderTreatmentPackages\n" +
 		"PATCH /api/v1/masters/vaccines/:id UpdateVaccine\n" +
 		"PATCH /api/v1/masters/vaccines/reorder ReorderVaccines\n" +
 		"PATCH /api/v1/medical-records/:id UpdateMedicalRecord\n" +
@@ -252,6 +258,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/inquiry-templates CreateInquiryTemplate\n" +
 		"POST /api/v1/masters/medicines CreateMedicine\n" +
 		"POST /api/v1/masters/procedures CreateProcedure\n" +
+		"POST /api/v1/masters/treatment-packages CreateTreatmentPackage\n" +
 		"POST /api/v1/masters/vaccines CreateVaccine\n" +
 		"POST /api/v1/medical-records CreateMedicalRecord\n" +
 		"POST /api/v1/medical-records/:id/addenda CreateMedicalRecordAddendum\n" +
@@ -325,6 +332,7 @@ func TestRegisterRoutes_HospitalizationDischargeAndExaminationUnconfirmPermissio
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
+		NewTreatmentPackageHandler(nil),
 		permSpy,
 		noopPermissionAny,
 	)
@@ -414,6 +422,7 @@ func TestRegisterRoutes_CageMergePermissions(t *testing.T) {
 		NewMedicalRecordHandler(nil),
 		NewMedicalRecordAddendumHandler(nil),
 		NewExaminationHandler(nil),
+		NewTreatmentPackageHandler(nil),
 		permSpy,
 		noopPermissionAny,
 	)

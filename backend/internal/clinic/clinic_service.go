@@ -303,6 +303,13 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 			return apperrors.Wrap(err, "failed to create clinic")
 		}
 
+		// EMR-518 §4 / EMR-521: 新規医院の package catalog 行（revision 1）を同じ tx で
+		// 初期化する。read 側は catalog row 欠落を invariant error にして INSERT しない
+		// ため、ここでの作成漏れは fail-closed（tx rollback）にする。
+		if err := s.repo.CreateTreatmentPackageCatalogVersion(ctx, clinic.ID); err != nil {
+			return apperrors.Wrap(err, "failed to initialize treatment package catalog")
+		}
+
 		// Initialize default permission groups: "執行" (executive) and "一般" (general)
 		defaultGroups := []struct {
 			name        string
@@ -395,6 +402,10 @@ func (s *clinicService) DeleteClinic(ctx context.Context, id uint64) error {
 		}
 		if err := s.permissionGroupRepo.DeleteSoftDeletedByClinicID(txCtx, id); err != nil {
 			return apperrors.Wrap(err, "failed to clean up soft-deleted permission groups")
+		}
+		// package catalog は医院付属の簿記行。RESTRICT FK で削除阻害にならないよう同TXで除く。
+		if err := s.repo.DeleteTreatmentPackageCatalogVersion(txCtx, id); err != nil {
+			return apperrors.Wrap(err, "failed to clean up package catalog version")
 		}
 		return s.repo.Delete(txCtx, id)
 	}); err != nil {

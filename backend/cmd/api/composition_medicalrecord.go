@@ -132,6 +132,7 @@ func (c medicalRecordComposition) newHandler(
 		medicalrecord.NewMedicalRecordHandler(s.core.medicalRecords),
 		medicalrecord.NewMedicalRecordAddendumHandler(s.core.addenda),
 		medicalrecord.NewExaminationHandler(s.core.examinations),
+		medicalrecord.NewTreatmentPackageHandler(s.masters.treatmentPackages),
 		dependencies.RequirePermission,
 		dependencies.RequirePermissionAny,
 	)

@@ -34,7 +34,7 @@ erDiagram
         BIGSERIAL id PK
     }
     merchandise_items {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
     }
     campaigns ||..o{ campaign_target_items : "campaign_id"
     merchandise_items ||..o{ campaign_target_items : "merchandise_item_id"
