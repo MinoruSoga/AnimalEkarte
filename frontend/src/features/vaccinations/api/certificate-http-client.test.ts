@@ -45,6 +45,8 @@ describe("実 API クライアント", () => {
       ...overrides,
     });
     const context = (latestNormal: unknown) => ({
+      vaccination_id: 101,
+      source_version: sourceVersion,
       eligibility: { state: "ineligible", allowed_kinds: ["normal"], provenance: "master_snapshot" },
       can_issue: true,
       latest: { normal: latestNormal, rabies: null },
