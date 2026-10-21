@@ -126,6 +126,13 @@ STAGE_FILTERS["manual_articles"] = [
 ]
 
 
+# Insert-only on conflict, so a repeated restore is safe: version rows are
+# immutable (manual_article_versions_immutable_contract rejects UPDATE), and
+# updating an already restored article would fire the storage version trigger
+# again. Existing rows are left as they are; verify reports any difference.
+INSERT_ONLY_TABLES = {"manual_articles", "manual_article_versions"}
+
+
 def manual_pointer_restore_sql(export_dir: Path, columns: list[str]) -> str:
     """Re-stage manual_articles.csv and apply the exported version pointers."""
     csv_literal = str(export_dir / "manual_articles.csv").replace("'", "''")
@@ -137,7 +144,9 @@ def manual_pointer_restore_sql(export_dir: Path, columns: list[str]) -> str:
         "SET current_version_id = s.current_version_id, published_version_id = s.published_version_id\n"
         "FROM pointer_stage s\n"
         "WHERE a.id = s.id\n"
-        "AND (s.current_version_id IS NOT NULL OR s.published_version_id IS NOT NULL);\n"
+        "AND (s.current_version_id IS NOT NULL OR s.published_version_id IS NOT NULL)\n"
+        "AND (a.current_version_id IS DISTINCT FROM s.current_version_id\n"
+        "     OR a.published_version_id IS DISTINCT FROM s.published_version_id);\n"
         "DROP TABLE pointer_stage;\n"
     )
 
@@ -478,6 +487,8 @@ def restore(args: argparse.Namespace) -> None:
                 f"{quote_ident(column)} = EXCLUDED.{quote_ident(column)}" for column in update_columns
             )
         else:
+            conflict_clause = "DO NOTHING"
+        if table in INSERT_ONLY_TABLES:
             conflict_clause = "DO NOTHING"
         script = (
             f"CREATE TEMP TABLE stage (LIKE public.{quote_ident(table)} INCLUDING DEFAULTS);\n"
