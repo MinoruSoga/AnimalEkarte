@@ -178,7 +178,7 @@ fail-closed の判定は既存 loader／OwnersList の挙動を維持する: 現
 
 | # | ケース（権限条件） | 操作 | 期待結果 | 判定箇所 | 対応テスト／未検証 |
 |:---|:---|:---|:---|:---|:---|
-| 1 | 選択医院 B で owners:view なし、許可医院 A で owners:view あり（GET /me = `["A"]`） | `/owners` を開く | 一覧入口を通し、A だけを取得・表示。B の閲覧権限付与・B のデータ取得なし | 一覧 index に親 view guard なし（OwnersListRouteGuard は活性時に子を通す）＋ ownersLoader の現在許可交差 | route 構造テスト・guard 単体テスト（新規）、loaders.scope.test.ts の交差選択（既存）。route→loader→表示の結合試験は未作成 |
+| 1 | 選択医院 B（ID `"2"`）で owners:view なし、許可医院 A（ID `"1"`）で owners:view あり（GET /me `owners_view_clinic_ids` = `["1"]`） | `/owners` を開く | 一覧入口を通し、A だけを取得・表示。B の閲覧権限付与・B のデータ取得なし | 一覧 index に親 view guard なし（OwnersListRouteGuard は活性時に子を通す）＋ ownersLoader の現在許可交差 | route 構造テスト・guard 単体テスト（新規）、loaders.scope.test.ts の交差選択（既存）。route→loader→表示の結合試験は未作成 |
 | 2 | 現在許可ゼロ（GET /me = `[]`） | `/owners` を開く | no-permitted-clinics 表示、/pets を呼ばない | `listState=no-permitted-clinics` | loaders.scope.test.ts「許可 [] は /pets を呼ばず…」、OwnersList.clinic-scope.test.tsx（既存） |
 | 3 | scope 取得失敗（missing／null／不正／通信・5xx） | `/owners` を開く | scope-error＋再試行表示、旧結果を表示しない、fallback なし | `listState=scope-error` | get-owners-view-scope.test.ts・loaders.scope.test.ts（既存） |
 | 4 | 失権（/pets が 403） | 一覧取得 | scope を再取得して照合し直し、失敗 scope で再送しない | ownersLoader の 403 再照合 | loaders.scope.test.ts の 403 系（既存） |

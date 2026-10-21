@@ -1,5 +1,5 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { createElement, isValidElement, type ComponentType } from "react";
+import { createElement, isValidElement, type ComponentType, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RequirePermission } from "@/components/shared/RequirePermission";
@@ -17,8 +17,8 @@ vi.mock("@/features/owners", async () => {
   const { createElement: h } = await import("react");
   return {
     ownersLoader: vi.fn(),
-    OwnersListRouteGuard: ({ children }: { children?: unknown }) =>
-      h("section", { "data-testid": "owners-list-guard" }, children as never),
+    OwnersListRouteGuard: ({ children }: { children?: ReactNode }) =>
+      h("section", { "data-testid": "owners-list-guard" }, children),
   };
 });
 
