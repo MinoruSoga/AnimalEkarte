@@ -1,6 +1,6 @@
 # EMR-503 / EMR-504：採択技術契約と Phase 境界
 
-更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 現 Phase A/B。504 C は将来 Phase の研究設計であり、現 ticket 完了 gate に追加しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
+更新日：2026-10-21。Revision 4（root 採択済み）。R3 採択契約を保持し、PR #784 の9指摘に対する採択済み技術補正を公開用に固定する。設計採択であり、OpenAPI 反映・schema 適用・runtime 実装・試験合格・運用開始を意味しない。対象は EMR-503 現 Phase A/B、EMR-504 今回の技術整備A/B。504のA/Bは技術作業sliceを指し、互換adapter・契約整備を今期LSTEP利用開始・納品必須gateへ追加しない。LINE予約・本人紐付け・再診問診のunlink/対象認可の必要受け手は今期別枠として維持する。504 C は将来 Phase の研究設計であり、現 ticket 完了 gate に追加しない。外部送信・資格設定・鍵生成・DB 適用・API 実装・実装PRは本作業で行わず、この文書はそれらの実行許可を含まない。今回の公開は本書1文書だけのdocs-only PR。試験は NOT_RUN。
 
 ## 1. 結論と調査証拠
 
@@ -61,7 +61,9 @@ confirmation_payloadのclosed keysは `schema, report_ref, report_version, conte
 - 初回/再試行の各外部送信直前に、保存した destination_ref と非secret configuration_digest を現在設定から再計算して照合する。Aで保存しBで送る滞留 intent も例外にしない。不一致/設定不足なら外部送信0で再確認待ちとし、保存済み intent の宛先を上書きしない。照合済み同一 immutable 設定値をその呼出しへ渡し、検査後に別の現在設定を読み直して宛先をすり替えない。credential は digest/ログへ含めず、同じ宛先 identity に対応する設定として取得する。送信と設定変更がDB TXで原子的になる、又は開始済み外部効果を回収できるとは主張しない。
 - provider側が「不存在」を証明できない場合はunknownのまま。新しいroot権限・管理者限定・証拠なし手動上書きを発明しない。署名済みURL失効や外部コピー消去は保証しない。
 
-## 4. EMR-504：現 Phase A/B と将来 Phase C
+## 4. EMR-504：今回の技術整備A/B と将来 Phase C
+
+[確定済み納品Phase正本](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/spec/line/lstep-integration.md#crm-delivery-phase-boundary-20261017)ではLSTEP連携・DM自体は今期Phase1外。本節A/Bは今回の技術整備sliceであり、A互換adapterやB契約整備を今期の利用開始/納品必須gateにしない。LINE予約・本人紐付け・再診問診のunlink/対象認可に必要な受け手は今期別枠で維持し、将来Cの研究設計も繰り上げない。
 
 ### A：既存互換adapterは新wire不要
 
@@ -107,7 +109,7 @@ claim前と外部呼出直前で、現在source、確認内容、医師指定（
 ## 5. 採択事項・実装依存・非実行境界
 
 1. 503 現 Phase A/B：署名なし full immutable confirmation submit、新 confirmed path、純 preview、宛先別 read、管理 reconciliation/retry route を採用する。共有 READ・医院 mutation の既決 scope は変更しない。A は院内原子保存と配送未起動の表示、B は宛先別 claim・結果・照合・管理再試行を扱う。B の契約採択は外部送信実行の許可ではない。
-2. 504 現 Phase A/B：A の既存 JSON adapter と B の選択集合 atomic 再開、eligibility operation_id CAS、owners:edit 入口を採用する。469 の binding writer と共通 lock 順・lookup anchor へ接続する。B の確認保存は即時通知を起動しない。
+2. 504 今回の技術整備A/B：A の既存 JSON adapter と B の選択集合 atomic 再開、eligibility operation_id CAS、owners:edit 入口を採用する。469 の binding writer と共通 lock 順・lookup anchor へ接続する。B の確認保存は即時通知を起動しない。
 3. 504 C は将来 Phase 研究として保持する。医師指定/実施 source の正本 ref・version/digest と同一事象 dedup projection は対象 Phase の設計残であり、現 A/B の完了 gate に追加しない。doctor 列の存在だけを指定証拠にせず、新業務 workflow を捏造しない。
 4. 503/504 の metadata table と domain repository は各 owner が所有する。schema 統合は446/466、共有 claim capability は489、binding writer closure は469、OpenAPI の統合は共有 API owner が担当する。採択済み能力の runtime 有無は別に確認し、共有 helper/router/OpenAPI を並行編集しない。
 5. provider の不存在を証明できなければ unknown を保持し再試行不可。外部疎通・資格設定・キー生成・送信実行はこの契約で許可しない。モデル/DDL の存在を adapter や運用完成の証拠にしない。
@@ -122,7 +124,7 @@ claim前と外部呼出直前で、現在source、確認内容、医師指定（
 
 504 C（将来 Phase の研究受入であり現 ticket gate ではない）：一般/医療目的分離、医師指定なし拒否、記録createだけで送信0、claim後unlink/失権、DM例外と独立停止の分離、unknownの新key再送0、source同一別key重複0。
 
-以上はfixture/testの定義であり、実行は全てNOT_RUN。503 現 A/B・504 現 A/B と将来 C を分離する。採択 wire を OpenAPI へ公開する作業とconsumer実装・実機受入は別に判定する。
+以上はfixture/testの定義であり、実行は全てNOT_RUN。503 現 A/B・504 今回の技術整備A/B と将来 C を分離する。採択 wire を OpenAPI へ公開する作業とconsumer実装・実機受入は別に判定する。
 
 ## 7. 閉じた C06 契約・claim metadata・B の実体接続
 
@@ -175,7 +177,7 @@ pre-C06 errorは既存 `ErrorResponse` の `{error:string}` を採用し、C06 s
 
 route grant 契約：eligibility GETとoperation lookupはowners:view＋認証医院owner scope＋選択予約のreservations:view/現在行scope。POST resumptionsはowners:edit＋同じ読取scope。既存LINE手動writeのowners:editを再利用し、reservations:editや新resourceを要求しない。GET router は read grant、POST router は既存 owners:edit middleware 必須とする。POST は成功 replay を含むすべての入口で現在 edit grant を要求し、その後も原 anchor の現在 read scope を再確認する。view-only 利用者には POST 成功 replay を許可せず、GET operation lookup で同 actor/clinic の保存済み原 receipt を取得する。GET は edit 不足を新書込権限へ昇格しない。既存469 PATCH `/owners/:id/line-user-id` / `/line` とline-id-confirmはowners:editを維持。既存DELETE独立経路を本契約だけで権限変更しない。503は専用grantなしの認証済スタッフ共有READ、mutationは報告医院のまま。
 
-現Phaseの残りは上記新metadata schema/489 callback、469全対象writer参加と新bindingへの置換、採択済み public OpenAPI の反映・公開。504 Cのdoctor source/dedup/全triggerの研究残はB・Aの完了gateへ追加しない。署名鍵の準備・expiry選定は残件から削除した。
+今回の技術整備の残りは上記新metadata schema/489 callback、469全対象writer参加と新bindingへの置換、採択済み public OpenAPI の反映・公開。504 Cのdoctor source/dedup/全triggerの研究残はB・Aの完了gateへ追加しない。署名鍵の準備・expiry選定は残件から削除した。
 
 
 ## Revision 4 追加採択契約：context gate・必須監査
