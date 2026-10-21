@@ -391,6 +391,7 @@ handler: handleSave L327,400,404,560, handleRequeryOperation L437,656, handleClo
 
 ④受領subset: report ID/report clinic、shared ROOM read vs mutation、external issue result、attachment storage+DB result、本人history refs
 
+<a id="package-operation-audit-20261021"></a>
 ## P01 package master保存・削除・並替（N-PKGの非検索操作）
 
 担当境界は521/523、型生成受領527。D17の医院/法人設定とは独立したmaster操作family。実接点は[frontend/src/features/master/routes/TreatmentPackageSettings.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/master/routes/TreatmentPackageSettings.tsx)。#775の既存成果を再実装せず、keywordを新設しない。
@@ -398,9 +399,14 @@ handler: handleSave L327,400,404,560, handleRequeryOperation L437,656, handleClo
 | 操作 | handler / 共通接点 | 適用・受領境界 |
 |---|---|---|
 | 作成/更新・保存 | handleSave L66→validateDraft→editor.save→createMut/updateMut、L89のconflict/create-unknown/error入力保持 | O1:E、O3:E、O5:E。saved/noop/conflict/unknownを識別し、成功のみtarget更新・dirty.markClean。unknownを成功や新key再作成へ落とさない |
-| 削除・取消 | handleDeleteConfirm L92→deleteMut、pendingDelete/canDelete/version、ConfirmDialog | O4:E、O5:E。取消は未保存破棄/永続削除と区別。成功時だけpendingDelete/target/editorをclear、失敗/競合では確認対象を保持 |
+| 削除・取消 | handleDeleteConfirm L92→deleteMut、pendingDelete/canDelete/version、同routeのrole="alertdialog" div（L240） | O4:E、O5:E。取消は未保存破棄/永続削除と区別。成功時だけpendingDelete/target/editorをclear、失敗/競合では確認対象を保持 |
 | 並替 | handleMove L113→moveId/buildReorderBody(orderVersion,next)→reorderMut | O1:E、O5:E。順序版・canEditを保持し同順序no-op、競合は再読込を案内。別資源や旧orderへ黙って上書きしない |
 | 選択/保持・閉じる | dirty.runWithDiscardCheck→editor.resetFor、MasterPageShell/editorの既存接続 | O3:E、O4:E。保存済み構成の履歴復元を新設しない。O2:N（このfamilyに永続clear/reset操作はない） |
+| SPAページ戻る | MasterPageShell.tsx L57–65のonBack→navigate(settings)。TreatmentPackageSettings.tsx L48–64/L154–183のrunWithDiscardCheckは選択/閉じるだけ | 523/450の追加受入差分。dirty時の戻るも破棄確認へ通し、取消で入力と画面を保持、確認時だけ遷移。共有hookのbeforeunloadをSPA保護済みの証拠にしない |
+
+追加監査基準はmain `c86c8dd2530bbea3d1810e07badb72f3ed1a07e1`。useSidePeekDirtyはuseUnsavedChangesのbeforeunloadと明示runWithDiscardCheckの呼出しを持つが、このrouteはMasterPageShellのonBackにguardを渡していない。最小差分は既存shellの戻る継続処理をguard経由に接続する手段と当該callerの受入であり、全masterに新しいdirty状態を二重実装しない。clean/dirty取消/破棄確認/保存成功後戻るをfixture化し、実行はNOT_RUN。部品名の訂正は削除確認の実物role=alertdialog divを記すもので、既存discardDialogが共通ConfirmDialogを使うことは維持し、名前だけで欠陥扱いしない。focus/keyboardの実機確認もNOT_RUN。
+
+create結果不明の「一覧を再読込して確認しました」→list.refetch成功→editor.allowCreateRetry（TreatmentPackageSettings.tsx L139–145、TreatmentPackageEditor.tsx L70、use-treatment-packages.ts L201）は追加確認候補に留める。現在は確定二重作成の欠陥とは認定していない。確認方法/既存契約への適合を限定照合し、③のための専用lookup新設や④receipt実装の強制へ広げない。
 
 ③では上記の実在接点をO1/O3/O4/O5のcoverageへ含め、状態/認可/失敗保持を限定確認する。Uは受入未確認であって追加実装欠陥の断定ではない。522/524のカルテpreview/applyと結果receiptは④で、masterのsave/delete/reorderの代用にしない。実装・実行試験NOT_RUN。
 

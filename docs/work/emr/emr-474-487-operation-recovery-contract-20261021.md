@@ -171,6 +171,64 @@ Slice Aはdiscovery＋保留だけで独立実装可能。ただし未知/0件�
 
 受入は全てNOT_RUN: 遅延claim前後・Apply前後・fence応答断・同世代再送・ack違い・別target同key競合・別tab新key・別staff CAS・失権/再紐付け・sticky unknown・欠損metadata・空集合世代進行・int64上限・legacy bypass拒否・reprint+NULL拒否・issue+非NULL拒否・正reprint許容・controlなしlegacy成功の回復・fence後旧世代成功replay・同key別targetbodyの元認可。採択/文書公開とruntime保証の完成を区別する。
 
+<a id="recovery-query-gap-selected-20261021"></a>
+## 12. Slice A discovery 採択技術追補（API正本未収録・runtime未実装）
+
+本節は2026-10-21採択の技術追補である。§4の該当queryの走査終端・cursor詳細は本節で補足し、詳細が重なる場合は本節を優先する。既存2queryのrequest/response wireとedition単位control/fenceは維持し、新readだけを追加選定する。基準mainは `c86c8dd2530bbea3d1810e07badb72f3ed1a07e1`（#803採用）。本人の既決の回復要件を満たすため、履歴別ページの本人reprint発見、走査終了の意味、cursor文法の3点だけを補う。業務要件の判断窓口はMinoru Soga、実装claimとは別。計画指標はこの3点のwire/現在認可/後方互換/残実装の対応が説明できることとし、新しい業務KPI・効果達成は設定しない。
+
+本稿の文書採択・公開は、機能公開・API収録・①の実装完了を意味しない。#799/#800のSlice A採用は維持し、既存のfence availableは両domainともfalse、LIFF activation=false、owners scope=trueを変更しない。Slice B、新キー再開、証明書ルート接続は対象外。試験・生成・runtime実行はすべてNOT_RUN。
+
+### 12.1 接種単位の本人reprint discovery（追加read）
+
+既存§4のedition指定queryを後方互換のまま残し、別の純readを追加選定する。API正本への収録は①の未完了作業であり、今回実APIを追加した記録ではない。
+
+- 実route: `POST /api/v1/vaccination-certificate-operation-recovery/reprints/query`。
+- OpenAPI相対path: `/vaccination-certificate-operation-recovery/reprints/query`。既存 `/api/v1` serverに従いprefixを重複しない。
+- request exact keys: `{target_ref:{vaccination_id},cursor:null|string}`。target_ref と cursor の両keyは必須。cursor は初回null、続きのpageでは前応答のnext_cursor文字列をそのまま渡す。intentはserverで既存 `vaccinations.certificate.reprint` に固定し、edition/clinic/staff/actor/intentのclient指定を受けない。vaccination_idは既存証明書integer/int64、lossless decodeを維持する。
+- response exact keys: `{items,next_cursor,complete}`。itemsは最大50件、各要素exact `{target_ref:{vaccination_id,edition_id},operation}`。両ID必須、edition_idは正int64。operationは§4の既存証明書itemと同じclosed shape（`CertificateOperationRecoveryItem`）でintent=`reprint`固定。既存domain lookup resultを再利用し、result_refs/committed_versionsのstring mapを独自の固定key集合へ縮小しない。
+
+item.target_ref.vaccination_idはrequestのvaccination_idと一致、edition_idはimmutable元target metadataに由来し、operation.intentはreprintとする。成功result_refsのvaccination_id/edition_idも同じ原対象への一致を必須とする。その他の既存string map keyを禁止する意味ではない。欠落/不整合を現在値で補完せず、現在認可成立後の結果検証不能は既存unavailable/unresolvedの扱いに従う。現在の接種版と過去editionの保存版との一致は要求せず、履歴内部の整合と現在元target認可を別に検査する。
+
+単一のrecovery_generation/active_operation_keyは返さない。各itemの原editionに対する既存edition指定queryでそのcontrolを読む。接種単位のcontrol/fence/lock/新永続表は追加せず、edition単位のcontrol identity・世代・排他を変更しない。旧queryのrequest/responseに新required fieldを追加しない。RV batch intentや別職員の操作へ対象を広げない。
+
+各requestで認証済clinic/staffを確定し、現在の元接種への `vaccinations:view` を検査する。その本人scopeのC06 bindingとimmutable元target metadataから、成功receiptのない操作も列挙する。元metadataの接種・edition・元actor/intentと実editionの接種/医院関係を照合し、要求接種に属すると証明できたものだけを返す。最新edition限定・UI履歴の取得済page限定・有効PDF限定にしない。歴史editionの発見は旧PDF出力の許可ではなく、contentの現在有効性gateを維持する。成功台帳だけの検索、現要求のeditionへの付替え、現在履歴から未成功の原editionを推定する方式は採用しない。
+
+原targetと現在認可が確定した操作のlookup読取不能は、既存の `discovery_state=unavailable / execution_state=unresolved / result=null / receipt_digest=null` として元edition付きで残す。成功が権威あるlookupで確認できた場合だけsucceededと成功digestを返す。元anchorが欠落/解決不能で要求接種への帰属も現在認可も証明できないlegacy操作は、推定edition/null editionのitem・key・件数を開示しない。その本人scopeの列挙で、そうした未分類操作を除外して完全な検索範囲と証明することもできない場合は、query全体を503 `RESULT_UNAVAILABLE` とし、空集合/complete=trueへ潰さない。これは既存§10のlegacy保留を純readで表現するもので、全editionの排他を新設しない。帰属を証明できた別接種の操作は検索対象外。元対象の現在認可失敗は既存403/404の非開示規約を優先し、certificate用redacted成功を作らない。
+
+順序は全対象editionを通じた `(claimed_at DESC,operation_key DESC)`、1page50、最初のpageで固定した上限tupleをcursorで維持する。pageごとに現在認可を再検査し、別職員のkey/件数は返さない。業務write・claim・修復・render・fenceをreadから開始しない。全応答no-store。queryエラーは既存closed `{error,code}` の `VALIDATION / NOT_AUTHORIZED / SCOPE_NOT_FOUND / RESULT_UNAVAILABLE` と既存HTTP400/401/403/404/503を維持し、fence用 `RECOVERY_*` を追加しない。
+
+### 12.2 completeと走査上限（既存2queryへの明文化）
+
+成功responseで `complete=true` と `next_cursor=null` は同値、すなわち `complete == (next_cursor == null)` とする。complete=falseでは非nullの有効cursorを返す。適用対象は既存LIFF target/self query、証明書edition指定query、および本節の新read。各scopeの固定上限以内の次行がないことをlimit+1等で確認し終えた場合だけ終端とし、空終端pageはitems=[]/next_cursor=null/complete=trueとする。失敗・認可不能・元target未分類を終端に置換せず、途中pageを部分成功として返さない。
+
+上限より後の新claim、走査後の成功状態変化、遅延senderの不在は証明しない。0件/complete=trueは次write・新key・自動再送・fence成功を意味しない。UIの最大page数・時間制限・反復cursor検出で中断した場合も完了へ改変せず保留する。新readの全page取得が済んでも、各editionの既存control/fenceを省略できず、Slice Aでは結果確認と保留だけを維持する。
+
+### 12.3 cursorの文字文法・厳密decode・上限
+
+cursor=nullは初回だけ、文字列ならASCIIで1..2048文字（末尾paddingを含む）。serverはRFC4648のbase64url alphabet `A–Z a–z 0–9 - _` を使い、**必要な末尾 `=` paddingを付けた正規形**を出力する。改行/空白/`+`/`/`は禁止。入力は互換性のため正しいpadding付きとpaddingなしの両方を許容し、次の順で厳密に検査する。
+
+1. decode前に型・ASCII・2048文字上限を検査する。`=` は末尾のみで0..2個。data部分の長さmod4=1は不正。padding付きなら全長mod4=0かつ必要数と完全一致し、不要なpaddingを拒否する。
+2. paddingなし入力は内部で必要数だけ補ってstrict base64url decodeする。未使用pad bitsが0でない表現を拒否する。decode後に正規padding付きへ再encodeし、padding付き入力とは完全一致、paddingなし入力とは正規形の末尾 `=` を除いた値との完全一致を要求する。正規形へ直すだけで別bytesの表現を受理しない。
+3. decoded bytesはstrict UTF-8 JSON object、重複key/未知key/不正Unicodeを拒否する。v1 exact fieldsは§4どおり `{v:1,upper_claimed_at,upper_key,last_claimed_at,last_key}`。vは整数1だけ、日時はUTC `Z` のcanonical RFC3339Nano、Gregorian年0001..9999・最大小数9桁、UUIDは既存canonical lowercase非nil UUID。last tupleはupper tuple以下。継続pageは固定upper tuple以下の上限を維持し、`claimed_at < last_claimed_at OR (claimed_at = last_claimed_at AND operation_key < last_key)` を満たす行だけを返す。last tuple自身は除外して再返却しない。文字列の数値化や日時の省略補完をしない。
+4. base64url文字列表現の厳密decodeとclosed typed JSONの検査を分ける。JSONの空白やobject key順だけでは拒否せず、JCS再canonical化やdecoded bytesとのbyte一致を要求しない。cursor内値をscope/認可証明にせず、requestと現在認証から毎回絞る。未知versionも400で推測decodeしない。
+
+v1のproducerは、固定5keyを固定順で一度ずつ出力するcompact deterministic UTF-8 JSON（余分な空白なし、上記ASCII値を不要なUnicode escapeにしない）とする。timestampは各最大30 ASCII bytes、UUIDは各36 bytes、key/区切り/v=1を含む**producer出力**は最大211 bytes。padding付きbase64urlは `4×ceil(211/3)=284文字`（最大bytesの場合、paddingなし282文字）。これはproducer出力上限であり、入力decoded bytesの211byte制限ではない。入力全体はpaddingを含め2048文字、decoded bytesはtransport上限1536 bytesとclosed typed v1形・意味値で制限し、許容JSON空白/key順を211byte根拠で拒否しない。新しいJSON正規化ライブラリの導入を要求せず、将来versionの余白を未知version受理の根拠にしない。この算術は静的サイズ計算であり実試験PASSではない。
+
+既存FEの `/^[A-Za-z0-9_-]+={0,2}$/` とmax2048はtransportの一次検査であり、padding数・pad bits・strict UTF-8・closed typed v1意味値の厳密decode仕様ではない。既存opaque cursor契約を入力JSONの空白/key順によって狭めず、producer出力規則と入力許容範囲を区別する。今回FE/BEのparserは変更しない。
+
+### 12.4 API正本への最小反映範囲と①の受領条件
+
+実ファイル `backend/docs/api.yaml` は未変更。445の単一ownerが今後反映する未完了作業は次だけとする。
+
+| 対象 | 最小反映 | 保持する境界 |
+|---|---|---|
+| 新path | 上記相対pathへPOST、operationId候補 `queryVaccinationCertificateReprintRecovery` | 既存queryのoperationId/path/required shapeを変更しない。収録時に一意性を確認 |
+| 新closed schemas | `CertificateReprintRecoveryQueryRequest`、`CertificateReprintRecoveryTargetRef`、`CertificateReprintRecoveryEntry`、`CertificateReprintRecoveryQueryResponse` | request targetはvaccinationだけ、entry targetはvaccination+edition。IDは既存int64。entry.operationは既存CertificateOperationRecoveryItem参照＋intent=reprint制約。required nullable cursor/next_cursor、items最大50 |
+| 既存共通cursor | `OperationRecoveryCursor` にmaxLength2048、transport alphabet/padding patternと厳密decode説明を追補 | nullable/minLength1維持。patternだけで厳密decode済みとしない。v1payloadを公開の自由入力DTOにしない |
+| 完了/エラー | 全query responseのcomplete説明に§12.2の同値条件、全queryにno-store。既存query error schemaとHTTPを参照 | 新status/独自ResultResponse/fenceエラーを足さず、certificate resultの既存string mapを維持 |
+
+受領条件は技術追補採択済み、API正本への反映未完、domain列挙/元target認可/serializerの接続未完、FE read adapter未受領を別欄で管理すること。文書採択を①反映完了や②③完成としない。fixture条件（すべてNOT_RUN）は、履歴別pageの本人未成功reprint・複数edition順序・同claimed_atでUUID降順にpageを跨いでも境界last tupleの重複/欠落なし・別staff非開示・元target不明legacy・認可成立後のlookup不調・成功digest条件・途中claim/固定上限・空終端・client走査中断・padding有無/誤数/非zero pad bits・不正UTF-8/重複key/未知version・JSON空白/key順許容・producer最大v1サイズ・入力decoded211bytes超の許容・2048/2049境界とする。fixtureのための実行・新キー再開・Slice Bを先行させない。
+
 ## 固定根拠
 
 - https://github.com/MinoruSoga/AnimalEkarte/blob/edf71515dbae11735a4184ff64c465e2ea51af88/backend/internal/operation/contract.go
@@ -179,8 +237,12 @@ Slice Aはdiscovery＋保留だけで独立実装可能。ただし未知/0件�
 - https://github.com/MinoruSoga/AnimalEkarte/blob/edf71515dbae11735a4184ff64c465e2ea51af88/docs/work/db-contracts/revisit-intake.md
 - https://github.com/MinoruSoga/AnimalEkarte/blob/edf71515dbae11735a4184ff64c465e2ea51af88/docs/work/emr/emr-486-certificate-api-contract-20261020.md
 
-## Runtime 再確認根拠（2026-10-21 05:38 UTC）
+## Runtime 再確認根拠（2026-10-21 05:38 UTC、当時の記録）
 
 - https://github.com/MinoruSoga/AnimalEkarte/blob/0de244ba69f9287a0bacff6abeddabb50a712aac/backend/internal/operation/contract.go
 - https://github.com/MinoruSoga/AnimalEkarte/blob/0de244ba69f9287a0bacff6abeddabb50a712aac/backend/internal/operation/runner.go
 - https://github.com/MinoruSoga/AnimalEkarte/blob/0de244ba69f9287a0bacff6abeddabb50a712aac/backend/internal/operation/store.go
+
+## 後発採用の限定確認（#778）
+
+上記§2/§9の「hook未実装」「最新HEAD」は05:38 UTC snapshotの履歴である。#778は2026-10-21 11:48:30 UTC、`eb137881c013f9bd7b0335c01c62ede31429cb23` でmain採用済みであり、winner-only ClaimMetadataWriterの同claim-TX hookは再実装しない。この限定採用だけで回復用BeforeClaim/control/closure/ContextGate/consumer参加が完成したとはしない。生成同期EMR-527の本人実行・成果受領も別残件であり、#778マージを生成完了/全C06対応と読み替えない。

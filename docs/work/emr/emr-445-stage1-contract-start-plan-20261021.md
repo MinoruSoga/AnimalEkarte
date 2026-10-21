@@ -27,7 +27,7 @@
 - EMR-446/466：必要なDDL/model/ERDの共通編集窓口。各領域の必要subsetだけを同じ採用版に整合。全backend修復・実DB適用を要求しない。
 - 領域原票：対象操作・wire・schema差分・依存契約の提出責務を保持。①の実装PRは関連票を束ねてよく、一票一PRを要求しない。
 - 共通生成型：[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445、Ready、個人担当未割当）。責務 owner は「この票をclaimした単一実装session」。既存session3へ自動割当しない。
-- 2026-10-21 10:33 UTC の確認時点で、#778のmanual edit / ClaimMetadataWriter / 短claimTX / migration005 / manual-corpus変更は現在の実装ownerが所有。新しい①担当が同じhunkを重複実装しない。
+- 2026-10-21 10:33 UTC の確認時点で、#778のmanual edit / ClaimMetadataWriter / 短claimTX / migration005 / manual-corpus変更は現在の実装ownerが所有。新しい①担当が同じhunkを重複実装しない。後発確認では#778は2026-10-21 11:48:30 UTC、`eb137881c013f9bd7b0335c01c62ede31429cb23` でmain採用済み。ClaimMetadataWriterの限定採用と、生成同期EMR-527の本人実行・成果受領および個別consumer接続の未完を分ける。
 - 試験実行・DB適用・新実装開始の許可は計画とは別。必要な実行許可を開始時条件として明示する。担当が未claimであることと、対象・完了条件が未定義であることを混同しない。
 
 ## 2. 追跡項目と完了の意味
@@ -85,7 +85,7 @@
 
 ### 固定入力・正規生成（調査済み）
 
-参照mainは a88fa4add58d43cff643590f9f507c8ab1a3c085。実装開始時はこの版を含む最新採用commitをPRに記載し、#778のmanual-corpus差分を受領したcommitを別記する。採用前の#778をmain済みとしない。入力hash専用ファイル・別CSV・別allowlistは必須にせず、1枚のPR対照表で固定commit、source path、変更前後、受領先を追跡できればよい。
+参照mainは a88fa4add58d43cff643590f9f507c8ab1a3c085。実装開始時はこの版を含む最新採用commitをPRに記載し、#778のmanual-corpus差分を受領したcommitを別記する。#778は上記merge commitで採用済みであり、採用待ちへ戻さない。EMR-527の生成実行/成果受領は引き続き独立後続で未完。入力hash専用ファイル・別CSV・別allowlistは必須にせず、1枚のPR対照表で固定commit、source path、変更前後、受領先を追跡できればよい。
 
 正規コマンドは既存 `make codegen`（.claude/CLAUDE.mdのuser-run指定。本人が実行し、agentは成果を確認・取り込む）。Makefileから docker-compose.yml のcodegen serviceへ進み、backend/tygo.yamlを出力先置換して `go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml`、続いて `go run ./cmd/manual-corpus --frontend /frontend --backend /app`。Go imageはgolang:1.26-alpine。ここを無断の手書き生成や独自generatorへ置換しない。DB serviceを起動するターゲットではないが、実ターゲット/実行先を本人へ提示し、本人が生成環境で実行する。agentの自動実行へ委任する計画にしない。
 
@@ -137,7 +137,7 @@ AGENTS.mdが参照する.claude/CLAUDE.mdのuser-run規約に従い、本人へ�
 
 | 票 | S 正本・節 | W 現wire/DTO | D/X 現保存・変更対象 | PとEの現在値 |
 |---|---|---|---|---|
-|445|docs/work/emr/emr-445-master-stages-ledger-20261021.md 段階①|新API無し、下記5.2のapi.yaml単一統合|台帳のみ、共通編集を445へ集約|#778専有manual差分を保存。E=5.2全family＋生成型の採用commitと未実装表示の対照表。現未受領|
+|445|docs/work/emr/emr-445-master-stages-ledger-20261021.md 段階①|新API無し、下記5.2のapi.yaml単一統合|台帳のみ、共通編集を445へ集約|#778採用済みmanual差分を保持（上記merge commit）。E=5.2全family＋生成型の採用commitと未実装表示の対照表。現未受領|
 |447|docs/work/emr454-master-cas-handoff.md、stage ledger臨床群|下4票の既存CRUD＋498追加wire|新しい447独自schemaなし|454/455/456/457/498の同一仕様版を参照。E=下位成果リンク、親を二重実装しない|
 |454|emr454-master-cas-handoff.md CAS/保険境界|medicalrecord/routes_masters.go: /masters/consultations と /procedures のGET/POST/PATCH/DELETE/reorder。create/updateConsultationRequest・ProcedureRequest。PATCH version正int64必須、boolCreateField/boolUpdateField|model/consultation.go・procedure.goにversion int64、is_non_insurance *boolあり。各request/response、004_master_insurance_versions.sql採用範囲。version/保険はjson:"-"のmodel生成に頼らずHTTP DTOから読む|追加DB/API設計不要。E=現APIの既採用CAS/保険と専有responseの型対応をAPI対照表へ記録。②既存writerの再実装を要求しない|
 |455|上記vaccine consumer節、365小数契約|/masters/vaccines CRUD。create/updateVaccineRequest。PATCH version必須、is_non_insurance省略維持/null拒否|model/vaccine.go version int64/*bool既存。priceは*int64で365差分あり。vaccine_request/response.go|保険/CASは既採用、価格だけ5.2へ。E=保険部分nochange根拠＋365受領。price以外のfieldを勝手に厳格化しない|
@@ -163,7 +163,7 @@ AGENTS.mdが参照する.claude/CLAUDE.mdのuser-run規約に従い、本人へ�
 
 | 票 | S 固定採択doc（docs/work/emr/以下） | W追加familyとclosed型 | D/X差分とP必要subset | E受領条件 |
 |---|---|---|---|---|
-|448|emr-448-493-shift-csv-selected-contract-20261021.md、emr-448-493-shift-copy-contract-20261021.md|CSV template、POST /shifts/csv-imports/preview と /shifts/csv-imports/apply、GET /shifts/csv-operations/{operation_key} と同pathの/details・/reconciliation。copyはPOST /shifts/copies/preview と /shifts/copies/apply、GET /shifts/copy-operations/{operation_key} と同pathの/details・/reconciliation。PreviewResponse/Preconditions/Details、CopySelection/CopyProjection/CopyPreconditionsは各closed定義をそのままschema化|`shift_bulk_operation_targets` 1表を両family共有、staff.go既存ShiftEntry/Break、aggregate版・deferred exclusion差分。489 Q/ContextGateと#778 ClaimMetadataWriter必要subset。CSVとcopyのowner rowlockはbinding後Applyで統一|全route/schema/認可/C06status/details shapeを対照。metadata既存化の二重作成なし、scope/版/null fixture。consumer実装や実CSV入力は②/⑤|
+|448|emr-448-493-shift-csv-selected-contract-20261021.md、emr-448-493-shift-copy-contract-20261021.md|CSV template、POST /shifts/csv-imports/preview と /shifts/csv-imports/apply、GET /shifts/csv-operations/{operation_key} と同pathの/details・/reconciliation。copyはPOST /shifts/copies/preview と /shifts/copies/apply、GET /shifts/copy-operations/{operation_key} と同pathの/details・/reconciliation。PreviewResponse/Preconditions/Details、CopySelection/CopyProjection/CopyPreconditionsは各closed定義をそのままschema化|`shift_bulk_operation_targets` 1表を両family共有、staff.go既存ShiftEntry/Break、aggregate版・deferred exclusion差分。489 Q/ContextGate必要subsetと#778採用済みClaimMetadataWriterへのconsumer参加。hookの二重実装なし。CSVとcopyのowner rowlockはbinding後Applyで統一|全route/schema/認可/C06status/details shapeを対照。metadata既存化の二重作成なし、scope/版/null fixture。consumer実装や実CSV入力は②/⑤|
 |493|emr-493-staff-leave-selected-contract-20261021.md、emr-493-reservation-eligibility-contract-20261021.md＋上記CSV/copy|leave-periods/leave-operations選定family、GET/PATCH masters/staffs/{id}/reservation-eligibility、GET reservation-eligibility-operations/{key}。PATCH={operation_key,expected_version,changes}、changes=nomination_paused/reservation_type_ids。旧capable-reservation-types PUTへ版/keyを捏造しない|staff_leave_periods/changes既存、assignment eligibility_version/digest追加、staff_eligibility_operation_targets。model/account.go・staff.go再利用。467予約保護の最小participantだけ。旧休業row/CASなしwriteは切替時の停止adapterが②必須|API整合＋selected DTO/modelの対応。unknown/未設定/明示空を区別し、結果別再送表に一致。旧API停止の記述を含めるがこのPRでactivateしない|
 |458|emr-458-option-assignment-selected-contract-20261021.md §3,8|計10 method/path（prefix /api/v1を除く）：GET /masters/trimming-service-identities、POST /masters/trimming-service-identities、GET /masters/trimming-options/{id}/service-identity、POST /masters/trimming-options/{id}/service-identity、GET /masters/trimming-courses/{id}/included-services、POST /masters/trimming-courses/{id}/included-services、GET /masters/trimming-option-rule-sets、POST /masters/trimming-option-rule-sets、GET /masters/trimming-option-candidates、GET /masters/trimming-configuration-operations/{operation_key}?intent={採択4種}。scope_kind/course_id条件は採択§3のまま、lookup intent allowlistは§5のtrimming.service_identity.create / trimming.option_identity.replace / trimming.course_included.replace / trimming.option_rules.replaceに従う。4resource_kindのContent/success branchを固定|既存T2表/model再利用、course included_services_configured/digest、設定元anchor。CHECKでdigest IS NOT NULL明示。T2設定全writerのinterface/lock契約とValidateAndCaptureConfiguration、489 Q/ClaimMetadata/ContextGate必要subset|未設定/明示空、no_course refs省略、identitycreate versions={}、scope digest CASをschema/fixtureで対応。実writer閉包②、480/482採用④|
 |492|emr-490-492-selected-wire-contract-20261021.md 492節|既存type/group CRUD/reorderのoperation_key/CAS envelope、restore POST2本、business-kind change/confirm、reservation-master-operations lookup。renameは既存PATCH name branch|model/reservation_type.go・reservation_type_group.go、name revision・reservation_master_operation_anchorsを既存保存型へ対応。予約保護interfaceと489必要subset|型/NULL/旧wire移行/失敗をapi.yamlへ収録。490登録wireはこのsubsetから除外。保護participant実接続②|
@@ -178,5 +178,22 @@ AGENTS.mdが参照する.claude/CLAUDE.mdのuser-run規約に従い、本人へ�
 
 - 23行の①対象/非対象、固定参照、変更先、必要共有subset、②④境界、受領条件は上記で明示した。実際のAPI/schema/generated変更は未受領で、①完了ではない。
 - 生成型票EMR-527は作成済み、実装claimは未実施。特定担当の選択を技術設計の未決として利用者へ返さず、単一claim owner方式とする。
-- 確認時点で未マージの既存#778にある codegen 依存は移管しない。実装開始時に必要subsetが採用されていることを確認する条件で、並列担当が同じhook/corpusを作り直さない。
+- #778は上記merge commitで採用済み。採用hook/corpusを並列担当が作り直さず、生成同期はEMR-527の単一claimで本人実行→成果受領を管理する。回復用接続や全C06 runtimeの完成を意味しない。
 - 第4節の非永続移行HTTP DTOは採択済みmodel-alignmentの境界に準拠し、技術選定として採択済み。ここに新規設計残はない。生成型票EMR-527の作成は完了し、実装・生成実行・試験の開始承認は別途であり、本書の採択を実行許可とみなさない。本書では臨床業務値を追加選定しない。
+
+### 5.4. 操作回復Slice Aの採択技術追補（API正本未収録・runtime未実装）
+
+[回復契約§12の採択技術追補](emr-474-487-operation-recovery-contract-20261021.md#recovery-query-gap-selected-20261021)で、接種単位の本人reprint discovery、completeとcursor終端の同値、base64url/padding/strict typed decodeと2048文字上限の3点を具体化した。#803の既存計画と2queryのwireを保持し、§12が§4の走査終端/cursor詳細を補足する。監査追補とは節を分ける。対象は474/487と①445の限定引渡しであり、23管理行の範囲や業務ownerを増やさない。
+
+| ①の確認列 | 今回の状態 | 次の受領条件 |
+|---|---|---|
+| 選定文書 | §12の3点技術追補は採択済み | API収録/実接続の受領を別に追跡 |
+| API正本収録 | 新read/追加cursor説明は未収録。既存Slice A query2本は採用済み | 445単一ownerが新readと既存query説明の最小OpenAPI差分を反映・受領 |
+| schema/model | 本追補はcontrol/DB/model追加なし、runtime適合完了とはしない | 既存binding/元targetから未成功を含む列挙と現在認可を実接続する際に照合 |
+| 後続owner受渡し | 文書契約の採択まで。生成同期527とは別残件 | API固定後に474/487の純read adapterへ渡し、Slice B・新キー再開を開始しない |
+
+試験はNOT_RUN、API YAML・生成物・runtime・設定・公開flagは未変更。計画・採択・収録・実装・⑤品質証明の完了を混同しない。
+
+### 5.5. ①既採用範囲の限定静的監査（監査追補）
+
+固定main `c86c8dd2530bbea3d1810e07badb72f3ed1a07e1` に対し、463、521/523、519/520、486読取、502/489のroutes・DI・主要境界を確認した範囲では、新規の確定抜けを見つけていない。全属性・全C06 callerの適合、実行成功、①完成の宣言ではない。予約ID producerの文字列化後続、certificate font/store/writer等の未接続、EMR-527本人生成/受領、522/524の④applyは意図した残件として保持し、新たな担当漏れに数えない。今回の回復契約3点は別の採択技術追補として§5.4に分離する。527–530のReady訂正は管理状態の是正であり、実装開始許可やclosesの根拠ではない。runtime・API YAML・生成物・試験は未変更/NOT_RUN。
