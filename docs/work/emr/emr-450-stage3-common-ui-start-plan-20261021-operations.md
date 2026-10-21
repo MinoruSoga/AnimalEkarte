@@ -417,3 +417,33 @@ G3は既存CheckupFormのdirty接続のみ。親→子→fieldの成功ID保持�
 D14のCSV/copyは448統合・493 staff採択契約へ受領する。514既存日時CRUDは再実装しない。既存ShiftFormDialogのoperation_key/lookup・ManualEditorの同key結果照会は適合接点として再利用し、共通化を理由に作り直さない。
 
 受入未確認Uは欠陥件数へ加算しない。Fの新業務実装は③の前提とせず、DTO/参照/版・lookup・状態・拒否条件を指定ownerが受領した後に④で実装する。実装・試験は今回未実施。
+
+<a id="existing-common-ui-receipt-20261021"></a>
+## 既存票成果の受領4行：primitive/state・menu・required/invalid・Enter
+
+正本[共通UI契約C01](../../spec/shared/ui-contracts.md)のFR/ACと7primitive仕様を再読し、既存成果の受領を次の4行に分ける。基準mainは `06213d5778807f9ecbc9a8501dd579e8190a0d3b`。要件窓口は既存①要件検証節のMinoru Soga、450は受領整理、実装ownerは今後の単一claim。部品や同じ監査台帳を再実装せず、採用path/commit・正本への適合/差分/適用外理由・必要caller subsetを1枚の受領表へ固定することを終了条件とする。過去の監査PASSや件数を現行全consumerの合格へ転用しない。今回runtime/試験/監査スクリプトの実行はNOT_RUN。
+
+| 受領family・既存票 | 実在する正本FR/AC | 受領条件・必要caller subsetと境界 |
+|---|---|---|
+| primitive/state：226/227→450 | [FR-common-ui-state](../../spec/shared/ui-contracts.md#requirement-fr-common-ui-state)、[FR-common-ui-primitives](../../spec/shared/ui-contracts.md#requirement-fr-common-ui-primitives)、AC-common-ui-focus/pending/readable/dialog/scope | 下の7pathを既存採用参照とし、default/hover/active/focus-visible/disabled/readonly/loading/invalid/selected、ラベル/busy保持を正本へ対応。readonlyはdisabledと区別。Dialog focus復元/ESC/タイトル/X領域、44pxと正本dense例外、Select dense、Table sticky/横scroll、Tabs mobileを受領表へ記録。226の「select4件のみ」判断を新dense高さや全色監査へ拡大せず、他の既知gapは227/450の該当subsetへ分離。旧監査は履歴、動作未確認NOT_RUN |
+| menu：283→450 | [FR-common-ui-context](../../spec/shared/ui-contracts.md#requirement-fr-common-ui-context)、AC-common-ui-menu-purpose | frontend/src/components/shared/Layout/SidebarMenu.tsx（メニュー定義）とSidebarItems.tsx/SidebarChrome.tsxの既存説明表示接点を対応。hoverとkeyboard focus、折畳み時、既存表示権限、説明だけで遷移/保存しない条件を限定受領。283の既採用成果と当時の動作確認待ちを区別し、無修正なら採用証拠で閉じる。現行動作NOT_RUN |
+| required/invalid：319→450 | [FR-common-ui-primitives](../../spec/shared/ui-contracts.md#requirement-fr-common-ui-primitives)、AC-common-ui-required-error | [319是正後棚卸し](emr-319-required-field-audit.md)を履歴として受領。Input/Select/Textareaのaria-invalid等の共通描画責務と、consumerのrequired判定/error/label・aria-describedby接続を分離する。候補取得中は親の責務。既存SidePeekTitleInput/FormFieldError等を再利用し、任意欄を必須化しない。既存採用callerだけを証拠で閉じ、未確認callerを全件合格へ換算しない。NOT_RUN |
+| Enter誤保存：450（120成果は限定参照） | [AC-common-ui-enter-no-unintended-save / AC-common-ui-enter-keeps-input-operations / AC-common-ui-enter-autosave-boundary](../../spec/shared/ui-contracts.md#enter-input-unintended-save-20261017) | 450が対象form/input/event/保存種別/現handlerを限定表へ特定し、入力Enter→submit/saveの伝達を確認する受領条件。検索Enterは検索契約で別分類。120のTreatmentQuantityCell commit72807128は数量Enter/Blur/IMEの限定成果で全formの証明にしない。改行/候補確定/明示保存ボタン/既決autosaveを維持。一律Enter禁止・2回強制・全autosave停止を追加しない。対象未特定や未再現を欠陥/解消済みに換算せずNOT_RUN |
+
+### 7primitiveの採用参照path/commitと受領差分
+
+以下のpathはrepository rootからの相対path。commitは基準mainに含まれる当該pathの最終変更commitを固定した採用参照で、7部品一括の業務承認・実機合格の主張ではない。個別契約は[7部品索引](../../spec/components/README.md)と[状態](../../spec/design-states.md)、寸法はDESIGN/design-systemを優先し、ここに新しい値の第二正本を作らない。
+
+| primitive・採用参照path | commit | 適合接点/既知差分/用途外・必要caller subset |
+|---|---|---|
+| Badge：frontend/src/components/ui/badge.tsx | 6fee820c73ab8c0c110a317e12aa95852aa2fbf9 | 識別と非色cue。Badge自身への保存/ナビ操作は非適用で、明示Button等のcallerへ分離する |
+| Button：frontend/src/components/ui/button.tsx | f534e9ee29e389a4ad0269971de578e0513a6004 | type=button、loading中抑止/ラベル/busyとicon名をcallerで受領。44pxとdense例外は正本条件だけ。サーバ冪等性を部品だけで証明しない |
+| Dialog：frontend/src/components/ui/dialog.tsx | d35139d2993451ab67a485a64283f3371c15b623 | focus復元/ESC/タイトル/X占有・mobile fullscreen既知gapを現callerと照合。確認必須操作はAlertDialog、closeを業務取消へ変換しない |
+| Input：frontend/src/components/ui/input.tsx | f534e9ee29e389a4ad0269971de578e0513a6004 | readonly視覚の既知gapを状態正本と照合、invalid描画とconsumer label/errorを分離。全入力欄の臨床validationを共通部品へ移さない |
+| Select：frontend/src/components/ui/select.tsx | aa81a895cf1f6210c8c872622e1a289773b807b0 | dense sizeの正本既知gapと旧226限定raw select4件を別扱い。対象はCheckupsTabRowsの種別/担当、TreatmentsTabPartsの処置/投与方法。標準高さ/既存値/未選択/keyboard/lockを維持し、勝手なdense高さ追加はしない |
+| Table：frontend/src/components/ui/table.tsx | 9657272681255e8bd94b839948243ff9c5d13553 | sticky/横scrollの既知gapと各一覧callerのcontainer責務を照合。行全体onClick禁止、ヘッダ/empty/loadingと既存例外を保持。全一覧取得scopeの統一は非対象 |
+| Tabs：frontend/src/components/ui/tabs.tsx | 6fee820c73ab8c0c110a317e12aa95852aa2fbf9 | mobile scrollable既知gapと各callerを照合。同一データ切替と別ページnavigationを区別、disabled理由を保持。新業務タブの追加はしない |
+
+menuの採用参照はSidebarMenu.tsxの `a84c3397f4f0aaffbe86824f06450b23243fa4e6` と基準mainのSidebarItems/SidebarChromeの同版source。319の文書は是正前snapshotと末尾の是正後記録を区別して読み、色だけのエラー表示・requiredの新規業務判断にしない。各familyの不足が確認された場合だけ具体callerを既存450の受領表に追加し、全sharedをMD化・再実装しない。
+
+③は今回A〜Eの次段階。上記は4familyの受領条件を補うもので全72検索用途や全操作familyの実装/受入完了ではない。fixtureの準備と後日の本人指示による⑤実行を分け、未試験の品質保証をしない。

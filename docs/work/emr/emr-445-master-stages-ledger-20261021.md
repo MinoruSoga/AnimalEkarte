@@ -6,7 +6,7 @@
 
 ## 2026-10-21 詳細着手プランへの入口
 
-本台帳の段階境界を具体化した公開計画は、[①DB/API・23管理行と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）。新規管理4票527–530ともReady・個人担当未割当であり、起票を実装・生成実行・試験の開始承認にしない。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
+本台帳の段階境界を具体化した公開計画は、[①DB/API・24管理行（297-A設定subset追加）と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）。新規管理4票527–530ともReady・個人担当未割当であり、起票を実装・生成実行・試験の開始承認にしない。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
 
 ## 1. 段階と完了の意味
 
@@ -96,3 +96,9 @@
 - 直接22票の最新本文を読取。454–457はUATとの親報告とPlane状態を照合したが、その状態を最新実行合格へ読み替えない。293/366のactor-only/trusted staff方針は確定、再承認不要。365旧「未採用/候補作成」は#784採用範囲では履歴。
 - APIの静的根拠: `backend/docs/api.yaml`に既存勤務/lookup、capable-reservation-types、予約区分/group基本CRUD、package schemaと6master操作を確認。選定CSV/copy/eligibility/休業/458追加routeは現基準に未収録。構文やroute名だけでは各schema全属性適合を証明しない。
 - 今回はdocsのみ。API具体反映は候補レビュー後の別指示で同集約PRへ必要hunkだけを追加する。DDL/model/生成物/試験/runtime/公開flagを先取りしない。受領待ち行の更新には受領commit・固定source・担当側確認を付け、宛先名だけで受領済みにしない。
+
+## 今回5枠の限定追補
+
+本節の基準mainは `06213d5778807f9ecbc9a8501dd579e8190a0d3b`（#804採用）。冒頭の `755f77abd2e6d63a2fc608fcfe6a518a61afcfff` は元の履歴調査基準であり、本節の追加受領範囲と区別する。
+
+[①A〜E引渡し表](emr-445-stage1-contract-start-plan-20261021.md#stage-current-five-20261021)で今回の共有契約/生成/限定master hunkと次便の既選定subsetを区別する。直接22票＋498 master＋297-A設定subsetの①24管理行は②26resource・③検索72用途とは別集計で、24行すべて実装完了という意味ではない。493の休業元targetと297-Aの設定mapping版は既選定保存契約の①受領漏れ補正。A採用modelと同一固定commitの本人生成結果をBが最終受領し、A前の生成結果だけで①全体完了にしない。未割当を未設計とせず、計画追補を実装開始・全親Done・品質証明へ換算しない。試験NOT_RUN。
