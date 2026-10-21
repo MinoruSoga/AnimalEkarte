@@ -222,6 +222,9 @@ export function useTreatmentPackageApply({
       held.clinicId,
     );
     if (scopeKey(scopeRef.current) !== sk) return;
+    // reset→新submitで同scopeの別keyに差替わった後の遅延結果は破棄する。
+    const current = pendingRef.current.get(sk);
+    if (current === undefined || current.operationKey !== held.operationKey) return;
     if (outcome.kind === "unavailable") return; // 取得失敗は unknown 維持
     // 前段 error envelope（認可拒否等）は操作の失敗確定ではない。pending を保持し unknown を維持する。
     if (outcome.kind === "error-envelope") return;

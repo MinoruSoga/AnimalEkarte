@@ -100,7 +100,7 @@ func PeekSelectedClinicGrant(c *gin.Context, resource, action string) bool {
 	if peekedSystemAdmin(c) {
 		return true
 	}
-	check, ok := requireClinicPermissionChecker(c)
+	check, ok := PeekClinicPermissionChecker(c)
 	if !ok {
 		return false
 	}
