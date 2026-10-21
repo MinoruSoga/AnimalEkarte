@@ -32,7 +32,7 @@ Routeと認可は既存のまま。新しいendpoint/権限は不要。
 - `visit_basis`: `legacy_record_days_v1`（未指定時）/`actual_visit_v1`。その他400。
 - `visit_snapshot`: 一覧の後続ページ取得時だけ送るopaque token。別医院・別認可scope・別条件には使えない。tokenは認可ではなく毎回現在認可を再検査。
 
-既存の検索、page/per_pageと上限制約を維持。legacy modeのparser/resolver/default sortは変更しない。actual modeは独立したparser/resolverで1回だけ取得した `as_of_instant` をAsia/Tokyoへ変換し、`as_of_date_jst` を作る。OS time.Localや下位関数のtime.Nowを参照しない。日付は厳密なYYYY-MM-DD、実在暦日。未来factは予定来院として数えずsource不整合とする。
+既存の検索、page/per_pageと上限制約を維持。legacy modeのparser/resolver/default sortは変更しない。actual modeは独立したparser/resolverを使う。初回だけ `as_of_instant` を1回取得してAsia/Tokyoの `as_of_date_jst` を作り、両方をsnapshotへ束縛する。continuationではtokenの真正性と現在の認可scopeを確認後、初回as_of_instant/date_jstを先に復元してから期間・preset・未来判定を解決する。JST日跨ぎだけで409にせず、改ざん・as_of復元不能は400、依存変化は409 `visit_snapshot_changed`。復元不能時に新しい初回要求へ黙ってfallbackしない。OS time.Localや下位関数のtime.Nowを参照しない。日付は厳密なYYYY-MM-DD、実在暦日。未来factは予定来院として数えずsource不整合とする。
 
 ### actual modeの期間解決（採用案）
 
@@ -47,7 +47,7 @@ Routeと認可は既存のまま。新しいendpoint/権限は不要。
 
 例 as_of=2026-10-21: 3ヶ月は2026-07-21〜2026-10-22未満、6ヶ月は2026-04-21〜同末尾、12ヶ月は2025-10-21〜同末尾、暦年は2026-01-01〜同末尾、rolling365は2025-10-22〜同末尾。2026-05-31から3ヶ月前は2026-02-28、2024-02-29から12ヶ月前は2023-02-28。明示2025年は2025-01-01〜2026-01-01未満。current yearの未来日を完全性の未達要件にしない。
 
-これは新actual基準だけの具体化で、legacy calculateDateRangeのNow/time.Local/timestamp挙動を修正するものではない。actual mode内の既存金額条件も同じresolved期間を渡すが、金額source・式・請求日意味を新台帳へ移行しない。
+これは新actual基準だけの具体化で、legacy calculateDateRangeのNow/time.Local/timestamp挙動を修正するものではない。actual modeの金額・billing_count・金額filterは専用adapterで同じresolved期間を `>= from AND < to_exclusive` として評価する。旧predicateの `<= to` にexclusive末尾を直渡ししない。DATE列は対応するJST暦日、timestamp列はそのJST日界に対応するinstantで比較し、末尾を含めない。金額source・式・請求日帰属は維持し、新台帳へ移行しない。legacy modeのpredicateは変更しない。
 
 ### actual modeのmetric/sort
 
@@ -110,10 +110,10 @@ Routeと認可は既存のまま。新しいendpoint/権限は不要。
 型:
 - count: integer >=0 またはnull。新countは日数でJS安全整数を超えない。ID/source_versionは正規形十進string、DB bigint上限を守る。内部idをNumberへ変換しない。
 - complete: boolean。falseなら対象countは必ずnull。true/0だけが確認済み0。証明のない部分観測件数をcountに入れない。
-- reasons/date_reasons: unique enum配列、completeなら空。`coverage_unproven`, `coverage_gap`, `source_unresolved`, `source_version_mismatch`, `correction_conflict`, `invalid_scope`, `invalid_visit_date`。DB障害を理由配列で隠さない。
-- dates_complete: 初期接続では通算coverageと有効graphが全証明された時だけtrue。通算未確認時に「確認できた中の最大日」を真の最終日と表示しない。最小/最大の片側証明による最適化は本PRでは行わない。
+- reasons/date_reasons: unique enum配列、completeなら空。`coverage_unproven`, `coverage_gap`, `source_unresolved`, `source_contradictory`, `source_version_mismatch`, `correction_conflict`, `invalid_scope`, `invalid_visit_date`。verification=`contradictory`は必ず `source_contradictory` へ写像し、判明したscope/version/graph理由（invalid_scope/source_version_mismatch/correction_conflict）を追加できる。unresolvedと混同しない。同じclosed enumをAPI/projection/FE/CSVへ引き渡す。DB障害を理由配列で隠さない。
+- dates_complete: 初期接続では通算coverageと有効graphが全証明された時だけtrue。通算未確認時に「確認できた中の最大日」を真の最終日と表示しない。最小/最大の片側証明による最適化は本PRでは行わない。dates_complete=falseならfirst/last/days/bucketはすべてnull、date_reasonsは非空とする。
 - complete通算0: first/last/daysはnull、bucket=`no_visit`、dates_complete=true。
-- complete通算>0: first/lastはYYYY-MM-DD、daysはJST暦日差、bucketは既存の<90/<180/<365/それ以降。unknown bucketはnullでありno_visitやcpm_unclassifiedではない。
+- lifetime.complete=true かつ count>0 かつ dates_complete=trueのときだけ日付派生値を返す: first/lastはYYYY-MM-DD、daysはJST暦日差、bucketは既存の<90/<180/<365/それ以降。unknown bucketはnullでありno_visitやcpm_unclassifiedではない。
 - rolling365: as_of日を含む365JST暦日 `[as_of−364日, as_of+1日)`。既存legacy SQLのNOW−365days結果を黙って書き換えない。新基準の日付粒度を明示しfixtureで両端を固定。
 - selected periodは§3のactual専用resolverの結果を返す。無期間ならfrom/to_exclusiveともnullで通算と同じ。片側だけnullは不可。
 
@@ -123,11 +123,11 @@ Routeと認可は既存のまま。新しいendpoint/権限は不要。
 2. 同じsnapshotでactual projectionを計算。来院predicateはtrue/false/unknownの3値。falseのみ落とす。unknownは候補一覧に残しfilter_match=null。条件なしはfilter_match=trueでも指標の不完全性は残す。
 3. bucket条件の既存OR意味を保持する。選択bucketがno_visit以外なら、`bucket一致 OR (include_no_visit=true AND 証明済みno_visit)`。no_visit選択は証明済みno_visitだけtrue。bucket未選択でinclude_no_visit=falseは証明済みno_visitだけfalse。未知bucketは全ケースunknown。回数min/max等の別条件とは3値AND（いずれかfalseならfalse、falseなしでunknownがあればunknown）。未知はno_visitに合流させない。
 4. total=既知match＋判定不能。matched_totalとunknown_totalは来院predicate判定後・ページ分割前。visit_query.completeも返却対象全体からページ分割前に計算する。後ろのページに未知があっても先頭ページをcompleteと偽装しない。未知件数は既知0に加算しない。
-5. 指定sortの既知値を昇降順、当該sort値が未知なら最後、同値はowner_idの数値順で安定化。owner_name sortは名称の既存照合とID tie-break。来院なしと未知の表示区別は維持。
-6. snapshot bindingのnormalized queryは `page` と `visit_snapshot` 自身を除外する。clinic/現在認可scope、visit_basis、per_page、実効sort/order/metric、正規化された検索・LINE/金額/回数/bucket/include条件、as_of日、resolved selected/rolling窓を含む。優先順位で無効になった入力でなく解決後の意味をbindingする。次pageは同じtokenで取得可能。per_pageや条件変更は初回pageから新tokenを取得。
-7. snapshot fingerprintにはsource事実・全訂正閉包・source verification/coverage証拠だけでなく、候補owner集合、表示/順序に使うowner名、LINE条件の値、非削除/医院scope、返却金額と金額filterの値・依存元版を含む。結果・順序・totalに影響する変更はすべて検出する。単一read snapshotで取得し、次pageでfingerprintが変われば409 `visit_snapshot_changed`。MAX(id)単独は世代証明ではない。tokenは現在認可の代用不可。
+5. last_visit_date（last_visit aliasを含む）/days_since_last_visitのsortはASC/DESCとも固定rank 0=既知日付、1=証明済み通算0のno_visit、2=unknown。方向はrank0の値比較だけに適用し、全rankの同値はowner_idの数値昇順で安定化する。NULLを単一の同値群にせず、確定no_visitがunknownと混ざらない全順序を定義する。owner_name sortには日付rankを適用せず、名称の既存照合とowner_id数値昇順tie-breakを使う。来院なしと未知の表示区別は維持。
+6. snapshot bindingのnormalized queryは `page` と `visit_snapshot` 自身を除外する。clinic/現在認可scope、visit_basis、per_page、実効sort/order/metric、正規化された検索・LINE/金額/回数/bucket/include条件、as_of日、resolved selected/rolling窓を含む。優先順位で無効になった入力でなく解決後の意味をbindingする。次pageは初回as_ofを復元した同じtokenで取得可能。per_pageや条件変更は初回pageから新tokenを取得。
+7. snapshot fingerprintにはsource事実・全訂正閉包・source verification/coverage証拠だけでなく、候補owner集合、表示/順序に使うowner名、LINE条件の値、非削除/医院scope、返却金額と金額filterの値・依存元版を含む。結果・順序・totalに影響する変更はすべて検出する。単一read snapshotで取得し、次pageでfingerprintが変われば409 `visit_snapshot_changed`。retained legacy_record_days・top-level互換alias・各ownerのcpm_stage・cpm_stage_countsも同じsnapshot保証対象とする。medical_recordsのidentity/date/scope/deleted、petsのowner/clinic帰属、旧CPM算出に使う全入力、実効CPMV1 threshold全値とrevisionをfingerprintへ含める。revisionがなければ実効値のcanonical digestを使う。actual専用adapterは旧出力も同じread snapshotと初回as_ofで評価し、別時点のcache/NOW/time.Sinceを混ぜない（legacy mode自体は変更しない）。MAX(id)単独は世代証明ではない。tokenは現在認可の代用不可。
 8. FEは未知行に「実来院情報の照合未完了」を表示。フィルタ結果が完全でないことと既知一致/未確定件数を表示し、未知を勝手に隠すtoggleは追加しない。
-9. CSVは既存どおり「現在ページで選択した行だけ」。選択0件はボタンdisabled＋handler早期return。ページ跨ぎ収集・全件取得・全件exportは実装しない。既存許可済み最終来院CSVの選択行のみ、新基準値を空欄＋basis/complete/reason列で出力し、未知を0/no_visitにせずformula escapingを維持。取得済み同一responseから出力し、医院/条件/ページ/response snapshotが変わったら選択を解除する。照合未完了の行を選択したCSVは不完全性を明記し、完全な抽出結果と表示しない。
+9. CSVは既存どおり「現在ページで選択した行だけ」。選択0件はボタンdisabled＋handler早期return。ページ跨ぎ収集・全件取得・全件exportは実装しない。既存許可済み最終来院CSVの選択行のみ、各window.complete=trueなら当該windowの実値（既知0を含む）を出力し、不完全な値だけ空欄にする。日付派生値はdates_complete基準とし、他windowが不完全でも完全windowまで空欄にしない。basis/complete/reason列を維持し、未知を0/no_visitにせずformula escapingを維持。取得済み同一responseから出力し、医院/条件/ページ/response snapshotが変わったら選択を解除する。照合未完了の行を選択したCSVは不完全性を明記し、完全な抽出結果と表示しない。
 
 ## 6. 468/D03 source handoff（内部interface案。既存APIの存在主張ではない）
 
@@ -141,7 +141,11 @@ SourceSnapshot:
 - coverage証拠は当該scope/期間の対象sourceが欠落なく照合されたこと、全訂正の閉包、同一read世代を示す。アプリ導入日・最初のfact日・最後のid・空table・新writer配備だけでは証明不可。
 - 現在その証拠を永続管理/生成する仕組みは本調査で確認できていない。初期providerは正直にunprovenを返す。テストfixtureだけverifiedを与え、実DBに架空のstart日やverified値をseedしない。coverage保存が必要なら別途DBownerへ具体設計を渡すが本PRで新DDL/backfillしない。
 
-468 handoff: `reservation_guarded_checkin.go`のguardedCheckIn/checkInConfirmedを主候補とし、Updateのchecked_in遷移を含む全確定受付入口を棚卸し。成功source event・actual_visit_fact・必要監査/489 receiptは同じ最外transactionに参加。再送は同source/refへ収束、失敗/取消予定だけではfact生成なし。戻り値にcommit済みfact ID/版/根拠refを出す内部契約。既存上書きchecked_in_atから過去を再構成しない。
+468 handoff: [予約技術契約§4.4–4.7](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/docs/design/domains/reservations/technical-spec.md#L176-L280)の選定済み専用 POST `/api/v1/reservations/{id}/check-in` / `/api/v1/reservations/{id}/recheck-in` とC06を使用する。clientは確認済みintentごとに非zero UUID `Idempotency-Key` を送信前に一度だけ生成し、同scopeの再送/結果照会で再利用する。`expected_version` は正規形decimal stringとして取得し、旧 `expected_updated_at` から推測しない。header値をoperation_keyとしてC06へ渡し、得られたbinding IDをactual_visit_facts.operation_idに使用する。serverがリクエストごとに新keyを生成してはならない。
+
+`reservation_guarded_checkin.go`のguardedCheckIn/checkInConfirmedを主候補に、Updateのchecked_in遷移を含む全確定受付入口を棚卸しする。walk-in/create-and-check-in/batch/受付画面/内部callerも同じ最外orchestratorに参加し、複合操作は外側bindingを使って独立receiptを作らない。成功source event・actual_visit_fact・record作成/再利用・必要監査・C06 resultを同じ最外transactionへ束縛する。再送は同source/refと初回結果へ収束し、失敗/取消予定だけではfactを生成しない。戻り値にcommit済みfact ID/版/根拠refを出す内部契約。既存上書きchecked_in_atから過去を再構成しない。
+
+切替前の旧PATCH checked_in経路があるscopeのcoverageをverifiedにしない。対象scope有効化前にcallerを専用操作へ移行し、旧checked_in迂回writeを拒否する。受付以外のPATCHや未切替scopeをreader作業で一括停止しない。API正本への追記・client切替・468/489接続は後続実装依存であり、本書はruntime登録済みと主張しない。[actual_visit_facts_success_receipt制約](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/backend/migrations/001_init.sql#L10701)が要求するbindingと成功receiptを満たす設計である。
 
 D03 handoff: 明示過去来院確認済み入力と患者/日付訂正のownerが、record_correction_link_id、確認した実日、当時owner/pet、根拠版を渡す。外部資料・転記・単なる医師確認は未適格。専用実装hook名は未確認なので架空の関数を既存と記載しない。writer担当が実在経路とcommit境界を同定する作業を残す。
 
@@ -157,7 +161,7 @@ D03 handoff: 明示過去来院確認済み入力と患者/日付訂正のowner�
 
 ## 8. エラー/認可
 
-400: query/date/basis不正。401/403:従来の認証/owners:view/現在clinic grant不足。409:後続pageのsnapshot変化。503 aggregation_timeoutは既存の自身deadlineのみ。source/DB通信障害は既存error分類の非200で返す。成功応答内のunknownは取得できた根拠の不足/不整合であって、通信失敗の成功偽装ではない。
+400: query/date/basis不正、token改ざん/as_of復元不能。401/403:従来の認証/owners:view/現在clinic grant不足。409:後続pageのsnapshot変化。503 aggregation_timeoutは既存の自身deadlineのみ。source/DB通信障害は既存error分類の非200で返す。成功応答内のunknownは取得できた根拠の不足/不整合であって、通信失敗の成功偽装ではない。
 
 404/空ownerリストだけで来院0を主張しない。current owner一覧の権限を維持しつつ、歴史factsのowner_idはcurrent pet.owner_idへrewriteしない。削除済みownerを新規公開したり権限範囲を広げたりしない。死亡は履歴計数の除外条件ではなく通知抑止だけ別扱い。
 
@@ -187,6 +191,15 @@ D03 handoff: 明示過去来院確認済み入力と患者/日付訂正のowner�
 - 旧クライアント互換、explicit legacyラベル、新FEはactual absent/nullを旧countへfallbackしない。
 - 認可喪失/医院切替で旧cache表示不可。死亡で歴史回数不変、通知write0。
 
+- 受付専用操作のclient非zero UUIDをlost-response再送/照会で再利用し、同binding・event/fact/record/audit/resultへ収束。expected_updated_atから版を作らない。walk-in/複合/batchは外側binding、旧PATCH迂回が残るscopeはcoverage未証明。切替済みscopeの旧checked_in拒否と他PATCH/未切替scope非停止を分ける。
+- continuationがJST日跨ぎでも初回as_ofとselected/rolling窓を復元。token改ざん/復元不能400、依存変化409、初回fallbackなし。
+- actual金額/billing_count/filterはfromを含みto_exclusive当日を除外（DATE/JSTとtimestamp対応instant）。同じ金額source・式・帰属でlegacyの<=境界は維持。
+- lifetime.completeかつcount>0でもdates_complete=falseならfirst/last/days/bucket全nullと非空date_reasons。確定0は日付null/no_visit、確定正数・dates_complete時のみ日付派生値。
+- CSVでselected complete/rolling unknownとその逆、既知0、dates_complete=falseを組合せ、完全window実値・不完全window空欄を独立判定。現ページ選択・escaping・選択解除は維持。
+- last_visit_date/days sortをASC/DESCとも既知日付→確定no_visit→unknownに固定し、owner_id数値tie-breakとpage境界を検査。name sortには日付rankなし。
+- contradictory verificationはsource_contradictoryを必須とし、既知scope/version/graph理由を併記。unresolvedとの区別とAPI/projection/FE/CSV enum一致。
+- actual fact/金額不変でも旧medical_record日付・削除、pet owner/clinic、旧CPM入力またはthreshold値/版変更ならcontinuation409。revision欠落時canonical digest、初回as_ofと同read snapshot、別cache/NOW/time.Since不使用。
+
 ## 11. 本人への追加質問
 
 本案を進めるための新しい業務判断は見つからない。来院意味、旧値区別、今期除外、historical owner保持は既決。未確認なのはcoverage証拠の実在・writer全入口の実装状態・D03 hookで、ユーザーに開始日を推測させる質問ではなく調査/実装handoff事項。rootは技術契約案として採用/修正できる。実データ完全性を宣言する前にはsource ownerの検証可能な証拠が必要。
@@ -194,3 +207,7 @@ D03 handoff: 明示過去来院確認済み入力と患者/日付訂正のowner�
 ## 12. 独立レビュー反映（2026-10-21）
 
 旧visit条件のSQL/Go二段漏れ、snapshotのpage自己bindingと結果依存不足、既存resolverの独立Now/time.Local、CSVの選択範囲拡張を修正した。追加根拠：[query parser](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/backend/internal/lstep/aggregation_request.go)、[期間ラベル](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/frontend/src/features/aggregation/lib/aggregation-filter-panel-model.ts)、[現在page選択CSV](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/frontend/src/features/aggregation/routes/AggregationDashboardPage.tsx)。owner_idは既存からstringなので修正不要。
+
+## 13. レビュー補正根拠（2026-10-21、実装・試験NOT_RUN）
+
+[旧期間predicateの `<=`（ltv_repository_query.go）](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/backend/internal/owner/ltv_repository_query.go#L149-L194)、[CPMV1 threshold取得](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/backend/internal/lstep/aggregation_service.go#L250-L270)、[旧CPMのtime.Since](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/backend/internal/lstep/aggregation_service.go#L70-L86)、[actual_visit_factsの成功receipt制約](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/backend/migrations/001_init.sql#L10701)、[予約専用操作契約§4.4–4.7](https://github.com/MinoruSoga/AnimalEkarte/blob/7a57b7bfebacdf212bc9555ac6622c0df8f3af99/docs/design/domains/reservations/technical-spec.md#L176-L280)の静的照合に基づき、§3–6と固定fixtureを具体化した。これらの現存差を新契約適合済みとせず、legacy modeの挙動変更、API登録、writer/coverage実装や受入完了を本PRで主張しない。
