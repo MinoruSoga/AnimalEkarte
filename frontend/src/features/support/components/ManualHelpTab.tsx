@@ -9,6 +9,7 @@ import { useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "re
 import { Link } from "react-router";
 import { ChevronRight, Search } from "lucide-react";
 
+import { EmptyState } from "@/components/shared/DataStates";
 import { paths } from "@/config/paths";
 import { useGetManualArticleOverrides } from "@/hooks/use-manual-article-overrides";
 import { useManualSearch } from "@/hooks/use-manual-search";
@@ -120,6 +121,32 @@ export function ManualHelpTab({ onClose }: ManualHelpTabProps) {
         canSubmit={canSubmit}
         getCurrentArticles={getCurrentArticles}
       />
+    );
+  }
+  // 非 chat path も bundled 記事へ黙って fallback しない（ManualPage fix-9b と同じ
+  // wording）。data の有無ではなく query state で gate する。
+  if (canViewOverrides && overridesPending) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <EmptyState message="マニュアル記事を読み込んでいます" />
+      </div>
+    );
+  }
+  if (canViewOverrides && overridesError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+        <EmptyState
+          message="マニュアル記事の取得に失敗しました"
+          description="通信状態を確認して再試行してください"
+        />
+        <button
+          type="button"
+          onClick={() => refetchOverrides()}
+          className={`rounded-xxs border px-4 py-2 ${C.borderDivider} ${C.bgWhite} ${C.hoverBgLight}`}
+        >
+          再試行
+        </button>
+      </div>
     );
   }
   return <ManualSearchView articles={articles} onClose={onClose} />;

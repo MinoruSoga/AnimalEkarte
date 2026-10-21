@@ -202,3 +202,53 @@ it("pending POST 中に権限剥奪 => controller abort、assistant 応答は表
   expect(screen.queryByText("権限変更前の回答")).not.toBeInTheDocument();
   expect(axiosPostMock).toHaveBeenCalledTimes(1);
 });
+
+// ---- fix-11: 非 chat path の strict gate（bundled fallback 除去） ----
+
+function chatOffGetHandler(url: string): Promise<{ data: unknown }> {
+  if (url === "/v1/support/chat/status") {
+    return Promise.resolve({ data: { enabled: false } });
+  }
+  return Promise.resolve({ data: { data: [] } });
+}
+
+describe("ManualHelpTab 非chat strict gate (fix-11)", () => {
+  it("chat off + 権限あり + pending => 検索 UI 非表示・loading 表示", async () => {
+    axiosGetMock.mockImplementation((url: string) => {
+      if (url === "/v1/manual/articles") return new Promise(() => {});
+      return chatOffGetHandler(url);
+    });
+    render(<ManualHelpTab onClose={() => {}} />, { wrapper: createPermWrapper() });
+    expect(await screen.findByText("マニュアル記事を読み込んでいます")).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "再試行" })).toBeNull();
+  });
+
+  it("chat off + 権限あり + error => error+retry、bundled 検索結果なし、retry が refetch を呼ぶ", async () => {
+    axiosGetMock.mockImplementation((url: string) => {
+      if (url === "/v1/manual/articles") return Promise.reject(new Error("boom"));
+      return chatOffGetHandler(url);
+    });
+    render(<ManualHelpTab onClose={() => {}} />, { wrapper: createPermWrapper() });
+    expect(await screen.findByText("マニュアル記事の取得に失敗しました")).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    // bundled 記事の検索結果・説明文を出さない。
+    expect(
+      screen.queryByText("知りたい操作や画面名を入力すると、取扱説明書の関連項目を表示します。"),
+    ).toBeNull();
+
+    const user = userEvent.setup();
+    const callsBefore = axiosGetMock.mock.calls.filter(([u]) => u === "/v1/manual/articles").length;
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    const callsAfter = axiosGetMock.mock.calls.filter(([u]) => u === "/v1/manual/articles").length;
+    expect(callsAfter).toBeGreaterThan(callsBefore);
+  });
+
+  it("chat off + 権限あり + 200 data:[] => 検索 view を描画する", async () => {
+    axiosGetMock.mockImplementation(chatOffGetHandler);
+    render(<ManualHelpTab onClose={() => {}} />, { wrapper: createPermWrapper() });
+    expect(await screen.findByRole("searchbox", { name: "マニュアルを検索" })).toBeInTheDocument();
+    expect(screen.queryByText("マニュアル記事の取得に失敗しました")).toBeNull();
+    expect(screen.queryByText("マニュアル記事を読み込んでいます")).toBeNull();
+  });
+});
