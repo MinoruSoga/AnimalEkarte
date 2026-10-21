@@ -75,9 +75,17 @@ export function useCertificateReprint(args: {
 
   const lookup = useCallback(
     async (pending: ReprintPending) => {
+      const operationKey = pending.request.operation_key;
+      // 照会は同時に 1 本だけ。重なった照会が先に確定した結果を後から上書きしないようにする。
+      if (store.get(editionKey).checking) return;
+      // この照会が待っている操作が、今も未確定の操作であるときだけ結果を反映する。
+      const isCurrent = () => store.get(editionKey).pending?.request.operation_key === operationKey;
+      commit({ checking: true });
       try {
-        apply(await api.lookupOperation(pending.request.operation_key, "reprint"), pending);
+        const result = await api.lookupOperation(operationKey, "reprint");
+        if (isCurrent()) apply(result, pending);
       } catch (error) {
+        if (!isCurrent()) return;
         const kind = error instanceof CertificateApiError ? error.kind : "network";
         if (kind === "scope-not-found") commit({ state: { phase: "not-issued", notice: "not-claimed" } });
         else if (kind === "forbidden") commit({ pending: null, state: { phase: "blocked", notice: "forbidden" } });
@@ -85,9 +93,11 @@ export function useCertificateReprint(args: {
           commit({ pending: null, state: { phase: "blocked", notice: "unauthenticated" } });
         } else if (kind === "operation-in-progress") commit({ state: { phase: "unknown", notice: "busy" } });
         else commit({ state: { phase: "unknown", notice: "unavailable" } });
+      } finally {
+        commit({ checking: false });
       }
     },
-    [api, apply, commit],
+    [api, apply, commit, store, editionKey],
   );
 
   const execute = useCallback(
@@ -163,5 +173,5 @@ export function useCertificateReprint(args: {
     return true;
   }, [store, editionKey, commit]);
 
-  return { state, activeLayout, start, recheck, retrySameKey, discard, reset };
+  return { state, activeLayout, checking: entry.checking, start, recheck, retrySameKey, discard, reset };
 }

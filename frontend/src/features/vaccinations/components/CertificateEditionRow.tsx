@@ -163,7 +163,12 @@ export function CertificateEditionRow({
             <CertificateNotice code={reprint.state.notice}>
               {reprint.state.phase === "unknown" ? (
                 <div className="mt-2">
-                  <Button type="button" variant="outline" onClick={() => void reprint.recheck()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={reprint.checking}
+                    onClick={() => void reprint.recheck()}
+                  >
                     結果を照会する
                   </Button>
                 </div>

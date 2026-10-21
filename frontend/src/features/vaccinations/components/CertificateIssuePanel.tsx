@@ -164,7 +164,7 @@ export function CertificateIssuePanel({
         <CertificateNotice code={state.notice}>
           {state.phase === "unknown" ? (
             <div className="mt-2">
-              <Button type="button" variant="outline" onClick={() => void flow.recheck()}>
+              <Button type="button" variant="outline" disabled={flow.checking} onClick={() => void flow.recheck()}>
                 発行結果を照会する
               </Button>
             </div>

@@ -29,6 +29,8 @@ export interface ReprintEntry {
   readonly pending: ReprintPending | null;
   /** 最後に実行した再印刷の向き。行が作り直されても、実際に使った向きを表示するために保持する。 */
   readonly layout: CertificateLayout | null;
+  /** 結果の照会が通信中か。中の間は別の照会を始めさせない（古い照会が新しい結果を上書きするのを防ぐ）。 */
+  readonly checking: boolean;
 }
 
 export interface ReprintStore {
@@ -37,7 +39,7 @@ export interface ReprintStore {
   subscribe(listener: () => void): () => void;
 }
 
-const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null, layout: null };
+const IDLE_ENTRY: ReprintEntry = { state: { phase: "idle" }, pending: null, layout: null, checking: false };
 
 export function createReprintStore(): ReprintStore {
   const entries = new Map<number, ReprintEntry>();

@@ -562,3 +562,50 @@ describe("応答の対象束縛（形が正しいだけの別対象を採用し�
     expect(callsOf(controls, "getArtifactContent")).toHaveLength(0);
   });
 });
+
+describe("自動照会中の手動照会", () => {
+  function gatedLookup(api: CertificateApi) {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gated: CertificateApi = {
+      ...api,
+      lookupOperation: async (key, intent, signal) => {
+        await gate;
+        return api.lookupOperation(key, intent, signal);
+      },
+    };
+    return { gated, release };
+  }
+
+  it("再印刷の自動照会が通信中の間は、結果を照会するボタンを押せない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const { gated, release } = gatedLookup(api);
+    renderScreen(gated);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    const recheck = await within(row).findByRole("button", { name: "結果を照会する" });
+    expect(recheck).toBeDisabled();
+    release();
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    expect(callsOf(controls, "lookupOperation")).toHaveLength(1);
+  });
+
+  it("発行の自動照会が通信中の間は、発行結果を照会するボタンを押せない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const { gated, release } = gatedLookup(api);
+    renderScreen(gated);
+    await createPreview(user);
+    controls.failNext("issue", { error: new CertificateApiError("network"), commitFirst: true });
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    expect(await screen.findByRole("button", { name: "発行結果を照会する" })).toBeDisabled();
+    release();
+    await screen.findByRole("heading", { name: "発行しました" });
+    expect(callsOf(controls, "lookupOperation")).toHaveLength(1);
+  });
+});
