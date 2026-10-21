@@ -850,10 +850,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.StaffAssignedToClinic":          {},
 	"staff/staff_provisioning_repository.go|staffProvisioningRepository.WriteAudit":                     {},
 	// operation (EMR-489 C06 receipts). Lock/InsertResult require the ambient owner
-	// tx; Claim/RecordOutcome refuse it (separate short tx). Runtime proof:
+	// tx; Claim refuses an ambient tx and owns its short claim transaction
+	// (s.db.WithContext(ctx).Transaction — no persistence.DBOrTx call), as does
+	// RecordOutcome (separate short tx). Runtime proof:
 	// operation/store_realdb_test.go (build tag operationrealdb; not yet compiled
 	// or run because internal/testdb does not compile on main after PR #729).
-	"operation/store.go|gormStore.ClaimBinding":      {},
 	"operation/store.go|gormStore.FindBinding":       {},
 	"operation/store.go|gormStore.HasUnknownOutcome": {},
 	"operation/store.go|gormStore.InsertResult":      {},
@@ -894,7 +895,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vital_repository.go|vitalRepository.existsInClinic": {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
-	"manualarticle/repository.go|repository.Upsert":      {}, // BE8-4 batch3: moved from manual_article_repository.go
+	// EMR-502: Upsert は廃止。ambient-tx 参加メソッドは全て participant の
+	// owner transaction 内で使われる EditTxStore / 公開read helper。
+	"manualarticle/repository.go|repository.publishedBase":               {},
+	"manualarticle/repository.go|repository.FindArticleByCategoryAndSlug": {},
+	"manualarticle/repository.go|repository.FindVersionsByArticleID":     {},
+	"manualarticle/repository.go|repository.Delete":                      {},
+	"manualarticle/repository.go|repository.InsertOperationTarget":       {},
+	"manualarticle/repository.go|repository.ResolveOperationTarget":      {},
+	"manualarticle/repository.go|repository.FindArticleByID":             {},
+	"manualarticle/repository.go|repository.FindVersionByID":             {},
+	"manualarticle/repository.go|repository.LockArticleForUpdate":        {},
+	"manualarticle/repository.go|repository.NextContentRevision":         {},
+	"manualarticle/repository.go|repository.InsertVersion":               {},
+	"manualarticle/repository.go|repository.UpdateCurrentVersionCAS":     {},
+	"manualarticle/repository.go|repository.InsertOperation":             {},
 	"owner/repository.go|ownerRepository.CreateWithPets": {},
 	// SEC-CS-F15: UpdateAndFindApplying owns DBOrTx + LockByIDForUpdate; UpdateAndFind is a thin
 	// delegate without its own DBOrTx shape (removed from allowlist after F15).
@@ -1064,6 +1079,11 @@ type ambientTxParticipationExpectation struct {
 var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpectation{
 	// TASK-027 Slice A append is fail-closed: it must receive an ambient transaction and
 	// never fall back to the repository base DB. Runtime proof is named in the allowlist above.
+	// EMR-502: FOR UPDATE lock は ambient tx 必須（tx なしでは文終了で解放されるため
+	// TxFromContext 先検査で fail-closed）。dbOrTxParticipatingMethods にも登録。
+	"manualarticle/repository.go|repository.LockArticleForUpdate": {
+		shape: ambientTxRequired,
+	},
 	"medicalrecord/examination_revision_repository.go|examinationRepository.AppendOfficialRevision": {
 		shape: ambientTxRequired,
 	},

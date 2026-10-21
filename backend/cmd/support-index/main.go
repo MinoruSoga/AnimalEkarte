@@ -62,7 +62,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 			}
 		}()
 	}
-	overrides, err := manualarticle.New(db).FindAll(ctx)
+	overrides, err := manualarticle.New(db).FindAllPublished(ctx)
 	if err != nil {
 		return fmt.Errorf("corpus load failed")
 	}

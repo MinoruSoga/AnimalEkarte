@@ -13,7 +13,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // IndexDeps は RunIndex の注入可能な依存。
@@ -50,7 +49,7 @@ func WaitTimer(ctx context.Context, d time.Duration) error {
 
 // RunIndex は不足 cache_key を逐次 embedding して保存する。
 // 全てのエラーは構造化分類で返す（本文/キー/DB エラーの詳細は含めない）。
-func RunIndex(ctx context.Context, base []manualarticle.CorpusArticle, overrides []model.ManualArticle, deps IndexDeps) (IndexResult, error) {
+func RunIndex(ctx context.Context, base []manualarticle.CorpusArticle, overrides []manualarticle.PublishedArticle, deps IndexDeps) (IndexResult, error) {
 	var res IndexResult
 	if deps.Embedder == nil || deps.Cache == nil || deps.Budget == nil || deps.Model == "" {
 		return res, apperrors.WrapInvalidInput("index deps incomplete")

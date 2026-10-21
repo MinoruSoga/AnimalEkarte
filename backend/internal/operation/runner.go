@@ -18,8 +18,11 @@ import (
 // consumer so tests can run the runner without a database.
 type store interface {
 	// ClaimBinding inserts the binding when absent and returns the stored row.
+	// It runs inside its own short transaction; when this attempt wins the
+	// insert, writeMetadata is invoked exactly once inside that claim
+	// transaction so claim metadata commits or rolls back with the binding.
 	// It must run outside an ambient transaction.
-	ClaimBinding(ctx context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string) (storedBinding, error)
+	ClaimBinding(ctx context.Context, scope Scope, key uuid.UUID, sum []byte, keyVersion string, writeMetadata func(ctx context.Context, b Binding) error) (storedBinding, error)
 	// FindBinding returns the binding of this exact scope and key.
 	FindBinding(ctx context.Context, scope Scope, key uuid.UUID) (storedBinding, bool, error)
 	// LockBindingNoWait locks the binding row; a held row is errBindingBusy.
@@ -107,8 +110,16 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 	sum, keyVersion := r.fp.Compute(req.Scope, req.Content)
 
 	// Claim transaction: the binding must exist before any business write and
-	// stays bound to this content even when the attempt is rejected.
-	stored, err := r.store.ClaimBinding(ctx, req.Scope, req.Key, sum, keyVersion)
+	// stays bound to this content even when the attempt is rejected. A
+	// participant that implements ClaimMetadataWriter gets the store's claim
+	// callback; the store invokes it once, only on the claim winner.
+	var writeMetadata func(context.Context, Binding) error
+	if writer, ok := p.(ClaimMetadataWriter); ok {
+		writeMetadata = func(ctx context.Context, b Binding) error {
+			return writer.CreateClaimMetadata(ctx, b, req)
+		}
+	}
+	stored, err := r.store.ClaimBinding(ctx, req.Scope, req.Key, sum, keyVersion, writeMetadata)
 	if err != nil {
 		return Outcome{}, err
 	}
@@ -166,6 +177,12 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 
 // Lookup returns the stored state of one binding without performing the owner
 // write. The current grant is re-checked before any stored result is disclosed.
+// A recorded unknown returns result-unavailable. A result-store re-read
+// failure (receipt/unknown read error) is distinct from a recorded unknown:
+// the current authorization is evaluated first — a denied grant stays
+// non-disclosing (not-authorized), an authorized caller gets an internal
+// error. Execute's post-failure recheck keeps mapping read failure to
+// result-unavailable (sticky unknown recorded) and is unchanged.
 func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth LookupAuthorizer) (Outcome, error) {
 	if persistence.TxFromContext(ctx) != nil {
 		return Outcome{}, apperrors.WrapInternalServerError("operation lookup must start outside an ambient transaction")
@@ -191,7 +208,15 @@ func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth Lo
 
 	status, res, err := r.settledState(ctx, binding)
 	if err != nil {
-		return disclose(ctx, auth, binding, StatusResultUnavailable, nil), nil
+		// The result re-read failed. Evaluate the current authorization on the
+		// original anchor first: a denied grant wins non-disclosure. An
+		// authorized caller gets an internal error instead — the store error
+		// text, binding, and any result are never returned.
+		outcome := disclose(ctx, auth, binding, StatusResultUnavailable, nil)
+		if outcome.Status == StatusNotAuthorized {
+			return outcome, nil
+		}
+		return Outcome{}, apperrors.WrapInternalServerError("operation result lookup failed")
 	}
 	return disclose(ctx, auth, binding, status, res), nil
 }

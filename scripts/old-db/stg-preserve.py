@@ -108,6 +108,52 @@ STAGE_FILTERS: dict[str, list[str]] = {
     ],
 }
 
+# manual_articles.current_version_id / published_version_id reference
+# manual_article_versions(id, article_id), whose rows reference manual_articles,
+# so the pointers cannot be written before the versions exist. Insert the
+# articles with both pointers cleared; the pointers are applied after the
+# versions (MANUAL_POINTER_RESTORE). That pointer UPDATE fires
+# manual_articles_storage_version, which sets version = OLD.version + 1, so
+# rows that carry pointers are staged one version lower to land on the
+# exported version (verify still compares every column strictly).
+STAGE_FILTERS["manual_articles"] = [
+    (
+        "UPDATE stage SET version = version - 1 "
+        "WHERE (current_version_id IS NOT NULL OR published_version_id IS NOT NULL) "
+        "AND version > 1"
+    ),
+    "UPDATE stage SET current_version_id = NULL, published_version_id = NULL",
+]
+
+
+# Insert-only on conflict, so a repeated restore is safe: version rows are
+# immutable (manual_article_versions_immutable_contract rejects UPDATE), and
+# updating an already restored article would fire the storage version trigger
+# again. Existing rows are left as they are; verify reports any difference.
+INSERT_ONLY_TABLES = {"manual_articles", "manual_article_versions"}
+
+
+def manual_pointer_restore_sql(export_dir: Path, columns: list[str]) -> str:
+    """Re-stage manual_articles.csv and apply the exported version pointers."""
+    csv_literal = str(export_dir / "manual_articles.csv").replace("'", "''")
+    column_list = ", ".join(quote_ident(column) for column in columns)
+    return (
+        "CREATE TEMP TABLE pointer_stage (LIKE public.manual_articles INCLUDING DEFAULTS);\n"
+        f"\\copy pointer_stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
+        "UPDATE public.manual_articles a\n"
+        "SET current_version_id = s.current_version_id, published_version_id = s.published_version_id\n"
+        "FROM pointer_stage s\n"
+        "WHERE a.id = s.id\n"
+        "AND (s.current_version_id IS NOT NULL OR s.published_version_id IS NOT NULL)\n"
+        # Only rows still in the state this restore staged (pointers cleared,
+        # version one below the export). Articles that already have pointers
+        # or were changed since the export are left for verify to report.
+        "AND a.current_version_id IS NULL AND a.published_version_id IS NULL\n"
+        "AND a.version = GREATEST(s.version - 1, 1);\n"
+        "DROP TABLE pointer_stage;\n"
+    )
+
+
 # SQL statements executed against the target table (stage is available as a
 # temp table) right before the INSERT. staff_clinic_assignments has a serial
 # pkey plus a (staff_id, clinic_id) unique constraint; an exported row whose
@@ -411,6 +457,22 @@ def support_referenced_staff_ids(export_dir: Path) -> set[int]:
     return referenced
 
 
+def report_restored(entry: dict, filtered: bool, lines: list[str], report: dict[str, dict[str, int]]) -> None:
+    """Print and record the staged/kept counts that one table's script returned."""
+    table = entry["name"]
+    staged = int(lines[0]) if lines else 0
+    kept = staged
+    if filtered:
+        kept = int(lines[1]) if len(lines) > 1 else staged
+        print(
+            f"restored {table}: {entry['rows']} export rows, "
+            f"{staged} staged, {staged - kept} skipped by restore filters"
+        )
+    else:
+        print(f"restored {table}: {entry['rows']} rows")
+    report[table] = {"staged": staged, "kept": kept, "skipped": staged - kept}
+
+
 def restore(args: argparse.Namespace) -> None:
     export_dir = Path(args.dir).resolve()
     manifest = load_manifest(export_dir)
@@ -429,6 +491,7 @@ def restore(args: argparse.Namespace) -> None:
     env = psql_env(cfg)
 
     report: dict[str, dict[str, int]] = {}
+    held_manual: tuple[dict, str, bool] | None = None
     for entry in manifest["tables"]:
         table = entry["name"]
         conflict = dict(TABLES)[table]
@@ -444,6 +507,8 @@ def restore(args: argparse.Namespace) -> None:
                 f"{quote_ident(column)} = EXCLUDED.{quote_ident(column)}" for column in update_columns
             )
         else:
+            conflict_clause = "DO NOTHING"
+        if table in INSERT_ONLY_TABLES:
             conflict_clause = "DO NOTHING"
         script = (
             f"CREATE TEMP TABLE stage (LIKE public.{quote_ident(table)} INCLUDING DEFAULTS);\n"
@@ -476,19 +541,36 @@ def restore(args: argparse.Namespace) -> None:
             f"ON CONFLICT {conflict} {conflict_clause};\n"
             "DROP TABLE stage;\n"
         )
+        if table == "manual_articles":
+            # Run together with the versions and the pointer update below.
+            held_manual = (entry, script, bool(filters))
+            continue
+        parts = [(entry, bool(filters))]
+        if table == "manual_article_versions" and held_manual is not None:
+            # One transaction for the article insert, the version insert and
+            # the pointer update: a failure in any step rolls back all three
+            # (ON_ERROR_STOP aborts before COMMIT).
+            article_entry, article_script, article_filtered = held_manual
+            held_manual = None
+            script = (
+                "BEGIN;\n"
+                + article_script
+                + script
+                + manual_pointer_restore_sql(export_dir, article_entry["columns"])
+                + "COMMIT;\n"
+            )
+            parts.insert(0, (article_entry, article_filtered))
         out = run_psql(env, script=script)
         lines = [line for line in out.splitlines() if line.strip()]
-        staged = int(lines[0]) if lines else 0
-        kept = staged
-        if filters:
-            kept = int(lines[1]) if len(lines) > 1 else staged
-            print(
-                f"restored {table}: {entry['rows']} export rows, "
-                f"{staged} staged, {staged - kept} skipped by restore filters"
-            )
-        else:
-            print(f"restored {table}: {entry['rows']} rows")
-        report[table] = {"staged": staged, "kept": kept, "skipped": staged - kept}
+        for part_entry, filtered in parts:
+            count_lines = 2 if filtered else 1
+            report_restored(part_entry, filtered, lines[:count_lines], report)
+            lines = lines[count_lines:]
+    if held_manual is not None:
+        article_entry, article_script, article_filtered = held_manual
+        out = run_psql(env, script=article_script)
+        lines = [line for line in out.splitlines() if line.strip()]
+        report_restored(article_entry, article_filtered, lines, report)
 
     report_path = export_dir / "restore-report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")

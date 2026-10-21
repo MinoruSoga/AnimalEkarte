@@ -17,6 +17,8 @@ package operation
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/uuid"
@@ -61,9 +63,9 @@ func TestGormStore_ClaimKeepsFirstContentAndRefusesAmbientTx(t *testing.T) {
 	scope.ClinicID = 1
 	key := uuid.MustParse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
 
-	first, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1")
+	first, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
-	second, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(2), "k1")
+	second, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(2), "k1", nil)
 	require.NoError(t, err)
 
 	require.Equal(t, first.Binding.ID, second.Binding.ID)
@@ -73,7 +75,7 @@ func TestGormStore_ClaimKeepsFirstContentAndRefusesAmbientTx(t *testing.T) {
 	require.Equal(t, int64(1), n)
 
 	err = persistence.NewTransactor(db).WithTx(context.Background(), func(txCtx context.Context) error {
-		_, claimErr := s.ClaimBinding(txCtx, scope, uuid.New(), storeTestSum(3), "k1")
+		_, claimErr := s.ClaimBinding(txCtx, scope, uuid.New(), storeTestSum(3), "k1", nil)
 		return claimErr
 	})
 	require.Error(t, err)
@@ -84,7 +86,7 @@ func TestGormStore_ReceiptRollsBackWithOwnerTransaction(t *testing.T) {
 	s := newGormStore(db)
 	scope := testScope()
 	scope.ClinicID = 1
-	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1")
+	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
 	b := claimed.Binding
 
@@ -112,7 +114,7 @@ func TestGormStore_LockNoWaitReportsHeldBinding(t *testing.T) {
 	s := newGormStore(db)
 	scope := testScope()
 	scope.ClinicID = 1
-	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1")
+	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
 	b := claimed.Binding
 
@@ -133,7 +135,7 @@ func TestGormStore_OutcomesAreSeparateAndClinicScoped(t *testing.T) {
 	scope := testScope()
 	scope.ClinicID = 1
 	key := uuid.New()
-	claimed, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1")
+	claimed, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1", nil)
 	require.NoError(t, err)
 	b := claimed.Binding
 
@@ -165,4 +167,92 @@ func TestGormStore_OutcomesAreSeparateAndClinicScoped(t *testing.T) {
 	unknown, err = s.HasUnknownOutcome(context.Background(), foreign)
 	require.NoError(t, err)
 	require.False(t, unknown, "attempt outcomes must be read with the binding clinic")
+}
+
+// TestGormStore_ClaimMetadataWriterInClaimTx: the writeMetadata callback runs
+// inside the claim transaction — its row commits with the winning binding, and
+// a callback error rolls back both the binding row and the callback row.
+func TestGormStore_ClaimMetadataWriterInClaimTx(t *testing.T) {
+	db := setupOperationStoreDB(t)
+	require.NoError(t, db.Exec(
+		`CREATE TABLE IF NOT EXISTS claim_metadata_probe (id bigserial primary key, binding_id bigint)`).Error)
+	s := newGormStore(db)
+	scope := testScope()
+	scope.ClinicID = 1
+
+	claimed, err := s.ClaimBinding(context.Background(), scope, uuid.New(), storeTestSum(1), "k1",
+		func(txCtx context.Context, b Binding) error {
+			return persistence.DBOrTx(txCtx, db).
+				Exec(`INSERT INTO claim_metadata_probe (binding_id) VALUES (?)`, b.ID).Error
+		})
+	require.NoError(t, err)
+	var probes int64
+	require.NoError(t, db.Table("claim_metadata_probe").Where("binding_id = ?", claimed.Binding.ID).Count(&probes).Error)
+	require.Equal(t, int64(1), probes, "winner callback row must commit with the binding")
+
+	failKey := uuid.New()
+	forced := errors.New("forced metadata failure")
+	_, err = s.ClaimBinding(context.Background(), scope, failKey, storeTestSum(2), "k1",
+		func(txCtx context.Context, b Binding) error {
+			if e := persistence.DBOrTx(txCtx, db).
+				Exec(`INSERT INTO claim_metadata_probe (binding_id) VALUES (?)`, b.ID).Error; e != nil {
+				return e
+			}
+			return forced
+		})
+	require.ErrorIs(t, err, forced)
+	var bindings int64
+	require.NoError(t, db.Model(&model.OperationBinding{}).Where("operation_key = ?", failKey).Count(&bindings).Error)
+	require.Equal(t, int64(0), bindings, "callback failure must roll back the binding row")
+	var totalProbes int64
+	require.NoError(t, db.Table("claim_metadata_probe").Count(&totalProbes).Error)
+	require.Equal(t, int64(1), totalProbes, "callback failure must roll back the metadata row")
+}
+
+// TestGormStore_ClaimConcurrentSingleMetadataCall: two concurrent ClaimBinding
+// calls for the same scope/key — exactly one invokes writeMetadata, exactly one
+// binding row exists, and the loser receives the winner's binding.
+func TestGormStore_ClaimConcurrentSingleMetadataCall(t *testing.T) {
+	db := setupOperationStoreDB(t)
+	s := newGormStore(db)
+	scope := testScope()
+	scope.ClinicID = 1
+	key := uuid.New()
+
+	var calls int64
+	var wg sync.WaitGroup
+	ids := make(chan uint64, 2)
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			claimed, err := s.ClaimBinding(context.Background(), scope, key, storeTestSum(1), "k1",
+				func(context.Context, Binding) error {
+					atomic.AddInt64(&calls, 1)
+					return nil
+				})
+			if err != nil {
+				errs <- err
+				return
+			}
+			ids <- claimed.Binding.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	got := map[uint64]bool{}
+	for id := range ids {
+		got[id] = true
+	}
+	require.Len(t, got, 1, "loser must return the winner's binding")
+	require.Equal(t, int64(1), atomic.LoadInt64(&calls), "writeMetadata runs once for the claim winner only")
+	var n int64
+	require.NoError(t, db.Model(&model.OperationBinding{}).Count(&n).Error)
+	require.Equal(t, int64(1), n)
 }

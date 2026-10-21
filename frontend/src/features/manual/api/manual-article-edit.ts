@@ -339,16 +339,40 @@ export async function getManualArticleEditView(
   return data;
 }
 
-/** GET /manual/articles/{category}/{slug}/operations/{operation_key} — 保存結果の照会 */
+/**
+ * GET /manual/articles/{category}/{slug}/operations/{operation_key} — 保存結果の照会。
+ * 契約上 409 ManualEditConflict（code: target_mismatch）を返しうる:
+ * anchor 認可後に route selector と元対象が一致しない場合。caller が
+ * 「別記事を示しているのに同じ key の receipt 照会を続ける」事故を
+ * 防ぐため、409 だけを ManualEditConflictError として投げる。
+ * それ以外のエラーは触らずそのまま再送出する（ManualEditor が
+ * extractApiErrorMessage(queryErr) で元の axios error を読むため）。
+ */
 export async function getManualEditOperationResult(
   category: ManualCategory,
   slug: string,
   operationKey: string,
 ): Promise<ManualEditOperationResult> {
-  const { data } = await axios.get<ManualEditOperationResult>(
-    `/v1/manual/articles/${category}/${slug}/operations/${operationKey}`,
-  );
-  return data;
+  try {
+    const { data } = await axios.get<ManualEditOperationResult>(
+      `/v1/manual/articles/${category}/${slug}/operations/${operationKey}`,
+    );
+    return data;
+  } catch (err) {
+    if (isAxiosError(err) && err.response?.status === 409) {
+      const parsed = readErrorBody(err.response?.data);
+      throw new ManualEditConflictError({
+        operationKey,
+        conflict: {
+          error: parsed?.error ?? "",
+          code:
+            parseConflictCode((err.response?.data as { code?: unknown } | undefined)?.code) ??
+            "target_mismatch",
+        },
+      });
+    }
+    throw err;
+  }
 }
 
 export interface SaveManualArticleEditParams {

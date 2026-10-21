@@ -58,7 +58,7 @@ consumerは成功receiptがないbindingも含め、binding ID＋医院から元
 
 照会（`Runner.Lookup`）は、resultが見えなければbinding行をNOWAITでlockしてからresultと`unknown`を再読取する。lock取得前に他の試行がcommitした成功を`not-succeeded`と返さない。結果を返す全経路（照会・replay・失敗後の成功確認）で`AuthorizeLookup`を通す。`Participant`はこのため`LookupAuthorizer`を含む。
 
-conflictの元対象認可には保存済み成功receiptを解決根拠として渡せるが、conflict応答のResult本文は常に空とする。成功前はbindingに対応するowner metadataで解決し、解決不能なら非開示。失敗後分類は成功receipt→既存unknown（読取不能も保守的停止）→Busyの順で、Gate競合によってunknown停止を隠さない。callbackで既存receiptをreplayした場合はcommit応答喪失後も再認可して`replayed`を維持し、新規Applyの成功は`succeeded`とする。Lookupでbinding発見後に結果を再読取できない場合は、現在認可の下で`result-unavailable`へ停止する。初回`FindBinding`自体の失敗はbindingの存在を推定しない。
+conflictの元対象認可には保存済み成功receiptを解決根拠として渡せるが、conflict応答のResult本文は常に空とする。成功前はbindingに対応するowner metadataで解決し、解決不能なら非開示。失敗後分類は成功receipt→既存unknown（読取不能も保守的停止）→Busyの順で、Gate競合によってunknown停止を隠さない。callbackで既存receiptをreplayした場合はcommit応答喪失後も再認可して`replayed`を維持し、新規Applyの成功は`succeeded`とする。Lookupでbinding発見後に結果を再読取できない場合は、まず現在認可を評価する。認可できなければ`not-authorized`（非開示優先）、認可済みなら結果store障害としてerrorを返しownerが既存generic error（例500）へ写像する。記録済み`unknown`のみ`result-unavailable`のまま返す。初回`FindBinding`自体の失敗はbindingの存在を推定しない。
 
 共通helperはgateを自分で取らない。EMR-467の予約graph gateを全domainへ拡張しない。owner固有のlock順は`Apply`内で各ownerの既存規約に従う。
 
@@ -71,7 +71,7 @@ conflictの元対象認可には保存済み成功receiptを解決根拠とし�
 | `not-succeeded` | bindingあり・成功なし（拒否・rollback後） | 人が最新前提を再確認し、同key同内容で再試行可 |
 | `operation-key-conflict` | 同keyで別内容 | 再実行しない。内容を変えるなら旧結果の確定を確認した別key |
 | `operation-in-progress` | 他の試行がbindingを保持中 | 同keyで再照会。新keyで作り直さない |
-| `result-unavailable` | 成否不明（`unknown`記録、または再読取不能） | 自動補償・再create・外部再送を止める |
+| `result-unavailable` | 成否不明。Execute/失敗後分類では`unknown`記録または再読取不能。Lookupでは記録済み`unknown`のみ（再読取不能はerror返却） | 自動補償・再create・外部再送を止める |
 | `scope-not-found` | `FindBinding`で同scope・keyのbindingがない場合のみ。ownerの対象欠落には既存`validation`等を使い、このstatusを返さない | 他院・他actorのkeyの存在を開示しない |
 | `not-authorized` | 現在の認可で結果を開示できない | 結果本文（result_refs等）を返さない |
 | `validation`／`version-conflict`／`dependency-changed`／`edit-right-lost` | ownerの確定拒否（`*Rejection`） | writeなし。再取得・差分確認後に同key同内容で再試行可 |
@@ -80,17 +80,17 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 
 ## 2. 参加表（操作family単位）
 
-| 項目 | `billing.price_acknowledgement`（先行例） | EMR-491／493／502 |
-|:---|:---|:---|
-| domain所有票 | EMR-483（billing） | 各票 |
-| 業務intent内容（Content、fingerprint対象） | `billing_id`、対象`billing_item_id`集合、了承したbefore計算版／after計算版、before／after金額 | 未判定（subset照合のみ・接続未着手） |
-| 実行前提（Preconditions、fingerprint対象外） | `billing_version`、`line_version`（CAS） | 未判定 |
-| 保存先 | `billing_price_acknowledgements`、`billing_change_events`、`operation_bindings`／`operation_results`／`operation_attempt_outcomes` | 未判定 |
-| 監査 | 変更者・時刻・前後値の履歴（[会計の金額変更了承](../domains/accounting/technical-spec.md#review-version-sync-proposal)）。同tx | 未判定 |
-| 成功結果 | `result_refs`: billing_id・了承行ID、`committed_versions`: 更新後billing_version／line_version | 未判定 |
-| 拒否・unknown時の照会先 | `Runner.Lookup`（同scope・key、現在認可を再検査） | 共通 |
-| 固定fixture | §3の6ケース | 未作成 |
-| C06との優先関係・adapter変換 | C06共通規則に従う。金額のみ変更は警告了承で医師確認receiptを失効させない（AC-accounting-reviewed-price-only） | 未判定 |
+| 項目 | `billing.price_acknowledgement`（先行例） | EMR-491／493 | EMR-502（manualarticle, `manual.article.edit`） |
+|:---|:---|:---|:---|
+| domain所有票 | EMR-483（billing） | 各票 | EMR-502 |
+| 業務intent内容（Content、fingerprint対象） | `billing_id`、対象`billing_item_id`集合、了承したbefore計算版／after計算版、before／after金額 | 未判定 | `article_id`（canonical正数十進文字列）・`command_digest`・`content_digest`（各64 lower-hex文字列。JCS object `manual-article-content-v1`／`manual-article-edit-v1`のSHA-256、`backend/internal/manualarticle/jcs.go`） |
+| 実行前提（Preconditions、fingerprint対象外） | `billing_version`、`line_version`（CAS） | 未判定 | `expected_version`（記事CAS版）・`expected_content_version_id`（編集開始時のcurrent.id） |
+| 保存先 | `billing_price_acknowledgements`、`billing_change_events`、`operation_bindings`／`operation_results`／`operation_attempt_outcomes` | 未判定 | `operation_bindings`／`operation_results`／`operation_attempt_outcomes`、`manual_article_operation_targets`（claim時の不変元対象anchor、migration `005_manual_article_operation_targets.sql`）、`manual_article_versions`（source_kind=`edited`の新内容版、content_digest/revision付き）、`manual_articles.current_version_id`（CAS更新・published不変）、`manual_article_operations`（intent=`edit`） |
+| 監査 | 変更者・時刻・前後値の履歴（[会計の金額変更了承](../domains/accounting/technical-spec.md#review-version-sync-proposal)）。同tx | 未判定 | `manual_article.upsert`（`EditTxAudit.LogEntryTx`、同tx fail-closed） |
+| 成功結果 | `result_refs`: billing_id・了承行ID、`committed_versions`: 更新後billing_version／line_version | 未判定 | `result_refs`: `article_id`・`operation_history_id`・`content_version_id`・`content_digest`・`published_version_id`（非NULL時のみ）；`committed_versions`: `previous_version`・`resulting_version`・`content_revision` |
+| 拒否・unknown時の照会先 | `Runner.Lookup`（同scope・key、現在認可を再検査） | 共通 | `Runner.Lookup`→anchor解決→存在・現在grant再検査→route selector比較（不一致は`409 target_mismatch`） |
+| 固定fixture | §3の6ケース | 未作成 | `internal/operation/claim_metadata_test.go`（winnerのみ1回・callback失敗はbinding同時rollback・loser非呼出・非実装participantは従来挙動）。manualarticle側はhandler/service/repository/request/response/corpus test（いずれもNOT_RUN） |
+| C06との優先関係・adapter変換 | C06共通規則に従う。金額のみ変更は警告了承で医師確認receiptを失効させない（AC-accounting-reviewed-price-only） | 未判定 | binding intent `manual.article.edit`→history/receipt intent `edit`の1対1写像。公開wireは`ManualEditReceipt`／`ManualEditConflict`／`ManualEditOperationResult`のみ（生C06 envelope非公開）。拒否理由の区別はrequest-scope participantが保持しhandlerが`version_conflict`／`operation_key_reused`／`target_mismatch`／`source_unresolved`／403へ写像 |
 
 483の判定履歴と保存契約の技術残件（確定した業務内容と未実装のDB subsetを分ける）:
 
@@ -133,10 +133,14 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 |:---|:---|:---|
 | 実DBのstore試験（claim一意性、ambient tx、NOWAIT、rollback、clinic scope、sticky unknown） | 未実施・未compile。`store_realdb_test.go`（build tag `operationrealdb`）は、main上で`internal/testdb`がPR #729のmodelに対しcompileできない（既存）ため、型検査も一度も通していない | worktree stack起動後に実行 |
 | deferred trigger `operation_success_required`・RLSとの結合 | 未実施（test DBはAutoMigrate double） | 最初のconsumer接続時 |
-| HMAC鍵のconfig配線・鍵rotation手順 | 未選定 | 最初のconsumer接続時 |
+| HMAC鍵のconfig配線 | `OPERATION_FINGERPRINT_CURRENT_KEY_VERSION`＋`OPERATION_FINGERPRINT_KEYS_JSON`（`config.OperationFingerprintKeys`）で502接続時に選定・実装（実行検証 NOT_RUN）。両方必須または両方未設定・重複member拒否・非object/非文字列value/空map・空白またはtrim変化version・不正base64・32バイト未満・current version不在はValidateが拒否（fail-closed）。key値はログ・エラーへ出さない | 502接続で実施 |
+| `ClaimMetadataWriter` hook | `operation.ClaimMetadataWriter`（`contract.go`）を追加（実行検証 NOT_RUN）。Participantが実装する場合、storeのclaim tx内でclaim winnerのみ1回呼ばれ、callback失敗はbindingとmetadataを同時rollback、loserは呼ばれない。manualarticleの`manual_article_operation_targets` anchorで利用 | 502で実装（実行検証 NOT_RUN）。他owner接続時に同契約で各自のanchor設計 |
+| 鍵rotation手順（運用） | 未選定。keyringは複数version許容だがrotation運用runbookは未整備 | 運用担当 |
 | 結果照会route・OpenAPI・codegen | 未着手。router／api.yamlは共有ファイルのため各ownerで追加 | EMR-483ほか |
 | cancel済みcontextからの即時結果照合 | 後続の可用性改善。現在はfail-closedで停止し、新しい有効contextの同key Lookup/Executeで再照合する。キャンセル後の即時照合成功は保証しない | helper/consumerのcontext契約検討 |
-| 491／493／502の参加行 | subset照合のみ・未判定 | 各票 |
+| 491／493の参加行 | subset照合のみ・未判定 | 各票 |
+
+本PRの実装差分の実行検証は **NOT_RUN**（`go`・`npm`・`pnpm`・`npx`・`docker`・`make`・test・build・lint・codegen 未実行）。コンパイル・動作は未検証。
 
 <a id="verified-command-selected-20261021"></a>
 ## 採択済みQ：Requestの限定immutable command（2026-10-21）

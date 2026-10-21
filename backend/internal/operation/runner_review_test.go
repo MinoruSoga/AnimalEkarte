@@ -409,7 +409,7 @@ type actorScopeProbe struct {
 	claims, lookups int
 }
 
-func (s *actorScopeProbe) ClaimBinding(context.Context, Scope, uuid.UUID, []byte, string) (storedBinding, error) {
+func (s *actorScopeProbe) ClaimBinding(context.Context, Scope, uuid.UUID, []byte, string, func(ctx context.Context, b Binding) error) (storedBinding, error) {
 	s.claims++
 	return storedBinding{}, errors.New("unexpected claim")
 }
@@ -825,14 +825,18 @@ func TestLookup_ExistingUnreadableBindingStopsWithCurrentAuthorization(t *testin
 					auth = &resolvedLookup{resolveErr: errors.New("target unavailable")}
 				}
 				got, err := f.runner.Lookup(t.Context(), f.scope, f.key, auth)
-				require.NoError(t, err)
-				want := StatusResultUnavailable
-				if grant != "allowed" {
-					want = StatusNotAuthorized
+				if grant == "allowed" {
+					// 認可済み: 結果 store の再読取失敗は result-unavailable でなく
+					// error として返す（zero outcome: Binding/Result も開示しない）。
+					require.Error(t, err)
+					require.Nil(t, got.Result)
+				} else {
+					// revoked / resolver-failed: 非開示の not-authorized を優先。
+					require.NoError(t, err)
+					require.Equal(t, StatusNotAuthorized, got.Status)
+					require.NotNil(t, got.Binding)
+					require.Nil(t, got.Result)
 				}
-				require.Equal(t, want, got.Status)
-				require.NotNil(t, got.Binding)
-				require.Nil(t, got.Result)
 				require.Equal(t, 1, f.owner.applyCount())
 			})
 		}
@@ -850,4 +854,52 @@ func TestLookup_FindBindingErrorDoesNotInferExistence(t *testing.T) {
 	require.Empty(t, got.Status)
 	require.Zero(t, probe.reads)
 	require.Empty(t, auth.authorized)
+}
+
+// TestLookup_ResultStoreReadFailure*: after a binding is found, a settled-state
+// re-read failure is NOT an unknown result. The current authorization decides:
+// a denied grant wins non-disclosure; an authorized caller gets an internal
+// error with no Result (store text/binding are not returned). Recorded unknown
+// still reports result-unavailable. Execute's post-failure recheck keeps
+// mapping read failure to sticky result-unavailable and is unchanged.
+func TestLookup_ResultStoreReadFailureAuthorizedIsError(t *testing.T) {
+	f := newR2Fixture(t)
+	_, err := f.store.ClaimBinding(context.Background(), f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
+	require.NoError(t, err)
+
+	f.store.mu.Lock()
+	f.store.loadErr = errors.New("result store read outage")
+	f.store.mu.Unlock()
+
+	outcome, err := f.runner.Lookup(context.Background(), f.scope, f.key, allowLookup{})
+	require.Error(t, err)
+	require.Nil(t, outcome.Result)
+	require.NotContains(t, err.Error(), "read outage")
+}
+
+func TestLookup_ResultStoreReadFailureUnauthorizedWins(t *testing.T) {
+	f := newR2Fixture(t)
+	_, err := f.store.ClaimBinding(context.Background(), f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
+	require.NoError(t, err)
+
+	f.store.mu.Lock()
+	f.store.loadErr = errors.New("result store read outage")
+	f.store.mu.Unlock()
+
+	outcome, err := f.runner.Lookup(context.Background(), f.scope, f.key, denyLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, outcome.Status)
+	require.Nil(t, outcome.Result)
+}
+
+func TestLookup_RecordedUnknownStaysResultUnavailable(t *testing.T) {
+	f := newR2Fixture(t)
+	claimed, err := f.store.ClaimBinding(context.Background(), f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
+	require.NoError(t, err)
+	require.NoError(t, f.store.RecordOutcome(
+		context.Background(), claimed.Binding, uuid.New(), OutcomeUnknown, StatusResultUnavailable))
+
+	outcome, err := f.runner.Lookup(context.Background(), f.scope, f.key, allowLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, outcome.Status)
 }

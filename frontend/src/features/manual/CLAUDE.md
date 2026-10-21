@@ -65,14 +65,14 @@ DB が空の場合・取得失敗時は MD バンドル版が常に表示され�
 | コマンド                                                        | 用途                                                                 |
 | --------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `python3 scripts/tools/manual-sync.py status --env <local\|stg\|url>` | MD ↔ DB の差分一覧（`same`/`diverged`/`db-only`/`file-only`）        |
-| `... export`                                                    | DB override を `content/<category>/<slug>.md` へ書き出す（取り込み） |
-| `... push --content-dir <dir> --execute`                        | 指定 dir の MD 全件を PUT で書き込む（再構築後の復元）               |
+| `... export`                                                    | 停止中（公開READは公開版だけを返し、未公開の保存済み下書きを書き出せない） |
+| `... push --content-dir <dir> --execute`                        | 停止中（旧形式の body は EMR-502 の編集プロトコルで 400 になる）     |
 | `... prune --execute`                                           | MD と一致する DB override を DELETE（baseline 化の後始末）           |
 
 - 認証: `MANUAL_SYNC_EMAIL` / `MANUAL_SYNC_PASSWORD`（`--email`/`--password`、未指定は対話プロンプト）。view/edit/delete は API 側の `ResourceManualEdit` 権限に従う
 - **DELETE の権限注意**: `prune`（と UI の override 削除）は `manual-edit` の delete 権限が必要だが、既定 seed の全権限グループ（執行含む）は `can_delete=f`。実行には system_admin アカウント（`SEEDLOGIN_OPERATOR_*` を `.env.local` に設定 → login seed で provisioning）が必要。operator は login seed 適用時（fresh DB or カタログ変更）にのみ作成され、既存環境への後付けは `schema_migrations` の `seeds/003_login` 行を消して migrate 再実行で冪等に行える。通常のグループへ delete を開放するかは `permission_group_rules.csv` の product 判断となる
-- **取り込みループ**（local / STG 共通）: `export` → `git diff` でレビュー → PR/コミット → デプロイ → `prune` で override を消して baseline に戻す
-- **リセット保護**: `make reset` は `manual_articles`/`manual_article_versions` を snapshot dir の `manual_articles.sql` へ退避→自動復元する。STG 再構築は `docs/ops/deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md` §6.1（export → push）
+- **取り込みループ**: `export` / `push` は停止中（EMR-502 で公開READと編集プロトコルが変わったため）。DB の編集内容を MD baseline へ取り込む新しい手順は未整備
+- **リセット保護**: `make reset` は `manual_articles`/`manual_article_versions` を snapshot dir の `manual_articles.sql` へ退避→自動復元する。STG 再構築は `docs/ops/deploy/stg/STG-PRESERVE-DATA.md` の SQL 手順で退避・復元する（`docs/ops/deploy/stg/STG_PLANETSCALE_SEED_RUNBOOK.md` §6.1）
 - **`order: 0` の round-trip**: PUT の `order_value` は省略時のみ既存値/9999 を維持し、明示的な 0 はそのまま保存される（backend `UpsertManualArticleRequest.OrderValue` は `*float64`）。以前の `0=未指定` 解釈では `order: 0` の記事が保存時に末尾へ飛んでいた
 
 ### 編集機能のフロント実装

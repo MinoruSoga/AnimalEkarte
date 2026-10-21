@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/middleware"
 )
 
@@ -205,6 +206,9 @@ func newRouter(cfg *config.Config) (*gin.Engine, error) {
 	router.Use(middleware.RequestID())
 	router.Use(middleware.CORS(cfg.CORSAllowedOrigin))
 	router.Use(middleware.RequestLoggingMiddleware())
+	// EMR-502 manual edit 専用 raw body guard: global sanitizer が raw 0x00 を
+	// 除去する前に、対象 PUT route のみ byte 単位で拒否する（既存上限は維持）。
+	router.Use(manualarticle.RawBodyGuard(middleware.DefaultJSONBodyMaxBytes))
 	router.Use(middleware.SanitizeNullBytes())
 	return router, nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/operation"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/reservation"
@@ -564,7 +567,9 @@ func (c runtimeComposition) registerDomainRoutes(
 		c.auth.Handler.HasPermission,
 	).RegisterRoutes(protected)
 	c.registerClinicRoutes(protected)
-	c.registerExistingDomainRoutes(ctx, protected, uploader)
+	if err := c.registerExistingDomainRoutes(ctx, protected, uploader); err != nil {
+		return err
+	}
 
 	lstepHandler := c.newLstepHandler()
 	reservationHandler := c.newReservationHandler(ctx, lstepHandler)
@@ -601,11 +606,16 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 	ctx context.Context,
 	protected *gin.RouterGroup,
 	uploader infra.FileUploader,
-) {
+) error {
+	manualEditDeps, err := c.manualEditDeps()
+	if err != nil {
+		return err
+	}
 	manualarticle.NewHandler(
 		manualarticle.NewManualArticleService(manualarticle.New(c.db)),
 		manualArticleAuditAdapter{logger: c.audit},
 		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+		manualEditDeps,
 	).RegisterRoutes(protected)
 	support.NewHandler(
 		support.NewService(
@@ -629,8 +639,13 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		support.NewManualSearchDeps(
 			c.config.SupportHybridSearchEnabled,
 			manualarticle.NewCorpusSource(manualarticle.NewManualArticleService(manualarticle.New(c.db))),
+			// 公開 READ は認証済みスタッフ全員（編集権限と分離）:
+			// FR-internal-manual-publication /
+			// docs/design/domains/internal-manual/technical-spec.md:31。
+			// svc.FindAll は published_version_id の版のみ返し hidden/未公開を
+			// 含まないため未公開内容の開示はない。
 			func(ginC *gin.Context) (bool, error) {
-				return c.auth.Handler.CheckPermission(ginC, "manual-edit", "view")
+				return true, nil
 			},
 			newSupportEmbedder(c.config),
 			support.NewManualEmbeddingCache(c.db, c.config.SupportEmbeddingModel),
@@ -675,6 +690,7 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 			RequirePermissionAny: adaptMedicalRecordPermissionAny(c.auth.Handler.RequirePermissionAny),
 		},
 	).RegisterRoutes(protected)
+	return nil
 }
 
 func adaptTrimmingPermissionAny(
@@ -724,8 +740,52 @@ func (c runtimeComposition) newReservationHandler(
 	)
 }
 
+// manualEditDeps は EMR-502 既存記事 edit の C06 接続部品を組み立てる。
+// OPERATION_FINGERPRINT_* keyring が両方有効なときだけ Fingerprinter/Runner を
+// 1つ作る（未設定は Runner=nil → edit 系 endpoint は fail-closed 500）。
+// 現在 grant は effective permission rules の manual-edit:edit で評価し、
+// system_admin bypass は request context の session flag 側で処理する
+// （participant 構築時に handler が渡す）。
+func (c runtimeComposition) manualEditDeps() (manualarticle.EditDeps, error) {
+	repo := manualarticle.New(c.db)
+	deps := manualarticle.EditDeps{
+		Store:   repo,
+		TxAudit: manualArticleAuditAdapter{logger: c.audit},
+		Grant: func(ctx context.Context, clinicID, staffID uint64) (bool, error) {
+			if c.auth.PermissionGroups == nil {
+				return false, nil
+			}
+			rules, err := c.auth.PermissionGroups.GetEffectivePermissions(ctx, staffID, clinicID)
+			if err != nil {
+				return false, err
+			}
+			for i := range rules {
+				if rules[i].Resource == string(model.ResourceManualEdit) {
+					return rules[i].CanEdit, nil
+				}
+			}
+			return false, nil
+		},
+	}
+	// keyring は両方未設定（edit 無効・Runner nil で endpoint fail-closed 500）
+	// または両方有効。設定されているのに parse / Fingerprinter 構築が
+	// 失敗する場合は serving を始めず error を返す（key 値は error に含めない）。
+	keys, current, err := c.config.OperationFingerprintKeys()
+	if err != nil {
+		return deps, fmt.Errorf("manual article edit operation keyring is misconfigured: %w", err)
+	}
+	if keys != nil {
+		fp, ferr := operation.NewFingerprinter(current, keys)
+		if ferr != nil {
+			return deps, fmt.Errorf("manual article edit operation keyring is unusable: %w", ferr)
+		}
+		deps.Runner = operation.NewRunner(c.db, fp)
+	}
+	return deps, nil
+}
+
 type manualArticleAuditAdapter struct {
-	logger audit.Service
+	logger audit.Kernel
 }
 
 func (a manualArticleAuditAdapter) LogEntry(
@@ -733,6 +793,26 @@ func (a manualArticleAuditAdapter) LogEntry(
 	entry manualarticle.AuditEntry,
 ) error {
 	return a.logger.LogEntry(ctx, &audit.Entry{
+		ClinicID:   entry.ClinicID,
+		ActorID:    entry.ActorID,
+		ActorType:  entry.ActorType,
+		Action:     entry.Action,
+		Resource:   entry.Resource,
+		ResourceID: entry.ResourceID,
+		OldValue:   entry.OldValue,
+		NewValue:   entry.NewValue,
+		IPAddress:  entry.IPAddress,
+		UserAgent:  entry.UserAgent,
+	})
+}
+
+// LogEntryTx は必須監査の fail-closed ambient-transaction 経路。
+// 失敗は caller（owner write transaction）を巻き戻す。
+func (a manualArticleAuditAdapter) LogEntryTx(
+	ctx context.Context,
+	entry manualarticle.AuditEntry,
+) error {
+	return a.logger.LogEntryTx(ctx, &audit.Entry{
 		ClinicID:   entry.ClinicID,
 		ActorID:    entry.ActorID,
 		ActorType:  entry.ActorType,

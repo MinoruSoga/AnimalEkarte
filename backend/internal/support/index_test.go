@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/manualarticle"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type indexEmbedder struct {
@@ -153,7 +152,7 @@ func TestIndexSkipExistingSecondRun(t *testing.T) {
 func TestIndexUnionBaseAndEffectiveKeys(t *testing.T) {
 	e, c, b := &indexEmbedder{}, newIndexCache(), &indexBudget{}
 	deps, _ := indexDeps(e, c, b)
-	ov := []model.ManualArticle{{Category: "screens", Slug: "a1", Title: "A1x", Section: "S", BodyMarkdown: "別本文"}}
+	ov := []manualarticle.PublishedArticle{{Category: "screens", Slug: "a1", Title: "A1x", Section: "S", BodyMarkdown: "別本文"}}
 	res, err := RunIndex(context.Background(), indexBase, ov, deps)
 	require.NoError(t, err)
 	require.NoError(t, err)

@@ -182,10 +182,8 @@ var knownPhantomInSpec = map[string]bool{
 	// then remove each corresponding entry when its runtime route is registered.
 	"GET /api/v1/shifts/{id}":                       true,
 	"GET /api/v1/shifts/operations/{operation_key}": true,
-	// Follow-up EMR-502 owner: register permission-bound edit-view and edit-result reads,
-	// then remove each corresponding entry when its runtime route is registered.
-	"GET /api/v1/manual/articles/{category}/{slug}/edit":                       true,
-	"GET /api/v1/manual/articles/{category}/{slug}/operations/{operation_key}": true,
+	// Follow-up EMR-502 owner: the edit-view and edit-result reads are registered;
+	// their former allowlist entries are removed by this change.
 
 	// PR #760: contract-first certificate routes for FE487 mock / BE parallel work.
 	// Runtime owner EMR-486: remove each corresponding entry in the same change
