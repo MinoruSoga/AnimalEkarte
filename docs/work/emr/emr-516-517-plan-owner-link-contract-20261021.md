@@ -36,7 +36,7 @@ Plane読取根拠: https://app.plane.so/baritechllc/browse/EMR-516/ と https://
 
 ## 3. Exact route / intent（6操作、6path）
 
-以下はAPI YAML上のpath。実routerの既存 `/v1` prefixを二重に追加しない。
+以下はAPI YAML上のpath。実routerの既存 `/api/v1` prefixを二重に追加しない。
 
 | method/path | operationId | C06 intent |
 | --- | --- | --- |

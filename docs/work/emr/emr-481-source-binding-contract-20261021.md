@@ -105,7 +105,7 @@ claim短TX → 最外業務TX → 既存 `reservation-graph:write:v1` gate（返
 
 import同TX：source/current projection+readiness再検証 → billing_item採番 → active binding →505 snapshot/lines→billings.current_calculation_id→462必要世代/digest→監査→成功receipt。source保存同TX：source/plan projection+version →差異又は上記会計同期→元owner監査+会計監査→元operation一つのreceipt。resolution同TX：差異観測→選択→行/binding→必要505/462/483→resolution/audit→receipt。いずれか失敗は全rollback。既存serviceが内側WithTxでcommitしないambient関数へ分離する。
 
-監査sinkは既存audit_logs。action=`billing.source_import|billing.source_sync|billing.source_resolution`、resource_type=`billing_item`、resource_id=対象行、old_values/new_valuesは `{billing_id,item_version,binding_version,applied_source_version,source,pricing,manual_override,calculation_id}` の固定前後。metadata=`{schema_version,operation_id,operation_key,source_stamp,difference_id,decision,parent_intent}`。source保存側syncは元operation参照。実際の変更なしで架空old/newや成功監査を作らない。actorは認証staff、IP/UAの新収集なし。監査失敗もrollback。
+監査sinkは既存audit_logs。action=`billing.source_import|billing.source_sync|billing.source_resolution`、resource=`billing_item`、resource_id=対象行、old_value/new_valueは `{billing_id,item_version,binding_version,applied_source_version,source,pricing,manual_override,calculation_id}` の固定前後。metadata=`{schema_version,operation_id,operation_key,source_stamp,difference_id,decision,parent_intent}`。source保存側syncは元operation参照。実際の変更なしで架空old/newや成功監査を作らない。actorは認証staff、IP/UAの新収集なし。監査失敗もrollback。
 
 ## 8. 共通operation・照会
 
