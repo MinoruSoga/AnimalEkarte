@@ -30,6 +30,8 @@ import {
 } from "../components/revisit-intake/RevisitIntakeDeniedPendingLookup";
 import { RevisitIntakeHistory } from "../components/revisit-intake/RevisitIntakeHistory";
 import { RevisitIntakeAnswerView } from "../components/revisit-intake/RevisitIntakeAnswerView";
+import { RevisitIntakeRecoveryPanel } from "../components/revisit-intake/RevisitIntakeRecoveryPanel";
+import { useRevisitIntakeRecovery } from "../hooks/use-revisit-intake-recovery";
 import type { RevisitIntakeHistoryEntry, RevisitIntakeOwnerCurrentTarget } from "../types/models";
 
 /** 予約一覧・完了画面から渡す表示用の予約概要（API DTO は変えない）。 */
@@ -119,6 +121,25 @@ export function RevisitIntakePage({
 }: RevisitIntakePageProps) {
   const intake = useRevisitIntakeRead(clinicId, appointmentId, idToken);
   const [accessDenied, setAccessDenied] = useState(false);
+  // 操作回復 Slice A: 再読込後の未確定操作を発見する。発見が済むまで・保留理由がある間は新規送信を止める。
+  // 0 件・complete・経過時間から送信の許可を導かない（recovery.newSubmissionBlocked が false でも許可ではない）。
+  const recoveryTarget = intake.read?.current_target?.ref ?? null;
+  const recovery = useRevisitIntakeRecovery({
+    clinicId,
+    idToken,
+    target:
+      recoveryTarget === null
+        ? null
+        : {
+            appointmentId: recoveryTarget.appointment_id,
+            petId: recoveryTarget.pet_id,
+            targetGeneration: recoveryTarget.target_generation,
+          },
+    selfScope:
+      accessDenied ||
+      intake.error !== null ||
+      (intake.read !== null && intake.read.current_target === null),
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [leavePrompt, setLeavePrompt] = useState<"dirty" | "unresolved" | "in_flight" | null>(null);
@@ -163,6 +184,7 @@ export function RevisitIntakePage({
     const { read: r } = intake;
     const cur = r?.current_target ?? null;
     if (r === null || cur === null) return false;
+    if (recovery.newSubmissionBlocked) return false;
     if (r.form_definition_version !== REVISIT_INTAKE_SUPPORTED_FORM_VERSION) return false;
     if (r.availability === "target_unresolved" || !cur.editable) return false;
     const pending = draftStore.findPending(clinicId, appointmentId);
@@ -202,7 +224,12 @@ export function RevisitIntakePage({
   if (accessDenied || isRevisitIntakeAccessDenied(intake.error)) {
     // 照会 route は閲覧権限と分離されている。未確定の送信が残っていれば key を失わないよう結果照会だけ出す。
     const deniedPending = draftStore.findPending(clinicId, appointmentId);
-    if (deniedPending === undefined) {
+    // self scope の発見が失敗または保留のときだけ殻を出す。成功済みの送信は別予約のものを含み得るため、
+    // それだけで「この予約に回答済み」と読める表示にはしない（従来どおり ErrorPage）。
+    const deniedRecoveryVisible =
+      recovery.status === "error" ||
+      (recovery.summary !== null && recovery.summary.hasOperationHold);
+    if (deniedPending === undefined && !deniedRecoveryVisible) {
       return <ErrorPage message={ACCESS_DENIED_MESSAGE} onAction={onBack} actionLabel="戻る" />;
     }
     return (
@@ -249,14 +276,17 @@ export function RevisitIntakePage({
             <p role="status" className="text-sm text-noah-text">
               {ACCESS_DENIED_MESSAGE}
             </p>
-            <RevisitIntakeDeniedPendingLookup
-              clinicId={clinicId}
-              idToken={idToken}
-              appointmentId={appointmentId}
-              targetKey={deniedPending.targetKey}
-              pending={deniedPending.pending}
-              draftStore={draftStore}
-            />
+            <RevisitIntakeRecoveryPanel recovery={recovery} clinicId={clinicId} idToken={idToken} />
+            {deniedPending !== undefined ? (
+              <RevisitIntakeDeniedPendingLookup
+                clinicId={clinicId}
+                idToken={idToken}
+                appointmentId={appointmentId}
+                targetKey={deniedPending.targetKey}
+                pending={deniedPending.pending}
+                draftStore={draftStore}
+              />
+            ) : null}
           </div>
         </div>
       </div>
@@ -300,6 +330,20 @@ export function RevisitIntakePage({
 
   function renderCurrent() {
     if (!read) return null;
+    // 編集できる状態では、未確定操作の発見が済むまで status・editor を出さない（発見前の送信を防ぐ）。
+    if (
+      current !== null &&
+      current.editable &&
+      recovery.status === "checking" &&
+      recovery.discovery === null
+    ) {
+      return (
+        <div className="py-12 text-center" role="status">
+          <Spinner size="sm" borderColorClassName="border-noah-teal" />
+          <p className="text-sm text-noah-text-sub">未確定の操作を確認中...</p>
+        </div>
+      );
+    }
     if (read.form_definition_version !== REVISIT_INTAKE_SUPPORTED_FORM_VERSION) {
       return (
         <div className="space-y-3">
@@ -358,6 +402,11 @@ export function RevisitIntakePage({
 
         {otherTargetPending !== undefined ? (
           renderPendingLookup("other_target", otherTargetPending)
+        ) : current.editable && recovery.newSubmissionBlocked ? (
+          // Editor を外す間も、同 target の memory pending は結果照会だけ出す（再送・新規送信は出さない）。
+          appointmentPending !== undefined && appointmentPending.targetKey === targetKey ? (
+            renderPendingLookup("read_only", appointmentPending)
+          ) : null
         ) : current.editable ? (
           <RevisitIntakeEditor
             key={targetKey}
@@ -513,6 +562,13 @@ export function RevisitIntakePage({
               最新の状態を読み込み中...
             </p>
           ) : null}
+
+          <RevisitIntakeRecoveryPanel
+            recovery={recovery}
+            clinicId={clinicId}
+            idToken={idToken}
+            fenceNoticeRelevant={current !== null && current.editable}
+          />
 
           {renderCurrent()}
 

@@ -11,6 +11,11 @@ const { keyMock, sendMessagesMock } = vi.hoisted(() => ({
   sendMessagesMock: vi.fn(() => Promise.resolve()),
 }));
 
+// 既存の editor 系テストは Slice B（fence 利用可）相当の経路を検証する。Slice A の停止は RevisitIntakeRecovery.test.tsx。
+vi.mock("../lib/revisit-intake-recovery-fence", () => ({
+  LIFF_REVISIT_INTAKE_RECOVERY_FENCE_AVAILABLE: true,
+}));
+
 vi.mock("../lib/revisit-intake-operation-key", () => ({
   createRevisitIntakeOperationKey: keyMock,
 }));
@@ -29,6 +34,7 @@ import {
   type RevisitIntakeDraftStore,
   type RevisitIntakePendingOperation,
 } from "../hooks/use-revisit-intake-drafts";
+import { emptyRecoveryHandler } from "../testing/revisit-intake-recovery-fixtures";
 import type {
   RevisitIntakeAnswer,
   RevisitIntakeFullAnswers,
@@ -272,6 +278,8 @@ function purposeInput(): HTMLTextAreaElement {
 
 beforeEach(() => {
   clearRevisitIntakeReadBackoffs();
+  // 操作回復 Slice A: mount 時の未確定操作の発見（0 件・complete）。個別テストの server.use が優先される。
+  server.use(emptyRecoveryHandler());
   let n = 0;
   keyMock.mockReset();
   keyMock.mockImplementation(
