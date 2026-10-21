@@ -2,7 +2,8 @@
  * use-manual-article-overrides.ts — マニュアル記事一覧の取得 API
  *
  * バックエンドにオーバーライド版のマニュアルが保存されていれば取得。
- * 取得失敗時は無視 (empty array)。MD ファイルバンドル版が引き続き利用される。
+ * 取得失敗（404/401/403/5xx/通信障害/欠落 data 配列）は error として伝播する。
+ * 既取得本文を表示し続けず、bundled 本文への黙った fallback は行わない。
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -30,17 +31,7 @@ interface ListResponse {
   data: ManualArticleOverride[];
 }
 
-async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
-  try {
-    const { data } = await axios.get<ListResponse>("/v1/manual/articles");
-    return data.data;
-  } catch {
-    // backend 未到達・未認証等の場合は MD ファイル版のみ使用
-    return [];
-  }
-}
-
-// strict 経路: graceful fallback なし。レスポンスの data 配列欠落も失敗扱い。
+// strict 経路のみ: graceful fallback なし。レスポンスの data 配列欠落も失敗扱い。
 async function getManualArticleOverridesStrict(): Promise<ManualArticleOverride[]> {
   const { data } = await axios.get<ListResponse>("/v1/manual/articles");
   if (!Array.isArray(data.data)) {
@@ -51,11 +42,12 @@ async function getManualArticleOverridesStrict(): Promise<ManualArticleOverride[
 
 export function useGetManualArticleOverrides(enabled: boolean, strict = false) {
   return useQuery({
-    // strict は別キーに分離し、graceful cache[] と strict 失敗を区別する。
+    // strict は別キーに分離し、ManualHelpTab 等の既存 cache/invalidation と
+    // 互換を維持する（param 自体は互換のため残置、取得は常に strict）。
     queryKey: strict
       ? [...queryKeys.manualArticles.all(), "strict"]
       : queryKeys.manualArticles.all(),
-    queryFn: strict ? getManualArticleOverridesStrict : getManualArticleOverrides,
+    queryFn: getManualArticleOverridesStrict,
     enabled,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.STANDARD,

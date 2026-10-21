@@ -119,8 +119,9 @@ Preconditions / immutable command の participant を生成し、order_value は
 - `GET .../operations/{operation_key}`: runner 未設定 500 → `Runner.Lookup` →
   `not-authorized`=403、anchor 認可後に route selector 比較（不一致=409 `target_mismatch`）、
   `succeeded`/`replayed`=`{state:"succeeded",receipt}`、
-  `result-unavailable`/`in-progress`/`not-succeeded`/`scope-not-found`/`key-conflict`=
-  `{state:"unknown",receipt:null}`。公開 wire は `ManualEditReceipt`・`ManualEditConflict`・
+  `result-unavailable`（記録済みunknownのみ）=`{state:"unknown",receipt:null}`、
+  それ以外（`in-progress`/`not-succeeded`/`scope-not-found`/結果store障害を含む）=
+  500 generic `ErrorResponse`。公開 wire は `ManualEditReceipt`・`ManualEditConflict`・
   `ManualEditOperationResult` のみ（生 C06 envelope・binding・fingerprint・actor_ref・before/after JSON は非公開）。
 - `GET .../edit`: manual-edit:edit。`ManualArticleEditView`（id 正数十進文字列、CAS版 version、
   current=内容版 DTO または null、source_kind NULL→`legacy_unknown`、digest NULL→null を補完しない）。

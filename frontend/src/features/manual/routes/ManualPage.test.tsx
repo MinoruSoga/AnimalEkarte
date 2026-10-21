@@ -15,7 +15,17 @@ const { manualPermissions, overridesHookMock } = vi.hoisted(() => ({
     canEdit: true,
     canDelete: true,
   },
-  overridesHookMock: vi.fn<(enabled: boolean) => { data: ManualArticleOverride[] }>(() => ({
+  overridesHookMock: vi.fn<
+    (
+      enabled: boolean,
+      strict?: boolean,
+    ) => {
+      data?: ManualArticleOverride[];
+      isPending?: boolean;
+      isError?: boolean;
+      refetch?: () => unknown;
+    }
+  >(() => ({
     data: [],
   })),
 }));
@@ -251,5 +261,146 @@ describe("ManualPage touch targets", () => {
     expect(document.body.style.pointerEvents).not.toBe("none");
     expect(trigger).not.toHaveFocus();
     expect(screen.getByRole("tab", { name: "画面別" })).toHaveFocus();
+  });
+});
+
+// fix-9b: strict 取得経路 — query state で gate し bundled 本文へ fallback しない。
+describe("ManualPage overrides strict gating (fix-9b)", () => {
+  function renderManualPageStrict(initialPath = "/manual/screens/getting-started") {
+    const queryClient = new QueryClient();
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <Routes>
+            <Route path="/manual" element={<ManualPage />} />
+            <Route path="/manual/:category/:slug" element={<ManualPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it("passes strict=true to the overrides hook", () => {
+    renderManualPageStrict();
+    expect(overridesHookMock).toHaveBeenCalledWith(true, true);
+  });
+
+  it("pending: bundled 本文を表示せず検索・印刷を無効化する", () => {
+    overridesHookMock.mockReturnValue({ isPending: true });
+    renderManualPageStrict();
+    expect(screen.getByText("マニュアル記事を読み込んでいます")).toBeInTheDocument();
+    // bundled 記事本文は出ない
+    expect(screen.queryByRole("article")).toBeNull();
+    const printButton = screen.getByRole("button", { name: "このページを印刷" });
+    expect(printButton).toBeDisabled();
+    const searchInput = document.querySelector('input[type="search"]');
+    if (searchInput) expect(searchInput).toBeDisabled();
+  });
+
+  it.each(["500", "404", "403", "network"])(
+    "error (%s): bundled 本文を表示せずエラーと再試行を出す",
+    () => {
+      const refetch = vi.fn();
+      overridesHookMock.mockReturnValue({ isError: true, refetch });
+      renderManualPageStrict();
+      expect(screen.getByText("マニュアル記事の取得に失敗しました")).toBeInTheDocument();
+      expect(screen.queryByRole("article")).toBeNull();
+    },
+  );
+
+  it("error: 再試行ボタンが refetch を呼ぶ", async () => {
+    const refetch = vi.fn();
+    overridesHookMock.mockReturnValue({ isError: true, refetch });
+    renderManualPageStrict();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("failed refetch after success: error state で旧本文を表示し続けない", () => {
+    // query state (isError) が真実。data が残っていても article は出ない。
+    const refetch = vi.fn();
+    overridesHookMock.mockReturnValue({
+      data: [
+        {
+          id: 1,
+          category: "screens",
+          slug: "getting-started",
+          title: "T",
+          order_value: 1,
+          section: "S",
+          body_markdown: "B",
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+      isError: true,
+      refetch,
+    });
+    renderManualPageStrict();
+    expect(screen.getByText("マニュアル記事の取得に失敗しました")).toBeInTheDocument();
+    expect(screen.queryByRole("article")).toBeNull();
+  });
+
+  it("200 {data:[]}: bundled 記事を通常どおり表示する", () => {
+    overridesHookMock.mockReturnValue({ data: [] });
+    renderManualPageStrict();
+    expect(screen.queryByText("マニュアル記事の取得に失敗しました")).toBeNull();
+    expect(screen.queryByText("マニュアル記事を読み込んでいます")).toBeNull();
+  });
+
+  // fix-9c (1): 権限失効後は cache された override を使わず bundled のみ。
+  it("permission lost with cached data: override 本文を表示しない", () => {
+    manualPermissions.canView = false;
+    overridesHookMock.mockReturnValue({
+      data: [
+        {
+          id: 99,
+          category: "screens",
+          slug: "getting-started",
+          title: "OVERRIDE_TITLE_SHOULD_NOT_SHOW",
+          order_value: 1,
+          section: "S",
+          body_markdown: "OVERRIDE_BODY_SHOULD_NOT_SHOW",
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+    });
+    renderManualPageStrict();
+    expect(screen.queryByText("OVERRIDE_TITLE_SHOULD_NOT_SHOW")).toBeNull();
+    expect(screen.queryByText("OVERRIDE_BODY_SHOULD_NOT_SHOW")).toBeNull();
+    manualPermissions.canView = true;
+  });
+
+  // fix-9c (2): blocked 中は index route も bundled 先頭記事へ遷移しない。
+  it("index route while pending: bundled 記事へ遷移せず loading を表示する", () => {
+    overridesHookMock.mockReturnValue({ isPending: true });
+    renderManualPageStrict("/manual");
+    expect(screen.getByText("マニュアル記事を読み込んでいます")).toBeInTheDocument();
+  });
+
+  // fix-9c (3): 編集中は背景 refetch 失敗でも ManualEditor/draft を失わない。
+  it("editor open then error: editor stays mounted, blocked UI not shown", async () => {
+    overridesHookMock.mockReturnValue({ data: [] });
+    renderManualPageStrict();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "このページを編集" }));
+    overridesHookMock.mockReturnValue({ isError: true, refetch: vi.fn() });
+    // blocked UI にはならない（editor 分岐が先）。
+    expect(screen.queryByText("マニュアル記事の取得に失敗しました")).toBeNull();
+    expect(screen.queryByText("マニュアル記事を読み込んでいます")).toBeNull();
+    // editMode は継続 = 編集開始ボタンは出ない。
+    expect(screen.queryByRole("button", { name: "このページを編集" })).toBeNull();
+  });
+
+  // fix-9c (4): blocked + 未編集中は bundled fallback から編集開始できない。
+  it("blocked and not editing: edit button disabled", () => {
+    overridesHookMock.mockReturnValue({ isPending: true });
+    // 記事 route（bundled slug 00-overview）で article が解決され
+    // 編集開始ボタンが確実に描画される状態で assert する。
+    renderManualPageStrict("/manual/screens/00-overview");
+    const editButton = screen.getByRole("button", { name: "このページを編集" });
+    expect(editButton).toBeDisabled();
   });
 });

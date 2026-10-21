@@ -2,17 +2,23 @@ package manualarticle
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/operation"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 // ---- mock ManualArticleService ----
@@ -208,6 +214,186 @@ func TestGetManualEditOperationResult_BadKey400(t *testing.T) {
 	w := doRequest(t, newTestHandler(svc, deps), http.MethodGet,
 		"/api/v1/manual/articles/screens/a/operations/not-a-uuid", "")
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---- lookup HTTP 写像（real store + real Runner, NOT_RUN） ----
+//
+// fix-9a: 記録済み unknown だけが 200 unknown。in-progress / not-succeeded /
+// scope-not-found / Lookup error は generic 500、認可失効は 403、
+// 認可後の selector 不一致は 409 target_mismatch。
+
+func setupLookupHandlerDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db,
+		&model.OperationBinding{},
+		&model.OperationResult{},
+		&model.OperationAttemptOutcome{},
+	))
+	require.NoError(t, db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS operation_bindings_scope_key_test
+		ON operation_bindings (clinic_id, owner_kind, actor_kind, actor_ref, intent, operation_key)`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE IF NOT EXISTS manual_article_operation_targets (
+		clinic_id bigint NOT NULL, binding_id bigint NOT NULL, article_id bigint NOT NULL,
+		PRIMARY KEY (clinic_id, binding_id))`).Error)
+	require.NoError(t, db.Exec(`TRUNCATE TABLE manual_article_operation_targets,
+		operation_attempt_outcomes, operation_results, operation_bindings`).Error)
+	testdb.SeedClinicsForFK(t, db, 1)
+	return db
+}
+
+func lookupTestRunner(t *testing.T, db *gorm.DB) *operation.Runner {
+	t.Helper()
+	fp, err := operation.NewFingerprinter("k1", map[string][]byte{"k1": make([]byte, 32)})
+	require.NoError(t, err)
+	return operation.NewRunner(db, fp)
+}
+
+func seedLookupBinding(t *testing.T, db *gorm.DB, key uuid.UUID) model.OperationBinding {
+	t.Helper()
+	b := model.OperationBinding{
+		ClinicID:              1,
+		OwnerKind:             OwnerKind,
+		ActorKind:             string(operation.ActorStaff),
+		ActorRef:              "7",
+		Intent:                IntentEdit,
+		OperationKey:          key,
+		Fingerprint:           make([]byte, 32),
+		FingerprintKeyVersion: "k1",
+		CreatedAt:             time.Now(),
+	}
+	require.NoError(t, db.Create(&b).Error)
+	return b
+}
+
+func seedLookupAnchor(t *testing.T, db *gorm.DB, bindingID, articleID uint64) {
+	t.Helper()
+	require.NoError(t, db.Exec(
+		`INSERT INTO manual_article_operation_targets (clinic_id, binding_id, article_id) VALUES (1, ?, ?)`,
+		bindingID, articleID).Error)
+}
+
+func seedLookupArticle(t *testing.T, db *gorm.DB, slug string) {
+	t.Helper()
+	require.NoError(t, db.Create(&model.ManualArticle{
+		ID: 42, Category: model.ManualCategoryScreens, Slug: slug, Version: 1,
+	}).Error)
+}
+
+func lookupHandler(t *testing.T, db *gorm.DB, grant EditGrantChecker) *Handler {
+	t.Helper()
+	return newTestHandler(&mockManualArticleServiceForHandler{}, EditDeps{
+		Runner:  lookupTestRunner(t, db),
+		Store:   New(db),
+		Grant:   grant,
+		TxAudit: &mockEditTxAudit{},
+	})
+}
+
+func TestGetManualEditOperationResult_RecordedUnknown200(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	b := seedLookupBinding(t, db, key)
+	seedLookupAnchor(t, db, b.ID, 42)
+	seedLookupArticle(t, db, "intro")
+	require.NoError(t, db.Create(&model.OperationAttemptOutcome{
+		ClinicID: 1, BindingID: b.ID, AttemptKey: uuid.New(),
+		Outcome: string(operation.OutcomeUnknown), Details: json.RawMessage(`{"status":"result-unavailable"}`),
+		RecordedAt: time.Now(),
+	}).Error)
+
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"state":"unknown"`)
+}
+
+func TestGetManualEditOperationResult_ScopeNotFound500(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestGetManualEditOperationResult_NotSucceeded500(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	b := seedLookupBinding(t, db, key)
+	seedLookupAnchor(t, db, b.ID, 42)
+	seedLookupArticle(t, db, "intro")
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestGetManualEditOperationResult_InProgress500(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	b := seedLookupBinding(t, db, key)
+	seedLookupAnchor(t, db, b.ID, 42)
+	seedLookupArticle(t, db, "intro")
+
+	holder := db.Begin()
+	require.NoError(t, holder.Error)
+	t.Cleanup(func() { holder.Rollback() })
+	require.NoError(t, holder.Exec(
+		`SELECT * FROM operation_bindings WHERE id = ? FOR UPDATE`, b.ID).Error)
+
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestGetManualEditOperationResult_LookupError500(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	b := seedLookupBinding(t, db, key)
+	seedLookupAnchor(t, db, b.ID, 42)
+	seedLookupArticle(t, db, "intro")
+	// 結果 store の障害: authorized には generic 500（生 error text は返さない）。
+	// EnsureAutoMigrated は型ごとに cache されるため DROP すると後続テストで
+	// 再作成されない。RENAME で隠して即 cleanup で元に戻す。
+	require.NoError(t, db.Exec(`ALTER TABLE operation_results RENAME TO operation_results_fix9b_hidden`).Error)
+	t.Cleanup(func() {
+		db.Exec(`ALTER TABLE operation_results_fix9b_hidden RENAME TO operation_results`)
+	})
+
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.NotContains(t, w.Body.String(), "operation_results")
+	assert.NotContains(t, w.Body.String(), "does not exist")
+}
+
+func TestGetManualEditOperationResult_NotAuthorized403(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	b := seedLookupBinding(t, db, key)
+	seedLookupAnchor(t, db, b.ID, 42)
+	seedLookupArticle(t, db, "intro")
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return false, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestGetManualEditOperationResult_SelectorMismatch409(t *testing.T) {
+	db := setupLookupHandlerDB(t)
+	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
+	b := seedLookupBinding(t, db, key)
+	// anchor が指す記事の slug は "other" — 経路 "intro" と不一致。
+	seedLookupAnchor(t, db, b.ID, 42)
+	seedLookupArticle(t, db, "other")
+	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
+	w := doRequest(t, h, http.MethodGet,
+		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
+	assert.Equal(t, http.StatusConflict, w.Code)
+	assert.Contains(t, w.Body.String(), `"code":"target_mismatch"`)
 }
 
 // stubEditTxStore は compile 用の最小 EditTxStore 実装（NOT_RUN）。

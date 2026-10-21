@@ -58,7 +58,7 @@ consumerは成功receiptがないbindingも含め、binding ID＋医院から元
 
 照会（`Runner.Lookup`）は、resultが見えなければbinding行をNOWAITでlockしてからresultと`unknown`を再読取する。lock取得前に他の試行がcommitした成功を`not-succeeded`と返さない。結果を返す全経路（照会・replay・失敗後の成功確認）で`AuthorizeLookup`を通す。`Participant`はこのため`LookupAuthorizer`を含む。
 
-conflictの元対象認可には保存済み成功receiptを解決根拠として渡せるが、conflict応答のResult本文は常に空とする。成功前はbindingに対応するowner metadataで解決し、解決不能なら非開示。失敗後分類は成功receipt→既存unknown（読取不能も保守的停止）→Busyの順で、Gate競合によってunknown停止を隠さない。callbackで既存receiptをreplayした場合はcommit応答喪失後も再認可して`replayed`を維持し、新規Applyの成功は`succeeded`とする。Lookupでbinding発見後に結果を再読取できない場合は、現在認可の下で`result-unavailable`へ停止する。初回`FindBinding`自体の失敗はbindingの存在を推定しない。
+conflictの元対象認可には保存済み成功receiptを解決根拠として渡せるが、conflict応答のResult本文は常に空とする。成功前はbindingに対応するowner metadataで解決し、解決不能なら非開示。失敗後分類は成功receipt→既存unknown（読取不能も保守的停止）→Busyの順で、Gate競合によってunknown停止を隠さない。callbackで既存receiptをreplayした場合はcommit応答喪失後も再認可して`replayed`を維持し、新規Applyの成功は`succeeded`とする。Lookupでbinding発見後に結果を再読取できない場合は、まず現在認可を評価する。認可できなければ`not-authorized`（非開示優先）、認可済みなら結果store障害としてerrorを返しownerが既存generic error（例500）へ写像する。記録済み`unknown`のみ`result-unavailable`のまま返す。初回`FindBinding`自体の失敗はbindingの存在を推定しない。
 
 共通helperはgateを自分で取らない。EMR-467の予約graph gateを全domainへ拡張しない。owner固有のlock順は`Apply`内で各ownerの既存規約に従う。
 
@@ -71,7 +71,7 @@ conflictの元対象認可には保存済み成功receiptを解決根拠とし�
 | `not-succeeded` | bindingあり・成功なし（拒否・rollback後） | 人が最新前提を再確認し、同key同内容で再試行可 |
 | `operation-key-conflict` | 同keyで別内容 | 再実行しない。内容を変えるなら旧結果の確定を確認した別key |
 | `operation-in-progress` | 他の試行がbindingを保持中 | 同keyで再照会。新keyで作り直さない |
-| `result-unavailable` | 成否不明（`unknown`記録、または再読取不能） | 自動補償・再create・外部再送を止める |
+| `result-unavailable` | 成否不明。Execute/失敗後分類では`unknown`記録または再読取不能。Lookupでは記録済み`unknown`のみ（再読取不能はerror返却） | 自動補償・再create・外部再送を止める |
 | `scope-not-found` | `FindBinding`で同scope・keyのbindingがない場合のみ。ownerの対象欠落には既存`validation`等を使い、このstatusを返さない | 他院・他actorのkeyの存在を開示しない |
 | `not-authorized` | 現在の認可で結果を開示できない | 結果本文（result_refs等）を返さない |
 | `validation`／`version-conflict`／`dependency-changed`／`edit-right-lost` | ownerの確定拒否（`*Rejection`） | writeなし。再取得・差分確認後に同key同内容で再試行可 |

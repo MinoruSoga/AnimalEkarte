@@ -10877,7 +10877,9 @@ components:
       type: object
       additionalProperties: false
       required: [id, category, slug, published]
+      x-contract-status: selected-not-implemented
       description: |
+        将来の選定形式（公開reader全面移行は別の限定PR。現在runtimeは返さない）。
         公開READ用DTO（認証済みスタッフ）。医院共通。publishedは公開確定済みの同じ内容版。
         一覧・検索・印刷はこの版ID/内容を使い、未公開current、CAS版、hidden情報を返さない。
         未公開・非表示・不存在は単体404/一覧から除外。取得障害を不存在や静的版への黙ったfallbackにしない。
@@ -10890,10 +10892,38 @@ components:
     ManualArticleListResponse:
       type: object
       required: [data]
+      x-contract-status: selected-not-implemented
+      description: 将来の選定形式（文字列ID＋published）。現在runtimeは返さない。
       properties:
         data:
           type: array
           items: { $ref: '#/components/schemas/ManualArticle' }
+    ManualArticleCompatResponse:
+      type: object
+      additionalProperties: false
+      required: [id, category, slug, title, order_value, section, body_markdown, created_at, updated_at]
+      description: |
+        現在runtimeが返す互換形式（旧数値ID・平坦内容）。published_version_idが示す
+        公開版の内容のみを返し、未公開current・hiddenは混ぜない。
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        category: { type: string, enum: [screens, workflows] }
+        slug: { type: string }
+        title: { type: string }
+        order_value: { type: number }
+        section: { type: string }
+        body_markdown: { type: string }
+        updated_by_staff_id: { type: integer, format: int64, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ManualArticleCompatListResponse:
+      type: object
+      required: [data]
+      description: 現在runtimeが返す互換形式の一覧。dataの各要素はManualArticleCompatResponse。
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ManualArticleCompatResponse' }
     ManualArticleEditView:
       type: object
       additionalProperties: false
@@ -29089,7 +29119,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManualArticleListResponse'
+                $ref: '#/components/schemas/ManualArticleCompatListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -29122,7 +29152,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ManualArticle'
+                $ref: '#/components/schemas/ManualArticleCompatResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -31378,10 +31408,11 @@ paths:
       x-contract-status: selected
       description: |
         EMR-502。manual-edit:editの現在権限、元の選択医院・認証actor・intent=edit・記事対象へ拘束する。
-        200 succeededは元の確定receipt、200 unknownは照合不能（未実行・失敗とは断定しない）。
+        200 succeededは元の確定receipt、200 unknownは記録済みunknown（照合不能。未実行・失敗とは断定しない）のみ。
+        結果store障害・in-progress/not-succeeded/scope-not-found等の未選定結果は500 generic ErrorResponse。
         後続編集・非表示で現在状態が変わっても元receiptを返す。照会は新しい版や履歴を作らない。
-        権限失効は403、結果store障害は500。別医院・別actorのreceiptを開示しない。
-        unknown中は入力案を保持し新keyで再保存しない。照合成功後に現在状態を別取得して比較する。
+        権限失効は403。別医院・別actorのreceiptを開示しない。
+        いずれの応答でも入力と元keyを保持し新keyで再保存しない。照合成功後に現在状態を別取得して比較する。
       tags: [Manual]
       parameters:
         - name: category

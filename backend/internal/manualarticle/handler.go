@@ -284,14 +284,18 @@ func (h *Handler) GetManualEditOperationResult(c *gin.Context) {
 			State:        "succeeded",
 			Receipt:      receipt,
 		})
-	default:
-		// result-unavailable / in-progress / not-succeeded / scope-not-found /
-		// key-conflict は結果不明。入力保持して停止し、新 key で救済しない。
+	case operation.StatusResultUnavailable:
+		// 記録済み unknown（照合不能）だけを 200 unknown で返す。
+		// 入力は保持し、新 key で救済しない。
 		c.JSON(http.StatusOK, ManualEditOperationResultResponse{
 			OperationKey: key.String(),
 			State:        "unknown",
 			Receipt:      nil,
 		})
+	default:
+		// in-progress / not-succeeded / scope-not-found 等の未選定結果は
+		// 結果不明として返さず generic 500 ErrorResponse に写像する。
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("manual edit result unavailable"))
 	}
 }
 

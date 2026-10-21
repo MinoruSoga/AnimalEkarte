@@ -177,6 +177,12 @@ func (r *Runner) Execute(ctx context.Context, req Request, p Participant) (Outco
 
 // Lookup returns the stored state of one binding without performing the owner
 // write. The current grant is re-checked before any stored result is disclosed.
+// A recorded unknown returns result-unavailable. A result-store re-read
+// failure (receipt/unknown read error) is distinct from a recorded unknown:
+// the current authorization is evaluated first — a denied grant stays
+// non-disclosing (not-authorized), an authorized caller gets an internal
+// error. Execute's post-failure recheck keeps mapping read failure to
+// result-unavailable (sticky unknown recorded) and is unchanged.
 func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth LookupAuthorizer) (Outcome, error) {
 	if persistence.TxFromContext(ctx) != nil {
 		return Outcome{}, apperrors.WrapInternalServerError("operation lookup must start outside an ambient transaction")
@@ -202,7 +208,15 @@ func (r *Runner) Lookup(ctx context.Context, scope Scope, key uuid.UUID, auth Lo
 
 	status, res, err := r.settledState(ctx, binding)
 	if err != nil {
-		return disclose(ctx, auth, binding, StatusResultUnavailable, nil), nil
+		// The result re-read failed. Evaluate the current authorization on the
+		// original anchor first: a denied grant wins non-disclosure. An
+		// authorized caller gets an internal error instead — the store error
+		// text, binding, and any result are never returned.
+		outcome := disclose(ctx, auth, binding, StatusResultUnavailable, nil)
+		if outcome.Status == StatusNotAuthorized {
+			return outcome, nil
+		}
+		return Outcome{}, apperrors.WrapInternalServerError("operation result lookup failed")
 	}
 	return disclose(ctx, auth, binding, status, res), nil
 }

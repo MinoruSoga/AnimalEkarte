@@ -634,6 +634,8 @@ type fakeStore struct {
 	// recordErr makes every subsequent outcome write (RecordOutcome and
 	// RecordUnknownUnderLock) fail, modeling a broken attempt store.
 	recordErr error
+	// loadErr makes LoadResult fail, modeling a result-store read outage.
+	loadErr error
 	// unknownInTx is set when RecordUnknownUnderLock ran with an open
 	// transaction, pinning that the stop state is recorded under the lock.
 	unknownInTx bool
@@ -819,6 +821,9 @@ func (s *fakeStore) LoadResult(_ context.Context, b Binding) (*Result, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.loadErr != nil {
+		return nil, s.loadErr
+	}
 	stored, ok := s.results[b.ID]
 	if !ok {
 		return nil, nil

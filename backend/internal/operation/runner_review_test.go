@@ -851,3 +851,51 @@ func TestLookup_FindBindingErrorDoesNotInferExistence(t *testing.T) {
 	require.Zero(t, probe.reads)
 	require.Empty(t, auth.authorized)
 }
+
+// TestLookup_ResultStoreReadFailure*: after a binding is found, a settled-state
+// re-read failure is NOT an unknown result. The current authorization decides:
+// a denied grant wins non-disclosure; an authorized caller gets an internal
+// error with no Result (store text/binding are not returned). Recorded unknown
+// still reports result-unavailable. Execute's post-failure recheck keeps
+// mapping read failure to sticky result-unavailable and is unchanged.
+func TestLookup_ResultStoreReadFailureAuthorizedIsError(t *testing.T) {
+	f := newR2Fixture(t)
+	_, err := f.store.ClaimBinding(context.Background(), f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
+	require.NoError(t, err)
+
+	f.store.mu.Lock()
+	f.store.loadErr = errors.New("result store read outage")
+	f.store.mu.Unlock()
+
+	outcome, err := f.runner.Lookup(context.Background(), f.scope, f.key, allowLookup{})
+	require.Error(t, err)
+	require.Nil(t, outcome.Result)
+	require.NotContains(t, err.Error(), "read outage")
+}
+
+func TestLookup_ResultStoreReadFailureUnauthorizedWins(t *testing.T) {
+	f := newR2Fixture(t)
+	_, err := f.store.ClaimBinding(context.Background(), f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
+	require.NoError(t, err)
+
+	f.store.mu.Lock()
+	f.store.loadErr = errors.New("result store read outage")
+	f.store.mu.Unlock()
+
+	outcome, err := f.runner.Lookup(context.Background(), f.scope, f.key, denyLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusNotAuthorized, outcome.Status)
+	require.Nil(t, outcome.Result)
+}
+
+func TestLookup_RecordedUnknownStaysResultUnavailable(t *testing.T) {
+	f := newR2Fixture(t)
+	claimed, err := f.store.ClaimBinding(context.Background(), f.scope, f.key, []byte("unused-in-fake"), "k1", nil)
+	require.NoError(t, err)
+	require.NoError(t, f.store.RecordOutcome(
+		context.Background(), claimed.Binding, uuid.New(), OutcomeUnknown, StatusResultUnavailable))
+
+	outcome, err := f.runner.Lookup(context.Background(), f.scope, f.key, allowLookup{})
+	require.NoError(t, err)
+	require.Equal(t, StatusResultUnavailable, outcome.Status)
+}
