@@ -1,8 +1,8 @@
 # EMR-486 / EMR-487 証明書 API 選定契約（2026-10-20）
 
-状態: **selected / runtime未実装 / SQL未適用 / 試験NOT_RUN**。依頼者・採用判断者はMinoruSoga。目的は確認した発行内容を不変版へ固定し、再転記・二重発行・旧訂正版の有効出力を防ぐこと。操作数・所要時間の改善実測は実装受入へ残す。採用済み案をHTTP/DTOへ転記する文書で、業務要件の追加や実装完了認定ではない。
+状態: **v1 selected（読取・描画の部分実装は末尾参照）／10-21追加要件は下記の未収録差分／試験NOT_RUN**。依頼者・採用判断者はMinoruSoga。目的は確認した発行内容を不変版へ固定し、再転記・二重発行・旧訂正版の有効出力を防ぐこと。操作数・所要時間の改善実測は実装受入へ残す。採用済み案をHTTP/DTOへ転記する文書で、業務要件の追加や実装完了認定ではない。
 
-機械契約は [backend/docs/api.yaml](../../../backend/docs/api.yaml) の `Certificate*` schemas と `VaccinationCertificates` operations。全操作の `x-contract-status: selected` / `x-runtime-status: not-implemented` を固定する。API公開revisionはこの文書とYAMLを含むPR headで識別し、rootレビュー後にFEへ引き渡す。旧 `emr486-certificate-design-proposal.md` の曖昧なHTTP/receipt案より、本採用契約を優先する。
+機械契約は [backend/docs/api.yaml](../../../backend/docs/api.yaml) の `Certificate*` schemas と `VaccinationCertificates` operations。全操作の `x-contract-status: selected` / `x-runtime-status: not-implemented` を固定する。なお、セッション5の読取・描画PR以降、`getVaccinationCertificateEdition` / `listVaccinationCertificateEditions` / `previewSavedVaccinationCertificate` の3操作は `x-runtime-status: implemented` とする（list の runtime path は gin のワイルドカード命名制約により `GET /vaccinations/{id}/certificate-editions`。文書側の `{vaccination_id}` パラメータ名は変更しない）。API公開revisionはこの文書とYAMLを含むPR headで識別し、rootレビュー後にFEへ引き渡す。旧 `emr486-certificate-design-proposal.md` の曖昧なHTTP/receipt案より、本採用契約を優先する。
 
 Fable向けの入力・帳票表示・実装着手境界は [2026-10-21 Q&A](fable-qa-20261021.md) を参照。
 
@@ -10,7 +10,7 @@ Fable向けの入力・帳票表示・実装着手境界は [2026-10-21 Q&A](fab
 
 - 最新main基準: `05da02f30cc5320c929095c6c9d6f96a4ac3f065`（PR748再診契約を含む）。PR746由来 `/me` 契約も保持。
 - [Plane EMR-486](https://app.plane.so/baritechllc/browse/EMR-486/) 本文 updated `2026-10-20T14:19:59.834978Z` と1コメント、[EMR-487](https://app.plane.so/baritechllc/browse/EMR-487/) 本文 updated `2026-10-20T14:20:16.001698Z` と1コメントを読取。4料金欄optional手修正、snapshot/fingerprint固定、会計逆同期なし、合計自動計算なし、518独立を適用。
-- [D08業務正本](../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)、[通常縦横共有版](../../spec/domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018)、[D08技術案](../../design/domains/vaccinations/technical-spec.md#certificate-edition-proposal)を照合。D08本文を編集しない。
+- [D08業務正本](../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)、[通常縦横共有版](../../spec/domains/vaccinations/lifecycle.md#certificate-shared-layout-edition-20261018)、[D08技術案](../../design/domains/vaccinations/technical-spec.md#certificate-edition-proposal)を照合。本節は10-20の照合履歴。10-21追補ではD08正本と技術文書も更新し、RV4種類・再発行日を追加する。
 - [001既存4表とcurrent view](../../../backend/migrations/001_init.sql#L8316): series unique(clinic,vaccination,kind)、edition単調増分/previous trigger、artifact unique(clinic,edition,layout)、issue/reprint成功operationのedition/artifact非null。current viewは接種未削除・現在source版一致・同series最新版を判定し、現在認可は別途必要。
 - [C06参加契約](../../design/shared/operation-participation.md)、[contract.go](../../../backend/internal/operation/contract.go)、[dto.go](../../../backend/internal/operation/dto.go)を照合。Content/CAS分離、DB-only Apply、string値refsを維持。
 - [fingerprint.go](../../../backend/internal/operation/fingerprint.go#L25)の最大64 fields/各256 bytes、[runner.go](../../../backend/internal/operation/runner.go#L117)のContent照合とowner rejection許容status、[dto.go](../../../backend/internal/operation/dto.go)の成功時限定string refsを読取照合。既存PKは[001_init.sql](../../../backend/migrations/001_init.sql#L8358)の `(clinic_id,operation_key)` を維持。
@@ -22,7 +22,7 @@ Fable向けの入力・帳票表示・実装着手境界は [2026-10-21 Q&A](fab
 
 1. 採用案の「9 paths / 9 operations」は列挙と一致しない。発行POSTと履歴GETは同じ `/vaccinations/{vaccination_id}/certificate-editions` であり、OpenAPIでは **8 unique paths / 9 operations**。9経路というユースケース数は保持し、架空の9番目のpathを作らない。
 2. `ArtifactDescriptor` のshapeは採用されているが、9操作のresponse内に配置が指定されていない。standalone schemaとして定義し、editionやC06 ResultResponseへ独断で追加しない。FEはC06 `artifact_id` から既定のcontent routeを構築できる。descriptor返却配置は後続確認事項。
-3. rabies専用入力集合は `certificate_number / injection_tag_number / dog_registration_tag_number / body_size / distinguishing_features / injection_amount_text / registration_fee / injection_fee / tag_fee / total` の10欄（CertificateInputsの全欄）と確定する。[D08の3様式対応表](../../spec/domains/vaccinations/lifecycle.md#L121)・[手動料金契約](../../spec/domains/vaccinations/lifecycle.md#L174)・[技術設計の見本対応](../../design/domains/vaccinations/technical-spec.md#L164)による分類であり、新しい必須項目・番号採番・医学的既定・料金計算を追加しない。normalでは各欄の省略又はnullだけ許可し、空文字・空白文字列・明示0を含め1欄でも非nullなら422 validation。inputs={}は許可し、保存時は全10欄を明示nullへ展開する。rabiesでは全欄optional/nullableと型検証を維持し必須化しない。
+3. rabies専用入力集合は `certificate_number / injection_tag_number / dog_registration_tag_number / body_size / distinguishing_features / injection_amount_text / registration_fee / injection_fee / tag_fee / total` の10欄（CertificateInputsの全欄）と確定する。[D08の既知見本対応表](../../spec/domains/vaccinations/lifecycle.md#certificate-editions-20261017)・[手動料金契約](../../spec/domains/vaccinations/lifecycle.md#L174)・[技術設計の見本対応](../../design/domains/vaccinations/technical-spec.md#L164)による分類であり、新しい必須項目・番号採番・医学的既定・料金計算を追加しない。normalでは各欄の省略又はnullだけ許可し、空文字・空白文字列・明示0を含め1欄でも非nullなら422 validation。inputs={}は許可し、保存時は全10欄を明示nullへ展開する。rabiesでは全欄optional/nullableと型検証を維持し必須化しない。
 4. schemaにないproperty拒否、normal/rabiesとlayout/manifest必須キーの組合せ、保存時全inputsキー、現在認可/CASはserver検証も必要。OAS 3.0.3には `if/then` がないため、requestのkind/layoutとsnapshotのkind/manifest必須キーは`anyOf`で表現し、descriptionも併記する。snapshotのall top-level requiredに加え、列挙されたnested fieldsも全キー保持、nullable値だけ欠落を表す。
 5. C06文書§5.1はHMAC config配線/rotationを「未選定」と記載している。採用案の「既存C06配線を使用」は将来の再利用方針として保持し、利用可能と認定しない。実装時に489との必要subset照合が必要。実鍵作成・閲覧・保存は本作業で行わない。
 
@@ -30,7 +30,7 @@ Fable向けの入力・帳票表示・実装着手境界は [2026-10-21 Q&A](fab
 
 ## 責任と現在認可
 
-486: 専用HTTP/DTO、元情報resolver、edition DB writer/reader、C06 participant/lookup authorizer、RV属性保存、およびDB writerから487 rendererを呼ぶ準備orchestrator。487: FE、3様式のversioned server renderer/template/font/assetとPDF preview。共有api.yamlの統合は486一人。
+486: 専用HTTP/DTO、元情報resolver、edition DB writer/reader、C06 participant/lookup authorizer、RV属性保存、およびDB writerから487 rendererを呼ぶ準備orchestrator。487: FE、現行v1の既知3見本のversioned server renderer/template/font/assetとPDF preview。RV4種類一括出力は追加差分で、3見本対応だけでは完成しない。共有api.yamlの統合は486一人。
 
 | 操作 | 必須権限 |
 | --- | --- |
@@ -101,11 +101,11 @@ contextのlatestは無効版もvalidity付きで示す。フォームへ既発�
 
 発行前previewは、認可済み保存済み原情報と入力から同server rendererで純計算。series/edition/operation receipt/業務監査/接種autosaveを作らず、正本artifact uploadなし。通常access logは業務writeと別。FEは印刷ボタンのない確認previewとして表示する。端末が取得済みPDFをコピーできないとは保証しない。
 
-issueはpreviewのdisplay_issue_dateへ固定してserverが再構成し、preview生成可能なJST日付との整合を確認。任意過去日不可、日跨ぎはdependency-changedで再preview。serverで版固定manifestを解決しhash一致を検査、client supplied snapshotを信用しない。前版があれば同series edition+1/previous IDの訂正版を保存し履歴を上書きしない。normal layout切替だけでissueしない。成功後はC06 refsからedition reader→content readerへ取得。
+初回issueの現行v1契約はpreviewのdisplay_issue_dateへ固定してserverが再構成し、preview生成可能なJST日付との整合を確認する。初回は任意過去日不可、日跨ぎはdependency-changedで再previewとし、初回発行日の新たな自由度は採用しない。再発行にはこの制約を一律適用せず、10-21採用の「当初の発行日を初期値として変更可能」を別途満たす必要がある。現行v1 DTOは再発行の表示日選択を表現できず、下記の契約拡張が必要。serverで版固定manifestを解決しhash一致を検査、client supplied snapshotを信用しない。前版があれば同series edition+1/previous IDの訂正版を保存し履歴を上書きしない。normal layout切替だけでissueしない。成功後はC06 refsからedition reader→content readerへ取得。
 
 edition/historyは履歴参照可、旧版に有効content_pathを含めない。保存版previewは現在有効edition限定。既存artifactはdigest検証read、未生成normal別layoutは同snapshot・固定manifestで純描画し、そのpreviewではartifact行/receiptを作らない。欠けた旧snapshotを現在情報で埋めない。
 
-reprintは現在edition限定。既存artifact再利用、未生成normal別layoutは同snapshot・固定manifestから同editionへ追加し、版増分なし。reprint receiptは出力準備済みを示し紙の印刷成功ではない。初回issue後最初の印刷はissue artifact refsを利用でき、別reprint receiptを自動作成しない。
+reprintは表示日変更を伴わない同版再印刷で、現在edition限定。表示日変更を伴う再発行は新版作成であり、このreprint DTOでは表現しない。既存artifact再利用、未生成normal別layoutは同snapshot・固定manifestから同editionへ追加し、版増分なし。reprint receiptは出力準備済みを示し紙の印刷成功ではない。初回issue後最初の印刷はissue artifact refsを利用でき、別reprint receiptを自動作成しない。
 
 contentは返却直前も現在grant・医院患者・current view検査。digest不一致/正本欠損は503、現在template再描画で黙って成功させない。旧版は409 dependency-changed。FE印刷はこのPDFだけを使用。既に渡した出力の回収は保証外。
 
@@ -238,7 +238,7 @@ issue成功（直接C06 ResultResponse）:
 
 ## FE487のmock PR出口と実装残件
 
-rootレビュー後、公開PR headを固定契約としてmock明示adapterで全9操作shapeを固定できる。3様式、null料金/明示0/合計不一致を無断修正しない、料金変更後再preview、issue成功→edition読取→PDF取得、同key replay、busy/unknown、失権、接種訂正後旧版拒否、normal縦横同edition、render失敗を架空fixtureにする。
+rootレビュー後、公開PR headを現行v1の限定契約としてmock明示adapterで全9操作shapeを固定できる。RV4種類一括出力・再発行日の追加要件完成とはしない。既知3見本、null料金/明示0/合計不一致を無断修正しない、料金変更後再preview、issue成功→edition読取→PDF取得、同key replay、busy/unknown、失権、接種訂正後旧版拒否、normal縦横同edition、render失敗を架空fixtureにする。
 
 FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを成功へfallbackせずmock/実接続を明示分離。生成models.ts手編集なし。server rendererは487所有の別componentとして契約準備可能だが、FE-only PRをBE完成・実印刷合格とは扱わない。内部DB/claim adapter/元対象resolver/reader/writer/認可gate/renderer/golden/実印刷/実API接続は未実装又は未検証。
 
@@ -246,9 +246,9 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
 
 ## 作業・検証境界
 
-変更対象は本Markdownとbackend/docs/api.yamlのみ。D08技術文書、コード/runtime/DDL/model/試験ソース/Docker/DB適用/実鍵は対象外。runner・製品試験・描画・実印刷・DB適用は **NOT_RUN**。通常hookやpush後の自動CIが発生しても、未実装の実証と混同しない。Plane更新とmergeはroot担当。
+10-20の変更対象は本Markdownとbackend/docs/api.yamlのみ（当時の作業履歴）。10-21追補は指定の6 Markdownのみを変更し、api.yamlや実装コードを変更しない。D08技術文書は10-21追補の対象に含める。コード/runtime/DDL/model/試験ソース/Docker/DB適用/実鍵は引き続き対象外。runner・製品試験・描画・実印刷・DB適用は **NOT_RUN**。通常hookやpush後の自動CIが発生しても、未実装の実証と混同しない。Plane更新とmergeはroot担当。
 
-静的確認結果: 既存Ruby YAMLで解析成功、新規duplicate key 0、全local refs 3,017件を解決、既存347 pathsと既存components全件保持、新規8 paths/9 operations/36 schemas、全527 operationIdの重複なし。C06 exact field集合と64 fields/各256 bytes制限、lookup not-succeededのstatus/operation_keyだけのshapeを静的照合。PreviewRequest/IssueRequestと保存snapshotのnormal branchはCertificateNormalInputsの10欄null-only制約を適用し、保存時はCertificateStoredInputsの全キー必須制約も維持。rabiesの共通型を変更していないことを差分確認。Markdownのlocal参照先とJSON例6件の構文、指定2ファイルだけのdiffとgit diff --checkも確認済み。これらはruntime検証ではない。API文書の公開と内部利用開始条件、FE mock PR完成、製品受入を分けて報告する。
+10-20当時の静的確認結果（今回の再実行ではない）: 既存Ruby YAMLで解析成功、新規duplicate key 0、全local refs 3,017件を解決、既存347 pathsと既存components全件保持、新規8 paths/9 operations/36 schemas、全527 operationIdの重複なし。C06 exact field集合と64 fields/各256 bytes制限、lookup not-succeededのstatus/operation_keyだけのshapeを静的照合。PreviewRequest/IssueRequestと保存snapshotのnormal branchはCertificateNormalInputsの10欄null-only制約を適用し、保存時はCertificateStoredInputsの全キー必須制約も維持。rabiesの共通型を変更していないことを差分確認。Markdownのlocal参照先とJSON例6件の構文、指定2ファイルだけのdiffとgit diff --checkも確認済み。これらはruntime検証ではない。API文書の公開と内部利用開始条件、FE mock PR完成、製品受入を分けて報告する。
 
 ### full snapshot v1の合成fixture（未実行）
 
@@ -268,3 +268,28 @@ FE専有PRは画面/adapter/mock/契約fixtureまで完結可。backendなしを
   "render_manifest": {"renderer_version":"mock-renderer-v1","font_asset_version":"mock-font-v1","templates":{"rabies":"mock-rabies-v1"}}
 }
 ```
+
+## 2026-10-21 読取・描画部分の実装（セッション5）
+
+- 実装スコープは読取3操作のみ（`getVaccinationCertificateEdition` / `listVaccinationCertificateEditions` / `previewSavedVaccinationCertificate`）。context・issue preview・issue・reprint・content route(#8)・operation lookup・writer・artifact upload/insert・C06・FE は引き続き対象外。
+- artifact 読取アダプタは fail-safe（nil store・open/read失敗・サイズ超過・sha不一致・非PDF先頭 → `artifact_unavailable`）。production の store は未結合（nil）のため、既存 artifact 行があっても writer セッションが storage を結合するまでは 503 `artifact_unavailable` を返す。
+- レンダラーは stdlib の最小 PDF 1.7 実装（固定オブジェクト順・xref・`/ID`・日付は snapshot 由来で実行時刻不使用）。日本語フォントの非埋め込み Adobe-Japan1 `HeiseiKakuGo-W5`（UniJIS-UTF16-H）は契約の固定 font/asset 規則を満たさないため、production の純描画は `certificateRendererProductionEnabled=false` で無効化し 503 `render_failed` で停止する（適合する埋め込みフォント asset 採用まで）。保存版 preview は production で現状 503 を返す（artifact store 未結合 + 純描画停止）。
+- バージョン定数: renderer `ekarte-certificate-pdf/1`、font asset `adobe-japan1-heisei-kakugo-w5-unembedded/1`、templates `normal-portrait/1` / `normal-landscape/1` / `rabies-a4-landscape/1`。manifest 不一致は `dependency-changed` で失敗する。
+- 用紙（2026-10-21 依頼者確定、PR #772 comment 6305181050）: normal portrait = A4 縦 210x297mm、normal landscape = A4 横 297x210mm、既知のrabies見本 = A4 横 297x210mm。未知のRV4種類全体への適用ではない。
+- 検証: compile/test/render/print はいずれも NOT_RUN（依頼による実行禁止）。
+
+<a id="certificate-mtg-contract-gap"></a>
+## 2026-10-21採択追加要件と現行v1の境界
+
+採用判断者MinoruSoga。[RV4種類一括出力と再発行日の業務正本・9AC](../../spec/domains/vaccinations/lifecycle.md#fr-vaccinations-rv-batch-20261021)へ接続する。現行v1のnormal/rabies、portrait/landscape/rabies、9操作とschema v1を今回書き換えたものではない。「通常縦横＋単一RV＝3様式で全要件完成」という前提は撤回し、v1は既知見本の限定契約とする。10-20の照合結果・実装予定と末尾の読取3操作の部分実装を区別し、追加要件を実装済みとしない。
+
+| 採択済み要件 | v1に未収録の必要差分／未決 |
+|:---|:---|
+| RV4種類のmaster | kind=rabies／layout=rabiesだけでは4種類を識別できない。帳票種別identity・帳票セット構成版とtemplate／snapshot／artifact対応が必要。4名称・見本はクライアントから後日共有予定、種類名・様式・紙寸法は未確定。既知A4横を全種類に適用しない |
+| 一括出力wire／batch | 単一issue／reprintと単一edition/artifact refsだけでは4種類の一括結果を表現できない。構成の欠損／重複検出、種類ごとの成功／失敗／unknown・版とartifact対応、同一操作の照合・再開が必要。batch receipt・commit単位・route／DTOは未選定。4種類を4ページや特定の結合PDF方式と同一視しない |
+| 再発行の表示発行日 | 当初の発行日を追跡して初期値にし、変更した日を確認した新版snapshot／preview／fingerprintへ固定する入力が必要。現行preview_display_issue_dateはv1初回previewとの照合値であり、任意の再発行日選択fieldではない。現行reprintは固定版のみ。初回の任意過去日不可・日跨ぎ再previewを再発行へ一律適用する旧読替えは採用しない |
+| 時刻／版／PDF storage | 表示日と実issued_at／recorded_atを分離し、後者はサーバー操作時刻。表示日変更は新版を保存し旧版・artifactを保持。同版再印刷は版増分なし。種類・構成版・edition・固定描画版・digestとstorageを結合する必要がある。既存store未結合の部分実装で充足とはせず、DDL／storage方式・wire拡張は未選定 |
+
+再発行日の詳細validationは後続設計とし、初回発行日の未回答の自由度、接種日変更、未知様式の独立発行日欄を追加しない。通常縦横は同版の表示方式を維持する。診療項目packageと帳票セットを分離し、package applyから自動発行しない。現在認可・患者対応・有効性gate・旧訂正版保護と結果不明時の照合を維持し、一部失敗を全成功にせず成功分を無条件再発行しない。
+
+受入は上記正本の欠損・重複・一部失敗・再発行日・履歴不変の9ACへ対応付ける。試験はNOT_RUN、静的差分・参照確認のみ。api.yaml・実装・DB・外部OCR／実患者PDF処理・実印刷は今回の対象外。Lステップ／DMはこのPRへ含めない。
