@@ -221,6 +221,9 @@ func TestGetManualEditOperationResult_BadKey400(t *testing.T) {
 // fix-9a: 記録済み unknown だけが 200 unknown。in-progress / not-succeeded /
 // scope-not-found / Lookup error は generic 500、認可失効は 403、
 // 認可後の selector 不一致は 409 target_mismatch。
+// authorized の結果 store 再読取失敗→500 は operation.TestLookup_ResultStoreReadFailureAuthorizedIsError
+// と本 handler の `httpapi.RespondError(err)`（Lookup error → 500）で担保。
+// 共有 testdb schema の表を mutate する注入はここには置かない。
 
 func setupLookupHandlerDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -346,28 +349,6 @@ func TestGetManualEditOperationResult_InProgress500(t *testing.T) {
 	w := doRequest(t, h, http.MethodGet,
 		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestGetManualEditOperationResult_LookupError500(t *testing.T) {
-	db := setupLookupHandlerDB(t)
-	key := uuid.MustParse("11111111-1111-4111-8111-111111111111")
-	b := seedLookupBinding(t, db, key)
-	seedLookupAnchor(t, db, b.ID, 42)
-	seedLookupArticle(t, db, "intro")
-	// 結果 store の障害: authorized には generic 500（生 error text は返さない）。
-	// EnsureAutoMigrated は型ごとに cache されるため DROP すると後続テストで
-	// 再作成されない。RENAME で隠して即 cleanup で元に戻す。
-	require.NoError(t, db.Exec(`ALTER TABLE operation_results RENAME TO operation_results_fix9b_hidden`).Error)
-	t.Cleanup(func() {
-		db.Exec(`ALTER TABLE operation_results_fix9b_hidden RENAME TO operation_results`)
-	})
-
-	h := lookupHandler(t, db, func(context.Context, uint64, uint64) (bool, error) { return true, nil })
-	w := doRequest(t, h, http.MethodGet,
-		"/api/v1/manual/articles/screens/intro/operations/"+key.String(), "")
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.NotContains(t, w.Body.String(), "operation_results")
-	assert.NotContains(t, w.Body.String(), "does not exist")
 }
 
 func TestGetManualEditOperationResult_NotAuthorized403(t *testing.T) {

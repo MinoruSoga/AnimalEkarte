@@ -266,9 +266,8 @@ describe("ManualPage touch targets", () => {
 
 // fix-9b: strict 取得経路 — query state で gate し bundled 本文へ fallback しない。
 describe("ManualPage overrides strict gating (fix-9b)", () => {
-  function renderManualPageStrict(initialPath = "/manual/screens/getting-started") {
-    const queryClient = new QueryClient();
-    return render(
+  function manualPageTree(initialPath: string, queryClient: QueryClient) {
+    return (
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[initialPath]}>
           <Routes>
@@ -276,8 +275,17 @@ describe("ManualPage overrides strict gating (fix-9b)", () => {
             <Route path="/manual/:category/:slug" element={<ManualPage />} />
           </Routes>
         </MemoryRouter>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+  }
+
+  function renderManualPageStrict(initialPath = "/manual/screens/getting-started") {
+    const queryClient = new QueryClient();
+    const view = render(manualPageTree(initialPath, queryClient));
+    return {
+      ...view,
+      rerenderWith: (path = initialPath) => view.rerender(manualPageTree(path, queryClient)),
+    };
   }
 
   it("passes strict=true to the overrides hook", () => {
@@ -293,8 +301,8 @@ describe("ManualPage overrides strict gating (fix-9b)", () => {
     expect(screen.queryByRole("article")).toBeNull();
     const printButton = screen.getByRole("button", { name: "このページを印刷" });
     expect(printButton).toBeDisabled();
-    const searchInput = document.querySelector('input[type="search"]');
-    if (searchInput) expect(searchInput).toBeDisabled();
+    const searchInput = screen.getByRole("searchbox", { name: "マニュアル内検索" });
+    expect(searchInput).toBeDisabled();
   });
 
   it.each(["500", "404", "403", "network"])(
@@ -383,14 +391,17 @@ describe("ManualPage overrides strict gating (fix-9b)", () => {
   // fix-9c (3): 編集中は背景 refetch 失敗でも ManualEditor/draft を失わない。
   it("editor open then error: editor stays mounted, blocked UI not shown", async () => {
     overridesHookMock.mockReturnValue({ data: [] });
-    renderManualPageStrict();
+    const view = renderManualPageStrict("/manual/screens/00-overview");
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "このページを編集" }));
+    // 公開 list query が error へ遷移しても editor は mounted のまま。
     overridesHookMock.mockReturnValue({ isError: true, refetch: vi.fn() });
-    // blocked UI にはならない（editor 分岐が先）。
+    view.rerenderWith();
+    expect(screen.getByLabelText("マニュアル本文編集")).toBeInTheDocument();
+    // blocked 公開本文 UI / loading は出ない。
     expect(screen.queryByText("マニュアル記事の取得に失敗しました")).toBeNull();
     expect(screen.queryByText("マニュアル記事を読み込んでいます")).toBeNull();
-    // editMode は継続 = 編集開始ボタンは出ない。
+    // 公開本文は描画されない（editor 分岐が優先）。
     expect(screen.queryByRole("button", { name: "このページを編集" })).toBeNull();
   });
 

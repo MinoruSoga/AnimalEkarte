@@ -825,14 +825,18 @@ func TestLookup_ExistingUnreadableBindingStopsWithCurrentAuthorization(t *testin
 					auth = &resolvedLookup{resolveErr: errors.New("target unavailable")}
 				}
 				got, err := f.runner.Lookup(t.Context(), f.scope, f.key, auth)
-				require.NoError(t, err)
-				want := StatusResultUnavailable
-				if grant != "allowed" {
-					want = StatusNotAuthorized
+				if grant == "allowed" {
+					// 認可済み: 結果 store の再読取失敗は result-unavailable でなく
+					// error として返す（zero outcome: Binding/Result も開示しない）。
+					require.Error(t, err)
+					require.Nil(t, got.Result)
+				} else {
+					// revoked / resolver-failed: 非開示の not-authorized を優先。
+					require.NoError(t, err)
+					require.Equal(t, StatusNotAuthorized, got.Status)
+					require.NotNil(t, got.Binding)
+					require.Nil(t, got.Result)
 				}
-				require.Equal(t, want, got.Status)
-				require.NotNil(t, got.Binding)
-				require.Nil(t, got.Result)
 				require.Equal(t, 1, f.owner.applyCount())
 			})
 		}
