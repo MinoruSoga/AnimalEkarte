@@ -23,7 +23,7 @@
 ## 2. claim と業務保存の順序
 
 - optional capability `ClaimMetadataWriter` の `CreateClaimMetadata(ctx, binding, request) error` を Runner が認識する。502 participant は必須実装、無関係な既存 participant の挙動は維持する。
-- callback は渡された ambient claim transaction と canonical req.Content を使う。別 payload 捕捉、Execute 再入、nested transaction、記事/履歴/receipt 書込、外部作用は禁止。
+- callback は渡された ambient claim transaction と canonical req.Content を使う。別 payload 捕捉（未検証・Content commitment に非束縛の payload）、Execute 再入、nested transaction、記事/履歴/receipt 書込、外部作用は禁止。
 - 短い claim TX：既存の正確な unique conflict target に INSERT ... DO NOTHING RETURNING → 新規挿入 winner のみ callback → 保存 binding 読取 → commit。
 - winner 判定は RETURNING / RowsAffected。候補 ID の有無で推定しない。callback 失敗では binding と anchor が共に rollback。競合 loser は winner を待って原 binding / anchor を読み、callback を再実行しない。
 - claim callback 内では記事行の読取・lock をしない。認証済み非 locking preflight を行っても Apply / lookup で再検査する。
@@ -57,8 +57,12 @@
 - `content_digest = lowerhex SHA256(UTF8(JCS({schema:"manual-article-content-v1",title:<exact>,order_value:<parsed finite number>,section:<exact>,body_markdown:<exact>})))`
 - `command_digest = lowerhex SHA256(UTF8(JCS({schema:"manual-article-edit-v1",article_id:<canonical positive signed64 decimal string>,category:<exact enum>,slug:<exact route-decoded string>,content_digest:<above64hex>})))`
 - C06 Content は article_id / command_digest / content_digest の 3 strings のみ、各値 ≤ 256 bytes。operation_key は binding 選択。expected_version / expected_content_version_id は Preconditions で、両 digest に含めない。
-- generated version ID / actor / clinic / timestamp / operation key も両 projection に含めない。immutable participant command は selector / content 値を保持する。
-- Apply は最初の domain write 前に、実際に保存する同一 command から両 projection を再計算し、Content の全項目と照合。不一致では作用ゼロ。snapshot と digest に異なる値を使わない。
+- generated version ID / actor / clinic / timestamp / operation key も両 projection に含めない。
+- domain 側の typed immutable input として、HTTP で一度検証した値から単一 factory が canonical Content と `ManualArticleEditParticipant` を同時生成する。factory の設計上の提案名は `NewManualEditExecution` であり、既存実装済みの名称ではない。
+- participant の private command 値が唯一の write input。article_id / category / slug / title / order_value / section / body_markdown を所有し、setter や可変 map / pointer alias を公開せず必要な copy を行う。別 DTO の再 parse 差込み、クロージャによる別 payload 捕捉は禁止する。
+- Runner は既存 `Participant.Apply` をその typed instance へ dispatch する。Apply は最初の domain write 前に、自身が保持する同一 immutable command の article / selector / content から両 projection を再計算し、`req.Content.Fields()` の 3 項目を完全照合する。article_id を含む全 field 一致・両 SHA256 一致後の verified command だけを writer / snapshot へ渡す。不一致では作用ゼロ。Content 生成時と異なる値は保存せず、snapshot と digest に同じ parsed 値を使う。
+- 同 key の再 attempt も同 factory から作成した Content で既存 binding の HMAC 一致を通す。成功 Lookup は保存済み receipt / 原 anchor / 現在認可を使い、本文を現在値から再構成しない。
+- この typed participant constructor 経路は明示注入と Content commitment で full command を束縛する方式であり、「別 payload 禁止」は未検証・非束縛 payload の禁止を意味する。generic Content の 3 項目と共有 C06 契約を維持し、raw 本文の claim anchor 保存や Content 上限変更は行わない。以上は実装経路の契約であり、runtime 実装済みの宣言ではない。
 
 ## 5. HMAC 設定の選択と非実行境界
 
