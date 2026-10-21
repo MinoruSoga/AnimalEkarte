@@ -73,15 +73,15 @@ func TestDecodeCertificateSnapshot_Valid(t *testing.T) {
 	assert.Equal(t, "ekarte-certificate-pdf/1", snap.RendererVersion)
 	assert.Equal(t, "adobe-japan1-heisei-kakugo-w5-unembedded/1", snap.FontAssetVersion)
 	assert.Equal(t, "normal-portrait/1", snap.Templates["portrait"])
-	assert.Equal(t, "山田", certString(snap.Owner, "name"))
-	lots := snap.Source["lots"].([]any)
-	assert.Len(t, lots, 4)
+	assert.Equal(t, "山田", certText(snap.Owner.Name))
+	assert.Len(t, snap.Source.Lots, 4)
+	assert.Equal(t, "A1", certText(snap.Source.Lots[0]))
+	assert.Nil(t, snap.Source.Lots[2])
 	rabies := mustDecodeSnapshot(t, testCertificateRabiesSnapshot(100, 2))
 	assert.Equal(t, "rabies", rabies.Kind)
 	assert.Equal(t, "rabies-a4-landscape/1", rabies.Templates["rabies"])
-	fee, ok := certInt64Field(rabies.Inputs, "total")
-	assert.True(t, ok)
-	assert.Equal(t, int64(6550), fee)
+	require.NotNil(t, rabies.Inputs.Total)
+	assert.Equal(t, int64(6550), *rabies.Inputs.Total)
 }
 
 func TestDecodeCertificateSnapshot_SchemaVersionGate(t *testing.T) {

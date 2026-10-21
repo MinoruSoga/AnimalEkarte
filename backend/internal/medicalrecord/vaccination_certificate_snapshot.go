@@ -27,20 +27,80 @@ import (
 var errCertificateInvalidSnapshot = errors.New("invalid certificate snapshot")
 
 // certificateSnapshot is the typed consumer view over a decoded v1 snapshot.
-// Doc keeps the strict integer-preserving object graph for canonical hashing
-// and for echoing the stored object back in the DTO.
+// Doc keeps the strict integer-preserving object graph: JCS hashing
+// (snapshot_sha256 / render_manifest_sha256 / preview_fingerprint) requires
+// the arbitrary JSON tree, and the DTO echoes the stored object verbatim.
+// All other consumers read the typed fields below.
 type certificateSnapshot struct {
 	Doc              map[string]any
 	Kind             string
-	Source           map[string]any
-	Owner            map[string]any
-	Pet              map[string]any
-	Clinic           map[string]any
-	Inputs           map[string]any
+	Source           certificateSource
+	Owner            certificateOwner
+	Pet              certificatePet
+	Clinic           certificateClinic
+	Inputs           certificateInputs
 	DisplayIssueDate string
 	RendererVersion  string
 	FontAssetVersion string
 	Templates        map[string]string
+}
+
+// Typed projection of the validated source/owner/pet/clinic/inputs objects.
+// Nullable JSON fields are pointers; administered_on is a required date.
+type certificateSource struct {
+	VaccinationID   int64
+	Version         int64
+	VaccineID       int64
+	VaccineName     *string
+	AdministeredOn  string
+	NextScheduledOn *string
+	Lots            [4]*string
+	DoctorName      *string
+}
+
+type certificateOwner struct {
+	Name       *string
+	NameKana   *string
+	PostalCode *string
+	Address    *string
+	Phone      *string
+}
+
+type certificatePet struct {
+	Name      *string
+	Species   *string
+	Breed     *string
+	Sex       *string
+	CoatColor *string
+	AgeText   *string
+	BirthDate *string
+}
+
+type certificateClinic struct {
+	Name                    *string
+	DirectorName            *string
+	PostalCode              *string
+	Address                 *string
+	Phone                   *string
+	Fax                     *string
+	Email                   *string
+	URL                     *string
+	VeterinarianAssociation *string
+	DesignatedVeterinarian  *string
+	VeterinarianName        *string
+}
+
+type certificateInputs struct {
+	CertificateNumber        *string
+	InjectionTagNumber       *string
+	DogRegistrationTagNumber *string
+	DistinguishingFeatures   *string
+	InjectionAmountText      *string
+	BodySize                 *string
+	RegistrationFee          *int64
+	InjectionFee             *int64
+	TagFee                   *int64
+	Total                    *int64
 }
 
 var certificateSnapshotTopKeys = []string{
@@ -141,16 +201,99 @@ func decodeCertificateSnapshot(raw []byte) (*certificateSnapshot, error) {
 	return &certificateSnapshot{
 		Doc:              doc,
 		Kind:             kind,
-		Source:           source,
-		Owner:            owner,
-		Pet:              pet,
-		Clinic:           clinic,
-		Inputs:           inputs,
+		Source:           certificateTypedSource(source),
+		Owner:            certificateTypedOwner(owner),
+		Pet:              certificateTypedPet(pet),
+		Clinic:           certificateTypedClinic(clinic),
+		Inputs:           certificateTypedInputs(inputs),
 		DisplayIssueDate: displayIssueDate,
 		RendererVersion:  rendererVersion,
 		FontAssetVersion: fontAssetVersion,
 		Templates:        templates,
 	}, nil
+}
+
+// ─── Typed projection ────────────────────────────────────────────────────────
+//
+// The validators above have already proven every field's wire type, so the
+// unchecked coercions in these populate helpers cannot fail.
+
+func certificateTypedSource(m map[string]any) certificateSource {
+	vaccinationID, _ := certInt64Field(m, "vaccination_id")
+	version, _ := certInt64Field(m, "version")
+	vaccineID, _ := certInt64Field(m, "vaccine_id")
+	administeredOn, _ := m["administered_on"].(string)
+	var lots [4]*string
+	if raw, ok := m["lots"].([]any); ok {
+		for i := range lots {
+			if i < len(raw) {
+				lots[i] = certStringPtr(raw[i])
+			}
+		}
+	}
+	return certificateSource{
+		VaccinationID:   vaccinationID,
+		Version:         version,
+		VaccineID:       vaccineID,
+		VaccineName:     certStringPtr(m["vaccine_name"]),
+		AdministeredOn:  administeredOn,
+		NextScheduledOn: certStringPtr(m["next_scheduled_on"]),
+		Lots:            lots,
+		DoctorName:      certStringPtr(m["doctor_name"]),
+	}
+}
+
+func certificateTypedOwner(m map[string]any) certificateOwner {
+	return certificateOwner{
+		Name:       certStringPtr(m["name"]),
+		NameKana:   certStringPtr(m["name_kana"]),
+		PostalCode: certStringPtr(m["postal_code"]),
+		Address:    certStringPtr(m["address"]),
+		Phone:      certStringPtr(m["phone"]),
+	}
+}
+
+func certificateTypedPet(m map[string]any) certificatePet {
+	return certificatePet{
+		Name:      certStringPtr(m["name"]),
+		Species:   certStringPtr(m["species"]),
+		Breed:     certStringPtr(m["breed"]),
+		Sex:       certStringPtr(m["sex"]),
+		CoatColor: certStringPtr(m["coat_color"]),
+		AgeText:   certStringPtr(m["age_text"]),
+		BirthDate: certStringPtr(m["birth_date"]),
+	}
+}
+
+func certificateTypedClinic(m map[string]any) certificateClinic {
+	return certificateClinic{
+		Name:                    certStringPtr(m["name"]),
+		DirectorName:            certStringPtr(m["director_name"]),
+		PostalCode:              certStringPtr(m["postal_code"]),
+		Address:                 certStringPtr(m["address"]),
+		Phone:                   certStringPtr(m["phone"]),
+		Fax:                     certStringPtr(m["fax"]),
+		Email:                   certStringPtr(m["email"]),
+		URL:                     certStringPtr(m["url"]),
+		VeterinarianAssociation: certStringPtr(m["veterinarian_association"]),
+		DesignatedVeterinarian:  certStringPtr(m["designated_veterinarian"]),
+		VeterinarianName:        certStringPtr(m["veterinarian_name"]),
+	}
+}
+
+func certificateTypedInputs(m map[string]any) certificateInputs {
+	return certificateInputs{
+		CertificateNumber:        certStringPtr(m["certificate_number"]),
+		InjectionTagNumber:       certStringPtr(m["injection_tag_number"]),
+		DogRegistrationTagNumber: certStringPtr(m["dog_registration_tag_number"]),
+		DistinguishingFeatures:   certStringPtr(m["distinguishing_features"]),
+		InjectionAmountText:      certStringPtr(m["injection_amount_text"]),
+		BodySize:                 certStringPtr(m["body_size"]),
+		RegistrationFee:          certInt64Ptr(m, "registration_fee"),
+		InjectionFee:             certInt64Ptr(m, "injection_fee"),
+		TagFee:                   certInt64Ptr(m, "tag_fee"),
+		Total:                    certInt64Ptr(m, "total"),
+	}
 }
 
 func certNestedObject(doc map[string]any, key string, keys []string) (map[string]any, bool) {
@@ -544,10 +687,21 @@ func certInt64Field(m map[string]any, key string) (int64, bool) {
 	return v, true
 }
 
-// certString reads a nullable string field; null decodes to "".
-func certString(m map[string]any, key string) string {
-	s, _ := m[key].(string)
-	return s
+// certStringPtr reads a nullable string value into a *string (null -> nil).
+func certStringPtr(v any) *string {
+	s, ok := v.(string)
+	if !ok {
+		return nil
+	}
+	return &s
+}
+
+// certText dereferences a nullable text field for rendering; nil -> "".
+func certText(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // certInt64Ptr reads a nullable integer field.

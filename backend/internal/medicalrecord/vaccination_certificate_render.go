@@ -296,14 +296,6 @@ func certificateBodySize(s string) string {
 	}
 }
 
-func certificateLot(lots []any, i int) string {
-	if i < 0 || i >= len(lots) {
-		return ""
-	}
-	s, _ := lots[i].(string)
-	return s
-}
-
 // ─── Layouts ─────────────────────────────────────────────────────────────────
 
 func drawCertificateNormalPortrait(c *pdfCanvas, snap *certificateSnapshot) error {
@@ -311,65 +303,61 @@ func drawCertificateNormalPortrait(c *pdfCanvas, snap *certificateSnapshot) erro
 	if err != nil {
 		return err
 	}
-	administered, err := certificateWareki(certString(snap.Source, "administered_on"))
+	administered, err := certificateWareki(snap.Source.AdministeredOn)
 	if err != nil {
 		return err
 	}
-	nextScheduled, err := certificateWarekiDate(certString(snap.Source, "next_scheduled_on"))
+	nextScheduled, err := certificateWarekiDate(certText(snap.Source.NextScheduledOn))
 	if err != nil {
 		return err
 	}
-	birthDate, err := certificateWarekiDate(certString(snap.Pet, "birth_date"))
+	birthDate, err := certificateWarekiDate(certText(snap.Pet.BirthDate))
 	if err != nil {
 		return err
 	}
 	c.text(400, 812, 9, "発行日 "+issueDate)
 	c.text(235, 780, 16, "予防接種証明書")
 	y, err := drawCertificateSection(c, 50, 756, 495, []certRow{
-		{label: "郵便番号", value: certString(snap.Owner, "postal_code")},
-		{label: "住所", value: certString(snap.Owner, "address"), h: 24},
-		{label: "電話番号", value: certString(snap.Owner, "phone")},
-		{label: "氏名", value: certString(snap.Owner, "name")},
+		{label: "郵便番号", value: certText(snap.Owner.PostalCode)},
+		{label: "住所", value: certText(snap.Owner.Address), h: 24},
+		{label: "電話番号", value: certText(snap.Owner.Phone)},
+		{label: "氏名", value: certText(snap.Owner.Name)},
 	})
 	if err != nil {
 		return err
 	}
 	y, err = drawCertificateSection(c, 50, y-10, 495, []certRow{
-		{label: "名前", value: certString(snap.Pet, "name")},
-		{label: "動物種", value: certString(snap.Pet, "species")},
-		{label: "種別", value: certString(snap.Pet, "breed")},
-		{label: "性別", value: certString(snap.Pet, "sex")},
+		{label: "名前", value: certText(snap.Pet.Name)},
+		{label: "動物種", value: certText(snap.Pet.Species)},
+		{label: "種別", value: certText(snap.Pet.Breed)},
+		{label: "性別", value: certText(snap.Pet.Sex)},
 		{label: "生年月日", value: birthDate},
 	})
 	if err != nil {
 		return err
 	}
-	lots, ok := snap.Source["lots"].([]any)
-	if !ok {
-		return errCertificateRenderFailed
-	}
 	y, err = drawCertificateSection(c, 50, y-10, 495, []certRow{
 		{label: "接種日", value: administered},
-		{label: "種類", value: certString(snap.Source, "vaccine_name")},
-		{label: "LOT.1", value: certificateLot(lots, 0)},
-		{label: "LOT.2", value: certificateLot(lots, 1)},
-		{label: "LOT.3", value: certificateLot(lots, 2)},
-		{label: "LOT.4", value: certificateLot(lots, 3)},
+		{label: "種類", value: certText(snap.Source.VaccineName)},
+		{label: "LOT.1", value: certText(snap.Source.Lots[0])},
+		{label: "LOT.2", value: certText(snap.Source.Lots[1])},
+		{label: "LOT.3", value: certText(snap.Source.Lots[2])},
+		{label: "LOT.4", value: certText(snap.Source.Lots[3])},
 		{label: "貼付欄", value: "", h: 48},
-		{label: "診察担当", value: certString(snap.Source, "doctor_name")},
+		{label: "診察担当", value: certText(snap.Source.DoctorName)},
 		{label: "次回予定日", value: nextScheduled},
 	})
 	if err != nil {
 		return err
 	}
 	_, err = drawCertificateSection(c, 50, y-10, 495, []certRow{
-		{label: "郵便番号", value: certString(snap.Clinic, "postal_code")},
-		{label: "住所", value: certString(snap.Clinic, "address"), h: 24},
-		{label: "名称", value: certString(snap.Clinic, "name")},
-		{label: "院長", value: certString(snap.Clinic, "director_name")},
-		{label: "TEL", value: certString(snap.Clinic, "phone")},
-		{label: "FAX", value: certString(snap.Clinic, "fax")},
-		{label: "URL", value: certString(snap.Clinic, "url")},
+		{label: "郵便番号", value: certText(snap.Clinic.PostalCode)},
+		{label: "住所", value: certText(snap.Clinic.Address), h: 24},
+		{label: "名称", value: certText(snap.Clinic.Name)},
+		{label: "院長", value: certText(snap.Clinic.DirectorName)},
+		{label: "TEL", value: certText(snap.Clinic.Phone)},
+		{label: "FAX", value: certText(snap.Clinic.Fax)},
+		{label: "URL", value: certText(snap.Clinic.URL)},
 	})
 	return err
 }
@@ -379,29 +367,29 @@ func drawCertificateNormalLandscape(c *pdfCanvas, snap *certificateSnapshot) err
 	if err != nil {
 		return err
 	}
-	administered, err := certificateWareki(certString(snap.Source, "administered_on"))
+	administered, err := certificateWareki(snap.Source.AdministeredOn)
 	if err != nil {
 		return err
 	}
-	nextScheduled, err := certificateWarekiDate(certString(snap.Source, "next_scheduled_on"))
+	nextScheduled, err := certificateWarekiDate(certText(snap.Source.NextScheduledOn))
 	if err != nil {
 		return err
 	}
-	birthDate, err := certificateWarekiDate(certString(snap.Pet, "birth_date"))
+	birthDate, err := certificateWarekiDate(certText(snap.Pet.BirthDate))
 	if err != nil {
 		return err
 	}
 	c.text(650, 565, 9, "発行日 "+issueDate)
 	c.text(330, 540, 16, "予防接種証明書")
 	y, err := drawCertificateSection(c, 50, 520, 741, []certRow{
-		{label: "郵便番号", value: certString(snap.Owner, "postal_code")},
-		{label: "住所", value: certString(snap.Owner, "address"), h: 24},
-		{label: "電話番号", value: certString(snap.Owner, "phone")},
-		{label: "氏名", value: certString(snap.Owner, "name")},
-		{label: "名前", value: certString(snap.Pet, "name")},
-		{label: "動物種", value: certString(snap.Pet, "species")},
-		{label: "種別", value: certString(snap.Pet, "breed")},
-		{label: "性別", value: certString(snap.Pet, "sex")},
+		{label: "郵便番号", value: certText(snap.Owner.PostalCode)},
+		{label: "住所", value: certText(snap.Owner.Address), h: 24},
+		{label: "電話番号", value: certText(snap.Owner.Phone)},
+		{label: "氏名", value: certText(snap.Owner.Name)},
+		{label: "名前", value: certText(snap.Pet.Name)},
+		{label: "動物種", value: certText(snap.Pet.Species)},
+		{label: "種別", value: certText(snap.Pet.Breed)},
+		{label: "性別", value: certText(snap.Pet.Sex)},
 		{label: "生年月日", value: birthDate},
 	})
 	if err != nil {
@@ -409,37 +397,37 @@ func drawCertificateNormalLandscape(c *pdfCanvas, snap *certificateSnapshot) err
 	}
 	_, err = drawCertificateSection(c, 50, y-14, 360, []certRow{
 		{label: "接種日", value: administered},
-		{label: "種類", value: certString(snap.Source, "vaccine_name")},
+		{label: "種類", value: certText(snap.Source.VaccineName)},
 		{label: "貼付欄", value: "", h: 60},
-		{label: "診察担当", value: certString(snap.Source, "doctor_name")},
+		{label: "診察担当", value: certText(snap.Source.DoctorName)},
 		{label: "次回予定日", value: nextScheduled},
 	})
 	if err != nil {
 		return err
 	}
 	_, err = drawCertificateSection(c, 430, y-14, 361, []certRow{
-		{label: "郵便番号", value: certString(snap.Clinic, "postal_code")},
-		{label: "住所", value: certString(snap.Clinic, "address"), h: 24},
-		{label: "名称", value: certString(snap.Clinic, "name")},
-		{label: "院長", value: certString(snap.Clinic, "director_name")},
-		{label: "TEL", value: certString(snap.Clinic, "phone")},
-		{label: "FAX", value: certString(snap.Clinic, "fax")},
-		{label: "URL", value: certString(snap.Clinic, "url")},
-		{label: "E-Mail", value: certString(snap.Clinic, "email")},
+		{label: "郵便番号", value: certText(snap.Clinic.PostalCode)},
+		{label: "住所", value: certText(snap.Clinic.Address), h: 24},
+		{label: "名称", value: certText(snap.Clinic.Name)},
+		{label: "院長", value: certText(snap.Clinic.DirectorName)},
+		{label: "TEL", value: certText(snap.Clinic.Phone)},
+		{label: "FAX", value: certText(snap.Clinic.Fax)},
+		{label: "URL", value: certText(snap.Clinic.URL)},
+		{label: "E-Mail", value: certText(snap.Clinic.Email)},
 	})
 	return err
 }
 
 func drawCertificateRabies(c *pdfCanvas, snap *certificateSnapshot) error {
-	administered, err := certificateGregorian(certString(snap.Source, "administered_on"))
+	administered, err := certificateGregorian(snap.Source.AdministeredOn)
 	if err != nil {
 		return err
 	}
-	birthDate, err := certificateWarekiDate(certString(snap.Pet, "birth_date"))
+	birthDate, err := certificateWarekiDate(certText(snap.Pet.BirthDate))
 	if err != nil {
 		return err
 	}
-	if age := certString(snap.Pet, "age_text"); age != "" {
+	if age := certText(snap.Pet.AgeText); age != "" {
 		if birthDate != "" {
 			birthDate += "（" + age + "）"
 		} else {
@@ -447,29 +435,29 @@ func drawCertificateRabies(c *pdfCanvas, snap *certificateSnapshot) error {
 		}
 	}
 	c.text(320, 562, 16, "狂犬病予防注射済証")
-	c.text(640, 562, 10, "証明番号 "+certString(snap.Inputs, "certificate_number"))
+	c.text(640, 562, 10, "証明番号 "+certText(snap.Inputs.CertificateNumber))
 	c.text(54, 548, 7.5, "所有者（管理者）")
 	y, err := drawCertificateTable(c, 50, 542, 500, 100, []certRow{
-		{label: "住所", value: certString(snap.Owner, "address"), h: 24},
-		{label: "電話番号", value: certString(snap.Owner, "phone")},
-		{label: "ふりがな", value: certString(snap.Owner, "name_kana")},
-		{label: "氏名", value: certString(snap.Owner, "name")},
+		{label: "住所", value: certText(snap.Owner.Address), h: 24},
+		{label: "電話番号", value: certText(snap.Owner.Phone)},
+		{label: "ふりがな", value: certText(snap.Owner.NameKana)},
+		{label: "氏名", value: certText(snap.Owner.Name)},
 	})
 	if err != nil {
 		return err
 	}
 	c.text(54, y+4, 7.5, "犬情報")
 	y, err = drawCertificateTable(c, 50, y-2, 500, 100, []certRow{
-		{label: "種類", value: certString(snap.Pet, "breed")},
-		{label: "毛色", value: certString(snap.Pet, "coat_color")},
-		{label: "性別", value: certString(snap.Pet, "sex")},
-		{label: "名前", value: certString(snap.Pet, "name")},
+		{label: "種類", value: certText(snap.Pet.Breed)},
+		{label: "毛色", value: certText(snap.Pet.CoatColor)},
+		{label: "性別", value: certText(snap.Pet.Sex)},
+		{label: "名前", value: certText(snap.Pet.Name)},
 		{label: "生年月日", value: birthDate},
-		{label: "体格", value: certificateBodySize(certString(snap.Inputs, "body_size"))},
-		{label: "特徴", value: certString(snap.Inputs, "distinguishing_features"), h: 24},
-		{label: "注射量", value: certString(snap.Inputs, "injection_amount_text")},
-		{label: "注射済票番号", value: certString(snap.Inputs, "injection_tag_number")},
-		{label: "犬鑑札番号", value: certString(snap.Inputs, "dog_registration_tag_number")},
+		{label: "体格", value: certificateBodySize(certText(snap.Inputs.BodySize))},
+		{label: "特徴", value: certText(snap.Inputs.DistinguishingFeatures), h: 24},
+		{label: "注射量", value: certText(snap.Inputs.InjectionAmountText)},
+		{label: "注射済票番号", value: certText(snap.Inputs.InjectionTagNumber)},
+		{label: "犬鑑札番号", value: certText(snap.Inputs.DogRegistrationTagNumber)},
 	})
 	if err != nil {
 		return err
@@ -482,22 +470,22 @@ func drawCertificateRabies(c *pdfCanvas, snap *certificateSnapshot) error {
 		return err
 	}
 	y, err = drawCertificateTable(c, 50, y-8, 500, 120, []certRow{
-		{label: "登録手数料", value: formatCertificateYen(certInt64Ptr(snap.Inputs, "registration_fee"))},
-		{label: "注射料", value: formatCertificateYen(certInt64Ptr(snap.Inputs, "injection_fee"))},
-		{label: "注射済票費用", value: formatCertificateYen(certInt64Ptr(snap.Inputs, "tag_fee"))},
-		{label: "合計", value: formatCertificateYen(certInt64Ptr(snap.Inputs, "total"))},
+		{label: "登録手数料", value: formatCertificateYen(snap.Inputs.RegistrationFee)},
+		{label: "注射料", value: formatCertificateYen(snap.Inputs.InjectionFee)},
+		{label: "注射済票費用", value: formatCertificateYen(snap.Inputs.TagFee)},
+		{label: "合計", value: formatCertificateYen(snap.Inputs.Total)},
 	})
 	if err != nil {
 		return err
 	}
 	_, err = drawCertificateSection(c, 570, 540, 221, []certRow{
-		{label: "獣医師会", value: certString(snap.Clinic, "veterinarian_association"), h: 24},
-		{label: "指定獣医師", value: certString(snap.Clinic, "designated_veterinarian"), h: 24},
-		{label: "住所", value: certString(snap.Clinic, "address"), h: 32},
-		{label: "名称", value: certString(snap.Clinic, "name")},
-		{label: "TEL", value: certString(snap.Clinic, "phone")},
-		{label: "FAX", value: certString(snap.Clinic, "fax")},
-		{label: "獣医師氏名", value: certString(snap.Clinic, "veterinarian_name")},
+		{label: "獣医師会", value: certText(snap.Clinic.VeterinarianAssociation), h: 24},
+		{label: "指定獣医師", value: certText(snap.Clinic.DesignatedVeterinarian), h: 24},
+		{label: "住所", value: certText(snap.Clinic.Address), h: 32},
+		{label: "名称", value: certText(snap.Clinic.Name)},
+		{label: "TEL", value: certText(snap.Clinic.Phone)},
+		{label: "FAX", value: certText(snap.Clinic.Fax)},
+		{label: "獣医師氏名", value: certText(snap.Clinic.VeterinarianName)},
 		{label: "印", value: "", h: 40},
 	})
 	return err

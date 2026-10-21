@@ -42,7 +42,7 @@ func TestFormatCertificateYen(t *testing.T) {
 	assert.Equal(t, "", formatCertificateYen(nil))
 	i64 := func(v int64) *int64 { return &v }
 	assert.Equal(t, "0円", formatCertificateYen(i64(0)))
-	assert.Equal(t, "3000円", formatCertificateYen(i64(3000)))
+	assert.Equal(t, "3,000円", formatCertificateYen(i64(3000)))
 	assert.Equal(t, "1,000円", formatCertificateYen(i64(1000)))
 	assert.Equal(t, "6,550円", formatCertificateYen(i64(6550)))
 	assert.Equal(t, "1,234,567円", formatCertificateYen(i64(1234567)))

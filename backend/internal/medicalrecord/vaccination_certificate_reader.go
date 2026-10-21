@@ -61,12 +61,15 @@ func (r *VaccinationCertificateReader) FindEdition(ctx context.Context, clinicID
 	return &ed, &series, nil
 }
 
-// FindVaccinationSource loads a vaccination including soft-deleted rows, still
-// clinic scoped. Missing -> not_found.
+// FindVaccinationSource loads a vaccination including soft-deleted rows (a
+// soft-deleted source must remain readable to project source_deleted), while
+// the current patient/clinic/vaccination/original-record relation scope is
+// still enforced. Missing or relation-failing rows -> not_found.
 func (r *VaccinationCertificateReader) FindVaccinationSource(ctx context.Context, clinicID, vaccinationID uint64) (*model.Vaccination, error) {
 	var vacc model.Vaccination
 	err := r.db.WithContext(ctx).Unscoped().
 		Select("id", "clinic_id", "version", "deleted_at").
+		Scopes(vaccinationPatientRelationsScope(clinicID)).
 		Where("id = ? AND clinic_id = ?", vaccinationID, clinicID).
 		Take(&vacc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -79,24 +82,21 @@ func (r *VaccinationCertificateReader) FindVaccinationSource(ctx context.Context
 }
 
 // EditionValidity projects current validity for one edition:
-// source_deleted > source_changed > superseded > current.
+// source_deleted > source_changed > superseded > current. The source lookup
+// shares FindVaccinationSource's scoped read: a row missing under the current
+// relation scope is not_found, never silently treated as deleted.
 func (r *VaccinationCertificateReader) EditionValidity(ctx context.Context, clinicID uint64, ed *model.VaccinationCertificateEdition, series *model.VaccinationCertificateSeries) (string, error) {
-	var vacc model.Vaccination
-	err := r.db.WithContext(ctx).Unscoped().
-		Select("id", "version", "deleted_at").
-		Where("id = ? AND clinic_id = ?", series.VaccinationID, clinicID).
-		Take(&vacc).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	vacc, err := r.FindVaccinationSource(ctx, clinicID, series.VaccinationID)
+	if err != nil {
 		return "", err
 	}
-	deleted := errors.Is(err, gorm.ErrRecordNotFound) || vacc.DeletedAt.Valid
 	var newer int64
 	if err := r.db.WithContext(ctx).Model(&model.VaccinationCertificateEdition{}).
 		Where("clinic_id = ? AND series_id = ? AND edition > ?", clinicID, ed.SeriesID, ed.Edition).
 		Count(&newer).Error; err != nil {
 		return "", err
 	}
-	return certificateValidity(deleted, int64(vacc.Version), ed.SourceVaccinationVersion, newer > 0), nil
+	return certificateValidity(vacc.DeletedAt.Valid, int64(vacc.Version), ed.SourceVaccinationVersion, newer > 0), nil
 }
 
 // FindSeries returns the (clinic, vaccination, kind) series, or found=false.
@@ -195,10 +195,10 @@ func checkCertificateSnapshotAnchors(snap *certificateSnapshot, ed *model.Vaccin
 	if snap.Kind != series.CertificateKind {
 		return errCertificateResultUnavailable
 	}
-	if srcID, ok := certInt64Field(snap.Source, "vaccination_id"); !ok || srcID != int64(series.VaccinationID) {
+	if snap.Source.VaccinationID != int64(series.VaccinationID) {
 		return errCertificateResultUnavailable
 	}
-	if srcVer, ok := certInt64Field(snap.Source, "version"); !ok || srcVer != ed.SourceVaccinationVersion {
+	if snap.Source.Version != ed.SourceVaccinationVersion {
 		return errCertificateResultUnavailable
 	}
 	return nil

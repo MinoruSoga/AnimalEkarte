@@ -33,7 +33,7 @@ func TestCertificateCanonical_ContractVectors(t *testing.T) {
 		{"array order preserved", `{"lots":[null,"B","A",null]}`, `{"lots":[null,"B","A",null]}`},
 		{"booleans kept", `{"f":true,"t":false,"n":null}`, `{"f":true,"n":null,"t":false}`},
 		{"unicode literal not escaped", `{"s":"é<>&/\u2028"}`, "{\"s\":\"é<>&/\u2028\"}"},
-		{"control char escapes", `{"s":"a\nb\tcd"}`, `{"s":"a\nb\tcd"}`},
+		{"control char escapes", `{"s":"a\nb\tc\u0001d"}`, `{"s":"a\nb\tc\u0001d"}`},
 		// UTF-16 ordering: U+1F600 encodes as D83D DE00, which sorts before U+FFFF.
 		{"utf16 key order above BMP", `{"￿":2,"😀":1}`, `{"😀":"1","￿":"2"}`},
 	}
@@ -67,9 +67,32 @@ func TestCertificateCanonical_OmittedNullEquivalence(t *testing.T) {
 	}())
 }
 
+// TestCertificateHashes_InputsExpansionEquivalence pins that omitted inputs
+// and the all-10-key null expansion commit to identical snapshot_sha256 and
+// preview_fingerprint digests (contract: normalize once, hash once).
+func TestCertificateHashes_InputsExpansionEquivalence(t *testing.T) {
+	parse := func(raw string) map[string]any {
+		obj, err := strictJSONObject([]byte(raw))
+		require.NoError(t, err)
+		return obj
+	}
+	empty := parse(`{"inputs":{},"x":1}`)
+	allNull := parse(`{"inputs":{"certificate_number":null,"injection_tag_number":null,"dog_registration_tag_number":null,"distinguishing_features":null,"injection_amount_text":null,"body_size":null,"registration_fee":null,"injection_fee":null,"tag_fee":null,"total":null},"x":1}`)
+	shaEmpty, err := certificateSnapshotSHA256(empty)
+	require.NoError(t, err)
+	shaNull, err := certificateSnapshotSHA256(allNull)
+	require.NoError(t, err)
+	assert.Equal(t, shaNull, shaEmpty, "snapshot sha: omitted inputs == all-null inputs")
+	fpEmpty, err := certificatePreviewFingerprint("portrait", empty)
+	require.NoError(t, err)
+	fpNull, err := certificatePreviewFingerprint("portrait", allNull)
+	require.NoError(t, err)
+	assert.Equal(t, fpNull, fpEmpty, "preview fingerprint: omitted inputs == all-null inputs")
+}
+
 func TestCertificateCanonical_NFCvsNFD(t *testing.T) {
-	nfc := mustCanonicalBytes(t, `{"s":"\u00e9"}`)  // U+00E9 precomposed
-	nfd := mustCanonicalBytes(t, `{"s":"e\u0301"}`) // U+0065 U+0301 decomposed
+	nfc := mustCanonicalBytes(t, `{"s":"é"}`)  // U+00E9 precomposed
+	nfd := mustCanonicalBytes(t, `{"s":"é"}`) // U+0065 U+0301 decomposed
 	assert.NotEqual(t, nfc, nfd, "canonicalization must not normalize Unicode")
 }
 

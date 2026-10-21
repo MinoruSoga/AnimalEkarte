@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -125,7 +126,8 @@ func decodeBody(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 
 func TestGetVaccinationCertificateEdition(t *testing.T) {
 	ed, series := testCertificateEditionFixture()
-	h := NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series}, nil)
+	vacc := &model.Vaccination{ID: 100, ClinicID: 1, Version: 2}
+	h := NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, vacc: vacc}, nil)
 
 	c, w := newCertCtx(t, http.MethodGet, "/", nil, gin.Params{{Key: "edition_id", Value: "20"}})
 	h.GetVaccinationCertificateEdition(c)
@@ -146,11 +148,20 @@ func TestGetVaccinationCertificateEdition(t *testing.T) {
 	assert.Equal(t, "not_found", decodeBody(t, w)["code"])
 	assert.NotContains(t, w.Body.String(), "snapshot", "no existence/snapshot leak")
 
-	// Malformed id -> 400 validation.
-	c, w = newCertCtx(t, http.MethodGet, "/", nil, gin.Params{{Key: "edition_id", Value: "abc"}})
+	// Edition exists but the current source relation check fails -> 404.
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series}, nil)
+	c, w = newCertCtx(t, http.MethodGet, "/", nil, gin.Params{{Key: "edition_id", Value: "20"}})
 	h.GetVaccinationCertificateEdition(c)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Equal(t, "validation", decodeBody(t, w)["code"])
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, "not_found", decodeBody(t, w)["code"])
+
+	// Malformed / non-positive / int64-overflowing ids -> 400 validation.
+	for _, id := range []string{"abc", "0", "-5", "9223372036854775808"} {
+		c, w = newCertCtx(t, http.MethodGet, "/", nil, gin.Params{{Key: "edition_id", Value: id}})
+		h.GetVaccinationCertificateEdition(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code, id)
+		assert.Equal(t, "validation", decodeBody(t, w)["code"], id)
+	}
 }
 
 func TestListVaccinationCertificateEditions(t *testing.T) {
@@ -179,7 +190,8 @@ func TestListVaccinationCertificateEditions(t *testing.T) {
 	h.ListVaccinationCertificateEditions(c)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	// Vaccination missing/cross-clinic -> 404.
+	// Vaccination missing/cross-clinic or failing the current relation
+	// scope -> 404.
 	h = NewVaccinationCertificateHandler(&fakeCertificateStore{}, nil)
 	c, w = newCertCtx(t, http.MethodGet, "/?kind=normal", nil, gin.Params{{Key: "id", Value: "999"}})
 	h.ListVaccinationCertificateEditions(c)
@@ -216,10 +228,23 @@ func TestPreviewSavedVaccinationCertificate_BodyValidation(t *testing.T) {
 	}
 }
 
+// An oversized request body cut by a server-imposed MaxBytesReader limit maps
+// to 413 payload-too-large, not the flat 400 validation shape.
+func TestPreviewSavedVaccinationCertificate_BodyTooLarge(t *testing.T) {
+	h := NewVaccinationCertificateHandler(&fakeCertificateStore{}, nil)
+	params := gin.Params{{Key: "edition_id", Value: "20"}}
+	c, w := newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"portrait"}`), params)
+	c.Request.Body = http.MaxBytesReader(w, c.Request.Body, 8)
+	h.PreviewSavedVaccinationCertificate(c)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.NotEmpty(t, decodeBody(t, w)["error"])
+}
+
 func TestPreviewSavedVaccinationCertificate_RenderPath(t *testing.T) {
 	ed, series := testCertificateEditionFixture()
 	h := NewVaccinationCertificateHandler(&fakeCertificateStore{
-		ed: ed, series: series, validitySeq: []string{"current"},
+		ed: ed, series: series, vacc: &model.Vaccination{ID: 100, ClinicID: 1, Version: 2},
+		validitySeq: []string{"current"},
 	}, nil)
 	params := gin.Params{{Key: "edition_id", Value: "20"}}
 
@@ -241,25 +266,33 @@ func TestPreviewSavedVaccinationCertificate_RenderPath(t *testing.T) {
 
 func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 	ed, series := testCertificateEditionFixture()
+	vacc := &model.Vaccination{ID: 100, ClinicID: 1, Version: 2}
 	params := gin.Params{{Key: "edition_id", Value: "20"}}
 	portrait := []byte(`{"layout":"portrait"}`)
 
+	// Edition exists but the current source relation check fails -> 404.
+	h := NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series}, nil)
+	c, w := newCertCtx(t, http.MethodPost, "/", portrait, params)
+	h.PreviewSavedVaccinationCertificate(c)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, "not_found", decodeBody(t, w)["code"])
+
 	// Layout kind mismatch (normal edition + rabies layout) -> 422 validation.
-	h := NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, validitySeq: []string{"current"}}, nil)
-	c, w := newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"rabies"}`), params)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current"}}, nil)
+	c, w = newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"rabies"}`), params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 	assert.Equal(t, "validation", decodeBody(t, w)["code"])
 
 	// Non-current edition -> 409 dependency-changed.
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, validitySeq: []string{"superseded"}}, nil)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"superseded"}}, nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", portrait, params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusConflict, w.Code)
 	assert.Equal(t, "dependency-changed", decodeBody(t, w)["code"])
 
 	// Stale between render and second validity read -> 409.
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, validitySeq: []string{"current", "superseded"}}, nil)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current", "superseded"}}, nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", portrait, params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusConflict, w.Code)
@@ -268,7 +301,7 @@ func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 	// Unknown schema_version in stored snapshot -> 409 dependency-changed.
 	badEd := *ed
 	badEd.Snapshot = json.RawMessage(`{"schema_version":2}`)
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: &badEd, series: series}, nil)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: &badEd, series: series, vacc: vacc}, nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", portrait, params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusConflict, w.Code)
@@ -280,7 +313,7 @@ func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 		[]byte(testCertificateSnapshotJSON),
 		[]byte(`"version": 2`),
 		[]byte(`"version": 9`), 1))
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: &staleAnchor, series: series, validitySeq: []string{"current"}}, nil)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: &staleAnchor, series: series, vacc: vacc, validitySeq: []string{"current"}}, nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", portrait, params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
@@ -292,7 +325,7 @@ func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 		ID: 21, ClinicID: 1, SeriesID: 11, Edition: 1, SourceVaccinationVersion: 2,
 		Snapshot: json.RawMessage(testCertificateRabiesSnapshot(100, 2)),
 	}
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: rabiesEd, series: rabiesSeries, validitySeq: []string{"current"}}, nil)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: rabiesEd, series: rabiesSeries, vacc: vacc, validitySeq: []string{"current"}}, nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"rabies"}`), params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
@@ -304,7 +337,7 @@ func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 		[]byte(testCertificateSnapshotJSON),
 		[]byte(`"renderer_version": "ekarte-certificate-pdf/1"`),
 		[]byte(`"renderer_version": "ekarte-certificate-pdf/0"`), 1))
-	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: &drifted, series: series, validitySeq: []string{"current"}}, nil)
+	h = NewVaccinationCertificateHandler(&fakeCertificateStore{ed: &drifted, series: series, vacc: vacc, validitySeq: []string{"current"}}, nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", portrait, params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusConflict, w.Code)
@@ -313,15 +346,17 @@ func TestPreviewSavedVaccinationCertificate_ErrorMapping(t *testing.T) {
 
 func TestPreviewSavedVaccinationCertificate_ArtifactPath(t *testing.T) {
 	ed, series := testCertificateEditionFixture()
+	vacc := &model.Vaccination{ID: 100, ClinicID: 1, Version: 2}
 	pdf := append([]byte("%PDF-1.7\n"), bytes.Repeat([]byte("x"), 16)...)
 	sum := sha256.Sum256(pdf)
+	// The artifact row's versions must equal the stored snapshot manifest.
 	artifact := &model.VaccinationCertificateArtifact{
 		ID: 30, ClinicID: 1, EditionID: 20, Layout: "portrait",
-		TemplateVersion: "normal-portrait/9", RendererVersion: "writer/9",
+		TemplateVersion: "normal-portrait/1", RendererVersion: "ekarte-certificate-pdf/1",
 		ObjectKey: "secret/key", ContentSHA256: sum[:],
 	}
 	h := NewVaccinationCertificateHandler(
-		&fakeCertificateStore{ed: ed, series: series, validitySeq: []string{"current"}, artifact: artifact, artifactFound: true},
+		&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current"}, artifact: artifact, artifactFound: true},
 		&fakeArtifactStore{data: pdf})
 	params := gin.Params{{Key: "edition_id", Value: "20"}}
 
@@ -329,11 +364,26 @@ func TestPreviewSavedVaccinationCertificate_ArtifactPath(t *testing.T) {
 	h.PreviewSavedVaccinationCertificate(c)
 	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 	body := decodeBody(t, w)
-	assert.Equal(t, "normal-portrait/9", body["template_version"])
-	assert.Equal(t, "writer/9", body["renderer_version"])
+	assert.Equal(t, "normal-portrait/1", body["template_version"])
+	assert.Equal(t, "ekarte-certificate-pdf/1", body["renderer_version"])
+
+	// Artifact versions disagreeing with the stored manifest -> 503
+	// artifact_unavailable (no re-render, no fallback).
+	mismatched := *artifact
+	mismatched.RendererVersion = "writer/9"
+	h = NewVaccinationCertificateHandler(
+		&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current"}, artifact: &mismatched, artifactFound: true},
+		&fakeArtifactStore{data: pdf})
+	c, w = newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"portrait"}`), params)
+	h.PreviewSavedVaccinationCertificate(c)
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Equal(t, "artifact_unavailable", decodeBody(t, w)["code"])
 
 	// Digest mismatch -> artifact_unavailable (never re-render on artifact row).
 	artifact.ContentSHA256 = make([]byte, 32)
+	h = NewVaccinationCertificateHandler(
+		&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current"}, artifact: artifact, artifactFound: true},
+		&fakeArtifactStore{data: pdf})
 	c, w = newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"portrait"}`), params)
 	h.PreviewSavedVaccinationCertificate(c)
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
@@ -342,7 +392,7 @@ func TestPreviewSavedVaccinationCertificate_ArtifactPath(t *testing.T) {
 	// Nil store -> artifact_unavailable.
 	artifact.ContentSHA256 = sum[:]
 	h = NewVaccinationCertificateHandler(
-		&fakeCertificateStore{ed: ed, series: series, validitySeq: []string{"current"}, artifact: artifact, artifactFound: true},
+		&fakeCertificateStore{ed: ed, series: series, vacc: vacc, validitySeq: []string{"current"}, artifact: artifact, artifactFound: true},
 		nil)
 	c, w = newCertCtx(t, http.MethodPost, "/", []byte(`{"layout":"portrait"}`), params)
 	h.PreviewSavedVaccinationCertificate(c)

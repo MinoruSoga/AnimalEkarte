@@ -102,15 +102,23 @@ func certificateExpandInputs(inputs map[string]any) map[string]any {
 	return out
 }
 
-func certificateSnapshotSHA256(doc map[string]any) (string, error) {
-	projected := make(map[string]any, len(doc))
+// certificateNormalizedSnapshotDoc returns a copy of the decoded doc with the
+// inputs object expanded to all schema keys. snapshot_sha256 and
+// preview_fingerprint both hash this normalized tree so omitted and explicit
+// null inputs produce identical digests.
+func certificateNormalizedSnapshotDoc(doc map[string]any) map[string]any {
+	normalized := make(map[string]any, len(doc))
 	for k, v := range doc {
-		projected[k] = v
+		normalized[k] = v
 	}
 	if inputs, ok := doc["inputs"].(map[string]any); ok {
-		projected["inputs"] = certificateExpandInputs(inputs)
+		normalized["inputs"] = certificateExpandInputs(inputs)
 	}
-	return certificateSHA256Hex(projected)
+	return normalized
+}
+
+func certificateSnapshotSHA256(doc map[string]any) (string, error) {
+	return certificateSHA256Hex(certificateNormalizedSnapshotDoc(doc))
 }
 
 func certificateRenderManifestSHA256(doc map[string]any) (string, error) {
@@ -121,10 +129,12 @@ func certificateRenderManifestSHA256(doc map[string]any) (string, error) {
 	return certificateSHA256Hex(manifest)
 }
 
-// certificatePreviewFingerprint hashes projection({layout, snapshot}); exposed
-// for the future issue writer, exercised here by determinism tests only.
+// certificatePreviewFingerprint hashes projection({layout, snapshot}), where
+// snapshot is the same inputs-expanded tree that certificateSnapshotSHA256
+// commits to; exposed for the future issue writer, exercised here by
+// determinism tests only.
 func certificatePreviewFingerprint(layout string, doc map[string]any) (string, error) {
-	return certificateSHA256Hex(map[string]any{"layout": layout, "snapshot": doc})
+	return certificateSHA256Hex(map[string]any{"layout": layout, "snapshot": certificateNormalizedSnapshotDoc(doc)})
 }
 
 // ─── JCS writer ──────────────────────────────────────────────────────────────

@@ -27,6 +27,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -111,13 +112,27 @@ func NewVaccinationCertificateHandler(store certificateStore, artifacts certific
 	return &VaccinationCertificateHandler{store: store, artifacts: artifacts}
 }
 
+// parseCertificateIDParam accepts only positive int64 path ids; values above
+// 9223372036854775807 or non-positive/zero are 400 validation.
 func parseCertificateIDParam(c *gin.Context, key string) (uint64, bool) {
-	id, err := strconv.ParseUint(c.Param(key), 10, 64)
-	if err != nil || id == 0 {
+	id, err := strconv.ParseInt(c.Param(key), 10, 64)
+	if err != nil || id <= 0 {
 		writeCertificateError(c, certificateValidationError("invalid "+key))
 		return 0, false
 	}
-	return id, true
+	return uint64(id), true
+}
+
+// writeCertificateBodyDecodeError maps an oversized body (server-imposed
+// MaxBytesReader limit) to 413 payload-too-large, following the
+// staff/http_binding.go pattern; any other decode failure is 400 validation.
+func writeCertificateBodyDecodeError(c *gin.Context, err error) {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		httpapi.RespondError(c, apperrors.WrapPayloadTooLarge("request body exceeds size limit"))
+		return
+	}
+	writeCertificateError(c, certificateValidationError("invalid request body"))
 }
 
 // GetVaccinationCertificateEdition handles GET /vaccination-certificate-editions/:edition_id.
@@ -133,12 +148,19 @@ func (h *VaccinationCertificateHandler) GetVaccinationCertificateEdition(c *gin.
 	if !ok {
 		return
 	}
-	ed, series, err := h.store.FindEdition(c.Request.Context(), clinicID, editionID)
+	ctx := c.Request.Context()
+	ed, series, err := h.store.FindEdition(ctx, clinicID, editionID)
 	if err != nil {
 		writeCertificateError(c, err)
 		return
 	}
-	validity, err := h.store.EditionValidity(c.Request.Context(), clinicID, ed, series)
+	// Current patient/clinic/vaccination/original-record relation check on
+	// every request: a source that fails the scoped lookup is not_found.
+	if _, err := h.store.FindVaccinationSource(ctx, clinicID, series.VaccinationID); err != nil {
+		writeCertificateError(c, err)
+		return
+	}
+	validity, err := h.store.EditionValidity(ctx, clinicID, ed, series)
 	if err != nil {
 		writeCertificateError(c, err)
 		return
@@ -239,11 +261,11 @@ func (h *VaccinationCertificateHandler) PreviewSavedVaccinationCertificate(c *gi
 	dec := json.NewDecoder(c.Request.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&body); err != nil {
-		writeCertificateError(c, certificateValidationError("invalid request body"))
+		writeCertificateBodyDecodeError(c, err)
 		return
 	}
 	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		writeCertificateError(c, certificateValidationError("invalid request body"))
+		writeCertificateBodyDecodeError(c, err)
 		return
 	}
 	if body.Layout != "portrait" && body.Layout != "landscape" && body.Layout != "rabies" {
@@ -253,6 +275,12 @@ func (h *VaccinationCertificateHandler) PreviewSavedVaccinationCertificate(c *gi
 	ctx := c.Request.Context()
 	ed, series, err := h.store.FindEdition(ctx, clinicID, editionID)
 	if err != nil {
+		writeCertificateError(c, err)
+		return
+	}
+	// Current patient/clinic/vaccination/original-record relation check on
+	// every request, before the snapshot is even decoded.
+	if _, err := h.store.FindVaccinationSource(ctx, clinicID, series.VaccinationID); err != nil {
 		writeCertificateError(c, err)
 		return
 	}
@@ -290,7 +318,13 @@ func (h *VaccinationCertificateHandler) PreviewSavedVaccinationCertificate(c *gi
 		return
 	}
 	if found {
-		// An artifact row exists: verified read only, never a re-render.
+		// An artifact row exists: verified read only, never a re-render. The
+		// row's versions must equal the stored snapshot manifest versions.
+		if artifact.TemplateVersion != snap.Templates[body.Layout] ||
+			artifact.RendererVersion != snap.RendererVersion {
+			writeCertificateError(c, errCertificateArtifactUnavailable)
+			return
+		}
 		pdf, err = readCertificateArtifact(ctx, h.artifacts, artifact)
 		if err != nil {
 			writeCertificateError(c, err)
