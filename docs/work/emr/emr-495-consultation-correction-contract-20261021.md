@@ -121,6 +121,8 @@ staffはグローバル主体なのでstaffs(id,clinic_id)複合FKを新設し�
 
 correction_linksへproposal_id bigint NULL（既存履歴維持）を追加する採用設計。新CconfirmはNOT NULLをwriterと専用guardで必須化。FK(proposal_id,clinic_id)→proposal(id,clinic_id)、UNIQUE(clinic_id,proposal_id)（NULL複数は旧履歴のみ）。同一proposalのconfirm並行2keyはproposal row lock→既存link照会、一方だけ消費。既存linkが別keyで存在すればdependency-changed、既存成功refを新key成功として複製しない。旧key照会を案内する安全なreadは別途current認可付き。
 
+置換とconfirmは同じ旧proposal行を通常owner lock順のproposal段階でFOR UPDATEし直列化する。supersedes_id付きproposeは同clinic/同対象を検査し、旧proposalが未消費かつ未置換のときだけ新案をINSERTする。UNIQUE(clinic_id,supersedes_id) WHERE supersedes_id IS NOT NULLを追加し、置換枝分かれを禁止する。confirmはlock下で自分をsupersedes_idに持つ後続案の不存在と未消費を検査し、置換済みならdependency-changed、臨床writeゼロ。先にconfirmがcommitした旧案は後から置換できず、先に置換がcommitした旧案は後からconfirmできない。旧案は履歴read専用として保持する。これは新実行のguardであり、現在元target認可と同Content検査後の既知成功receipt replayを後続案の存在で拒否しない。
+
 C0は**proposal作成/read/lookupまで**。C0でconfirm APIを有効にしない。C1/C2がconfirmを提供し、医師確認＋実際の転記/新規＋correction_link＋audit＋receiptを一つの成功TXで行う。「確認だけ成功→後で転記」の第二confirm/第二成功receiptは作らない。
 
 ## 4. Cのexact immutable command / scope / lookup
