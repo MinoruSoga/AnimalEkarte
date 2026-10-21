@@ -15,7 +15,7 @@
 - [財務操作設計](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/design/domains/finance-operations/technical-spec.md#finance-selected-operation-contract): Content/CAS・現在認可・receipt・TX意味。
 - [C06参加表](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/design/shared/operation-participation.md)およびbackend/internal/operation/{contract,dto,runner}.go。
 - [502 claim hook採択](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/docs/work/emr/emr-502-manual-edit-contract-20261021.md): 原target anchor・claim原子性・immutable command。
-- [現行API](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/backend/docs/api.yaml) blob 9459cb23c968975417f4a44ea6f8d31ae701176f を全文読取。新設routeは未実装。既存accounting/estimate CRUD DTOを置換しない。
+- [現行API](https://github.com/MinoruSoga/AnimalEkarte/blob/19855942f762f31f0403b5de0ddbc61b761fd94e/backend/docs/api.yaml) blob 9459cb23c968975417f4a44ea6f8d31ae701176f を全文読取。新設routeは未実装。既存accounting/estimate CRUD DTOを全面置換しない。ただし見積status直接遷移は§9.3の移行境界に従う。
 - [EMR-507](https://app.plane.so/baritechllc/browse/EMR-507/)本文・全2コメント、[EMR-508](https://app.plane.so/baritechllc/browse/EMR-508/)本文・全1コメントを照合済み。507 PR-A=固定edition、PR-B=artifact分離を維持。
 
 ## 2. Route・権限・intent
@@ -26,6 +26,7 @@
 |---|---|---|
 | POST /accountings/{billing_id}/document-editions | financial_document.issue_invoice | accounting:edit + 対象view |
 | POST /financial-documents/{document_id}/editions/{edition}/corrections | financial_document.issue_corrected_invoice | accounting:edit + 対象view |
+| GET /accountings/{billing_id}/document-editions | invoice edition発見（§9.6） | accounting:view |
 | GET /financial-documents/{document_id}/editions/{edition} | 固定reader | accounting:view |
 | POST /financial-documents/{document_id}/editions/{edition}/reprints | financial_document.reprint_invoice | accounting:view |
 | POST /financial-documents/{document_id}/editions/{edition}/artifact | 同版materialization/再開、C06業務Apply外 | accounting:view |
@@ -61,7 +62,7 @@ pathの{edition}は文書内版番号であり、edition_id（financial_document
 Canonical hash = lowerhex SHA256(UTF8(JCS(projection)))。JCSの文字列/keysはRFC8785、数値意味のあるID/金額/数量/版は正規decimal stringとして投影し、float誤差を持ち込まない。object key順はJCS、集合はID順、表示行順はordinalとIDを値として保持する。表示上の行順変更を勝手に同内容へ潰さない。
 
 - invoice source projection schema=financial-invoice-source-v1: billing_id、document_kind=invoice、calculation_id、calculation_revision、原取引番号、元owner/元pet・共通料金区分、原請求日、固定source_snapshot/display_snapshot、layout_version。snapshotは当該sourceの固定実値のみ。
-- estimate presentation projection schema=estimate-presentation-v1: estimate_id、固定recipient_snapshot、valid_until（日付YYYY-MM-DD又はnull）、全presentation lineのestimate_item_id/ordinal/source_values/unit_price/quantity、固定計算内容とrule_version。採番後calculation/presentation IDやserver時刻は含めない。既存calculationを参照する場合はそのID/revisionを別Contentとして固定。
+- estimate presentation projection schema=estimate-presentation-v1: estimate_id、固定header_snapshot（§9.5）、固定recipient_snapshot、valid_until（日付YYYY-MM-DD又はnull）、全presentation lineのestimate_item_id/ordinal/source_values/unit_price/quantity、固定計算内容とrule_version。採番後calculation/presentation IDやserver時刻は含めない。既存calculationを参照する場合はそのID/revisionを別Contentとして固定。
 - invoice command projection schema=financial-document-command-v1: intent、billing_id、original_document_id/null、original_edition_id/null、source_digest、layout_version。
 - presentation command projection schema=estimate-present-command-v1: intent、estimate_id、content_digest、確認済calculation_id/revision（新設ならnullとそのprepared計算digest）。
 - reply command projection schema=estimate-reply-command-v1: intent、estimate_id、presentation_id、confirmed_presentation_revision、confirmed_content_digest、response、response_note。
@@ -73,21 +74,21 @@ C06 Contentはbilling_id又はestimate_id、対象document/edition/presentation�
 
 ### 4.1 初回request/保存
 request: operation_key、source_calculation_id、source_calculation_revision、confirmed_source_digest、layout_version、expected_billing_version。
-sourceは505の確認済固定計算。client snapshotを無検証で保存せず、source取得→prepared immutable command作成→digest照合を行う。初回invoice identityはdocument_kind=invoice/billing_id必須、fund/refund_eventはNULL。owner/元番号は元sourceから固定。請求未確定なら拒否し未確定previewを原本にしない。
+sourceは505の確認済固定計算。client snapshotを無検証で保存せず、source取得→prepared immutable command作成→digest照合を行う。初回invoice identityはdocument_kind=invoice/billing_id必須、fund/refund_eventはNULL。ownerは元sourceから固定し、元番号は§9.1のinvoice専用選定により生成・保存する。請求未確定なら拒否し未確定previewを原本にしない。
 
-billing root lock下でidentity既存なしとsource状態/版を検査。financial_document_identities + editions + 必要監査 + operation_resultsを同TX保存。editionのcalculation_idは対応billing_id付き複合FKに整合。source_snapshot/display_snapshotはobject、layout/issued actor/time/operation_idを固定。
+billing root lock下でidentity既存なしとsource状態/版、current_calculation_id一致（§9.4）、原請求日event対応（§9.2）を検査。financial_document_identities + editions + 必要監査 + operation_resultsを同TX保存。editionのcalculation_idは対応billing_id付き複合FKに整合。source_snapshot/display_snapshotはobject、layout/issued actor/time/operation_idを固定。
 成功refs: billing_id, document_id, edition_id, calculation_id。versions: edition, source_calculation_revision, billing_version。
 
 ### 4.2 訂正発行request/保存
 request: operation_key、billing_id、source_calculation_id/revision、confirmed_source_digest、layout_version、expected_billing_version、expected_latest_edition。pathは元document/editionを指す。
-既存の専用会計訂正で成立済みの別sourceを要求。発行POST自身では会計/請求/入金を訂正しない。元document/owner/番号を保持し別editionを追加。過去版・過去artifactを上書きしない。同sourceで別layout/宛名だけを変える任意新版はこのslice外。
+既存の専用会計訂正で成立済みの別sourceを要求し、§9.4の現在計算と訂正event対応を検証する。発行POST自身では会計/請求/入金を訂正しない。元document/owner/番号を保持し別editionを追加。過去版・過去artifactを上書きしない。同sourceで別layout/宛名だけを変える任意新版はこのslice外。
 
 ### 4.3 別keyの重複排除
 全invoice発行writerはbilling FOR UPDATEを共有し、(clinic, invoice, billing)のidentityを検査。初回に既存identityがある、または同documentに同calculation_idのeditionが既存なら新editionを作らず409 dependency-changed。別keyをreplayedと偽装しない。既存原本は認可済readerで取得。新key binding/anchorは成功なしで残る。
 identityが複数あれば曖昧として停止。番号はroot lock下で最新+1かつexpected_latest_edition一致。既存edition uniqueだけでsource重複保証と称さない。旧/バッチwriterも同gate参加を必須とし、未参加なら当該保存経路を利用開始しない。追加business uniqueは本契約では必要とせず既存root lockで直列化する。
 
 ### 4.4 reader/再印刷/artifact
-readerは元owner/番号/source refs、固定snapshot、固定計算ref、layout/発行時刻を返す。現在master/氏名/税率で再構築しない。欠落は不明/表示不能を明示。請求日は元確定日、印刷日/予定日/診療日を代入しない。
+readerは元owner/番号/source refs、固定snapshot、固定計算ref、layout/発行時刻を返す。現在master/氏名/税率で再構築しない。欠落は不明/表示不能を明示。請求日は§9.2の原確定eventから固定した日付、印刷日/予定日/診療日を代入しない。
 reprint requestはoperation_key、billing_idのみ（document/editionはpath）。path版番号から解決したedition行PKをContentへ束縛し、同editionへの監査とreceiptのみを同TX保存。成功result_refsはbilling_id/document_id/edition_id、committed_versionsはedition。新keyの明示再印刷は別監査を残すが同edition。同keyは同履歴へ収束。表示だけのGETでは再印刷履歴を作らない。
 artifactはDB固定版成立後の別段階。server rendererが不変editionだけから生成し、外部生成/保存はTX外。最後の短いTXで(clinic,edition_id)一意参照を保存。同hashは同artifactへ収束、異hashは上書き拒否。生成成功/DB参照保存失敗は同版/hashの照合で再開し、issue新keyを作らない。固定版成立≠artifact ready≠印刷/送信成功。PR-AとPR-Bを分離する。
 
@@ -98,7 +99,7 @@ presentation request: operation_key、expected_estimate_version、confirmed_cont
 
 estimate FOR UPDATEで通常編集/提示/返答/後継を直列化し、root版と全明細digest（追加/削除含む）、未提示編集可能状態・現在認可・医院/飼主/pet/親関係を検査。計算revision/presentation/全固定lines/監査/receiptを同TX保存。親カルテ確定だけで未提示編集を拒否する旧gateは適用しないが、通常削除の親未確定条件は別に維持する。
 成功refs: estimate_id,presentation_id,calculation_id。versions: estimate_version,presentation_revision,calculation_revision。
-reader: 固定recipient、nullable valid_until、digest、line_countと順序/元line refs/source_values/ExactNumeric値、固定計算ref・当時値、presented_by/at。提示保存は外部送信成功ではない。
+reader: 固定header_snapshot、§9.7のnullable reply、固定recipient、nullable valid_until、digest、line_countと順序/元line refs/source_values/ExactNumeric値、固定計算ref・当時値、presented_by/at。提示保存は外部送信成功ではない。
 
 reply request: operation_key、response=approved|rejected、response_note=null又はstring、expected_estimate_version、confirmed_presentation_revision、confirmed_content_digest。response_noteはrequired nullableとし、null=記録なし、空stringは空stringのまま保存（trim/空→null変換なし）。
 path estimate/presentationの元関係とContentを一致させ、同estimate lock下で「当該提示に未返答」を検査。reply/許可された状態投影/監査/receipt同TX。旧提示への返答はその版だけへ記録し後継版の状態/承認へ継承しない。
@@ -156,3 +157,53 @@ fixture計画（全NOT_RUN）:
 - 請求10,000/実受領3,000、共通料金、旧header見積、単価保証と税保険割引の区別。
 
 試験コード/fixture準備と実装PR準備を後段の試験実行待ちにしない。実行は本人指示後mainローカルでまとめて行い、隔離/使い捨てDBは使用しない。必須CI/保護ルールは無効化しない。本作業では外部書込・コード変更・DB適用・試験・PR操作・実金銭・外部送信なし。
+
+
+
+## 9. 独立reviewに基づく採択技術補正
+
+本節のinvoice採番・原請求日暦日方式は2026-10-21のdot側の技術選定であり、本人が番号書式そのものを指定・承認したという意味ではない。旧版の実装済み事実ではなく、税・割引の業務算式も変更しない。
+
+### 9.1 invoice原取引番号
+
+今回invoiceに限り、表示番号を `INV-{clinic_id}-{billing_id}`（両ID canonical decimal）に固定する技術選定とする。初回identity作成TXで original_transaction_number へ保存し、以後はその保存値だけを読む。文書内edition/operation keyを元番号にしない。別billingへの再請求は別番号、同billing訂正editionと再印刷は同番号。既存identityの番号を改名しない。旧番号を持つ移行対象は別mappingで保持し、この規則で上書きしない。
+
+初回source projectionの番号はこの明示規則から生成し、既存identityなら保存番号を使う。Applyのbilling lock下で再一致検査する。新しい年度連番registry・欠番禁止・法的採番適合保証を追加せず、fund/refundの後続帳票へ流用しない。旧文の『元sourceに番号が存在する』を実装前提にせず、この生成・保存契約に置き換える。
+
+### 9.2 原請求日の正本と暦日adapter
+
+462の請求確定TXは、当該billingの原 `billing_change_events.intent=finalize` と、同clinic/billing_change_event_idの `finance_source_events` を一体保存する。後者のoccurred_atを業務上の確定成立時点としてserverが固定し、recorded_atやDB commit時刻の代用とはしない。成功receiptと別commitしない。source_ownerはbilling、source_event_keyは当該finalize操作に固定したUUIDとし、同操作で再生成しない。既存列の帰属・digest・金銭非移動の契約へ従い、別資金イベントを生成しない。
+
+507は対応する一意の原finalizeイベントを参照し、clinic/billing/source帰属を検査する。日付adapterの採択技術方式は明示 `Asia/Tokyo`、invoice_dateはoccurred_atを当該zoneへ変換したYYYY-MM-DD。実行環境TZに依存せず、source/display snapshotへ closed `{finalization_event_id,finance_source_event_id,occurred_at,calendar_timezone,invoice_date}` を固定しsource digestへ全量拘束する。IDは正decimal string、occurred_atはRFC3339、calendar_timezoneはこのadapter版ではAsia/Tokyo、invoice_dateは日付string。
+
+訂正editionでは原日付を維持し、新billing再請求は新billingのfinalizeを参照する。欠落/複数/帰属不整合/旧根拠不明は発行不可で、印刷日/予定日/診療日/記録時刻へfallbackしない。旧日付の修復操作や現在時刻によるbackfillは本契約外。暦日adapterは本節で選定し、462 writer接続が完了するまでは実装済みとしない。
+
+### 9.3 旧CRUDからの提示・返答迂回を廃止
+
+新提示/返答契約の有効化時、旧CRUD status入力でのsent/approved/rejectedへの遷移は禁止する。createは未提示draftのみ、updateはstatus省略又は未提示draftの同値維持のみ。提示済みをdraftへ戻すことも禁止。通常編集は未提示/編集可の既決gate下だけで行う。
+
+専用presentation/reply writerだけが対応する保存原本と同TXで許可された状態projectionを更新する。旧UI/APIの両方を同sliceで移行し、旧status入力を新操作への暗黙変換に使わない。C06未到達の旧CRUD拒否は既存エラー形を維持し業務書込なし。未移行writerが残る間は新提示契約を全writer適合済みとして利用開始しない。
+
+### 9.4 新editionのsource鮮度
+
+初回/訂正の新edition作成ではbilling lock下で source_calculation_id = billings.current_calculation_id を必須とし、clinic/billing帰属とsource revisionも一致させる。取消済み/確定前は拒否。訂正版は同billingの成立済みcorrect eventから現在計算への対応を検証し、`correction_event_id`（正IDstring、初回null）と `correction_event_revision`（正版string、初回null）をsource projectionに加えdigestへ拘束する。該当correct eventのsource_calculation_idだけでbefore/afterの意味を推定せず、505の当該correct adapterの固定after計算参照が現在計算と一致することを条件とする。未接続なら訂正editionだけを有効化しない。
+
+不一致はdependency-changed409、業務保存なし。確認済sourceの黙った最新置換は禁止。成功replay・保存版GET・同版再印刷には現在計算一致条件を適用せず、過去固定版の取得を保つ。
+
+### 9.5 提示header固定
+
+estimate_presentationsにimmutable header_snapshot JSON objectを追加するDDL依存を選定する。closed `{schema_version:1,title:string,comment:string}`を新writer必須で保存し、元タイトル/飼主向けコメントの確認値を変更せず保持する。空commentは空のまま。staff-only notesは含めない。header全量をpresentation projection/digest、同TX保存、固定readerへ追加する。recipient_snapshotへ異なる概念を混入しない。
+
+既存presentationのheader欠落はunknownとして表示し、現在見積から再構成しない。既存行へ架空値をbackfillせず、旧行nullableと新writer必須の移行境界をDDL/model/readerで明示する。
+
+### 9.6 billingからのedition発見
+
+GET /accountings/{billing_id}/document-editions はaccounting:viewとtrusted clinic/元billing現在viewを要求し、actor-scoped operation bindingへ依存しない。invoice限定。responseはclosed `{billing_id,document_id,latest_edition,editions,next_before_edition}`。未発行はdocument_id/latest_edition=null、editions=[]。edition要素はclosed `{edition,edition_id,calculation_id,source_calculation_revision,issued_at}`、ID/版は正decimal string、issued_atはRFC3339。next_before_editionは次page境界の正版string又はnull。
+
+queryはbefore_edition（任意正版string）、limit（任意整数、技術候補default20/max100）。edition降順keysetとし、最新参照と返却pageを同読取snapshotで整合させる。権限なしは既存非開示、identity曖昧なら任意選択しない。0件は未実行の証明ではなく、unknown操作の新key救済に使わない。GETで新edition/印刷監査を作らない。
+
+### 9.7 固定提示readerのreply
+
+提示GETへrequired nullable replyを追加する。未返答null、返答ありはclosed `{reply_id,response,response_note,recorded_by,recorded_at}`。reply_id/recorded_byは正IDstring、response=approved|rejected、response_noteはnullable string、recorded_atはRFC3339。trusted clinic/estimate/presentationの元関係一致かつ現在estimates:viewで取得する。既存estimate_repliesを使用し新表なし。
+
+別提示の返答やaggregate estimate.statusで補完しない。複数/不整合な旧記録は任意の最新行や未返答nullへ潰さず整合エラーとする。replyの追加で固定提示content_digestを変化させず、返答は原提示を参照する別記録のまま保持する。
