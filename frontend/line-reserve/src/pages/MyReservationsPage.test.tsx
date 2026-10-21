@@ -451,4 +451,57 @@ describe("MyReservationsPage 取消後の送信結果照会", () => {
     expect(deletedIds).toEqual(["9007199254740992"]);
     expect(screen.getByRole("button", { name: "キャンセルする" })).toBeInTheDocument();
   });
+
+  it.each(["1", "9007199254740991", "9007199254740992", "9007199254740993", "9223372036854775807"])(
+    "EMR-519: 境界 ID %s の取消は同一文字列の DELETE を送る",
+    async (id) => {
+      const user = userEvent.setup();
+      const deletedIds: string[] = [];
+      server.use(
+        http.get("/api/liff/:clinicId/my-reservations", () =>
+          HttpResponse.json([{ ...confirmedReservation, id }]),
+        ),
+        http.delete("/api/liff/:clinicId/my-reservations/:id", ({ params }) => {
+          deletedIds.push(String(params.id));
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+
+      render(
+        <MyReservationsPage
+          {...BASE_PROPS}
+          onBack={vi.fn()}
+          onOpenRevisitIntake={vi.fn()}
+          draftStore={pendingStore(false)}
+        />,
+      );
+
+      await user.click(await screen.findByRole("button", { name: "キャンセルする" }));
+      await user.click(screen.getByRole("button", { name: "はい、キャンセルする" }));
+
+      expect(await screen.findByText("キャンセル済")).toBeInTheDocument();
+      expect(deletedIds).toEqual([id]);
+    },
+  );
+
+  it("EMR-519: 取消済み予約の送信結果確認は同一 ID 文字列で revisit 導線を開く", async () => {
+    const user = userEvent.setup();
+    const cancelled = { ...confirmedReservation, id: "9007199254740992", status: "cancelled" };
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () => HttpResponse.json([cancelled])),
+    );
+    const onOpen = vi.fn();
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpen}
+        draftStore={pendingStore(true)}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認する" }));
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: "9007199254740992" }));
+  });
 });

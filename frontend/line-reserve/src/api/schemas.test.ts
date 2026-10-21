@@ -315,6 +315,37 @@ describe("revisit intake schemas（EMR-474）", () => {
     }
   });
 
+  it.each([
+    ["数値 0", { id: 0 }],
+    ["負の数値", { id: -1 }],
+    ["先頭ゼロ", { id: "01" }],
+    ["符号付き", { id: "+1" }],
+    ["小数", { id: "1.0" }],
+    ["指数", { id: "1e3" }],
+    ["空白付き", { id: " 1" }],
+    ["null", { id: null }],
+    ["キー欠落", {}],
+    ["JSON number", { id: 42 }],
+    ["int64 超過", { id: "9223372036854775808" }],
+  ])("EMR-519: reservation id の %s は例外を投げず reject する", (_name, patch) => {
+    const reservation = {
+      id: "1",
+      date: "2026-08-01",
+      start_time: "10:00",
+      end_time: "10:15",
+      status: "confirmed",
+      course_name: "再診",
+      staff_name: null,
+      pet_id: null,
+      pet_name: null,
+      ...patch,
+    };
+    expect(() => reservationSchema.safeParse(reservation)).not.toThrow();
+    expect(reservationSchema.safeParse(reservation).success).toBe(false);
+    const created = { id: "1", notes: "n", ...patch };
+    expect(createReservationResponseSchema.safeParse(created).success).toBe(false);
+  });
+
   it("未知の edit_block_reason は補完せず reject する", () => {
     const bad = {
       ...unanswered,

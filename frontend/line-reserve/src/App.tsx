@@ -27,6 +27,9 @@ export function App() {
   // EMR-474: 再診問診の対象予約（state のみ。URL・ストレージへ載せない）と target 別 draft の memory store
   const [revisitIntake, setRevisitIntake] = useState<RevisitIntakeRoute | null>(null);
   const revisitIntakeDraftStore = useRevisitIntakeDraftStore();
+  // EMR-519: 201 契約違反で「予約が登録済みか不明」のままの場合、画面遷移を挟んでも
+  // 確定ボタンの再 POST を抑止する。新規予約開始または予約一覧確認で解除する。
+  const [createResultUnknown, setCreateResultUnknown] = useState(false);
 
   const {
     flow,
@@ -51,6 +54,7 @@ export function App() {
     setCompletedReservationId,
     setCompletedNotes,
     setRevisitIntake,
+    setCreateResultUnknown,
   );
 
   useEffect(() => {
@@ -151,6 +155,7 @@ export function App() {
         completedNotes={completedNotes}
         revisitIntake={revisitIntake}
         revisitIntakeDraftStore={revisitIntakeDraftStore}
+        createResultUnknown={createResultUnknown}
         goTo={goTo}
         setCustomerInfo={setCustomerInfo}
         setCourse={setCourse}

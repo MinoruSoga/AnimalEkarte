@@ -17,22 +17,30 @@ export function useReservationAppHandlers(
   setCompletedReservationId: Dispatch<SetStateAction<string | null>>,
   setCompletedNotes: Dispatch<SetStateAction<string>>,
   setRevisitIntake?: Dispatch<SetStateAction<RevisitIntakeRoute | null>>,
+  setCreateResultUnknown?: Dispatch<SetStateAction<boolean>>,
 ) {
   const handleNewReservation = useCallback(() => {
     setNotice(null);
+    setCreateResultUnknown?.(false);
     resetFlow();
     goTo("step1");
-  }, [resetFlow, goTo, setNotice]);
+  }, [resetFlow, goTo, setNotice, setCreateResultUnknown]);
 
   const handleConfirm = useCallback(
     (reservationId: string, notes: string) => {
       setNotice(null);
+      setCreateResultUnknown?.(false);
       setCompletedReservationId(reservationId);
       setCompletedNotes(notes);
       goTo("step8");
     },
-    [goTo, setNotice, setCompletedReservationId, setCompletedNotes],
+    [goTo, setNotice, setCompletedReservationId, setCompletedNotes, setCreateResultUnknown],
   );
+
+  // EMR-519: 201 契約違反を報告され、画面遷移後も「結果不明」を保持する。
+  const handleResultUnknown = useCallback(() => {
+    setCreateResultUnknown?.(true);
+  }, [setCreateResultUnknown]);
 
   const handleSlotTaken = useCallback(
     (message: string, redirectStep: number) => {
@@ -52,14 +60,16 @@ export function useReservationAppHandlers(
   );
 
   const handleCompleteToMyReservations = useCallback(() => {
+    setCreateResultUnknown?.(false);
     goTo("my-reservations");
-  }, [goTo]);
+  }, [goTo, setCreateResultUnknown]);
 
   const handleCompleteNewReservation = useCallback(() => {
     setNotice(null);
+    setCreateResultUnknown?.(false);
     resetFlow();
     goTo("step1");
-  }, [resetFlow, goTo, setNotice]);
+  }, [resetFlow, goTo, setNotice, setCreateResultUnknown]);
 
   const handleOpenRevisitIntake = useCallback(
     (route: RevisitIntakeRoute) => {
@@ -74,6 +84,7 @@ export function useReservationAppHandlers(
     handleOpenRevisitIntake,
     handleNewReservation,
     handleConfirm,
+    handleResultUnknown,
     handleSlotTaken,
     handleCompleteToMyReservations,
     handleCompleteNewReservation,

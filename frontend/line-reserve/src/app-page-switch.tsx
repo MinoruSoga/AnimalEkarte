@@ -34,6 +34,7 @@ export interface ReservationPageSwitchProps {
   flow: ReservationFlow;
   isTrimming: boolean;
   completedReservationId: string | null;
+  createResultUnknown: boolean;
   completedNotes: string;
   revisitIntake: RevisitIntakeRoute | null;
   revisitIntakeDraftStore: RevisitIntakeDraftStore;
@@ -48,6 +49,7 @@ export interface ReservationPageSwitchProps {
   setTrimmingOptions: (ids: number[]) => void;
   handleNewReservation: () => void;
   handleConfirm: (reservationId: string, notes: string) => void;
+  handleResultUnknown: () => void;
   handleSlotTaken: (message: string, redirectStep: number) => void;
   handleCompleteToMyReservations: () => void;
   handleCompleteNewReservation: () => void;
@@ -270,7 +272,9 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
         onConfirm={props.handleConfirm}
         onSlotTaken={props.handleSlotTaken}
         onBack={() => props.goTo("step6")}
-        onMyReservations={() => props.goTo("my-reservations")}
+        onMyReservations={props.handleCompleteToMyReservations}
+        onResultUnknown={props.handleResultUnknown}
+        createResultUnknown={props.createResultUnknown}
       />
     );
   }
