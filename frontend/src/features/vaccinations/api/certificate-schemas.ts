@@ -204,13 +204,27 @@ export const certificateContextSchema = z.object({
 });
 export type CertificateContext = z.infer<typeof certificateContextSchema>;
 
+/**
+ * preview 応答の PDF。空でないだけでは足りない（壊れた base64・PDF 以外を受理すると、
+ * 確認できない内容の発行ボタンが有効になる）。base64 として正しく、先頭が %PDF- のものだけ受理する。
+ */
+export function isPdfBase64(value: string): boolean {
+  if (value.length < 8 || value.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return false;
+  try {
+    return atob(value.slice(0, 8)).startsWith("%PDF-");
+  } catch {
+    return false;
+  }
+}
+const pdfBase64 = z.string().min(1).refine(isPdfBase64, "pdf_base64 が PDF ではありません");
+
 export const certificatePreviewResponseSchema = z.object({
   snapshot: snapshotSchema,
   snapshot_sha256: hash,
   preview_fingerprint: hash,
   source_version: id,
   latest_edition_id: id.nullable(),
-  pdf_base64: z.string().min(1),
+  pdf_base64: pdfBase64,
   media_type: z.literal("application/pdf"),
   template_version: z.string(),
   renderer_version: z.string(),
@@ -220,7 +234,7 @@ export type CertificatePreviewResponse = z.infer<typeof certificatePreviewRespon
 export const certificateSavedPreviewSchema = z.object({
   edition_id: id,
   layout: certificateLayoutSchema,
-  pdf_base64: z.string().min(1),
+  pdf_base64: pdfBase64,
   media_type: z.literal("application/pdf"),
   template_version: z.string(),
   renderer_version: z.string(),
