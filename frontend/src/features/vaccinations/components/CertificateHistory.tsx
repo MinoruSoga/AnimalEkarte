@@ -27,8 +27,13 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
   const kinds: CertificateKind[] = (["normal", "rabies"] as const).filter(
     (k) => context.eligibility.allowed_kinds.includes(k) || context.latest[k] !== null,
   );
-  const [kind, setKind] = useState<CertificateKind>(kinds[0] ?? "normal");
-  const [page, setPage] = useState(1);
+  // 様式と頁は一緒に持つ。context の更新で選択中の様式が選べなくなったら、effect を使わず先頭の様式・1 頁目へ導出する
+  // （選択肢が 1 つになると切替ボタンも消えるため、残った選択を持ち越すと戻れなくなる）。
+  const [selection, setSelection] = useState<{ kind: CertificateKind; page: number }>({
+    kind: kinds[0] ?? "normal",
+    page: 1,
+  });
+  const { kind, page } = kinds.includes(selection.kind) ? selection : { kind: kinds[0] ?? "normal", page: 1 };
   const history = useQuery({
     queryKey: certificateHistoryPageQueryKey(vaccinationId, kind, page, context.source_version),
     queryFn: ({ signal }) => api.listEditions(vaccinationId, { kind, page, limit: PAGE_SIZE }, signal),
@@ -53,8 +58,7 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
               variant={k === kind ? "default" : "outline"}
               aria-pressed={k === kind}
               onClick={() => {
-                setKind(k);
-                setPage(1);
+                setSelection({ kind: k, page: 1 });
               }}
             >
               {KIND_LABEL[k]}
@@ -69,13 +73,20 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
         </p>
       ) : null}
       {history.isError ? (
-        <p role="alert" className={`text-sm ${C.danger}`}>
-          {status === "forbidden"
-            ? "履歴を閲覧する権限がありません。"
-            : status === "not-found"
-              ? "接種記録が見つかりません。"
-              : "履歴を取得できませんでした。"}
-        </p>
+        <div role="alert" className="space-y-2">
+          <p className={`text-sm ${C.danger}`}>
+            {status === "forbidden"
+              ? "履歴を閲覧する権限がありません。"
+              : status === "not-found"
+                ? "接種記録が見つかりません。"
+                : "履歴を取得できませんでした。"}
+          </p>
+          {status !== "forbidden" && status !== "not-found" && status !== "unauthenticated" ? (
+            <Button type="button" size="sm" variant="outline" onClick={() => void history.refetch()}>
+              履歴を再読み込み
+            </Button>
+          ) : null}
+        </div>
       ) : null}
       {history.data && history.data.data.length === 0 ? (
         <p className={`text-sm ${C.text60}`}>
@@ -100,13 +111,13 @@ export function CertificateHistory({ api, vaccinationId, context, onRefetch, get
       ) : null}
       {totalPages > 1 ? (
         <div className="flex items-center gap-2 text-sm">
-          <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+          <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setSelection({ kind, page: page - 1 })}>
             前へ
           </Button>
           <span>
             {page} / {totalPages} ページ
           </span>
-          <Button type="button" size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+          <Button type="button" size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setSelection({ kind, page: page + 1 })}>
             次へ
           </Button>
         </div>
