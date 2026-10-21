@@ -1,7 +1,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { focusManager } from "@tanstack/react-query";
+import { afterEach, describe, expect, it } from "vitest";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { RevisitIntakeSection } from "./RevisitIntakeSection";
@@ -66,6 +67,10 @@ function respond(json: unknown, status = 200) {
 }
 
 describe("RevisitIntakeSection", () => {
+  afterEach(() => {
+    focusManager.setFocused(undefined);
+  });
+
   it("読込中は aria-busy と読み上げ文言を即時に出し、スケルトン描画は 300ms 超まで遅らせる", async () => {
     server.use(
       http.get(PATH, async () => {
@@ -102,10 +107,13 @@ describe("RevisitIntakeSection", () => {
     renderSection();
     expect(await screen.findByText("目的a2")).toBeInTheDocument();
     // reconnect / focus 復帰相当の自動再取得を起こす。
-    document.dispatchEvent(new Event("visibilitychange"));
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
     expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
     expect(screen.queryByText("目的a2")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
+    // 再取得が実際に走ったこと（無言で refetch されないケースを通さない）。
+    expect(calls).toBe(2);
   });
 
   it("target_unresolved は「対象を特定できません」を出す", async () => {

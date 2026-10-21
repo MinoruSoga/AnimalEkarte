@@ -19,6 +19,11 @@ describe("getRetryAfterMs", () => {
     expect(getRetryAfterMs(axiosError(503, { "Retry-After": "0" }))).toBe(0);
   });
 
+  it("ヘッダ名の大文字小文字を区別しない", () => {
+    expect(getRetryAfterMs(axiosError(429, { "retry-after": "3" }))).toBe(3000);
+    expect(getRetryAfterMs(axiosError(503, { "RETRY-after": "4" }))).toBe(4000);
+  });
+
   it("HTTP-date は現在時刻との差、過去日は 0", () => {
     const now = Date.parse("2026-10-21T00:00:00Z");
     const future = new Date(now + 30_000).toUTCString();

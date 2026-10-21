@@ -1,4 +1,4 @@
-import { isAxiosError } from "axios";
+import { AxiosHeaders, isAxiosError } from "axios";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 
@@ -226,7 +226,10 @@ export function getRetryAfterMs(error: unknown, now: number = Date.now()): numbe
   if (!isAxiosError(error)) return undefined;
   const status = error.response?.status;
   if (status !== 429 && status !== 503) return undefined;
-  const raw: unknown = error.response?.headers?.["retry-after"];
+  // ヘッダ名の大文字小文字に依存しない（AxiosHeaders は元の表記で保持する）。
+  const raw: unknown = error.response?.headers
+    ? AxiosHeaders.from(error.response.headers as AxiosHeaders).get("retry-after")
+    : undefined;
   if (typeof raw !== "string" || raw.trim() === "") return undefined;
   const value = raw.trim();
   if (/^\d+$/.test(value)) return Number(value) * 1000;
