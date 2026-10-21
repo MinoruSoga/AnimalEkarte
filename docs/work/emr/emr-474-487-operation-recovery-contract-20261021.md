@@ -163,6 +163,8 @@ cutover前に新対象全writerがguard対応し、旧入口が新claim/Apply不
 
 reload直後は未送信bodyを再構成せずdiscovery。unknown/unavailable/legacy未対応は保留。結果確認後、利用者が次の操作を明示した時だけfence→最新対象取得→入力/preview→新key。成功画面へ戻っただけでfenceや新writeを送らない。fence後に別タブが先にclaimすれば新claimを拒否して回復へ戻る。別staffの同接種発行は既存series/source CASが担当し、本人controlを全staff排他へ拡張しない。
 
+Slice Aのmachine contractはbackend/docs/api.yamlへdiscovery query2本だけ選定収録する。LIFFは既存Engine直下server、証明書は既存/api/v1 serverに対する相対pathを使い、既存lookup responseをdomain別に参照する。API固定・マージ後にmock FE PRへ進めるが、router/BEは未実装のままでありruntime公開や待機解除後の新key再開を意味しない。fence、旧submit/issueのrequired世代、DB・生成model・FE・公開フラグはこのSlice A収録に含めない。
+
 Slice Aはdiscovery＋保留だけで独立実装可能。ただし未知/0件からの新key再開を許可しない。Slice Bはcontrol/closure/coordinator/全writer/FE wireを揃えた単位でのみ安全な明示再開を有効化する。471/472/473/474と486/487のownerを維持し、489は限定claim参加のみ。
 
 現時点で新しい業務判断質問は不要。職員/飼主の新たな権限、外部送信、本文保存期間、失権回避を追加していない。原本PDF保存先・font選定や健診OCRとは別問題。legacyの実状態と既存writer閉鎖証跡は技術受入残であり、一般ユーザーへ根拠なく選択を丸投げしない。
