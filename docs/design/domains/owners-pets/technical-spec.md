@@ -163,6 +163,31 @@ login/logout、user/clinic切替、`ME_QUERY_KEY`更新では、進行中のscop
 | login/logout・user/clinic切替・ME_QUERY_KEY更新後に旧応答到着 | 旧scope/listを表示・保存へ反映しない。別userのkeyを読まない |
 | login／refresh／既存builder | 新fieldを必須にしない。GET /me専用wrapper以外へ追加しない |
 
+### 入口判定：一覧 index と詳細・新規枝の分離（2026-10-21 follow-up）
+
+[/owners の route 構造](../../../../frontend/src/app/routes/clinical-general-routes.tsx)を「一覧 index」と既存の「詳細 `:id`／新規 `new`」枝へ分けた。親 route が持っていた選択医院 view wrapper（`RequirePermission` owners:view）は撤去し、`errorElement` だけを維持する。
+
+- 一覧 index は [OwnersListRouteGuard](../../../../frontend/src/features/owners/components/OwnersListRouteGuard.tsx) を index の lazy 解決内で一覧 Component に被せる（owners feature を route 定義へ静的 import せず、code splitting を維持）。`OWNERS_CLINIC_SCOPE_ACTIVE=true` では追加の view guard を掛けず、入口判定は同一 `ownersLoader` 実行が返す owners 専有 scope／`listState` が担う（guard 専用の別 GET /me、古い profile cache による二重判定は行わない）。非活性時（テスト専用の退避経路）は guard が従来どおり owners:view を要求する。
+- 詳細枝 `:id` は `element` に owners:view＋`<Outlet />` を持ち、index child が `OwnerFormPage + ownerLoader` を lazy 解決する（element と lazy Component を同一 route に置かない BUG-20260906-003 の方針を維持）。
+- 新規枝 `new` は owners:view の内側に既存の owners:create を入れ、view＋create を従来どおり両方要求する。
+- 共通 `RequirePermission`・`AuthProvider.hasPermission`・`use-clinic-scope` の全 caller の意味は変更しない。フォーム／保存の edit・create、BE 認可、共通の認証 guard も維持する。BE 変更なし。
+
+fail-closed の判定は既存 loader／OwnersList の挙動を維持する: 現在 scope が非空のときだけ一覧データを表示し、正規の `[]` は no-permitted-clinics 表示で `/pets` を呼ばず、missing／null／不正／取得失敗は scope-error＋再試行。所属一覧・選択医院・system_admin フラグ・旧 scope への fallback はしない。選択上限超過・遅延応答／切替／失権の既存無効化も変えない。
+
+受入記述（採用回答 Plane EMR-463 comment 947c271f の7ケース）。テストはすべて作成のみで実行は NOT_RUN、実 API・実機の受入は未実施。
+
+| # | ケース（権限条件） | 操作 | 期待結果 | 判定箇所 | 対応テスト／未検証 |
+|:---|:---|:---|:---|:---|:---|
+| 1 | 選択医院 B（ID `"2"`）で owners:view なし、許可医院 A（ID `"1"`）で owners:view あり（GET /me `owners_view_clinic_ids` = `["1"]`） | `/owners` を開く | 一覧入口を通し、A だけを取得・表示。B の閲覧権限付与・B のデータ取得なし | 一覧 index に親 view guard なし（OwnersListRouteGuard は活性時に子を通す）＋ ownersLoader の現在許可交差 | route 構造テスト・guard 単体テスト（新規）、loaders.scope.test.ts の交差選択（既存）。route→loader→表示の結合試験は未作成 |
+| 2 | 現在許可ゼロ（GET /me = `[]`） | `/owners` を開く | no-permitted-clinics 表示、/pets を呼ばない | `listState=no-permitted-clinics` | loaders.scope.test.ts「許可 [] は /pets を呼ばず…」、OwnersList.clinic-scope.test.tsx（既存） |
+| 3 | scope 取得失敗（missing／null／不正／通信・5xx） | `/owners` を開く | scope-error＋再試行表示、旧結果を表示しない、fallback なし | `listState=scope-error` | get-owners-view-scope.test.ts・loaders.scope.test.ts（既存） |
+| 4 | 失権（/pets が 403） | 一覧取得 | scope を再取得して照合し直し、失敗 scope で再送しない | ownersLoader の 403 再照合 | loaders.scope.test.ts の 403 系（既存） |
+| 5 | 選択医院で owners:view なし | `/owners/:id` を開く | AccessDenied（詳細の view 制約を維持） | `:id` 枝の `RequirePermission(owners)` | route 構造テスト（新規・guard の配置のみ）。画面描画での拒否操作テストは未作成 |
+| 6 | owners:view あり・create なし／view なし・create あり | `/owners/new` を開く | どちらも AccessDenied（view＋create の両方を要求） | `new` 枝の `RequirePermission(owners)` ＞ `RequirePermission(owners, create)` | route 構造テスト（新規・入れ子の配置のみ）。権限組合せ別の描画テストは未作成 |
+| 7 | owners:edit なし | 既存飼主の保存 | 保存不可（フォームの `canSubmit = isEdit ? canEdit : canCreate`、BE の owner 更新認可） | OwnerForm.tsx の usePermission("owners")、BE owner API | 本 PR で変更なし。保存拒否の専用テストは未作成（BE 認可は既存） |
+
+構造検査（新規）: 親に view wrapper なし／一覧 index は lazy leaf（guard は lazy 内）／`new` は view＋create／`:id` は view を `clinical-general-routes.test.ts`、guard の active=true で子描画・false で RequirePermission 経由を `OwnersListRouteGuard.test.tsx` で固定。
+
 ## 受け渡しと検証対応
 
 | FR ID | 先行台帳FRのAC ID（追加分は後続節の対応表） | 技術対応 |
