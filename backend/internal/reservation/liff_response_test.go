@@ -2,6 +2,7 @@ package reservation
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -203,7 +204,7 @@ func TestToLiffReservationResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := toLiffReservationResponse(tt.r)
+			got := toLiffReservationResponse(tt.r, nil)
 			assert.Equal(t, tt.r.ID, got.ID)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("2006-01-02"), got.Date)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("15:04"), got.StartTime)
@@ -214,6 +215,100 @@ func TestToLiffReservationResponse(t *testing.T) {
 			assert.Equal(t, tt.wantStaffName, got.StaffName)
 		})
 	}
+}
+
+// EMR-519: JSON 出力の契約確認（id は十進文字列、pet_id / pet_name は常に両キーで両方 null、
+// customer_fields のペット名から補完しない）。
+func TestToLiffReservationResponseJSON(t *testing.T) {
+	start := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	r := &model.Reservation{
+		ID:             42,
+		StartTime:      start,
+		EndTime:        start.Add(15 * time.Minute),
+		Status:         model.ReservationStatusConfirmed,
+		CustomerFields: json.RawMessage(`{"pets":[{"name":"ポチ","type":"柴犬"}]}`),
+	}
+	body, err := json.Marshal(toLiffReservationResponse(r, nil))
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+
+	// EMR-519 stage1: 一覧の id は当面 JSON number（文字列化は後続 PR）
+	assert.Equal(t, float64(42), payload["id"])
+
+	petID, hasPetID := payload["pet_id"]
+	assert.True(t, hasPetID, "pet_id key must be present")
+	assert.Nil(t, petID)
+	petName, hasPetName := payload["pet_name"]
+	assert.True(t, hasPetName, "pet_name key must be present")
+	assert.Nil(t, petName)
+
+	assert.NotContains(t, string(body), "ポチ")
+}
+
+// EMR-520: pair がある場合は両方値を返し、無い場合は両方 null。
+// customer_fields の先頭ペット名は補完に使わない。
+func TestToLiffReservationResponsePetPairJSON(t *testing.T) {
+	start := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	r := &model.Reservation{
+		ID:             42,
+		StartTime:      start,
+		EndTime:        start.Add(15 * time.Minute),
+		Status:         model.ReservationStatusConfirmed,
+		CustomerFields: json.RawMessage(`{"pets":[{"name":"ポチA","type":"柴犬"}]}`),
+	}
+
+	pair := &LiffPetPair{PetID: 9007199254740993, PetName: "タマB"}
+	body, err := json.Marshal(toLiffReservationResponse(r, pair))
+	require.NoError(t, err)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.Equal(t, "9007199254740993", payload["pet_id"])
+	assert.Equal(t, "タマB", payload["pet_name"])
+	assert.NotContains(t, string(body), "ポチA")
+
+	body, err = json.Marshal(toLiffReservationResponse(r, nil))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.Nil(t, payload["pet_id"])
+	assert.Nil(t, payload["pet_name"])
+}
+
+// EMR-519 stage1: liffPublicID は一覧の pet_id 専用（予約 id は当面 JSON number）。
+// 1〜int64 最大値だけを正規形十進文字列として出力し、0 / int64 超過の pet_id は両方 null。
+func TestLiffPublicIDBoundaries(t *testing.T) {
+	for _, id := range []uint64{1, 9007199254740991, 9007199254740992, 9007199254740993, 9223372036854775807} {
+		s, ok := liffPublicID(id)
+		require.True(t, ok, "id=%d", id)
+		assert.Equal(t, strconv.FormatUint(id, 10), s)
+
+		body, err := json.Marshal(
+			toLiffReservationResponse(&model.Reservation{ID: 1}, &LiffPetPair{PetID: id, PetName: "x"}),
+		)
+		require.NoError(t, err)
+		assert.Contains(t, string(body), `"pet_id":"`+strconv.FormatUint(id, 10)+`"`)
+	}
+	for _, id := range []uint64{0, 9223372036854775808} {
+		_, ok := liffPublicID(id)
+		assert.False(t, ok, "id=%d", id)
+		pid, pname := liffReservationPet(&LiffPetPair{PetID: id, PetName: "x"})
+		assert.Nil(t, pid, "id=%d", id)
+		assert.Nil(t, pname, "id=%d", id)
+	}
+}
+
+// EMR-519: 201 応答は id と notes の 2 キーのみ。stage1 では id は JSON number。
+func TestToLiffReservationCreatedResponseJSON(t *testing.T) {
+	body, err := json.Marshal(toLiffReservationCreatedResponse(&model.Reservation{
+		ID:    42,
+		Notes: "memo",
+	}))
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.Equal(t, map[string]any{"id": float64(42), "notes": "memo"}, payload)
 }
 
 // ---- toLiffHealthCardResponse ----

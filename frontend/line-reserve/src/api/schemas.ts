@@ -97,33 +97,77 @@ export const availableTimeSchema = z.object({
   display_time: z.string().optional(),
 });
 
+// EMR-519: 予約 ID・pet_id は正の int64 範囲の正規形十進文字列。Number へ変換すると
+// 2^53 超で precision を失うため、桁数 + 辞書順比較で上限を検査する
+// （同じ範囲の revisitIntakeDecimalId はこの schema より後で定義されるため、ここでは別定義）。
+const RESERVATION_ID_INT64_MAX = "9223372036854775807";
+export const reservationDecimalId = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .refine(
+    (v) =>
+      v.length < RESERVATION_ID_INT64_MAX.length ||
+      (v.length === RESERVATION_ID_INT64_MAX.length && v <= RESERVATION_ID_INT64_MAX),
+  );
+
+// EMR-519 stage1（producer switch 前の移行期）: BE は予約 id を JSON number で返す。
+// 正規形十進文字列（上の reservationDecimalId）か、0 より大きい safe integer 数値を受理し、
+// 数値は即 String(n) で string へ変換する（出力は常に string）。
+// unsafe number（例: 9007199254740993 で到着した値）・0・負数・非整数・NaN・
+// 符号付き/先頭ゼロ/指数・範囲外・null・欠落は拒否。reviver による復元や丸めの救出は行わない。
+// pet_id は文字列のみ（この union を使わない）。
+const reservationIdSchema = z.union([
+  reservationDecimalId,
+  z
+    .number()
+    .refine((n) => Number.isSafeInteger(n) && n > 0)
+    .transform((n) => String(n)),
+]);
+
 // status は backend の ReservationStatus enum (backend/internal/model/reservation.go) と1:1で一致させる。
 // staff_name は指名なし予約で Doctor が nil のため backend が省略する（omitempty 相当）。
 // notes は空文字時に backend が omitempty で省略するため未着信を許容する。
-export const reservationSchema = z.object({
-  id: z.number(),
-  course_name: z.string(),
-  pet_name: z.string().optional().default(""),
-  staff_name: z.string().optional().default(""),
-  date: z.string(),
-  start_time: z.string(),
-  end_time: z.string(),
-  status: z.enum([
-    "confirmed",
-    "pending",
-    "cancelled",
-    "checked_in",
-    "in_consultation",
-    "accounting",
-    "completed",
-    "no_show",
-  ]),
-  notes: z.string().optional().default(""),
-  created_at: z.string(),
-});
+// pet_id / pet_name は「両方 string・両方 null・両方省略（旧応答）」に加え、
+// 旧 producer の pet_name-only（pet_id キー欠落・pet_name が文字列）も受理して両方 null に
+// 正規化する（旧名は表示せず identity も推定しない）。parse 後は
+// pet_id: string | null / pet_name: string | null に正規化する。
+export const reservationSchema = z
+  .object({
+    id: reservationIdSchema,
+    pet_id: reservationDecimalId.nullable().optional(),
+    pet_name: z.string().nullable().optional(),
+    course_name: z.string(),
+    staff_name: z.string().optional().default(""),
+    date: z.string(),
+    start_time: z.string(),
+    end_time: z.string(),
+    status: z.enum([
+      "confirmed",
+      "pending",
+      "cancelled",
+      "checked_in",
+      "in_consultation",
+      "accounting",
+      "completed",
+      "no_show",
+    ]),
+    notes: z.string().optional().default(""),
+    created_at: z.string(),
+  })
+  .transform((r) =>
+    r.pet_id === undefined && typeof r.pet_name === "string"
+      ? { ...r, pet_id: null, pet_name: null }
+      : r,
+  )
+  .refine(
+    (r) =>
+      (r.pet_id === undefined) === (r.pet_name === undefined) &&
+      (r.pet_id === null) === (r.pet_name === null),
+  )
+  .transform((r) => ({ ...r, pet_id: r.pet_id ?? null, pet_name: r.pet_name ?? null }));
 
 export const createReservationResponseSchema = z.object({
-  id: z.number(),
+  id: reservationIdSchema,
   notes: z.string(),
 });
 

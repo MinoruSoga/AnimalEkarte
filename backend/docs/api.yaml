@@ -12302,10 +12302,23 @@ components:
           type: string
     LiffReservation:
       type: object
+      required:
+        - pet_id
+        - pet_name
       properties:
         id:
           type: integer
           format: int64
+          description: 予約 ID（stage1 では従来どおり JSON number。十進文字列化は後続 PR）
+        pet_id:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          nullable: true
+          description: 正の int64 範囲の十進文字列。pet_name と両方 non-null か両方 null。未解決・紐付け取り消し・別医院の場合は両方 null（取得失敗は一覧自体がエラー）
+        pet_name:
+          type: string
+          nullable: true
+          description: pet_id と両方 non-null か両方 null。未解決・紐付け取り消し・別医院の場合は両方 null
         date:
           type: string
         start_time:
@@ -12323,6 +12336,25 @@ components:
         created_at:
           type: string
           format: date-time
+      oneOf:
+        - description: 認可済みの実 pet が解決した場合（pet_id と pet_name は両方 non-null）
+          properties:
+            pet_id:
+              type: string
+            pet_name:
+              type: string
+        - description: 未解決・紐付け取り消し・別医院の場合（pet_id と pet_name は両方 null）
+          properties:
+            pet_id:
+              type: string
+              nullable: true
+              enum:
+                - null
+            pet_name:
+              type: string
+              nullable: true
+              enum:
+                - null
     LiffProfileOwnerPet:
       type: object
       properties:
@@ -31156,6 +31188,7 @@ paths:
                   id:
                     type: integer
                     format: int64
+                    description: 予約 ID（stage1 では従来どおり JSON number。十進文字列化は後続 PR）
                   notes:
                     type: string
         '400':
@@ -31213,8 +31246,9 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            pattern: '^[1-9][0-9]*$'
+            description: 正の int64 範囲の十進文字列
       responses:
         '204':
           description: キャンセル成功

@@ -46,6 +46,9 @@ const baseFlow: ReservationFlow = {
   trimmingOptionIds: [],
 };
 
+// 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
 const BASE_PROPS = {
   clinicId: "1",
   idToken: "test-id-token",
@@ -83,7 +86,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     const user = userEvent.setup();
     server.use(
       http.post("/api/liff/:clinicId/reservations", () =>
-        HttpResponse.json({ id: 42, notes: "R-20260801-0001" }),
+        HttpResponse.json({ id: "42", notes: "R-20260801-0001" }),
       ),
     );
     const onConfirm = vi.fn();
@@ -95,7 +98,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     await user.click(screen.getByRole("button", { name: "予約を確定する" }));
 
     await waitFor(() => {
-      expect(onConfirm).toHaveBeenCalledWith(42, "R-20260801-0001");
+      expect(onConfirm).toHaveBeenCalledWith("42", "R-20260801-0001");
     });
   });
 
@@ -107,7 +110,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
       http.post("/api/liff/:clinicId/reservations", async () => {
         reservationPostCount += 1;
         await responseGate.promise;
-        return HttpResponse.json({ id: 42, notes: "R-20260801-0001" });
+        return HttpResponse.json({ id: "42", notes: "R-20260801-0001" });
       }),
     );
     const onConfirm = vi.fn();
@@ -132,7 +135,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     });
 
     await waitFor(() => {
-      expect(onConfirm).toHaveBeenCalledWith(42, "R-20260801-0001");
+      expect(onConfirm).toHaveBeenCalledWith("42", "R-20260801-0001");
     });
   });
 
@@ -142,7 +145,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     const callOrder: string[] = [];
     server.use(
       http.post("/api/liff/:clinicId/reservations", () =>
-        HttpResponse.json({ id: 42, notes: "R-20260801-0001" }),
+        HttpResponse.json({ id: "42", notes: "R-20260801-0001" }),
       ),
     );
     sendMessagesMock.mockImplementation(async () => {
@@ -176,7 +179,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     });
 
     await waitFor(() => {
-      expect(onConfirm).toHaveBeenCalledWith(42, "R-20260801-0001");
+      expect(onConfirm).toHaveBeenCalledWith("42", "R-20260801-0001");
     });
     expect(callOrder).toEqual(["sendMessages:start", "sendMessages:complete", "onConfirm"]);
   });
@@ -265,4 +268,193 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("EMR-519: 201 応答が契約と違う場合は自動再送せず、予約一覧での確認を案内する", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => {
+        postCount += 1;
+        return HttpResponse.json(
+          { id: UNSAFE_RESERVATION_ID_NUMBER, notes: "R-20260801-0001" },
+          { status: 201 },
+        );
+      }),
+    );
+    const onConfirm = vi.fn();
+    const onMyReservations = vi.fn();
+
+    render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={onConfirm}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onMyReservations={onMyReservations}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    // 結果不明のまま確定ボタンは無効化され、再クリックしても2回目のPOSTは送らない
+    const confirmButton = screen.getByRole("button", { name: "予約を確定する" });
+    expect(confirmButton).toBeDisabled();
+    await user.click(confirmButton);
+    expect(postCount).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "予約確認・キャンセル" }));
+    expect(onMyReservations).toHaveBeenCalledTimes(1);
+  });
+
+  it("EMR-519: Back → 再入場しても結果不明のまま確定ボタンは無効（2回目のPOSTは送らない）", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => {
+        postCount += 1;
+        return HttpResponse.json(
+          { id: UNSAFE_RESERVATION_ID_NUMBER, notes: "R-1" },
+          { status: 201 },
+        );
+      }),
+    );
+    const onResultUnknown = vi.fn();
+    const onMyReservations = vi.fn();
+
+    const { unmount } = render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={vi.fn()}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onMyReservations={onMyReservations}
+        onResultUnknown={onResultUnknown}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
+    expect(onResultUnknown).toHaveBeenCalledTimes(1);
+
+    // Back → 再入場（flow 側の createResultUnknown=true を props として受け取った状態）
+    unmount();
+    render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={vi.fn()}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onMyReservations={onMyReservations}
+        onResultUnknown={onResultUnknown}
+        createResultUnknown
+      />,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
+    const confirmButton = screen.getByRole("button", { name: "予約を確定する" });
+    expect(confirmButton).toBeDisabled();
+    await user.click(confirmButton);
+    expect(postCount).toBe(1);
+  });
+
+  it("EMR-519: POST のネットワークエラー（応答喪失）も自動再送せず、予約一覧での確認を案内する", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => {
+        postCount += 1;
+        return HttpResponse.error();
+      }),
+    );
+    const onConfirm = vi.fn();
+    const onResultUnknown = vi.fn();
+    const onMyReservations = vi.fn();
+
+    render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={onConfirm}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onMyReservations={onMyReservations}
+        onResultUnknown={onResultUnknown}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onResultUnknown).toHaveBeenCalledTimes(1);
+
+    // 結果不明のまま確定ボタンは無効化され、再クリックしても2回目のPOSTは送らない
+    const confirmButton = screen.getByRole("button", { name: "予約を確定する" });
+    expect(confirmButton).toBeDisabled();
+    await user.click(confirmButton);
+    expect(postCount).toBe(1);
+
+    await user.click(screen.getByRole("button", { name: "予約確認・キャンセル" }));
+    expect(onMyReservations).toHaveBeenCalledTimes(1);
+  });
+
+  it("EMR-519: 409 以外の HTTP エラー（500）は結果不明にせず、再送信できる状態に戻す", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => HttpResponse.json(null, { status: 500 })),
+    );
+    const onConfirm = vi.fn();
+    const onResultUnknown = vi.fn();
+
+    render(
+      <ConfirmPage
+        {...BASE_PROPS}
+        onConfirm={onConfirm}
+        onSlotTaken={vi.fn()}
+        onBack={vi.fn()}
+        onResultUnknown={onResultUnknown}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約の確定に失敗しました");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onResultUnknown).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "予約を確定する" })).not.toBeDisabled();
+  });
+
+  it.each([
+    ["1", "1"],
+    [1, "1"],
+    [9007199254740991, "9007199254740991"],
+    ["9007199254740991", "9007199254740991"],
+    ["9007199254740992", "9007199254740992"],
+    ["9007199254740993", "9007199254740993"],
+    ["9223372036854775807", "9223372036854775807"],
+  ] as const)(
+    "EMR-519: 201 応答の id %s を文字列のまま onConfirm へ渡す",
+    async (input, expected) => {
+      const user = userEvent.setup();
+      server.use(
+        http.post("/api/liff/:clinicId/reservations", () =>
+          HttpResponse.json({ id: input, notes: "memo" }, { status: 201 }),
+        ),
+      );
+      const onConfirm = vi.fn();
+
+      render(
+        <ConfirmPage
+          {...BASE_PROPS}
+          onConfirm={onConfirm}
+          onSlotTaken={vi.fn()}
+          onBack={vi.fn()}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+      await vi.waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expected, "memo"));
+    },
+  );
 });

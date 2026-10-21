@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -267,12 +268,20 @@ func (h *LiffHandler) GetLiffMyReservations(c *gin.Context) {
 		return
 	}
 
-	items, err := h.svc.GetMyReservations(c.Request.Context(), clinicID, customerID)
+	result, err := h.svc.GetMyReservations(c.Request.Context(), clinicID, customerID)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	resp := httpapi.MapSlice(items, toLiffReservationResponse)
+	resp := make([]liffReservationResponse, 0, len(result.Items))
+	for i := range result.Items {
+		r := &result.Items[i]
+		var pair *LiffPetPair
+		if p, ok := result.PetPairs[r.ID]; ok {
+			pair = &p
+		}
+		resp = append(resp, toLiffReservationResponse(r, pair))
+	}
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -309,7 +318,7 @@ func (h *LiffHandler) CancelLiffReservation(c *gin.Context) {
 		return
 	}
 
-	reservationID, ok := httpapi.ParseIDParam(c, "id")
+	reservationID, ok := parseLiffReservationIDParam(c)
 	if !ok {
 		return
 	}
@@ -319,6 +328,38 @@ func (h *LiffHandler) CancelLiffReservation(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// liffReservationIDMaxDecimal は予約 ID の公開契約上限（int64 最大値）の十進文字列。
+const liffReservationIDMaxDecimal = "9223372036854775807"
+
+// parseLiffReservationIDParam は cancel の :id を公開契約（1〜int64 最大値の正規形
+// 十進文字列）で検証する。共有の httpapi.ParseIDParam は "01" や int64 超の値も
+// 受理するため、このハンドラ専用に正規形と範囲を確認する。
+func parseLiffReservationIDParam(c *gin.Context) (uint64, bool) {
+	s := c.Param("id")
+	if s == "" {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("パラメータが不足しています: id"))
+		return 0, false
+	}
+	canonical := s[0] >= '1' && s[0] <= '9'
+	for i := 1; i < len(s) && canonical; i++ {
+		canonical = s[i] >= '0' && s[i] <= '9'
+	}
+	if canonical {
+		canonical = len(s) < len(liffReservationIDMaxDecimal) ||
+			(len(s) == len(liffReservationIDMaxDecimal) && s <= liffReservationIDMaxDecimal)
+	}
+	if !canonical {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: id"))
+		return 0, false
+	}
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil || id == 0 {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: id"))
+		return 0, false
+	}
+	return id, true
 }
 
 // extractLiffCustomerID は middleware.ExtractLiffCustomerID の複製

@@ -15,8 +15,13 @@ const BASE_PROPS = {
   idToken: "test-id-token",
 };
 
+// 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
 const confirmedReservation: Reservation = {
-  id: 1,
+  id: "1",
+  pet_id: null,
+  pet_name: null,
   course_name: "一般診察",
   staff_name: "山田先生",
   date: "2026-08-01",
@@ -171,7 +176,7 @@ describe("MyReservationsPage（R-F25: ネイティブダイアログ→インラ
 describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
   const cancelledReservation: Reservation = {
     ...confirmedReservation,
-    id: 2,
+    id: "2",
     status: "cancelled",
     notes: "R-20260802-0002",
   };
@@ -195,7 +200,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
 
     await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
     expect(onOpenRevisitIntake).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 1, status: "confirmed" }),
+      expect.objectContaining({ id: "1", status: "confirmed" }),
     );
   });
 
@@ -204,7 +209,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     const onOpenRevisitIntake = vi.fn();
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.json([{ ...confirmedReservation, id: 3, status: "pending" }]),
+        HttpResponse.json([{ ...confirmedReservation, id: "3", status: "pending" }]),
       ),
     );
 
@@ -218,7 +223,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
 
     await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
     expect(onOpenRevisitIntake).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 3, status: "pending" }),
+      expect.objectContaining({ id: "3", status: "pending" }),
     );
   });
 
@@ -229,7 +234,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
       const onOpenRevisitIntake = vi.fn();
       server.use(
         http.get("/api/liff/:clinicId/my-reservations", () =>
-          HttpResponse.json([{ ...confirmedReservation, id: 4, status }]),
+          HttpResponse.json([{ ...confirmedReservation, id: "4", status }]),
         ),
       );
 
@@ -242,7 +247,9 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
       );
 
       await user.click(await screen.findByRole("button", { name: "回答を見る" }));
-      expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 4, status }));
+      expect(onOpenRevisitIntake).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "4", status }),
+      );
     },
   );
 
@@ -251,7 +258,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     const onOpenRevisitIntake = vi.fn();
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.json([{ ...confirmedReservation, id: 5, status: "no_show" }]),
+        HttpResponse.json([{ ...confirmedReservation, id: "5", status: "no_show" }]),
       ),
     );
 
@@ -264,27 +271,19 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     );
 
     await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
-    expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }));
+    expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: "5" }));
   });
 
-  it("安全整数でない予約 ID では導線を出さず、「現在開けません」を表示し問診 API を呼ばない", async () => {
-    let revisitCalls = 0;
+  it("int64 範囲内の大きな十進文字列 ID は丸めず問診導線を出す（9007199254740992/993 は衝突しない）", async () => {
+    const user = userEvent.setup();
     const onOpenRevisitIntake = vi.fn();
     server.use(
-      // JSON 上の巨大 ID は parse で number に丸められる（BE が文字列化するまでの暫定ガード）。
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.text(
-          JSON.stringify([{ ...confirmedReservation, id: 0 }]).replace(
-            '"id":0',
-            '"id":9007199254740993',
-          ),
-          { headers: { "Content-Type": "application/json" } },
-        ),
+        HttpResponse.json([
+          { ...confirmedReservation, id: "9007199254740992" },
+          { ...confirmedReservation, id: "9007199254740993" },
+        ]),
       ),
-      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", () => {
-        revisitCalls += 1;
-        return HttpResponse.json({});
-      }),
     );
 
     render(
@@ -295,9 +294,36 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
       />,
     );
 
-    expect(await screen.findByText("この予約の問診は現在開けません。")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /問診|回答を見る/ })).not.toBeInTheDocument();
-    expect(onOpenRevisitIntake).not.toHaveBeenCalled();
+    const buttons = await screen.findAllByRole("button", { name: "問診を回答する／訂正する" });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[0]);
+    await user.click(buttons[1]);
+    expect(onOpenRevisitIntake).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: "9007199254740992" }),
+    );
+    expect(onOpenRevisitIntake).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ id: "9007199254740993" }),
+    );
+  });
+
+  it("一覧応答の id が十進文字列でない（数値・非正規形）は読込エラーとして再試行導線を出す", async () => {
+    let revisitCalls = 0;
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([{ ...confirmedReservation, id: UNSAFE_RESERVATION_ID_NUMBER }]),
+      ),
+      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", () => {
+        revisitCalls += 1;
+        return HttpResponse.json({});
+      }),
+    );
+
+    render(<MyReservationsPage {...BASE_PROPS} onBack={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
     expect(revisitCalls).toBe(0);
   });
 
@@ -338,7 +364,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
 describe("MyReservationsPage 取消後の送信結果照会", () => {
   const cancelledReservation: Reservation = {
     ...confirmedReservation,
-    id: 2,
+    id: "2",
     status: "cancelled",
     notes: "R-20260802-0002",
   };
@@ -348,7 +374,7 @@ describe("MyReservationsPage 取消後の送信結果照会", () => {
     clear: vi.fn(),
     hasDraft: vi.fn(() => false),
     findPending: vi.fn((clinicId: string, appointmentId: string) =>
-      has && clinicId === "1" && appointmentId === String(cancelledReservation.id)
+      has && clinicId === "1" && appointmentId === cancelledReservation.id
         ? ({ targetKey: "k", pending: {} } as never)
         : undefined,
     ),
@@ -395,5 +421,93 @@ describe("MyReservationsPage 取消後の送信結果照会", () => {
 
     expect(await screen.findByText("キャンセル済")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "送信結果を確認する" })).not.toBeInTheDocument();
+  });
+
+  it("EMR-519: 隣接する大きな ID の取消はその ID 文字列のまま DELETE し、他カードに影響しない", async () => {
+    const user = userEvent.setup();
+    const deletedIds: string[] = [];
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([
+          { ...confirmedReservation, id: "9007199254740992" },
+          { ...confirmedReservation, id: "9007199254740993" },
+        ]),
+      ),
+      http.delete("/api/liff/:clinicId/my-reservations/:id", ({ params }) => {
+        deletedIds.push(String(params.id));
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={vi.fn()}
+        draftStore={pendingStore(false)}
+      />,
+    );
+
+    const cancelButtons = await screen.findAllByRole("button", { name: "キャンセルする" });
+    await user.click(cancelButtons[0]);
+    await user.click(screen.getByRole("button", { name: "はい、キャンセルする" }));
+
+    const cancelledBadges = await screen.findAllByText("キャンセル済");
+    expect(cancelledBadges).toHaveLength(1);
+    expect(deletedIds).toEqual(["9007199254740992"]);
+    expect(screen.getByRole("button", { name: "キャンセルする" })).toBeInTheDocument();
+  });
+
+  it.each(["1", "9007199254740991", "9007199254740992", "9007199254740993", "9223372036854775807"])(
+    "EMR-519: 境界 ID %s の取消は同一文字列の DELETE を送る",
+    async (id) => {
+      const user = userEvent.setup();
+      const deletedIds: string[] = [];
+      server.use(
+        http.get("/api/liff/:clinicId/my-reservations", () =>
+          HttpResponse.json([{ ...confirmedReservation, id }]),
+        ),
+        http.delete("/api/liff/:clinicId/my-reservations/:id", ({ params }) => {
+          deletedIds.push(String(params.id));
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+
+      render(
+        <MyReservationsPage
+          {...BASE_PROPS}
+          onBack={vi.fn()}
+          onOpenRevisitIntake={vi.fn()}
+          draftStore={pendingStore(false)}
+        />,
+      );
+
+      await user.click(await screen.findByRole("button", { name: "キャンセルする" }));
+      await user.click(screen.getByRole("button", { name: "はい、キャンセルする" }));
+
+      expect(await screen.findByText("キャンセル済")).toBeInTheDocument();
+      expect(deletedIds).toEqual([id]);
+    },
+  );
+
+  it("EMR-519: 取消済み予約の送信結果確認は同一 ID 文字列で revisit 導線を開く", async () => {
+    const user = userEvent.setup();
+    const cancelled = { ...confirmedReservation, id: "9007199254740992", status: "cancelled" };
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () => HttpResponse.json([cancelled])),
+    );
+    const onOpen = vi.fn();
+
+    render(
+      <MyReservationsPage
+        {...BASE_PROPS}
+        onBack={vi.fn()}
+        onOpenRevisitIntake={onOpen}
+        draftStore={pendingStore(true)}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認する" }));
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: "9007199254740992" }));
   });
 });

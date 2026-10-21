@@ -6,20 +6,31 @@ import {
 } from "./revisit-intake-appointment-id";
 
 describe("revisit-intake appointment id guard", () => {
-  it("正の安全整数だけを decimal string にする", () => {
-    expect(toRevisitIntakeAppointmentId(12001)).toBe("12001");
-    expect(toRevisitIntakeAppointmentId(Number.MAX_SAFE_INTEGER)).toBe("9007199254740991");
+  it.each(["1", "9007199254740991", "9007199254740992", "9007199254740993", "9223372036854775807"])(
+    "正規形の十進文字列 %s はそのまま使える（Number 変換しない）",
+    (id) => {
+      expect(isRevisitIntakeAppointmentIdUsable(id)).toBe(true);
+      expect(toRevisitIntakeAppointmentId(id)).toBe(id);
+    },
+  );
+
+  it("2^53 境界の隣接 ID は衝突しない", () => {
+    expect(toRevisitIntakeAppointmentId("9007199254740992")).toBe("9007199254740992");
+    expect(toRevisitIntakeAppointmentId("9007199254740993")).toBe("9007199254740993");
   });
 
-  it.each([
-    ["MAX_SAFE_INTEGER 超", Number.MAX_SAFE_INTEGER + 1],
-    ["丸められた巨大値", 9223372036854775807],
-    ["0", 0],
-    ["負数", -1],
-    ["小数", 1.5],
-    ["NaN", Number.NaN],
-    ["Infinity", Number.POSITIVE_INFINITY],
-  ])("%s は使えず null", (_label, id) => {
+  it.each<[string, string | null]>([
+    ["0", "0"],
+    ["先頭ゼロ", "01"],
+    ["負数", "-1"],
+    ["符号", "+1"],
+    ["小数", "1.0"],
+    ["指数", "1e3"],
+    ["空白", " 1"],
+    ["空文字", ""],
+    ["null", null],
+    ["int64 超", "9223372036854775808"],
+  ])("%s（%s）は使えず null", (_label, id) => {
     expect(isRevisitIntakeAppointmentIdUsable(id)).toBe(false);
     expect(toRevisitIntakeAppointmentId(id)).toBeNull();
   });

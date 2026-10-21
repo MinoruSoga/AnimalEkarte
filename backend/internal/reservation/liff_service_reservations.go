@@ -91,12 +91,22 @@ func (s *liffService) tryAutoDelegateStaff(
 }
 
 // GetMyReservations は顧客自身の予約一覧を返す。
-func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {
+// EMR-520: 一覧の pet ペアは認可パスを1クエリで解決する。取得失敗は一覧全体のエラー
+// とする（静かに null へ落とさない）。未解決の予約は PetPairs に載らず両方 null。
+func (s *liffService) GetMyReservations(ctx context.Context, clinicID, customerID uint64) (*LiffMyReservationsResult, error) {
 	items, err := s.adminRepo.FindAllByCustomerID(ctx, clinicID, customerID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get my reservations")
 	}
-	return items, nil
+	ids := make([]uint64, 0, len(items))
+	for i := range items {
+		ids = append(ids, items[i].ID)
+	}
+	pairs, err := s.adminRepo.FindLiffPetPairs(ctx, clinicID, customerID, ids)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get my reservation pet pairs")
+	}
+	return &LiffMyReservationsResult{Items: items, PetPairs: pairs}, nil
 }
 
 // CancelReservation は予約をキャンセルする。

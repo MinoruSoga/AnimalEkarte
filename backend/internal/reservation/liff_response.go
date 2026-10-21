@@ -3,7 +3,6 @@ package reservation
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -124,13 +123,17 @@ type liffTimeSlotResponse struct {
 }
 
 // liffReservationResponse は予約レスポンス。
+// EMR-519 stage1: ID は当面 JSON number（既存挙動。文字列への切替は後続 PR）。
+// pet_id / pet_name は常にキーを出し、両方 nonnull か両方 null（値の決定は
+// liffReservationPet に集約。pet_id は canonical 十進文字列のみ）。
 type liffReservationResponse struct {
 	ID         uint64    `json:"id"`
 	Date       string    `json:"date"`
 	StartTime  string    `json:"start_time"` // "HH:MM"
 	EndTime    string    `json:"end_time"`   // "HH:MM"
 	CourseName string    `json:"course_name"`
-	PetName    string    `json:"pet_name,omitempty"`
+	PetID      *string   `json:"pet_id"`
+	PetName    *string   `json:"pet_name"`
 	StaffName  string    `json:"staff_name,omitempty"`
 	Status     string    `json:"status"`
 	Notes      string    `json:"notes,omitempty"`
@@ -191,12 +194,27 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 	return resp
 }
 
-func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
+// liffPublicIDMaxUint64 は公開 ID として認められる signed int64 の上限。
+const liffPublicIDMaxUint64 = uint64(9223372036854775807)
+
+// liffPublicID は公開契約（1 〜 int64 最大値）の十進文字列を返す。
+// 0 または int64 上限超過は公開 ID として成立しないため false を返す（fail-closed）。
+func liffPublicID(id uint64) (string, bool) {
+	if id == 0 || id > liffPublicIDMaxUint64 {
+		return "", false
+	}
+	return strconv.FormatUint(id, 10), true
+}
+
+func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) liffReservationResponse {
+	petID, petName := liffReservationPet(pair)
 	res := liffReservationResponse{
 		ID:        r.ID,
 		Date:      r.StartTime.In(time.Local).Format(time.DateOnly),
 		StartTime: r.StartTime.In(time.Local).Format("15:04"),
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
+		PetID:     petID,
+		PetName:   petName,
 		Status:    string(r.Status),
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt.In(time.Local),
@@ -204,7 +222,6 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	if r.ReservationType != nil {
 		res.CourseName = liffCourseName(r.ReservationType)
 	}
-	res.PetName = firstCustomerFieldPetName(r.CustomerFields)
 	if r.Doctor != nil {
 		res.StaffName = r.Doctor.ReservationDisplayName
 		if res.StaffName == "" {
@@ -224,28 +241,25 @@ func liffCourseName(rt *model.ReservationType) string {
 	return rt.Name
 }
 
-func firstCustomerFieldPetName(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
+// liffReservationPet は一覧応答の pet_id / pet_name を返す。
+// 「両方 nonnull か両方 null」の不変条件はこの関数の戻り値だけで保証し、
+// 片方だけ値がある形は返さない。pair が無い（未紐付・紐付け取り消し・別医院・
+// 削除済み等で未解決）場合は両方 nil。既存メモや先頭ペット名からは補完しない。
+func liffReservationPet(pair *LiffPetPair) (petID *string, petName *string) {
+	if pair == nil {
+		return nil, nil
 	}
-	var fields struct {
-		Pets []struct {
-			Name string `json:"name"`
-		} `json:"pets"`
+	id, ok := liffPublicID(pair.PetID)
+	if !ok {
+		return nil, nil
 	}
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return ""
-	}
-	for _, pet := range fields.Pets {
-		if name := strings.TrimSpace(pet.Name); name != "" {
-			return name
-		}
-	}
-	return ""
+	name := pair.PetName
+	return &id, &name
 }
 
 // liffReservationCreatedResponse はLIFF予約作成（201）専用レスポンス。
 // 一覧用の liffReservationResponse とは別型（id/notes の2フィールドのみ露出）。
+// EMR-519 stage1: id は当面 JSON number（既存挙動。文字列への切替は後続 PR）。
 type liffReservationCreatedResponse struct {
 	ID    uint64 `json:"id"`
 	Notes string `json:"notes"`
