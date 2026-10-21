@@ -6,6 +6,7 @@ import { BADGE, C, ICON } from "@/lib/design-tokens";
 import type { CertificateApi } from "../api/certificate-api";
 import type { CertificateContext, CertificateKind, CertificateLayout } from "../api/certificate-schemas";
 import { useCertificateIssue } from "../hooks/use-certificate-issue";
+import { useCertificateRecovery } from "../hooks/use-certificate-recovery";
 import { isEditable } from "../lib/certificate-issue-reducer";
 import { KIND_LABEL, LAYOUT_LABEL, layoutsForKind, selectableKinds } from "../lib/certificate-inputs";
 import { VALIDITY_LABEL } from "../lib/certificate-messages";
@@ -13,6 +14,7 @@ import { CertificateArtifactPrint } from "./CertificateArtifactPrint";
 import { CertificateInputsForm } from "./CertificateInputsForm";
 import { CertificateNotice } from "./CertificateNotice";
 import { CertificatePdfFrame } from "./CertificatePdfFrame";
+import { CertificateRecoveryPanel } from "./CertificateRecoveryPanel";
 
 interface CertificateIssuePanelProps {
   api: CertificateApi;
@@ -37,7 +39,21 @@ export function CertificateIssuePanel({
   onRefetchContext,
   refetchCanIssue,
 }: CertificateIssuePanelProps) {
-  const flow = useCertificateIssue({ api, vaccinationId, context, getCanEdit, onRefetchContext, refetchCanIssue });
+  // 再 mount / reload 後に、本人の未確定の発行を発見する（保留のみ。空・complete でも新 key の許可にはしない）。
+  const recovery = useCertificateRecovery({
+    api,
+    target: { intent: "issue", vaccinationId },
+    enabled: context.can_issue,
+  });
+  const flow = useCertificateIssue({
+    api,
+    vaccinationId,
+    context,
+    getCanEdit,
+    onRefetchContext,
+    refetchCanIssue,
+    ensureRecoveryClear: recovery.ensureClear,
+  });
   const { state, fieldErrors } = flow;
   const kinds = selectableKinds(context);
   const editable = isEditable(state.phase);
@@ -85,6 +101,13 @@ export function CertificateIssuePanel({
       <h2 id="cert-issue-heading" className="text-lg font-semibold">
         証明書を発行する
       </h2>
+
+      <CertificateRecoveryPanel
+        api={api}
+        intent="issue"
+        recovery={recovery}
+        ownPendingKey={state.pending?.key ?? null}
+      />
 
       <div role="group" aria-labelledby="cert-kind-label" className="space-y-2">
         <p id="cert-kind-label" className={`text-sm font-medium ${C.text}`}>
@@ -205,7 +228,11 @@ export function CertificateIssuePanel({
           </p>
           <CertificatePdfFrame base64={state.preview.pdf_base64} title="証明書の確認プレビュー" />
           {state.phase === "previewed" || state.phase === "issuing" ? (
-            <Button type="button" onClick={() => void flow.issue()} disabled={busy || state.phase !== "previewed"}>
+            <Button
+              type="button"
+              onClick={() => void flow.issue()}
+              disabled={busy || state.phase !== "previewed" || !recovery.canStart}
+            >
               {state.phase === "issuing" ? "発行中…" : "この内容で発行する"}
             </Button>
           ) : null}

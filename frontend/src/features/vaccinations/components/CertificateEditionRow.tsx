@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/format/number";
 import type { CertificateApi } from "../api/certificate-api";
 import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateEdition, CertificateLayout, CertificateSavedPreview } from "../api/certificate-schemas";
+import { useCertificateRecovery } from "../hooks/use-certificate-recovery";
 import { isReprintUnresolved, useCertificateReprint } from "../hooks/use-certificate-reprint";
 import type { ReprintStore } from "../lib/certificate-reprint-store";
 import { LAYOUT_LABEL } from "../lib/certificate-inputs";
@@ -15,6 +16,7 @@ import { VALIDITY_LABEL } from "../lib/certificate-messages";
 import { CertificateArtifactPrint } from "./CertificateArtifactPrint";
 import { CertificateNotice } from "./CertificateNotice";
 import { CertificatePdfFrame } from "./CertificatePdfFrame";
+import { CertificateRecoveryPanel } from "./CertificateRecoveryPanel";
 
 interface CertificateEditionRowProps {
   api: CertificateApi;
@@ -44,6 +46,12 @@ export function CertificateEditionRow({
   const [saved, setSaved] = useState<CertificateSavedPreview | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
   const [savedBusy, setSavedBusy] = useState(false);
+  // 再 mount / reload 後に、この版の未確定の再印刷を発見する（現在有効な版・再印刷できる権限のときだけ）。
+  const recovery = useCertificateRecovery({
+    api,
+    target: { intent: "reprint", vaccinationId: edition.vaccination_id, editionId: edition.id },
+    enabled: isCurrent && canReprint,
+  });
   const reprint = useCertificateReprint({
     api,
     edition,
@@ -51,6 +59,7 @@ export function CertificateEditionRow({
     onRefetch,
     getCanEdit,
     store: reprintStore,
+    ensureRecoveryClear: recovery.ensureClear,
   });
   const shownLayout = reprint.activeLayout ?? layout;
   // 再印刷の結果が未確定の間は、同じ key の照会・再試行だけを許す（別操作・向き変更を止める）。
@@ -140,12 +149,19 @@ export function CertificateEditionRow({
             </Button>
             <Button
               type="button"
-              disabled={reprintLocked || !canReprint}
+              disabled={reprintLocked || !canReprint || !recovery.canStart}
               onClick={() => void reprint.start(shownLayout)}
             >
               再印刷の準備
             </Button>
           </div>
+
+          <CertificateRecoveryPanel
+            api={api}
+            intent="reprint"
+            recovery={recovery}
+            ownPendingKey={reprintStore.get(edition.id).pending?.request.operation_key ?? null}
+          />
 
           {savedError ? (
             <p role="alert" className={`text-sm ${C.danger}`}>
