@@ -639,8 +639,13 @@ func (c runtimeComposition) registerExistingDomainRoutes(
 		support.NewManualSearchDeps(
 			c.config.SupportHybridSearchEnabled,
 			manualarticle.NewCorpusSource(manualarticle.NewManualArticleService(manualarticle.New(c.db))),
+			// 公開 READ は認証済みスタッフ全員（編集権限と分離）:
+			// FR-internal-manual-publication /
+			// docs/design/domains/internal-manual/technical-spec.md:31。
+			// svc.FindAll は published_version_id の版のみ返し hidden/未公開を
+			// 含まないため未公開内容の開示はない。
 			func(ginC *gin.Context) (bool, error) {
-				return c.auth.Handler.CheckPermission(ginC, "manual-edit", "view")
+				return true, nil
 			},
 			newSupportEmbedder(c.config),
 			support.NewManualEmbeddingCache(c.db, c.config.SupportEmbeddingModel),
