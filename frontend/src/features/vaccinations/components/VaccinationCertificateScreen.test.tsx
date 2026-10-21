@@ -359,8 +359,10 @@ describe("再印刷の安全側の挙動", () => {
   });
 
   it("context の can_issue が false なら再印刷の導線を無効にする", async () => {
-    const { api } = createMockCertificateApi({ rabiesEligible: false, canIssue: false });
+    // seed は発行を伴うため、発行可能な状態で版を作ってから can_issue を落とす。
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
     await seedNormalEdition(api);
+    controls.setCanIssue(false);
     renderScreen(api);
     const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
     expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
