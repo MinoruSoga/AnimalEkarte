@@ -12,6 +12,9 @@ const BASE_PROPS = {
   idToken: "test-id-token",
 };
 
+// 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
 const confirmedReservation: Reservation = {
   id: "1",
   pet_id: null,
@@ -306,7 +309,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     let revisitCalls = 0;
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.json([{ ...confirmedReservation, id: 9007199254740993 }]),
+        HttpResponse.json([{ ...confirmedReservation, id: UNSAFE_RESERVATION_ID_NUMBER }]),
       ),
       http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", () => {
         revisitCalls += 1;

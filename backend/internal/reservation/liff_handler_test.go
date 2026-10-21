@@ -582,7 +582,7 @@ func TestCreateLiffReservation(t *testing.T) {
 
 		var body map[string]any
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-		assert.Equal(t, map[string]any{"id": "42", "notes": ""}, body)
+		assert.Equal(t, map[string]any{"id": float64(42), "notes": ""}, body)
 	})
 
 	t.Run("customerID が context にない → 401", func(t *testing.T) {
@@ -684,8 +684,8 @@ func TestGetLiffMyReservations(t *testing.T) {
 		var resp []map[string]any
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 		require.Len(t, resp, 1)
-		// EMR-519: id は十進文字列、pet_id / pet_name はキーが存在し両方 null
-		assert.Equal(t, "10", resp[0]["id"])
+		// EMR-519 stage1: id は当面 JSON number。pet_id / pet_name はキーが存在し両方 null
+		assert.Equal(t, float64(10), resp[0]["id"])
 		petID, hasPetID := resp[0]["pet_id"]
 		assert.True(t, hasPetID, "pet_id key must be present")
 		assert.Nil(t, petID)

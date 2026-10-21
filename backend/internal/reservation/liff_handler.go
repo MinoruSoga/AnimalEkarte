@@ -219,14 +219,8 @@ func (h *LiffHandler) CreateLiffReservation(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	// EMR-519: 0 / int64 超過の ID は公開契約を満たせない。不正な 201 body は返さない。
-	created, ok := toLiffReservationCreatedResponse(appt)
-	if !ok {
-		respondError(c, apperrors.WrapInternalServerError("invalid reservation id"))
-		return
-	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", appt.ID))
-	c.JSON(http.StatusCreated, created)
+	c.JSON(http.StatusCreated, toLiffReservationCreatedResponse(appt))
 }
 
 // GetLiffTrimmingCourses はLIFF向けトリミングコース一覧を返す。
@@ -286,13 +280,7 @@ func (h *LiffHandler) GetLiffMyReservations(c *gin.Context) {
 		if p, ok := result.PetPairs[r.ID]; ok {
 			pair = &p
 		}
-		// EMR-519: 0 / int64 超過の ID は公開契約を満たせない。行だけ落とさず一覧全体を失敗させる。
-		item, ok := toLiffReservationResponse(r, pair)
-		if !ok {
-			respondError(c, apperrors.WrapInternalServerError("invalid reservation id"))
-			return
-		}
-		resp = append(resp, item)
+		resp = append(resp, toLiffReservationResponse(r, pair))
 	}
 	c.JSON(http.StatusOK, resp)
 }

@@ -123,8 +123,8 @@ flowchart LR
 | GET | `/api/liff/:clinicId/my-reservations` | 自分の予約一覧（30回/分レートリミット） |
 | DELETE | `/api/liff/:clinicId/my-reservations/:id` | 予約キャンセル（204） |
 
-- 予約 ID（一覧・作成 201 応答・`:id` パスパラメータ）は正の int64 範囲の十進文字列（`^[1-9][0-9]*$`）。JSON number では返らず、FE も `Number` へ変換しない。
-- 一覧の `pet_id` / `pet_name` は新 server では両方のキーを返し、両方 non-null か両方 null。旧応答の両方省略だけを互換として受理する。メモや先頭ペット名からの補完は行わない。未解決・紐付け取り消し・別医院の場合は両方 null。pet 情報の取得失敗は一覧自体のエラーとする（静かに null にしない）。
+- 予約 ID（一覧・作成 201 応答）は本 PR（stage1・EMR-519 answer A）では従来どおり JSON number。FE は number（`Number.isSafeInteger` かつ > 0）と正規形十進文字列の両方を受理し、数値は即 string へ正規化する（unsafe number・0・非正規形は拒否）。BE の文字列化は後続 PR。DELETE `:id` は正規形十進文字列（`^[1-9][0-9]*$`・int64 範囲）のみ受理する LIFF 側チェックを維持。
+- 一覧の `pet_id` / `pet_name` は新 server では両方のキーを返し、両方 non-null か両方 null（`pet_id` は canonical 十進文字列のみ）。旧応答の両方省略と `pet_name` のみ来る旧形式は両方 null に正規化し、旧名は表示しない（メモや先頭ペット名からの補完・identity 推定は行わない）。未解決・紐付け取り消し・別医院の場合は両方 null。pet 情報の取得失敗は一覧自体のエラーとする（静かに null にしない）。
 
 ---
 

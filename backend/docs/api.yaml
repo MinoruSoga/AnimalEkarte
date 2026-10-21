@@ -11883,9 +11883,9 @@ components:
         - pet_name
       properties:
         id:
-          type: string
-          pattern: '^[1-9][0-9]*$'
-          description: 正の int64 範囲の十進文字列
+          type: integer
+          format: int64
+          description: 予約 ID（stage1 では従来どおり JSON number。十進文字列化は後続 PR）
         pet_id:
           type: string
           pattern: '^[1-9][0-9]*$'
@@ -30480,9 +30480,9 @@ paths:
                 type: object
                 properties:
                   id:
-                    type: string
-                    pattern: '^[1-9][0-9]*$'
-                    description: 正の int64 範囲の十進文字列
+                    type: integer
+                    format: int64
+                    description: 予約 ID（stage1 では従来どおり JSON number。十進文字列化は後続 PR）
                   notes:
                     type: string
         '400':

@@ -46,6 +46,9 @@ const baseFlow: ReservationFlow = {
   trimmingOptionIds: [],
 };
 
+// 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
 const BASE_PROPS = {
   clinicId: "1",
   idToken: "test-id-token",
@@ -272,7 +275,10 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     server.use(
       http.post("/api/liff/:clinicId/reservations", () => {
         postCount += 1;
-        return HttpResponse.json({ id: 42, notes: "R-20260801-0001" }, { status: 201 });
+        return HttpResponse.json(
+          { id: UNSAFE_RESERVATION_ID_NUMBER, notes: "R-20260801-0001" },
+          { status: 201 },
+        );
       }),
     );
     const onConfirm = vi.fn();
@@ -309,7 +315,10 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     server.use(
       http.post("/api/liff/:clinicId/reservations", () => {
         postCount += 1;
-        return HttpResponse.json({ id: 42, notes: "R-1" }, { status: 201 });
+        return HttpResponse.json(
+          { id: UNSAFE_RESERVATION_ID_NUMBER, notes: "R-1" },
+          { status: 201 },
+        );
       }),
     );
     const onResultUnknown = vi.fn();
@@ -350,13 +359,21 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     expect(postCount).toBe(1);
   });
 
-  it.each(["1", "9007199254740991", "9007199254740992", "9007199254740993", "9223372036854775807"])(
+  it.each([
+    ["1", "1"],
+    [1, "1"],
+    [9007199254740991, "9007199254740991"],
+    ["9007199254740991", "9007199254740991"],
+    ["9007199254740992", "9007199254740992"],
+    ["9007199254740993", "9007199254740993"],
+    ["9223372036854775807", "9223372036854775807"],
+  ] as const)(
     "EMR-519: 201 応答の id %s を文字列のまま onConfirm へ渡す",
-    async (id) => {
+    async (input, expected) => {
       const user = userEvent.setup();
       server.use(
         http.post("/api/liff/:clinicId/reservations", () =>
-          HttpResponse.json({ id, notes: "memo" }, { status: 201 }),
+          HttpResponse.json({ id: input, notes: "memo" }, { status: 201 }),
         ),
       );
       const onConfirm = vi.fn();
@@ -371,7 +388,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
       );
 
       await user.click(screen.getByRole("button", { name: "予約を確定する" }));
-      await vi.waitFor(() => expect(onConfirm).toHaveBeenCalledWith(id, "memo"));
+      await vi.waitFor(() => expect(onConfirm).toHaveBeenCalledWith(expected, "memo"));
     },
   );
 });

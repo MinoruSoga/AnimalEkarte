@@ -117,6 +117,9 @@ describe("liffApi（FE-RC-079: clinicId は URL パスセグメントとして e
 });
 
 describe("liffApi（EMR-519: 予約 ID は正の int64 十進文字列）", () => {
+  // 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+  const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
   const reservationFixture = (overrides: Record<string, unknown>) => ({
     id: "1",
     pet_id: null,
@@ -173,16 +176,26 @@ describe("liffApi（EMR-519: 予約 ID は正の int64 十進文字列）", () =
     await expect(liffApi.getMyReservations("1", "test-id-token")).rejects.toThrow();
   });
 
-  it("一覧の数値 ID（旧 wire 形式）は新契約として受理しない", async () => {
+  it("一覧の safe 数値 ID（旧 wire 形式・stage1）は受理し文字列へ正規化する", async () => {
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
         HttpResponse.json([reservationFixture({ id: 42 })]),
       ),
     );
+    const list = await liffApi.getMyReservations("1", "test-id-token");
+    expect(list[0].id).toBe("42");
+  });
+
+  it("一覧の unsafe 数値 ID（2^53 超・stage1）は reject する", async () => {
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([reservationFixture({ id: UNSAFE_RESERVATION_ID_NUMBER })]),
+      ),
+    );
     await expect(liffApi.getMyReservations("1", "test-id-token")).rejects.toThrow();
   });
 
-  it("201 応答の id は十進文字列を受理し、数値形式は reject する", async () => {
+  it("201 応答の id は十進文字列と safe 数値を受理し、unsafe 数値は reject する", async () => {
     server.use(
       http.post("/api/liff/:clinicId/reservations", () =>
         HttpResponse.json({ id: "42", notes: "R-1" }, { status: 201 }),
@@ -191,9 +204,18 @@ describe("liffApi（EMR-519: 予約 ID は正の int64 十進文字列）", () =
     const created = await liffApi.createReservation("1", createBody, "test-id-token");
     expect(created.id).toBe("42");
 
+    // 移行期の旧 wire 形式（JSON number）も受理し文字列へ正規化する
     server.use(
       http.post("/api/liff/:clinicId/reservations", () =>
         HttpResponse.json({ id: 42, notes: "R-1" }, { status: 201 }),
+      ),
+    );
+    const createdNumber = await liffApi.createReservation("1", createBody, "test-id-token");
+    expect(createdNumber.id).toBe("42");
+
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () =>
+        HttpResponse.json({ id: UNSAFE_RESERVATION_ID_NUMBER, notes: "R-1" }, { status: 201 }),
       ),
     );
     await expect(liffApi.createReservation("1", createBody, "test-id-token")).rejects.toThrow();

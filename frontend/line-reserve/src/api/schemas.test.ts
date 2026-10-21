@@ -315,6 +315,9 @@ describe("revisit intake schemas（EMR-474）", () => {
     }
   });
 
+  // 2^53: 正確に表現できるが Number.isSafeInteger では false（unsafe 数値の代表）
+  const UNSAFE_RESERVATION_ID_NUMBER = Number.MAX_SAFE_INTEGER + 1;
+
   const validReservationFixture = {
     id: "1",
     pet_id: null,
@@ -335,10 +338,45 @@ describe("revisit intake schemas（EMR-474）", () => {
     expect(createReservationResponseSchema.safeParse(validCreatedFixture).success).toBe(true);
   });
 
+  it.each([
+    // EMR-519 stage1: 正規形十進文字列と 0 より大きい safe integer 数値を受理し、
+    // 数値は即 string へ変換する（出力は常に string）。
+    ["正規形文字列", "1", "1"],
+    ["safe 数値", 42, "42"],
+    ["safe integer 境界", 9007199254740991, "9007199254740991"],
+    ["2^53 超文字列", "9007199254740992", "9007199254740992"],
+    ["int64 最大値", "9223372036854775807", "9223372036854775807"],
+  ] as const)(
+    "EMR-519: reservation id の %s（%s）は受理し %s へ正規化する",
+    (_name, input, expected) => {
+      const list = { ...validReservationFixture, id: input };
+      const parsed = reservationSchema.safeParse(list);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.id).toBe(expected);
+      const created = createReservationResponseSchema.safeParse({
+        ...validCreatedFixture,
+        id: input,
+      });
+      expect(created.success).toBe(true);
+      if (created.success) expect(created.data.id).toBe(expected);
+    },
+  );
+
+  it("EMR-519: '9007199254740992' と '9007199254740993' の文字列は区別される", () => {
+    for (const id of ["9007199254740992", "9007199254740993"]) {
+      const parsed = reservationSchema.safeParse({ ...validReservationFixture, id });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.id).toBe(id);
+    }
+  });
+
   const MISSING_ID = Symbol("missing-id");
   it.each([
     ["数値 0", 0],
     ["負の数値", -1],
+    ["unsafe 数値", UNSAFE_RESERVATION_ID_NUMBER],
+    ["非整数数値", 1.5],
+    ["NaN", Number.NaN],
     ["先頭ゼロ", "01"],
     ["符号付き", "+1"],
     ["小数", "1.0"],
@@ -346,7 +384,6 @@ describe("revisit intake schemas（EMR-474）", () => {
     ["空白付き", " 1"],
     ["null", null],
     ["キー欠落", MISSING_ID],
-    ["JSON number", 42],
     ["int64 超過", "9223372036854775808"],
   ] as const)("EMR-519: reservation id の %s は例外を投げず reject する", (_name, badId) => {
     // 違反は id のみ。有効 fixture を起点に id だけを壊す（キー欠落は削除で再現）。
@@ -362,6 +399,16 @@ describe("revisit intake schemas（EMR-474）", () => {
     expect(() => reservationSchema.safeParse(list)).not.toThrow();
     expect(reservationSchema.safeParse(list).success).toBe(false);
     expect(createReservationResponseSchema.safeParse(created).success).toBe(false);
+  });
+
+  it("EMR-520: 旧 producer の pet_name-only（pet_id キー欠落）は両方 null に正規化する", () => {
+    const { pet_id: _dropped, ...legacy } = validReservationFixture;
+    const parsed = reservationSchema.safeParse({ ...legacy, pet_name: "ポチ" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.pet_id).toBeNull();
+      expect(parsed.data.pet_name).toBeNull();
+    }
   });
 
   it("未知の edit_block_reason は補完せず reject する", () => {

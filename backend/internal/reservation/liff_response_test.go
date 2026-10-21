@@ -204,9 +204,8 @@ func TestToLiffReservationResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := toLiffReservationResponse(tt.r, nil)
-			require.True(t, ok)
-			assert.Equal(t, strconv.FormatUint(tt.r.ID, 10), got.ID)
+			got := toLiffReservationResponse(tt.r, nil)
+			assert.Equal(t, tt.r.ID, got.ID)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("2006-01-02"), got.Date)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("15:04"), got.StartTime)
 			assert.Equal(t, tt.r.EndTime.In(time.Local).Format("15:04"), got.EndTime)
@@ -229,15 +228,14 @@ func TestToLiffReservationResponseJSON(t *testing.T) {
 		Status:         model.ReservationStatusConfirmed,
 		CustomerFields: json.RawMessage(`{"pets":[{"name":"ポチ","type":"柴犬"}]}`),
 	}
-	item, ok := toLiffReservationResponse(r, nil)
-	require.True(t, ok)
-	body, err := json.Marshal(item)
+	body, err := json.Marshal(toLiffReservationResponse(r, nil))
 	require.NoError(t, err)
 
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(body, &payload))
 
-	assert.Equal(t, "42", payload["id"])
+	// EMR-519 stage1: 一覧の id は当面 JSON number（文字列化は後続 PR）
+	assert.Equal(t, float64(42), payload["id"])
 
 	petID, hasPetID := payload["pet_id"]
 	assert.True(t, hasPetID, "pet_id key must be present")
@@ -262,9 +260,7 @@ func TestToLiffReservationResponsePetPairJSON(t *testing.T) {
 	}
 
 	pair := &LiffPetPair{PetID: 9007199254740993, PetName: "タマB"}
-	item, ok := toLiffReservationResponse(r, pair)
-	require.True(t, ok)
-	body, err := json.Marshal(item)
+	body, err := json.Marshal(toLiffReservationResponse(r, pair))
 	require.NoError(t, err)
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(body, &payload))
@@ -272,41 +268,29 @@ func TestToLiffReservationResponsePetPairJSON(t *testing.T) {
 	assert.Equal(t, "タマB", payload["pet_name"])
 	assert.NotContains(t, string(body), "ポチA")
 
-	item, ok = toLiffReservationResponse(r, nil)
-	require.True(t, ok)
-	body, err = json.Marshal(item)
+	body, err = json.Marshal(toLiffReservationResponse(r, nil))
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(body, &payload))
 	assert.Nil(t, payload["pet_id"])
 	assert.Nil(t, payload["pet_name"])
 }
 
-// EMR-519: 公開 ID は 1〜int64 最大値だけを正規形十進文字列として出力する。
-// 0 / int64 超過は予約 ID では fail-closed（DTO 化不可）、pet pair では両方 null。
+// EMR-519 stage1: liffPublicID は一覧の pet_id 専用（予約 id は当面 JSON number）。
+// 1〜int64 最大値だけを正規形十進文字列として出力し、0 / int64 超過の pet_id は両方 null。
 func TestLiffPublicIDBoundaries(t *testing.T) {
 	for _, id := range []uint64{1, 9007199254740991, 9007199254740992, 9007199254740993, 9223372036854775807} {
 		s, ok := liffPublicID(id)
 		require.True(t, ok, "id=%d", id)
 		assert.Equal(t, strconv.FormatUint(id, 10), s)
 
-		created, ok := toLiffReservationCreatedResponse(&model.Reservation{ID: id, Notes: "n"})
-		require.True(t, ok, "id=%d", id)
-		body, err := json.Marshal(created)
+		body, err := json.Marshal(
+			toLiffReservationResponse(&model.Reservation{ID: 1}, &LiffPetPair{PetID: id, PetName: "x"}),
+		)
 		require.NoError(t, err)
-		assert.Contains(t, string(body), `"id":"`+strconv.FormatUint(id, 10)+`"`)
-
-		item, ok := toLiffReservationResponse(&model.Reservation{ID: id}, nil)
-		require.True(t, ok, "id=%d", id)
-		body, err = json.Marshal(item)
-		require.NoError(t, err)
-		assert.Contains(t, string(body), `"id":"`+strconv.FormatUint(id, 10)+`"`)
+		assert.Contains(t, string(body), `"pet_id":"`+strconv.FormatUint(id, 10)+`"`)
 	}
 	for _, id := range []uint64{0, 9223372036854775808} {
 		_, ok := liffPublicID(id)
-		assert.False(t, ok, "id=%d", id)
-		_, ok = toLiffReservationCreatedResponse(&model.Reservation{ID: id})
-		assert.False(t, ok, "id=%d", id)
-		_, ok = toLiffReservationResponse(&model.Reservation{ID: id}, nil)
 		assert.False(t, ok, "id=%d", id)
 		pid, pname := liffReservationPet(&LiffPetPair{PetID: id, PetName: "x"})
 		assert.Nil(t, pid, "id=%d", id)
@@ -314,19 +298,17 @@ func TestLiffPublicIDBoundaries(t *testing.T) {
 	}
 }
 
-// EMR-519: 201 応答は id（十進文字列）と notes の 2 キーのみ。
+// EMR-519: 201 応答は id と notes の 2 キーのみ。stage1 では id は JSON number。
 func TestToLiffReservationCreatedResponseJSON(t *testing.T) {
-	created, ok := toLiffReservationCreatedResponse(&model.Reservation{
-		ID:    9007199254740993,
+	body, err := json.Marshal(toLiffReservationCreatedResponse(&model.Reservation{
+		ID:    42,
 		Notes: "memo",
-	})
-	require.True(t, ok)
-	body, err := json.Marshal(created)
+	}))
 	require.NoError(t, err)
 
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(body, &payload))
-	assert.Equal(t, map[string]any{"id": "9007199254740993", "notes": "memo"}, payload)
+	assert.Equal(t, map[string]any{"id": float64(42), "notes": "memo"}, payload)
 }
 
 // ---- toLiffHealthCardResponse ----
