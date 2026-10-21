@@ -47,9 +47,11 @@
 
 ## 4. immutable content と正確な hash projection
 
-- 本文上限と C06 Content の各値 256-byte 制限を両立するため、本文を Content に入れず共有上限も変更しない。
+- 大きな本文と C06 Content の各値 256-byte 制限を両立するため、本文を Content に入れず共有上限も変更しない。
 - nested content は title:string / order_value:number(double) / section:string / body_markdown:string の全置換。category / slug は immutable route selector。
-- required content の欠落/null、JSON 重複 member、lone surrogate / invalid UTF-8、非有限・範囲外 JSON number を拒否。既存長さ・非空検査を保持する。
+- content の 4 項目は required / non-null。JSON 重複 member、lone surrogate / invalid UTF-8、非有限・範囲外 JSON number を拒否する。
+- 公開 API の `ManualArticleEditContent` に従い、title / section だけ空文字を拒否し、body_markdown は空文字を許容する。新たな文字数制限・trim・空白のみ拒否を導入せず、旧 handler の `max=255` / `required,max=100000` は継承しない。
+- order_value は公開 API どおり numeric(10,2) に対応する number、multipleOf 0.01、最小 -99999999.99・最大 99999999.99 とする。
 - 上の 4 項目限定は nested content の意味。outer operation_key / article_id / expected_version / expected_content_version_id は公開契約どおり許容し、whole request の新たな一括 unknown-field 拒否を導入しない。
 - decoded string を保存/hash 共通に用い、trim / NFC / 改行変換をしない。RFC 8785 JCS の key sort・escape・有限 IEEE754 serialization を用いる。-0 は 0 に canonicalize し同じ parsed value を保存する。order_value を数値文字列契約に変えない。
 - `content_digest = lowerhex SHA256(UTF8(JCS({schema:"manual-article-content-v1",title:<exact>,order_value:<parsed finite number>,section:<exact>,body_markdown:<exact>})))`

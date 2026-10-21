@@ -15,7 +15,7 @@
 以下を分離した事前確認と後続名前検索にせず、1 SQL snapshot で結び付ける。
 
 1. 認証済み clinic / customer / sub を起点とする。入力 URL / body や表示値を認証 principal の代用にしない。
-2. 現在の appointment.customer_id が認証 customer と一致する。
+2. 現在の予約の `appointments.line_customer_id` が認証 customer と一致する。
 3. 予約が保持する実 appointment.pet_id の pet と owner が非削除であり、pet.owner_id = appointment.owner_id を満たす。
 4. 同 clinic / owner の owner_line_binding_states が linked で、その customer が認証 customer と一致する。
 5. common_pet_clinic_bindings の `(clinic_id, local_pet_id)` から現在の common pet binding を解決する。
@@ -34,7 +34,9 @@
 - pet_id と pet_name は一対。新 server は両 key を常に返し、認可済み実 pet が解決した場合のみ両 non-null、それ以外は両 null。
 - pet_id は正の signed-int64 の canonical decimal string。上限は 9223372036854775807。ゼロ・負値・非正規表現・範囲外を成功値にしない。
 - pet_name はその identity に対応する同 snapshot の認可済み current revision の名前。未知を空文字へ補完せず、名前から ID を推測しない。
-- 後方互換として旧 producer の両 key 省略を許容する。許容形は「両省略」「両 null」「両 non-null」のみ。片側省略・片側 null の partial pair は不正。
+- 後方互換として旧 producer の両 key 省略を許容する。対として扱う形は「両省略」「両 null」「両 non-null」とする。
+- 旧 producer は `pet_name,omitempty` のみを持ち、pet_id なしで customer_fields 由来の名前を返す。旧 pet_name-only（pet_id 省略、pet_name が既存の string 型）の応答は、旧 producer 向け読取 adapter の限定互換として、認可済み identity 不明の両 null / unavailable へ正規化する。その名前を表示・ID 推定に利用しない。
+- この正規化は旧 producer の生 wire が新契約に適合するという意味ではない。新 server の両 key・両 null / 両 non-null 保証は維持する。pet_id-only、片側 null、不正な型など、上記限定互換以外の partial pair は拒否する。この読取 adapter の契約を、現行 client が旧 name-only を既に拒否しているという実装済み判定にしない。
 - 作成 201 は EMR-519 の id 文字列化と既存 notes を維持する。この subset では pet_id / pet_name ペアを作成応答へ追加しない。
 - EMR-519 の予約 ID も canonical positive signed-int64 decimal string とする。数値 JSON の丸め後に FE reviver 等で復元しようとしない。
 - backend/docs/api.yaml と専有 DTO / client / schema を同じ実装 PR で同期する。本文の採択を機械 API 反映済みと読み替えない。
@@ -64,7 +66,7 @@
 - pet 付替え / binding 世代変更 / current basic revision 更新で、identity と name の同 snapshot 対応を保つ。
 - pet 未特定、binding / revision 欠落、unlink / 移管 / 失権、他院 local ID では、非開示または認可条件に従う両 null を維持する。
 - DB reader 失敗が取得エラーになり、null 成功に変わらない。
-- 両省略の旧 producer、両 null、両 non-null を扱い、partial pair を拒否する。
+- 両省略の旧 producer、両 null、両 non-null を扱う。旧 pet_name-only（pet_id 省略、pet_name は string）は読取 adapter で両 null / unavailable へ正規化し、名前非表示・ID 推定なしを確認する。pet_id-only、片側 null、不正な型など、それ以外の partial pair は拒否する。
 - positive signed-int64 の境界・範囲外・非正規 ID、current_target.ref.pet_id 不一致での名前非表示を固定する。
 - 作成 201 の id / notes を維持し、未採用 pet pair を追加しない。
 - 試験実行は NOT_RUN。隔離環境は構築・使用しない。実鍵・資格設定、DB 適用、deploy は対象外。
@@ -76,4 +78,4 @@
 - [EMR-519 ID 文字列移行](https://app.plane.so/baritechllc/browse/EMR-519/) / [EMR-491 共通情報](https://app.plane.so/baritechllc/browse/EMR-491/) / [EMR-472 verified LINE principal](https://app.plane.so/baritechllc/browse/EMR-472/)。
 - [予約 DTO の参照基点](https://github.com/MinoruSoga/AnimalEkarte/blob/13942085357b16a1c1e167ce2233c1181702f222/backend/docs/api.yaml#L27973-L28077)。
 - [既存 LIFF response の gap](https://github.com/MinoruSoga/AnimalEkarte/blob/a28f81bfe99010c440ff42a51b8f31811ae1904f/backend/internal/reservation/liff_response.go#L126-L138)。
-- [LINE 画面仕様](https://github.com/MinoruSoga/AnimalEkarte/blob/13942085357b16a1c1e167ce2233c1181702f222/docs/spec/screens/37-line-reserve-owner-flow.md#L218)。これらの固定 SHA は根拠であり、最新 runtime 完了の証明ではない。
+- [LINE 画面仕様](https://github.com/MinoruSoga/AnimalEkarte/blob/13942085357b16a1c1e167ce2233c1181702f222/docs/spec/screens/37-line-reserve-owner-flow.md#decision-alignment-20261017)。これらの固定 SHA は根拠であり、最新 runtime 完了の証明ではない。
