@@ -14,7 +14,7 @@ export function useReservationAppHandlers(
   goTo: (page: PageType) => void,
   resetFlow: () => void,
   setNotice: Dispatch<SetStateAction<string | null>>,
-  setCompletedReservationId: Dispatch<SetStateAction<number>>,
+  setCompletedReservationId: Dispatch<SetStateAction<string>>,
   setCompletedNotes: Dispatch<SetStateAction<string>>,
   setRevisitIntake?: Dispatch<SetStateAction<RevisitIntakeRoute | null>>,
 ) {
@@ -25,7 +25,7 @@ export function useReservationAppHandlers(
   }, [resetFlow, goTo, setNotice]);
 
   const handleConfirm = useCallback(
-    (reservationId: number, notes: string) => {
+    (reservationId: string, notes: string) => {
       setNotice(null);
       setCompletedReservationId(reservationId);
       setCompletedNotes(notes);

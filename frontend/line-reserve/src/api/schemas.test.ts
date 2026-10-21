@@ -143,7 +143,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
 
   it("reservationSchema: models.ts どおりの fixture が通る", () => {
     const fixture = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -157,13 +157,13 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
   });
 
   it("reservationSchema: 必須フィールド欠落が reject される", () => {
-    const fixture = { id: 1, course_name: "一般診察" };
+    const fixture = { id: "1", course_name: "一般診察" };
     expect(reservationSchema.safeParse(fixture).success).toBe(false);
   });
 
   it("reservationSchema: 指名なし予約（staff_name 省略）が通り '' デフォルトになる", () => {
     const { staff_name: _omit, ...fixture } = {
-      id: 1,
+      id: "1",
       staff_name: "佐藤",
       course_name: "一般診察",
       date: "2026-08-01",
@@ -182,7 +182,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
 
   it("reservationSchema: notes 省略が通り '' デフォルトになる", () => {
     const { notes: _omit, ...fixture } = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -210,7 +210,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
     "no_show",
   ])("reservationSchema: backend ReservationStatus 値 %s を許容する", (status) => {
     const fixture = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -225,7 +225,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
 
   it("reservationSchema: backend ReservationStatus に存在しない値は reject される", () => {
     const fixture = {
-      id: 1,
+      id: "1",
       course_name: "一般診察",
       staff_name: "佐藤",
       date: "2026-08-01",
@@ -239,7 +239,7 @@ describe("line-reserve schemas（FE5-18: 実行時検証）", () => {
   });
 
   it("createReservationResponseSchema: models.ts どおりの fixture が通る", () => {
-    const fixture = { id: 1, notes: "R-20260801-0001" };
+    const fixture = { id: "1", notes: "R-20260801-0001" };
     expect(createReservationResponseSchema.safeParse(fixture).success).toBe(true);
   });
 
@@ -445,5 +445,66 @@ describe("revisit intake date-time（RFC3339）", () => {
       revisitIntakeResultResponseSchema.safeParse(receipt("2026-10-20T13:00:00Z")).success,
     ).toBe(true);
     expect(revisitIntakeResultResponseSchema.safeParse(receipt("2026/10/20")).success).toBe(false);
+  });
+});
+
+describe("line-reserve schemas（EMR-519: 予約 ID 十進文字列・pet ペア）", () => {
+  const base = {
+    id: "1",
+    course_name: "一般診察",
+    staff_name: "佐藤",
+    date: "2026-08-01",
+    start_time: "10:00",
+    end_time: "10:30",
+    status: "confirmed",
+    notes: "",
+    created_at: "2026-07-01T00:00:00Z",
+  };
+
+  it("pet_id/pet_name は両方 string・両方 null・両方省略の3形だけ受理され、省略は両方 null に正規化する", () => {
+    const both = reservationSchema.safeParse({
+      ...base,
+      pet_id: "9007199254740993",
+      pet_name: "ポチ",
+    });
+    expect(both.success).toBe(true);
+    if (both.success) {
+      expect(both.data.pet_id).toBe("9007199254740993");
+      expect(both.data.pet_name).toBe("ポチ");
+    }
+    expect(reservationSchema.safeParse({ ...base, pet_id: null, pet_name: null }).success).toBe(
+      true,
+    );
+    const omitted = reservationSchema.safeParse(base);
+    expect(omitted.success).toBe(true);
+    if (omitted.success) {
+      expect(omitted.data.pet_id).toBeNull();
+      expect(omitted.data.pet_name).toBeNull();
+    }
+  });
+
+  it.each([
+    { pet_id: "2" },
+    { pet_name: "ポチ" },
+    { pet_id: "2", pet_name: null },
+    { pet_id: null, pet_name: "ポチ" },
+    { pet_id: "01", pet_name: "ポチ" },
+    { pet_id: 2, pet_name: "ポチ" },
+  ])("pet ペアが片方だけ・非正規形の %j は reject される", (pair) => {
+    expect(reservationSchema.safeParse({ ...base, ...pair }).success).toBe(false);
+  });
+
+  it.each([{ id: 1 }, { id: "0" }, { id: "01" }, { id: "9223372036854775808" }])(
+    "id が数値・非正規形・int64 超の %j は reject される",
+    (idField) => {
+      expect(reservationSchema.safeParse({ ...base, ...idField }).success).toBe(false);
+    },
+  );
+
+  it("createReservationResponseSchema: id は十進文字列のみ受理（数値は reject）", () => {
+    expect(
+      createReservationResponseSchema.safeParse({ id: "9007199254740993", notes: "R-1" }).success,
+    ).toBe(true);
+    expect(createReservationResponseSchema.safeParse({ id: 1, notes: "R-1" }).success).toBe(false);
   });
 });

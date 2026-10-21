@@ -8,7 +8,7 @@ import {
 } from "../lib/revisit-intake-appointment-id";
 
 interface CompletePageProps {
-  reservationId: number;
+  reservationId: string;
   notes: string;
   flow: ReservationFlow;
   onMyReservations: () => void;
@@ -32,8 +32,7 @@ export function CompletePage({
 }: CompletePageProps) {
   const confirmationNumber = useMemo(() => extractConfirmationNumber(notes), [notes]);
   const displayNumber =
-    confirmationNumber ??
-    (reservationId > 0 ? `R-${String(reservationId).padStart(6, "0")}` : null);
+    confirmationNumber ?? (reservationId !== "" ? `R-${reservationId.padStart(6, "0")}` : null);
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
@@ -85,7 +84,7 @@ export function CompletePage({
 
         {/* EMR-474: 任意の再診事前問診。未回答でも予約は確定済みで、受付も止めない。
             回答先はこの予約の実際の対象（BE の current_target）で、ペットごとの予約作成は約束しない。 */}
-        {reservationId > 0 && !isRevisitIntakeAppointmentIdUsable(reservationId) ? (
+        {reservationId !== "" && !isRevisitIntakeAppointmentIdUsable(reservationId) ? (
           <div className="w-full bg-white rounded-xl border border-noah-border p-4 mb-4">
             <p role="status" className="text-sm text-noah-text-sub">
               {REVISIT_INTAKE_UNAVAILABLE_MESSAGE}

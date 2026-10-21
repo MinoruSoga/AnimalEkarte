@@ -123,6 +123,9 @@ flowchart LR
 | GET | `/api/liff/:clinicId/my-reservations` | 自分の予約一覧（30回/分レートリミット） |
 | DELETE | `/api/liff/:clinicId/my-reservations/:id` | 予約キャンセル（204） |
 
+- 予約 ID（一覧・作成 201 応答・`:id` パスパラメータ）は正の int64 範囲の十進文字列（`^[1-9][0-9]*$`）。JSON number では返らず、FE も `Number` へ変換しない。
+- 一覧の `pet_id` / `pet_name` は新 server では両方のキーを返し、両方 non-null か両方 null。旧応答の両方省略だけを互換として受理する。メモや先頭ペット名からの補完は行わない。
+
 ---
 
 <a id="line-channel-document-contract"></a>

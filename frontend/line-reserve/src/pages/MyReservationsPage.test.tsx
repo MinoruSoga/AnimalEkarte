@@ -13,7 +13,9 @@ const BASE_PROPS = {
 };
 
 const confirmedReservation: Reservation = {
-  id: 1,
+  id: "1",
+  pet_id: null,
+  pet_name: null,
   course_name: "一般診察",
   staff_name: "山田先生",
   date: "2026-08-01",
@@ -168,7 +170,7 @@ describe("MyReservationsPage（R-F25: ネイティブダイアログ→インラ
 describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
   const cancelledReservation: Reservation = {
     ...confirmedReservation,
-    id: 2,
+    id: "2",
     status: "cancelled",
     notes: "R-20260802-0002",
   };
@@ -192,7 +194,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
 
     await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
     expect(onOpenRevisitIntake).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 1, status: "confirmed" }),
+      expect.objectContaining({ id: "1", status: "confirmed" }),
     );
   });
 
@@ -201,7 +203,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     const onOpenRevisitIntake = vi.fn();
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.json([{ ...confirmedReservation, id: 3, status: "pending" }]),
+        HttpResponse.json([{ ...confirmedReservation, id: "3", status: "pending" }]),
       ),
     );
 
@@ -215,7 +217,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
 
     await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
     expect(onOpenRevisitIntake).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 3, status: "pending" }),
+      expect.objectContaining({ id: "3", status: "pending" }),
     );
   });
 
@@ -226,7 +228,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
       const onOpenRevisitIntake = vi.fn();
       server.use(
         http.get("/api/liff/:clinicId/my-reservations", () =>
-          HttpResponse.json([{ ...confirmedReservation, id: 4, status }]),
+          HttpResponse.json([{ ...confirmedReservation, id: "4", status }]),
         ),
       );
 
@@ -239,7 +241,9 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
       );
 
       await user.click(await screen.findByRole("button", { name: "回答を見る" }));
-      expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 4, status }));
+      expect(onOpenRevisitIntake).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "4", status }),
+      );
     },
   );
 
@@ -248,7 +252,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     const onOpenRevisitIntake = vi.fn();
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.json([{ ...confirmedReservation, id: 5, status: "no_show" }]),
+        HttpResponse.json([{ ...confirmedReservation, id: "5", status: "no_show" }]),
       ),
     );
 
@@ -261,27 +265,19 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
     );
 
     await user.click(await screen.findByRole("button", { name: "問診を回答する／訂正する" }));
-    expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }));
+    expect(onOpenRevisitIntake).toHaveBeenCalledWith(expect.objectContaining({ id: "5" }));
   });
 
-  it("安全整数でない予約 ID では導線を出さず、「現在開けません」を表示し問診 API を呼ばない", async () => {
-    let revisitCalls = 0;
+  it("int64 範囲内の大きな十進文字列 ID は丸めず問診導線を出す（9007199254740992/993 は衝突しない）", async () => {
+    const user = userEvent.setup();
     const onOpenRevisitIntake = vi.fn();
     server.use(
-      // JSON 上の巨大 ID は parse で number に丸められる（BE が文字列化するまでの暫定ガード）。
       http.get("/api/liff/:clinicId/my-reservations", () =>
-        HttpResponse.text(
-          JSON.stringify([{ ...confirmedReservation, id: 0 }]).replace(
-            '"id":0',
-            '"id":9007199254740993',
-          ),
-          { headers: { "Content-Type": "application/json" } },
-        ),
+        HttpResponse.json([
+          { ...confirmedReservation, id: "9007199254740992" },
+          { ...confirmedReservation, id: "9007199254740993" },
+        ]),
       ),
-      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", () => {
-        revisitCalls += 1;
-        return HttpResponse.json({});
-      }),
     );
 
     render(
@@ -292,9 +288,36 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
       />,
     );
 
-    expect(await screen.findByText("この予約の問診は現在開けません。")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /問診|回答を見る/ })).not.toBeInTheDocument();
-    expect(onOpenRevisitIntake).not.toHaveBeenCalled();
+    const buttons = await screen.findAllByRole("button", { name: "問診を回答する／訂正する" });
+    expect(buttons).toHaveLength(2);
+    await user.click(buttons[0]);
+    await user.click(buttons[1]);
+    expect(onOpenRevisitIntake).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ id: "9007199254740992" }),
+    );
+    expect(onOpenRevisitIntake).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ id: "9007199254740993" }),
+    );
+  });
+
+  it("一覧応答の id が十進文字列でない（数値・非正規形）は読込エラーとして再試行導線を出す", async () => {
+    let revisitCalls = 0;
+    server.use(
+      http.get("/api/liff/:clinicId/my-reservations", () =>
+        HttpResponse.json([{ ...confirmedReservation, id: 9007199254740993 }]),
+      ),
+      http.get("/api/liff/:clinicId/my-reservations/:id/revisit-intake", () => {
+        revisitCalls += 1;
+        return HttpResponse.json({});
+      }),
+    );
+
+    render(<MyReservationsPage {...BASE_PROPS} onBack={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "再試行" })).toBeInTheDocument();
     expect(revisitCalls).toBe(0);
   });
 
@@ -335,7 +358,7 @@ describe("MyReservationsPage 再診問診の導線（EMR-474）", () => {
 describe("MyReservationsPage 取消後の送信結果照会", () => {
   const cancelledReservation: Reservation = {
     ...confirmedReservation,
-    id: 2,
+    id: "2",
     status: "cancelled",
     notes: "R-20260802-0002",
   };
@@ -344,7 +367,7 @@ describe("MyReservationsPage 取消後の送信結果照会", () => {
     set: vi.fn(),
     clear: vi.fn(),
     findPending: vi.fn((clinicId: string, appointmentId: string) =>
-      has && clinicId === "1" && appointmentId === String(cancelledReservation.id)
+      has && clinicId === "1" && appointmentId === cancelledReservation.id
         ? ({ targetKey: "k", pending: {} } as never)
         : undefined,
     ),

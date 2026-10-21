@@ -85,9 +85,9 @@ export function MyReservationsPage({
   onOpenRevisitIntake,
   draftStore,
 }: MyReservationsPageProps) {
-  const [cancellingId, setCancellingId] = useState<number | null>(null);
-  const [confirmingId, setConfirmingId] = useState<number | null>(null);
-  const [cancelError, setCancelError] = useState<{ id: number; message: string } | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<{ id: string; message: string } | null>(null);
   // FE-RC-024: 手動 pending state ではなく React 19 useTransition で保留状態を管理する。
   const [isCancelling, startCancelTransition] = useTransition();
 
@@ -105,7 +105,7 @@ export function MyReservationsPage({
     setData: setReservations,
   } = useFetchState(fetcher, "予約一覧の取得");
 
-  const handleCancelRequest = (id: number) => {
+  const handleCancelRequest = (id: string) => {
     setCancelError(null);
     setConfirmingId(id);
   };
@@ -114,7 +114,7 @@ export function MyReservationsPage({
     setConfirmingId(null);
   };
 
-  const handleCancelConfirm = (id: number) => {
+  const handleCancelConfirm = (id: string) => {
     setConfirmingId(null);
     setCancelError(null);
     setCancellingId(id);
@@ -174,9 +174,10 @@ export function MyReservationsPage({
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="min-w-0 flex-1 break-words">
-                      <p className="font-semibold text-noah-text">
-                        {reservation.pet_name || reservation.course_name}
-                      </p>
+                      {/* EMR-519: ペット名は pet_id が現在 target の pet と一致するときだけ
+                          表示する契約。このページは current_target を持たないため表示しない
+                          （HOLD・補完しない）。 */}
+                      <p className="font-semibold text-noah-text">{reservation.course_name}</p>
                       <p className="text-sm text-noah-text-sub">
                         {[reservation.course_name, reservation.staff_name]
                           .filter(Boolean)
@@ -209,7 +210,7 @@ export function MyReservationsPage({
                   {reservation.status === "cancelled" &&
                   onOpenRevisitIntake &&
                   isRevisitIntakeAppointmentIdUsable(reservation.id) &&
-                  draftStore?.findPending(clinicId, String(reservation.id)) !== undefined ? (
+                  draftStore?.findPending(clinicId, reservation.id) !== undefined ? (
                     // 取消済みでは通常の問診導線を出さない。未確定の送信がある間だけ、結果照会に戻る入口を残す。
                     <div className="mt-3 pt-3 border-t border-noah-border-light">
                       <button

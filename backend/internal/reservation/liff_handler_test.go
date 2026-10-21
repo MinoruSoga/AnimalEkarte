@@ -582,7 +582,7 @@ func TestCreateLiffReservation(t *testing.T) {
 
 		var body map[string]any
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-		assert.Equal(t, map[string]any{"id": float64(42), "notes": ""}, body)
+		assert.Equal(t, map[string]any{"id": "42", "notes": ""}, body)
 	})
 
 	t.Run("customerID が context にない → 401", func(t *testing.T) {
@@ -680,7 +680,15 @@ func TestGetLiffMyReservations(t *testing.T) {
 
 		var resp []map[string]any
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-		assert.Len(t, resp, 1)
+		require.Len(t, resp, 1)
+		// EMR-519: id は十進文字列、pet_id / pet_name はキーが存在し両方 null
+		assert.Equal(t, "10", resp[0]["id"])
+		petID, hasPetID := resp[0]["pet_id"]
+		assert.True(t, hasPetID, "pet_id key must be present")
+		assert.Nil(t, petID)
+		petName, hasPetName := resp[0]["pet_name"]
+		assert.True(t, hasPetName, "pet_name key must be present")
+		assert.Nil(t, petName)
 	})
 
 	t.Run("customerID が context にない → 401", func(t *testing.T) {
@@ -736,6 +744,38 @@ func TestCancelLiffReservation(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodDelete, "/api/liff/3/my-reservations/0", nil)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	// EMR-519: cancel の :id は公開契約と同じ正規形（^[1-9][0-9]*$・int64 範囲）のみ受理する。
+	// httpapi.ParseIDParam が通していた先頭ゼロ・符号・int64 超も拒否し、サービスを呼ばない。
+	t.Run("id が正規形でない → 400（サービスを呼ばない）", func(t *testing.T) {
+		called := false
+		h := newLiffHandler(&mockLiffService{
+			cancelReservationFn: func(_ context.Context, _, _, _ uint64) error {
+				called = true
+				return nil
+			},
+		})
+		for _, id := range []string{"01", "+1", "-1", "1.0", "1e3", "%201", "9223372036854775808", "18446744073709551615"} {
+			w := doLiffRequest(t, newLiffRouter(h, true), http.MethodDelete, "/api/liff/3/my-reservations/"+id, nil)
+			assert.Equal(t, http.StatusBadRequest, w.Code, "id=%q", id)
+		}
+		assert.False(t, called)
+	})
+
+	t.Run("int64 上限は受理、2^53 超の十進文字列 ID は丸めずそのまま渡る", func(t *testing.T) {
+		var gotIDs []uint64
+		h := newLiffHandler(&mockLiffService{
+			cancelReservationFn: func(_ context.Context, _, _, reservationID uint64) error {
+				gotIDs = append(gotIDs, reservationID)
+				return nil
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodDelete, "/api/liff/3/my-reservations/9223372036854775807", nil)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		w = doLiffRequest(t, newLiffRouter(h, true), http.MethodDelete, "/api/liff/3/my-reservations/9007199254740993", nil)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, []uint64{9223372036854775807, 9007199254740993}, gotIDs)
 	})
 
 	t.Run("予約が見つからない → 404", func(t *testing.T) {

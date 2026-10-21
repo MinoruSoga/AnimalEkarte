@@ -97,33 +97,56 @@ export const availableTimeSchema = z.object({
   display_time: z.string().optional(),
 });
 
+// EMR-519: 予約 ID・pet_id は正の int64 範囲の正規形十進文字列。Number へ変換すると
+// 2^53 超で precision を失うため、桁数 + 辞書順比較で上限を検査する
+// （revisitIntakeDecimalId は範囲検査を持たないため別定義）。
+const RESERVATION_ID_INT64_MAX = "9223372036854775807";
+export const reservationDecimalId = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .refine(
+    (v) =>
+      v.length < RESERVATION_ID_INT64_MAX.length ||
+      (v.length === RESERVATION_ID_INT64_MAX.length && v <= RESERVATION_ID_INT64_MAX),
+  );
+
 // status は backend の ReservationStatus enum (backend/internal/model/reservation.go) と1:1で一致させる。
 // staff_name は指名なし予約で Doctor が nil のため backend が省略する（omitempty 相当）。
 // notes は空文字時に backend が omitempty で省略するため未着信を許容する。
-export const reservationSchema = z.object({
-  id: z.number(),
-  course_name: z.string(),
-  pet_name: z.string().optional().default(""),
-  staff_name: z.string().optional().default(""),
-  date: z.string(),
-  start_time: z.string(),
-  end_time: z.string(),
-  status: z.enum([
-    "confirmed",
-    "pending",
-    "cancelled",
-    "checked_in",
-    "in_consultation",
-    "accounting",
-    "completed",
-    "no_show",
-  ]),
-  notes: z.string().optional().default(""),
-  created_at: z.string(),
-});
+// pet_id / pet_name は「両方 string・両方 null・両方省略（旧応答）」の3形だけを受理し、
+// parse 後は pet_id: string | null / pet_name: string | null に正規化する（両方省略は両方 null）。
+export const reservationSchema = z
+  .object({
+    id: reservationDecimalId,
+    pet_id: reservationDecimalId.nullable().optional(),
+    pet_name: z.string().nullable().optional(),
+    course_name: z.string(),
+    staff_name: z.string().optional().default(""),
+    date: z.string(),
+    start_time: z.string(),
+    end_time: z.string(),
+    status: z.enum([
+      "confirmed",
+      "pending",
+      "cancelled",
+      "checked_in",
+      "in_consultation",
+      "accounting",
+      "completed",
+      "no_show",
+    ]),
+    notes: z.string().optional().default(""),
+    created_at: z.string(),
+  })
+  .refine(
+    (r) =>
+      (r.pet_id === undefined) === (r.pet_name === undefined) &&
+      (r.pet_id === null) === (r.pet_name === null),
+  )
+  .transform((r) => ({ ...r, pet_id: r.pet_id ?? null, pet_name: r.pet_name ?? null }));
 
 export const createReservationResponseSchema = z.object({
-  id: z.number(),
+  id: reservationDecimalId,
   notes: z.string(),
 });
 

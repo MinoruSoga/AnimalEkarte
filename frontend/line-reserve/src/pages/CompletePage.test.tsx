@@ -29,7 +29,7 @@ const baseFlow: ReservationFlow = {
 function renderCompletePage(flow: ReservationFlow) {
   render(
     <CompletePage
-      reservationId={0}
+      reservationId={""}
       notes=""
       flow={flow}
       onMyReservations={vi.fn()}
@@ -60,7 +60,7 @@ describe("CompletePage", () => {
     const onRevisitIntake = vi.fn();
     render(
       <CompletePage
-        reservationId={12001}
+        reservationId={"12001"}
         notes="R-20260801-0001"
         flow={baseFlow}
         onMyReservations={vi.fn()}
@@ -85,7 +85,7 @@ describe("CompletePage", () => {
   it("EMR-474: 複数頭を選んでも、各ペット・各予約に回答できるとは案内しない", () => {
     render(
       <CompletePage
-        reservationId={12001}
+        reservationId={"12001"}
         notes=""
         flow={{
           ...baseFlow,
@@ -107,11 +107,11 @@ describe("CompletePage", () => {
     expect(screen.queryByText(/予約ごとに1頭分|それぞれの予約|各ペット|各予約/)).toBeNull();
   });
 
-  it("EMR-474: 安全整数でない予約 ID では CTA を出さず「現在開けません」を表示する", () => {
+  it("EMR-474: int64 範囲外の予約 ID では CTA を出さず「現在開けません」を表示する", () => {
     const onRevisitIntake = vi.fn();
     render(
       <CompletePage
-        reservationId={Number.MAX_SAFE_INTEGER + 2}
+        reservationId={"9223372036854775808"}
         notes=""
         flow={baseFlow}
         onMyReservations={vi.fn()}

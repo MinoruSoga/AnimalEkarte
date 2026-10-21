@@ -33,7 +33,7 @@ export interface ReservationPageSwitchProps {
   idToken: string;
   flow: ReservationFlow;
   isTrimming: boolean;
-  completedReservationId: number;
+  completedReservationId: string;
   completedNotes: string;
   revisitIntake: RevisitIntakeRoute | null;
   revisitIntakeDraftStore: RevisitIntakeDraftStore;
@@ -47,7 +47,7 @@ export interface ReservationPageSwitchProps {
   setTrimmingCourse: (id: number, name: string) => void;
   setTrimmingOptions: (ids: number[]) => void;
   handleNewReservation: () => void;
-  handleConfirm: (reservationId: number, notes: string) => void;
+  handleConfirm: (reservationId: string, notes: string) => void;
   handleSlotTaken: (message: string, redirectStep: number) => void;
   handleCompleteToMyReservations: () => void;
   handleCompleteNewReservation: () => void;
@@ -98,14 +98,15 @@ function renderAccountPages(props: ReservationPageSwitchProps) {
         onBack={() => props.goTo("top")}
         draftStore={props.revisitIntakeDraftStore}
         onOpenRevisitIntake={(reservation) => {
-          // D4: 安全整数でない ID（丸められている恐れ）からは問診 request を出さない。
+          // EMR-519: 正規形の十進文字列でない ID からは問診 request を出さない。
           const appointmentId = toRevisitIntakeAppointmentId(reservation.id);
           if (appointmentId === null) return;
           props.handleOpenRevisitIntake({
             appointmentId,
             returnTo: "my-reservations",
             summary: {
-              petName: reservation.pet_name || undefined,
+              petId: reservation.pet_id ?? undefined,
+              petName: reservation.pet_name ?? undefined,
               dateLabel: reservation.date ? formatJapaneseDate(reservation.date) : undefined,
               courseName: reservation.course_name || undefined,
             },
@@ -284,7 +285,7 @@ function renderLateReservationSteps(props: ReservationPageSwitchProps) {
           toRevisitIntakeAppointmentId(props.completedReservationId) !== null
             ? () =>
                 props.handleOpenRevisitIntake({
-                  appointmentId: String(props.completedReservationId),
+                  appointmentId: props.completedReservationId,
                   returnTo: "step8",
                   summary: {
                     petName:

@@ -85,10 +85,13 @@ export interface AvailableTime {
 }
 
 // status は backend ReservationStatus (backend/internal/model/reservation.go) と1:1一致。
+// EMR-519: id / pet_id は正の int64 範囲の十進文字列。pet_id / pet_name は両方 non-null か
+// 両方 null（schemas.ts で旧応答の両方省略も両方 null に正規化する）。
 export interface Reservation {
-  id: number;
+  id: string;
+  pet_id: string | null;
+  pet_name: string | null;
   course_name: string;
-  pet_name?: string;
   staff_name: string; // 指名なし予約は backend が省略するため schemas.ts 側で '' デフォルト
   date: string; // "YYYY-MM-DD"
   start_time: string; // "HH:MM"
@@ -108,7 +111,7 @@ export interface Reservation {
 
 /** POST /reservations のレスポンス（予約作成直後は id と notes のみ返す） */
 export interface CreateReservationResponse {
-  id: number;
+  id: string; // 正の int64 範囲の十進文字列（EMR-519）
   notes: string;
 }
 
@@ -185,16 +188,9 @@ export type PageType =
 
 export type RevisitIntakeEnergyAppetite = "usual" | "slightly_reduced" | "markedly_reduced";
 export type RevisitIntakeImprovement =
-  | "improved"
-  | "slightly_improved"
-  | "unchanged"
-  | "worse"
-  | "new_symptoms";
+  "improved" | "slightly_improved" | "unchanged" | "worse" | "new_symptoms";
 export type RevisitIntakeExaminationPreference =
-  | "consultation_only"
-  | "medication_only"
-  | "examination"
-  | "decide_with_vet";
+  "consultation_only" | "medication_only" | "examination" | "decide_with_vet";
 
 /** RevisitIntakeFullAnswers（応答。8保存値すべて present、任意値は null 可、空文字は null と区別） */
 export interface RevisitIntakeFullAnswers {
@@ -305,8 +301,7 @@ export interface RevisitIntakeUnresolvedResult {
 }
 
 export type RevisitIntakeResultResponse =
-  | RevisitIntakeSucceededResult
-  | RevisitIntakeUnresolvedResult;
+  RevisitIntakeSucceededResult | RevisitIntakeUnresolvedResult;
 
 /** 結果照会の結果。404 RevisitIntakeLookupNotFound は not_found（失敗確定ではない）として返す。 */
 export type RevisitIntakeLookupResult =

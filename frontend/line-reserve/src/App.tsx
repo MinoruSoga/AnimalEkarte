@@ -21,7 +21,7 @@ export function App() {
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const [isSettingsNotRegistered, setIsSettingsNotRegistered] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [completedReservationId, setCompletedReservationId] = useState<number>(0);
+  const [completedReservationId, setCompletedReservationId] = useState<string>("");
   const [completedNotes, setCompletedNotes] = useState<string>("");
   const [liffId, setLiffId] = useState<string>("");
   // EMR-474: 再診問診の対象予約（state のみ。URL・ストレージへ載せない）と target 別 draft の memory store

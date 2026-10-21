@@ -25,7 +25,7 @@ interface ConfirmPageProps {
   reservationNotice?: string;
   cancelNotice?: string;
   privacyPolicy?: string;
-  onConfirm: (reservationId: number, notes: string) => void;
+  onConfirm: (reservationId: string, notes: string) => void;
   onSlotTaken: (message: string, redirectStep: number) => void;
   onBack: () => void;
 }
@@ -129,7 +129,15 @@ export function ConfirmPage({
         onSlotTaken(message, redirectStep);
         return { error: null };
       }
-      return { error: "予約の確定に失敗しました。もう一度お試しください。" };
+      if (axios.isAxiosError(err)) {
+        return { error: "予約の確定に失敗しました。もう一度お試しください。" };
+      }
+      // EMR-519: 201 応答の契約違反（parse 失敗）は POST 自体が成功している可能性を
+      // 消せない。自動再送（二重予約になり得る）は行わず、予約一覧での確認を案内する。
+      return {
+        error:
+          "予約結果を確認できませんでした。予約が登録されている可能性があります。「予約確認・キャンセル」からご確認ください。",
+      };
     }
   }
 

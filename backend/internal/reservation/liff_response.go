@@ -3,7 +3,6 @@ package reservation
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -124,13 +123,16 @@ type liffTimeSlotResponse struct {
 }
 
 // liffReservationResponse は予約レスポンス。
+// EMR-519: ID は正の int64 範囲の十進文字列で返す。pet_id / pet_name は常にキーを出し、
+// 両方 nonnull か両方 null（値の決定は liffReservationPet に集約）。
 type liffReservationResponse struct {
-	ID         uint64    `json:"id"`
+	ID         string    `json:"id"`
 	Date       string    `json:"date"`
 	StartTime  string    `json:"start_time"` // "HH:MM"
 	EndTime    string    `json:"end_time"`   // "HH:MM"
 	CourseName string    `json:"course_name"`
-	PetName    string    `json:"pet_name,omitempty"`
+	PetID      *string   `json:"pet_id"`
+	PetName    *string   `json:"pet_name"`
 	StaffName  string    `json:"staff_name,omitempty"`
 	Status     string    `json:"status"`
 	Notes      string    `json:"notes,omitempty"`
@@ -192,11 +194,14 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 }
 
 func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
+	petID, petName := liffReservationPet(r)
 	res := liffReservationResponse{
-		ID:        r.ID,
+		ID:        strconv.FormatUint(r.ID, 10),
 		Date:      r.StartTime.In(time.Local).Format(time.DateOnly),
 		StartTime: r.StartTime.In(time.Local).Format("15:04"),
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
+		PetID:     petID,
+		PetName:   petName,
 		Status:    string(r.Status),
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt.In(time.Local),
@@ -204,7 +209,6 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	if r.ReservationType != nil {
 		res.CourseName = liffCourseName(r.ReservationType)
 	}
-	res.PetName = firstCustomerFieldPetName(r.CustomerFields)
 	if r.Doctor != nil {
 		res.StaffName = r.Doctor.ReservationDisplayName
 		if res.StaffName == "" {
@@ -224,36 +228,24 @@ func liffCourseName(rt *model.ReservationType) string {
 	return rt.Name
 }
 
-func firstCustomerFieldPetName(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var fields struct {
-		Pets []struct {
-			Name string `json:"name"`
-		} `json:"pets"`
-	}
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return ""
-	}
-	for _, pet := range fields.Pets {
-		if name := strings.TrimSpace(pet.Name); name != "" {
-			return name
-		}
-	}
-	return ""
+// liffReservationPet は一覧応答の pet_id / pet_name を返す。
+// 「両方 nonnull か両方 null」の不変条件はこの関数の戻り値だけで保証し、
+// 片方だけ値がある形は返さない。Stage 1 では常に (nil, nil) を返す。
+// どのペット情報・関係を読むかの reader 接続は Stage 2 で行う。
+func liffReservationPet(r *model.Reservation) (petID *string, petName *string) {
+	return nil, nil
 }
 
 // liffReservationCreatedResponse はLIFF予約作成（201）専用レスポンス。
 // 一覧用の liffReservationResponse とは別型（id/notes の2フィールドのみ露出）。
 type liffReservationCreatedResponse struct {
-	ID    uint64 `json:"id"`
+	ID    string `json:"id"`
 	Notes string `json:"notes"`
 }
 
 func toLiffReservationCreatedResponse(r *model.Reservation) liffReservationCreatedResponse {
 	return liffReservationCreatedResponse{
-		ID:    r.ID,
+		ID:    strconv.FormatUint(r.ID, 10),
 		Notes: r.Notes,
 	}
 }

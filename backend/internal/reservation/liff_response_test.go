@@ -2,6 +2,7 @@ package reservation
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -204,7 +205,7 @@ func TestToLiffReservationResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := toLiffReservationResponse(tt.r)
-			assert.Equal(t, tt.r.ID, got.ID)
+			assert.Equal(t, strconv.FormatUint(tt.r.ID, 10), got.ID)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("2006-01-02"), got.Date)
 			assert.Equal(t, tt.r.StartTime.In(time.Local).Format("15:04"), got.StartTime)
 			assert.Equal(t, tt.r.EndTime.In(time.Local).Format("15:04"), got.EndTime)
@@ -214,6 +215,48 @@ func TestToLiffReservationResponse(t *testing.T) {
 			assert.Equal(t, tt.wantStaffName, got.StaffName)
 		})
 	}
+}
+
+// EMR-519: JSON 出力の契約確認（id は十進文字列、pet_id / pet_name は常に両キーで両方 null、
+// customer_fields のペット名から補完しない）。
+func TestToLiffReservationResponseJSON(t *testing.T) {
+	start := time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC)
+	r := &model.Reservation{
+		ID:             42,
+		StartTime:      start,
+		EndTime:        start.Add(15 * time.Minute),
+		Status:         model.ReservationStatusConfirmed,
+		CustomerFields: json.RawMessage(`{"pets":[{"name":"ポチ","type":"柴犬"}]}`),
+	}
+	body, err := json.Marshal(toLiffReservationResponse(r))
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+
+	assert.Equal(t, "42", payload["id"])
+
+	petID, hasPetID := payload["pet_id"]
+	assert.True(t, hasPetID, "pet_id key must be present")
+	assert.Nil(t, petID)
+	petName, hasPetName := payload["pet_name"]
+	assert.True(t, hasPetName, "pet_name key must be present")
+	assert.Nil(t, petName)
+
+	assert.NotContains(t, string(body), "ポチ")
+}
+
+// EMR-519: 201 応答は id（十進文字列）と notes の 2 キーのみ。
+func TestToLiffReservationCreatedResponseJSON(t *testing.T) {
+	body, err := json.Marshal(toLiffReservationCreatedResponse(&model.Reservation{
+		ID:    9007199254740993,
+		Notes: "memo",
+	}))
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	assert.Equal(t, map[string]any{"id": "9007199254740993", "notes": "memo"}, payload)
 }
 
 // ---- toLiffHealthCardResponse ----

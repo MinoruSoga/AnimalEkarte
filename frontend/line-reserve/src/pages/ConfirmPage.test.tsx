@@ -83,7 +83,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     const user = userEvent.setup();
     server.use(
       http.post("/api/liff/:clinicId/reservations", () =>
-        HttpResponse.json({ id: 42, notes: "R-20260801-0001" }),
+        HttpResponse.json({ id: "42", notes: "R-20260801-0001" }),
       ),
     );
     const onConfirm = vi.fn();
@@ -95,7 +95,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     await user.click(screen.getByRole("button", { name: "予約を確定する" }));
 
     await waitFor(() => {
-      expect(onConfirm).toHaveBeenCalledWith(42, "R-20260801-0001");
+      expect(onConfirm).toHaveBeenCalledWith("42", "R-20260801-0001");
     });
   });
 
@@ -107,7 +107,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
       http.post("/api/liff/:clinicId/reservations", async () => {
         reservationPostCount += 1;
         await responseGate.promise;
-        return HttpResponse.json({ id: 42, notes: "R-20260801-0001" });
+        return HttpResponse.json({ id: "42", notes: "R-20260801-0001" });
       }),
     );
     const onConfirm = vi.fn();
@@ -132,7 +132,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     });
 
     await waitFor(() => {
-      expect(onConfirm).toHaveBeenCalledWith(42, "R-20260801-0001");
+      expect(onConfirm).toHaveBeenCalledWith("42", "R-20260801-0001");
     });
   });
 
@@ -142,7 +142,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     const callOrder: string[] = [];
     server.use(
       http.post("/api/liff/:clinicId/reservations", () =>
-        HttpResponse.json({ id: 42, notes: "R-20260801-0001" }),
+        HttpResponse.json({ id: "42", notes: "R-20260801-0001" }),
       ),
     );
     sendMessagesMock.mockImplementation(async () => {
@@ -176,7 +176,7 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     });
 
     await waitFor(() => {
-      expect(onConfirm).toHaveBeenCalledWith(42, "R-20260801-0001");
+      expect(onConfirm).toHaveBeenCalledWith("42", "R-20260801-0001");
     });
     expect(callOrder).toEqual(["sendMessages:start", "sendMessages:complete", "onConfirm"]);
   });
@@ -264,5 +264,27 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
       expect(onSlotTaken).toHaveBeenCalledWith("選択された時間枠は既に予約が入っています。", 5);
     });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("EMR-519: 201 応答が契約と違う場合は自動再送せず、予約一覧での確認を案内する", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+    server.use(
+      http.post("/api/liff/:clinicId/reservations", () => {
+        postCount += 1;
+        return HttpResponse.json({ id: 42, notes: "R-20260801-0001" }, { status: 201 });
+      }),
+    );
+    const onConfirm = vi.fn();
+
+    render(
+      <ConfirmPage {...BASE_PROPS} onConfirm={onConfirm} onSlotTaken={vi.fn()} onBack={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("予約が登録されている可能性");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(postCount).toBe(1);
   });
 });
