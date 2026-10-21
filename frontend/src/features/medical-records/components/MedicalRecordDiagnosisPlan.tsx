@@ -19,6 +19,8 @@ const TreatmentSearchDialog = lazy(() =>
 import { TreatmentTable, TreatmentItem } from "./TreatmentTable";
 import { DiagnosisHeader } from "./DiagnosisHeader";
 import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
+import { TreatmentPackagePicker } from "./TreatmentPackagePicker";
+import { TREATMENT_PACKAGE_RUNTIME_AVAILABLE } from "../lib/treatment-package-operation-state";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
 import { useGetClinicalPlan } from "../api/clinical-plan";
 import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
@@ -68,6 +70,8 @@ export interface DiagnosisPlanProps {
   isPetDeceased?: boolean;
   petSpecies?: string | null;
   isWriteBlocked?: boolean;
+  /** EMR-524: package apply 実行系が提供された場合のみ true。既定 false（契約mock）。 */
+  treatmentPackageRuntimeAvailable?: boolean;
 }
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
@@ -94,9 +98,11 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   isPetDeceased = false,
   petSpecies,
   isWriteBlocked = false,
+  treatmentPackageRuntimeAvailable = TREATMENT_PACKAGE_RUNTIME_AVAILABLE,
 }: DiagnosisPlanProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isPackagePickerOpen, setIsPackagePickerOpen] = useState(false);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
   // ── API ──
@@ -351,7 +357,22 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {/* Bottom Section: Treatment Plan */}
       <div className="flex-1 min-h-0 flex flex-col">
-        <h2 className={`text-sm font-semibold ${C.text} mb-2`}>治療プラン</h2>
+        <div className="flex items-center gap-3 mb-2">
+          <h2 className={`text-sm font-semibold ${C.text}`}>治療プラン</h2>
+          <button
+            type="button"
+            className="text-xs underline"
+            disabled={!treatmentPackageRuntimeAvailable}
+            title={
+              treatmentPackageRuntimeAvailable
+                ? "パッケージを適用"
+                : "パッケージ適用の実行系は未提供です（契約mock段階）"
+            }
+            onClick={() => setIsPackagePickerOpen(true)}
+          >
+            パッケージ
+          </button>
+        </div>
 
         <div
           className={`flex-1 min-h-0 flex flex-col ${C.bgWhite} rounded-lg border ${C.borderLight} overflow-y-auto relative ${MEDICAL_RECORD_FIXED_ACTION_LAYOUT.scrollBottomClearance}`}
@@ -396,6 +417,16 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         </div>
       </div>
 
+      <Suspense fallback={null}>
+        {isPackagePickerOpen && medicalRecordId !== undefined ? (
+          <TreatmentPackagePicker
+            scope={{ recordId: medicalRecordId, clinicId: recordClinicId }}
+            editContext={null}
+            canCreate={canCreate && !isPetDeceased && !isWriteBlocked}
+            onClose={() => setIsPackagePickerOpen(false)}
+          />
+        ) : null}
+      </Suspense>
       <Suspense fallback={null}>
         <TreatmentSearchDialog
           open={isSearchOpen}

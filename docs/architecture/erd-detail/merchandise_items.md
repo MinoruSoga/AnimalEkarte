@@ -11,8 +11,8 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1816](../../../backend/migrations/001_init.sql#L1816) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1817](../../../backend/migrations/001_init.sql#L1817) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1816](../../../backend/migrations/001_init.sql#L1816) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1817](../../../backend/migrations/001_init.sql#L1817) |
 | `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1818](../../../backend/migrations/001_init.sql#L1818) |
 | `category` | `item_category` | NOT NULL | `'goods'` | — | [001_init.sql:1819](../../../backend/migrations/001_init.sql#L1819) |
 | `unit_price` | `bigint` | NOT NULL | `0` | — | [001_init.sql:1820](../../../backend/migrations/001_init.sql#L1820) |
@@ -35,8 +35,8 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     merchandise_items {
-        BIGSERIAL id PK
-        bigint clinic_id FK
+        BIGSERIAL id PK,UK
+        bigint clinic_id FK,UK
         text name
         item_category category
         bigint unit_price
@@ -69,6 +69,7 @@ erDiagram
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
 | `merchandise_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1816](../../../backend/migrations/001_init.sql#L1816) |
+| `uq_merchandise_items_id_clinic` | unique | `CONSTRAINT uq_merchandise_items_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:11213](../../../backend/migrations/001_init.sql#L11213) |
 
 ## インデックス
 

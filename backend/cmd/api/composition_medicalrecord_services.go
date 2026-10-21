@@ -1,6 +1,9 @@
 package main
 
-import "github.com/animal-ekarte/backend/internal/medicalrecord"
+import (
+	"github.com/animal-ekarte/backend/internal/inventory"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
+)
 
 type medicalRecordServices struct {
 	reference  medicalRecordReferenceServices
@@ -51,6 +54,7 @@ type medicalRecordMasterServices struct {
 	medicineDoseParameters medicalrecord.MedicineDoseParamService
 	cages                  medicalrecord.CageService
 	treatmentPlans         medicalrecord.TreatmentPlanService
+	treatmentPackages      medicalrecord.TreatmentPackageService
 }
 
 func newMedicalRecordMasterServices(
@@ -75,6 +79,22 @@ func newMedicalRecordMasterServices(
 		),
 		cages:          medicalrecord.NewCageService(r.cages, d.Transactor),
 		treatmentPlans: medicalrecord.NewTreatmentPlanService(r.treatmentPlans, d.Transactor),
+		// EMR-521: package master。7 種の per-kind finder は既存 master repository を
+		// そのまま渡し、authorizer は ctx 経由のリクエスト単位評価を読む singleton。
+		treatmentPackages: medicalrecord.NewTreatmentPackageService(
+			medicalrecord.NewTreatmentPackageRepository(d.DB),
+			medicalrecord.NewTreatmentPackageDependencies(
+				d.Transactor,
+				auditTx,
+				r.consultations,
+				r.procedures,
+				r.medicines,
+				r.examinationTypes,
+				r.vaccines,
+				r.checkupTypes,
+				inventory.NewMerchandiseItemRepository(d.DB),
+			),
+		),
 	}
 }
 

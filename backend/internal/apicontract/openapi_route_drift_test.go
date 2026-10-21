@@ -160,12 +160,7 @@ var knownMissingFromSpec = map[string]bool{
 
 var knownPhantomInSpec = map[string]bool{
 	// EMR-518 contract-first package routes: owner removes each exact entry in the same runtime-registration PR.
-	"GET /api/v1/masters/treatment-packages":                                                  true,
-	"POST /api/v1/masters/treatment-packages":                                                 true,
-	"GET /api/v1/masters/treatment-packages/{id}":                                             true,
-	"PATCH /api/v1/masters/treatment-packages/{id}":                                           true,
-	"DELETE /api/v1/masters/treatment-packages/{id}":                                          true,
-	"PATCH /api/v1/masters/treatment-packages/reorder":                                        true,
+	// EMR-521: the 6 master routes are now registered; preview/apply/application stay provisional.
 	"POST /api/v1/medical-records/{record_id}/treatment-package-previews":                     true,
 	"POST /api/v1/medical-records/{record_id}/treatment-package-applications":                 true,
 	"GET /api/v1/medical-records/{record_id}/treatment-package-applications":                  true,

@@ -92,6 +92,13 @@ func (h *Handler) registerLateMasterRoutes(masters *gin.RouterGroup, perm medica
 	masters.GET("/procedures/:id", perm(model.ResourceMasterMedical, "view"), h.procedure.GetProcedure)
 	masters.PATCH("/procedures/:id", perm(model.ResourceMasterMedical, "edit"), h.procedure.UpdateProcedure)
 	masters.DELETE("/procedures/:id", perm(model.ResourceMasterMedical, "delete"), h.procedure.DeleteProcedure)
+	// Treatment Packages (EMR-518/EMR-521): static reorder segment before /:id.
+	masters.GET("/treatment-packages", perm(model.ResourceMasterMedical, "view"), h.treatmentPackage.ListTreatmentPackages)
+	masters.POST("/treatment-packages", perm(model.ResourceMasterMedical, "create"), h.treatmentPackage.CreateTreatmentPackage)
+	masters.PATCH("/treatment-packages/reorder", perm(model.ResourceMasterMedical, "edit"), h.treatmentPackage.ReorderTreatmentPackages)
+	masters.GET("/treatment-packages/:id", perm(model.ResourceMasterMedical, "view"), h.treatmentPackage.GetTreatmentPackage)
+	masters.PATCH("/treatment-packages/:id", perm(model.ResourceMasterMedical, "edit"), h.treatmentPackage.UpdateTreatmentPackage)
+	masters.DELETE("/treatment-packages/:id", perm(model.ResourceMasterMedical, "delete"), h.treatmentPackage.DeleteTreatmentPackage)
 	masters.GET("/medicines", perm(model.ResourceMasterMedical, "view"), h.medicine.ListMedicines)
 	masters.POST("/medicines", perm(model.ResourceMasterMedical, "create"), h.medicine.CreateMedicine)
 	masters.PATCH("/medicines/reorder", perm(model.ResourceMasterMedical, "edit"), h.medicine.ReorderMedicines)

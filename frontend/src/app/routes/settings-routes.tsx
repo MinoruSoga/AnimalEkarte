@@ -107,6 +107,23 @@ export const settingsRoute: RouteObject = {
       ],
     },
     {
+      path: "treatment-packages",
+      element: (
+        <RequirePermission resource={ResourceMasterMedical}>
+          <Outlet />
+        </RequirePermission>
+      ),
+      children: [
+        {
+          index: true,
+          lazy: async () => {
+            const { TreatmentPackageSettings } = await import("@/features/master");
+            return { Component: TreatmentPackageSettings };
+          },
+        },
+      ],
+    },
+    {
       path: "diagnosis",
       element: (
         <RequirePermission resource={ResourceMasterMedical}>

@@ -3,6 +3,7 @@ package clinic
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -145,6 +146,32 @@ func (r *Repository) Create(ctx context.Context, clinic *model.Clinic) error {
 	return nil
 }
 
+// CreateTreatmentPackageCatalogVersion creates the clinic's package catalog row
+// (revision 1) inside the caller's ambient transaction (EMR-518 §4 / EMR-521).
+// Reads never create the row, so a clinic without one stays an invariant error —
+// clinic create must initialize it atomically with the clinic row.
+func (r *Repository) CreateTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error {
+	row := &model.TreatmentPackageCatalogVersion{ClinicID: clinicID, Revision: 1, UpdatedAt: time.Now()}
+	if err := persistence.DBOrTx(ctx, r.db).Create(row).Error; err != nil {
+		return apperrors.FromGORM(err, "treatment_package_catalog_version", fmt.Sprintf("%d", clinicID))
+	}
+	return nil
+}
+
+// DeleteTreatmentPackageCatalogVersion removes the clinic's package catalog row
+// inside the caller's transaction. The row is pure per-clinic bookkeeping; the
+// RESTRICT FK would otherwise make every clinic with an (even empty) catalog
+// undeletable (EMR-521 / 518 §4).
+func (r *Repository) DeleteTreatmentPackageCatalogVersion(ctx context.Context, clinicID uint64) error {
+	result := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ?", clinicID).
+		Delete(&model.TreatmentPackageCatalogVersion{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "treatment_package_catalog_version", fmt.Sprintf("%d", clinicID))
+	}
+	return nil
+}
+
 func (r *Repository) UpdateClinic(ctx context.Context, id uint64, input *UpdateClinicInput) error {
 	if input == nil {
 		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
@@ -199,6 +226,8 @@ func (r *Repository) Delete(ctx context.Context, id uint64) error {
 		Where(`NOT EXISTS (SELECT 1 FROM clinic_integrations WHERE clinic_integrations.clinic_id = clinics.id)`).
 		Where(`NOT EXISTS (SELECT 1 FROM lstep_settings WHERE lstep_settings.clinic_id = clinics.id)`).
 		Where(`NOT EXISTS (SELECT 1 FROM permission_groups WHERE permission_groups.clinic_id = clinics.id AND permission_groups.deleted_at IS NULL)`).
+		// package行（論理削除含む）はclinics RESTRICT FKで削除阻害するため事前にconflict化する。
+		Where(`NOT EXISTS (SELECT 1 FROM treatment_packages WHERE treatment_packages.clinic_id = clinics.id)`).
 		Delete(&model.Clinic{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))

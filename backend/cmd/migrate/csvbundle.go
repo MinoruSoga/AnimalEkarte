@@ -153,6 +153,13 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 			if err := setClinicSeedTriggers(ctx, tx, ownsTrimmingCourseTypes, ownsPaymentMethods, true); err != nil {
 				return err
 			}
+			// EMR-518 §4 / EMR-521: seedで作る医院にも catalog 行を作る。
+			// 001 の backfill は CSV より先に適用されるため、fresh 環境では
+			// このINSERTが seed医院分を担う。既存catalogは保持し、失敗時は
+			// seed TX 全体を rollback する（遅延INSERT・架空revisionは不可）。
+			if err := initMissingPackageCatalogs(ctx, tx); err != nil {
+				return err
+			}
 		}
 
 		// COPY loads explicit id values without touching the backing
@@ -168,6 +175,18 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit CSV bundle %s: %w", bundleDir, err)
+	}
+	return nil
+}
+
+// initMissingPackageCatalogs inserts a revision=1 catalog row for every clinic
+// that does not already have one, inside the caller's seed transaction.
+func initMissingPackageCatalogs(ctx context.Context, tx pgx.Tx) error {
+	if _, err := tx.Exec(ctx, `INSERT INTO treatment_package_catalog_versions (clinic_id, revision, updated_at)
+		SELECT c.id, 1, clock_timestamp() FROM clinics c
+		WHERE NOT EXISTS (
+			SELECT 1 FROM treatment_package_catalog_versions cv WHERE cv.clinic_id = c.id)`); err != nil {
+		return fmt.Errorf("failed to initialize package catalog rows for seeded clinics: %w", err)
 	}
 	return nil
 }
