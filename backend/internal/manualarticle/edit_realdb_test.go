@@ -264,3 +264,68 @@ func TestEditRealDB_ReplayReturnsOriginalReceipt(t *testing.T) {
 	require.Equal(t, out1.Result.ResultRefs["content_version_id"], outReplay.Result.ResultRefs["content_version_id"])
 	require.Equal(t, "4", outReplay.Result.CommittedVersions["resulting_version"])
 }
+
+// §7-e: 51 edits with distinct keys — the first key's Lookup still returns the
+// original receipt; versions referenced by operation history / receipts /
+// current / published pointers are never pruned.
+func TestEditRealDB_FiftyOneEditsKeepOriginalReceipt(t *testing.T) {
+	db := setupEditRealDB(t)
+	seedEditArticle(t, db)
+	runner := operation.NewRunner(db, editTestFingerprinter(t))
+	repo := New(db)
+
+	expectedVersion := int64(3)
+	expectedContentID := uint64(7)
+	var firstKey uuid.UUID
+	var firstRefs map[string]string
+	for i := 0; i < 51; i++ {
+		cmd := newCmdForTest(t)
+		cmd.OperationKey = uuid.New()
+		cmd.ExpectedVersion = expectedVersion
+		cmd.ExpectedContentVersionID = expectedContentID
+		p := NewEditParticipant(repo, editAllowGrant, &mockEditTxAudit{},
+			1, 7, false, model.ManualCategoryScreens, "intro", cmd)
+		out, err := runner.Execute(context.Background(), reqForTest(t, cmd), p)
+		require.NoError(t, err, "edit %d", i)
+		require.Equal(t, operation.StatusSucceeded, out.Status)
+		if i == 0 {
+			firstKey = cmd.OperationKey
+			firstRefs = out.Result.ResultRefs
+		}
+		vid, err := strconv.ParseUint(out.Result.ResultRefs["content_version_id"], 10, 64)
+		require.NoError(t, err)
+		expectedVersion++
+		expectedContentID = vid
+	}
+
+	// 最初の key の Lookup は原 receipt を返す（現在 pointer から再構成しない）。
+	pLookup := NewEditParticipant(repo, editAllowGrant, &mockEditTxAudit{},
+		1, 7, false, model.ManualCategoryScreens, "intro", nil)
+	out, err := runner.Lookup(context.Background(), editScopes(1, "7"), firstKey, pLookup)
+	require.NoError(t, err)
+	require.Equal(t, operation.StatusSucceeded, out.Status)
+	require.NotNil(t, out.Result)
+	require.Equal(t, firstRefs["content_version_id"], out.Result.ResultRefs["content_version_id"])
+	require.Equal(t, "4", out.Result.CommittedVersions["resulting_version"])
+
+	// operation 履歴 / receipt / current・published pointer が参照する版は全て残存。
+	var ids []uint64
+	require.NoError(t, db.Model(&model.ManualArticleOperation{}).
+		Where("content_version_id IS NOT NULL").Pluck("content_version_id", &ids).Error)
+	var missing int64
+	for _, id := range ids {
+		var n int64
+		require.NoError(t, db.Model(&model.ManualArticleVersion{}).Where("id = ?", id).Count(&n).Error)
+		if n == 0 {
+			missing++
+		}
+	}
+	require.Equal(t, int64(0), missing, "history-referenced versions must exist")
+	var article model.ManualArticle
+	require.NoError(t, db.First(&article, 42).Error)
+	var n int64
+	require.NoError(t, db.Model(&model.ManualArticleVersion{}).Where("id = ?", *article.CurrentVersionID).Count(&n).Error)
+	require.Equal(t, int64(1), n, "current pointer must resolve")
+	require.NoError(t, db.Model(&model.ManualArticleVersion{}).Where("id = ?", *article.PublishedVersionID).Count(&n).Error)
+	require.Equal(t, int64(1), n, "published pointer must resolve")
+}

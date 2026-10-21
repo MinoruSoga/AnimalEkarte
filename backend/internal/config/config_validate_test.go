@@ -897,7 +897,9 @@ func TestValidate_OperationFingerprintKeys(t *testing.T) {
 		{name: "blank member version", version: "v1", keys: `{"":"` + enc(key32) + `","v1":"` + enc(key48) + `"}`, wantErr: true},
 		{name: "trim-changed member version", version: "v1", keys: `{" v1":"` + enc(key32) + `","v1":"` + enc(key48) + `"}`, wantErr: true},
 		{name: "invalid base64", version: "v1", keys: `{"v1":"!!!not-base64!!!"}`, wantErr: true},
-		{name: "unpadded noncanonical base64", version: "v1", keys: `{"v1":"` + strings.TrimRight(enc(key48), "=") + `"}`, wantErr: true},
+		// 32-byte key の standard encoding は "=" padding を含む。padding を
+		// 剥がした形は non-canonical で拒否（unpadded encoding 自体を試す）。
+		{name: "unpadded noncanonical base64", version: "v1", keys: `{"v1":"` + strings.TrimRight(enc(key32), "=") + `"}`, wantErr: true},
 		{name: "short key", version: "v1", keys: `{"v1":"` + enc("short") + `"}`, wantErr: true},
 		{name: "malformed json", version: "v1", keys: `{"v1":`, wantErr: true},
 		{name: "trailing content", version: "v1", keys: validJSON + ` {}`, wantErr: true},

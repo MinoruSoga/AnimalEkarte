@@ -25,10 +25,6 @@ import (
 // imports internal/handler or internal/auth.
 type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 
-// maxEditBodyBytes は PUT body の読取上限（MaxBytesReader）。
-// title/section/body の rune 上限は request.go の strict parse が別途検査する。
-const maxEditBodyBytes = 1 << 20
-
 // EditDeps は既存記事 edit の C06 接続部品。Runner が nil のとき edit 系
 // endpoint は 500 を返す（fingerprinter keyring 未設定は fail-closed）。
 type EditDeps struct {
@@ -135,12 +131,19 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("slug is required"))
 		return
 	}
-	raw, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, maxEditBodyBytes))
+	raw, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput("request body unreadable"))
 		return
 	}
-	cmd, err := parseEditRequest(raw, category, slug)
+	systemAdmin, _ := httpapi.PeekIsSystemAdmin(c)
+	// 単一 factory: 一度の検証で canonical Content/Preconditions と
+	// immutable command の participant を組み立てる（別 payload 禁止）。
+	exec, err := newManualEditExecution(
+		raw, category, slug,
+		h.edit.Store, h.edit.Grant, h.edit.TxAudit,
+		clinicID, staffID, systemAdmin,
+	)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -152,38 +155,16 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 		return
 	}
 	// body.article_id と経路記事の一致を先に検査する。違えば 409 target_mismatch。
-	if cmd.ArticleID != article.ID {
+	if exec.ArticleID != article.ID {
 		c.JSON(http.StatusConflict, ManualEditConflictBody{Error: "manual edit target mismatch", Code: "target_mismatch"})
 		return
 	}
-	content, err := cmd.operationContent()
+	outcome, err := h.edit.Runner.Execute(ctx, exec.Request, exec.Participant)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
-	scope := operation.Scope{
-		ClinicID:  clinicID,
-		OwnerKind: OwnerKind,
-		ActorKind: operation.ActorStaff,
-		ActorRef:  strconv.FormatUint(staffID, 10),
-		Intent:    IntentEdit,
-	}
-	systemAdmin, _ := httpapi.PeekIsSystemAdmin(c)
-	participant := NewEditParticipant(
-		h.edit.Store, h.edit.Grant, h.edit.TxAudit,
-		clinicID, staffID, systemAdmin, category, slug, cmd,
-	)
-	outcome, err := h.edit.Runner.Execute(ctx, operation.Request{
-		Scope:         scope,
-		Key:           cmd.OperationKey,
-		Content:       content,
-		Preconditions: cmd.operationPreconditions(),
-	}, participant)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	h.respondEditOutcome(c, outcome, participant)
+	h.respondEditOutcome(c, outcome, exec.Participant)
 }
 
 // respondEditOutcome は PUT の Outcome を HTTP 応答へ写像する。

@@ -113,6 +113,12 @@ func NewEditParticipant(
 	routeSlug string,
 	cmd *editCommand,
 ) *EditParticipant {
+	// immutable command は private value copy を所有する（呼出元 pointer
+	// への alias・setter・可変 map は公開しない）。nil は lookup 専用で許容。
+	if cmd != nil {
+		copied := *cmd
+		cmd = &copied
+	}
 	return &EditParticipant{
 		store:         store,
 		checkGrant:    check,
@@ -286,6 +292,12 @@ func (p *EditParticipant) Apply(ctx context.Context, b operation.Binding, req op
 		fields["article_id"] != p.cmd.ArticleIDText {
 		return operation.Result{}, apperrors.WrapInternalServerError("manual edit content commitment mismatch")
 	}
+	// OrderText が唯一の数値源: digest と保存は同一 parsed value を使うため、
+	// 保存用 ExactNumeric は command の OrderText からここで scan する。
+	var orderNumeric model.ExactNumeric
+	if err := orderNumeric.Numeric.Scan(p.cmd.OrderText); err != nil {
+		return operation.Result{}, apperrors.WrapInternalServerError("manual edit order value")
+	}
 	// 新内容版（revision max+1、source_kind=edited、digest 付き）を作る。
 	revision, err := p.store.NextContentRevision(ctx, locked.ID)
 	if err != nil {
@@ -296,7 +308,7 @@ func (p *EditParticipant) Apply(ctx context.Context, b operation.Binding, req op
 	newVersion := &model.ManualArticleVersion{
 		ArticleID:       locked.ID,
 		Title:           p.cmd.Title,
-		OrderValue:      p.cmd.OrderValue,
+		OrderValue:      orderNumeric,
 		Section:         p.cmd.Section,
 		BodyMarkdown:    p.cmd.BodyMarkdown,
 		EditedByStaffID: &p.staffID,

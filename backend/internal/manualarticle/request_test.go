@@ -64,6 +64,9 @@ func TestParseEditRequest_Rejects(t *testing.T) {
 		{"quoted expected_version", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":"3","expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}`},
 		{"quoted order_value", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":"1.25","section":"s","body_markdown":"b"}}`},
 		{"trailing brace", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}}}`},
+		{"decoded NUL in title", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t\u0000x","order_value":1,"section":"s","body_markdown":"b"}}`},
+		{"decoded NUL in section", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"\u0000","body_markdown":"b"}}`},
+		{"decoded NUL in body", `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b\u0000"}}`},
 		{"trailing bracket", `[{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t","order_value":1,"section":"s","body_markdown":"b"}]]`},
 	}
 	for _, tt := range tests {
@@ -93,6 +96,15 @@ func TestParseEditRequest_ExactStringsPreserved(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "t ", cmd.Title)
 	assert.True(t, strings.Contains(cmd.BodyMarkdown, "\r\n"))
+}
+
+func TestParseEditRequest_LiteralBackslashU0000Accepted(t *testing.T) {
+	// 6文字の literal `\u0000`（バックスラッシュ+u0000）は decoded U+0000
+	// と区別して受理・そのまま保存/hash する。
+	body := `{"operation_key":"11111111-1111-4111-8111-111111111111","article_id":"42","expected_version":3,"expected_content_version_id":"7","content":{"title":"t\\u0000x","order_value":1,"section":"s","body_markdown":"b"}}`
+	cmd, err := parseEditRequest([]byte(body), model.ManualCategoryScreens, "s")
+	require.NoError(t, err)
+	assert.Equal(t, `t\u0000x`, cmd.Title)
 }
 
 func editBodyWith(t *testing.T, orderValue string, title, section, bodyMarkdown string) []byte {
@@ -133,6 +145,8 @@ func TestParseEditRequest_OrderValueBoundaries(t *testing.T) {
 }
 
 func TestParseEditRequest_LengthBoundaries(t *testing.T) {
+	// 公開 API 契約 (ManualArticleEditContent) は文字数上限を課さない:
+	// 旧 binding の max=255 / max=100000 は撤回済み。長い値は受理する。
 	long255 := strings.Repeat("a", 255)
 	long256 := strings.Repeat("a", 256)
 	body100k := strings.Repeat("b", 100000)
@@ -146,11 +160,14 @@ func TestParseEditRequest_LengthBoundaries(t *testing.T) {
 		wantErr bool
 	}{
 		{"title 255 ok", long255, "s", "b", false},
-		{"title 256 reject", long256, "s", "b", true},
+		{"title 256 accepted", long256, "s", "b", false},
 		{"section 255 ok", "t", long255, "b", false},
-		{"section 256 reject", "t", long256, "b", true},
+		{"section 256 accepted", "t", long256, "b", false},
 		{"body 100000 ok", "t", "s", body100k, false},
-		{"body 100001 reject", "t", "s", body100kPlus, true},
+		{"body 100001 accepted", "t", "s", body100kPlus, false},
+		{"empty title rejected", "", "s", "b", true},
+		{"empty section rejected", "t", "", "b", true},
+		{"empty body accepted", "t", "s", "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

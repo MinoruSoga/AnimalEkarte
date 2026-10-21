@@ -59,6 +59,15 @@
 ## 採用済みの物理契約（EMR-502 既存記事edit）
 
 本PRの実装差分の実行検証は **NOT_RUN**（go/test/build/lint/codegen 未実行）。
+正本は `docs/work/emr/emr-502-manual-edit-contract-20261021.md`（§4 immutable content/hash projection）。
+`ManualArticleEditContent` の wire 契約どおり title/section は非空のみ・body_markdown は空を許容し、
+旧 binding の `max=255`/`max=100000` 文字数制限・handler 独自 body 上限は継承しない（raw 上限は
+global sanitizer と同じ 1 MiB・manual edit 専用 raw body guard を sanitizer より前に登録、
+raw 0x00 / 不正 JSON は claim 前 400、超過は 413、検査済み bytes は書換えず後段へ戻す）。
+decoded U+0000 は title/section/body_markdown の保存対象文字列で claim 前 400（6文字の
+literal `\u0000` は区別して許容）。single factory が一度の検証で canonical Content /
+Preconditions / immutable command の participant を生成し、order_value は OrderText が
+唯一の数値源（digest と保存で同一 parsed value）。
 
 ### anchor 表
 
