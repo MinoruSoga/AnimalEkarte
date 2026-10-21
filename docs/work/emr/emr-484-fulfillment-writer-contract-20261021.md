@@ -39,7 +39,7 @@ Reuse `/api/v1` prefix and the selected shared medical-record operations result 
 
 New endpoints are proposed, not currently registered. Ordinary treatment PATCH/autosave does not dispatch these operations. Common state-change entry points, when implemented, delegate into the SAME coordinator/participant, not a second state/event writer.
 
-IDs/versions/generations canonical positive decimal strings within signed BIGINT (source.version also within actual integer range). event_head_version may be string `0` for empty history. No JS number. UUID canonical existing parser. Reject unknown write fields, duplicate keys, actor/clinic/pet/body target IDs. Trusted clinic and staff from authentication only.
+IDs/versions/generations canonical positive decimal strings within signed BIGINT (source.version also within actual integer range). event_head_version may be string `0` for empty history. No JS number. UUID canonical existing parser. Reject duplicate JSON member names and unknown write fields. Reject actor/clinic/pet/body target IDs. Trusted clinic and staff from authentication only.
 
 GET returns: record_id, plan_item_id, plan_version, owner_expected_version (= plan_items dependency revision), execution {kind,state}, active owner_link {id,kind:'treatment',treatment_id}, treatment_version, contract_version, fulfillment_generation, event_head_version, required_event_kind ('performed'|'prepared'|null), eligibility ('eligible'|'not_ready'|'unknown'), reason_code, current_ready_event (id/version/generation/kind or null), optional billing-impact refs only after their current read authorization. Unknown requirements stay null/unknown; GET never bootstraps rows. Use no-store. A single consistent snapshot prevents mixed source generation/event head.
 
