@@ -707,7 +707,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: MedicalRecordPetSelection → PetSelectionSearchForm.setSearchParams → usePetSelectionPage.updateSearchParams → debouncedSearchParams → useGetPets; handleClear/handleSelect/pageBinding.
 
-状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search. 
+状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search.
 - [frontend/src/features/medical-records/routes/MedicalRecordPetSelection.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/medical-records/routes/MedicalRecordPetSelection.tsx) blob c8e8758fec0a95fcc97dce4d0a31df6415432369
 - [frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx) blob b53ed590a118d44f3df33e4cb8c9b9a15763b591
 - [frontend/src/hooks/use-pet-selection-page.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/hooks/use-pet-selection-page.ts) blob 64d0c395a281a2bc0915ec284d8b346b672f4735
@@ -720,7 +720,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: HospitalizationPetSelection → PetSelectionSearchForm.setSearchParams → usePetSelectionPage.updateSearchParams → debouncedSearchParams → useGetPets; handleClear/handleSelect/pageBinding.
 
-状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search. 
+状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search.
 - [frontend/src/features/hospitalization/routes/HospitalizationPetSelection.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/hospitalization/routes/HospitalizationPetSelection.tsx) blob 75c31ef869cd5d20e4659715fc6477c355ec118a
 - [frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx) blob b53ed590a118d44f3df33e4cb8c9b9a15763b591
 - [frontend/src/hooks/use-pet-selection-page.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/hooks/use-pet-selection-page.ts) blob 64d0c395a281a2bc0915ec284d8b346b672f4735
@@ -733,7 +733,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: TrimmingPetSelection → PetSelectionSearchForm.setSearchParams → usePetSelectionPage.updateSearchParams → debouncedSearchParams → useGetPets; handleClear/handleSelect/pageBinding.
 
-状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search. 
+状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search.
 - [frontend/src/features/trimming/routes/TrimmingPetSelection.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/trimming/routes/TrimmingPetSelection.tsx) blob d583235f78160692be575d07cee068a606e8e31b
 - [frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx) blob b53ed590a118d44f3df33e4cb8c9b9a15763b591
 - [frontend/src/hooks/use-pet-selection-page.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/hooks/use-pet-selection-page.ts) blob 64d0c395a281a2bc0915ec284d8b346b672f4735
@@ -746,7 +746,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: ExaminationPetSelection → PetSelectionSearchForm.setSearchParams → usePetSelectionPage.updateSearchParams → debouncedSearchParams → useGetPets; handleClear/handleSelect/pageBinding.
 
-状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search. 
+状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search.
 - [frontend/src/features/examinations/routes/ExaminationPetSelection.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/examinations/routes/ExaminationPetSelection.tsx) blob 1fd3ce5ad84e585cab4f23b4ae878ae1bb2bd057
 - [frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx) blob b53ed590a118d44f3df33e4cb8c9b9a15763b591
 - [frontend/src/hooks/use-pet-selection-page.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/hooks/use-pet-selection-page.ts) blob 64d0c395a281a2bc0915ec284d8b346b672f4735
@@ -772,7 +772,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: AccountingPetSelection → PetSelectionSearchForm.setSearchParams → usePetSelectionPage.updateSearchParams → debouncedSearchParams → useGetPets; handleClear/handleSelect/pageBinding.
 
-状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search. 
+状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search.
 - [frontend/src/features/accounting/routes/AccountingPetSelection.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/accounting/routes/AccountingPetSelection.tsx) blob 48a6724c9de887e5cbbff44b80d8b07fab95bc1b
 - [frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx) blob b53ed590a118d44f3df33e4cb8c9b9a15763b591
 - [frontend/src/hooks/use-pet-selection-page.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/hooks/use-pet-selection-page.ts) blob 64d0c395a281a2bc0915ec284d8b346b672f4735
@@ -785,7 +785,7 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: VaccinationPetSelection → PetSelectionSearchForm.setSearchParams → usePetSelectionPage.updateSearchParams → debouncedSearchParams → useGetPets; handleClear/handleSelect/pageBinding.
 
-状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search. 
+状態/無修正境界: Existing selector independently fetched. Shared hook explicitly says automatic search, uses 300ms debounce, PAGE_SIZE=20, includeDeceased and auth-derived clinicIds. New selection navigation remains separate from search.
 - [frontend/src/features/vaccinations/routes/VaccinationPetSelection.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/vaccinations/routes/VaccinationPetSelection.tsx) blob 99b20b97cb12b2cdfcc0ddb2d042d51f2a877b19
 - [frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/components/shared/PetSelection/PetSelectionSearchForm.tsx) blob b53ed590a118d44f3df33e4cb8c9b9a15763b591
 - [frontend/src/hooks/use-pet-selection-page.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/hooks/use-pet-selection-page.ts) blob 64d0c395a281a2bc0915ec284d8b346b672f4735
