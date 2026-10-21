@@ -2,6 +2,10 @@
 
 本書は[EMR-445](https://app.plane.so/baritechllc/browse/EMR-445/)冒頭「2026-10-20 全件着手プラン点検・引渡し索引」とコメント`3f360801-7006-42bd-91a3-ecbae52a732f`に基づく日付付き同期記録。状態・担当・期限・正式依存の正本はPlane、業務仕様は[spec/domains](../../spec/domains/README.md)、技術接続は[design](../../design/README.md)。票の本文コピーや第二の実行キューは作らない。
 
+## 2026-10-21 優先順とマスタ限定の追加台帳
+
+最新の本人指示による①DB/API契約→②全マスタ→③共通UI→④業務ドメイン→⑤後段mainローカル試験は、[段階・対象台帳](emr-445-master-stages-ledger-20261021.md)へ集約する。直接22票は管理範囲で独立PR数ではなく、498のmaster subsetも別にcoverageへ含める。以下は10/20全件点検の履歴で、①②③の現在の実装接続完了や④新規着手許可を意味しない。
+
 ## 基準と完了境界
 
 - mainをfetchし、`5c5219965ad44258b8ccd918ffe52179a6139ade`と一致、指定基準との差分なしを確認。参照用worktreeへの変更は重ねず、main起点のdocs専用worktree／branchを使用する。
