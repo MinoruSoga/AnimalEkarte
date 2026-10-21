@@ -42,7 +42,7 @@ body {target_ref:{vaccination_id,edition_id},intent:"issue"|"reprint",cursor:nul
 
 response必須keys = {items,next_cursor,complete,recovery_generation,active_operation_key}。target queryはgenerationとactive keyを返し、selfはどちらもnull。control不存在は論理generation="1"、active=null、readによるrow作成なし。active keyを返す場合も元receipt scope/現在認可に従う。失権した対象のtarget queryは存在非開示、LIFF selfへ誘導可能。
 
-item必須keys = {operation_key,intent,claimed_at,discovery_state,execution_state,result}。
+item必須keys = {operation_key,intent,claimed_at,discovery_state,execution_state,receipt_digest,result}。receipt_digestはsucceeded時だけserver計算のimmutable原成功receipt canonical bytesのSHA256 lowerhex64、それ以外はnull。本文/targetをredactする場合もdigestから原receipt本文を返さず、既存認可範囲は変えない。
 discovery_state = result | unavailable。
 execution_state = succeeded | unresolved | closed_without_effect。
 resultは当該domainの既存lookup response又はnullで、既存wireを混ぜない。成功receiptの権威ある読取のみsucceeded。closure証拠がある未成功keyのみclosed_without_effect。lookup不調/metadata不明はunavailable＋unresolved＋result=null。成功が確認できても現在本文を読めないLIFFは既存redacted200 resultのみ、target/answer/版/本文を追加しない。certificateは現在元target viewがなければ非開示でありredacted成功を新設しない。
@@ -55,13 +55,13 @@ LIFF selfは自分のreceiptだけを探し、未成功legacy metadata不明はu
 
 LIFF:
 POST /api/liff/{clinicId}/revisit-intake/operation-recovery/fence
-body {target_ref:{appointment_id,pet_id,target_generation},expected_recovery_generation,acknowledged_operation_keys:[UUID...]}
+body {target_ref:{appointment_id,pet_id,target_generation},expected_recovery_generation,acknowledged_operations:[{operation_key,observed_execution_state,observed_receipt_digest}]}
 
 証明書:
 POST /api/v1/vaccination-certificate-operation-recovery/fence
-body {target_ref:{vaccination_id,edition_id},intent:"issue"|"reprint",expected_recovery_generation,acknowledged_operation_keys:[UUID...]}
+body {target_ref:{vaccination_id,edition_id},intent:"issue"|"reprint",expected_recovery_generation,acknowledged_operations:[{operation_key,observed_execution_state,observed_receipt_digest}]}
 
-keysは昇順・重複なし。対象generationにclaimされた全keyを、人が結果確認した集合として渡す。移行が完了した新経路では最大1key、controlがまだない場合は空集合。過去世代の全履歴をack対象へ混ぜない。
+acknowledged_operationsはoperation_key昇順・重複なし。observed_execution_stateはdiscoveryのexecution_state、observed_receipt_digestは同receipt_digestをそのままechoする。succeededはdigest必須、他stateはnull。serverはlock下でstate/digestを再取得し、観測値と違えば409 RECOVERY_CONFLICT、世代・closure・transitionを書かず再discoveryと明示確認を要求する。unresolvedを観測後に成功したkeyを、serverだけの判断でacknowledged_successへ昇格しない。対象generationにclaimされた全keyを、人が結果確認した集合として渡す。移行が完了した新経路では最大1key、controlがまだない場合は空集合。過去世代の全履歴をack対象へ混ぜない。
 
 200 response = {state:"advanced"|"replayed",previous_recovery_generation,recovery_generation,active_operation_key:null,acknowledged:[{operation_key,outcome:"acknowledged_success"|"closed_without_effect"}]}。
 同じexpected generation＋同じtarget/intent＋同じcanonical ack集合の再要求は保存済みtransitionを返すだけで再増分しない。返すgeneration/active=nullは当該遷移直後の履歴であり、現在も空である保証ではない。UIはreplayed後にtarget discoveryで現在generation/activeを再取得してから次操作へ進む。expected generationのtransitionが存在してもack集合が異なれば409 RECOVERY_CONFLICT。世代をまたいだ盲目的再送は不可。operation_keyや第二idempotency keyをfenceへ追加しない。transitionの(control,previous_generation)一意性が応答断の再読取を可能にする。
@@ -104,10 +104,10 @@ revisit_intake_recovery_transitions と vaccination_certificate_recovery_transit
 clinic_id,control_id,previous_generation,new_generation,acknowledgement_sha256 bytea length32,recorded_at(server timestamptz)。PK(clinic,control,previous_generation)、UNIQUE(clinic,control,new_generation)、CHECK new=previous+1、control複合FK。append-only。
 
 対応する *_recovery_transition_items:
-clinic_id,control_id,previous_generation,operation_key, outcome enum acknowledged_success/closed_without_effect。
+clinic_id,control_id,previous_generation,operation_key,observed_execution_state,observed_receipt_digest nullable, outcome enum acknowledged_success/closed_without_effect。observed state/digestのnull条件は§5と同じCHECK。
 PK(clinic,control,previous_generation,operation_key)、transition複合FK。LIFFはauthor_customer_idも持ち同clinic/customer/key receipt FK、certificateはbinding_idを持ち同clinic/binding FK。control principal、元metadata、key/bindingの一致をguard/repositoryで検査。append-only。
 
-空ackの世代進行もheader1行を必須保存し、items0件とする。header hashはSHA256(JCS({schema:"operation-recovery-ack/v1",operation_keys:昇順UUID配列}))。scope/intent/generationはheader/親controlへ型付きで保存し、hashだけへ依存しない。履歴をstaff/systemのaudit_logsへLIFF customerとして偽装しない。この追加sinkが回復操作監査で、domainの元結果監査は変更しない。
+空ackの世代進行もheader1行を必須保存し、items0件とする。header hashはSHA256(JCS({schema:"operation-recovery-ack/v2",acknowledged_operations:§5のkey昇順closed配列}))。scope/intent/generationはheader/親controlへ型付きで保存し、hashだけへ依存しない。履歴をstaff/systemのaudit_logsへLIFF customerとして偽装しない。この追加sinkが回復操作監査で、domainの元結果監査は変更しない。
 
 closed_without_effectは元receiptを書き換えない追加終結証拠。DB-onlyの効果なしを同lock下で確定したkeyだけを記録する。successreceiptがあるkeyにはacknowledged_successしか許可しない。元receipt/transition/metadataの矛盾は503で停止し、片側を削除して修復しない。
 
@@ -127,9 +127,9 @@ controlはcommitまで保持。Gate は既存 immutable 元metadataから選ん�
 
 ### fence
 
-現在実行認可preflightの後、control不存在なら一意INSERTでgeneration1/activeNULLを作る（純readは作らない）。同じ業務gate→control→対象binding/receipt（複数移行対象がある場合key昇順）→既存対象・現在実行認可検査の順。controlの世代とtargets集合をserverで再照合しack完全一致を要求する。successを権威あるreceiptで確認し、LIFF claimedはreceipt lock下で成功answer/receipt不在が確定する場合のみ閉鎖可能。C06はsticky unknownなし、binding lock取得済み、成功receiptなし、DB-only effect/commit状況が確定している場合だけ閉鎖可能。commit不明やlookup不能をabsence扱いしない。unknownは従来解決ownerへ渡して停止。
+現在実行認可preflightの後、control不存在なら一意INSERTでgeneration1/activeNULLを作る（純readは作らない）。同じ業務gate→control→対象binding/receipt（複数移行対象がある場合key昇順）→既存対象・現在実行認可検査の順。controlの世代とtargets集合をserverで再照合し、ackのkey集合と各observed state/digestの完全一致を要求する。保存済みtransitionの同一request replayは保存ack hashで先に識別し、その後の現在state変化を理由に既存transitionを拒否しない。successを権威あるreceiptで確認し、LIFF claimedはreceipt lock下で成功answer/receipt不在が確定する場合のみ閉鎖可能。C06はsticky unknownなし、binding lock取得済み、成功receiptなし、DB-only effect/commit状況が確定している場合だけ閉鎖可能。commit不明やlookup不能をabsence扱いしない。unknownは従来解決ownerへ渡して停止。
 
-同TXでtransition/header/items＋generation+1/activeNULLを保存。どれか失敗すればrollback。fence応答断はtransitionを現在認可付きで再取得し、同じexpected generationの再要求も同transitionへreplayed。遅延claimが先に成功すればfenceはそのkeyをack不足として拒否、遅延Applyが先に成功すればそのreceiptを回復。fenceが先なら旧世代claim/Applyが拒否される。
+同TXでtransition/header/items＋generation+1/activeNULLを保存。どれか失敗すればrollback。fence応答断はtransitionを現在認可付きで再取得し、同じexpected generationの再要求も同transitionへreplayed。遅延claimが先に成功すればfenceはそのkeyをack不足として拒否、遅延Applyが先に成功すればstate/digest不一致でfenceを拒否し、そのreceiptを再discoveryで確認してから明示fenceをやり直す。fenceが先なら旧世代claim/Applyが拒否される。
 
 外部render/uploadは業務TX外のまま。旧世代準備処理がfence後にblobを作っても、業務発行commitへ入れず、未参照候補として既存cleanup設計へ渡す。PDF準備成功を業務成功にしない。
 

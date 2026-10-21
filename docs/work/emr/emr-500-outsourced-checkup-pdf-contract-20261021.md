@@ -41,6 +41,8 @@
 | run列挙/単体 | GET B/pdf-documents/{document_id}/extractions[/{run_id}] | medical-records:view | 進捗、候補、出典、failure。現scopeのみ |
 | 確認・修正して確定 | POST B/pdf-documents/{document_id}/extractions/{run_id}/confirmations | medical-records:edit | C06、同じCheckup結果revisionへ保存 |
 
+原本listのqueryはcursor（省略=初頁、空文字拒否）のみ、page sizeは固定50。順序(created_at DESC,id DESC)、同時刻はUUIDの標準byte順で決定する。closed responseは {items,next_cursor}、next_cursorは末尾でnull、それ以外はopaque base64url cursor。items要素は {document_id,state,document_version,created_by,created_at,registered_at,medical_record_id,checkup_id,pet_id,sha256,byte_size,original_filename,latest_run}、latest_runはnull又は {run_id,state,run_version}（run_sequence最大、候補本文なし）。cursorのclosed内部payloadは {v:1,clinic_id,medical_record_id,checkup_id,upper_created_at,upper_id,last_created_at,last_id}。日時はUTC RFC3339、ID型は本節共通型。初頁の最大tupleをupperとして全頁で維持し、次頁はtuple<=upperかつtuple<lastのkeyset条件。未知key/型不正/非canonical base64url/tuple逆転/対象tuple不一致は400。毎頁現在view/元対象を再認可し、cursorを権限証明にしない。走査途中の追加は次の初頁再取得で取得する。next_cursor=nullは当該走査の終端であって新登録不存在の証明ではない。create-onlyはこのlistを使わず既存元actor限定operation一覧から自分のreceiptだけを回収する。
+
 原本metadataGETはlist内で足りる。結果履歴はEMR-500の同じ結果revision readerへsourceリンクを追加し、別の確定値正本APIを作らない。C06結果照会は新限定consumer GET B/pdf-operations/{operation_key}?intent={intent} とする。owner_kind=checkup_pdf、intentは checkup_pdf.reserve / checkup_pdf.register / checkup_pdf.extract / checkup_pdf.resume / checkup_pdf.confirm の閉じた集合。actorは認証staff、clinicは認証scope。対象IDをintent namespaceへ混ぜない。元binding/targetsの対象を現在認可した後、URLtuple不一致は404。未claimはscope-not-foundで、別actorのkey探索を許さない。
 
 GET lookupは元actorの現在medical-records:view、またはそのintentの元grant（reserve/register=create、それ以外edit）のどちらかで、ID/版/時点だけの既存receiptを返せる限定authorizerとする。create-only actorにも自分の登録成功の回復を閉じるが、原本bytes/候補本文/document listへのview権限は増やさない。reloadでkey自体を失った場合用にGET B/pdf-operations?intent={intent}も同じ元actor/現在grantで提供し、元対象のoperation_key/status/結果ID/版/時点だけを列挙する。順序はclaim時刻とkeyの降順、上限50、opaque cursorはページ境界だけで認可証明ではない。元対象を毎回認可し、一覧不在を未実行証明とせず新key自動作成を禁止する。POSTは元grantを維持、view-only actorはGET lookupで回復する。claim winnerのみreserve document UUIDをanchorに固定、同key/race loserは元UUIDを再利用。新発番UUIDをrequest Contentへ含めて再送時に内容を変えない。新UUIDはserver result identityであり元内容はtupleとmetadata。
@@ -85,10 +87,10 @@ removed_entry_keysは必須配列（削除なしは[]）で、期待current結�
 
 既存FileUploaderを直接完成品扱いせず、新port `CheckupPdfBlobStore` を追加：`PutIfAbsentVerified(key, reader, expectedSha256, expectedSize)`, `Inspect(key)`, `OpenVerified(key, digest)`。keyはserver生成opaqueでclinic/documentを束縛。既存objectの再PUTは同digest/sizeだけ同一成功、違えばconflict。providerへのURLfetchは禁止。実データの外部保存先採用は別承認・設定で、未配線はfail closed。
 
-1 reserveのDBcommandで不変metadata/原scope/actorとreceiptを作る。
+1 reserveのApply業務TXで不変metadata/原scope/actor、audit_logsの予約作成記録（actor・元tuple・document ID・sha/size・binding ID、本文なし）と成功receiptを一体保存する。監査失敗はdocumentとreceiptもrollbackする。短claimのanchor保存を予約作成成功としない。
 2 PUT前に現在create権限/対象を検査、共通quotaをbody読取前に適用。10MiBでstream limit、MIME/ext/sniffの既存helper再利用。内容digest実測。blobwriteはTX外。不確実ならInspectで確認し、同じdocument/keyへ再開する。JSONURL登録口なし。
 3 registerはInspect証跡を得てから短いTXへ入り、immutable object保証を前提に現在scopeとexpected_document_version照合→ready/監査/receiptを同TX。ready後の置換禁止。失敗時に既保存blobを自動deleteしない。
-4 登録未完もlistで見えるためreloadでdocument_id回収できる。別keyのduplicate予防として、同checkup・SHA・sizeの一意制約を置き、同じ内容再アップロードは既存documentを返す。医院間のhash存在を漏らさない。元ファイル名が違っても同一原本、後続runは追加可能。
+4 登録未完もlistで見えるためreloadでdocument_id回収できる。別keyのduplicate予防として、同checkup・SHA・sizeの一意制約を置き、同じ内容再アップロードで既存documentを再利用できるのは、現在元対象viewを持つcaller、又はそのdocumentのcreated_by本人で現在createを持つcallerだけ。同医院であっても別actorかつcreate-onlyなら既存ID/版/actor/状態を返さず、既存C06 dependency-changed（409、result_refs/committed_versionsに既存document情報なし）で止める。新予約を並行INSERTして一意競合した経路も同じ認可検査へ戻る。存在を示すduplicate専用応答を出さず、一般的な依存競合として扱う。PUT/registerも現在createと元tupleに加え、本人作成又は現在viewの同じ再利用条件を再検査し、IDを知るだけで他人の予約を継続できない。元actorの同key成功receipt再照会は既存限定lookupを維持し、この重複検査で拒否しない。医院間のhash存在を漏らさない。元ファイル名が違っても同一原本、後続runは追加可能。
 
 保持・削除の新運用は選定しない。ready原本はこのsliceから削除不可、未完blobの自動期限purgeもなし。保持容量監視は実行未承認。暗号化/破損PDFは原本登録後も抽出blocked/failedとして保持できるが、成功候補にしない。PDF parser/マルウェア対策の具体実装・dependencyは採用前確認、抽出workerは外部network/tool実行/埋込script/添付実行を許さない。
 
