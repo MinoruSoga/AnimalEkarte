@@ -41,13 +41,15 @@ record_type,shift_ref,staff_id,work_date,shift_type,starts_at,ends_at,notes_mode
 | shift_type | `full/morning/afternoon/off/paid_leave` | 空必須 |
 | starts_at / ends_at | 勤務系3typeでは双方必須。off/paid_leaveでは双方空 | 双方必須、対応勤務の内側にある休憩日時 |
 | notes_mode | `keep`又は`set`を明示 | 空必須 |
-| notes | keepなら空必須、setなら空文字を含む文字列 | 空必須 |
+| notes | keepなら空必須、setなら空文字を含む最大2,000文字 | 空必須 |
 
 日時は `YYYY-MM-DDTHH:mm:ss+09:00`（秒00..59、年0001..9999、端数秒/24:00/別offsetなし）。JSTを明示したCSV用輸送文法であり、通常APIの受理文法を変更しない。勤務end>start、日跨ぎ/複数日を時刻逆転から推測せず双方の実日付で表す。勤務日とstartのJST日付不一致を拒否。breakも同じ実日時、端点は[開始,終了)、勤務内・相互非重複を既存validatorで確認し、並べ替えで重複を隠さない。勤務typeから時間を補完せず、templateの時刻をここで暗黙採用しない。
 
 off/paid_leaveは終日非勤務で勤務日時NULL・break0件。CSVに存在する明示行だけがその状態への案で、空欄・未掲載勤務を休日/有休や削除へ変換しない。勤務行のnotes_mode=keepは既存notes保持（新規時は既存owner初期値の空文字）、setは明示入力の値を採用する。set+空だけは明示空値であり、空欄単独を解除命令にしない。勤務rowの置換を確認する際にはこのnotes差分も表示する。
 
 shift_refは元file内の対応用で、DB ID、operation key、別のidempotency keyではない。同staff/work_dateの複数shift recordは同値でもエラー。同じgroupのbreak複数行は許容し、shift欠落・不明ref・offへのbreak・同一break重複は拒否。staffは現在選択医院の実staff/有効assignmentで解決する。本籍staffs.clinic_id一致を要件にしない。氏名・メール・Excel行順から同一人物を推測せず、未解決IDは行エラー、職員の自動登録なし。既存の認可済み職員選択表示で名前とIDを対で提示し、閲覧権限のないmaster情報をCSV補助のため開示しない。
+
+notes_mode=setの上限は、通常勤務create/updateの既定入力制約と同じ2,000 Unicode code points（Go binderのstring maxと同じrune数）とする。byte数や見た目のgrapheme数へ置き換えず、trim/Unicode正規化/切捨てなしで共通勤務validatorが検査する。CSV preview/applyと通常CRUDが同じ検査へ接続し、CSVでbinderを通らないことを上限迂回にしない。超過は元行のvalueエラーでready=false、applyはvalidationで確認範囲全体ゼロwrite。keepは既存値の保持なので、旧長文を切り詰めたり未編集値の長さだけで新たに拒否したりしない。これは既定入力制約の入口整合であり、新しい業務上限の追加ではない。
 
 ### 2.2 合成例（実患者/実職員データなし、未実行）
 
@@ -87,6 +89,7 @@ pathは既存`/api/v1` serverに対する相対path、Cookie/Bearerと既存JSON
 | POST `/shifts/csv-imports/apply` | 同file/options＋command JSON exact `{operation_key,preview_digest,preconditions}`。closed multipart、余剰part拒否 | shifts:view＋各createのshifts:create、各replaceのshifts:edit。noopだけもshifts:edit |
 | GET `/shifts/csv-operations/{operation_key}` | intent=`staff.shift_csv.apply`固定のC06 ResultResponse。未知query拒否 | 元actor/scopeと保存anchorの現在shifts:view |
 | GET `/shifts/csv-operations/{operation_key}/details` | 成功履歴の専用details、下記参照。共通receiptに任意detailsを追加しない | 上と同じ |
+| GET `/shifts/csv-operations/{operation_key}/reconciliation` | 例外時の対象別証拠を読む専用projection（§4.1）。再実行/補償writeなし | 上と同じ |
 
 formatはliteral shift-csv-v1。fileはraw CSVであってbase64 JSONや任意URLではない。preview/applyとも同一parser・normalizer・validatorを使う。applyにも元fileを再送してsource SHA/size・選択Rowの正規化一致をserverが検証する。browserが送るhashだけを信頼しない。
 
@@ -101,6 +104,20 @@ Preconditions exact = `{cells:[{staff_id,work_date,presence,shift_id,expected_ve
 Details success exact = `{status,operation_key,result_refs,recorded_at,source,scope,rows}`。この7keyを全て必須とするclosed objectで、committed_versions keyは定義せず常に出さない。status=succeeded|replayed、operation_key/result_refs/recorded_atは元receiptの保存値を返す。rows[]=`{shift_ref,source_records,action,shift_id,version,before,after}`、action=create|replace|noop。全て当該成功`shift_bulk_operations.confirmed_rows`から読み、後日のcurrentを混ぜない。共通success refs=`{shift_bulk_operation_id}`（binding ID）、共通ResultResponseのcommitted_versionsはoptional keyであり、このCSV consumerは内部空mapなのでomitemptyに従い通常lookupから省略する。専用detailsは共通DTOの直列化ではなく上記7keyへ明示projectionする。行別versionは固定detailsだけに置く。DBのimmutable saved rowsに`shift_ref→実ID/結果version`の対応を保持し、架空のbulk業務versionを作らない。成功refsにはnullable値・配列を入れず、共通EffectSummaryは内部`{changed:"true"|"false"}`だけ。全noopでもbulk履歴/receiptを1組保存、勤務版・勤務変更auditは増やさない。通常lookupは既存ResultResponseを維持する。共通schemaのresult_refs/committed_versions/recorded_atはoptionalだが、このCSV成功はstatus/operation_key/result_refs/recorded_atを返し、committed_versionsは省略する。非成功はstatus/operation_keyだけであり、専用detailsのsource/scope/rowsを通常lookupへ漏らさない。
 
 C06 HTTPは succeeded/replayed/not-succeeded=200、operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、validation=400、scope-not-found=404、not-authorized=403。非成功はstatus/operation_keyのみ。details非成功も同形、保存rows欠落/不整合は現在認可後503で空行補完なし。pre-C06 malformed/format/encoding=400、サイズ=413、認証=401、認可=403、対象非開示=404、媒体不正=415、依存read障害=503は既存ErrorResponse。全応答Cache-Control:no-store。新しいC06 status/汎用wrapperは作らない。
+
+### 4.1 例外時のreconciliation read projection
+
+通常lookup/成功detailsのC06 shapeは変更しない。旧経路の部分commitや整合性違反を調べる専用GET `/shifts/csv-operations/{operation_key}/reconciliation` を選定し、AC-shifts-bulk-partial-resultの対象別表示へ接続する。元actorのC06 scope/keyと保存anchorを認可し、信頼できる保存commandの選択全groupを一つのread snapshotで列挙する。新規claim・metadata修復・receipt作成・履歴追記・reconcile状態更新を行わない。
+
+200のclosed response exact keysは `{operation_key,integrity_state,rows,reexecution_allowed,compensation_allowed}`、全必須。後2値はliteral false。integrity_stateはverified_all_committed / verified_none_applied / partial_detected / undetermined。rowsは選択全groupのstaff/date/ref順、要素exact=`{shift_ref,source_records,staff_id,work_date,state,evidence}`。stateはcommitted / not_applied / unknown。source_recordsは元勤務/休憩record番号の集合。evidenceは証明不能ならrequired null、証明できる時はclosed `{kind,source,reference}`。kindはsuccess_receipt / owner_history / definitive_no_effect、sourceは既存operation_results / shift_bulk_operations / audit_logs / operation_attempt_outcomesの有限集合、referenceは当該既存行の正規ID又はclinic付きbinding参照を表す文字列。原値本文/DB内部情報は返さない。
+
+committedは元bindingの権威ある成功receiptと全confirmed_rowsの整合、又は元操作・当該target・確定版を一意に結ぶ既存の不変owner履歴/監査の証拠がある場合だけ。後日の勤務変更で現値が異なっても元commit事実は保持する。not_appliedは当該対象へ効果がなかったことを示す既存の確定rollback/拒否証拠を照合し、同keyの後続成功・未確定/実行中attemptがないことも権威ある結果照会で確認できる場合だけ。単に過去のrejected attemptが一件あるだけでは不足とする。既存証拠に元操作/対象との関連がないlegacyでは補完せずunknownとする。行の現値一致/不一致、欠落、receipt不在、時刻経過、全件数一致だけからcommit又は未実行を推測しない。
+
+全rowsがcommittedならverified_all_committed、全rowsがnot_appliedならverified_none_applied、committedとnot_appliedがともに証明できた場合だけpartial_detected、それ以外はundetermined。unknownを除外せず全対象を返す。証拠read不調で各対象を確定できない場合はunknown/evidence=nullで保留する。元anchor認可不成立は403非開示、保存commandから対象全集合を安全に確定できない又はquery自体を完了できない場合は503で停止し、空rowsの成功へ変換しない。無認可の証拠ref/元値は開示しない。
+
+UIは対象ごとに「確定済み／未反映を確認／不明」を表示し、通常lookupの原結果と例外調査結果を分ける。partial_detected/undeterminedの間は全件再送・新key・補償削除を停止する。verified_none_appliedも再実行許可tokenではなく、既存§5の現在認可・明示再確認・同Content/同key retryだけに従う。別々の明示操作を無断合成せず、未反映範囲を選び直す場合も元unknownを解消してから新previewへ進む。新しい効果・永続表・C06 status・自動補償は追加しない。全応答no-store。
+
+通常lookup・details・reconciliationの3読取とも、認証staff IDと元bindingのActorStaff/actor_refの厳密一致を必須とする。trusted clinic/owner_kind=staff/intent=staff.shift_csv.apply/keyでFindBindingし、保存元scopeと現在shifts:viewも照合する。医院viewだけで別actorのkeyを探索せず、別actorは元結果/対象/件数を非開示とする。これは既記載の本人scope/別actor lookup拒否の明文化であり、他staffへ権限を追加しない。
 
 ## 5. claim・Q・再送と原ファイル保管
 
@@ -128,7 +145,7 @@ binding下で成功replay/unknown停止を先に処理し、未成功Applyでは
 
 全置換の最終集合を検査してからwriteする。相互に時間を入れ替える同staff複数cellで一時的なexclusion違反を作らないため、影響する既存勤務のstarts_at/ends_atを同TX内で一時NULLへ退避し、その後に最終値を一度設定する方式は採用しない（二重version/履歴を起こす）。実装subsetとして既存exclusionを同じ意味のDEFERRABLE INITIALLY DEFERRED制約へ変更し、最終集合の同TX検査を必須とする。勤務値変更は各row一回、break変更だけでも親aggregate版を一度進める限定writer/trigger整合をschema ownerへ渡す。通常日時CRUD/休憩writerも同じ版責務へ参加し、serviceとtriggerで二重進行しない。現version triggerが親field差分だけを見る不足は実装残差で、単に「CASあり」と扱わない。constraintの無効化・旧時間列復活・手動版加算の二重化はしない。
 
-保存順は全勤務/全break→既存shift_bulk_operations(kind=csv)へsource_snapshotと確認全rowsのbefore/after/実ID/結果版/元record対応→必須audit→C06 receipt。同outer TX、途中の勤務を成功公開しない。全noopはbulk履歴/receiptだけを追加し、勤務版/変更auditを増やさない。業務FK/件数・metadata/projection整合・必須監査・成功receipt/deferred constraintの失敗は全rollback。応答断は同key照会、確定拒否とcommit不明を区別。部分commitを正常応答にせず、旧経路の不整合が判明した場合は対象別に確定/未反映/不明を表示して停止、自動補償削除・全件再送をしない。
+保存順は全勤務/全break→既存shift_bulk_operations(kind=csv)へsource_snapshotと確認全rowsのbefore/after/実ID/結果版/元record対応→必須audit→C06 receipt。同outer TX、途中の勤務を成功公開しない。全noopはbulk履歴/receiptだけを追加し、勤務版/変更auditを増やさない。業務FK/件数・metadata/projection整合・必須監査・成功receipt/deferred constraintの失敗は全rollback。応答断は同key照会、確定拒否とcommit不明を区別。部分commitを正常応答にせず、旧経路の不整合が判明した場合は§4.1の証拠付きread projectionで対象別に確定/未反映/不明を表示して停止、自動補償削除・全件再送をしない。
 
 ## 7. auditと履歴reader
 
@@ -151,13 +168,13 @@ API正本/schema/operationIdは共有ownerが本closed契約から後続の同CS
 実装PRは上の必要subsetを単一統合ownerが採用SHAで回収し、契約・parser・preview・原子保存・結果照会まで閉じる。全勤務/全予約/臨床値移行/旧報告/実DB試験完了を一律の開始条件にしない。現行コードの不足はPR内必要subset又は担当へ渡す明示依存とし、未接続入口を有効化しない。試験実行は今回NOT_RUNのまま、以下を実装担当のfixture/期待値として渡す。
 
 1. UTF-8 BOM有無、Windows-31J明示/誤選択/不正列、CRLF/LF、quoted改行/quote、未知/重複header、壊れたrecord、file/行/group/JSON/command上限超過でゼロwrite。
-2. 同名職員・他院staff ID・本籍別医院の有効assignment、指数/丸め済ID、未知ref、同cell重複、複数break・前後行参照・引用空と未掲載・keep/set空の区別。
+2. notes setの1,999/2,000/2,001文字（多byte文字/改行含む）、byte上限との独立、keep旧長文不変、通常CRUDと同じvalidator/エラー境界を確認する。同名職員・他院staff ID・本籍別医院の有効assignment、指数/丸め済ID、未知ref、同cell重複、複数break・前後行参照・引用空と未掲載・keep/set空の区別。
 3. cross_clinic_conflictsの元shift_ref/行→他院名/実交差時間（JST日跨ぎ表示）の対応、複数衝突全件、restrictedの必須null/ready=false、proof不足503を確認する。日跨ぎ/年末/閏日、work_date不一致、off/paid_leave＋時刻/break拒否、break端点と重複、同staff跨院重複・最終集合の入替、移動時間の手動間隔を勝手に1時間必須にしない。
 4. preview/cancelで勤務/claim0、未選択/未掲載不変、明示置換なしready=false、1件不正で確認全範囲未反映、範囲選び直し再preview。通常CRUD/514の同日時入力と保存値一致。
 5. 493休業のinclusive/exclusive/空区間/null/unknown、退職や所属変更、未終了指名予約・予定終了超過・再受付、過去完了だけ/影響なしの過剰拒否なし、患者詳細失権非開示。
 6. preview後の新勤務/新予約/休業/所属/能力/他院勤務変更、absent→present、breakだけのversion増分、相互cell置換、gate busy/NOWAIT、監査/receipt/全break/deferred失敗で全rollback。
 7. 同key同内容replay、同key別file/選択/置換/digest conflict、CASだけの同key再確認、unknown/busy新key禁止、応答断lookup、再選択fileのSHA不一致、key喪失時停止。成功detailsは後日の勤務改訂でも原before/after/版を保持。
-8. details成功の必須7keyとcommitted_versions不在、共通lookupのoptional key/非成功shapeを照合する。raw/filenameをDB・disk・logへ保存しない、private metadataと成功履歴のRLS/現在認可、別actor lookup拒否、失権/医院切替の遅延応答拒否、formula非実行、共通receiptへの配列/details漏出なし。
+8. reconciliationの全対象列挙と証拠有無によるcommitted/not_applied/unknown、現値一致/receipt欠落だけでの推測禁止、partial/unknown時の再実行・補償ゼロ、後続成功/未確定attemptを無視したnot_applied誤表示拒否、3読取の元actor ID一致を確認する。details成功の必須7keyとcommitted_versions不在、共通lookupのoptional key/非成功shapeを照合する。raw/filenameをDB・disk・logへ保存しない、private metadataと成功履歴のRLS/現在認可、別actor lookup拒否、失権/医院切替の遅延応答拒否、formula非実行、共通receiptへの配列/details漏出なし。
 
 業務追加質問は現時点なし。実CSV見本との対応確認・性能上限調整・実装/生成/DB/実機は担当の受入残であり、本profileを「任意Excel CSV対応」「実装完了」としない。profile外の個別形式だけを対象外として説明し、今回の契約/着手全体を資料待ち・試験待ちへ戻さない。
 
