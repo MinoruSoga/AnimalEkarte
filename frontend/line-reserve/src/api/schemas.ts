@@ -99,7 +99,7 @@ export const availableTimeSchema = z.object({
 
 // EMR-519: 予約 ID・pet_id は正の int64 範囲の正規形十進文字列。Number へ変換すると
 // 2^53 超で precision を失うため、桁数 + 辞書順比較で上限を検査する
-// （revisitIntakeDecimalId は範囲検査を持たないため別定義）。
+// （同じ範囲の revisitIntakeDecimalId はこの schema より後で定義されるため、ここでは別定義）。
 const RESERVATION_ID_INT64_MAX = "9223372036854775807";
 export const reservationDecimalId = z
   .string()
