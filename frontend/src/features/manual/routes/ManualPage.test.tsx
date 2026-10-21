@@ -117,7 +117,9 @@ describe("ManualPage touch targets", () => {
     }
   });
 
-  it("manual-edit:viewがなければoverride queryを無効化してbundle版を表示する", () => {
+  // fix-12: 公開 READ は認証済みスタッフ全員（権限不要）。manual-edit がなくても
+  // 同じ strict fetch・同じ内容を読む。編集 button は canEdit のみで出す。
+  it("manual-edit権限がなくてもoverride queryをfetchし同じ記事を読む（編集buttonは非表示）", () => {
     manualPermissions.canView = false;
     manualPermissions.canEdit = false;
     overridesHookMock.mockReturnValueOnce({
@@ -147,13 +149,12 @@ describe("ManualPage touch targets", () => {
       </QueryClientProvider>,
     );
 
-    expect(overridesHookMock).toHaveBeenCalledWith(false);
-    expect(screen.getByRole("heading", { name: "Animal Ekarte 取扱説明書" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "権限外のoverride" })).not.toBeInTheDocument();
+    expect(overridesHookMock).toHaveBeenCalledWith(true, true);
+    expect(screen.getByRole("heading", { name: "権限外のoverride" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "このページを編集" })).not.toBeInTheDocument();
   });
 
-  it("manual-edit:viewがあってもeditがなければ編集buttonを表示しない", () => {
+  it("manual-edit:editがなければ編集buttonを表示しない", () => {
     manualPermissions.canEdit = false;
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -167,7 +168,7 @@ describe("ManualPage touch targets", () => {
       </QueryClientProvider>,
     );
 
-    expect(overridesHookMock).toHaveBeenCalledWith(true);
+    expect(overridesHookMock).toHaveBeenCalledWith(true, true);
     expect(screen.queryByRole("button", { name: "このページを編集" })).not.toBeInTheDocument();
   });
 
@@ -357,28 +358,31 @@ describe("ManualPage overrides strict gating (fix-9b)", () => {
     expect(screen.queryByText("マニュアル記事を読み込んでいます")).toBeNull();
   });
 
-  // fix-9c (1): 権限失効後は cache された override を使わず bundled のみ。
-  it("permission lost with cached data: override 本文を表示しない", () => {
+  // fix-12: 公開 READ は権限不要。view/edit がなくても同じ strict fetch で
+  // 同じ内容を読む（permission は読むものを変えない）。編集 button のみ canEdit。
+  it("permission does not change what is read: override 本文を表示する", () => {
     manualPermissions.canView = false;
+    manualPermissions.canEdit = false;
     overridesHookMock.mockReturnValue({
       data: [
         {
           id: 99,
           category: "screens",
-          slug: "getting-started",
-          title: "OVERRIDE_TITLE_SHOULD_NOT_SHOW",
+          slug: "00-overview",
+          title: "OVERRIDE_TITLE_ALWAYS_SHOWN",
           order_value: 1,
           section: "S",
-          body_markdown: "OVERRIDE_BODY_SHOULD_NOT_SHOW",
+          body_markdown: "OVERRIDE_BODY_ALWAYS_SHOWN",
           created_at: "",
           updated_at: "",
         },
       ],
     });
-    renderManualPageStrict();
-    expect(screen.queryByText("OVERRIDE_TITLE_SHOULD_NOT_SHOW")).toBeNull();
-    expect(screen.queryByText("OVERRIDE_BODY_SHOULD_NOT_SHOW")).toBeNull();
+    renderManualPageStrict("/manual/screens/00-overview");
+    expect(screen.getByText("OVERRIDE_TITLE_ALWAYS_SHOWN")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "このページを編集" })).toBeNull();
     manualPermissions.canView = true;
+    manualPermissions.canEdit = true;
   });
 
   // fix-9c (2): blocked 中は index route も bundled 先頭記事へ遷移しない。

@@ -122,6 +122,31 @@ func TestListManualArticles_OK(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"slug":"a"`)
 }
 
+func TestPublicRead_NoEditPermissionRequired(t *testing.T) {
+	// 公開 READ は認証のみ（FR-internal-manual-publication）。呼び出されれば
+	// 403 になる permission middleware を差し込んでも GET list / GET
+	// {category}/{slug} は到達する（= route に middleware が登録されない証明）。
+	denyAll := func(resource, action string) gin.HandlerFunc {
+		return func(c *gin.Context) { c.AbortWithStatus(http.StatusForbidden) }
+	}
+	svc := &mockManualArticleServiceForHandler{
+		findAllFn: func(context.Context) ([]PublishedArticle, error) {
+			return []PublishedArticle{{ID: 1, Category: "screens", Slug: "a", Title: "T", Section: "S", BodyMarkdown: "B"}}, nil
+		},
+		findPublishedFn: func(context.Context, model.ManualCategory, string) (*PublishedArticle, error) {
+			return &PublishedArticle{ID: 1, Category: "screens", Slug: "a", Title: "T", Section: "S", BodyMarkdown: "B"}, nil
+		},
+	}
+	h := NewHandler(svc, &mockAuditLogger{}, denyAll, EditDeps{})
+	w := doRequest(t, h, http.MethodGet, "/api/v1/manual/articles", "")
+	assert.Equal(t, http.StatusOK, w.Code)
+	w = doRequest(t, h, http.MethodGet, "/api/v1/manual/articles/screens/a", "")
+	assert.Equal(t, http.StatusOK, w.Code)
+	// 対比: 編集系 GET は同じ denyAll で 403（permission 登録が残る証明）。
+	w = doRequest(t, h, http.MethodGet, "/api/v1/manual/articles/screens/a/edit", "")
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
 func TestGetManualArticle_NotFound(t *testing.T) {
 	svc := &mockManualArticleServiceForHandler{
 		findPublishedFn: func(context.Context, model.ManualCategory, string) (*PublishedArticle, error) {

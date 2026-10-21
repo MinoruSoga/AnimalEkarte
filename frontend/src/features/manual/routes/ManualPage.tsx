@@ -37,7 +37,7 @@ const DESKTOP_BREAKPOINT_QUERY = "(min-width: 768px)";
 
 export function ManualPage() {
   const params = useParams<{ category?: string; slug?: string }>();
-  const { canView: canViewOverrides, canEdit: canEditManual } = usePermission(ResourceManualEdit);
+  const { canEdit: canEditManual } = usePermission(ResourceManualEdit);
 
   const initialMode: ManualCategory = params.category === "workflows" ? "workflows" : "screens";
   const [viewMode, setViewMode] = useState<ManualCategory>(initialMode);
@@ -60,12 +60,11 @@ export function ManualPage() {
 
   // strict 経路: 取得失敗を空配列として bundled 本文へ戻さない。
   // data の有無ではなく query state で判定する（refetch 失敗後も最後の
-  // 成功 data が残るため）。
-  const overridesQuery = useGetManualArticleOverrides(canViewOverrides, true);
-  const overridesBlocked =
-    canViewOverrides === true && (overridesQuery.isPending || overridesQuery.isError);
-  // 権限失効後は cache された override 本文を使い続けない。
-  const overrides = canViewOverrides ? overridesQuery.data : undefined;
+  // 成功 data が残るため）。公開 READ は認証済みスタッフ全員（編集権限と分離、
+  // FR-internal-manual-publication）のため enabled は常に true。
+  const overridesQuery = useGetManualArticleOverrides(true, true);
+  const overridesBlocked = overridesQuery.isPending || overridesQuery.isError;
+  const overrides = overridesQuery.data;
 
   const screenArticles = useMemo<ManualArticle[]>(
     () =>

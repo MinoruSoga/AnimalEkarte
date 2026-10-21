@@ -360,10 +360,12 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 // GET は認証済みユーザー全員、編集系は ResourceManualEdit 権限が必要。
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	manual := rg.Group("/manual/articles")
-	// 閲覧系: 認証済みユーザー全員（マニュアル閲覧は全スタッフ向け）
-	// SEC-602: P5 RequirePermission(view) 付与
-	manual.GET("", h.requirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticles)
-	manual.GET("/:category/:slug", h.requirePermission(string(model.ResourceManualEdit), "view"), h.GetManualArticle)
+	// 閲覧系: 認証済みユーザー全員（認証のみ・権限不要）。公開 READ は編集権限と
+	// 分離する（FR-internal-manual-publication / docs/design/domains/internal-manual/technical-spec.md:31）。
+	// これらの handler は published_version_id が示す公開版だけを返し、
+	// hidden・未公開内容は返さないため未公開情報の開示はない。
+	manual.GET("", h.ListManualArticles)
+	manual.GET("/:category/:slug", h.GetManualArticle)
 	manual.GET("/:category/:slug/versions", h.requirePermission(string(model.ResourceManualEdit), "edit"), h.ListManualArticleVersions)
 
 	// 編集系: ResourceManualEdit 権限必須

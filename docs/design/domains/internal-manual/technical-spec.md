@@ -28,7 +28,7 @@
 - 保存前後で対象医院・対象人物・実効権限を拘束する。権限や状態が競合したら最新状態を確認して再操作し、別医院への自動再送を行わない。
 - 必須の履歴／監査があるwriteは対応する既存ownerの原子的保存契約へ接続する。全CUDに同一audit要件があるとは仮定しない。
 - UI表示／API拒否／DB保存／外部送信の成功は別々に確認し、ソース静的照合だけで実機PASSにしない。
-- 現行ManualPageはmanual-edit:viewなしにDB overrideを取得しない。公開版全員閲覧の今回承認に従い、公開READと編集WRITEを分離し検索・印刷にも同じ公開版を用いる必要がある。記事は現行serviceで医院共通。旧版復元UIの実装存在は未確認。
+- 公開READと編集WRITEは分離する（FR-internal-manual-publication）。認証済みスタッフ全員が公開版を読み、GET list/GET {category}/{slug} は権限 middleware なし・編集系のみ ResourceManualEdit。Frontend は strict fetch（pending/error は query state で gate、bundled fallback なし）で検索・印刷にも同じ公開版を用いる。記事は現行serviceで医院共通。旧版復元UIの実装存在は未確認。
 
 <a id="manual-selected-save-contract"></a>
 ## 選定済みの公開・履歴・結果照合契約
@@ -100,9 +100,9 @@ Preconditions / immutable command の participant を生成し、order_value は
   `Gate` は no-op。`Apply` は fingerprint 済み `req.Content.Fields()` のみから対象を解決し:
   現在の manual-edit:edit grant 再検査（失効→`edit-right-lost`=403）→ anchor 解決（欠落はfail-closed）
   → 対象行 FOR UPDATE lock → locked.id==anchor==Content.article_id かつ locked.category/slug==route
-  selector（不一致→`target_mismatch`、効果なし）→ CAS（version と current_version_id==expected、
-  不一致→`version_conflict`）→ 元出所解決（current NULL・legacy_unknown・digest/revision NULL→
-  `source_unresolved`）→ digest 再計算と Content field の照合（不一致は効果なしで失敗）
+  selector（不一致→`target_mismatch`、効果なし）→ 元出所解決（current NULL・legacy_unknown・
+  digest/revision NULL→`source_unresolved`）→ CAS（version と current_version_id==expected、
+  不一致→`version_conflict`）→ digest 再計算と Content field の照合（不一致は効果なしで失敗）
   → 新内容版（revision=max+1、source_kind=`edited`、digest付き）→ CAS update で current のみ差替
   （version は storage trigger が +1、published は不変）→ `manual_article_operations`（intent=`edit`、
   before/after_state）→ `LogEntryTx` 必須監査（失敗は全体 rollback）→ receipt。
