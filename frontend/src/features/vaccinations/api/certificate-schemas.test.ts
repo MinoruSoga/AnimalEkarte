@@ -3,11 +3,15 @@ import { classifyCertificateError } from "./certificate-errors";
 import {
   certificateContextSchema,
   certificateEditionSchema,
+  certificatePreviewResponseSchema,
   certificateResultSchema,
+  certificateSavedPreviewSchema,
+  emptyCertificateInputs,
+  isPdfBase64,
   readSucceededRefs,
   type CertificateSucceededResult,
 } from "./certificate-schemas";
-import { buildSnapshot, mockHash, sampleRabiesInputs } from "../mock/certificate-fixtures";
+import { buildSnapshot, mockHash, mockPdfBase64, sampleRabiesInputs } from "../mock/certificate-fixtures";
 
 const edition = {
   id: 301,
@@ -93,5 +97,41 @@ describe("証明書 API 失敗の分類", () => {
 
   it("未知の 409 は成功とも前提変更とも推定せず server 扱い", () => {
     expect(classifyCertificateError(409, { code: "something-else" }).kind).toBe("server");
+  });
+});
+
+describe("preview PDF payload の検証", () => {
+  it("base64 として正しく先頭が %PDF- のものだけ受理する", () => {
+    expect(isPdfBase64(mockPdfBase64())).toBe(true);
+    expect(isPdfBase64("")).toBe(false);
+    expect(isPdfBase64("not base64!!")).toBe(false);
+    expect(isPdfBase64(btoa("<html>login</html>"))).toBe(false);
+    expect(isPdfBase64(`${mockPdfBase64()}=`)).toBe(false); // 長さが 4 の倍数でない
+    expect(isPdfBase64(`${mockPdfBase64().slice(0, 40)}`)).toBe(false); // 途中で切れている（%%EOF なし）
+    expect(isPdfBase64(btoa("%PDF-1.4\nbody\n%%EOF\r\n  \n"))).toBe(true); // 末尾の空白は許容
+    expect(isPdfBase64(btoa("%PDF-1.4\n%%EOF\nGARBAGE"))).toBe(false); // %%EOF の後ろに空白以外がある
+    expect(isPdfBase64(btoa("%PDF-1.4\n%%EOF\n%%EOF"))).toBe(true); // 最後の %%EOF で終わる
+    expect(isPdfBase64(btoa(`%PDF-1.4\n${"x".repeat(10_000)}\n%%EOF\n`))).toBe(true); // 大きい本体でも末尾で判定
+  });
+
+  it("確認できない PDF を含む preview 応答は両 schema で拒否する", () => {
+    const snapshot = buildSnapshot({ kind: "normal", layout: "portrait", sourceVersion: 7, rabiesEligible: false, inputs: emptyCertificateInputs() });
+    const base = {
+      snapshot,
+      snapshot_sha256: mockHash("x"),
+      preview_fingerprint: mockHash("y"),
+      source_version: 7,
+      latest_edition_id: null,
+      media_type: "application/pdf",
+      template_version: "t",
+      renderer_version: "r",
+    };
+    expect(certificatePreviewResponseSchema.safeParse({ ...base, pdf_base64: mockPdfBase64() }).success).toBe(true);
+    expect(certificatePreviewResponseSchema.safeParse({ ...base, pdf_base64: "AAAA" }).success).toBe(false);
+    expect(certificatePreviewResponseSchema.safeParse({ ...base, pdf_base64: "%%%%%%%%" }).success).toBe(false);
+
+    const saved = { edition_id: 301, layout: "portrait", media_type: "application/pdf", template_version: "t", renderer_version: "r", content_sha256: mockHash("z") };
+    expect(certificateSavedPreviewSchema.safeParse({ ...saved, pdf_base64: mockPdfBase64() }).success).toBe(true);
+    expect(certificateSavedPreviewSchema.safeParse({ ...saved, pdf_base64: btoa("<html>login</html>") }).success).toBe(false);
   });
 });

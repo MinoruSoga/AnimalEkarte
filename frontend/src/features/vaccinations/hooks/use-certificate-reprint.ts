@@ -1,9 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { CertificateApi } from "../api/certificate-api";
+import { boundSucceededRefs, resultMatchesOperation } from "../api/certificate-binding";
 import { CertificateApiError } from "../api/certificate-errors";
 import { newOperationKey } from "../api/certificate-operation-key";
 import {
-  readSucceededRefs,
   type CertificateEdition,
   type CertificateLayout,
   type CertificateResult,
@@ -41,7 +41,8 @@ export function useCertificateReprint(args: {
   );
   const state = entry.state;
   // 実行中・結果待ち・完了の間は、実際に使った向きを返す（行が作り直されても表示がずれない）。
-  const activeLayout = isReprintUnresolved(state) || state.phase === "done" ? entry.layout : null;
+  const hasPending = entry.pending !== null;
+  const activeLayout = isReprintUnresolved(state) || hasPending || state.phase === "done" ? entry.layout : null;
 
   const commit = useCallback(
     (patch: Partial<ReprintEntry>) => store.set(editionKey, { ...store.get(editionKey), ...patch }),
@@ -49,36 +50,55 @@ export function useCertificateReprint(args: {
   );
 
   const apply = useCallback(
-    (result: CertificateResult) => {
+    (result: CertificateResult, pending: ReprintPending) => {
+      // 待っている操作・対象の版以外の結果は採用しない（結果不明のまま照会に戻す）。
+      if (!resultMatchesOperation(result, pending.request.operation_key)) {
+        commit({ state: { phase: "unknown", notice: "contract-violation" } });
+        return;
+      }
       if (result.status === "not-succeeded") {
         commit({ state: { phase: "not-issued", notice: "not-succeeded" } });
         return;
       }
-      const refs = readSucceededRefs(result);
+      const refs = boundSucceededRefs(result, {
+        operationKey: pending.request.operation_key,
+        vaccinationId: edition.vaccination_id,
+        editionId: pending.editionId,
+      });
       if (refs === null) {
         commit({ state: { phase: "unknown", notice: "contract-violation" } });
         return;
       }
       commit({ pending: null, state: { phase: "done", ...refs, replayed: result.status === "replayed" } });
     },
-    [commit],
+    [commit, edition.vaccination_id],
   );
 
   const lookup = useCallback(
     async (pending: ReprintPending) => {
+      const operationKey = pending.request.operation_key;
+      // 照会は同時に 1 本だけ。重なった照会が先に確定した結果を後から上書きしないようにする。
+      if (store.get(editionKey).checking) return;
+      // この照会が待っている操作が、今も未確定の操作であるときだけ結果を反映する。
+      const isCurrent = () => store.get(editionKey).pending?.request.operation_key === operationKey;
+      commit({ checking: true });
       try {
-        apply(await api.lookupOperation(pending.request.operation_key, "reprint"));
+        const result = await api.lookupOperation(operationKey, "reprint");
+        if (isCurrent()) apply(result, pending);
       } catch (error) {
+        if (!isCurrent()) return;
         const kind = error instanceof CertificateApiError ? error.kind : "network";
         if (kind === "scope-not-found") commit({ state: { phase: "not-issued", notice: "not-claimed" } });
-        else if (kind === "forbidden") commit({ pending: null, state: { phase: "blocked", notice: "forbidden" } });
-        else if (kind === "unauthenticated") {
-          commit({ pending: null, state: { phase: "blocked", notice: "unauthenticated" } });
-        } else if (kind === "operation-in-progress") commit({ state: { phase: "unknown", notice: "busy" } });
+        // 送信済みの key は権限エラーでも捨てない（POST は commit 済みかもしれない）。権限回復後に同じ key で照会する。
+        else if (kind === "forbidden") commit({ state: { phase: "blocked", notice: "forbidden" } });
+        else if (kind === "unauthenticated") commit({ state: { phase: "blocked", notice: "unauthenticated" } });
+        else if (kind === "operation-in-progress") commit({ state: { phase: "unknown", notice: "busy" } });
         else commit({ state: { phase: "unknown", notice: "unavailable" } });
+      } finally {
+        commit({ checking: false });
       }
     },
-    [api, apply, commit],
+    [api, apply, commit, store, editionKey],
   );
 
   const execute = useCallback(
@@ -97,7 +117,7 @@ export function useCertificateReprint(args: {
           await lookup(pending);
           return;
         }
-        apply(result);
+        apply(result, pending);
       } catch (error) {
         const decision = decideIssueFailure(error);
         if (decision.type === "stale") {
@@ -140,6 +160,15 @@ export function useCertificateReprint(args: {
     if (pending) await execute(pending);
   }, [store, editionKey, execute]);
 
+  /** 権限なしで止まった送信済みの操作を、権限回復を確認してから同じ key の照会で再開する。 */
+  const resumeAfterBlocked = useCallback(async () => {
+    const current = store.get(editionKey);
+    if (current.state.phase !== "blocked" || current.pending === null) return;
+    if (!getCanEdit()) return;
+    commit({ state: { phase: "unknown", notice: "unavailable" } });
+    await lookup(current.pending);
+  }, [store, editionKey, getCanEdit, commit, lookup]);
+
   /** 「成功なし」が確定した操作を職員の明示操作で破棄する（向き変更・別の再印刷へ進める）。 */
   const discard = useCallback((): boolean => {
     if (store.get(editionKey).state.phase !== "not-issued") return false;
@@ -154,5 +183,5 @@ export function useCertificateReprint(args: {
     return true;
   }, [store, editionKey, commit]);
 
-  return { state, activeLayout, start, recheck, retrySameKey, discard, reset };
+  return { state, activeLayout, checking: entry.checking, hasPending, resumeAfterBlocked, start, recheck, retrySameKey, discard, reset };
 }
