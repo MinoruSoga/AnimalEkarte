@@ -57,7 +57,7 @@
 | 画面 | 役割 | 根拠 |
 |:--|:--|:--|
 | `CompletePage`（step8） | 「事前問診に回答する（任意）」CTA | FR「予約完了画面と予約詳細から回答へ進み」 |
-| `MyReservationsPage` | `pending` と `confirmed` の両カードに「問診を回答する／訂正する」を出し、回答可否はサーバーの `current_target.editable` に従う（pending を理由に隠さない）。受付後（`checked_in` / `in_consultation` / `accounting` / `completed`）は閲覧のみの入口。`no_show` はサーバー判定に従う。取消済みは履歴があるときだけ「回答履歴を見る」（2026-10-21 本人決定、§11.2 #756 入口） | LIFF の予約詳細相当はマイ予約カード（screens/37） |
+| `MyReservationsPage` | `cancelled` 以外の全 status（LIFF `Reservation.status` の `pending` / `confirmed` / `checked_in` / `in_consultation` / `accounting` / `completed` / `no_show`）のカードに入口を出し、status だけで入口の有無・編集可否を決めない（`confirmed` 限定の cutoff を FE に置かない）。編集可否はサーバーの `current_target.editable` が唯一の根拠で、受付後は server が `editable=false` を返す閲覧のみ。未知 status も FE で隠さず GET の結果に従う（LIFF の status 型に `tentative` は無く、次回予定 tentative は予約一覧の対象外。reservations technical-spec「editable は…tentative/no_show/過去日だけの新 cutoff は設けない」）。`cancelled` は履歴があるときだけ「回答履歴を見る」（2026-10-21 本人決定、§11.2 #756 入口） | LIFF の予約詳細相当はマイ予約カード（screens/37） |
 | 新規 `RevisitIntakePage`（`PageType: revisit-intake`） | 1 予約 = 1 ペットの form。履歴（current の旧版 / previous target）は別セクション read-only | technical-spec v3「current_target 単数」 |
 
 ### 2.2 画面状態（`RevisitIntakeLIFFRead` / error code に対応）
@@ -123,7 +123,7 @@
 
 - 証明書の料金欄（狂犬病様式の登録手数料／注射料／注射済票費用／合計）は、**発行前にスタッフが手動修正できる**。
 - 証明書上の料金編集を**会計明細へ逆反映しない**。証明書出力から課金行を作らない。
-- 登録料・済票料の構成・運用は医院ごとに異なる（EMR-518 の汎用パッケージ構成に従う）。全国一律の請求イベントを新設しない。名称一致で接種種別や料金 role を推定しない。
+- 登録料・済票料の構成・運用は医院ごとに異なる。証明書の料金欄は EMR-518 のパッケージ構成・会計・master に接続せず、初期値は 4 欄とも null（§5.2、#760 `initial_inputs`）。全国一律の請求イベントを新設しない。名称一致で接種種別や料金 role を推定しない。
 
 ### 5.2 画面への反映
 
@@ -200,7 +200,7 @@ Plane 保守事項: EMR-463 本文の対象 path `owner/http_routes.go` は実�
 
 | # | 票 | 未決事項 | FE 側の暫定前提 |
 |:--|:--|:--|:--|
-| Q-A（解決済み 2026-10-21） | EMR-487 / 486 | 狂犬病予防注射済証の対象接種の識別基準。**決定**: `vaccines.rabies_certificate_eligible` と接種時 snapshot が正本。true -> 狂犬病様式を選択可、false / unknown -> normal のみ。名称・価格・種別からの推定はしない（#760 契約: unknown の rabies 要求は 422 validation） | スタッフの手動様式選択は採らない。FE は `certificate-context` の `eligibility.state` / `allowed_kinds` に従う（§11.2） |
+| Q-A（解決済み 2026-10-21） | EMR-487 / 486 | 狂犬病予防注射済証の対象接種の識別基準。**決定**: `vaccines.rabies_certificate_eligible` と接種時 snapshot が正本。true -> 狂犬病様式を選択可、false / unknown -> normal のみ。名称・価格・種別からの推定はしない（#760 契約: unknown の rabies 要求は 422 validation） | eligibility は選べる様式を絞るだけで様式を自動決定しない。eligible のとき `allowed_kinds` は normal / rabies の両方で、スタッフが `allowed_kinds` の範囲で選択する（`CertificateIssuePanel` の radio）。false / unknown は normal のみ（§11.2） |
 
 第 2 版の Q-B（料金欄の入力元・必須性）は本人回答で「発行前手動修正・会計へ逆反映なし・構成は医院別」と確定したため解消。料金欄の初期値は 2026-10-21 に「4 欄とも null、会計・master・package から転記しない」と確定した（§5.2）。
 
