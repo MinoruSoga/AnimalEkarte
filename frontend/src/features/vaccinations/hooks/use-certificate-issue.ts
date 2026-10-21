@@ -1,4 +1,5 @@
-import { useCallback, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { CertificateApi } from "../api/certificate-api";
 import { newOperationKey } from "../api/certificate-operation-key";
 import { boundSucceededRefs, previewMatchesRequest, resultMatchesOperation } from "../api/certificate-binding";
@@ -13,10 +14,12 @@ import {
   decideIssueFailure,
   initialIssueState,
   issueReducer,
+  restoredIssueState,
   type IssueNoticeCode,
   type IssuePending,
   type IssueState,
 } from "../lib/certificate-issue-reducer";
+import { certificateOperationRegistry } from "../lib/certificate-operation-registry";
 import {
   draftFromInputs,
   draftToInputs,
@@ -42,7 +45,9 @@ export interface UseCertificateIssueArgs {
   onRefetchContext: () => void;
 }
 
-function initialFor(context: CertificateContext): IssueState {
+function initialFor({ context, restored }: { context: CertificateContext; restored: IssuePending | undefined }): IssueState {
+  // 画面を離れて戻っても、未確定の発行は同じ key のまま結果不明として復元する（別 key での二重発行を防ぐ）。
+  if (restored !== undefined) return restoredIssueState(restored);
   const kind = selectableKinds(context)[0] ?? "normal";
   return initialIssueState({ kind, layout: layoutsForKind(kind)[0] });
 }
@@ -54,7 +59,9 @@ export function useCertificateIssue({
   getCanEdit,
   onRefetchContext,
 }: UseCertificateIssueArgs) {
-  const [state, dispatch] = useReducer(issueReducer, context, initialFor);
+  const queryClient = useQueryClient();
+  const registry = useMemo(() => certificateOperationRegistry(queryClient), [queryClient]);
+  const [state, dispatch] = useReducer(issueReducer, { context, restored: registry.issuePending.get(vaccinationId) }, initialFor);
   const [fieldErrors, setFieldErrors] = useReducer(
     (_: DraftErrors, next: DraftErrors) => next,
     {} as DraftErrors,
@@ -69,6 +76,12 @@ export function useCertificateIssue({
   useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // 未確定の key が無くなった（発行済み・前提変更・破棄・新規開始）ら、登録簿からも外す。
+  // 未確定のまま unmount しても外さない（戻ったときに復元するため）。
+  useEffect(() => {
+    if (state.pending === null || state.phase === "issued") registry.issuePending.delete(vaccinationId);
+  }, [registry, vaccinationId, state.pending, state.phase]);
 
   const edit = useCallback(
     (patch: { kind?: CertificateKind; layout?: IssueState["layout"]; draft?: Partial<CertificateInputDraft> }) => {
@@ -234,9 +247,11 @@ export function useCertificateIssue({
         preview_display_issue_date: current.preview.snapshot.display_issue_date,
       },
     };
+    // POST を送る前に登録簿へ置く。以後に画面を離れても、この key を失わずに照会できる。
+    registry.issuePending.set(vaccinationId, pending);
     dispatch({ type: "issueStart", pending });
     await execute(pending);
-  }, [execute, getCanEdit, fail]);
+  }, [execute, getCanEdit, fail, registry, vaccinationId]);
 
   /** 結果不明の手動照会（同 key）。 */
   const recheck = useCallback(async () => {

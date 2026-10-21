@@ -7,6 +7,7 @@ import {
   initialIssueState,
   isEditable,
   issueReducer,
+  restoredIssueState,
   type IssuePending,
 } from "./certificate-issue-reducer";
 
@@ -134,5 +135,17 @@ describe("権限なしからの再開", () => {
   it("blocked 以外では何もしない", () => {
     const s = previewed();
     expect(issueReducer(s, { type: "unblock" })).toBe(s);
+  });
+});
+
+describe("再 mount での復元", () => {
+  it("未確定の key と request だけを結果不明として復元し、preview は持ち越さない", () => {
+    const restored = restoredIssueState(pending);
+    expect(restored.phase).toBe("unknown");
+    expect(restored.pending).toBe(pending);
+    expect(restored.kind).toBe("rabies");
+    expect(restored.preview).toBeNull();
+    expect(restored.previewRequest).toBeNull();
+    expect(isEditable(restored.phase)).toBe(false);
   });
 });

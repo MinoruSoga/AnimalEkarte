@@ -5,7 +5,8 @@ import type {
   CertificateLayout,
   CertificatePreviewResponse,
 } from "../api/certificate-schemas";
-import { emptyDraft, type CertificateInputDraft } from "./certificate-inputs";
+import { emptyCertificateInputs } from "../api/certificate-schemas";
+import { draftFromInputs, emptyDraft, type CertificateInputDraft } from "./certificate-inputs";
 
 /**
  * EMR-487: 発行フローの純粋な状態遷移。
@@ -85,6 +86,24 @@ export function initialIssueState(init: {
     pending: null,
     issued: null,
     notice: null,
+  };
+}
+
+/**
+ * 画面の再 mount で復元する状態。未確定の発行（key と request）だけを引き継ぎ、確認用 preview は持ち越さない。
+ * 結果は不明として扱い、同じ key で照会してから「成功なし」確定後の同内容再試行 / 修正して再 preview へ進む。
+ */
+export function restoredIssueState(pending: IssuePending): IssueState {
+  const { request } = pending;
+  return {
+    ...initialIssueState({
+      kind: request.kind,
+      layout: request.layout,
+      draft: draftFromInputs({ ...emptyCertificateInputs(), ...request.inputs }),
+    }),
+    phase: "unknown",
+    pending,
+    notice: "unavailable",
   };
 }
 

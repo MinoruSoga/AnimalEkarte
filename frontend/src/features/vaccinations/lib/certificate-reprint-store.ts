@@ -6,7 +6,8 @@ import type { IssueNoticeCode } from "./certificate-issue-reducer";
  * 再印刷の operation_key と進行状態を、履歴行（CertificateEditionRow）より上で保持する feature 内 store。
  * 履歴の様式タブ・ページ送り・context 再取得で行が unmount されても、未確定の key を失わない
  * （失うと新しい key で二重に再印刷しうる）。edition id ごとに 1 エントリ。
- * 画面（CertificateHistory）が所有し、接種記録が変わったら一緒に破棄される。永続化はしない。
+ * 接種記録ごとの store は certificate-operation-registry が QueryClient 単位でメモリ上に保持する。画面を離れて戻っても
+ * 同じ store が返り、ログアウト・医院切替（queryClient.clear()）で消える。localStorage 等への永続化はしない。
  */
 
 export type ReprintState =

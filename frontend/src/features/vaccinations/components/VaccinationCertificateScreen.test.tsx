@@ -654,3 +654,80 @@ describe("権限が戻った後の再開", () => {
     expect(lookupKeys).toEqual([keys[0]]);
   });
 });
+
+describe("画面の離脱・再 mount を越えた未確定操作の保持（メモリ上のみ）", () => {
+  it("結果不明の発行は、画面を離れて戻っても同じ key で照会でき、新しい key で発行し直さない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const view = renderScreen(api);
+    await createPreview(user);
+    controls.failNext("issue", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    expect(await screen.findByText("発行結果を確認できません")).toBeInTheDocument();
+
+    view.rerender(<div />); // 画面を離れる
+    expect(screen.queryByText("発行結果を確認できません")).toBeNull();
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />); // 戻る
+
+    expect(await screen.findByText("発行結果を確認できません")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "プレビューを作成" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "発行結果を照会する" }));
+    await screen.findByRole("heading", { name: "発行しました" });
+    const issueKey = (callsOf(controls, "issue")[0].detail as CertificateIssueRequest).operation_key;
+    expect(callsOf(controls, "issue")).toHaveLength(1);
+    expect(callsOf(controls, "lookupOperation").every((c) => (c.detail as { operationKey: string }).operationKey === issueKey)).toBe(true);
+  });
+
+  it("別の接種記録へ移っても、戻れば元の記録の未確定操作が残る（記録ごとに保持する）", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const { api: other } = createMockCertificateApi({ rabiesEligible: false, vaccinationId: 102 });
+    const view = renderScreen(api);
+    await createPreview(user);
+    controls.failNext("issue", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    await screen.findByText("発行結果を確認できません");
+
+    view.rerender(<VaccinationCertificateScreen vaccinationId={102} api={other} />);
+    expect(await screen.findByRole("button", { name: "プレビューを作成" })).toBeInTheDocument();
+    expect(screen.queryByText("発行結果を確認できません")).toBeNull();
+
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    expect(await screen.findByText("発行結果を確認できません")).toBeInTheDocument();
+  });
+
+  it("発行が確定した後は残さない（戻ると新しい発行を始められる）", async () => {
+    const user = userEvent.setup();
+    const { api } = createMockCertificateApi({ rabiesEligible: false });
+    const view = renderScreen(api);
+    await createPreview(user);
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    await screen.findByRole("heading", { name: "発行しました" });
+    view.rerender(<div />);
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    expect(await screen.findByRole("button", { name: "プレビューを作成" })).toBeInTheDocument();
+  });
+
+  it("結果不明の再印刷は、画面を離れて戻っても同じ key で照会でき、新しい key で再印刷しない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const view = renderScreen(api);
+    let row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    controls.failNext("reprint", { error: new CertificateApiError("network"), commitFirst: true });
+    controls.failNext("lookupOperation", { error: new CertificateApiError("network") });
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("発行結果を確認できません")).toBeInTheDocument();
+
+    view.rerender(<div />);
+    view.rerender(<VaccinationCertificateScreen vaccinationId={101} api={api} />);
+    row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    expect(await within(row).findByText("発行結果を確認できません")).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeDisabled();
+    await user.click(within(row).getByRole("button", { name: "結果を照会する" }));
+    await within(row).findByRole("heading", { name: "再印刷の準備ができました" });
+    expect(callsOf(controls, "reprint")).toHaveLength(1);
+  });
+});

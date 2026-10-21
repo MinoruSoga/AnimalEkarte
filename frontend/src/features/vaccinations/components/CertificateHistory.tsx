@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
@@ -7,7 +7,7 @@ import { CertificateApiError } from "../api/certificate-errors";
 import type { CertificateContext, CertificateKind } from "../api/certificate-schemas";
 import { KIND_LABEL } from "../lib/certificate-inputs";
 import { CertificateEditionRow } from "./CertificateEditionRow";
-import { createReprintStore } from "../lib/certificate-reprint-store";
+import { certificateOperationRegistry, reprintStoreFor } from "../lib/certificate-operation-registry";
 import { certificateHistoryPageQueryKey, certificateQueryOptions } from "../lib/certificate-query";
 
 interface CertificateHistoryProps {
@@ -22,8 +22,10 @@ const PAGE_SIZE = 20;
 
 /** 発行履歴（edition 降順）。旧版は参照のみで、印刷導線を持たない。 */
 export function CertificateHistory({ api, vaccinationId, context, onRefetch, getCanEdit }: CertificateHistoryProps) {
-  // 様式タブ・ページ送り・context 更新で行が unmount されても、未確定の再印刷 key を保持する。
-  const [reprintStore] = useState(createReprintStore);
+  // 様式タブ・ページ送り・context 更新、さらに画面の離脱・再 mount を越えて、未確定の再印刷 key を保持する
+  // （メモリ上のみ。接種記録ごとの store を QueryClient 単位の登録簿から得る）。
+  const queryClient = useQueryClient();
+  const [reprintStore] = useState(() => reprintStoreFor(certificateOperationRegistry(queryClient), vaccinationId));
   const kinds: CertificateKind[] = (["normal", "rabies"] as const).filter(
     (k) => context.eligibility.allowed_kinds.includes(k) || context.latest[k] !== null,
   );
