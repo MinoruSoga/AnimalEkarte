@@ -6,7 +6,7 @@
 
 基準main `a88fa4add58d43cff643590f9f507c8ab1a3c085`（10:45 UTC再取得）。業務正本は[settings索引](../../spec/screens/settings/README.md)と各領域の確定FR/AC。[①②③段階台帳](emr-445-master-stages-ledger-20261021.md)の直接22票＋498は管理対象であって全属性実装完了の証明ではない。現コードは差分確認の証拠であり、正本を縮小しない。実装・試験・DB操作は今回行っておらずNOT_RUN。
 
-EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・生成実行・試験の開始承認ではない。その他の条件付き新規票案は作成済みへ変更しない。
+新規管理4票EMR-527/528/529/530の起票・Readyは管理責務の具体化であり、実装・生成実行・試験の開始承認ではない。その他の条件付き新規票案は作成済みへ変更しない。
 
 ## 1. 責務・開始条件・完了の意味
 
@@ -63,12 +63,12 @@ EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・
 - 判定・境界：既採用：CoverageRate int、連絡先/備考、CRUD、pet参照削除拒否。新算式なし。全旧consumerの給付計算は④。
 ### 9. キャンペーン
 - 属性/操作：name/期間/rate又はamount/対象カテゴリ・商品/active。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：449集約 / MM-FINANCE-EXACT-MASTERS（未起票候補、§3C） / campaign数値adapter。
+- 集約 / 実装単位 / 専有hunk：449集約 / EMR-530（MM-FINANCE-EXACT-MASTERS、§3C） / campaign数値adapter。
 - BE：B/billing/campaign_{handler,service}.go。model：B/model/campaign.go。FE：F/master/routes/CampaignSettings.tsx。
 - 判定・境界：期間/率額/商品医院検査/typed対象CRUD採用。master writerがCampaign/Targetだけを更新し会計snapshotを書かない保護は採用するが、DiscountValueのExactNumericとrequest/service/response float64の不一致は②数値adapter残として§3Cで閉じる。
 ### 10. 物販
 - 属性/操作：name/category/price/tax/active/order。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：449 / MM-FINANCE-EXACT-MASTERS（未起票候補、§3C2） / merchandise_item税率adapter。
+- 集約 / 実装単位 / 専有hunk：449 / EMR-530（MM-FINANCE-EXACT-MASTERS、§3C2） / merchandise_item税率adapter。
 - BE：B/inventory/merchandise_item_{handler,service}.go。model：B/model/merchandise_item.go。FE：F/master/routes/MerchandiseItemSettings.tsx。
 - 判定・境界：既採用：CRUDと同TX削除、請求/見積/campaign参照guard。TaxRateのExactNumericとrequest/service/response float64の不一致は②の保存/再取得差分。§3C2のexact DTO境界へ合わせ、整数単価や全master型を無断変更しない。
 ### 11. 締め設定
@@ -184,7 +184,7 @@ EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・
 
 ### C. campaign：既存保護を採用し、②のexact数値adapterを閉じる
 
-集約449、専有実装単位候補MM-FINANCE-EXACT-MASTERS（未起票）。campaignと次の物販税率だけの保存/再GET/FE DTO整合を一つの限定PR候補とし、親が実装票へ束ねる。既存449/465-M等のclaimと担当を確認し、同じhunkを二重実装しない。新しい票は本書で作成済みにしない。
+集約449、専有実装単位[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（MM-FINANCE-EXACT-MASTERS、親449、Ready、個人担当未割当）。campaignと次の物販税率だけの保存/再GET/FE DTO整合を一つの限定PR範囲へ束ねる。既存449/465-M等のclaimと担当を確認し、同じhunkを二重実装しない。EMR-530の起票は実装・生成実行・試験の開始承認ではない。その他の条件付き未起票案は変更しない。
 
 固定mainのmodel.Campaign.DiscountValueはExactNumeric/numeric(12,2)。campaign_request.goのcreate/update DiscountValue、campaign_service.goのCreate/UpdateCampaignInput・buildCampaignUpdate・resolveCampaignDiscount・validateCampaignDiscountとCreate代入、campaign_response.goのfloat64 responseが未追従であり、snapshot非更新だけで②無差分とはしない。期間/率額/対象集合/商品医院検査、repositoryのCampaign/Targetだけを更新する境界・同TX/参照保護は再利用する。
 

@@ -8,7 +8,7 @@
 
 ## 2026-10-21 ①②③の具体caller・残差・受領条件
 
-[①契約着手プラン](emr-445-stage1-contract-start-plan-20261021.md)、[②全マスタ着手プラン](emr-445-stage2-master-start-plan-20261021.md)、[③検索・共通UI着手プラン](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を公開した。23管理行/生成型独立後続、settings21本文と追加領域、検索72用途と非検索familyを具体化する。管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）として作成済み。全Ready・個人担当未割当、起票は実装・生成実行・試験の開始承認ではなく、既存成果を再実装しない。確定業務の正本は[docs/spec/domains](../../spec/domains/README.md)。文書計画完成とAPI/schema反映・実装接続・⑤試験品質証明は別判定で、今回実装指示・④新規着手許可・生成/DB/試験実行はない。NOT_RUNを維持する。
+[①契約着手プラン](emr-445-stage1-contract-start-plan-20261021.md)、[②全マスタ着手プラン](emr-445-stage2-master-start-plan-20261021.md)、[③検索・共通UI着手プラン](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を公開した。23管理行/生成型独立後続、settings21本文と追加領域、検索72用途と非検索familyを具体化する。管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）として作成済み。新規管理4票527–530は全Ready・個人担当未割当、起票は実装・生成実行・試験の開始承認ではなく、既存成果を再実装しない。確定業務の正本は[docs/spec/domains](../../spec/domains/README.md)。文書計画完成とAPI/schema反映・実装接続・⑤試験品質証明は別判定で、今回実装指示・④新規着手許可・生成/DB/試験実行はない。NOT_RUNを維持する。
 
 ## 基準と完了境界
 
