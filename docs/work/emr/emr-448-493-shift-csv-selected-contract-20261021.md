@@ -135,7 +135,7 @@ FEは未送信file/案をメモリに保持し、医院切替・失権時に本�
 
 ## 6. applyの原子性と全writer閉包
 
-通常勤務・休憩・CSVで一つの保存関数とaggregate versionを使う。入力口ごとの独自upsertや旧単日APIのloop commitは不可。実装順は現在actor/account/assignment guard→必要な既存graph gate→選択全staffのglobal row FOR UPDATE NOWAIT（ID昇順）→当該clinic assignment（staff順）→C06 binding NOWAIT→勤務cell/全break（staff/date/ID順）である。493のstaff→assignment競合点を保持し、独自advisory keyや予約row後取りを追加しない。共有gateが派生ctxを返す場合は採択済みContextGateの必要subsetで後続へ渡す。
+通常勤務・休憩・CSVで一つの保存関数とaggregate versionを使う。入力口ごとの独自upsertや旧単日APIのloop commitは不可。現在actor/account/assignmentの非locking preflight後、実装順は必要な既存graph gate（ContextGate）→C06 binding NOWAIT→成功receipt/unknownの再読取→savepoint→未成功Apply内で選択全staffのglobal row FOR UPDATE NOWAIT（ID昇順）→当該clinic assignment（staff順）→勤務cell/全break（staff/date/ID順）である。業務rowをParticipant.Gateで先取りせず、共通Runnerのbinding→Applyを維持する。493のstaff→assignment競合点を保持し、独自advisory keyや予約row後取りを追加しない。共有gateが派生ctxを返す場合は採択済みContextGateの必要subsetで後続へ渡す。
 
 binding下で成功replay/unknown停止を先に処理し、未成功Applyではgrant/有効所属・全cell CAS/不存在・完全before/現在影響digestを照合。対象staffの全医院の重複と、selected after同士の重複も検査する。既存のexclusionを無効化せず、cross-clinic proofは信頼済み既存owner resolverから医院/重複時間の必要projectionだけ取得し、§4のcross_clinic_conflictsへ入力group/元行と対応づけて返す。RLS bypass/新roleやclient列の医院追加はしない。取得不能を重複なしと扱わない。勤務日だけの検索で前日開始の日跨ぎや期間末の翌日終了を落とさず、before/afterの実区間で照合する。
 

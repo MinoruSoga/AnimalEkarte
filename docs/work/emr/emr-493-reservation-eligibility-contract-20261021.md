@@ -40,9 +40,21 @@ owner_kind=staff、intent=staff.reservation_eligibility.change。Content exact={
 lookupはtrusted clinic+actor+owner+intent+keyでbinding→原anchor→現在MasterStaff:view/元staff所属とassignment対応→URLstaff一致。元actor一致必須、別actor key探査なし。原anchorなし/解決不能は非開示、成功refsだけで失敗binding認可を推測しない。
 成功refs exact={staff_id,assignment_id}、versions={staff_eligibility:resulting_version}、C06 flat ResultResponseと既存12status/HTTPを維持。succeeded/replayedは元receipt、details配列なし。非成功は既存標準shape。保存失敗validation、版不一致version-conflict、確認後依存変更dependency-changed、unknown/result-unavailableは新key救済しない。現在viewのGETで最新状態を再読し、元receiptと混ぜない。
 
+### 非成功後の復旧・再送遷移
+
+すべて元keyの現在認可付きlookupで結果を確認してから判断する。通信断/503から未実行を推測しない。入力案はscope/失権規則に従い保持し、lookup結果と現在Viewを混ぜない。
+
+| 元操作の確認状態 | 次の操作 |
+|---|---|
+| validationの確定拒否 | 現在View/保護予約を再取得して原因を解消する。changesの意味値を修正するなら、旧操作が未成功で確定した後に内容を再確認し新operation_key。外部で保護予約だけが解消され意味値が同じなら、現在依存/CASを再確認した同keyで再試行可。無条件の自動再送なし |
+| version-conflictの確定拒否 | 最新Viewと差分を読んで再確認し、同一changes/元targetを維持する場合だけexpected_versionを更新して同keyで再試行する。changes/targetが変われば旧操作確定後の新command/newkey。成功済みなら現在CASで再実行せず原receipt |
+| dependency-changedの確定拒否 | assignment identity、所属/区分/保護予約の現在状態を再取得して再確認する。同じ元target・changesが有効な場合だけ現在前提で同key再試行可。元assignmentの付替えや内容変更は旧操作確定後の別command/newkeyであり、旧anchorを補修しない |
+| unknown / result-unavailable、通信断、照会不能 | 通常PATCH再送・新key作成を止め、同key GET lookupだけを継続する。現在状態一致/時間経過/版変化から解決扱いしない。権威ある照会で成功なら原receipt、未成功が確定した場合だけ該当する上記遷移へ。未知が残る限り保留 |
+| operation-in-progress | busy中は同key照会のみ。別key/自動Applyで競合を迂回せず、確定結果を得てから上記へ |
+
 ## 5. TX・全writer閉包・監査
 
-短claim後の業務TXは既存reservation graph gate（必要な派生ctxをContextGateで保持）→staff FOR UPDATE NOWAIT→当該assignment FOR UPDATE NOWAIT→binding NOWAIT→capabilityと区分の既定順SHARE。最初に元anchor現在viewでreplay/unknown分類、未成功Applyはedit/所属・assignment identity・CAS・保護集合を再検査。予約rowの後取りlock/予約変更なし。全staffの複数対象操作はstaff ID昇順。
+短claim後の業務TXは既存reservation graph gate（必要な派生ctxをContextGateで保持）→C06 binding NOWAIT→成功receipt/unknownの再読取→savepoint→未成功Apply内でstaff FOR UPDATE NOWAIT→当該assignment FOR UPDATE NOWAIT→capabilityと区分の既定順SHARE。元anchor現在viewでreplay/unknownを開示分類し、未成功Applyはedit/所属・assignment identity・CAS・保護集合を再検査する。Participant.Gateはgraph gateだけを担い、staff/assignment等のcommand依存業務rowをbindingより前に先取りしない。予約rowの後取りlock/予約変更なし。全staffの複数対象操作はstaff ID昇順。
 staff_service_permissions.go→UpdateReservationCapabilities、旧excluded facade、reservation staff create seed、所属restore/delete、直接junction writerは同aggregate更新に参加しdeferred guardを通る必要subset。旧excludedのactive universe逆算で新しい全許可を作らない。分類/職種gate退役は492/468の既決へ、既存職種master自体は残す。
 同TXでassignment/pause/集合/版→audit_logs→成功receipt。audit action=staff.reservation_eligibility.change、resource=staff_clinic_assignment、resource_id=assignmentID、actor_type=staff、actor_id=trusted staff、clinic_id=scope。old_value/new_valueはDigestProjection＋versionの実before/after、metadata={operation_id,changed_fields}、changed_fieldsはnomination_paused/capabilitiesの変更した方だけ。既存audit sinkの失敗は全rollback、no-opは変更auditなし、replay重複なし。ip/UAは既存trusted contextのみ、新収集なし。
 
