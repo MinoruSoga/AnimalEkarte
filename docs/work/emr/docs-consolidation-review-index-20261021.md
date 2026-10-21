@@ -226,3 +226,7 @@ PDF §2のC06到達後HTTP mappingは親追加指示により `12702fe` でnot-s
 - [371四区分運用手順](emr-371-four-category-operating-procedure-20261021.md)
 
 Q横断接続は `0421039e4`、安定参照と記録は `767d5724d`。追加文書を含む静的照合は40docs限定・参照341件のpath/anchor欠落なし、git diff --check通過。試験はNOT_RUN。504 Cは引き続き原稿未受領で、別担当の到着後に指定補正を適用する。
+
+### 補助author C：指定単一commitと504 C待ち分の完了
+
+入力 `584884f12b41c81e9740e6a48065537076b5308f`（base `e71ddf034`）は[297機器接続](emr-297-device-mapping-bridge-contract-20261021.md)・[504 C通知契約](emr-504-c-dispatch-adapter-contract-20261021.md)の2docs・329行追加のみを確認し、`e493255c9`へ単一cherry-pickした。取込直後の2file blobは元commitとバイト一致、branch/base runtimeを混入しない。続けて親のQ1/R1保留分を504 Cへ適用し、共通Qへの接続と認可anchorの403／認可確定後の結果読取故障503を明記した。これにより前段台帳の「504 C未受領」は当時状態となり、予定追加docsの受領・取込は完了。新19指摘は親の固定snapshot判定待ちで、旧thread返信・resolveは行わない。実装・試験・DB・LLM・送信・mergeなし。
