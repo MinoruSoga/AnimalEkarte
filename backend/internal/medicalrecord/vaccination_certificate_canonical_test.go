@@ -45,7 +45,7 @@ func TestCertificateCanonical_ContractVectors(t *testing.T) {
 }
 
 func TestCertificateCanonical_OmittedNullEquivalence(t *testing.T) {
-	parse := func(raw string) map[string]any {
+	parse := func(raw string) certJSONValue {
 		obj, err := strictJSONObject([]byte(raw))
 		require.NoError(t, err)
 		return obj
@@ -58,12 +58,12 @@ func TestCertificateCanonical_OmittedNullEquivalence(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, withNull, omitted, "omitted and explicit-null inputs hash identically")
 	assert.NotEqual(t, withNull, explicitZero, "explicit zero differs from null")
-	expanded := certificateExpandInputs(parse(`{"inputs":{"registration_fee":1}}`)["inputs"].(map[string]any))
+	expanded := certificateExpandInputs(parse(`{"inputs":{"registration_fee":1}}`).Obj["inputs"].Obj)
 	assert.Len(t, expanded, 10)
-	assert.Nil(t, expanded["certificate_number"])
+	assert.Equal(t, certJSONNull, expanded["certificate_number"].Kind)
 	assert.Equal(t, "1", func() string {
-		p, _ := projectCertificateIntegers(expanded)
-		return p.(map[string]any)["registration_fee"].(string)
+		p, _ := projectCertificateIntegers(certJSONValue{Kind: certJSONObject, Obj: expanded})
+		return p.Obj["registration_fee"].Str
 	}())
 }
 
@@ -71,7 +71,7 @@ func TestCertificateCanonical_OmittedNullEquivalence(t *testing.T) {
 // and the all-10-key null expansion commit to identical snapshot_sha256 and
 // preview_fingerprint digests (contract: normalize once, hash once).
 func TestCertificateHashes_InputsExpansionEquivalence(t *testing.T) {
-	parse := func(raw string) map[string]any {
+	parse := func(raw string) certJSONValue {
 		obj, err := strictJSONObject([]byte(raw))
 		require.NoError(t, err)
 		return obj
@@ -119,9 +119,8 @@ func TestCertificateStrictJSON_RejectsDuplicatesAndGarbage(t *testing.T) {
 }
 
 func TestCertificateHashes_Deterministic(t *testing.T) {
-	obj, err := strictJSONObject([]byte(testCertificateSnapshotJSON))
+	doc, err := strictJSONObject([]byte(testCertificateSnapshotJSON))
 	require.NoError(t, err)
-	doc := obj
 	s1, err := certificateSnapshotSHA256(doc)
 	require.NoError(t, err)
 	s2, err := certificateSnapshotSHA256(doc)

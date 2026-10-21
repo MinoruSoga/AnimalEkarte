@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"bytes"
 	"encoding/hex"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,6 +47,10 @@ func TestFormatCertificateYen(t *testing.T) {
 	assert.Equal(t, "1,000円", formatCertificateYen(i64(1000)))
 	assert.Equal(t, "6,550円", formatCertificateYen(i64(6550)))
 	assert.Equal(t, "1,234,567円", formatCertificateYen(i64(1234567)))
+	assert.Equal(t, "-1,234円", formatCertificateYen(i64(-1234)))
+	// math.MinInt64 must not double the sign; math.MaxInt64 stays ungrouped-safe.
+	assert.Equal(t, "-9,223,372,036,854,775,808円", formatCertificateYen(i64(math.MinInt64)))
+	assert.Equal(t, "9,223,372,036,854,775,807円", formatCertificateYen(i64(math.MaxInt64)))
 }
 
 func TestCertificateBodySize(t *testing.T) {

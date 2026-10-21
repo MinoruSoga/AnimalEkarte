@@ -33,7 +33,7 @@ var errCertificateInvalidSnapshot = errors.New("invalid certificate snapshot")
 // the arbitrary JSON tree, and the DTO echoes the stored object verbatim.
 // All other consumers read the typed fields below.
 type certificateSnapshot struct {
-	Doc              map[string]any
+	Doc              certJSONValue
 	Kind             string
 	Source           certificateSource
 	Owner            certificateOwner
@@ -149,17 +149,20 @@ func decodeCertificateSnapshot(raw []byte) (*certificateSnapshot, error) {
 	// Version gate first: a missing or non-1 schema_version is a
 	// dependency-changed condition, not a shape failure. The snapshot bytes
 	// must never be leaked in either error.
-	sv, ok := doc["schema_version"].(json.Number)
-	if !ok || !jsonIntegerLiteral(sv.String()) {
+	sv := doc.Obj["schema_version"]
+	if sv.Kind != certJSONNumber || !jsonIntegerLiteral(sv.Num.String()) {
 		return nil, errCertificateDependencyChanged
 	}
-	if svi, convErr := strconv.ParseInt(sv.String(), 10, 64); convErr != nil || svi != 1 {
+	if svi, convErr := strconv.ParseInt(sv.Num.String(), 10, 64); convErr != nil || svi != 1 {
 		return nil, errCertificateDependencyChanged
 	}
-	if !requireExactKeys(doc, certificateSnapshotTopKeys) {
+	if !requireExactKeys(doc.Obj, certificateSnapshotTopKeys) {
 		return nil, errCertificateResultUnavailable
 	}
-	kind, _ := doc["kind"].(string)
+	kind := ""
+	if kv := doc.Obj["kind"]; kv.Kind == certJSONString {
+		kind = kv.Str
+	}
 	if kind != "normal" && kind != "rabies" {
 		return nil, errCertificateResultUnavailable
 	}
@@ -179,8 +182,11 @@ func decodeCertificateSnapshot(raw []byte) (*certificateSnapshot, error) {
 	if !ok || !validateStringOrNullFields(clinic, certificateClinicKeys) {
 		return nil, errCertificateResultUnavailable
 	}
-	displayIssueDate, ok := doc["display_issue_date"].(string)
-	if !ok || !isCertificateDate(displayIssueDate) {
+	displayIssueDate := ""
+	if dv := doc.Obj["display_issue_date"]; dv.Kind == certJSONString {
+		displayIssueDate = dv.Str
+	}
+	if !isCertificateDate(displayIssueDate) {
 		return nil, errCertificateResultUnavailable
 	}
 	inputs, ok := certNestedObject(doc, "inputs", certificateInputsKeys)
@@ -190,6 +196,14 @@ func decodeCertificateSnapshot(raw []byte) (*certificateSnapshot, error) {
 	eligibility, ok := certNestedObject(doc, "eligibility", certificateEligibilityKeys)
 	if !ok || !validateCertificateEligibility(eligibility) {
 		return nil, errCertificateResultUnavailable
+	}
+	// Contract: only rabies_eligible == true permits a rabies edition, so a
+	// stored false/unknown on a rabies snapshot is a contradiction. Report it
+	// as result-unavailable and never consult the current master here.
+	if kind == "rabies" {
+		if eligible := eligibility.Obj["rabies_eligible"]; eligible.Kind != certJSONBool || !eligible.Bool {
+			return nil, errCertificateResultUnavailable
+		}
 	}
 	manifest, ok := certNestedObject(doc, "render_manifest", certificateManifestKeys)
 	if !ok {
@@ -202,11 +216,11 @@ func decodeCertificateSnapshot(raw []byte) (*certificateSnapshot, error) {
 	return &certificateSnapshot{
 		Doc:              doc,
 		Kind:             kind,
-		Source:           certificateTypedSource(source),
-		Owner:            certificateTypedOwner(owner),
-		Pet:              certificateTypedPet(pet),
-		Clinic:           certificateTypedClinic(clinic),
-		Inputs:           certificateTypedInputs(inputs),
+		Source:           certificateTypedSource(source.Obj),
+		Owner:            certificateTypedOwner(owner.Obj),
+		Pet:              certificateTypedPet(pet.Obj),
+		Clinic:           certificateTypedClinic(clinic.Obj),
+		Inputs:           certificateTypedInputs(inputs.Obj),
 		DisplayIssueDate: displayIssueDate,
 		RendererVersion:  rendererVersion,
 		FontAssetVersion: fontAssetVersion,
@@ -217,18 +231,18 @@ func decodeCertificateSnapshot(raw []byte) (*certificateSnapshot, error) {
 // ─── Typed projection ────────────────────────────────────────────────────────
 //
 // The validators above have already proven every field's wire type, so the
-// unchecked coercions in these populate helpers cannot fail.
+// unchecked reads in these populate helpers cannot fail.
 
-func certificateTypedSource(m map[string]any) certificateSource {
+func certificateTypedSource(m map[string]certJSONValue) certificateSource {
 	vaccinationID, _ := certInt64Field(m, "vaccination_id")
 	version, _ := certInt64Field(m, "version")
 	vaccineID, _ := certInt64Field(m, "vaccine_id")
-	administeredOn, _ := m["administered_on"].(string)
+	administeredOn := m["administered_on"].Str
 	var lots [4]*string
-	if raw, ok := m["lots"].([]any); ok {
+	if raw := m["lots"]; raw.Kind == certJSONArray {
 		for i := range lots {
-			if i < len(raw) {
-				lots[i] = certStringPtr(raw[i])
+			if i < len(raw.Arr) {
+				lots[i] = certStringPtr(raw.Arr[i])
 			}
 		}
 	}
@@ -244,7 +258,7 @@ func certificateTypedSource(m map[string]any) certificateSource {
 	}
 }
 
-func certificateTypedOwner(m map[string]any) certificateOwner {
+func certificateTypedOwner(m map[string]certJSONValue) certificateOwner {
 	return certificateOwner{
 		Name:       certStringPtr(m["name"]),
 		NameKana:   certStringPtr(m["name_kana"]),
@@ -254,7 +268,7 @@ func certificateTypedOwner(m map[string]any) certificateOwner {
 	}
 }
 
-func certificateTypedPet(m map[string]any) certificatePet {
+func certificateTypedPet(m map[string]certJSONValue) certificatePet {
 	return certificatePet{
 		Name:      certStringPtr(m["name"]),
 		Species:   certStringPtr(m["species"]),
@@ -266,7 +280,7 @@ func certificateTypedPet(m map[string]any) certificatePet {
 	}
 }
 
-func certificateTypedClinic(m map[string]any) certificateClinic {
+func certificateTypedClinic(m map[string]certJSONValue) certificateClinic {
 	return certificateClinic{
 		Name:                    certStringPtr(m["name"]),
 		DirectorName:            certStringPtr(m["director_name"]),
@@ -282,7 +296,7 @@ func certificateTypedClinic(m map[string]any) certificateClinic {
 	}
 }
 
-func certificateTypedInputs(m map[string]any) certificateInputs {
+func certificateTypedInputs(m map[string]certJSONValue) certificateInputs {
 	return certificateInputs{
 		CertificateNumber:        certStringPtr(m["certificate_number"]),
 		InjectionTagNumber:       certStringPtr(m["injection_tag_number"]),
@@ -297,15 +311,15 @@ func certificateTypedInputs(m map[string]any) certificateInputs {
 	}
 }
 
-func certNestedObject(doc map[string]any, key string, keys []string) (map[string]any, bool) {
-	v, ok := doc[key].(map[string]any)
-	if !ok || !requireExactKeys(v, keys) {
-		return nil, false
+func certNestedObject(doc certJSONValue, key string, keys []string) (certJSONValue, bool) {
+	v, ok := doc.Obj[key]
+	if !ok || v.Kind != certJSONObject || !requireExactKeys(v.Obj, keys) {
+		return certJSONValue{}, false
 	}
 	return v, true
 }
 
-func requireExactKeys(obj map[string]any, keys []string) bool {
+func requireExactKeys(obj map[string]certJSONValue, keys []string) bool {
 	if len(obj) != len(keys) {
 		return false
 	}
@@ -317,30 +331,29 @@ func requireExactKeys(obj map[string]any, keys []string) bool {
 	return true
 }
 
-func validateCertificateSource(source map[string]any) bool {
+func validateCertificateSource(source certJSONValue) bool {
 	for _, k := range []string{"vaccination_id", "version", "vaccine_id"} {
-		if !isJSONInt64(source[k]) {
+		if !isJSONInt64(source.Obj[k]) {
 			return false
 		}
 	}
-	if !isNullOrString(source["vaccine_name"]) || !isNullOrString(source["doctor_name"]) {
+	if !isNullOrString(source.Obj["vaccine_name"]) || !isNullOrString(source.Obj["doctor_name"]) {
 		return false
 	}
-	administered, ok := source["administered_on"].(string)
-	if !ok || !isCertificateDate(administered) {
+	administered := source.Obj["administered_on"]
+	if administered.Kind != certJSONString || !isCertificateDate(administered.Str) {
 		return false
 	}
-	if next := source["next_scheduled_on"]; next != nil {
-		s, ok := next.(string)
-		if !ok || !isCertificateDate(s) {
+	if next := source.Obj["next_scheduled_on"]; next.Kind != certJSONNull {
+		if next.Kind != certJSONString || !isCertificateDate(next.Str) {
 			return false
 		}
 	}
-	lots, ok := source["lots"].([]any)
-	if !ok || len(lots) != 4 {
+	lots := source.Obj["lots"]
+	if lots.Kind != certJSONArray || len(lots.Arr) != 4 {
 		return false
 	}
-	for _, lot := range lots {
+	for _, lot := range lots.Arr {
 		if !isNullOrString(lot) {
 			return false
 		}
@@ -348,49 +361,47 @@ func validateCertificateSource(source map[string]any) bool {
 	return true
 }
 
-func validateCertificatePet(pet map[string]any) bool {
+func validateCertificatePet(pet certJSONValue) bool {
 	if !validateStringOrNullFields(pet, certificatePetKeys) {
 		return false
 	}
-	if birth := pet["birth_date"]; birth != nil {
-		s, ok := birth.(string)
-		if !ok || !isCertificateDate(s) {
+	if birth := pet.Obj["birth_date"]; birth.Kind != certJSONNull {
+		if birth.Kind != certJSONString || !isCertificateDate(birth.Str) {
 			return false
 		}
 	}
 	return true
 }
 
-func validateStringOrNullFields(obj map[string]any, keys []string) bool {
+func validateStringOrNullFields(obj certJSONValue, keys []string) bool {
 	for _, k := range keys {
-		if !isNullOrString(obj[k]) {
+		if !isNullOrString(obj.Obj[k]) {
 			return false
 		}
 	}
 	return true
 }
 
-func validateCertificateInputs(inputs map[string]any, kind string) bool {
+func validateCertificateInputs(inputs certJSONValue, kind string) bool {
 	for _, k := range certificateInputStringKeys {
-		if !isNullOrString(inputs[k]) {
+		if !isNullOrString(inputs.Obj[k]) {
 			return false
 		}
 	}
-	if bs := inputs["body_size"]; bs != nil {
-		s, ok := bs.(string)
-		if !ok || (s != "small" && s != "medium" && s != "large") {
+	if bs := inputs.Obj["body_size"]; bs.Kind != certJSONNull {
+		if bs.Kind != certJSONString || (bs.Str != "small" && bs.Str != "medium" && bs.Str != "large") {
 			return false
 		}
 	}
 	for _, k := range certificateInputIntKeys {
-		if !isNullOrJSONInt64(inputs[k]) {
+		if !isNullOrJSONInt64(inputs.Obj[k]) {
 			return false
 		}
 	}
 	if kind == "normal" {
 		// Stored normal snapshots keep all 10 keys with every value null.
-		for _, v := range inputs {
-			if v != nil {
+		for _, v := range inputs.Obj {
+			if v.Kind != certJSONNull {
 				return false
 			}
 		}
@@ -398,39 +409,38 @@ func validateCertificateInputs(inputs map[string]any, kind string) bool {
 	return true
 }
 
-func validateCertificateEligibility(eligibility map[string]any) bool {
-	if eligible := eligibility["rabies_eligible"]; eligible != nil {
-		if _, ok := eligible.(bool); !ok {
+func validateCertificateEligibility(eligibility certJSONValue) bool {
+	if eligible := eligibility.Obj["rabies_eligible"]; eligible.Kind != certJSONNull {
+		if eligible.Kind != certJSONBool {
 			return false
 		}
 	}
-	if !isJSONInt64(eligibility["vaccine_id"]) {
+	if !isJSONInt64(eligibility.Obj["vaccine_id"]) {
 		return false
 	}
-	if !isNullOrJSONInt64(eligibility["vaccine_version"]) {
+	if !isNullOrJSONInt64(eligibility.Obj["vaccine_version"]) {
 		return false
 	}
-	provenance, ok := eligibility["provenance"].(string)
-	return ok && (provenance == "master_snapshot" || provenance == "legacy_unresolved")
+	provenance := eligibility.Obj["provenance"]
+	return provenance.Kind == certJSONString && (provenance.Str == "master_snapshot" || provenance.Str == "legacy_unresolved")
 }
 
-func validateCertificateManifest(manifest map[string]any, kind string) (rendererVersion, fontAssetVersion string, templates map[string]string, ok bool) {
-	rendererVersion, ok1 := manifest["renderer_version"].(string)
-	fontAssetVersion, ok2 := manifest["font_asset_version"].(string)
-	rawTemplates, ok3 := manifest["templates"].(map[string]any)
-	if !ok1 || !ok2 || !ok3 || rendererVersion == "" || fontAssetVersion == "" {
+func validateCertificateManifest(manifest certJSONValue, kind string) (rendererVersion, fontAssetVersion string, templates map[string]string, ok bool) {
+	rv := manifest.Obj["renderer_version"]
+	fv := manifest.Obj["font_asset_version"]
+	rawTemplates := manifest.Obj["templates"]
+	if rv.Kind != certJSONString || fv.Kind != certJSONString || rawTemplates.Kind != certJSONObject || rv.Str == "" || fv.Str == "" {
 		return "", "", nil, false
 	}
-	templates = make(map[string]string, len(rawTemplates))
-	for k, v := range rawTemplates {
+	templates = make(map[string]string, len(rawTemplates.Obj))
+	for k, v := range rawTemplates.Obj {
 		if k != "portrait" && k != "landscape" && k != "rabies" {
 			return "", "", nil, false
 		}
-		s, isStr := v.(string)
-		if !isStr || s == "" {
+		if v.Kind != certJSONString || v.Str == "" {
 			return "", "", nil, false
 		}
-		templates[k] = s
+		templates[k] = v.Str
 	}
 	if kind == "normal" {
 		if _, hasPortrait := templates["portrait"]; !hasPortrait {
@@ -442,98 +452,99 @@ func validateCertificateManifest(manifest map[string]any, kind string) (renderer
 	} else if _, hasRabies := templates["rabies"]; !hasRabies {
 		return "", "", nil, false
 	}
-	return rendererVersion, fontAssetVersion, templates, true
+	return rv.Str, fv.Str, templates, true
 }
 
 // ─── Strict JSON plumbing ────────────────────────────────────────────────────
 
-// strictJSONObject parses one complete JSON object, preserving integers as
-// json.Number and rejecting duplicate keys and trailing data. The end of the
-// input is verified by reading the next token: dec.More() cannot be used here
-// because it also reports false on a stray trailing '}' or ']'.
-func strictJSONObject(raw []byte) (map[string]any, error) {
+// strictJSONObject parses one complete JSON object into a certJSONValue,
+// preserving integers as json.Number and rejecting duplicate keys and
+// trailing data. The end of the input is verified by reading the next token:
+// dec.More() cannot be used here because it also reports false on a stray
+// trailing '}' or ']'.
+func strictJSONObject(raw []byte) (certJSONValue, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
 	obj, err := decodeJSONObject(dec)
 	if err != nil {
-		return nil, err
+		return certJSONValue{}, err
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	return obj, nil
 }
 
-func decodeJSONObject(dec *json.Decoder) (map[string]any, error) {
+func decodeJSONObject(dec *json.Decoder) (certJSONValue, error) {
 	tok, err := dec.Token()
 	if err != nil {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	delim, ok := tok.(json.Delim)
 	if !ok || delim != '{' {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
-	obj := make(map[string]any)
+	obj := certJSONValue{Kind: certJSONObject, Obj: make(map[string]certJSONValue)}
 	for dec.More() {
 		keyTok, err := dec.Token()
 		if err != nil {
-			return nil, errCertificateInvalidSnapshot
+			return certJSONValue{}, errCertificateInvalidSnapshot
 		}
 		key, ok := keyTok.(string)
 		if !ok {
-			return nil, errCertificateInvalidSnapshot
+			return certJSONValue{}, errCertificateInvalidSnapshot
 		}
-		if _, dup := obj[key]; dup {
-			return nil, errCertificateInvalidSnapshot
+		if _, dup := obj.Obj[key]; dup {
+			return certJSONValue{}, errCertificateInvalidSnapshot
 		}
 		value, err := decodeJSONValue(dec)
 		if err != nil {
-			return nil, err
+			return certJSONValue{}, err
 		}
-		obj[key] = value
+		obj.Obj[key] = value
 	}
 	if _, err := dec.Token(); err != nil {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	return obj, nil
 }
 
-func decodeJSONArray(raw []byte) ([]any, error) {
+func decodeJSONArray(raw []byte) (certJSONValue, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
 	tok, err := dec.Token()
 	if err != nil {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	delim, ok := tok.(json.Delim)
 	if !ok || delim != '[' {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
-	var out []any
+	out := certJSONValue{Kind: certJSONArray}
 	for dec.More() {
 		v, err := decodeJSONValue(dec)
 		if err != nil {
-			return nil, err
+			return certJSONValue{}, err
 		}
-		out = append(out, v)
+		out.Arr = append(out.Arr, v)
 	}
 	if _, err := dec.Token(); err != nil {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	if dec.More() {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	return out, nil
 }
 
-func decodeJSONValue(dec *json.Decoder) (any, error) {
+func decodeJSONValue(dec *json.Decoder) (certJSONValue, error) {
 	var raw json.RawMessage
 	if err := dec.Decode(&raw); err != nil {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	switch trimmed[0] {
 	case '{':
@@ -545,27 +556,36 @@ func decodeJSONValue(dec *json.Decoder) (any, error) {
 	}
 }
 
-func decodeJSONScalar(raw []byte) (any, error) {
+func decodeJSONScalar(raw []byte) (certJSONValue, error) {
 	if !utf8.Valid(raw) {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
-	var v any
-	if err := dec.Decode(&v); err != nil {
-		return nil, errCertificateInvalidSnapshot
+	tok, err := dec.Token()
+	if err != nil {
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
 	if dec.More() {
-		return nil, errCertificateInvalidSnapshot
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
-	if _, ok := v.(string); ok {
+	switch t := tok.(type) {
+	case nil:
+		return certJSONValue{Kind: certJSONNull}, nil
+	case bool:
+		return certJSONValue{Kind: certJSONBool, Bool: t}, nil
+	case json.Number:
+		return certJSONValue{Kind: certJSONNumber, Num: t}, nil
+	case string:
 		// encoding/json silently substitutes U+FFFD for lone \uD800-\uDFFF
 		// escapes; schema v1 rejects them on the raw literal instead.
 		if err := rejectLoneSurrogates(raw); err != nil {
-			return nil, err
+			return certJSONValue{}, err
 		}
+		return certJSONValue{Kind: certJSONString, Str: t}, nil
+	default:
+		return certJSONValue{}, errCertificateInvalidSnapshot
 	}
-	return v, nil
 }
 
 // rejectLoneSurrogates scans a raw JSON string literal for unpaired \uXXXX
@@ -629,12 +649,8 @@ func certificateHex4(b []byte) int {
 
 // ─── Field predicates ────────────────────────────────────────────────────────
 
-func isNullOrString(v any) bool {
-	if v == nil {
-		return true
-	}
-	_, ok := v.(string)
-	return ok
+func isNullOrString(v certJSONValue) bool {
+	return v.Kind == certJSONNull || v.Kind == certJSONString
 }
 
 // jsonIntegerLiteral reports whether a JSON number literal is an integer in
@@ -661,29 +677,25 @@ func jsonIntegerLiteral(s string) bool {
 	return true
 }
 
-func isJSONInt64(v any) bool {
-	n, ok := v.(json.Number)
-	if !ok || !jsonIntegerLiteral(n.String()) {
+func isJSONInt64(v certJSONValue) bool {
+	if v.Kind != certJSONNumber || !jsonIntegerLiteral(v.Num.String()) {
 		return false
 	}
-	_, err := strconv.ParseInt(n.String(), 10, 64)
+	_, err := strconv.ParseInt(v.Num.String(), 10, 64)
 	return err == nil
 }
 
-func isNullOrJSONInt64(v any) bool {
-	if v == nil {
-		return true
-	}
-	return isJSONInt64(v)
+func isNullOrJSONInt64(v certJSONValue) bool {
+	return v.Kind == certJSONNull || isJSONInt64(v)
 }
 
 // certInt64Field reads a required integer field as int64.
-func certInt64Field(m map[string]any, key string) (int64, bool) {
-	n, ok := m[key].(json.Number)
-	if !ok || !jsonIntegerLiteral(n.String()) {
+func certInt64Field(m map[string]certJSONValue, key string) (int64, bool) {
+	n := m[key]
+	if n.Kind != certJSONNumber || !jsonIntegerLiteral(n.Num.String()) {
 		return 0, false
 	}
-	v, err := strconv.ParseInt(n.String(), 10, 64)
+	v, err := strconv.ParseInt(n.Num.String(), 10, 64)
 	if err != nil {
 		return 0, false
 	}
@@ -691,11 +703,11 @@ func certInt64Field(m map[string]any, key string) (int64, bool) {
 }
 
 // certStringPtr reads a nullable string value into a *string (null -> nil).
-func certStringPtr(v any) *string {
-	s, ok := v.(string)
-	if !ok {
+func certStringPtr(v certJSONValue) *string {
+	if v.Kind != certJSONString {
 		return nil
 	}
+	s := v.Str
 	return &s
 }
 
@@ -708,7 +720,7 @@ func certText(s *string) string {
 }
 
 // certInt64Ptr reads a nullable integer field.
-func certInt64Ptr(m map[string]any, key string) *int64 {
+func certInt64Ptr(m map[string]certJSONValue, key string) *int64 {
 	v, ok := certInt64Field(m, key)
 	if !ok {
 		return nil

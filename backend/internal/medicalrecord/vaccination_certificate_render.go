@@ -266,23 +266,25 @@ func certificateWarekiDate(s string) (string, error) {
 }
 
 // formatCertificateYen renders a JPY amount as "#,###円". Null is blank and 0
-// is "0円"; totals are never recomputed.
+// is "0円"; totals are never recomputed. The sign is split off the formatted
+// digit string so math.MinInt64 does not double-negate.
 func formatCertificateYen(v *int64) string {
 	if v == nil {
 		return ""
 	}
-	n := *v
-	neg := n < 0
-	if neg {
-		n = -n
+	s := strconv.FormatInt(*v, 10)
+	digits := s
+	neg := false
+	if digits[0] == '-' {
+		neg = true
+		digits = digits[1:]
 	}
-	s := strconv.FormatInt(n, 10)
 	out := ""
-	for len(s) > 3 {
-		out = "," + s[len(s)-3:] + out
-		s = s[:len(s)-3]
+	for len(digits) > 3 {
+		out = "," + digits[len(digits)-3:] + out
+		digits = digits[:len(digits)-3]
 	}
-	out = s + out
+	out = digits + out
 	if neg {
 		out = "-" + out
 	}
@@ -452,8 +454,15 @@ func drawCertificateRabies(c *pdfCanvas, snap *certificateSnapshot) error {
 	if err != nil {
 		return err
 	}
-	c.text(54, y+4, 7.5, "犬情報")
-	y, err = drawCertificateTable(c, 50, y-2, 500, 100, []certRow{
+	// Reserve vertical space for the "犬情報" heading: baseline 10pt below the
+	// owner table's bottom border and the dog table starts 14pt below (the
+	// heading previously rendered inside the owner table's last row). Bottom Y
+	// on the 595.28pt-tall A4 landscape page: owner table top 542, bottom
+	// 542-72=470; dog table top 456, bottom 456-168=288; statement section top
+	// 280, bottom 258; fee table top 250, bottom 250-64=186 — well inside the
+	// page bounds.
+	c.text(54, y-10, 7.5, "犬情報")
+	y, err = drawCertificateTable(c, 50, y-14, 500, 100, []certRow{
 		{label: "種類", value: certText(snap.Pet.Breed)},
 		{label: "毛色", value: certText(snap.Pet.CoatColor)},
 		{label: "性別", value: certText(snap.Pet.Sex)},

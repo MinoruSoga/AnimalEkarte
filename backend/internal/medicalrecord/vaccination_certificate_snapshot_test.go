@@ -1,6 +1,7 @@
 package medicalrecord
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"testing"
@@ -131,6 +132,35 @@ func TestDecodeCertificateSnapshot_ShapeFailures(t *testing.T) {
 			_, err := decodeCertificateSnapshot([]byte(tc.in))
 			assert.Equal(t, "result-unavailable", certErrCode(t, err))
 		})
+	}
+}
+
+// TestDecodeCertificateSnapshot_RabiesEligibilityGate pins the contract rule
+// that only a stored eligibility.rabies_eligible == true may carry a rabies
+// edition: stored false/null is a contradiction read as 503
+// result-unavailable, while normal snapshots stay readable either way.
+func TestDecodeCertificateSnapshot_RabiesEligibilityGate(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		literal string
+	}{
+		{"false", `"rabies_eligible": false`},
+		{"null", `"rabies_eligible": null`},
+	} {
+		rabiesRaw := bytes.Replace(
+			[]byte(testCertificateRabiesSnapshot(100, 2)),
+			[]byte(`"rabies_eligible": true`),
+			[]byte(tc.literal), 1)
+		_, err := decodeCertificateSnapshot(rabiesRaw)
+		assert.Equal(t, "result-unavailable", certErrCode(t, err), "rabies kind + %s", tc.name)
+
+		normalRaw := bytes.Replace(
+			[]byte(testCertificateSnapshotJSON),
+			[]byte(`"rabies_eligible": false`),
+			[]byte(tc.literal), 1)
+		snap, err := decodeCertificateSnapshot(normalRaw)
+		require.NoError(t, err, "normal kind + %s", tc.name)
+		assert.Equal(t, "normal", snap.Kind)
 	}
 }
 

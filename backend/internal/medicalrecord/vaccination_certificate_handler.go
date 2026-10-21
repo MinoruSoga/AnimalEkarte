@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -195,6 +196,12 @@ func (h *VaccinationCertificateHandler) ListVaccinationCertificateEditions(c *gi
 	}
 	page, limit, err := httpapi.ParsePaginationWithMax(c, 100)
 	if err != nil {
+		writeCertificateError(c, certificateValidationError("invalid pagination parameters"))
+		return
+	}
+	// ParsePaginationWithMax leaves page unbounded above; reject the request
+	// rather than let (page-1)*limit overflow the int64 offset.
+	if page-1 > math.MaxInt64/limit {
 		writeCertificateError(c, certificateValidationError("invalid pagination parameters"))
 		return
 	}
