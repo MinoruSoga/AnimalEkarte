@@ -53,6 +53,25 @@ describe("履歴の様式選択", () => {
   });
 });
 
+describe("履歴の様式選択（復活しない）", () => {
+  it("様式が選べなくなって通常へ戻った後、狂犬病が再び選べるようになっても通常のまま残る", async () => {
+    const user = userEvent.setup();
+    const { api } = createMockCertificateApi({ rabiesEligible: true });
+    const eligible = await api.getContext(101);
+    const view = renderHistory(api, eligible);
+    await user.click(await screen.findByRole("button", { name: "狂犬病予防注射済証" }));
+    await screen.findByText(/狂犬病予防注射済証の発行履歴はありません/);
+
+    view.rerenderWith({ ...eligible, eligibility: { ...eligible.eligibility, state: "ineligible", allowed_kinds: ["normal"] } });
+    await screen.findByText(/通常の予防接種証明書の発行履歴はありません/);
+
+    view.rerenderWith(eligible);
+    expect(await screen.findByRole("button", { name: "通常の予防接種証明書" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "狂犬病予防注射済証" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText(/通常の予防接種証明書の発行履歴はありません/)).toBeInTheDocument();
+  });
+});
+
 describe("履歴の取得失敗", () => {
   it("一時的な失敗では再読み込みでき、成功すると履歴が表示される", async () => {
     const user = userEvent.setup();
