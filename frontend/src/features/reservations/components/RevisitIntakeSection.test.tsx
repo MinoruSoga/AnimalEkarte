@@ -2,7 +2,8 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { focusManager } from "@tanstack/react-query";
-import { afterEach, describe, expect, it } from "vitest";
+import { act } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/TestUtils";
 import { RevisitIntakeSection } from "./RevisitIntakeSection";
@@ -302,6 +303,58 @@ describe("RevisitIntakeSection", () => {
     renderSection();
     expect(await screen.findByText("問診を取得できませんでした。")).toBeInTheDocument();
     expect(calls).toBe(1);
+  });
+
+  describe("Retry-After 期限までの手動操作", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const tooMany = () =>
+      HttpResponse.json(
+        { error: "x", code: "TOO_MANY_REQUESTS" },
+        { status: 429, headers: { "Retry-After": "10" } },
+      );
+
+    it("再試行は期限まで無効で案内を出し、期限後に有効になる", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      server.use(http.get(PATH, tooMany));
+      renderSection();
+      const retry = await screen.findByRole("button", { name: "再試行" });
+      expect(retry).toBeDisabled();
+      expect(screen.getByText("約10秒後に再試行できます")).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(9_000);
+      });
+      expect(screen.getByRole("button", { name: "再試行" })).toBeDisabled();
+      act(() => {
+        vi.advanceTimersByTime(1_500);
+      });
+      expect(screen.getByRole("button", { name: "再試行" })).toBeEnabled();
+      expect(screen.queryByText(/秒後に再試行できます/)).not.toBeInTheDocument();
+    });
+
+    it("続き取得の失敗後、さらに表示も期限まで無効で期限後に有効になる", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      server.use(
+        http.get(PATH, ({ request }) =>
+          new URL(request.url).searchParams.get("cursor")
+            ? tooMany()
+            : HttpResponse.json(body({ next_cursor: "CURSOR_2" })),
+        ),
+      );
+      renderSection();
+      const more = await screen.findByRole("button", { name: "さらに表示" });
+      expect(more).toBeEnabled();
+      more.click();
+      await screen.findByText("続きを取得できませんでした。");
+      expect(screen.getByRole("button", { name: "さらに表示" })).toBeDisabled();
+      expect(screen.getByText("約10秒後に再試行できます")).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(10_500);
+      });
+      expect(screen.getByRole("button", { name: "さらに表示" })).toBeEnabled();
+    });
   });
 
   it("clinicId を X-Clinic-ID ヘッダで送る", async () => {

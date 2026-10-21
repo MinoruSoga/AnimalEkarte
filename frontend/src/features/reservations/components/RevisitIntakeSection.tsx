@@ -7,6 +7,7 @@ import { EMPTY_VALUE } from "@/constants/empty-value";
 import { formatDate } from "@/lib/format/date";
 import { formatJSTTime } from "@/lib/jst-date";
 import {
+  getRetryAfterMs,
   getRevisitIntakeErrorStatus,
   revisitIntakeQueryKey,
   useGetRevisitIntake,
@@ -51,6 +52,34 @@ function DelayedSkeleton() {
       <div className={`h-4 w-3/4 rounded ${C.bgSkeleton} animate-pulse`} />
     </>
   );
+}
+
+/**
+ * 直近の失敗に Retry-After があるとき、期限までの手動再試行・続き取得を止める（api.yaml: 尊重する）。
+ * 期限は feature のメモリ上だけで持つ。タイマーは「期限到達」を記録するだけで、effect 内で同期 setState しない。
+ * 戻り値: 待機中は案内用の秒数、可能なら null。
+ */
+function useRetryAfterGate(
+  error: unknown,
+  errorUpdatedAt: number,
+  isError: boolean,
+): number | null {
+  const info = useMemo(() => {
+    if (!isError) return null;
+    const ms = getRetryAfterMs(error, errorUpdatedAt);
+    if (ms === undefined || ms <= 0) return null;
+    return { deadline: errorUpdatedAt + ms, seconds: Math.ceil(ms / 1000) };
+  }, [error, errorUpdatedAt, isError]);
+  const [expiredDeadline, setExpiredDeadline] = useState<number | null>(null);
+  useEffect(() => {
+    if (!info) return;
+    const timer = setTimeout(
+      () => setExpiredDeadline(info.deadline),
+      Math.max(0, info.deadline - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [info]);
+  return info !== null && expiredDeadline !== info.deadline ? info.seconds : null;
 }
 
 function formatReceivedAt(iso: string): string {
@@ -197,6 +226,7 @@ export function RevisitIntakeSection({
   const query = useGetRevisitIntake({ appointmentId, clinicId, enabled });
   const queryClient = useQueryClient();
   const pages = query.data?.pages;
+  const retryWaitSeconds = useRetryAfterGate(query.error, query.errorUpdatedAt, query.isError);
   // 401/403/404 は cached pages の有無に関係なく最優先（再取得・追加ページでセッション失効・権限喪失した場合も本文を出さない）。
   const errorStatus = query.isError ? getRevisitIntakeErrorStatus(query.error) : undefined;
   const denied = errorStatus === 401 || errorStatus === 403 || errorStatus === 404;
@@ -287,11 +317,14 @@ export function RevisitIntakeSection({
             variant="outline"
             size="sm"
             className="min-h-11"
-            disabled={query.isFetching}
+            disabled={query.isFetching || retryWaitSeconds !== null}
             onClick={() => void query.refetch()}
           >
             再試行
           </Button>
+          {retryWaitSeconds !== null ? (
+            <p className={`text-xs ${C.text60}`}>約{retryWaitSeconds}秒後に再試行できます</p>
+          ) : null}
         </div>
       </SectionFrame>
     );
@@ -404,12 +437,15 @@ export function RevisitIntakeSection({
             variant="outline"
             size="sm"
             className="min-h-11"
-            disabled={query.isFetchingNextPage}
+            disabled={query.isFetchingNextPage || retryWaitSeconds !== null}
             aria-busy={query.isFetchingNextPage ? true : undefined}
             onClick={() => void query.fetchNextPage()}
           >
             {query.isFetchingNextPage ? "読み込み中…" : "さらに表示"}
           </Button>
+          {retryWaitSeconds !== null ? (
+            <p className={`text-xs ${C.text60}`}>約{retryWaitSeconds}秒後に再試行できます</p>
+          ) : null}
         </div>
       ) : null}
     </SectionFrame>
