@@ -14,7 +14,8 @@ GET /masters/staffs/{staff_id}/leave-periods/{leave_id}
 GET /masters/staffs/{staff_id}/leave-periods/{leave_id}/changes?before_version={v}&limit={n}
 POST /masters/staffs/{staff_id}/leave-periods
 PATCH /masters/staffs/{staff_id}/leave-periods/{leave_id}
-GET /masters/staffs/{staff_id}/leave-operations/{operation_key}
+GET /masters/staffs/{staff_id}/leave-operations/{operation_key}?intent={intent}
+intentは必須でstaff.leave_period.create又はstaff.leave_period.changeの2値だけを許容する。欠落・未知値は入口400。認証済clinic/actor/owner_kind=staffとこのintent、operation_keyでFindBindingし、他intentへのfallbackやUUID単独検索をしない。同UUIDのcreate/changeは独立したbindingとして正しい元anchorへ解決する。queryはintent選択であり認可根拠ではない。
 listは選択医院、当該staff所属と現view検査。範囲は検索対象であり勤務許可でない。一覧はid昇順・after_id排他、履歴はresulting_version降順・before_version排他。各ページでscope/staff/leave認可を再検査し、queryを別対象の認可根拠にしない。limitは省略時50、1..100を技術上限として選定する。範囲検索はfrom/through両方指定か両方省略、指定時from<=through。一覧応答は{items:LeaveView[],next_after_id:string|null}、履歴応答は{items:LeaveChangeView[],next_before_version:string|null}。次位置がnullになるまで全件取得完了とは表示しない。ページを跨ぐ更新のsnapshot保証は設けず、履歴はimmutable版順で取得し、現期間headは別GETで取得する。
 IDは1..9223372036854775807の正規十進文字列。dateは厳密Gregorian YYYY-MM-DD。追加休業DTO版は十進文字列とする（既存ShiftEntry integer versionを勝手変更しない）。
 LeaveView={id,clinic_id,staff_id,start_date,end_date,end_boundary,version,provenance,created_at,deleted_at}。nullableを必ず返しDBmodel直列化は使わない。履歴view={id,leave_period_id,resulting_version,before_values,after_values,operation_id,recorded_by,recorded_at}、actorはサーバ確定ID。履歴本文にclient由来actorを受けない。

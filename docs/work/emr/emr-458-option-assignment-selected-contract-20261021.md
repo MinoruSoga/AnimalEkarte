@@ -13,7 +13,7 @@
 すべてのsource URLは https://github.com/MinoruSoga/AnimalEkarte/blob/edf71515dbae11735a4184ff64c465e2ea51af88/{path} 。
 
 ## 2. 状態の最小追加（既存DBだけでは区別不能）
-A. rule set：既存行の有無をそのまま使う。未作成=unconfigured、active親あり= configured、active子[]は明示空。course=NULLの親はコースなし専用。削除履歴のある親を再利用して未知へ戻さず、新親IDを作る場合はCASで旧親有無を検証する。
+A. rule set：既存行の有無をそのまま使う。未作成=unconfigured、active親あり= configured、active子[]は明示空。course=NULLの親はコースなし専用。削除履歴のある親を再利用して未知へ戻さず、新親IDを作る場合は下記scope_digest CASで旧親有無と退役履歴を検証する。退役親を復活/上書きせず新親を作る。
 B. option identity：新nullable列 service_identity_assignment_state を追加、値はassigned/not_assigned、NULLはlegacy_unknown。既存非NULL identityはassignedとして読めるが、旧NULLをnot_assignedへbackfillしない。CHECK assignedならidentity非NULL、not_assignedならNULL、stateNULLでidentity非NULLは移行期間の既存assigned表現として許容。新設定writerは両方を必ず明示。旧API createは移行完了までunknown、単にcreated_atが新しいからnot_assignedにしない。
 C. course内包集合：trimming_coursesに included_services_configured boolean nullable と included_services_digest bytea nullable(32bytes)追加。旧NULL=legacy_unknown。新設定はtrue+完全active集合digest、[]も真の設定済空digest。falseは採用しない（未設定を明示空へ誤変換しない）。既存内包行があってmarkerNULLなら列挙可能な既知部分にすぎず完全性unknown。GETで補完/更新なし。
 B/Cの追加は未知状態の表現と既決重複検査を成立させる保存方式で、全許可・新適格性・実データmappingの決定ではない。not_assignedは「identity比較できないことが既知」でありduplicateなしの証明ではない。identity不明/未割当optionを重複検査済みに変換しない。
@@ -27,16 +27,18 @@ D. identityの論理同一性は同医院IDのみ。名称一致でmergeしな�
 4. POST /masters/trimming-options/{id}/service-identity：edit。{operation_key,expected_option_version,assignment:{state,service_identity_id}}。assignmentはassigned+ID又はnot_assigned+null、legacy_unknown書込禁止、省略/nullassignment禁止。解除はnot_assigned明示。旧PATCHはこのfieldを受け付けない。
 5. GET /masters/trimming-courses/{id}/included-services：view。{course_id,course_version,state,service_identity_ids,digest}。unknownではdigest=null、見えている旧行を完全集合と称しない。
 6. POST /masters/trimming-courses/{id}/included-services：edit。{operation_key,expected_course_version,service_identity_ids}。配列必須、null/省略不可、[]は明示空、duplicateID拒否。全集合置換・同医院実在identityのみ。新false/unknown操作はなし。
-7. GET /masters/trimming-option-rule-sets?scope_kind=course&course_id={id} 又は ?scope_kind=no_course：view。courseの場合ID必須、no_courseの場合course_id禁止。{scope,configuration_state,rule_set_id,contract_version,option_ids}。unconfiguredはid/version=nullかつoption_ids=[]（状態を消さない）。configured空も[]だがid/version非NULL。
-8. POST /masters/trimming-option-rule-sets：edit。{operation_key,scope:{kind,course_id},expected_rule_set:{id,version},option_ids}。scope course+ID又はno_course+null、両memberrequired。expected両nullは確定未作成のみ、両nonnullは同じactive親CAS。[]明示空、null/省略不可。scope変更は別資源、既存親のcourse_id付替えなし。親存在だけではcreate grantを新設しない。これは既存masterの対応設定edit。
+7. GET /masters/trimming-option-rule-sets?scope_kind=course&course_id={id} 又は ?scope_kind=no_course：view。courseの場合ID必須、no_courseの場合course_id禁止。{scope,configuration_state,rule_set_id,contract_version,option_ids,scope_digest}。unconfiguredはid/version=nullかつoption_ids=[]（状態を消さない）。configured空も[]だがid/version非NULL。
+8. POST /masters/trimming-option-rule-sets：edit。{operation_key,scope:{kind,course_id},expected_rule_set:{id,version},expected_scope_digest,option_ids}。scope course+ID又はno_course+null、両memberrequired。expected両nullは現在active親なし（初回又は全親退役済み）、両nonnullは同じactive親CAS。どちらもGETで受けたexpected_scope_digest必須で、既存T2 EXCLUSIVE取得後に一致検査する。退役履歴ありでもdigest一致かつactiveなしなら新親ID作成を許し、旧親は変更しない。[]明示空、null/省略不可。scope変更は別資源、既存親のcourse_id付替えなし。親存在だけではcreate grantを新設しない。これは既存masterの対応設定edit。
 9. GET /masters/trimming-option-candidates?scope_kind=...：master viewの設定preview専用。予約/LIFF公開の新grantを兼ねない。出力{scope,rule_set_id,rule_set_version,configuration_state,course_version,included_services_state,included_services_digest,candidates:[{option_id,option_version,service_identity_id,identity_state,decision,reason_codes}]}。価格/数量/時間再計算は返さず、既存ownerの属性readerへ接続する。decision eligible/ineligible/unknownはT2対応/内包の限定判定と明示し、全予約適格性の証明にしない。
 10. 各新POSTの既存C06結果照会を同一consumerとして接続。専用新read grantなし。lookupは原targetのmaster view、未成功Applyは対象create/edit。operation key UUIDを別キーへ複製しない。
+
+scope_digestはlowerhex(SHA256(UTF8("trimming-rule-scope-v1\n") || JCS({scope,parents})))。prefix末尾は実LF。scopeは上記closed {kind,course_id}、parentsは同医院・同scopeの全親（退役済み含む）をid数値昇順で並べたclosed {id,version,deleted}配列。ID/版は正十進string、deletedはdeleted_at IS NOT NULLのbool。親が一度もなければ[]。同じT2 SHAREDのread snapshotから算出し、GETで作成/更新しない。expected_scope_digestは現在scope状態CASでありContentには含めない。ApplyはT2 EXCLUSIVE下で同projectionを再計算し、不一致はdependency-changed、副作用ゼロ。版増分する退役/子変更/新親作成を捕捉し、同key再送はContent不変のまま現在状態を再確認できる。scope履歴を物理消去してdigestを元状態へ戻す操作はこの通常writer契約に含めない。
 
 ## 4. not_assignedは新しい業務禁止ではない
 既決は「コース内包施術の二重選択不可」であり、全optionにidentity登録を必須とする新しい業務規則ではない。configuredの内包集合が完全な空、又はscope=no_courseなら、内包重複という論点自体がないためidentity未割当だけで不適格にしない。完全な非空内包集合とidentity未割当／旧不明optionの組合せは比較不能=unknown（重複なしと推定不可）。assignedの場合だけ同医院identityの集合membershipで判定する。他の対応集合・既存active/時間/併用条件は独立。異なるoption同士を同identityという理由だけで新たに禁止しない（既決の同option1回とは別）。旧NULL不明と新明示無割当の表示は区別するが、それだけで新適格性の差は作らない。
 
 ## 5. C06 exact Content・intent・元target
-Content.Fieldsはmap[string]string、exact keysはschema_version/resource_kind/target_ref/payload_sha256。schema_version="1"、resource_kind=service_identity|option_identity|course_included|option_rule_set。target_refはidentitycreateのみ"new"、option/courseは正十進ID、ruleは"course:<id>"又は"no_course"。payload_sha256は閉じたpayloadのJCS UTF-8 SHA256 lowercase64hex、配列は数値ID昇順（lexical順でない）でunique。nullable display_nameはpayloadJSON内にのみ残す。期待版/expected_rule_setはPreconditionsで、hash Contentへ混ぜない。Runnerはclinic/intent/keyとのbindingを既存通り検証する。
+Content.Fieldsはmap[string]string、exact keysはschema_version/resource_kind/target_ref/payload_sha256。schema_version="1"、resource_kind=service_identity|option_identity|course_included|option_rule_set。target_refはidentitycreateのみ"new"、option/courseは正十進ID、ruleは"course:<id>"又は"no_course"。payload_sha256は閉じたpayloadのJCS UTF-8 SHA256 lowercase64hex、配列は数値ID昇順（lexical順でない）でunique。nullable display_nameはpayloadJSON内にのみ残す。期待版/expected_rule_set/expected_scope_digestはPreconditionsで、hash Contentへ混ぜない。Runnerはclinic/intent/keyとのbindingを既存通り検証する。
 intentはtrimming.service_identity.create / trimming.option_identity.replace / trimming.course_included.replace / trimming.option_rules.replaceの4つ。新private typed factoryがContentとpayloadを同時生成しApplyがhash/target/4fieldsを再照合。createのtarget_ref="new"は結果ID予測ではなく、元操作bindingの対象型を表す。
 
 本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
@@ -94,7 +96,7 @@ PR-B（480/482側）：shared verifier adapterを予約/LIFF/施術採用writer�
 - 旧option NULL=unknown、新明示not_assigned、assigned別IDを区別。新無割当をduplicateなし扱いしない。
 - course内包unknown/明示空/非空。同名異identityは統合せず、別optionID同内包identityは重複採用不可。
 - crossclinic／inactive／deleted／既存の時間NULLと明示0・曜日条件は既決verifierと合成し、新条件を推測しない。
-- 同scope初回作成race、親先行child更新、集合複数差分のversion最終値、membership no-op無更新。
+- 同scope初回作成race、全親退役後の新親作成、退役/再作成競合のscope digest拒否、親先行child更新、集合複数差分のversion最終値、membership no-op無更新。
 - option割当変更 vs candidate/capture、course内包編集 vs capture、master休止/delete/reorder vs capture、grant loss／CAS conflict／C06samekeyreplay／unknown停止。
 - audit/receipt/子更新いずれか失敗は設定全rollback、旧予約時間/料金/会計snapshot不変。
 - 全writer一覧を実ファイル/functionと対応させる静的適合表。未参加入口をテスト省略によって完了扱いしない。
