@@ -11329,6 +11329,7 @@ components:
       description: |
         現在runtimeが返す互換形式（旧数値ID・平坦内容）。published_version_idが示す
         公開版の内容のみを返し、未公開current・hiddenは混ぜない。
+        全医院の認証済みスタッフへ返すため編集者のstaff IDは含めない（編集者は権限付きの版履歴・receiptのみ）。
       properties:
         id: { type: integer, format: int64, minimum: 1 }
         category: { type: string, enum: [screens, workflows] }
@@ -11337,7 +11338,6 @@ components:
         order_value: { type: number }
         section: { type: string }
         body_markdown: { type: string }
-        updated_by_staff_id: { type: integer, format: int64, minimum: 1 }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     ManualArticleCompatListResponse:

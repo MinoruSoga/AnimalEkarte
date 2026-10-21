@@ -1,6 +1,7 @@
 package manualarticle
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -60,7 +61,10 @@ func TestToManualArticleResponse(t *testing.T) {
 			assert.Equal(t, tt.in.Title, got.Title)
 			assert.Equal(t, tt.in.Section, got.Section)
 			assert.Equal(t, tt.in.BodyMarkdown, got.BodyMarkdown)
-			assert.Equal(t, tt.in.EditedByStaffID, got.UpdatedByStaffID)
+			// 公開 READ は全医院の認証済みスタッフに返るため編集者 staff ID を出さない。
+			raw, err := json.Marshal(got)
+			assert.NoError(t, err)
+			assert.NotContains(t, string(raw), "staff_id")
 		})
 	}
 }

@@ -12,18 +12,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/operation"
 )
 
-// ManualArticleResponse はマニュアル記事の HTTP レスポンス（既存 wire 維持）
+// ManualArticleResponse はマニュアル記事の HTTP レスポンス（既存 wire 維持）。
+// 公開 READ は全医院の認証済みスタッフに返るため、編集者の staff ID は含めない
+// （staff データの医院分離。編集者は権限付きの版履歴・receipt でだけ返す）。
 type ManualArticleResponse struct {
-	ID               uint64    `json:"id"`
-	Category         string    `json:"category"`
-	Slug             string    `json:"slug"`
-	Title            string    `json:"title"`
-	OrderValue       float64   `json:"order_value"`
-	Section          string    `json:"section"`
-	BodyMarkdown     string    `json:"body_markdown"`
-	UpdatedByStaffID *uint64   `json:"updated_by_staff_id,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID           uint64    `json:"id"`
+	Category     string    `json:"category"`
+	Slug         string    `json:"slug"`
+	Title        string    `json:"title"`
+	OrderValue   float64   `json:"order_value"`
+	Section      string    `json:"section"`
+	BodyMarkdown string    `json:"body_markdown"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // ManualArticleListResponse はマニュアル記事一覧の HTTP レスポンス
@@ -132,16 +133,15 @@ func toManualArticleVersionListResponse(versions []model.ManualArticleVersion) M
 
 func toManualArticleResponse(a *PublishedArticle) ManualArticleResponse {
 	return ManualArticleResponse{
-		ID:               a.ID,
-		Category:         string(a.Category),
-		Slug:             a.Slug,
-		Title:            a.Title,
-		OrderValue:       exactNumericFloat(a.OrderValue),
-		Section:          a.Section,
-		BodyMarkdown:     a.BodyMarkdown,
-		UpdatedByStaffID: a.EditedByStaffID,
-		CreatedAt:        httpapi.LocalTime(a.CreatedAt),
-		UpdatedAt:        httpapi.LocalTime(a.UpdatedAt),
+		ID:           a.ID,
+		Category:     string(a.Category),
+		Slug:         a.Slug,
+		Title:        a.Title,
+		OrderValue:   exactNumericFloat(a.OrderValue),
+		Section:      a.Section,
+		BodyMarkdown: a.BodyMarkdown,
+		CreatedAt:    httpapi.LocalTime(a.CreatedAt),
+		UpdatedAt:    httpapi.LocalTime(a.UpdatedAt),
 	}
 }
 
