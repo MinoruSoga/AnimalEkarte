@@ -108,6 +108,40 @@ STAGE_FILTERS: dict[str, list[str]] = {
     ],
 }
 
+# manual_articles.current_version_id / published_version_id reference
+# manual_article_versions(id, article_id), whose rows reference manual_articles,
+# so the pointers cannot be written before the versions exist. Insert the
+# articles with both pointers cleared; the pointers are applied after the
+# versions (MANUAL_POINTER_RESTORE). That pointer UPDATE fires
+# manual_articles_storage_version, which sets version = OLD.version + 1, so
+# rows that carry pointers are staged one version lower to land on the
+# exported version (verify still compares every column strictly).
+STAGE_FILTERS["manual_articles"] = [
+    (
+        "UPDATE stage SET version = version - 1 "
+        "WHERE (current_version_id IS NOT NULL OR published_version_id IS NOT NULL) "
+        "AND version > 1"
+    ),
+    "UPDATE stage SET current_version_id = NULL, published_version_id = NULL",
+]
+
+
+def manual_pointer_restore_sql(export_dir: Path, columns: list[str]) -> str:
+    """Re-stage manual_articles.csv and apply the exported version pointers."""
+    csv_literal = str(export_dir / "manual_articles.csv").replace("'", "''")
+    column_list = ", ".join(quote_ident(column) for column in columns)
+    return (
+        "CREATE TEMP TABLE pointer_stage (LIKE public.manual_articles INCLUDING DEFAULTS);\n"
+        f"\\copy pointer_stage ({column_list}) FROM '{csv_literal}' WITH (FORMAT csv, HEADER true)\n"
+        "UPDATE public.manual_articles a\n"
+        "SET current_version_id = s.current_version_id, published_version_id = s.published_version_id\n"
+        "FROM pointer_stage s\n"
+        "WHERE a.id = s.id\n"
+        "AND (s.current_version_id IS NOT NULL OR s.published_version_id IS NOT NULL);\n"
+        "DROP TABLE pointer_stage;\n"
+    )
+
+
 # SQL statements executed against the target table (stage is available as a
 # temp table) right before the INSERT. staff_clinic_assignments has a serial
 # pkey plus a (staff_id, clinic_id) unique constraint; an exported row whose
@@ -476,6 +510,9 @@ def restore(args: argparse.Namespace) -> None:
             f"ON CONFLICT {conflict} {conflict_clause};\n"
             "DROP TABLE stage;\n"
         )
+        if table == "manual_article_versions":
+            article_entry = next(e for e in manifest["tables"] if e["name"] == "manual_articles")
+            script += manual_pointer_restore_sql(export_dir, article_entry["columns"])
         out = run_psql(env, script=script)
         lines = [line for line in out.splitlines() if line.strip()]
         staged = int(lines[0]) if lines else 0
