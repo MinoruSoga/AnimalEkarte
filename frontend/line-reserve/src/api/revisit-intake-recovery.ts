@@ -7,7 +7,11 @@
 // - 純 read の POST。idToken は既存 LIFF と同じ Authorization: Bearer。clinic は URL path の trusted 値。
 // - response は no-store 必須。closed schema を満たさないものは契約違反として fail-closed に投げる。
 // - 失敗は全て RevisitIntakeRecoveryQueryError（kind で分類）。どの kind も「安全に次操作できる」根拠にならない。
-import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import axios, {
+  AxiosHeaders,
+  type AxiosResponse,
+  type InternalAxiosRequestConfig,
+} from "axios";
 import { API_BASE_URL } from "../lib/liff-config";
 import { sanitizeNullBytes } from "@/shared-liff/sanitize";
 import { devError } from "@/shared-liff/dev-log";
@@ -99,7 +103,7 @@ export async function queryRevisitIntakeOperationRecoveryPage(
     // 自分が組み立てた request の不備。送らずに止める。
     throw new RevisitIntakeRecoveryQueryError("validation", "recovery query request is invalid");
   }
-  let res;
+  let res: AxiosResponse<unknown>;
   try {
     res = await httpClient.post<unknown>(recoveryPath(args.clinicId), request.data, {
       headers: { Authorization: `Bearer ${args.idToken}`, "Content-Type": "application/json" },

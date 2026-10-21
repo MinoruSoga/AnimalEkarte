@@ -240,6 +240,17 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(rec.bodies[0]).toEqual({ scope: "self", cursor: null });
   });
 
+  it("読込拒否 + self の成功のみ: 別予約の成功を出さず従来どおり ErrorPage のまま", async () => {
+    mockRead(403);
+    const rec = recoveryHandler(() => noStoreJson(selfPage([succeededItem(KEY_A), closedItem(KEY_B, "2026-10-19T00:00:00Z")])));
+    server.use(rec.handler);
+    renderPage();
+    expect(await screen.findByText(/この予約の問診を表示できません/)).toBeInTheDocument();
+    await waitFor(() => expect(rec.bodies.length).toBe(1));
+    expect(screen.queryByText("回答の送信は完了しています。")).not.toBeInTheDocument();
+    expect(screen.queryByText(/反映されずに終了/)).not.toBeInTheDocument();
+  });
+
   it("page を最後までたどる（最初の page が空でも 2 page 目の未確定を見落とさない）", async () => {
     mockRead();
     const rec = recoveryHandler((body) =>

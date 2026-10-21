@@ -58,6 +58,8 @@ describe("recoveryQueryRequestSchema（oneOf・closed）", () => {
       { scope: "target", target_ref: { ...TARGET_REF, appointment_id: "012" }, cursor: null },
       { scope: "target", target_ref: { ...TARGET_REF, pet_id: 801 }, cursor: null },
       { scope: "target", target_ref: { ...TARGET_REF, target_generation: "9223372036854775808" }, cursor: null },
+      { scope: "target", target_ref: { ...TARGET_REF, target_generation: "abc" }, cursor: null },
+      { scope: "target", target_ref: { ...TARGET_REF, target_generation: "1.5" }, cursor: null },
       { scope: "self", cursor: "" },
       { scope: "self", cursor: "a+b/c=" },
     ];
@@ -118,6 +120,10 @@ describe("recoveryPageSchema", () => {
     expect(
       recoveryPageSchema.safeParse(targetPage([], { recovery_generation: "9223372036854775808" })).success,
     ).toBe(false);
+    for (const bad of ["abc", "1.5", "-1", "0", ""]) {
+      expect(() => recoveryPageSchema.safeParse(targetPage([], { recovery_generation: bad }))).not.toThrow();
+      expect(recoveryPageSchema.safeParse(targetPage([], { recovery_generation: bad })).success).toBe(false);
+    }
     expect(recoveryPageSchema.safeParse(targetPage([], { active_operation_key: "x" })).success).toBe(false);
     expect(recoveryPageSchema.safeParse(selfPage([], { active_operation_key: KEY_A })).success).toBe(false);
     expect(recoveryPageSchema.safeParse(targetPage([succeededItem(KEY_A), succeededItem(KEY_A)])).success).toBe(false);

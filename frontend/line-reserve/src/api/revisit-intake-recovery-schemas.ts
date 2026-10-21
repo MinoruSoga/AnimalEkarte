@@ -21,7 +21,8 @@ const canonicalPositiveDecimal = z
   .string()
   .regex(/^[1-9][0-9]*$/)
   .max(19)
-  .refine((v) => BigInt(v) <= BIGINT_MAX);
+  // regex 失敗後も refine は走るため、数字以外では BigInt を呼ばない（throw させない）。
+  .refine((v) => !/^[0-9]+$/.test(v) || BigInt(v) <= BIGINT_MAX);
 
 /** lowercase hyphenated UUID・nil UUID 拒否。 */
 const recoveryOperationKeySchema = z

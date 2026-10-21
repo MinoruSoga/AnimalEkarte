@@ -15,9 +15,16 @@ import { PENDING_UNAUTHORIZED_TEXT } from "./RevisitIntakeDeniedPendingLookup";
 const BLOCKED_NOTICE =
   "未確定の操作があるため、新しい回答の送信を一時停止しています。結果を確認できるまでお待ちください。";
 
+// self scope（予約を特定できない発見）は本人の全予約の送信が対象。この予約の結果とは言い切らない。
+const BLOCKED_NOTICE_SELF =
+  "未確定の送信があるため（予約を特定できていません）、新しい回答の送信を一時停止しています。結果を確認できるまでお待ちください。";
+
+const UNAUTHENTICATED_TEXT =
+  "ログインの有効期限が切れました。時間をおいてもう一度確認してください。";
+
 const ERROR_TEXT: Record<RevisitIntakeRecoveryErrorKind, string> = {
   validation: "未確定の操作を確認できませんでした。",
-  unauthenticated: PENDING_UNAUTHORIZED_TEXT,
+  unauthenticated: UNAUTHENTICATED_TEXT,
   not_authorized: "未確定の操作を確認できませんでした。",
   scope_not_found: "未確定の操作を確認できませんでした。",
   recovery_conflict: "未確定の操作の状態が変わりました。もう一度確認してください。",
@@ -121,11 +128,17 @@ export function RevisitIntakeRecoveryPanel({
   const { discovery, summary } = recovery;
   if (discovery === null || summary === null) return null;
 
+  const isSelf = discovery.scope === "self";
   const holdItems = discovery.items.filter(isHold);
-  const succeeded = discovery.items.filter(
-    (i) => i.discovery_state === "result" && i.execution_state === "succeeded",
-  );
-  const closed = discovery.items.filter((i) => i.execution_state === "closed_without_effect");
+  // self scope の成功・終了は別の予約のものを含み得るため、この予約の状態として表示しない。
+  const succeeded = isSelf
+    ? []
+    : discovery.items.filter(
+        (i) => i.discovery_state === "result" && i.execution_state === "succeeded",
+      );
+  const closed = isSelf
+    ? []
+    : discovery.items.filter((i) => i.execution_state === "closed_without_effect");
   const latestSucceeded = succeeded[0];
   if (!summary.newSubmissionBlocked && latestSucceeded === undefined && closed.length === 0) {
     return null;
@@ -138,7 +151,9 @@ export function RevisitIntakeRecoveryPanel({
           role="alert"
           className="space-y-2 rounded-lg border border-noah-warning-border bg-noah-warning-box-bg px-4 py-3"
         >
-          <p className="text-sm text-noah-warning-text">{BLOCKED_NOTICE}</p>
+          <p className="text-sm text-noah-warning-text">
+            {isSelf ? BLOCKED_NOTICE_SELF : BLOCKED_NOTICE}
+          </p>
           {summary.reasons.includes("scan_incomplete") ? (
             <p className="text-sm text-noah-warning-text">
               操作の履歴をすべて確認できていません。もう一度確認してください。

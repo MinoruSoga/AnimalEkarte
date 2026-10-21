@@ -63,13 +63,15 @@ function violation(message: string): RevisitIntakeRecoveryQueryError {
   return new RevisitIntakeRecoveryQueryError("contract_violation", message);
 }
 
-/** claimed_at DESC → operation_key DESC の順序を ms 精度で検査する（同一 ms 内は key で比較）。 */
+/**
+ * claimed_at DESC の順序を ms 精度で検査する。server はマイクロ秒精度で並べるため、同一 ms 内の
+ * 前後（と key の tiebreak）は client では判定できず許容する（誤って契約違反にしない）。
+ */
 function isDescending(prev: RevisitIntakeRecoveryItem, next: RevisitIntakeRecoveryItem): boolean {
   const a = Date.parse(prev.claimed_at);
   const b = Date.parse(next.claimed_at);
   if (Number.isNaN(a) || Number.isNaN(b)) return false;
-  if (a !== b) return a > b;
-  return prev.operation_key >= next.operation_key;
+  return a >= b;
 }
 
 export async function discoverRevisitIntakeRecovery(

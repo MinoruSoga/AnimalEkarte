@@ -224,12 +224,11 @@ export function RevisitIntakePage({
   if (accessDenied || isRevisitIntakeAccessDenied(intake.error)) {
     // 照会 route は閲覧権限と分離されている。未確定の送信が残っていれば key を失わないよう結果照会だけ出す。
     const deniedPending = draftStore.findPending(clinicId, appointmentId);
-    // self scope の発見結果が表示すべき内容を持つときだけ殻を出す（空なら従来どおり ErrorPage）。
+    // self scope の発見が失敗または保留のときだけ殻を出す。成功済みの送信は別予約のものを含み得るため、
+    // それだけで「この予約に回答済み」と読める表示にはしない（従来どおり ErrorPage）。
     const deniedRecoveryVisible =
       recovery.status === "error" ||
-      (recovery.discovery !== null &&
-        recovery.summary !== null &&
-        (recovery.summary.newSubmissionBlocked || recovery.discovery.items.length > 0));
+      (recovery.summary !== null && recovery.summary.newSubmissionBlocked);
     if (deniedPending === undefined && !deniedRecoveryVisible) {
       return <ErrorPage message={ACCESS_DENIED_MESSAGE} onAction={onBack} actionLabel="戻る" />;
     }
