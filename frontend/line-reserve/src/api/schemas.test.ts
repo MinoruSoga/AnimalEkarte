@@ -281,6 +281,26 @@ describe("revisit intake schemas（EMR-474）", () => {
     expect(revisitIntakeLIFFReadSchema.safeParse(bad).success).toBe(false);
   });
 
+  it("BIGINT 上限（9223372036854775807）を超える10進 ID・版・世代は reject する", () => {
+    const withRef = (patch: Record<string, string>) => ({
+      ...unanswered,
+      current_target: {
+        ...unanswered.current_target,
+        ref: { ...unanswered.current_target.ref, ...patch },
+      },
+    });
+    expect(
+      revisitIntakeLIFFReadSchema.safeParse(withRef({ pet_id: "9223372036854775807" })).success,
+    ).toBe(true);
+    expect(
+      revisitIntakeLIFFReadSchema.safeParse(withRef({ pet_id: "9223372036854775808" })).success,
+    ).toBe(false);
+    expect(
+      revisitIntakeLIFFReadSchema.safeParse(withRef({ target_generation: "99999999999999999999" }))
+        .success,
+    ).toBe(false);
+  });
+
   it("未知の edit_block_reason は補完せず reject する", () => {
     const bad = {
       ...unanswered,

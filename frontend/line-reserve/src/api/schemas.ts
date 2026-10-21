@@ -133,7 +133,12 @@ export const createReservationResponseSchema = z.object({
 // ID・版・世代は正規形10進文字列のまま扱い Number へ変換しない。
 // ---------------------------------------------------------------------------
 
-const revisitIntakeDecimalId = z.string().regex(/^[1-9][0-9]*$/);
+// api.yaml の RevisitIntakeId / Revision / Generation は 1..9223372036854775807（BIGINT 上限）。
+const REVISIT_INTAKE_BIGINT_MAX = BigInt("9223372036854775807");
+const revisitIntakeDecimalId = z
+  .string()
+  .regex(/^[1-9][0-9]*$/)
+  .refine((v) => BigInt(v) <= REVISIT_INTAKE_BIGINT_MAX);
 const revisitIntakeOperationKey = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
