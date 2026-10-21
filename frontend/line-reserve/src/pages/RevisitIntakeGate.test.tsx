@@ -23,19 +23,20 @@ const flow = {
   staffName: "スタッフA",
 } as unknown as ReservationFlow;
 
-function reservation(status: Reservation["status"], id: number): Reservation {
+function reservation(status: Reservation["status"], id: string): Reservation {
   return {
     id,
+    pet_id: null,
+    pet_name: null,
+    course_name: "一般診察",
+    staff_name: "スタッフA",
     date: "2026-08-01",
     start_time: "10:00",
     end_time: "10:30",
     status,
     notes: "R-20260801-0001",
     created_at: "2026-07-01T00:00:00Z",
-    course_name: "一般診察",
-    staff_name: "スタッフA",
-    pet_name: "",
-  } as unknown as Reservation;
+  };
 }
 
 describe("再診問診の入口抑止（flag=false）", () => {
@@ -43,11 +44,11 @@ describe("再診問診の入口抑止（flag=false）", () => {
     server.use(
       http.get("/api/liff/:clinicId/my-reservations", () =>
         HttpResponse.json([
-          reservation("confirmed", 1),
-          reservation("pending", 2),
-          reservation("completed", 3),
-          reservation("cancelled", 4),
-          reservation("confirmed", Number.MAX_SAFE_INTEGER + 2),
+          reservation("confirmed", "1"),
+          reservation("pending", "2"),
+          reservation("completed", "3"),
+          reservation("cancelled", "4"),
+          reservation("confirmed", "9007199254740993"),
         ]),
       ),
     );
@@ -77,7 +78,7 @@ describe("再診問診の入口抑止（flag=false）", () => {
     const onRevisitIntake = vi.fn();
     const { rerender } = render(
       <CompletePage
-        reservationId={1}
+        reservationId="1"
         notes="R-1"
         flow={flow}
         onMyReservations={vi.fn()}
@@ -91,7 +92,7 @@ describe("再診問診の入口抑止（flag=false）", () => {
 
     rerender(
       <CompletePage
-        reservationId={Number.MAX_SAFE_INTEGER + 2}
+        reservationId="9223372036854775808"
         notes="R-1"
         flow={flow}
         onMyReservations={vi.fn()}
