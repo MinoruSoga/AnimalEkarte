@@ -736,6 +736,12 @@ EMR-270／370は本人の解消済みとの認識を現在状態とし、当時�
 
 本契約の5操作は`x-contract-status: selected`、**runtime未実装/未検証**。今回の編集基準mainは`86c9caa34d8498133eb46d4f019c0b08549db554`、根拠コード照合は`da27989fa812c1319b62a1c3b4684c419b110fe1`。GET /meの既存EMR-463契約は保持する。API文書公開と機能利用開始を分け、runtime、DDL、生成型、環境構築、試験実行をこの契約PRへ含めない。
 
+#### LIFF再診問診の利用開始flag（EMR-474・2026-10-21本人判断）
+
+LIFF側の利用開始は静的な`LIFF_REVISIT_INTAKE_ACTIVE`（専用ファイル`frontend/line-reserve/src/lib/revisit-intake-activation.ts`）で制御し、既定は`false`。環境変数・server応答・localStorageでは切り替えない。`false`の間は、予約一覧の問診入口（取消済みの結果照会入口を含む）、完了画面の問診ブロック全体（unsafe ID案内を含む）、問診ページのmountと遷移を同じflagで止め、問診APIを呼ばない。通常の予約作成・取消は変えない。
+
+`true`への変更は別PRで行う。条件は、必要なBEの3route（LIFF GET／POST submissions／GET operations）と認可・receipt処理が揃い、配信先でも利用可能になった後。有効化後も、pending予約の入口許可、serverの`current_target.editable`による編集可否、履歴、結果照会の規則は維持する。公開後の障害時スイッチとしては流用せず、障害時の停止手段は別に設計する。
+
 | 操作 | serverと現在認可 |
 |:---|:---|
 | GET `/reservations/{appointmentId}/revisit-intake` | 既存`/api/v1` server。reservations:view＋clinic＋各target.pet行別grant |

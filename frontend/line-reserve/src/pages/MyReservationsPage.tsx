@@ -5,6 +5,7 @@ import { BackButton } from "../components/BackButton";
 import { formatJSTApplicationDate } from "@/shared-liff/jst-date";
 import { useFetchState } from "@/shared-liff/use-fetch-state";
 import type { RevisitIntakeDraftStore } from "../hooks/use-revisit-intake-drafts";
+import { LIFF_REVISIT_INTAKE_ACTIVE } from "../lib/revisit-intake-activation";
 import {
   REVISIT_INTAKE_UNAVAILABLE_MESSAGE,
   isRevisitIntakeAppointmentIdUsable,
@@ -206,7 +207,8 @@ export function MyReservationsPage({
                     </p>
                   ) : null}
 
-                  {reservation.status === "cancelled" &&
+                  {LIFF_REVISIT_INTAKE_ACTIVE &&
+                  reservation.status === "cancelled" &&
                   onOpenRevisitIntake &&
                   isRevisitIntakeAppointmentIdUsable(reservation.id) &&
                   draftStore?.findPending(clinicId, String(reservation.id)) !== undefined ? (
@@ -222,7 +224,9 @@ export function MyReservationsPage({
                     </div>
                   ) : null}
 
-                  {REVISIT_ENTRY_STATUSES.has(reservation.status) && onOpenRevisitIntake ? (
+                  {LIFF_REVISIT_INTAKE_ACTIVE &&
+                  REVISIT_ENTRY_STATUSES.has(reservation.status) &&
+                  onOpenRevisitIntake ? (
                     <div className="mt-3 pt-3 border-t border-noah-border-light">
                       {isRevisitIntakeAppointmentIdUsable(reservation.id) ? (
                         <button
