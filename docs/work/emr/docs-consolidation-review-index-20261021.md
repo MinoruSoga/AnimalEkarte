@@ -216,3 +216,13 @@ PDF §2のC06到達後HTTP mappingは親追加指示により `12702fe` でnot-s
 ## 横断契約の接続補正（2026-10-21 06:34 UTC親採択）
 
 [Q共通節](../../design/shared/operation-participation.md#verified-command-selected-20261021)へRequest.VerifiedCommandの全文を集約し、指定consumerは同じQからApply入力を再構成する。owner-private耐久commandとは別で、既存Content-only/v1・CAS/fence・短Contentの契約は変更しない。489の限定Request/Runner deltaは未実装依存のまま。481/516/517/RVの認可anchor欠落・不整合・解決不能は403非開示、元targetと現在開示認可確定後の結果読取失敗だけ503へ整合した。510はschema_version文字列とedit-right-lost409を明記。PDFの公開済み3状態HTTP訂正は再適用せず保持。504 Cは未受領のため、この補正batchには含めない。実装・試験・DB・mergeなし。
+
+### 補助author B：指定単一commitの取込
+
+入力 `6b57254f69e16b224d2321a41da1cf7cb6671e98`（親base `e71ddf03462a0ee7a9864ad2ce6854b243591770`）は以下3docs・362行追加だけであることを確認し、`09397634e` へ単一cherry-pickした。補助branch全体やそのbaseのruntime変更は取り込まない。3文書とも元commitのfile blobとバイト一致、共同receipt/source/runtime未完の境界を保持する。
+
+- [364/375/376 CSV列契約](emr-364-375-376-csv-column-contract-20261021.md)
+- [365価格小数契約](emr-365-vaccine-price-decimal-contract-20261021.md)
+- [371四区分運用手順](emr-371-four-category-operating-procedure-20261021.md)
+
+Q横断接続は `0421039e4`、安定参照と記録は `767d5724d`。追加文書を含む静的照合は40docs限定・参照341件のpath/anchor欠落なし、git diff --check通過。試験はNOT_RUN。504 Cは引き続き原稿未受領で、別担当の到着後に指定補正を適用する。
