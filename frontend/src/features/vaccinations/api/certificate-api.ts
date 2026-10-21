@@ -1,4 +1,8 @@
 import type {
+  CertificateRecoveryQueryRequest,
+  CertificateRecoveryQueryResponse,
+} from "./certificate-recovery-schemas";
+import type {
   CertificateContext,
   CertificateEdition,
   CertificateEditionPage,
@@ -79,4 +83,13 @@ export interface CertificateApi {
     intent: CertificateOperationIntent,
     signal?: AbortSignal,
   ): Promise<CertificateResult>;
+  /**
+   * 10. POST vaccination-certificate-operation-recovery/query（EMR-487 Slice A・純 read）。
+   * 職員本人の未確定/完了済み issue・reprint を発見する。1 ページ分のみ返し、ページ送りは
+   * lib/certificate-recovery-discovery が行う。実 API は未実装（保留のみ。次操作の許可には使わない）。
+   */
+  queryOperationRecovery(
+    request: CertificateRecoveryQueryRequest,
+    signal?: AbortSignal,
+  ): Promise<CertificateRecoveryQueryResponse>;
 }
