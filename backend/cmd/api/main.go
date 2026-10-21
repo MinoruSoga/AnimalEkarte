@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	appcrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/middleware"
 )
 
