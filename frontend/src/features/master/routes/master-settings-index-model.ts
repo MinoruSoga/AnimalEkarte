@@ -31,6 +31,7 @@ import {
 export type GroupKey =
   | "clinic"
   | "treatmentItems"
+  | "treatmentPackages"
   | "diagnosisGroup"
   | "trimmingGroup"
   | "trimmingCourseTypes"
@@ -77,6 +78,14 @@ export const GROUP_CARD_CONFIG: Record<GroupKey, GroupCardConfig> = {
     path: "/settings/treatment-items",
     resource: ResourceMasterMedical,
     countCategories: ["consultation", "examination", "procedure", "vaccine", "checkup"],
+  },
+  treatmentPackages: {
+    label: "パッケージマスタ",
+    description: "診療項目のセット（パッケージ）を管理します",
+    IconComponent: Stethoscope,
+    path: "/settings/treatment-packages",
+    resource: ResourceMasterMedical,
+    countCategories: [],
   },
   diagnosisGroup: {
     label: "診断マスタ",
@@ -192,6 +201,7 @@ export const MASTER_SECTIONS: SectionDef[] = [
       "medicine",
       "examinationItems",
       "labDeviceItemMasters",
+      "treatmentPackages",
     ],
   },
   { title: "予約管理", keys: ["reservationType"] },

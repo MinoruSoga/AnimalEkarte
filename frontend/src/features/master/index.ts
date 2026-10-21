@@ -19,3 +19,4 @@ export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { LabDeviceItemMasterSettings } from "./routes/LabDeviceItemMasterSettings";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
 export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
+export { TreatmentPackageSettings } from "./routes/TreatmentPackageSettings";
