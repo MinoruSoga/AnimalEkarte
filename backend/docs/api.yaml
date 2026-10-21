@@ -11912,6 +11912,25 @@ components:
         created_at:
           type: string
           format: date-time
+      oneOf:
+        - description: 認可済みの実 pet が解決した場合（pet_id と pet_name は両方 non-null）
+          properties:
+            pet_id:
+              type: string
+            pet_name:
+              type: string
+        - description: 未解決・紐付け取り消し・別医院の場合（pet_id と pet_name は両方 null）
+          properties:
+            pet_id:
+              type: string
+              nullable: true
+              enum:
+                - null
+            pet_name:
+              type: string
+              nullable: true
+              enum:
+                - null
     LiffProfileOwnerPet:
       type: object
       properties:
