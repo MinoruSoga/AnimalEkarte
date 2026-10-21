@@ -145,8 +145,11 @@ def manual_pointer_restore_sql(export_dir: Path, columns: list[str]) -> str:
         "FROM pointer_stage s\n"
         "WHERE a.id = s.id\n"
         "AND (s.current_version_id IS NOT NULL OR s.published_version_id IS NOT NULL)\n"
-        "AND (a.current_version_id IS DISTINCT FROM s.current_version_id\n"
-        "     OR a.published_version_id IS DISTINCT FROM s.published_version_id);\n"
+        # Only rows still in the state this restore staged (pointers cleared,
+        # version one below the export). Articles that already have pointers
+        # or were changed since the export are left for verify to report.
+        "AND a.current_version_id IS NULL AND a.published_version_id IS NULL\n"
+        "AND a.version = GREATEST(s.version - 1, 1);\n"
         "DROP TABLE pointer_stage;\n"
     )
 
