@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } 
 import type { CertificateApi } from "../api/certificate-api";
 import { boundSucceededRefs, resultMatchesOperation } from "../api/certificate-binding";
 import { CertificateApiError, type CertificateErrorKind } from "../api/certificate-errors";
+import { CERTIFICATE_RECOVERY_FENCE_AVAILABLE } from "../lib/certificate-recovery-gate";
 import {
   discoverCertificateOperations,
   type CertificateRecoveryDiscovery,
@@ -149,6 +150,8 @@ export function useCertificateRecovery({ api, target, enabled }: UseCertificateR
    * true は「既知の阻害要因がない」だけで、新 key が安全である証明ではない。
    */
   const ensureClear = useCallback(async (): Promise<boolean> => {
+    // fence が無い間は、発見の結果にかかわらず新しい操作を始めない（Slice A は表示と再照会のみ）。
+    if (!CERTIFICATE_RECOVERY_FENCE_AVAILABLE) return false;
     const pending = inflightRef.current;
     const outcome = pending !== null ? await pending : outcomeRef.current;
     if (outcome === null || outcome.kind !== "ready") return false;
@@ -202,7 +205,7 @@ export function useCertificateRecovery({ api, target, enabled }: UseCertificateR
     dispatch({ type: "lookupDone", run: stateRef.current.run, key, refs, notice: null });
   }, []);
 
-  const canStart = state.status === "loading" || (state.status === "ready" && view !== null && !view.hold);
+  const canStart = CERTIFICATE_RECOVERY_FENCE_AVAILABLE && (state.status === "loading" || (state.status === "ready" && view !== null && !view.hold));
 
   return { state, view, canStart, ensureClear, refresh, lookupItem, adoptSuccess };
 }

@@ -46,11 +46,11 @@ export function CertificateEditionRow({
   const [saved, setSaved] = useState<CertificateSavedPreview | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
   const [savedBusy, setSavedBusy] = useState(false);
-  // 再 mount / reload 後に、この版の未確定の再印刷を発見する（現在有効な版・再印刷できる権限のときだけ）。
+  // 再 mount / reload 後に、この版の未確定の再印刷を発見する（旧版でも、表示中の行だけ・ポーリングなし）。
   const recovery = useCertificateRecovery({
     api,
     target: { intent: "reprint", vaccinationId: edition.vaccination_id, editionId: edition.id },
-    enabled: isCurrent && canReprint,
+    enabled: true, // 旧版・view のみでも、以前の再印刷の結果確認のため発見する（描画中の行だけ）
   });
   const reprint = useCertificateReprint({
     api,
@@ -157,13 +157,6 @@ export function CertificateEditionRow({
             </Button>
           </div>
 
-          <CertificateRecoveryPanel
-            api={api}
-            intent="reprint"
-            recovery={recovery}
-            ownPendingKey={reprintStore.get(edition.id).pending?.request.operation_key ?? null}
-          />
-
           {savedError ? (
             <p role="alert" className={`text-sm ${C.danger}`}>
               {savedError}
@@ -221,6 +214,13 @@ export function CertificateEditionRow({
           ) : null}
         </div>
       )}
+      <CertificateRecoveryPanel
+        api={api}
+        intent="reprint"
+        recovery={recovery}
+        ownPendingKey={reprintStore.get(edition.id).pending?.request.operation_key ?? null}
+        showPausedNotice={isCurrent && canReprint}
+      />
     </li>
   );
 }

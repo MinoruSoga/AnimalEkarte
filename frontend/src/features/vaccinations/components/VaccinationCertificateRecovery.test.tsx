@@ -16,6 +16,12 @@ vi.mock("../lib/pdf", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/pdf")>()),
   printPdfBlob: printSpy,
 }));
+vi.mock("../lib/certificate-recovery-gate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/certificate-recovery-gate")>()),
+  // 既存フローの検証用。実際の既定は false（fence が無い間は新しい発行・再印刷を始めない）。
+  CERTIFICATE_RECOVERY_FENCE_AVAILABLE: true,
+}));
+
 
 /**
  * EMR-487 Slice A: reload 後の未確定操作の発見・保留・再照会。
@@ -423,5 +429,33 @@ describe("自分のフローが保留中の key の成功を確認したとき",
     expect(within(row).queryByText(/この画面で進行中の操作です/)).toBeNull();
     expect(within(row).getByRole("button", { name: "再印刷の準備" })).toBeEnabled();
     expect(callsOf(controls, "reprint")).toHaveLength(2);
+  });
+});
+
+describe("view のみ・旧版でも発見する", () => {
+  it("can_issue=false でも発見と再照会は動き、発行の操作だけが無い", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false, canIssue: false });
+    controls.recovery.seedUnresolved(1, "issue", null);
+    renderScreen(api);
+    expect(await screen.findByText(/発行する権限がありません/)).toBeInTheDocument();
+    expect(await screen.findByText(HOLD_ISSUE)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "プレビューを作成" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "この操作の結果を再照会" }));
+    expect(await screen.findByText(/現時点では成功を確認できません/)).toBeInTheDocument();
+    expect(callsOf(controls, "issue")).toHaveLength(0);
+  });
+
+  it("現在有効でない版の行でも以前の再印刷を発見して表示し、再印刷の導線は出さない", async () => {
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    controls.recovery.seedUnresolved(1, "reprint", 301);
+    controls.bumpSourceVersion(); // 第1版は旧版になる
+    renderScreen(api);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    expect(await within(row).findByText(HOLD_REPRINT)).toBeInTheDocument();
+    expect(within(row).getByText(/旧版のため印刷できません/)).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "再印刷の準備" })).toBeNull();
+    expect(callsOf(controls, "queryOperationRecovery").filter((c) => (c.detail as { intent: string }).intent === "reprint")).toHaveLength(1);
   });
 });

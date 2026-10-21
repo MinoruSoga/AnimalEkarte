@@ -16,6 +16,12 @@ vi.mock("../lib/pdf", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/pdf")>()),
   printPdfBlob: printSpy,
 }));
+vi.mock("../lib/certificate-recovery-gate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/certificate-recovery-gate")>()),
+  // 既存フローの検証用。実際の既定は false（fence が無い間は新しい発行・再印刷を始めない）。
+  CERTIFICATE_RECOVERY_FENCE_AVAILABLE: true,
+}));
+
 
 /**
  * 契約モック(createMockCertificateApi)を明示注入して画面の状態を確認する。

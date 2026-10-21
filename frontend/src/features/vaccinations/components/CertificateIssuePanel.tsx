@@ -43,7 +43,7 @@ export function CertificateIssuePanel({
   const recovery = useCertificateRecovery({
     api,
     target: { intent: "issue", vaccinationId },
-    enabled: context.can_issue,
+    enabled: true, // 発見と既知の成功の再照会は view 権限で足りる（view のみでも走らせる）
   });
   const flow = useCertificateIssue({
     api,
@@ -63,9 +63,12 @@ export function CertificateIssuePanel({
 
   if (!context.can_issue) {
     return (
-      <p role="status" className={`rounded-xs border p-3 text-sm ${BADGE.gray}`}>
-        この接種記録の証明書を発行する権限がありません。履歴の閲覧のみ行えます。
-      </p>
+      <div className="space-y-3">
+        <p role="status" className={`rounded-xs border p-3 text-sm ${BADGE.gray}`}>
+          この接種記録の証明書を発行する権限がありません。履歴の閲覧のみ行えます。
+        </p>
+        <CertificateRecoveryPanel api={api} intent="issue" recovery={recovery} ownPendingKey={null} />
+      </div>
     );
   }
   if (kinds.length === 0) {
@@ -108,6 +111,7 @@ export function CertificateIssuePanel({
         intent="issue"
         recovery={recovery}
         ownPendingKey={state.pending?.key ?? null}
+        showPausedNotice
       />
 
       <div role="group" aria-labelledby="cert-kind-label" className="space-y-2">
