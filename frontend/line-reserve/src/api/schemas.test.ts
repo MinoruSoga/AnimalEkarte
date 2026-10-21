@@ -315,34 +315,52 @@ describe("revisit intake schemas（EMR-474）", () => {
     }
   });
 
+  const validReservationFixture = {
+    id: "1",
+    pet_id: null,
+    pet_name: null,
+    course_name: "再診",
+    staff_name: "",
+    date: "2026-08-01",
+    start_time: "10:00",
+    end_time: "10:15",
+    status: "confirmed",
+    notes: "",
+    created_at: "2026-08-01T00:00:00Z",
+  };
+  const validCreatedFixture = { id: "1", notes: "n" };
+
+  it("EMR-519: 有効 fixture は list・201 ともに通る（sanity）", () => {
+    expect(reservationSchema.safeParse(validReservationFixture).success).toBe(true);
+    expect(createReservationResponseSchema.safeParse(validCreatedFixture).success).toBe(true);
+  });
+
+  const MISSING_ID = Symbol("missing-id");
   it.each([
-    ["数値 0", { id: 0 }],
-    ["負の数値", { id: -1 }],
-    ["先頭ゼロ", { id: "01" }],
-    ["符号付き", { id: "+1" }],
-    ["小数", { id: "1.0" }],
-    ["指数", { id: "1e3" }],
-    ["空白付き", { id: " 1" }],
-    ["null", { id: null }],
-    ["キー欠落", {}],
-    ["JSON number", { id: 42 }],
-    ["int64 超過", { id: "9223372036854775808" }],
-  ])("EMR-519: reservation id の %s は例外を投げず reject する", (_name, patch) => {
-    const reservation = {
-      id: "1",
-      date: "2026-08-01",
-      start_time: "10:00",
-      end_time: "10:15",
-      status: "confirmed",
-      course_name: "再診",
-      staff_name: null,
-      pet_id: null,
-      pet_name: null,
-      ...patch,
-    };
-    expect(() => reservationSchema.safeParse(reservation)).not.toThrow();
-    expect(reservationSchema.safeParse(reservation).success).toBe(false);
-    const created = { id: "1", notes: "n", ...patch };
+    ["数値 0", 0],
+    ["負の数値", -1],
+    ["先頭ゼロ", "01"],
+    ["符号付き", "+1"],
+    ["小数", "1.0"],
+    ["指数", "1e3"],
+    ["空白付き", " 1"],
+    ["null", null],
+    ["キー欠落", MISSING_ID],
+    ["JSON number", 42],
+    ["int64 超過", "9223372036854775808"],
+  ] as const)("EMR-519: reservation id の %s は例外を投げず reject する", (_name, badId) => {
+    // 違反は id のみ。有効 fixture を起点に id だけを壊す（キー欠落は削除で再現）。
+    const list: Record<string, unknown> = { ...validReservationFixture };
+    const created: Record<string, unknown> = { ...validCreatedFixture };
+    if (badId === MISSING_ID) {
+      delete list.id;
+      delete created.id;
+    } else {
+      list.id = badId;
+      created.id = badId;
+    }
+    expect(() => reservationSchema.safeParse(list)).not.toThrow();
+    expect(reservationSchema.safeParse(list).success).toBe(false);
     expect(createReservationResponseSchema.safeParse(created).success).toBe(false);
   });
 

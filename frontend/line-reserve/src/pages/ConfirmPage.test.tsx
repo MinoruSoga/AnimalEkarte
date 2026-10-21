@@ -349,4 +349,29 @@ describe("ConfirmPage（R-F4: 予約作成フロー・確認/送信ステップ�
     await user.click(confirmButton);
     expect(postCount).toBe(1);
   });
+
+  it.each(["1", "9007199254740991", "9007199254740992", "9007199254740993", "9223372036854775807"])(
+    "EMR-519: 201 応答の id %s を文字列のまま onConfirm へ渡す",
+    async (id) => {
+      const user = userEvent.setup();
+      server.use(
+        http.post("/api/liff/:clinicId/reservations", () =>
+          HttpResponse.json({ id, notes: "memo" }, { status: 201 }),
+        ),
+      );
+      const onConfirm = vi.fn();
+
+      render(
+        <ConfirmPage
+          {...BASE_PROPS}
+          onConfirm={onConfirm}
+          onSlotTaken={vi.fn()}
+          onBack={vi.fn()}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "予約を確定する" }));
+      await vi.waitFor(() => expect(onConfirm).toHaveBeenCalledWith(id, "memo"));
+    },
+  );
 });
