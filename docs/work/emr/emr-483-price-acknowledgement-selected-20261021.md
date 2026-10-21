@@ -1,6 +1,6 @@
 # EMR-483 金額了承 before/after・結果照会：最小技術選定案
 
-> 公開時の位置づけ（2026-10-21）：親レビューで選定した保存・wire・hash・税sourceの範囲を公開する。以下の提案／調査時点の記載はその経緯として保持し、runtime実装済み・全会計契約の実装着手可能を意味しない。税込算定の段階別対応は未閉鎖で、当該subsetの有効化を禁止する。実装・試験・DB適用・マージはNOT_RUN／未実施。
+> 公開時の位置づけ（2026-10-21）：親レビューで選定した保存・wire・hash・税sourceの範囲を公開する。以下の提案／調査時点の記載はその経緯として保持し、runtime実装済み・全会計契約の実装着手可能を意味しない。現行基本運用は本人訂正により外税と確定。通常外税の閉じた経路は既決D10に従って先行可能で、一律停止しない。内税を含む値引／混在／有理税抜から整数内訳への算定subsetだけは未閉鎖で、選定まで当該subsetの有効化を禁止する。実装・試験・DB適用・マージはNOT_RUN／未実施。
 
 2026-10-21、R4（統合全文）。親レビュー用の提案であり、採択・公開・実装済みではない。外部書込、API実装、実金銭操作、試験を行っていない（NOT_RUN）。
 
@@ -178,9 +178,9 @@ snapshot_digest はこのprojection全体のJCS UTF-8 SHA-256。before/afterは�
 
 ExactRatioは有理値を失わず保存する型の選定であり、税込/税抜混在の計算対応を閉じた証拠ではない。税込100/税10%の税抜基準1000/11を、整数JPYであるDiscountResult.base_amount・allocation.base_amount・line.net_amount・snapshot.subtotalへどの段階でどう対応させるかは未閉鎖。現在列挙した整数fieldは当該混在subsetの完全schemaと断定しない。
 
-505が既決の元税込額保持、行/率丸め、scope別割引、最大剰余、税率集約に沿う段階別の値/型/対応と合成fixtureを選定して引き渡すまで、税込入力を含む当該算定subsetのpreview/submit/importを有効化しない。実装者が独自round/floorや新算式で埋めることは禁止。これは単なる試験NOT_RUNとは別の設計残であり、本人へ既決業務を再質問しない。
+505が既決の元税込額保持、行/率丸め、scope別割引、最大剰余、税率集約に沿う段階別の値/型/対応と合成fixtureを選定して引き渡すまで、内税を含む値引／混在／有理税抜から整数内訳への当該算定subsetのpreview/submit/importを有効化しない。通常外税の閉じた経路は既決D10に従って先行可能で、全会計・通常外税を一律停止しない。実装者が独自round/floorや新算式で埋めることは禁止。これは単なる試験NOT_RUNとは別の設計残であり、本人へ既決業務を再質問しない。
 
-A/B保存、了承wire/Content、元target anchor、原projection保存、税込を含まない閉じた計算経路の実装設計は分離して進められる。税込混在に依存するschema/算式のgateが閉じた後に当該consumerを追加有効化する。取消/再請求全体の残件を483 gateへ追加しない。
+A/B保存、了承wire/Content、元target anchor、原projection保存、通常外税の閉じた計算経路の実装設計は分離して進められる。税込混在に依存するschema/算式のgateが閉じた後に当該consumerを追加有効化する。取消/再請求全体の残件を483 gateへ追加しない。
 
 ## 9. 483 の exact Content・監査・no-op
 
@@ -250,3 +250,9 @@ before は closed `{calculation_id,revision,rule_version,snapshot_digest}`、ID/
 405 consumerを新形式へ接続するadapterは、既存形式か今回の版付きclosed形式かを保存schemaで識別し、上表の同じ原料金入力を返す。未知schemaや両形式の不整合は推測fallbackせず停止する。新形式へ同義の `source_snapshot.pricing` を重複保存して第二正本を作らない。旧形式を読む能力の存在だけで新形式への自動移行・履歴backfillを許可しない。
 
 コピーではpricing.schema_version、input_unit_price／quantityのnullと原十進字句、taxの全field、masterのversion／updated_atの有無・null、origin・confirmed_by／confirmed_atを保持する。計算用applied_pricingだけで必要な非NULL／known検査と正規化を行い、原値を書き換えない。元保存fieldが§8.3のclosed枝で無損失に表現できない場合は黙って縮約せず、その専用枝の選定までconsumerを有効化しない。税込算定の未閉鎖境界は§8.5を維持する。
+
+### 2026-10-21本人訂正：外税の基本運用と未閉鎖範囲
+
+本人 Sentinel_9d2e828eb9308191be6b57221ddd8f02「間違えてました、外税ですね」により、現行の基本運用は外税と確定する。通常外税の閉じたpreview／submit／import経路は既決D10に従って先行可能であり、内税edgeの未閉鎖を全会計の停止条件へ広げない。
+
+未閉鎖は内税を含む値引／混在／有理税抜から整数内訳への算定subsetに限定する。既存の「入力した税込額を維持する」要件は撤回しない。親確認では会計フロー本文に税／値引式はなく、旧動画では2行外税100%値引→0円だけを確認したため、この資料から内税edgeの式を選定したとは扱わない。新しい数式・丸め・税率は追加せず、段階別対応の選定責任と既決の有効化条件を維持する。

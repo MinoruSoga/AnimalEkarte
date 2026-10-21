@@ -1,6 +1,6 @@
 # EMR-482 施術価格 source → 未請求・会計：技術選定契約・統合全文
 
-> 公開時の位置づけ（2026-10-21）：親レビューで選定した保存・wire・hash・税sourceの範囲を公開する。以下の提案／調査時点の記載はその経緯として保持し、runtime実装済み・全会計契約の実装着手可能を意味しない。税込算定の段階別対応は未閉鎖で、当該subsetの有効化を禁止する。実装・試験・DB適用・マージはNOT_RUN／未実施。
+> 公開時の位置づけ（2026-10-21）：親レビューで選定した保存・wire・hash・税sourceの範囲を公開する。以下の提案／調査時点の記載はその経緯として保持し、runtime実装済み・全会計契約の実装着手可能を意味しない。現行基本運用は本人訂正により外税と確定。通常外税の閉じた経路は既決D10に従って先行可能で、一律停止しない。内税を含む値引／混在／有理税抜から整数内訳への算定subsetだけは未閉鎖で、選定まで当該subsetの有効化を禁止する。実装・試験・DB適用・マージはNOT_RUN／未実施。
 
 2026-10-21。親選定用の統合全文。採択・公開・runtime実装済みとはしない。外部書込、実金銭操作、API実装、試験なし（NOT_RUN）。
 
@@ -173,7 +173,7 @@ B（481→482）：typed candidates/import/resolutionの施術subset、active cl
 
 505原projection保存はclosed `{kind,values}` のtrimming_v1枝で本書§5.5の全値を保持し、input/tax_input/accounting_contextを縮約しない。計算用PricingInputはclosed `{schema_version,input_unit_price,quantity,tax}`、schema_version=1。単価/数量はinputから、taxはaccounting_contextから写し、価格入力時tax_inputは原根拠に残す。TaxInputはclosed `{status,type,rate,origin,master,confirmed_by,confirmed_at}`でknown/master、masterは `{kind,id,version,updated_at,tax_type,tax_rate}`（updated_at=null、版あり）、確認actor/timeは元にないためnull。import actor/timeはoperation監査に保持する。元値や税込額を計算結果へ上書きしない。
 
-税込有理税抜基準を整数の割引基準/配賦基準/net/subtotalへ対応させる505算定契約は未閉鎖。ExactRatio型を定義しただけで完了とはしない。既決元税込額保持を変える新丸め/算式を実装者が発明せず、505の段階別対応/合成fixture選定までは税込入力を含む当該import/再適用の算定subsetを無効化する。価格writer/read/unknown保存、税根拠snapshot、税込を含まない閉じた経路は別sliceとして先行可能。この残りは試験NOT_RUNとは別の設計残で、税率の業務決定や481全domain完了待ちではない。
+税込有理税抜基準を整数の割引基準/配賦基準/net/subtotalへ対応させる505算定契約は未閉鎖。ExactRatio型を定義しただけで完了とはしない。既決元税込額保持を変える新丸め/算式を実装者が発明せず、505の段階別対応/合成fixture選定までは内税を含む値引／混在／有理税抜から整数内訳への当該import/再適用の算定subsetを無効化する。通常外税の閉じた経路まで一律停止しない。価格writer/read/unknown保存、税根拠snapshot、通常外税の閉じた経路は別sliceとして先行可能。この残りは試験NOT_RUNとは別の設計残で、税率の業務決定や481全domain完了待ちではない。
 
 ## 9. 固定根拠
 
@@ -188,3 +188,9 @@ B（481→482）：typed candidates/import/resolutionの施術subset、active cl
 ## 10. 関連する原projection adapterの追補
 
 入院sourceの405既存 `source_snapshot.pricing` と今回の505版付き原値保存形の対応は、[483のadapter追補](emr-483-price-acknowledgement-selected-20261021.md#hospitalization-405-pricing-adapter)に従う。施術は本書§5.5のtrimming_v1全量を使い、入院枝へ置換しない。旧405文書は変更せず、原値全量保存・元字句とnullable／field presenceの保持、applied_pricingとの分離を維持する。
+
+### 2026-10-21本人訂正：外税の基本運用と未閉鎖範囲
+
+本人 Sentinel_9d2e828eb9308191be6b57221ddd8f02「間違えてました、外税ですね」により、現行の基本運用は外税と確定する。通常外税の閉じたpreview／submit／import経路は既決D10に従って先行可能であり、内税edgeの未閉鎖を全会計の停止条件へ広げない。
+
+未閉鎖は内税を含む値引／混在／有理税抜から整数内訳への算定subsetに限定する。既存の「入力した税込額を維持する」要件は撤回しない。親確認では会計フロー本文に税／値引式はなく、旧動画では2行外税100%値引→0円だけを確認したため、この資料から内税edgeの式を選定したとは扱わない。新しい数式・丸め・税率は追加せず、段階別対応の選定責任と既決の有効化条件を維持する。
