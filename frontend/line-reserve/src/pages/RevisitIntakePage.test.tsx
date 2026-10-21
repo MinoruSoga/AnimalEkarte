@@ -29,6 +29,7 @@ import {
   type RevisitIntakeDraftStore,
   type RevisitIntakePendingOperation,
 } from "../hooks/use-revisit-intake-drafts";
+import { emptyRecoveryHandler } from "../testing/revisit-intake-recovery-fixtures";
 import type {
   RevisitIntakeAnswer,
   RevisitIntakeFullAnswers,
@@ -272,6 +273,8 @@ function purposeInput(): HTMLTextAreaElement {
 
 beforeEach(() => {
   clearRevisitIntakeReadBackoffs();
+  // 操作回復 Slice A: mount 時の未確定操作の発見（0 件・complete）。個別テストの server.use が優先される。
+  server.use(emptyRecoveryHandler());
   let n = 0;
   keyMock.mockReset();
   keyMock.mockImplementation(
