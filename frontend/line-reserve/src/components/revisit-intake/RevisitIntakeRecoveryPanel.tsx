@@ -3,13 +3,14 @@
 // - unresolved / 結果を読めない: 新しい送信を止め、既存の結果照会（同じ operation key）で再確認できる。
 // - closed_without_effect: 参考表示のみ。
 // 次操作の解除（fence）・新 key での再開はこの Slice に無い。ここは「止める」と「確かめる」だけ。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { liffApi } from "../../api/liff-api";
 import { resolveFetchError } from "@/shared-liff/handle-fetch-error";
 import type { RevisitIntakeRecoveryItem } from "../../api/revisit-intake-recovery-schemas";
 import type { RevisitIntakeRecoveryErrorKind } from "../../api/revisit-intake-recovery";
 import type { UseRevisitIntakeRecoveryResult } from "../../hooks/use-revisit-intake-recovery";
 import { formatRevisitIntakeDateTime } from "../../lib/revisit-intake-options";
+import { revisitIntakeRetryAfterSeconds } from "../../lib/revisit-intake-submit";
 import { PENDING_UNAUTHORIZED_TEXT } from "./RevisitIntakeDeniedPendingLookup";
 
 const BLOCKED_NOTICE =
@@ -78,6 +79,15 @@ export function RevisitIntakeRecoveryPanel({
 }) {
   const [lookups, setLookups] = useState<Record<string, ItemLookup>>({});
   const { refresh } = recovery;
+  // 429 / Retry-After 付き 500・503 の期限（memory のみ）。期限までその item の照会 button を止める。
+  const [retryUntil, setRetryUntil] = useState<Record<string, number>>({});
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const future = Object.values(retryUntil).filter((t) => t > now);
+    if (future.length === 0) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(0, Math.min(...future) - Date.now()));
+    return () => clearTimeout(timer);
+  }, [retryUntil, now]);
 
   async function relookup(key: string) {
     setLookups((prev) => ({ ...prev, [key]: { busy: true } }));
@@ -103,6 +113,13 @@ export function RevisitIntakeRecoveryPanel({
       const info = resolveFetchError(err, "送信結果の確認");
       text = info.status === 401 ? PENDING_UNAUTHORIZED_TEXT : info.message;
       refreshAfter = false;
+      const retryAfter = revisitIntakeRetryAfterSeconds(err);
+      if (retryAfter !== null) {
+        const until = Date.now() + retryAfter * 1000;
+        text = `${retryAfter}秒後に再確認できます`;
+        setRetryUntil((prev) => ({ ...prev, [key]: until }));
+        setNow(Date.now());
+      }
     }
     setLookups((prev) => ({ ...prev, [key]: { busy: false, text } }));
     // 表示と保留の更新は発見をやり直して得た結果だけに従う（照会の結果から保留を外さない）。
@@ -192,6 +209,7 @@ export function RevisitIntakeRecoveryPanel({
       {holdItems.map((item) => {
         const state = lookups[item.operation_key];
         const busy = state?.busy === true;
+        const waiting = (retryUntil[item.operation_key] ?? 0) > now;
         return (
           <div
             key={item.operation_key}
@@ -213,7 +231,7 @@ export function RevisitIntakeRecoveryPanel({
             <button
               type="button"
               onClick={() => void relookup(item.operation_key)}
-              disabled={busy}
+              disabled={busy || waiting}
               className="min-h-11 w-full rounded-lg border border-noah-border-input bg-white px-4 text-sm font-semibold text-noah-teal-dark disabled:opacity-50"
             >
               {busy ? "確認中..." : "送信結果を確認"}

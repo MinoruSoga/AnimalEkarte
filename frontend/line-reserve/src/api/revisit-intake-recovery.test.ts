@@ -228,6 +228,40 @@ describe("queryRevisitIntakeOperationRecoveryPage（adapter）", () => {
     await expectKind(queryRevisitIntakeOperationRecoveryPage(args), "network");
   });
 
+  it("target scope: 要求した target と違う成功 result は契約違反（redacted は検証材料が無く許す）", async () => {
+    const other = (patch: object) => {
+      const base = succeededItem(KEY_A).result as {
+        operation_result: { result_refs: object; committed_versions: object };
+      };
+      return {
+        ...succeededItem(KEY_A),
+        result: {
+          ...base,
+          operation_result: { ...base.operation_result, ...patch },
+        },
+      };
+    };
+    const refs = { appointment_id: "12001", pet_id: "801", target_id: "5401", answer_id: "9101" };
+    const versions = { target_generation: "3", answer_revision: "1" };
+    for (const patch of [
+      { result_refs: { ...refs, appointment_id: "99999" } },
+      { result_refs: { ...refs, pet_id: "802" } },
+      { committed_versions: { ...versions, target_generation: "4" } },
+    ]) {
+      server.use(recoveryHandler(() => noStoreJson(targetPage([other(patch)]))).handler);
+      await expectKind(queryRevisitIntakeOperationRecoveryPage(args), "contract_violation");
+    }
+    server.use(
+      recoveryHandler(() =>
+        noStoreJson(targetPage([{ ...succeededItem(KEY_A), result: redactedSuccessResult(KEY_A) }])),
+      ).handler,
+    );
+    await expect(queryRevisitIntakeOperationRecoveryPage(args)).resolves.toBeDefined();
+    // 一致する visible success は受理
+    server.use(recoveryHandler(() => noStoreJson(targetPage([succeededItem(KEY_A)]))).handler);
+    await expect(queryRevisitIntakeOperationRecoveryPage(args)).resolves.toBeDefined();
+  });
+
   it("止まった接続は timeout で応答なし扱い（network）になり、永久に pending にならない", async () => {
     server.use(http.post(RECOVERY_QUERY_PATH, async () => { await delay("infinite"); return noStoreJson(targetPage()); }));
     await expectKind(queryRevisitIntakeOperationRecoveryPage({ ...args, timeoutMs: 50 }), "network");

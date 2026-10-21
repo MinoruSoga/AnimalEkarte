@@ -70,17 +70,39 @@ function violation(message: string): RevisitIntakeRecoveryQueryError {
   return new RevisitIntakeRecoveryQueryError("contract_violation", message);
 }
 
+const TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:[Zz]|([+-])(\d{2}):(\d{2}))$/;
+
 /**
- * claimed_at DESC → operation_key DESC を検査する。文字列が同一なら key で厳密に比較する。
- * 異なる文字列が同一 ms に収まる場合は、server のマイクロ秒順を client で判定できないため許容する。
+ * RFC3339 を UTC 整数秒 + 小数部文字列へ正規化して全精度で比較する（-1 / 0 / 1）。
+ * 解釈できない値・閏秒（:60）・極端な年は null（呼び出し側が契約違反として扱う）。
  */
+export function compareRfc3339(a: string, b: string): -1 | 0 | 1 | null {
+  const norm = (value: string): { sec: number; frac: string } | null => {
+    const m = TIMESTAMP.exec(value);
+    if (m === null) return null;
+    const [year, month, day, hour, minute, second] = m.slice(1, 7).map(Number);
+    if (second > 59 || year < 1000) return null;
+    const offset = m[8] === undefined ? 0 : (m[8] === "-" ? -1 : 1) * (Number(m[9]) * 60 + Number(m[10]));
+    const sec = Date.UTC(year, month - 1, day, hour, minute, second) / 1000 - offset * 60;
+    return Number.isFinite(sec) ? { sec, frac: m[7] ?? "" } : null;
+  };
+  const x = norm(a);
+  const y = norm(b);
+  if (x === null || y === null) return null;
+  if (x.sec !== y.sec) return x.sec > y.sec ? 1 : -1;
+  const width = Math.max(x.frac.length, y.frac.length);
+  const fx = x.frac.padEnd(width, "0");
+  const fy = y.frac.padEnd(width, "0");
+  if (fx === fy) return 0;
+  return fx > fy ? 1 : -1;
+}
+
+/** claimed_at DESC → operation_key DESC を全精度で検査する。同一 instant（表記違いを含む）は key で比較する。 */
 function isDescending(prev: RevisitIntakeRecoveryItem, next: RevisitIntakeRecoveryItem): boolean {
-  // 同一 claimed_at は operation_key DESC（重複 key は別途拒否済みのため厳密に降順）。
-  if (prev.claimed_at === next.claimed_at) return prev.operation_key > next.operation_key;
-  const a = Date.parse(prev.claimed_at);
-  const b = Date.parse(next.claimed_at);
-  if (Number.isNaN(a) || Number.isNaN(b)) return false;
-  return a >= b;
+  const cmp = compareRfc3339(prev.claimed_at, next.claimed_at);
+  if (cmp === null) return false;
+  if (cmp === 0) return prev.operation_key > next.operation_key;
+  return cmp > 0;
 }
 
 /** page 取得を残り時間で打ち切る。signal を結合し、signal を無視する fetcher でも race で止める。 */

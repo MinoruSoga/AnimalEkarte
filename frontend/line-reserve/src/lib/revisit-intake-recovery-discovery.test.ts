@@ -8,6 +8,7 @@ vi.mock("./revisit-intake-recovery-fence", () => ({
 }));
 import {
   RECOVERY_MAX_PAGES,
+  compareRfc3339,
   discoverRevisitIntakeRecovery,
   summarizeRevisitIntakeRecovery,
   type RecoveryPageFetcher,
@@ -155,6 +156,47 @@ describe("discoverRevisitIntakeRecovery（paging）", () => {
       TARGET,
     );
     expect(d.items.map((i) => i.operation_key)).toEqual([KEY_B, KEY_A]);
+  });
+
+  it("ms を超える精度（マイクロ秒）と表記違いの同一 instant を全精度で比較する", async () => {
+    expect(compareRfc3339("2026-10-20T01:00:00.000100Z", "2026-10-20T01:00:00.000200Z")).toBe(-1);
+    expect(compareRfc3339("2026-10-20T01:00:00.5Z", "2026-10-20T01:00:00.500000Z")).toBe(0);
+    expect(compareRfc3339("2026-10-20T10:00:00+09:00", "2026-10-20T01:00:00Z")).toBe(0);
+    expect(compareRfc3339("2026-10-20T01:00:60Z", "2026-10-20T01:00:00Z")).toBeNull(); // 閏秒は fail-closed
+    // 同一 ms 内でも新しい方が後ろに来たら契約違反
+    await expectViolation(
+      discoverRevisitIntakeRecovery(
+        fetcherOf([
+          targetPage([
+            succeededItem(KEY_B, "2026-10-20T01:00:00.000100Z"),
+            succeededItem(KEY_C, "2026-10-20T01:00:00.000200Z"),
+          ]),
+        ]),
+        TARGET,
+      ),
+    );
+    // 同一 instant の別表記は key DESC を要求する
+    await expectViolation(
+      discoverRevisitIntakeRecovery(
+        fetcherOf([
+          targetPage([
+            succeededItem(KEY_A, "2026-10-20T10:00:00+09:00"),
+            succeededItem(KEY_B, "2026-10-20T01:00:00Z"),
+          ]),
+        ]),
+        TARGET,
+      ),
+    );
+    const ok = await discoverRevisitIntakeRecovery(
+      fetcherOf([
+        targetPage([
+          succeededItem(KEY_B, "2026-10-20T10:00:00+09:00"),
+          succeededItem(KEY_A, "2026-10-20T01:00:00Z"),
+        ]),
+      ]),
+      TARGET,
+    );
+    expect(ok.items).toHaveLength(2);
   });
 
   it("page 要求の pending 中にも deadline を適用する（signal を無視する fetcher でも止める）", async () => {

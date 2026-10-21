@@ -17,6 +17,7 @@ import { sanitizeNullBytes } from "@/shared-liff/sanitize";
 import { devError } from "@/shared-liff/dev-log";
 import {
   isPageConsistentWithScope,
+  isPageWithinTarget,
   recoveryErrorBodySchema,
   recoveryPageSchema,
   recoveryQueryRequestSchema,
@@ -132,7 +133,12 @@ export async function queryRevisitIntakeOperationRecoveryPage(
     throw new RevisitIntakeRecoveryQueryError("contract_violation", "unexpected status or cache policy");
   }
   const page = recoveryPageSchema.safeParse(res.data);
-  if (!page.success || !isPageConsistentWithScope(args.request.scope, page.data)) {
+  const req = args.request;
+  if (
+    !page.success ||
+    !isPageConsistentWithScope(req.scope, page.data) ||
+    (req.scope === "target" && !isPageWithinTarget(req.target_ref, page.data))
+  ) {
     devError("[revisit-intake-recovery] invalid response shape:", page.success ? "scope" : page.error);
     throw new RevisitIntakeRecoveryQueryError("contract_violation", "recovery response is invalid");
   }

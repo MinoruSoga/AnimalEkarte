@@ -206,6 +206,26 @@ export function isPageConsistentWithScope(
   return page.recovery_generation !== null;
 }
 
+/**
+ * target scope: 検証できる成功 result（result_refs / committed_versions がある visible success）は
+ * 要求した target_ref と一致しなければならない。redacted（refs null）は検証材料が無く、そのまま許す。
+ */
+export function isPageWithinTarget(
+  targetRef: RevisitIntakeRecoveryTargetRef,
+  page: RevisitIntakeRecoveryPage,
+): boolean {
+  return page.items.every((item) => {
+    const op = item.result?.operation_result;
+    if (op === undefined || op.state !== "succeeded") return true;
+    const refs = op.result_refs;
+    const versions = op.committed_versions;
+    if (refs !== null && (refs.appointment_id !== targetRef.appointment_id || refs.pet_id !== targetRef.pet_id)) {
+      return false;
+    }
+    return versions === null || versions.target_generation === targetRef.target_generation;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Error（この新 API だけの closed {error, code}）
 // ---------------------------------------------------------------------------

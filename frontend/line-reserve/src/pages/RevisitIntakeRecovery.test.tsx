@@ -153,6 +153,24 @@ describe("RevisitIntakePage 操作回復 Slice A", () => {
     expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
   });
 
+  it("再照会が 429 + Retry-After: その item の button を期限まで止め、保留は解かない", async () => {
+    mockRead();
+    server.use(
+      http.get(LOOKUP_PATH, () =>
+        HttpResponse.json({ error: "slow", code: "RATE_LIMITED" }, { status: 429, headers: { "Retry-After": "30" } }),
+      ),
+    );
+    const rec = recoveryHandler(() => noStoreJson(targetPage([unresolvedItem(KEY_A)])));
+    server.use(rec.handler);
+    renderPage();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "送信結果を確認" }));
+    expect(await screen.findByText("30秒後に再確認できます")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "送信結果を確認" })).toBeDisabled();
+    expect(rec.bodies.length).toBe(1); // 再発見もしない
+    expect(screen.queryByRole("button", { name: SUBMIT_LABEL })).not.toBeInTheDocument();
+  });
+
   it("結果を読めない item（unavailable）も保留する", async () => {
     mockRead();
     server.use(recoveryHandler(() => noStoreJson(targetPage([unavailableItem(KEY_A)]))).handler);
