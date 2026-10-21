@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,9 +31,9 @@ func TestInitMissingPackageCatalogs_PreservesExistingAndFillsGaps(t *testing.T) 
 	pool := openMigrateTestPool(t, ctx)
 	defer pool.Close()
 
-	schema := fmt.Sprintf("pkg_catalog_test_%d", 1)
-	_, err := pool.Exec(ctx, fmt.Sprintf(
-		"DROP SCHEMA IF EXISTS %s CASCADE; CREATE SCHEMA %s", schema, schema))
+	// run毎に一意な schema（並列runが互いのschemaをDROPしないよう固定名は使わない）。
+	schema := fmt.Sprintf("pkg_catalog_test_%d", time.Now().UnixNano())
+	_, err := pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA %s", schema))
 	require.NoError(t, err)
 	defer func() {
 		_, _ = pool.Exec(ctx, fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schema))
