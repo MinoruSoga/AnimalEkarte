@@ -1,9 +1,9 @@
 import { useCallback, useLayoutEffect, useReducer, useRef } from "react";
 import type { CertificateApi } from "../api/certificate-api";
 import { newOperationKey } from "../api/certificate-operation-key";
+import { boundSucceededRefs, previewMatchesRequest, resultMatchesOperation } from "../api/certificate-binding";
 import { CertificateApiError } from "../api/certificate-errors";
 import {
-  readSucceededRefs,
   type CertificateContext,
   type CertificateEdition,
   type CertificateKind,
@@ -124,6 +124,14 @@ export function useCertificateIssue({
     try {
       const preview = await api.previewForIssue(vaccinationId, request);
       if (epoch !== epochRef.current) return;
+      // 形が正しいだけの別接種・別様式・別 CAS の preview を、確認対象として載せない。
+      const bound = previewMatchesRequest(preview, {
+        vaccinationId,
+        kind: request.kind,
+        sourceVersion: request.preconditions.source_version,
+        latestEditionId: request.preconditions.latest_edition_id,
+      });
+      if (!bound) return fail("preview-failed", "previewFail");
       dispatch({ type: "previewOk", preview, request });
     } catch (error) {
       if (epoch !== epochRef.current) return;
@@ -140,12 +148,17 @@ export function useCertificateIssue({
   }, [api, vaccinationId, context, getCanEdit, fail]);
 
   const applyResult = useCallback(
-    (result: CertificateResult): void => {
+    (result: CertificateResult, pending: IssuePending): void => {
+      // 待っている操作以外の結果は、成功でも「成功なし」でも採用しない（結果不明のまま照会に戻す）。
+      if (!resultMatchesOperation(result, pending.key)) {
+        dispatch({ type: "issueUnknown", notice: "contract-violation" });
+        return;
+      }
       if (result.status === "not-succeeded") {
         dispatch({ type: "lookupNotSucceeded", notice: "not-succeeded" });
         return;
       }
-      const refs = readSucceededRefs(result);
+      const refs = boundSucceededRefs(result, { operationKey: pending.key, vaccinationId });
       if (refs === null) {
         dispatch({ type: "issueUnknown", notice: "contract-violation" });
         return;
@@ -153,13 +166,13 @@ export function useCertificateIssue({
       dispatch({ type: "issueOk", refs: { ...refs, replayed: result.status === "replayed" } });
       onRefetchContext();
     },
-    [onRefetchContext],
+    [onRefetchContext, vaccinationId],
   );
 
   const lookup = useCallback(
     async (pending: IssuePending) => {
       try {
-        applyResult(await api.lookupOperation(pending.key, "issue"));
+        applyResult(await api.lookupOperation(pending.key, "issue"), pending);
       } catch (error) {
         if (!(error instanceof CertificateApiError)) return fail("unavailable", "unknown");
         if (error.kind === "scope-not-found") {
@@ -183,7 +196,7 @@ export function useCertificateIssue({
           await lookup(pending);
           return;
         }
-        applyResult(result);
+        applyResult(result, pending);
       } catch (error) {
         const decision = decideIssueFailure(error);
         if (decision.type === "stale") fail(decision.notice, "stale", decision.refetchContext);

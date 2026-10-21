@@ -501,3 +501,64 @@ describe("context 読込の失敗", () => {
     expect(await screen.findByText(/訂正または削除されたため/)).toBeInTheDocument();
   });
 });
+
+describe("応答の対象束縛（形が正しいだけの別対象を採用しない）", () => {
+  const OTHER_KEY = "22222222-2222-4222-8222-222222222222";
+
+  it("別の接種の preview は表示せず、発行ボタンも出さない", async () => {
+    const user = userEvent.setup();
+    const { api } = createMockCertificateApi({ rabiesEligible: false });
+    const mixedUp: CertificateApi = {
+      ...api,
+      previewForIssue: async (vaccinationId, body, signal) => {
+        const preview = await api.previewForIssue(vaccinationId, body, signal);
+        return { ...preview, snapshot: { ...preview.snapshot, source: { ...preview.snapshot.source, vaccination_id: 999 } } };
+      },
+    };
+    renderScreen(mixedUp);
+    await user.click(await screen.findByRole("button", { name: "プレビューを作成" }));
+    expect(await screen.findByText("プレビューを作成できませんでした")).toBeInTheDocument();
+    expect(screen.queryByTitle("証明書の確認プレビュー")).toBeNull();
+    expect(screen.queryByRole("button", { name: "この内容で発行する" })).toBeNull();
+  });
+
+  it("別の操作の発行結果は印刷対象にせず、結果不明として同じ key で照会できる", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    const mixedUp: CertificateApi = {
+      ...api,
+      issue: async (vaccinationId, body) => ({ ...(await api.issue(vaccinationId, body)), operation_key: OTHER_KEY }),
+    };
+    renderScreen(mixedUp);
+    await createPreview(user);
+    await user.click(screen.getByRole("button", { name: "この内容で発行する" }));
+    expect(await screen.findByText("発行結果の参照が不足しています")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "発行しました" })).toBeNull();
+    expect(callsOf(controls, "getArtifactContent")).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: "発行結果を照会する" }));
+    await screen.findByRole("heading", { name: "発行しました" });
+    expect(callsOf(controls, "issue")).toHaveLength(1);
+  });
+
+  it("別の版を指す再印刷結果は印刷対象にしない", async () => {
+    const user = userEvent.setup();
+    const { api, controls } = createMockCertificateApi({ rabiesEligible: false });
+    await seedNormalEdition(api);
+    const mixedUp: CertificateApi = {
+      ...api,
+      reprint: async (editionId, body) => {
+        const result = await api.reprint(editionId, body);
+        return result.status === "not-succeeded"
+          ? result
+          : { ...result, result_refs: { ...result.result_refs, edition_id: "999" } };
+      },
+    };
+    renderScreen(mixedUp);
+    const row = (await screen.findByText("第1版")).closest("li") as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "再印刷の準備" }));
+    expect(await within(row).findByText("発行結果の参照が不足しています")).toBeInTheDocument();
+    expect(within(row).queryByRole("heading", { name: "再印刷の準備ができました" })).toBeNull();
+    expect(callsOf(controls, "getArtifactContent")).toHaveLength(0);
+  });
+});

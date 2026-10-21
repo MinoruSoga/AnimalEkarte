@@ -1,9 +1,9 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { CertificateApi } from "../api/certificate-api";
+import { boundSucceededRefs, resultMatchesOperation } from "../api/certificate-binding";
 import { CertificateApiError } from "../api/certificate-errors";
 import { newOperationKey } from "../api/certificate-operation-key";
 import {
-  readSucceededRefs,
   type CertificateEdition,
   type CertificateLayout,
   type CertificateResult,
@@ -49,25 +49,34 @@ export function useCertificateReprint(args: {
   );
 
   const apply = useCallback(
-    (result: CertificateResult) => {
+    (result: CertificateResult, pending: ReprintPending) => {
+      // 待っている操作・対象の版以外の結果は採用しない（結果不明のまま照会に戻す）。
+      if (!resultMatchesOperation(result, pending.request.operation_key)) {
+        commit({ state: { phase: "unknown", notice: "contract-violation" } });
+        return;
+      }
       if (result.status === "not-succeeded") {
         commit({ state: { phase: "not-issued", notice: "not-succeeded" } });
         return;
       }
-      const refs = readSucceededRefs(result);
+      const refs = boundSucceededRefs(result, {
+        operationKey: pending.request.operation_key,
+        vaccinationId: edition.vaccination_id,
+        editionId: pending.editionId,
+      });
       if (refs === null) {
         commit({ state: { phase: "unknown", notice: "contract-violation" } });
         return;
       }
       commit({ pending: null, state: { phase: "done", ...refs, replayed: result.status === "replayed" } });
     },
-    [commit],
+    [commit, edition.vaccination_id],
   );
 
   const lookup = useCallback(
     async (pending: ReprintPending) => {
       try {
-        apply(await api.lookupOperation(pending.request.operation_key, "reprint"));
+        apply(await api.lookupOperation(pending.request.operation_key, "reprint"), pending);
       } catch (error) {
         const kind = error instanceof CertificateApiError ? error.kind : "network";
         if (kind === "scope-not-found") commit({ state: { phase: "not-issued", notice: "not-claimed" } });
@@ -97,7 +106,7 @@ export function useCertificateReprint(args: {
           await lookup(pending);
           return;
         }
-        apply(result);
+        apply(result, pending);
       } catch (error) {
         const decision = decideIssueFailure(error);
         if (decision.type === "stale") {
