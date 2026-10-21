@@ -1155,10 +1155,10 @@ FR: FR-common-ui-explicit-business-search, FR-common-ui-interaction-consistency
 
 実接点: TreatmentPackageSettings useTreatmentPackages; handleSave/handleDeleteConfirm/handleMove and MasterPageShell editor.
 
-状態/無修正境界: Existing package editor/list has no keyword search field. Exclude only keyword change; general save/delete/reorder state belongs D17/O operations.
+状態/無修正境界: Existing package editor/list has no keyword search field. Exclude only keyword change; general save/delete/reorder state belongs the independent P01 package operation family.
 - [frontend/src/features/master/routes/TreatmentPackageSettings.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/755f77abd2e6d63a2fc608fcfe6a518a61afcfff/frontend/src/features/master/routes/TreatmentPackageSettings.tsx) blob 5ad8ec17f57d5f34e33eafc242e471c4da382352
 
-具体差分/再利用: keyword修正なし: Existing package editor/list has no keyword search field. Exclude only keyword change; general save/delete/reorder state belongs D17/O operations. 共通C01の非検索操作は別operation-family台帳へ。部品名だけで一括置換しない。
+具体差分/再利用: keyword修正なし: Existing package editor/list has no keyword search field. Exclude only keyword change; general save/delete/reorder state belongs the independent P01 package operation family. 共通C01の非検索操作は別operation-family台帳へ。部品名だけで一括置換しない。
 
 ## 現在接点の最小差分
 

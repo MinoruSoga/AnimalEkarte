@@ -46,7 +46,13 @@ handler: handleAdvanceStatus L151,328, handleEditSave L191,332, handleCancelAppo
 
 実接点: [frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts) blob a34befcf39b5c3b835119b6df503a64f79a3d9f5
 
-handler: useMedicalRecordSaveAction L121, formAction L207,335
+実操作別handler（保存hookへ一括帰属させない）:
+
+| 操作 | file / handler | 限定責務 |
+|---|---|---|
+| 通常保存 | 上記use-medical-record-save-action.tsのuseMedicalRecordSaveAction L121、formAction L207/335 | 通常saveのpending/catchと成功subsetを確認する |
+| 診療終了/確定 | [hooks/use-medical-record-quick-patch-actions.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/medical-records/hooks/use-medical-record-quick-patch-actions.ts#L156) のhandleFinalize→mutateAsync（L156–175） | finalizeの確認/pending・失敗/結果を別に追跡。旧status patchの実在を最新D03終了契約の全実装済み証拠にせず494/495の④受領へつなぐ |
+| カルテ削除 | [routes/MedicalRecordForm.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/medical-records/routes/MedicalRecordForm.tsx#L40) のuseDeleteMedicalRecord/handleDeleteConfirm→deleteRecord（L40–53） | canDelete/current pet guard、isDeleting、onSuccessの遷移、onError保持を保存成功と分ける |
 
 状態/共通接点: MedicalRecordFormActions SubmitButton/isSaving と finalize ConfirmDialog/isFinalizing。保存catchはsuccess false
 
@@ -384,6 +390,19 @@ handler: handleSave L327,400,404,560, handleRequeryOperation L437,656, handleClo
 具体差分/無修正根拠: 既存報告pendingとdelete dialogを再利用。外部送信前確認/院内保持/attachment logical-deleteは503受領、共通confirmの有無だけで対応済みにしない
 
 ④受領subset: report ID/report clinic、shared ROOM read vs mutation、external issue result、attachment storage+DB result、本人history refs
+
+## P01 package master保存・削除・並替（N-PKGの非検索操作）
+
+担当境界は521/523、型生成受領527。D17の医院/法人設定とは独立したmaster操作family。実接点は[frontend/src/features/master/routes/TreatmentPackageSettings.tsx](https://github.com/MinoruSoga/AnimalEkarte/blob/a88fa4add58d43cff643590f9f507c8ab1a3c085/frontend/src/features/master/routes/TreatmentPackageSettings.tsx)。#775の既存成果を再実装せず、keywordを新設しない。
+
+| 操作 | handler / 共通接点 | 適用・受領境界 |
+|---|---|---|
+| 作成/更新・保存 | handleSave L66→validateDraft→editor.save→createMut/updateMut、L89のconflict/create-unknown/error入力保持 | O1:E、O3:E、O5:E。saved/noop/conflict/unknownを識別し、成功のみtarget更新・dirty.markClean。unknownを成功や新key再作成へ落とさない |
+| 削除・取消 | handleDeleteConfirm L92→deleteMut、pendingDelete/canDelete/version、ConfirmDialog | O4:E、O5:E。取消は未保存破棄/永続削除と区別。成功時だけpendingDelete/target/editorをclear、失敗/競合では確認対象を保持 |
+| 並替 | handleMove L113→moveId/buildReorderBody(orderVersion,next)→reorderMut | O1:E、O5:E。順序版・canEditを保持し同順序no-op、競合は再読込を案内。別資源や旧orderへ黙って上書きしない |
+| 選択/保持・閉じる | dirty.runWithDiscardCheck→editor.resetFor、MasterPageShell/editorの既存接続 | O3:E、O4:E。保存済み構成の履歴復元を新設しない。O2:N（このfamilyに永続clear/reset操作はない） |
+
+③では上記の実在接点をO1/O3/O4/O5のcoverageへ含め、状態/認可/失敗保持を限定確認する。Uは受入未確認であって追加実装欠陥の断定ではない。522/524のカルテpreview/applyと結果receiptは④で、masterのsave/delete/reorderの代用にしない。実装・実行試験NOT_RUN。
 
 ## ③先行作業と後続受領の分離
 

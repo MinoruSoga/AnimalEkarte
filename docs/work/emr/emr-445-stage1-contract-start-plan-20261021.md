@@ -4,7 +4,7 @@
 
 段階① DB・API 契約 → ②全マスタ → ③共通UIを優先し、これらの完了前に④業務機能の新規着手を増やさない。既存④成果や進行中の担当は停止・再割当しない。
 
-本書で選定した計画と移行DTOの境界は採択済み。本書に基づく新規実装は未開始で、必要な API・schema・model・generated の反映・受領は未完了。共通生成型の管理票は[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445、Ready、個人担当未割当）として作成済み。起票は実装・生成実行・試験の開始承認ではなく、技術方式の未選定でもない。正規 `make codegen` による Docker 実行許可は未取得。実装・生成・DB適用・試験は本書の作成では実施しておらず、試験は `NOT_RUN`。
+本書で選定した計画と移行DTOの境界は採択済み。本書に基づく新規実装は未開始で、必要な API・schema・model・generated の反映・受領は未完了。共通生成型の管理票は[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445、Ready、個人担当未割当）として作成済み。起票は実装・生成実行・試験の開始承認ではなく、技術方式の未選定でもない。正規 `make codegen` は本人実行の手順であり、agentは自動実行しない。本人の生成実行と成果受領は未実施。実装・生成・DB適用・試験は本書の作成では実施しておらず、試験は `NOT_RUN`。
 
 <a id="requirement-validation-20261021"></a>
 ## 要件検証：既決仕様を実現する計画の採用境界
@@ -87,13 +87,13 @@
 
 参照mainは a88fa4add58d43cff643590f9f507c8ab1a3c085。実装開始時はこの版を含む最新採用commitをPRに記載し、#778のmanual-corpus差分を受領したcommitを別記する。採用前の#778をmain済みとしない。入力hash専用ファイル・別CSV・別allowlistは必須にせず、1枚のPR対照表で固定commit、source path、変更前後、受領先を追跡できればよい。
 
-正規コマンドは既存 `make codegen`。Makefileから docker-compose.yml のcodegen serviceへ進み、backend/tygo.yamlを出力先置換して `go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml`、続いて `go run ./cmd/manual-corpus --frontend /frontend --backend /app`。Go imageはgolang:1.26-alpine。ここを無断の手書き生成や独自generatorへ置換しない。DB serviceを起動するターゲットではないが、Docker生成環境を実際に使う許可は実装指示時に明示する。
+正規コマンドは既存 `make codegen`（.claude/CLAUDE.mdのuser-run指定。本人が実行し、agentは成果を確認・取り込む）。Makefileから docker-compose.yml のcodegen serviceへ進み、backend/tygo.yamlを出力先置換して `go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml`、続いて `go run ./cmd/manual-corpus --frontend /frontend --backend /app`。Go imageはgolang:1.26-alpine。ここを無断の手書き生成や独自generatorへ置換しない。DB serviceを起動するターゲットではないが、実ターゲット/実行先を本人へ提示し、本人が生成環境で実行する。agentの自動実行へ委任する計画にしない。
 
 既存出力11件（tygoの8 TS＋manual-corpusの3件）：frontend/src/types/generated/ 配下の models.ts、auth-responses.ts、trimming-responses.ts、pet-responses.ts、owner-responses.ts、medicalrecord-responses.ts、hospitalization-responses.ts、identitylink-responses.ts、および backend/internal/manualarticle/corpus.generated.json、backend/internal/support/search_dict.go、frontend/src/constants/manual-corpus.generated.ts。frontend/src/constants/manual-search-dict.jsonはmanual-corpus/main.goがreadManualSourceで読む手書き入力であり、生成物として置換・手編集しない。本同期では入力を保全し、codegen-checkに検査対象として含まれることを出力の証拠にしない。codegen-checkのdiff対象はこの全体と同じとは限らないため、生成が触れた11出力をPRで確認する。生成物手編集・失敗出力の採用禁止。今回の静的調査は生成成功の証明ではない。
 
 ### 具体consumerと採用する置換境界
 
-以下は同じ固定mainの実ファイルを読取済み。「6件」は過去の観測であり、現在の完了数や上限には使わない。削除型の直接import4ファイル、構造依存4ファイル、JSDocのみ2ファイルを分離した。構造依存の下流transformは別に明示する。
+以下は同じ固定mainの実ファイルを読取済み。「6件」は過去の観測であり、現在の完了数や上限には使わない。対象symbolのgenerated/models直接importは9productionファイルを全frontend/srcで静的照合し、下表に列挙した。廃止型/保存model構造への依存と、JSDocのみ2ファイルを分離した。構造依存の下流transformは別に明示する。
 
 | 実path（frontend/src/以下） | 元型/利用 | ①で選ぶ置換先・根拠 | ②/④へ残すもの |
 |---|---|---|---|
@@ -104,6 +104,7 @@
 | features/accounting/api/types.ts:10,17 | Omit<Billing>, Omit<BillingItem> | LegacyAccountingResponse/LegacyAccountingItemResponse を上記legacy-wireへ。accounting_response.goのaccountingResponseと既存BillingItemResponseのHTTP列を明示し、保存modelのrelations/ExactNumericを自動継承しない | 新billing revision/確定金額の④。petSpecies参照はHTTPsummaryに無いので既存欠落のままoptional扱い、架空補完禁止 |
 | features/estimates/api/types.ts:5,8,12,20 | Estimate/EstimateItem/Pick | 同feature api/legacy-wire.ts の LegacyEstimateResponse/LegacyEstimateItemResponse/LegacyEstimateItemRequestへ。billing/estimate_response.go・estimate_request.goの移行HTTP列が基準。requestとresponseをPickで混同せず独立列挙 | 新確定仕様の版/原文/金銭計算への切替は④。既に採択した新API consumerにはlegacy DTOを持ち込まない |
 | features/medical-records/api/save-estimate.ts:6 | axios response Estimate | estimatesの同じLegacyEstimateResponseをtype-only参照。TaxType enum維持 | 見積作成機能や自動会計への新接続なし |
+| features/medical-records/components/MedicalRecordEstimate.tsx:29 | Estimate / EstimateItemの直接import、toTreatmentItemの引数・読取 | estimates/api/legacy-wire.tsの同じLegacyEstimateResponse/LegacyEstimateItemResponseをtype-only参照し、toTreatmentItemもresponse item型へ。save-estimate.ts・estimates/api/types.tsと同じ移行HTTP列を使用、保存modelを復活させない | この①変更で見積の既存計算・未設定既定値・保存意味を変更せず、新固定版/会計接続は④ |
 | types/pet.ts:1,10 | Pick<model.Pet,...>によるwrite | 現createPetRequest/updatePetRequestに対応する明示HTTP inputへ。既存backend/internal/pet/pet_request.go:108–133,177–206 と採択490/491の旧公開field互換に従う。DB-only列・関係配列は入れず、PATCHのstatus除外、name_origin等tri-state維持 | common subject/revision writerは④490491。体重をstorage ExactNumeric型のままwireへ漏らさず、新登録のexact decode契約は既採択490側を優先 |
 | features/accounting/types/index.ts:64,81付近 | JSDoc Payment/PaymentSplit | JSDoc参照だけ上記HTTP DTOへ変更。UI PaymentInfo/PaymentSplitInfoは既存型を維持 | これはruntime import破損件数に算入しない |
 | features/medical-records/types/index.ts:5 | JSDoc BillingConfirmation | 生成保存型への誤リンクを除去し、同fileの現移行BillingConfirmationとD03/D10 doctor-review契約の境界を明記 | ローカルBillingConfirmationを新doctor_review_sets/recordsに見せかけない。④494/会計ownerが意味接続 |
@@ -116,7 +117,7 @@
 
 ### 実行開始条件
 
-本票の実装指示に正規codegen実行を含むことを明示して承認を得る。過去の「型生成後続分離」を生成再実行の承認とみなさない。試験/type-check/build/DB適用・隔離環境は別でNOT_RUNを維持。make codegenに付随処理があるため実ターゲットを先に読み、許可範囲外のDB/外部送信/試験が含まれれば実行せず報告する。必要な通常generator compileと製品試験を区別し、許可範囲を実行指示で固定する。
+AGENTS.mdが参照する.claude/CLAUDE.mdのuser-run規約に従い、本人へ正規make codegenの対象commit・設定・実行先・付随処理を提示し、本人が実行する。agentは自動実行せず、本人の実行結果と11出力・手書き入力保全を確認して取り込む。過去の「型生成後続分離」や実装claimを本人実行済みの証拠にしない。生成が未実行/失敗なら失敗出力を採用せず、そのpath/結果を受領待ちとして保持する。試験/type-check/build/DB適用・隔離環境は別でNOT_RUN。許可範囲外のDB/外部送信/試験がターゲットに含まれる場合は本人へ該当内容を報告し、その実行を先取りしない。通常generator compileと製品試験の証明を区別する。
 
 ### 完了条件
 
@@ -164,12 +165,14 @@
 |---|---|---|---|---|
 |448|emr-448-493-shift-csv-selected-contract-20261021.md、emr-448-493-shift-copy-contract-20261021.md|CSV template、POST /shifts/csv-imports/preview と /shifts/csv-imports/apply、GET /shifts/csv-operations/{operation_key} と同pathの/details・/reconciliation。copyはPOST /shifts/copies/preview と /shifts/copies/apply、GET /shifts/copy-operations/{operation_key} と同pathの/details・/reconciliation。PreviewResponse/Preconditions/Details、CopySelection/CopyProjection/CopyPreconditionsは各closed定義をそのままschema化|`shift_bulk_operation_targets` 1表を両family共有、staff.go既存ShiftEntry/Break、aggregate版・deferred exclusion差分。489 Q/ContextGateと#778 ClaimMetadataWriter必要subset。CSVとcopyのowner rowlockはbinding後Applyで統一|全route/schema/認可/C06status/details shapeを対照。metadata既存化の二重作成なし、scope/版/null fixture。consumer実装や実CSV入力は②/⑤|
 |493|emr-493-staff-leave-selected-contract-20261021.md、emr-493-reservation-eligibility-contract-20261021.md＋上記CSV/copy|leave-periods/leave-operations選定family、GET/PATCH masters/staffs/{id}/reservation-eligibility、GET reservation-eligibility-operations/{key}。PATCH={operation_key,expected_version,changes}、changes=nomination_paused/reservation_type_ids。旧capable-reservation-types PUTへ版/keyを捏造しない|staff_leave_periods/changes既存、assignment eligibility_version/digest追加、staff_eligibility_operation_targets。model/account.go・staff.go再利用。467予約保護の最小participantだけ。旧休業row/CASなしwriteは切替時の停止adapterが②必須|API整合＋selected DTO/modelの対応。unknown/未設定/明示空を区別し、結果別再送表に一致。旧API停止の記述を含めるがこのPRでactivateしない|
-|458|emr-458-option-assignment-selected-contract-20261021.md §3,8|9設定操作＋1lookup＝計10 method/path：service-identities GET/POST、options/{id}/service-identity GET/POST、courses/{id}/included-services GET/POST、option-rule-sets GET/POST、option-candidates GET、およびoperations lookup。4resource_kindのContent/success branchを固定|既存T2表/model再利用、course included_services_configured/digest、設定元anchor。CHECKでdigest IS NOT NULL明示。T2設定全writerのinterface/lock契約とValidateAndCaptureConfiguration、489 Q/ClaimMetadata/ContextGate必要subset|未設定/明示空、no_course refs省略、identitycreate versions={}、scope digest CASをschema/fixtureで対応。実writer閉包②、480/482採用④|
+|458|emr-458-option-assignment-selected-contract-20261021.md §3,8|計10 method/path（prefix /api/v1を除く）：GET /masters/trimming-service-identities、POST /masters/trimming-service-identities、GET /masters/trimming-options/{id}/service-identity、POST /masters/trimming-options/{id}/service-identity、GET /masters/trimming-courses/{id}/included-services、POST /masters/trimming-courses/{id}/included-services、GET /masters/trimming-option-rule-sets、POST /masters/trimming-option-rule-sets、GET /masters/trimming-option-candidates、GET /masters/trimming-configuration-operations/{operation_key}?intent={採択4種}。scope_kind/course_id条件は採択§3のまま、lookup intent allowlistは§5のtrimming.service_identity.create / trimming.option_identity.replace / trimming.course_included.replace / trimming.option_rules.replaceに従う。4resource_kindのContent/success branchを固定|既存T2表/model再利用、course included_services_configured/digest、設定元anchor。CHECKでdigest IS NOT NULL明示。T2設定全writerのinterface/lock契約とValidateAndCaptureConfiguration、489 Q/ClaimMetadata/ContextGate必要subset|未設定/明示空、no_course refs省略、identitycreate versions={}、scope digest CASをschema/fixtureで対応。実writer閉包②、480/482採用④|
 |492|emr-490-492-selected-wire-contract-20261021.md 492節|既存type/group CRUD/reorderのoperation_key/CAS envelope、restore POST2本、business-kind change/confirm、reservation-master-operations lookup。renameは既存PATCH name branch|model/reservation_type.go・reservation_type_group.go、name revision・reservation_master_operation_anchorsを既存保存型へ対応。予約保護interfaceと489必要subset|型/NULL/旧wire移行/失敗をapi.yamlへ収録。490登録wireはこのsubsetから除外。保護participant実接続②|
 |365|emr-365-vaccine-price-decimal-contract-20261021.md price cutover節|現Vaccine.price number/double、create/update integer/int64から採択string段階互換。ID/version数値維持、旧undefined/null読取・旧負値読取保持|vaccines.price bigint→numeric(23,4)、model/vaccine.go *ExactNumeric、medicalrecord/vaccine_request.go,response.go、DDL/ERD。旧price以外PATCHで再送しない|price精度・NULL/0/signed旧read・新非負・無round・cutover順を固定。最小producer型adapterが必要なら②との同時受領条件でありモデルだけ変更して完了不可|
 |498 master|emr-498-dose-pattern-master-contract-20261021.md §1–6|GET medicines/{id}/dose-patterns一覧/詳細/revisions、POST/PUT/DELETE、medicine-dose-pattern-operations lookup。decimal文字列DTOとnullable元根拠|medicine_dose_param.go既存、storage_clinical.go MedicineDosePatternRevision既存、medicine_dose_pattern_operation_anchors追加。489 Q/ClaimTarget/ResultResponse必要subset|保存後pattern.versionをrevisionへ採用、legacy同値PUT版維持、元target/replay、NULL/未設定と新明示を対応。実計算/臨床値承認は④へ分離|
 
 5.2の①PRは選定契約からAPI/schema/modelへ反映する差分で、業務handlerの新しい成功実装を含めない。Xの既存domain request/responseファイルがそのままruntimeへ接続される場合は、互換adapterを保持し、新wire有効化と旧writer閉包を②に明示する。stubで実装済み化しない。
+
+449のcampaign.discount_value/merchandise.tax_rateは②詳細計画§3C/C2のexact adapter差分を①API正本へ受領する。既存number/double DTOをmodelのExactNumericへ直代入する方式は適合済みにせず、採択483/405のexact文字列境界と旧client切替を当該2fieldだけで明記する。API YAML編集・生成は今回未実施。
 
 ### 5.3. 未受領と未設計を分離した最終判定
 

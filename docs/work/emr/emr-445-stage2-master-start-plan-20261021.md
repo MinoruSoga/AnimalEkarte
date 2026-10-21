@@ -39,7 +39,7 @@ EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・
 ### 4. トリミングコース/option
 - 属性/操作：名称/size価格/所要時間/任意略称・説明・画像/曜日/順序/休止。個別正本にあるCRUDと専用操作のみ。
 - 集約 / 実装単位 / 専有hunk：448 / 457成果＋458-A / trimming_course/option/T2。
-- BE：B/trimming/trimming_course_{handler,service}.go。model：B/model/trimming.go。FE：F/master/routes/TrimmingSettings.tsx。
+- BE：B/trimming/trimming_course_{handler,service}.go。model：B/model/trimming_master.go（course/option/T2。trimming.goは施術記録で別物）。FE：F/master/routes/TrimmingSettings.tsx。
 - 判定・境界：既採用：曜日/画像属性正規化、画像lifecycle監査、参照削除保護。458 T2追加APIは①未収録として明確な残。457 UAT再実装なし。
 ### 5. トリミングコース分類
 - 属性/操作：名称/active/order。個別正本にあるCRUDと専用操作のみ。
@@ -63,14 +63,14 @@ EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・
 - 判定・境界：既採用：CoverageRate int、連絡先/備考、CRUD、pet参照削除拒否。新算式なし。全旧consumerの給付計算は④。
 ### 9. キャンペーン
 - 属性/操作：name/期間/rate又はamount/対象カテゴリ・商品/active。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：449集約 / 445採用証跡 / 新規実装票なし。
+- 集約 / 実装単位 / 専有hunk：449集約 / MM-FINANCE-EXACT-MASTERS（未起票候補、§3C） / campaign数値adapter。
 - BE：B/billing/campaign_{handler,service}.go。model：B/model/campaign.go。FE：F/master/routes/CampaignSettings.tsx。
-- 判定・境界：期間/率額/商品医院検査/typed対象CRUD採用。master writerはCampaign/Targetだけを更新し会計snapshotを書かないため②変更なし。§3Cの固定根拠を採用。
+- 判定・境界：期間/率額/商品医院検査/typed対象CRUD採用。master writerがCampaign/Targetだけを更新し会計snapshotを書かない保護は採用するが、DiscountValueのExactNumericとrequest/service/response float64の不一致は②数値adapter残として§3Cで閉じる。
 ### 10. 物販
 - 属性/操作：name/category/price/tax/active/order。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：449 / 445採用証跡（MM-FINANCE-AUX） / merchandise_item系。
+- 集約 / 実装単位 / 専有hunk：449 / MM-FINANCE-EXACT-MASTERS（未起票候補、§3C2） / merchandise_item税率adapter。
 - BE：B/inventory/merchandise_item_{handler,service}.go。model：B/model/merchandise_item.go。FE：F/master/routes/MerchandiseItemSettings.tsx。
-- 判定・境界：既採用：CRUDと同TX削除、請求/見積/campaign参照guard。数値入力roundtripは既存型のまま仕様適合を確認し、全masterを無断小数化しない。
+- 判定・境界：既採用：CRUDと同TX削除、請求/見積/campaign参照guard。TaxRateのExactNumericとrequest/service/response float64の不一致は②の保存/再取得差分。§3C2のexact DTO境界へ合わせ、整数単価や全master型を無断変更しない。
 ### 11. 締め設定
 - 属性/操作：標準境界/曜日/特別期間/個別休診日。個別正本にあるCRUDと専用操作のみ。
 - 集約 / 実装単位 / 専有hunk：449 / 445採用証跡（MM-CLOSING） / clinic closing/holiday/special period＋closing FE。
@@ -182,11 +182,27 @@ EMR-527/528/529の起票・Readyは管理責務の具体化であり、実装・
 履歴: カテゴリ/病名master CRUDは既存diagnosis_service/repositoryを採用。カテゴリ子参照拒否、病名のカルテ参照拒否を保持。第1/第2複数診断snapshotは495④へ引渡し、本票でカルテ診断を再保存しない。
 受入fixture: Type/Nameとも既存備考→空、空→非空、非空維持、有効切替/所属変更が無関係に消えない、カテゴリ必須と他院拒否。実試験NOT_RUN。
 
-### C. campaign：②変更なしの採用行として閉じる
-集約449、MM-FINANCE-AUXのcampaign行は現時点新規実装票不要。
-master-campaigns.mdとD10の既決に対し、campaign_service.goには期間/率額/対象集合/商品医院検査とCRUD、repositoryにはCampaign本体/TargetCategory/TargetItemの更新だけがある。Update L280以降→ReplaceTargets、Delete L350以降→repository Delete L131はsoft deleteであり、billing/calculation snapshotを更新する呼出はない。よって「master更新で既存snapshotを更新しない」という②writer境界はこの採用根拠で閉じる。現在会計readerが過去snapshotを正しく表示することまで証明したとはしない。
-④受領先は既採択 emr-483-price-acknowledgement-selected-20261021.md §8.2 DiscountTerms/DiscountResult、§8.3 snapshot.conditions/line.source_snapshot、および481 source binding。masterの率/額・対象定義を変更する新interfaceやsource revision列を②へ足さず、会計ownerが採用時点のtyped割引条件を保存する。個別campaign入力上限と合算率150%等の計算保存型を混同しない。
-変更hunkなし。採用証跡へ service/repository/model/FE SHAを記録。会計再計算・reader修正は④既存owner、新規master票のgateでない。
+### C. campaign：既存保護を採用し、②のexact数値adapterを閉じる
+
+集約449、専有実装単位候補MM-FINANCE-EXACT-MASTERS（未起票）。campaignと次の物販税率だけの保存/再GET/FE DTO整合を一つの限定PR候補とし、親が実装票へ束ねる。既存449/465-M等のclaimと担当を確認し、同じhunkを二重実装しない。新しい票は本書で作成済みにしない。
+
+固定mainのmodel.Campaign.DiscountValueはExactNumeric/numeric(12,2)。campaign_request.goのcreate/update DiscountValue、campaign_service.goのCreate/UpdateCampaignInput・buildCampaignUpdate・resolveCampaignDiscount・validateCampaignDiscountとCreate代入、campaign_response.goのfloat64 responseが未追従であり、snapshot非更新だけで②無差分とはしない。期間/率額/対象集合/商品医院検査、repositoryのCampaign/Targetだけを更新する境界・同TX/参照保護は再利用する。
+
+必要hunkは backend/internal/billing/campaign_{request,service,response}.go、同repositoryの列bind、frontend/src/features/master/api/campaign.ts（BackendCampaign/request/transform）、frontend/src/features/master/components/CampaignSidePanel.tsxのNumber(v)変換、lib/campaign-side-panel-model.tsのform値、routes/CampaignSettings.tsxのsave builderの当該discount_value接点。採択[483の十進輸送/DiscountTerms](emr-483-price-acknowledgement-selected-20261021.md)とmodel-alignmentのNUMERIC非float方針へ合わせ、当該masterのdiscount_valueをfinite exact decimal文字列の専用HTTP DTO→ExactNumeric service/比較/保存→明示HTTP responseへ接続する。保存modelそのものを公開DTOにしない。旧API number/doubleとFE numberをそのままExactNumericと互換扱いせず、①でこの限定fieldのexact wire/旧client切替をAPI正本へ同期し同PRでBE/専有FEを対応する。汎用MoneyInput/他masterの全変更や旧numberへの黙ったfloat変換fallbackはしない。
+
+rate/amountの現入力意味、個別rateの0..100、非負、期間/対象scope、POST既定値とPATCH未指定/明示0/nullの既定規則は維持する。numeric(12,2)保存尺度は変えず、既存PostgreSQL代入のscale処理をexact値で行い、新しい臨床値/割引上限/合算上限/丸め規則を作らない。桁落ちを避けるため表現不能や不正非数は入口で拒否し、未知/NULLを0補完しない。FEも入力字句と明示decimal DTOを保持し、再GETが同じ保存値を返すことをfixture化する。
+
+②完了条件：request→service→model→response→専有FEでbinary floatを通さず、POST/更新/未指定保持/0・率と額・非数/境界/既存scale/再GETの期待値が一意、旧clientが黙って誤値を送らず、同TX監査/対象集合/参照保護を維持する。生成modelを手編集せず①EMR-527へ必要型差分を受領する。fixture作成と本人指示後の実行を分けNOT_RUN。
+
+④は483 §8.2/8.3、481のtyped割引条件採用・計算・固定snapshot reader。②で会計再計算・過去snapshot更新・新しいsource revision列を追加しない。既存個別入力上限と合算率150%等の共通保存値を混同しない。
+
+### C2. 物販：TaxRateのexact DTO・保存・再GETを②へ含める
+
+同じ449集約候補。model.MerchandiseItem.TaxRateはExactNumeric/numericだが inventory/merchandise_item_request.goの*float64、service.goのCreate/UpdateMerchandiseItemInput・buildMerchandiseItemUpdate・default/モデル代入、response.goのfloat64が不一致。既存CRUD/請求・見積/campaign使用中削除保護を再利用し、型適合済みとはしない。
+
+必要hunkは backend/internal/inventory/merchandise_item_{request,service,response}.go、同repositoryの税率bind、frontend/src/features/master/api/merchandise-items.tsのgenerated modelをOmitしたrequest/response/transform、frontend/src/features/master/components/MerchandiseSidePanel.tsx、lib/merchandise-side-panel-model.tsのtaxRate/default/表示、routes/MerchandiseItemSettings.tsxのtax_rate入力/送信。採択[405税入力](emr-405-tax-input-contract-20261020.md)・483のexact率表現に沿い、tax_rateだけをfinite exact decimal文字列の専用HTTP DTOとExactNumeric serviceへ接続する。10%の比率は0.10（数値として0.1）を保持し、百分率10へ勝手に変換しない。整数unit_priceやtax_type enumは維持する。旧number/double wireと専有FEは①API正本の限定更新と同じ切替で整合し、全master数値型移行をこの票へ混ぜない。
+
+現入口の0..1、0、POST未指定/null時の既存0.10既定、PATCH未指定/null保持、tax_type/税率の現validation意味を維持する。非NULL保存へInvalid/NULLを通さず、明示0をdefaultへ潰さない。旧unknown/不正値を0.10で補修しない。②完了条件はexact request→service→保存→明示response→専有FE再取得の値・presenceが一致し、0/0.10/nullable/未指定/不正非数・精度保持・既存scope/監査/削除保護のfixtureがあること。numericの新scaleや新税則を作らず、試験実行NOT_RUN。会計明細への採用・税額計算・過去帳票/税snapshotは④の405/481/505へ残す。
 
 ### D. labmapping：既存設定採用と297-Aの選定済み参加を分離
 集約447、実装票297-A。18DoneのList/DeviceCRUD/SaveConfiguration/ItemUpdate/field同医院検査は採用し、再実装しない。
