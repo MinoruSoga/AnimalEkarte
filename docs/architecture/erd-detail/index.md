@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **5ファイル** から **250テーブル・2770カラム・764外部キー** を静的に導出しています。
+マイグレーション **6ファイル** から **250テーブル・2780カラム・764外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -68,7 +68,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [checkup_save_attempts](checkup_save_attempts.md) | 8 | 4 |
 | [checkup_save_stage_results](checkup_save_stage_results.md) | 8 | 5 |
 | [checkup_type_fields](checkup_type_fields.md) | 17 | 2 |
-| [checkup_types](checkup_types.md) | 17 | 2 |
+| [checkup_types](checkup_types.md) | 18 | 2 |
 | [checkups](checkups.md) | 13 | 5 |
 | [chief_complaint_types](chief_complaint_types.md) | 9 | 1 |
 | [clinic_holidays](clinic_holidays.md) | 6 | 1 |
@@ -86,7 +86,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [common_pet_clinic_bindings](common_pet_clinic_bindings.md) | 7 | 5 |
 | [common_pet_subjects](common_pet_subjects.md) | 4 | 1 |
 | [companies](companies.md) | 14 | 0 |
-| [consultations](consultations.md) | 17 | 2 |
+| [consultations](consultations.md) | 18 | 2 |
 | [daily_records](daily_records.md) | 6 | 2 |
 | [diagnosis_names](diagnosis_names.md) | 10 | 2 |
 | [diagnosis_types](diagnosis_types.md) | 9 | 1 |
@@ -103,7 +103,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [exam_reference_ranges](exam_reference_ranges.md) | 10 | 3 |
 | [exam_results](exam_results.md) | 18 | 2 |
 | [exam_type_fields](exam_type_fields.md) | 10 | 2 |
-| [exam_types](exam_types.md) | 12 | 2 |
+| [exam_types](exam_types.md) | 14 | 2 |
 | [examination_field_semantic_mappings](examination_field_semantic_mappings.md) | 10 | 5 |
 | [examination_revision_items](examination_revision_items.md) | 20 | 1 |
 | [examination_revisions](examination_revisions.md) | 27 | 2 |
@@ -178,8 +178,8 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [medical_records](medical_records.md) | 21 | 9 |
 | [medicine_dose_params](medicine_dose_params.md) | 20 | 2 |
 | [medicine_dose_pattern_revisions](medicine_dose_pattern_revisions.md) | 15 | 4 |
-| [medicines](medicines.md) | 22 | 3 |
-| [merchandise_items](merchandise_items.md) | 12 | 1 |
+| [medicines](medicines.md) | 24 | 3 |
+| [merchandise_items](merchandise_items.md) | 14 | 1 |
 | [occupations](occupations.md) | 9 | 1 |
 | [operation_attempt_outcomes](operation_attempt_outcomes.md) | 7 | 2 |
 | [operation_bindings](operation_bindings.md) | 10 | 1 |
@@ -208,7 +208,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [preventive_medication_revisions](preventive_medication_revisions.md) | 20 | 6 |
 | [preventive_prescription_revisions](preventive_prescription_revisions.md) | 27 | 7 |
 | [preventive_prescriptions](preventive_prescriptions.md) | 6 | 6 |
-| [procedures](procedures.md) | 18 | 2 |
+| [procedures](procedures.md) | 19 | 2 |
 | [record_edit_right_events](record_edit_right_events.md) | 11 | 5 |
 | [record_edit_rights](record_edit_rights.md) | 9 | 3 |
 | [refund_requests](refund_requests.md) | 12 | 5 |
@@ -278,12 +278,12 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [vaccination_certificate_operations](vaccination_certificate_operations.md) | 8 | 3 |
 | [vaccination_certificate_series](vaccination_certificate_series.md) | 5 | 2 |
 | [vaccinations](vaccinations.md) | 19 | 7 |
-| [vaccines](vaccines.md) | 16 | 3 |
+| [vaccines](vaccines.md) | 17 | 3 |
 | [vital_records](vital_records.md) | 17 | 5 |
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `05817a855f589ba3051d4d3951ec57c50efe33ed015afa49ad1a7d11210da061`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `ed9c12bd3dc18964ac631271f4373a1501f939d2de38c297dd25da104ead1574`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -292,6 +292,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [004_master_insurance_versions.sql](../../../backend/migrations/004_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
 | [005_manual_article_operation_targets.sql](../../../backend/migrations/005_manual_article_operation_targets.sql) | `15b43e500710322544094d5f89528f2c4780f130bdcf648ce663d2d97cd4fcd1` |
 | [006_operation_anchor_and_lab_mapping_versions.sql](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql) | `0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831` |
+| [007_bill_discount_excluded_and_master_versions.sql](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql) | `e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

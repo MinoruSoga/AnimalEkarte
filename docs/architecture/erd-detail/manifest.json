@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "05817a855f589ba3051d4d3951ec57c50efe33ed015afa49ad1a7d11210da061",
+  "source_digest": "ed9c12bd3dc18964ac631271f4373a1501f939d2de38c297dd25da104ead1574",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,7 +18,7 @@
   ],
   "counts": {
     "tables": 250,
-    "columns": 2770,
+    "columns": 2780,
     "foreign_keys": 764
   },
   "migrations": [
@@ -41,6 +41,10 @@
     {
       "name": "006_operation_anchor_and_lab_mapping_versions.sql",
       "sha256": "0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831"
+    },
+    {
+      "name": "007_bill_discount_excluded_and_master_versions.sql",
+      "sha256": "e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b"
     }
   ],
   "reviewed_do_blocks": [

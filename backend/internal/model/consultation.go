@@ -23,6 +23,8 @@ type Consultation struct {
 	UpdatedAt      time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
 	IsNonInsurance *bool          `gorm:"column:is_non_insurance;type:boolean" json:"-"`
+
+	IsBillDiscountExcluded *bool `gorm:"column:is_bill_discount_excluded;type:boolean" json:"-"`
 }
 
 func (Consultation) TableName() string { return "consultations" }

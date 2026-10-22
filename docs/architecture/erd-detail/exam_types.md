@@ -23,6 +23,8 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:705](../../../backend/migrations/001_init.sql#L705) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:706](../../../backend/migrations/001_init.sql#L706) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:707](../../../backend/migrations/001_init.sql#L707) |
+| `is_bill_discount_excluded` | `boolean` | NULL | — | — | [007_bill_discount_excluded_and_master_versions.sql:12](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L12) |
+| `version` | `bigint` | NOT NULL | `1` | — | [007_bill_discount_excluded_and_master_versions.sql:37](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L37) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -47,6 +49,8 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        boolean is_bill_discount_excluded
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -73,6 +77,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `exam_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:696](../../../backend/migrations/001_init.sql#L696) |
 | `uq_exam_types_id_clinic` | unique | `CONSTRAINT uq_exam_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3912](../../../backend/migrations/001_init.sql#L3912) |
+| `ck_exam_types_positive_version` | check | `CONSTRAINT ck_exam_types_positive_version CHECK (version > 0)` | [007_bill_discount_excluded_and_master_versions.sql:38](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L38) |
 
 ## インデックス
 
