@@ -324,6 +324,8 @@ fingerprintは目的・対象・業務変更・理由・順序に意味がある
 | 今回来院への明示消化 | 目的別intentで次回予定id＋expected_version、同じ医院・petの今回来院refとその期待版、スタッフの消化選択を受ける設計。新規今回予約なら同じtentative IDを昇格し、既存今回予約ならそのID・記録を保持して消化関係と予定終了を一体で保存する | 対象予定のeditと今回来院の既存操作grantを検査。全writer gate・pet intent lock・予約版／参加recordを同じtransactionへ接続。既存2予約の無断統合や記録削除なし |
 | 由来予約の取消／再設定 | 取消は元予定を新設／復活させず、由来を保持。had_intended_date等は再設定案内の材料に限る。再設定はスタッフの別の明示set操作 | 取消結果receiptと再設定receiptを分ける。再設定時に現存予定・対象版を再取得し、古い案内から上書きしない |
 
+[2026-10-22の追加承認](../../../spec/workflows/reservation-to-record-flow.md#next-intent-after-accounting-consumption-20261022)により、今回の会計完了後も明示的な消化履歴の紐づけを許可する。取消済み・未来院の予約は対象外とし、現在認可・同一患者/医院・両対象の期待版・同一transactionの履歴/監査/receiptを照合する。診療内容・請求・入金を変更せず、既存予約/記録のIDを保持し、通常作成等の暗黙消化は許可しない。`source_medical_record_id`の出典用途を消化先へ流用しない。この業務許可だけで具体wire/route/DDLの採択や実装完了とはしない。
+
 明示消化のwire名／routeは実装前にAPI正本で選定・検証するが、必要な対象と版・意味は上表に固定する。選択と対象refは操作fingerprintに含め、同keyで消化対象や選択を変えない。no-consumeの一般操作で予定を変更しないこともserver側で保証する。関連状態・消化関係・必要監査・成功receiptを同一commitに対応付ける。409では入力・選択を保持して現在版と内容を比較し再確認、timeout／abortでは同じkeyの結果照会を行い、失敗確定前に消化解除・新規予約・新予定を自動作成しない。再受付・受付時通常カルテ・取消履歴の既存契約を迂回しない。
 
 EMR-274のmode固定と、EMR-308のcreateOrPromoteTentativeによる全同pet作成時自動吸収は実装差分。内部Create・CreateBatch・admin/walk-in・LIFF・confirm-tentative・カルテの次回予定入口・受付の全consumerを切替対象とし、未参加旧writerが意図を自動消化する抜け道を残さない。具体的API/DTO・保存形式・全writer適合は未実施の検証であり、確定済み対象種別の業務判断と混同しない。
