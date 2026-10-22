@@ -1,0 +1,4 @@
+{
+  "error": "休診日は共通医院時間の休診設定から登録してください",
+  "code": "contract_upgrade_required"
+}

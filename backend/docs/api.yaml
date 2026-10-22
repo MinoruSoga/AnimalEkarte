@@ -21284,6 +21284,10 @@ paths:
     post:
       operationId: createClosingSettingsHoliday
       summary: 休診日作成（締め設定配下）
+      description: >-
+        EMR-445 A03 選定契約 §2.4: 旧 closing 休日は既存 grant・既存保存意味の**レジ専用 legacy read/write として維持**し、409 停止の対象外。
+        新 common へ書かず、新 /closing-settings/holidays/common（日付限定 adapter）とは別操作。common/予約 reader はこの旧表を参照しない。
+        レジ日界・closing_special_periods の共通転用、既存値の自動上書きはしない。
       tags: [ClosingSettings]
       requestBody:
         content:
@@ -21314,6 +21318,10 @@ paths:
     delete:
       operationId: deleteClosingSettingsHoliday
       summary: 休診日削除（締め設定配下）
+      description: >-
+        EMR-445 A03 選定契約 §2.4: 旧 closing 休日は既存 grant・既存保存意味の**レジ専用 legacy read/write として維持**し、409 停止の対象外。
+        新 common へ書かず、新 /closing-settings/holidays/common（日付限定 adapter）とは別操作。common/予約 reader はこの旧表を参照しない。
+        レジ日界・closing_special_periods の共通転用、既存値の自動上書きはしない。
       tags: [ClosingSettings]
       parameters:
         - name: date
@@ -33124,6 +33132,10 @@ paths:
       tags:
         - 休診日
       summary: 休診日作成
+      description: >-
+        旧 shifts 経路の休診日作成（権限 shifts:create）。EMR-445 A03 選定契約 §2.4: common 利用開始の医院では 409 contract_upgrade_required・zero-write で停止し、
+        /clinic-holidays/common の日付限定 adapter へ移す（予約/common reader が旧 clinic_holidays を参照しなくなったことが切替条件）。
+        未切替医院・GET は従来どおり。旧履歴/ID は削除せず dual-write しない。停止の runtime は EMR-448/492（D）で未接続。
       requestBody:
         content:
           application/json:
@@ -33147,12 +33159,24 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: >-
+            EMR-445 A03 選定契約 §2.4: 共通医院時間（common）利用開始の医院では旧 shifts 休日 mutation を zero-write で停止し、
+            新 adapter（/clinic-holidays/common）へ移す。x-contract-status: selected の追記で runtime（活性化判定）は EMR-448/492（D）で未接続。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeContractUpgradeRequired'
         '500':
           $ref: '#/components/responses/InternalError'
   /clinic-holidays/{date}:
     delete:
       tags:
         - 休診日
+      description: >-
+        旧 shifts 経路の休診日削除（権限 shifts:delete）。EMR-445 A03 選定契約 §2.4: common 利用開始の医院では 409 contract_upgrade_required・zero-write で停止し、
+        /clinic-holidays/common の日付限定 adapter へ移す（予約/common reader が旧 clinic_holidays を参照しなくなったことが切替条件）。
+        未切替医院・GET は従来どおり。旧履歴/ID は削除せず dual-write しない。停止の runtime は EMR-448/492（D）で未接続。
       parameters:
         - name: date
           in: path
@@ -33168,6 +33192,14 @@ paths:
           description: No Content
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: >-
+            EMR-445 A03 選定契約 §2.4: 共通医院時間（common）利用開始の医院では旧 shifts 休日 mutation を zero-write で停止し、
+            新 adapter（/clinic-holidays/common）へ移す。x-contract-status: selected の追記で runtime（活性化判定）は EMR-448/492（D）で未接続。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeContractUpgradeRequired'
         '500':
           $ref: '#/components/responses/InternalError'
 

@@ -1,0 +1,43 @@
+{
+ "contract": "EMR-445 A03 旧 shifts 休日 mutation の停止と旧 closing レジ休日の維持（emr-clinic-line-time-selected-contract-20261022.md §2.4）",
+ "publication_base": "44c8eb686 (PR #831 head, stacked)",
+ "api_file": "../../api.yaml",
+ "verification": "NOT_RUN",
+ "schema_validation": "NOT_RUN",
+ "runtime_status": "NOT_IMPLEMENTED (activation check / writer stop: EMR-448/492 D)",
+ "fixtures": [
+  {
+   "file": "shifts-post-upgrade-required.response.json",
+   "operationId": "POST /clinic-holidays",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
+   "http_status": 409,
+   "expected_schema": "valid",
+   "scenario": "common 利用開始医院で旧 shifts 休診日作成",
+   "semantic_expectation": "409・zero-write。/clinic-holidays/common の set へ移す。未切替医院は従来どおり 201",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "shifts-delete-upgrade-required.response.json",
+   "operationId": "DELETE /clinic-holidays/{date}",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
+   "http_status": 409,
+   "expected_schema": "valid",
+   "scenario": "common 利用開始医院で旧 shifts 休診日削除",
+   "semantic_expectation": "409・zero-write。旧履歴/ID は削除しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "upgrade-required-unknown-code.response.json",
+   "operationId": "POST /clinic-holidays",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
+   "http_status": 409,
+   "expected_schema": "invalid",
+   "scenario": "code が契約外",
+   "semantic_expectation": "不適合（code は contract_upgrade_required だけ）",
+   "verification": "NOT_RUN"
+  }
+ ]
+}
