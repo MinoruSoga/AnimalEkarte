@@ -305,11 +305,11 @@ func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) er
 		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to delete checkup type")
 		}
-		slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
 		return nil
 	}); err != nil {
 		return err
 	}
+	slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
 	return nil
 }
 

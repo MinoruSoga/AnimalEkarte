@@ -40,7 +40,12 @@ func TestExamTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 				}
 				return &model.ExaminationType{ID: id}, nil
 			},
-			createFn: func(_ context.Context, _ *model.ExaminationType) error { *created = true; return nil },
+			createFn: func(_ context.Context, exType *model.ExaminationType) error {
+				*created = true
+				// EMR-447 A.5: create 成功系の監査は ResourceID>0 を要求するため保存 ID を採番する。
+				exType.ID = 10
+				return nil
+			},
 		}
 		return NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
 	}
