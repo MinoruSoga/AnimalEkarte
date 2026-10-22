@@ -4,7 +4,7 @@
   "mode": "update",
   "observed_versions": {
     "clinic_operating_hours": "4",
-    "line_acceptance": null
+    "line_acceptance": "2"
   },
   "current_settings": {
     "weekly_hours": [
@@ -205,8 +205,8 @@
         ]
       },
       "proposed": {
-        "state": "line-unconfigured",
-        "intervals": null
+        "state": "evaluated",
+        "intervals": []
       }
     }
   ],

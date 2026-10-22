@@ -15599,6 +15599,8 @@ components:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/ClinicHoursInterval'
     LineTimeWarning:
       type: object
       additionalProperties: false
@@ -15641,7 +15643,7 @@ components:
       description: >-
         §5.3 WarningCheck（state 別 exact）。clear=warnings []・affected []・receipt null。confirmation-required=confirmable を含む warnings・現在認可済みの影響予約・非空 opaque receipt。
         prohibited=prohibited を1件以上含む warnings・影響予約・receipt null。confirmation-unavailable=全て null（予約 view 不足等。非開示を空集合/確認済みへ変換しない）。
-        「confirmable/prohibited を含む」は OpenAPI 3.0 で表せないため本文で固定する。既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
+        severity 条件は confirmation-required=全件 confirmable、prohibited=全件 confirmable を not で除外して schema で固定する。既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
       oneOf:
         - $ref: '#/components/schemas/LineTimeWarningCheckClear'
         - $ref: '#/components/schemas/LineTimeWarningCheckConfirmationRequired'
@@ -15681,8 +15683,14 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/LineTimeWarning'
-          description: confirmable を含み prohibited を含まない。
+            allOf:
+              - $ref: '#/components/schemas/LineTimeWarning'
+              - type: object
+                properties:
+                  severity:
+                    type: string
+                    enum: [confirmable]
+          description: 全件 confirmable（prohibited を含まない）。
         affected_reservations:
           type: array
           items:
@@ -15703,7 +15711,15 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/LineTimeWarning'
-          description: prohibited を1件以上含む。
+          not:
+            type: array
+            items:
+              type: object
+              properties:
+                severity:
+                  type: string
+                  enum: [confirmable]
+          description: prohibited を1件以上含む（全件 confirmable の配列を not で除外）。
         affected_reservations:
           type: array
           items:
@@ -15724,10 +15740,14 @@ components:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/LineTimeWarning'
         affected_reservations:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/LineTimeAppointmentRef'
         warning_receipt:
           type: string
           nullable: true
