@@ -15,6 +15,40 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// checkupTypeJournalTx は rollback を表現する transactor double。
+// fn へ渡す ctx に write journal を載せ、fn が error を返したら staging 済みの
+// 書込をすべて捨てる（commit 相当の場合だけ適用する）。checkupTypePassthroughTx は
+// mock の副作用を復元できないため、永続化されなかった結果の検証にはこちらを使う。
+type checkupTypeJournalTx struct{}
+
+type checkupTypeTxJournalKey struct{}
+
+type checkupTypeTxJournal struct {
+	staged []func()
+}
+
+func (checkupTypeJournalTx) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	journal := &checkupTypeTxJournal{}
+	if err := fn(context.WithValue(ctx, checkupTypeTxJournalKey{}, journal)); err != nil {
+		return err
+	}
+	for _, apply := range journal.staged {
+		apply()
+	}
+	return nil
+}
+
+// checkupTypeStageWrite は journal tx 内の書込を commit まで staging する。
+// journal のない ctx（passthrough 等）ではその場で適用する。
+func checkupTypeStageWrite(ctx context.Context, apply func()) {
+	journal, _ := ctx.Value(checkupTypeTxJournalKey{}).(*checkupTypeTxJournal)
+	if journal == nil {
+		apply()
+		return
+	}
+	journal.staged = append(journal.staged, apply)
+}
+
 func TestCheckupTypeBillDiscount_RequestBinding(t *testing.T) {
 	var req createCheckupTypeRequest
 	if err := json.Unmarshal([]byte(`{"name":"a"}`), &req); err != nil {
@@ -173,30 +207,40 @@ func TestCheckupTypeBillDiscount_PatchPreservesAndUpdates(t *testing.T) {
 
 func TestCheckupTypeBillDiscount_FailClosedResponseAndReader(t *testing.T) {
 	t.Run("nil audit dependency is a server error before write", func(t *testing.T) {
-		created := false
-		repo := &mockCheckupTypeRepository{createFn: func(_ context.Context, _ *model.CheckupType) error { created = true; return nil }}
-		svc := NewCheckupTypeService(repo, checkupTypePassthroughTx{}, nil)
+		var persisted []*model.CheckupType
+		repo := &mockCheckupTypeRepository{createFn: func(ctx context.Context, ct *model.CheckupType) error {
+			checkupTypeStageWrite(ctx, func() { persisted = append(persisted, ct) })
+			ct.ID = 5
+			ct.Version = 1
+			return nil
+		}}
+		svc := NewCheckupTypeService(repo, checkupTypeJournalTx{}, nil)
 		_, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "x", ActorID: &testCheckupTypeActorID, IsBillDiscountExcluded: boolPtr(true)})
 		assertCheckupTypeInternalError(t, err)
-		if created {
+		if len(persisted) != 0 {
 			t.Fatal("write escaped fail-closed audit dependency")
 		}
 	})
 	t.Run("audit failure rolls back the whole write", func(t *testing.T) {
-		updated := false
+		var persisted []*model.CheckupType
+		audit := &recordingCheckupTypeAudit{err: errors.New("audit down")}
 		repo := &mockCheckupTypeRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 				return &model.CheckupType{ID: 9, ClinicID: 1, Version: 3}, nil
 			},
-			updateFieldsFn: func(context.Context, uint64, uint64, UpdateCheckupTypeInput) (*model.CheckupType, error) {
-				updated = true
-				return &model.CheckupType{ID: 9, ClinicID: 1, Version: 4}, nil
+			updateFieldsFn: func(ctx context.Context, _, _ uint64, _ UpdateCheckupTypeInput) (*model.CheckupType, error) {
+				after := &model.CheckupType{ID: 9, ClinicID: 1, Version: 4}
+				checkupTypeStageWrite(ctx, func() { persisted = append(persisted, after) })
+				return after, nil
 			},
 		}
-		svc := NewCheckupTypeService(repo, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{err: errors.New("audit down")})
+		svc := NewCheckupTypeService(repo, checkupTypeJournalTx{}, audit)
 		_, err := svc.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{IsBillDiscountExcluded: boolPtr(false), Version: int64Ptr(3), ActorID: &testCheckupTypeActorID})
-		if err == nil || updated {
-			t.Fatal("audit failure must fail the update")
+		if err == nil || len(persisted) != 0 {
+			t.Fatal("audit failure must roll back the update")
+		}
+		if len(audit.entries) != 0 {
+			t.Fatal("audit failure must not leave an audit row")
 		}
 	})
 	t.Run("response preserves null", func(t *testing.T) {

@@ -1,7 +1,8 @@
 package medicalrecord
 
 // EMR-456 F1: 健診種別の親 soft-delete と子 Create/親変更を共通 parent row lock で直列化する。
-// 実 DB の同時実行再現は行わない（lock の要求順序と fail-closed を service/repository レベルで検証）。
+// このファイルでは lock の要求順序と fail-closed を service/repository レベルで検証し、
+// 実 DB の同時実行再現は realdb_checkup_type_parent_lock_test.go で行う。
 
 import (
 	"bytes"
@@ -22,20 +23,26 @@ import (
 func (m *mockCheckupTypeRepository) LockWriteRows(context.Context, uint64, []uint64) error { return nil }
 
 // checkupTypeLockSpyRepo は LockWriteRows の呼出しを記録する spy。
+// onLock は実際の lock 呼出し時に発火する hook（順序検証用）。
 type checkupTypeLockSpyRepo struct {
 	CheckupTypeRepository
-	locks [][]uint64
+	locks  [][]uint64
+	onLock func()
 }
 
 func (r *checkupTypeLockSpyRepo) LockWriteRows(_ context.Context, _ uint64, ids []uint64) error {
 	r.locks = append(r.locks, append([]uint64(nil), ids...))
+	if r.onLock != nil {
+		r.onLock()
+	}
 	return nil
 }
 
 func TestCheckupTypeParentLock_CreateRequestsParentLockBeforeValidation(t *testing.T) {
 	parent := uint64(2)
 	var events []string
-	spy := &checkupTypeLockSpyRepo{CheckupTypeRepository: &mockCheckupTypeRepository{
+	spy := &checkupTypeLockSpyRepo{}
+	spy.CheckupTypeRepository = &mockCheckupTypeRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 			if len(spy.locks) == 0 {
 				t.Fatal("parent read before lock")
@@ -49,7 +56,7 @@ func TestCheckupTypeParentLock_CreateRequestsParentLockBeforeValidation(t *testi
 			ct.Version = 1
 			return nil
 		},
-	}}
+	}
 	svc := NewCheckupTypeService(spy, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{})
 	_, err := svc.Create(context.Background(), 1, &CreateCheckupTypeInput{Name: "child", ParentID: &parent, ActorID: &testCheckupTypeActorID})
 	if err != nil {
@@ -65,7 +72,8 @@ func TestCheckupTypeParentLock_CreateRequestsParentLockBeforeValidation(t *testi
 
 func TestCheckupTypeParentLock_UpdateSettingParentRequestsLock(t *testing.T) {
 	parent := uint64(2)
-	spy := &checkupTypeLockSpyRepo{CheckupTypeRepository: &mockCheckupTypeRepository{
+	spy := &checkupTypeLockSpyRepo{}
+	spy.CheckupTypeRepository = &mockCheckupTypeRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 			if len(spy.locks) == 0 {
 				t.Fatal("before-image read before lock")
@@ -75,7 +83,7 @@ func TestCheckupTypeParentLock_UpdateSettingParentRequestsLock(t *testing.T) {
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateCheckupTypeInput) (*model.CheckupType, error) {
 			return &model.CheckupType{ID: 9, ClinicID: 1, Version: 4}, nil
 		},
-	}}
+	}
 	svc := NewCheckupTypeService(spy, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{})
 	if _, err := svc.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{Name: strPtr("改名"), ParentID: &parent, Version: int64Ptr(3), ActorID: &testCheckupTypeActorID}); err != nil {
 		t.Fatal(err)
@@ -104,7 +112,9 @@ func TestCheckupTypeParentLock_UpdateSettingParentRequestsLock(t *testing.T) {
 
 func TestCheckupTypeParentLock_DeleteLocksBeforeChildCheck(t *testing.T) {
 	locked, checked := false, false
-	spy := &checkupTypeLockSpyRepo{CheckupTypeRepository: &mockCheckupTypeRepository{
+	spy := &checkupTypeLockSpyRepo{}
+	spy.onLock = func() { locked = true }
+	spy.CheckupTypeRepository = &mockCheckupTypeRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 			if !locked {
 				t.Fatal("row read before lock")

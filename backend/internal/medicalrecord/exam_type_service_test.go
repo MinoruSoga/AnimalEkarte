@@ -302,8 +302,11 @@ func TestExamTypeService_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			createCalled := false
 			repo := &mockExamTypeRepository{
-				createFn: func(_ context.Context, _ *model.ExaminationType) error {
+				createFn: func(_ context.Context, exType *model.ExaminationType) error {
 					createCalled = true
+					// EMR-447 A.5: create 成功系は同 tx の監査が ResourceID>0 を要求するため、
+					// mock は実 repository と同じく保存 ID を採番する。
+					exType.ID = 10
 					return tt.repoErr
 				},
 			}
