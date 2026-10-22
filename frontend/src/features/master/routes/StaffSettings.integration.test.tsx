@@ -444,6 +444,10 @@ describe("StaffSettings integration — basic save lifecycle", () => {
       id: "1",
       req: { reservation_display_name: "", reservation_comment: "" },
     });
+    await act(async () => {
+      basicUpdate!.resolve(makeStaff({ id: "1" }));
+    });
+    await waitPanelClosed();
   });
 });
 
