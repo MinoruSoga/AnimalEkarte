@@ -116,9 +116,12 @@ export function buildConsultationCreateRequest(
   };
 }
 
+// EMR-447: 5種の Update builder は Create の空→undefined 変換を流用せず、description を明示送信する
+// （既存非空→空への変更を保存する。省略は BE の *string nil で保持）。
 export function buildConsultationUpdateRequest(data: TreatmentFormData): UpdateConsultationRequest {
   const base = {
     ...buildConsultationCreateRequest(data),
+    description: data.description,
     version: requireMasterEditVersion(data.version),
   };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
@@ -142,7 +145,7 @@ export function buildExaminationCreateRequest(
 export function buildExaminationUpdateRequest(
   data: TreatmentFormData,
 ): UpdateExaminationTypeRequest {
-  const base = buildExaminationCreateRequest(data);
+  const base = { ...buildExaminationCreateRequest(data), description: data.description };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
   return base;
 }
@@ -163,6 +166,7 @@ export function buildProcedureCreateRequest(data: TreatmentFormData): CreateProc
 export function buildProcedureUpdateRequest(data: TreatmentFormData): UpdateProcedureRequest {
   const base = {
     ...buildProcedureCreateRequest(data),
+    description: data.description,
     version: requireMasterEditVersion(data.version),
   };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
@@ -184,6 +188,7 @@ export function buildVaccineUpdateRequest(
 ): UpdateVaccineRequest & { version: number } {
   const base = {
     ...buildVaccineCreateRequest(data),
+    description: data.description,
     version: requireMasterEditVersion(data.version),
   };
   if (data.parentId === "") return { ...base, clear_parent_id: true };
@@ -205,6 +210,7 @@ export function buildCheckupUpdateRequest(
 ): UpdateCheckupTypeRequest & { version: number } {
   const base = {
     ...buildCheckupCreateRequest(data),
+    description: data.description,
     version: requireMasterEditVersion(data.version),
   };
   if (data.parentId === "") return { ...base, clear_parent_id: true };

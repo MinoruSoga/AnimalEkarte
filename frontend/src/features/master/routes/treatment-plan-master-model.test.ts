@@ -177,6 +177,34 @@ describe("buildCheckupCreateRequest", () => {
 });
 
 // ─────────────────────────────────────────────────
+// EMR-447: 5種 Update builder の備考 clear（Create は空を送らない既定を維持）
+// ─────────────────────────────────────────────────
+
+describe("EMR-447 update builders send explicit empty description", () => {
+  const cases = [
+    ["consultation", buildConsultationCreateRequest, buildConsultationUpdateRequest],
+    ["examination", buildExaminationCreateRequest, buildExaminationUpdateRequest],
+    ["procedure", buildProcedureCreateRequest, buildProcedureUpdateRequest],
+    ["vaccine", buildVaccineCreateRequest, buildVaccineUpdateRequest],
+    ["checkup", buildCheckupCreateRequest, buildCheckupUpdateRequest],
+  ] as const;
+
+  it.each(cases)("%s: 既存非空→空を update で明示送信する", (_label, _create, update) => {
+    const request = update(makeFormData({ description: "", parentId: "3" }));
+    expect(request).toHaveProperty("description", "");
+    expect(request).not.toHaveProperty("clear_parent_id");
+  });
+
+  it.each(cases)("%s: 非空の備考は update でそのまま送る", (_label, _create, update) => {
+    expect(update(makeFormData({ description: "備考" }))).toHaveProperty("description", "備考");
+  });
+
+  it.each(cases)("%s: create は空の備考を送らない", (_label, create) => {
+    expect(create(makeFormData({ description: "" })).description).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────
 // EMR-454: 品目別保険設定（create=対象外初期値 / update=未指定・null・false・true の区別）
 // ─────────────────────────────────────────────────
 
