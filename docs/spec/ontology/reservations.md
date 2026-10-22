@@ -42,6 +42,7 @@
 | トリミング記録・宿泊管理・入院管理 | 各業務分類から接続する専用の記録・管理 | トリミング記録、ホテルの宿泊管理、入院管理。現行の入院管理画面は入院・ホテルを扱う | [16:07の入口契約](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-hotel-inpatient-entry)。内部作成・保存は[D05正本](../domains/hospitalization/lifecycle.md)・[D06正本](../domains/trimming/lifecycle.md)へ従い、通常カルテの同一ルールを自動適用しない |
 | 入院開始 | 来院後にスタッフが実際の入院を明示確定する業務操作 | 推奨語は「入院開始」。現行画面の「チェックイン」は実装参照として区別 | [16:33契約](../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-inpatient-start-confirm)。予約・予定日だけで入院中にせず、開始までに入院担当医を決め、開始確定時に入院記録を作る。失敗時の開始未確定・理由表示・再試行は17:17合意。画面配置・保存方式は設計 |
 | 診療前の誤取消からの復元 | 診療前に誤取消した同じ予約を再利用する訂正操作 | 「予約の復元」。誤った診療終了の取消・マスタ復元と区別する | [17:10合意](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-restore-preconsultation-cancellation)。復元時点の担当適格性再確認、既存カルテ再利用。復元先状態・手動修正は17:17合意 |
+| ペットの死亡登録による予約取消 | 取消の契機の一つ。死亡登録に伴い当該ペットの既存の未来予約を取消状態にする | 予約の削除や復元とは別。死亡個体の選択可（ui-contractsの7機能）とも、死亡個体への予約作成とも区別する | [D04の2026-10-22本人回答](../domains/owners-pets/lifecycle.md#pet-death-future-reservations-cancel-20261022)。取消状態・履歴保持・通知は[取消と履歴保持](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)へ従う。誤登録取消でも自動再開しない |
 | 未終了の指名予約 | 取消・未来院・診療終了が確定していない指名予約。予定時刻を過ぎた診療前も含む | 予定終了済みと診療終了済みを同義にしない | [17:17保護範囲](../workflows/reservation-to-record-flow.md#internal-batch-protection)。シフト・対応区分・有効状態変更の影響予約を手動解消するまで保護 |
 | 区分ごとの有効意図 | グループの利用停止とは別に保持する区分個別の有効・無効 | 個別有効と新規利用可を同義にしない | [無効グループ中も個別編集可、利用はグループ有効化後](../screens/settings/master-reservation-type.md#internal-batch-group-intent) |
 | 日跨ぎ勤務 | 開始日と終了日が異なる登録可能な勤務 | 日跨ぎの通常予約とは別 | [勤務は登録可](../screens/24-shift-calendar.md#requirement-fr-shifts-overnight-duty)。通常診療・トリミング予約は同日内。内部日時表現は設計 |
@@ -87,6 +88,7 @@
 | スタッフ → シフト → 医院・勤務時間・休憩 | スタッフに複数の勤務情報。各シフトの対象スタッフ・医院を区別し、複数休憩を扱う | [医院間の勤務重複を拒否](../screens/24-shift-calendar.md#requirement-fr-shifts-cross-clinic-overlap)。同時刻の他院勤務を予約先医院の候補へ含めない。日跨ぎ勤務登録可は17:17合意、具体的保存・表示方式は設計 |
 | スタッフ ↔ 医院所属、スタッフ → 職種 | 複数医院への所属は既存モデルで可能。職種の多重度は本整理では追加確定しない | 所属は勤務の証明でも、個人対応可否の証明でもない。医院別対応可否は既合意。一医院の勤務終了は[医院別指名停止](../screens/settings/master-staff.md#requirement-fr-staff-clinic-departure-booking-guard)に従い、他医院勤務を継続する。設定・保存方式は未決 |
 | 診療前の取消済み予約 → 同じ予約の復元 → 作成済み通常カルテ | 取消前後で同じ予約と既存カルテの関連を維持。別予約・カルテへ置換しない | [復元時点の指名適格性を再確認](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-restore-preconsultation-cancellation)。診療後・支払い後訂正へ広げず、復元先状態は17:17合意、内部保存方式は設計 |
+| ペット → 未来の予約（死亡登録時） | 1ペットに0..n件。死亡登録で当該ペットの既存の未来予約は取消状態となり、削除しない | [2026-10-22本人回答](../domains/owners-pets/lifecycle.md#pet-death-future-reservations-cancel-20261022)。取消状態・理由・actor・日時の履歴保持と通知は[既存の取消契約](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)へ従い、誤登録取消でも自動再開しない。再開は通常の予約登録。他ペット・過去予約・実施済み記録は対象外 |
 | 医師 → 一医院での勤務終了 → 医院別指名停止 | A院のみの指名停止とB院での勤務継続を両立。全体退職と区別する | [A院の保護対象を手動解消後に停止](../screens/settings/master-staff.md#requirement-fr-staff-clinic-departure-booking-guard)。他院・履歴保持、自動解除なし。保存方式は未決 |
 | 診療予約の通常進行：受付済 → 診療中 → 診療終了 | 同じ予約の業務状態・操作の関係。状態ごとに別予約を作る関係ではない | 受付と診療開始を区別し、明示操作で進める。[誤終了取消](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-undo-consultation-end)は専用操作。会計待ちと支払い確定を同義にしない |
 | 診療の予約／来院 → 通常カルテ | 現行契約ではactiveな通常カルテは最大1件。作成前・失敗は0件を取り得る | 正常な受付確定では受付済への変更と通常カルテ作成の両方成功。[再利用・重複防止](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)を維持。下記現行モデル表の対象範囲を全分類へ拡張しない |
@@ -127,7 +129,7 @@ flowchart LR
 
 ## 職員属性・休業期間の追加接続
 
-[社員リスト採用正本](../domains/staff-workforce/README.md#staff-source-adoption-20261015)へ従う。職種・役職・雇用区分・認可roleは別概念で自動連動しない。休業は退職と異なる在籍期間属性で、対象期間の新規勤務／指名候補を除外する。既存指名予約は自動取消せず、復帰時も同一人物・所属・履歴を保持する。予約指名は任意のままで、担当医の意味や未定受付を変更しない。
+[社員リスト採用正本](../domains/staff-workforce/README.md#staff-source-adoption-20261015)へ従う。職種・役職・雇用区分・認可roleは別概念で自動連動しない。休業は退職と異なる在籍期間属性で、対象期間の新規勤務／指名候補を除外する。既存指名予約は自動取消せず、復帰時も同一人物・所属・履歴を保持する。予約指名は任意のままで、担当医の意味や未定受付を変更しない。 医院の「休診日」は医院の営業カレンダー側の設定、職員の「休業期間」は在籍期間の属性で、別概念として混同しない。
 
 <a id="revisit-intake-concept"></a>
 ## LINE再診事前問診の同一性と履歴
@@ -143,6 +145,9 @@ flowchart LR
 | 受付前の回答訂正 | 旧回答と日時を保持し、現在回答と区別 | AC-reservations-revisit-revisions |
 | 予約取消 | 旧回答の履歴を保持。取消で原文削除しない | 同FRの取消保持契約 |
 | 新予約／対象ペット変更 | 未回答へ戻す。元履歴は元対象のまま、他個体へコピーしない | AC-reservations-revisit-new-target |
+
+<a id="revisit-intake-state-editability-concept"></a>
+回答可否と対象の表示（2026-10-21追補）：飼主原文（再診問診）への新規送信・訂正の可否は、予約の状態と現在の認可からサーバーが判定する属性で、画面や回答の有無から決めない。入口は未確定（確定前）の予約を含み、確定済みだけへ狭めない。受付済み以降（診療中・会計・完了）は認可された閲覧のみで、新規送信・訂正・取消・削除は不可。未来院だけを理由に閲覧専用へしない。対象は1予約1ペットの現在対象で、解決できない場合は「対象未解決」と示し、予約自体を取得できない場合と区別する。回答のない対象は未回答で、閲覧だけで回答データを作らない。上の問診統合・原文保護の語彙を再利用し、再定義しない。受付前の訂正と履歴は上表、条件・受入条件は[予約正本](../domains/reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021)へ従う。
 
 <a id="booking-course-option-concept"></a>
 ## コース・オプション・採用時間

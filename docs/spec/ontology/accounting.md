@@ -15,6 +15,7 @@
 |:---|:---|:---|
 | 未請求明細 | まだ請求していない診療・物販等。過去未請求分も選択可能。確定済み未納と別 | [対象選択](../domains/accounting/lifecycle.md#requirement-fr-accounting-owner-selected-charges) |
 | 請求確定 | 請求額と対象を確定すること。入金なし／一部入金／明細あり0円でも成立。明細0件は確定不可。旧「精算」「決済確定」は文脈を確認 | [入金との区別](../domains/accounting/lifecycle.md#requirement-fr-accounting-receivable-partial-zero) |
+| 請求状態 | 下書き／確定／取消の3つ。医師再確認待ちは請求確定・精算を止める条件であり、請求状態ではない。受付カードの確認状態とも別軸 | [医師確認と停止](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)・[請求の状態列](../../architecture/erd-detail/billings.md) |
 | 入金・部分入金 | 確定請求へ受け取った金額を記録。後日回収は元請求への追加。複合決済とは別 | [入金との区別](../domains/accounting/lifecycle.md#requirement-fr-accounting-receivable-partial-zero) |
 | 支払方法の利用停止（無効） | その方法による新受領の選択不可。過去支払記録・帳票参照・方法別集計の削除とは別。既存資金の配分・充当／解除を新受領にしない | [停止合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method) |
 | 複合決済 | 一回の支払いで現金＋カード等を併用。旧画面の「分割決済」はこの用法。分割払い／後日回収とは区別 | [入金との区別](../domains/accounting/lifecycle.md#requirement-fr-accounting-receivable-partial-zero) |
@@ -35,6 +36,7 @@
 | マスタ変更権限付きスタッフ | 対象の価格・割引・保険・支払方法マスタ変更を許可されたスタッフ。管理者以外も含み、全スタッフとは別 | [権限](../domains/accounting/lifecycle.md#requirement-fr-accounting-master-authorized-maintenance) |
 | 税抜入力計算／税込入力額保持 | 第五群の税抜入力例と税込入力を区別する。後続合意に従い元税込額・税区分・元数量を保持し、換算丸めだけで減額しない。表示用明細税込額と請求書の税率別税額は別段階 | [後続合意を優先](../domains/accounting/lifecycle.md#accounting-input-gross-preservation)・[税抜入力例](../domains/accounting/lifecycle.md#accounting-calculation-order) |
 | 請求書の税率別税額 | 値引き・配賦後の税抜額を請求書／税率ごとに集約し、税額の1円未満を一度切り捨てる製品方針 | [税と根拠](../domains/accounting/lifecycle.md#accounting-tax-evidence) |
+| 売上（月次レポート）の主表示基準 | 月次売上レポートの主表示は税抜（純売上・部門別）で、消費税と税込売上合計を併記する指標。請求の税込表示額・請求確定額・実受取とは別で、保険負担分を実受取へ加算せず、請求日は請求確定日のまま | [月次売上の主表示](../domains/analytics/business-rules.md#analytics-sales-tax-basis-20261022) |
 | 返金必要額／未実行返金 | 訂正後料金を超える請求への支払等から表示する返金必要額。実返金履歴とは別 | [訂正](../domains/accounting/lifecycle.md#requirement-fr-accounting-reasoned-financial-correction) |
 | 請求書／領収書 | 請求する額と実際に受け取った額の帳票。飼主宛名・ペット別明細・ペットに紐づかない共通料金別枠。訂正／部分返金は元取引と今回変更額を区別し、再発行表示と訂正前履歴を保持 | [帳票](../domains/accounting/lifecycle.md#requirement-fr-accounting-document-and-aged-debt) |
 | 締め後訂正差分 | 元締めを保持して追加する訂正情報。実際の入金・返金と区別 | [締め境界](../domains/accounting/lifecycle.md#requirement-fr-accounting-post-close-separate-movement) |
@@ -103,6 +105,7 @@
 | プラン由来の会計明細 | 元プランと今回会計値の関係を保持する明細。マスタ改定による追従とは別 | [FR-accounting-plan-sync](../domains/accounting/lifecycle.md#requirement-fr-accounting-plan-sync)、AC-accounting-plan-sync-three-branches。未確定未手修正は自動同期、未確定手修正済は値保持と差異判断、確定後は専用訂正 |
 | 当日請求対象 | 院内投薬注射は実施後、持帰薬物販は内容数量確定し準備できた時点 | [FR-accounting-billable-performance](../domains/accounting/lifecycle.md#requirement-fr-accounting-billable-performance)、AC-accounting-billable-boundary／AC-accounting-ready-not-stock。未実施/後日予定/中止は当日請求外、予定額を分離。個別中止料等は維持 |
 | 準備完了／実引渡し／実出庫 | 対象内容を用意できた事実、飼主へ渡した事実、在庫から出た事実 | 同FR。請求確定・取消・返金だけで実引渡/在庫移動を生成しない |
+| 会計取込の前提（税基準） | 入院のケア明細等を会計へ取り込む条件。税基準が未確認の明細は取込不可で、既定値の仮明細を作らず、スタッフの明示確認後に再実行する。退院のみは独立 | [入院明細の税情報未確認](../domains/hospitalization/lifecycle.md#hospitalization-tax-unknown-20261020)・語彙は[入院](hospitalization.md#care-line-tax-state-concept) |
 
 <a id="accounting-review-version-relations"></a>
 ## 確認対象の世代と同期由来の技術案

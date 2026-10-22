@@ -549,6 +549,6 @@ D03の最新合意は6FR／18AC追加、当時16FR／71ACを保持して合意�
 | 再診問診の予約状態別の飼主回答可否と対象不明時の表示 | [D01](reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021) | 2026-10-21 Q&A からの移設 |
 | 職員の休業期間を予約適格性と予約保護へ接続 | [D14](staff-workforce/README.md#staff-leave-booking-handoff)、[横断フロー](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection) | 4debcf996（EMR-515） |
 | 死亡登録時の既存未来予約は取消（削除ではない）。誤登録取消で自動再開しない | [D04](owners-pets/lifecycle.md#pet-death-future-reservations-cancel-20261022) | 2026-10-22本人回答（PR #815本文） |
-| 月次売上の主表示は税抜（純売上・部門別）、消費税と税込売上合計を併記 | [D15](analytics/business-rules.md#analytics-sales-tax-basis-20261022) | 2026-10-22本人回答（PR #815本文、現行帳票準拠） |
+| 月次売上の主表示は税抜（純売上・部門別）、消費税と税込売上合計を併記 | [D16](analytics/business-rules.md#analytics-sales-tax-basis-20261022) | 2026-10-22本人回答（PR #815本文、現行帳票準拠） |
 
 本人判断待ちだった死亡登録時の既存未来予約と月次売上の主表示は2026-10-22回答で決定し上表に含めた。残る本人判断待ちはない。他院患者の候補表示は既決の認可条件（[490–492 選定契約 §4](../../work/emr/emr-490-492-selected-wire-contract-20261021.md) と [D04](owners-pets/lifecycle.md#common-owner-pet-20261017)）に従い、法人内全医院を無条件に検索可能とは扱わない。会計の請求状態は下書き／確定／取消で、医師再確認待ちは停止条件（[D10](accounting/lifecycle.md#doctor-review-sync-billing-20261017)）。

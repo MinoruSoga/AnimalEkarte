@@ -10,6 +10,7 @@
 | 副飼主／共同飼育 | pet-ownerの追加リンクと続柄 | 主飼主との重複・同一owner重複なし。請求先・LINE通知先は自動変更せず、会計／LINE／割引の主飼主も変えない |
 | identity group | D19既存scope内の手動連携。共通患者の認可内自院利用の業務とは別で、内部共有方式を代用決定しない | 台帳移管・予約移管・自動名寄せとは別、D19正本 |
 | 生死状態 | alive／deceased、死亡日・理由 | 専用死亡／復活writer。[誤登録取消](../domains/owners-pets/lifecycle.md#pet-death-misregistration-undo-20261020)は権限あるスタッフの理由・履歴付き別操作で、予約／通知の自動再開なし。生前診療の後日入力・理由付き訂正・退院・精算はdeceasedを保つ専用経路で、取消不要・履歴消去なし |
+| 死亡登録と未来予約 | 死亡登録時、当該ペットの既存の未来予約を取消する関係（1ペット：0..n予約）。削除ではなく取消状態として理由・actor・日時を保持 | [2026-10-22本人回答](../domains/owners-pets/lifecycle.md#pet-death-future-reservations-cancel-20261022)。予約の取消履歴は[予約側の取消契約](../domains/reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)。誤登録取消でも取消済み予約を自動再開せず、再開は通常の予約登録。他ペット・過去予約・実施済み記録は変更しない |
 | 飼主特記 | owners.is_dangerous、人への対応上の注意 | ペットの特記レベルとは別概念。スタッフ限定 |
 | ペット特記 | danger_levelとdanger_reason、取扱い上の注意 | 高／中／低・未設定。高は理由必須。スタッフ専用、限定DTO除外を維持 |
 | 動物種 | 全医院共有の分類master。追加・名称変更・無効化はシステム管理者のみ | ワクチン／投薬量の固定enumとは別。名称犬／猫のサジェストとの現行関係を保持 |
