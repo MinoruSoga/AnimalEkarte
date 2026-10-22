@@ -23,6 +23,14 @@ import {
   useDeleteCampaign,
 } from "../api/campaign";
 import type { CreateCampaignRequest, Campaign, UpdateCampaignRequest } from "../api/campaign";
+
+// EMR-530: discount_value は exact decimal 文字列で保持する。この変換は一覧の
+// 通貨表示専用（保存値・送信値は文字列のまま）。数値化できない字句は 0 扱いせず
+// その文字列をそのまま表示する（画面で捏造した値を見せない）。
+function campaignDiscountDisplayNumber(value: string): number | undefined {
+  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(value)) return undefined;
+  return Number(value);
+}
 import { buildCampaignCreateRequest, buildCampaignUpdateRequest } from "./campaign-settings-model";
 import { ResourceAccounting } from "@/types/generated/models";
 
@@ -100,7 +108,7 @@ export function CampaignSettings() {
             <TableCell className="text-right text-sm">
               {item.discountType === "rate"
                 ? `${item.discountValue}%`
-                : formatCurrency(item.discountValue)}
+                : formatCurrency(campaignDiscountDisplayNumber(item.discountValue))}
             </TableCell>
             <TableCell className="text-center">
               <StatusPill isActive={item.isActive} />

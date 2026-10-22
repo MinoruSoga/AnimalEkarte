@@ -27,7 +27,7 @@ const existingMerchandise = (taxType?: "included" | "excluded" | "exempt") =>
     category: "goods",
     unitPrice: 100,
     taxType,
-    taxRate: 0.1,
+    taxRate: "0.1",
     isActive: true,
     sortOrder: 1,
   }) as FrontendMerchandiseItem;

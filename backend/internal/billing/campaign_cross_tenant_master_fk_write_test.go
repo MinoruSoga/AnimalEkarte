@@ -40,7 +40,7 @@ func TestCampaignService_Create_RejectsCrossClinicTargetItemFK(t *testing.T) {
 			StartDate:     time.Now(),
 			EndDate:       time.Now().Add(24 * time.Hour),
 			DiscountType:  model.CampaignDiscountTypeRate,
-			DiscountValue: 10.0,
+			DiscountValue: exactNumericOf(1000, -2),
 			TargetItemIDs: []uint64{itemID},
 		}
 	}
@@ -207,7 +207,7 @@ func TestCampaignService_ConcurrentMerchandiseItemAtomicDelete(t *testing.T) {
 				camp := &model.Campaign{
 					ClinicID: clinicID, Name: "attach-first holder",
 					StartDate: time.Now(), EndDate: time.Now().Add(24 * time.Hour),
-					DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 5, IsActive: true,
+					DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(500, -2), IsActive: true,
 					TargetItems: []model.CampaignTargetItem{{MerchandiseItemID: item.ID}},
 				}
 				if _, err := campaignRepo.Create(txCtx, camp); err != nil {
@@ -259,7 +259,7 @@ func TestCampaignService_ConcurrentMerchandiseItemAtomicDelete(t *testing.T) {
 			StartDate:     time.Now(),
 			EndDate:       time.Now().Add(24 * time.Hour),
 			DiscountType:  model.CampaignDiscountTypeRate,
-			DiscountValue: 10,
+			DiscountValue: exactNumericOf(10, 0),
 			TargetItemIDs: []uint64{item.ID},
 		})
 		require.Error(t, err)

@@ -37,7 +37,17 @@ func (h *CampaignHandler) ListCampaigns(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(ms, toCampaignResponse))
+	// EMR-530: 応答化は NULL/NaN を "0" へ補完しないため error を返す。異常は500で伝播する。
+	responses := make([]campaignResponse, 0, len(ms))
+	for i := range ms {
+		resp, err := toCampaignResponse(&ms[i])
+		if err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+		responses = append(responses, resp)
+	}
+	c.JSON(http.StatusOK, responses)
 }
 
 // GetCampaign godoc
@@ -59,7 +69,12 @@ func (h *CampaignHandler) GetCampaign(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toCampaignResponse(m))
+	resp, err := toCampaignResponse(m)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateCampaign godoc
@@ -84,8 +99,13 @@ func (h *CampaignHandler) CreateCampaign(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	resp, err := toCampaignResponse(m)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/campaigns/%d", m.ID))
-	c.JSON(http.StatusCreated, toCampaignResponse(m))
+	c.JSON(http.StatusCreated, resp)
 }
 
 // UpdateCampaign godoc
@@ -114,7 +134,12 @@ func (h *CampaignHandler) UpdateCampaign(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toCampaignResponse(m))
+	resp, err := toCampaignResponse(m)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // ReorderCampaigns godoc

@@ -29,7 +29,17 @@ func (h *Handler) ListMerchandiseItems(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(items, toMerchandiseItemResponse))
+	// EMR-530: 応答化は NULL/NaN を "0" へ補完しないため error を返す。異常は500で伝播する。
+	responses := make([]merchandiseItemResponse, 0, len(items))
+	for i := range items {
+		resp, err := toMerchandiseItemResponse(&items[i])
+		if err != nil {
+			httpapi.RespondError(c, err)
+			return
+		}
+		responses = append(responses, resp)
+	}
+	c.JSON(http.StatusOK, responses)
 }
 
 // GetMerchandiseItem godoc
@@ -51,7 +61,12 @@ func (h *Handler) GetMerchandiseItem(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toMerchandiseItemResponse(item))
+	resp, err := toMerchandiseItemResponse(item)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateMerchandiseItem godoc
@@ -72,8 +87,13 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	resp, err := toMerchandiseItemResponse(item)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/merchandise-items/%d", item.ID))
-	c.JSON(http.StatusCreated, toMerchandiseItemResponse(item))
+	c.JSON(http.StatusCreated, resp)
 }
 
 // UpdateMerchandiseItem godoc
@@ -98,7 +118,12 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toMerchandiseItemResponse(item))
+	resp, err := toMerchandiseItemResponse(item)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // ReorderMerchandiseItems godoc

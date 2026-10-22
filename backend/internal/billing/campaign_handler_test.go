@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -67,7 +69,7 @@ func sampleCampaign(id uint64) *model.Campaign {
 		StartDate:     time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 		EndDate:       time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC),
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 10,
+		DiscountValue: model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(10), Exp: 0, Valid: true}},
 		IsActive:      true,
 	}
 }
@@ -260,7 +262,7 @@ func TestCreateCampaign(t *testing.T) {
 			"start_date":     "2026-07-01",
 			"end_date":       "2026-08-31",
 			"discount_type":  "rate",
-			"discount_value": 10,
+			"discount_value": "10",
 			"is_active":      true,
 		}
 	}

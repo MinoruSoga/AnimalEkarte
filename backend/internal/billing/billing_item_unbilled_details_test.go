@@ -524,7 +524,7 @@ func TestBillingItemService_UnbilledDetails_OwnerDiscountPrefill(t *testing.T) {
 		campaignRepo := &mockCampaignRepository{
 			findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, category model.ItemCategory, _ *uint64) (*model.Campaign, error) {
 				if category == model.ItemCategoryProcedure {
-					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 30}, nil
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(3000, -2)}, nil
 				}
 				return nil, nil
 			},

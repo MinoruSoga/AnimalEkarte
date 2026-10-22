@@ -19,7 +19,9 @@ interface LegacyMerchandiseItemResponse {
   category: ItemCategory;
   unit_price: number;
   tax_type: TaxType;
-  tax_rate: number;
+  // EMR-530: 有限な非負 exact decimal 文字列（採択405・483の十進輸送、api.yaml #806）。
+  // number は旧clientの黙ったfloat変換になるため送受信しない。
+  tax_rate: string;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -59,7 +61,8 @@ export interface CreateMerchandiseItemRequest {
   category: ItemCategory;
   unit_price: number;
   tax_type: TaxType;
-  tax_rate?: number;
+  // EMR-530: 入力字句を保持する exact decimal 文字列（省略/null は既存既定 0.10）。
+  tax_rate?: string;
   is_active: boolean;
 }
 
@@ -72,7 +75,8 @@ export interface UpdateMerchandiseItemRequest {
   category?: ItemCategory;
   unit_price?: number;
   tax_type?: TaxType;
-  tax_rate?: number;
+  // EMR-530: 省略/null は保持。明示 "0" は 0 として保存される。
+  tax_rate?: string;
   is_active?: boolean;
 }
 

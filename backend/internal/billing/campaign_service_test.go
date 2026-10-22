@@ -3,12 +3,14 @@ package billing
 import (
 	"context"
 	"errors"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/inventory"
@@ -164,7 +166,7 @@ func TestCampaignService_Create(t *testing.T) {
 			StartDate:        time.Now(),
 			EndDate:          time.Now().Add(24 * time.Hour),
 			DiscountType:     model.CampaignDiscountTypeRate,
-			DiscountValue:    10.0,
+			DiscountValue:    campaignExactValue(t, "10"),
 			IsActive:         true,
 			SortOrder:        1,
 			TargetCategories: []model.ItemCategory{model.ItemCategoryFood},
@@ -200,7 +202,7 @@ func TestCampaignService_Create(t *testing.T) {
 		input := &CreateCampaignInput{
 			Name:          "Bad Discount",
 			DiscountType:  model.CampaignDiscountTypeRate,
-			DiscountValue: 105.0,
+			DiscountValue: campaignExactValue(t, "105"),
 		}
 		_, err := svc.Create(ctx, 1, input)
 		assert.Error(t, err)
@@ -211,7 +213,7 @@ func TestCampaignService_Create(t *testing.T) {
 		input := &CreateCampaignInput{
 			Name:          "Bad Discount",
 			DiscountType:  model.CampaignDiscountTypeAmount,
-			DiscountValue: -100,
+			DiscountValue: model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(-100), Exp: 0, Valid: true}},
 		}
 		_, err := svc.Create(ctx, 1, input)
 		assert.Error(t, err)
@@ -222,7 +224,7 @@ func TestCampaignService_Create(t *testing.T) {
 		input := &CreateCampaignInput{
 			Name:          "Bad Discount",
 			DiscountType:  "invalid",
-			DiscountValue: 10,
+			DiscountValue: campaignExactValue(t, "10"),
 		}
 		_, err := svc.Create(ctx, 1, input)
 		assert.Error(t, err)
@@ -238,7 +240,7 @@ func TestCampaignService_Create(t *testing.T) {
 		input := &CreateCampaignInput{
 			Name:          "DB Error Test",
 			DiscountType:  model.CampaignDiscountTypeAmount,
-			DiscountValue: 100,
+			DiscountValue: campaignExactValue(t, "100"),
 		}
 		_, err := svc.Create(ctx, 1, input)
 		assert.Error(t, err)
@@ -257,7 +259,7 @@ func TestCampaignService_Update(t *testing.T) {
 			StartDate:     now,
 			EndDate:       now.Add(time.Hour),
 			DiscountType:  model.CampaignDiscountTypeAmount,
-			DiscountValue: 500,
+			DiscountValue: campaignExactValue(t, "500"),
 		}
 		repo := &mockCampaignRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
@@ -437,7 +439,7 @@ func TestBuildCampaignUpdate(t *testing.T) {
 	start := time.Now()
 	end := start.Add(time.Hour)
 	dt := model.CampaignDiscountTypeRate
-	val := 15.0
+	val := campaignExactValue(t, "15")
 	active := true
 	sortOrder := 3
 
@@ -575,14 +577,14 @@ func TestResolveCampaignPeriod(t *testing.T) {
 func TestResolveCampaignDiscount(t *testing.T) {
 	rateType := model.CampaignDiscountTypeRate
 	amountType := model.CampaignDiscountTypeAmount
-	newVal := 30.0
-	current := &model.Campaign{DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: 500}
+	newVal := campaignExactValue(t, "30")
+	current := &model.Campaign{DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: campaignExactValue(t, "500")}
 
 	tests := []struct {
 		name          string
 		input         *UpdateCampaignInput
 		wantType      model.CampaignDiscountType
-		wantValue     float64
+		wantValue     model.ExactNumeric
 		wantHasUpdate bool
 	}{
 		{
@@ -671,7 +673,7 @@ func TestCampaignService_Create_ValidatesMerchandiseTargetsInsideTransaction(t *
 		StartDate:     time.Now(),
 		EndDate:       time.Now().Add(24 * time.Hour),
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 5,
+		DiscountValue: campaignExactValue(t, "5"),
 		TargetItemIDs: []uint64{3, 1, 2, 1},
 	})
 	assert.NoError(t, err)
@@ -754,7 +756,7 @@ func TestCampaignService_Create_RejectsMissingMerchandiseTarget(t *testing.T) {
 		StartDate:     time.Now(),
 		EndDate:       time.Now().Add(time.Hour),
 		DiscountType:  model.CampaignDiscountTypeAmount,
-		DiscountValue: 100,
+		DiscountValue: campaignExactValue(t, "100"),
 		TargetItemIDs: []uint64{99},
 	})
 	assert.Error(t, err)
@@ -793,14 +795,14 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 	})
 
 	t.Run("invalid discount on update", func(t *testing.T) {
-		current := &model.Campaign{ID: 100, ClinicID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 10}
+		current := &model.Campaign{ID: 100, ClinicID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: campaignExactValue(t, "10")}
 		repo := &mockCampaignRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
 				return current, nil
 			},
 		}
 		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{}, noopTransactor{})
-		badVal := 200.0
+		badVal := campaignExactValue(t, "200")
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{DiscountValue: &badVal})
 		assert.Error(t, err)
 	})
@@ -916,7 +918,7 @@ func TestCampaignService_Create_ConcurrentMerchandiseDeleteSerialized(t *testing
 			StartDate:     time.Now(),
 			EndDate:       time.Now().Add(24 * time.Hour),
 			DiscountType:  model.CampaignDiscountTypeRate,
-			DiscountValue: 10,
+			DiscountValue: campaignExactValue(t, "10"),
 			TargetItemIDs: []uint64{item.ID},
 		})
 		require.Error(t, err)

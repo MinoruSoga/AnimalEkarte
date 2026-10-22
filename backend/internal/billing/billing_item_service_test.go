@@ -874,7 +874,7 @@ func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 			name: "applies campaign discount when higher than owner rate and exposes campaign rate",
 			campaignRepo: &mockCampaignRepository{
 				findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) (*model.Campaign, error) {
-					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 30}, nil
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(3000, -2)}, nil
 				},
 			},
 			ownerRepo:  owner10,
@@ -889,7 +889,7 @@ func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 			name: "amount campaign winning exposes zero rate (fixed amount has no percent)",
 			campaignRepo: &mockCampaignRepository{
 				findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) (*model.Campaign, error) {
-					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: 500}, nil
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: exactNumericOf(50000, -2)}, nil
 				},
 			},
 			ownerRepo:  owner10,
@@ -904,7 +904,7 @@ func TestBillingItemService_ResolveAutoDiscount(t *testing.T) {
 			name: "owner rate wins over smaller campaign and exposes owner rate",
 			campaignRepo: &mockCampaignRepository{
 				findApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) (*model.Campaign, error) {
-					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 5}, nil
+					return &model.Campaign{ID: 1, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(500, -2)}, nil
 				},
 			},
 			ownerRepo:  owner10,
@@ -1091,7 +1091,7 @@ func TestBillingItemService_GetDiscountSuggestions(t *testing.T) {
 			},
 			campaignRepo: &mockCampaignRepository{
 				findAllApplicableForItemFn: func(_ context.Context, _ uint64, _ time.Time, _ model.ItemCategory, _ *uint64) ([]*model.Campaign, error) {
-					return []*model.Campaign{{ID: 1, Name: "夏季キャンペーン", DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 20}}, nil
+					return []*model.Campaign{{ID: 1, Name: "夏季キャンペーン", DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(2000, -2)}}, nil
 				},
 			},
 			ownerRepo: &mockOwnerRepository{

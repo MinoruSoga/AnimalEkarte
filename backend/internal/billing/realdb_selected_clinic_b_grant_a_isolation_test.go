@@ -490,9 +490,9 @@ func seedRealDBBillingFixture(t *testing.T, db *gorm.DB, forbiddenClinicID uint6
 	insB := &model.Insurance{ClinicID: fx.ClinicB, Name: realDBBillInsB, IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(insB).Error)
 
-	campA := &model.Campaign{ClinicID: fx.ClinicA, Name: realDBBillCampA, StartDate: start, EndDate: end, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 10, IsActive: true}
+	campA := &model.Campaign{ClinicID: fx.ClinicA, Name: realDBBillCampA, StartDate: start, EndDate: end, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(10, 0), IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(campA).Error)
-	campB := &model.Campaign{ClinicID: fx.ClinicB, Name: realDBBillCampB, StartDate: start, EndDate: end, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: 15, IsActive: true}
+	campB := &model.Campaign{ClinicID: fx.ClinicB, Name: realDBBillCampB, StartDate: start, EndDate: end, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(15, 0), IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(campB).Error)
 	require.NoError(t, db.WithContext(ctx).Create(&model.CampaignTargetCategory{CampaignID: campB.ID, Category: model.ItemCategoryExamination}).Error)
 

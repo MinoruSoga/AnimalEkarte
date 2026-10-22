@@ -14,7 +14,7 @@ const { query } = vi.hoisted(() => ({
             startDate: string;
             endDate: string;
             discountType: "rate";
-            discountValue: number;
+            discountValue: string;
             isActive: boolean;
           }[],
       isPending: true,
@@ -51,7 +51,7 @@ describe("CampaignSettings count states", () => {
           startDate: "2026-10-01",
           endDate: "2026-10-31",
           discountType: "rate",
-          discountValue: 10,
+          discountValue: "10",
           isActive: true,
         },
       ],

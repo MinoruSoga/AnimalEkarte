@@ -29,7 +29,7 @@ func TestCampaignRepository_Update_RollsBackWhenAmbientTxFails(t *testing.T) {
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	jul := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
 
-	c := &model.Campaign{ClinicID: clinicA, Name: "原子性テスト", StartDate: jun, EndDate: jul, DiscountValue: 10}
+	c := &model.Campaign{ClinicID: clinicA, Name: "原子性テスト", StartDate: jun, EndDate: jul, DiscountValue: exactNumericOf(10, 0)}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 
 	tx := testNewTransactor(db)
@@ -56,7 +56,7 @@ func TestCampaignRepository_UpdateAndReplaceTargets_RollBackTogether(t *testing.
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	jul := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
 
-	c := &model.Campaign{ClinicID: clinicA, Name: "グラフ原子性", StartDate: jun, EndDate: jul, DiscountValue: 5}
+	c := &model.Campaign{ClinicID: clinicA, Name: "グラフ原子性", StartDate: jun, EndDate: jul, DiscountValue: exactNumericOf(500, -2)}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)
 	require.NoError(t, db.WithContext(ctx).Create(&model.CampaignTargetCategory{
 		CampaignID: c.ID,
@@ -66,7 +66,7 @@ func TestCampaignRepository_UpdateAndReplaceTargets_RollBackTogether(t *testing.
 	tx := testNewTransactor(db)
 	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
 		name := "部分成功させない"
-		discount := 99.0
+		discount := exactNumericOf(9900, -2)
 		if _, err := repo.Update(txCtx, clinicA, c.ID, UpdateCampaignInput{Name: &name, DiscountValue: &discount}); err != nil {
 			return err
 		}
@@ -81,7 +81,7 @@ func TestCampaignRepository_UpdateAndReplaceTargets_RollBackTogether(t *testing.
 	var got model.Campaign
 	require.NoError(t, db.WithContext(ctx).First(&got, c.ID).Error)
 	assert.Equal(t, "グラフ原子性", got.Name)
-	assert.Equal(t, 5.0, got.DiscountValue)
+	assert.True(t, equalExactNumeric(exactNumericOf(500, -2), got.DiscountValue))
 
 	var catCount, itemCount int64
 	db.Model(&model.CampaignTargetCategory{}).Where("campaign_id = ?", c.ID).Count(&catCount)
@@ -104,7 +104,7 @@ func TestCampaignService_Update_AtomicFieldsAndTargets(t *testing.T) {
 		StartDate:     jun,
 		EndDate:       jul,
 		DiscountType:  model.CampaignDiscountTypeAmount,
-		DiscountValue: 100,
+		DiscountValue: exactNumericOf(100, 0),
 		IsActive:      true,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(c).Error)

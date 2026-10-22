@@ -12,7 +12,8 @@ function makeFormData(overrides: Partial<MerchandiseFormData> = {}): Merchandise
     category: "goods",
     unitPrice: 1200,
     taxType: "excluded",
-    taxRate: 0.1,
+    // EMR-530: tax_rate は exact decimal 文字列（10% は "0.1"）。
+    taxRate: "0.1",
     isActive: true,
     ...overrides,
   };
@@ -23,6 +24,16 @@ describe("buildMerchandiseCreateRequest", () => {
     const request = buildMerchandiseCreateRequest(makeFormData({ unitPrice: 0 }));
     expect(request.unit_price).toBe(0);
     expect(request).toHaveProperty("unit_price");
+  });
+
+  it("persists exact decimal tax_rate string without number conversion", () => {
+    const request = buildMerchandiseCreateRequest(makeFormData({ taxRate: "0.10" }));
+    expect(request.tax_rate).toBe("0.10");
+  });
+
+  it("persists explicit zero tax_rate without collapsing to default", () => {
+    const request = buildMerchandiseCreateRequest(makeFormData({ taxRate: "0" }));
+    expect(request.tax_rate).toBe("0");
   });
 
   it("persists unit_price 1200 for accounting merchandise selection", () => {

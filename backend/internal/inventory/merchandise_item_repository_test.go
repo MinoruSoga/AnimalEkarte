@@ -51,7 +51,7 @@ func makeMerchCampaign(t *testing.T, db *gorm.DB, clinicID uint64, name string, 
 		StartDate:     start,
 		EndDate:       end,
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 10,
+		DiscountValue: testTaxRateOf(10, 0),
 		IsActive:      isActive,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(c).Error)
@@ -67,7 +67,7 @@ func makeMerchCampaignTarget(t *testing.T, db *gorm.DB, campaignID, merchandiseI
 
 func makeMerchItem(t *testing.T, db *gorm.DB, clinicID uint64, name string, category model.ItemCategory) *model.MerchandiseItem {
 	t.Helper()
-	item := &model.MerchandiseItem{ClinicID: clinicID, Name: name, Category: category, UnitPrice: 1500, TaxRate: 0.10}
+	item := &model.MerchandiseItem{ClinicID: clinicID, Name: name, Category: category, UnitPrice: 1500, TaxRate: testTaxRateOf(10, -2)}
 	require.NoError(t, db.WithContext(context.Background()).Create(item).Error)
 	return item
 }
@@ -295,7 +295,7 @@ func seedMerchandiseItemsForBoundTest(t *testing.T, db *gorm.DB, clinicID uint64
 			Name:      fmt.Sprintf("bound-mi-%05d", i),
 			Category:  model.ItemCategoryGoods,
 			UnitPrice: 1000,
-			TaxRate:   0.10,
+			TaxRate:   testTaxRateOf(10, -2),
 			IsActive:  true,
 			SortOrder: i,
 		})
@@ -344,8 +344,8 @@ func TestMerchandiseItemRepository_FindAll_AppliesMaxMasterListRows(t *testing.T
 
 		// Cross-clinic rows that would sort first if clinic isolation regressed.
 		foreign := []model.MerchandiseItem{
-			{ClinicID: clinicB, Name: "aaa-other-clinic-1", Category: model.ItemCategoryGoods, UnitPrice: 1000, TaxRate: 0.10, IsActive: true, SortOrder: 0},
-			{ClinicID: clinicB, Name: "aaa-other-clinic-2", Category: model.ItemCategoryGoods, UnitPrice: 1000, TaxRate: 0.10, IsActive: true, SortOrder: 0},
+			{ClinicID: clinicB, Name: "aaa-other-clinic-1", Category: model.ItemCategoryGoods, UnitPrice: 1000, TaxRate: testTaxRateOf(10, -2), IsActive: true, SortOrder: 0},
+			{ClinicID: clinicB, Name: "aaa-other-clinic-2", Category: model.ItemCategoryGoods, UnitPrice: 1000, TaxRate: testTaxRateOf(10, -2), IsActive: true, SortOrder: 0},
 		}
 		require.NoError(t, db.WithContext(ctx).Create(&foreign).Error)
 

@@ -16,6 +16,18 @@ type DiscountSuggestion struct {
 	Amount        int64   `json:"amount"`         // 円換算の割引額
 }
 
+// exactNumericAsFloat64 は EMR-530 までの暫定adapter: 保存値 ExactNumeric を
+// 既存の float64 計算・応答 DTO（DiscountSuggestionsResponse / billing_items.discount_rate）
+// へ渡すための変換である。④（405/481/505）の exact calculator 採用時に置き換える。
+// 変換で丸めが発生し得る既存互換の経路であり、EMR-530 の master 保存・応答 exact 契約には関与しない。
+func exactNumericAsFloat64(v model.ExactNumeric) float64 {
+	value, err := v.Float64Value()
+	if err != nil || !value.Valid {
+		return 0
+	}
+	return value.Float64
+}
+
 // BuildDiscountSuggestions は明細小計・全適用キャンペーン・飼主割引率から選択肢を構築する。
 // 同一 calculated_amount の重複は除去しない（名前が異なるキャンペーンは個別に表示）。
 // Amount=0 の候補は除外する（割引なしは選択肢として意味がない）。
@@ -28,9 +40,9 @@ func BuildDiscountSuggestions(itemSubtotal int64, campaigns []*model.Campaign, o
 		var amount int64
 		switch c.DiscountType {
 		case model.CampaignDiscountTypeRate:
-			amount = int64(math.Round(float64(itemSubtotal) * c.DiscountValue / 100))
+			amount = int64(math.Round(float64(itemSubtotal) * exactNumericAsFloat64(c.DiscountValue) / 100))
 		case model.CampaignDiscountTypeAmount:
-			amount = int64(math.Round(c.DiscountValue))
+			amount = int64(math.Round(exactNumericAsFloat64(c.DiscountValue)))
 		}
 		amount = min(amount, itemSubtotal) // クランプ
 		if amount <= 0 {
@@ -42,7 +54,7 @@ func BuildDiscountSuggestions(itemSubtotal int64, campaigns []*model.Campaign, o
 			CampaignID:    &id,
 			Name:          c.Name,
 			DiscountType:  string(c.DiscountType),
-			DiscountValue: c.DiscountValue,
+			DiscountValue: exactNumericAsFloat64(c.DiscountValue),
 			Amount:        amount,
 		})
 	}
@@ -92,10 +104,10 @@ func ResolveItemDiscount(itemSubtotal int64, campaign *model.Campaign, ownerDisc
 	if campaign != nil {
 		switch campaign.DiscountType {
 		case model.CampaignDiscountTypeRate:
-			campaignDiscount = int64(math.Round(float64(itemSubtotal) * campaign.DiscountValue / 100))
-			campaignRate = campaign.DiscountValue
+			campaignDiscount = int64(math.Round(float64(itemSubtotal) * exactNumericAsFloat64(campaign.DiscountValue) / 100))
+			campaignRate = exactNumericAsFloat64(campaign.DiscountValue)
 		case model.CampaignDiscountTypeAmount:
-			campaignDiscount = int64(math.Round(campaign.DiscountValue))
+			campaignDiscount = int64(math.Round(exactNumericAsFloat64(campaign.DiscountValue)))
 		}
 	}
 

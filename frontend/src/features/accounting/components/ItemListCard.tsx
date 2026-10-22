@@ -138,6 +138,8 @@ export const ItemListCard = memo(function ItemListCard({
   const [manualNameError, setManualNameError] = useState("");
   const [manualCategoryError, setManualCategoryError] = useState("");
   const [manualOtherReasonError, setManualOtherReasonError] = useState("");
+  // EMR-530: master の税率が課税行wireへ無損失に変換できない商品の追加を止めるための状態。
+  const [merchandiseTaxError, setMerchandiseTaxError] = useState("");
 
   const { data: merchandiseItems = [] } = useGetAllMerchandiseItems();
 
@@ -157,6 +159,16 @@ export const ItemListCard = memo(function ItemListCard({
 
   const handleSelectMerchandise = useCallback(
     (item: FrontendMerchandiseItem) => {
+      // EMR-530: master の税率が課税行wire（number）へ無損失に変換できない場合、
+      // undefined のまま送ると axios が field を省略し、backend の既定 0.10 が
+      // 適用されて誤課税になる。行を作らず明示的なエラーで止める。
+      if (item.taxRate === undefined) {
+        setMerchandiseTaxError(
+          `${item.name} は税率が契約外の値のため追加できません（マスタの税率を見直してください）`,
+        );
+        return;
+      }
+      setMerchandiseTaxError("");
       onAddItem({
         name: item.name,
         price: String(item.unitPrice),
@@ -322,6 +334,12 @@ export const ItemListCard = memo(function ItemListCard({
                     </Select>
                   </div>
                   <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
+                    {merchandiseTaxError ? (
+                      <FormFieldError
+                        id="merchandise-tax-error"
+                        message={merchandiseTaxError}
+                      />
+                    ) : null}
                     {filteredMerchandise.length > 0 ? (
                       <Table>
                         <TableHeader>
@@ -344,11 +362,13 @@ export const ItemListCard = memo(function ItemListCard({
                                 {formatCurrency(item.unitPrice)}
                               </TableCell>
                               <TableCell className={`text-right ${C.text50}`}>
-                                {item.taxRate === DEFAULT_STANDARD_TAX_RATE
-                                  ? "10%"
-                                  : item.taxRate === DEFAULT_REDUCED_TAX_RATE
-                                    ? "8%"
-                                    : `${item.taxRate * 100}%`}
+                                {item.taxRate === undefined
+                                  ? "—"
+                                  : item.taxRate === DEFAULT_STANDARD_TAX_RATE
+                                    ? "10%"
+                                    : item.taxRate === DEFAULT_REDUCED_TAX_RATE
+                                      ? "8%"
+                                      : `${item.taxRate * 100}%`}
                               </TableCell>
                               <TableCell>
                                 <DataTableRowButton

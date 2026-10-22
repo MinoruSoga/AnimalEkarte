@@ -269,7 +269,8 @@ export const CampaignSidePanel = memo(function CampaignSidePanel({
           onChange={(v) =>
             setFormDataDirty((prev) => ({
               ...prev,
-              discountValue: Math.max(0, Number(v) || 0),
+              // EMR-530: 入力字句を number 化せずそのまま保持する（不正値はAPI契約で400）。
+              discountValue: v,
             }))
           }
         />

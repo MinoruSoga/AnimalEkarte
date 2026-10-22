@@ -18,7 +18,8 @@ interface BackendCampaign {
   start_date: string; // YYYY-MM-DD
   end_date: string; // YYYY-MM-DD
   discount_type: CampaignDiscountType;
-  discount_value: number;
+  // EMR-530: 有限な非負 exact decimal 文字列（採択483の十進輸送）。number は送受信しない。
+  discount_value: string;
   is_active: boolean;
   sort_order: number;
   target_categories: string[];
@@ -30,7 +31,8 @@ export interface CreateCampaignRequest {
   start_date: string;
   end_date: string;
   discount_type: CampaignDiscountType;
-  discount_value: number;
+  // EMR-530: 有限な非負 exact decimal 文字列。旧 number wire への黙った変換はしない。
+  discount_value: string;
   is_active?: boolean;
   sort_order?: number;
   target_categories?: string[];

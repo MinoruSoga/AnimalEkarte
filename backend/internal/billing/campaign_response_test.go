@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -18,7 +19,7 @@ func TestToCampaignResponse(t *testing.T) {
 			StartDate:     time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
 			EndDate:       time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC),
 			DiscountType:  model.CampaignDiscountTypeRate,
-			DiscountValue: 10,
+			DiscountValue: campaignExactValue(t, "10"),
 			IsActive:      true,
 			SortOrder:     3,
 			TargetCategories: []model.CampaignTargetCategory{
@@ -31,7 +32,8 @@ func TestToCampaignResponse(t *testing.T) {
 			},
 		}
 
-		resp := toCampaignResponse(m)
+		resp, err := toCampaignResponse(m)
+		require.NoError(t, err)
 
 		assert.Equal(t, uint64(1), resp.ID)
 		assert.Equal(t, uint64(2), resp.ClinicID)
@@ -39,7 +41,7 @@ func TestToCampaignResponse(t *testing.T) {
 		assert.Equal(t, "2026-07-01", resp.StartDate)
 		assert.Equal(t, "2026-08-31", resp.EndDate)
 		assert.Equal(t, "rate", resp.DiscountType)
-		assert.Equal(t, 10.0, resp.DiscountValue)
+		assert.Equal(t, "10", resp.DiscountValue)
 		assert.True(t, resp.IsActive)
 		assert.Equal(t, 3, resp.SortOrder)
 		assert.Equal(t, []string{"examination", "medicine"}, resp.TargetCategories)
@@ -54,9 +56,13 @@ func TestToCampaignResponse(t *testing.T) {
 			StartDate:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 			EndDate:      time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC),
 			DiscountType: model.CampaignDiscountTypeAmount,
+			// 無targets応答の検査には有効な exact 0 を設定する（無指定の ExactNumeric は
+			// 異常値としてエラー伝播するため）。
+			DiscountValue: campaignExactValue(t, "0"),
 		}
 
-		resp := toCampaignResponse(m)
+		resp, err := toCampaignResponse(m)
+		require.NoError(t, err)
 
 		assert.Empty(t, resp.TargetCategories)
 		assert.Empty(t, resp.TargetItemIDs)

@@ -17,7 +17,8 @@ interface LegacyMerchandiseItemResponse {
   category: ItemCategory;
   unit_price: number;
   tax_type: TaxType;
-  tax_rate: number;
+  // EMR-530: 有限な非負 exact decimal 文字列（採択405・483の十進輸送、api.yaml #806）。
+  tax_rate: string;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -35,8 +36,53 @@ export interface FrontendMerchandiseItem {
   category: string;
   unitPrice: number;
   taxType: TaxType;
-  taxRate: number;
+  // 課税行の既定税率は number wire（billing_item は EMR-530 で変更しない）のため
+  // master の exact decimal 文字列を表示・伝播用に数値化する。契約外の字句は
+  // 数値化せず undefined にする（0 扱いで捏造しない）。
+  taxRate: number | undefined;
   isActive: boolean;
+}
+
+// parseExactDecimal は exact decimal 文字列を課税行wire（number）用に数値化する。
+// binary64 で無損失に表現できない字句（"0.10000000000000001" 等）は丸めて伝播すると
+// 誤課税になるため undefined（fail closed）にする。round-trip で同一の十進値のときだけ数値を返す。
+// String(number) が指数表記（例: "1e-7"）になる極小値は展開してから比較する。
+function parseExactDecimal(text: string): number | undefined {
+  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return undefined;
+  const asNumber = Number(text);
+  const plain = plainDecimalFromNumber(asNumber);
+  return plain !== null && canonicalDecimal(plain) === canonicalDecimal(text) ? asNumber : undefined;
+}
+
+// plainDecimalFromNumber は String(number) の指数表記を十進リテラルへ展開する（比較専用）。
+function plainDecimalFromNumber(value: number): string | null {
+  if (!Number.isFinite(value)) return null;
+  const s = String(value);
+  const m = /^(-?)(\d+)(?:\.(\d+))?e([+-]?\d+)$/i.exec(s);
+  if (!m) return s;
+  const [, sign, intPart, fracPart = "", expStr] = m;
+  const exp = Number(expStr);
+  const digits = intPart + fracPart;
+  const point = intPart.length + exp;
+  let out: string;
+  if (point <= 0) {
+    out = `0.${"0".repeat(-point)}${digits}`;
+  } else if (point >= digits.length) {
+    out = digits + "0".repeat(point - digits.length);
+  } else {
+    out = `${digits.slice(0, point)}.${digits.slice(point)}`;
+  }
+  return (sign === "-" ? "-" : "") + out;
+}
+
+export { parseExactDecimal };
+
+function canonicalDecimal(text: string): string | null {
+  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return null;
+  const [intPart, fracPart = ""] = text.split(".");
+  const frac = fracPart.replace(/0+$/, "");
+  if (frac === "") return intPart;
+  return `${intPart}.${frac}`;
 }
 
 function transformMerchandiseItem(item: LegacyMerchandiseItemResponse): FrontendMerchandiseItem {
@@ -47,7 +93,7 @@ function transformMerchandiseItem(item: LegacyMerchandiseItemResponse): Frontend
     unitPrice: item.unit_price,
     // EMR-65: マスタ登録の税区分を欠落させない（excluded 一律潰しの回帰防止）
     taxType: item.tax_type,
-    taxRate: item.tax_rate,
+    taxRate: parseExactDecimal(item.tax_rate),
     isActive: item.is_active,
   };
 }

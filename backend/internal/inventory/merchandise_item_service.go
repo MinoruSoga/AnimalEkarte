@@ -52,8 +52,8 @@ type CreateMerchandiseItemInput struct {
 	Name      string
 	Category  string
 	UnitPrice int64
-	TaxType   string   // "" → "excluded" (default)
-	TaxRate   *float64 // nil → 0.10 (default)
+	TaxType   string // "" → "excluded" (default)
+	TaxRate   *model.ExactNumeric // nil → 0.10 (default)
 	IsActive  bool
 	SortOrder int
 }
@@ -64,7 +64,7 @@ type UpdateMerchandiseItemInput struct {
 	Category  *string
 	UnitPrice *int64
 	TaxType   *string
-	TaxRate   *float64
+	TaxRate   *model.ExactNumeric
 	IsActive  *bool
 	SortOrder *int
 }
@@ -142,8 +142,11 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	if input.TaxType != "" {
 		taxType = model.TaxType(input.TaxType)
 	}
-	taxRate := sharedkernel.DefaultTaxRate
+	taxRate := defaultMerchandiseTaxRate()
 	if input.TaxRate != nil {
+		if err := validateMerchandiseTaxRate(*input.TaxRate); err != nil {
+			return nil, err
+		}
 		taxRate = *input.TaxRate
 	}
 	item := &model.MerchandiseItem{
@@ -180,6 +183,12 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
+	}
+	// 旧 wire の binding max=1 に代わる exact 比較による入力範囲検査（EMR-530）。
+	if input.TaxRate != nil {
+		if err := validateMerchandiseTaxRate(*input.TaxRate); err != nil {
+			return nil, err
+		}
 	}
 	fields := buildMerchandiseItemUpdate(input)
 	if len(fields) == 0 {
