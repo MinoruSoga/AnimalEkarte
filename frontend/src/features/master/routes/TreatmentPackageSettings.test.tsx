@@ -793,3 +793,58 @@ describe("B2-02 Q1 fixtures: 9,999件・pending/error/版なしで PATCH しな�
     expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
 });
+
+describe("B3-01: 比較取得待機中の医院切替（clear + reload 相当）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+    kindPermission = {};
+  });
+
+  it("遅延 detail GET は新ツリーへ引き継がれず・自動送信もしない", async () => {
+    const user = userEvent.setup();
+    let resolveDetail!: (v: unknown) => void;
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? new Promise((r) => {
+            resolveDetail = r;
+          })
+        : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
+    );
+    vi.mocked(axios.patch).mockRejectedValue(apiError(409));
+    const first = render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "自分の入力");
+    await user.click(screen.getByText("保存"));
+    await screen.findByText(/最新を取得しています/);
+
+    // 医院切替の契約（clinic-selection-recovery.ts）: queryClient.clear() + フル reload。
+    // テストでは unmount + 新 QueryClient で代替する（jsdom で location.reload は不可）。
+    await act(async () => {
+      first.client.clear();
+      first.unmount();
+    });
+
+    // 新医院の一覧（別 package）。旧 pending GET はまだ未解決。
+    vi.mocked(axios.get).mockImplementation(() =>
+      Promise.resolve({ data: { items: [pkg("301", "別医院セット")], order_version: "41" } }),
+    );
+    render_();
+    expect(await screen.findByText("別医院セット")).toBeTruthy();
+    expect(screen.queryByText("セットA")).toBeNull();
+
+    // 旧医院の遅延 detail GET を後から解決しても新ツリーへ適用されない。
+    await act(async () => {
+      resolveDetail({ data: { ...pkg("201", "最新名"), version: "5" } });
+    });
+    await act(async () => {});
+    expect(screen.queryByText("あなたの入力")).toBeNull();
+    expect(screen.queryByText(/最新を採用/)).toBeNull();
+    expect(screen.queryByDisplayValue("自分の入力")).toBeNull();
+    // 切替後に PATCH/POST は送られない（旧 draft の自動再送・自動保存なし）。
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 切替前の 409 PATCH のみ
+    expect(vi.mocked(axios.post)).not.toHaveBeenCalled();
+  });
+});

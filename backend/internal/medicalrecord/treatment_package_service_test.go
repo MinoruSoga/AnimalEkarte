@@ -384,6 +384,58 @@ func TestTreatmentPackageService_Reorder_RejectedBeyondListCapZeroWrite(t *testi
 	})
 }
 
+// B3-01: 取得後に一覧が変わった（増減した）旧リクエストは zero-write で拒否する。
+// クライアントが取得時の N 件の完全 permutation を送っても、lock 時点の全件と
+// 件数が一致しなければ受理しない。
+func TestTreatmentPackageService_Reorder_ChangedAfterFetchZeroWrite(t *testing.T) {
+	mkRepo := func(locked []model.TreatmentPackage, reorderCalled, incCalled *bool) *mockTreatmentPackageRepo {
+		return &mockTreatmentPackageRepo{
+			lockClinicFn:  func(context.Context, uint64) error { return nil },
+			lockCatalogFn: func(context.Context, uint64) (int64, error) { return 9, nil },
+			lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
+				return locked, nil
+			},
+			liveItemsFn:  func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
+			reorderFn:    func(context.Context, uint64, uint64, int, uint64) error { *reorderCalled = true; return nil },
+			incCatalogFn: func(context.Context, uint64, int64) error { *incCalled = true; return nil },
+		}
+	}
+	run := func(t *testing.T, locked []model.TreatmentPackage, ids []uint64) (error, *mockPackageAudit, bool, bool) {
+		reorderCalled := false
+		incCalled := false
+		repo := mkRepo(locked, &reorderCalled, &incCalled)
+		svc, audit := newPackageService(repo, nil)
+		err := svc.Reorder(context.Background(), 7, 9, ids, 5)
+		return err, audit, reorderCalled, incCalled
+	}
+	assertZeroWrite := func(t *testing.T, audit *mockPackageAudit, reorderCalled, incCalled bool) {
+		assert.False(t, reorderCalled, "UpdateSortOrderBumpVersion must not run")
+		assert.False(t, incCalled, "IncrementCatalogRevision must not run")
+		assert.Empty(t, audit.entries, "audit must not run")
+	}
+
+	t.Run("added after fetch", func(t *testing.T) {
+		locked := []model.TreatmentPackage{
+			{ID: 1, ClinicID: 7, IsActive: true, SortOrder: 1},
+			{ID: 2, ClinicID: 7, IsActive: true, SortOrder: 2},
+			{ID: 3, ClinicID: 7, IsActive: true, SortOrder: 3},
+			{ID: 4, ClinicID: 7, IsActive: true, SortOrder: 4}, // 取得後に追加された1件
+		}
+		err, audit, reorderCalled, incCalled := run(t, locked, []uint64{1, 2, 3})
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+	t.Run("removed after fetch", func(t *testing.T) {
+		locked := []model.TreatmentPackage{
+			{ID: 1, ClinicID: 7, IsActive: true, SortOrder: 1},
+			{ID: 2, ClinicID: 7, IsActive: true, SortOrder: 2}, // id 3 は取得後に削除済み
+		}
+		err, audit, reorderCalled, incCalled := run(t, locked, []uint64{1, 2, 3})
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+}
+
 // F1: components 未指定の update でも lock 済み package の live items を書込み前に検査する。
 // 権限不足の型を含む場合は 403 で全体非開示（zero-write）。
 func TestTreatmentPackageService_Update_MetadataOnlyDeniedLiveKindForbidden(t *testing.T) {
