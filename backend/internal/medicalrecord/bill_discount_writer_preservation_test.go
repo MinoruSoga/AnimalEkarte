@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"strings"
 	"testing"
@@ -31,6 +32,13 @@ type bdwpCapture struct {
 	writes []bdwpWrite
 }
 
+// bdwpFakeTx は DryRun session を「既存 TX 内」に見せる ConnPool。
+// Transaction() が real Begin せず nested 経路へ進み、SAVEPOINT も DryRun で no-op。
+type bdwpFakeTx struct{ *sql.DB }
+
+func (bdwpFakeTx) Commit() error { return nil }
+func (bdwpFakeTx) Rollback() error { return nil }
+
 func bdwpTableName(tx *gorm.DB) string {
 	if tx.Statement.Table != "" {
 		return tx.Statement.Table
@@ -57,6 +65,7 @@ func bdwpNewDB(t *testing.T) (*gorm.DB, *bdwpCapture) {
 	conn, err := db.DB()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = conn.Close() })
+	db.Statement.ConnPool = bdwpFakeTx{conn}
 	cap := &bdwpCapture{}
 	record := func(op string) func(*gorm.DB) {
 		return func(tx *gorm.DB) {
@@ -199,7 +208,10 @@ func TestBillDiscountWriterPreservation_Consultation(t *testing.T) {
 			return repo.Delete(ctx, 7, 5)
 		}},
 		{name: "create is_active compensation UPDATE", table: "consultations", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.Consultation{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.Consultation{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+		}},
+		{name: "reorder sort_order", table: "consultations", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
 		}},
 	}
 	bdwpRunPreservationFixtures(t, map[string]bool{"consultations": true}, entrances,
@@ -220,7 +232,7 @@ func TestBillDiscountWriterPreservation_ExaminationType(t *testing.T) {
 			return repo.Delete(ctx, 7, 5)
 		}},
 		{name: "create is_active compensation UPDATE", table: "exam_types", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.ExaminationType{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.ExaminationType{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
 		}},
 		{name: "field update stays on exam_type_fields", table: "exam_type_fields", run: func(ctx context.Context) error {
 			_, err := repo.UpdateField(ctx, 7, 5, 3, map[string]any{"name": "field"})
@@ -228,6 +240,9 @@ func TestBillDiscountWriterPreservation_ExaminationType(t *testing.T) {
 		}},
 		{name: "field delete stays on exam_type_fields", table: "exam_type_fields", run: func(ctx context.Context) error {
 			return repo.DeleteField(ctx, 7, 5, 3)
+		}},
+		{name: "reorder sort_order", table: "exam_types", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
 		}},
 	}
 	bdwpRunPreservationFixtures(t, map[string]bool{"exam_types": true, "exam_type_fields": true}, entrances,
@@ -248,7 +263,10 @@ func TestBillDiscountWriterPreservation_Procedure(t *testing.T) {
 			return repo.Delete(ctx, 7, 5)
 		}},
 		{name: "create is_active compensation UPDATE", table: "procedures", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.Procedure{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.Procedure{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+		}},
+		{name: "reorder sort_order", table: "procedures", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
 		}},
 	}
 	bdwpRunPreservationFixtures(t, map[string]bool{"procedures": true}, entrances,
@@ -269,7 +287,10 @@ func TestBillDiscountWriterPreservation_Vaccine(t *testing.T) {
 			return repo.Delete(ctx, 7, 5)
 		}},
 		{name: "create is_active compensation UPDATE", table: "vaccines", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.Vaccine{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.Vaccine{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+		}},
+		{name: "reorder sort_order", table: "vaccines", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
 		}},
 	}
 	bdwpRunPreservationFixtures(t, map[string]bool{"vaccines": true}, entrances,
@@ -290,7 +311,10 @@ func TestBillDiscountWriterPreservation_CheckupType(t *testing.T) {
 			return repo.Delete(ctx, 7, 5)
 		}},
 		{name: "create is_active compensation UPDATE", table: "checkup_types", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.CheckupType{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.CheckupType{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+		}},
+		{name: "reorder sort_order", table: "checkup_types", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
 		}},
 	}
 	bdwpRunPreservationFixtures(t, map[string]bool{"checkup_types": true}, entrances,
@@ -311,7 +335,10 @@ func TestBillDiscountWriterPreservation_Medicine(t *testing.T) {
 			return repo.Delete(ctx, 7, 5)
 		}},
 		{name: "create is_active compensation UPDATE", table: "medicines", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.Medicine{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.Medicine{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+		}},
+		{name: "reorder sort_order", table: "medicines", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
 		}},
 	}
 	bdwpRunPreservationFixtures(t, map[string]bool{"medicines": true}, entrances,

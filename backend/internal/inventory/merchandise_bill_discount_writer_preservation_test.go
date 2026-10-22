@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"strings"
 	"testing"
@@ -31,6 +32,13 @@ type mbdwpCapture struct {
 	writes []mbdwpWrite
 }
 
+// mbdwpFakeTx は DryRun session を「既存 TX 内」に見せる ConnPool。
+// Transaction() が real Begin せず nested 経路へ進み、SAVEPOINT も DryRun で no-op。
+type mbdwpFakeTx struct{ *sql.DB }
+
+func (mbdwpFakeTx) Commit() error { return nil }
+func (mbdwpFakeTx) Rollback() error { return nil }
+
 func mbdwpTableName(tx *gorm.DB) string {
 	if tx.Statement.Table != "" {
 		return tx.Statement.Table
@@ -57,6 +65,7 @@ func mbdwpNewDB(t *testing.T) (*gorm.DB, *mbdwpCapture) {
 	conn, err := db.DB()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = conn.Close() })
+	db.Statement.ConnPool = mbdwpFakeTx{conn}
 	cap := &mbdwpCapture{}
 	record := func(op string) func(*gorm.DB) {
 		return func(tx *gorm.DB) {
@@ -192,11 +201,17 @@ func TestBillDiscountWriterPreservation_MerchandiseItem(t *testing.T) {
 	name := "renamed"
 	entrances := []mbdwpEntrance{
 		{name: "PATCH omitted (name only)", table: "merchandise_items", run: func(ctx context.Context) error {
-			cmd := UpdateMerchandiseItemInput{Name: &name}
-			return repo.update(ctx, 7, 5, buildMerchandiseItemUpdate(&cmd), cmd.Version)
+			_, err := repo.Update(ctx, 7, 5, UpdateMerchandiseItemInput{Name: &name})
+			return err
 		}},
 		{name: "create is_active compensation UPDATE", table: "merchandise_items", run: func(ctx context.Context) error {
-			return repo.Create(ctx, &model.MerchandiseItem{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+			return repo.Create(ctx, &model.MerchandiseItem{ID: 5, ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
+		}},
+		{name: "reorder sort_order", table: "merchandise_items", run: func(ctx context.Context) error {
+			return repo.Reorder(ctx, 7, []uint64{5, 6})
+		}},
+		{name: "delete guarded by reference checks", table: "merchandise_items", run: func(ctx context.Context) error {
+			return repo.Delete(ctx, 7, 5)
 		}},
 	}
 	mbdwpRunPreservationFixtures(t, map[string]bool{"merchandise_items": true}, entrances,
