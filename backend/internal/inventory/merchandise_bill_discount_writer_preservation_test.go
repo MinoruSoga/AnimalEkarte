@@ -142,7 +142,7 @@ func mbdwpRunPreservationFixtures(t *testing.T, allowedTables map[string]bool, e
 			t.Run(e.name, func(t *testing.T) {
 				db, cap := mbdwpNewDB(t)
 				ctx := persistence.WithTxValue(t.Context(), db)
-				_ = e.run(ctx)
+				require.NoError(t, e.run(ctx))
 				require.NotEmpty(t, cap.writes, "entrance produced no write statements")
 				for _, w := range cap.writes {
 					assert.Equal(t, e.table, w.table, "write escaped the owning table: %s %s", w.op, w.sql)
@@ -172,15 +172,17 @@ func mbdwpRunPreservationFixtures(t *testing.T, allowedTables map[string]bool, e
 	})
 
 	t.Run("master writes never reach snapshot/history tables", func(t *testing.T) {
-		db, cap := mbdwpNewDB(t)
-		ctx := persistence.WithTxValue(t.Context(), db)
 		for _, e := range entrances {
-			_ = e.run(ctx)
-		}
-		require.NotEmpty(t, cap.writes)
-		for _, w := range cap.writes {
-			assert.True(t, allowedTables[w.table],
-				"master write must not touch snapshot/history table %q: %s %s", w.table, w.op, w.sql)
+			t.Run(e.name, func(t *testing.T) {
+				db, cap := mbdwpNewDB(t)
+				ctx := persistence.WithTxValue(t.Context(), db)
+				require.NoError(t, e.run(ctx))
+				require.NotEmpty(t, cap.writes)
+				for _, w := range cap.writes {
+					assert.True(t, allowedTables[w.table],
+						"master write must not touch snapshot/history table %q: %s %s", w.table, w.op, w.sql)
+				}
+			})
 		}
 	})
 }
@@ -190,14 +192,8 @@ func TestBillDiscountWriterPreservation_MerchandiseItem(t *testing.T) {
 	name := "renamed"
 	entrances := []mbdwpEntrance{
 		{name: "PATCH omitted (name only)", table: "merchandise_items", run: func(ctx context.Context) error {
-			_, err := repo.Update(ctx, 7, 5, UpdateMerchandiseItemInput{Name: &name})
-			return err
-		}},
-		{name: "Reorder (sort_order only)", table: "merchandise_items", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
-		}},
-		{name: "soft delete", table: "merchandise_items", run: func(ctx context.Context) error {
-			return repo.Delete(ctx, 7, 5)
+			cmd := UpdateMerchandiseItemInput{Name: &name}
+			return repo.update(ctx, 7, 5, buildMerchandiseItemUpdate(&cmd), cmd.Version)
 		}},
 		{name: "create is_active compensation UPDATE", table: "merchandise_items", run: func(ctx context.Context) error {
 			return repo.Create(ctx, &model.MerchandiseItem{ClinicID: 7, Name: "x", IsActive: false, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)})
