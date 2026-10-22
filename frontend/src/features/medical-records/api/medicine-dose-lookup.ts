@@ -35,7 +35,10 @@ const getMedicineDoseParams = async (
 };
 
 /** カルテの治療行が継続的に参照するための React Query 版（キャッシュ共有・自動再取得）。 */
-export const useGetMedicineDoseParams = (medicineId: string | null | undefined, clinicId?: string) => {
+export const useGetMedicineDoseParams = (
+  medicineId: string | null | undefined,
+  clinicId?: string,
+) => {
   return useQuery({
     queryKey: medicineDoseParamsQueryKey(medicineId ?? "", clinicId),
     queryFn: () => getMedicineDoseParams(medicineId as string, clinicId),
