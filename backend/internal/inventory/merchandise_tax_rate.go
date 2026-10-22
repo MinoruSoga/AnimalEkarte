@@ -26,7 +26,11 @@ const (
 	merchandiseTaxRateErrMsgNotString = "tax_rate には10進数の文字列を指定してください（数値型は指定できません）"
 	merchandiseTaxRateErrMsgInvalid   = "tax_rate には有限な非負の10進数文字列を指定してください（例: \"0.10\"。符号・指数表記は使えません）"
 	merchandiseTaxRateErrMsgRange     = "tax_rate は0以上1以下で指定してください"
+	merchandiseTaxRateErrMsgScale     = "tax_rate の小数部が長すぎます（PostgreSQL numeric の scale 上限 16383 を超える値は保存できません）"
 )
+
+// maxTaxRateScale は PostgreSQL numeric の scale 上限（docs: CREATE TYPE numeric 精度制限）。
+const maxTaxRateScale = 16383
 
 // UnmarshalJSON は tax_rate の wire token を検査して ExactNumeric へ変換する。
 func (d *merchandiseTaxRateDTO) UnmarshalJSON(data []byte) error {
@@ -67,11 +71,15 @@ func defaultMerchandiseTaxRate() model.ExactNumeric {
 
 // parseMerchandiseTaxRate は有限な非負 exact decimal 文字列（api.yaml pattern
 // ^(0|[1-9][0-9]*)(\.[0-9]+)?$）を無損失で ExactNumeric へ変換する。
-// 税率列に固定 scale は無いため精度をそのまま保持し、丸め・桁落ちを起こさない。
+// 税率列に固定 scale は無いため精度をそのまま保持するが、PostgreSQL numeric の
+// scale 上限（16383）を超える字句は保存できないため入口で拒否する。
 func parseMerchandiseTaxRate(text string) (model.ExactNumeric, error) {
 	intPart, fracPart, found := strings.Cut(text, ".")
 	if !validTaxRateDigits(intPart) || (found && (fracPart == "" || !allTaxRateDigits(fracPart))) {
 		return model.ExactNumeric{}, apperrors.WrapInvalidInput(merchandiseTaxRateErrMsgInvalid)
+	}
+	if len(fracPart) > maxTaxRateScale {
+		return model.ExactNumeric{}, apperrors.WrapInvalidInput(merchandiseTaxRateErrMsgScale)
 	}
 	digits := intPart + fracPart
 	intValue, ok := new(big.Int).SetString(digits, 10)

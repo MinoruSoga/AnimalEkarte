@@ -3,6 +3,7 @@ package inventory
 import (
 	"encoding/json"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,6 +70,14 @@ func TestParseMerchandiseTaxRate_Contract(t *testing.T) {
 		_, err := parseMerchandiseTaxRate(text)
 		assert.Error(t, err, text)
 	}
+	// PostgreSQL numeric の scale 上限を超える小数は保存不能として入口で拒否する。
+	tooLongScale := "0." + strings.Repeat("1", 16384)
+	_, err := parseMerchandiseTaxRate(tooLongScale)
+	assert.Error(t, err)
+	atScaleLimit := "0." + strings.Repeat("3", 16383)
+	got, err := parseMerchandiseTaxRate(atScaleLimit)
+	require.NoError(t, err)
+	assert.Equal(t, int32(-16383), got.Exp)
 }
 
 func TestCreateMerchandiseItemRequest_TaxRateContract(t *testing.T) {

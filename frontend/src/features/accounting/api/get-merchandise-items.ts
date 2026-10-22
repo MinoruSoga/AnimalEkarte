@@ -43,8 +43,21 @@ export interface FrontendMerchandiseItem {
   isActive: boolean;
 }
 
+// parseExactDecimal は exact decimal 文字列を課税行wire（number）用に数値化する。
+// binary64 で無損失に表現できない字句（"0.10000000000000001" 等）は丸めて伝播すると
+// 誤課税になるため undefined（fail closed）にする。round-trip で同一の十進値のときだけ数値を返す。
 function parseExactDecimal(text: string): number | undefined {
-  return /^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text) ? Number(text) : undefined;
+  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return undefined;
+  const asNumber = Number(text);
+  return canonicalDecimal(String(asNumber)) === canonicalDecimal(text) ? asNumber : undefined;
+}
+
+function canonicalDecimal(text: string): string | null {
+  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return null;
+  const [intPart, fracPart = ""] = text.split(".");
+  const frac = fracPart.replace(/0+$/, "");
+  if (frac === "") return intPart;
+  return `${intPart}.${frac}`;
 }
 
 function transformMerchandiseItem(item: LegacyMerchandiseItemResponse): FrontendMerchandiseItem {
