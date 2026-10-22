@@ -75,4 +75,84 @@ func TestLineAcceptanceVersionRealDB(t *testing.T) {
 	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET acceptance_version = 42 WHERE clinic_id = ?`, clinic).Error)
 	require.NoError(t, db.Raw(`SELECT acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).Scan(&acceptance).Error)
 	require.EqualValues(t, 3, acceptance, "writer-supplied version is ignored")
+
+	// Confirmed (acceptance = reviewed): a true no-op keeps both unchanged.
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET status = status WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 3, acceptance, "confirmed no-op must not advance the version")
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 3, *reviewed)
+
+	// Confirmed + P change without reviewed: the version advances once and
+	// reviewed stays behind (back to legacy-unreviewed).
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET national_holiday_closed = true WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 4, acceptance)
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 3, *reviewed)
+
+	// Re-confirm to configured (reviewed := expected+1).
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET reviewed_acceptance_version = 5 WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 5, acceptance)
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 5, *reviewed)
+
+	// Confirmed + reviewed := NULL: the stored marker is restored (confirmation
+	// cannot be cleared) and the version does not move.
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET reviewed_acceptance_version = NULL WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 5, acceptance)
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 5, *reviewed, "reviewed := NULL restores the stored marker")
+
+	// P change + reviewed := expected+1 in a single UPDATE: one increment with
+	// reviewed equal to the resulting version (the confirm/update write path).
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET break_hours = '[]', reviewed_acceptance_version = 6 WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 6, acceptance, "P change + confirm in one update increments exactly once")
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 6, *reviewed)
+
+	// Each protected field P individually advances the version once. A fresh
+	// row starts at acceptance 1 / legacy-unreviewed; values below differ from
+	// the 001_init.sql column defaults while satisfying its types (no extra
+	// CHECKs exist on these columns) and the app-level enum/JSON shapes.
+	clinicP := lineTimeSeedClinic(t, db, "009-line-p-fields")
+	require.NoError(t, db.Exec(`INSERT INTO line_reservation_settings (clinic_id) VALUES (?)`, clinicP).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinicP).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 1, acceptance)
+	require.Nil(t, reviewed)
+
+	pChanges := []struct {
+		name string
+		set  string
+	}{
+		{"status", `status = 'running'`},
+		{"closed_weekdays", `closed_weekdays = '[0]'`},
+		{"closed_dates", `closed_dates = '["2026-12-25"]'`},
+		{"national_holiday_closed", `national_holiday_closed = true`},
+		{"business_hours", `business_hours = '{"start":"1000","end":"1800"}'`},
+		{"business_hours_by_weekday", `business_hours_by_weekday = '{"1":{"start":"0900","end":"1200"}}'`},
+		{"break_hours", `break_hours = '[{"start":"1300","end":"1400"}]'`},
+		{"booking_window_max_days", `booking_window_max_days = 60`},
+		{"booking_window_min_days", `booking_window_min_days = 1`},
+		{"time_slot_mode", `time_slot_mode = 'allow_gaps'`},
+		{"time_slot_interval_minutes", `time_slot_interval_minutes = 30`},
+		{"show_no_staff_option", `show_no_staff_option = false`},
+	}
+	for i, pc := range pChanges {
+		require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET `+pc.set+` WHERE clinic_id = ?`, clinicP).Error,
+			"P field %s must update cleanly", pc.name)
+		require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinicP).
+			Row().Scan(&acceptance, &reviewed))
+		require.EqualValues(t, i+2, acceptance, "P field %s must advance the version once", pc.name)
+		require.Nil(t, reviewed, "unconfirmed P field %s change stays legacy-unreviewed", pc.name)
+	}
 }

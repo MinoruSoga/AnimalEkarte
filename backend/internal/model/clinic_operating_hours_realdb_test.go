@@ -15,10 +15,12 @@ package model_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
@@ -123,24 +125,48 @@ func TestClinicOperatingHoursRealDB(t *testing.T) {
 	conn, err := sqlDB.Conn(ctx)
 	require.NoError(t, err)
 	defer conn.Close()
-	const role = "rls_probe_008"
+	// Roles are cluster-global (pg_authid), not per-database, so a leftover
+	// from an earlier run must not collide: the probe role name is unique per
+	// test run (same convention as disposable001DatabaseName).
+	role := fmt.Sprintf("rls_probe_008_%d", time.Now().UnixNano())
 	if _, err := conn.ExecContext(ctx, fmt.Sprintf(`CREATE ROLE %s NOLOGIN`, role)); err != nil {
-		t.Skipf("CREATEROLE unavailable in this environment; RLS visibility check skipped: %v", err)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42501" {
+			t.Skipf("CREATEROLE unavailable in this environment; RLS visibility check skipped: %v", err)
+		}
+		t.Fatalf("create RLS probe role %s: %v", role, err)
 	}
+	// The role lives in the shared cluster catalog and outlives the disposable
+	// DB drop. DROP ROLE fails while the GRANT below still exists, so cleanup
+	// must revoke privileges first, then drop; failures are reported, not
+	// swallowed.
 	t.Cleanup(func() {
 		cleanupConn, cerr := sqlDB.Conn(ctx)
-		if cerr == nil {
-			defer cleanupConn.Close()
-			_, _ = cleanupConn.ExecContext(ctx, fmt.Sprintf(`DROP ROLE IF EXISTS %s`, role))
+		if cerr != nil {
+			t.Errorf("RLS probe cleanup: acquire owner connection: %v", cerr)
+			return
+		}
+		defer cleanupConn.Close()
+		if _, cerr := cleanupConn.ExecContext(ctx, fmt.Sprintf(`REVOKE ALL ON clinic_operating_hours FROM %s`, role)); cerr != nil {
+			t.Errorf("RLS probe cleanup: revoke privileges from %s: %v", role, cerr)
+		}
+		if _, cerr := cleanupConn.ExecContext(ctx, fmt.Sprintf(`DROP ROLE IF EXISTS %s`, role)); cerr != nil {
+			t.Errorf("RLS probe cleanup: drop role %s: %v", role, cerr)
 		}
 	})
 	_, err = conn.ExecContext(ctx, fmt.Sprintf(`GRANT SELECT ON clinic_operating_hours TO %s`, role))
 	require.NoError(t, err)
-	_, err = conn.ExecContext(ctx, fmt.Sprintf(`SET ROLE %s`, role))
+	// Probe inside a dedicated transaction: SET LOCAL ROLE and a local
+	// set_config never outlive the rollback, so the pooled session keeps no
+	// role/GUC residue when the connection is returned.
+	probeTx, err := conn.BeginTx(ctx, nil)
 	require.NoError(t, err)
-	_, err = conn.ExecContext(ctx, fmt.Sprintf(`SET app.current_clinic_ids = '%d'`, clinicA))
+	defer func() { _ = probeTx.Rollback() }()
+	_, err = probeTx.ExecContext(ctx, fmt.Sprintf(`SET LOCAL ROLE %s`, role))
+	require.NoError(t, err)
+	_, err = probeTx.ExecContext(ctx, fmt.Sprintf(`SELECT set_config('app.current_clinic_ids', '%d', true)`, clinicA))
 	require.NoError(t, err)
 	var visible int64
-	require.NoError(t, conn.QueryRowContext(ctx, `SELECT count(*) FROM clinic_operating_hours`).Scan(&visible))
+	require.NoError(t, probeTx.QueryRowContext(ctx, `SELECT count(*) FROM clinic_operating_hours`).Scan(&visible))
 	require.EqualValues(t, 1, visible, "other-clinic row must be invisible under the clinic-scope policy")
 }
