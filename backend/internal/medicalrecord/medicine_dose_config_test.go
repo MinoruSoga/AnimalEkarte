@@ -137,6 +137,30 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 
+	// EMR-447 Q4（SPEC-QA-20261022-447-STRENGTH-CLEAR）: FE は既存含量を空へ編集し none で保存したとき
+	// calculation_type=none と clear_strength=true だけを送る。実効設定（none・含量なし）で検証し受理する。
+	t.Run("既存 per_weight を none へ変更しつつ strength をクリアすると受理する", func(t *testing.T) {
+		var got UpdateMedicineInput
+		repo := &mockMedicineRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+				unit := model.MedicineUnitPerTablet
+				return &model.Medicine{ID: 63, ClinicID: clinicID, CalculationType: model.MedicineCalculationTypePerWeight, MedicineUnit: &unit, Strength: exactNumPtr("5")}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, input UpdateMedicineInput) (*model.Medicine, error) {
+				got = input
+				return &model.Medicine{ID: 63, CalculationType: model.MedicineCalculationTypeNone}, nil
+			},
+		}
+		svc := medicineServiceWithAudit(repo, &mockTreatmentAuditTxLogger{})
+
+		_, err := svc.Update(context.Background(), clinicID, 63, &UpdateMedicineInput{
+			CalculationType: strptr("none"), ClearStrength: true,
+		})
+		require.NoError(t, err)
+		assert.True(t, got.ClearStrength)
+		assert.Nil(t, got.Strength)
+	})
+
 	// BE-refactor.md R1-2: per_weight 有効化監査（LogEntryTx）が失敗すると Update 全体が失敗する
 	// （fail-closed。fields 更新のみが成功し監査だけ欠落する部分コミットを許さない）。
 	t.Run("none→per_weight 有効化 audit 失敗は Update 全体をロールバックする（fail-closed）", func(t *testing.T) {
