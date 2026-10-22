@@ -5444,6 +5444,10 @@ components:
         PATCH /masters/medicines/{id} の request 専用 schema（EMR-536）。共用 Medicine は GET/POST/応答に残し、
         PATCH 専用の clear_strength をそこへ追加しない。clear_strength 以外の property は Medicine の既存契約（型・enum・pattern・nullable・required）をそのまま写す。
       required: [name]
+      anyOf:
+        - not:
+            required: [is_bill_discount_excluded]
+        - required: [version]
       properties:
         name:
           type: string
@@ -6606,6 +6610,10 @@ components:
         PATCH /masters/examination-types/{id} の request 専用 schema（EMR-445 A01）。
         共用 ExaminationType は応答専用とし、追加した field 以外の property は ExaminationType の既存契約（型・enum・pattern・nullable・required）をそのまま写す。
       required: [name]
+      anyOf:
+        - not:
+            required: [is_bill_discount_excluded]
+        - required: [version]
       properties:
         name:
           type: string
@@ -6859,7 +6867,7 @@ components:
           description: 診断名IDを並べ替え後の順序で指定
     CheckupType:
       type: object
-      required: [name, is_bill_discount_excluded]
+      required: [name, is_bill_discount_excluded, version]
       properties:
         id:
           type: integer
@@ -7167,6 +7175,10 @@ components:
         PATCH /masters/merchandise-items/{id} の request 専用 schema（EMR-445 A01）。
         共用 MerchandiseItem は応答専用とし、追加した field 以外の property は MerchandiseItem の既存契約（型・enum・pattern・nullable・required）をそのまま写す。
       required: [name]
+      anyOf:
+        - not:
+            required: [is_bill_discount_excluded]
+        - required: [version]
       properties:
         name:
           type: string
