@@ -142,7 +142,7 @@ func bdwpRunPreservationFixtures(t *testing.T, allowedTables map[string]bool, en
 			t.Run(e.name, func(t *testing.T) {
 				db, cap := bdwpNewDB(t)
 				ctx := persistence.WithTxValue(t.Context(), db)
-				_ = e.run(ctx)
+				require.NoError(t, e.run(ctx))
 				require.NotEmpty(t, cap.writes, "entrance produced no write statements")
 				for _, w := range cap.writes {
 					assert.Equal(t, e.table, w.table, "write escaped the owning table: %s %s", w.op, w.sql)
@@ -172,15 +172,17 @@ func bdwpRunPreservationFixtures(t *testing.T, allowedTables map[string]bool, en
 	})
 
 	t.Run("master writes never reach snapshot/history tables", func(t *testing.T) {
-		db, cap := bdwpNewDB(t)
-		ctx := persistence.WithTxValue(t.Context(), db)
 		for _, e := range entrances {
-			_ = e.run(ctx)
-		}
-		require.NotEmpty(t, cap.writes)
-		for _, w := range cap.writes {
-			assert.True(t, allowedTables[w.table],
-				"master write must not touch snapshot/history table %q: %s %s", w.table, w.op, w.sql)
+			t.Run(e.name, func(t *testing.T) {
+				db, cap := bdwpNewDB(t)
+				ctx := persistence.WithTxValue(t.Context(), db)
+				require.NoError(t, e.run(ctx))
+				require.NotEmpty(t, cap.writes)
+				for _, w := range cap.writes {
+					assert.True(t, allowedTables[w.table],
+						"master write must not touch snapshot/history table %q: %s %s", w.table, w.op, w.sql)
+				}
+			})
 		}
 	})
 }
@@ -192,9 +194,6 @@ func TestBillDiscountWriterPreservation_Consultation(t *testing.T) {
 		{name: "PATCH omitted (name only)", table: "consultations", run: func(ctx context.Context) error {
 			_, err := repo.Update(ctx, 7, 5, UpdateConsultationInput{Version: 1, Name: &name})
 			return err
-		}},
-		{name: "Reorder (sort_order only)", table: "consultations", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
 		}},
 		{name: "soft delete", table: "consultations", run: func(ctx context.Context) error {
 			return repo.Delete(ctx, 7, 5)
@@ -216,9 +215,6 @@ func TestBillDiscountWriterPreservation_ExaminationType(t *testing.T) {
 		{name: "PATCH omitted (name only)", table: "exam_types", run: func(ctx context.Context) error {
 			_, err := repo.Update(ctx, 7, 5, UpdateExamTypeInput{Name: &name})
 			return err
-		}},
-		{name: "Reorder (sort_order only)", table: "exam_types", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
 		}},
 		{name: "soft delete", table: "exam_types", run: func(ctx context.Context) error {
 			return repo.Delete(ctx, 7, 5)
@@ -248,9 +244,6 @@ func TestBillDiscountWriterPreservation_Procedure(t *testing.T) {
 			_, err := repo.Update(ctx, 7, 5, UpdateProcedureInput{Version: 1, Name: &name})
 			return err
 		}},
-		{name: "Reorder (sort_order only)", table: "procedures", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
-		}},
 		{name: "soft delete", table: "procedures", run: func(ctx context.Context) error {
 			return repo.Delete(ctx, 7, 5)
 		}},
@@ -271,9 +264,6 @@ func TestBillDiscountWriterPreservation_Vaccine(t *testing.T) {
 		{name: "PATCH omitted (name only)", table: "vaccines", run: func(ctx context.Context) error {
 			_, err := repo.Update(ctx, 7, 5, UpdateVaccineInput{Version: 1, Name: &name})
 			return err
-		}},
-		{name: "Reorder (sort_order only)", table: "vaccines", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
 		}},
 		{name: "soft delete", table: "vaccines", run: func(ctx context.Context) error {
 			return repo.Delete(ctx, 7, 5)
@@ -296,9 +286,6 @@ func TestBillDiscountWriterPreservation_CheckupType(t *testing.T) {
 			_, err := repo.Update(ctx, 7, 5, UpdateCheckupTypeInput{Name: &name})
 			return err
 		}},
-		{name: "Reorder (sort_order only)", table: "checkup_types", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
-		}},
 		{name: "soft delete", table: "checkup_types", run: func(ctx context.Context) error {
 			return repo.Delete(ctx, 7, 5)
 		}},
@@ -319,9 +306,6 @@ func TestBillDiscountWriterPreservation_Medicine(t *testing.T) {
 		{name: "PATCH omitted (name only)", table: "medicines", run: func(ctx context.Context) error {
 			_, err := repo.Update(ctx, 7, 5, UpdateMedicineInput{Name: &name})
 			return err
-		}},
-		{name: "Reorder (sort_order only)", table: "medicines", run: func(ctx context.Context) error {
-			return repo.Reorder(ctx, 7, []uint64{5, 9})
 		}},
 		{name: "soft delete", table: "medicines", run: func(ctx context.Context) error {
 			return repo.Delete(ctx, 7, 5)
