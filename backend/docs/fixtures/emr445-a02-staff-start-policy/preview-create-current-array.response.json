@@ -8,8 +8,8 @@
   "current_state": "unconfigured",
   "observed_versions": {
     "line_staff_start_policy": null,
-    "clinic_operating_hours": "4",
-    "line_acceptance": "2"
+    "clinic_operating_hours": null,
+    "line_acceptance": null
   },
   "proposed_policy": {
     "weekly_times": [

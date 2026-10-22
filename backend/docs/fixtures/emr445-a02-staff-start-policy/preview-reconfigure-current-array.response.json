@@ -96,8 +96,12 @@
         "times": null
       },
       "proposed_masked": {
-        "state": "common-unconfigured",
-        "times": null
+        "state": "evaluated",
+        "times": [
+          "10:00",
+          "13:30",
+          "15:00"
+        ]
       }
     }
   ],

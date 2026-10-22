@@ -245,7 +245,7 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "create で proposed_registered_times が null",
-   "semantic_expectation": "不適合（create は proposed が配列。null は delete だけ）",
+   "semantic_expectation": "不適合（create は proposed が配列。null は delete だけ）（対応する正例との差は days の登録時刻1点だけ）",
    "verification": "NOT_RUN"
   },
   {
@@ -256,7 +256,7 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "unconfigured なのに current_registered_times が配列",
-   "semantic_expectation": "不適合（current の配列は configured だけ。未設定は null）",
+   "semantic_expectation": "不適合（current の配列は configured だけ。未設定は null）（対応する正例との差は days の登録時刻1点だけ）",
    "verification": "NOT_RUN"
   },
   {
@@ -267,7 +267,7 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "configured なのに current_registered_times が null",
-   "semantic_expectation": "不適合（configured は current が配列。正常な空は []）",
+   "semantic_expectation": "不適合（configured は current が配列。正常な空は []）（対応する正例との差は days の登録時刻1点だけ）",
    "verification": "NOT_RUN"
   },
   {
@@ -278,7 +278,7 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "deleted なのに current_registered_times が配列",
-   "semantic_expectation": "不適合（削除済みは current null。tombstone の中身を返さない）",
+   "semantic_expectation": "不適合（削除済みは current null。tombstone の中身を返さない）（対応する正例との差は days の登録時刻1点だけ）",
    "verification": "NOT_RUN"
   },
   {
@@ -289,7 +289,7 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "delete なのに proposed_registered_times が配列（proposed_policy は null）",
-   "semantic_expectation": "不適合（delete は proposed が null。削除提案から登録集合を作らない）",
+   "semantic_expectation": "不適合（delete は proposed が null。削除提案から登録集合を作らない）（対応する正例との差は days の登録時刻1点だけ）",
    "verification": "NOT_RUN"
   },
   {
@@ -300,7 +300,40 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "既削除への delete なのに current_registered_times が配列",
-   "semantic_expectation": "不適合（deleted は current null、delete は proposed null）",
+   "semantic_expectation": "不適合（deleted は current null、delete は proposed null）（対応する正例との差は days の登録時刻1点だけ）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-reconfigure-deleted.response.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "tombstone（版3）を reconfigure する preview。current は null、proposed は配列",
+   "semantic_expectation": "current_registered_times=null（削除済み）、proposed_registered_times=配列。登録集合のみで予約可能性は未評価",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-delete-configured.response.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "configured への delete preview。current は配列、proposed は null",
+   "semantic_expectation": "current_registered_times=配列、proposed_registered_times=null、proposed_policy=null。削除提案から予約可能状態を推測しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-delete-deleted.response.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "既削除（tombstone 版3）への delete preview（no-op）。current・proposed とも null",
+   "semantic_expectation": "current_registered_times=null、proposed_registered_times=null、proposed_policy=null",
    "verification": "NOT_RUN"
   }
  ]
