@@ -5323,15 +5323,17 @@ components:
             - exempt
         tax_rate:
           type: string
+          nullable: true
           pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
           example: "0.10"
           description: >-
             税率の比率を表す有限な非負 exact decimal 文字列（EMR-447、採択405/483）。10% は "0.10"（数値として0.1）で、百分率10へ変換しない。
             符号・指数表記・NaN/Infinity は 400。JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない。
             入力範囲 0..1、明示 "0" は 0 として保存し既定値へ潰さない。POST の省略/null は既存既定 0.10、PATCH の省略/null は既存値を保持する。
-            応答は保存値の十進文字列で、表記ではなく数値として比較する。
+            応答は保存値の十進文字列で null を返さず、表記ではなく数値として比較する（null は入力の省略扱いとしてだけ受け付ける）。
         strength:
           type: string
+          nullable: true
           pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
           example: "12.5"
           description: >-
