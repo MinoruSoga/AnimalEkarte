@@ -447,3 +447,16 @@ D14のCSV/copyは448統合・493 staff採択契約へ受領する。514既存日
 menuの採用参照はSidebarMenu.tsxの `a84c3397f4f0aaffbe86824f06450b23243fa4e6` と基準mainのSidebarItems/SidebarChromeの同版source。319の文書は是正前snapshotと末尾の是正後記録を区別して読み、色だけのエラー表示・requiredの新規業務判断にしない。各familyの不足が確認された場合だけ具体callerを既存450の受領表に追加し、全sharedをMD化・再実装しない。
 
 ③は今回A〜Eの次段階。上記は4familyの受領条件を補うもので全72検索用途や全操作familyの実装/受入完了ではない。fixtureの準備と後日の本人指示による⑤実行を分け、未試験の品質保証をしない。
+
+## 2026-10-22の限定caller差分と採用記録
+
+[監査A07–A10](emr-stage123-coverage-audit-20261022.md)の静的所見を既存450へ受領する。現5セッションのscopeへ変更を追加せず、③後続のcaller接続・証拠確認として扱う。全画面受入や新PR回帰の断定ではない。
+
+| 既存family/owner | 具体callerと受領差分 | 維持する境界・fixture（NOT_RUN） |
+|---|---|---|
+| D03/450 Enter | TreatmentsTabParts.tsx L204–206の治療内容InputはEnterで無条件onSubmit、TreatmentsTab.tsx L123–126→use-treatments-tab.ts L229–260のcreateへ接続。C01のAC-common-ui-enter-no-unintended-save / enter-keeps-input-operations / enter-autosave-boundaryへの不一致を限定受領 | IME候補確定・isComposing/keyCode229・repeat・pendingと明示保存操作を区別する。120数量欄の2回Enter/Blur/IME成果を全Input対応済みとしない。改行/候補選択/既決autosaveを保持し、一律Enter禁止/全欄2回化なし |
+| primitive/state→SubmitButton wrapper、450/226227 | shared/Form/SubmitButton.tsx L31/L41–47はpendingをdisabledだけへ渡しchildrenをloadingTextへ置換。既存Button primitiveのloading/aria-busy/spinner/ラベル保持へwrapperを接続する差分 | Button.loading自体は実装済み。C01 pending・design-statesの状態契約に従い、保存待ち二重押下・busy表示・元ラベル保持を受領。全primitive未実装とはしない |
+| C01患者文脈、412採用参照 | #679の採択に従いMedicalRecordStickyHeaderがPatientInfoCardを内包、属性のみカードへ、hideStaff/hideReservationType、来院種別/診療日/担当医操作はStickyHeader | ui-contractsの旧現状記述だけ訂正。onOwnerClick等の既存認可/caller条件は維持し、新権限/付替え可能範囲を増やさない |
+| 245/318/400の部分成果受領、450確認 | 245 Doneはカルテ3列GET採用まで。他一覧filterが現ownerへ継承されているか確認残。318受付write・400/#702 staff保存は③表示と④writeに分ける | 状態を変えず、追加filterの全画面義務化なし。過去部分成果を全機能完成にしない。181は後続main873685b0bとSTG記録で証跡不足解消済みとして新規残にしない |
+
+UIの共通受領4行と上記具体callerを接続し、部品が存在することとwrapper/consumerへ接続済みであることを別判定する。型生成未実行・Slice B/false gate等の既知後続は、この監査で新規欠陥に数えない。

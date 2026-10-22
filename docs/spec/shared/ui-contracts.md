@@ -39,7 +39,7 @@
 <a id="requirement-fr-common-ui-context"></a>
 ### FR-common-ui-context — 患者文脈・離脱・共有範囲
 
-PatientInfoCard利用フォームはtrimming/checkups/examinations/hospitalization/vaccinations。カルテは専用MedicalRecordStickyHeader＋PatientContextHeaderで、同一部品利用済みとは書かない。欠損年齢・性別・去勢避妊を不明として示し、speciesがあれば実値を出す。現状onOwnerClickの利用画面なし、StaffSelectionModalはカルテ専用、PropertyFilterのdeferは利用側の責務という境界を保つ。
+PatientInfoCard利用フォームはtrimming/checkups/examinations/hospitalization/vaccinations。カルテは[EMR-412の採択判断（2026-10-15 Q1→X13、#679採用）](https://github.com/MinoruSoga/AnimalEkarte/pull/679)に従い、MedicalRecordStickyHeaderがPatientInfoCardを内包する。属性表示をカードへ渡し、hideStaff/hideReservationTypeを用い、来院種別・診療日・担当医の操作はStickyHeader側へ維持する。[現行カード契約](../screens/common-dialogs.md#11-患者情報カード-patientinfocard)を参照し、同一部品未使用という旧現状記述は採用しない。欠損年齢・性別・去勢避妊を不明として示し、speciesがあれば実値を出す。onOwnerClickはカルテの既存caller条件・現在認可を維持し、新たな画面や利用権限へ開放しない。StaffSelectionModalはカルテ専用、PropertyFilterのdeferは利用側の責務という境界を保つ。
 
 NavigationBlockerはdirty時のSPA内遷移、併用useUnsavedChangesはブラウザ離脱を担当する。ガードの存在は全writerの永続保存済みを意味しない。OwnerSearchModalの汎用変更確認と、OwnerForm側の会員区分／値引差の警告を混同しない。飼主の付替えを許可する対象・金銭影響・医院scopeはD03/D04/C04の正本へ渡す。
 
