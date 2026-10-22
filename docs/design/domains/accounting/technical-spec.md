@@ -326,6 +326,8 @@ ADR003のENUMとsystem_key／医院master IDの整合は維持する。固定4�
 
 [死亡後の精算](../../../spec/domains/accounting/lifecycle.md#accounting-posthumous-settlement)は既存の会計操作ID・期待版・現在認可・金銭projection・原子receiptの契約を使い、死亡状態を生存へ変更するwriterを呼ばない。元患者・診療／滞在の実施事実と元明細・請求・飼主を照合し、理由と必要履歴を当該成功保存に含める。生前実施を識別できない場合は入力を保持して元記録の確認へ戻し、会計日や現在statusだけで診療事実を生成しない。死亡・主飼主変更・他編集で確認版が変わった場合は最新対象を再取得・確認し、無警告再送や別操作IDでの二重精算をしない。実入出金・訂正・残高復元の分離、元飼主の請求／預り金、実返金別操作、通常Undo停止は保持する。画面の死亡新規gateと、この専用の後日精算・訂正を区別する。既存実装が全入口で適合済みという意味ではない。
 
+2026-10-22選定の[限定認可・参加・互換境界§4.1](../../../work/emr/emr-540-308-462-506-selected-handoff-20261022.md#posthumous-selected-participation)を併読する。lookupは認証医院・同一actor・保存済み元対象anchorから解決した対象への現在`accounting:view`を検査し、request/URLへ元対象をfallbackせず、失権/解決失敗時は結果非開示。mutationの既存write grantを維持し、勤務consumerの元write grant要件を金融lookupへ自動移植しない。462 completeの初回201/再送200・Billing wireは維持。一般506 route/DTO/HTTP等は同追補§4.2の未選定残であり、共通化だけで既存wireを変更したり実装/受入完了としない。
+
 <a id="accounting-document-completion"></a>
 ## D10文書完成条件と判定外
 

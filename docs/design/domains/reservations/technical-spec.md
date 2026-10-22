@@ -24,6 +24,9 @@ Spec Kitの[導入済み技術計画テンプレート](../../../../.specify/pre
 
 技術正本は[API契約](../../../../backend/docs/api.yaml)、[DB定義](../../../../backend/migrations/)、[全体設計](../../../architecture/README.md)、[ADR-006](../../../architecture/adr/006-backend-domain-package-boundaries.md)。appointmentsのwrite ownerはreservation、勤務・スタッフはstaff、既存入院処理はmedicalrecordにある。独立した二重write ownerを増やさず、consumer側の最小intentと同じtransactionで接続する。[臨床安全](../../../spec/specification.md)、医院・飼主・動物・スタッフの分離、既存認可・監査、[カルテ保存契約§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)を保持する。88ルート対応表は改訂しない。全ドメインのドキュメント完了が実装着手の前提であり、本書の補完・文書検査・静的レビューだけで実装を開始しない。
 
+<a id="selected-subset-implementation-priority-20261022"></a>
+**2026-10-22の優先注記**：直前および§9.3末尾の「全ドメインのドキュメント完了まで実装しない」は当時の進行方針の履歴。[予約索引の優先注記](../../../spec/domains/reservations/README.md)と[限定契約・着手追補](../../../work/emr/emr-540-308-462-506-selected-handoff-20261022.md)を現在の進行方針として優先し、必要subsetの契約と供給/受領を閉じて先行する。無関係な全domain文書/全owner Doneを一律gateにせず、未選定契約の実装許可・既存sessionのscope拡張・実装/受入完了とは区別する。
+
 ## 2. 現在コードとの対応・差分
 
 「存在確認」はコード経路を読んだ意味で、適合・実機PASSではない。「差分確認」はその経路に合意と異なる動作がある。「未確認」は全経路で未実装と断定しない。
@@ -528,7 +531,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可に基づき、予�
 
 資料・実データの未知は、正確なpreset色、欠損／不整合／過去名称、旧実効能力、実DB制約、履歴復元可否。unknownは推測補完せず該当新規利用／通常Undoを止める。実装前検証は、DTO／nullableの生成、予約版全writer、receipt通信断と再送、勤務母集団完全性、10万node／100msの試験値とquery plan／メモリ／gate待機、record子入力と訂正、Undoと会計確定、旧client拒否・復旧保護である。いずれも今回は未実施。
 
-既存Spec Kit旧出力先・生成skills・core名等の設定差分も未変更。全ドメインのドキュメント完了後に連携を最終照合し、その前に実装へ着手しない。
+既存Spec Kit旧出力先・生成skills・core名等の設定差分も未変更。全ドメインのドキュメント完了後に連携を最終照合し、その前に実装へ着手しない。 この実装待機表現は当時の履歴で、現在は[必要subset先行の優先注記](#selected-subset-implementation-priority-20261022)に従う。
 
 ## 10. Spec Kitとの対応・配置
 
