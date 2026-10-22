@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { BodySize, BillingUnit, TaxType } from "@/types/generated/models";
+import type { BodySize, BillingUnit, ExactNumeric, TaxType } from "@/types/generated/models";
 import {
   BodySizeSmall,
   BodySizeMedium,
@@ -33,7 +33,8 @@ interface LegacyHospitalizationPlanResponse {
   body_size?: BodySize;
   billing_unit?: BillingUnit;
   tax_type: TaxType;
-  tax_rate: number;
+  /** model.ExactNumeric の JSON 表現（null / "NaN" / number。EMR-528 #809 以降） */
+  tax_rate: ExactNumeric;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -105,7 +106,8 @@ function transformHospitalizationPlan(data: LegacyHospitalizationPlanResponse) {
     bodySize: data.body_size ?? null,
     billingUnit: data.billing_unit ?? null,
     taxType: (data.tax_type ?? "excluded") as TaxType,
-    taxRate: data.tax_rate ?? 0.1,
+    // null は従来どおり 0.1、"NaN" は文字列のまま通さず数値 NaN（診察・処置の toTaxRate と同じ）。
+    taxRate: Number(data.tax_rate ?? 0.1),
     sortOrder: data.sort_order,
   };
 }
