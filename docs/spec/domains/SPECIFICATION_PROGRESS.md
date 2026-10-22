@@ -535,7 +535,7 @@ D03の最新合意は6FR／18AC追加、当時16FR／71ACを保持して合意�
 | 営業時間・休診日は医院設定を共通基準、LINE受付可能時間はその範囲内の別設定。レジ営業日区分は別 | [D17](clinic-settings/README.md#clinic-hours-common-basis-20261020)、所在[画面19](../screens/19-clinic-settings.md#clinic-hours-common-basis-owner-20261020) | 2026-10-20本人回答（節に受付記録） |
 | 死亡誤登録の取消は履歴付きで、予約・通知を自動再開しない | [D04](owners-pets/lifecycle.md#pet-death-misregistration-undo-20261020) | 2026-10-20本人回答 |
 | 主飼主変更時、未確定請求・未提示見積は旧飼主に保持 | [D04](owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020) | 2026-10-20本人回答 |
-| サポートのスクリーンショットは個人情報を含んでよく、強制マスキングを送信条件にしない | [D22](support/README.md#support-screenshot-personal-information-20261020) | 2026-10-20本人回答 |
+| サポートのスクリーンショットは個人情報を含んでよく、強制マスキングを送信条件にしない | [D23](support/README.md#support-screenshot-personal-information-20261020) | 2026-10-20本人回答 |
 | 入院退院・ホテル退室の会計受け手 | [D10](accounting/lifecycle.md#accounting-stay-charge-handoff) | 4debcf996（EMR-515） |
 | D03とD10の医師再確認の接続 | [D03](medical-records/lifecycle.md#medical-record-accounting-review-handoff) | 4debcf996（EMR-515） |
 | 次回予定日の初期値は種類別設定、設定がなければ空欄 | [D08](vaccinations/lifecycle.md#fr-vaccinations-schedule) | 2026-10-20本人回答（EMR-430） |
