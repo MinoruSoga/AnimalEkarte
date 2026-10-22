@@ -546,7 +546,7 @@ D03の最新合意は6FR／18AC追加、当時16FR／71ACを保持して合意�
 | 外注健診PDFから確認済み結果を登録 | [D09](checkups/lifecycle.md#fr-checkups-outsourced-pdf-20261021) | 2026-10-21本人採用 |
 | Lステップ連携・DMはPhase1対象、マーケティング領域の仕様確定は最後 | [LINE](../line/lstep-integration.md#crm-phase1-priority-20261021) | 2026-10-21本人回答（節に受付記録） |
 | 入院明細の税情報未確認の業務挙動（既決D10／D05からの導出、新規承認なし） | [D05](hospitalization/lifecycle.md#hospitalization-tax-unknown-20261020) | EMR-405採用設計、2026-10-20 |
-| 再診問診の予約状態別の飼主回答可否と対象不明時の表示 | [D02](reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021) | 2026-10-21 Q&A からの移設 |
+| 再診問診の予約状態別の飼主回答可否と対象不明時の表示 | [D01](reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021) | 2026-10-21 Q&A からの移設 |
 | 職員の休業期間を予約適格性と予約保護へ接続 | [D14](staff-workforce/README.md#staff-leave-booking-handoff)、[横断フロー](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection) | 4debcf996（EMR-515） |
 
-判断が残る事項は本索引に含めない：死亡登録時の既存未来予約の扱い、月次売上の税込／税抜基準、共通患者の「他院」検索範囲、会計一覧の「保留」状態。
+判断が残る事項は本索引に含めない：死亡登録時の既存未来予約の扱い、月次売上の主表示の税込／税抜。他院患者の候補表示は既決の認可条件（[490–492 選定契約 §4](../../work/emr/emr-490-492-selected-wire-contract-20261021.md) と [D04](owners-pets/lifecycle.md#common-owner-pet-20261017)）に従い、法人内全医院を無条件に検索可能とは扱わない。会計の請求状態は下書き／確定／取消で、医師再確認待ちは停止条件（[D10](accounting/lifecycle.md#doctor-review-sync-billing-20261017)）。

@@ -52,7 +52,7 @@ NavigationBlockerはdirty時のSPA内遷移、併用useUnsavedChangesはブラ�
 
 対象はmedical-records/hospitalization/trimming/examinations/checkups/accounting/vaccinations。検索はsearch・owner_id=owners.id・動物種マスタID、20件サーバページングを維持し、検索の発火は[10/19明示実行](#owner-pet-explicit-search-20261019)へ。旧300ms debounceは旧文書/限定的な実装観察として区別し、現在全callerの未追従と断定せず、住所検索は追加しない。通常は利用機能create、checkupsはmedical-recordsのcreateかつeditという既存例外を維持し、C04で再照合する。
 
-死亡個体は死亡表示付きで選択できるが、新規未来予約・死亡後の新しい臨床実施は許可しない。生前診療の後日入力・誤記訂正・退院・精算は[C03の追加承認](clinical-safety.md#requirement-fr-common-safety-patient)に従い、死亡状態を維持した理由／履歴付きの専用経路として区別する。カルテselectorは当該ペットの一覧へ渡す。未知生死statusは選択fail-closed。死亡選択可を全フォームでの無制限な臨床操作可へ広げない。
+死亡個体は死亡表示付きで選択できるが、この選択可の適用範囲は上記7機能であり、予約作成を含む共通の検索操作の範囲（前々段）とは区別し、予約フォームでの死亡ペット選択はこの選択可の対象外とする。新規未来予約・死亡後の新しい臨床実施は許可しない。生前診療の後日入力・誤記訂正・退院・精算は[C03の追加承認](clinical-safety.md#requirement-fr-common-safety-patient)に従い、死亡状態を維持した理由／履歴付きの専用経路として区別する。カルテselectorは当該ペットの一覧へ渡す。未知生死statusは選択fail-closed。死亡選択可を全フォームでの無制限な臨床操作可へ広げない。
 
 特記はペットdanger_levelと飼主is_dangerousを別概念として扱う。ペット高／中は形状アイコンとPopover、メモ空は内容未登録。飼主は代替名「特記」の形状アイコンでPopoverなし。スタッフ向けで、分類が分かる文言を画面・aria-label・titleへ出さず、owner/LIFFへ出さない。一般の非色cue規則を理由に機微な分類語を追加しない。
 

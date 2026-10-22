@@ -758,7 +758,7 @@ LINE原文は各行で現在target.pet grant＋元author customer＋subject hash
 
 現在読取は1 appointment=1 petの単数current_target。純GETはtarget/answer/customer/linkを作らない。未保存targetは既存予約のpet/generationを論理identityとしてtarget_id=null、head_revision=nullで表し、初回submitのexpected_revisionは明示null。target作成はsubmit/capture TXだけ。target自体が読取不可なら404、対象未解決は可視な範囲のtarget_unresolvedと区別する。
 
-headは同targetの**全answerのMAX(revision)**。可視行だけのMAXを最新とせず、headが他authorで不可視ならanswered/headあり/latest_answer=null/content_available=false。旧自分回答をprefillしない。受付前の現在grantがあればそのheadを期待版として明示的に新送信できる。日時変更は同世代、A→B→Aは別世代。旧target原文やdraftを新targetへコピーしない。editableはserverの現在lifecycle/current grantで決め、confirmed限定にせず（pendingを含む入口を狭めない）、tentative/no_show/過去日だけの新cutoffも設けない。未知lifecycleはfalse。業務側の状態別可否は[D02の2026-10-21追補](../../../spec/domains/reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021)を正本とする。
+headは同targetの**全answerのMAX(revision)**。可視行だけのMAXを最新とせず、headが他authorで不可視ならanswered/headあり/latest_answer=null/content_available=false。旧自分回答をprefillしない。受付前の現在grantがあればそのheadを期待版として明示的に新送信できる。日時変更は同世代、A→B→Aは別世代。旧target原文やdraftを新targetへコピーしない。editableはserverの現在lifecycle/current grantで決め、confirmed限定にせず（pendingを含む入口を狭めない）、tentative/no_show/過去日だけの新cutoffも設けない。未知lifecycleはfalse。業務側の状態別可否は[D01の2026-10-21追補](../../../spec/domains/reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021)を正本とする。
 
 3つの本文readはcursor optional、limit default50/min1/max100、未知query400、Cache-Control:no-store。履歴はgeneration DESC/revision DESC、不可視件数/IDやtotalを返さずnext_cursorで継続する。head/current/body/lifecycle/historyは1request同SQL snapshot。既存opaque cursor facilityを再利用し、なければversion付きbase64url closed payloadをroute/scope/upper-boundへ束縛する。不正400、新署名鍵必須なし。次ページでも現在の各行認可を再検査し、cursor改ざんでgrantを広げない。ページサイズは回答保存上限ではない。
 
