@@ -28,6 +28,7 @@
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:918](../../../backend/migrations/001_init.sql#L918) |
 | `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7602](../../../backend/migrations/001_init.sql#L7602) |
 | `version` | `bigint` | NOT NULL | `1` | — | [004_master_insurance_versions.sql:5](../../../backend/migrations/004_master_insurance_versions.sql#L5) |
+| `is_bill_discount_excluded` | `boolean` | NULL | — | — | [007_bill_discount_excluded_and_master_versions.sql:9](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L9) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -57,6 +58,7 @@ erDiagram
         timestamptz deleted_at
         BOOLEAN is_non_insurance
         bigint version
+        boolean is_bill_discount_excluded
     }
     clinics {
         BIGSERIAL id PK

@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "05817a855f589ba3051d4d3951ec57c50efe33ed015afa49ad1a7d11210da061",
+  "source_digest": "2d1f5b94a4e83cde1e2126c497a760356e4e95af3341503d331f934450e8b9c1",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 250,
-    "columns": 2770,
-    "foreign_keys": 764
+    "tables": 251,
+    "columns": 2790,
+    "foreign_keys": 765
   },
   "migrations": [
     {
@@ -41,6 +41,18 @@
     {
       "name": "006_operation_anchor_and_lab_mapping_versions.sql",
       "sha256": "0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831"
+    },
+    {
+      "name": "007_bill_discount_excluded_and_master_versions.sql",
+      "sha256": "e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b"
+    },
+    {
+      "name": "008_clinic_operating_hours.sql",
+      "sha256": "41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313"
+    },
+    {
+      "name": "009_line_acceptance_version.sql",
+      "sha256": "6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea"
     }
   ],
   "reviewed_do_blocks": [
@@ -102,6 +114,7 @@
     "chief_complaint_types.md",
     "clinic_holidays.md",
     "clinic_integrations.md",
+    "clinic_operating_hours.md",
     "clinic_settings.md",
     "clinical_plan_diagnoses.md",
     "clinical_plans.md",

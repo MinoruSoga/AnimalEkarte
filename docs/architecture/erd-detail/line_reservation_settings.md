@@ -39,6 +39,8 @@
 | `additional_fields` | `jsonb` | NOT NULL | `'[         {"key":"phone","label":"電話番号","required":true,"placeholder":"例) 090-1234-5678"},         {"key":"owner_name","label":"飼い主名","required":true,"placeholder":""},         {"key":"pet_info","label":"ペットの名前と種類","required":true,"placeholder":"例) ポチ（柴犬）"},         {"key":"symptoms","label":"診察内容","required":false,"placeholder":""}     ]'` | — | [001_init.sql:2663](../../../backend/migrations/001_init.sql#L2663) |
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2676](../../../backend/migrations/001_init.sql#L2676) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2677](../../../backend/migrations/001_init.sql#L2677) |
+| `acceptance_version` | `bigint` | NOT NULL | `1` | — | [009_line_acceptance_version.sql:14](../../../backend/migrations/009_line_acceptance_version.sql#L14) |
+| `reviewed_acceptance_version` | `bigint` | NULL | — | — | [009_line_acceptance_version.sql:15](../../../backend/migrations/009_line_acceptance_version.sql#L15) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -79,6 +81,8 @@ erDiagram
         jsonb additional_fields
         timestamptz created_at
         timestamptz updated_at
+        bigint acceptance_version
+        bigint reviewed_acceptance_version
     }
     clinics {
         BIGSERIAL id PK
@@ -102,6 +106,8 @@ erDiagram
 |:---|:---|:---|:---|
 | `line_reservation_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2632](../../../backend/migrations/001_init.sql#L2632) |
 | `line_reservation_settings_clinic_id_key` | unique | `UNIQUE` | [001_init.sql:2633](../../../backend/migrations/001_init.sql#L2633) |
+| `line_reservation_settings_acceptance_version_check` | check | `CHECK (acceptance_version > 0)` | [009_line_acceptance_version.sql:14](../../../backend/migrations/009_line_acceptance_version.sql#L14) |
+| `ck_line_reservation_reviewed_acceptance_version` | check | `CONSTRAINT ck_line_reservation_reviewed_acceptance_version         CHECK (reviewed_acceptance_version IS NULL OR (reviewed_acceptance_version > 0 AND reviewed_acceptance_version <= acceptance_version))` | [009_line_acceptance_version.sql:16](../../../backend/migrations/009_line_acceptance_version.sql#L16) |
 
 ## インデックス
 

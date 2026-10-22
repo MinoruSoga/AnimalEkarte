@@ -33,6 +33,8 @@
 | `strength` | `numeric(10,4)` | NULL | — | — | [001_init.sql:3458](../../../backend/migrations/001_init.sql#L3458) |
 | `frequency_per_day` | `integer` | NULL | — | — | [001_init.sql:3459](../../../backend/migrations/001_init.sql#L3459) |
 | `default_duration_days` | `integer` | NULL | — | — | [001_init.sql:3460](../../../backend/migrations/001_init.sql#L3460) |
+| `is_bill_discount_excluded` | `boolean` | NULL | — | — | [007_bill_discount_excluded_and_master_versions.sql:24](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L24) |
+| `version` | `bigint` | NOT NULL | `1` | — | [007_bill_discount_excluded_and_master_versions.sql:40](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L40) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,6 +69,8 @@ erDiagram
         numeric_10_4 strength
         integer frequency_per_day
         integer default_duration_days
+        boolean is_bill_discount_excluded
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -103,6 +107,7 @@ erDiagram
 | `ck_medicines_frequency_positive` | check | `CONSTRAINT ck_medicines_frequency_positive     CHECK (frequency_per_day IS NULL OR frequency_per_day > 0)` | [001_init.sql:3474](../../../backend/migrations/001_init.sql#L3474) |
 | `ck_medicines_duration_positive` | check | `CONSTRAINT ck_medicines_duration_positive     CHECK (default_duration_days IS NULL OR default_duration_days > 0)` | [001_init.sql:3478](../../../backend/migrations/001_init.sql#L3478) |
 | `uq_medicines_id_clinic` | unique | `CONSTRAINT uq_medicines_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3484](../../../backend/migrations/001_init.sql#L3484) |
+| `ck_medicines_positive_version` | check | `CONSTRAINT ck_medicines_positive_version CHECK (version > 0)` | [007_bill_discount_excluded_and_master_versions.sql:41](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L41) |
 
 ## インデックス
 
