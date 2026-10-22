@@ -21,9 +21,9 @@ function makeFormData(overrides: Partial<HospitalizationFormData> = {}): Hospita
 }
 
 describe("buildHospitalizationCreateRequest", () => {
-  it("omits price when UI value is 0", () => {
+  it("sends explicit price 0 on create instead of omitting (EMR-528)", () => {
     const request = buildHospitalizationCreateRequest(makeFormData({ price: 0 }));
-    expect(request.price).toBeUndefined();
+    expect(request.price).toBe(0);
     expect(request.name).toBe("一般入院プラン");
   });
 
@@ -42,5 +42,18 @@ describe("buildHospitalizationUpdateRequest", () => {
   it("persists edited price 2300 on update", () => {
     const request = buildHospitalizationUpdateRequest(makeFormData({ price: 2300 }));
     expect(request.price).toBe(2300);
+  });
+
+  it("sends empty description so a non-empty note can be cleared (EMR-528)", () => {
+    const request = buildHospitalizationUpdateRequest(makeFormData({ description: "" }));
+    expect(request).toHaveProperty("description", "");
+  });
+
+  it("sends explicit null for unselected body size and billing unit (EMR-528)", () => {
+    const request = buildHospitalizationUpdateRequest(
+      makeFormData({ bodySize: "", billingUnit: "" }),
+    );
+    expect(request.body_size).toBeNull();
+    expect(request.billing_unit).toBeNull();
   });
 });

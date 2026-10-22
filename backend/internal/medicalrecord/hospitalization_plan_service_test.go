@@ -65,7 +65,10 @@ func TestBuildHospitalizationPlanUpdate(t *testing.T) {
 	isActive := true
 	description := "説明文"
 	bodySize := "large"
-	billingUnit := "day"
+	billingUnit := "per_day"
+	bodySizePtr := &bodySize
+	billingUnitPtr := &billingUnit
+	var nullValue *string
 	sortOrder := 3
 	taxType := "excluded"
 	taxRate := 0.08
@@ -87,8 +90,8 @@ func TestBuildHospitalizationPlanUpdate(t *testing.T) {
 				Price:       &price,
 				IsActive:    &isActive,
 				Description: &description,
-				BodySize:    &bodySize,
-				BillingUnit: &billingUnit,
+				BodySize:    &bodySizePtr,
+				BillingUnit: &billingUnitPtr,
 				SortOrder:   &sortOrder,
 				TaxType:     &taxType,
 				TaxRate:     &taxRate,
@@ -102,8 +105,25 @@ func TestBuildHospitalizationPlanUpdate(t *testing.T) {
 				"billing_unit": model.BillingUnit(billingUnit),
 				"sort_order":   sortOrder,
 				"tax_type":     model.TaxType(taxType),
-				"tax_rate":     taxRate,
+				"tax_rate":     mustNumeric(t, "0.08"),
 			},
+		},
+		{
+			// EMR-528: 明示 null は key を残して値 nil（SQL NULL）にする。省略（nil）とは区別する。
+			name: "explicit null body_size and billing_unit clear to SQL NULL",
+			input: UpdateHospitalizationPlanInput{
+				BodySize:    &nullValue,
+				BillingUnit: &nullValue,
+			},
+			wantFields: map[string]any{
+				"body_size":    nil,
+				"billing_unit": nil,
+			},
+		},
+		{
+			name:       "empty description is written as empty string",
+			input:      UpdateHospitalizationPlanInput{Description: new(string)},
+			wantFields: map[string]any{"description": ""},
 		},
 	}
 
@@ -325,7 +345,112 @@ func TestHospitalizationPlanService_Create_WithBodySizeAndBillingUnit(t *testing
 	assert.NotNil(t, captured.BillingUnit)
 	assert.Equal(t, model.BillingUnit("day"), *captured.BillingUnit)
 	assert.Equal(t, model.TaxType("included"), captured.TaxType)
-	assert.Equal(t, taxRate, captured.TaxRate)
+	assert.Equal(t, mustNumeric(t, "0.08"), captured.TaxRate)
+}
+
+// EMR-528: Create は model の ExactNumeric / *int へ合わせ、既定値・明示0・並び順を保持する。
+func TestHospitalizationPlanService_Create_TaxRateSortOrderAndZeroPrice(t *testing.T) {
+	zeroPrice := int64(0)
+	zeroRate := 0.0
+	tests := []struct {
+		name          string
+		input         *CreateHospitalizationPlanInput
+		wantTaxRate   string
+		wantSortOrder int
+	}{
+		{
+			name:          "omitted tax rate uses default 0.10",
+			input:         &CreateHospitalizationPlanInput{Name: "既定税率", Price: &zeroPrice, SortOrder: 4},
+			wantTaxRate:   "0.1",
+			wantSortOrder: 4,
+		},
+		{
+			name:          "explicit zero tax rate stays zero",
+			input:         &CreateHospitalizationPlanInput{Name: "非課税", Price: &zeroPrice, TaxType: "exempt", TaxRate: &zeroRate},
+			wantTaxRate:   "0",
+			wantSortOrder: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured *model.HospitalizationPlan
+			repo := &mockHospitalizationPlanRepository{
+				createFn: func(_ context.Context, plan *model.HospitalizationPlan) error {
+					captured = plan
+					return nil
+				},
+			}
+			svc := NewHospitalizationPlanService(repo)
+
+			_, err := svc.Create(context.Background(), 1, tt.input)
+
+			assert.NoError(t, err)
+			assert.Equal(t, mustNumeric(t, tt.wantTaxRate), captured.TaxRate)
+			if assert.NotNil(t, captured.SortOrder) {
+				assert.Equal(t, tt.wantSortOrder, *captured.SortOrder)
+			}
+			if assert.NotNil(t, captured.Price) {
+				assert.Equal(t, int64(0), *captured.Price, "明示0円を未入力へ潰さない")
+			}
+		})
+	}
+}
+
+// EMR-528: "" や enum 外は null の代用にせず 400。repository へ書き込まない（zero-write）。
+func TestHospitalizationPlanService_Update_RejectsInvalidEnumWithoutWrite(t *testing.T) {
+	empty := ""
+	unknown := "huge"
+	day := "day"
+	emptyPtr, unknownPtr, dayPtr := &empty, &unknown, &day
+	tests := []struct {
+		name  string
+		input UpdateHospitalizationPlanInput
+	}{
+		{name: "empty body_size", input: UpdateHospitalizationPlanInput{BodySize: &emptyPtr}},
+		{name: "unknown body_size", input: UpdateHospitalizationPlanInput{BodySize: &unknownPtr}},
+		{name: "empty billing_unit", input: UpdateHospitalizationPlanInput{BillingUnit: &emptyPtr}},
+		{name: "unknown billing_unit", input: UpdateHospitalizationPlanInput{BillingUnit: &dayPtr}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockHospitalizationPlanRepository{
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+					t.Fatal("invalid enum must not reach repository update")
+					return nil, nil
+				},
+			}
+			svc := NewHospitalizationPlanService(repo)
+
+			plan, err := svc.Update(context.Background(), 1, 1, &tt.input)
+
+			assert.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+			assert.Nil(t, plan)
+		})
+	}
+}
+
+// EMR-528: 明示 null は検査を通り、同じ presence のまま repository へ渡る。
+func TestHospitalizationPlanService_Update_ExplicitNullReachesRepository(t *testing.T) {
+	var nullValue *string
+	var captured UpdateHospitalizationPlanInput
+	repo := &mockHospitalizationPlanRepository{
+		updateFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+			captured = cmd
+			return &model.HospitalizationPlan{ID: 1, ClinicID: 1}, nil
+		},
+	}
+	svc := NewHospitalizationPlanService(repo)
+
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationPlanInput{BodySize: &nullValue, BillingUnit: &nullValue})
+
+	assert.NoError(t, err)
+	if assert.NotNil(t, captured.BodySize) {
+		assert.Nil(t, *captured.BodySize)
+	}
+	if assert.NotNil(t, captured.BillingUnit) {
+		assert.Nil(t, *captured.BillingUnit)
+	}
 }
 
 func TestHospitalizationPlanService_Update(t *testing.T) {
