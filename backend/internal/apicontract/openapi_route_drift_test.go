@@ -226,6 +226,14 @@ var knownPhantomInSpec = map[string]bool{
 	"GET /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance/operations/{operation_key}": true,
 	"PATCH /api/v1/clinics/{clinic_id}/line-reservation-settings/presentation":                        true,
 	"PATCH /api/v1/clinics/{clinic_id}/line-reservation-settings/registration-fields":                 true,
+
+	// EMR-445 A02 contract-first per-staff trimming start policy (selected contract §4).
+	// Runtime owner EMR-448/492: remove each exact entry in the same change that registers its route.
+	"GET /api/v1/masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy":          true,
+	"PUT /api/v1/masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy":          true,
+	"DELETE /api/v1/masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy":       true,
+	"POST /api/v1/masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy/preview": true,
+	"GET /api/v1/line-start-policy-operations/{operation_key}":                                     true,
 }
 
 // ─── Real route enumeration (go/ast) ────────────────────────────────────────────────

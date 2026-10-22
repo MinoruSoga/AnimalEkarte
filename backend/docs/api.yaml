@@ -16339,6 +16339,352 @@ components:
       properties:
         additional_fields:
           description: 既存 upsert と同じ任意 JSON 値（登録フォーム定義）。
+    LineStartPolicyTime:
+      type: string
+      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+      description: §1 の厳密 HH:MM（00:00..23:59、JST）。担当者別の登録開始時刻。固定15分/5分刻みの制約は無い。
+    LineStartPolicyTimes:
+      type: array
+      uniqueItems: true
+      items:
+        $ref: '#/components/schemas/LineStartPolicyTime'
+      description: 一意・昇順。[] は当日の登録開始0件（明示空）。
+    LineStartPolicyWeekdayTimes:
+      type: object
+      additionalProperties: false
+      required: [weekday, times]
+      properties:
+        weekday:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: 0=日曜..6=土曜。
+        times:
+          $ref: '#/components/schemas/LineStartPolicyTimes'
+    LineStartPolicyDateOverride:
+      type: object
+      additionalProperties: false
+      required: [date, times]
+      description: 日別 override。存在する日は週次を置換する（旧 weekly+specific の union ではない）。times=[] は当日0、override の削除で週次へ戻る。
+      properties:
+        date:
+          type: string
+          format: date
+        times:
+          $ref: '#/components/schemas/LineStartPolicyTimes'
+    LineStartPolicy:
+      type: object
+      additionalProperties: false
+      required: [weekly_times, date_overrides]
+      description: >-
+        §4.1 Policy exact。勤務・能力・所要時間・定員は複製しない。未来有効期間・固定刻みは無い。旧共通 slot を全 staff へ複製しない。
+      properties:
+        weekly_times:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            $ref: '#/components/schemas/LineStartPolicyWeekdayTimes'
+          description: 曜日 0..6 を各1件、曜日昇順。
+        date_overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyDateOverride'
+          description: date 一意・昇順。
+    LineStartPolicyResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, reservation_type_id, staff_id, assignment_id, state, version, policy, deleted_at]
+      description: >-
+        GET（§4.2、no-store）。unconfigured は version/policy/deleted_at null。configured は版・Policy 必須、deleted_at null。
+        deleted は現版・削除時刻・保存 Policy を管理用に返す。予約可能 boolean・氏名は返さない。元所属を現在認可できなければ非開示。
+        assignment_id は当該 staff×予約区分の現在 assignment（行の PK 要素。本収録で全 state に必須とした）。取得失敗は 503 で、未設定や他院・他担当へ fallback しない。
+      properties:
+        schema_version:
+          type: string
+          enum: [trimming-registered-starts/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        reservation_type_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        staff_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        state:
+          type: string
+          enum: [unconfigured, configured, deleted]
+        version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        policy:
+          allOf:
+            - $ref: '#/components/schemas/LineStartPolicy'
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+    LineStartPolicyPutCreate:
+      type: object
+      additionalProperties: false
+      required: [operation_key, mode, expected_version, expected_assignment_id, policy]
+      description: create。expected_version null＋行なし。tombstone を create で迂回しない（reconfigure を使う）。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        mode:
+          type: string
+          enum: [create]
+        expected_version:
+          type: string
+          nullable: true
+          enum: [null]
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        policy:
+          $ref: '#/components/schemas/LineStartPolicy'
+    LineStartPolicyPutReplace:
+      type: object
+      additionalProperties: false
+      required: [operation_key, mode, expected_version, expected_assignment_id, policy]
+      description: replace。現版＋非削除。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        mode:
+          type: string
+          enum: [replace]
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        policy:
+          $ref: '#/components/schemas/LineStartPolicy'
+    LineStartPolicyPutReconfigure:
+      type: object
+      additionalProperties: false
+      required: [operation_key, mode, expected_version, expected_assignment_id, policy]
+      description: reconfigure。現版＋tombstone＋全 Policy 明示。同 PK/同 staff/同 assignment のまま deleted_at を解除し版+1。入力なし restore・別 assignment 付替えは無い。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        mode:
+          type: string
+          enum: [reconfigure]
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        policy:
+          $ref: '#/components/schemas/LineStartPolicy'
+    LineStartPolicyPutRequest:
+      description: PUT base（§4.2、mode 別 exact）。expected_assignment_id は immutable target。現在状態/期待版/assignment 不一致は C06 409。
+      oneOf:
+        - $ref: '#/components/schemas/LineStartPolicyPutCreate'
+        - $ref: '#/components/schemas/LineStartPolicyPutReplace'
+        - $ref: '#/components/schemas/LineStartPolicyPutReconfigure'
+      discriminator:
+        propertyName: mode
+        mapping:
+          create: '#/components/schemas/LineStartPolicyPutCreate'
+          replace: '#/components/schemas/LineStartPolicyPutReplace'
+          reconfigure: '#/components/schemas/LineStartPolicyPutReconfigure'
+    LineStartPolicyDeleteRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_version, expected_assignment_id]
+      description: DELETE base（§4.2）。tombstone＋版増分、物理削除しない。現版で既削除なら no-op、古版は conflict。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+    LineStartPolicyPreviewWithPolicy:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_version, expected_assignment_id, dates, policy]
+      description: create/replace/reconfigure の preview 入力。create だけ expected_version=null、他は Version。
+      properties:
+        mode:
+          type: string
+          enum: [create, replace, reconfigure]
+        expected_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+        policy:
+          $ref: '#/components/schemas/LineStartPolicy'
+    LineStartPolicyPreviewDelete:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_version, expected_assignment_id, dates]
+      description: delete の preview 入力（policy キーなし）。
+      properties:
+        mode:
+          type: string
+          enum: [delete]
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+    LineStartPolicyPreviewRequest:
+      description: >-
+        §5.7 staff policy preview 入力（mode 別 exact）。operation_key を受けず claim/write なし（read-only・no-store）。
+        create 以外で expected_version=null は 400（OpenAPI 3.0 の oneOf では mode と null の組合せを表現しきれないため本文で固定）。
+      oneOf:
+        - $ref: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
+        - $ref: '#/components/schemas/LineStartPolicyPreviewDelete'
+      discriminator:
+        propertyName: mode
+        mapping:
+          create: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
+          replace: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
+          reconfigure: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
+          delete: '#/components/schemas/LineStartPolicyPreviewDelete'
+    LineStartPolicyMaskedStarts:
+      type: object
+      additionalProperties: false
+      required: [state, times]
+      description: >-
+        §5.7 MaskedStarts。evaluated だけ times（正常空は []）、他 state は null。優先順は policy→common→LINE
+        （policy-unconfigured/policy-deleted を先行）。依存読取エラーはどの正常 state へも変換せず 503。
+      properties:
+        state:
+          type: string
+          enum: [evaluated, policy-unconfigured, policy-deleted, common-unconfigured, line-unconfigured, line-unreviewed]
+        times:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+    LineStartPolicyPreviewDay:
+      type: object
+      additionalProperties: false
+      required: [date, current_registered_times, proposed_registered_times, current_masked, proposed_masked]
+      properties:
+        date:
+          type: string
+          format: date
+        current_registered_times:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+          description: 設定上の登録集合。未設定/削除は null、明示当日0件は []。
+        proposed_registered_times:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+        current_masked:
+          $ref: '#/components/schemas/LineStartPolicyMaskedStarts'
+        proposed_masked:
+          $ref: '#/components/schemas/LineStartPolicyMaskedStarts'
+    LineStartPolicyPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, reservation_type_id, staff_id, assignment_id, mode, current_state, observed_versions, proposed_policy, days, reservation_eligibility, warning_receipt]
+      description: >-
+        §5.7 出力。勤務/休業/能力/競合は未評価（reservation_eligibility 固定 not-evaluated）。予約可能 token・生の共通/LINE 設定・氏名は返さない。
+        削除提案から予約可能状態を推測しない。warning_receipt は常に null。
+      properties:
+        schema_version:
+          type: string
+          enum: [trimming-registered-starts-preview/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        reservation_type_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        staff_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        mode:
+          type: string
+          enum: [create, replace, reconfigure, delete]
+        current_state:
+          type: string
+          enum: [unconfigured, configured, deleted]
+        observed_versions:
+          type: object
+          additionalProperties: false
+          required: [line_staff_start_policy, clinic_operating_hours, line_acceptance]
+          description: 実際に読んだ現在保存版。policy 版は unconfigured だけ null、deleted は tombstone 現版。
+          properties:
+            line_staff_start_policy:
+              allOf:
+                - $ref: '#/components/schemas/LineTimeDecimalId'
+              nullable: true
+            clinic_operating_hours:
+              allOf:
+                - $ref: '#/components/schemas/LineTimeDecimalId'
+              nullable: true
+            line_acceptance:
+              allOf:
+                - $ref: '#/components/schemas/LineTimeDecimalId'
+              nullable: true
+        proposed_policy:
+          allOf:
+            - $ref: '#/components/schemas/LineStartPolicy'
+          nullable: true
+          description: delete だけ null。
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyPreviewDay'
+        reservation_eligibility:
+          type: string
+          enum: [not-evaluated]
+        warning_receipt:
+          type: string
+          nullable: true
+          enum: [null]
+    LineStartPolicyOperationSuccess:
+      type: object
+      additionalProperties: false
+      required: [status, operation_key, result_refs, committed_versions, recorded_at]
+      description: >-
+        owner_kind=reservation（intent: line-start-policy.create/replace/reconfigure/delete）の C06 成功（HTTP 200）。create/replace/reconfigure/delete とも同じ refs/版集合。
+        DELETE は tombstone の実保存版、no-op は現在 CAS を通過した保存版。replay は元 receipt を返し現在版へ置換しない。複合 PK のため policy_id は無い。
+      properties:
+        status:
+          type: string
+          enum: [succeeded, replayed]
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        result_refs:
+          type: object
+          additionalProperties: false
+          required: [clinic_id, reservation_type_id, staff_id, assignment_id]
+          properties:
+            clinic_id:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            reservation_type_id:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            staff_id:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            assignment_id:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+        committed_versions:
+          type: object
+          additionalProperties: false
+          required: [line_staff_start_policy]
+          properties:
+            line_staff_start_policy:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+        recorded_at:
+          type: string
+          format: date-time
   responses:
     CertificateBadRequest:
       description: 'validation: malformed JSON/ID/key/enum。重複key/未知property/不正UTF-8/lone
@@ -32220,6 +32566,357 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy:
+    get:
+      operationId: getLineStartPolicy
+      summary: 担当者別 LINE 登録開始時刻の取得
+      tags: [Masters]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - master-reservation-type:view
+      description: >-
+        §4.2。no-store。unconfigured / configured / deleted を返す。予約可能 boolean・氏名は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、line_staff_start_policies・492 anchor 後続差分）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: type_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 予約区分 ID（既存 ID 型）。現在医院の予約区分であること。
+        - name: staff_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: スタッフ ID（既存 ID 型）。現在医院・当該予約区分の assignment を持つこと。staff selector は既存 staff reader の現在認可を維持する。
+      responses:
+        '200':
+          description: 担当者別登録開始時刻（unconfigured は version/policy/deleted_at null）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineStartPolicyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功、他院/他担当へ fallback しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      operationId: putLineStartPolicy
+      summary: 担当者別 LINE 登録開始時刻の作成・置換・再設定
+      tags: [Masters]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - master-reservation-type:edit
+      description: >-
+        §4.2 PUT（mode=create/replace/reconfigure、intent line-start-policy.<mode>）。元 assignment を含む現在 target 検査で競合を閉じる。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、line_staff_start_policies・492 anchor 後続差分）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: type_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 予約区分 ID（既存 ID 型）。現在医院の予約区分であること。
+        - name: staff_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: スタッフ ID（既存 ID 型）。現在医院・当該予約区分の assignment を持つこと。staff selector は既存 staff reader の現在認可を維持する。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineStartPolicyPutRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineStartPolicyOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版・状態不一致）/ dependency-changed（assignment 変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+    delete:
+      operationId: deleteLineStartPolicy
+      summary: 担当者別 LINE 登録開始時刻の削除（tombstone）
+      tags: [Masters]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - master-reservation-type:delete
+      description: >-
+        §4.2 DELETE（intent line-start-policy.delete）。tombstone＋版増分、物理削除しない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、line_staff_start_policies・492 anchor 後続差分）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: type_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 予約区分 ID（既存 ID 型）。現在医院の予約区分であること。
+        - name: staff_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: スタッフ ID（既存 ID 型）。現在医院・当該予約区分の assignment を持つこと。staff selector は既存 staff reader の現在認可を維持する。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineStartPolicyDeleteRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineStartPolicyOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版・状態不一致）/ dependency-changed（assignment 変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy/preview:
+    post:
+      operationId: previewLineStartPolicy
+      summary: 担当者別 LINE 登録開始時刻の preview
+      tags: [Masters]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - master-reservation-type:view
+      description: >-
+        §5.7 read-only（claim0/write0、no-store）。operation_key を受けない。勤務/休業/能力/競合は未評価。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、line_staff_start_policies・492 anchor 後続差分）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: type_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 予約区分 ID（既存 ID 型）。現在医院の予約区分であること。
+        - name: staff_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: スタッフ ID（既存 ID 型）。現在医院・当該予約区分の assignment を持つこと。staff selector は既存 staff reader の現在認可を維持する。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineStartPolicyPreviewRequest'
+      responses:
+        '200':
+          description: preview 結果（定義した未設定/削除/未照合 state を含む完全評価）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineStartPolicyPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 現在状態・期待版・assignment の不一致（preview）。既存 ErrorResponse。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功、他院/他担当へ fallback しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /line-start-policy-operations/{operation_key}:
+    get:
+      operationId: getLineStartPolicyOperation
+      summary: 担当者別 LINE 登録開始時刻操作の結果照会
+      tags: [Masters]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      description: >-
+        §1.1/§4.2/§4.3 限定 C06 照会。元 scope/actor/assignment（492 anchor の staff_id/assignment_id）と元 write action を現在再検査する。incoming target で原 anchor を補修しない。write-only role も同じ action で照会できる。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、line_staff_start_policies・492 anchor 後続差分）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: operation_key
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/LineTimeOperationKey'
+        - name: intent
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [create, replace, reconfigure, delete]
+          description: >-
+            短名→intent の固定 map（line-start-policy.<短名>）。現在再検査する元 write action は create/replace/reconfigure=master-reservation-type:edit、
+            delete=master-reservation-type:delete。別 family・別 intent へ切替えて元結果を読まない。
+      responses:
+        '200':
+          description: 限定 C06 照会結果。refs/版だけを返し Policy 本文・氏名・予約一覧は返さない。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineStartPolicyOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版・状態不一致）/ dependency-changed（assignment 変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
   /clinic-holidays:
     get:
       tags:
