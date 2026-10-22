@@ -22,6 +22,7 @@ import { Plus } from "lucide-react";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { LabDeviceUnlinkedBanner } from "@/components/shared/LabDeviceUnlinkedBanner/LabDeviceUnlinkedBanner";
 import { getLockedEmptyStateMessage } from "../lib/record-empty-state";
+import { formatNumber } from "@/lib/format/number";
 
 interface MedicalRecordExaminationProps {
   isNewRecord?: boolean;
@@ -103,7 +104,7 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
         <h2 className={`text-sm font-semibold ${C.text} pl-1`}>検査結果一覧</h2>
         {isTruncated ? (
           <p className={`mt-1 pl-1 text-xs ${C.text50}`} role="status">
-            直近{HISTORY_FETCH_LIMIT.toLocaleString()}件を表示しています
+            直近{formatNumber(HISTORY_FETCH_LIMIT)}件を表示しています
           </p>
         ) : null}
       </div>

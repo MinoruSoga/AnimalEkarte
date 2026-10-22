@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { CheckupType } from "../api/get-checkup-sync-preview";
 import { RequiredMark } from "@/components/shared/RequiredMark";
+import { formatNumber } from "@/lib/format/number";
 
 const CHECKUP_TYPE_LABELS: Record<CheckupType, string> = {
   annual: "定期健診",
@@ -84,7 +85,7 @@ export function CheckupSyncConfirmDialog({
               <span className={`font-semibold ${C.textBrand}`}>
                 {CHECKUP_TYPE_LABELS[checkupType]}
               </span>
-              の対象者 <span className="font-semibold">{selectedCount.toLocaleString()}名</span>
+              の対象者 <span className="font-semibold">{formatNumber(selectedCount)}名</span>
               にLステップタグ「
               <span className={`font-mono ${C.textBrand}`}>{tagName || "—"}</span>
               」を付与します。

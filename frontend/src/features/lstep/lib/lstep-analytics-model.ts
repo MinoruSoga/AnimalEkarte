@@ -1,4 +1,5 @@
 import { PALETTE } from "@/lib/design-tokens";
+import { formatPercent as formatSharedPercent } from "@/lib/format/number";
 import { todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 
 import type { DeliveryStatsRow } from "../api/get-lstep-delivery-stats";
@@ -71,5 +72,6 @@ export function buildCrossRows(rows: DeliveryStatsRow[]): CrossRow[] {
 }
 
 export function formatPercent(rate: number): string {
-  return `${(rate * 100).toFixed(1)}%`;
+  // 共有フォーマッタへ委譲（design-patterns §10: toFixed の直書き禁止）。
+  return formatSharedPercent(rate, 1);
 }

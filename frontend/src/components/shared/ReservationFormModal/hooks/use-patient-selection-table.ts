@@ -13,6 +13,7 @@ import {
   resolvePatientStatusText,
   type PatientSearchParams,
 } from "../patient-selection-table-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface UsePatientSelectionTableArgs {
   selectedPets: Pet[];
@@ -75,7 +76,7 @@ export function usePatientSelectionTable({
   const totalPages = Math.max(1, Math.ceil(totalCount / responseLimit));
   const startIndex = totalCount === 0 ? 0 : (responsePage - 1) * responseLimit + 1;
   const endIndex = totalCount === 0 ? 0 : Math.min(responsePage * responseLimit, totalCount);
-  const rangeText = `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`;
+  const rangeText = `${formatNumber(totalCount)}件中 ${formatNumber(startIndex)}-${formatNumber(endIndex)}件`;
   const isCountTrustworthy =
     hasTotal && (totalCount > 0 ? startIndex <= totalCount : pets.length === 0);
   const showCachedRange = pets.length > 0 && Boolean(error || isBusy) && isCountTrustworthy;

@@ -27,6 +27,7 @@ import { isTentativeReservation, TENTATIVE_APPOINTMENT_LABEL } from "../lib/tent
 
 // Types
 import type { Reservation } from "@/types";
+import { formatNumber } from "@/lib/format/number";
 
 interface ReservationTypeColor {
   style: React.CSSProperties;
@@ -196,7 +197,7 @@ export const MonthView = memo(function MonthView({
               })}
               {dayAppointments.length > 4 ? (
                 <div className={`text-sm ${C.text60} pl-1`}>
-                  他 {(dayAppointments.length - 4).toLocaleString()} 件
+                  他 {formatNumber(dayAppointments.length - 4)} 件
                 </div>
               ) : null}
             </div>

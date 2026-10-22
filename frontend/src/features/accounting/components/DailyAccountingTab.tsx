@@ -18,7 +18,7 @@ import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { todayJSTISO } from "@/lib/jst-date";
-import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
+import { formatCurrency, formatCurrencyIfNonzero, formatNumber } from "@/lib/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
@@ -176,7 +176,7 @@ export function DailyAccountingTab({
 
           {summary ? (
             <div className="flex flex-wrap gap-2" data-testid="daily-summary-cards">
-              <SummaryCard label="会計件数" value={`${summary.billing_count.toLocaleString()}件`} />
+              <SummaryCard label="会計件数" value={`${formatNumber(summary.billing_count)}件`} />
               <SummaryCard label="売上合計" value={formatCurrency(summary.grand_total)} />
               {summary.payment_totals.map((pt) => (
                 <SummaryCard
@@ -200,7 +200,7 @@ export function DailyAccountingTab({
                   <div className="flex flex-wrap gap-2">
                     <SummaryCard
                       label="会計件数"
-                      value={`${cs.summary.billing_count.toLocaleString()}件`}
+                      value={`${formatNumber(cs.summary.billing_count)}件`}
                     />
                     <SummaryCard label="売上合計" value={formatCurrency(cs.summary.grand_total)} />
                     {cs.summary.payment_totals.map((pt) => (
@@ -330,7 +330,7 @@ export function DailyAccountingTab({
                 <TableFooter>
                   <TableRow className={`font-semibold border-t-2 ${C.borderLight}`}>
                     <TableCell colSpan={labelColSpan} className="text-sm">
-                      合計（{rows.length.toLocaleString()}件）
+                      合計（{formatNumber(rows.length)}件）
                     </TableCell>
                     <TableCell className="text-right text-sm font-mono">
                       {formatCurrencyIfNonzero(totals.medical)}

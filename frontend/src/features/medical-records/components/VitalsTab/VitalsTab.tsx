@@ -30,6 +30,7 @@ import {
   parseVitalsNumber,
   type VitalsAddFormState,
 } from "../../lib/vitals-tab-table-model";
+import { formatNumber } from "@/lib/format/number";
 
 const PERMISSION_DENIED_MESSAGE = "この操作を行う権限がありません";
 
@@ -304,7 +305,7 @@ export const VitalsTab = memo(function VitalsTab({
       {sortedVitals.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>
-            バイタル記録 {sortedVitals.length.toLocaleString()} 件
+            バイタル記録 {formatNumber(sortedVitals.length)} 件
           </span>
         </div>
       ) : null}

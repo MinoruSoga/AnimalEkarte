@@ -23,7 +23,7 @@ import {
 import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import { EMPTY_VALUE } from "@/constants/empty-value";
 import { formatDate } from "@/lib/format/date";
 import type { Accounting } from "../api/transforms";
@@ -48,7 +48,7 @@ export function AccountingHistorySummary({
       data-testid="accounting-history-summary"
     >
       <span className={`text-xs ${C.text60}`}>
-        累計支払い金額（精算済 {completedCount.toLocaleString()} 件）
+        累計支払い金額（精算済 {formatNumber(completedCount)} 件）
       </span>
       <span className={`text-base font-semibold ${C.text} font-mono`}>
         {formatCurrency(completedTotal)}

@@ -28,6 +28,7 @@ import {
   makeDefaultCheckupAddForm,
   type AddCheckupFormState,
 } from "../../lib/checkups-tab-table-model";
+import { formatNumber } from "@/lib/format/number";
 
 const DECEASED_CHECKUPS_MESSAGE = "死亡したペットの健診記録は保存できません";
 
@@ -226,7 +227,7 @@ export const CheckupsTab = memo(function CheckupsTab({
       {checkupList.length > 0 ? (
         <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
           <span className={`text-sm ${C.text60}`}>
-            健診記録 {checkupList.length.toLocaleString()} 件
+            健診記録 {formatNumber(checkupList.length)} 件
           </span>
         </div>
       ) : null}

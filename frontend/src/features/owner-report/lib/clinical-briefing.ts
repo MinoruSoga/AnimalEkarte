@@ -1,5 +1,6 @@
 import { formatJSTDate } from "@/lib/jst-date";
 import { EMPTY_VALUE } from "@/constants/empty-value";
+import { formatNumber } from "@/lib/format/number";
 
 export const CLINICAL_HISTORY_KINDS = [
   "診療",
@@ -208,7 +209,7 @@ function checkupEntries(checkups: ReadonlyArray<CheckupSource>): ClinicalHistory
         dateKey,
         source: "健診記録",
         title: first.checkupTypeName || "健診",
-        detail: `${results.length.toLocaleString()}項目${abnormalCount > 0 ? ` / 要注意 ${abnormalCount.toLocaleString()}件` : ""}`,
+        detail: `${formatNumber(results.length)}項目${abnormalCount > 0 ? ` / 要注意 ${formatNumber(abnormalCount)}件` : ""}`,
         status: abnormalCount > 0 ? "要注意" : undefined,
         isAlert: abnormalCount > 0,
       },

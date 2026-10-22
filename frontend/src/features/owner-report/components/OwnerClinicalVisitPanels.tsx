@@ -18,6 +18,7 @@ import {
 } from "../lib/report-summary";
 import { ClinicalBriefingPanel } from "./ClinicalBriefingPanel";
 import { BriefingField, DataStatus, DetailField } from "./ClinicalBriefingFields";
+import { formatNumber } from "@/lib/format/number";
 
 interface DataPanelProps {
   data: OwnerClinicalBriefingData;
@@ -74,7 +75,7 @@ function PreVisitStatusFields({ data }: DataPanelProps) {
         {examination ? (
           <BriefingField
             label="最新検査"
-            value={`${examination.testType || "検査"}・${abnormalCount > 0 ? `基準外 ${abnormalCount.toLocaleString()}件` : examination.items?.length ? "基準外なし" : "結果明細なし"}`}
+            value={`${examination.testType || "検査"}・${abnormalCount > 0 ? `基準外 ${formatNumber(abnormalCount)}件` : examination.items?.length ? "基準外なし" : "結果明細なし"}`}
             alert={abnormalCount > 0}
           />
         ) : undefined}

@@ -19,6 +19,7 @@ import { isPetDeceasedForClinicalWrite } from "@/lib/transforms/pet";
 import { getPetStatusColor } from "@/lib/status-helpers";
 import type { PetSelectionResultPage } from "@/hooks/use-pet-selection-page";
 import type { Pet } from "@/types";
+import { formatNumber } from "@/lib/format/number";
 
 interface PetSelectionResultsTableProps {
   pets: PetSelectionResultPage;
@@ -39,7 +40,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
   isLoading = false,
 }: PetSelectionResultsTableProps) {
   const { items, totalCount, currentPage, totalPages, startIndex, endIndex, onPageChange } = pets;
-  const rangeText = `${totalCount.toLocaleString()}件中 ${startIndex.toLocaleString()}-${endIndex.toLocaleString()}件`;
+  const rangeText = `${formatNumber(totalCount)}件中 ${formatNumber(startIndex)}-${formatNumber(endIndex)}件`;
   // total と描画行が食い違う状態（応答に total が含まれない、範囲が総数を超える等）では
   // 件数を主張しない。「0件」と言いながら行を出すのは BUG-451 と同じ「嘘の件数」である。
   const isCountTrustworthy = totalCount > 0 ? startIndex <= totalCount : items.length === 0;

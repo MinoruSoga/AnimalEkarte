@@ -15,6 +15,7 @@ import { transformToCreateRequest } from "../api/transforms";
 import { useUpdateReservation } from "../api/update-reservation";
 import { buildReservationUpdateRequest } from "../lib/reservation-actions-model";
 import type { NewOwnerFormData, Pet, ReservationFormData } from "../types";
+import { formatNumber } from "@/lib/format/number";
 
 /** FE-RC-204: action 別の最新権限値。mutation 直前に isMutationAllowed() で再検査する。 */
 export interface ReservationMutationPermissions {
@@ -211,7 +212,7 @@ export function useReservationSaveActions({
             })),
           });
         }
-        toast.success(`${selectedPets.length.toLocaleString()}件の予約を作成しました`, {
+        toast.success(`${formatNumber(selectedPets.length)}件の予約を作成しました`, {
           description: `担当医: ${targetDoctor}`,
         });
         handleCloseCreateForm();

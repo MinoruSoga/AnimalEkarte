@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { C } from "@/lib/design-tokens";
+import { formatDecimal } from "@/lib/format/number";
 import { calculateDose } from "@/lib/medicine-dose";
 import type { Treatment } from "../../types";
 import type { DoseGateResult } from "../../lib/treatment-row-dose-gate";
@@ -94,8 +95,8 @@ export function TreatmentDoseMessages({
       ) : null}
       {dosePreview?.eligible ? (
         <div className={`text-xs ${C.text60} text-right mt-0.5`}>
-          推奨{dosePreview.quantity}（{dosePreview.rawMg.toFixed(1)}→
-          {dosePreview.effectiveDoseMg.toFixed(1)}mg）
+          推奨{dosePreview.quantity}（{formatDecimal(dosePreview.rawMg, 1)}→
+          {formatDecimal(dosePreview.effectiveDoseMg, 1)}mg）
         </div>
       ) : null}
       {treatment.dose_amount_mg != null ? (

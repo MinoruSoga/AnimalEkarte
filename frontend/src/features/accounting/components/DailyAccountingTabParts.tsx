@@ -1,5 +1,5 @@
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 
 import type { CashCardAmount } from "../lib/daily-accounting-utils";
 
@@ -33,9 +33,9 @@ export function CatCell({ detail, isMixed }: CatCellProps) {
   }
   return (
     <td className={`border ${C.borderGray300} text-right px-1 py-0.5 text-[9pt] leading-tight`}>
-      {detail.cash !== 0 ? <div>現{detail.cash.toLocaleString()}</div> : null}
+      {detail.cash !== 0 ? <div>現{formatNumber(detail.cash)}</div> : null}
       {detail.card !== 0 ? (
-        <div className={C.textStatusBlue}>カ{detail.card.toLocaleString()}</div>
+        <div className={C.textStatusBlue}>カ{formatNumber(detail.card)}</div>
       ) : null}
     </td>
   );

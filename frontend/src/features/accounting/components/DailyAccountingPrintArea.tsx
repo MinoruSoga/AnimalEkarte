@@ -1,7 +1,7 @@
 import { C } from "@/lib/design-tokens";
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
-import { formatCurrency, formatCurrencyIfNonzero } from "@/lib/format/number";
+import { formatCurrency, formatCurrencyIfNonzero, formatNumber } from "@/lib/format/number";
 import { CatCell } from "./DailyAccountingTabParts";
 import { formatReceiptNo } from "../lib/daily-accounting-utils";
 import type { RowData, TotalsData } from "../lib/daily-accounting-utils";
@@ -27,7 +27,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
       <div className="mb-3 text-center">
         <h1 className="text-[14pt] font-bold">日次集計一覧表</h1>
         <p className="text-[10pt]">
-          対象日: {date} 件数: {rows.length.toLocaleString()}件
+          対象日: {date} 件数: {formatNumber(rows.length)}件
         </p>
       </div>
 

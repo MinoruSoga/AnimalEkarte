@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import type { ResourceAction } from "@/hooks/use-permission";
 import type { Resource } from "@/types/generated/models";
+import { formatNumber } from "@/lib/format/number";
 
 // ─────────────────────────────────────────────────
 // CardRow
@@ -43,7 +44,7 @@ function CardRow({ label, description, icon, count, onClick }: CardRowProps) {
       </div>
       {count !== undefined ? (
         <span className={`text-base ${C.text60} tabular-nums shrink-0`}>
-          {count.toLocaleString()}件
+          {formatNumber(count)}件
         </span>
       ) : null}
       <ChevronRight className={`${ICON.action} ${C.text35} shrink-0`} aria-hidden="true" />

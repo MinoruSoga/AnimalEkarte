@@ -13,6 +13,7 @@ import {
   WEEK_DAYS,
   type ReservationTypeColor,
 } from "../lib/week-view-grid-constants";
+import { formatNumber } from "@/lib/format/number";
 
 const INITIAL_SCROLL_HOUR = 9;
 
@@ -150,7 +151,7 @@ function WeekHeader({
                   <span
                     className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.textBrand}`}
                   >
-                    {count.toLocaleString()}件
+                    {formatNumber(count)}件
                   </span>
                 ) : null}
               </div>

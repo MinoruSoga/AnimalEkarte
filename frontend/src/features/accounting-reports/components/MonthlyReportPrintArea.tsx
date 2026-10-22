@@ -1,7 +1,7 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import { formatDate } from "@/lib/format/date";
 import type { CategoryPaymentMatrix, MonthlyReportResponse } from "../api/get-monthly-report";
 import { CategoryPaymentMatrixTable } from "./CategoryPaymentMatrixTable";
@@ -55,13 +55,13 @@ export function MonthlyReportPrintArea({
               診療日数
             </th>
             <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
-              {summary.workingDays.toLocaleString()}日
+              {formatNumber(summary.workingDays)}日
             </td>
             <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
               会計件数
             </th>
             <td className={`border ${C.borderGray300} px-2 py-1 text-right`}>
-              {summary.totalBillings.toLocaleString()}件
+              {formatNumber(summary.totalBillings)}件
             </td>
             <th className={`border ${C.borderGray300} ${C.bgGray100} px-2 py-1 text-left`}>
               売上合計

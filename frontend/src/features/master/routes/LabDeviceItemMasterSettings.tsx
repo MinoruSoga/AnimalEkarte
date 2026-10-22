@@ -22,6 +22,7 @@ import { LabDeviceItemMasterSidePanel } from "../components/LabDeviceItemMasterS
 import { MASTER_TABLE_COL } from "../constants/styles";
 import { labDeviceSourceLabel, type LabDeviceRow } from "./lab-device-item-master-settings-model";
 import { useLabDeviceItemMasterSettings } from "../hooks/use-lab-device-item-master-settings";
+import { formatNumber } from "@/lib/format/number";
 
 const COLUMNS = [
   { header: "機器", className: "flex-1" },
@@ -68,7 +69,7 @@ export function LabDeviceItemMasterSettings() {
                     onSuccess: (result) => {
                       toast.success(
                         result.insertedCount > 0
-                          ? `既定項目を ${result.insertedCount.toLocaleString()} 件用意しました`
+                          ? `既定項目を ${formatNumber(result.insertedCount)} 件用意しました`
                           : "既定項目は揃っています",
                       );
                     },

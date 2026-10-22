@@ -7,6 +7,7 @@ import type {
 import { buildClinicalHistoryMatrix, type ClinicalHistoryKind } from "../lib/clinical-briefing";
 import { ClinicalBriefingPanel } from "./ClinicalBriefingPanel";
 import { ClinicalHistoryMatrix, type HistoryRowState } from "./ClinicalHistoryMatrix";
+import { formatNumber } from "@/lib/format/number";
 
 function rowState(
   permitted: boolean,
@@ -92,7 +93,7 @@ export function ClinicalHistoryPanel({ data }: { data: OwnerClinicalBriefingData
     <ClinicalBriefingPanel
       title="種類別履歴"
       description="縦=種類、横=日付（新しい順）"
-      count={`${matrix.total.toLocaleString()}件${truncated ? "+" : ""}`}
+      count={`${formatNumber(matrix.total)}件${truncated ? "+" : ""}`}
       areaClassName="owner-report-area-history"
       bodyClassName="p-0"
       bodyTestId="owner-report-history-scroll"

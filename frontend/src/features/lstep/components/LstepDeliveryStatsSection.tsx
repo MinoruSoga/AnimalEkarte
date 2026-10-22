@@ -19,6 +19,7 @@ import {
   STATS_STATUSES,
   type CrossRow,
 } from "../lib/lstep-analytics-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface DeliveryStatsSectionProps {
   yearMonth: string;
@@ -103,11 +104,11 @@ function DeliveryStatsTable({ rows }: { rows: CrossRow[] }) {
               </TableCell>
               {STATS_STATUSES.map((status) => (
                 <TableCell key={status} className={`text-right ${C.text60} tabular-nums`}>
-                  {row[status].toLocaleString()}
+                  {formatNumber(row[status])}
                 </TableCell>
               ))}
               <TableCell className={`text-right font-semibold ${C.text55} tabular-nums`}>
-                {row.total.toLocaleString()}
+                {formatNumber(row.total)}
               </TableCell>
             </tr>
           ))}

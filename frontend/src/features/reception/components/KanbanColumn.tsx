@@ -16,6 +16,7 @@ import { AppointmentCard } from "./AppointmentCard";
 // Types
 import type { ColumnData } from "@/types";
 import type { ReceptionAppointment } from "../api/types";
+import { formatNumber } from "@/lib/format/number";
 
 interface KanbanColumnProps {
   data: ColumnData;
@@ -58,7 +59,7 @@ export const KanbanColumn = memo(function KanbanColumn({
       ref={setNodeRef}
       className={`${colors.bg} rounded-md p-2 flex flex-col gap-3 w-full min-w-0 transition-colors ${isOver ? `ring-2 ${C.ringPrimary20} ${C.bgActive}` : ""}`}
       role="region"
-      aria-label={`${data.title} — ${data.appointments.length.toLocaleString()}件`}
+      aria-label={`${data.title} — ${formatNumber(data.appointments.length)}件`}
     >
       <div className="flex items-center gap-2 px-1 py-1">
         <div className={`${ICON.dot} rounded-full ${colors.dot}`} aria-hidden="true" />

@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { C } from "@/lib/design-tokens";
 import { formatJSTDateTimeLocal } from "@/lib/jst-date";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS } from "../lib/constants";
 import { summarizeCategoryTotals } from "../lib/category-breakdown";
@@ -86,7 +86,7 @@ export function CashRegisterHistoryDetailDialog({
                           {formatCurrency(row.total)}
                           {row.count !== undefined ? (
                             <span className={`ml-2 ${C.text60}`}>
-                              {row.count === null ? "記録なし" : `${row.count.toLocaleString()}件`}
+                              {row.count === null ? "記録なし" : `${formatNumber(row.count)}件`}
                             </span>
                           ) : null}
                         </dd>

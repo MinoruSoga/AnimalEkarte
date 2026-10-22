@@ -22,6 +22,7 @@ import {
   INVENTORY_SORT_PROPERTIES,
   type ServerPagePagination,
 } from "./inventory-list-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface InventoryListRowProps {
   item: InventoryItem;
@@ -199,12 +200,12 @@ export function InventoryListContent({
           <div className="flex gap-4 text-base">
             {summary.outOfStock > 0 ? (
               <span className={`${C.danger} font-medium`}>
-                在庫切れ: {summary.outOfStock.toLocaleString()}件
+                在庫切れ: {formatNumber(summary.outOfStock)}件
               </span>
             ) : null}
             {summary.lowStock > 0 ? (
               <span className={`${C.textWarning} font-medium`}>
-                残少: {summary.lowStock.toLocaleString()}件
+                残少: {formatNumber(summary.lowStock)}件
               </span>
             ) : null}
           </div>

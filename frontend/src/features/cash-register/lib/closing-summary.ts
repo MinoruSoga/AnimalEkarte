@@ -1,5 +1,6 @@
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { DISPLAY_CATEGORIES } from "./constants";
+import { formatNumber } from "@/lib/format/number";
 
 /**
  * #153: レジ締めサマリーの「統合テーブル」1行分。
@@ -111,5 +112,5 @@ export function buildUnifiedClosingTotals(
 /** 件数セル表示文言（DEC-40: null → 記録なし） */
 export function formatClosingCount(count: number | null): string {
   if (count === null) return "記録なし";
-  return `${count.toLocaleString()}件`;
+  return `${formatNumber(count)}件`;
 }

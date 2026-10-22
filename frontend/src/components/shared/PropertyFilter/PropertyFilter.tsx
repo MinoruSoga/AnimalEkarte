@@ -6,6 +6,7 @@ import { FilterAddPopover } from "./FilterAddPopover";
 import { SortPopover } from "./SortPopover";
 import { SortPill } from "./SortPill";
 import type { PropertyFilterProps, ActiveFilter } from "./types";
+import { formatNumber } from "@/lib/format/number";
 
 export const PropertyFilter = memo(function PropertyFilter({
   properties,
@@ -114,7 +115,7 @@ export const PropertyFilter = memo(function PropertyFilter({
       <div className="flex flex-wrap items-center gap-2">
         {/* 左側: 件数 + ソートピル + フィルタピル + フィルタ追加 */}
         {count !== undefined ? (
-          <span className={STYLE.searchCount}>{count.toLocaleString()} 件</span>
+          <span className={STYLE.searchCount}>{formatNumber(count)} 件</span>
         ) : null}
 
         {/* Sort pills (orange) */}

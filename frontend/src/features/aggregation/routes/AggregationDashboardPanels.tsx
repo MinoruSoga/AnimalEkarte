@@ -16,6 +16,7 @@ import { AggregationOwnerTable } from "../components/AggregationOwnerTable";
 import { CPMStageSummary } from "../components/CPMStageSummary";
 import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
 import { AGGREGATION_TAB_ITEMS } from "./aggregation-dashboard-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface AggregationDashboardViewProps {
   activeTab: AggregationTab;
@@ -55,11 +56,11 @@ function AggregationDashboardHeaderAction({
       aria-label={
         selectedCount === 0
           ? "CSV出力 (出力対象を選択してください)"
-          : `${selectedCount.toLocaleString()}件をCSV出力`
+          : `${formatNumber(selectedCount)}件をCSV出力`
       }
     >
       <Download className={`mr-1.5 ${ICON.action}`} />
-      {selectedCount > 0 ? `${selectedCount.toLocaleString()}件をCSV出力` : "CSV出力"}
+      {selectedCount > 0 ? `${formatNumber(selectedCount)}件をCSV出力` : "CSV出力"}
     </Button>
   );
 }
@@ -123,11 +124,11 @@ export function AggregationDashboardView({
         {/* 件数 + 選択件数 (PropertyFilter のツールバーと同じ密度) */}
         <div className="flex flex-wrap items-center gap-2">
           {data ? (
-            <span className={STYLE.searchCount}>{data.total.toLocaleString()} 件</span>
+            <span className={STYLE.searchCount}>{formatNumber(data.total)} 件</span>
           ) : null}
           {selectedCount > 0 ? (
             <span className={`text-base font-medium ${C.textActionPrimaryDark}`}>
-              {selectedCount.toLocaleString()}件選択中
+              {formatNumber(selectedCount)}件選択中
             </span>
           ) : null}
         </div>

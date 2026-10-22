@@ -7,6 +7,7 @@ import type {
   ClinicalHistoryMatrix as ClinicalHistoryMatrixModel,
 } from "../lib/clinical-briefing";
 import type { HistoryLoadMoreControl } from "../hooks/use-owner-clinical-briefing-data";
+import { formatNumber } from "@/lib/format/number";
 
 export type HistoryRowState =
   "ready" | "partial-permission" | "no-permission" | "loading" | "error";
@@ -153,7 +154,7 @@ function HistoryRow({ columns, kind, count, state, loadMore }: HistoryRowProps) 
           <strong className={`text-2xs font-semibold ${C.text}`}>{kind}</strong>
         </span>
         <small className={`ml-2.5 block text-2xs font-semibold tabular-nums ${C.text60}`}>
-          {canShowEntries ? `${count.toLocaleString()}件` : "—"}
+          {canShowEntries ? `${formatNumber(count)}件` : "—"}
         </small>
         {canShowEntries && loadMore?.hasMore ? (
           <button

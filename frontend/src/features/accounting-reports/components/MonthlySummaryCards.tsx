@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { C } from "@/lib/design-tokens";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import type { MonthlyReportResponse } from "../api/get-monthly-report";
 
 interface MonthlySummaryCardsProps {
@@ -21,8 +21,8 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
   taxSettingsLink,
 }: MonthlySummaryCardsProps) {
   const topCards = [
-    { label: "診療日数", value: `${summary.workingDays.toLocaleString()}日`, sub: null },
-    { label: "会計件数", value: `${summary.totalBillings.toLocaleString()}件`, sub: null },
+    { label: "診療日数", value: `${formatNumber(summary.workingDays)}日`, sub: null },
+    { label: "会計件数", value: `${formatNumber(summary.totalBillings)}件`, sub: null },
     {
       label: "売上合計",
       value: formatCurrency(summary.totalAmount),
