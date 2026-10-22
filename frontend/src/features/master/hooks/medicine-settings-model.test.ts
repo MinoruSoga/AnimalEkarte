@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { Medicine } from "@/types";
+import type { LegacyMedicineResponse } from "@/types/medicine";
+import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 
 import {
   MEDICINE_STRENGTH_REQUIRED_MESSAGE,
@@ -533,6 +535,13 @@ describe("EMR-447 medicine exact decimal wire", () => {
     expect(update.tax_rate).toBe("0");
   });
 
+  it("create は既定 0.1 と明示 0.08 を正しい decimal 文字列で送る", () => {
+    expect(buildMedicineCreateRequest(makeFormData({ taxRate: 0.1 }), false).tax_rate).toBe("0.1");
+    expect(buildMedicineCreateRequest(makeFormData({ taxRate: 0.08 }), false).tax_rate).toBe(
+      "0.08",
+    );
+  });
+
   it("sends the strength input as typed without float conversion", () => {
     const request = buildMedicineCreateRequest(
       makeFormData({ calculationType: "per_weight", strength: " 0.0005 " }),
@@ -591,6 +600,25 @@ describe("EMR-447 Q4 strength の必須・明示クリア", () => {
     expect(request.calculation_type).toBe("none");
   });
 
+  it("② none への切替だけでは回数・日数も消さず frequency_per_day・default_duration_days を送らない", () => {
+    const request = buildMedicineUpdateRequest({
+      data: makeFormData({
+        calculationType: "none",
+        strength: "50",
+        frequencyPerDay: "2",
+        defaultDurationDays: "7",
+      }),
+      isCategory: false,
+      selectedMedicine: makeMedicine({ strength: 50, frequencyPerDay: 2, defaultDurationDays: 7 }),
+    });
+
+    expect(request).not.toHaveProperty("strength");
+    expect(request).not.toHaveProperty("frequency_per_day");
+    expect(request).not.toHaveProperty("default_duration_days");
+    expect(request).not.toHaveProperty("clear_strength");
+    expect(request.calculation_type).toBe("none");
+  });
+
   it("③ 既存含量を空へ編集し none で保存すると clear_strength=true だけを送る", () => {
     const request = buildMedicineUpdateRequest({
       data: makeFormData({ calculationType: "none", strength: "" }),
@@ -633,5 +661,114 @@ describe("EMR-447 Q4 strength の必須・明示クリア", () => {
 
     expect(request).not.toHaveProperty("strength");
     expect(request).not.toHaveProperty("clear_strength");
+  });
+});
+
+// EMR-536 AC1/AC2: 保存済み tax_rate の exact 値は PATCH 省略で BE 保持に任せ、
+// 明示変更されたときだけ decimal 文字列で送る。数値化した値を保存正本へ戻さない。
+describe("EMR-536 medicine tax_rate exact 保持", () => {
+  const wireMedicine = (taxRate: string): LegacyMedicineResponse => ({
+    id: 7,
+    clinic_id: 1,
+    name: "既存薬",
+    is_active: true,
+    is_non_insurance: false,
+    description: "備考A",
+    default_quantity: "1",
+    tax_type: "excluded",
+    tax_rate: taxRate,
+    sort_order: 0,
+    calculation_type: "none",
+    created_at: "",
+    updated_at: "",
+  });
+
+  it.each(["0.1234567890123456789", "0.0000001"])(
+    "保存済み tax_rate=%s は名称のみ変更しても PATCH 省略で保持し例外にならない",
+    (taxRate) => {
+      const medicine = transformBackendMedicineToFrontend(wireMedicine(taxRate));
+      const data = { ...medicineToFormData(medicine), name: "別名" };
+
+      const request = buildMedicineUpdateRequest({
+        data,
+        isCategory: false,
+        selectedMedicine: medicine,
+      });
+
+      expect(request).not.toHaveProperty("tax_rate");
+      expect(request.name).toBe("別名");
+    },
+  );
+
+  it.each(["0.1234567890123456789", "0.0000001"])(
+    "保存済み tax_rate=%s は備考のみ変更しても PATCH 省略で保持する",
+    (taxRate) => {
+      const medicine = transformBackendMedicineToFrontend(wireMedicine(taxRate));
+      const data = { ...medicineToFormData(medicine), description: "別メモ" };
+
+      const request = buildMedicineUpdateRequest({
+        data,
+        isCategory: false,
+        selectedMedicine: medicine,
+      });
+
+      expect(request).not.toHaveProperty("tax_rate");
+    },
+  );
+
+  it("税率を 0.1 → 0.08 へ明示変更すると tax_rate='0.08' を送る", () => {
+    const medicine = transformBackendMedicineToFrontend(wireMedicine("0.1"));
+    const data = { ...medicineToFormData(medicine), taxRate: 0.08 };
+
+    const request = buildMedicineUpdateRequest({
+      data,
+      isCategory: false,
+      selectedMedicine: medicine,
+    });
+
+    expect(request.tax_rate).toBe("0.08");
+  });
+
+  it("既存 '0' を潰さず保持し、0.1 へ明示変更したときだけ tax_rate='0.1' を送る", () => {
+    const medicine = transformBackendMedicineToFrontend(wireMedicine("0"));
+    expect(medicineToFormData(medicine).taxRate).toBe(0);
+
+    const unchanged = buildMedicineUpdateRequest({
+      data: medicineToFormData(medicine),
+      isCategory: false,
+      selectedMedicine: medicine,
+    });
+    expect(unchanged).not.toHaveProperty("tax_rate");
+
+    const changed = buildMedicineUpdateRequest({
+      data: { ...medicineToFormData(medicine), taxRate: 0.1 },
+      isCategory: false,
+      selectedMedicine: medicine,
+    });
+    expect(changed.tax_rate).toBe("0.1");
+  });
+
+  it("明示変更後に元の値へ戻した場合は未変更扱いで tax_rate を送らない", () => {
+    const medicine = transformBackendMedicineToFrontend(wireMedicine("0.1"));
+    // 0.08 を選んでから 0.1 へ戻した最終フォーム状態。
+    const data = { ...medicineToFormData(medicine), taxRate: 0.1 };
+
+    const request = buildMedicineUpdateRequest({
+      data,
+      isCategory: false,
+      selectedMedicine: medicine,
+    });
+
+    expect(request).not.toHaveProperty("tax_rate");
+  });
+
+  it("selectedMedicine が無い等で初期値を判定できない場合は従来どおり送る", () => {
+    const request = buildMedicineUpdateRequest({
+      data: makeFormData({ taxRate: 0.08 }),
+      isCategory: false,
+      selectedMedicine: null,
+    });
+
+    expect(request.tax_rate).toBe("0.08");
   });
 });
