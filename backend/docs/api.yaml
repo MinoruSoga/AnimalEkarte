@@ -21510,7 +21510,7 @@ paths:
       summary: 休診日作成（締め設定配下）
       description: >-
         EMR-445 A03 選定契約 §2.4: 旧 closing 休日は既存 grant・既存保存意味の**レジ専用 legacy read/write として維持**し、409 停止の対象外。
-        新 common へ書かず、新 /closing-settings/holidays/common（日付限定 adapter）とは別操作。common/予約 reader はこの旧表を参照しない。
+        新 common へ書かず、新 /closing-settings/holidays/common（日付限定 adapter）とは別操作。common reader はこの旧表を参照しない。予約 reader が旧表を参照しなくなるのは切替後（EMR-448/492 D、runtime 未接続）で、現行の予約作成・更新は旧表を参照する。
         レジ日界・closing_special_periods の共通転用、既存値の自動上書きはしない。
       tags: [ClosingSettings]
       requestBody:
@@ -21544,7 +21544,7 @@ paths:
       summary: 休診日削除（締め設定配下）
       description: >-
         EMR-445 A03 選定契約 §2.4: 旧 closing 休日は既存 grant・既存保存意味の**レジ専用 legacy read/write として維持**し、409 停止の対象外。
-        新 common へ書かず、新 /closing-settings/holidays/common（日付限定 adapter）とは別操作。common/予約 reader はこの旧表を参照しない。
+        新 common へ書かず、新 /closing-settings/holidays/common（日付限定 adapter）とは別操作。common reader はこの旧表を参照しない。予約 reader が旧表を参照しなくなるのは切替後（EMR-448/492 D、runtime 未接続）で、現行の予約作成・更新は旧表を参照する。
         レジ日界・closing_special_periods の共通転用、既存値の自動上書きはしない。
       tags: [ClosingSettings]
       parameters:
@@ -33476,12 +33476,15 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '409':
           description: >-
+            既存: 同じ日付の休診日が既にある（ErrorResponse、未切替医院を含め従来どおり）。
             EMR-445 A03 選定契約 §2.4: 共通医院時間（common）利用開始の医院では旧 shifts 休日 mutation を zero-write で停止し、
-            新 adapter（/clinic-holidays/common）へ移す。x-contract-status: selected の追記で runtime（活性化判定）は EMR-448/492（D）で未接続。
+            新 adapter（/clinic-holidays/common）へ移す（LineTimeContractUpgradeRequired、code で判別）。x-contract-status: selected の追記で runtime（活性化判定）は EMR-448/492（D）で未接続。
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LineTimeContractUpgradeRequired'
+                anyOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeContractUpgradeRequired'
         '500':
           $ref: '#/components/responses/InternalError'
   /clinic-holidays/{date}:

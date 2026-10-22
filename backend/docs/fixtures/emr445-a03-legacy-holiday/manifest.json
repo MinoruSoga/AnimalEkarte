@@ -8,7 +8,9 @@
  "fixtures": [
   {
    "file": "shifts-post-upgrade-required.response.json",
-   "operationId": "POST /clinic-holidays",
+   "operationId": null,
+   "method": "POST",
+   "path": "/clinic-holidays",
    "body_kind": "response",
    "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
    "http_status": 409,
@@ -19,7 +21,9 @@
   },
   {
    "file": "shifts-delete-upgrade-required.response.json",
-   "operationId": "DELETE /clinic-holidays/{date}",
+   "operationId": null,
+   "method": "DELETE",
+   "path": "/clinic-holidays/{date}",
    "body_kind": "response",
    "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
    "http_status": 409,
@@ -30,7 +34,9 @@
   },
   {
    "file": "upgrade-required-unknown-code.response.json",
-   "operationId": "POST /clinic-holidays",
+   "operationId": null,
+   "method": "POST",
+   "path": "/clinic-holidays",
    "body_kind": "response",
    "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
    "http_status": 409,
@@ -38,6 +44,20 @@
    "scenario": "code が契約外",
    "semantic_expectation": "不適合（code は contract_upgrade_required だけ）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "shifts-post-duplicate-date.response.json",
+   "operationId": null,
+   "method": "POST",
+   "path": "/clinic-holidays",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ErrorResponse",
+   "http_status": 409,
+   "expected_schema": "valid",
+   "scenario": "未切替医院で既存日付を重複作成（既存挙動）",
+   "semantic_expectation": "従来どおり 409 ErrorResponse（code なし）。409 は ErrorResponse と LineTimeContractUpgradeRequired の anyOf で、code で判別する",
+   "verification": "NOT_RUN"
   }
- ]
+ ],
+ "operation_ref_note": "旧 shifts 休日 operation は api.yaml に operationId が無い（追加すると生成 client 名が変わるため付けない）。operationId は null とし method/path で参照する。"
 }
