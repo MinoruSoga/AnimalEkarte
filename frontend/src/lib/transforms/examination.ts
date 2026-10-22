@@ -3,10 +3,6 @@ import type {
   LegacyExamResultResponse,
 } from "@/types/examination-legacy-wire";
 
-// EMR-527: 移行 HTTP DTO（@/types/examination-legacy-wire）が参照する enum union。
-// 新規ファイルは生成 models を import できないため、凍結済みの本ファイルから type-only で渡す。
-export type { ExaminationResultStatus, ExaminationStatus } from "@/types/generated/models";
-
 export const EXAM_STATUS_EN_TO_JA: Record<
   string,
   "依頼中" | "検査中" | "結果入力済み" | "完了" | "確定"

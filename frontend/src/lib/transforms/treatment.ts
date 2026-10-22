@@ -3,12 +3,12 @@ import type {
   ExaminationType,
   Vaccine,
   CheckupType,
+  ExactNumeric,
   TaxType,
 } from "@/types/generated/models";
 import type {
   ItemInsuranceSetting,
   LegacyConsultationResponse,
-  LegacyExactNumericJson,
   LegacyProcedureResponse,
 } from "@/types/treatment";
 
@@ -39,7 +39,7 @@ export type VaccineWire = Omit<Vaccine, "is_non_insurance"> & {
  * tax_rate は model.ExactNumeric の JSON 表現（null / "NaN" / number）で届く。
  * null・欠落は従来どおり 0.1、"NaN" は文字列のまま通さず数値 NaN にする（0.1 へ黙って補完しない）。
  */
-const toTaxRate = (value: LegacyExactNumericJson | undefined): number => Number(value ?? 0.1);
+const toTaxRate = (value: ExactNumeric | undefined): number => Number(value ?? 0.1);
 
 // ─────────────────────────────────────────────────
 // Consultation

@@ -12,8 +12,8 @@ import type {
   PetSummaryResponse,
   StaffSummaryResponse,
 } from "@/types/generated/medicalrecord-responses";
-// enum union は凍結済み import 元の lib/transforms/examination から type-only で受け取る。
-import type { ExaminationResultStatus, ExaminationStatus } from "@/lib/transforms/examination";
+// enum union は allowlist 済みの ./index から type-only で受け取る。
+import type { ExaminationResultStatus, ExaminationStatus } from "./index";
 
 /** @see backend/internal/medicalrecord/examination_response.go examTypeSummaryResponse */
 interface LegacyExamTypeSummary {

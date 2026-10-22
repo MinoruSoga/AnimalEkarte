@@ -4,6 +4,7 @@ import type {
   TaxType,
   Vaccine,
   CheckupType,
+  ExactNumeric,
 } from "@/types/generated/models";
 import type { ReorderRequest } from "@/types/form";
 
@@ -41,12 +42,6 @@ type ItemInsuranceWire = {
 // omitempty なしのポインタは null 可で表す。新しい契約へ切り替えるときに置き換える。
 // ─────────────────────────────────────────────────
 
-/**
- * Go の model.ExactNumeric（pgtype.Numeric.MarshalJSON）の JSON 表現。
- * 無効値（SQL NULL）は null、NaN は文字列 "NaN"、それ以外は桁を保った JSON number。
- */
-export type LegacyExactNumericJson = number | "NaN" | null;
-
 /** @see backend/internal/medicalrecord/consultation_response.go consultationResponse */
 export interface LegacyConsultationResponse {
   version: number;
@@ -61,7 +56,7 @@ export interface LegacyConsultationResponse {
   parent_id?: number;
   tax_type: TaxType;
   /** model.ExactNumeric のまま直列化される（float64 ではない）。 */
-  tax_rate: LegacyExactNumericJson;
+  tax_rate: ExactNumeric;
   sort_order: number | null;
   created_at: string;
   updated_at: string;
@@ -86,7 +81,7 @@ export interface LegacyProcedureResponse {
   parent_id?: number;
   tax_type: TaxType;
   /** model.ExactNumeric のまま直列化される（float64 ではない）。 */
-  tax_rate: LegacyExactNumericJson;
+  tax_rate: ExactNumeric;
   sort_order: number | null;
   created_at: string;
   updated_at: string;

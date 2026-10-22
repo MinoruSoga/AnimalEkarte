@@ -12,8 +12,8 @@ import type {
   PetSummaryResponse,
   StaffSummaryResponse,
 } from "@/types/generated/medicalrecord-responses";
-// enum union は凍結済み import 元の hooks/use-create-vaccination から type-only で受け取る。
-import type { NextScheduleType } from "@/hooks/use-create-vaccination";
+// enum union は allowlist 済みの ./index から type-only で受け取る。
+import type { NextScheduleType } from "./index";
 
 /** @see backend/internal/medicalrecord/vaccination_response.go vaccineSummaryResponse */
 interface LegacyVaccineSummary {

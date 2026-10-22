@@ -1,5 +1,9 @@
 import type { BackendAccounting, BackendAccountingItem } from "./types";
-import type { LegacyPaymentSplitResponse, LegacyRefundResponse } from "./legacy-wire";
+import type {
+  LegacyPaymentResponse,
+  LegacyPaymentSplitResponse,
+  LegacyRefundResponse,
+} from "./legacy-wire";
 import type { ItemCategory, AccountingStatus, PaymentMethod } from "../types";
 import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
 import { formatJSTDate } from "@/lib/jst-date";
@@ -39,7 +43,7 @@ export function transformAccountingItem(item: BackendAccountingItem) {
 export type AccountingItem = ReturnType<typeof transformAccountingItem>;
 
 function buildPaymentInfo(data: BackendAccounting) {
-  const payment = data.payments?.[0];
+  const payment: LegacyPaymentResponse | undefined = data.payments?.[0];
   if (data.status !== "completed" || payment == null) {
     return undefined;
   }

@@ -6,10 +6,6 @@ import { queryKeys } from "@/lib/query-keys";
 import type { VaccinationRecord } from "@/types";
 import type { LegacyVaccinationResponse } from "@/types/vaccination-legacy-wire";
 
-// EMR-527: 移行 HTTP DTO（@/types/vaccination-legacy-wire）が参照する enum union。
-// 新規ファイルは生成 models を import できないため、凍結済みの本ファイルから type-only で渡す。
-export type { NextScheduleType } from "@/types/generated/models";
-
 // ─────────────────────────────────────────────────
 // Request types
 // ─────────────────────────────────────────────────
