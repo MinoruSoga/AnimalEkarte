@@ -26,6 +26,12 @@ packages:
       datatypes.JSON: "unknown"
       uuid.UUID: "string"
       pq.Int64Array: "number[]"
+      # EMR-527: ExactNumeric は埋め込みの pgtype.Numeric の MarshalJSON で直列化される
+      # （無効値 null、NaN は "NaN"、それ以外は桁を保った JSON number）。未マップだと
+      # `Numeric: any` の object 型になるため、その JSON 表現をそのまま写す。
+      # 保存 model の型であり HTTP wire 契約ではない（応答型は各 domain の DTO を使う）。
+      ExactNumeric: 'number | "NaN" | null'
+      pgtype.Numeric: 'number | "NaN" | null'
       "uint64": "number"
       "uint": "number"
     frontmatter: |
