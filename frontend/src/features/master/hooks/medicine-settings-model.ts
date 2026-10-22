@@ -4,7 +4,6 @@ import type { Medicine } from "@/types";
 
 import {
   getMedicineStrengthError,
-  medicineToFormData,
   type MedicineFormData,
 } from "../lib/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -186,14 +185,30 @@ function isExplicitStrengthClear(data: MedicineFormData, selectedMedicine: Medic
 }
 
 /**
- * EMR-536: PATCH の tax_rate 省略は BE の「保持」を意味する。フォームの税率が編集開始時の値
- * （selectedMedicine 由来の初期フォーム値）と同じなら未変更とみなし tax_rate を送らない。
- * 明示変更後に元の値へ戻した場合も同値なので未変更扱い。selectedMedicine が無い等で
- * 初期値を判定できない場合は false を返し、従来どおり送信する。
+ * exact decimal 文字列（`^(0|[1-9][0-9]*)(\.[0-9]+)?$`）を値として同じなら同じ文字列へ揃える純粋関数。
+ * 小数部の末尾 0 と、残った小数点を除く（"0.1000" → "0.1"、"1.0" → "1"）。number を経由しない。
  */
-function isTaxRateUnchanged(data: MedicineFormData, selectedMedicine: Medicine | null) {
+export function normalizeExactDecimal(text: string): string {
+  if (!text.includes(".")) return text;
+  return text.replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/**
+ * EMR-536: PATCH の tax_rate 省略は BE の「保持」を意味する。判定は編集 intent と保存 exact 値で行い、
+ * 丸めた number の比較には頼らない。
+ * - 新規（selectedMedicine なし）: 比較元が無いので省略しない。
+ * - 税率セレクタ未操作: 省略（"0.1234567890123456789" / "0.0000001" / 既存 0 を保持）。
+ * - 操作済み: 選択値の decimal 文字列が保存 exact 値と同値のときだけ省略（元値へ戻した取消）。
+ *   保存 exact 値が高精度（"0.1000000000000000001"）なら 0.1 を再選択しても同値でないので送る。
+ *   保存 exact 値を持たない Medicine は同値を証明できないので送る。
+ */
+function shouldOmitTaxRate(data: MedicineFormData, selectedMedicine: Medicine | null) {
   if (selectedMedicine === null) return false;
-  return data.taxRate === medicineToFormData(selectedMedicine).taxRate;
+  if (data.taxRateTouched !== true) return true;
+  const saved = selectedMedicine.taxRateExact;
+  if (saved === undefined) return false;
+  const selected = numberToExactDecimal(data.taxRate, "tax_rate");
+  return normalizeExactDecimal(selected) === normalizeExactDecimal(saved);
 }
 
 export function buildMedicineCreateRequest(
@@ -240,9 +255,9 @@ export function buildMedicineUpdateRequest({
     description: data.description,
     is_active: data.isActive,
     tax_type: data.taxType,
-    // EMR-536: 未変更なら tax_rate を省略して BE 保持に任せる。保存済みの高桁値を
+    // EMR-536: 未操作/取消なら tax_rate を省略して BE 保持に任せる。保存済みの高桁値を
     // number 化して丸めて再送したり、1e-7 で numberToExactDecimal が例外にしたりしない。
-    ...(isTaxRateUnchanged(data, selectedMedicine)
+    ...(shouldOmitTaxRate(data, selectedMedicine)
       ? {}
       : { tax_rate: numberToExactDecimal(data.taxRate, "tax_rate") }),
     is_non_insurance: data.isNonInsurance,

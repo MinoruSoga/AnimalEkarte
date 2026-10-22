@@ -14,6 +14,7 @@ import {
   buildMedicineCreateRequest,
   buildMedicineUpdateRequest,
   groupFilteredMedicines,
+  normalizeExactDecimal,
   resolveMedicineDrag,
   validateMedicineForm,
 } from "./medicine-settings-model";
@@ -718,7 +719,7 @@ describe("EMR-536 medicine tax_rate exact 保持", () => {
 
   it("税率を 0.1 → 0.08 へ明示変更すると tax_rate='0.08' を送る", () => {
     const medicine = transformBackendMedicineToFrontend(wireMedicine("0.1"));
-    const data = { ...medicineToFormData(medicine), taxRate: 0.08 };
+    const data = { ...medicineToFormData(medicine), taxRate: 0.08, taxRateTouched: true };
 
     const request = buildMedicineUpdateRequest({
       data,
@@ -741,7 +742,7 @@ describe("EMR-536 medicine tax_rate exact 保持", () => {
     expect(unchanged).not.toHaveProperty("tax_rate");
 
     const changed = buildMedicineUpdateRequest({
-      data: { ...medicineToFormData(medicine), taxRate: 0.1 },
+      data: { ...medicineToFormData(medicine), taxRate: 0.1, taxRateTouched: true },
       isCategory: false,
       selectedMedicine: medicine,
     });
@@ -750,8 +751,8 @@ describe("EMR-536 medicine tax_rate exact 保持", () => {
 
   it("明示変更後に元の値へ戻した場合は未変更扱いで tax_rate を送らない", () => {
     const medicine = transformBackendMedicineToFrontend(wireMedicine("0.1"));
-    // 0.08 を選んでから 0.1 へ戻した最終フォーム状態。
-    const data = { ...medicineToFormData(medicine), taxRate: 0.1 };
+    // 0.08 を選んでから 0.1 へ戻した最終フォーム状態（セレクタは操作済み）。
+    const data = { ...medicineToFormData(medicine), taxRate: 0.1, taxRateTouched: true };
 
     const request = buildMedicineUpdateRequest({
       data,
@@ -762,6 +763,62 @@ describe("EMR-536 medicine tax_rate exact 保持", () => {
     expect(request).not.toHaveProperty("tax_rate");
   });
 
+  it("保存値 '0.1000000000000000001' で 8% → 10% と明示再選択すると tax_rate='0.1' を送る", () => {
+    const medicine = transformBackendMedicineToFrontend(wireMedicine("0.1000000000000000001"));
+    // 初期表示も最終値も number の 0.1 になるが、操作済みで保存 exact 値と同値でないので送る。
+    const data = { ...medicineToFormData(medicine), taxRate: 0.1, taxRateTouched: true };
+
+    const request = buildMedicineUpdateRequest({
+      data,
+      isCategory: false,
+      selectedMedicine: medicine,
+    });
+
+    expect(request.tax_rate).toBe("0.1");
+  });
+
+  it("保存値 '0.1000000000000000001' は税率未操作なら tax_rate を省略する", () => {
+    const medicine = transformBackendMedicineToFrontend(wireMedicine("0.1000000000000000001"));
+
+    const request = buildMedicineUpdateRequest({
+      data: { ...medicineToFormData(medicine), name: "別名" },
+      isCategory: false,
+      selectedMedicine: medicine,
+    });
+
+    expect(request).not.toHaveProperty("tax_rate");
+  });
+
+  it.each(["0.1", "0.1000", "0.10"])(
+    "保存値 '%s' で 8% を選んでから 10% へ戻した取消は tax_rate を省略する",
+    (taxRate) => {
+      const medicine = transformBackendMedicineToFrontend(wireMedicine(taxRate));
+      const data = { ...medicineToFormData(medicine), taxRate: 0.1, taxRateTouched: true };
+
+      const request = buildMedicineUpdateRequest({
+        data,
+        isCategory: false,
+        selectedMedicine: medicine,
+      });
+
+      expect(request).not.toHaveProperty("tax_rate");
+    },
+  );
+
+  it("保存 exact 値を持たない Medicine は操作済みなら同値を証明できないので tax_rate を送る", () => {
+    const { taxRateExact: _omitted, ...withoutExact } = transformBackendMedicineToFrontend(
+      wireMedicine("0.1"),
+    );
+
+    const request = buildMedicineUpdateRequest({
+      data: { ...medicineToFormData(withoutExact), taxRate: 0.1, taxRateTouched: true },
+      isCategory: false,
+      selectedMedicine: withoutExact,
+    });
+
+    expect(request.tax_rate).toBe("0.1");
+  });
+
   it("selectedMedicine が無い等で初期値を判定できない場合は従来どおり送る", () => {
     const request = buildMedicineUpdateRequest({
       data: makeFormData({ taxRate: 0.08 }),
@@ -770,5 +827,19 @@ describe("EMR-536 medicine tax_rate exact 保持", () => {
     });
 
     expect(request.tax_rate).toBe("0.08");
+  });
+});
+
+describe("normalizeExactDecimal", () => {
+  it.each([
+    ["0.1000", "0.1"],
+    ["0.10", "0.1"],
+    ["1.0", "1"],
+    ["0.1", "0.1"],
+    ["0", "0"],
+    ["100", "100"],
+    ["0.1000000000000000001", "0.1000000000000000001"],
+  ])("%s を %s へ揃える", (input, expected) => {
+    expect(normalizeExactDecimal(input)).toBe(expected);
   });
 });
