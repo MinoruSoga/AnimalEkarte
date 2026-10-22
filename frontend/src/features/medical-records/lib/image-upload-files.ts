@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 /**
  * カルテ画像アップロードの受付ルール（file input と ドラッグ&ドロップで共用する正本）。
  * SEC-CS-F08: 件数・1件あたりサイズ・合計バイトを fail-closed で制限する。
@@ -40,7 +41,7 @@ export function validateUploadFiles(files: readonly File[]): UploadFilesValidati
   if (files.length > MAX_UPLOAD_FILES) {
     return {
       ok: false,
-      message: `一度にアップロードできるファイルは${MAX_UPLOAD_FILES.toLocaleString()}件までです`,
+      message: `一度にアップロードできるファイルは${formatNumber(MAX_UPLOAD_FILES)}件までです`,
     };
   }
   const totalBytes = files.reduce((sum, f) => sum + f.size, 0);

@@ -19,6 +19,7 @@ import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { useGetLstepTagOwners, fetchLstepTagOwnersCsv } from "../api/get-lstep-tag-owners";
 import type { LstepTagOwner } from "../api/get-lstep-tag-owners";
 import { BulkTagRemoveDialog } from "./BulkTagRemoveDialog";
+import { formatNumber } from "@/lib/format/number";
 
 interface TagOwnerListDrawerProps {
   open: boolean;
@@ -111,7 +112,7 @@ export function TagOwnerListDrawer({
           <SheetHeader className="px-4 py-4 pr-16 border-b shrink-0">
             <SheetTitle className={`${C.text} text-base`}>タグ「{tagName}」の対象者一覧</SheetTitle>
             <SheetDescription className={C.text50}>
-              {ownerCount.toLocaleString()}名
+              {formatNumber(ownerCount)}名
             </SheetDescription>
           </SheetHeader>
 

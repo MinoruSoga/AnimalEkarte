@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import { formatDate } from "@/lib/format/date";
 import { daysSince } from "@/lib/jst-date";
 
@@ -53,14 +53,14 @@ export function UnpaidOwnerTable({ rows, endDate }: UnpaidOwnerTableProps) {
                   {row.owner_name}
                 </DataTableRowLink>
               </TableCell>
-              <TableCell className="text-right">{row.count.toLocaleString()}</TableCell>
+              <TableCell className="text-right">{formatNumber(row.count)}</TableCell>
               <TableCell className="text-right font-mono">
                 {formatCurrency(row.total_amount)}
               </TableCell>
               <TableCell>{row.oldest_scheduled}</TableCell>
               <TableCell>{row.latest_scheduled}</TableCell>
               <TableCell className="text-right">
-                {daysSince(row.oldest_scheduled, endDate).toLocaleString()}日
+                {formatNumber(daysSince(row.oldest_scheduled, endDate))}日
               </TableCell>
             </TableRow>
           ))}
@@ -114,7 +114,7 @@ export function UnpaidBillingTable({ billings, endDate }: UnpaidBillingTableProp
                 </TableCell>
                 <TableCell className="text-right">
                   {billing.scheduledDate
-                    ? `${daysSince(billing.scheduledDate, endDate).toLocaleString()}日`
+                    ? `${formatNumber(daysSince(billing.scheduledDate, endDate))}日`
                     : "-"}
                 </TableCell>
               </TableRow>

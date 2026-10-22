@@ -3,6 +3,7 @@ import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import { CHECKUP_SYNC_OWNER_LIMIT } from "@/constants/lstep-checkup-sync";
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
 import type { CheckupSyncPreviewOwner } from "../api/get-checkup-sync-preview";
+import { formatNumber } from "@/lib/format/number";
 
 interface CheckupSyncPreviewRowProps {
   owner: CheckupSyncPreviewOwner;
@@ -128,28 +129,28 @@ export function CheckupSyncPreviewTable({
         className={`rounded-md border ${C.borderLight} px-4 py-2.5 flex flex-wrap gap-x-4 gap-y-1 text-sm`}
       >
         <span>
-          合計 <span className={`font-semibold ${C.text}`}>{totalCount.toLocaleString()}件</span>
+          合計 <span className={`font-semibold ${C.text}`}>{formatNumber(totalCount)}件</span>
         </span>
         <span>
           送信可能{" "}
           <span className={`font-semibold ${C.textBadgeGreen}`}>
-            {eligibleCount.toLocaleString()}件
+            {formatNumber(eligibleCount)}件
           </span>
         </span>
         {lineUnlinkedCount > 0 ? (
-          <span className={C.text50}>LINE未連携 {lineUnlinkedCount.toLocaleString()}件</span>
+          <span className={C.text50}>LINE未連携 {formatNumber(lineUnlinkedCount)}件</span>
         ) : null}
         {optOutCount > 0 ? (
-          <span className={C.text50}>配信停止中 {optOutCount.toLocaleString()}件</span>
+          <span className={C.text50}>配信停止中 {formatNumber(optOutCount)}件</span>
         ) : null}
         {noLivingPetCount > 0 ? (
-          <span className={C.text50}>生存ペットなし {noLivingPetCount.toLocaleString()}件</span>
+          <span className={C.text50}>生存ペットなし {formatNumber(noLivingPetCount)}件</span>
         ) : null}
       </div>
 
       {eligibleOwners.length > CHECKUP_SYNC_OWNER_LIMIT || selectionLimitReached ? (
         <p className={`text-sm ${C.text50}`}>
-          一度に選択できるのは最大{CHECKUP_SYNC_OWNER_LIMIT.toLocaleString()}名です
+          一度に選択できるのは最大{formatNumber(CHECKUP_SYNC_OWNER_LIMIT)}名です
         </p>
       ) : null}
 

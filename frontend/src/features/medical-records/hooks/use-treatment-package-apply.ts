@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   applyTreatmentPackage,
   listTreatmentPackageCandidates,
@@ -25,14 +26,9 @@ import {
   type TreatmentPackageEditContext,
 } from "../lib/treatment-package-operation-state";
 
-export const packageApplyKeys = {
-  applications: (recordId: string) => ["treatment-package-applications", recordId] as const,
-  planItems: (recordId: string) => ["medical-record-plan-items", recordId] as const,
-};
-
-export function useTreatmentPackageCandidates(clinicId?: string) {
+export function useGetTreatmentPackageCandidates(clinicId?: string) {
   return useQuery({
-    queryKey: ["treatment-package-candidates", clinicId ?? ""] as const,
+    queryKey: queryKeys.medicalRecords.treatmentPackageCandidates(clinicId),
     queryFn: () => listTreatmentPackageCandidates(clinicId),
     enabled: TREATMENT_PACKAGE_RUNTIME_AVAILABLE,
     staleTime: QUERY_STALE_TIMES.STATIC,
@@ -40,9 +36,9 @@ export function useTreatmentPackageCandidates(clinicId?: string) {
   });
 }
 
-export function useMedicalRecordPlanItems(recordId: string | null, clinicId?: string) {
+export function useGetMedicalRecordPlanItems(recordId: string | null, clinicId?: string) {
   return useQuery({
-    queryKey: [...packageApplyKeys.planItems(recordId ?? ""), clinicId ?? ""] as const,
+    queryKey: queryKeys.medicalRecords.treatmentPackagePlanItems(recordId ?? "", clinicId ?? ""),
     queryFn: () => listMedicalRecordPlanItems(recordId as string, clinicId),
     enabled: recordId !== null && TREATMENT_PACKAGE_RUNTIME_AVAILABLE,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -50,9 +46,9 @@ export function useMedicalRecordPlanItems(recordId: string | null, clinicId?: st
   });
 }
 
-export function useTreatmentPackageApplications(recordId: string | null, clinicId?: string) {
+export function useGetTreatmentPackageApplications(recordId: string | null, clinicId?: string) {
   return useQuery({
-    queryKey: [...packageApplyKeys.applications(recordId ?? ""), clinicId ?? ""] as const,
+    queryKey: queryKeys.medicalRecords.treatmentPackageApplications(recordId ?? "", clinicId ?? ""),
     queryFn: () => listTreatmentPackageApplications(recordId as string, clinicId),
     enabled: recordId !== null && TREATMENT_PACKAGE_RUNTIME_AVAILABLE,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -192,8 +188,12 @@ export function useTreatmentPackageApply({
             applicationId,
             planItemsVersion: resolution.result.committed_versions.plan_items,
           });
-          qc.invalidateQueries({ queryKey: packageApplyKeys.applications(scope.recordId) });
-          qc.invalidateQueries({ queryKey: packageApplyKeys.planItems(scope.recordId) });
+          qc.invalidateQueries({
+            queryKey: queryKeys.medicalRecords.treatmentPackageApplications(scope.recordId),
+          });
+          qc.invalidateQueries({
+            queryKey: queryKeys.medicalRecords.treatmentPackagePlanItems(scope.recordId),
+          });
           return;
         }
         if (resolution.kind === "retry-lookup") {
@@ -240,8 +240,12 @@ export function useTreatmentPackageApply({
         applicationId: resolution.result.result_refs.application_id,
         planItemsVersion: resolution.result.committed_versions.plan_items,
       });
-      qc.invalidateQueries({ queryKey: packageApplyKeys.applications(held.recordId) });
-      qc.invalidateQueries({ queryKey: packageApplyKeys.planItems(held.recordId) });
+      qc.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.treatmentPackageApplications(held.recordId),
+      });
+      qc.invalidateQueries({
+        queryKey: queryKeys.medicalRecords.treatmentPackagePlanItems(held.recordId),
+      });
       return;
     }
     if (resolution.kind === "retry-lookup") return; // まだ不明

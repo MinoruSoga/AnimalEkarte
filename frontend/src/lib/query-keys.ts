@@ -128,8 +128,26 @@ export const queryKeys = {
     detail: (id: string) => ["reservation", id] as const,
     /** 全 detail(id) の prefix 一括 invalidate 用（ペット死亡 sentinel 追従など） */
     detailAll: () => ["reservation"] as const,
-    availableTimes: (reservationTypeId: string, date: string, staffId?: string) =>
-      ["reservations", "available-times", reservationTypeId, date, staffId ?? ""] as const,
+    /**
+     * clinicId を末尾に含めると医院切替で他院の枠が残らない（BUG-RES-AVAILABLE-TIMES-404）。
+     * 省略時は従来の 5 要素キー。
+     */
+    availableTimes: (
+      reservationTypeId: string,
+      date: string,
+      staffId?: string,
+      clinicId?: string,
+    ) =>
+      clinicId === undefined
+        ? (["reservations", "available-times", reservationTypeId, date, staffId ?? ""] as const)
+        : ([
+            "reservations",
+            "available-times",
+            reservationTypeId,
+            date,
+            staffId ?? "",
+            clinicId,
+          ] as const),
   },
   reception: {
     all: () => ["reception"] as const,
@@ -408,6 +426,20 @@ export const queryKeys = {
         ? (["clinical-plan", medicalRecordId, clinicId] as const)
         : (["clinical-plan", medicalRecordId] as const),
     estimate: (medicalRecordId: string) => ["estimate", "record", medicalRecordId] as const,
+    /**
+     * EMR-524 治療パッケージ適用。clinicId 省略時は 2 要素キー（invalidate の prefix 用）、
+     * query 側は clinicId（未指定なら ""）を末尾に含める。
+     */
+    treatmentPackageCandidates: (clinicId?: string) =>
+      ["treatment-package-candidates", clinicId ?? ""] as const,
+    treatmentPackageApplications: (medicalRecordId: string, clinicId?: string) =>
+      clinicId === undefined
+        ? (["treatment-package-applications", medicalRecordId] as const)
+        : (["treatment-package-applications", medicalRecordId, clinicId] as const),
+    treatmentPackagePlanItems: (medicalRecordId: string, clinicId?: string) =>
+      clinicId === undefined
+        ? (["medical-record-plan-items", medicalRecordId] as const)
+        : (["medical-record-plan-items", medicalRecordId, clinicId] as const),
     /** medicalRecords.detail(id) と "medical-record" プレフィックスを共有（意図的） */
     billingConfirmation: (medicalRecordId: string) =>
       ["medical-record", medicalRecordId, "billing-confirmation"] as const,

@@ -21,6 +21,7 @@ import { NewOwnerInlineForm } from "./NewOwnerInlineForm";
 import { PatientSelectionTable } from "./PatientSelectionTable";
 import { ReservationFormFields, type StaffSelectionState } from "./ReservationFormFields";
 import { RequiredMark } from "@/components/shared/RequiredMark";
+import { formatNumber } from "@/lib/format/number";
 
 export type OwnerMode = "existing" | "new";
 export type MobilePanel = "search" | "form";
@@ -476,7 +477,7 @@ export function ReservationModalFooter({
           <>
             <PawPrint className={`${ICON.action} ${C.text60}`} />
             <span className={`text-sm ${C.text60}`}>
-              {selectedPetsCount.toLocaleString()}頭 選択中
+              {formatNumber(selectedPetsCount)}頭 選択中
             </span>
           </>
         )}

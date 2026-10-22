@@ -22,6 +22,7 @@ import {
   filterImportableExaminations,
   isExaminationImportable,
 } from "../lib/examination-import-candidates";
+import { formatNumber } from "@/lib/format/number";
 
 interface ExaminationImportDialogProps {
   open: boolean;
@@ -84,7 +85,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             }),
           ),
         );
-        toast.success(`${importableIds.length.toLocaleString()}件の検査記録を取り込みました`);
+        toast.success(`${formatNumber(importableIds.length)}件の検査記録を取り込みました`);
         setSelectedIds(new Set());
         onImported?.();
         onOpenChange(false);
@@ -170,7 +171,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             disabled={selectedIds.size === 0 || isLinking}
             className={`${C.bgActionPrimarySolid} ${C.textOnActionPrimary} ${C.hoverBgActionPrimarySolid} ${C.hoverTextOnActionPrimary} ${C.activeBgActionPrimarySolid} ${C.activeTextOnActionPrimary} rounded-full border-transparent`}
           >
-            {isLinking ? "取り込み中..." : `${selectedIds.size.toLocaleString()}件取り込む`}
+            {isLinking ? "取り込み中..." : `${formatNumber(selectedIds.size)}件取り込む`}
           </Button>
         </div>
       </DialogContent>

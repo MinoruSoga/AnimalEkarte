@@ -14,6 +14,7 @@ import { BADGE, C, ICON } from "@/lib/design-tokens";
 import type { DeliveryTriggerSummaryResponse } from "../api/get-lstep-delivery-trigger-summary";
 import { TriggerStatusLabels, TriggerTypeLabels } from "../constants/trigger-types";
 import { DELIVERY_STATUS_CARDS } from "./lstep-delivery-monitor-page-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface DeliveryMonitorFiltersProps {
   from: string;
@@ -116,7 +117,7 @@ export function DeliverySummaryCards({ summary }: DeliverySummaryCardsProps) {
         >
           <p className={`text-xs ${C.text50} mb-1`}>{label}</p>
           <p className={`text-heading-2 font-bold ${C.text}`}>
-            {summary[key].toLocaleString("ja-JP")}
+            {formatNumber(summary[key])}
           </p>
         </div>
       ))}
@@ -137,7 +138,7 @@ export function DeliveryFailedWarning({ summary }: DeliverySummaryCardsProps) {
     >
       <AlertTriangle className={`${ICON.sm} ${C.danger} shrink-0`} />
       <p className={`text-sm ${C.danger}`}>
-        <strong>{summary.failed.toLocaleString("ja-JP")}件</strong>
+        <strong>{formatNumber(summary.failed)}件</strong>
         の配信が失敗しています。ログを確認してください。
       </p>
     </div>
@@ -166,7 +167,7 @@ export function DeliveryExcludedReasonBreakdown({ summary }: DeliverySummaryCard
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs ${BADGE.gray}`}
           >
             {reason || "理由なし"}
-            <span className="font-medium">{count.toLocaleString("ja-JP")}件</span>
+            <span className="font-medium">{formatNumber(count)}件</span>
           </span>
         ))}
       </div>

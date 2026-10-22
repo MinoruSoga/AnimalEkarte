@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { RequiredMark } from "@/components/shared/RequiredMark";
 import { EMPTY_VALUE } from "@/constants/empty-value";
+import { formatNumber } from "@/lib/format/number";
 
 interface PatientInfoCardProps {
   ownerName: string;
@@ -231,7 +232,7 @@ export const PatientInfoCard = memo(function PatientInfoCard({
             </span>
             {petAttributes}
             {typeof visitCount === "number" ? (
-              <span className="flex items-center gap-1">来院 {visitCount.toLocaleString()} 回</span>
+              <span className="flex items-center gap-1">来院 {formatNumber(visitCount)} 回</span>
             ) : null}
           </div>
         </div>

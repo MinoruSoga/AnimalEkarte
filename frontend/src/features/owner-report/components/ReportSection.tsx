@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { C } from "@/lib/design-tokens";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { ReportPanel } from "./ReportPanel";
+import { formatNumber } from "@/lib/format/number";
 
 interface ReportSectionProps {
   title: string;
@@ -59,7 +60,7 @@ export function ReportSection({
     <>
       {isTruncated ? (
         <p className={`mb-2 text-xs ${C.text50}`} data-testid="section-truncation-notice">
-          直近{HISTORY_FETCH_LIMIT.toLocaleString()}件を表示しています
+          直近{formatNumber(HISTORY_FETCH_LIMIT)}件を表示しています
         </p>
       ) : null}
       {children}

@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../../hooks/use-medical-record-addenda", () => ({
-  useMedicalRecordAddenda: vi.fn(),
+  useGetMedicalRecordAddenda: vi.fn(),
   useCreateMedicalRecordAddendum: vi.fn(),
 }));
 

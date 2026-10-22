@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 import { DataTableRowButton } from "@/components/shared/DataTable/DataTableRowButton";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import { formatDate } from "@/lib/format/date";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
@@ -63,7 +63,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 </TableCell>
                 <TableCell className={C.text}>{detail.weekday}</TableCell>
                 <TableCell className={`text-right whitespace-nowrap ${C.text60}`}>
-                  {(detail.amCount + detail.pmCount).toLocaleString()}件
+                  {formatNumber(detail.amCount + detail.pmCount)}件
                 </TableCell>
                 <TableCell className={`text-right font-medium whitespace-nowrap ${C.text}`}>
                   {formatCurrency(detail.dayNet)}

@@ -53,6 +53,20 @@ class SyncCodexMirrorTest(unittest.TestCase):
         self.run_sync()
         self.assertEqual(first, self.snapshot())
 
+    def test_relative_links_resolve_from_codex_agents_dir(self):
+        self.source(
+            "planner",
+            'See [refs](../refs/x.md#a) and [root](../../AGENTS.md) and [abs](/keep) '
+            'and [titled](../refs/y.md "Context").\n',
+        )
+        self.run_sync()
+        role = tomllib.loads((self.root / ".codex/agents/animalekarte-planner.toml").read_text())
+        self.assertEqual(
+            role["developer_instructions"],
+            "See [refs](../../.claude/refs/x.md#a) and [root](../../AGENTS.md) and [abs](/keep) "
+            'and [titled](../../.claude/refs/y.md "Context").\n',
+        )
+
     def test_read_only_role(self):
         self.manifest([{"name": "clinic-isolation-auditor", "source": "planner.md", "sandbox_mode": "read-only"}])
         self.run_sync()

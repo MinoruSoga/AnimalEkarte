@@ -8,6 +8,7 @@ import { ImageWithFallback } from "@/components/shared/Feedback";
 import { Tooltip } from "@/components/ui/tooltip";
 import { BirthdayBadge } from "@/components/shared/BirthdayBadge";
 import { DangerBadge } from "@/components/shared/DangerBadge";
+import { formatNumber } from "@/lib/format/number";
 
 // ──────────────────────────────────────────────────────────
 // Age calculation (JST) — FE3-9: 計算部は共有ヘルパへ委譲。
@@ -291,7 +292,7 @@ export function PatientContextHeader({
           {typeof visitCount === "number" && visitCount > 0 ? (
             <Tooltip content="このペットの通算来院回数です">
               <span className="flex items-center gap-1 cursor-default">
-                来院 {visitCount.toLocaleString()} 回
+                来院 {formatNumber(visitCount)} 回
               </span>
             </Tooltip>
           ) : null}

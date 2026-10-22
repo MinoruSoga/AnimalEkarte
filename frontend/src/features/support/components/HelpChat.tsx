@@ -10,6 +10,11 @@
  * 送信成功したやり取りはサーバー（support_chat_messages）にも保存され、
  * 初回マウント時に GET /v1/support/chat/history で復元する。
  * 空状態では質問例チップを表示し、送信失敗ターンは「もう一度送信」で再送できる。
+ *
+ * 送信は `<form>` だが `useActionState` ではなく `useTransition` + mutation で管理する
+ * （CODING_RULES §2.2 の明示例外）。永続フォームではなく、楽観ターン追加・AbortSignal
+ * による中断・409 時の再送を 1 つの非同期遷移として扱うチャット送信であり、
+ * form action のリセット／pending 契約が合わないため。
  */
 import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { Link } from "react-router";

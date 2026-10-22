@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/DataStates";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
+import { formatNumber } from "@/lib/format/number";
 const COLLAPSE_THRESHOLD = 10;
 
 interface LstepTagListProps {
@@ -76,7 +77,7 @@ export function LstepTagList({
           className={`self-start h-auto py-0.5 px-1 text-xs ${C.text50} ${C.hoverText}`}
           onClick={() => setExpanded((prev) => !prev)}
         >
-          {expanded ? "折りたたむ" : `もっと見る（残り ${hiddenCount.toLocaleString()} 件）`}
+          {expanded ? "折りたたむ" : `もっと見る（残り ${formatNumber(hiddenCount)} 件）`}
         </Button>
       ) : null}
     </div>

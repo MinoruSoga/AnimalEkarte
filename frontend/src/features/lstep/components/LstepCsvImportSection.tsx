@@ -13,6 +13,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
 import { CSV_STATUS_LABELS } from "../lib/lstep-analytics-model";
+import { formatNumber } from "@/lib/format/number";
 
 export function LstepCsvImportSection() {
   return (
@@ -143,19 +144,19 @@ function CsvImportHistoryTable() {
                 {item.file_name}
               </TableCell>
               <TableCell className={`text-right ${C.text60} tabular-nums`}>
-                {item.row_count.toLocaleString()}
+                {formatNumber(item.row_count)}
               </TableCell>
               <TableCell
                 className="text-right tabular-nums"
                 style={{ color: PALETTE.successGreen }}
               >
-                {item.success_count.toLocaleString()}
+                {formatNumber(item.success_count)}
               </TableCell>
               <TableCell
                 className="text-right tabular-nums"
                 style={{ color: item.error_count > 0 ? PALETTE.danger : undefined }}
               >
-                {item.error_count.toLocaleString()}
+                {formatNumber(item.error_count)}
               </TableCell>
               <TableCell className="text-center">
                 <span

@@ -6,10 +6,11 @@ All destinations are checked before writes; only hash-owned or exact legacy
 canonical outputs may be replaced/removed. Unknown unrelated files survive.
 """
 import json
+import posixpath
 import re
 import sys
 import tomllib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from mirror_safety import sync_outputs
 
@@ -34,6 +35,19 @@ def read_frontmatter_and_body(path: Path) -> tuple[str, str]:
 
 def toml_quote(text: str) -> str:
     return text.replace('\\', '\\\\').replace('"', '\\"')
+
+
+RELATIVE_LINK = re.compile(r'\]\((\.{1,2}/[^)\s#"]+)(#[^)\s"]*)?(\s+"[^"]*")?\)')
+
+
+def rewrite_relative_links(body: str) -> str:
+    """Resolve markdown links written relative to .claude/agents/ so they also
+    resolve from .codex/agents/ (the mirror lives two levels below the root).
+    Fragments and optional link titles are preserved."""
+    def repl(match: re.Match) -> str:
+        target = PurePosixPath(posixpath.normpath(f".claude/agents/{match.group(1)}"))
+        return f"](../../{target.as_posix()}{match.group(2) or ''}{match.group(3) or ''})"
+    return RELATIVE_LINK.sub(repl, body)
 
 
 def legacy_agent(name: str, desc: str, body: str) -> str:
@@ -77,7 +91,11 @@ def build_outputs(root: Path, roles: list[dict]) -> tuple[dict[str, bytes], dict
         legacy[f"agents/{source.stem}.toml"] = legacy_agent(source.stem, desc, body).encode()
     for role in roles:
         desc, body = read_frontmatter_and_body(root / ".claude/agents" / role["source"])
-        fields = {"name": role["name"], "description": desc, "developer_instructions": body}
+        fields = {
+            "name": role["name"],
+            "description": desc,
+            "developer_instructions": rewrite_relative_links(body),
+        }
         if "sandbox_mode" in role:
             fields["sandbox_mode"] = role["sandbox_mode"]
         text = "".join(f"{key} = {json.dumps(value, ensure_ascii=False)}\n" for key, value in fields.items())

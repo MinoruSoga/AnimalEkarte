@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import {
@@ -203,7 +203,7 @@ export function ClosePrintArea({
                   <tr className="font-semibold">
                     <td className={`border ${C.borderGray300} px-1 py-0.5`}>差額</td>
                     <td className={`border ${C.borderGray300} px-1 py-0.5 text-right`}>
-                      {`${difference >= 0 ? "+" : ""}${difference.toLocaleString()}`}
+                      {`${difference >= 0 ? "+" : ""}${formatNumber(difference)}`}
                     </td>
                   </tr>
                 </>
@@ -215,7 +215,7 @@ export function ClosePrintArea({
 
       {/* 個別会計明細（EMR-354: 画面と同一の1会計=1行投影 + フッタ再集計） */}
       <p className="font-semibold text-[9pt] mb-1">
-        個別会計明細（{projectBillingDetailRows(billingDetails).length.toLocaleString()}件）
+        個別会計明細（{formatNumber(projectBillingDetailRows(billingDetails).length)}件）
       </p>
       <BillingDetailTable details={billingDetails} showFooter footerLabel="個別会計明細 合計" />
 

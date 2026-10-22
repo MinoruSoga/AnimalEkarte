@@ -28,6 +28,9 @@ type SyntheticClosingHandler struct {
 	Secret   string
 }
 
+// JSON タグは camelCase。local-only の UAT 補助 API（/uat/synthetic-closings）であり、
+// 消費者は frontend/e2e の rehearsal spec だけで、公開 API の snake_case 契約とは別系統と
+// して docs/api.yaml にも camelCase で記載済み。公開 API へ昇格する場合は snake_case へ揃える。
 type createSyntheticClosingHTTPRequest struct {
 	TargetDate         string   `json:"targetDate"`
 	ExistingBillingIDs []uint64 `json:"existingBillingIds"`

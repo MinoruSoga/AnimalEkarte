@@ -35,7 +35,10 @@ const getMedicineDoseParams = async (
 };
 
 /** カルテの治療行が継続的に参照するための React Query 版（キャッシュ共有・自動再取得）。 */
-export const useMedicineDoseParams = (medicineId: string | null | undefined, clinicId?: string) => {
+export const useGetMedicineDoseParams = (
+  medicineId: string | null | undefined,
+  clinicId?: string,
+) => {
   return useQuery({
     queryKey: medicineDoseParamsQueryKey(medicineId ?? "", clinicId),
     queryFn: () => getMedicineDoseParams(medicineId as string, clinicId),
@@ -87,7 +90,7 @@ export function toDoseParamsAuthority(
 /**
  * 薬剤追加の瞬間（TreatmentSearchDialog 選択直後）に quantity をプリフィルするための
  * 一度きりの取得。React Query キャッシュにも載せる（同一 queryKey）ので、直後に
- * useMedicineDoseParams がマウントされてもキャッシュヒットする。
+ * useGetMedicineDoseParams がマウントされてもキャッシュヒットする。
  */
 export const fetchMedicineDoseParamsOnce = getMedicineDoseParams;
 
@@ -186,7 +189,7 @@ export function computeDosePreview(
 
 /**
  * TreatmentsTab → TreatmentRow へ橋渡しする #201 投与量計算コンテキスト。
- * 個々の行が自分の medicine_id に対応する薬剤を探し、`useMedicineDoseParams` で
+ * 個々の行が自分の medicine_id に対応する薬剤を探し、`useGetMedicineDoseParams` で
  * species パラメータを取得して `computeDosePreview` に渡す。
  */
 export interface MedicineDoseContext {

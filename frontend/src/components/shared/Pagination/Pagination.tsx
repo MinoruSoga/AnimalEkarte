@@ -2,6 +2,7 @@ import { memo } from "react";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatNumber } from "@/lib/format/number";
 
 export interface PaginationProps {
   currentPage: number;
@@ -73,7 +74,7 @@ export const Pagination = memo(function Pagination({
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 py-3 px-1">
       <div className={STYLE.paginationInfo}>
-        {totalCount.toLocaleString()}件中 {startIndex.toLocaleString()}-{endIndex.toLocaleString()}
+        {formatNumber(totalCount)}件中 {formatNumber(startIndex)}-{formatNumber(endIndex)}
         件
       </div>
 

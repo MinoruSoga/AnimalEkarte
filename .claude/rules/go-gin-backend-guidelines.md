@@ -89,13 +89,13 @@ Go/Gin は次を規定しない。
 - interface は一般に利用側で定義し、利用側が本当に必要とする最小メソッド集合にする。
 - 実装 package は具体型を返すことを基本とする。利用側は必要ならそれを小さな interface として受け取る。
 - mock を作る目的だけで interface を先に作らない。代替実装や呼び出し側の抽象化が必要になった時点で導入する。
-- export は最小限にし、公開識別子には GoDoc で読めるコメントを付ける。
+- export は最小限にし、公開識別子には GoDoc で読めるコメントを付ける。revive `exported` は既存 export の残債（コメント無し約 300 件・2026-10-22 実測）のため `.golangci.yml` で無効化しており lint では強制されない。新規・変更する export には必ず付け、触ったファイルの残債は同じ変更で解消する。
 - constructor は不変条件や依存関係の確立に価値がある場合に使う。空の値が有効なら不要な constructor を作らない。
 - zero value を有用にできる型は、有用に設計する。
 
 ## 4. `context.Context`
 
-- request-scoped のキャンセル、deadline、trace を使う関数は `context.Context` を第1引数として明示的に受け取る。
+- request-scoped のキャンセル、deadline、trace を使う関数は `context.Context` を第1引数として明示的に受け取る。project decision として、`*gin.Context` と request Context を両方取る handler 補助関数だけは `c` を先に置く（`.golangci.yml` で revive `context-as-argument` を無効化している根拠。`.claude/refs/go-language.md` と同じ例外）。
 - Context を struct の field に保存しない。request ごとに引数で渡す。
 - Gin の入口から DB・外部 API へは `c.Request.Context()` を伝播する。
 - `context.WithCancel`、`WithTimeout`、`WithDeadline` が返す cancel 関数は必ず呼ぶ。

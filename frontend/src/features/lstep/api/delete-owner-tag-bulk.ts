@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { queryKeys } from "@/lib/query-keys";
+import { formatNumber } from "@/lib/format/number";
 
 interface BulkRemoveProgress {
   done: number;
@@ -37,7 +38,7 @@ export function useBulkRemoveTag(): UseBulkRemoveTagResult {
 
     setProgress((prev) => ({ ...prev, isRunning: false }));
     queryClient.invalidateQueries({ queryKey: queryKeys.lstepTagSummary() });
-    toast.success(`タグ「${tagName}」を${ownerIds.length.toLocaleString()}名から解除しました`);
+    toast.success(`タグ「${tagName}」を${formatNumber(ownerIds.length)}名から解除しました`);
   };
 
   return { bulkRemove, progress };

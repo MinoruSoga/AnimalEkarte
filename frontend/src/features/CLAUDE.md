@@ -39,6 +39,7 @@ import { useOwners } from "@/features/owners/hooks/use-owners";
 | API 関数               | kebab-case.ts                                 | `get-owners.ts`, `create-owner.ts` |
 | API フック             | `useGet/useCreate/useUpdate/useDelete` + 名詞 | `useGetOwners`, `useCreateOwner`   |
 | フォームフック         | `use` + 名詞 + `Form`                         | `useOwnerForm`                     |
+| hooks/ 配下の支持ファイル（純粋モデル・型） | kebab-case.ts（`use-` を付けない） | `medicine-settings-model.ts`        |
 
 ## 命名例外 (FE-RC-055・2026-09-03)
 

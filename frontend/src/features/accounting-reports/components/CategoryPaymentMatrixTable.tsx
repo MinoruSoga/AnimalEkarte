@@ -2,7 +2,7 @@ import { memo, useMemo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import type { CategoryPaymentMatrix } from "../api/get-monthly-report";
 
 /** DISPLAY_CATEGORIES と同じラベル集約（cash-register/constants と一致させる） */
@@ -88,7 +88,7 @@ export const CategoryPaymentMatrixTable = memo(function CategoryPaymentMatrixTab
             <tr key={row.label} className={`border-b ${C.borderLight} ${STYLE.tableRow}`}>
               <TableCell className={`font-medium ${C.text}`}>{row.label}</TableCell>
               <TableCell className={`text-right ${C.text60}`}>
-                {row.count.toLocaleString()}件
+                {formatNumber(row.count)}件
               </TableCell>
               {methods.map((pm) => (
                 <TableCell key={pm.name} className={`text-right ${C.text}`}>
@@ -105,7 +105,7 @@ export const CategoryPaymentMatrixTable = memo(function CategoryPaymentMatrixTab
           <tr className={`border-t-2 ${C.borderMedium} ${C.bgPage}`}>
             <TableCell className={`font-semibold ${C.text}`}>合計</TableCell>
             <TableCell className={`text-right font-semibold ${C.text}`}>
-              {matrix.totals.count.toLocaleString()}件
+              {formatNumber(matrix.totals.count)}件
             </TableCell>
             {methods.map((pm) => (
               <TableCell key={pm.name} className={`text-right font-semibold ${C.text}`}>

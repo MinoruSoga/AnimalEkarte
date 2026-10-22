@@ -9,7 +9,7 @@ import { LoadingFallback } from "@/components/shared/DataStates";
 import type { TreatmentPackageCandidate } from "../api/treatment-package-applications";
 import {
   useTreatmentPackageApply,
-  useTreatmentPackageCandidates,
+  useGetTreatmentPackageCandidates,
   useTreatmentPackagePreview,
 } from "../hooks/use-treatment-package-apply";
 import {
@@ -33,7 +33,7 @@ export function TreatmentPackagePicker({
   canCreate,
   onClose,
 }: TreatmentPackagePickerProps) {
-  const list = useTreatmentPackageCandidates(scope.clinicId);
+  const list = useGetTreatmentPackageCandidates(scope.clinicId);
   const previewMut = useTreatmentPackagePreview(scope.recordId, scope.clinicId);
   const applyCtl = useTreatmentPackageApply({ scope, editContext });
   const [previewing, setPreviewing] = useState(false);

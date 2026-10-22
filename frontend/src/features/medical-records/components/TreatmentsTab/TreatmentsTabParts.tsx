@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { TableCell, TableHead } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, TreatmentItemType, TreatmentUpdateOutcome, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
@@ -265,11 +265,11 @@ export function TreatmentTotals({
     <div className={`${C.bgWhite} border ${C.borderLight} rounded-lg px-4 py-3`}>
       <div className="flex flex-col gap-1.5">
         <div className={`flex items-center justify-between text-sm ${C.text60}`}>
-          <span>全明細合計 ({totalCount.toLocaleString()}件)</span>
+          <span>全明細合計 ({formatNumber(totalCount)}件)</span>
           <span className="font-mono">{formatCurrency(totalSubtotal)}</span>
         </div>
         <div className={`flex items-center justify-between text-sm font-medium ${C.text}`}>
-          <span>選択済み合計 ({selectedCount.toLocaleString()}件)</span>
+          <span>選択済み合計 ({formatNumber(selectedCount)}件)</span>
           <span className="font-mono text-base">{formatCurrency(selectedSubtotal)}</span>
         </div>
         <div

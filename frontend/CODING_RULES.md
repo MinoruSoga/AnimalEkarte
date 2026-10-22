@@ -171,7 +171,8 @@ src/
                           │
 ┌──────────────────────────────────────────────────────┐
 │                     features/                         │
-│  routes/   … ページコンポーネント（app/routes/は使わない）│
+│  routes/   … ページコンポーネント（app/routes/*-routes.tsx は│
+│              ルート定義のみでページ本体を置かない）         │
 │  api/      … React Query hooks                        │
 │  hooks/    … フォーム・フィルタ等のUIロジック          │
 │  （feature 専用ヘルパは feature 内に置く）              │
@@ -183,7 +184,7 @@ src/
                           │
 ┌──────────────────────────────────────────────────────┐
 │     shared (components/, hooks/, lib/, config/,       │
-│             stores/, types/, constants/)              │
+│             types/, constants/, testing/)             │
 │     ※ 共有ヘルパは app 層の lib/。utils/ は廃止済み     │
 └──────────────────────────────────────────────────────┘
 ```
@@ -875,7 +876,11 @@ export const PatientCard = memo(({ patient }) => {});  // ❌ (props が毎回�
 多フィールドの制御フォームでも、フィールド状態は `useState`、送信・バリデーション・pending は `useActionState` で管理する。
 参照実装は `features/owners/hooks/use-owner-form.ts`（飼主 + ペット CRUD の複雑フォーム）。
 
-`useTransition` は**フォーム送信には使わない**。リスト再取得・ナビゲーション・削除など、フォーム外の非ブロッキング非同期更新の pending 管理に限定する（例: `OwnersList.tsx`, `use-reception-kanban.ts`, `use-master-crud.ts`）。
+`useTransition` は**フォーム送信には使わない**。リスト再取得・ナビゲーション・削除など、フォーム外の非ブロッキング非同期更新の pending 管理に限定する（例: `OwnersList.tsx`, `use-reception-kanban.ts`, `use-master-crud.ts`, `use-copy-treatment-details.ts`）。
+
+**`useMutation` の `isPending`** は、その mutation 1 件の進行状態として表示・操作抑止に使ってよい（inline 行追加の Enter/ボタン送信、確認ダイアログのボタンなど `<form>` を使わない UI。例: `CheckupsTab.tsx`, `use-treatments-tab.ts`, `use-reservation-management.ts`）。`useState` + `setIsPending` で mutation の進行を二重管理しない。`<form>` 要素を使う送信は `useActionState` に統一する。
+
+**`<form>` + `useTransition` の明示例外**は `HelpChat.tsx`（チャット送信: 楽観ターン追加・AbortSignal 中断・409 再送を 1 つの非同期遷移として扱い、form action のリセット／pending 契約が合わない）のみ。例外を増やすときはファイル先頭に理由を書き、この段落に追記する。
 
 #### 標準: `useState`（制御フィールド）+ `useActionState`（送信・バリデーション・pending）
 
@@ -1219,12 +1224,12 @@ import { z } from "zod";
 // 3. 共有モジュール (@/)
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useDebounce } from "@/hooks/useDebounce";
+import { usePermission } from "@/hooks/use-permission";
 import { formatDate } from "@/lib/format/date";
 
-// 4. feature内部（相対パス、同一feature内のみ）
+// 4. feature内部（相対パス、同一feature内のみ。hook ファイルは kebab-case）
 import { OwnerCard } from "../components/OwnerCard";
-import { useOwnerForm } from "../hooks/useOwnerForm";
+import { useOwnerForm } from "../hooks/use-owner-form";
 
 // 5. 型（type keyword付き）
 import type { Owner, Pet } from "@/types";
@@ -1247,15 +1252,16 @@ features/xxx/types/index.ts     ← フォームデータ型（UI専用）
 
 **重要ルール:**
 
+- **新規 import 禁止（TASK-444-S1・ESLint で機械検出）**: `@/types/generated/models` は Go ドメインモデル由来で HTTP wire 応答型ではない（BUG-431/BUG-433）。新規ファイルから import しない。既存利用は `frontend/generated-models-import-allowlist.json` に凍結されており、import を外したファイルは allowlist から削る。応答型は domain 別 `src/types/generated/*-responses` または専用 DTO を使う。以下の導出パターンは凍結済みファイルの説明であり、新規コードの手本にしない
 - `src/types/generated/models.ts` は **直接編集禁止**。`make codegen` で再生成される
 - Goモデル変更 → `make codegen` → `models.ts` 更新 → 型エラーをフロントエンドで修正
 
 ---
 
-#### APIリクエスト型の導出パターン
+#### APIリクエスト型の導出パターン（凍結済み既存ファイルの説明・新規採用禁止）
 
-`interface` を手書きせず、`models.ts` の型から `Omit`/`Partial`/`Required` で導出する。
-参照実装: `src/types/pet.ts`, `src/features/trimming/api/types.ts`
+以下は allowlist に凍結された既存ファイルが `models.ts` から `Omit`/`Partial`/`Required` で型を導出していた経緯の説明である。**新規ファイルでこのパターンを使ってはならない**（`@/types/generated/models` の新規 import は ESLint で失敗する）。新規の応答型は domain 別 `src/types/generated/*-responses`、リクエスト型は専用 DTO を手書きする。
+既存の参照: `src/types/pet.ts`, `src/features/trimming/api/types.ts`
 
 ```typescript
 // features/xxx/api/types.ts
@@ -1814,7 +1820,7 @@ src/
 └── testing/
     ├── setup.ts                  # テスト共通設定
     ├── mocks/                    # MSW handlers
-    └── utils.tsx                 # テストユーティリティ (createTestWrapper 等)
+    └── TestUtils.tsx             # テストユーティリティ (createTestWrapper 等。既存名を維持)
 ```
 
 **ルール:**
@@ -1904,8 +1910,8 @@ describe("Button", () => {
 | API query hook を `useOwners` と命名（動詞省略）                                    | 命名規則違反                                            | `useGetOwners`（`useGet` + エンティティ名）                                    |
 | loader 内で `queryClient.prefetchQuery` を使う                                      | このプロジェクトは直接 axios + `useLoaderData` パターン | `axios.get()` で直接フェッチして返す                                           |
 | `localStorage` に token を保存                                                      | XSS で盗まれる                                          | httpOnly Cookie + `withCredentials: true`                                      |
-| フォーム送信の pending を `useState(false)` + `setIsPending` で管理                 | try-finally でのリセット漏れリスク                      | `useActionState` の `isPending` を使う（フォーム外の非同期は `useTransition`） |
-| `useTransition` + カスタム hook でフォーム送信を管理                                | 旧パターン。`useActionState` に全移行済み               | `useActionState`（制御フィールドは `useState` 併用・§2.2）                     |
+| 送信・非同期処理の pending を `useState(false)` + `setIsPending` で管理             | try-finally でのリセット漏れリスク                      | `useActionState` の `isPending`（フォーム）/ `useTransition`（フォーム外）/ `useMutation` の `isPending`（§2.2） |
+| `useTransition` + カスタム hook でフォーム送信を管理                                | 旧パターン。`useActionState` に全移行済み（例外は §2.2 に列挙） | `useActionState`（制御フィールドは `useState` 併用・§2.2）                     |
 
 ---
 
@@ -2077,10 +2083,11 @@ const filteredPets = useMemo(() => {
 const isFiltering = searchTerm !== deferredSearchTerm;
 // <div className={isFiltering ? "opacity-60" : ""}>
 
-// ✅ API ミューテーションに useTransition
-const [isSavePending, startSaveTransition] = useTransition();
-startSaveTransition(async () => {
-  await saveData();
+// ✅ フォーム外の非同期（一覧再取得・ナビゲーション・複写処理）に useTransition
+//    フォーム送信は useActionState、mutation 単体の進行表示は useMutation の isPending（§2.2）
+const [isRefreshing, startRefreshTransition] = useTransition();
+startRefreshTransition(async () => {
+  await refetchList();
 });
 ```
 

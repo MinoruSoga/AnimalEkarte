@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { BADGE, C } from "@/lib/design-tokens";
 import { AGGREGATION_CPM_STAGE_SHORT_LABELS, type AggregationCPMStage } from "@/lib/cpm-stage";
 import { paths } from "@/config/paths";
-import { formatCurrency } from "@/lib/format/number";
+import { formatCurrency, formatNumber } from "@/lib/format/number";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
 import type { AggregationTab } from "../lib/aggregation-filter-panel-model";
@@ -59,7 +59,7 @@ function formatDate(dateStr: string | null | undefined): string {
 
 function formatDaysSince(days: number | null | undefined): string {
   if (days === null || days === undefined) return "—";
-  return `${days.toLocaleString()}日`;
+  return `${formatNumber(days)}日`;
 }
 
 const OWNER_NAME_COLUMN: AggregationOwnerColumn = {

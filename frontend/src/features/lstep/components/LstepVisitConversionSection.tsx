@@ -4,6 +4,7 @@ import { TableCell, TableHead } from "@/components/ui/table";
 import type { VisitConversionSummaryResponse } from "../api/get-lstep-visit-conversion";
 import { TriggerTypeLabels } from "../constants/trigger-types";
 import { formatPercent } from "../lib/lstep-analytics-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface VisitConversionSectionProps {
   data?: VisitConversionSummaryResponse;
@@ -40,8 +41,8 @@ export function VisitConversionSection({ data, isLoading, isError }: VisitConver
 function VisitConversionCards({ data }: { data?: VisitConversionSummaryResponse }) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <MetricCard label="送信件数" value={data?.delivered_count.toLocaleString() ?? "0"} />
-      <MetricCard label="来院件数" value={data?.visited_count.toLocaleString() ?? "0"} />
+      <MetricCard label="送信件数" value={data ? formatNumber(data.delivered_count) : "0"} />
+      <MetricCard label="来院件数" value={data ? formatNumber(data.visited_count) : "0"} />
       <MetricCard label="来院率" value={formatPercent(data?.visit_rate ?? 0)} />
     </div>
   );
@@ -81,10 +82,10 @@ function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse 
                 {TriggerTypeLabels[row.trigger_type] ?? row.trigger_type}
               </TableCell>
               <TableCell className={`text-right ${C.text60} tabular-nums`}>
-                {row.delivered_count.toLocaleString()}
+                {formatNumber(row.delivered_count)}
               </TableCell>
               <TableCell className={`text-right ${C.text60} tabular-nums`}>
-                {row.visited_count.toLocaleString()}
+                {formatNumber(row.visited_count)}
               </TableCell>
               <TableCell className={`text-right font-semibold ${C.text55} tabular-nums`}>
                 {formatPercent(row.visit_rate)}

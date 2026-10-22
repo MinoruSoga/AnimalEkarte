@@ -27,6 +27,7 @@ import {
   type LabDeviceItemDraft,
   type LabDeviceRow,
 } from "../routes/lab-device-item-master-settings-model";
+import { formatNumber } from "@/lib/format/number";
 
 interface LabDeviceItemMasterSidePanelProps {
   device: LabDeviceRow | null;
@@ -103,7 +104,7 @@ export const LabDeviceItemMasterSidePanel = memo(function LabDeviceItemMasterSid
       const unmapped = countDraftsUnmappedByExamChange(drafts, nextExamTypeId, examTypes);
       setUnmapNotice(
         unmapped > 0
-          ? `検査の変更で ${unmapped.toLocaleString()} 件の項目対応が外れます。保存で確定します`
+          ? `検査の変更で ${formatNumber(unmapped)} 件の項目対応が外れます。保存で確定します`
           : "",
       );
       if (nextExamTypeId !== null) {

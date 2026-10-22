@@ -5,7 +5,7 @@ import { getMedicalRecordAddenda } from "../api/get-medical-record-addenda";
 import { createMedicalRecordAddendum } from "../api/create-medical-record-addendum";
 import type { CreateMedicalRecordAddendumInput } from "../api/create-medical-record-addendum";
 
-export function useMedicalRecordAddenda(medicalRecordId: string) {
+export function useGetMedicalRecordAddenda(medicalRecordId: string) {
   return useQuery({
     queryKey: queryKeys.medicalRecords.addenda(medicalRecordId),
     queryFn: () => getMedicalRecordAddenda(medicalRecordId),

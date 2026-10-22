@@ -112,7 +112,7 @@ const blockingDoseContext: MedicineDoseContext = {
 describe("TreatmentRow — 保存済み投与量スナップショット read-only 表示", () => {
   beforeEach(() => {
     // 保存済みスナップショット表示は dose-params API と独立（BE 保存時点で確定済みの値を
-    // そのまま出すだけ）。medicine 行では useMedicineDoseParams がマウント時に発火するため、
+    // そのまま出すだけ）。medicine 行では useGetMedicineDoseParams がマウント時に発火するため、
     // 未処理リクエスト警告を避けるためだけの空応答スタブ。
     server.use(http.get("*/v1/masters/medicines/:id/dose-params", () => HttpResponse.json([])));
   });
@@ -238,7 +238,7 @@ describe("TreatmentRow — 絶対上限超過の物理ブロック", () => {
   });
 });
 
-// #201 TASK-025: useMedicineDoseParams の error を捨てず、technical failure 中は onUpdate 0 回。
+// #201 TASK-025: useGetMedicineDoseParams の error を捨てず、technical failure 中は onUpdate 0 回。
 describe("TreatmentRow — dose-params technical failure (TASK-025)", () => {
   const UPSTREAM_LEAK = "database timeout; SQLSTATE 57P01 internal stack";
 

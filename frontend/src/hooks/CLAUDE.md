@@ -9,7 +9,7 @@
 
 ### 例外: フック本体ではない支持ファイル
 
-`auth-context.ts`（`createContext` の定義のみ、フックではない）は例外として本ディレクトリに同居する。唯一の消費者 `use-auth.ts` と同じ場所に置くのが最も凝集的で、`features/auth` に置くと層逆転（features → hooks/lib への依存は許可・逆方向は禁止）になるため。命名規則(`use-kebab-case.ts`)の対象外（FE7-4(a)・2026-07-18）。
+`auth-context.ts`（`createContext` の定義のみ、フックではない）は例外として本ディレクトリに同居する。唯一の消費者 `use-auth.ts` と同じ場所に置くのが最も凝集的で、`features/auth` に置くと層逆転（features → hooks/lib への依存は許可・逆方向は禁止）になるため。命名規則(`use-kebab-case.ts`)の対象外（FE7-4(a)・2026-07-18）。`reservation-intent-response.ts` のような hook 本体ではない純粋モデル・型ファイルも同じ扱いで、`use-` 接頭辞を付けない（hook にだけ `use-` を付ける）。支持ファイルのテストは `<name>.test.ts`（例: `reservation-intent-response.test.ts`）で同ディレクトリに並置する。下記の `use-xxx.test.ts` は hook のテストにだけ適用する。
 
 ## 命名規則
 

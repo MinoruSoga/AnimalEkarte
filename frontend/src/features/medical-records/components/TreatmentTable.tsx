@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SaveEstimateItemPayload } from "../api/save-estimate";
+import { formatNumber } from "@/lib/format/number";
 
 // rendering-hoist-jsx: 静的SelectItem定数をモジュールスコープに巻き上げ
 const TREATMENT_STATUS_ITEMS = (
@@ -228,7 +229,7 @@ export const TreatmentTable = memo(function TreatmentTable({
                 />
               </Cell>
               <Cell align="right" className="font-mono font-medium px-2">
-                {calcLineItemAmount(item).total.toLocaleString()}
+                {formatNumber(calcLineItemAmount(item).total)}
               </Cell>
               <Cell align="center" last>
                 {disabled ? null : (

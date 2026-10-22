@@ -237,10 +237,12 @@ export function useGetReservationAvailableTimes(
   // queryKey の既存 clinic スロットはそのまま effective 値を使う。
   const effectiveClinicId = clinicId ?? getCurrentClinicId();
   return useQuery({
-    queryKey: [
-      ...queryKeys.reservations.availableTimes(reservationTypeId!, date!, staffId ?? undefined),
+    queryKey: queryKeys.reservations.availableTimes(
+      reservationTypeId!,
+      date!,
+      staffId ?? undefined,
       effectiveClinicId ?? "no-clinic",
-    ] as const,
+    ),
     queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId, clinicId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,

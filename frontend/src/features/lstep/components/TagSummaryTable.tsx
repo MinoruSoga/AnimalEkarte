@@ -21,6 +21,7 @@ import { BADGE, C, STYLE, ICON } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import type { LstepTagSummaryItem } from "../api/get-lstep-tag-summary";
+import { formatNumber } from "@/lib/format/number";
 
 type TagCategory = "all" | "auto" | "manual";
 
@@ -92,7 +93,7 @@ export function TagSummaryTable({ tags, isLoading, onViewOwners }: TagSummaryTab
         </Select>
 
         <span className={`text-sm ${C.text50} ml-auto`}>
-          {filteredTags.length.toLocaleString()}件
+          {formatNumber(filteredTags.length)}件
         </span>
       </div>
 
