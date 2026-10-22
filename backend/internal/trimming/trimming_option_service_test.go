@@ -61,6 +61,7 @@ func TestBuildTrimmingOptionUpdate(t *testing.T) {
 	price := int64(1000)
 	isActive := true
 	description := "説明文"
+	emptyDescription := ""
 	duration := 15
 	isCombinable := true
 	sortOrder := 2
@@ -90,6 +91,12 @@ func TestBuildTrimmingOptionUpdate(t *testing.T) {
 			name:  "no fields set returns empty map",
 			input: &UpdateTrimmingOptionInput{},
 			want:  map[string]any{},
+		},
+		{
+			// EMR-448: 非空の備考を空へ変更する PATCH は "" を書き込む。
+			name:  "empty description is written as empty",
+			input: &UpdateTrimmingOptionInput{Description: &emptyDescription},
+			want:  map[string]any{colTrimmingOptionDescription: ""},
 		},
 		{
 			name:  "only price set",

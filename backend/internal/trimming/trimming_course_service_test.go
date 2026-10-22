@@ -470,6 +470,7 @@ func TestBuildTrimmingCourseUpdate(t *testing.T) {
 	price := int64(5000)
 	isActive := true
 	description := "更新説明"
+	emptyDescription := ""
 	targetSize := "large"
 	courseTypeID := uint64(3)
 	duration := 90
@@ -484,6 +485,12 @@ func TestBuildTrimmingCourseUpdate(t *testing.T) {
 			name:  "全フィールドnilの場合は空map",
 			input: &UpdateTrimmingCourseInput{},
 			want:  map[string]any{},
+		},
+		{
+			// EMR-448: 非空の備考を空へ変更する PATCH は "" を書き込む（短縮名・画像の NULL 化とは別）。
+			name:  "Descriptionに空文字を設定すると空で書き込む",
+			input: &UpdateTrimmingCourseInput{Description: &emptyDescription},
+			want:  map[string]any{colTrimmingCourseDescription: ""},
 		},
 		{
 			name: "全フィールド設定",

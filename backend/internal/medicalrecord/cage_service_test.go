@@ -753,6 +753,7 @@ func TestBuildCageUpdate(t *testing.T) {
 	price := int64(1000)
 	isActive := true
 	description := "説明文"
+	emptyDescription := ""
 	sortOrder := 3
 
 	tests := []struct {
@@ -790,6 +791,12 @@ func TestBuildCageUpdate(t *testing.T) {
 			name:  "Description のみ指定",
 			input: &UpdateCageInput{Description: &description},
 			want:  map[string]any{colCageDescription: description},
+		},
+		{
+			// EMR-448: 非空の備考を空へ変更する PATCH は "" を書き込む（省略=空mapとは区別）。
+			name:  "Description に空文字を指定すると空で書き込む",
+			input: &UpdateCageInput{Description: &emptyDescription},
+			want:  map[string]any{colCageDescription: ""},
 		},
 		{
 			name:  "SortOrder のみ指定",
