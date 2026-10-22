@@ -34,21 +34,38 @@ export function merchandiseToFormData(item: FrontendMerchandiseItem | null): Mer
   };
 }
 
-// EMR-530: 保存値・送信値は文字列のまま。この比較は数値として行う（表記ではなく値で判定）。
-export function isMerchandiseTaxRate(taxRate: string, expected: string) {
-  return taxRateValue(taxRate) !== null && taxRateValue(taxRate) === taxRateValue(expected);
+// EMR-530: 保存値・送信値は文字列のまま。preset 判定（10%/8%）は float 経由ではなく
+// 十進文字列の正準化で行う（多数桁の字句が float 化で 0.1 と誤一致しない）。
+function canonicalDecimal(text: string): string | null {
+  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return null;
+  const [intPart, fracPart = ""] = text.split(".");
+  const frac = fracPart.replace(/0+$/, "");
+  if (frac === "") return intPart;
+  return `${intPart}.${frac}`;
 }
 
-function taxRateValue(text: string): number | null {
-  if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return null;
-  return Number(text);
+export function isMerchandiseTaxRate(taxRate: string, expected: string) {
+  const canonical = canonicalDecimal(taxRate);
+  return canonical !== null && canonical === canonicalDecimal(expected);
+}
+
+// ×100 を文字列の桁移動で exact に行う（表示専用。float の桁落ちを出さない）。
+function percentLiteral(text: string): string | null {
+  const m = /^(0|[1-9][0-9]*)(?:\.([0-9]+))?$/.exec(text);
+  if (!m) return null;
+  const [, intPart, fracPart = ""] = m;
+  const digits = intPart + fracPart;
+  const point = intPart.length + 2; // 小数点を2桁右へ
+  const padded = digits.padEnd(point, "0");
+  const whole = padded.slice(0, point).replace(/^0+(?=\d)/, "");
+  const frac = padded.slice(point).replace(/0+$/, "");
+  return frac === "" ? whole : `${whole}.${frac}`;
 }
 
 export function formatMerchandiseTaxRate(taxRate: string) {
-  const value = taxRateValue(taxRate);
+  if (isMerchandiseTaxRate(taxRate, "0.1")) return "10%";
+  if (isMerchandiseTaxRate(taxRate, "0.08")) return "8%";
   // 契約外の字句は捏造した率に変換せず、その文字列を表示する。
-  if (value === null) return `${taxRate}`;
-  if (value === 0.1) return "10%";
-  if (value === 0.08) return "8%";
-  return `${value * 100}%`;
+  const percent = percentLiteral(taxRate);
+  return percent === null ? `${taxRate}` : `${percent}%`;
 }

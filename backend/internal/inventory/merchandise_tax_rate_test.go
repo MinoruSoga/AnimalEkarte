@@ -161,6 +161,10 @@ func TestMerchandiseTaxRateString_AnomalyPropagates(t *testing.T) {
 		_, err := merchandiseTaxRateString(model.ExactNumeric{pgtype.Numeric{NaN: true, Valid: true}})
 		assert.Error(t, err)
 	})
+	t.Run("infinity value is an error, not a contract-breaking response", func(t *testing.T) {
+		_, err := merchandiseTaxRateString(model.ExactNumeric{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}})
+		assert.Error(t, err)
+	})
 	t.Run("zero is distinct from anomaly", func(t *testing.T) {
 		text, err := merchandiseTaxRateString(testTaxRateOf(0, 0))
 		require.NoError(t, err)

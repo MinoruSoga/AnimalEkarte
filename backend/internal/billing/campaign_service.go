@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // CreateCampaignInput は割引キャンペーン作成の入力 (#81)
@@ -144,8 +145,21 @@ func resolveCampaignTargets(current *model.Campaign, input *UpdateCampaignInput)
 }
 
 // validateCampaignDiscount は割引値の業務範囲を exact 比較で検査する（float 経由なし）。
+// 無効値（NULL/NaN/無限大）は 0 として黙るのではなく拒否し、numeric(12,2) で表現できない
+// 値（|値| > 9999999999.99、小数3桁超）も入口で拒否する（wire 解析の後段防御）。
 func validateCampaignDiscount(dt model.CampaignDiscountType, value model.ExactNumeric) error {
+	if !value.Valid || value.NaN || value.InfinityModifier != pgtype.Finite {
+		return apperrors.WrapInvalidInput("割引値に無効な値は指定できません")
+	}
+	if exactNumericFractionDigits(value) > 2 {
+		return apperrors.WrapInvalidInput("割引値は numeric(12,2) で保存できないため指定できません")
+	}
 	v := exactNumericRat(value)
+	// numeric(12,2) の上限（9999999999.99）を exact 比較で検査する。
+	maxScale := new(big.Rat).SetFrac(big.NewInt(999999999999), big.NewInt(100))
+	if v.Cmp(maxScale) > 0 {
+		return apperrors.WrapInvalidInput("割引値は numeric(12,2) で保存できないため指定できません")
+	}
 	switch dt {
 	case model.CampaignDiscountTypeRate:
 		if v.Sign() < 0 || v.Cmp(big.NewRat(100, 1)) > 0 {
@@ -159,6 +173,14 @@ func validateCampaignDiscount(dt model.CampaignDiscountType, value model.ExactNu
 		return apperrors.WrapInvalidInput("割引種別が不正です（rate または amount）")
 	}
 	return nil
+}
+
+// exactNumericFractionDigits は Exp<0 のときの小数桁数を返す（Exp>=0 は 0）。
+func exactNumericFractionDigits(value model.ExactNumeric) int {
+	if value.Exp >= 0 {
+		return 0
+	}
+	return int(-value.Exp)
 }
 
 func validateCampaignPeriod(start, end time.Time) error {

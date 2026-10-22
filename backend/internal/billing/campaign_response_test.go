@@ -56,6 +56,9 @@ func TestToCampaignResponse(t *testing.T) {
 			StartDate:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 			EndDate:      time.Date(2026, 1, 31, 0, 0, 0, 0, time.UTC),
 			DiscountType: model.CampaignDiscountTypeAmount,
+			// 無targets応答の検査には有効な exact 0 を設定する（無指定の ExactNumeric は
+			// 異常値としてエラー伝播するため）。
+			DiscountValue: campaignExactValue(t, "0"),
 		}
 
 		resp, err := toCampaignResponse(m)

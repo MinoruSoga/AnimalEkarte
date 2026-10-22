@@ -23,11 +23,11 @@ type campaignResponse struct {
 }
 
 // exactNumericString は保存値を十進文字列として応答する（EMR-530、採択483の十進輸送）。
-// float 経由の丸めを行わない。NULL・NaN・変換失敗は既知の異常として伝播し、
-// 正常な "0" を捏造して補完しない（stage2計画 §3C「未知/NULLを0補完しない」）。
+// float 経由の丸めを行わない。NULL・NaN・無限大・変換失敗は既知の異常として伝播し、
+// 有限契約外の値を応答せず、正常な "0" を捏造して補完しない（stage2計画 §3C「未知/NULLを0補完しない」）。
 func exactNumericString(v model.ExactNumeric) (string, error) {
-	if !v.Valid || v.NaN {
-		return "", apperrors.WrapInternalServerError("campaign discount_value の保存値が不正です（NULL または NaN）")
+	if !v.Valid || v.NaN || v.InfinityModifier != pgtype.Finite {
+		return "", apperrors.WrapInternalServerError("campaign discount_value の保存値が不正です（NULL / NaN / 無限大）")
 	}
 	value, err := v.Value()
 	if err != nil || value == nil {

@@ -61,11 +61,11 @@ func TestCreateCampaignRequest_DiscountValueContract(t *testing.T) {
 		want    string // 期待値を10進文字列で表す。errWant 時は不使用
 		errWant bool
 	}{
-		{name: "exact decimal string", body: `{"discount_value":"10.5"}`, want: "10.5"},
-		{name: "integer string", body: `{"discount_value":"500"}`, want: "500"},
-		{name: "explicit zero is kept", body: `{"discount_value":"0"}`, want: "0"},
-		{name: "omitted falls back to zero", body: `{}`, want: "0"},
-		{name: "null falls back to zero", body: `{"discount_value":null}`, want: "0"},
+		{name: "exact decimal string", body: `{"name":"n","start_date":"2026-07-01","end_date":"2026-08-31","discount_type":"rate","discount_value":"10.5"}`, want: "10.5"},
+		{name: "integer string", body: `{"name":"n","start_date":"2026-07-01","end_date":"2026-08-31","discount_type":"amount","discount_value":"500"}`, want: "500"},
+		{name: "explicit zero is kept", body: `{"name":"n","start_date":"2026-07-01","end_date":"2026-08-31","discount_type":"rate","discount_value":"0"}`, want: "0"},
+		{name: "omitted falls back to zero", body: `{"name":"n","start_date":"2026-07-01","end_date":"2026-08-31","discount_type":"rate"}`, want: "0"},
+		{name: "null falls back to zero", body: `{"name":"n","start_date":"2026-07-01","end_date":"2026-08-31","discount_type":"rate","discount_value":null}`, want: "0"},
 		{name: "fraction beyond scale is rejected without rounding", body: `{"discount_value":"10.555"}`, errWant: true},
 		{name: "11 integer digits is rejected", body: `{"discount_value":"12345678901"}`, errWant: true},
 		{name: "negative is rejected", body: `{"discount_value":"-5"}`, errWant: true},
@@ -143,6 +143,10 @@ func TestValidateCampaignDiscount_ExactBoundaries(t *testing.T) {
 		{model.CampaignDiscountTypeRate, exactNumericOf(10001, -2)}, // 100.01
 		// 負値は wire で拒否されるため ExactNumeric を直接構築（service 直呼び出し時の防御検証）。
 		{model.CampaignDiscountTypeAmount, exactNumericOf(-1, -2)},
+		// 無効値・表現不能値も 0 として黙らず拒否する（保存前の後段防御）。
+		{model.CampaignDiscountTypeAmount, model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Valid: false}}},
+		{model.CampaignDiscountTypeRate, exactNumericOf(1001, -3)},                            // 小数3桁
+		{model.CampaignDiscountTypeRate, exactNumericOf(123456789012345, -2)},                 // (12,2)上限超
 	}
 	for _, tc := range ng {
 		assert.Error(t, validateCampaignDiscount(tc.dt, tc.value), "%s %v", tc.dt, tc.value)
@@ -172,6 +176,10 @@ func TestExactNumericString_AnomalyPropagates(t *testing.T) {
 	})
 	t.Run("NaN value is an error, not fabricated zero", func(t *testing.T) {
 		_, err := exactNumericString(model.ExactNumeric{pgtype.Numeric{NaN: true, Valid: true}})
+		assert.Error(t, err)
+	})
+	t.Run("infinity value is an error, not a contract-breaking response", func(t *testing.T) {
+		_, err := exactNumericString(model.ExactNumeric{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}})
 		assert.Error(t, err)
 	})
 	t.Run("zero is distinct from anomaly", func(t *testing.T) {

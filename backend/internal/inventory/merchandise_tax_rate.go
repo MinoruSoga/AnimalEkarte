@@ -87,7 +87,11 @@ func parseMerchandiseTaxRate(text string) (model.ExactNumeric, error) {
 }
 
 // validateMerchandiseTaxRate は tax_rate の入力範囲 0..1 を exact 比較で検査する（float 経由なし）。
+// 無効値（NULL/NaN/無限大）も 0 として黙らず拒否する。
 func validateMerchandiseTaxRate(value model.ExactNumeric) error {
+	if !value.Valid || value.NaN || value.InfinityModifier != pgtype.Finite {
+		return apperrors.WrapInvalidInput(merchandiseTaxRateErrMsgInvalid)
+	}
 	v := exactTaxRateRat(value)
 	if v.Sign() < 0 || v.Cmp(big.NewRat(1, 1)) > 0 {
 		return apperrors.WrapInvalidInput(merchandiseTaxRateErrMsgRange)
