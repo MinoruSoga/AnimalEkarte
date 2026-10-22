@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "4ea9ae9b808cef3cbedec6832e5a2b792172f62d580fbea4d52bbbe871672e0d",
+  "source_digest": "2d1f5b94a4e83cde1e2126c497a760356e4e95af3341503d331f934450e8b9c1",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -18,7 +18,7 @@
   ],
   "counts": {
     "tables": 251,
-    "columns": 2788,
+    "columns": 2790,
     "foreign_keys": 765
   },
   "migrations": [
@@ -49,6 +49,10 @@
     {
       "name": "008_clinic_operating_hours.sql",
       "sha256": "41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313"
+    },
+    {
+      "name": "009_line_acceptance_version.sql",
+      "sha256": "6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea"
     }
   ],
   "reviewed_do_blocks": [
