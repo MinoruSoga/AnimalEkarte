@@ -28,6 +28,7 @@
 | 残少／在庫切れ | 正の数量が正閾値以下／数量0以下。閾値0は在庫切れを解除しない | [導出](../domains/inventory/business-rules.md#requirement-fr-inventory-quantity-status) |
 | 実物返却 | 実際に戻した物品数量。カルテや請求の取消だけで成立しない | [調整](../domains/inventory/business-rules.md#requirement-fr-inventory-adjustment) |
 | 売上／入金額／返金控除後 | 別指標。選択期間の親請求帰属と実移動日帰属を必ず区別 | [D16金額](../domains/analytics/business-rules.md#requirement-fr-analytics-money-separation) |
+| 月次売上の主表示基準 | 主表示は税抜、消費税と税込売上合計を併記。定義は会計語彙に置き、ここでは二重定義しない。別指標の区別は上記を維持 | [会計語彙](accounting.md)・[D16](../domains/analytics/business-rules.md#analytics-sales-tax-basis-20261022) |
 | 来院回数（承認済み目標） | 確認済み実来院日の数。同医院・飼主・同日は1回、ペット単位は各1回。予約数・カルテ数・会計数でない | [計数](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts) |
 | 旧記録日数（現行顧客SQL） | draftを含む未削除カルテ日distinct。実来院回数へ無条件変換しない | [現行差](../domains/analytics/business-rules.md#requirement-fr-analytics-owner-counts) |
 | CPM／最終来院バケット | V1等の継続性分類／90・180・365日固定分類。別軸 | [分類](../domains/analytics/business-rules.md#requirement-fr-analytics-segmentation) |

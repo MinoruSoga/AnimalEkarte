@@ -26,6 +26,19 @@
 
 [検査印刷/感染症投影](../domains/examinations/lifecycle.md#examination-print-infection-agreement-20261015)と[患者台帳読取](../domains/owners-pets/lifecycle.md#requirement-fr-owners-pets-infection-summary)を参照。AC-owners-pets-infection-top-reference／AC-owners-pets-infection-ambiguity／AC-owners-pets-infection-write-boundary／AC-owners-pets-infection-privacyが出典・版・認可境界を追跡する。健診package/field/resultの既存概念は[D09](../domains/checkups/lifecycle.md)へ委ね、専用の作図・写真機能は新採用せず既存カルテ添付を維持する。接種証明の発行版は[証明書概念](medical-records.md#certificate-edition-concept)へ接続し、結果保存/確認と証明書発行/印刷を同一イベントにしない。
 
+<a id="outsourced-checkup-pdf-concepts"></a>
+## 外注健診PDFの原本・文字起こし・確認済み結果（2026-10-21）
+
+健診はD09のCheckup正系統で、D07検査と別ownerのまま維持する。業務正本は[外注PDFから確認済み結果を登録する](../domains/checkups/lifecycle.md#fr-checkups-outsourced-pdf-20261021)。新しい業務判断は加えない。
+
+| 概念 | 定義・区別 | 順序・制約 |
+|:---|:---|:---|
+| 外注PDF（原本） | 外注先から届いた結果PDFのアップロード原本 | 第1段。登録成功だけで結果確定・正常・健診完了にしない。原本保持に独自のTTLや物理削除を足さない |
+| 文字起こし結果（構造化テキスト） | 原本から機械抽出した候補 | 第2段。再抽出は新しい候補で、確定値を黙って上書きしない。抽出失敗・空・未確認・取得不明を正常判定に変換しない |
+| 職員確認済み結果 | 職員が確認・修正して確定保存した結果版 | 第3段。確認者と実編集actor、時刻、修正差分を追跡。原本→候補→確定の順で、確認前の候補を確定結果として扱わない |
+
+多重度。一つのCheckupに複数の原本を取り得、一つの原本に対し候補は再抽出ごとに複数、確定結果版は確認保存ごとに複数（物理上限は未選定）。原本登録・候補抽出・職員確認保存の成功は別々の事実である。D03定期健診タブは同じCheckupの結果IDと版・確認状態を参照し、D07へ二重保存しない。PDFの患者名等だけで患者を自動確定せず、対応不明は確認まで停止する。手入力は維持する。
+
 <a id="examination-state-and-receive-concepts"></a>
 ## 検査自身の版・機器受信の状態
 
@@ -37,6 +50,7 @@
 | 受信フレーム／ジョブ | 1フレームを1測定/1ジョブとして同医院・source・fingerprintで再送同定する | [FR-examinations-mapping](../domains/examinations/lifecycle.md#fr-examinations-mapping)、[FR-examinations-idempotency](../domains/examinations/lifecycle.md#fr-examinations-idempotency)。対応種別NならN検査、ジョブ由来全件が補償単位 |
 | 待機対象／未紐付け／要確認 | 医院ごとの有効待機は1件、期限切れ/待機なしは未紐付け、未知コードはneeds_reviewで推測補完しない | [FR-examinations-receive](../domains/examinations/lifecycle.md#fr-examinations-receive)、AC-examinations-wait／AC-examinations-wait-expired／AC-examinations-multiple-types。カルテ編集権の無操作維持とこの待機期限は別 |
 | attach／device detach／fixture revert | 患者への明示紐付け、安全条件を満たす解除、fixture終端処理という別操作 | AC-examinations-attach／AC-examinations-detach／AC-examinations-detach-used／AC-examinations-receive-duplicate／AC-examinations-result-unknown。参照/確定/手修正等の使用中保護を迂回せず原指紋を保持 |
+| ジョブ状態と再評価可否 | 受信ジョブはreceived／needs_review／persistedの状態を持つ。マスタ対応後の再評価はreceived又はneeds_reviewで未persistのジョブに限る | persisted・部分persist後は再解決を拒否しD07の訂正経路へ渡す。再送や付け替えで迂回せず、保存済み臨床版を現在マスタで書き換えない。[FR-examinations-mapping](../domains/examinations/lifecycle.md#fr-examinations-mapping) |
 
 機器のorigin排他は受信ポートの保護であり、通常カルテの編集権ではない。受信日時は検査日時と別。既存NX600/AU10Vの日常経路の定義を、新機器/新接続方式の運用承認へ拡張しない。D09健診はpackage/typed field/result setと保存時snapshotを持つ別ownerで、package改定による過去結果/次回日自動再計算をしない。[FR-checkups-canonical](../domains/checkups/lifecycle.md#fr-checkups-canonical)、FR-checkups-results／FR-checkups-record、AC-checkups-value-types／AC-checkups-replace-missing／AC-checkups-replace-empty／AC-checkups-master-change／AC-checkups-next-history-preservedを参照し、0/falseと未入力、意図的空配列と未送信/nullを区別する。
 

@@ -51,6 +51,15 @@
 | 預り受領→飼主/予約/充当 | 元飼主必須、予約0..1任意、充当/解除/返金履歴を保持 | FR-accounting-reservation-advance。同医院同飼主、別ペット利用可、他医院/他飼主へ自動移行なし |
 | 元締め→訂正差分 | 元を保持し追記0..複数 | FR-closing-append-only。締め訂正を実入出金/元締め書換えとしない |
 | 保存済み接種→証明書発行版 | 訂正後の新発行と旧版の関係を保持、物理件数は未選定 | [証明書](medical-records.md#certificate-edition-concept)。AC-vaccinations-certificate-correction |
+| 接種→証明書の適格性・発行前入力 | 狂犬病様式は適格フラグと接種時スナップショットが真のときだけ。発行前入力10欄はすべて任意、通常様式は空のみ。1接種に発行版0..n、1発行版に様式artifact1..n | [適格性・入力・権限](../domains/vaccinations/lifecycle.md#certificate-eligibility-inputs-20261021)、[表示規則](../domains/vaccinations/lifecycle.md#certificate-display-rules-20261021)。AC-vaccinations-certificate-eligibility-gate／AC-vaccinations-certificate-inputs-optional／AC-vaccinations-certificate-normal-null-only |
+| 証明書の発行版→表示発行日／実発行時刻 | 表示発行日は初回はプレビュー日に固定、再発行は当初の発行日が初期値で変更可。実発行時刻は別に保持 | [再発行日](../domains/vaccinations/lifecycle.md#fr-vaccinations-reissue-date-20261021)。同版再印刷は版を増やさず、新版再発行は旧版を保持。AC-vaccinations-reissue-default／AC-vaccinations-reprint-fixed |
+| 帳票セット（RV4種類）→発行版・artifact | 出力対象の構成。診療項目パッケージとは別概念で、パッケージ適用から自動発行しない | [RV一括出力](../domains/vaccinations/lifecycle.md#fr-vaccinations-rv-batch-20261021)。欠損・重複・一部失敗を4種類完了としない。AC-vaccinations-rv-partial |
+| 健診Checkup→外注PDF原本→文字起こし結果→職員確認済み結果 | 原本・候補・確定の順で、確認前を確定扱いしない。原本1..複数、候補は再抽出ごと、確定版は確認保存ごと。D07検査とは別 | [外注PDF](../domains/checkups/lifecycle.md#fr-checkups-outsourced-pdf-20261021)、[語彙](examinations.md#outsourced-checkup-pdf-concepts)。AC-checkups-pdf-review／AC-checkups-pdf-shared-result |
+| 機器ジョブ状態→再評価可否 | 再評価はreceived／needs_reviewで未persistのジョブのみ。persisted後は再解決を拒否しD07訂正経路へ | [FR-examinations-mapping](../domains/examinations/lifecycle.md#fr-examinations-mapping)、[語彙](examinations.md#examination-state-and-receive-concepts) |
+| サポート報告→外部送信（スクリーンショット） | 送信前の内容・送信先確認は維持し、マスキングを必須条件にしない | [D23](../domains/support/README.md#support-screenshot-personal-information-20261020)、[公開・読取](access-and-publication.md#read-and-publication-boundaries) |
+| ペット死亡登録（D04）→既存の未来予約（D01） | 既存の未来予約は取消（削除ではない）。誤登録の取消でも自動再開しない | [D04](../domains/owners-pets/lifecycle.md#pet-death-future-reservations-cancel-20261022)、語彙は[飼主・ペット](owners-pets.md)と[予約](reservations.md) |
+| 入院明細の税情報未確認（D05）→会計取込（D10） | 税情報が未確認の明細は概算のまま保持し、会計取込は税基準未確認として停止。退院のみは独立に継続可 | [入院税情報](../domains/hospitalization/lifecycle.md#hospitalization-tax-unknown-20261020)。既定値の仮明細を作らない |
+| 月次売上の主表示（D16） | 主表示は税抜（純売上・部門別）で、消費税と税込売上合計を併記 | [集計の税基準](../domains/analytics/business-rules.md#analytics-sales-tax-basis-20261022)。表示規則で金額・入金を変更しない |
 
 <a id="state-and-event-axes"></a>
 ## 状態遷移とイベントの独立軸

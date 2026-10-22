@@ -20,6 +20,7 @@
 | 退院／退室 | 実滞在終了の明示状態遷移 | soft-delete、会計作成、会計確定、返金とは別 |
 | 延泊希望／調整待ち | 変更案と超過を解消する調整状態 | 実滞在を残し、上限内を再確認して確定。状態のDB表現は設計 |
 | 退院会計 | 入院参照付き会計とケア由来明細 | 会計ID・確定履歴はD10所有。治療プラン概算と同一ではない |
+| <a id="care-line-tax-state-concept"></a>ケア明細・治療概算の税情報 | 属性は状態（known／unknown）と出所（master／スタッフ確認／旧データ不明／新規未確認）。0は実値、未入力は不明 | unknownは自動補完せず、概算として保存できても確定税額・確定税込総額として表示しない。unknownの行は会計取込を停止し、スタッフの明示確認後に再実行。退院のみは独立。後日の確認は「今確認した事実」として履歴。[正本](../domains/hospitalization/lifecycle.md#hospitalization-tax-unknown-20261020)・[取込前提](accounting.md#doctor-review-and-charge-concept) |
 
 予約ID・hospitalization ID・通常medical_record ID・日次record ID・billing IDを区別。多重度の新たな推定はしない。同じペットが同じ日に別の滞在を持つ可能性を日付一致だけで排除しない。旧HospStatus reserved/admitted/dischargedと、提案／通信不明など操作状態を混同しない。
 

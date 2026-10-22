@@ -30,6 +30,7 @@
 | D15配信→LINE | DM希望/目的別停止/宛先/結果不明保留等を満たす既存送信 | DM必要や台帳変更だけで送信/再送/停止解除しない。[Lステップ](../line/lstep-integration.md) |
 | D16分析←請求/実移動/来院/配信ログ | 元指標と母集団・時点に基づくread計算 | 結果表示による配信/売上/金銭移動の生成、未提供画面の新採用ではない。[金融周辺](finance-operations.md) |
 | D17設定入口→各master | 各masterのscope・権限と有効状態を個別に扱う | 設定ページ閲覧だけで全master/global動物種の編集を許可しない。[医院設定](../domains/clinic-settings/README.md) |
+| D23サポート報告←スクリーンショット添付の外部送信 | Discord・Planeへ渡す内容と送信先を送信前に表示して確認する | スクリーンショットは個人情報を含んでよく、強制マスキングを送信の必須条件にしない（確認は維持）。完全匿名化の保証や加工UI・原画像破棄は採用しない。[2026-10-20本人回答](../domains/support/README.md#support-screenshot-personal-information-20261020) |
 | D22公開manual記事←編集/公開版 | 製品内manualの草稿・公開版・履歴を区別 | 開発仕様書や未公開草稿を自動公開しない。[D22](../domains/internal-manual/README.md) |
 | D23共有報告一覧／ROOM←各報告／chat元メッセージ | 報告の共有readと報告元医院のmutation、個人chat履歴、同一clinic×staffのchat元メッセージを30分超の空白で区切るROOM表示を区別 | ROOMはバグ報告由来の記録や新しい永続session IDではない。報告元医院のmutation条件は報告に対応し、共有閲覧から他院報告の変更/外部送信許可を生まない。[D23](../domains/support/README.md)・[設定入口](../screens/settings/README.md) |
 
