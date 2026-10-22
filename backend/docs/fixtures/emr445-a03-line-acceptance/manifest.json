@@ -214,6 +214,28 @@
    "scenario": "acceptance 活性化医院で旧全量 PUT",
    "semantic_expectation": "409・zero-write（P 同値でも停止）。未切替医院は従来どおり",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-prohibited-without-warning.response.json",
+   "operationId": "previewLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptancePreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "validation prohibited なのに warnings 空",
+   "semantic_expectation": "不適合（prohibited は1件以上）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-version-overflow.response.json",
+   "operationId": "getLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptanceResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "acceptance_version が int64 上限超過",
+   "semantic_expectation": "不適合（正規十進の上限）",
+   "verification": "NOT_RUN"
   }
  ]
 }
