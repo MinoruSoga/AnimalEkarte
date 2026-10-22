@@ -15549,6 +15549,42 @@ components:
               state: not_found
             current_state: null
             content_available: false
+    LabMappingC06BadRequest:
+      description: >-
+        EMR-297-A 先行契約。型・サイズ等の C06 前の失敗は既存 ErrorResponse（receiptではない）。C06 切替後の validation は LabMappingOperationResult（status=validation）。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
+    LabMappingC06Forbidden:
+      description: >-
+        EMR-297-A 先行契約。既存認可 middleware の拒否は ErrorResponse。C06 切替後の not-authorized は LabMappingOperationResult（元対象を現在認可できない場合も存在を開示しない）。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
+    LabMappingC06NotFound:
+      description: >-
+        EMR-297-A 先行契約。通常の resource 不在は既存 ErrorResponse。C06 の scope-not-found（binding 不存在だけ）は LabMappingOperationResult。業務対象の不一致をこの status へ変換しない。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
+    LabMappingC06Conflict:
+      description: >-
+        EMR-297-A 先行契約。C06 切替後の operation-key-conflict / version-conflict / dependency-changed / edit-right-lost は LabMappingOperationResult。切替前の現行 confirm の 409 は既存 ErrorResponse。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
     BadRequest:
       description: バリデーションエラー
       content:
@@ -30748,13 +30784,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/LabMappingOperationResult'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LabMappingC06BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/LabMappingC06Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LabMappingC06NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/LabMappingC06Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
   /lab-device/mapping-operations/{operation_key}:
@@ -30778,15 +30816,26 @@ paths:
           schema: { type: string, enum: [lab_mapping.confirm] }
       responses:
         '200':
-          description: 操作結果（LabMappingOperationResult の status と HTTP の対応に従う）
+          description: succeeded / replayed / not-succeeded
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+        '202':
+          description: operation-in-progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
+        '400': { $ref: '#/components/responses/LabMappingC06BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '403': { $ref: '#/components/responses/LabMappingC06Forbidden' }
+        '404': { $ref: '#/components/responses/LabMappingC06NotFound' }
+        '409': { $ref: '#/components/responses/LabMappingC06Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
+        '503':
+          description: result-unavailable（結果store障害の500とは区別する）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
   /lab-device/mapping-generation:
     put:
       operationId: putLabMappingGeneration
