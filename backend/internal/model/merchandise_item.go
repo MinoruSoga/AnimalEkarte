@@ -7,6 +7,7 @@ import (
 
 // MerchandiseItem は物販・フード・その他マスタアイテム
 type MerchandiseItem struct {
+	Version   int64          `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
 	ID        uint64         `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
 	ClinicID  uint64         `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
 	Name      string         `gorm:"column:name;type:text;not null;default:''" json:"name"`
@@ -19,6 +20,8 @@ type MerchandiseItem struct {
 	CreatedAt time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
+
+	IsBillDiscountExcluded *bool `gorm:"column:is_bill_discount_excluded;type:boolean" json:"-"`
 }
 
 func (MerchandiseItem) TableName() string { return "merchandise_items" }
