@@ -193,6 +193,7 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("exam_type_id", exType.ID))
 	return exType, nil
 }
+
 // examTypeForUpdateFinder は更新 TX の前値読取専用の FOR UPDATE read。
 // concrete repo が実装しない構成は fail-closed（master_parent_write_lock と同型）。
 type examTypeForUpdateFinder interface {
