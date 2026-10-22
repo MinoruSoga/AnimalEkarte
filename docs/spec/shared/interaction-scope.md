@@ -78,6 +78,8 @@
 | N06 | [飼主レポート](../screens/39-owner-report.md)・[LIFF](../screens/38-liff-pet-health.md) | 登録済みpetやセクションの選択。検索欄のない表示へボタン追加なし |
 | N07 | [サポート一覧](../domains/support/README.md)・検査機器項目対応設定 | 基準HEADの限定静的観察ではBugReportsPageは状態/詳細、ChatHistoryPageはROOM、LabDeviceItemMasterSettingsは機器source等でkeyword欄なし。項目対応のSearchableSelectはE02/E03。新設/全件検索せず実機適合は別検証 |
 
+診療項目パッケージ管理（[EMR-518](../domains/medical-records/treatment-packages.md)）は画面仕様が未作成のため本台帳に適用IDを置かず、画面仕様の作成時に追加する。
+
 ## 異用途の個別判断
 
 | ID | 画面・部品／既存根拠 | 今回の扱いと理由 |

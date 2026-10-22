@@ -101,7 +101,7 @@
 ## 3. EMR-475 スタッフ予約詳細の再診原文・旧 target 履歴
 
 - 契約: `GET /reservations/{appointmentId}/revisit-intake` → `RevisitIntakeStaffReservationRead`（`current_target: RevisitIntakeReadOnlyCurrentTarget`、`history[]`、`next_cursor`）。staff は既存 `reservations:view` + clinic + 各 target.pet 行認可、LINE author 一致は強制しない。
-- 画面: `ReservationDetailModal` 内「飼主事前問診（LINE）」セクション。状態は 読込中 / target_unresolved / 未回答 / 回答済み / `content_available=false` / current の訂正履歴 / previous target 別グループ / 403（1 行、本文・件数を漏らさない）/ 404 / 取得失敗（再試行）。原文欄に編集・コピー・補足 UI を置かない。スタッフ補足は既存 notes / Inquiry。
+- 画面: `ReservationDetailModal` 内「飼主事前問診（LINE）」セクション。状態は 読込中 / target_unresolved / 未回答 / 回答済み / `content_available=false` / current の訂正履歴 / previous target 別グループ / 403（1 行、本文・件数を漏らさない）/ 404 / 取得失敗（再試行）。原文欄に編集・コピー・補足 UI を置かない。スタッフ補足は既存 Inquiry に残し、notes で代用しない（予約技術契約に合わせる）。
 - ファイル: `features/reservations/api/get-revisit-intake.ts`、`lib/revisit-intake-options.ts`、`components/RevisitIntakeSection.tsx`、`ReservationDetailModal.tsx` 挿入。1 PR。未結合: EMR-471/472 staff reader。
 
 ---

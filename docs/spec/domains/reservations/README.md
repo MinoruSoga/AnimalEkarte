@@ -92,6 +92,7 @@
 | FR-reservations-record-reviewed-correction | 合意済み。業務5点一括承認 Sentinel_c713c4fdc74c819182979c4b8d2fef07。内部設計・実機未確認 | [記録確認訂正](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-record-reviewed-correction) |
 | FR-reservations-controlled-reverse-transition | 合意済み。同一5点承認。内部設計・実機未確認 | [その他逆遷移](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-controlled-reverse-transition) |
 | FR-reservation-types-legacy-review | 合意済み。同一5点承認。資料・実データ・設計未確認 | [旧マスタ確認補完](../../screens/settings/master-reservation-type.md#requirement-fr-reservation-types-legacy-review) |
+| FR-reservations-line-revisit-intake | 合意済み。2026-10-17本人決定（[進捗入口](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)）。2026-10-21追補で予約状態別の飼主回答可否を追加。EMR-474 実装中、実機未確認。10-17追加分で、本書の既存固有FR件数には含めない | [予約・ペット単位の飼主原文](pages/reservation-management.md#requirement-fr-reservations-line-revisit-intake) |
 
 <a id="inherited-reservation-references"></a>
 ### 継承仕様の参照（今回の新承認には含めない）
@@ -304,7 +305,7 @@ Sentinel_f19ab03e8c2c81919c6f589bcf563811のdocs限定許可で、[保存詳細]
 
 [決定根拠・適用範囲](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
-[業務正本・受入条件](pages/reservation-management.md#line-revisit-intake-20261017)。予約完了・予約詳細から任意の再診問診へ進み、受付前に訂正する。予約選択ペットごと7項目を自動取込し、カルテ未作成でも別保存、飼主由来・最新／旧回答と日時を保持する。未回答で予約・受付を止めない。日時変更は継承、新予約・ペット変更は未回答、取消履歴保持。既存のプロフィール転記・入力保持だけを問診本文取込済みの証拠にしない。本人LINE認証・対象患者認可を維持し、共通患者の自院利用を他院記録への認可免除としない。
+[業務正本・受入条件](pages/reservation-management.md#line-revisit-intake-20261017)。予約完了・予約詳細から任意の再診問診へ進み、受付前に訂正する。予約選択ペットごと7項目を自動取込し、カルテ未作成でも別保存、飼主由来・最新／旧回答と日時を保持する。未回答で予約・受付を止めない。日時変更は継承、新予約・ペット変更は未回答、取消履歴保持。既存のプロフィール転記・入力保持だけを問診本文取込済みの証拠にしない。本人LINE認証・対象患者認可を維持し、共通患者の自院利用を他院記録への認可免除としない。予約状態別の飼主回答可否と対象不明時の表示は[2026-10-21追補](pages/reservation-management.md#revisit-intake-state-editability-20261021)へ。
 
 <a id="reservation-leave-batch-index"></a>
 ## 休業・複数頭作成の参照

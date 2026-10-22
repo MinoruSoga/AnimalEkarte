@@ -1,5 +1,13 @@
 # 診療項目パッケージ（EMR-518）
 
+| 管理項目 | 記載 |
+|:---|:---|
+| 文書ID・種別 | spec-D03-treatment-packages／業務仕様・受入条件 |
+| 決定状態 | 合意済み。決定者 MinoruSoga、2026-10-20、出典 [EMR-518](https://app.plane.so/baritechllc/browse/EMR-518/)。権限の対応は[採用契約（2026-10-20 15:55 UTC）](../../../work/emr/emr-518-storage-contract-20261020.md)からの移設 |
+| 実装状態 | 一部実装。package master の route・権限 adapter 配線は main に取込済み（PR #775、DDL 未適用）。runtime 適合・全 DTO/FK 固定・API 公開は未確認 |
+| 実機検証状態 | 未実施 |
+| 文書確認日 | 2026-10-22 |
+
 決定日: 2026-10-20。要件責任者・決定者: MinoruSoga。出典: [EMR-518](https://app.plane.so/baritechllc/browse/EMR-518/)。本人の「治療に限らず他のもパッケージ化」「治療プランで追加で選べる種類は最低限」と、証明書料金は発行前に手動修正・package構成は医院によるとの回答を採用した論理要件。実装・全DTO/FK固定・API公開の完了を意味しない。
 
 目的は頻用項目の繰り返し選択を一度の明示追加へまとめること。構成品の再入力・二重実績・二重請求を減らす。比較する指標は同じ構成の選択操作数と所要時間で、基準値・改善実測は未計測。実施や請求の判断自体を自動化しない。
@@ -14,6 +22,8 @@
 現在のUIに未配線の種類も、確定仕様にある種類は初版から省略しない。検査は[D07 exam_types](../examinations/lifecycle.md)、予防接種は[D08 vaccines](../vaccinations/lifecycle.md)、定期健診は[D09 checkup_types](../checkups/lifecycle.md)として区別する。診察・処置・薬剤は[D03 master契約](pages/medical-record-form.md#medical-record-agreement-input-four)、物販は[D10会計](../accounting/lifecycle.md)と[在庫owner](../inventory/business-rules.md)へ従う。
 
 既存の健診パッケージ・検査パネルは、それぞれのownerが定義した品目単位で含め、子項目・結果構造を保持する。新設する汎用パッケージ同士の入れ子は初版では作らないが、この制限を理由に既存健診パッケージを除外しない。
+
+パッケージ名は医院内で重複を許す。名前は識別子ではなく、再送一致や同一性を名前で証明しないため（[storage契約](../../../work/emr/emr-518-storage-contract-20261020.md)の「名前uniqueは付けない」）。これは健診パッケージ名を医院内一意とする[D09の既存条件](../checkups/lifecycle.md)（「名称必須／医院内一意」、同文書40行）とは扱いが異なり、健診側の規則は変えない。
 
 <a id="fr-package-apply"></a>
 ## FR-package-apply — 個別展開と副作用の分離
@@ -49,6 +59,17 @@ master参照品は追加時に照合した現在の単品価格・税・保険�
 
 証明書の4料金欄は[D08の発行前手動編集・発行版保持](../vaccinations/lifecycle.md#certificate-fees-manual-20261020)が正本。個別品目合算と証明書の手動確認額（合計欄を含む）は別であり、両者の一致を発行条件にしない。
 
+<a id="package-permissions-20261020"></a>
+## パッケージの管理権限と適用権限（採用契約からの移設）
+
+パッケージの作成・編集・無効化・削除は、診療マスタ管理の各権限で行う。混在する健診・物販の構成を診療マスタ権限だけで読める迂回にしない。構成品の種類ごとの閲覧権限が不足する場合は403で全体を非開示とする。
+
+カルテ側のプレビュー・適用履歴・結果照会の読取はカルテ閲覧権限とする。適用（予定への一括追加）は単品追加と同じカルテ作成権限に加え、現在の編集セッションを要する。編集セッションは並行性制御であり、権限とは別である。
+
+新しい権限、カルテ編集権限、マスタ管理の作成権限は追加で要求しない。実施・結果の操作は各ownerの既存権限に従う。過去の適用履歴も現在のカルテ認可が必要で、「全員使用可能」と補完しない。
+
+根拠は[storage契約§7](../../../work/emr/emr-518-storage-contract-20261020.md#non-force-rls-boundary)と[API契約の認可節](../../../work/emr/emr-518-package-api-contract-20261020.md)。受入は既存の AC-package-atomic-rejection（失権・scope不一致）の範囲で確認し、新しい受入条件は置かない。
+
 <a id="package-acceptance"></a>
 ## 受入条件（12AC、全件NOT_RUN）
 
@@ -68,3 +89,5 @@ master参照品は追加時に照合した現在の単品価格・税・保険�
 | AC-package-certificate-fees | 発行前手動修正でも会計/master/package不変。発行版は確認値を保持し、preview/再印刷から料金を生成しない | owner-boundary / D08正本 |
 
 条件は後続fixture・試験の入力であり実行証跡ではない。今回の追加は4FR/12ACで、既存の合意時点別件数を遡って改定しない。D08の料金境界は既存証明書FRの追補とし、同じAC本文を二重管理しない。
+
+パッケージ管理画面の画面仕様は docs/spec/screens に未作成である。作成時に[適用台帳](../../shared/interaction-scope.md)へ行を追加する。

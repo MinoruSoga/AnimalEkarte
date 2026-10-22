@@ -76,6 +76,11 @@ flowchart TB
 
 [業務正本・受入条件](../domains/owners-pets/lifecycle.md#common-owner-pet-20261017)。氏名または動物種＋ペット名の候補をスタッフ確認し、同一飼主は警告して新規停止、別人は可、新ペットは既存飼主へ追加する。他院既存患者の自院利用と共通最新基本情報を採用し、院別診療・金銭記録と認可は維持する。旧他院行／ID一律拒否を自院利用へ機械適用しない。共有ID・既存重複移行・link/unlink方式は未選定で、重複作成を自院利用条件にしない。
 
+<a id="clinic-hours-common-basis-owner-20261020"></a>
+## 営業時間・休診日の共通基準（2026-10-20本人回答）
+
+[正本](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)により、医院設定が営業時間・休診日の共通基準を持ち、本画面がその設定の所在となる。現在の画面項目には未収録で、項目・入力形式・保存先は設計残件（未記載／要確認）。[LINEの受付時間](28-line-reservation.md#line-settings-write-contract)はこの範囲内の別設定であり、LINE設定で医院の時間外や休診を開放しない。[シフト管理の休診日への変更](24-shift-calendar.md#requirement-fr-shifts-holiday-warning-confirm)は既存予約の警告確認を伴う個別の変更で、共通休診日との反映関係は未決として残す。既存の保存値を自動上書きせず、レジの営業日区分へ統一しない。実装・実機は未確認。
+
 <a id="cross-ui-search-20261019"></a>
 ## 10/19後続承認：同種操作・検索ボタン方式
 

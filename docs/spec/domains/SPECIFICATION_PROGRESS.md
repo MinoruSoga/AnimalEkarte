@@ -522,3 +522,31 @@ D03の最新合意は6FR／18AC追加、当時16FR／71ACを保持して合意�
 本人確認質問 `Sentinel_452b9aa85f3c81918a0e80c533363a20`（2026-10-19 05:51:18 UTC）で「同じ用途の操作の全画面統一」「業務一覧と飼主・ペット選択の検索ボタン実行」「各画面仕様・設計・受入条件の矛盾解消」を提示し、本人回答 `Sentinel_9591f439f8b081918d6495c87ac9a16f` が05:52:03 UTC（14:52:03 JST）に「ok」。入力補完・診療項目候補など異用途は個別整理し、検索対象・権限・ページング・自動保存は一律変更しないという条件を含む。親会話から渡された質問/回答receiptに基づき、今回原会話を再取得したとはしない。
 
 [共通FR/8AC](../shared/ui-contracts.md#interaction-consistency-20261019)、[全対象/用途別台帳](../shared/interaction-scope.md)、[共通設計](../../design/shared/integration-contracts.md#cross-ui-search-adapter-20261019)、[概念](../ontology/cross-domain-contracts.md#search-operation-context-concept)、[検証手順](../../ops/testing/scenarios/S14-search-and-multi-word.md#cross-ui-search-20261019)へ接続する。旧リアクティブ総論と予約患者選択の漏れ、第一次owner/pet限定を更新。新しい検索述語/全件化/認可/保存方式、候補補完の一括変更は採用しない。文書反映であり実装・実機は未確認。
+
+<a id="decisions-20261020-21"></a>
+## 2026-10-20〜21 本人回答・採用の索引
+
+各正本節に反映済みの決定を、入口として索引する。要約は各節の文言に従い、根拠・受付記録は各節に記載したものを正とする。実装・実機はいずれも未確認。件数は業務の全承認件数ではない。10-20の6回答の反映コミットは 4debcf996（EMR-515）、プラン↔3タブは 076b38458、EMR-518は b46f77efb／f8fbf0380、A4横は 8b4e2470a。
+
+| 決定 | 正本 | 根拠／出典 |
+|:---|:---|:---|
+| 請求日は当該請求の請求確定日。診療日・実入金日は別保持 | [D10](accounting/lifecycle.md#accounting-bill-date-agreement-20261020) | 2026-10-20本人回答（節に受付記録） |
+| 在庫の出庫確定は院内投薬が実施時、持帰薬・物販が実引渡し時に担当スタッフが行う。カルテ保存・請求確定だけでは減らさない | [D13](inventory/business-rules.md#inventory-outflow-confirmation-20261020)、受け手[D03](medical-records/pages/medical-record-form.md#requirement-fr-medical-records-correction-owner-impact) | 2026-10-20本人回答 |
+| 営業時間・休診日は医院設定を共通基準、LINE受付可能時間はその範囲内の別設定。レジ営業日区分は別 | [D17](clinic-settings/README.md#clinic-hours-common-basis-20261020)、所在[画面19](../screens/19-clinic-settings.md#clinic-hours-common-basis-owner-20261020) | 2026-10-20本人回答（節に受付記録） |
+| 死亡誤登録の取消は履歴付きで、予約・通知を自動再開しない | [D04](owners-pets/lifecycle.md#pet-death-misregistration-undo-20261020) | 2026-10-20本人回答 |
+| 主飼主変更時、未確定請求・未提示見積は旧飼主に保持 | [D04](owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020) | 2026-10-20本人回答 |
+| サポートのスクリーンショットは個人情報を含んでよく、強制マスキングを送信条件にしない | [D22](support/README.md#support-screenshot-personal-information-20261020) | 2026-10-20本人回答 |
+| 入院退院・ホテル退室の会計受け手 | [D10](accounting/lifecycle.md#accounting-stay-charge-handoff) | 4debcf996（EMR-515） |
+| D03とD10の医師再確認の接続 | [D03](medical-records/lifecycle.md#medical-record-accounting-review-handoff) | 4debcf996（EMR-515） |
+| 次回予定日の初期値は種類別設定、設定がなければ空欄 | [D08](vaccinations/lifecycle.md#fr-vaccinations-schedule) | 2026-10-20本人回答（EMR-430） |
+| 治療プランの予定を検査・予防接種・定期健診タブで追跡、後日予定をカルテレポートで確認（1FR／10AC＋1FR／3AC） | [D03](medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)、[後日予定](medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report) | 076b38458 |
+| 診療項目パッケージ（4FR／12AC）、証明書料金の発行前手動編集、管理・適用権限 | [D03](medical-records/treatment-packages.md)、[権限](medical-records/treatment-packages.md#package-permissions-20261020)、[D08](vaccinations/lifecycle.md#certificate-fees-manual-20261020) | EMR-518、2026-10-20。b46f77efb／f8fbf0380 |
+| RV証明書4種類の一括出力・再発行の表示発行日・A4横用紙 | [D08](vaccinations/lifecycle.md#fr-vaccinations-rv-batch-20261021)、[再発行日](vaccinations/lifecycle.md#fr-vaccinations-reissue-date-20261021)、[用紙](vaccinations/lifecycle.md#requirement-fr-vaccinations-certificate-editions) | 2026-10-21本人採用。8b4e2470a |
+| 証明書の適格性・発行前入力10欄・初回発行日・権限・帳票表示規則 | [D08](vaccinations/lifecycle.md#certificate-eligibility-inputs-20261021) | 2026-10-20／21 work契約からの移設（受付記録は出典に未記載） |
+| 外注健診PDFから確認済み結果を登録 | [D09](checkups/lifecycle.md#fr-checkups-outsourced-pdf-20261021) | 2026-10-21本人採用 |
+| Lステップ連携・DMはPhase1対象、マーケティング領域の仕様確定は最後 | [LINE](../line/lstep-integration.md#crm-phase1-priority-20261021) | 2026-10-21本人回答（節に受付記録） |
+| 入院明細の税情報未確認の業務挙動（既決D10／D05からの導出、新規承認なし） | [D05](hospitalization/lifecycle.md#hospitalization-tax-unknown-20261020) | EMR-405採用設計、2026-10-20 |
+| 再診問診の予約状態別の飼主回答可否と対象不明時の表示 | [D02](reservations/pages/reservation-management.md#revisit-intake-state-editability-20261021) | 2026-10-21 Q&A からの移設 |
+| 職員の休業期間を予約適格性と予約保護へ接続 | [D14](staff-workforce/README.md#staff-leave-booking-handoff)、[横断フロー](../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection) | 4debcf996（EMR-515） |
+
+判断が残る事項は本索引に含めない：死亡登録時の既存未来予約の扱い、月次売上の税込／税抜基準、共通患者の「他院」検索範囲、会計一覧の「保留」状態。

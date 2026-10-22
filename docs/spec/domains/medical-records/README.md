@@ -1,6 +1,6 @@
 # カルテ
 
-**2026-10-18追加合意**：[同一カルテの同時編集禁止・ヘッダー状態・強制取得可](lifecycle.md#medical-record-edit-exclusivity-20261018)（追加1FR／16AC：従来8AC＋04:38 UTC承認8AC）を先に読む。旧finalizedによる一律拒否の撤回とは別の編集権で、編集権側の通常自動保存と閲覧を維持する。下記24FR／101AC等は各合意時点の範囲別計数。
+**2026-10-18追加合意**：[同一カルテの同時編集禁止・ヘッダー状態・強制取得可](lifecycle.md#medical-record-edit-exclusivity-20261018)（追加1FR／19AC：従来8AC＋04:38 UTC承認8AC＋[12:53 UTC下書き保持3AC](lifecycle.md#draft-logout-recovery-20261018)）を先に読む。旧finalizedによる一律拒否の撤回とは別の編集権で、編集権側の通常自動保存と閲覧を維持する。下記24FR／101AC等は各合意時点の範囲別計数。
 
 **診断・バイタルの追加合意（2026-10-15）**：[第1・第2それぞれの複数診断、最新値＋測定時刻・同日を含む以前の測定履歴](pages/medical-record-form.md#medical-record-agreement-diagnosis-vitals-20261015) → [概念と多重度](../../ontology/medical-records.md#medical-record-diagnosis-vitals-ontology) → [技術契約／trace](../../../design/domains/medical-records/technical-spec.md#medical-record-diagnosis-vitals-contract)。2FR／12ACを追加し合意追跡は24FR／101AC（旧継承ID・C05追加1ACは別計数）。自動保存・終了後通常編集・復元保護は維持。初診判定に含める受診歴の対象は[予約／受付の別合意](../reservations/pages/reservation-management.md#visit-history-included-types)へ従う。実装／実機は未確認。
 
