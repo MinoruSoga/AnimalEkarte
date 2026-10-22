@@ -6,9 +6,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 const billDiscountExcludedField = "is_bill_discount_excluded"
+
+// assertPropertyScalar は property schema の key が期待する scalar（tag と値）であることを確認する。
+func assertPropertyScalar(t *testing.T, prop yaml.Node, key string, want canonicalYAMLNode) {
+	t.Helper()
+	got, ok := masterPatchProperty(prop, key)
+	if assert.True(t, ok, "property must have %q", key) {
+		assert.Equal(t, want, got, "property %q", key)
+	}
+}
 
 // TestOpenAPIMasterBillDiscountExcludedContract は EMR-445 A01（品目別の全体割引除外）の API 正本を固定する。
 // request は省略可・null 不可の boolean、response は required かつ nullable の保存値、
@@ -36,15 +46,17 @@ func TestOpenAPIMasterBillDiscountExcludedContract(t *testing.T) {
 			response := schemas[tc.response]
 			field, ok := response.Properties[billDiscountExcludedField]
 			require.True(t, ok, "%s must return the stored setting", tc.response)
-			assert.Equal(t, "boolean", field["type"])
-			assert.Equal(t, true, field["nullable"], "known-unset NULL is returned raw")
+			assertPropertyScalar(t, field, "type", yamlStringOf("boolean"))
+			nullable, _ := masterPatchProperty(field, "nullable")
+			assert.True(t, nullable.isTrue(), "known-unset NULL is returned raw")
 			assert.Contains(t, response.Required, billDiscountExcludedField, "key is always present (no omitempty)")
 
 			for _, request := range []string{tc.create, tc.update} {
 				prop, ok := schemas[request].Properties[billDiscountExcludedField]
 				require.True(t, ok, "%s must accept the setting", request)
-				assert.Equal(t, "boolean", prop["type"])
-				assert.NotContains(t, prop, "nullable", "%s rejects null with 400", request)
+				assertPropertyScalar(t, prop, "type", yamlStringOf("boolean"))
+				_, hasNullable := masterPatchProperty(prop, "nullable")
+				assert.False(t, hasNullable, "%s rejects null with 400", request)
 				assert.NotContains(t, schemas[request].Required, billDiscountExcludedField, "%s keeps the field optional", request)
 			}
 
@@ -53,12 +65,12 @@ func TestOpenAPIMasterBillDiscountExcludedContract(t *testing.T) {
 			}
 			version, ok := response.Properties["version"]
 			require.True(t, ok, "%s must return its version", tc.response)
-			assert.Equal(t, "integer", version["type"])
-			assert.Equal(t, "int64", version["format"])
+			assertPropertyScalar(t, version, "type", yamlStringOf("integer"))
+			assertPropertyScalar(t, version, "format", yamlStringOf("int64"))
 			assert.Contains(t, response.Required, "version")
 			patchVersion, ok := schemas[tc.update].Properties["version"]
 			require.True(t, ok, "%s must accept the expected version", tc.update)
-			assert.Equal(t, "integer", patchVersion["type"])
+			assertPropertyScalar(t, patchVersion, "type", yamlStringOf("integer"))
 			assert.NotContains(t, schemas[tc.update].Required, "version", "legacy PATCH without version stays compatible")
 			assert.Contains(t, masterPatchOperationOf(t, spec, tc.path+"/{id}", "patch").Responses, "409")
 		})
@@ -87,7 +99,7 @@ func TestOpenAPIMasterSplitRequestsCopySharedContract(t *testing.T) {
 			request := schemas[tc.request]
 			var writableRequired []string
 			for _, name := range shared.Required {
-				if shared.Properties[name]["readOnly"] != true {
+				if readOnly, ok := masterPatchProperty(shared.Properties[name], "readOnly"); !ok || !readOnly.isTrue() {
 					writableRequired = append(writableRequired, name)
 				}
 			}
@@ -96,11 +108,12 @@ func TestOpenAPIMasterSplitRequestsCopySharedContract(t *testing.T) {
 				if slices.Contains(added, name) {
 					continue
 				}
-				if prop["readOnly"] == true {
+				if readOnly, ok := masterPatchProperty(prop, "readOnly"); ok && readOnly.isTrue() {
 					assert.NotContains(t, request.Properties, name)
 					continue
 				}
-				assert.Equal(t, prop, request.Properties[name], "%s.%s must equal the shared contract", tc.request, name)
+				requestProp := request.Properties[name]
+				assert.Equal(t, canonicalizeYAMLNode(&prop), canonicalizeYAMLNode(&requestProp), "%s.%s must equal the shared contract", tc.request, name)
 			}
 		})
 	}
