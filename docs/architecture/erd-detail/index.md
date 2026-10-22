@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **4ファイル** から **246テーブル・2737カラム・755外部キー** を静的に導出しています。
+マイグレーション **5ファイル** から **250テーブル・2770カラム・764外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -129,8 +129,10 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [inventory_quantity_bases](inventory_quantity_bases.md) | 10 | 4 |
 | [lab_device_item_masters](lab_device_item_masters.md) | 11 | 2 |
 | [lab_device_mapping_draft_items](lab_device_mapping_draft_items.md) | 18 | 3 |
-| [lab_device_mapping_drafts](lab_device_mapping_drafts.md) | 13 | 1 |
+| [lab_device_mapping_drafts](lab_device_mapping_drafts.md) | 14 | 1 |
 | [lab_device_mapping_generation](lab_device_mapping_generation.md) | 3 | 1 |
+| [lab_device_mapping_heads](lab_device_mapping_heads.md) | 5 | 1 |
+| [lab_device_mapping_revisions](lab_device_mapping_revisions.md) | 12 | 4 |
 | [lab_device_mapping_specs](lab_device_mapping_specs.md) | 12 | 3 |
 | [lab_device_station_settings](lab_device_station_settings.md) | 5 | 1 |
 | [lab_device_waits](lab_device_waits.md) | 8 | 3 |
@@ -142,6 +144,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [lab_import_jobs](lab_import_jobs.md) | 23 | 2 |
 | [lab_import_revert_receipts](lab_import_revert_receipts.md) | 10 | 1 |
 | [lab_import_usage_receipts](lab_import_usage_receipts.md) | 7 | 2 |
+| [lab_mapping_operation_targets](lab_mapping_operation_targets.md) | 11 | 1 |
 | [line_customers](line_customers.md) | 10 | 1 |
 | [line_dispatch_attempts](line_dispatch_attempts.md) | 9 | 4 |
 | [line_dispatch_intents](line_dispatch_intents.md) | 14 | 5 |
@@ -229,6 +232,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [shift_templates](shift_templates.md) | 12 | 1 |
 | [staff_clinic_assignments](staff_clinic_assignments.md) | 9 | 2 |
 | [staff_leave_changes](staff_leave_changes.md) | 9 | 4 |
+| [staff_leave_operation_targets](staff_leave_operation_targets.md) | 4 | 3 |
 | [staff_leave_periods](staff_leave_periods.md) | 10 | 2 |
 | [staff_notes](staff_notes.md) | 7 | 2 |
 | [staff_permission_groups](staff_permission_groups.md) | 3 | 2 |
@@ -279,7 +283,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `6d75437565c0ea8585326281b0b9ec3c23c4f9ddaddb5cd021025bade7ed1e26`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `05817a855f589ba3051d4d3951ec57c50efe33ed015afa49ad1a7d11210da061`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -287,6 +291,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [003_trimming_course_image_uploads.sql](../../../backend/migrations/003_trimming_course_image_uploads.sql) | `a86a626288b251d02a9071b2b8eb60e83e15216ff474887b12afd57ebea2cd23` |
 | [004_master_insurance_versions.sql](../../../backend/migrations/004_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
 | [005_manual_article_operation_targets.sql](../../../backend/migrations/005_manual_article_operation_targets.sql) | `15b43e500710322544094d5f89528f2c4780f130bdcf648ce663d2d97cd4fcd1` |
+| [006_operation_anchor_and_lab_mapping_versions.sql](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql) | `0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

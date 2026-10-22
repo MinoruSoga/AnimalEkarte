@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "6d75437565c0ea8585326281b0b9ec3c23c4f9ddaddb5cd021025bade7ed1e26",
+  "source_digest": "05817a855f589ba3051d4d3951ec57c50efe33ed015afa49ad1a7d11210da061",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 246,
-    "columns": 2737,
-    "foreign_keys": 755
+    "tables": 250,
+    "columns": 2770,
+    "foreign_keys": 764
   },
   "migrations": [
     {
@@ -37,6 +37,10 @@
     {
       "name": "005_manual_article_operation_targets.sql",
       "sha256": "15b43e500710322544094d5f89528f2c4780f130bdcf648ce663d2d97cd4fcd1"
+    },
+    {
+      "name": "006_operation_anchor_and_lab_mapping_versions.sql",
+      "sha256": "0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831"
     }
   ],
   "reviewed_do_blocks": [
@@ -157,6 +161,8 @@
     "lab_device_mapping_draft_items.md",
     "lab_device_mapping_drafts.md",
     "lab_device_mapping_generation.md",
+    "lab_device_mapping_heads.md",
+    "lab_device_mapping_revisions.md",
     "lab_device_mapping_specs.md",
     "lab_device_station_settings.md",
     "lab_device_waits.md",
@@ -168,6 +174,7 @@
     "lab_import_jobs.md",
     "lab_import_revert_receipts.md",
     "lab_import_usage_receipts.md",
+    "lab_mapping_operation_targets.md",
     "line_customers.md",
     "line_dispatch_attempts.md",
     "line_dispatch_intents.md",
@@ -255,6 +262,7 @@
     "shift_templates.md",
     "staff_clinic_assignments.md",
     "staff_leave_changes.md",
+    "staff_leave_operation_targets.md",
     "staff_leave_periods.md",
     "staff_notes.md",
     "staff_permission_groups.md",
