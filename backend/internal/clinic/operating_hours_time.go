@@ -6,6 +6,8 @@ package clinic
 // 既存 LINE の HHMM 表記へ機械転用しない（LINE 側は境界 adapter で解釈する）。
 
 import (
+	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -13,6 +15,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 )
+
+// errZeroCalendarDate はゼロ値の CalendarDate を使おうとした誤用（内部エラー）。
+// 入力不正ではないため apperrors.WrapInvalidInput にはせず、OperatingHoursRejection も確定拒否へ写像しない。
+var errZeroCalendarDate = errors.New("calendar date was not built by ParseCalendarDate or CalendarDateOf")
+
+// maxEchoedInputBytes は検証エラーへ写すクライアント入力の最大バイト数。長い入力をメッセージへ複製しない。
+const maxEchoedInputBytes = 16
+
+// echoInput はエラーメッセージ用に raw を先頭 maxEchoedInputBytes バイトへ切り詰めて %q 化する。
+func echoInput(raw string) string {
+	if len(raw) > maxEchoedInputBytes {
+		return fmt.Sprintf("%q…", raw[:maxEchoedInputBytes])
+	}
+	return fmt.Sprintf("%q", raw)
+}
 
 // MinutesPerDay は JST 暦日1日の分数。区間終端の 24:00 はこの値で表す。
 const MinutesPerDay = 24 * 60
@@ -52,25 +69,30 @@ func ParseClockEnd(raw string) (ClockMinute, error) {
 
 // parseStrictHHMM は "HH:MM"（ASCII 数字・コロン固定・5バイト）だけを受け付け、00:00..24:00 を返す。
 func parseStrictHHMM(raw string) (ClockMinute, error) {
-	invalid := apperrors.WrapInvalidInput(fmt.Sprintf("時刻 %q は HH:MM 形式である必要があります", raw))
+	invalid := func() error {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("時刻 %s は HH:MM 形式である必要があります", echoInput(raw)))
+	}
 	if len(raw) != 5 || raw[2] != ':' {
-		return 0, invalid
+		return 0, invalid()
 	}
 	for _, i := range []int{0, 1, 3, 4} {
 		if raw[i] < '0' || raw[i] > '9' {
-			return 0, invalid
+			return 0, invalid()
 		}
 	}
 	h := int(raw[0]-'0')*10 + int(raw[1]-'0')
 	mm := int(raw[3]-'0')*10 + int(raw[4]-'0')
 	if mm > 59 || h > 24 || (h == 24 && mm != 0) {
-		return 0, invalid
+		return 0, invalid()
 	}
 	return ClockMinute(h*60 + mm), nil
 }
 
 // TimeInterval は同一 JST 暦日内の半開区間 [Start, End)。日跨ぎは隣接日の2区間で表し、
 // 片側から自動生成しない。
+//
+// 前提条件: フィールドは NewTimeInterval（または ParseClockStart／ParseClockEnd）で得た値でなければならない
+// （0 <= Start < End <= MinutesPerDay）。リテラルで作った不正値は検証されず、区間代数は結果を保証しない。
 type TimeInterval struct {
 	Start ClockMinute
 	End   ClockMinute
@@ -172,7 +194,12 @@ func IntervalsCover(outer, inner []TimeInterval) bool {
 }
 
 // CalendarDate は JST 暦日。時刻・タイムゾーンを持たない比較可能な値。
+//
+// ゼロ値は暦日ではなく無効（IsZero）で、ParseCalendarDate／CalendarDateOf だけが有効な値を作る。
+// 年の範囲は厳密な 4 桁 Gregorian（0000–9999 のうち time が解釈できるもの）以外に制限しない。契約が上下限を
+// 定めていないため、独自の年範囲を発明しない。
 type CalendarDate struct {
+	valid bool
 	year  int
 	month time.Month
 	day   int
@@ -182,15 +209,20 @@ type CalendarDate struct {
 func ParseCalendarDate(raw string) (CalendarDate, error) {
 	t, err := time.ParseInLocation(time.DateOnly, raw, config.JST)
 	if err != nil || t.Format(time.DateOnly) != raw {
-		return CalendarDate{}, apperrors.WrapInvalidInput(fmt.Sprintf("日付 %q は YYYY-MM-DD 形式の実在日である必要があります", raw))
+		return CalendarDate{}, apperrors.WrapInvalidInput(fmt.Sprintf("日付 %s は YYYY-MM-DD 形式の実在日である必要があります", echoInput(raw)))
 	}
-	return CalendarDate{year: t.Year(), month: t.Month(), day: t.Day()}, nil
+	return CalendarDate{valid: true, year: t.Year(), month: t.Month(), day: t.Day()}, nil
 }
 
 // CalendarDateOf は実日時 t を JST 暦日へ変換する。
 func CalendarDateOf(t time.Time) CalendarDate {
 	j := t.In(config.JST)
-	return CalendarDate{year: j.Year(), month: j.Month(), day: j.Day()}
+	return CalendarDate{valid: true, year: j.Year(), month: j.Month(), day: j.Day()}
+}
+
+// IsZero はゼロ値（無効な暦日）かを返す。休診日の設定・検索・営業区間の評価はゼロ値を拒否する。
+func (d CalendarDate) IsZero() bool {
+	return !d.valid
 }
 
 // StartInstant は暦日の JST 00:00。
@@ -198,8 +230,11 @@ func (d CalendarDate) StartInstant() time.Time {
 	return time.Date(d.year, d.month, d.day, 0, 0, 0, 0, config.JST)
 }
 
-// String は YYYY-MM-DD を返す。
+// String は YYYY-MM-DD を返す。ゼロ値は空文字（偽の日付を作らない）。
 func (d CalendarDate) String() string {
+	if !d.valid {
+		return ""
+	}
 	return d.StartInstant().Format(time.DateOnly)
 }
 
@@ -210,5 +245,11 @@ func (d CalendarDate) Weekday() time.Weekday {
 
 // Compare は d と o の前後を -1/0/+1 で返す。
 func (d CalendarDate) Compare(o CalendarDate) int {
-	return d.StartInstant().Compare(o.StartInstant())
+	if c := cmp.Compare(d.year, o.year); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(d.month, o.month); c != 0 {
+		return c
+	}
+	return cmp.Compare(d.day, o.day)
 }

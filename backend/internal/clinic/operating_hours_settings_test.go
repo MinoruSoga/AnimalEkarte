@@ -11,7 +11,7 @@ import (
 )
 
 // 共通医院時間 Settings の検証・不変性・wire（emr-clinic-line-time-selected-contract-20261022 §2.1）。
-// 実行は NOT_RUN（本人指示待ち）の fixture と同じ扱いで、DB・HTTP には依存しない。
+// DB・HTTP には依存しない。
 
 func ohBoolPtr(v bool) *bool { return &v }
 
@@ -67,6 +67,65 @@ func ohMustDate(t *testing.T, raw string) CalendarDate {
 	return d
 }
 
+func ohWeeklyIntervals(t *testing.T, s OperatingHoursSettings, w time.Weekday) []TimeInterval {
+	t.Helper()
+	got, err := s.WeeklyIntervals(w)
+	if err != nil {
+		t.Fatalf("WeeklyIntervals: %v", err)
+	}
+	return got
+}
+
+func ohClosedDates(t *testing.T, s OperatingHoursSettings) []ClosedDate {
+	t.Helper()
+	got, err := s.ClosedDates()
+	if err != nil {
+		t.Fatalf("ClosedDates: %v", err)
+	}
+	return got
+}
+
+func ohNationalHolidayClosed(t *testing.T, s OperatingHoursSettings) bool {
+	t.Helper()
+	got, err := s.NationalHolidayClosed()
+	if err != nil {
+		t.Fatalf("NationalHolidayClosed: %v", err)
+	}
+	return got
+}
+
+func ohClosedDateOn(t *testing.T, s OperatingHoursSettings, d CalendarDate) (ClosedDate, bool) {
+	t.Helper()
+	cd, found, err := s.ClosedDateOn(d)
+	if err != nil {
+		t.Fatalf("ClosedDateOn: %v", err)
+	}
+	return cd, found
+}
+
+func ohIntervalsOn(t *testing.T, s OperatingHoursSettings, d CalendarDate, isNationalHoliday bool) []TimeInterval {
+	t.Helper()
+	got, err := s.IntervalsOn(d, isNationalHoliday)
+	if err != nil {
+		t.Fatalf("IntervalsOn: %v", err)
+	}
+	return got
+}
+
+// ohAssertMisuse は err が bare sentinel（誤用の内部エラー）であり、入力不正でも C06 の確定拒否でもないことを検査する。
+func ohAssertMisuse(t *testing.T, label string, err, sentinel error) {
+	t.Helper()
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("%s: got %v, want sentinel %v", label, err, sentinel)
+	}
+	if apperrors.IsInvalidInput(err) {
+		t.Fatalf("%s: misuse must not be an invalid-input error", label)
+	}
+	if rej, ok := OperatingHoursRejection(err); ok || rej != nil {
+		t.Fatalf("%s: misuse must not map to a C06 rejection, got %+v", label, rej)
+	}
+}
+
 func ohMustJSON(t *testing.T, s OperatingHoursSettings) string {
 	t.Helper()
 	b, err := s.MarshalJSON()
@@ -98,7 +157,7 @@ func TestNewOperatingHoursSettingsRequiresEveryField(t *testing.T) {
 			}
 		})
 	}
-	if s := ohMustSettings(t, ohFullFields()); !s.isValid() {
+	if s := ohMustSettings(t, ohFullFields()); !s.Valid() {
 		t.Fatal("validated construction must produce a valid Settings")
 	}
 }
@@ -208,7 +267,7 @@ func TestNewOperatingHoursSettingsIntervals(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			assertIntervals(t, "wednesday", s.WeeklyIntervals(time.Wednesday), tc.want)
+			assertIntervals(t, "wednesday", ohWeeklyIntervals(t, s, time.Wednesday), tc.want)
 		})
 	}
 }
@@ -224,7 +283,7 @@ func TestAdjacentIntervalsAreNotNormalizedAndEqualIsStructural(t *testing.T) {
 	fm.WeeklyHours = ohWeeklyPtr(merged)
 	sa, sm := ohMustSettings(t, fa), ohMustSettings(t, fm)
 
-	if got := len(sa.WeeklyIntervals(time.Monday)); got != 2 {
+	if got := len(ohWeeklyIntervals(t, sa, time.Monday)); got != 2 {
 		t.Fatalf("adjacent intervals were normalized: %d intervals", got)
 	}
 	if sa.Equal(sm) || sm.Equal(sa) {
@@ -251,6 +310,9 @@ func TestNewOperatingHoursSettingsClosedDates(t *testing.T) {
 		{name: "empty list", closed: []ClosedDateInput{}, wantLen: 0},
 		{name: "ascending unique", closed: ohClosedList(), wantLen: 2},
 		{name: "empty reason accepted", closed: []ClosedDateInput{{Date: "2026-01-12", Reason: ""}}, wantLen: 1},
+		{name: "newline in reason accepted", closed: []ClosedDateInput{{Date: "2026-01-12", Reason: "a\nb"}}, wantLen: 1},
+		{name: "tab in reason accepted", closed: []ClosedDateInput{{Date: "2026-01-12", Reason: "a\tb"}}, wantLen: 1},
+		{name: "NUL in reason rejected", closed: []ClosedDateInput{{Date: "2026-01-12", Reason: "a\x00b"}}, wantErr: true},
 		{
 			name:    "500 runes accepted",
 			closed:  []ClosedDateInput{{Date: "2026-01-12", Reason: strings.Repeat("休", 500)}},
@@ -296,7 +358,7 @@ func TestNewOperatingHoursSettingsClosedDates(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got := len(s.ClosedDates()); got != tc.wantLen {
+			if got := len(ohClosedDates(t, s)); got != tc.wantLen {
 				t.Fatalf("got %d closed dates, want %d", got, tc.wantLen)
 			}
 		})
@@ -322,7 +384,7 @@ func TestApplyChanges(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if next.NationalHolidayClosed() {
+		if ohNationalHolidayClosed(t, next) {
 			t.Fatal("national_holiday_closed was not replaced")
 		}
 		want := strings.Replace(baseJSON, `"national_holiday_closed":true`, `"national_holiday_closed":false`, 1)
@@ -337,11 +399,11 @@ func TestApplyChanges(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := next.ClosedDates()
+		got := ohClosedDates(t, next)
 		if len(got) != 1 || got[0].Date.String() != "2026-05-05" || got[0].Reason != "新規" {
 			t.Fatalf("closed_dates not replaced wholesale: %+v", got)
 		}
-		if len(next.WeeklyIntervals(time.Monday)) != 2 {
+		if len(ohWeeklyIntervals(t, next, time.Monday)) != 2 {
 			t.Fatal("weekly_hours must be kept when only closed_dates is replaced")
 		}
 	})
@@ -357,11 +419,11 @@ func TestApplyChanges(t *testing.T) {
 			t.Fatal(err)
 		}
 		for w := time.Sunday; w <= time.Saturday; w++ {
-			if got := next.WeeklyIntervals(w); len(got) != 0 {
+			if got := ohWeeklyIntervals(t, next, w); len(got) != 0 {
 				t.Fatalf("weekday %d not replaced: %+v", w, got)
 			}
 		}
-		if len(next.ClosedDates()) != 2 || !next.NationalHolidayClosed() {
+		if len(ohClosedDates(t, next)) != 2 || !ohNationalHolidayClosed(t, next) {
 			t.Fatal("closed_dates and national_holiday_closed must be kept")
 		}
 	})
@@ -380,10 +442,8 @@ func TestApplyChanges(t *testing.T) {
 	t.Run("invalid receiver rejected", func(t *testing.T) {
 		t.Parallel()
 		got, err := OperatingHoursSettings{}.ApplyChanges(OperatingHoursFields{NationalHolidayClosed: ohBoolPtr(true)})
-		if !apperrors.IsInvalidInput(err) {
-			t.Fatalf("got %v, want invalid input", err)
-		}
-		if got.isValid() {
+		ohAssertMisuse(t, "ApplyChanges on zero", err, errInvalidOperatingHoursSettings)
+		if got.Valid() {
 			t.Fatal("a rejected change must not return a valid Settings")
 		}
 	})
@@ -394,11 +454,11 @@ func TestOperatingHoursSettingsZeroValueIsInvalid(t *testing.T) {
 	var zero OperatingHoursSettings
 	valid := ohMustSettings(t, ohFullFields())
 
-	if zero.isValid() {
+	if zero.Valid() {
 		t.Fatal("zero value must not be valid")
 	}
-	if _, err := zero.MarshalJSON(); err == nil {
-		t.Fatal("MarshalJSON must fail for the zero value")
+	if _, err := zero.MarshalJSON(); !errors.Is(err, errInvalidOperatingHoursSettings) {
+		t.Fatalf("MarshalJSON on zero: got %v", err)
 	}
 	if _, err := json.Marshal(zero); err == nil {
 		t.Fatal("json.Marshal must fail for the zero value")
@@ -406,12 +466,12 @@ func TestOperatingHoursSettingsZeroValueIsInvalid(t *testing.T) {
 	if _, err := json.Marshal(struct{ S OperatingHoursSettings }{S: zero}); err == nil {
 		t.Fatal("json.Marshal must fail for a zero value embedded in a struct")
 	}
-	if _, _, err := zero.WithClosedDate(ohMustDate(t, "2026-01-05"), "x"); !apperrors.IsInvalidInput(err) {
-		t.Fatalf("WithClosedDate on zero: got %v, want invalid input", err)
-	}
+	_, _, err := zero.WithClosedDate(ohMustDate(t, "2026-01-05"), "x")
+	ohAssertMisuse(t, "WithClosedDate on zero", err, errInvalidOperatingHoursSettings)
 	got, changed, err := zero.WithoutClosedDate(ohMustDate(t, "2026-01-05"))
-	if !apperrors.IsInvalidInput(err) || changed || got.isValid() {
-		t.Fatalf("WithoutClosedDate on zero: got valid=%v changed=%v err=%v", got.isValid(), changed, err)
+	ohAssertMisuse(t, "WithoutClosedDate on zero", err, errInvalidOperatingHoursSettings)
+	if changed || got.Valid() {
+		t.Fatalf("WithoutClosedDate on zero: got valid=%v changed=%v", got.Valid(), changed)
 	}
 	if !zero.Equal(OperatingHoursSettings{}) {
 		t.Fatal("two invalid values must be equal")
@@ -419,10 +479,10 @@ func TestOperatingHoursSettingsZeroValueIsInvalid(t *testing.T) {
 	if zero.Equal(valid) || valid.Equal(zero) {
 		t.Fatal("invalid and valid must be unequal")
 	}
-	if zero.clone().isValid() {
+	if zero.clone().Valid() {
 		t.Fatal("clone of an invalid value must stay invalid")
 	}
-	if !valid.clone().isValid() {
+	if !valid.clone().Valid() {
 		t.Fatal("clone of a valid value must stay valid")
 	}
 
@@ -436,8 +496,95 @@ func TestOperatingHoursSettingsZeroValueIsInvalid(t *testing.T) {
 		ClosedDates:           ohClosedPtr(nil),
 		NationalHolidayClosed: ohBoolPtr(false),
 	})
-	if !explicit.isValid() || explicit.Equal(zero) {
+	if !explicit.Valid() || explicit.Equal(zero) {
 		t.Fatal("an explicit all-closed Settings must be valid and unequal to the zero value")
+	}
+}
+
+func TestOperatingHoursSettingsZeroValueReadsReturnErrors(t *testing.T) {
+	t.Parallel()
+	var zero OperatingHoursSettings
+	date := ohMustDate(t, "2026-01-05")
+
+	weekly, err := zero.WeeklyIntervals(time.Monday)
+	ohAssertMisuse(t, "WeeklyIntervals", err, errInvalidOperatingHoursSettings)
+	if weekly != nil {
+		t.Fatalf("WeeklyIntervals must not return a silent value, got %+v", weekly)
+	}
+	closed, err := zero.ClosedDates()
+	ohAssertMisuse(t, "ClosedDates", err, errInvalidOperatingHoursSettings)
+	if closed != nil {
+		t.Fatalf("ClosedDates must not return a silent value, got %+v", closed)
+	}
+	policy, err := zero.NationalHolidayClosed()
+	ohAssertMisuse(t, "NationalHolidayClosed", err, errInvalidOperatingHoursSettings)
+	if policy {
+		t.Fatal("NationalHolidayClosed must not claim a policy")
+	}
+	cd, found, err := zero.ClosedDateOn(date)
+	ohAssertMisuse(t, "ClosedDateOn", err, errInvalidOperatingHoursSettings)
+	if found || cd != (ClosedDate{}) {
+		t.Fatalf("ClosedDateOn must not return a value, got %+v %v", cd, found)
+	}
+	on, err := zero.IntervalsOn(date, false)
+	ohAssertMisuse(t, "IntervalsOn", err, errInvalidOperatingHoursSettings)
+	if on != nil {
+		t.Fatalf("IntervalsOn must not return a silent [] for invalid Settings, got %+v", on)
+	}
+}
+
+func TestZeroCalendarDateIsRejected(t *testing.T) {
+	t.Parallel()
+	s := ohMustSettings(t, ohFullFields())
+	var zeroDate CalendarDate
+
+	if !zeroDate.IsZero() || zeroDate.String() != "" {
+		t.Fatalf("zero date: IsZero=%v String=%q", zeroDate.IsZero(), zeroDate.String())
+	}
+	if ohMustDate(t, "2026-01-05").IsZero() || CalendarDateOf(time.Now()).IsZero() {
+		t.Fatal("dates from ParseCalendarDate/CalendarDateOf must not be zero")
+	}
+
+	_, _, err := s.ClosedDateOn(zeroDate)
+	ohAssertMisuse(t, "ClosedDateOn", err, errZeroCalendarDate)
+	_, err = s.IntervalsOn(zeroDate, false)
+	ohAssertMisuse(t, "IntervalsOn", err, errZeroCalendarDate)
+	_, changed, err := s.WithClosedDate(zeroDate, "x")
+	ohAssertMisuse(t, "WithClosedDate", err, errZeroCalendarDate)
+	if changed {
+		t.Fatal("WithClosedDate with a zero date must not report a change")
+	}
+	_, changed, err = s.WithoutClosedDate(zeroDate)
+	ohAssertMisuse(t, "WithoutClosedDate", err, errZeroCalendarDate)
+	if changed {
+		t.Fatal("WithoutClosedDate with a zero date must not report a change")
+	}
+	// 受け手が invalid の場合は Settings 側の sentinel が先に返る。
+	_, _, err = OperatingHoursSettings{}.ClosedDateOn(zeroDate)
+	ohAssertMisuse(t, "ClosedDateOn on zero settings", err, errInvalidOperatingHoursSettings)
+}
+
+func TestOperatingHoursSettingsUnmarshalJSONAlwaysFails(t *testing.T) {
+	t.Parallel()
+	valid := ohMustSettings(t, ohFullFields())
+	payloads := []string{ohMustJSON(t, valid), `{}`, `null`, ``}
+	for _, raw := range payloads {
+		var got OperatingHoursSettings
+		err := json.Unmarshal([]byte(raw), &got)
+		if err == nil {
+			t.Fatalf("json.Unmarshal(%q) must fail", raw)
+		}
+		if got.Valid() {
+			t.Fatalf("json.Unmarshal(%q) produced a valid Settings", raw)
+		}
+	}
+	var direct OperatingHoursSettings
+	if err := direct.UnmarshalJSON([]byte(`{}`)); !errors.Is(err, errOperatingHoursSettingsDecode) {
+		t.Fatalf("got %v", err)
+	}
+	var wrapper struct{ S OperatingHoursSettings }
+	if err := json.Unmarshal([]byte(`{"S":{}}`), &wrapper); err == nil {
+		t.Fatal("decoding through a wrapping struct must fail")
 	}
 }
 
@@ -510,6 +657,21 @@ func TestOperatingHoursSettingsMarshalJSON(t *testing.T) {
 		}
 	})
 
+	t.Run("canonical bytes pin json.Marshal HTML escaping of the reason", func(t *testing.T) {
+		t.Parallel()
+		f := ohFullFields()
+		f.ClosedDates = ohClosedPtr([]ClosedDateInput{{Date: "2026-01-12", Reason: `<&>"`}})
+		want := `"closed_dates":[{"date":"2026-01-12","reason":"\u003c\u0026\u003e\""}]`
+		s := ohMustSettings(t, f)
+		if got := ohMustJSON(t, s); !strings.Contains(got, want) {
+			t.Fatalf("reason bytes changed:\n got %s\nwant to contain %s", got, want)
+		}
+		b, err := json.Marshal(s)
+		if err != nil || !strings.Contains(string(b), want) {
+			t.Fatalf("json.Marshal differs: %s (%v)", b, err)
+		}
+	})
+
 	t.Run("zero value returns an error", func(t *testing.T) {
 		t.Parallel()
 		if b, err := (OperatingHoursSettings{}).MarshalJSON(); err == nil {
@@ -542,7 +704,7 @@ func TestOperatingHoursSettingsIntervalsOn(t *testing.T) {
 			f := ohFullFields()
 			f.NationalHolidayClosed = ohBoolPtr(tc.holidayPolicy)
 			s := ohMustSettings(t, f)
-			got := s.IntervalsOn(ohMustDate(t, tc.date), tc.isNationalHoday)
+			got := ohIntervalsOn(t, s, ohMustDate(t, tc.date), tc.isNationalHoday)
 			if got == nil {
 				t.Fatal("IntervalsOn must return a non-nil (possibly empty) slice")
 			}
@@ -557,29 +719,44 @@ func TestOperatingHoursSettingsGettersReturnCopies(t *testing.T) {
 	before := ohMustJSON(t, s)
 	monday := ohMustDate(t, "2026-01-05")
 
-	on := s.IntervalsOn(monday, false)
+	on := ohIntervalsOn(t, s, monday, false)
 	on[0] = TimeInterval{Start: 0, End: 1}
-	weekly := s.WeeklyIntervals(time.Monday)
+	weekly := ohWeeklyIntervals(t, s, time.Monday)
 	weekly[0] = TimeInterval{Start: 0, End: 1}
-	closed := s.ClosedDates()
+	closed := ohClosedDates(t, s)
 	closed[0] = ClosedDate{Date: monday, Reason: "tampered"}
 
 	if got := ohMustJSON(t, s); got != before {
 		t.Fatalf("Settings changed through a returned slice:\n got %s\nwant %s", got, before)
 	}
-	if got := s.WeeklyIntervals(time.Weekday(9)); len(got) != 0 {
-		t.Fatalf("out-of-range weekday must be empty, got %+v", got)
+}
+
+func TestWeeklyIntervalsRejectsOutOfRangeWeekday(t *testing.T) {
+	t.Parallel()
+	s := ohMustSettings(t, ohFullFields())
+	for _, w := range []time.Weekday{-1, 7, 9} {
+		got, err := s.WeeklyIntervals(w)
+		ohAssertMisuse(t, "WeeklyIntervals", err, errInvalidWeekday)
+		if got != nil {
+			t.Fatalf("weekday %d: must not return a silent value, got %+v", w, got)
+		}
+	}
+	// IntervalsOn は CalendarDate.Weekday() の範囲内の値しか渡さないので、有効な全曜日が通る。
+	for w := time.Sunday; w <= time.Saturday; w++ {
+		if _, err := s.WeeklyIntervals(w); err != nil {
+			t.Fatalf("weekday %d: %v", w, err)
+		}
 	}
 }
 
 func TestClosedDateOn(t *testing.T) {
 	t.Parallel()
 	s := ohMustSettings(t, ohFullFields())
-	got, ok := s.ClosedDateOn(ohMustDate(t, "2026-01-12"))
+	got, ok := ohClosedDateOn(t, s, ohMustDate(t, "2026-01-12"))
 	if !ok || got.Reason != "棚卸し" {
 		t.Fatalf("got %+v ok=%v", got, ok)
 	}
-	if _, ok := s.ClosedDateOn(ohMustDate(t, "2026-01-13")); ok {
+	if _, ok := ohClosedDateOn(t, s, ohMustDate(t, "2026-01-13")); ok {
 		t.Fatal("non-closed date reported as closed")
 	}
 }
@@ -606,16 +783,16 @@ func TestWithClosedDate(t *testing.T) {
 				t.Fatalf("changed=%v err=%v", changed, err)
 			}
 			var got []string
-			for _, cd := range next.ClosedDates() {
+			for _, cd := range ohClosedDates(t, next) {
 				got = append(got, cd.Date.String())
 			}
 			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
-			if cd, _ := next.ClosedDateOn(ohMustDate(t, tc.date)); cd.Reason != "臨時" {
+			if cd, _ := ohClosedDateOn(t, next, ohMustDate(t, tc.date)); cd.Reason != "臨時" {
 				t.Fatalf("reason not stored: %+v", cd)
 			}
-			if !next.isValid() {
+			if !next.Valid() {
 				t.Fatal("result must stay valid")
 			}
 			if got := ohMustJSON(t, base); got != baseJSON {
@@ -630,7 +807,7 @@ func TestWithClosedDate(t *testing.T) {
 		if err != nil || changed {
 			t.Fatalf("changed=%v err=%v", changed, err)
 		}
-		if !next.Equal(base) || !next.isValid() {
+		if !next.Equal(base) || !next.Valid() {
 			t.Fatal("no-op must return an equal valid copy")
 		}
 	})
@@ -646,8 +823,8 @@ func TestWithClosedDate(t *testing.T) {
 	t.Run("same date different reason is a conflict", func(t *testing.T) {
 		t.Parallel()
 		next, changed, err := base.WithClosedDate(ohMustDate(t, "2026-01-12"), "別理由")
-		if !errors.Is(err, ErrClosedDateReasonConflict) || changed || next.isValid() {
-			t.Fatalf("valid=%v changed=%v err=%v", next.isValid(), changed, err)
+		if !errors.Is(err, ErrClosedDateReasonConflict) || changed || next.Valid() {
+			t.Fatalf("valid=%v changed=%v err=%v", next.Valid(), changed, err)
 		}
 		if got := ohMustJSON(t, base); got != baseJSON {
 			t.Fatal("receiver mutated")
@@ -660,6 +837,7 @@ func TestWithClosedDate(t *testing.T) {
 	}{
 		{name: "501 runes", reason: strings.Repeat("休", 501)},
 		{name: "invalid UTF-8", reason: "bad\xff"},
+		{name: "NUL", reason: "a\x00b"},
 	}
 	for _, tc := range reasonCases {
 		t.Run("invalid reason "+tc.name+" rejected", func(t *testing.T) {
@@ -683,7 +861,7 @@ func TestWithoutClosedDate(t *testing.T) {
 		if err != nil || changed {
 			t.Fatalf("changed=%v err=%v", changed, err)
 		}
-		if !next.Equal(base) || !next.isValid() {
+		if !next.Equal(base) || !next.Valid() {
 			t.Fatal("no-op must return an equal valid copy")
 		}
 	})
@@ -694,10 +872,10 @@ func TestWithoutClosedDate(t *testing.T) {
 		if err != nil || !changed {
 			t.Fatalf("changed=%v err=%v", changed, err)
 		}
-		if _, ok := next.ClosedDateOn(ohMustDate(t, "2026-01-12")); ok {
+		if _, ok := ohClosedDateOn(t, next, ohMustDate(t, "2026-01-12")); ok {
 			t.Fatal("date still closed")
 		}
-		if got := next.ClosedDates(); len(got) != 1 || got[0].Date.String() != "2026-03-01" {
+		if got := ohClosedDates(t, next); len(got) != 1 || got[0].Date.String() != "2026-03-01" {
 			t.Fatalf("remaining closed dates: %+v", got)
 		}
 		if got := ohMustJSON(t, base); got != baseJSON {
@@ -710,8 +888,8 @@ func TestWithoutClosedDate(t *testing.T) {
 		f := ohFullFields()
 		f.ClosedDates = ohClosedPtr([]ClosedDateInput{{Date: "2026-01-12", Reason: "x"}})
 		next, changed, err := ohMustSettings(t, f).WithoutClosedDate(ohMustDate(t, "2026-01-12"))
-		if err != nil || !changed || !next.isValid() || len(next.ClosedDates()) != 0 {
-			t.Fatalf("valid=%v changed=%v err=%v closed=%+v", next.isValid(), changed, err, next.ClosedDates())
+		if err != nil || !changed || !next.Valid() || len(ohClosedDates(t, next)) != 0 {
+			t.Fatalf("valid=%v changed=%v err=%v closed=%+v", next.Valid(), changed, err, ohClosedDates(t, next))
 		}
 		if !strings.Contains(ohMustJSON(t, next), `"closed_dates":[]`) {
 			t.Fatal("empty closed_dates must marshal as []")

@@ -63,7 +63,7 @@ func TestOperatingHoursStateAccessors(t *testing.T) {
 	if un.Configured() || un.Version() != 0 {
 		t.Fatalf("unconfigured state: %+v", un)
 	}
-	if s, ok := un.Settings(); ok || s.isValid() {
+	if s, ok := un.Settings(); ok || s.Valid() {
 		t.Fatal("unconfigured state must expose neither a Settings nor a valid zero value")
 	}
 
@@ -74,7 +74,7 @@ func TestOperatingHoursStateAccessors(t *testing.T) {
 		t.Fatalf("configured state: ok=%v version=%d", ok, st.Version())
 	}
 	// 返却値は複製で、state を書き換えられない。
-	cd := got.ClosedDates()
+	cd := ohClosedDates(t, got)
 	cd[0] = ClosedDate{}
 	again, _ := st.Settings()
 	if !again.Equal(want) {
@@ -89,7 +89,7 @@ func TestDecideOperatingHoursInitialize(t *testing.T) {
 	t.Run("on unconfigured succeeds with Changed=true", func(t *testing.T) {
 		t.Parallel()
 		w, err := DecideOperatingHoursInitialize(UnconfiguredOperatingHours(), ohFullFields())
-		if err != nil || !w.Changed || !w.Settings.isValid() {
+		if err != nil || !w.Changed || !w.Settings.Valid() {
 			t.Fatalf("write=%+v err=%v", w, err)
 		}
 		if !w.Settings.Equal(ohMustSettings(t, ohFullFields())) {
@@ -177,7 +177,7 @@ func TestDecideOperatingHoursUpdate(t *testing.T) {
 	t.Run("a real change reports Changed=true", func(t *testing.T) {
 		t.Parallel()
 		w, err := DecideOperatingHoursUpdate(current, 5, OperatingHoursFields{NationalHolidayClosed: ohBoolPtr(false)})
-		if err != nil || !w.Changed || w.Settings.NationalHolidayClosed() {
+		if err != nil || !w.Changed || ohNationalHolidayClosed(t, w.Settings) {
 			t.Fatalf("write=%+v err=%v", w, err)
 		}
 		if again, _ := current.Settings(); !again.Equal(base) {
@@ -202,7 +202,7 @@ func TestDecideClosedDateSet(t *testing.T) {
 	t.Run("unconfigured does not generate other fields", func(t *testing.T) {
 		t.Parallel()
 		w, err := DecideClosedDateSet(UnconfiguredOperatingHours(), 1, ohMustDate(t, "2026-02-01"), "x")
-		if !errors.Is(err, ErrOperatingHoursUnconfigured) || w.Changed || w.Settings.isValid() {
+		if !errors.Is(err, ErrOperatingHoursUnconfigured) || w.Changed || w.Settings.Valid() {
 			t.Fatalf("write=%+v err=%v", w, err)
 		}
 	})
@@ -218,10 +218,10 @@ func TestDecideClosedDateSet(t *testing.T) {
 	t.Run("new date changes only closed_dates", func(t *testing.T) {
 		t.Parallel()
 		w, err := DecideClosedDateSet(current, 3, ohMustDate(t, "2026-02-01"), "臨時")
-		if err != nil || !w.Changed || len(w.Settings.ClosedDates()) != 3 {
+		if err != nil || !w.Changed || len(ohClosedDates(t, w.Settings)) != 3 {
 			t.Fatalf("write=%+v err=%v", w, err)
 		}
-		if len(w.Settings.WeeklyIntervals(1)) != 2 || !w.Settings.NationalHolidayClosed() {
+		if len(ohWeeklyIntervals(t, w.Settings, 1)) != 2 || !ohNationalHolidayClosed(t, w.Settings) {
 			t.Fatal("weekly_hours and national_holiday_closed must be kept")
 		}
 	})
@@ -251,7 +251,7 @@ func TestDecideClosedDateUnset(t *testing.T) {
 	t.Run("unconfigured", func(t *testing.T) {
 		t.Parallel()
 		w, err := DecideClosedDateUnset(UnconfiguredOperatingHours(), 1, ohMustDate(t, "2026-01-12"))
-		if !errors.Is(err, ErrOperatingHoursUnconfigured) || w.Changed || w.Settings.isValid() {
+		if !errors.Is(err, ErrOperatingHoursUnconfigured) || w.Changed || w.Settings.Valid() {
 			t.Fatalf("write=%+v err=%v", w, err)
 		}
 	})
@@ -278,13 +278,22 @@ func TestDecideClosedDateUnset(t *testing.T) {
 		if err != nil || !w.Changed {
 			t.Fatalf("write=%+v err=%v", w, err)
 		}
-		if _, ok := w.Settings.ClosedDateOn(ohMustDate(t, "2026-01-12")); ok {
+		if _, ok := ohClosedDateOn(t, w.Settings, ohMustDate(t, "2026-01-12")); ok {
 			t.Fatal("date still closed")
 		}
 		if again, _ := current.Settings(); !again.Equal(base) {
 			t.Fatal("current state mutated")
 		}
 	})
+}
+
+func TestDecideClosedDateRejectsZeroDateAsMisuse(t *testing.T) {
+	t.Parallel()
+	current := ohConfigured(t, 3, ohMustSettings(t, ohFullFields()))
+	_, err := DecideClosedDateSet(current, 3, CalendarDate{}, "x")
+	ohAssertMisuse(t, "set", err, errZeroCalendarDate)
+	_, err = DecideClosedDateUnset(current, 3, CalendarDate{})
+	ohAssertMisuse(t, "unset", err, errZeroCalendarDate)
 }
 
 func TestOperatingHoursRejection(t *testing.T) {
@@ -306,6 +315,10 @@ func TestOperatingHoursRejection(t *testing.T) {
 		{name: "wrapped reason conflict", err: fmt.Errorf("apply: %w", ErrClosedDateReasonConflict), want: operation.StatusValidation, ok: true},
 		{name: "wrapped invalid input", err: fmt.Errorf("apply: %w", apperrors.WrapInvalidInput("bad")), want: operation.StatusValidation, ok: true},
 		{name: "unknown error is not a definite rejection", err: errors.New("db down")},
+		{name: "invalid-settings misuse is not a rejection", err: errInvalidOperatingHoursSettings},
+		{name: "wrapped invalid-settings misuse is not a rejection", err: fmt.Errorf("apply: %w", errInvalidOperatingHoursSettings)},
+		{name: "zero calendar date misuse is not a rejection", err: errZeroCalendarDate},
+		{name: "invalid weekday misuse is not a rejection", err: errInvalidWeekday},
 		{name: "nil", err: nil},
 	}
 	for _, tc := range cases {

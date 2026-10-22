@@ -40,19 +40,19 @@ func UnconfiguredOperatingHours() OperatingHoursState {
 	return OperatingHoursState{}
 }
 
+// maxOperatingHoursVersion は正 bigint の上限（9223372036854775807）。
+const maxOperatingHoursVersion = 1<<63 - 1
+
 // ConfiguredOperatingHours は保存行の状態。version は正の bigint、settings は検証済み（ゼロ値は拒否）。
 func ConfiguredOperatingHours(version uint64, settings OperatingHoursSettings) (OperatingHoursState, error) {
-	if version == 0 || version > maxVersion {
+	if version == 0 || version > maxOperatingHoursVersion {
 		return OperatingHoursState{}, errors.New("clinic operating hours version must be a positive bigint")
 	}
-	if !settings.isValid() {
+	if !settings.Valid() {
 		return OperatingHoursState{}, errors.New("clinic operating hours settings must be validated")
 	}
 	return OperatingHoursState{configured: true, version: version, settings: settings}, nil
 }
-
-// maxVersion は正 bigint の上限（9223372036854775807）。
-const maxVersion = 1<<63 - 1
 
 // Configured は行があるか。
 func (s OperatingHoursState) Configured() bool { return s.configured }

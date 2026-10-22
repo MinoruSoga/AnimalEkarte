@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -62,14 +63,23 @@ type ClosedDate struct {
 	Reason string
 }
 
-// errInvalidOperatingHoursSettings は検証を通っていないゼロ値の Settings を使おうとした誤用。
+// errInvalidOperatingHoursSettings は検証を通っていないゼロ値の Settings を使おうとした誤用（内部エラー）。
+// 入力不正ではないため apperrors.WrapInvalidInput にはせず、OperatingHoursRejection も確定拒否へ写像しない。
 var errInvalidOperatingHoursSettings = errors.New("clinic operating hours settings were not built by validated construction")
+
+// errInvalidWeekday は範囲外の曜日（time.Sunday..time.Saturday 以外）を渡された誤用（内部エラー）。
+var errInvalidWeekday = errors.New("weekday must be between time.Sunday and time.Saturday")
+
+// errOperatingHoursSettingsDecode は json.Unmarshal によるゼロ値生成を防ぐための誤用エラー。
+var errOperatingHoursSettingsDecode = errors.New("clinic operating hours settings must be decoded through the strict loader")
 
 // OperatingHoursSettings は検証済みの共通医院時間。値は不変で、getter は複製を返す。
 //
 // ゼロ値 OperatingHoursSettings{} は「全曜日休診」の有効な Settings ではなく、未検証（invalid）として扱う。
 // valid は NewOperatingHoursSettings／ApplyChanges の検証経路（withFields）だけが立て、clone は保つ。
-// invalid な値は MarshalJSON・ApplyChanges・WithClosedDate・WithoutClosedDate が拒否し、
+// Valid() で判定でき、invalid な値は MarshalJSON・UnmarshalJSON・ApplyChanges・WithClosedDate・
+// WithoutClosedDate・各 read メソッド（WeeklyIntervals／ClosedDates／NationalHolidayClosed／ClosedDateOn／
+// IntervalsOn）がエラーで拒否し、空や false を黙って返さない。
 // Equal は invalid 同士のみ等しく、invalid と valid は不等とする。
 //
 // 区間は入力どおり保持し、隣接区間（[09:00,12:00) と [12:00,15:00)）を併合・正規化しない。
@@ -91,14 +101,14 @@ func NewOperatingHoursSettings(f OperatingHoursFields) (OperatingHoursSettings, 
 	return OperatingHoursSettings{}.withFields(f)
 }
 
-// isValid は検証経路で構築された値かを返す。ゼロ値は false。
-func (s OperatingHoursSettings) isValid() bool { return s.valid }
+// Valid は検証経路（NewOperatingHoursSettings／ApplyChanges）で構築された値かを返す。ゼロ値は false。
+func (s OperatingHoursSettings) Valid() bool { return s.valid }
 
 // ApplyChanges は changes の field だけを全置換した新しい Settings を返す。changes は1 field 以上。
 // invalid（ゼロ値）の受け手は、ゼロから Settings を組み立てず拒否する。
 func (s OperatingHoursSettings) ApplyChanges(changes OperatingHoursFields) (OperatingHoursSettings, error) {
 	if !s.valid {
-		return OperatingHoursSettings{}, apperrors.WrapInvalidInput(errInvalidOperatingHoursSettings.Error())
+		return OperatingHoursSettings{}, errInvalidOperatingHoursSettings
 	}
 	if changes.isEmpty() {
 		return OperatingHoursSettings{}, apperrors.WrapInvalidInput("changes は1項目以上必要です")
@@ -181,9 +191,14 @@ func newClosedDate(date, reason string) (ClosedDate, error) {
 	return ClosedDate{Date: d, Reason: reason}, nil
 }
 
+// validateClosedDateReason は既存の休診理由 validation（UTF-8・500 文字）に加え、NUL（U+0000）を拒否する。
+// PostgreSQL の text／jsonb は NUL を保存できないため。改行・タブは既存の休日理由と同様に許す。
 func validateClosedDateReason(reason string) error {
 	if !utf8.ValidString(reason) {
 		return apperrors.WrapInvalidInput("休診理由は有効な UTF-8 である必要があります")
+	}
+	if strings.ContainsRune(reason, 0) {
+		return apperrors.WrapInvalidInput("休診理由に NUL 文字（U+0000）は使えません")
 	}
 	if utf8.RuneCountInString(reason) > closedDateReasonMaxRunes {
 		return apperrors.WrapInvalidInput(fmt.Sprintf("休診理由は %d 文字以内である必要があります", closedDateReasonMaxRunes))
@@ -203,26 +218,48 @@ func (s OperatingHoursSettings) clone() OperatingHoursSettings {
 	return next
 }
 
-// WeeklyIntervals は曜日 w の営業区間の複製を返す。空は明示休診。
-func (s OperatingHoursSettings) WeeklyIntervals(w time.Weekday) []TimeInterval {
-	if w < time.Sunday || w > time.Saturday {
-		return []TimeInterval{}
+// WeeklyIntervals は曜日 w の営業区間の複製を返す。空は明示休診（非 nil）。
+// invalid（ゼロ値）の Settings と範囲外の曜日は、「休診」と区別できるようエラー（内部の誤用）を返す。
+func (s OperatingHoursSettings) WeeklyIntervals(w time.Weekday) ([]TimeInterval, error) {
+	if !s.valid {
+		return nil, errInvalidOperatingHoursSettings
 	}
-	return append([]TimeInterval{}, s.weekly[w]...)
+	if w < time.Sunday || w > time.Saturday {
+		return nil, errInvalidWeekday
+	}
+	return append([]TimeInterval{}, s.weekly[w]...), nil
 }
 
-// ClosedDates は個別休診日の複製（日付昇順）を返す。
-func (s OperatingHoursSettings) ClosedDates() []ClosedDate {
-	return append([]ClosedDate{}, s.closedDates...)
+// ClosedDates は個別休診日の複製（日付昇順・非 nil）を返す。invalid（ゼロ値）はエラー。
+func (s OperatingHoursSettings) ClosedDates() ([]ClosedDate, error) {
+	if !s.valid {
+		return nil, errInvalidOperatingHoursSettings
+	}
+	return append([]ClosedDate{}, s.closedDates...), nil
 }
 
-// NationalHolidayClosed は祝日休診方針。
-func (s OperatingHoursSettings) NationalHolidayClosed() bool {
-	return s.nationalHolidayClosed
+// NationalHolidayClosed は祝日休診方針。invalid（ゼロ値）は false と区別できるようエラーを返す。
+func (s OperatingHoursSettings) NationalHolidayClosed() (bool, error) {
+	if !s.valid {
+		return false, errInvalidOperatingHoursSettings
+	}
+	return s.nationalHolidayClosed, nil
 }
 
-// ClosedDateOn は暦日 d の個別休診を返す。
-func (s OperatingHoursSettings) ClosedDateOn(d CalendarDate) (ClosedDate, bool) {
+// ClosedDateOn は暦日 d の個別休診を返す。invalid な Settings とゼロ値の d はエラー。
+func (s OperatingHoursSettings) ClosedDateOn(d CalendarDate) (ClosedDate, bool, error) {
+	if !s.valid {
+		return ClosedDate{}, false, errInvalidOperatingHoursSettings
+	}
+	if d.IsZero() {
+		return ClosedDate{}, false, errZeroCalendarDate
+	}
+	cd, found := s.closedDateOn(d)
+	return cd, found, nil
+}
+
+// closedDateOn は検証済みの s と d を前提にした検索。
+func (s OperatingHoursSettings) closedDateOn(d CalendarDate) (ClosedDate, bool) {
 	i, found := slices.BinarySearchFunc(s.closedDates, d, func(cd ClosedDate, t CalendarDate) int {
 		return cd.Date.Compare(t)
 	})
@@ -236,12 +273,19 @@ func (s OperatingHoursSettings) ClosedDateOn(d CalendarDate) (ClosedDate, bool) 
 // isNationalHoliday は呼出側が既存の祝日判定（reservation の available_dates.go と同じ
 // github.com/holiday-jp/holiday_jp-go の holiday.IsHoliday）で解決して渡す。この package は祝日 library を
 // import せず、祝日の解決も持たない。旧 clinic_holidays は参照しない（§2.4）。
-func (s OperatingHoursSettings) IntervalsOn(d CalendarDate, isNationalHoliday bool) []TimeInterval {
-	if _, closed := s.ClosedDateOn(d); closed {
-		return []TimeInterval{}
+// 戻り値は常に非 nil で複製。invalid な Settings とゼロ値の d は、正常な空と区別できるようエラーを返す。
+func (s OperatingHoursSettings) IntervalsOn(d CalendarDate, isNationalHoliday bool) ([]TimeInterval, error) {
+	if !s.valid {
+		return nil, errInvalidOperatingHoursSettings
+	}
+	if d.IsZero() {
+		return nil, errZeroCalendarDate
+	}
+	if _, closed := s.closedDateOn(d); closed {
+		return []TimeInterval{}, nil
 	}
 	if isNationalHoliday && s.nationalHolidayClosed {
-		return []TimeInterval{}
+		return []TimeInterval{}, nil
 	}
 	return s.WeeklyIntervals(d.Weekday())
 }
@@ -262,15 +306,18 @@ func (s OperatingHoursSettings) Equal(o OperatingHoursSettings) bool {
 
 // WithClosedDate は個別休診日 d を追加した Settings を返す。同日同理由は changed=false（no-op）、
 // 同日異理由は ErrClosedDateReasonConflict で拒否し、無言の upsert はしない。
-// invalid（ゼロ値）の受け手は拒否する。
+// invalid（ゼロ値）の受け手とゼロ値の d は拒否する（内部エラー。入力不正ではない）。
 func (s OperatingHoursSettings) WithClosedDate(d CalendarDate, reason string) (OperatingHoursSettings, bool, error) {
 	if !s.valid {
-		return OperatingHoursSettings{}, false, apperrors.WrapInvalidInput(errInvalidOperatingHoursSettings.Error())
+		return OperatingHoursSettings{}, false, errInvalidOperatingHoursSettings
+	}
+	if d.IsZero() {
+		return OperatingHoursSettings{}, false, errZeroCalendarDate
 	}
 	if err := validateClosedDateReason(reason); err != nil {
 		return OperatingHoursSettings{}, false, err
 	}
-	if existing, ok := s.ClosedDateOn(d); ok {
+	if existing, ok := s.closedDateOn(d); ok {
 		if existing.Reason == reason {
 			return s.clone(), false, nil
 		}
@@ -285,10 +332,13 @@ func (s OperatingHoursSettings) WithClosedDate(d CalendarDate, reason string) (O
 }
 
 // WithoutClosedDate は個別休診日 d を除いた Settings を返す。既にない日は changed=false（no-op）。
-// invalid（ゼロ値）の受け手は有効な結果を返さずエラーで拒否する（WithClosedDate と同じ形）。
+// invalid（ゼロ値）の受け手とゼロ値の d は有効な結果を返さずエラーで拒否する（WithClosedDate と同じ形）。
 func (s OperatingHoursSettings) WithoutClosedDate(d CalendarDate) (OperatingHoursSettings, bool, error) {
 	if !s.valid {
-		return OperatingHoursSettings{}, false, apperrors.WrapInvalidInput(errInvalidOperatingHoursSettings.Error())
+		return OperatingHoursSettings{}, false, errInvalidOperatingHoursSettings
+	}
+	if d.IsZero() {
+		return OperatingHoursSettings{}, false, errZeroCalendarDate
 	}
 	next := s.clone()
 	i, found := slices.BinarySearchFunc(next.closedDates, d, func(cd ClosedDate, t CalendarDate) int {
@@ -323,8 +373,9 @@ type operatingHoursSettingsWire struct {
 }
 
 // MarshalJSON は exact wire `{weekly_hours,closed_dates,national_holiday_closed}` を決定的な順序で返す。
-// GET・preview・監査 before/after・command の正規 bytes で同じ表現を使う。
-// invalid（ゼロ値）は「全日休診」の wire へ化けさせずエラーを返す。
+// この bytes が正規表現であり、GET・preview・監査 before/after・command commitment は必ずこのメソッド
+// （encoding/json の既定の HTML エスケープ込み。例: reason の `<&>"` は `\u003c\u0026\u003e\"`）で作る。
+// 別経路で再エンコードしない。invalid（ゼロ値）は「全日休診」の wire へ化けさせずエラーを返す。
 func (s OperatingHoursSettings) MarshalJSON() ([]byte, error) {
 	if !s.valid {
 		return nil, errInvalidOperatingHoursSettings
@@ -345,4 +396,10 @@ func (s OperatingHoursSettings) MarshalJSON() ([]byte, error) {
 		wire.ClosedDates = append(wire.ClosedDates, operatingHoursClosedDateWire{Date: cd.Date.String(), Reason: cd.Reason})
 	}
 	return json.Marshal(wire)
+}
+
+// UnmarshalJSON は常にエラーを返す。json.Unmarshal がゼロ値（invalid）の Settings を黙って作らないよう、
+// 復号は厳格 loader（closed decode ＋ NewOperatingHoursSettings）を通す。
+func (s *OperatingHoursSettings) UnmarshalJSON([]byte) error {
+	return errOperatingHoursSettingsDecode
 }
