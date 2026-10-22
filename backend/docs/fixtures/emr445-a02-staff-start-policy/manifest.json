@@ -192,6 +192,50 @@
    "scenario": "policy・common・LINE すべて未設定で create preview",
    "semantic_expectation": "observed 版は全 null、current は policy-unconfigured、proposed は common-unconfigured（優先順 policy→common→LINE）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-create-with-version.request.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "create preview に expected_version",
+   "semantic_expectation": "400（create は null のみ）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-replace-null-version.request.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "replace preview の expected_version null",
+   "semantic_expectation": "400（replace/reconfigure は Version 必須）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-deleted-without-deleted-at.response.json",
+   "operationId": "getLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "deleted なのに deleted_at null",
+   "semantic_expectation": "不適合（deleted は現版・削除時刻・保存 Policy）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-delete-with-proposed-policy.response.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "delete preview なのに proposed_policy あり",
+   "semantic_expectation": "不適合（delete だけ proposed_policy null）",
+   "verification": "NOT_RUN"
   }
  ]
 }

@@ -233,8 +233,8 @@
    "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
    "http_status": 200,
    "expected_schema": "valid",
-   "scenario": "休診追加で既存予約1件の確認が必要",
-   "semantic_expectation": "receipt を対応 write へ無変換で渡す。LINE 未設定日は line-unconfigured（intervals null）。code 名はダミー",
+   "scenario": "11/03 を休診追加（LINE 確認済み版2）。現在は 09:00-18:00、提案は当日休診で空",
+   "semantic_expectation": "confirmation-required・全件 confirmable・現在認可済みの影響予約1件・receipt を対応 write へ無変換で渡す。code 名はダミー",
    "verification": "NOT_RUN"
   },
   {
@@ -268,6 +268,28 @@
    "expected_schema": "invalid",
    "scenario": "evaluated なのに intervals null",
    "semantic_expectation": "不適合（evaluated だけ配列、正常空は []）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-required-with-prohibited.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "confirmation-required に prohibited 警告が混在",
+   "semantic_expectation": "不適合（prohibited があれば state は prohibited）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-prohibited-only-confirmable.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "prohibited なのに警告が全件 confirmable",
+   "semantic_expectation": "不適合（prohibited を1件以上含む）",
    "verification": "NOT_RUN"
   }
  ]

@@ -15599,6 +15599,8 @@ components:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/ClinicHoursInterval'
     LineTimeWarning:
       type: object
       additionalProperties: false
@@ -15641,7 +15643,7 @@ components:
       description: >-
         §5.3 WarningCheck（state 別 exact）。clear=warnings []・affected []・receipt null。confirmation-required=confirmable を含む warnings・現在認可済みの影響予約・非空 opaque receipt。
         prohibited=prohibited を1件以上含む warnings・影響予約・receipt null。confirmation-unavailable=全て null（予約 view 不足等。非開示を空集合/確認済みへ変換しない）。
-        「confirmable/prohibited を含む」は OpenAPI 3.0 で表せないため本文で固定する。既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
+        severity 条件は confirmation-required=全件 confirmable、prohibited=全件 confirmable を not で除外して schema で固定する。既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
       oneOf:
         - $ref: '#/components/schemas/LineTimeWarningCheckClear'
         - $ref: '#/components/schemas/LineTimeWarningCheckConfirmationRequired'
@@ -15681,8 +15683,14 @@ components:
           type: array
           minItems: 1
           items:
-            $ref: '#/components/schemas/LineTimeWarning'
-          description: confirmable を含み prohibited を含まない。
+            allOf:
+              - $ref: '#/components/schemas/LineTimeWarning'
+              - type: object
+                properties:
+                  severity:
+                    type: string
+                    enum: [confirmable]
+          description: 全件 confirmable（prohibited を含まない）。
         affected_reservations:
           type: array
           items:
@@ -15703,7 +15711,15 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/LineTimeWarning'
-          description: prohibited を1件以上含む。
+          not:
+            type: array
+            items:
+              type: object
+              properties:
+                severity:
+                  type: string
+                  enum: [confirmable]
+          description: prohibited を1件以上含む（全件 confirmable の配列を not で除外）。
         affected_reservations:
           type: array
           items:
@@ -15724,10 +15740,14 @@ components:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/LineTimeWarning'
         affected_reservations:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/LineTimeAppointmentRef'
         warning_receipt:
           type: string
           nullable: true
@@ -16180,6 +16200,26 @@ components:
         GET /clinics/{clinic_id}/line-reservation-settings/acceptance（§3.2、no-store）。unconfigured は acceptance_version/settings null。
         legacy-unreviewed は実保存版と検証可能な P を返すが確認済みとしない。configured は版・P 必須。common 未設定は common_version null。
         JSON 不正・読取不能は 503 で、空成功・unconfigured へ変換しない。
+        state と acceptance_version・settings の null 条件は oneOf で固定する。
+      oneOf:
+        - properties:
+            state:
+              enum: [unconfigured]
+            acceptance_version:
+              type: string
+              nullable: true
+              enum: [null]
+            settings:
+              type: object
+              nullable: true
+              enum: [null]
+        - properties:
+            state:
+              enum: [legacy-unreviewed, configured]
+            acceptance_version:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            settings:
+              $ref: '#/components/schemas/LineAcceptanceSettings'
       properties:
         schema_version:
           type: string
@@ -16328,7 +16368,7 @@ components:
           update: '#/components/schemas/LineAcceptancePreviewUpdate'
     LineAcceptancePreviewValidation:
       description: >-
-        §5.6 validation（state 別 exact）。valid は warnings []、prohibited は prohibited を1件以上含む Warning[]（「含む」は OpenAPI 3.0 で表せないため本文で固定）。
+        §5.6 validation（state 別 exact）。valid は warnings []、prohibited は prohibited を1件以上含む Warning[]（全件 confirmable を not で除外）。
         common 未設定・包含不成立は prohibited。
       oneOf:
         - $ref: '#/components/schemas/LineAcceptancePreviewValidationValid'
@@ -16359,6 +16399,15 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/LineTimeWarning'
+          not:
+            type: array
+            items:
+              type: object
+              properties:
+                severity:
+                  type: string
+                  enum: [confirmable]
+          description: prohibited を1件以上含む（全件 confirmable の配列を not で除外）。
     LineAcceptancePreviewResponse:
       type: object
       additionalProperties: false
@@ -16366,6 +16415,45 @@ components:
       description: >-
         §5.6 出力。提案側は仮に confirm/update した場合の計算結果で、保存済み確認状態・版へ昇格しない。包含検証を表示 dates だけへ縮小しない。
         days の各要素は §5.3 Window の current/proposed（ClinicOperatingHoursPreviewDay と同 shape）。warning_receipt は常に null（LINE override なし）。
+        200 は mode と現在状態が一致したときだけ（initialize=unconfigured、confirm=legacy-unreviewed、update=configured。不一致は 409）で、oneOf で組合せと current_settings・観測 LINE 版の null 条件を固定する。
+      oneOf:
+        - properties:
+            mode:
+              enum: [initialize]
+            current_state:
+              enum: [unconfigured]
+            current_settings:
+              type: object
+              nullable: true
+              enum: [null]
+            observed_versions:
+              properties:
+                line_acceptance:
+                  type: string
+                  nullable: true
+                  enum: [null]
+        - properties:
+            mode:
+              enum: [confirm]
+            current_state:
+              enum: [legacy-unreviewed]
+            current_settings:
+              $ref: '#/components/schemas/LineAcceptanceSettings'
+            observed_versions:
+              properties:
+                line_acceptance:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+        - properties:
+            mode:
+              enum: [update]
+            current_state:
+              enum: [configured]
+            current_settings:
+              $ref: '#/components/schemas/LineAcceptanceSettings'
+            observed_versions:
+              properties:
+                line_acceptance:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
       properties:
         schema_version:
           type: string
@@ -16545,6 +16633,44 @@ components:
         GET（§4.2、no-store）。unconfigured は version/policy/deleted_at null。configured は版・Policy 必須、deleted_at null。
         deleted は現版・削除時刻・保存 Policy を管理用に返す。予約可能 boolean・氏名は返さない。元所属を現在認可できなければ非開示。
         assignment_id は当該 staff×予約区分の現在 assignment（行の PK 要素。本収録で全 state に必須とした）。取得失敗は 503 で、未設定や他院・他担当へ fallback しない。
+        state と version/policy/deleted_at の null 条件は oneOf で固定する。
+      oneOf:
+        - properties:
+            state:
+              enum: [unconfigured]
+            version:
+              type: string
+              nullable: true
+              enum: [null]
+            policy:
+              type: object
+              nullable: true
+              enum: [null]
+            deleted_at:
+              type: string
+              nullable: true
+              enum: [null]
+        - properties:
+            state:
+              enum: [configured]
+            version:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            policy:
+              $ref: '#/components/schemas/LineStartPolicy'
+            deleted_at:
+              type: string
+              nullable: true
+              enum: [null]
+        - properties:
+            state:
+              enum: [deleted]
+            version:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            policy:
+              $ref: '#/components/schemas/LineStartPolicy'
+            deleted_at:
+              type: string
+              format: date-time
       properties:
         schema_version:
           type: string
@@ -16653,21 +16779,36 @@ components:
           $ref: '#/components/schemas/LineTimeDecimalId'
         expected_assignment_id:
           $ref: '#/components/schemas/LineTimeDecimalId'
-    LineStartPolicyPreviewWithPolicy:
+    LineStartPolicyPreviewCreate:
       type: object
       additionalProperties: false
       required: [mode, expected_version, expected_assignment_id, dates, policy]
-      description: create/replace/reconfigure の preview 入力。create だけ expected_version=null、他は Version。
+      description: create の preview 入力。expected_version は null のみ（行なし）。
       properties:
         mode:
           type: string
-          enum: [create, replace, reconfigure]
+          enum: [create]
         expected_version:
-          oneOf:
-            - $ref: '#/components/schemas/LineTimeDecimalId'
-            - type: string
-              nullable: true
-              enum: [null]
+          type: string
+          nullable: true
+          enum: [null]
+        expected_assignment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+        policy:
+          $ref: '#/components/schemas/LineStartPolicy'
+    LineStartPolicyPreviewReplace:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_version, expected_assignment_id, dates, policy]
+      description: replace / reconfigure の preview 入力。expected_version は Version 必須。
+      properties:
+        mode:
+          type: string
+          enum: [replace, reconfigure]
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
         expected_assignment_id:
           $ref: '#/components/schemas/LineTimeDecimalId'
         dates:
@@ -16692,16 +16833,17 @@ components:
     LineStartPolicyPreviewRequest:
       description: >-
         §5.7 staff policy preview 入力（mode 別 exact）。operation_key を受けず claim/write なし（read-only・no-store）。
-        create 以外で expected_version=null は 400（OpenAPI 3.0 の oneOf では mode と null の組合せを表現しきれないため本文で固定）。
+        create だけ expected_version=null、replace/reconfigure/delete は Version 必須。
       oneOf:
-        - $ref: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
+        - $ref: '#/components/schemas/LineStartPolicyPreviewCreate'
+        - $ref: '#/components/schemas/LineStartPolicyPreviewReplace'
         - $ref: '#/components/schemas/LineStartPolicyPreviewDelete'
       discriminator:
         propertyName: mode
         mapping:
-          create: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
-          replace: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
-          reconfigure: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
+          create: '#/components/schemas/LineStartPolicyPreviewCreate'
+          replace: '#/components/schemas/LineStartPolicyPreviewReplace'
+          reconfigure: '#/components/schemas/LineStartPolicyPreviewReplace'
           delete: '#/components/schemas/LineStartPolicyPreviewDelete'
     LineStartPolicyMaskedStarts:
       description: >-
@@ -16734,6 +16876,8 @@ components:
           type: array
           nullable: true
           enum: [null]
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
     LineStartPolicyPreviewDay:
       type: object
       additionalProperties: false
@@ -16764,6 +16908,57 @@ components:
       description: >-
         §5.7 出力。勤務/休業/能力/競合は未評価（reservation_eligibility 固定 not-evaluated）。予約可能 token・生の共通/LINE 設定・氏名は返さない。
         削除提案から予約可能状態を推測しない。warning_receipt は常に null。
+        200 は mode と現在状態が一致したときだけ（create=unconfigured、replace=configured、reconfigure=deleted、delete=configured/deleted〔既削除は no-op〕。不一致は 409）。
+        proposed_policy（delete だけ null）と観測 policy 版（unconfigured だけ null）の条件を oneOf で固定する。
+      oneOf:
+        - properties:
+            mode:
+              enum: [create]
+            current_state:
+              enum: [unconfigured]
+            observed_versions:
+              properties:
+                line_staff_start_policy:
+                  type: string
+                  nullable: true
+                  enum: [null]
+            proposed_policy:
+              $ref: '#/components/schemas/LineStartPolicy'
+        - properties:
+            mode:
+              enum: [replace]
+            current_state:
+              enum: [configured]
+            observed_versions:
+              properties:
+                line_staff_start_policy:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+            proposed_policy:
+              $ref: '#/components/schemas/LineStartPolicy'
+        - properties:
+            mode:
+              enum: [reconfigure]
+            current_state:
+              enum: [deleted]
+            observed_versions:
+              properties:
+                line_staff_start_policy:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+            proposed_policy:
+              $ref: '#/components/schemas/LineStartPolicy'
+        - properties:
+            mode:
+              enum: [delete]
+            current_state:
+              enum: [configured, deleted]
+            observed_versions:
+              properties:
+                line_staff_start_policy:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+            proposed_policy:
+              type: object
+              nullable: true
+              enum: [null]
       properties:
         schema_version:
           type: string
