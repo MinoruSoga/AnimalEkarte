@@ -31733,6 +31733,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31940,12 +31947,26 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32000,12 +32021,26 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
         '202':
           description: operation-in-progress。新 key で救済せず同 key で照会する。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineTimeOperationInProgress202'
         '400':
           description: strict decode 違反（ErrorResponse）又は C06 validation。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32016,6 +32051,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32024,6 +32066,13 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
         '404':
           description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32032,12 +32081,26 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
         '409':
           description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineTimeOperationConflict409'
         '503':
           description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32084,6 +32147,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32275,12 +32345,26 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32328,6 +32412,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32520,12 +32611,26 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32573,6 +32678,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32858,12 +32970,26 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32917,12 +33043,26 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
         '202':
           description: operation-in-progress。新 key で救済せず同 key で照会する。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineTimeOperationInProgress202'
         '400':
           description: strict decode 違反（ErrorResponse）又は C06 validation。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32933,6 +33073,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32941,6 +33088,13 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
         '404':
           description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -32949,12 +33103,26 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
         '409':
           description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（common 版・確認状態の変更）/ edit-right-lost。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineTimeOperationConflict409'
         '503':
           description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33093,6 +33261,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功、他院/他担当へ fallback しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33321,12 +33496,26 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: 現在状態・期待版・assignment の不一致（preview）。既存 ErrorResponse。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: 依存読取・計算不能。未設定や空成功、他院/他担当へ fallback しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33373,12 +33562,26 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
         '202':
           description: operation-in-progress。新 key で救済せず同 key で照会する。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineTimeOperationInProgress202'
         '400':
           description: strict decode 違反（ErrorResponse）又は C06 validation。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33389,6 +33592,13 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33397,6 +33607,13 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
         '404':
           description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33405,12 +33622,26 @@ paths:
                   - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
         '409':
           description: operation-key-conflict / version-conflict（CAS・期待版・状態不一致）/ dependency-changed（assignment 変更）/ edit-right-lost。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineTimeOperationConflict409'
         '503':
           description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:

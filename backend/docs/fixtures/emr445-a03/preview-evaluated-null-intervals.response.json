@@ -186,7 +186,7 @@
     ],
     "closed_dates": [
       {
-        "date": "2026-11-03",
+        "date": "2026-11-10",
         "reason": "臨時休診"
       },
       {
@@ -198,7 +198,7 @@
   },
   "days": [
     {
-      "date": "2026-11-03",
+      "date": "2026-11-10",
       "current": {
         "state": "evaluated",
         "intervals": null
