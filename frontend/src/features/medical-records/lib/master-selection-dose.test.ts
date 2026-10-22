@@ -27,7 +27,7 @@ describe("resolveMasterSelectionDose", () => {
                     is_active: true,
                     calculation_type: "per_weight",
                     medicine_unit: "per_tablet",
-                    strength: 100,
+                    strength: "100",
                   },
                 ],
           ),

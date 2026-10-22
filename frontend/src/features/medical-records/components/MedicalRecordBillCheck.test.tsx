@@ -389,7 +389,7 @@ describe("PR700 BillCheck real dose selection", () => {
               is_active: true,
               calculation_type: "per_weight",
               medicine_unit: "per_tablet",
-              strength: 100,
+              strength: "100",
             },
           ]);
         }),

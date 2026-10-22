@@ -13,6 +13,11 @@ describe("exactDecimalToNumber", () => {
   it.each(["", "-1", "1e2", "+1", "01", "NaN", "1."])("wire 外の %s は例外", (value) => {
     expect(() => exactDecimalToNumber(value, "strength")).toThrow("strength");
   });
+
+  it("旧 wire の JSON number は文字列化で素通りさせず例外", () => {
+    const legacy: unknown = 0.1;
+    expect(() => exactDecimalToNumber(legacy as string, "tax_rate")).toThrow("tax_rate");
+  });
 });
 
 describe("numberToExactDecimal", () => {
