@@ -40,9 +40,13 @@ type examTypeResponse struct {
 	ParentID       *uint64                `json:"parent_id,omitempty"`
 	SortOrder      int                    `json:"sort_order"`
 	IsNonInsurance bool                   `json:"is_non_insurance"`
-	Items          []examTypeItemResponse `json:"items,omitempty"`
-	CreatedAt      time.Time              `json:"created_at"`
-	UpdatedAt      time.Time              `json:"updated_at"`
+	// EMR-447 A.3: 保存値 true/false/null を raw のまま返す（omitempty なし・false 補完なし）。
+	IsBillDiscountExcluded *bool                  `json:"is_bill_discount_excluded"`
+	// EMR-447 A.4: 実保存版を既存4resourceと同じ int64 で返す。
+	Version            int64                  `json:"version"`
+	Items              []examTypeItemResponse `json:"items,omitempty"`
+	CreatedAt          time.Time              `json:"created_at"`
+	UpdatedAt          time.Time              `json:"updated_at"`
 }
 
 func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
@@ -100,9 +104,11 @@ func toExaminationTypeResponseWithRanges(
 		Description:    et.Description,
 		ParentID:       et.ParentID,
 		SortOrder:      et.SortOrder,
-		IsNonInsurance: et.IsNonInsurance,
-		Items:          items,
-		CreatedAt:      httpapi.LocalTime(et.CreatedAt),
-		UpdatedAt:      httpapi.LocalTime(et.UpdatedAt),
+		IsNonInsurance:         et.IsNonInsurance,
+		IsBillDiscountExcluded: et.IsBillDiscountExcluded,
+		Version:                et.Version,
+		Items:                  items,
+		CreatedAt:              httpapi.LocalTime(et.CreatedAt),
+		UpdatedAt:              httpapi.LocalTime(et.UpdatedAt),
 	}
 }

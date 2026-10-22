@@ -8,17 +8,20 @@ type createExaminationTypeRequest struct {
 	ParentID       *uint64 `json:"parent_id"`
 	SortOrder      int     `json:"sort_order"`
 	IsNonInsurance bool    `json:"is_non_insurance"`
+	// EMR-447 A01: 省略 → service が false を明示保存。明示 null/非 boolean は binding 層で 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 }
 
 func (r createExaminationTypeRequest) toServiceInput() *CreateExamTypeInput {
 	return &CreateExamTypeInput{
-		Name:           r.Name,
-		Price:          r.Price,
-		IsActive:       r.IsActive,
-		Description:    r.Description,
-		ParentID:       r.ParentID,
-		SortOrder:      r.SortOrder,
-		IsNonInsurance: r.IsNonInsurance,
+		Name:                   r.Name,
+		Price:                  r.Price,
+		IsActive:               r.IsActive,
+		Description:            r.Description,
+		ParentID:               r.ParentID,
+		SortOrder:              r.SortOrder,
+		IsNonInsurance:         r.IsNonInsurance,
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toCreateInput(),
 	}
 }
 
@@ -31,18 +34,24 @@ type updateExaminationTypeRequest struct {
 	ClearParentID  bool    `json:"clear_parent_id"`
 	SortOrder      *int    `json:"sort_order"`
 	IsNonInsurance *bool   `json:"is_non_insurance"`
+	// EMR-447 A01/A.4: 省略 → 変更なし。明示 null/非 boolean は binding 層で 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
+	// EMR-447 A.4: 任意送信の期待版。送信時は >0 必須・必ず WHERE 照合する（service 検証）。
+	Version *int64 `json:"version"`
 }
 
 func (r updateExaminationTypeRequest) toServiceInput() *UpdateExamTypeInput {
 	return &UpdateExamTypeInput{
-		Name:           r.Name,
-		Price:          r.Price,
-		IsActive:       r.IsActive,
-		Description:    r.Description,
-		ParentID:       r.ParentID,
-		ClearParentID:  r.ClearParentID,
-		SortOrder:      r.SortOrder,
-		IsNonInsurance: r.IsNonInsurance,
+		Name:                   r.Name,
+		Price:                  r.Price,
+		IsActive:               r.IsActive,
+		Description:            r.Description,
+		ParentID:               r.ParentID,
+		ClearParentID:          r.ClearParentID,
+		SortOrder:              r.SortOrder,
+		IsNonInsurance:         r.IsNonInsurance,
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toUpdateInput(),
+		Version:                r.Version,
 	}
 }
 

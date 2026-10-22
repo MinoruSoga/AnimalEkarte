@@ -26,6 +26,10 @@ type medicineResponse struct {
 	TaxRate         string  `json:"tax_rate"`
 	SortOrder       int     `json:"sort_order"`
 	IsNonInsurance  bool    `json:"is_non_insurance"`
+	// EMR-447 A.3: 保存値 true/false/null を raw のまま返す（omitempty なし・false 補完なし）。
+	IsBillDiscountExcluded *bool `json:"is_bill_discount_excluded"`
+	// EMR-447 A.4: 実保存版を既存4resourceと同じ int64 で返す。
+	Version                int64  `json:"version"`
 
 	// #201 投与量計算（製品軸）
 	CalculationType     string  `json:"calculation_type"`
@@ -68,8 +72,10 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		TaxType:             string(m.TaxType),
 		TaxRate:             exactNumericCanonical(m.TaxRate),
 		SortOrder:           sortOrder,
-		IsNonInsurance:      m.IsNonInsurance,
-		CalculationType:     string(m.CalculationType),
+		IsNonInsurance:         m.IsNonInsurance,
+		IsBillDiscountExcluded: m.IsBillDiscountExcluded,
+		Version:                m.Version,
+		CalculationType:        string(m.CalculationType),
 		Strength:            exactNumericStringPtr(m.Strength),
 		FrequencyPerDay:     m.FrequencyPerDay,
 		DefaultDurationDays: m.DefaultDurationDays,
