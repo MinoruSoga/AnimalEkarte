@@ -106,18 +106,21 @@ export function buildStaffCreateRequest(data: StaffFormData): CreateStaffRequest
   };
 }
 
+// EMR-448: 公開4項目（免許番号・LINE表示名・説明文・画像URL）は空文字も省略せず送り、
+// 非空→空へ変更できるようにする。LINE表示名が空なら表示は氏名へ fallback する（master-staff.md）。
+// password は空=変更なしのまま、email は Update で送らない。
 export function buildStaffUpdateRequest(data: StaffFormData): UpdateStaffRequest {
   return {
     name: data.name,
-    license_number: data.licenseNumber || undefined,
+    license_number: data.licenseNumber,
     is_active: data.isActive,
     occupation_id: data.jobTitleId ?? undefined,
     password: data.password || undefined,
     // FE6-2: staffType は Select（StaffType の値域のみ）で選択されるため実行時は常に安全。
     staff_type: data.staffType as StaffType,
-    reservation_display_name: data.reservationDisplayName || undefined,
+    reservation_display_name: data.reservationDisplayName,
     reservation_visible: data.reservationVisible,
-    reservation_comment: data.reservationComment || undefined,
-    reservation_image_url: data.reservationImageUrl || undefined,
+    reservation_comment: data.reservationComment,
+    reservation_image_url: data.reservationImageUrl,
   };
 }

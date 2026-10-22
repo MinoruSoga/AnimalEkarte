@@ -61,6 +61,8 @@ export function buildTrimmingCourseUpdateRequest(
   } = buildTrimmingCourseCreateRequest(data);
   return {
     ...base,
+    // EMR-448: 備考を空へ変更できるよう、空文字も省略せず送る（BE は "" を空で保存）。
+    description: data.description,
     is_active: data.isActive,
     ...(data.shortNameChanged ? { short_name: data.shortName.trim() } : {}),
     ...(data.weekdaysChanged ? { allowed_weekdays: sortedWeekdays(data.allowedWeekdays) } : {}),
@@ -86,6 +88,8 @@ export function buildTrimmingOptionUpdateRequest(
 ): UpdateTrimmingOptionRequest {
   return {
     ...buildTrimmingOptionCreateRequest(data),
+    // EMR-448: 備考を空へ変更できるよう、空文字も省略せず送る（BE は "" を空で保存）。
+    description: data.description,
     is_active: data.isActive,
   };
 }

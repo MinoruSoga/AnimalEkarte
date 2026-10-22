@@ -356,6 +356,7 @@ func TestOccupationService_Delete(t *testing.T) {
 func TestBuildOccupationUpdate(t *testing.T) {
 	name := "更新名"
 	description := "更新説明"
+	emptyDescription := ""
 	sortOrder := 5
 	isActive := true
 
@@ -378,6 +379,12 @@ func TestBuildOccupationUpdate(t *testing.T) {
 			name:  "Descriptionのみ設定",
 			input: &UpdateOccupationInput{Description: &description},
 			want:  map[string]any{colOccupationDescription: description},
+		},
+		{
+			// EMR-448: 職種の備考 "" は空で保存する（職種分類・予約 gate は変えない）。
+			name:  "Descriptionに空文字を設定すると空で書き込む",
+			input: &UpdateOccupationInput{Description: &emptyDescription},
+			want:  map[string]any{colOccupationDescription: ""},
 		},
 		{
 			name:  "SortOrderのみ設定",
