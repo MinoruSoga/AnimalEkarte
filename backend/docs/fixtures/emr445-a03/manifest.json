@@ -170,6 +170,105 @@
    "scenario": "非成功に refs を付加",
    "semantic_expectation": "不適合（非成功は refs/版を返さない）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-nil-operation-key.request.json",
+   "operationId": "initializeClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "operation_key が nil UUID",
+   "semantic_expectation": "400（非 zero 小文字 UUID）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-version-max.request.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursUpdateRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "expected_version が int64 上限",
+   "semantic_expectation": "schema 適合（CAS は現在版と照合）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-version-overflow.request.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "expected_version が int64 上限+1",
+   "semantic_expectation": "400（正規十進の上限超過）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-preview-set-unconfigured.request.json",
+   "operationId": "previewClinicCommonHolidayShifts",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayPreviewRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "common 行なしで set preview（expected_version null）",
+   "semantic_expectation": "read-only の初期化案内評価",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-preview-unconfigured.response.json",
+   "operationId": "previewClinicCommonHolidayShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "common 行なしの set preview 出力",
+   "semantic_expectation": "初期化が必要な prohibited・receipt なし（warning code 名はダミー）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-confirmation-required.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "休診追加で既存予約1件の確認が必要",
+   "semantic_expectation": "receipt を対応 write へ無変換で渡す。LINE 未設定日は line-unconfigured（intervals null）。code 名はダミー",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-unavailable-with-reservations.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "confirmation-unavailable なのに予約一覧を返す",
+   "semantic_expectation": "不適合（非開示を優先し全 null）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-unknown-status.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "影響予約 status に tentative",
+   "semantic_expectation": "不適合（時刻未定の次回予定は影響予約に含めない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-evaluated-null-intervals.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "evaluated なのに intervals null",
+   "semantic_expectation": "不適合（evaluated だけ配列、正常空は []）",
+   "verification": "NOT_RUN"
   }
  ]
 }

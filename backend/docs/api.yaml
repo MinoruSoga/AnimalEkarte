@@ -15352,22 +15352,22 @@ components:
       "description": "Storage PR759 §3.4 authoritative: SHA256 of RFC8785 JCS UTF8 bytes, not application snapshot/jsonb::text. Components retain order/duplicates. Exclude generated application/plan IDs, actor/time/edit session/epoch/CAS/display/total availability. UTF16 key sort, no Unicode normalization/BOM/newline, reject duplicate JSON keys/lone surrogate/invalid UTF8. Escape only JCS quote/backslash/control, slash unescaped; null/false/\"0\" distinct. Decimal string canonicalization exact, no binary64. Canonicalization version changes never invalidate old success receipt; old uncommitted token dependency-changed->explicit repreview."
     LineTimeDecimalId:
       type: string
-      pattern: '^[1-9][0-9]{0,18}$'
+      pattern: '^(?:[1-9][0-9]{0,17}|[1-8][0-9]{18}|9[0-1][0-9]{17}|92[0-1][0-9]{16}|922[0-2][0-9]{15}|9223[0-2][0-9]{14}|92233[0-6][0-9]{13}|922337[0-1][0-9]{12}|92233720[0-2][0-9]{10}|922337203[0-5][0-9]{9}|9223372036[0-7][0-9]{8}|92233720368[0-4][0-9]{7}|922337203685[0-3][0-9]{6}|9223372036854[0-6][0-9]{5}|92233720368547[0-6][0-9]{4}|922337203685477[0-4][0-9]{3}|9223372036854775[0-7][0-9]{2}|922337203685477580[0-6]|9223372036854775807)$'
       description: >-
         EMR-445 A02/A03 選定契約 §1 の正規十進文字列 ID/版（1..9223372036854775807、先頭0・符号・空白なし）。
-        19桁で 9223372036854775807 を超える値は 400。既存 API の ID 型は変更しない（新 subresource の wire だけ）。
+        pattern は 19桁の上限 9223372036854775807 までを桁ごとに表し、超過値は 400。既存 API の ID 型は変更しない（新 subresource の wire だけ）。
     LineTimeOperationKey:
       type: string
       format: uuid
-      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-      description: 既存 C06 と同じ非 zero 小文字 UUID の operation_key。
+      pattern: '^(?!00000000-0000-0000-0000-000000000000$)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      description: 既存 C06 と同じ非 zero 小文字 UUID の operation_key（nil UUID は pattern で拒否。CertificateOperationKey と同形）。
     ClinicTimeOfDayStart:
       type: string
       pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
       description: 共通医院時間の開始。JST の厳密 HH:MM（00:00..23:59）。
     ClinicTimeOfDayEnd:
       type: string
-      pattern: '^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$'
+      pattern: '^(00:(0[1-9]|[1-5][0-9])|(0[1-9]|1[0-9]|2[0-3]):[0-5][0-9]|24:00)$'
       description: >-
         共通医院時間の終了。厳密 HH:MM（00:01..24:00、00:00 は 400）。同日 start<end。区間は [開始,終了)。
         24:00 は専用 endpoint 変換で翌 JST 暦日 00:00 と解釈し、旧 HHMM parser へ 2400 を渡さない。
@@ -15464,13 +15464,17 @@ components:
           type: string
           enum: [configured, unconfigured]
         version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         settings:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/ClinicOperatingHoursSettings'
-          nullable: true
+            - type: object
+              nullable: true
+              enum: [null]
     ClinicOperatingHoursInitializeRequest:
       type: object
       additionalProperties: false
@@ -15546,9 +15550,11 @@ components:
           type: string
           enum: [configured, unconfigured]
         version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         closed_dates:
           type: array
           items:
@@ -15563,21 +15569,36 @@ components:
       description: >-
         §5.3 dates。1件以上・一意昇順の表示評価範囲だけを意味し、設定有効期間・警告対象の切取り・保存 command commitment に使わない。
     LineTimeWindow:
-      type: object
-      additionalProperties: false
-      required: [state, intervals]
       description: >-
         §5.3 Window。evaluated だけ intervals（正常空は []）、他 state は null。複数未設定は common→LINE の優先順で state を決める。
         不正 JSON・依存読取失敗は state に紛れ込ませず 503。区間表示は予約可能保証ではない。
+      oneOf:
+        - $ref: '#/components/schemas/LineTimeWindowEvaluated'
+        - $ref: '#/components/schemas/LineTimeWindowNotEvaluated'
+    LineTimeWindowEvaluated:
+      type: object
+      additionalProperties: false
+      required: [state, intervals]
       properties:
         state:
           type: string
-          enum: [evaluated, common-unconfigured, line-unconfigured, line-unreviewed]
+          enum: [evaluated]
+        intervals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicHoursInterval'
+    LineTimeWindowNotEvaluated:
+      type: object
+      additionalProperties: false
+      required: [state, intervals]
+      properties:
+        state:
+          type: string
+          enum: [common-unconfigured, line-unconfigured, line-unreviewed]
         intervals:
           type: array
           nullable: true
-          items:
-            $ref: '#/components/schemas/ClinicHoursInterval'
+          enum: [null]
     LineTimeWarning:
       type: object
       additionalProperties: false
@@ -15613,33 +15634,104 @@ components:
           format: date-time
         status:
           type: string
-          description: 既存予約 status enum の値。
+          enum: [confirmed, pending, cancelled, checked_in, in_consultation, accounting, completed, no_show]
+          description: >-
+            既存予約 status（backend/internal/model/reservation.go の const 8値）。tentative（次回予定）は時刻未定で影響予約の区間を持たないため含めない。
     LineTimeWarningCheck:
+      description: >-
+        §5.3 WarningCheck（state 別 exact）。clear=warnings []・affected []・receipt null。confirmation-required=confirmable を含む warnings・現在認可済みの影響予約・非空 opaque receipt。
+        prohibited=prohibited を1件以上含む warnings・影響予約・receipt null。confirmation-unavailable=全て null（予約 view 不足等。非開示を空集合/確認済みへ変換しない）。
+        「confirmable/prohibited を含む」は OpenAPI 3.0 で表せないため本文で固定する。既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
+      oneOf:
+        - $ref: '#/components/schemas/LineTimeWarningCheckClear'
+        - $ref: '#/components/schemas/LineTimeWarningCheckConfirmationRequired'
+        - $ref: '#/components/schemas/LineTimeWarningCheckProhibited'
+        - $ref: '#/components/schemas/LineTimeWarningCheckUnavailable'
+    LineTimeWarningCheckClear:
       type: object
       additionalProperties: false
       required: [state, warnings, affected_reservations, warning_receipt]
-      description: >-
-        §5.3 WarningCheck。clear=warnings []・affected []・receipt null。confirmation-required=confirmable を含む warnings・現在認可済みの影響予約・非空 opaque receipt。
-        prohibited=prohibited を1件以上含む warnings・影響予約・receipt null。confirmation-unavailable=全て null（予約 view 不足等。非開示を空集合/確認済みへ変換しない）。
-        既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
       properties:
         state:
           type: string
-          enum: [clear, confirmation-required, prohibited, confirmation-unavailable]
+          enum: [clear]
         warnings:
           type: array
-          nullable: true
+          maxItems: 0
           items:
             $ref: '#/components/schemas/LineTimeWarning'
         affected_reservations:
           type: array
-          nullable: true
+          maxItems: 0
           items:
             $ref: '#/components/schemas/LineTimeAppointmentRef'
         warning_receipt:
           type: string
           nullable: true
+          enum: [null]
+    LineTimeWarningCheckConfirmationRequired:
+      type: object
+      additionalProperties: false
+      required: [state, warnings, affected_reservations, warning_receipt]
+      properties:
+        state:
+          type: string
+          enum: [confirmation-required]
+        warnings:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/LineTimeWarning'
+          description: confirmable を含み prohibited を含まない。
+        affected_reservations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineTimeAppointmentRef'
+        warning_receipt:
+          type: string
           minLength: 1
+    LineTimeWarningCheckProhibited:
+      type: object
+      additionalProperties: false
+      required: [state, warnings, affected_reservations, warning_receipt]
+      properties:
+        state:
+          type: string
+          enum: [prohibited]
+        warnings:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/LineTimeWarning'
+          description: prohibited を1件以上含む。
+        affected_reservations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineTimeAppointmentRef'
+        warning_receipt:
+          type: string
+          nullable: true
+          enum: [null]
+    LineTimeWarningCheckUnavailable:
+      type: object
+      additionalProperties: false
+      required: [state, warnings, affected_reservations, warning_receipt]
+      properties:
+        state:
+          type: string
+          enum: [confirmation-unavailable]
+        warnings:
+          type: array
+          nullable: true
+          enum: [null]
+        affected_reservations:
+          type: array
+          nullable: true
+          enum: [null]
+        warning_receipt:
+          type: string
+          nullable: true
+          enum: [null]
     ClinicOperatingHoursPreviewInitialize:
       type: object
       additionalProperties: false
@@ -15687,13 +15779,17 @@ components:
       description: 実際に読んだ現在保存版。将来版・予測 committed 版は返さない。行なしは null。
       properties:
         clinic_operating_hours:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         line_acceptance:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
     ClinicOperatingHoursPreviewDay:
       type: object
       additionalProperties: false
@@ -15723,9 +15819,11 @@ components:
         observed_versions:
           $ref: '#/components/schemas/LineTimeObservedVersionsCommonLine'
         current_settings:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/ClinicOperatingHoursSettings'
-          nullable: true
+            - type: object
+              nullable: true
+              enum: [null]
         proposed_settings:
           $ref: '#/components/schemas/ClinicOperatingHoursSettings'
         days:
@@ -15743,9 +15841,11 @@ components:
           type: string
           enum: [set]
         expected_version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
           description: null は現在 common 行なしの場合だけ（初期化案内の read-only 評価）。write の version 必須条件は変えない。
         date:
           type: string
@@ -15761,9 +15861,11 @@ components:
           type: string
           enum: [unset]
         expected_version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         date:
           type: string
           format: date
@@ -15797,17 +15899,23 @@ components:
           type: string
           format: date
         observed_version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         current:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/ClinicClosedDate'
-          nullable: true
+            - type: object
+              nullable: true
+              enum: [null]
         proposed:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/ClinicClosedDate'
-          nullable: true
+            - type: object
+              nullable: true
+              enum: [null]
         warning_check:
           $ref: '#/components/schemas/LineTimeWarningCheck'
     ClinicOperatingHoursOperationSuccess:
