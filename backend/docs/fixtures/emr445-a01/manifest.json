@@ -40,6 +40,17 @@
    "verification": "NOT_RUN"
   },
   {
+   "file": "consultations.post-string.request.json",
+   "operationId": "createConsultation",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateConsultationRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
    "file": "consultations.patch-omitted.request.json",
    "operationId": "updateConsultation",
    "body_kind": "request",
@@ -146,6 +157,17 @@
    "http_status": null,
    "expected_schema": "invalid",
    "scenario": "POST null",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "examination-types.post-string.request.json",
+   "operationId": "createExaminationType",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateExaminationTypeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
    "semantic_expectation": "400、業務 write 0",
    "verification": "NOT_RUN"
   },
@@ -293,6 +315,17 @@
    "verification": "NOT_RUN"
   },
   {
+   "file": "procedures.post-string.request.json",
+   "operationId": "createProcedure",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateProcedureRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
    "file": "procedures.patch-omitted.request.json",
    "operationId": "updateProcedure",
    "body_kind": "request",
@@ -399,6 +432,17 @@
    "http_status": null,
    "expected_schema": "invalid",
    "scenario": "POST null",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "vaccines.post-string.request.json",
+   "operationId": "createVaccine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateVaccineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
    "semantic_expectation": "400、業務 write 0",
    "verification": "NOT_RUN"
   },
@@ -513,6 +557,17 @@
    "verification": "NOT_RUN"
   },
   {
+   "file": "checkup-types.post-string.request.json",
+   "operationId": "createCheckupType",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateCheckupTypeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
    "file": "checkup-types.patch-omitted.request.json",
    "operationId": "updateCheckupType",
    "body_kind": "request",
@@ -619,6 +674,17 @@
    "http_status": null,
    "expected_schema": "invalid",
    "scenario": "POST null",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "medicines.post-string.request.json",
+   "operationId": "createMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
    "semantic_expectation": "400、業務 write 0",
    "verification": "NOT_RUN"
   },
@@ -762,6 +828,17 @@
    "http_status": null,
    "expected_schema": "invalid",
    "scenario": "POST null",
+   "semantic_expectation": "400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "merchandise-items.post-string.request.json",
+   "operationId": "createMerchandiseItem",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/CreateMerchandiseItemRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "POST 非 boolean（文字列）",
    "semantic_expectation": "400、業務 write 0",
    "verification": "NOT_RUN"
   },
