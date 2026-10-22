@@ -8,13 +8,21 @@
 
 固定mainでは、`line_reservation_settings`の既存全量PUTと、医院＋予約区分単位の`reservation_type_available_slots`が存在する。後者にstaff/assignment scopeはない。`clinic_holidays`はshifts/closingの二入口で保存され、レジと予約双方のconsumerが参照する。これらの存在は共通医院時間・担当者別設定が完成した証拠ではない。492の既選定契約は従来LINE開始枠を拡張しないため、本稿が限定追加を選ぶ。
 
-業務正本は[D17共通基準](../../spec/domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)、[LINE分類別開始時刻](../../spec/line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)、警告/現在認可は[予約技術仕様§6.1](../../design/domains/reservations/technical-spec.md)、C06は[共有操作参加/Q](../../design/shared/operation-participation.md#verified-command-selected-20261021)と[492契約](emr-490-492-selected-wire-contract-20261021.md)を再利用する。実装に仕様を縮小しない。
+業務正本は[D17共通基準](../../spec/domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)、[LINE分類別開始時刻](../../spec/line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)、警告/現在認可は[予約技術仕様§4.5/4.7](../../design/domains/reservations/technical-spec.md)、C06は[共有操作参加/Q](../../design/shared/operation-participation.md#verified-command-selected-20261021)と[492契約](emr-490-492-selected-wire-contract-20261021.md)を再利用する。実装に仕様を縮小しない。
 
 ## 1. 共通wire・現在認可・時間境界
 
 以下のpathは実prefix `/api/v1` を除く。新subresourceのID/版は正規十進文字列 `1..9223372036854775807`、operation_keyは既存非zero小文字UUID。既存APIの全ID型を変更しない。全DTOをclosedとし、未知/重複key、不正UTF-8、複数JSON値を拒否する。全read/preview/結果照会はno-store、previewはread-onlyでclaim0/write0。医院/actorは認証contextとURL/元対象の一致を検査し、bodyから採用しない。
 
 共通医院時間はJST暦日・厳密HH:MM。startは00:00..23:59、endは00:01..24:00、同日start<end、通常区間は[開始,終了)。通常予約の予定区間終了=閉店は可。日跨ぎは隣接曜日/日の2区間を明示入力し、片側から自動生成しない。24:00は専用endpoint変換で翌JST暦日00:00へ解釈し、旧HHMM parserへ2400を無変換で渡さず、レジ営業日に付替えない。日別特別営業時間・業務有効期間・RRULEは追加しない。
+
+### 1.1 限定receipt lookupの現在認可
+
+[予約technical-spec§4.7 getReservationOperation](../../design/domains/reservations/technical-spec.md)に従い、元bindingの同clinic・actor_kind/actor_id・intent・immutable targetに対する**元write action**を現在再検査する。初回write、同key再送、replay、unknown/失敗後lookupで同familyのAuthorizerを用いる。各familyのactionは§2.2/§3.2/§4.2の表に固定する。grantのcanonical表記はmodel/permission.goの`hospital-settings`であり、owner_kindの命名は変えない。
+
+viewとのOR、writeからviewの推定付与、全writeへの追加view必須化をしない。元scope/actor/target不一致・非開示は既存404、scope成立後の現在必要grant失権は既存403等、共有C06の既存判定順序を維持し、refs/版を返さない。全拒否を一律403へ変更しない。欠落anchor/曖昧な元対象は共有C06の既存非開示判定を維持し、incoming targetで補修しない。同scopeの現在grant/所属失効は403として扱い、未認可のまま存在情報や詳細な版競合を返さない。本文GET/previewとstaff selectorのview/追加条件は別に維持し、closingの旧本文readにある追加shifts:viewを限定lookupへ機械転記しない。
+
+lookupは限定refs/版だけで、設定本文・氏名・予約一覧を返さない。write-only roleも同じactionの限定結果を照会できるが、preview/予約警告確認に必要なviewがなければその確認を成立させない。
 
 ## 2. A03 共通医院時間aggregate
 
@@ -34,25 +42,25 @@ Settings exact=`{weekly_hours,closed_dates,national_holiday_closed}`。
 
 | method/path | request・意味 | 現在権限 |
 |---|---|---|
-| GET /clinics/{clinic_id}/operating-hours | exact=`{schema_version,clinic_id,state,version,settings}`。state=configured/unconfigured。configuredは版/Settings必須、unconfiguredは版/Settings null | 現在医院所属＋hospital_settings:view |
-| POST /clinics/{clinic_id}/operating-hours | initialize。exact=`{operation_key,settings,warning_receipt?}`、行不在要求 | hospital_settings:edit |
-| PATCH /clinics/{clinic_id}/operating-hours | update。exact=`{operation_key,expected_version,changes,warning_receipt?}`。changesはSettingsの1field以上 | hospital_settings:edit |
-| POST /clinics/{clinic_id}/operating-hours/preview | mode=initialize/update、対応settings/changesとexpected_version（initializeはnull、updateは正版）。同じ設定/警告計算のread-only照会 | hospital_settings:view、元医院所属 |
+| GET /clinics/{clinic_id}/operating-hours | exact=`{schema_version,clinic_id,state,version,settings}`。state=configured/unconfigured。configuredは版/Settings必須、unconfiguredは版/Settings null | 現在医院所属＋hospital-settings:view |
+| POST /clinics/{clinic_id}/operating-hours | initialize。exact=`{operation_key,settings,warning_receipt?}`、行不在要求 | hospital-settings:edit |
+| PATCH /clinics/{clinic_id}/operating-hours | update。exact=`{operation_key,expected_version,changes,warning_receipt?}`。changesはSettingsの1field以上 | hospital-settings:edit |
+| POST /clinics/{clinic_id}/operating-hours/preview | §5.4のmode別closed入力/出力でread-only設定/警告照会 | hospital-settings:view、元医院所属 |
 
 障害503をunconfiguredへ変換しない。初回commonはclinic行lockとPK uniqueで別keyの初期化競合を閉じる。更新/no-opとも現在認可とCASを検査し、真の変更時だけ版を一回増分する。
 
 owner_kind=`clinic`。intentsは次の6個だけ。lookupの短名を一意にmapする。
 
-| lookup短名 | intent | 原familyの現在view |
+| lookup短名 | intent | 現在再検査する元write action |
 |---|---|---|
-| initialize | clinic.operating-hours.initialize | hospital_settings:view |
-| update | clinic.operating-hours.update | hospital_settings:view |
-| holiday-set-from-shifts | clinic.operating-hours.holiday-set-from-shifts | shifts:view |
-| holiday-unset-from-shifts | clinic.operating-hours.holiday-unset-from-shifts | shifts:view |
-| holiday-set-from-closing | clinic.operating-hours.holiday-set-from-closing | closing-settings:view＋既存shared handlerの追加条件 |
-| holiday-unset-from-closing | clinic.operating-hours.holiday-unset-from-closing | closing-settings:view＋既存shared handlerの追加条件 |
+| initialize | clinic.operating-hours.initialize | hospital-settings:edit |
+| update | clinic.operating-hours.update | hospital-settings:edit |
+| holiday-set-from-shifts | clinic.operating-hours.holiday-set-from-shifts | shifts:create |
+| holiday-unset-from-shifts | clinic.operating-hours.holiday-unset-from-shifts | shifts:delete |
+| holiday-set-from-closing | clinic.operating-hours.holiday-set-from-closing | closing-settings:create |
+| holiday-unset-from-closing | clinic.operating-hours.holiday-unset-from-closing | closing-settings:delete |
 
-GET `/clinics/{clinic_id}/operating-hours/operations/{operation_key}?intent=<短名>` は元familyの現在viewと元clinic/actor/targetを確認するC06照会。別intentへ変えて別権限で元結果を読まない。success refs=`{clinic_id}`、versions=`{clinic_operating_hours}`。新familyの共有registry/API/lookup allowlistは446/489の必要subsetとして受領し、収録済みとしない。
+GET `/clinics/{clinic_id}/operating-hours/operations/{operation_key}?intent=<短名>` は§1.1の元family Authorizerで現在の元write actionと元clinic/actor/targetを確認する限定C06照会。別intentへ変えて別権限で元結果を読まない。success refs=`{clinic_id}`、versions=`{clinic_operating_hours}`。新familyの共有registry/API/lookup allowlistは446/489の必要subsetとして受領し、収録済みとしない。
 
 ### 2.3 個別休診の権限限定adapter
 
@@ -61,13 +69,13 @@ GET `/clinics/{clinic_id}/operating-hours/operations/{operation_key}?intent=<短
 | POST /clinic-holidays/common | set exact=`{operation_key,expected_version,date,reason,warning_receipt?}` | shifts:create |
 | DELETE /clinic-holidays/common/{date} | unset exact=`{operation_key,expected_version}` | shifts:delete |
 | GET /clinic-holidays/common?year_month=YYYY-MM | 月内holidayだけ＋common版、全営業時間は返さない | shifts:view |
-| POST /clinic-holidays/common/preview | set/unsetのaction・対象日・期待版、set時reasonのread-only確認 | shifts:view |
+| POST /clinic-holidays/common/preview | §5.5のset/unset別closed入力/出力でread-only確認 | shifts:view |
 | POST /closing-settings/holidays/common | 上記setと同shape | closing-settings:create |
 | DELETE /closing-settings/holidays/common/{date} | 上記unsetと同shape | closing-settings:delete |
 | GET /closing-settings/holidays/common?year_month=YYYY-MM | 月内holidayだけ＋common版 | closing-settings:view＋現shared handlerのshifts:view条件 |
-| POST /closing-settings/holidays/common/preview | 上記と同じ限定preview | closing-settings:view＋現shared handlerのshifts:view条件 |
+| POST /closing-settings/holidays/common/preview | §5.5と同じ限定preview | closing-settings:view＋現shared handlerのshifts:view条件 |
 
-日付限定actionをserviceへも渡し、各権限の一律ORで全営業時間/曜日/祝日方針を書けるようにしない。common未設定なら初期化へ案内し、他fieldを生成しない。同日同理由set/既にない日unsetは現在CAS検査後no-op、同日異理由setは拒否し無言upsertしない。closing側の既存追加shifts:view条件は権限棚卸しなしに除去しない。新しいgrantは作らない。
+日付限定actionをserviceへも渡し、各権限の一律ORで全営業時間/曜日/祝日方針を書けるようにしない。common未設定なら初期化へ案内し、他fieldを生成しない。同日同理由set/既にない日unsetは現在CAS検査後no-op、同日異理由setは拒否し無言upsertしない。closing側の旧本文read/previewの既存追加shifts:view条件は権限棚卸しなしに除去せず、限定receipt lookupへは機械転記しない。新しいgrantは作らない。
 
 ### 2.4 旧休日とレジを巻き込まない切替
 
@@ -93,7 +101,7 @@ min<=max、壊れたJSONにdefaultを入れない。business_hours_by_weekdayの
 
 ### 3.2 APIと状態
 
-以下のbaseは `/clinics/{clinic_id}/line-reservation-settings/acceptance`。現在hospital_settings:view/editと現在医院所属を使う。
+以下のbaseは `/clinics/{clinic_id}/line-reservation-settings/acceptance`。現在hospital-settings:view/editと現在医院所属を使う。
 
 | method/path | closed入力/出力 |
 |---|---|
@@ -101,10 +109,10 @@ min<=max、壊れたJSONにdefaultを入れない。business_hours_by_weekdayの
 | POST base | initialize。line行なし、exact=`{operation_key,expected_common_version,settings}`、settingsはP全field明示 |
 | POST base/confirm | 旧未照合から確認。exact=`{operation_key,expected_acceptance_version,expected_common_version,settings}`、P全field明示 |
 | PATCH base | configuredのみ。exact=`{operation_key,expected_acceptance_version,expected_common_version,changes}`、Pの1field以上 |
-| POST base/preview | initialize/confirm/updateのmode、対応期待版とsettings/changes。read-onlyで共通との包含/実効集合を確認 |
-| GET base/operations/{operation_key}?intent=initialize\|confirm\|update | 元clinic/actorと現在viewを検査し、下記の固定intentへmapするC06結果 |
+| POST base/preview | §5.6のmode別closed入力/出力でread-only包含/実効集合を確認 |
+| GET base/operations/{operation_key}?intent=initialize\|confirm\|update | 元clinic/actor/targetと現在hospital-settings:editを§1.1で検査し、下記の固定intentへmapする限定C06結果 |
 
-writeはedit、GET/preview/lookupはview。owner_kind=`reservation`、intents=`line-acceptance.initialize/confirm/update`。success refs=`{clinic_id}`、versions=`{line_acceptance,clinic_operating_hours}`。common版は検査した版であり共通更新を意味しない。common未設定のまま受付確認/新設定を有効化せず、初期化へ案内する。保存値を成功receiptへ混ぜずGETで再取得する。
+writeとその限定lookupはhospital-settings:edit、通常本文GET/previewはhospital-settings:view。owner_kind=`reservation`、intents=`line-acceptance.initialize/confirm/update`。success refs=`{clinic_id}`、versions=`{line_acceptance,clinic_operating_hours}`。common版は検査した版であり共通更新を意味しない。common未設定のまま受付確認/新設定を有効化せず、初期化へ案内する。保存値を成功receiptへ混ぜずGETで再取得する。
 
 ### 3.3 内側制限・旧writer閉包
 
@@ -131,8 +139,8 @@ base=`/masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy`�
 | GET base | exact=`{schema_version,clinic_id,reservation_type_id,staff_id,assignment_id,state,version,policy,deleted_at}` | master-reservation-type:view |
 | PUT base | exact=`{operation_key,mode,expected_version,expected_assignment_id,policy}`、mode=create/replace/reconfigure | master-reservation-type:edit |
 | DELETE base | exact=`{operation_key,expected_version,expected_assignment_id}` | master-reservation-type:delete |
-| POST base/preview | mode/期待版/assignment/policy（delete以外）/明示dates、read-only | master-reservation-type:view |
-| GET /line-start-policy-operations/{operation_key}?intent=create\|replace\|reconfigure\|delete | 元scope/actor/assignmentの現在view、厳密intent mapでC06結果照会 | master-reservation-type:view |
+| POST base/preview | §5.7のmode別closed入力/出力、read-only | master-reservation-type:view |
+| GET /line-start-policy-operations/{operation_key}?intent=create\|replace\|reconfigure\|delete | 元scope/actor/assignmentと元write actionを§1.1で検査し、厳密intent mapで限定C06結果照会 | create/replace/reconfigureはmaster-reservation-type:edit、deleteは同:delete |
 
 GET state=unconfiguredはversion/policy/deleted_at null、configuredは版/Policy必須・deleted_at null、deletedは現版/削除時刻/保存Policyを管理用に返す。現在の元所属を認可不能なら非開示。予約可能booleanを返さず、staff selectorは既存staff readerの現在認可を維持し、読めない氏名を新projectionで漏らさない。
 
@@ -142,7 +150,7 @@ owner_kind=`reservation`、intents=`line-start-policy.create/replace/reconfigure
 
 成功result_refsのexact key集合は`{clinic_id,reservation_type_id,staff_id,assignment_id}`、committed_versionsは`{line_staff_start_policy}`とし、値はすべて§1の正規十進文字列。create/replace/reconfigure/deleteとも同じ集合でpolicyの実保存版を記録する。DELETEはtombstoneの実保存版、no-opは現在CASを通過した保存版を返す。replayは元receiptのrefs/版を返し現在版へ置換しない。複合PKなので架空のpolicy_idを作らない。共通flat ResultResponseは変更せず、非成功にこれらの成功fieldを付加しない。
 
-previewは設定上の登録集合、common/LINEでmaskした集合と各版を返す。勤務/休業/能力/競合は未評価と明示し、保存保証/予約可能tokenを返さない。
+§5.7のpreviewは設定上の登録集合、common/LINEでmaskした集合と実読取した現在版を返す。勤務/休業/能力/競合は未評価と明示し、保存保証/予約可能tokenを返さない。
 
 ### 4.3 未成功lookupの原assignment
 
@@ -164,11 +172,111 @@ incoming targetで原anchorを補修しない。元assignmentの現在認可不�
 
 ### 5.2 既存warning proof
 
-予約technical-spec§6.1のcode/severity/fields/dependency_revision/opaque warning_receiptを再利用し、C06成功receiptと分ける。common previewは現在設定・提案・実効LINE差分・影響既存予約をread-only計算する。休診追加は既存予約一覧を警告し、確認すれば保存可。全予約解消を条件にせず、予約/勤務/記録を連鎖変更しない。
+予約technical-spec§4.5/4.7のcode/severity/fields/dependency_revision/opaque warning_receiptを再利用し、C06成功receiptと分ける。common previewは現在設定・提案・実効LINE差分・影響既存予約をread-only計算する。休診追加は既存予約一覧を警告し、確認すれば保存可。全予約解消を条件にせず、予約/勤務/記録を連鎖変更しない。
 
 予約一覧は現在reservations:viewの開示範囲だけ。権限不足は内容を漏らさず確認不能、取得不調も確認済みにしない。取消はwrite APIを呼ばずclaim0/write0。LINE側へ警告overrideは設けない。
 
 proofを医院/actor/family/target/command commitment/common版/必要LINE版/影響予約ID・版・日時・状態の正規集合へ結ぶ。既存warning証明adapterを再利用し、新registryを作らない。保存時は同じ関数で再評価し、対象集合変更は409で再preview/再確認、CAS違いも409、現在失権は拒否。warning受領が現在server検査を免除することはない。
+
+### 5.3 previewの共通closed型
+
+§5.3–5.8は今回選定する具体wireで、既存APIに収録済みではない。既存表のpreviewはこの定義を参照する。operation_keyを受けずclaim/writeなし。全objectはexact key集合で、明示optional以外は必須、nullは以下で許した箇所だけ。ID/Versionは§1の正規十進文字列、Dateは厳密Gregorian YYYY-MM-DD、Timeは§1のHH:MM、Instantはoffset付きRFC3339。datesは1件以上・一意昇順のDate配列で、表示評価範囲だけを意味する。設定有効期間や警告対象の切取りに使わず、保存command commitmentへ混ぜない。
+
+| 型 | exact shape・意味 |
+|---|---|
+| Interval | `{start:Time,end:Time}` |
+| Window | `{state,intervals}`。state=`evaluated/common-unconfigured/line-unconfigured/line-unreviewed`。evaluatedだけintervals:Interval[]（正常空は[]）、他はnull。不正JSON/依存読取失敗はstateへ紛れ込ませず503 |
+| Warning | `{code:string,severity,fields:string[],dependency_revision:string}`。severity=`confirmable/prohibited`。既存警告adapterのreason/対象field/opaque根拠を使い、severityの具体wire名を本稿で選ぶ。患者projection/生依存値は追加せず、opaque dependency_revisionを架空の保存versionにしない |
+| AppointmentRef | `{appointment_id:ID,version:Version,start_time:Instant,end_time:Instant,status}`。statusは既存予約status enum。氏名/飼主/本文なし |
+| WarningCheck | `{state,warnings,affected_reservations,warning_receipt}`。以下のstate別条件を満たす |
+
+| WarningCheck.state | warnings | affected_reservations | warning_receipt |
+|---|---|---|---|
+| clear | [] | [] | null |
+| confirmation-required | confirmable警告を含むWarning[] | 現在認可済みの影響予約AppointmentRef[] | 非空opaque文字列 |
+| prohibited | 少なくとも1件prohibitedを含むWarning[] | 現在認可済みの影響予約AppointmentRef[] | null |
+| confirmation-unavailable | null | null | null |
+
+予約view不足等で警告確認不能ならconfirmation-unavailableを優先し、非認可の予約一覧をprohibited内でも返さない。非開示を空集合/確認済みへ変換しない。読取/評価障害は503。既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず503とする。Windowの複数未設定時はcommon→LINEの優先順（common-unconfigured、次にline-unconfigured/line-unreviewed）でstateを決める。MaskedStartsはpolicy→common→LINE（policy-unconfigured/policy-deletedを先行）の順。依存読取エラーはこれらのどの正常stateへも変換せず503。Windowの区間表示は予約可能保証でなく、ホテル点境界は§6を維持する。
+
+### 5.4 common preview
+
+POST `/clinics/{clinic_id}/operating-hours/preview` の入力はmode別exact：
+
+- initialize：`{mode:"initialize",expected_version:null,settings:Settings,dates}`。
+- update：`{mode:"update",expected_version:Version,changes,dates}`。changesはSettingsの1field以上、集合は全置換。
+
+出力exact=`{schema_version:"clinic-operating-hours-preview/v1",clinic_id,mode,observed_versions,current_settings,proposed_settings,days,warning_check}`。
+
+- observed_versions exact=`{clinic_operating_hours:Version|null,line_acceptance:Version|null}`。
+- current_settingsは現在Settings又は行なしnull、proposed_settingsは変更合成済みSettings。
+- daysは要求dates順のexact `{date:Date,current:Window,proposed:Window}` 配列で、現在/提案の実効LINE範囲の差を示す。
+- warning_checkはWarningCheck。警告計算を表示datesだけへ限定しない。
+
+### 5.5 holiday preview（二namespace共通）
+
+POST `/clinic-holidays/common/preview` とPOST `/closing-settings/holidays/common/preview` の入力はaction別exact：
+
+- set：`{action:"set",expected_version:Version|null,date:Date,reason:string}`。
+- unset：`{action:"unset",expected_version:Version|null,date:Date}`。
+
+expected_version=nullは現在common行なしの場合だけで、初期化案内のread-only評価。writeのVersion必須条件は変えない。
+
+出力exact=`{schema_version:"clinic-holiday-preview/v1",clinic_id,action,date,observed_version,current,proposed,warning_check}`。observed_versionはcommon Version又は行なしnull。current/proposedはexact `{date:Date,reason:string}` 又は該当日なしnull。setは提案1日、unsetはproposed=null。warning_checkはWarningCheck。全Settings/LINE設定/他の日付は返さない。
+
+common行なしは初期化が必要なprohibitedでreceiptなし（現在予約情報の非開示が必要ならconfirmation-unavailableを優先）。解除に新たな休診追加警告を作らず、警告なしはreceipt null。
+
+### 5.6 acceptance preview
+
+POST `/clinics/{clinic_id}/line-reservation-settings/acceptance/preview` の入力はmode別exact：
+
+- initialize：`{mode:"initialize",expected_acceptance_version:null,expected_common_version:Version|null,settings:P,dates}`。
+- confirm：`{mode:"confirm",expected_acceptance_version:Version,expected_common_version:Version|null,settings:P,dates}`。
+- update：`{mode:"update",expected_acceptance_version:Version,expected_common_version:Version|null,changes,dates}`。changesはPの1field以上。
+
+common期待版nullは現在未設定を明示し、受付利用可能にしない。
+
+出力exact=`{schema_version:"line-acceptance-preview/v1",clinic_id,mode,current_state,observed_versions,current_settings,proposed_settings,days,validation,warning_receipt}`。
+
+- current_state=`unconfigured/legacy-unreviewed/configured`。
+- observed_versions exact=`{clinic_operating_hours:Version|null,line_acceptance:Version|null}`。
+- current_settingsは検証可能な現P又は行なしnull、proposed_settingsはchanges合成後の全P。
+- daysは要求dates順のexact `{date:Date,current:Window,proposed:Window}` 配列。
+- validation exact=`{state,warnings}`。state=validならwarnings=[]、state=prohibitedなら少なくとも1件prohibitedを含むWarning[]。common未設定/包含不成立はprohibited。
+- warning_receiptは常にnull、LINE overrideなし。
+
+提案側は仮にconfirm/updateした場合の計算結果で、保存済み確認状態/版へ昇格しない。包含検証を表示datesだけへ縮小しない。
+
+### 5.7 staff policy preview
+
+POST `/masters/reservation-types/{type_id}/staffs/{staff_id}/line-start-policy/preview` の入力はcreate/replace/reconfigureでexact `{mode,expected_version,expected_assignment_id,dates,policy:Policy}`、deleteでexact `{mode:"delete",expected_version:Version,expected_assignment_id,dates}`（policyキーなし）。createだけexpected_version=null、他はVersion。expected_assignment_idは必須ID。現在状態/期待版/assignment不一致は409。
+
+出力exact=`{schema_version:"trimming-registered-starts-preview/v1",clinic_id,reservation_type_id,staff_id,assignment_id,mode,current_state,observed_versions,proposed_policy,days,reservation_eligibility,warning_receipt}`。
+
+- current_state=`unconfigured/configured/deleted`。
+- observed_versions exact=`{line_staff_start_policy:Version|null,clinic_operating_hours:Version|null,line_acceptance:Version|null}`。policy版はunconfiguredだけnull、deletedはtombstone現版。
+- proposed_policyはdeleteだけnull、他はPolicy。
+- daysは要求dates順のexact `{date:Date,current_registered_times,proposed_registered_times,current_masked,proposed_masked}` 配列。registered_timesはTime[]、未設定/削除はnull、明示当日0件は[]。
+- MaskedStarts exact=`{state,times}`。state=`evaluated/policy-unconfigured/policy-deleted/common-unconfigured/line-unconfigured/line-unreviewed`。evaluatedだけtimes:Time[]（正常空は[]）、他null。current_masked/proposed_maskedはこの型。
+- reservation_eligibilityは固定`"not-evaluated"`、warning_receipt固定null。
+
+勤務/休業/能力/競合、予約可能token、生の共通/LINE設定、氏名を追加しない。削除提案から予約可能状態を推測しない。
+
+### 5.8 HTTP・現在版・warning受渡し
+
+全observed版は実際に読んだ現在保存版。proposed_version/予測committed_versionsを返さず、no-opでも将来版を計算しない。current/proposedのnullは各型で明記した未設定/削除/該当日なしだけ、依存失敗/破損は503とする。
+
+| HTTP | previewの判定 |
+|---|---|
+| 200 | 完全評価（定義した未設定/未照合/非開示stateを含む） |
+| 400 | strict入力拒否 |
+| 401/403/404 | 現在認証・route認可・元scopeの既存区別 |
+| 409 | 期待版/assignment/状態競合 |
+| 503 | 依存読取/計算不能 |
+
+errorは既存ErrorResponseで、C06 ResultResponseをpreviewへ転用しない。独自C06 status/警告registryを追加せず、§5.2の意味/proofを維持する。
+
+common initialize/update又はholiday setのconfirmation-required時だけ、利用者が了承したwarning_check.warning_receiptを対応writeのwarning_receiptへ無変換で渡す。取消はwriteなし。receiptをactor/clinic/family/target/command/期待版/依存根拠/警告対象集合へ束縛し、表示datesを保存command/proofの業務対象範囲へ追加しない。入力/scope/版/警告根拠変化で破棄して再preview、write側でも§5.2で再評価する。confirmation-unavailable/prohibitedでreceiptを発行しない。LINE/staff previewはreceipt常時nullでwriteへ新warning fieldを増やさない。
 
 ## 6. ホテルの閉店点時刻（本人承認）
 
@@ -194,6 +302,9 @@ A02/A03の技術選定は本稿で閉じる。実医院値/移行元確認、後
 
 ## 8. fixture（すべてNOT_RUN）
 
+- write-only roleが同一元actionで限定lookup可能、現在失権/異actor/異intent/異targetの既存403/404非開示、viewとのORなし/本文viewの推定付与なし。closing追加read条件をlookupへ転記しない。
+- 全previewの正常/未設定/未照合/正常空/不正JSON/依存失敗/権限不足、全modeのclosed key/required nullable、現在版のみ・未来版予測なし。表示dates外の警告対象も全評価し、予算不足の部分成功なし。
+- warning receipt無変換受渡し/取消write0、根拠変更で再preview、表示datesで対象を切取らない、非開示優先のconfirmation-unavailable、LINE/staff receipt常時null。
 - common未設定/正常空/週次複数区間/休日/祝日方針、24:00・日跨ぎ明示2区間、旧LINE HHMM adapter、JSON破損/取得失敗の非補完。
 - initialize同時競合、update CAS/no-op、holiday二namespaceのaction限定・同日同理由/異理由・元family lookup、無権限/別院非開示、audit/receipt失敗の全rollback。
 - 共通縮小mask/拡大時LINE保持、既存LINE未照合→confirm、P更新版/非P不増分、秘密非投影、旧全量PUT停止/非P救済経路、未切替医院保持、旧P writer迂回拒否。
@@ -218,3 +329,5 @@ A02/A03の技術選定は本稿で閉じる。実医院値/移行元確認、後
 - [旧shift休日route](https://github.com/MinoruSoga/AnimalEkarte/blob/9eef73feac19c25571724372b0b19da160ba5cfb/backend/internal/clinic/clinic_holiday_handler.go#L94)
 - [旧closing休日route](https://github.com/MinoruSoga/AnimalEkarte/blob/9eef73feac19c25571724372b0b19da160ba5cfb/backend/internal/clinic/closing_settings_handler.go#L151)
 - [元target metadataの既選定](https://github.com/MinoruSoga/AnimalEkarte/blob/9eef73feac19c25571724372b0b19da160ba5cfb/docs/work/emr/emr-490-492-selected-wire-contract-20261021.md#L115)
+
+結果照会の認可追補根拠：[採用契約151e556・getReservationOperation](https://github.com/MinoruSoga/AnimalEkarte/blob/151e556cfc75154882fcd2026021ebbe379d6a11/docs/design/domains/reservations/technical-spec.md#L273)、[canonical hospital-settings grant](https://github.com/MinoruSoga/AnimalEkarte/blob/151e556cfc75154882fcd2026021ebbe379d6a11/backend/internal/model/permission.go#L21)。これは元調査基準9eefの置換ではない。preview具体wireは今回選定、API収録/実装・試験未完。
