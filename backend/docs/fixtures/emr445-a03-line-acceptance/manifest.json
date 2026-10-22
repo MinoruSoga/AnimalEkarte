@@ -236,6 +236,50 @@
    "scenario": "acceptance_version が int64 上限超過",
    "semantic_expectation": "不適合（正規十進の上限）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-configured-without-settings.response.json",
+   "operationId": "getLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptanceResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "configured なのに版・設定が null",
+   "semantic_expectation": "不適合（configured は版・P 必須）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-unconfigured-with-version.response.json",
+   "operationId": "getLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptanceResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "unconfigured なのに版あり",
+   "semantic_expectation": "不適合（unconfigured は版・設定 null）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-prohibited-only-confirmable.response.json",
+   "operationId": "previewLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptancePreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "validation prohibited なのに警告が全件 confirmable",
+   "semantic_expectation": "不適合（prohibited を1件以上含む）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-mode-state-mismatch.response.json",
+   "operationId": "previewLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptancePreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "mode confirm なのに current_state configured",
+   "semantic_expectation": "不適合（200 は mode と現在状態が一致したときだけ、不一致は 409）",
+   "verification": "NOT_RUN"
   }
  ]
 }
