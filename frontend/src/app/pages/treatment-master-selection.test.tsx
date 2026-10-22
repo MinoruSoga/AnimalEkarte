@@ -51,6 +51,8 @@ describe("clinical selection follows the adopted master contract", () => {
       price: 123,
       is_active: true,
       parent_id: 1,
+      // 薬剤 wire は tax_rate を必須で受ける（EMR-447/527）。他 master の transform は無視する。
+      tax_rate: "0.1",
       ...(adopted ? { version: 3, is_non_insurance: setting } : {}),
     };
     vi.mocked(axios.get).mockImplementation(async (url) => ({

@@ -932,6 +932,7 @@ describe("useCopyTreatmentDetails", () => {
               name: "X",
               price: 3307,
               is_active: false,
+              tax_rate: "0.1",
             },
           ],
         });

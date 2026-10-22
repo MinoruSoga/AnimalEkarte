@@ -151,14 +151,18 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				return &model.Medicine{ID: 63, CalculationType: model.MedicineCalculationTypeNone}, nil
 			},
 		}
-		svc := medicineServiceWithAudit(repo, &mockTreatmentAuditTxLogger{})
+		audit := &mockTreatmentAuditTxLogger{}
+		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Update(context.Background(), clinicID, 63, &UpdateMedicineInput{
 			CalculationType: strptr("none"), ClearStrength: true,
 		})
 		require.NoError(t, err)
+		require.NotNil(t, got.CalculationType)
+		assert.Equal(t, "none", *got.CalculationType)
 		assert.True(t, got.ClearStrength)
 		assert.Nil(t, got.Strength)
+		assert.Empty(t, audit.entries, "per_weight 有効化ではないため監査しない")
 	})
 
 	// BE-refactor.md R1-2: per_weight 有効化監査（LogEntryTx）が失敗すると Update 全体が失敗する

@@ -89,7 +89,7 @@ function renderBody(onSave: () => boolean) {
   };
 }
 
-// SPEC-QA-20261022-447-STRENGTH-CLEAR（EMR-447 Q4）受入 fixture ①⑥。
+// SPEC-QA-20261022-447-STRENGTH-CLEAR（EMR-447 Q4）受入 fixture ①④⑥。
 describe("MedicineSidePanelBody 製品含量の保存前検証 (EMR-447 Q4)", () => {
   it("① per_weight の含量を空にして保存すると欄に理由を出し、送信せず入力を保持する", async () => {
     const user = userEvent.setup();
@@ -123,6 +123,24 @@ describe("MedicineSidePanelBody 製品含量の保存前検証 (EMR-447 Q4)", ()
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ strength: "60" }));
+  });
+
+  it("④ 含量を消して手動→体重換算へ戻すと削除前の値を復元せず、保存を止める", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(() => true);
+    const { strength, save } = renderBody(onSave);
+
+    await user.clear(strength);
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: "手動" }));
+    expect(screen.queryByLabelText("製品含量(mg/単位)")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: "体重換算(mg/kg)" }));
+
+    expect(screen.getByLabelText("製品含量(mg/単位)")).toHaveValue(null);
+    await user.click(save);
+    expect(await screen.findByRole("alert")).toHaveTextContent(MEDICINE_STRENGTH_REQUIRED_MESSAGE);
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("⑥ 保存に失敗しても入力した含量を保持する", async () => {
