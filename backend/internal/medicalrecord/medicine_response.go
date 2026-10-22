@@ -8,6 +8,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// medicineResponse の default_quantity / tax_rate / strength は保存値の canonical decimal 文字列（EMR-447）。
+// default_quantity の SQL NULL は null、strength の NULL は省略（既存 omitempty）。
 type medicineResponse struct {
 	ID              uint64  `json:"id"`
 	ClinicID        uint64  `json:"clinic_id"`
@@ -19,8 +21,6 @@ type medicineResponse struct {
 	DosageForm      *string `json:"dosage_form,omitempty"`
 	MedicineUnit    *string `json:"medicine_unit,omitempty"`
 	InventoryID     *uint64 `json:"inventory_id,omitempty"`
-	// EMR-447: default_quantity / tax_rate / strength は保存値の canonical decimal 文字列。
-	// default_quantity の SQL NULL は null、strength の NULL は省略（既存 omitempty）。
 	DefaultQuantity *string `json:"default_quantity"`
 	TaxType         string  `json:"tax_type"`
 	TaxRate         string  `json:"tax_rate"`
