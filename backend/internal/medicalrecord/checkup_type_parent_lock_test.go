@@ -132,7 +132,7 @@ func TestCheckupTypeParentLock_DeleteLocksBeforeChildCheck(t *testing.T) {
 			t.Fatal("delete must not run when children exist")
 			return nil
 		},
-	}}
+	}
 	svc := NewCheckupTypeService(spy, checkupTypePassthroughTx{}, &recordingCheckupTypeAudit{})
 	err := svc.Delete(context.Background(), 1, 2)
 	if !apperrors.IsConflict(err) || !locked || !checked {

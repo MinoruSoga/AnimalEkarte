@@ -328,12 +328,12 @@ func TestMerchandiseItemService_Update_MissingAuditFailsClosed(t *testing.T) {
 // --- GET: 保存値 raw NULL は null のまま返し、false へ書換えない ---
 
 func TestMerchandiseItemResponse_PreservesNullAndVersion(t *testing.T) {
-	raw, err := json.Marshal(mustMerchandiseResponse(t, &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 17}))
+	raw, err := json.Marshal(mustMerchandiseResponse(t, &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 17, TaxRate: testTaxRateOf(10, -2)}))
 	require.NoError(t, err)
 	assert.True(t, bytes.Contains(raw, []byte(`"is_bill_discount_excluded":null`)), "stored NULL stays null: %s", raw)
 	assert.True(t, bytes.Contains(raw, []byte(`"version":17`)), "stored version is returned: %s", raw)
 
-	raw, err = json.Marshal(mustMerchandiseResponse(t, &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 17, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true)}))
+	raw, err = json.Marshal(mustMerchandiseResponse(t, &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 17, IsBillDiscountExcluded: boolPtrForBillDiscountTest(true), TaxRate: testTaxRateOf(10, -2)}))
 	require.NoError(t, err)
 	assert.True(t, bytes.Contains(raw, []byte(`"is_bill_discount_excluded":true`)), "%s", raw)
 }
@@ -514,7 +514,7 @@ func TestMerchandiseItemHandler_ActorFromRequestContext(t *testing.T) {
 	r.PATCH("/:id", NewHandler(nil, &mockMerchandiseItemService{updateFn: func(_ context.Context, _, _ uint64, in *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 		require.NotNil(t, in.ActorID)
 		assert.Equal(t, uint64(7), *in.ActorID)
-		return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 8}, nil
+		return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 8, TaxRate: testTaxRateOf(10, -2)}, nil
 	}}, allowInventoryTestPermission).UpdateMerchandiseItem)
 	req := httptest.NewRequest(http.MethodPatch, "/5", strings.NewReader(`{"name":"changed","version":7}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -530,7 +530,7 @@ func TestMerchandiseItemHandler_CreateActorFromRequestContext(t *testing.T) {
 	r.POST("/", NewHandler(nil, &mockMerchandiseItemService{createFn: func(_ context.Context, _ uint64, in *CreateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 		require.NotNil(t, in.ActorID)
 		assert.Equal(t, uint64(7), *in.ActorID)
-		return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 1}, nil
+		return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 1, TaxRate: testTaxRateOf(10, -2)}, nil
 	}}, allowInventoryTestPermission).CreateMerchandiseItem)
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"new","category":"goods","tax_type":"excluded"}`))
 	req.Header.Set("Content-Type", "application/json")
