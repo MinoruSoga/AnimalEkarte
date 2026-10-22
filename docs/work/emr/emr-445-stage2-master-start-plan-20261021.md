@@ -86,6 +86,7 @@
 - 集約 / 実装単位 / 専有hunk：448 / 493＋366（293追跡） / staff＋assignment専有hunk。
 - BE：B/staff/staff_{handler,service}.go。model：B/model/staff.go。FE：F/master/routes/StaffSettings.tsx。
 - 判定・境界：既採用：staff model/handler/service/FE。明確な残は493選定leave/eligibility API未収録と366 trusted actor必要subset。profile全体再実装なし。
+- 採用境界：既存staff保存の[#702](https://github.com/MinoruSoga/AnimalEkarte/pull/702)（merge `dd1b5a76cdae42c03e55417f38c04083b6fa086f`）も採用。StaffSettings/StaffSidePanel/use-master-saveの基本保存→変更した権限group→所属医院→対応予約区分のawait、現在権限再確認、保存中追加編集/旧パネル遅延保護、観測CREATE成功ID保持→再保存UPDATE、全成功時のみdirty解除/通知/closeを再実装しない。③状態/dirty接続は450/M18、集約448。493のleave/eligibility/勤務/copy/CSV、既知公開4field clearとは別。複数API全体の原子性と未観測通信断unknownの冪等性は#702の保証でなく、実API/実staff writeも今回未確認。[coverageの現在追跡](emr-stage123-coverage-audit-20261022.md#a10-current-trace-20261022)を参照し、新実装scopeを増やさない。
 - 追加静的残差：license_numberと予約公開profileの限定4fieldの空clearは§7の448行。password/emailへ一般化しない。
 ### 13. 職種
 - 属性/操作：name/description/active/order。個別正本にあるCRUDと専用操作のみ。

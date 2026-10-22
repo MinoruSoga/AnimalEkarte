@@ -30,7 +30,7 @@ Done237票は一次分類で、コメントまで読んだのは14票、残223�
 
 ## 3. 限定所見と既存ownerへの追補（原監査の履歴）
 
-本節は監査時点の所見を保持する。A01/A06とA02/A03の具体保存/wire設計はその後2026-10-22に選定済みで、現在判定は§6を優先する。実反映/受領の未完と分ける。
+本節は監査時点の所見を保持する。A01/A06とA02/A03の具体保存/wire設計はその後2026-10-22に選定済みで、現在判定は§6を優先する。実反映/受領の未完と分ける。A10の245/318/400/422は後発の限定追跡を§7に分離し、原監査履歴を消さない。
 
 | ID/分類 | 根拠URLと確認した差 | 必要な追補/未確定技術設計 | 既存owner・現5sessionとの境界 |
 |---|---|---|---|
@@ -81,3 +81,51 @@ Done237票は一次分類で、コメントまで読んだのは14票、残223�
 | A03 | clinic_operating_hours、LINE acceptance限定版/確認、実効intersection・日付限定adapter・旧レジ休日独立編集・既存警告proofを選定。ホテル閉店ちょうどの入退室予定も本人承認済み | 445医院設定と448/492 LINEの後続、①必要保存型/API/共有操作、④468利用。旧値の自動コピー/統合/上書きなし。実値/移行元確認・実反映/受領・実試験は未完 |
 
 今回はdocsのみ、API YAML・DDL/model・生成物・製品コード・実医院値・Plane/状態は未変更、試験NOT_RUN。実移行元/DB適用前棚卸しは実装受領条件であり、A01/A02/A03/A06の技術未選定には戻さない。全①〜③/全AC実装完了とはしない。
+
+<a id="a10-current-trace-20261022"></a>
+## 7. A10の限定受領追跡（2026-10-22 02:43 UTC）
+
+本節の追加照合基準はmain `b104aa62a0aa237b73ae6f70a6c97ec772fd5567`。原監査の4ec7f801、docs作成/技術選定の9eef73feとは別snapshotであり、それらの完了証拠へ後続成果を自動算入しない。現在ownerの所在・受領対応を静的に追跡した結果で、実装/受入/試験完成ではない。今回実行は全てNOT_RUN。
+
+対応資料は[旧245 inventory](emr-245-list-filter-column-inventory.md)、[C01用途台帳](../../spec/shared/interaction-scope.md)、[450検索計画](emr-450-stage3-common-ui-start-plan-20261021.md)、[450非検索操作計画](emr-450-stage3-common-ui-start-plan-20261021-operations.md)、[450マスタconsumer台帳](emr-450-master-ui-consumer-ledger-20261021.md)。以下は旧follow-upを消す変更ではなく、現行の受領先への対照である。
+
+### 7.1 EMR-245の12群と現行C01用途
+
+カルテ3列GETの採用commit [33a7186e19c567433b60cebbd575c89b18493bc9](https://github.com/MinoruSoga/AnimalEkarte/commit/33a7186e19c567433b60cebbd575c89b18493bc9)は既存採用。旧inventoryの他12群は次へ対応づける。
+
+| 旧群 | 現在用途 | 受領先 |
+|---|---|---|
+| 飼主/pet | L01 | 450/451/463 |
+| 健診 | L07 | 450/500 |
+| 見積 | L09 | 450/508 |
+| 検査 | L04 | 450/516 |
+| 入院 | L03 | 450/499/461 |
+| 在庫 | L08 | 450/510 |
+| 予防接種 | L05 | 450/517 |
+| trimming | L06 | 450/480/482 |
+| 会計 | L10 | 450/481/483/505–507 |
+| 受付board | N01（患者検索だけS08） | 450/468/476 |
+| master | M01–M21 | 450＋各master owner |
+| support | N07 | 503 |
+
+既存の述語・独立filter・取得範囲を保持する。旧全表示列の独立filter追加や全件server化は現③の新義務にしない。旧要望の全採択/撤回/一括Phase2化は証拠がないため主張せず、旧follow-upを保持する。12群はcoverage用途への対応数で、12機能完成/新規不具合数ではない。
+
+### 7.2 EMR-318 / #609：表示と受付write
+
+[#609](https://github.com/MinoruSoga/AnimalEkarte/pull/609)のS08表示/検索は450/451、受付・予約writeは[非検索D01](emr-450-stage3-common-ui-start-plan-20261021-operations.md#d01-予約登録更新受付登録閉じる)の468/460へ受領する。[468](https://app.plane.so/baritechllc/browse/EMR-468/)最新本文のW01 guarded checkin、W04 create/multi-pet、walk-in/create-and-check-in/batch/全受付入口と、[#780](https://github.com/MinoruSoga/AnimalEkarte/pull/780)の専用check-in/recheck-in切替へ引渡しを追跡できる。D04の490/491台帳writerとは別である。
+
+固定mainの接点は[OwnerPetsSection.tsx L148](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/frontend/src/features/owners/components/OwnerPetsSection.tsx#L148)、[use-reservation-save-actions.ts L232](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/frontend/src/features/reservations/hooks/use-reservation-save-actions.ts#L232)、[reservation_reception_create_guard.go L45](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/backend/internal/reservation/reservation_reception_create_guard.go#L45)。10/8後続修正で患者lock後の再確認/CASは追加済みなので、古いクロスタブ未達を再計上しない。Windows元端末、実DB競合、board往復、専用切替の現在実装受入は未確認。owner所在の確認残は既存traceで解消し、実行品質保証と分ける。
+
+### 7.3 EMR-400 / #702：staff保存の既存採用
+
+[#702](https://github.com/MinoruSoga/AnimalEkarte/pull/702)（merge [dd1b5a76cdae42c03e55417f38c04083b6fa086f](https://github.com/MinoruSoga/AnimalEkarte/commit/dd1b5a76cdae42c03e55417f38c04083b6fa086f)）の基本→変更関連の順次await、観測CREATE成功ID保持、dirty/close保証は[②職員row12](emr-445-stage2-master-start-plan-20261021.md#12-職員)（448）と③M18（450）へ採用する。固定接点は[StaffSidePanel.tsx L158](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/frontend/src/features/master/components/StaffSidePanel.tsx#L158)、[StaffSettings.tsx L92](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/frontend/src/features/master/routes/StaffSettings.tsx#L92)、[use-master-save.ts](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/frontend/src/features/master/hooks/use-master-save.ts)。
+
+現在権限再確認、保存中追加編集/旧パネル遅延保護、観測CREATE成功後の再保存UPDATE、全成功時だけdirty解除/通知/closeを再実装しない。493のleave/eligibility/shift/copy/CSVは別family、既知公開4field clearも別残件。複数API全体の原子性と未観測通信断unknownの冪等性は#702の保証ではなく、実API/実staff writeの受入を今回証明しない。
+
+### 7.4 EMR-422 / #686：金額部品と保存責務
+
+[#686](https://github.com/MinoruSoga/AnimalEkarte/pull/686)のMoneyInput/formatCurrency/入力表示は③450。固定接点は[MoneyInput.tsx L43](https://github.com/MinoruSoga/AnimalEkarte/blob/b104aa62a0aa237b73ae6f70a6c97ec772fd5567/frontend/src/components/shared/SidePeek/MoneyInput.tsx#L43)。支払/返金は④[非検索D10](emr-450-stage3-common-ui-start-plan-20261021-operations.md#d10-会計確定カード訂正戻る)の506、算定は505、手入力単価/割引の原値・価格了承は481/483、必要帳票507、見積は[D11](emr-450-stage3-common-ui-start-plan-20261021-operations.md#d11-見積保存削除後継作成)の508へ対応する。
+
+部品採用を金額保存全体の完成にしない。10/17後続type/lint成功と10/19 STG表示PASSは既存成果として区別し、古い未実行を未解消へ戻さない。今回は静的追跡のみNOT_RUN、実金額保存の保証なし。
+
+318のowner所在は既存traceで解消し、245/400/422の現行受領対応は今回追補した。旧追加案の採否・実機/DB/保存保証は別であり、新規不具合4件/全UI完成/新しい①②実装scopeとして扱わない。実装sessionの範囲・claim・状態/担当は変更しない。

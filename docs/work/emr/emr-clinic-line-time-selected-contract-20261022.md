@@ -140,6 +140,8 @@ createはexpected_version null＋行なし。replaceは現版＋非削除。reco
 
 owner_kind=`reservation`、intents=`line-start-policy.create/replace/reconfigure/delete`。typed target exact=`{kind:"line_staff_start_policy",clinic_id,reservation_type_id,staff_id,assignment_id}`。lookupは短名からこれらへ固定mapし、別familyへ切替えない。
 
+成功result_refsのexact key集合は`{clinic_id,reservation_type_id,staff_id,assignment_id}`、committed_versionsは`{line_staff_start_policy}`とし、値はすべて§1の正規十進文字列。create/replace/reconfigure/deleteとも同じ集合でpolicyの実保存版を記録する。DELETEはtombstoneの実保存版、no-opは現在CASを通過した保存版を返す。replayは元receiptのrefs/版を返し現在版へ置換しない。複合PKなので架空のpolicy_idを作らない。共通flat ResultResponseは変更せず、非成功にこれらの成功fieldを付加しない。
+
 previewは設定上の登録集合、common/LINEでmaskした集合と各版を返す。勤務/休業/能力/競合は未評価と明示し、保存保証/予約可能tokenを返さない。
 
 ### 4.3 未成功lookupの原assignment
