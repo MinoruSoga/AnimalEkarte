@@ -16918,16 +16918,77 @@ components:
           nullable: true
           items:
             $ref: '#/components/schemas/LineStartPolicyTime'
-          description: 設定上の登録集合。未設定/削除は null、明示当日0件は []。
+          description: 設定上の登録集合。未設定/削除は null、明示当日0件は []。configured のときだけ配列（親 oneOf で固定）。
         proposed_registered_times:
           type: array
           nullable: true
           items:
             $ref: '#/components/schemas/LineStartPolicyTime'
+          description: 提案後の登録集合。mode=delete だけ null、他は配列（親 oneOf で固定）。
         current_masked:
           $ref: '#/components/schemas/LineStartPolicyMaskedStarts'
         proposed_masked:
           $ref: '#/components/schemas/LineStartPolicyMaskedStarts'
+    LineStartPolicyPreviewDayNullToSet:
+      type: object
+      required: [current_registered_times, proposed_registered_times]
+      description: current が null（未設定/削除）、proposed が配列（create/reconfigure）。
+      properties:
+        current_registered_times:
+          type: array
+          nullable: true
+          enum: [null]
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+        proposed_registered_times:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+    LineStartPolicyPreviewDaySetToSet:
+      type: object
+      required: [current_registered_times, proposed_registered_times]
+      description: current・proposed とも配列（replace。明示当日0件は []）。
+      properties:
+        current_registered_times:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+        proposed_registered_times:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+    LineStartPolicyPreviewDaySetToNull:
+      type: object
+      required: [current_registered_times, proposed_registered_times]
+      description: current が配列、proposed が null（configured への delete）。
+      properties:
+        current_registered_times:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+        proposed_registered_times:
+          type: array
+          nullable: true
+          enum: [null]
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+    LineStartPolicyPreviewDayNullToNull:
+      type: object
+      required: [current_registered_times, proposed_registered_times]
+      description: current・proposed とも null（deleted への delete は no-op）。
+      properties:
+        current_registered_times:
+          type: array
+          nullable: true
+          enum: [null]
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+        proposed_registered_times:
+          type: array
+          nullable: true
+          enum: [null]
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
     LineStartPolicyPreviewResponse:
       type: object
       additionalProperties: false
@@ -16937,6 +16998,7 @@ components:
         削除提案から予約可能状態を推測しない。warning_receipt は常に null。
         200 は mode と現在状態が一致したときだけ（create=unconfigured、replace=configured、reconfigure=deleted、delete=configured/deleted〔既削除は no-op〕。不一致は 409）。
         proposed_policy（delete だけ null）と観測 policy 版（unconfigured だけ null）の条件を oneOf で固定する。
+        days[].current_registered_times は current_state=configured だけ配列（他は null）、proposed_registered_times は mode=delete だけ null（他は配列）。正常な空配列 [] は配列側で許容する。
       oneOf:
         - properties:
             mode:
@@ -16951,6 +17013,10 @@ components:
                   enum: [null]
             proposed_policy:
               $ref: '#/components/schemas/LineStartPolicy'
+            days:
+              type: array
+              items:
+                $ref: '#/components/schemas/LineStartPolicyPreviewDayNullToSet'
         - properties:
             mode:
               enum: [replace]
@@ -16962,6 +17028,10 @@ components:
                   $ref: '#/components/schemas/LineTimeDecimalId'
             proposed_policy:
               $ref: '#/components/schemas/LineStartPolicy'
+            days:
+              type: array
+              items:
+                $ref: '#/components/schemas/LineStartPolicyPreviewDaySetToSet'
         - properties:
             mode:
               enum: [reconfigure]
@@ -16973,11 +17043,15 @@ components:
                   $ref: '#/components/schemas/LineTimeDecimalId'
             proposed_policy:
               $ref: '#/components/schemas/LineStartPolicy'
+            days:
+              type: array
+              items:
+                $ref: '#/components/schemas/LineStartPolicyPreviewDayNullToSet'
         - properties:
             mode:
               enum: [delete]
             current_state:
-              enum: [configured, deleted]
+              enum: [configured]
             observed_versions:
               properties:
                 line_staff_start_policy:
@@ -16986,6 +17060,27 @@ components:
               type: object
               nullable: true
               enum: [null]
+            days:
+              type: array
+              items:
+                $ref: '#/components/schemas/LineStartPolicyPreviewDaySetToNull'
+        - properties:
+            mode:
+              enum: [delete]
+            current_state:
+              enum: [deleted]
+            observed_versions:
+              properties:
+                line_staff_start_policy:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+            proposed_policy:
+              type: object
+              nullable: true
+              enum: [null]
+            days:
+              type: array
+              items:
+                $ref: '#/components/schemas/LineStartPolicyPreviewDayNullToNull'
       properties:
         schema_version:
           type: string
