@@ -34,6 +34,7 @@ type LabDeviceMappingDraft struct {
 	ErrorMessage       string         `gorm:"column:error_message;type:text;not null;default:''" json:"error_message"`
 	ConfirmedAt        *time.Time     `gorm:"column:confirmed_at;type:timestamptz" json:"confirmed_at,omitempty"`
 	ConfirmedByStaffID *uint64        `gorm:"column:confirmed_by_staff_id;type:bigint" json:"confirmed_by_staff_id,omitempty"`
+	Version            int64          `gorm:"column:version;type:bigint;not null;default:1" json:"version"`
 	CreatedAt          time.Time      `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
 	UpdatedAt          time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
 	DeletedAt          gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
