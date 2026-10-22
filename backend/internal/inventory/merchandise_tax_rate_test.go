@@ -15,6 +15,11 @@ import (
 // --- テストヘルパー（EMR-530 exact decimal 契約fixture） ---
 
 func testTaxRateOf(intValue int64, exp int32) model.ExactNumeric {
+	return testExactOf(intValue, exp)
+}
+
+// testExactOf は inventory テスト共通の ExactNumeric 構築（campaign DiscountValue 等も含む）。
+func testExactOf(intValue int64, exp int32) model.ExactNumeric {
 	return model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(intValue), Exp: exp, Valid: true}}
 }
 

@@ -51,7 +51,7 @@ func makeMerchCampaign(t *testing.T, db *gorm.DB, clinicID uint64, name string, 
 		StartDate:     start,
 		EndDate:       end,
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 10,
+		DiscountValue: testTaxRateOf(10, 0),
 		IsActive:      isActive,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(c).Error)

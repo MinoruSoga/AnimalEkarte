@@ -137,14 +137,15 @@ func TestValidateCampaignDiscount_ExactBoundaries(t *testing.T) {
 		assert.NoError(t, validateCampaignDiscount(tc.dt, campaignExactValue(t, tc.text)), "%s %s", tc.dt, tc.text)
 	}
 	ng := []struct {
-		dt   model.CampaignDiscountType
-		text string
+		dt    model.CampaignDiscountType
+		value model.ExactNumeric
 	}{
-		{model.CampaignDiscountTypeRate, "100.01"},
-		{model.CampaignDiscountTypeAmount, "-0.01"},
+		{model.CampaignDiscountTypeRate, exactNumericOf(10001, -2)}, // 100.01
+		// 負値は wire で拒否されるため ExactNumeric を直接構築（service 直呼び出し時の防御検証）。
+		{model.CampaignDiscountTypeAmount, exactNumericOf(-1, -2)},
 	}
 	for _, tc := range ng {
-		assert.Error(t, validateCampaignDiscount(tc.dt, campaignExactValue(t, tc.text)), "%s %s", tc.dt, tc.text)
+		assert.Error(t, validateCampaignDiscount(tc.dt, tc.value), "%s %v", tc.dt, tc.value)
 	}
 }
 
