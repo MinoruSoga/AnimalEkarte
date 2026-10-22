@@ -6,7 +6,7 @@
 
 ## 2026-10-21 詳細着手プランへの入口
 
-本台帳の段階境界を具体化した公開計画は、[①DB/API・23管理行と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）。新規管理4票527–530ともReady・個人担当未割当であり、起票を実装・生成実行・試験の開始承認にしない。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
+本台帳の段階境界を具体化した公開計画は、[①DB/API・24管理行（297-A設定subset追加）と生成型独立後続](emr-445-stage1-contract-start-plan-20261021.md)、[②settings21本文＋追加領域の保存・参照・管理画面](emr-445-stage2-master-start-plan-20261021.md)、[③検索72用途・共通UI](emr-450-stage3-common-ui-start-plan-20261021.md)、[③非検索操作family](emr-450-stage3-common-ui-start-plan-20261021-operations.md)を参照する。業務正本は[docs/spec/domains](../../spec/domains/README.md)と採用済み共通契約であり、本書群はその実現計画。具体caller・無修正根拠・必要差分・将来受領を分け、計画完成を実装接続や品質証明と混同しない。生成型は旧session3への固定割当ではなく独立後続の単一claim、管理票は①生成型[EMR-527](https://app.plane.so/baritechllc/browse/EMR-527/)（親445）、②入院plan保存[EMR-528](https://app.plane.so/baritechllc/browse/EMR-528/)（親448）、②診断Type/Name備考clear[EMR-529](https://app.plane.so/baritechllc/browse/EMR-529/)（親447）、②金銭補助master数値adapter[EMR-530](https://app.plane.so/baritechllc/browse/EMR-530/)（親449）。新規管理4票527–530ともReady・個人担当未割当であり、起票を実装・生成実行・試験の開始承認にしない。④未来接続とPhase1最後のマーケは先行gateへ戻さない。新実装の開始許可ではなく、実装・生成・試験はNOT_RUN。
 
 ## 1. 段階と完了の意味
 
@@ -96,3 +96,19 @@
 - 直接22票の最新本文を読取。454–457はUATとの親報告とPlane状態を照合したが、その状態を最新実行合格へ読み替えない。293/366のactor-only/trusted staff方針は確定、再承認不要。365旧「未採用/候補作成」は#784採用範囲では履歴。
 - APIの静的根拠: `backend/docs/api.yaml`に既存勤務/lookup、capable-reservation-types、予約区分/group基本CRUD、package schemaと6master操作を確認。選定CSV/copy/eligibility/休業/458追加routeは現基準に未収録。構文やroute名だけでは各schema全属性適合を証明しない。
 - 今回はdocsのみ。API具体反映は候補レビュー後の別指示で同集約PRへ必要hunkだけを追加する。DDL/model/生成物/試験/runtime/公開flagを先取りしない。受領待ち行の更新には受領commit・固定source・担当側確認を付け、宛先名だけで受領済みにしない。
+
+## 今回5枠の限定追補
+
+本節の基準mainは `06213d5778807f9ecbc9a8501dd579e8190a0d3b`（#804採用）。冒頭の `755f77abd2e6d63a2fc608fcfe6a518a61afcfff` は元の履歴調査基準であり、本節の追加受領範囲と区別する。
+
+[①A〜E引渡し表](emr-445-stage1-contract-start-plan-20261021.md#stage-current-five-20261021)で今回の共有契約/生成/限定master hunkと次便の既選定subsetを区別する。直接22票＋498 master＋297-A設定subsetの①24管理行は②26resource・③検索72用途とは別集計で、24行すべて実装完了という意味ではない。493の休業元targetと297-Aの設定mapping版は既選定保存契約の①受領漏れ補正。A採用modelと同一固定commitの本人生成結果をBが最終受領し、A前の生成結果だけで①全体完了にしない。未割当を未設計とせず、計画追補を実装開始・全親Done・品質証明へ換算しない。試験NOT_RUN。
+
+## 2026-10-22 coverage監査と完了判定の留保
+
+[監査記録](emr-stage123-coverage-audit-20261022.md)を①②③の対照表へ接続した。監査基準は#805の `4ec7f8013bdd96d0f1cd8fcb2deaa3483137dc34`、docs作成基準は#806/#807後の `9eef73feac19c25571724372b0b19da160ba5cfb`。#806 API収録・#807保存型/DDL/ERDは限定採用、#808/#809は確認時open。今回所見と解消済み/意図した後続を混算しない。
+
+①24管理行、②26resource、③検索72用途（57＋15）/非検索D01–D23/P01/7primitive＋18storiesは別のcoverage。調査票/親票を独立実装数に数えない。全体割引除外設定とtrimming旧2属性解除は監査時設計残だったが、[2026-10-22限定選定契約](emr-master-update-selected-contract-20261022.md)で技術選定済み。API/必要保存型/製品実装・受領・試験は未完。担当者別LINE開始時刻と医院共通営業時間/休診日の保存writerも[医院・LINE時間契約](emr-clinic-line-time-selected-contract-20261022.md)で2026-10-22に技術選定済み。実値/移行元確認、必要API/DDL/model/生成・製品実装・writer閉包/consumer切替・受領・試験は未完で、いずれも現5セッションへ暗黙追加しない。計画記載済み、MECE/責務の閉鎖、実装接続、試験品質証明は別判定であり、現時点で①〜③を整備/実装とも全完了とは宣言しない。今回docs-only、実装・試験・生成はNOT_RUN。
+
+A01のownerは445統合/446466保存型/527本人生成受領、447臨床5＋薬剤/449物販。A06は①API単一統合と448専有後続で新DDL/model不要。A/Bは同文書でも別契約として受領し、C06保存receiptと通常CRUD response、Aのnullable boolとBの旧null保持clear flagを混同しない。設計選定/実反映/機能公開/試験品質証明を別判定する。
+
+A02/A03は445医院設定、448/492 LINE設定の後続単一writer、493現在所属reader、①446/466/489/527の必要subset、④468のresolver利用へ分ける。旧closing休日はレジ専用legacy編集を維持しcommonとdual-writeしない。LINEホテルの閉店ちょうどの入退室予定許可は本人承認済みで、休日/休憩/LINE条件/定員の免除ではない。全①〜③実装完了とはしない。

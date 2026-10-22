@@ -271,3 +271,31 @@ func TestOccupationRepository_CountUsageByOccupationID(t *testing.T) {
 		assert.Equal(t, int64(0), count, "ソフトデリート済みスタッフは参照カウントに含まれない")
 	})
 }
+
+// TestOccupationRepository_Update_DescriptionClearAndReread は EMR-448 の受入
+// （非空→空→再GET、省略項目の保持、空→非空）。
+func TestOccupationRepository_Update_DescriptionClearAndReread(t *testing.T) {
+	db := setupOccupationRepoTestDB(t)
+	repo := NewOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	occ := makeOccupation(t, db, clinicA, "備考付き職種")
+	require.NoError(t, db.WithContext(ctx).Model(&model.Occupation{}).Where("id = ?", occ.ID).Update("description", "旧備考").Error)
+
+	empty := ""
+	_, err := repo.Update(ctx, clinicA, occ.ID, UpdateOccupationInput{Description: &empty})
+	require.NoError(t, err)
+	got, err := repo.FindByID(ctx, clinicA, occ.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got.Description)
+	assert.Equal(t, "備考付き職種", got.Name, "省略した名称は保持する")
+	assert.True(t, got.IsActive, "省略した有効状態は保持する")
+
+	again := "新備考"
+	_, err = repo.Update(ctx, clinicA, occ.ID, UpdateOccupationInput{Description: &again})
+	require.NoError(t, err)
+	got, err = repo.FindByID(ctx, clinicA, occ.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "新備考", got.Description)
+}

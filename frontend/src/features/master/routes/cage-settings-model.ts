@@ -13,5 +13,9 @@ export function buildCageCreateRequest(data: CageFormData): CreateCageRequest {
 }
 
 export function buildCageUpdateRequest(data: CageFormData): UpdateCageRequest {
-  return buildCageCreateRequest(data);
+  return {
+    ...buildCageCreateRequest(data),
+    // EMR-448: 備考を空へ変更できるよう、空文字も省略せず送る（BE は "" を空で保存）。
+    description: data.description,
+  };
 }

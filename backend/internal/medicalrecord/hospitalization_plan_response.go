@@ -8,19 +8,19 @@ import (
 )
 
 type hospitalizationPlanResponse struct {
-	ID          uint64    `json:"id"`
-	ClinicID    uint64    `json:"clinic_id"`
-	Name        string    `json:"name"`
-	Price       *int64    `json:"price,omitempty"`
-	IsActive    bool      `json:"is_active"`
-	Description string    `json:"description"`
-	BodySize    *string   `json:"body_size,omitempty"`
-	BillingUnit *string   `json:"billing_unit,omitempty"`
-	TaxType     string    `json:"tax_type"`
-	TaxRate     float64   `json:"tax_rate"`
-	SortOrder   int       `json:"sort_order"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uint64             `json:"id"`
+	ClinicID    uint64             `json:"clinic_id"`
+	Name        string             `json:"name"`
+	Price       *int64             `json:"price,omitempty"`
+	IsActive    bool               `json:"is_active"`
+	Description string             `json:"description"`
+	BodySize    *string            `json:"body_size,omitempty"`
+	BillingUnit *string            `json:"billing_unit,omitempty"`
+	TaxType     string             `json:"tax_type"`
+	TaxRate     model.ExactNumeric `json:"tax_rate"`
+	SortOrder   int                `json:"sort_order"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
 }
 
 func toHospitalizationPlanResponse(p *model.HospitalizationPlan) hospitalizationPlanResponse {
@@ -34,6 +34,11 @@ func toHospitalizationPlanResponse(p *model.HospitalizationPlan) hospitalization
 		s := string(*p.BillingUnit)
 		billingUnit = &s
 	}
+	// model.SortOrder は *int（#729）。HospitalizationPlan の wire は非 nullable integer のため既存表現を保つ。
+	sortOrder := 0
+	if p.SortOrder != nil {
+		sortOrder = *p.SortOrder
+	}
 	return hospitalizationPlanResponse{
 		ID:          p.ID,
 		ClinicID:    p.ClinicID,
@@ -45,7 +50,7 @@ func toHospitalizationPlanResponse(p *model.HospitalizationPlan) hospitalization
 		BillingUnit: billingUnit,
 		TaxType:     string(p.TaxType),
 		TaxRate:     p.TaxRate,
-		SortOrder:   p.SortOrder,
+		SortOrder:   sortOrder,
 		CreatedAt:   httpapi.LocalTime(p.CreatedAt),
 		UpdatedAt:   httpapi.LocalTime(p.UpdatedAt),
 	}

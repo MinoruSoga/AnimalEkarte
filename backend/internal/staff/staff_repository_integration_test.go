@@ -684,3 +684,44 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_ClinicIsolation(t *tes
 	require.NoError(t, err)
 	assert.Empty(t, deps, "別医院からは参照が0件であるべき")
 }
+
+// TestStaffRepository_Update_PublicFieldsClearAndReread は EMR-448 の受入
+// （公開4項目の非空→空→再GET、省略した氏名・有効状態の保持、空→非空）。
+func TestStaffRepository_Update_PublicFieldsClearAndReread(t *testing.T) {
+	db := setupStaffRepositoryTestDB(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	staff := makeDoctor(t, db, clinicID, "公開項目スタッフ")
+	makeStaffClinicAssignment(t, db, staff.ID, clinicID)
+	require.NoError(t, db.WithContext(ctx).Model(&model.Staff{}).Where("id = ?", staff.ID).Updates(map[string]any{
+		"license_number":           "LIC-001",
+		"reservation_display_name": "表示名",
+		"reservation_comment":      "説明文",
+		"reservation_image_url":    "https://example.invalid/staff.png",
+	}).Error)
+
+	empty := ""
+	require.NoError(t, repo.Update(ctx, clinicID, staff.ID, UpdateStaffInput{
+		LicenseNumber:          &empty,
+		ReservationDisplayName: &empty,
+		ReservationComment:     &empty,
+		ReservationImageURL:    &empty,
+	}))
+	got, err := repo.FindByID(ctx, staff.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got.LicenseNumber)
+	assert.Empty(t, got.ReservationDisplayName)
+	assert.Empty(t, got.ReservationComment)
+	assert.Empty(t, got.ReservationImageURL)
+	assert.Equal(t, "公開項目スタッフ", got.Name, "省略した氏名は保持する")
+	assert.True(t, got.IsActive, "省略した有効状態は保持する")
+
+	displayName := "新表示名"
+	require.NoError(t, repo.Update(ctx, clinicID, staff.ID, UpdateStaffInput{ReservationDisplayName: &displayName}))
+	got, err = repo.FindByID(ctx, staff.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "新表示名", got.ReservationDisplayName)
+	assert.Empty(t, got.ReservationComment, "省略した説明文は空のまま保持する")
+}

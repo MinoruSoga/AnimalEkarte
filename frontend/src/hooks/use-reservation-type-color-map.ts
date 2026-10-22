@@ -5,7 +5,11 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { PALETTE } from "@/lib/design-tokens";
-import type { ReservationType, ReservationTypeGroup } from "@/types/generated/models";
+import type { ReservationTypeGroup } from "@/types/generated/models";
+import type { LegacyReservationTypeResponse } from "@/types/reservation-legacy-wire";
+
+// EMR-527: 予約種別の応答は保存 model ではなく handler の JSON を写した移行 DTO（color を含む）。
+type ReservationType = LegacyReservationTypeResponse;
 
 // ─────────────────────────────────────────────────
 // Types

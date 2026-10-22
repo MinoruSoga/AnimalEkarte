@@ -198,6 +198,20 @@ describe("staff settings derived model", () => {
     expect(buildStaffUpdateRequest(whitespaceForm).name).not.toBe(STAFF_BLANK_NAME_PLACEHOLDER);
   });
 
+  it("create は空の任意項目を省略し続ける（EMR-448 は Update だけを変更）", () => {
+    const request = buildStaffCreateRequest({
+      ...FORM_DATA,
+      licenseNumber: "",
+      reservationDisplayName: "",
+      reservationComment: "",
+      reservationImageUrl: "",
+    });
+    expect(request.license_number).toBeUndefined();
+    expect(request.reservation_display_name).toBeUndefined();
+    expect(request.reservation_comment).toBeUndefined();
+    expect(request.reservation_image_url).toBeUndefined();
+  });
+
   it("create/update requestへ予約表示項目とoptional値を正規化する", () => {
     expect(buildStaffCreateRequest(FORM_DATA)).toEqual({
       name: "合成スタッフ",
@@ -223,15 +237,15 @@ describe("staff settings derived model", () => {
       }),
     ).toEqual({
       name: "合成スタッフ",
-      license_number: undefined,
+      license_number: "",
       is_active: false,
       occupation_id: undefined,
       password: undefined,
       staff_type: "doctor",
-      reservation_display_name: undefined,
+      reservation_display_name: "",
       reservation_visible: false,
-      reservation_comment: undefined,
-      reservation_image_url: undefined,
+      reservation_comment: "",
+      reservation_image_url: "",
     });
   });
 });

@@ -5980,21 +5980,25 @@ components:
           type: number
           format: double
           nullable: true
+          description: 作成時に明示した 0 は 0 円として保存する（未入力の代用にしない）。EMR-528。
         is_active:
           type: boolean
           default: true
         description:
           type: string
+          description: PATCH の省略または null は既存値を保持し、"" は空へ変更して保存する。EMR-528。
         body_size:
           type: string
           enum: [small, medium, large]
           nullable: true
+          description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
         billing_unit:
           type: string
           enum:
             - per_day
             - per_night
           nullable: true
+          description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
         sort_order:
           type: integer
         created_at:
@@ -6096,8 +6100,15 @@ components:
           type: string
           enum: [rate, amount]
         discount_value:
-          type: number
-          format: double
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "10.5"
+          description: >-
+            割引値の有限な非負 exact decimal 文字列（EMR-530、採択483の十進輸送）。符号・指数表記・NaN/Infinity は 400。
+            JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない（BE と専有 FE は EMR-530 で同時に切り替える）。
+            保存尺度は numeric(12,2) のままで、小数第3位以下を持つ値や整数部10桁超など保存尺度で表せない値は丸めずに 400。
+            rate は 0..100、amount は 0 以上という既存の意味、POST 既定と PATCH の省略保持は変更しない。
+            応答は保存値の十進文字列で、表記（末尾0の有無）ではなく数値として比較する。
         is_active:
           type: boolean
           default: true
@@ -6642,9 +6653,14 @@ components:
           default: excluded
           description: 税種別
         tax_rate:
-          type: number
-          default: 0.10
-          description: 税率
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "0.10"
+          description: >-
+            税率の比率を表す有限な非負 exact decimal 文字列（EMR-530、採択405/483）。10% は "0.10"（数値として0.1）で、百分率10へ変換しない。
+            符号・指数表記・NaN/Infinity は 400。JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない（BE と専有 FE は EMR-530 で同時に切り替える）。
+            入力範囲 0..1、明示 "0" は 0 として保存し既定値へ潰さない。POST の省略/null は既存既定 0.10、PATCH の省略/null は既存値を保持する。
+            応答は保存値の十進文字列で、表記ではなく数値として比較する。
         is_active:
           type: boolean
           default: true
@@ -11963,6 +11979,47 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabMappingDraftItem'
+        draft_version:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。下書きのCAS版（lab_device_mapping_drafts.version）を先頭ゼロなし正数十進文字列で返す。
+            全設定writerの参加と confirm の C06 切替が揃うまで runtime は返さない（reader 非活性）。省略を版1と推測しない。
+        mapping_scope:
+          type: object
+          required: [source_type, species_scope, revision]
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。この下書きを確定するときの対象 mapping scope（lab_device_mapping_heads）と現在版。
+            species_scope は下書きの元 species（'' は generic）を保持し、患者の species から置き換えない。draft_version と同じく reader 非活性の間は返さない。
+          properties:
+            source_type:
+              type: string
+            species_scope:
+              type: string
+              enum: ['', canine, feline]
+            revision:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+              description: scope の現在版（lab_device_mapping_heads.revision）。正数十進文字列。
+        field_definitions:
+          type: array
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。採用候補 field の定義 snapshot 参照。field 定義版が実在しない場合 revision は null とし、
+            definition_digest（"lab-field-definition/v1" 投影の SHA-256 小文字hex）だけで照合する。存在しない版番号を作らない。reader 非活性の間は返さない。
+          items:
+            type: object
+            required: [field_id, revision, definition_digest]
+            properties:
+              field_id:
+                type: string
+                pattern: '^[1-9][0-9]*$'
+              revision:
+                type: string
+                nullable: true
+                pattern: '^[1-9][0-9]*$'
+              definition_digest:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
     LabMappingDraftItem:
       type: object
       required: [device_item_code, device_unit, chart_unit, unit_mismatch, proposed_field_name, source, llm_error, confirmed]
@@ -12018,6 +12075,81 @@ components:
                 type: string
               chart_unit:
                 type: string
+        operation_key:
+          type: string
+          format: uuid
+          description: >-
+            EMR-297-A 先行契約（297 §4C/§7）。confirm を C06 操作（owner_kind=lab_mapping、intent=lab_mapping.confirm）へ切り替えたときの小文字ハイフンUUID。
+            切替時は必須で、同 key の内容変更は operation-key-conflict。切替までの現行 runtime はこの項目を処理しない（未実装。拒否も保証しない）。切替後の応答は LabMappingOperationResult、結果照会は GET /lab-device/mapping-operations/{operation_key}。
+        expected_draft_version:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: EMR-297-A 先行契約。GET の draft_version をそのまま返す CAS 前提（C06 Preconditions）。切替時は必須。
+        expected_mapping_revision:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: EMR-297-A 先行契約。GET の mapping_scope.revision をそのまま返す CAS 前提（C06 Preconditions）。切替時は必須。
+        expected_field_definitions:
+          type: array
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。確定に使う各 field について GET の field_definitions を返す CAS 前提。版が無い field は expected_revision=null と
+            expected_definition_digest で固定し、Apply で現定義を同じ canonical snapshot から再hashして照合する。切替時は items の全 field について必須。
+          items:
+            type: object
+            required: [field_id, expected_revision, expected_definition_digest]
+            properties:
+              field_id:
+                type: string
+                pattern: '^[1-9][0-9]*$'
+              expected_revision:
+                type: string
+                nullable: true
+                pattern: '^[1-9][0-9]*$'
+              expected_definition_digest:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
+    LabMappingOperationResult:
+      type: object
+      additionalProperties: false
+      required: [status, operation_key]
+      description: >-
+        EMR-297-A 先行契約（297 §7）。lab mapping 操作の C06 結果。status は flat 12値で、succeeded/replayed/not-succeeded=200、
+        operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、
+        validation=400、scope-not-found=404（binding不存在のみ）、not-authorized=403。details は持たない。result_refs・committed_versions・recorded_at は
+        succeeded/replayed のときだけ返し、raw や臨床値は含めない。今回は confirm（draft_id / mapping_revision_id、draft_version / mapping_revision）を収録し、
+        sample_register・resolve の refs/版は各 slice の収録で追加する。runtime 未接続。
+      properties:
+        status:
+          type: string
+          enum: [succeeded, replayed, not-succeeded, validation, not-authorized, edit-right-lost, scope-not-found, version-conflict, dependency-changed, operation-key-conflict, operation-in-progress, result-unavailable]
+        operation_key:
+          type: string
+          format: uuid
+        result_refs:
+          type: object
+          additionalProperties: false
+          required: [draft_id, mapping_revision_id]
+          properties:
+            draft_id:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+            mapping_revision_id:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+        committed_versions:
+          type: object
+          additionalProperties: false
+          required: [draft_version, mapping_revision]
+          properties:
+            draft_version:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+            mapping_revision:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+        recorded_at:
+          type: string
+          format: date-time
     LabMappingGenerationRequest:
       type: object
       required: [stopped]
@@ -15417,6 +15549,42 @@ components:
               state: not_found
             current_state: null
             content_available: false
+    LabMappingC06BadRequest:
+      description: >-
+        EMR-297-A 先行契約。型・サイズ等の C06 前の失敗は既存 ErrorResponse（receiptではない）。C06 切替後の validation は LabMappingOperationResult（status=validation）。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
+    LabMappingC06Forbidden:
+      description: >-
+        EMR-297-A 先行契約。既存認可 middleware の拒否は ErrorResponse。C06 切替後の not-authorized は LabMappingOperationResult（元対象を現在認可できない場合も存在を開示しない）。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
+    LabMappingC06NotFound:
+      description: >-
+        EMR-297-A 先行契約。通常の resource 不在は既存 ErrorResponse。C06 の scope-not-found（binding 不存在だけ）は LabMappingOperationResult。業務対象の不一致をこの status へ変換しない。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
+    LabMappingC06Conflict:
+      description: >-
+        EMR-297-A 先行契約。C06 切替後の operation-key-conflict / version-conflict / dependency-changed / edit-right-lost は LabMappingOperationResult。切替前の現行 confirm の 409 は既存 ErrorResponse。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - $ref: '#/components/schemas/LabMappingOperationResult'
     BadRequest:
       description: バリデーションエラー
       content:
@@ -30576,7 +30744,10 @@ paths:
     post:
       operationId: confirmLabMappingDraft
       summary: 人が提出した対応表だけを確定する
-      description: ResourceLabImport edit。未確定の下書きだけを確定する。省略したコードは既存マスタを消さない。
+      description: >-
+        ResourceLabImport edit。未確定の下書きだけを確定する。省略したコードは既存マスタを消さない。
+        EMR-297-A 先行契約（297 §4C/§7）: C06 切替後は operation_key と expected_* を必須とし、master/spec upsert・draft確定・不変 mapping revision・監査・C06 receipt を同TXで保存して
+        LabMappingOperationResult を返す（status と HTTP の対応は同 schema の説明）。切替前の現行 runtime は従来どおり LabMappingDraft を返す。
       tags: [LabImports]
       parameters:
         - name: id
@@ -30593,21 +30764,78 @@ paths:
               $ref: '#/components/schemas/LabMappingConfirmRequest'
       responses:
         '200':
-          description: 確定した下書き
+          description: 切替前は確定した下書き（LabMappingDraft）。C06 切替後は succeeded / replayed / not-succeeded の LabMappingOperationResult
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LabMappingDraft'
+                oneOf:
+                  - $ref: '#/components/schemas/LabMappingDraft'
+                  - $ref: '#/components/schemas/LabMappingOperationResult'
+        '202':
+          description: C06 切替後の operation-in-progress（LabMappingOperationResult）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingOperationResult'
+        '503':
+          description: C06 切替後の result-unavailable（LabMappingOperationResult）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingOperationResult'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LabMappingC06BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/LabMappingC06Forbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LabMappingC06NotFound'
         '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/LabMappingC06Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-operations/{operation_key}:
+    get:
+      operationId: getLabMappingOperationResult
+      summary: lab mapping 操作の結果照会
+      x-contract-status: selected
+      description: >-
+        EMR-297-A 先行契約（297 §7）。元actor本人で、かつ現在 lab-import:view または当該元intentに必要な現在の create/edit 権限を持つ場合だけ、ID/版だけの限定結果を返す。
+        別actorは同医院 view だけで他人の operation を探索できない。失敗bindingも元対象（lab_mapping_operation_targets）を現在認可してから照会し、既成功は現CASより先に原結果を返す。
+        照会は write しない。raw や臨床値を返す権限は増やさない。今回は intent=lab_mapping.confirm を収録し、sample_register・resolve は各 slice の収録で追加する。runtime 未接続。
+      tags: [LabImports]
+      parameters:
+        - name: operation_key
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intent
+          in: query
+          required: true
+          schema: { type: string, enum: [lab_mapping.confirm] }
+      responses:
+        '200':
+          description: succeeded / replayed / not-succeeded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
+        '202':
+          description: operation-in-progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
+        '400': { $ref: '#/components/responses/LabMappingC06BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/LabMappingC06Forbidden' }
+        '404': { $ref: '#/components/responses/LabMappingC06NotFound' }
+        '409': { $ref: '#/components/responses/LabMappingC06Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503':
+          description: result-unavailable（結果store障害の500とは区別する）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
   /lab-device/mapping-generation:
     put:
       operationId: putLabMappingGeneration

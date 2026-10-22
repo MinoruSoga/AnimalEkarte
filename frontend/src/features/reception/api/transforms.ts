@@ -1,14 +1,19 @@
 import { formatJSTDate, formatJSTTime, toJSTWallDate } from "@/lib/jst-date";
 import type { ReservationStatus } from "@/types";
+import type { DangerLevel, PetStatus } from "@/types/reservation-type";
 import type {
-  DangerLevel,
-  PetStatus,
-  Reservation as BackendReceptionReservation,
-} from "@/types/generated/models";
+  LegacyReservationPetSummary,
+  LegacyReservationResponse,
+} from "@/types/reservation-legacy-wire";
 
-type BackendReceptionPetWithDangerReason = NonNullable<BackendReceptionReservation["pet"]> & {
-  danger_reason?: string;
-};
+// EMR-527: 入力は保存 model ではなく handler の JSON（reservationResponse）を写した移行 DTO。
+type BackendReceptionReservation = LegacyReservationResponse;
+
+/**
+ * animal_species_id は petSummaryResponse に無い（wire 外）。旧 fallback の読み取りだけ残し、
+ * 値は補わない（EMR-527）。
+ */
+type BackendReceptionPet = LegacyReservationPetSummary & { animal_species_id?: number };
 
 interface CustomerFieldsJSON {
   customer_name?: string;
@@ -82,10 +87,10 @@ export function transformReservationToReceptionAppointment(
 ) {
   const time = formatJSTTime(reservation.start_time);
   const cf = parseCustomerFields(reservation.customer_fields);
-  const pet = reservation.pet as BackendReceptionPetWithDangerReason | undefined;
+  const pet: BackendReceptionPet | undefined = reservation.pet;
 
   const petName = pet?.name ?? cf.pets?.[0]?.name ?? "";
-  // animal_species ネストがないため、animal_species_id からマッピング
+  // wire はネストした animal_species を返す。animal_species_id 経由は旧 fallback（wire 外）
   const petType =
     pet?.animal_species?.name ??
     (pet?.animal_species_id ? ANIMAL_SPECIES_MAP[pet.animal_species_id] : undefined) ??

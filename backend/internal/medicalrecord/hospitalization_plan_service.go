@@ -4,6 +4,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -37,10 +38,16 @@ func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[st
 		fields[colHospitalizationPlanDescription] = *input.Description
 	}
 	if input.BodySize != nil {
-		fields[colHospitalizationPlanBodySize] = model.BodySize(*input.BodySize)
+		fields[colHospitalizationPlanBodySize] = nil
+		if *input.BodySize != nil {
+			fields[colHospitalizationPlanBodySize] = model.BodySize(**input.BodySize)
+		}
 	}
 	if input.BillingUnit != nil {
-		fields[colHospitalizationPlanBillingUnit] = model.BillingUnit(*input.BillingUnit)
+		fields[colHospitalizationPlanBillingUnit] = nil
+		if *input.BillingUnit != nil {
+			fields[colHospitalizationPlanBillingUnit] = model.BillingUnit(**input.BillingUnit)
+		}
 	}
 	if input.SortOrder != nil {
 		fields[colHospitalizationPlanSortOrder] = *input.SortOrder
@@ -49,9 +56,24 @@ func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[st
 		fields[colHospitalizationPlanTaxType] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
-		fields[colHospitalizationPlanTaxRate] = *input.TaxRate
+		// 不変条件: 呼び出し元の service.Update が同じ変換を事前検査し、失敗時は 400 で書込み前に止める。
+		// FormatFloat→Scan は有限値で失敗せず、JSON は NaN/Inf を運べないため、ここで落ちる経路はない。
+		if exact, err := hospitalizationPlanExactTaxRate(*input.TaxRate); err == nil {
+			fields[colHospitalizationPlanTaxRate] = exact
+		}
 	}
 	return fields
+}
+
+// hospitalizationPlanExactTaxRate は wire の float64 税率を最短10進表現経由で ExactNumeric にする。
+// model.TaxRate は ExactNumeric（#729）。create/update 共通の adapter で、binary float の誤差を
+// 新しい正規値として保存しない（EMR-528、consultation と同形）。
+func hospitalizationPlanExactTaxRate(rate float64) (model.ExactNumeric, error) {
+	var exact model.ExactNumeric
+	if err := exact.Scan(strconv.FormatFloat(rate, 'f', -1, 64)); err != nil {
+		return model.ExactNumeric{}, apperrors.WrapInvalidInput("invalid tax rate")
+	}
+	return exact, nil
 }
 
 // ---- HospitalizationPlanService ----
@@ -75,11 +97,40 @@ type UpdateHospitalizationPlanInput struct {
 	Price       *int64
 	IsActive    *bool
 	Description *string
-	BodySize    *string
-	BillingUnit *string
+	// BodySize / BillingUnit は EMR-528 の3値: nil=省略（保持）、&nil=明示 null（SQL NULL）、&&v=値。
+	BodySize    **string
+	BillingUnit **string
 	SortOrder   *int
 	TaxType     *string
 	TaxRate     *float64
+}
+
+const (
+	errMsgHospitalizationPlanBodySize    = "対象体格は small / medium / large のいずれか、または null を指定してください"
+	errMsgHospitalizationPlanBillingUnit = "料金単位は per_day / per_night のいずれか、または null を指定してください"
+)
+
+// validateHospitalizationPlanNullableEnum は PATCH の3値 enum を検査する（EMR-528）。
+// 省略と明示 null は通し、"" を null の代用にせず enum 外として拒否する。
+func validateHospitalizationPlanNullableEnum(value **string, message string, allowed ...string) error {
+	if value == nil || *value == nil {
+		return nil
+	}
+	for _, candidate := range allowed {
+		if **value == candidate {
+			return nil
+		}
+	}
+	return apperrors.WrapInvalidInput(message)
+}
+
+func validateHospitalizationPlanUpdateEnums(input *UpdateHospitalizationPlanInput) error {
+	if err := validateHospitalizationPlanNullableEnum(input.BodySize, errMsgHospitalizationPlanBodySize,
+		string(model.BodySizeSmall), string(model.BodySizeMedium), string(model.BodySizeLarge)); err != nil {
+		return err
+	}
+	return validateHospitalizationPlanNullableEnum(input.BillingUnit, errMsgHospitalizationPlanBillingUnit,
+		string(model.BillingUnitPerDay), string(model.BillingUnitPerNight))
 }
 
 // --- DB column constants ---
@@ -130,15 +181,20 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
+	exactTaxRate, err := hospitalizationPlanExactTaxRate(taxRate)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to convert tax rate")
+	}
+	sortOrder := input.SortOrder
 	plan := &model.HospitalizationPlan{
 		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
-		SortOrder:   input.SortOrder,
+		SortOrder:   &sortOrder,
 		TaxType:     taxType,
-		TaxRate:     taxRate,
+		TaxRate:     exactTaxRate,
 	}
 	if input.BodySize != "" {
 		bs := model.BodySize(input.BodySize)
@@ -168,6 +224,14 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
+	if err := validateHospitalizationPlanUpdateEnums(input); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate hospitalization plan enums")
+	}
+	if input.TaxRate != nil {
+		if _, err := hospitalizationPlanExactTaxRate(*input.TaxRate); err != nil {
+			return nil, apperrors.Wrap(err, "failed to convert tax rate")
+		}
 	}
 	fields := buildHospitalizationPlanUpdate(*input)
 	if len(fields) == 0 {

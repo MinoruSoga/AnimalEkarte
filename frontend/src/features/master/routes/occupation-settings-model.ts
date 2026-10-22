@@ -10,5 +10,9 @@ export function buildOccupationCreateRequest(data: OccupationFormData): CreateOc
 }
 
 export function buildOccupationUpdateRequest(data: OccupationFormData): UpdateOccupationRequest {
-  return buildOccupationCreateRequest(data);
+  return {
+    ...buildOccupationCreateRequest(data),
+    // EMR-448: 備考を空へ変更できるよう、空文字も省略せず送る（BE は "" を空で保存）。
+    description: data.description,
+  };
 }

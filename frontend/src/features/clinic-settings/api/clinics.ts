@@ -6,7 +6,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformClinic } from "./transforms";
 
 // Types
-import type { Clinic as BackendClinic } from "@/types/generated/models";
+import type { LegacyClinicResponse } from "./legacy-wire";
 import type { TransformedClinic } from "./transforms";
 
 // Re-export for consumers
@@ -16,6 +16,7 @@ export type { TransformedClinic as Clinic };
 // Request types
 // ─────────────────────────────────────────────────
 
+/** @see backend/internal/clinic/clinic_request.go CreateClinicRequest */
 export interface CreateClinicRequest {
   name: string;
   postal_code?: string;
@@ -28,6 +29,10 @@ export interface CreateClinicRequest {
   website?: string;
 }
 
+/**
+ * 送信側（buildUpdateClinicRequest）が送るキーだけを列挙する（logo_url は送らない）。
+ * @see backend/internal/clinic/clinic_request.go UpdateClinicRequest
+ */
 export interface UpdateClinicRequest {
   name?: string;
   postal_code?: string;
@@ -60,19 +65,19 @@ export interface UpdateClinicRequest {
 async function listClinics(): Promise<TransformedClinic[]> {
   // 医院マスタは scope=all。BE はシステム管理者に全院、非管理者には所属医院だけ返す。
   // 認可は hospital-settings.view。失敗時は throw して silent empty を避ける。
-  const { data } = await axios.get<BackendClinic[]>("/v1/clinics", {
+  const { data } = await axios.get<LegacyClinicResponse[]>("/v1/clinics", {
     params: { scope: "all" },
   });
   return (data ?? []).map(transformClinic);
 }
 
 async function createClinic(req: CreateClinicRequest): Promise<TransformedClinic> {
-  const { data } = await axios.post<BackendClinic>("/v1/clinics", req);
+  const { data } = await axios.post<LegacyClinicResponse>("/v1/clinics", req);
   return transformClinic(data);
 }
 
 async function updateClinic(id: number, req: UpdateClinicRequest): Promise<TransformedClinic> {
-  const { data } = await axios.patch<BackendClinic>(`/v1/clinics/${id}`, req);
+  const { data } = await axios.patch<LegacyClinicResponse>(`/v1/clinics/${id}`, req);
   return transformClinic(data);
 }
 

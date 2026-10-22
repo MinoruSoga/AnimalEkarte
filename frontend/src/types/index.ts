@@ -66,6 +66,16 @@ export type SortOrder = (typeof SORT_ORDER_VALUES)[number];
 // 生成定数が真の literal union になったため、生成型からの re-export へ移行した
 // （import は本ファイル冒頭にまとめている）。drift テストは union-drift.test.ts から削除済み。
 export type { VisitType, ReservationStatus };
+// 移行 HTTP DTO（./estimate-legacy-wire.ts・./examination-legacy-wire.ts・
+// ./vaccination-legacy-wire.ts）が参照する enum union（EMR-527）。
+export type {
+  EstimateStatus,
+  ExaminationResultStatus,
+  ExaminationStatus,
+  ItemCategory,
+  NextScheduleType,
+  TaxType,
+} from "./generated/models";
 export type CalendarView = "month" | "week";
 export const CALENDAR_VIEW_VALUES = ["month", "week"] as const;
 

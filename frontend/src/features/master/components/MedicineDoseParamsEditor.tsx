@@ -12,7 +12,8 @@ import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { FIELD_DESCRIPTIONS } from "@/constants/field-descriptions";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { MedicineDoseParam, MedicineDoseSpecies } from "@/types/generated/models";
+import type { MedicineDoseSpecies } from "@/types/generated/models";
+import type { LegacyMedicineDoseParamResponse } from "@/types/medicine";
 import {
   MedicineDoseBasisPerAdministration,
   MedicineDoseBasisPerDay,
@@ -128,7 +129,7 @@ export function MedicineDoseParamsEditor({ medicineId, ref }: MedicineDoseParams
 interface SpeciesDoseParamPanelProps {
   medicineId: string;
   species: MedicineDoseSpecies;
-  existingParam: MedicineDoseParam | undefined;
+  existingParam: LegacyMedicineDoseParamResponse | undefined;
   ref?: Ref<DoseParamPanelHandle>;
 }
 

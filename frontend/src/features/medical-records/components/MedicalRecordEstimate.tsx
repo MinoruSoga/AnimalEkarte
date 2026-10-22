@@ -26,12 +26,15 @@ import { C } from "@/lib/design-tokens";
 import { calcEstimateTotals } from "@/lib/estimate-totals";
 import { usePermission } from "@/hooks/use-permission";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
-import type { Estimate, EstimateItem } from "@/types/generated/models";
+import type {
+  LegacyEstimateItemResponse,
+  LegacyEstimateResponse,
+} from "@/types/estimate-legacy-wire";
 
-// EstimateItem (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
+// 見積明細 response (BE snake_case) → TreatmentItem (UI camelCase) の明示変換。
 // 旧実装の `as any` キャストはフィールド名非互換 (name→content, unit_price→unitPrice 等) を
 // 隠蔽しており、items が返るケースで項目名・単価が undefined になる潜在バグだった。
-function toTreatmentItem(item: EstimateItem, standardTaxRate: number): TreatmentItem {
+function toTreatmentItem(item: LegacyEstimateItemResponse, standardTaxRate: number): TreatmentItem {
   return {
     id: item.id,
     content: item.name,
@@ -47,7 +50,7 @@ function toTreatmentItem(item: EstimateItem, standardTaxRate: number): Treatment
 }
 
 function hydrateFromEstimate(
-  estimate: Estimate,
+  estimate: LegacyEstimateResponse,
   standardTaxRate: number,
   setters: {
     setSubject: (v: string) => void;
@@ -256,7 +259,7 @@ export const MedicalRecordEstimate = memo(function MedicalRecordEstimate({
 
     try {
       const knownId = estimateIdRef.current ?? existingEstimate?.id ?? null;
-      let saved: Estimate | undefined;
+      let saved: LegacyEstimateResponse | undefined;
       let created = false;
       if (knownId != null && knownId > 0) {
         saved = await updateEstimate.mutateAsync({ id: knownId, payload });

@@ -49,11 +49,12 @@
 - 集約 / 実装単位 / 専有hunk：448 / 445採用証跡（MM-FACILITY） / trimming_course_type系のみ（457と非重複）。
 - BE：B/trimming/trimming_course_type_{handler,service}.go。model：B/model/trimming_course_type.go。FE：F/master/routes/TrimmingCourseTypeSettings.tsx。
 - 判定・境界：既採用：CRUD/reorder、WithTx内参照countと削除。分類をreservation business_kindへ変える追加実装なし。
-### 6. 検査種別・測定field
+### 6. 検査プラン本体CRUD・検査測定field（primary）
 - 属性/操作：本体/親/価格/保険・field名称/単位/原値/基準値/順序。個別正本にあるCRUDと専用操作のみ。
-- 集約 / 実装単位 / 専有hunk：447 / 445採用証跡（MM-CLINICAL-AUX） / exam_type/field。既存18/169/225再利用。
+- 集約 / 実装単位 / 専有hunk：447 / 445採用証跡（MM-CLINICAL-AUX） / exam_type/field。検査プラン本体CRUDのprimaryは本row6。18は機器mapping、169は健診package、225は健診fieldとして別境界へ参照。
 - BE：B/medicalrecord/exam_type_{handler,service}.go。model：B/model/examination_type.go。FE：F/master/routes/TreatmentPlanMaster.tsx。
 - 判定・境界：既採用：exam_type CRUD/parent医院検査/参照guardとExaminationType.Items。field操作はexam_type_field.goへ。未承認の基準値投入は技術closureとは別。
+- 責務補足：row16の「検査」は本row6参照とし本体CRUDを二重所有しない。検査fieldはexam_type_fields、EMR-225はcheckup_type_fieldsの健診fieldで代用しない。18は機器mapping採用、169は健診package採用へ参照し、checkups/master-medical/lab-importの各grantを相互代用しない。再実装・重複起票なし。
 ### 7. 支払方法
 - 属性/操作：名称/active/標準区分/順序。個別正本にあるCRUDと専用操作のみ。
 - 集約 / 実装単位 / 専有hunk：449 / 465-M / payment_method_master＋guard部品。
@@ -85,6 +86,7 @@
 - 集約 / 実装単位 / 専有hunk：448 / 493＋366（293追跡） / staff＋assignment専有hunk。
 - BE：B/staff/staff_{handler,service}.go。model：B/model/staff.go。FE：F/master/routes/StaffSettings.tsx。
 - 判定・境界：既採用：staff model/handler/service/FE。明確な残は493選定leave/eligibility API未収録と366 trusted actor必要subset。profile全体再実装なし。
+- 採用境界：既存staff保存の[#702](https://github.com/MinoruSoga/AnimalEkarte/pull/702)（merge `dd1b5a76cdae42c03e55417f38c04083b6fa086f`）も採用。StaffSettings/StaffSidePanel/use-master-saveの基本保存→変更した権限group→所属医院→対応予約区分のawait、現在権限再確認、保存中追加編集/旧パネル遅延保護、観測CREATE成功ID保持→再保存UPDATE、全成功時のみdirty解除/通知/closeを再実装しない。③状態/dirty接続は450/M18、集約448。493のleave/eligibility/勤務/copy/CSV、既知公開4field clearとは別。複数API全体の原子性と未観測通信断unknownの冪等性は#702の保証でなく、実API/実staff writeも今回未確認。[coverageの現在追跡](emr-stage123-coverage-audit-20261022.md#a10-current-trace-20261022)を参照し、新実装scopeを増やさない。
 - 追加静的残差：license_numberと予約公開profileの限定4fieldの空clearは§7の448行。password/emailへ一般化しない。
 ### 13. 職種
 - 属性/操作：name/description/active/order。個別正本にあるCRUDと専用操作のみ。
@@ -101,8 +103,8 @@
 - 属性/操作：type/group/所要時間/個別意図/公開/分類/name版/順序。個別正本にあるCRUDと専用操作のみ。
 - 集約 / 実装単位 / 専有hunk：448 / 492 / reservation_type/group専有。
 - BE：B/reservation/reservation_type_{handler,service}.go。model：B/model/reservation_type.go。FE：F/master/routes/ReservationTypeSettings.tsx。
-- 判定・境界：既採用：基本handler/service/model/FE。492 rename/restore/C06追加wireと旧writer切替は明確な残。既存CRUDを削除して全面再構築しない。
-### 16. 診療項目5tab
+- 判定・境界：既採用：基本handler/service/model/FE。492 rename/restore/C06追加wireと旧writer切替は明確な残。group解除/任意属性presenceの具体受領条件は§8。今回Dへ追加せず、既存CRUDを削除して全面再構築しない。
+### 16. 診療項目5tab（検査本体CRUDはrow6参照）
 - 属性/操作：診察/検査/処置/ワクチン/健診の名称/親/description/price/active/対象保険税。個別正本にあるCRUDと専用操作のみ。
 - 集約 / 実装単位 / 専有hunk：447 / 454455456既採用＋365 / 5種専有／shared454単一owner。
 - BE：B/medicalrecord/consultation_{handler,service}.go。model：B/model/consultation.go。FE：F/master/routes/TreatmentPlanMaster.tsx。
@@ -140,7 +142,7 @@
 - 集約 / 実装単位 / 専有hunk：445採用証跡 / 無差分採用候補 / clinic基本設定＋専有FE。
 - BE：B/clinic/clinic_{handler,service}.go。model：B/model/clinic.go。FE：F/clinic-settings/routes/ClinicMasterSettings.tsx。
 - 判定・境界：既採用：医院設定保存field、update+reload同TX、delete時owner/staff/他参照検査、package catalog初期化。実医院設定の変更は対象外。
-- 段階移行残：医院税率response adapterは§7のEMR-445既存採用行の限定差分へ紐付ける。実医院設定変更や530への追加をしない。
+- 段階移行残：医院税率response adapterは§7のEMR-445既存採用行の限定差分へ紐付ける。加えてMM-CLINICの任意8文字列clearは§7の②医院設定専有subset、単一claim待ち。A共有API/DDL担当へFE実装を暗黙追加せず、実医院設定変更や530への追加をしない。
 ### 23. 法人設定
 - 属性/操作：singleton基本情報/インボイス登録番号。個別正本にあるCRUDと専用操作のみ。
 - 集約 / 実装単位 / 専有hunk：445採用証跡 / 医院と同じ責務 / company singleton。
@@ -223,7 +225,7 @@ rate/amountの現入力意味、個別rateの0..100、非負、期間/対象scop
 - emr-297-device-mapping-bridge-contract-20261021.md §6：heads PK(clinic,source,species_scope)、immutable revisions、既存master PATCH/configuration/spec writer全参加、同head増分＋snapshot監査。generic旧有効対応のbaselineは未知由来を明示し、過去承認を捏造しない。
 - §7a：lab-mapping-revision/v1のexact rows（code、field、exam_type、field版nullable/digest、unit/value_shape、元table/id、draft nullable、由来）、code順/nullable保持。既存master設定はprovenance_kind=manual_master、確定draftはdraft_confirm、初期採用はlegacy_baseline。field版を架空採番しない。
 - §7b：field_definition_digestのexact既存列投影、draft contextのmapping scope revision/field definitions reader。これを受領interfaceとして固定し、旧mutable rowのupdated_atを版の代用品にしない。
-変更hunk: backend/internal/medicalrecord/lab_device_item_master_service.go（Update/SaveConfigurationの共通participant）、lab_device_mapping_store.go（UpsertDeviceMaster/UpsertSpeciesSpec）、lab_device_mapping_draft.go/handler.go（297-Aのdraft confirm）、該当repository/modelと①選定DDL。新しいlegacy設定用C06 intentや第2request identityはここで発明しない。現route/旧DTOはこの参加のためだけには変更しない。confirm新DTO/C06は採択§4C/7の別明示操作を使う。
+変更hunk: backend/internal/medicalrecord/lab_device_item_master_service.go（Update/SaveConfigurationの共通participant）、lab_device_mapping_store.go（UpsertDeviceMaster/UpsertSpeciesSpec）、lab_device_mapping_draft.go/handler.go（297-Aのdraft confirm）、該当repository/modelと①選定DDL（stage1 §5.2の297-A設定行で445/446/466が受領）。新しいlegacy設定用C06 intentや第2request identityはここで発明しない。現route/旧DTOはこの参加のためだけには変更しない。confirm新DTO/C06は採択§4C/7の別明示操作を使う。
 参加interfaceの意味: 既存認可済の設定変更TX内で、影響するsource/species scopeのheadを採択順でlock→既存master/spec保存→同TXでそのscopeの全active対応を§7a shapeにsnapshot→head増分/immutable revision/必須監査。一部itemだけの不完全snapshotをhead最新版にしない。該当scopeを取りこぼす旧writerを残したまま新readerをactivateしない。全参加が未実装の間は既存設定成果の採用と新版読取未活性を別表示する。
 範囲外: 日常frames/wait、job mapping application/resolve、臨床persist/516 linkは297-B/268等④。実機・LLM実送信/臨床mapping承認は⑤/運用で別。②全masterを日常受信完了待ちにしない。
 受入fixture: master PATCH/configuration/spec/confirmの各入口が同じscope revisionを進める、設定同TXrollback、generic/spec区別、field定義digest変化、旧NULL版/由来unknown、別院/失権、全writer参加前reader非活性。試験NOT_RUN。API/schema反映とruntime完了を混同しない。
@@ -274,6 +276,49 @@ rate/amountの現入力意味、個別rateの0..100、非負、期間/対象scop
 | 既存集約・受入先 | 固定mainで確認した境界 | 限定受入条件・非対象 |
 |---|---|---|
 | EMR-447 薬剤base master | backend/internal/medicalrecord/medicine_service_create.go L25/L28/L31のDefaultQuantity/TaxRate/Strength→ExactNumeric境界。既存447本文の薬剤create/edit/read往復へ受領 | request/service/base model/HTTP response/callerの型対応を既存選定wireに合わせ、presence/null/0・保存後再GETを対応づける。保存modelを旧型へ戻さない。498 pattern/revision・488製剤量・530 campaign/merchandiseへ混ぜず、新しい臨床値を選定しない |
-| EMR-445 医院の既存採用行 | backend/internal/clinic/clinic_response.go L26–27/L66–67のStandardTaxRate/ReducedTaxRate response境界 | modelのExactNumericとHTTP response/callerの採択型を対応づけ、既存医院設定保存/再GETの受入へ追加。新税則・実医院設定変更・530への追加をしない |
+| EMR-445 医院の既存採用行 | backend/internal/clinic/clinic_response.go L26–27/L66–67のStandardTaxRate/ReducedTaxRate response境界 | modelのExactNumericとHTTP response/callerの採択型を対応づけ、既存医院設定保存/再GETの受入へ追加。下記MM-CLINIC文字列clearとは別hunk。新税則・実医院設定変更・530への追加をしない |
 
 この監査追補の管理先は445/447/448/449/450/523/528の7票。既知529の診断と530のcampaign/merchandiseは専有範囲を維持し、527生成同期も別後続。4票のReady是正は実装開始根拠にしない。実装・ビルド・試験・生成・DB適用は未実施。
+
+### MM-CLINIC：②医院設定専有subset（445、単一claim待ち）
+
+固定main `06213d5778807f9ecbc9a8501dd579e8190a0d3b`。frontend/src/features/clinic-settings/lib/clinic-master-settings-model.tsのbuildUpdateClinicRequestはpostal_code/address/phone_number/fax_number/registration_number/director_name/email/websiteの空文字をundefinedにし、backend/internal/clinic/clinic_service_update.goの*string nil=省略保持へ落ちる。既存非空値を明示空へ変更できない具体差分として、Updateの8fieldだけpresenceを保持して送信し、既存非nil空保存→再GETへ接続する受入を追加する。Create既定・必須name・税率adapter・実医院設定変更は別。受入条件は各非空→空、空→非空、省略保持、別field保持、現在認可拒否で入力保持（NOT_RUN）。既存445で②医院設定専有subset/単一claim待ちとして追跡し、Aの共有API/DDL/model担当へFE実装を暗黙追加しない。
+
+## 8. 492既存設定writer切替の具体受領条件（後続）
+
+frontend/src/features/master/hooks/reservation-type-settings-model.tsのbuildReservationTypeUpdateRequestはCreate builderを流用し、未分類への変更でgroup_idを省略しclear_group_idも送らない。またdescription/reservation_display_name/short_name/reservation_comment/reservation_image_urlの空がundefinedへ落ちる。この静的差分は[既選定492契約§5.2](emr-490-492-selected-wire-contract-20261021.md)のgroup明示nullと属性presenceへ切り替える受入例であり、新規業務判断ではない。
+
+新C06 changesではgroup_idの省略=保持、明示null=解除、値=設定とし、旧clear_group_idと新nullを二重の業務writerにしない。互換adapterが必要なら旧clear flagをpresence付きnullへ一回だけ変換する。任意5文字列の明示空/省略/既存nullable規約を区別し、表示名のrenameやscope/CAS/expected_group_versionsを迂回しない。fixtureはgroup値→未分類→再GET、group省略保持、各文字列非空→空/省略保持、旧flag/新wire混在拒否、他院group拒否（NOT_RUN）。492の後続単一ownerが設定writer切替とともに受領し、今回Dの限定clear作業へ追加しない。
+
+## 9. 今回5枠との境界
+
+[①のA〜E引渡し表](emr-445-stage1-contract-start-plan-20261021.md#stage-current-five-20261021)に従う。C/D/Eの限定hunk以外の既選定②subset、MM-CLINIC、③450/523を同時着手の指示にしない。297-Aは①保存/context受領→447/297の②全設定writer参加の対応を閉じ、daily job application/wait/resolve/persistは④へ残す。計画補正と実装完了を分け、今回はdocs-only/NOT_RUN。
+
+## 10. coverage監査で具体化した②受領残（2026-10-22）
+
+[監査記録A01–A10](emr-stage123-coverage-audit-20261022.md)は旧監査基準と作成基準を分け、計画記載・所有範囲・実装接続・試験を別判定する。今回の所見を進行中C/D/Eや530へ無断追加せず、既存票の後続subsetとして受領する。
+
+| 対象 | ②の具体受領条件 | 責務・設計残/非対象 |
+|---|---|---|
+| 診療5種＋薬剤＋物販の全体割引除外 | 各設定画面の編集→保存→再GET、明示値と未設定/unknownの保持を①保存契約から受領。旧会計/履歴再計算・false補完なし | 臨床/薬剤447、物販449。①保存型/wireは2026-10-22選定契約Aで技術選定済み、API/DDL/model/製品実装・受領・試験は未完。481/483/505は④採用consumer。現C/E/530へ黙って追加しない |
+| 担当者別LINE開始時刻 | 分類/担当者ごとの開始時刻設定と既存予約保持を受領、保存後の候補表示/判定consumerは468へ渡す | 448/492後続単一writer。[2026-10-22時間契約§4](emr-clinic-line-time-selected-contract-20261022.md#4-a02-担当者別trimming開始policy)で保存scope/版/元assignment/日別置換/削除再設定を選定済み。API/保存型/製品実装・受領・試験は未完。現医院＋区分の旧slotで完成とせず、マーケ最終工程とも別 |
+| 医院共通営業時間/休診日 | 共通医院基準とLINEの範囲内別設定、院内の警告了承/取消、レジ別日界の既決を保持 | 445医院設定と448/492 LINEの後続。[時間契約§2/3](emr-clinic-line-time-selected-contract-20261022.md)でcommon aggregateとLINE確認版/内側制限、旧レジ休日分離を技術選定済み。156の実値照合・API/保存型/実装受領は未完。実医院設定/現5枠を変更しない |
+| 健診種別parent整合 | Create/親変更/Deleteが同じ親row lockと同TX内の存在・子参照再検査に参加し、子保存先行/親削除先行の両順序で片方だけ成立。CAS/品目保険監査は保持 | 447/456 UAT・#732の残存コード差分。Read Committedの通常SELECT→別TX soft-delete→子INSERTの静的raceで、実DB再現NOT_RUN。新DDL必須にせず、Cへ無断追加しない |
+| trimming course旧属性の指定なし | 2026-10-22選定契約BでPATCH-only clear_course_type_id/clear_target_sizeを技術選定済み。旧null保持維持、flag true＋非null値/flag null等は400/全体無書込。値→指定なし→GETと無関係項目保持をfixture化。API/製品実装・受領・試験は未完、新DDL/model不要 | 448後続。457新属性/画像/曜日clearとは別、FKへ0/空文字を送らず汎用nullable全面拡張なし。#806でもcourse_type_id schema未収録は残る |
+| trimming option Create型adapter | SortOrder int→model *intの具体caller対応を既知型driftの受領表へ追加 | 448の既知型境界確認。新規欠陥件数に二重算入せず、modelを旧型へ戻さない |
+
+EMR-306はDone直前のcomment fd0b67d6-3a21-4d15-821b-d2470f0b243d（2026-10-20 07:51:30.990830Z）の限定STG UAT再実行PASSを採用する。空き2件選択→代表ケージ確認→連結→マスタ/ボード両表示→解除→個別空き復帰は既存成果。ボードDnD合体・連結中割当拒否実演・退院後の連結維持だけUNKNOWN/461・499境界として分離し、証拠欠落・記録不整合・誤Doneにはしない。状態は変更しない。ホテル上限はspec-storage-traceと既存452/461/499に追跡でき、新規漏れではない。今回はdocsのみ、実DB/試験/ビルド/生成NOT_RUN。
+
+### A01/A06の現在判定と後続受領
+
+[2026-10-22の選定契約](emr-master-update-selected-contract-20261022.md)がA01/A06の監査時設計残を具体化した。A01は7resourceの新boolを編集→保存→再GETし、rawNULL/false/trueと旧欠落unknownを区別する。無関係更新/旧writer/importで既存trueやrawNULLを消さず、必要CASと既存同TX auditへ新boolのbefore/afterを保険とは別に追加する。既存is_non_insurance helperだけで監査対応済みにしない。旧会計/治療/見積/帳票/snapshot更新なし。
+
+A06はFE Update builderから対象2propertyを除いて変更差分だけを送る。未編集は省略、指定なし変更は対応flag trueだけ、値指定は値だけ。既存short_name/image_object_keyの空文字・allowed_weekdaysの空配列clearと省略/null保持は変えない。専有FE再GETで確認し、BE対応前に新FEを公開しない。現Dのdescription/既存型driftとは別後続として448が受領する。
+
+選定済みは実装済みではなく、API正本反映・A01の必要schema/model/reader整合・runtime→FE配備・受領・試験は未完。A06の新DDL/modelは不要で、その非対象判定を適用済みとは言わない。A02/A03も下記の技術選定済みだが実反映/受領は未完で、全①〜③完成とはしない。NOT_RUN。
+
+### A02/A03の現在判定と専有後続
+
+[医院・LINE時間契約](emr-clinic-line-time-selected-contract-20261022.md)は監査時設計残を2026-10-22に具体化した。445はcommon initialize/updateと権限限定休診adapter、448/492はLINE acceptance確認/更新と非P分離、staff開始policyの設定UI/単一writerを後続claimで受領する。共通縮小はLINE保存値をmaskするだけで書戻さず、拡大も自動拡張しない。未設定/未照合/正常空/取得失敗を分け、LINE受付可へfallbackしない。
+
+既存予約警告のpreview/了承/取消/CAS再検査を使い、予約全解消や院内全面拒否を新設しない。旧shifts休日はcommon切替時に移行するが、旧closing休日はレジ専用legacy read/writeを維持する。新commonとdual-writeなし。ホテル閉店ちょうどの入退室予定は本人承認済みで、休憩/休日/LINE/定員の独立条件は維持する。④468の利用と実予約切替は別成果、現D等のscopeへ追加しない。実医院値確認・API/DDL/model/生成・runtime/FE・全必要writer閉包・受領・試験は未完。NOT_RUN。

@@ -9,7 +9,8 @@ export function buildHospitalizationCreateRequest(
 ): CreateHospitalizationPlanRequest {
   return {
     name: data.name,
-    price: data.price || undefined,
+    // EMR-528: 明示入力の 0 円を未入力へ潰さない。
+    price: data.price,
     description: data.description || undefined,
     is_active: data.isActive,
     body_size: data.bodySize !== "" ? data.bodySize : undefined,
@@ -25,7 +26,8 @@ export function buildHospitalizationUpdateRequest(
   return {
     name: data.name,
     price: data.price,
-    description: data.description || undefined,
+    // EMR-528: 備考を空へ変更できるよう、空文字も省略せず送る（BE は "" を空で保存）。
+    description: data.description,
     is_active: data.isActive,
     body_size: data.bodySize !== "" ? data.bodySize : null,
     billing_unit: data.billingUnit !== "" ? data.billingUnit : null,

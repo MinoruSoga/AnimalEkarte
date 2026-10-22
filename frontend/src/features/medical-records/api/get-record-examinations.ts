@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { Examination } from "@/types/generated/models";
+import type { LegacyExaminationResponse } from "@/types/examination-legacy-wire";
 import { transformExamResult, type ExamResult } from "@/lib/transforms/examination";
 
 /**
@@ -31,7 +31,13 @@ export interface RecordExaminationsResult {
   isTruncated: boolean;
 }
 
-function transformExamGroup(exam: Examination): ExamGroup {
+/** GET /v1/examinations の一覧エンベロープ（include_items=true）。 */
+interface RecordExaminationsListResponse {
+  data: LegacyExaminationResponse[];
+  total?: number;
+}
+
+function transformExamGroup(exam: LegacyExaminationResponse): ExamGroup {
   return {
     id: exam.id,
     date: exam.date ? exam.date.slice(0, 16).replace("T", " ") : "-",
@@ -59,7 +65,7 @@ const getRecordExaminations = async (input: {
   if (input.petId) {
     params.pet_id = Number(input.petId);
   }
-  const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
+  const { data } = await axios.get<RecordExaminationsListResponse>("/v1/examinations", {
     params,
   });
   const rows = data.data ?? [];
