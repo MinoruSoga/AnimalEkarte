@@ -17037,6 +17037,8 @@ components:
           description: delete だけ null。
         days:
           type: array
+          minItems: 1
+          description: 要求 dates の各日を同順で1件ずつ。空配列は返さない。
           items:
             $ref: '#/components/schemas/LineStartPolicyPreviewDay'
         reservation_eligibility:
@@ -33062,6 +33064,13 @@ paths:
       responses:
         '200':
           description: 担当者別登録開始時刻（unconfigured は version/policy/deleted_at null）
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33283,6 +33292,13 @@ paths:
       responses:
         '200':
           description: preview 結果（定義した未設定/削除/未照合 state を含む完全評価）
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -33334,6 +33350,13 @@ paths:
       responses:
         '200':
           description: 限定 C06 照会結果。refs/版だけを返し Policy 本文・氏名・予約一覧は返さない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
