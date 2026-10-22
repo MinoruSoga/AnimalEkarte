@@ -16,22 +16,22 @@ import (
 )
 
 type mockTreatmentPackageRepo struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPackage, error)
-	liveItemsFn    func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackageItem, error)
-	allItemsFn     func(ctx context.Context, clinicID, packageID uint64) ([]model.TreatmentPackageItem, error)
-	lockClinicFn   func(ctx context.Context, clinicID uint64) error
-	lockCatalogFn  func(ctx context.Context, clinicID uint64) (int64, error)
-	catalogRevFn   func(ctx context.Context, clinicID uint64) (int64, error)
-	incCatalogFn   func(ctx context.Context, clinicID uint64, expected int64) error
-	lockPkgsFn     func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackage, error)
+	findAllFn           func(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPackage, error)
+	liveItemsFn         func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackageItem, error)
+	allItemsFn          func(ctx context.Context, clinicID, packageID uint64) ([]model.TreatmentPackageItem, error)
+	lockClinicFn        func(ctx context.Context, clinicID uint64) error
+	lockCatalogFn       func(ctx context.Context, clinicID uint64) (int64, error)
+	catalogRevFn        func(ctx context.Context, clinicID uint64) (int64, error)
+	incCatalogFn        func(ctx context.Context, clinicID uint64, expected int64) error
+	lockPkgsFn          func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackage, error)
 	lockAllForReorderFn func(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
-	maxSortFn      func(ctx context.Context, clinicID uint64) (int, error)
-	createFn       func(ctx context.Context, pkg *model.TreatmentPackage, items []model.TreatmentPackageItem) error
-	updateFn       func(ctx context.Context, clinicID, id uint64, expected int64, fields map[string]any) (*model.TreatmentPackage, error)
-	replaceItemsFn func(ctx context.Context, clinicID, packageID uint64, keep []model.TreatmentPackageItem, removeIDs []uint64, now time.Time) error
-	softDeleteFn   func(ctx context.Context, clinicID, id uint64, expected int64, actorID uint64, now time.Time) error
-	reorderFn      func(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error
+	maxSortFn           func(ctx context.Context, clinicID uint64) (int, error)
+	createFn            func(ctx context.Context, pkg *model.TreatmentPackage, items []model.TreatmentPackageItem) error
+	updateFn            func(ctx context.Context, clinicID, id uint64, expected int64, fields map[string]any) (*model.TreatmentPackage, error)
+	replaceItemsFn      func(ctx context.Context, clinicID, packageID uint64, keep []model.TreatmentPackageItem, removeIDs []uint64, now time.Time) error
+	softDeleteFn        func(ctx context.Context, clinicID, id uint64, expected int64, actorID uint64, now time.Time) error
+	reorderFn           func(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error
 }
 
 func (m *mockTreatmentPackageRepo) FindAll(ctx context.Context, c uint64) ([]model.TreatmentPackage, error) {
@@ -339,8 +339,8 @@ func TestTreatmentPackageService_Reorder_RejectedBeyondListCapZeroWrite(t *testi
 			lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
 				return reorderFixturePackages(total), nil
 			},
-			liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
-			reorderFn:   func(context.Context, uint64, uint64, int, uint64) error { *reorderCalled = true; return nil },
+			liveItemsFn:  func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
+			reorderFn:    func(context.Context, uint64, uint64, int, uint64) error { *reorderCalled = true; return nil },
 			incCatalogFn: func(context.Context, uint64, int64) error { *incCalled = true; return nil },
 		}
 	}

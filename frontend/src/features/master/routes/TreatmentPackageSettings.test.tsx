@@ -181,7 +181,9 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
   const latestPkg = { ...pkg("201", "最新名"), version: "5" };
   const mockGets = (detail: unknown) =>
     vi.mocked(axios.get).mockImplementation((url: string) =>
-      url === DETAIL_URL ? detail : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
+      url === DETAIL_URL
+        ? detail
+        : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
     );
 
   it("409 → 1回だけ detail GET → 両値を比較表示 → (a) 最新採用で draft 置換", async () => {
@@ -226,7 +228,10 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
     vi.mocked(axios.patch).mockResolvedValue({ data: latestPkg });
     await user.click(screen.getByText("保存"));
     await vi.waitFor(() => {
-      expect(vi.mocked(axios.patch)).toHaveBeenCalledWith(DETAIL_URL, expect.objectContaining({ version: "5" }));
+      expect(vi.mocked(axios.patch)).toHaveBeenCalledWith(
+        DETAIL_URL,
+        expect.objectContaining({ version: "5" }),
+      );
     });
   });
 
@@ -244,7 +249,9 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
     expect(await screen.findByText(/最新の取得に失敗しました/)).toBeTruthy();
     expect(((await screen.findByLabelText("名称")) as HTMLInputElement).value).toBe("自分の入力");
     vi.mocked(axios.get).mockImplementation((url: string) =>
-      url === DETAIL_URL ? Promise.reject(apiError(404)) : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
+      url === DETAIL_URL
+        ? Promise.reject(apiError(404))
+        : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
     );
     await user.click(screen.getByText("再試行"));
     expect(await screen.findByText(/このパッケージは削除されています/)).toBeTruthy();
@@ -256,7 +263,9 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
     let resolveDetail!: (v: unknown) => void;
     vi.mocked(axios.get).mockImplementation((url: string) =>
       url === DETAIL_URL
-        ? new Promise((r) => { resolveDetail = r; })
+        ? new Promise((r) => {
+            resolveDetail = r;
+          })
         : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
     );
     vi.mocked(axios.patch).mockRejectedValue(apiError(409));
