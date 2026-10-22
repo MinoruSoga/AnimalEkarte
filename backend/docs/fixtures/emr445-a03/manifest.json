@@ -313,6 +313,149 @@
    "scenario": "要求 dates があるのに days が空",
    "semantic_expectation": "不適合（days は要求日を1件以上）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-month-configured.response.json",
+   "operationId": "listClinicCommonHolidaysShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayMonthResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "configured は version 非 null・月内 holiday あり",
+   "semantic_expectation": "配置1分岐（configured）だけに一致",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-month-unconfigured.response.json",
+   "operationId": "listClinicCommonHolidaysShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayMonthResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "unconfigured は version null・closed_dates []",
+   "semantic_expectation": "配置1分岐（unconfigured）だけに一致",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-month-configured-null-version.response.json",
+   "operationId": "listClinicCommonHolidaysShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayMonthResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "configured なのに version null",
+   "semantic_expectation": "不適合（configured は version 必須）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-month-unconfigured-with-version.response.json",
+   "operationId": "listClinicCommonHolidaysShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayMonthResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "unconfigured なのに version 非 null",
+   "semantic_expectation": "不適合（unconfigured は version null）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-month-unconfigured-with-closed-dates.response.json",
+   "operationId": "listClinicCommonHolidaysShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayMonthResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "unconfigured なのに closed_dates が空でない",
+   "semantic_expectation": "不適合（unconfigured は closed_dates []）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-preview-set-null-proposed.response.json",
+   "operationId": "previewClinicCommonHolidayShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "action=set なのに proposed null",
+   "semantic_expectation": "不適合（set は提案1日の proposed object 必須）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-preview-unset-with-proposed.response.json",
+   "operationId": "previewClinicCommonHolidayShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "action=unset なのに proposed が object",
+   "semantic_expectation": "不適合（unset は proposed null）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-preview-unset.response.json",
+   "operationId": "previewClinicCommonHolidayShifts",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicCommonHolidayPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "unset は proposed null（解除に新たな休診追加警告なし）",
+   "semantic_expectation": "配置1分岐（unset）だけに一致",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-initialize-null-current.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "initialize は行不在で observed 版・current_settings とも null",
+   "semantic_expectation": "配置1分岐（initialize）だけに一致",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-initialize-with-current.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "mode=initialize なのに current_settings 非 null",
+   "semantic_expectation": "不適合（initialize は current_settings null）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-initialize-with-observed-version.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "mode=initialize なのに observed_versions.clinic_operating_hours 非 null",
+   "semantic_expectation": "不適合（initialize は common 版 null）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-update-null-current.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "mode=update なのに current_settings null",
+   "semantic_expectation": "不適合（update は current_settings 必須）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-update-null-observed-version.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "mode=update なのに observed_versions.clinic_operating_hours null",
+   "semantic_expectation": "不適合（update は common 版必須）",
+   "verification": "NOT_RUN"
   }
  ]
 }
