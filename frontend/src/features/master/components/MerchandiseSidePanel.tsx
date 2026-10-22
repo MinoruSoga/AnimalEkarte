@@ -145,8 +145,10 @@ export const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
       </PropertyRow>
       <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
         <TaxRateSelector
-          value={formData.taxRate}
-          onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: value }))}
+          // EMR-530: 保有するのは exact decimal 文字列。共有TaxRateSelectorの number 契約は
+          // 変更せず、表示用に数値化し、選択結果を "0.1"/"0.08" の字句として保持する。
+          value={Number(formData.taxRate)}
+          onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: String(value) }))}
         />
       </PropertyRow>
     </MasterSidePanel>

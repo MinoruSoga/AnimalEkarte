@@ -182,7 +182,7 @@ func seedRealDBInventoryFixture(
 		Category:  model.ItemCategoryGoods,
 		UnitPrice: 1000,
 		TaxType:   model.TaxTypeExcluded,
-		TaxRate:   0.10,
+		TaxRate:   testTaxRateOf(10, -2),
 		IsActive:  true,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(merchandiseA).Error)
@@ -192,7 +192,7 @@ func seedRealDBInventoryFixture(
 		Category:  model.ItemCategoryGoods,
 		UnitPrice: 2000,
 		TaxType:   model.TaxTypeExcluded,
-		TaxRate:   0.10,
+		TaxRate:   testTaxRateOf(10, -2),
 		IsActive:  true,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(merchandiseB).Error)

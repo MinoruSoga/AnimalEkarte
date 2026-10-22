@@ -239,7 +239,7 @@ func TestCreateMerchandiseItem(t *testing.T) {
 			"category":   "food",
 			"unit_price": 1200,
 			"tax_type":   "excluded",
-			"tax_rate":   0.10,
+			"tax_rate":   "0.10",
 			"is_active":  true,
 		}
 	}

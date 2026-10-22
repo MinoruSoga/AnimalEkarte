@@ -3,6 +3,7 @@ package billing
 import (
 	"context"
 	"log/slog"
+	"math/big"
 	"sort"
 	"time"
 
@@ -17,7 +18,7 @@ type CreateCampaignInput struct {
 	StartDate        time.Time
 	EndDate          time.Time
 	DiscountType     model.CampaignDiscountType
-	DiscountValue    float64
+	DiscountValue    model.ExactNumeric
 	IsActive         bool
 	SortOrder        int
 	TargetCategories []model.ItemCategory
@@ -30,7 +31,7 @@ type UpdateCampaignInput struct {
 	StartDate        *time.Time
 	EndDate          *time.Time
 	DiscountType     *model.CampaignDiscountType
-	DiscountValue    *float64
+	DiscountValue    *model.ExactNumeric
 	IsActive         *bool
 	SortOrder        *int
 	TargetCategories *[]model.ItemCategory
@@ -117,7 +118,7 @@ func resolveCampaignPeriod(current *model.Campaign, input *UpdateCampaignInput) 
 	return start, end, hasPeriodUpdate
 }
 
-func resolveCampaignDiscount(current *model.Campaign, input *UpdateCampaignInput) (model.CampaignDiscountType, float64, bool) {
+func resolveCampaignDiscount(current *model.Campaign, input *UpdateCampaignInput) (model.CampaignDiscountType, model.ExactNumeric, bool) {
 	discountType, discountValue := current.DiscountType, current.DiscountValue
 	hasDiscountUpdate := input.DiscountType != nil || input.DiscountValue != nil
 	if input.DiscountType != nil {
@@ -142,14 +143,16 @@ func resolveCampaignTargets(current *model.Campaign, input *UpdateCampaignInput)
 	return categories, itemIDs, hasTargets
 }
 
-func validateCampaignDiscount(dt model.CampaignDiscountType, value float64) error {
+// validateCampaignDiscount は割引値の業務範囲を exact 比較で検査する（float 経由なし）。
+func validateCampaignDiscount(dt model.CampaignDiscountType, value model.ExactNumeric) error {
+	v := exactNumericRat(value)
 	switch dt {
 	case model.CampaignDiscountTypeRate:
-		if value < 0 || value > 100 {
+		if v.Sign() < 0 || v.Cmp(big.NewRat(100, 1)) > 0 {
 			return apperrors.WrapInvalidInput("割引率は0〜100の範囲で指定してください")
 		}
 	case model.CampaignDiscountTypeAmount:
-		if value < 0 {
+		if v.Sign() < 0 {
 			return apperrors.WrapInvalidInput("割引額は0以上で指定してください")
 		}
 	default:

@@ -110,7 +110,7 @@ func TestCampaignRepository_Create(t *testing.T) {
 		StartDate:     jun,
 		EndDate:       jul,
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 10,
+		DiscountValue: exactNumericOf(10, 0),
 		TargetCategories: []model.CampaignTargetCategory{
 			{Category: model.ItemCategoryVaccine},
 		},
@@ -147,7 +147,7 @@ func TestCampaignRepository_Create_IsActiveFalsePersists(t *testing.T) {
 		StartDate:     jun,
 		EndDate:       jul,
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 10,
+		DiscountValue: exactNumericOf(10, 0),
 		IsActive:      false,
 	}
 	created, err := repo.Create(ctx, inactive)
@@ -184,7 +184,7 @@ func TestCampaignRepository_Create_IsActiveTruePersists(t *testing.T) {
 		StartDate:     jun,
 		EndDate:       jul,
 		DiscountType:  model.CampaignDiscountTypeRate,
-		DiscountValue: 10,
+		DiscountValue: exactNumericOf(10, 0),
 		IsActive:      true,
 	}
 	created, err := repo.Create(ctx, active)
@@ -361,11 +361,11 @@ func TestCampaignRepository_FindApplicableForItem(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	low := &model.Campaign{ClinicID: clinicA, Name: "低割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: 5}
+	low := &model.Campaign{ClinicID: clinicA, Name: "低割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: exactNumericOf(500, -2)}
 	require.NoError(t, db.WithContext(ctx).Create(low).Error)
 	require.NoError(t, repo.ReplaceTargets(ctx, low.ID, []model.ItemCategory{model.ItemCategoryVaccine}, nil))
 
-	high := &model.Campaign{ClinicID: clinicA, Name: "高割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: 20}
+	high := &model.Campaign{ClinicID: clinicA, Name: "高割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: exactNumericOf(2000, -2)}
 	require.NoError(t, db.WithContext(ctx).Create(high).Error)
 	require.NoError(t, repo.ReplaceTargets(ctx, high.ID, []model.ItemCategory{model.ItemCategoryVaccine}, nil))
 
@@ -419,11 +419,11 @@ func TestCampaignRepository_FindAllApplicableForItem(t *testing.T) {
 		assert.Empty(t, got)
 	})
 
-	low := &model.Campaign{ClinicID: clinicA, Name: "低割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: 5}
+	low := &model.Campaign{ClinicID: clinicA, Name: "低割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: exactNumericOf(500, -2)}
 	require.NoError(t, db.WithContext(ctx).Create(low).Error)
 	require.NoError(t, repo.ReplaceTargets(ctx, low.ID, []model.ItemCategory{model.ItemCategoryTrimming}, nil))
 
-	high := &model.Campaign{ClinicID: clinicA, Name: "高割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: 20}
+	high := &model.Campaign{ClinicID: clinicA, Name: "高割引", StartDate: jun, EndDate: jul, IsActive: true, DiscountValue: exactNumericOf(2000, -2)}
 	require.NoError(t, db.WithContext(ctx).Create(high).Error)
 	require.NoError(t, repo.ReplaceTargets(ctx, high.ID, []model.ItemCategory{model.ItemCategoryTrimming}, nil))
 

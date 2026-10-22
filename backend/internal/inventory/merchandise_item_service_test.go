@@ -325,7 +325,7 @@ func TestMerchandiseItemService_Create(t *testing.T) {
 // TestMerchandiseItemService_Create_CustomTaxTypeAndRate は TaxType/TaxRate が明示指定された場合、
 // デフォルト値ではなく指定値がそのまま採用されることを検証する。
 func TestMerchandiseItemService_Create_CustomTaxTypeAndRate(t *testing.T) {
-	customRate := 0.08
+	customRate := mustTaxRate(t, "0.08")
 	var created *model.MerchandiseItem
 	repo := &mockMerchandiseItemRepository{
 		createFn: func(_ context.Context, item *model.MerchandiseItem) error {
@@ -346,7 +346,7 @@ func TestMerchandiseItemService_Create_CustomTaxTypeAndRate(t *testing.T) {
 	assert.NotNil(t, item)
 	assert.NotNil(t, created)
 	assert.Equal(t, model.TaxType("included"), created.TaxType)
-	assert.Equal(t, customRate, created.TaxRate)
+	assert.True(t, equalTaxRate(customRate, created.TaxRate))
 }
 
 // ---- Update テスト ----
@@ -605,7 +605,7 @@ func TestBuildMerchandiseItemUpdate(t *testing.T) {
 		category := "food"
 		price := int64(500)
 		taxType := "included"
-		taxRate := 0.08
+		taxRate := mustTaxRate(t, "0.08")
 		isActive := true
 		sortOrder := 3
 
@@ -623,7 +623,7 @@ func TestBuildMerchandiseItemUpdate(t *testing.T) {
 		assert.Equal(t, category, fields[colMerchandiseItemCategory])
 		assert.Equal(t, price, fields[colMerchandiseItemUnitPrice])
 		assert.Equal(t, taxType, fields[colMerchandiseItemTaxType])
-		assert.Equal(t, taxRate, fields[colMerchandiseItemTaxRate])
+		assert.True(t, equalTaxRate(taxRate, fields[colMerchandiseItemTaxRate].(model.ExactNumeric)))
 		assert.Equal(t, isActive, fields[colMerchandiseItemIsActive])
 		assert.Equal(t, sortOrder, fields[colMerchandiseItemSortOrder])
 	})

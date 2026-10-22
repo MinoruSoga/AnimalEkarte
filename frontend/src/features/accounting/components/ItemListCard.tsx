@@ -344,11 +344,13 @@ export const ItemListCard = memo(function ItemListCard({
                                 {formatCurrency(item.unitPrice)}
                               </TableCell>
                               <TableCell className={`text-right ${C.text50}`}>
-                                {item.taxRate === DEFAULT_STANDARD_TAX_RATE
-                                  ? "10%"
-                                  : item.taxRate === DEFAULT_REDUCED_TAX_RATE
-                                    ? "8%"
-                                    : `${item.taxRate * 100}%`}
+                                {item.taxRate === undefined
+                                  ? "—"
+                                  : item.taxRate === DEFAULT_STANDARD_TAX_RATE
+                                    ? "10%"
+                                    : item.taxRate === DEFAULT_REDUCED_TAX_RATE
+                                      ? "8%"
+                                      : `${item.taxRate * 100}%`}
                               </TableCell>
                               <TableCell>
                                 <DataTableRowButton

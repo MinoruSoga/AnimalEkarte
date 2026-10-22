@@ -3,14 +3,14 @@ package inventory
 import "testing"
 
 func TestCreateMerchandiseItemRequest_ToServiceInput(t *testing.T) {
-	taxRate := 0.1
+	taxRate := merchandiseTaxRateDTO{set: true, value: testTaxRateOf(10, -2)}
 
 	req := createMerchandiseItemRequest{
 		Name:      "Prescription food",
 		Category:  "food",
 		UnitPrice: 1200,
 		TaxType:   "included",
-		TaxRate:   &taxRate,
+		TaxRate:   taxRate,
 		IsActive:  true,
 		SortOrder: 3,
 	}
@@ -29,8 +29,8 @@ func TestCreateMerchandiseItemRequest_ToServiceInput(t *testing.T) {
 	if input.TaxType != req.TaxType {
 		t.Fatalf("TaxType = %q, want %q", input.TaxType, req.TaxType)
 	}
-	if input.TaxRate != &taxRate {
-		t.Fatalf("TaxRate pointer was not preserved")
+	if input.TaxRate == nil || !equalTaxRate(taxRate.value, *input.TaxRate) {
+		t.Fatalf("TaxRate value was not preserved")
 	}
 	if input.IsActive != req.IsActive {
 		t.Fatalf("IsActive = %v, want %v", input.IsActive, req.IsActive)
@@ -45,7 +45,7 @@ func TestUpdateMerchandiseItemRequest_ToServiceInput(t *testing.T) {
 	category := "goods"
 	unitPrice := int64(0)
 	taxType := "exempt"
-	taxRate := 0.0
+	taxRate := merchandiseTaxRateDTO{set: true, value: testTaxRateOf(0, 0)}
 	isActive := false
 	sortOrder := 0
 
@@ -73,8 +73,8 @@ func TestUpdateMerchandiseItemRequest_ToServiceInput(t *testing.T) {
 	if input.TaxType != &taxType {
 		t.Fatalf("TaxType pointer was not preserved")
 	}
-	if input.TaxRate != &taxRate {
-		t.Fatalf("TaxRate pointer was not preserved")
+	if input.TaxRate == nil || !equalTaxRate(taxRate.value, *input.TaxRate) {
+		t.Fatalf("TaxRate value was not preserved")
 	}
 	if input.IsActive != &isActive {
 		t.Fatalf("IsActive pointer was not preserved")

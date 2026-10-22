@@ -17,7 +17,7 @@ func TestCreateCampaignRequest_ToServiceInput(t *testing.T) {
 			StartDate:        "2026-07-01",
 			EndDate:          "2026-08-31",
 			DiscountType:     "rate",
-			DiscountValue:    10,
+			DiscountValue:    mustCampaignDiscountValue(t, "10"),
 			IsActive:         true,
 			SortOrder:        2,
 			TargetCategories: []string{"examination", "medicine"},
@@ -31,7 +31,7 @@ func TestCreateCampaignRequest_ToServiceInput(t *testing.T) {
 		assert.Equal(t, "2026-07-01", input.StartDate.Format("2006-01-02"))
 		assert.Equal(t, "2026-08-31", input.EndDate.Format("2006-01-02"))
 		assert.Equal(t, model.CampaignDiscountType("rate"), input.DiscountType)
-		assert.Equal(t, 10.0, input.DiscountValue)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "10"), input.DiscountValue))
 		assert.True(t, input.IsActive)
 		assert.Equal(t, 2, input.SortOrder)
 		assert.Equal(t, []model.ItemCategory{"examination", "medicine"}, input.TargetCategories)
@@ -99,7 +99,7 @@ func TestUpdateCampaignRequest_ToServiceInput(t *testing.T) {
 		start := "2026-09-01"
 		end := "2026-09-30"
 		discountType := "amount"
-		discountValue := 500.0
+		discountValue := mustCampaignDiscountValue(t, "500")
 		isActive := false
 		sortOrder := 3
 		targetCategories := []string{"vaccine"}
@@ -128,7 +128,8 @@ func TestUpdateCampaignRequest_ToServiceInput(t *testing.T) {
 		assert.Equal(t, "2026-09-30", input.EndDate.Format("2006-01-02"))
 		require.NotNil(t, input.DiscountType)
 		assert.Equal(t, model.CampaignDiscountType("amount"), *input.DiscountType)
-		assert.Equal(t, &discountValue, input.DiscountValue)
+		require.NotNil(t, input.DiscountValue)
+		assert.True(t, equalExactNumeric(discountValue.value, *input.DiscountValue))
 		assert.Equal(t, &isActive, input.IsActive)
 		assert.Equal(t, &sortOrder, input.SortOrder)
 		require.NotNil(t, input.TargetCategories)

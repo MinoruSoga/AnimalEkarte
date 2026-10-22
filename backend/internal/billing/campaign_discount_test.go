@@ -10,10 +10,10 @@ import (
 
 func TestBuildDiscountSuggestions(t *testing.T) {
 	rateCampaign := func(id uint64, name string, v float64) *model.Campaign {
-		return &model.Campaign{ID: id, Name: name, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: v}
+		return &model.Campaign{ID: id, Name: name, DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(int64(v*100), -2)}
 	}
 	amountCampaign := func(id uint64, name string, v float64) *model.Campaign {
-		return &model.Campaign{ID: id, Name: name, DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: v}
+		return &model.Campaign{ID: id, Name: name, DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: exactNumericOf(int64(v*100), -2)}
 	}
 
 	tests := []struct {
@@ -131,10 +131,10 @@ func TestBuildDiscountSuggestions(t *testing.T) {
 
 func TestCalculateItemCampaignDiscount(t *testing.T) {
 	rateCampaign := func(v float64) *model.Campaign {
-		return &model.Campaign{DiscountType: model.CampaignDiscountTypeRate, DiscountValue: v}
+		return &model.Campaign{DiscountType: model.CampaignDiscountTypeRate, DiscountValue: exactNumericOf(int64(v*100), -2)}
 	}
 	amountCampaign := func(v float64) *model.Campaign {
-		return &model.Campaign{DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: v}
+		return &model.Campaign{DiscountType: model.CampaignDiscountTypeAmount, DiscountValue: exactNumericOf(int64(v*100), -2)}
 	}
 
 	tests := []struct {

@@ -10,7 +10,7 @@ const items: FrontendMerchandiseItem[] = Array.from({ length: 101 }, (_, index) 
   category: "goods",
   unitPrice: 1100,
   taxType: "included",
-  taxRate: 0.1,
+  taxRate: "0.1",
   isActive: true,
   sortOrder: index,
 }));

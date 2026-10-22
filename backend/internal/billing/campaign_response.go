@@ -14,11 +14,22 @@ type campaignResponse struct {
 	StartDate        string   `json:"start_date"`
 	EndDate          string   `json:"end_date"`
 	DiscountType     string   `json:"discount_type"`
-	DiscountValue    float64  `json:"discount_value"`
+	DiscountValue    string   `json:"discount_value"`
 	IsActive         bool     `json:"is_active"`
 	SortOrder        int      `json:"sort_order"`
 	TargetCategories []string `json:"target_categories"`
 	TargetItemIDs    []uint64 `json:"target_item_ids"`
+}
+
+// exactNumericString は保存値を十進文字列として応答する（EMR-530、採択483の十進輸送）。
+// float 経由の丸めを行わない。列は NOT NULL であり到達しないが、異常時は既定 0 を返す。
+func exactNumericString(v model.ExactNumeric) string {
+	value, err := v.Value()
+	if err != nil || value == nil {
+		return "0"
+	}
+	text, _ := value.(string)
+	return text
 }
 
 func toCampaignResponse(m *model.Campaign) campaignResponse {
@@ -37,7 +48,7 @@ func toCampaignResponse(m *model.Campaign) campaignResponse {
 		StartDate:        m.StartDate.In(time.Local).Format(time.DateOnly),
 		EndDate:          m.EndDate.In(time.Local).Format(time.DateOnly),
 		DiscountType:     string(m.DiscountType),
-		DiscountValue:    m.DiscountValue,
+		DiscountValue:    exactNumericString(m.DiscountValue),
 		IsActive:         m.IsActive,
 		SortOrder:        m.SortOrder,
 		TargetCategories: cats,
