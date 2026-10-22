@@ -120,10 +120,11 @@ describe("MerchandiseSidePanel readOnly / cancel (EMR-537 AC1 挙動不変)", ()
 
     await user.click(screen.getByRole("button", { name: "保存" }));
 
-    expect(onSave).not.toHaveBeenCalled();
+    expect(await screen.findByText("名称を入力してください")).toBeInTheDocument();
     expect(document.getElementById("master-title-error")).toHaveTextContent(
       "名称を入力してください",
     );
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it("キャンセルで onClose が呼ばれる", async () => {
