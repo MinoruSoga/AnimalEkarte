@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"os"
 	"slices"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,18 +23,77 @@ type masterPatchOperation struct {
 			} `yaml:"schema"`
 		} `yaml:"content"`
 	} `yaml:"requestBody"`
-	Responses map[string]any `yaml:"responses"`
+	Responses map[string]yaml.Node `yaml:"responses"`
 }
 
 type masterPatchContractSpec struct {
 	Paths      map[string]map[string]yaml.Node `yaml:"paths"`
 	Components struct {
 		Schemas map[string]struct {
-			Required   []string                  `yaml:"required"`
-			Properties map[string]map[string]any `yaml:"properties"`
+			Required   []string             `yaml:"required"`
+			Properties map[string]yaml.Node `yaml:"properties"`
 		} `yaml:"schemas"`
 	} `yaml:"components"`
 }
+
+// canonicalYAMLNode は property schema の部分木を、行・列・コメント・style・mapping の key 順に
+// 依らず比較するための正規形。検査範囲を狭めないよう、子孫の key / 値 / tag をすべて保持する。
+type canonicalYAMLNode struct {
+	Kind  yaml.Kind
+	Tag   string
+	Value string
+	Items []canonicalYAMLNode
+	Pairs []canonicalYAMLPair
+}
+
+type canonicalYAMLPair struct {
+	Key   string
+	Value canonicalYAMLNode
+}
+
+func canonicalizeYAMLNode(node *yaml.Node) canonicalYAMLNode {
+	if node.Kind == yaml.AliasNode {
+		return canonicalizeYAMLNode(node.Alias)
+	}
+	canonical := canonicalYAMLNode{Kind: node.Kind, Tag: node.ShortTag(), Value: node.Value}
+	if node.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			canonical.Pairs = append(canonical.Pairs, canonicalYAMLPair{
+				Key:   node.Content[i].Value,
+				Value: canonicalizeYAMLNode(node.Content[i+1]),
+			})
+		}
+		sort.Slice(canonical.Pairs, func(a, b int) bool { return canonical.Pairs[a].Key < canonical.Pairs[b].Key })
+		return canonical
+	}
+	for _, child := range node.Content {
+		canonical.Items = append(canonical.Items, canonicalizeYAMLNode(child))
+	}
+	return canonical
+}
+
+// masterPatchProperty は property schema の mapping から key の値を正規形で返す。key が無ければ ok=false。
+func masterPatchProperty(prop yaml.Node, key string) (canonicalYAMLNode, bool) {
+	canonical := canonicalizeYAMLNode(&prop)
+	for _, pair := range canonical.Pairs {
+		if pair.Key == key {
+			return pair.Value, true
+		}
+	}
+	return canonicalYAMLNode{}, false
+}
+
+func (n canonicalYAMLNode) isTrue() bool {
+	return n.Kind == yaml.ScalarNode && n.Tag == "!!bool" && n.Value == "true"
+}
+
+func yamlScalarOf(tag, value string) canonicalYAMLNode {
+	return canonicalYAMLNode{Kind: yaml.ScalarNode, Tag: tag, Value: value}
+}
+
+func yamlStringOf(value string) canonicalYAMLNode { return yamlScalarOf("!!str", value) }
+
+var yamlTrue = yamlScalarOf("!!bool", "true")
 
 func loadMasterPatchContractSpec(t *testing.T) masterPatchContractSpec {
 	t.Helper()
@@ -81,7 +141,7 @@ func TestOpenAPIMasterPatchRequestContract(t *testing.T) {
 			require.True(t, ok)
 			var writableRequired []string
 			for _, name := range shared.Required {
-				if shared.Properties[name]["readOnly"] != true {
+				if readOnly, ok := masterPatchProperty(shared.Properties[name], "readOnly"); !ok || !readOnly.isTrue() {
 					writableRequired = append(writableRequired, name)
 				}
 			}
@@ -90,11 +150,13 @@ func TestOpenAPIMasterPatchRequestContract(t *testing.T) {
 				if slices.Contains(tc.changed, name) {
 					continue
 				}
-				if prop["readOnly"] == true {
+				if readOnly, ok := masterPatchProperty(prop, "readOnly"); ok && readOnly.isTrue() {
 					assert.NotContains(t, patch.Properties, name, "readOnly %s is not a PATCH input", name)
 					continue
 				}
-				assert.Equal(t, prop, patch.Properties[name], "%s.%s must equal the shared contract", tc.patch, name)
+				patchProp, ok := patch.Properties[name]
+				require.True(t, ok, "%s.%s must exist in the PATCH schema", tc.patch, name)
+				assert.Equal(t, canonicalizeYAMLNode(&prop), canonicalizeYAMLNode(&patchProp), "%s.%s must equal the shared contract", tc.patch, name)
 			}
 		})
 	}
@@ -105,17 +167,23 @@ func TestOpenAPIMasterPatchRequestContract(t *testing.T) {
 
 	t.Run("EMR-533 description null is PATCH-only", func(t *testing.T) {
 		patch := schemas["UpdateHospitalizationPlanRequest"].Properties["description"]
-		assert.Equal(t, "string", patch["type"])
-		assert.Equal(t, true, patch["nullable"])
+		patchType, _ := masterPatchProperty(patch, "type")
+		assert.Equal(t, yamlStringOf("string"), patchType)
+		patchNullable, _ := masterPatchProperty(patch, "nullable")
+		assert.Equal(t, yamlTrue, patchNullable)
 		shared := schemas["HospitalizationPlan"].Properties["description"]
-		assert.Equal(t, "string", shared["type"])
-		assert.NotContains(t, shared, "nullable", "response/POST description must not be relaxed")
+		sharedType, _ := masterPatchProperty(shared, "type")
+		assert.Equal(t, yamlStringOf("string"), sharedType)
+		_, sharedNullable := masterPatchProperty(shared, "nullable")
+		assert.False(t, sharedNullable, "response/POST description must not be relaxed")
 	})
 
 	t.Run("EMR-536 clear_strength is PATCH-only", func(t *testing.T) {
 		patch := schemas["UpdateMedicineRequest"].Properties["clear_strength"]
-		assert.Equal(t, "boolean", patch["type"])
-		assert.Equal(t, true, patch["nullable"], "Go bool binding accepts null as false")
+		patchType, _ := masterPatchProperty(patch, "type")
+		assert.Equal(t, yamlStringOf("boolean"), patchType)
+		patchNullable, _ := masterPatchProperty(patch, "nullable")
+		assert.Equal(t, yamlTrue, patchNullable, "Go bool binding accepts null as false")
 		assert.NotContains(t, schemas["Medicine"].Properties, "clear_strength", "GET/POST must not expose the flag")
 	})
 }
