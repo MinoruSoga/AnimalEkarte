@@ -3,7 +3,7 @@
  * 契約正本: backend/docs/api.yaml `TreatmentPackage*`（採用 SHA f1ded6ec367459d91baec08414ce780df39e9a3f）。
  * 実 BE 応答の結合確認は NOT_RUN（PR では「実BE未結合確認」と明記する）。
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ErrorFallback, LoadingFallback, EmptyState } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
@@ -53,24 +53,33 @@ export function TreatmentPackageSettings() {
 
   // S07: 型別 view 失権（403）は latch する。draft は hook 内に保持したまま
   // パネルを権限エラー表示へ差し替え、後続の一覧取得成功でのみ表示を戻す。
-  // 5xx・通信失敗は失権扱いしない。
-  const [authorizationLost, setAuthorizationLost] = useState(false);
-  const authLostBaseline = useRef(0);
+  // 5xx・通信失敗は失権扱いしない（403 の後に 5xx が続いても latch は解除しない）。
+  // lostAt は失権を観測した時点の dataUpdatedAt。それより新しい取得成功だけが解除する。
+  // useEffect 同期は set-state-in-effect になるため、レンダー中の比較で同期する。
+  const listForbidden = isForbiddenError(list.error);
+  const [lostAt, setLostAt] = useState<number | null>(() =>
+    listForbidden ? list.dataUpdatedAt : null,
+  );
+  const [prevListSignal, setPrevListSignal] = useState({
+    forbidden: listForbidden,
+    dataUpdatedAt: list.dataUpdatedAt,
+  });
+  if (
+    prevListSignal.forbidden !== listForbidden ||
+    prevListSignal.dataUpdatedAt !== list.dataUpdatedAt
+  ) {
+    setPrevListSignal({ forbidden: listForbidden, dataUpdatedAt: list.dataUpdatedAt });
+    if (listForbidden) {
+      setLostAt((prev) => prev ?? list.dataUpdatedAt);
+    } else if (lostAt !== null && list.dataUpdatedAt > lostAt) {
+      setLostAt(null);
+    }
+  }
+  const authorizationLost = listForbidden || lostAt !== null;
   const markAuthorizationLost = useCallback(() => {
-    authLostBaseline.current = list.dataUpdatedAt;
-    setAuthorizationLost(true);
+    setLostAt(list.dataUpdatedAt);
     void list.refetch();
   }, [list]);
-  useEffect(() => {
-    if (isForbiddenError(list.error)) {
-      authLostBaseline.current = list.dataUpdatedAt;
-      setAuthorizationLost(true);
-      return;
-    }
-    if (authorizationLost && list.dataUpdatedAt > authLostBaseline.current) {
-      setAuthorizationLost(false);
-    }
-  }, [list.error, list.dataUpdatedAt, authorizationLost]);
 
   // S08: 409 後の最新取得・比較・明示選択。キャッシュを使わず直接 GET し、
   // 遅延応答・対象切替・editor 閉鎖は要求トークンで破棄する。
@@ -255,7 +264,7 @@ export function TreatmentPackageSettings() {
 
   const sidePanel = (
     <div className={`w-[420px] shrink-0 border-l ${C.borderLight} overflow-y-auto`}>
-      {authorizationLost ? (
+      {authorizationLost && target !== null ? (
         // S07: 失権中は editor を権限エラーへ差し替える。draft は hook 内に保持（非表示）。
         <div className="p-4">
           <ErrorFallback message="この構成を表示する権限がありません。権限を確認してから再読込してください。" />
@@ -312,7 +321,11 @@ export function TreatmentPackageSettings() {
                 if (!res.isError) editor.allowCreateRetry();
               });
             }}
-            canSave={(target === "new" ? canCreate : canEdit) && !editor.createUnknown}
+            canSave={
+              (target === "new" ? canCreate : canEdit) &&
+              !editor.createUnknown &&
+              conflictFetch?.kind !== "deleted"
+            }
             canDelete={canDelete}
             saving={createMut.isPending || updateMut.isPending}
             deleting={deleteMut.isPending}
