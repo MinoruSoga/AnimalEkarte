@@ -5,13 +5,7 @@
  * Go の json tag に合わせ、omitempty は省略可（?）、omitempty なしのポインタは null 可で表す。
  * 新しい資金・返金 event 契約の consumer を実装するときに、この adapter ごと置き換える（EMR-527）。
  */
-import type {
-  AccountingStatus,
-  ItemCategory,
-  ItemSource,
-  PaymentMethod,
-  TaxType,
-} from "../types";
+import type { AccountingStatus, ItemCategory, ItemSource, PaymentMethod, TaxType } from "../types";
 
 /** @see backend/internal/billing/accounting_response.go paymentResponse */
 export interface LegacyPaymentResponse {

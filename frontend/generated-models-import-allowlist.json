@@ -251,7 +251,6 @@
   "src/lib/transforms/treatment.ts",
   "src/types/auth.ts",
   "src/types/diagnosis.ts",
-  "src/types/estimate-legacy-wire.ts",
   "src/types/index.ts",
   "src/types/medicine.ts",
   "src/types/owner.ts",

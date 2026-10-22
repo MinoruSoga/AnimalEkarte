@@ -15,10 +15,13 @@ export const createRefund = async (
   billingId: string,
   data: CreateRefundRequest,
 ): Promise<Refund> => {
-  const { data: res } = await axios.post<LegacyRefundResponse>(`/v1/accountings/${billingId}/refunds`, {
-    amount: data.amount,
-    reason: data.reason,
-    payment_method: data.paymentMethod,
-  });
+  const { data: res } = await axios.post<LegacyRefundResponse>(
+    `/v1/accountings/${billingId}/refunds`,
+    {
+      amount: data.amount,
+      reason: data.reason,
+      payment_method: data.paymentMethod,
+    },
+  );
   return transformToRefund(res);
 };

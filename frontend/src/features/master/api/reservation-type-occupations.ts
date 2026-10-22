@@ -61,8 +61,7 @@ async function getReservationTypeOccupations(
   reservationTypeId: string,
 ): Promise<ReservationTypeOccupation[]> {
   const { data } = await axios.get<
-    | LegacyReservationTypeOccupationResponse[]
-    | { data: LegacyReservationTypeOccupationResponse[] }
+    LegacyReservationTypeOccupationResponse[] | { data: LegacyReservationTypeOccupationResponse[] }
   >(`/v1/masters/reservation-types/${reservationTypeId}/occupations`);
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformReservationTypeOccupation);

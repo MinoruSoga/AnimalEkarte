@@ -7,7 +7,8 @@ import type {
 } from "@/types/generated/models";
 import type { Pet } from "@/lib/transforms/pet";
 
-// 作成・更新リクエストは保存 model（generated Pet）から Pick せず、HTTP の binding struct を
+// 作成・更新リクエストは保存 model（generated Pet）から Pick せず、HTTP の binding struct が
+// 受け取る列のうち transformCreatePetRequest / transformUpdatePetRequest が送るキーだけを
 // 明示列挙する。サーバー専用列（clinic_id / version / deceased_at / deceased_reason 等）や
 // 関係配列は入力型へ自動混入しない（TASK-444 / EMR-527）。死亡関連は死亡専用 API の責務。
 // 体重は wire 上の number で、保存側の精度型を入力へ持ち込まない。
@@ -38,7 +39,6 @@ export interface CreatePetRequest {
   danger_reason?: string;
   food?: string;
   environment?: string;
-  phone?: string;
   insurance_id?: number;
   remarks?: string;
   /** EMR-174: 名前の由来（任意記録。空は送らず NULL=未記録） */
@@ -81,10 +81,7 @@ export interface UpdatePetRequest {
   danger_reason?: string | null;
   food?: string;
   environment?: string;
-  phone?: string;
-  last_visit?: string;
-  /** tri-state: key不在=変更なし / null=保険解除 / 値=更新（backend は **uint64） */
-  insurance_id?: number | null;
+  insurance_id?: number;
   remarks?: string;
   /** EMR-174: tri-state（danger_reason と同じ null クリア方式） */
   name_origin?: string | null;

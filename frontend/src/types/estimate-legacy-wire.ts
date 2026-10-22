@@ -7,7 +7,7 @@
  * （feature 間 import は禁止）。新しい固定版・金銭計算の契約へ切り替えるときに、
  * この adapter ごと置き換える（EMR-527）。
  */
-import type { EstimateStatus, ItemCategory, TaxType } from "./generated/models";
+import type { EstimateStatus, ItemCategory, TaxType } from "./index";
 
 /** @see backend/internal/billing/estimate_response.go estimateItemResponse */
 export interface LegacyEstimateItemResponse {
