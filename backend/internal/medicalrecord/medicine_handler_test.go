@@ -303,6 +303,41 @@ func TestCreateMedicine(t *testing.T) {
 			wantStatus: http.StatusConflict,
 			wantBody:   `"params":{"name":"V04薬剤"}`,
 		},
+		{
+			// EMR-447: 旧 client の JSON number は黙って float 変換せず、service 到達前に 400。
+			name:       "returns 400 when tax_rate is sent as a JSON number",
+			body:       map[string]any{"name": "旧client薬", "tax_rate": 0.1},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when default_quantity exceeds numeric(10,2) scale",
+			body:       map[string]any{"name": "桁超過薬", "default_quantity": "1.234"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMedicineService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "accepts exact decimal strings and returns canonical decimal strings",
+			body: map[string]any{
+				"name": "exact薬", "default_quantity": "2.50", "tax_rate": "0.08", "strength": "12.5",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicineService{
+				createFn: func(_ context.Context, _ uint64, input *CreateMedicineInput) (*model.Medicine, error) {
+					require.NotNil(t, input.DefaultQuantity)
+					require.NotNil(t, input.TaxRate)
+					require.NotNil(t, input.Strength)
+					return &model.Medicine{
+						ID: 3, Name: input.Name, DefaultQuantity: input.DefaultQuantity,
+						TaxRate: *input.TaxRate, Strength: input.Strength,
+					}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"default_quantity":"2.5","tax_type":"","tax_rate":"0.08"`,
+		},
 	}
 
 	for _, tt := range tests {

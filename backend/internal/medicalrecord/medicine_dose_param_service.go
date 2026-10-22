@@ -110,7 +110,8 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 		if med.CalculationType != model.MedicineCalculationTypePerWeight {
 			return apperrors.WrapInvalidInput("この薬剤は per_weight 計算ではないため投与量パラメータを設定できません")
 		}
-		if err := ValidateMedicineDoseConfig(med.CalculationType, med.MedicineUnit, med.Strength, med.FrequencyPerDay, med.DefaultDurationDays); err != nil {
+		// EMR-447: 含量は ExactNumeric。検証器の float 入力へ明示変換する。
+		if err := ValidateMedicineDoseConfig(med.CalculationType, med.MedicineUnit, medicineStrengthFloat(med.Strength), med.FrequencyPerDay, med.DefaultDurationDays); err != nil {
 			return apperrors.Wrap(err, "failed to validate dose config")
 		}
 		existing, findErr := s.repo.FindByMedicineAndSpecies(txCtx, clinicID, medicineID, input.Species)

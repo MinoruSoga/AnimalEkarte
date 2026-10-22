@@ -229,7 +229,9 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
       server.use(
         http.get("*/v1/medical-records/10/clinical-plan", () => HttpResponse.json({})),
         http.get("*/v1/masters/medicines", () =>
-          HttpResponse.json([{ id: 42, name: "抗生剤A", price: 3303, is_active: true }]),
+          HttpResponse.json([
+            { id: 42, name: "抗生剤A", price: 3303, is_active: true, tax_rate: "0.1" },
+          ]),
         ),
         http.get("*/v1/medical-records/10/vitals", () => HttpResponse.json([])),
       );
@@ -268,9 +270,9 @@ describe("MedicalRecordDiagnosisPlan PR670 マスタ選択", () => {
         ),
         http.get("*/v1/masters/medicines", () => {
           getSeen = true;
+          const medicine = { id: 42, name: "薬A", price: 3303, is_active: true, tax_rate: "0.1" };
           return new Promise<ReturnType<typeof HttpResponse.json>>((resolve) => {
-            releaseGet = () =>
-              resolve(HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]));
+            releaseGet = () => resolve(HttpResponse.json([medicine]));
           });
         }),
         http.get("*/v1/medical-records/:id/vitals", () => HttpResponse.json([])),
@@ -366,9 +368,10 @@ describe("PR700 DiagnosisPlan real dose selection", () => {
               name: "薬A",
               price: 3303,
               is_active: true,
+              tax_rate: "0.1",
               calculation_type: "per_weight",
               medicine_unit: "per_tablet",
-              strength: 100,
+              strength: "100",
             },
           ]);
         }),

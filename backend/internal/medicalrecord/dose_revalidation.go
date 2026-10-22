@@ -101,7 +101,7 @@ func doseCalcInputFrom(in SavedDoseInput) DoseCalcInput {
 	return DoseCalcInput{
 		CalculationType: in.Medicine.CalculationType,
 		MedicineUnit:    in.Medicine.MedicineUnit,
-		Strength:        in.Medicine.Strength,
+		Strength:        medicineStrengthFloat(in.Medicine.Strength), // EMR-447: 計算器入口で明示変換する
 		DoseBasis:       in.Param.DoseBasis,
 		FrequencyPerDay: in.Medicine.FrequencyPerDay,
 		DosePerKg:       in.Param.DosePerKg,
@@ -121,8 +121,8 @@ func EvaluateSavedDose(in SavedDoseInput) SavedDoseEvaluation {
 	computed := CalculateDose(calcIn)
 
 	strength := 0.0
-	if in.Medicine.Strength != nil {
-		strength = *in.Medicine.Strength
+	if s := medicineStrengthFloat(in.Medicine.Strength); s != nil {
+		strength = *s
 	}
 	basisFactor := doseBasisFactor(calcIn)
 	savedMg := in.SubmittedQty * strength

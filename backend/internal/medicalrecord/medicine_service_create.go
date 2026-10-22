@@ -12,8 +12,10 @@ func medicineFromCreateInput(
 	input *CreateMedicineInput,
 	calcType model.MedicineCalculationType,
 	taxType model.TaxType,
-	taxRate float64,
+	taxRate model.ExactNumeric,
 ) *model.Medicine {
+	// model.SortOrder は *int（#729）。request の int をそのまま保存する（EMR-447）。
+	sortOrder := input.SortOrder
 	medicine := &model.Medicine{
 		ClinicID:            clinicID,
 		Name:                input.Name,
@@ -23,7 +25,7 @@ func medicineFromCreateInput(
 		Description:         input.Description,
 		InventoryID:         input.InventoryID,
 		DefaultQuantity:     input.DefaultQuantity,
-		SortOrder:           input.SortOrder,
+		SortOrder:           &sortOrder,
 		TaxType:             taxType,
 		TaxRate:             taxRate,
 		IsNonInsurance:      input.IsNonInsurance,
@@ -54,14 +56,17 @@ func (s *medicineService) createMedicineInTx(
 		return wrapMedicineNameConflict(err, input.Name, "failed to create medicine")
 	}
 	// BUG-320: 薬品作成時に在庫アイテムを自動作成
+	// #729: Quantity/MinStockLevel は nullable pointer、在庫 status は保存せず読み取り時に導出する。
+	// 既存どおり数量0・最小在庫0を明示保存する（EMR-447 で model 型へ追従）。
+	quantity := int64(0)
+	minStockLevel := 0
 	inventoryItem := &model.InventoryItem{
 		ClinicID:      clinicID,
 		Name:          medicine.Name,
 		Category:      model.InventoryCategoryMedicine,
-		Quantity:      0,
+		Quantity:      &quantity,
 		Unit:          "錠", // デフォルト
-		MinStockLevel: 0,
-		Status:        model.InventoryStatusSufficient,
+		MinStockLevel: &minStockLevel,
 	}
 	if err := s.inventoryRepo.Create(txCtx, clinicID, inventoryItem); err != nil {
 		return apperrors.Wrap(err, "failed to create inventory item for medicine")

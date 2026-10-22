@@ -519,3 +519,50 @@ func TestMedicineService_Delete(t *testing.T) {
 
 // strPtr はテスト用のヘルパー関数
 func strPtr(s string) *string { return &s }
+
+// EMR-447: 薬剤 base の exact decimal を float を経由せず model へ渡し、既定と明示0を区別する。
+func TestMedicineService_Create_ExactDecimalDefaults(t *testing.T) {
+	var created *model.Medicine
+	repo := &mockMedicineRepository{
+		createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 70; created = m; return nil },
+	}
+	svc := medicineServiceWithAudit(repo, &mockTreatmentAuditTxLogger{})
+
+	_, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "既定薬"})
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.Nil(t, created.DefaultQuantity, "省略は DB 既定（1）へ委ねる")
+	assert.Equal(t, "0.1", exactNumericCanonical(created.TaxRate), "省略は既存既定 0.10")
+	require.NotNil(t, created.SortOrder)
+	assert.Equal(t, 0, *created.SortOrder)
+
+	_, err = svc.Create(context.Background(), 1, &CreateMedicineInput{
+		Name: "明示0薬", DefaultQuantity: exactNumPtr("0"), TaxRate: exactNumPtr("0"), SortOrder: 4,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, created.DefaultQuantity)
+	assert.Equal(t, "0", exactNumericCanonical(*created.DefaultQuantity), "明示0は既定へ潰さない")
+	assert.Equal(t, "0", exactNumericCanonical(created.TaxRate), "明示0は既定へ潰さない")
+	assert.Equal(t, 4, *created.SortOrder)
+}
+
+// EMR-447: PATCH は指定した exact 値だけを更新 map へ入れ、省略は保持（key なし）する。
+func TestBuildMedicineUpdate_ExactDecimalPresence(t *testing.T) {
+	fields := buildMedicineUpdate(&UpdateMedicineInput{
+		DefaultQuantity: exactNumPtr("2.25"), TaxRate: exactNumPtr("0.08"), Strength: exactNumPtr("12.5"),
+	})
+	dq, ok := fields[colMedicineDefaultQuantity].(model.ExactNumeric)
+	require.True(t, ok)
+	assert.Equal(t, "2.25", exactNumericCanonical(dq))
+	tr, ok := fields[colMedicineTaxRate].(model.ExactNumeric)
+	require.True(t, ok)
+	assert.Equal(t, "0.08", exactNumericCanonical(tr))
+	st, ok := fields[colMedicineStrength].(model.ExactNumeric)
+	require.True(t, ok)
+	assert.Equal(t, "12.5", exactNumericCanonical(st))
+
+	empty := buildMedicineUpdate(&UpdateMedicineInput{})
+	assert.NotContains(t, empty, colMedicineDefaultQuantity)
+	assert.NotContains(t, empty, colMedicineTaxRate)
+	assert.NotContains(t, empty, colMedicineStrength)
+}

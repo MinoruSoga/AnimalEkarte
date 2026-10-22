@@ -11,7 +11,11 @@ import {
   MedicineDoseParamsEditor,
   type MedicineDoseParamsEditorHandle,
 } from "./MedicineDoseParamsEditor";
-import { medicineToFormData, type MedicineFormData } from "../lib/medicine-side-panel-model";
+import {
+  getMedicineStrengthError,
+  medicineToFormData,
+  type MedicineFormData,
+} from "../lib/medicine-side-panel-model";
 import {
   MedicineBasicFlagsSection,
   MedicineDetailSection,
@@ -49,6 +53,7 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     medicineToFormData(selectedMedicine, defaultParentId),
   );
   const [nameError, setNameError] = useState("");
+  const [strengthError, setStrengthError] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const doseParamsRef = useRef<MedicineDoseParamsEditorHandle>(null);
 
@@ -61,12 +66,24 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
     setIsDirty(true);
   }, []);
 
+  // 計算方式・含量を編集したら含量エラーを解除する（再保存時に再検査する）。
+  const setDoseFormDataDirty = useCallback<typeof setFormData>(
+    (updater) => {
+      setFormDataDirty(updater);
+      setStrengthError("");
+    },
+    [setFormDataDirty],
+  );
+
   const handleAction = useCallback(async () => {
-    if (!formData.name.trim()) {
-      setNameError("名称を入力してください");
+    // EMR-447 Q4: 必須含量の空欄は当該欄に理由を出し、送信・成功通知・close をしない（入力は保持）。
+    const nameMissing = !formData.name.trim();
+    const nextStrengthError = getMedicineStrengthError(formData) ?? "";
+    setNameError(nameMissing ? "名称を入力してください" : "");
+    setStrengthError(nextStrengthError);
+    if (nameMissing || nextStrengthError) {
       return;
     }
-    setNameError("");
     let saved: boolean;
     if (selectedMedicine) {
       const doseOk = (await doseParamsRef.current?.saveFilled()) ?? true;
@@ -125,7 +142,11 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
       />
       <MedicineBasicFlagsSection formData={formData} setFormDataDirty={setFormDataDirty} />
       <MedicineDetailSection formData={formData} setFormDataDirty={setFormDataDirty} />
-      <MedicineDoseCalculationSection formData={formData} setFormDataDirty={setFormDataDirty} />
+      <MedicineDoseCalculationSection
+        formData={formData}
+        setFormDataDirty={setDoseFormDataDirty}
+        strengthError={strengthError}
+      />
       {formData.calculationType === MedicineCalculationTypePerWeight ? (
         <MedicineDoseParamsEditor medicineId={selectedMedicine?.id ?? ""} ref={doseParamsRef} />
       ) : null}

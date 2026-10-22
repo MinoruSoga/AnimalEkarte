@@ -181,9 +181,9 @@ MASTER_SEEDS: list[tuple[str, str, list[dict]]] = [
         "medicine",
         "/api/v1/masters/medicines",
         [
-            {"name": "【デモ】アモキシシリン", "price": 800, "is_active": True, "description": "デモ用", "dosage_form": "tablet", "medicine_unit": "per_tablet", "default_quantity": 1, "tax_type": "excluded", "tax_rate": 0.1, "sort_order": 1, "is_non_insurance": False, "calculation_type": "none"},
-            {"name": "【デモ】メトクロプラミド", "price": 600, "is_active": True, "description": "デモ用", "dosage_form": "injection", "medicine_unit": "per_dose", "default_quantity": 1, "tax_type": "excluded", "tax_rate": 0.1, "sort_order": 2, "is_non_insurance": False, "calculation_type": "none"},
-            {"name": "【デモ】プレドニゾロン", "price": 500, "is_active": True, "description": "デモ用", "dosage_form": "tablet", "medicine_unit": "per_tablet", "default_quantity": 1, "tax_type": "excluded", "tax_rate": 0.1, "sort_order": 3, "is_non_insurance": False, "calculation_type": "none"},
+            {"name": "【デモ】アモキシシリン", "price": 800, "is_active": True, "description": "デモ用", "dosage_form": "tablet", "medicine_unit": "per_tablet", "default_quantity": "1", "tax_type": "excluded", "tax_rate": "0.10", "sort_order": 1, "is_non_insurance": False, "calculation_type": "none"},
+            {"name": "【デモ】メトクロプラミド", "price": 600, "is_active": True, "description": "デモ用", "dosage_form": "injection", "medicine_unit": "per_dose", "default_quantity": "1", "tax_type": "excluded", "tax_rate": "0.10", "sort_order": 2, "is_non_insurance": False, "calculation_type": "none"},
+            {"name": "【デモ】プレドニゾロン", "price": 500, "is_active": True, "description": "デモ用", "dosage_form": "tablet", "medicine_unit": "per_tablet", "default_quantity": "1", "tax_type": "excluded", "tax_rate": "0.10", "sort_order": 3, "is_non_insurance": False, "calculation_type": "none"},
         ],
     ),
     (

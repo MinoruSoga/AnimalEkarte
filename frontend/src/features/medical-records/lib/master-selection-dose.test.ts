@@ -25,9 +25,10 @@ describe("resolveMasterSelectionDose", () => {
                     name: "薬",
                     price: 100,
                     is_active: true,
+                    tax_rate: "0.1",
                     calculation_type: "per_weight",
                     medicine_unit: "per_tablet",
-                    strength: 100,
+                    strength: "100",
                   },
                 ],
           ),
@@ -91,7 +92,7 @@ describe("resolveMasterSelectionDose", () => {
   it("一致マスタが inactive/不在なら非リトライの再選択 blocks（silent qty1 にしない）", async () => {
     server.use(
       http.get("*/v1/masters/medicines", () =>
-        HttpResponse.json([{ id: 42, name: "薬A", price: 100, is_active: false }]),
+        HttpResponse.json([{ id: 42, name: "薬A", price: 100, is_active: false, tax_rate: "0.1" }]),
       ),
       http.get("*/v1/medical-records/10/vitals", () => HttpResponse.json([])),
     );
@@ -118,6 +119,7 @@ describe("resolveMasterSelectionDose", () => {
             name: "薬A",
             price: 100,
             is_active: true,
+            tax_rate: "0.1",
             calculation_type: "none",
           },
         ]),
@@ -147,6 +149,7 @@ describe("resolveMasterSelectionDose", () => {
             name: "薬A",
             price: 100,
             is_active: true,
+            tax_rate: "0.1",
             calculation_type: "per_weight",
           },
         ]),
@@ -182,6 +185,7 @@ describe("resolveMasterSelectionDose", () => {
             name: "薬A",
             price: 100,
             is_active: true,
+            tax_rate: "0.1",
             calculation_type: "per_weight",
           },
         ]),
@@ -223,7 +227,7 @@ describe("resolveMasterSelectionDose", () => {
   it("体重・dose-params 無しでも成功 path は qty=1（missing policy 維持）", async () => {
     server.use(
       http.get("*/v1/masters/medicines", () =>
-        HttpResponse.json([{ id: 42, name: "薬A", price: 100, is_active: true }]),
+        HttpResponse.json([{ id: 42, name: "薬A", price: 100, is_active: true, tax_rate: "0.1" }]),
       ),
       http.get("*/v1/medical-records/10/vitals", () => HttpResponse.json([])),
     );

@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "../lib/medicine-side-panel-model";
+import {
+  MEDICINE_STRENGTH_REQUIRED_MESSAGE,
+  medicineToFormData,
+  type MedicineFormData,
+} from "../lib/medicine-side-panel-model";
 import {
   buildMedicineCreateRequest,
   buildMedicineUpdateRequest,
@@ -395,7 +399,7 @@ describe("buildMedicineCreateRequest", () => {
       description: "説明",
       is_active: false,
       tax_type: "included",
-      tax_rate: 0.08,
+      tax_rate: "0.08",
       is_non_insurance: true,
     });
   });
@@ -487,7 +491,7 @@ describe("calculation fields (#201)", () => {
 
     expect(request).toMatchObject({
       calculation_type: "per_weight",
-      strength: 50,
+      strength: "50",
       frequency_per_day: 2,
       default_duration_days: 7,
     });
@@ -513,7 +517,121 @@ describe("calculation fields (#201)", () => {
 
     const request = buildMedicineUpdateRequest({ data, isCategory: false, selectedMedicine: null });
 
-    expect(request).toMatchObject({ calculation_type: "per_weight", strength: 12.5 });
+    expect(request).toMatchObject({ calculation_type: "per_weight", strength: "12.5" });
     expect(request).not.toHaveProperty("frequency_per_day");
+  });
+});
+
+describe("EMR-447 medicine exact decimal wire", () => {
+  it("sends tax_rate as a decimal string and keeps explicit 0", () => {
+    expect(buildMedicineCreateRequest(makeFormData({ taxRate: 0.1 }), false).tax_rate).toBe("0.1");
+    const update = buildMedicineUpdateRequest({
+      data: makeFormData({ taxRate: 0 }),
+      isCategory: false,
+      selectedMedicine: null,
+    });
+    expect(update.tax_rate).toBe("0");
+  });
+
+  it("sends the strength input as typed without float conversion", () => {
+    const request = buildMedicineCreateRequest(
+      makeFormData({ calculationType: "per_weight", strength: " 0.0005 " }),
+      false,
+    );
+    expect(request.strength).toBe("0.0005");
+  });
+});
+
+// SPEC-QA-20261022-447-STRENGTH-CLEAR（EMR-447 Q4）の受入 fixture。②③⑤ と ①④ の判定を model で固定する。
+describe("EMR-447 Q4 strength の必須・明示クリア", () => {
+  it("①④ per_weight で含量が空（空白のみを含む）なら保存前エラーにする", () => {
+    for (const strength of ["", "   "]) {
+      const data = makeFormData({ calculationType: "per_weight", strength });
+      expect(validateMedicineForm(data, false)).toBe(MEDICINE_STRENGTH_REQUIRED_MESSAGE);
+    }
+  });
+
+  it("Codex P1: per_weight の含量は BE と同じ字句・桁・正値で保存前に拒否する（補正しない）", () => {
+    const cases: [string, RegExp][] = [
+      [".5", /符号・指数のない数値/],
+      ["05", /符号・指数のない数値/],
+      ["1e2", /符号・指数のない数値/],
+      ["-1", /符号・指数のない数値/],
+      ["1234567", /整数部は6桁まで/],
+      ["12.34567", /小数第4位まで/],
+      ["0", /0より大きい値/],
+      ["0.0000", /0より大きい値/],
+    ];
+    for (const [strength, message] of cases) {
+      const data = makeFormData({ calculationType: "per_weight", strength });
+      expect(validateMedicineForm(data, false)).toMatch(message);
+    }
+  });
+
+  it("per_weight で保存尺度内の含量（末尾0違いを含む）は受理し、none は検査しない", () => {
+    for (const strength of ["12.5", "1.23000", "999999.9999", "0.0001"]) {
+      const data = makeFormData({ calculationType: "per_weight", strength });
+      expect(validateMedicineForm(data, false)).toBeNull();
+    }
+    for (const strength of ["", ".5"]) {
+      const data = makeFormData({ calculationType: "none", strength });
+      expect(validateMedicineForm(data, false)).toBeNull();
+    }
+  });
+
+  it("② none への切替だけでは既存含量を消さず strength・clear_strength を送らない", () => {
+    const request = buildMedicineUpdateRequest({
+      data: makeFormData({ calculationType: "none", strength: "50" }),
+      isCategory: false,
+      selectedMedicine: makeMedicine({ strength: 50 }),
+    });
+
+    expect(request).not.toHaveProperty("strength");
+    expect(request).not.toHaveProperty("clear_strength");
+    expect(request.calculation_type).toBe("none");
+  });
+
+  it("③ 既存含量を空へ編集し none で保存すると clear_strength=true だけを送る", () => {
+    const request = buildMedicineUpdateRequest({
+      data: makeFormData({ calculationType: "none", strength: "" }),
+      isCategory: false,
+      selectedMedicine: makeMedicine({ strength: 50 }),
+    });
+
+    expect(request.clear_strength).toBe(true);
+    expect(request).not.toHaveProperty("strength");
+  });
+
+  it("③ 再GET で strength が無い（NULL）薬剤はフォームで未設定（空欄）として表示する", () => {
+    expect(medicineToFormData(makeMedicine({ strength: undefined })).strength).toBe("");
+  });
+
+  it("含量を持たない薬剤の none 保存では clear_strength を送らない", () => {
+    const request = buildMedicineUpdateRequest({
+      data: makeFormData({ calculationType: "none", strength: "" }),
+      isCategory: false,
+      selectedMedicine: makeMedicine({ strength: undefined }),
+    });
+
+    expect(request).not.toHaveProperty("clear_strength");
+  });
+
+  it("per_weight の有効な含量は strength として送り clear_strength を付けない", () => {
+    const request = buildMedicineUpdateRequest({
+      data: makeFormData({ calculationType: "per_weight", strength: "60" }),
+      isCategory: false,
+      selectedMedicine: makeMedicine({ strength: 50 }),
+    });
+
+    expect(request).toMatchObject({ calculation_type: "per_weight", strength: "60" });
+    expect(request).not.toHaveProperty("clear_strength");
+  });
+
+  it("⑤ 新規作成の none・空欄は未指定のまま送り clear_strength を付けない", () => {
+    const data = makeFormData({ calculationType: "none", strength: "" });
+    const request = buildMedicineCreateRequest(data, false);
+
+    expect(request).not.toHaveProperty("strength");
+    expect(request).not.toHaveProperty("clear_strength");
   });
 });

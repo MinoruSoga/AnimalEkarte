@@ -216,7 +216,6 @@
   "src/lib/medicine-dose.ts",
   "src/lib/transforms/cash-register.test.ts",
   "src/lib/transforms/examination.test.ts",
-  "src/lib/transforms/medicine.test.ts",
   "src/lib/transforms/medicine.ts",
   "src/lib/transforms/pet.ts",
   "src/lib/transforms/treatment.test.ts",

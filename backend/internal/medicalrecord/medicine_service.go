@@ -115,15 +115,15 @@ type CreateMedicineInput struct {
 	DosageForm      *string // nil = 未指定, "tablet" 等 = 値セット
 	MedicineUnit    *string // nil = 未指定, "per_ml" 等 = 値セット
 	InventoryID     *uint64
-	DefaultQuantity float64
+	DefaultQuantity *model.ExactNumeric // nil = DB 既定（1）。明示 0 は 0 として保存（EMR-447）
 	SortOrder       int
-	TaxType         *string  // nil = "excluded" (default)
-	TaxRate         *float64 // nil = 0.10 (default)
+	TaxType         *string             // nil = "excluded" (default)
+	TaxRate         *model.ExactNumeric // nil = 0.10 (default)。明示 0 は 0
 	IsNonInsurance  bool
 
 	// #201 投与量計算（製品軸）。CalculationType nil/"" = none（default-deny）。
 	CalculationType     *string
-	Strength            *float64
+	Strength            *model.ExactNumeric
 	FrequencyPerDay     *int
 	DefaultDurationDays *int
 	ActorID             *uint64 // #201 監査ログ用: per_weight 有効化の実施者
@@ -137,18 +137,18 @@ type UpdateMedicineInput struct {
 	Price           *int64
 	IsActive        *bool
 	Description     *string
-	DosageForm      *string // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
-	MedicineUnit    *string // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
-	InventoryID     *uint64 // nil = 未指定, non-nil = 値セット
-	DefaultQuantity *float64
+	DosageForm      *string             // nil = 未指定, "" = NULL クリア, "tablet" = 値セット
+	MedicineUnit    *string             // nil = 未指定, "" = NULL クリア, "per_ml" = 値セット
+	InventoryID     *uint64             // nil = 未指定, non-nil = 値セット
+	DefaultQuantity *model.ExactNumeric // nil = 未指定（EMR-447 exact decimal）
 	SortOrder       *int
 	TaxType         *string
-	TaxRate         *float64
+	TaxRate         *model.ExactNumeric // nil = 未指定（EMR-447 exact decimal）
 	IsNonInsurance  *bool
 
 	// #201 投与量計算（製品軸）。nil = 未指定。
 	CalculationType     *string
-	Strength            *float64
+	Strength            *model.ExactNumeric
 	ClearStrength       bool // true = strength を NULL クリア
 	FrequencyPerDay     *int
 	DefaultDurationDays *int
@@ -251,7 +251,7 @@ func validateDoseConfigAfterUpdate(existing *model.Medicine, input *UpdateMedici
 	if input.DefaultDurationDays != nil {
 		effDuration = input.DefaultDurationDays
 	}
-	return ValidateMedicineDoseConfig(effCalcType, effUnit, effStrength, effFreq, effDuration)
+	return ValidateMedicineDoseConfig(effCalcType, effUnit, medicineStrengthFloat(effStrength), effFreq, effDuration)
 }
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
@@ -270,7 +270,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 	// #201 投与量計算設定の書込検証（default-deny / per_weight 誤設定拒否）。
 	calcType := resolveCalculationType(input.CalculationType)
-	if err := ValidateMedicineDoseConfig(calcType, toMedicineUnitPtr(input.MedicineUnit), input.Strength, input.FrequencyPerDay, input.DefaultDurationDays); err != nil {
+	if err := ValidateMedicineDoseConfig(calcType, toMedicineUnitPtr(input.MedicineUnit), medicineStrengthFloat(input.Strength), input.FrequencyPerDay, input.DefaultDurationDays); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate dose config")
 	}
 
@@ -278,7 +278,10 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.TaxType != nil && *input.TaxType != "" {
 		taxType = model.TaxType(*input.TaxType)
 	}
-	taxRate := DefaultTaxRate
+	taxRate, err := defaultMedicineTaxRate()
+	if err != nil {
+		return nil, err
+	}
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}

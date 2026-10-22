@@ -264,7 +264,9 @@ describe("TreatmentsTab マスタ選択のレコードクリニックスコー�
       server.use(
         http.get("*/v1/masters/medicines", ({ request }) => {
           headers.push(request.headers.get("X-Clinic-ID"));
-          return HttpResponse.json([{ id: 242, name: "薬C2", price: 3303, is_active: true }]);
+          return HttpResponse.json([
+            { id: 242, name: "薬C2", price: 3303, is_active: true, tax_rate: "0.1" },
+          ]);
         }),
       );
       await renderTreatmentsTab(CLINIC2, queryClient);

@@ -74,7 +74,6 @@ func setupMedicineDoseParamSchema(db *gorm.DB) error {
 
 func makeDoseTestMedicine(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Medicine {
 	t.Helper()
-	strength := 10.0
 	unit := model.MedicineUnitPerTablet
 	m := &model.Medicine{
 		ClinicID:        clinicID,
@@ -82,7 +81,7 @@ func makeDoseTestMedicine(t *testing.T, db *gorm.DB, clinicID uint64, name strin
 		TaxType:         model.TaxTypeExcluded, // not null 列を明示（GORM default 依存を避ける）
 		CalculationType: model.MedicineCalculationTypePerWeight,
 		MedicineUnit:    &unit,
-		Strength:        &strength,
+		Strength:        exactNumPtr("10"), // EMR-447: model は ExactNumeric
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(m).Error)
 	return m

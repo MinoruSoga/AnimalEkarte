@@ -7,6 +7,7 @@ import {
   PropertyRow,
   PropertyToggleButton,
 } from "@/components/shared/SidePeek";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
@@ -245,7 +246,11 @@ export function MedicineDetailSection({ formData, setFormDataDirty }: MedicineDe
 interface MedicineDoseCalculationSectionProps {
   formData: MedicineFormData;
   setFormDataDirty: SetMedicineFormDataDirty;
+  /** EMR-447 Q4: per_weight の含量未入力など、製品含量欄に出す保存前エラー */
+  strengthError?: string;
 }
+
+const MEDICINE_STRENGTH_ERROR_ID = "medicine-strength-error";
 
 /**
  * #201 投与量自動計算（製品軸）。calculation_type=none（既定・手動）/ per_weight（mg/kg 自動計算）。
@@ -255,6 +260,7 @@ interface MedicineDoseCalculationSectionProps {
 export function MedicineDoseCalculationSection({
   formData,
   setFormDataDirty,
+  strengthError,
 }: MedicineDoseCalculationSectionProps) {
   const isPerWeight = formData.calculationType === MedicineCalculationTypePerWeight;
 
@@ -300,12 +306,15 @@ export function MedicineDoseCalculationSection({
                 min={0}
                 step="any"
                 aria-label="製品含量(mg/単位)"
+                aria-invalid={strengthError ? true : undefined}
+                aria-describedby={strengthError ? MEDICINE_STRENGTH_ERROR_ID : undefined}
                 value={formData.strength}
                 onChange={(value) => setFormDataDirty((prev) => ({ ...prev, strength: value }))}
                 placeholder="未設定"
                 className={`${STYLE.propertyInput} w-28`}
               />
             </PropertyRow>
+            <FormFieldError id={MEDICINE_STRENGTH_ERROR_ID} message={strengthError} />
 
             <PropertyRow
               label="1日投与回数(任意)"

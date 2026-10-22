@@ -118,7 +118,9 @@ describe("useCopyTreatmentDetails", () => {
         }),
       ],
       consultations: [{ id: 7, name: "初診料", price: 2500, is_active: true }],
-      medicines: [{ id: 42, name: "アモキシシリン", price: 120, is_active: true }],
+      medicines: [
+        { id: 42, name: "アモキシシリン", price: 120, is_active: true, tax_rate: "0.1" },
+      ],
     });
 
     const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
@@ -311,7 +313,9 @@ describe("useCopyTreatmentDetails", () => {
         HttpResponse.json([{ id: 8, name: "創傷処置", price: 3306, is_active: true }]),
       ),
       http.get("*/v1/masters/medicines", () =>
-        HttpResponse.json([{ id: 42, name: "アモキシシリン", price: 3303, is_active: true }]),
+        HttpResponse.json([
+          { id: 42, name: "アモキシシリン", price: 3303, is_active: true, tax_rate: "0.1" },
+        ]),
       ),
     );
 
@@ -563,7 +567,9 @@ describe("useCopyTreatmentDetails", () => {
           }),
           http.get("*/v1/masters/medicines", ({ request }) => {
             seen.push(`med:${request.headers.get("X-Clinic-ID")}`);
-            return HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]);
+            return HttpResponse.json([
+              { id: 42, name: "薬A", price: 3303, is_active: true, tax_rate: "0.1" },
+            ]);
           }),
           http.post(`*/v1/medical-records/${DEST_ID}/treatments`, async ({ request }) => {
             seen.push(`post:${request.headers.get("X-Clinic-ID")}`);
@@ -787,7 +793,16 @@ describe("useCopyTreatmentDetails", () => {
           unit_price: 80,
         }),
       ],
-      medicines: [{ id: 42, name: "抗生剤A", price: 3303, is_active: true, inventory_id: 77 }],
+      medicines: [
+        {
+          id: 42,
+          name: "抗生剤A",
+          price: 3303,
+          is_active: true,
+          tax_rate: "0.1",
+          inventory_id: 77,
+        },
+      ],
     });
 
     const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
@@ -837,7 +852,7 @@ describe("useCopyTreatmentDetails", () => {
       const original = structuredClone(sourceRows);
       const postBodies = useCopyHandlers({
         sourceRows,
-        medicines: [{ id: 42, name: "抗生剤A", price: 3303, is_active: true }],
+        medicines: [{ id: 42, name: "抗生剤A", price: 3303, is_active: true, tax_rate: "0.1" }],
       });
 
       const { result } = renderHook(() => useCopyTreatmentDetails(DEST_ID, "3"), {
@@ -917,6 +932,7 @@ describe("useCopyTreatmentDetails", () => {
               name: "X",
               price: 3307,
               is_active: false,
+              tax_rate: "0.1",
             },
           ],
         });

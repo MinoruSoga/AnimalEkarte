@@ -8,6 +8,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// medicineResponse の default_quantity / tax_rate / strength は保存値の canonical decimal 文字列（EMR-447）。
+// default_quantity の SQL NULL は null、strength の NULL は省略（既存 omitempty）。
 type medicineResponse struct {
 	ID              uint64  `json:"id"`
 	ClinicID        uint64  `json:"clinic_id"`
@@ -19,17 +21,17 @@ type medicineResponse struct {
 	DosageForm      *string `json:"dosage_form,omitempty"`
 	MedicineUnit    *string `json:"medicine_unit,omitempty"`
 	InventoryID     *uint64 `json:"inventory_id,omitempty"`
-	DefaultQuantity float64 `json:"default_quantity"`
+	DefaultQuantity *string `json:"default_quantity"`
 	TaxType         string  `json:"tax_type"`
-	TaxRate         float64 `json:"tax_rate"`
+	TaxRate         string  `json:"tax_rate"`
 	SortOrder       int     `json:"sort_order"`
 	IsNonInsurance  bool    `json:"is_non_insurance"`
 
 	// #201 投与量計算（製品軸）
-	CalculationType     string   `json:"calculation_type"`
-	Strength            *float64 `json:"strength,omitempty"`
-	FrequencyPerDay     *int     `json:"frequency_per_day,omitempty"`
-	DefaultDurationDays *int     `json:"default_duration_days,omitempty"`
+	CalculationType     string  `json:"calculation_type"`
+	Strength            *string `json:"strength,omitempty"`
+	FrequencyPerDay     *int    `json:"frequency_per_day,omitempty"`
+	DefaultDurationDays *int    `json:"default_duration_days,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -46,6 +48,11 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		v := string(*m.MedicineUnit)
 		medicineUnit = &v
 	}
+	// model.SortOrder は *int（#729）。wire は非 nullable integer のため既存表現を保つ（EMR-447）。
+	sortOrder := 0
+	if m.SortOrder != nil {
+		sortOrder = *m.SortOrder
+	}
 	return medicineResponse{
 		ID:                  m.ID,
 		ClinicID:            m.ClinicID,
@@ -57,13 +64,13 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		DosageForm:          dosageForm,
 		MedicineUnit:        medicineUnit,
 		InventoryID:         m.InventoryID,
-		DefaultQuantity:     m.DefaultQuantity,
+		DefaultQuantity:     exactNumericStringPtr(m.DefaultQuantity),
 		TaxType:             string(m.TaxType),
-		TaxRate:             m.TaxRate,
-		SortOrder:           m.SortOrder,
+		TaxRate:             exactNumericCanonical(m.TaxRate),
+		SortOrder:           sortOrder,
 		IsNonInsurance:      m.IsNonInsurance,
 		CalculationType:     string(m.CalculationType),
-		Strength:            m.Strength,
+		Strength:            exactNumericStringPtr(m.Strength),
 		FrequencyPerDay:     m.FrequencyPerDay,
 		DefaultDurationDays: m.DefaultDurationDays,
 		CreatedAt:           httpapi.LocalTime(m.CreatedAt),

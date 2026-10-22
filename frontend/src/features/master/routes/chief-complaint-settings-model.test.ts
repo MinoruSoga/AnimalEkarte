@@ -45,8 +45,16 @@ describe("buildChiefComplaintUpdateRequest", () => {
     });
     expect(buildChiefComplaintUpdateRequest(INACTIVE_FORM)).toEqual({
       name: "無効主訴",
-      description: undefined,
+      description: "",
       is_active: false,
+    });
+  });
+
+  it("EMR-447: update は空の備考を明示送信し、既存備考を空へ変更できる", () => {
+    expect(buildChiefComplaintUpdateRequest({ ...ACTIVE_FORM, description: "" })).toEqual({
+      name: "V04主訴",
+      description: "",
+      is_active: true,
     });
   });
 });
