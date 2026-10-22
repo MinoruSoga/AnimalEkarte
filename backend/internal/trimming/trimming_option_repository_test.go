@@ -374,3 +374,35 @@ func TestTrimmingOptionRepository_Reorder(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// TestTrimmingOptionRepository_Update_DescriptionClearAndReread は EMR-448 の受入
+// （非空→空→再GET、省略項目の保持、空→非空）。
+func TestTrimmingOptionRepository_Update_DescriptionClearAndReread(t *testing.T) {
+	db := setupTrimmingOptionTestDB(t)
+	repo := NewTrimmingOptionRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	price := int64(0)
+	o := &model.TrimmingOption{ClinicID: clinicA, Name: "爪切り", Description: "旧備考", Price: &price}
+	require.NoError(t, db.WithContext(ctx).Create(o).Error)
+
+	empty := ""
+	got, err := repo.Update(ctx, clinicA, o.ID, UpdateTrimmingOptionInput{Description: &empty})
+	require.NoError(t, err)
+	assert.Empty(t, got.Description)
+	reread, err := repo.FindByID(ctx, clinicA, o.ID)
+	require.NoError(t, err)
+	assert.Empty(t, reread.Description)
+	assert.Equal(t, "爪切り", reread.Name, "省略した名称は保持する")
+	if assert.NotNil(t, reread.Price) {
+		assert.Equal(t, int64(0), *reread.Price, "省略した0円は保持する")
+	}
+
+	again := "新備考"
+	_, err = repo.Update(ctx, clinicA, o.ID, UpdateTrimmingOptionInput{Description: &again})
+	require.NoError(t, err)
+	reread, err = repo.FindByID(ctx, clinicA, o.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "新備考", reread.Description)
+}

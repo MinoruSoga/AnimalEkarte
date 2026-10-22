@@ -425,6 +425,26 @@ describe("StaffSettings integration — basic save lifecycle", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(panelOpen()).toBe(true);
   });
+
+  it("LINE表示名・説明文を空にした保存は空文字を PATCH へ送る（EMR-448）", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await openRow(user, STAFFS[0]);
+
+    const displayName = screen.getByLabelText("LINE表示名");
+    const comment = screen.getByLabelText("LINE説明文");
+    await user.type(displayName, "旧表示名");
+    await user.type(comment, "旧説明文");
+    await user.clear(displayName);
+    await user.clear(comment);
+    await clickSave(user);
+
+    await waitFor(() => expect(m.updateMutateAsync).toHaveBeenCalledTimes(1));
+    expect(m.updateMutateAsync.mock.calls[0][0]).toMatchObject({
+      id: "1",
+      req: { reservation_display_name: "", reservation_comment: "" },
+    });
+  });
 });
 
 describe.each(["groups", "clinics", "capable"] as AssociationKey[])(

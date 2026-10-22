@@ -27,6 +27,11 @@ describe("buildCageCreateRequest", () => {
     const request = buildCageCreateRequest(makeFormData({ price: 1200 }));
     expect(request.price).toBe(1200);
   });
+
+  it("keeps create omitting an empty description", () => {
+    const request = buildCageCreateRequest(makeFormData({ description: "" }));
+    expect(request.description).toBeUndefined();
+  });
 });
 
 describe("buildCageUpdateRequest", () => {
@@ -40,8 +45,8 @@ describe("buildCageUpdateRequest", () => {
     expect(request).toHaveProperty("description", "");
   });
 
-  it("keeps create omitting an empty description", () => {
-    const request = buildCageCreateRequest(makeFormData({ description: "" }));
-    expect(request.description).toBeUndefined();
+  it("sends a new description after it was empty (EMR-448)", () => {
+    const request = buildCageUpdateRequest(makeFormData({ description: "新備考" }));
+    expect(request.description).toBe("新備考");
   });
 });

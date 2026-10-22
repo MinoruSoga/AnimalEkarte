@@ -523,3 +523,22 @@ func TestToLiffTrimmingOptionResponse(t *testing.T) {
 		})
 	}
 }
+
+// ---- toLiffStaffResponse ----
+
+// EMR-448: LINE 担当医選択の表示名は、LINE表示名が空なら氏名へ fallback する（master-staff.md「空欄なら氏名を使用」）。
+func TestToLiffStaffResponse_DisplayNameFallback(t *testing.T) {
+	tests := []struct {
+		name string
+		st   *model.Staff
+		want string
+	}{
+		{name: "LINE表示名があればそれを使う", st: &model.Staff{ID: 1, Name: "山田太郎", ReservationDisplayName: "山田先生"}, want: "山田先生"},
+		{name: "LINE表示名を空へ戻すと氏名を使う", st: &model.Staff{ID: 2, Name: "佐藤花子", ReservationDisplayName: ""}, want: "佐藤花子"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, toLiffStaffResponse(tt.st).Name)
+		})
+	}
+}

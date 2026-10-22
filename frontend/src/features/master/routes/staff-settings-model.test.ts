@@ -198,6 +198,20 @@ describe("staff settings derived model", () => {
     expect(buildStaffUpdateRequest(whitespaceForm).name).not.toBe(STAFF_BLANK_NAME_PLACEHOLDER);
   });
 
+  it("create は空の任意項目を省略し続ける（EMR-448 は Update だけを変更）", () => {
+    const request = buildStaffCreateRequest({
+      ...FORM_DATA,
+      licenseNumber: "",
+      reservationDisplayName: "",
+      reservationComment: "",
+      reservationImageUrl: "",
+    });
+    expect(request.license_number).toBeUndefined();
+    expect(request.reservation_display_name).toBeUndefined();
+    expect(request.reservation_comment).toBeUndefined();
+    expect(request.reservation_image_url).toBeUndefined();
+  });
+
   it("create/update requestへ予約表示項目とoptional値を正規化する", () => {
     expect(buildStaffCreateRequest(FORM_DATA)).toEqual({
       name: "合成スタッフ",
