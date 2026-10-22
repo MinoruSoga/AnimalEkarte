@@ -17407,6 +17407,58 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    LineTimeNoStoreBadRequest:
+      description: バリデーションエラー（EMR-445 選定契約 §1 の no-store を宣言する read/preview/結果照会用。本文は BadRequest と同じ）
+      headers:
+        Cache-Control:
+          required: true
+          description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    LineTimeNoStoreUnauthorized:
+      description: 認証エラー（JWTトークンが無効または期限切れ）（EMR-445 選定契約 §1 の no-store を宣言する read/preview/結果照会用。本文は Unauthorized と同じ）
+      headers:
+        Cache-Control:
+          required: true
+          description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    LineTimeNoStoreForbidden:
+      description: 権限エラー（操作が許可されていない）（EMR-445 選定契約 §1 の no-store を宣言する read/preview/結果照会用。本文は Forbidden と同じ）
+      headers:
+        Cache-Control:
+          required: true
+          description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    LineTimeNoStoreNotFound:
+      description: リソースが見つからない（EMR-445 選定契約 §1 の no-store を宣言する read/preview/結果照会用。本文は NotFound と同じ）
+      headers:
+        Cache-Control:
+          required: true
+          description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+          schema:
+            type: string
+            enum: [no-store]
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 security:
   - CookieAuth: []
   - BearerAuth: []
@@ -31724,13 +31776,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClinicOperatingHoursResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
           headers:
@@ -31938,13 +31990,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClinicOperatingHoursPreviewResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
           headers:
@@ -32048,7 +32100,7 @@ paths:
                   - $ref: '#/components/schemas/ErrorResponse'
                   - $ref: '#/components/schemas/LineTimeOperationValidation400'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
           headers:
@@ -32138,13 +32190,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClinicCommonHolidayMonthResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
           headers:
@@ -32336,13 +32388,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClinicCommonHolidayPreviewResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
           headers:
@@ -32403,13 +32455,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClinicCommonHolidayMonthResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
           headers:
@@ -32602,13 +32654,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClinicCommonHolidayPreviewResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
           headers:
@@ -32669,13 +32721,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/LineAcceptanceResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功へ変換しない。
           headers:
@@ -32961,13 +33013,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/LineAcceptancePreviewResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '409':
           description: 期待版・状態の競合（preview）。既存 ErrorResponse。
           headers:
@@ -33070,7 +33122,7 @@ paths:
                   - $ref: '#/components/schemas/ErrorResponse'
                   - $ref: '#/components/schemas/LineTimeOperationValidation400'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
           headers:
@@ -33252,13 +33304,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/LineStartPolicyResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功、他院/他担当へ fallback しない。
           headers:
@@ -33487,13 +33539,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/LineStartPolicyPreviewResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '409':
           description: 現在状態・期待版・assignment の不一致（preview）。既存 ErrorResponse。
           headers:
@@ -33589,7 +33641,7 @@ paths:
                   - $ref: '#/components/schemas/ErrorResponse'
                   - $ref: '#/components/schemas/LineTimeOperationValidation400'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
           headers:
