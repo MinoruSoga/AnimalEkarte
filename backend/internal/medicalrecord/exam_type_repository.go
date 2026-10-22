@@ -68,26 +68,27 @@ func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]mo
 	return exTypes, nil
 }
 
-// examTypeForUpdateKey は FindByID の ambient-TX 行ロックを既定の
-// FOR SHARE から FOR UPDATE へ切替える context key（EMR-447 A-2）。
-type examTypeForUpdateKey struct{}
-
-// withExamTypeForUpdate は ambient transaction 内の FindByID に
-// FOR UPDATE を取らせる ctx を返す。更新 TX の前値読取にだけ使う。
-func withExamTypeForUpdate(ctx context.Context) context.Context {
-	return context.WithValue(ctx, examTypeForUpdateKey{}, true)
+func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+	return r.findByID(ctx, clinicID, id, false)
 }
 
-func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+// FindByIDForUpdate は FindByID と同じ query を ambient tx の行で FOR UPDATE
+// ロックして読む。Items preload は ambient tx 下で FOR SHARE のまま。
+// 更新 TX の前値読取だけが使う（EMR-447 A-2）。
+func (r *examTypeRepository) FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+	return r.findByID(ctx, clinicID, id, true)
+}
+
+func (r *examTypeRepository) findByID(ctx context.Context, clinicID, id uint64, forUpdate bool) (*model.ExaminationType, error) {
 	var exType model.ExaminationType
 	db := persistence.DBOrTx(ctx, r.db)
 	lockForValidation := persistence.TxFromContext(ctx) != nil
 	if lockForValidation {
-		// EMR-447 A-2: 既定は参照直列化の FOR SHARE。更新 TX の前値読取だけ
-		// FOR UPDATE へ切替え、同版 PATCH が SHARE 保持後の UPDATE 昇格で
-		// 相互待ち（40P01）しないようにする。
+		// EMR-447 A-2: 既定は参照直列化の FOR SHARE。前値読取専用の
+		// FindByIDForUpdate 呼出は FOR UPDATE へ切替え、同版 PATCH が
+		// SHARE 保持後の UPDATE 昇格で相互待ち（40P01）しないようにする。
 		strength := "SHARE"
-		if forUpdate, _ := ctx.Value(examTypeForUpdateKey{}).(bool); forUpdate {
+		if forUpdate {
 			strength = "UPDATE"
 		}
 		db = db.Clauses(clause.Locking{Strength: strength})

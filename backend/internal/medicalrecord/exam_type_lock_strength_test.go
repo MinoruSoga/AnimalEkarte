@@ -32,7 +32,7 @@ func TestExamTypeRepository_FindByIDLockStrength(t *testing.T) {
 	share := queries[0]
 	// 更新 TX の前値読取: FOR UPDATE で先に排他ロックする。
 	queries = nil
-	_, _ = repo.FindByID(withExamTypeForUpdate(txCtx), 2, 17)
+	_, _ = repo.FindByIDForUpdate(txCtx, 2, 17)
 	upd := queries[0]
 	// ambient tx なし: ロック句なし。
 	queries = nil

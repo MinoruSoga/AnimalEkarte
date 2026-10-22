@@ -239,6 +239,12 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	return result, nil
 }
 
+// merchandiseItemForUpdateFinder は更新 TX の前値読取専用の FOR UPDATE read。
+// concrete repo が実装しない構成は fail-closed（EMR-449 A-2/D2）。
+type merchandiseItemForUpdateFinder interface {
+	FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+}
+
 func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(sharedkernel.ErrMsgInputNotNil)
@@ -285,7 +291,11 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 			// FOR SHARE のままだと同版の並行 PATCH が SHARE を保持したまま UPDATE
 			// 昇格を待ち合い 40P01（500）になる。FOR UPDATE を先に取れば敗者は
 			// lock 解放後に新しい版を読み、CAS の WHERE 不一致で 409 に収束する。
-			before, err := s.repo.FindByID(withMerchandiseItemForUpdate(txCtx), clinicID, id)
+			forUpdateRepo, ok := s.repo.(merchandiseItemForUpdateFinder)
+			if !ok {
+				return apperrors.WrapInternalServerError("merchandise item repository must implement FindByIDForUpdate")
+			}
+			before, err := forUpdateRepo.FindByIDForUpdate(txCtx, clinicID, id)
 			if err != nil {
 				return apperrors.Wrap(err, "failed to get merchandise item")
 			}

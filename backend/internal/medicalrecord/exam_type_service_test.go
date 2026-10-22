@@ -38,6 +38,11 @@ func (m *mockExamTypeRepository) FindByID(ctx context.Context, clinicID, id uint
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
+// FindByIDForUpdate は更新 TX 前値読取の optional interface を mock でも通す。
+func (m *mockExamTypeRepository) FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
 func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
 	return m.createFn(ctx, exType)
 }
