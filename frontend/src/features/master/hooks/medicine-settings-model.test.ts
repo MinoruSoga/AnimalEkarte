@@ -551,13 +551,32 @@ describe("EMR-447 Q4 strength の必須・明示クリア", () => {
     }
   });
 
-  it("per_weight の含量は 0・形式を FE で補正せず BE の exact decimal 検証に任せる", () => {
-    for (const strength of ["0", ".5", "12.5"]) {
+  it("Codex P1: per_weight の含量は BE と同じ字句・桁・正値で保存前に拒否する（補正しない）", () => {
+    const cases: [string, RegExp][] = [
+      [".5", /符号・指数のない数値/],
+      ["05", /符号・指数のない数値/],
+      ["1e2", /符号・指数のない数値/],
+      ["-1", /符号・指数のない数値/],
+      ["1234567", /整数部は6桁まで/],
+      ["12.34567", /小数第4位まで/],
+      ["0", /0より大きい値/],
+      ["0.0000", /0より大きい値/],
+    ];
+    for (const [strength, message] of cases) {
+      const data = makeFormData({ calculationType: "per_weight", strength });
+      expect(validateMedicineForm(data, false)).toMatch(message);
+    }
+  });
+
+  it("per_weight で保存尺度内の含量（末尾0違いを含む）は受理し、none は検査しない", () => {
+    for (const strength of ["12.5", "1.23000", "999999.9999", "0.0001"]) {
       const data = makeFormData({ calculationType: "per_weight", strength });
       expect(validateMedicineForm(data, false)).toBeNull();
     }
-    const none = makeFormData({ calculationType: "none", strength: "" });
-    expect(validateMedicineForm(none, false)).toBeNull();
+    for (const strength of ["", ".5"]) {
+      const data = makeFormData({ calculationType: "none", strength });
+      expect(validateMedicineForm(data, false)).toBeNull();
+    }
   });
 
   it("② none への切替だけでは既存含量を消さず strength・clear_strength を送らない", () => {

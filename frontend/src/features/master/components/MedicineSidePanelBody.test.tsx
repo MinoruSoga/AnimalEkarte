@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 
@@ -37,17 +37,23 @@ vi.mock("./MedicineSidePanelSections", async (importOriginal) => {
   };
 });
 
+const doseEditor = vi.hoisted(() => ({ saveFilled: vi.fn(async () => true) }));
+
 vi.mock("./MedicineDoseParamsEditor", async () => {
   const { useImperativeHandle } = await import("react");
   return {
     MedicineDoseParamsEditor: ({ ref }: { ref?: Ref<MedicineDoseParamsEditorHandle> }) => {
       useImperativeHandle(ref, () => ({
-        saveFilled: async () => true,
+        saveFilled: doseEditor.saveFilled,
         collectFilled: async () => [],
       }));
       return null;
     },
   };
+});
+
+beforeEach(() => {
+  doseEditor.saveFilled.mockClear();
 });
 
 const perWeightMedicine = transformBackendMedicineToFrontend({
@@ -141,6 +147,21 @@ describe("MedicineSidePanelBody 製品含量の保存前検証 (EMR-447 Q4)", ()
     await user.click(save);
     expect(await screen.findByRole("alert")).toHaveTextContent(MEDICINE_STRENGTH_REQUIRED_MESSAGE);
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("Codex P1: 形式不正の含量は用量パラメータを保存する前に止め、どの書込も行わない", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn(() => true);
+    const { strength, save } = renderBody(onSave);
+
+    await user.clear(strength);
+    await user.type(strength, "1234567");
+    await user.click(save);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("整数部は6桁まで");
+    expect(doseEditor.saveFilled).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(strength).toHaveValue(1234567);
   });
 
   it("⑥ 保存に失敗しても入力した含量を保持する", async () => {

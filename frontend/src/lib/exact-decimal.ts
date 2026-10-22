@@ -4,6 +4,11 @@
  */
 const EXACT_DECIMAL_RE = /^(0|[1-9][0-9]*)(\.[0-9]+)?$/;
 
+/** 符号・指数のない非負 decimal 文字列か（wire の字句検査）。 */
+export function isExactDecimalString(value: string): boolean {
+  return EXACT_DECIMAL_RE.test(value);
+}
+
 /** 応答の decimal 文字列を number へ変換する（表示・計算用）。形式違反は例外。 */
 export function exactDecimalToNumber(value: string, field: string): number {
   // 型宣言は string だが、実行時の JSON number（旧 wire）は RegExp の文字列化で素通りするため明示的に弾く。

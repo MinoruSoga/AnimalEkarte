@@ -8,6 +8,7 @@ import {
   MedicineCalculationTypeNone,
   MedicineCalculationTypePerWeight,
 } from "@/types/generated/models";
+import { isExactDecimalString } from "@/lib/exact-decimal";
 import type { UpsertMedicineDoseParamRequest } from "../api/medicine-dose-params";
 
 type DoseParamDraft = {
@@ -54,15 +55,38 @@ const INITIAL_FORM: MedicineFormData = {
 
 export const MEDICINE_STRENGTH_REQUIRED_MESSAGE = "体重換算(mg/kg)では製品含量を入力してください";
 
+/** BE の strength 保存尺度（numeric(10,4)。medicine_decimal.go medicineStrengthSpec と同じ） */
+const MEDICINE_STRENGTH_MAX_INT_DIGITS = 6;
+const MEDICINE_STRENGTH_MAX_FRAC_DIGITS = 4;
+
 /**
  * EMR-447 Q4（SPEC-QA-20261022-447-STRENGTH-CLEAR）: per_weight の必須含量が空なら保存前に止める。
- * 0・形式不正は補正せず BE の exact decimal 検証（400）に任せる。
+ * 送信される含量（per_weight のときだけ）は BE と同じ字句・桁・正値の規則で先に検査し、
+ * 違反なら用量パラメータを含むどの書込より前に止める（値は補正しない。BE の 400 は残す）。
  */
 export function getMedicineStrengthError(
   data: Pick<MedicineFormData, "calculationType" | "strength">,
 ): string | null {
-  if (data.calculationType === MedicineCalculationTypePerWeight && !data.strength.trim()) {
+  if (data.calculationType !== MedicineCalculationTypePerWeight) {
+    return null;
+  }
+  const strength = data.strength.trim();
+  if (!strength) {
     return MEDICINE_STRENGTH_REQUIRED_MESSAGE;
+  }
+  if (!isExactDecimalString(strength)) {
+    return "製品含量は符号・指数のない数値（例: 12.5）で入力してください";
+  }
+  const [intPart, frac = ""] = strength.split(".");
+  if (intPart.length > MEDICINE_STRENGTH_MAX_INT_DIGITS) {
+    return `製品含量の整数部は${MEDICINE_STRENGTH_MAX_INT_DIGITS}桁までで入力してください`;
+  }
+  const significantFrac = frac.replace(/0+$/, "");
+  if (significantFrac.length > MEDICINE_STRENGTH_MAX_FRAC_DIGITS) {
+    return `製品含量は小数第${MEDICINE_STRENGTH_MAX_FRAC_DIGITS}位までで入力してください`;
+  }
+  if (intPart === "0" && significantFrac === "") {
+    return "製品含量は0より大きい値を入力してください";
   }
   return null;
 }
