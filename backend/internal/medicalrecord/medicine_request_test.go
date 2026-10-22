@@ -156,6 +156,9 @@ func TestMedicineRequest_RejectsNonExactDecimal(t *testing.T) {
 		{"strength JSON number", `{"strength":12.5}`},
 		{"negative", `{"default_quantity":"-1"}`},
 		{"exponent", `{"strength":"1e2"}`},
+		{"strength without integer part", `{"strength":".5"}`},
+		{"strength leading zero", `{"strength":"05"}`},
+		{"strength five fraction digits", `{"strength":"12.34567"}`},
 		{"leading plus", `{"tax_rate":"+0.1"}`},
 		{"empty string", `{"tax_rate":""}`},
 		{"NaN", `{"strength":"NaN"}`},
@@ -189,6 +192,17 @@ func TestMedicineRequest_AcceptsBoundaryDecimals(t *testing.T) {
 	}
 	if exactString(t, input.DefaultQuantity) != "99999999.99" || exactString(t, input.TaxRate) != "1" || exactString(t, input.Strength) != "999999.9999" {
 		t.Fatalf("boundary values = (%v, %v, %v)", input.DefaultQuantity, input.TaxRate, input.Strength)
+	}
+}
+
+// SPEC-QA-20261022-447-EXACT Q2: 末尾0だけが異なる同じ十進値は numeric(10,4) に収まれば受理する。
+func TestMedicineRequest_StrengthTrailingZerosWithinScale(t *testing.T) {
+	input, err := updateInputFrom(t, `{"strength":"1.23000"}`)
+	if err != nil {
+		t.Fatalf("1.23000: %v", err)
+	}
+	if got := exactString(t, input.Strength); got != "1.23" {
+		t.Fatalf("Strength = %q, want 1.23", got)
 	}
 }
 

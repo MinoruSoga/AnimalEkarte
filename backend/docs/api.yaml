@@ -5304,7 +5304,8 @@ components:
             既定数量の有限な非負 exact decimal 文字列（EMR-447、保存は numeric(10,2)）。符号・指数表記・NaN/Infinity は 400。
             JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない（BE と専有 FE は EMR-447 で同時に切り替える）。
             小数第3位以下を持つ値や整数部8桁超など保存尺度で表せない値は丸めずに 400。明示 "0" は 0 として保存する。
-            POST の省略/null は DB 既定 1、PATCH の省略/null は既存値を保持する。応答は保存値の十進文字列（SQL NULL は null）で、表記ではなく数値として比較する。
+            POST の省略/null は DB 既定 1、PATCH の省略/null は既存値を保持する（NULL へ戻す操作は提供しない）。既存の SQL NULL は 1/0 へ補完せず、
+            応答は保存値の十進文字列（SQL NULL は null、key は常に返す）で、表記ではなく数値として比較する（SPEC-QA-20261022-447-EXACT Q1）。
         sort_order:
           type: integer
         created_at:
@@ -5338,7 +5339,9 @@ components:
           example: "12.5"
           description: >-
             製品含量（mg/単位、分母は medicine_unit）の有限な正の exact decimal 文字列（EMR-447、保存は numeric(10,4)）。
-            JSON number・符号・指数表記・0・小数第5位以下・整数部6桁超は 400（丸めない）。POST/PATCH の省略/null は値なし（PATCH は保持）で、
+            JSON number・符号・指数表記・先頭0（"05"）・整数部の省略（".5"）・0・整数部6桁超、および末尾0を除いて小数5桁以上となる値（"12.34567"）は 400（丸めない）。
+            末尾0だけが異なる同じ十進値（"1.23000"）は受理する。BE・FE とも Number への変換や自動丸めで値を正規化しない（SPEC-QA-20261022-447-EXACT Q2）。
+            POST/PATCH の省略/null は値なし（PATCH は保持）で、
             NULL へのクリアは既存の clear_strength を使う。応答は保存値の十進文字列で、NULL のときは省略する。
     Vaccine:
       type: object
