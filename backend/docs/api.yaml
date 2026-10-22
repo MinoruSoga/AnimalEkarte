@@ -33296,13 +33296,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/LineStartPolicyResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '503':
           description: 依存読取・計算不能。未設定や空成功、他院/他担当へ fallback しない。
           headers:
@@ -33531,13 +33531,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/LineStartPolicyPreviewResponse'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/LineTimeNoStoreBadRequest'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/LineTimeNoStoreForbidden'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/LineTimeNoStoreNotFound'
         '409':
           description: 現在状態・期待版・assignment の不一致（preview）。既存 ErrorResponse。
           headers:
@@ -33633,7 +33633,7 @@ paths:
                   - $ref: '#/components/schemas/ErrorResponse'
                   - $ref: '#/components/schemas/LineTimeOperationValidation400'
         '401':
-          $ref: '#/components/responses/Unauthorized'
+          $ref: '#/components/responses/LineTimeNoStoreUnauthorized'
         '403':
           description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
           headers:
