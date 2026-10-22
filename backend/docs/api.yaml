@@ -15350,6 +15350,559 @@ components:
             "$ref": "#/components/schemas/TreatmentPackageComponentProjection"
           "minItems": 1
       "description": "Storage PR759 §3.4 authoritative: SHA256 of RFC8785 JCS UTF8 bytes, not application snapshot/jsonb::text. Components retain order/duplicates. Exclude generated application/plan IDs, actor/time/edit session/epoch/CAS/display/total availability. UTF16 key sort, no Unicode normalization/BOM/newline, reject duplicate JSON keys/lone surrogate/invalid UTF8. Escape only JCS quote/backslash/control, slash unescaped; null/false/\"0\" distinct. Decimal string canonicalization exact, no binary64. Canonicalization version changes never invalidate old success receipt; old uncommitted token dependency-changed->explicit repreview."
+    LineTimeDecimalId:
+      type: string
+      pattern: '^[1-9][0-9]{0,18}$'
+      description: >-
+        EMR-445 A02/A03 選定契約 §1 の正規十進文字列 ID/版（1..9223372036854775807、先頭0・符号・空白なし）。
+        19桁で 9223372036854775807 を超える値は 400。既存 API の ID 型は変更しない（新 subresource の wire だけ）。
+    LineTimeOperationKey:
+      type: string
+      format: uuid
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      description: 既存 C06 と同じ非 zero 小文字 UUID の operation_key。
+    ClinicTimeOfDayStart:
+      type: string
+      pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+      description: 共通医院時間の開始。JST の厳密 HH:MM（00:00..23:59）。
+    ClinicTimeOfDayEnd:
+      type: string
+      pattern: '^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$'
+      description: >-
+        共通医院時間の終了。厳密 HH:MM（00:01..24:00、00:00 は 400）。同日 start<end。区間は [開始,終了)。
+        24:00 は専用 endpoint 変換で翌 JST 暦日 00:00 と解釈し、旧 HHMM parser へ 2400 を渡さない。
+    ClinicHoursInterval:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start:
+          $ref: '#/components/schemas/ClinicTimeOfDayStart'
+        end:
+          $ref: '#/components/schemas/ClinicTimeOfDayEnd'
+    ClinicWeekdayHours:
+      type: object
+      additionalProperties: false
+      required: [weekday, intervals]
+      properties:
+        weekday:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: 0=日曜..6=土曜。
+        intervals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicHoursInterval'
+          description: 開始昇順・非重複。空配列は明示休診。日跨ぎは隣接曜日の2区間を明示し、片側から自動生成しない。
+    ClinicClosedDate:
+      type: object
+      additionalProperties: false
+      required: [date, reason]
+      properties:
+        date:
+          type: string
+          format: date
+          description: 厳密 Gregorian YYYY-MM-DD。
+        reason:
+          type: string
+          description: 空可。既存休診理由 validation に整合する。
+    ClinicOperatingHoursSettings:
+      type: object
+      additionalProperties: false
+      required: [weekly_hours, closed_dates, national_holiday_closed]
+      description: >-
+        EMR-445 A03 §2.1 共通医院時間 Settings（exact）。初回は全 field 明示で、実時刻・曜日・祝日方針の default は無い。
+        集合は全置換、未知 key・null は 400。行なしを全日営業/全日休診へ補完しない。日別特別営業時間・有効期間・RRULE は無い。
+      properties:
+        weekly_hours:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            $ref: '#/components/schemas/ClinicWeekdayHours'
+          description: 曜日 0..6 を各1件、曜日昇順。
+        closed_dates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicClosedDate'
+          description: date 一意・昇順。
+        national_holiday_closed:
+          type: boolean
+    ClinicOperatingHoursChanges:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: PATCH の changes。Settings の1 field 以上。指定した集合は全置換。null 不可。
+      properties:
+        weekly_hours:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            $ref: '#/components/schemas/ClinicWeekdayHours'
+        closed_dates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicClosedDate'
+        national_holiday_closed:
+          type: boolean
+    ClinicOperatingHoursResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, state, version, settings]
+      description: >-
+        GET /clinics/{clinic_id}/operating-hours（§2.2、no-store）。configured は version/settings 必須、unconfigured は両方 null。
+        障害は 503 で返し unconfigured へ変換しない。legacy 未照合・JSON 不正・取得失敗は正常な空や未設定と区別する。
+      properties:
+        schema_version:
+          type: string
+          enum: [clinic-operating-hours/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        state:
+          type: string
+          enum: [configured, unconfigured]
+        version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        settings:
+          allOf:
+            - $ref: '#/components/schemas/ClinicOperatingHoursSettings'
+          nullable: true
+    ClinicOperatingHoursInitializeRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, settings]
+      description: POST /clinics/{clinic_id}/operating-hours（initialize、§2.2）。行不在が前提。warning_receipt は common preview の confirmation-required で得た値を無変換で渡す。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        settings:
+          $ref: '#/components/schemas/ClinicOperatingHoursSettings'
+        warning_receipt:
+          type: string
+          minLength: 1
+    ClinicOperatingHoursUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_version, changes]
+      description: PATCH /clinics/{clinic_id}/operating-hours（update、§2.2）。no-op も現在認可と CAS を検査し、真の変更時だけ版を1回増分する。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        changes:
+          $ref: '#/components/schemas/ClinicOperatingHoursChanges'
+        warning_receipt:
+          type: string
+          minLength: 1
+    ClinicCommonHolidaySetRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_version, date, reason]
+      description: >-
+        POST /clinic-holidays/common（shifts:create）・POST /closing-settings/holidays/common（closing-settings:create）の個別休診 set（§2.3）。
+        日付限定 action であり全営業時間・曜日・祝日方針は書けない。同日同理由は CAS 検査後 no-op、同日異理由は拒否（無言 upsert しない）。common 未設定なら初期化へ案内する。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+        warning_receipt:
+          type: string
+          minLength: 1
+    ClinicCommonHolidayUnsetRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_version]
+      description: DELETE /clinic-holidays/common/{date}（shifts:delete）・DELETE /closing-settings/holidays/common/{date}（closing-settings:delete）の unset（§2.3）。既にない日は CAS 検査後 no-op。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+    ClinicCommonHolidayMonthResponse:
+      type: object
+      additionalProperties: false
+      required: [clinic_id, year_month, state, version, closed_dates]
+      description: >-
+        GET /clinic-holidays/common・GET /closing-settings/holidays/common の月内 holiday と common 版（§2.3）。全営業時間・曜日・祝日方針は返さない。
+        state=unconfigured は version null・closed_dates []（初期化へ案内）。選定契約は「月内holidayだけ＋common版」までを固定し、この envelope の key 名は本収録で選定した。
+      properties:
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        year_month:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+        state:
+          type: string
+          enum: [configured, unconfigured]
+        version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        closed_dates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicClosedDate'
+    LineTimePreviewDates:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items:
+        type: string
+        format: date
+      description: >-
+        §5.3 dates。1件以上・一意昇順の表示評価範囲だけを意味し、設定有効期間・警告対象の切取り・保存 command commitment に使わない。
+    LineTimeWindow:
+      type: object
+      additionalProperties: false
+      required: [state, intervals]
+      description: >-
+        §5.3 Window。evaluated だけ intervals（正常空は []）、他 state は null。複数未設定は common→LINE の優先順で state を決める。
+        不正 JSON・依存読取失敗は state に紛れ込ませず 503。区間表示は予約可能保証ではない。
+      properties:
+        state:
+          type: string
+          enum: [evaluated, common-unconfigured, line-unconfigured, line-unreviewed]
+        intervals:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ClinicHoursInterval'
+    LineTimeWarning:
+      type: object
+      additionalProperties: false
+      required: [code, severity, fields, dependency_revision]
+      description: §5.3 Warning。既存警告 adapter の reason/対象 field/opaque 根拠を使う。患者 projection・生依存値は含めず、dependency_revision を架空の保存 version にしない。
+      properties:
+        code:
+          type: string
+        severity:
+          type: string
+          enum: [confirmable, prohibited]
+        fields:
+          type: array
+          items:
+            type: string
+        dependency_revision:
+          type: string
+    LineTimeAppointmentRef:
+      type: object
+      additionalProperties: false
+      required: [appointment_id, version, start_time, end_time, status]
+      description: §5.3 AppointmentRef。現在 reservations:view の開示範囲だけ。氏名・飼主・本文は含めない。
+      properties:
+        appointment_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: 既存予約 status enum の値。
+    LineTimeWarningCheck:
+      type: object
+      additionalProperties: false
+      required: [state, warnings, affected_reservations, warning_receipt]
+      description: >-
+        §5.3 WarningCheck。clear=warnings []・affected []・receipt null。confirmation-required=confirmable を含む warnings・現在認可済みの影響予約・非空 opaque receipt。
+        prohibited=prohibited を1件以上含む warnings・影響予約・receipt null。confirmation-unavailable=全て null（予約 view 不足等。非開示を空集合/確認済みへ変換しない）。
+        既存規則で影響する保存済み予約の有限集合を全評価し、計算予算/読取不足で一部を省略して成功にせず 503。
+      properties:
+        state:
+          type: string
+          enum: [clear, confirmation-required, prohibited, confirmation-unavailable]
+        warnings:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/LineTimeWarning'
+        affected_reservations:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/LineTimeAppointmentRef'
+        warning_receipt:
+          type: string
+          nullable: true
+          minLength: 1
+    ClinicOperatingHoursPreviewInitialize:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_version, settings, dates]
+      properties:
+        mode:
+          type: string
+          enum: [initialize]
+        expected_version:
+          type: string
+          nullable: true
+          enum: [null]
+        settings:
+          $ref: '#/components/schemas/ClinicOperatingHoursSettings'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+    ClinicOperatingHoursPreviewUpdate:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_version, changes, dates]
+      properties:
+        mode:
+          type: string
+          enum: [update]
+        expected_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        changes:
+          $ref: '#/components/schemas/ClinicOperatingHoursChanges'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+    ClinicOperatingHoursPreviewRequest:
+      description: §5.4 common preview 入力（mode 別 exact）。operation_key を受けず claim/write なし（read-only・no-store）。
+      oneOf:
+        - $ref: '#/components/schemas/ClinicOperatingHoursPreviewInitialize'
+        - $ref: '#/components/schemas/ClinicOperatingHoursPreviewUpdate'
+      discriminator:
+        propertyName: mode
+        mapping:
+          initialize: '#/components/schemas/ClinicOperatingHoursPreviewInitialize'
+          update: '#/components/schemas/ClinicOperatingHoursPreviewUpdate'
+    LineTimeObservedVersionsCommonLine:
+      type: object
+      additionalProperties: false
+      required: [clinic_operating_hours, line_acceptance]
+      description: 実際に読んだ現在保存版。将来版・予測 committed 版は返さない。行なしは null。
+      properties:
+        clinic_operating_hours:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        line_acceptance:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+    ClinicOperatingHoursPreviewDay:
+      type: object
+      additionalProperties: false
+      required: [date, current, proposed]
+      properties:
+        date:
+          type: string
+          format: date
+        current:
+          $ref: '#/components/schemas/LineTimeWindow'
+        proposed:
+          $ref: '#/components/schemas/LineTimeWindow'
+    ClinicOperatingHoursPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, mode, observed_versions, current_settings, proposed_settings, days, warning_check]
+      description: §5.4 出力。days は要求 dates 順で現在/提案の実効 LINE 範囲の差を示す。warning_check の計算を表示 dates だけへ限定しない。
+      properties:
+        schema_version:
+          type: string
+          enum: [clinic-operating-hours-preview/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        mode:
+          type: string
+          enum: [initialize, update]
+        observed_versions:
+          $ref: '#/components/schemas/LineTimeObservedVersionsCommonLine'
+        current_settings:
+          allOf:
+            - $ref: '#/components/schemas/ClinicOperatingHoursSettings'
+          nullable: true
+        proposed_settings:
+          $ref: '#/components/schemas/ClinicOperatingHoursSettings'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicOperatingHoursPreviewDay'
+        warning_check:
+          $ref: '#/components/schemas/LineTimeWarningCheck'
+    ClinicCommonHolidayPreviewSet:
+      type: object
+      additionalProperties: false
+      required: [action, expected_version, date, reason]
+      properties:
+        action:
+          type: string
+          enum: [set]
+        expected_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+          description: null は現在 common 行なしの場合だけ（初期化案内の read-only 評価）。write の version 必須条件は変えない。
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+    ClinicCommonHolidayPreviewUnset:
+      type: object
+      additionalProperties: false
+      required: [action, expected_version, date]
+      properties:
+        action:
+          type: string
+          enum: [unset]
+        expected_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        date:
+          type: string
+          format: date
+    ClinicCommonHolidayPreviewRequest:
+      description: §5.5 holiday preview 入力（action 別 exact、二 namespace 共通）。read-only・no-store。
+      oneOf:
+        - $ref: '#/components/schemas/ClinicCommonHolidayPreviewSet'
+        - $ref: '#/components/schemas/ClinicCommonHolidayPreviewUnset'
+      discriminator:
+        propertyName: action
+        mapping:
+          set: '#/components/schemas/ClinicCommonHolidayPreviewSet'
+          unset: '#/components/schemas/ClinicCommonHolidayPreviewUnset'
+    ClinicCommonHolidayPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, action, date, observed_version, current, proposed, warning_check]
+      description: >-
+        §5.5 出力。current/proposed は該当日 {date,reason} 又は null（set は提案1日、unset は proposed=null）。全 Settings・LINE 設定・他の日付は返さない。
+        common 行なしは初期化が必要な prohibited で receipt なし（予約情報の非開示が必要なら confirmation-unavailable を優先）。解除に新たな休診追加警告を作らない。
+      properties:
+        schema_version:
+          type: string
+          enum: [clinic-holiday-preview/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        action:
+          type: string
+          enum: [set, unset]
+        date:
+          type: string
+          format: date
+        observed_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        current:
+          allOf:
+            - $ref: '#/components/schemas/ClinicClosedDate'
+          nullable: true
+        proposed:
+          allOf:
+            - $ref: '#/components/schemas/ClinicClosedDate'
+          nullable: true
+        warning_check:
+          $ref: '#/components/schemas/LineTimeWarningCheck'
+    ClinicOperatingHoursOperationSuccess:
+      type: object
+      additionalProperties: false
+      required: [status, operation_key, result_refs, committed_versions, recorded_at]
+      description: >-
+        owner_kind=clinic（intent: clinic.operating-hours.initialize/update/holiday-set-from-shifts/holiday-unset-from-shifts/holiday-set-from-closing/holiday-unset-from-closing）の C06 成功（HTTP 200）。
+        replay は元 receipt の refs/版を返し現在版へ置換しない。設定値は GET で再取得する（保存値を receipt に混ぜない）。
+      properties:
+        status:
+          type: string
+          enum: [succeeded, replayed]
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        result_refs:
+          type: object
+          additionalProperties: false
+          required: [clinic_id]
+          properties:
+            clinic_id:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+        committed_versions:
+          type: object
+          additionalProperties: false
+          required: [clinic_operating_hours]
+          properties:
+            clinic_operating_hours:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+        recorded_at:
+          type: string
+          format: date-time
+    LineTimeOperationNonSuccess:
+      type: object
+      additionalProperties: false
+      required: [status, operation_key]
+      description: >-
+        既存 492 の flat ResultResponse（12 status）の非成功形。result_refs/committed_versions/recorded_at・独自 details/reason を持たない。
+        HTTP と status の対応: not-succeeded=200、operation-in-progress=202、validation=400、not-authorized=403、scope-not-found=404、
+        operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、result-unavailable=503。各 response では該当 status だけを許す。
+      properties:
+        status:
+          type: string
+          enum: [not-succeeded, validation, not-authorized, edit-right-lost, scope-not-found, version-conflict, dependency-changed, operation-key-conflict, operation-in-progress, result-unavailable]
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+    LineTimeOperationNotSucceeded200:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [not-succeeded]
+    LineTimeOperationInProgress202:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [operation-in-progress]
+    LineTimeOperationValidation400:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [validation]
+    LineTimeOperationNotAuthorized403:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [not-authorized]
+    LineTimeOperationScopeNotFound404:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [scope-not-found]
+    LineTimeOperationConflict409:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [operation-key-conflict, version-conflict, dependency-changed, edit-right-lost]
+    LineTimeOperationResultUnavailable503:
+      allOf:
+        - $ref: '#/components/schemas/LineTimeOperationNonSuccess'
+        - type: object
+          properties:
+            status:
+              enum: [result-unavailable]
   responses:
     CertificateBadRequest:
       description: 'validation: malformed JSON/ID/key/enum。重複key/未知property/不正UTF-8/lone
@@ -29938,6 +30491,797 @@ paths:
       responses:
         '204':
           description: No Content
+  /clinics/{clinic_id}/operating-hours:
+    get:
+      operationId: getClinicOperatingHours
+      summary: 共通医院時間の取得
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:view
+      description: >-
+        §2.2。no-store。configured/unconfigured を返し、障害は 503。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      responses:
+        '200':
+          description: 共通医院時間（unconfigured は version/settings null）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicOperatingHoursResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: initializeClinicOperatingHours
+      summary: 共通医院時間の初期化
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §2.2 initialize（intent clinic.operating-hours.initialize）。行不在要求、clinic 行 lock と PK unique で別 key の初期化競合を閉じる。warning_receipt は confirmation-required 時だけ無変換で渡す。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicOperatingHoursInitializeRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+    patch:
+      operationId: updateClinicOperatingHours
+      summary: 共通医院時間の更新
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §2.2 update（intent clinic.operating-hours.update）。CAS・現在認可を no-op でも検査し、真の変更時だけ版を1回増分する。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicOperatingHoursUpdateRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinics/{clinic_id}/operating-hours/preview:
+    post:
+      operationId: previewClinicOperatingHours
+      summary: 共通医院時間の preview
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:view
+      description: >-
+        §5.4 read-only（claim0/write0、no-store）。operation_key を受けない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicOperatingHoursPreviewRequest'
+      responses:
+        '200':
+          description: preview 結果（定義した未設定/未照合/非開示 state を含む完全評価）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicOperatingHoursPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clinics/{clinic_id}/operating-hours/operations/{operation_key}:
+    get:
+      operationId: getClinicOperatingHoursOperation
+      summary: 共通医院時間操作の結果照会
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      description: >-
+        §1.1/§2.2 限定 C06 照会。元 binding の同 clinic・actor・intent・immutable target に対する元 write action を現在再検査する。write-only role も同じ action で照会できる。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+        - name: operation_key
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/LineTimeOperationKey'
+        - name: intent
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [initialize, update, holiday-set-from-shifts, holiday-unset-from-shifts, holiday-set-from-closing, holiday-unset-from-closing]
+          description: >-
+            短名→intent の固定 map（clinic.operating-hours.<短名>）。現在再検査する元 write action は initialize/update=hospital-settings:edit、
+            holiday-set-from-shifts=shifts:create、holiday-unset-from-shifts=shifts:delete、holiday-set-from-closing=closing-settings:create、holiday-unset-from-closing=closing-settings:delete。
+            別 intent へ変えて別権限で元結果を読まない。
+      responses:
+        '200':
+          description: 限定 C06 照会結果。refs/版だけを返し設定本文・氏名・予約一覧は返さない。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinic-holidays/common:
+    get:
+      operationId: listClinicCommonHolidaysShifts
+      summary: 共通休診（shifts 経路）の月内取得
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - shifts:view
+      description: >-
+        §2.3。月内 holiday と common 版だけ。全営業時間は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: year_month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+      responses:
+        '200':
+          description: 月内の共通休診
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicCommonHolidayMonthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: setClinicCommonHolidayShifts
+      summary: 共通休診（shifts 経路）の個別 set
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - shifts:create
+      description: >-
+        §2.3 intent clinic.operating-hours.holiday-set-from-shifts。日付限定 action。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicCommonHolidaySetRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinic-holidays/common/{date}:
+    delete:
+      operationId: unsetClinicCommonHolidayShifts
+      summary: 共通休診（shifts 経路）の個別 unset
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - shifts:delete
+      description: >-
+        §2.3 intent clinic.operating-hours.holiday-unset-from-shifts。既にない日は CAS 検査後 no-op。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicCommonHolidayUnsetRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinic-holidays/common/preview:
+    post:
+      operationId: previewClinicCommonHolidayShifts
+      summary: 共通休診（shifts 経路）の preview
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - shifts:view
+      description: >-
+        §5.5 read-only（claim0/write0、no-store）。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicCommonHolidayPreviewRequest'
+      responses:
+        '200':
+          description: holiday preview 結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicCommonHolidayPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /closing-settings/holidays/common:
+    get:
+      operationId: listClinicCommonHolidaysClosing
+      summary: 共通休診（closing 経路）の月内取得
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - closing-settings:view
+      - shifts:view
+      description: >-
+        §2.3。月内 holiday と common 版だけ。全営業時間は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: year_month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+      responses:
+        '200':
+          description: 月内の共通休診
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicCommonHolidayMonthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: setClinicCommonHolidayClosing
+      summary: 共通休診（closing 経路）の個別 set
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - closing-settings:create
+      description: >-
+        §2.3 intent clinic.operating-hours.holiday-set-from-closing。日付限定 action。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicCommonHolidaySetRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /closing-settings/holidays/common/{date}:
+    delete:
+      operationId: unsetClinicCommonHolidayClosing
+      summary: 共通休診（closing 経路）の個別 unset
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - closing-settings:delete
+      description: >-
+        §2.3 intent clinic.operating-hours.holiday-unset-from-closing。既にない日は CAS 検査後 no-op。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicCommonHolidayUnsetRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ClinicOperatingHoursOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（警告根拠・対象集合の変更、再 preview）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /closing-settings/holidays/common/preview:
+    post:
+      operationId: previewClinicCommonHolidayClosing
+      summary: 共通休診（closing 経路）の preview
+      tags: [Clinics]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - closing-settings:view
+      - shifts:view
+      description: >-
+        §5.5 read-only（claim0/write0、no-store）。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicCommonHolidayPreviewRequest'
+      responses:
+        '200':
+          description: holiday preview 結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicCommonHolidayPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /clinic-holidays:
     get:
       tags:

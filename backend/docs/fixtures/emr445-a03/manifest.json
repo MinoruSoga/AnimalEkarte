@@ -1,0 +1,175 @@
+{
+ "contract": "EMR-445 A03 共通医院時間・個別休診 adapter API 正本（emr-clinic-line-time-selected-contract-20261022.md §1/§2/§5.3–5.5）",
+ "publication_base": "315f09193",
+ "api_file": "../../api.yaml",
+ "verification": "NOT_RUN",
+ "schema_validation": "NOT_RUN",
+ "runtime_status": "NOT_IMPLEMENTED (runtime: EMR-448/492 D, DDL/model: EMR-446/466 B)",
+ "fixtures": [
+  {
+   "file": "initialize.request.json",
+   "operationId": "initializeClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursInitializeRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "全 field 明示の初期化（日曜は明示休診 []）",
+   "semantic_expectation": "行不在時のみ保存、version 1、成功 receipt refs {clinic_id}/versions {clinic_operating_hours}",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-missing-field.request.json",
+   "operationId": "initializeClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "national_holiday_closed 欠落",
+   "semantic_expectation": "400（default で補完しない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-unknown-key.request.json",
+   "operationId": "initializeClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "body に clinic_id（未知 key）",
+   "semantic_expectation": "400（clinic/actor は body から採用しない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-changes-empty.request.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "changes が空",
+   "semantic_expectation": "400（1 field 以上）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-24h.request.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursUpdateRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "終了 24:00",
+   "semantic_expectation": "翌 JST 暦日 00:00 と解釈（旧 HHMM 2400 へ渡さない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-end-0000.request.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "終了 00:00",
+   "semantic_expectation": "400（日跨ぎは隣接曜日の2区間で明示）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-version-number.request.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "expected_version が JSON number",
+   "semantic_expectation": "400（正規十進文字列）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-unconfigured.response.json",
+   "operationId": "getClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "行なし",
+   "semantic_expectation": "全日営業/全日休診へ補完しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-configured.response.json",
+   "operationId": "getClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "設定済み",
+   "semantic_expectation": "保存 Settings と現在版",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-set.request.json",
+   "operationId": "setClinicCommonHolidayShifts",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicCommonHolidaySetRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "shifts:create 経路の個別 set",
+   "semantic_expectation": "当日だけ追加。同日同理由は no-op、同日異理由は拒否",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "holiday-set-with-settings.request.json",
+   "operationId": "setClinicCommonHolidayShifts",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicCommonHolidaySetRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "日付 adapter に weekly_hours 混入",
+   "semantic_expectation": "400（日付限定 action で全営業時間を書けない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-initialize.request.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "初期化 preview",
+   "semantic_expectation": "claim0/write0。dates は表示範囲だけ",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-with-operation-key.request.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "preview に operation_key",
+   "semantic_expectation": "400（preview は operation_key を受けない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "operation-success.response.json",
+   "operationId": "getClinicOperatingHoursOperation",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursOperationSuccess",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "成功 receipt の照会",
+   "semantic_expectation": "refs/版だけ。設定本文を返さない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "operation-conflict-with-refs.response.json",
+   "operationId": "updateClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineTimeOperationConflict409",
+   "http_status": 409,
+   "expected_schema": "invalid",
+   "scenario": "非成功に refs を付加",
+   "semantic_expectation": "不適合（非成功は refs/版を返さない）",
+   "verification": "NOT_RUN"
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+{
+  "mode": "update",
+  "expected_version": "3",
+  "changes": {
+    "national_holiday_closed": false
+  },
+  "dates": [
+    "2026-12-31"
+  ],
+  "operation_key": "00000000-0000-4000-8000-000000000001"
+}

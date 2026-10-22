@@ -1,0 +1,66 @@
+{
+  "operation_key": "00000000-0000-4000-8000-000000000001",
+  "expected_version": "3",
+  "changes": {
+    "weekly_hours": [
+      {
+        "weekday": 0,
+        "intervals": []
+      },
+      {
+        "weekday": 1,
+        "intervals": [
+          {
+            "start": "20:00",
+            "end": "24:00"
+          }
+        ]
+      },
+      {
+        "weekday": 2,
+        "intervals": [
+          {
+            "start": "20:00",
+            "end": "24:00"
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "intervals": [
+          {
+            "start": "20:00",
+            "end": "24:00"
+          }
+        ]
+      },
+      {
+        "weekday": 4,
+        "intervals": [
+          {
+            "start": "20:00",
+            "end": "24:00"
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "intervals": [
+          {
+            "start": "20:00",
+            "end": "24:00"
+          }
+        ]
+      },
+      {
+        "weekday": 6,
+        "intervals": [
+          {
+            "start": "20:00",
+            "end": "24:00"
+          }
+        ]
+      }
+    ]
+  }
+}
