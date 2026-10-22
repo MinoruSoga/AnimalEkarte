@@ -49,8 +49,8 @@ export interface CreateHospitalizationPlanRequest {
   price?: number;
   is_active?: boolean;
   description?: string;
-  body_size?: string;
-  billing_unit?: string;
+  body_size?: BodySize;
+  billing_unit?: BillingUnit;
   tax_type?: TaxType;
   tax_rate?: number;
 }
@@ -64,8 +64,8 @@ export interface UpdateHospitalizationPlanRequest {
   price?: number;
   is_active?: boolean;
   description?: string;
-  body_size?: string | null;
-  billing_unit?: string | null;
+  body_size?: BodySize | null;
+  billing_unit?: BillingUnit | null;
   tax_type?: TaxType;
   tax_rate?: number;
 }

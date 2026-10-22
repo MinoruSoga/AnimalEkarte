@@ -42,22 +42,9 @@ export function isDoseParamFormEmpty(form: DoseParamFormData): boolean {
   );
 }
 
-/**
- * フォーム初期値として読む列。数値列は String() で文字列化するだけなので数値表現を限定せず、
- * HTTP DTO（LegacyMedicineDoseParamResponse）も保存 model の JSON 表現も受ける（EMR-527 移行中）。
- */
-interface DoseParamFormSource {
-  dose_basis: MedicineDoseBasis;
-  dose_per_kg: number | string | null;
-  min_mg_per_kg?: number | string | null;
-  max_mg_per_kg?: number | string | null;
-  absolute_max_dose?: number | string | null;
-  rounding_step?: number | string | null;
-  rounding_mode?: MedicineRoundingMode;
-  notes: string;
-}
-
-export function doseParamToFormData(param: DoseParamFormSource | undefined): DoseParamFormData {
+export function doseParamToFormData(
+  param: LegacyMedicineDoseParamResponse | undefined,
+): DoseParamFormData {
   if (!param) return INITIAL_DOSE_PARAM_FORM;
   return {
     doseBasis: param.dose_basis,
