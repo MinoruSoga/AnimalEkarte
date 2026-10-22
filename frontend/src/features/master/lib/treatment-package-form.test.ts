@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TreatmentPackage } from "../api/treatment-packages";
 import {
   buildReorderBody,
+  canSendReorder,
   draftFromPackage,
   emptyPackageDraft,
   isDraftEqual,
@@ -160,6 +161,27 @@ describe("Q1: reorderBlockReason（raw 件数・pending/error/order_version で�
   });
 });
 
+describe("B2-02: canSendReorder（handler 抑止・ボタン disabled と独立）", () => {
+  const base = {
+    authorizationLost: false,
+    block: null as ReturnType<typeof reorderBlockReason>,
+    orderVersion: "17" as string | undefined,
+    canEdit: true,
+  };
+  it("全て通れば送信可", () => {
+    expect(canSendReorder(base)).toBe(true);
+  });
+  it("pending / error / 件数閾値 / 版なし / 失権 / 編集権限なしは送信不可", () => {
+    expect(canSendReorder({ ...base, block: "pending" })).toBe(false);
+    expect(canSendReorder({ ...base, block: "error" })).toBe(false);
+    expect(canSendReorder({ ...base, block: "no-order-version" })).toBe(false);
+    expect(canSendReorder({ ...base, block: "count-guard" })).toBe(false);
+    expect(canSendReorder({ ...base, orderVersion: undefined })).toBe(false);
+    expect(canSendReorder({ ...base, authorizationLost: true })).toBe(false);
+    expect(canSendReorder({ ...base, canEdit: false })).toBe(false);
+  });
+});
+
 describe("Q3: treatmentPackageKindViewResource（backend 型別 view resource と対応）", () => {
   it("checkup_type → checkups / merchandise_item → master-merchandise / 他 → master-medical", () => {
     expect(treatmentPackageKindViewResource("consultation")).toBe("master-medical");
@@ -203,17 +225,21 @@ describe("S08 diff helpers（draftPackageDiff / component summary）", () => {
     expect(wireComponentSummary(basePkg.components[6]!)).toContain("物販");
   });
 
-  it("A1-02: manual の単価・税率を文字列のまま表示する（金額だけの差分も見える）", async () => {
+  it("A1-02/A2-01: manual の全更新可能フィールドを文字列のまま表示する", async () => {
     const {
       draftComponentSummary,
       wireComponentSummary,
       draftFromPackage: dfp,
     } = await import("./treatment-package-form");
     const draft = dfp(basePkg);
-    expect(draftComponentSummary(draft.components[7]!)).toContain("単価110円");
-    expect(draftComponentSummary(draft.components[7]!)).toContain("税included/0.1");
-    expect(wireComponentSummary(basePkg.components[7]!)).toContain("単価110円");
-    expect(wireComponentSummary(basePkg.components[7]!)).toContain("税included/0.1");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("単価:110円");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("税込(税率0.1)");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("理由:理由");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("単位:なし");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("保険外");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("単価:110円");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("税込(税率0.1)");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("保険外");
     // 単価だけが違う場合はサマリ文字列が異なり、差分が可視化される。
     const changed = dfp({ ...basePkg, components: [basePkg.components[7]!] });
     changed.components[0]!.manual.unitPrice = "120";

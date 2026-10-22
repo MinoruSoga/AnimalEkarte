@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { TreatmentPackageConflictCompare } from "./TreatmentPackageConflictCompare";
 import { draftFromPackage } from "../lib/treatment-package-form";
-import type { TreatmentPackage } from "../api/treatment-packages";
+import type { TreatmentPackage, TreatmentPackageManualDefinition } from "../api/treatment-packages";
 
 const latest: TreatmentPackage = {
   id: "201",
@@ -77,41 +77,49 @@ describe("TreatmentPackageConflictCompare（差分比較・明示選択）", () 
     expect(keep).toHaveBeenCalledTimes(1);
   });
 
-  it("A1-02: manual_other の単価だけの差も左右で見分けられる", () => {
-    const manual = (unitPrice: string) => ({
-      component_key: "a0000000-0000-4000-8000-000000000011",
-      item: {
-        kind: "manual_other" as const,
-        manual: {
-          name: "手入力項目",
-          reason: "理由",
-          unit_label: null,
-          unit_price: unitPrice,
-          tax_type: "included" as const,
-          tax_rate: "0.1",
-          is_non_insurance: false,
-        },
+  const baseManual: TreatmentPackageManualDefinition = {
+    name: "手入力項目",
+    reason: "理由",
+    unit_label: null,
+    unit_price: "110",
+    tax_type: "included",
+    tax_rate: "0.1",
+    is_non_insurance: false,
+  };
+  const manualPkg = (manual: TreatmentPackageManualDefinition): TreatmentPackage => ({
+    ...latest,
+    components: [
+      {
+        component_key: "a0000000-0000-4000-8000-000000000011",
+        item: { kind: "manual_other" as const, manual },
+        quantity: "1",
       },
-      quantity: "1",
-    });
-    const latestManual: TreatmentPackage = { ...latest, components: [manual("120")] };
-    const mineManual: TreatmentPackage = {
-      ...mine,
-      components: [manual("110")],
-    };
-    render(
-      <TreatmentPackageConflictCompare
-        draft={draftFromPackage(mineManual)}
-        latest={latestManual}
-        onAdoptLatest={vi.fn()}
-        onKeepEditing={vi.fn()}
-      />,
-    );
-    expect(screen.getAllByText(/単価110円/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/単価120円/).length).toBeGreaterThan(0);
-    // 名称・数量だけでは同じ見た目にならない（単価差が可視化される）。
-    expect(screen.getAllByText(/単価110円/)[0]!.textContent).not.toBe(
-      screen.getAllByText(/単価120円/)[0]!.textContent,
-    );
+    ],
   });
+
+  it.each([
+    ["reason", { reason: "理由B" }, "理由:理由", "理由:理由B"],
+    ["unit_label", { unit_label: "1回" }, "単位:なし", "単位:1回"],
+    ["unit_price", { unit_price: "120" }, "単価:110円", "単価:120円"],
+    ["tax_type", { tax_type: "excluded" as const }, "税込", "税抜"],
+    ["tax_rate", { tax_rate: "0.05" }, "税率0.1", "税率0.05"],
+    ["is_non_insurance", { is_non_insurance: true }, "保険対象", "保険外"],
+  ])(
+    "A2-01: manual の %s だけが違う競合は左右で異なる表示になる",
+    (_field, patch, yoursText, latestText) => {
+      render(
+        <TreatmentPackageConflictCompare
+          draft={draftFromPackage(manualPkg(baseManual))}
+          latest={manualPkg({ ...baseManual, ...patch })}
+          onAdoptLatest={vi.fn()}
+          onKeepEditing={vi.fn()}
+        />,
+      );
+      const rows = screen.getAllByRole("listitem");
+      expect(rows).toHaveLength(2);
+      expect(rows[0]!.textContent).toContain(yoursText);
+      expect(rows[1]!.textContent).toContain(latestText);
+      expect(rows[0]!.textContent).not.toBe(rows[1]!.textContent);
+    },
+  );
 });

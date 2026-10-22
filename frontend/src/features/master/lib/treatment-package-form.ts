@@ -50,6 +50,24 @@ export function reorderBlockReason(input: {
   return null;
 }
 
+/**
+ * B2-02: 並替 handler の送信可否（ボタン disabled と独立に検証できる純粋判定）。
+ * handleMove と表示側 disabled の双方がこの判定に依存する。
+ */
+export function canSendReorder(input: {
+  authorizationLost: boolean;
+  block: ReorderBlockReason | null;
+  orderVersion: string | undefined;
+  canEdit: boolean;
+}): boolean {
+  return (
+    !input.authorizationLost &&
+    input.block === null &&
+    input.orderVersion !== undefined &&
+    input.canEdit
+  );
+}
+
 /** 編集開始時に捕捉した version（canonical 文字列）。以後の refetch 版を混入しない。 */
 export function requireEditingVersion(value: unknown): string {
   if (typeof value !== "string" || !POSITIVE_INT64.test(value) || value.length > 19) {
@@ -351,20 +369,41 @@ export function treatmentPackageKindViewResource(kind: MasterItemKind): KindView
   return "master-medical";
 }
 
-/** 409 比較用: manual の更新可能フィールド（単価・税率）を文字列のまま表現する。number 化しない。 */
-function manualPriceSummary(unitPrice: string, taxType: string, taxRate: string): string {
-  return ` 単価${unitPrice}円 税${taxType}/${taxRate}`;
+/** A2-01: 税区分の利用者向け表記（enum 生値をそのまま出さない）。 */
+const TAX_TYPE_LABELS: Record<ManualDraft["taxType"], string> = {
+  included: "税込",
+  excluded: "税抜",
+  exempt: "非課税",
+};
+
+/**
+ * A2-01: manual の更新可能フィールド（sameComponents が比較する全項目）を
+ * 文字列のまま表現する。number 化しない。draft（unitLabel=""）と wire
+ * （unit_label=null）の欠落表記を「なし」へ正規化し、等値は同一表示になる。
+ */
+function manualDetailSummary(m: {
+  reason: string;
+  unitLabel: string | null;
+  unitPrice: string;
+  taxType: ManualDraft["taxType"];
+  taxRate: string;
+  isNonInsurance: boolean;
+}): string {
+  const unit = m.unitLabel === null || m.unitLabel === "" ? "なし" : m.unitLabel;
+  return `／ 理由:${m.reason} 単位:${unit} 単価:${m.unitPrice}円 ${
+    TAX_TYPE_LABELS[m.taxType]
+  }(税率${m.taxRate}) ${m.isNonInsurance ? "保険外" : "保険対象"}`;
 }
 
-/** 409 比較用: draft 構成の行ラベル（kind ラベル + 識別子 + 数量 + manual 単価/税率）。number 化しない。 */
+/** 409 比較用: draft 構成の行ラベル（kind ラベル + 識別子 + 数量 + manual 全更新可能フィールド）。number 化しない。 */
 export function draftComponentSummary(c: ComponentDraft): string {
   const name = c.kind === "manual_other" ? c.manual.name : c.masterId;
   const base = `${ITEM_KIND_LABELS[c.kind]} ${name} ×${c.quantity}`;
   if (c.kind !== "manual_other") return base;
-  return base + manualPriceSummary(c.manual.unitPrice, c.manual.taxType, c.manual.taxRate);
+  return `${base} ${manualDetailSummary(c.manual)}`;
 }
 
-/** 409 比較用: wire 構成の行ラベル（manual 単価/税率を含む）。 */
+/** 409 比較用: wire 構成の行ラベル（manual 全更新可能フィールドを含む）。 */
 export function wireComponentSummary(c: TreatmentPackageComponentInput): string {
   const item = c.item;
   if (item.kind !== "manual_other") {
@@ -372,8 +411,15 @@ export function wireComponentSummary(c: TreatmentPackageComponentInput): string 
   }
   const m = item.manual;
   return (
-    `${ITEM_KIND_LABELS.manual_other} ${m.name} ×${c.quantity}` +
-    manualPriceSummary(m.unit_price, m.tax_type, m.tax_rate)
+    `${ITEM_KIND_LABELS.manual_other} ${m.name} ×${c.quantity} ` +
+    manualDetailSummary({
+      reason: m.reason,
+      unitLabel: m.unit_label,
+      unitPrice: m.unit_price,
+      taxType: m.tax_type,
+      taxRate: m.tax_rate,
+      isNonInsurance: m.is_non_insurance,
+    })
   );
 }
 

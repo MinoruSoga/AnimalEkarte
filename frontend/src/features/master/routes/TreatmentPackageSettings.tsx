@@ -28,6 +28,7 @@ import {
 } from "../hooks/use-treatment-packages";
 import {
   buildReorderBody,
+  canSendReorder,
   moveId,
   reorderBlockReason,
   treatmentPackageKindViewResource,
@@ -138,15 +139,20 @@ export function TreatmentPackageSettings() {
   // Q3: 失権からの再表示は明示的な「権限を再確認」のみ。対象 fresh GET（既存対象のみ）
   // + 保持 draft 各型（manual_other 除く）+ master-medical の現在 view 権限を確認し、
   // 全て通ったときだけ latch を解除する。target/baseline/draft は変更しない。
+  // A2-02: 解除判定は GET 応答後のレンダーで「現在の」権限 boolean で行う
+  //（クリック時の snapshot を使わない）。GET 成功は get-ok として state に記録し、
+  // 下段のレンダー中比較（prev-compare パターン）で判定する。
   type RecheckState =
     | { kind: "idle" }
     | { kind: "checking" }
+    | { kind: "get-ok" }
     | { kind: "denied-get-forbidden" }
     | { kind: "denied-get-deleted" }
     | { kind: "denied-view" }
     | { kind: "failed" };
   const [recheck, setRecheck] = useState<RecheckState>({ kind: "idle" });
   const recheckTokenRef = useRef(0);
+  // A2-03: 依存は primitive/安定値のみ（毎レンダー生成の kindViewCanView は依存に入れない）。
   const handleRecheckPermission = useCallback(async () => {
     if (target === null) return;
     const token = ++recheckTokenRef.current;
@@ -169,22 +175,29 @@ export function TreatmentPackageSettings() {
       }
     }
     if (recheckTokenRef.current !== token) return;
-    const draft = editor.draft;
+    // 一覧の再取得は event handler 内の副作用として掛け、判定自体はレンダーで行う。
+    void list.refetch();
+    setRecheck({ kind: "get-ok" });
+  }, [target, list]);
+
+  // A2-02: get-ok の解除判定。レンダー中に現在の draft 各型（manual_other 除く）+
+  // master-medical の view 権限を確認し、全て通る場合だけ latch を解除する。
+  // 権限不足は denied-view へ遷移させる（再確認のやり直しは利用者の再クリック）。
+  if (recheck.kind === "get-ok" && editor.draft !== null) {
     const needed = new Set<KindViewResource>(["master-medical"]);
-    if (draft !== null) {
-      for (const c of draft.components) {
+    if (editor.draft !== null) {
+      for (const c of editor.draft.components) {
         if (isMasterItemKind(c.kind)) needed.add(treatmentPackageKindViewResource(c.kind));
       }
     }
     const lacking = [...needed].filter((r) => !kindViewCanView[r]);
     if (lacking.length > 0) {
       setRecheck({ kind: "denied-view" });
-      return;
+    } else {
+      setLostAt(null);
+      setRecheck({ kind: "idle" });
     }
-    setLostAt(null);
-    setRecheck({ kind: "idle" });
-    void list.refetch();
-  }, [target, editor, kindViewCanView, list]);
+  }
 
   const openTarget = useCallback(
     (next: EditorTarget) => {
@@ -293,6 +306,8 @@ export function TreatmentPackageSettings() {
           setPendingDelete(null);
           clearConflictFetch();
           bumpEditSession();
+          recheckTokenRef.current += 1;
+          setRecheck({ kind: "idle" });
           setTarget(null);
           editor.resetFor(null);
         },
@@ -328,10 +343,20 @@ export function TreatmentPackageSettings() {
 
   const handleMove = useCallback(
     (id: string, direction: -1 | 1) => {
-      if (authorizationLost) return;
-      if (reorderBlock !== null) return; // Q1: 事前抑止（全件取得を確認できない等）。
-      if (orderVersion === undefined || canEdit !== true) return;
+      // Q1: 事前抑止は純粋判定 canSendReorder に集約（handler と disabled の双方で使用）。
+      if (
+        !canSendReorder({
+          authorizationLost,
+          block: reorderBlock,
+          orderVersion,
+          canEdit: canEdit === true,
+        })
+      ) {
+        return;
+      }
       const ids = packages.map((p) => p.id);
+      // canSendReorder は boolean 判定のみなので、buildReorderBody 前に narrowing する。
+      if (orderVersion === undefined) return;
       const next = moveId(ids, id, direction);
       if (next.join(",") === ids.join(",")) return;
       reorderMut.mutate(buildReorderBody(orderVersion, next), {

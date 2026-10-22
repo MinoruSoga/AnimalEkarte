@@ -223,6 +223,55 @@ describe("S07/Q3: 型別403失権は editor を認可不能へ切替。再表示
     expect(screen.queryByLabelText("名称")).toBeNull();
   });
 
+  it("A2-02: 再確認のGET待機中に draft 型の view 権限が失われたら非表示維持", async () => {
+    const user = userEvent.setup();
+    // 保存済み構成には物販がない（fresh GET から消えている）が、draft には物販が残る。
+    const savedWithoutMerch = pkg("201", "セットA");
+    const listWithMerch = {
+      ...savedWithoutMerch,
+      components: [
+        ...savedWithoutMerch.components,
+        {
+          component_key: "a0000000-0000-4000-8000-000000000021",
+          item: { kind: "merchandise_item", merchandise_item_id: "301" },
+          quantity: "1",
+        },
+      ],
+    };
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { items: [listWithMerch], order_version: "17" },
+    });
+    const { client } = render_();
+    await user.click(await screen.findByText("セットA"));
+    vi.mocked(axios.get).mockRejectedValue(apiError(403));
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+
+    let resolveDetail!: (v: unknown) => void;
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? new Promise((r) => {
+            resolveDetail = r;
+          })
+        : Promise.resolve({ data: { items: [listWithMerch], order_version: "17" } }),
+    );
+    await user.click(screen.getByText("権限を再確認"));
+    expect(screen.getByText(/権限を確認しています/)).toBeTruthy();
+
+    // GET 待機中に物販 view が失われる（クリック開始時は true だった）。
+    kindPermission = { "master-merchandise": { canView: false } };
+    await act(async () => {
+      resolveDetail({ data: savedWithoutMerch }); // fresh GET 成功（保存済み構成から物販は消えている）
+    });
+
+    // 解除判定は GET 応答後の「現在」権限で行われるため非表示維持。
+    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+    expect(screen.queryByText("保存")).toBeNull();
+  });
+
   it("Q3: 再確認 all ok → 同一 draft で editor 復帰・PATCH なし", async () => {
     const user = userEvent.setup();
     vi.mocked(axios.get).mockResolvedValue({
@@ -309,6 +358,117 @@ describe("S07/Q3: 型別403失権は editor を認可不能へ切替。再表示
     // 遅延応答は破棄: A の editor は表示されない（latch も維持）。
     expect(screen.queryByLabelText("名称")).toBeNull();
     expect(screen.queryByText("保存")).toBeNull();
+  });
+
+  it("B2-02: 保存済み構成から消えた型が draft に残り view なし → 非表示維持", async () => {
+    const user = userEvent.setup();
+    kindPermission = { "master-merchandise": { canView: false } };
+    const savedWithoutMerch = pkg("201", "セットA");
+    const listWithMerch = {
+      ...savedWithoutMerch,
+      components: [
+        ...savedWithoutMerch.components,
+        {
+          component_key: "a0000000-0000-4000-8000-000000000021",
+          item: { kind: "merchandise_item", merchandise_item_id: "301" },
+          quantity: "1",
+        },
+      ],
+    };
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { items: [listWithMerch], order_version: "17" },
+    });
+    const { client } = render_();
+    await user.click(await screen.findByText("セットA"));
+    vi.mocked(axios.get).mockRejectedValue(apiError(403));
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+
+    // fresh GET は成功するが、保存済み構成からは物販が消えている（draft のみに残る）。
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? Promise.resolve({ data: savedWithoutMerch })
+        : Promise.resolve({ data: { items: [listWithMerch], order_version: "17" } }),
+    );
+    await user.click(screen.getByText("権限を再確認"));
+    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+  });
+
+  it("B2-02: checkups 型のみの view 喪失でも非表示維持", async () => {
+    const user = userEvent.setup();
+    kindPermission = { checkups: { canView: false } };
+    const withCheckup = {
+      ...pkg("201", "セットA"),
+      components: [
+        ...pkg("201", "セットA").components,
+        {
+          component_key: "a0000000-0000-4000-8000-000000000022",
+          item: { kind: "checkup_type", checkup_type_id: "401" },
+          quantity: "1",
+        },
+      ],
+    };
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { items: [withCheckup], order_version: "17" },
+    });
+    const { client } = render_();
+    await user.click(await screen.findByText("セットA"));
+    vi.mocked(axios.get).mockRejectedValue(apiError(403));
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? Promise.resolve({ data: withCheckup })
+        : Promise.resolve({ data: { items: [withCheckup], order_version: "17" } }),
+    );
+    await user.click(screen.getByText("権限を再確認"));
+    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+  });
+
+  it("B2-02: 新規 draft の再確認は GET せず master-medical + draft 各型を確認する", async () => {
+    const user = userEvent.setup();
+    kindPermission = { "master-merchandise": { canView: false } };
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { items: [pkg("201", "セットA")], order_version: "17" },
+    });
+    const { client } = render_();
+    await user.click(await screen.findByText("新規登録"));
+    // 新規 draft に物販を追加（draft 各型の確認対象にする）。
+    await user.click(screen.getByText("構成品を追加"));
+    const kindSelects = screen.getAllByLabelText("種別");
+    await user.selectOptions(kindSelects[kindSelects.length - 1]!, "merchandise_item");
+    const masterInputs = screen.getAllByLabelText(/マスタ ID/);
+    await user.type(masterInputs[masterInputs.length - 1]!, "301");
+
+    vi.mocked(axios.get).mockRejectedValue(apiError(403));
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+
+    // 再確認 1 回目: 新規 draft なので対象 GET は発生しない。物販 view なしで denied。
+    await user.click(screen.getByText("権限を再確認"));
+    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    const detailGets = vi.mocked(axios.get).mock.calls.filter(([u]) => u !== LIST_URL);
+    expect(detailGets).toHaveLength(0); // 新規 draft では GET を送らない。
+    expect(screen.queryByLabelText("名称")).toBeNull();
+
+    // 再確認 2 回目: 物販 view が回復すれば新規 draft のまま再表示できる。
+    kindPermission = {};
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { items: [pkg("201", "セットA")], order_version: "17" },
+    });
+    await user.click(screen.getByText("権限を再確認"));
+    expect(await screen.findByLabelText("名称")).toBeTruthy();
+    expect(screen.getAllByLabelText("種別")).toHaveLength(2); // draft は保持（診察 + 物販）。
+    expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
 
   it("refetch 500 は失権扱いせず editor を維持", async () => {
@@ -444,6 +604,73 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
     expect(screen.queryByText("あなたの入力")).toBeNull();
     expect(screen.queryByText("最新を採用（入力を破棄）")).toBeNull();
   });
+
+  it("B2-02: 比較中の背景 list refetch は baseline/target を変えない", async () => {
+    const user = userEvent.setup();
+    mockGets(() => Promise.resolve({ data: latestPkg }));
+    vi.mocked(axios.patch).mockRejectedValue(apiError(409));
+    const { client } = render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "自分の入力");
+    await user.click(screen.getByText("保存"));
+    expect(await screen.findByText("あなたの入力")).toBeTruthy();
+
+    // 背景 refetch: 一覧だけが別応答（別版・別名）へ替わる。
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? Promise.resolve({ data: latestPkg })
+        : Promise.resolve({
+            data: {
+              items: [pkg("201", "背景refetch後"), pkg("202", "セットB")],
+              order_version: "99",
+            },
+          }),
+    );
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+
+    // 比較は維持（draft も target も不変・送信もしない）。
+    expect(screen.getByText("あなたの入力")).toBeTruthy();
+    expect(screen.getAllByText("最新名").length).toBeGreaterThan(0);
+    expect((screen.getByLabelText("名称") as HTMLInputElement).value).toBe("自分の入力");
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1);
+
+    // (b) 入力保持 → CAS 基準版は明示選択の snapshot（version 5）。背景 refetch の "99" を使わない。
+    await user.click(screen.getByText("入力を保持して最新版を基準に編集を続ける"));
+    vi.mocked(axios.patch).mockResolvedValue({ data: latestPkg });
+    await user.click(screen.getByText("保存"));
+    await vi.waitFor(() => {
+      expect(vi.mocked(axios.patch)).toHaveBeenCalledWith(
+        DETAIL_URL,
+        expect.objectContaining({ version: "5" }),
+      );
+    });
+  });
+
+  it("B2-02: (b) 選択後の再保存で再 409 → draft 保持のまま再比較", async () => {
+    const user = userEvent.setup();
+    mockGets(() => Promise.resolve({ data: latestPkg }));
+    vi.mocked(axios.patch).mockRejectedValue(apiError(409));
+    render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "自分の入力");
+    await user.click(screen.getByText("保存"));
+
+    await user.click(await screen.findByText("入力を保持して最新版を基準に編集を続ける"));
+    expect(((await screen.findByLabelText("名称")) as HTMLInputElement).value).toBe("自分の入力");
+
+    // 再保存 → 再 409 → draft を保持したまま再比較へ（自動送信・上書きなし）。
+    await user.click(screen.getByText("保存"));
+    expect(await screen.findByText("あなたの入力")).toBeTruthy();
+    expect((screen.getByLabelText("名称") as HTMLInputElement).value).toBe("自分の入力");
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(axios.get).mock.calls.filter(([u]) => u === DETAIL_URL)).toHaveLength(2);
+  });
 });
 
 describe("Q1: raw 10,000件は並替を事前抑止する", () => {
@@ -454,9 +681,7 @@ describe("Q1: raw 10,000件は並替を事前抑止する", () => {
   });
 
   it("10,000件: メッセージ表示・ボタン無効・PATCH なし", async () => {
-    const items = Array.from({ length: 10000 }, (_, i) =>
-      pkg(`p${String(i).padStart(4, "0")}`, `P${i}`),
-    );
+    const items = Array.from({ length: 10000 }, (_, i) => pkg(String(i + 1), `P${i}`));
     vi.mocked(axios.get).mockResolvedValue({ data: { items, order_version: "17" } });
     render_();
     expect(await screen.findByText(/全件取得を確認できないため並替できません/)).toBeTruthy();
@@ -526,5 +751,45 @@ describe("A1-01: 保存中の対象切替後の遅延応答は新 session へ侵
     expect((screen.getByLabelText("名称") as HTMLInputElement).value).toBe("セットB");
     expect(screen.queryByText("最新名")).toBeNull();
     expect(dirtyMock.markClean).not.toHaveBeenCalled();
+  });
+});
+
+describe("B2-02 Q1 fixtures: 9,999件・pending/error/版なしで PATCH しない", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+    kindPermission = {};
+  });
+
+  it("9,999件はボタン有効・メッセージなし", async () => {
+    const items = Array.from({ length: 9999 }, (_, i) => pkg(String(i + 1), `P${i}`));
+    vi.mocked(axios.get).mockResolvedValue({ data: { items, order_version: "17" } });
+    render_();
+    expect(await screen.findByText("P0")).toBeTruthy();
+    expect(screen.queryByText(/全件取得を確認できないため並替できません/)).toBeNull();
+    expect((screen.getAllByLabelText(/を上へ/)[0] as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("order_version なしは schema 違反で error state・PATCH なし", async () => {
+    vi.mocked(axios.get).mockResolvedValue({ data: { items: [pkg("201", "セットA")] } });
+    render_();
+    expect(await screen.findByText(/取得に失敗しました/)).toBeTruthy();
+    expect(screen.queryByLabelText(/を上へ/)).toBeNull();
+    expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
+  });
+
+  it("pending の間は一覧も操作も出ず PATCH しない", async () => {
+    vi.mocked(axios.get).mockReturnValue(new Promise(() => {}));
+    render_();
+    expect(screen.queryByLabelText(/を上へ/)).toBeNull();
+    expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
+  });
+
+  it("error の間は一覧も操作も出ず PATCH しない", async () => {
+    vi.mocked(axios.get).mockRejectedValue(new Error("500"));
+    render_();
+    expect(await screen.findByText(/取得に失敗しました/)).toBeTruthy();
+    expect(screen.queryByLabelText(/を上へ/)).toBeNull();
+    expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
 });
