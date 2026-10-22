@@ -80,10 +80,10 @@ func TestCheckupTypeParentLock_UpdateSettingParentRequestsLock(t *testing.T) {
 	if _, err := svc.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{Name: strPtr("改名"), ParentID: &parent, Version: int64Ptr(3), ActorID: &testCheckupTypeActorID}); err != nil {
 		t.Fatal(err)
 	}
-	if len(spy.locks) != 1 || len(spy.locks[0]) != 1 || spy.locks[0][0] != parent {
-		t.Fatalf("update that sets parent must lock it: %v", spy.locks)
+	if len(spy.locks) != 1 || len(spy.locks[0]) != 2 || spy.locks[0][0] != parent || spy.locks[0][1] != 9 {
+		t.Fatalf("update that sets parent must lock parent and target in ascending order: %v", spy.locks)
 	}
-	t.Run("update without parent change requests no lock", func(t *testing.T) {
+	t.Run("update without parent change locks the target only", func(t *testing.T) {
 		spy2 := &checkupTypeLockSpyRepo{CheckupTypeRepository: &mockCheckupTypeRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
 				return &model.CheckupType{ID: 9, ClinicID: 1, Version: 3}, nil
@@ -96,8 +96,8 @@ func TestCheckupTypeParentLock_UpdateSettingParentRequestsLock(t *testing.T) {
 		if _, err := svc2.Update(context.Background(), 1, 9, &UpdateCheckupTypeInput{Name: strPtr("改名"), Version: int64Ptr(3), ActorID: &testCheckupTypeActorID}); err != nil {
 			t.Fatal(err)
 		}
-		if len(spy2.locks) != 0 {
-			t.Fatalf("parent-less update must not lock: %v", spy2.locks)
+		if len(spy2.locks) != 1 || len(spy2.locks[0]) != 1 || spy2.locks[0][0] != 9 {
+			t.Fatalf("parent-less update must lock only the target row: %v", spy2.locks)
 		}
 	})
 }

@@ -225,8 +225,9 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	var checkupType *model.CheckupType
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		// EMR-456 F1: 親変更（parent_id の設定/変更）は親 soft-delete と共通 parent row lock で直列化する。
-		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+		// EMR-456 F1: 対象行と指定親を ID 昇順で同じ tx 内に lock してから before-image と親所属を読む。
+		// 親 soft-delete と直列化し、診察・処置・予防接種の Update（PR #730 の指摘対応）と同じ lock 集合に揃える。
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
 			return err
 		}
 		before, err := s.repo.FindByID(txCtx, clinicID, id)
