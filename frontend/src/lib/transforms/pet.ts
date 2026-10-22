@@ -194,6 +194,7 @@ type PetFormInput = {
 
 /**
  * フロントエンドフォームデータからバックエンド CreatePetRequest に変換
+ * pet_number は作成時に backend が採番し createPetRequest も受け取らないため送らない（EMR-527）。
  */
 export const transformCreatePetRequest = (
   data: PetFormInput & {
@@ -205,7 +206,6 @@ export const transformCreatePetRequest = (
   owner_id: Number(data.ownerId),
   name: data.name,
   animal_species_id: Number(data.animalSpeciesId),
-  pet_number: data.petNumber,
   name_kana: data.petNameKana,
   breed: data.breed,
   color: data.color,

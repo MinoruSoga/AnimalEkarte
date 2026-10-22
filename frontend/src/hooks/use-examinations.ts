@@ -3,10 +3,10 @@ import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformExamination, type ExaminationRecord } from "@/lib/transforms/examination";
-import type { Examination } from "@/types/generated/models";
+import type { LegacyExaminationResponse } from "@/types/examination-legacy-wire";
 
 interface ExaminationsListResponse {
-  data: Examination[];
+  data: LegacyExaminationResponse[];
   total: number;
   page: number;
   limit: number;

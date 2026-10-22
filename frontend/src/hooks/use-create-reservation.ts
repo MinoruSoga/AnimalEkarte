@@ -2,9 +2,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
+import {
+  transformReservationWithIntent,
+  type Reservation,
+  type ReservationApiResponse,
+} from "./reservation-intent-response";
 import type { ReservationRoute } from "@/lib/transforms/reservation";
-import type { Reservation as BackendReservation } from "@/types/generated/models";
 
 /**
  * 予約作成リクエスト
@@ -35,14 +38,14 @@ interface CreateReservationBatchRequest extends Omit<
 }
 
 const createReservation = async (req: CreateReservationRequest): Promise<Reservation> => {
-  const { data } = await axios.post<BackendReservation>("/v1/reservations", req);
+  const { data } = await axios.post<ReservationApiResponse>("/v1/reservations", req);
   return transformReservationWithIntent(data);
 };
 
 const createReservationBatch = async (
   req: CreateReservationBatchRequest,
 ): Promise<Reservation[]> => {
-  const { data } = await axios.post<BackendReservation[]>("/v1/reservations/batch", req);
+  const { data } = await axios.post<ReservationApiResponse[]>("/v1/reservations/batch", req);
   return data.map(transformReservationWithIntent);
 };
 

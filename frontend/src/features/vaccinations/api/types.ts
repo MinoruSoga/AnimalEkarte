@@ -1,10 +1,10 @@
 /**
  * Backend API response types
- * Source: frontend/src/types/generated/models.ts (tygo generated)
+ * Source: @/types/vaccination-legacy-wire（現行 handler の JSON を写す移行 HTTP DTO。EMR-527）
  */
-import type { Vaccination } from "@/types/generated/models";
+import type { LegacyVaccinationResponse } from "@/types/vaccination-legacy-wire";
 
-export type BackendVaccination = Vaccination;
+export type BackendVaccination = LegacyVaccinationResponse;
 
 export interface CreateVaccinationRequest {
   medical_record_id?: number | null;

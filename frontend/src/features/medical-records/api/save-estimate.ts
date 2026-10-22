@@ -3,7 +3,8 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { Estimate, TaxType } from "@/types/generated/models";
+import type { TaxType } from "@/types/generated/models";
+import type { LegacyEstimateResponse } from "@/types/estimate-legacy-wire";
 
 export interface SaveEstimateItemPayload {
   name: string;
@@ -43,8 +44,10 @@ export interface UpdateEstimateRecordVariables {
   payload: Partial<SaveEstimatePayload>;
 }
 
-const getEstimatesByRecord = async (medicalRecordId: string): Promise<Estimate | null> => {
-  const { data } = await axios.get<{ data: Estimate[] }>("/v1/estimates", {
+const getEstimatesByRecord = async (
+  medicalRecordId: string,
+): Promise<LegacyEstimateResponse | null> => {
+  const { data } = await axios.get<{ data: LegacyEstimateResponse[] }>("/v1/estimates", {
     params: { medical_record_id: Number(medicalRecordId), limit: 1 },
   });
   return data.data?.[0] ?? null;
@@ -63,8 +66,8 @@ export const useGetEstimateByRecord = (medicalRecordId?: string) => {
 export const useCreateEstimateRecord = (medicalRecordId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: SaveEstimatePayload): Promise<Estimate> => {
-      const { data } = await axios.post<Estimate>("/v1/estimates", payload);
+    mutationFn: async (payload: SaveEstimatePayload): Promise<LegacyEstimateResponse> => {
+      const { data } = await axios.post<LegacyEstimateResponse>("/v1/estimates", payload);
       return data;
     },
     onSuccess: (created) => {
@@ -81,8 +84,11 @@ export const useCreateEstimateRecord = (medicalRecordId: string) => {
 export const useUpdateEstimateRecord = (medicalRecordId: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, payload }: UpdateEstimateRecordVariables): Promise<Estimate> => {
-      const { data } = await axios.patch<Estimate>(`/v1/estimates/${id}`, payload);
+    mutationFn: async ({
+      id,
+      payload,
+    }: UpdateEstimateRecordVariables): Promise<LegacyEstimateResponse> => {
+      const { data } = await axios.patch<LegacyEstimateResponse>(`/v1/estimates/${id}`, payload);
       return data;
     },
     onSuccess: (updated) => {

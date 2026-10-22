@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { ReservationType as ModelReservationType } from "@/types/generated/models";
+import type { LegacyReservationTypeResponse } from "@/types/reservation-legacy-wire";
 import type {
   CreateReservationTypeRequest,
   UpdateReservationTypeRequest,
@@ -11,14 +11,11 @@ import type {
 } from "@/types/reservation-type";
 
 // ─────────────────────────────────────────────────
-// Raw type (make codegen 実行後は ModelReservationType に parent_id/children が追加されれば削除可)
+// Raw type（EMR-527: 保存 model ではなく handler の JSON を写した移行 DTO。
+// parent / children も ReservationTypeResponse の形のまま届く）
 // ─────────────────────────────────────────────────
 
-interface ReservationTypeRaw extends Omit<ModelReservationType, "parent" | "children"> {
-  parent_id?: number;
-  parent?: { id: number; name: string };
-  children?: ReservationTypeRaw[];
-}
+type ReservationTypeRaw = LegacyReservationTypeResponse;
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -92,7 +89,7 @@ export async function listReservationTypes(): Promise<ReservationType[]> {
 }
 
 async function createReservationType(req: CreateReservationTypeRequest): Promise<ReservationType> {
-  const { data } = await axios.post<ModelReservationType>("/v1/masters/reservation-types", req);
+  const { data } = await axios.post<ReservationTypeRaw>("/v1/masters/reservation-types", req);
   return transformReservationType(data);
 }
 
@@ -100,7 +97,7 @@ async function updateReservationType(
   id: string,
   req: UpdateReservationTypeRequest,
 ): Promise<ReservationType> {
-  const { data } = await axios.patch<ModelReservationType>(
+  const { data } = await axios.patch<ReservationTypeRaw>(
     `/v1/masters/reservation-types/${id}`,
     req,
   );

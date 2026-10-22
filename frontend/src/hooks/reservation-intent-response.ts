@@ -1,28 +1,12 @@
 import { transformReservation } from "@/lib/transforms/reservation";
 
 /**
- * EMR-308: tentative（次回予定・未予約）関連の BE レスポンスフィールド。
- * generated 型は型再生成までこれらを持たないため、transform 入力側で widen する。
- * BE 契約: backend/internal/reservation/reservation_response.go
- * （intended_date: "YYYY-MM-DD"、had_intended_date、source_medical_record_id）。
- *
- * src/hooks 配置の理由: src/lib/transforms は本ユニットの所有パス外。
- * 共有 transform の入力型は Parameters<typeof transformReservation>[0] で導出し、
- * @/types/generated/models の新規 import（TASK-444-S1 禁止）を避ける。
+ * transformReservation の入力型（BE 予約レスポンス）。axios のレスポンス型付けは
+ * 呼び出し側でこの型を使う。EMR-308 tentative 列（intended_date: "YYYY-MM-DD"、
+ * had_intended_date、source_medical_record_id）は移行 DTO（@/types/reservation-legacy-wire、
+ * backend/internal/reservation/reservation_response.go reservationResponse）が持つ（EMR-527）。
  */
-interface ReservationIntentResponseFields {
-  intended_date?: string | null;
-  had_intended_date?: boolean;
-  source_medical_record_id?: number | null;
-}
-
-/**
- * transformReservation の入力型（BE 予約レスポンス + EMR-308 tentative 拡張）。
- * axios のレスポンス型付けは呼び出し側でこの型を使う。
- * ReservationIntentResponseFields は全プロパティ optional のため、素の BE 型も代入可能。
- */
-export type ReservationApiResponse = Parameters<typeof transformReservation>[0] &
-  ReservationIntentResponseFields;
+export type ReservationApiResponse = Parameters<typeof transformReservation>[0];
 
 /**
  * EMR-308: 共有 transformReservation に tentative フィールドを付与した変換。

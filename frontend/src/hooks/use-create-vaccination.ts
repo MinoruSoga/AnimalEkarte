@@ -4,7 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { formatJSTDate } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 import type { VaccinationRecord } from "@/types";
-import type { Vaccination } from "@/types/generated/models";
+import type { LegacyVaccinationResponse } from "@/types/vaccination-legacy-wire";
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -38,7 +38,7 @@ function toJSTDateOnly(iso?: string | null): string {
   return formatJSTDate(d);
 }
 
-function transformVaccination(data: Vaccination): VaccinationRecord {
+function transformVaccination(data: LegacyVaccinationResponse): VaccinationRecord {
   return {
     id: String(data.id ?? 0),
     petId: data.pet_id ? String(data.pet_id) : undefined,
@@ -75,7 +75,7 @@ export function useCreateVaccination() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (req: CreateVaccinationRequest): Promise<VaccinationRecord> => {
-      const { data } = await axios.post<Vaccination>("/v1/vaccinations", req);
+      const { data } = await axios.post<LegacyVaccinationResponse>("/v1/vaccinations", req);
       return transformVaccination(data);
     },
     onSuccess: () => {

@@ -4,11 +4,14 @@ import { getStoredClinicId } from "@/lib/current-clinic";
 import { useCurrentClinicId } from "@/hooks/use-current-clinic-id";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
-import type { Reservation as BackendReservation } from "@/types/generated/models";
+import {
+  transformReservationWithIntent,
+  type Reservation,
+  type ReservationApiResponse,
+} from "./reservation-intent-response";
 
 interface ReservationsListResponse {
-  data: BackendReservation[];
+  data: ReservationApiResponse[];
   total: number;
   snapshot: boolean;
 }

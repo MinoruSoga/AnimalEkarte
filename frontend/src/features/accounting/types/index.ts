@@ -1,6 +1,9 @@
 /**
  * Accounting feature types (UI-facing: camelCase, string IDs)
- * Backend types: {@link Billing}, {@link BillingItem}, {@link Payment} from models.ts
+ * Backend types: {@link import("../api/legacy-wire").LegacyAccountingResponse},
+ * {@link import("../api/legacy-wire").LegacyAccountingItemResponse},
+ * {@link import("../api/legacy-wire").LegacyPaymentResponse}
+ * （移行 HTTP DTO。保存 model ではない — EMR-527）
  */
 // FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union に
 // なったため、手書き union を生成型からの re-export へ移行した。drift テストは不要になり
@@ -11,8 +14,10 @@ import type {
   BillingStatus as AccountingStatus,
   PaymentMethod,
   ItemCategory,
+  ItemSource,
 } from "@/types/generated/models";
-export type { AccountingStatus, PaymentMethod, ItemCategory };
+// TaxType / ItemSource は api/legacy-wire.ts（移行 HTTP DTO）が参照する（EMR-527）。
+export type { AccountingStatus, PaymentMethod, ItemCategory, TaxType, ItemSource };
 
 export interface AddAccountingItemInput {
   name: string;
@@ -25,7 +30,7 @@ export interface AddAccountingItemInput {
   merchandiseItemId?: string;
 }
 
-/** @see {@link import("@/types/generated/models").BillingItem} */
+/** @see {@link import("../api/legacy-wire").LegacyAccountingItemResponse} */
 export interface AccountingItem {
   id: string;
   code?: string;
@@ -56,7 +61,7 @@ export interface AccountingItem {
   serviceDate?: string;
 }
 
-/** @see {@link import("@/types/generated/models").Payment} */
+/** @see {@link import("../api/legacy-wire").LegacyPaymentResponse} */
 export interface PaymentInfo {
   subtotal: number; // 税抜小計
   taxTotal: number; // 消費税合計
@@ -72,7 +77,7 @@ export interface PaymentInfo {
   paidByName?: string; // 支払処理スタッフ名
 }
 
-/** @see {@link import("@/types/generated/models").PaymentSplit} */
+/** @see {@link import("../api/legacy-wire").LegacyPaymentSplitResponse} */
 export interface PaymentSplitInfo {
   id: string;
   method: PaymentMethod;
@@ -83,7 +88,7 @@ export interface PaymentSplitInfo {
   paidByName?: string;
 }
 
-/** @see {@link import("@/types/generated/models").Billing} */
+/** @see {@link import("../api/legacy-wire").LegacyAccountingResponse} */
 export interface Accounting {
   id: string;
   clinicId: string;
