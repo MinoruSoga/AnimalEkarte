@@ -2,10 +2,7 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 
-import {
-  getMedicineStrengthError,
-  type MedicineFormData,
-} from "../lib/medicine-side-panel-model";
+import { getMedicineStrengthError, type MedicineFormData } from "../lib/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { numberToExactDecimal } from "@/lib/exact-decimal";
 import { parseOptionalNumber } from "@/lib/parse-optional-number";
