@@ -3,6 +3,7 @@ package apicontract
 import (
 	"go/ast"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,33 +54,42 @@ func TestOpenAPIMasterPatchRequestContract(t *testing.T) {
 	schemas := spec.Components.Schemas
 
 	for _, tc := range []struct {
-		path, shared, patch, changed string
+		path, shared, patch string
+		changed             []string
 	}{
-		{"/masters/hospitalization-plans", "HospitalizationPlan", "UpdateHospitalizationPlanRequest", "description"},
-		{"/masters/medicines", "Medicine", "UpdateMedicineRequest", "clear_strength"},
+		{"/masters/hospitalization-plans", "HospitalizationPlan", "UpdateHospitalizationPlanRequest", []string{"description"}},
+		{"/masters/medicines", "Medicine", "UpdateMedicineRequest", []string{"clear_strength"}},
 	} {
 		t.Run(tc.patch, func(t *testing.T) {
 			assert.Equal(t, "#/components/schemas/"+tc.patch, requestSchemaRef(t, spec, tc.path+"/{id}", "patch"))
-			assert.Equal(t, "#/components/schemas/"+tc.shared, requestSchemaRef(t, spec, tc.path, "post"),
-				"POST must keep the shared schema")
 
 			shared, ok := schemas[tc.shared]
 			require.True(t, ok)
 			patch, ok := schemas[tc.patch]
 			require.True(t, ok)
-			assert.Equal(t, shared.Required, patch.Required, "required must not drift")
+			var writableRequired []string
+			for _, name := range shared.Required {
+				if shared.Properties[name]["readOnly"] != true {
+					writableRequired = append(writableRequired, name)
+				}
+			}
+			assert.Equal(t, writableRequired, patch.Required, "required must not drift")
 			for name, prop := range shared.Properties {
-				if prop["readOnly"] == true {
-					assert.NotContains(t, patch.Properties, name, "readOnly %s is not a PATCH input", name)
+				if slices.Contains(tc.changed, name) {
 					continue
 				}
-				if name == tc.changed {
+				if prop["readOnly"] == true {
+					assert.NotContains(t, patch.Properties, name, "readOnly %s is not a PATCH input", name)
 					continue
 				}
 				assert.Equal(t, prop, patch.Properties[name], "%s.%s must equal the shared contract", tc.patch, name)
 			}
 		})
 	}
+	assert.Equal(t, "#/components/schemas/HospitalizationPlan", requestSchemaRef(t, spec, "/masters/hospitalization-plans", "post"),
+		"POST must keep the shared schema")
+	assert.Equal(t, "#/components/schemas/Medicine", requestSchemaRef(t, spec, "/masters/medicines", "post"),
+		"POST must keep the shared schema")
 
 	t.Run("EMR-533 description null is PATCH-only", func(t *testing.T) {
 		patch := schemas["UpdateHospitalizationPlanRequest"].Properties["description"]
