@@ -218,7 +218,11 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	// MRB-08: 存在確認・parent 検証・Update を同一 tx に収める。
 	var exType *model.ExaminationType
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		before, err := s.repo.FindByID(txCtx, clinicID, id)
+		// EMR-447 A-2: 前値読取は FOR UPDATE で行を排他ロックしながら読む。
+		// FOR SHARE のままだと同版の並行 PATCH が SHARE を保持したまま UPDATE
+		// 昇格を待ち合い 40P01（500）になる。FOR UPDATE を先に取れば敗者は
+		// lock 解放後に新しい版を読み、CAS の WHERE 不一致で 409 に収束する。
+		before, err := s.repo.FindByID(withExamTypeForUpdate(txCtx), clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get exam type")
 		}
