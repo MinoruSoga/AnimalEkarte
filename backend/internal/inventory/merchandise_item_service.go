@@ -281,7 +281,11 @@ func (s *merchandiseItemService) Update(ctx context.Context, clinicID, id uint64
 		}
 		var result *model.MerchandiseItem
 		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-			before, err := s.repo.FindByID(txCtx, clinicID, id)
+			// EMR-449 A-2: 前値読取は FOR UPDATE で行を排他ロックしながら読む。
+			// FOR SHARE のままだと同版の並行 PATCH が SHARE を保持したまま UPDATE
+			// 昇格を待ち合い 40P01（500）になる。FOR UPDATE を先に取れば敗者は
+			// lock 解放後に新しい版を読み、CAS の WHERE 不一致で 409 に収束する。
+			before, err := s.repo.FindByID(withMerchandiseItemForUpdate(txCtx), clinicID, id)
 			if err != nil {
 				return apperrors.Wrap(err, "failed to get merchandise item")
 			}
