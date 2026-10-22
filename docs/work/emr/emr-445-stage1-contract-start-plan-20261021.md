@@ -228,6 +228,6 @@ AGENTS.mdが参照する.claude/CLAUDE.mdのuser-run規約に従い、本人へ�
 | A01 全体割引除外設定 | 診療5種＋薬剤＋物販の7model/3画面系統の共有保存型とwireが設計残。新列/テーブル/route/保存方式は本追補で選定しない。成功読取で未設定を確認した場合だけfalse、未接続/読取失敗/元不明はunknown、旧履歴へ補完なし | 臨床・薬剤447、物販449。②編集→保存→再GETを受領。481/483/505は④投影/採用consumerで設定writerの代用でない。現C/E・530限定scopeへ追加しない |
 | A02 担当者別LINE開始時刻 | 医院＋区分だけの既存保存と、正本の担当者別設定の差を閉じる単一owner/保存scope/競合/wireの技術設計残。既選定492は開始枠拡張を選定していないため、その契約で収録済みにしない | 448/492の①②設定writerと468④判定consumerを分離。Lstep/DM最後のマーケ工程とは別、現Dへ追加しない |
 | A03 医院共通営業時間/休診日 | 業務方針は確定、clinic_holidaysとLINE曜日/個別日/時間の対応・共通writer・保存/競合/移行の照合残。既存設定を自動統合/上書きしない | 445医院設定と448/LINE設定の既知境界残を単一ownerへ受領。468consumer/492だけで閉じず、Aの共有編集や現DへFE/runtimeを追加しない |
-| A06 trimming旧属性解除 | target_size/course_type_idごとの省略=保持・明示解除・値=設定を区別し、null/省略を合流させないfield固有presence契約を①APIへ受領。course_type_id未収録とtarget_size既存nullableを区別。0/空文字をFK代用にしない | ②448が値→指定なし→GETを受領。457新属性/画像/曜日clearや今回Dのdescription clearとは別後続。汎用nullable全体拡張なし |
+| A06 trimming旧属性解除 | target_size/course_type_idの2fieldについて、省略による保持・明示解除・値設定の3意図を失わないfield固有更新契約を①APIへ受領。null/presenceまたは既存clear表現の具体選定は①受領時に固定し、この監査PRでは暗黙確定しない。course_type_id未収録とtarget_size既存nullableを区別。0/空文字をFK代用にしない | ②448が値→指定なし→GETを受領。457新属性/画像/曜日clearや今回Dのdescription clearとは別後続。汎用nullable全体拡張なし |
 
 24管理行へ新規実装票を足した数ではなく、既存445/447/448/449/492等の行に受領残を対応づける追補である。設計残をNOT_RUNだけで隠さず、業務方針の再質問や保存方式の推測確定をしない。新規実装・API YAML/DDL/model/生成変更は今回行わずNOT_RUN。

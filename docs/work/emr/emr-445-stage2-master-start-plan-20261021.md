@@ -303,7 +303,7 @@ frontend/src/features/master/hooks/reservation-type-settings-model.tsのbuildRes
 | 担当者別LINE開始時刻 | 分類/担当者ごとの開始時刻設定と既存予約保持を受領、保存後の候補表示/判定consumerは468へ渡す | 448/492設定writerの単一owner・保存scope設計残。現医院＋区分の保存で完成としない。マーケ最終工程と混同しない |
 | 医院共通営業時間/休診日 | 共通医院基準とLINEの範囲内別設定、院内の警告了承/取消、レジ別日界の既決を保持 | 445と448/LINE境界。156の共通writer/保存対応の既知残。実医院設定/現5枠の範囲を変更しない |
 | 健診種別parent整合 | Create/親変更/Deleteが同じ親row lockと同TX内の存在・子参照再検査に参加し、子保存先行/親削除先行の両順序で片方だけ成立。CAS/品目保険監査は保持 | 447/456 UAT・#732の残存コード差分。Read Committedの通常SELECT→別TX soft-delete→子INSERTの静的raceで、実DB再現NOT_RUN。新DDL必須にせず、Cへ無断追加しない |
-| trimming course旧属性の指定なし | target_size/course_type_idの省略保持/明示解除/値設定をfield固有3値として①へ受領、値→指定なし→GET、無関係項目保持をfixture化 | 448後続。457新属性/画像/曜日clearとは別、FKへ0/空文字を送らず汎用nullable全面拡張なし。#806でもcourse_type_id schema未収録は残る |
+| trimming course旧属性の指定なし | target_size/course_type_idの2fieldだけで省略保持/明示解除/値設定の3意図を維持する更新契約を①へ受領。null/presenceまたは既存clear表現は①受領時に具体選定し、本監査では未確定。値→指定なし→GET、無関係項目保持をfixture化 | 448後続。457新属性/画像/曜日clearとは別、FKへ0/空文字を送らず汎用nullable全面拡張なし。#806でもcourse_type_id schema未収録は残る |
 | trimming option Create型adapter | SortOrder int→model *intの具体caller対応を既知型driftの受領表へ追加 | 448の既知型境界確認。新規欠陥件数に二重算入せず、modelを旧型へ戻さない |
 
 EMR-306はDone直前のcomment fd0b67d6-3a21-4d15-821b-d2470f0b243d（2026-10-20 07:51:30.990830Z）の限定STG UAT再実行PASSを採用する。空き2件選択→代表ケージ確認→連結→マスタ/ボード両表示→解除→個別空き復帰は既存成果。ボードDnD合体・連結中割当拒否実演・退院後の連結維持だけUNKNOWN/461・499境界として分離し、証拠欠落・記録不整合・誤Doneにはしない。状態は変更しない。ホテル上限はspec-storage-traceと既存452/461/499に追跡でき、新規漏れではない。今回はdocsのみ、実DB/試験/ビルド/生成NOT_RUN。
