@@ -54,6 +54,42 @@ func (f billDiscountExcludedField) toUpdateInput() *bool {
 	return &value
 }
 
+// optionalVersionField は版を新設した検査種別・薬剤の PATCH で使う省略可能な編集開始版（A.4）。
+// 省略は CAS なし（新設定を含まない旧 PATCH の従来互換）。送信された値は必ず照合し無視しない:
+// null・非整数・1 未満は 400。新設定を含む PATCH での必須検査は service が行う。
+// 物販（inventory の merchandiseVersionField）と同じ意味に揃える。
+type optionalVersionField struct {
+	set   bool
+	value int64
+}
+
+const errMsgOptionalVersionInvalid = "version は省略するか1以上の整数で指定してください"
+
+func (f *optionalVersionField) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return apperrors.WrapInvalidInput("version に null は指定できません。省略するか1以上の整数を指定してください")
+	}
+	var value int64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return apperrors.WrapInvalidInput(errMsgOptionalVersionInvalid)
+	}
+	if value < 1 {
+		return apperrors.WrapInvalidInput(errMsgOptionalVersionInvalid)
+	}
+	f.set = true
+	f.value = value
+	return nil
+}
+
+// toServiceInput は未送信を nil（CAS なし）に変換する。
+func (f optionalVersionField) toServiceInput() *int64 {
+	if !f.set {
+		return nil
+	}
+	value := f.value
+	return &value
+}
+
 // createBillDiscountExcluded は新規登録で保存する値を返す。
 // 未送信は false を明示保存し、DB default や Go のゼロ値に任せない。
 func createBillDiscountExcluded(input *bool) *bool {

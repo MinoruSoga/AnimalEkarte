@@ -93,10 +93,11 @@ type updateMedicineRequest struct {
 	TaxType         *string         `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         json.RawMessage `json:"tax_rate"`
 	IsNonInsurance  *bool           `json:"is_non_insurance"`
+
 	// EMR-447 A01/A.4: 省略 → 変更なし。明示 null/非 boolean は binding 層で 400。
 	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
-	// EMR-447 A.4: 任意送信の期待版。送信時は >0 必須・必ず WHERE 照合する（service 検証）。
-	Version *int64 `json:"version"`
+	// EMR-447 A.4: 任意送信の期待版。省略は CAS なし、送信値は null を含め必ず検査し WHERE 照合する。
+	Version                optionalVersionField      `json:"version"`
 
 	// #201 投与量計算（製品軸）
 	CalculationType     *string         `json:"calculation_type"      binding:"omitempty,oneof=none per_weight"`
@@ -112,26 +113,26 @@ func (r *updateMedicineRequest) toServiceInput() (*UpdateMedicineInput, error) {
 		return nil, err
 	}
 	return &UpdateMedicineInput{
-		Name:                r.Name,
-		ParentID:            r.ParentID,
-		ClearParentID:       r.ClearParentID,
-		Price:               r.Price,
-		IsActive:            r.IsActive,
-		Description:         r.Description,
-		DosageForm:          r.DosageForm,
-		MedicineUnit:        r.MedicineUnit,
-		InventoryID:         r.InventoryID,
-		DefaultQuantity:     defaultQuantity,
-		SortOrder:           r.SortOrder,
-		TaxType:             r.TaxType,
-		TaxRate:             taxRate,
-		IsNonInsurance:      r.IsNonInsurance,
+		Name:                   r.Name,
+		ParentID:               r.ParentID,
+		ClearParentID:          r.ClearParentID,
+		Price:                  r.Price,
+		IsActive:               r.IsActive,
+		Description:            r.Description,
+		DosageForm:             r.DosageForm,
+		MedicineUnit:           r.MedicineUnit,
+		InventoryID:            r.InventoryID,
+		DefaultQuantity:        defaultQuantity,
+		SortOrder:              r.SortOrder,
+		TaxType:                r.TaxType,
+		TaxRate:                taxRate,
+		IsNonInsurance:         r.IsNonInsurance,
 		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toUpdateInput(),
-		Version:             r.Version,
-		CalculationType:     r.CalculationType,
-		Strength:            strength,
-		ClearStrength:       r.ClearStrength,
-		FrequencyPerDay:     r.FrequencyPerDay,
-		DefaultDurationDays: r.DefaultDurationDays,
+		Version:                r.Version.toServiceInput(),
+		CalculationType:        r.CalculationType,
+		Strength:               strength,
+		ClearStrength:          r.ClearStrength,
+		FrequencyPerDay:        r.FrequencyPerDay,
+		DefaultDurationDays:    r.DefaultDurationDays,
 	}, nil
 }

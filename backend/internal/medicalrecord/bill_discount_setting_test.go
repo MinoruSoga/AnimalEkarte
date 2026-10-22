@@ -158,4 +158,39 @@ func TestLogBillDiscountAuditTx_FailsClosed(t *testing.T) {
 	})
 }
 
+// A.4: 版を新設した資源の PATCH version は省略可能だが、送信値は null を含め必ず検査する。
+func TestOptionalVersionField_Decode(t *testing.T) {
+	type body struct {
+		Version optionalVersionField `json:"version"`
+	}
+	tests := []struct {
+		name    string
+		payload string
+		wantErr bool
+		want    *int64
+	}{
+		{name: "omitted means no CAS", payload: `{}`, want: nil},
+		{name: "positive version", payload: `{"version":3}`, want: int64PtrForBillDiscountTest(3)},
+		{name: "null is rejected, not treated as omitted", payload: `{"version":null}`, wantErr: true},
+		{name: "zero is rejected", payload: `{"version":0}`, wantErr: true},
+		{name: "negative is rejected", payload: `{"version":-1}`, wantErr: true},
+		{name: "string is rejected", payload: `{"version":"3"}`, wantErr: true},
+		{name: "fraction is rejected", payload: `{"version":1.5}`, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got body
+			err := json.Unmarshal([]byte(tt.payload), &got)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got.Version.toServiceInput())
+		})
+	}
+}
+
 func boolPtrForBillDiscountTest(v bool) *bool { return &v }
+
+func int64PtrForBillDiscountTest(v int64) *int64 { return &v }

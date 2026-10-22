@@ -393,7 +393,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 
 	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Create":                        {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.update":                        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Update":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Delete":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Reorder":                       {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.CountUsageByExamTypeID":        {},
@@ -487,6 +487,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.FindByID": {},
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Create":   {},
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Update":   {},
+	// EMR-456 F1: the parent row lock and the fresh child/usage checks after it join the
+	// create/update/delete write tx (fail-closed without an ambient tx for the lock).
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.LockWriteRows":             {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.CountUsageByCheckupTypeID": {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.CountChildrenByParentID":   {},
 	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
 	// Runtime: clinical_master_delete_tx_atomicity_test.go
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindAll":                    {},
@@ -941,7 +946,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).
 	"medicalrecord/medicine_repository.go|medicineRepository.Create":                  {},
-	"medicalrecord/medicine_repository.go|medicineRepository.update":                  {},
+	"medicalrecord/medicine_repository.go|medicineRepository.Update":                  {},
 	"medicalrecord/medicine_repository.go|medicineRepository.Delete":                  {},
 	"medicalrecord/medicine_repository.go|medicineRepository.FindAll":                 {},
 	"medicalrecord/medicine_repository.go|medicineRepository.FindByID":                {},

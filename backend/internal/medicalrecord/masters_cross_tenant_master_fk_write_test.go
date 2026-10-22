@@ -211,14 +211,14 @@ func TestMedicineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 				return nil
 			},
 		}
-		return NewMedicineServiceWithAudit(repo, okInventoryRepo(), &mockTransactor{}, nil)
+		return NewMedicineServiceWithAudit(repo, okInventoryRepo(), &mockTransactor{}, noopMedicineBillDiscountAudit())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "medicine must NOT be persisted referencing another clinic's parent medicine")
@@ -228,7 +228,7 @@ func TestMedicineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -254,7 +254,7 @@ func TestMedicineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.Medicine{ID: id}, nil
 			},
 		}
-		return NewMedicineServiceWithAudit(repo, &mockInventoryRepository{}, &mockTransactor{}, nil)
+		return NewMedicineServiceWithAudit(repo, &mockInventoryRepository{}, &mockTransactor{}, noopMedicineBillDiscountAudit())
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
@@ -291,14 +291,14 @@ func TestMedicineService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 				return nil
 			},
 		}
-		return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, nil)
+		return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, noopMedicineBillDiscountAudit())
 	}
 
 	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created, rejectInventoryRepo(ownedInventoryID))
 		foreign := foreignInventoryID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", InventoryID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",InventoryID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "medicine must NOT be persisted referencing another clinic's inventory item")
@@ -308,7 +308,7 @@ func TestMedicineService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created, rejectInventoryRepo(ownedInventoryID))
 		owned := ownedInventoryID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", InventoryID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",InventoryID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -331,7 +331,7 @@ func TestMedicineService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 				return &model.Medicine{ID: id}, nil
 			},
 		}
-		return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, nil)
+		return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, noopMedicineBillDiscountAudit())
 	}
 
 	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
@@ -361,3 +361,9 @@ func TestMedicineService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 // clinic ownership (inquiry_service.go). medicalRecordService.CreateSubRecords carries the
 // same hole for ChiefComplaintTypeID plus four diagnosis FKs, bypassing
 // clinicalPlanService's validateDiagnosisFKs entirely (medical_record_subrecords.go).
+
+// noopMedicineBillDiscountAudit は EMR-447 A.5 で create が常に記録する全体割引除外監査の受け口。
+// FK 検証の試験対象ではないため記録内容は検査しない（監査依存の欠落で create が fail-closed しないための double）。
+func noopMedicineBillDiscountAudit() AuditTxLogger {
+	return AuditTxLoggerFunc(func(context.Context, *AuditEntry) error { return nil })
+}
