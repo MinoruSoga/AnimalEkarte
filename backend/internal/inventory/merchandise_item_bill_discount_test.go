@@ -82,7 +82,7 @@ func TestMerchandiseItemService_Create_BillDiscount(t *testing.T) {
 				},
 			}
 			audit := &merchandiseBillDiscountAuditRecorder{}
-			svc := NewMerchandiseItemServiceWithAudit(repo, &rollbackTrackingTransactor{}, audit)
+			svc := NewMerchandiseItemServiceWithAudit(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &rollbackTrackingTransactor{}, audit)
 			got, err := svc.Create(t.Context(), 7, &CreateMerchandiseItemInput{
 				Name: "テスト品", Category: "goods", TaxType: "excluded",
 				IsBillDiscountExcluded: tt.input, ActorID: merchandiseTestActorID(),
@@ -111,7 +111,7 @@ func TestMerchandiseItemService_Create_MissingAuditFailsClosed(t *testing.T) {
 	repo := &mockMerchandiseItemRepository{
 		createFn: func(context.Context, *model.MerchandiseItem) error { created = true; return nil },
 	}
-	svc := NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	svc := NewMerchandiseItemService(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &mockMerchandiseItemTransactor{})
 	_, err := svc.Create(t.Context(), 7, &CreateMerchandiseItemInput{Name: "x", Category: "goods", TaxType: "excluded", ActorID: merchandiseTestActorID()})
 	require.Error(t, err)
 	assert.False(t, created, "zero writes without the audit dependency")
@@ -130,7 +130,7 @@ func TestMerchandiseItemService_Update_FieldOmittedKeepsStoredValue(t *testing.T
 		},
 	}
 	// 旧 constructor（監査なし）でも新設定を含まない PATCH は従来どおり成功する。
-	svc := NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	svc := NewMerchandiseItemService(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &mockMerchandiseItemTransactor{})
 	name := "改名"
 	got, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{Name: &name, Version: int64PtrForMerchandiseTest(7)})
 	require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestMerchandiseItemService_Update_ExplicitValueWritesAndAudits(t *testing.T
 				},
 			}
 			tx := &rollbackTrackingTransactor{}
-			svc := NewMerchandiseItemServiceWithAudit(repo, tx, audit)
+			svc := NewMerchandiseItemServiceWithAudit(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, tx, audit)
 			got, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{
 				IsBillDiscountExcluded: boolPtrForBillDiscountTest(tt.sent),
 				Version:                int64PtrForMerchandiseTest(7),
@@ -198,7 +198,7 @@ func TestMerchandiseItemService_Update_FieldSentRequiresVersion(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewMerchandiseItemServiceWithAudit(repo, &rollbackTrackingTransactor{}, &merchandiseBillDiscountAuditRecorder{})
+	svc := NewMerchandiseItemServiceWithAudit(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &rollbackTrackingTransactor{}, &merchandiseBillDiscountAuditRecorder{})
 	_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{IsBillDiscountExcluded: boolPtrForBillDiscountTest(true), ActorID: merchandiseTestActorID()})
 	require.Error(t, err)
 }
@@ -212,7 +212,7 @@ func TestMerchandiseItemService_Update_VersionOnlyIsInvalid(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	svc := NewMerchandiseItemService(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &mockMerchandiseItemTransactor{})
 	_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{Version: int64PtrForMerchandiseTest(7)})
 	require.Error(t, err)
 }
@@ -226,7 +226,7 @@ func TestMerchandiseItemService_Update_SentVersionMustBePositive(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	svc := NewMerchandiseItemService(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &mockMerchandiseItemTransactor{})
 	for _, v := range []int64{0, -1} {
 		_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{Version: int64PtrForMerchandiseTest(v)})
 		require.Error(t, err, "version %d must be rejected", v)
@@ -246,7 +246,7 @@ func TestMerchandiseItemService_Update_VersionConflictDoesNotAudit(t *testing.T)
 		},
 	}
 	tx := &rollbackTrackingTransactor{}
-	svc := NewMerchandiseItemServiceWithAudit(repo, tx, audit)
+	svc := NewMerchandiseItemServiceWithAudit(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, tx, audit)
 	got, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{
 		IsBillDiscountExcluded: boolPtrForBillDiscountTest(true),
 		Version:                int64PtrForMerchandiseTest(7),
@@ -275,7 +275,7 @@ func TestMerchandiseItemService_Update_AuditFailureRollsBack(t *testing.T) {
 		},
 	}
 	tx := &rollbackTrackingTransactor{}
-	svc := NewMerchandiseItemServiceWithAudit(repo, tx, audit)
+	svc := NewMerchandiseItemServiceWithAudit(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, tx, audit)
 	_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{
 		IsBillDiscountExcluded: boolPtrForBillDiscountTest(true),
 		Version:                int64PtrForMerchandiseTest(7),
@@ -296,7 +296,7 @@ func TestMerchandiseItemService_Create_AuditFailureRollsBack(t *testing.T) {
 		},
 	}
 	tx := &rollbackTrackingTransactor{}
-	svc := NewMerchandiseItemServiceWithAudit(repo, tx, audit)
+	svc := NewMerchandiseItemServiceWithAudit(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, tx, audit)
 	_, err := svc.Create(t.Context(), 7, &CreateMerchandiseItemInput{Name: "x", Category: "goods", TaxType: "excluded", ActorID: merchandiseTestActorID()})
 	require.ErrorIs(t, err, sentinel)
 	assert.True(t, tx.rolledBack)
@@ -315,7 +315,7 @@ func TestMerchandiseItemService_Update_MissingAuditFailsClosed(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	svc := NewMerchandiseItemService(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &mockMerchandiseItemTransactor{})
 	_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{
 		IsBillDiscountExcluded: boolPtrForBillDiscountTest(true),
 		Version:                int64PtrForMerchandiseTest(7),
@@ -345,7 +345,7 @@ func TestMerchandiseItemService_ReaderErrorIsNotConvertedToNull(t *testing.T) {
 	repo := &mockMerchandiseItemRepository{
 		findByIDFn: func(context.Context, uint64, uint64) (*model.MerchandiseItem, error) { return nil, sentinel },
 	}
-	svc := NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	svc := NewMerchandiseItemService(&merchandiseItemForUpdateMockRepo{mockMerchandiseItemRepository: repo}, &mockMerchandiseItemTransactor{})
 	_, err := svc.GetByID(t.Context(), 7, 5)
 	require.ErrorIs(t, err, sentinel)
 }
@@ -444,7 +444,7 @@ func TestMerchandiseItemRepository_FindByIDLockStrength(t *testing.T) {
 	// 参照用途（campaign attachment serialization）: 既定は FOR SHARE。
 	_, _ = repo.FindByID(txCtx, 2, 17)
 	// 更新 TX の前値読取: FOR UPDATE で先に排他ロックする。
-	_, _ = repo.FindByID(withMerchandiseItemForUpdate(txCtx), 2, 17)
+	_, _ = repo.FindByIDForUpdate(txCtx, 2, 17)
 	// ambient tx なし: ロック句なし。
 	_, _ = repo.FindByID(t.Context(), 2, 17)
 	require.Len(t, queries, 3)
@@ -453,25 +453,41 @@ func TestMerchandiseItemRepository_FindByIDLockStrength(t *testing.T) {
 	require.NotContains(t, queries[2], "FOR ")
 }
 
+// merchandiseItemForUpdateMockRepo は共有 mock に FOR UPDATE 前値読取の
+// optional method を足すラッパ（F-owned mock ファイルは編集しない）。
+type merchandiseItemForUpdateMockRepo struct {
+	*mockMerchandiseItemRepository
+	findByIDForUpdateFn func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+}
+
+func (m *merchandiseItemForUpdateMockRepo) FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+	if m.findByIDForUpdateFn == nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return m.findByIDForUpdateFn(ctx, clinicID, id)
+}
+
 // --- update TX: FOR UPDATE の前値読取が UPDATE・監査より先（A-2/D2） ---
 
 func TestMerchandiseItemService_Update_ForUpdateReadPrecedesWrite(t *testing.T) {
 	var events []string
-	repo := &mockMerchandiseItemRepository{
-		findByIDFn: func(ctx context.Context, _, id uint64) (*model.MerchandiseItem, error) {
-			if locked, _ := ctx.Value(merchandiseItemForUpdateKey{}).(bool); locked {
-				events = append(events, "forUpdateRead")
-			} else {
+	svcRepo := &merchandiseItemForUpdateMockRepo{
+		mockMerchandiseItemRepository: &mockMerchandiseItemRepository{
+			findByIDFn: func(ctx context.Context, _, id uint64) (*model.MerchandiseItem, error) {
 				events = append(events, "read")
-			}
+				return &model.MerchandiseItem{ID: id, ClinicID: 7, Version: 7}, nil
+			},
+			updateFieldsFn: func(context.Context, uint64, uint64, UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+				events = append(events, "update")
+				return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 8}, nil
+			},
+		},
+		findByIDForUpdateFn: func(ctx context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+			events = append(events, "forUpdateRead")
 			return &model.MerchandiseItem{ID: id, ClinicID: 7, Version: 7}, nil
 		},
-		updateFieldsFn: func(context.Context, uint64, uint64, UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-			events = append(events, "update")
-			return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 8}, nil
-		},
 	}
-	svc := NewMerchandiseItemServiceWithAudit(repo, &rollbackTrackingTransactor{}, &merchandiseBillDiscountAuditRecorder{})
+	svc := NewMerchandiseItemServiceWithAudit(svcRepo, &rollbackTrackingTransactor{}, &merchandiseBillDiscountAuditRecorder{})
 	_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{
 		IsBillDiscountExcluded: boolPtrForBillDiscountTest(true),
 		Version:                int64PtrForMerchandiseTest(7),

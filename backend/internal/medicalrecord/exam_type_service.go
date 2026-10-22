@@ -193,6 +193,12 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("exam_type_id", exType.ID))
 	return exType, nil
 }
+// examTypeForUpdateFinder は更新 TX の前値読取専用の FOR UPDATE read。
+// concrete repo が実装しない構成は fail-closed（master_parent_write_lock と同型）。
+type examTypeForUpdateFinder interface {
+	FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
+}
+
 func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
@@ -222,7 +228,11 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 		// FOR SHARE のままだと同版の並行 PATCH が SHARE を保持したまま UPDATE
 		// 昇格を待ち合い 40P01（500）になる。FOR UPDATE を先に取れば敗者は
 		// lock 解放後に新しい版を読み、CAS の WHERE 不一致で 409 に収束する。
-		before, err := s.repo.FindByID(withExamTypeForUpdate(txCtx), clinicID, id)
+		forUpdateRepo, ok := s.repo.(examTypeForUpdateFinder)
+		if !ok {
+			return apperrors.WrapInternalServerError("exam type repository must implement FindByIDForUpdate")
+		}
+		before, err := forUpdateRepo.FindByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get exam type")
 		}
