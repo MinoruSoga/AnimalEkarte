@@ -49,3 +49,23 @@ describe("buildMerchandiseUpdateRequest", () => {
     expect(request.unit_price).toBe(2300);
   });
 });
+
+// EMR-537 AC4: GET の decimal 文字列が form 値 → save payload へ丸めずに通ること。
+// （GET transform 自体は api/merchandise-items.ts の string 透過。form/builder はここで固定。）
+describe("GET decimal string → form → save payload (EMR-537 AC4)", () => {
+  it.each(["0", "0.10", "0.08333", "0.10000000000000001"])(
+    "create payload keeps tax_rate %s unrounded",
+    (taxRate) => {
+      const request = buildMerchandiseCreateRequest(makeFormData({ taxRate }));
+      expect(request.tax_rate).toBe(taxRate);
+    },
+  );
+
+  it.each(["0", "0.10", "0.08333", "0.10000000000000001"])(
+    "update payload keeps tax_rate %s unrounded",
+    (taxRate) => {
+      const request = buildMerchandiseUpdateRequest(makeFormData({ taxRate }));
+      expect(request.tax_rate).toBe(taxRate);
+    },
+  );
+});
