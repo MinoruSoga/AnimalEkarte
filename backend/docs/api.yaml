@@ -15903,6 +15903,442 @@ components:
           properties:
             status:
               enum: [result-unavailable]
+    LineTimeContractUpgradeRequired:
+      type: object
+      required: [error, code]
+      description: >-
+        EMR-445 A02/A03 選定契約 §2.4/§3.3 の旧 writer 停止（HTTP 409、zero-write）。新しい C06 status ではなく既存 ErrorResponse 系の code。
+        error 文字列で分岐せず code で処理する。活性化前の医院・旧 read は一律停止しない。
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [contract_upgrade_required]
+    LineAcceptanceHHMM:
+      type: string
+      pattern: '^([01][0-9]|2[0-3])[0-5][0-9]$'
+      description: >-
+        既存 LINE wire の HHMM（4桁、0000..2359。既存 MinutesSinceMidnight と同じ範囲）。共通医院時間の HH:MM を機械転用しない。
+        共通との包含判定は境界 adapter が既存型を検証して JST 区間へ解釈する（§3.1）。
+    LineAcceptanceTimeRange:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      description: 既存 LINE の BusinessHours / BreakPeriod と同じ {start,end}（HHMM）。
+      properties:
+        start:
+          $ref: '#/components/schemas/LineAcceptanceHHMM'
+        end:
+          $ref: '#/components/schemas/LineAcceptanceHHMM'
+    LineAcceptanceBusinessHoursByWeekday:
+      type: object
+      additionalProperties: false
+      description: >-
+        既存 business_hours_by_weekday の曜日 key（"0"=日曜..."6"=土曜）→ 営業時間 override。key のない曜日は business_hours を使う。
+      properties:
+        '0':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        '1':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        '2':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        '3':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        '4':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        '5':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        '6':
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+    LineAcceptanceSettings:
+      type: object
+      additionalProperties: false
+      required: [status, closed_weekdays, closed_dates, national_holiday_closed, business_hours, business_hours_by_weekday, break_hours, booking_window_max_days, booking_window_min_days, time_slot_mode, time_slot_interval_minutes, show_no_staff_option]
+      description: >-
+        §3.1 保護 field P（12個に閉じる）。各既存型・validation を維持し、全 field 明示（default 補完なし）。booking_window_min_days ≦ booking_window_max_days。
+        壊れた JSON に default を入れない。null は business_hours_by_weekday（曜日 override 全解除）だけ。
+        非P 表示案内 N・additional_fields・連携/秘密（line_channel_id/liff_id/access token/channel secret）・旧 no_staff_mode/daily_limit/monthly_limit は含めない。
+      properties:
+        status:
+          type: string
+          enum: [running, stopped]
+        closed_weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description: 0=日曜..6=土曜。既存保存の正規形（整数配列）。旧 read の文字列表記は wire に出さない。
+        closed_dates:
+          type: array
+          items:
+            type: string
+            format: date
+        national_holiday_closed:
+          type: boolean
+        business_hours:
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        business_hours_by_weekday:
+          allOf:
+            - $ref: '#/components/schemas/LineAcceptanceBusinessHoursByWeekday'
+          nullable: true
+          description: null は曜日 override の全解除。
+        break_hours:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        booking_window_max_days:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 366
+        booking_window_min_days:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 366
+        time_slot_mode:
+          type: string
+          enum: [minimize_gaps, allow_gaps]
+        time_slot_interval_minutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+        show_no_staff_option:
+          type: boolean
+    LineAcceptanceChanges:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: §3.2 PATCH の changes。P の1 field 以上。null は business_hours_by_weekday だけ。集合値は全置換。
+      properties:
+        status:
+          type: string
+          enum: [running, stopped]
+        closed_weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        closed_dates:
+          type: array
+          items:
+            type: string
+            format: date
+        national_holiday_closed:
+          type: boolean
+        business_hours:
+          $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        business_hours_by_weekday:
+          allOf:
+            - $ref: '#/components/schemas/LineAcceptanceBusinessHoursByWeekday'
+          nullable: true
+        break_hours:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineAcceptanceTimeRange'
+        booking_window_max_days:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 366
+        booking_window_min_days:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 366
+        time_slot_mode:
+          type: string
+          enum: [minimize_gaps, allow_gaps]
+        time_slot_interval_minutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+        show_no_staff_option:
+          type: boolean
+    LineAcceptanceResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, state, acceptance_version, settings, common_version]
+      description: >-
+        GET /clinics/{clinic_id}/line-reservation-settings/acceptance（§3.2、no-store）。unconfigured は acceptance_version/settings null。
+        legacy-unreviewed は実保存版と検証可能な P を返すが確認済みとしない。configured は版・P 必須。common 未設定は common_version null。
+        JSON 不正・読取不能は 503 で、空成功・unconfigured へ変換しない。
+      properties:
+        schema_version:
+          type: string
+          enum: [line-acceptance/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        state:
+          type: string
+          enum: [unconfigured, legacy-unreviewed, configured]
+        acceptance_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        settings:
+          allOf:
+            - $ref: '#/components/schemas/LineAcceptanceSettings'
+          nullable: true
+        common_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+    LineAcceptanceInitializeRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_common_version, settings]
+      description: >-
+        POST base（initialize、§3.2）。line 行なしが前提、settings は P 全 field 明示。expected_common_version は検査した common 版で、共通更新を意味しない。
+        common 未設定のまま受付設定を有効化しない（write の expected_common_version は Version 必須、未設定は初期化へ案内）。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_common_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        settings:
+          $ref: '#/components/schemas/LineAcceptanceSettings'
+    LineAcceptanceConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_acceptance_version, expected_common_version, settings]
+      description: >-
+        POST base/confirm（旧未照合からの確認、§3.2）。P 全 field 明示。確認状態が変わるので版は1回だけ進み reviewed=新版。legacy 未照合値を自動で確認済みへ昇格しない。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_acceptance_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_common_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        settings:
+          $ref: '#/components/schemas/LineAcceptanceSettings'
+    LineAcceptanceUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [operation_key, expected_acceptance_version, expected_common_version, changes]
+      description: >-
+        PATCH base（configured のみ、§3.2）。P の意味値が変わったときだけ版を1回進め、真の no-op は同版。新 LINE 変更は共通内を検証し、切詰め保存せず拒否する（§3.3）。
+      properties:
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        expected_acceptance_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_common_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        changes:
+          $ref: '#/components/schemas/LineAcceptanceChanges'
+    LineAcceptancePreviewInitialize:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_acceptance_version, expected_common_version, settings, dates]
+      properties:
+        mode:
+          type: string
+          enum: [initialize]
+        expected_acceptance_version:
+          type: string
+          nullable: true
+          enum: [null]
+        expected_common_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+          description: null は現在 common 未設定の明示で、受付利用可能にしない。
+        settings:
+          $ref: '#/components/schemas/LineAcceptanceSettings'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+    LineAcceptancePreviewConfirm:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_acceptance_version, expected_common_version, settings, dates]
+      properties:
+        mode:
+          type: string
+          enum: [confirm]
+        expected_acceptance_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_common_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        settings:
+          $ref: '#/components/schemas/LineAcceptanceSettings'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+    LineAcceptancePreviewUpdate:
+      type: object
+      additionalProperties: false
+      required: [mode, expected_acceptance_version, expected_common_version, changes, dates]
+      properties:
+        mode:
+          type: string
+          enum: [update]
+        expected_acceptance_version:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        expected_common_version:
+          allOf:
+            - $ref: '#/components/schemas/LineTimeDecimalId'
+          nullable: true
+        changes:
+          $ref: '#/components/schemas/LineAcceptanceChanges'
+        dates:
+          $ref: '#/components/schemas/LineTimePreviewDates'
+    LineAcceptancePreviewRequest:
+      description: §5.6 acceptance preview 入力（mode 別 exact）。operation_key を受けず claim/write なし（read-only・no-store）。
+      oneOf:
+        - $ref: '#/components/schemas/LineAcceptancePreviewInitialize'
+        - $ref: '#/components/schemas/LineAcceptancePreviewConfirm'
+        - $ref: '#/components/schemas/LineAcceptancePreviewUpdate'
+      discriminator:
+        propertyName: mode
+        mapping:
+          initialize: '#/components/schemas/LineAcceptancePreviewInitialize'
+          confirm: '#/components/schemas/LineAcceptancePreviewConfirm'
+          update: '#/components/schemas/LineAcceptancePreviewUpdate'
+    LineAcceptancePreviewValidation:
+      type: object
+      additionalProperties: false
+      required: [state, warnings]
+      description: §5.6 validation。valid は warnings []、prohibited は prohibited を1件以上含む Warning[]。common 未設定・包含不成立は prohibited。
+      properties:
+        state:
+          type: string
+          enum: [valid, prohibited]
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineTimeWarning'
+    LineAcceptancePreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [schema_version, clinic_id, mode, current_state, observed_versions, current_settings, proposed_settings, days, validation, warning_receipt]
+      description: >-
+        §5.6 出力。提案側は仮に confirm/update した場合の計算結果で、保存済み確認状態・版へ昇格しない。包含検証を表示 dates だけへ縮小しない。
+        days の各要素は §5.3 Window の current/proposed（ClinicOperatingHoursPreviewDay と同 shape）。warning_receipt は常に null（LINE override なし）。
+      properties:
+        schema_version:
+          type: string
+          enum: [line-acceptance-preview/v1]
+        clinic_id:
+          $ref: '#/components/schemas/LineTimeDecimalId'
+        mode:
+          type: string
+          enum: [initialize, confirm, update]
+        current_state:
+          type: string
+          enum: [unconfigured, legacy-unreviewed, configured]
+        observed_versions:
+          $ref: '#/components/schemas/LineTimeObservedVersionsCommonLine'
+        current_settings:
+          allOf:
+            - $ref: '#/components/schemas/LineAcceptanceSettings'
+          nullable: true
+          description: 検証可能な現 P 又は行なし null。
+        proposed_settings:
+          $ref: '#/components/schemas/LineAcceptanceSettings'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicOperatingHoursPreviewDay'
+        validation:
+          $ref: '#/components/schemas/LineAcceptancePreviewValidation'
+        warning_receipt:
+          type: string
+          nullable: true
+          enum: [null]
+    LineAcceptanceOperationSuccess:
+      type: object
+      additionalProperties: false
+      required: [status, operation_key, result_refs, committed_versions, recorded_at]
+      description: >-
+        owner_kind=reservation（intent: line-acceptance.initialize/confirm/update）の C06 成功（HTTP 200）。committed_versions.clinic_operating_hours は検査した common 版で共通更新を意味しない。
+        replay は元 receipt の refs/版を返し現在版へ置換しない。保存値は receipt に混ぜず GET で再取得する。
+      properties:
+        status:
+          type: string
+          enum: [succeeded, replayed]
+        operation_key:
+          $ref: '#/components/schemas/LineTimeOperationKey'
+        result_refs:
+          type: object
+          additionalProperties: false
+          required: [clinic_id]
+          properties:
+            clinic_id:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+        committed_versions:
+          type: object
+          additionalProperties: false
+          required: [line_acceptance, clinic_operating_hours]
+          properties:
+            line_acceptance:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            clinic_operating_hours:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+        recorded_at:
+          type: string
+          format: date-time
+    LineReservationPresentationChanges:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: >-
+        §3.3 非P 表示案内 N の変更 field だけ。既存 upsert と同じ validation（max 長・email・calendar_months 0..12）を維持する。
+        P・additional_fields・連携/秘密は受けない（未知 key は 400）。新 C06・版必須化を広げない。
+      properties:
+        header_text:
+          type: string
+          maxLength: 2000
+        reservation_notice:
+          type: string
+          maxLength: 10000
+        cancel_notice:
+          type: string
+          maxLength: 10000
+        privacy_policy:
+          type: string
+          maxLength: 100000
+        calendar_months:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 12
+        phone_number:
+          type: string
+          maxLength: 32
+        notification_email:
+          type: string
+          maxLength: 254
+          description: 空文字可。非空は email 形式（既存 binding omitempty,email）。
+        request_example:
+          type: string
+          maxLength: 2000
+    LineReservationPresentationPatchRequest:
+      type: object
+      additionalProperties: false
+      required: [changes]
+      description: PATCH /clinics/{clinic_id}/line-reservation-settings/presentation（§3.3、exact {changes:N}）。
+      properties:
+        changes:
+          $ref: '#/components/schemas/LineReservationPresentationChanges'
+    LineReservationRegistrationFieldsPatchRequest:
+      type: object
+      additionalProperties: false
+      required: [additional_fields]
+      description: >-
+        PATCH /clinics/{clinic_id}/line-reservation-settings/registration-fields（§3.3、additional_fields だけ）。登録フォーム専有。
+        値の shape は既存 upsert の additional_fields（JSON 妥当性だけを検査する任意 JSON、未指定/null は [] で保存）を維持し本収録で狭めない。
+        本 endpoint は additional_fields の明示を要求する（key 欠落は 400）。
+      properties:
+        additional_fields:
+          description: 既存 upsert と同じ任意 JSON 値（登録フォーム定義）。
   responses:
     CertificateBadRequest:
       description: 'validation: malformed JSON/ID/key/enum。重複key/未知property/不正UTF-8/lone
@@ -30250,7 +30686,11 @@ paths:
     put:
       operationId: saveLineReservationSetting
       summary: LINE予約設定作成・更新（Upsert）
-      description: 医院に設定が未存在なら作成(201)、既存なら更新(200)する。
+      description: >-
+        医院に設定が未存在なら作成(201)、既存なら更新(200)する。
+        EMR-445 A03 選定契約 §3.3: LINE acceptance 活性化医院では P 同値でも 409 contract_upgrade_required・zero-write で停止し、
+        acceptance API（P）・PATCH presentation（N）・PATCH registration-fields（additional_fields）へ移す。未切替医院と旧 read は一律停止しない。
+        停止の runtime（活性化判定・writer 閉包）は EMR-448/492（D）・EMR-446/466（B）で未接続（x-contract-status: selected は 409 の追記部分だけ）。
       tags: [LINE予約設定]
       parameters:
         - name: clinic_id
@@ -30291,6 +30731,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          description: acceptance 活性化医院の旧全量 PUT 停止（§3.3、zero-write）。runtime 未接続。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeContractUpgradeRequired'
         '500':
           $ref: '#/components/responses/InternalError'
   /clinics/{clinic_id}/line-customers:
@@ -31282,6 +31728,498 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /clinics/{clinic_id}/line-reservation-settings/acceptance:
+    get:
+      operationId: getLineAcceptanceSettings
+      summary: LINE 受付条件（P）の取得
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:view
+      description: >-
+        §3.2。no-store。unconfigured / legacy-unreviewed / configured を返す。JSON 不正・読取不能は 503。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      responses:
+        '200':
+          description: LINE 受付条件（unconfigured は acceptance_version/settings null）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineAcceptanceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      operationId: initializeLineAcceptanceSettings
+      summary: LINE 受付条件の初期化
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §3.2 initialize（intent line-acceptance.initialize）。line 行なし・common 設定済みが前提。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineAcceptanceInitializeRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineAcceptanceOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（common 版・確認状態の変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+    patch:
+      operationId: updateLineAcceptanceSettings
+      summary: LINE 受付条件の部分更新
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §3.2 update（intent line-acceptance.update、configured のみ）。共通外への拡大は切詰めず拒否する（§3.3）。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineAcceptanceUpdateRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineAcceptanceOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（common 版・確認状態の変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinics/{clinic_id}/line-reservation-settings/acceptance/confirm:
+    post:
+      operationId: confirmLineAcceptanceSettings
+      summary: 旧未照合 LINE 受付条件の確認
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §3.2 confirm（intent line-acceptance.confirm）。legacy-unreviewed から P 全 field 明示で確認し reviewed=新版。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineAcceptanceConfirmRequest'
+      responses:
+        '200':
+          description: C06 結果（succeeded/replayed は成功 receipt、not-succeeded は確定拒否）。設定値は GET で再取得する。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineAcceptanceOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（common 版・確認状態の変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinics/{clinic_id}/line-reservation-settings/acceptance/preview:
+    post:
+      operationId: previewLineAcceptanceSettings
+      summary: LINE 受付条件の preview
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:view
+      description: >-
+        §5.6 read-only（claim0/write0、no-store）。operation_key を受けない。warning_receipt は常に null。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineAcceptancePreviewRequest'
+      responses:
+        '200':
+          description: preview 結果（定義した未設定/未照合 state を含む完全評価）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineAcceptancePreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 期待版・状態の競合（preview）。既存 ErrorResponse。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 依存読取・計算不能。未設定や空成功へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /clinics/{clinic_id}/line-reservation-settings/acceptance/operations/{operation_key}:
+    get:
+      operationId: getLineAcceptanceOperation
+      summary: LINE 受付条件操作の結果照会
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      description: >-
+        §1.1/§3.2 限定 C06 照会。元 binding の同 clinic・actor・intent・immutable target と現在 hospital-settings:edit を再検査する。write-only role も同じ action で照会できる。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+        - name: operation_key
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/LineTimeOperationKey'
+        - name: intent
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [initialize, confirm, update]
+          description: >-
+            短名→intent の固定 map（line-acceptance.<短名>）。現在再検査する元 write action はいずれも hospital-settings:edit。
+            別 intent へ変えて元結果を読まない。
+      responses:
+        '200':
+          description: 限定 C06 照会結果。refs/版だけを返し設定本文・氏名・予約一覧は返さない。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LineAcceptanceOperationSuccess'
+                  - $ref: '#/components/schemas/LineTimeOperationNotSucceeded200'
+        '202':
+          description: operation-in-progress。新 key で救済せず同 key で照会する。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationInProgress202'
+        '400':
+          description: strict decode 違反（ErrorResponse）又は C06 validation。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationValidation400'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 現在の必要 grant・所属の失権（C06 not-authorized）又は route 認可拒否。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationNotAuthorized403'
+        '404':
+          description: 元 scope/actor/target 不一致・非開示（C06 scope-not-found）又は既存 404。
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: '#/components/schemas/LineTimeOperationScopeNotFound404'
+        '409':
+          description: operation-key-conflict / version-conflict（CAS・期待版不一致）/ dependency-changed（common 版・確認状態の変更）/ edit-right-lost。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationConflict409'
+        '503':
+          description: result-unavailable。依存読取・計算不能を成功や未設定へ変換しない。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineTimeOperationResultUnavailable503'
+  /clinics/{clinic_id}/line-reservation-settings/presentation:
+    patch:
+      operationId: patchLineReservationPresentation
+      summary: LINE 予約の表示案内（非P）部分更新
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §3.3。旧全量 PUT 停止前に用意する非P 救済経路。変更 field だけ更新し P・秘密を再保存しない。新 C06・版必須化なし、acceptance_version を進めない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineReservationPresentationPatchRequest'
+      responses:
+        '204':
+          description: 更新成功（本収録で選定。保存値は既存 GET で再取得する）。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: LINE 予約設定の行なし（部分更新は行を生成しない）又は既存 404。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/line-reservation-settings/registration-fields:
+    patch:
+      operationId: patchLineReservationRegistrationFields
+      summary: LINE 予約の登録フォーム項目更新
+      tags: [LINE予約設定]
+      x-contract-status: selected
+      x-runtime-status: not-implemented
+      x-required-grants:
+      - hospital-settings:edit
+      description: >-
+        §3.3。additional_fields だけを更新する救済経路。P・N・秘密を再保存しない。新 C06・版必須化なし、acceptance_version を進めない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B、acceptance_version / reviewed_acceptance_version）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 認証 context の現在医院と一致すること（body の clinic/actor は採用しない）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineReservationRegistrationFieldsPatchRequest'
+      responses:
+        '204':
+          description: 更新成功（本収録で選定。保存値は既存 GET で再取得する）。
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: LINE 予約設定の行なし（部分更新は行を生成しない）又は既存 404。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clinic-holidays:
     get:
       tags:

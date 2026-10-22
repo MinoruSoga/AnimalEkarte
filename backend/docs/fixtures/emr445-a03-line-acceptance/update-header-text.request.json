@@ -1,0 +1,8 @@
+{
+  "operation_key": "00000000-0000-4000-8000-000000000012",
+  "expected_acceptance_version": "2",
+  "expected_common_version": "4",
+  "changes": {
+    "header_text": "ようこそ"
+  }
+}

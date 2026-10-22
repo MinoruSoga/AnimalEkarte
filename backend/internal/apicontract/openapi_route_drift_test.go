@@ -215,6 +215,17 @@ var knownPhantomInSpec = map[string]bool{
 	"POST /api/v1/closing-settings/holidays/common":                              true,
 	"DELETE /api/v1/closing-settings/holidays/common/{date}":                     true,
 	"POST /api/v1/closing-settings/holidays/common/preview":                      true,
+
+	// EMR-445 A03 contract-first LINE acceptance / non-P rescue routes (selected contract §3).
+	// Runtime owner EMR-448/492: remove each exact entry in the same change that registers its route.
+	"GET /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance":                            true,
+	"POST /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance":                           true,
+	"PATCH /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance":                          true,
+	"POST /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance/confirm":                   true,
+	"POST /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance/preview":                   true,
+	"GET /api/v1/clinics/{clinic_id}/line-reservation-settings/acceptance/operations/{operation_key}": true,
+	"PATCH /api/v1/clinics/{clinic_id}/line-reservation-settings/presentation":                        true,
+	"PATCH /api/v1/clinics/{clinic_id}/line-reservation-settings/registration-fields":                 true,
 }
 
 // ─── Real route enumeration (go/ast) ────────────────────────────────────────────────

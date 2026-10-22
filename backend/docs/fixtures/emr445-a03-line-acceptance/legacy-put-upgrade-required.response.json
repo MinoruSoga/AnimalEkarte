@@ -1,0 +1,4 @@
+{
+  "error": "LINE 受付条件は新しい設定画面から更新してください",
+  "code": "contract_upgrade_required"
+}

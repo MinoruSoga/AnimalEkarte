@@ -1,0 +1,36 @@
+{
+  "operation_key": "00000000-0000-4000-8000-000000000011",
+  "expected_acceptance_version": "1",
+  "expected_common_version": "4",
+  "settings": {
+    "status": "running",
+    "closed_weekdays": [
+      0
+    ],
+    "closed_dates": [
+      "2026-12-31"
+    ],
+    "national_holiday_closed": true,
+    "business_hours": {
+      "start": "0900",
+      "end": "1800"
+    },
+    "business_hours_by_weekday": {
+      "6": {
+        "start": "0900",
+        "end": "1300"
+      }
+    },
+    "break_hours": [
+      {
+        "start": "1200",
+        "end": "1300"
+      }
+    ],
+    "booking_window_max_days": 60,
+    "booking_window_min_days": 1,
+    "time_slot_mode": "minimize_gaps",
+    "time_slot_interval_minutes": 30,
+    "show_no_staff_option": true
+  }
+}

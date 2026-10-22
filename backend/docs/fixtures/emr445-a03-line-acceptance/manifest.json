@@ -1,0 +1,219 @@
+{
+ "contract": "EMR-445 A03 LINE acceptance 限定契約・非P 救済経路・旧全量 PUT 停止の API 正本（emr-clinic-line-time-selected-contract-20261022.md §3/§5.6）",
+ "publication_base": "d35109080 (PR #829 head, stacked)",
+ "api_file": "../../api.yaml",
+ "verification": "NOT_RUN",
+ "schema_validation": "NOT_RUN",
+ "runtime_status": "NOT_IMPLEMENTED (runtime: EMR-448/492 D, DDL/model: EMR-446/466 B #823)",
+ "fixtures": [
+  {
+   "file": "initialize.request.json",
+   "operationId": "initializeLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceInitializeRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "P 12 field 全明示の初期化（土曜だけ曜日 override、昼休憩あり）",
+   "semantic_expectation": "line 行なし・common 版4 を検査して保存。acceptance 版1・reviewed=1、成功 refs {clinic_id}/versions {line_acceptance,clinic_operating_hours}",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-missing-field.request.json",
+   "operationId": "initializeLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "show_no_staff_option 欠落",
+   "semantic_expectation": "400（旧 upsert の nil→true 補完を新 DTO に持ち込まない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-with-secret.request.json",
+   "operationId": "initializeLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "settings に連携 token（未知 key）",
+   "semantic_expectation": "400（秘密を新 DTO に入れない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-with-daily-limit.request.json",
+   "operationId": "initializeLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "撤回済み daily_limit を P に含める",
+   "semantic_expectation": "400（撤回済み field を復活させない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "initialize-common-null.request.json",
+   "operationId": "initializeLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceInitializeRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "common 未設定のまま初期化（expected_common_version null）",
+   "semantic_expectation": "400（write は common Version 必須。common 初期化へ案内）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "confirm.request.json",
+   "operationId": "confirmLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceConfirmRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "legacy-unreviewed（版1・reviewed null）を P 全明示で確認",
+   "semantic_expectation": "版2・reviewed=2 で configured（値が同じでも確認状態の変化で1回だけ進む）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-weekday-clear.request.json",
+   "operationId": "updateLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceUpdateRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "曜日 override の全解除（null が許される唯一の P）",
+   "semantic_expectation": "P が変わるので版3",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-changes-empty.request.json",
+   "operationId": "updateLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "changes が空",
+   "semantic_expectation": "400（P の1 field 以上）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-hhmm-colon.request.json",
+   "operationId": "updateLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "共通 HH:MM を LINE HHMM へ機械転用",
+   "semantic_expectation": "400（既存 LINE wire は HHMM）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "update-header-text.request.json",
+   "operationId": "updateLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptanceUpdateRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "非P（N）を acceptance PATCH へ送る",
+   "semantic_expectation": "400（N は PATCH presentation。acceptance 版を進めない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-unconfigured.response.json",
+   "operationId": "getLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptanceResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "LINE 行なし・common 設定済み",
+   "semantic_expectation": "acceptance 版/設定 null、common 版4",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-legacy-unreviewed.response.json",
+   "operationId": "getLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptanceResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "旧行（版1・reviewed null）、common 未設定",
+   "semantic_expectation": "実保存版と検証可能な P を返し確認済みとしない。common 未設定は common_version null",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-update.request.json",
+   "operationId": "previewLineAcceptanceSettings",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineAcceptancePreviewRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "共通外（08:00 開始）への拡大を preview",
+   "semantic_expectation": "read-only（claim0/write0）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-update.response.json",
+   "operationId": "previewLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptancePreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "共通 09:00 開始に対し LINE 08:00 開始を提案",
+   "semantic_expectation": "prohibited（切詰め保存しない）。実効 Window は共通∩LINE で拡大しない。warning code 名はダミー",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "operation-success.response.json",
+   "operationId": "initializeLineAcceptanceSettings",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineAcceptanceOperationSuccess",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "初期化成功 receipt",
+   "semantic_expectation": "refs {clinic_id}、versions {line_acceptance, clinic_operating_hours(検査版)}、設定値を含まない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "presentation.request.json",
+   "operationId": "patchLineReservationPresentation",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineReservationPresentationPatchRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "非P 表示案内の部分更新（通知 email を空へ）",
+   "semantic_expectation": "204。P・秘密・acceptance 版は不変",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "presentation-with-p.request.json",
+   "operationId": "patchLineReservationPresentation",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineReservationPresentationPatchRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "presentation に P（status）",
+   "semantic_expectation": "400（P は acceptance API だけ）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "registration-fields.request.json",
+   "operationId": "patchLineReservationRegistrationFields",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineReservationRegistrationFieldsPatchRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "登録フォーム項目だけの更新（要素 shape はダミー）",
+   "semantic_expectation": "204。P/N/秘密は不変",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "legacy-put-upgrade-required.response.json",
+   "operationId": "saveLineReservationSetting",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
+   "http_status": 409,
+   "expected_schema": "valid",
+   "scenario": "acceptance 活性化医院で旧全量 PUT",
+   "semantic_expectation": "409・zero-write（P 同値でも停止）。未切替医院は従来どおり",
+   "verification": "NOT_RUN"
+  }
+ ]
+}

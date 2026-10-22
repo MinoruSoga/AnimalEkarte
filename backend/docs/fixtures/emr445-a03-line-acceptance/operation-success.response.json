@@ -1,0 +1,12 @@
+{
+  "status": "succeeded",
+  "operation_key": "00000000-0000-4000-8000-000000000011",
+  "result_refs": {
+    "clinic_id": "7"
+  },
+  "committed_versions": {
+    "line_acceptance": "1",
+    "clinic_operating_hours": "4"
+  },
+  "recorded_at": "2026-10-22T09:00:00Z"
+}
