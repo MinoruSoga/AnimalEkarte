@@ -242,6 +242,8 @@ docs/spec/ は置き場を表し、配下全体の承認を表さない。仕様
 
 予約側の業務・連携境界の記述完了条件は、決定した主体・操作・結果・例外が正本／受入条件／語彙へ対応し、技術上の保留と関連ドメインへの引継ぎが明示され、独立レビュー・リンク／索引検査で不整合がないこと。予約ドメイン全体の設計完了・実装済みを意味しない。他ドメインの文書整備後に連携を最終照合し、全ドメインの文書完了までは実装しない。
 
+**2026-10-22の優先注記**：直前および後掲「技術4方針の文書具体化」「API・保存・切替対応表と他ドメイン参加条件」の「全ドメイン文書完了前は実装しない」は当時の進行方針の履歴。現在は[限定契約・着手追補](../../../work/emr/emr-540-308-462-506-selected-handoff-20261022.md)のとおり、必要subsetの契約・供給/受領を閉じて先行し、無関係な全domain文書/全owner Doneを一律gateにしない。未選定契約の実装許可や、既存実装セッションのscope拡張、実装/受入完了を意味しない。
+
 ## 共通事項
 
 追加合意は[予約区分のFR／AC](../../screens/settings/master-reservation-type.md#agreement-2026-10-13)→[スタッフ適格性](../../screens/settings/master-staff.md#agreement-2026-10-13)→[シフト保護](../../screens/24-shift-calendar.md#agreement-2026-10-13)→[未来予約の横断境界](../../workflows/reservation-to-record-flow.md#requirement-fr-reservations-future-assignment-protection)の順に読む。予約側は候補・警告の依存だけを持ち、マスタ本文を重複しない。[共通用語・権限](../../shared/README.md)・[仕様全体の入口](../../README.md)。
