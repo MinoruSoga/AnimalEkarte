@@ -6,18 +6,19 @@ package medicalrecord
 import (
 	"context"
 	"math"
+	"strconv"
 	"testing"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// perWeightTabletMedicine は EMR-447 以降 ExactNumeric の strength を持つ fixture を作る。
 func perWeightTabletMedicine(strength float64) *model.Medicine {
-	s := strength
 	unit := model.MedicineUnitPerTablet
 	return &model.Medicine{
 		CalculationType: model.MedicineCalculationTypePerWeight,
 		MedicineUnit:    &unit,
-		Strength:        &s,
+		Strength:        exactNumPtr(strconv.FormatFloat(strength, 'f', -1, 64)),
 	}
 }
 

@@ -67,7 +67,7 @@ func (h *MedicineHandler) GetMedicine(c *gin.Context) {
 	c.JSON(http.StatusOK, toMedicineResponse(medicine))
 }
 
-// CreateMedicine godoc
+// CreateMedicine godoc（EMR-447: 数値 wire は exact decimal 文字列）
 func (h *MedicineHandler) CreateMedicine(c *gin.Context) {
 	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
@@ -80,7 +80,11 @@ func (h *MedicineHandler) CreateMedicine(c *gin.Context) {
 		return
 	}
 
-	createInput := req.toServiceInput()
+	createInput, err := req.toServiceInput()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	createInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
 	medicine, err := h.service.Create(c.Request.Context(), clinicID, createInput)
 	if err != nil {
@@ -108,7 +112,11 @@ func (h *MedicineHandler) UpdateMedicine(c *gin.Context) {
 		return
 	}
 
-	updateInput := req.toServiceInput()
+	updateInput, err := req.toServiceInput()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	updateInput.ActorID = httpapi.OptionalStaffID(c) // #201 B-2: per_weight 有効化 audit の実施者
 	medicine, err := h.service.Update(c.Request.Context(), clinicID, id, updateInput)
 	if err != nil {

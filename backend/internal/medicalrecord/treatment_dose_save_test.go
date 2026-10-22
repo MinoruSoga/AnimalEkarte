@@ -82,7 +82,7 @@ func (f *doseSaveFixture) newSvc() TreatmentService {
 		f.vitalRepo, f.paramRepo, &rollbackAwareTransactor{f: f}, audit)
 }
 
-// newDoseSaveFixture は per_weight 医薬 1 種・犬・体重 4kg・dose 5mg/kg・max 5・strength 10mg/錠 の保存環境を構築する。
+// newDoseSaveFixture は per_weight 医薬 1 種・犬・体重 4kg・dose 5mg/kg・max 5・strength 10mg/錠（ExactNumeric）の保存環境を構築する。
 // calcType=none を指定すると後方互換（再検証なし）を再現する。paramSpecies で取得 param の種を上書きできる（mismatch 検証）。
 func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, paramSpecies model.MedicineDoseSpecies) *doseSaveFixture {
 	t.Helper()
@@ -90,11 +90,10 @@ func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, pa
 
 	f.medRepo = &mockMedicineRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
-			strength := 10.0
 			unit := model.MedicineUnitPerTablet
 			return &model.Medicine{
 				ID: 50, ClinicID: 1, Name: "テスト薬",
-				CalculationType: calcType, MedicineUnit: &unit, Strength: &strength,
+				CalculationType: calcType, MedicineUnit: &unit, Strength: exactNumPtr("10"),
 			}, nil
 		},
 	}

@@ -34,7 +34,7 @@ func perWeightMedicineRepo() *mockMedicineRepository {
 			return &model.Medicine{
 				ID: id, ClinicID: clinicID, Name: "メロキシカム",
 				CalculationType: model.MedicineCalculationTypePerWeight,
-				MedicineUnit:    &unit, Strength: fptr(1.5),
+				MedicineUnit:    &unit, Strength: exactNumPtr("1.5"), // EMR-447: ExactNumeric
 			}, nil
 		},
 	}
@@ -85,7 +85,7 @@ func TestMedicineDoseParamService_Upsert_OwnershipAndGuards(t *testing.T) {
 					unit := model.MedicineUnitPerDose
 					return &model.Medicine{
 						ID: id, ClinicID: clinicID, CalculationType: model.MedicineCalculationTypePerWeight,
-						MedicineUnit: &unit, Strength: fptr(40),
+						MedicineUnit: &unit, Strength: exactNumPtr("40"),
 					}, nil
 				},
 			},

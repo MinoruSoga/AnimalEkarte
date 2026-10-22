@@ -21,7 +21,7 @@ func medicineServiceWithAudit(repo *mockMedicineRepository, audit AuditTxLogger)
 	return NewMedicineServiceWithAudit(repo, inv, &mockTransactor{}, audit)
 }
 
-func strptr(s string) *string { return &s }
+func strptr(s string) *string { return &s } // EMR-447: Strength fixture は exactNumPtr を使う
 
 func TestMedicineService_Create_DoseConfig(t *testing.T) {
 	const clinicID = uint64(1)
@@ -35,7 +35,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
 			Name: "メロキシカム", CalculationType: strptr("per_weight"),
-			MedicineUnit: strptr("per_tablet"), Strength: fptr(1.5),
+			MedicineUnit: strptr("per_tablet"), Strength: exactNumPtr("1.5"),
 		})
 		require.NoError(t, err)
 		require.Len(t, audit.entries, 1)
@@ -52,7 +52,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
 			Name: "インスリン", CalculationType: strptr("per_weight"),
-			MedicineUnit: strptr("per_dose"), Strength: fptr(40),
+			MedicineUnit: strptr("per_dose"), Strength: exactNumPtr("40"),
 		})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err), "誤 per_weight は InvalidInput: %v", err)
@@ -94,7 +94,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
 			Name: "メロキシカム2", CalculationType: strptr("per_weight"),
-			MedicineUnit: strptr("per_tablet"), Strength: fptr(1.5),
+			MedicineUnit: strptr("per_tablet"), Strength: exactNumPtr("1.5"),
 		})
 		require.Error(t, err, "audit 失敗は作成全体を失敗させる")
 	})
@@ -110,14 +110,14 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				return &model.Medicine{ID: 60, ClinicID: clinicID, Name: "薬", CalculationType: model.MedicineCalculationTypeNone, MedicineUnit: &unit}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
-				return &model.Medicine{ID: 60, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
+				return &model.Medicine{ID: 60, CalculationType: model.MedicineCalculationTypePerWeight, Strength: exactNumPtr("5")}, nil
 			},
 		}
 		audit := &mockTreatmentAuditTxLogger{}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Update(context.Background(), clinicID, 60, &UpdateMedicineInput{
-			CalculationType: strptr("per_weight"), Strength: fptr(5),
+			CalculationType: strptr("per_weight"), Strength: exactNumPtr("5"),
 		})
 		require.NoError(t, err)
 		require.Len(t, audit.entries, 1)
@@ -128,7 +128,7 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 		repo := &mockMedicineRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
 				unit := model.MedicineUnitPerTablet
-				return &model.Medicine{ID: 61, ClinicID: clinicID, CalculationType: model.MedicineCalculationTypePerWeight, MedicineUnit: &unit, Strength: fptr(5)}, nil
+				return &model.Medicine{ID: 61, ClinicID: clinicID, CalculationType: model.MedicineCalculationTypePerWeight, MedicineUnit: &unit, Strength: exactNumPtr("5")}, nil
 			},
 		}
 		svc := medicineServiceWithAudit(repo, &mockTreatmentAuditTxLogger{})
@@ -146,14 +146,14 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				return &model.Medicine{ID: 62, ClinicID: clinicID, Name: "薬", CalculationType: model.MedicineCalculationTypeNone, MedicineUnit: &unit}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateMedicineInput) (*model.Medicine, error) {
-				return &model.Medicine{ID: 62, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
+				return &model.Medicine{ID: 62, CalculationType: model.MedicineCalculationTypePerWeight, Strength: exactNumPtr("5")}, nil
 			},
 		}
 		audit := &mockTreatmentAuditTxLogger{logEntryTxErr: errAuditWriteFailed}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Update(context.Background(), clinicID, 62, &UpdateMedicineInput{
-			CalculationType: strptr("per_weight"), Strength: fptr(5),
+			CalculationType: strptr("per_weight"), Strength: exactNumPtr("5"),
 		})
 		require.Error(t, err, "audit 失敗は更新全体を失敗させる")
 	})
