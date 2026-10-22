@@ -11,7 +11,6 @@ import {
   useTreatmentPackageEditor,
   useUpdateTreatmentPackage,
 } from "./use-treatment-packages";
-import { draftFromPackage } from "../lib/treatment-package-form";
 import type { TreatmentPackage } from "../api/treatment-packages";
 
 vi.mock("@/lib/axios", () => ({
@@ -74,12 +73,18 @@ describe("editor session（CAS・競合・入力保持）", () => {
 
   it("create 応答不明は create-unknown で盲目再送しない", async () => {
     const { result } = renderHook(() => useTreatmentPackageEditor("new"), { wrapper: wrapper() });
+    // draft を直接 mutate せず、editor の更新 API（イミュータブル）で入力する。
     act(() => {
       result.current.updateDraft({ name: "n" });
-      result.current.draft!.components[0]!.masterId = "1";
+      result.current.updateComponents(
+        result.current.draft!.components.map((c) => ({ ...c, masterId: "1" })),
+      );
     });
     const create = vi.fn().mockRejectedValue(new AxiosError("network"));
-    const outcome = await result.current.save({ create, update: vi.fn() });
+    let outcome!: Awaited<ReturnType<typeof result.current.save>>;
+    await act(async () => {
+      outcome = await result.current.save({ create, update: vi.fn() });
+    });
     expect(outcome.kind).toBe("create-unknown");
     expect(create).toHaveBeenCalledTimes(1);
     expect(result.current.createUnknown).toBe(true);

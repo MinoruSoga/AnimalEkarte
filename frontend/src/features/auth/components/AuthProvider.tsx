@@ -371,9 +371,12 @@ function AuthProviderSession({
 
   const refreshPermissions = useCallback(async () => {
     const result = await refreshToken();
-    if (result) {
-      hydrateUser(result.user);
+    if (result === null) {
+      // refreshToken は /me の 401/403/5xx/通信断をすべて null に丸める。更新できなかったのに
+      // resolve すると、呼出側が古い権限キャッシュを「現在の権限」と誤認する（fail-open）。
+      throw new Error("failed to refresh permissions");
     }
+    hydrateUser(result.user);
   }, [hydrateUser]);
 
   const handleRetryRestore = useCallback(() => {

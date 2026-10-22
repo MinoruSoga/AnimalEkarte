@@ -20,6 +20,13 @@ let kindPermission: Record<string, Partial<typeof permission>> = {};
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: (resource: string) => ({ ...permission, ...kindPermission[resource] }),
 }));
+// R2: 再確認は /me の権限キャッシュ更新（refreshPermissions）を先に待つ。既定は成功。
+// useAuth は安定参照を返し、テストごとに beforeEach で既定へ戻す。
+const refreshPermissionsMock = vi.fn<() => Promise<void>>();
+const authValue = { refreshPermissions: refreshPermissionsMock };
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => authValue,
+}));
 const dirtyMock = {
   markDirty: vi.fn(),
   markClean: vi.fn(),
@@ -75,6 +82,7 @@ const pkg = (id: string, name: string, active = true) => ({
 describe("TreatmentPackageSettings（読込/0件/取得失敗/失権・権限差）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -125,6 +133,7 @@ const DETAIL_URL = `${LIST_URL}/201`;
 describe("S07/Q3: 型別403失権は editor を認可不能へ切替。再表示は明示再確認のみ", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -490,6 +499,7 @@ describe("S07/Q3: 型別403失権は editor を認可不能へ切替。再表示
 describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信なし）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -676,6 +686,7 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
 describe("Q1: raw 10,000件は並替を事前抑止する", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -695,6 +706,7 @@ describe("Q1: raw 10,000件は並替を事前抑止する", () => {
 describe("A1-01: 保存中の対象切替後の遅延応答は新 session へ侵入しない", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -757,6 +769,7 @@ describe("A1-01: 保存中の対象切替後の遅延応答は新 session へ侵
 describe("B2-02 Q1 fixtures: 9,999件・pending/error/版なしで PATCH しない", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -797,6 +810,7 @@ describe("B2-02 Q1 fixtures: 9,999件・pending/error/版なしで PATCH しな�
 describe("B3-01: 比較取得待機中の医院切替（clear + reload 相当）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
     permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
     kindPermission = {};
   });
@@ -846,5 +860,256 @@ describe("B3-01: 比較取得待機中の医院切替（clear + reload 相当）
     // 切替後に PATCH/POST は送られない（旧 draft の自動再送・自動保存なし）。
     expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 切替前の 409 PATCH のみ
     expect(vi.mocked(axios.post)).not.toHaveBeenCalled();
+  });
+});
+
+describe("EMR-532 R1/R2: 再確認の順序・conflict terminal・refreshPermissions fail-closed", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
+    permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+    kindPermission = {};
+  });
+
+  const latestPkg = { ...pkg("201", "最新名"), version: "5" };
+  const listBody = { data: { items: [pkg("201", "セットA")], order_version: "17" } };
+
+  /** 失権（一覧 403）を作る。draft は「未保存の入力」を保持したまま editor は非表示になる。 */
+  const openAndLoseAuthorization = async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.get).mockResolvedValue(listBody);
+    const { client } = render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "未保存の入力");
+    vi.mocked(axios.get).mockRejectedValue(apiError(403));
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? Promise.resolve({ data: pkg("201", "セットA") })
+        : Promise.resolve(listBody),
+    );
+    return { user };
+  };
+
+  it("F1: 409 後の detail GET が 403 → 再確認 all ok で editor 復帰し「最新を取得しています…」は残らない", async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL ? Promise.reject(apiError(403)) : Promise.resolve(listBody),
+    );
+    vi.mocked(axios.patch).mockRejectedValue(apiError(409));
+    render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "自分の入力");
+    await user.click(screen.getByText("保存"));
+
+    // 競合取得の 403 → 失権表示（editor 非表示）。
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+
+    // 全て許可へ戻して明示再確認。
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL ? Promise.resolve({ data: latestPkg }) : Promise.resolve(listBody),
+    );
+    await user.click(screen.getByText("権限を再確認"));
+
+    const restored = (await screen.findByLabelText("名称")) as HTMLInputElement;
+    expect(restored.value).toBe("自分の入力");
+    // conflictFetch は failed（terminal）。fetching のまま固着しない。
+    expect(screen.queryByText(/最新を取得しています/)).toBeNull();
+    expect(screen.getByText(/最新の取得に失敗しました/)).toBeTruthy();
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 再確認は再送しない。
+  });
+
+  it("F2a: refreshPermissions の完了まで editor は復帰しない（latch 解除より先に await）", async () => {
+    const { user } = await openAndLoseAuthorization();
+    let resolveRefresh!: () => void;
+    refreshPermissionsMock.mockImplementation(
+      () =>
+        new Promise<void>((r) => {
+          resolveRefresh = r;
+        }),
+    );
+    await user.click(screen.getByText("権限を再確認"));
+    await vi.waitFor(() => expect(refreshPermissionsMock).toHaveBeenCalledTimes(1));
+
+    // 対象 GET は成功済みでも、refreshPermissions 待機中は非表示のまま。
+    expect(screen.getByText(/権限を確認しています/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+
+    await act(async () => {
+      resolveRefresh();
+    });
+    expect(((await screen.findByLabelText("名称")) as HTMLInputElement).value).toBe("未保存の入力");
+  });
+
+  it("F2a: 解除判定は refreshPermissions 後の現在権限で行う（更新で view 喪失 → 非表示維持）", async () => {
+    const { user } = await openAndLoseAuthorization();
+    // 更新（/me 再取得）が完了した時点で master-medical の view が失われている。
+    refreshPermissionsMock.mockImplementation(async () => {
+      permission = { canView: false, canCreate: false, canEdit: false, canDelete: false };
+    });
+    await user.click(screen.getByText("権限を再確認"));
+    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    expect(refreshPermissionsMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText("名称")).toBeNull();
+  });
+
+  it("F2b: refreshPermissions が reject → 非表示維持・失敗表示・PATCH なし（古い権限で解除しない）", async () => {
+    const { user } = await openAndLoseAuthorization();
+    refreshPermissionsMock.mockRejectedValue(new Error("failed to refresh permissions"));
+    await user.click(screen.getByText("権限を再確認"));
+
+    expect(
+      await screen.findByText("再確認中に取得エラーが発生しました。権限状態は不明です。"),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+    expect(screen.queryByText("保存")).toBeNull();
+    expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
+  });
+});
+
+describe("EMR-532 F3: 409 比較後の明示選択は一覧を再取得し、背景データで baseline/draft を置換しない", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
+    permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+    kindPermission = {};
+  });
+
+  const latestPkg = { ...pkg("201", "最新名"), version: "5" };
+  const listGetCount = () => vi.mocked(axios.get).mock.calls.filter(([u]) => u === LIST_URL).length;
+  const BACKGROUND_LIST = {
+    data: { items: [pkg("201", "背景refetch後"), pkg("202", "セットB")], order_version: "99" },
+  };
+
+  /** 比較表示まで進める。以後の一覧 GET は背景データ（別名・別 order_version）を返す。 */
+  const reachCompare = async () => {
+    const user = userEvent.setup();
+    let listResponse: unknown = {
+      data: { items: [pkg("201", "セットA")], order_version: "17" },
+    };
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL ? Promise.resolve({ data: latestPkg }) : Promise.resolve(listResponse),
+    );
+    vi.mocked(axios.patch).mockRejectedValue(apiError(409));
+    render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "自分の入力");
+    await user.click(screen.getByText("保存"));
+    expect(await screen.findByText("あなたの入力")).toBeTruthy();
+    listResponse = BACKGROUND_LIST;
+    return { user };
+  };
+
+  it("(a) 最新を採用 → 一覧を再取得。editor は最新 snapshot（背景 list の名称ではない）", async () => {
+    const { user } = await reachCompare();
+    const before = listGetCount();
+    await user.click(screen.getByText("最新を採用（入力を破棄）"));
+    await vi.waitFor(() => expect(listGetCount()).toBeGreaterThan(before));
+    await screen.findByText("背景refetch後"); // 一覧は再取得結果へ更新される。
+    expect(((await screen.findByLabelText("名称")) as HTMLInputElement).value).toBe("最新名");
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 自動保存しない。
+  });
+
+  it("(b) 入力を保持 → 一覧を再取得。draft は入力のまま・CAS 基準は比較 snapshot の version 5", async () => {
+    const { user } = await reachCompare();
+    const before = listGetCount();
+    await user.click(screen.getByText("入力を保持して最新版を基準に編集を続ける"));
+    await vi.waitFor(() => expect(listGetCount()).toBeGreaterThan(before));
+    await screen.findByText("背景refetch後");
+    expect((screen.getByLabelText("名称") as HTMLInputElement).value).toBe("自分の入力");
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 選択だけでは送信しない。
+
+    vi.mocked(axios.patch).mockResolvedValue({ data: latestPkg });
+    await user.click(screen.getByText("保存"));
+    await vi.waitFor(() => {
+      expect(vi.mocked(axios.patch)).toHaveBeenLastCalledWith(
+        DETAIL_URL,
+        expect.objectContaining({ version: "5" }), // 背景 list の order_version "99" や版を使わない。
+      );
+    });
+  });
+});
+
+describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも再確認の復帰経路がある", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    refreshPermissionsMock.mockReset().mockResolvedValue(undefined);
+    permission = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+    kindPermission = {};
+  });
+
+  const twoItems = {
+    data: { items: [pkg("201", "セットA"), pkg("202", "セットB")], order_version: "17" },
+  };
+
+  /** editor を開かず並替を試み、PATCH reorder が 403 を返して失権 latch が掛かった状態にする。 */
+  const loseAuthorizationByReorder = async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.get).mockResolvedValue(twoItems);
+    vi.mocked(axios.patch).mockRejectedValue(apiError(403));
+    render_();
+    await screen.findByText("セットA");
+    await user.click(screen.getByLabelText("セットAを下へ"));
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    return { user };
+  };
+
+  const reorderDisabled = () =>
+    (screen.getByLabelText("セットAを下へ") as HTMLButtonElement).disabled;
+
+  it("target なしの reorder 403 → 説明と「権限を再確認」を表示し、並替は無効", async () => {
+    await loseAuthorizationByReorder();
+    expect(screen.getByText("権限を再確認")).toBeTruthy();
+    expect(reorderDisabled()).toBe(true);
+    expect(screen.queryByLabelText("名称")).toBeNull();
+  });
+
+  it("再確認 all ok → latch 解除・並替ボタンが再び有効（対象 GET はしない）", async () => {
+    const { user } = await loseAuthorizationByReorder();
+    vi.mocked(axios.get).mockClear();
+    await user.click(screen.getByText("権限を再確認"));
+
+    await vi.waitFor(() =>
+      expect(screen.queryByText(/この構成を表示する権限がありません/)).toBeNull(),
+    );
+    expect(refreshPermissionsMock).toHaveBeenCalledTimes(1);
+    expect(reorderDisabled()).toBe(false);
+    // 対象がないので detail GET は送らず、一覧のみ再取得する。
+    const urls = vi.mocked(axios.get).mock.calls.map(([u]) => u);
+    expect(urls).toContain(LIST_URL);
+    expect(urls.every((u) => u === LIST_URL)).toBe(true);
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 自動再送しない。
+  });
+
+  it("refreshPermissions が reject → latch 維持・失敗表示・並替は無効のまま", async () => {
+    const { user } = await loseAuthorizationByReorder();
+    refreshPermissionsMock.mockRejectedValue(new Error("failed to refresh permissions"));
+    await user.click(screen.getByText("権限を再確認"));
+
+    expect(
+      await screen.findByText("再確認中に取得エラーが発生しました。権限状態は不明です。"),
+    ).toBeTruthy();
+    expect(screen.getByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    expect(reorderDisabled()).toBe(true);
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("再確認で master-medical の view が回復しない → denied-view で latch 維持", async () => {
+    const { user } = await loseAuthorizationByReorder();
+    kindPermission = { "master-medical": { canView: false } };
+    await user.click(screen.getByText("権限を再確認"));
+
+    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    expect(screen.getByText("権限を再確認")).toBeTruthy();
   });
 });

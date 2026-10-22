@@ -3,7 +3,7 @@
  * 契約正本: backend/docs/api.yaml `TreatmentPackage*`（採用 SHA f1ded6ec367459d91baec08414ce780df39e9a3f）。
  * 実 BE 応答の結合確認は NOT_RUN（PR では「実BE未結合確認」と明記する）。
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ErrorFallback, LoadingFallback, EmptyState } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
@@ -135,7 +135,8 @@ export function TreatmentPackageSettings() {
     [markAuthorizationLost],
   );
 
-  const packages = list.data?.items ?? [];
+  const packageItems = list.data?.items;
+  const packages = useMemo(() => packageItems ?? [], [packageItems]);
   const orderVersion = list.data?.order_version;
 
   // A1-01: 編集 session 識別子。openTarget（開く/切替/閉鎖）と S08 明示選択・削除成功で
@@ -162,12 +163,13 @@ export function TreatmentPackageSettings() {
   const [recheck, setRecheck] = useState<RecheckState>({ kind: "idle" });
   const recheckTokenRef = useRef(0);
   // A2-03: 依存は primitive/安定値のみ（毎レンダー生成の kindViewCanView は依存に入れない）。
+  // EMR-532: editor を開かない一覧操作（並替 403）の失権もこの経路で復帰できる。
+  // target === null のときは対象 GET を送らず、refreshPermissions → 一覧再取得 → 判定の順で進む。
   const handleRecheckPermission = useCallback(async () => {
-    if (target === null) return;
     const token = ++recheckTokenRef.current;
     const sessionTarget = target;
     setRecheck({ kind: "checking" });
-    if (sessionTarget !== "new") {
+    if (sessionTarget !== null && sessionTarget !== "new") {
       try {
         await getTreatmentPackage(sessionTarget.id);
       } catch (error) {
@@ -201,7 +203,8 @@ export function TreatmentPackageSettings() {
   // A2-02: get-ok の解除判定。レンダー中に現在の draft 各型（manual_other 除く）+
   // master-medical の view 権限を確認し、全て通る場合だけ latch を解除する。
   // 権限不足は denied-view へ遷移させる（再確認のやり直しは利用者の再クリック）。
-  if (recheck.kind === "get-ok" && editor.draft !== null) {
+  // draft がない（list-only）場合は master-medical の view のみを要求する。
+  if (recheck.kind === "get-ok") {
     const needed = new Set<KindViewResource>(["master-medical"]);
     if (editor.draft !== null) {
       for (const c of editor.draft.components) {
@@ -403,43 +406,53 @@ export function TreatmentPackageSettings() {
     ],
   );
 
+  const canSaveEditor =
+    (target === "new" ? canCreate : canEdit) === true &&
+    !editor.createUnknown &&
+    conflictFetch?.kind !== "deleted";
+
+  // S07: 失権中は editor を権限エラーへ差し替える。draft は hook 内に保持（非表示）。
+  // Q3: 再表示は「権限を再確認」の明示操作のみ（対象 fresh GET + draft 各型 view 確認）。
+  // EMR-532: target なし（一覧のみ）の失権でも同じ説明と再確認ボタンを出す（復帰経路の確保）。
+  const authorizationLostPanel = (
+    <div className="p-4">
+      <ErrorFallback message="この構成を表示する権限がありません。権限を確認してから再読込してください。" />
+      <div className="mt-3">
+        <button
+          type="button"
+          className="min-h-[44px] min-w-[44px] text-sm underline"
+          disabled={recheck.kind === "checking"}
+          onClick={() => void handleRecheckPermission()}
+        >
+          権限を再確認
+        </button>
+        {recheck.kind === "checking" ? (
+          <p className={`mt-2 text-sm ${C.text60}`}>権限を確認しています…</p>
+        ) : recheck.kind === "denied-get-forbidden" ? (
+          <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+            対象パッケージへのアクセス権がありません。
+          </p>
+        ) : recheck.kind === "denied-get-deleted" ? (
+          <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+            対象パッケージは削除されています。
+          </p>
+        ) : recheck.kind === "denied-view" ? (
+          <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+            構成に含まれる型の閲覧権限がありません。
+          </p>
+        ) : recheck.kind === "failed" ? (
+          <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+            再確認中に取得エラーが発生しました。権限状態は不明です。
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+
   const sidePanel = (
     <div className={`w-[420px] shrink-0 border-l ${C.borderLight} overflow-y-auto`}>
-      {authorizationLost && target !== null ? (
-        // S07: 失権中は editor を権限エラーへ差し替える。draft は hook 内に保持（非表示）。
-        // Q3: 再表示は「権限を再確認」の明示操作のみ（対象 fresh GET + draft 各型 view 確認）。
-        <div className="p-4">
-          <ErrorFallback message="この構成を表示する権限がありません。権限を確認してから再読込してください。" />
-          <div className="mt-3">
-            <button
-              type="button"
-              className="min-h-[44px] min-w-[44px] text-sm underline"
-              disabled={recheck.kind === "checking"}
-              onClick={() => void handleRecheckPermission()}
-            >
-              権限を再確認
-            </button>
-            {recheck.kind === "checking" ? (
-              <p className={`mt-2 text-sm ${C.text60}`}>権限を確認しています…</p>
-            ) : recheck.kind === "denied-get-forbidden" ? (
-              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-                対象パッケージへのアクセス権がありません。
-              </p>
-            ) : recheck.kind === "denied-get-deleted" ? (
-              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-                対象パッケージは削除されています。
-              </p>
-            ) : recheck.kind === "denied-view" ? (
-              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-                構成に含まれる型の閲覧権限がありません。
-              </p>
-            ) : recheck.kind === "failed" ? (
-              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-                再確認中に取得エラーが発生しました。権限状態は不明です。
-              </p>
-            ) : null}
-          </div>
-        </div>
+      {authorizationLost ? (
+        authorizationLostPanel
       ) : editor.draft !== null && target !== null ? (
         <>
           {conflictFetch !== null ? (
@@ -492,11 +505,7 @@ export function TreatmentPackageSettings() {
                 if (!res.isError) editor.allowCreateRetry();
               });
             }}
-            canSave={
-              (target === "new" ? canCreate : canEdit) &&
-              !editor.createUnknown &&
-              conflictFetch?.kind !== "deleted"
-            }
+            canSave={canSaveEditor}
             canDelete={canDelete}
             saving={createMut.isPending || updateMut.isPending}
             deleting={deleteMut.isPending}
