@@ -1,5 +1,6 @@
 import { axios } from "@/lib/axios";
-import type { BillingRefund, PaymentMethod } from "@/types/generated/models";
+import type { PaymentMethod } from "@/types/generated/models";
+import type { LegacyRefundResponse } from "./legacy-wire";
 import { transformToRefund } from "./transforms";
 import type { Refund } from "./transforms";
 
@@ -14,7 +15,7 @@ export const createRefund = async (
   billingId: string,
   data: CreateRefundRequest,
 ): Promise<Refund> => {
-  const { data: res } = await axios.post<BillingRefund>(`/v1/accountings/${billingId}/refunds`, {
+  const { data: res } = await axios.post<LegacyRefundResponse>(`/v1/accountings/${billingId}/refunds`, {
     amount: data.amount,
     reason: data.reason,
     payment_method: data.paymentMethod,

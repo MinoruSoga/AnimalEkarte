@@ -1,15 +1,17 @@
 /**
  * Estimates API types
- * Backend types: {@link Estimate}, {@link EstimateItem} from models.ts (tygo generated)
+ * Backend types: {@link LegacyEstimateResponse}, {@link LegacyEstimateItemResponse}
+ * （移行 HTTP DTO。保存 model ではない — EMR-527）
  */
-import type { Estimate, EstimateItem } from "@/types/generated/models";
+import type {
+  LegacyEstimateItemRequest,
+  LegacyEstimateItemResponse,
+  LegacyEstimateResponse,
+} from "./legacy-wire";
 
 // ── Backend response aliases ──
-export type BackendEstimate = Estimate & {
-  pet_id?: number;
-  pet?: { id: number; name?: string };
-};
-export type BackendEstimateItem = EstimateItem;
+export type BackendEstimate = LegacyEstimateResponse;
+export type BackendEstimateItem = LegacyEstimateItemResponse;
 export interface EstimateListResponse {
   data: BackendEstimate[];
   total: number;
@@ -17,29 +19,11 @@ export interface EstimateListResponse {
   limit: number;
 }
 
-export type EstimateItemRequest = Pick<
-  EstimateItem,
-  | "name"
-  | "category"
-  | "unit_price"
-  | "quantity"
-  | "discount_rate"
-  | "discount_amount"
-  | "is_insurance_applicable"
-  | "sort_order"
-  | "tax_type"
-  | "tax_rate"
-> & {
-  /**
-   * 既存行との一致ヒント（PATCH の明細置換のみ）。この見積の item id と 1:1 で
-   * 解決できない ID・重複 ID はサーバ側で 400 になる。新規行では送らない。
-   */
-  existing_item_id?: number;
-};
+export type EstimateItemRequest = LegacyEstimateItemRequest;
 
 /**
  * 見積書作成リクエスト
- * @see {@link Estimate} — models.ts 由来の Backend 型
+ * @see backend/internal/billing/estimate_request.go createEstimateRequest
  */
 export interface CreateEstimateRequest {
   title: string;
@@ -60,7 +44,7 @@ export interface CreateEstimateRequest {
 
 /**
  * 見積書更新リクエスト
- * @see {@link Estimate} — models.ts 由来の Backend 型
+ * @see backend/internal/billing/estimate_request.go updateEstimateRequest
  */
 export interface UpdateEstimateRequest {
   title?: string;

@@ -1,13 +1,8 @@
 import type { BackendAccounting, BackendAccountingItem } from "./types";
-import type { BillingRefund, Payment, PaymentSplit } from "@/types/generated/models";
+import type { LegacyPaymentSplitResponse, LegacyRefundResponse } from "./legacy-wire";
 import type { ItemCategory, AccountingStatus, PaymentMethod } from "../types";
 import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
 import { formatJSTDate } from "@/lib/jst-date";
-
-/** Payment にバックエンドが付与する結合フィールドを加えたローカル拡張型 */
-type PaymentWithStaff = Payment & {
-  paid_by_name?: string;
-};
 
 export function transformAccountingItem(item: BackendAccountingItem) {
   const unitPrice = item.unit_price ?? 0;
@@ -44,7 +39,7 @@ export function transformAccountingItem(item: BackendAccountingItem) {
 export type AccountingItem = ReturnType<typeof transformAccountingItem>;
 
 function buildPaymentInfo(data: BackendAccounting) {
-  const payment = data.payments?.[0] as PaymentWithStaff | undefined;
+  const payment = data.payments?.[0];
   if (data.status !== "completed" || payment == null) {
     return undefined;
   }
@@ -65,7 +60,7 @@ function buildPaymentInfo(data: BackendAccounting) {
   };
 }
 
-export function transformToRefund(r: BillingRefund & { refunded_by_name?: string }) {
+export function transformToRefund(r: LegacyRefundResponse) {
   return {
     id: String(r.id ?? 0),
     billingId: String(r.billing_id ?? 0),
@@ -81,9 +76,7 @@ export function transformToRefund(r: BillingRefund & { refunded_by_name?: string
 
 export type Refund = ReturnType<typeof transformToRefund>;
 
-type PaymentSplitWithStaff = PaymentSplit & { paid_by_name?: string };
-
-function transformPaymentSplit(s: PaymentSplitWithStaff) {
+function transformPaymentSplit(s: LegacyPaymentSplitResponse) {
   return {
     id: String(s.id ?? 0),
     method: (s.method || "cash") as PaymentMethod,
@@ -109,7 +102,7 @@ export function transformToAccounting(data: BackendAccounting) {
     ownerName: data.owner?.name ?? "",
     petId: String(data.pet_id ?? 0),
     petName: data.pet?.name ?? "",
-    petSpecies: data.pet?.animal_species?.name,
+    // petSpecies は会計 HTTP の pet summary に無いため設定しない（Accounting では optional）。
     status: data.status as AccountingStatus,
     scheduledDate: data.scheduled_date ? data.scheduled_date.slice(0, 10) : "",
     completedAt: data.completed_at ?? undefined,
@@ -117,7 +110,7 @@ export function transformToAccounting(data: BackendAccounting) {
     payment: buildPaymentInfo(data),
     paymentSplits:
       splits && splits.length > 0
-        ? splits.map((s) => transformPaymentSplit(s as PaymentSplitWithStaff))
+        ? splits.map((s) => transformPaymentSplit(s))
         : undefined,
     totalAmount: data.total_amount ?? 0,
     totalRefundedAmount: data.total_refunded_amount ?? 0,
