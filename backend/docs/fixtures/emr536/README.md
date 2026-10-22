@@ -7,6 +7,6 @@
 - `name` は既存 `Medicine` の `required: [name]` を PATCH 専用 schema へそのまま写したため同梱する。
 - 税率: 保存済み `"0.1234567890123456789"` / `"0.0000001"` は GET で十進文字列のまま返る。FE は未編集の税率を PATCH に含めず（省略＝保持）、明示選択時だけ十進文字列を送る。名称のみ・備考のみの更新で exact 値が不変であることを再GETで確認する。
 - clear_strength: true＝SQL NULL へクリア、false/省略/null＝クリアしない（Go の `bool` binding で null は false）。strength との同時送信は schema で拒否しない（現実装は clear 優先、実効 per_weight は既存検証で 400）。一律の排他 400 は新設しない。FE は明示消去＋none のときだけ true を送り strength を同時送信しない。
-- 対照: GET/POST の共用 `Medicine` に clear_strength を追加しない（GET 対照 `get-no-clear-strength`、POST 対照 `post-control-no-clear-strength`）。
+- 対照: GET の共用 `Medicine` と POST の `CreateMedicineRequest`（#826 で分離）に clear_strength を追加しない（GET 対照 `get-no-clear-strength`、POST 対照 `post-control-no-clear-strength`）。
 
 後日の本人指示時に main ローカルで schema 参照解決・正負 fixture・API 受入・再GET・frontend unit を確認する。コード生成（`make codegen`）はユーザーのみが実行し、api.yaml はその入力ではない。
