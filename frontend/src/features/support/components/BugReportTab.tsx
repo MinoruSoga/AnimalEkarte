@@ -104,8 +104,9 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
   );
 
   // 保存ボタンを未入力理由で disabled にしない（design-patterns §4.2 / compliance C29）。
-  // 未入力は native `required`、空白のみは native が通すため action 側で欄直下にエラーを出し
-  // 先頭エラー欄へフォーカスする（押下→エラー表示→フォーカスの標準フロー）。
+  // 未入力・空白のみはどちらも action 側で判定し、欄直下にエラーを出して先頭エラー欄へ
+  // フォーカスする（押下→エラー表示→フォーカスの標準フロー）。browser の required ポップアップ
+  // に流れないよう form は noValidate、必須は aria-required で示す。
   const [, formAction, isPending] = useActionState<null>(async () => {
     const trimmedTitle = title.trim();
     if (trimmedTitle.length === 0) {
@@ -147,7 +148,12 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
   }
 
   return (
-    <form action={formAction} aria-busy={isPending} className="flex flex-col gap-3 p-3">
+    <form
+      action={formAction}
+      noValidate
+      aria-busy={isPending}
+      className="flex flex-col gap-3 p-3"
+    >
       <div className="flex flex-col gap-1">
         <label
           htmlFor="bug-report-title"
@@ -161,7 +167,7 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
           id="bug-report-title"
           name="title"
           type="text"
-          required
+          aria-required="true"
           maxLength={200}
           value={title}
           onChange={(e) => {
