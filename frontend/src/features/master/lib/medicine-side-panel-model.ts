@@ -26,6 +26,11 @@ export interface MedicineFormData {
   isActive: boolean;
   taxType: TaxType;
   taxRate: number;
+  /**
+   * EMR-536: 税率セレクタをユーザーが操作したか（編集 intent）。保存済み exact 値との比較元は
+   * Medicine.taxRateExact で、ここには持たない。未設定は未操作。
+   */
+  taxRateTouched?: boolean;
   isNonInsurance: boolean;
   /** #201 投与量自動計算（製品軸）。none=手動（既定） */
   calculationType: MedicineCalculationType;

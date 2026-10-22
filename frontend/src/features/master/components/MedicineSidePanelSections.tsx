@@ -134,7 +134,9 @@ export function MedicinePriceTaxSection({
       <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
         <TaxRateSelector
           value={formData.taxRate}
-          onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: value }))}
+          onChange={(value) =>
+            setFormDataDirty((prev) => ({ ...prev, taxRate: value, taxRateTouched: true }))
+          }
           disabled={isCategory}
         />
       </PropertyRow>
