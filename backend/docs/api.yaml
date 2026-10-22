@@ -16200,6 +16200,26 @@ components:
         GET /clinics/{clinic_id}/line-reservation-settings/acceptance（§3.2、no-store）。unconfigured は acceptance_version/settings null。
         legacy-unreviewed は実保存版と検証可能な P を返すが確認済みとしない。configured は版・P 必須。common 未設定は common_version null。
         JSON 不正・読取不能は 503 で、空成功・unconfigured へ変換しない。
+        state と acceptance_version・settings の null 条件は oneOf で固定する。
+      oneOf:
+        - properties:
+            state:
+              enum: [unconfigured]
+            acceptance_version:
+              type: string
+              nullable: true
+              enum: [null]
+            settings:
+              type: object
+              nullable: true
+              enum: [null]
+        - properties:
+            state:
+              enum: [legacy-unreviewed, configured]
+            acceptance_version:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            settings:
+              $ref: '#/components/schemas/LineAcceptanceSettings'
       properties:
         schema_version:
           type: string
@@ -16348,7 +16368,7 @@ components:
           update: '#/components/schemas/LineAcceptancePreviewUpdate'
     LineAcceptancePreviewValidation:
       description: >-
-        §5.6 validation（state 別 exact）。valid は warnings []、prohibited は prohibited を1件以上含む Warning[]（「含む」は OpenAPI 3.0 で表せないため本文で固定）。
+        §5.6 validation（state 別 exact）。valid は warnings []、prohibited は prohibited を1件以上含む Warning[]（全件 confirmable を not で除外）。
         common 未設定・包含不成立は prohibited。
       oneOf:
         - $ref: '#/components/schemas/LineAcceptancePreviewValidationValid'
@@ -16379,6 +16399,15 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/LineTimeWarning'
+          not:
+            type: array
+            items:
+              type: object
+              properties:
+                severity:
+                  type: string
+                  enum: [confirmable]
+          description: prohibited を1件以上含む（全件 confirmable の配列を not で除外）。
     LineAcceptancePreviewResponse:
       type: object
       additionalProperties: false
@@ -16386,6 +16415,45 @@ components:
       description: >-
         §5.6 出力。提案側は仮に confirm/update した場合の計算結果で、保存済み確認状態・版へ昇格しない。包含検証を表示 dates だけへ縮小しない。
         days の各要素は §5.3 Window の current/proposed（ClinicOperatingHoursPreviewDay と同 shape）。warning_receipt は常に null（LINE override なし）。
+        200 は mode と現在状態が一致したときだけ（initialize=unconfigured、confirm=legacy-unreviewed、update=configured。不一致は 409）で、oneOf で組合せと current_settings・観測 LINE 版の null 条件を固定する。
+      oneOf:
+        - properties:
+            mode:
+              enum: [initialize]
+            current_state:
+              enum: [unconfigured]
+            current_settings:
+              type: object
+              nullable: true
+              enum: [null]
+            observed_versions:
+              properties:
+                line_acceptance:
+                  type: string
+                  nullable: true
+                  enum: [null]
+        - properties:
+            mode:
+              enum: [confirm]
+            current_state:
+              enum: [legacy-unreviewed]
+            current_settings:
+              $ref: '#/components/schemas/LineAcceptanceSettings'
+            observed_versions:
+              properties:
+                line_acceptance:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+        - properties:
+            mode:
+              enum: [update]
+            current_state:
+              enum: [configured]
+            current_settings:
+              $ref: '#/components/schemas/LineAcceptanceSettings'
+            observed_versions:
+              properties:
+                line_acceptance:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
       properties:
         schema_version:
           type: string
