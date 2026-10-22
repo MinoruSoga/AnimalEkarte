@@ -9,6 +9,7 @@ package billing
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -480,6 +481,18 @@ func TestCampaignRepository_Create_FindByID_ExactDiscountValue(t *testing.T) {
 				"DB read-back must keep the exact decimal")
 			assert.Equal(t, clinicID, got.ClinicID, "clinic scope")
 			assert.Equal(t, tc.discountType, got.DiscountType, "discount_type read-back")
+			// B-2: 読み戻し model を既存 adapter に通し、HTTP 応答値も検証する。
+			resp, err := toCampaignResponse(got)
+			require.NoError(t, err)
+			assert.True(t, equalExactNumeric(campaignExactValue(t, tc.text), campaignExactValue(t, resp.DiscountValue)),
+				"HTTP response discount_value must be numerically equal to the input decimal")
+			raw, err := json.Marshal(resp)
+			require.NoError(t, err)
+			var wire map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(raw, &wire))
+			rawValue, ok := wire["discount_value"]
+			require.True(t, ok, "discount_value must be present in the JSON response")
+			assert.Equal(t, byte('"'), rawValue[0], "discount_value must be a JSON string, not a number")
 		})
 	}
 }
@@ -511,6 +524,17 @@ func TestCampaignRepository_Update_DiscountValuePresence(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, equalExactNumeric(campaignExactValue(t, "10.50"), got.DiscountValue),
 			"omitted discount_value must keep the stored value")
+		resp, err := toCampaignResponse(got)
+		require.NoError(t, err)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "10.50"), campaignExactValue(t, resp.DiscountValue)),
+			"HTTP response discount_value must be numerically equal to the stored value")
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		var wire map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &wire))
+		rawValue, ok := wire["discount_value"]
+		require.True(t, ok, "discount_value must be present in the JSON response")
+		assert.Equal(t, byte('"'), rawValue[0], "discount_value must be a JSON string, not a number")
 	})
 
 	t.Run("明示 0 は 0 へ更新する", func(t *testing.T) {
@@ -519,5 +543,16 @@ func TestCampaignRepository_Update_DiscountValuePresence(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, equalExactNumeric(campaignExactValue(t, "0"), got.DiscountValue),
 			"explicit zero must update to 0, not keep 10.50")
+		resp, err := toCampaignResponse(got)
+		require.NoError(t, err)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "0"), campaignExactValue(t, resp.DiscountValue)),
+			"HTTP response discount_value must be numerically equal to the updated zero")
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		var wire map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &wire))
+		rawValue, ok := wire["discount_value"]
+		require.True(t, ok, "discount_value must be present in the JSON response")
+		assert.Equal(t, byte('"'), rawValue[0], "discount_value must be a JSON string, not a number")
 	})
 }

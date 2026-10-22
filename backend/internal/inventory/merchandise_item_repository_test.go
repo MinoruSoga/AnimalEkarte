@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -942,6 +943,18 @@ func TestMerchandiseItemRepository_Create_FindByID_ExactTaxRate(t *testing.T) {
 			assert.Equal(t, int64(1500), got.UnitPrice, "unit_price read-back")
 			assert.Equal(t, model.TaxTypeExcluded, got.TaxType, "tax_type read-back")
 			assert.Equal(t, clinicID, got.ClinicID, "clinic scope")
+			// B-2: 読み戻し model を既存 adapter に通し、HTTP 応答値も検証する。
+			resp, err := toMerchandiseItemResponse(got)
+			require.NoError(t, err)
+			assert.True(t, equalTaxRate(mustTaxRate(t, tc.taxRate), mustTaxRate(t, resp.TaxRate)),
+				"HTTP response tax_rate must be numerically equal to the input decimal")
+			raw, err := json.Marshal(resp)
+			require.NoError(t, err)
+			var wire map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(raw, &wire))
+			rawRate, ok := wire["tax_rate"]
+			require.True(t, ok, "tax_rate must be present in the JSON response")
+			assert.Equal(t, byte('"'), rawRate[0], "tax_rate must be a JSON string, not a number")
 		})
 	}
 }
@@ -971,6 +984,17 @@ func TestMerchandiseItemRepository_Update_TaxRatePresence(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, equalTaxRate(mustTaxRate(t, "0.08333"), got.TaxRate),
 			"omitted tax_rate must keep the stored value")
+		resp, err := toMerchandiseItemResponse(got)
+		require.NoError(t, err)
+		assert.True(t, equalTaxRate(mustTaxRate(t, "0.08333"), mustTaxRate(t, resp.TaxRate)),
+			"HTTP response tax_rate must be numerically equal to the stored value")
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		var wire map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &wire))
+		rawRate, ok := wire["tax_rate"]
+		require.True(t, ok, "tax_rate must be present in the JSON response")
+		assert.Equal(t, byte('"'), rawRate[0], "tax_rate must be a JSON string, not a number")
 	})
 
 	t.Run("明示 0 は 0 へ更新する", func(t *testing.T) {
@@ -979,6 +1003,17 @@ func TestMerchandiseItemRepository_Update_TaxRatePresence(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, equalTaxRate(mustTaxRate(t, "0"), got.TaxRate),
 			"explicit zero must update to 0, not keep 0.08333")
+		resp, err := toMerchandiseItemResponse(got)
+		require.NoError(t, err)
+		assert.True(t, equalTaxRate(mustTaxRate(t, "0"), mustTaxRate(t, resp.TaxRate)),
+			"HTTP response tax_rate must be numerically equal to the updated zero")
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		var wire map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &wire))
+		rawRate, ok := wire["tax_rate"]
+		require.True(t, ok, "tax_rate must be present in the JSON response")
+		assert.Equal(t, byte('"'), rawRate[0], "tax_rate must be a JSON string, not a number")
 	})
 }
 
@@ -1004,4 +1039,15 @@ func TestMerchandiseItemRepository_Create_DBDefaultTaxRate010(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, equalTaxRate(mustTaxRate(t, "0.10"), got.TaxRate),
 		"DB default tax_rate must read back as 0.10")
+	resp, err := toMerchandiseItemResponse(got)
+	require.NoError(t, err)
+	assert.True(t, equalTaxRate(mustTaxRate(t, "0.10"), mustTaxRate(t, resp.TaxRate)),
+		"HTTP response tax_rate must be numerically equal to the DB default")
+	raw, err := json.Marshal(resp)
+	require.NoError(t, err)
+	var wire map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &wire))
+	rawRate, ok := wire["tax_rate"]
+	require.True(t, ok, "tax_rate must be present in the JSON response")
+	assert.Equal(t, byte('"'), rawRate[0], "tax_rate must be a JSON string, not a number")
 }

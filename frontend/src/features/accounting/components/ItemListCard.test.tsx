@@ -6,12 +6,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ItemListCard } from "./ItemListCard";
 // EMR-537 E-2: 個別テストで品目リストを差し替えられるようにするため vi.fn 化した
 // （既定データは従来どおり）。CampaignSidePanel.test.tsx と同じパターン。
-import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
+import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import type { AccountingItem } from "../types";
 import { todayJSTISO } from "@/lib/jst-date";
 
-vi.mock("../api/get-merchandise-items", () => ({
-  useGetAllMerchandiseItems: vi.fn(() => ({
+// EMR-537 A-1: モックは component が読む型そのものにし、any/as で欠落 field を隠さない。
+const useGetAllMerchandiseItemsMock = vi.hoisted(() =>
+  vi.fn<() => { data: FrontendMerchandiseItem[] }>(() => ({
     data: [
       {
         id: "item-1",
@@ -24,6 +25,10 @@ vi.mock("../api/get-merchandise-items", () => ({
       },
     ],
   })),
+);
+
+vi.mock("../api/get-merchandise-items", () => ({
+  useGetAllMerchandiseItems: useGetAllMerchandiseItemsMock,
 }));
 
 describe("ItemListCard merchandise selection", () => {
@@ -481,7 +486,7 @@ describe("ItemListCard 追加不可エラーの配置 (EMR-537 E-2)", () => {
       ...Array.from({ length: 30 }, (_, i) => makeMerchandise(`m-${i}`, `品目${i}`, 0.1)),
       makeMerchandise("m-bad", "非表現税率品", undefined),
     ];
-    vi.mocked(useGetAllMerchandiseItems).mockReturnValue({ data: longList });
+    useGetAllMerchandiseItemsMock.mockReturnValue({ data: longList });
     try {
       render(
         <ItemListCard
@@ -522,7 +527,7 @@ describe("ItemListCard 追加不可エラーの配置 (EMR-537 E-2)", () => {
       });
       expect(document.getElementById("merchandise-tax-error")).toBeNull();
     } finally {
-      vi.mocked(useGetAllMerchandiseItems).mockReturnValue({
+      useGetAllMerchandiseItemsMock.mockReturnValue({
         data: [
           {
             id: "item-1",
