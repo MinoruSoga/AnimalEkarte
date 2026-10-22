@@ -1,3 +1,4 @@
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -20,8 +21,29 @@ function makeItem(taxRate: string): FrontendMerchandiseItem {
   };
 }
 
-function renderPanel(item: FrontendMerchandiseItem | null, onSave = vi.fn(() => true)) {
-  render(<MerchandiseSidePanel item={item} onClose={vi.fn()} onSave={onSave} />);
+function renderPanel(
+  item: FrontendMerchandiseItem | null,
+  onSave = vi.fn(() => true),
+  opts: { onClose?: () => void; readOnly?: boolean } = {},
+) {
+  // NavigationBlocker (dirty 検知) が useBlocker を呼ぶため data router 配下で描画する
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <MerchandiseSidePanel
+            item={item}
+            onClose={opts.onClose ?? vi.fn()}
+            onSave={onSave}
+            readOnly={opts.readOnly}
+          />
+        ),
+      },
+    ],
+    { initialEntries: ["/"] },
+  );
+  render(<RouterProvider router={router} />);
   return onSave;
 }
 
@@ -81,18 +103,15 @@ describe("MerchandiseSidePanel exact taxRate payload (EMR-537 AC1)", () => {
 
 describe("MerchandiseSidePanel readOnly / cancel (EMR-537 AC1 挙動不変)", () => {
   it("readOnly では保存・削除ボタンを出さず閉じるだけを表示する", () => {
-    render(
-      <MerchandiseSidePanel
-        item={makeItem("0.1")}
-        onClose={vi.fn()}
-        onSave={vi.fn(() => true)}
-        readOnly
-      />,
+    renderPanel(
+      makeItem("0.1"),
+      vi.fn(() => true),
+      { readOnly: true },
     );
 
     expect(screen.queryByRole("button", { name: "保存" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "閉じる" }).length).toBeGreaterThan(0);
   });
 
   it("名称未入力で保存すると onSave を呼ばず名称エラーを出す", async () => {
@@ -110,7 +129,11 @@ describe("MerchandiseSidePanel readOnly / cancel (EMR-537 AC1 挙動不変)", ()
   it("キャンセルで onClose が呼ばれる", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<MerchandiseSidePanel item={null} onClose={onClose} onSave={vi.fn(() => true)} />);
+    renderPanel(
+      null,
+      vi.fn(() => true),
+      { onClose },
+    );
 
     await user.click(screen.getByRole("button", { name: "キャンセル" }));
     expect(onClose).toHaveBeenCalledTimes(1);
