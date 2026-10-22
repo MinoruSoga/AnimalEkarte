@@ -895,3 +895,113 @@ func TestMerchandiseItemRepository_FindByID_AmbientTxSeesUncommittedRow(t *testi
 	require.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
 }
+
+// TestMerchandiseItemRepository_Create_FindByID_ExactTaxRate is EMR-537 V-1/AC4:
+// 保存→再取得が tax_rate の十進値を binary float を通さず保持することを
+// repository 層で検証する（0 / 0.10 / 0.08333 / 多桁 0.10000000000000001）。
+// 比較は既存の equalTaxRate（rat による数値比較・float 不使用）で行う。
+// wire の省略/null→nil・明示 "0"・number/非数 拒否は request 層の
+// TestCreateMerchandiseItemRequest_TaxRateContract / TestUpdateMerchandiseItemRequest_TaxRateContract、
+// 0..1 境界は TestValidateMerchandiseTaxRate_ExactBoundaries を参照（重複 fixture は作らない）。
+func TestMerchandiseItemRepository_Create_FindByID_ExactTaxRate(t *testing.T) {
+	cases := []struct {
+		name    string
+		taxRate string
+	}{
+		{"explicit zero", "0"},
+		{"standard 0.10", "0.10"},
+		{"reduced 0.08333", "0.08333"},
+		{"many digits 0.10000000000000001", "0.10000000000000001"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupMerchandiseItemRepoTestDB(t)
+			repo := NewMerchandiseItemRepository(db)
+			ctx := context.Background()
+			const clinicID = uint64(1)
+
+			item := &model.MerchandiseItem{
+				ClinicID:  clinicID,
+				Name:      "exact " + tc.name,
+				Category:  model.ItemCategoryGoods,
+				UnitPrice: 1500,
+				TaxType:   model.TaxTypeExcluded,
+				TaxRate:   mustTaxRate(t, tc.taxRate),
+			}
+			require.NoError(t, repo.Create(ctx, item))
+			require.NotZero(t, item.ID)
+			assert.True(t, equalTaxRate(mustTaxRate(t, tc.taxRate), item.TaxRate),
+				"in-memory struct after Create must keep the exact decimal")
+
+			got, err := repo.FindByID(ctx, clinicID, item.ID)
+			require.NoError(t, err)
+			// struct 全体比較はしない（C が projection へ追加する is_bill_discount_excluded /
+			// version の影響を受けないよう、明示 field のみを比較する）。
+			assert.True(t, equalTaxRate(mustTaxRate(t, tc.taxRate), got.TaxRate),
+				"DB read-back must keep the exact decimal")
+			assert.Equal(t, int64(1500), got.UnitPrice, "unit_price read-back")
+			assert.Equal(t, model.TaxTypeExcluded, got.TaxType, "tax_type read-back")
+			assert.Equal(t, clinicID, got.ClinicID, "clinic scope")
+		})
+	}
+}
+
+// TestMerchandiseItemRepository_Update_TaxRatePresence is EMR-537 AC4:
+// PATCH の省略（nil）は既存 tax_rate を保持し、明示 0 は 0 へ更新する（repository 層）。
+// wire の省略/null→nil・明示 "0"→非nil 0 の対応は request 層の
+// TestUpdateMerchandiseItemRequest_TaxRateContract を参照（重複 fixture は作らない）。
+func TestMerchandiseItemRepository_Update_TaxRatePresence(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	item := &model.MerchandiseItem{
+		ClinicID:  clinicID,
+		Name:      "PATCH対象品",
+		Category:  model.ItemCategoryGoods,
+		UnitPrice: 1000,
+		TaxRate:   mustTaxRate(t, "0.08333"),
+	}
+	require.NoError(t, repo.Create(ctx, item))
+
+	t.Run("省略（nil）は既存 tax_rate を保持する", func(t *testing.T) {
+		name := "省略更新"
+		got, err := repo.Update(ctx, clinicID, item.ID, UpdateMerchandiseItemInput{Name: &name})
+		require.NoError(t, err)
+		assert.True(t, equalTaxRate(mustTaxRate(t, "0.08333"), got.TaxRate),
+			"omitted tax_rate must keep the stored value")
+	})
+
+	t.Run("明示 0 は 0 へ更新する", func(t *testing.T) {
+		zero := mustTaxRate(t, "0")
+		got, err := repo.Update(ctx, clinicID, item.ID, UpdateMerchandiseItemInput{TaxRate: &zero})
+		require.NoError(t, err)
+		assert.True(t, equalTaxRate(mustTaxRate(t, "0"), got.TaxRate),
+			"explicit zero must update to 0, not keep 0.08333")
+	})
+}
+
+// TestMerchandiseItemRepository_Create_DBDefaultTaxRate010 is EMR-537 AC4:
+// tax_rate を INSERT から省いた行は DB 既定 0.10 で読み戻る。
+// wire の POST 省略/null→service 既定 0.10（defaultMerchandiseTaxRate）の裏側であり、
+// request 層は TestCreateMerchandiseItemRequest_TaxRateContract
+// "omitted falls back to default via nil" / "null falls back to default via nil" を参照。
+func TestMerchandiseItemRepository_Create_DBDefaultTaxRate010(t *testing.T) {
+	db := setupMerchandiseItemRepoTestDB(t)
+	repo := NewMerchandiseItemRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	var id uint64
+	require.NoError(t, db.WithContext(ctx).Raw(
+		`INSERT INTO merchandise_items (clinic_id, name, category, unit_price) VALUES (?, ?, 'goods', 1000) RETURNING id`,
+		clinicID, "既定税率品",
+	).Scan(&id).Error)
+	require.NotZero(t, id)
+
+	got, err := repo.FindByID(ctx, clinicID, id)
+	require.NoError(t, err)
+	assert.True(t, equalTaxRate(mustTaxRate(t, "0.10"), got.TaxRate),
+		"DB default tax_rate must read back as 0.10")
+}

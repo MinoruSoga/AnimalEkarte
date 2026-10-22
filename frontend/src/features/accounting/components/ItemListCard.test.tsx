@@ -4,11 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ItemListCard } from "./ItemListCard";
+// EMR-537 E-2: 個別テストで品目リストを差し替えられるようにするため vi.fn 化した
+// （既定データは従来どおり）。CampaignSidePanel.test.tsx と同じパターン。
+import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import type { AccountingItem } from "../types";
 import { todayJSTISO } from "@/lib/jst-date";
 
 vi.mock("../api/get-merchandise-items", () => ({
-  useGetAllMerchandiseItems: () => ({
+  useGetAllMerchandiseItems: vi.fn(() => ({
     data: [
       {
         id: "item-1",
@@ -20,7 +23,7 @@ vi.mock("../api/get-merchandise-items", () => ({
         isActive: true,
       },
     ],
-  }),
+  })),
 }));
 
 describe("ItemListCard merchandise selection", () => {
@@ -452,5 +455,86 @@ describe("ItemListCard サマリー表記 (EMR-401)", () => {
     expect(screen.getByText(/小計（明細合計）: ¥8,700/)).toBeInTheDocument();
     expect(screen.getByText(/消費税（内税分を含む）: ¥800/)).toBeInTheDocument();
     expect(screen.getByText(/合計: ¥8,800/)).toBeInTheDocument();
+  });
+});
+
+// EMR-537 E-2: 追加不可エラーは overflow-auto 領域の外に置く。長い一覧の下部で
+// 非表現税率の商品を選んでも、エラー文がスクロールに隠れず表示され続ける。
+describe("ItemListCard 追加不可エラーの配置 (EMR-537 E-2)", () => {
+  function makeMerchandise(id: string, name: string, taxRate: number | undefined) {
+    return {
+      id,
+      name,
+      category: "goods",
+      unitPrice: 100,
+      taxType: "included" as const,
+      taxRate,
+      isActive: true,
+    };
+  }
+
+  it("長い一覧で非表現税率品を選ぶと追加せず、エラーがscroll領域の外に現れる", async () => {
+    const user = userEvent.setup();
+    const onAddItem = vi.fn();
+    // 長い一覧 + 契約外税率（parseExactDecimal が undefined を返す字句）の商品。
+    const longList = [
+      ...Array.from({ length: 30 }, (_, i) => makeMerchandise(`m-${i}`, `品目${i}`, 0.1)),
+      makeMerchandise("m-bad", "非表現税率品", undefined),
+    ];
+    vi.mocked(useGetAllMerchandiseItems).mockReturnValue({ data: longList });
+    try {
+      render(
+        <ItemListCard
+          items={[]}
+          subtotal={0}
+          taxTotal={0}
+          totalAmount={0}
+          newItemOpen
+          onNewItemOpenChange={vi.fn()}
+          onAddItem={onAddItem}
+          onDeleteItem={vi.fn()}
+          canEdit
+          canDelete={false}
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "追加: 非表現税率品 (ID m-bad)" }));
+
+      // fail-closed: 行を作らず API 書込もしない（0 や 0.10 への補完もしない）
+      expect(onAddItem).not.toHaveBeenCalled();
+      const error = document.getElementById("merchandise-tax-error");
+      expect(error).toHaveTextContent(
+        "非表現税率品 は税率が契約外の値のため追加できません（マスタの税率を見直してください）",
+      );
+      // DOM 配置: エラー要素は overflow-auto の scroll コンテナの子孫でない
+      expect(error!.closest(".overflow-auto")).toBeNull();
+
+      // その後、表現可能な商品を選ぶとエラーが解除され従来どおり追加される
+      await user.click(screen.getByRole("button", { name: "追加: 品目0 (ID m-0)" }));
+      expect(onAddItem).toHaveBeenCalledTimes(1);
+      expect(onAddItem).toHaveBeenCalledWith({
+        name: "品目0",
+        price: "100",
+        category: "goods",
+        taxType: "included",
+        taxRate: 0.1,
+        merchandiseItemId: "m-0",
+      });
+      expect(document.getElementById("merchandise-tax-error")).toBeNull();
+    } finally {
+      vi.mocked(useGetAllMerchandiseItems).mockReturnValue({
+        data: [
+          {
+            id: "item-1",
+            name: "療法食",
+            category: "goods",
+            unitPrice: 1200,
+            taxType: "included",
+            taxRate: 0.08,
+            isActive: true,
+          },
+        ],
+      });
+    }
   });
 });
