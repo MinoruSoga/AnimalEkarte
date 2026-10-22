@@ -4,7 +4,10 @@ import type {
   MedicineDoseSpecies,
   TaxType,
 } from "@/types/generated/models";
-import { MedicineCalculationTypeNone } from "@/types/generated/models";
+import {
+  MedicineCalculationTypeNone,
+  MedicineCalculationTypePerWeight,
+} from "@/types/generated/models";
 import type { UpsertMedicineDoseParamRequest } from "../api/medicine-dose-params";
 
 type DoseParamDraft = {
@@ -48,6 +51,21 @@ const INITIAL_FORM: MedicineFormData = {
   frequencyPerDay: "",
   defaultDurationDays: "",
 };
+
+export const MEDICINE_STRENGTH_REQUIRED_MESSAGE = "体重換算(mg/kg)では製品含量を入力してください";
+
+/**
+ * EMR-447 Q4（SPEC-QA-20261022-447-STRENGTH-CLEAR）: per_weight の必須含量が空なら保存前に止める。
+ * 0・形式不正は補正せず BE の exact decimal 検証（400）に任せる。
+ */
+export function getMedicineStrengthError(
+  data: Pick<MedicineFormData, "calculationType" | "strength">,
+): string | null {
+  if (data.calculationType === MedicineCalculationTypePerWeight && !data.strength.trim()) {
+    return MEDICINE_STRENGTH_REQUIRED_MESSAGE;
+  }
+  return null;
+}
 
 export function medicineToFormData(
   medicine: Medicine | null,

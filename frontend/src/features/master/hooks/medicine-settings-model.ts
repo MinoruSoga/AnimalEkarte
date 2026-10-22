@@ -2,7 +2,7 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "../lib/medicine-side-panel-model";
+import { getMedicineStrengthError, type MedicineFormData } from "../lib/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { numberToExactDecimal } from "@/lib/exact-decimal";
 import { parseOptionalNumber } from "@/lib/parse-optional-number";
@@ -166,7 +166,19 @@ export function validateMedicineForm(data: MedicineFormData, isCategory: boolean
   if (!isCategory && !data.parentId && !(Number(data.price) > 0) && !data.dosageForm) {
     return "薬剤として登録する場合は親カテゴリ、単価、または剤形のいずれかを入力してください";
   }
-  return null;
+  return getMedicineStrengthError(data);
+}
+
+/**
+ * EMR-447 Q4（SPEC-QA-20261022-447-STRENGTH-CLEAR）: 既存含量を空へ編集し、最終の計算方式が none のときだけ
+ * NULL へ明示クリアする。none への切替だけ・未変更の含量は PATCH 省略で保持する（自動消去しない）。
+ */
+function isExplicitStrengthClear(data: MedicineFormData, selectedMedicine: Medicine | null) {
+  return (
+    data.calculationType === MedicineCalculationTypeNone &&
+    selectedMedicine?.strength !== undefined &&
+    !data.strength.trim()
+  );
 }
 
 export function buildMedicineCreateRequest(
@@ -216,6 +228,7 @@ export function buildMedicineUpdateRequest({
     tax_rate: numberToExactDecimal(data.taxRate, "tax_rate"),
     is_non_insurance: data.isNonInsurance,
     ...buildCalculationFields(data),
+    ...(isExplicitStrengthClear(data, selectedMedicine) ? { clear_strength: true } : {}),
   };
 
   if (data.parentId) {

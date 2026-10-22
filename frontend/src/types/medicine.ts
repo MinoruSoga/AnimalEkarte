@@ -116,8 +116,10 @@ export interface UpdateMedicineRequest {
   tax_rate?: string;
   is_non_insurance?: boolean;
   calculation_type?: MedicineCalculationType;
-  /** EMR-447: exact decimal 文字列。省略は保持（NULL クリアは BE の clear_strength。FE は未送信） */
+  /** EMR-447: exact decimal 文字列。省略は保持 */
   strength?: string;
+  /** EMR-447 Q4: 既存含量を空へ編集し計算方式 none で保存したときだけ true（strength と同時送信しない） */
+  clear_strength?: boolean;
   frequency_per_day?: number;
   default_duration_days?: number;
 }
