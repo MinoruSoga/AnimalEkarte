@@ -175,7 +175,7 @@ func TestGetMerchandiseItem(t *testing.T) {
 				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(3), id)
-					return &model.MerchandiseItem{ID: 3, Name: "キャットフード"}, nil
+					return &model.MerchandiseItem{ID: 3, Name: "キャットフード", TaxRate: testTaxRateOf(10, -2)}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -261,7 +261,7 @@ func TestCreateMerchandiseItem(t *testing.T) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "プレミアムフード", input.Name)
 					assert.Equal(t, "food", input.Category)
-					return &model.MerchandiseItem{ID: 1, Name: input.Name}, nil
+					return &model.MerchandiseItem{ID: 1, Name: input.Name, TaxRate: testTaxRateOf(10, -2)}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -361,7 +361,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					require.NotNil(t, input.Name)
 					assert.Equal(t, "更新済み商品", *input.Name)
-					return &model.MerchandiseItem{ID: 1, Name: *input.Name}, nil
+					return &model.MerchandiseItem{ID: 1, Name: *input.Name, TaxRate: testTaxRateOf(10, -2)}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -376,7 +376,7 @@ func TestUpdateMerchandiseItem(t *testing.T) {
 				updateFn: func(_ context.Context, _, _ uint64, input *UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
 					require.NotNil(t, input.UnitPrice)
 					assert.Equal(t, int64(500), *input.UnitPrice)
-					return &model.MerchandiseItem{ID: 1}, nil
+					return &model.MerchandiseItem{ID: 1, TaxRate: testTaxRateOf(10, -2)}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
