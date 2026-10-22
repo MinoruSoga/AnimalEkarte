@@ -56,7 +56,7 @@ confirmedは普通のPATCH／項目置換／削除では変更しない。専用
 ## FR-examinations-mapping：機器の原値と対応付けを保存する
 1フレームを1測定／1ジョブとして記録し、measured_atを検査日時、received_atを受信監査時刻とする。原コードのsuffix、不等式、定性値、単位を削らない。生バイト・接続識別子・検体IDをログやGitへ出さない。生バイトはサーバでデコード後に保存しない。
 
-医院＋source_type＋device_item_codeのマッピングで結果項目を解決する。未知コードを推測して自動登録せずneeds_reviewとしてジョブ項目に残す。対応した検査種別がNならN検査に分割し、未対応項目を黙って落とさない。後日のマスタ対応後はそのジョブだけを再評価する。保存済み臨床版を現在マスタで自動的に書き換えない。
+医院＋source_type＋device_item_codeのマッピングで結果項目を解決する。未知コードを推測して自動登録せずneeds_reviewとしてジョブ項目に残す。対応した検査種別がNならN検査に分割し、未対応項目を黙って落とさない。後日のマスタ対応後はそのジョブだけを再評価する。再評価は received／needs_review かつ未 persist のジョブに限る。persisted・部分 persist 後は [EMR-297 契約](../../../work/emr/emr-297-device-mapping-bridge-contract-20261021.md) に従い再解決を拒否し、D07 の訂正経路へ渡す。再送や付け替えによる迂回も許可しない。保存済み臨床版を現在マスタで自動的に書き換えない。
 
 <a id="fr-examinations-idempotency"></a>
 ## FR-examinations-idempotency：再送・後付け・Undoの結果を一意にする

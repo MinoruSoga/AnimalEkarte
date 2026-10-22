@@ -329,7 +329,7 @@ ADR003のENUMとsystem_key／医院master IDの整合は維持する。固定4�
 <a id="accounting-document-completion"></a>
 ## D10文書完成条件と判定外
 
-D03と同じ限定文書基準を適用。ここまでの基準は13FR／174AC（前段階10FR／167AC＝基準9FR／155AC＋品目別保険設定1FR／12AC、2026-10-17の医師確認・プラン同期・請求対象3FR／7ACを追加）。No.8の個別割引権限1AC・No.30の釣銭整合3AC・過受領処理3ACを含む現在のライフサイクル本文は13FR／181AC。対象は3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。支払方法停止の追加7ACも前段階の固定39文書レビュー・限定構造検査を通過した。会議連携4ACと今回の品目別保険設定1FR／12ACは、それぞれ追加差分の文書確認として区別する。今回の新規初期値は対象外と合意済みであり、旧欠落値の解釈・変換という後続移行課題を既存完成判定で完了扱いしない。既存144ACの判定とは別に追加差分の確認根拠を保持する。既存AC／アンカー・144AC本文を保持し、新旧全ACを一意に追跡する。
+D03と同じ限定文書基準を適用。ここまでの基準は13FR／174AC（前段階10FR／167AC＝基準9FR／155AC＋品目別保険設定1FR／12AC、2026-10-17の医師確認・プラン同期・請求対象3FR／7ACを追加）。なお現在は13FR／184AC（EMR-367追補3ACを含む）。No.8の個別割引権限1AC・No.30の釣銭整合3AC・過受領処理3ACを含む現在のライフサイクル本文は13FR／184AC。対象は3画面＋選択／新規入口、4masterと診療／薬剤会計接続、語彙・状態／ID・操作／保存／認可・旧値／停止・writer／consumer／受け手。2026-10-15の独立レビューとリンク／fragment・表／trace照合で重大指摘なしを確認し、基準時点の9FR／142ACを文書整理完了と判定した。追加の死亡後精算2ACも反映・独立文書レビュー済み。支払方法停止の追加7ACも前段階の固定39文書レビュー・限定構造検査を通過した。会議連携4ACと今回の品目別保険設定1FR／12ACは、それぞれ追加差分の文書確認として区別する。今回の新規初期値は対象外と合意済みであり、旧欠落値の解釈・変換という後続移行課題を既存完成判定で完了扱いしない。既存144ACの判定とは別に追加差分の確認根拠を保持する。既存AC／アンカー・144AC本文を保持し、新旧全ACを一意に追跡する。
 
 文書で選定した意味型・原子保存／receipt・現在認可／不明時停止・画面状態／master参照保護・引継ぎを後決めへ戻さない。物理schema／wire名・採番書式／lock実装・実grant／実旧値・移行・全writer／consumer実装適合・実機／性能／復旧試験・税務／決済規約適合は後続実装／利用開始条件。これらと他owner内部・全体横断最終照合は本領域の文書完成判定外。保険会社請求／査定・自動給付、督促／貸倒、別医院／飼主移管・外部機器連携は対象外。
 
@@ -766,6 +766,9 @@ FIN-R01〜R10の文書精査として、本文181ACとsubpage固有20ACを別母
 | AC-accounting-excess-input-correction | lifecycle.md:616 | F01 | `AC-accounting-excess-input-correction` |
 | AC-accounting-excess-actual-refund-once | lifecycle.md:617 | F02 | `AC-accounting-excess-actual-refund-once` |
 | AC-accounting-excess-consented-deposit-single-receipt | lifecycle.md:618 | F03 | `AC-accounting-excess-consented-deposit-single-receipt` |
+| AC-accounting-input-gross-preserved | lifecycle.md:629 | F04 | `AC-accounting-input-gross-preserved` |
+| AC-accounting-line-discount-independent | lifecycle.md:630 | F04 | `AC-accounting-line-discount-independent` |
+| AC-accounting-calculation-boundary-reconcile | lifecycle.md:631 | F04 | `AC-accounting-calculation-boundary-reconcile` |
 
 ### subpage固有20AC（本文とは別集計）
 

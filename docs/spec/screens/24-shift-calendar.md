@@ -253,7 +253,7 @@ CSVに含まれない既存勤務や空欄は削除指示として扱わない�
 - **`ShiftCalendarPage`**: メインページコンテナ。
 - **`ShiftCell`**: 個別の日次シフト表示・操作部品。
 - **`ShiftFormDialog`**: 動的リスト形式の休憩時間入力を含む編集フォーム。
-- **`ClinicHolidayModal`**: 医院レベルの休業管理モジュール。
+- **`ClinicHolidayModal`**: 医院レベルの休診日管理モジュール。
 
 ### API連携
 

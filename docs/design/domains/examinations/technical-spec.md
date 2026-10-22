@@ -69,7 +69,7 @@ D03の専用過去入力／確定後追記とD07のofficial revision保護へ接
 | 経路 | 既存grant／owner | 継承する照合 |
 |:---|:---|:---|
 | exam CRUD／items／print | examinations view/create/edit/delete、medicalrecord write owner | clinic/pet/record関係、検査自身のロック、必要ログ。旧親finalized一律拒否は最新D03目標との差 |
-| unconfirm | examination-unconfirm:edit | actor・理由・official版・親draft |
+| unconfirm | examination-unconfirm:edit | actor・理由・official版を、現在の親カルテ scope・版・履歴と照合する。旧実装の親draft必須は旧実装差で、検査結果を自由に更新可能とはしない |
 | frames／wait／board | lab-import:create | trusted clinic、alive pet、受信consumer排他 |
 | unlinked／station／masters read | lab-import:view | 医院scope、閲覧可能範囲 |
 | attach/detach/revert／機器・item master更新 | lab-import:edit | job source・使用receipt・全由来検査・親依存 |

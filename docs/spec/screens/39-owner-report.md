@@ -92,7 +92,7 @@ flowchart TB
 - 年齢だけは生年月日から `formatPetAge` で導出する。初診日は専用API、前回来院はペットAPIの値を使う。
 - 最新検査の異常件数だけを診療前確認へ表示し、過去の異常を現在の要確認事項として累積しない。
 - 権限なし・読み込み中・取得失敗を0件や「予定なし」として扱わない。
-- 前回診療と診療履歴は、[最新合意](#owner-report-ended-history)により診療終了したカルテだけを対象とする。自動保存済みでも診療中の記録を診療済み履歴へ載せず、医師確定操作を新たな表示条件にしない。
+- 前回診療と診療履歴は、[最新合意](#owner-report-ended-history)により診療終了したカルテだけを対象とする。自動保存済みでも診療中の記録を診療済み履歴へ載せず、医師確定操作を新たな表示条件にしない。「診療終了のみ」は前回診療・診療履歴セクションの条件であり、後日予定（[カルテ側要件](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)、本書[後日予定](#owner-report-deferred-plan)）は別の参照表示として扱う。
 - 本画面は読み取り専用で、入力・保存操作を持たない。
 
 <a id="owner-report-accessibility"></a>
