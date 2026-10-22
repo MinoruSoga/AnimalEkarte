@@ -15,6 +15,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
+// lineTimePolicyWeeklyTimesJSON is the contract §4.1 weekly_times shape:
+// [{weekday,times}] with exactly one entry per weekday 0..6 in ascending order;
+// times are unique ascending HH:MM (empty = explicitly no registered starts).
+// It intentionally differs from lineTimeSevenWeekdayJSON, the {weekday,
+// intervals} shape for clinic_operating_hours.weekly_hours (§2.1).
+const lineTimePolicyWeeklyTimesJSON = `[{"weekday":0,"times":[]},{"weekday":1,"times":["09:00","09:30"]},{"weekday":2,"times":[]},{"weekday":3,"times":[]},{"weekday":4,"times":[]},{"weekday":5,"times":[]},{"weekday":6,"times":[]}]`
+
 func TestLineStaffStartPolicyAndAnchorRealDB(t *testing.T) {
 	db := testdb.SetupIsolated001TestDB(t)
 	require.NoError(t, db.Exec(lineTimeReadMigration(t, "010_line_staff_start_policy_and_reservation_anchor.sql")).Error,
@@ -38,7 +45,7 @@ func TestLineStaffStartPolicyAndAnchorRealDB(t *testing.T) {
 			INSERT INTO line_staff_start_policies
 				(clinic_id, reservation_type_id, assignment_id, staff_id, schema_version, weekly_times, date_overrides)
 			VALUES (?, ?, ?, ?, 'trimming-registered-starts/v1', ?, '[]')`,
-			clinicA, typeA, assignA, staffA.ID, lineTimeSevenWeekdayJSON).Error)
+			clinicA, typeA, assignA, staffA.ID, lineTimePolicyWeeklyTimesJSON).Error)
 
 		var version int64
 		require.NoError(t, db.Raw(`SELECT version FROM line_staff_start_policies WHERE clinic_id = ?`, clinicA).Scan(&version).Error)
@@ -61,7 +68,7 @@ func TestLineStaffStartPolicyAndAnchorRealDB(t *testing.T) {
 				INSERT INTO line_staff_start_policies
 					(clinic_id, reservation_type_id, assignment_id, staff_id, schema_version, weekly_times, date_overrides)
 				VALUES (?, ?, ?, ?, 'trimming-registered-starts/v1', ?, '[]')`,
-				clinicA, typeA, assignA2, staffA.ID, lineTimeSevenWeekdayJSON).Error,
+				clinicA, typeA, assignA2, staffA.ID, lineTimePolicyWeeklyTimesJSON).Error,
 			"23503")
 
 		// A type/assignment of another clinic violates the composite FKs.
@@ -70,14 +77,14 @@ func TestLineStaffStartPolicyAndAnchorRealDB(t *testing.T) {
 				INSERT INTO line_staff_start_policies
 					(clinic_id, reservation_type_id, assignment_id, staff_id, schema_version, weekly_times, date_overrides)
 				VALUES (?, ?, ?, ?, 'trimming-registered-starts/v1', ?, '[]')`,
-				clinicA, typeB, assignA, staffA.ID, lineTimeSevenWeekdayJSON).Error,
+				clinicA, typeB, assignA, staffA.ID, lineTimePolicyWeeklyTimesJSON).Error,
 			"23503")
 		lineTimeRequirePgCode(t,
 			db.Exec(`
 				INSERT INTO line_staff_start_policies
 					(clinic_id, reservation_type_id, assignment_id, staff_id, schema_version, weekly_times, date_overrides)
 				VALUES (?, ?, ?, ?, 'trimming-registered-starts/v1', ?, '[]')`,
-				clinicA, typeA, assignB, staffA.ID, lineTimeSevenWeekdayJSON).Error,
+				clinicA, typeA, assignB, staffA.ID, lineTimePolicyWeeklyTimesJSON).Error,
 			"23503")
 	})
 
