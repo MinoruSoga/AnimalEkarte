@@ -5,7 +5,5 @@
 export type {
   LegacyEstimateItemRequest,
   LegacyEstimateItemResponse,
-  LegacyEstimateOwnerSummary,
-  LegacyEstimatePetSummary,
   LegacyEstimateResponse,
 } from "@/types/estimate-legacy-wire";

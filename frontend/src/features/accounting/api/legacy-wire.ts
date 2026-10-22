@@ -91,7 +91,7 @@ export interface LegacyAccountingItemResponse {
 }
 
 /** @see backend/internal/billing/accounting_response.go accountingOwnerSummary */
-export interface LegacyAccountingOwnerSummary {
+interface LegacyAccountingOwnerSummary {
   id: number;
   name: string;
 }
@@ -100,7 +100,7 @@ export interface LegacyAccountingOwnerSummary {
  * 動物種は含まない。会計の petSpecies は HTTP に無いため補完しない。
  * @see backend/internal/billing/accounting_response.go accountingPetSummary
  */
-export interface LegacyAccountingPetSummary {
+interface LegacyAccountingPetSummary {
   id: number;
   name: string;
 }

@@ -29,13 +29,13 @@ export interface LegacyEstimateItemResponse {
 }
 
 /** @see backend/internal/billing/nested_summary_response.go ownerSummaryResponse */
-export interface LegacyEstimateOwnerSummary {
+interface LegacyEstimateOwnerSummary {
   id: number;
   name: string;
 }
 
 /** @see backend/internal/billing/nested_summary_response.go petSummaryResponse */
-export interface LegacyEstimatePetSummary {
+interface LegacyEstimatePetSummary {
   id: number;
   name: string;
 }

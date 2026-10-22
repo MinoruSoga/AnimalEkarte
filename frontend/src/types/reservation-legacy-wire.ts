@@ -17,14 +17,14 @@ import type {
 } from "./reservation-type";
 
 /** @see backend/internal/reservation/reservation_type_response.go groupSummary */
-export interface LegacyReservationTypeGroupSummary {
+interface LegacyReservationTypeGroupSummary {
   id: number;
   name: string;
   color: string;
 }
 
 /** @see backend/internal/reservation/reservation_type_response.go reservationTypeSummary */
-export interface LegacyReservationTypeParentSummary {
+interface LegacyReservationTypeParentSummary {
   id: number;
   name: string;
 }
@@ -60,7 +60,7 @@ export interface LegacyReservationTypeResponse {
 }
 
 /** @see backend/internal/reservation/nested_summary_response.go staffSummaryResponse */
-export interface LegacyReservationStaffSummary {
+interface LegacyReservationStaffSummary {
   id: number;
   name: string;
 }
@@ -69,14 +69,14 @@ export interface LegacyReservationStaffSummary {
  * is_dangerous はスタッフ向け予約応答のみ（EMR-173）。LIFF/飼主向け契約には出さない。
  * @see backend/internal/reservation/nested_summary_response.go ownerSummaryResponse
  */
-export interface LegacyReservationOwnerSummary {
+interface LegacyReservationOwnerSummary {
   id: number;
   name: string;
   is_dangerous: boolean;
 }
 
 /** @see backend/internal/reservation/nested_summary_response.go animalSpeciesSummaryResponse */
-export interface LegacyReservationAnimalSpeciesSummary {
+interface LegacyReservationAnimalSpeciesSummary {
   id: number;
   name: string;
 }
