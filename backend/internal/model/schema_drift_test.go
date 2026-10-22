@@ -145,6 +145,8 @@ func allModels() []any {
 		&model.LabDeviceMappingDraftItem{},
 		&model.LabDeviceMappingSpec{},
 		&model.LabDeviceMappingGeneration{},
+		&model.LabDeviceMappingHead{},
+		&model.LabDeviceMappingRevision{},
 		&model.LabDevice{},
 		&model.LabImportJobItem{},
 		&model.LabDeviceWait{},

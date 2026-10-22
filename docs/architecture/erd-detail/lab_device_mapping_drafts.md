@@ -24,6 +24,7 @@
 | `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6987](../../../backend/migrations/001_init.sql#L6987) |
 | `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6988](../../../backend/migrations/001_init.sql#L6988) |
 | `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:6989](../../../backend/migrations/001_init.sql#L6989) |
+| `version` | `bigint` | NOT NULL | `1` | — | [006_operation_anchor_and_lab_mapping_versions.sql:160](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L160) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,6 +50,7 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
         timestamptz deleted_at
+        bigint version
     }
     clinics {
         BIGSERIAL id PK
@@ -75,6 +77,7 @@ erDiagram
 | `chk_lab_device_mapping_drafts_species` | check | `CONSTRAINT chk_lab_device_mapping_drafts_species         CHECK (species IN ('', 'canine', 'feline'))` | [001_init.sql:6993](../../../backend/migrations/001_init.sql#L6993) |
 | `chk_lab_device_mapping_drafts_status` | check | `CONSTRAINT chk_lab_device_mapping_drafts_status         CHECK (status IN ('unconfirmed', 'confirmed', 'failed'))` | [001_init.sql:6995](../../../backend/migrations/001_init.sql#L6995) |
 | `uq_lab_device_mapping_drafts_id_clinic` | unique | `CONSTRAINT uq_lab_device_mapping_drafts_id_clinic     UNIQUE (clinic_id, id)` | [001_init.sql:7133](../../../backend/migrations/001_init.sql#L7133) |
+| `lab_device_mapping_drafts_version_check` | check | `CHECK (version > 0)` | [006_operation_anchor_and_lab_mapping_versions.sql:160](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L160) |
 
 ## インデックス
 

@@ -182,6 +182,9 @@ var knownPhantomInSpec = map[string]bool{
 	// then remove each corresponding entry when its runtime route is registered.
 	"GET /api/v1/shifts/{id}":                       true,
 	"GET /api/v1/shifts/operations/{operation_key}": true,
+	// EMR-445 contract-first lab mapping result inquiry (297-A confirm C06).
+	// Runtime owner EMR-297: remove this entry in the change that registers the route.
+	"GET /api/v1/lab-device/mapping-operations/{operation_key}": true,
 	// Follow-up EMR-502 owner: the edit-view and edit-result reads are registered;
 	// their former allowlist entries are removed by this change.
 
