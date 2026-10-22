@@ -11979,6 +11979,47 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LabMappingDraftItem'
+        draft_version:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。下書きのCAS版（lab_device_mapping_drafts.version）を先頭ゼロなし正数十進文字列で返す。
+            全設定writerの参加と confirm の C06 切替が揃うまで runtime は返さない（reader 非活性）。省略を版1と推測しない。
+        mapping_scope:
+          type: object
+          required: [source_type, species_scope, revision]
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。この下書きを確定するときの対象 mapping scope（lab_device_mapping_heads）と現在版。
+            species_scope は下書きの元 species（'' は generic）を保持し、患者の species から置き換えない。draft_version と同じく reader 非活性の間は返さない。
+          properties:
+            source_type:
+              type: string
+            species_scope:
+              type: string
+              enum: ['', canine, feline]
+            revision:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+              description: scope の現在版（lab_device_mapping_heads.revision）。正数十進文字列。
+        field_definitions:
+          type: array
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。採用候補 field の定義 snapshot 参照。field 定義版が実在しない場合 revision は null とし、
+            definition_digest（"lab-field-definition/v1" 投影の SHA-256 小文字hex）だけで照合する。存在しない版番号を作らない。reader 非活性の間は返さない。
+          items:
+            type: object
+            required: [field_id, revision, definition_digest]
+            properties:
+              field_id:
+                type: string
+                pattern: '^[1-9][0-9]*$'
+              revision:
+                type: string
+                nullable: true
+                pattern: '^[1-9][0-9]*$'
+              definition_digest:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
     LabMappingDraftItem:
       type: object
       required: [device_item_code, device_unit, chart_unit, unit_mismatch, proposed_field_name, source, llm_error, confirmed]
@@ -12034,6 +12075,39 @@ components:
                 type: string
               chart_unit:
                 type: string
+        operation_key:
+          type: string
+          format: uuid
+          description: >-
+            EMR-297-A 先行契約（297 §4C/§7）。confirm を C06 操作（owner_kind=lab_mapping、intent=lab_mapping.confirm）へ切り替えたときの小文字ハイフンUUID。
+            切替時は必須で、同 key の内容変更は operation-key-conflict。切替までの現行 runtime は受け付けず、応答も既存の LabMappingDraft のまま（C06 ResultResponse と結果照会 route は切替と同時に収録する）。
+        expected_draft_version:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: EMR-297-A 先行契約。GET の draft_version をそのまま返す CAS 前提（C06 Preconditions）。切替時は必須。
+        expected_mapping_revision:
+          type: string
+          pattern: '^[1-9][0-9]*$'
+          description: EMR-297-A 先行契約。GET の mapping_scope.revision をそのまま返す CAS 前提（C06 Preconditions）。切替時は必須。
+        expected_field_definitions:
+          type: array
+          description: >-
+            EMR-297-A 先行契約（297 §7b）。確定に使う各 field について GET の field_definitions を返す CAS 前提。版が無い field は expected_revision=null と
+            expected_definition_digest で固定し、Apply で現定義を同じ canonical snapshot から再hashして照合する。切替時は items の全 field について必須。
+          items:
+            type: object
+            required: [field_id, expected_revision, expected_definition_digest]
+            properties:
+              field_id:
+                type: string
+                pattern: '^[1-9][0-9]*$'
+              expected_revision:
+                type: string
+                nullable: true
+                pattern: '^[1-9][0-9]*$'
+              expected_definition_digest:
+                type: string
+                pattern: '^[0-9a-f]{64}$'
     LabMappingGenerationRequest:
       type: object
       required: [stopped]
