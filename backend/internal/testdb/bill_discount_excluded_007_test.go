@@ -11,9 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBillDiscountExcluded007StorageInvariants applies
-// backend/migrations/007_bill_discount_excluded_and_master_versions.sql on top
-// of a disposable 001-only database and checks the A01 storage contract:
+// TestBillDiscountExcluded007StorageInvariants applies the post-001
+// incremental migrations (003–006, then
+// backend/migrations/007_bill_discount_excluded_and_master_versions.sql) in
+// migrate order on top of a disposable 001 database and checks the A01
+// storage contract:
 //
 //   - rows that existed before 007 keep is_bill_discount_excluded NULL
 //     (no backfill), and INSERTs that omit the column also store NULL
@@ -28,6 +30,21 @@ import (
 // DB スタックが必要（-short / DB 不在では既存の skipShortDatabase 慣習で skip）。
 func TestBillDiscountExcluded007StorageInvariants(t *testing.T) {
 	db := SetupIsolated001TestDB(t)
+
+	// Apply the intermediate migrations between 001 and 007 in the same
+	// order as `make migrate`. 004 adds the version columns and
+	// *_storage_version triggers on consultations/procedures/vaccines that
+	// the version assertions below rely on.
+	for _, name := range []string{
+		"003_trimming_course_image_uploads.sql",
+		"004_master_insurance_versions.sql",
+		"005_manual_article_operation_targets.sql",
+		"006_operation_anchor_and_lab_mapping_versions.sql",
+	} {
+		ddl, err := os.ReadFile(migrationSQLPath(t, name))
+		require.NoErrorf(t, err, "read %s", name)
+		require.NoErrorf(t, db.Exec(string(ddl)).Error, "apply %s", name)
+	}
 
 	var companyID, clinicID int64
 	require.NoError(t, db.Raw(`INSERT INTO companies (name) VALUES ('b007-flag') RETURNING id`).Scan(&companyID).Error)
@@ -60,7 +77,7 @@ func TestBillDiscountExcluded007StorageInvariants(t *testing.T) {
 		preIDs[table] = insertRow(table)
 	}
 
-	ddl, err := os.ReadFile(migration007SQLPath(t))
+	ddl, err := os.ReadFile(migrationSQLPath(t, "007_bill_discount_excluded_and_master_versions.sql"))
 	require.NoError(t, err, "read 007 migration")
 	require.NoError(t, db.Exec(string(ddl)).Error, "apply 007 migration")
 
@@ -150,11 +167,11 @@ func TestBillDiscountExcluded007StorageInvariants(t *testing.T) {
 	})
 }
 
-// migration007SQLPath resolves backend/migrations/007_*.sql from this
-// package directory (same runtime.Caller convention as isolated_001.go).
-func migration007SQLPath(t *testing.T) string {
+// migrationSQLPath resolves backend/migrations/<name> from this package
+// directory (same runtime.Caller convention as isolated_001.go).
+func migrationSQLPath(t *testing.T, name string) string {
 	t.Helper()
 	_, thisFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "runtime.Caller failed resolving testdb source path")
-	return filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations", "007_bill_discount_excluded_and_master_versions.sql")
+	return filepath.Join(filepath.Dir(thisFile), "..", "..", "migrations", name)
 }
