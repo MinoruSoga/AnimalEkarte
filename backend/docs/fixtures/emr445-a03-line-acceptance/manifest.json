@@ -194,6 +194,28 @@
    "verification": "NOT_RUN"
   },
   {
+   "file": "presentation-email-valid.request.json",
+   "operationId": "patchLineReservationPresentation",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineReservationPresentationPatchRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "非空の有効 email への更新",
+   "semantic_expectation": "204。notification_email は email 形式かつ 254 以下",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "presentation-email-invalid.request.json",
+   "operationId": "patchLineReservationPresentation",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/LineReservationPresentationPatchRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "notification_email が email 形式でない",
+   "semantic_expectation": "400（既存 binding omitempty,email,max=254 と一致）",
+   "verification": "NOT_RUN"
+  },
+  {
    "file": "registration-fields.request.json",
    "operationId": "patchLineReservationRegistrationFields",
    "body_kind": "request",
@@ -213,6 +235,17 @@
    "expected_schema": "valid",
    "scenario": "acceptance 活性化医院で旧全量 PUT",
    "semantic_expectation": "409・zero-write（P 同値でも停止）。未切替医院は従来どおり",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "legacy-put-upgrade-required-extra.response.json",
+   "operationId": "saveLineReservationSetting",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineTimeContractUpgradeRequired",
+   "http_status": 409,
+   "expected_schema": "invalid",
+   "scenario": "upgrade 409 に余分な property",
+   "semantic_expectation": "closed DTO（additionalProperties: false）のため schema 違反",
    "verification": "NOT_RUN"
   },
   {

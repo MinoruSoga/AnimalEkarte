@@ -16058,6 +16058,7 @@ components:
               enum: [result-unavailable]
     LineTimeContractUpgradeRequired:
       type: object
+      additionalProperties: false
       required: [error, code]
       description: >-
         EMR-445 A02/A03 選定契約 §2.4/§3.3 の旧 writer 停止（HTTP 409、zero-write）。新しい C06 status ではなく既存 ErrorResponse 系の code。
@@ -16575,9 +16576,14 @@ components:
           type: string
           maxLength: 32
         notification_email:
-          type: string
-          maxLength: 254
-          description: 空文字可。非空は email 形式（既存 binding omitempty,email）。
+          oneOf:
+            - type: string
+              enum: ['']
+            - type: string
+              format: email
+              minLength: 1
+              maxLength: 254
+          description: 空文字可。非空は email 形式かつ最大254（既存 binding omitempty,email,max=254）。
         request_example:
           type: string
           maxLength: 2000
