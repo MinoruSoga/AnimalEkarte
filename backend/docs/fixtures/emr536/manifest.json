@@ -1,0 +1,219 @@
+{
+ "contract": "EMR-536 PATCH /masters/medicines/{id} clear_strength 機械契約と薬剤税率 exact 往復（POSTMERGE-AC-FIX-20261022-C-MEDICINE-EXACT-CLEAR）",
+ "publication_base": "e34cfde98df43d33cdb26ee29485655049949b46",
+ "api_file": "../../api.yaml",
+ "verification": "NOT_RUN",
+ "schema_validation": "NOT_RUN",
+ "runtime_status": "EXISTING_BEHAVIOR_NOT_RE-EXECUTED",
+ "fixtures": [
+  {
+   "file": "get-tax-rate-long.response.json",
+   "operationId": "getMedicine",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/Medicine",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "保存済み tax_rate 長桁（BE 許容値）",
+   "semantic_expectation": "GET は保存値の十進文字列を返す。FE はこの文字列を number 化して再送しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-tax-rate-small.response.json",
+   "operationId": "getMedicine",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/Medicine",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "保存済み tax_rate 1e-7 相当",
+   "semantic_expectation": "FE が指数表記へ変換して保存不能にならない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-name-only.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "名称のみ更新（FE は未編集の tax_rate を送らない）",
+   "semantic_expectation": "tax_rate は省略=保持で exact 値不変。再GETで \"0.1234567890123456789\" / \"0.0000001\" のまま",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-only.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "備考のみ更新",
+   "semantic_expectation": "tax_rate 省略=保持で exact 値不変",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-tax-rate-explicit-008.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "税率を明示選択 0.08",
+   "semantic_expectation": "\"0.08\" を保存",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-tax-rate-explicit-0.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "税率を明示 0",
+   "semantic_expectation": "0 を保存し既定 0.10 へ潰さない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-tax-rate-number.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "tax_rate に JSON number（旧 float wire）",
+   "semantic_expectation": "400、業務 write 0（EMR-447 既決の維持）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-omitted.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "clear_strength・strength とも省略",
+   "semantic_expectation": "含量を保持",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-false.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "clear_strength false",
+   "semantic_expectation": "クリアしない（含量を保持）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-null.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "clear_strength null＋strength null（Go bool の null 受理）",
+   "semantic_expectation": "クリアしない（含量を保持）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-strength-set.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "有効 strength＋clear false",
+   "semantic_expectation": "含量を \"12.5\" に設定",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-true-none.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "明示消去＋none（FE の正規形: strength を同時送信しない）",
+   "semantic_expectation": "strength を SQL NULL へ更新し、再GETで strength キー省略・フォーム未設定",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-true-per-weight.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "clear true で実効 calculation_type が per_weight の既存薬剤",
+   "semantic_expectation": "既存の投与量設定検証で 400、変更なし",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-strength-and-clear-true.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "直接 API の有効 strength＋clear true（FE は送らない競合）",
+   "semantic_expectation": "現実装は clear 優先: none なら NULL、per_weight なら 400。schema では排他 400 を新設しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-string.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "clear_strength に文字列",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-number.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "clear_strength に数値",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-object.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "clear_strength に object",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-clear-strength-array.request.json",
+   "operationId": "updateMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateMedicineRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "clear_strength に array",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-no-clear-strength.response.json",
+   "operationId": "getMedicine",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/Medicine",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "対照: GET 応答に clear_strength キーを追加しない",
+   "semantic_expectation": "共用 Medicine に clear_strength property なし",
+   "verification": "NOT_RUN"
+  }
+ ]
+}

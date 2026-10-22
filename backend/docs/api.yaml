@@ -5344,6 +5344,88 @@ components:
             FE が応答を表示・計算用の number へ変換するのは numeric(10,4) の範囲で可逆な読取りに限る。
             POST/PATCH の省略/null は値なし（PATCH は保持）で、
             NULL へのクリアは既存の clear_strength を使う。応答は保存値の十進文字列で、NULL のときは省略する。
+    UpdateMedicineRequest:
+      type: object
+      description: >-
+        PATCH /masters/medicines/{id} の request 専用 schema（EMR-536）。共用 Medicine は GET/POST/応答に残し、
+        PATCH 専用の clear_strength をそこへ追加しない。clear_strength 以外の property は Medicine の既存契約（型・enum・pattern・nullable・required）をそのまま写す。
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+        description:
+          type: string
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 親薬剤ID（カテゴリ medicine を参照）。NULL = カテゴリなし or カテゴリ自身
+        dosage_form:
+          type: string
+          enum: [tablet, liquid, injection, topical, powder]
+          nullable: true
+        medicine_unit:
+          type: string
+          enum: [per_tablet, per_ml, per_dose, per_gram]
+          nullable: true
+        inventory_id:
+          type: integer
+          format: int64
+          nullable: true
+        default_quantity:
+          type: string
+          nullable: true
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "1.5"
+          description: >-
+            既定数量の有限な非負 exact decimal 文字列（EMR-447、保存は numeric(10,2)）。符号・指数表記・NaN/Infinity は 400。
+            JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない（BE と専有 FE は EMR-447 で同時に切り替える）。
+            小数第3位以下を持つ値や整数部8桁超など保存尺度で表せない値は丸めずに 400。明示 "0" は 0 として保存する。
+            POST の省略/null は DB 既定 1、PATCH の省略/null は既存値を保持する（NULL へ戻す操作は提供しない）。既存の SQL NULL は 1/0 へ補完せず、
+            応答は保存値の十進文字列（SQL NULL は null、key は常に返す）で、表記ではなく数値として比較する（SPEC-QA-20261022-447-EXACT Q1）。
+        sort_order:
+          type: integer
+        tax_type:
+          type: string
+          enum: *id001
+        tax_rate:
+          type: string
+          nullable: true
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "0.10"
+          description: >-
+            税率の比率を表す有限な非負 exact decimal 文字列（EMR-447、採択405/483）。10% は "0.10"（数値として0.1）で、百分率10へ変換しない。
+            符号・指数表記・NaN/Infinity は 400。JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない。
+            入力範囲 0..1、明示 "0" は 0 として保存し既定値へ潰さない。POST の省略/null は既存既定 0.10、PATCH の省略/null は既存値を保持する。
+            応答は保存値の十進文字列で null を返さず、表記ではなく数値として比較する（null は入力の省略扱いとしてだけ受け付ける）。
+        strength:
+          type: string
+          nullable: true
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "12.5"
+          description: >-
+            製品含量（mg/単位、分母は medicine_unit）の有限な正の exact decimal 文字列（EMR-447、保存は numeric(10,4)）。
+            JSON number・符号・指数表記・先頭0（"05"）・整数部の省略（".5"）・0・整数部6桁超、および末尾0を除いて小数5桁以上となる値（"12.34567"）は 400（丸めない）。
+            末尾0だけが異なる同じ十進値（"1.23000"）は受理する。送信値は BE・FE とも Number への変換や自動丸めで正規化しない（SPEC-QA-20261022-447-EXACT Q2）。
+            FE が応答を表示・計算用の number へ変換するのは numeric(10,4) の範囲で可逆な読取りに限る。
+            POST/PATCH の省略/null は値なし（PATCH は保持）で、
+            NULL へのクリアは既存の clear_strength を使う。応答は保存値の十進文字列で、NULL のときは省略する。
+        clear_strength:
+          type: boolean
+          nullable: true
+          description: >-
+            PATCH 専用の strength クリア指示（EMR-447 Q4 採択・EMR-536 で機械契約へ結線）。true は strength を SQL NULL へ更新し、
+            false・省略・null はクリアしない（strength の省略/null は保持、有効値は設定のまま）。GET/POST には存在しない。
+            true は同時に送られた strength より優先してクリアする（現実装。strength との同時送信を schema では拒否しない）。
+            クリア後の実効 calculation_type が per_weight なら既存の投与量設定検証で 400 とし変更しない。
+            真偽値以外（文字列・数値・object・array）は request 解析で 400。
     Vaccine:
       type: object
       required: [name, version]
@@ -6037,6 +6119,49 @@ components:
           type: string
           format: date-time
           readOnly: true
+        tax_type:
+          type: string
+          enum: *id001
+        tax_rate:
+          type: number
+          format: double
+    UpdateHospitalizationPlanRequest:
+      type: object
+      description: >-
+        PATCH /masters/hospitalization-plans/{id} の request 専用 schema（EMR-533）。共用 HospitalizationPlan は GET/POST/応答に残し、
+        応答と POST の description を nullable へ緩和しない。description 以外の property は HospitalizationPlan の既存契約（型・enum・nullable・required）をそのまま写す。
+      required: [name]
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+          format: double
+          nullable: true
+          description: 作成時に明示した 0 は 0 円として保存する（未入力の代用にしない）。EMR-528。
+        is_active:
+          type: boolean
+          default: true
+        description:
+          type: string
+          nullable: true
+          description: >-
+            PATCH の省略または null は既存値を保持し、"" は空へ変更して保存する（空文字を SQL NULL へ変換しない）。通常の文字列は設定する。
+            文字列・null 以外（数値・真偽値・object・array）は request 解析で 400。EMR-528 の既決意味を EMR-533 で機械契約へ同期する。
+        body_size:
+          type: string
+          enum: [small, medium, large]
+          nullable: true
+          description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
+        billing_unit:
+          type: string
+          enum:
+            - per_day
+            - per_night
+          nullable: true
+          description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
+        sort_order:
+          type: integer
         tax_type:
           type: string
           enum: *id001
@@ -22387,7 +22512,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Medicine'
+              $ref: '#/components/schemas/UpdateMedicineRequest'
       responses:
         '200':
           description: 更新成功
@@ -23988,7 +24113,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/HospitalizationPlan'
+              $ref: '#/components/schemas/UpdateHospitalizationPlanRequest'
       responses:
         '200':
           description: 更新成功
