@@ -78,6 +78,9 @@ func TestParseMerchandiseTaxRate_Contract(t *testing.T) {
 	got, err := parseMerchandiseTaxRate(atScaleLimit)
 	require.NoError(t, err)
 	assert.Equal(t, int32(-16383), got.Exp)
+	// 巨大な整数部は big.Int 構築前に拒否する（範囲 0..1 の防御）。
+	_, err = parseMerchandiseTaxRate("9" + strings.Repeat("9", 4096) + ".5")
+	assert.Error(t, err)
 }
 
 func TestCreateMerchandiseItemRequest_TaxRateContract(t *testing.T) {

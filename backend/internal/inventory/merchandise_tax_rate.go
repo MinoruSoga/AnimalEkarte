@@ -81,6 +81,11 @@ func parseMerchandiseTaxRate(text string) (model.ExactNumeric, error) {
 	if len(fracPart) > maxTaxRateScale {
 		return model.ExactNumeric{}, apperrors.WrapInvalidInput(merchandiseTaxRateErrMsgScale)
 	}
+	// 契約範囲 0..1 の整数部は "0" か "1" のみ。それより長い整数部は範囲外として
+	// 先に拒否し、巨大字句の big.Int 構築（CPU/メモリ増幅）を防ぐ。
+	if len(intPart) > 2 {
+		return model.ExactNumeric{}, apperrors.WrapInvalidInput(merchandiseTaxRateErrMsgRange)
+	}
 	digits := intPart + fracPart
 	intValue, ok := new(big.Int).SetString(digits, 10)
 	if !ok {
