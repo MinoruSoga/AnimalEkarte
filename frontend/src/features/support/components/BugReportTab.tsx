@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { FormFieldError } from "@/components/shared/FormFieldError";
 import { RequiredMark } from "@/components/shared/RequiredMark";
 import { C, STYLE } from "@/lib/design-tokens";
 
@@ -33,8 +34,10 @@ interface BugReportTabProps {
 export function BugReportTab({ onClose }: BugReportTabProps) {
   const location = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const [title, setTitle] = useState("");
+  const [titleError, setTitleError] = useState(false);
   const [detail, setDetail] = useState("");
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
@@ -100,11 +103,16 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
     [applyScreenshot],
   );
 
-  // 件名は native `required` で未入力送信を止める（保存ボタンを未入力理由で disabled に
-  // しない: design-patterns §4.2 / compliance C29）。
+  // 保存ボタンを未入力理由で disabled にしない（design-patterns §4.2 / compliance C29）。
+  // 未入力は native `required`、空白のみは native が通すため action 側で欄直下にエラーを出し
+  // 先頭エラー欄へフォーカスする（押下→エラー表示→フォーカスの標準フロー）。
   const [, formAction, isPending] = useActionState<null>(async () => {
     const trimmedTitle = title.trim();
-    if (trimmedTitle.length === 0) return null;
+    if (trimmedTitle.length === 0) {
+      setTitleError(true);
+      titleInputRef.current?.focus();
+      return null;
+    }
     try {
       await createReport.mutateAsync({
         title: trimmedTitle,
@@ -149,15 +157,25 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
           <RequiredMark />
         </label>
         <input
+          ref={titleInputRef}
           id="bug-report-title"
           name="title"
           type="text"
           required
           maxLength={200}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            if (e.target.value.trim() !== "") setTitleError(false);
+          }}
           placeholder="例: 会計画面でボタンが押せない"
-          className={STYLE.formInput}
+          aria-invalid={titleError || undefined}
+          aria-describedby={titleError ? "bug-report-title-error" : undefined}
+          className={titleError ? STYLE.formInputError : STYLE.formInput}
+        />
+        <FormFieldError
+          id="bug-report-title-error"
+          message={titleError ? "件名を入力してください（空白のみは不可）" : undefined}
         />
       </div>
 

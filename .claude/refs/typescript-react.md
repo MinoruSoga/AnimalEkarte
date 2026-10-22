@@ -89,7 +89,7 @@ const handleSubmit = async (e) => {
 
 ### 4. Design Tokens
 
-Always use constants from `src/lib/design-tokens.ts` for styling.
+Use constants from `src/lib/design-tokens.ts` for tokenized design values (colors, elevation, repeated style patterns such as `STYLE.*`). Static Tailwind layout and spacing utilities on the documented scale (`p-4`, `flex`, `gap-2`) may be combined with them; raw hex colors, arbitrary values and the `style` attribute for colors are prohibited.
 
 ```typescript
 import { C, STYLE } from '@/lib/design-tokens';

@@ -1258,10 +1258,10 @@ features/xxx/types/index.ts     ← フォームデータ型（UI専用）
 
 ---
 
-#### APIリクエスト型の導出パターン
+#### APIリクエスト型の導出パターン（凍結済み既存ファイルの説明・新規採用禁止）
 
-`interface` を手書きせず、`models.ts` の型から `Omit`/`Partial`/`Required` で導出する。
-参照実装: `src/types/pet.ts`, `src/features/trimming/api/types.ts`
+以下は allowlist に凍結された既存ファイルが `models.ts` から `Omit`/`Partial`/`Required` で型を導出していた経緯の説明である。**新規ファイルでこのパターンを使ってはならない**（`@/types/generated/models` の新規 import は ESLint で失敗する）。新規の応答型は domain 別 `src/types/generated/*-responses`、リクエスト型は専用 DTO を手書きする。
+既存の参照: `src/types/pet.ts`, `src/features/trimming/api/types.ts`
 
 ```typescript
 // features/xxx/api/types.ts
@@ -2083,10 +2083,11 @@ const filteredPets = useMemo(() => {
 const isFiltering = searchTerm !== deferredSearchTerm;
 // <div className={isFiltering ? "opacity-60" : ""}>
 
-// ✅ API ミューテーションに useTransition
-const [isSavePending, startSaveTransition] = useTransition();
-startSaveTransition(async () => {
-  await saveData();
+// ✅ フォーム外の非同期（一覧再取得・ナビゲーション・複写処理）に useTransition
+//    フォーム送信は useActionState、mutation 単体の進行表示は useMutation の isPending（§2.2）
+const [isRefreshing, startRefreshTransition] = useTransition();
+startRefreshTransition(async () => {
+  await refetchList();
 });
 ```
 

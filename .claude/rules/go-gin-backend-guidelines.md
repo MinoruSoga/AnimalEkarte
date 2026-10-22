@@ -95,7 +95,7 @@ Go/Gin は次を規定しない。
 
 ## 4. `context.Context`
 
-- request-scoped のキャンセル、deadline、trace を使う関数は `context.Context` を第1引数として明示的に受け取る。
+- request-scoped のキャンセル、deadline、trace を使う関数は `context.Context` を第1引数として明示的に受け取る。project decision として、`*gin.Context` と request Context を両方取る handler 補助関数だけは `c` を先に置く（`.golangci.yml` で revive `context-as-argument` を無効化している根拠。`.claude/refs/go-language.md` と同じ例外）。
 - Context を struct の field に保存しない。request ごとに引数で渡す。
 - Gin の入口から DB・外部 API へは `c.Request.Context()` を伝播する。
 - `context.WithCancel`、`WithTimeout`、`WithDeadline` が返す cancel 関数は必ず呼ぶ。
