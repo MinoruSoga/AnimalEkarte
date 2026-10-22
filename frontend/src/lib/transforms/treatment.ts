@@ -1,13 +1,16 @@
 import type {
   AnesthesiaType,
-  Consultation,
   ExaminationType,
-  Procedure,
   Vaccine,
   CheckupType,
   TaxType,
 } from "@/types/generated/models";
-import type { ItemInsuranceSetting } from "@/types/treatment";
+import type {
+  ItemInsuranceSetting,
+  LegacyConsultationResponse,
+  LegacyExactNumericJson,
+  LegacyProcedureResponse,
+} from "@/types/treatment";
 
 // ─────────────────────────────────────────────────
 // 品目別保険設定（EMR-454）
@@ -21,25 +24,22 @@ export const toItemInsuranceSetting = (value: boolean | null | undefined): ItemI
   typeof value === "boolean" ? value : null;
 
 /**
- * generated `Consultation` / `Procedure` は is_non_insurance 未反映のため、
- * 応答の受け口だけローカルに拡張する。READ の sort_order / anesthesia も nullable。
+ * 診察・処置の応答は保存 model ではなく HTTP DTO（@/types/treatment・EMR-527）で受ける。
+ * READ の sort_order / anesthesia / is_non_insurance は nullable。
  * 下の変換後 sortOrder / anesthesia は表示用の既定値であり、wire の NULL を変更しない。
  */
-export type ConsultationWire = Omit<Consultation, "is_non_insurance" | "sort_order"> & {
-  sort_order: number | null;
-  is_non_insurance?: ItemInsuranceSetting;
-  version?: number | null;
-};
-export type ProcedureWire = Omit<Procedure, "is_non_insurance" | "sort_order" | "anesthesia"> & {
-  sort_order: number | null;
-  anesthesia: Procedure["anesthesia"] | null;
-  is_non_insurance?: ItemInsuranceSetting;
-  version?: number | null;
-};
+export type ConsultationWire = LegacyConsultationResponse;
+export type ProcedureWire = LegacyProcedureResponse;
 export type VaccineWire = Omit<Vaccine, "is_non_insurance"> & {
   is_non_insurance?: ItemInsuranceSetting;
   version?: number | null;
 };
+
+/**
+ * tax_rate は model.ExactNumeric の JSON 表現（null / "NaN" / number）で届く。
+ * null・欠落は従来どおり 0.1、"NaN" は文字列のまま通さず数値 NaN にする（0.1 へ黙って補完しない）。
+ */
+const toTaxRate = (value: LegacyExactNumericJson | undefined): number => Number(value ?? 0.1);
 
 // ─────────────────────────────────────────────────
 // Consultation
@@ -56,7 +56,7 @@ export const transformConsultation = (data: ConsultationWire) => ({
   timeCondition: data.time_condition ?? "",
   duration: data.duration,
   taxType: (data.tax_type ?? "excluded") as TaxType,
-  taxRate: data.tax_rate ?? 0.1,
+  taxRate: toTaxRate(data.tax_rate),
   isNonInsurance: toItemInsuranceSetting(data.is_non_insurance),
   version: typeof data.version === "number" ? data.version : null,
   createdAt: data.created_at ?? "",
@@ -97,7 +97,7 @@ export const transformProcedure = (data: ProcedureWire) => ({
   anesthesia: data.anesthesia ?? "none",
   duration: data.duration,
   taxType: (data.tax_type ?? "excluded") as TaxType,
-  taxRate: data.tax_rate ?? 0.1,
+  taxRate: toTaxRate(data.tax_rate),
   isNonInsurance: toItemInsuranceSetting(data.is_non_insurance),
   version: typeof data.version === "number" ? data.version : null,
   createdAt: data.created_at ?? "",

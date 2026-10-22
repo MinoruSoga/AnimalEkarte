@@ -1,8 +1,11 @@
-import type { Examination, ExamResult as BackendExamResult } from "@/types/generated/models";
+import type {
+  LegacyExaminationResponse,
+  LegacyExamResultResponse,
+} from "@/types/examination-legacy-wire";
 
-type ExamResultResponse = BackendExamResult & {
-  is_assessed?: boolean;
-};
+// EMR-527: 移行 HTTP DTO（@/types/examination-legacy-wire）が参照する enum union。
+// 新規ファイルは生成 models を import できないため、凍結済みの本ファイルから type-only で渡す。
+export type { ExaminationResultStatus, ExaminationStatus } from "@/types/generated/models";
 
 export const EXAM_STATUS_EN_TO_JA: Record<
   string,
@@ -15,7 +18,7 @@ export const EXAM_STATUS_EN_TO_JA: Record<
   confirmed: "確定",
 };
 
-export function transformExamResult(item: ExamResultResponse) {
+export function transformExamResult(item: LegacyExamResultResponse) {
   return {
     id: String(item.id ?? 0),
     examTypeFieldId: item.exam_type_field_id ?? undefined,
@@ -35,7 +38,7 @@ export function transformExamResult(item: ExamResultResponse) {
   };
 }
 
-export function transformExamination(data: Examination) {
+export function transformExamination(data: LegacyExaminationResponse) {
   return {
     id: String(data.id ?? 0),
     date: data.date ? data.date.split("T")[0] : "",

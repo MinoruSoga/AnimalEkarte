@@ -4,7 +4,7 @@ import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformExamination, type ExaminationRecord } from "@/lib/transforms/examination";
-import type { Examination } from "@/types/generated/models";
+import type { LegacyExaminationResponse } from "@/types/examination-legacy-wire";
 
 // #158 §計画補足: 履歴表示は下書き（依頼中/検査中）を除外する。
 // 既存 transformExamination は status を日本語ラベルに変換するため、そのラベルで除外する。
@@ -29,8 +29,14 @@ interface PetExaminationsPage {
   total?: number;
 }
 
+/** GET /v1/examinations の一覧エンベロープ（include_items=true）。 */
+interface PetExaminationsListResponse {
+  data: LegacyExaminationResponse[];
+  total?: number;
+}
+
 const getPetExaminations = async (petId: string, page: number): Promise<PetExaminationsPage> => {
-  const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
+  const { data } = await axios.get<PetExaminationsListResponse>("/v1/examinations", {
     params: { pet_id: petId, page, limit: HISTORY_FETCH_LIMIT, include_items: true },
   });
   const rawRows = data.data ?? [];

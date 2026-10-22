@@ -4,7 +4,10 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { transformReservation } from "@/lib/transforms/reservation";
 import type { ReservationRoute } from "@/lib/transforms/reservation";
-import type { Reservation as BackendReservation } from "@/types/generated/models";
+import type { LegacyReservationResponse } from "@/types/reservation-legacy-wire";
+
+// EMR-527: 応答は保存 model ではなく handler の JSON（reservationResponse）を写した移行 DTO。
+type BackendReservation = LegacyReservationResponse;
 
 interface UpdateReservationRouteBody {
   route: ReservationRoute | "";

@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { formatJSTDate, toJSTWallDate } from "@/lib/jst-date";
 import { EMPTY_VALUE } from "@/constants/empty-value";
-import type { Vaccination } from "@/types/generated/models";
+import type { LegacyVaccinationResponse } from "@/types/vaccination-legacy-wire";
 
 /**
  * SD-19: 治療履歴（get-pet-treatment-history.ts）と同様、絶対時刻を JST 壁日付に
@@ -32,7 +32,7 @@ function toNextDateISO(iso?: string | null): string {
 }
 
 // 履歴 UI 向け transform。`medical-records/api/transforms.ts` の同名関数とは別物。
-function transformToHistoryItem(v: Vaccination) {
+function transformToHistoryItem(v: LegacyVaccinationResponse) {
   return {
     id: v.id,
     name: v.vaccine?.name ?? `ワクチン(ID:${v.vaccine_id})`,
@@ -55,7 +55,7 @@ export type PetVaccinationHistoryItem = ReturnType<typeof transformToHistoryItem
 const getPetVaccinations = async (petId: string): Promise<PetVaccinationHistoryItem[]> => {
   // BUG-007: always pass page/limit + pet_id. Default BE limit=20 page-window
   // hid newer rows behind future-dated seed data when clients omitted limit.
-  const { data } = await axios.get<{ data: Vaccination[] }>("/v1/vaccinations", {
+  const { data } = await axios.get<{ data: LegacyVaccinationResponse[] }>("/v1/vaccinations", {
     params: { pet_id: petId, page: 1, limit: HISTORY_FETCH_LIMIT },
   });
   return (data.data ?? []).map(transformToHistoryItem);

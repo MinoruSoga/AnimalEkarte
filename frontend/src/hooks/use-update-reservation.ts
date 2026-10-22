@@ -2,8 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import { transformReservationWithIntent, type Reservation } from "./reservation-intent-response";
-import type { Reservation as BackendReservation } from "@/types/generated/models";
+import {
+  transformReservationWithIntent,
+  type Reservation,
+  type ReservationApiResponse,
+} from "./reservation-intent-response";
 
 /**
  * 予約更新リクエスト
@@ -28,7 +31,7 @@ const updateReservation = async (
   id: string,
   req: UpdateReservationRequest,
 ): Promise<Reservation> => {
-  const { data } = await axios.patch<BackendReservation>(`/v1/reservations/${id}`, req);
+  const { data } = await axios.patch<ReservationApiResponse>(`/v1/reservations/${id}`, req);
   return transformReservationWithIntent(data);
 };
 

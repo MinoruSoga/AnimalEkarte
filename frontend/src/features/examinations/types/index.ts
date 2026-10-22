@@ -1,14 +1,16 @@
 /**
  * Backend API response types
- * Source: frontend/src/types/generated/models.ts (tygo generated)
+ * Source: @/types/examination-legacy-wire（現行 handler の JSON を写す移行 HTTP DTO。EMR-527）
  */
-import type { Examination, ExamResult } from "@/types/generated/models";
+import type {
+  LegacyExaminationResponse,
+  LegacyExamItemsResponse,
+  LegacyExamResultResponse,
+} from "@/types/examination-legacy-wire";
 import type { UpdateExaminationRequest as SharedUpdateExaminationRequest } from "@/hooks/use-update-examination";
 
-export type BackendExamResult = ExamResult & {
-  is_assessed: boolean;
-};
-export type BackendExamination = Examination;
+export type BackendExamResult = LegacyExamResultResponse;
+export type BackendExamination = LegacyExaminationResponse;
 
 export interface CreateExaminationRequest {
   medical_record_id?: number | null;
@@ -50,6 +52,4 @@ export interface ReplaceExamItemsRequest {
 }
 
 /** GET / PUT /api/v1/examinations/:id/items のレスポンスエンベロープ */
-export interface ExamItemsResponse {
-  items: BackendExamResult[];
-}
+export type ExamItemsResponse = LegacyExamItemsResponse;
