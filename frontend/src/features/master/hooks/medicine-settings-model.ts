@@ -2,7 +2,11 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 
-import { getMedicineStrengthError, type MedicineFormData } from "../lib/medicine-side-panel-model";
+import {
+  getMedicineStrengthError,
+  medicineToFormData,
+  type MedicineFormData,
+} from "../lib/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { numberToExactDecimal } from "@/lib/exact-decimal";
 import { parseOptionalNumber } from "@/lib/parse-optional-number";
@@ -181,6 +185,17 @@ function isExplicitStrengthClear(data: MedicineFormData, selectedMedicine: Medic
   );
 }
 
+/**
+ * EMR-536: PATCH の tax_rate 省略は BE の「保持」を意味する。フォームの税率が編集開始時の値
+ * （selectedMedicine 由来の初期フォーム値）と同じなら未変更とみなし tax_rate を送らない。
+ * 明示変更後に元の値へ戻した場合も同値なので未変更扱い。selectedMedicine が無い等で
+ * 初期値を判定できない場合は false を返し、従来どおり送信する。
+ */
+function isTaxRateUnchanged(data: MedicineFormData, selectedMedicine: Medicine | null) {
+  if (selectedMedicine === null) return false;
+  return data.taxRate === medicineToFormData(selectedMedicine).taxRate;
+}
+
 export function buildMedicineCreateRequest(
   data: MedicineFormData,
   isCategory: boolean,
@@ -225,7 +240,11 @@ export function buildMedicineUpdateRequest({
     description: data.description,
     is_active: data.isActive,
     tax_type: data.taxType,
-    tax_rate: numberToExactDecimal(data.taxRate, "tax_rate"),
+    // EMR-536: 未変更なら tax_rate を省略して BE 保持に任せる。保存済みの高桁値を
+    // number 化して丸めて再送したり、1e-7 で numberToExactDecimal が例外にしたりしない。
+    ...(isTaxRateUnchanged(data, selectedMedicine)
+      ? {}
+      : { tax_rate: numberToExactDecimal(data.taxRate, "tax_rate") }),
     is_non_insurance: data.isNonInsurance,
     ...buildCalculationFields(data),
     ...(isExplicitStrengthClear(data, selectedMedicine) ? { clear_strength: true } : {}),

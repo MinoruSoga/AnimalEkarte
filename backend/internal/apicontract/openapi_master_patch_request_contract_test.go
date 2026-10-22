@@ -11,18 +11,22 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// masterPatchOperation は operation だけを decode する。path item には配列の path-level
+// parameters もあるため、Paths は yaml.Node で受けて必要な method だけをこの型へ decode する。
+type masterPatchOperation struct {
+	OperationID string `yaml:"operationId"`
+	RequestBody struct {
+		Content map[string]struct {
+			Schema struct {
+				Ref string `yaml:"$ref"`
+			} `yaml:"schema"`
+		} `yaml:"content"`
+	} `yaml:"requestBody"`
+	Responses map[string]any `yaml:"responses"`
+}
+
 type masterPatchContractSpec struct {
-	Paths map[string]map[string]struct {
-		OperationID string `yaml:"operationId"`
-		RequestBody struct {
-			Content map[string]struct {
-				Schema struct {
-					Ref string `yaml:"$ref"`
-				} `yaml:"schema"`
-			} `yaml:"content"`
-		} `yaml:"requestBody"`
-		Responses map[string]any `yaml:"responses"`
-	} `yaml:"paths"`
+	Paths      map[string]map[string]yaml.Node `yaml:"paths"`
 	Components struct {
 		Schemas map[string]struct {
 			Required   []string                  `yaml:"required"`
@@ -40,11 +44,18 @@ func loadMasterPatchContractSpec(t *testing.T) masterPatchContractSpec {
 	return spec
 }
 
+func masterPatchOperationOf(t *testing.T, spec masterPatchContractSpec, path, method string) masterPatchOperation {
+	t.Helper()
+	node, ok := spec.Paths[path][method]
+	require.True(t, ok, "%s %s must exist", method, path)
+	var op masterPatchOperation
+	require.NoError(t, node.Decode(&op))
+	return op
+}
+
 func requestSchemaRef(t *testing.T, spec masterPatchContractSpec, path, method string) string {
 	t.Helper()
-	op, ok := spec.Paths[path][method]
-	require.True(t, ok, "%s %s must exist", method, path)
-	return op.RequestBody.Content["application/json"].Schema.Ref
+	return masterPatchOperationOf(t, spec, path, method).RequestBody.Content["application/json"].Schema.Ref
 }
 
 // TestOpenAPIMasterPatchRequestContract は EMR-533 / EMR-536 の PATCH 専用 request schema を固定する。

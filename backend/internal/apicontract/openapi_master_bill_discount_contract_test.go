@@ -60,7 +60,7 @@ func TestOpenAPIMasterBillDiscountExcludedContract(t *testing.T) {
 			require.True(t, ok, "%s must accept the expected version", tc.update)
 			assert.Equal(t, "integer", patchVersion["type"])
 			assert.NotContains(t, schemas[tc.update].Required, "version", "legacy PATCH without version stays compatible")
-			assert.Contains(t, spec.Paths[tc.path+"/{id}"]["patch"].Responses, "409")
+			assert.Contains(t, masterPatchOperationOf(t, spec, tc.path+"/{id}", "patch").Responses, "409")
 		})
 	}
 

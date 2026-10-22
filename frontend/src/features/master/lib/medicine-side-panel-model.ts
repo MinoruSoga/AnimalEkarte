@@ -111,7 +111,8 @@ export function medicineToFormData(
     description: medicine.description,
     isActive: medicine.isActive,
     taxType: medicine.taxType ?? "excluded",
-    taxRate: medicine.taxRate ?? 0.1,
+    // EMR-536: transform が欠落・形式違反を例外にするため欠落を 0.1 で補修しない（0 は潰れない）。
+    taxRate: medicine.taxRate,
     isNonInsurance: medicine.isNonInsurance ?? false,
     calculationType: medicine.calculationType ?? MedicineCalculationTypeNone,
     strength: medicine.strength !== undefined ? String(medicine.strength) : "",
