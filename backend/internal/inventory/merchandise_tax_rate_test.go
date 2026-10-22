@@ -139,7 +139,31 @@ func TestValidateMerchandiseTaxRate_ExactBoundaries(t *testing.T) {
 // --- 応答fixture: 保存値の十進文字列 ---
 
 func TestMerchandiseTaxRateString_Response(t *testing.T) {
-	assert.Equal(t, "0.10", merchandiseTaxRateString(testTaxRateOf(10, -2)))
-	assert.Equal(t, "0", merchandiseTaxRateString(testTaxRateOf(0, 0)))
-	assert.Equal(t, "0.08", merchandiseTaxRateString(testTaxRateOf(8, -2)))
+	text, err := merchandiseTaxRateString(testTaxRateOf(10, -2))
+	require.NoError(t, err)
+	assert.Equal(t, "0.10", text)
+	text, err = merchandiseTaxRateString(testTaxRateOf(0, 0))
+	require.NoError(t, err)
+	assert.Equal(t, "0", text)
+	text, err = merchandiseTaxRateString(testTaxRateOf(8, -2))
+	require.NoError(t, err)
+	assert.Equal(t, "0.08", text)
+}
+
+// --- 応答fixture: NULL / NaN の保存値は "0" へ補完せずエラー伝播（stage2計画 §3C「未知/NULLを0補完しない」） ---
+
+func TestMerchandiseTaxRateString_AnomalyPropagates(t *testing.T) {
+	t.Run("NULL value is an error, not fabricated zero", func(t *testing.T) {
+		_, err := merchandiseTaxRateString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Valid: false}})
+		assert.Error(t, err)
+	})
+	t.Run("NaN value is an error, not fabricated zero", func(t *testing.T) {
+		_, err := merchandiseTaxRateString(model.ExactNumeric{pgtype.Numeric{NaN: true, Valid: true}})
+		assert.Error(t, err)
+	})
+	t.Run("zero is distinct from anomaly", func(t *testing.T) {
+		text, err := merchandiseTaxRateString(testTaxRateOf(0, 0))
+		require.NoError(t, err)
+		assert.Equal(t, "0", text)
+	})
 }

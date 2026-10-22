@@ -152,7 +152,31 @@ func TestValidateCampaignDiscount_ExactBoundaries(t *testing.T) {
 // --- 応答fixture: 保存値の十進文字列（numeric(12,2) の保存表記をそのまま返す） ---
 
 func TestExactNumericString_Response(t *testing.T) {
-	assert.Equal(t, "10.50", exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(1050), Exp: -2, Valid: true}}))
-	assert.Equal(t, "0", exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Valid: true}}))
-	assert.Equal(t, "500.00", exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(50000), Exp: -2, Valid: true}}))
+	text, err := exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(1050), Exp: -2, Valid: true}})
+	require.NoError(t, err)
+	assert.Equal(t, "10.50", text)
+	text, err = exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Valid: true}})
+	require.NoError(t, err)
+	assert.Equal(t, "0", text)
+	text, err = exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(50000), Exp: -2, Valid: true}})
+	require.NoError(t, err)
+	assert.Equal(t, "500.00", text)
+}
+
+// --- 応答fixture: NULL / NaN の保存値は "0" へ補完せずエラー伝播（stage2計画 §3C「未知/NULLを0補完しない」） ---
+
+func TestExactNumericString_AnomalyPropagates(t *testing.T) {
+	t.Run("NULL value is an error, not fabricated zero", func(t *testing.T) {
+		_, err := exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Valid: false}})
+		assert.Error(t, err)
+	})
+	t.Run("NaN value is an error, not fabricated zero", func(t *testing.T) {
+		_, err := exactNumericString(model.ExactNumeric{pgtype.Numeric{NaN: true, Valid: true}})
+		assert.Error(t, err)
+	})
+	t.Run("zero is distinct from anomaly", func(t *testing.T) {
+		text, err := exactNumericString(model.ExactNumeric{pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Valid: true}})
+		require.NoError(t, err)
+		assert.Equal(t, "0", text)
+	})
 }

@@ -3,6 +3,7 @@ package billing
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -22,17 +23,21 @@ type campaignResponse struct {
 }
 
 // exactNumericString は保存値を十進文字列として応答する（EMR-530、採択483の十進輸送）。
-// float 経由の丸めを行わない。列は NOT NULL であり到達しないが、異常時は既定 0 を返す。
-func exactNumericString(v model.ExactNumeric) string {
+// float 経由の丸めを行わない。NULL・NaN・変換失敗は既知の異常として伝播し、
+// 正常な "0" を捏造して補完しない（stage2計画 §3C「未知/NULLを0補完しない」）。
+func exactNumericString(v model.ExactNumeric) (string, error) {
+	if !v.Valid || v.NaN {
+		return "", apperrors.WrapInternalServerError("campaign discount_value の保存値が不正です（NULL または NaN）")
+	}
 	value, err := v.Value()
 	if err != nil || value == nil {
-		return "0"
+		return "", apperrors.WrapInternalServerError("campaign discount_value の保存値を文字列化できません")
 	}
 	text, _ := value.(string)
-	return text
+	return text, nil
 }
 
-func toCampaignResponse(m *model.Campaign) campaignResponse {
+func toCampaignResponse(m *model.Campaign) (campaignResponse, error) {
 	cats := make([]string, 0, len(m.TargetCategories))
 	for _, tc := range m.TargetCategories {
 		cats = append(cats, string(tc.Category))
@@ -41,6 +46,10 @@ func toCampaignResponse(m *model.Campaign) campaignResponse {
 	for _, ti := range m.TargetItems {
 		ids = append(ids, ti.MerchandiseItemID)
 	}
+	discountValue, err := exactNumericString(m.DiscountValue)
+	if err != nil {
+		return campaignResponse{}, err
+	}
 	return campaignResponse{
 		ID:               m.ID,
 		ClinicID:         m.ClinicID,
@@ -48,10 +57,10 @@ func toCampaignResponse(m *model.Campaign) campaignResponse {
 		StartDate:        m.StartDate.In(time.Local).Format(time.DateOnly),
 		EndDate:          m.EndDate.In(time.Local).Format(time.DateOnly),
 		DiscountType:     string(m.DiscountType),
-		DiscountValue:    exactNumericString(m.DiscountValue),
+		DiscountValue:    discountValue,
 		IsActive:         m.IsActive,
 		SortOrder:        m.SortOrder,
 		TargetCategories: cats,
 		TargetItemIDs:    ids,
-	}
+	}, nil
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -31,7 +32,8 @@ func TestToCampaignResponse(t *testing.T) {
 			},
 		}
 
-		resp := toCampaignResponse(m)
+		resp, err := toCampaignResponse(m)
+		require.NoError(t, err)
 
 		assert.Equal(t, uint64(1), resp.ID)
 		assert.Equal(t, uint64(2), resp.ClinicID)
@@ -56,7 +58,8 @@ func TestToCampaignResponse(t *testing.T) {
 			DiscountType: model.CampaignDiscountTypeAmount,
 		}
 
-		resp := toCampaignResponse(m)
+		resp, err := toCampaignResponse(m)
+		require.NoError(t, err)
 
 		assert.Empty(t, resp.TargetCategories)
 		assert.Empty(t, resp.TargetItemIDs)
