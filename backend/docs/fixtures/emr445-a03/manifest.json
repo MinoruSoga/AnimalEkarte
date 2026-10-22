@@ -233,7 +233,7 @@
    "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
    "http_status": 200,
    "expected_schema": "valid",
-   "scenario": "11/03 を休診追加（LINE 確認済み版2）。現在は 09:00-18:00、提案は当日休診で空",
+   "scenario": "11/10（火・祝日でない）を休診追加（LINE 確認済み版2）。現在は共通∩LINE の 09:00-12:00/16:00-19:00（LINE 受付は共通を包含）、提案は当日休診で空",
    "semantic_expectation": "confirmation-required・全件 confirmable・現在認可済みの影響予約1件・receipt を対応 write へ無変換で渡す。code 名はダミー",
    "verification": "NOT_RUN"
   },
