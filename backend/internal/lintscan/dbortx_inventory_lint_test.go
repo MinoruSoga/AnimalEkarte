@@ -391,7 +391,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendOfficialRevisionFromWorking": {},
 	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AdvanceRevisionCAS":                {},
 
-	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.findByID":                      {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Create":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Update":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Delete":                        {},
@@ -971,7 +971,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// BE-ACT-CAMPAIGN-TARGET-SERIALIZATION: FindByID joins ambient tx and takes FOR SHARE so
 	// campaign target attachment serializes with concurrent merchandise soft-delete.
 	// Runtime: TestMerchandiseItemRepository_FindByID_HoldsShareLockForAmbientTransaction.
-	"inventory/merchandise_item_repository.go|merchandiseItemRepository.FindByID": {},
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.findByID": {},
 	// BE-ACT-MERCHANDISE-ATOMIC-DELETE: soft-delete + billing/estimate/campaign-target usage
 	// re-check join the service-owned ambient transaction. Runtime:
 	// TestMerchandiseItemService_Delete_ConcurrentAttachFirstYieldsConflict /
