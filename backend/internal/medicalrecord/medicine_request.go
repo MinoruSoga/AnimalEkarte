@@ -52,24 +52,24 @@ func (r *createMedicineRequest) toServiceInput() (*CreateMedicineInput, error) {
 		return nil, err
 	}
 	return &CreateMedicineInput{
-		Name:                r.Name,
-		ParentID:            r.ParentID,
-		Price:               r.Price,
-		IsActive:            r.IsActive,
-		Description:         r.Description,
-		DosageForm:          r.DosageForm,
-		MedicineUnit:        r.MedicineUnit,
-		InventoryID:         r.InventoryID,
-		DefaultQuantity:     defaultQuantity,
-		SortOrder:           r.SortOrder,
-		TaxType:             r.TaxType,
-		TaxRate:             taxRate,
-		IsNonInsurance:      r.IsNonInsurance,
+		Name:                   r.Name,
+		ParentID:               r.ParentID,
+		Price:                  r.Price,
+		IsActive:               r.IsActive,
+		Description:            r.Description,
+		DosageForm:             r.DosageForm,
+		MedicineUnit:           r.MedicineUnit,
+		InventoryID:            r.InventoryID,
+		DefaultQuantity:        defaultQuantity,
+		SortOrder:              r.SortOrder,
+		TaxType:                r.TaxType,
+		TaxRate:                taxRate,
+		IsNonInsurance:         r.IsNonInsurance,
 		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toCreateInput(),
-		CalculationType:     r.CalculationType,
-		Strength:            strength,
-		FrequencyPerDay:     r.FrequencyPerDay,
-		DefaultDurationDays: r.DefaultDurationDays,
+		CalculationType:        r.CalculationType,
+		Strength:               strength,
+		FrequencyPerDay:        r.FrequencyPerDay,
+		DefaultDurationDays:    r.DefaultDurationDays,
 	}, nil
 }
 
@@ -97,7 +97,7 @@ type updateMedicineRequest struct {
 	// EMR-447 A01/A.4: 省略 → 変更なし。明示 null/非 boolean は binding 層で 400。
 	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 	// EMR-447 A.4: 任意送信の期待版。省略は CAS なし、送信値は null を含め必ず検査し WHERE 照合する。
-	Version                optionalVersionField      `json:"version"`
+	Version optionalVersionField `json:"version"`
 
 	// #201 投与量計算（製品軸）
 	CalculationType     *string         `json:"calculation_type"      binding:"omitempty,oneof=none per_weight"`

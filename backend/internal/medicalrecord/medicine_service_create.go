@@ -17,24 +17,24 @@ func medicineFromCreateInput(
 	// model.SortOrder は *int（#729）。request の int をそのまま保存する（EMR-447）。
 	sortOrder := input.SortOrder
 	medicine := &model.Medicine{
-		ClinicID:            clinicID,
-		Name:                input.Name,
-		ParentID:            input.ParentID,
-		Price:               input.Price,
-		IsActive:            input.IsActive,
-		Description:         input.Description,
-		InventoryID:         input.InventoryID,
-		DefaultQuantity:     input.DefaultQuantity,
-		SortOrder:           &sortOrder,
-		TaxType:             taxType,
-		TaxRate:             taxRate,
-		IsNonInsurance:      input.IsNonInsurance,
+		ClinicID:        clinicID,
+		Name:            input.Name,
+		ParentID:        input.ParentID,
+		Price:           input.Price,
+		IsActive:        input.IsActive,
+		Description:     input.Description,
+		InventoryID:     input.InventoryID,
+		DefaultQuantity: input.DefaultQuantity,
+		SortOrder:       &sortOrder,
+		TaxType:         taxType,
+		TaxRate:         taxRate,
+		IsNonInsurance:  input.IsNonInsurance,
 		// EMR-447 A.2: 省略は false を明示保存し、DB default / Go ゼロ値に任せない。
 		IsBillDiscountExcluded: createBillDiscountExcluded(input.IsBillDiscountExcluded),
-		CalculationType:     calcType,
-		Strength:            input.Strength,
-		FrequencyPerDay:     input.FrequencyPerDay,
-		DefaultDurationDays: input.DefaultDurationDays,
+		CalculationType:        calcType,
+		Strength:               input.Strength,
+		FrequencyPerDay:        input.FrequencyPerDay,
+		DefaultDurationDays:    input.DefaultDurationDays,
 	}
 	if input.DosageForm != nil && *input.DosageForm != "" {
 		df := model.DosageForm(*input.DosageForm)

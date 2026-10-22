@@ -39,7 +39,7 @@ type updateExaminationTypeRequest struct {
 	// EMR-447 A01/A.4: 省略 → 変更なし。明示 null/非 boolean は binding 層で 400。
 	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 	// EMR-447 A.4: 任意送信の期待版。省略は CAS なし、送信値は null を含め必ず検査し WHERE 照合する。
-	Version                optionalVersionField      `json:"version"`
+	Version optionalVersionField `json:"version"`
 }
 
 func (r updateExaminationTypeRequest) toServiceInput() *UpdateExamTypeInput {

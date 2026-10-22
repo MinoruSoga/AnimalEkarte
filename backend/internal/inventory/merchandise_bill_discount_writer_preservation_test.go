@@ -36,7 +36,7 @@ type mbdwpCapture struct {
 // Transaction() が real Begin せず nested 経路へ進み、SAVEPOINT も DryRun で no-op。
 type mbdwpFakeTx struct{ *sql.DB }
 
-func (mbdwpFakeTx) Commit() error { return nil }
+func (mbdwpFakeTx) Commit() error   { return nil }
 func (mbdwpFakeTx) Rollback() error { return nil }
 
 func mbdwpTableName(tx *gorm.DB) string {

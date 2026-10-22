@@ -187,7 +187,7 @@ func TestExamTypeService_BillDiscountUpdate(t *testing.T) {
 					}
 					return &model.ExaminationType{ID: 9, ClinicID: 7, IsBillDiscountExcluded: beforeVal}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _ , _ uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error) {
+				updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error) {
 					gotCmd = &cmd
 					return &model.ExaminationType{ID: 9, ClinicID: 7, IsBillDiscountExcluded: cmd.IsBillDiscountExcluded}, nil
 				},
@@ -407,7 +407,7 @@ func TestExamTypeHandler_BillDiscountWiring(t *testing.T) {
 			actorSeen <- input.ActorID
 			return &model.ExaminationType{ID: 9, IsBillDiscountExcluded: input.IsBillDiscountExcluded}, nil
 		},
-		updateFn: func(_ context.Context, _ , _ uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error) {
+		updateFn: func(_ context.Context, _, _ uint64, input *UpdateExamTypeInput) (*model.ExaminationType, error) {
 			actorSeen <- input.ActorID
 			return &model.ExaminationType{ID: 9, IsBillDiscountExcluded: input.IsBillDiscountExcluded}, nil
 		},
