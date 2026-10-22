@@ -12080,7 +12080,7 @@ components:
           format: uuid
           description: >-
             EMR-297-A 先行契約（297 §4C/§7）。confirm を C06 操作（owner_kind=lab_mapping、intent=lab_mapping.confirm）へ切り替えたときの小文字ハイフンUUID。
-            切替時は必須で、同 key の内容変更は operation-key-conflict。切替までの現行 runtime は受け付けず、応答も既存の LabMappingDraft のまま（C06 ResultResponse と結果照会 route は切替と同時に収録する）。
+            切替時は必須で、同 key の内容変更は operation-key-conflict。切替までの現行 runtime はこの項目を処理しない（未実装。拒否も保証しない）。切替後の応答は LabMappingOperationResult、結果照会は GET /lab-device/mapping-operations/{operation_key}。
         expected_draft_version:
           type: string
           pattern: '^[1-9][0-9]*$'
@@ -12108,6 +12108,48 @@ components:
               expected_definition_digest:
                 type: string
                 pattern: '^[0-9a-f]{64}$'
+    LabMappingOperationResult:
+      type: object
+      additionalProperties: false
+      required: [status, operation_key]
+      description: >-
+        EMR-297-A 先行契約（297 §7）。lab mapping 操作の C06 結果。status は flat 12値で、succeeded/replayed/not-succeeded=200、
+        operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、
+        validation=400、scope-not-found=404（binding不存在のみ）、not-authorized=403。details は持たない。result_refs・committed_versions・recorded_at は
+        succeeded/replayed のときだけ返し、raw や臨床値は含めない。今回は confirm（draft_id / mapping_revision_id、draft_version / mapping_revision）を収録し、
+        sample_register・resolve の refs/版は各 slice の収録で追加する。runtime 未接続。
+      properties:
+        status:
+          type: string
+          enum: [succeeded, replayed, not-succeeded, validation, not-authorized, edit-right-lost, scope-not-found, version-conflict, dependency-changed, operation-key-conflict, operation-in-progress, result-unavailable]
+        operation_key:
+          type: string
+          format: uuid
+        result_refs:
+          type: object
+          additionalProperties: false
+          required: [draft_id, mapping_revision_id]
+          properties:
+            draft_id:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+            mapping_revision_id:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+        committed_versions:
+          type: object
+          additionalProperties: false
+          required: [draft_version, mapping_revision]
+          properties:
+            draft_version:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+            mapping_revision:
+              type: string
+              pattern: '^[1-9][0-9]*$'
+        recorded_at:
+          type: string
+          format: date-time
     LabMappingGenerationRequest:
       type: object
       required: [stopped]
@@ -30666,7 +30708,10 @@ paths:
     post:
       operationId: confirmLabMappingDraft
       summary: 人が提出した対応表だけを確定する
-      description: ResourceLabImport edit。未確定の下書きだけを確定する。省略したコードは既存マスタを消さない。
+      description: >-
+        ResourceLabImport edit。未確定の下書きだけを確定する。省略したコードは既存マスタを消さない。
+        EMR-297-A 先行契約（297 §4C/§7）: C06 切替後は operation_key と expected_* を必須とし、master/spec upsert・draft確定・不変 mapping revision・監査・C06 receipt を同TXで保存して
+        LabMappingOperationResult を返す（status と HTTP の対応は同 schema の説明）。切替前の現行 runtime は従来どおり LabMappingDraft を返す。
       tags: [LabImports]
       parameters:
         - name: id
@@ -30683,11 +30728,25 @@ paths:
               $ref: '#/components/schemas/LabMappingConfirmRequest'
       responses:
         '200':
-          description: 確定した下書き
+          description: 切替前は確定した下書き（LabMappingDraft）。C06 切替後は succeeded / replayed / not-succeeded の LabMappingOperationResult
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LabMappingDraft'
+                oneOf:
+                  - $ref: '#/components/schemas/LabMappingDraft'
+                  - $ref: '#/components/schemas/LabMappingOperationResult'
+        '202':
+          description: C06 切替後の operation-in-progress（LabMappingOperationResult）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingOperationResult'
+        '503':
+          description: C06 切替後の result-unavailable（LabMappingOperationResult）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabMappingOperationResult'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -30698,6 +30757,36 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /lab-device/mapping-operations/{operation_key}:
+    get:
+      operationId: getLabMappingOperationResult
+      summary: lab mapping 操作の結果照会
+      x-contract-status: selected
+      description: >-
+        EMR-297-A 先行契約（297 §7）。元actor本人で、かつ現在 lab-import:view または当該元intentに必要な現在の create/edit 権限を持つ場合だけ、ID/版だけの限定結果を返す。
+        別actorは同医院 view だけで他人の operation を探索できない。失敗bindingも元対象（lab_mapping_operation_targets）を現在認可してから照会し、既成功は現CASより先に原結果を返す。
+        照会は write しない。raw や臨床値を返す権限は増やさない。今回は intent=lab_mapping.confirm を収録し、sample_register・resolve は各 slice の収録で追加する。runtime 未接続。
+      tags: [LabImports]
+      parameters:
+        - name: operation_key
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: intent
+          in: query
+          required: true
+          schema: { type: string, enum: [lab_mapping.confirm] }
+      responses:
+        '200':
+          description: 操作結果（LabMappingOperationResult の status と HTTP の対応に従う）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabMappingOperationResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /lab-device/mapping-generation:
     put:
       operationId: putLabMappingGeneration
