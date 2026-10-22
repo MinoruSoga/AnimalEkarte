@@ -26,7 +26,7 @@ import {
   type TreatmentPackageEditContext,
 } from "../lib/treatment-package-operation-state";
 
-export function useTreatmentPackageCandidates(clinicId?: string) {
+export function useGetTreatmentPackageCandidates(clinicId?: string) {
   return useQuery({
     queryKey: queryKeys.medicalRecords.treatmentPackageCandidates(clinicId),
     queryFn: () => listTreatmentPackageCandidates(clinicId),
@@ -36,7 +36,7 @@ export function useTreatmentPackageCandidates(clinicId?: string) {
   });
 }
 
-export function useMedicalRecordPlanItems(recordId: string | null, clinicId?: string) {
+export function useGetMedicalRecordPlanItems(recordId: string | null, clinicId?: string) {
   return useQuery({
     queryKey: queryKeys.medicalRecords.treatmentPackagePlanItems(recordId ?? "", clinicId ?? ""),
     queryFn: () => listMedicalRecordPlanItems(recordId as string, clinicId),
@@ -46,7 +46,7 @@ export function useMedicalRecordPlanItems(recordId: string | null, clinicId?: st
   });
 }
 
-export function useTreatmentPackageApplications(recordId: string | null, clinicId?: string) {
+export function useGetTreatmentPackageApplications(recordId: string | null, clinicId?: string) {
   return useQuery({
     queryKey: queryKeys.medicalRecords.treatmentPackageApplications(recordId ?? "", clinicId ?? ""),
     queryFn: () => listTreatmentPackageApplications(recordId as string, clinicId),

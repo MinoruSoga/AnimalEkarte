@@ -10,7 +10,7 @@ import { queryKeys } from "@/lib/query-keys";
 import {
   fetchMedicineDoseParamsOnce,
   medicineDoseParamsQueryKey,
-  useMedicineDoseParams,
+  useGetMedicineDoseParams,
 } from "./medicine-dose-lookup";
 import { getAllMedicinesMaster, useGetAllMedicinesMaster } from "@/hooks/use-treatment-master";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -151,9 +151,9 @@ describe("PR700: 複写先クリニック別マスタ/dose-params スコープ",
       }),
     );
     const { queryClient, wrapper } = clientWrapper();
-    const scoped = renderHook(() => useMedicineDoseParams("42", "3"), { wrapper });
+    const scoped = renderHook(() => useGetMedicineDoseParams("42", "3"), { wrapper });
     await waitFor(() => expect(scoped.result.current.isSuccess).toBe(true));
-    const legacy = renderHook(() => useMedicineDoseParams("42"), { wrapper });
+    const legacy = renderHook(() => useGetMedicineDoseParams("42"), { wrapper });
     await waitFor(() => expect(legacy.result.current.isSuccess).toBe(true));
     expect(seen).toEqual(["3", null]);
     expect(medicineDoseParamsQueryKey("42", "3")).not.toEqual(medicineDoseParamsQueryKey("42"));

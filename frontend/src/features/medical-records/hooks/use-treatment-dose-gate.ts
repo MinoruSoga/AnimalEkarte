@@ -4,7 +4,7 @@ import { calculateDose } from "@/lib/medicine-dose";
 import {
   buildDoseCalcInput,
   toDoseParamsAuthority,
-  useMedicineDoseParams,
+  useGetMedicineDoseParams,
   type MedicineDoseContext,
 } from "../api/medicine-dose-lookup";
 import type { Treatment } from "../types";
@@ -20,7 +20,7 @@ export function useTreatmentDoseGate(
   const medicine = isMedicineRow
     ? doseContext.medicines?.find((m) => m.id === treatment.medicine_id)
     : undefined;
-  const doseParamsQuery = useMedicineDoseParams(
+  const doseParamsQuery = useGetMedicineDoseParams(
     isMedicineRow ? treatment.medicine_id : undefined,
     doseContext.clinicId,
   );

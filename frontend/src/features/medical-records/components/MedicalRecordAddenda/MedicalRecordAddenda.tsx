@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { C } from "@/lib/design-tokens";
-import { useMedicalRecordAddenda } from "../../hooks/use-medical-record-addenda";
+import { useGetMedicalRecordAddenda } from "../../hooks/use-medical-record-addenda";
 import { isMedicalRecordFinalizedStatus } from "../../lib/medical-record-lock";
 import { AddendumItem } from "./AddendumItem";
 import { AddendumModal } from "./AddendumModal";
@@ -28,7 +28,7 @@ interface ContentProps {
 }
 
 function MedicalRecordAddendaContent({ medicalRecordId, canEdit }: ContentProps) {
-  const { data: addenda = [], isLoading } = useMedicalRecordAddenda(medicalRecordId);
+  const { data: addenda = [], isLoading } = useGetMedicalRecordAddenda(medicalRecordId);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const sorted = [...addenda].sort(

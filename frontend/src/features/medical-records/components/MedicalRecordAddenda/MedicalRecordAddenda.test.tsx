@@ -3,13 +3,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../../hooks/use-medical-record-addenda", () => ({
-  useMedicalRecordAddenda: vi.fn(),
+  useGetMedicalRecordAddenda: vi.fn(),
   useCreateMedicalRecordAddendum: vi.fn(),
 }));
 
 import { MedicalRecordAddenda } from "./MedicalRecordAddenda";
 import {
-  useMedicalRecordAddenda,
+  useGetMedicalRecordAddenda,
   useCreateMedicalRecordAddendum,
 } from "../../hooks/use-medical-record-addenda";
 import type { MedicalRecordAddendumWithAuthorName as AddendumType } from "../../api/types";
@@ -30,10 +30,10 @@ function makeAddendum(overrides: Partial<AddendumType> = {}): AddendumType {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+  vi.mocked(useGetMedicalRecordAddenda).mockReturnValue({
     data: [],
     isLoading: false,
-  } as ReturnType<typeof useMedicalRecordAddenda>);
+  } as ReturnType<typeof useGetMedicalRecordAddenda>);
   vi.mocked(useCreateMedicalRecordAddendum).mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue({}),
   } as unknown as ReturnType<typeof useCreateMedicalRecordAddendum>);
@@ -71,14 +71,14 @@ describe("MedicalRecordAddenda", () => {
   });
 
   it("addenda 3 件を時系列昇順で表示する", () => {
-    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+    vi.mocked(useGetMedicalRecordAddenda).mockReturnValue({
       data: [
         makeAddendum({ id: 3, after_text: "3番目", created_at: "2026-01-03T10:00:00Z" }),
         makeAddendum({ id: 1, after_text: "1番目", created_at: "2026-01-01T10:00:00Z" }),
         makeAddendum({ id: 2, after_text: "2番目", created_at: "2026-01-02T10:00:00Z" }),
       ],
       isLoading: false,
-    } as ReturnType<typeof useMedicalRecordAddenda>);
+    } as ReturnType<typeof useGetMedicalRecordAddenda>);
 
     render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
 
@@ -90,10 +90,10 @@ describe("MedicalRecordAddenda", () => {
   });
 
   it("author_name がある追記は追記者氏名を表示する（スタッフIDは出さない）", () => {
-    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+    vi.mocked(useGetMedicalRecordAddenda).mockReturnValue({
       data: [makeAddendum({ id: 1, author_user_id: 5, author_name: "田中 太郎" })],
       isLoading: false,
-    } as ReturnType<typeof useMedicalRecordAddenda>);
+    } as ReturnType<typeof useGetMedicalRecordAddenda>);
 
     render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
 
@@ -103,10 +103,10 @@ describe("MedicalRecordAddenda", () => {
   });
 
   it("author_name が null の追記はスタッフIDにフォールバック表示する", () => {
-    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+    vi.mocked(useGetMedicalRecordAddenda).mockReturnValue({
       data: [makeAddendum({ id: 1, author_user_id: 5, author_name: null })],
       isLoading: false,
-    } as ReturnType<typeof useMedicalRecordAddenda>);
+    } as ReturnType<typeof useGetMedicalRecordAddenda>);
 
     render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
 
@@ -114,10 +114,10 @@ describe("MedicalRecordAddenda", () => {
   });
 
   it("author_name が省略された追記もスタッフIDにフォールバック表示する", () => {
-    vi.mocked(useMedicalRecordAddenda).mockReturnValue({
+    vi.mocked(useGetMedicalRecordAddenda).mockReturnValue({
       data: [makeAddendum({ id: 1, author_user_id: 7 })],
       isLoading: false,
-    } as ReturnType<typeof useMedicalRecordAddenda>);
+    } as ReturnType<typeof useGetMedicalRecordAddenda>);
 
     render(<MedicalRecordAddenda medicalRecordId="1" canEdit={false} recordStatus="確定済" />);
 

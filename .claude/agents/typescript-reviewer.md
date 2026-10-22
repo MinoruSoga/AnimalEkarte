@@ -67,7 +67,7 @@ Edit/Write後のhookは別の実行経路である。Bashがないことをコ�
 - **memo() 未使用**: 大型コンポーネント・共有コンポーネントに `memo()` なし
 - **useCallback 未使用**: `memo()` に渡すハンドラが `useCallback` で安定化されていない
 - **useDeferredValue 未使用**: 検索フィルタに使用すべき
-- **useTransition 未使用**: API ミューテーションに使用すべき
+- **useTransition 未使用**: 一覧再取得・ナビゲーション・削除などフォーム外の非同期で `useState` + `setIsPending` を手動管理している。`useMutation` 単体の進行表示は `isPending` でよく、`<form>` 送信は `useActionState`（CODING_RULES §2.2）
 - **インライン JSX オブジェクト**: レンダー内で毎回生成される静的 JSX → モジュール定数に巻き上げ
 
 ### MEDIUM — ベストプラクティス
