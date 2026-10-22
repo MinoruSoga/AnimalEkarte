@@ -223,15 +223,15 @@ describe("staff settings derived model", () => {
       }),
     ).toEqual({
       name: "合成スタッフ",
-      license_number: undefined,
+      license_number: "",
       is_active: false,
       occupation_id: undefined,
       password: undefined,
       staff_type: "doctor",
-      reservation_display_name: undefined,
+      reservation_display_name: "",
       reservation_visible: false,
-      reservation_comment: undefined,
-      reservation_image_url: undefined,
+      reservation_comment: "",
+      reservation_image_url: "",
     });
   });
 });

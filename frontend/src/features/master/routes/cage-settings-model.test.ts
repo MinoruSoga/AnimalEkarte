@@ -34,4 +34,14 @@ describe("buildCageUpdateRequest", () => {
     const request = buildCageUpdateRequest(makeFormData({ price: 2300 }));
     expect(request.price).toBe(2300);
   });
+
+  it("sends empty description so a non-empty note can be cleared (EMR-448)", () => {
+    const request = buildCageUpdateRequest(makeFormData({ description: "" }));
+    expect(request).toHaveProperty("description", "");
+  });
+
+  it("keeps create omitting an empty description", () => {
+    const request = buildCageCreateRequest(makeFormData({ description: "" }));
+    expect(request.description).toBeUndefined();
+  });
 });
