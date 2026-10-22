@@ -250,7 +250,7 @@ work配下にだけあった業務決定を、決定内容を変えずに本正�
 
 4種類の名称・見本はクライアントから後日共有される（本人「1 後ほどクライアントから共有されます」）。名称・様式・用紙寸法・ページ数を推測で固定しない。既知RV見本のA4横を未知4種類へ一括適用しない。既知見本と4種類の対応自体も資料照合で確認する。通常証明書の縦横は同版の表示方式を維持する。診療項目packageは診療／会計候補の構成、帳票セットは出力対象の構成で別概念。package applyから自動発行しない。
 
-一括出力では採用された4種類の構成と出力対象版を照合する。欠損・重複・一部失敗・結果不明を4種類完了として扱わず、成功分と未完了分を区別する。再開前に既存操作結果と各種の版・artifactを照合し、成功分を無条件再発行しない。既存の現在認可・患者対応・プレビュー・訂正版保護を維持する。master／batch wireと回復単位は[技術差分](../../../design/domains/vaccinations/technical-spec.md#certificate-mtg-technical-gap)へ残し、選定・実装済みとしない。
+一括出力では採用された4種類の構成と出力対象版を照合する。欠損・重複・一部失敗・結果不明を4種類完了として扱わず、成功分と未完了分を区別する。再開前に既存操作結果と各種の版・artifactを照合し、成功分を無条件再発行しない。既存の現在認可・患者対応・プレビュー・訂正版保護を維持する。master／batch wireと回復単位のschema・管理APIは[EMR-486/487採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)（§2 identityとセットmaster、§3 保存、§5 wire、§7 部分失敗）で選定済み。実装・runtime・DDL適用と、4種類の名称／見本／用紙の資料待ちは別残件で、[技術差分](../../../design/domains/vaccinations/technical-spec.md#certificate-mtg-technical-gap)は実装未完の範囲を示す。
 
 <a id="fr-vaccinations-reissue-date-20261021"></a>
 ## FR-vaccinations-reissue-date：再発行の表示発行日

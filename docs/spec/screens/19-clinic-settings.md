@@ -79,7 +79,7 @@ flowchart TB
 <a id="clinic-hours-common-basis-owner-20261020"></a>
 ## 営業時間・休診日の共通基準（2026-10-20本人回答）
 
-[正本](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)により、医院設定が営業時間・休診日の共通基準を持ち、本画面がその設定の所在となる。現在の画面項目には未収録で、項目・入力形式・保存先は設計残件（未記載／要確認）。[LINEの受付時間](28-line-reservation.md#line-settings-write-contract)はこの範囲内の別設定であり、LINE設定で医院の時間外や休診を開放しない。[シフト管理の休診日への変更](24-shift-calendar.md#requirement-fr-shifts-holiday-warning-confirm)は既存予約の警告確認を伴う個別の変更で、個別休診日はシフト管理・締め設定の両入口から共通基準へ保存する選定済み契約（[医院・LINE時間契約 §2.3–2.4](../../work/emr/emr-clinic-line-time-selected-contract-20261022.md)）に従う。共通利用開始後は旧シフト入口の休診日変更を停止し、レジ側の休日は legacy として維持する。旧値の自動統合はせず、移行・DDL・実装・受入は未完。既存の保存値を自動上書きせず、レジの営業日区分へ統一しない。実装・実機は未確認。
+[正本](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)により、医院設定が営業時間・休診日の共通基準を持ち、本画面がその設定の所在となる。現在の画面項目には未収録。保存先は[医院・LINE時間契約 §2.1 共通医院時間aggregate](../../work/emr/emr-clinic-line-time-selected-contract-20261022.md)で選定済みで、未完なのは画面項目の実反映・既存値の移行・実装・受入である。[LINEの受付時間](28-line-reservation.md#line-settings-write-contract)はこの範囲内の別設定であり、LINE設定で医院の時間外や休診を開放しない。[シフト管理の休診日への変更](24-shift-calendar.md#requirement-fr-shifts-holiday-warning-confirm)は既存予約の警告確認を伴う個別の変更で、個別休診日はシフト管理・締め設定の両入口から共通基準へ保存する選定済み契約（[医院・LINE時間契約 §2.3–2.4](../../work/emr/emr-clinic-line-time-selected-contract-20261022.md)）に従う。共通利用開始後は旧シフト入口の休診日変更を停止し、レジ側の休日は legacy として維持する。旧値の自動統合はせず、移行・DDL・実装・受入は未完。既存の保存値を自動上書きせず、レジの営業日区分へ統一しない。実装・実機は未確認。
 
 <a id="cross-ui-search-20261019"></a>
 ## 10/19後続承認：同種操作・検索ボタン方式

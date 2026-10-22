@@ -1,6 +1,6 @@
 # 会計・未納
 
-会計一覧・精算・売掛管理を確認する入口です。2026-10-15、基準時点の9FR／142ACを独立レビュー・静的照合後に文書整理完了と判定。死亡後精算を含む9FR／144ACの追加差分も反映・独立文書レビュー済み。支払方法停止の追加合意で7ACを加え、前段階の文書対象は9FR／151AC。施術調整／記録復元の受け手4ACを加えた前段階9FR／155ACの追加差分は独立内容・構造レビュー済み。支払方法停止の追加7ACも当時の独立内容レビュー・限定構造検査済み。今回の[品目別保険設定](lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを追加した前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを加え、業務ライフサイクル正本は13FR／174ACにBacklog No.8の個別割引入力権限1ACを補完した13FR／175ACに[No.30の釣銭整合](lifecycle.md#accounting-manual-change-reconciliation-20261017)3ACを加えた13FR／178ACに[過受領の具体処理](lifecycle.md#accounting-excess-receipt-resolution-20261017)3ACを加えた13FR／184AC（画面別の補足ACは各ページ）。本差分の文書検査は前段階の完了記録と分ける。実装・実機受入と全体横断は別工程。
+会計一覧・精算・売掛管理を確認する入口です。2026-10-15、基準時点の9FR／142ACを独立レビュー・静的照合後に文書整理完了と判定。死亡後精算を含む9FR／144ACの追加差分も反映・独立文書レビュー済み。支払方法停止の追加合意で7ACを加え、前段階の文書対象は9FR／151AC。施術調整／記録復元の受け手4ACを加えた前段階9FR／155ACの追加差分は独立内容・構造レビュー済み。支払方法停止の追加7ACも当時の独立内容レビュー・限定構造検査済み。今回の[品目別保険設定](lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを追加した前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを加え、業務ライフサイクル正本は13FR／174ACにBacklog No.8の個別割引入力権限1ACを補完した13FR／175ACに[No.30の釣銭整合](lifecycle.md#accounting-manual-change-reconciliation-20261017)3ACを加えた13FR／178ACに[過受領の具体処理](lifecycle.md#accounting-excess-receipt-resolution-20261017)3ACを加えた13FR／181AC、さらに[EMR-367追補](lifecycle.md#accounting-input-gross-preservation)の3ACで13FR／184AC（画面別の補足ACは各ページ）。本差分の文書検査は前段階の完了記録と分ける。実装・実機受入と全体横断は別工程。
 
 ## 読む順・業務ルールの所在
 

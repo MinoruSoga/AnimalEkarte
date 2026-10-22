@@ -198,7 +198,7 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 
 | 必要技術差分 | 要求される不変条件／設計残件 |
 |:---|:---|
-| master／snapshot | 4種類の安定したidentity、帳票セットと構成版、各template／用紙との対応を保持。通常縦横の同版表示と区別し、診療項目packageへ混ぜない。4名称・見本未受領、DDL・管理API・画面は未選定 |
+| master／snapshot | 4種類の安定したidentity、帳票セットと構成版、各template／用紙との対応を保持。通常縦横の同版表示と区別し、診療項目packageへ混ぜない。4名称・見本は未受領。schema・管理APIは[採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)§2・§5で選定済み、画面と実装・DDL適用は未完 |
 | batch／wire | 4種類の構成照合と出力要求、各種類の結果・版／artifact対応、欠損／重複／一部失敗／unknownを表現。現在の単一kind/layout APIを4種類一括対応済みとしない。batchのcommit／回復単位、同key照合とreceipt拡張の方式は[EMR-486/487 採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)（§3 edition/artifact/batchの保存、§5 RV v2 wire）で選定済み（技術選定）。runtime・実装受入は未完。4種類=4ページとしない |
 | 再発行wire／版 | 当初の発行日由来refと選択した表示日を確認内容へ固定し、新版のsnapshot／hash／preview／CAS／監査へ反映。同版reprint DTOへ未定義fieldを送らない。初回の任意日許可へ拡張せず、再発行のdate validationは[RV4・再発行日採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md) §4へ選定済み・runtime未実装 |
 | PDF storage／履歴 | 種類・構成版・edition・template／renderer版・digestとimmutable artifactの対応を追跡。旧artifactを上書きせず、失敗候補を有効出力へ公開しない。storage結合とbatchの出力形式の方式は[EMR-486/487 採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)（§3、§8 storage寿命・孤児回収・read有効性）で選定済み（技術選定）。DDL・runtime・実装受入は未完で、4種類の名称・見本・用紙対応と実資産は資料待ちの別残件。契約外の結合PDF／ZIP等を推測で固定しない |
