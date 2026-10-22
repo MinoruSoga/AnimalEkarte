@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // merchandiseTaxRateString は保存値を十進文字列として応答する（EMR-530、採択405・483の十進輸送）。

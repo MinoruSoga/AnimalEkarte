@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // campaignResponse は割引キャンペーンのレスポンス (#81)
