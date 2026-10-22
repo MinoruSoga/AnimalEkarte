@@ -15406,7 +15406,8 @@ components:
           description: 厳密 Gregorian YYYY-MM-DD。
         reason:
           type: string
-          description: 空可。既存休診理由 validation に整合する。
+          maxLength: 500
+          description: 空可。既存休診理由 validation（max=500）に整合する。
     ClinicOperatingHoursSettings:
       type: object
       additionalProperties: false
@@ -15454,6 +15455,26 @@ components:
       description: >-
         GET /clinics/{clinic_id}/operating-hours（§2.2、no-store）。configured は version/settings 必須、unconfigured は両方 null。
         障害は 503 で返し unconfigured へ変換しない。legacy 未照合・JSON 不正・取得失敗は正常な空や未設定と区別する。
+        state と version・settings の null 条件は oneOf で固定する。
+      oneOf:
+        - properties:
+            state:
+              enum: [unconfigured]
+            version:
+              type: string
+              nullable: true
+              enum: [null]
+            settings:
+              type: object
+              nullable: true
+              enum: [null]
+        - properties:
+            state:
+              enum: [configured]
+            version:
+              $ref: '#/components/schemas/LineTimeDecimalId'
+            settings:
+              $ref: '#/components/schemas/ClinicOperatingHoursSettings'
       properties:
         schema_version:
           type: string
@@ -15520,6 +15541,7 @@ components:
           format: date
         reason:
           type: string
+          maxLength: 500
         warning_receipt:
           type: string
           minLength: 1
@@ -15848,6 +15870,8 @@ components:
           $ref: '#/components/schemas/ClinicOperatingHoursSettings'
         days:
           type: array
+          minItems: 1
+          description: 要求 dates の各日を同順で1件ずつ。空配列は返さない。
           items:
             $ref: '#/components/schemas/ClinicOperatingHoursPreviewDay'
         warning_check:
@@ -15872,6 +15896,7 @@ components:
           format: date
         reason:
           type: string
+          maxLength: 500
     ClinicCommonHolidayPreviewUnset:
       type: object
       additionalProperties: false
@@ -31193,6 +31218,13 @@ paths:
       responses:
         '200':
           description: 共通医院時間（unconfigured は version/settings null）
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31393,6 +31425,13 @@ paths:
       responses:
         '200':
           description: preview 結果（定義した未設定/未照合/非開示 state を含む完全評価）
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31452,6 +31491,13 @@ paths:
       responses:
         '200':
           description: 限定 C06 照会結果。refs/版だけを返し設定本文・氏名・予約一覧は返さない。
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31523,6 +31569,13 @@ paths:
       responses:
         '200':
           description: 月内の共通休診
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31707,6 +31760,13 @@ paths:
       responses:
         '200':
           description: holiday preview 結果
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31753,6 +31813,13 @@ paths:
       responses:
         '200':
           description: 月内の共通休診
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -31938,6 +32005,13 @@ paths:
       responses:
         '200':
           description: holiday preview 結果
+          headers:
+            Cache-Control:
+              required: true
+              description: 選定契約 §1 の no-store。認証 scope の設定・receipt・影響予約をキャッシュしない。
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
