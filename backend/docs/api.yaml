@@ -5980,21 +5980,25 @@ components:
           type: number
           format: double
           nullable: true
+          description: 作成時に明示した 0 は 0 円として保存する（未入力の代用にしない）。EMR-528。
         is_active:
           type: boolean
           default: true
         description:
           type: string
+          description: PATCH の省略または null は既存値を保持し、"" は空へ変更して保存する。EMR-528。
         body_size:
           type: string
           enum: [small, medium, large]
           nullable: true
+          description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
         billing_unit:
           type: string
           enum:
             - per_day
             - per_night
           nullable: true
+          description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
         sort_order:
           type: integer
         created_at:
@@ -6096,8 +6100,15 @@ components:
           type: string
           enum: [rate, amount]
         discount_value:
-          type: number
-          format: double
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "10.5"
+          description: >-
+            割引値の有限な非負 exact decimal 文字列（EMR-530、採択483の十進輸送）。符号・指数表記・NaN/Infinity は 400。
+            JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない（BE と専有 FE は EMR-530 で同時に切り替える）。
+            保存尺度は numeric(12,2) のままで、小数第3位以下を持つ値や整数部10桁超など保存尺度で表せない値は丸めずに 400。
+            rate は 0..100、amount は 0 以上という既存の意味、POST 既定と PATCH の省略保持は変更しない。
+            応答は保存値の十進文字列で、表記（末尾0の有無）ではなく数値として比較する。
         is_active:
           type: boolean
           default: true
@@ -6642,9 +6653,14 @@ components:
           default: excluded
           description: 税種別
         tax_rate:
-          type: number
-          default: 0.10
-          description: 税率
+          type: string
+          pattern: '^(0|[1-9][0-9]*)(\.[0-9]+)?$'
+          example: "0.10"
+          description: >-
+            税率の比率を表す有限な非負 exact decimal 文字列（EMR-530、採択405/483）。10% は "0.10"（数値として0.1）で、百分率10へ変換しない。
+            符号・指数表記・NaN/Infinity は 400。JSON number は旧 client の float 送信として 400 で拒否し、黙って変換しない（BE と専有 FE は EMR-530 で同時に切り替える）。
+            入力範囲 0..1、明示 "0" は 0 として保存し既定値へ潰さない。POST の省略/null は既存既定 0.10、PATCH の省略/null は既存値を保持する。
+            応答は保存値の十進文字列で、表記ではなく数値として比較する。
         is_active:
           type: boolean
           default: true
