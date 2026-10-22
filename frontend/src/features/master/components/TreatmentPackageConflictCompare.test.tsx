@@ -76,4 +76,42 @@ describe("TreatmentPackageConflictCompare（差分比較・明示選択）", () 
     await user.click(screen.getByText("入力を保持して最新版を基準に編集を続ける"));
     expect(keep).toHaveBeenCalledTimes(1);
   });
+
+  it("A1-02: manual_other の単価だけの差も左右で見分けられる", () => {
+    const manual = (unitPrice: string) => ({
+      component_key: "a0000000-0000-4000-8000-000000000011",
+      item: {
+        kind: "manual_other" as const,
+        manual: {
+          name: "手入力項目",
+          reason: "理由",
+          unit_label: null,
+          unit_price: unitPrice,
+          tax_type: "included" as const,
+          tax_rate: "0.1",
+          is_non_insurance: false,
+        },
+      },
+      quantity: "1",
+    });
+    const latestManual: TreatmentPackage = { ...latest, components: [manual("120")] };
+    const mineManual: TreatmentPackage = {
+      ...mine,
+      components: [manual("110")],
+    };
+    render(
+      <TreatmentPackageConflictCompare
+        draft={draftFromPackage(mineManual)}
+        latest={latestManual}
+        onAdoptLatest={vi.fn()}
+        onKeepEditing={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText(/単価110円/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/単価120円/).length).toBeGreaterThan(0);
+    // 名称・数量だけでは同じ見た目にならない（単価差が可視化される）。
+    expect(screen.getAllByText(/単価110円/)[0]!.textContent).not.toBe(
+      screen.getAllByText(/単価120円/)[0]!.textContent,
+    );
+  });
 });

@@ -7,9 +7,11 @@ import {
   isDraftEqual,
   moveId,
   newComponentDraft,
+  reorderBlockReason,
   requireEditingVersion,
   toCreateBody,
   toPatchBody,
+  treatmentPackageKindViewResource,
   validateDraft,
 } from "./treatment-package-form";
 
@@ -142,11 +144,38 @@ describe("requireEditingVersion / reorder / moveId / isDraftEqual", () => {
   });
 });
 
+describe("Q1: reorderBlockReason（raw 件数・pending/error/order_version で事前抑止）", () => {
+  const base = { isPending: false, isError: false, orderVersion: "17", rawItemCount: 0 };
+  it("9,999件は抑止しない", () => {
+    expect(reorderBlockReason({ ...base, rawItemCount: 9999 })).toBeNull();
+  });
+  it("10,000件・10,001件は抑止する（保守的制約）", () => {
+    expect(reorderBlockReason({ ...base, rawItemCount: 10000 })).toBe("count-guard");
+    expect(reorderBlockReason({ ...base, rawItemCount: 10001 })).toBe("count-guard");
+  });
+  it("pending / error / order_version なしは送信不可", () => {
+    expect(reorderBlockReason({ ...base, isPending: true })).toBe("pending");
+    expect(reorderBlockReason({ ...base, isError: true })).toBe("error");
+    expect(reorderBlockReason({ ...base, orderVersion: undefined })).toBe("no-order-version");
+  });
+});
+
+describe("Q3: treatmentPackageKindViewResource（backend 型別 view resource と対応）", () => {
+  it("checkup_type → checkups / merchandise_item → master-merchandise / 他 → master-medical", () => {
+    expect(treatmentPackageKindViewResource("consultation")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("procedure")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("medicine")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("examination_type")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("vaccine")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("checkup_type")).toBe("checkups");
+    expect(treatmentPackageKindViewResource("merchandise_item")).toBe("master-merchandise");
+  });
+});
+
 describe("S08 diff helpers（draftPackageDiff / component summary）", () => {
   it("項目別に差分を返す（構成は全置換比較）", async () => {
-    const { draftPackageDiff, draftComponentSummary, wireComponentSummary } = await import(
-      "./treatment-package-form"
-    );
+    const { draftPackageDiff, draftComponentSummary, wireComponentSummary } =
+      await import("./treatment-package-form");
     const draft = draftFromPackage(basePkg);
     const same = draftPackageDiff(draft, basePkg);
     expect(same).toEqual({ name: false, description: false, isActive: false, components: false });
@@ -162,13 +191,34 @@ describe("S08 diff helpers（draftPackageDiff / component summary）", () => {
   });
 
   it("構成サマリは kind ラベル + 識別子 + 数量（number 化しない）", async () => {
-    const { draftComponentSummary, wireComponentSummary, draftFromPackage: dfp } = await import(
-      "./treatment-package-form"
-    );
+    const {
+      draftComponentSummary,
+      wireComponentSummary,
+      draftFromPackage: dfp,
+    } = await import("./treatment-package-form");
     const draft = dfp(basePkg);
     expect(draftComponentSummary(draft.components[0]!)).toBe("診察 101 ×1");
     expect(draftComponentSummary(draft.components[7]!)).toContain("手入力（その他）");
     expect(wireComponentSummary(basePkg.components[0]!)).toBe("診察 101 ×1");
     expect(wireComponentSummary(basePkg.components[6]!)).toContain("物販");
+  });
+
+  it("A1-02: manual の単価・税率を文字列のまま表示する（金額だけの差分も見える）", async () => {
+    const {
+      draftComponentSummary,
+      wireComponentSummary,
+      draftFromPackage: dfp,
+    } = await import("./treatment-package-form");
+    const draft = dfp(basePkg);
+    expect(draftComponentSummary(draft.components[7]!)).toContain("単価110円");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("税included/0.1");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("単価110円");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("税included/0.1");
+    // 単価だけが違う場合はサマリ文字列が異なり、差分が可視化される。
+    const changed = dfp({ ...basePkg, components: [basePkg.components[7]!] });
+    changed.components[0]!.manual.unitPrice = "120";
+    expect(draftComponentSummary(changed.components[0]!)).not.toBe(
+      wireComponentSummary(basePkg.components[7]!),
+    );
   });
 });

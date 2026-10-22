@@ -131,7 +131,9 @@ export type SaveOutcome =
   | { kind: "invalid" }
   | { kind: "create-unknown"; error: unknown }
   | { kind: "create-unknown-blocked" }
-  | { kind: "error"; error: unknown };
+  | { kind: "error"; error: unknown }
+  /** A1-01: 保存中に編集 session（対象）が変わった。状態へ反映せず破棄。 */
+  | { kind: "discarded" };
 
 /**
  * 編集セッション。draft はユーザー入力保持が最優先で、競合・失敗でも破棄しない。
@@ -167,10 +169,13 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
   }, []);
 
   const save = useCallback(
-    async (ops: {
-      create: (body: TreatmentPackageCreate) => Promise<TreatmentPackage>;
-      update: (id: string, body: TreatmentPackagePatch) => Promise<TreatmentPackage>;
-    }): Promise<SaveOutcome> => {
+    async (
+      ops: {
+        create: (body: TreatmentPackageCreate) => Promise<TreatmentPackage>;
+        update: (id: string, body: TreatmentPackagePatch) => Promise<TreatmentPackage>;
+      },
+      isStale?: () => boolean,
+    ): Promise<SaveOutcome> => {
       if (draft === null) return { kind: "invalid" };
       const base = baselineRef.current;
       // create 結果不明の未解決がある限り同じ POST を再送しない（盲目再送禁止）。
@@ -181,6 +186,7 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
           const body = toCreateBody(draft);
           if (body === null) return { kind: "invalid" };
           const pkg = await ops.create(body);
+          if (isStale?.()) return { kind: "discarded" };
           setCreateUnknown(false);
           return { kind: "saved", pkg };
         }
@@ -191,15 +197,18 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
           return { kind: "noop" };
         }
         const pkg = await ops.update(base.id, body);
+        if (isStale?.()) return { kind: "discarded" };
         setConflict(false);
         return { kind: "saved", pkg };
       } catch (error) {
         if (isConflictError(error)) {
+          if (isStale?.()) return { kind: "discarded" };
           setConflict(true);
           return { kind: "conflict" };
         }
         if (base === null) {
           // create 応答不明: 盲目再送・同名検索で推定しない。入力保持したまま結果不明を示す。
+          if (isStale?.()) return { kind: "discarded" };
           setCreateUnknown(true);
           return { kind: "create-unknown", error };
         }

@@ -22,6 +22,34 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export const EDIT_VERSION_ERROR = "編集開始時の版を取得できません。再読込してください";
 
+/**
+ * EMR-532/Q1: 一覧取得の既存 BE cap（backend/internal/persistence/scope.go の
+ * persistence.MaxMasterListRows）に対応する限定定数。raw items がこの件数以上なら
+ * 「全件取得を確認できない」として並替を事前抑止する保守的な閾値であり、
+ * 全体の登録件数制限を新設するものではない。正確に 10,000 件で全件取得できた
+ * 場合も抑止する（保守的制約・PR に明記）。
+ */
+export const REORDER_FULL_SET_GUARD = 10000;
+
+export type ReorderBlockReason = "pending" | "error" | "no-order-version" | "count-guard";
+
+/**
+ * 並替の事前抑止判定（純粋関数）。raw（filter 前）の items.length を使う。
+ * pending / error / order_version なし / 件数閾値以上で送信不可を返す。
+ */
+export function reorderBlockReason(input: {
+  isPending: boolean;
+  isError: boolean;
+  orderVersion: string | undefined;
+  rawItemCount: number;
+}): ReorderBlockReason | null {
+  if (input.isPending) return "pending";
+  if (input.isError) return "error";
+  if (input.orderVersion === undefined) return "no-order-version";
+  if (input.rawItemCount >= REORDER_FULL_SET_GUARD) return "count-guard";
+  return null;
+}
+
 /** 編集開始時に捕捉した version（canonical 文字列）。以後の refetch 版を混入しない。 */
 export function requireEditingVersion(value: unknown): string {
   if (typeof value !== "string" || !POSITIVE_INT64.test(value) || value.length > 19) {
@@ -309,17 +337,44 @@ export function isDraftEqual(draft: TreatmentPackageDraft, baseline: TreatmentPa
   return JSON.stringify(draft) === JSON.stringify(draftFromPackage(baseline));
 }
 
-/** 409 比較用: draft 構成の行ラベル（kind ラベル + 識別子 + 数量）。number 化しない。 */
-export function draftComponentSummary(c: ComponentDraft): string {
-  const name = c.kind === "manual_other" ? c.manual.name : c.masterId;
-  return `${ITEM_KIND_LABELS[c.kind]} ${name} ×${c.quantity}`;
+/**
+ * EMR-532/Q3: 型 → 型別閲覧 resource。backend の treatmentPackageKindViewResource
+ * と対応させる（consultation/procedure/medicine/examination_type/vaccine →
+ * master-medical、checkup_type → checkups、merchandise_item → master-merchandise）。
+ * manual_other は型別 view を持たないため呼び出し側で除外する（MasterItemKind のみ受理）。
+ */
+export type KindViewResource = "master-medical" | "checkups" | "master-merchandise";
+
+export function treatmentPackageKindViewResource(kind: MasterItemKind): KindViewResource {
+  if (kind === "checkup_type") return "checkups";
+  if (kind === "merchandise_item") return "master-merchandise";
+  return "master-medical";
 }
 
-/** 409 比較用: wire 構成の行ラベル。 */
+/** 409 比較用: manual の更新可能フィールド（単価・税率）を文字列のまま表現する。number 化しない。 */
+function manualPriceSummary(unitPrice: string, taxType: string, taxRate: string): string {
+  return ` 単価${unitPrice}円 税${taxType}/${taxRate}`;
+}
+
+/** 409 比較用: draft 構成の行ラベル（kind ラベル + 識別子 + 数量 + manual 単価/税率）。number 化しない。 */
+export function draftComponentSummary(c: ComponentDraft): string {
+  const name = c.kind === "manual_other" ? c.manual.name : c.masterId;
+  const base = `${ITEM_KIND_LABELS[c.kind]} ${name} ×${c.quantity}`;
+  if (c.kind !== "manual_other") return base;
+  return base + manualPriceSummary(c.manual.unitPrice, c.manual.taxType, c.manual.taxRate);
+}
+
+/** 409 比較用: wire 構成の行ラベル（manual 単価/税率を含む）。 */
 export function wireComponentSummary(c: TreatmentPackageComponentInput): string {
   const item = c.item;
-  const name = item.kind === "manual_other" ? item.manual.name : masterIdFromRef(item);
-  return `${ITEM_KIND_LABELS[item.kind]} ${name} ×${c.quantity}`;
+  if (item.kind !== "manual_other") {
+    return `${ITEM_KIND_LABELS[item.kind]} ${masterIdFromRef(item)} ×${c.quantity}`;
+  }
+  const m = item.manual;
+  return (
+    `${ITEM_KIND_LABELS.manual_other} ${m.name} ×${c.quantity}` +
+    manualPriceSummary(m.unit_price, m.tax_type, m.tax_rate)
+  );
 }
 
 /** 409 比較用: draft と最新 wire の項目別差分フラグ（純粋関数）。 */

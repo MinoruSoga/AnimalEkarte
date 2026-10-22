@@ -83,6 +83,49 @@ describe("editor session（CAS・競合・入力保持）", () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(result.current.createUnknown).toBe(true);
   });
+
+  it("A1-01: 保存中に編集 session が変わったら discarded（conflict 化しない）", async () => {
+    const { result } = renderHook(() => useTreatmentPackageEditor(pkg), { wrapper: wrapper() });
+    act(() => result.current.updateDraft({ name: "変更" }));
+    let resolvePatch!: (v: unknown) => void;
+    const update = vi.fn().mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolvePatch = r;
+        }),
+    );
+    let promise!: Promise<Awaited<ReturnType<typeof result.current.save>>>;
+    await act(async () => {
+      promise = result.current.save({ create: vi.fn(), update }, () => true);
+    });
+    await act(async () => {
+      resolvePatch(pkg);
+    });
+    expect((await promise).kind).toBe("discarded");
+    expect(result.current.conflict).toBe(false);
+    expect(result.current.draft!.name).toBe("変更");
+  });
+
+  it("A1-01: 遅延 409 も discarded で conflict 化しない", async () => {
+    const { result } = renderHook(() => useTreatmentPackageEditor(pkg), { wrapper: wrapper() });
+    act(() => result.current.updateDraft({ name: "変更" }));
+    let rejectPatch!: (e: unknown) => void;
+    const update = vi.fn().mockImplementation(
+      () =>
+        new Promise((_r, rej) => {
+          rejectPatch = rej;
+        }),
+    );
+    let promise!: Promise<Awaited<ReturnType<typeof result.current.save>>>;
+    await act(async () => {
+      promise = result.current.save({ create: vi.fn(), update }, () => true);
+    });
+    await act(async () => {
+      rejectPatch(conflict());
+    });
+    expect((await promise).kind).toBe("discarded");
+    expect(result.current.conflict).toBe(false);
+  });
 });
 
 describe("mutation の版規則", () => {

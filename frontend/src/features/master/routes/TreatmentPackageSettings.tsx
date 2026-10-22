@@ -29,14 +29,26 @@ import {
 import {
   buildReorderBody,
   moveId,
+  reorderBlockReason,
+  treatmentPackageKindViewResource,
   validateDraft,
+  isMasterItemKind,
   type ComponentDraft,
+  type KindViewResource,
 } from "../lib/treatment-package-form";
 
 export function TreatmentPackageSettings() {
   // TASK-444-S1: 新規ファイルは @/types/generated/models を import しない。
-  // "master-medical" リテラルは Resource union のメンバなので型検査を通る。
+  // "master-medical" リソースリテラルは Resource union のメンバなので型検査を通る。
   const { canView, canCreate, canEdit, canDelete } = usePermission("master-medical");
+  // Q3: 型別閲覧権限の再確認用。resource 種別は固定 3 種なのでトップレベルで呼べる。
+  const checkupsPerm = usePermission("checkups");
+  const merchandisePerm = usePermission("master-merchandise");
+  const kindViewCanView: Record<KindViewResource, boolean> = {
+    "master-medical": canView,
+    checkups: checkupsPerm.canView,
+    "master-merchandise": merchandisePerm.canView,
+  };
   const list = useGetTreatmentPackages();
   const createMut = useCreateTreatmentPackage();
   const updateMut = useUpdateTreatmentPackage();
@@ -52,28 +64,22 @@ export function TreatmentPackageSettings() {
   const editor = useTreatmentPackageEditor(target);
 
   // S07: 型別 view 失権（403）は latch する。draft は hook 内に保持したまま
-  // パネルを権限エラー表示へ差し替え、後続の一覧取得成功でのみ表示を戻す。
-  // 5xx・通信失敗は失権扱いしない（403 の後に 5xx が続いても latch は解除しない）。
-  // lostAt は失権を観測した時点の dataUpdatedAt。それより新しい取得成功だけが解除する。
+  // パネルを権限エラー表示へ差し替える。Q3: 一覧取得成功だけでは latch を解除しない。
+  // 解除は「権限を再確認」の明示操作（対象 fresh GET + 保持 draft 各型の現在 view 権限
+  // 確認）のみ。5xx・通信失敗は失権扱いしない（403 の後に 5xx が続いても latch は維持）。
+  // lostAt は失権を観測した時点の dataUpdatedAt（記録用）。
   // useEffect 同期は set-state-in-effect になるため、レンダー中の比較で同期する。
   const listForbidden = isForbiddenError(list.error);
   const [lostAt, setLostAt] = useState<number | null>(() =>
     listForbidden ? list.dataUpdatedAt : null,
   );
-  const [prevListSignal, setPrevListSignal] = useState({
-    forbidden: listForbidden,
-    dataUpdatedAt: list.dataUpdatedAt,
-  });
-  if (
-    prevListSignal.forbidden !== listForbidden ||
-    prevListSignal.dataUpdatedAt !== list.dataUpdatedAt
-  ) {
-    setPrevListSignal({ forbidden: listForbidden, dataUpdatedAt: list.dataUpdatedAt });
+  const [prevListForbidden, setPrevListForbidden] = useState(listForbidden);
+  if (prevListForbidden !== listForbidden) {
+    setPrevListForbidden(listForbidden);
     if (listForbidden) {
       setLostAt((prev) => prev ?? list.dataUpdatedAt);
-    } else if (lostAt !== null && list.dataUpdatedAt > lostAt) {
-      setLostAt(null);
     }
+    // 一覧成功だけでは解除しない（Q3）。
   }
   const authorizationLost = listForbidden || lostAt !== null;
   const markAuthorizationLost = useCallback(() => {
@@ -122,17 +128,78 @@ export function TreatmentPackageSettings() {
   const packages = list.data?.items ?? [];
   const orderVersion = list.data?.order_version;
 
+  // A1-01: 編集 session 識別子。openTarget（開く/切替/閉鎖）と S08 明示選択・削除成功で
+  // 増やす。保存開始時に捕捉し、await 後に一致確認して遅延応答を破棄する。
+  const editSessionRef = useRef(0);
+  const bumpEditSession = useCallback(() => {
+    editSessionRef.current += 1;
+  }, []);
+
+  // Q3: 失権からの再表示は明示的な「権限を再確認」のみ。対象 fresh GET（既存対象のみ）
+  // + 保持 draft 各型（manual_other 除く）+ master-medical の現在 view 権限を確認し、
+  // 全て通ったときだけ latch を解除する。target/baseline/draft は変更しない。
+  type RecheckState =
+    | { kind: "idle" }
+    | { kind: "checking" }
+    | { kind: "denied-get-forbidden" }
+    | { kind: "denied-get-deleted" }
+    | { kind: "denied-view" }
+    | { kind: "failed" };
+  const [recheck, setRecheck] = useState<RecheckState>({ kind: "idle" });
+  const recheckTokenRef = useRef(0);
+  const handleRecheckPermission = useCallback(async () => {
+    if (target === null) return;
+    const token = ++recheckTokenRef.current;
+    const sessionTarget = target;
+    setRecheck({ kind: "checking" });
+    if (sessionTarget !== "new") {
+      try {
+        await getTreatmentPackage(sessionTarget.id);
+      } catch (error) {
+        if (recheckTokenRef.current !== token) return;
+        if (isNotFoundError(error)) {
+          setRecheck({ kind: "denied-get-deleted" });
+        } else if (isForbiddenError(error)) {
+          setRecheck({ kind: "denied-get-forbidden" });
+        } else {
+          // 5xx・通信失敗は失権と区別する（latch は維持・追加失権扱いしない）。
+          setRecheck({ kind: "failed" });
+        }
+        return;
+      }
+    }
+    if (recheckTokenRef.current !== token) return;
+    const draft = editor.draft;
+    const needed = new Set<KindViewResource>(["master-medical"]);
+    if (draft !== null) {
+      for (const c of draft.components) {
+        if (isMasterItemKind(c.kind)) needed.add(treatmentPackageKindViewResource(c.kind));
+      }
+    }
+    const lacking = [...needed].filter((r) => !kindViewCanView[r]);
+    if (lacking.length > 0) {
+      setRecheck({ kind: "denied-view" });
+      return;
+    }
+    setLostAt(null);
+    setRecheck({ kind: "idle" });
+    void list.refetch();
+  }, [target, editor, kindViewCanView, list]);
+
   const openTarget = useCallback(
     (next: EditorTarget) => {
       dirty.runWithDiscardCheck(() => {
         clearConflictFetch();
+        bumpEditSession();
+        recheckTokenRef.current += 1;
+        setRecheck({ kind: "idle" });
         setTarget(next);
         editor.resetFor(next);
         setFormErrors([]);
         setComponentErrors(new Map());
       });
     },
-    [dirty, editor, clearConflictFetch],
+    [dirty, editor, clearConflictFetch, bumpEditSession],
   );
 
   const handleSave = useCallback(async () => {
@@ -144,10 +211,17 @@ export function TreatmentPackageSettings() {
       setComponentErrors(v.componentErrors);
       return;
     }
-    const outcome = await editor.save({
-      create: (body) => createMut.mutateAsync(body),
-      update: (id, body) => updateMut.mutateAsync({ id, req: body }),
-    });
+    const sessionAtStart = editSessionRef.current;
+    const outcome = await editor.save(
+      {
+        create: (body) => createMut.mutateAsync(body),
+        update: (id, body) => updateMut.mutateAsync({ id, req: body }),
+      },
+      () => editSessionRef.current !== sessionAtStart,
+    );
+    // A1-01: 保存中に対象が切替・閉鎖された場合は遅延応答（409/成功/403/error）を
+    // 新 session へ適用しない。
+    if (editSessionRef.current !== sessionAtStart) return;
     if (outcome.kind === "saved") {
       toast.success("パッケージを保存しました");
       clearConflictFetch();
@@ -190,10 +264,11 @@ export function TreatmentPackageSettings() {
     if (conflictFetch?.kind !== "ready") return;
     const latest = conflictFetch.latest;
     clearConflictFetch();
+    bumpEditSession();
     setTarget(latest);
     editor.resetFor(latest);
     dirty.markClean();
-  }, [conflictFetch, editor, dirty, clearConflictFetch]);
+  }, [conflictFetch, editor, dirty, clearConflictFetch, bumpEditSession]);
 
   // S08 明示選択 (b): 入力を保持し、CAS 基準版だけを最新へ取り直す。
   // resetFor は呼ばない（draft 不変・dirty 継続）。保存は利用者の再操作のみ。
@@ -201,9 +276,10 @@ export function TreatmentPackageSettings() {
     if (conflictFetch?.kind !== "ready") return;
     const latest = conflictFetch.latest;
     clearConflictFetch();
+    bumpEditSession();
     setTarget(latest);
     editor.clearConflict();
-  }, [conflictFetch, editor, clearConflictFetch]);
+  }, [conflictFetch, editor, clearConflictFetch, bumpEditSession]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (authorizationLost) return;
@@ -216,6 +292,7 @@ export function TreatmentPackageSettings() {
           toast.success("パッケージを削除しました");
           setPendingDelete(null);
           clearConflictFetch();
+          bumpEditSession();
           setTarget(null);
           editor.resetFor(null);
         },
@@ -240,9 +317,19 @@ export function TreatmentPackageSettings() {
     markAuthorizationLost,
   ]);
 
+  // Q1: 並替の事前抑止。raw（filter 前）items が閾値以上・pending・error・
+  // order_version なしではボタンと handler の双方で送信しない。
+  const reorderBlock = reorderBlockReason({
+    isPending: list.isPending,
+    isError: list.isError,
+    orderVersion,
+    rawItemCount: list.data?.items.length ?? 0,
+  });
+
   const handleMove = useCallback(
     (id: string, direction: -1 | 1) => {
       if (authorizationLost) return;
+      if (reorderBlock !== null) return; // Q1: 事前抑止（全件取得を確認できない等）。
       if (orderVersion === undefined || canEdit !== true) return;
       const ids = packages.map((p) => p.id);
       const next = moveId(ids, id, direction);
@@ -259,15 +346,53 @@ export function TreatmentPackageSettings() {
         },
       });
     },
-    [orderVersion, canEdit, packages, reorderMut, authorizationLost, markAuthorizationLost],
+    [
+      orderVersion,
+      canEdit,
+      packages,
+      reorderMut,
+      authorizationLost,
+      reorderBlock,
+      markAuthorizationLost,
+    ],
   );
 
   const sidePanel = (
     <div className={`w-[420px] shrink-0 border-l ${C.borderLight} overflow-y-auto`}>
       {authorizationLost && target !== null ? (
         // S07: 失権中は editor を権限エラーへ差し替える。draft は hook 内に保持（非表示）。
+        // Q3: 再表示は「権限を再確認」の明示操作のみ（対象 fresh GET + draft 各型 view 確認）。
         <div className="p-4">
           <ErrorFallback message="この構成を表示する権限がありません。権限を確認してから再読込してください。" />
+          <div className="mt-3">
+            <button
+              type="button"
+              className="min-h-[44px] min-w-[44px] text-sm underline"
+              disabled={recheck.kind === "checking"}
+              onClick={() => void handleRecheckPermission()}
+            >
+              権限を再確認
+            </button>
+            {recheck.kind === "checking" ? (
+              <p className={`mt-2 text-sm ${C.text60}`}>権限を確認しています…</p>
+            ) : recheck.kind === "denied-get-forbidden" ? (
+              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+                対象パッケージへのアクセス権がありません。
+              </p>
+            ) : recheck.kind === "denied-get-deleted" ? (
+              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+                対象パッケージは削除されています。
+              </p>
+            ) : recheck.kind === "denied-view" ? (
+              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+                構成に含まれる型の閲覧権限がありません。
+              </p>
+            ) : recheck.kind === "failed" ? (
+              <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+                再確認中に取得エラーが発生しました。権限状態は不明です。
+              </p>
+            ) : null}
+          </div>
         </div>
       ) : editor.draft !== null && target !== null ? (
         <>
@@ -365,57 +490,69 @@ export function TreatmentPackageSettings() {
         ) : packages.length === 0 ? (
           <EmptyState message="登録されたパッケージはありません。新規登録から作成できます。" />
         ) : (
-          <table className="w-full text-sm" aria-label="パッケージ一覧">
-            <thead>
-              <tr className={`text-left ${C.text60}`}>
-                <th className="px-3 py-2 font-medium">名称</th>
-                <th className="px-3 py-2 font-medium">構成数</th>
-                <th className="px-3 py-2 font-medium">状態</th>
-                <th className="px-3 py-2 font-medium">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {packages.map((p) => (
-                <tr key={p.id} className={`border-t ${C.borderLight}`}>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      className="underline text-left"
-                      onClick={() => openTarget(p)}
-                    >
-                      {p.name}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 tabular-nums">{p.components.length}</td>
-                  <td className="px-3 py-2">{p.is_active ? "有効" : "無効"}</td>
-                  <td className="px-3 py-2">
-                    {canEdit ? (
-                      <span className="flex gap-1">
-                        <button
-                          type="button"
-                          aria-label={`${p.name}を上へ`}
-                          className="min-h-[44px] min-w-[44px]"
-                          disabled={reorderMut.isPending || authorizationLost}
-                          onClick={() => handleMove(p.id, -1)}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`${p.name}を下へ`}
-                          className="min-h-[44px] min-w-[44px]"
-                          disabled={reorderMut.isPending || authorizationLost}
-                          onClick={() => handleMove(p.id, 1)}
-                        >
-                          ↓
-                        </button>
-                      </span>
-                    ) : null}
-                  </td>
+          <>
+            {reorderBlock === "count-guard" ? (
+              // Q1: 「切詰めが確定した」とは表示しない。保守的な事前抑止の告知のみ。
+              <p role="alert" className={`px-3 py-2 text-sm ${C.danger}`}>
+                全件取得を確認できないため並替できません
+              </p>
+            ) : null}
+            <table className="w-full text-sm" aria-label="パッケージ一覧">
+              <thead>
+                <tr className={`text-left ${C.text60}`}>
+                  <th className="px-3 py-2 font-medium">名称</th>
+                  <th className="px-3 py-2 font-medium">構成数</th>
+                  <th className="px-3 py-2 font-medium">状態</th>
+                  <th className="px-3 py-2 font-medium">操作</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {packages.map((p) => (
+                  <tr key={p.id} className={`border-t ${C.borderLight}`}>
+                    <td className="px-3 py-2">
+                      <button
+                        type="button"
+                        className="underline text-left"
+                        onClick={() => openTarget(p)}
+                      >
+                        {p.name}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 tabular-nums">{p.components.length}</td>
+                    <td className="px-3 py-2">{p.is_active ? "有効" : "無効"}</td>
+                    <td className="px-3 py-2">
+                      {canEdit ? (
+                        <span className="flex gap-1">
+                          <button
+                            type="button"
+                            aria-label={`${p.name}を上へ`}
+                            className="min-h-[44px] min-w-[44px]"
+                            disabled={
+                              reorderMut.isPending || authorizationLost || reorderBlock !== null
+                            }
+                            onClick={() => handleMove(p.id, -1)}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`${p.name}を下へ`}
+                            className="min-h-[44px] min-w-[44px]"
+                            disabled={
+                              reorderMut.isPending || authorizationLost || reorderBlock !== null
+                            }
+                            onClick={() => handleMove(p.id, 1)}
+                          >
+                            ↓
+                          </button>
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </MasterPageShell>
       {pendingDelete !== null ? (
