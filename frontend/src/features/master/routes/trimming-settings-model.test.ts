@@ -64,6 +64,11 @@ describe("buildTrimmingCourseUpdateRequest", () => {
     const request = buildTrimmingCourseUpdateRequest(makeCourseForm({ price: "2300" }));
     expect(request.price).toBe(2300);
   });
+
+  it("sends empty description so a non-empty note can be cleared (EMR-448)", () => {
+    const request = buildTrimmingCourseUpdateRequest(makeCourseForm({ description: "" }));
+    expect(request).toHaveProperty("description", "");
+  });
 });
 
 describe("buildTrimmingOptionCreateRequest", () => {
@@ -80,6 +85,11 @@ describe("buildTrimmingOptionUpdateRequest", () => {
   it("persists edited option price 2300", () => {
     const request = buildTrimmingOptionUpdateRequest(makeOptionForm({ price: "2300" }));
     expect(request.price).toBe(2300);
+  });
+
+  it("sends empty description so a non-empty note can be cleared (EMR-448)", () => {
+    const request = buildTrimmingOptionUpdateRequest(makeOptionForm({ description: "" }));
+    expect(request).toHaveProperty("description", "");
   });
 });
 

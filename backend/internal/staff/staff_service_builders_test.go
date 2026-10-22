@@ -76,6 +76,23 @@ func TestBuildStaffUpdate(t *testing.T) {
 		assert.Equal(t, imageURL, fields[colStaffReservationImageURL])
 	})
 
+	// EMR-448: 公開4項目の "" は空で書き込む。LINE表示名が空なら表示側が氏名へ fallback する。
+	t.Run("empty public fields are written as empty strings", func(t *testing.T) {
+		empty := ""
+		fields := buildStaffUpdate(&UpdateStaffInput{
+			LicenseNumber:          &empty,
+			ReservationDisplayName: &empty,
+			ReservationComment:     &empty,
+			ReservationImageURL:    &empty,
+		})
+		assert.Equal(t, map[string]any{
+			colStaffLicenseNumber:          "",
+			colStaffReservationDisplayName: "",
+			colStaffReservationComment:     "",
+			colStaffReservationImageURL:    "",
+		}, fields)
+	})
+
 	t.Run("only Name set: only name column present", func(t *testing.T) {
 		name := "佐藤"
 		fields := buildStaffUpdate(&UpdateStaffInput{Name: &name})
