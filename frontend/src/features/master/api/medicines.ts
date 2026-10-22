@@ -4,8 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
-import type { Medicine } from "@/lib/transforms/medicine";
-import type { Medicine as MedicineModel } from "@/types/generated/models";
+import type { Medicine, MedicineHttpResponse as MedicineModel } from "@/lib/transforms/medicine";
 import type {
   CreateMedicineRequest,
   UpdateMedicineRequest,

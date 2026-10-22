@@ -395,7 +395,7 @@ describe("buildMedicineCreateRequest", () => {
       description: "説明",
       is_active: false,
       tax_type: "included",
-      tax_rate: 0.08,
+      tax_rate: "0.08",
       is_non_insurance: true,
     });
   });
@@ -487,7 +487,7 @@ describe("calculation fields (#201)", () => {
 
     expect(request).toMatchObject({
       calculation_type: "per_weight",
-      strength: 50,
+      strength: "50",
       frequency_per_day: 2,
       default_duration_days: 7,
     });
@@ -513,7 +513,27 @@ describe("calculation fields (#201)", () => {
 
     const request = buildMedicineUpdateRequest({ data, isCategory: false, selectedMedicine: null });
 
-    expect(request).toMatchObject({ calculation_type: "per_weight", strength: 12.5 });
+    expect(request).toMatchObject({ calculation_type: "per_weight", strength: "12.5" });
     expect(request).not.toHaveProperty("frequency_per_day");
+  });
+});
+
+describe("EMR-447 medicine exact decimal wire", () => {
+  it("sends tax_rate as a decimal string and keeps explicit 0", () => {
+    expect(buildMedicineCreateRequest(makeFormData({ taxRate: 0.1 }), false).tax_rate).toBe("0.1");
+    const update = buildMedicineUpdateRequest({
+      data: makeFormData({ taxRate: 0 }),
+      isCategory: false,
+      selectedMedicine: null,
+    });
+    expect(update.tax_rate).toBe("0");
+  });
+
+  it("sends the strength input as typed without float conversion", () => {
+    const request = buildMedicineCreateRequest(
+      makeFormData({ calculationType: "per_weight", strength: " 0.0005 " }),
+      false,
+    );
+    expect(request.strength).toBe("0.0005");
   });
 });

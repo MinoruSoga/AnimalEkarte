@@ -10,7 +10,15 @@ type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "inventor
  * リクエストで送信可能な Medicine フィールド
  * Goモデル変更 → make codegen → models.ts 更新で自動追従
  */
-type MedicineWritable = Omit<BackendMedicine, ServerFields>;
+type MedicineWritable = Omit<BackendMedicine, ServerFields | MedicineDecimalField> &
+  MedicineDecimalWire;
+
+/**
+ * EMR-447: default_quantity / tax_rate / strength は exact decimal 文字列で送る（JSON number は 400）。
+ * 省略は POST=既定 / PATCH=保持。strength の NULL クリアは clear_strength。
+ */
+type MedicineDecimalField = "default_quantity" | "tax_rate" | "strength";
+type MedicineDecimalWire = Partial<Record<MedicineDecimalField, string>>;
 
 /**
  * 薬剤作成リクエスト（バックエンドAPI）

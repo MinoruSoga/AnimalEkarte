@@ -4,6 +4,7 @@ import type { Medicine } from "@/types";
 
 import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
+import { numberToExactDecimal } from "@/lib/exact-decimal";
 import { parseOptionalNumber } from "@/lib/parse-optional-number";
 import type { DosageForm, MedicineUnit } from "@/types/generated/models";
 import { MedicineCalculationTypeNone } from "@/types/generated/models";
@@ -137,16 +138,18 @@ export function resolveMedicineDrag({
   };
 }
 
-/** calculation_type=none のときは strength/frequency_per_day/default_duration_days を送らない */
+/**
+ * calculation_type=none のときは strength/frequency_per_day/default_duration_days を送らない。
+ * EMR-447: strength は exact decimal 文字列 wire。入力字句を float に通さずそのまま送り、形式は BE が 400 で検証する。
+ */
 function buildCalculationFields(data: MedicineFormData) {
   if (data.calculationType === MedicineCalculationTypeNone) {
     return { calculation_type: data.calculationType };
   }
+  const strength = data.strength.trim();
   return {
     calculation_type: data.calculationType,
-    ...(parseOptionalNumber(data.strength) !== undefined
-      ? { strength: parseOptionalNumber(data.strength) }
-      : {}),
+    ...(strength ? { strength } : {}),
     ...(parseOptionalNumber(data.frequencyPerDay) !== undefined
       ? { frequency_per_day: parseOptionalNumber(data.frequencyPerDay) }
       : {}),
@@ -182,7 +185,7 @@ export function buildMedicineCreateRequest(
     description: data.description,
     is_active: data.isActive,
     tax_type: data.taxType,
-    tax_rate: data.taxRate,
+    tax_rate: numberToExactDecimal(data.taxRate, "tax_rate"),
     is_non_insurance: data.isNonInsurance,
     ...buildCalculationFields(data),
     ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
@@ -210,7 +213,7 @@ export function buildMedicineUpdateRequest({
     description: data.description,
     is_active: data.isActive,
     tax_type: data.taxType,
-    tax_rate: data.taxRate,
+    tax_rate: numberToExactDecimal(data.taxRate, "tax_rate"),
     is_non_insurance: data.isNonInsurance,
     ...buildCalculationFields(data),
   };

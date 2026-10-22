@@ -18,10 +18,9 @@ import type {
   ProcedureWire,
   VaccineWire,
 } from "@/lib/transforms/treatment";
-import type { Medicine } from "@/lib/transforms/medicine";
+import type { Medicine, MedicineHttpResponse as MedicineModel } from "@/lib/transforms/medicine";
 import type {
   CheckupType,
-  Medicine as MedicineModel,
   HospitalizationPlan as HospitalizationPlanModel,
 } from "@/types/generated/models";
 
