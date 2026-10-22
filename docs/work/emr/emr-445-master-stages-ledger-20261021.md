@@ -102,3 +102,13 @@
 本節の基準mainは `06213d5778807f9ecbc9a8501dd579e8190a0d3b`（#804採用）。冒頭の `755f77abd2e6d63a2fc608fcfe6a518a61afcfff` は元の履歴調査基準であり、本節の追加受領範囲と区別する。
 
 [①A〜E引渡し表](emr-445-stage1-contract-start-plan-20261021.md#stage-current-five-20261021)で今回の共有契約/生成/限定master hunkと次便の既選定subsetを区別する。直接22票＋498 master＋297-A設定subsetの①24管理行は②26resource・③検索72用途とは別集計で、24行すべて実装完了という意味ではない。493の休業元targetと297-Aの設定mapping版は既選定保存契約の①受領漏れ補正。A採用modelと同一固定commitの本人生成結果をBが最終受領し、A前の生成結果だけで①全体完了にしない。未割当を未設計とせず、計画追補を実装開始・全親Done・品質証明へ換算しない。試験NOT_RUN。
+
+## 2026-10-22 coverage監査と完了判定の留保
+
+[監査記録](emr-stage123-coverage-audit-20261022.md)を①②③の対照表へ接続した。監査基準は#805の `4ec7f8013bdd96d0f1cd8fcb2deaa3483137dc34`、docs作成基準は#806/#807後の `9eef73feac19c25571724372b0b19da160ba5cfb`。#806 API収録・#807保存型/DDL/ERDは限定採用、#808/#809は確認時open。今回所見と解消済み/意図した後続を混算しない。
+
+①24管理行、②26resource、③検索72用途（57＋15）/非検索D01–D23/P01/7primitive＋18storiesは別のcoverage。調査票/親票を独立実装数に数えない。全体割引除外設定とtrimming旧2属性解除は監査時設計残だったが、[2026-10-22限定選定契約](emr-master-update-selected-contract-20261022.md)で技術選定済み。API/必要保存型/製品実装・受領・試験は未完。担当者別LINE開始時刻と医院共通営業時間/休診日の保存writerも[医院・LINE時間契約](emr-clinic-line-time-selected-contract-20261022.md)で2026-10-22に技術選定済み。実値/移行元確認、必要API/DDL/model/生成・製品実装・writer閉包/consumer切替・受領・試験は未完で、いずれも現5セッションへ暗黙追加しない。計画記載済み、MECE/責務の閉鎖、実装接続、試験品質証明は別判定であり、現時点で①〜③を整備/実装とも全完了とは宣言しない。今回docs-only、実装・試験・生成はNOT_RUN。
+
+A01のownerは445統合/446466保存型/527本人生成受領、447臨床5＋薬剤/449物販。A06は①API単一統合と448専有後続で新DDL/model不要。A/Bは同文書でも別契約として受領し、C06保存receiptと通常CRUD response、Aのnullable boolとBの旧null保持clear flagを混同しない。設計選定/実反映/機能公開/試験品質証明を別判定する。
+
+A02/A03は445医院設定、448/492 LINE設定の後続単一writer、493現在所属reader、①446/466/489/527の必要subset、④468のresolver利用へ分ける。旧closing休日はレジ専用legacy編集を維持しcommonとdual-writeしない。LINEホテルの閉店ちょうどの入退室予定許可は本人承認済みで、休日/休憩/LINE条件/定員の免除ではない。全①〜③実装完了とはしない。

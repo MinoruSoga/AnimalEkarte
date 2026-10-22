@@ -218,3 +218,28 @@ AGENTS.mdが参照する.claude/CLAUDE.mdのuser-run規約に従い、本人へ�
 | E | 449/530 | campaign/merch exactとinsurance description/contact_phone clear。医院税率・薬剤は530へ混ぜない |
 
 ②後続は458-A T2、492設定writer、493休業/eligibility/CSV/copy、366 actor、365 vaccine小数producer、498 pattern/revision、297-A mapping、465-M guard。②医院設定専有subsetは445の単一claim待ちで、Aの共有API/DDL担当へFE実装を暗黙追加しない。③450/523は次段階。これらは既選定の後続であり、未割当を未設計と読み替えず、A〜Eへ全面実装を追加しない。①24管理行、②26resource、③検索72用途と非検索familyは別集計。試験は⑤、今回NOT_RUN、製品コード/API YAML/DDL/model/生成物は未変更。
+
+### 5.7. 2026-10-22 coverage監査による①受領残と採用差分
+
+[利用者向け監査記録](emr-stage123-coverage-audit-20261022.md)を追加した。監査基準は#805採用 `4ec7f8013bdd96d0f1cd8fcb2deaa3483137dc34`、今回docs作成基準は#806/#807採用 `9eef73feac19c25571724372b0b19da160ba5cfb`。#806のAPI収録、#807の休業anchor/mapping版保存型・006/ERDは採用済みの限定成果として受領し、旧節の未収録/未受領という当時の記録へ戻さない。Aの全契約、writer/Q/ContextGate接続、DB適用・生成同期の完成は意味しない。#808 caller先行整理Draftと#809 528修正は確認時openで未採用、今回取り込まない。
+
+| 所見 | ①受領する未閉鎖subset | 既存ownerと次段階境界 |
+|---|---|---|
+| A01 全体割引除外設定 | 監査時は共有保存型/wireが設計残だった。2026-10-22に[選定契約A](emr-master-update-selected-contract-20261022.md#a-a01-全体割引除外の設定writer)で7既存resourceのis_bill_discount_excluded・nullable/no-default列・明示reader・限定version/監査を技術選定済み。API/DDL/model/製品実装・受領・試験は未完。成功読取の未設定だけfalse、未知はunknown、旧履歴補完なし | 臨床・薬剤447、物販449。②編集→保存→再GETを受領。481/483/505は④投影/採用consumerで設定writerの代用でない。現C/E・530限定scopeへ追加しない |
+| A02 担当者別LINE開始時刻 | 監査時は保存scope/競合/wireが設計残。2026-10-22の[医院・LINE時間契約§4](emr-clinic-line-time-selected-contract-20261022.md#4-a02-担当者別trimming開始policy)でline_staff_start_policiesとassignment束縛/版/日別置換/削除再設定、492 anchorの限定差分を技術選定済み。既存API/DDL/modelへ収録済みではない | 448/492の①②設定writerと468④判定consumerを分離。Lstep/DM最後のマーケ工程とは別、現Dへ追加しない |
+| A03 医院共通営業時間/休診日 | 監査時は共通保存/競合/移行が設計残。2026-10-22の[医院・LINE時間契約§2/3](emr-clinic-line-time-selected-contract-20261022.md)でclinic_operating_hours、LINE acceptance限定版/確認、日付adapter/旧レジ休日分離とwarningを選定済み。実値未照合、API/DDL/model/製品実装・受領・試験未完。既存値を自動統合/上書きしない | 445医院設定と448/LINE設定の既知境界残を単一ownerへ受領。468consumer/492だけで閉じず、Aの共有編集や現DへFE/runtimeを追加しない |
+| A06 trimming旧属性解除 | 監査時は具体wire未選定だった。2026-10-22に[選定契約B](emr-master-update-selected-contract-20261022.md#b-a06-trimming-course旧2属性の明示解除)でPATCH-only clear_course_type_id/clear_target_sizeを技術選定済み。旧null保持は維持し、矛盾flag+値は400/全体無書込。新DDL/model不要、API/製品実装・受領・試験は未完。0/空文字をFK代用にしない | ②448が値→指定なし→GETを受領。457新属性/画像/曜日clearや今回Dのdescription clearとは別後続。汎用nullable全体拡張なし |
+
+24管理行へ新規実装票を足した数ではなく、既存445/447/448/449/492等の行に受領残を対応づける追補である。A01/A06とA02/A03の監査時設計残は2026-10-22の限定選定で現在判定を更新した。選定と実反映を分け、未閉鎖をNOT_RUNだけで隠さず業務方針の再質問をしない。新規実装・API YAML/DDL/model/生成変更は今回行わずNOT_RUN。
+
+### 5.8. A01/A06の技術選定受領（2026-10-22）
+
+[限定選定契約](emr-master-update-selected-contract-20261022.md)に従う。A01は445統合/446466必要DDL-model-ERD/527本人正規生成受領、447臨床5種＋薬剤/449物販の後続writer。7列nullable/no DB defaultとexam_types/medicines/merchandise_itemsだけのversion追加を必要保存型として受領し、既存4種CASを再利用する。具体migration番号の予約・schema適用・model実変更は未実施。④481/483/505等の採用consumerと通常CRUDを分け、独自C06 route/owner_kindや全26resource CASを作らない。
+
+A06は既存trimming course PATCHの専用2clear flagと値/矛盾表を①API単一ownerへ渡す。POST/GET/modelへflagを入れず新DDL/model不要。448の専有後続で現Dのdescription clearとは別。両契約ともAPI正本/製品実装・受領・試験未完、現5session/530のscopeへ無断追加なし。A02/A03は次節の技術選定受領へ接続する。
+
+### 5.9. A02/A03の技術選定受領（2026-10-22）
+
+[医院・LINE時間契約](emr-clinic-line-time-selected-contract-20261022.md)により具体保存/wire/CAS/元対象/警告/旧writer切替を選定済み。445統合、446/466のclinic_operating_hours・line_reservation_settings acceptance_version/reviewed_acceptance_version・line_staff_start_policies・reservation_master_operation_anchors staff_id/assignment_id後続差分と型/ERD、489のQ/ContextGate/ClaimMetadataWriter・family/lookup allowlist必要subset、527の本人正規生成受領へ対応づける。API/DDL/model実反映・生成・runtime提供済みとはしない。短claimに業務FKを追加せず、graph gate→binding→Apply行lockを維持する。
+
+②445医院設定と448/492 LINE設定の後続単一writerが設定管理を受領し、493は現在所属reader。④468へResolveClinicAcceptanceWindow/ResolveRegisteredStartsを渡すが、④全体完了を設定保存の前提にしない。実予約利用開始には全必要writer閉包/consumer切替/実値照合が必須。旧レジ専用holiday編集は維持し、common/予約readerから分離する。実医院値・移行元確認/claim/API/保存型/製品接続/受領/試験は未完。現A〜Eへ無断追加せず、全①〜③実装完了とはしない。NOT_RUN。
