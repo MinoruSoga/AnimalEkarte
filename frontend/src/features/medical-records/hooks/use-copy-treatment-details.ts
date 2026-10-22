@@ -1,5 +1,5 @@
 // React/Framework
-import { useCallback, useContext, useRef, useState } from "react";
+import { useCallback, useContext, useRef, useTransition } from "react";
 import { QueryClientContext } from "@tanstack/react-query";
 
 // External
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { formatNumber } from "@/lib/format/number";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -47,6 +48,9 @@ import {
  *   成功分がある場合は onSuccess 相当の treatments 一覧 invalidate を完了時に1回だけ行う。
  * - 現カルテに id が無い（自動作成前）ときは明細複写をスキップする（問診項目の複写は
  *   呼び出し側で既に適用済み）。
+ * - pending はフォーム外の非同期なので `useTransition` で持つ（CODING_RULES §2.2）。
+ *   逐次 await を含む async transition でも React が pending を自動管理し、
+ *   try/finally の手動リセット漏れが構造的に起きない。
  */
 
 // use-treatment-master.ts の useGetAll*Master と同一 endpoint/transform。明示 clinicId では複写先キーを使う。
@@ -89,127 +93,137 @@ export function useCopyTreatmentDetails(
   // QueryClientProvider 不在でも throw しないよう context を直接引く
   // （provider が無い描画経路では undefined → コールバック内で早期 return）。
   const queryClient = useContext(QueryClientContext);
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
   // 連打で二重複写しないための実行中ガード（isPending は render 時点 snapshot のため ref）。
   const runningRef = useRef(false);
 
   const copyTreatmentsFromRecord = useCallback(
-    async (sourceRecordId: string): Promise<void> => {
-      if (!medicalRecordId || !queryClient || runningRef.current) return;
+    (sourceRecordId: string): Promise<void> => {
+      if (!medicalRecordId || !queryClient || runningRef.current) return Promise.resolve();
       runningRef.current = true;
-      setIsPending(true);
-      try {
-        let sourceRows: Treatment[];
-        let destRows: Treatment[];
-        let masters: CopyTreatmentMasters;
+
+      const run = async (): Promise<void> => {
         try {
-          // 複写元は履歴一覧（グローバルクリニック文脈）と同じ文脈で引くため clinicId を
-          // 明示しない。複写先は拠点横断対応済みの recordClinicId を使う（P2-15 準拠）。
-          const [source, dest, consultations, procedures, medicines] = await Promise.all([
-            queryClient.fetchQuery({
-              queryKey: queryKeys.medicalRecords.treatments(sourceRecordId),
-              queryFn: () => getTreatments(sourceRecordId),
-              staleTime: QUERY_STALE_TIMES.REALTIME,
-            }),
-            queryClient.fetchQuery({
-              queryKey: queryKeys.medicalRecords.treatments(medicalRecordId, recordClinicId),
-              queryFn: () => getTreatments(medicalRecordId, recordClinicId),
-              staleTime: QUERY_STALE_TIMES.REALTIME,
-            }),
-            queryClient.fetchQuery({
-              queryKey: recordClinicId
-                ? queryKeys.masters.categoryForClinic("consultations", recordClinicId)
-                : queryKeys.masters.category("consultations"),
-              queryFn: () => fetchConsultationsOnce(recordClinicId),
-              staleTime: QUERY_STALE_TIMES.STATIC,
-            }),
-            queryClient.fetchQuery({
-              queryKey: recordClinicId
-                ? queryKeys.masters.categoryForClinic("procedures", recordClinicId)
-                : queryKeys.masters.category("procedures"),
-              queryFn: () => fetchProceduresOnce(recordClinicId),
-              staleTime: QUERY_STALE_TIMES.STATIC,
-            }),
-            queryClient.fetchQuery({
-              queryKey: recordClinicId
-                ? queryKeys.masters.categoryForClinic("medicines", recordClinicId)
-                : queryKeys.masters.category("medicines"),
-              queryFn: () => fetchMedicinesOnce(recordClinicId),
-              staleTime: QUERY_STALE_TIMES.STATIC,
-            }),
-          ]);
-          sourceRows = source;
-          destRows = dest;
-          masters = {
-            consultations: consultations.filter((m) => m.isActive),
-            procedures: procedures.filter((m) => m.isActive),
-            medicines: medicines.filter((m) => m.isActive),
-          };
-        } catch (err) {
-          handleApiError(err, "治療明細の複写");
-          return;
-        }
-
-        const sortedSource = [...sourceRows].sort((a, b) => a.sort_order - b.sort_order);
-        if (sortedSource.length === 0) {
-          toast.info("複写する治療明細はありませんでした");
-          return;
-        }
-
-        const sortOrderOffset =
-          destRows.reduce((max, row) => Math.max(max, row.sort_order), -1) + 1;
-
-        // 複写先マスタ検証済みのペイロードを最初の create 前に全行構築する。
-        // 不正参照がある行で部分 POST しないため zero-write で中断する。
-        let payloads: ReturnType<typeof buildCopiedTreatmentPayload>[];
-        try {
-          payloads = sortedSource.map((row) =>
-            buildCopiedTreatmentPayload({ source: row, masters, sortOrderOffset }),
-          );
-        } catch (err) {
-          if (err instanceof Error && err.message === COPY_REJECT_MESSAGE) {
-            toast.error(COPY_REJECT_MESSAGE);
+          let sourceRows: Treatment[];
+          let destRows: Treatment[];
+          let masters: CopyTreatmentMasters;
+          try {
+            // 複写元は履歴一覧（グローバルクリニック文脈）と同じ文脈で引くため clinicId を
+            // 明示しない。複写先は拠点横断対応済みの recordClinicId を使う（P2-15 準拠）。
+            const [source, dest, consultations, procedures, medicines] = await Promise.all([
+              queryClient.fetchQuery({
+                queryKey: queryKeys.medicalRecords.treatments(sourceRecordId),
+                queryFn: () => getTreatments(sourceRecordId),
+                staleTime: QUERY_STALE_TIMES.REALTIME,
+              }),
+              queryClient.fetchQuery({
+                queryKey: queryKeys.medicalRecords.treatments(medicalRecordId, recordClinicId),
+                queryFn: () => getTreatments(medicalRecordId, recordClinicId),
+                staleTime: QUERY_STALE_TIMES.REALTIME,
+              }),
+              queryClient.fetchQuery({
+                queryKey: recordClinicId
+                  ? queryKeys.masters.categoryForClinic("consultations", recordClinicId)
+                  : queryKeys.masters.category("consultations"),
+                queryFn: () => fetchConsultationsOnce(recordClinicId),
+                staleTime: QUERY_STALE_TIMES.STATIC,
+              }),
+              queryClient.fetchQuery({
+                queryKey: recordClinicId
+                  ? queryKeys.masters.categoryForClinic("procedures", recordClinicId)
+                  : queryKeys.masters.category("procedures"),
+                queryFn: () => fetchProceduresOnce(recordClinicId),
+                staleTime: QUERY_STALE_TIMES.STATIC,
+              }),
+              queryClient.fetchQuery({
+                queryKey: recordClinicId
+                  ? queryKeys.masters.categoryForClinic("medicines", recordClinicId)
+                  : queryKeys.masters.category("medicines"),
+                queryFn: () => fetchMedicinesOnce(recordClinicId),
+                staleTime: QUERY_STALE_TIMES.STATIC,
+              }),
+            ]);
+            sourceRows = source;
+            destRows = dest;
+            masters = {
+              consultations: consultations.filter((m) => m.isActive),
+              procedures: procedures.filter((m) => m.isActive),
+              medicines: medicines.filter((m) => m.isActive),
+            };
+          } catch (err) {
+            handleApiError(err, "治療明細の複写");
             return;
           }
-          handleApiError(err, "治療明細の複写");
-          return;
-        }
 
-        let copied = 0;
-        let createFailed = false;
-        let createFailure: unknown;
-        for (const payload of payloads) {
-          try {
-            await createTreatment(medicalRecordId, payload, recordClinicId);
-            copied += 1;
-          } catch (err) {
-            createFailed = true;
-            createFailure = err;
-            break;
+          const sortedSource = [...sourceRows].sort((a, b) => a.sort_order - b.sort_order);
+          if (sortedSource.length === 0) {
+            toast.info("複写する治療明細はありませんでした");
+            return;
           }
-        }
 
-        if (copied > 0) {
-          // useCreateTreatment.onSuccess 相当の一覧無効化を完了時に1回だけ行う
-          // （行毎 invalidate による再 fetch storm 防止）。途中失敗で部分作成された
-          // 場合も作成済み行を一覧へ反映するため同じく1回実行する。
-          await queryClient.invalidateQueries({
-            queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
-          });
+          const sortOrderOffset =
+            destRows.reduce((max, row) => Math.max(max, row.sort_order), -1) + 1;
+
+          // 複写先マスタ検証済みのペイロードを最初の create 前に全行構築する。
+          // 不正参照がある行で部分 POST しないため zero-write で中断する。
+          let payloads: ReturnType<typeof buildCopiedTreatmentPayload>[];
+          try {
+            payloads = sortedSource.map((row) =>
+              buildCopiedTreatmentPayload({ source: row, masters, sortOrderOffset }),
+            );
+          } catch (err) {
+            if (err instanceof Error && err.message === COPY_REJECT_MESSAGE) {
+              toast.error(COPY_REJECT_MESSAGE);
+              return;
+            }
+            handleApiError(err, "治療明細の複写");
+            return;
+          }
+
+          let copied = 0;
+          let createFailed = false;
+          let createFailure: unknown;
+          for (const payload of payloads) {
+            try {
+              await createTreatment(medicalRecordId, payload, recordClinicId);
+              copied += 1;
+            } catch (err) {
+              createFailed = true;
+              createFailure = err;
+              break;
+            }
+          }
+
+          if (copied > 0) {
+            // useCreateTreatment.onSuccess 相当の一覧無効化を完了時に1回だけ行う
+            // （行毎 invalidate による再 fetch storm 防止）。途中失敗で部分作成された
+            // 場合も作成済み行を一覧へ反映するため同じく1回実行する。
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
+            });
+          }
+          if (createFailed) {
+            // useCreateTreatment.onError（handleApiError '治療追加'）と同じ通知を1回だけ出す。
+            handleApiError(createFailure, "治療追加");
+            return;
+          }
+          toast.success(`前回の治療明細を ${formatNumber(copied)} 件コピーしました`);
+        } catch (err) {
+          // payload 構築等の想定外失敗（create 経路の失敗は上で処理済み）。
+          handleApiError(err, "治療明細の複写");
+        } finally {
+          runningRef.current = false;
         }
-        if (createFailed) {
-          // useCreateTreatment.onError（handleApiError '治療追加'）と同じ通知を1回だけ出す。
-          handleApiError(createFailure, "治療追加");
-          return;
-        }
-        toast.success(`前回の治療明細を ${copied.toLocaleString()} 件コピーしました`);
-      } catch (err) {
-        // payload 構築等の想定外失敗（create 経路の失敗は上で処理済み）。
-        handleApiError(err, "治療明細の複写");
-      } finally {
-        runningRef.current = false;
-        setIsPending(false);
-      }
+      };
+
+      // 呼び出し側（親コンポーネント・テスト）が完了を await できるよう、
+      // transition の完了で resolve する Promise を返す。
+      return new Promise<void>((resolve) => {
+        startTransition(async () => {
+          await run();
+          resolve();
+        });
+      });
     },
     [medicalRecordId, queryClient, recordClinicId],
   );

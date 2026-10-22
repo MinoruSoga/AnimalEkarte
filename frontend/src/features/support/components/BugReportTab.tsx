@@ -5,20 +5,23 @@
  * POST /v1/support/bug-reports（multipart）へ送信する。
  * スクショはプレビュー確認 → 撮り直し / 画像差し替え / 削除が可能。
  * 個人情報が写り得るため、送信前に必ずプレビューを確認させる。
+ *
+ * 送信は `useActionState` + `<form action>` + `SubmitButton`（frontend/CLAUDE.md MANDATORY）。
+ * 件名・詳細は制御フィールド（useState）、送信・pending は action が持つ（CODING_RULES §2.2）。
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { Camera, CheckCircle2, ImagePlus, Loader2, RefreshCw, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { RequiredMark } from "@/components/shared/RequiredMark";
 import { C, STYLE } from "@/lib/design-tokens";
 
 import { useCreateBugReport } from "../api/create-bug-report";
 import { capturePageScreenshot } from "../lib/capture-screenshot";
-import { RequiredMark } from "@/components/shared/RequiredMark";
 
 const SCREENSHOT_MAX_BYTES = 8 * 1024 * 1024; // BE の multipart 上限と揃える
 const ACCEPTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -97,33 +100,28 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
     [applyScreenshot],
   );
 
-  const canSubmit = title.trim().length > 0 && !createReport.isPending && !capturing;
-
-  const handleSubmit = useCallback(
-    (event: React.FormEvent) => {
-      event.preventDefault();
-      const trimmedTitle = title.trim();
-      if (trimmedTitle.length === 0) return;
-      createReport.mutate(
-        {
-          title: trimmedTitle,
-          detail: detail.trim(),
-          pageUrl: window.location.href,
-          routePath: location.pathname,
-          userAgent: navigator.userAgent,
-          viewport: `${window.innerWidth}x${window.innerHeight}`,
-          appVersion: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "",
-          screenshot,
-        },
-        {
-          onSuccess: () => {
-            setSubmitted(true);
-          },
-        },
-      );
-    },
-    [title, detail, location.pathname, screenshot, createReport],
-  );
+  // 件名は native `required` で未入力送信を止める（保存ボタンを未入力理由で disabled に
+  // しない: design-patterns §4.2 / compliance C29）。
+  const [, formAction, isPending] = useActionState<null>(async () => {
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length === 0) return null;
+    try {
+      await createReport.mutateAsync({
+        title: trimmedTitle,
+        detail: detail.trim(),
+        pageUrl: window.location.href,
+        routePath: location.pathname,
+        userAgent: navigator.userAgent,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        appVersion: (import.meta.env.VITE_APP_VERSION as string | undefined) ?? "",
+        screenshot,
+      });
+      setSubmitted(true);
+    } catch {
+      // 通知は useCreateBugReport.onError（handleApiError）が出す。入力は保持し再送できる。
+    }
+    return null;
+  }, null);
 
   if (submitted) {
     return (
@@ -141,7 +139,7 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-3">
+    <form action={formAction} aria-busy={isPending} className="flex flex-col gap-3 p-3">
       <div className="flex flex-col gap-1">
         <label
           htmlFor="bug-report-title"
@@ -152,6 +150,7 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
         </label>
         <input
           id="bug-report-title"
+          name="title"
           type="text"
           required
           maxLength={200}
@@ -168,6 +167,7 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
         </label>
         <Textarea
           id="bug-report-detail"
+          name="detail"
           rows={4}
           maxLength={4000}
           value={detail}
@@ -248,10 +248,11 @@ export function BugReportTab({ onClose }: BugReportTabProps) {
         </p>
       </fieldset>
 
-      <PrimaryButton type="submit" disabled={!canSubmit} className="mt-1">
+      {/* 撮影中は送信を抑止（送信中は SubmitButton が useFormStatus で自動 disabled） */}
+      <SubmitButton disabled={capturing} loadingText="送信中…" className="mt-1 h-11">
         <Send className="size-4" aria-hidden="true" />
-        {createReport.isPending ? "送信中…" : "報告を送信"}
-      </PrimaryButton>
+        報告を送信
+      </SubmitButton>
     </form>
   );
 }

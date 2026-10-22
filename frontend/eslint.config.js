@@ -117,6 +117,14 @@ export default tseslint.config(
             "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。新しいキー形状が必要な場合は queryKeys に追加する。",
         },
         {
+          // `[...] as const` / `[...] satisfies X` で包むと value.type が ArrayExpression でなくなり
+          // 上のセレクタをすり抜ける（2026-10-22 監査で 4 件検出）。同じ禁止を型アサーション越しにも適用する。
+          selector:
+            "Property[key.name='queryKey'] > :matches(TSAsExpression, TSSatisfiesExpression) > ArrayExpression",
+          message:
+            "queryKey に配列リテラルを直書きしない（as const で包んでも同じ）。frontend/src/lib/query-keys.ts の queryKeys ファクトリー経由で参照すること。",
+        },
+        {
           // setQueryData/getQueryData/removeQueries/resetQueries/cancelQueries/refetchQueries/
           // invalidateQueries はキーを { queryKey: [...] } ではなく第一引数の裸配列として
           // 受け取れるため、上の Property セレクタでは捕捉できない別経路。
@@ -124,6 +132,12 @@ export default tseslint.config(
             "CallExpression[callee.property.name=/^(setQueryData|getQueryData|removeQueries|resetQueries|cancelQueries|refetchQueries|invalidateQueries)$/] > ArrayExpression.arguments:first-child",
           message:
             "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(setQueryData|getQueryData|removeQueries|resetQueries|cancelQueries|refetchQueries|invalidateQueries)$/] > :matches(TSAsExpression, TSSatisfiesExpression).arguments:first-child > ArrayExpression",
+          message:
+            "queryKey に配列リテラルを直書きしない（as const で包んでも同じ）。frontend/src/lib/query-keys.ts の queryKeys ファクトリー経由で参照すること。",
         },
         {
           // CODING_RULES.md: default export 禁止（IDE 補完・命名の一貫性）
