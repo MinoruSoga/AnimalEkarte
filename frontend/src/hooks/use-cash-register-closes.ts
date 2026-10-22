@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
+import type { LegacyCashRegisterCloseResponse } from "@/types/cash-register-legacy-wire";
 import { transformCashRegisterClose } from "@/lib/transforms/cash-register";
 import type { CashRegisterClose } from "@/lib/transforms/cash-register";
 
@@ -16,7 +16,7 @@ export interface GetCashRegisterClosesParams {
 }
 
 interface BackendCashRegisterClosesResponse {
-  data: BackendCashRegisterClose[];
+  data: LegacyCashRegisterCloseResponse[];
   total: number;
 }
 

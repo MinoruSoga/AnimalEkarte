@@ -18,7 +18,8 @@ import type {
   ProcedureWire,
   VaccineWire,
 } from "@/lib/transforms/treatment";
-import type { Medicine, MedicineHttpResponse as MedicineModel } from "@/lib/transforms/medicine";
+import type { Medicine } from "@/lib/transforms/medicine";
+import type { LegacyMedicineResponse } from "@/types/medicine";
 import type {
   CheckupType,
   HospitalizationPlan as HospitalizationPlanModel,
@@ -113,10 +114,10 @@ export function useGetAllProcedures({
  */
 export const getAllMedicinesMaster = async (clinicId?: string): Promise<Medicine[]> => {
   const { data } = clinicId
-    ? await axios.get<MedicineModel[]>("/v1/masters/medicines", {
+    ? await axios.get<LegacyMedicineResponse[]>("/v1/masters/medicines", {
         headers: { "X-Clinic-ID": clinicId },
       })
-    : await axios.get<MedicineModel[]>("/v1/masters/medicines");
+    : await axios.get<LegacyMedicineResponse[]>("/v1/masters/medicines");
   return data.map(transformBackendMedicineToFrontend);
 };
 

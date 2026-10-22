@@ -4,15 +4,16 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
-import type { Medicine, MedicineHttpResponse as MedicineModel } from "@/lib/transforms/medicine";
+import type { Medicine } from "@/lib/transforms/medicine";
 import type {
   CreateMedicineRequest,
+  LegacyMedicineResponse,
   UpdateMedicineRequest,
   ReorderMedicinesRequest,
 } from "@/types/medicine";
 
 const getAllMedicines = async (): Promise<Medicine[]> => {
-  const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
+  const { data } = await axios.get<LegacyMedicineResponse[]>("/v1/masters/medicines");
   return (data ?? []).map(transformBackendMedicineToFrontend);
 };
 
@@ -26,7 +27,7 @@ export const useGetAllMedicines = () => {
 };
 
 const createMedicine = async (req: CreateMedicineRequest): Promise<Medicine> => {
-  const { data } = await axios.post<MedicineModel>("/v1/masters/medicines", req);
+  const { data } = await axios.post<LegacyMedicineResponse>("/v1/masters/medicines", req);
   return transformBackendMedicineToFrontend(data);
 };
 
@@ -42,7 +43,7 @@ export const useCreateMedicine = () => {
 };
 
 const updateMedicine = async (id: string, req: UpdateMedicineRequest): Promise<Medicine> => {
-  const { data } = await axios.patch<MedicineModel>(`/v1/masters/medicines/${id}`, req);
+  const { data } = await axios.patch<LegacyMedicineResponse>(`/v1/masters/medicines/${id}`, req);
   return transformBackendMedicineToFrontend(data);
 };
 

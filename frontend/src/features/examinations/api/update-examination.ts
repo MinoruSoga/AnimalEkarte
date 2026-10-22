@@ -2,15 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { Examination } from "@/types/generated/models";
 import { transformExamination, type ExaminationRecord } from "./transforms";
-import type { UpdateExaminationRequest } from "../types";
+import type { BackendExamination, UpdateExaminationRequest } from "../types";
 
 const updateExamination = async (
   id: string,
   req: UpdateExaminationRequest,
 ): Promise<ExaminationRecord> => {
-  const { data } = await axios.patch<Examination>(`/v1/examinations/${id}`, req);
+  const { data } = await axios.patch<BackendExamination>(`/v1/examinations/${id}`, req);
   return transformExamination(data);
 };
 

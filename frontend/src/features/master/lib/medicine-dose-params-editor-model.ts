@@ -1,11 +1,11 @@
 import type {
   MedicineDoseBasis,
-  MedicineDoseParam,
   MedicineDoseSpecies,
   MedicineRoundingMode,
 } from "@/types/generated/models";
 import { MedicineDoseBasisPerAdministration } from "@/types/generated/models";
 import { parseOptionalNumber } from "@/lib/parse-optional-number";
+import type { LegacyMedicineDoseParamResponse } from "@/types/medicine";
 import type { UpsertMedicineDoseParamRequest } from "../api/medicine-dose-params";
 
 export interface DoseParamFormData {
@@ -42,7 +42,9 @@ export function isDoseParamFormEmpty(form: DoseParamFormData): boolean {
   );
 }
 
-export function doseParamToFormData(param: MedicineDoseParam | undefined): DoseParamFormData {
+export function doseParamToFormData(
+  param: LegacyMedicineDoseParamResponse | undefined,
+): DoseParamFormData {
   if (!param) return INITIAL_DOSE_PARAM_FORM;
   return {
     doseBasis: param.dose_basis,
@@ -119,8 +121,8 @@ export function buildUpsertDoseParamRequest(
 }
 
 export function findDoseParamBySpecies(
-  params: MedicineDoseParam[] | undefined,
+  params: LegacyMedicineDoseParamResponse[] | undefined,
   species: MedicineDoseSpecies,
-): MedicineDoseParam | undefined {
+): LegacyMedicineDoseParamResponse | undefined {
   return params?.find((p) => p.species === species);
 }

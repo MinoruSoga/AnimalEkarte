@@ -6,14 +6,15 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type {
   MedicineDoseBasis,
-  MedicineDoseParam,
   MedicineDoseSpecies,
   MedicineRoundingMode,
 } from "@/types/generated/models";
+import type { LegacyMedicineDoseParamResponse } from "@/types/medicine";
 
 /**
  * PUT /v1/masters/medicines/:id/dose-params/:species リクエストボディ (#201)
  * species は URL パスに含まれるためボディには含めない。
+ * @see backend/internal/medicalrecord/medicine_dose_param_request.go upsertMedicineDoseParamRequest
  */
 export interface UpsertMedicineDoseParamRequest {
   dose_basis?: MedicineDoseBasis;
@@ -26,8 +27,10 @@ export interface UpsertMedicineDoseParamRequest {
   notes?: string;
 }
 
-const getMedicineDoseParams = async (medicineId: string): Promise<MedicineDoseParam[]> => {
-  const { data } = await axios.get<MedicineDoseParam[]>(
+const getMedicineDoseParams = async (
+  medicineId: string,
+): Promise<LegacyMedicineDoseParamResponse[]> => {
+  const { data } = await axios.get<LegacyMedicineDoseParamResponse[]>(
     `/v1/masters/medicines/${medicineId}/dose-params`,
   );
   return data ?? [];
@@ -47,8 +50,8 @@ export const upsertMedicineDoseParam = async (
   medicineId: string,
   species: MedicineDoseSpecies,
   input: UpsertMedicineDoseParamRequest,
-): Promise<MedicineDoseParam> => {
-  const { data } = await axios.put<MedicineDoseParam>(
+): Promise<LegacyMedicineDoseParamResponse> => {
+  const { data } = await axios.put<LegacyMedicineDoseParamResponse>(
     `/v1/masters/medicines/${medicineId}/dose-params/${species}`,
     input,
   );

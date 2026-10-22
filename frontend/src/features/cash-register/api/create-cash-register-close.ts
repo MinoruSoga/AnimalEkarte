@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
+import type { LegacyCashRegisterCloseResponse } from "@/types/cash-register-legacy-wire";
 import type { CashRegisterPeriod } from "../lib/constants";
 import { transformCashRegisterClose } from "./transforms";
 import type { CashRegisterClose } from "./transforms";
@@ -17,7 +17,7 @@ interface CreateCashRegisterCloseRequest {
 const createCashRegisterClose = async (
   data: CreateCashRegisterCloseRequest,
 ): Promise<CashRegisterClose> => {
-  const { data: res } = await axios.post<BackendCashRegisterClose>(
+  const { data: res } = await axios.post<LegacyCashRegisterCloseResponse>(
     "/v1/cash-register/closes",
     data,
   );

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { transformBackendMedicineToFrontend } from "./medicine";
-import type { MedicineHttpResponse } from "./medicine";
+import type { LegacyMedicineResponse } from "@/types/medicine";
 
-const minimalMedicine: MedicineHttpResponse = {
+const minimalMedicine: LegacyMedicineResponse = {
   id: 1,
   clinic_id: 1,
   name: "テスト薬剤",
@@ -13,6 +13,7 @@ const minimalMedicine: MedicineHttpResponse = {
   tax_type: "excluded",
   tax_rate: "0.10",
   sort_order: 0,
+  calculation_type: "none",
   created_at: "",
   updated_at: "",
 };

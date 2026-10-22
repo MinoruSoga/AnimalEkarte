@@ -1,32 +1,11 @@
-import type {
-  Billing,
-  BillingItem,
-  BillingStatus,
-  PaymentMethod,
-  TaxType,
-} from "@/types/generated/models";
+import type { BillingStatus, PaymentMethod, TaxType } from "@/types/generated/models";
+import type { LegacyAccountingItemResponse, LegacyAccountingResponse } from "./legacy-wire";
 
-// Backend 型エイリアス
-export type BackendAccounting = Omit<Billing, "items"> & {
-  items?: BackendAccountingItem[];
-  /** BUG-007: 未収残高（waiting 全額 or クレジット訂正差額） */
-  outstanding_amount?: number | null;
-};
+// Backend 型エイリアス。保存 model ではなく移行 HTTP DTO を指す（EMR-527）。
+export type BackendAccounting = LegacyAccountingResponse;
 
-// BillingItem のレスポンス型（BE handler が計算して返す追加フィールドを含む）
-export interface BackendAccountingItem extends Omit<BillingItem, "is_insurance_applicable"> {
-  /** null = legacy unset; absent = unavailable. Neither is an explicit false. */
-  is_insurance_applicable?: boolean | null;
-  vaccination_id?: number;
-  exam_id?: number;
-  other_reason?: string;
-  tax_amount?: number;
-  subtotal?: number;
-  /** 未請求候補など treatment 由来の親カルテ（仮想。DB 列ではない） */
-  medical_record_id?: number;
-  /** EMR-246: 未請求候補の発生日（仮想。DB 列ではない）。当日/過去区分表示用。BE は omitempty 付きのため null は返らない */
-  service_date?: string;
-}
+// 明細のレスポンス型（BE handler が計算して返す subtotal / tax_amount 等を含む）
+export type BackendAccountingItem = LegacyAccountingItemResponse;
 
 // BillingItem の更新リクエスト
 export interface UpdateBillingItemRequest {

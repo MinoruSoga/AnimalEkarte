@@ -5,11 +5,11 @@ import { todayJSTISO } from "@/lib/jst-date";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservationsToReceptionColumns } from "./transforms";
-import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
+import type { LegacyReservationResponse } from "@/types/reservation-legacy-wire";
 import type { ReceptionColumn } from "./types";
 
 interface ReservationsResponse {
-  data: BackendReceptionReservation[];
+  data: LegacyReservationResponse[];
   total: number;
   page: number;
   limit: number;

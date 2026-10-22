@@ -1,8 +1,8 @@
-import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
+import type { LegacyCashRegisterCloseResponse } from "@/types/cash-register-legacy-wire";
 
 // BE 契約: period は "am" | "pm" | "emg" のみ（features/cash-register/constants.ts の
 // CashRegisterPeriod と同一値域）。lib/transforms は feature に依存しないためここで narrow する。
-export function transformCashRegisterClose(raw: BackendCashRegisterClose) {
+export function transformCashRegisterClose(raw: LegacyCashRegisterCloseResponse) {
   return {
     id: String(raw.id ?? 0),
     clinicId: String(raw.clinic_id ?? 0),
