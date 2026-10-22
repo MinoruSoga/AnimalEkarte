@@ -196,8 +196,7 @@ describe("Q3: treatmentPackageKindViewResource（backend 型別 view resource �
 
 describe("S08 diff helpers（draftPackageDiff / component summary）", () => {
   it("項目別に差分を返す（構成は全置換比較）", async () => {
-    const { draftPackageDiff, draftComponentSummary, wireComponentSummary } =
-      await import("./treatment-package-form");
+    const { draftPackageDiff } = await import("./treatment-package-form");
     const draft = draftFromPackage(basePkg);
     const same = draftPackageDiff(draft, basePkg);
     expect(same).toEqual({ name: false, description: false, isActive: false, components: false });

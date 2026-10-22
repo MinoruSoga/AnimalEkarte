@@ -329,6 +329,7 @@ export function TreatmentPackageSettings() {
     editor,
     authorizationLost,
     clearConflictFetch,
+    bumpEditSession,
     markAuthorizationLost,
   ]);
 
