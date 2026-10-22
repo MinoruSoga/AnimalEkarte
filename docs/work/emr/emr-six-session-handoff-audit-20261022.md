@@ -108,7 +108,7 @@ F3はparser単体だけでは保存再GETfixtureを代替しない。fixture存�
 ## 10. 最終報告テンプレート（各枠）
 
 - 対象AC総数 / 静的接続確認 / 未実装 / 依存待ち / 対象外（理由）：
-- final head / merge SHA / 受領元SHAとhunk：
+- base SHA / final head / 採用merge SHA / 受領元SHAとhunk：
 - ACごとのhandler→service→repo/model→response→caller固定リンク：
 - fixture名・入力・期待保存値/response/副作用、unit/mock/integrationの区別：
 - tests/build/codegen/DB/browser結果：NOT_RUN又は実際のcommand・実行環境・結果。未実行を成功欄へ入れない：
