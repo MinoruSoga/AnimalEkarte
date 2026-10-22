@@ -105,7 +105,7 @@ func TestBuildHospitalizationPlanUpdate(t *testing.T) {
 				"billing_unit": model.BillingUnit(billingUnit),
 				"sort_order":   sortOrder,
 				"tax_type":     model.TaxType(taxType),
-				"tax_rate":     taxRate,
+				"tax_rate":     mustNumeric(t, "0.08"),
 			},
 		},
 		{

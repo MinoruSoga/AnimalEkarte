@@ -56,9 +56,23 @@ func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[st
 		fields[colHospitalizationPlanTaxType] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
-		fields[colHospitalizationPlanTaxRate] = *input.TaxRate
+		// service.Update が hospitalizationPlanExactTaxRate で事前検査済み。変換不能値は書かない。
+		if exact, err := hospitalizationPlanExactTaxRate(*input.TaxRate); err == nil {
+			fields[colHospitalizationPlanTaxRate] = exact
+		}
 	}
 	return fields
+}
+
+// hospitalizationPlanExactTaxRate は wire の float64 税率を最短10進表現経由で ExactNumeric にする。
+// model.TaxRate は ExactNumeric（#729）。create/update 共通の adapter で、binary float の誤差を
+// 新しい正規値として保存しない（EMR-528、consultation と同形）。
+func hospitalizationPlanExactTaxRate(rate float64) (model.ExactNumeric, error) {
+	var exact model.ExactNumeric
+	if err := exact.Scan(strconv.FormatFloat(rate, 'f', -1, 64)); err != nil {
+		return model.ExactNumeric{}, apperrors.WrapInvalidInput("invalid tax rate")
+	}
+	return exact, nil
 }
 
 // ---- HospitalizationPlanService ----
@@ -166,10 +180,9 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
-	// model.TaxRate は ExactNumeric（#729）。wire の float64 を10進文字列経由で保存する（consultation と同形）。
-	var exactTaxRate model.ExactNumeric
-	if err := exactTaxRate.Scan(strconv.FormatFloat(taxRate, 'f', -1, 64)); err != nil {
-		return nil, apperrors.WrapInvalidInput("invalid tax rate")
+	exactTaxRate, err := hospitalizationPlanExactTaxRate(taxRate)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to convert tax rate")
 	}
 	sortOrder := input.SortOrder
 	plan := &model.HospitalizationPlan{
@@ -213,6 +226,11 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	}
 	if err := validateHospitalizationPlanUpdateEnums(input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate hospitalization plan enums")
+	}
+	if input.TaxRate != nil {
+		if _, err := hospitalizationPlanExactTaxRate(*input.TaxRate); err != nil {
+			return nil, apperrors.Wrap(err, "failed to convert tax rate")
+		}
 	}
 	fields := buildHospitalizationPlanUpdate(*input)
 	if len(fields) == 0 {
