@@ -7,8 +7,8 @@ import type { MedicineFormData } from "../lib/medicine-side-panel-model";
 import { MedicineBasicFlagsSection, MedicinePriceTaxSection } from "./MedicineSidePanelSections";
 
 // Radix Select の開閉に依存せず、onChange 結線（EMR-536 の編集 intent）だけを検証する。
-// PropertyRow の <label> が子 button の accessible name になる（"税率 税率を8%にする"）ため、
-// 取得は部分一致の正規表現で行う。
+// PropertyRow の <label> が子 button の accessible name を「税率」に上書きするため、
+// role/name ではなく表示テキストで取得する。
 vi.mock("@/components/shared/TaxRateSelector/TaxRateSelector", () => ({
   TaxRateSelector: ({ onChange }: { onChange: (value: number) => void }) => (
     <button type="button" onClick={() => onChange(0.08)}>
@@ -96,7 +96,7 @@ describe("MedicinePriceTaxSection 税率の編集 intent (EMR-536)", () => {
     render(<Stateful />);
     expect(screen.getByTestId("state")).toHaveTextContent("[0.1,null]");
 
-    await user.click(screen.getByRole("button", { name: /税率を8%にする/ }));
+    await user.click(screen.getByText("税率を8%にする"));
 
     expect(screen.getByTestId("state")).toHaveTextContent("[0.08,true]");
   });
