@@ -2,7 +2,7 @@
 
 計画・確認項目の整備であり、稼働・実装完了・受入PASSの記録ではない。実際の状態は各PRとチケットの最新証拠で更新する。進行中コードの再監査・実装完了認定ではなく、今後の完了報告を検証する受入表である。今回docsのみ、製品コード・API YAML・DDL/model・設定・生成物・Planeは変更しない。試験/build/codegen/DB/Docker/browser実機確認はNOT_RUN。マージ・deployは行わない。
 
-原典は採択済み[A01/A06契約](emr-master-update-selected-contract-20261022.md)、[A02/A03契約](emr-clinic-line-time-selected-contract-20261022.md)、[①着手計画](emr-445-stage1-contract-start-plan-20261021.md)、[②着手計画](emr-445-stage2-master-start-plan-20261021.md)と各票の最新コメント。旧「現5セッションへ追加しない」は過去scopeの履歴であり、今回の明示6枠割当と区別する。実装開始時の最新正本SHAを各枠が記録する。532 Q1〜Q3の新しい具体回答は本人承認待ちで、本書は未承認案を採用しない。
+原典は採択済み[A01/A06契約](emr-master-update-selected-contract-20261022.md)、[A02/A03契約](emr-clinic-line-time-selected-contract-20261022.md)、[①着手計画](emr-445-stage1-contract-start-plan-20261021.md)、[②着手計画](emr-445-stage2-master-start-plan-20261021.md)と各票の最新コメント。旧「現5セッションへ追加しない」は過去scopeの履歴であり、今回の明示6枠割当と区別する。実装開始時の最新正本SHAを各枠が記録する。532 Q1〜Q3は2026-10-22回答済み。詳細正本は[EMR-532回答コメント](https://app.plane.so/baritechllc/browse/EMR-532/) `f7deed37-3af9-40b2-bf2c-6c84a473798d`（SPEC-QA-20261022-532-REORDER-CONFLICT-PERMISSION、07:49:37 UTC投稿）。本人07:48:59 UTC承認に基づく回答であり、実装・受入・試験完了とは分ける。
 
 ## 1. 6枠の所有と受領
 
@@ -12,7 +12,7 @@
 | B 446/466/527 | DDL/model/ERD/登録・正規生成入力と本人生成の受領 | A01 7bool/3version→C。A03 common aggregate/LINE限定版→D。A02 policy/492 anchor staff・assignment拡張→D。限定波で供給 | 既存001/006/806/807を巻戻さず採番は最新mainで調整。nullable/default/backfill、RLS/FK/guard整合、生成入力SHA・出力受領・NOT_RUNを区別 |
 | C 447/449/456 | 品目専有request/service/repository/response、presence/CAS/同TX監査、旧writer保持、健診親lock | BのA01必要型とAのwireを受領。Aの536 FEと共有API/modelには触れない | 7resourceごとのPOST/PATCH/GET/NULL/false/unknown/競合/監査rollback/旧writer表。必要型未受領は未完と記録 |
 | D 448/492 | 医院/LINE設定のdomain backendとoperation adapter | B common→LINE版→policy/anchor、A APIと489 registry/lookup/Q/ContextGate必要subset、493現在所属reader | immutable verified command、原assignment現在認可、旧writer閉包、同TX audit/write/receipt、元key lookup。旧repo独立TXを外側で包むだけは不可 |
-| E 532 | package capなし全件照合、clinic test double、403/409 FEとfixture | 既存521/523 APIを再利用。Q1〜Q3の具体回答は本人確認待ち。既存ACは維持し、未承認案を採択済みにしない。型/interface競合は該当hunkを調整 | S06/S07/S08/S10各ACとQ1〜3の回答状況を明記。後続534へ最新wrapperを渡す。522/524は対象外 |
+| E 532 | package capなし全件照合、clinic test double、403/409 FEとfixture | 既存521/523 APIを再利用。Q1〜Q3は2026-10-22回答済み、詳細は上記EMR-532コメントと§7。既存ACを維持し、回答採用を実装済みにしない。型/interface競合は該当hunkを調整 | S06/S07/S08/S10各ACとQ1〜3の回答状況を明記。後続534へ最新wrapperを渡す。522/524は対象外 |
 | F 537 | 物販不足import・追加不可表示位置・campaign/物販exact往復fixture | 既存813/818を基底にする。Cの物販production writerとfixture範囲をhunk単位調整 | 3群全ACを確認。P1 importだけで全完了としない。API/DDL/生成型を横編集しない |
 
 C/Dは既選定契約に沿う専有実装を並列開始できる。A/B全票Doneは待たないが、必要共有型の独自stub・二重型・生成物手編集で先回りしない。小さいsubsetの引渡し後に結線し、必要subset未採用時は統合完了としない。A/Bは単一ownerの限定波であり巨大1PRを要求しない。
@@ -79,12 +79,12 @@ D提出は各新route・旧writer/非P救済・lookup familyを列挙。新route
 
 | AC | コード経路 | fixture/PR完了条件 |
 |---|---|---|
-| E1 reorder母集合 | treatment_package_service→catalog lock→repo真全件照合→CAS/write | inactive込み10001件、欠落/重複/別院/CAS不一致zero-write、no-op版不増分。表示用cap一括撤廃では不可、部分一覧を全件として送らない |
+| E1 reorder母集合 | treatment_package_service→catalog lock→repo真全件照合→CAS/write | BEはcapなし全件照合。inactive込み10001件、欠落/重複/別院/CAS不一致zero-write、no-op版不増分。FEはfilter前raw一覧件数>=10000で並替UI/送信handlerを抑止し、完全10000件も保守停止。API追加なし、表示用cap一括撤廃では不可、部分一覧を全件として送らない |
 | E2 clinic test double | clinic ports→atomicClinicStore→既存同TX/rollbackfixture | catalog version create/delete2method追随。production interface縮小なし。静的型対応とbuild未実行を分離 |
-| E3 typed403 panel | TreatmentPackageSettings/list error→既存target/editor/mutation境界 | master-medical view保持＋型別view喪失で旧editor表示/送信停止。一時通信失敗と失権を混同せず、親grant喪失は既存guard維持 |
-| E4 409比較 | editor draft→409→最新GET→比較→明示選択 | draft保持、取得失敗/医院切替/遅延応答の誤適用なし、blind再送なし。alert文言だけでは完了不可 |
+| E3 typed403 panel | TreatmentPackageSettings/list error→既存target/editor/mutation境界 | master-medical view保持＋型別view喪失で旧editor表示/送信停止、draftは同一編集sessionのメモリ保持・非表示。一覧successだけでは戻さず、対象fresh readとdraft各型の現在viewを確認して再表示、確認不能は非表示維持。一時通信失敗と失権を混同せず、親grant喪失は既存guard維持 |
+| E4 409比較 | editor draft→409→最新GET→比較→明示選択 | draft保持。比較snapshotを「最新を採用」又は「入力を保持して編集継続」と明示選択した時だけbaseline/CAS版更新。保存は別操作、自動上書き/再送なし。取得失敗/医院切替/遅延応答の誤適用なし。alert文言だけでは完了不可 |
 
-Eは既存521/523 API/CAS/clinic interface利用、新DDL/APIを独自追加しない。Q1〜Q3の具体回答は本人承認待ちで、上表の既存ACと回答状況を別に記録する。534のpackage FAB/scroll hunkはEのFE変更を先に受領してから。Eは534レイアウト・522/524・494/Fable・既知P01を吸収しない。
+Eは既存521/523 API/CAS/clinic interface利用、新DDL/APIを独自追加しない。Q1〜Q3は2026-10-22回答済み（冒頭のEMR-532回答コメント参照）。上表の既存ACと回答採用、実装・fixture・実行結果を別に記録する。534のpackage FAB/scroll hunkはEのFE変更を先に受領してから。Eは534レイアウト・522/524・494/Fable・既知P01を吸収しない。
 
 ## 8. F：EMR-537 物販/キャンペーン限定後続
 
