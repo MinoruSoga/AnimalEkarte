@@ -241,3 +241,159 @@ func TestHospitalizationPlanRepository_CountUsageByHospitalizationPlanID(t *test
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), count)
 }
+
+// TestHospitalizationPlanRepository_OptionalFieldsSaveAndReread は EMR-528 の保存→再GET 受入。
+// service→repository→実 DB を通し、明示 null・空備考・明示0（価格/税率）・並び順を読み戻す。
+func TestHospitalizationPlanRepository_OptionalFieldsSaveAndReread(t *testing.T) {
+	db := setupHospitalizationPlanRepoTestDB(t)
+	repo := NewHospitalizationPlanRepository(db)
+	svc := NewHospitalizationPlanService(repo)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	zeroPrice := int64(0)
+	zeroRate := 0.0
+	created, err := svc.Create(ctx, clinicA, &CreateHospitalizationPlanInput{
+		Name:        "0円プラン",
+		Price:       &zeroPrice,
+		IsActive:    true,
+		Description: "旧備考",
+		BodySize:    "medium",
+		BillingUnit: "per_night",
+		SortOrder:   7,
+		TaxType:     "exempt",
+		TaxRate:     &zeroRate,
+	})
+	require.NoError(t, err)
+
+	t.Run("作成した明示0価格・0税率・並び順を再GETで読み戻す", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, created.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.Price)
+		assert.Equal(t, int64(0), *got.Price)
+		assert.Equal(t, "0", exactNumericCanonical(got.TaxRate))
+		require.NotNil(t, got.SortOrder)
+		assert.Equal(t, 7, *got.SortOrder)
+	})
+
+	t.Run("省略した項目は既存値を保持する", func(t *testing.T) {
+		name := "改名のみ"
+		_, err := svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{Name: &name})
+		require.NoError(t, err)
+
+		got, err := repo.FindByID(ctx, clinicA, created.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "旧備考", got.Description)
+		require.NotNil(t, got.BodySize)
+		assert.Equal(t, model.BodySizeMedium, *got.BodySize)
+		require.NotNil(t, got.BillingUnit)
+		assert.Equal(t, model.BillingUnitPerNight, *got.BillingUnit)
+	})
+
+	t.Run("値を別値へ変更する", func(t *testing.T) {
+		large := "large"
+		perDay := "per_day"
+		largePtr, perDayPtr := &large, &perDay
+		_, err := svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{BodySize: &largePtr, BillingUnit: &perDayPtr})
+		require.NoError(t, err)
+
+		got, err := repo.FindByID(ctx, clinicA, created.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.BodySize)
+		assert.Equal(t, model.BodySizeLarge, *got.BodySize)
+		require.NotNil(t, got.BillingUnit)
+		assert.Equal(t, model.BillingUnitPerDay, *got.BillingUnit)
+	})
+
+	t.Run("明示nullと空備考は SQL NULL と空文字で保存される", func(t *testing.T) {
+		var nullValue *string
+		empty := ""
+		_, err := svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{
+			Description: &empty,
+			BodySize:    &nullValue,
+			BillingUnit: &nullValue,
+		})
+		require.NoError(t, err)
+
+		got, err := repo.FindByID(ctx, clinicA, created.ID)
+		require.NoError(t, err)
+		assert.Empty(t, got.Description)
+		assert.Nil(t, got.BodySize)
+		assert.Nil(t, got.BillingUnit)
+	})
+
+	t.Run("不正enumは保存されず直前の値が残る", func(t *testing.T) {
+		small := "small"
+		smallPtr := &small
+		_, err := svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{BodySize: &smallPtr})
+		require.NoError(t, err)
+
+		empty := ""
+		emptyPtr := &empty
+		_, err = svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{BodySize: &emptyPtr})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+
+		got, err := repo.FindByID(ctx, clinicA, created.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.BodySize, `"" must not clear an existing value`)
+		assert.Equal(t, model.BodySizeSmall, *got.BodySize)
+	})
+}
+
+// TestHospitalizationPlanRepository_UpdateAndDeleteKeepCarePlanItems は EMR-528 の履歴境界。
+// master 更新は hospitalization_plans だけを変え、参照中の care_plan_items 行は変えない。
+// 参照中プランの削除は NOT EXISTS により拒否される。
+func TestHospitalizationPlanRepository_UpdateAndDeleteKeepCarePlanItems(t *testing.T) {
+	db := setupHospitalizationPlanRepoTestDB(t)
+	repo := NewHospitalizationPlanRepository(db)
+	svc := NewHospitalizationPlanService(repo)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	ownerA := makeTestOwner(t, db, clinicA, "履歴境界飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "履歴境界ポチ")
+	planA := makeHospitalizationPlanFixture(t, db, clinicA, "参照中プラン")
+	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
+
+	unitPrice := int64(3300)
+	item := &model.CarePlanItem{
+		HospitalizationID:     hospA.ID,
+		Type:                  model.CarePlanTypeItem,
+		Name:                  "入院管理",
+		HospitalizationPlanID: &planA.ID,
+		UnitPrice:             &unitPrice,
+	}
+	require.NoError(t, db.WithContext(ctx).Create(item).Error)
+	var before model.CarePlanItem
+	require.NoError(t, db.WithContext(ctx).First(&before, item.ID).Error)
+
+	t.Run("master更新は参照中のケアプラン項目を変えない", func(t *testing.T) {
+		name := "改定後プラン"
+		price := int64(9900)
+		var nullValue *string
+		_, err := svc.Update(ctx, clinicA, planA.ID, &UpdateHospitalizationPlanInput{
+			Name:     &name,
+			Price:    &price,
+			BodySize: &nullValue,
+		})
+		require.NoError(t, err)
+
+		var after model.CarePlanItem
+		require.NoError(t, db.WithContext(ctx).First(&after, item.ID).Error)
+		assert.Equal(t, before.Name, after.Name)
+		assert.Equal(t, before.UnitPrice, after.UnitPrice)
+		assert.Equal(t, before.HospitalizationPlanID, after.HospitalizationPlanID)
+		assert.True(t, before.UpdatedAt.Equal(after.UpdatedAt), "care_plan_items.updated_at must not change")
+	})
+
+	t.Run("参照中プランの削除はNOT EXISTSで拒否され残る", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicA, planA.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+
+		got, err := repo.FindByID(ctx, clinicA, planA.ID)
+		require.NoError(t, err)
+		assert.NotNil(t, got)
+	})
+}

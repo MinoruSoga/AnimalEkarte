@@ -1,6 +1,9 @@
 package medicalrecord
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestCreateHospitalizationPlanRequest_ToServiceInput(t *testing.T) {
 	price := int64(8800)
@@ -65,11 +68,11 @@ func TestUpdateHospitalizationPlanRequest_ToServiceInput(t *testing.T) {
 		Price:       &price,
 		IsActive:    &isActive,
 		Description: &description,
-		BodySize:    &bodySize,
-		BillingUnit: &billingUnit,
 		SortOrder:   &sortOrder,
 		TaxType:     &taxType,
 		TaxRate:     &taxRate,
+		BodySize:    hospitalizationPlanNullableEnumField{set: true, value: &bodySize},
+		BillingUnit: hospitalizationPlanNullableEnumField{set: true, value: &billingUnit},
 	}
 
 	input := req.toServiceInput()
@@ -86,11 +89,11 @@ func TestUpdateHospitalizationPlanRequest_ToServiceInput(t *testing.T) {
 	if input.Description != &description {
 		t.Fatalf("Description pointer was not preserved")
 	}
-	if input.BodySize != &bodySize {
-		t.Fatalf("BodySize pointer was not preserved")
+	if input.BodySize == nil || *input.BodySize != &bodySize {
+		t.Fatalf("BodySize value pointer was not preserved")
 	}
-	if input.BillingUnit != &billingUnit {
-		t.Fatalf("BillingUnit pointer was not preserved")
+	if input.BillingUnit == nil || *input.BillingUnit != &billingUnit {
+		t.Fatalf("BillingUnit value pointer was not preserved")
 	}
 	if input.SortOrder != &sortOrder {
 		t.Fatalf("SortOrder pointer was not preserved")
@@ -132,5 +135,62 @@ func TestUpdateHospitalizationPlanRequest_ToServiceInput_NilFields(t *testing.T)
 	}
 	if input.TaxRate != nil {
 		t.Fatalf("TaxRate = %v, want nil", input.TaxRate)
+	}
+}
+
+// EMR-528: PATCH body_size / billing_unit の wire 3値（省略=保持 / null=SQL NULL / 値=設定）を decode で区別する。
+func TestUpdateHospitalizationPlanRequest_NullableEnumPresence(t *testing.T) {
+	tests := []struct {
+		name      string
+		body      string
+		wantSet   bool
+		wantNull  bool
+		wantValue string
+	}{
+		{name: "omitted keeps existing", body: `{"name":"x"}`, wantSet: false},
+		{name: "explicit null clears", body: `{"body_size":null,"billing_unit":null}`, wantSet: true, wantNull: true},
+		{name: "value passes through decode", body: `{"body_size":"per_night","billing_unit":"per_night"}`, wantSet: true, wantValue: "per_night"},
+		{name: "empty string is a value, not null", body: `{"body_size":"","billing_unit":""}`, wantSet: true, wantValue: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var req updateHospitalizationPlanRequest
+			if err := json.Unmarshal([]byte(tt.body), &req); err != nil {
+				t.Fatalf("Unmarshal() error = %v", err)
+			}
+			input := req.toServiceInput()
+			for field, got := range map[string]**string{"body_size": input.BodySize, "billing_unit": input.BillingUnit} {
+				if !tt.wantSet {
+					if got != nil {
+						t.Fatalf("%s = %v, want omitted (nil)", field, got)
+					}
+					continue
+				}
+				if got == nil {
+					t.Fatalf("%s omitted, want present", field)
+				}
+				if tt.wantNull {
+					if *got != nil {
+						t.Fatalf("%s = %q, want explicit null", field, **got)
+					}
+					continue
+				}
+				if *got == nil {
+					t.Fatalf("%s = null, want a string value", field)
+				}
+				if **got != tt.wantValue {
+					t.Fatalf("%s = %q, want %q (enum 検査は service が行うため decode は値をそのまま渡す)", field, **got, tt.wantValue)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateHospitalizationPlanRequest_NullableEnumRejectsNonString(t *testing.T) {
+	for _, body := range []string{`{"body_size":1}`, `{"billing_unit":true}`, `{"body_size":{}}`} {
+		var req updateHospitalizationPlanRequest
+		if err := json.Unmarshal([]byte(body), &req); err == nil {
+			t.Fatalf("Unmarshal(%s) error = nil, want invalid input", body)
+		}
 	}
 }
