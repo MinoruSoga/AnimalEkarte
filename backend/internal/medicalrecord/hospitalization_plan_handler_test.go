@@ -406,6 +406,87 @@ func TestUpdateHospitalizationPlan(t *testing.T) {
 	}
 }
 
+// EMR-528: PATCH の wire presence が handler→service→update map まで保たれ、"" は 400 で書き込まない。
+func TestUpdateHospitalizationPlan_OptionalFieldPresence(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       string
+		wantStatus int
+		wantFields map[string]any
+	}{
+		{
+			name:       "explicit null clears body_size and billing_unit",
+			body:       `{"body_size":null,"billing_unit":null}`,
+			wantStatus: http.StatusOK,
+			wantFields: map[string]any{"body_size": nil, "billing_unit": nil},
+		},
+		{
+			name:       "empty description is saved as empty",
+			body:       `{"description":""}`,
+			wantStatus: http.StatusOK,
+			wantFields: map[string]any{"description": ""},
+		},
+		{
+			name:       "omitted optional fields keep existing values",
+			body:       `{"name":"改訂版"}`,
+			wantStatus: http.StatusOK,
+			wantFields: map[string]any{"name": "改訂版"},
+		},
+		{
+			name:       "enum value changes to another value",
+			body:       `{"body_size":"small","billing_unit":"per_night"}`,
+			wantStatus: http.StatusOK,
+			wantFields: map[string]any{"body_size": model.BodySizeSmall, "billing_unit": model.BillingUnitPerNight},
+		},
+		{
+			name:       "empty body_size is not a null substitute",
+			body:       `{"body_size":""}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "unknown billing_unit is rejected",
+			body:       `{"billing_unit":"per_week"}`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "non-string body_size is rejected",
+			body:       `{"body_size":1}`,
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotFields map[string]any
+			repo := &mockHospitalizationPlanRepository{
+				updateFn: func(_ context.Context, clinicID, id uint64, cmd UpdateHospitalizationPlanInput) (*model.HospitalizationPlan, error) {
+					gotFields = buildHospitalizationPlanUpdate(cmd)
+					return &model.HospitalizationPlan{ID: id, ClinicID: clinicID}, nil
+				},
+			}
+			h := newHandlerWithHospitalizationPlanSvc(NewHospitalizationPlanService(repo))
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader([]byte(tt.body)))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "1"}}
+			setClinicID(c)
+
+			h.UpdateHospitalizationPlan(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantStatus != http.StatusOK {
+				assert.Nil(t, gotFields, "rejected input must not reach repository update")
+				return
+			}
+			assert.Equal(t, tt.wantFields, gotFields)
+		})
+	}
+}
+
 // ---- DeleteHospitalizationPlan ----
 
 // newDeleteHospitalizationPlanRouter builds a router with clinic_id injected via middleware.

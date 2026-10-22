@@ -4,6 +4,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -37,10 +38,16 @@ func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[st
 		fields[colHospitalizationPlanDescription] = *input.Description
 	}
 	if input.BodySize != nil {
-		fields[colHospitalizationPlanBodySize] = model.BodySize(*input.BodySize)
+		fields[colHospitalizationPlanBodySize] = nil
+		if *input.BodySize != nil {
+			fields[colHospitalizationPlanBodySize] = model.BodySize(**input.BodySize)
+		}
 	}
 	if input.BillingUnit != nil {
-		fields[colHospitalizationPlanBillingUnit] = model.BillingUnit(*input.BillingUnit)
+		fields[colHospitalizationPlanBillingUnit] = nil
+		if *input.BillingUnit != nil {
+			fields[colHospitalizationPlanBillingUnit] = model.BillingUnit(**input.BillingUnit)
+		}
 	}
 	if input.SortOrder != nil {
 		fields[colHospitalizationPlanSortOrder] = *input.SortOrder
@@ -75,11 +82,40 @@ type UpdateHospitalizationPlanInput struct {
 	Price       *int64
 	IsActive    *bool
 	Description *string
-	BodySize    *string
-	BillingUnit *string
+	// BodySize / BillingUnit は EMR-528 の3値: nil=省略（保持）、&nil=明示 null（SQL NULL）、&&v=値。
+	BodySize    **string
+	BillingUnit **string
 	SortOrder   *int
 	TaxType     *string
 	TaxRate     *float64
+}
+
+const (
+	errMsgHospitalizationPlanBodySize    = "対象体格は small / medium / large のいずれか、または null を指定してください"
+	errMsgHospitalizationPlanBillingUnit = "料金単位は per_day / per_night のいずれか、または null を指定してください"
+)
+
+// validateHospitalizationPlanNullableEnum は PATCH の3値 enum を検査する（EMR-528）。
+// 省略と明示 null は通し、"" を null の代用にせず enum 外として拒否する。
+func validateHospitalizationPlanNullableEnum(value **string, message string, allowed ...string) error {
+	if value == nil || *value == nil {
+		return nil
+	}
+	for _, candidate := range allowed {
+		if **value == candidate {
+			return nil
+		}
+	}
+	return apperrors.WrapInvalidInput(message)
+}
+
+func validateHospitalizationPlanUpdateEnums(input *UpdateHospitalizationPlanInput) error {
+	if err := validateHospitalizationPlanNullableEnum(input.BodySize, errMsgHospitalizationPlanBodySize,
+		string(model.BodySizeSmall), string(model.BodySizeMedium), string(model.BodySizeLarge)); err != nil {
+		return err
+	}
+	return validateHospitalizationPlanNullableEnum(input.BillingUnit, errMsgHospitalizationPlanBillingUnit,
+		string(model.BillingUnitPerDay), string(model.BillingUnitPerNight))
 }
 
 // --- DB column constants ---
@@ -130,15 +166,21 @@ func (s *hospitalizationPlanService) Create(ctx context.Context, clinicID uint64
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
+	// model.TaxRate は ExactNumeric（#729）。wire の float64 を10進文字列経由で保存する（consultation と同形）。
+	var exactTaxRate model.ExactNumeric
+	if err := exactTaxRate.Scan(strconv.FormatFloat(taxRate, 'f', -1, 64)); err != nil {
+		return nil, apperrors.WrapInvalidInput("invalid tax rate")
+	}
+	sortOrder := input.SortOrder
 	plan := &model.HospitalizationPlan{
 		ClinicID:    clinicID,
 		Name:        input.Name,
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
-		SortOrder:   input.SortOrder,
+		SortOrder:   &sortOrder,
 		TaxType:     taxType,
-		TaxRate:     taxRate,
+		TaxRate:     exactTaxRate,
 	}
 	if input.BodySize != "" {
 		bs := model.BodySize(input.BodySize)
@@ -168,6 +210,9 @@ func (s *hospitalizationPlanService) Update(ctx context.Context, clinicID, id ui
 	}
 	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate non negative price")
+	}
+	if err := validateHospitalizationPlanUpdateEnums(input); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate hospitalization plan enums")
 	}
 	fields := buildHospitalizationPlanUpdate(*input)
 	if len(fields) == 0 {
