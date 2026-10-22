@@ -28,7 +28,9 @@ Done237票は一次分類で、コメントまで読んだのは14票、残223�
 
 変更一覧は [base→作成基準のAPI](https://github.com/MinoruSoga/AnimalEkarte/blob/9eef73feac19c25571724372b0b19da160ba5cfb/backend/docs/api.yaml) と [#807 Files](https://github.com/MinoruSoga/AnimalEkarte/pull/807/files) を参照。model/DDLが採用済みでもDB適用・B最終生成・Q/ContextGate/各writer接続は別。#809で528修正案が存在することとmainへ採用済みであることも分ける。
 
-## 3. 限定所見と既存ownerへの追補
+## 3. 限定所見と既存ownerへの追補（原監査の履歴）
+
+本節は監査時点の所見を保持する。A01/A06とA02/A03の具体保存/wire設計はその後2026-10-22に選定済みで、現在判定は§6を優先する。実反映/受領の未完と分ける。
 
 | ID/分類 | 根拠URLと確認した差 | 必要な追補/未確定技術設計 | 既存owner・現5sessionとの境界 |
 |---|---|---|---|
@@ -43,7 +45,7 @@ Done237票は一次分類で、コメントまで読んだのは14票、残223�
 | A09 採択済み構成との文書矛盾 | [C01旧現状](https://github.com/MinoruSoga/AnimalEkarte/blob/4ec7f8013bdd96d0f1cd8fcb2deaa3483137dc34/docs/spec/shared/ui-contracts.md#L42)、[カード正本](https://github.com/MinoruSoga/AnimalEkarte/blob/4ec7f8013bdd96d0f1cd8fcb2deaa3483137dc34/docs/spec/screens/common-dialogs.md#L11)、[内包実装](https://github.com/MinoruSoga/AnimalEkarte/blob/4ec7f8013bdd96d0f1cd8fcb2deaa3483137dc34/frontend/src/features/medical-records/components/MedicalRecordStickyHeader.tsx#L282)、[#679](https://github.com/MinoruSoga/AnimalEkarte/pull/679) | 412「決定2026-10-15 Q1→X13」を根拠に、属性だけPatientInfoCardへ、hideStaff/診療種別非表示、来院種別/診療日/担当医操作はStickyHeader維持とC01現状を訂正。コードに仕様を縮小する変更ではない | 450/C01の文書整合。onOwnerClick等の既存認可を追加許可しない。製品変更や5枠の再割当なし |
 | A10 完了証拠/部分成果の確認残 | [306](https://app.plane.so/baritechllc/browse/EMR-306/) 後発Done activity f19d7560-b125-4524-97cf-0dd5c702c2be（2026-10-20 07:51:31Z）と同日03:06本文/コメント、[245](https://app.plane.so/baritechllc/browse/EMR-245/)、[318](https://app.plane.so/baritechllc/browse/EMR-318/)、[400/#702](https://github.com/MinoruSoga/AnimalEkarte/pull/702) | 306はDone直前の限定STG UAT再実行PASS（comment fd0b67d6-3a21-4d15-821b-d2470f0b243d、2026-10-20 07:51:30.990830Z）を採用。空き2件選択→代表確認→連結→マスタ/ボード両表示→解除→個別空き復帰はPASS、DnD合体・連結中割当拒否実演・退院後連結維持はUNKNOWN/461499境界。証拠欠落/記録不整合/誤Doneとしない。245はカルテ3列GET採用までで他一覧filter継承を確認。318受付writeと400staff保存は③表示/④writeを分離。422 MoneyInput subsetは財務受領確認残。状態変更/全画面filter義務化なし | 306は448受領、245/318/400は450と既存write owner、422は財務側。担当漏れ/新欠陥と確定せず、実装5枠へ追加なし |
 
-A01–A03の業務方針は既決だが、具体保存契約の設計残がある。これを単に「試験待ち」「担当未割当」だけへ置換して完了にしない。A04/A09は所有・文書整合、A10は限定PASS/UNKNOWN・部分成果の受領確認で、新規runtime欠陥件数として合算しない。306の原文をrootが投稿前live再読した結果を採用し、旧03:06の未確認記録だけで後発Doneを否定しない。個人名・fixture名は転記しない。
+原監査時はA01–A03の業務方針は既決でも具体保存契約の設計残があった。A01/A02/A03の後発選定は§6。監査時設計残だった事実と、その後の選定/実反映未完を分ける。これを単に「試験待ち」「担当未割当」だけへ置換して完了にしない。A04/A09は所有・文書整合、A10は限定PASS/UNKNOWN・部分成果の受領確認で、新規runtime欠陥件数として合算しない。306の原文をrootが投稿前live再読した結果を採用し、旧03:06の未確認記録だけで後発Doneを否定しない。個人名・fixture名は転記しない。
 
 ## 4. 新たな欠落に数えない既存追跡
 
@@ -60,9 +62,22 @@ A01–A03の業務方針は既決だが、具体保存契約の設計残があ�
 ## 5. 計画への反映先と未完了の明示
 
 - [段階台帳](emr-445-master-stages-ledger-20261021.md)：母集団と完了判定の分離、設計残の入口。
-- [①計画§5.7](emr-445-stage1-contract-start-plan-20261021.md)：A01/A02/A03の共有保存/wire受領設計残とA06 field固有更新意図（具体wire未選定）。#806/#807の限定採用と旧未受領snapshotを区別。
+- [①計画§5.7](emr-445-stage1-contract-start-plan-20261021.md)：監査時のA01/A02/A03/A06設計残と、その後の限定選定/実反映受領残。#806/#807の限定採用と旧未受領snapshotを区別。
 - [②計画§10](emr-445-stage2-master-start-plan-20261021.md)：設定writer・owner一意化・健診親race・trimming解除・受領証拠。
 - [③検索計画](emr-450-stage3-common-ui-start-plan-20261021.md)：72用途の意味と確認残。[③非検索操作表](emr-450-stage3-common-ui-start-plan-20261021-operations.md)：A07/A08/A09/A10の限定caller/証拠受領。
 - [C01正本](../../spec/shared/ui-contracts.md#requirement-fr-common-ui-context)：412採択の患者カード内包構成と現在認可を維持した現状記述訂正のみ。
 
-今回の5実装sessionのbranch/claim/worktree、担当範囲、Plane state/assigneeへ操作しない。Plane追補はrootが担当し、このdocs編集で実装票をcloseしない。業務判断を追加する必要が生じれば該当項目だけを返し、既決内容を一括再承認へ戻さない。次に閉じるのはA01–A03の具体保存契約と各owner受領、限定caller/保護差分、A10の限定PASS/UNKNOWN・部分成果受領であり、文書追補だけで完了とはしない。
+今回の5実装sessionのbranch/claim/worktree、担当範囲、Plane state/assigneeへ操作しない。Plane追補はrootが担当し、このdocs編集で実装票をcloseしない。業務判断を追加する必要が生じれば該当項目だけを返し、既決内容を一括再承認へ戻さない。A01/A02/A03/A06は§6の技術選定後も製品実装・受領が未完であり、各owner受領、限定caller/保護差分、A10の限定PASS/UNKNOWN・部分成果受領も、文書追補だけで完了とはしない。
+
+## 6. 2026-10-22のA01/A02/A03/A06技術選定（現在判定）
+
+[A01/A06契約](emr-master-update-selected-contract-20261022.md)と[A02/A03医院・LINE時間契約](emr-clinic-line-time-selected-contract-20261022.md)を採択し、原監査の設計残を次の範囲で更新する。監査で当初未選定だった事実や根拠commitは消さない。
+
+| 所見 | 技術選定済み | API/保存型/製品実装・受領・試験 |
+|---|---|---|
+| A01 | 7既存resourceのis_bill_discount_excluded、nullable/no-default/no-backfill、POST省略false/PATCH省略保持/null拒否、正常列読取証拠、既存4種CAS＋3種version、同TXの独立bool監査、非所有writer保持 | 必要API/DDL/model/ERD/reader/製品実装・配備・各owner受領・本人生成/試験は未完。447/449後続、現C/E/530へ無断追加なし。旧snapshot/会計は更新しない |
+| A06 | 現PATCH-only clear_course_type_id/clear_target_sizeの2flag、旧null保持、矛盾flag+非null値等は400/全無変更、field固有mapとFE差分 | 新DDL/model不要。API反映・専有448製品実装/BE→FE配備・再GET受領/試験は未完。現D description clearと別。#731の既存3属性clearは不変 |
+| A02 | 担当者別line_staff_start_policies、assignment束縛/週次・日別置換/版/削除再設定、492元anchor限定拡張とC06/Qを選定 | 448/492後続単一writer、493所属reader、①446/466/489/527、④468。実値確認/API/DDL/model/生成/製品実装・接続・受領・試験未完。現Dへ追加なし |
+| A03 | clinic_operating_hours、LINE acceptance限定版/確認、実効intersection・日付限定adapter・旧レジ休日独立編集・既存警告proofを選定。ホテル閉店ちょうどの入退室予定も本人承認済み | 445医院設定と448/492 LINEの後続、①必要保存型/API/共有操作、④468利用。旧値の自動コピー/統合/上書きなし。実値/移行元確認・実反映/受領・実試験は未完 |
+
+今回はdocsのみ、API YAML・DDL/model・生成物・製品コード・実医院値・Plane/状態は未変更、試験NOT_RUN。実移行元/DB適用前棚卸しは実装受領条件であり、A01/A02/A03/A06の技術未選定には戻さない。全①〜③/全AC実装完了とはしない。

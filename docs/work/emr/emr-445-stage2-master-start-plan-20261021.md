@@ -299,11 +299,25 @@ frontend/src/features/master/hooks/reservation-type-settings-model.tsのbuildRes
 
 | 対象 | ②の具体受領条件 | 責務・設計残/非対象 |
 |---|---|---|
-| 診療5種＋薬剤＋物販の全体割引除外 | 各設定画面の編集→保存→再GET、明示値と未設定/unknownの保持を①保存契約から受領。旧会計/履歴再計算・false補完なし | 臨床/薬剤447、物販449。①保存型/wireは設計残、481/483/505は④採用consumer。現C/E/530へ黙って追加しない |
-| 担当者別LINE開始時刻 | 分類/担当者ごとの開始時刻設定と既存予約保持を受領、保存後の候補表示/判定consumerは468へ渡す | 448/492設定writerの単一owner・保存scope設計残。現医院＋区分の保存で完成としない。マーケ最終工程と混同しない |
-| 医院共通営業時間/休診日 | 共通医院基準とLINEの範囲内別設定、院内の警告了承/取消、レジ別日界の既決を保持 | 445と448/LINE境界。156の共通writer/保存対応の既知残。実医院設定/現5枠の範囲を変更しない |
+| 診療5種＋薬剤＋物販の全体割引除外 | 各設定画面の編集→保存→再GET、明示値と未設定/unknownの保持を①保存契約から受領。旧会計/履歴再計算・false補完なし | 臨床/薬剤447、物販449。①保存型/wireは2026-10-22選定契約Aで技術選定済み、API/DDL/model/製品実装・受領・試験は未完。481/483/505は④採用consumer。現C/E/530へ黙って追加しない |
+| 担当者別LINE開始時刻 | 分類/担当者ごとの開始時刻設定と既存予約保持を受領、保存後の候補表示/判定consumerは468へ渡す | 448/492後続単一writer。[2026-10-22時間契約§4](emr-clinic-line-time-selected-contract-20261022.md#4-a02-担当者別trimming開始policy)で保存scope/版/元assignment/日別置換/削除再設定を選定済み。API/保存型/製品実装・受領・試験は未完。現医院＋区分の旧slotで完成とせず、マーケ最終工程とも別 |
+| 医院共通営業時間/休診日 | 共通医院基準とLINEの範囲内別設定、院内の警告了承/取消、レジ別日界の既決を保持 | 445医院設定と448/492 LINEの後続。[時間契約§2/3](emr-clinic-line-time-selected-contract-20261022.md)でcommon aggregateとLINE確認版/内側制限、旧レジ休日分離を技術選定済み。156の実値照合・API/保存型/実装受領は未完。実医院設定/現5枠を変更しない |
 | 健診種別parent整合 | Create/親変更/Deleteが同じ親row lockと同TX内の存在・子参照再検査に参加し、子保存先行/親削除先行の両順序で片方だけ成立。CAS/品目保険監査は保持 | 447/456 UAT・#732の残存コード差分。Read Committedの通常SELECT→別TX soft-delete→子INSERTの静的raceで、実DB再現NOT_RUN。新DDL必須にせず、Cへ無断追加しない |
-| trimming course旧属性の指定なし | target_size/course_type_idの2fieldだけで省略保持/明示解除/値設定の3意図を維持する更新契約を①へ受領。null/presenceまたは既存clear表現は①受領時に具体選定し、本監査では未確定。値→指定なし→GET、無関係項目保持をfixture化 | 448後続。457新属性/画像/曜日clearとは別、FKへ0/空文字を送らず汎用nullable全面拡張なし。#806でもcourse_type_id schema未収録は残る |
+| trimming course旧属性の指定なし | 2026-10-22選定契約BでPATCH-only clear_course_type_id/clear_target_sizeを技術選定済み。旧null保持維持、flag true＋非null値/flag null等は400/全体無書込。値→指定なし→GETと無関係項目保持をfixture化。API/製品実装・受領・試験は未完、新DDL/model不要 | 448後続。457新属性/画像/曜日clearとは別、FKへ0/空文字を送らず汎用nullable全面拡張なし。#806でもcourse_type_id schema未収録は残る |
 | trimming option Create型adapter | SortOrder int→model *intの具体caller対応を既知型driftの受領表へ追加 | 448の既知型境界確認。新規欠陥件数に二重算入せず、modelを旧型へ戻さない |
 
 EMR-306はDone直前のcomment fd0b67d6-3a21-4d15-821b-d2470f0b243d（2026-10-20 07:51:30.990830Z）の限定STG UAT再実行PASSを採用する。空き2件選択→代表ケージ確認→連結→マスタ/ボード両表示→解除→個別空き復帰は既存成果。ボードDnD合体・連結中割当拒否実演・退院後の連結維持だけUNKNOWN/461・499境界として分離し、証拠欠落・記録不整合・誤Doneにはしない。状態は変更しない。ホテル上限はspec-storage-traceと既存452/461/499に追跡でき、新規漏れではない。今回はdocsのみ、実DB/試験/ビルド/生成NOT_RUN。
+
+### A01/A06の現在判定と後続受領
+
+[2026-10-22の選定契約](emr-master-update-selected-contract-20261022.md)がA01/A06の監査時設計残を具体化した。A01は7resourceの新boolを編集→保存→再GETし、rawNULL/false/trueと旧欠落unknownを区別する。無関係更新/旧writer/importで既存trueやrawNULLを消さず、必要CASと既存同TX auditへ新boolのbefore/afterを保険とは別に追加する。既存is_non_insurance helperだけで監査対応済みにしない。旧会計/治療/見積/帳票/snapshot更新なし。
+
+A06はFE Update builderから対象2propertyを除いて変更差分だけを送る。未編集は省略、指定なし変更は対応flag trueだけ、値指定は値だけ。既存short_name/image_object_keyの空文字・allowed_weekdaysの空配列clearと省略/null保持は変えない。専有FE再GETで確認し、BE対応前に新FEを公開しない。現Dのdescription/既存型driftとは別後続として448が受領する。
+
+選定済みは実装済みではなく、API正本反映・A01の必要schema/model/reader整合・runtime→FE配備・受領・試験は未完。A06の新DDL/modelは不要で、その非対象判定を適用済みとは言わない。A02/A03も下記の技術選定済みだが実反映/受領は未完で、全①〜③完成とはしない。NOT_RUN。
+
+### A02/A03の現在判定と専有後続
+
+[医院・LINE時間契約](emr-clinic-line-time-selected-contract-20261022.md)は監査時設計残を2026-10-22に具体化した。445はcommon initialize/updateと権限限定休診adapter、448/492はLINE acceptance確認/更新と非P分離、staff開始policyの設定UI/単一writerを後続claimで受領する。共通縮小はLINE保存値をmaskするだけで書戻さず、拡大も自動拡張しない。未設定/未照合/正常空/取得失敗を分け、LINE受付可へfallbackしない。
+
+既存予約警告のpreview/了承/取消/CAS再検査を使い、予約全解消や院内全面拒否を新設しない。旧shifts休日はcommon切替時に移行するが、旧closing休日はレジ専用legacy read/writeを維持する。新commonとdual-writeなし。ホテル閉店ちょうどの入退室予定は本人承認済みで、休憩/休日/LINE/定員の独立条件は維持する。④468の利用と実予約切替は別成果、現D等のscopeへ追加しない。実医院値確認・API/DDL/model/生成・runtime/FE・全必要writer閉包・受領・試験は未完。NOT_RUN。
