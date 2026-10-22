@@ -1,6 +1,6 @@
 # 会計・未納
 
-会計一覧・精算・売掛管理を確認する入口です。2026-10-15、基準時点の9FR／142ACを独立レビュー・静的照合後に文書整理完了と判定。死亡後精算を含む9FR／144ACの追加差分も反映・独立文書レビュー済み。支払方法停止の追加合意で7ACを加え、前段階の文書対象は9FR／151AC。施術調整／記録復元の受け手4ACを加えた前段階9FR／155ACの追加差分は独立内容・構造レビュー済み。支払方法停止の追加7ACも当時の独立内容レビュー・限定構造検査済み。今回の[品目別保険設定](lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを追加した前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを加え、業務ライフサイクル正本は13FR／174ACにBacklog No.8の個別割引入力権限1ACを補完した13FR／175ACに[No.30の釣銭整合](lifecycle.md#accounting-manual-change-reconciliation-20261017)3ACを加えた13FR／178ACに[過受領の具体処理](lifecycle.md#accounting-excess-receipt-resolution-20261017)3ACを加えた13FR／181AC（画面別の補足ACは各ページ）。本差分の文書検査は前段階の完了記録と分ける。実装・実機受入と全体横断は別工程。
+会計一覧・精算・売掛管理を確認する入口です。2026-10-15、基準時点の9FR／142ACを独立レビュー・静的照合後に文書整理完了と判定。死亡後精算を含む9FR／144ACの追加差分も反映・独立文書レビュー済み。支払方法停止の追加合意で7ACを加え、前段階の文書対象は9FR／151AC。施術調整／記録復元の受け手4ACを加えた前段階9FR／155ACの追加差分は独立内容・構造レビュー済み。支払方法停止の追加7ACも当時の独立内容レビュー・限定構造検査済み。今回の[品目別保険設定](lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを追加した前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを加え、業務ライフサイクル正本は13FR／174ACにBacklog No.8の個別割引入力権限1ACを補完した13FR／175ACに[No.30の釣銭整合](lifecycle.md#accounting-manual-change-reconciliation-20261017)3ACを加えた13FR／178ACに[過受領の具体処理](lifecycle.md#accounting-excess-receipt-resolution-20261017)3ACを加えた13FR／184AC（画面別の補足ACは各ページ）。本差分の文書検査は前段階の完了記録と分ける。実装・実機受入と全体横断は別工程。
 
 ## 読む順・業務ルールの所在
 
@@ -10,7 +10,7 @@
 
 ## 受入条件の所在
 
-画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[13FR／181ACの所在](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
+画面固有の挙動・バリデーション・保護・API 権限は上記本文、今回合意の受入条件は[13FR／184ACの所在](lifecycle.md#accounting-acceptance)、技術案と現行差分は[会計設計](../../../design/domains/accounting/README.md)。既存の具体的な確認手順は [S08 会計訂正](../../../ops/testing/scenarios/S08-accounting-corrections.md)・[S21 会計並行操作と冪等性](../../../ops/testing/scenarios/S21-accounting-concurrency-idempotency.md)・[S33 領収書](../../../ops/testing/scenarios/S33-receipt-print-pdf.md)を参照します。これらは条件・手順の所在であり、今回の整理で実機受入済みになったことを示しません。実行状態と証跡の入口は [docs/work/](../../../work/README.md)です。
 
 ## 未決事項と実装状態
 
@@ -69,7 +69,7 @@ docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け
 <a id="d10初回〜第九群の反映範囲"></a>
 ## D10初回〜第十群の反映範囲
 
-[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)・[第七群](lifecycle.md#accounting-agreement-seventh)・[第八群](lifecycle.md#accounting-agreement-eighth)・[第九群](lifecycle.md#accounting-agreement-ninth)・[第十群](lifecycle.md#accounting-agreement-tenth)に、[死亡後精算](lifecycle.md#accounting-posthumous-settlement)と[支払方法停止](lifecycle.md#accounting-inactive-payment-method)を含む前段階9FR／151ACに、会議連携4ACと[品目別保険設定](lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを加えた前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを追加し、ライフサイクル本文はNo.8の個別割引権限1AC・No.30の釣銭整合3AC・過受領処理3ACを含む計13FR／181AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[業務判断・設計残件の分類](lifecycle.md#accounting-open-decisions)へ参照する。
+[初回](lifecycle.md#accounting-agreement-first-five)・[第二群](lifecycle.md#accounting-agreement-second)・[第三群](lifecycle.md#accounting-agreement-third)・[第四群](lifecycle.md#accounting-agreement-fourth)・[第五群](lifecycle.md#accounting-agreement-fifth)・[第六群](lifecycle.md#accounting-agreement-sixth)・[第七群](lifecycle.md#accounting-agreement-seventh)・[第八群](lifecycle.md#accounting-agreement-eighth)・[第九群](lifecycle.md#accounting-agreement-ninth)・[第十群](lifecycle.md#accounting-agreement-tenth)に、[死亡後精算](lifecycle.md#accounting-posthumous-settlement)と[支払方法停止](lifecycle.md#accounting-inactive-payment-method)を含む前段階9FR／151ACに、会議連携4ACと[品目別保険設定](lifecycle.md#requirement-fr-accounting-item-insurance-setting)1FR／12ACを加えた前段階10FR／167ACに、[2026-10-17の医師確認・プラン同期・請求対象](lifecycle.md#doctor-review-sync-billing-20261017)3FR／7ACを追加し、ライフサイクル本文はNo.8の個別割引権限1AC・No.30の釣銭整合3AC・過受領処理3ACを含む計13FR／184AC。既決の引継ぎ境界を維持し、内部判断の確定部分は正本、残件は[業務判断・設計残件の分類](lifecycle.md#accounting-open-decisions)へ参照する。
 
 預り金は飼主単位で予約参照は任意。同飼主の別予約／別ペット会計へ、充当先と金額を確認して使える。元飼主・任意の元予約・受領／未充当残／利用可能額／充当／実返金を追跡し、二重入金・二重使用なし。自動失効なし・同医院／同飼主のみで、別医院移行・別飼主譲渡は今回対象外、全ホテル予約の前金必須を定義しない。
 

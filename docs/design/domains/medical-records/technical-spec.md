@@ -513,7 +513,7 @@ HTTP methodだけでwriteを分類しない。現GETの初期行作成、内部p
 <a id="record-edit-exclusivity-design-20261018"></a>
 ## 同一カルテの編集権：業務決定と採用契約への接続
 
-[業務正本・16AC](../../../spec/domains/medical-records/lifecycle.md#medical-record-edit-exclusivity-20261018)により同時編集禁止・ヘッダー状態表示・強制取得可が決定した。旧finalizedガードや保存時だけの版競合拒否は、この編集権の取得・有効性判定の代用にならない。現API／schemaの対応やlock実装済みは未確認である。
+[業務正本・19AC（編集権16＋logout下書き3）](../../../spec/domains/medical-records/lifecycle.md#medical-record-edit-exclusivity-20261018)により同時編集禁止・ヘッダー状態表示・強制取得可が決定した。旧finalizedガードや保存時だけの版競合拒否は、この編集権の取得・有効性判定の代用にならない。現API／schemaの対応やlock実装済みは未確認である。
 
 業務挙動は04:38:21 UTC承認で確定（閲覧と「編集を開始」の区別・同一カルテのタブ移動で維持・保存結果確認後の通常解除・切断時停止・復帰照合・再読み込み復元と最新内容比較／選択適用）。具体API・編集session／epoch・claim anchor・lock／CAS・本人draftの契約は[EMR-494採用契約](../../../work/emr/emr-494-edit-draft-contract-20261020.md)へ選定済み。全writerの実fence参加とruntime受入は別の未完了工程であり、未参加writerが残ったままカルテ全体の単独編集保証を有効化しない。heartbeat／自動TTL秒数は新設しない。サーバ側で同時編集禁止を成立させ、ヘッダー表示だけを安全性の根拠にしない。
 
@@ -587,7 +587,7 @@ Q-C2は[12:53 UTC第1項Aの本人決定](../../../spec/domains/medical-records/
 |:---|:---|
 | DC-M01 | 問診保存失敗＋プラン保存成功→成功単位とdirtyを分離し、再送でプラン再作成なし。[hybrid保存](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync) |
 | DC-M02 | activeタブ切替・遅延応答・clear/copy Undo→基準世代・成功subsetを維持、飼主原文と他owner実効果を戻さない |
-| DC-M03 | 2端末／同staff2タブ同時取得→一方のみ保持。read／タブ移動／無操作では取得・解放なし。[編集権16AC](../../../spec/domains/medical-records/lifecycle.md#medical-record-edit-exclusivity-20261018) |
+| DC-M03 | 2端末／同staff2タブ同時取得→一方のみ保持。read／タブ移動／無操作では取得・解放なし。[編集権・下書き19AC（編集権16＋logout下書き3）](../../../spec/domains/medical-records/lifecycle.md#medical-record-edit-exclusivity-20261018) |
 | DC-M04 | 保存と強制取得を両順実行→先行commit保持／旧epoch拒否。遅延通知・旧client・epoch再利用で迂回不可 |
 | DC-M05 | 解放とautosaveが並行、保存commit後応答断→key照会完了まで解放成功にしない。成功後再送は元結果のみ |
 | DC-M06 | 切断reload・権移転・最新版変更→下書き復元後も停止、最新比較・明示選択。別患者／別actorへ漏洩なし |
@@ -726,7 +726,7 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 
 2026-10-20の既存owner照合では、[EMR-452](https://app.plane.so/baritechllc/browse/EMR-452/)が横断業務接続／残差切出し、[EMR-500](https://app.plane.so/baritechllc/browse/EMR-500/)が健診親子結果、[EMR-481](https://app.plane.so/baritechllc/browse/EMR-481/)が会計binding、[EMR-484](https://app.plane.so/baritechllc/browse/EMR-484/)が実施readyの受け手。452配下の[EMR-516](https://app.plane.so/baritechllc/browse/EMR-516/)を検査consumerと共通予定契約の窓口、[EMR-517](https://app.plane.so/baritechllc/browse/EMR-517/)を接種consumerとして切り出した。両票はReady・未担当（2026-10-20照合）。516の必要subsetを先行させ、517／500へ接続する。健診ownerは500を維持し、共有writerの実編集ownerは着手時のclaim照合で決める。EMR-501の他院手入力provenance、455／456のmaster保険、486の証明書だけへ連動全体を割り当てない。EMR-320／322の全面統合はPhase2境界を維持する。この整理は実装着手／完了や重複票の新規作成を意味しない。
 
-パネル／複数結果の関連多重度と、予定時点に物理資源を作るかprojectionとするか、wire／schema・関連保存単位は未選定。物理設計の未決を理由に業務上の3タブ接続を未承認へ戻さず、全owner一括transaction・自動機器送信・実績自動生成・既存見積／過去記録の再生成へ拡張しない。
+通常カルテの単品／package予定の物理保存は共通 medical_record_plan_items で選定済み（EMR-518 storage契約、[treatment-packages.md](treatment-packages.md)）。各領域（検査・接種・健診）の結果資源の作成時点と未固定の多重度、残るwireの固定は未選定。物理設計の未決を理由に業務上の3タブ接続を未承認へ戻さず、全owner一括transaction・自動機器送信・実績自動生成・既存見積／過去記録の再生成へ拡張しない。
 
 [本人確定の後日予定レポートFR／3AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)はカルテ右上から開く[D21](../../../spec/screens/39-owner-report.md#owner-report-deferred-plan)のreadに限る。過去カルテの元予定identity・元recordと現在の実施／中止状態を保って参照し、別recordの実績へ結び付けて消化する方式は採用しない。次回予約・受付・来院時の追加表示、来院だけの自動実施、元予定の移動／上書き、新たな消化操作を実装候補にしない。同一record後日入力・新来院の既存選択copyは別操作で、レポートから自動実行しない。具体的projection／取得範囲・配置は設計未了で、未選定の保存方式・多重度・権限mappingを今回確定しない。実装適合・実機受入は未確認。
 

@@ -12,7 +12,7 @@
 既存仕様の継承とD03の合意済み目標を整理した文書候補。ソフトウェア仕様の整理、実装完了、実機受入、医師による具体的な臨床数値の承認は別の判定とする。
 
 ## 範囲
-[業務正本](../../../spec/domains/vaccinations/lifecycle.md)の現行6FR／39ACを対象とする。先行5FR／28ACは旧読取範囲であり、後続条件を含む現在の件数ではない。先行の基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の静的照合で、今回runtime未実施。D03[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)・[型／writer契約](../medical-records/technical-spec.md#medical-record-reconciled-contract)を保持。
+[業務正本](../../../spec/domains/vaccinations/lifecycle.md)の現行8FR／54AC（39AC は 10-21 追補前の計数）を対象とする。先行5FR／28ACは旧読取範囲であり、後続条件を含む現在の件数ではない。先行の基準commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の静的照合で、今回runtime未実施。D03[保存§2](../../../spec/domains/medical-records/lifecycle.md#hybrid-sync)・[型／writer契約](../medical-records/technical-spec.md#medical-record-reconciled-contract)を保持。
 
 ## 入口・資源・保存結果
 独立とカルテ内は同じGET/POST/PATCH/DELETE /api/v1/vaccinations。カルテ内GETはpet_id＋page/limit、POSTは保存済みmedical_record_idを送る。独立はrecord NULLで保存し得る。接種自身にfinalized状態を新設しない。同日複数は単件POSTの順次実行、バッチAPIを推定しない。[EMR-105](../../../work/emr/emr-105-vaccine-multi-20261002.md)の過去検証は保存済みカルテ内3件実DB／2件モックフォーム等の限定証拠で、今回の再実行や全UI受入とは別。
@@ -143,7 +143,7 @@ DC-V01：3様式の項目／配置・改頁・font、旧見本とのgolden比較
 <a id="vaccination-supplemental-read-trace"></a>
 ## 履歴順序・種類ラベルの技術接続
 
-先行の明示trace29ACに下記4ACを加えた33ACと、[証明書6ACへの限定委譲](#certificate-edition-proposal)で現行39ACを追跡する。種類別名称ラベル色は対象一覧の表示契約であり、未承認の配色・色管理UIを選定しない。
+先行の明示trace29ACに下記4ACを加えた33ACと、[証明書6ACへの限定委譲](#certificate-edition-proposal)で39AC（10-21追補前の計数。現在の総数は8FR／54AC）を追跡する。種類別名称ラベル色は対象一覧の表示契約であり、未承認の配色・色管理UIを選定しない。
 
 | 正本AC | 既存契約への技術接続・確認点 | 業務正本 |
 |:---|:---|:---|
@@ -199,9 +199,9 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 | 必要技術差分 | 要求される不変条件／設計残件 |
 |:---|:---|
 | master／snapshot | 4種類の安定したidentity、帳票セットと構成版、各template／用紙との対応を保持。通常縦横の同版表示と区別し、診療項目packageへ混ぜない。4名称・見本未受領、DDL・管理API・画面は未選定 |
-| batch／wire | 4種類の構成照合と出力要求、各種類の結果・版／artifact対応、欠損／重複／一部失敗／unknownを表現。現在の単一kind/layout APIを4種類一括対応済みとしない。batchのcommit／回復単位、同key照合とreceipt拡張は後続選定。4種類=4ページとしない |
+| batch／wire | 4種類の構成照合と出力要求、各種類の結果・版／artifact対応、欠損／重複／一部失敗／unknownを表現。現在の単一kind/layout APIを4種類一括対応済みとしない。batchのcommit／回復単位、同key照合とreceipt拡張の方式は[EMR-486/487 採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)（§3 edition/artifact/batchの保存、§5 RV v2 wire）で選定済み（技術選定）。runtime・実装受入は未完。4種類=4ページとしない |
 | 再発行wire／版 | 当初の発行日由来refと選択した表示日を確認内容へ固定し、新版のsnapshot／hash／preview／CAS／監査へ反映。同版reprint DTOへ未定義fieldを送らない。初回の任意日許可へ拡張せず、再発行のdate validationは[RV4・再発行日採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md) §4へ選定済み・runtime未実装 |
-| PDF storage／履歴 | 種類・構成版・edition・template／renderer版・digestとimmutable artifactの対応を追跡。旧artifactを上書きせず、失敗候補を有効出力へ公開しない。storage結合とbatchの出力形式は未選定。結合PDF／ZIP等を推測で固定しない |
+| PDF storage／履歴 | 種類・構成版・edition・template／renderer版・digestとimmutable artifactの対応を追跡。旧artifactを上書きせず、失敗候補を有効出力へ公開しない。storage結合とbatchの出力形式の方式は[EMR-486/487 採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)（§3、§8 storage寿命・孤児回収・read有効性）で選定済み（技術選定）。DDL・runtime・実装受入は未完で、4種類の名称・見本・用紙対応と実資産は資料待ちの別残件。契約外の結合PDF／ZIP等を推測で固定しない |
 | 時刻と認可 | 表示発行日は選択した日、issued_at／recorded_atはサーバー操作時刻。再印刷・再発行・batch各要求で現在scope／grant・患者・接種版・有効版を再検査。応答不明は元結果を照合し成功分を再発行しない |
 
 履歴参照と有効出力を分離する既決を維持し、再発行で旧訂正版の有効出力を復活させない。master改定で過去の構成・版やartifactを書き換えず、資料待ちを推測実装で埋めない。実装コード・api.yaml・DDLは本追補で変更しない。

@@ -90,6 +90,6 @@ AC05の根拠は[法人情報セクション](../../screens/19-clinic-settings.m
 
 決定者はユーザー。質問 Sentinel_07eb2535e184819190e1145f884b69cc に対する本人 Sentinel_6498c7a23a8c8191b672ba0dea52c1c3 の2026-10-20回答「4 ok」により採用。営業時間・休診日は医院設定を共通の基準とし、LINEの受付可能時間をその範囲内で別設定する。院内では従来どおり警告確認で時間外登録でき、LINEへその例外を設けない。レジの営業日区分は別扱いとし、医院営業時間／LINE受付時間へ統一しない。
 
-[LINEの分類別・担当者別開始時刻](../../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)と受付期間・勤務／休憩・能力・ホテル入退室の既決条件を維持する。共通基準の採用を、LINE個別設定や既存保存値の自動上書きにしない。設定の物理保存先・競合検出・既存値移行は技術設計へ分離し、未照合設定を現在有効な受付範囲として補完しない。
+[LINEの分類別・担当者別開始時刻](../../line/reservation-spec.md#requirement-fr-line-reservations-business-start-times)と受付期間・勤務／休憩・能力・ホテル入退室の既決条件を維持する。共通基準の採用を、LINE個別設定や既存保存値の自動上書きにしない。設定の物理保存先・競合検出・既存値移行は技術設計へ分離し、未照合設定を現在有効な受付範囲として補完しない。共通医院時間の保存・Settings・個別休診の権限限定adapter・旧休日とレジを巻き込まない切替は選定済み契約（[医院・LINE時間契約 §2.1 共通医院時間aggregate・§2.3–2.4](../../../work/emr/emr-clinic-line-time-selected-contract-20261022.md)）に従う。
 
 既存FR-clinic-settings-clinic-directoryとLINE受付条件の追加確認として、医院時間内のLINE別設定／時間外LINE拒否／院内警告了承／取消、レジの別日界を対照確認する。実装・実機受入は未実施。

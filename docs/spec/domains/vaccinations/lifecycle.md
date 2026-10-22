@@ -276,6 +276,6 @@ work配下にだけあった業務決定を、決定内容を変えずに本正�
 | AC-vaccinations-rv-history-scope | master変更／再発行／再送中に現在認可喪失・対象版競合 | 原版・artifact・当時構成／対応と履歴を保持し、旧内容を現在masterで上書きしない。失権・競合は停止・照合し旧訂正版を有効出力しない |
 | AC-vaccinations-rv-package-boundary | 診療項目packageをapply | 証明書発行・一括出力を自動起動せず、帳票セットと混同しない |
 
-変更事実はRV4種類の一括出力・対応masterと再発行日変更の採用。資料待ちはRV4名称／見本とその欄・用紙の対応。master／wire／batch／storageの具体方式は未選定で、現行v1 APIの充足・実装・実印刷受入を宣言しない。
+変更事実はRV4種類の一括出力・対応masterと再発行日変更の採用。資料待ちはRV4名称／見本とその欄・用紙の対応。master／batch wire／storageの方式は[EMR-486/487 採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)で選定済み（技術選定）。runtime・DDL・実装受入は未完。4種類の名称・見本・用紙対応と実資産は資料待ちの別残件。現行v1 APIの充足・実装・実印刷受入を宣言しない。
 
 RV4 master・全4batch・再発行日の具体技術契約は[EMR-486/487採択契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)を参照する。本正本の業務要件・9ACは変更せず、runtime未実装・見本mapping未確定を維持する。

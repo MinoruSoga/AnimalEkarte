@@ -330,3 +330,15 @@ DMはLINEの配信希望で、未設定・必要・不要を区別する。未�
 [生前分の後日入力・誤記訂正・退院精算](#requirement-fr-owners-pets-safety-and-private-notes)は死亡状態を保持して行える既決の別操作であり、そのために誤登録取消を要求しない。取消で生前／死亡後の記録日時や元履歴を消さず、通常属性PATCHで専用処理を迂回しない。必要履歴の保存・結果照合は既存の専用writer／現在版契約へ接続し、実装適合は未確認とする。
 
 既存FR-owners-pets-safety-and-private-notesの追加受入として、権限あり／なし・理由あり／なしの誤登録取消、変更前後とactor／理由の履歴、取消後の予約／通知未再開、生前記録が取消不要であることを対照確認する（未実施）。
+
+<a id="pet-death-future-reservations-cancel-20261022"></a>
+## 死亡登録時の既存未来予約（2026-10-22本人回答）
+
+決定者はユーザー（MinoruSoga、2026-10-22の直接回答。受付記録IDは[PR #815](https://github.com/MinoruSoga/AnimalEkarte/pull/815)の本文に記録）。死亡登録に伴い、当該ペットの既存の未来予約は取消（キャンセル）とする。削除ではなく、[予約の取消履歴](../reservations/pages/reservation-management.md#requirement-fr-reservations-cancel-history)に従う取消状態として理由・actor・日時を保持する。取消に伴う飼主への通知は既存の取消通知契約に従い、死亡登録だけで新しい通知種別を作らない。
+
+[誤登録取消](#pet-death-misregistration-undo-20261020)は取消された予約を自動再開しない既決を維持し、再開が必要なら通常の予約登録として扱う。入院・宿泊中の死亡は[D05の退院・精算の専用処理](../hospitalization/lifecycle.md#requirement-fr-hospitalization-delete-and-preserve)へ渡し、本節で滞在の扱いを変えない。実施時点・取消の原子性・結果不明時の照合は技術設計へ分け、実装・実機は未確認。
+
+| 条件ID | 前提／操作 | 期待結果 | 確認手順／証跡 |
+|:---|:---|:---|:---|
+| AC-owners-pets-death-cancels-future-reservations | 未来の予約を持つペットを死亡登録する | 当該ペットの未来予約が取消状態になり、削除されずに理由・actor・日時を保持する。他ペット・過去予約・実施済み記録は変更しない | 登録前後の予約状態と履歴を比較。未実施 |
+| AC-owners-pets-death-cancel-no-auto-revival | 上記の後に死亡の誤登録取消を行う | 取消済み予約は自動再開せず、必要なら通常の予約登録で作り直す | 誤登録取消後の予約状態を確認。未実施 |
