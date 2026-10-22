@@ -15562,6 +15562,25 @@ components:
       description: >-
         GET /clinic-holidays/common・GET /closing-settings/holidays/common の月内 holiday と common 版（§2.3）。全営業時間・曜日・祝日方針は返さない。
         state=unconfigured は version null・closed_dates []（初期化へ案内）。選定契約は「月内holidayだけ＋common版」までを固定し、この envelope の key 名は本収録で選定した。
+        state と version・closed_dates の null/空条件は oneOf で固定する。
+      oneOf:
+        - properties:
+            state:
+              enum: [unconfigured]
+            version:
+              type: string
+              nullable: true
+              enum: [null]
+            closed_dates:
+              type: array
+              maxItems: 0
+              items:
+                $ref: '#/components/schemas/ClinicClosedDate'
+        - properties:
+            state:
+              enum: [configured]
+            version:
+              $ref: '#/components/schemas/LineTimeDecimalId'
       properties:
         clinic_id:
           $ref: '#/components/schemas/LineTimeDecimalId'
@@ -15848,7 +15867,34 @@ components:
       type: object
       additionalProperties: false
       required: [schema_version, clinic_id, mode, observed_versions, current_settings, proposed_settings, days, warning_check]
-      description: §5.4 出力。days は要求 dates 順で現在/提案の実効 LINE 範囲の差を示す。warning_check の計算を表示 dates だけへ限定しない。
+      description: >-
+        §5.4 出力。days は要求 dates 順で現在/提案の実効 LINE 範囲の差を示す。warning_check の計算を表示 dates だけへ限定しない。
+        mode と current_settings・observed_versions.clinic_operating_hours の null 条件は oneOf で固定する（initialize は行不在で両方 null、update は両方非 null）。
+      oneOf:
+        - properties:
+            mode:
+              enum: [initialize]
+            observed_versions:
+              type: object
+              properties:
+                clinic_operating_hours:
+                  type: string
+                  nullable: true
+                  enum: [null]
+            current_settings:
+              type: object
+              nullable: true
+              enum: [null]
+        - properties:
+            mode:
+              enum: [update]
+            observed_versions:
+              type: object
+              properties:
+                clinic_operating_hours:
+                  $ref: '#/components/schemas/LineTimeDecimalId'
+            current_settings:
+              $ref: '#/components/schemas/ClinicOperatingHoursSettings'
       properties:
         schema_version:
           type: string
@@ -15931,6 +15977,20 @@ components:
       description: >-
         §5.5 出力。current/proposed は該当日 {date,reason} 又は null（set は提案1日、unset は proposed=null）。全 Settings・LINE 設定・他の日付は返さない。
         common 行なしは初期化が必要な prohibited で receipt なし（予約情報の非開示が必要なら confirmation-unavailable を優先）。解除に新たな休診追加警告を作らない。
+        action と proposed の null 条件は oneOf で固定する（set は提案1日の object、unset は null）。
+      oneOf:
+        - properties:
+            action:
+              enum: [set]
+            proposed:
+              $ref: '#/components/schemas/ClinicClosedDate'
+        - properties:
+            action:
+              enum: [unset]
+            proposed:
+              type: object
+              nullable: true
+              enum: [null]
       properties:
         schema_version:
           type: string
@@ -16058,6 +16118,7 @@ components:
               enum: [result-unavailable]
     LineTimeContractUpgradeRequired:
       type: object
+      additionalProperties: false
       required: [error, code]
       description: >-
         EMR-445 A02/A03 選定契約 §2.4/§3.3 の旧 writer 停止（HTTP 409、zero-write）。新しい C06 status ではなく既存 ErrorResponse 系の code。
@@ -16575,9 +16636,14 @@ components:
           type: string
           maxLength: 32
         notification_email:
-          type: string
-          maxLength: 254
-          description: 空文字可。非空は email 形式（既存 binding omitempty,email）。
+          oneOf:
+            - type: string
+              enum: ['']
+            - type: string
+              format: email
+              minLength: 1
+              maxLength: 254
+          description: 空文字可。非空は email 形式かつ最大254（既存 binding omitempty,email,max=254）。
         request_example:
           type: string
           maxLength: 2000

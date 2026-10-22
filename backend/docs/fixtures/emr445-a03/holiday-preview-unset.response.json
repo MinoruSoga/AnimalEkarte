@@ -1,0 +1,18 @@
+{
+  "schema_version": "clinic-holiday-preview/v1",
+  "clinic_id": "7",
+  "action": "unset",
+  "date": "2026-11-03",
+  "observed_version": "3",
+  "current": {
+    "date": "2026-11-03",
+    "reason": "臨時休診"
+  },
+  "proposed": null,
+  "warning_check": {
+    "state": "clear",
+    "warnings": [],
+    "affected_reservations": [],
+    "warning_receipt": null
+  }
+}
