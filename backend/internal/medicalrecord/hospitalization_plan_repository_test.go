@@ -323,15 +323,21 @@ func TestHospitalizationPlanRepository_OptionalFieldsSaveAndReread(t *testing.T)
 	})
 
 	t.Run("不正enumは保存されず直前の値が残る", func(t *testing.T) {
+		small := "small"
+		smallPtr := &small
+		_, err := svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{BodySize: &smallPtr})
+		require.NoError(t, err)
+
 		empty := ""
 		emptyPtr := &empty
-		_, err := svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{BodySize: &emptyPtr})
+		_, err = svc.Update(ctx, clinicA, created.ID, &UpdateHospitalizationPlanInput{BodySize: &emptyPtr})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
 
 		got, err := repo.FindByID(ctx, clinicA, created.ID)
 		require.NoError(t, err)
-		assert.Nil(t, got.BodySize)
+		require.NotNil(t, got.BodySize, `"" must not clear an existing value`)
+		assert.Equal(t, model.BodySizeSmall, *got.BodySize)
 	})
 }
 

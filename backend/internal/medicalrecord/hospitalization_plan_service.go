@@ -56,7 +56,8 @@ func buildHospitalizationPlanUpdate(input UpdateHospitalizationPlanInput) map[st
 		fields[colHospitalizationPlanTaxType] = model.TaxType(*input.TaxType)
 	}
 	if input.TaxRate != nil {
-		// service.Update が hospitalizationPlanExactTaxRate で事前検査済み。変換不能値は書かない。
+		// 不変条件: 呼び出し元の service.Update が同じ変換を事前検査し、失敗時は 400 で書込み前に止める。
+		// FormatFloat→Scan は有限値で失敗せず、JSON は NaN/Inf を運べないため、ここで落ちる経路はない。
 		if exact, err := hospitalizationPlanExactTaxRate(*input.TaxRate); err == nil {
 			fields[colHospitalizationPlanTaxRate] = exact
 		}

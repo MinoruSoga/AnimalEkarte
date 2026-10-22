@@ -149,7 +149,7 @@ func TestUpdateHospitalizationPlanRequest_NullableEnumPresence(t *testing.T) {
 	}{
 		{name: "omitted keeps existing", body: `{"name":"x"}`, wantSet: false},
 		{name: "explicit null clears", body: `{"body_size":null,"billing_unit":null}`, wantSet: true, wantNull: true},
-		{name: "value sets", body: `{"body_size":"medium","billing_unit":"medium"}`, wantSet: true, wantValue: "medium"},
+		{name: "value passes through decode", body: `{"body_size":"per_night","billing_unit":"per_night"}`, wantSet: true, wantValue: "per_night"},
 		{name: "empty string is a value, not null", body: `{"body_size":"","billing_unit":""}`, wantSet: true, wantValue: ""},
 	}
 	for _, tt := range tests {
