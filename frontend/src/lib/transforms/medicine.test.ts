@@ -110,4 +110,15 @@ describe("transformBackendMedicineToFrontend", () => {
     const malformed = { ...minimalMedicine, tax_rate: "1e-1" };
     expect(() => transformBackendMedicineToFrontend(malformed)).toThrow("tax_rate");
   });
+
+  it.each([undefined, null])(
+    "EMR-447/527: tax_rate の欠落（%s）を 0.1 で補わず例外にする",
+    (taxRate) => {
+      // 実行時の JSON 応答を再現する（undefined は key 自体が落ちる）。
+      const missing: LegacyMedicineResponse = JSON.parse(
+        JSON.stringify({ ...minimalMedicine, tax_rate: taxRate }),
+      );
+      expect(() => transformBackendMedicineToFrontend(missing)).toThrow("tax_rate");
+    },
+  );
 });

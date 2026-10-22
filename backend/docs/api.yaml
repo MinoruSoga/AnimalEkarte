@@ -5340,7 +5340,8 @@ components:
           description: >-
             製品含量（mg/単位、分母は medicine_unit）の有限な正の exact decimal 文字列（EMR-447、保存は numeric(10,4)）。
             JSON number・符号・指数表記・先頭0（"05"）・整数部の省略（".5"）・0・整数部6桁超、および末尾0を除いて小数5桁以上となる値（"12.34567"）は 400（丸めない）。
-            末尾0だけが異なる同じ十進値（"1.23000"）は受理する。BE・FE とも Number への変換や自動丸めで値を正規化しない（SPEC-QA-20261022-447-EXACT Q2）。
+            末尾0だけが異なる同じ十進値（"1.23000"）は受理する。送信値は BE・FE とも Number への変換や自動丸めで正規化しない（SPEC-QA-20261022-447-EXACT Q2）。
+            FE が応答を表示・計算用の number へ変換するのは numeric(10,4) の範囲で可逆な読取りに限る。
             POST/PATCH の省略/null は値なし（PATCH は保持）で、
             NULL へのクリアは既存の clear_strength を使う。応答は保存値の十進文字列で、NULL のときは省略する。
     Vaccine:

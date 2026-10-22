@@ -16,7 +16,8 @@ export const transformBackendMedicineToFrontend = (data: LegacyMedicineResponse)
   medicineUnit: data.medicine_unit,
   price: data.price ?? 0,
   // EMR-447: wire の decimal 文字列は画面・計算用の number へここで1回だけ明示変換する。
-  // 欠落時の扱い（default_quantity/strength=undefined、tax_rate=0.1）は従来どおり、値があれば形式を検査する。
+  // default_quantity の null と strength の欠落は undefined。tax_rate は BE が常に返す（EMR-527: null 不可）ため、
+  // 欠落を 0.1 で補わず形式違反と同じく例外にする。
   defaultQuantity:
     data.default_quantity == null
       ? undefined
@@ -26,7 +27,7 @@ export const transformBackendMedicineToFrontend = (data: LegacyMedicineResponse)
   isActive: data.is_active,
   sortOrder: data.sort_order ?? 0,
   taxType: (data.tax_type ?? "excluded") as TaxType,
-  taxRate: data.tax_rate == null ? 0.1 : exactDecimalToNumber(data.tax_rate, "tax_rate"),
+  taxRate: exactDecimalToNumber(data.tax_rate, "tax_rate"),
   isNonInsurance: data.is_non_insurance ?? false,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",

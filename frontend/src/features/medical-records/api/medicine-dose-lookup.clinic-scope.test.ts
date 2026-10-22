@@ -95,7 +95,9 @@ describe("PR700: 複写先クリニック別マスタ/dose-params スコープ",
     server.use(
       http.get("*/v1/masters/medicines", ({ request }) => {
         seen.push(request.headers.get("X-Clinic-ID"));
-        return HttpResponse.json([{ id: 42, name: "薬A", price: 3303, is_active: true }]);
+        return HttpResponse.json([
+          { id: 42, name: "薬A", price: 3303, is_active: true, tax_rate: "0.1" },
+        ]);
       }),
     );
     const { queryClient, wrapper } = clientWrapper();
