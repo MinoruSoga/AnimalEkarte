@@ -180,11 +180,13 @@ describe("S08: 409 → 最新取得 → 比較 → 明示選択（自動送信�
 
   const latestPkg = { ...pkg("201", "最新名"), version: "5" };
   const mockGets = (detail: unknown) =>
-    vi.mocked(axios.get).mockImplementation((url: string) =>
-      url === DETAIL_URL
-        ? detail
-        : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
-    );
+    vi
+      .mocked(axios.get)
+      .mockImplementation((url: string) =>
+        url === DETAIL_URL
+          ? detail
+          : Promise.resolve({ data: { items: [pkg("201", "セットA")], order_version: "17" } }),
+      );
 
   it("409 → 1回だけ detail GET → 両値を比較表示 → (a) 最新採用で draft 置換", async () => {
     const user = userEvent.setup();

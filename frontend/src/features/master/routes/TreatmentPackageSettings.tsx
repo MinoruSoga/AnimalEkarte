@@ -267,9 +267,7 @@ export function TreatmentPackageSettings() {
       {authorizationLost && target !== null ? (
         // S07: 失権中は editor を権限エラーへ差し替える。draft は hook 内に保持（非表示）。
         <div className="p-4">
-          <ErrorFallback
-            message="この構成を表示する権限がありません。権限を確認してから再読込してください。"
-          />
+          <ErrorFallback message="この構成を表示する権限がありません。権限を確認してから再読込してください。" />
         </div>
       ) : editor.draft !== null && target !== null ? (
         <>
