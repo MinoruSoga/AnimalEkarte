@@ -302,6 +302,8 @@ func allModels() []any {
 		&model.TrimmingOptionRuleSet{},
 		&model.TrimmingServiceIdentity{},
 		&model.TrimmingServiceLine{},
+		// EMR-446/466 clinic_operating_hours (migration 008).
+		&model.ClinicOperatingHours{},
 	}
 }
 
