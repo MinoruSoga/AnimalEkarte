@@ -36,9 +36,24 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository {
 	return &procedureRepositoryImpl{db: db}
 }
 
+// procedureReadColumns は is_bill_discount_excluded を含む明示列（EMR-447 A.3）。
+// SELECT * だけでは列未接続と DB NULL を区別できないため、読取は列名を明示する。
+var procedureReadColumns = []string{
+	"id", "clinic_id", "name", "price", "is_active", "description",
+	"duration", "anesthesia", "parent_id", "tax_type", "tax_rate",
+	"sort_order", "is_surgery", "is_non_insurance", colIsBillDiscountExcluded,
+	"version", "created_at", "updated_at", "deleted_at",
+}
+
 func (r *procedureRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
-	if err := persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&procedures).Error; err != nil {
+	if err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Procedure{}).
+		Select(procedureReadColumns).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Order("sort_order ASC, name ASC").
+		Limit(persistence.MaxMasterListRows).
+		Find(&procedures).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
@@ -46,7 +61,7 @@ func (r *procedureRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) 
 
 func (r *procedureRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
 	// MRC-07: ambient-tx participation for delete usage re-check under WithTx.
-	db := persistence.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db).Select(procedureReadColumns)
 	return persistence.FindByIDScoped[model.Procedure](ctx, db, "procedure", clinicID, id)
 }
 

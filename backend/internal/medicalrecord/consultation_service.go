@@ -56,6 +56,7 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 	if input.IsNonInsurance != nil {
 		fields[colConsultationIsNonInsurance] = *input.IsNonInsurance
 	}
+	setBillDiscountExcludedField(fields, input.IsBillDiscountExcluded)
 	return fields
 }
 
@@ -77,6 +78,8 @@ type CreateConsultationInput struct {
 
 	// IsNonInsurance は品目別保険設定。nil = 新規登録の初期値（保険対象外=true）。
 	IsNonInsurance *bool
+	// IsBillDiscountExcluded は全体割引除外。nil = 新規登録の初期値 false を明示保存（EMR-447 A01）。
+	IsBillDiscountExcluded *bool
 }
 
 // UpdateConsultationInput は診察料金更新のサービス入力 DTO
@@ -97,6 +100,8 @@ type UpdateConsultationInput struct {
 
 	// IsNonInsurance は nil = 変更なし（DB の未保存/旧欠落 NULL を書き換えない）。
 	IsNonInsurance *bool
+	// IsBillDiscountExcluded は nil = 変更なし（EMR-447 A01）。
+	IsBillDiscountExcluded *bool
 }
 
 type ConsultationService interface {
@@ -150,7 +155,11 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 		if err != nil {
 			return masterInsuranceChange{}, err
 		}
-		return masterInsuranceChange{ID: result.ID, After: result.IsNonInsurance}, nil
+		return masterInsuranceChange{
+			ID:           result.ID,
+			After:        result.IsNonInsurance,
+			BillDiscount: &billDiscountChange{After: result.IsBillDiscountExcluded},
+		}, nil
 	})
 	if err != nil {
 		return nil, err
@@ -200,7 +209,8 @@ func (s *consultationService) create(ctx context.Context, clinicID uint64, input
 		TaxType:       taxType,
 		TaxRate:       exactTaxRate,
 
-		IsNonInsurance: &isNonInsurance,
+		IsNonInsurance:         &isNonInsurance,
+		IsBillDiscountExcluded: createBillDiscountExcluded(input.IsBillDiscountExcluded),
 	}
 	if err := s.repo.Create(ctx, consultation); err != nil {
 		if conflict := apperrors.AsNameUniqueConflict(
@@ -241,7 +251,11 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 		if err != nil {
 			return masterInsuranceChange{}, err
 		}
-		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance, SkipInsuranceAudit: input.IsNonInsurance == nil}, nil
+		var billDiscount *billDiscountChange
+		if input.IsBillDiscountExcluded != nil {
+			billDiscount = &billDiscountChange{BeforeExists: true, Before: before.IsBillDiscountExcluded, After: result.IsBillDiscountExcluded}
+		}
+		return masterInsuranceChange{ID: result.ID, BeforeExists: true, Before: oldSetting, After: result.IsNonInsurance, SkipInsuranceAudit: input.IsNonInsurance == nil, BillDiscount: billDiscount}, nil
 	})
 	if err != nil {
 		return nil, err

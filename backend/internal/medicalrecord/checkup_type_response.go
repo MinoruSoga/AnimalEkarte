@@ -19,10 +19,12 @@ type checkupTypeResponse struct {
 	ParentID    *uint64 `json:"parent_id,omitempty"`
 	SortOrder   int     `json:"sort_order"`
 	// EMR-456: null=未保存（旧欠落）、true=保険対象外、false=保険対象。欠落を false/true に補完しない。
-	IsNonInsurance *bool     `json:"is_non_insurance"`
-	Version        int64     `json:"version"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	IsNonInsurance *bool `json:"is_non_insurance"`
+	// EMR-447 A01: null=未保存（旧欠落）を raw のまま返し false に書換えない。
+	IsBillDiscountExcluded *bool     `json:"is_bill_discount_excluded"`
+	Version                int64     `json:"version"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 func toCheckupTypeResponse(ct *model.CheckupType) checkupTypeResponse {
@@ -42,8 +44,10 @@ func toCheckupTypeResponse(ct *model.CheckupType) checkupTypeResponse {
 		ParentID:       ct.ParentID,
 		SortOrder:      sortOrder,
 		IsNonInsurance: ct.IsNonInsurance,
-		Version:        ct.Version,
-		CreatedAt:      httpapi.LocalTime(ct.CreatedAt),
-		UpdatedAt:      httpapi.LocalTime(ct.UpdatedAt),
+
+		IsBillDiscountExcluded: ct.IsBillDiscountExcluded,
+		Version:                ct.Version,
+		CreatedAt:              httpapi.LocalTime(ct.CreatedAt),
+		UpdatedAt:              httpapi.LocalTime(ct.UpdatedAt),
 	}
 }
