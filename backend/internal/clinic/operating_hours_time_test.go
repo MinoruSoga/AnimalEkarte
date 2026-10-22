@@ -108,7 +108,7 @@ func TestTimeIntervalContainsIsHalfOpen(t *testing.T) {
 func TestIntervalAlgebra(t *testing.T) {
 	t.Parallel()
 	common := []TimeInterval{{Start: 540, End: 720}, {Start: 780, End: 1080}} // 09:00-12:00, 13:00-18:00
-	line := []TimeInterval{{Start: 600, End: 1140}}                         // 10:00-19:00
+	line := []TimeInterval{{Start: 600, End: 1140}}                           // 10:00-19:00
 
 	assertIntervals(t, "intersect", IntersectIntervals(common, line),
 		[]TimeInterval{{Start: 600, End: 720}, {Start: 780, End: 1080}})

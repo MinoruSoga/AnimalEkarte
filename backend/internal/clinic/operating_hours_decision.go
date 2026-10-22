@@ -4,13 +4,16 @@ package clinic
 // 呼出側（C06 Participant の Apply）は現在行を lock した状態で本関数を使い、changed=true のときだけ
 // 業務 write・監査・成功 receipt を同 TX で行う。版の増分方式（trigger/アプリ）は①の DDL に従い、
 // 本関数は次版を計算しない。Participant・Q・lookup allowlist への接続は①（489/446）受領後。
+//
+// owner_kind・intent 6個・schema_version は保存側の owner（PR #822–#824）が package model で公開する定数を使う
+// ため、ここでは宣言しない。lookup の intent→元 write action の写像は、保存側（#822–#824）と C06 registry が
+// main に入った後に結線する（この package は registry／lookup allowlist を複製・模倣しない）。
 
 import (
 	"errors"
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/operation"
 )
 
@@ -37,10 +40,13 @@ func UnconfiguredOperatingHours() OperatingHoursState {
 	return OperatingHoursState{}
 }
 
-// ConfiguredOperatingHours は保存行の状態。version は正の bigint。
+// ConfiguredOperatingHours は保存行の状態。version は正の bigint、settings は検証済み（ゼロ値は拒否）。
 func ConfiguredOperatingHours(version uint64, settings OperatingHoursSettings) (OperatingHoursState, error) {
 	if version == 0 || version > maxVersion {
 		return OperatingHoursState{}, errors.New("clinic operating hours version must be a positive bigint")
+	}
+	if !settings.isValid() {
+		return OperatingHoursState{}, errors.New("clinic operating hours settings must be validated")
 	}
 	return OperatingHoursState{configured: true, version: version, settings: settings}, nil
 }
@@ -107,7 +113,10 @@ func DecideClosedDateUnset(current OperatingHoursState, expectedVersion uint64, 
 	if err := current.checkVersion(expectedVersion); err != nil {
 		return OperatingHoursWrite{}, err
 	}
-	next, changed := current.settings.WithoutClosedDate(date)
+	next, changed, err := current.settings.WithoutClosedDate(date)
+	if err != nil {
+		return OperatingHoursWrite{}, err
+	}
 	return OperatingHoursWrite{Settings: next, Changed: changed}, nil
 }
 
@@ -122,87 +131,26 @@ func (s OperatingHoursState) checkVersion(expected uint64) error {
 }
 
 // OperatingHoursRejection は判定エラーを既存 C06 の確定拒否 status へ写像する。
-// 状態・版の競合は version-conflict、入力・同日異理由は validation。それ以外は確定拒否ではない。
+//
+//   - 既に行がある初期化（別 key による同時初期化を含む）と版の不一致は version-conflict。
+//   - 行がない update／休診 set／unset（ErrOperatingHoursUnconfigured）は「存在しない owner 対象」であり、
+//     operation/contract.go の StatusScopeNotFound の注記（"a missing owner target uses validation"）に従い
+//     validation。scope-not-found は FindBinding が binding を見つけない場合専用で owner の拒否ではない。
+//   - 同日異理由の休診と入力不正は validation。
+//
+// それ以外は確定拒否ではない（ok=false）。
 func OperatingHoursRejection(err error) (*operation.Rejection, bool) {
 	switch {
 	case errors.Is(err, ErrOperatingHoursAlreadyConfigured),
-		errors.Is(err, ErrOperatingHoursUnconfigured),
 		errors.Is(err, ErrOperatingHoursVersionConflict):
 		return &operation.Rejection{Status: operation.StatusVersionConflict}, true
-	case errors.Is(err, ErrClosedDateReasonConflict), apperrors.IsInvalidInput(err):
+	case errors.Is(err, ErrOperatingHoursUnconfigured),
+		errors.Is(err, ErrClosedDateReasonConflict),
+		apperrors.IsInvalidInput(err):
 		return &operation.Rejection{Status: operation.StatusValidation}, true
 	default:
 		return nil, false
 	}
-}
-
-// OperatingHoursOwnerKind は C06 binding の owner_kind。
-const OperatingHoursOwnerKind = "clinic"
-
-// 共通医院時間 family の intent（§2.2 の6個だけ）。
-const (
-	IntentOperatingHoursInitialize            = "clinic.operating-hours.initialize"
-	IntentOperatingHoursUpdate                = "clinic.operating-hours.update"
-	IntentOperatingHoursHolidaySetFromShifts  = "clinic.operating-hours.holiday-set-from-shifts"
-	IntentOperatingHoursHolidayUnsetShifts    = "clinic.operating-hours.holiday-unset-from-shifts"
-	IntentOperatingHoursHolidaySetFromClosing = "clinic.operating-hours.holiday-set-from-closing"
-	IntentOperatingHoursHolidayUnsetClosing   = "clinic.operating-hours.holiday-unset-from-closing"
-)
-
-// OperationGrant は intent の元 write action。限定 receipt lookup はこの action だけを現在再検査し、
-// view との OR や view の推定付与をしない（§1.1）。
-type OperationGrant struct {
-	Resource model.Resource
-	Action   string
-}
-
-type operatingHoursIntentEntry struct {
-	intent string
-	grant  OperationGrant
-}
-
-var operatingHoursLookupIntents = map[string]operatingHoursIntentEntry{
-	"initialize": {
-		intent: IntentOperatingHoursInitialize,
-		grant:  OperationGrant{Resource: model.ResourceHospitalSettings, Action: "edit"},
-	},
-	"update": {
-		intent: IntentOperatingHoursUpdate,
-		grant:  OperationGrant{Resource: model.ResourceHospitalSettings, Action: "edit"},
-	},
-	"holiday-set-from-shifts": {
-		intent: IntentOperatingHoursHolidaySetFromShifts,
-		grant:  OperationGrant{Resource: model.ResourceShifts, Action: "create"},
-	},
-	"holiday-unset-from-shifts": {
-		intent: IntentOperatingHoursHolidayUnsetShifts,
-		grant:  OperationGrant{Resource: model.ResourceShifts, Action: "delete"},
-	},
-	"holiday-set-from-closing": {
-		intent: IntentOperatingHoursHolidaySetFromClosing,
-		grant:  OperationGrant{Resource: model.ResourceClosingSettings, Action: "create"},
-	},
-	"holiday-unset-from-closing": {
-		intent: IntentOperatingHoursHolidayUnsetClosing,
-		grant:  OperationGrant{Resource: model.ResourceClosingSettings, Action: "delete"},
-	},
-}
-
-// ResolveOperatingHoursLookupIntent は lookup の短名を一意の intent と元 write action へ写像する。
-// 未知の短名は ok=false（別 intent・別権限へ読み替えない）。
-func ResolveOperatingHoursLookupIntent(short string) (string, OperationGrant, bool) {
-	e, ok := operatingHoursLookupIntents[short]
-	return e.intent, e.grant, ok
-}
-
-// OperatingHoursIntentGrant は intent の元 write action を返す（初回 write・同 key 再送・lookup 共通）。
-func OperatingHoursIntentGrant(intent string) (OperationGrant, bool) {
-	for _, e := range operatingHoursLookupIntents {
-		if e.intent == intent {
-			return e.grant, true
-		}
-	}
-	return OperationGrant{}, false
 }
 
 // OperatingHoursResultRefs は成功 receipt の result_refs（exact `{clinic_id}`）。
