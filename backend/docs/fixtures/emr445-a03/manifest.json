@@ -291,6 +291,28 @@
    "scenario": "prohibited なのに警告が全件 confirmable",
    "semantic_expectation": "不適合（prohibited を1件以上含む）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-configured-null-settings.response.json",
+   "operationId": "getClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "configured なのに version/settings が null",
+   "semantic_expectation": "不適合（state と null 条件は oneOf で連動）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-empty-days.response.json",
+   "operationId": "previewClinicOperatingHours",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/ClinicOperatingHoursPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "要求 dates があるのに days が空",
+   "semantic_expectation": "不適合（days は要求日を1件以上）",
+   "verification": "NOT_RUN"
   }
  ]
 }

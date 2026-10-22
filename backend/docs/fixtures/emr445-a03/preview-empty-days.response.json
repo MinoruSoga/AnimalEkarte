@@ -1,0 +1,223 @@
+{
+  "schema_version": "clinic-operating-hours-preview/v1",
+  "clinic_id": "7",
+  "mode": "update",
+  "observed_versions": {
+    "clinic_operating_hours": "4",
+    "line_acceptance": "2"
+  },
+  "current_settings": {
+    "weekly_hours": [
+      {
+        "weekday": 0,
+        "intervals": []
+      },
+      {
+        "weekday": 1,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 2,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 4,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 6,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      }
+    ],
+    "closed_dates": [
+      {
+        "date": "2026-12-31",
+        "reason": "年末休診"
+      }
+    ],
+    "national_holiday_closed": true
+  },
+  "proposed_settings": {
+    "weekly_hours": [
+      {
+        "weekday": 0,
+        "intervals": []
+      },
+      {
+        "weekday": 1,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 2,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 3,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 4,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 5,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      },
+      {
+        "weekday": 6,
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "16:00",
+            "end": "19:00"
+          }
+        ]
+      }
+    ],
+    "closed_dates": [
+      {
+        "date": "2026-11-03",
+        "reason": "臨時休診"
+      },
+      {
+        "date": "2026-12-31",
+        "reason": "年末休診"
+      }
+    ],
+    "national_holiday_closed": true
+  },
+  "days": [],
+  "warning_check": {
+    "state": "confirmation-required",
+    "warnings": [
+      {
+        "code": "closes_existing_reservations",
+        "severity": "confirmable",
+        "fields": [
+          "closed_dates"
+        ],
+        "dependency_revision": "opaque-r1"
+      }
+    ],
+    "affected_reservations": [
+      {
+        "appointment_id": "501",
+        "version": "3",
+        "start_time": "2026-11-03T10:00:00+09:00",
+        "end_time": "2026-11-03T10:30:00+09:00",
+        "status": "confirmed"
+      }
+    ],
+    "warning_receipt": "opaque-receipt-1"
+  }
+}
