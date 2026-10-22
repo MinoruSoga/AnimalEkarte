@@ -113,3 +113,25 @@ describe("mutation の版規則", () => {
     });
   });
 });
+
+describe("S07/S08: HTTP status helpers", () => {
+  const withStatus = (status: number) => {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    return new AxiosError("e", String(status), config, undefined, {
+      status,
+      statusText: "",
+      headers: {},
+      config,
+      data: {},
+    });
+  };
+
+  it("isForbiddenError は 403 のみ、isNotFoundError は 404 のみ", async () => {
+    const { isForbiddenError, isNotFoundError } = await import("./use-treatment-packages");
+    expect(isForbiddenError(withStatus(403))).toBe(true);
+    expect(isForbiddenError(withStatus(500))).toBe(false);
+    expect(isForbiddenError(new Error("network"))).toBe(false);
+    expect(isNotFoundError(withStatus(404))).toBe(true);
+    expect(isNotFoundError(withStatus(403))).toBe(false);
+  });
+});

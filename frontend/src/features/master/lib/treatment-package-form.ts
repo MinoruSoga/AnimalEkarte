@@ -309,6 +309,32 @@ export function isDraftEqual(draft: TreatmentPackageDraft, baseline: TreatmentPa
   return JSON.stringify(draft) === JSON.stringify(draftFromPackage(baseline));
 }
 
+/** 409 比較用: draft 構成の行ラベル（kind ラベル + 識別子 + 数量）。number 化しない。 */
+export function draftComponentSummary(c: ComponentDraft): string {
+  const name = c.kind === "manual_other" ? c.manual.name : c.masterId;
+  return `${ITEM_KIND_LABELS[c.kind]} ${name} ×${c.quantity}`;
+}
+
+/** 409 比較用: wire 構成の行ラベル。 */
+export function wireComponentSummary(c: TreatmentPackageComponentInput): string {
+  const item = c.item;
+  const name = item.kind === "manual_other" ? item.manual.name : masterIdFromRef(item);
+  return `${ITEM_KIND_LABELS[item.kind]} ${name} ×${c.quantity}`;
+}
+
+/** 409 比較用: draft と最新 wire の項目別差分フラグ（純粋関数）。 */
+export function draftPackageDiff(draft: TreatmentPackageDraft, latest: TreatmentPackage) {
+  const wire = draft.components.map(componentToWire);
+  return {
+    name: draft.name.trim() !== latest.name,
+    description: draft.description !== latest.description,
+    isActive: draft.isActive !== latest.is_active,
+    components:
+      wire.some((c) => c === null) ||
+      !sameComponents(wire as TreatmentPackageComponentInput[], latest.components),
+  };
+}
+
 /** 一覧を ids の順に並べ替えた ID 列（全件・inactive 含む）。 */
 export function moveId(ids: readonly string[], id: string, direction: -1 | 1): string[] {
   const index = ids.indexOf(id);

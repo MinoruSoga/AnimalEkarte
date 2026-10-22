@@ -141,3 +141,34 @@ describe("requireEditingVersion / reorder / moveId / isDraftEqual", () => {
     expect(isDraftEqual(draftFromPackage(basePkg), basePkg)).toBe(true);
   });
 });
+
+describe("S08 diff helpers（draftPackageDiff / component summary）", () => {
+  it("項目別に差分を返す（構成は全置換比較）", async () => {
+    const { draftPackageDiff, draftComponentSummary, wireComponentSummary } = await import(
+      "./treatment-package-form"
+    );
+    const draft = draftFromPackage(basePkg);
+    const same = draftPackageDiff(draft, basePkg);
+    expect(same).toEqual({ name: false, description: false, isActive: false, components: false });
+
+    draft.name = "別名";
+    draft.isActive = !basePkg.is_active;
+    draft.components[0]!.masterId = "999";
+    const changed = draftPackageDiff(draft, basePkg);
+    expect(changed.name).toBe(true);
+    expect(changed.isActive).toBe(true);
+    expect(changed.components).toBe(true);
+    expect(changed.description).toBe(false);
+  });
+
+  it("構成サマリは kind ラベル + 識別子 + 数量（number 化しない）", async () => {
+    const { draftComponentSummary, wireComponentSummary, draftFromPackage: dfp } = await import(
+      "./treatment-package-form"
+    );
+    const draft = dfp(basePkg);
+    expect(draftComponentSummary(draft.components[0]!)).toBe("診察 101 ×1");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("手入力（その他）");
+    expect(wireComponentSummary(basePkg.components[0]!)).toBe("診察 101 ×1");
+    expect(wireComponentSummary(basePkg.components[6]!)).toContain("物販");
+  });
+});

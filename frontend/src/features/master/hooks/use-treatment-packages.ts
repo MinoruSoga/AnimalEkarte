@@ -71,7 +71,9 @@ export const useUpdateTreatmentPackage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: TreatmentPackagePatch }) => {
-      // 編集開始時捕捉版のみを CAS に使う（後の refetch 版で送らない）。
+      // CAS 基準版は編集開始時の捕捉版が既定。409 後の再基準化は利用者の明示選択
+      // （「入力を保持して最新版を基準に編集を続ける」）だけが行い、refetch 版を
+      // 自動では混入させない。
       requireEditingVersion(req.version);
       return updateTreatmentPackage(id, req);
     },
@@ -110,6 +112,16 @@ export function isConflictError(error: unknown): boolean {
   return isAxiosError(error) && error.response?.status === 409;
 }
 
+/** 403 = 型別 view 失権（認可不能）。5xx・通信失敗とは区別する。 */
+export function isForbiddenError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 403;
+}
+
+/** 404 = 対象は削除済み。fetch 失敗の一形として明示的に扱う。 */
+export function isNotFoundError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 404;
+}
+
 export type EditorTarget = TreatmentPackage | "new" | null;
 
 export type SaveOutcome =
@@ -124,6 +136,8 @@ export type SaveOutcome =
 /**
  * 編集セッション。draft はユーザー入力保持が最優先で、競合・失敗でも破棄しない。
  * 409 は「再読込・比較」へ誘導するだけで、無断上書きや false/0 補完をしない。
+ * baseline（CAS 基準版）は編集開始時の捕捉版が既定で、409 後の明示選択
+ * （最新採用 / 保持して再基準化）でのみ取り直される。
  */
 export function useTreatmentPackageEditor(target: EditorTarget) {
   const baseline = useMemo<TreatmentPackage | null>(
