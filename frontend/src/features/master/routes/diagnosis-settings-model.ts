@@ -35,8 +35,10 @@ export function buildDiagnosisTypeCreateRequest(
 export function buildDiagnosisTypeUpdateRequest(
   data: DiagnosisTypeFormData,
 ): UpdateDiagnosisTypeRequest {
+  // EMR-529: 更新では空の備考も送り、既存備考を空へ変更できるようにする（Create 既定は変えない）。
   return {
     ...buildDiagnosisTypeCreateRequest(data),
+    description: data.description,
     is_active: data.isActive,
   };
 }
@@ -55,8 +57,10 @@ export function buildDiagnosisNameCreateRequest(
 export function buildDiagnosisNameUpdateRequest(
   data: DiagnosisNameFormData,
 ): UpdateDiagnosisNameRequest {
+  // EMR-529: 更新では空の備考も送り、既存備考を空へ変更できるようにする（Create 既定は変えない）。
   return {
     ...buildDiagnosisNameCreateRequest(data),
+    description: data.description,
     is_active: data.isActive,
   };
 }
