@@ -307,7 +307,9 @@ func TestExamTypeService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
+			// EMR-447 A.5: create は常に bill-discount 監査を書くため audit double を注入する。
+			svc := NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
+			tt.input.ActorID = masterTestActorID()
 
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -682,10 +684,10 @@ func TestExamTypeService_Create_ValidatesParentInsideTx(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
+	svc := NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
 	parentID := uint64(9)
 	got, err := svc.Create(context.Background(), 1, &CreateExamTypeInput{
-		Name: "blood", ParentID: &parentID, IsActive: true,
+		Name: "blood", ParentID: &parentID, IsActive: true, ActorID: masterTestActorID(),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, got)

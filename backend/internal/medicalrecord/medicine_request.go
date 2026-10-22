@@ -22,6 +22,8 @@ type createMedicineRequest struct {
 	TaxType         *string         `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         json.RawMessage `json:"tax_rate"`
 	IsNonInsurance  bool            `json:"is_non_insurance"`
+	// EMR-447 A01: 省略 → service が false を明示保存。明示 null/非 boolean は binding 層で 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 
 	// #201 投与量計算（製品軸）
 	CalculationType     *string         `json:"calculation_type"      binding:"omitempty,oneof=none per_weight"`
@@ -63,6 +65,7 @@ func (r *createMedicineRequest) toServiceInput() (*CreateMedicineInput, error) {
 		TaxType:             r.TaxType,
 		TaxRate:             taxRate,
 		IsNonInsurance:      r.IsNonInsurance,
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toCreateInput(),
 		CalculationType:     r.CalculationType,
 		Strength:            strength,
 		FrequencyPerDay:     r.FrequencyPerDay,
@@ -90,6 +93,10 @@ type updateMedicineRequest struct {
 	TaxType         *string         `json:"tax_type"         binding:"omitempty,oneof=included excluded exempt"`
 	TaxRate         json.RawMessage `json:"tax_rate"`
 	IsNonInsurance  *bool           `json:"is_non_insurance"`
+	// EMR-447 A01/A.4: 省略 → 変更なし。明示 null/非 boolean は binding 層で 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
+	// EMR-447 A.4: 任意送信の期待版。送信時は >0 必須・必ず WHERE 照合する（service 検証）。
+	Version *int64 `json:"version"`
 
 	// #201 投与量計算（製品軸）
 	CalculationType     *string         `json:"calculation_type"      binding:"omitempty,oneof=none per_weight"`
@@ -119,6 +126,8 @@ func (r *updateMedicineRequest) toServiceInput() (*UpdateMedicineInput, error) {
 		TaxType:             r.TaxType,
 		TaxRate:             taxRate,
 		IsNonInsurance:      r.IsNonInsurance,
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toUpdateInput(),
+		Version:             r.Version,
 		CalculationType:     r.CalculationType,
 		Strength:            strength,
 		ClearStrength:       r.ClearStrength,

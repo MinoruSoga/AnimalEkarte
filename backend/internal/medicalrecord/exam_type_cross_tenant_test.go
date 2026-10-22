@@ -42,14 +42,14 @@ func TestExamTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 			},
 			createFn: func(_ context.Context, _ *model.ExaminationType) error { *created = true; return nil },
 		}
-		return NewExamTypeService(repo, passthroughExamTypeTransactor{})
+		return NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateExamTypeInput{Name: "x", ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateExamTypeInput{Name: "x", ParentID: &foreign, ActorID: masterTestActorID()})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "exam type must NOT be persisted referencing another clinic's parent exam type")
@@ -59,7 +59,7 @@ func TestExamTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateExamTypeInput{Name: "x", ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateExamTypeInput{Name: "x", ParentID: &owned, ActorID: masterTestActorID()})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -85,7 +85,7 @@ func TestExamTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.ExaminationType{ID: id}, nil
 			},
 		}
-		return NewExamTypeService(repo, passthroughExamTypeTransactor{})
+		return NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {

@@ -43,10 +43,20 @@ func NewExamTypeRepository(db *gorm.DB) ExamTypeRepository {
 	return &examTypeRepository{db: db}
 }
 
+// examTypeReadColumns は EMR-447 A.3 の read 証拠。is_bill_discount_excluded / version を
+// 列挙することで列未接続（欠落）が query error になり、DB NULL との区別がつく。
+var examTypeReadColumns = []string{
+	"id", "clinic_id", "name", "price", "is_active", "description",
+	"parent_id", "sort_order", "is_non_insurance",
+	"is_bill_discount_excluded", "version",
+	"created_at", "updated_at", "deleted_at",
+}
+
 func (r *examTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
 	exTypes := make([]model.ExaminationType, 0)
 	// G2F-11: vaccine/procedure/consultation と同型の master list safety Limit（unbounded Find 防止）。
 	err := r.db.WithContext(ctx).
+		Select(examTypeReadColumns).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Preload("Items", "clinic_id = ?", clinicID).
 		Order("sort_order ASC, name ASC").
@@ -65,7 +75,7 @@ func (r *examTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 	if lockForValidation {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
-	err := db.Preload("Items", func(itemsDB *gorm.DB) *gorm.DB {
+	err := db.Select(examTypeReadColumns).Preload("Items", func(itemsDB *gorm.DB) *gorm.DB {
 		itemsDB = itemsDB.Where("clinic_id = ?", clinicID)
 		if lockForValidation {
 			itemsDB = itemsDB.Clauses(clause.Locking{Strength: "SHARE"})
@@ -89,20 +99,46 @@ func (r *examTypeRepository) Create(ctx context.Context, exType *model.Examinati
 		if err := db.Model(exType).Update("is_active", false).Error; err != nil {
 			return apperrors.FromGORM(err, "examination_type", fmt.Sprintf("%d", exType.ID))
 		}
-		exType.IsActive = false
+		// この UPDATE は内容変更なので entity_version_guard が DB の version を加算する。
+		// 応答・監査が古い版を返さないよう、同じ tx で再読取した行に揃える（EMR-447 A.4）。
+		stored, err := r.FindByID(ctx, exType.ClinicID, exType.ID)
+		if err != nil {
+			return err
+		}
+		*exType = *stored
 	}
 	return nil
 }
 
+// Update は ambient tx に参加し、cmd.Version が非 nil なら期待版を WHERE で照合する
+// （EMR-447 A.4 楽観ロック・任意送信互換）。0 行は「存在しない（別医院含む）」と
+// 「版不一致」に区別して返す。返却値は同じ tx 内で再読取し実保存版を返す。
 func (r *examTypeRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateExamTypeInput) (*model.ExaminationType, error) {
-	if err := r.update(ctx, clinicID, id, buildExamTypeUpdate(&cmd)); err != nil {
-		return nil, err
+	if cmd.Version != nil && *cmd.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgExamTypeVersionInvalid)
+	}
+	fields := buildExamTypeUpdate(&cmd)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	q := persistence.DBOrTx(ctx, r.db).
+		Model(&model.ExaminationType{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id)
+	if cmd.Version != nil {
+		q = q.Where("version = ?", *cmd.Version)
+	}
+	result := q.Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "examination_type", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict(errMsgExamTypeVersionConflict)
 	}
 	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *examTypeRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.ExaminationType{}, "examination_type", clinicID, id, fields)
 }
 
 func (r *examTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {

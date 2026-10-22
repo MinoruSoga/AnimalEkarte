@@ -32,6 +32,17 @@ type medicineRepository struct{ db *gorm.DB }
 
 func NewMedicineRepository(db *gorm.DB) MedicineRepository { return &medicineRepository{db: db} }
 
+// medicineReadColumns は EMR-447 A.3 の read 証拠。is_bill_discount_excluded / version を
+// 列挙することで列未接続（欠落）が query error になり、DB NULL との区別がつく。
+var medicineReadColumns = []string{
+	"id", "clinic_id", "name", "price", "is_active", "description",
+	"parent_id", "dosage_form", "medicine_unit", "inventory_id",
+	"default_quantity", "tax_type", "tax_rate", "sort_order", "is_non_insurance",
+	"calculation_type", "strength", "frequency_per_day", "default_duration_days",
+	"is_bill_discount_excluded", "version",
+	"created_at", "updated_at", "deleted_at",
+}
+
 func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
 	medicines := make([]model.Medicine, 0)
 	var total int64
@@ -44,6 +55,7 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 		return nil, 0, apperrors.FromGORM(err, "medicine", "")
 	}
 	if err := buildBase().
+		Select(medicineReadColumns).
 		Scopes(paginate(page, limit)).
 		Order("sort_order ASC, name ASC").
 		Find(&medicines).Error; err != nil {
@@ -53,7 +65,15 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 }
 
 func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
-	return persistence.FindByIDScoped[model.Medicine](ctx, persistence.DBOrTx(ctx, r.db), "medicine", clinicID, id)
+	var medicine model.Medicine
+	if err := persistence.DBOrTx(ctx, r.db).
+		Select(medicineReadColumns).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&medicine).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
+	}
+	return &medicine, nil
 }
 
 // CountUsageByMedicineID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-108）
@@ -101,20 +121,46 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 		if err := db.Model(medicine).Update("is_active", false).Error; err != nil {
 			return apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", medicine.ID))
 		}
-		medicine.IsActive = false
+		// この UPDATE は内容変更なので entity_version_guard が DB の version を加算する。
+		// 応答・監査が古い版を返さないよう、同じ tx で再読取した行に揃える（EMR-447 A.4）。
+		stored, err := r.FindByID(ctx, medicine.ClinicID, medicine.ID)
+		if err != nil {
+			return err
+		}
+		*medicine = *stored
 	}
 	return nil
 }
 
+// Update は ambient tx に参加し、cmd.Version が非 nil なら期待版を WHERE で照合する
+// （EMR-447 A.4 楽観ロック・任意送信互換）。0 行は「存在しない（別医院含む）」と
+// 「版不一致」に区別して返す。返却値は同じ tx 内で再読取し実保存版を返す。
 func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMedicineInput) (*model.Medicine, error) {
-	if err := r.update(ctx, clinicID, id, buildMedicineUpdate(&cmd)); err != nil {
-		return nil, err
+	if cmd.Version != nil && *cmd.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgMedicineVersionInvalid)
+	}
+	fields := buildMedicineUpdate(&cmd)
+	if len(fields) == 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
+	}
+	q := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Medicine{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id)
+	if cmd.Version != nil {
+		q = q.Where("version = ?", *cmd.Version)
+	}
+	result := q.Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return nil, err
+		}
+		return nil, apperrors.WrapConflict(errMsgMedicineVersionConflict)
 	}
 	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *medicineRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.Medicine{}, "medicine", clinicID, id, fields)
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

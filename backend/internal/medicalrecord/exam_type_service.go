@@ -39,6 +39,8 @@ func buildExamTypeUpdate(input *UpdateExamTypeInput) map[string]any {
 	if input.IsNonInsurance != nil {
 		fields[colExamTypeIsNonInsurance] = *input.IsNonInsurance
 	}
+	// EMR-447 A.2: 明示送信時だけ対象列を SET。省略は UPDATE map へ入れず既存値を保持する。
+	setBillDiscountExcludedField(fields, input.IsBillDiscountExcluded)
 	return fields
 }
 
@@ -53,6 +55,10 @@ type CreateExamTypeInput struct {
 	ParentID       *uint64
 	SortOrder      int
 	IsNonInsurance bool
+	// IsBillDiscountExcluded は nil=省略（service が false を明示保存・EMR-447 A.2）。
+	IsBillDiscountExcluded *bool
+	// ActorID は全体割引除外設定の監査に使う操作スタッフ ID。
+	ActorID *uint64
 }
 
 // UpdateExamTypeInput は検査種別更新のサービス入力 DTO
@@ -65,6 +71,12 @@ type UpdateExamTypeInput struct {
 	ClearParentID  bool
 	SortOrder      *int
 	IsNonInsurance *bool
+	// IsBillDiscountExcluded は nil=省略（変更なし）。送信時は Version が必須（EMR-447 A.4）。
+	IsBillDiscountExcluded *bool
+	// Version は任意送信の期待版。非 nil なら >0 必須で repository が WHERE 照合する。
+	Version *int64
+	// ActorID は全体割引除外設定の監査に使う操作スタッフ ID。
+	ActorID *uint64
 }
 
 type ExaminationTypeService interface {
@@ -85,13 +97,39 @@ type ExaminationTypeService interface {
 type examTypeService struct {
 	repo       ExamTypeRepository
 	transactor Transactor
+	auditTx    AuditTxLogger
 }
 
-// NewExamTypeService constructs ExaminationTypeService.
+// EMR-447 A01: 全体割引除外設定の前後値監査に使う action/resource（checkup_type_audit.go と同型）。
+const (
+	examTypeAuditActionCreate = "examination_type.create"
+	examTypeAuditActionUpdate = "examination_type.update"
+	examTypeAuditResource     = "examination_type"
+)
+
+// errMsgExamTypeVersionConflict は楽観ロックの版不一致（再読込を促す）メッセージ。
+const errMsgExamTypeVersionConflict = "他のユーザーがこの検査種別を変更しました。再読み込みしてください"
+
+// errMsgExamTypeVersionRequired は is_bill_discount_excluded を含む更新で
+// client 版が未指定のときの検証エラー（EMR-447 A.4: 新設定を含む PATCH は編集開始版必須）。
+const errMsgExamTypeVersionRequired = "version を指定してください（編集開始時の版）"
+
+// errMsgExamTypeVersionInvalid は送信された期待版が 0 以下のときの検証エラー。
+const errMsgExamTypeVersionInvalid = "version は正の整数で指定してください"
+
+// NewExamTypeService constructs ExaminationTypeService without the audit sink.
 // transactor is required so Create/Update/Delete and field writes share ambient transactions
 // (MRB-07: compile-time wiring; nil is fail-closed as 500 via withTx).
+// auditTx が無い構成では is_bill_discount_excluded を書く操作（create は常時、update は
+// 送信時のみ）が logBillDiscountAuditTx 経由で fail-closed になる（EMR-447 A.5）。
 func NewExamTypeService(repo ExamTypeRepository, transactor Transactor) ExaminationTypeService {
 	return &examTypeService{repo: repo, transactor: transactor}
+}
+
+// NewExamTypeServiceWithAudit は監査依存を注入する構成子（EMR-447 A.5）。
+// auditTx は業務書込と同じ tx での監査に必須。nil なら新 field の書込は fail-closed。
+func NewExamTypeServiceWithAudit(repo ExamTypeRepository, transactor Transactor, auditTx AuditTxLogger) ExaminationTypeService {
+	return &examTypeService{repo: repo, transactor: transactor, auditTx: auditTx}
 }
 
 func (s *examTypeService) List(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
@@ -125,6 +163,8 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		ParentID:       input.ParentID,
 		SortOrder:      input.SortOrder,
 		IsNonInsurance: input.IsNonInsurance,
+		// EMR-447 A.2: 省略は false を明示保存し、DB default / Go ゼロ値に任せない。
+		IsBillDiscountExcluded: createBillDiscountExcluded(input.IsBillDiscountExcluded),
 	}
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
@@ -141,7 +181,10 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 			}
 			return apperrors.Wrap(err, "failed to create exam type")
 		}
-		return nil
+		// EMR-447 A.5: create は常に新 field を書くため、前値なしの監査を同じ tx で必須記録する。
+		return logBillDiscountAuditTx(txCtx, s.auditTx, clinicID, input.ActorID,
+			examTypeAuditResource, examTypeAuditActionCreate,
+			billDiscountChange{ResourceID: exType.ID, After: exType.IsBillDiscountExcluded})
 	}); err != nil {
 		return nil, err
 	}
@@ -160,6 +203,14 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := validateNonNegativePrice(input.Price); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate non negative price")
 	}
+	// EMR-447 A.4: 新設定を含む PATCH は編集開始版必須。送信された版は >0 でなければならず、
+	// 新設定を含まない旧 PATCH の version 省略は従来互換（CAS なし）を維持する。
+	if input.IsBillDiscountExcluded != nil && input.Version == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgExamTypeVersionRequired)
+	}
+	if input.Version != nil && *input.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgExamTypeVersionInvalid)
+	}
 	fields := buildExamTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
@@ -167,7 +218,8 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	// MRB-08: 存在確認・parent 検証・Update を同一 tx に収める。
 	var exType *model.ExaminationType
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+		before, err := s.repo.FindByID(txCtx, clinicID, id)
+		if err != nil {
 			return apperrors.Wrap(err, "failed to get exam type")
 		}
 		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
@@ -188,6 +240,15 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 				return conflict
 			}
 			return apperrors.Wrap(err, "failed to update exam type")
+		}
+		// EMR-447 A.5: 新 field が送信された時だけ、raw NULL/false/true を区別した
+		// 前後値監査を業務書込と同じ tx で記録する（is_non_insurance 監査とは別 field）。
+		if input.IsBillDiscountExcluded != nil {
+			if err := logBillDiscountAuditTx(txCtx, s.auditTx, clinicID, input.ActorID,
+				examTypeAuditResource, examTypeAuditActionUpdate,
+				billDiscountChange{ResourceID: updated.ID, BeforeExists: true, Before: before.IsBillDiscountExcluded, After: updated.IsBillDiscountExcluded}); err != nil {
+				return err
+			}
 		}
 		exType = updated
 		return nil
