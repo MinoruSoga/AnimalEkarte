@@ -170,6 +170,28 @@
    "scenario": "架空の policy_id を refs に含める",
    "semantic_expectation": "不適合（複合 PK のため policy_id を作らない）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-masked-state-contradiction.response.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "policy-unconfigured なのに times を返す",
+   "semantic_expectation": "不適合（evaluated だけ配列）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "preview-create-unconfigured.response.json",
+   "operationId": "previewLineStartPolicy",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/LineStartPolicyPreviewResponse",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "policy・common・LINE すべて未設定で create preview",
+   "semantic_expectation": "observed 版は全 null、current は policy-unconfigured、proposed は common-unconfigured（優先順 policy→common→LINE）",
+   "verification": "NOT_RUN"
   }
  ]
 }

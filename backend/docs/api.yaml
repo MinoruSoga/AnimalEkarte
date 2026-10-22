@@ -16561,13 +16561,17 @@ components:
           type: string
           enum: [unconfigured, configured, deleted]
         version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         policy:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineStartPolicy'
-          nullable: true
+            - type: object
+              nullable: true
+              enum: [null]
         deleted_at:
           type: string
           format: date-time
@@ -16659,9 +16663,11 @@ components:
           type: string
           enum: [create, replace, reconfigure]
         expected_version:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineTimeDecimalId'
-          nullable: true
+            - type: string
+              nullable: true
+              enum: [null]
         expected_assignment_id:
           $ref: '#/components/schemas/LineTimeDecimalId'
         dates:
@@ -16698,21 +16704,36 @@ components:
           reconfigure: '#/components/schemas/LineStartPolicyPreviewWithPolicy'
           delete: '#/components/schemas/LineStartPolicyPreviewDelete'
     LineStartPolicyMaskedStarts:
+      description: >-
+        §5.7 MaskedStarts（state 別 exact）。evaluated だけ times（正常空は []）、他 state は null。優先順は policy→common→LINE
+        （policy-unconfigured/policy-deleted を先行）。依存読取エラーはどの正常 state へも変換せず 503。
+      oneOf:
+        - $ref: '#/components/schemas/LineStartPolicyMaskedStartsEvaluated'
+        - $ref: '#/components/schemas/LineStartPolicyMaskedStartsNotEvaluated'
+    LineStartPolicyMaskedStartsEvaluated:
       type: object
       additionalProperties: false
       required: [state, times]
-      description: >-
-        §5.7 MaskedStarts。evaluated だけ times（正常空は []）、他 state は null。優先順は policy→common→LINE
-        （policy-unconfigured/policy-deleted を先行）。依存読取エラーはどの正常 state へも変換せず 503。
       properties:
         state:
           type: string
-          enum: [evaluated, policy-unconfigured, policy-deleted, common-unconfigured, line-unconfigured, line-unreviewed]
+          enum: [evaluated]
+        times:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineStartPolicyTime'
+    LineStartPolicyMaskedStartsNotEvaluated:
+      type: object
+      additionalProperties: false
+      required: [state, times]
+      properties:
+        state:
+          type: string
+          enum: [policy-unconfigured, policy-deleted, common-unconfigured, line-unconfigured, line-unreviewed]
         times:
           type: array
           nullable: true
-          items:
-            $ref: '#/components/schemas/LineStartPolicyTime'
+          enum: [null]
     LineStartPolicyPreviewDay:
       type: object
       additionalProperties: false
@@ -16768,21 +16789,29 @@ components:
           description: 実際に読んだ現在保存版。policy 版は unconfigured だけ null、deleted は tombstone 現版。
           properties:
             line_staff_start_policy:
-              allOf:
+              oneOf:
                 - $ref: '#/components/schemas/LineTimeDecimalId'
-              nullable: true
+                - type: string
+                  nullable: true
+                  enum: [null]
             clinic_operating_hours:
-              allOf:
+              oneOf:
                 - $ref: '#/components/schemas/LineTimeDecimalId'
-              nullable: true
+                - type: string
+                  nullable: true
+                  enum: [null]
             line_acceptance:
-              allOf:
+              oneOf:
                 - $ref: '#/components/schemas/LineTimeDecimalId'
-              nullable: true
+                - type: string
+                  nullable: true
+                  enum: [null]
         proposed_policy:
-          allOf:
+          oneOf:
             - $ref: '#/components/schemas/LineStartPolicy'
-          nullable: true
+            - type: object
+              nullable: true
+              enum: [null]
           description: delete だけ null。
         days:
           type: array
