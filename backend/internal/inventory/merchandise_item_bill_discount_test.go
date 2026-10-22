@@ -396,7 +396,10 @@ func TestMerchandiseItemRepository_CASSQLAndOutcomes(t *testing.T) {
 			require.Contains(t, updateSQL, "id = $")
 			require.Contains(t, updateSQL, "clinic_id")
 			setClause := strings.Split(updateSQL, " WHERE ")[0]
-			require.Contains(t, setClause, `"is_bill_discount_excluded"=false`, "explicit false must be SET")
+			// A-6: GORM は SET 値を placeholder へ bind する。SQL は列名 + $n、
+			// literal false は Statement.Vars に入る。
+			require.Contains(t, setClause, `"is_bill_discount_excluded"=$`, "explicit false must be SET via a bind placeholder")
+			require.Contains(t, updateVars, false, "explicit false must reach Statement.Vars")
 			require.NotContains(t, setClause, `"version"`, "database trigger owns advancement")
 			if scenario == "no-cas" {
 				require.NotContains(t, updateSQL, "version = $", "legacy PATCH without version has no CAS")
@@ -422,6 +425,61 @@ func TestMerchandiseItemRepository_CASSQLAndOutcomes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- repository: ambient-TX FindByID のロック強度（A-2/D2） ---
+
+func TestMerchandiseItemRepository_FindByIDLockStrength(t *testing.T) {
+	db, err := gorm.Open(postgres.Open("host=localhost user=unused dbname=unused sslmode=disable"), &gorm.Config{DisableAutomaticPing: true, DryRun: true, SkipDefaultTransaction: true})
+	require.NoError(t, err)
+	conn, err := db.DB()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	var queries []string
+	require.NoError(t, db.Callback().Query().After("gorm:query").Register("capture_find_lock", func(tx *gorm.DB) {
+		queries = append(queries, tx.Statement.SQL.String())
+	}))
+	repo := &merchandiseItemRepository{db: db}
+	txCtx := persistence.WithTxValue(t.Context(), db)
+	// 参照用途（campaign attachment serialization）: 既定は FOR SHARE。
+	_, _ = repo.FindByID(txCtx, 2, 17)
+	// 更新 TX の前値読取: FOR UPDATE で先に排他ロックする。
+	_, _ = repo.FindByID(withMerchandiseItemForUpdate(txCtx), 2, 17)
+	// ambient tx なし: ロック句なし。
+	_, _ = repo.FindByID(t.Context(), 2, 17)
+	require.Len(t, queries, 3)
+	require.Contains(t, queries[0], "FOR SHARE")
+	require.Contains(t, queries[1], "FOR UPDATE")
+	require.NotContains(t, queries[2], "FOR ")
+}
+
+// --- update TX: FOR UPDATE の前値読取が UPDATE・監査より先（A-2/D2） ---
+
+func TestMerchandiseItemService_Update_ForUpdateReadPrecedesWrite(t *testing.T) {
+	var events []string
+	repo := &mockMerchandiseItemRepository{
+		findByIDFn: func(ctx context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+			if locked, _ := ctx.Value(merchandiseItemForUpdateKey{}).(bool); locked {
+				events = append(events, "forUpdateRead")
+			} else {
+				events = append(events, "read")
+			}
+			return &model.MerchandiseItem{ID: id, ClinicID: 7, Version: 7}, nil
+		},
+		updateFieldsFn: func(context.Context, uint64, uint64, UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
+			events = append(events, "update")
+			return &model.MerchandiseItem{ID: 5, ClinicID: 7, Version: 8}, nil
+		},
+	}
+	svc := NewMerchandiseItemServiceWithAudit(repo, &rollbackTrackingTransactor{}, &merchandiseBillDiscountAuditRecorder{})
+	_, err := svc.Update(t.Context(), 7, 5, &UpdateMerchandiseItemInput{
+		IsBillDiscountExcluded: boolPtrForBillDiscountTest(true),
+		Version:                int64PtrForMerchandiseTest(7),
+		ActorID:                merchandiseTestActorID(),
+	})
+	require.NoError(t, err)
+	// 存在確認 read → FOR UPDATE 前値読取 → UPDATE。排他ロックは UPDATE より先。
+	require.Equal(t, []string{"read", "forUpdateRead", "update"}, events)
 }
 
 // --- handler: PATCH version 境界（null/0/負/文字列/小数は 400） ---

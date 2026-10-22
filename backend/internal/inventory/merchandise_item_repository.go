@@ -49,14 +49,34 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 	return items, nil
 }
 
+// merchandiseItemForUpdateKey は FindByID の ambient-TX 行ロックを既定の
+// FOR SHARE から FOR UPDATE へ切替える context key（EMR-449 A.4）。
+type merchandiseItemForUpdateKey struct{}
+
+// withMerchandiseItemForUpdate は ambient transaction 内の FindByID に
+// FOR UPDATE を取らせる ctx を返す。新設定を含む PATCH の更新 TX が前値読取に
+// だけ使い、参照用途（campaign attachment serialization）には設定しない。
+func withMerchandiseItemForUpdate(ctx context.Context) context.Context {
+	return context.WithValue(ctx, merchandiseItemForUpdateKey{}, true)
+}
+
 // FindByID loads a clinic-scoped merchandise row. When called under an ambient
 // transaction it takes FOR SHARE so concurrent soft-delete/update waits until
-// the caller commits (campaign target attachment serialization).
+// the caller commits (campaign target attachment serialization). A context
+// marked by withMerchandiseItemForUpdate takes FOR UPDATE instead; only the
+// update transaction's before-image read sets it.
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
 	var item model.MerchandiseItem
 	db := persistence.DBOrTx(ctx, r.db)
 	if persistence.TxFromContext(ctx) != nil {
-		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+		// EMR-449 A-2: 既定は参照直列化の FOR SHARE。更新 TX の前値読取だけ
+		// FOR UPDATE へ切替え、同版 PATCH が SHARE 保持後の UPDATE 昇格で
+		// 相互待ち（40P01）しないようにする。
+		strength := "SHARE"
+		if forUpdate, _ := ctx.Value(merchandiseItemForUpdateKey{}).(bool); forUpdate {
+			strength = "UPDATE"
+		}
+		db = db.Clauses(clause.Locking{Strength: strength})
 	}
 	if err := db.Select(merchandiseItemSelectColumns).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&item).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
