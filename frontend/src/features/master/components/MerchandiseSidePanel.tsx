@@ -144,13 +144,15 @@ export const MerchandiseSidePanel = memo(function MerchandiseSidePanel({
         />
       </PropertyRow>
       <PropertyRow label="税率" description={FIELD_DESCRIPTIONS.taxRate}>
+        {/* EMR-530: 保有するのは exact decimal 文字列。共有TaxRateSelectorの number 契約は
+            変更せず、binary64 で無損失に表現できる値のときだけ数値化して選択値を合わせる。
+            非preset・無損失でない字句は選択肢と一致させず空選択を表示する（丸めて見せない）。 */}
         <TaxRateSelector
-          {/* EMR-530: 保有するのは exact decimal 文字列。共有TaxRateSelectorの number 契約は
-              変更せず、binary64 で無損失に表現できる値のときだけ数値化して選択値を合わせる。
-              非preset・無損失でない字句は選択肢と一致させず空選択を表示する（丸めて見せない）。 */}
-          value={isMerchandiseTaxRate(formData.taxRate, String(Number(formData.taxRate)))
-            ? Number(formData.taxRate)
-            : Number.NaN}
+          value={
+            isMerchandiseTaxRate(formData.taxRate, String(Number(formData.taxRate)))
+              ? Number(formData.taxRate)
+              : Number.NaN
+          }
           onChange={(value) => setFormDataDirty((prev) => ({ ...prev, taxRate: String(value) }))}
         />
       </PropertyRow>

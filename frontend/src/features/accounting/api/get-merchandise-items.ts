@@ -46,11 +46,36 @@ export interface FrontendMerchandiseItem {
 // parseExactDecimal は exact decimal 文字列を課税行wire（number）用に数値化する。
 // binary64 で無損失に表現できない字句（"0.10000000000000001" 等）は丸めて伝播すると
 // 誤課税になるため undefined（fail closed）にする。round-trip で同一の十進値のときだけ数値を返す。
+// String(number) が指数表記（例: "1e-7"）になる極小値は展開してから比較する。
 function parseExactDecimal(text: string): number | undefined {
   if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return undefined;
   const asNumber = Number(text);
-  return canonicalDecimal(String(asNumber)) === canonicalDecimal(text) ? asNumber : undefined;
+  const plain = plainDecimalFromNumber(asNumber);
+  return plain !== null && canonicalDecimal(plain) === canonicalDecimal(text) ? asNumber : undefined;
 }
+
+// plainDecimalFromNumber は String(number) の指数表記を十進リテラルへ展開する（比較専用）。
+function plainDecimalFromNumber(value: number): string | null {
+  if (!Number.isFinite(value)) return null;
+  const s = String(value);
+  const m = /^(-?)(\d+)(?:\.(\d+))?e([+-]?\d+)$/i.exec(s);
+  if (!m) return s;
+  const [, sign, intPart, fracPart = "", expStr] = m;
+  const exp = Number(expStr);
+  const digits = intPart + fracPart;
+  const point = intPart.length + exp;
+  let out: string;
+  if (point <= 0) {
+    out = `0.${"0".repeat(-point)}${digits}`;
+  } else if (point >= digits.length) {
+    out = digits + "0".repeat(point - digits.length);
+  } else {
+    out = `${digits.slice(0, point)}.${digits.slice(point)}`;
+  }
+  return (sign === "-" ? "-" : "") + out;
+}
+
+export { parseExactDecimal };
 
 function canonicalDecimal(text: string): string | null {
   if (!/^(0|[1-9][0-9]*)(\.[0-9]+)?$/.test(text)) return null;
