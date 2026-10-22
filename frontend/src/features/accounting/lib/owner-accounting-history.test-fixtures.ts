@@ -9,9 +9,8 @@ import type { BackendAccounting } from "../api/types";
 
 export const mockOwnerId = "42";
 
-type LoosePet = Omit<Partial<NonNullable<BackendAccounting["pet"]>>, "animal_species"> & {
-  animal_species?: Partial<NonNullable<NonNullable<BackendAccounting["pet"]>["animal_species"]>>;
-};
+// 会計 HTTP の pet summary は {id, name} のみ（動物種を含まない — EMR-527）。
+type LoosePet = Partial<NonNullable<BackendAccounting["pet"]>>;
 type LoosePayment = Partial<NonNullable<BackendAccounting["payments"]>[number]>;
 
 // BackendAccounting の最小フィクスチャを作る。transformToAccounting が
@@ -49,7 +48,7 @@ export const completedFixture: BackendAccounting = makeBackendAccounting({
   subtotal: 5000,
   tax_total: 500,
   total_amount: 5500,
-  pet: { id: 7, name: "ぽち", animal_species: { id: 1, name: "犬" } },
+  pet: { id: 7, name: "ぽち" },
   payments: [
     {
       id: 201,
@@ -72,7 +71,7 @@ export const completedFixture2: BackendAccounting = makeBackendAccounting({
   subtotal: 3000,
   tax_total: 300,
   total_amount: 3300,
-  pet: { id: 9, name: "もも", animal_species: { id: 1, name: "犬" } },
+  pet: { id: 9, name: "もも" },
   payments: [
     {
       id: 203,
@@ -92,21 +91,21 @@ export const waitingFixture: BackendAccounting = makeBackendAccounting({
   id: 102,
   status: "waiting",
   scheduled_date: "2026-04-29T00:00:00Z",
-  pet: { id: 8, name: "たま", animal_species: { id: 2, name: "猫" } },
+  pet: { id: 8, name: "たま" },
 });
 
 export const pendingFixture: BackendAccounting = makeBackendAccounting({
   id: 104,
   status: "pending",
   scheduled_date: "2026-04-28T00:00:00Z",
-  pet: { id: 10, name: "ちゃこ", animal_species: { id: 2, name: "猫" } },
+  pet: { id: 10, name: "ちゃこ" },
 });
 
 export const cancelledFixture: BackendAccounting = makeBackendAccounting({
   id: 105,
   status: "cancelled",
   scheduled_date: "2026-04-15T00:00:00Z",
-  pet: { id: 11, name: "ハチ", animal_species: { id: 1, name: "犬" } },
+  pet: { id: 11, name: "ハチ" },
 });
 
 export const createWrapper = (initialEntries?: string[]) =>

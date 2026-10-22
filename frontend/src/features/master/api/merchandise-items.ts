@@ -3,23 +3,45 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { MerchandiseItem } from "@/types/generated/models";
+import type { ItemCategory, TaxType } from "@/types";
 
-// EMR-530: tax_rate は 有限な非負 exact decimal 文字列（採択405・483の十進輸送）。
-// 生成modelの number 型（同期前）を Omit し、wire 契約どおりの文字列へ差し替える。
-// 生成modelの再同期（EMR-527）後も Omit 差し替えは文字列契約を維持する。
-export type MerchandiseItemExact = Omit<MerchandiseItem, "tax_rate"> & { tax_rate: string };
+// ─── HTTP DTO（非永続・EMR-527） ─────────────────────────────
+
+/**
+ * 物販品マスタ応答。保存 model（生成 MerchandiseItem）ではなく handler の応答列を写す。
+ * accounting の get-merchandise-items.ts も同じ struct を写す（feature 間 import は禁止）。
+ * @see backend/internal/inventory/merchandise_item_response.go merchandiseItemResponse
+ */
+interface LegacyMerchandiseItemResponse {
+  id: number;
+  clinic_id: number;
+  name: string;
+  category: ItemCategory;
+  unit_price: number;
+  tax_type: TaxType;
+  // EMR-530: 有限な非負 exact decimal 文字列（採択405・483の十進輸送、api.yaml #806）。
+  // number は旧clientの黙ったfloat変換になるため送受信しない。
+  tax_rate: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 一覧は配列で返る。旧 { data } 包みも従来どおり受ける。 */
+type MerchandiseItemsPayload =
+  | LegacyMerchandiseItemResponse[]
+  | { data: LegacyMerchandiseItemResponse[] };
 
 // ─── Transform ────────────────────────────────────────────
 
-function transformMerchandiseItem(item: MerchandiseItemExact) {
+function transformMerchandiseItem(item: LegacyMerchandiseItemResponse) {
   return {
     id: String(item.id ?? 0),
     name: item.name,
     category: item.category,
     unitPrice: item.unit_price,
     taxType: item.tax_type ?? "excluded",
-    // EMR-530: 入力字句と保存値の十進文字列をそのまま保持する（number 化しない）。
     taxRate: item.tax_rate,
     isActive: item.is_active,
     sortOrder: item.sort_order,
@@ -30,12 +52,33 @@ export type FrontendMerchandiseItem = ReturnType<typeof transformMerchandiseItem
 
 // ─── API Request Types ────────────────────────────────────
 
-export type CreateMerchandiseItemRequest = Omit<
-  MerchandiseItemExact,
-  "id" | "clinic_id" | "sort_order" | "created_at" | "updated_at"
->;
+/**
+ * 物販品作成リクエスト。送信側（buildMerchandiseCreateRequest）が送るキーだけを列挙する。
+ * @see backend/internal/inventory/merchandise_item_request.go createMerchandiseItemRequest
+ */
+export interface CreateMerchandiseItemRequest {
+  name: string;
+  category: ItemCategory;
+  unit_price: number;
+  tax_type: TaxType;
+  // EMR-530: 入力字句を保持する exact decimal 文字列（省略/null は既存既定 0.10）。
+  tax_rate?: string;
+  is_active: boolean;
+}
 
-export type UpdateMerchandiseItemRequest = Partial<CreateMerchandiseItemRequest>;
+/**
+ * 物販品更新リクエスト（PATCH・全フィールド optional）。
+ * @see backend/internal/inventory/merchandise_item_request.go updateMerchandiseItemRequest
+ */
+export interface UpdateMerchandiseItemRequest {
+  name?: string;
+  category?: ItemCategory;
+  unit_price?: number;
+  tax_type?: TaxType;
+  // EMR-530: 省略/null は保持。明示 "0" は 0 として保存される。
+  tax_rate?: string;
+  is_active?: boolean;
+}
 
 interface ReorderMerchandiseItemsRequest {
   ids: number[];
@@ -46,9 +89,7 @@ export type { ReorderMerchandiseItemsRequest };
 // ─── Queries ──────────────────────────────────────────────
 
 const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[]> => {
-  const { data } = await axios.get<MerchandiseItemExact[] | { data: MerchandiseItemExact[] }>(
-    "/v1/masters/merchandise-items",
-  );
+  const { data } = await axios.get<MerchandiseItemsPayload>("/v1/masters/merchandise-items");
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformMerchandiseItem);
 };
@@ -68,7 +109,10 @@ export const useCreateMerchandiseItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (req: CreateMerchandiseItemRequest) => {
-      const { data } = await axios.post<MerchandiseItemExact>("/v1/masters/merchandise-items", req);
+      const { data } = await axios.post<LegacyMerchandiseItemResponse>(
+        "/v1/masters/merchandise-items",
+        req,
+      );
       return transformMerchandiseItem(data);
     },
     onSuccess: () => {
@@ -82,7 +126,7 @@ export const useUpdateMerchandiseItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, req }: { id: string; req: UpdateMerchandiseItemRequest }) => {
-      const { data } = await axios.patch<MerchandiseItemExact>(
+      const { data } = await axios.patch<LegacyMerchandiseItemResponse>(
         `/v1/masters/merchandise-items/${id}`,
         req,
       );

@@ -1,6 +1,8 @@
 /**
  * Estimates feature types (UI-facing: camelCase, string IDs)
- * Backend types: {@link Estimate as BackendEstimate}, {@link EstimateItem as BackendEstimateItem} from models.ts
+ * Backend types: {@link import("../api/legacy-wire").LegacyEstimateResponse},
+ * {@link import("../api/legacy-wire").LegacyEstimateItemResponse}
+ * （移行 HTTP DTO。保存 model ではない — EMR-527）
  */
 
 // FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、

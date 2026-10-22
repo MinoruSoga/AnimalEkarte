@@ -1,8 +1,7 @@
-import type { Examination, ExamResult as BackendExamResult } from "@/types/generated/models";
-
-type ExamResultResponse = BackendExamResult & {
-  is_assessed?: boolean;
-};
+import type {
+  LegacyExaminationResponse,
+  LegacyExamResultResponse,
+} from "@/types/examination-legacy-wire";
 
 export const EXAM_STATUS_EN_TO_JA: Record<
   string,
@@ -15,7 +14,7 @@ export const EXAM_STATUS_EN_TO_JA: Record<
   confirmed: "確定",
 };
 
-export function transformExamResult(item: ExamResultResponse) {
+export function transformExamResult(item: LegacyExamResultResponse) {
   return {
     id: String(item.id ?? 0),
     examTypeFieldId: item.exam_type_field_id ?? undefined,
@@ -35,7 +34,7 @@ export function transformExamResult(item: ExamResultResponse) {
   };
 }
 
-export function transformExamination(data: Examination) {
+export function transformExamination(data: LegacyExaminationResponse) {
   return {
     id: String(data.id ?? 0),
     date: data.date ? data.date.split("T")[0] : "",

@@ -1,6 +1,8 @@
 import type { ReservationStatus } from "@/types";
 import { toJSTWallDate } from "@/lib/jst-date";
-import type { PetStatus, Reservation as BackendReservation } from "@/types/generated/models";
+import type { PetStatus } from "@/types/reservation-type";
+// EMR-527: 入力は保存 model ではなく handler の JSON（reservationResponse）を写した移行 DTO。
+import type { LegacyReservationResponse } from "@/types/reservation-legacy-wire";
 
 // BE 契約: reservation_route は "line" | "phone" | "reception" | "exam_room" | "record_shortcut" のみ
 // （features/reservations/constants/reservation-route.ts の RESERVATION_ROUTE_VALUES と同一値域）。
@@ -27,7 +29,7 @@ function extractCustomerFields(raw: unknown): CustomerFieldsJSON {
  * R-F2-S12: reservations feature から昇格。reception (use-reception-modal-handlers)
  * が reservations feature を直接 import しないための cross-feature 共有 transform。
  */
-export const transformReservation = (reservation: BackendReservation) => {
+export const transformReservation = (reservation: LegacyReservationResponse) => {
   // LINE予約でオーナー未紐付けの場合、customer_fields をフォールバックとして使用
   const cf = extractCustomerFields(reservation.customer_fields);
   const ownerName =

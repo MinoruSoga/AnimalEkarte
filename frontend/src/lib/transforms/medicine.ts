@@ -1,15 +1,13 @@
-import type {
-  Medicine as BackendMedicine,
-  MedicineCalculationType,
-  TaxType,
-} from "@/types/generated/models";
+import type { MedicineCalculationType, TaxType } from "@/types/generated/models";
 import { MedicineCalculationTypeNone } from "@/types/generated/models";
+import type { LegacyMedicineResponse } from "@/types/medicine";
 
 /**
  * バックエンド Medicine レスポンスをフロントエンド Medicine 型に変換
  * ReturnType<typeof transformBackendMedicineToFrontend> が Medicine 型の正式定義
+ * 入力は保存 model ではなく HTTP DTO（LegacyMedicineResponse・EMR-527）。
  */
-export const transformBackendMedicineToFrontend = (data: BackendMedicine) => ({
+export const transformBackendMedicineToFrontend = (data: LegacyMedicineResponse) => ({
   id: String(data.id ?? 0),
   name: data.name,
   parentId: data.parent_id !== undefined ? String(data.parent_id) : undefined,
@@ -36,6 +34,6 @@ export const transformBackendMedicineToFrontend = (data: BackendMedicine) => ({
 
 /**
  * Medicine フロントエンド型 — transformBackendMedicineToFrontend の戻り値から自動導出
- * 手動管理せず BackendMedicine（models.ts）と常に同期される
+ * 応答の列は LegacyMedicineResponse（@/types/medicine）が handler の response struct を写す
  */
 export type Medicine = ReturnType<typeof transformBackendMedicineToFrontend>;

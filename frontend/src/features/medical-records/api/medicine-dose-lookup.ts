@@ -6,8 +6,8 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { calculateDose, normalizeDoseSpecies, normalizeWeightToKg } from "@/lib/medicine-dose";
 import type { DoseCalcInput, DoseCalcResult } from "@/lib/medicine-dose";
 import { MedicineCalculationTypePerWeight } from "@/types/generated/models";
-import type { MedicineDoseParam } from "@/types/generated/models";
 import type { Medicine } from "@/lib/transforms/medicine";
+import type { LegacyMedicineDoseParamResponse } from "@/types/medicine";
 import type { Vital } from "../types";
 
 // #201: 薬剤 × 種の投与量パラメータの読み取り専用参照（カルテ側）。
@@ -22,12 +22,15 @@ export const medicineDoseParamsQueryKey = (medicineId: string, clinicId?: string
 const getMedicineDoseParams = async (
   medicineId: string,
   clinicId?: string,
-): Promise<MedicineDoseParam[]> => {
+): Promise<LegacyMedicineDoseParamResponse[]> => {
   const { data } = clinicId
-    ? await axios.get<MedicineDoseParam[]>(`/v1/masters/medicines/${medicineId}/dose-params`, {
-        headers: { "X-Clinic-ID": clinicId },
-      })
-    : await axios.get<MedicineDoseParam[]>(`/v1/masters/medicines/${medicineId}/dose-params`);
+    ? await axios.get<LegacyMedicineDoseParamResponse[]>(
+        `/v1/masters/medicines/${medicineId}/dose-params`,
+        { headers: { "X-Clinic-ID": clinicId } },
+      )
+    : await axios.get<LegacyMedicineDoseParamResponse[]>(
+        `/v1/masters/medicines/${medicineId}/dose-params`,
+      );
   return data;
 };
 
@@ -55,7 +58,7 @@ export const useMedicineDoseParams = (medicineId: string | null | undefined, cli
  * 利用者向け文言は固定。upstream の response body / stack を転記しない。
  */
 export type DoseParamsAuthority =
-  | { status: "success"; params: MedicineDoseParam[] }
+  | { status: "success"; params: LegacyMedicineDoseParamResponse[] }
   | { status: "failed" }
   | { status: "pending" }
   | { status: "idle" };
@@ -71,7 +74,7 @@ export const DOSE_PARAMS_LOOKUP_FAILED_MESSAGE =
  */
 export function toDoseParamsAuthority(
   medicineId: string | null | undefined,
-  query: { data: MedicineDoseParam[] | undefined; isError: boolean },
+  query: { data: LegacyMedicineDoseParamResponse[] | undefined; isError: boolean },
 ): DoseParamsAuthority {
   if (!medicineId) return { status: "idle" };
   if (query.data !== undefined) return { status: "success", params: query.data };
@@ -135,7 +138,7 @@ export function isPerWeightMedicine(medicine: Medicine | undefined | null): medi
 
 export function buildDoseCalcInput(
   medicine: Medicine | undefined,
-  doseParams: MedicineDoseParam[] | undefined,
+  doseParams: LegacyMedicineDoseParamResponse[] | undefined,
   speciesFreeText: string | null | undefined,
   weightKg: number | null,
 ): DoseCalcInput | null {
@@ -171,7 +174,7 @@ export function buildDoseCalcInput(
  */
 export function computeDosePreview(
   medicine: Medicine | undefined,
-  doseParams: MedicineDoseParam[] | undefined,
+  doseParams: LegacyMedicineDoseParamResponse[] | undefined,
   speciesFreeText: string | null | undefined,
   weightKg: number | null,
 ): DoseCalcResult | null {

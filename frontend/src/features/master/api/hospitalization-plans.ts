@@ -3,12 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type {
-  BodySize,
-  BillingUnit,
-  HospitalizationPlan as ModelHospitalizationPlan,
-  TaxType,
-} from "@/types/generated/models";
+import type { BodySize, BillingUnit, ExactNumeric, TaxType } from "@/types/generated/models";
 import {
   BodySizeSmall,
   BodySizeMedium,
@@ -18,23 +13,62 @@ import {
 } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
-// Request types (derived from models.ts)
+// 移行 HTTP DTO（非永続・EMR-527）
+// 保存 model（生成 HospitalizationPlan）から Omit / Pick せず、現行 handler の
+// response struct と binding struct の列をそのまま写す。
 // ─────────────────────────────────────────────────
 
-type HospitalizationPlanRequestBase = Omit<
-  ModelHospitalizationPlan,
-  "id" | "clinic_id" | "created_at" | "updated_at"
->;
+/**
+ * 入院プラン応答。body_size / billing_unit / tax_type は Go では string で直列化されるが、
+ * 値域どおり enum union で受ける。
+ * @see backend/internal/medicalrecord/hospitalization_plan_response.go hospitalizationPlanResponse
+ */
+interface LegacyHospitalizationPlanResponse {
+  id: number;
+  clinic_id: number;
+  name: string;
+  price?: number;
+  is_active: boolean;
+  description: string;
+  body_size?: BodySize;
+  billing_unit?: BillingUnit;
+  tax_type: TaxType;
+  /** model.ExactNumeric の JSON 表現（null / "NaN" / number。EMR-528 #809 以降） */
+  tax_rate: ExactNumeric;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
 
-export type CreateHospitalizationPlanRequest = Pick<HospitalizationPlanRequestBase, "name"> &
-  Partial<Omit<HospitalizationPlanRequestBase, "name">>;
+/**
+ * 入院プラン作成リクエスト。name のみ必須。送信側が送るキーだけを列挙する。
+ * @see backend/internal/medicalrecord/hospitalization_plan_request.go createHospitalizationPlanRequest
+ */
+export interface CreateHospitalizationPlanRequest {
+  name: string;
+  price?: number;
+  is_active?: boolean;
+  description?: string;
+  body_size?: BodySize;
+  billing_unit?: BillingUnit;
+  tax_type?: TaxType;
+  tax_rate?: number;
+}
 
-export type UpdateHospitalizationPlanRequest = Partial<
-  Omit<HospitalizationPlanRequestBase, "body_size" | "billing_unit">
-> & {
+/**
+ * 入院プラン更新リクエスト（PATCH）。body_size / billing_unit は null で未設定を表す。
+ * @see backend/internal/medicalrecord/hospitalization_plan_request.go updateHospitalizationPlanRequest
+ */
+export interface UpdateHospitalizationPlanRequest {
+  name?: string;
+  price?: number;
+  is_active?: boolean;
+  description?: string;
   body_size?: BodySize | null;
   billing_unit?: BillingUnit | null;
-};
+  tax_type?: TaxType;
+  tax_rate?: number;
+}
 
 export const BODY_SIZE_OPTIONS: { value: BodySize; label: string }[] = [
   { value: BodySizeSmall, label: "小型" },
@@ -62,7 +96,7 @@ export const BILLING_UNIT_LABELS: Record<string, string> = {
 // Transform
 // ─────────────────────────────────────────────────
 
-function transformHospitalizationPlan(data: ModelHospitalizationPlan) {
+function transformHospitalizationPlan(data: LegacyHospitalizationPlanResponse) {
   return {
     id: String(data.id ?? 0),
     name: data.name,
@@ -72,7 +106,8 @@ function transformHospitalizationPlan(data: ModelHospitalizationPlan) {
     bodySize: data.body_size ?? null,
     billingUnit: data.billing_unit ?? null,
     taxType: (data.tax_type ?? "excluded") as TaxType,
-    taxRate: data.tax_rate ?? 0.1,
+    // null は従来どおり 0.1、"NaN" は文字列のまま通さず数値 NaN（診察・処置の toTaxRate と同じ）。
+    taxRate: Number(data.tax_rate ?? 0.1),
     sortOrder: data.sort_order,
   };
 }
@@ -86,14 +121,14 @@ export type HospitalizationPlan = ReturnType<typeof transformHospitalizationPlan
 const ENDPOINT = "/v1/masters/hospitalization-plans";
 
 const getAllHospitalizationPlans = async (): Promise<HospitalizationPlan[]> => {
-  const { data } = await axios.get<ModelHospitalizationPlan[]>(ENDPOINT);
+  const { data } = await axios.get<LegacyHospitalizationPlanResponse[]>(ENDPOINT);
   return data.map(transformHospitalizationPlan);
 };
 
 const createHospitalizationPlan = async (
   req: CreateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
-  const { data } = await axios.post<ModelHospitalizationPlan>(ENDPOINT, req);
+  const { data } = await axios.post<LegacyHospitalizationPlanResponse>(ENDPOINT, req);
   return transformHospitalizationPlan(data);
 };
 
@@ -101,7 +136,7 @@ const updateHospitalizationPlan = async (
   id: string,
   req: UpdateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
-  const { data } = await axios.patch<ModelHospitalizationPlan>(`${ENDPOINT}/${id}`, req);
+  const { data } = await axios.patch<LegacyHospitalizationPlanResponse>(`${ENDPOINT}/${id}`, req);
   return transformHospitalizationPlan(data);
 };
 

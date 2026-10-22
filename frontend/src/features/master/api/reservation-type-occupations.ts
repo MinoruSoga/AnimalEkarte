@@ -4,13 +4,32 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import type { ReservationTypeOccupation as ReservationTypeOccupationRaw } from "@/types/generated/models";
+
+// ─────────────────────────────────────────────────
+// Wire type
+// ─────────────────────────────────────────────────
+
+/**
+ * 職種紐付けの移行 HTTP DTO（非永続。保存 model は廃止済み）。
+ * 職種 gate 廃止（docs/spec/screens/settings/master-reservation-type.md
+ * #requirement-fr-reservation-types-occupation-gate-retirement）までの旧 API 専用で、
+ * 旧 API の存在を仕様承認とはしない（EMR-527）。
+ * @see backend/internal/reservation/reservation_type_response.go reservationTypeOccupationResponse
+ */
+interface LegacyReservationTypeOccupationResponse {
+  id: number;
+  clinic_id: number;
+  reservation_type_id: number;
+  occupation_id: number;
+  occupation?: { id: number; name: string };
+  created_at: string;
+}
 
 // ─────────────────────────────────────────────────
 // Transform function
 // ─────────────────────────────────────────────────
 
-function transformReservationTypeOccupation(raw: ReservationTypeOccupationRaw) {
+function transformReservationTypeOccupation(raw: LegacyReservationTypeOccupationResponse) {
   return {
     id: raw.id,
     clinicId: raw.clinic_id,
@@ -42,7 +61,7 @@ async function getReservationTypeOccupations(
   reservationTypeId: string,
 ): Promise<ReservationTypeOccupation[]> {
   const { data } = await axios.get<
-    ReservationTypeOccupationRaw[] | { data: ReservationTypeOccupationRaw[] }
+    LegacyReservationTypeOccupationResponse[] | { data: LegacyReservationTypeOccupationResponse[] }
   >(`/v1/masters/reservation-types/${reservationTypeId}/occupations`);
   const items = Array.isArray(data) ? data : data.data;
   return items.map(transformReservationTypeOccupation);
@@ -55,7 +74,7 @@ async function linkOccupation(
   // EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: BE は標準 {data: <link>} エンベロープを返す
   // （旧来の裸オブジェクト形式も許容する）。
   const { data } = await axios.post<
-    ReservationTypeOccupationRaw | { data: ReservationTypeOccupationRaw }
+    LegacyReservationTypeOccupationResponse | { data: LegacyReservationTypeOccupationResponse }
   >(`/v1/masters/reservation-types/${reservationTypeId}/occupations`, {
     occupation_id: occupationId,
   });

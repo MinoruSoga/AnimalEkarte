@@ -349,15 +349,24 @@ describe("transformUpdatePetRequest", () => {
   });
 });
 
-describe("PetWritable allowlist (TASK-444)", () => {
-  it("PetWritable は Omit ではなく Pick 許可リストで定義する", () => {
+describe("Pet write request allowlist (TASK-444 / EMR-527)", () => {
+  it("作成・更新リクエストは保存 model から派生させず明示 interface で列挙する", () => {
     const src = readFileSync(PET_TYPES_PATH, "utf8");
-    const writable = src.match(/type\s+PetWritable\s*=\s*[^;]+;/)?.[0] ?? "";
-    expect(writable, "PetWritable declaration").toMatch(/Pick\s*</);
-    expect(writable).not.toMatch(/Omit\s*</);
-    expect(writable).not.toMatch(/\bversion\b/);
-    expect(writable).not.toMatch(/\bdeceased_at\b/);
-    expect(writable).not.toMatch(/\bdeceased_reason\b/);
+    const modelsImport =
+      src.match(/import\s+type\s*\{([^}]*)\}\s*from\s*"@\/types\/generated\/models"/)?.[1] ?? "";
+    // 保存 model Pet を import しない（enum union のみ）
+    expect(modelsImport).not.toMatch(/\bPet\b/);
+    expect(src).not.toMatch(/\b(?:Pick|Omit)\s*</);
+    for (const name of ["CreatePetRequest", "UpdatePetRequest"]) {
+      const body = src.match(new RegExp(`interface\\s+${name}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+      expect(body, `${name} declaration`).not.toBe("");
+      expect(body).not.toMatch(/\bversion\??:/);
+      expect(body).not.toMatch(/\bdeceased_at\??:/);
+      expect(body).not.toMatch(/\bdeceased_reason\??:/);
+    }
+    // BUG-415: PATCH は status を持たない
+    const update = src.match(/interface\s+UpdatePetRequest\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(update).not.toMatch(/\bstatus\??:/);
   });
 
   it("CreatePetRequest / UpdatePetRequest へ version・deceased_* を代入すると型エラーになる", () => {

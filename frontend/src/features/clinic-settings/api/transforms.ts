@@ -1,7 +1,7 @@
-import type { Clinic } from "@/types/generated/models";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
+import type { LegacyClinicResponse } from "./legacy-wire";
 
-export function transformClinic(data: Clinic) {
+export function transformClinic(data: LegacyClinicResponse) {
   return {
     id: data.id,
     name: data.name,

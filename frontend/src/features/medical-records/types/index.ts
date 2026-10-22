@@ -1,8 +1,11 @@
 /**
  * Medical records feature types (UI-facing: string IDs)
- * Backend types: {@link import("@/types/generated/models").Treatment},
- * {@link import("@/types/generated/models").Vital},
- * {@link import("@/types/generated/models").BillingConfirmation} from models.ts
+ * Backend types: {@link import("@/types/generated/models").Treatment} from models.ts
+ *
+ * 下の BillingConfirmation / Vital はこの feature の移行 UI 型で、生成保存型ではない
+ * （BillingConfirmation の保存 model は廃止済み — EMR-527）。BillingConfirmation を
+ * D03/D10 の医師確認契約（doctor_review_sets / doctor_review_records）の型として扱わない。
+ * 新しい医師確認への意味接続は医師確認・会計 owner の後続（④）で行う。
  */
 // FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
 // 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。

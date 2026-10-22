@@ -1180,3 +1180,9 @@ S13は現inline handlerなし。既存S07と重複計上せず、451/517がdisti
 ## 限定静的監査の範囲（監査追補）
 
 基準main `c86c8dd2530bbea3d1810e07badb72f3ed1a07e1`。今回の認定はH05初回履歴エラーと、[非検索P01操作表](emr-450-stage3-common-ui-start-plan-20261021-operations.md#package-operation-audit-20261021)のSPA戻るdirty接続差だけで、全72用途・全実操作familyの受入完了ではない。P01の部品名訂正は名称整合であり単独の欠陥ではない。focus等はNOT_RUN。create結果不明後の一覧refetch→allowCreateRetryは確認候補で、確定二重作成の欠陥件数へ加算せず、③へ新しい専用lookupを強制しない。試験・runtime修正・公開flag変更なし。
+
+## 2026-10-22 coverage監査の追加受領
+
+[利用者向け監査記録](emr-stage123-coverage-audit-20261022.md)に母集団・静的照合範囲・非欠陥・未閉鎖設計を分けた。検索72用途は検索対象57＋非keyword/除外15で、未来S13・複数入口H03を含み72実装済みではない。非検索D01–D23/P01、7primitive＋18storiesとは別集計。18storiesは既存C01契約へ分類可能で、18件の実装漏れではない。
+
+450への限定受領は、非検索操作表の治療内容Enter caller、SubmitButton pending wrapper差分、EMR-245のカルテ3列GET採用と他一覧filter後続の継承確認。245 Doneを全一覧filter完成の証拠にせず、追加filterを全画面へ義務化しない。318受付write・400/#702 staff保存の部分成果は③表示/④writeを分けて受領確認する。計画記載済みをMECE性・実装完成・試験保証へ換算せず、試験NOT_RUN。
