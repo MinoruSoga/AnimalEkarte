@@ -31,14 +31,14 @@ func newMedicalRecordReferenceServices(
 	d medicalRecordCompositionDependencies,
 ) medicalRecordReferenceServices {
 	services := medicalRecordReferenceServices{
-		diagnosisTypes:   medicalrecord.NewDiagnosisTypeService(r.diagnosisTypes),
-		diagnosisNames:   medicalrecord.NewDiagnosisNameService(r.diagnosisNames, r.diagnosisTypes),
+		diagnosisTypes: medicalrecord.NewDiagnosisTypeService(r.diagnosisTypes),
+		diagnosisNames: medicalrecord.NewDiagnosisNameService(r.diagnosisNames, r.diagnosisTypes),
 		examinationTypes: medicalrecord.NewExamTypeServiceWithAudit(
 			r.examinationTypes,
 			d.Transactor,
 			medicalRecordAuditTxBridge{logger: d.Audit},
 		),
-		chiefComplaints:  medicalrecord.NewChiefComplaintTypeService(r.chiefComplaints),
+		chiefComplaints: medicalrecord.NewChiefComplaintTypeService(r.chiefComplaints),
 		checkupTypes: medicalrecord.NewCheckupTypeService(
 			r.checkupTypes,
 			d.Transactor,

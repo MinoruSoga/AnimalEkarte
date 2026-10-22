@@ -902,20 +902,20 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	// EMR-502: Upsert は廃止。ambient-tx 参加メソッドは全て participant の
 	// owner transaction 内で使われる EditTxStore / 公開read helper。
-	"manualarticle/repository.go|repository.publishedBase":               {},
+	"manualarticle/repository.go|repository.publishedBase":                {},
 	"manualarticle/repository.go|repository.FindArticleByCategoryAndSlug": {},
-	"manualarticle/repository.go|repository.FindVersionsByArticleID":     {},
-	"manualarticle/repository.go|repository.Delete":                      {},
-	"manualarticle/repository.go|repository.InsertOperationTarget":       {},
-	"manualarticle/repository.go|repository.ResolveOperationTarget":      {},
-	"manualarticle/repository.go|repository.FindArticleByID":             {},
-	"manualarticle/repository.go|repository.FindVersionByID":             {},
-	"manualarticle/repository.go|repository.LockArticleForUpdate":        {},
-	"manualarticle/repository.go|repository.NextContentRevision":         {},
-	"manualarticle/repository.go|repository.InsertVersion":               {},
-	"manualarticle/repository.go|repository.UpdateCurrentVersionCAS":     {},
-	"manualarticle/repository.go|repository.InsertOperation":             {},
-	"owner/repository.go|ownerRepository.CreateWithPets": {},
+	"manualarticle/repository.go|repository.FindVersionsByArticleID":      {},
+	"manualarticle/repository.go|repository.Delete":                       {},
+	"manualarticle/repository.go|repository.InsertOperationTarget":        {},
+	"manualarticle/repository.go|repository.ResolveOperationTarget":       {},
+	"manualarticle/repository.go|repository.FindArticleByID":              {},
+	"manualarticle/repository.go|repository.FindVersionByID":              {},
+	"manualarticle/repository.go|repository.LockArticleForUpdate":         {},
+	"manualarticle/repository.go|repository.NextContentRevision":          {},
+	"manualarticle/repository.go|repository.InsertVersion":                {},
+	"manualarticle/repository.go|repository.UpdateCurrentVersionCAS":      {},
+	"manualarticle/repository.go|repository.InsertOperation":              {},
+	"owner/repository.go|ownerRepository.CreateWithPets":                  {},
 	// SEC-CS-F15: UpdateAndFindApplying owns DBOrTx + LockByIDForUpdate; UpdateAndFind is a thin
 	// delegate without its own DBOrTx shape (removed from allowlist after F15).
 	// Runtime: owner_discount_toctou_test.go.

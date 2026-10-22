@@ -67,7 +67,7 @@ type CreateMerchandiseItemInput struct {
 	Name      string
 	Category  string
 	UnitPrice int64
-	TaxType   string // "" → "excluded" (default)
+	TaxType   string              // "" → "excluded" (default)
 	TaxRate   *model.ExactNumeric // nil → 0.10 (default)
 	IsActive  bool
 	SortOrder int

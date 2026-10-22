@@ -31,22 +31,22 @@ type examReferenceRangeResponse struct {
 }
 
 type examTypeResponse struct {
-	ID             uint64                 `json:"id"`
-	ClinicID       uint64                 `json:"clinic_id"`
-	Name           string                 `json:"name"`
-	Price          *int64                 `json:"price,omitempty"`
-	IsActive       bool                   `json:"is_active"`
-	Description    string                 `json:"description"`
-	ParentID       *uint64                `json:"parent_id,omitempty"`
-	SortOrder      int                    `json:"sort_order"`
-	IsNonInsurance bool                   `json:"is_non_insurance"`
+	ID             uint64  `json:"id"`
+	ClinicID       uint64  `json:"clinic_id"`
+	Name           string  `json:"name"`
+	Price          *int64  `json:"price,omitempty"`
+	IsActive       bool    `json:"is_active"`
+	Description    string  `json:"description"`
+	ParentID       *uint64 `json:"parent_id,omitempty"`
+	SortOrder      int     `json:"sort_order"`
+	IsNonInsurance bool    `json:"is_non_insurance"`
 	// EMR-447 A.3: 保存値 true/false/null を raw のまま返す（omitempty なし・false 補完なし）。
-	IsBillDiscountExcluded *bool                  `json:"is_bill_discount_excluded"`
+	IsBillDiscountExcluded *bool `json:"is_bill_discount_excluded"`
 	// EMR-447 A.4: 実保存版を既存4resourceと同じ int64 で返す。
-	Version            int64                  `json:"version"`
-	Items              []examTypeItemResponse `json:"items,omitempty"`
-	CreatedAt          time.Time              `json:"created_at"`
-	UpdatedAt          time.Time              `json:"updated_at"`
+	Version   int64                  `json:"version"`
+	Items     []examTypeItemResponse `json:"items,omitempty"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
 }
 
 func toExamTypeItemResponse(item *model.ExamTypeField) examTypeItemResponse {
@@ -96,14 +96,14 @@ func toExaminationTypeResponseWithRanges(
 		items = append(items, toExamTypeItemResponseWithRanges(&et.Items[i], ranges[et.Items[i].ID]))
 	}
 	return examTypeResponse{
-		ID:             et.ID,
-		ClinicID:       et.ClinicID,
-		Name:           et.Name,
-		Price:          et.Price,
-		IsActive:       et.IsActive,
-		Description:    et.Description,
-		ParentID:       et.ParentID,
-		SortOrder:      et.SortOrder,
+		ID:                     et.ID,
+		ClinicID:               et.ClinicID,
+		Name:                   et.Name,
+		Price:                  et.Price,
+		IsActive:               et.IsActive,
+		Description:            et.Description,
+		ParentID:               et.ParentID,
+		SortOrder:              et.SortOrder,
 		IsNonInsurance:         et.IsNonInsurance,
 		IsBillDiscountExcluded: et.IsBillDiscountExcluded,
 		Version:                et.Version,

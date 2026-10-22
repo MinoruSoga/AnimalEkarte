@@ -23,7 +23,7 @@ type vaccineResponse struct {
 	// IsNonInsurance は null=未保存/旧欠落、true=対象外、false=対象。欠落を false へ補完しない。
 	IsNonInsurance *bool `json:"is_non_insurance"`
 	// EMR-447 A01: 全体割引除外。null=未保存/旧欠落を raw のまま返し false へ書換えない。
-	IsBillDiscountExcluded *bool `json:"is_bill_discount_excluded"`
+	IsBillDiscountExcluded *bool     `json:"is_bill_discount_excluded"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }

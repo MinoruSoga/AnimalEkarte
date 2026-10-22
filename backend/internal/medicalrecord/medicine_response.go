@@ -29,7 +29,7 @@ type medicineResponse struct {
 	// EMR-447 A.3: 保存値 true/false/null を raw のまま返す（omitempty なし・false 補完なし）。
 	IsBillDiscountExcluded *bool `json:"is_bill_discount_excluded"`
 	// EMR-447 A.4: 実保存版を既存4resourceと同じ int64 で返す。
-	Version                int64  `json:"version"`
+	Version int64 `json:"version"`
 
 	// #201 投与量計算（製品軸）
 	CalculationType     string  `json:"calculation_type"`
@@ -58,28 +58,28 @@ func toMedicineResponse(m *model.Medicine) medicineResponse {
 		sortOrder = *m.SortOrder
 	}
 	return medicineResponse{
-		ID:                  m.ID,
-		ClinicID:            m.ClinicID,
-		Name:                m.Name,
-		ParentID:            m.ParentID,
-		Price:               m.Price,
-		IsActive:            m.IsActive,
-		Description:         m.Description,
-		DosageForm:          dosageForm,
-		MedicineUnit:        medicineUnit,
-		InventoryID:         m.InventoryID,
-		DefaultQuantity:     exactNumericStringPtr(m.DefaultQuantity),
-		TaxType:             string(m.TaxType),
-		TaxRate:             exactNumericCanonical(m.TaxRate),
-		SortOrder:           sortOrder,
+		ID:                     m.ID,
+		ClinicID:               m.ClinicID,
+		Name:                   m.Name,
+		ParentID:               m.ParentID,
+		Price:                  m.Price,
+		IsActive:               m.IsActive,
+		Description:            m.Description,
+		DosageForm:             dosageForm,
+		MedicineUnit:           medicineUnit,
+		InventoryID:            m.InventoryID,
+		DefaultQuantity:        exactNumericStringPtr(m.DefaultQuantity),
+		TaxType:                string(m.TaxType),
+		TaxRate:                exactNumericCanonical(m.TaxRate),
+		SortOrder:              sortOrder,
 		IsNonInsurance:         m.IsNonInsurance,
 		IsBillDiscountExcluded: m.IsBillDiscountExcluded,
 		Version:                m.Version,
 		CalculationType:        string(m.CalculationType),
-		Strength:            exactNumericStringPtr(m.Strength),
-		FrequencyPerDay:     m.FrequencyPerDay,
-		DefaultDurationDays: m.DefaultDurationDays,
-		CreatedAt:           httpapi.LocalTime(m.CreatedAt),
-		UpdatedAt:           httpapi.LocalTime(m.UpdatedAt),
+		Strength:               exactNumericStringPtr(m.Strength),
+		FrequencyPerDay:        m.FrequencyPerDay,
+		DefaultDurationDays:    m.DefaultDurationDays,
+		CreatedAt:              httpapi.LocalTime(m.CreatedAt),
+		UpdatedAt:              httpapi.LocalTime(m.UpdatedAt),
 	}
 }

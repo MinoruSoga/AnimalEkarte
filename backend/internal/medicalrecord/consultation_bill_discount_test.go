@@ -164,11 +164,11 @@ func TestConsultationBillDiscount_PatchPreservesAndUpdates(t *testing.T) {
 		}
 	})
 	for _, tc := range []struct {
-		name        string
-		stored      *bool
-		input       *bool
-		wantBefore  any
-		wantAfter   any
+		name       string
+		stored     *bool
+		input      *bool
+		wantBefore any
+		wantAfter  any
 	}{
 		{name: "NULL to false audited", stored: nil, input: boolPtr(false), wantBefore: nil, wantAfter: false},
 		{name: "true to false audited", stored: boolPtr(true), input: boolPtr(false), wantBefore: true, wantAfter: false},

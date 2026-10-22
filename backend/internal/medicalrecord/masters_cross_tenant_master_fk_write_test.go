@@ -218,7 +218,7 @@ func TestMedicineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",ParentID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x", ParentID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "medicine must NOT be persisted referencing another clinic's parent medicine")
@@ -228,7 +228,7 @@ func TestMedicineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created)
 		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",ParentID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x", ParentID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)
@@ -298,7 +298,7 @@ func TestMedicineService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created, rejectInventoryRepo(ownedInventoryID))
 		foreign := foreignInventoryID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",InventoryID: &foreign})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x", InventoryID: &foreign})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, created, "medicine must NOT be persisted referencing another clinic's inventory item")
@@ -308,7 +308,7 @@ func TestMedicineService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 		created := false
 		svc := newSvc(&created, rejectInventoryRepo(ownedInventoryID))
 		owned := ownedInventoryID
-		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x",InventoryID: &owned})
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{ActorID: masterTestActorID(), Name: "x", InventoryID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, created)

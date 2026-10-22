@@ -20,7 +20,9 @@ import (
 )
 
 // LockWriteRows の no-op 実装を mock へ追加する（既存テストの parent なし経路を壊さない）。
-func (m *mockCheckupTypeRepository) LockWriteRows(context.Context, uint64, []uint64) error { return nil }
+func (m *mockCheckupTypeRepository) LockWriteRows(context.Context, uint64, []uint64) error {
+	return nil
+}
 
 // checkupTypeLockSpyRepo は LockWriteRows の呼出しを記録する spy。
 // onLock は実際の lock 呼出し時に発火する hook（順序検証用）。
