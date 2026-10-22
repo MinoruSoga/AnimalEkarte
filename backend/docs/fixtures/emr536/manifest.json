@@ -214,6 +214,17 @@
    "scenario": "対照: GET 応答に clear_strength キーを追加しない",
    "semantic_expectation": "共用 Medicine に clear_strength property なし",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "post-control-no-clear-strength.request.json",
+   "operationId": "createMedicine",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/Medicine",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "対照: POST は共用 Medicine のまま（clear_strength を含まない作成、税率は十進文字列）",
+   "semantic_expectation": "POST requestBody は共用 Medicine を維持し clear_strength property を持たない（静的 test でも Medicine に無いことを固定）。共用 Medicine は additionalProperties を閉じていないため、POST へ clear_strength を送った場合の拒否は schema では表さず本PRで変更しない",
+   "verification": "NOT_RUN"
   }
  ]
 }
