@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import {
   useDeleteTreatmentPackage,
   useReorderTreatmentPackages,
@@ -176,5 +177,23 @@ describe("S07/S08: HTTP status helpers", () => {
     expect(isForbiddenError(new Error("network"))).toBe(false);
     expect(isNotFoundError(withStatus(404))).toBe(true);
     expect(isNotFoundError(withStatus(403))).toBe(false);
+  });
+
+  it("R4: update 409/403 は handleApiError を呼ばない", async () => {
+    const { result } = renderHook(() => useUpdateTreatmentPackage(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ id: "201", req: { version: "3" } });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(409));
+    await expect(send()).rejects.toThrow();
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(403));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: update 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useUpdateTreatmentPackage(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ id: "201", req: { version: "3" } });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(500));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
   });
 });

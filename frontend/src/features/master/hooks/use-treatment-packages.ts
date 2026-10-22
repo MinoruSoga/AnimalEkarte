@@ -58,6 +58,15 @@ export const useGetTreatmentPackage = (packageId: string | null) =>
 const invalidateAll = (qc: ReturnType<typeof useQueryClient>) =>
   qc.invalidateQueries({ queryKey: listKey() });
 
+/** R3: 明示選択（最新採用 / 入力保持で再基準化）後の一覧再取得。
+ * editor の baseline/draft は置き換えない（背景の版差替え・blind rebase 禁止）。 */
+export const useInvalidateTreatmentPackageList = () => {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    void invalidateAll(qc);
+  }, [qc]);
+};
+
 export const useCreateTreatmentPackage = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -82,7 +91,11 @@ export const useUpdateTreatmentPackage = () => {
       qc.setQueryData(detailKey(data.id), data);
       return invalidateAll(qc);
     },
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 409（比較 UI）と 403（失権表示）は画面側で処理するため汎用 toast を出さない。
+      if (isConflictError(error) || isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 

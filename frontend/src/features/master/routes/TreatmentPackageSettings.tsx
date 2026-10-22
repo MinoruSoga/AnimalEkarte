@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ErrorFallback, LoadingFallback, EmptyState } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
+import { useAuth } from "@/hooks/use-auth";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { handleApiError } from "@/lib/handle-api-error";
 import { MasterPageShell } from "../components/MasterPageShell";
@@ -18,6 +19,7 @@ import {
   useCreateTreatmentPackage,
   useDeleteTreatmentPackage,
   useGetTreatmentPackages,
+  useInvalidateTreatmentPackageList,
   useReorderTreatmentPackages,
   useTreatmentPackageEditor,
   useUpdateTreatmentPackage,
@@ -42,6 +44,8 @@ export function TreatmentPackageSettings() {
   // TASK-444-S1: 新規ファイルは @/types/generated/models を import しない。
   // "master-medical" リソースリテラルは Resource union のメンバなので型検査を通る。
   const { canView, canCreate, canEdit, canDelete } = usePermission("master-medical");
+  // R2: 再確認時に /me の権限キャッシュを先に更新する（既存認可源の refreshPermissions）。
+  const { refreshPermissions } = useAuth();
   // Q3: 型別閲覧権限の再確認用。resource 種別は固定 3 種なのでトップレベルで呼べる。
   const checkupsPerm = usePermission("checkups");
   const merchandisePerm = usePermission("master-merchandise");
@@ -55,6 +59,8 @@ export function TreatmentPackageSettings() {
   const updateMut = useUpdateTreatmentPackage();
   const deleteMut = useDeleteTreatmentPackage();
   const reorderMut = useReorderTreatmentPackages();
+  // R3: 明示選択後の一覧再取得（baseline/draft は置き換えない）。
+  const invalidatePackageList = useInvalidateTreatmentPackageList();
   const [target, setTarget] = useState<EditorTarget>(null);
   const [pendingDelete, setPendingDelete] = useState<TreatmentPackage | null>(null);
   const [formErrors, setFormErrors] = useState<readonly string[]>([]);
@@ -113,6 +119,9 @@ export function TreatmentPackageSettings() {
         .catch((error: unknown) => {
           if (conflictTokenRef.current !== token) return;
           if (isForbiddenError(error)) {
+            // R1: 失権表示へ切り替える前に terminal 状態へ置く。さもないと
+            // 再確認成功後に「最新を取得しています…」が残り続ける。
+            setConflictFetch({ kind: "failed", targetId: packageId });
             markAuthorizationLost();
             return;
           }
@@ -175,10 +184,19 @@ export function TreatmentPackageSettings() {
       }
     }
     if (recheckTokenRef.current !== token) return;
+    // R2: 判定前に /me の権限キャッシュを更新。拒否は fail-closed（非表示維持）。
+    try {
+      await refreshPermissions();
+    } catch {
+      if (recheckTokenRef.current !== token) return;
+      setRecheck({ kind: "failed" });
+      return;
+    }
+    if (recheckTokenRef.current !== token) return;
     // 一覧の再取得は event handler 内の副作用として掛け、判定自体はレンダーで行う。
     void list.refetch();
     setRecheck({ kind: "get-ok" });
-  }, [target, list]);
+  }, [target, list, refreshPermissions]);
 
   // A2-02: get-ok の解除判定。レンダー中に現在の draft 各型（manual_other 除く）+
   // master-medical の view 権限を確認し、全て通る場合だけ latch を解除する。
@@ -278,10 +296,11 @@ export function TreatmentPackageSettings() {
     const latest = conflictFetch.latest;
     clearConflictFetch();
     bumpEditSession();
+    invalidatePackageList(); // R3: 一覧を再取得（editor の baseline/draft は不変）。
     setTarget(latest);
     editor.resetFor(latest);
     dirty.markClean();
-  }, [conflictFetch, editor, dirty, clearConflictFetch, bumpEditSession]);
+  }, [conflictFetch, editor, dirty, clearConflictFetch, bumpEditSession, invalidatePackageList]);
 
   // S08 明示選択 (b): 入力を保持し、CAS 基準版だけを最新へ取り直す。
   // resetFor は呼ばない（draft 不変・dirty 継続）。保存は利用者の再操作のみ。
@@ -290,9 +309,10 @@ export function TreatmentPackageSettings() {
     const latest = conflictFetch.latest;
     clearConflictFetch();
     bumpEditSession();
+    invalidatePackageList(); // R3: 一覧を再取得（editor の baseline/draft は不変）。
     setTarget(latest);
     editor.clearConflict();
-  }, [conflictFetch, editor, clearConflictFetch, bumpEditSession]);
+  }, [conflictFetch, editor, clearConflictFetch, bumpEditSession, invalidatePackageList]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (authorizationLost) return;
