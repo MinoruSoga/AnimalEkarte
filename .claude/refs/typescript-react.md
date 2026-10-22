@@ -94,10 +94,11 @@ Always use constants from `src/lib/design-tokens.ts` for styling.
 ```typescript
 import { C, STYLE } from '@/lib/design-tokens';
 
-// ✅ Correct: Use tokens
-<div className={cn(STYLE.FLEX_BETWEEN, "p-4")} style={{ color: C.TEXT_MAIN }}>
+// ✅ Correct: tokens are Tailwind class strings — use them in className
+//    (keys are camelCase; use only names that exist in design-tokens.ts)
+<div className={cn(STYLE.formLabel, C.textInkMuted, "p-4")}>
 
-// ❌ Prohibited: Direct hex color specification
+// ❌ Prohibited: direct hex color, and colors in the style attribute (inline styles are banned)
 <div style={{ color: '#37352F' }}>
 ```
 

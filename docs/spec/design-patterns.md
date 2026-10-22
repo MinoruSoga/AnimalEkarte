@@ -295,8 +295,9 @@ C25〜C29 の定義は [ui-design-compliance.md §1](ui-design-compliance.md)、
 | 期間・範囲 | `09:00–18:00`、`10/01–10/31` | — | 区切りは EN DASH `–`（U+2013）、前後に空白なし |
 | 金額 | `¥1,234`、負値は `-¥1,234` | `formatCurrency` | 3 桁区切り、小数なし、`円` を付けない。0 や未設定を空値にするかは `formatCurrencyOrDash` / `formatCurrencyIfNonzero` の契約に従う |
 | 体重 | `26.5kg`、整数は `26kg` | `formatWeight` | 小数 1 桁、単位との間に空白なし |
-| 体温・その他の計測値 | `38.5℃` | 画面仕様 | 単位は入力欄内の右端サフィックス（§4.4）。共有関数が無い値は `number.ts` に追加する |
-| 件数 | `1,234件`、`1–20件 / 1,234件` | — | 数字と「件」の間に空白なし |
+| 体温・その他の計測値 | `38.5℃` | `formatDecimal(value, 1)` + 単位 | 単位は入力欄内の右端サフィックス（§4.4）。共有関数が無い値は `number.ts` に追加する |
+| 比率 | `12.3%` | `formatPercent` | 小数 1 桁。`%` との間に空白なし |
+| 件数 | `1,234件`、`1–20件 / 1,234件` | `formatCount` / `formatNumber` | 数字と「件」の間に空白なし。名・頭・日などは `formatCount(n, "名")`、数字だけ出す箇所は `formatNumber` |
 | 空値 | **`—`（U+2014 EM DASH）1 文字**、`C.textInkMuted` | — | 2026-10-20 決裁。ink-faint は 2.44:1 で不可（design-states §2.2）。共有フォーマッタ（`lib/format/number.ts` / `date.ts`）と画面側フォールバックは `EMPTY_VALUE`（`—`、`src/constants/empty-value.ts`）を返す（PR #739 で統一済み。新規コードは文字列直書きではなくこの定数を使う） |
 | 数字の等幅 | 表の数値列・金額列は `tabular-nums` | — | DESIGN.md Typography Principles |
 

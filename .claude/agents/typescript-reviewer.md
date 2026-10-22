@@ -50,7 +50,7 @@ Edit/Write後のhookは別の実行経路である。Bashがないことをコ�
 - **handleApiError 未使用**: `catch` ブロックで `handleApiError(error, "操作名")` を呼ばない
 
 ### HIGH — デザイントークン違反
-- **Hex カラー直接指定**: `style={{ color: '#37352F' }}` → `style={{ color: C.TEXT_MAIN }}` 等に変更
+- **Hex カラー直接指定**: `style={{ color: '#37352F' }}` → `className={C.textInkMuted}` 等、`design-tokens.ts` に実在する camelCase トークン（Tailwind クラス）へ変更。`style` 属性で色を指定しない
 - **Tailwind ハードコード色**: `text-[#37352F]` 等 → `C`/`STYLE` 定数使用
 - **design-tokens.ts 未 import**: スタイリングで `C`, `STYLE` を使っていない
 

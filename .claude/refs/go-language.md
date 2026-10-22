@@ -33,7 +33,7 @@ backend 全体の正本は [Go/Gin Backend Guidelines](../rules/go-gin-backend-g
 
 ## Context and concurrency
 
-- request-scoped な関数は `context.Context` を第1引数で受け取る。
+- request-scoped な関数は `context.Context` を第1引数で受け取る。例外は `*gin.Context` と request Context を両方取る handler 補助関数で、`c` を先に置く（`.golangci.yml` で revive `context-as-argument` を無効化している project decision と同じ）。
 - Context を struct に保存しない。
 - cancel function を必ず呼び、deadline/cancellation を下流へ伝播する。
 - goroutine の ownership、終了条件、error/panic 経路を明確にする。
