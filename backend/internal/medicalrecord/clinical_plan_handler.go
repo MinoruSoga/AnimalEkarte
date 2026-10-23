@@ -61,7 +61,7 @@ func (h *ClinicalPlanHandler) UpdateClinicalPlan(c *gin.Context) {
 		return
 	}
 	var req updateClinicalPlanRequest
-	if err := bindJSONRejectingLegacyDiagnosis(c, &req); err != nil {
+	if err := bindJSONGuarded(c, &req, rejectLegacyDiagnosisFields); err != nil {
 		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}

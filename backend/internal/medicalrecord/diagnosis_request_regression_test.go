@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -201,18 +203,193 @@ func TestUpdateClinicalPlanRequest_InvalidDiagnosisShapeIsRejectedAtConversion(t
 	require.Error(t, err)
 }
 
+func legacyCheck(t *testing.T, body string) error {
+	t.Helper()
+	keys, err := parseSingleJSONObject([]byte(body))
+	require.NoError(t, err)
+	return rejectLegacyDiagnosisFields(keys)
+}
+
 func TestRejectLegacyDiagnosisFields(t *testing.T) {
 	for name := range legacyDiagnosisFieldNames {
 		t.Run(name, func(t *testing.T) {
-			err := rejectLegacyDiagnosisFields([]byte(`{"` + name + `": null}`))
+			err := legacyCheck(t, `{"`+name+`": null}`)
 			require.Error(t, err, "presence alone is rejected, even with a null value")
 			assert.Contains(t, err.Error(), "diagnoses[]")
 			assert.Contains(t, err.Error(), name)
 		})
 	}
-	assert.NoError(t, rejectLegacyDiagnosisFields([]byte(`{"diagnoses":[{"diagnosis_slot":1,"diagnosis_type_id":3}],"physical_exam":"x"}`)),
+	assert.NoError(t, legacyCheck(t, `{"diagnoses":[{"diagnosis_slot":1,"diagnosis_type_id":3}],"physical_exam":"x"}`),
 		"diagnosis_type_id inside a diagnoses[] row is the new shape and must not be rejected")
-	assert.NoError(t, rejectLegacyDiagnosisFields([]byte(`not json`)), "malformed JSON is left to the standard binder")
+}
+
+// R2-02: 事前検査は「ちょうど 1 つの JSON object + EOF」だけを通す。
+func TestParseSingleJSONObject(t *testing.T) {
+	valid := []string{`{}`, `{"a":1}`, ` {"a":1}` + "\n", `{"status":null}`}
+	for _, body := range valid {
+		_, err := parseSingleJSONObject([]byte(body))
+		assert.NoError(t, err, body)
+	}
+	invalid := map[string]string{
+		"trailing second object": `{"diagnosis_type_id":3,"treatment_policy":"x"} {}`,
+		"trailing garbage":       `{"a":1} xyz`,
+		"trailing comma value":   `{"a":1},`,
+		"top-level array":        `[{"a":1}]`,
+		"top-level scalar":       `123`,
+		"top-level string":       `"x"`,
+		"top-level null":         `null`,
+		"truncated":              `{"a":`,
+		"not json":               `not json`,
+	}
+	for name, body := range invalid {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseSingleJSONObject([]byte(body))
+			require.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+		})
+	}
+}
+
+func TestRejectStatusKeyOnUpdate_DecidedByKeyPresence(t *testing.T) {
+	for _, value := range []string{`null`, `"draft"`, `"finalized"`, `""`, `123`, `true`, `[]`, `["draft"]`, `{}`, `{"a":1}`} {
+		t.Run(value, func(t *testing.T) {
+			keys, err := parseSingleJSONObject([]byte(`{"status":` + value + `}`))
+			require.NoError(t, err)
+			err = rejectStatusKeyOnUpdate(keys)
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, apperrors.ErrUnprocessable))
+		})
+	}
+	keys, err := parseSingleJSONObject([]byte(`{"date":"2026-03-24"}`))
+	require.NoError(t, err)
+	assert.NoError(t, rejectStatusKeyOnUpdate(keys))
+}
+
+func patchMedicalRecordRaw(t *testing.T, h *MedicalRecordHandler, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "1"}}
+	setClinicID(c)
+	c.Set("user_id", "1")
+	h.UpdateMedicalRecord(c)
+	return w
+}
+
+func failingUpdateService(t *testing.T) *mockMedicalRecordService {
+	return &mockMedicalRecordService{
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+			t.Fatal("Update must not be called")
+			return nil, nil
+		},
+	}
+}
+
+// R2-01: PATCH は status キーの存在だけで固定 422。値の型・null に依存せず、service を呼ばない。
+func TestUpdateMedicalRecord_StatusKeyPresentIs422ForAnyValue(t *testing.T) {
+	values := map[string]string{
+		"null":             `null`,
+		"string draft":     `"draft"`,
+		"string finalized": `"finalized"`,
+		"empty string":     `""`,
+		"number":           `123`,
+		"bool":             `true`,
+		"array":            `["draft"]`,
+		"empty array":      `[]`,
+		"object":           `{"a":1}`,
+	}
+	for name, value := range values {
+		t.Run(name, func(t *testing.T) {
+			h := newHandlerWithMedicalRecordSvc(failingUpdateService(t), &mockClinicalPlanService{})
+			w := patchMedicalRecordRaw(t, h, `{"status":`+value+`}`)
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code, w.Body.String())
+			assert.Contains(t, w.Body.String(), apperrors.CodeMedicalRecordStatusRetired)
+		})
+	}
+	t.Run("null combined with valid update fields", func(t *testing.T) {
+		h := newHandlerWithMedicalRecordSvc(failingUpdateService(t), &mockClinicalPlanService{})
+		w := patchMedicalRecordRaw(t, h, `{"status":null,"date":"2026-03-24T00:00:00Z","version":2,"visit_type":"first"}`)
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code, w.Body.String())
+	})
+}
+
+// POST の status 扱いは変更なし: 未指定 / null / draft / 空は受理、finalized は 422。
+func TestCreateMedicalRecord_StatusBehaviourUnchanged(t *testing.T) {
+	for _, status := range []string{`"draft"`, `""`, `null`} {
+		created := false
+		svc := &mockMedicalRecordService{
+			createFn: func(_ context.Context, clinicID uint64, input *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+				created = true
+				return &model.MedicalRecord{ID: 1, ClinicID: clinicID, Date: input.Date}, nil
+			},
+		}
+		w := postCreateMedicalRecord(t, newHandlerWithMedicalRecordSvc(svc, &mockClinicalPlanService{}),
+			`{"owner_id":"10","pet_id":"20","status":`+status+`}`)
+		assert.Equal(t, http.StatusCreated, w.Code, status)
+		assert.True(t, created, status)
+	}
+	svc := &mockMedicalRecordService{
+		createFn: func(_ context.Context, _ uint64, _ *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+			t.Fatal("Create must not be called for status finalized")
+			return nil, nil
+		},
+	}
+	w := postCreateMedicalRecord(t, newHandlerWithMedicalRecordSvc(svc, &mockClinicalPlanService{}),
+		`{"owner_id":"10","pet_id":"20","status":"finalized"}`)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// R2-02: 末尾の別 JSON・ゴミ・最上位の配列/スカラー・null は 400。旧診断キーを後続値に隠しても書込は起きない。
+func TestMalformedBodies_Return400WithoutWrite(t *testing.T) {
+	bodies := map[string]string{
+		"legacy key then trailing object": `{"diagnosis_type_id":3,"treatment_policy":"x"} {}`,
+		"trailing garbage":                `{"date":"2026-03-24T00:00:00Z"} garbage`,
+		"top-level array":                 `[{"date":"2026-03-24T00:00:00Z"}]`,
+		"top-level scalar":                `42`,
+		"top-level null":                  `null`,
+		"empty body":                      ``,
+	}
+	for name, body := range bodies {
+		t.Run("update/"+name, func(t *testing.T) {
+			h := newHandlerWithMedicalRecordSvc(failingUpdateService(t), &mockClinicalPlanService{})
+			w := patchMedicalRecordRaw(t, h, body)
+			assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+		})
+		t.Run("create/"+name, func(t *testing.T) {
+			svc := &mockMedicalRecordService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					t.Fatal("Create must not be called")
+					return nil, nil
+				},
+				createSubRecordsFn: func(_ context.Context, _, _ uint64, _ CreateSubRecordsInput) error {
+					t.Fatal("CreateSubRecords must not be called")
+					return nil
+				},
+			}
+			w := postCreateMedicalRecord(t, newHandlerWithMedicalRecordSvc(svc, &mockClinicalPlanService{}), body)
+			assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+		})
+		t.Run("clinical-plan/"+name, func(t *testing.T) {
+			svc := &mockClinicalPlanService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
+					t.Fatal("clinical plan Update must not be called")
+					return nil, nil
+				},
+			}
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/8/clinical-plan", strings.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: "8"}}
+			setClinicID(c)
+			c.Set("user_id", "42")
+			newHandlerWithClinicalPlanSvc(svc).UpdateClinicalPlan(c)
+			assert.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+		})
+	}
 }
 
 func TestUpdateClinicalPlan_LegacyDiagnosisFields_Returns400(t *testing.T) {

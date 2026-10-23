@@ -4314,8 +4314,10 @@ components:
         レスポンスにも含まれない。リクエストの `status` の扱い（旧 FE との移行期の許容は作成のみ）:
         作成（POST）は未指定 / `"draft"` / 空なら無視して受理し、`"finalized"` は 422
         （code `medical_record_status_retired`、旧 finalize / unfinalize は未提供）。
-        更新（PATCH）は変更できる status が無いため、`status` キーが存在すれば値（draft / finalized / その他）に関わらず
-        同じ 422 を返し、何も書かない。FE の追随は EMR-549 で追跡する。
+        更新（PATCH）は変更できる status が無いため、`status` キーが存在すれば値（null・文字列・数値・真偽値・配列・
+        object を含む任意の値）に関わらず同じ 422 を返し、何も書かない（キーの存在で判定する）。
+        POST / PATCH とも、body は単一の JSON オブジェクトでなければならない（末尾に別の値やゴミが続く body、
+        最上位が配列・スカラー・null の body は 400）。FE の追随は EMR-549 で追跡する。
         診療終了は予約の終了操作（EMR-495 B。このスキーマ変更には含まない）で記録する。
       required: [date, record_no, weight_measurements]
       properties:
@@ -20659,8 +20661,8 @@ paths:
       operationId: updateMedicalRecord
       summary: カルテ更新
       description: |
-        EMR-495: 更新では変更できる status が存在しない。`status` キーが存在すれば値（draft / finalized / その他）に
-        関わらず 422 `medical_record_status_retired`（書込なし）。旧 finalized だけを理由とした更新拒否は廃止した
+        EMR-495: 更新では変更できる status が存在しない。`status` キーが存在すれば値（null・数値・真偽値・配列・object を含む
+        任意の値）に関わらず（キー存在で判定）422 `medical_record_status_retired`（書込なし）。旧 finalized だけを理由とした更新拒否は廃止した
         （版 CAS・目的別規則・監査は維持）。旧単一診断フィールド（`diagnosis_type_id` / `diagnosis_name_id` など）を
         送ると 400 で拒否する（診断は clinical-plan の `diagnoses[]` で更新する）。
       tags: [MedicalRecords]
