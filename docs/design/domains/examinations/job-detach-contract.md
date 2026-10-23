@@ -84,13 +84,93 @@ PreconditionsはD4/coordinatorの型付き現在必要条件だけ。ユーザ�
 <a id="exam-detach-capacity-budget"></a>
 ### 初期利用開始の有限capacity
 
-active exam 1000件、補償対象result item総数20000件、canonical target＋全補償parent/item snapshot＋manifest投影のUTF-8合計8 MiB（8×1024×1024 bytes）を上限とする。これは未実測の初期技術値であり、既存機器の業務上限/性能実測値ではない。8 KiB frame制限をjob全体件数の根拠にしない。
+active exam 1000件、補償対象result item総数20000件、下記detach-capacity-v1（target＋全補償parent/item snapshot＋容量manifest投影）のcanonical UTF-8合計8 MiB（8×1024×1024 bytes）を上限とする。これは未実測の初期技術値であり、既存機器の業務上限/性能実測値ではない。8 KiB frame制限をjob全体件数の根拠にしない。
 
 元targetの現在認可後、新規実行の既知超過はclaim前のlimit+1読取又は上限付きstream集計で検知し、部分成功なし・claimなしの413（ownerのdetach_capacity_exceeded）で返す。未認可の件数/本文は開示せず、共有C06 status enumを追加しない。保存済みsame-key成功replayは現在認可付き元結果の処理を先に行い、現在集合のcapacity再検査を成功再送の条件にしない。
 
 claim後/lock後の再読でも同じ上限を検査し、競合増大時は全business変更をrollbackする。分割Detach/途中commit/切捨ては禁止。外側business TXの処理budgetは10秒（未実測の初期値）。超過/評価不能は既存unknown/元key結果照会に従って停止し、timeoutを不成功確定にしない。request cap、取得途中失敗、臨床利用保護の拒否は別に扱う。
 
 大きい既存jobは明示未対応として保持し、上限を変更するなら別の性能根拠と契約改訂を必要とする。新規上限を満たしたことだけで臨床利用/版/認可の保護を免除しない。
+
+容量定義追補：Library `libfile_48562e1048e88191a73fae7c8f4164ee` の `exam-detach-capacity-bytes-correction-20261023.md` を取得・可読確認した（受領時SHA-256 `cfaf22a4d2e84c9d1c76a4aecd028f687d88ed8fe1d21ad548e991b5e68d2f02`）。以下は容量専用closed projectionの選定で、既存保存/公開wireの変更ではない。
+
+<a id="exam-detach-capacity-measure"></a>
+### 容量投影と計量単位
+
+容量はDB物理サイズ・メモリ使用量・HTTP応答総量ではなく、以下のdetach-capacity-v1投影のcanonical UTF-8 bytesで判定する。
+
+B = len(T) + Σ len(Pe) + Σ len(Iei) + len(M)
+
+- Tは§4.1のcanonical target全体。schema,job_id,association_version,source_type,pet_id,examination_idsの既定固定key順を維持する。
+- Peは補償対象examごとの§7/7.1のexact parent snapshot全keys。
+- Ieiはそのexamに属する各補償itemの下記exact保存scalar全keys。
+- Mは下記容量専用manifest投影。実際のpaged GET envelope/cursorは加算しない。
+- lenはJSONを下記規則でencodeした後のUTF-8 byte数。各成分を独立JSONとして計量し、成分間の改行・区切りは0 bytes。各JSON内部のbraces/brackets/quotes/colon/commaはすべて含める。同じ値が別componentに登場するときは各component分を計量する。
+- B <= 8,388,608を許容し、B >= 8,388,609で超過。1000 exams/20000 itemsもinclusiveで、どれか一つでも超過すれば拒否する。
+
+<a id="exam-detach-capacity-snapshot-projection"></a>
+### Exact snapshot projection
+
+Peのexact keys:
+
+schema,id,clinic_id,medical_record_id,pet_id,exam_type_id,doctor_id,job_id,date,performed_date_precision,result_summary,machine,status,current_revision_version,result_state_version,created_at,updated_at,deleted_at
+
+schema=lab-exam-retraction-parent-v1。provenance供給profileのv2はschema=lab-exam-retraction-parent-v2とし、result_source_kind,result_source_details,measured_atの3keysをrequired nullableで加える。profile間の選択・未収録とNULL・初official前の扱いは§7.1のまま。ここに列挙しない表示relation/contextを容量へ追加しない。
+
+Ieiのexact keys:
+
+id,exam_id,exam_type_field_id,name,inspection_value,normal_value,result,unit,reference_value,ref_min,ref_max,qualitative_min,qualitative_max,is_abnormal,status,sort_order,created_at,updated_at
+
+これらは同headのD4 ExamResultD4から表示派生is_assessedだけを除いた保存scalar。独自のitem schema key、削除時刻、job ID等を追加しない。元item IDとsort_order/NULLを保持する。計量は各itemを一回ずつ行い、親間の走査順で総数は変わらない。実装の走査順はexam ID数値昇順→item ID数値昇順に固定する。
+
+<a id="exam-detach-capacity-manifest-projection"></a>
+### Exact capacity manifest projection
+
+Mのexact keys:
+
+schema,job_id,target_sha256,before_pet_id,after_pet_id,before_status,after_status,before_association_version,after_association_version,retracted_examination_count,examinations
+
+- schema=lab-job-detach-capacity-manifest-v1。これは今回明示選択する**容量だけのprojection**であり、新規保存表/新公開DTOではない。
+- job_id/target_sha256/before_pet_id/before_association_versionは元targetの実値。after_pet_id=null、before_status=persisted、after_status=received。
+- after_association_version=before+1。retracted_examination_countは補償対象exam数のcanonical非負decimal string。
+- examinationsはexam ID数値昇順、各要素のexact keysはexamination_id,medical_record_id,pet_id,before_result_state_version,after_result_state_version。元scope/版から作り、after_result_state_version=before+1。0件は[]。
+- +1のint64上限拒否は投影前に行う。架空の飽和値を計量しない。
+- 未採番binding/retraction ID、operation_key、recorded_at、clinic/actor等の運用metadata、audit/receipt envelope、DB overheadは容量投影から除外する。これらをNULLや推測IDで代入しない。この除外は保存manifest/audit/receiptからfieldを削除する変更ではない。
+- この定義は可変長の臨床補償payloadと対象明細の論理上限である。固定運用fieldやDB/index/transaction overheadまで8 MiB以内になる保証ではない。別の既定件数上限・処理budgetも維持する。
+
+<a id="exam-detach-capacity-serializer"></a>
+### Canonical serializer
+
+Tのobject key順は§4.1の既定順。それ以外の全objectはASCII key昇順。対象keysはすべてASCIIなのでlocale依存比較を使わない。配列順は上記固定順。
+
+- whitespace・改行・BOMなし。区切りはcolon/commaだけ。空配列は[]、objectは規定keysを省略せず出力する。
+- NULLはJSON null、booleanはtrue/false。missingとNULLを同一視せず、required key欠落はcontract failure。
+- ID/版/件数はcanonical decimalのJSON string。UUIDとhashは既定canonical string。ExactNumericはD4で定義した正規decimalのJSON string又はnullで、floatを経由しない。
+- sort_orderのみ符号付き整数のJSON number又はnull。10進表記、先頭+・指数・先頭0・-0は使用しない（0は0）。
+- timestampは保存instantをUTCのYYYY-MM-DDTHH:mm:ss.fffffffffZ（小数9桁固定）へ無損失変換する。保存値がNULLならnull。dateはYYYY-MM-DD/nullであり、時刻への補完をしない。
+- stringはtrim/Unicode正規化をしない。有効UnicodeをUTF-8で出す。double quoteは\"、backslashは\\。U+0000..U+001Fは小文字hexの\u00xxで必ず6 bytes、\n/\t等の短縮escapeは使わない。
+- slash、HTML文字、U+2028/U+2029はescapeせずそのUTF-8 bytes。無効UTF-8・孤立surrogate・未定義型・不正timestampはcontract failureで停止し、replacement characterやゼロ値へ変換しない。
+
+このserializerは容量投影専用のbyte確定規則であり、DB JSONBの内部表現や既存HTTP応答の空白/escapeを容量の根拠にしない。Tのdigest用canonical bytesにも同じprimitive文字列表現を適用し、既定のtarget key順を変えない。snapshot/manifest保存の意味・既存wire型は変更しない。
+
+<a id="exam-detach-capacity-recheck"></a>
+### Preclaimとlock後の一致
+
+認可後preclaimとlock後の最終判定は同じschema profile・projection・serializerを使う。先行preclaimの取得後に値が変わった場合は、lock後の同snapshotから再生成して判定し、旧byte数を流用しない。既存same-key成功replayは元結果の処理を先に行い、現在容量を成功再送の条件にしない。
+
+上限+1で止めるbounded counting sinkを使う。合計値を0..8,388,609で飽和させればoverflowを避けて判定できる。snapshot全件を巨大な連結bufferへmaterializeする必要はないが、書込対象を切り捨てて上限内に見せることは禁止。取得途中失敗・欠損・計量不能を0 bytesとして扱わない。
+
+既知preclaim超過は既定413/no claim、lock後超過は既定の全business rollback。評価不能/timeout/commit結果不明は既定停止・元key照会に従い、容量判定を失敗確定の根拠へしない。部分Detach/途中commitなし。
+
+<a id="exam-detach-capacity-byte-acceptance"></a>
+### 追加受入期待（すべてNOT_RUN）
+
+- B=8,388,607/8,388,608/8,388,609で、それぞれ許容/許容/超過。
+- 日本語/補助平面文字、quote/backslash/control character、slash/HTML/U+2028/U+2029を含む同値payloadでbyte数が一致。
+- NULLと空文字、missing拒否、ExactNumeric/ID大数、negative sort_order、同instantの異なるtimezone入力のcanonical byte数を確認。
+- provenance snapshot-v1/v2の各exact key集合を計量し、未収録をNULL key追加へ変換しない。
+- manifestのページ分割/取得順/未採番IDに総byte数が依存しない。
+- preclaimからlock後のpayload増加で最終超過なら全rollback、元対象変更なら既定dependency-changed。
 
 <a id="exam-detach-claim-target"></a>
 ## 5. Job専用claim metadata
