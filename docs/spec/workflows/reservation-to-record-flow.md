@@ -294,6 +294,10 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 <a id="next-intent-after-accounting-consumption-20261022"></a>
 2026-10-22追加承認（本人回答 Sentinel_26014730cf3481919ba1bcaeec4b07ad「両方はい」）：前回カルテの次回予定は、今回の会計完了後でも、スタッフの明示操作で今回来院への消化済み履歴を紐づけてよい。今回予約・記録とその状態を保持し、診療内容・請求・入金を変更しない。取消済み・未来院の予約は消化先の対象外。通常作成等からの暗黙消化は認めず、既存の認可・同一患者/医院・両対象の版確認・原子的な履歴保存を維持する。`source_medical_record_id`は次回予定の出典用途のままで、消化先として流用しない。これは会計完了後の履歴紐づけに限る承認で、新規wire/DDL案全体や通常の予約変更・取消制限の解除ではない。実装・実機受入は未確認。
 
+2026-10-23追加承認：元予定を立てた診療より前の来院への紐づけは不可。元診療と対象来院の業務日を比較し、同日は一律禁止しない。根拠日付が不明なら自動判断せずスタッフが明示確認する。created_atやintended_dateを診療日の代用にしない。複数の次回予定を同じ今回来院へ紐づけることは、予定ごとに確認し各履歴を残す場合に限り可。一括自動処理や複数active予定の新設ではなく、同sourceの重複消化・取消後の元予定自動復活は引き続き禁止する。根拠は本人回答 Sentinel_fceb2d0069b08191b9efccf0acdf8807「はい／はい」。実装・実機受入は未確認。
+
+308/468の[明示消化A・同ID確定Bの採択技術契約](../../work/emr/emr-308-468-next-intent-selected-contract-20261022.md)でroute/入力/Content/元anchor/event/復旧・caller閉包を選定した。業務本文は本節を正本とし、API YAML/DDL/model/製品実装・受入は未完。今回予約への履歴紐づけAと、元予定を本予約へ同ID昇格するBを混同しない。
+
 <a id="requirement-fr-reservations-next-intent-cancel-no-revival"></a>
 #### 次回予定から作った予約の取消で元予定を自動復活させない
 
@@ -364,7 +368,6 @@ stateDiagram-v2
     confirmed --> checked_in : 来院受付
     tentative --> pending : 予約を確定 (confirm-tentative)
     tentative --> confirmed : 対象予定を選んで日時付き予約へ確定
-    tentative --> checked_in : スタッフが今回消化を選択し当日受付が成功
     tentative --> [*] : next-visit-intent 取消 (論理削除)
     [*] --> checked_in : 予約なし来院 (route=reception)
     [*] --> in_consultation : direct consultation / record_shortcut
@@ -377,6 +380,8 @@ stateDiagram-v2
     pending --> cancelled
     confirmed --> cancelled
 ```
+
+次回予定はBのconfirm-tentativeでpending/confirmedへ同ID確定した後、別の明示check-inでchecked_inへ進む。旧combined tentative→checked_in経路は退役対象の実装履歴として図外に区別し、直接edgeを目標遷移にしない。
 
 上図の次回予定は[2026-10-15合意](#next-visit-intent-agreement-20261015)へ更新した。選択なしの別件予約／来院ではtentativeを維持し、取消予約からtentativeへ自動復活する遷移は設けない。shortcut・専用記録や未決の状態条件は継承参照であり、一括確定しない。
 
@@ -487,7 +492,7 @@ clinic-owned relation は tenant boundary を明示する。主要 column は次
 |:---|:---|:---|:---|:---|:---|:---|
 | AC-reservations-next-intent-date-only | 日付だけの次回予定がある | 予定日前・当日に予約カレンダーと受付を読む | 未予約と表示し枠・容量を消費せず、当日の受付ボードに出さない。時刻付き確定後だけ通常予約として扱う | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-date-only-next-intent)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
 | AC-reservations-next-intent-earlier-visit-preserved | 次週の予定があるペットが別件で今日来院する | 消化未選択／消化しない選択で通常予約・walk-in・受付を保存する | 今回来院を別に扱い元予定を保持。一般Create・batch・LIFFからも自動吸収しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
-| AC-reservations-next-intent-explicit-consume | 対象予定と今回来院をスタッフが確認した | 今回の来院で消化することを明示選択し保存する | 新しい今回予約なら対象予定の同じIDを使い、既存今回予約ならそのID・記録を保持して消化関係を記録。会計完了後も明示紐づけ可だが今回予約・記録の状態と診療・請求・入金は不変、取消済み・未来院は対象外。余分な予約・カルテなし | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
+| AC-reservations-next-intent-explicit-consume | 対象予定と今回来院をスタッフが確認した | 今回の来院で消化することを明示選択し保存する | 新しい今回予約なら対象予定の同じIDを使い、既存今回予約ならそのID・記録を保持して消化関係を記録。会計完了後も明示紐づけ可だが今回予約・記録の状態と診療・請求・入金は不変、取消済み・未来院は対象外。元診療より前の来院は拒否、同日は可、日付不明は別のスタッフ明示確認。複数予定→同来院は予定ごとの独立確認/履歴。余分な予約・カルテなし | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
 | AC-reservations-next-intent-consume-conflict-unknown | 消化選択後に対象版変更・二重操作・通信断が起きる | 保存・再送・結果照会を行う | 競合は入力保持と再確認、結果不明は同じキーで照合。別の予定を消さず予定だけ先に消化済みとせず、予約・記録も増殖しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-explicit-consumption)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
 | AC-reservations-next-intent-cancel-no-revival | 次回予定から作った日時付き予約がある | 予約を取り消し再設定案内を表示／閉じる | 元予定は自動復活せず、取消予約・由来・記録・履歴を保持。案内だけでは保存しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-cancel-no-revival)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
 | AC-reservations-next-intent-manual-reset | 由来予約の取消後に次回予定が必要になった | スタッフが新日付を確認し設定し直す | 既存create／上書き権限・対象版・receiptで明示保存し、取消済み予約はそのまま。再送で予定が増殖しない | 当該結果を単独確認 | 同じ対象・履歴と操作安全性を保持 | [FR](#requirement-fr-reservations-next-intent-cancel-no-revival)・[技術契約](../../design/domains/reservations/technical-spec.md#reservation-visit-history-intent-contract)。実機未確認 |
