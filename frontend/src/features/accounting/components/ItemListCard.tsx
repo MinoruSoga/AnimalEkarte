@@ -333,13 +333,12 @@ export const ItemListCard = memo(function ItemListCard({
                       <SelectContent>{MERCHANDISE_CATEGORY_SELECT_ITEMS}</SelectContent>
                     </Select>
                   </div>
+                  {/* EMR-537 E-2: 追加不可エラーは overflow-auto の外に置き、
+                      長い一覧をスクロールしてもエラー文が見えるままにする。 */}
+                  {merchandiseTaxError ? (
+                    <FormFieldError id="merchandise-tax-error" message={merchandiseTaxError} />
+                  ) : null}
                   <div className="flex-1 overflow-auto min-h-[200px] border rounded-md">
-                    {merchandiseTaxError ? (
-                      <FormFieldError
-                        id="merchandise-tax-error"
-                        message={merchandiseTaxError}
-                      />
-                    ) : null}
                     {filteredMerchandise.length > 0 ? (
                       <Table>
                         <TableHeader>

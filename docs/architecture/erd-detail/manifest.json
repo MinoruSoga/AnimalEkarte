@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "05817a855f589ba3051d4d3951ec57c50efe33ed015afa49ad1a7d11210da061",
+  "source_digest": "0444c6ab983bb5e77ce1ed557f1510caf431fe6d6302bcdd2cd9d1e306a56910",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 250,
-    "columns": 2770,
-    "foreign_keys": 764
+    "tables": 253,
+    "columns": 2807,
+    "foreign_keys": 769
   },
   "migrations": [
     {
@@ -41,6 +41,22 @@
     {
       "name": "006_operation_anchor_and_lab_mapping_versions.sql",
       "sha256": "0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831"
+    },
+    {
+      "name": "007_bill_discount_excluded_and_master_versions.sql",
+      "sha256": "e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b"
+    },
+    {
+      "name": "008_clinic_operating_hours.sql",
+      "sha256": "41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313"
+    },
+    {
+      "name": "009_line_acceptance_version.sql",
+      "sha256": "6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea"
+    },
+    {
+      "name": "010_line_staff_start_policy_and_reservation_anchor.sql",
+      "sha256": "03d16767d1570fb0611a7a5325d24ac93f235df7517fdefd9848f088401c70a8"
     }
   ],
   "reviewed_do_blocks": [
@@ -102,6 +118,7 @@
     "chief_complaint_types.md",
     "clinic_holidays.md",
     "clinic_integrations.md",
+    "clinic_operating_hours.md",
     "clinic_settings.md",
     "clinical_plan_diagnoses.md",
     "clinical_plans.md",
@@ -181,6 +198,7 @@
     "line_dispatch_results.md",
     "line_link_tokens.md",
     "line_reservation_settings.md",
+    "line_staff_start_policies.md",
     "lstep_auto_managed_prefixes.md",
     "lstep_condition_tag_mappings.md",
     "lstep_csv_imports.md",
@@ -245,6 +263,7 @@
     "reservation_capacity_gates.md",
     "reservation_contract_states.md",
     "reservation_eligibility_evidence.md",
+    "reservation_master_operation_anchors.md",
     "reservation_notification_eligibility.md",
     "reservation_type_available_slots.md",
     "reservation_type_groups.md",

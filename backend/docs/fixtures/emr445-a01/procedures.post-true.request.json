@@ -1,0 +1,6 @@
+{
+  "name": "監査用ダミー処置",
+  "anesthesia": "none",
+  "tax_type": "included",
+  "is_bill_discount_excluded": true
+}

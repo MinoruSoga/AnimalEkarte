@@ -1,0 +1,66 @@
+{
+  "operation_key": "00000000-0000-4000-8000-000000000021",
+  "mode": "replace",
+  "expected_version": "1",
+  "expected_assignment_id": "31",
+  "policy": {
+    "weekly_times": [
+      {
+        "weekday": 0,
+        "times": []
+      },
+      {
+        "weekday": 1,
+        "times": [
+          "10:00",
+          "13:30",
+          "15:00"
+        ]
+      },
+      {
+        "weekday": 2,
+        "times": [
+          "10:00",
+          "13:30",
+          "15:00"
+        ]
+      },
+      {
+        "weekday": 3,
+        "times": [
+          "10:00",
+          "13:30",
+          "15:00"
+        ]
+      },
+      {
+        "weekday": 4,
+        "times": [
+          "10:00",
+          "13:30",
+          "15:00"
+        ]
+      },
+      {
+        "weekday": 5,
+        "times": [
+          "10:00",
+          "13:30",
+          "15:00"
+        ]
+      }
+    ],
+    "date_overrides": [
+      {
+        "date": "2026-11-03",
+        "times": []
+      },
+      {
+        "date": "2026-11-07",
+        "times": [
+          "10:00"
+        ]
+      }
+    ]
+  }
+}

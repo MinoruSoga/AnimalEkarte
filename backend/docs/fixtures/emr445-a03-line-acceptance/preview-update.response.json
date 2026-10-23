@@ -1,0 +1,117 @@
+{
+  "schema_version": "line-acceptance-preview/v1",
+  "clinic_id": "7",
+  "mode": "update",
+  "current_state": "configured",
+  "observed_versions": {
+    "clinic_operating_hours": "4",
+    "line_acceptance": "2"
+  },
+  "current_settings": {
+    "status": "running",
+    "closed_weekdays": [
+      0
+    ],
+    "closed_dates": [
+      "2026-12-31"
+    ],
+    "national_holiday_closed": true,
+    "business_hours": {
+      "start": "0900",
+      "end": "1800"
+    },
+    "business_hours_by_weekday": {
+      "6": {
+        "start": "0900",
+        "end": "1300"
+      }
+    },
+    "break_hours": [
+      {
+        "start": "1200",
+        "end": "1300"
+      }
+    ],
+    "booking_window_max_days": 60,
+    "booking_window_min_days": 1,
+    "time_slot_mode": "minimize_gaps",
+    "time_slot_interval_minutes": 30,
+    "show_no_staff_option": true
+  },
+  "proposed_settings": {
+    "status": "running",
+    "closed_weekdays": [
+      0
+    ],
+    "closed_dates": [
+      "2026-12-31"
+    ],
+    "national_holiday_closed": true,
+    "business_hours": {
+      "start": "0800",
+      "end": "1800"
+    },
+    "business_hours_by_weekday": {
+      "6": {
+        "start": "0900",
+        "end": "1300"
+      }
+    },
+    "break_hours": [
+      {
+        "start": "1200",
+        "end": "1300"
+      }
+    ],
+    "booking_window_max_days": 60,
+    "booking_window_min_days": 1,
+    "time_slot_mode": "minimize_gaps",
+    "time_slot_interval_minutes": 30,
+    "show_no_staff_option": true
+  },
+  "days": [
+    {
+      "date": "2026-11-02",
+      "current": {
+        "state": "evaluated",
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "13:00",
+            "end": "18:00"
+          }
+        ]
+      },
+      "proposed": {
+        "state": "evaluated",
+        "intervals": [
+          {
+            "start": "09:00",
+            "end": "12:00"
+          },
+          {
+            "start": "13:00",
+            "end": "18:00"
+          }
+        ]
+      }
+    }
+  ],
+  "validation": {
+    "state": "prohibited",
+    "warnings": [
+      {
+        "code": "line_acceptance_outside_common",
+        "severity": "prohibited",
+        "fields": [
+          "business_hours"
+        ],
+        "dependency_revision": "opaque-r1"
+      }
+    ]
+  },
+  "warning_receipt": null
+}

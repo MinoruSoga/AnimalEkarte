@@ -9,6 +9,7 @@ package billing
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -432,4 +433,126 @@ func TestCampaignRepository_FindAllApplicableForItem(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, high.ID, got[0].ID, "discount_value 降順で先頭に高割引が来る")
 	assert.Equal(t, low.ID, got[1].ID)
+}
+
+// TestCampaignRepository_Create_FindByID_ExactDiscountValue is EMR-537 V-1/AC3:
+// 保存→再取得が discount_value の十進値を binary float を通さず保持することを
+// repository 層で検証する（0 / 10.50 / rate 100 境界・rate/amount 両型）。
+// 比較は既存の equalExactNumeric（rat による数値比較・float 不使用）で行い、
+// 末尾 0 の表記差は数値として同一扱いする。
+func TestCampaignRepository_Create_FindByID_ExactDiscountValue(t *testing.T) {
+	cases := []struct {
+		name         string
+		discountType model.CampaignDiscountType
+		text         string
+	}{
+		{"rate explicit zero", model.CampaignDiscountTypeRate, "0"},
+		{"rate 10.50", model.CampaignDiscountTypeRate, "10.50"},
+		{"rate 100 boundary", model.CampaignDiscountTypeRate, "100"},
+		{"amount explicit zero", model.CampaignDiscountTypeAmount, "0"},
+		{"amount 10.50", model.CampaignDiscountTypeAmount, "10.50"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupCampaignTestDB(t)
+			repo := NewCampaignRepository(db)
+			ctx := context.Background()
+			const clinicID = uint64(1)
+
+			c := &model.Campaign{
+				ClinicID:      clinicID,
+				Name:          "exact " + tc.text,
+				StartDate:     time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				EndDate:       time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC),
+				DiscountType:  tc.discountType,
+				DiscountValue: campaignExactValue(t, tc.text),
+			}
+			created, err := repo.Create(ctx, c)
+			require.NoError(t, err)
+			require.NotZero(t, created.ID)
+			assert.True(t, equalExactNumeric(campaignExactValue(t, tc.text), created.DiscountValue),
+				"Create return value must keep the exact decimal")
+
+			got, err := repo.FindByID(ctx, clinicID, created.ID)
+			require.NoError(t, err)
+			// struct 全体比較はしない（C が projection へ追加する is_bill_discount_excluded /
+			// version の影響を受けないよう、明示 field のみを比較する）。
+			assert.True(t, equalExactNumeric(campaignExactValue(t, tc.text), got.DiscountValue),
+				"DB read-back must keep the exact decimal")
+			assert.Equal(t, clinicID, got.ClinicID, "clinic scope")
+			assert.Equal(t, tc.discountType, got.DiscountType, "discount_type read-back")
+			// B-2: 読み戻し model を既存 adapter に通し、HTTP 応答値も検証する。
+			resp, err := toCampaignResponse(got)
+			require.NoError(t, err)
+			assert.True(t, equalExactNumeric(campaignExactValue(t, tc.text), campaignExactValue(t, resp.DiscountValue)),
+				"HTTP response discount_value must be numerically equal to the input decimal")
+			raw, err := json.Marshal(resp)
+			require.NoError(t, err)
+			var wire map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(raw, &wire))
+			rawValue, ok := wire["discount_value"]
+			require.True(t, ok, "discount_value must be present in the JSON response")
+			assert.Equal(t, byte('"'), rawValue[0], "discount_value must be a JSON string, not a number")
+		})
+	}
+}
+
+// TestCampaignRepository_Update_DiscountValuePresence is EMR-537 AC3:
+// PATCH の省略（nil）は既存 discount_value を保持し、明示 0 は 0 へ更新する（repository 層）。
+// wire の省略/null→nil・明示 "0"→非nil 0 の対応は request 層の
+// TestUpdateCampaignRequest_DiscountValueContract を参照（重複 fixture は作らない）。
+func TestCampaignRepository_Update_DiscountValuePresence(t *testing.T) {
+	db := setupCampaignTestDB(t)
+	repo := NewCampaignRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	c := &model.Campaign{
+		ClinicID:      clinicID,
+		Name:          "PATCH対象",
+		StartDate:     time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		EndDate:       time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC),
+		DiscountType:  model.CampaignDiscountTypeRate,
+		DiscountValue: campaignExactValue(t, "10.50"),
+	}
+	created, err := repo.Create(ctx, c)
+	require.NoError(t, err)
+
+	t.Run("省略（nil）は既存値を保持する", func(t *testing.T) {
+		name := "省略更新"
+		got, err := repo.Update(ctx, clinicID, created.ID, UpdateCampaignInput{Name: &name})
+		require.NoError(t, err)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "10.50"), got.DiscountValue),
+			"omitted discount_value must keep the stored value")
+		resp, err := toCampaignResponse(got)
+		require.NoError(t, err)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "10.50"), campaignExactValue(t, resp.DiscountValue)),
+			"HTTP response discount_value must be numerically equal to the stored value")
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		var wire map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &wire))
+		rawValue, ok := wire["discount_value"]
+		require.True(t, ok, "discount_value must be present in the JSON response")
+		assert.Equal(t, byte('"'), rawValue[0], "discount_value must be a JSON string, not a number")
+	})
+
+	t.Run("明示 0 は 0 へ更新する", func(t *testing.T) {
+		zero := campaignExactValue(t, "0")
+		got, err := repo.Update(ctx, clinicID, created.ID, UpdateCampaignInput{DiscountValue: &zero})
+		require.NoError(t, err)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "0"), got.DiscountValue),
+			"explicit zero must update to 0, not keep 10.50")
+		resp, err := toCampaignResponse(got)
+		require.NoError(t, err)
+		assert.True(t, equalExactNumeric(campaignExactValue(t, "0"), campaignExactValue(t, resp.DiscountValue)),
+			"HTTP response discount_value must be numerically equal to the updated zero")
+		raw, err := json.Marshal(resp)
+		require.NoError(t, err)
+		var wire map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &wire))
+		rawValue, ok := wire["discount_value"]
+		require.True(t, ok, "discount_value must be present in the JSON response")
+		assert.Equal(t, byte('"'), rawValue[0], "discount_value must be a JSON string, not a number")
+	})
 }

@@ -34,6 +34,11 @@ type LineReservationSetting struct {
 	AdditionalFields        json.RawMessage  `gorm:"column:additional_fields;type:jsonb;not null;default:'[\n        {\"key\":\"phone\",\"label\":\"電話番号\",\"required\":true,\"placeholder\":\"例) 090-1234-5678\"},\n        {\"key\":\"owner_name\",\"label\":\"飼い主名\",\"required\":true,\"placeholder\":\"\"},\n        {\"key\":\"pet_info\",\"label\":\"ペットの名前と種類\",\"required\":true,\"placeholder\":\"例) ポチ（柴犬）\"},\n        {\"key\":\"symptoms\",\"label\":\"診察内容\",\"required\":false,\"placeholder\":\"\"}\n    ]'" json:"additional_fields"`
 	CreatedAt               time.Time        `gorm:"column:created_at;type:timestamptz;not null;default:now();autoCreateTime" json:"created_at"`
 	UpdatedAt               time.Time        `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
+
+	// EMR-446/466 acceptance CAS pair (contract §3.1). Not exposed on the
+	// legacy wire; maintained by app_private.line_acceptance_version_guard().
+	AcceptanceVersion         int64  `gorm:"column:acceptance_version;type:bigint;not null;default:1" json:"-"`
+	ReviewedAcceptanceVersion *int64 `gorm:"column:reviewed_acceptance_version;type:bigint" json:"-"`
 }
 
 func (LineReservationSetting) TableName() string { return "line_reservation_settings" }

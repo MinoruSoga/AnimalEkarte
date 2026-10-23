@@ -1,0 +1,153 @@
+{
+ "contract": "EMR-533 PATCH /masters/hospitalization-plans/{id} description null許容（STATIC-AC-FIX-20261022-S09-NULLABLE）",
+ "publication_base": "e34cfde98df43d33cdb26ee29485655049949b46",
+ "api_file": "../../api.yaml",
+ "verification": "NOT_RUN",
+ "schema_validation": "NOT_RUN",
+ "runtime_status": "EXISTING_BEHAVIOR_NOT_RE-EXECUTED",
+ "fixtures": [
+  {
+   "file": "patch-description-omitted.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "description 省略（name は既存契約の required のため同梱）",
+   "semantic_expectation": "既存 description（例 \"old\"）を保持",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-null.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "description 明示 null",
+   "semantic_expectation": "既存 description を保持（SQL NULL へ変換しない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-empty.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "description 空文字",
+   "semantic_expectation": "空文字へ変更して保存（SQL NULL へ変換しない）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-text.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "description 通常文字列",
+   "semantic_expectation": "指定文字列を設定",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-number.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "description に JSON number",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-bool.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "description に boolean",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-object.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "description に object",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-description-array.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "description に array",
+   "semantic_expectation": "request 解析で 400、業務 write 0",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-body-size-null.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "valid",
+   "scenario": "対照: #806 の body_size/billing_unit 三値（null）を維持",
+   "semantic_expectation": "SQL NULL（未設定）へ戻す。EMR-528 既決の維持。PATCH 専用 schema の enum は null を明示（厳密 3.0.3 でも valid）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "patch-body-size-empty.request.json",
+   "operationId": "updateHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/UpdateHospitalizationPlanRequest",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "対照: body_size 空文字は enum 外",
+   "semantic_expectation": "400（null の代用にしない）。EMR-528 既決の維持",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "post-description-null.request.json",
+   "operationId": "createHospitalizationPlan",
+   "body_kind": "request",
+   "component_ref": "#/components/schemas/HospitalizationPlan",
+   "http_status": null,
+   "expected_schema": "invalid",
+   "scenario": "対照: POST の共用 schema は nullable に緩和しない",
+   "semantic_expectation": "schema 上は不適合のまま。POST の runtime 挙動は本PRで変更・決定しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-description-empty.response.json",
+   "operationId": "getHospitalizationPlan",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/HospitalizationPlan",
+   "http_status": 200,
+   "expected_schema": "valid",
+   "scenario": "対照: 応答の description は非 null 文字列のまま（空文字）",
+   "semantic_expectation": "応答契約は変更しない",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "get-description-null.response.json",
+   "operationId": "getHospitalizationPlan",
+   "body_kind": "response",
+   "component_ref": "#/components/schemas/HospitalizationPlan",
+   "http_status": 200,
+   "expected_schema": "invalid",
+   "scenario": "対照: 応答の description を nullable へ緩和していないこと",
+   "semantic_expectation": "応答契約は変更しない",
+   "verification": "NOT_RUN"
+  }
+ ]
+}

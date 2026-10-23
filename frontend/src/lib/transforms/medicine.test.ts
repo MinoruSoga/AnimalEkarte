@@ -96,6 +96,15 @@ describe("transformBackendMedicineToFrontend", () => {
     expect(result.strength).toBe(0.0005);
   });
 
+  it("EMR-536: tax_rate の wire 文字列を丸めず taxRateExact に保持する", () => {
+    const result = transformBackendMedicineToFrontend({
+      ...minimalMedicine,
+      tax_rate: "0.1000000000000000001",
+    });
+    expect(result.taxRate).toBe(0.1);
+    expect(result.taxRateExact).toBe("0.1000000000000000001");
+  });
+
   it("EMR-447: default_quantity の null と明示0を区別する", () => {
     const absent = { ...minimalMedicine, default_quantity: null };
     expect(transformBackendMedicineToFrontend(absent).defaultQuantity).toBeUndefined();

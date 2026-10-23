@@ -23,6 +23,7 @@ import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import { useMasterSidePanelForm } from "../hooks/use-master-side-panel-form";
 import {
   MERCHANDISE_CATEGORY_OPTIONS,
+  isMerchandiseTaxRate,
   merchandiseToFormData,
   type MerchandiseFormData,
 } from "../lib/merchandise-side-panel-model";
