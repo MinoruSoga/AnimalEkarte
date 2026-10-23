@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **6ファイル** から **250テーブル・2780カラム・764外部キー** を静的に導出しています。
+マイグレーション **7ファイル** から **251テーブル・2788カラム・765外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -73,6 +73,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [chief_complaint_types](chief_complaint_types.md) | 9 | 1 |
 | [clinic_holidays](clinic_holidays.md) | 6 | 1 |
 | [clinic_integrations](clinic_integrations.md) | 7 | 1 |
+| [clinic_operating_hours](clinic_operating_hours.md) | 8 | 1 |
 | [clinic_settings](clinic_settings.md) | 32 | 1 |
 | [clinical_plan_diagnoses](clinical_plan_diagnoses.md) | 13 | 4 |
 | [clinical_plans](clinical_plans.md) | 10 | 3 |
@@ -283,7 +284,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `ed9c12bd3dc18964ac631271f4373a1501f939d2de38c297dd25da104ead1574`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `4ea9ae9b808cef3cbedec6832e5a2b792172f62d580fbea4d52bbbe871672e0d`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -293,6 +294,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [005_manual_article_operation_targets.sql](../../../backend/migrations/005_manual_article_operation_targets.sql) | `15b43e500710322544094d5f89528f2c4780f130bdcf648ce663d2d97cd4fcd1` |
 | [006_operation_anchor_and_lab_mapping_versions.sql](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql) | `0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831` |
 | [007_bill_discount_excluded_and_master_versions.sql](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql) | `e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b` |
+| [008_clinic_operating_hours.sql](../../../backend/migrations/008_clinic_operating_hours.sql) | `41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
