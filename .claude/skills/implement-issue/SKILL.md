@@ -38,7 +38,7 @@ grep -n '<キーワード>' docs/work/decisions/phase2-deferred.md
 git branch --list 'claim/<Plane ID>'
 ```
 
-取得前に1.2/1.3の読取調査を行い、着手契約・必要subset・実行IDの範囲を確定する。元票の一部だけを進める場合は、適切な既存子票を使うか、範囲/残AC/後続ownerと別実行IDの対応を明示してから、そのIDをclaimしPRに用いる。未完ACを残した親IDを限定成果PRの完了対象にしない。
+取得前に1.2/1.3の読取調査を行い、着手契約・必要subset・実行IDの範囲を確定する。Backlog/Researchの場合は、対象scopeの[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を満たす根拠を記録し、Readyへの昇格とその記録を確認してからclaim/Runningへ進む。昇格未記録や契約未成立ならclaimしない。元票の一部だけを進める場合は、適切な既存子票を使うか、範囲/残AC/後続ownerと別実行IDの対応を明示してから、そのIDをclaimしPRに用いる。未完ACを残した親IDを限定成果PRの完了対象にしない。
 
 非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Plane ID>` で取得してから着手する（取得失敗も BLOCKED）。claim 取得と同時に Plane の state を `Running` に更新する（[docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) §claim — claim branch と Plane state は1組で同期させる）。`Phase2` / `Needs Human` / `Blocked` の票は claim せず滞留理由を先に確認する。claim ブランチの解放は AGENTS.md packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎ確認後に解放可。USER 作成 claim は削除しない）。マージ済み PR の片付けで AGENTS.md の対応確認を満たした claim は、作成者が USER でもその片付けの中で消す。実装完了の時点で PR が未マージなら消さない。
 
@@ -188,8 +188,8 @@ make codegen
 **全体 lint / build / test（`pnpm lint` `pnpm build` `pnpm test:run` `golangci-lint run ./...` `go test ./...`）は CLAUDE.md の自動実行禁止コマンド。** 通常はAGENTS.mdの完了契約に従って変更に適用されるscoped検証を実行し、追加の本人許可待ちを一律に設けない。本人の明示延期/禁止がある場合はその指示を優先する。[検証status正本](../../../docs/ops/plane-ticket-conventions.md#verification-and-readiness-status)に従い、fixture作成と実行を分け、延期時はNOT_RUN・理由・後続担当を記録してPR作成できる。未実装/未接続/必要生成成果未受領をNOT_RUNへ置き換えない。以下は通常時のscoped検証例。docs/instruction-onlyはruntime検証不要と報告し、実行不能は理由と総合UNKNOWN/BLOCKEDを記録する。全体実行の依頼も本人の延期指示と必要範囲を守る。
 
 ```bash
-# FE の場合 — 変更した feature に限定（`--` 付き pnpm test は全件実行になる罠。npx vitest run <path> が正。出典: memory feedback_frontend_verify_harness_gotchas）
-docker compose exec frontend npx vitest run src/features/<対象feature>
+# FE の場合 — 変更した feature に限定（`--` 付き pnpm test は全件実行になる罠。pnpm exec vitest run <path> で導入済みの固定版だけを使い、未導入なら停止する。出典: memory feedback_frontend_verify_harness_gotchas）
+docker compose exec frontend pnpm exec vitest run src/features/<対象feature>
 
 # BE の場合 — 変更したパッケージに限定
 docker compose exec backend go build ./internal/<対象パッケージ>/...
