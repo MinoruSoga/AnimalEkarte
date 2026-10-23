@@ -368,7 +368,6 @@ stateDiagram-v2
     confirmed --> checked_in : 来院受付
     tentative --> pending : 予約を確定 (confirm-tentative)
     tentative --> confirmed : 対象予定を選んで日時付き予約へ確定
-    tentative --> checked_in : スタッフが今回消化を選択し当日受付が成功
     tentative --> [*] : next-visit-intent 取消 (論理削除)
     [*] --> checked_in : 予約なし来院 (route=reception)
     [*] --> in_consultation : direct consultation / record_shortcut
@@ -381,6 +380,8 @@ stateDiagram-v2
     pending --> cancelled
     confirmed --> cancelled
 ```
+
+次回予定はBのconfirm-tentativeでpending/confirmedへ同ID確定した後、別の明示check-inでchecked_inへ進む。旧combined tentative→checked_in経路は退役対象の実装履歴として図外に区別し、直接edgeを目標遷移にしない。
 
 上図の次回予定は[2026-10-15合意](#next-visit-intent-agreement-20261015)へ更新した。選択なしの別件予約／来院ではtentativeを維持し、取消予約からtentativeへ自動復活する遷移は設けない。shortcut・専用記録や未決の状態条件は継承参照であり、一括確定しない。
 
