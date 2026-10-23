@@ -125,11 +125,11 @@ func TestLineAcceptanceContractConstants(t *testing.T) {
 	t.Parallel()
 
 	expected := map[string]string{
-		"reservation":                 LineTimeOwnerKindReservation,
-		"line-acceptance/v1":          LineAcceptanceSchemaV1,
-		"line-acceptance.initialize":  IntentLineAcceptanceInitialize,
-		"line-acceptance.confirm":     IntentLineAcceptanceConfirm,
-		"line-acceptance.update":      IntentLineAcceptanceUpdate,
+		"reservation":                LineTimeOwnerKindReservation,
+		"line-acceptance/v1":         LineAcceptanceSchemaV1,
+		"line-acceptance.initialize": IntentLineAcceptanceInitialize,
+		"line-acceptance.confirm":    IntentLineAcceptanceConfirm,
+		"line-acceptance.update":     IntentLineAcceptanceUpdate,
 	}
 	for want, got := range expected {
 		if got != want {

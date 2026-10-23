@@ -296,7 +296,7 @@ erDiagram
 
 ## 009: LINE受付版（EMR-446/466、未試験）
 
-`009_line_acceptance_version.sql` で `line_reservation_settings` に2列と1制約を追加した（新規テーブルなし、総数不変）。`acceptance_version` は `app_private.line_acceptance_version_guard()` が維持するCASカウンタで、契約§3.1の保護field P（12列）または reviewed marker の変更で+1、非P変更と真のno-opは同版。`reviewed_acceptance_version` は確認済み版（NULLまたは旧版=legacy-unreviewed、等値=configured）。既存行は acceptance=1・reviewed=NULL で未照合のまま。API/writer接続・DB適用・試験は未実施。
+`009_line_acceptance_version.sql` で `line_reservation_settings` に2列と2つのCHECK制約を追加した（新規テーブルなし、総数不変）。`acceptance_version` は `app_private.line_acceptance_version_guard()` が維持するCASカウンタで、契約§3.1の保護field P（12列）または reviewed marker の変更で+1、非P変更と真のno-opは同版。`reviewed_acceptance_version` は確認済み版（NULLまたは旧版=legacy-unreviewed、等値=configured）。既存行は acceptance=1・reviewed=NULL で未照合のまま。API/writer接続・DB適用・試験は未実施。
 
 ## 確定仕様からの保存不足追補
 
