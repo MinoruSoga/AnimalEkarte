@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1049](../../../backend/migrations/001_init.sql#L1049) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1050](../../../backend/migrations/001_init.sql#L1050) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:1051](../../../backend/migrations/001_init.sql#L1051) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1052](../../../backend/migrations/001_init.sql#L1052) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1053](../../../backend/migrations/001_init.sql#L1053) |
-| `diagnosis_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1054](../../../backend/migrations/001_init.sql#L1054) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1055](../../../backend/migrations/001_init.sql#L1055) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1056](../../../backend/migrations/001_init.sql#L1056) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1057](../../../backend/migrations/001_init.sql#L1057) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1058](../../../backend/migrations/001_init.sql#L1058) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1061](../../../backend/migrations/001_init.sql#L1061) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1062](../../../backend/migrations/001_init.sql#L1062) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:1063](../../../backend/migrations/001_init.sql#L1063) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1064](../../../backend/migrations/001_init.sql#L1064) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1065](../../../backend/migrations/001_init.sql#L1065) |
+| `diagnosis_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1066](../../../backend/migrations/001_init.sql#L1066) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1067](../../../backend/migrations/001_init.sql#L1067) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1068](../../../backend/migrations/001_init.sql#L1068) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1069](../../../backend/migrations/001_init.sql#L1069) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1070](../../../backend/migrations/001_init.sql#L1070) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,8 +58,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `diagnosis_names_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1050](../../../backend/migrations/001_init.sql#L1050) |
-| `diagnosis_names_diagnosis_type_id_fkey` | `diagnosis_type_id` | [diagnosis_types](diagnosis_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1054](../../../backend/migrations/001_init.sql#L1054) |
+| `diagnosis_names_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1062](../../../backend/migrations/001_init.sql#L1062) |
+| `diagnosis_names_diagnosis_type_id_fkey` | `diagnosis_type_id` | [diagnosis_types](diagnosis_types.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1066](../../../backend/migrations/001_init.sql#L1066) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -70,14 +70,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `diagnosis_names_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1049](../../../backend/migrations/001_init.sql#L1049) |
-| `uq_diagnosis_name_id_clinic` | unique | `CONSTRAINT uq_diagnosis_name_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10983](../../../backend/migrations/001_init.sql#L10983) |
+| `diagnosis_names_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1061](../../../backend/migrations/001_init.sql#L1061) |
+| `uq_diagnosis_name_id_clinic` | unique | `CONSTRAINT uq_diagnosis_name_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10995](../../../backend/migrations/001_init.sql#L10995) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_diagnosis_names_clinic_id` | NO | — | `CREATE INDEX idx_diagnosis_names_clinic_id ON diagnosis_names(clinic_id)` | [001_init.sql:2237](../../../backend/migrations/001_init.sql#L2237) |
-| `idx_diagnosis_names_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_diagnosis_names_clinic_sort   ON diagnosis_names(clinic_id, sort_order)         WHERE deleted_at IS NULL` | [001_init.sql:2269](../../../backend/migrations/001_init.sql#L2269) |
-| `idx_diagnosis_names_type_id` | NO | — | `CREATE INDEX idx_diagnosis_names_type_id ON diagnosis_names(diagnosis_type_id)` | [001_init.sql:2439](../../../backend/migrations/001_init.sql#L2439) |
-| `idx_diagnosis_names_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_diagnosis_names_active ON diagnosis_names(id) WHERE deleted_at IS NULL` | [001_init.sql:2489](../../../backend/migrations/001_init.sql#L2489) |
+| `idx_diagnosis_names_clinic_id` | NO | — | `CREATE INDEX idx_diagnosis_names_clinic_id ON diagnosis_names(clinic_id)` | [001_init.sql:2249](../../../backend/migrations/001_init.sql#L2249) |
+| `idx_diagnosis_names_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_diagnosis_names_clinic_sort   ON diagnosis_names(clinic_id, sort_order)         WHERE deleted_at IS NULL` | [001_init.sql:2281](../../../backend/migrations/001_init.sql#L2281) |
+| `idx_diagnosis_names_type_id` | NO | — | `CREATE INDEX idx_diagnosis_names_type_id ON diagnosis_names(diagnosis_type_id)` | [001_init.sql:2451](../../../backend/migrations/001_init.sql#L2451) |
+| `idx_diagnosis_names_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_diagnosis_names_active ON diagnosis_names(id) WHERE deleted_at IS NULL` | [001_init.sql:2501](../../../backend/migrations/001_init.sql#L2501) |

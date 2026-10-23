@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7987](../../../backend/migrations/001_init.sql#L7987) |
-| `rule_set_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7988](../../../backend/migrations/001_init.sql#L7988) |
-| `option_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7989](../../../backend/migrations/001_init.sql#L7989) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7990](../../../backend/migrations/001_init.sql#L7990) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7991](../../../backend/migrations/001_init.sql#L7991) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7999](../../../backend/migrations/001_init.sql#L7999) |
+| `rule_set_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8000](../../../backend/migrations/001_init.sql#L8000) |
+| `option_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8001](../../../backend/migrations/001_init.sql#L8001) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8002](../../../backend/migrations/001_init.sql#L8002) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:8003](../../../backend/migrations/001_init.sql#L8003) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,9 +54,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_option_rules_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7987](../../../backend/migrations/001_init.sql#L7987) |
-| `trimming_option_rules_rule_set_id_clinic_id_fkey` | `rule_set_id, clinic_id` | [trimming_option_rule_sets](trimming_option_rule_sets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7993](../../../backend/migrations/001_init.sql#L7993) |
-| `trimming_option_rules_option_id_clinic_id_fkey` | `option_id, clinic_id` | [trimming_options](trimming_options.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7994](../../../backend/migrations/001_init.sql#L7994) |
+| `trimming_option_rules_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7999](../../../backend/migrations/001_init.sql#L7999) |
+| `trimming_option_rules_rule_set_id_clinic_id_fkey` | `rule_set_id, clinic_id` | [trimming_option_rule_sets](trimming_option_rule_sets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8005](../../../backend/migrations/001_init.sql#L8005) |
+| `trimming_option_rules_option_id_clinic_id_fkey` | `option_id, clinic_id` | [trimming_options](trimming_options.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8006](../../../backend/migrations/001_init.sql#L8006) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,7 +68,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_option_rules_pkey` | primary | `PRIMARY KEY (clinic_id, rule_set_id, option_id)` | [001_init.sql:7992](../../../backend/migrations/001_init.sql#L7992) |
+| `trimming_option_rules_pkey` | primary | `PRIMARY KEY (clinic_id, rule_set_id, option_id)` | [001_init.sql:8004](../../../backend/migrations/001_init.sql#L8004) |
 
 ## インデックス
 

@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8359](../../../backend/migrations/001_init.sql#L8359) |
-| `operation_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:8360](../../../backend/migrations/001_init.sql#L8360) |
-| `request_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:8361](../../../backend/migrations/001_init.sql#L8361) |
-| `operation_kind` | `text` | NOT NULL | — | — | [001_init.sql:8362](../../../backend/migrations/001_init.sql#L8362) |
-| `edition_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8363](../../../backend/migrations/001_init.sql#L8363) |
-| `artifact_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8364](../../../backend/migrations/001_init.sql#L8364) |
-| `performed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8365](../../../backend/migrations/001_init.sql#L8365) |
-| `committed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8366](../../../backend/migrations/001_init.sql#L8366) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8371](../../../backend/migrations/001_init.sql#L8371) |
+| `operation_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:8372](../../../backend/migrations/001_init.sql#L8372) |
+| `request_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:8373](../../../backend/migrations/001_init.sql#L8373) |
+| `operation_kind` | `text` | NOT NULL | — | — | [001_init.sql:8374](../../../backend/migrations/001_init.sql#L8374) |
+| `edition_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8375](../../../backend/migrations/001_init.sql#L8375) |
+| `artifact_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8376](../../../backend/migrations/001_init.sql#L8376) |
+| `performed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8377](../../../backend/migrations/001_init.sql#L8377) |
+| `committed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8378](../../../backend/migrations/001_init.sql#L8378) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,9 +60,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `vaccination_certificate_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8359](../../../backend/migrations/001_init.sql#L8359) |
-| `vaccination_certificate_operations_performed_by_fkey` | `performed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8365](../../../backend/migrations/001_init.sql#L8365) |
-| `vaccination_certificate_opera_artifact_id_clinic_id_editio_fkey` | `artifact_id, clinic_id, edition_id` | [vaccination_certificate_artifacts](vaccination_certificate_artifacts.md) | `id, clinic_id, edition_id` | `ON DELETE RESTRICT` | [001_init.sql:8368](../../../backend/migrations/001_init.sql#L8368) |
+| `vaccination_certificate_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8371](../../../backend/migrations/001_init.sql#L8371) |
+| `vaccination_certificate_operations_performed_by_fkey` | `performed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8377](../../../backend/migrations/001_init.sql#L8377) |
+| `vaccination_certificate_opera_artifact_id_clinic_id_editio_fkey` | `artifact_id, clinic_id, edition_id` | [vaccination_certificate_artifacts](vaccination_certificate_artifacts.md) | `id, clinic_id, edition_id` | `ON DELETE RESTRICT` | [001_init.sql:8380](../../../backend/migrations/001_init.sql#L8380) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,12 +74,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `vaccination_certificate_operations_request_hash_check` | check | `CHECK (octet_length(request_hash)=32)` | [001_init.sql:8361](../../../backend/migrations/001_init.sql#L8361) |
-| `vaccination_certificate_operations_operation_kind_check` | check | `CHECK (operation_kind IN ('issue','reprint'))` | [001_init.sql:8362](../../../backend/migrations/001_init.sql#L8362) |
-| `vaccination_certificate_operations_pkey` | primary | `PRIMARY KEY (clinic_id,operation_key)` | [001_init.sql:8367](../../../backend/migrations/001_init.sql#L8367) |
+| `vaccination_certificate_operations_request_hash_check` | check | `CHECK (octet_length(request_hash)=32)` | [001_init.sql:8373](../../../backend/migrations/001_init.sql#L8373) |
+| `vaccination_certificate_operations_operation_kind_check` | check | `CHECK (operation_kind IN ('issue','reprint'))` | [001_init.sql:8374](../../../backend/migrations/001_init.sql#L8374) |
+| `vaccination_certificate_operations_pkey` | primary | `PRIMARY KEY (clinic_id,operation_key)` | [001_init.sql:8379](../../../backend/migrations/001_init.sql#L8379) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_certificate_issue_once` | YES | `operation_kind='issue'` | `CREATE UNIQUE INDEX uq_certificate_issue_once ON vaccination_certificate_operations(clinic_id,edition_id) WHERE operation_kind='issue'` | [001_init.sql:8675](../../../backend/migrations/001_init.sql#L8675) |
+| `uq_certificate_issue_once` | YES | `operation_kind='issue'` | `CREATE UNIQUE INDEX uq_certificate_issue_once ON vaccination_certificate_operations(clinic_id,edition_id) WHERE operation_kind='issue'` | [001_init.sql:8687](../../../backend/migrations/001_init.sql#L8687) |

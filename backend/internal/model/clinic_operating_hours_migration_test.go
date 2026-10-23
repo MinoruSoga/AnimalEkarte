@@ -45,7 +45,7 @@ func mustField(t *testing.T, typ reflect.Type, name string) reflect.StructField 
 func TestClinicOperatingHoursMigration(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/008_clinic_operating_hours.sql")
+	sql := readConsolidatedMigrationSection(t, "008_clinic_operating_hours.sql")
 
 	requiredSnippets := []string{
 		"CREATE TABLE clinic_operating_hours",

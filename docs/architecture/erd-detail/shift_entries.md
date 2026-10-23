@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:2035](../../../backend/migrations/001_init.sql#L2035) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2036](../../../backend/migrations/001_init.sql#L2036) |
-| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2037](../../../backend/migrations/001_init.sql#L2037) |
-| `date` | `date` | NOT NULL | — | UK | [001_init.sql:2038](../../../backend/migrations/001_init.sql#L2038) |
-| `shift_type` | `shift_type` | NOT NULL | — | — | [001_init.sql:2039](../../../backend/migrations/001_init.sql#L2039) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:2042](../../../backend/migrations/001_init.sql#L2042) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2043](../../../backend/migrations/001_init.sql#L2043) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2044](../../../backend/migrations/001_init.sql#L2044) |
-| `starts_at` | `timestamptz` | NULL | — | — | [001_init.sql:8945](../../../backend/migrations/001_init.sql#L8945) |
-| `ends_at` | `timestamptz` | NULL | — | — | [001_init.sql:8946](../../../backend/migrations/001_init.sql#L8946) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8947](../../../backend/migrations/001_init.sql#L8947) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:2047](../../../backend/migrations/001_init.sql#L2047) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2048](../../../backend/migrations/001_init.sql#L2048) |
+| `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2049](../../../backend/migrations/001_init.sql#L2049) |
+| `date` | `date` | NOT NULL | — | UK | [001_init.sql:2050](../../../backend/migrations/001_init.sql#L2050) |
+| `shift_type` | `shift_type` | NOT NULL | — | — | [001_init.sql:2051](../../../backend/migrations/001_init.sql#L2051) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:2054](../../../backend/migrations/001_init.sql#L2054) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2055](../../../backend/migrations/001_init.sql#L2055) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2056](../../../backend/migrations/001_init.sql#L2056) |
+| `starts_at` | `timestamptz` | NULL | — | — | [001_init.sql:8957](../../../backend/migrations/001_init.sql#L8957) |
+| `ends_at` | `timestamptz` | NULL | — | — | [001_init.sql:8958](../../../backend/migrations/001_init.sql#L8958) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8959](../../../backend/migrations/001_init.sql#L8959) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,8 +60,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `shift_entries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2036](../../../backend/migrations/001_init.sql#L2036) |
-| `shift_entries_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2037](../../../backend/migrations/001_init.sql#L2037) |
+| `shift_entries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2048](../../../backend/migrations/001_init.sql#L2048) |
+| `shift_entries_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2049](../../../backend/migrations/001_init.sql#L2049) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,15 +72,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `shift_entries_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2035](../../../backend/migrations/001_init.sql#L2035) |
-| `uk_shift_staff_date` | unique | `CONSTRAINT uk_shift_staff_date UNIQUE (clinic_id, staff_id, date)` | [001_init.sql:2045](../../../backend/migrations/001_init.sql#L2045) |
-| `shift_entries_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8947](../../../backend/migrations/001_init.sql#L8947) |
-| `uq_shift_entries_id_clinic` | unique | `CONSTRAINT uq_shift_entries_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:8948](../../../backend/migrations/001_init.sql#L8948) |
-| `ck_shift_explicit_interval` | check | `CONSTRAINT ck_shift_explicit_interval CHECK ((starts_at IS NULL AND ends_at IS NULL)       OR (starts_at IS NOT NULL AND ends_at IS NOT NULL AND ends_at>starts_at))` | [001_init.sql:8949](../../../backend/migrations/001_init.sql#L8949) |
-| `excl_staff_cross_clinic_work` | exclude | `CONSTRAINT excl_staff_cross_clinic_work  EXCLUDE USING gist (staff_id WITH =, tstzrange(starts_at,ends_at,'[)') WITH &&)  WHERE (starts_at IS NOT NULL AND ends_at IS NOT NULL)` | [001_init.sql:8956](../../../backend/migrations/001_init.sql#L8956) |
+| `shift_entries_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2047](../../../backend/migrations/001_init.sql#L2047) |
+| `uk_shift_staff_date` | unique | `CONSTRAINT uk_shift_staff_date UNIQUE (clinic_id, staff_id, date)` | [001_init.sql:2057](../../../backend/migrations/001_init.sql#L2057) |
+| `shift_entries_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8959](../../../backend/migrations/001_init.sql#L8959) |
+| `uq_shift_entries_id_clinic` | unique | `CONSTRAINT uq_shift_entries_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:8960](../../../backend/migrations/001_init.sql#L8960) |
+| `ck_shift_explicit_interval` | check | `CONSTRAINT ck_shift_explicit_interval CHECK ((starts_at IS NULL AND ends_at IS NULL)       OR (starts_at IS NOT NULL AND ends_at IS NOT NULL AND ends_at>starts_at))` | [001_init.sql:8961](../../../backend/migrations/001_init.sql#L8961) |
+| `excl_staff_cross_clinic_work` | exclude | `CONSTRAINT excl_staff_cross_clinic_work  EXCLUDE USING gist (staff_id WITH =, tstzrange(starts_at,ends_at,'[)') WITH &&)  WHERE (starts_at IS NOT NULL AND ends_at IS NOT NULL)` | [001_init.sql:8968](../../../backend/migrations/001_init.sql#L8968) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_shift_entries_clinic_id` | NO | — | `CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id)` | [001_init.sql:2253](../../../backend/migrations/001_init.sql#L2253) |
+| `idx_shift_entries_clinic_id` | NO | — | `CREATE INDEX idx_shift_entries_clinic_id ON shift_entries(clinic_id)` | [001_init.sql:2265](../../../backend/migrations/001_init.sql#L2265) |

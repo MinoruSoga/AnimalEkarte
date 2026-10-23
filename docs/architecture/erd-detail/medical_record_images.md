@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1656](../../../backend/migrations/001_init.sql#L1656) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1657](../../../backend/migrations/001_init.sql#L1657) |
-| `image_url` | `text` | NOT NULL | `''` | — | [001_init.sql:1658](../../../backend/migrations/001_init.sql#L1658) |
-| `thumbnail_url` | `text` | NOT NULL | `''` | — | [001_init.sql:1659](../../../backend/migrations/001_init.sql#L1659) |
-| `file_name` | `text` | NOT NULL | `''` | — | [001_init.sql:1660](../../../backend/migrations/001_init.sql#L1660) |
-| `file_size` | `bigint` | NULL | `0` | — | [001_init.sql:1661](../../../backend/migrations/001_init.sql#L1661) |
-| `mime_type` | `text` | NOT NULL | `''` | — | [001_init.sql:1662](../../../backend/migrations/001_init.sql#L1662) |
-| `image_type` | `medical_image_type` | NOT NULL | `'other'` | — | [001_init.sql:1663](../../../backend/migrations/001_init.sql#L1663) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1664](../../../backend/migrations/001_init.sql#L1664) |
-| `taken_at` | `timestamptz` | NULL | — | — | [001_init.sql:1665](../../../backend/migrations/001_init.sql#L1665) |
-| `exam_id` | `bigint` | NULL | — | FK | [001_init.sql:1666](../../../backend/migrations/001_init.sql#L1666) |
-| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1667](../../../backend/migrations/001_init.sql#L1667) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1668](../../../backend/migrations/001_init.sql#L1668) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1669](../../../backend/migrations/001_init.sql#L1669) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1670](../../../backend/migrations/001_init.sql#L1670) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1668](../../../backend/migrations/001_init.sql#L1668) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1669](../../../backend/migrations/001_init.sql#L1669) |
+| `image_url` | `text` | NOT NULL | `''` | — | [001_init.sql:1670](../../../backend/migrations/001_init.sql#L1670) |
+| `thumbnail_url` | `text` | NOT NULL | `''` | — | [001_init.sql:1671](../../../backend/migrations/001_init.sql#L1671) |
+| `file_name` | `text` | NOT NULL | `''` | — | [001_init.sql:1672](../../../backend/migrations/001_init.sql#L1672) |
+| `file_size` | `bigint` | NULL | `0` | — | [001_init.sql:1673](../../../backend/migrations/001_init.sql#L1673) |
+| `mime_type` | `text` | NOT NULL | `''` | — | [001_init.sql:1674](../../../backend/migrations/001_init.sql#L1674) |
+| `image_type` | `medical_image_type` | NOT NULL | `'other'` | — | [001_init.sql:1675](../../../backend/migrations/001_init.sql#L1675) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1676](../../../backend/migrations/001_init.sql#L1676) |
+| `taken_at` | `timestamptz` | NULL | — | — | [001_init.sql:1677](../../../backend/migrations/001_init.sql#L1677) |
+| `exam_id` | `bigint` | NULL | — | FK | [001_init.sql:1678](../../../backend/migrations/001_init.sql#L1678) |
+| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1679](../../../backend/migrations/001_init.sql#L1679) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1680](../../../backend/migrations/001_init.sql#L1680) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1681](../../../backend/migrations/001_init.sql#L1681) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1682](../../../backend/migrations/001_init.sql#L1682) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -72,9 +72,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_record_images_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1657](../../../backend/migrations/001_init.sql#L1657) |
-| `medical_record_images_exam_id_fkey` | `exam_id` | [exams](exams.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1666](../../../backend/migrations/001_init.sql#L1666) |
-| `medical_record_images_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1667](../../../backend/migrations/001_init.sql#L1667) |
+| `medical_record_images_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1669](../../../backend/migrations/001_init.sql#L1669) |
+| `medical_record_images_exam_id_fkey` | `exam_id` | [exams](exams.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1678](../../../backend/migrations/001_init.sql#L1678) |
+| `medical_record_images_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1679](../../../backend/migrations/001_init.sql#L1679) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,13 +86,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_images_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1656](../../../backend/migrations/001_init.sql#L1656) |
+| `medical_record_images_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1668](../../../backend/migrations/001_init.sql#L1668) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_medical_record_images_medical_record_id` | NO | — | `CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id)` | [001_init.sql:2302](../../../backend/migrations/001_init.sql#L2302) |
-| `idx_medical_record_images_image_type` | NO | — | `CREATE INDEX idx_medical_record_images_image_type ON medical_record_images(image_type)` | [001_init.sql:2329](../../../backend/migrations/001_init.sql#L2329) |
-| `idx_medical_record_images_taken_at` | NO | — | `CREATE INDEX idx_medical_record_images_taken_at ON medical_record_images(taken_at DESC)` | [001_init.sql:2330](../../../backend/migrations/001_init.sql#L2330) |
-| `idx_medical_record_images_exam_id` | NO | `exam_id IS NOT NULL` | `CREATE INDEX idx_medical_record_images_exam_id ON medical_record_images(exam_id) WHERE exam_id IS NOT NULL` | [001_init.sql:2331](../../../backend/migrations/001_init.sql#L2331) |
+| `idx_medical_record_images_medical_record_id` | NO | — | `CREATE INDEX idx_medical_record_images_medical_record_id ON medical_record_images(medical_record_id)` | [001_init.sql:2314](../../../backend/migrations/001_init.sql#L2314) |
+| `idx_medical_record_images_image_type` | NO | — | `CREATE INDEX idx_medical_record_images_image_type ON medical_record_images(image_type)` | [001_init.sql:2341](../../../backend/migrations/001_init.sql#L2341) |
+| `idx_medical_record_images_taken_at` | NO | — | `CREATE INDEX idx_medical_record_images_taken_at ON medical_record_images(taken_at DESC)` | [001_init.sql:2342](../../../backend/migrations/001_init.sql#L2342) |
+| `idx_medical_record_images_exam_id` | NO | `exam_id IS NOT NULL` | `CREATE INDEX idx_medical_record_images_exam_id ON medical_record_images(exam_id) WHERE exam_id IS NOT NULL` | [001_init.sql:2343](../../../backend/migrations/001_init.sql#L2343) |

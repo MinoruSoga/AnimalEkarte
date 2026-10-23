@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10151](../../../backend/migrations/001_init.sql#L10151) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10151](../../../backend/migrations/001_init.sql#L10151) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10151](../../../backend/migrations/001_init.sql#L10151) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10152](../../../backend/migrations/001_init.sql#L10152) |
-| `intent` | `text` | NOT NULL | — | — | [001_init.sql:10152](../../../backend/migrations/001_init.sql#L10152) |
-| `before_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10153](../../../backend/migrations/001_init.sql#L10153) |
-| `after_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10153](../../../backend/migrations/001_init.sql#L10153) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10154](../../../backend/migrations/001_init.sql#L10154) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10154](../../../backend/migrations/001_init.sql#L10154) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10164](../../../backend/migrations/001_init.sql#L10164) |
+| `intent` | `text` | NOT NULL | — | — | [001_init.sql:10164](../../../backend/migrations/001_init.sql#L10164) |
+| `before_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10165](../../../backend/migrations/001_init.sql#L10165) |
+| `after_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10165](../../../backend/migrations/001_init.sql#L10165) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10166](../../../backend/migrations/001_init.sql#L10166) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10166](../../../backend/migrations/001_init.sql#L10166) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,9 +62,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_line_binding_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10151](../../../backend/migrations/001_init.sql#L10151) |
-| `owner_line_binding_events_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_line_binding_states](owner_line_binding_states.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:10156](../../../backend/migrations/001_init.sql#L10156) |
-| `owner_line_binding_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10157](../../../backend/migrations/001_init.sql#L10157) |
+| `owner_line_binding_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
+| `owner_line_binding_events_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_line_binding_states](owner_line_binding_states.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:10168](../../../backend/migrations/001_init.sql#L10168) |
+| `owner_line_binding_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10169](../../../backend/migrations/001_init.sql#L10169) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -76,13 +76,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_line_binding_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10151](../../../backend/migrations/001_init.sql#L10151) |
-| `owner_line_binding_events_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10152](../../../backend/migrations/001_init.sql#L10152) |
-| `owner_line_binding_events_intent_check` | check | `CHECK(intent IN('link','unlink_request','unlink_complete','verify'))` | [001_init.sql:10152](../../../backend/migrations/001_init.sql#L10152) |
-| `owner_line_binding_events_before_state_check` | check | `CHECK(jsonb_typeof(before_state)='object')` | [001_init.sql:10153](../../../backend/migrations/001_init.sql#L10153) |
-| `owner_line_binding_events_after_state_check` | check | `CHECK(jsonb_typeof(after_state)='object')` | [001_init.sql:10153](../../../backend/migrations/001_init.sql#L10153) |
-| `owner_line_binding_events_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10155](../../../backend/migrations/001_init.sql#L10155) |
-| `owner_line_binding_events_clinic_id_owner_id_revision_key` | unique | `UNIQUE(clinic_id,owner_id,revision)` | [001_init.sql:10155](../../../backend/migrations/001_init.sql#L10155) |
+| `owner_line_binding_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
+| `owner_line_binding_events_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10164](../../../backend/migrations/001_init.sql#L10164) |
+| `owner_line_binding_events_intent_check` | check | `CHECK(intent IN('link','unlink_request','unlink_complete','verify'))` | [001_init.sql:10164](../../../backend/migrations/001_init.sql#L10164) |
+| `owner_line_binding_events_before_state_check` | check | `CHECK(jsonb_typeof(before_state)='object')` | [001_init.sql:10165](../../../backend/migrations/001_init.sql#L10165) |
+| `owner_line_binding_events_after_state_check` | check | `CHECK(jsonb_typeof(after_state)='object')` | [001_init.sql:10165](../../../backend/migrations/001_init.sql#L10165) |
+| `owner_line_binding_events_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10167](../../../backend/migrations/001_init.sql#L10167) |
+| `owner_line_binding_events_clinic_id_owner_id_revision_key` | unique | `UNIQUE(clinic_id,owner_id,revision)` | [001_init.sql:10167](../../../backend/migrations/001_init.sql#L10167) |
 
 ## インデックス
 

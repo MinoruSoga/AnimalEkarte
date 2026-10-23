@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [006_operation_anchor_and_lab_mapping_versions.sql:43](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L43) |
-| `source_type` | `varchar(32)` | NOT NULL | — | PK | [006_operation_anchor_and_lab_mapping_versions.sql:44](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L44) |
-| `species_scope` | `varchar(32)` | NOT NULL | — | PK | [006_operation_anchor_and_lab_mapping_versions.sql:45](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L45) |
-| `revision` | `bigint` | NOT NULL | — | — | [006_operation_anchor_and_lab_mapping_versions.sql:46](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L46) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [006_operation_anchor_and_lab_mapping_versions.sql:47](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L47) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11479](../../../backend/migrations/001_init.sql#L11479) |
+| `source_type` | `varchar(32)` | NOT NULL | — | PK | [001_init.sql:11480](../../../backend/migrations/001_init.sql#L11480) |
+| `species_scope` | `varchar(32)` | NOT NULL | — | PK | [001_init.sql:11481](../../../backend/migrations/001_init.sql#L11481) |
+| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:11482](../../../backend/migrations/001_init.sql#L11482) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11483](../../../backend/migrations/001_init.sql#L11483) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,7 +44,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_mapping_heads_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [006_operation_anchor_and_lab_mapping_versions.sql:43](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L43) |
+| `lab_device_mapping_heads_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11479](../../../backend/migrations/001_init.sql#L11479) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -54,10 +54,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_mapping_heads_revision_check` | check | `CHECK (revision > 0)` | [006_operation_anchor_and_lab_mapping_versions.sql:46](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L46) |
-| `lab_device_mapping_heads_pkey` | primary | `PRIMARY KEY (clinic_id, source_type, species_scope)` | [006_operation_anchor_and_lab_mapping_versions.sql:48](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L48) |
-| `lab_device_mapping_heads_source_type_check` | check | `CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))` | [006_operation_anchor_and_lab_mapping_versions.sql:49](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L49) |
-| `lab_device_mapping_heads_species_scope_check` | check | `CHECK (species_scope IN ('', 'canine', 'feline'))` | [006_operation_anchor_and_lab_mapping_versions.sql:50](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L50) |
+| `lab_device_mapping_heads_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:11482](../../../backend/migrations/001_init.sql#L11482) |
+| `lab_device_mapping_heads_pkey` | primary | `PRIMARY KEY (clinic_id, source_type, species_scope)` | [001_init.sql:11484](../../../backend/migrations/001_init.sql#L11484) |
+| `lab_device_mapping_heads_source_type_check` | check | `CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))` | [001_init.sql:11485](../../../backend/migrations/001_init.sql#L11485) |
+| `lab_device_mapping_heads_species_scope_check` | check | `CHECK (species_scope IN ('', 'canine', 'feline'))` | [001_init.sql:11486](../../../backend/migrations/001_init.sql#L11486) |
 
 ## インデックス
 

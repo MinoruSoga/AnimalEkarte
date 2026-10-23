@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK, UK | [006_operation_anchor_and_lab_mapping_versions.sql:66](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L66) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [006_operation_anchor_and_lab_mapping_versions.sql:67](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L67) |
-| `source_type` | `varchar(32)` | NOT NULL | — | FK, UK | [006_operation_anchor_and_lab_mapping_versions.sql:68](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L68) |
-| `species_scope` | `varchar(32)` | NOT NULL | — | FK, UK | [006_operation_anchor_and_lab_mapping_versions.sql:69](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L69) |
-| `revision` | `bigint` | NOT NULL | — | UK | [006_operation_anchor_and_lab_mapping_versions.sql:70](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L70) |
-| `snapshot_json` | `jsonb` | NOT NULL | — | — | [006_operation_anchor_and_lab_mapping_versions.sql:71](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L71) |
-| `snapshot_digest` | `bytea` | NOT NULL | — | — | [006_operation_anchor_and_lab_mapping_versions.sql:72](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L72) |
-| `field_definition_snapshots` | `jsonb` | NOT NULL | — | — | [006_operation_anchor_and_lab_mapping_versions.sql:73](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L73) |
-| `confirmed_draft_id` | `bigint` | NULL | — | FK | [006_operation_anchor_and_lab_mapping_versions.sql:74](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L74) |
-| `operation_id` | `bigint` | NULL | — | FK | [006_operation_anchor_and_lab_mapping_versions.sql:75](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L75) |
-| `recorded_by_staff_id` | `bigint` | NULL | — | FK | [006_operation_anchor_and_lab_mapping_versions.sql:76](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L76) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [006_operation_anchor_and_lab_mapping_versions.sql:77](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L77) |
+| `id` | `bigserial` | NOT NULL | — | PK, UK | [001_init.sql:11502](../../../backend/migrations/001_init.sql#L11502) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:11503](../../../backend/migrations/001_init.sql#L11503) |
+| `source_type` | `varchar(32)` | NOT NULL | — | FK, UK | [001_init.sql:11504](../../../backend/migrations/001_init.sql#L11504) |
+| `species_scope` | `varchar(32)` | NOT NULL | — | FK, UK | [001_init.sql:11505](../../../backend/migrations/001_init.sql#L11505) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:11506](../../../backend/migrations/001_init.sql#L11506) |
+| `snapshot_json` | `jsonb` | NOT NULL | — | — | [001_init.sql:11507](../../../backend/migrations/001_init.sql#L11507) |
+| `snapshot_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:11508](../../../backend/migrations/001_init.sql#L11508) |
+| `field_definition_snapshots` | `jsonb` | NOT NULL | — | — | [001_init.sql:11509](../../../backend/migrations/001_init.sql#L11509) |
+| `confirmed_draft_id` | `bigint` | NULL | — | FK | [001_init.sql:11510](../../../backend/migrations/001_init.sql#L11510) |
+| `operation_id` | `bigint` | NULL | — | FK | [001_init.sql:11511](../../../backend/migrations/001_init.sql#L11511) |
+| `recorded_by_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:11512](../../../backend/migrations/001_init.sql#L11512) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11513](../../../backend/migrations/001_init.sql#L11513) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -74,10 +74,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_mapping_revisions_clinic_id_source_type_species_fkey` | `clinic_id, source_type, species_scope` | [lab_device_mapping_heads](lab_device_mapping_heads.md) | `clinic_id, source_type, species_scope` | `ON DELETE RESTRICT` | [006_operation_anchor_and_lab_mapping_versions.sql:80](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L80) |
-| `lab_device_mapping_revisions_confirmed_draft_id_clinic_id_fkey` | `confirmed_draft_id, clinic_id` | [lab_device_mapping_drafts](lab_device_mapping_drafts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [006_operation_anchor_and_lab_mapping_versions.sql:81](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L81) |
-| `lab_device_mapping_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [006_operation_anchor_and_lab_mapping_versions.sql:82](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L82) |
-| `lab_device_mapping_revisions_recorded_by_staff_id_fkey` | `recorded_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [006_operation_anchor_and_lab_mapping_versions.sql:83](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L83) |
+| `lab_device_mapping_revisions_clinic_id_source_type_species_fkey` | `clinic_id, source_type, species_scope` | [lab_device_mapping_heads](lab_device_mapping_heads.md) | `clinic_id, source_type, species_scope` | `ON DELETE RESTRICT` | [001_init.sql:11516](../../../backend/migrations/001_init.sql#L11516) |
+| `lab_device_mapping_revisions_confirmed_draft_id_clinic_id_fkey` | `confirmed_draft_id, clinic_id` | [lab_device_mapping_drafts](lab_device_mapping_drafts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11517](../../../backend/migrations/001_init.sql#L11517) |
+| `lab_device_mapping_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11518](../../../backend/migrations/001_init.sql#L11518) |
+| `lab_device_mapping_revisions_recorded_by_staff_id_fkey` | `recorded_by_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11519](../../../backend/migrations/001_init.sql#L11519) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -90,13 +90,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_mapping_revisions_pkey` | primary | `PRIMARY KEY` | [006_operation_anchor_and_lab_mapping_versions.sql:66](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L66) |
-| `lab_device_mapping_revisions_revision_check` | check | `CHECK (revision > 0)` | [006_operation_anchor_and_lab_mapping_versions.sql:70](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L70) |
-| `lab_device_mapping_revisions_snapshot_json_check` | check | `CHECK (jsonb_typeof(snapshot_json) = 'object')` | [006_operation_anchor_and_lab_mapping_versions.sql:71](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L71) |
-| `lab_device_mapping_revisions_snapshot_digest_check` | check | `CHECK (octet_length(snapshot_digest) = 32)` | [006_operation_anchor_and_lab_mapping_versions.sql:72](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L72) |
-| `lab_device_mapping_revisions_field_definition_snapshots_check` | check | `CHECK (jsonb_typeof(field_definition_snapshots) = 'array')` | [006_operation_anchor_and_lab_mapping_versions.sql:73](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L73) |
-| `lab_device_mapping_revisions_clinic_id_source_type_species__key` | unique | `UNIQUE (clinic_id, source_type, species_scope, revision)` | [006_operation_anchor_and_lab_mapping_versions.sql:78](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L78) |
-| `lab_device_mapping_revisions_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [006_operation_anchor_and_lab_mapping_versions.sql:79](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L79) |
+| `lab_device_mapping_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11502](../../../backend/migrations/001_init.sql#L11502) |
+| `lab_device_mapping_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:11506](../../../backend/migrations/001_init.sql#L11506) |
+| `lab_device_mapping_revisions_snapshot_json_check` | check | `CHECK (jsonb_typeof(snapshot_json) = 'object')` | [001_init.sql:11507](../../../backend/migrations/001_init.sql#L11507) |
+| `lab_device_mapping_revisions_snapshot_digest_check` | check | `CHECK (octet_length(snapshot_digest) = 32)` | [001_init.sql:11508](../../../backend/migrations/001_init.sql#L11508) |
+| `lab_device_mapping_revisions_field_definition_snapshots_check` | check | `CHECK (jsonb_typeof(field_definition_snapshots) = 'array')` | [001_init.sql:11509](../../../backend/migrations/001_init.sql#L11509) |
+| `lab_device_mapping_revisions_clinic_id_source_type_species__key` | unique | `UNIQUE (clinic_id, source_type, species_scope, revision)` | [001_init.sql:11514](../../../backend/migrations/001_init.sql#L11514) |
+| `lab_device_mapping_revisions_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:11515](../../../backend/migrations/001_init.sql#L11515) |
 
 ## インデックス
 

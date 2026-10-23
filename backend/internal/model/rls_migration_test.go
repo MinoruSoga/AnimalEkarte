@@ -280,3 +280,22 @@ func readMigrationFile(t *testing.T, path string) string {
 	}
 	return string(b)
 }
+
+// readConsolidatedMigrationSection returns the verbatim 001_init.sql section
+// absorbed from a former standalone migration file (2026-10-23 consolidation).
+// name is the former file name, e.g. "008_clinic_operating_hours.sql".
+func readConsolidatedMigrationSection(t *testing.T, name string) string {
+	t.Helper()
+
+	contents := readMigrationFile(t, "../../migrations/001_init.sql")
+	marker := "-- ===== consolidated from " + name + " ====="
+	start := strings.Index(contents, marker)
+	if start < 0 {
+		t.Fatalf("consolidated section %q not found in 001_init.sql", name)
+	}
+	section := contents[start+len(marker):]
+	if end := strings.Index(section, "\n-- ===== consolidated from "); end >= 0 {
+		section = section[:end]
+	}
+	return strings.TrimSpace(section) + "\n"
+}

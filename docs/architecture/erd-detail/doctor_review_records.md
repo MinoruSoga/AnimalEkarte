@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8163](../../../backend/migrations/001_init.sql#L8163) |
-| `review_set_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8164](../../../backend/migrations/001_init.sql#L8164) |
-| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8165](../../../backend/migrations/001_init.sql#L8165) |
-| `medical_record_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8166](../../../backend/migrations/001_init.sql#L8166) |
-| `clinical_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:8167](../../../backend/migrations/001_init.sql#L8167) |
-| `clinical_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:8168](../../../backend/migrations/001_init.sql#L8168) |
-| `clinical_items` | `jsonb` | NOT NULL | — | — | [001_init.sql:8169](../../../backend/migrations/001_init.sql#L8169) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8175](../../../backend/migrations/001_init.sql#L8175) |
+| `review_set_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8176](../../../backend/migrations/001_init.sql#L8176) |
+| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8177](../../../backend/migrations/001_init.sql#L8177) |
+| `medical_record_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8178](../../../backend/migrations/001_init.sql#L8178) |
+| `clinical_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:8179](../../../backend/migrations/001_init.sql#L8179) |
+| `clinical_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:8180](../../../backend/migrations/001_init.sql#L8180) |
+| `clinical_items` | `jsonb` | NOT NULL | — | — | [001_init.sql:8181](../../../backend/migrations/001_init.sql#L8181) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,9 +59,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `doctor_review_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8163](../../../backend/migrations/001_init.sql#L8163) |
-| `doctor_review_records_review_set_id_clinic_id_billing_id_fkey` | `review_set_id, clinic_id, billing_id` | [doctor_review_sets](doctor_review_sets.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:8171](../../../backend/migrations/001_init.sql#L8171) |
-| `doctor_review_records_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8172](../../../backend/migrations/001_init.sql#L8172) |
+| `doctor_review_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8175](../../../backend/migrations/001_init.sql#L8175) |
+| `doctor_review_records_review_set_id_clinic_id_billing_id_fkey` | `review_set_id, clinic_id, billing_id` | [doctor_review_sets](doctor_review_sets.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:8183](../../../backend/migrations/001_init.sql#L8183) |
+| `doctor_review_records_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8184](../../../backend/migrations/001_init.sql#L8184) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -73,10 +73,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `doctor_review_records_clinical_generation_check` | check | `CHECK (clinical_generation > 0)` | [001_init.sql:8167](../../../backend/migrations/001_init.sql#L8167) |
-| `doctor_review_records_clinical_digest_check` | check | `CHECK (octet_length(clinical_digest)=32)` | [001_init.sql:8168](../../../backend/migrations/001_init.sql#L8168) |
-| `doctor_review_records_clinical_items_check` | check | `CHECK (jsonb_typeof(clinical_items)='array')` | [001_init.sql:8169](../../../backend/migrations/001_init.sql#L8169) |
-| `doctor_review_records_pkey` | primary | `PRIMARY KEY (clinic_id,review_set_id,medical_record_id)` | [001_init.sql:8170](../../../backend/migrations/001_init.sql#L8170) |
+| `doctor_review_records_clinical_generation_check` | check | `CHECK (clinical_generation > 0)` | [001_init.sql:8179](../../../backend/migrations/001_init.sql#L8179) |
+| `doctor_review_records_clinical_digest_check` | check | `CHECK (octet_length(clinical_digest)=32)` | [001_init.sql:8180](../../../backend/migrations/001_init.sql#L8180) |
+| `doctor_review_records_clinical_items_check` | check | `CHECK (jsonb_typeof(clinical_items)='array')` | [001_init.sql:8181](../../../backend/migrations/001_init.sql#L8181) |
+| `doctor_review_records_pkey` | primary | `PRIMARY KEY (clinic_id,review_set_id,medical_record_id)` | [001_init.sql:8182](../../../backend/migrations/001_init.sql#L8182) |
 
 ## インデックス
 

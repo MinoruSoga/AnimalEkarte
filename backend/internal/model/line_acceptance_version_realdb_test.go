@@ -1,10 +1,12 @@
 package model_test
 
-// line_acceptance_version_realdb_test.go — real-DB fixture for
-// backend/migrations/009_line_acceptance_version.sql (EMR-446/466 A03 LINE
-// acceptance, contract §3.1). Applies 001 via testdb.SetupIsolated001TestDB
-// and Execs the 009 body in-test (no dependency on 008). NOT_RUN yet.
-// Shared helpers live in clinic_operating_hours_realdb_test.go (stack base).
+// line_acceptance_version_realdb_test.go — real-DB fixture for the LINE
+// acceptance version storage (the former
+// backend/migrations/009_line_acceptance_version.sql, EMR-446/466 A03 LINE
+// acceptance, contract §3.1). The DDL lives in 001_init.sql since the
+// 2026-10-23 consolidation; testdb.SetupIsolated001TestDB applies it.
+// NOT_RUN yet. Shared helpers live in clinic_operating_hours_realdb_test.go
+// (stack base).
 
 import (
 	"testing"
@@ -15,9 +17,8 @@ import (
 )
 
 func TestLineAcceptanceVersionRealDB(t *testing.T) {
+	// 001_init.sql carries the former 009 DDL (2026-10-23 consolidation).
 	db := testdb.SetupIsolated001TestDB(t)
-	require.NoError(t, db.Exec(lineTimeReadMigration(t, "009_line_acceptance_version.sql")).Error,
-		"009 must apply cleanly on top of 001")
 
 	clinic := lineTimeSeedClinic(t, db, "009-line")
 

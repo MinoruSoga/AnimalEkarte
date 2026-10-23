@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9734](../../../backend/migrations/001_init.sql#L9734) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9735](../../../backend/migrations/001_init.sql#L9735) |
-| `inventory_item_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9736](../../../backend/migrations/001_init.sql#L9736) |
-| `expected_item_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9737](../../../backend/migrations/001_init.sql#L9737) |
-| `confirmed_quantity` | `bigint` | NOT NULL | — | — | [001_init.sql:9738](../../../backend/migrations/001_init.sql#L9738) |
-| `management_unit` | `text` | NOT NULL | — | — | [001_init.sql:9739](../../../backend/migrations/001_init.sql#L9739) |
-| `legacy_reference` | `text` | NULL | — | — | [001_init.sql:9740](../../../backend/migrations/001_init.sql#L9740) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9741](../../../backend/migrations/001_init.sql#L9741) |
-| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9742](../../../backend/migrations/001_init.sql#L9742) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9743](../../../backend/migrations/001_init.sql#L9743) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9746](../../../backend/migrations/001_init.sql#L9746) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9747](../../../backend/migrations/001_init.sql#L9747) |
+| `inventory_item_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9748](../../../backend/migrations/001_init.sql#L9748) |
+| `expected_item_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9749](../../../backend/migrations/001_init.sql#L9749) |
+| `confirmed_quantity` | `bigint` | NOT NULL | — | — | [001_init.sql:9750](../../../backend/migrations/001_init.sql#L9750) |
+| `management_unit` | `text` | NOT NULL | — | — | [001_init.sql:9751](../../../backend/migrations/001_init.sql#L9751) |
+| `legacy_reference` | `text` | NULL | — | — | [001_init.sql:9752](../../../backend/migrations/001_init.sql#L9752) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9753](../../../backend/migrations/001_init.sql#L9753) |
+| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9754](../../../backend/migrations/001_init.sql#L9754) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9755](../../../backend/migrations/001_init.sql#L9755) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -68,10 +68,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `inventory_quantity_bases_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9735](../../../backend/migrations/001_init.sql#L9735) |
-| `inventory_quantity_bases_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9741](../../../backend/migrations/001_init.sql#L9741) |
-| `inventory_quantity_bases_inventory_item_id_clinic_id_fkey` | `inventory_item_id, clinic_id` | [inventory_items](inventory_items.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9746](../../../backend/migrations/001_init.sql#L9746) |
-| `inventory_quantity_bases_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9747](../../../backend/migrations/001_init.sql#L9747) |
+| `inventory_quantity_bases_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9747](../../../backend/migrations/001_init.sql#L9747) |
+| `inventory_quantity_bases_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9753](../../../backend/migrations/001_init.sql#L9753) |
+| `inventory_quantity_bases_inventory_item_id_clinic_id_fkey` | `inventory_item_id, clinic_id` | [inventory_items](inventory_items.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9758](../../../backend/migrations/001_init.sql#L9758) |
+| `inventory_quantity_bases_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9759](../../../backend/migrations/001_init.sql#L9759) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -84,12 +84,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `inventory_quantity_bases_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9734](../../../backend/migrations/001_init.sql#L9734) |
-| `inventory_quantity_bases_expected_item_version_check` | check | `CHECK (expected_item_version > 0)` | [001_init.sql:9737](../../../backend/migrations/001_init.sql#L9737) |
-| `inventory_quantity_bases_confirmed_quantity_check` | check | `CHECK (confirmed_quantity >= 0)` | [001_init.sql:9738](../../../backend/migrations/001_init.sql#L9738) |
-| `inventory_quantity_bases_management_unit_check` | check | `CHECK (btrim(management_unit)<>'')` | [001_init.sql:9739](../../../backend/migrations/001_init.sql#L9739) |
-| `inventory_quantity_bases_id_clinic_id_inventory_item_id_key` | unique | `UNIQUE (id,clinic_id,inventory_item_id)` | [001_init.sql:9744](../../../backend/migrations/001_init.sql#L9744) |
-| `inventory_quantity_bases_clinic_id_inventory_item_id_key` | unique | `UNIQUE (clinic_id,inventory_item_id)` | [001_init.sql:9745](../../../backend/migrations/001_init.sql#L9745) |
+| `inventory_quantity_bases_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9746](../../../backend/migrations/001_init.sql#L9746) |
+| `inventory_quantity_bases_expected_item_version_check` | check | `CHECK (expected_item_version > 0)` | [001_init.sql:9749](../../../backend/migrations/001_init.sql#L9749) |
+| `inventory_quantity_bases_confirmed_quantity_check` | check | `CHECK (confirmed_quantity >= 0)` | [001_init.sql:9750](../../../backend/migrations/001_init.sql#L9750) |
+| `inventory_quantity_bases_management_unit_check` | check | `CHECK (btrim(management_unit)<>'')` | [001_init.sql:9751](../../../backend/migrations/001_init.sql#L9751) |
+| `inventory_quantity_bases_id_clinic_id_inventory_item_id_key` | unique | `UNIQUE (id,clinic_id,inventory_item_id)` | [001_init.sql:9756](../../../backend/migrations/001_init.sql#L9756) |
+| `inventory_quantity_bases_clinic_id_inventory_item_id_key` | unique | `UNIQUE (clinic_id,inventory_item_id)` | [001_init.sql:9757](../../../backend/migrations/001_init.sql#L9757) |
 
 ## インデックス
 

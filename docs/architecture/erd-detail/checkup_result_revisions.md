@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `checkup_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
-| `package_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
-| `package_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
-| `fields_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9969](../../../backend/migrations/001_init.sql#L9969) |
-| `restored_from_id` | `bigint` | NULL | — | FK | [001_init.sql:9970](../../../backend/migrations/001_init.sql#L9970) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:9970](../../../backend/migrations/001_init.sql#L9970) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9970](../../../backend/migrations/001_init.sql#L9970) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9971](../../../backend/migrations/001_init.sql#L9971) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9971](../../../backend/migrations/001_init.sql#L9971) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
+| `checkup_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9979](../../../backend/migrations/001_init.sql#L9979) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9979](../../../backend/migrations/001_init.sql#L9979) |
+| `package_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
+| `package_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
+| `fields_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9981](../../../backend/migrations/001_init.sql#L9981) |
+| `restored_from_id` | `bigint` | NULL | — | FK | [001_init.sql:9982](../../../backend/migrations/001_init.sql#L9982) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:9982](../../../backend/migrations/001_init.sql#L9982) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9982](../../../backend/migrations/001_init.sql#L9982) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -73,11 +73,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_result_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `checkup_result_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9971](../../../backend/migrations/001_init.sql#L9971) |
-| `checkup_result_revisions_checkup_id_clinic_id_fkey` | `checkup_id, clinic_id` | [checkups](checkups.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9973](../../../backend/migrations/001_init.sql#L9973) |
-| `checkup_result_revisions_restored_from_id_clinic_id_checku_fkey` | `restored_from_id, clinic_id, checkup_id` | [checkup_result_revisions](checkup_result_revisions.md) | `id, clinic_id, checkup_id` | `ON DELETE RESTRICT` | [001_init.sql:9974](../../../backend/migrations/001_init.sql#L9974) |
-| `checkup_result_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9975](../../../backend/migrations/001_init.sql#L9975) |
+| `checkup_result_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
+| `checkup_result_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9983](../../../backend/migrations/001_init.sql#L9983) |
+| `checkup_result_revisions_checkup_id_clinic_id_fkey` | `checkup_id, clinic_id` | [checkups](checkups.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9985](../../../backend/migrations/001_init.sql#L9985) |
+| `checkup_result_revisions_restored_from_id_clinic_id_checku_fkey` | `restored_from_id, clinic_id, checkup_id` | [checkup_result_revisions](checkup_result_revisions.md) | `id, clinic_id, checkup_id` | `ON DELETE RESTRICT` | [001_init.sql:9986](../../../backend/migrations/001_init.sql#L9986) |
+| `checkup_result_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9987](../../../backend/migrations/001_init.sql#L9987) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -91,13 +91,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_result_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `checkup_result_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
-| `checkup_result_revisions_package_version_check` | check | `CHECK(package_version>0)` | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
-| `checkup_result_revisions_package_snapshot_check` | check | `CHECK(jsonb_typeof(package_snapshot)='object')` | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
-| `checkup_result_revisions_fields_snapshot_check` | check | `CHECK(jsonb_typeof(fields_snapshot)='array')` | [001_init.sql:9969](../../../backend/migrations/001_init.sql#L9969) |
-| `checkup_result_revisions_id_clinic_id_checkup_id_key` | unique | `UNIQUE(id,clinic_id,checkup_id)` | [001_init.sql:9972](../../../backend/migrations/001_init.sql#L9972) |
-| `checkup_result_revisions_clinic_id_checkup_id_revision_key` | unique | `UNIQUE(clinic_id,checkup_id,revision)` | [001_init.sql:9972](../../../backend/migrations/001_init.sql#L9972) |
+| `checkup_result_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9978](../../../backend/migrations/001_init.sql#L9978) |
+| `checkup_result_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:9979](../../../backend/migrations/001_init.sql#L9979) |
+| `checkup_result_revisions_package_version_check` | check | `CHECK(package_version>0)` | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
+| `checkup_result_revisions_package_snapshot_check` | check | `CHECK(jsonb_typeof(package_snapshot)='object')` | [001_init.sql:9980](../../../backend/migrations/001_init.sql#L9980) |
+| `checkup_result_revisions_fields_snapshot_check` | check | `CHECK(jsonb_typeof(fields_snapshot)='array')` | [001_init.sql:9981](../../../backend/migrations/001_init.sql#L9981) |
+| `checkup_result_revisions_id_clinic_id_checkup_id_key` | unique | `UNIQUE(id,clinic_id,checkup_id)` | [001_init.sql:9984](../../../backend/migrations/001_init.sql#L9984) |
+| `checkup_result_revisions_clinic_id_checkup_id_revision_key` | unique | `UNIQUE(clinic_id,checkup_id,revision)` | [001_init.sql:9984](../../../backend/migrations/001_init.sql#L9984) |
 
 ## インデックス
 

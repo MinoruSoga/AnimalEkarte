@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8182](../../../backend/migrations/001_init.sql#L8182) |
-| `billing_item_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8183](../../../backend/migrations/001_init.sql#L8183) |
-| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:8184](../../../backend/migrations/001_init.sql#L8184) |
-| `treatment_id` | `bigint` | NULL | — | FK | [001_init.sql:8185](../../../backend/migrations/001_init.sql#L8185) |
-| `vaccination_id` | `bigint` | NULL | — | FK | [001_init.sql:8186](../../../backend/migrations/001_init.sql#L8186) |
-| `examination_id` | `bigint` | NULL | — | FK | [001_init.sql:8187](../../../backend/migrations/001_init.sql#L8187) |
-| `trimming_source_line_id` | `bigint` | NULL | — | FK | [001_init.sql:8188](../../../backend/migrations/001_init.sql#L8188) |
-| `applied_source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8189](../../../backend/migrations/001_init.sql#L8189) |
-| `imported_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8190](../../../backend/migrations/001_init.sql#L8190) |
-| `manual_override` | `boolean` | NULL | — | — | [001_init.sql:8191](../../../backend/migrations/001_init.sql#L8191) |
-| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8192](../../../backend/migrations/001_init.sql#L8192) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8193](../../../backend/migrations/001_init.sql#L8193) |
-| `claim_released_at` | `timestamptz` | NULL | — | — | [001_init.sql:9483](../../../backend/migrations/001_init.sql#L9483) |
-| `claim_release_operation_id` | `bigint` | NULL | — | FK | [001_init.sql:9484](../../../backend/migrations/001_init.sql#L9484) |
-| `claim_release_reason` | `text` | NULL | — | — | [001_init.sql:9485](../../../backend/migrations/001_init.sql#L9485) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8194](../../../backend/migrations/001_init.sql#L8194) |
+| `billing_item_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8195](../../../backend/migrations/001_init.sql#L8195) |
+| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:8196](../../../backend/migrations/001_init.sql#L8196) |
+| `treatment_id` | `bigint` | NULL | — | FK | [001_init.sql:8197](../../../backend/migrations/001_init.sql#L8197) |
+| `vaccination_id` | `bigint` | NULL | — | FK | [001_init.sql:8198](../../../backend/migrations/001_init.sql#L8198) |
+| `examination_id` | `bigint` | NULL | — | FK | [001_init.sql:8199](../../../backend/migrations/001_init.sql#L8199) |
+| `trimming_source_line_id` | `bigint` | NULL | — | FK | [001_init.sql:8200](../../../backend/migrations/001_init.sql#L8200) |
+| `applied_source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8201](../../../backend/migrations/001_init.sql#L8201) |
+| `imported_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8202](../../../backend/migrations/001_init.sql#L8202) |
+| `manual_override` | `boolean` | NULL | — | — | [001_init.sql:8203](../../../backend/migrations/001_init.sql#L8203) |
+| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8204](../../../backend/migrations/001_init.sql#L8204) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8205](../../../backend/migrations/001_init.sql#L8205) |
+| `claim_released_at` | `timestamptz` | NULL | — | — | [001_init.sql:9495](../../../backend/migrations/001_init.sql#L9495) |
+| `claim_release_operation_id` | `bigint` | NULL | — | FK | [001_init.sql:9496](../../../backend/migrations/001_init.sql#L9496) |
+| `claim_release_reason` | `text` | NULL | — | — | [001_init.sql:9497](../../../backend/migrations/001_init.sql#L9497) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -94,13 +94,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_source_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8182](../../../backend/migrations/001_init.sql#L8182) |
-| `billing_source_bindings_billing_item_id_clinic_id_fkey` | `billing_item_id, clinic_id` | [billing_items](billing_items.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8199](../../../backend/migrations/001_init.sql#L8199) |
-| `billing_source_bindings_treatment_id_clinic_id_fkey` | `treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8200](../../../backend/migrations/001_init.sql#L8200) |
-| `billing_source_bindings_vaccination_id_clinic_id_fkey` | `vaccination_id, clinic_id` | [vaccinations](vaccinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8201](../../../backend/migrations/001_init.sql#L8201) |
-| `billing_source_bindings_clinic_id_examination_id_fkey` | `clinic_id, examination_id` | [exams](exams.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:8202](../../../backend/migrations/001_init.sql#L8202) |
-| `billing_source_bindings_trimming_source_line_id_clinic_id_fkey` | `trimming_source_line_id, clinic_id` | [trimming_service_lines](trimming_service_lines.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8203](../../../backend/migrations/001_init.sql#L8203) |
-| `fk_billing_claim_release_operation` | `claim_release_operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9489](../../../backend/migrations/001_init.sql#L9489) |
+| `billing_source_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8194](../../../backend/migrations/001_init.sql#L8194) |
+| `billing_source_bindings_billing_item_id_clinic_id_fkey` | `billing_item_id, clinic_id` | [billing_items](billing_items.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8211](../../../backend/migrations/001_init.sql#L8211) |
+| `billing_source_bindings_treatment_id_clinic_id_fkey` | `treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8212](../../../backend/migrations/001_init.sql#L8212) |
+| `billing_source_bindings_vaccination_id_clinic_id_fkey` | `vaccination_id, clinic_id` | [vaccinations](vaccinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8213](../../../backend/migrations/001_init.sql#L8213) |
+| `billing_source_bindings_clinic_id_examination_id_fkey` | `clinic_id, examination_id` | [exams](exams.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:8214](../../../backend/migrations/001_init.sql#L8214) |
+| `billing_source_bindings_trimming_source_line_id_clinic_id_fkey` | `trimming_source_line_id, clinic_id` | [trimming_service_lines](trimming_service_lines.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8215](../../../backend/migrations/001_init.sql#L8215) |
+| `fk_billing_claim_release_operation` | `claim_release_operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9501](../../../backend/migrations/001_init.sql#L9501) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -116,19 +116,19 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_source_bindings_source_kind_check` | check | `CHECK (source_kind IN ('treatment','vaccination','examination','trimming'))` | [001_init.sql:8184](../../../backend/migrations/001_init.sql#L8184) |
-| `billing_source_bindings_applied_source_version_check` | check | `CHECK (applied_source_version > 0)` | [001_init.sql:8189](../../../backend/migrations/001_init.sql#L8189) |
-| `billing_source_bindings_imported_values_check` | check | `CHECK (jsonb_typeof(imported_values)='object')` | [001_init.sql:8190](../../../backend/migrations/001_init.sql#L8190) |
-| `billing_source_bindings_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:8192](../../../backend/migrations/001_init.sql#L8192) |
-| `billing_source_bindings_pkey` | primary | `PRIMARY KEY (clinic_id,billing_item_id)` | [001_init.sql:8194](../../../backend/migrations/001_init.sql#L8194) |
-| `billing_source_bindings_check` | check | `CHECK ((source_kind='treatment' AND treatment_id IS NOT NULL AND num_nonnulls(vaccination_id,examination_id,trimming_source_line_id)=0)         OR (source_kind='vaccination' AND vaccination_id IS NOT NULL AND num_nonnulls(treatment_id,examination_id,trimming_source_line_id)=0)         OR (source_kind='examination' AND examination_id IS NOT NULL AND num_nonnulls(treatment_id,vaccination_id,trimming_source_line_id)=0)         OR (source_kind='trimming' AND trimming_source_line_id IS NOT NULL AND num_nonnulls(treatment_id,vaccination_id,examination_id)=0))` | [001_init.sql:8195](../../../backend/migrations/001_init.sql#L8195) |
-| `ck_billing_source_claim_release` | check | `CONSTRAINT ck_billing_source_claim_release CHECK (       (claim_released_at IS NULL AND claim_release_operation_id IS NULL AND claim_release_reason IS NULL)       OR (claim_released_at IS NOT NULL AND claim_release_operation_id IS NOT NULL AND claim_release_reason IS NOT NULL AND btrim(claim_release_reason)<>''))` | [001_init.sql:9486](../../../backend/migrations/001_init.sql#L9486) |
+| `billing_source_bindings_source_kind_check` | check | `CHECK (source_kind IN ('treatment','vaccination','examination','trimming'))` | [001_init.sql:8196](../../../backend/migrations/001_init.sql#L8196) |
+| `billing_source_bindings_applied_source_version_check` | check | `CHECK (applied_source_version > 0)` | [001_init.sql:8201](../../../backend/migrations/001_init.sql#L8201) |
+| `billing_source_bindings_imported_values_check` | check | `CHECK (jsonb_typeof(imported_values)='object')` | [001_init.sql:8202](../../../backend/migrations/001_init.sql#L8202) |
+| `billing_source_bindings_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:8204](../../../backend/migrations/001_init.sql#L8204) |
+| `billing_source_bindings_pkey` | primary | `PRIMARY KEY (clinic_id,billing_item_id)` | [001_init.sql:8206](../../../backend/migrations/001_init.sql#L8206) |
+| `billing_source_bindings_check` | check | `CHECK ((source_kind='treatment' AND treatment_id IS NOT NULL AND num_nonnulls(vaccination_id,examination_id,trimming_source_line_id)=0)         OR (source_kind='vaccination' AND vaccination_id IS NOT NULL AND num_nonnulls(treatment_id,examination_id,trimming_source_line_id)=0)         OR (source_kind='examination' AND examination_id IS NOT NULL AND num_nonnulls(treatment_id,vaccination_id,trimming_source_line_id)=0)         OR (source_kind='trimming' AND trimming_source_line_id IS NOT NULL AND num_nonnulls(treatment_id,vaccination_id,examination_id)=0))` | [001_init.sql:8207](../../../backend/migrations/001_init.sql#L8207) |
+| `ck_billing_source_claim_release` | check | `CONSTRAINT ck_billing_source_claim_release CHECK (       (claim_released_at IS NULL AND claim_release_operation_id IS NULL AND claim_release_reason IS NULL)       OR (claim_released_at IS NOT NULL AND claim_release_operation_id IS NOT NULL AND claim_release_reason IS NOT NULL AND btrim(claim_release_reason)<>''))` | [001_init.sql:9498](../../../backend/migrations/001_init.sql#L9498) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_active_billing_treatment_source` | YES | `treatment_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_treatment_source ON billing_source_bindings(clinic_id,treatment_id) WHERE treatment_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9490](../../../backend/migrations/001_init.sql#L9490) |
-| `uq_active_billing_vaccination_source` | YES | `vaccination_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_vaccination_source ON billing_source_bindings(clinic_id,vaccination_id) WHERE vaccination_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9491](../../../backend/migrations/001_init.sql#L9491) |
-| `uq_active_billing_exam_source` | YES | `examination_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_exam_source ON billing_source_bindings(clinic_id,examination_id) WHERE examination_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9492](../../../backend/migrations/001_init.sql#L9492) |
-| `uq_active_billing_trimming_source` | YES | `trimming_source_line_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_trimming_source ON billing_source_bindings(clinic_id,trimming_source_line_id) WHERE trimming_source_line_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9493](../../../backend/migrations/001_init.sql#L9493) |
+| `uq_active_billing_treatment_source` | YES | `treatment_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_treatment_source ON billing_source_bindings(clinic_id,treatment_id) WHERE treatment_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9502](../../../backend/migrations/001_init.sql#L9502) |
+| `uq_active_billing_vaccination_source` | YES | `vaccination_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_vaccination_source ON billing_source_bindings(clinic_id,vaccination_id) WHERE vaccination_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9503](../../../backend/migrations/001_init.sql#L9503) |
+| `uq_active_billing_exam_source` | YES | `examination_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_exam_source ON billing_source_bindings(clinic_id,examination_id) WHERE examination_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9504](../../../backend/migrations/001_init.sql#L9504) |
+| `uq_active_billing_trimming_source` | YES | `trimming_source_line_id IS NOT NULL AND claim_released_at IS NULL` | `CREATE UNIQUE INDEX uq_active_billing_trimming_source ON billing_source_bindings(clinic_id,trimming_source_line_id) WHERE trimming_source_line_id IS NOT NULL AND claim_released_at IS NULL` | [001_init.sql:9505](../../../backend/migrations/001_init.sql#L9505) |

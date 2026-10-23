@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9363](../../../backend/migrations/001_init.sql#L9363) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9364](../../../backend/migrations/001_init.sql#L9364) |
-| `stay_case_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9365](../../../backend/migrations/001_init.sql#L9365) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9366](../../../backend/migrations/001_init.sql#L9366) |
-| `normal_charge_amount` | `bigint` | NULL | — | — | [001_init.sql:9367](../../../backend/migrations/001_init.sql#L9367) |
-| `requested_deposit_amount` | `bigint` | NULL | — | — | [001_init.sql:9368](../../../backend/migrations/001_init.sql#L9368) |
-| `cancellation_charge_amount` | `bigint` | NULL | — | — | [001_init.sql:9369](../../../backend/migrations/001_init.sql#L9369) |
-| `terms` | `text` | NULL | — | — | [001_init.sql:9370](../../../backend/migrations/001_init.sql#L9370) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9371](../../../backend/migrations/001_init.sql#L9371) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9372](../../../backend/migrations/001_init.sql#L9372) |
-| `confirmed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9373](../../../backend/migrations/001_init.sql#L9373) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9375](../../../backend/migrations/001_init.sql#L9375) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9376](../../../backend/migrations/001_init.sql#L9376) |
+| `stay_case_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9377](../../../backend/migrations/001_init.sql#L9377) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9378](../../../backend/migrations/001_init.sql#L9378) |
+| `normal_charge_amount` | `bigint` | NULL | — | — | [001_init.sql:9379](../../../backend/migrations/001_init.sql#L9379) |
+| `requested_deposit_amount` | `bigint` | NULL | — | — | [001_init.sql:9380](../../../backend/migrations/001_init.sql#L9380) |
+| `cancellation_charge_amount` | `bigint` | NULL | — | — | [001_init.sql:9381](../../../backend/migrations/001_init.sql#L9381) |
+| `terms` | `text` | NULL | — | — | [001_init.sql:9382](../../../backend/migrations/001_init.sql#L9382) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9383](../../../backend/migrations/001_init.sql#L9383) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9384](../../../backend/migrations/001_init.sql#L9384) |
+| `confirmed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9385](../../../backend/migrations/001_init.sql#L9385) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,10 +70,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `stay_price_agreements_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9364](../../../backend/migrations/001_init.sql#L9364) |
-| `stay_price_agreements_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9372](../../../backend/migrations/001_init.sql#L9372) |
-| `stay_price_agreements_stay_case_id_clinic_id_fkey` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9376](../../../backend/migrations/001_init.sql#L9376) |
-| `stay_price_agreements_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9377](../../../backend/migrations/001_init.sql#L9377) |
+| `stay_price_agreements_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9376](../../../backend/migrations/001_init.sql#L9376) |
+| `stay_price_agreements_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9384](../../../backend/migrations/001_init.sql#L9384) |
+| `stay_price_agreements_stay_case_id_clinic_id_fkey` | `stay_case_id, clinic_id` | [stay_cases](stay_cases.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9388](../../../backend/migrations/001_init.sql#L9388) |
+| `stay_price_agreements_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9389](../../../backend/migrations/001_init.sql#L9389) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,10 +86,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `stay_price_agreements_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9363](../../../backend/migrations/001_init.sql#L9363) |
-| `stay_price_agreements_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9366](../../../backend/migrations/001_init.sql#L9366) |
-| `stay_price_agreements_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9374](../../../backend/migrations/001_init.sql#L9374) |
-| `stay_price_agreements_clinic_id_stay_case_id_revision_key` | unique | `UNIQUE (clinic_id,stay_case_id,revision)` | [001_init.sql:9375](../../../backend/migrations/001_init.sql#L9375) |
+| `stay_price_agreements_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9375](../../../backend/migrations/001_init.sql#L9375) |
+| `stay_price_agreements_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9378](../../../backend/migrations/001_init.sql#L9378) |
+| `stay_price_agreements_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9386](../../../backend/migrations/001_init.sql#L9386) |
+| `stay_price_agreements_clinic_id_stay_case_id_revision_key` | unique | `UNIQUE (clinic_id,stay_case_id,revision)` | [001_init.sql:9387](../../../backend/migrations/001_init.sql#L9387) |
 
 ## インデックス
 

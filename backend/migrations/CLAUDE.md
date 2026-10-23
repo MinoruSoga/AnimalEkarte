@@ -4,7 +4,7 @@
 
 **本人が別途承認する初回本番切替で001を凍結し、凍結後のDB変更は新しい連番migrationで行う。** EMR-446の本人決定により、凍結前の承認済み001整合を認める。2026-10-20の自動凍結・切替はしない。この範囲を除きコミット済みSQLは変更・削除・リネームせず訂正も新規ファイルで行う。番号の例外は、並行採番の衝突で、どの環境（staging・本番）にも未適用かつ冪等なファイルの番号だけを改名する場合で、ユーザーの明示判断を要する。手順と理由は[README.md](README.md)を参照する。
 
-> **Current baseline (2026-10-19)**: 001〜038 を `001_init.sql` 1本へ統合済み。直下 DDL は `001_init.sql` のみ。統合前の checksum を持つ既存 DB（ローカル/STG/PROD）は reset が必要で、no-reset のアップグレード経路はない。初回本番切替で凍結した後の変更は新しい連番ファイルで追加する。
+> **Current baseline (2026-10-23)**: 001〜038 に加え 2026-10-20〜23 の直下増分 003〜010 も `001_init.sql` 1本へ統合済み。直下 DDL は `001_init.sql` のみ。統合前（旧 001 または 001＋003〜010）の checksum を持つ既存 DB（ローカル。STG は 2026-10-23 時点で未適用）は reset が必要で、no-reset のアップグレード経路はない。初回本番切替で凍結した後の変更は新しい連番ファイルで追加する。
 
 ## 命名規則
 
@@ -49,7 +49,7 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + 001 完全統合）
 
-`backend/migrations/` 直下の `.sql` は DDL 専用。2026-10-19 に 001〜038 の原文を `001_init.sql` へ統合し、現在の直下 DDL は `001_init.sql` のみ。各旧ファイルの原文は `-- ===== consolidated from <filename> =====` マーカー付きで残る。今後の変更は新しい連番のファイルで追加する。適用済みファイルの checksum は変更しない。
+`backend/migrations/` 直下の `.sql` は DDL 専用。2026-10-19 に 001〜038 の原文を `001_init.sql` へ統合し、2026-10-23 に直下増分 003〜010 も同ファイル末尾へ統合した。現在の直下 DDL は `001_init.sql` のみ。各旧ファイルの原文は `-- ===== consolidated from <filename> =====` マーカー付きで残る。今後の変更は新しい連番のファイルで追加する。適用済みファイルの checksum は変更しない。
 
 直下 DDL の顔ぶれ・本数は固定ではない（新しい増分ファイルの追加で増える）。正の在庫は次の実測とする:
 
@@ -59,7 +59,7 @@ ls backend/migrations/*.sql
 
 seed 側の構成は `seeds/002_master/` — CSV シードバンドル（`*.csv` + `manifest.json`。SQL ファイルではない。`internal/seedbundle.BundleOrder` は master のみ）。医院骨格（clinics / 権限 / 検査 / トリミング予約種別 / 支払方法）は 002 に置く。臨床行は `_old_db_handoff` から local reset で入れる。`001_init.sql` に取り込まれた旧増分の本文は、`consolidated from` マーカー付きで残る。
 
-**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql`（2026-10-19 の統合前 checksum を含む）が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
+**統合前DBのno-resetアップグレード経路は存在しない**: 旧 `001_init.sql`（2026-10-19 の統合前 checksum、および 2026-10-23 の 003〜010 追記統合前 checksum を含む）が `schema_migrations` に記録済みの既存 DB（ローカル/STG/PROD）は、001 統合による checksum 変更で migrate が fail する。適用経路は `DB_RESET=true` のスキーマ再構築（USER手動）のみ。ローカルは `LOCAL_DB_RESET.md`、STGは明示承認後の再構築計画に従う。現行Cloudflare workflowに自動reset経路はない。
 
 - **cmd/migrate は三段フェーズ構成**: ①直下の `*.sql`（現在は `001_init.sql` のみ。検算: `ls backend/migrations/*.sql`）を昇順適用 → ②`internal/seedbundle.BundleOrderForEnv(APP_ENV)` が許可した順で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。全環境 `002_master` のみ（003_demo / 004_staging 退役）。DDL 失敗時は seed フェーズへ進まない → ③`internal/seedlogin` が LoginForm と同じ合成 `stg-staff-*@example.test` を upsert（共通パスワードは local/dev/test ではコード定数、staging では `SEEDLOGIN_DEMO_PASSWORD` シークレット注入 — 未設定ならカタログログインはロックされる。production / empty / unknown `APP_ENV` はスキップ）。CSV の `accounts.csv` は復活させない
 - 実行対象 CSV seedは `BundleOrderForEnv(APP_ENV)` が列挙する exact directoryだけ。`backend/migrations/seeds/_old_db_handoff/` はローカル保管用であり、`cmd/migrate` の入力bundleとして列挙しない

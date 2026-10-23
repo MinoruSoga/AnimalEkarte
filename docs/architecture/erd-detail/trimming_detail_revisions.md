@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8104](../../../backend/migrations/001_init.sql#L8104) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8105](../../../backend/migrations/001_init.sql#L8105) |
-| `detail_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8106](../../../backend/migrations/001_init.sql#L8106) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:8107](../../../backend/migrations/001_init.sql#L8107) |
-| `line_count` | `integer` | NOT NULL | — | — | [001_init.sql:8108](../../../backend/migrations/001_init.sql#L8108) |
-| `detail_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8109](../../../backend/migrations/001_init.sql#L8109) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8110](../../../backend/migrations/001_init.sql#L8110) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8111](../../../backend/migrations/001_init.sql#L8111) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8116](../../../backend/migrations/001_init.sql#L8116) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8117](../../../backend/migrations/001_init.sql#L8117) |
+| `detail_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8118](../../../backend/migrations/001_init.sql#L8118) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:8119](../../../backend/migrations/001_init.sql#L8119) |
+| `line_count` | `integer` | NOT NULL | — | — | [001_init.sql:8120](../../../backend/migrations/001_init.sql#L8120) |
+| `detail_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8121](../../../backend/migrations/001_init.sql#L8121) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8122](../../../backend/migrations/001_init.sql#L8122) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8123](../../../backend/migrations/001_init.sql#L8123) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,9 +59,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_detail_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8105](../../../backend/migrations/001_init.sql#L8105) |
-| `trimming_detail_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8110](../../../backend/migrations/001_init.sql#L8110) |
-| `trimming_detail_revisions_detail_id_clinic_id_fkey` | `detail_id, clinic_id` | [appointment_trimming_details](appointment_trimming_details.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8114](../../../backend/migrations/001_init.sql#L8114) |
+| `trimming_detail_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8117](../../../backend/migrations/001_init.sql#L8117) |
+| `trimming_detail_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8122](../../../backend/migrations/001_init.sql#L8122) |
+| `trimming_detail_revisions_detail_id_clinic_id_fkey` | `detail_id, clinic_id` | [appointment_trimming_details](appointment_trimming_details.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8126](../../../backend/migrations/001_init.sql#L8126) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -73,12 +73,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_detail_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8104](../../../backend/migrations/001_init.sql#L8104) |
-| `trimming_detail_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8107](../../../backend/migrations/001_init.sql#L8107) |
-| `trimming_detail_revisions_line_count_check` | check | `CHECK (line_count >= 0)` | [001_init.sql:8108](../../../backend/migrations/001_init.sql#L8108) |
-| `trimming_detail_revisions_detail_values_check` | check | `CHECK (jsonb_typeof(detail_values)='object')` | [001_init.sql:8109](../../../backend/migrations/001_init.sql#L8109) |
-| `trimming_detail_revisions_id_clinic_id_detail_id_key` | unique | `UNIQUE (id,clinic_id,detail_id)` | [001_init.sql:8112](../../../backend/migrations/001_init.sql#L8112) |
-| `trimming_detail_revisions_clinic_id_detail_id_revision_key` | unique | `UNIQUE (clinic_id,detail_id,revision)` | [001_init.sql:8113](../../../backend/migrations/001_init.sql#L8113) |
+| `trimming_detail_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8116](../../../backend/migrations/001_init.sql#L8116) |
+| `trimming_detail_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8119](../../../backend/migrations/001_init.sql#L8119) |
+| `trimming_detail_revisions_line_count_check` | check | `CHECK (line_count >= 0)` | [001_init.sql:8120](../../../backend/migrations/001_init.sql#L8120) |
+| `trimming_detail_revisions_detail_values_check` | check | `CHECK (jsonb_typeof(detail_values)='object')` | [001_init.sql:8121](../../../backend/migrations/001_init.sql#L8121) |
+| `trimming_detail_revisions_id_clinic_id_detail_id_key` | unique | `UNIQUE (id,clinic_id,detail_id)` | [001_init.sql:8124](../../../backend/migrations/001_init.sql#L8124) |
+| `trimming_detail_revisions_clinic_id_detail_id_revision_key` | unique | `UNIQUE (clinic_id,detail_id,revision)` | [001_init.sql:8125](../../../backend/migrations/001_init.sql#L8125) |
 
 ## インデックス
 

@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:488](../../../backend/migrations/001_init.sql#L488) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:489](../../../backend/migrations/001_init.sql#L489) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:490](../../../backend/migrations/001_init.sql#L490) |
-| `failure_count` | `int` | NOT NULL | `0` | — | [001_init.sql:491](../../../backend/migrations/001_init.sql#L491) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:492](../../../backend/migrations/001_init.sql#L492) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:493](../../../backend/migrations/001_init.sql#L493) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:500](../../../backend/migrations/001_init.sql#L500) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:501](../../../backend/migrations/001_init.sql#L501) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:502](../../../backend/migrations/001_init.sql#L502) |
+| `failure_count` | `int` | NOT NULL | `0` | — | [001_init.sql:503](../../../backend/migrations/001_init.sql#L503) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:504](../../../backend/migrations/001_init.sql#L504) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:505](../../../backend/migrations/001_init.sql#L505) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,8 +50,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_sync_error_counters_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:489](../../../backend/migrations/001_init.sql#L489) |
-| `lstep_sync_error_counters_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:490](../../../backend/migrations/001_init.sql#L490) |
+| `lstep_sync_error_counters_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:501](../../../backend/migrations/001_init.sql#L501) |
+| `lstep_sync_error_counters_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:502](../../../backend/migrations/001_init.sql#L502) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,11 +62,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_sync_error_counters_pkey` | primary | `PRIMARY KEY` | [001_init.sql:488](../../../backend/migrations/001_init.sql#L488) |
-| `lstep_sync_error_counters_clinic_id_owner_id_key` | unique | `UNIQUE (clinic_id, owner_id)` | [001_init.sql:494](../../../backend/migrations/001_init.sql#L494) |
+| `lstep_sync_error_counters_pkey` | primary | `PRIMARY KEY` | [001_init.sql:500](../../../backend/migrations/001_init.sql#L500) |
+| `lstep_sync_error_counters_clinic_id_owner_id_key` | unique | `UNIQUE (clinic_id, owner_id)` | [001_init.sql:506](../../../backend/migrations/001_init.sql#L506) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_sync_error_counters_clinic_owner` | NO | — | `CREATE INDEX idx_lstep_sync_error_counters_clinic_owner ON lstep_sync_error_counters (clinic_id, owner_id)` | [001_init.sql:497](../../../backend/migrations/001_init.sql#L497) |
+| `idx_lstep_sync_error_counters_clinic_owner` | NO | — | `CREATE INDEX idx_lstep_sync_error_counters_clinic_owner ON lstep_sync_error_counters (clinic_id, owner_id)` | [001_init.sql:509](../../../backend/migrations/001_init.sql#L509) |

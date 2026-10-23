@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9209](../../../backend/migrations/001_init.sql#L9209) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9210](../../../backend/migrations/001_init.sql#L9210) |
-| `prescription_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9211](../../../backend/migrations/001_init.sql#L9211) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9212](../../../backend/migrations/001_init.sql#L9212) |
-| `display_year` | `integer` | NOT NULL | — | — | [001_init.sql:10827](../../../backend/migrations/001_init.sql#L10827) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9221](../../../backend/migrations/001_init.sql#L9221) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9222](../../../backend/migrations/001_init.sql#L9222) |
+| `prescription_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9223](../../../backend/migrations/001_init.sql#L9223) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9224](../../../backend/migrations/001_init.sql#L9224) |
+| `display_year` | `integer` | NOT NULL | — | — | [001_init.sql:10839](../../../backend/migrations/001_init.sql#L10839) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,8 +49,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `preventive_medication_observations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9210](../../../backend/migrations/001_init.sql#L9210) |
-| `preventive_medication_observatio_prescription_id_clinic_id_fkey` | `prescription_id, clinic_id` | [preventive_prescriptions](preventive_prescriptions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9214](../../../backend/migrations/001_init.sql#L9214) |
+| `preventive_medication_observations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9222](../../../backend/migrations/001_init.sql#L9222) |
+| `preventive_medication_observatio_prescription_id_clinic_id_fkey` | `prescription_id, clinic_id` | [preventive_prescriptions](preventive_prescriptions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9226](../../../backend/migrations/001_init.sql#L9226) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -61,10 +61,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `preventive_medication_observations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9209](../../../backend/migrations/001_init.sql#L9209) |
-| `preventive_medication_observations_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9213](../../../backend/migrations/001_init.sql#L9213) |
-| `uq_medication_observation_prescription` | unique | `CONSTRAINT uq_medication_observation_prescription UNIQUE(id,clinic_id,prescription_id)` | [001_init.sql:10091](../../../backend/migrations/001_init.sql#L10091) |
-| `preventive_medication_observations_display_year_check` | check | `CHECK(display_year BETWEEN 1 AND 9999)` | [001_init.sql:10827](../../../backend/migrations/001_init.sql#L10827) |
+| `preventive_medication_observations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9221](../../../backend/migrations/001_init.sql#L9221) |
+| `preventive_medication_observations_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9225](../../../backend/migrations/001_init.sql#L9225) |
+| `uq_medication_observation_prescription` | unique | `CONSTRAINT uq_medication_observation_prescription UNIQUE(id,clinic_id,prescription_id)` | [001_init.sql:10103](../../../backend/migrations/001_init.sql#L10103) |
+| `preventive_medication_observations_display_year_check` | check | `CHECK(display_year BETWEEN 1 AND 9999)` | [001_init.sql:10839](../../../backend/migrations/001_init.sql#L10839) |
 
 ## インデックス
 

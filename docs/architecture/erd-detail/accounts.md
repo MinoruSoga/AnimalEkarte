@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:260](../../../backend/migrations/001_init.sql#L260) |
-| `email` | `text` | NOT NULL | — | UK | [001_init.sql:261](../../../backend/migrations/001_init.sql#L261) |
-| `password_hash` | `text` | NOT NULL | — | — | [001_init.sql:262](../../../backend/migrations/001_init.sql#L262) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:263](../../../backend/migrations/001_init.sql#L263) |
-| `is_system_admin` | `boolean` | NOT NULL | `false` | — | [001_init.sql:264](../../../backend/migrations/001_init.sql#L264) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:265](../../../backend/migrations/001_init.sql#L265) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:266](../../../backend/migrations/001_init.sql#L266) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:267](../../../backend/migrations/001_init.sql#L267) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:272](../../../backend/migrations/001_init.sql#L272) |
+| `email` | `text` | NOT NULL | — | UK | [001_init.sql:273](../../../backend/migrations/001_init.sql#L273) |
+| `password_hash` | `text` | NOT NULL | — | — | [001_init.sql:274](../../../backend/migrations/001_init.sql#L274) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:275](../../../backend/migrations/001_init.sql#L275) |
+| `is_system_admin` | `boolean` | NOT NULL | `false` | — | [001_init.sql:276](../../../backend/migrations/001_init.sql#L276) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:277](../../../backend/migrations/001_init.sql#L277) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:278](../../../backend/migrations/001_init.sql#L278) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:279](../../../backend/migrations/001_init.sql#L279) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,12 +50,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `accounts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:260](../../../backend/migrations/001_init.sql#L260) |
-| `accounts_email_key` | unique | `UNIQUE` | [001_init.sql:261](../../../backend/migrations/001_init.sql#L261) |
+| `accounts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:272](../../../backend/migrations/001_init.sql#L272) |
+| `accounts_email_key` | unique | `UNIQUE` | [001_init.sql:273](../../../backend/migrations/001_init.sql#L273) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_accounts_email` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_accounts_email ON accounts(email) WHERE deleted_at IS NULL` | [001_init.sql:270](../../../backend/migrations/001_init.sql#L270) |
-| `idx_accounts_system_admin` | NO | `is_system_admin = true AND deleted_at IS NULL` | `CREATE INDEX idx_accounts_system_admin ON accounts(is_system_admin) WHERE is_system_admin = true AND deleted_at IS NULL` | [001_init.sql:271](../../../backend/migrations/001_init.sql#L271) |
+| `idx_accounts_email` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_accounts_email ON accounts(email) WHERE deleted_at IS NULL` | [001_init.sql:282](../../../backend/migrations/001_init.sql#L282) |
+| `idx_accounts_system_admin` | NO | `is_system_admin = true AND deleted_at IS NULL` | `CREATE INDEX idx_accounts_system_admin ON accounts(is_system_admin) WHERE is_system_admin = true AND deleted_at IS NULL` | [001_init.sql:283](../../../backend/migrations/001_init.sql#L283) |

@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8211](../../../backend/migrations/001_init.sql#L8211) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8212](../../../backend/migrations/001_init.sql#L8212) |
-| `billing_item_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8213](../../../backend/migrations/001_init.sql#L8213) |
-| `observed_source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8214](../../../backend/migrations/001_init.sql#L8214) |
-| `binding_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8215](../../../backend/migrations/001_init.sql#L8215) |
-| `source_deleted` | `boolean` | NOT NULL | — | — | [001_init.sql:8216](../../../backend/migrations/001_init.sql#L8216) |
-| `difference_kind` | `text` | NOT NULL | — | — | [001_init.sql:8217](../../../backend/migrations/001_init.sql#L8217) |
-| `changed_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8218](../../../backend/migrations/001_init.sql#L8218) |
-| `observed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8219](../../../backend/migrations/001_init.sql#L8219) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8223](../../../backend/migrations/001_init.sql#L8223) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8224](../../../backend/migrations/001_init.sql#L8224) |
+| `billing_item_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8225](../../../backend/migrations/001_init.sql#L8225) |
+| `observed_source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8226](../../../backend/migrations/001_init.sql#L8226) |
+| `binding_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8227](../../../backend/migrations/001_init.sql#L8227) |
+| `source_deleted` | `boolean` | NOT NULL | — | — | [001_init.sql:8228](../../../backend/migrations/001_init.sql#L8228) |
+| `difference_kind` | `text` | NOT NULL | — | — | [001_init.sql:8229](../../../backend/migrations/001_init.sql#L8229) |
+| `changed_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:8230](../../../backend/migrations/001_init.sql#L8230) |
+| `observed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8231](../../../backend/migrations/001_init.sql#L8231) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -57,8 +57,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_source_differences_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8212](../../../backend/migrations/001_init.sql#L8212) |
-| `billing_source_differences_clinic_id_billing_item_id_fkey` | `clinic_id, billing_item_id` | [billing_source_bindings](billing_source_bindings.md) | `clinic_id, billing_item_id` | `ON DELETE RESTRICT` | [001_init.sql:8220](../../../backend/migrations/001_init.sql#L8220) |
+| `billing_source_differences_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8224](../../../backend/migrations/001_init.sql#L8224) |
+| `billing_source_differences_clinic_id_billing_item_id_fkey` | `clinic_id, billing_item_id` | [billing_source_bindings](billing_source_bindings.md) | `clinic_id, billing_item_id` | `ON DELETE RESTRICT` | [001_init.sql:8232](../../../backend/migrations/001_init.sql#L8232) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -69,15 +69,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_source_differences_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8211](../../../backend/migrations/001_init.sql#L8211) |
-| `billing_source_differences_observed_source_version_check` | check | `CHECK (observed_source_version > 0)` | [001_init.sql:8214](../../../backend/migrations/001_init.sql#L8214) |
-| `billing_source_differences_binding_version_check` | check | `CHECK (binding_version > 0)` | [001_init.sql:8215](../../../backend/migrations/001_init.sql#L8215) |
-| `billing_source_differences_difference_kind_check` | check | `CHECK (difference_kind IN ('clinical','amount','both'))` | [001_init.sql:8217](../../../backend/migrations/001_init.sql#L8217) |
-| `billing_source_differences_changed_values_check` | check | `CHECK (jsonb_typeof(changed_values)='object')` | [001_init.sql:8218](../../../backend/migrations/001_init.sql#L8218) |
-| `uq_source_difference_id_clinic` | unique | `CONSTRAINT uq_source_difference_id_clinic UNIQUE (id,clinic_id)` | [001_init.sql:8222](../../../backend/migrations/001_init.sql#L8222) |
+| `billing_source_differences_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8223](../../../backend/migrations/001_init.sql#L8223) |
+| `billing_source_differences_observed_source_version_check` | check | `CHECK (observed_source_version > 0)` | [001_init.sql:8226](../../../backend/migrations/001_init.sql#L8226) |
+| `billing_source_differences_binding_version_check` | check | `CHECK (binding_version > 0)` | [001_init.sql:8227](../../../backend/migrations/001_init.sql#L8227) |
+| `billing_source_differences_difference_kind_check` | check | `CHECK (difference_kind IN ('clinical','amount','both'))` | [001_init.sql:8229](../../../backend/migrations/001_init.sql#L8229) |
+| `billing_source_differences_changed_values_check` | check | `CHECK (jsonb_typeof(changed_values)='object')` | [001_init.sql:8230](../../../backend/migrations/001_init.sql#L8230) |
+| `uq_source_difference_id_clinic` | unique | `CONSTRAINT uq_source_difference_id_clinic UNIQUE (id,clinic_id)` | [001_init.sql:8234](../../../backend/migrations/001_init.sql#L8234) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_billing_source_difference_line` | NO | — | `CREATE INDEX idx_billing_source_difference_line ON billing_source_differences(clinic_id,billing_item_id,id)` | [001_init.sql:8223](../../../backend/migrations/001_init.sql#L8223) |
+| `idx_billing_source_difference_line` | NO | — | `CREATE INDEX idx_billing_source_difference_line ON billing_source_differences(clinic_id,billing_item_id,id)` | [001_init.sql:8235](../../../backend/migrations/001_init.sql#L8235) |

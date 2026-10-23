@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:4616](../../../backend/migrations/001_init.sql#L4616) |
-| `created_clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4617](../../../backend/migrations/001_init.sql#L4617) |
-| `version` | `BIGINT` | NOT NULL | `1` | — | [001_init.sql:4618](../../../backend/migrations/001_init.sql#L4618) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4619](../../../backend/migrations/001_init.sql#L4619) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4620](../../../backend/migrations/001_init.sql#L4620) |
-| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4621](../../../backend/migrations/001_init.sql#L4621) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:4628](../../../backend/migrations/001_init.sql#L4628) |
+| `created_clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4629](../../../backend/migrations/001_init.sql#L4629) |
+| `version` | `BIGINT` | NOT NULL | `1` | — | [001_init.sql:4630](../../../backend/migrations/001_init.sql#L4630) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4631](../../../backend/migrations/001_init.sql#L4631) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4632](../../../backend/migrations/001_init.sql#L4632) |
+| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4633](../../../backend/migrations/001_init.sql#L4633) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,7 +46,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_identity_groups_created_clinic_id_fkey` | `created_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4617](../../../backend/migrations/001_init.sql#L4617) |
+| `owner_identity_groups_created_clinic_id_fkey` | `created_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:4629](../../../backend/migrations/001_init.sql#L4629) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,9 +56,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_identity_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4616](../../../backend/migrations/001_init.sql#L4616) |
-| `owner_identity_groups_version_check` | check | `CHECK (version >= 1)` | [001_init.sql:4618](../../../backend/migrations/001_init.sql#L4618) |
-| `owner_identity_groups_created_clinic_id_id_key` | unique | `UNIQUE (created_clinic_id, id)` | [001_init.sql:4622](../../../backend/migrations/001_init.sql#L4622) |
+| `owner_identity_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4628](../../../backend/migrations/001_init.sql#L4628) |
+| `owner_identity_groups_version_check` | check | `CHECK (version >= 1)` | [001_init.sql:4630](../../../backend/migrations/001_init.sql#L4630) |
+| `owner_identity_groups_created_clinic_id_id_key` | unique | `UNIQUE (created_clinic_id, id)` | [001_init.sql:4634](../../../backend/migrations/001_init.sql#L4634) |
 
 ## インデックス
 

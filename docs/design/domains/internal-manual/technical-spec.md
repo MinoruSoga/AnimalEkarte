@@ -71,7 +71,7 @@ Preconditions / immutable command の participant を生成し、order_value は
 
 ### anchor 表
 
-- `manual_article_operation_targets`（migration `005_manual_article_operation_targets.sql`）:
+- `manual_article_operation_targets`（001_init.sql 内 `consolidated from 005_manual_article_operation_targets.sql` 節・2026-10-23 統合）:
   `(clinic_id, binding_id)` PK → `article_id`。binding 複合FK RESTRICT、RLS clinic scope、
   immutable UPDATE/DELETE trigger。article への FK・unique(article_id)・created_at/actor 列は持たない
   （lock順の都合で業務行 KEY SHARE を claim 内に入れない・同じglobal記事へ複数操作ありうる・

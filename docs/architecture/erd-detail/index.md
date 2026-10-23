@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **9ファイル** から **253テーブル・2807カラム・769外部キー** を静的に導出しています。
+マイグレーション **1ファイル** から **253テーブル・2807カラム・769外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -286,32 +286,24 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `0444c6ab983bb5e77ce1ed557f1510caf431fe6d6302bcdd2cd9d1e306a56910`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `2dd4ab48d4b342ddaae53c1570e23469a5d04bbbec1c82191e7b04d051317651`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `b970c3a2ec01b7e91d0aa343dd975312bf457edca31a8e1eda947d1bb874cf0b` |
-| [003_trimming_course_image_uploads.sql](../../../backend/migrations/003_trimming_course_image_uploads.sql) | `a86a626288b251d02a9071b2b8eb60e83e15216ff474887b12afd57ebea2cd23` |
-| [004_master_insurance_versions.sql](../../../backend/migrations/004_master_insurance_versions.sql) | `580764f5340952ff15881df75c5a4f8c712eba9ddddce2db73dc2d0235f91b2b` |
-| [005_manual_article_operation_targets.sql](../../../backend/migrations/005_manual_article_operation_targets.sql) | `15b43e500710322544094d5f89528f2c4780f130bdcf648ce663d2d97cd4fcd1` |
-| [006_operation_anchor_and_lab_mapping_versions.sql](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql) | `0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831` |
-| [007_bill_discount_excluded_and_master_versions.sql](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql) | `e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b` |
-| [008_clinic_operating_hours.sql](../../../backend/migrations/008_clinic_operating_hours.sql) | `41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313` |
-| [009_line_acceptance_version.sql](../../../backend/migrations/009_line_acceptance_version.sql) | `6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea` |
-| [010_line_staff_start_policy_and_reservation_anchor.sql](../../../backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql) | `03d16767d1570fb0611a7a5325d24ac93f235df7517fdefd9848f088401c70a8` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `0deaf2dbf235a5b4ce97c47e2b5dd54fd30f80c16e89bf475ca6ba3edbc0e298` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
-- 001_init.sql:3028 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy
-- 001_init.sql:3850 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion
-- 001_init.sql:3922 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion
-- 001_init.sql:4867 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup
-- 001_init.sql:5235 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent
-- 001_init.sql:5253 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent
-- 001_init.sql:5339 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion
-- 001_init.sql:6429 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum
-- 001_init.sql:6497 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion
-- 001_init.sql:6515 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
-- 001_init.sql:6882 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
-- 001_init.sql:7384 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
-- 001_init.sql:7449 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion
+- 001_init.sql:3040 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy
+- 001_init.sql:3862 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion
+- 001_init.sql:3934 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion
+- 001_init.sql:4879 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup
+- 001_init.sql:5247 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent
+- 001_init.sql:5265 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent
+- 001_init.sql:5351 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion
+- 001_init.sql:6441 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum
+- 001_init.sql:6509 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion
+- 001_init.sql:6527 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
+- 001_init.sql:6894 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
+- 001_init.sql:7396 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
+- 001_init.sql:7461 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion

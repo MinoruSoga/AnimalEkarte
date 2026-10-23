@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8960](../../../backend/migrations/001_init.sql#L8960) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8961](../../../backend/migrations/001_init.sql#L8961) |
-| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8962](../../../backend/migrations/001_init.sql#L8962) |
-| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:8963](../../../backend/migrations/001_init.sql#L8963) |
-| `end_date` | `date` | NULL | — | — | [001_init.sql:8964](../../../backend/migrations/001_init.sql#L8964) |
-| `end_boundary` | `text` | NULL | — | — | [001_init.sql:8965](../../../backend/migrations/001_init.sql#L8965) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8966](../../../backend/migrations/001_init.sql#L8966) |
-| `provenance` | `text` | NULL | — | — | [001_init.sql:8967](../../../backend/migrations/001_init.sql#L8967) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8968](../../../backend/migrations/001_init.sql#L8968) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:8969](../../../backend/migrations/001_init.sql#L8969) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8972](../../../backend/migrations/001_init.sql#L8972) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8973](../../../backend/migrations/001_init.sql#L8973) |
+| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8974](../../../backend/migrations/001_init.sql#L8974) |
+| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:8975](../../../backend/migrations/001_init.sql#L8975) |
+| `end_date` | `date` | NULL | — | — | [001_init.sql:8976](../../../backend/migrations/001_init.sql#L8976) |
+| `end_boundary` | `text` | NULL | — | — | [001_init.sql:8977](../../../backend/migrations/001_init.sql#L8977) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8978](../../../backend/migrations/001_init.sql#L8978) |
+| `provenance` | `text` | NULL | — | — | [001_init.sql:8979](../../../backend/migrations/001_init.sql#L8979) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8980](../../../backend/migrations/001_init.sql#L8980) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:8981](../../../backend/migrations/001_init.sql#L8981) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,8 +58,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_leave_periods_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8961](../../../backend/migrations/001_init.sql#L8961) |
-| `staff_leave_periods_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8962](../../../backend/migrations/001_init.sql#L8962) |
+| `staff_leave_periods_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8973](../../../backend/migrations/001_init.sql#L8973) |
+| `staff_leave_periods_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8974](../../../backend/migrations/001_init.sql#L8974) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -70,15 +70,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_leave_periods_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8960](../../../backend/migrations/001_init.sql#L8960) |
-| `staff_leave_periods_end_boundary_check` | check | `CHECK (end_boundary IN ('inclusive','exclusive','unknown'))` | [001_init.sql:8965](../../../backend/migrations/001_init.sql#L8965) |
-| `staff_leave_periods_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8966](../../../backend/migrations/001_init.sql#L8966) |
-| `staff_leave_periods_check` | check | `CHECK (end_date IS NULL OR end_date>=start_date)` | [001_init.sql:8970](../../../backend/migrations/001_init.sql#L8970) |
-| `staff_leave_periods_check1` | check | `CHECK ((end_date IS NULL AND end_boundary IS NULL) OR (end_date IS NOT NULL AND end_boundary IS NOT NULL))` | [001_init.sql:8971](../../../backend/migrations/001_init.sql#L8971) |
-| `staff_leave_periods_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8972](../../../backend/migrations/001_init.sql#L8972) |
+| `staff_leave_periods_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8972](../../../backend/migrations/001_init.sql#L8972) |
+| `staff_leave_periods_end_boundary_check` | check | `CHECK (end_boundary IN ('inclusive','exclusive','unknown'))` | [001_init.sql:8977](../../../backend/migrations/001_init.sql#L8977) |
+| `staff_leave_periods_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8978](../../../backend/migrations/001_init.sql#L8978) |
+| `staff_leave_periods_check` | check | `CHECK (end_date IS NULL OR end_date>=start_date)` | [001_init.sql:8982](../../../backend/migrations/001_init.sql#L8982) |
+| `staff_leave_periods_check1` | check | `CHECK ((end_date IS NULL AND end_boundary IS NULL) OR (end_date IS NOT NULL AND end_boundary IS NOT NULL))` | [001_init.sql:8983](../../../backend/migrations/001_init.sql#L8983) |
+| `staff_leave_periods_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8984](../../../backend/migrations/001_init.sql#L8984) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_staff_leave_clinic_staff_dates` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_staff_leave_clinic_staff_dates ON staff_leave_periods(clinic_id,staff_id,start_date,end_date) WHERE deleted_at IS NULL` | [001_init.sql:8974](../../../backend/migrations/001_init.sql#L8974) |
+| `idx_staff_leave_clinic_staff_dates` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_staff_leave_clinic_staff_dates ON staff_leave_periods(clinic_id,staff_id,start_date,end_date) WHERE deleted_at IS NULL` | [001_init.sql:8986](../../../backend/migrations/001_init.sql#L8986) |

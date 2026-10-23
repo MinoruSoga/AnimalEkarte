@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:599](../../../backend/migrations/001_init.sql#L599) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:600](../../../backend/migrations/001_init.sql#L600) |
-| `line_user_id` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:601](../../../backend/migrations/001_init.sql#L601) |
-| `display_name` | `varchar(255)` | NULL | — | — | [001_init.sql:602](../../../backend/migrations/001_init.sql#L602) |
-| `registered_at` | `timestamptz` | NULL | — | — | [001_init.sql:603](../../../backend/migrations/001_init.sql#L603) |
-| `tags` | `jsonb` | NULL | — | — | [001_init.sql:604](../../../backend/migrations/001_init.sql#L604) |
-| `scenarios` | `jsonb` | NULL | — | — | [001_init.sql:605](../../../backend/migrations/001_init.sql#L605) |
-| `traffic_source` | `varchar(100)` | NULL | — | — | [001_init.sql:606](../../../backend/migrations/001_init.sql#L606) |
-| `block_status` | `varchar(20)` | NULL | — | — | [001_init.sql:607](../../../backend/migrations/001_init.sql#L607) |
-| `last_message_at` | `timestamptz` | NULL | — | — | [001_init.sql:608](../../../backend/migrations/001_init.sql#L608) |
-| `snapshot_taken_at` | `timestamptz` | NOT NULL | — | UK | [001_init.sql:609](../../../backend/migrations/001_init.sql#L609) |
-| `csv_import_id` | `uuid` | NULL | — | FK | [001_init.sql:610](../../../backend/migrations/001_init.sql#L610) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:611](../../../backend/migrations/001_init.sql#L611) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:612](../../../backend/migrations/001_init.sql#L612) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:611](../../../backend/migrations/001_init.sql#L611) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:612](../../../backend/migrations/001_init.sql#L612) |
+| `line_user_id` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:613](../../../backend/migrations/001_init.sql#L613) |
+| `display_name` | `varchar(255)` | NULL | — | — | [001_init.sql:614](../../../backend/migrations/001_init.sql#L614) |
+| `registered_at` | `timestamptz` | NULL | — | — | [001_init.sql:615](../../../backend/migrations/001_init.sql#L615) |
+| `tags` | `jsonb` | NULL | — | — | [001_init.sql:616](../../../backend/migrations/001_init.sql#L616) |
+| `scenarios` | `jsonb` | NULL | — | — | [001_init.sql:617](../../../backend/migrations/001_init.sql#L617) |
+| `traffic_source` | `varchar(100)` | NULL | — | — | [001_init.sql:618](../../../backend/migrations/001_init.sql#L618) |
+| `block_status` | `varchar(20)` | NULL | — | — | [001_init.sql:619](../../../backend/migrations/001_init.sql#L619) |
+| `last_message_at` | `timestamptz` | NULL | — | — | [001_init.sql:620](../../../backend/migrations/001_init.sql#L620) |
+| `snapshot_taken_at` | `timestamptz` | NOT NULL | — | UK | [001_init.sql:621](../../../backend/migrations/001_init.sql#L621) |
+| `csv_import_id` | `uuid` | NULL | — | FK | [001_init.sql:622](../../../backend/migrations/001_init.sql#L622) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:623](../../../backend/migrations/001_init.sql#L623) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:624](../../../backend/migrations/001_init.sql#L624) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,8 +67,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_friend_attribute_snapshots_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:600](../../../backend/migrations/001_init.sql#L600) |
-| `fk_lstep_snapshots_clinic_csv_import` | `clinic_id, csv_import_id` | [lstep_csv_imports](lstep_csv_imports.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:3875](../../../backend/migrations/001_init.sql#L3875) |
+| `lstep_friend_attribute_snapshots_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:612](../../../backend/migrations/001_init.sql#L612) |
+| `fk_lstep_snapshots_clinic_csv_import` | `clinic_id, csv_import_id` | [lstep_csv_imports](lstep_csv_imports.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:3887](../../../backend/migrations/001_init.sql#L3887) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -79,12 +79,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_friend_attribute_snapshots_pkey` | primary | `PRIMARY KEY` | [001_init.sql:599](../../../backend/migrations/001_init.sql#L599) |
-| `lstep_friend_attribute_snapsh_clinic_id_line_user_id_snapsh_key` | unique | `UNIQUE (clinic_id, line_user_id, snapshot_taken_at)` | [001_init.sql:613](../../../backend/migrations/001_init.sql#L613) |
+| `lstep_friend_attribute_snapshots_pkey` | primary | `PRIMARY KEY` | [001_init.sql:611](../../../backend/migrations/001_init.sql#L611) |
+| `lstep_friend_attribute_snapsh_clinic_id_line_user_id_snapsh_key` | unique | `UNIQUE (clinic_id, line_user_id, snapshot_taken_at)` | [001_init.sql:625](../../../backend/migrations/001_init.sql#L625) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_friend_attribute_snapshots_clinic_user` | NO | — | `CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_user     ON lstep_friend_attribute_snapshots (clinic_id, line_user_id)` | [001_init.sql:616](../../../backend/migrations/001_init.sql#L616) |
-| `idx_lstep_friend_attribute_snapshots_clinic_taken` | NO | — | `CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_taken     ON lstep_friend_attribute_snapshots (clinic_id, snapshot_taken_at DESC)` | [001_init.sql:618](../../../backend/migrations/001_init.sql#L618) |
+| `idx_lstep_friend_attribute_snapshots_clinic_user` | NO | — | `CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_user     ON lstep_friend_attribute_snapshots (clinic_id, line_user_id)` | [001_init.sql:628](../../../backend/migrations/001_init.sql#L628) |
+| `idx_lstep_friend_attribute_snapshots_clinic_taken` | NO | — | `CREATE INDEX idx_lstep_friend_attribute_snapshots_clinic_taken     ON lstep_friend_attribute_snapshots (clinic_id, snapshot_taken_at DESC)` | [001_init.sql:630](../../../backend/migrations/001_init.sql#L630) |

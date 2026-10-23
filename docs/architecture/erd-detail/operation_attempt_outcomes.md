@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10081](../../../backend/migrations/001_init.sql#L10081) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10081](../../../backend/migrations/001_init.sql#L10081) |
-| `binding_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10082](../../../backend/migrations/001_init.sql#L10082) |
-| `attempt_key` | `uuid` | NOT NULL | — | UK | [001_init.sql:10082](../../../backend/migrations/001_init.sql#L10082) |
-| `outcome` | `text` | NOT NULL | — | — | [001_init.sql:10083](../../../backend/migrations/001_init.sql#L10083) |
-| `details` | `jsonb` | NOT NULL | — | — | [001_init.sql:10084](../../../backend/migrations/001_init.sql#L10084) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10084](../../../backend/migrations/001_init.sql#L10084) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10093](../../../backend/migrations/001_init.sql#L10093) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10093](../../../backend/migrations/001_init.sql#L10093) |
+| `binding_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10094](../../../backend/migrations/001_init.sql#L10094) |
+| `attempt_key` | `uuid` | NOT NULL | — | UK | [001_init.sql:10094](../../../backend/migrations/001_init.sql#L10094) |
+| `outcome` | `text` | NOT NULL | — | — | [001_init.sql:10095](../../../backend/migrations/001_init.sql#L10095) |
+| `details` | `jsonb` | NOT NULL | — | — | [001_init.sql:10096](../../../backend/migrations/001_init.sql#L10096) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10096](../../../backend/migrations/001_init.sql#L10096) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -53,8 +53,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `operation_attempt_outcomes_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10081](../../../backend/migrations/001_init.sql#L10081) |
-| `operation_attempt_outcomes_binding_id_clinic_id_fkey` | `binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10086](../../../backend/migrations/001_init.sql#L10086) |
+| `operation_attempt_outcomes_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10093](../../../backend/migrations/001_init.sql#L10093) |
+| `operation_attempt_outcomes_binding_id_clinic_id_fkey` | `binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10098](../../../backend/migrations/001_init.sql#L10098) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -65,10 +65,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `operation_attempt_outcomes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10081](../../../backend/migrations/001_init.sql#L10081) |
-| `operation_attempt_outcomes_outcome_check` | check | `CHECK(outcome IN('rejected','unknown','retryable_failure'))` | [001_init.sql:10083](../../../backend/migrations/001_init.sql#L10083) |
-| `operation_attempt_outcomes_details_check` | check | `CHECK(jsonb_typeof(details)='object')` | [001_init.sql:10084](../../../backend/migrations/001_init.sql#L10084) |
-| `operation_attempt_outcomes_clinic_id_binding_id_attempt_key_key` | unique | `UNIQUE(clinic_id,binding_id,attempt_key)` | [001_init.sql:10085](../../../backend/migrations/001_init.sql#L10085) |
+| `operation_attempt_outcomes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10093](../../../backend/migrations/001_init.sql#L10093) |
+| `operation_attempt_outcomes_outcome_check` | check | `CHECK(outcome IN('rejected','unknown','retryable_failure'))` | [001_init.sql:10095](../../../backend/migrations/001_init.sql#L10095) |
+| `operation_attempt_outcomes_details_check` | check | `CHECK(jsonb_typeof(details)='object')` | [001_init.sql:10096](../../../backend/migrations/001_init.sql#L10096) |
+| `operation_attempt_outcomes_clinic_id_binding_id_attempt_key_key` | unique | `UNIQUE(clinic_id,binding_id,attempt_key)` | [001_init.sql:10097](../../../backend/migrations/001_init.sql#L10097) |
 
 ## インデックス
 

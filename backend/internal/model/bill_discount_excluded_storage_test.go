@@ -1,8 +1,6 @@
 package model
 
 import (
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -154,16 +152,12 @@ func TestBillDiscountExcludedModelTags(t *testing.T) {
 	}
 }
 
-// readBillDiscountExcluded007Migration loads the 007 DDL from
-// backend/migrations relative to this package directory.
+// readBillDiscountExcluded007Migration returns the A01 DDL section absorbed
+// into 001_init.sql from the former
+// backend/migrations/007_bill_discount_excluded_and_master_versions.sql.
 func readBillDiscountExcluded007Migration(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join("..", "..", "migrations", "007_bill_discount_excluded_and_master_versions.sql")
-	b, err := os.ReadFile(path) //nolint:gosec // fixed relative migration path
-	if err != nil {
-		t.Fatalf("read 007 migration: %v", err)
-	}
-	return string(b)
+	return readConsolidatedMigrationSection(t, "007_bill_discount_excluded_and_master_versions.sql")
 }
 
 // stripSQLLineComments removes `--` line comments so statement checks are not

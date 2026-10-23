@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `scope` | `text` | NOT NULL | — | PK | [001_init.sql:7586](../../../backend/migrations/001_init.sql#L7586) |
-| `model` | `text` | NOT NULL | — | PK | [001_init.sql:7587](../../../backend/migrations/001_init.sql#L7587) |
-| `next_allowed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:7588](../../../backend/migrations/001_init.sql#L7588) |
+| `scope` | `text` | NOT NULL | — | PK | [001_init.sql:7598](../../../backend/migrations/001_init.sql#L7598) |
+| `model` | `text` | NOT NULL | — | PK | [001_init.sql:7599](../../../backend/migrations/001_init.sql#L7599) |
+| `next_allowed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:7600](../../../backend/migrations/001_init.sql#L7600) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -40,7 +40,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_llm_budgets_pkey` | primary | `PRIMARY KEY (scope, model)` | [001_init.sql:7589](../../../backend/migrations/001_init.sql#L7589) |
+| `support_llm_budgets_pkey` | primary | `PRIMARY KEY (scope, model)` | [001_init.sql:7601](../../../backend/migrations/001_init.sql#L7601) |
 
 ## インデックス
 

@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1257](../../../backend/migrations/001_init.sql#L1257) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1258](../../../backend/migrations/001_init.sql#L1258) |
-| `line_user_id` | `text` | NOT NULL | — | UK | [001_init.sql:1259](../../../backend/migrations/001_init.sql#L1259) |
-| `display_name` | `text` | NOT NULL | `''` | — | [001_init.sql:1260](../../../backend/migrations/001_init.sql#L1260) |
-| `real_name` | `text` | NOT NULL | `''` | — | [001_init.sql:1261](../../../backend/migrations/001_init.sql#L1261) |
-| `additional_fields` | `jsonb` | NOT NULL | `'{}'` | — | [001_init.sql:1262](../../../backend/migrations/001_init.sql#L1262) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1264](../../../backend/migrations/001_init.sql#L1264) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1265](../../../backend/migrations/001_init.sql#L1265) |
-| `followed_at` | `timestamptz` | NULL | — | — | [001_init.sql:10891](../../../backend/migrations/001_init.sql#L10891) |
-| `blocked_at` | `timestamptz` | NULL | — | — | [001_init.sql:10891](../../../backend/migrations/001_init.sql#L10891) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1269](../../../backend/migrations/001_init.sql#L1269) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1270](../../../backend/migrations/001_init.sql#L1270) |
+| `line_user_id` | `text` | NOT NULL | — | UK | [001_init.sql:1271](../../../backend/migrations/001_init.sql#L1271) |
+| `display_name` | `text` | NOT NULL | `''` | — | [001_init.sql:1272](../../../backend/migrations/001_init.sql#L1272) |
+| `real_name` | `text` | NOT NULL | `''` | — | [001_init.sql:1273](../../../backend/migrations/001_init.sql#L1273) |
+| `additional_fields` | `jsonb` | NOT NULL | `'{}'` | — | [001_init.sql:1274](../../../backend/migrations/001_init.sql#L1274) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1276](../../../backend/migrations/001_init.sql#L1276) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1277](../../../backend/migrations/001_init.sql#L1277) |
+| `followed_at` | `timestamptz` | NULL | — | — | [001_init.sql:10903](../../../backend/migrations/001_init.sql#L10903) |
+| `blocked_at` | `timestamptz` | NULL | — | — | [001_init.sql:10903](../../../backend/migrations/001_init.sql#L10903) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `line_customers_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1258](../../../backend/migrations/001_init.sql#L1258) |
+| `line_customers_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1270](../../../backend/migrations/001_init.sql#L1270) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,10 +64,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `line_customers_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1257](../../../backend/migrations/001_init.sql#L1257) |
-| `line_customers_clinic_id_line_user_id_key` | unique | `UNIQUE(clinic_id, line_user_id)` | [001_init.sql:1266](../../../backend/migrations/001_init.sql#L1266) |
-| `uq_line_customers_id_clinic` | unique | `CONSTRAINT uq_line_customers_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:1272](../../../backend/migrations/001_init.sql#L1272) |
-| `uq_line_customer_id_clinic` | unique | `CONSTRAINT uq_line_customer_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10892](../../../backend/migrations/001_init.sql#L10892) |
+| `line_customers_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1269](../../../backend/migrations/001_init.sql#L1269) |
+| `line_customers_clinic_id_line_user_id_key` | unique | `UNIQUE(clinic_id, line_user_id)` | [001_init.sql:1278](../../../backend/migrations/001_init.sql#L1278) |
+| `uq_line_customers_id_clinic` | unique | `CONSTRAINT uq_line_customers_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:1284](../../../backend/migrations/001_init.sql#L1284) |
+| `uq_line_customer_id_clinic` | unique | `CONSTRAINT uq_line_customer_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10904](../../../backend/migrations/001_init.sql#L10904) |
 
 ## インデックス
 

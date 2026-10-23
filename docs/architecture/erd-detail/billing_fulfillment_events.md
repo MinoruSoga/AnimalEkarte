@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8249](../../../backend/migrations/001_init.sql#L8249) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8250](../../../backend/migrations/001_init.sql#L8250) |
-| `treatment_id` | `bigint` | NULL | — | FK | [001_init.sql:8251](../../../backend/migrations/001_init.sql#L8251) |
-| `billing_item_id` | `bigint` | NULL | — | FK | [001_init.sql:8252](../../../backend/migrations/001_init.sql#L8252) |
-| `source_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:8253](../../../backend/migrations/001_init.sql#L8253) |
-| `event_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8254](../../../backend/migrations/001_init.sql#L8254) |
-| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:8255](../../../backend/migrations/001_init.sql#L8255) |
-| `preceding_event_id` | `bigint` | NULL | — | FK | [001_init.sql:8256](../../../backend/migrations/001_init.sql#L8256) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8257](../../../backend/migrations/001_init.sql#L8257) |
-| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:8258](../../../backend/migrations/001_init.sql#L8258) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8259](../../../backend/migrations/001_init.sql#L8259) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8261](../../../backend/migrations/001_init.sql#L8261) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8262](../../../backend/migrations/001_init.sql#L8262) |
+| `treatment_id` | `bigint` | NULL | — | FK | [001_init.sql:8263](../../../backend/migrations/001_init.sql#L8263) |
+| `billing_item_id` | `bigint` | NULL | — | FK | [001_init.sql:8264](../../../backend/migrations/001_init.sql#L8264) |
+| `source_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:8265](../../../backend/migrations/001_init.sql#L8265) |
+| `event_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8266](../../../backend/migrations/001_init.sql#L8266) |
+| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:8267](../../../backend/migrations/001_init.sql#L8267) |
+| `preceding_event_id` | `bigint` | NULL | — | FK | [001_init.sql:8268](../../../backend/migrations/001_init.sql#L8268) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8269](../../../backend/migrations/001_init.sql#L8269) |
+| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:8270](../../../backend/migrations/001_init.sql#L8270) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8271](../../../backend/migrations/001_init.sql#L8271) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -71,11 +71,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_fulfillment_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8250](../../../backend/migrations/001_init.sql#L8250) |
-| `billing_fulfillment_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8257](../../../backend/migrations/001_init.sql#L8257) |
-| `billing_fulfillment_events_treatment_id_clinic_id_fkey` | `treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8264](../../../backend/migrations/001_init.sql#L8264) |
-| `billing_fulfillment_events_billing_item_id_clinic_id_fkey` | `billing_item_id, clinic_id` | [billing_items](billing_items.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8265](../../../backend/migrations/001_init.sql#L8265) |
-| `billing_fulfillment_events_preceding_event_id_clinic_id_fkey` | `preceding_event_id, clinic_id` | [billing_fulfillment_events](billing_fulfillment_events.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8266](../../../backend/migrations/001_init.sql#L8266) |
+| `billing_fulfillment_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8262](../../../backend/migrations/001_init.sql#L8262) |
+| `billing_fulfillment_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8269](../../../backend/migrations/001_init.sql#L8269) |
+| `billing_fulfillment_events_treatment_id_clinic_id_fkey` | `treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8276](../../../backend/migrations/001_init.sql#L8276) |
+| `billing_fulfillment_events_billing_item_id_clinic_id_fkey` | `billing_item_id, clinic_id` | [billing_items](billing_items.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8277](../../../backend/migrations/001_init.sql#L8277) |
+| `billing_fulfillment_events_preceding_event_id_clinic_id_fkey` | `preceding_event_id, clinic_id` | [billing_fulfillment_events](billing_fulfillment_events.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8278](../../../backend/migrations/001_init.sql#L8278) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -89,18 +89,18 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_fulfillment_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8249](../../../backend/migrations/001_init.sql#L8249) |
-| `billing_fulfillment_events_source_generation_check` | check | `CHECK (source_generation > 0)` | [001_init.sql:8253](../../../backend/migrations/001_init.sql#L8253) |
-| `billing_fulfillment_events_event_version_check` | check | `CHECK (event_version > 0)` | [001_init.sql:8254](../../../backend/migrations/001_init.sql#L8254) |
-| `billing_fulfillment_events_event_kind_check` | check | `CHECK (event_kind IN ('performed','prepared','revoked'))` | [001_init.sql:8255](../../../backend/migrations/001_init.sql#L8255) |
-| `billing_fulfillment_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8260](../../../backend/migrations/001_init.sql#L8260) |
-| `billing_fulfillment_events_check` | check | `CHECK (num_nonnulls(treatment_id,billing_item_id)=1)` | [001_init.sql:8261](../../../backend/migrations/001_init.sql#L8261) |
-| `billing_fulfillment_events_check1` | check | `CHECK ((event_kind='revoked' AND preceding_event_id IS NOT NULL)         OR (event_kind IN ('performed','prepared') AND preceding_event_id IS NULL))` | [001_init.sql:8262](../../../backend/migrations/001_init.sql#L8262) |
+| `billing_fulfillment_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8261](../../../backend/migrations/001_init.sql#L8261) |
+| `billing_fulfillment_events_source_generation_check` | check | `CHECK (source_generation > 0)` | [001_init.sql:8265](../../../backend/migrations/001_init.sql#L8265) |
+| `billing_fulfillment_events_event_version_check` | check | `CHECK (event_version > 0)` | [001_init.sql:8266](../../../backend/migrations/001_init.sql#L8266) |
+| `billing_fulfillment_events_event_kind_check` | check | `CHECK (event_kind IN ('performed','prepared','revoked'))` | [001_init.sql:8267](../../../backend/migrations/001_init.sql#L8267) |
+| `billing_fulfillment_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8272](../../../backend/migrations/001_init.sql#L8272) |
+| `billing_fulfillment_events_check` | check | `CHECK (num_nonnulls(treatment_id,billing_item_id)=1)` | [001_init.sql:8273](../../../backend/migrations/001_init.sql#L8273) |
+| `billing_fulfillment_events_check1` | check | `CHECK ((event_kind='revoked' AND preceding_event_id IS NOT NULL)         OR (event_kind IN ('performed','prepared') AND preceding_event_id IS NULL))` | [001_init.sql:8274](../../../backend/migrations/001_init.sql#L8274) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_fulfillment_treatment_version` | YES | `treatment_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_fulfillment_treatment_version ON billing_fulfillment_events(clinic_id,treatment_id,event_version) WHERE treatment_id IS NOT NULL` | [001_init.sql:8268](../../../backend/migrations/001_init.sql#L8268) |
-| `uq_fulfillment_billing_line_version` | YES | `billing_item_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_fulfillment_billing_line_version ON billing_fulfillment_events(clinic_id,billing_item_id,event_version) WHERE billing_item_id IS NOT NULL` | [001_init.sql:8269](../../../backend/migrations/001_init.sql#L8269) |
-| `uq_fulfillment_revoke_once` | YES | `preceding_event_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_fulfillment_revoke_once ON billing_fulfillment_events(clinic_id,preceding_event_id) WHERE preceding_event_id IS NOT NULL` | [001_init.sql:8270](../../../backend/migrations/001_init.sql#L8270) |
+| `uq_fulfillment_treatment_version` | YES | `treatment_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_fulfillment_treatment_version ON billing_fulfillment_events(clinic_id,treatment_id,event_version) WHERE treatment_id IS NOT NULL` | [001_init.sql:8280](../../../backend/migrations/001_init.sql#L8280) |
+| `uq_fulfillment_billing_line_version` | YES | `billing_item_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_fulfillment_billing_line_version ON billing_fulfillment_events(clinic_id,billing_item_id,event_version) WHERE billing_item_id IS NOT NULL` | [001_init.sql:8281](../../../backend/migrations/001_init.sql#L8281) |
+| `uq_fulfillment_revoke_once` | YES | `preceding_event_id IS NOT NULL` | `CREATE UNIQUE INDEX uq_fulfillment_revoke_once ON billing_fulfillment_events(clinic_id,preceding_event_id) WHERE preceding_event_id IS NOT NULL` | [001_init.sql:8282](../../../backend/migrations/001_init.sql#L8282) |

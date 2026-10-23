@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `BIGINT` | NOT NULL | — | PK, FK | [003_trimming_course_image_uploads.sql:4](../../../backend/migrations/003_trimming_course_image_uploads.sql#L4) |
-| `object_key` | `TEXT` | NOT NULL | — | PK | [003_trimming_course_image_uploads.sql:5](../../../backend/migrations/003_trimming_course_image_uploads.sql#L5) |
-| `uploader_staff_id` | `BIGINT` | NOT NULL | — | FK | [003_trimming_course_image_uploads.sql:6](../../../backend/migrations/003_trimming_course_image_uploads.sql#L6) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [003_trimming_course_image_uploads.sql:7](../../../backend/migrations/003_trimming_course_image_uploads.sql#L7) |
-| `uploaded_at` | `TIMESTAMPTZ` | NULL | — | — | [003_trimming_course_image_uploads.sql:8](../../../backend/migrations/003_trimming_course_image_uploads.sql#L8) |
-| `submitted_at` | `TIMESTAMPTZ` | NULL | — | — | [003_trimming_course_image_uploads.sql:9](../../../backend/migrations/003_trimming_course_image_uploads.sql#L9) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | PK, FK | [001_init.sql:11344](../../../backend/migrations/001_init.sql#L11344) |
+| `object_key` | `TEXT` | NOT NULL | — | PK | [001_init.sql:11345](../../../backend/migrations/001_init.sql#L11345) |
+| `uploader_staff_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:11346](../../../backend/migrations/001_init.sql#L11346) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:11347](../../../backend/migrations/001_init.sql#L11347) |
+| `uploaded_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:11348](../../../backend/migrations/001_init.sql#L11348) |
+| `submitted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:11349](../../../backend/migrations/001_init.sql#L11349) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,8 +50,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_course_image_uploads_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [003_trimming_course_image_uploads.sql:4](../../../backend/migrations/003_trimming_course_image_uploads.sql#L4) |
-| `trimming_course_image_uploads_uploader_staff_id_fkey` | `uploader_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [003_trimming_course_image_uploads.sql:6](../../../backend/migrations/003_trimming_course_image_uploads.sql#L6) |
+| `trimming_course_image_uploads_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11344](../../../backend/migrations/001_init.sql#L11344) |
+| `trimming_course_image_uploads_uploader_staff_id_fkey` | `uploader_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11346](../../../backend/migrations/001_init.sql#L11346) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,9 +62,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_course_image_uploads_pkey` | primary | `PRIMARY KEY (clinic_id, object_key)` | [003_trimming_course_image_uploads.sql:10](../../../backend/migrations/003_trimming_course_image_uploads.sql#L10) |
-| `trimming_course_image_uploads_check` | check | `CHECK (clinic_id > 0 AND uploader_staff_id > 0)` | [003_trimming_course_image_uploads.sql:11](../../../backend/migrations/003_trimming_course_image_uploads.sql#L11) |
-| `trimming_course_image_uploads_check1` | check | <code>CHECK (object_key LIKE &#x27;trimming-images/&#x27; &#124;&#124; clinic_id::text &#124;&#124; &#x27;/%&#x27;            AND object_key ~ &#x27;^trimming-images/[1-9][0-9]*/[0-9]+_[0-9a-f]{32}\.(jpg&#124;jpeg&#124;png&#124;gif)$&#x27;)</code> | [003_trimming_course_image_uploads.sql:12](../../../backend/migrations/003_trimming_course_image_uploads.sql#L12) |
+| `trimming_course_image_uploads_pkey` | primary | `PRIMARY KEY (clinic_id, object_key)` | [001_init.sql:11350](../../../backend/migrations/001_init.sql#L11350) |
+| `trimming_course_image_uploads_check` | check | `CHECK (clinic_id > 0 AND uploader_staff_id > 0)` | [001_init.sql:11351](../../../backend/migrations/001_init.sql#L11351) |
+| `trimming_course_image_uploads_check1` | check | <code>CHECK (object_key LIKE &#x27;trimming-images/&#x27; &#124;&#124; clinic_id::text &#124;&#124; &#x27;/%&#x27;            AND object_key ~ &#x27;^trimming-images/[1-9][0-9]*/[0-9]+_[0-9a-f]{32}\.(jpg&#124;jpeg&#124;png&#124;gif)$&#x27;)</code> | [001_init.sql:11352](../../../backend/migrations/001_init.sql#L11352) |
 
 ## インデックス
 

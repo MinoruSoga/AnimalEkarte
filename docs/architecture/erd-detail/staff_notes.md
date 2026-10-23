@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1880](../../../backend/migrations/001_init.sql#L1880) |
-| `daily_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1881](../../../backend/migrations/001_init.sql#L1881) |
-| `time` | `time` | NOT NULL | — | — | [001_init.sql:1882](../../../backend/migrations/001_init.sql#L1882) |
-| `content` | `text` | NOT NULL | `''` | — | [001_init.sql:1883](../../../backend/migrations/001_init.sql#L1883) |
-| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1884](../../../backend/migrations/001_init.sql#L1884) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1885](../../../backend/migrations/001_init.sql#L1885) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1886](../../../backend/migrations/001_init.sql#L1886) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1892](../../../backend/migrations/001_init.sql#L1892) |
+| `daily_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1893](../../../backend/migrations/001_init.sql#L1893) |
+| `time` | `time` | NOT NULL | — | — | [001_init.sql:1894](../../../backend/migrations/001_init.sql#L1894) |
+| `content` | `text` | NOT NULL | `''` | — | [001_init.sql:1895](../../../backend/migrations/001_init.sql#L1895) |
+| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1896](../../../backend/migrations/001_init.sql#L1896) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1897](../../../backend/migrations/001_init.sql#L1897) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1898](../../../backend/migrations/001_init.sql#L1898) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,8 +52,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_notes_daily_record_id_fkey` | `daily_record_id` | [daily_records](daily_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1881](../../../backend/migrations/001_init.sql#L1881) |
-| `staff_notes_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1884](../../../backend/migrations/001_init.sql#L1884) |
+| `staff_notes_daily_record_id_fkey` | `daily_record_id` | [daily_records](daily_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1893](../../../backend/migrations/001_init.sql#L1893) |
+| `staff_notes_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1896](../../../backend/migrations/001_init.sql#L1896) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,7 +64,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_notes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1880](../../../backend/migrations/001_init.sql#L1880) |
+| `staff_notes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1892](../../../backend/migrations/001_init.sql#L1892) |
 
 ## インデックス
 

@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:2154](../../../backend/migrations/001_init.sql#L2154) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2155](../../../backend/migrations/001_init.sql#L2155) |
-| `close_date` | `date` | NOT NULL | — | UK | [001_init.sql:2156](../../../backend/migrations/001_init.sql#L2156) |
-| `period` | `varchar(3)` | NOT NULL | — | UK | [001_init.sql:2157](../../../backend/migrations/001_init.sql#L2157) |
-| `theoretical_cash` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2158](../../../backend/migrations/001_init.sql#L2158) |
-| `actual_cash` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2159](../../../backend/migrations/001_init.sql#L2159) |
-| `category_breakdown` | `jsonb` | NOT NULL | `'{}'` | — | [001_init.sql:2161](../../../backend/migrations/001_init.sql#L2161) |
-| `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:2162](../../../backend/migrations/001_init.sql#L2162) |
-| `closed_by` | `bigint` | NULL | — | FK | [001_init.sql:2163](../../../backend/migrations/001_init.sql#L2163) |
-| `closed_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2164](../../../backend/migrations/001_init.sql#L2164) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2165](../../../backend/migrations/001_init.sql#L2165) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2166](../../../backend/migrations/001_init.sql#L2166) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:2166](../../../backend/migrations/001_init.sql#L2166) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2167](../../../backend/migrations/001_init.sql#L2167) |
+| `close_date` | `date` | NOT NULL | — | UK | [001_init.sql:2168](../../../backend/migrations/001_init.sql#L2168) |
+| `period` | `varchar(3)` | NOT NULL | — | UK | [001_init.sql:2169](../../../backend/migrations/001_init.sql#L2169) |
+| `theoretical_cash` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2170](../../../backend/migrations/001_init.sql#L2170) |
+| `actual_cash` | `bigint` | NOT NULL | `0` | — | [001_init.sql:2171](../../../backend/migrations/001_init.sql#L2171) |
+| `category_breakdown` | `jsonb` | NOT NULL | `'{}'` | — | [001_init.sql:2173](../../../backend/migrations/001_init.sql#L2173) |
+| `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:2174](../../../backend/migrations/001_init.sql#L2174) |
+| `closed_by` | `bigint` | NULL | — | FK | [001_init.sql:2175](../../../backend/migrations/001_init.sql#L2175) |
+| `closed_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2176](../../../backend/migrations/001_init.sql#L2176) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2177](../../../backend/migrations/001_init.sql#L2177) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2178](../../../backend/migrations/001_init.sql#L2178) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,8 +62,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cash_register_closes_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2155](../../../backend/migrations/001_init.sql#L2155) |
-| `cash_register_closes_closed_by_fkey` | `closed_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2163](../../../backend/migrations/001_init.sql#L2163) |
+| `cash_register_closes_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2167](../../../backend/migrations/001_init.sql#L2167) |
+| `cash_register_closes_closed_by_fkey` | `closed_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2175](../../../backend/migrations/001_init.sql#L2175) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,15 +74,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `cash_register_closes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2154](../../../backend/migrations/001_init.sql#L2154) |
-| `cash_register_closes_period_check` | check | `CHECK (period IN ('am', 'pm', 'emg'))` | [001_init.sql:2157](../../../backend/migrations/001_init.sql#L2157) |
-| `uq_cash_register_closes_id_clinic` | unique | `CONSTRAINT uq_cash_register_closes_id_clinic         UNIQUE (id, clinic_id)` | [001_init.sql:5700](../../../backend/migrations/001_init.sql#L5700) |
-| `ck_cash_actual_nonnegative` | check | `CONSTRAINT ck_cash_actual_nonnegative CHECK(actual_cash>=0)` | [001_init.sql:10647](../../../backend/migrations/001_init.sql#L10647) |
-| `ck_close_difference_note` | check | `CONSTRAINT ck_close_difference_note CHECK(actual_cash=theoretical_cash OR btrim(memo)<>'')` | [001_init.sql:10899](../../../backend/migrations/001_init.sql#L10899) |
+| `cash_register_closes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2166](../../../backend/migrations/001_init.sql#L2166) |
+| `cash_register_closes_period_check` | check | `CHECK (period IN ('am', 'pm', 'emg'))` | [001_init.sql:2169](../../../backend/migrations/001_init.sql#L2169) |
+| `uq_cash_register_closes_id_clinic` | unique | `CONSTRAINT uq_cash_register_closes_id_clinic         UNIQUE (id, clinic_id)` | [001_init.sql:5712](../../../backend/migrations/001_init.sql#L5712) |
+| `ck_cash_actual_nonnegative` | check | `CONSTRAINT ck_cash_actual_nonnegative CHECK(actual_cash>=0)` | [001_init.sql:10659](../../../backend/migrations/001_init.sql#L10659) |
+| `ck_close_difference_note` | check | `CONSTRAINT ck_close_difference_note CHECK(actual_cash=theoretical_cash OR btrim(memo)<>'')` | [001_init.sql:10911](../../../backend/migrations/001_init.sql#L10911) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_cash_register_closes_clinic` | NO | — | `CREATE INDEX idx_cash_register_closes_clinic ON cash_register_closes(clinic_id, close_date DESC)` | [001_init.sql:2170](../../../backend/migrations/001_init.sql#L2170) |
-| `uq_cash_register_closes_date_period` | YES | — | `CREATE UNIQUE INDEX uq_cash_register_closes_date_period     ON cash_register_closes (clinic_id, close_date, period)` | [001_init.sql:4896](../../../backend/migrations/001_init.sql#L4896) |
+| `idx_cash_register_closes_clinic` | NO | — | `CREATE INDEX idx_cash_register_closes_clinic ON cash_register_closes(clinic_id, close_date DESC)` | [001_init.sql:2182](../../../backend/migrations/001_init.sql#L2182) |
+| `uq_cash_register_closes_date_period` | YES | — | `CREATE UNIQUE INDEX uq_cash_register_closes_date_period     ON cash_register_closes (clinic_id, close_date, period)` | [001_init.sql:4908](../../../backend/migrations/001_init.sql#L4908) |

@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9944](../../../backend/migrations/001_init.sql#L9944) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9944](../../../backend/migrations/001_init.sql#L9944) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9945](../../../backend/migrations/001_init.sql#L9945) |
-| `performed_date` | `date` | NOT NULL | — | — | [001_init.sql:9945](../../../backend/migrations/001_init.sql#L9945) |
-| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9946](../../../backend/migrations/001_init.sql#L9946) |
-| `request_fingerprint` | `bytea` | NOT NULL | — | — | [001_init.sql:9946](../../../backend/migrations/001_init.sql#L9946) |
-| `actor_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9947](../../../backend/migrations/001_init.sql#L9947) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9947](../../../backend/migrations/001_init.sql#L9947) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9956](../../../backend/migrations/001_init.sql#L9956) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9956](../../../backend/migrations/001_init.sql#L9956) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9957](../../../backend/migrations/001_init.sql#L9957) |
+| `performed_date` | `date` | NOT NULL | — | — | [001_init.sql:9957](../../../backend/migrations/001_init.sql#L9957) |
+| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9958](../../../backend/migrations/001_init.sql#L9958) |
+| `request_fingerprint` | `bytea` | NOT NULL | — | — | [001_init.sql:9958](../../../backend/migrations/001_init.sql#L9958) |
+| `actor_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9959](../../../backend/migrations/001_init.sql#L9959) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9959](../../../backend/migrations/001_init.sql#L9959) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -64,10 +64,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_save_attempts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9944](../../../backend/migrations/001_init.sql#L9944) |
-| `checkup_save_attempts_actor_id_fkey` | `actor_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9947](../../../backend/migrations/001_init.sql#L9947) |
-| `checkup_save_attempts_pet_id_clinic_id_fkey` | `pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9949](../../../backend/migrations/001_init.sql#L9949) |
-| `checkup_save_attempts_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9950](../../../backend/migrations/001_init.sql#L9950) |
+| `checkup_save_attempts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9956](../../../backend/migrations/001_init.sql#L9956) |
+| `checkup_save_attempts_actor_id_fkey` | `actor_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9959](../../../backend/migrations/001_init.sql#L9959) |
+| `checkup_save_attempts_pet_id_clinic_id_fkey` | `pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9961](../../../backend/migrations/001_init.sql#L9961) |
+| `checkup_save_attempts_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9962](../../../backend/migrations/001_init.sql#L9962) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -80,10 +80,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_save_attempts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9944](../../../backend/migrations/001_init.sql#L9944) |
-| `checkup_save_attempts_request_fingerprint_check` | check | `CHECK(octet_length(request_fingerprint)=32)` | [001_init.sql:9946](../../../backend/migrations/001_init.sql#L9946) |
-| `checkup_save_attempts_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:9948](../../../backend/migrations/001_init.sql#L9948) |
-| `checkup_save_attempts_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:9948](../../../backend/migrations/001_init.sql#L9948) |
+| `checkup_save_attempts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9956](../../../backend/migrations/001_init.sql#L9956) |
+| `checkup_save_attempts_request_fingerprint_check` | check | `CHECK(octet_length(request_fingerprint)=32)` | [001_init.sql:9958](../../../backend/migrations/001_init.sql#L9958) |
+| `checkup_save_attempts_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:9960](../../../backend/migrations/001_init.sql#L9960) |
+| `checkup_save_attempts_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:9960](../../../backend/migrations/001_init.sql#L9960) |
 
 ## インデックス
 

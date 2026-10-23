@@ -1,11 +1,13 @@
 package model_test
 
-// clinic_operating_hours_realdb_test.go — real-DB fixture for
-// backend/migrations/008_clinic_operating_hours.sql (EMR-446/466 A03,
-// contract §2.1). Applies 001 via testdb.SetupIsolated001TestDB and Execs the
-// 008 body in-test. NOT_RUN yet in this workspace.
+// clinic_operating_hours_realdb_test.go — real-DB fixture for the common
+// clinic operating-hours storage (the former
+// backend/migrations/008_clinic_operating_hours.sql, EMR-446/466 A03,
+// contract §2.1). The DDL lives in 001_init.sql since the 2026-10-23
+// consolidation; testdb.SetupIsolated001TestDB applies it. NOT_RUN yet in
+// this workspace.
 //
-// Shared realdb helpers (lineTimeSevenWeekdayJSON, lineTimeReadMigration,
+// Shared realdb helpers (lineTimeSevenWeekdayJSON,
 // lineTimeSeedClinic, lineTimeSeedBinding, lineTimeRequirePgCode) live in this
 // earliest stack file; ③/④ realdb tests reuse them.
 //
@@ -17,8 +19,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -32,13 +32,6 @@ import (
 // lineTimeSevenWeekdayJSON is a contract-shaped 7-element weekday array (all
 // days explicit, empty = closed) shared by the common/policy fixtures.
 const lineTimeSevenWeekdayJSON = `[{"weekday":0,"intervals":[]},{"weekday":1,"intervals":[]},{"weekday":2,"intervals":[]},{"weekday":3,"intervals":[]},{"weekday":4,"intervals":[]},{"weekday":5,"intervals":[]},{"weekday":6,"intervals":[]}]`
-
-func lineTimeReadMigration(t *testing.T, name string) string {
-	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
-	require.NoError(t, err)
-	return string(raw)
-}
 
 func lineTimeSeedClinic(t *testing.T, db *gorm.DB, name string) int64 {
 	t.Helper()
@@ -68,9 +61,8 @@ func lineTimeRequirePgCode(t *testing.T, err error, code string) {
 }
 
 func TestClinicOperatingHoursRealDB(t *testing.T) {
+	// 001_init.sql carries the former 008 DDL (2026-10-23 consolidation).
 	db := testdb.SetupIsolated001TestDB(t)
-	require.NoError(t, db.Exec(lineTimeReadMigration(t, "008_clinic_operating_hours.sql")).Error,
-		"008 must apply cleanly on top of 001")
 	ctx := context.Background()
 
 	clinicA := lineTimeSeedClinic(t, db, "008-common-a")

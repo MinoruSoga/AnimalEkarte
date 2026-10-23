@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1016](../../../backend/migrations/001_init.sql#L1016) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1017](../../../backend/migrations/001_init.sql#L1017) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:1018](../../../backend/migrations/001_init.sql#L1018) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:1019](../../../backend/migrations/001_init.sql#L1019) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1020](../../../backend/migrations/001_init.sql#L1020) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1021](../../../backend/migrations/001_init.sql#L1021) |
-| `duration` | `integer` | NULL | — | — | [001_init.sql:1022](../../../backend/migrations/001_init.sql#L1022) |
-| `is_combinable` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1023](../../../backend/migrations/001_init.sql#L1023) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1024](../../../backend/migrations/001_init.sql#L1024) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1025](../../../backend/migrations/001_init.sql#L1025) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1026](../../../backend/migrations/001_init.sql#L1026) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1027](../../../backend/migrations/001_init.sql#L1027) |
-| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7923](../../../backend/migrations/001_init.sql#L7923) |
-| `service_identity_id` | `bigint` | NULL | — | FK | [001_init.sql:7954](../../../backend/migrations/001_init.sql#L7954) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1028](../../../backend/migrations/001_init.sql#L1028) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1029](../../../backend/migrations/001_init.sql#L1029) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:1030](../../../backend/migrations/001_init.sql#L1030) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:1031](../../../backend/migrations/001_init.sql#L1031) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1032](../../../backend/migrations/001_init.sql#L1032) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1033](../../../backend/migrations/001_init.sql#L1033) |
+| `duration` | `integer` | NULL | — | — | [001_init.sql:1034](../../../backend/migrations/001_init.sql#L1034) |
+| `is_combinable` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1035](../../../backend/migrations/001_init.sql#L1035) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1036](../../../backend/migrations/001_init.sql#L1036) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1037](../../../backend/migrations/001_init.sql#L1037) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1038](../../../backend/migrations/001_init.sql#L1038) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1039](../../../backend/migrations/001_init.sql#L1039) |
+| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7935](../../../backend/migrations/001_init.sql#L7935) |
+| `service_identity_id` | `bigint` | NULL | — | FK | [001_init.sql:7966](../../../backend/migrations/001_init.sql#L7966) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,8 +67,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_options_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1017](../../../backend/migrations/001_init.sql#L1017) |
-| `fk_trimming_option_service_identity` | `service_identity_id, clinic_id` | [trimming_service_identities](trimming_service_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7955](../../../backend/migrations/001_init.sql#L7955) |
+| `trimming_options_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1029](../../../backend/migrations/001_init.sql#L1029) |
+| `fk_trimming_option_service_identity` | `service_identity_id, clinic_id` | [trimming_service_identities](trimming_service_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7967](../../../backend/migrations/001_init.sql#L7967) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -79,15 +79,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_options_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1016](../../../backend/migrations/001_init.sql#L1016) |
-| `trimming_options_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:7923](../../../backend/migrations/001_init.sql#L7923) |
-| `uq_trimming_options_id_clinic` | unique | `CONSTRAINT uq_trimming_options_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7924](../../../backend/migrations/001_init.sql#L7924) |
+| `trimming_options_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1028](../../../backend/migrations/001_init.sql#L1028) |
+| `trimming_options_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:7935](../../../backend/migrations/001_init.sql#L7935) |
+| `uq_trimming_options_id_clinic` | unique | `CONSTRAINT uq_trimming_options_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:7936](../../../backend/migrations/001_init.sql#L7936) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_trimming_options_clinic_id` | NO | — | `CREATE INDEX idx_trimming_options_clinic_id ON trimming_options(clinic_id)` | [001_init.sql:2235](../../../backend/migrations/001_init.sql#L2235) |
-| `idx_trimming_options_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_options_clinic_sort  ON trimming_options(clinic_id, sort_order)        WHERE deleted_at IS NULL` | [001_init.sql:2271](../../../backend/migrations/001_init.sql#L2271) |
-| `idx_trimming_options_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2467](../../../backend/migrations/001_init.sql#L2467) |
-| `idx_trimming_options_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_options_active ON trimming_options(id) WHERE deleted_at IS NULL` | [001_init.sql:2487](../../../backend/migrations/001_init.sql#L2487) |
+| `idx_trimming_options_clinic_id` | NO | — | `CREATE INDEX idx_trimming_options_clinic_id ON trimming_options(clinic_id)` | [001_init.sql:2247](../../../backend/migrations/001_init.sql#L2247) |
+| `idx_trimming_options_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_options_clinic_sort  ON trimming_options(clinic_id, sort_order)        WHERE deleted_at IS NULL` | [001_init.sql:2283](../../../backend/migrations/001_init.sql#L2283) |
+| `idx_trimming_options_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_options_clinic_name ON trimming_options(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2479](../../../backend/migrations/001_init.sql#L2479) |
+| `idx_trimming_options_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_options_active ON trimming_options(id) WHERE deleted_at IS NULL` | [001_init.sql:2499](../../../backend/migrations/001_init.sql#L2499) |

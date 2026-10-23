@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9271](../../../backend/migrations/001_init.sql#L9271) |
-| `max_concurrent_pets` | `integer` | NOT NULL | — | — | [001_init.sql:9272](../../../backend/migrations/001_init.sql#L9272) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9273](../../../backend/migrations/001_init.sql#L9273) |
-| `updated_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9274](../../../backend/migrations/001_init.sql#L9274) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9275](../../../backend/migrations/001_init.sql#L9275) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9283](../../../backend/migrations/001_init.sql#L9283) |
+| `max_concurrent_pets` | `integer` | NOT NULL | — | — | [001_init.sql:9284](../../../backend/migrations/001_init.sql#L9284) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9285](../../../backend/migrations/001_init.sql#L9285) |
+| `updated_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9286](../../../backend/migrations/001_init.sql#L9286) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9287](../../../backend/migrations/001_init.sql#L9287) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -48,8 +48,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `hotel_capacity_settings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9271](../../../backend/migrations/001_init.sql#L9271) |
-| `hotel_capacity_settings_updated_by_fkey` | `updated_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9274](../../../backend/migrations/001_init.sql#L9274) |
+| `hotel_capacity_settings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9283](../../../backend/migrations/001_init.sql#L9283) |
+| `hotel_capacity_settings_updated_by_fkey` | `updated_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9286](../../../backend/migrations/001_init.sql#L9286) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -60,9 +60,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `hotel_capacity_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9271](../../../backend/migrations/001_init.sql#L9271) |
-| `hotel_capacity_settings_max_concurrent_pets_check` | check | `CHECK (max_concurrent_pets > 0)` | [001_init.sql:9272](../../../backend/migrations/001_init.sql#L9272) |
-| `hotel_capacity_settings_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9273](../../../backend/migrations/001_init.sql#L9273) |
+| `hotel_capacity_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9283](../../../backend/migrations/001_init.sql#L9283) |
+| `hotel_capacity_settings_max_concurrent_pets_check` | check | `CHECK (max_concurrent_pets > 0)` | [001_init.sql:9284](../../../backend/migrations/001_init.sql#L9284) |
+| `hotel_capacity_settings_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9285](../../../backend/migrations/001_init.sql#L9285) |
 
 ## インデックス
 

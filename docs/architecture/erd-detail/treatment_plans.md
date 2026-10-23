@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1630](../../../backend/migrations/001_init.sql#L1630) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1631](../../../backend/migrations/001_init.sql#L1631) |
-| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1632](../../../backend/migrations/001_init.sql#L1632) |
-| `hospitalization_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:1633](../../../backend/migrations/001_init.sql#L1633) |
-| `treatment_content` | `text` | NOT NULL | `''` | — | [001_init.sql:1634](../../../backend/migrations/001_init.sql#L1634) |
-| `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:1635](../../../backend/migrations/001_init.sql#L1635) |
-| `is_insurance` | `boolean` | NULL | `false` | — | [001_init.sql:1636](../../../backend/migrations/001_init.sql#L1636) |
-| `unit_price` | `bigint` | NULL | `0` | — | [001_init.sql:1637](../../../backend/migrations/001_init.sql#L1637) |
-| `quantity` | `numeric(10,1)` | NULL | `1` | — | [001_init.sql:1638](../../../backend/migrations/001_init.sql#L1638) |
-| `discount_rate` | `numeric(5,2)` | NULL | `0` | — | [001_init.sql:1639](../../../backend/migrations/001_init.sql#L1639) |
-| `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1640](../../../backend/migrations/001_init.sql#L1640) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1642](../../../backend/migrations/001_init.sql#L1642) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1643](../../../backend/migrations/001_init.sql#L1643) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1644](../../../backend/migrations/001_init.sql#L1644) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1645](../../../backend/migrations/001_init.sql#L1645) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1642](../../../backend/migrations/001_init.sql#L1642) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1643](../../../backend/migrations/001_init.sql#L1643) |
+| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1644](../../../backend/migrations/001_init.sql#L1644) |
+| `hospitalization_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:1645](../../../backend/migrations/001_init.sql#L1645) |
+| `treatment_content` | `text` | NOT NULL | `''` | — | [001_init.sql:1646](../../../backend/migrations/001_init.sql#L1646) |
+| `memo` | `text` | NOT NULL | `''` | — | [001_init.sql:1647](../../../backend/migrations/001_init.sql#L1647) |
+| `is_insurance` | `boolean` | NULL | `false` | — | [001_init.sql:1648](../../../backend/migrations/001_init.sql#L1648) |
+| `unit_price` | `bigint` | NULL | `0` | — | [001_init.sql:1649](../../../backend/migrations/001_init.sql#L1649) |
+| `quantity` | `numeric(10,1)` | NULL | `1` | — | [001_init.sql:1650](../../../backend/migrations/001_init.sql#L1650) |
+| `discount_rate` | `numeric(5,2)` | NULL | `0` | — | [001_init.sql:1651](../../../backend/migrations/001_init.sql#L1651) |
+| `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1652](../../../backend/migrations/001_init.sql#L1652) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1654](../../../backend/migrations/001_init.sql#L1654) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1655](../../../backend/migrations/001_init.sql#L1655) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1656](../../../backend/migrations/001_init.sql#L1656) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1657](../../../backend/migrations/001_init.sql#L1657) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -72,9 +72,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `treatment_plans_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1631](../../../backend/migrations/001_init.sql#L1631) |
-| `treatment_plans_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1632](../../../backend/migrations/001_init.sql#L1632) |
-| `treatment_plans_hospitalization_id_fkey` | `hospitalization_id` | [hospitalizations](hospitalizations.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1633](../../../backend/migrations/001_init.sql#L1633) |
+| `treatment_plans_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1643](../../../backend/migrations/001_init.sql#L1643) |
+| `treatment_plans_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1644](../../../backend/migrations/001_init.sql#L1644) |
+| `treatment_plans_hospitalization_id_fkey` | `hospitalization_id` | [hospitalizations](hospitalizations.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1645](../../../backend/migrations/001_init.sql#L1645) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,14 +86,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `treatment_plans_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1630](../../../backend/migrations/001_init.sql#L1630) |
-| `chk_treatment_plans_ref` | check | `CONSTRAINT chk_treatment_plans_ref CHECK (         (medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR         (medical_record_id IS NULL AND hospitalization_id IS NOT NULL)     )` | [001_init.sql:1646](../../../backend/migrations/001_init.sql#L1646) |
-| `uq_treatment_plans_id_stay` | unique | `CONSTRAINT uq_treatment_plans_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9334](../../../backend/migrations/001_init.sql#L9334) |
+| `treatment_plans_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1642](../../../backend/migrations/001_init.sql#L1642) |
+| `chk_treatment_plans_ref` | check | `CONSTRAINT chk_treatment_plans_ref CHECK (         (medical_record_id IS NOT NULL AND hospitalization_id IS NULL) OR         (medical_record_id IS NULL AND hospitalization_id IS NOT NULL)     )` | [001_init.sql:1658](../../../backend/migrations/001_init.sql#L1658) |
+| `uq_treatment_plans_id_stay` | unique | `CONSTRAINT uq_treatment_plans_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9346](../../../backend/migrations/001_init.sql#L9346) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_treatment_plans_medical_record_id` | NO | — | `CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id)` | [001_init.sql:2303](../../../backend/migrations/001_init.sql#L2303) |
-| `idx_treatment_plans_hospitalization_id` | NO | — | `CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id)` | [001_init.sql:2304](../../../backend/migrations/001_init.sql#L2304) |
-| `idx_treatment_plans_clinic_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_treatment_plans_clinic_id ON treatment_plans(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2305](../../../backend/migrations/001_init.sql#L2305) |
+| `idx_treatment_plans_medical_record_id` | NO | — | `CREATE INDEX idx_treatment_plans_medical_record_id ON treatment_plans(medical_record_id)` | [001_init.sql:2315](../../../backend/migrations/001_init.sql#L2315) |
+| `idx_treatment_plans_hospitalization_id` | NO | — | `CREATE INDEX idx_treatment_plans_hospitalization_id ON treatment_plans(hospitalization_id)` | [001_init.sql:2316](../../../backend/migrations/001_init.sql#L2316) |
+| `idx_treatment_plans_clinic_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_treatment_plans_clinic_id ON treatment_plans(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2317](../../../backend/migrations/001_init.sql#L2317) |

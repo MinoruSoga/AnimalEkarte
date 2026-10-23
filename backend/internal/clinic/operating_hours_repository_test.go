@@ -1,14 +1,13 @@
 package clinic
 
 // operating_hours_repository_test.go — real-DB test for the clinic_operating_hours read port.
-// Applies 001 to a disposable database (testdb.SetupIsolated001TestDB) and then the 008 migration body,
+// Applies 001 to a disposable database (testdb.SetupIsolated001TestDB); the
+// former 008 migration body is part of 001 since the 2026-10-23 consolidation,
 // like internal/model/clinic_operating_hours_realdb_test.go. Skipped under -short.
 
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -23,10 +22,8 @@ import (
 
 func setupOperatingHoursRepositoryDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	// 001_init.sql carries the former 008 DDL (2026-10-23 consolidation).
 	db := testdb.SetupIsolated001TestDB(t)
-	raw, err := os.ReadFile(filepath.Join("..", "..", "migrations", "008_clinic_operating_hours.sql"))
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(string(raw)).Error, "008 must apply cleanly on top of 001")
 	return db
 }
 

@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9246](../../../backend/migrations/001_init.sql#L9246) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9247](../../../backend/migrations/001_init.sql#L9247) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9248](../../../backend/migrations/001_init.sql#L9248) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9249](../../../backend/migrations/001_init.sql#L9249) |
-| `stay_kind` | `text` | NOT NULL | — | — | [001_init.sql:9250](../../../backend/migrations/001_init.sql#L9250) |
-| `planned_entry_at` | `timestamptz` | NULL | — | — | [001_init.sql:9251](../../../backend/migrations/001_init.sql#L9251) |
-| `planned_exit_at` | `timestamptz` | NULL | — | — | [001_init.sql:9252](../../../backend/migrations/001_init.sql#L9252) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9253](../../../backend/migrations/001_init.sql#L9253) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9254](../../../backend/migrations/001_init.sql#L9254) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:9255](../../../backend/migrations/001_init.sql#L9255) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9258](../../../backend/migrations/001_init.sql#L9258) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9259](../../../backend/migrations/001_init.sql#L9259) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9260](../../../backend/migrations/001_init.sql#L9260) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9261](../../../backend/migrations/001_init.sql#L9261) |
+| `stay_kind` | `text` | NOT NULL | — | — | [001_init.sql:9262](../../../backend/migrations/001_init.sql#L9262) |
+| `planned_entry_at` | `timestamptz` | NULL | — | — | [001_init.sql:9263](../../../backend/migrations/001_init.sql#L9263) |
+| `planned_exit_at` | `timestamptz` | NULL | — | — | [001_init.sql:9264](../../../backend/migrations/001_init.sql#L9264) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9265](../../../backend/migrations/001_init.sql#L9265) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9266](../../../backend/migrations/001_init.sql#L9266) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:9267](../../../backend/migrations/001_init.sql#L9267) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -64,9 +64,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `stay_cases_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9247](../../../backend/migrations/001_init.sql#L9247) |
-| `stay_cases_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9258](../../../backend/migrations/001_init.sql#L9258) |
-| `stay_cases_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9259](../../../backend/migrations/001_init.sql#L9259) |
+| `stay_cases_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9259](../../../backend/migrations/001_init.sql#L9259) |
+| `stay_cases_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9270](../../../backend/migrations/001_init.sql#L9270) |
+| `stay_cases_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9271](../../../backend/migrations/001_init.sql#L9271) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -78,11 +78,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `stay_cases_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9246](../../../backend/migrations/001_init.sql#L9246) |
-| `stay_cases_stay_kind_check` | check | `CHECK (stay_kind IN ('inpatient','hotel'))` | [001_init.sql:9250](../../../backend/migrations/001_init.sql#L9250) |
-| `stay_cases_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9253](../../../backend/migrations/001_init.sql#L9253) |
-| `stay_cases_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9256](../../../backend/migrations/001_init.sql#L9256) |
-| `stay_cases_check` | check | `CHECK (planned_exit_at IS NULL OR planned_entry_at IS NULL OR planned_exit_at>planned_entry_at)` | [001_init.sql:9257](../../../backend/migrations/001_init.sql#L9257) |
+| `stay_cases_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9258](../../../backend/migrations/001_init.sql#L9258) |
+| `stay_cases_stay_kind_check` | check | `CHECK (stay_kind IN ('inpatient','hotel'))` | [001_init.sql:9262](../../../backend/migrations/001_init.sql#L9262) |
+| `stay_cases_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9265](../../../backend/migrations/001_init.sql#L9265) |
+| `stay_cases_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9268](../../../backend/migrations/001_init.sql#L9268) |
+| `stay_cases_check` | check | `CHECK (planned_exit_at IS NULL OR planned_entry_at IS NULL OR planned_exit_at>planned_entry_at)` | [001_init.sql:9269](../../../backend/migrations/001_init.sql#L9269) |
 
 ## インデックス
 

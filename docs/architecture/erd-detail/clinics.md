@@ -11,32 +11,32 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:176](../../../backend/migrations/001_init.sql#L176) |
-| `company_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:177](../../../backend/migrations/001_init.sql#L177) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:178](../../../backend/migrations/001_init.sql#L178) |
-| `postal_code` | `text` | NOT NULL | `''` | — | [001_init.sql:179](../../../backend/migrations/001_init.sql#L179) |
-| `address` | `text` | NOT NULL | `''` | — | [001_init.sql:180](../../../backend/migrations/001_init.sql#L180) |
-| `phone_number` | `text` | NOT NULL | `''` | — | [001_init.sql:181](../../../backend/migrations/001_init.sql#L181) |
-| `fax_number` | `text` | NOT NULL | `''` | — | [001_init.sql:182](../../../backend/migrations/001_init.sql#L182) |
-| `registration_number` | `text` | NOT NULL | `''` | — | [001_init.sql:183](../../../backend/migrations/001_init.sql#L183) |
-| `director_name` | `text` | NOT NULL | `''` | — | [001_init.sql:184](../../../backend/migrations/001_init.sql#L184) |
-| `email` | `text` | NOT NULL | `''` | — | [001_init.sql:185](../../../backend/migrations/001_init.sql#L185) |
-| `website` | `text` | NOT NULL | `''` | — | [001_init.sql:186](../../../backend/migrations/001_init.sql#L186) |
-| `logo_url` | `text` | NOT NULL | `''` | — | [001_init.sql:187](../../../backend/migrations/001_init.sql#L187) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:188](../../../backend/migrations/001_init.sql#L188) |
-| `standard_tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:189](../../../backend/migrations/001_init.sql#L189) |
-| `reduced_tax_rate` | `numeric` | NOT NULL | `0.08` | — | [001_init.sql:190](../../../backend/migrations/001_init.sql#L190) |
-| `accounting_document_show_logo` | `boolean` | NOT NULL | `false` | — | [001_init.sql:192](../../../backend/migrations/001_init.sql#L192) |
-| `accounting_document_show_registration_warning` | `boolean` | NOT NULL | `true` | — | [001_init.sql:193](../../../backend/migrations/001_init.sql#L193) |
-| `accounting_document_show_item_category` | `boolean` | NOT NULL | `true` | — | [001_init.sql:194](../../../backend/migrations/001_init.sql#L194) |
-| `accounting_document_footer_note` | `text` | NOT NULL | `''` | — | [001_init.sql:195](../../../backend/migrations/001_init.sql#L195) |
-| `accounting_document_show_clinic_header` | `boolean` | NOT NULL | `true` | — | [001_init.sql:197](../../../backend/migrations/001_init.sql#L197) |
-| `accounting_document_show_owner_pet_info` | `boolean` | NOT NULL | `true` | — | [001_init.sql:198](../../../backend/migrations/001_init.sql#L198) |
-| `accounting_document_show_items_table` | `boolean` | NOT NULL | `true` | — | [001_init.sql:199](../../../backend/migrations/001_init.sql#L199) |
-| `accounting_document_show_payment_summary` | `boolean` | NOT NULL | `true` | — | [001_init.sql:200](../../../backend/migrations/001_init.sql#L200) |
-| `accounting_document_section_order` | `text[]` | NOT NULL | `'{}'` | — | [001_init.sql:201](../../../backend/migrations/001_init.sql#L201) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:202](../../../backend/migrations/001_init.sql#L202) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:203](../../../backend/migrations/001_init.sql#L203) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:188](../../../backend/migrations/001_init.sql#L188) |
+| `company_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:189](../../../backend/migrations/001_init.sql#L189) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:190](../../../backend/migrations/001_init.sql#L190) |
+| `postal_code` | `text` | NOT NULL | `''` | — | [001_init.sql:191](../../../backend/migrations/001_init.sql#L191) |
+| `address` | `text` | NOT NULL | `''` | — | [001_init.sql:192](../../../backend/migrations/001_init.sql#L192) |
+| `phone_number` | `text` | NOT NULL | `''` | — | [001_init.sql:193](../../../backend/migrations/001_init.sql#L193) |
+| `fax_number` | `text` | NOT NULL | `''` | — | [001_init.sql:194](../../../backend/migrations/001_init.sql#L194) |
+| `registration_number` | `text` | NOT NULL | `''` | — | [001_init.sql:195](../../../backend/migrations/001_init.sql#L195) |
+| `director_name` | `text` | NOT NULL | `''` | — | [001_init.sql:196](../../../backend/migrations/001_init.sql#L196) |
+| `email` | `text` | NOT NULL | `''` | — | [001_init.sql:197](../../../backend/migrations/001_init.sql#L197) |
+| `website` | `text` | NOT NULL | `''` | — | [001_init.sql:198](../../../backend/migrations/001_init.sql#L198) |
+| `logo_url` | `text` | NOT NULL | `''` | — | [001_init.sql:199](../../../backend/migrations/001_init.sql#L199) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:200](../../../backend/migrations/001_init.sql#L200) |
+| `standard_tax_rate` | `numeric` | NOT NULL | `0.10` | — | [001_init.sql:201](../../../backend/migrations/001_init.sql#L201) |
+| `reduced_tax_rate` | `numeric` | NOT NULL | `0.08` | — | [001_init.sql:202](../../../backend/migrations/001_init.sql#L202) |
+| `accounting_document_show_logo` | `boolean` | NOT NULL | `false` | — | [001_init.sql:204](../../../backend/migrations/001_init.sql#L204) |
+| `accounting_document_show_registration_warning` | `boolean` | NOT NULL | `true` | — | [001_init.sql:205](../../../backend/migrations/001_init.sql#L205) |
+| `accounting_document_show_item_category` | `boolean` | NOT NULL | `true` | — | [001_init.sql:206](../../../backend/migrations/001_init.sql#L206) |
+| `accounting_document_footer_note` | `text` | NOT NULL | `''` | — | [001_init.sql:207](../../../backend/migrations/001_init.sql#L207) |
+| `accounting_document_show_clinic_header` | `boolean` | NOT NULL | `true` | — | [001_init.sql:209](../../../backend/migrations/001_init.sql#L209) |
+| `accounting_document_show_owner_pet_info` | `boolean` | NOT NULL | `true` | — | [001_init.sql:210](../../../backend/migrations/001_init.sql#L210) |
+| `accounting_document_show_items_table` | `boolean` | NOT NULL | `true` | — | [001_init.sql:211](../../../backend/migrations/001_init.sql#L211) |
+| `accounting_document_show_payment_summary` | `boolean` | NOT NULL | `true` | — | [001_init.sql:212](../../../backend/migrations/001_init.sql#L212) |
+| `accounting_document_section_order` | `text[]` | NOT NULL | `'{}'` | — | [001_init.sql:213](../../../backend/migrations/001_init.sql#L213) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:214](../../../backend/migrations/001_init.sql#L214) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:215](../../../backend/migrations/001_init.sql#L215) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -86,7 +86,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinics_company_id_fkey` | `company_id` | [companies](companies.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:177](../../../backend/migrations/001_init.sql#L177) |
+| `clinics_company_id_fkey` | `company_id` | [companies](companies.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:189](../../../backend/migrations/001_init.sql#L189) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -96,7 +96,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `clinics_pkey` | primary | `PRIMARY KEY` | [001_init.sql:176](../../../backend/migrations/001_init.sql#L176) |
+| `clinics_pkey` | primary | `PRIMARY KEY` | [001_init.sql:188](../../../backend/migrations/001_init.sql#L188) |
 
 ## インデックス
 

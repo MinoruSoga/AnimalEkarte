@@ -18,7 +18,7 @@ import (
 func TestLineStaffStartPolicyMigration(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/010_line_staff_start_policy_and_reservation_anchor.sql")
+	sql := readConsolidatedMigrationSection(t, "010_line_staff_start_policy_and_reservation_anchor.sql")
 
 	requiredSnippets := []string{
 		"ADD CONSTRAINT uq_staff_clinic_assignments_id_staff_clinic UNIQUE (id, staff_id, clinic_id)",
@@ -53,7 +53,7 @@ func TestLineStaffStartPolicyMigration(t *testing.T) {
 func TestReservationMasterOperationAnchorsHaveNoBusinessForeignKeys(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/010_line_staff_start_policy_and_reservation_anchor.sql")
+	sql := readConsolidatedMigrationSection(t, "010_line_staff_start_policy_and_reservation_anchor.sql")
 
 	// Contract §4.3: the claim-time anchor must not lock business
 	// reservation_types/staffs/assignment rows; only operation_bindings is

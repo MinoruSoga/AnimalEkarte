@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:388](../../../backend/migrations/001_init.sql#L388) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:389](../../../backend/migrations/001_init.sql#L389) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:390](../../../backend/migrations/001_init.sql#L390) |
-| `tag_name` | `varchar(100)` | NOT NULL | — | UK | [001_init.sql:391](../../../backend/migrations/001_init.sql#L391) |
-| `category` | `varchar(20)` | NOT NULL | `'auto'` | — | [001_init.sql:392](../../../backend/migrations/001_init.sql#L392) |
-| `synced_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:394](../../../backend/migrations/001_init.sql#L394) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:395](../../../backend/migrations/001_init.sql#L395) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:400](../../../backend/migrations/001_init.sql#L400) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:401](../../../backend/migrations/001_init.sql#L401) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:402](../../../backend/migrations/001_init.sql#L402) |
+| `tag_name` | `varchar(100)` | NOT NULL | — | UK | [001_init.sql:403](../../../backend/migrations/001_init.sql#L403) |
+| `category` | `varchar(20)` | NOT NULL | `'auto'` | — | [001_init.sql:404](../../../backend/migrations/001_init.sql#L404) |
+| `synced_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:406](../../../backend/migrations/001_init.sql#L406) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:407](../../../backend/migrations/001_init.sql#L407) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,8 +52,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_tag_cache_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:389](../../../backend/migrations/001_init.sql#L389) |
-| `lstep_tag_cache_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:390](../../../backend/migrations/001_init.sql#L390) |
+| `lstep_tag_cache_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:401](../../../backend/migrations/001_init.sql#L401) |
+| `lstep_tag_cache_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:402](../../../backend/migrations/001_init.sql#L402) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,13 +64,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_tag_cache_pkey` | primary | `PRIMARY KEY` | [001_init.sql:388](../../../backend/migrations/001_init.sql#L388) |
-| `lstep_tag_cache_category_check` | check | `CHECK (category IN ('auto', 'manual'))` | [001_init.sql:392](../../../backend/migrations/001_init.sql#L392) |
-| `lstep_tag_cache_clinic_id_owner_id_tag_name_key` | unique | `UNIQUE (clinic_id, owner_id, tag_name)` | [001_init.sql:396](../../../backend/migrations/001_init.sql#L396) |
+| `lstep_tag_cache_pkey` | primary | `PRIMARY KEY` | [001_init.sql:400](../../../backend/migrations/001_init.sql#L400) |
+| `lstep_tag_cache_category_check` | check | `CHECK (category IN ('auto', 'manual'))` | [001_init.sql:404](../../../backend/migrations/001_init.sql#L404) |
+| `lstep_tag_cache_clinic_id_owner_id_tag_name_key` | unique | `UNIQUE (clinic_id, owner_id, tag_name)` | [001_init.sql:408](../../../backend/migrations/001_init.sql#L408) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_tag_cache_clinic_tag` | NO | — | `CREATE INDEX idx_lstep_tag_cache_clinic_tag ON lstep_tag_cache (clinic_id, tag_name)` | [001_init.sql:400](../../../backend/migrations/001_init.sql#L400) |
-| `idx_lstep_tag_cache_owner` | NO | — | `CREATE INDEX idx_lstep_tag_cache_owner ON lstep_tag_cache (clinic_id, owner_id)` | [001_init.sql:402](../../../backend/migrations/001_init.sql#L402) |
+| `idx_lstep_tag_cache_clinic_tag` | NO | — | `CREATE INDEX idx_lstep_tag_cache_clinic_tag ON lstep_tag_cache (clinic_id, tag_name)` | [001_init.sql:412](../../../backend/migrations/001_init.sql#L412) |
+| `idx_lstep_tag_cache_owner` | NO | — | `CREATE INDEX idx_lstep_tag_cache_owner ON lstep_tag_cache (clinic_id, owner_id)` | [001_init.sql:414](../../../backend/migrations/001_init.sql#L414) |

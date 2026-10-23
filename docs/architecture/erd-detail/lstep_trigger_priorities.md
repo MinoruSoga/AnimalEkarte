@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:527](../../../backend/migrations/001_init.sql#L527) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:528](../../../backend/migrations/001_init.sql#L528) |
-| `trigger_type` | `VARCHAR(64)` | NOT NULL | — | UK | [001_init.sql:529](../../../backend/migrations/001_init.sql#L529) |
-| `priority` | `INTEGER` | NOT NULL | — | — | [001_init.sql:530](../../../backend/migrations/001_init.sql#L530) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:531](../../../backend/migrations/001_init.sql#L531) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:532](../../../backend/migrations/001_init.sql#L532) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:539](../../../backend/migrations/001_init.sql#L539) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:540](../../../backend/migrations/001_init.sql#L540) |
+| `trigger_type` | `VARCHAR(64)` | NOT NULL | — | UK | [001_init.sql:541](../../../backend/migrations/001_init.sql#L541) |
+| `priority` | `INTEGER` | NOT NULL | — | — | [001_init.sql:542](../../../backend/migrations/001_init.sql#L542) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:543](../../../backend/migrations/001_init.sql#L543) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:544](../../../backend/migrations/001_init.sql#L544) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,7 +46,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_trigger_priorities_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:528](../../../backend/migrations/001_init.sql#L528) |
+| `lstep_trigger_priorities_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:540](../../../backend/migrations/001_init.sql#L540) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,12 +56,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_trigger_priorities_pkey` | primary | `PRIMARY KEY` | [001_init.sql:527](../../../backend/migrations/001_init.sql#L527) |
-| `lstep_trigger_priorities_priority_check` | check | `CHECK (priority >= 1)` | [001_init.sql:530](../../../backend/migrations/001_init.sql#L530) |
-| `lstep_trigger_priorities_clinic_id_trigger_type_key` | unique | `UNIQUE (clinic_id, trigger_type)` | [001_init.sql:533](../../../backend/migrations/001_init.sql#L533) |
+| `lstep_trigger_priorities_pkey` | primary | `PRIMARY KEY` | [001_init.sql:539](../../../backend/migrations/001_init.sql#L539) |
+| `lstep_trigger_priorities_priority_check` | check | `CHECK (priority >= 1)` | [001_init.sql:542](../../../backend/migrations/001_init.sql#L542) |
+| `lstep_trigger_priorities_clinic_id_trigger_type_key` | unique | `UNIQUE (clinic_id, trigger_type)` | [001_init.sql:545](../../../backend/migrations/001_init.sql#L545) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_trigger_priorities_clinic` | NO | — | `CREATE INDEX idx_lstep_trigger_priorities_clinic     ON lstep_trigger_priorities(clinic_id)` | [001_init.sql:536](../../../backend/migrations/001_init.sql#L536) |
+| `idx_lstep_trigger_priorities_clinic` | NO | — | `CREATE INDEX idx_lstep_trigger_priorities_clinic     ON lstep_trigger_priorities(clinic_id)` | [001_init.sql:548](../../../backend/migrations/001_init.sql#L548) |

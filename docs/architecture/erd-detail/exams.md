@@ -11,22 +11,22 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:1528](../../../backend/migrations/001_init.sql#L1528) |
-| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1529](../../../backend/migrations/001_init.sql#L1529) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1530](../../../backend/migrations/001_init.sql#L1530) |
-| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1531](../../../backend/migrations/001_init.sql#L1531) |
-| `date` | `date` | NULL | — | — | [001_init.sql:10116](../../../backend/migrations/001_init.sql#L10116) |
-| `exam_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1533](../../../backend/migrations/001_init.sql#L1533) |
-| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1534](../../../backend/migrations/001_init.sql#L1534) |
-| `status` | `exam_status` | NULL | `'pending'` | — | [001_init.sql:1535](../../../backend/migrations/001_init.sql#L1535) |
-| `result_summary` | `text` | NOT NULL | `''` | — | [001_init.sql:1536](../../../backend/migrations/001_init.sql#L1536) |
-| `machine` | `text` | NOT NULL | `''` | — | [001_init.sql:1537](../../../backend/migrations/001_init.sql#L1537) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1538](../../../backend/migrations/001_init.sql#L1538) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1539](../../../backend/migrations/001_init.sql#L1539) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1540](../../../backend/migrations/001_init.sql#L1540) |
-| `job_id` | `uuid` | NULL | — | FK, UK | [001_init.sql:3409](../../../backend/migrations/001_init.sql#L3409) |
-| `current_revision_version` | `BIGINT` | NULL | — | FK | [001_init.sql:4975](../../../backend/migrations/001_init.sql#L4975) |
-| `performed_date_precision` | `text` | NULL | — | — | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:1540](../../../backend/migrations/001_init.sql#L1540) |
+| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1541](../../../backend/migrations/001_init.sql#L1541) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1542](../../../backend/migrations/001_init.sql#L1542) |
+| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1543](../../../backend/migrations/001_init.sql#L1543) |
+| `date` | `date` | NULL | — | — | [001_init.sql:10128](../../../backend/migrations/001_init.sql#L10128) |
+| `exam_type_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1545](../../../backend/migrations/001_init.sql#L1545) |
+| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1546](../../../backend/migrations/001_init.sql#L1546) |
+| `status` | `exam_status` | NULL | `'pending'` | — | [001_init.sql:1547](../../../backend/migrations/001_init.sql#L1547) |
+| `result_summary` | `text` | NOT NULL | `''` | — | [001_init.sql:1548](../../../backend/migrations/001_init.sql#L1548) |
+| `machine` | `text` | NOT NULL | `''` | — | [001_init.sql:1549](../../../backend/migrations/001_init.sql#L1549) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1550](../../../backend/migrations/001_init.sql#L1550) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1551](../../../backend/migrations/001_init.sql#L1551) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1552](../../../backend/migrations/001_init.sql#L1552) |
+| `job_id` | `uuid` | NULL | — | FK, UK | [001_init.sql:3421](../../../backend/migrations/001_init.sql#L3421) |
+| `current_revision_version` | `BIGINT` | NULL | — | FK | [001_init.sql:4987](../../../backend/migrations/001_init.sql#L4987) |
+| `performed_date_precision` | `text` | NULL | — | — | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -93,13 +93,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `exams_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1529](../../../backend/migrations/001_init.sql#L1529) |
-| `exams_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1530](../../../backend/migrations/001_init.sql#L1530) |
-| `exams_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1531](../../../backend/migrations/001_init.sql#L1531) |
-| `exams_exam_type_id_fkey` | `exam_type_id` | [exam_types](exam_types.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1533](../../../backend/migrations/001_init.sql#L1533) |
-| `exams_doctor_id_fkey` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1534](../../../backend/migrations/001_init.sql#L1534) |
-| `fk_exams_current_revision` | `clinic_id, id, current_revision_version` | [examination_revisions](examination_revisions.md) | `clinic_id, examination_id, version` | `ON DELETE RESTRICT` | [001_init.sql:5065](../../../backend/migrations/001_init.sql#L5065) |
-| `fk_exams_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5420](../../../backend/migrations/001_init.sql#L5420) |
+| `exams_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1541](../../../backend/migrations/001_init.sql#L1541) |
+| `exams_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1542](../../../backend/migrations/001_init.sql#L1542) |
+| `exams_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1543](../../../backend/migrations/001_init.sql#L1543) |
+| `exams_exam_type_id_fkey` | `exam_type_id` | [exam_types](exam_types.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1545](../../../backend/migrations/001_init.sql#L1545) |
+| `exams_doctor_id_fkey` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1546](../../../backend/migrations/001_init.sql#L1546) |
+| `fk_exams_current_revision` | `clinic_id, id, current_revision_version` | [examination_revisions](examination_revisions.md) | `clinic_id, examination_id, version` | `ON DELETE RESTRICT` | [001_init.sql:5077](../../../backend/migrations/001_init.sql#L5077) |
+| `fk_exams_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5432](../../../backend/migrations/001_init.sql#L5432) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -115,23 +115,23 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `exams_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1528](../../../backend/migrations/001_init.sql#L1528) |
-| `exams_current_revision_version_check` | check | `CHECK (current_revision_version >= 1)` | [001_init.sql:4975](../../../backend/migrations/001_init.sql#L4975) |
-| `uq_exams_clinic_id_id` | unique | `CONSTRAINT uq_exams_clinic_id_id         UNIQUE (clinic_id, id)` | [001_init.sql:4977](../../../backend/migrations/001_init.sql#L4977) |
-| `uq_exams_id_clinic` | unique | `CONSTRAINT uq_exams_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:6171](../../../backend/migrations/001_init.sql#L6171) |
-| `exams_performed_date_precision_check` | check | `CHECK(performed_date_precision IN('day','unknown'))` | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
-| `ck_exam_date_precision` | check | `CONSTRAINT ck_exam_date_precision CHECK(performed_date_precision IS NULL OR(performed_date_precision='day' AND date IS NOT NULL) OR(performed_date_precision='unknown' AND date IS NULL))` | [001_init.sql:10125](../../../backend/migrations/001_init.sql#L10125) |
+| `exams_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1540](../../../backend/migrations/001_init.sql#L1540) |
+| `exams_current_revision_version_check` | check | `CHECK (current_revision_version >= 1)` | [001_init.sql:4987](../../../backend/migrations/001_init.sql#L4987) |
+| `uq_exams_clinic_id_id` | unique | `CONSTRAINT uq_exams_clinic_id_id         UNIQUE (clinic_id, id)` | [001_init.sql:4989](../../../backend/migrations/001_init.sql#L4989) |
+| `uq_exams_id_clinic` | unique | `CONSTRAINT uq_exams_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:6183](../../../backend/migrations/001_init.sql#L6183) |
+| `exams_performed_date_precision_check` | check | `CHECK(performed_date_precision IN('day','unknown'))` | [001_init.sql:10130](../../../backend/migrations/001_init.sql#L10130) |
+| `ck_exam_date_precision` | check | `CONSTRAINT ck_exam_date_precision CHECK(performed_date_precision IS NULL OR(performed_date_precision='day' AND date IS NOT NULL) OR(performed_date_precision='unknown' AND date IS NULL))` | [001_init.sql:10137](../../../backend/migrations/001_init.sql#L10137) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_exams_medical_record_id` | NO | — | `CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id)` | [001_init.sql:2290](../../../backend/migrations/001_init.sql#L2290) |
-| `idx_exams_pet_id` | NO | — | `CREATE INDEX idx_exams_pet_id ON exams(pet_id)` | [001_init.sql:2291](../../../backend/migrations/001_init.sql#L2291) |
-| `idx_exams_exam_type_id` | NO | — | `CREATE INDEX idx_exams_exam_type_id ON exams(exam_type_id)` | [001_init.sql:2292](../../../backend/migrations/001_init.sql#L2292) |
-| `idx_exams_clinic_id` | NO | — | `CREATE INDEX idx_exams_clinic_id ON exams(clinic_id)` | [001_init.sql:2454](../../../backend/migrations/001_init.sql#L2454) |
-| `idx_exams_clinic_exam_type_date` | NO | `deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_exams_clinic_exam_type_date     ON exams (clinic_id, exam_type_id, date)     WHERE deleted_at IS NULL` | [001_init.sql:3394](../../../backend/migrations/001_init.sql#L3394) |
-| `idx_exams_current_revision_pointer` | NO | — | `CREATE INDEX idx_exams_current_revision_pointer     ON exams (clinic_id, id, current_revision_version)` | [001_init.sql:5076](../../../backend/migrations/001_init.sql#L5076) |
-| `uq_exams_clinic_id_job_id` | YES | — | `CREATE UNIQUE INDEX IF NOT EXISTS uq_exams_clinic_id_job_id     ON exams (clinic_id, id, job_id)` | [001_init.sql:5399](../../../backend/migrations/001_init.sql#L5399) |
-| `idx_exams_clinic_job_fk` | NO | `job_id IS NOT NULL` | `CREATE INDEX idx_exams_clinic_job_fk     ON exams (clinic_id, job_id)     WHERE job_id IS NOT NULL` | [001_init.sql:5410](../../../backend/migrations/001_init.sql#L5410) |
-| `idx_exams_clinic_job_active` | NO | `deleted_at IS NULL AND job_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_exams_clinic_job_active     ON exams (clinic_id, job_id, id)     WHERE deleted_at IS NULL AND job_id IS NOT NULL` | [001_init.sql:5415](../../../backend/migrations/001_init.sql#L5415) |
+| `idx_exams_medical_record_id` | NO | — | `CREATE INDEX idx_exams_medical_record_id ON exams(medical_record_id)` | [001_init.sql:2302](../../../backend/migrations/001_init.sql#L2302) |
+| `idx_exams_pet_id` | NO | — | `CREATE INDEX idx_exams_pet_id ON exams(pet_id)` | [001_init.sql:2303](../../../backend/migrations/001_init.sql#L2303) |
+| `idx_exams_exam_type_id` | NO | — | `CREATE INDEX idx_exams_exam_type_id ON exams(exam_type_id)` | [001_init.sql:2304](../../../backend/migrations/001_init.sql#L2304) |
+| `idx_exams_clinic_id` | NO | — | `CREATE INDEX idx_exams_clinic_id ON exams(clinic_id)` | [001_init.sql:2466](../../../backend/migrations/001_init.sql#L2466) |
+| `idx_exams_clinic_exam_type_date` | NO | `deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_exams_clinic_exam_type_date     ON exams (clinic_id, exam_type_id, date)     WHERE deleted_at IS NULL` | [001_init.sql:3406](../../../backend/migrations/001_init.sql#L3406) |
+| `idx_exams_current_revision_pointer` | NO | — | `CREATE INDEX idx_exams_current_revision_pointer     ON exams (clinic_id, id, current_revision_version)` | [001_init.sql:5088](../../../backend/migrations/001_init.sql#L5088) |
+| `uq_exams_clinic_id_job_id` | YES | — | `CREATE UNIQUE INDEX IF NOT EXISTS uq_exams_clinic_id_job_id     ON exams (clinic_id, id, job_id)` | [001_init.sql:5411](../../../backend/migrations/001_init.sql#L5411) |
+| `idx_exams_clinic_job_fk` | NO | `job_id IS NOT NULL` | `CREATE INDEX idx_exams_clinic_job_fk     ON exams (clinic_id, job_id)     WHERE job_id IS NOT NULL` | [001_init.sql:5422](../../../backend/migrations/001_init.sql#L5422) |
+| `idx_exams_clinic_job_active` | NO | `deleted_at IS NULL AND job_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_exams_clinic_job_active     ON exams (clinic_id, job_id, id)     WHERE deleted_at IS NULL AND job_id IS NOT NULL` | [001_init.sql:5427](../../../backend/migrations/001_init.sql#L5427) |

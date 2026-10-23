@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1278](../../../backend/migrations/001_init.sql#L1278) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1279](../../../backend/migrations/001_init.sql#L1279) |
-| `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1280](../../../backend/migrations/001_init.sql#L1280) |
-| `uploaded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:1281](../../../backend/migrations/001_init.sql#L1281) |
-| `file_type` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1282](../../../backend/migrations/001_init.sql#L1282) |
-| `file_name` | `varchar(255)` | NOT NULL | — | — | [001_init.sql:1283](../../../backend/migrations/001_init.sql#L1283) |
-| `file_key` | `varchar(500)` | NOT NULL | — | — | [001_init.sql:1284](../../../backend/migrations/001_init.sql#L1284) |
-| `file_size` | `bigint` | NOT NULL | — | — | [001_init.sql:1285](../../../backend/migrations/001_init.sql#L1285) |
-| `purpose` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1286](../../../backend/migrations/001_init.sql#L1286) |
-| `expires_at` | `timestamptz` | NULL | — | — | [001_init.sql:1287](../../../backend/migrations/001_init.sql#L1287) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1288](../../../backend/migrations/001_init.sql#L1288) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1289](../../../backend/migrations/001_init.sql#L1289) |
-| `retention_class` | `text` | NOT NULL | `'unclassified'` | — | [001_init.sql:10900](../../../backend/migrations/001_init.sql#L10900) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1290](../../../backend/migrations/001_init.sql#L1290) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1291](../../../backend/migrations/001_init.sql#L1291) |
+| `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1292](../../../backend/migrations/001_init.sql#L1292) |
+| `uploaded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:1293](../../../backend/migrations/001_init.sql#L1293) |
+| `file_type` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1294](../../../backend/migrations/001_init.sql#L1294) |
+| `file_name` | `varchar(255)` | NOT NULL | — | — | [001_init.sql:1295](../../../backend/migrations/001_init.sql#L1295) |
+| `file_key` | `varchar(500)` | NOT NULL | — | — | [001_init.sql:1296](../../../backend/migrations/001_init.sql#L1296) |
+| `file_size` | `bigint` | NOT NULL | — | — | [001_init.sql:1297](../../../backend/migrations/001_init.sql#L1297) |
+| `purpose` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1298](../../../backend/migrations/001_init.sql#L1298) |
+| `expires_at` | `timestamptz` | NULL | — | — | [001_init.sql:1299](../../../backend/migrations/001_init.sql#L1299) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1300](../../../backend/migrations/001_init.sql#L1300) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1301](../../../backend/migrations/001_init.sql#L1301) |
+| `retention_class` | `text` | NOT NULL | `'unclassified'` | — | [001_init.sql:10912](../../../backend/migrations/001_init.sql#L10912) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -68,9 +68,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `shared_files_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1279](../../../backend/migrations/001_init.sql#L1279) |
-| `shared_files_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1280](../../../backend/migrations/001_init.sql#L1280) |
-| `shared_files_uploaded_by_fkey` | `uploaded_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1281](../../../backend/migrations/001_init.sql#L1281) |
+| `shared_files_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1291](../../../backend/migrations/001_init.sql#L1291) |
+| `shared_files_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1292](../../../backend/migrations/001_init.sql#L1292) |
+| `shared_files_uploaded_by_fkey` | `uploaded_by` | [staffs](staffs.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:1293](../../../backend/migrations/001_init.sql#L1293) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -82,12 +82,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `shared_files_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1278](../../../backend/migrations/001_init.sql#L1278) |
-| `shared_files_retention_class_check` | check | `CHECK(retention_class IN('business_original','required_history','temporary','unclassified'))` | [001_init.sql:10900](../../../backend/migrations/001_init.sql#L10900) |
+| `shared_files_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1290](../../../backend/migrations/001_init.sql#L1290) |
+| `shared_files_retention_class_check` | check | `CHECK(retention_class IN('business_original','required_history','temporary','unclassified'))` | [001_init.sql:10912](../../../backend/migrations/001_init.sql#L10912) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_shared_files_clinic_owner` | NO | — | `CREATE INDEX idx_shared_files_clinic_owner     ON shared_files (clinic_id, owner_id)` | [001_init.sql:1292](../../../backend/migrations/001_init.sql#L1292) |
-| `idx_shared_files_expires_at` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_shared_files_expires_at     ON shared_files (expires_at)     WHERE deleted_at IS NULL` | [001_init.sql:1295](../../../backend/migrations/001_init.sql#L1295) |
+| `idx_shared_files_clinic_owner` | NO | — | `CREATE INDEX idx_shared_files_clinic_owner     ON shared_files (clinic_id, owner_id)` | [001_init.sql:1304](../../../backend/migrations/001_init.sql#L1304) |
+| `idx_shared_files_expires_at` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_shared_files_expires_at     ON shared_files (expires_at)     WHERE deleted_at IS NULL` | [001_init.sql:1307](../../../backend/migrations/001_init.sql#L1307) |
