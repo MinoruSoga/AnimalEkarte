@@ -18,10 +18,12 @@ v2 を導入しても、現在の八王子 bundle は正式取込不可のまま
 - 成果の目的: 件数一致だけで正式化する誤りと、医院や revision をまたぐ証跡流用を防ぐ。確認質問や転記を増やす代わりに、同じ機械契約を両側で検証する。
 - 成功指標: 下記の必須負例をすべて DB 書込前に拒否し、拒否 receipt に診療データを含めない。現状八王子が拒否されることも成功条件。
 
+<a id="legacy-finance-evidence-handoff"></a>
 ## 2026-10-23の製品側保存/閲覧への引渡し
 
 [EMR-547のlegacy finance evidence設計方針](../emr-547-legacy-finance-evidence-contract-20261023.md)へ、旧会計/見積のraw・意味不明・変換由来・verified link履歴を製品内で保全/閲覧する7ACと受領責務を分離した。547は製品保存/read-only API/UIの作業項目、349は配置/preflight/importの作業項目owner、361は同一runの画面/復旧受入の作業項目owner、MIG-41はproducer作業項目owner。既存runbookのold_db HAC-CSV-1/HAC-PIPELINE-1のproducer責務と、AnimalEkarteの現行csvimport/script経路は既存範囲の事実である。一方、本案/547の新evidence-only保存へ接続する対応は候補で、正確なproducer SHA/source mapping/実行receipt/producer-consumer bindingは未受領。既存csvimportの実在を新契約の接続済み・実行済みと読み替えず、349という票や担当名も実行主体に読み替えない。実際の操作者・環境・実行許可は同runで別途確認が必要で、本作業では未確認。221の原本identity/digest/独立適格性/耐久receipt提案と接続するが、evidence-onlyの別名版付きclosed契約/物理DDL/APIは未採択。既存v1/formal・fresh-only/band保護を緩和せず、quarantine配置だけで製品閲覧完成/正式取込可としない。本節はdocsのみ、実装/実行NOT_RUN。
 
+<a id="source-evidence-scope"></a>
 ## 確認した証拠と範囲
 
 確認時 HEAD: AnimalEkarte `fbc96c70765036fb9e1251b4cda5e18b36d02127`、old_db `3846d9a5e887f61c280984a382d121e841bd48fd`。
@@ -52,6 +54,7 @@ run 名 `hachioji-intake-20260921-01` が一致しても revision / stage build 
 
 今回の結論は「八王子の税は未確定なので正式出力を止める」。追加の人の選択回答は、この設計・合成テスト作成の開始条件ではない。
 
+<a id="proposed-import-contract-boundaries"></a>
 ## 契約の最小変更案
 
 形状の正本は [accepted-exclusions.schema.json](accepted-exclusions.schema.json)。これは **提案中の追加 payload** の JSON Schema で、稼働中 manifest の置換ではない。schema 単独の成功は semantic PASS / 受入承認ではない。
@@ -67,6 +70,7 @@ run 名 `hachioji-intake-20260921-01` が一致しても revision / stage build 
 9. tax は UNRESOLVED または VERIFIED。未確定は保存・調査に有効だが正式適格性を拒否。VERIFIEDでも decision / semantic test receipt が clinic・run・mapping・CSVと一致し、期間/端数/NULL等の検証を満たさなければ拒否する。
 10. 調査上の decision と実取込 authorization は別 receipt。失効・期限切れ・target/clinic/run不一致・再利用済み authorization を拒否する。検証後から apply までの差替えを排他とdigest再確認で拒否し、再開は同じ immutable evidence に対する新しい許可を必要とする。
 
+<a id="formal-eligibility-and-durable-receipt"></a>
 ### 正式判定の順序と監査
 
 `strict decode → version/policy → identity/digests → provenance → counts/sets/closure → decision authority → tax → 既存21表/FK/payment検査 → exact target authorization → lock/recheck → transactional apply → verify/commit`

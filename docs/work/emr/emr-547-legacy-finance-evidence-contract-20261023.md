@@ -12,8 +12,8 @@
 
 | 参照 | 継承する境界 |
 |---|---|
-| [221 DESIGN](emr-221-import-contract-design/DESIGN.md) L34–36/55–71 | 原本identity/digestを固定、完全性と独立適格性を分ける提案、別revision原本保持、耐久receipt。同案を実装済み/正式import承認へ昇格しない |
-| [CLINIC_CSV_IMPORT](../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L117–123/293–300 | 既存formal v1/profileのstrict検査、MIG-41がproducer作業項目を所有する既存境界、quarantine/PHI保護、fresh-only/band保護。未知版fallback/自己申告modeを追加しない |
+| [221：証拠範囲](emr-221-import-contract-design/DESIGN.md#source-evidence-scope)・[契約変更案](emr-221-import-contract-design/DESIGN.md#proposed-import-contract-boundaries)・[正式判定/耐久receipt](emr-221-import-contract-design/DESIGN.md#formal-eligibility-and-durable-receipt) | 原本identity/digestを固定、完全性と独立適格性を分ける提案、別revision原本保持、耐久receipt。同案を実装済み/正式import承認へ昇格しない |
+| [formal安全境界](../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md#formal-import-safety-boundaries)・[再開gate](../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md#formal-import-producer-resume-gate)・[作業責務/実行binding補足](../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md#producer-work-ownership-and-runtime-binding) | 既存formal v1/profileのstrict検査、MIG-41がproducer作業項目を所有する既存境界、quarantine/PHI保護、fresh-only/band保護。未知版fallback/自己申告modeを追加しない |
 | [会計正本](../../spec/domains/accounting/lifecycle.md)・[会計技術仕様](../../design/domains/accounting/technical-spec.md) | 通常請求確定・実受領/配賦・返金・原子receiptは正規根拠とownerに従い、証拠参照で代替しない |
 | [見積正本](../../spec/domains/estimates/business-rules.md)・[507/508契約](emr-507-508-selected-wire-contract-20261021.md) | 提示/計算revisionの意味が定まった型を維持し、未知旧割引値を無定義JSONへ詰めない |
 
