@@ -6294,7 +6294,7 @@ components:
       type: object
       description: >-
         PATCH /masters/hospitalization-plans/{id} の request 専用 schema（EMR-533）。共用 HospitalizationPlan は GET/POST/応答に残し、
-        応答と POST の description を nullable へ緩和しない。description 以外の property は HospitalizationPlan の既存契約（型・enum・nullable・required）をそのまま写す。
+        応答と POST の description を nullable へ緩和しない。description 以外の property は HospitalizationPlan の既存契約（型・enum・nullable・required）をそのまま写す。ただし body_size と billing_unit は null の三値を OAS 3.0.3 の厳密解釈でも表すため、この PATCH 専用 schema の enum だけに null を明示する。
       required: [name]
       properties:
         name:
@@ -6315,7 +6315,11 @@ components:
             文字列・null 以外（数値・真偽値・object・array）は request 解析で 400。EMR-528 の既決意味を EMR-533 で機械契約へ同期する。
         body_size:
           type: string
-          enum: [small, medium, large]
+          enum:
+            - small
+            - medium
+            - large
+            -
           nullable: true
           description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
         billing_unit:
@@ -6323,6 +6327,7 @@ components:
           enum:
             - per_day
             - per_night
+            -
           nullable: true
           description: PATCH の省略は既存値を保持、null は未設定（SQL NULL）へ戻し、enum 値は設定する。"" は null の代用にせず enum 外として 400。EMR-528。
         sort_order:

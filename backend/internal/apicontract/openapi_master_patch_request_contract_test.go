@@ -129,7 +129,7 @@ func TestOpenAPIMasterPatchRequestContract(t *testing.T) {
 		path, shared, patch string
 		changed             []string
 	}{
-		{"/masters/hospitalization-plans", "HospitalizationPlan", "UpdateHospitalizationPlanRequest", []string{"description"}},
+		{"/masters/hospitalization-plans", "HospitalizationPlan", "UpdateHospitalizationPlanRequest", []string{"description", "body_size", "billing_unit"}},
 		{"/masters/medicines", "Medicine", "UpdateMedicineRequest", []string{"clear_strength", "is_bill_discount_excluded", "version"}},
 	} {
 		t.Run(tc.patch, func(t *testing.T) {
@@ -176,6 +176,31 @@ func TestOpenAPIMasterPatchRequestContract(t *testing.T) {
 		assert.Equal(t, yamlStringOf("string"), sharedType)
 		_, sharedNullable := masterPatchProperty(shared, "nullable")
 		assert.False(t, sharedNullable, "response/POST description must not be relaxed")
+	})
+
+	t.Run("EMR-533 body_size and billing_unit enums list null only in PATCH", func(t *testing.T) {
+		for name, want := range map[string][]string{
+			"body_size":    {"small", "medium", "large"},
+			"billing_unit": {"per_day", "per_night"},
+		} {
+			patch := schemas["UpdateHospitalizationPlanRequest"].Properties[name]
+			patchEnum, ok := masterPatchProperty(patch, "enum")
+			require.True(t, ok, "%s PATCH enum must exist", name)
+			wantItems := make([]canonicalYAMLNode, 0, len(want)+1)
+			for _, value := range want {
+				wantItems = append(wantItems, yamlStringOf(value))
+			}
+			assert.Equal(t, wantItems, patchEnum.Items[:len(patchEnum.Items)-1], "%s PATCH enum values must equal the shared values", name)
+			last := patchEnum.Items[len(patchEnum.Items)-1]
+			assert.Equal(t, "!!null", last.Tag, "%s PATCH enum must end with an explicit null", name)
+			patchNullable, _ := masterPatchProperty(patch, "nullable")
+			assert.Equal(t, yamlTrue, patchNullable)
+
+			shared := schemas["HospitalizationPlan"].Properties[name]
+			sharedEnum, ok := masterPatchProperty(shared, "enum")
+			require.True(t, ok, "%s shared enum must exist", name)
+			assert.Equal(t, wantItems, sharedEnum.Items, "%s shared enum must not list null", name)
+		}
 	})
 
 	t.Run("EMR-536 clear_strength is PATCH-only", func(t *testing.T) {
