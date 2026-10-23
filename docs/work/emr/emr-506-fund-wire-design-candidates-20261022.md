@@ -14,6 +14,12 @@
 - lookupは認証医院・同一actor・保存元対象anchorへの現在`accounting:view`。mutationは既存金融write grant、勤務consumerの元write grantをlookupへ追加しない。失権/元対象解決失敗は非開示、incoming targetで補修しない。死亡後専用namespaceを作らず通常506 operationの原子的receiptへ参加する。
 - 既存462 `POST /api/v1/accountings/complete`の整数金額wire、初回201/再送200・Billing responseを維持する。新候補の小数字句/ID型を既存Completeへ一括適用しない。
 
+### 1.1 2026-10-23の限定業務承認（技術候補の全面採択ではない）
+
+[業務正本の追加承認](../../spec/domains/accounting/lifecycle.md#accounting-cash-method-correction-unknown-pair-20261023)により、実受領額が既知でカード等から現金へ方法誤記訂正するとき、当時の預かり額/釣銭額は両不明nullのまま理由付きで訂正可。理由必須、原記録/訂正履歴保全、不明額0補完なし、新金銭移動なし、実受領額変更なし。方法訂正だけで実授受日時を変更しない既決条件を維持する。新受領の現金入力要件を緩和しない。
+
+この限定業務判断は本人確認済みで再質問しない。§3–4の詳細wire/reader/CAS/死亡後adapter・残る方法組合せ等の技術候補は引き続き未採択。DB CHECKの両NULL許容から業務許可を推測したものではなく、上記本人承認が根拠。今回はその同期のみ、実装/API YAML/DDL/生成/試験なし。
+
 ## 2. 現mainで存在するもの・未接続
 
 | 根拠path | 静的観測 | それだけでは証明しないもの |
@@ -21,7 +27,7 @@
 | [storage_finance.go PaymentFund](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/model/storage_finance.go#L567) | received_amountはint64、方法ID/日時/actor/operation、cash2列、original_source_referenceを保持。fund version列はない | 新fund専有route/全writer・read DTO・CAS tokenの完成 |
 | [FundRecordCorrection](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/model/storage_finance.go#L499) | revisionと訂正方法/日時/金額/現金対、before_values/理由/operationがある | fund全体の版や全配賦writerのCAS参加。方法/日時訂正の全wire採択 |
 | [001のfund_correction_source_guard](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/migrations/001_init.sql#L11112) | fund rowをlockしてmax correction revision+1等を検査する | correction revisionだけで全配賦変更/返金/残高の期待状態を表せること |
-| [001のcash入力CHECK](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/migrations/001_init.sql#L10915) | 両NULL、又は両非NULLでnet=tendered-changeの形を許す | 現金取引で両NULLを許可する業務判断。DDL許容だけから採択しない |
+| [001のcash入力CHECK](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/migrations/001_init.sql#L10915) | 両NULL、又は両非NULLでnet=tendered-changeの形を許す | 新受領全般での両NULL許可。方法誤記訂正の限定許可だけは§1.1で本人承認済み、DDL許容とは根拠を分ける |
 | [billing routes](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/billing/routes.go#L133) | completeとcredit-correctionが存在。後者はカード金額訂正の限定経路 | 一般fund/方法/日時誤記訂正・複数請求配賦の完成 |
 | [C06 DTO](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/operation/dto.go#L30) | result_refs/committed_versionsはmap[string]string | arrayをそのまま成功refsへ返せること、金融固有refs/key集合の選定 |
 
@@ -46,7 +52,7 @@ C06のrefs/versionsはstring mapのまま。複数配賦をarrayで直置きす�
 | 論点 | 固定してはならない推測・次の照合 | 受領先 |
 |---|---|---|
 | fund CAS | fund.versionは存在しない。correction revisionと配賦/返金/残高の依存状態をどう束縛するかを全writer参加表から選ぶ。独自token/第2counterを未採択のまま実装しない | 506/464/462、必要保存差分だけ446/466 |
-| 方法変更時の現金対 | 元/訂正方法の組合せとtendered/changeの保持/再入力/不適用を照合。非現金への変更で旧現金値を黙って消さず、現金への両NULLをDDL許容だけで業務採択しない | 506、465参照保護との必要接点 |
+| 方法変更時の現金対 | 元/訂正方法の組合せとtendered/changeの保持/再入力/不適用を照合。非現金への変更で旧現金値を黙って消さない。実受領既知・現金への方法訂正時の両不明nullは§1.1で業務承認済み。残る組合せ/技術表現・新受領条件まで一括採択しない | 506、465参照保護との必要接点 |
 | 日時 | 受理offset/RFC3339と保存DB精度のcanonicalization、表示timezone、同key fingerprint等値を定める。server時刻補完や丸めで別内容を同一としない | 506/API単一owner |
 | read DTO | original/effective/correction revision、方法ID/表示根拠、配賦/返金必要/実返金を区別。現在master system_keyを保存時snapshotと偽らない | 506 reader・専有FE |
 | 死亡後typed source | 生前事実・元owner/source/版/理由のtyped reader、現在認可と最外TX再検査。会計日/client flagで生前根拠を捏造しない。通常死亡gate全面解除なし | 506/462、元source ownerの必要reader |
@@ -59,6 +65,6 @@ C06のrefs/versionsはstring mapのまま。複数配賦をarrayで直置きす�
 
 506-Aは一回の実受領＋指定配賦＋未払再読込、506-Bは方法/日時の誤記訂正一種類＋履歴再読込へ分ける候補。必要共有API・保存・Q/anchorを固定SHAで受領し、全506/全金融Done待ちにはしない。ただし未採択wire/CASを独自stubで先行実装せず、現実装sessionのscopeに自動追加しない。
 
-fixture候補（全NOT_RUN）：非現金5,000/充当3,000/返金必要2,000、部分入金、複数請求配賦、差額を無断預り/返金済みにしない、実授受なし訂正移動0、方法変更各現金対、日時offset/精度/同key、元owner保持、source不明/死亡後、全配賦writer競合、read失敗/失権lookup、同keyreplay/異内容/unknown、監査/receipt失敗全rollback、既存Complete整数wire・201/200保持。parser単体/mock/実DB/実入出金を別証拠とし、未実行をPASSにしない。
+fixture候補（全NOT_RUN）：非現金5,000/充当3,000/返金必要2,000、部分入金、複数請求配賦、差額を無断預り/返金済みにしない、実授受なし訂正移動0、方法変更各現金対（承認済みの現金訂正/両不明null・理由必須・実受領額/日時保持・0補完/新移動なしを含む）、日時offset/精度/同key、元owner保持、source不明/死亡後、全配賦writer競合、read失敗/失権lookup、同keyreplay/異内容/unknown、監査/receipt失敗全rollback、既存Complete整数wire・201/200保持。parser単体/mock/実DB/実入出金を別証拠とし、未実行をPASSにしない。
 
 未採択事項は本稿§3–4。既決業務に新しい本人回答を要求するものではなく、技術ownerが既存契約と保存経路を照合して閉じる設計残。実医院値・旧source照合や実DB適用は後続の限定受領条件として別管理する。

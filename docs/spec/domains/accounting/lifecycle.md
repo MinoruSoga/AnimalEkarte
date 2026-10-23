@@ -58,6 +58,9 @@
 
 請求取消だけで返金や在庫返却を自動処理しない。第二群で請求減額と実際の返金を別操作とした。支払方法の誤記訂正は金額を動かさず履歴を残す。第三群で元がカードでも現金等の別方法返金を認め、金額による追加承認は設けず、返金権限のあるスタッフが理由付きで行う。総額上限・方法指定・原記録と履歴の保持は維持する。決済サービスへの自動返金連携や規約適合は今回の承認／保証に含めない。取消後の再請求は[第八群](#accounting-rebill-and-collection)の元明細選択・確認、新請求番号と元取消請求への関連付けに従う。返金の上限を請求総額だけから算定して未入金分まで返金可能としない。
 
+<a id="accounting-cash-method-correction-unknown-pair-20261023"></a>
+2026-10-23追加承認：カード等から現金へ支払方法の誤記を訂正する際、実受領額は既知だが当時の預かり額・釣銭額が不明なら、両方を不明（null）のまま理由付きで訂正してよい。理由は必須、実受領額と実授受日時を変更せず、原記録と訂正履歴を保持する。不明額を0へ自動補完せず、新しい受領・返金等の金銭移動を作らない。方法訂正だけで日時を変更しない既決条件を維持する。これは過去取引の方法誤記訂正に限る許可で、新受領の現金入力要件を緩和しない。本人回答 Sentinel_25ecf76d14a481918e055ba259c80988「はい」が根拠。詳細wire/reader/CAS/adapterの採択・実装/受入完了を意味しない。
+
 訂正後の料金に対して未払額と返金必要額を表示し、実際に返金したときに方法と金額を記録する。通常請求への入金だけの例：10,000円全額入金後に9,000円へ減額すると、未払0円・返金必要1,000円。減額だけでは返金済みにならず、1,000円を実返金して初めて返金済みとなる。10,000円請求に3,000円入金後、9,000円へ減額なら未払6,000円で返金不要。料金訂正・返金必要・未実行返金・返金済みを区別する。入金・実返金・前金充当の帰属は別記録として保持し、未充当前金を請求の入金済み額へ混ぜない。
 
 <a id="requirement-fr-accounting-post-close-separate-movement"></a>
@@ -343,7 +346,7 @@ ADR003の安定識別・医院分離・方法とmasterの整合を維持する�
 | AC-accounting-paid-reduction-refund-pending | 10,000円全額入金後に請求9,000円へ訂正 | 未払0円・返金必要1,000円を表示、返金済みにはしない | [FR](#requirement-fr-accounting-reasoned-financial-correction)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-paid-reduction-actual-refund | 前条件で1,000円を実返金 | 方法・金額・実日付を記録し返金必要額を更新 | [FR](#requirement-fr-accounting-reasoned-financial-correction)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-partial-paid-reduction | 10,000円請求・3,000円入金後に9,000円へ訂正 | 未払6,000円・返金不要。減額だけで現金を動かさない | [FR](#requirement-fr-accounting-reasoned-financial-correction)。対象・残高・履歴を照合、実機未実施 |
-| AC-accounting-payment-method-correction-no-money | 支払方法の誤記を訂正 | 入金額を動かさず元記録と訂正履歴を保持 | [FR](#requirement-fr-accounting-reasoned-financial-correction)。対象・残高・履歴を照合、実機未実施 |
+| AC-accounting-payment-method-correction-no-money | 支払方法の誤記を訂正 | 入金額・実授受日時を動かさず元記録と訂正履歴を保持。実受領既知で現金へ訂正する際の預かり/釣銭両不明は理由付きnull保持可、0補完/新金銭移動なし。新受領要件は不変 | [FR](#requirement-fr-accounting-reasoned-financial-correction)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-percent-before-fixed | 割引段階で10,000円に10%＋500円 | 割合→金額で8,500円。税／保険を含む最終額と混同しない | [FR](#requirement-fr-accounting-calculation-snapshot)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-insurance-staff-review | スタッフが保険対象項目・割合・上限を確認修正 | 確認修正可能で会計時点の根拠を保存。第七群の確認結果・保険負担額記録を用い、未確認の会社／商品別自動算式を固定しない | [FR](#requirement-fr-accounting-calculation-snapshot)。対象・残高・履歴を照合、実機未実施 |
 | AC-accounting-invoice-receipt-separated | 10,000円請求・実入金3,000円で帳票発行 | 請求書と受領3,000円の領収書を分け、全額受領としない | [FR](#requirement-fr-accounting-document-and-aged-debt)。対象・残高・履歴を照合、実機未実施 |
