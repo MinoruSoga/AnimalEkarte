@@ -1,30 +1,28 @@
 # 医師確認集合：内部reader・writer参加の設計作業案（2026-10-23）
 
-**計画整備。製品実装Ready・公開契約採択・実行受入ではない。**
+**内部契約の限定技術選定と後続計画整備。製品実装Ready・公開HTTP契約採択・実行受入ではない。**
 
 | 項目 | 内容 |
 |---|---|
 | 文書ID | work.emr.doctor-review-contract-plan-20261023 |
-| 種別 | 未採択の設計作業案 |
-| 決定状態 | 既決仕様の再利用と未選定候補を区別。新schema/route/lock合成案は未採択 |
+| 種別 | 選定済みINTERNAL契約への接続と後続設計作業案 |
+| 決定状態 | T06内部projection/digest/純粋世代参加と論理保存・共用医師readerの方向は2026-10-23選定。物理保存/HTTP/総lock合成等は未供給・未選定 |
 | 実装状態 | 候補の供給・接続・全writer閉包は未完 |
 | 実機検証状態 | NOT_RUN（tests/build/codegen/DB/Docker/browser/設定変更なし） |
 | 文書確認日 | 2026-10-23（資料受領・静的整形） |
 
 [今回の索引・判定軸](emr-limited-audit-plans-index-20261023.md#limited-audit-status)を参照。以下の監査範囲・件数は受領した固定基準の報告であり、今回再度の全件照会を行ったという意味ではない。
 
-本文の型名・exact key・enum・取得順に断定形を用いる箇所も、候補内の整合条件を述べる。既存正本が明示的に採択した範囲を除き、本記録の公開だけで採択・着手許可にはならない。候補を採択する場合はdesign正本へ配置し、必要供給と実装実行IDを別途確定する。
-
-作成: 2026-10-23。**技術採択前の設計作業案**。製品コード・DB・API・Planeは変更していない。tests/build/codegen/DB/browser は NOT_RUN。担当・claim・供給SHAを受領済みとはしない。
+2026-10-23のroot技術選定により、§3の非活性内部境界は[技術契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-scope)へ集約した。以下の§4–7の公開wire・anchor・総取得順等は引き続き未採択の後続案である。内部選定、文書公開、必要供給、consumer接続、全writer閉包、実行受入、activationを区別し、担当/実行ID/供給SHA受領済みとはしない。
 
 <a id="doctor-review-plan-scope"></a>
 ## 1. 結論と確認済み根拠
 
-今回検討する後続の限定成果候補は、非活性の内部typed reader/projection契約と世代writer参加表・合成fixture仕様に限定する。新HTTP route、医師確認write、準備billing作成、Complete gate有効化、anchor DDL、既存通常Completeの動作変更は含めない。全体機能sliceをReady/閉鎖済みとはしない。以下の§4–7は後続実装の依存/検討表であり、そのまま採択可能なclosed API/物理契約ではない。
+今回選定した限定成果は、非活性の内部typed reader/projection契約と純粋世代参加計画・合成fixture仕様である。新HTTP route、医師確認write、準備billing作成、Complete gate有効化、anchor DDL、既存通常Completeの動作変更は含めない。全体機能sliceをReady/閉鎖済みとはしない。以下の§4–7は後続実装の依存/検討表であり、そのまま採択可能なclosed API/物理契約ではない。
 
-readerの評価対象を「既存billingに紐づく、同院・同recordのplan-backed treatment source」に限定するのは非活性adapterの入出力範囲であって、製品の通常Completeをこの範囲に制限する業務判断ではない。billingなしComplete、新規作成、他sourceは今後の接続残ACとして保持する。生前分Cと退院takeover Dも別slice。選んだcohort内のwriter閉包を点検できる成果を先に作り、全source/全495/全489のDone待ちにしない。
+readerは一つの既存billingの完全な現在record集合（複数record可）とplan-backed treatmentを扱う。各linkを対応する同recordへ照合する内部範囲であって、製品の通常Completeをこの範囲に制限する業務判断ではない。billingなしComplete、新規作成、他sourceは今後の接続残ACとして保持する。生前分Cと退院takeover Dも別slice。選んだcohort内のwriter閉包を点検できる成果を先に作り、全source/全495/全489のDone待ちにしない。
 
-最新mainをGitHub commit照会で確認: `171b56575e7ee028e54358dad22ae28574853125`（PR843 merge）。以下のblobリンクはすべてこのSHA固定。Planeは462本文と8コメント、481本文と3コメント、484本文と4コメント、495本文と15コメントを取得し、各responseの next_page_results=false を確認。過去の未merge/未選定記述を現在条件にしない。
+当初の調査基準は `171b56575e7ee028e54358dad22ae28574853125`（PR843 merge）。今回の選定は `b81abc26b3657bd662475a1f55b912672a24a265` を基準に再照合した入力を受領し、固定根拠を[内部契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-evidence)へ置いた。以下の既存171b565リンクは当初観測の固定参照として保持する。Planeは462本文と8コメント、481本文と3コメント、484本文と4コメント、495本文と15コメントを取得し、各responseの next_page_results=false を確認。過去の未merge/未選定記述を現在条件にしない。
 
 - [462](https://app.plane.so/baritechllc/browse/EMR-462/): 06c5f90c-503d-44f0-9f91-977ff8b746a9（通常一source先行、C/D分離）、0c13fe63-b33b-42e1-a8f2-2da811b85ced（既存Complete 201/200・Billing wire、元target現在view）、6a7c73d4-f44d-4391-befe-85bb1f590c4b（nil死亡readerの残差）。
 - [481](https://app.plane.so/baritechllc/browse/EMR-481/): f45a38ae-83c0-47ac-90ae-5ce96808b348（A/B/C/D維持、対象writer閉包）。
@@ -56,46 +54,28 @@ readerの評価対象を「既存billingに紐づく、同院・同recordのplan
 - [Complete](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/accounting_complete.go)、[completeInTx](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/accounting_complete_tx.go)
 
 <a id="doctor-review-plan-reader-candidate"></a>
-## 3. 設計候補: 現在集合reader型・canonical projection・世代参加規約
+## 3. 選定済みの非活性INTERNAL契約と未供給境界
 
-以下のschema名/内部関数名は**今回選定を求める設計名で、実在APIではない**。
+[医師確認集合の内部技術契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-scope)を型・canonical projection/digest・純粋世代参加の正本とする。以下の旧anchorは参照互換として保持し、候補本文の二重管理はしない。
 
 <a id="doctor-review-plan-completeness"></a>
 ### 3.1 対象と完全性
 
-`LoadCurrentDoctorReviewSet(tx, clinic, billing)` は内部reader候補名。read-onlyで、書込・lock獲得・baseline生成をしない。呼出側が同一consistent snapshotを提供し、将来のwrite参加では§5の資源保護も必要。戻り値はclosed unionとする。knownは `{state:"known",billing_id,billing_generation,billing_digest,records,billing_clinical_items}`、unresolved/unsupportedはそれぞれ `{state,reason}` のみ。reasonはunresolvedで `missing_baseline|source_missing|scope_mismatch|projection_inconsistent|reader_unavailable`、unsupportedで `source_kind|item_kind|manual_clinical|clinical_content_shape`。失敗枝に部分成功payloadは返さない。billing_id/世代は正signed64 canonical decimal string、digestはlowercase64hex。recordsはmedical_record_id昇順、重複禁止。各recordのexact keyは `{medical_record_id,clinical_generation,clinical_digest,clinical_items}`、ID/世代/digest型は同じ、clinical_itemsは下記record item配列。現在bindingのrecord集合と会計直接入力の明示record帰属から集合を発見し、review_setに保存された集合を現在集合の索引にしない。初回manual臨床行が見つかった場合はunsupportedを返し、除外してknownへ進めない。
-
-初回cohortは同院・同record・active charge_sourceで証明されたtreatmentだけ。execution_sourceは別に484 readiness照合に使い、charge_sourceの代用にしない。sourceの欠落/未登録adapter/帰属不明を配列から黙って落とさない。非対応sourceのある会計はこのgateのeligibleにしないが、準備表示とunknown理由表示は可。明細ゼロを医師確認の有効化で救済せず既存空請求拒否を保持。
-
-record側のclinical_itemsは、その対象recordの現在の薬剤・処置の全有効行（未請求だけに限定しない）。会計側は今回会計の現在有効な臨床明細全行。両者は値の強制一致ではなく、**医師が確認した両側の集合と現在両側の集合の一致**を要求する。手修正による差異を無断逆同期しない。
+[対象集合](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-population)と[port/closed結果](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-ports)へ。複数record可、各linkの対応record一致、record全薬剤/処置とbilling全臨床行の独立完全性、混在unsupportedで部分knownを返さない条件を選定した。実DB current providerとplan/link供給は未完であり、合成typed値のknownをruntime供給認定にしない。
 
 <a id="doctor-review-plan-projection-candidate"></a>
-### 3.2 canonical projection候補
+### 3.2 projection・digestと会計側履歴
 
-record itemのexact keyは `{source_kind,treatment_id,plan_item_id,charge_link_id,item_kind,master_id,quantity,clinical_content}`。source_kindはliteral treatment、item_kindはmedicine|procedure、各IDは非nullの正signed64 canonical decimal string。medicineではmaster_id=medicine_idかつ他typed master IDはNULL、procedureではmaster_id=procedure_idかつ他typed master IDはNULLを元model上で検証。quantityは元numeric(10,2)の非null値のcanonical decimal string、元NULLはmissing_baseline。値域/非負等の業務validationをこのreaderで新設しない。
+[exact shape](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-shapes)、[canonical digest](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-canonical-digest)、[論理保存方向](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-storage-direction)へ。既存billing_itemsのschema-tagged current projectionと既存doctor_review_setsの不変billing preimageを論理方向として選んだ。列名・nullable/CHECK・migration/model/ERD・producer/read adapterは未供給で、既存列・完全履歴とはしない。doctor_review_recordsはrecord側であり、billing digestだけから過去会計内容を復元せず、現在source補修や481 v1無断拡張もしない。物理供給を待たず内部契約を選定したが、確認履歴機能Readyの不足は解消していない。
 
-clinical_contentは全key必須のclosed object、exact key/typeは次の通り。content:string、admin_route:string、administration_dose_amount:decimal|null、administration_dose_unit:string|null、administration_instructions:string|null、prescription_total_amount:decimal|null、prescription_total_unit:string|null、dose_amount_mg:decimal|null、dose_amount_unit:string|null、dose_pattern_revision_id:positive-decimal-id|null。decimalは元numeric(12,6)のexact canonical decimal string。これ以外のkey、省略、数値JSON、bool、配列を拒否する。各nullable列のSQL NULLだけnullで表現し、読取失敗をnullへ丸めない。content/admin_routeの空文字は実保存値として保持する。
-
-型根拠は [Treatment model](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/model/treatment.go)。dose_weight_kg/source・dose_param_snapshot等の入力根拠はこのv1へ入れない。これらだけの変更を実内容変更とみなすかは別の臨床signature選定依存であり、本readerの出力だけで全dose writer適合/activationを認定しない。price/discount/tax/insurance、sort、無関係memo、CAS version、履行event/head、recording時刻も含めない。本v1は新しい臨床再確認業務条件を決定するものではなく、対象列に実差があるケースの候補検出契約である。
-
-**確認当時の会計側内容の未供給条件：** doctor_review_setsのbilling digest/generationだけでは、確認したbilling_clinical_itemsを後から復元できない。doctor_review_recordsのclinical_itemsはrecord側であり会計側内容の保存先ではない。型契約・保存案を採択する前に、確認集合へ束縛した不変の会計側projection、又は全必要項目を保持する不変revision参照の供給を必須とする。具体保存先/参照shapeは未選定で、現在DDLが保持済みとは記載しない。現在sourceから過去会計内容を補修せず、digestから復元可能とも扱わない。この閉鎖前は確認履歴を再構成可能な機能sliceとしてReady/activationにしない。
-
-会計itemのexact keyは `{billing_item_id,source_kind,source_id,medical_record_id,item_kind,master_id,quantity,clinical_content}`。source_kindはliteral treatment、source_id=treatment_id、全IDは非null正signed64 canonical decimal string、item_kindはmedicine|procedure、quantityは会計保存数値のexact canonical decimal string、clinical_contentは上記同一closed型。source identityは現在bindingから取得する。clinical_contentを会計当時値として返すには、その保存snapshotの同型projectionを供給するreaderが必要であり、現在treatmentから過去会計値を補修してはならない。現在481 imported_valuesのtreatment_originalはこの全臨床内容を保持していないため、**現時点ではそのbranchはunresolved/projection_inconsistent**。typed fixtureからの評価はできるが、実DBでknownを成立させる会計側projection供給は後続依存。この不足を理由に未知fieldを追加・推定保存しない。明示manualはunsupported/manual_clinical、source解決失敗はunresolved/source_missing。
-
-`clinical_items`はrecord側が(treatment_id)、会計側が(billing_item_id)の数値昇順。同ID重複はprojection_inconsistent。配列の順序と表示順は別。UTF-8、duplicate JSON key/unknown key/lone surrogate拒否、文字列のUnicode normalize/trimなし。decimalは指数/先頭+を使わず、整数部の不要先頭0と小数末尾0を除去、小数部が空なら小数点除去、負zeroは0へ。1/1.0はcanonical 1、raw原値は元snapshotが保持する。
-
-record digest = raw SHA-256(JCS `{schema:"doctor-review-record-v1",clinic_id,medical_record_id,clinical_items}`)。billing digest = raw SHA-256(JCS `{schema:"doctor-review-billing-v1",clinic_id,billing_id,records:[{medical_record_id,clinical_generation,clinical_digest}],billing_clinical_items}`)。内側digestのJSON表現はlowercase64hex、保存列はraw32bytes。schema差は別digest。record_countはrecords長に等しく、別院/別billing/ref・重複/余剰/欠落recordは拒否する。
+dose_weight/source・dose_param_snapshot等のv1外効果を無条件no-opにせず、完全に分類できないwriterはunsupported/clinical_content_shape。全dose writer適合や確認activationの証拠にしない。
 
 <a id="doctor-review-plan-generation-writers"></a>
-### 3.3 世代の唯一writer
+### 3.3 純粋世代参加と実writer供給
 
-既存medical_records/billingsのclinical_set_generationを再利用。recordのclinical projectionに実差がある成功TXごとに当該recordを一度だけ+1。billingのprojection/record集合/依存record世代に実差がある成功TXごとに当該billingを一度だけ+1。同じTXで数量とidentityが変わっても一度。同値保存・price-only・sort-onlyでは増分なし。依存recordの世代変更はreaderが比較するだけで、readerがrecord/billingを再増分しない。A→B→Aという別成功TXでは各+1となり旧確認は復活しない。overflowはzero-write拒否。
+[before/final世代参加](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-generation)と[owner/AC台帳](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-owner-packets)へ。before/final双方の所属を含め、削除・移管前や同record別行を請求するbillingも落とさない。pure calculatorはIO/lock/write/commitをせず、実影響先列挙・phantom保護・期待CAS・監査・receiptの最外TX参加は未供給。NULL baselineをread/replayから初期化しない。
 
-writerは旧新projectionを同lock下で再計算し、期待世代CASとdigest更新を同一TXへ置く。医師確認IDを消して履歴を失わせる必要はなく、現在generation/digest不一致で失効を投影する。Returnだけは旧setを保存したまま現在参照を外す。Returnと数量増分を混同しない。
-
-NULL baselineはunknown。GET/Complete/replayで初期化しない。新規record/billingの正規作成は、その時点の完全な集合を同TXで1として初期化できる。既存NULLの照合は明示reconciliationとして元データ/全writer対応を確認し、1を過去の医師確認済みと読み替えない。reconciliation後も明示医師確認が必要。
-
-**重要なDDL接点/未閉鎖:** review_sets.billing_idは必須。既存routeはPOST /accountings（accounting:create）、POST /accountings/complete（accounting:create）、旧確認routeはmedical-record単位であり、新集合confirmのbilling特定wireはまだない。単にPOST /accountingsがあることから「新準備workflowが供給済み」と認定しない。準備writerの期待版/原子性/重複防止・新集合confirmのexact wire・新規billing Completeとの互換adapterが決まるまで機能sliceのReady/activationは不可。既存CompleteのBillingIDはtakeover対応、Created=trueは初回成立201を示すという静的事実だけを受領する。本案はbillingなしCompleteの新規作成を禁止せず、他billing確認の流用も許さない。今回の内部readerは既存billingを入力として要求するだけで、製品Completeの業務条件を変更しない。
+review_sets.billing_idは必須で、新準備workflow・新集合confirm wire・新規billing Complete互換は別の未閉鎖packet。既存Completeのbillingなし新規作成を禁止したり、他billing確認を流用したりしない。本内部契約から製品Completeへ新禁止条件を追加しない。
 
 <a id="doctor-review-plan-c06-candidate"></a>
 ## 4. 後続依存: C06参加草案と公開互換（このPRで採択しない）
@@ -123,7 +103,7 @@ scopeは認証医院・同actor、金融ownerはbilling。Completeの実際のin
 - routes.go L103–106の既存confirm/returnはいずれもaccounting:edit、GETはaccounting:view。handlerはExtractStaffIDをconfirmed_by/returned_byへ注入し、client指定の代理医師IDを受け付けない。担当医以外の資格ある医師が代行できる業務規則と、actorと確認doctorを別IDで保存する仕組みは別である。**後者は本案では採用しない**。
 - 現存confirm bodyの許可keyはmemoのみ、string、TrimSpace後1000 Unicode rune以下、省略は空文字。return bodyの許可keyはreturn_reason/memoのみ、string。TrimSpace後return_reason必須・500 rune以下、memo1000 rune以下。両方8 KiB body上限、application/json、成功200の旧BillingConfirmation response。新billing/世代/digest/operation_keyはこのwireにない。これは現行実装の観測であり、そのまま新医師確認集合wireとして使えるという意味ではない。
 - service Confirm/Returnは現在staffとclinic assignmentをrepository.LockActiveStaffAssignmentで検査し、staffs.deleted_at IS NULL、staffs.is_active=TRUE、staff_clinic_assignments.deleted_at IS NULLをSHARE lock下で照合する。確認した関数は職種/医院が認めた医師資格を検証していない。accounting:edit＋active assignmentを医師資格の代用にしない。
-- 新集合confirmの医師適格性をどの現在reader/正規分類で検査するか、当該readerのlock順、既存return_reasonの新監査/履歴保存先とrequest正規化後のContent commitmentは**後続462/API/既存staff ownerの明示依存**。今回のreader仕様はこれらを閉じたとしない。旧表のreturn_reasonを復活させず、保存先未確定のままReturn機能Readyにしない。
+- 新集合confirmの医師readerは[T03/T06共用の既存predicate再利用方向](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-physician-dependency)を選定済み。実provider・designation対応根拠・保護順、既存return_reasonの新監査/履歴保存先と正規化後Content commitmentは**後続462/API/既存staff ownerの明示依存**。今回のreader仕様はこれらを閉じたとしない。旧表のreturn_reasonを復活させず、保存先未確定のままReturn機能Readyにしない。
 - 既決の業務判断は再質問しない。正本が定める医院が認めた医師・担当医以外の代行可は維持し、技術readerの既存機構への対応付けを実装ownerへ渡す。
 
 固定根拠: [request/理由上限](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/billing_confirmation_request.go)、[handler/actor注入](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/billing_confirmation_handler.go)、[repository/assignment検査](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/billing_confirmation_repository.go)、[業務上の確認actor規則](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/design/domains/reservations/technical-spec.md#reservation-receiving-contracts)。
@@ -184,9 +164,9 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 <a id="doctor-review-plan-acceptance"></a>
 ## 8. reader限定1PRの完了条件と後続fixture
 
-後続の非活性adapter契約成果候補は、(a) §3のclosed型・decimal/JCS golden inputと期待digest、(b) 完全集合の比較関数の入出力/エラー区分、(c) §6各writerの変更分類と同TX参加要求、(d) 未供給matrixを含む。製品への配線・API・DDLを同PRの達成対象にしない。fixtureコード作成は実装側の後段で、今回実物のgolden bytesや計算済みhashを作成したとは報告しない。
+選定した非活性内部契約は、(a) §3のclosed型・decimal/JCS入力/digest規則、(b) 完全集合の比較関数の入出力/エラー区分、(c) writerの効果分類と最外TXへの参加要求、(d) 未供給matrixを含む。製品への配線・API・DDLは同PRの達成対象にしない。fixtureコード作成とgolden bytes/hash生成は後段で、今回実物を作成・実行済みとはしない。
 
-本書の段階では正本への技術採択とレビューが必要。次の不足を「単に試験NOT_RUN」へ隠さない: 会計clinical_contentの保存projectionと確認集合に束縛する不変の会計側確認内容/不変revision参照、確認医師reader、confirm/return exact wireとReturn理由保存先、準備billingと新規Complete互換、元billing anchor物理契約、506を含む全lock資源宣言。したがって**full doctor-review/Complete機能sliceはReadyではない**。以下は後続機能接続で必要なfixture一覧。
+内部契約の限定技術選定と、文書の公開・実供給・後続機能契約採択を区別する。次の不足を「単に試験NOT_RUN」へ隠さない: 選定した会計側current/不変projectionの物理供給、共用医師readerとdesignation受入根拠、confirm/return exact wireとReturn理由保存先、準備billingと新規Complete互換、元billing anchor物理契約、506を含む全lock資源宣言。したがって**full doctor-review/Complete機能sliceはReadyではない**。以下は後続機能接続で必要なfixture一覧。
 
 すべてfixture仕様のみ、実行NOT_RUN。
 
@@ -207,13 +187,13 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 | record clinical projectionに実差 | 該当recordだけ+1 | 影響するbillingだけ+1 | 変更対象の期待世代CASを検査。変更後の世代/digest不一致で該当する旧確認を失効投影し、保存済み確認履歴は保持 |
 | billing-only clinical projectionに実差 | 不変 | 該当billingだけ+1 | billingの期待世代CASを検査。recordを会計変更で増分せず、変更した会計集合の旧確認は失効 |
 | billingのrecord集合だけを追加/削除 | 既存recordは不変 | 該当billingだけ+1 | billing期待世代CASと完全record集合を照合。所属集合が違う旧確認は無効、既存record内容/世代を変更しない |
-| 同値/price-only/sort-only | 不変 | 不変 | 既存writerのCAS等は省略せず、臨床集合の確認はこの変更だけでは失効しない。必要な483価格了承は別判定 |
+| 同値/price-only/sort-only（supported shape内） | 不変 | 不変 | 既存writerのCAS等は省略せず、臨床集合の確認はこの変更だけでは失効しない。必要な483価格了承は別判定 |
 
-同じ最外TXに複数変更があっても各変更対象の増分は一回だけ。依存record世代を再読したreaderは再増分しない。期待CAS不一致なら業務値・世代・履歴・receiptはzero-writeで、旧確認を変更しない。成功時の失効と不変、失敗時の不変を別fixtureにする。
+v1外dose根拠など効果を分類できないwriterはunsupportedとし、上表のno-opへ押し込まない。影響先はbefore/final双方の所属から列挙し、削除・移管前の依存billingも保持する。同じ最外TXに複数変更があっても各変更対象の増分は一回だけ。依存record世代を再読したreaderは再増分しない。期待CAS不一致なら業務値・世代・履歴・receiptはzero-writeで、旧確認を変更しない。成功時の失効と不変、失敗時の不変を別fixtureにする。
 
 commit後のHTTP本文構築/送信失敗では、永続成功を失敗へ反転させず、rollbackしたとも報告しない。HTTPエラーが絶対に返らないとは約束しない。clientの結果不明は元key lookupへ進み、commit成否不明も新key再送で迂回せず既存unknown規則に従う。commit前の必須projection生成失敗とcommit後の応答喪失を別fixtureにし、未採択案を実行済みにしない。
 
-完了は「技術案採択」「正本公開」「必要subset供給」「consumer接続」「全対象writer閉包」「実試験」「activation」を別々に記録する。本案はreader型/参加台帳の技術案であり、後六段階の完了ではない。非活性reader/projectionの契約整備を先行し、通常Completeへの新しい禁止条件は採択しない。billingなし新規Complete/複数record/他source/C/Dと上記未供給を見えるまま保持する。
+完了は「技術案採択」「正本公開」「必要subset供給」「consumer接続」「全対象writer閉包」「実試験」「activation」を別々に記録する。内部reader型/純粋参加計画は限定選定済みだが、必要供給以降の完了ではない。非活性reader/projectionの契約整備を先行し、通常Completeへの新しい禁止条件は採択しない。billingなし新規Complete/複数record/他source/C/Dと上記未供給を見えるまま保持する。
 
 <a id="doctor-review-plan-references"></a>
 ## 9. 追加の固定参照
