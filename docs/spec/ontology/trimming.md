@@ -47,3 +47,8 @@
 | 当日受付の要望表示 | 同じ予約・ペット・対象日に対応する要望の読取projection | AC-reception-trimming-style-target／AC-reception-trimming-style-empty-failure。表示だけで記録作成・notes転記・原文更新を起こさず、未記入/失敗/別個体/別日/認可外を区別 |
 
 希望画像を参照できることと紙の記録票への画像印刷採用は別。記録票の現採用範囲を専用仕様から参照し、希望/完成写真を必ず印刷する新条件を作らない。
+
+<a id="trimming-start-end-technical-selection"></a>
+## 2026-10-23開始・終了の技術接続
+
+[開始・終了の限定契約](../../design/domains/trimming/trimming-start-end-contract.md#trimming-start-end-closed-wire)で468単一writer、T4 schema2の実担当者（actor/予約指名と別）、閉じたstart/end fingerprintと最小準備readproofを選定。準備はmetadataのみで記録作成/本文save/状態変更なし。現在認可/版検査を維持し、同key成功はproof再検証前に扱う。途中保存/開始に実担当者・料金の新gateを加えず、終了の既決9ACを保持。共有供給/実装/試験/全9AC受入/activationは未完（NOT_RUN）。

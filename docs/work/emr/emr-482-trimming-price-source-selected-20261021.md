@@ -50,6 +50,9 @@ POST bodyはclosed `{operation_key,lines,preconditions}`。linesは今回の全s
 
 `detail_values` はT4の閉じたschema=1 projectionとして `{schema_version,appointment_id,owner_id,pet_id,style_request,body_weight,bw_unit,body_temperature,used_shampoo,used_ribbon,remarks,style_image,completed_image}` を保存する。IDはnullableを現在model通り保持、本文/画像は保存済みstring、身体数値はnullable exact decimal、bw_unitは既存BodyWeightUnit enum又はnull。POST価格bodyから本文は更新しない。対応本文writerも同じT4保存関数で全projectionと価格行を同TX改訂するので、価格更新が旧本文へ巻き戻さない。
 
+2026-10-23の[開始・終了契約](../../design/domains/trimming/trimming-start-end-contract.md#trimming-start-end-actual-performer)で、schema1を保持したままschema2（上記全key＋nullable `actual_performer_staff_id`）を選定。actor/予約doctorから推測backfillせず、本文/価格writerは同じT4全projection・source digestで実担当者を保持する。旧schema1専用writerは切替scopeで属性を落として保存しない。明示保存・同医院staff検査・reader/DTO/UI/共有関数の供給は未完であり、価格/税/会計取込全体を終了前提にしない。
+
+
 通常mutable状態だけをこのPOSTで扱い、完了後/死亡後の生前訂正は既決専用訂正ownerから同保存関数へ渡す。通常PATCHの存在を専用訂正の許可にしない。専用訂正のroute全体を482で新設しないが、同じsource保存/監査関数を通す契約は必須。
 
 ## 4. 481施術adapter：reader と import / resolution
