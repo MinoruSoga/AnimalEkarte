@@ -242,3 +242,12 @@ JSON guardの必須keyが欠落/JSON null/型不正のときSQL CHECKのUNKNOWN�
 - docs/work/emr/emr-518-package-api-contract-20261020.md、backend/docs/fixtures/emr518/{plan-list.response,plan-detail.response}.json。
 
 repo根拠の固定prefix: https://github.com/MinoruSoga/AnimalEkarte/blob/edf71515dbae11735a4184ff64c465e2ea51af88/ 。旧実装が残る箇所は採用仕様との適合差であり、そのまま流用を許す根拠にしない。新MTG健診PDF/RV4文書の別owner要件はこの診療終了／訂正sliceへ混ぜない。公開は技術契約の固定のみ。runtime登録、DDL/model/ERD適合、全writer必要subset、試験とDB適用は未完・NOT_RUN。
+
+<a id="estimate-delete-d2-handoff-20261023"></a>
+## 9. D2追補：見積通常削除の親条件訂正と着手受領
+
+2026-10-23の[本人確定判断](../../spec/domains/estimates/business-rules.md#estimates-delete-parent-state-20261023)をD2へ引き渡す。B/Cの採択契約を変更せず、D2の範囲は見積の通常削除から廃止済みの親未確定条件だけを外すこと。見積自身の削除条件/提示原本/期待版/現在認可/医院・関連整合/明細・受渡し依存/履歴保全は維持し、診療終了・医師確認・会計確定を代替gateにしない。
+
+着手基準はmain `cff4debe2e4620584e3afc4faaabea370afc7d37`。`backend/internal/billing/estimate_service.go` のDeleteは旧親draft helperを呼び、`estimate_repository.go` のDeleteIfNotLockedはstatusとactive明細0件を原子条件として持つ。これは静的接点で、実行観測ではない。親条件だけを廃止し、残る見積保護を単純削除しない。508の通常CRUD ownerへこの限定hunk/受入を対応付け、既存実行claimの範囲へ無断追加しない。
+
+受入は、親の旧finalized/診療終了/医師確認/会計確定だけを理由にしない一方、提示原本/承認・却下/明細や受渡し依存/版競合/別院・失権では既存保護を維持することと、元履歴/監査を失わないこと。具体実装・fixture・試験は未完/NOT_RUNで、今回docsだけではD2又は495全体完了にしない。

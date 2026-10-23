@@ -28,4 +28,4 @@
 <a id="legacy-finance-evidence-design-entry"></a>
 ## 移行原本証拠の保存・閲覧設計（EMR-547）
 
-[legacy-finance-evidence.md](legacy-finance-evidence.md#legacy-evidence-purpose-and-ownership)に原本occurrence/派生版の多対多lineage、identity、関連検証、read候補、producer報告の受領と設計残を置く。[会計FR/6AC](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)と[見積FR/1AC](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)を実現する技術候補であり、closed wire/DDL/APIは未採択、実装/試験NOT_RUN。旧work pathは実施記録の索引のみ。
+[legacy-finance-evidence.md](legacy-finance-evidence.md#legacy-evidence-purpose-and-ownership)に原本occurrence/派生版の多対多lineage、identity、関連検証、選定read契約、producer報告の受領と設計残を置く。[会計FR/6AC](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)と[見積FR/1AC](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)を実現する共通構造・保存制約・readonly APIは2026-10-23選定。6入れ子型と実データprofile/manifest/集約元列挙は未閉鎖で、全wire完成ではない。実DDL/API/UIの実装・試験NOT_RUN。旧work pathは実施記録の索引のみ。
