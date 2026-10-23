@@ -79,6 +79,6 @@ export interface AuthContextValue {
   logout: () => Promise<void>;
   switchClinic: (clinicId: string) => void;
   hasPermission: (resource: Resource, action: ResourceAction) => boolean;
-  /** /me を再取得してユーザー（権限含む）を更新する */
+  /** /me を再取得してユーザー（権限含む）を更新する。権限源を更新できなかったときは reject する */
   refreshPermissions: () => Promise<void>;
 }

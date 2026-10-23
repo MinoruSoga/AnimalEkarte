@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -682,18 +683,20 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 			// expected catalog revision mismatch -> zero-write conflict。
 			return apperrors.WrapConflict("並び順が更新されています。再読み込みしてから保存してください")
 		}
-		current, err := s.repo.FindAll(txCtx, clinicID)
+		// 表示用の FindAll は MaxMasterListRows で頭打ちになるため、reorder の
+		// 「全件」照合は cap 無しの全件ロックで行う（部分集合を全件として受理しない）。
+		locked, err := s.repo.LockAllPackagesForReorder(txCtx, clinicID)
 		if err != nil {
 			return err
 		}
-		currentIDs := make([]uint64, 0, len(current))
-		for i := range current {
-			currentIDs = append(currentIDs, current[i].ID)
-		}
-		locked, err := s.repo.LockPackagesByIDAsc(txCtx, clinicID, currentIDs)
-		if err != nil {
-			return err
-		}
+		// FindAll と同じ表示順（sort_order ASC, id ASC）をインメモリで再現する。
+		current := append([]model.TreatmentPackage(nil), locked...)
+		sort.Slice(current, func(i, j int) bool {
+			if current[i].SortOrder != current[j].SortOrder {
+				return current[i].SortOrder < current[j].SortOrder
+			}
+			return current[i].ID < current[j].ID
+		})
 		// 非削除全件（inactive 含む）と完全一致のみ受理。foreign/欠落/重複は全体拒否。
 		if len(ids) != len(locked) {
 			return apperrors.WrapInvalidInput("並び替えは現在の全パッケージを対象にしてください")
@@ -713,6 +716,10 @@ func (s *treatmentPackageService) Reorder(ctx context.Context, clinicID uint64, 
 		wanted := make(map[uint64]int, len(ids))
 		for i, id := range ids {
 			wanted[id] = i
+		}
+		if len(wanted) != len(ids) {
+			// 重複は書込み前に zero-write で拒否する（欠落 id と表裏一体）。
+			return apperrors.WrapInvalidInput("id が重複しています")
 		}
 		currentOrder := make(map[uint64]int, len(current))
 		for i := range current {

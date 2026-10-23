@@ -22,6 +22,52 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export const EDIT_VERSION_ERROR = "編集開始時の版を取得できません。再読込してください";
 
+/**
+ * EMR-532/Q1: 一覧取得の既存 BE cap（backend/internal/persistence/scope.go の
+ * persistence.MaxMasterListRows）に対応する限定定数。raw items がこの件数以上なら
+ * 「全件取得を確認できない」として並替を事前抑止する保守的な閾値であり、
+ * 全体の登録件数制限を新設するものではない。正確に 10,000 件で全件取得できた
+ * 場合も抑止する（保守的制約・PR に明記）。
+ */
+export const REORDER_FULL_SET_GUARD = 10000;
+
+export type ReorderBlockReason = "pending" | "error" | "no-order-version" | "count-guard";
+
+/**
+ * 並替の事前抑止判定（純粋関数）。raw（filter 前）の items.length を使う。
+ * pending / error / order_version なし / 件数閾値以上で送信不可を返す。
+ */
+export function reorderBlockReason(input: {
+  isPending: boolean;
+  isError: boolean;
+  orderVersion: string | undefined;
+  rawItemCount: number;
+}): ReorderBlockReason | null {
+  if (input.isPending) return "pending";
+  if (input.isError) return "error";
+  if (input.orderVersion === undefined) return "no-order-version";
+  if (input.rawItemCount >= REORDER_FULL_SET_GUARD) return "count-guard";
+  return null;
+}
+
+/**
+ * B2-02: 並替 handler の送信可否（ボタン disabled と独立に検証できる純粋判定）。
+ * handleMove と表示側 disabled の双方がこの判定に依存する。
+ */
+export function canSendReorder(input: {
+  authorizationLost: boolean;
+  block: ReorderBlockReason | null;
+  orderVersion: string | undefined;
+  canEdit: boolean;
+}): boolean {
+  return (
+    !input.authorizationLost &&
+    input.block === null &&
+    input.orderVersion !== undefined &&
+    input.canEdit
+  );
+}
+
 /** 編集開始時に捕捉した version（canonical 文字列）。以後の refetch 版を混入しない。 */
 export function requireEditingVersion(value: unknown): string {
   if (typeof value !== "string" || !POSITIVE_INT64.test(value) || value.length > 19) {
@@ -307,6 +353,87 @@ export function buildReorderBody(
 /** draft が baseline と等しいか（dirty 判定用）。 */
 export function isDraftEqual(draft: TreatmentPackageDraft, baseline: TreatmentPackage): boolean {
   return JSON.stringify(draft) === JSON.stringify(draftFromPackage(baseline));
+}
+
+/**
+ * EMR-532/Q3: 型 → 型別閲覧 resource。backend の treatmentPackageKindViewResource
+ * と対応させる（consultation/procedure/medicine/examination_type/vaccine →
+ * master-medical、checkup_type → checkups、merchandise_item → master-merchandise）。
+ * manual_other は型別 view を持たないため呼び出し側で除外する（MasterItemKind のみ受理）。
+ */
+export type KindViewResource = "master-medical" | "checkups" | "master-merchandise";
+
+export function treatmentPackageKindViewResource(kind: MasterItemKind): KindViewResource {
+  if (kind === "checkup_type") return "checkups";
+  if (kind === "merchandise_item") return "master-merchandise";
+  return "master-medical";
+}
+
+/** A2-01: 税区分の利用者向け表記（enum 生値をそのまま出さない）。 */
+const TAX_TYPE_LABELS: Record<ManualDraft["taxType"], string> = {
+  included: "税込",
+  excluded: "税抜",
+  exempt: "非課税",
+};
+
+/**
+ * A2-01: manual の更新可能フィールド（sameComponents が比較する全項目）を
+ * 文字列のまま表現する。number 化しない。draft（unitLabel=""）と wire
+ * （unit_label=null）の欠落表記を「なし」へ正規化し、等値は同一表示になる。
+ */
+function manualDetailSummary(m: {
+  reason: string;
+  unitLabel: string | null;
+  unitPrice: string;
+  taxType: ManualDraft["taxType"];
+  taxRate: string;
+  isNonInsurance: boolean;
+}): string {
+  const unit = m.unitLabel === null || m.unitLabel === "" ? "なし" : m.unitLabel;
+  return `／ 理由:${m.reason} 単位:${unit} 単価:${m.unitPrice}円 ${
+    TAX_TYPE_LABELS[m.taxType]
+  }(税率${m.taxRate}) ${m.isNonInsurance ? "保険外" : "保険対象"}`;
+}
+
+/** 409 比較用: draft 構成の行ラベル（kind ラベル + 識別子 + 数量 + manual 全更新可能フィールド）。number 化しない。 */
+export function draftComponentSummary(c: ComponentDraft): string {
+  const name = c.kind === "manual_other" ? c.manual.name : c.masterId;
+  const base = `${ITEM_KIND_LABELS[c.kind]} ${name} ×${c.quantity}`;
+  if (c.kind !== "manual_other") return base;
+  return `${base} ${manualDetailSummary(c.manual)}`;
+}
+
+/** 409 比較用: wire 構成の行ラベル（manual 全更新可能フィールドを含む）。 */
+export function wireComponentSummary(c: TreatmentPackageComponentInput): string {
+  const item = c.item;
+  if (item.kind !== "manual_other") {
+    return `${ITEM_KIND_LABELS[item.kind]} ${masterIdFromRef(item)} ×${c.quantity}`;
+  }
+  const m = item.manual;
+  return (
+    `${ITEM_KIND_LABELS.manual_other} ${m.name} ×${c.quantity} ` +
+    manualDetailSummary({
+      reason: m.reason,
+      unitLabel: m.unit_label,
+      unitPrice: m.unit_price,
+      taxType: m.tax_type,
+      taxRate: m.tax_rate,
+      isNonInsurance: m.is_non_insurance,
+    })
+  );
+}
+
+/** 409 比較用: draft と最新 wire の項目別差分フラグ（純粋関数）。 */
+export function draftPackageDiff(draft: TreatmentPackageDraft, latest: TreatmentPackage) {
+  const wire = draft.components.map(componentToWire);
+  return {
+    name: draft.name.trim() !== latest.name,
+    description: draft.description !== latest.description,
+    isActive: draft.isActive !== latest.is_active,
+    components:
+      wire.some((c) => c === null) ||
+      !sameComponents(wire as TreatmentPackageComponentInput[], latest.components),
+  };
 }
 
 /** 一覧を ids の順に並べ替えた ID 列（全件・inactive 含む）。 */

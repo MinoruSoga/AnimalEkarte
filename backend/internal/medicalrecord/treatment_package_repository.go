@@ -38,6 +38,10 @@ type TreatmentPackageRepository interface {
 	IncrementCatalogRevision(ctx context.Context, clinicID uint64, expected int64) error
 	// LockPackagesByIDAsc takes FOR UPDATE on nondeleted packages in ascending id order.
 	LockPackagesByIDAsc(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackage, error)
+	// LockAllPackagesForReorder takes FOR UPDATE on the whole nondeleted set in
+	// ascending id order (inactive included, no limit, no id list). Reorder must
+	// verify membership against this true full set, never the capped list path.
+	LockAllPackagesForReorder(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
 	MaxSortOrder(ctx context.Context, clinicID uint64) (int, error)
 	Create(ctx context.Context, pkg *model.TreatmentPackage, items []model.TreatmentPackageItem) error
 	UpdateFieldsCAS(ctx context.Context, clinicID, id uint64, expectedVersion int64, fields map[string]any) (*model.TreatmentPackage, error)
@@ -197,6 +201,28 @@ func (r *treatmentPackageRepositoryImpl) LockPackagesByIDAsc(ctx context.Context
 	err := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id IN ? AND deleted_at IS NULL", ordered).
+		Order("id ASC").
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Find(&pkgs).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "treatment_package", "")
+	}
+	return pkgs, nil
+}
+
+// LockAllPackagesForReorder locks every nondeleted package of the clinic in id-asc
+// order. Unlike FindAll it applies no MaxMasterListRows limit: a clinic with more
+// rows than the list cap must still have its reorder verified against the true
+// full set. Requires the caller's ambient transaction (same guard as
+// LockPackagesByIDAsc).
+func (r *treatmentPackageRepositoryImpl) LockAllPackagesForReorder(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error) {
+	if persistence.TxFromContext(ctx) == nil {
+		return nil, apperrors.WrapInternalServerError("package lock requires an ambient transaction")
+	}
+	pkgs := make([]model.TreatmentPackage, 0)
+	err := persistence.DBOrTx(ctx, r.db).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("deleted_at IS NULL").
 		Order("id ASC").
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Find(&pkgs).Error
