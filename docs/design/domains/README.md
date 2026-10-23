@@ -24,7 +24,7 @@
 | D09 | [健診](checkups/technical-spec.md) | [業務・受入](../../spec/domains/checkups/lifecycle.md) |
 | D10 | [会計・未納](accounting/technical-spec.md) | [業務・受入](../../spec/domains/accounting/lifecycle.md) |
 | D11 | [見積](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/estimates/business-rules.md) |
-| D12 | [レジ締め](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/cash-register/business-rules.md) |
+| D12 | [レジ締め](finance-operations/technical-spec.md)、[A1/A2有限契約](finance-operations/cash-closing-contract.md#cash-closing-public-wire) | [業務・受入](../../spec/domains/cash-register/business-rules.md) |
 | D13 | [在庫](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/inventory/business-rules.md) |
 | D14 | [職員・シフト](staff-workforce/technical-spec.md) | [業務・受入](../../spec/domains/staff-workforce/README.md) |
 | D15 | [CRM・Lステップ](../../spec/line/lstep-integration.md) | [業務・受入](../../spec/line/lstep-integration.md) |

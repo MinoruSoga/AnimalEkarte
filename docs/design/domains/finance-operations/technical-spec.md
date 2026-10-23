@@ -30,6 +30,8 @@ D11 [見積](../../../spec/domains/estimates/business-rules.md)、D12 [締め](.
 <a id="closing-consumer-gap"></a>
 ## D12 締め：D10新イベントのconsumer
 
+2026-10-23選定の[A1/A2限定契約](cash-closing-contract.md#cash-closing-public-wire)が、有限wire/C06/source完全性・旧締め履歴・遅着/cutoffの詳細を固定する。以下の旧候補field名は当該範囲の新wireを再定義しない。非R1 producer、opening writer、B grant等は未選定/未供給を分け、共有供給/実装/試験/activationは未完。
+
 旧cash-register.mdはcompleted_at／completed状態の会計総額を集計し、前回繰越・入金／支出項目なし。旧payment_splits／refundsの読取は[画面29](../../../spec/screens/29-closing-aggregation.md#closing-allocation-contract)に契約がある。これをD10の部分入金・後日回収・預り金受領／充当／復元・別方法返金にそのまま流用しない。
 
 ### adapterが必要な意味
@@ -295,6 +297,8 @@ D16のread adapterがD12締めsnapshotを受け取れることと、月次帳票
 転記previewは現提示版・承認・期限・内容/数量一致・今回保険再確認・選択元明細の未請求性を返す。commitはこれらをD10側で再検査し、適格なら提示単価、税/割引はD10契約のsnapshotへ。承認後の数量変更・期限切れは古いpreviewで転記せず後継再提示へ。旧headerだけの見積を架空行へ自動分解しない。検査は提示/編集、返答/後継、転記/別請求、転記成功応答断を両順で実施し、親カルテ確定だけで未提示下書きを一律拒否しない。
 
 ### D12・FIN-R17：実移動イベント受入と区分締め
+
+[A1/A2の後発選定](cash-closing-contract.md#cash-closing-source-completeness)を当該有限範囲の詳細正本とする。sourceの実在と意味/完全性はproducer別に受領し、旧候補名や既存modelの存在だけで接続済みとしない。
 
 候補`finance_source_event`の一意キーを `(clinic_id,source_owner,event_id)` とし、版・内容digest、種別、元請求/資金/元event、実日時/記録日時、実方法、実移動額、請求差分を別列に持つ。訂正は新event ID+元ref。D12受入表も同じsourceキーを一意とし、同内容はno-op/別内容は照合停止。通知再送で新eventを作らず、欠落した投影だけを同IDから再建する。
 

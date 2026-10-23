@@ -10,6 +10,8 @@
 
 ## 目的・対象範囲
 
+[A1/A2の限定技術契約](../../../design/domains/finance-operations/cash-closing-contract.md#cash-closing-public-wire)を2026-10-23に選定。既決の実受領/実返金、区分保護、非0差額メモ、旧原締め/履歴保持を継承し、有限wire/C06/source完全性・遅着とcutoffへ対応する。非R1 producer/opening writer/B grant等の未選定・未供給、実装/試験/利用開始未完を残し、新たな業務許可や実査訂正Bの採択としない。
+
 D12は期間ごとの現金実査、理論値との過不足、締めsnapshot・訂正差分・締め境界設定を扱う。請求額・未納・預り金残高はD10、読取レポートはD16。締め作成を会計確定・税務申告・金融機関への精算に代用しない。[既存締め仕様](../../cash-register.md)の旧集計式は現行実装説明として残し、本書のD10連携要件と区別する。
 
 ## 担当者・権限・前提

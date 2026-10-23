@@ -157,3 +157,8 @@
 | 原本証拠 → 検証済target link履歴 | 単一証拠1から履歴event 0..many。有効関係内の各nullable owner/pet/record/billing/estimateは0..1。集約projection対象linkの帰属単位は未選定 | 同院に加えて全指定targetの保存帰属・関連を検証。履歴はmanyを保持し、譲渡前帰属と現在認可を分離。追加/訂正/撤回は期待link revisionで競合防止。eventのsource/parent exactはclosed schema受領時に固定 |
 
 証拠保存/閲覧はformal importの保留解除ではない。論理役割と保全方針の定義であり、共通型・保存制約・read routeは設計選定済み。6入れ子型、実データprofile/binding、物理DDL統合・具体link検証readerは未閉鎖/未実装。保存/read/UI実装・実試験は未完（NOT_RUN）。
+
+<a id="closing-source-membership-and-cutoff"></a>
+## 原締めsource集合と遅着（2026-10-23技術接点）
+
+[A1/A2限定契約](../../design/domains/finance-operations/cash-closing-contract.md#cash-closing-late-cutoff)は原締めの固定source集合と後発遅着を分離する。cutoffはgate下のID割当て規約を満たすときの欠落判定根拠で、source完全性そのもの・時刻順・一般commit順を意味しない。coverageと原本/投影digest照合を別に必要とする。旧締めは旧固定snapshotの別basisで保持し、新source contextを捏造しない。B実査訂正は別操作/grantの未選定を維持。供給/実装/試験は未完、NOT_RUN。
