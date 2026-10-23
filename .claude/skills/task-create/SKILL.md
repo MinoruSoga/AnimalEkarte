@@ -168,7 +168,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 - `name`: `出典アンカー + 種別マーカー + 要旨`
 - `labels`: `source:*` 必須1つ + `lane:*` 1つ + 該当するもの（`bug` / `needs-human` / `risk:high` 等）
-- `state`: 既定は Backlog。受入条件が揃っていれば Ready、調査票は Research、人間待ちは Needs Human
+- `state`: 既定は Backlog。[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を満たした限定scopeはReady、調査票はResearch、人間待ちはNeeds Human。Readyを環境準備/実行許可/実試験済みとは扱わない
 - `description_stripped`: 種別テンプレート（バグ票 / 機能票 / 調査票 / 人間作業票）に従う。1票15〜30行を目安。起票前に規約文書の「3問テスト」（現状・あるべき姿・取り組み方の3点が本文だけで答えられるか）を満たすこと
 
 **推測で書いた節・「調査が必要」の記載は禁止**（調査は Phase 2 で完了させる）。ただし調査票・needs-human 票は未知事項の明示自体が目的のため対象外 — その場合も分かっている事実と調査手順は具体的に書く。

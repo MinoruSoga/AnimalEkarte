@@ -61,7 +61,7 @@
 | 状況 | state |
 |:---|:---|
 | 既定（トリアージ前） | Backlog |
-| 受入条件が揃いエージェント/人間がすぐ着手できる | Ready |
+| 対象scopeの受入条件・計画/採択契約・必要subset受領/共有ownerが[着手契約](#scope-and-readiness-contract)を満たす（環境準備/実行許可/実試験の完了とは別） | Ready |
 | 調査・スパイク票 | Research |
 | 人間の判断・操作待ちで滞留 | Needs Human |
 | 今期対象外 | Phase2（ラベルではなく state としても存在する。運用は state を優先） |
@@ -302,7 +302,7 @@
 - 逆方向の遷移（UAT → Running の差戻し、Blocked / Needs Human 解除後の戻し、Running → Backlog の棚卸し）も人間判断または人間のコメント指示に基づく。解除後の戻り先は Backlog（再トリアージ）または Ready（引き続き着手可能なら）。例外はなく、UAT 以降の票は main への再マージでも Review に戻さない
 - **Running 不整合チェック**: 「claim ブランチがあるのに unstarted 系 state」「claim が無いのに Running のまま」は運用不整合として発見者が報告する。棚卸し（Running → Backlog 等）自体は上記の通り人間判断
 - **委譲・ファンアウト時**: 子セッションのブリーフが Plane 書き込み禁止の場合があるため、Running への遷移はディスパッチする側（オーケストレータ）が行う
-- `Backlog → Ready` の昇格（トリアージ）は、受入条件・現状・方針が揃った票なら起票者・着手者が行ってよい（作成時 Ready と同等の判断）。判断に迷うものは人間に振る
+- `Backlog → Ready` の昇格（トリアージ）は、対象scopeが[着手契約](#scope-and-readiness-contract)を満たす票なら起票者・着手者が行ってよい（作成時 Ready と同等の判断）。判断に迷うものは人間に振る
 
 ## 禁止事項
 
