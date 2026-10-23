@@ -144,7 +144,7 @@
 <a id="legacy-finance-evidence"></a>
 ## 移行原本証拠と通常会計の分離
 
-移行原本証拠（immutable legacy finance evidence）は旧請求/旧見積の原値と由来を、通常請求・見積/計算revisionから分離して保持するもの。意味不明な旧状態からclaim確定・入金・終了eventを生成しない。[会計正本](../domains/accounting/lifecycle.md#旧会計の根拠保全履歴参照の設計入口)と[EMR-547設計方針](../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)を参照する。
+移行原本証拠（immutable legacy finance evidence）は旧請求/旧見積の原値と由来を、通常請求・見積/計算revisionから分離して保持するもの。意味不明な旧状態からclaim確定・入金・終了eventを生成しない。[会計正本](../domains/accounting/lifecycle.md#accounting-legacy-finance-evidence-design)と[EMR-547設計方針](../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)を参照する。
 
 | 概念・関係 | 定義/制約 |
 |---|---|

@@ -44,7 +44,7 @@
 
 ### 2.1 nullable target linkの検証条件
 
-医院の複合FK/RLSだけでは同院の別患者への誤linkを防げない。[会計の保存帰属](../../spec/domains/accounting/lifecycle.md#主飼主変更時の会計帰属)と[患者譲渡時の保全](../../spec/domains/owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)、[billings](../../architecture/erd-detail/billings.md)／[estimates](../../architecture/erd-detail/estimates.md)／[medical_records](../../architecture/erd-detail/medical_records.md)の正規関連を根拠に、埋めた全targetの組合せを検証する。以下は必要な論理条件で、具体reader・履歴証明・lock/closed schemaは受領残。
+医院の複合FK/RLSだけでは同院の別患者への誤linkを防げない。[会計の保存帰属](../../spec/domains/accounting/lifecycle.md#accounting-owner-transfer-financial-attribution)と[患者譲渡時の保全](../../spec/domains/owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)、[billings](../../architecture/erd-detail/billings.md)／[estimates](../../architecture/erd-detail/estimates.md)／[medical_records](../../architecture/erd-detail/medical_records.md)の正規関連を根拠に、埋めた全targetの組合せを検証する。以下は必要な論理条件で、具体reader・履歴証明・lock/closed schemaは受領残。
 
 | 値を持つnullable target | 検証する関係（全対象の同clinic・実在確認に追加） |
 |---|---|

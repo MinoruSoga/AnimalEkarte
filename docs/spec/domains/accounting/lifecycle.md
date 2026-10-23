@@ -19,6 +19,7 @@
 
 第二群の根拠は Sentinel_e6565c89fd488191982ad524c997fe6c の質問へのユーザー Sentinel_6d647c8c719c81919daecc6db67d9455（1は前金を使う旨の修正、3 yes／4 ok／5 yes）と、Sentinel_b4d6e8ae144081919d9e19d797a2faba の訂正例・表示・前金説明へのユーザー Sentinel_67776f0e70c881919019002d47011b1e のok。前金を扱わない案は不採用。第2問の「どういうこと？」は承認とせず、後続説明へのokを根拠とする。下記の更新を第二群として2026-10-14に反映。
 
+<a id="accounting-legacy-finance-evidence-design"></a>
 ## 旧会計の根拠保全・履歴参照の設計入口
 
 [EMR-547の保存/閲覧設計方針](../../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)で、旧状態/flag/日付/額の原値と意味不明を通常billingsへ補完せず、別immutable evidenceとread-only履歴へ保持する責務・7AC・未受領契約を整理する。設計未完で、closed schema/物理DDL/APIは未採択。証拠保全/閲覧の受入とformal import適格性は別で、通常請求確定/終了event/入金配賦や通常会計移行を許可するものではない。
@@ -673,6 +674,7 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 
 確定前／確定後／訂正／再請求、記録時刻と実発生のずれ、読取欠損をconsumer fixtureで検証する。日付化方式・旧データ対応を検証前に完成とせず、実DB／model／migrationは今回変更しない。
 
+<a id="accounting-owner-transfer-financial-attribution"></a>
 ## 主飼主変更時の会計帰属
 
 [D04の2026-10-20本人回答](../owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)に従い、未確定会計も元飼主へ残し、主飼主変更から自動移管しない。必要なら別途変更するという回答は、確定済み請求・預り金・発行原本の保護解除や無条件の付替え権限を与えない。別途変更の操作はD10の現在認可・医院／患者・元明細・版・履歴と既決訂正境界を照合する。
