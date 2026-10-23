@@ -64,6 +64,8 @@ path/to/current_file.go:123 — 現在のbehaviorと問題
 
 ## Completion criteria
 
+必要な受入項目と実行許可/PR提出gateは[検証status正本](../../../../docs/ops/plane-ticket-conventions.md#verification-and-readiness-status)で分ける。本人延期時はNOT_RUN・理由・後続担当を記録してPRにできるが、未実行をPASSにしない。未生成の必要コード/型はコード未完成/前提未受領でありNOT_RUNとは呼ばない。正規生成は本人実行・成果受領のみ。
+
 - [ ] observable contractとOpenAPIが一致する
 - [ ] package/APIは凝集性・利用者・依存方向に基づく必要最小限
 - [ ] Context・error chain・resource cleanupを維持する

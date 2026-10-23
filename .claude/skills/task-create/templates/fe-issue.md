@@ -68,10 +68,12 @@
 
 ## 依存関係
 
-- BE-XXX が先に完了している必要がある（API エンドポイントが必要）
-- `make codegen` で `models.ts` が更新されている必要がある
+- [必要subset4状態](../../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)でAPI/契約/runtimeの供給owner/票・file/symbol・受領SHAを記載。親BE票全体の完了を一律前提にせず、許可済みmock/契約先行範囲と実結線/activation条件を分ける
+- 必要な`models.ts`等は採用入力の固定SHAを基準に本人が`make codegen`を実行した正規成果を受領する。agent自動実行/手編集なし。未生成/未受領の必要型はコード未完成/前提未受領であり、試験NOT_RUNとは別に記録する
 
 ## 完了条件
+
+検証の実行許可/本人の延期指示は[正本の検証status](../../../../docs/ops/plane-ticket-conventions.md#verification-and-readiness-status)に従う。以下は確認すべき成果であり、未実行はNOT_RUN・理由・後続担当を記録してPR作成できる。未実装/未接続/必要型未受領をNOT_RUNへ置き換えず、未実行をPASSにしない。
 
 - [ ] 型エラーなし（`pnpm build` パス — 全体コマンドはユーザー手動実行）
 - [ ] ESLint エラーなし（`pnpm lint` パス — 同上）

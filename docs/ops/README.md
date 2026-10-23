@@ -32,7 +32,7 @@ docs/ops/
 | [agent-harness.md](agent-harness.md) | AI設定のスコープ、作業完了条件、検証と失敗の還元 | AI設定変更・自律タスク実行前 |
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
 | [backlog-spreadsheet.md](backlog-spreadsheet.md) | Q&A バックログスプレッドシートの運用ルール | クライアント Q&A シート操作前 |
-| [plane-ticket-conventions.md](plane-ticket-conventions.md) | Plane チケット起票規約（タイトル・ラベル・本文テンプレート・UUID 対応表） | Plane work item 作成・更新前 |
+| [plane-ticket-conventions.md](plane-ticket-conventions.md) | Plane 起票・[粒度/着手前調査/1PR完了契約](plane-ticket-conventions.md#scope-and-readiness-contract)・状態運用・UUID 対応表 | 起票/更新/着手割当/前提merge後の再判定前 |
 | [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` の domain/capability-first 構成とは別物） | インフラ構成の調査・変更前 |
 | [infra/](infra/README.md) | Cloudflare 基盤の現行リポジトリ契約と、AWS 廃止履歴への正本ポインタ | インフラ変更・履歴調査前 |
 

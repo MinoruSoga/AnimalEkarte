@@ -38,6 +38,8 @@ grep -n '<キーワード>' docs/work/decisions/phase2-deferred.md
 git branch --list 'claim/<Plane ID>'
 ```
 
+取得前に1.2/1.3の読取調査を行い、着手契約・必要subset・実行IDの範囲を確定する。Backlog/Researchの場合は、対象scopeの[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を満たす根拠を記録し、Readyへの昇格とその記録を確認してからclaim/Runningへ進む。昇格未記録や契約未成立ならclaimしない。元票の一部だけを進める場合は、適切な既存子票を使うか、範囲/残AC/後続ownerと別実行IDの対応を明示してから、そのIDをclaimしPRに用いる。未完ACを残した親IDを限定成果PRの完了対象にしない。
+
 非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Plane ID>` で取得してから着手する（取得失敗も BLOCKED）。claim 取得と同時に Plane の state を `Running` に更新する（[docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) §claim — claim branch と Plane state は1組で同期させる）。`Phase2` / `Needs Human` / `Blocked` の票は claim せず滞留理由を先に確認する。claim ブランチの解放は AGENTS.md packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎ確認後に解放可。USER 作成 claim は削除しない）。マージ済み PR の片付けで AGENTS.md の対応確認を満たした claim は、作成者が USER でもその片付けの中で消す。実装完了の時点で PR が未マージなら消さない。
 
 ### 1.2 タスクセクション読み込み
@@ -59,7 +61,7 @@ Plane Issue 本文・コメント・リンク先仕様を読み込み、以下�
 
 - Plane の依存関係と各前提 Issue の状態を確認する。完了状態の正本は Plane であり、ローカル検索の不一致から完了を推定しない。
 - `docs/work/decisions/phase2-deferred.md` に再開条件がある場合は、Plane Issue の owner と再開条件が満たされるまで着手しない。
-- 依存 Issue が未完了の場合、ユーザーに警告する: 「<前提ID> が未完了。先に実装するか？」
+- [必要subset4状態](../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)を実査し、存在済み/今回同PR/供給owner待ち/未選定を判定する。前提票全体の未完だけで「先に実装するか」と質問し直さない。既決契約を確認し、本当の矛盾/未決は影響scopeだけ止め、供給/質問ownerと回答先を固定する。独立成果の先行は1.1bの別実行ID/残AC対応を確定した範囲だけとし、未受領の機能や元票全体は完了扱いにしない。
 
 ```bash
 # 見送り判断の確認（ヒットは実装可否ではなく再開条件を意味する）
@@ -183,10 +185,11 @@ make codegen
 
 ### 4.4 Lint・ビルド・テスト実行（Docker 経由・スコープ限定）
 
-**全体 lint / build / test（`pnpm lint` `pnpm build` `pnpm test:run` `golangci-lint run ./...` `go test ./...`）は CLAUDE.md の自動実行禁止コマンド。** 変更スコープに限定した検証を自分で実行し、全体検証はユーザーに手動実行を依頼する。
+**全体 lint / build / test（`pnpm lint` `pnpm build` `pnpm test:run` `golangci-lint run ./...` `go test ./...`）は CLAUDE.md の自動実行禁止コマンド。** 通常はAGENTS.mdの完了契約に従って変更に適用されるscoped検証を実行し、追加の本人許可待ちを一律に設けない。本人の明示延期/禁止がある場合はその指示を優先する。[検証status正本](../../../docs/ops/plane-ticket-conventions.md#verification-and-readiness-status)に従い、fixture作成と実行を分け、延期時はNOT_RUN・理由・後続担当を記録してPR作成できる。未実装/未接続/必要生成成果未受領をNOT_RUNへ置き換えない。以下は通常時のscoped検証例。docs/instruction-onlyはruntime検証不要と報告し、実行不能は理由と総合UNKNOWN/BLOCKEDを記録する。全体実行の依頼も本人の延期指示と必要範囲を守る。
 
 ```bash
-# FE の場合 — 変更した feature に限定（`--` 付き pnpm test は全件実行になる罠。npx vitest run <path> が正。出典: memory feedback_frontend_verify_harness_gotchas）
+# FE の場合 — .claude/CLAUDE.mdの正本コマンドを変更featureに限定する（`--` 付き pnpm test は全件実行になる罠）
+# 事前に対象コンテナ内のnode_modules/.bin/vitestとプロジェクト固定版の導入を確認。欠落/不一致は停止し、自動download/installやnpxの取得確認へ進まない
 docker compose exec frontend npx vitest run src/features/<対象feature>
 
 # BE の場合 — 変更したパッケージに限定
@@ -210,14 +213,13 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ### 4.6 レビュー結果スコアボード（2026-10-09 統合: source-command-harness より）
 
-各イテレーションのレビュー結果は、変更種別ごとに PASS / FAIL / UNKNOWN で集計する:
+実行状態と判定は別軸にする。各checkの実行状態は実行済み/NOT_RUN、判定はAGENTS.mdに従いPASS / FAIL / UNKNOWN（前提や道具で停止ならBLOCKED、適用外は理由付きSKIP）とする。NOT_RUNは判定PASSを意味せず、未試験の挙動はUNKNOWNとする。各イテレーションの総合判定も同じ軸で集計する:
 
 ```
 ITERATION N RESULT:
-  Go:   PASS / FAIL / UNKNOWN（違反: X件。未実行なら UNKNOWN）
-  TS:   PASS / FAIL / UNKNOWN
-  DB:   PASS / FAIL / UNKNOWN
-  総合: PASS / FAIL / UNKNOWN
+  Go/TS/DB各check: 実行済み / NOT_RUN（理由・後続担当）
+  各判定: PASS / FAIL / UNKNOWN / BLOCKED / SKIP（根拠）
+  総合: PASS / FAIL / UNKNOWN / BLOCKED（未確認範囲を併記）
 ```
 
 - 未実行の reviewer・テスト・coverage を PASS と表示しない（5.4 完了報告と同じ原則）。
@@ -251,7 +253,7 @@ claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGEN
 - `path/to/file2.ts` — 変更内容
 
 ### レビュー結果
-- スコープ限定 vet/test: 実行したコマンドと結果だけを書く。未実行は UNKNOWN。PASS と捏造しない
+- スコープ限定 vet/test: 実行したコマンドと結果だけを書く。実行状態は未実行ならNOT_RUN・理由・後続担当、判定は4.6のUNKNOWN/BLOCKED等。コード未完/依存未受領は別欄。未実行をPASSにしない
 - 完了条件: 受け入れ項目ごとの実測
 - 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）。未実行を PASS にしない
 
@@ -267,7 +269,7 @@ claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGEN
 | 状況 | 対応 |
 |------|------|
 | Plane Issue が見つからない | `docs/work/decisions/phase2-deferred.md` の再開条件と git 履歴を補助的に確認し、対応する Plane ID をユーザーに求める |
-| 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
+| 依存イシューが未完了 | 必要subset4状態を採用main/実接続で判定。独立成果と待ちscopeを分け、既決の再質問をせず、本当の未決だけ質問/供給ownerへ引渡す |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |
 | codegen 失敗 | Go モデルのコンパイルエラーを確認 |
@@ -279,5 +281,5 @@ claim ブランチ（`claim/<Plane ID>`）の解放は [AGENTS.md](../../../AGEN
 - **タスクに書かれていない変更を勝手に行わない**: スコープはタスクの「修正方針」に限定
 - **UI を推測で実装しない**: Figma デザインがない場合、UI 変更はタスクの指示に厳密に従う
 - **ローカルで npm/go コマンドを実行しない**: 必ず Docker 経由
-- **テストを省略しない**: タスクの受け入れ条件にテストがあれば必ず実行
+- **検証状態を偽らない**: 受入条件のfixture/実行対象は保持し、実行許可・本人の延期指示を優先。未実行はNOT_RUN・理由でPR可能だが、コード未完/未接続/未生成を隠さず実行済みやPASSへ変換しない（[正本](../../../docs/ops/plane-ticket-conventions.md#verification-and-readiness-status)）
 - **タスクの受け入れ条件を勝手に変更しない**: 条件を満たせない場合はユーザーに報告
