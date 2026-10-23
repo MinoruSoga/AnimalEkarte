@@ -94,10 +94,10 @@ HTTP/C06失敗はD4継承。invalid date/presence/source=400 validation、無認
 ## 3. B: official-only endpointとclosed DTO
 
 選定route: GET /api/v1/examinations/infection-summary?pet_id={id}&surface=patient_top|medical_record&medical_record_id={id}
-- pet_id/surface必須。medical_record surfaceだけrecord_id必須、patient_topでは禁止。未知query/重複keyを400。
+- pet_id/surface必須。medical_record surfaceだけmedical_record_id必須、patient_topでは禁止。未知query/重複keyを400。
 - clinicはtrusted選択医院、actorは現在認証。query clinic/actor指定なし。新たなfilter/期間/limit/pageなし。全履歴UIではない。
 - patient_top: 現在D04対象患者閲覧認可 AND examinations:view AND 対象行scope。
-- medical_record: 現在medical-records:viewと指定record/pet整合 AND examinations:view AND 対象行scope。
+- medical_record: 現在medical-records:viewと指定medical_record_id/pet_id整合 AND examinations:view AND 対象行scope。
 - D04既存患者scope resolverを使用し、新しいgrant名を作らない。owners:view単独で開放しない。D20/LIFFへの接続なし。各source refを辿る詳細も再認可する。
 
 200 exact top-level keys:
@@ -112,7 +112,7 @@ HTTP/C06失敗はD4継承。invalid date/presence/source=400 validation、無認
 entry exact keys: meaning, selection, selected_source_ref, candidates, unknown_date_candidates, ancillary_candidates。
 - meaning=FIV|FeLV|mf|HW。selection=unique_latest|ambiguous|unknown_date_only|no_official_value|mapping_unknown。
 - selected_source_refはunique_latest時だけSourceRef、他はnull。
-- candidatesは保存実施日/信頼できる実施日時と精度による最大候補集合（同順位・比較不能を含む）すべて。unknown_date_candidatesは日付不明候補。ancillary_candidatesは明示未実施/結果待ち/実施又は値意味不明で、既存結果を置換しない。
+- candidatesは保存実施日/信頼できる実施日時と精度による最大候補集合（同順位・比較不能を含む）すべて。unknown_date_candidatesは日付不明候補。ancillary_candidatesはvalue_stateがpending/not_performed/unknownの非置換候補。unknownは下記定義の原値空かつ明示availability証拠なし等に限り、非空原文が臨床的に未解釈という理由でvalue_presentから除外しない。
 
 Candidate exact keys: source_ref, raw_value, unit, value_state, date, performed_date_precision, measured_at, source_kind, source_details, correction_state, previous_official_revision_id, mapping_ref。
 - raw_value/unitは保存文字列。value_state=value_present|pending|not_performed|unknown。value_stateは保存原値の有無/明示availabilityであり、陽性/陰性/正常/実施確認/意味理解の判定ではない。以下のclosed adapterを使う。
@@ -142,7 +142,7 @@ rankingは保存された実施日/実施日時と、立証できる精度だけ
 
 mappingは既存verified_by/verified_at/evidence/operation_idだけを形上満たす架空行では不可。47から対象bundleとmapping行の採用revisionを受領する。現tableにeffective/revoked statusが無いのでmax(revision)を無条件activeとする選択はしない。承認bundleが指定する行revision集合をread構成に固定し、別bundleへ切替時は全再投影。mapping writer UI/承認workflow/臨床値seedは本slice外。旧field IDが明示mappingへ解決できなければmapping_unknown/noticeとし、no_recordへ偽装しない。
 
-completeは同医院・患者・要求view scopeの全関連sourceを走査し、かつ全検査に対する当該viewの完全性を認可resolverが保証できるときだけ。部分行認可しか証明できなければ全患者最新を名乗らず403。正常0候補は200 no_official_valueであり未検査ではない。DB timeout/中断/上限到達/依存reader不足/系列破損は503にしてpartialを返さない。本案の有限技術予算は、1応答全体でCandidate合計1000件、JSON UTF-8 body 1 MiB、source走査100000 revision-item行、実行10秒（現在認可の再解決も含む）と選定する。これは既存の業務件数制限ではない。サーバ内部stream/集計で全候補を評価し、同日ties・unknown_date_candidates・ancillary_candidatesを含む返却集合を構成するが、予算を一つでも超える場合は503 summary_incompleteを返し、本文候補/件数/途中digestなし。先頭1000件成功や同日候補の一部だけ返却は禁止。本sliceは候補ページング/持続snapshot tokenを追加しない。正常completeのdigestは走査完了後にだけ確定する。予算を増減する後続変更も明示契約改版とし、UIの全患者最新という意味を変更しない。
+completeは同医院・患者・要求view scopeの全関連sourceを走査し、かつ全検査に対する当該viewの完全性を認可resolverが保証できるときだけ。部分行認可しか証明できなければ全患者最新を名乗らず403。正常0候補は200 no_official_valueであり未検査ではない。DB timeout/中断/上限到達/完全性に必須なreader不足・取得失敗/系列破損は503にしてpartialを返さない。既知の未供給availability証拠adapterだけならpending/not_performedの詳細区分を供給せず、非空official原文はvalue_present、空原文はunknownの既定fallbackで先行可能。提供済readerの実通信/整合失敗を未供給fallbackで隠さない。本案の有限技術予算は、1応答全体でCandidate合計1000件、JSON UTF-8 body 1 MiB、source走査100000 revision-item行、実行10秒（現在認可の再解決も含む）と選定する。これは既存の業務件数制限ではない。サーバ内部stream/集計で全候補を評価し、同日ties・unknown_date_candidates・ancillary_candidatesを含む返却集合を構成するが、予算を一つでも超える場合は503 summary_incompleteを返し、本文候補/件数/途中digestなし。先頭1000件成功や同日候補の一部だけ返却は禁止。本sliceは候補ページング/持続snapshot tokenを追加しない。正常completeのdigestは走査完了後にだけ確定する。予算を増減する後続変更も明示契約改版とし、UIの全患者最新という意味を変更しない。
 
 HTTP errorは既存API error envelopeを使いcodeは400 invalid_summary_request、401 unauthenticated、403 summary_not_authorized、404 scope_not_found、503 summary_unavailable|summary_incomplete|source_integrity_error。error bodyに患者原値/source refs/候補数を含めない。詳細診断は権限ある内部ログへ。readは結果保存/確認/機器受信を起動しない。必要clinical-use receiptは既存D07 reader participantを受領し、failure時は503、独自no-opで迂回しない。
 
@@ -151,9 +151,13 @@ HTTP errorは既存API error envelopeを使いcodeは400 invalid_summary_request
 
 サーバは毎GETを正本snapshotから計算し、初回sliceに永続summary表・eventual materialized view・共有結果cacheを導入しない。HTTP Cache-Control: private, no-store。304でcurrent access再検査を省略しない。
 
-projection_digest="sha256:"+lowerhex。canonical objectはschema/clinic/pet/species/surface/record、適用mapping bundleの固定ID/revision集合、全走査対象のexam/result_state_version/head/revision/item identityと本文/出典/date、採用/除外区分、noticeを含む。evaluated_atはhashから除外。単なるupdated_at最大値や表示候補だけのhashは不可。digestはCAS権限tokenではない。
+projection_digest="sha256:"+lowerhex。canonical objectはschema/clinic_id/pet_id/animal_species_id/surface/medical_record_id、適用mapping bundleの固定ID/revision集合、全走査対象のexam/result_state_version/head/revision/item identityと本文/出典/date、採用/除外区分、noticeを含む。evaluated_atはhashから除外。単なるupdated_at最大値や表示候補だけのhashは不可。digestはCAS権限tokenではない。
 
-FEはメモリcacheだけ、key=[schema,clinic_id,pet_id,species_id,surface,record_id,auth_generation]。各要求にclient request_generationを持ち最新要求のみ反映。医院/患者/種/認可世代変更では旧値を即非表示・破棄。background refetchの途中で古い「現在確定」バッジを維持しない。D4 detail versionをsummaryへ合成しない。
+FEはメモリcacheだけ、key=[schema,clinic_id,actor_kind,actor_id,session_generation,pet_id,animal_species_id,surface,medical_record_id,auth_generation]。actor identity/session_generation/auth_generationは認証・session管理コンポーネントが管理する内部contextからのみ受領し、ユーザー入力・URL・保存された古い世代・検査APIの任意値を採用しない。login/logout、actor/医院切替、認識したrole/scope変更・失権では、世代更新と旧本文cacheの非表示・破棄を新contextの取得/表示より先に行う。別loginで同じ初期世代を使って旧cacheを再利用せず、session境界でも分離する。
+
+各要求のclient request_generationは応答順序だけを管理する。現在のactor/session/clinic/auth世代と要求世代が全て一致する最新応答のみ反映し、遅延応答で破棄済みcacheを復活させない。serverは毎requestの現在認可を別途検査し、これらFE世代を認可根拠にしない。未通知の遠隔失権の即時反映SLAや新認証APIは設けず、403又は認証再確認で判明したcontext変更時にも上記破棄を行う。Cache-Control:no-storeだけでメモリcacheが消えるとは扱わない。
+
+患者/種変更でも旧値を即非表示・破棄。background refetchの途中で古い「現在確定」バッジを維持しない。D4 detail versionをsummaryへ合成しない。
 
 同clientのcreate/update/unconfirm/reconfirm/delete/許可済み無効化成功receiptで該当clinic/petのsummaryを即stale化してGET。同じrecord headerも同cacheを使う。mapping bundle変更・画面再entry・window focus・再接続でもGET。表示中は60秒ごとの再確認を本案の技術選択として選定し（既存正本の指定値ではない）、タイマー停止/非表示復帰で再取得。60秒以内の反映をSLA/業務保証にせず、network・非表示・認可による停止を含むbest-effort読取とする。TTLは臨床有効期限ではない。再確認中/失敗は「更新未確認・前回取得時点の記録」と明示し、古い値を現在値として保証しない。別actorの変更まで瞬時更新を保証する設計ではない。
 
@@ -192,7 +196,7 @@ B04 未承認/未設定/旧field対応不明/species不明をno_recordと区別�
 B05 非空inspection_valueの0/陰性/「-」/意味不明原文はvalue_presentとして保持し順位候補へ。value_presentを陰性/正常/実施確認へ読み替えない。空stringは明示availability証拠なしならunknown。result/status/assessmentで原値又はavailabilityを補完しない。固定item証拠があるpending/not_performedのみ区分し、これらの新しい行は既存値を消さない。
 B06 権限不足、部分scope、跨院、別pet/record、認可失効で元値/存在noticeを漏らさない。D20/LIFF経路なし。
 B07 snapshot途中のconfirm/mapping切替/患者変更でも世代混合なし。broken series、timeout、truncationは503で空成功にしない。Candidate合計1000/1001、body 1 MiB境界、走査100000/100001、10秒予算で超過は503かつpartial原値なし。同日tiesだけで予算を超えても一部成功へ落とさない。
-B08 保存成功後refresh失敗でも保存成功保持、同scope旧値は更新未確認。401/403と医院切替では即消去。遅い成功応答を新世代へ適用しない。
+B08 保存成功後refresh失敗でも保存成功保持、同scope旧値は更新未確認。401/403、login/logout、actor/医院切替、認識したrole/scope変更・失権では旧本文cacheを先に破棄し、別session/同じ初期世代で再利用しない。遅い成功応答を新しいactor/session/auth/request世代へ適用しない。未通知遠隔失権の即時反映を保証しない。
 B09 polling/focus/reconnect/書込invalidateで再評価。projection digest変更を臨床状態変更の診断としない。
 
 既存AC対応: external-source/write-safetyはA、date-order/ambiguous/mapping-unknown/no-record-failure/access-boundaryはB、revision-refreshはA+B。infection-auto-savedとinfection-result-statesのnonofficial原値表示はBのDone対象外で、D03/D04の既存detail/履歴接続consumerへ明示残す。selected-print、機器mapping297、尿86、死亡後331、Detach、臨床47、全D07実機ACは閉じない。
