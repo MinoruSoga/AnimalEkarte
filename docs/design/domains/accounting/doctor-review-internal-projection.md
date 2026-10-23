@@ -134,7 +134,7 @@ reader欠落・設定対応未検証はunavailable/unconfiguredとして当該�
 |---|---|---|
 | 462統合＋current port owner | 同snapshotの全record/会計行列挙、生typed参照、失敗union写像 | 複数record、全行、未請求以外、空と未知、混在unsupported、sanitize前不正参照 |
 | 446/466＋481/462 | current billing projectionと不変review payloadの物理型・同TXproducer・保存readerの固定SHA | record側と会計側独立差分、確認後の過去billing再読。実DB known/履歴受入は未完 |
-| treatment/461/495 owner | service Create/Update/Delete/BulkUpdateSortOrder、createTreatmentInTx/updateTreatmentInTx、dose persist/clear、直接repo/copy/import到達経路の効果台帳 | 数量/identity差、sort/no-op、v1外dose効果unsupported。全direct writer探索完了ではない |
+| treatment domain / EMR-495の該当writer owner | service Create/Update/Delete/BulkUpdateSortOrder、createTreatmentInTx/updateTreatmentInTx、dose persist/clear、直接repo/copy/import到達経路の効果台帳 | 数量/identity差、sort/no-op、v1外dose効果unsupported。全direct writer探索完了ではない |
 | 518/516 | charge link追加/解除/差替え、plan remove/restore/reparent、採用内容変更のbefore/final集合 | 削除・移管前の依存先保持。execution link/readinessだけを無条件clinical増分しない |
 | 481＋billing item owner | import/apply_source/keep_billing/auto-sync/release/restore、直接Create/Update/Delete/DeleteAllByBillingID、Complete一括生成/置換の参加 | keepで会計値不変でもrecord依存差は反映。同record別billing伝播、membershipのみの対照 |
 | 495/494 | cohortへ届くC転記/複写/訂正と目的別保護 | B終了eventだけは不変。P1通常編集をT06未供給で全面停止しない |

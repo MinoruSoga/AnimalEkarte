@@ -137,7 +137,7 @@ receipt replay/lookupは新業務lock/CAS/fenceを要求せず元target現在rea
 | billing/accounting_complete.go, accounting_complete_tx.go | **462単一統合owner** | gate/集合/generation/digest/484再検査/483/505/506/489接点。各ownerが同ファイルを並行編集しない |
 | billing_confirmation_service.go/repository.go、GET/confirm/return | 462、445 API | 旧GetOrCreate INSERT、旧table/status JOINを移行。GET純read、confirm/returnの対象billing明示と単一確認writer。旧互換routeが新gateを迂回しない |
 | billing_item_service_create.go/update.go、unbilled/revision、billing_item_repository_unbilled.go | 481＋462受領、単一reader編集owner | 直接追加/削除/数量、source import/release/復元、manual/unknown、完全source列挙・医師確認projection。金額のみと臨床変更を分類 |
-| medicalrecord/treatment_service.go Create/Update/Delete/BulkUpdateSortOrder、dose helper/各ambient writer | 既存treatment/461/495 owner | source先取り禁止。quantity/identity/dose差分とsort/no-op対照。bulk/copy/correction/importも同cohortへ届く経路だけ列挙 |
+| medicalrecord/treatment_service.go Create/Update/Delete/BulkUpdateSortOrder、dose helper/各ambient writer | treatment domain / EMR-495の該当writer owner | source先取り禁止。quantity/identity/dose差分とsort/no-op対照。bulk/copy/correction/importも同cohortへ届く経路だけ列挙 |
 | 518 plan/revision/link coordinator、516 link/転記 | 518/516 | charge_source/execution_sourceの別identity、両source link差替え、remove/restore/reparent、必要baseline。全516完成待ちなし |
 | 484 fulfillment writer/reader | 484 | current source/context/世代/event-headの再検査。preparedのみでもrevisionを保持。readiness変更は医師確認集合を自動書換えしない |
 | 495 B/C・通常guard、494 edit-right | 495/494 | P1既決を保持。対象clinical projectionを変える訂正/複写だけ462へ参加、終了eventだけは増分しない。医師確認を通常編集禁止へしない |
