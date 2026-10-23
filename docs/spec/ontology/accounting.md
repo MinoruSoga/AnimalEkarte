@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.accounting／語彙正本 |
-| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。[初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ |
-| 実装状態 | 未確認。概念と現モデルを同一視しない |
-| 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-20（本差分。従来：2026-10-18（後続業務正本の用語追従）） |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。[初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ。2026-10-23：移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547の技術設計は候補・設計未完で、closed schema/DDL/APIは未採択。 |
+| 実装状態 | 未確認。概念と現モデルを同一視しない。EMR-547の保存/read/UI接続は未実装。 |
+| 実機検証状態 | 未実施。今回tests/build/codegen/DB/import/browserはNOT_RUN。 |
+| 文書確認日 | 2026-10-23（移行証拠保全の設計境界/語彙追補。従来確認2026-10-20は既存範囲） |
 
 <a id="accounting-ontology"></a>
 ## 定義と別名
@@ -140,3 +140,17 @@
 [原請求日](../domains/accounting/lifecycle.md#accounting-bill-date-agreement-20261020)は請求確定日。確定前は存在せず、会計作成日・予定日・各診療日・実入金日と別である。後日訂正で元日付を上書きせず、取消後再請求は元請求参照を残した別identity／新番号とその確定日を持つ。再発行や入金追加は新請求の作成と同一視しない。
 
 [主飼主変更時](../domains/owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)は未確定会計・未提示見積も元飼主に残す。現在のpet.owner_id変更から金銭・見積帰属を再導出せず、必要時の別途変更と区別する。確定済請求・預り金・提示済み原本の既決保護を維持する。
+
+<a id="legacy-finance-evidence"></a>
+## 移行原本証拠と通常会計の分離
+
+移行原本証拠（immutable legacy finance evidence）は旧請求/旧見積の原値と由来を、通常請求・見積/計算revisionから分離して保持するもの。意味不明な旧状態からclaim確定・入金・終了eventを生成しない。[会計正本](../domains/accounting/lifecycle.md#旧会計の根拠保全履歴参照の設計入口)と[EMR-547設計方針](../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)を参照する。
+
+| 概念・関係 | 定義/制約 |
+|---|---|
+| 原本証拠identity → 原本snapshot | 医院/source system/source snapshot/table/key（不明時は検証済みartifact locator）で原本を識別。contract/mapping版はidentityから分離し、同identityの異なる原本bytesはconflict |
+| 原本snapshot → 派生projection revision | 原本を変更せずmapping/transform/encoding別の派生値・意味検証をimmutableに追記。通常の請求/見積計算revisionを代用しない |
+| batch/耐久receipt → 原本・派生版 | 受領実行の結果を記録し、原本identityや業務上の正式import適格性とは区別する |
+| 原本証拠 → 検証済みtarget link履歴 | 同医院に加え、owner/pet/record/billing/estimateの保存帰属・関連を検証する。譲渡前の履歴帰属と現在閲覧認可を分離。追加/訂正/撤回は期待link revisionで競合を防ぎ追記する |
+
+証拠保存/閲覧はformal importの保留解除ではない。論理役割と保全方針の定義であり、物理schema・closed payload/route・派生版採番・具体link検証readerは未採択/未受領。保存/read/UI実装・実試験は未完（NOT_RUN）。
