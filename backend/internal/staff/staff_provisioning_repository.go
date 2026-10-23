@@ -365,7 +365,7 @@ func (r *staffProvisioningRepository) WriteAudit(ctx context.Context, entry *mod
 	if entry == nil {
 		return apperrors.WrapInvalidInput("audit log is required")
 	}
-	if entry.ClinicID == nil || *entry.ClinicID == 0 {
+	if entry.ClinicID == 0 {
 		return apperrors.WrapInvalidInput("audit log clinic_id is required")
 	}
 	if entry.ActorType == "" || entry.Action == "" || entry.Resource == "" {

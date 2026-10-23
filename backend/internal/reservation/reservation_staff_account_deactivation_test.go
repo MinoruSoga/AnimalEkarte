@@ -133,6 +133,5 @@ func TestReservationStaffService_PatchStatus_DeactivationAuditCarriesActor(t *te
 	require.NotNil(t, entry.ActorID)
 	assert.Equal(t, actor.ID, *entry.ActorID,
 		"PatchStatus の actorStaffID が監査行に引き継がれる")
-	require.NotNil(t, entry.ClinicID)
-	assert.Equal(t, clinicA, *entry.ClinicID)
+	assert.Equal(t, clinicA, entry.ClinicID)
 }

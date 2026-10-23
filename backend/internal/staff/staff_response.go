@@ -36,6 +36,15 @@ type staffResponse struct {
 	ReservationImageURL    string          `json:"reservation_image_url"`
 }
 
+// StaffSortOrderValue は staffs.sort_order（NULL 許容）を読み取り用の int へ変換する。
+// NULL は列の既定値 0 として扱う。書き込み側は常に非 nil を渡す。
+func StaffSortOrderValue(sortOrder *int) int {
+	if sortOrder == nil {
+		return 0
+	}
+	return *sortOrder
+}
+
 func toOccupationInStaffResponse(occ *model.Occupation) *occupationInStaffResponse {
 	if occ == nil {
 		return nil
@@ -62,7 +71,7 @@ func toStaffResponse(s *model.Staff) staffResponse {
 		IsActive:               s.IsActive,
 		OccupationID:           s.OccupationID,
 		LicenseNumber:          s.LicenseNumber,
-		SortOrder:              s.SortOrder,
+		SortOrder:              StaffSortOrderValue(s.SortOrder),
 		Email:                  email,
 		Occupation:             toOccupationInStaffResponse(s.Occupation),
 		CreatedAt:              localTime(s.CreatedAt),

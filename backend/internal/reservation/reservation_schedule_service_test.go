@@ -92,7 +92,7 @@ func TestReservationScheduleService_ListByMonth(t *testing.T) {
 			},
 			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return map[uint64][]model.ShiftEntryBreak{
-					1: {{ID: 10, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+					1: {{ID: 10, StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
 				}, nil
 			},
 		}
@@ -176,10 +176,9 @@ func TestReservationScheduleService_Save(t *testing.T) {
 						StaffID:   staffID,
 						Date:      date,
 						ShiftType: model.ShiftTypeFull,
-						StartTime: &start,
-						EndTime:   &end,
+						StartsAt:  rsvTS(t, rsvShiftDate, start), EndsAt: rsvTS(t, rsvShiftDate, end),
 					},
-					[]model.ShiftEntryBreak{{ID: 10, ShiftEntryID: 100, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+					[]model.ShiftEntryBreak{{ID: 10, ShiftEntryID: 100, StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
 					true,
 					nil
 			},
@@ -190,10 +189,9 @@ func TestReservationScheduleService_Save(t *testing.T) {
 					StaffID:   staffID,
 					Date:      date,
 					ShiftType: model.ShiftTypeFull,
-					StartTime: &start,
-					EndTime:   &end,
+					StartsAt:  rsvTS(t, rsvShiftDate, start), EndsAt: rsvTS(t, rsvShiftDate, end),
 				},
-				Breaks: []model.ShiftEntryBreak{{ID: 10, ShiftEntryID: 100, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+				Breaks: []model.ShiftEntryBreak{{ID: 10, ShiftEntryID: 100, StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
 			},
 			wantErr:   false,
 			wantIsNew: true,
@@ -204,13 +202,13 @@ func TestReservationScheduleService_Save(t *testing.T) {
 			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end, Breaks: []ReservationScheduleBreakInput{{Start: "12:00:00", End: "13:00:00"}}},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 				return &model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull},
-					[]model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+					[]model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
 					false,
 					nil
 			},
 			want: &ScheduleEntry{
 				Entry:  model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull},
-				Breaks: []model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, BreakStart: "12:00:00", BreakEnd: "13:00:00"}},
+				Breaks: []model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
 			},
 			wantErr:   false,
 			wantIsNew: false,

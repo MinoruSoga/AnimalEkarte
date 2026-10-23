@@ -36,12 +36,6 @@ func setupReservationScheduleCRUDTestDB(t *testing.T) *gorm.DB {
 		"TRUNCATE TABLE shift_entries, staff_clinic_assignments, staffs CASCADE",
 	).Error)
 	seedClinicsForFK(t, db, 1, 2)
-	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
-	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
-	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only
-	// adds missing ones. Force the correct type every run (no-op cast if already "time").
-	db.Exec(`ALTER TABLE shift_entry_breaks ALTER COLUMN break_start TYPE time USING break_start::time`)
-	db.Exec(`ALTER TABLE shift_entry_breaks ALTER COLUMN break_end TYPE time USING break_end::time`)
 	return db
 }
 
@@ -82,13 +76,13 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryID(t *testing.T) {
 	var entry model.ShiftEntry
 	require.NoError(t, db.Where("clinic_id = ? AND staff_id = ? AND date = ?", clinicA, staffA.ID, date.Format("2006-01-02")).First(&entry).Error)
 
-	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entry.ID, BreakStart: "12:00", BreakEnd: "13:00"}).Error)
+	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entry.ID, StartsAt: rsvTS(t, entry.Date, "12:00"), EndsAt: rsvTS(t, entry.Date, "13:00")}).Error)
 
 	t.Run("紐づく休憩を取得できる", func(t *testing.T) {
 		breaks, err := repo.FindAllBreaksByEntryID(ctx, clinicA, entry.ID)
 		require.NoError(t, err)
 		require.Len(t, breaks, 1)
-		assert.Equal(t, "12:00:00", breaks[0].BreakStart)
+		assert.Equal(t, "12:00:00", rsvClock(breaks[0].StartsAt))
 	})
 
 	t.Run("紐づく休憩がない場合は空スライス", func(t *testing.T) {
@@ -114,15 +108,15 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryIDs(t *testing.T) {
 	require.NoError(t, db.Where("staff_id = ? AND date = ?", staffA.ID, dateA.Format("2006-01-02")).First(&entryA).Error)
 	require.NoError(t, db.Where("staff_id = ? AND date = ?", staffA.ID, dateB.Format("2006-01-02")).First(&entryB).Error)
 
-	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entryA.ID, BreakStart: "12:00", BreakEnd: "13:00"}).Error)
-	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entryB.ID, BreakStart: "10:00", BreakEnd: "10:15"}).Error)
+	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entryA.ID, StartsAt: rsvTS(t, entryA.Date, "12:00"), EndsAt: rsvTS(t, entryA.Date, "13:00")}).Error)
+	require.NoError(t, db.Create(&model.ShiftEntryBreak{ShiftEntryID: entryB.ID, StartsAt: rsvTS(t, entryB.Date, "10:00"), EndsAt: rsvTS(t, entryB.Date, "10:15")}).Error)
 
 	t.Run("複数エントリの休憩をまとめて取得できる", func(t *testing.T) {
 		result, err := repo.FindAllBreaksByEntryIDs(ctx, clinicA, []uint64{entryA.ID, entryB.ID})
 		require.NoError(t, err)
 		require.Len(t, result[entryA.ID], 1)
 		require.Len(t, result[entryB.ID], 1)
-		assert.Equal(t, "12:00:00", result[entryA.ID][0].BreakStart)
+		assert.Equal(t, "12:00:00", rsvClock(result[entryA.ID][0].StartsAt))
 	})
 
 	t.Run("空スライスは空マップを返す（クエリを発行しない）", func(t *testing.T) {
@@ -213,7 +207,7 @@ func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 		ShiftType: model.ShiftTypeFull,
 		Notes:     "初回作成",
 	}
-	breaks := []model.ShiftEntryBreak{{BreakStart: "12:00", BreakEnd: "13:00"}}
+	breaks := []model.ShiftEntryBreak{rsvBreak(t, date, "12:00", "13:00")}
 
 	saved, savedBreaks, created, err := repo.Save(ctx, clinicA, entry, breaks)
 	require.NoError(t, err)
@@ -272,7 +266,7 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 		ctx,
 		clinicA,
 		second,
-		[]model.ShiftEntryBreak{{BreakStart: "09:00", BreakEnd: "09:15"}},
+		[]model.ShiftEntryBreak{rsvBreak(t, date, "09:00", "09:15")},
 	)
 	require.NoError(t, err)
 	assert.False(t, secondCreated)
@@ -289,7 +283,7 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 	savedBreaks, err := repo.FindAllBreaksByEntryID(ctx, clinicA, got.ID)
 	require.NoError(t, err)
 	require.Len(t, savedBreaks, 1, "既存の休憩は削除され新しい休憩のみ残るべき")
-	assert.Equal(t, "09:00:00", savedBreaks[0].BreakStart)
+	assert.Equal(t, "09:00:00", rsvClock(savedBreaks[0].StartsAt))
 }
 
 func TestReservationScheduleRepository_Delete_NotFound(t *testing.T) {

@@ -44,12 +44,6 @@ func setupShiftEntryTestDB(t *testing.T) *gorm.DB {
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ShiftEntry{}, &model.ShiftEntryBreak{},
 	))
-	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
-	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
-	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only
-	// adds missing ones. Force the correct type every run (no-op cast if already "time").
-	db.Exec(`ALTER TABLE shift_entry_breaks ALTER COLUMN break_start TYPE time USING break_start::time`)
-	db.Exec(`ALTER TABLE shift_entry_breaks ALTER COLUMN break_end TYPE time USING break_end::time`)
 	db.Exec("TRUNCATE TABLE shift_entry_breaks CASCADE")
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
 	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
@@ -372,7 +366,7 @@ func TestShiftEntryRepository_ReplaceBreaks(t *testing.T) {
 
 	t.Run("creates breaks", func(t *testing.T) {
 		breaks := []model.ShiftEntryBreak{
-			{BreakStart: "12:00", BreakEnd: "13:00"},
+			shiftBreakAt(t, entry.Date, "12:00", "13:00"),
 		}
 		require.NoError(t, repo.ReplaceBreaks(ctx, entry.ID, breaks))
 
@@ -383,16 +377,16 @@ func TestShiftEntryRepository_ReplaceBreaks(t *testing.T) {
 
 	t.Run("replaces existing breaks with new ones", func(t *testing.T) {
 		breaks := []model.ShiftEntryBreak{
-			{BreakStart: "10:00", BreakEnd: "10:15"},
-			{BreakStart: "15:00", BreakEnd: "15:15"},
+			shiftBreakAt(t, entry.Date, "10:00", "10:15"),
+			shiftBreakAt(t, entry.Date, "15:00", "15:15"),
 		}
 		require.NoError(t, repo.ReplaceBreaks(ctx, entry.ID, breaks))
 
 		var got []model.ShiftEntryBreak
-		require.NoError(t, db.Where("shift_entry_id = ?", entry.ID).Order("break_start ASC").Find(&got).Error)
+		require.NoError(t, db.Where("shift_entry_id = ?", entry.ID).Order("starts_at ASC").Find(&got).Error)
 		require.Len(t, got, 2)
-		// Postgres の time 型カラムは文字列スキャン時 "HH:MM:SS" 形式で返る（入力が "HH:MM" でも同様）。
-		assert.Equal(t, "10:00:00", got[0].BreakStart)
+		// starts_at(timestamptz) を time.Local の "HH:MM:SS" へ戻すと入力が "HH:MM" でも秒付きになる。
+		assert.Equal(t, "10:00:00", shiftClock(got[0].StartsAt))
 	})
 
 	t.Run("empty slice deletes all breaks without creating new ones", func(t *testing.T) {

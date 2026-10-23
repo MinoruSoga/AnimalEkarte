@@ -440,10 +440,10 @@ func (m *mockResStaffForStaff) UpdateSortOrder(_ context.Context, _, _ uint64, _
 func (m *mockResStaffForStaff) FindAllExcludedReservationTypes(
 	_ context.Context,
 	_, _ uint64,
-) ([]model.StaffReservationExclusion, error) {
+) ([]ReservationTypeExclusion, error) {
 	return nil, nil
 }
-func (m *mockResStaffForStaff) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockResStaffForStaff) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]ReservationTypeExclusion, error) {
 	return nil, nil
 }
 func (m *mockResStaffForStaff) UpdateExcludedReservationTypes(_ context.Context, _, _ uint64, _ []uint64) error {

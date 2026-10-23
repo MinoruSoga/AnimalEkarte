@@ -141,7 +141,11 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 }
 
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error {
-	return r.update(ctx, clinicID, id, buildShiftEntryUpdate(&cmd))
+	fields, err := buildShiftEntryUpdate(&cmd)
+	if err != nil {
+		return err
+	}
+	return r.update(ctx, clinicID, id, fields)
 }
 
 func (r *shiftEntryRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
@@ -376,8 +380,8 @@ func (r *shiftEntryRepository) SaveByStaffDate(
 				StaffID:   entry.StaffID,
 				Date:      entry.Date,
 				ShiftType: entry.ShiftType,
-				StartTime: entry.StartTime,
-				EndTime:   entry.EndTime,
+				StartsAt:  entry.StartsAt,
+				EndsAt:    entry.EndsAt,
 				Notes:     entry.Notes,
 			}
 			if err := tx.Omit("Staff", "Breaks").Create(&saved).Error; err != nil {
@@ -387,8 +391,8 @@ func (r *shiftEntryRepository) SaveByStaffDate(
 		} else {
 			fields := map[string]any{
 				"shift_type": entry.ShiftType,
-				"start_time": entry.StartTime,
-				"end_time":   entry.EndTime,
+				"starts_at":  entry.StartsAt,
+				"ends_at":    entry.EndsAt,
 				"notes":      entry.Notes,
 				"updated_at": gorm.Expr("CURRENT_TIMESTAMP"),
 			}

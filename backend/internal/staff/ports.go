@@ -20,10 +20,20 @@ type PermissionGroupRepository interface {
 	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 }
 
+// ReservationTypeExclusion is a non-persisted compatibility view: one reservation
+// type that a staff member cannot handle. It is derived as (active reservation
+// type universe) minus staff_reservation_capabilities; the former
+// staff_reservation_exclusions table and model no longer exist.
+type ReservationTypeExclusion struct {
+	StaffID           uint64                 `json:"staff_id"`
+	ReservationTypeID uint64                 `json:"reservation_type_id"`
+	ReservationType   *model.ReservationType `json:"reservation_type,omitempty"`
+}
+
 // ReservationStaffRepository is the staff-owned consumer view of reservation
 // capability and exclusion persistence.
 type ReservationStaffRepository interface {
-	FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
+	FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]ReservationTypeExclusion, error)
 	UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
 	FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
 	UpdateReservationCapabilities(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error

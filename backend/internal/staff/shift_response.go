@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // shiftBreakResponse は休憩時間レスポンス
@@ -31,20 +32,23 @@ type shiftResponse struct {
 	Staff     *staffSummaryResponse `json:"staff,omitempty"`
 }
 
+// shiftClockOrEmpty は starts_at/ends_at を wire 形式の "HH:MM:SS"（time.Local）へ戻す。nil は空文字。
+func shiftClockOrEmpty(ts *time.Time) string {
+	if clock := sharedkernel.ShiftTimestampToClock(ts); clock != nil {
+		return *clock
+	}
+	return ""
+}
+
 func toShiftResponse(s *model.ShiftEntry) shiftResponse {
-	var startTime, endTime string
-	if s.StartTime != nil {
-		startTime = *s.StartTime
-	}
-	if s.EndTime != nil {
-		endTime = *s.EndTime
-	}
+	startTime := shiftClockOrEmpty(s.StartsAt)
+	endTime := shiftClockOrEmpty(s.EndsAt)
 	breaks := make([]shiftBreakResponse, 0, len(s.Breaks))
 	for _, b := range s.Breaks {
 		breaks = append(breaks, shiftBreakResponse{
 			ID:         strconv.FormatUint(b.ID, 10),
-			BreakStart: b.BreakStart,
-			BreakEnd:   b.BreakEnd,
+			BreakStart: shiftClockOrEmpty(b.StartsAt),
+			BreakEnd:   shiftClockOrEmpty(b.EndsAt),
 		})
 	}
 	r := shiftResponse{
