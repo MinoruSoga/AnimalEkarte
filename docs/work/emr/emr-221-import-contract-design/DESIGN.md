@@ -18,6 +18,10 @@ v2 を導入しても、現在の八王子 bundle は正式取込不可のまま
 - 成果の目的: 件数一致だけで正式化する誤りと、医院や revision をまたぐ証跡流用を防ぐ。確認質問や転記を増やす代わりに、同じ機械契約を両側で検証する。
 - 成功指標: 下記の必須負例をすべて DB 書込前に拒否し、拒否 receipt に診療データを含めない。現状八王子が拒否されることも成功条件。
 
+## 2026-10-23の製品側保存/閲覧への引渡し
+
+[EMR-547のlegacy finance evidence設計方針](../emr-547-legacy-finance-evidence-contract-20261023.md)へ、旧会計/見積のraw・意味不明・変換由来・verified link履歴を製品内で保全/閲覧する7ACと受領責務を分離した。547は製品保存/read-only API/UI、349は配置/preflight/import唯一owner、361は同一runの画面/復旧受入、MIG-41は唯一producer。221の原本identity/digest/独立適格性/耐久receipt提案と接続するが、evidence-onlyの別名版付きclosed契約/物理DDL/APIは未採択。既存v1/formal・fresh-only/band保護を緩和せず、quarantine配置だけで製品閲覧完成/正式取込可としない。本節はdocsのみ、実装/実行NOT_RUN。
+
 ## 確認した証拠と範囲
 
 確認時 HEAD: AnimalEkarte `fbc96c70765036fb9e1251b4cda5e18b36d02127`、old_db `3846d9a5e887f61c280984a382d121e841bd48fd`。
