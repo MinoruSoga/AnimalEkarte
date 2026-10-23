@@ -30,7 +30,7 @@
 ## 19と旧21/候補22の境界
 [現正本](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/docs/design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-open-nested-types)は19CSV維持、payments/payment_splits復活禁止、通常finalize/allocate生成禁止、旧21receiptの現19適合転用禁止を明記。
 [profile選択](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/backend/internal/csvimport/cutover_profiles.go#L13)と[csv-import CLI](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/backend/cmd/csv-import/main.go)はlegacy21既定/候補22明示で、table数から推定しない。したがってpayments文字列の存在だけを新欠陥としない。これは旧profile実経路で、19へ接続済みの根拠ではない。
-最終[DDL](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/backend/migrations/001_init.sql#L10886)では旧billings列とpayments/splitsを退役。既存[364接続契約](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/docs/work/emr/emr-364-375-376-csv-column-contract-20261021.md#L68)にもtarget adapter残が明記される。547は別sidecar/原値保全で、通常業務の金銭事実を推定生成して埋めない。
+最終DDLでは[旧billings列を削除](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/backend/migrations/001_init.sql#L10889)し、[payments/payment_splitsをDROP TABLEで削除](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/backend/migrations/001_init.sql#L10918-L10919)している。既存[364接続契約](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/docs/work/emr/emr-364-375-376-csv-column-contract-20261021.md#L68)にもtarget adapter残が明記される。547は別sidecar/原値保全で、通常業務の金銭事実を推定生成して埋めない。
 
 <a id="migration-stage1-ac"></a>
 ## AC対応

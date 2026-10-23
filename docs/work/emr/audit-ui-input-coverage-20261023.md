@@ -52,7 +52,7 @@
 
 - 判定: STATIC_IMPLEMENTATION; runtime=NOT_RUN
 
-- 所見: 候補なし/取得中/失敗/orphanを分離し、active・出勤・capability交差からoptionsを生成する現在callerを確認。全staff開放はしない。
+- 所見: 候補なし/取得中/失敗/orphanを分離する現在callerを確認。候補生成はactiveStaffを起点とし、日付選択済みかつonDutyStaffs取得済みの場合だけ出勤IDで絞り、その後capability filterを適用する。日付未選択又は出勤データ未取得時は出勤IDでの絞込みを行わずactiveStaffをcapability filterへ渡す。全状態で出勤との交差が成立するとは主張しない。
 
 - 有限後続owner: EMR-116
 
@@ -105,7 +105,7 @@
 
 - 判定: STATIC_IMPLEMENTATION; runtime=NOT_RUN
 
-- 所見: 生存/死亡ORゲート/永続ID/pending/予約create+viewとclick時境界を保持し、reception=1を当日checked_inへ接続。旧reception grant限定の表現より最終PRのreservations create/edit契約を採用。
+- 所見: 描画条件は生存status・死亡判定による拒否・永続pet ID・非pending・予約create+viewである。クリック時は現在のstatus・死亡判定・canCreateReceptionを再検査し、永続IDとpendingをクリック時にも再検査するとは主張しない。遷移元がreception=1とpetIdを渡し、受け側の[フォーム初期化:69–82](https://github.com/MinoruSoga/AnimalEkarte/blob/77c28fbfbafa257dcca2421af99ff72da6889717/frontend/src/features/reservations/hooks/use-reservation-modal-state.ts#L69-L82)が当日checked_inを作る。旧reception grant限定の表現より最終PRのreservations create/edit契約を採用。
 
 - 有限後続owner: EMR-318 受付導線単位
 
