@@ -16998,7 +16998,7 @@ components:
     LineStartPolicyPreviewDayNullToSet:
       type: object
       required: [current_registered_times, proposed_registered_times]
-      description: current が null（未設定/削除）、proposed が配列（create/reconfigure）。
+      description: current が null（未設定/削除）、proposed が配列（create/reconfigure）。 LineStartPolicyPreviewResponse の days.items で LineStartPolicyPreviewDay（closed）と allOf/oneOf で重ねる制約 overlay。単独の DTO ではないため additionalProperties を持たない。
       properties:
         current_registered_times:
           type: array
@@ -17013,7 +17013,7 @@ components:
     LineStartPolicyPreviewDaySetToSet:
       type: object
       required: [current_registered_times, proposed_registered_times]
-      description: current・proposed とも配列（replace。明示当日0件は []）。
+      description: current・proposed とも配列（replace。明示当日0件は []）。 LineStartPolicyPreviewResponse の days.items で LineStartPolicyPreviewDay（closed）と allOf/oneOf で重ねる制約 overlay。単独の DTO ではないため additionalProperties を持たない。
       properties:
         current_registered_times:
           type: array
@@ -17026,7 +17026,7 @@ components:
     LineStartPolicyPreviewDaySetToNull:
       type: object
       required: [current_registered_times, proposed_registered_times]
-      description: current が配列、proposed が null（configured への delete）。
+      description: current が配列、proposed が null（configured への delete）。 LineStartPolicyPreviewResponse の days.items で LineStartPolicyPreviewDay（closed）と allOf/oneOf で重ねる制約 overlay。単独の DTO ではないため additionalProperties を持たない。
       properties:
         current_registered_times:
           type: array
@@ -17041,7 +17041,7 @@ components:
     LineStartPolicyPreviewDayNullToNull:
       type: object
       required: [current_registered_times, proposed_registered_times]
-      description: current・proposed とも null（deleted への delete は no-op）。
+      description: current・proposed とも null（deleted への delete は no-op）。 LineStartPolicyPreviewResponse の days.items で LineStartPolicyPreviewDay（closed）と allOf/oneOf で重ねる制約 overlay。単独の DTO ではないため additionalProperties を持たない。
       properties:
         current_registered_times:
           type: array

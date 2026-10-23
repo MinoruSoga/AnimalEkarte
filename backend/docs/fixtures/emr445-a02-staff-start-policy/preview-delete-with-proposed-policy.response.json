@@ -86,11 +86,7 @@
         "10:00",
         "13:30"
       ],
-      "proposed_registered_times": [
-        "10:00",
-        "13:30",
-        "15:00"
-      ],
+      "proposed_registered_times": null,
       "current_masked": {
         "state": "evaluated",
         "times": [
@@ -99,12 +95,8 @@
         ]
       },
       "proposed_masked": {
-        "state": "evaluated",
-        "times": [
-          "10:00",
-          "13:30",
-          "15:00"
-        ]
+        "state": "policy-deleted",
+        "times": null
       }
     }
   ],
