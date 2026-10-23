@@ -71,13 +71,13 @@ func TestListHospitalizationsSnapshotBoundary(t *testing.T) {
 			require.Equal(t, uint64(1), clinicID)
 			require.NotNil(t, f.PetID)
 			require.Equal(t, uint64(2), *f.PetID)
-			require.NotNil(t, f.Status)
-			require.Equal(t, "admitted", *f.Status)
+			require.NotNil(t, f.LifecycleState)
+			require.Equal(t, "admitted", *f.LifecycleState)
 			return nil, 0, nil
 		}}
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
-		c.Request = httptest.NewRequest(http.MethodGet, "/hospitalizations?snapshot=true&page=bad&limit=abc&pet_id=2&status=admitted", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/hospitalizations?snapshot=true&page=bad&limit=abc&pet_id=2&lifecycle_state=admitted", nil)
 		setClinicID(c)
 		newHandlerWithHospitalizationSvc(svc).ListHospitalizations(c)
 		require.Equal(t, http.StatusOK, rec.Code)

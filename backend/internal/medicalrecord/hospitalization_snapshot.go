@@ -63,13 +63,18 @@ func (h *HospitalizationHandler) maybeListHospitalizationSnapshot(c *gin.Context
 		httpapi.RespondError(c, err)
 		return true
 	}
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, rows)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return true
+	}
 	c.JSON(http.StatusOK, struct {
 		Data     []HospitalizationResponse `json:"data"`
 		Total    int64                     `json:"total"`
 		Page     int                       `json:"page"`
 		Limit    int                       `json:"limit"`
 		Snapshot bool                      `json:"snapshot"`
-	}{httpapi.MapSlice(rows, toHospitalizationResponse), total, 1, hospitalizationSnapshotMaxRows, true})
+	}{hospitalizationResponses(rows, projections), total, 1, hospitalizationSnapshotMaxRows, true})
 	return true
 }
 
@@ -86,7 +91,7 @@ func (r *hospitalizationRepository) findSnapshot(ctx context.Context, clinicID u
 			return apperrors.WrapInvalidInput("入院が10000件を超えています。条件を絞り込んでください")
 		}
 		if err := hospitalizationListPreloads(hospitalizationListQuery(tx, clinicID, filters), clinicID).
-			Order("start_date DESC, created_at DESC, id DESC").
+			Order(hospitalizationListOrder).
 			Limit(hospitalizationSnapshotMaxRows).
 			Find(&rows).Error; err != nil {
 			return apperrors.FromGORM(err, "hospitalization", "")

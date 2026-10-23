@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +15,6 @@ import (
 // treatment plans share the parent create transaction: plan failure aborts parent
 // create, and success creates all plans with the same clinic and hospitalization ID.
 func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
-	now := time.Now()
 	const clinicID uint64 = 1
 
 	t.Run("plan failure rolls back parent create", func(t *testing.T) {
@@ -63,12 +61,9 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			CageID:              func() *uint64 { v := uint64(10); return &v }(),
-			OwnerID:             2,
-			PetID:               5,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.Add(24 * time.Hour),
+			OwnerID:  2,
+			PetID:    5,
+			StayKind: stayKindInpatient,
 			TreatmentPlans: []CreateTreatmentPlanInput{
 				{TreatmentContent: "IV fluids", UnitPrice: 1000, Quantity: 1},
 			},
@@ -128,12 +123,9 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			CageID:              func() *uint64 { v := uint64(10); return &v }(),
-			OwnerID:             2,
-			PetID:               5,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.Add(24 * time.Hour),
+			OwnerID:  2,
+			PetID:    5,
+			StayKind: stayKindInpatient,
 			TreatmentPlans: []CreateTreatmentPlanInput{
 				{TreatmentContent: "adm", UnitPrice: 990, Quantity: 1, SortOrder: 0},
 				{TreatmentContent: "monitor", UnitPrice: 500, Quantity: 2, SortOrder: 1},
@@ -194,12 +186,9 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			CageID:              func() *uint64 { v := uint64(10); return &v }(),
-			OwnerID:             2,
-			PetID:               5,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.Add(24 * time.Hour),
+			OwnerID:  2,
+			PetID:    5,
+			StayKind: stayKindInpatient,
 			TreatmentPlans: []CreateTreatmentPlanInput{
 				{TreatmentContent: "adm", UnitPrice: 100, Quantity: 1},
 			},
@@ -254,12 +243,9 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			CageID:              func() *uint64 { v := uint64(10); return &v }(),
-			OwnerID:             2,
-			PetID:               5,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.Add(24 * time.Hour),
+			OwnerID:  2,
+			PetID:    5,
+			StayKind: stayKindInpatient,
 			TreatmentPlans: []CreateTreatmentPlanInput{
 				{TreatmentContent: "給餌指示", Memo: "朝夕", UnitPrice: 0, Quantity: 1, SortOrder: 0},
 				{TreatmentContent: "投薬指示", Memo: "抗菌薬", UnitPrice: 0, Quantity: 1, SortOrder: 1},
@@ -304,12 +290,9 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			CageID:              func() *uint64 { v := uint64(10); return &v }(),
-			OwnerID:             2,
-			PetID:               5,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.Add(24 * time.Hour),
+			OwnerID:  2,
+			PetID:    5,
+			StayKind: stayKindInpatient,
 			TreatmentPlans: []CreateTreatmentPlanInput{
 				{TreatmentContent: "adm", UnitPrice: 100, Quantity: 1},
 			},
@@ -356,12 +339,9 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			CageID:              func() *uint64 { v := uint64(10); return &v }(),
-			OwnerID:             2,
-			PetID:               5,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.Add(24 * time.Hour),
+			OwnerID:  2,
+			PetID:    5,
+			StayKind: stayKindInpatient,
 			TreatmentPlans: []CreateTreatmentPlanInput{
 				{TreatmentContent: "adm", UnitPrice: 100, Quantity: 1},
 			},

@@ -37,6 +37,21 @@ func (s *hospitalizationService) createHospitalizationInTx(
 	if err := s.validateDoctor(txCtx, clinicID, input.DoctorID); err != nil {
 		return err
 	}
+	// EMR-499 U1: the stay case carries kind + PLANNED interval. No movement event is written here,
+	// so the effective state stays unknown (reserved/admitted need acceptance proof, EMR-499 Q1/Q2)
+	// and a non-NULL cage stays refused above. Nothing is inferred from the planned dates.
+	stay := &model.StayCase{
+		ClinicID:       clinicID,
+		OwnerID:        input.OwnerID,
+		PetID:          input.PetID,
+		StayKind:       input.StayKind,
+		PlannedEntryAt: input.PlannedEntryAt,
+		PlannedExitAt:  input.PlannedExitAt,
+	}
+	if err := s.hospRepo.CreateStayCase(txCtx, stay); err != nil {
+		return apperrors.Wrap(err, "failed to create stay case")
+	}
+	hospitalization.StayCaseID = &stay.ID
 	if err := s.hospRepo.Create(txCtx, hospitalization); err != nil {
 		return apperrors.Wrap(err, "failed to create hospitalization")
 	}

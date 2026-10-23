@@ -21,17 +21,12 @@ import (
 // clear+値の同時指定は request と service の両方で拒否する。
 
 func TestCreateHospitalizationRequest_NextVisit(t *testing.T) {
-	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.Local)
-	end := time.Date(2026, 8, 10, 0, 0, 0, 0, time.Local)
 
 	newRequest := func(nextVisit *string) *createHospitalizationRequest {
 		return &createHospitalizationRequest{
-			OwnerID:             1,
-			PetID:               2,
-			HospitalizationType: string(model.HospitalizationTypeInpatient),
-			StartDate:           start,
-			EndDate:             end,
-			NextVisit:           nextVisit,
+			OwnerID:   1,
+			PetID:     2,
+			NextVisit: nextVisit,
 		}
 	}
 
@@ -205,11 +200,8 @@ func TestHospitalizationService_Update_NextVisit(t *testing.T) {
 		repo := &mockHospitalizationRepository{
 			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 				return &model.Hospitalization{
-					ID:        id,
-					ClinicID:  clinicID,
-					Status:    model.HospitalizationStatusAdmitted,
-					StartDate: nextVisit.AddDate(0, -1, 0),
-					EndDate:   nextVisit.AddDate(0, 1, 0),
+					ID:       id,
+					ClinicID: clinicID,
 				}, nil
 			},
 			updateFieldsFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
@@ -236,9 +228,6 @@ func TestHospitalizationService_Update_NextVisit(t *testing.T) {
 				return &model.Hospitalization{
 					ID:        id,
 					ClinicID:  clinicID,
-					Status:    model.HospitalizationStatusAdmitted,
-					StartDate: nextVisit.AddDate(0, -1, 0),
-					EndDate:   nextVisit.AddDate(0, 1, 0),
 					NextVisit: &nextVisit,
 				}, nil
 			},
@@ -260,7 +249,6 @@ func TestHospitalizationService_Update_NextVisit(t *testing.T) {
 }
 
 func TestHospitalizationService_Create_PropagatesNextVisit(t *testing.T) {
-	now := time.Now()
 	nextVisit := time.Date(2026, 11, 20, 0, 0, 0, 0, time.Local)
 	var created *model.Hospitalization
 
@@ -282,12 +270,10 @@ func TestHospitalizationService_Create_PropagatesNextVisit(t *testing.T) {
 	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
-		OwnerID:             2,
-		PetID:               5,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           now,
-		EndDate:             now.AddDate(0, 0, 7),
-		NextVisit:           &nextVisit,
+		OwnerID:   2,
+		PetID:     5,
+		StayKind:  stayKindInpatient,
+		NextVisit: &nextVisit,
 	})
 
 	require.NoError(t, err)
@@ -301,20 +287,20 @@ func TestHospitalizationService_Create_PropagatesNextVisit(t *testing.T) {
 func TestToHospitalizationResponse_NextVisit(t *testing.T) {
 	t.Run("DATE 値を date-only 文字列で返す", func(t *testing.T) {
 		nextVisit := time.Date(2026, 11, 20, 0, 0, 0, 0, time.Local)
-		res := toHospitalizationResponse(&model.Hospitalization{NextVisit: &nextVisit})
+		res := toHospitalizationResponse(&model.Hospitalization{NextVisit: &nextVisit}, unknownHospitalizationStay())
 		require.NotNil(t, res.NextVisit)
 		assert.Equal(t, "2026-11-20", *res.NextVisit)
 	})
 
 	t.Run("UTC midnight の DATE でもカレンダー日がずれない", func(t *testing.T) {
 		nextVisit := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
-		res := toHospitalizationResponse(&model.Hospitalization{NextVisit: &nextVisit})
+		res := toHospitalizationResponse(&model.Hospitalization{NextVisit: &nextVisit}, unknownHospitalizationStay())
 		require.NotNil(t, res.NextVisit)
 		assert.Equal(t, "2026-11-20", *res.NextVisit)
 	})
 
 	t.Run("未設定なら nil（wire では省略）", func(t *testing.T) {
-		res := toHospitalizationResponse(&model.Hospitalization{})
+		res := toHospitalizationResponse(&model.Hospitalization{}, unknownHospitalizationStay())
 		assert.Nil(t, res.NextVisit)
 	})
 }

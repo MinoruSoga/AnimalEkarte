@@ -29,15 +29,11 @@ import (
 
 func makeHospitalizationRec(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, cageID *uint64) *model.Hospitalization {
 	t.Helper()
-	now := time.Now()
 	h := &model.Hospitalization{
-		ClinicID:            clinicID,
-		OwnerID:             ownerID,
-		PetID:               petID,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           now,
-		EndDate:             now,
-		CageID:              cageID,
+		ClinicID: clinicID,
+		OwnerID:  ownerID,
+		PetID:    petID,
+		CageID:   cageID,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(h).Error)
 	return h

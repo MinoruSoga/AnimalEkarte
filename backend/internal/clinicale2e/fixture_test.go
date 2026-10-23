@@ -36,6 +36,7 @@ func testModels() []any {
 		&model.Vaccination{},
 		&model.CheckupType{},
 		&model.Checkup{},
+		&model.StayCase{},
 		&model.Hospitalization{},
 		&model.Cage{},
 		&model.LabDevice{},
@@ -175,7 +176,15 @@ func TestCreateAndDelete_DisposableClinicGraph(t *testing.T) {
 	var hospitalizations []model.Hospitalization
 	require.NoError(t, db.Where("clinic_id = ?", got.ClinicID).Find(&hospitalizations).Error)
 	require.Len(t, hospitalizations, 1)
-	assert.Equal(t, model.HospitalizationStatusAdmitted, hospitalizations[0].Status)
+	// EMR-499 U1: kind and planned interval live on the stay case; no movement event is fabricated.
+	require.NotNil(t, hospitalizations[0].StayCaseID)
+	var stay model.StayCase
+	require.NoError(t, db.Where("clinic_id = ? AND id = ?", got.ClinicID, *hospitalizations[0].StayCaseID).First(&stay).Error)
+	assert.Equal(t, "inpatient", stay.StayKind)
+	assert.NotNil(t, stay.PlannedEntryAt)
+	var movements int64
+	require.NoError(t, db.Model(&model.StayMovementEvent{}).Where("stay_case_id = ?", stay.ID).Count(&movements).Error)
+	assert.Zero(t, movements)
 
 	encoded, err := EncodeResult(got)
 	require.NoError(t, err)

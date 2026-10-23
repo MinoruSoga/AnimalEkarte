@@ -1,39 +1,33 @@
 package medicalrecord
 
 import (
+	"errors"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func TestNewListHospitalizationQuery(t *testing.T) {
 	values := url.Values{
-		"pet_id":     []string{"10"},
-		"owner_id":   []string{"20"},
-		"status":     []string{"admitted"},
-		"start_date": []string{"2026-05-01"},
-		"end_date":   []string{"2026-05-31"},
+		"pet_id":             []string{"10"},
+		"owner_id":           []string{"20"},
+		"lifecycle_state":    []string{"admitted"},
+		"planned_entry_from": []string{"2026-05-01"},
+		"planned_entry_to":   []string{"2026-05-31"},
 	}
 
 	q := newListHospitalizationQuery(values)
 
-	if q.PetID != "10" {
-		t.Errorf("PetID = %q, want %q", q.PetID, "10")
+	if q.PetID != "10" || q.OwnerID != "20" {
+		t.Errorf("PetID/OwnerID = %q/%q, want 10/20", q.PetID, q.OwnerID)
 	}
-	if q.OwnerID != "20" {
-		t.Errorf("OwnerID = %q, want %q", q.OwnerID, "20")
+	if q.LifecycleState != "admitted" {
+		t.Errorf("LifecycleState = %q, want admitted", q.LifecycleState)
 	}
-	if q.Status != "admitted" {
-		t.Errorf("Status = %q, want %q", q.Status, "admitted")
-	}
-	if q.StartDate != "2026-05-01" {
-		t.Errorf("StartDate = %q, want %q", q.StartDate, "2026-05-01")
-	}
-	if q.EndDate != "2026-05-31" {
-		t.Errorf("EndDate = %q, want %q", q.EndDate, "2026-05-31")
+	if q.PlannedEntryFrom != "2026-05-01" || q.PlannedEntryTo != "2026-05-31" {
+		t.Errorf("planned entry range = %q..%q", q.PlannedEntryFrom, q.PlannedEntryTo)
 	}
 }
 
@@ -47,11 +41,11 @@ func TestNewListHospitalizationQuery_Empty(t *testing.T) {
 
 func TestListHospitalizationQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listHospitalizationQuery{
-		PetID:     "10",
-		OwnerID:   "20",
-		Status:    "admitted",
-		StartDate: "2026-05-01",
-		EndDate:   "2026-05-31",
+		PetID:            "10",
+		OwnerID:          "20",
+		LifecycleState:   "admitted",
+		PlannedEntryFrom: "2026-05-01",
+		PlannedEntryTo:   "2026-05-31",
 	}).toServiceFilters()
 	if err != nil {
 		t.Fatalf("toServiceFilters returned error: %v", err)
@@ -63,14 +57,14 @@ func TestListHospitalizationQuery_ToServiceFilters(t *testing.T) {
 	if filters.OwnerID == nil || *filters.OwnerID != 20 {
 		t.Fatalf("OwnerID = %v, want 20", filters.OwnerID)
 	}
-	if filters.Status == nil || *filters.Status != "admitted" {
-		t.Fatalf("Status = %v, want admitted", filters.Status)
+	if filters.LifecycleState == nil || *filters.LifecycleState != "admitted" {
+		t.Fatalf("LifecycleState = %v, want admitted", filters.LifecycleState)
 	}
-	if filters.StartDate == nil || *filters.StartDate != "2026-05-01" {
-		t.Fatalf("StartDate = %v, want 2026-05-01", filters.StartDate)
+	if filters.PlannedEntryFrom == nil || *filters.PlannedEntryFrom != "2026-05-01" {
+		t.Fatalf("PlannedEntryFrom = %v, want 2026-05-01", filters.PlannedEntryFrom)
 	}
-	if filters.EndDate == nil || *filters.EndDate != "2026-05-31" {
-		t.Fatalf("EndDate = %v, want 2026-05-31", filters.EndDate)
+	if filters.PlannedEntryTo == nil || *filters.PlannedEntryTo != "2026-05-31" {
+		t.Fatalf("PlannedEntryTo = %v, want 2026-05-31", filters.PlannedEntryTo)
 	}
 }
 
@@ -81,8 +75,13 @@ func TestListHospitalizationQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 	}{
 		{name: "pet_id", query: listHospitalizationQuery{PetID: "abc"}},
 		{name: "owner_id", query: listHospitalizationQuery{OwnerID: "abc"}},
-		{name: "start_date", query: listHospitalizationQuery{StartDate: "2026/05/01"}},
-		{name: "end_date", query: listHospitalizationQuery{EndDate: "2026/05/31"}},
+		{name: "planned_entry_from", query: listHospitalizationQuery{PlannedEntryFrom: "2026/05/01"}},
+		{name: "planned_entry_to", query: listHospitalizationQuery{PlannedEntryTo: "2026/05/31"}},
+		{name: "lifecycle_state", query: listHospitalizationQuery{LifecycleState: "released"}},
+		// The pre-stay names are refused, not ignored: ignoring would return an unfiltered list.
+		{name: "retired status", query: listHospitalizationQuery{RetiredStatus: "admitted"}},
+		{name: "retired start_date", query: listHospitalizationQuery{RetiredStartDate: "2026-05-01"}},
+		{name: "retired end_date", query: listHospitalizationQuery{RetiredEndDate: "2026-05-31"}},
 	}
 
 	for _, tt := range tests {
@@ -131,10 +130,9 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	input, err := (&createHospitalizationRequest{
 		OwnerID:              1,
 		PetID:                2,
-		HospitalizationType:  string(model.HospitalizationTypeHotel),
-		StartDate:            startDate,
-		EndDate:              endDate,
-		Status:               string(model.HospitalizationStatusReserved),
+		StayKind:             "hotel",
+		PlannedEntryAt:       &startDate,
+		PlannedExitAt:        &endDate,
 		CageID:               &cageID,
 		DoctorID:             &doctorID,
 		Memo:                 "memo",
@@ -151,11 +149,11 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	if input.OwnerID != 1 || input.PetID != 2 {
 		t.Fatalf("owner/pet IDs = %d/%d, want 1/2", input.OwnerID, input.PetID)
 	}
-	if input.HospitalizationType != model.HospitalizationTypeHotel {
-		t.Fatalf("HospitalizationType = %s, want %s", input.HospitalizationType, model.HospitalizationTypeHotel)
+	if input.StayKind != stayKindHotel {
+		t.Fatalf("StayKind = %s, want %s", input.StayKind, stayKindHotel)
 	}
-	if input.Status != model.HospitalizationStatusReserved {
-		t.Fatalf("Status = %s, want %s", input.Status, model.HospitalizationStatusReserved)
+	if !input.PlannedEntryAt.Equal(startDate) || !input.PlannedExitAt.Equal(endDate) {
+		t.Fatalf("planned interval = %v..%v, want %v..%v", input.PlannedEntryAt, input.PlannedExitAt, startDate, endDate)
 	}
 	if input.CageID != &cageID {
 		t.Fatalf("CageID pointer was not preserved")
@@ -175,16 +173,11 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 }
 
 func TestCreateHospitalizationRequest_ToServiceInput_NestedTreatmentPlans(t *testing.T) {
-	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
 	cageID := uint64(10)
 	input, err := (&createHospitalizationRequest{
-		OwnerID:             1,
-		PetID:               2,
-		HospitalizationType: string(model.HospitalizationTypeInpatient),
-		StartDate:           startDate,
-		EndDate:             endDate,
-		CageID:              &cageID,
+		OwnerID: 1,
+		PetID:   2,
+		CageID:  &cageID,
 		TreatmentPlans: []createTreatmentPlanRequest{
 			{TreatmentContent: "adm", UnitPrice: 990, Quantity: 1, SortOrder: 0},
 			{TreatmentContent: "monitor", UnitPrice: 500, Quantity: 2, DiscountRate: 10, SortOrder: 1},
@@ -204,33 +197,36 @@ func TestCreateHospitalizationRequest_ToServiceInput_NestedTreatmentPlans(t *tes
 	}
 }
 
-func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {
-	cageID := uint64(10)
-	input, err := (&createHospitalizationRequest{
-		OwnerID:             1,
-		PetID:               2,
-		HospitalizationType: string(model.HospitalizationTypeInpatient),
-		Status:              "",
-		CageID:              &cageID,
-	}).toServiceInput()
-	if err != nil {
-		t.Fatalf("toServiceInput() error = %v", err)
+// The pre-stay lifecycle names are refused with the stable 422 code, never silently dropped.
+func TestCreateHospitalizationRequest_ToServiceInput_RefusesRetiredLifecycleFields(t *testing.T) {
+	v, at := "admitted", time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	tests := map[string]createHospitalizationRequest{
+		"hospitalization_type": {OwnerID: 1, PetID: 2, RetiredType: &v},
+		"start_date":           {OwnerID: 1, PetID: 2, RetiredStartDate: &at},
+		"end_date":             {OwnerID: 1, PetID: 2, RetiredEndDate: &at},
+		"status":               {OwnerID: 1, PetID: 2, RetiredStatus: &v},
 	}
-	if input.Status != "" {
-		t.Fatalf("Status = %q, want empty (zero value)", input.Status)
+	for name, req := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := req.toServiceInput()
+			requireStayLifecycleWriteRefused(t, err)
+		})
+	}
+}
+
+func requireStayLifecycleWriteRefused(t *testing.T, err error) {
+	t.Helper()
+	var appErr *apperrors.AppError
+	if !errors.As(err, &appErr) || appErr.Code != codeStayLifecycleWriteUnavailable || !errors.Is(err, apperrors.ErrUnprocessable) {
+		t.Fatalf("error = %v, want 422 %s", err, codeStayLifecycleWriteUnavailable)
 	}
 }
 
 // EMR-316: BUG-037 の必須化を撤回。cage_id 省略は「ケージ未割当」、0 のみ不正値として拒否する。
 func TestCreateHospitalizationRequest_ToServiceInput_CageIDOptional(t *testing.T) {
-	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
 	base := createHospitalizationRequest{
-		OwnerID:             1,
-		PetID:               2,
-		HospitalizationType: string(model.HospitalizationTypeInpatient),
-		StartDate:           startDate,
-		EndDate:             endDate,
+		OwnerID: 1,
+		PetID:   2,
 	}
 	t.Run("nil cage_id is accepted as cageless", func(t *testing.T) {
 		input, err := base.toServiceInput()
@@ -345,36 +341,9 @@ func TestUpdateHospitalizationRequest_ToServiceInput_CageSetGuards(t *testing.T)
 	}
 }
 
-func TestCreateHospitalizationRequest_ToServiceInput_InvalidHospitalizationType(t *testing.T) {
-	_, err := (&createHospitalizationRequest{
-		OwnerID:             1,
-		PetID:               2,
-		HospitalizationType: "invalid",
-	}).toServiceInput()
-	if err == nil {
-		t.Fatal("toServiceInput() error = nil, want error")
-	}
-}
-
-func TestCreateHospitalizationRequest_ToServiceInput_InvalidStatus(t *testing.T) {
-	_, err := (&createHospitalizationRequest{
-		OwnerID:             1,
-		PetID:               2,
-		HospitalizationType: string(model.HospitalizationTypeInpatient),
-		Status:              "invalid",
-	}).toServiceInput()
-	if err == nil {
-		t.Fatal("toServiceInput() error = nil, want error")
-	}
-}
-
 func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	ownerID := uint64(1)
 	petID := uint64(2)
-	hospitalizationType := string(model.HospitalizationTypeInpatient)
-	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
-	status := string(model.HospitalizationStatusAdmitted)
 	cageID := uint64(10)
 	expectedCageID := uint64(9)
 	doctorID := uint64(20)
@@ -388,10 +357,6 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	input, err := (&updateHospitalizationRequest{
 		OwnerID:              &ownerID,
 		PetID:                &petID,
-		HospitalizationType:  &hospitalizationType,
-		StartDate:            &startDate,
-		EndDate:              &endDate,
-		Status:               &status,
 		CageID:               &cageID,
 		ExpectedCageID:       &expectedCageID,
 		DoctorID:             &doctorID,
@@ -412,12 +377,6 @@ func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	if input.ExpectedCageID != &expectedCageID {
 		t.Fatalf("ExpectedCageID pointer was not preserved")
 	}
-	if input.HospitalizationType == nil || *input.HospitalizationType != model.HospitalizationTypeInpatient {
-		t.Fatalf("HospitalizationType = %v, want %s", input.HospitalizationType, model.HospitalizationTypeInpatient)
-	}
-	if input.Status == nil || *input.Status != model.HospitalizationStatusAdmitted {
-		t.Fatalf("Status = %v, want %s", input.Status, model.HospitalizationStatusAdmitted)
-	}
 	if input.IsInsurance != &isInsurance {
 		t.Fatalf("IsInsurance pointer was not preserved")
 	}
@@ -435,52 +394,56 @@ func TestUpdateHospitalizationRequest_ToServiceInput_NilFields(t *testing.T) {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
 
-	if input.OwnerID != nil || input.HospitalizationType != nil || input.Status != nil {
+	if input.OwnerID != nil || input.Memo != nil || input.CageID != nil {
 		t.Fatalf("expected nil optional fields, got %#v", input)
 	}
 }
 
-func TestUpdateHospitalizationRequest_ToServiceInput_InvalidHospitalizationType(t *testing.T) {
-	invalid := "invalid"
-	_, err := (&updateHospitalizationRequest{HospitalizationType: &invalid}).toServiceInput()
-	if err == nil {
-		t.Fatal("toServiceInput() error = nil, want error")
+func TestUpdateHospitalizationRequest_ToServiceInput_RefusesStayOwnedFields(t *testing.T) {
+	v, at := "admitted", time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
+	tests := map[string]updateHospitalizationRequest{
+		"stay_kind":            {StayKind: &v},
+		"planned_entry_at":     {PlannedEntryAt: &at},
+		"planned_exit_at":      {PlannedExitAt: &at},
+		"hospitalization_type": {HospitalizationType: &v},
+		"start_date":           {StartDate: &at},
+		"end_date":             {EndDate: &at},
+		"status":               {Status: &v},
+	}
+	for name, req := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := req.toServiceInput()
+			requireStayLifecycleWriteRefused(t, err)
+		})
 	}
 }
 
-func TestUpdateHospitalizationRequest_ToServiceInput_InvalidStatus(t *testing.T) {
-	invalid := "invalid"
-	_, err := (&updateHospitalizationRequest{Status: &invalid}).toServiceInput()
-	if err == nil {
-		t.Fatal("toServiceInput() error = nil, want error")
+func TestValidatePlannedStayInterval(t *testing.T) {
+	entry := time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC)
+	later := entry.Add(time.Hour)
+	if err := validatePlannedStayInterval(&entry, &later); err != nil {
+		t.Fatalf("expected ok for exit after entry, got %v", err)
+	}
+	if err := validatePlannedStayInterval(&entry, nil); err != nil {
+		t.Fatalf("a missing side is not invented or rejected, got %v", err)
+	}
+	if err := validatePlannedStayInterval(nil, nil); err != nil {
+		t.Fatalf("no interval is valid, got %v", err)
+	}
+	if err := validatePlannedStayInterval(&entry, &entry); err == nil {
+		t.Fatal("expected error when exit == entry (stay_cases CHECK exit > entry)")
+	}
+	earlier := entry.Add(-time.Hour)
+	if err := validatePlannedStayInterval(&entry, &earlier); err == nil {
+		t.Fatal("expected error when exit < entry")
 	}
 }
 
-func TestValidateHospitalizationDateRange_MRB06(t *testing.T) {
-	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	endOK := time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC)
-	endBad := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
-	if err := validateHospitalizationDateRange(start, endOK); err != nil {
-		t.Fatalf("expected ok for end>=start, got %v", err)
-	}
-	if err := validateHospitalizationDateRange(start, start); err != nil {
-		t.Fatalf("expected ok for equal dates, got %v", err)
-	}
-	if err := validateHospitalizationDateRange(start, endBad); err == nil {
-		t.Fatal("expected error when end < start")
-	}
-}
-
-func TestCreateHospitalizationRequest_ToServiceInput_RejectsInvertedDates(t *testing.T) {
-	req := createHospitalizationRequest{
-		OwnerID:             1,
-		PetID:               2,
-		HospitalizationType: string(model.HospitalizationTypeInpatient),
-		StartDate:           time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
-		EndDate:             time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
-	}
-	_, err := req.toServiceInput()
+func TestCreateHospitalizationRequest_ToServiceInput_RejectsInvertedPlannedInterval(t *testing.T) {
+	entry := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
+	exit := entry.Add(-24 * time.Hour)
+	_, err := (&createHospitalizationRequest{OwnerID: 1, PetID: 2, StayKind: "hotel", PlannedEntryAt: &entry, PlannedExitAt: &exit}).toServiceInput()
 	if err == nil {
-		t.Fatal("expected inverted date range to fail")
+		t.Fatal("expected inverted planned interval to fail")
 	}
 }

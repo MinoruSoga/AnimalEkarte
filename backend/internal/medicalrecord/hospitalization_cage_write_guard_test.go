@@ -57,14 +57,12 @@ func requireCageWriteCode(t *testing.T, err error, want string) {
 
 func TestHospitalizationCreateCage_RejectsWithoutProofBeforeAnyWrite(t *testing.T) {
 	cageID := uint64(10)
-	for _, status := range []model.HospitalizationStatus{"", model.HospitalizationStatusReserved, model.HospitalizationStatusDischarged} {
-		t.Run(string(status), func(t *testing.T) {
-			svc := &hospitalizationService{transactor: &mockTransactor{}}
-			got, err := svc.Create(context.Background(), 7, &CreateHospitalizationInput{CageID: &cageID, Status: status})
-			require.Nil(t, got)
-			requireCageWriteCode(t, err, codeOccupancyUnknown)
-		})
-	}
+	t.Run("no stay history can prove acceptance", func(t *testing.T) {
+		svc := &hospitalizationService{transactor: &mockTransactor{}}
+		got, err := svc.Create(context.Background(), 7, &CreateHospitalizationInput{CageID: &cageID, StayKind: stayKindInpatient})
+		require.Nil(t, got)
+		requireCageWriteCode(t, err, codeOccupancyUnknown)
+	})
 }
 
 func TestHospitalizationCreateCage_CagelessCreateStillPersists(t *testing.T) {

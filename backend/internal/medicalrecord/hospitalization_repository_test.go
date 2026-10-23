@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
@@ -36,12 +37,13 @@ func setupHospitalizationRepoTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Staff{},
 		&model.Medicine{}, &model.Procedure{}, &model.HospitalizationPlan{},
-		&model.Hospitalization{}, &model.CarePlanItem{}, &model.DailyRecord{}, &model.TreatmentPlan{},
+		&model.StayCase{}, &model.StayMovementEvent{}, &model.Hospitalization{}, &model.CarePlanItem{}, &model.DailyRecord{}, &model.TreatmentPlan{},
 	))
 	db.Exec("TRUNCATE TABLE treatment_plans CASCADE")
 	db.Exec("TRUNCATE TABLE daily_records CASCADE")
 	db.Exec("TRUNCATE TABLE care_plan_items CASCADE")
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
+	db.Exec("TRUNCATE TABLE stay_cases CASCADE")
 	db.Exec("TRUNCATE TABLE hospitalization_plans CASCADE")
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
@@ -62,9 +64,9 @@ func TestHospitalizationRepository_FindAll_TiedRowsHaveStablePages(t *testing.T)
 	tiedDate := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
 	var ids []uint64
 	for i := 0; i < 4; i++ {
+		planned := withPlannedStay(t, db, clinicID, owner.ID, pet.ID, "inpatient", &tiedDate, nil)
 		hosp := makeHospitalizationFixture(t, db, clinicID, owner.ID, pet.ID, func(h *model.Hospitalization) {
-			h.StartDate = tiedDate
-			h.EndDate = tiedDate.AddDate(0, 0, 1)
+			planned(h)
 			h.CreatedAt = tiedDate
 		})
 		ids = append(ids, hosp.ID)
@@ -79,7 +81,7 @@ func TestHospitalizationRepository_FindAll_TiedRowsHaveStablePages(t *testing.T)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rows, total, err := repo.FindAll(ctx, clinicID, nil, nil, nil, nil, nil, tt.page, 2)
+			rows, total, err := repo.FindAll(ctx, clinicID, nil, nil, nil, nil, tt.page, 2)
 			require.NoError(t, err)
 			assert.Equal(t, int64(4), total)
 			require.Len(t, rows, 2)
@@ -91,21 +93,25 @@ func TestHospitalizationRepository_FindAll_TiedRowsHaveStablePages(t *testing.T)
 // makeHospitalizationFixture は status/日付/cage/doctor を柔軟に設定できる Hospitalization を作成する。
 func makeHospitalizationFixture(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, opts func(*model.Hospitalization)) *model.Hospitalization {
 	t.Helper()
-	now := time.Now().UTC().Truncate(24 * time.Hour)
 	h := &model.Hospitalization{
-		ClinicID:            clinicID,
-		OwnerID:             ownerID,
-		PetID:               petID,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           now,
-		EndDate:             now.AddDate(0, 0, 3),
-		Status:              model.HospitalizationStatusAdmitted,
+		ClinicID: clinicID,
+		OwnerID:  ownerID,
+		PetID:    petID,
 	}
 	if opts != nil {
 		opts(h)
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(h).Error)
 	return h
+}
+
+// withPlannedStay creates the stay case a hospitalization points to (kind + PLANNED interval) and
+// returns a fixture option that links it. It writes no movement event: the effective state stays unknown.
+func withPlannedStay(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, kind string, entry, exit *time.Time) func(*model.Hospitalization) {
+	t.Helper()
+	stay := &model.StayCase{ClinicID: clinicID, OwnerID: ownerID, PetID: petID, StayKind: kind, PlannedEntryAt: entry, PlannedExitAt: exit}
+	require.NoError(t, db.WithContext(context.Background()).Create(stay).Error)
+	return func(h *model.Hospitalization) { h.StayCaseID = &stay.ID }
 }
 
 func TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction(t *testing.T) {
@@ -119,15 +125,10 @@ func TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction(t *testi
 	var hospitalizationID uint64
 
 	err := withTx(context.Background(), db, func(txCtx context.Context) error {
-		now := time.Now().UTC().Truncate(24 * time.Hour)
 		hospitalization := &model.Hospitalization{
-			ClinicID:            clinicID,
-			OwnerID:             owner.ID,
-			PetID:               pet.ID,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.AddDate(0, 0, 1),
-			Status:              model.HospitalizationStatusAdmitted,
+			ClinicID: clinicID,
+			OwnerID:  owner.ID,
+			PetID:    pet.ID,
 		}
 		if err := repo.Create(txCtx, hospitalization); err != nil {
 			return err
@@ -181,7 +182,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 	_ = makeHospitalizationFixture(t, db, clinicB, ownerB.ID, petB.ID, nil)
 
 	t.Run("同一医院の入院のみ取得しリレーションがPreloadされる", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
@@ -202,7 +203,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 		petA2 := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA2")
 		hospA2 := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA2.ID, nil)
 
-		got, total, err := repo.FindAll(ctx, clinicA, &petA2.ID, nil, nil, nil, nil, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, &petA2.ID, nil, nil, nil, 1, 100)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
@@ -210,7 +211,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("owner_idで絞り込む", func(t *testing.T) {
-		got, total, err := repo.FindAll(ctx, clinicA, nil, &ownerA.ID, nil, nil, nil, 1, 100)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &ownerA.ID, nil, nil, 1, 100)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, int64(1))
 		for _, h := range got {
@@ -218,30 +219,14 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 		}
 	})
 
-	t.Run("statusで絞り込む", func(t *testing.T) {
-		petC := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "退院済みポチ")
-		discharged := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petC.ID, func(h *model.Hospitalization) {
-			h.Status = model.HospitalizationStatusDischarged
-		})
-
-		status := string(model.HospitalizationStatusDischarged)
-		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, &status, nil, nil, 1, 100)
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), total)
-		require.Len(t, got, 1)
-		assert.Equal(t, discharged.ID, got[0].ID)
-	})
-
-	t.Run("start_date範囲で絞り込む", func(t *testing.T) {
+	t.Run("予定入院日(planned entry)の範囲で絞り込む。実入院は導出でありここでは判定しない", func(t *testing.T) {
 		petD := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "期間絞り込みポチ")
-		early := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
-		fixture := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petD.ID, func(h *model.Hospitalization) {
-			h.StartDate = early
-			h.EndDate = early.AddDate(0, 0, 2)
-		})
+		early := time.Date(2026, 1, 10, 9, 0, 0, 0, config.JST)
+		fixture := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petD.ID,
+			withPlannedStay(t, db, clinicA, ownerA.ID, petD.ID, "hotel", &early, nil))
 
-		startDate, endDate := "2026-01-01", "2026-01-31"
-		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, &startDate, &endDate, 1, 100)
+		from, to := "2026-01-01", "2026-01-10" // the end day is inclusive: [from 00:00, to+1 00:00) JST
+		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, &from, &to, 1, 100)
 		require.NoError(t, err)
 		var found bool
 		for _, h := range got {
@@ -249,18 +234,29 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 				found = true
 			}
 		}
-		assert.True(t, found, "範囲内のstart_dateは含まれるべき")
+		assert.True(t, found, "範囲内の予定入院日は含まれるべき")
 
-		outOfRangeStart, outOfRangeEnd := "2026-02-01", "2026-02-28"
-		got2, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, &outOfRangeStart, &outOfRangeEnd, 1, 100)
+		outFrom, outTo := "2026-02-01", "2026-02-28"
+		got2, _, err := repo.FindAll(ctx, clinicA, nil, nil, &outFrom, &outTo, 1, 100)
 		require.NoError(t, err)
 		for _, h := range got2 {
-			assert.NotEqual(t, fixture.ID, h.ID, "範囲外のstart_dateは除外されるべき")
+			assert.NotEqual(t, fixture.ID, h.ID, "範囲外の予定入院日は除外されるべき")
+		}
+	})
+
+	t.Run("日付フィルタはstay_caseを持たない行にも一致しない", func(t *testing.T) {
+		petE := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "stayなしポチ")
+		legacy := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petE.ID, nil)
+		from, to := "2000-01-01", "2100-01-01"
+		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, &from, &to, 1, 100)
+		require.NoError(t, err)
+		for _, h := range got {
+			assert.NotEqual(t, legacy.ID, h.ID)
 		}
 	})
 
 	t.Run("別医院の入院は含まれない", func(t *testing.T) {
-		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
+		got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 100)
 		require.NoError(t, err)
 		for _, h := range got {
 			assert.Equal(t, clinicA, h.ClinicID)
@@ -290,14 +286,14 @@ func TestHospitalizationRepository_FindAll_CurrentOwnerAfterTransfer(t *testing.
 		nil,
 	)
 
-	got, total, err := repo.FindAll(ctx, clinicID, nil, &fixture.CurrentOwner.ID, nil, nil, nil, 1, 20)
+	got, total, err := repo.FindAll(ctx, clinicID, nil, &fixture.CurrentOwner.ID, nil, nil, 1, 20)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
 	require.Len(t, got, 1)
 	assert.Equal(t, hospitalization.ID, got[0].ID)
 	assert.Equal(t, fixture.PreviousOwner.ID, got[0].OwnerID, "returned owner_id remains the historical snapshot")
 
-	previous, previousTotal, err := repo.FindAll(ctx, clinicID, nil, &fixture.PreviousOwner.ID, nil, nil, nil, 1, 20)
+	previous, previousTotal, err := repo.FindAll(ctx, clinicID, nil, &fixture.PreviousOwner.ID, nil, nil, 1, 20)
 	require.NoError(t, err)
 	assert.Zero(t, previousTotal)
 	assert.Empty(t, previous)
@@ -313,7 +309,7 @@ func TestHospitalizationRepository_FindAll_RejectsCorruptCrossClinicPetRelation(
 	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
 	makeHospitalizationFixture(t, db, clinicA, ownerA.ID, crossClinicPet.ID, nil)
 
-	got, total, err := repo.FindAll(ctx, clinicA, &crossClinicPet.ID, nil, nil, nil, nil, 1, 100)
+	got, total, err := repo.FindAll(ctx, clinicA, &crossClinicPet.ID, nil, nil, nil, 1, 100)
 
 	require.NoError(t, err)
 	assert.Empty(t, got)
@@ -371,14 +367,10 @@ func TestHospitalizationRepository_Create(t *testing.T) {
 	ownerA := makeTestOwner(t, db, clinicA, "Create飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Createポチ")
 
-	now := time.Now().UTC().Truncate(24 * time.Hour)
 	h := &model.Hospitalization{
-		ClinicID:            clinicA,
-		OwnerID:             ownerA.ID,
-		PetID:               petA.ID,
-		HospitalizationType: model.HospitalizationTypeHotel,
-		StartDate:           now,
-		EndDate:             now.AddDate(0, 0, 1),
+		ClinicID: clinicA,
+		OwnerID:  ownerA.ID,
+		PetID:    petA.ID,
 	}
 	require.NoError(t, repo.Create(ctx, h))
 	assert.NotZero(t, h.ID)
@@ -563,60 +555,38 @@ func TestHospitalizationRepository_CountTreatmentPlansByHospitalizationID(t *tes
 	})
 }
 
-func TestHospitalizationRepository_UpdateIfNotDischarged(t *testing.T) {
+func TestHospitalizationRepository_StayCases(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
+	ownerA := makeTestOwner(t, db, clinicA, "StayCase飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "StayCaseポチ")
+	entry := time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC)
+	exit := entry.Add(48 * time.Hour)
 
-	ownerA := makeTestOwner(t, db, clinicA, "UpdateIfNotDischarged飼主")
-	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "UpdateIfNotDischargedポチ")
+	stay := &model.StayCase{ClinicID: clinicA, OwnerID: ownerA.ID, PetID: petA.ID, StayKind: "inpatient", PlannedEntryAt: &entry, PlannedExitAt: &exit}
+	require.NoError(t, repo.CreateStayCase(ctx, stay))
+	require.NotZero(t, stay.ID)
+	assert.Equal(t, int64(1), stay.Version, "stay version starts at 1 (DB default), not inferred from anything")
 
-	t.Run("admitted status は退院更新に成功する", func(t *testing.T) {
-		hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, func(h *model.Hospitalization) {
-			h.Status = model.HospitalizationStatusAdmitted
-		})
-		dischargeDate := time.Now().UTC().Truncate(time.Second)
-
-		discharged := model.HospitalizationStatusDischarged
-		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, UpdateHospitalizationInput{
-			Status:  &discharged,
-			EndDate: &dischargeDate,
-		})
+	t.Run("同一医院からは取得できる", func(t *testing.T) {
+		got, err := repo.FindStayCasesByIDs(ctx, clinicA, []uint64{stay.ID})
 		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, model.HospitalizationStatusDischarged, got.Status)
+		require.Contains(t, got, stay.ID)
+		assert.Equal(t, "inpatient", got[stay.ID].StayKind)
 	})
-
-	t.Run("reserved status は退院更新に成功する", func(t *testing.T) {
-		petB := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "UpdateIfNotDischarged予約ポチ")
-		hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petB.ID, func(h *model.Hospitalization) {
-			h.Status = model.HospitalizationStatusReserved
-		})
-		dischargeDate := time.Now().UTC().Truncate(time.Second)
-
-		discharged := model.HospitalizationStatusDischarged
-		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, UpdateHospitalizationInput{
-			Status:  &discharged,
-			EndDate: &dischargeDate,
-		})
+	t.Run("他院からは見えない", func(t *testing.T) {
+		got, err := repo.FindStayCasesByIDs(ctx, clinicB, []uint64{stay.ID})
 		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, model.HospitalizationStatusDischarged, got.Status)
+		assert.Empty(t, got)
 	})
-
-	t.Run("already discharged は NotFound", func(t *testing.T) {
-		petC := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "UpdateIfNotDischarged退院済みポチ")
-		hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petC.ID, func(h *model.Hospitalization) {
-			h.Status = model.HospitalizationStatusDischarged
-		})
-
-		discharged := model.HospitalizationStatusDischarged
-		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, UpdateHospitalizationInput{
-			Status: &discharged,
-		})
-		assert.Nil(t, got)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
+	t.Run("空のID集合は空を返す", func(t *testing.T) {
+		got, err := repo.FindStayCasesByIDs(ctx, clinicA, nil)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+	t.Run("nilは拒否する", func(t *testing.T) {
+		require.Error(t, repo.CreateStayCase(ctx, nil))
 	})
 }

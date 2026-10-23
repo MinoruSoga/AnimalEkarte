@@ -56,9 +56,9 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 		clinicID,
 		filters.PetID,
 		filters.OwnerID,
-		filters.Status,
-		filters.StartDate,
-		filters.EndDate,
+		filters.LifecycleState,
+		filters.PlannedEntryFrom,
+		filters.PlannedEntryTo,
 		page,
 		limit,
 	)
@@ -66,7 +66,22 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(hospitalizations, toHospitalizationResponse), total, page, limit))
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, hospitalizations)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(hospitalizationResponses(hospitalizations, projections), total, page, limit))
+}
+
+// singleHospitalizationResponse renders one row with its stay projection (EMR-499 U1).
+func (h *HospitalizationHandler) singleHospitalizationResponse(c *gin.Context, clinicID uint64, row *model.Hospitalization) (HospitalizationResponse, bool) {
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, []model.Hospitalization{*row})
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return HospitalizationResponse{}, false
+	}
+	return hospitalizationResponses([]model.Hospitalization{*row}, projections)[0], true
 }
 
 // GetHospitalization godoc
@@ -87,7 +102,11 @@ func (h *HospitalizationHandler) GetHospitalization(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toHospitalizationResponse(hospitalization))
+	resp, ok := h.singleHospitalizationResponse(c, clinicID, hospitalization)
+	if !ok {
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateHospitalization godoc
@@ -127,7 +146,11 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", hospitalization.ID))
-	c.JSON(http.StatusCreated, toHospitalizationResponse(hospitalization))
+	resp, ok := h.singleHospitalizationResponse(c, clinicID, hospitalization)
+	if !ok {
+		return
+	}
+	c.JSON(http.StatusCreated, resp)
 }
 
 // UpdateHospitalization godoc
@@ -158,7 +181,11 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toHospitalizationResponse(hosp))
+	resp, ok := h.singleHospitalizationResponse(c, clinicID, hosp)
+	if !ok {
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // DischargeWithBilling godoc
@@ -217,12 +244,13 @@ func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, CageSwapResponse{
-		Hospitalizations: []HospitalizationResponse{
-			toHospitalizationResponse(first),
-			toHospitalizationResponse(second),
-		},
-	})
+	pair := []model.Hospitalization{*first, *second}
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, pair)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, CageSwapResponse{Hospitalizations: hospitalizationResponses(pair, projections)})
 }
 
 // DeleteHospitalization godoc

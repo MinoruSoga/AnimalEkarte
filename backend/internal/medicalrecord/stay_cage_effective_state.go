@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"slices"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -37,6 +38,8 @@ func projectStayCageEffectiveState(stay model.StayCase, movements []model.StayMo
 	})
 	seenIDs := make(map[uint64]struct{}, len(events))
 	state := StayCageUnknown
+	var releaseKind StayCageReleaseKind
+	var dischargedAt *time.Time
 	var admitted *model.StayMovementEvent
 	var previousRevision int64
 	for i := range events {
@@ -61,16 +64,23 @@ func projectStayCageEffectiveState(stay model.StayCase, movements []model.StayMo
 				return result
 			}
 			state, admitted = StayCageAdmitted, event
+			releaseKind = ""
 		case "discharge":
 			if state != StayCageAdmitted || admitted == nil || event.ActualAt == nil || event.ActualAt.Before(*admitted.ActualAt) {
 				return result
 			}
-			state = StayCageReleased
+			state, releaseKind = StayCageReleased, StayCageReleasedByDischarge
+			at := *event.ActualAt
+			dischargedAt = &at
 		case "cancel", "no_show":
 			if i != 0 {
 				return result
 			}
 			state = StayCageReleased
+			releaseKind = StayCageReleasedByCancel
+			if event.EventKind == "no_show" {
+				releaseKind = StayCageReleasedByNoShow
+			}
 		default:
 			// correction needs its after-effect/invalidation contract. Raw
 			// correction, unsupported transitions and malformed histories do
@@ -79,5 +89,13 @@ func projectStayCageEffectiveState(stay model.StayCase, movements []model.StayMo
 		}
 	}
 	result.State = state
+	if state == StayCageReleased {
+		result.ReleaseKind = releaseKind
+	}
+	result.DischargedAt = dischargedAt
+	if admitted != nil && admitted.ActualAt != nil {
+		at := *admitted.ActualAt
+		result.AdmittedAt = &at
+	}
 	return result
 }

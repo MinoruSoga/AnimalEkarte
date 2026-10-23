@@ -1,54 +1,54 @@
 package medicalrecord
 
 import (
-	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// validateHospitalizationDateRange enforces end_date >= start_date at the application
-// boundary (MRB-06). Schema CHECK alone only yields a generic constraint message.
-func validateHospitalizationDateRange(start, end time.Time) error {
-	// Compare calendar dates in the values' locations after truncating to date-only.
-	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
-	endDay := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, time.UTC)
-	if endDay.Before(startDay) {
-		return apperrors.WrapInvalidInput("end_date は start_date 以降である必要があります")
-	}
-	return nil
-}
-
 type listHospitalizationQuery struct {
-	PetID     string
-	OwnerID   string
-	Status    string
-	StartDate string
-	EndDate   string
+	PetID            string
+	OwnerID          string
+	LifecycleState   string
+	PlannedEntryFrom string
+	PlannedEntryTo   string
+	// RetiredStatus / RetiredStartDate / RetiredEndDate are the pre-stay query names. They are read only
+	// to be refused: ignoring them would silently return an unfiltered list.
+	RetiredStatus    string
+	RetiredStartDate string
+	RetiredEndDate   string
 }
 
 func newListHospitalizationQuery(values url.Values) listHospitalizationQuery {
 	return listHospitalizationQuery{
-		PetID:     values.Get("pet_id"),
-		OwnerID:   values.Get("owner_id"),
-		Status:    values.Get("status"),
-		StartDate: values.Get("start_date"),
-		EndDate:   values.Get("end_date"),
+		PetID:            values.Get("pet_id"),
+		OwnerID:          values.Get("owner_id"),
+		LifecycleState:   values.Get("lifecycle_state"),
+		PlannedEntryFrom: values.Get("planned_entry_from"),
+		PlannedEntryTo:   values.Get("planned_entry_to"),
+		RetiredStatus:    values.Get("status"),
+		RetiredStartDate: values.Get("start_date"),
+		RetiredEndDate:   values.Get("end_date"),
 	}
 }
 
 type listHospitalizationFilters struct {
-	PetID     *uint64
-	OwnerID   *uint64
-	Status    *string
-	StartDate *string
-	EndDate   *string
+	PetID            *uint64
+	OwnerID          *uint64
+	LifecycleState   *string
+	PlannedEntryFrom *string
+	PlannedEntryTo   *string
 }
 
 func (q *listHospitalizationQuery) toServiceFilters() (listHospitalizationFilters, error) {
+	for name, value := range map[string]string{"status": q.RetiredStatus, "start_date": q.RetiredStartDate, "end_date": q.RetiredEndDate} {
+		if value != "" {
+			return listHospitalizationFilters{}, apperrors.WrapInvalidInput(
+				name + " は廃止されました。lifecycle_state / planned_entry_from / planned_entry_to を使用してください")
+		}
+	}
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
 	if err != nil {
 		return listHospitalizationFilters{}, err
@@ -57,20 +57,24 @@ func (q *listHospitalizationQuery) toServiceFilters() (listHospitalizationFilter
 	if err != nil {
 		return listHospitalizationFilters{}, err
 	}
-	startDate, err := parseOptionalDateQueryFilter(q.StartDate, "start_date")
+	from, err := parseOptionalDateQueryFilter(q.PlannedEntryFrom, "planned_entry_from")
 	if err != nil {
 		return listHospitalizationFilters{}, err
 	}
-	endDate, err := parseOptionalDateQueryFilter(q.EndDate, "end_date")
+	to, err := parseOptionalDateQueryFilter(q.PlannedEntryTo, "planned_entry_to")
 	if err != nil {
 		return listHospitalizationFilters{}, err
+	}
+	state := optionalStringQueryFilter(q.LifecycleState)
+	if state != nil && !validLifecycleState(*state) {
+		return listHospitalizationFilters{}, apperrors.WrapInvalidInput("lifecycle_state is invalid")
 	}
 	return listHospitalizationFilters{
-		PetID:     petID,
-		OwnerID:   ownerID,
-		Status:    optionalStringQueryFilter(q.Status),
-		StartDate: startDate,
-		EndDate:   endDate,
+		PetID:            petID,
+		OwnerID:          ownerID,
+		LifecycleState:   state,
+		PlannedEntryFrom: from,
+		PlannedEntryTo:   to,
 	}, nil
 }
 
@@ -103,13 +107,18 @@ func parseHospitalizationNextVisit(raw *string) (*time.Time, error) {
 
 // createHospitalizationRequest は入院作成のバインド struct
 type createHospitalizationRequest struct {
-	OwnerID              uint64                       `json:"owner_id"               binding:"required"`
-	PetID                uint64                       `json:"pet_id"                 binding:"required"`
-	HospitalizationType  string                       `json:"hospitalization_type"   binding:"required,oneof=hospitalization hotel"`
-	StartDate            time.Time                    `json:"start_date"             binding:"required"`
-	EndDate              time.Time                    `json:"end_date"               binding:"required"`
-	NextVisit            *string                      `json:"next_visit"`
-	Status               string                       `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
+	OwnerID        uint64     `json:"owner_id"               binding:"required"`
+	PetID          uint64     `json:"pet_id"                 binding:"required"`
+	StayKind       string     `json:"stay_kind"              binding:"required,oneof=inpatient hotel"`
+	PlannedEntryAt *time.Time `json:"planned_entry_at"`
+	PlannedExitAt  *time.Time `json:"planned_exit_at"`
+	NextVisit      *string    `json:"next_visit"`
+	// The pre-stay lifecycle names are bound only to be refused: ignoring them would silently drop a
+	// value the caller believes was saved (EMR-499 U1; the lifecycle is derived from movement events).
+	RetiredType          *string                      `json:"hospitalization_type"`
+	RetiredStartDate     *time.Time                   `json:"start_date"`
+	RetiredEndDate       *time.Time                   `json:"end_date"`
+	RetiredStatus        *string                      `json:"status"`
 	CageID               *uint64                      `json:"cage_id"`
 	DoctorID             *uint64                      `json:"doctor_id"`
 	Memo                 string                       `json:"memo"`
@@ -121,30 +130,25 @@ type createHospitalizationRequest struct {
 	TreatmentPlans       []createTreatmentPlanRequest `json:"treatment_plans"`
 }
 
+func (r *createHospitalizationRequest) rejectRetiredFields() error {
+	switch {
+	case r.RetiredType != nil:
+		return errStayLifecycleFieldNotWritable("hospitalization_type")
+	case r.RetiredStartDate != nil:
+		return errStayLifecycleFieldNotWritable("start_date")
+	case r.RetiredEndDate != nil:
+		return errStayLifecycleFieldNotWritable("end_date")
+	case r.RetiredStatus != nil:
+		return errStayLifecycleFieldNotWritable("status")
+	}
+	return nil
+}
+
 func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationInput, error) {
-	hospType, err := httpapi.ValidateEnum(r.HospitalizationType,
-		model.HospitalizationTypeInpatient,
-		model.HospitalizationTypeHotel,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("invalid hospitalization_type: %w", err)
+	if err := r.rejectRetiredFields(); err != nil {
+		return nil, err
 	}
-
-	var status model.HospitalizationStatus
-	if r.Status != "" {
-		s, err := httpapi.ValidateEnum(r.Status,
-			model.HospitalizationStatusAdmitted,
-			model.HospitalizationStatusDischarged,
-			model.HospitalizationStatusReserved,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("invalid status: %w", err)
-		}
-		status = s
-	}
-
-	// MRB-06: application-level end_date >= start_date (schema CHECK is not a field-level error).
-	if err := validateHospitalizationDateRange(r.StartDate, r.EndDate); err != nil {
+	if err := validatePlannedStayInterval(r.PlannedEntryAt, r.PlannedExitAt); err != nil {
 		return nil, err
 	}
 
@@ -170,11 +174,10 @@ func (r *createHospitalizationRequest) toServiceInput() (*CreateHospitalizationI
 	return &CreateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
-		HospitalizationType:  hospType,
-		StartDate:            r.StartDate,
-		EndDate:              r.EndDate,
+		StayKind:             r.StayKind,
+		PlannedEntryAt:       r.PlannedEntryAt,
+		PlannedExitAt:        r.PlannedExitAt,
 		NextVisit:            nextVisit,
-		Status:               status,
 		CageID:               r.CageID,
 		DoctorID:             r.DoctorID,
 		Memo:                 r.Memo,
@@ -199,14 +202,20 @@ type cageSwapRequest struct {
 // updateHospitalizationRequest は入院更新のバインド struct。
 // ClearCageID=true で cage_id を NULL に戻す（「選択なし」。EMR-316）。cage_id との同時指定は 400。
 type updateHospitalizationRequest struct {
-	OwnerID              *uint64    `json:"owner_id"`
-	PetID                *uint64    `json:"pet_id"`
-	HospitalizationType  *string    `json:"hospitalization_type"   binding:"omitempty,oneof=hospitalization hotel"`
+	OwnerID *uint64 `json:"owner_id"`
+	PetID   *uint64 `json:"pet_id"`
+	// Stay kind, planned interval and the retired lifecycle names are bound only to be refused with a
+	// stable 422 (EMR-499 U1): a planned change belongs to extension proposals / acceptance proof, and
+	// the lifecycle is derived. Ignoring them would silently drop a value the caller thinks was saved.
+	StayKind             *string    `json:"stay_kind"`
+	PlannedEntryAt       *time.Time `json:"planned_entry_at"`
+	PlannedExitAt        *time.Time `json:"planned_exit_at"`
+	HospitalizationType  *string    `json:"hospitalization_type"`
 	StartDate            *time.Time `json:"start_date"`
 	EndDate              *time.Time `json:"end_date"`
+	Status               *string    `json:"status"`
 	NextVisit            *string    `json:"next_visit"`
 	ClearNextVisit       bool       `json:"clear_next_visit"`
-	Status               *string    `json:"status"                 binding:"omitempty,oneof=admitted discharged reserved"`
 	CageID               *uint64    `json:"cage_id"`
 	ClearCageID          bool       `json:"clear_cage_id"`
 	ExpectedCageID       *uint64    `json:"expected_cage_id"`
@@ -220,7 +229,29 @@ type updateHospitalizationRequest struct {
 	InsuranceNumber      *string    `json:"insurance_number,omitempty"`
 }
 
+// errStayLifecycleFieldNotWritable refuses a write of a retired hospitalization field (422, stable code).
+func errStayLifecycleFieldNotWritable(field string) error {
+	return apperrors.WrapUnprocessableWithCode(codeStayLifecycleWriteUnavailable,
+		field+" は入院の滞在・状態の導出値になったため、この API では変更できません")
+}
+
 func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationInput, error) {
+	switch {
+	case r.StayKind != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("stay_kind")
+	case r.PlannedEntryAt != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("planned_entry_at")
+	case r.PlannedExitAt != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("planned_exit_at")
+	case r.HospitalizationType != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("hospitalization_type")
+	case r.StartDate != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("start_date")
+	case r.EndDate != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("end_date")
+	case r.Status != nil:
+		return UpdateHospitalizationInput{}, errStayLifecycleFieldNotWritable("status")
+	}
 	if err := validateCageUpdateGuards(r.CageID, r.ClearCageID, r.ExpectedCageID, r.ExpectedCageIsNull); err != nil {
 		return UpdateHospitalizationInput{}, err
 	}
@@ -235,8 +266,6 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 	input := UpdateHospitalizationInput{
 		OwnerID:              r.OwnerID,
 		PetID:                r.PetID,
-		StartDate:            r.StartDate,
-		EndDate:              r.EndDate,
 		NextVisit:            nextVisit,
 		ClearNextVisit:       r.ClearNextVisit,
 		CageID:               r.CageID,
@@ -250,33 +279,6 @@ func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationIn
 		IsInsurance:          r.IsInsurance,
 		InsuranceCompanyName: r.InsuranceCompanyName,
 		InsuranceNumber:      r.InsuranceNumber,
-	}
-	if r.HospitalizationType != nil {
-		hospType, err := httpapi.ValidateEnum(*r.HospitalizationType,
-			model.HospitalizationTypeInpatient,
-			model.HospitalizationTypeHotel,
-		)
-		if err != nil {
-			return UpdateHospitalizationInput{}, fmt.Errorf("invalid hospitalization_type: %w", err)
-		}
-		input.HospitalizationType = &hospType
-	}
-	if r.Status != nil {
-		status, err := httpapi.ValidateEnum(*r.Status,
-			model.HospitalizationStatusAdmitted,
-			model.HospitalizationStatusDischarged,
-			model.HospitalizationStatusReserved,
-		)
-		if err != nil {
-			return UpdateHospitalizationInput{}, fmt.Errorf("invalid status: %w", err)
-		}
-		input.Status = &status
-	}
-	// MRB-06: when both dates are present on the patch, reject inverted ranges early.
-	if r.StartDate != nil && r.EndDate != nil {
-		if err := validateHospitalizationDateRange(*r.StartDate, *r.EndDate); err != nil {
-			return UpdateHospitalizationInput{}, err
-		}
 	}
 	return input, nil
 }

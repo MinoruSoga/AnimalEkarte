@@ -25,6 +25,10 @@ func (r *hospitalizationAuditRecorder) LogEntryTx(_ context.Context, entry *Audi
 	return r.err
 }
 
+// NOTE (EMR-499 U1): the billing-on-discharge tests in this file and hospitalization_discharge_guard_test.go
+// exercise createDischargeBilling, which is now unreachable: create_accounting=true is refused with
+// stay_discharge_billing_unavailable. EMR-505/506/508 (unit 4) re-point them at the rebuilt billing seam.
+// updateFn is retained only so those call sites keep compiling; the movement side no longer updates a row.
 func admittedHospitalizationRepo(updateFn func(context.Context, uint64, uint64, UpdateHospitalizationInput) (*model.Hospitalization, error)) *mockHospitalizationRepository {
 	return &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
@@ -33,10 +37,8 @@ func admittedHospitalizationRepo(updateFn func(context.Context, uint64, uint64, 
 				ClinicID: clinicID,
 				OwnerID:  2,
 				PetID:    5,
-				Status:   model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateIfNotDischargedFn: updateFn,
 	}
 }
 
@@ -328,7 +330,7 @@ type statefulHospitalizationRepo struct {
 }
 
 func (r *statefulHospitalizationRepo) FindByID(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
-	return &model.Hospitalization{ID: id, ClinicID: clinicID, OwnerID: 2, PetID: 5, Status: r.state.status}, nil
+	return &model.Hospitalization{ID: id, ClinicID: clinicID, OwnerID: 2, PetID: 5}, nil
 }
 
 func (r *statefulHospitalizationRepo) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {

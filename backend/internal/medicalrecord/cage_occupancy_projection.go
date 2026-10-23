@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
@@ -35,12 +36,29 @@ type StayCageEvidence struct {
 	MovementHeadRevision int64
 }
 
+// StayCageReleaseKind records WHY a stay is released. It is set only for
+// State == StayCageReleased and is empty otherwise. "released" alone cannot be
+// shown to a user as "discharged": a cancelled or no-show stay is also released.
+type StayCageReleaseKind string
+
+const (
+	StayCageReleasedByDischarge StayCageReleaseKind = "discharge"
+	StayCageReleasedByCancel    StayCageReleaseKind = "cancel"
+	StayCageReleasedByNoShow    StayCageReleaseKind = "no_show"
+)
+
 // StayCageEffectiveState is the minimum 499 -> 461 handoff.
+// ReleaseKind and AdmittedAt are read-only descriptive facts taken from the same
+// validated history; the cage adapter ignores them.
 type StayCageEffectiveState struct {
-	ClinicID   uint64
-	StayCaseID uint64
-	State      StayCageOccupancyState
-	Evidence   StayCageEvidence
+	ClinicID    uint64
+	StayCaseID  uint64
+	State       StayCageOccupancyState
+	Evidence    StayCageEvidence
+	ReleaseKind StayCageReleaseKind
+	// AdmittedAt / DischargedAt are the ACTUAL times of the validated admit / discharge events.
+	AdmittedAt   *time.Time
+	DischargedAt *time.Time
 }
 
 // StayCageEffectiveStateReader is provided by the one EMR-499 lifecycle core.

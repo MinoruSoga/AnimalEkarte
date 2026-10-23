@@ -32,20 +32,37 @@ func newCageMergeService(t *testing.T, db *gorm.DB) (CageService, CageMerger) {
 // makeCageHospitalization は status を明示した入院レコードを作成する。
 // makeHospitalizationRec は status 未指定（DB default 'reserved'）なので、
 // admitted/discharged の検証にはこちらを使う。
+// makeCageHospitalization creates a hospitalization with the stay history that yields the requested
+// effective state through the EMR-499 core (hotel stay: no doctor/admission record needed):
+// admitted = admit event, discharged = admit + discharge, reserved = a stay with NO event (the core
+// cannot prove a reservation without acceptance proof, so it reads as unknown and blocks the cage).
 func makeCageHospitalization(t *testing.T, db *gorm.DB, clinicID, ownerID, petID uint64, cageID *uint64, status model.HospitalizationStatus) *model.Hospitalization {
 	t.Helper()
-	now := time.Now().UTC().Truncate(24 * time.Hour)
+	ctx := context.Background()
+	stay := &model.StayCase{ClinicID: clinicID, OwnerID: ownerID, PetID: petID, StayKind: "hotel"}
+	require.NoError(t, db.WithContext(ctx).Create(stay).Error)
 	h := &model.Hospitalization{
-		ClinicID:            clinicID,
-		OwnerID:             ownerID,
-		PetID:               petID,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           now,
-		EndDate:             now.AddDate(0, 0, 3),
-		Status:              status,
-		CageID:              cageID,
+		ClinicID:   clinicID,
+		OwnerID:    ownerID,
+		PetID:      petID,
+		CageID:     cageID,
+		StayCaseID: &stay.ID,
 	}
-	require.NoError(t, db.WithContext(context.Background()).Create(h).Error)
+	require.NoError(t, db.WithContext(ctx).Create(h).Error)
+	admittedAt := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	addEvent := func(revision int64, kind string, at time.Time) {
+		require.NoError(t, db.WithContext(ctx).Create(&model.StayMovementEvent{
+			ClinicID: clinicID, StayCaseID: stay.ID, HospitalizationID: &h.ID, Revision: revision,
+			EventKind: kind, ActualAt: &at, OperationID: 1, RecordedBy: 1,
+		}).Error)
+	}
+	switch status {
+	case model.HospitalizationStatusAdmitted:
+		addEvent(1, "admit", admittedAt)
+	case model.HospitalizationStatusDischarged:
+		addEvent(1, "admit", admittedAt)
+		addEvent(2, "discharge", admittedAt.Add(24*time.Hour))
+	}
 	return h
 }
 

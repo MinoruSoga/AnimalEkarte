@@ -16,19 +16,20 @@ import (
 
 // mockHospitalizationRepository は HospitalizationRepository のテスト用モック実装
 type mockHospitalizationRepository struct {
-	findAllFn                                func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
+	findAllFn                                func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error)
 	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	createFn                                 func(ctx context.Context, hospitalization *model.Hospitalization) error
 	updateFieldsFn                           func(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error)
-	updateIfNotDischargedFn                  func(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error)
+	createStayCaseFn                         func(ctx context.Context, stay *model.StayCase) error
+	findStayCasesByIDsFn                     func(ctx context.Context, clinicID uint64, ids []uint64) (map[uint64]model.StayCase, error)
 	deleteFn                                 func(ctx context.Context, clinicID, id uint64) error
 	countCarePlanItemsByHospitalizationIDFn  func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	countDailyRecordsByHospitalizationIDFn   func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	countTreatmentPlansByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 }
 
-func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, plannedEntryFrom, plannedEntryTo, page, limit)
 }
 
 func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
@@ -51,11 +52,19 @@ func (m *mockHospitalizationRepository) Update(ctx context.Context, clinicID, id
 	return m.updateFieldsFn(ctx, clinicID, id, cmd)
 }
 
-func (m *mockHospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
-	if m.updateIfNotDischargedFn != nil {
-		return m.updateIfNotDischargedFn(ctx, clinicID, id, cmd)
+func (m *mockHospitalizationRepository) CreateStayCase(ctx context.Context, stay *model.StayCase) error {
+	if m.createStayCaseFn != nil {
+		return m.createStayCaseFn(ctx, stay)
 	}
-	return nil, apperrors.WrapNotFound("hospitalization", "updateIfNotDischargedFn not stubbed")
+	stay.ID = 900 + stay.OwnerID
+	return nil
+}
+
+func (m *mockHospitalizationRepository) FindStayCasesByIDs(ctx context.Context, clinicID uint64, ids []uint64) (map[uint64]model.StayCase, error) {
+	if m.findStayCasesByIDsFn != nil {
+		return m.findStayCasesByIDsFn(ctx, clinicID, ids)
+	}
+	return map[uint64]model.StayCase{}, nil
 }
 
 func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -90,14 +99,11 @@ func (m *mockHospitalizationRepository) CountTreatmentPlansByHospitalizationID(c
 func TestHospitalizationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)
-	status := string(model.HospitalizationStatusAdmitted)
-
 	tests := []struct {
 		name      string
 		clinicID  uint64
 		petID     *uint64
 		ownerID   *uint64
-		status    *string
 		page      int
 		limit     int
 		repoItems []model.Hospitalization
@@ -113,8 +119,8 @@ func TestHospitalizationService_List(t *testing.T) {
 			page:     1,
 			limit:    20,
 			repoItems: []model.Hospitalization{
-				{ID: 1, ClinicID: 1, PetID: 5, OwnerID: 2, Status: model.HospitalizationStatusAdmitted},
-				{ID: 2, ClinicID: 1, PetID: 6, OwnerID: 3, Status: model.HospitalizationStatusReserved},
+				{ID: 1, ClinicID: 1, PetID: 5, OwnerID: 2},
+				{ID: 2, ClinicID: 1, PetID: 6, OwnerID: 3},
 			},
 			repoTotal: 2,
 			wantLen:   2,
@@ -161,20 +167,6 @@ func TestHospitalizationService_List(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:     "filters by status",
-			clinicID: 1,
-			status:   &status,
-			page:     1,
-			limit:    20,
-			repoItems: []model.Hospitalization{
-				{ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted},
-			},
-			repoTotal: 1,
-			wantLen:   1,
-			wantTotal: 1,
-			wantErr:   false,
-		},
-		{
 			name:      "propagates repository error",
 			clinicID:  1,
 			page:      1,
@@ -191,13 +183,13 @@ func TestHospitalizationService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationRepository{
-				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
+				findAllFn: func(_ context.Context, _ uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.Hospitalization, int64, error) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
-			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
+			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, nil, nil, nil, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -211,7 +203,6 @@ func TestHospitalizationService_List(t *testing.T) {
 }
 
 func TestHospitalizationService_GetByID(t *testing.T) {
-	now := time.Now()
 	tests := []struct {
 		name     string
 		clinicID uint64
@@ -226,13 +217,10 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 			clinicID: 1,
 			id:       10,
 			repoItem: &model.Hospitalization{
-				ID:        10,
-				ClinicID:  1,
-				PetID:     5,
-				OwnerID:   2,
-				Status:    model.HospitalizationStatusAdmitted,
-				StartDate: now,
-				EndDate:   now.Add(24 * time.Hour),
+				ID:       10,
+				ClinicID: 1,
+				PetID:    5,
+				OwnerID:  2,
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -282,125 +270,82 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 
 func TestHospitalizationService_Create(t *testing.T) {
 	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
-	futureStart := today.AddDate(0, 0, 3)
+	entry, exit := now, now.Add(48*time.Hour)
+	cageTen := func() *uint64 { v := uint64(10); return &v }
 	tests := []struct {
-		name       string
-		clinicID   uint64
-		input      *CreateHospitalizationInput
-		repoErr    error
-		wantErr    bool
-		wantStatus model.HospitalizationStatus
+		name        string
+		input       *CreateHospitalizationInput
+		stayErr     error
+		repoErr     error
+		wantErr     bool
+		wantInvalid bool
+		wantCageErr string
 	}{
 		{
-			name:     "creates hospitalization successfully",
-			clinicID: 1,
+			name: "creates stay case and hospitalization without cage",
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:             2,
-				PetID:               5,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				StartDate:           now,
-				EndDate:             now.Add(24 * time.Hour),
-				Status:              model.HospitalizationStatusReserved,
+				OwnerID: 2, PetID: 5, StayKind: stayKindInpatient, PlannedEntryAt: &entry, PlannedExitAt: &exit,
 			},
-			repoErr:    nil,
-			wantErr:    false,
-			wantStatus: model.HospitalizationStatusReserved, // explicit status kept
 		},
 		{
-			name:     "defaults status to admitted when empty and start_date is today (BUG-031)",
-			clinicID: 1,
+			name: "hotel stay with no planned interval is stored as given (nothing invented)",
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:             2,
-				PetID:               5,
-				HospitalizationType: model.HospitalizationTypeHotel,
-				StartDate:           today,
-				EndDate:             today.AddDate(0, 0, 7),
+				OwnerID: 2, PetID: 5, StayKind: stayKindHotel,
 			},
-			repoErr:    nil,
-			wantErr:    false,
-			wantStatus: model.HospitalizationStatusAdmitted,
 		},
 		{
-			name:     "defaults status to reserved when empty and start_date is future (BUG-031)",
-			clinicID: 1,
+			// #734 guard kept: a non-NULL cage needs the acceptance proof that no writer produces yet.
+			name: "non-NULL cage is refused as occupancy_unknown and nothing is persisted",
 			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:             2,
-				PetID:               5,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				StartDate:           futureStart,
-				EndDate:             futureStart.AddDate(0, 0, 7),
+				OwnerID: 2, PetID: 5, StayKind: stayKindInpatient, CageID: cageTen(),
 			},
-			repoErr:    nil,
-			wantErr:    false,
-			wantStatus: model.HospitalizationStatusReserved,
+			wantErr: true, wantCageErr: codeOccupancyUnknown,
 		},
 		{
-			name:     "returns error when already exists",
-			clinicID: 1,
+			name: "rejects cage_id 0",
 			input: &CreateHospitalizationInput{
-				CageID:    func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:   2,
-				PetID:     5,
-				StartDate: now,
-				EndDate:   now.Add(24 * time.Hour),
+				OwnerID: 2, PetID: 5, StayKind: stayKindInpatient, CageID: func() *uint64 { v := uint64(0); return &v }(),
 			},
-			repoErr: apperrors.WrapAlreadyExists("hospitalization", now.String()),
-			wantErr: true,
+			wantErr: true, wantInvalid: true,
 		},
 		{
-			name:     "returns error on repository failure",
-			clinicID: 1,
-			input: &CreateHospitalizationInput{
-				CageID:    func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:   2,
-				PetID:     5,
-				StartDate: now,
-				EndDate:   now.Add(24 * time.Hour),
-			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			name:    "rejects unknown stay_kind",
+			input:   &CreateHospitalizationInput{OwnerID: 2, PetID: 5, StayKind: "boarding"},
+			wantErr: true, wantInvalid: true,
 		},
 		{
-			// EMR-316: BUG-037 の必須化を撤回。cage_id 未指定は「ケージ未割当」(NULL) として保存する。
-			name:     "persists cageless hospitalization when cage_id is nil (EMR-316)",
-			clinicID: 1,
+			name: "rejects planned exit not after entry",
 			input: &CreateHospitalizationInput{
-				OwnerID:             2,
-				PetID:               5,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				StartDate:           now,
-				EndDate:             now.Add(24 * time.Hour),
-				Status:              model.HospitalizationStatusAdmitted,
+				OwnerID: 2, PetID: 5, StayKind: stayKindHotel, PlannedEntryAt: &exit, PlannedExitAt: &entry,
 			},
-			repoErr:    nil,
-			wantErr:    false,
-			wantStatus: model.HospitalizationStatusAdmitted,
+			wantErr: true, wantInvalid: true,
 		},
 		{
-			name:     "rejects cage_id 0 without persisting (EMR-316)",
-			clinicID: 1,
-			input: &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(0); return &v }(),
-				OwnerID:             2,
-				PetID:               5,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				StartDate:           now,
-				EndDate:             now.Add(24 * time.Hour),
-			},
-			repoErr: nil,
-			wantErr: true,
+			name:    "returns error when stay case insert fails and does not insert the hospitalization",
+			input:   &CreateHospitalizationInput{OwnerID: 2, PetID: 5, StayKind: stayKindInpatient},
+			stayErr: errors.New("db error"), wantErr: true,
+		},
+		{
+			name:    "returns error on hospitalization insert failure",
+			input:   &CreateHospitalizationInput{OwnerID: 2, PetID: 5, StayKind: stayKindInpatient},
+			repoErr: errors.New("db error"), wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var created *model.Hospitalization
+			var stay *model.StayCase
 			createCalls := 0
 			repo := &mockHospitalizationRepository{
+				createStayCaseFn: func(_ context.Context, sc *model.StayCase) error {
+					if tt.stayErr != nil {
+						return tt.stayErr
+					}
+					sc.ID = 77
+					stay = sc
+					return nil
+				},
 				createFn: func(_ context.Context, h *model.Hospitalization) error {
 					createCalls++
 					created = h
@@ -418,46 +363,42 @@ func TestHospitalizationService_Create(t *testing.T) {
 				},
 			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
-			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
+			hosp, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, hosp)
-				if tt.name == "rejects cage_id 0 without persisting (EMR-316)" {
-					assert.Equal(t, 0, createCalls)
+				if tt.repoErr == nil {
+					assert.Equal(t, 0, createCalls, "no hospitalization row on a refused create")
+				}
+				if tt.wantInvalid {
 					assert.True(t, apperrors.IsInvalidInput(err))
 				}
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, hosp)
-				require.NotNil(t, created)
-				assert.Equal(t, tt.wantStatus, created.Status)
-				assert.Equal(t, tt.wantStatus, hosp.Status)
-				if tt.name == "persists cageless hospitalization when cage_id is nil (EMR-316)" {
-					assert.Equal(t, 1, createCalls)
-					assert.Nil(t, created.CageID, "cageless create must persist cage_id as NULL")
+				if tt.wantCageErr != "" {
+					var appErr *apperrors.AppError
+					require.True(t, errors.As(err, &appErr))
+					assert.Equal(t, tt.wantCageErr, appErr.Code)
 				}
+				return
 			}
+			require.NoError(t, err)
+			require.NotNil(t, hosp)
+			require.NotNil(t, created)
+			require.NotNil(t, stay)
+			assert.Equal(t, tt.input.StayKind, stay.StayKind)
+			assert.Equal(t, tt.input.PlannedEntryAt, stay.PlannedEntryAt)
+			assert.Equal(t, tt.input.PlannedExitAt, stay.PlannedExitAt)
+			assert.Equal(t, uint64(2), stay.OwnerID)
+			assert.Equal(t, uint64(5), stay.PetID)
+			require.NotNil(t, created.StayCaseID)
+			assert.Equal(t, uint64(77), *created.StayCaseID)
+			assert.Nil(t, created.CageID, "create records no cage assignment")
 		})
 	}
 }
 
-func TestDefaultHospitalizationStatus(t *testing.T) {
-	loc := time.Local
-	now := time.Date(2026, 8, 10, 15, 30, 0, 0, loc)
-	today := time.Date(2026, 8, 10, 0, 0, 0, 0, loc)
-	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(today, now))
-	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(today.Add(-time.Hour), now))
-	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(today.AddDate(0, 0, -1), now))
-	assert.Equal(t, model.HospitalizationStatusReserved, defaultHospitalizationStatus(today.AddDate(0, 0, 1), now))
-	// UTC midnight that is still clinic-local "today" when offset is +9
-	utcStillToday := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, model.HospitalizationStatusAdmitted, defaultHospitalizationStatus(utcStillToday, now))
-}
-
 func TestHospitalizationService_Update(t *testing.T) {
-	now := time.Now()
-	statusAdmitted := model.HospitalizationStatusAdmitted
+	memo := "memo"
 	tests := []struct {
 		name    string
 		input   UpdateHospitalizationInput
@@ -465,11 +406,8 @@ func TestHospitalizationService_Update(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "updates hospitalization successfully",
-			input: UpdateHospitalizationInput{
-				Status:    &statusAdmitted,
-				StartDate: &now,
-			},
+			name:    "updates hospitalization successfully",
+			input:   UpdateHospitalizationInput{Memo: &memo},
 			repoErr: nil,
 			wantErr: false,
 		},
@@ -481,7 +419,7 @@ func TestHospitalizationService_Update(t *testing.T) {
 		},
 		{
 			name:    "returns error on repository failure",
-			input:   UpdateHospitalizationInput{Status: &statusAdmitted},
+			input:   UpdateHospitalizationInput{Memo: &memo},
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
@@ -492,18 +430,15 @@ func TestHospitalizationService_Update(t *testing.T) {
 			repo := &mockHospitalizationRepository{
 				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 					return &model.Hospitalization{
-						ID:        id,
-						ClinicID:  clinicID,
-						StartDate: now.Add(-24 * time.Hour),
-						EndDate:   now.Add(24 * time.Hour),
-						Status:    model.HospitalizationStatusAdmitted,
+						ID:       id,
+						ClinicID: clinicID,
 					}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
 					}
-					return &model.Hospitalization{ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted}, nil
+					return &model.Hospitalization{ID: 1, ClinicID: 1}, nil
 				},
 			}
 			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
@@ -538,7 +473,7 @@ func TestHospitalizationService_Update_InputNil(t *testing.T) {
 }
 
 func TestHospitalizationService_Update_FindByIDError(t *testing.T) {
-	statusAdmitted := model.HospitalizationStatusAdmitted
+	memo := "memo"
 	repo := &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
 			return nil, apperrors.WrapNotFound("hospitalization", "999")
@@ -550,7 +485,7 @@ func TestHospitalizationService_Update_FindByIDError(t *testing.T) {
 	}
 	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
-	hosp, err := svc.Update(context.Background(), 1, 999, &UpdateHospitalizationInput{Status: &statusAdmitted})
+	hosp, err := svc.Update(context.Background(), 1, 999, &UpdateHospitalizationInput{Memo: &memo})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -657,7 +592,7 @@ func TestHospitalizationService_Delete(t *testing.T) {
 			repo := &mockHospitalizationRepository{
 				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 					// "not found" case is modeled as delete returning NotFound after a successful pre-check.
-					return &model.Hospitalization{ID: id, ClinicID: clinicID, Status: model.HospitalizationStatusAdmitted}, nil
+					return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
 				},
 				countDailyRecordsByHospitalizationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.dailyRecordCount, tt.countDailyRecordErr
@@ -711,7 +646,6 @@ func TestHospitalizationService_Delete_FindByIDError(t *testing.T) {
 }
 
 func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
-	now := time.Now()
 	companyName := "アニマル保険"
 	insuranceNo := "INS-001"
 
@@ -727,9 +661,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 				CageID:               func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
-				HospitalizationType:  model.HospitalizationTypeInpatient,
-				StartDate:            now,
-				EndDate:              now.Add(24 * time.Hour),
+				StayKind:             stayKindInpatient,
 				IsInsurance:          true,
 				InsuranceCompanyName: &companyName,
 				InsuranceNumber:      &insuranceNo,
@@ -743,9 +675,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 				CageID:               func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
-				HospitalizationType:  model.HospitalizationTypeInpatient,
-				StartDate:            now,
-				EndDate:              now.Add(24 * time.Hour),
+				StayKind:             stayKindInpatient,
 				IsInsurance:          false,
 				InsuranceCompanyName: &companyName,
 				InsuranceNumber:      &insuranceNo,
@@ -787,7 +717,6 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 
 // EMR-491 D6: deceased は業務拒否（InvalidInput）、unresolved / reader 失敗は生存扱いにせずエラーで拒否する。
 func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing.T) {
-	now := time.Now()
 	for _, tc := range []struct {
 		name        string
 		state       sharedkernel.PetLifeState
@@ -812,12 +741,10 @@ func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing
 				WithPetLifeStateReader(stubPetLifeState(tc.state, tc.readErr)))
 
 			hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
-				OwnerID:             2,
-				PetID:               5,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				StartDate:           now,
-				EndDate:             now.Add(24 * time.Hour),
+				CageID:   func() *uint64 { v := uint64(10); return &v }(),
+				OwnerID:  2,
+				PetID:    5,
+				StayKind: stayKindInpatient,
 			})
 
 			assert.Error(t, err)
@@ -832,7 +759,6 @@ func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing
 
 // 入院 write は reader 未配線のとき生存扱いにせず内部エラーで拒否する（nil は alive ではない）。
 func TestHospitalizationService_Create_FailsClosedWithoutPetLifeStateReader(t *testing.T) {
-	now := time.Now()
 	repo := &mockHospitalizationRepository{
 		createFn: func(_ context.Context, _ *model.Hospitalization) error {
 			t.Fatal("hospitalization must not be created without a pet life state reader")
@@ -845,12 +771,10 @@ func TestHospitalizationService_Create_FailsClosedWithoutPetLifeStateReader(t *t
 	}, &mockPetRepository{}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
-		CageID:              func() *uint64 { v := uint64(10); return &v }(),
-		OwnerID:             2,
-		PetID:               5,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           now,
-		EndDate:             now.Add(24 * time.Hour),
+		CageID:   func() *uint64 { v := uint64(10); return &v }(),
+		OwnerID:  2,
+		PetID:    5,
+		StayKind: stayKindInpatient,
 	})
 
 	assert.Error(t, err)
@@ -959,10 +883,6 @@ func TestBuildHospitalizationUpdate_InsuranceFields(t *testing.T) {
 func TestBuildHospitalizationUpdate_BasicFields(t *testing.T) {
 	ownerID := uint64(2)
 	petID := uint64(5)
-	hospType := model.HospitalizationTypeInpatient
-	start := time.Now()
-	end := start.Add(24 * time.Hour)
-	status := model.HospitalizationStatusAdmitted
 	cageID := uint64(3)
 	doctorID := uint64(7)
 	memo := "メモ"
@@ -970,25 +890,21 @@ func TestBuildHospitalizationUpdate_BasicFields(t *testing.T) {
 	staffNotes := "スタッフメモ"
 
 	fields := buildHospitalizationUpdate(&UpdateHospitalizationInput{
-		OwnerID:             &ownerID,
-		PetID:               &petID,
-		HospitalizationType: &hospType,
-		StartDate:           &start,
-		EndDate:             &end,
-		Status:              &status,
-		CageID:              &cageID,
-		DoctorID:            &doctorID,
-		Memo:                &memo,
-		OwnerRequest:        &ownerRequest,
-		StaffNotes:          &staffNotes,
+		OwnerID:      &ownerID,
+		PetID:        &petID,
+		CageID:       &cageID,
+		DoctorID:     &doctorID,
+		Memo:         &memo,
+		OwnerRequest: &ownerRequest,
+		StaffNotes:   &staffNotes,
 	})
 
 	assert.Equal(t, ownerID, fields["owner_id"])
 	assert.Equal(t, petID, fields["pet_id"])
-	assert.Equal(t, hospType, fields["hospitalization_type"])
-	assert.Equal(t, start, fields["start_date"])
-	assert.Equal(t, end, fields["end_date"])
-	assert.Equal(t, status, fields["status"])
+	for _, retired := range []string{"hospitalization_type", "start_date", "end_date", "status"} {
+		_, has := fields[retired]
+		assert.False(t, has, "%s left the hospitalizations row (EMR-499 U1)", retired)
+	}
 	assert.Equal(t, cageID, fields["cage_id"])
 	assert.Equal(t, doctorID, fields["doctor_id"])
 	assert.Equal(t, memo, fields["memo"])
@@ -1060,10 +976,9 @@ func TestHospitalizationService_Update_ClearCageStaleExpectationConflicts(t *tes
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
 			existing := &model.Hospitalization{
-				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted,
-				CageID: tt.lockedCage, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+				ID: 1, ClinicID: 1,
+				CageID: tt.lockedCage,
 			}
 			updated := false
 			hospRepo := &mockHospitalizationRepository{
@@ -1130,10 +1045,9 @@ func TestHospitalizationService_Update_CageCompareAndSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
 			existing := &model.Hospitalization{
-				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted,
-				CageID: tt.lockedCage, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+				ID: 1, ClinicID: 1,
+				CageID: tt.lockedCage,
 			}
 			updated := false
 			hospRepo := &mockHospitalizationRepository{
@@ -1178,20 +1092,16 @@ func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 	tests := []struct {
 		name      string
 		oldMember bool
-		status    string
 	}{
-		{"former member admitted", true, "admitted"},
-		{"former member reserved", true, "reserved"},
-		{"occupied representative admitted", false, "admitted"},
-		{"occupied representative reserved", false, "reserved"},
+		{"former member", true},
+		{"occupied representative", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			oldCageID, otherCageID := uint64(10), uint64(20)
-			now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
 			existing := &model.Hospitalization{
-				ID: 1, ClinicID: 1, Status: model.HospitalizationStatusDischarged,
-				CageID: &oldCageID, StartDate: now, EndDate: now.AddDate(0, 0, 1),
+				ID: 1, ClinicID: 1,
+				CageID: &oldCageID,
 			}
 			cageReads := 0
 			cageRepo := &mockCageRepository{
@@ -1215,14 +1125,13 @@ func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 					value, present := fields["cage_id"]
 					require.True(t, present)
 					require.Nil(t, value)
-					require.NotNil(t, cmd.Status)
 					result := *existing
-					result.CageID, result.Status = nil, *cmd.Status
+					result.CageID = nil
 					return &result, nil
 				},
 			}
 			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
-			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true, ExpectedCageID: &oldCageID}).toServiceInput()
+			input, err := (&updateHospitalizationRequest{ClearCageID: true, ExpectedCageID: &oldCageID}).toServiceInput()
 			require.NoError(t, err)
 
 			got, err := svc.Update(context.Background(), 1, 1, &input)
@@ -1231,7 +1140,6 @@ func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 			require.NotNil(t, got)
 			assert.True(t, updated)
 			assert.Nil(t, got.CageID)
-			assert.Equal(t, model.HospitalizationStatus(tt.status), got.Status)
 			assert.Zero(t, cageReads, "the cleared former cage is not an assignment target")
 		})
 	}
@@ -1272,452 +1180,4 @@ func newDischargeTestDeps(hospRepo HospitalizationRepository, carePlanRepo CareP
 
 func (d *dischargeTestDeps) svc() HospitalizationService {
 	return NewHospitalizationServiceWithAudit(d.hosp, d.reservation, nil, nil, d.carePlan, d.accounting, d.billingItem, &mockTransactor{}, d.audit, WithPetLifeStateReader(stubPetLifeReader{}))
-}
-
-func TestHospitalizationService_DischargeWithBilling_NotFound(t *testing.T) {
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
-			return nil, apperrors.WrapNotFound("hospitalization", "999")
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, nil, nil, nil).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 999, DischargeWithBillingInput{})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_AlreadyDischarged(t *testing.T) {
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusDischarged}, nil
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, nil, nil, nil).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{})
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_UpdateFails(t *testing.T) {
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			return nil, errors.New("db error")
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, nil, nil, nil).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now()})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_WithoutAccounting(t *testing.T) {
-	var updated UpdateHospitalizationInput
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			updated = cmd
-			return &model.Hospitalization{ID: 10}, nil
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			t.Fatal("care plan items must not be fetched when CreateAccounting is false")
-			return nil, nil
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil).svc()
-
-	dischargeDate := time.Now()
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: dischargeDate, CreateAccounting: false})
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Nil(t, result.AccountingID)
-	assert.Equal(t, string(model.HospitalizationStatusDischarged), result.Status)
-	require.NotNil(t, updated.Status)
-	require.NotNil(t, updated.EndDate)
-	assert.Equal(t, model.HospitalizationStatusDischarged, *updated.Status)
-	assert.Equal(t, dischargeDate, *updated.EndDate)
-}
-
-func TestHospitalizationService_DischargeWithBilling_CarePlanItemsFetchError(t *testing.T) {
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: 10}, nil
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return nil, errors.New("db error")
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_BillingCreateError(t *testing.T) {
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: 10}, nil
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return nil, nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
-			return errors.New("db error")
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_WithCarePlanItems(t *testing.T) {
-	items := []model.CarePlanItem{
-		{ID: 1, Type: model.CarePlanTypeFood, Name: "食事介助", UnitPrice: 1000},
-		{
-			ID:        2,
-			Type:      model.CarePlanTypeTreatment,
-			Name:      "手術",
-			UnitPrice: 2000,
-			Procedure: &model.Procedure{IsSurgery: true},
-		},
-	}
-	var createdItems []*model.BillingItem
-	totalsUpdated := false
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{
-				ID:                  id,
-				Status:              model.HospitalizationStatusAdmitted,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				PetID:               5,
-				OwnerID:             2,
-			}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: 10}, nil
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return items, nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
-			billing.ID = 55
-			return nil
-		},
-	}
-	billingItemRepo := &mockBillingItemRepository{
-		createFn: func(_ context.Context, item *model.BillingItem) error {
-			createdItems = append(createdItems, item)
-			return nil
-		},
-		updateBillingTotals: func(_ context.Context, _, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
-			totalsUpdated = true
-			assert.Equal(t, uint64(55), billingID)
-			assert.Equal(t, int64(3000), subtotal)
-			assert.Equal(t, int64(300), taxTotal)
-			assert.Equal(t, int64(3300), totalAmount)
-			return nil
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.NotNil(t, result.AccountingID)
-	assert.Equal(t, uint64(55), *result.AccountingID)
-	assert.Len(t, createdItems, 2)
-	assert.Equal(t, model.ItemCategoryFood, createdItems[0].Category)
-	assert.Equal(t, model.ItemCategorySurgery, createdItems[1].Category)
-	assert.True(t, totalsUpdated)
-}
-
-func TestHospitalizationService_DischargeWithBilling_BillingItemCreateError(t *testing.T) {
-	items := []model.CarePlanItem{{ID: 1, Name: "食事介助", UnitPrice: 1000}}
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: 10}, nil
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return items, nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
-			billing.ID = 55
-			return nil
-		},
-	}
-	billingItemRepo := &mockBillingItemRepository{
-		createFn: func(_ context.Context, _ *model.BillingItem) error {
-			return errors.New("db error")
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_UpdateBillingTotalsError(t *testing.T) {
-	items := []model.CarePlanItem{{ID: 1, Name: "食事介助", UnitPrice: 1000}}
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			return &model.Hospitalization{ID: 10}, nil
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return items, nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
-			billing.ID = 55
-			return nil
-		},
-	}
-	billingItemRepo := &mockBillingItemRepository{
-		createFn: func(_ context.Context, _ *model.BillingItem) error {
-			return nil
-		},
-		updateBillingTotals: func(_ context.Context, _, _ uint64, _, _, _ int64) error {
-			return errors.New("db error")
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true, ActorID: uint64PtrHosp(1)})
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestHospitalizationService_DischargeWithBilling_ConcurrentDoubleDischarge_ReturnsNotFoundWithoutAccounting(t *testing.T) {
-	accountingCreated := false
-	hospRepo := &mockHospitalizationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{
-				ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2,
-			}, nil
-		},
-		updateIfNotDischargedFn: func(_ context.Context, _, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
-			assert.Equal(t, uint64(10), id)
-			require.NotNil(t, cmd.Status)
-			assert.Equal(t, model.HospitalizationStatusDischarged, *cmd.Status)
-			return nil, apperrors.WrapNotFound("hospitalization", "10")
-		},
-	}
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			t.Fatal("care plan items must not be fetched when conditional discharge update loses the race")
-			return nil, nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
-			accountingCreated = true
-			t.Fatal("Accounting.Create must not run when UpdateIfNotDischarged returns NotFound")
-			return nil
-		},
-	}
-	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil).svc()
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
-		DischargeDate:    time.Now(),
-		CreateAccounting: true,
-		ActorID:          uint64PtrHosp(1),
-	})
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsNotFound(err))
-	assert.Nil(t, result)
-	assert.False(t, accountingCreated)
-}
-
-// SEC-DUR-01-MR-T1: 譲渡後の会計なし退院は、snapshot owner と current pet owner の差を許容し clinic 外は拒否する。
-func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
-	const (
-		clinicID        = uint64(1)
-		hospID          = uint64(10)
-		previousOwnerID = uint64(20)
-		currentOwnerID  = uint64(21)
-		petID           = uint64(30)
-	)
-
-	t.Run("same_clinic_transfer_succeeds", func(t *testing.T) {
-		updated := false
-		hospRepo := &mockHospitalizationRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-				return &model.Hospitalization{
-					ID: id, ClinicID: clinicID,
-					OwnerID: previousOwnerID, PetID: petID,
-					Status: model.HospitalizationStatusAdmitted,
-				}, nil
-			},
-			updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
-				updated = true
-				require.NotNil(t, cmd.Status)
-				assert.Equal(t, model.HospitalizationStatusDischarged, *cmd.Status)
-				return &model.Hospitalization{ID: hospID, Status: model.HospitalizationStatusDischarged}, nil
-			},
-		}
-		carePlanRepo := &mockCarePlanItemRepository{
-			listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-				t.Fatal("care plan items must not be fetched when CreateAccounting is false")
-				return nil, nil
-			},
-		}
-		resRepo := &mockReservationRepository{
-			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
-				if ownerID == previousOwnerID {
-					return nil
-				}
-				return apperrors.WrapNotFound("owner", "scoped")
-			},
-			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
-				if gotPetID == petID {
-					return currentOwnerID, nil
-				}
-				return 0, apperrors.WrapNotFound("pet", "scoped")
-			},
-		}
-		deps := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil)
-		deps.reservation = resRepo
-		svc := deps.svc()
-
-		result, err := svc.DischargeWithBilling(context.Background(), clinicID, hospID, DischargeWithBillingInput{
-			DischargeDate:    time.Now(),
-			CreateAccounting: false,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.True(t, updated)
-	})
-
-	t.Run("rejects_foreign_snapshot_owner", func(t *testing.T) {
-		updated := false
-		hospRepo := &mockHospitalizationRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-				return &model.Hospitalization{
-					ID: id, ClinicID: clinicID,
-					OwnerID: previousOwnerID, PetID: petID,
-					Status: model.HospitalizationStatusAdmitted,
-				}, nil
-			},
-			updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-				updated = true
-				return &model.Hospitalization{ID: hospID}, nil
-			},
-		}
-		resRepo := &mockReservationRepository{
-			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
-				assert.Equal(t, previousOwnerID, ownerID)
-				return apperrors.WrapNotFound("owner", "scoped")
-			},
-			findPetOwnerInClinicFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
-				if gotPetID == petID {
-					return currentOwnerID, nil
-				}
-				return 0, apperrors.WrapNotFound("pet", "scoped")
-			},
-		}
-		deps := newDischargeTestDeps(hospRepo, &mockCarePlanItemRepository{}, nil, nil)
-		deps.reservation = resRepo
-		svc := deps.svc()
-
-		result, err := svc.DischargeWithBilling(context.Background(), clinicID, hospID, DischargeWithBillingInput{
-			DischargeDate:    time.Now(),
-			CreateAccounting: false,
-		})
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-		assert.Nil(t, result)
-		assert.False(t, updated)
-	})
-
-	t.Run("rejects_foreign_pet", func(t *testing.T) {
-		updated := false
-		hospRepo := &mockHospitalizationRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
-				return &model.Hospitalization{
-					ID: id, ClinicID: clinicID,
-					OwnerID: previousOwnerID, PetID: petID,
-					Status: model.HospitalizationStatusAdmitted,
-				}, nil
-			},
-			updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-				updated = true
-				return &model.Hospitalization{ID: hospID}, nil
-			},
-		}
-		resRepo := &mockReservationRepository{
-			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
-				if ownerID == previousOwnerID {
-					return nil
-				}
-				return apperrors.WrapNotFound("owner", "scoped")
-			},
-			findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-				return 0, apperrors.WrapNotFound("pet", "scoped")
-			},
-		}
-		deps := newDischargeTestDeps(hospRepo, &mockCarePlanItemRepository{}, nil, nil)
-		deps.reservation = resRepo
-		svc := deps.svc()
-
-		result, err := svc.DischargeWithBilling(context.Background(), clinicID, hospID, DischargeWithBillingInput{
-			DischargeDate:    time.Now(),
-			CreateAccounting: false,
-		})
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-		assert.Nil(t, result)
-		assert.False(t, updated)
-	})
 }

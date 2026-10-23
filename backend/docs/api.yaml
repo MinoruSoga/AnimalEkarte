@@ -4448,9 +4448,13 @@ components:
           readOnly: true
           description: 測定日時（vital_records.recorded_at）
     Hospitalization:
-      description: 全体は旧stay DTO記録。461のケージfieldはoperationの専用requestBody schemaを参照し、499 coreの状態公開契約と混同しない。入院IDとその子route/関連応答の参照は正数十進文字列の先行wire契約で、既存runtimeの数値JSON応答適合は499および各関連ownerへ別途引渡す。
+      description: |
+        EMR-499 U1。入院の滞在情報は読み取り専用で、stay_cases（種別・予定区間）とstay_movement_events（実入院/実退院・状態）から導出する。
+        旧`hospitalization_type`/`start_date`/`end_date`/`status`は削除した（互換のために残さない）。`null`は「不明」であり既定値ではない。
+        予定（planned_*）と実績（admitted_at/discharged_at）は別の事実。予約や予定日だけで入院中にならず、予定終了だけで退院にならない。
+        461のケージfieldはoperationの専用requestBody schemaを参照する。入院IDとその子route/関連応答の参照は正数十進文字列の先行wire契約で、既存runtimeの数値JSON応答適合は499および各関連ownerへ別途引渡す。
       type: object
-      required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
+      required: [owner_id, pet_id, lifecycle_state]
       properties:
         id:
           type: string
@@ -4466,17 +4470,43 @@ components:
         pet_id:
           type: integer
           format: int64
-        hospitalization_type:
+        stay_kind:
           type: string
-          enum:
-            - hospitalization
-            - hotel
-        start_date:
+          nullable: true
+          readOnly: true
+          enum: [inpatient, hotel]
+          description: stay_cases.stay_kind。stay_caseが無い旧行・認識できない種別はnull。
+        planned_entry_at:
           type: string
-          format: date
-        end_date:
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: 予定入院/入室（stay_cases.planned_entry_at）。実入院ではない。
+        planned_exit_at:
           type: string
-          format: date
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: 予定退院/退室（stay_cases.planned_exit_at）。予定終了だけで退院にならない。
+        lifecycle_state:
+          type: string
+          readOnly: true
+          enum: [reserved, admitted, discharged, cancelled, no_show, unknown]
+          description: |
+            stay_movement_eventsから導出した有効状態。解決できない滞在（stay_caseなし・履歴なし・不正）は`unknown`で、`reserved`には含めない。
+            現時点では予約proof/入院writerが未整備のため、新規作成された滞在は`unknown`のまま。
+        admitted_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: 実入院日時（admit eventのactual_at）。
+        discharged_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: 実退院日時（discharge eventのactual_at）。予定退院日時とは別。
         next_visit:
           type: string
           format: date
@@ -4486,12 +4516,6 @@ components:
           type: boolean
           writeOnly: true
           description: PATCHでtrueを送るとnext_visitをNULLに戻す。trueとnext_visit設定の同時指定は400。
-        status:
-          type: string
-          enum:
-            - admitted
-            - discharged
-            - reserved
         cage_id:
           type: string
           pattern: '^[1-9][0-9]*$'
@@ -7983,17 +8007,13 @@ components:
     HospitalizationFormFields:
       type: object
       description: |
-        既存入院フォームの非ケージ入力field（互換記録）。応答用HospitalizationやDB行を入力DTOへ流用しない。
+        入院フォームの非ケージ入力field。応答用HospitalizationやDB行を入力DTOへ流用しない。
         本断片は全field任意で、createに必要なfieldはHospitalizationCreateRequestだけで指定する。
-        旧status等の入力互換を499の有効状態判定契約へ転用しない。全stay lifecycleの再設計は対象外。
+        滞在の種別・予定区間・状態（stay_kind/planned_*/lifecycle_state）は入力断片に含めない（createのみ別schemaで受け、PATCHでは422）。
       properties:
         owner_id: { type: integer, format: int64 }
         pet_id: { type: integer, format: int64 }
-        hospitalization_type: { type: string, enum: [hospitalization, hotel] }
-        start_date: { type: string, format: date }
-        end_date: { type: string, format: date }
         next_visit: { type: string, format: date, nullable: true }
-        status: { type: string, enum: [admitted, discharged, reserved] }
         doctor_id: { type: integer, format: int64, nullable: true }
         memo: { type: string }
         owner_request: { type: string }
@@ -8004,16 +8024,36 @@ components:
     HospitalizationCreateRequest:
       type: object
       description: |
-        既存createの入力専用DTO。非ケージfieldの既存必須条件を継承し、461のケージ制約を標準allOfで適用する。
-        入力の医院/actorは認証済みscopeから決定する。status等の入力値だけで現在占有を判断しない。
-      required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
+        EMR-499 U1。createは滞在(stay_cases)と入院行だけを書く。入院開始/予約成立の事実（stay_movement_events）は書かないため、
+        作成直後の`lifecycle_state`は`unknown`。非NULLの`cage_id`は受入proofが無いため409 `occupancy_unknown`で拒否する（何も書かない）。
+        入力の医院/actorは認証済みscopeから決定する。
+        旧`hospitalization_type`/`start_date`/`end_date`/`status`は受け付けず422 `stay_lifecycle_write_unavailable`（黙って捨てない）。
+      required: [owner_id, pet_id, stay_kind]
+      properties:
+        stay_kind:
+          type: string
+          enum: [inpatient, hotel]
+          description: stay_cases.stay_kind。
+        planned_entry_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 予定入院/入室。省略は未設定（補完しない）。予約や予定日だけで入院中にならない。
+        planned_exit_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 予定退院/退室。指定時はplanned_entry_atより後（stay_cases CHECK）。予定終了だけで退院にならない。
       allOf:
         - $ref: '#/components/schemas/HospitalizationFormFields'
         - $ref: '#/components/schemas/HospitalizationCageCreateFields'
     HospitalizationPatchRequest:
       type: object
       description: |
-        PATCH入力専用DTO。owner/pet/type/start/endは必須ではなく、非送信fieldは更新要求に含まれない。
+        PATCH入力専用DTO。非送信fieldは更新要求に含まれない。
+        EMR-499 U1: 滞在の種別・予定区間・状態は直接上書きしない（予定変更は延泊案/受入proof、状態はmovement eventから導出）。
+        `stay_kind`/`planned_entry_at`/`planned_exit_at`および旧`hospitalization_type`/`start_date`/`end_date`/`status`を含む要求は
+        422 `stay_lifecycle_write_unavailable`（黙って捨てない、何も書かない）。
         cage_idのNULL禁止、明示clear、期待割当CASは標準allOfで適用し、vendor拡張の解釈を前提としない。
         既存buildHospitalizationUpdateが更新fieldを一つも作らない要求は400。空object、未知fieldだけ、
         falseのclearだけやis_insurance=trueだけ（保険詳細/他fieldなし）はno-op。
@@ -8033,12 +8073,8 @@ components:
       anyOf:
         - required: [owner_id]
         - required: [pet_id]
-        - required: [hospitalization_type]
-        - required: [start_date]
-        - required: [end_date]
         - required: [next_visit]
           properties: { next_visit: { type: string, format: date } }
-        - required: [status]
         - required: [doctor_id]
           properties: { doctor_id: { type: integer, format: int64 } }
         - required: [memo]
@@ -20004,10 +20040,27 @@ paths:
           schema:
             type: string
             format: date
-        - name: status
+        - name: lifecycle_state
           in: query
+          description: |
+            導出された滞在状態で絞り込み（予約/入院・預かり中/退院済み等のタブ）。stay_movement_eventsから導出し、
+            解決できない滞在は`unknown`にだけ一致する。旧`status`/`start_date`/`end_date`クエリは廃止（400）。
+            候補は最大10000件。超過は黙って切り捨てず400。
           schema:
             type: string
+            enum: [reserved, admitted, discharged, cancelled, no_show, unknown]
+        - name: planned_entry_from
+          in: query
+          description: 予定入院日の下限（YYYY-MM-DD, JST暦日、当日を含む）。予定入院日=stay_cases.planned_entry_at。実入院日ではない。
+          schema:
+            type: string
+            format: date
+        - name: planned_entry_to
+          in: query
+          description: 予定入院日の上限（YYYY-MM-DD, JST暦日、当日を含む=翌日0時未満）。
+          schema:
+            type: string
+            format: date
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
@@ -20853,7 +20906,8 @@ paths:
         候補取得後の同時割当/連結変更をcommit前に再検査し、勝手な上書き・別ケージ置換をしない。
         現値の未変更保持・明示clearと新規割当を区別し、候補外の旧値を自動消去しない。
         期間だけの変更を占有解放にせず、未採用の期間予約判定を追加しない。
-        ケージfield以外のstay lifecycleは499等のowner契約で別整備。専用requestBody DTOに既存入力互換だけを分離し、Hospitalization全体を採用001の公開行とみなさない。
+        EMR-499 U1: 本操作は滞在(stay_cases)と入院行だけを書く。stay_movement_eventsは書かないため`lifecycle_state`は`unknown`で始まり、非NULLのcage_idは409 occupancy_unknownで拒否する。
+        旧`hospitalization_type`/`start_date`/`end_date`/`status`は422 `stay_lifecycle_write_unavailable`。
         461は新しいoperation_key/receiptを既存入院CRUDへ実装済みとしない。送信後timeout/5xxは結果不明。
         対象IDが既知なら認可付きGETで現在割当を別取得するが、現値一致だけでは当該操作成功を証明しない。
         操作receipt等で照合できない場合は元入力を保持して停止し、create再送/二度目のswap/補償clearをしない。
@@ -21132,7 +21186,15 @@ paths:
   /hospitalizations/{id}/discharge-with-billing:
     post:
       operationId: dischargeWithBilling
-      summary: 退院処理+会計作成
+      summary: 退院処理（滞在の移動側）
+      description: |
+        EMR-499 U1。退院は滞在の実退院（stay_movement_events.event_kind=discharge）であり、旧hospitalizations.status/end_dateは存在しない。
+        現在は常に退院を記録しない（fail-closed）:
+        - `create_accounting=true` は 422 `stay_discharge_billing_unavailable`（会計builderは EMR-505/506/508 の再設計待ち。何も書かない）。
+        - 滞在が解決できない（stay_caseなし・履歴なし・不正）は 422 `stay_lifecycle_unknown`。旧行の推測backfillはしない。
+        - 退院済みは 400。キャンセル/不来院の滞在、未入院の滞在も 400。入院日より前の退院日は 400。
+        - 入院中と証明できる滞在でも 422 `stay_discharge_writer_unavailable`（操作受付receiptつきの退院event writerが未整備。成功を装わない）。
+        解除条件は EMR-499 U2（writer）と EMR-505/506/508（会計）。
       tags: [Hospitalizations]
       parameters:
         - name: id
@@ -21163,6 +21225,13 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          description: |
+            固定コードで退院を拒否（何も書かない）。code は `stay_discharge_billing_unavailable` / `stay_lifecycle_unknown` / `stay_discharge_writer_unavailable`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /accountings:

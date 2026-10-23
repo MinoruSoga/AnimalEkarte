@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // DischargeWithBillingInput は退院+会計作成の入力DTO
@@ -23,41 +22,29 @@ type DischargeWithBillingResult struct {
 	Status            string
 }
 
-// DischargeWithBilling は退院処理を行い、オプションで会計レコードを自動生成する。
-// care_plan_items を billing_items に変換してトランザクション内で原子的に実行する。
+// DischargeWithBilling is the discharge entry point (EMR-499 U1 movement side).
+//
+// create_accounting=true is refused first with stay_discharge_billing_unavailable (422): the billing builder
+// is owned by EMR-505/506/508 and nothing may be written before it exists. The movement side reads the stay's
+// effective state under the hospitalization row lock; see dischargeWithBillingInTx for what it refuses.
+// There is no read of, and no write to, the removed hospitalizations.status / end_date.
 func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error) {
-	// 入院レコード取得
-	hosp, err := s.hospRepo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get hospitalization")
+	if input.CreateAccounting {
+		return nil, apperrors.WrapUnprocessableWithCode(codeStayDischargeBillingUnavailable,
+			"退院と同時の会計作成は、会計明細の再設計（EMR-505/506/508）まで利用できません")
 	}
-	if hosp.Status == model.HospitalizationStatusDischarged {
-		return nil, apperrors.WrapInvalidInput("hospitalization is already discharged")
-	}
-
-	result := &DischargeWithBillingResult{
-		HospitalizationID: id,
-		Status:            string(model.HospitalizationStatusDischarged),
-	}
-
+	result := &DischargeWithBillingResult{HospitalizationID: id}
 	// MRB-02: same nil-transactor guard as Create/Update (panic vs explicit 500).
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
 	}
-	// BE9-2D ⑤ Phase1: repos.Transaction（tx-bound clone）→ Transactor.WithTx（ctx-txKey）へ変換。
-	// 閉包内の read/write は各 repo の dbOrTx が txCtx の ambient tx へ参加する（挙動は旧機構と等価）。
-	err = s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		return s.dischargeWithBillingInTx(txCtx, clinicID, id, input, result)
-	})
-
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to discharge hospitalization with billing")
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to discharge hospitalization")
 	}
-
 	slog.InfoContext(ctx, "hospitalization discharged",
 		slog.Uint64("hospitalization_id", id),
-		slog.Uint64("clinic_id", clinicID),
-		slog.Bool("create_accounting", input.CreateAccounting))
-
+		slog.Uint64("clinic_id", clinicID))
 	return result, nil
 }

@@ -44,16 +44,11 @@ func TestCageService_Delete_ConcurrentAssignFirstYieldsConflict(t *testing.T) {
 			if _, err := repo.FindByID(txCtx, clinicID, cage.ID); err != nil {
 				return err
 			}
-			now := time.Now().UTC().Truncate(24 * time.Hour)
 			if err := tx.Create(&model.Hospitalization{
-				ClinicID:            clinicID,
-				OwnerID:             owner.ID,
-				PetID:               pet.ID,
-				HospitalizationType: model.HospitalizationTypeInpatient,
-				StartDate:           now,
-				EndDate:             now.AddDate(0, 0, 3),
-				Status:              model.HospitalizationStatusAdmitted,
-				CageID:              &cage.ID,
+				ClinicID: clinicID,
+				OwnerID:  owner.ID,
+				PetID:    pet.ID,
+				CageID:   &cage.ID,
 			}).Error; err != nil {
 				return err
 			}
@@ -128,16 +123,11 @@ func TestCageRepository_CountUsage_AmbientTxSeesUncommittedHospitalization(t *te
 
 	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		now := time.Now().UTC().Truncate(24 * time.Hour)
 		require.NoError(t, tx.Create(&model.Hospitalization{
-			ClinicID:            clinicID,
-			OwnerID:             owner.ID,
-			PetID:               pet.ID,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.AddDate(0, 0, 1),
-			Status:              model.HospitalizationStatusAdmitted,
-			CageID:              &cage.ID,
+			ClinicID: clinicID,
+			OwnerID:  owner.ID,
+			PetID:    pet.ID,
+			CageID:   &cage.ID,
 		}).Error)
 
 		count, countErr := repo.CountUsageByCageID(txCtx, clinicID, cage.ID)
