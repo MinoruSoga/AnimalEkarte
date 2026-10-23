@@ -199,7 +199,7 @@ lab_job_detach_manifests:
 - clinic_id,binding_id bigint NOT NULL、PK(clinic_id,binding_id)、複合FK→lab_job_operation_targets RESTRICT。
 - job_id uuid NOT NULL、target_sha256 char(64) NOT NULL、schema_version smallint NOT NULL CHECK=2。
 - before_association_version bigint NOT NULL CHECK>=1、after_association_version bigint NOT NULL CHECK=before+1。beforeはmetadata/Contentと一致。
-- before_pet_id bigint NULL CHECK>0、before_status text CHECK='persisted'、after_status text CHECK='received'。
+- before_pet_id bigint NULL CHECK>0、before_status text NOT NULL CHECK='persisted'、after_status text NOT NULL CHECK='received'。NULLをCHECKだけで拒否したことにせず、成功manifest/API/replayの固定状態を保存層で保証する。
 - recorded_at timestamptz NOT NULL（当TXの成功記録時刻）。
 
 lab_job_detach_manifest_exams:
@@ -327,6 +327,8 @@ RevertのC06同等unknown全体は**本Detach採択で完了としない**。現
 16. source_fingerprint/decoded items保持。未対応値を推測補完・再mapping・新臨床result生成しない。
 
 <a id="exam-detach-dependencies"></a>
+追加manifest AC（NOT_RUN）: before_status/after_statusのNULLをNOT NULLで拒否し、persisted/received以外もCHECKで拒否。正常保存の初回/replayは元manifestの非NULL固定状態を返し、欠損を成功応答へ補完しない。
+
 追加cycle AC（NOT_RUN）: 0件のdetach/再attach、遅延失敗unlinkの旧版拒否、複数TXごとの増分、同TX多段変更の一増分、dedup/no-op/read/replay+0、途中失敗のversion/業務/manifest/receipt全rollback、旧draft keyの現在版補完禁止を確認する。
 
 追加capacity AC（NOT_RUN）: exam999/1000/1001、item19999/20000/20001、UTF-8合計8 MiB直前/一致/超過、claim前既知超過の413/claim0、lock待ちの集合増大後全rollback、10秒budget超過と結果不明時の元key照会を区別する。受信frame上限から総数を推測せず、部分補償/切捨て/新key救済なし。
