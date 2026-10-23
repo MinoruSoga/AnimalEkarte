@@ -3,16 +3,16 @@
 | 管理項目 | 記載 |
 |---|---|
 | 文書ID・種別 | design.accounting.legacy-finance-evidence／移行保存・閲覧の技術契約 |
-| 決定状態 | 業務保全原則を継承。2026-10-23に共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件を選定。6入れ子型と実データprofile/bindingは未閉鎖 |
+| 決定状態 | 6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。業務保全原則を継承。2026-10-23に共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件を選定。6入れ子型と実データprofile/bindingは未閉鎖 |
 | 実装状態 | 保存/reader/API/UI未実装。実DDL・schema/APIファイル・供給/実装受領は未完 |
 | 実機検証状態 | tests/build/codegen/DB/import/Docker/browser NOT_RUN |
 | 文書確認日 | 2026-10-23（静的反映。実行受入ではない） |
 
 [EMR-547](https://app.plane.so/baritechllc/browse/EMR-547/)の7ACに対応する。初回の設計基準main `42a3890a22d645857ad8e27c3b2d7bbfc9c2e038`、初回docs作成base `621d58a0834aa6984ee3c82401e3478efef45d2e`は受領履歴として保持する。今回の返却設計照合基準/作成baseはmain `cff4debe2e4620584e3afc4faaabea370afc7d37`。
 
-Library `libfile_222be047bc548191805d491f522e4b55` の `EMR-547-storage-read-contract-response.md`（36,790 bytes、SHA-256 `4cb55a764532fa238315af01acf1739b290a4a88004c56b054e6b64f6deda158`）をconsumer側で取得・可読/hash確認し本正本へ統合した。返却原稿の複製文書は作らない。以下の「確定」は設計選定で、既存mainにDDL/API/producerが存在する、検証済みという意味ではない。
+Library `libfile_222be047bc548191805d491f522e4b55` の `EMR-547-storage-read-contract-response.md`（36,790 bytes、SHA-256 `4cb55a764532fa238315af01acf1739b290a4a88004c56b054e6b64f6deda158`）をconsumer側で取得・可読/hash確認し本正本へ統合した。返却原稿の複製文書は作らない。後発修正入力はLibrary `libfile_4a4be7a4b2f081919ac431888afefea9` の `review-fixes-20261023.md`（23,252 bytes、SHA-256 `7faeb1461a22ba3df586eaf92d3774053cbf0f7d88578a475b5ed4e19c443d74`）。初回hashは歴史的受領証跡であり、本修正後本文のhashではない。以下の「確定」は設計選定で、既存mainにDDL/API/producerが存在する、検証済みという意味ではない。
 
-**実装へ渡せるのは選定済みの共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件の範囲。6入れ子型、実データのsource profile、manifest結合、集約元全行の列挙は未受領で、sidecarの実データ生成・consumer正式受入はまだ開始できない。** 正式移行HOLD、19 CSV維持、通常finalize/allocate/診察終了eventを生成しない境界を保つ。21表時代のreceiptを現行19表の適合証拠に転用しない。
+**6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。実装へ渡せるのは選定済みの共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件の範囲。6入れ子型、実データのsource profile、manifest結合、集約元全行の列挙は未受領で、sidecarの実データ生成・consumer正式受入はまだ開始できない。** 正式移行HOLD、19 CSV維持、通常finalize/allocate/診察終了eventを生成しない境界を保つ。21表時代のreceiptを現行19表の適合証拠に転用しない。
 
 producer `a38e71f904460ba3d33194e817bafcbb78886d0c` の静的mapping報告は受領済み。本consumerによるold_db実コード/実DB/既出bundle/実artifact manifestとcode/digestの独立検証ではない。同じ6項目の再調査を依頼せず、既存報告から設計へ転記できる範囲と未受領根拠を分ける。
 
@@ -88,12 +88,25 @@ identityを次の三軸へ分離します。
 - `clinic + source_pk + 契約版` は採用しません。
 - `pet|sno`のtrim済み連結値は照合表現として保存できますが、元キーの列名・列順・取得値は別に残します。
 - source entity ID、observation ID、projection IDはconsumer側の内部参照IDです。これらを旧DB原本の識別子と表示しません。
-- 同じ検証済みsnapshot・同じentityには、一つの採用原行根拠bindingしか持てません。同じ原値の再送は既存bindingへ解決します。
+- 同じ検証済みsnapshot・同じentityのobservation identityは一つ。初期candidateは不変の出典で、現在の表示値は公開されたappend-only解決版へ固定する。
 - 同じidentityで、双方が取得済みの同じ列の原値が異なる場合は `raw_conflict` として保留します。既存値を上書きせず、異値候補と両者の出典を別途保全します。runや契約版を変えて新規受入してはいけません。
-- `not_captured`から取得済みへ変わっただけの場合、原データ変更とは断定しません。候補追記として保存し、必要列の比較が完了するまでは `comparison_incomplete` とします。
+- `not_captured`補足は候補追記として検証し、下記の解決版条件が成立するまで `comparison_incomplete` とする。既知状態の異値を補足として採用しない。
 - 新しい検証済みsnapshotで元データが変化した場合は、新しいobservationとして追記し、旧snapshotの原値は保持します。
 - 同じ原値にmapping変更を適用した場合はprojection revisionのみ追加します。同じprojection識別・同じ版で異内容は `projection_conflict`、同内容再送は既存参照です。
 - 元キーが重複している／欠けている場合、行番号、出力ID、digest、任意ordinalを追加して元entityを捏造しません。元entityが確定するまでproductの原行根拠として採用しません。
+
+<a id="legacy-evidence-observation-resolution"></a>
+### 同一snapshot内の補足取得と解決版
+
+同じ検証済みsnapshot・同じentityには一つのobservation identityだけを持つ。observationの初期candidate参照は不変の出典であり、常に最新の表示値を意味しない。表示する原値集合は、同observationに属するappend-onlyの `observation resolution revision` によって選定する。初版も後続版も各fieldについて実在candidateの同fieldを参照し、raw値そのものを合成・補完・上書きしない。
+
+not_capturedからの補足candidateは、同entity/snapshot、snapshotと取得成果物の出典、comparison profileを検証し、既に取得済みの全重複fieldが同値で、必要coverageが成立した場合にだけ、次の解決版へ採用できる。SQL NULL・空文字・column_absentは既知の状態であり、not_capturedとして上書き可能なものに読み替えない。既知fieldの異値、profile比較不能、出典未検証はconflictまたはcomparison_incompleteのままであり、解決版を進めない。
+
+解決版は全fieldの参照を持つ完全版とし、前版のfield参照を勝手に変更・除外しない。前版のnot_captured参照を補足candidateの取得済みfieldへ置換する場合だけ、そのfieldの出典を新参照へ進める。初期版や旧版は変更しない。同じ参照集合の再送は既存解決版へ解決する。
+
+解決版の作成は期待する前版を同transactionで比較し、同observationの分岐を拒否する。保存済みだが未公開の解決版をGETが自動採用してはならない。publication bindingは解決版IDを固定し、consumerが検証・公開した最新bindingの版のみを現在表示へ採用する。公開切替とcatalog_revision更新は同transactionとする。
+
+projection revisionも入力observationだけでなく、使用した解決版とcandidate/field参照を固定する。原値補足で過去projectionの計算根拠を自動更新しない。新しい根拠を使うprojectionは別revisionへ追記する。既存原値と競合するcandidateを新しい解決版や契約版に逃がして採用しない。
 
 source entityの同一性は登録済みのsource namespaceとキー定義に固定します。key profileの単なる改版・改名で別entityを作りません。新旧profile間の同一性が未解決なら保留します。
 
@@ -170,7 +183,7 @@ consumerはsnapshot・artifact・抽出profile・元キーの照合を別に行�
 - `value`：`{ tag: "text", text } | { tag: "decimal", decimal } | { tag: "null" }`。decimalはprofileの文法・scale確定後のみ使用します。意味未確認の数値や旧日時はtextのまま保持できます。
 - `origin`：`source_derived | generated_constant | defaulted | unresolved`。
 - `semantic_status`：`unverified | legacy_fact_supported`。`legacy_fact_supported`は登録された限定的な旧業務上の意味のみで、新カルテの業務確定を意味しません。今回、KKarte_Kbn=4の「旧精算完了の根拠」は対象ですが、意味未確認のTSeisan_Flg/TGyoSei_Flg、KNJOシェルの定数1、生成insurance/discount/tax/status、補完日付をこのtagで確認済み事実にしてはいけません。
-- `source_field_refs`：入力candidateと列の組の配列。max/sum等は全寄与列を辿れる必要があります。
+- `source_field_refs`：WireRawFieldRef配列（exact `{candidate_ref,field_id}`）。全寄与field、input_candidate_refsへの所属、存在、重複pair拒否を検証する。保存/read参照は下記のStoredRawFieldRefへ解決する。
 - `lineage`：`{ status: "complete" | "incomplete", missing_reason_codes }`。入力集合digestだけを全行列挙の代わりにはしません。
 - `outcomes`：`{ stage: "canonical" | "stage" | "csv", disposition: "emitted" | "excluded" | "held", rule_ref, source_candidate_refs, artifact_ref, output_ref, reason_codes }` の配列。artifact_ref/output_refは未出力ならnull。output_refはそのartifact内の照合参照で、原本identityにはしません。
 
@@ -180,14 +193,55 @@ WHERE除外された原行もSourceCandidateとして保全し、該当outcome�
 
 配送envelopeのkey：
 
-`contract_name, contract_version, delivery_ref, producer_run_ref, producer_build_ref, mapping_profile_ref, source_snapshot_refs, artifact_refs, chunk_manifest_ref`
+`contract_name, contract_version, delivery_ref, producer_run_ref, producer_build_ref, mapping_profile_ref, source_snapshot_refs, artifact_refs, chunk_manifest_ref, source_outcomes`
 
 契約は19 CSVとは別に明示選択します。実artifactの取得bytes digest、snapshot検証receipt、登録profile、manifestの固定された母集団に照合できて初めてconsumerの受領対象になります。
+
+<a id="legacy-evidence-stable-reference-types"></a>
+### 3.5 配送local参照と保存stable参照・解決版
+
+`WireRawFieldRef = { candidate_ref, field_id }`
+- 両key必須、非null、additionalProperties:false。
+- candidate_refは当該deliveryの宣言内で一意のlocal参照。単独では別deliveryと共通のidentityにならない。field_idは当該candidateの登録profileに存在し、cells中で一度だけ現れる列。
+- consumerは `(clinic_id, delivery_id, candidate_ref)` を検証済みの永続candidate UUIDへ解決する。同じlocal文字列を異delivery間で同一candidateと推測しない。
+
+`StoredRawFieldRef = { candidate_id, field_id }`
+- candidate_idはconsumerが採番し耐久保存したraw candidate UUID。両key必須、非null、additionalProperties:false。
+- consumer内のresolutionとprojection入力はこのstable UUIDにpinし、配送namespaceを失ったcandidate_ref文字列を保存参照にしない。必要なlocal→stable対応の保存/receipt bindingは221/446/466の追加受領依存。実在する仕組みとしては未確認。
+- 共通で、参照先不存在、異clinic、同一pair重複、field profileの意味のすり替えを拒否する。
+- **resolution内だけ**、全field参照が同じobservationのentity/snapshotに属することを要求する。
+- **projection内では**、同clinicの固定入力解決版集合に属する限り、複数entity・複数snapshotのfield参照を許可する。単一原行へ制限しない。
+
+`ObservationResolution = { observation_id, resolution_id, revision, previous_resolution_id, comparison_profile_ref, field_refs, verification_ref }`
+- revisionは1以上の十進整数文字列。初版1のみprevious_resolution_id=null、以降は同observation直前版を参照。
+- field_refsはStoredRawFieldRef配列で、当該source profileの保全対象全fieldを一度ずつ含む。未取得fieldもnot_capturedの実candidate fieldへの参照を持つ。
+- verification_refは非nullのconsumer内部UUID文字列とする。consumerが実行した比較・出典・coverage検証の耐久記録を参照し、producerが任意UUIDを発行・自己申告して代用することはできない。検証記録はclinic、observation、候補のstable UUID集合、前版、comparison profile、対象field coverage、検証結論へ束縛され、同resolution保存transactionから参照可能であることを必要条件とする。
+- 参照UUIDのscalarと発行権限はここで選定するが、参照先の物理保存場所・記録schema・consumer validatorからの供給receiptは**追加の未閉鎖依存**である。既存6入れ子型だけの未完であるかのように隠さず、221/446/466が受領するまで解決版の実データ採用を開始しない。既存receiptの流用可能性は今回未確認で、架空の既存検証tableや成功記録を仮定しない。
+
+producer wireのsource_field_refsは§3で定義したWireRawFieldRefの配列（exact keys: candidate_ref, field_id）とする。candidate_refはinput_candidate_refsに含まれ、field_idは当該candidateに存在しなければならない。同一pairの重複は拒否する。max/sum等は全寄与fieldを列挙する。生成定数は空配列を許可するがorigin=generated_constantと登録rule_refが必要で、架空source参照を付けない。省略や任意keyは不可。
+
+consumerはdelivery namespace内のwire参照をStoredRawFieldRef（candidate_id UUID, field_id）へ解決・保存する。projection公開時は各stable candidate/fieldが固定入力解決版集合に含まれることを照合する。同clinicの複数entity/snapshotを許可し、projection全体に単一entity/snapshot制約を課さない。producer wireのcandidate参照を現在の最新解決版へ暗黙に付け替えない。APIでこれらの参照を返す場合もconsumerのstable IDを使用し、別deliveryと曖昧なlocal refだけは返さない。
+
+<a id="legacy-evidence-source-outcome-wire"></a>
+### 3.6 projectionより前の原行outcome
+
+`WireSourceOutcome = { outcome_ref, source_candidate_ref, stage, disposition, rule_ref, reason_codes }`
+- additionalProperties:false、全key必須。
+- stage=`canonical | stage | csv`、disposition=`excluded | held`。
+- source_candidate_refは実在するSourceCandidateを一つ参照。複数原行ならそれぞれを列挙する。架空のaggregate candidateを作らない。
+- rule_refとreason_codesは登録済みのものだけ。業務値未確定でも、除外された事実とそのtransform ruleが検証できることを必要とする。
+- rawを取得できない行についてSourceOutcomeだけを捏造しない。
+
+outcome_refとsource_candidate_refは当該delivery内のlocal参照であり、consumer保存・readのglobal IDではない。consumerは `(clinic_id, delivery_id, outcome_ref)` を永続outcome UUIDへ、`(clinic_id, delivery_id, source_candidate_ref)` を永続candidate UUIDへ解決する。同じlocal refが別deliveryに存在しても同一と扱わない。元delivery/local refはprovenanceとして保持し、読取DTOのstable UUIDに置き換えた後も出典が辿れるようにする。
+
+配送envelopeへsource_outcomesを追加する（空配列を明示可）。ProjectionRevision.outcomesは従来の派生段階の結果として残す。SourceOutcomeを二重にprojection outcomeへ複写して件数を増やさない。
 
 <a id="legacy-evidence-open-nested-types"></a>
 ### 依存先：closed schema全体の未完部分
 
-具体的に未閉鎖のnested型は、AcquisitionArtifactBinding（取得artifactと検証receiptの対応）、SnapshotBinding（検証登録の外部参照）、ChunkManifest（chunk集合・digest・件数・上限）、ArtifactRef（成果物roleとstorage binding）、ProvenanceReadDTO（非機密の出典表示）、LinkHistoryReadDTO（targetごとの検証状態と公開範囲）です。上記のartifact_refs / chunk_manifest_ref、詳細APIのsnapshot_ref / provenance、link_history itemsはこれらの登録型を参照します。型が受領されるまで実データconsumer/API全体は未完成です。公開する型のexact keysを閉じる責務は221/547にあり、old_dbが推測で埋めるものではありません。
+具体的に未閉鎖のnested型は、AcquisitionArtifactBinding（取得artifactと検証receiptの対応）、SnapshotBinding（検証登録の外部参照）、ChunkManifest（chunk集合・digest・件数・上限）、ArtifactRef（成果物roleとstorage binding）、ProvenanceReadDTO（非機密の出典表示）、LinkHistoryReadDTO（targetごとの検証状態と公開範囲）です。上記のartifact_refs / chunk_manifest_ref、詳細APIのsnapshots section / provenance、link_history itemsはこれらの登録型を参照します。型が受領されるまで実データconsumer/API全体は未完成です。公開する型のexact keysを閉じる責務は221/547にあり、old_dbが推測で埋めるものではありません。
+
+6入れ子型に加え、verification_refの検証記録schema/物理保存/consumer供給receipt、delivery-localからstable candidate/outcome/projection/artifact UUIDへの耐久対応と固定manifest内projection outcome位置bindingは追加の未閉鎖依存である。221/446/466が受領するまで実データ解決版採用を開始しない。架空の既存table/receiptを仮定しない。
 
 共通envelopeが閉じても、次は自由JSONで埋めず未選定とします。
 
@@ -225,22 +279,46 @@ WHERE除外された原行もSourceCandidateとして保全し、該当outcome�
 | `legacy_evidence_source_entities` | id、clinic_id、source_system_ref、lineage_ref、table_ref、identity_profile_ref、canonical_key bytes、identity digest | 自然identityを一意化。digestだけで同値判定せずcanonical_keyを照合 |
 | `legacy_evidence_snapshots` | id、clinic_id、source namespace、検証登録参照、snapshot fingerprint | verified登録との結合必須。run/契約版では別snapshotを作らない |
 | `legacy_evidence_raw_candidates` | id、clinic_id、entity_id、snapshot_id、capture profile、raw payload、比較fingerprint、取得出典参照 | append-only。payloadはclosed validator通過時の損失なし表現。任意JSON不可 |
-| `legacy_evidence_observations` | id、clinic_id、entity_id、snapshot_id、採用candidate_id | UNIQUE(clinic_id, entity_id, snapshot_id)。採用bindingは不変 |
+| `legacy_evidence_observations` | id、clinic_id、entity_id、snapshot_id、初期candidate_id（不変の初期出典） | UNIQUE(clinic_id, entity_id, snapshot_id)。observation identityは一つ |
+| `legacy_evidence_observation_resolutions` | id、clinic_id、observation_id、revision、previous_resolution_id、comparison_profile_ref、verification_ref、closed field_refs、参照集合fingerprint | append-only。UNIQUE(clinic_id,observation_id,revision)、同observation複合FK、初版previous=NULL/後続非NULLのCHECK。前版revision+1を同TX検証。非NULL previous_resolution_idに対しUNIQUE(clinic_id,observation_id,previous_resolution_id)で分岐拒否。初版はrevision=1の一意性で一つ |
 | `legacy_evidence_conflicts` | id、clinic_id、entity_id、snapshot_id、候補A/B、conflict kind、検知delivery | 異値候補保持。採用済み値の上書きや自動解消なし |
 | `legacy_evidence_deliveries` | id、clinic_id、delivery_ref、producer run/build、契約版、mapping版、固定manifest digest | UNIQUE(clinic_id, delivery_ref)。同ref異manifestはconflict |
 | `legacy_evidence_artifacts` | id、clinic_id、delivery_id、role、digest、byte_length、保護storage参照 | acquisition/output/manifestをroleで分離。local pathは公開APIへ返さない |
 | `legacy_evidence_projection_revisions` | id、clinic_id、domain_kind、projection logical ref、revision_ref、mapping/transform profile、payload fingerprint、closed payload | 同projection/同版の異内容拒否。raw observationを上書きしない |
-| `legacy_evidence_projection_inputs` | clinic_id、projection_revision_id、observation_id、入力列参照 | 多対多。全入力行を列挙。異clinic FK不可 |
-| `legacy_evidence_outcomes` | id、clinic_id、projection/candidate参照、stage、disposition、rule、artifact/output参照、reason | emitted/excluded/heldを分離。WHERE除外を欠落にしない |
+| `legacy_evidence_projection_inputs` | clinic_id、projection_revision_id、observation_id、resolution_id、stable入力列参照 | 多対多。全入力行/解決版を固定。同clinic・observationへのresolution所属を複合FK検証 |
+| `legacy_evidence_outcomes` | id、clinic_id、outcome_kind、projection_revision/candidate/observation/resolution参照、stage、disposition、rule、artifact/output参照、reason | source/projection kind別NOT NULL/CHECK/FK。sourceはprojection参照NULLを許可、実candidate/observation/resolution必須。emitted/excluded/heldを分離 |
 | `legacy_evidence_link_events` | id、clinic_id、対象evidence、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。add/correct/revoke。期待版を同transactionで比較 |
-| `legacy_evidence_chunk_receipts` | id、clinic_id、delivery_id、chunk_ref、chunk digest、件数、保存されたID集合のdigest | 同chunk同内容再送は同receipt参照。異内容conflict |
-| `legacy_evidence_publication_receipts` | id、clinic_id、delivery_id、固定manifest digest、全chunk/lineage検証結果参照、公開revision、recorded_at | 一delivery一成功receipt。全必要chunk検証前に作らない |
-| `legacy_evidence_publication_bindings` | clinic_id、publication_receipt_id、domain_kind、typed evidence参照、read_field_profile_ref | 公開対象とdomain別の原値field許可集合を固定。共有原行の全列を両domainへ露出しない |
+| `legacy_evidence_chunk_receipts` | id、clinic_id、delivery_id、chunk_ref、chunk digest、件数、保存ID集合のdigest（全てNOT NULL） | UNIQUE(clinic_id,delivery_id,chunk_ref)。同キー同内容は既存receipt、異内容conflict。同時実行でも一件だけcommit、digestを一意キーへ足さない |
+| `legacy_evidence_publication_receipts` | id、clinic_id、delivery_id、固定manifest digest、全chunk/lineage検証結果参照、公開revision、recorded_at（manifest digest/公開revision NOT NULL） | UNIQUE(clinic_id,delivery_id)。全必要chunk/lineage検証後に一成功receipt。並行公開は同内容照合、異内容conflict。事前checkだけに依存しない |
+| `legacy_evidence_publication_bindings` | clinic_id、publication_receipt_id、domain_kind、typed evidence、resolution_id、basis_kind、projection_revision_id/source_outcome_id、read_field_profile_ref | basis_kind=projection/source_outcomeで対応根拠どちらか一方のみCHECK。source_observation公開は固定resolution_id必須。projectionは全固定入力解決版を参照、domain別field集合を固定 |
 | `legacy_evidence_catalog_revisions` | clinic_id、domain_kind、revision | UNIQUE(clinic_id, domain_kind)。publication/link変更/競合記録と同transactionでrevisionを単調更新 |
 
-`raw_candidates`、`observations`、`projection_revisions`、lineage、outcomes、link events、receiptは通常アプリroleからUPDATE/DELETE不可にします。原値の訂正は新candidateまたは新snapshot、新mappingによるprojection追記です。通常閲覧roleにINSERT権限を付けません。
+`raw_candidates`、`observations`、`observation_resolutions`、`projection_revisions`、lineage、outcomes、link events、receiptは通常アプリroleからUPDATE/DELETE不可にします。原値の訂正は新candidateまたは新snapshot、新mappingによるprojection追記です。通常閲覧roleにINSERT権限を付けません。
 
-publication bindingは、検証済みprojectionのdomainと入力原行、登録read field profileからconsumerが作成します。producerの任意domain申告だけでは作りません。共有observationはdomain別bindingを持てますが、各bindingのfield許可集合は独立です。source profileが未閉鎖の間はこのbindingの実データ公開も保留です。catalog revisionは公開receipt、link変更、競合状態変更と同transactionで更新し、別transactionの遅延更新を認めません。
+<a id="legacy-evidence-source-outcome-publication"></a>
+公開bindingの根拠は二つに限定する。①検証済みprojectionとその入力原行、②検証済みSourceOutcomeと、対象原行の登録source profileに対するdomain/read field許可mapping。②はprojectionが存在しないearly WHERE除外を公開する経路であり、空・架空projectionを要求しない。
+
+②でもsnapshot/entity/原値出典と解決版、source outcomeのrule、domain別field許可profileをconsumerが検証する。producerのdomain自己申告だけでは公開しない。profile未受領は保留とする。未リンクの除外原行は同clinic・該当domainの移行履歴で読めるが、通常請求/見積には生成しない。
+
+publication_bindingsはbasis_kind=`projection | source_outcome`とし、対応するprojection_revision_idまたはsource_outcome_idのどちらか一方だけを保持するCHECKを置く。typed evidence=source_observationの場合は固定resolution_idを持つ。projection根拠で原行を公開する場合も、その原行が当該projection inputであることを照合する。
+
+outcomes tableはsource-outcome行でprojection参照NULLを許可し、candidate/observation/resolutionへの実在参照を必須にする。projection-outcomeとsource-outcomeをkindで区別し、kind別NOT NULL/CHECK/FKを置く。公開済みraw detailのoutcomes sectionには該当SourceOutcomeを返し、そのitems schemaはclosed union `{ outcome_kind: "source", value: ReadSourceOutcome } | { outcome_kind: "projection", value: ReadProjectionOutcome }` とし、各wrapperはadditionalProperties:falseとする。**producer wire型をそのままAPI responseへ再利用しない。**
+
+`ReadSourceOutcome = { outcome_id, candidate_id, observation_id, resolution_id, stage, disposition, rule_ref, reason_codes }`
+- 全key必須、additionalProperties:false。4つのIDはconsumer UUID。source observationの公開bindingが固定したresolutionとcandidateの関係を検証する。
+- stage/disposition/rule_ref/reason_codesはWireSourceOutcomeと同じ許可集合。delivery-local outcome_ref / source_candidate_refを無限定IDとして返さない。
+
+`ReadProjectionOutcome = { outcome_id, projection_revision_id, stage, disposition, rule_ref, source_candidate_ids, output_binding, reason_codes }`
+- 全key必須、additionalProperties:false。outcome_idとprojection_revision_id、source_candidate_idsの各要素はconsumer UUID。source_candidate_idsは固定projection入力解決版集合に含まれるcandidateだけで、重複不可。
+- output_bindingはnull、またはclosed object `{ artifact_id, artifact_record_ref }`。artifact_idはconsumer artifact UUID、artifact_record_refはそのartifact内だけの照合文字列であり元entity/global IDではない。未出力ならnull。保護storage URLやlocal pathは返さない。
+- stage/disposition/rule_ref/reason_codesは既存projection outcome wireの許可集合を継承する。
+- producer wireにあるsource_candidate_refs、artifact_refはdelivery namespace内でstable IDへ解決して保存する。wireのoutput_refは解決済artifactと組で保存し、readではoutput_bindingへ変換する。
+
+projection outcome wireには現時点でoutcome_refがないため、新規の元record IDを捏造しない。consumerの配送内同一性は、固定manifestで束縛されたdelivery・projection revision・outcomes配列位置（0始まりの十進整数文字列）の組で管理してstable outcome UUIDへ解決する。この配列位置は配送内要素の識別であって旧DB原本identityではない。同じmanifestの再送で位置・内容が違えばconflict。別deliveryの同じ位置だけで同一outcomeと扱わない。producerのprojection local参照からstable revision IDへの受領bindingと位置対応の耐久保存は221/446/466の追加受領依存で、実在実装済みとは扱わない。
+
+wire local→stable対応はconsumer内部provenanceに `delivery_id` と元local参照（projection outcomeは固定配列位置）を併記して保全する。既存の未閉鎖ProvenanceReadDTOへこれらを露出する場合は、その型を閉じてからであり、APIへ裸のlocal文字列をglobal IDとして追加しない。
+
+raw/resolution/projection/publicationのlatest参照をUPDATEで差し替えず、追記bindingと公開revisionで現在版を解決する。過去receipt対象は不変。catalog revisionは公開receipt/link/競合状態と同TX更新する。
 
 全tableにclinic分離のRLSと複合FKを適用し、read時にも現在の認可を確認します。最低限のindexは、tenant＋source identity、tenant＋snapshot、tenant＋domain＋公開revision＋ID、projection input逆引き、対象別link revision、delivery/chunk receipt参照です。
 
@@ -315,9 +393,21 @@ targetがnullならその関係を確認済みとは扱わない。他の非null
 - v1では旧日付range filterと金額filterを設けません。日付の意味・型未選定を曖昧なfilterへ持ち込みません。
 - sortはconsumer公開revision昇順、次にtyped evidence ID昇順で固定します。旧日付や生成日付による並べ替えはしません。
 
-一覧responseは `{ items, next_cursor, catalog_revision }`。itemsは固定summary型で、`evidence_id, record_type, snapshot_id, semantic_status, hold_reason_codes, link_state`のみです。原値本文は詳細で読みます。正常な0件はitems=[]とnext_cursor=null。reader障害を空成功にしません。
+一覧responseは `{ items, next_cursor, catalog_revision }`。itemsは固定summary型で、`evidence_id, record_type, snapshot_count, semantic_status, hold_reason_codes, link_state`のみです。原値本文は詳細で読みます。正常な0件はitems=[]とnext_cursor=null。reader障害を空成功にしません。
 
-詳細の基本responseは `{ evidence_id, record_type, domain_kind, snapshot_ref, provenance, semantic_status, hold_reason_codes, sections }`。sectionsは利用可能なsection名の配列で、 `raw_cells | derived_fields | outcomes | inputs | link_history` の許可区画を表します。無制限に全lineageを埋め込まず、詳細queryに `section, cursor, limit` を用意し、sectionは一つ、limit1〜100、既定50、section指定responseは `{ evidence_id, section, catalog_revision, items, next_cursor }` とします。itemsはsection別の固定schemaに分岐し、任意JSONにしません。raw_cellsは許可されたRawCell、derived_fieldsはDerivedField、outcomesは上記outcome型、inputsは `{ observation_id, field_ids }`、link_historyは後述の検証済み公開範囲に制限します。該当しないsectionは400です。最初の詳細取得では基本情報と利用可能section名を返し、各sectionの本文は明示requestで取得します。
+詳細の基本responseは `{ evidence_id, record_type, domain_kind, snapshot_count, provenance, semantic_status, hold_reason_codes, sections }`。sectionsは利用可能なsection名の配列で、 `raw_cells | derived_fields | outcomes | inputs | snapshots | link_history` の許可区画を表します。無制限に全lineageを埋め込まず、詳細queryに `section, cursor, limit` を用意し、sectionは一つ、limit1〜100、既定50、section指定responseは `{ evidence_id, section, catalog_revision, items, next_cursor }` とします。itemsはsection別の固定schemaに分岐し、任意JSONにしません。raw_cellsは公開bindingの固定解決版から許可されたRawCell。derived_fieldsはDerivedFieldの同じexact key集合を持つReadDerivedFieldとし、source_field_refsだけはStoredRawFieldRefへ解決済みの配列で返す。outcomesは§4のclosed read union（ReadSourceOutcome/ReadProjectionOutcome）で、producer wire型を直返却しない。inputsは `{ observation_id, resolution_id, snapshot_id, field_ids }`、snapshotsは未閉鎖SnapshotBindingの受領後のみ、link_historyは後述の検証済み公開範囲に制限する。該当しないsectionは400です。最初の詳細取得では基本情報と利用可能section名を返し、各sectionの本文は明示requestで取得します。
+
+<a id="legacy-evidence-snapshot-set-read"></a>
+### 複数snapshotの集合とpaging
+
+- summary/detailは両方とも `snapshot_count`（0以上の十進整数文字列）を返す。全snapshot集合は新設のpaginated `snapshots` sectionで取得する。単数へ丸めず、無制限配列も追加しない。
+- snapshots sectionのitemsは未閉鎖のSnapshotBindingを参照するため、そのexact wire受領前に実データ公開しない。source_observationは1件、projection_revisionは固定入力解決版が参照する全snapshot集合。重複を除きsnapshot UUID文字列昇順でpagingする。
+- inputs sectionは `{ observation_id, resolution_id, snapshot_id, field_ids }` とする。各input→解決版→snapshotの対応を保持し、projectionがどのsnapshotのどの原行を使ったかを辿れる。
+- 既存query snapshot_idは維持し、「対象evidenceの入力snapshot集合に指定IDが含まれる」というmembership filterと定義する。projectionをsnapshotごとに重複行へ展開しない。全snapshot集合をfilter指定IDへ切り詰めない。
+- snapshot_countは未認可関連kindの件数ではなく、該当routeで公開されたevidenceの固定入力snapshot集合を指す。共有原行の他domain関連projectionを数えない。
+- snapshot_countはsource_observationで1、projectionは全入力snapshotのdistinct件数。候補で元snapshot未確認のものを0件の公開済みprojectionにしない。sourceなし生成projectionの許容は今回選定しない。
+
+snapshot集合・inputsはimmutable projection入力解決版から導出し、後日別snapshotのcandidateが追加されても過去projectionの集合を変更しない。
 
 cursorはopaqueな署名付きserver形式で、version、clinic、domain、全filter、sort、section、最終位置、catalog_revisionに束縛します。閲覧権限の代替にはしません。公開receiptまたはlink変更・競合検知でcatalog_revisionを更新し、途中で変わったcursorには409 `LEGACY_EVIDENCE_VIEW_CHANGED` を返して再検索させます。単なる最大IDによるwatermarkで整合性を偽装しません。履歴のimmutable本文と現在のlink/競合状態の混在を防ぎます。
 
@@ -331,6 +421,19 @@ errorは `{ code, request_id }` のclosed型とし、raw値・SQL・内部path�
 - 500 `LEGACY_EVIDENCE_READ_FAILED`：読取失敗。空一覧へ置換しません。
 
 通常のwriterは `obs_` / `prj_` を通常IDとして受理しません。GETでrepair、link追加、取込、再計算、receipt作成等の副作用を起こしません。
+
+<a id="legacy-evidence-record-semantic-status"></a>
+### record意味状態とraw整合性は別
+
+record-levelのsemantic_statusは `not_assessed | unverified | partially_supported | legacy_fact_supported` とし、認可されたread_field_profileの表示対象fieldだけからconsumerが決定的に導出する。全raw fieldを見せない権限の利用者へ、非表示fieldの判定状態を漏らす集計はしない。
+
+source_observationは常にnot_assessedとする。原値の整合検証・snapshot検証は業務意味の認定ではない。raw値がKKarte_Kbn=4でも、そのraw observation全体を精算済みと解釈しない。限定的な意味を示す場合は、根拠を持つDerivedFieldのlegacy_fact_supportedを別途表示する。
+
+projection_revisionでは、表示対象fieldsが0件ならnot_assessed、全fieldがunverifiedならunverified、一部のみlegacy_fact_supportedならpartially_supported、1件以上あり全fieldがlegacy_fact_supportedならlegacy_fact_supportedとする。generated_constant/defaulted/unresolvedのfieldはlegacy_fact_supportedにできない。不正なper-field status/origin組合せは保存・公開validation errorとする。
+
+partially_supportedやlegacy_fact_supportedでも旧業務上の限定的な意味を指すだけであり、新請求確定、入金配賦、売上計上、正式移行HOLD解除を意味しない。raw conflictなどのhold_reason_codesはsemantic_statusと別軸で常に表示する。
+
+DerivedFieldのsemantic_statusは従前の2値を維持し、record-levelだけを上記4値へ定義する。
 
 ### 表示上の固定事項
 
@@ -397,6 +500,19 @@ errorは `{ code, request_id }` のclosed型とし、raw値・SQL・内部path�
 13. legacy IDを通常writerへ渡しても変更できず、通常請求・未請求・入金・売上・見積再計算へ混入しない。
 14. 同じ合成根拠について受領→保存→認可read→UI表示とreceipt参照が繋がる。quarantineへの保存だけを547完成としない。
 
+<a id="legacy-evidence-review-acceptance"></a>
+### レビュー追補の合成受入条件
+
+15. 同snapshot/entityでnot_capturedのfieldを補足し、全重複既知field一致・出典検証後だけ新resolutionが作られる。旧candidate/旧resolution不変。未公開版はreadに出ず、公開後に新値を参照しcatalogが更新される。
+16. 既知fieldの異値、SQL NULL→値、column_absent→値、異snapshot混入、comparison未完では補足版を採用しない。raw conflictを新resolutionへ逃がさない。
+17. 同じ前版からの並行補足は一方だけ成功。再送は同じresolutionへ解決。過去projectionの入力原値は補足後も固定。
+18. raw observationのrecord semantic_statusはnot_assessed。projectionで全未検証/一部支持/全支持/表示field0の4場合が固定規則どおりとなり、非表示fieldのstatusを漏らさない。
+19. 同delivery/chunk refの並行receiptはDB UNIQUEで一件。同deliveryのpublicationも一件。異digestを別receiptへ逃がさない。
+20. source_field_refsの未知key、未知candidate、存在しないfield、重複pair、入力集合外candidate、固定resolutionにないfield参照を拒否。異deliveryで同じlocal candidate_refでもstable UUIDを誤共有せず、補足版は既存candidateのstable参照を維持する。projectionの正当な複数entity/snapshot参照は許可する。
+21. source/projection outcomeのAPIに裸のdelivery-local参照を返さず、同じlocal文字列を持つ別deliveryをstable UUIDで区別し、元出典対応は保全する。同じmanifestのprojection outcome配列位置で異内容の再送はconflict。projection生成前のWHERE除外でも、検証済みSourceOutcome＋source/domain許可profileから同clinic/domainの原行履歴を公開できる。架空projection/通常請求なし。別domain本文は出ない。
+22. 2snapshotのprojectionはsnapshot_count=2、snapshots両件、inputs対応を保持。snapshot filterはmembershipのみで集合を切り詰めず、一覧に一件だけ返す。
+23. chunk/field/payload上限が未登録なら実データ受入は無効。無制限を既定値にしない。verification_refの参照先不存在・別clinic・別候補集合・別前版・producer自己申告のUUIDを拒否し、検証receipt供給未受領なら実データ解決版採用を無効にする。
+
 これらはfixtureの作成条件です。今回テスト実行や実DB受入を依頼していません。現時点はNOT_RUNです。
 
 ### 依存先
@@ -409,8 +525,8 @@ errorは `{ code, request_id }` のclosed型とし、raw値・SQL・内部path�
 | 担当 | 確定した責任 | 今回は行わないこと・依存 |
 |---|---|---|
 | MIG-41（producer作業項目owner。実producer責務との区別は冒頭参照） | 原行と生成・補完・変換の区別、元key/source profile、snapshot/取得artifact対応、集約・除外全lineage、配送版とartifact宣言を提示 | SQL変更・再生成・実DB操作は別の実施許可後。既存manifest binding・実型/日時/原値・未列挙入力は未解消 |
-| EMR-221 consumer contract | strict schema/profile登録、identity照合、snapshot検証登録、manifest/chunk/receipt、evidence-onlyとformalの隔離 | producer自己申告を検証済みにしない。19表契約を黙示変更しない |
-| EMR-446 / 466 | 専用DDL、複合FK/RLS/一意性/immutable/index、backend model・ERD整合、001配置 | DB適用や既存DB破棄は今回対象外 |
+| EMR-221 consumer contract | strict schema/profile登録、identity照合、snapshot検証登録、manifest/chunk/receipt、verification_ref耐久記録・delivery-local→stable UUIDとoutcome位置bindingの追加供給、source outcome/domain field profile、formal隔離 | producer自己申告を検証済みにしない。19表契約を黙示変更しない |
+| EMR-446 / 466 | 解決版を含む専用DDL、receipt UNIQUE、複合FK/CHECK/RLS/immutable/index、verification_refとlocal→stable対応の保存供給、公開/catalog同TX、model/ERD/001統合 | DB適用や既存DB破棄は今回対象外 |
 | EMR-547 | 原値保全、projection/outcome/lineage保存、認可readonly API/UI、型付きID、通常業務非混入、合成AC | 不明税・保険・割引・状態を通常業務値へ確定しない |
 | EMR-349 | 正式に許可された段階で唯一のimport実行経路を統括し、配置・preflight・receiptを確認 | 今回はHOLD維持。新たな取込経路を作らない |
 | EMR-505 / 508 | 通常会計・見積writer/reader/集計との分離、検証済みlinkの帰属整合 | legacy保全から通常請求を自動起票しない |
@@ -479,4 +595,4 @@ producerには元バイト位置locatorが存在しないという報告であ�
 <a id="producer-report-remaining-receipts"></a>
 ### 未受領と未実装の最終区分
 
-共通構造・15保存tableの役割/制約・型付きread API/ページング/エラー・合成14条件は今回選定済み。6入れ子型は[§3の未閉鎖型](#legacy-evidence-open-nested-types)を参照。source実型/原値表現/日時、登録profile、取得artifact/snapshot/manifestの実binding、集約元全列挙、chunk/field/payload上限は未解消。MIG-41の静的報告は受領済みでも、実artifact一致/実行receiptは未検証。保存/認可read/UI/通常writer分離の実装、DDL適用、試験/受入は別の未完工程であり、全wire完成や正式移行GOとしない。
+共通構造・専用保存table群の役割/関係制約・型付きread API/ページング/エラー・合成条件（初回14＋レビュー追補9）は今回選定済み。6入れ子型は[§3の未閉鎖型](#legacy-evidence-open-nested-types)を参照。6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。source実型/原値表現/日時、登録profile、取得artifact/snapshot/manifestの実binding、集約元全列挙も未解消。MIG-41の静的報告は受領済みでも、実artifact一致/実行receiptは未検証。保存/認可read/UI/通常writer分離の実装、DDL適用、試験/受入は別の未完工程であり、全wire完成や正式移行GOとしない。
