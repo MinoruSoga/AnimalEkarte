@@ -10,13 +10,13 @@ package lstep
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -131,7 +131,7 @@ func TestLstepCsvImportRepository_FindAllByClinicID(t *testing.T) {
 	oldImp := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "old.csv", ImportedAt: &old}
 	newImp := &model.LstepCsvImport{
 		ClinicID: clinicA, CsvType: "friend_attribute", FileName: "new.csv", ImportedAt: &newer,
-		ErrorLog: datatypes.JSON(`[{"row":2,"reason":"unknown_line_user_id"}]`),
+		ErrorLog: nullableJSONPtr([]byte(`[{"row":2,"reason":"unknown_line_user_id"}]`)),
 	}
 	pendingImp := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "pending.csv"} // imported_at NULL
 	otherClinicImp := &model.LstepCsvImport{ClinicID: clinicB, CsvType: "friend_attribute", FileName: "other.csv", ImportedAt: &newer}
@@ -170,4 +170,52 @@ func TestLstepCsvImportRepository_FindAllByClinicID(t *testing.T) {
 		require.Len(t, results, 1)
 		assert.Equal(t, "other.csv", results[0].FileName)
 	})
+}
+
+// EMR-504 contract A: error_log is a nullable jsonb. NULL, an empty JSON array and a populated array
+// must stay distinguishable on a round trip through Create / Update / FindByID.
+func TestLstepCsvImportRepository_ErrorLogNullEmptyAndValueRoundTrip(t *testing.T) {
+	db := setupLstepCsvImportTestDB(t)
+	repo := NewLstepCsvImportRepository(db)
+	ctx := context.Background()
+	const clinicID = uint64(77)
+
+	emptyArray := json.RawMessage(`[]`)
+	populated := json.RawMessage(`[{"row":2,"reason":"unknown_line_user_id"}]`)
+	cases := []struct {
+		name    string
+		input   *json.RawMessage
+		wantNil bool
+		want    string
+	}{
+		{name: "NULL", input: nil, wantNil: true},
+		{name: "empty array", input: &emptyArray, want: `[]`},
+		{name: "populated array", input: &populated, want: string(populated)},
+		{name: "nullableJSONPtr of no bytes is NULL", input: nullableJSONPtr(nil), wantNil: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			imp := &model.LstepCsvImport{ClinicID: clinicID, CsvType: "friend_attribute", FileName: tc.name + ".csv", ErrorLog: tc.input}
+			require.NoError(t, repo.Create(ctx, imp))
+
+			got, err := repo.FindByID(ctx, clinicID, imp.ID)
+			require.NoError(t, err)
+			if tc.wantNil {
+				assert.Nil(t, got.ErrorLog)
+			} else if assert.NotNil(t, got.ErrorLog) {
+				assert.JSONEq(t, tc.want, string(*got.ErrorLog))
+			}
+
+			// Update path (map assignment of the pointer) keeps the same distinction.
+			got.ErrorLog = tc.input
+			require.NoError(t, repo.Update(ctx, got))
+			again, err := repo.FindByID(ctx, clinicID, imp.ID)
+			require.NoError(t, err)
+			if tc.wantNil {
+				assert.Nil(t, again.ErrorLog)
+			} else if assert.NotNil(t, again.ErrorLog) {
+				assert.JSONEq(t, tc.want, string(*again.ErrorLog))
+			}
+		})
+	}
 }

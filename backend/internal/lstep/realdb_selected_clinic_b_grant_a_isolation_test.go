@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/owner"
@@ -129,7 +130,6 @@ func setupRealDBLstepIsolationTestDB(t *testing.T) *gorm.DB {
 		&model.LstepFriendAttributeSnapshot{},
 		&model.LstepCsvImport{},
 		&model.LstepTriggerPriority{},
-		&model.LineSendLog{},
 		&model.SharedFile{},
 		&model.MedicalRecord{},
 	))
@@ -142,7 +142,6 @@ func setupRealDBLstepIsolationTestDB(t *testing.T) *gorm.DB {
 		"lstep_trigger_priorities",
 		"lstep_settings",
 		"clinic_integrations",
-		"line_send_logs",
 		"shared_files",
 		"line_customers",
 		"medical_records",
@@ -174,7 +173,7 @@ func newRealDBLstepHandler(t *testing.T, db *gorm.DB, forbiddenClinicID uint64) 
 	analyticsSvc := LstepAnalyticsService(NewLstepAnalyticsService(ownerRepo, repos.deliveryTriggerLog, repos.friendAttributeSnapshot))
 	csvImportSvc := LstepCsvImportService(NewLstepCsvImportService(db, repos.csvImport, nil, nil))
 	lineCustomerSvc := LineCustomerService(NewLineCustomerService(repos.lineCustomers, ownerRepo))
-	lineSendSvc := LineSendService(NewLineSendService(settingsSvc, ownerRepo, nil, repos.tagCache, realDBNoopAudit{}, repos.lineSendLog, repos.tagConfig))
+	lineSendSvc := LineSendService(NewLineSendService())
 	sharedFileSvc := SharedFileService(NewSharedFileService(repos.sharedFile, ownerRepo, realDBStubStorage{}))
 	aggregationSvc := AggregationService(NewAggregationService(realDBAggregationAdapter{inner: owner.NewLtvRepository(db)}, settingsSvc))
 	checkupSyncSvc := CheckupSyncService(NewCheckupSyncService(repos.checkupSync, ownerRepo, nil, repos.tagCache, settingsSvc, realDBNoopAudit{}))
@@ -188,7 +187,6 @@ func newRealDBLstepHandler(t *testing.T, db *gorm.DB, forbiddenClinicID uint64) 
 		tagSummarySvc = &tagSummaryQueryGuard{LstepTagSummaryService: tagSummarySvc, t: t, forbidden: forbiddenClinicID}
 		triggerPrioritySvc = &triggerPriorityQueryGuard{LstepTriggerPriorityService: triggerPrioritySvc, t: t, forbidden: forbiddenClinicID}
 		csvImportSvc = &csvImportQueryGuard{LstepCsvImportService: csvImportSvc, t: t, forbidden: forbiddenClinicID}
-		lineSendSvc = &lineSendQueryGuard{LineSendService: lineSendSvc, t: t, forbidden: forbiddenClinicID}
 		tagSvc = &tagQueryGuard{LstepTagService: tagSvc, t: t, forbidden: forbiddenClinicID}
 		aggregationSvc = &aggregationQueryGuard{AggregationService: aggregationSvc, t: t, forbidden: forbiddenClinicID}
 		checkupSyncSvc = &checkupSyncQueryGuard{CheckupSyncService: checkupSyncSvc, t: t, forbidden: forbiddenClinicID}
@@ -309,17 +307,6 @@ type csvImportQueryGuard struct {
 func (s *csvImportQueryGuard) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	guardClinicID(s.t, "csvImport.ListByClinic", clinicID, s.forbidden)
 	return s.LstepCsvImportService.ListByClinic(ctx, clinicID, limit)
-}
-
-type lineSendQueryGuard struct {
-	LineSendService
-	t         *testing.T
-	forbidden uint64
-}
-
-func (s *lineSendQueryGuard) GetSendLogs(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error) {
-	guardClinicID(s.t, "lineSend.GetSendLogs", clinicID, s.forbidden)
-	return s.LineSendService.GetSendLogs(ctx, clinicID, ownerID)
 }
 
 type tagQueryGuard struct {
@@ -468,17 +455,6 @@ func seedRealDBLstepFixture(t *testing.T, db *gorm.DB, forbiddenClinicID uint64)
 
 	require.NoError(t, db.WithContext(ctx).Create(&model.LstepTriggerPriority{
 		ClinicID: fx.ClinicB, TriggerType: model.TriggerTypeBirthdayMessage, Priority: realDBLstepPriorityMarker,
-	}).Error)
-
-	require.NoError(t, db.WithContext(ctx).Create(&model.LineSendLog{
-		ClinicID: fx.ClinicA, OwnerID: ownerA.ID, SentByUserID: fx.StaffID,
-		MessageType: "text", ContentSummary: "D3lstep-realdb-send-summary-A",
-		Status: "sent", SentAt: now,
-	}).Error)
-	require.NoError(t, db.WithContext(ctx).Create(&model.LineSendLog{
-		ClinicID: fx.ClinicB, OwnerID: ownerB.ID, SentByUserID: fx.StaffID,
-		MessageType: "text", ContentSummary: realDBLstepSendSummaryB,
-		Status: "sent", SentAt: now,
 	}).Error)
 
 	sharedFileA := &model.SharedFile{
@@ -822,14 +798,16 @@ func TestRealDB_SelectedClinicBGrantAIsolation(t *testing.T) {
 		testdb.AssertBodyOmitsClinicArtifacts(t, got.body, nil, realDBLstepSendSummaryB)
 	})
 
-	t.Run("line_send_logs_grantB_nonempty", func(t *testing.T) {
+	// EMR-504: 履歴の置換先 reader が未接続の間は、権限のある clinic でも 422 line_dispatch_pending
+	// （空一覧=送信なし、とは見せない）。
+	t.Run("line_send_logs_grantB_fail_closed_422", func(t *testing.T) {
 		db := setupRealDBLstepIsolationTestDB(t)
 		fx := seedRealDBLstepFixture(t, db, 0)
 		got := callRealDB(t, http.MethodGet, fmt.Sprintf("/api/v1/owners/%d/line/send-logs", fx.ownerB.ID),
 			withOwnerID(configureLstepGrant(fx, string(model.ResourceOwners), fx.fx.ClinicB), fx.ownerB.ID),
 			fx.handler.lineSend.GetLineSendLogs)
-		require.Equal(t, http.StatusOK, got.code, string(got.body))
-		assert.Contains(t, string(got.body), realDBLstepSendSummaryB)
+		require.Equal(t, http.StatusUnprocessableEntity, got.code, string(got.body))
+		assert.Contains(t, string(got.body), apperrors.CodeLineDispatchPending)
 	})
 
 	t.Run("friend_attributes_grantA_403", func(t *testing.T) {

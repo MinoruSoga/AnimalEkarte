@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -95,26 +94,15 @@ func TestNewReservationCompositionBuildsTargetOwnedGraph(t *testing.T) {
 	require.Len(t, router.Routes(), 67)
 }
 
-func TestNewReservationComposition_InjectsLineCredentialCipherClosures(t *testing.T) {
+func TestNewReservationComposition_LineSettingsSaveHasNoCredentialWiring(t *testing.T) {
 	repository := &wiringLineReservationSettingRepository{
-		persisted: &model.LineReservationSetting{
-			ClinicID:          7,
-			LineChannelSecret: "encrypted:secret",
-			LineAccessToken:   "encrypted:token",
-		},
+		persisted: &model.LineReservationSetting{ClinicID: 7},
 	}
 	composition := newReservationComposition(
 		reservationRepositories{
 			LineReservationSettings: repository,
 		},
-		reservationServiceDependencies{
-			EncryptCredential: func(value string) (string, error) {
-				return "rewired:" + value, nil
-			},
-			DecryptCredential: func(_ context.Context, value string) string {
-				return strings.TrimPrefix(value, "encrypted:")
-			},
-		},
+		reservationServiceDependencies{},
 	)
 
 	_, _, err := composition.LineReservationSettings.Save(
@@ -125,9 +113,7 @@ func TestNewReservationComposition_InjectsLineCredentialCipherClosures(t *testin
 
 	require.NoError(t, err)
 	require.NotNil(t, repository.persisted)
-	// R-05 Phase B: reservation settings path no longer re-encrypts or writes
-	// LineChannelSecret (canonical SoT is clinic_integrations). OnConflict also
-	// excludes the column, so empty model field must not assert a rewired secret.
-	assert.Empty(t, repository.persisted.LineChannelSecret)
-	assert.Equal(t, "rewired:token", repository.persisted.LineAccessToken)
+	// EMR-504: LINE credentials are no longer part of the reservation setting (clinic_integrations
+	// is their only store), so the composed Save path needs no cipher closures and writes none.
+	assert.Equal(t, uint64(7), repository.persisted.ClinicID)
 }

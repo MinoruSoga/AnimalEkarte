@@ -42,8 +42,8 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 	}
 	uploadedBy := strconv.FormatUint(m.UploadedByUserID, 10)
 	r.UploadedByUserID = &uploadedBy
-	if len(m.ErrorLog) > 0 {
-		r.ErrorLog = json.RawMessage(m.ErrorLog)
+	if errorLog := nullableJSONBytes(m.ErrorLog); len(errorLog) > 0 {
+		r.ErrorLog = errorLog
 	}
 	if m.ImportedAt != nil {
 		s := httpapi.LocalTimeRFC3339(*m.ImportedAt)

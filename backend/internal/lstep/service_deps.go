@@ -60,14 +60,12 @@ type LineLinkAuditTxLogger interface {
 	LogOwnerLineLinkTx(ctx context.Context, clinicID, ownerID uint64) error
 }
 
-// lstepLineSettingReader は LINE 予約設定（reservation domain・topo で lstep は最下流のため
-// import 不可）の予約設定と webhook routing metadata 参照の最小view。
-type lstepLineSettingReader interface {
-	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	// FindWebhookRouteByLineBotUserID は credential payload を返さず、destination に対応する
-	// clinic identity と旧 credential の存在有無だけを返す。
-	FindWebhookRouteByLineBotUserID(ctx context.Context, lineBotUserID string) (clinicID uint64, legacyCredentialPresent bool, err error)
-	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
+// lineWebhookRouteReader は webhook の destination（LINE bot user ID）から clinic を引く最小view
+// （reservation domain 実装・topo で lstep は最下流のため import 不可）。credential payload は返さない。
+// 旧 line_reservation_settings.line_bot_user_id は DROP 済みで置換先の routing 保存は未決定（EMR-504 Q7）。
+// 実装は未決定の間 apperrors.CodeLineWebhookRoutingPending（422）を返して fail-closed する。
+type lineWebhookRouteReader interface {
+	FindWebhookRouteByLineBotUserID(ctx context.Context, lineBotUserID string) (clinicID uint64, err error)
 }
 
 // lineChannelCredentialReader は canonical clinic_integrations credential を1件だけ読む。

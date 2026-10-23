@@ -45,7 +45,7 @@ func TestLineLinkService_AuditFailureRollsBackOwnerAndTokenInDatabase(t *testing
 	service := &lineLinkService{
 		ownerRepo:         ownerdomain.NewRepository(db, nil),
 		lineLinkTokenRepo: NewLineLinkTokenRepository(db),
-		lineSettingRepo:   &mockLineLinkSettingRepo{},
+		webhookRoutes:     &mockLineLinkSettingRepo{},
 		transactor:        persistence.NewTransactor(db),
 		auditTx:           failingLineLinkAuditTxLogger{err: auditErr},
 		httpClient:        jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),

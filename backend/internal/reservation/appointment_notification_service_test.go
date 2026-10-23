@@ -22,7 +22,6 @@ func (m *mockLineSettingRepo) FindByClinicID(ctx context.Context, clinicID uint6
 	}
 	return &model.LineReservationSetting{
 		ClinicID:          clinicID,
-		LineAccessToken:   "dummy-token",
 		NotificationEmail: "notify@example.com",
 	}, nil
 }
@@ -36,7 +35,6 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 				setting := &model.LineReservationSetting{
 					ClinicID:          clinicID,
-					LineAccessToken:   "dummy-token",
 					NotificationEmail: "notify@example.com",
 				}
 				done <- clinicID
@@ -46,7 +44,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 		cfg := &ReservationNotificationConfig{
 			SMTPHost: "",
 		}
-		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:        123,
@@ -88,7 +86,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 			},
 		}
 		cfg := &ReservationNotificationConfig{}
-		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:       123,
@@ -113,7 +111,6 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 				setting := &model.LineReservationSetting{
 					ClinicID:          clinicID,
-					LineAccessToken:   "dummy-token",
 					NotificationEmail: "notify@example.com",
 				}
 				done <- clinicID
@@ -123,7 +120,7 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 		cfg := &ReservationNotificationConfig{
 			SMTPHost: "",
 		}
-		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:        123,
@@ -155,7 +152,7 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 			},
 		}
 		cfg := &ReservationNotificationConfig{}
-		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
+		svc := NewReservationNotificationService(cfg, repo, nil)
 
 		appt := &model.Reservation{
 			ID:       123,
@@ -169,30 +166,38 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 	})
 }
 
-// TestReservationNotificationService_BuildCancelledLineMessage は buildCancelledLineMessage の
-// ReservationType の有無による分岐（メニュー行を含めるか）を直接検証する。
-func TestReservationNotificationService_BuildCancelledLineMessage(t *testing.T) {
-	svc := &reservationNotificationService{}
-	start := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)
-	end := start.Add(time.Hour)
+// EMR-504: reservation created/cancelled LINE Push は配送記録（dispatch）の writer が未接続の間は行わず
+// (fail-closed)、メール通知だけが残る。LINE messenger はもう注入されないため、LINE 送信経路は構造上存在しない。
+func TestReservationNotificationService_EmailStillSentWhileLinePushIsSkipped(t *testing.T) {
+	ctx := context.Background()
+	for _, event := range []string{"created", "cancelled"} {
+		t.Run(event, func(t *testing.T) {
+			type sent struct{ to string }
+			sentCh := make(chan sent, 1)
+			repo := &mockLineSettingRepo{}
+			cfg := &ReservationNotificationConfig{SMTPHost: "smtp.example.com", SMTPPort: "25", SMTPFrom: "from@example.com"}
+			svc := NewReservationNotificationService(cfg, repo, func(_ context.Context, _ SMTPConfig, _, to string, _ []byte) error {
+				sentCh <- sent{to: to}
+				return nil
+			})
+			appt := &model.Reservation{ID: 7, ClinicID: 1, StartTime: time.Now(), EndTime: time.Now().Add(time.Hour)}
+			customer := &model.LineCustomer{LineUserID: "U12345", DisplayName: "山田太郎"}
 
-	t.Run("includes menu line when ReservationType is set", func(t *testing.T) {
-		appt := &model.Reservation{
-			ID: 42, StartTime: start, EndTime: end,
-			ReservationType: &model.ReservationType{Name: "一般診療"},
-		}
-		msg := svc.buildCancelledLineMessage(appt)
-		assert.Contains(t, msg, "R-000042")
-		assert.Contains(t, msg, "■ メニュー: 一般診療")
-		assert.Contains(t, msg, "再度のご予約はLINEメニューの")
-	})
+			if event == "created" {
+				svc.NotifyCreated(ctx, appt, customer)
+			} else {
+				svc.NotifyCancelled(ctx, appt, customer)
+			}
+			svc.Wait()
 
-	t.Run("omits menu line when ReservationType is nil", func(t *testing.T) {
-		appt := &model.Reservation{ID: 43, StartTime: start, EndTime: end}
-		msg := svc.buildCancelledLineMessage(appt)
-		assert.Contains(t, msg, "R-000043")
-		assert.NotContains(t, msg, "■ メニュー:")
-	})
+			select {
+			case got := <-sentCh:
+				assert.Equal(t, "notify@example.com", got.to)
+			default:
+				t.Fatal("clinic notification email must still be sent")
+			}
+		})
+	}
 }
 
 // TestReservationNotificationService_SendEmail は SMTP 未設定時のスキップと、
@@ -306,9 +311,6 @@ func TestNotificationHelpers(t *testing.T) {
 		assert.Equal(t, "disp", customerDisplayName(&model.LineCustomer{DisplayName: "disp"}))
 	})
 }
-
-// testIdentityDecrypt は旧 cipher=nil 挙動（復号なし・平文素通し）を再現する。
-func testIdentityDecrypt(_ context.Context, value string) string { return value }
 
 // testDialSendMail は接続失敗パス検証用の実ダイヤル closure（本番は service 集約が
 // service/smtp_sender.go の sendSMTPMail を注入する——本テストは到達不能ポートへの

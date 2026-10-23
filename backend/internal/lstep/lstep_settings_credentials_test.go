@@ -14,8 +14,8 @@ import (
 
 // ---- encrypt / decrypt ----
 
-// testIntegrationKeyHex は be9_2c_r1_mock_carriers_test.go（R⑥でreservationへ移動した旧line_reservation_setting_service_test.go由来のcarrier） で定義済みの
-// 32 バイト（AES-256）ダミー暗号鍵を再利用する。
+// testIntegrationKeyHex は lstep package のテストが共有する 32 バイト（AES-256）のダミー暗号鍵。
+const testIntegrationKeyHex = "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
 
 func TestLstepSettingsService_Encrypt(t *testing.T) {
 	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)

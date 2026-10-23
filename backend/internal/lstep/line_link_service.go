@@ -64,7 +64,7 @@ type LineLinkService interface {
 type lineLinkService struct {
 	ownerRepo          lineLinkOwnerRepo
 	lineLinkTokenRepo  LineLinkTokenRepository
-	lineSettingRepo    lstepLineSettingReader
+	webhookRoutes      lineWebhookRouteReader
 	lineCredentialRepo lineChannelCredentialReader
 	transactor         Transactor
 	auditTx            LineLinkAuditTxLogger
@@ -119,8 +119,7 @@ var lineCredentialDecrypt = decryptCanonicalLineCredential
 
 // decryptCanonicalLineCredential は canonical credential の復号能力欠落と復号失敗を
 // fail-closed にする。
-// generic DecryptLineCredential の legacy plaintext fallback は reservation 移行用であり、
-// canonical clinic_integrations credential の署名検証には適用しない。
+// 平文 fallback は設けない（clinic_integrations の credential は常に暗号化保存）。
 func decryptCanonicalLineCredential(
 	_ context.Context,
 	cipher *crypto.AESGCMCipher,
@@ -149,7 +148,7 @@ var lineSignatureVerifier = verifyLineSignature
 func NewLineLinkService(
 	ownerRepo lineLinkOwnerRepo,
 	lineLinkTokenRepo LineLinkTokenRepository,
-	lineSettingRepo lstepLineSettingReader,
+	webhookRoutes lineWebhookRouteReader,
 	lineCredentialRepo lineChannelCredentialReader,
 	transactor Transactor,
 	auditTx LineLinkAuditTxLogger,
@@ -158,7 +157,7 @@ func NewLineLinkService(
 	return &lineLinkService{
 		ownerRepo:          ownerRepo,
 		lineLinkTokenRepo:  lineLinkTokenRepo,
-		lineSettingRepo:    lineSettingRepo,
+		webhookRoutes:      webhookRoutes,
 		lineCredentialRepo: lineCredentialRepo,
 		transactor:         transactor,
 		auditTx:            auditTx,
@@ -176,8 +175,8 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 	}
 
 	// Resolve LIFF ID before writing so a lookup failure cannot leave an
-	// unusable bearer-token row behind. Missing line_reservation_settings is not
-	// an owner miss (BUG-504): fall through to L-step clinic_integrations LiffID.
+	// unusable bearer-token row behind. The LIFF ID lives only in clinic_integrations
+	// (EMR-504: line_reservation_settings.liff_id was dropped); a missing row is not an owner miss.
 	liffID, err := s.resolveLinkTokenLiffID(ctx, clinicID)
 	if err != nil {
 		return nil, err
@@ -219,20 +218,11 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 	}, nil
 }
 
-// resolveLinkTokenLiffID prefers line_reservation_settings.liff_id, then falls
-// back to the L-step clinic_integrations liff_id staff configure in settings.
-// Absence of either store is not an error; empty LiffID yields empty liff_url.
+// resolveLinkTokenLiffID reads the LIFF ID from the L-step clinic_integrations row
+// staff configure in settings (the only store since EMR-504 dropped
+// line_reservation_settings.liff_id). Absence is not an error; empty LiffID yields
+// empty liff_url.
 func (s *lineLinkService) resolveLinkTokenLiffID(ctx context.Context, clinicID uint64) (string, error) {
-	if s.lineSettingRepo != nil {
-		setting, err := s.lineSettingRepo.FindByClinicID(ctx, clinicID)
-		if err != nil && !apperrors.IsNotFound(err) {
-			return "", apperrors.Wrap(err, "failed to find line reservation setting")
-		}
-		if setting != nil && setting.LiffID != "" {
-			return setting.LiffID, nil
-		}
-	}
-
 	if s.lineCredentialRepo == nil {
 		return "", nil
 	}
@@ -255,6 +245,22 @@ func (s *lineLinkService) resolveLinkTokenLiffID(ctx context.Context, clinicID u
 	return credential.KeyValue, nil
 }
 
+// resolveLineLoginChannelID derives the LINE Login channel ID (the client_id of the ID token
+// verification) from the clinic's LIFF ID. LIFF ID format is "{channelID}-{appID}"
+// (the LIFF auth middleware derives the audience the same way). line_reservation_settings.line_channel_id
+// was dropped, and no other store holds the channel ID (EMR-504 Q7).
+func (s *lineLinkService) resolveLineLoginChannelID(ctx context.Context, clinicID uint64) (string, error) {
+	liffID, err := s.resolveLinkTokenLiffID(ctx, clinicID)
+	if err != nil {
+		return "", err
+	}
+	channelID := strings.SplitN(liffID, "-", 2)[0]
+	if channelID == "" {
+		return "", apperrors.WrapNotFound("lstep liff_id", fmt.Sprintf("%d", clinicID))
+	}
+	return channelID, nil
+}
+
 // LinkAccount は LINE ID Token を検証してトークン対応の飼い主に LINE User ID を紐付ける。
 func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, input LinkAccountInput) (*model.Owner, error) {
 	if input.LinkToken == "" || len(input.LinkToken) > maxLineLinkTokenChars {
@@ -267,7 +273,14 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 		return nil, apperrors.WrapInternalServerError("LINE link transaction dependencies are not configured")
 	}
 
-	lineUserID, err := verifyLineIDToken(ctx, input.LineIDToken, clinicID, s.lineSettingRepo, s.httpClient)
+	channelID, err := s.resolveLineLoginChannelID(ctx, clinicID)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
+		return nil, apperrors.WrapInternalServerError("LINE ID token verification unavailable")
+	}
+	lineUserID, err := verifyLineIDToken(ctx, input.LineIDToken, channelID, s.httpClient)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return nil, err
@@ -327,7 +340,10 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 
 // HandleWebhook は LINE Webhook を処理する。
 func (s *lineLinkService) HandleWebhook(ctx context.Context, body []byte, signature string) error {
-	clinicID, ok := s.verifySignatureAnyClinic(ctx, body, signature)
+	clinicID, ok, routeErr := s.verifySignatureAnyClinic(ctx, body, signature)
+	if routeErr != nil {
+		return routeErr
+	}
 	if !ok {
 		return apperrors.WrapInvalidInput("invalid line signature")
 	}
@@ -427,32 +443,39 @@ func (s *lineLinkService) handleUnfollowEvent(
 // SEC-CS-F05-R1: FindAll + 全 clinic HMAC は禁止。固定コストは
 // destination 抽出 → route metadata → canonical credential → 最大1回 decrypt → 最大1回 HMAC。
 // セマフォと decrypt キャッシュは二次 backpressure として維持する。
+//
+// EMR-504: destination → clinic の routing 保存（旧 line_reservation_settings.line_bot_user_id）は
+// DROP 済みで置換先が未決定（Q7）。routing reader が CodeLineWebhookRoutingPending を返す間は、
+// 署名不正と区別できる固定 422 を第3戻り値で返し、成功を装わない。
 func (s *lineLinkService) verifySignatureAnyClinic(
 	ctx context.Context,
 	body []byte,
 	signature string,
-) (uint64, bool) {
+) (clinicID uint64, ok bool, routeErr error) {
 	if err := lineWebhookVerifySem.Acquire(ctx, 1); err != nil {
 		slog.ErrorContext(ctx, "LINE webhook verification concurrency limit", "error", err)
-		return 0, false
+		return 0, false, nil
 	}
 	defer lineWebhookVerifySem.Release(1)
 
 	destination, ok := extractLineWebhookDestination(body)
 	if !ok {
-		return 0, false
+		return 0, false, nil
 	}
 
-	if s.lineSettingRepo == nil || s.lineCredentialRepo == nil {
-		return 0, false
+	if s.webhookRoutes == nil || s.lineCredentialRepo == nil {
+		return 0, false, nil
 	}
-	clinicID, legacyCredentialPresent, err := s.lineSettingRepo.FindWebhookRouteByLineBotUserID(ctx, destination)
+	clinicID, err := s.webhookRoutes.FindWebhookRouteByLineBotUserID(ctx, destination)
 	if err != nil {
+		if apperrors.HasCode(err, apperrors.CodeLineWebhookRoutingPending) {
+			return 0, false, err
+		}
 		// not found / DB error とも invalid signature として fail-closed（情報漏洩防止）。
-		return 0, false
+		return 0, false, nil
 	}
-	if clinicID == 0 || legacyCredentialPresent {
-		return 0, false
+	if clinicID == 0 {
+		return 0, false, nil
 	}
 
 	credential, err := s.lineCredentialRepo.FindCredentialByClinicServiceKey(
@@ -462,22 +485,22 @@ func (s *lineLinkService) verifySignatureAnyClinic(
 		model.IntegrationKeyLineChannelSecret,
 	)
 	if err != nil || credential == nil {
-		return 0, false
+		return 0, false, nil
 	}
 	if credential.ClinicID != clinicID ||
 		credential.Service != model.IntegrationServiceLstep ||
 		credential.KeyName != model.IntegrationKeyLineChannelSecret {
-		return 0, false
+		return 0, false, nil
 	}
 
 	secret := s.cachedDecryptChannelSecret(ctx, credential)
 	if secret == "" {
-		return 0, false
+		return 0, false, nil
 	}
 	if !lineSignatureVerifier(body, signature, secret) {
-		return 0, false
+		return 0, false, nil
 	}
-	return clinicID, true
+	return clinicID, true, nil
 }
 
 // extractLineWebhookDestination は raw webhook body から destination だけを抜く。
@@ -560,11 +583,7 @@ func verifyLineSignature(body []byte, signature, channelSecret string) bool {
 }
 
 // verifyLineIDToken は LINE API でIDトークンを検証し LINE User ID を返す。
-func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo lstepLineSettingReader, client *http.Client) (string, error) {
-	setting, err := settingRepo.FindByClinicID(ctx, clinicID)
-	if err != nil {
-		return "", apperrors.Wrap(err, "failed to get line channel id")
-	}
+func verifyLineIDToken(ctx context.Context, idToken, channelID string, client *http.Client) (string, error) {
 	if client == nil {
 		client = &http.Client{Timeout: lineVerifyHTTPTimeout}
 	}
@@ -575,7 +594,7 @@ func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, set
 
 	form := url.Values{
 		"id_token":  {idToken},
-		"client_id": {setting.LineChannelID},
+		"client_id": {channelID},
 	}
 	req, err := http.NewRequestWithContext(
 		ctx,

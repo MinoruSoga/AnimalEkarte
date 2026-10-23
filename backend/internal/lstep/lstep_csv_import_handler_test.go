@@ -3,6 +3,7 @@ package lstep
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/datatypes"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -285,7 +286,7 @@ func TestListLstepCsvImports_E_200_OK(t *testing.T) {
 			listByClinicFn: func(_ context.Context, clinicID uint64, _ int) ([]*model.LstepCsvImport, error) {
 				return []*model.LstepCsvImport{{
 					ID: uuid.New(), ClinicID: clinicID, CreatedAt: time.Now(),
-					ErrorLog: datatypes.JSON(`[{"row":2,"reason":"parse_error"}]`),
+					ErrorLog: nullableJSONPtr([]byte(`[{"row":2,"reason":"parse_error"}]`)),
 				}}, nil
 			},
 		},
@@ -297,4 +298,27 @@ func TestListLstepCsvImports_E_200_OK(t *testing.T) {
 	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.NotContains(t, w.Body.String(), "error_log")
+}
+
+// EMR-504 contract A: toLstepCsvImportResponse keeps NULL (omitted), an empty array and a populated
+// array distinguishable; the nullable jsonb is read through the pointer, never dereferenced blindly.
+func TestToLstepCsvImportResponse_ErrorLogNullEmptyAndValue(t *testing.T) {
+	emptyArray := json.RawMessage(`[]`)
+	populated := json.RawMessage(`[{"row":2,"reason":"parse_error"}]`)
+
+	t.Run("NULL is omitted", func(t *testing.T) {
+		raw, err := json.Marshal(toLstepCsvImportResponse(&model.LstepCsvImport{ID: uuid.New(), ClinicID: 1}))
+		require.NoError(t, err)
+		assert.NotContains(t, string(raw), "error_log")
+	})
+	t.Run("empty array is returned as an empty array", func(t *testing.T) {
+		raw, err := json.Marshal(toLstepCsvImportResponse(&model.LstepCsvImport{ID: uuid.New(), ClinicID: 1, ErrorLog: &emptyArray}))
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"error_log":[]`)
+	})
+	t.Run("populated array is returned as stored", func(t *testing.T) {
+		raw, err := json.Marshal(toLstepCsvImportResponse(&model.LstepCsvImport{ID: uuid.New(), ClinicID: 1, ErrorLog: &populated}))
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"error_log":[{"row":2,"reason":"parse_error"}]`)
+	})
 }

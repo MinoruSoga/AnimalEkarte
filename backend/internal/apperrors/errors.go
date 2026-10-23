@@ -173,6 +173,23 @@ func WrapUnprocessableWithCode(code, message string) error {
 	}
 }
 
+// EMR-504 / EMR-549 C1: 置換先の保存は存在するが、その writer / reader（または routing 保存）が
+// まだ接続されていない LINE 操作を fail-closed で拒否する 422 の安定コード。成功を装わない。
+const (
+	// CodeLineBindingPending は LINE 紐付け（owner_line_binding_states）の writer が未接続の操作。
+	CodeLineBindingPending = "line_binding_pending"
+	// CodeLineDispatchPending は LINE 配送（line_dispatch_*）の writer / reader が未接続の操作。
+	CodeLineDispatchPending = "line_dispatch_pending"
+	// CodeLineWebhookRoutingPending は webhook destination から clinic を引く保存が未決定の操作。
+	CodeLineWebhookRoutingPending = "line_webhook_routing_pending"
+)
+
+// HasCode は err の連鎖に AppError があり、その Code が code と一致するかを返す。
+func HasCode(err error, code string) bool {
+	var appErr *AppError
+	return errors.As(err, &appErr) && appErr.Code == code
+}
+
 // WrapMedicalRecordStatusRetired は旧 finalize/unfinalize が未提供であることを示す固定エラー（422）を返す。
 // message は操作ごとの利用者向け文言。code は CodeMedicalRecordStatusRetired 固定。
 func WrapMedicalRecordStatusRetired(message string) error {

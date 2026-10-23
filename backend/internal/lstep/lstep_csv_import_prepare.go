@@ -12,7 +12,6 @@ import (
 	"os"
 	"time"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -113,7 +112,7 @@ func (s *lstepCsvImportService) commitFriendAttributeRows(
 		imp.ImportedAt = &now
 		if len(result.errors.entries) > 0 {
 			errLog, _ := json.Marshal(result.errors.entries)
-			imp.ErrorLog = datatypes.JSON(errLog)
+			imp.ErrorLog = nullableJSONPtr(errLog)
 		}
 		return updateCsvImportRecordTx(tx, clinicID, imp)
 	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})

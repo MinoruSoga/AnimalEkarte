@@ -2,6 +2,9 @@ package reservation
 
 import (
 	"encoding/json"
+	"strings"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // upsertLineReservationSettingRequest is the HTTP body for LINE reservation settings upsert.
@@ -34,13 +37,38 @@ type upsertLineReservationSettingRequest struct {
 	// Omitted (nil) resolves to true in toServiceInput.
 	ShowNoStaffOption *bool          `json:"show_no_staff_option"`
 	AdditionalFields  jsonRawOrEmpty `json:"additional_fields"`
-	LineChannelID     string         `json:"line_channel_id" binding:"max=255"`
-	// R-05 Phase B: line_channel_secret is intentionally not accepted here.
-	// Canonical write owner is clinic_integrations via L-step settings API.
-	// Unknown JSON key is ignored by encoding/json; presence SELECT on the
-	// legacy column remains until inventory-zero DROP (HOLD).
-	LiffID          string `json:"liff_id" binding:"max=255"`
-	LineAccessToken string `json:"line_access_token" binding:"max=2000"`
+	// EMR-504: LINE credentials (channel ID / channel secret / LIFF ID / access token) are not part of
+	// the reservation setting; their only store is clinic_integrations (lstep-settings API).
+	// The pointers exist only to detect that a client still sends them: any presence (even an empty
+	// string) is rejected with 400 (rejectLegacyLineCredentials) instead of being silently dropped.
+	LineChannelID     *string `json:"line_channel_id"`
+	LineChannelSecret *string `json:"line_channel_secret"`
+	LiffID            *string `json:"liff_id"`
+	LineAccessToken   *string `json:"line_access_token"`
+}
+
+// rejectLegacyLineCredentials は dropped 済みの LINE 資格情報フィールドが（空文字を含め）
+// 1つでも送られた場合に 400 を返す。値そのものはエラーに含めない。
+func (r *upsertLineReservationSettingRequest) rejectLegacyLineCredentials() error {
+	var fields []string
+	for _, f := range []struct {
+		name  string
+		value *string
+	}{
+		{"line_channel_id", r.LineChannelID},
+		{"line_channel_secret", r.LineChannelSecret},
+		{"liff_id", r.LiffID},
+		{"line_access_token", r.LineAccessToken},
+	} {
+		if f.value != nil {
+			fields = append(fields, f.name)
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return apperrors.WrapInvalidInput(strings.Join(fields, ", ") +
+		" はLINE予約設定では受け付けません。LINE連携設定（/lstep-settings）で設定してください")
 }
 
 func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReservationSettingInput {
@@ -69,9 +97,6 @@ func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReserv
 		NoStaffMode:             r.NoStaffMode,
 		ShowNoStaffOption:       resolveBoolDefaultTrue(r.ShowNoStaffOption),
 		AdditionalFields:        r.AdditionalFields,
-		LineChannelID:           r.LineChannelID,
-		LiffID:                  r.LiffID,
-		LineAccessToken:         r.LineAccessToken,
 	}
 }
 

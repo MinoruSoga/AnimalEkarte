@@ -39,8 +39,8 @@ func ParseBusinessHoursForDate(ctx context.Context, setting *model.LineReservati
 	}
 
 	// 曜日別営業時間があれば上書き（例: 土曜だけ短縮営業）
-	if len(setting.BusinessHoursByWeekday) > 0 {
-		bh = overlayWeekdayHours(ctx, setting, date, bh)
+	if weekdayHours := nullableJSONBytes(setting.BusinessHoursByWeekday); len(weekdayHours) > 0 {
+		bh = overlayWeekdayHours(ctx, setting, weekdayHours, date, bh)
 	}
 
 	return bh, breaks, breaksErr
@@ -49,11 +49,12 @@ func ParseBusinessHoursForDate(ctx context.Context, setting *model.LineReservati
 func overlayWeekdayHours(
 	ctx context.Context,
 	setting *model.LineReservationSetting,
+	weekdayHours json.RawMessage,
 	date time.Time,
 	bh BusinessHours,
 ) BusinessHours {
 	var byWeekday map[string]BusinessHours
-	if err := json.Unmarshal(setting.BusinessHoursByWeekday, &byWeekday); err != nil {
+	if err := json.Unmarshal(weekdayHours, &byWeekday); err != nil {
 		// A-3: fail-closed にはしない（表示系で、デフォルト営業時間へのフォールバックが妥当）。
 		slog.WarnContext(ctx, "invalid business_hours_by_weekday json; falling back to default hours", "error", err, "clinic_id", setting.ClinicID)
 		return bh

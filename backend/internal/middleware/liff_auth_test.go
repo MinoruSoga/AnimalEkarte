@@ -19,10 +19,16 @@ import (
 
 type mockSettingLookup struct {
 	findFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	// integrationFn は clinic_integrations(service='lstep') の保存値を返す（EMR-504: LIFF ID の唯一の保存先）。
+	integrationFn func(ctx context.Context, clinicID uint64, keyName string) (string, error)
 }
 
 func (m *mockSettingLookup) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 	return m.findFn(ctx, clinicID)
+}
+
+func (m *mockSettingLookup) FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error) {
+	return m.integrationFn(ctx, clinicID, keyName)
 }
 
 type mockCustomerLookup struct {
@@ -69,7 +75,13 @@ func startMockLINEServer(t *testing.T, statusCode int, resp *lineVerifyResponse)
 func validSettingLookup(liffID string) *mockSettingLookup {
 	return &mockSettingLookup{
 		findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
-			return &model.LineReservationSetting{ClinicID: 3, LiffID: liffID}, nil
+			return &model.LineReservationSetting{ClinicID: 3}, nil
+		},
+		integrationFn: func(_ context.Context, _ uint64, keyName string) (string, error) {
+			if keyName != model.IntegrationKeyLiffID {
+				return "", errors.New("unexpected integration key " + keyName)
+			}
+			return liffID, nil
 		},
 	}
 }
@@ -156,6 +168,23 @@ func TestLiffAuth(t *testing.T) {
 			setting: &mockSettingLookup{findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 				return nil, errors.New("connection refused")
 			}},
+			customer:   validCustomerLookup(),
+			wantStatus: http.StatusInternalServerError,
+			wantBody:   "failed to load clinic setting",
+		},
+		{
+			name:       "LIFF ID 取得失敗（clinic_integrations の DBエラー）→ 500",
+			authHeader: "Bearer validtoken",
+			clinicID:   "3",
+			setupLine:  nil,
+			setting: &mockSettingLookup{
+				findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return &model.LineReservationSetting{ClinicID: 3}, nil
+				},
+				integrationFn: func(_ context.Context, _ uint64, _ string) (string, error) {
+					return "", errors.New("connection refused")
+				},
+			},
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusInternalServerError,
 			wantBody:   "failed to load clinic setting",
@@ -354,8 +383,11 @@ func TestLiffChannelIDExtraction(t *testing.T) {
 
 	setting := &mockSettingLookup{
 		findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			return &model.LineReservationSetting{ClinicID: 3}, nil
+		},
+		integrationFn: func(_ context.Context, _ uint64, _ string) (string, error) {
 			// LIFF ID = "{channelID}-{appID}" 形式
-			return &model.LineReservationSetting{ClinicID: 3, LiffID: "1234567890-abcdefgh"}, nil
+			return "1234567890-abcdefgh", nil
 		},
 	}
 	customer := validCustomerLookup()

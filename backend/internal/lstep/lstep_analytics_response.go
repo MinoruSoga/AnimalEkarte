@@ -93,11 +93,11 @@ func toLstepFriendAttributeResponse(m *model.LstepFriendAttributeSnapshot) lstep
 		s := httpapi.LocalTimeRFC3339(*m.LastMessageAt)
 		r.LastMessageAt = &s
 	}
-	if len(m.Tags) > 0 {
-		r.Tags = json.RawMessage(m.Tags)
+	if tags := nullableJSONBytes(m.Tags); len(tags) > 0 {
+		r.Tags = tags
 	}
-	if len(m.Scenarios) > 0 {
-		r.Scenarios = json.RawMessage(m.Scenarios)
+	if scenarios := nullableJSONBytes(m.Scenarios); len(scenarios) > 0 {
+		r.Scenarios = scenarios
 	}
 	if m.CsvImportID != nil {
 		s := m.CsvImportID.String()

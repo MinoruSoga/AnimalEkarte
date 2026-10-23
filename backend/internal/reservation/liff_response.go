@@ -17,11 +17,13 @@ type liffSettingsResponse struct {
 	PrivacyPolicy        string `json:"privacy_policy"`
 	PhoneNumber          string `json:"phone_number"`
 	RequestExample       string `json:"request_example"`
-	LiffID               string `json:"liff_id"`
 	ShowNoStaffOption    bool   `json:"show_no_staff_option"`
 	BookingWindowMaxDays int    `json:"booking_window"`
 }
 
+// toLiffSettingsResponse は LIFF 公開設定を返す。EMR-504: liff_id は line_reservation_settings から
+// DROP 済みで、spec は公開設定の liff_id の出所を定めていない（LIFF 起動は URL の LIFF ID による）。
+// 出所が決まるまで公開しない（fail-closed 側）。
 func toLiffSettingsResponse(s *model.LineReservationSetting) liffSettingsResponse {
 	return liffSettingsResponse{
 		Status:               s.Status,
@@ -31,7 +33,6 @@ func toLiffSettingsResponse(s *model.LineReservationSetting) liffSettingsRespons
 		PrivacyPolicy:        s.PrivacyPolicy,
 		PhoneNumber:          s.PhoneNumber,
 		RequestExample:       s.RequestExample,
-		LiffID:               s.LiffID,
 		ShowNoStaffOption:    s.ShowNoStaffOption,
 		BookingWindowMaxDays: s.BookingWindowMaxDays,
 	}

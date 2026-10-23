@@ -16,9 +16,13 @@ import (
 // LineReservationSettingRepository は予約基本設定のデータアクセスインターフェース
 type LineReservationSettingRepository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	// FindWebhookRouteByLineBotUserID は webhook routing metadata のみを返し、credential
-	// payload は返さない。line_bot_user_id が空の行はマッチさせない。
-	FindWebhookRouteByLineBotUserID(ctx context.Context, lineBotUserID string) (clinicID uint64, legacyCredentialPresent bool, err error)
+	// FindWebhookRouteByLineBotUserID は webhook destination から clinic を引く（credential は返さない）。
+	// 旧 line_bot_user_id は DROP 済みで置換先の routing 保存は未決定（EMR-504 Q7）のため、
+	// 決定されるまで apperrors.CodeLineWebhookRoutingPending（422）で fail-closed する。
+	FindWebhookRouteByLineBotUserID(ctx context.Context, lineBotUserID string) (clinicID uint64, err error)
+	// FindIntegrationValue は clinic_integrations(service='lstep') の許可済みキー（liff_id のみ）の保存値を返す。
+	// 行が無ければ ("", nil)。
+	FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error)
 	// FindAll は全クリニックの設定を返す（管理用途）。Webhook 署名検証では使わない。
 	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
 	Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
@@ -38,28 +42,42 @@ func (r *lineReservationSettingRepository) FindAll(ctx context.Context) ([]model
 	return settings, nil
 }
 
-// FindWebhookRouteByLineBotUserID は credential 値をSELECTせず、routing identity と
-// legacy credential presence metadata のみを返す。
+// FindWebhookRouteByLineBotUserID は routing 保存が決定されるまで常に fail-closed する。
+// 旧実装は line_reservation_settings の line_bot_user_id / line_channel_secret 列を SELECT していたが
+// いずれも DROP 済みで、置換先のキー・一意 index は 446/466 の DDL 後に決める。
 func (r *lineReservationSettingRepository) FindWebhookRouteByLineBotUserID(
-	ctx context.Context,
-	lineBotUserID string,
-) (uint64, bool, error) {
-	if lineBotUserID == "" {
-		return 0, false, apperrors.FromGORM(gorm.ErrRecordNotFound, "line_reservation_setting", "line_bot_user_id")
+	_ context.Context,
+	_ string,
+) (uint64, error) {
+	return 0, apperrors.WrapUnprocessableWithCode(
+		apperrors.CodeLineWebhookRoutingPending,
+		"LINE webhook の宛先（destination）から医院を引く保存先がまだ決定されていません",
+	)
+}
+
+// lineIntegrationReadableKeys は FindIntegrationValue が返してよい clinic_integrations のキー
+// （LIFF ID のみ・非 secret。汎用の秘密 reader にしない）。
+var lineIntegrationReadableKeys = map[string]struct{}{
+	model.IntegrationKeyLiffID: {},
+}
+
+func (r *lineReservationSettingRepository) FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error) {
+	if _, ok := lineIntegrationReadableKeys[keyName]; !ok {
+		return "", apperrors.WrapInternalServerError("clinic integration key is not readable from reservation: " + keyName)
 	}
-	var route struct {
-		ClinicID                uint64
-		LegacyCredentialPresent bool
-	}
+	var records []model.ClinicIntegration
 	err := r.db.WithContext(ctx).
-		Model(&model.LineReservationSetting{}).
-		Select("clinic_id, (line_channel_secret <> '') AS legacy_credential_present").
-		Where("line_bot_user_id = ? AND line_bot_user_id <> ''", lineBotUserID).
-		Take(&route).Error
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("service = ? AND key_name = ?", model.IntegrationServiceLstep, keyName).
+		Limit(1).
+		Find(&records).Error
 	if err != nil {
-		return 0, false, apperrors.FromGORM(err, "line_reservation_setting", "line_bot_user_id")
+		return "", apperrors.FromGORM(err, "clinic_integration", keyName)
 	}
-	return route.ClinicID, route.LegacyCredentialPresent, nil
+	if len(records) == 0 {
+		return "", nil
+	}
+	return records[0].KeyValue, nil
 }
 
 func (r *lineReservationSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -83,8 +101,7 @@ func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID ui
 	intended.UpdatedAt = time.Now()
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Ensure the clinic row exists without rewriting credentials/routing identity on
-		// conflict. DoUpdates column set is intentionally empty here — full intended state
+		// Ensure the clinic row exists without rewriting any column on conflict. DoUpdates column set is intentionally empty here — full intended state
 		// is written next via Select+Updates over lineReservationSettingUpdatableColumns only.
 		if err := tx.
 			Scopes(persistence.ClinicScope(clinicID)).
@@ -96,9 +113,8 @@ func (r *lineReservationSettingRepository) Save(ctx context.Context, clinicID ui
 			return apperrors.FromGORM(err, "line_reservation_setting", "")
 		}
 
-		// Force every updatable column, including explicit zeros/false. Does not select
-		// line_channel_secret, line_bot_user_id, or id — provisioned routing/credentials
-		// survive UI Save (SEC-CS-F05-R1). Same column set as the former OnConflict DoUpdates.
+		// Force every updatable column, including explicit zeros/false. Does not select id.
+		// Same column set as the former OnConflict DoUpdates.
 		if err := tx.
 			Scopes(persistence.ClinicScope(clinicID)).
 			Model(&model.LineReservationSetting{}).
@@ -158,15 +174,9 @@ func lineReservationSettingUpdatableColumns() []string {
 		"no_staff_mode",
 		"show_no_staff_option",
 		"additional_fields",
-		"line_channel_id",
-		// R-05 Phase B: line_channel_secret is excluded from Save Updates.
-		// Canonical channel secret SoT is clinic_integrations. Column remains for
-		// legacy_credential_present presence SELECT until inventory-zero DROP (HOLD).
-		// line_bot_user_id is ops/migration-provisioned for O(1) webhook routing
-		// (SEC-CS-F05-R1). Exclude from Save Updates so UI/API Save cannot wipe a
-		// provisioned bot user ID with the zero value.
-		"liff_id",
-		"line_access_token",
+		// EMR-504: line_channel_id / line_channel_secret / liff_id / line_access_token /
+		// line_bot_user_id were dropped from line_reservation_settings (001 final). LINE
+		// credentials live only in clinic_integrations (lstep-settings API).
 		"updated_at",
 	}
 }

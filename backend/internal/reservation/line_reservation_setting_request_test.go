@@ -4,9 +4,12 @@ package reservation
 // 誤同居していた upsertLineReservationSettingRequest のテストを実装と同 package へ移動。
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin/binding"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
@@ -22,9 +25,6 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 		TimeSlotIntervalMinutes: 15,
 		NoStaffMode:             "first_available",
 		ShowNoStaffOption:       &showNoStaff,
-		// R-05 Phase B: line_channel_secret is no longer accepted on this request.
-		// Canonical channel secret write owner is clinic_integrations via L-step settings.
-		LineAccessToken: "token",
 	}
 
 	input := req.toServiceInput()
@@ -41,35 +41,65 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 	if !input.ShowNoStaffOption {
 		t.Error("ShowNoStaffOption = false, want true")
 	}
-	if input.LineAccessToken != req.LineAccessToken {
-		t.Errorf("LineAccessToken = %q, want %q", input.LineAccessToken, req.LineAccessToken)
-	}
 }
 
-// R-05 Phase B: unknown JSON field line_channel_secret must be ignored (not bound).
-func TestUpsertLineReservationSettingRequest_IgnoresLegacyChannelSecretJSON(t *testing.T) {
-	const body = `{
-		"status":"running",
-		"booking_window_max_days":30,
-		"booking_window_min_days":0,
-		"calendar_months":2,
-		"time_slot_mode":"minimize_gaps",
-		"time_slot_interval_minutes":15,
-		"no_staff_mode":"first_available",
-		"line_channel_secret":"must-be-ignored"
-	}`
-	var req upsertLineReservationSettingRequest
-	if err := binding.JSON.BindBody([]byte(body), &req); err != nil {
-		t.Fatalf("bind: %v", err)
+// EMR-504: the four LINE credential fields are not part of the reservation setting any more
+// (clinic_integrations is their only store). Any presence — including an empty string — is rejected
+// with 400 instead of being silently dropped.
+func TestUpsertLineReservationSettingRequest_RejectsLegacyLineCredentials(t *testing.T) {
+	const base = `"status":"running","booking_window_max_days":30,"booking_window_min_days":0,"calendar_months":2,` +
+		`"time_slot_mode":"minimize_gaps","time_slot_interval_minutes":15,"no_staff_mode":"first_available"`
+
+	tests := []struct {
+		name      string
+		extra     string
+		wantField string
+	}{
+		{name: "line_channel_id", extra: `,"line_channel_id":"123"`, wantField: "line_channel_id"},
+		{name: "line_channel_secret", extra: `,"line_channel_secret":"s"`, wantField: "line_channel_secret"},
+		{name: "liff_id", extra: `,"liff_id":"1234567890-abc"`, wantField: "liff_id"},
+		{name: "line_access_token", extra: `,"line_access_token":"t"`, wantField: "line_access_token"},
+		{name: "empty string is still a presence", extra: `,"liff_id":""`, wantField: "liff_id"},
 	}
-	input := req.toServiceInput()
-	// Input type no longer carries LineChannelSecret; binding success without field is the contract.
-	if input.Status != "running" {
-		t.Errorf("Status = %q, want running", input.Status)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var req upsertLineReservationSettingRequest
+			if err := binding.JSON.BindBody([]byte(`{`+base+tt.extra+`}`), &req); err != nil {
+				t.Fatalf("bind: %v", err)
+			}
+			err := req.rejectLegacyLineCredentials()
+			if err == nil {
+				t.Fatal("expected a 400 for a legacy LINE credential field")
+			}
+			if !apperrors.IsInvalidInput(err) {
+				t.Errorf("error = %v, want invalid input (400)", err)
+			}
+			if !strings.Contains(err.Error(), tt.wantField) {
+				t.Errorf("error %q does not name %q", err.Error(), tt.wantField)
+			}
+		})
 	}
-	if input.LineAccessToken != "" {
-		t.Errorf("LineAccessToken unexpectedly set to %q", input.LineAccessToken)
-	}
+
+	t.Run("none of the legacy fields is accepted", func(t *testing.T) {
+		var req upsertLineReservationSettingRequest
+		if err := binding.JSON.BindBody([]byte(`{`+base+`}`), &req); err != nil {
+			t.Fatalf("bind: %v", err)
+		}
+		if err := req.rejectLegacyLineCredentials(); err != nil {
+			t.Errorf("unexpected error without legacy fields: %v", err)
+		}
+	})
+
+	t.Run("the error never echoes the submitted value", func(t *testing.T) {
+		var req upsertLineReservationSettingRequest
+		if err := binding.JSON.BindBody([]byte(`{`+base+`,"line_access_token":"super-secret-token"}`), &req); err != nil {
+			t.Fatalf("bind: %v", err)
+		}
+		err := req.rejectLegacyLineCredentials()
+		if err == nil || strings.Contains(err.Error(), "super-secret-token") {
+			t.Fatalf("error must exist and not echo the value, got %v", err)
+		}
+	})
 }
 
 func TestUpsertLineReservationSettingRequest_ShowNoStaffOptionFalse(t *testing.T) {
