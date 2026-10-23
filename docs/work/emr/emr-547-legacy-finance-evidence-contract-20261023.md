@@ -2,7 +2,7 @@
 
 2026-10-23。[EMR-547](https://app.plane.so/baritechllc/browse/EMR-547/)（親349、Backlog、担当/期限未指定）の7ACに対応する製品側保存/閲覧契約の設計文書。**設計未完・実装未着手**。設計文書公開と未受領事項の明確化が今回の成果で、closed schema/物理DDL/APIの採択や通常会計移行の許可ではない。
 
-調査根拠はmain `42a3890a22d645857ad8e27c3b2d7bbfc9c2e038`、docs作成baseは最新main `621d58a0834aa6984ee3c82401e3478efef45d2e`。差はClaude許可設定のcommitのみで、本作業では取り扱わない。old_db実コード・実行結果・実原本行は今回未確認。以下の原値名/意味は受領した保全条件であり、正確なsource table/columnのclosed mappingはMIG-41から未受領。
+調査根拠はmain `42a3890a22d645857ad8e27c3b2d7bbfc9c2e038`、docs作成baseは最新main `621d58a0834aa6984ee3c82401e3478efef45d2e`。差はClaude許可設定のcommitのみで、本作業では取り扱わない。old_db実コード・実行結果・実原本行は本consumer側では未確認。2026-10-23にproducer静的調査報告のmapping設計入力を受領した（[受領範囲/回答](#producer-static-report-and-preservation-response)）。報告されたコードSHAと既出artifact manifest/digestの一致は独立未検証で、新sidecarのclosed mapping/物理schema/APIは未採択・未受領。
 
 今回docsのみ。製品コード/API YAML/DDL/model/producer SQL/実データ/設定/Planeは変更せず、tests/build/codegen/DB/import/Docker/browserはNOT_RUN。実PHI/原値行/ローカル実path/原本ファイルをGit・票・通常ログ・チャットへ転載しない。merge・レビュー依頼は行わない。
 
@@ -62,7 +62,7 @@ targetがnullならその関係を確認済みとは扱わない。他の非null
 
 ## 3. 原値・意味検証・変換の分離
 
-presence（value/null/empty/unavailable）、文字列としての元値、意味の検証状態を別軸で保持する。値が不明なことと未取得を混同せず、実際の0/空文字/NULLを互換のために潰さない。raw、derived、transform rule/版/根拠を分け、rawをbinary floatへ通したり不明を0補完したりしない。exact JSON/decimal文法/文字コード/サイズ上限はproducer-consumer共通schemaで未採択。
+presence（値/NULL/空/未取得という概念上の区別）、文字列としての元値、意味の検証状態を別軸で保持する。closed tag enumは未採択で、§9の追加技術候補では空文字もvalue内に保持する案を分けて記載する。値が不明なことと未取得を混同せず、実際の0/空文字/NULLを互換のために潰さない。raw、derived、transform rule/版/根拠を分け、rawをbinary floatへ通したり不明を0補完したりしない。exact JSON/decimal文法/文字コード/サイズ上限はproducer-consumer共通schemaで未採択。
 
 | 対象 | 保存/表示する原値と由来 | 禁止する意味補完 |
 |---|---|---|
@@ -70,9 +70,9 @@ presence（value/null/empty/unavailable）、文字列としての元値、意�
 | 旧精算証拠 | KKarte_Kbn=4は旧精算完了の証拠として区別し、旧精算日を原値として保持 | 旧精算日=新請求確定日とせず、不明な新確定日/終了event/入金配賦を生成しない。定数finalizedから終了eventを生成しない |
 | 旧estimate割引 | header discountのraw値と丸め後値、変換規則/版/出典をそれぞれ保持 | 丸め後だけ残して原値を捨てず、割合/金額/適用順を推定しない。`estimate_calculation_revisions`の未定義JSONへ投入しない |
 | 旧estimate保険 | insurance=0が生成定数ならgenerated_constant由来を保持して表示 | 原保険額が既知0円だったと解釈しない。生成定数/未取得/意味不明/確認済み値を分ける |
-| 元PK不明 | 検証済みartifact locatorで原bytes中の場所と出典を辿れるようにする | 架空source keyを作らず原PK表示しない。artifact digest＋locatorを元レコードの一意性証明と呼ばない |
+| 元PK不明 | 将来の検証済みartifact locator採用候補で原bytes中の場所と出典を辿る。現producerには元バイト位置locatorなし（§9） | 架空source keyを作らず原PK表示しない。artifact digest＋locatorを元レコードの一意性証明と呼ばない |
 
-元table/column名・型、source status enumと各flag/date/discountの意味、PK判明範囲、bytesと派生値の対応はMIG-41のclosed mapping受領残。old_dbコードを今回検証済みとは書かず、推測でproducer SQLを修正しない。
+元table/column・変換式・構造化PKのmapping設計入力は§9のproducer報告として受領済み。新sidecarのclosed mapping、意味未確定列、snapshot/原キー/取得成果物の結合と実bytes対応は受領残。old_dbコードをconsumer側で検証済みとは書かず、推測でproducer SQLを修正しない。
 
 ## 4. evidence-only保全受入とformal importは別
 
@@ -88,11 +88,11 @@ fresh-only/ID band/既存import prefix/lockの規約は対象profileの既存契
 
 ## 5. 再送・訂正・原子保存と結果不明
 
-stable source evidence identityはclinic/source system/source snapshot identity/source table/source keyへ束縛し、contract/mapping/transform/encoding版を混ぜない。同stable identityの同じ原本bytesは同一証拠へ解決し、原本bytes不一致はconflictで上書きしない。digestをidentityへ足して異内容を新規化したり、契約版の更新だけで原本snapshotを重複生成したりしない。原本自体の変化は別source snapshot/revisionの証拠として関連付け、旧原本を保持する。
+元entity（clinic/source system・系譜/source table/構造化された元複合キー）と、検証済みsource snapshot identityを含むstable source evidence identityを分ける。現在のsnapshotを含む証拠identityを弱めず、contract/mapping/transform/encoding版・run/build/stage生成IDを原本identityへ混ぜない。同stable identityの同じ原本bytesは同一証拠へ解決し、原本bytes不一致はconflictで上書きしない。digestをidentityへ足して異内容を新規化したり、契約版の更新だけで原本snapshotを重複生成したりしない。原本自体の変化は別source snapshot/revisionの証拠として関連付け、旧原本を保持する。
 
 同じ原本へのmapping/transform/encoding変更は別のimmutable derived projection revisionとして追記する。派生値の差を原本改変conflictと誤判定せず、同じ派生版/内容の再送は既存結果を参照する。派生版の識別・同版異内容conflict・具体番号/encoding/closed payloadは221/MIG-41との受領残。原本identity、派生revision、各受領batchの実行identity/成功receiptは別概念であり、再処理batchやreceiptが新しくても原本を増殖させない。
 
-元keyが不明な場合は検証済みartifact locator（artifact identityとその中の位置）でsource keyの代わりに**証拠位置**を同定するが、元レコード一意性は保証できない。artifact bytes digestは整合検査に使い、不一致を別identityへ逃がさない。別artifact間の同一人物/取引や同内容の重複を推測統合しない。不明identityでどこまで受けられるか、並行取込のlock/unique・conflict応答はclosed consumer契約の受領条件。
+元key不明時の検証済みartifact locatorは将来設計の条件付き案であり、§9のproducer報告では元バイト位置locatorは存在しない。snapshot/原キー/取得成果物を結ぶ方式は未選定。locatorを将来採用できても**証拠位置**の同定であって、元レコード一意性は保証できない。artifact bytes digestは整合検査に使い、不一致を別identityへ逃がさない。別artifact間の同一人物/取引や同内容の重複を推測統合しない。不明identityでどこまで受けられるか、並行取込のlock/unique・conflict応答はclosed consumer契約の受領条件。
 
 設計目標はbatch/原本snapshot/初期派生projection revision/初期verified links/耐久成功receiptを同transactionで保存すること。既存原本を再処理するときは原本を参照し、必要な派生revisionと当該batchの結果だけを追記する。現在のimporterが実現済みとせず、必要adapter/監査sinkを221/349/547と保存ownerが受領する。成功はreceiptの耐久確認後、commit結果不明は同batch実行identityと保存済み原本/派生revisionの対応を照合する。unknown中の新identity/再importで救済せず、ローカルreportだけをDB保存成功証明にしない。
 
@@ -129,12 +129,68 @@ fixtureを用意する条件と実行を分ける。非PHIの合成値で、byte
 
 ## 8. 設計残・次の限定引渡し
 
-| 未受領 | 閉じる対象 | 完了と誤認しないこと |
+| 受領状況/残工程 | 閉じる対象 | 完了と誤認しないこと |
 |---|---|---|
-| MIG-41 closed source mapping | 旧table/column/PK、各flag/date/status/割引/保険定数のraw・derivedと変換版、bundleの同一snapshot証明 | 本文の保全原則だけでold_dbコード検証/producer生成済みにしない |
+| MIG-41 mapping設計入力受領済み／closed sidecar mapping残 | §9のコードSHA・旧列/変換/PK概要はproducer報告として受領。未取得列・型/時刻・集約入力列挙、snapshot/構造化原キー/取得成果物の結合、新sidecar exactと実bundle同一性は残 | consumer独立コード/DB検証、現行19表artifact適合、producer生成済みを意味しない |
 | 221 producer-consumer版付き契約 | evidence-only名/版・strict payload/bytes・identityと欠損identity・独立保全適格性/receipt・formal隔離 | accepted-exclusions提案やmanifest自己申告だけで有効化しない |
 | 446/466物理保存 | batch/原本snapshot/従属派生projection revision/link履歴の実名/型/FK/unique/RLS/immutable/index/model/ERD、transaction/大batch方針 | 現normal tableのJSON欄へ暫定投入しない。DDL実装/適用未完 |
 | 547 read API/UI | closed DTO/permission map・filter/cursor・error・projectionと履歴、namespace境界、保存後read/画面 | 本稿の候補routeを実在扱いしない。read-only受入未完 |
 | 349/361同run受入 | 唯一import ownerの受領/配置/preflight/適用と耐久receipt、同N1/identityで製品画面・復旧照合 | docs公開を実import/復旧PASS/通常会計GOにしない |
 
 設計整備の続きはこの既存責務に沿って閉じる。今回文書公開だけでBacklogを実装完了へ変更せず、全移行・全会計の設計/実装完成とも報告しない。
+
+
+<a id="producer-static-report-and-preservation-response"></a>
+## 9. 2026-10-23 producer静的調査報告の受領と回答
+
+### 受領根拠と検証境界
+
+Library添付「貼り付けたテキスト(5).txt」のproducer回答を受領した。以下のold_db所見は**producer報告**であり、本consumer側で実コード/実DB/既出bundleを独立検証した結果ではない。報告のmainは`a38e71f904460ba3d33194e817bafcbb78886d0c`。主な調査対象は`sql/migration/raw-to-intermediate/020_canonical.sql`、`sql/migration/intermediate-to-mapping/030_stage.sql`、`scripts/lib/intermediate-to-mapping/stage-csv-columns.mjs`、SQL Server DDL。これはmappingの設計入力受領であり、新evidence-onlyのclosed schema/DDL/API全体の採択や実装開始許可ではない。
+
+producerは現行コードのdigestを報告しているが、実artifact manifestのsource/run/build/contract/mapping digestが現在コード・出力bytesに一致するかは未検証。旧21表のreceiptを現行19表の適合証拠に転用しない。八王子の正式intakeはINCOMPLETE、城東候補は旧21表時代の報告であり、今回正式取込GOへ昇格しない。
+
+### 失われる情報と別sidecarの保存方針
+
+| producer報告の所見 | consumer側の回答・保全境界 |
+|---|---|
+| 現行19 CSVはsource_table/source_pk、原flag、discount_raw、run/confidence等を出力しない。canonical段階でもmax/sum/trim/COALESCE/WHERE除外がある | 既存19 CSVを変更/旧形式へ戻すのではなく、対象の旧会計/見積に別の版付きevidence-only sidecarを設計する。生成/取込はまだ許可しない |
+| 多数原行からcanonicalを集約、stage/CSVでは列や対象行がさらに落ちる | 原始source行、derived canonical/stage/CSV、それぞれへの入力原行集合と規則のlineage、除外理由を区別して保全。集約済み1行から原行を復元したとは扱わない |
+| 同一カルテへの複数請求の一部はstageでmedical_record_idをNULLへ降格。元から未リンクの行もある | link降格と元から未リンクを別の由来として保持。canonicalの候補関係を無検証でverified targetへ昇格しない。§2.1の帰属/現在認可検査を維持 |
+| 生成insurance=0、rate=0、tax=0.10、見積draft、補完1900-01-01、KNJO shell settle_flg=1 | generated_constant/default/補完としてrawと分ける。確認済みの保険額/率/税率/業務状態/日付/精算完了を意味しない |
+| Mit_Nbiki/Mim_Nbikiのrawと丸め値が異なる。負値もあり得る。unit_priceが割後の実効単価になる経路がある | raw/丸め値/規則を分離し、負値を捨てず、不明0補完や割引の二重適用をしない。正規計算revisionへ未知値を詰めず通常処理HOLD |
+| Kkarte_Kbn=4は旧精算状態の証拠。settle_flgの定数や意味不明値からcompletedが生成され得る | Kbn4・精算日・額は独立原値。新finalize/allocate/終了eventを生成せず、waiting/pendingからdraft/finalizedへ一律変換しない |
+| Kkarte_Kbn 1/2（報告上の注釈は受付済/入力途中）からvisit_type first/revisitを生成するmappingがある | 初再診の根拠には採用できない。547で原値を保全するだけでは解消しない別のproducer/consumer修正責務として引き渡す。今回SQL変更/新しい初再診判定は行わない |
+
+### identityの3軸と未選定の結合
+
+| 軸 | 必要な意味と混同禁止 |
+|---|---|
+| 元entity | 医院/source system・系譜/table/構造化された元複合キー。trim済み`pet|sno`だけで元の複合キーを代替せず、列ごとの原値/presenceを保持。stage IDENTITYや生成IDは原本identityではない |
+| snapshot evidence revision | 元entityと検証済みsnapshotを結ぶ証拠版。同snapshot・同原本identityの異なる内容はconflict。別の検証済みsnapshotにおける実変更は旧証拠を上書きせず別revisionへ関連付ける。snapshot間の同一entityは検証済みキー/系譜を要し、名前類似で推測統合しない |
+| delivery / derived projection | run/build/契約版/mapping版/encoding等は受領・生成の別軸。同原本に別変換が必要ならimmutable派生projection revisionへ追記。原本を二重生成したり派生差を原本改変と誤判定したりしない |
+
+producerには元バイト位置locatorが存在しないという報告であり、snapshotと原キー・取得成果物を結ぶ方法は未選定。原キー欠落に架空key/locatorを作らず、stage生成IDやrun変更で同一原本の異内容を別新規へ逃がさない。§5のsnapshotを含む証拠identity・conflict原則は維持する。producer報告内の「clinic+source_pk+契約版」案は、本書の原本identityへ契約版を戻す採択ではない。
+
+### SQLの情報欠落とCSV表現の区別
+
+資料のCSV説明は[PostgreSQL 17 COPY公式仕様](https://www.postgresql.org/docs/17/sql-copy.html)に照合して訂正する。COPY CSVの既定NULLは非引用空欄、空文字は引用付き空文字であり、CSVという形式だけで両者が同一になるわけではない。実出力のCOPY option/bytesとの適合は別途確認する。事前のCOALESCE/trim/集約/WHERE除外で消えた区別は、このCSV表現から復元できない。SQL変換の情報欠落、CSV表現、未取得を別問題として保全する。
+
+<a id="legacy-evidence-additional-design-candidates"></a>
+### 追加の技術設計候補（closed contract未採択）
+
+以下は設計レビュー用の候補であり、実データexporter/validator・取込の着手可能宣言ではない。既決の原値不変/正式取込隔離を弱めず、具体JSON/型/digest/物理保存/APIへの採択は別途行う。
+
+| 候補 | 境界・未選定事項 |
+|---|---|
+| raw cellの必須presence tag | value（textの空文字・空白も含む）/null（SQL NULL確認済み）/missing（source schemaに列不存在を確認済み）/unavailable（取得不能・理由あり）を分ける。必須JSON項目の省略はmissing値ではなくvalidation error。生成定数はraw cellへ混ぜずderivedのconstantに置く。exact型は未選定 |
+| bytesと値のdigest分離 | artifact bytes digestとsource-value digestを分ける。原値のtrim/Unicode正規化/丸めをせず、JSON escape/encodingだけの差を原値競合にしない候補。指定artifactのbytes不一致は整合検査失敗のまま、正規原値digestの仕様・比較層/変換証明は未選定。表現変更を原本変更と混同しない |
+| 複数原行のlineage | 集約projectionから複数source occurrenceを参照できる形を検討する。入力集合digestだけで個々の元行への追跡を省略しない。機械可読mapping/原始取得位置と列挙方法は未受領 |
+| PK不明の保全 | 将来、検証済みartifact locatorがあれば元entity未解決の証拠として保全可能な候補。PK/locator両方なければ集合の測定証拠として区別し、架空原行や元entityを生成しない。現producerにlocatorはなく、結合方式は未選定 |
+| 大規模取込 | 固定manifestとchunk receipt、全chunk/lineageの検証後のbatch完了receipt、その後の履歴公開を候補とする。同chunk同内容は既存receipt、異内容conflict、未完batchを全体成功として表示しない。chunk上限/物理保存/再開wireは未選定で、現formal importerを変更しない |
+| readとwrite認可分離 | read権限をimport/link訂正権限に流用しない。後続link訂正のwrite grant/実行経路は未選定。閲覧可能というだけで元帰属の追記訂正を許可しない |
+
+### 残る受領・実装条件（全NOT_RUN）
+
+mapping設計入力は受領済みだが、実DBの型、日時の時刻成分、未取得原列、原キー欠落の実態、集約入力原行の列挙、現在コード/digestと実artifact manifestの一致は未調査/未検証を維持する。source provenance自体が不明なものはquarantine、意味だけ不明なものの保全とformal import適格性は分離する。21表時代のreceipt、producer報告、今回の文書公開を現行19表または新sidecarの実行receiptにしない。
+
+次の設計受領はMIG-41のsidecar生成契約/原行lineage、221の版付きconsumer契約、446/466の物理保存subset、547の限定read/UI・通常writer分離である。実装可能なclosed範囲の確定は整合レビュー後に別途記録し、現時点では生成/取込/通常会計移行/全wire実装可能とはしない。実データ・producer SQL・API YAML・DDLは変更せず、DB操作/再生成/試験はNOT_RUN。
