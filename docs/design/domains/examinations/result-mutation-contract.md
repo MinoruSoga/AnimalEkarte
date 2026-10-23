@@ -462,7 +462,7 @@ AC番号は§12のcase番号を `D4-AC-01`〜`D4-AC-23` として参照する。
 
 初回D4採択時はDetachのjob target/key/unknownが未選定だった。現sourceのDetachに成功receiptがなくRevert旧receiptで代用できない差を保持し、後発の[Detach有限契約](job-detach-contract.md#exam-detach-scope)で独立job target digest/C06/3追加表/固定manifest/cursor/版付き補償snapshotを選定した。各examでRunnerを起動せず全examのcounter/補償/監査/manifest/成功結果を同TXに置く。
 
-単体D4の2DDLとjob用3追加表は別subset。元target reader・全membership writerのjob lock閉包・schema/API/FE切替は未受領。Revert unknownは別有限残。未参加入口だけactivation対象外とし、独立受信/閲覧・適合済み他mutationを一律停止しない。正式実行ID/claimと供給SHAは未確定。
+単体D4の2DDLとjob用3追加表・association_version列/全writer増分参加は別subset。元target reader・全membership writerのjob lock閉包・schema/API/FE切替は未受領。Revert unknownは別有限残。未参加入口だけactivation対象外とし、独立受信/閲覧・適合済み他mutationを一律停止しない。正式実行ID/claimと供給SHAは未確定。
 
 ## 14. 根拠索引
 基準sourceと既存正本・Plane記録。sourceは実装差分の根拠であり、臨床業務仕様を上書きするものではない。

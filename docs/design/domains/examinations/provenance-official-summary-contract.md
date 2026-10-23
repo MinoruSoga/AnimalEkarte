@@ -112,7 +112,7 @@ HTTP/C06失敗はD4継承。invalid date/presence/source=400 validation、無認
 entry exact keys: meaning, mapping_state, selection, selected_source_ref, candidates, unknown_date_candidates, ancillary_candidates。
 - meaning=FIV|FeLV|mf|HW。selection=unique_latest|ambiguous|unknown_date_only|no_official_value|mapping_unknown|not_applicable。
 - selected_source_refはunique_latest時だけSourceRef、他はnull。
-- candidatesは保存実施日/信頼できる実施日時と精度による最大候補集合（同順位・比較不能を含む）すべて。unknown_date_candidatesは日付不明候補。ancillary_candidatesはvalue_stateがpending/not_performed/unknownの非置換候補。unknownは下記定義の原値空かつ明示availability証拠なし等に限り、非空原文が臨床的に未解釈という理由でvalue_presentから除外しない。
+- candidatesは保存実施日/信頼できる実施日時と精度による最大候補集合（同順位・比較不能を含む）すべて。unknown_date_candidatesは日付/精度未確認候補。ancillary_candidatesはvalue_stateがpending/not_performed/unknownの非置換候補。unknownは下記定義の原値空かつ明示availability証拠なし等に限り、非空原文が臨床的に未解釈という理由でvalue_presentから除外しない。
 
 Candidate exact keys: source_ref, raw_value, unit, value_state, date, performed_date_precision, measured_at, source_kind, source_details, correction_state, previous_official_revision_id, mapping_ref。
 - raw_value/unitは保存文字列。value_state=value_present|pending|not_performed|unknown。value_stateは保存原値の有無/明示availabilityであり、陽性/陰性/正常/実施確認/意味理解の判定ではない。以下のclosed adapterを使う。
@@ -137,8 +137,13 @@ Candidate exact keys: source_ref, raw_value, unit, value_state, date, performed_
 4. soft-delete/適法無効化された系列は有効候補外。別examへ移された/固定petと不整合なsourceは勝手に現在petへ帰属させない。
 5. head、previous、item、保存種/患者、mappingの系列/医院整合を検査。修復や最新masterによる履歴再構成なし。
 
-rankingは保存された実施日/実施日時と、立証できる精度だけを使う。異なる既知日は日付で比較する。同日候補の双方に信頼できる保存measured_atがあり、当該sourceの実施日時として精度・timezone/offset・由来が明示され、同じ時間軸で順序を立証できる場合に限り、その実施日時で比較する。DBのtimestamptz型や値の非nullだけでは信頼性/精度の証明としない。reader adapterは元job/sourceの保存証拠を同snapshotで検証し、表示用入力時刻から生成された値を採用しない。一方でも日単位のみ/時刻精度不足/zone由来不明ならその同日候補間の順序は不明。同じ実施日時も同順位。信頼できる日時が一部だけの集合では、証明できない比較を日時あり優先へ変換しない。
-一意な直近候補は、他の全既知日候補より後であることを立証できた候補だけ。候補間の時間区間が重なる/比較不能なら最大候補集合を返しambiguousとする。日だけの候補はその保存実施日の全日区間であり、架空00:00へ点化しない。入力/受信/更新/確認時刻、exam ID、院内外優先は順位根拠にしない。日付不明は別集合で既知日を上書きしない。日付不明しかなければ全不明候補の原値と検査日不明を返す。
+<a id="exam-summary-legacy-null-precision"></a>
+保存date非NULLでもperformed_date_precision=NULLなら、そのdateだけではday精度を証明しない。保存値を変えずunknown_date_candidatesの日付/精度未確認bucketへ併記する。既知day候補を上書きせず、削除/空結果/endpoint全失敗にしない。全候補がこの形ならunknown_date_only、混在時はunknown_date_present noticeと既知候補を別表示する。
+
+独立の信頼できるmeasured_at＋精度/zone/由来の明示証拠が揃う場合だけ、その証拠で時刻比較可能。null精度のdateを推測dayへ補完した扱いにはせず、証拠なしは同じunknown bucketに保つ。null/nullも不明、day＋有効dateは既知日として扱う。readのdate/precision NULLを変更しない。
+
+rankingは保存された実施日/実施日時と、立証できる精度だけを使う。ここで「既知日」は保存day精度又は独立に立証した日時根拠がある場合だけを指す。異なる既知日は日付で比較する。同日候補の双方に信頼できる保存measured_atがあり、当該sourceの実施日時として精度・timezone/offset・由来が明示され、同じ時間軸で順序を立証できる場合に限り、その実施日時で比較する。DBのtimestamptz型や値の非nullだけでは信頼性/精度の証明としない。reader adapterは元job/sourceの保存証拠を同snapshotで検証し、表示用入力時刻から生成された値を採用しない。一方でも日単位のみ/時刻精度不足/zone由来不明ならその同日候補間の順序は不明。同じ実施日時も同順位。信頼できる日時が一部だけの集合では、証明できない比較を日時あり優先へ変換しない。
+一意な直近候補は、他の全既知日候補より後であることを立証できた候補だけ。候補間の時間区間が重なる/比較不能なら最大候補集合を返しambiguousとする。日だけの候補はその保存実施日の全日区間であり、架空00:00へ点化しない。入力/受信/更新/確認時刻、exam ID、院内外優先は順位根拠にしない。日付不明は別集合で既知日を上書きしない。日付/精度未確認しかなければunknown_date_onlyで全該当候補の原値と未確認状態を返す。
 
 mappingは既存verified_by/verified_at/evidence/operation_idだけを形上満たす架空行では不可。47から対象bundleとmapping行の採用revisionを受領する。現tableにeffective/revoked statusが無いのでmax(revision)を無条件activeとする選択はしない。承認bundleが指定する行revision集合をread構成に固定し、別bundleへ切替時は全再投影。mapping writer UI/承認workflow/臨床値seedは本slice外。旧field IDが明示mappingへ解決できなければmapping_unknown/noticeとし、no_recordへ偽装しない。
 
@@ -192,7 +197,7 @@ A04 別院/別exam/未来/workingをpreviousへ偽指定は入力拒否。保存
 A05 v1 date:null不変更を保持、v2 unknownだけ明示clear。旧v1成功keyとv2を混ぜない。
 A06 同時provenance/items更新はD4 CAS一方のみ成功。required audit/revision失敗は全rollback。応答断lookupで二重保存なし。
 B01 全候補が20件超、古い日が後日入力。全体の実施日で選定、入力時刻を使わない。
-B02 同日でも双方の保存実施日時/精度/zone/由来が立証できる場合は実施時刻で比較する。一方日単位・時刻精度不足・zone不明なら候補を併記し、同時刻も曖昧。同値/不一致/院内外を固定優先にしない。信頼できる時刻が一部だけの混合集合で日時あり優先にしない。日付不明は既知直近と別、unknownのみも原値保持。
+B02 nonNULL date＋NULL precision、NULL/NULL、day＋有効date、独立timestamp証拠あり/なしを照合し、原値保持/unknown bucketと既知候補の分離を確認する。同日でも双方の保存実施日時/精度/zone/由来が立証できる場合は実施時刻で比較する。一方日単位・時刻精度不足・zone不明なら候補を併記し、同時刻も曖昧。同値/不一致/院内外を固定優先にしない。信頼できる時刻が一部だけの混合集合で日時あり優先にしない。日付不明は既知直近と別、unknownのみも原値保持。
 B03 working訂正中は元officialだけ訂正中表示、working原値をofficialへ混入させない。再confirm後は新official、無効化後は旧値をcurrentとして残さない。
 B04 未承認/未設定/旧field対応不明/species不明をno_recordと区別。FIV verified/FeLV unverified等のmixedは各entry状態とtop-level mixedで返しverified候補を保持。明示not_applicableもmapping_unknownと区別。合成mapping検査を47臨床承認の証拠にしない。
 B05 非空inspection_valueの0/陰性/「-」/意味不明原文はvalue_presentとして保持し順位候補へ。value_presentを陰性/正常/実施確認へ読み替えない。空stringは明示availability証拠なしならunknown。result/status/assessmentで原値又はavailabilityを補完しない。固定item証拠があるpending/not_performedのみ区分し、これらの新しい行は既存値を消さない。

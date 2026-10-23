@@ -177,6 +177,9 @@ consumerはsnapshot・artifact・抽出profile・元キーの照合を別に行�
 
 - `domain_kind`：`accounting | estimate`。
 - `projection_kind`：`canonical | stage | output`。原DB行を表すtagではありません。
+- projection namespaceはconsumer登録のsource system/系譜＋projection_kindを識別し、run/delivery/契約版/digestを含めない。wire projection_refは登録profileでnamespace内logical refへ解決する。delivery-local参照しかなければglobal identity対応を221が受領するまで採用保留とし、推測で埋めない。
+- DB自然キー一意競合後に、既存UUIDのfingerprintに加え固定入力解決版/規則版/closed内容を照合する。同内容再送は既存UUID、異内容はprojection_conflict。digestをidentityへ追加して別revisionへ逃がさない。
+
 - `input_candidate_refs`：全入力原行候補の集合。重複不可。
 - `fields`：`DerivedField` の配列。field_idはprojection profileに登録されたものだけ。
 - `DerivedField`：`{ field_id, value, origin, rule_ref, source_field_refs, semantic_status }`。
@@ -284,7 +287,7 @@ outcome_refとsource_candidate_refは当該delivery内のlocal参照であり、
 | `legacy_evidence_conflicts` | id、clinic_id、entity_id、snapshot_id、候補A/B、conflict kind、検知delivery | 異値候補保持。採用済み値の上書きや自動解消なし |
 | `legacy_evidence_deliveries` | id、clinic_id、delivery_ref、producer run/build、契約版、mapping版、固定manifest digest | UNIQUE(clinic_id, delivery_ref)。同ref異manifestはconflict |
 | `legacy_evidence_artifacts` | id、clinic_id、delivery_id、role、digest、byte_length、保護storage参照 | acquisition/output/manifestをroleで分離。local pathは公開APIへ返さない |
-| `legacy_evidence_projection_revisions` | id、clinic_id、domain_kind、projection logical ref、revision_ref、mapping/transform profile、payload fingerprint、closed payload | 同projection/同版の異内容拒否。raw observationを上書きしない |
+| `legacy_evidence_projection_revisions` | id、clinic_id、domain_kind、projection_namespace_ref、projection_logical_ref、revision_ref、mapping/transform profile、payload fingerprint、closed payload | 自然キー全列NOT NULL。UNIQUE(clinic_id,domain_kind,projection_namespace_ref,projection_logical_ref,revision_ref)。同自然キー同内容は既存UUID、異内容projection_conflict。rawは不変 |
 | `legacy_evidence_projection_inputs` | clinic_id、projection_revision_id、observation_id、resolution_id、stable入力列参照 | 多対多。全入力行/解決版を固定。同clinic・observationへのresolution所属を複合FK検証 |
 | `legacy_evidence_outcomes` | id、clinic_id、outcome_kind、projection_revision/candidate/observation/resolution参照、stage、disposition、rule、artifact/output参照、reason | source/projection kind別NOT NULL/CHECK/FK。sourceはprojection参照NULLを許可、実candidate/observation/resolution必須。emitted/excluded/heldを分離 |
 | `legacy_evidence_link_events` | id、clinic_id、evidence_kind、evidence_id、event_revision、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。履歴粒度(clinic_id,evidence_kind,evidence_id)。同履歴event_revision UNIQUE、非NULL previousのsingle-successor UNIQUE、NULL previousの初版partial UNIQUE、前eventへの同clinic/同履歴複合FK。前版+1/最新headをvalidator検証 |
@@ -414,6 +417,13 @@ DB制約は①UNIQUE(clinic_id,evidence_kind,evidence_id,event_revision)、②pr
 
 snapshot集合・inputsはimmutable projection入力解決版から導出し、後日別snapshotのcandidateが追加されても過去projectionの集合を変更しない。
 
+<a id="legacy-evidence-section-total-order"></a>
+### 全sectionの固定全順序
+
+全て昇順keysetとし、raw_cells/derived_fieldsは(field_id)一意、outcomesは(kind_rank: source=0/projection=1,outcome_id)、inputsは(observation_id,resolution_id)、link_historyは(event_revision,event_id)、snapshotsは(snapshot_id)をlast tupleにする。inputsは同pair一itemでfield_idsを重複除去しfield順へ並べる。除外できるのはJOIN展開重複だけで、異resolutionを合成せず、格納wireの不正重複を隠さない。
+
+field_idは未正規化UTF-8 bytesのunsigned辞書順、UUIDはcanonical lowercase hyphen ASCII bytes順、revisionは正確な整数比較（float禁止）。署名cursorはsection/sort_version/evidence/domain/clinic/期待catalog_revision/last tupleを束縛する。毎page現在認可、catalog変更409/baseからrestart、GET修復なしを維持する。
+
 <a id="legacy-evidence-detail-catalog-binding"></a>
 ### baseから最初のsectionへのcatalog束縛
 
@@ -528,6 +538,9 @@ DerivedFieldのsemantic_statusは従前の2値を維持し、record-levelだけ�
 24. 初版link同時作成と同じ前eventへのcorrect/revoke並行は成功一件、他方event/link/catalog変更0。競合TXをrollbackしてから別の現在認可付きreadで現版を確認し、immutable root lock/UPDATE grant追加なし。
 25. base→初section間とpage間の公開/link/conflict変更は409でbaseから再取得。base/sectionの本文と版は各同snapshot。期待版欠落/不正、request/cursor不一致は400。失権/跨scopeは既存401/403/404を優先し、旧section混合/GET修復なし。
 
+26. 同projection自然キーの並行配送はDB UNIQUEで一UUID、固定入力解決版/規則版/closed内容一致なら再送解決、異内容はprojection_conflict。run/delivery/契約版/digest変更でidentityを逃がさず、global対応未受領のlocal refは採用保留。
+27. 各sectionの境界、revision9→10、UTF-8 field順、同itemのJOIN重複、異resolutionの分離、同catalogでの反復pageを確認。変更は409でbaseからrestartし、順序だけでitem欠落/重複を作らない。
+
 これらはfixtureの作成条件です。今回テスト実行や実DB受入を依頼していません。現時点はNOT_RUNです。
 
 ### 依存先
@@ -610,4 +623,4 @@ producerには元バイト位置locatorが存在しないという報告であ�
 <a id="producer-report-remaining-receipts"></a>
 ### 未受領と未実装の最終区分
 
-共通構造・専用保存table群の役割/関係制約・型付きread API/ページング/エラー・合成条件（初回14＋レビュー追補11）は今回選定済み。6入れ子型は[§3の未閉鎖型](#legacy-evidence-open-nested-types)を参照。6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。source実型/原値表現/日時、登録profile、取得artifact/snapshot/manifestの実binding、集約元全列挙も未解消。MIG-41の静的報告は受領済みでも、実artifact一致/実行receiptは未検証。保存/認可read/UI/通常writer分離の実装、DDL適用、試験/受入は別の未完工程であり、全wire完成や正式移行GOとしない。
+共通構造・専用保存table群の役割/関係制約・型付きread API/ページング/エラー・合成条件（本節の初回/レビュー追補を列挙）は今回選定済み。6入れ子型は[§3の未閉鎖型](#legacy-evidence-open-nested-types)を参照。6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。source実型/原値表現/日時、登録profile、取得artifact/snapshot/manifestの実binding、集約元全列挙も未解消。MIG-41の静的報告は受領済みでも、実artifact一致/実行receiptは未検証。保存/認可read/UI/通常writer分離の実装、DDL適用、試験/受入は別の未完工程であり、全wire完成や正式移行GOとしない。

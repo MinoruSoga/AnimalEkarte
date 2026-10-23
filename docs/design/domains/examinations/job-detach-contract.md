@@ -36,15 +36,15 @@ D4 coreはmain cff4debe2e4620584e3afc4faaabea370afc7d37の採択を継承する�
 Plane297の既存読取artifactも参照。今回Plane live readはcatalog changedで拒否され、最新コメントを再取得したとはしない。495/501/516の役割は上記最新採択文書とrootの既存調査に基づく。担当個人・現claim・供給SHAは未確認で、割当て済みとはしない。
 
 <a id="exam-detach-target-identity"></a>
-## 3. 新epochを追加しない選択
+## 3. association_versionで空集合のcycleも固定する
 
-既存jobには一般versionがない。updated_atは子集合参加/ABAの証明にならない。source_fingerprintは同じ受信frameを表し、再attachの区別にならない。新association epochは全producerへ新counter参加を要求するため採らない。
+「epoch不要」の旧設計を撤回する。必要DDLとしてlab_import_jobs.association_version BIGINT NOT NULL DEFAULT 1 CHECK(association_version>=1)を選定する。初期1は技術cutover基準で、過去のattach回数を復元した値ではない。updated_at/source_fingerprint/active exam ID集合だけでは同job/同pet/空集合のABAを区別できない。
 
-代わりに、**利用者が選んだ元jobとそのactive exam identity集合**を固定する。D4既定どおり再attach/persistで作るexamは新IDであり、過去soft-deleted examを通常attachが復活・上書きしない。job、source_type、pet_id、active exam ID集合が変われば元操作の対象ではない。新結果の追加も集合差で拒否する。結果値の更新は現在のusage/manual mutation保護とlock下D4 CASで拒否/直列化する。
+association_versionはrefresh可能CASではなく、利用者が選択した対象cycle identity。job lock下でpet/status/active exam集合を変更する最外TXが一回だけ+1し、同TXの中間多段変更で重ねて増分しない。異なる最外TXの変更はそれぞれ進める。attach/persist/reprocess/確定失敗unlink/detach/revert/JobID変更/復元の全writerが参加し、dedup/no-op/read/replayは+0、失敗は全rollback。上限overflowを拒否し、巻戻し/再利用しない。
 
-examゼロでもtargetはjobそのもので成立する。persistedの空集合からのDetachを架空examに依存させず、空manifestで表せる。同一job・同一pet・空集合の反復には削除対象examが存在せず、jobの現在補償可能状態を再照合する。世代そのものを新業務事実として作らない。成功済み同keyは現在状態に関わらず元結果だけ返す。
+遅延した失敗unlink等も元cycleの期待association_versionをlock下で再照合し、現在版を無断再採用して新cycleを消さない。active examはD4既定の新IDで再作成するが、0件でもassociation_versionにより旧未成功keyは再attach後dependency-changed。旧成功keyは元receiptだけを返す。
 
-通常attachが旧exam IDを復活させる経路は本案の前提に反するためD4 writer閉包で停止する。これを認める新業務が将来必要なら別設計であり、今回epochを先回りして設けない。
+このv2は新しい必要供給で、旧v1の稼働/公開済み大移行を仮定しない。新供給はv2へ統一し、旧draft keyが存在しても現在版を補完してApplyしない。結果不明を新keyで迂回しない。過去soft-deleted examの通常attach復活/上書きを認める新業務も追加しない。
 
 <a id="exam-detach-command"></a>
 ## 4. Read context・closed command
@@ -54,20 +54,21 @@ examゼロでもtargetはjobそのもので成立する。persistedの空集合�
 既存 GET /api/v1/lab-imports/{job_id} の認可済み応答にoptional detach_contextを加える。既存boardのカードにも同reader由来のcontextを加算可能とし、FEが表示値からdigestを合成しない。供給されない場合はGET jobを使う。context取得はclinical examination_detail usageを作らず、job操作対象を読むだけ。
 
 context exact keys:
-- schema: literal lab-job-detach-target-v1
+- schema: literal lab-job-detach-target-v2
 - job_id: lowercase canonical nonnil UUID
+- association_version: canonical positive signed-int64 decimal string
 - target_sha256: lowercase 64hex
 
-server canonical target bytesはUTF-8 canonical JSON、key順固定 schema,job_id,source_type,pet_id,examination_ids。schemaは上記literal。pet_idはcanonical positive decimal string又はJSON null。examination_idsはactiveな同clinic/job exam IDの数値昇順・重複無しstring配列、0件は[]。source_typeは保存enumそのもの。clientが新しいsourceを宣言できない。
+server canonical target bytesはUTF-8 canonical JSON、key順固定 schema,job_id,association_version,source_type,pet_id,examination_ids。schemaは上記literal。pet_idはcanonical positive decimal string又はJSON null。examination_idsはactiveな同clinic/job exam IDの数値昇順・重複無しstring配列、0件は[]。source_typeは保存enumそのもの。clientが新しいsourceを宣言できない。
 
-job SHARE→active exams SHARE（ID昇順）で同snapshotを読む。親coordinatorが必要ならD4順に先取りする。全membership writerはjob UPDATEを先取りし、locked jobから集合を再読する。jobの途中状態を返さない。現在view許可がない場合context非開示。単なるreadでjob/epoch/baselineを初期化しない。non-persistedでもcontextを読めるが、現在stateがwrite可能との保証にはしない。
+job SHARE→active exams SHARE（ID昇順）で同snapshotを読む。親coordinatorが必要ならD4順に先取りする。全membership writerはjob UPDATEを先取りし、locked jobから集合を再読する。jobの途中状態を返さない。現在view許可がない場合context非開示。単なるreadでjob/association_version/baselineを初期化しない。non-persistedでもcontextを読めるが、現在stateがwrite可能との保証にはしない。
 
 ### 4.2 Mutation wire
 
 POST /api/v1/lab-imports/{job_id}/detach
 - Idempotency-Key必須。C06 ParseOperationKeyのcanonical lowercase nonnil UUID。
-- JSON body exact: {"target":{"schema":"lab-job-detach-target-v1","job_id":"<UUID>","target_sha256":"<64hex>"}}
-- target/body/schema/digestのmissing/null、未知key、重複JSON key、非canonical UUID、URLとbody job不一致は400、zero-write。
+- JSON body exact: {"target":{"schema":"lab-job-detach-target-v2","job_id":"<UUID>","association_version":"<positive decimal>","target_sha256":"<64hex>"}}
+- target/body/schema/association_version/digestのmissing/null、未知key、重複JSON key、非canonical UUID、URLとbody job不一致は400、zero-write。
 - trusted clinic/actorは既存現在認証から取得。client clinic/actor/exam配列/測定値/理由/statusは受け付けない。
 - examごとのexpected counter headerは要求しない。[D4 job引渡し](result-mutation-contract.md#exam-job-detach-handoff)どおりjob lock後の再読値をD4 participantへ渡す。
 - 認可は現在lab-import:editと既存補償ownerのscope/保護。新role、通常exam DELETE grantの追加、独立jobへの一律D03 edit session要求はしない。
@@ -76,8 +77,8 @@ POST /api/v1/lab-imports/{job_id}/detach
 ### 4.3 C06 identity
 
 Scope exact: ClinicID=trusted clinic; OwnerKind=lab-import; ActorKind=staff; ActorRef=current staff canonical ID; Intent=lab-import.device-detach。
-Content exact keys: command_schema=lab-job-detach-command-v1, action=detach, job_id, target_sha256。
-このdigestはCAS versionではなく、明示選択した対象集合のidentity commitment。実行時exam counters、lifecycle/plan/fence世代をContentへ混ぜない。Content-only adapterで閉じ、別captured DTOをApplyで使わない。対象canonical bytesをclaim metadataへ保管してdigestと照合する。
+Content exact keys: command_schema=lab-job-detach-command-v2, action=detach, job_id, association_version, target_sha256。
+association_versionとこのdigestはrefresh可能CASではなく、明示選択した対象cycle/集合のidentity commitment。実行時exam counters、lifecycle/plan/fence世代をContentへ混ぜない。Content-only adapterで閉じ、別captured DTOをApplyで使わない。対象canonical bytesをclaim metadataへ保管してdigestと照合する。
 PreconditionsはD4/coordinatorの型付き現在必要条件だけ。ユーザーの対象集合が変わる時は同内容retryではなく、元操作の成否を確認して新しい明示操作にする。
 
 <a id="exam-detach-capacity-budget"></a>
@@ -96,7 +97,8 @@ claim後/lock後の再読でも同じ上限を検査し、競合増大時は全b
 
 選定追加表 lab_job_operation_targets:
 - clinic_id bigint NOT NULL; binding_id bigint NOT NULL; PK(clinic_id,binding_id)。唯一FK(binding_id,clinic_id)→operation_bindings(id,clinic_id) RESTRICT。
-- schema_version smallint NOT NULL CHECK=1。
+- schema_version smallint NOT NULL CHECK=2。
+- association_version bigint NOT NULL CHECK>=1。target_json/Contentの対象cycleと完全一致。
 - action text NOT NULL CHECK='detach'; job_id uuid NOT NULL非nil。
 - source_type text NOT NULL（現在device source allowlistをvalidatorで検証、日常利用範囲拡大の意味なし）。
 - pet_id bigint NULL CHECK>0。
@@ -115,7 +117,8 @@ operation_resultsが唯一のC06成功判定。多件refをC06 string-mapへJSON
 
 lab_job_detach_manifests:
 - clinic_id,binding_id bigint NOT NULL、PK(clinic_id,binding_id)、複合FK→lab_job_operation_targets RESTRICT。
-- job_id uuid NOT NULL、target_sha256 char(64) NOT NULL、schema_version smallint CHECK=1。
+- job_id uuid NOT NULL、target_sha256 char(64) NOT NULL、schema_version smallint NOT NULL CHECK=2。
+- before_association_version bigint NOT NULL CHECK>=1、after_association_version bigint NOT NULL CHECK=before+1。beforeはmetadata/Contentと一致。
 - before_pet_id bigint NULL CHECK>0、before_status text CHECK='persisted'、after_status text CHECK='received'。
 - recorded_at timestamptz NOT NULL（当TXの成功記録時刻）。
 
@@ -130,14 +133,14 @@ manifest target/job/元pet/対象集合とmetadataを必ず照合し、manifest�
 
 C06 success/replay flat ResultResponse:
 - result_refs exact {job_id,detach_manifest_binding_id,target_sha256}、全string。
-- committed_versionsはjob一般versionを捏造せず空map（既存DTOのomitemptyによりwireでは省略）。各examの固定counterはmanifest明細に保存し、専用GETで返す。
+- committed_versions exact={job_association:after_association_version}。canonical正十進文字列の実保存版を返す。各examの固定counterはmanifest明細へ保存し専用GETで返す。replayは元after版で、現在版に置換しない。
 - recorded_atはmanifestと同じ成功記録時刻。replayで現在jobカードへ置き換えない。
 - EffectSummaryは内部だけ。結果本文/原値/患者情報をC06 refsやログへコピーしない。
 
 manifest GET /api/v1/lab-imports/{job_id}/detach-manifests/{binding_id}
 - 成功C06 resultとmanifestの一致が前提。manifest単独の存在を成功扱いしない。
-- exact response {schema,job_id,operation_key,target_sha256,before_pet_id,after_pet_id,before_status,after_status,retracted_examination_count,recorded_at}。
-- schema=lab-job-detach-manifest-v1、after_pet_id=null、statesはpersisted/received。
+- exact response {schema,job_id,operation_key,target_sha256,before_pet_id,after_pet_id,before_status,after_status,before_association_version,after_association_version,retracted_examination_count,recorded_at}。
+- schema=lab-job-detach-manifest-v2、after_pet_id=null、statesはpersisted/received、before/after_association_versionは保存済み正十進文字列。
 - retracted_examination_countはcanonical nonnegative decimal string、nullable before_pet_idとUTC RFC3339Nano時刻。全件配列をheaderへ含めない。
 - 明細は GET /api/v1/lab-imports/{job_id}/detach-manifests/{binding_id}/examinations?cursor=<cursor>。固定100行/ページ（今回選ぶ技術上限、既存業務上限とは主張しない）、exam ID昇順keyset。response exact {schema,job_id,operation_key,detach_manifest_binding_id,items,next_cursor}。schema=lab-job-detach-manifest-page-v1、items exact entry {examination_id,retraction_id,before_result_state_version,after_result_state_version}、ID/版string。0件items=[]/next_cursor=null。
 - cursorはbase64url(no padding)のcanonical JSON {schema:"lab-job-detach-cursor-v1",binding_id:"...",after_examination_id:"..."}。クライアントの権限tokenではない。医院/actorはtrusted context、bindingはURLと一致、after IDは当manifestの実在明細であることを検査し、不一致/不正cursorは400。毎ページ同じ元target現在認可を再検査。署名や新secretを導入しない。immutable manifestをページ分割し、現在job全集合を再queryして混ぜない。
@@ -150,11 +153,11 @@ manifest GET /api/v1/lab-imports/{job_id}/detach-manifests/{binding_id}
 1. C06短claim後、単一Runnerの最外business TX。GateContext/binding NOWAIT/現在認可replay/unknown判定/savepointは既存契約どおり。
 2. lifecycle→必要edit-right→record ID昇順→plan ID昇順→plan dependency→job UUID昇順→exam ID昇順→revision/children→usage/補償rowの安定順。D4/516の順を改変しない。
 3. 非lock preflightで関連集合を計画し、lock後にjob/pet/record/active exam/active linkを再読。集合追加で下位lockを持ったまま上位を足さずrollback/replan。**利用者target自体が変化した場合はreplanで新集合を採用せずdependency-changed。**
-4. locked jobと全集合からcanonical targetを再生成しmetadata/Content digestと一致。jobはdeviceかつpersisted。received/needs_review/reverted等を旧sourceのnil/no-op成功へ潰さず、未成功の新Applyはdependency-changed。同key成功replayは現在stateを再要求しない。
+4. locked jobのassociation_versionと全集合からcanonical targetを再生成しmetadata/Content cycle/digestと一致。現在cycleの自動補完なし。jobはdeviceかつpersisted。received/needs_review/reverted等を旧sourceのnil/no-op成功へ潰さず、未成功の新Applyはdependency-changed。同key成功replayは現在stateを再要求しない。
 5. usage_tracking_startedを確認。usage missing marker/未知receipt/既存clinical-use/manual mutationがあれば拒否。各examの現在scope、official/confirmed/legacy seal、revision実在、親保護、image等依存、active plan owner linkを同TXで再照合。plan linkがあれば自動unlinkせず拒否。
 6. job lock下で読み直したexam result_state_versionを期待値とし、各D4 ambient participantを一回だけfinish。元parent/itemsの補償snapshotを既存retractions/itemsに保存。保存snapshotはD4 nullable/date/ExactNumeric/版/counterを損なわないclosed projectionとし、旧sourceのDate.Formatや汎用model dumpを正本にしない。
 7. soft-deleteとresult_state_version+1を一UPDATE/CAS。exam.job_id、過去revisionとitemsは保持し、FK/補償由来を切らない。全examのうち一つでも失敗なら全rollback。
-8. jobをpersisted→received、pet=NULL、finished_at=NULL、persisted_count=0へ同TX更新。fingerprint・decoded受信items・原受信時刻は保持。その他の既存count/属性を推測書換しない。
+8. jobをpersisted→received、pet=NULL、finished_at=NULL、persisted_count=0、association_version=before+1へ同TXの一回更新。fingerprint・decoded受信items・原受信時刻は保持。その他の既存count/属性を推測書換しない。
 9. manifest＋全明細＋必要既存event/audit＋C06 operation_resultsを同TX。snapshot/audit/manifest/receiptの一つでも失敗ならjob/counter/soft-delete全部rollback。stdout logやnil-safe loggerを必須監査の代用にしない。postcommitのjob card読取失敗を補償失敗として再Applyしない。
 
 補償snapshot exact parent projectionはD4 detailの保存scalarから {id,clinic_id,medical_record_id,pet_id,exam_type_id,doctor_id,job_id,date,performed_date_precision,result_summary,machine,status,current_revision_version,result_state_version,created_at,updated_at,deleted_at}。relation表示object/contextを含めない。item snapshotはD4 ExamResultD4保存scalar（is_assessed等の表示派生を除く）に固定し、元id/order/NULL/ExactNumericを保持。現immutable revisionは変更しない。新clinical officialを捏造しない。
@@ -173,9 +176,9 @@ v2の3fieldはrequired nullable。result_source_kindはin_clinic/external_manual
 - readerは既存無schemaのlegacy snapshot、v1、v2を区別して読む。既存snapshotを書き換えず、legacy/v1で未記録の属性は「未収録」であり既知NULLではない。欠けたprovenanceを現在exam・job・revisionから後付け補完しない。未知schema又はv2の必須key欠落はcontract failureとして停止する。
 - v2 snapshotを解釈する復旧/参照adapterも同版受領する。復元操作の新設・権限付与はしない。旧readerへv2を無言で渡して3fieldを落とさない。
 
-必要依存は501 Aの**該当3列を実際に書くwriterとD4 aggregate reader、446/466のschema profile、当補償v2 snapshot serializer/reader**だけ。Aの外部出典UI全体、Bの感染症summary、mapping臨床承認、他院手入力機能全体をDetachの前提にしない。3列未供給時の安全なv1 Detachは先行でき、3列を有効化する同releaseでv2 adapterを必須受領する。
+必要依存は501 Aの**該当3列を実際に書くwriterとD4 aggregate reader、446/466のschema profile、当補償v2 snapshot serializer/reader**だけ。Aの外部出典UI全体、Bの感染症summary、mapping臨床承認、他院手入力機能全体をDetachの前提にしない。job-cycleはv2必須のまま、provenance3列未供給時は安全なv1補償snapshotを使うDetachが先行でき、3列を有効化する同releaseでv2 adapterを必須受領する。
 
-追加AC-17（NOT_RUN）: unversioned・初official前・result_source_kind=external_manual、空文字details、NULL details、実保存measured_atとNULLの各fixtureでv2保存→再読が完全一致。v1/legacyは未収録を保持し、v2 reader欠落・未知schema・必須key欠落はfail closed。旧profile v1先行と3列供給後v2強制の切替を確認する。revision fallback/架空official生成0件。
+追加AC-17（NOT_RUN）: unversioned・初official前・result_source_kind=external_manual、空文字details、NULL details、実保存measured_atとNULLの各fixtureでv2保存→再読が完全一致。v1/legacyは未収録を保持し、v2 reader欠落・未知schema・必須key欠落はfail closed。旧provenance profileのv1補償snapshot先行（job-cycleはv2）と3列供給後v2補償snapshot強制の切替を確認する。revision fallback/架空official生成0件。
 
 <a id="exam-detach-audit"></a>
 ## 8. 必須監査
@@ -217,11 +220,11 @@ RevertのC06同等unknown全体は**本Detach採択で完了としない**。現
 - job owner（既存297/113/268周辺の実責任、個人claimは未確認）: detach handler/service、job target reader、metadata/manifest、lookup、既存Revert receipt適合調査。
 - 501 C: D4 ambient result participant/nullable snapshot/CAS/historical view authorizer受領。D4を再設計しない。
 - 516 S1/S1a/E-link: 現在関連集合/順序/coordinator/usage参加の必要subset。リンクを追加・取消してDetach許可を偽造しない。
-- 446/466: 3限定追加表のDDL/model/RLS/FK、既存retraction snapshot保存との整合。D4単体2DDLとは別scope。
+- 446/466: 3限定追加表＋job association_version列のDDL/model/RLS/FK、既存retraction snapshot保存との整合。D4単体2DDLとは別scope。
 - 445/API/FE owner: closed command/context/flat result/lookup/manifest read、旧無key caller閉鎖、generated成果の正規受領。新生成物を手編集しない。
 - 489: C06既存Runner/claim/GateContextの採択subsetだけ。別Runnerの新設やC06全体再完了待ちは不要。
 
-必要参加writerはjob→exam membershipを作るattach/persist/reprocess、削除/復元/JobID付替え、関連clinical read/manual mutation/plan-linkと補償。**新epochの加算実装は不要**だがjob lockと新exam-ID再作成・現集合再読の既存D4閉包は必要。receive重複skip・unlinked受信保存・mapping draft/LLM全体を待たない。mapping再解決は297の未persist限定を守り、補償済みjob再attachをmapping無制限再計算の抜け道にしない。
+必要参加writerはjob→exam membershipを作るattach/persist/reprocess、削除/復元/JobID付替え、関連clinical read/manual mutation/plan-linkと補償。**association_versionの最外TX一回増分が必要**で、job lockと新exam-ID再作成・現集合再読のD4閉包を併せて受領する。遅延失敗unlinkは元cycle期待版を必須再照合する。receive重複skip・unlinked受信保存・mapping draft/LLM全体を待たない。mapping再解決は297の未persist限定を守り、補償済みjob再attachをmapping無制限再計算の抜け道にしない。
 
 <a id="exam-detach-acceptance"></a>
 ## 12. 有限AC（期待値のみ、全NOT_RUN）
@@ -230,7 +233,7 @@ RevertのC06同等unknown全体は**本Detach採択で完了としない**。現
 2. 同key replayは元refs/time/manifest、counter+0、snapshot/audit追加0。
 3. 同key別job/別target digestは409、元target現在認可がなければ403。
 4. response loss→同keylookup、job現在状態だけで成功推定しない。unknownでは新key禁止。
-5. detach→reattachで新exam IDs。旧成功keyは元結果だけ、旧未成功key/旧contextは新集合を消さない。
+5. detach→reattachで新exam IDs。旧成功keyは元結果だけ、旧未成功key/旧contextは新cycleを消さない。空集合→detach→同pet再attachの0件cycleも同じ。
 6. 2人別key同target並行では先行だけ成功。後行はstate/集合差でzero-write。
 7. clinical read/manual PUT/plan linkとDetach競合、job→examとcoordinator順で直列化。使用/関連あり拒否、auto-unlinkなし。
 8. persisted以外/非device/unknown usage/保護版/不明scopeを旧nil成功へ潰さない。
@@ -244,6 +247,8 @@ RevertのC06同等unknown全体は**本Detach採択で完了としない**。現
 16. source_fingerprint/decoded items保持。未対応値を推測補完・再mapping・新臨床result生成しない。
 
 <a id="exam-detach-dependencies"></a>
+追加cycle AC（NOT_RUN）: 0件のdetach/再attach、遅延失敗unlinkの旧版拒否、複数TXごとの増分、同TX多段変更の一増分、dedup/no-op/read/replay+0、途中失敗のversion/業務/manifest/receipt全rollback、旧draft keyの現在版補完禁止を確認する。
+
 追加capacity AC（NOT_RUN）: exam999/1000/1001、item19999/20000/20001、UTF-8合計8 MiB直前/一致/超過、claim前既知超過の413/claim0、lock待ちの集合増大後全rollback、10秒budget超過と結果不明時の元key照会を区別する。受信frame上限から総数を推測せず、部分補償/切捨て/新key救済なし。
 
 ## 13. 真の残依存・最終レビューで確認する点
