@@ -4,7 +4,7 @@
 
 読む順：業務正本と[語彙](../../../spec/ontology/accounting.md) → [技術仕様](technical-spec.md) → 現行API／コード。確定した業務と提案する実現方式、未決業務を分ける。[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)・[write-owner](../../../architecture/model-write-owner-catalog.md)を再定義しない。
 
-[医師確認集合の非活性内部契約](doctor-review-internal-projection.md#review-internal-scope)は2026-10-23選定。typed current projection/digestと純粋世代参加、会計側不変projectionの論理方向、T03/T06共用医師reader再利用方向だけを扱う。実DB known provider・物理保存・HTTP・確認/Return/Complete・全writer閉包・試験/activationは未供給で、製品Readyではない。
+[医師確認集合の非活性内部契約](doctor-review-internal-projection.md#review-internal-scope)は2026-10-23選定。承認済みidentity/数量/record集合だけの失効signature/digestと純粋世代参加、確認時限定signature不変保存の論理方向、T03/T06共用医師reader再利用方向だけを扱う。metadata/技術link-onlyでは失効させず、新current列の自動採用は撤回。既存481 snapshotは現在採用identityを証明できる場合のみ再利用する。実DB known provider・確認時signatureの物理保存・HTTP・確認/Return/Complete・全writer閉包・試験/activationは未供給で、製品Readyではない。
 
 [預り金の初回受領・同口座再読込](owner-deposit-initial-receipt.md)は2026-10-23選定済みの限定技術契約。予約指定なし・新実受領1件全額のbackend単位だけを扱い、共有供給/実装/試験/利用開始は未完。506一般公開wire／全fund CASと509締め設計の採択ではない。
 
