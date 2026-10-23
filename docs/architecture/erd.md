@@ -288,7 +288,7 @@ erDiagram
 
 ## 007: A01 全体割引除外列と3表の版（EMR-446/466、未試験）
 
-`007_bill_discount_excluded_and_master_versions.sql` で新規表なしに7列と3表の版を追加した。`consultations`・`exam_types`・`procedures`・`vaccines`・`checkup_types`・`medicines`・`merchandise_items` の7表へ、DB defaultなし・backfillなしのnullable `is_bill_discount_excluded`（NULL=未保存で適用上はfalse扱い・raw NULL保持、true=除外、false=対象。保険・税・明細割引とは独立）を追加した。`exam_types`・`medicines`・`merchandise_items` には004と同型の正bigint `version`（初期1・`ck_<table>_positive_version` CHECK・`<table>_storage_version` triggerが `app_private.entity_version_guard()`）を追加した。既存4種（consultations/procedures/vaccines/checkup_types）のversion・triggerは変更していない。物理テーブル数は250のまま。設定writer・reader・runtimeは未接続で、DB適用・試験は未実施。列・CHECKは生成した詳細ERDを正本とする。
+`007_bill_discount_excluded_and_master_versions.sql` で新規表なしに7列と3表の版を追加した。`consultations`・`exam_types`・`procedures`・`vaccines`・`checkup_types`・`medicines`・`merchandise_items` の7表へ、DB defaultなし・backfillなしのnullable `is_bill_discount_excluded`（NULL=未保存で適用上はfalse扱い・raw NULL保持、true=除外、false=対象。保険・税・明細割引とは独立）を追加した。`exam_types`・`medicines`・`merchandise_items` には004と同型の正bigint `version`（初期1・`ck_<table>_positive_version` CHECK・`<table>_storage_version` triggerが `app_private.entity_version_guard()`）を追加した。既存4種（consultations/procedures/vaccines/checkup_types）のversion・triggerは変更していない。物理テーブル数は250のまま。seedは全DDL適用後に位置指定COPYで読み込まれるため、`seeds/002_master/exam_types.csv` を最終の列順（`is_bill_discount_excluded` は空=NULL、`version` は1）へ拡張した。これにより `seeds/002_master` バンドルのchecksumが変わり、002_masterを適用済みの既存ローカルDBはchecksumを書き換えず、`docs/ops/deploy/seeds/LOCAL_DB_RESET.md` のローカルresetが必要になる。設定writer・reader・runtimeは未接続で、DB適用・試験は未実施。列・CHECKは生成した詳細ERDを正本とする。
 
 ## 008: 共通医院時間 aggregate（EMR-446/466、未試験）
 
@@ -296,7 +296,7 @@ erDiagram
 
 ## 009: LINE受付版（EMR-446/466、未試験）
 
-`009_line_acceptance_version.sql` で `line_reservation_settings` に2列と1制約を追加した（新規テーブルなし、総数不変）。`acceptance_version` は `app_private.line_acceptance_version_guard()` が維持するCASカウンタで、契約§3.1の保護field P（12列）または reviewed marker の変更で+1、非P変更と真のno-opは同版。`reviewed_acceptance_version` は確認済み版（NULLまたは旧版=legacy-unreviewed、等値=configured）。既存行は acceptance=1・reviewed=NULL で未照合のまま。API/writer接続・DB適用・試験は未実施。
+`009_line_acceptance_version.sql` で `line_reservation_settings` に2列と2つのCHECK制約を追加した（新規テーブルなし、総数不変）。`acceptance_version` は `app_private.line_acceptance_version_guard()` が維持するCASカウンタで、契約§3.1の保護field P（12列）または reviewed marker の変更で+1、非P変更と真のno-opは同版。`reviewed_acceptance_version` は確認済み版（NULLまたは旧版=legacy-unreviewed、等値=configured）。既存行は acceptance=1・reviewed=NULL で未照合のまま。API/writer接続・DB適用・試験は未実施。
 
 ## 010: 担当者別開始policyと492 anchor（EMR-446/466、未試験）
 

@@ -39,6 +39,37 @@ func TestLineAcceptanceVersionRealDB(t *testing.T) {
 			lineTimeSeedClinic(t, db, "009-line-bad-reviewed")).Error,
 		"23514")
 
+	// initialize -> configured (contract §3.2): an INSERT carrying
+	// reviewed_acceptance_version = 1 succeeds. The guard pins the resulting
+	// acceptance_version to 1 (the writer-supplied 99 is not adopted), so
+	// reviewed (1) <= acceptance (1) satisfies the named CHECK and the row is
+	// configured from the start.
+	clinicInit := lineTimeSeedClinic(t, db, "009-line-init-configured")
+	require.NoError(t, db.Exec(`
+		INSERT INTO line_reservation_settings (clinic_id, acceptance_version, reviewed_acceptance_version)
+		VALUES (?, 99, 1)`, clinicInit).Error)
+	require.NoError(t, db.Raw(`
+		SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinicInit).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 1, acceptance, "INSERT pins acceptance_version to 1 even with reviewed = 1")
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 1, *reviewed, "reviewed = acceptance_version = configured")
+
+	// The guard forces acceptance_version to 1 before the CHECK runs, so a
+	// reviewed marker above 1 is rejected even when the writer supplied a
+	// matching larger version (99 / 99 -> 1 / 99).
+	lineTimeRequirePgCode(t,
+		db.Exec(`
+			INSERT INTO line_reservation_settings (clinic_id, acceptance_version, reviewed_acceptance_version)
+			VALUES (?, 99, 99)`, lineTimeSeedClinic(t, db, "009-line-init-reviewed-ahead")).Error,
+		"23514")
+
+	// reviewed must stay positive (CHECK reviewed_acceptance_version > 0).
+	lineTimeRequirePgCode(t,
+		db.Exec(`INSERT INTO line_reservation_settings (clinic_id, reviewed_acceptance_version) VALUES (?, 0)`,
+			lineTimeSeedClinic(t, db, "009-line-init-reviewed-zero")).Error,
+		"23514")
+
 	// P change advances the version and leaves reviewed behind (unreviewed).
 	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET status = 'active' WHERE clinic_id = ?`, clinic).Error)
 	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
@@ -50,6 +81,14 @@ func TestLineAcceptanceVersionRealDB(t *testing.T) {
 	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET header_text = 'x' WHERE clinic_id = ?`, clinic).Error)
 	require.NoError(t, db.Raw(`SELECT acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).Scan(&acceptance).Error)
 	require.EqualValues(t, 2, acceptance, "non-P display fields must not advance the version")
+
+	// daily_limit is outside P (contract §3.1: retired limits are legacy-held):
+	// version and reviewed stay unchanged (2 / NULL).
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET daily_limit = 5 WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 2, acceptance, "daily_limit is not in P and must not advance the version")
+	require.Nil(t, reviewed, "non-P change leaves reviewed untouched")
 
 	// Setting reviewed to NULL restores OLD (confirmation cannot be cleared).
 	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET reviewed_acceptance_version = NULL WHERE clinic_id = ?`, clinic).Error)
@@ -83,6 +122,16 @@ func TestLineAcceptanceVersionRealDB(t *testing.T) {
 	require.EqualValues(t, 3, acceptance, "confirmed no-op must not advance the version")
 	require.NotNil(t, reviewed)
 	require.EqualValues(t, 3, *reviewed)
+
+	// Confirmed + non-P change (additional_fields): the guard sees no P or
+	// reviewed change, so acceptance (3) and reviewed (3) both stay put and the
+	// row remains configured.
+	require.NoError(t, db.Exec(`UPDATE line_reservation_settings SET additional_fields = '[]' WHERE clinic_id = ?`, clinic).Error)
+	require.NoError(t, db.Raw(`SELECT acceptance_version, reviewed_acceptance_version FROM line_reservation_settings WHERE clinic_id = ?`, clinic).
+		Row().Scan(&acceptance, &reviewed))
+	require.EqualValues(t, 3, acceptance, "additional_fields is not in P and must not advance the version")
+	require.NotNil(t, reviewed)
+	require.EqualValues(t, 3, *reviewed, "non-P change keeps the confirmed marker")
 
 	// Confirmed + P change without reviewed: the version advances once and
 	// reviewed stays behind (back to legacy-unreviewed).

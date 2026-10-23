@@ -61,12 +61,16 @@ func TestBillDiscountExcluded007StorageInvariants(t *testing.T) {
 	}
 	newlyVersioned := []string{"exam_types", "medicines", "merchandise_items"}
 
+	// All 7 tables carry a partial unique index on (clinic_id, name) WHERE
+	// deleted_at IS NULL, so every fixture row needs its own name.
+	insertSeq := 0
 	insertRow := func(table string) int64 {
 		t.Helper()
+		insertSeq++
 		var id int64
 		require.NoErrorf(t, db.Raw(
 			fmt.Sprintf("INSERT INTO %s (clinic_id, name) VALUES (?, ?) RETURNING id", table),
-			clinicID, "b007-"+table,
+			clinicID, fmt.Sprintf("b007-%s-%d", table, insertSeq),
 		).Scan(&id).Error, "insert fixture row into %s", table)
 		return id
 	}
