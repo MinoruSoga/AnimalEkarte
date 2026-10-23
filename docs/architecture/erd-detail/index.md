@@ -286,7 +286,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `ede3731ac5ecba81df5de02a997a14732e7cd85a9d51d2512a94c5b335c5a53a`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `0444c6ab983bb5e77ce1ed557f1510caf431fe6d6302bcdd2cd9d1e306a56910`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -298,7 +298,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [007_bill_discount_excluded_and_master_versions.sql](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql) | `e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b` |
 | [008_clinic_operating_hours.sql](../../../backend/migrations/008_clinic_operating_hours.sql) | `41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313` |
 | [009_line_acceptance_version.sql](../../../backend/migrations/009_line_acceptance_version.sql) | `6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea` |
-| [010_line_staff_start_policy_and_reservation_anchor.sql](../../../backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql) | `02438210cdfb0ed63c5076a2b5d7ca594b6487b01bcbe9c6b7a6eb751dc722b5` |
+| [010_line_staff_start_policy_and_reservation_anchor.sql](../../../backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql) | `03d16767d1570fb0611a7a5325d24ac93f235df7517fdefd9848f088401c70a8` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "ede3731ac5ecba81df5de02a997a14732e7cd85a9d51d2512a94c5b335c5a53a",
+  "source_digest": "0444c6ab983bb5e77ce1ed557f1510caf431fe6d6302bcdd2cd9d1e306a56910",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -56,7 +56,7 @@
     },
     {
       "name": "010_line_staff_start_policy_and_reservation_anchor.sql",
-      "sha256": "02438210cdfb0ed63c5076a2b5d7ca594b6487b01bcbe9c6b7a6eb751dc722b5"
+      "sha256": "03d16767d1570fb0611a7a5325d24ac93f235df7517fdefd9848f088401c70a8"
     }
   ],
   "reviewed_do_blocks": [
