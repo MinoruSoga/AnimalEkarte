@@ -227,6 +227,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV2Thresholds":            {},
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateCPMV1Thresholds":            {},
 	"clinic/clinic_settings_repository.go|clinicSettingsRepository.UpdateHealthPreventionThresholds": {},
+
+	// 共通医院時間の読取（EMR-448/492 D）。後続の初期化/更新と同じ ambient tx 内で現在行を読めるようにする。
+	"clinic/operating_hours_repository.go|operatingHoursRepository.FindByClinicID": {},
+
 	// U-X01X05-CLINIC / POC-02+POC-05: special-period reads/writes join ambient tx via DBOrTx.
 	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.FindAll":      {},
 	"clinic/closing_special_period_repository.go|closingSpecialPeriodRepository.FindByID":     {},

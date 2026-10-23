@@ -202,16 +202,13 @@ var knownPhantomInSpec = map[string]bool{
 
 	// EMR-445 A03 contract-first common clinic hours / holiday adapters (selected contract §2).
 	// Runtime owner EMR-448/492: remove each exact entry in the same change that registers its route.
-	"GET /api/v1/clinics/{clinic_id}/operating-hours":                            true,
 	"POST /api/v1/clinics/{clinic_id}/operating-hours":                           true,
 	"PATCH /api/v1/clinics/{clinic_id}/operating-hours":                          true,
 	"POST /api/v1/clinics/{clinic_id}/operating-hours/preview":                   true,
 	"GET /api/v1/clinics/{clinic_id}/operating-hours/operations/{operation_key}": true,
-	"GET /api/v1/clinic-holidays/common":                                         true,
 	"POST /api/v1/clinic-holidays/common":                                        true,
 	"DELETE /api/v1/clinic-holidays/common/{date}":                               true,
 	"POST /api/v1/clinic-holidays/common/preview":                                true,
-	"GET /api/v1/closing-settings/holidays/common":                               true,
 	"POST /api/v1/closing-settings/holidays/common":                              true,
 	"DELETE /api/v1/closing-settings/holidays/common/{date}":                     true,
 	"POST /api/v1/closing-settings/holidays/common/preview":                      true,
@@ -562,6 +559,7 @@ var routeRootPackages = []struct {
 	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterClinicHolidayRoutes"},
 	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterCompanyRoutes"},
 	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterClosingSettingsRoutes"},
+	{dir: "../clinic", prefix: "/api/v1", rootFn: "RegisterOperatingHoursRoutes"},
 	{dir: "../manualarticle", prefix: "/api/v1"},
 	{dir: "../inventory", prefix: "/api/v1"},
 	{dir: "../medicalrecord", prefix: "/api/v1"},

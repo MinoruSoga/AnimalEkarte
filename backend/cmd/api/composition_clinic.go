@@ -16,6 +16,7 @@ type clinicRepositories struct {
 	Settings              clinic.ClinicSettingsRepository
 	ClosingSpecialPeriods clinic.ClosingSpecialPeriodRepository
 	Company               clinic.CompanyRepository
+	OperatingHours        clinic.OperatingHoursRepository
 }
 
 type clinicComposition struct {
@@ -24,6 +25,7 @@ type clinicComposition struct {
 	ClosingSettings clinic.ClosingSettingsService
 	holidays        clinic.ClinicHolidayService
 	company         clinic.CompanyService
+	operatingHours  clinic.OperatingHoursReader
 }
 
 func newClinicRepositories(db *gorm.DB) clinicRepositories {
@@ -33,6 +35,7 @@ func newClinicRepositories(db *gorm.DB) clinicRepositories {
 		Settings:              clinic.NewClinicSettingsRepository(db),
 		ClosingSpecialPeriods: clinic.NewClosingSpecialPeriodRepository(db),
 		Company:               clinic.NewCompanyRepository(db),
+		OperatingHours:        clinic.NewOperatingHoursRepository(db),
 	}
 }
 
@@ -65,6 +68,7 @@ func newClinicComposition(
 		company: clinic.NewCompanyService(
 			repositories.Company,
 		),
+		operatingHours: clinic.NewOperatingHoursReadService(repositories.OperatingHours),
 	}
 }
 
@@ -103,4 +107,11 @@ func (c clinicComposition) newHandler(
 		c.company,
 		requirePermission,
 	)
+}
+
+func (c clinicComposition) newOperatingHoursHandler(
+	requirePermission clinic.PermissionMiddleware,
+	requireAssignedClinicPermission clinic.PermissionMiddleware,
+) *clinic.OperatingHoursHandler {
+	return clinic.NewOperatingHoursHandler(c.operatingHours, requirePermission, requireAssignedClinicPermission)
 }

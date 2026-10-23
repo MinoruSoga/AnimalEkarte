@@ -600,6 +600,10 @@ func (c runtimeComposition) registerClinicRoutes(
 	handler.RegisterClinicHolidayRoutes(protected)
 	handler.RegisterCompanyRoutes(protected)
 	handler.RegisterClosingSettingsRoutes(protected)
+	c.clinic.newOperatingHoursHandler(
+		c.auth.Handler.RequirePermission,
+		c.auth.Handler.RequirePermissionAllowingAssignedClinicGrant,
+	).RegisterOperatingHoursRoutes(protected)
 }
 
 func (c runtimeComposition) registerExistingDomainRoutes(
