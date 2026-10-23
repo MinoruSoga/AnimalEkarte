@@ -80,6 +80,17 @@ Content exact keys: command_schema=lab-job-detach-command-v1, action=detach, job
 このdigestはCAS versionではなく、明示選択した対象集合のidentity commitment。実行時exam counters、lifecycle/plan/fence世代をContentへ混ぜない。Content-only adapterで閉じ、別captured DTOをApplyで使わない。対象canonical bytesをclaim metadataへ保管してdigestと照合する。
 PreconditionsはD4/coordinatorの型付き現在必要条件だけ。ユーザーの対象集合が変わる時は同内容retryではなく、元操作の成否を確認して新しい明示操作にする。
 
+<a id="exam-detach-capacity-budget"></a>
+### 初期利用開始の有限capacity
+
+active exam 1000件、補償対象result item総数20000件、canonical target＋全補償parent/item snapshot＋manifest投影のUTF-8合計8 MiB（8×1024×1024 bytes）を上限とする。これは未実測の初期技術値であり、既存機器の業務上限/性能実測値ではない。8 KiB frame制限をjob全体件数の根拠にしない。
+
+元targetの現在認可後、新規実行の既知超過はclaim前のlimit+1読取又は上限付きstream集計で検知し、部分成功なし・claimなしの413（ownerのdetach_capacity_exceeded）で返す。未認可の件数/本文は開示せず、共有C06 status enumを追加しない。保存済みsame-key成功replayは現在認可付き元結果の処理を先に行い、現在集合のcapacity再検査を成功再送の条件にしない。
+
+claim後/lock後の再読でも同じ上限を検査し、競合増大時は全business変更をrollbackする。分割Detach/途中commit/切捨ては禁止。外側business TXの処理budgetは10秒（未実測の初期値）。超過/評価不能は既存unknown/元key結果照会に従って停止し、timeoutを不成功確定にしない。request cap、取得途中失敗、臨床利用保護の拒否は別に扱う。
+
+大きい既存jobは明示未対応として保持し、上限を変更するなら別の性能根拠と契約改訂を必要とする。新規上限を満たしたことだけで臨床利用/版/認可の保護を免除しない。
+
 <a id="exam-detach-claim-target"></a>
 ## 5. Job専用claim metadata
 
@@ -130,7 +141,7 @@ manifest GET /api/v1/lab-imports/{job_id}/detach-manifests/{binding_id}
 - retracted_examination_countはcanonical nonnegative decimal string、nullable before_pet_idとUTC RFC3339Nano時刻。全件配列をheaderへ含めない。
 - 明細は GET /api/v1/lab-imports/{job_id}/detach-manifests/{binding_id}/examinations?cursor=<cursor>。固定100行/ページ（今回選ぶ技術上限、既存業務上限とは主張しない）、exam ID昇順keyset。response exact {schema,job_id,operation_key,detach_manifest_binding_id,items,next_cursor}。schema=lab-job-detach-manifest-page-v1、items exact entry {examination_id,retraction_id,before_result_state_version,after_result_state_version}、ID/版string。0件items=[]/next_cursor=null。
 - cursorはbase64url(no padding)のcanonical JSON {schema:"lab-job-detach-cursor-v1",binding_id:"...",after_examination_id:"..."}。クライアントの権限tokenではない。医院/actorはtrusted context、bindingはURLと一致、after IDは当manifestの実在明細であることを検査し、不一致/不正cursorは400。毎ページ同じ元target現在認可を再検査。署名や新secretを導入しない。immutable manifestをページ分割し、現在job全集合を再queryして混ぜない。
-- 受信8KiB上限は存在するが、legacy/fixture/後続writerを含めたjob当たりexam総数の厳密上限は未立証。このため全件arrayを無制限返却せずページングを選ぶ。内部補償単位は全件同TXを維持し、ページごとcommitにはしない。
+- 受信8KiB上限は存在するが、legacy/fixture/後続writerを含めたjob当たりexam総数の厳密上限は未立証。このためmanifest表示はページングとし、処理全体は[有限capacity](#exam-detach-capacity-budget)で別に制限する。内部補償単位は全件同TXを維持し、ページごとcommitにはしない。
 - 本文snapshotはこのAPIへ露出しない。現在認可をlookupと同じ保存元targetから検査する。
 
 <a id="exam-detach-atomicity"></a>
@@ -187,6 +198,8 @@ GET /api/v1/lab-imports/{job_id}/operations/{operation_key}?intent=lab-import.de
 - timeout/parse failure/5xxは元key lookupへ。succeeded/replayedは元manifest参照、in-progressは同key再照会、result-unavailableは停止。not-succeededが確定してから人が対象と現在条件を再確認した同内容same-key retryのみ可。
 - 元操作がunknownの間は新key・再Detach・自動attach・Revert・機器再送なし。jobの現在receivedだけで元key成功を推定しない。
 
+既知capacity超過のowner 413 detach_capacity_exceededは[有限capacity](#exam-detach-capacity-budget)に従い、共有C06 enumを拡張しない。
+
 HTTP: succeeded/replayed/not-succeeded=200、operation-in-progress=202、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、validation=400、not-authorized=403、scope-not-found=404、result-unavailable=503。未認証401・不正JSON/body超過は既存envelope。lookupのstore読取errorはC06がerrorを返す既存経路と区別し、現在target認可後のgeneric 5xxをunknown扱いする。非成功にはrefs/versions/recorded_atを返さない。
 
 <a id="exam-detach-revert"></a>
@@ -231,6 +244,8 @@ RevertのC06同等unknown全体は**本Detach採択で完了としない**。現
 16. source_fingerprint/decoded items保持。未対応値を推測補完・再mapping・新臨床result生成しない。
 
 <a id="exam-detach-dependencies"></a>
+追加capacity AC（NOT_RUN）: exam999/1000/1001、item19999/20000/20001、UTF-8合計8 MiB直前/一致/超過、claim前既知超過の413/claim0、lock待ちの集合増大後全rollback、10秒budget超過と結果不明時の元key照会を区別する。受信frame上限から総数を推測せず、部分補償/切捨て/新key救済なし。
+
 ## 13. 真の残依存・最終レビューで確認する点
 
 本案はルート/identity/保存/lock/receiptを具体化した選択案であり、本人への新業務質問は不要。追加3表のmanifest分離とRevert unknownを別有限残へ分ける方針は今回選定した。audit UUIDは既存nullable resource_id=NULL＋metadata.job_idへ固定し、未選定を残さない。

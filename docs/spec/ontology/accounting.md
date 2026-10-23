@@ -148,13 +148,13 @@
 
 | 概念・関係 | 多重度 | 定義/制約 |
 |---|---|---|
-| 元entity → snapshot occurrence（原行証拠） | 元entity 1に対しoccurrence 0..many。各採用occurrenceの元entityは1、検証済snapshotは1。元entity未解決candidateは採用occurrenceに数えない | 医院/source system・系譜/table/構造化原キーで元entityを区別する。snapshotを含む証拠identityを弱めない。元entity未解決のlocator候補と、元entityを確認済みであることは別 |
-| 証拠identity → occurrence | 受入済identity 1に対し原本occurrence 1 | 同snapshot/entityで双方が取得済みの同じ列の原値不一致はraw_conflict。artifact bytes整合と原値比較は別検査で、取得補足のみはcomparison_incompleteとして区別。再送や契約版変更で原本を複製しない。別の検証済snapshotの変更は別証拠版として旧証拠を保持 |
-| source snapshot → occurrence | snapshot 1に対し0..many、各受入occurrenceは1 snapshot | snapshot全体と、その中の個々の原行を混同しない。原キー/取得成果物の厳密な結合方式は未選定 |
-| occurrence ↔ 派生projection revision | 各occurrenceから0..many派生版、各原行由来派生版は1..many固定入力occurrence/解決版 | 複数原行の集約と複数派生版を許容するmany-to-many。原本を変えずmapping/transform/encoding別にimmutable追記し、入力集合digestだけで個別lineageを省略しない。派生版の採番/前版の分岐多重度は未選定。通常計算revisionを代用しない |
+| 元entity → snapshot observation（原行証拠。同snapshot/entityの既存observation identity） | 元entity 1に対しobservation 0..many。各採用observationの元entityは1、検証済snapshotは1。元entity未解決candidateは採用observationに数えない | 医院/source system・系譜/table/構造化原キーで元entityを区別する。snapshotを含む証拠identityを弱めない。元entity未解決のlocator候補と、元entityを確認済みであることは別 |
+| 証拠identity → observation | 受入済identity 1に対し原本observation 1 | 同snapshot/entityで双方が取得済みの同じ列の原値不一致はraw_conflict。artifact bytes整合と原値比較は別検査で、取得補足のみはcomparison_incompleteとして区別。再送や契約版変更で原本を複製しない。別の検証済snapshotの変更は別証拠版として旧証拠を保持 |
+| source snapshot → observation | snapshot 1に対し0..many、各受入observationは1 snapshot | snapshot全体と、その中の個々の原行を混同しない。原キー/取得成果物の厳密な結合方式は未選定 |
+| observation ↔ 派生projection revision | 各observationから0..many派生版、各原行由来派生版は1..many固定入力observation/解決版 | 複数原行の集約と複数派生版を許容するmany-to-many。原本を変えずmapping/transform/encoding別にimmutable追記し、入力集合digestだけで個別lineageを省略しない。派生版の採番/前版の分岐多重度は未選定。通常計算revisionを代用しない |
 | observation → 解決版 | observation 1からappend-only解決版1..many、各解決版は同observationの前版0..1。初版以外の前版は1、同前版から分岐不可 | 原candidate/identityは不変。fieldはstable candidate UUIDへ参照し、公開bindingが固定する解決版だけをread。過去projection入力解決版は補足取得で変更しない |
-| batch ↔ 原本・派生版 | batch 1から0..many参照、同じ原本/派生版へ0..many batchが参照可能 | 再処理batchは原本を参照し複製しない。同batch再送は同結果。batchの受入完了前/失敗を全体成功にしない |
-| batch → 完了receipt / chunk receipt | batch 1に対し論理的な完了結果は0..1（未完なら0）、成功後の再送は同じ結果。各chunkのreceiptは同内容再送で1、各deliveryのpublication成功receiptは0..1。chunk数/上限とnested wireは未選定 | 固定manifest＋chunk保存＋publication receiptを設計選定。chunk receiptと全chunk/lineage検証後の公開receiptは別役割。再送で別の成功結果を作らず、formal適格性とも区別。chunk上限/再開wireは未選定 |
+| delivery ↔ 原本・派生版 | delivery 1から0..many参照、同じ原本/派生版へ0..many deliveryが参照可能 | 再処理deliveryは原本を参照し複製しない。同delivery再送は同結果。deliveryの受入完了前/失敗を全体成功にしない |
+| delivery → 完了receipt / chunk receipt | delivery 1に対し論理的な完了結果は0..1（未完なら0）、成功後の再送は同じ結果。各chunkのreceiptは同内容再送で1、各deliveryのpublication成功receiptは0..1。chunk数/上限とnested wireは未選定 | 固定manifest＋chunk保存＋publication receiptを設計選定。chunk receiptと全chunk/lineage検証後の公開receiptは別役割。再送で別の成功結果を作らず、formal適格性とも区別。chunk上限/再開wireは未選定 |
 | 原本証拠 → 検証済target link履歴 | 単一証拠1から履歴event 0..many。有効関係内の各nullable owner/pet/record/billing/estimateは0..1。集約projection対象linkの帰属単位は未選定 | 同院に加えて全指定targetの保存帰属・関連を検証。履歴はmanyを保持し、譲渡前帰属と現在認可を分離。追加/訂正/撤回は期待link revisionで競合防止。eventのsource/parent exactはclosed schema受領時に固定 |
 
 証拠保存/閲覧はformal importの保留解除ではない。論理役割と保全方針の定義であり、共通型・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・read routeは設計選定済み。6入れ子型、verification_ref検証記録/供給binding・配送local→stable UUID耐久対応、実データprofile/binding、物理DDL統合・具体link検証readerは未閉鎖/未実装。保存/read/UI実装・実試験は未完（NOT_RUN）。
