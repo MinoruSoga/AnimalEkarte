@@ -35,13 +35,13 @@ pathは今回予約。`next_visit_intent`もexact2keys、confirmedはtrueだけ�
 
 ### 2.2 B request・既存入力のpresence
 
-必須keyは`operation_key,expected_version,start_time,end_time`。任意keyは既存`reservation_type_id,doctor_id,is_designated,visit_type,notes,warning_receipt`と480条件下の`trimming_selection`だけ。旧callerの任意`status`は新commandで拒否し、serverが既存の確定規則に従って決定する（現defaultはconfirmed）。新confirm-and-check-in routeは作らない。
+必須keyは`operation_key,expected_version,start_time,end_time`。任意keyは既存`reservation_type_id,doctor_id,is_designated,status,visit_type,notes,warning_receipt`と480条件下の`trimming_selection`だけ。`status`は既存の閉じたenum `pending|confirmed`を保持し、省略時は既存どおりconfirmedとする。他status/nullは拒否し、明示値をContentへ含める。新confirm-and-check-in routeは作らない。
 
 - 任意fieldの省略は保存値保持。reservation_type_idは既存型/nullable契約を維持し、nullを勝手に別区分へ補完しない。doctor_idは省略保持、明示null解除、正ID指定は同医院/現在適格性を検査し、0を解除sentinelにしない。
 - notesは空文字で消去、null拒否。is_designatedはbool、visit_typeはfirst/revisitの既存検証。省略visit_typeを540候補から補完しない。warning_receiptは既存opaque警告証明で、C06成功receiptと別。
 - trimming_selectionは480のexact4keys `{course_id,option_ids,expected_booking_revision_id,expected_adoption_digest}`。previewで見せたend_timeを送信し、既存manual overrideを維持。選択非変更の省略保持と、480が要求する作成/選択変更時のpreviewを区別する。コース必須や新料金を追加しない。
 
-元予定の同IDを本予約へ確定する操作であり、Aの別ID関係を作らない。`source_medical_record_id`と由来を保持する。休診/時間/能力/容量/重複/現在患者等は480と既存予約契約どおり、clientのstatusやopaque hashを許可の根拠にしない。
+元予定の同IDを本予約へ確定する操作であり、Aの別ID関係を作らない。譲渡済tentativeではpet intent/予約row lock下で現在pet ownerを同医院のpet SHARE lock付きreaderから解決し、その導出owner_idを確定予約へ保存する。旧予定ownerへ固定せず、解決失敗は停止する。`source_medical_record_id`と元診療出典は保持し、このserver導出ownerをclientの任意入力やhash前の補完値にしない。休診/時間/能力/容量/重複/現在患者等は480と既存予約契約どおり、clientのstatusやopaque hashを許可の根拠にしない。
 
 現confirm後のbest-effort通常カルテ作成は、[受付時の既存記録再利用/失敗復帰](../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)へ追従させる必要subset。B成功receiptをカルテ作成/受付成功へ読み替えない。Bの成功を確認してから、既存check-inを別の明示操作として行う。B unknown中は後続に進まず、receipt成功replayでbest-effort作成を再発火しない。
 
@@ -52,7 +52,7 @@ pathは今回予約。`next_visit_intent`もexact2keys、confirmedはtrueだけ�
 | 操作 | immutable hash projection | Preconditions |
 |---|---|---|
 | A | exact `{schema_version:1,intent:"reservation.consume_next_visit_intent",appointment_id,next_visit_intent_id,confirmed:true}`。両IDは正規文字列 | 今回予約のexpected_versionと元予定のexpected_versionを別名・対象ID対応で保持 |
-| B | 480 exact `{schema_version:1,intent:"reservation.confirm_tentative",target_ref,booking_changes,trimming_selection}`。booking_changesはBで許された明示業務入力だけ（start/endと任意設定）、status/actor/key/CAS等は含めない。trimming_selectionは省略時null、指定時Content3key `{course_id,option_ids,expected_adoption_digest}` | expected_version、expected_booking_revision_id、warning_receipt等の現在状態/警告前提。expected_adoption_digestはContentに残す |
+| B | 480 exact `{schema_version:1,intent:"reservation.confirm_tentative",target_ref,booking_changes,trimming_selection}`。booking_changesはBで許された明示業務入力だけ（start/endと任意設定）、明示status（pending/confirmed）を含め、actor/key/CAS等は含めない。trimming_selectionは省略時null、指定時Content3key `{course_id,option_ids,expected_adoption_digest}` | expected_version、expected_booking_revision_id、warning_receipt等の現在状態/警告前提。expected_adoption_digestはContentに残す |
 
 省略と明示null/空/falseを区別し、DB現在値をhash前に埋めない。Bの数値ID入力は既存wireから検証後canonical ID文字列へ投影し、時刻は上記UTC、option_idsは480の数値順。projectionのpresenceを保った同じimmutable commandからApply時の保存値mergeを行う。
 
@@ -110,15 +110,17 @@ Aは元予定のstatus/version終端、今回予約の関係追加に伴うversi
 
 ## 7. lock・全caller閉包・B切替
 
-取得順は既存467のgraph gate（返されたctx伝播） → C06 binding NOWAIT/元結果再読取 → pet intent lock → 予約ID昇順row lockと既存owner規約。Aは両予約を一度ずつlockし、同clinic/pet・元tentative/未消化・今回status・期待版・現在認可を再検査。Bのtrimming採用は480の予約保護 → T2 → 区分/course/rule/options順と同TX participantを維持する。claim TXにこのlockを移さない。
+取得順は既存467のgraph gate（返されたctx伝播） → C06 binding NOWAIT/元結果再読取 → 必要staff-global ID昇順 → clinic-booking ID昇順 → pet-intent → lifecycle/予約ID昇順row lockと正本§6.4の既存owner規約。Bの時刻/区分/担当等の予約条件変更はstaff-global → clinic-booking → pet-intentを省略/逆転せず取得し、その後に条件・容量・適格性を再検査する。Aは両予約を一度ずつlockし、同clinic/pet・元tentative/未消化・今回status・期待版・現在認可を再検査。Bのtrimming採用は480の予約保護 → T2 → 区分/course/rule/options順と同TX participantを維持する。claim TXにこのlockを移さない。
 
 | caller/writer | 受領すべき閉包 |
 |---|---|
 | Create/CreateBatch/admin/walk-in/LIFF/trimming内部createOrPromote/カルテhook | no-consume。通常作成だけで元tentativeを検索吸収しない |
-| 明示confirm | Bだけへ統合。同ID昇格、旧status入力/無key/無版callerは切替対象 |
+| 明示confirm | Bだけへ統合。同ID昇格、閉じたstatus入力を保持し無key/無版callerは切替対象 |
 | 既存今回予約への明示紐づけ | Aだけへ統合。別ID関係と履歴を原子的に保存 |
 | set/clear/cancel/restore/patient reassignment/直接repo | active予定/consumed sourceと両対象の版・scopeを再検査。別患者付替え・通常restoreで関係を壊さない |
 | 通知候補read/outbox配送直前read/履歴UI | typed消化関係で除外/消化表示。旧cancelledだけの復元/通知へ流さない |
+
+Aの消化/Bの同ID昇格が初回成功commitした後にだけ、影響する旧/現在ownerの`next_visit_*` tagを既存`syncNextVisitTagsBestEffort`と同責務で再計算する。C06 replayから再実行せず、外部同期を業務TXへ持ち込まない。tag同期失敗をcommit済みreceiptの失敗や再消化条件へ変換しない。
 
 Aが照合する予約status/pet/clinic等を変更するwriterだけ予約版gateに参加させる。金銭だけのwriterへ予約版加算やbilling CASを新要求しない。全domainをgraph gateへ拡張しない。
 
@@ -132,8 +134,8 @@ fixture作成と実行を分け、以下は全てNOT_RUN：
 
 - A：許可6statusと拒否status/null/削除、pending/confirmed非来院表示、同ID/別pet/別院拒否、未選択無変更、会計後も今回状態/診療/請求/入金不変。
 - A：両対象古版、患者付替え/取消/消化競合、同source別key二重消化、event片側/actor/refs/版不一致rollback、消化source復元拒否と通常誤取消復元保持、別setの新ID/active競合、通知候補と配送直前除外。
-- B：省略保持/doctor null解除/notes空とnull、status入力拒否、visit_type保存値保持、trimming4key/digest/preview end/manual override、旧無key/無版拒否、後続check-in明示/unknown停止、通常カルテ作成失敗・再利用とreceiptの分離。
-- 共通：strict decode/非正規ID/UUID、同key同内容replay・異内容conflict・CASだけ再確認、sticky unknown/busy/失権/他actor lookup、失敗binding anchor・claim loser・metadata失敗rollback、監査/receipt失敗、後日更新後の元receipt読取。
+- B：省略保持/doctor null解除/notes空とnull、status省略confirmed/明示pending/confirmed保持・他status/null拒否とContent一致、譲渡後pet owner解決/旧診療出典保持、visit_type保存値保持、trimming4key/digest/preview end/manual override、旧無key/無版拒否、後続check-in明示/unknown停止、通常カルテ作成失敗・再利用とreceiptの分離。
+- 共通：strict decode/非正規ID/UUID、同key同内容replay・異内容conflict・CASだけ再確認、sticky unknown/busy/失権/他actor lookup、失敗binding anchor・claim loser・metadata失敗rollback、監査/receipt失敗、後日更新後の元receipt読取、staff-global/clinic-booking/pet-intent順、初回commit後だけ旧/現owner tag再計算・replay非再実行。
 
 本稿は技術選定の公開で、API YAML/DDL/model/生成物/製品コード/実DBは未変更。実装・全writer受入・実機試験の完了を意味しない。
 
