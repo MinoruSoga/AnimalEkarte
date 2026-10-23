@@ -20,7 +20,7 @@
 
 既知・承認済みの未接続後続は528の「体格・料金単位を未設定へ戻すUI」1件。API/builderは表現可能だがside panelに解除操作がない。回答 `6dcdcb7a-2b82-4151-bc6c-c38a5a4eb2da` の延期は取消ではない。529は今回契約に追加製品修正不要。両票のruntime/DB/browser受入はNOT_RUNで、実装済みを実機PASSにしない。
 
-受領監査では両票assignees=[]、state_group=started、過去コメントはReviewを示す。状態・担当は変更しない。UI後続は既存528 / MM-HOSPITAL-OPTIONAL / D枠。明示的な新claimは未確認であり、新票・別PR作成を要求しない。
+受領監査では両票assignees=[]、state_group=started、過去コメントはReviewを示す。状態・担当は変更しない。2026-10-23の後続整理で、UI後続の受領先は**既存子[535 Ready](https://app.plane.so/baritechllc/browse/EMR-535/)**を再利用すると確認した。535を今日新規作成したのではなく、528直下に同内容の別子は不要。製品UI後続は既存535の1PRへ引き渡す意味であり、実装修正PRまで不要という意味ではない。[Ready整理記録](ready-gap-children-20261023.md#ready-gap-hospitalization)を参照。明示claimは着手前に再確認する。
 
 <a id="master-clear-audit-adoption"></a>
 ## 証拠と採用履歴
@@ -58,7 +58,7 @@
 <a id="master-clear-audit-optional-ui-plan"></a>
 ## 528の限定UI後続案（未実装）
 
-既存528内で体格/料金単位Selectへ明示的「未設定」操作を追加する提案。空文字SelectItemを直接使わずUI専用sentinel→フォーム空文字→既存Update builderのnull送信を維持する。Createでは空フォームを省略へ写像しper_day既定を維持。対象はside panel、必要なら専有model、操作fixtureだけ。共通Select全体や他masterのnullable規律は変えない。
+既存528の子535で体格/料金単位Selectへ明示的「未設定」操作を追加する限定後続。実装は未完。空文字SelectItemを直接使わずUI専用sentinel→フォーム空文字→既存Update builderのnull送信を維持する。Createでは空フォームを省略へ写像しper_day既定を維持。対象はside panel、必要なら専有model、操作fixtureだけ。共通Select全体や他masterのnullable規律は変えない。
 
 受入期待値はsmall→未設定でbody_size:null、per_night→未設定でbilling_unit:null、保存失敗draft保持、再読込未設定、片方解除で他方保持、新規未選択はキー省略、0価格保持。API三値/POST既定/備考clearを再実装せず、BE/DDL/codegen/backfill/日数課金を追加しない。
 
