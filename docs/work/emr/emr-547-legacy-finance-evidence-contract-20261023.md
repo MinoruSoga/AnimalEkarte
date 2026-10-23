@@ -13,19 +13,21 @@
 | 参照 | 継承する境界 |
 |---|---|
 | [221 DESIGN](emr-221-import-contract-design/DESIGN.md) L34–36/55–71 | 原本identity/digestを固定、完全性と独立適格性を分ける提案、別revision原本保持、耐久receipt。同案を実装済み/正式import承認へ昇格しない |
-| [CLINIC_CSV_IMPORT](../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L117–123/293–300 | 既存formal v1/profileのstrict検査、MIG-41唯一producer、quarantine/PHI保護、fresh-only/band保護。未知版fallback/自己申告modeを追加しない |
+| [CLINIC_CSV_IMPORT](../../ops/deploy/seeds/CLINIC_CSV_IMPORT.md) L117–123/293–300 | 既存formal v1/profileのstrict検査、MIG-41がproducer作業項目を所有する既存境界、quarantine/PHI保護、fresh-only/band保護。未知版fallback/自己申告modeを追加しない |
 | [会計正本](../../spec/domains/accounting/lifecycle.md)・[会計技術仕様](../../design/domains/accounting/technical-spec.md) | 通常請求確定・実受領/配賦・返金・原子receiptは正規根拠とownerに従い、証拠参照で代替しない |
 | [見積正本](../../spec/domains/estimates/business-rules.md)・[507/508契約](emr-507-508-selected-wire-contract-20261021.md) | 提示/計算revisionの意味が定まった型を維持し、未知旧割引値を無定義JSONへ詰めない |
 
-| owner | 本件の必要subset・除外 |
+| 作業項目owner | 本件の必要subset・除外 |
 |---|---|
 | 547 | 製品側immutable evidence保存、限定importer接続要求、read-only一覧/詳細UI。既存票/実装sessionへ無断追加しない |
-| 349 | 配置・bundle受領・preflight/importの唯一owner。547が別import実行経路を作らない |
+| 349 | 配置・bundle受領・preflight/importの唯一の作業項目owner。547が別import実行経路を作らず、349という票を実行主体に読み替えない |
 | 221 | 版付きevidence-only受領契約、identity/digests/独立適格性/receiptとの整合 |
 | 446/466 | 必要物理保存schema、clinic複合FK/unique/RLS/immutable/index/model/ERDを受領・統合。架空物理名を予約しない |
-| MIG-41 | producerの唯一候補生成、source mapping/原本bytes/pins/receipt引渡し。実行済みと推測しない |
+| MIG-41 | producer作業項目ownerとして候補生成・source mapping/原本bytes/pins/receipt引渡しを追跡。実producerはold_db HAC-CSV-1/HAC-PIPELINE-1で、MIG-41という票自体が生成処理を実行する意味ではない。実行済みと推測しない |
 | 361 | 同一runのN1画面/復旧実機受入。製品保存/read API/UIの実装ownerではない |
 | 505/508 | 正式会計/見積writer/reader・未請求候補/集計からの分離、lineageと許可されたリンクの境界 |
+
+実行時のproducerはold_dbのHAC-CSV-1/HAC-PIPELINE-1、consumerはAnimalEkarte側のEMR-221契約に従う取込経路。配置/preflight/importの実装手順は既存CLINIC_CSV_IMPORTのscript/consumer経路を参照する。実際の操作者・対象環境・個別実行許可は同runで確認が必要で、今回未確認。作業項目ownerやdocs上の責務を実行済み証跡/操作者名の代わりにしない。
 
 ## 2. 保存方針：別immutable evidenceの3役割
 
@@ -63,7 +65,7 @@ presence（value/null/empty/unavailable）、文字列としての元値、意�
 | provenance自体不明、bytes digest不一致、医院不明 | quarantine維持。製品保存受入で正当化しない |
 | 通常台帳へのformal import | 既存v1/profileのstrict完全性/税/親子/FK/payment/clinic/target等の全条件と既存owner判断を維持。本書から許可しない |
 
-evidence-onlyは**別名・版付きの明示契約**を221/MIG-41のproducer-consumerが選定してから接続する。具体version文字列/manifest exact/parserは未採択。既存v1を緩めず、manifest自己申告や不明payloadの内容からmodeを推定しない。rehearsal pinや既存partial formal拒否をevidence-onlyの実装済み根拠にしない。
+evidence-onlyは**別名・版付きの明示契約**を221/MIG-41の作業項目ownerが実producer/consumer双方で整合させてから接続する。具体version文字列/manifest exact/parserは未採択。既存v1を緩めず、manifest自己申告や不明payloadの内容からmodeを推定しない。rehearsal pinや既存partial formal拒否をevidence-onlyの実装済み根拠にしない。
 
 fresh-only/ID band/既存import prefix/lockの規約は対象profileの既存契約を維持し、本件保存で変更しない。通常台帳/証拠保存/除外集合/受入receiptの母集団を合算せず、source不足の事実を消さない。
 
