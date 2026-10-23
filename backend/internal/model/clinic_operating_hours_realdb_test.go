@@ -106,6 +106,59 @@ func TestClinicOperatingHoursRealDB(t *testing.T) {
 		db.Exec(`UPDATE clinic_operating_hours SET version = 99 WHERE clinic_id = ?`, clinicA).Error,
 		"23514")
 
+	// Negative storage cases. Every statement must be rejected, and none may
+	// leave a row behind. clinicC never receives a valid row, so a stray insert
+	// is detectable; the duplicate-PK case targets clinicA's existing row.
+	clinicC := lineTimeSeedClinic(t, db, "008-common-c")
+	sixDays := `[{"weekday":0,"intervals":[]},{"weekday":1,"intervals":[]},{"weekday":2,"intervals":[]},{"weekday":3,"intervals":[]},{"weekday":4,"intervals":[]},{"weekday":5,"intervals":[]}]`
+	eightDays := lineTimeSevenWeekdayJSON[:len(lineTimeSevenWeekdayJSON)-1] + `,{"weekday":7,"intervals":[]}]`
+	validWeekly := `'` + lineTimeSevenWeekdayJSON + `'`
+	rejectedInserts := []struct {
+		name   string
+		code   string
+		values string
+	}{
+		{"weekly_hours with 6 elements", "23514", `'clinic-operating-hours/v1', DEFAULT, '` + sixDays + `', '[]', false`},
+		{"weekly_hours with 8 elements", "23514", `'clinic-operating-hours/v1', DEFAULT, '` + eightDays + `', '[]', false`},
+		{"weekly_hours empty array", "23514", `'clinic-operating-hours/v1', DEFAULT, '[]', '[]', false`},
+		{"closed_dates not an array", "23514", `'clinic-operating-hours/v1', DEFAULT, ` + validWeekly + `, '{}', false`},
+		{"version zero", "23514", `'clinic-operating-hours/v1', 0, ` + validWeekly + `, '[]', false`},
+		{"wrong schema_version marker", "23514", `'clinic-operating-hours/v2', DEFAULT, ` + validWeekly + `, '[]', false`},
+		{"NULL weekly_hours", "23502", `'clinic-operating-hours/v1', DEFAULT, NULL, '[]', false`},
+		{"NULL closed_dates", "23502", `'clinic-operating-hours/v1', DEFAULT, ` + validWeekly + `, NULL, false`},
+		{"NULL national_holiday_closed", "23502", `'clinic-operating-hours/v1', DEFAULT, ` + validWeekly + `, '[]', NULL`},
+	}
+	for _, tc := range rejectedInserts {
+		lineTimeRequirePgCode(t,
+			db.Exec(`
+				INSERT INTO clinic_operating_hours
+					(clinic_id, schema_version, version, weekly_hours, closed_dates, national_holiday_closed)
+				VALUES (?, `+tc.values+`)`, clinicC).Error,
+			tc.code)
+	}
+
+	// national_holiday_closed has no DEFAULT: omitting it is NOT NULL (23502).
+	lineTimeRequirePgCode(t,
+		db.Exec(`
+			INSERT INTO clinic_operating_hours (clinic_id, schema_version, weekly_hours, closed_dates)
+			VALUES (?, 'clinic-operating-hours/v1', ?, '[]')`,
+			clinicC, lineTimeSevenWeekdayJSON).Error,
+		"23502")
+
+	// clinic_id is the PK: a second row for the same clinic is rejected (23505).
+	lineTimeRequirePgCode(t,
+		db.Exec(`
+			INSERT INTO clinic_operating_hours
+				(clinic_id, schema_version, weekly_hours, closed_dates, national_holiday_closed)
+			VALUES (?, 'clinic-operating-hours/v1', ?, '[]', false)`,
+			clinicA, lineTimeSevenWeekdayJSON).Error,
+		"23505")
+
+	require.NoError(t, db.Raw(`SELECT count(*) FROM clinic_operating_hours WHERE clinic_id = ?`, clinicC).Scan(&count).Error)
+	require.Zero(t, count, "rejected inserts must leave no row for clinic C")
+	require.NoError(t, db.Raw(`SELECT count(*) FROM clinic_operating_hours WHERE clinic_id = ?`, clinicA).Scan(&count).Error)
+	require.EqualValues(t, 1, count, "duplicate-PK rejection must keep clinic A at exactly one row")
+
 	// RLS policy exists.
 	var policies int64
 	require.NoError(t, db.Raw(`
