@@ -102,7 +102,7 @@
    "http_status": null,
    "expected_schema": "valid",
    "scenario": "対照: #806 の body_size/billing_unit 三値（null）を維持",
-   "semantic_expectation": "SQL NULL（未設定）へ戻す。EMR-528 既決の維持",
+   "semantic_expectation": "SQL NULL（未設定）へ戻す。EMR-528 既決の維持。PATCH 専用 schema の enum は null を明示（厳密 3.0.3 でも valid）",
    "verification": "NOT_RUN"
   },
   {
