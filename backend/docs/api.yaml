@@ -14,6 +14,8 @@ info:
 
     EMR-474/487の回復Slice Aはdiscovery query2本のみselected先行契約。runtime未実装。結果確認と保留のみで、新key再開・fenceを提供しない。
 
+    EMR-445 A01 の品目7種 is_bill_discount_excluded と medicine / examination-type / merchandise-item の version（応答必須・PATCH expected-version）は selected 先行契約。runtime 未実装（backend は EMR-447/449/456）。現行 runtime は PATCH の is_bill_discount_excluded を保存しない。
+
     ## 認証
     主メカニズムは **HttpOnly Cookie** ベース。フロントエンドは axios `withCredentials: true` で
     Cookie を自動送信する。`Authorization: Bearer <jwt>` ヘッダはミドルウェアの後方互換
@@ -5352,6 +5354,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
         version:
           type: integer
           format: int64
@@ -5360,6 +5363,7 @@ components:
           description: >-
             マスタ内容の版（EMR-445 A01 で追加。既存4種と同じ entity_version_guard 方式、初期1は今後の CAS 起点で過去版の復元ではない）。
             保存結果の応答は実保存版を返す。更新時は編集開始時の値を version として送信する。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。
     CreateMedicineRequest:
       type: object
       description: >-
@@ -5438,6 +5442,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateMedicineRequest:
       type: object
       description: >-
@@ -5531,12 +5536,14 @@ components:
           description: >-
             編集開始時の期待版（EMR-445 A01）。is_bill_discount_excluded を含む PATCH では必須、それ以外の PATCH でも送られた場合は必ず照合し無視しない。
             不一致は 409（既存4種と同じ競合応答）。version を省略した旧 PATCH は従来互換で受け付ける。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。
         is_bill_discount_excluded:
           type: boolean
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
             この field を含む PATCH では version（編集開始時の期待版）が必須。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     Vaccine:
       type: object
       required: [name, version, is_bill_discount_excluded]
@@ -5604,6 +5611,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     CreateVaccineRequest:
       type: object
       required: [name]
@@ -5636,6 +5644,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateVaccineRequest:
       type: object
       required: [version]
@@ -5675,6 +5684,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     AnimalSpecies:
       type: object
       required: [name]
@@ -5946,6 +5956,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     Procedure:
       type: object
       required: [name, version, is_bill_discount_excluded]
@@ -6022,6 +6033,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     CreateConsultationRequest:
       type: object
       required: [name]
@@ -6071,6 +6083,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateConsultationRequest:
       type: object
       required: [version]
@@ -6125,6 +6138,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     CreateProcedureRequest:
       type: object
       required: [name, anesthesia, tax_type]
@@ -6177,6 +6191,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateProcedureRequest:
       type: object
       required: [version]
@@ -6237,6 +6252,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     HospitalizationPlan:
       type: object
       required: [name]
@@ -6571,6 +6587,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
         version:
           type: integer
           format: int64
@@ -6579,6 +6596,7 @@ components:
           description: >-
             マスタ内容の版（EMR-445 A01 で追加。既存4種と同じ entity_version_guard 方式、初期1は今後の CAS 起点で過去版の復元ではない）。
             保存結果の応答は実保存版を返す。更新時は編集開始時の値を version として送信する。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。
     CreateExaminationTypeRequest:
       type: object
       description: >-
@@ -6609,6 +6627,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateExaminationTypeRequest:
       type: object
       description: >-
@@ -6645,12 +6664,14 @@ components:
           description: >-
             編集開始時の期待版（EMR-445 A01）。is_bill_discount_excluded を含む PATCH では必須、それ以外の PATCH でも送られた場合は必ず照合し無視しない。
             不一致は 409（既存4種と同じ競合応答）。version を省略した旧 PATCH は従来互換で受け付ける。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。
         is_bill_discount_excluded:
           type: boolean
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
             この field を含む PATCH では version（編集開始時の期待版）が必須。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     ExaminationTypeField:
       type: object
       required: [name]
@@ -6938,6 +6959,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     CreateCheckupTypeRequest:
       type: object
       required: [name]
@@ -6969,6 +6991,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateCheckupTypeRequest:
       type: object
       required: [version]
@@ -7007,6 +7030,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     Occupation:
       type: object
       required: [name]
@@ -7117,6 +7141,7 @@ components:
             全体割引の対象外設定の保存値（EMR-445 A01）。品目別の保険対象外・税・明細割引とは別。key は常に返し（omitempty なし）、
             true/false と既知未設定の null（業務上の適用値は false）を raw のまま表す。GET や無関係な保存で null を false へ書き換えない。
             旧応答の field 欠落・列未接続・読取失敗・元品目不明は unknown であり、false/null の成功応答を捏造しない。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
         version:
           type: integer
           format: int64
@@ -7125,6 +7150,7 @@ components:
           description: >-
             マスタ内容の版（EMR-445 A01 で追加。既存4種と同じ entity_version_guard 方式、初期1は今後の CAS 起点で過去版の復元ではない）。
             保存結果の応答は実保存版を返す。更新時は編集開始時の値を version として送信する。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。
     CreateMerchandiseItemRequest:
       type: object
       description: >-
@@ -7174,6 +7200,7 @@ components:
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時はサーバーが false を明示保存する（DB default・zero 値任せにしない）。
             true/false は指定値を保存する。null・真偽値以外は 400 で業務 write 0。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     UpdateMerchandiseItemRequest:
       type: object
       description: >-
@@ -7229,12 +7256,14 @@ components:
           description: >-
             編集開始時の期待版（EMR-445 A01）。is_bill_discount_excluded を含む PATCH では必須、それ以外の PATCH でも送られた場合は必ず照合し無視しない。
             不一致は 409（既存4種と同じ競合応答）。version を省略した旧 PATCH は従来互換で受け付ける。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。
         is_bill_discount_excluded:
           type: boolean
           description: >-
             全体割引の対象外設定（EMR-445 A01）。省略時は既存値（null/false/true）をすべて保持し、true/false は明示保存する（false を zero 値として skip しない）。
             null・真偽値以外は同梱項目も含め全体を 400 で無書込とし、null へ戻す操作は提供しない。
             この field を含む PATCH では version（編集開始時の期待版）が必須。
+            selected 先行契約・runtime 未実装（EMR-447/449/456 で実装）。現行 runtime は本 field を保存しない。
     ExaminationItem:
       type: object
       properties:
