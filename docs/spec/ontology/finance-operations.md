@@ -81,4 +81,4 @@
 
 ## 旧見積の移行原本証拠
 
-[移行原本証拠の共通定義](accounting.md#legacy-finance-evidence)を継承する。旧見積の割引raw/丸め値/変換規則・保険生成定数の由来を保持する証拠であり、提示済み原本や通常見積の計算revisionとは別。派生projection revisionや検証済みlinkの追加/訂正/撤回は原本不変の追記履歴として扱い、通常見積の編集/会計化を許可しない。[見積正本](../domains/estimates/business-rules.md)と[547設計候補](../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)へ接続する。詳細closed schema/物理DDL/APIは未採択、実装/試験は未完（NOT_RUN）。
+[移行原本証拠の共通定義](accounting.md#legacy-finance-evidence)を継承する。旧見積の割引raw/丸め値/変換規則・保険生成定数の由来を保持する証拠であり、提示済み原本や通常見積の計算revisionとは別。派生projection revisionや検証済みlinkの追加/訂正/撤回は原本不変の追記履歴として扱い、通常見積の編集/会計化を許可しない。[見積正本](../domains/estimates/business-rules.md)と[547設計候補](../../design/domains/accounting/legacy-finance-evidence.md)へ接続する。詳細closed schema/物理DDL/APIは未採択、実装/試験は未完（NOT_RUN）。

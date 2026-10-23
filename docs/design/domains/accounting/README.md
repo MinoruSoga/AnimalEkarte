@@ -22,3 +22,8 @@
 支払方法停止の追加7ACは[追加設計](technical-spec.md#accounting-inactive-payment-design)へ対応する。既存144AC本文・IDとレビュー履歴は保持し、追加差分も独立内容レビュー・限定構造検査済み。新受領の選択／保存時検査と過去参照・集計を分離し、既存資金の配分・充当／解除・返金へ新受領のgateを一律適用しない。方法追加・ENUM廃止・初期値／移行は本合意から確定しない。
 
 品目別保険設定は[保存・読取・会計引継ぎ設計](technical-spec.md#accounting-item-insurance-design)へ。診察・処置・予防・健診を薬剤・検査の既存設定と整合させ、実適用／資格／補償保証や全体割引除外とは独立に扱う。新規4種別の新規登録は保険対象外を初期値とし、既存明示値を保持する。旧欠落値の解釈・変換は後続の移行課題として管理し、新規機能の採否未決へ戻さず、snapshot・明示再適用／訂正保護を維持する。
+
+<a id="legacy-finance-evidence-design-entry"></a>
+## 移行原本証拠の保存・閲覧設計（EMR-547）
+
+[legacy-finance-evidence.md](legacy-finance-evidence.md#legacy-evidence-purpose-and-ownership)に原本occurrence/派生版の多対多lineage、identity、関連検証、read候補、producer報告の受領と設計残を置く。[会計FR/6AC](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)と[見積FR/1AC](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)を実現する技術候補であり、closed wire/DDL/APIは未採択、実装/試験NOT_RUN。旧work pathは実施記録の索引のみ。

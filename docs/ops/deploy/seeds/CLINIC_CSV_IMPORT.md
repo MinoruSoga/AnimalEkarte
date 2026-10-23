@@ -302,7 +302,7 @@ consumer（現行 HEAD 観測値）の契約 digest:
 
 上記「MIG-41 が唯一の producer」は既存formal手順のproducer作業責務・唯一窓口を示す。old_db HAC-CSV-1/HAC-PIPELINE-1のproducer責務とAnimalEkarteの現行csvimport/script経路を、作業票番号そのものや実際の操作者と同一視しない。各runの実行bindingは承認profile・producer/consumerの固定SHA・source/run/build/hash・mapping・完全receiptで照合する既存gateを維持し、別producerや未承認profileの許可へ読み替えない。
 
-[EMR-547のevidence-only保存設計](../../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)と[221の引渡し案](../../../work/emr/emr-221-import-contract-design/DESIGN.md#legacy-finance-evidence-handoff)への対応は候補で、新契約の正確なproducer SHA/mapping/実行receipt/bindingは未受領。本runbookの既存経路は新保存経路の接続済み・実行済みを確定しない。formalの安全gate、fresh-only/band保護、人手実行許可は変更せず、新evidence-onlyの利用を許可しない。
+[EMR-547のevidence-only保存設計](../../../design/domains/accounting/legacy-finance-evidence.md)と[221の引渡し案](../../../work/emr/emr-221-import-contract-design/DESIGN.md#legacy-finance-evidence-handoff)への対応は候補で、現行producer main `a38e71f904460ba3d33194e817bafcbb78886d0c`と静的mapping報告は設計入力として受領済みだが、新sidecarのclosed mapping/実artifact binding/実行receiptは未受領。本runbookの既存経路は新保存経路の接続済み・実行済みを確定しない。formalの安全gate、fresh-only/band保護、人手実行許可は変更せず、新evidence-onlyの利用を許可しない。
 
 ### 配置の現行形態（旧票記載との差異）
 
