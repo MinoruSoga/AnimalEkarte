@@ -23,11 +23,11 @@
 | 349 | 配置・bundle受領・preflight/importの唯一の作業項目owner。547が別import実行経路を作らず、349という票を実行主体に読み替えない |
 | 221 | 版付きevidence-only受領契約、identity/digests/独立適格性/receiptとの整合 |
 | 446/466 | 必要物理保存schema、clinic複合FK/unique/RLS/immutable/index/model/ERDを受領・統合。架空物理名を予約しない |
-| MIG-41 | producer作業項目ownerとして候補生成・source mapping/原本bytes/pins/receipt引渡しを追跡。実producerはold_db HAC-CSV-1/HAC-PIPELINE-1で、MIG-41という票自体が生成処理を実行する意味ではない。実行済みと推測しない |
+| MIG-41 | producer作業項目ownerとして候補生成・source mapping/原本bytes/pins/receipt引渡しを追跡。既存producer責務はold_db HAC-CSV-1/HAC-PIPELINE-1にあるが、新evidence-onlyへの対応は候補で、正確なproducer SHA/mapping/実行receipt/bindingは未受領。MIG-41という票自体が生成処理を実行する意味ではない |
 | 361 | 同一runのN1画面/復旧実機受入。製品保存/read API/UIの実装ownerではない |
 | 505/508 | 正式会計/見積writer/reader・未請求候補/集計からの分離、lineageと許可されたリンクの境界 |
 
-実行時のproducerはold_dbのHAC-CSV-1/HAC-PIPELINE-1、consumerはAnimalEkarte側のEMR-221契約に従う取込経路。配置/preflight/importの実装手順は既存CLINIC_CSV_IMPORTのscript/consumer経路を参照する。実際の操作者・対象環境・個別実行許可は同runで確認が必要で、今回未確認。作業項目ownerやdocs上の責務を実行済み証跡/操作者名の代わりにしない。
+既存runbookに記録されたold_db HAC-CSV-1/HAC-PIPELINE-1のproducer責務と、AnimalEkarteの現行csvimportの配置/preflight/import経路は既存範囲の事実として区別する。これらを新しいEMR-221案/547 evidence-only保存へ接続する対応は候補であり、正確なproducer SHA/source mapping/実行receipt/producer-consumer bindingは未受領。既存CLINIC_CSV_IMPORTのscript/consumer経路が実在することだけでは、新契約への接続済み・実行済みを証明しない。実際の操作者・対象環境・個別実行許可は同runで確認が必要で、今回未確認。作業項目ownerやdocs上の責務を実行済み証跡/操作者名の代わりにしない。
 
 ## 2. 保存方針：別immutable evidenceの役割
 

@@ -20,7 +20,7 @@ v2 を導入しても、現在の八王子 bundle は正式取込不可のまま
 
 ## 2026-10-23の製品側保存/閲覧への引渡し
 
-[EMR-547のlegacy finance evidence設計方針](../emr-547-legacy-finance-evidence-contract-20261023.md)へ、旧会計/見積のraw・意味不明・変換由来・verified link履歴を製品内で保全/閲覧する7ACと受領責務を分離した。547は製品保存/read-only API/UIの作業項目、349は配置/preflight/importの作業項目owner、361は同一runの画面/復旧受入の作業項目owner、MIG-41はproducer作業項目owner。実行時のproducerはold_dbのHAC-CSV-1/HAC-PIPELINE-1、consumerはAnimalEkarteのEMR-221契約に従う取込経路である。配置/importは既存runbookのscript/consumer経路で実行し、349という票や担当名を実行主体に読み替えない。実際の操作者・環境・実行許可は同runで別途確認が必要で、本作業では未確認。221の原本identity/digest/独立適格性/耐久receipt提案と接続するが、evidence-onlyの別名版付きclosed契約/物理DDL/APIは未採択。既存v1/formal・fresh-only/band保護を緩和せず、quarantine配置だけで製品閲覧完成/正式取込可としない。本節はdocsのみ、実装/実行NOT_RUN。
+[EMR-547のlegacy finance evidence設計方針](../emr-547-legacy-finance-evidence-contract-20261023.md)へ、旧会計/見積のraw・意味不明・変換由来・verified link履歴を製品内で保全/閲覧する7ACと受領責務を分離した。547は製品保存/read-only API/UIの作業項目、349は配置/preflight/importの作業項目owner、361は同一runの画面/復旧受入の作業項目owner、MIG-41はproducer作業項目owner。既存runbookのold_db HAC-CSV-1/HAC-PIPELINE-1のproducer責務と、AnimalEkarteの現行csvimport/script経路は既存範囲の事実である。一方、本案/547の新evidence-only保存へ接続する対応は候補で、正確なproducer SHA/source mapping/実行receipt/producer-consumer bindingは未受領。既存csvimportの実在を新契約の接続済み・実行済みと読み替えず、349という票や担当名も実行主体に読み替えない。実際の操作者・環境・実行許可は同runで別途確認が必要で、本作業では未確認。221の原本identity/digest/独立適格性/耐久receipt提案と接続するが、evidence-onlyの別名版付きclosed契約/物理DDL/APIは未採択。既存v1/formal・fresh-only/band保護を緩和せず、quarantine配置だけで製品閲覧完成/正式取込可としない。本節はdocsのみ、実装/実行NOT_RUN。
 
 ## 確認した証拠と範囲
 
