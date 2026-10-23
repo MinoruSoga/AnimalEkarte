@@ -50,10 +50,12 @@ CREATE TRIGGER line_staff_start_policies_storage_version
     BEFORE UPDATE ON line_staff_start_policies
     FOR EACH ROW EXECUTE FUNCTION app_private.entity_version_guard();
 
--- Physical delete is forbidden: DELETE only tombstones (deleted_at + version+1).
+-- Physical delete is forbidden: a DELETE is refused; removal is the UPDATE that
+-- sets deleted_at (tombstone, version+1).
 -- app_private.contract_history_immutable() has a different message/semantics
 -- ('contract history cannot be changed or deleted'), so a dedicated function
--- carries the contract-mandated message (precedent: revisit_intake_reject_mutation).
+-- carries this migration's own message wording; the contract mandates no
+-- message text (precedent: revisit_intake_reject_mutation).
 CREATE FUNCTION app_private.line_staff_start_policy_no_delete()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
