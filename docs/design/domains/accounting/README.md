@@ -4,6 +4,8 @@
 
 読む順：業務正本と[語彙](../../../spec/ontology/accounting.md) → [技術仕様](technical-spec.md) → 現行API／コード。確定した業務と提案する実現方式、未決業務を分ける。[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)・[write-owner](../../../architecture/model-write-owner-catalog.md)を再定義しない。
 
+[医師確認集合の非活性内部契約](doctor-review-internal-projection.md#review-internal-scope)は2026-10-23選定。承認済みidentity/数量/record集合だけの失効signature/digestと純粋世代参加、確認時限定signature不変保存の論理方向、T03/T06共用医師reader再利用方向だけを扱う。metadata/技術link-onlyでは失効させず、新current列の自動採用は撤回。既存481 snapshotは現在採用identityを証明できる場合のみ再利用する。実DB known provider・確認時signatureの物理保存・HTTP・確認/Return/Complete・全writer閉包・試験/activationは未供給で、製品Readyではない。
+
 [預り金の初回受領・同口座再読込](owner-deposit-initial-receipt.md)は2026-10-23選定済みの限定技術契約。予約指定なし・新実受領1件全額のbackend単位だけを扱い、共有供給/実装/試験/利用開始は未完。506一般公開wire／全fund CASと509締め設計の採択ではない。
 
 予約・受付・カルテの確定済み境界、保存§2、通常Undo停止を維持する。締め内部はD12、見積はD11、在庫はD13、税・端数の計算方針は[第五群の計算契約](../../../spec/domains/accounting/lifecycle.md#accounting-calculation-order)へ従い、品目の税務分類・税務適合全体の確認は医院へ残す。保険の資格／残限度・負担額はスタッフ確認・記録とし、会社／商品別の自動給付算式は将来の別スコープ。正本索引への掲載は実装や運用開始の承認ではない。
